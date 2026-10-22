@@ -1,14 +1,14 @@
-const VERSION = 6062;
-const LAYER_ID = 'bp2300-rain-world-volume-v6062';
-const GROUND_SOURCE = 'bp2300-rain-ground-source-v6062';
-const WET_LAYER = 'bp2300-rain-wet-ground-v6062';
-const PUDDLE_LAYER = 'bp2300-rain-puddle-fill-v6062';
-const PUDDLE_GLINT = 'bp2300-rain-puddle-glint-v6062';
+const VERSION = 6064;
+const LAYER_ID = 'bp2300-rain-world-volume-v6064';
+const GROUND_SOURCE = 'bp2300-rain-ground-source-v6064';
+const WET_LAYER = 'bp2300-rain-wet-ground-v6064';
+const PUDDLE_LAYER = 'bp2300-rain-puddle-fill-v6064';
+const PUDDLE_GLINT = 'bp2300-rain-puddle-glint-v6064';
 const EARTH_CIRCUMFERENCE = 40075016.68557849;
 const RAD = Math.PI / 180;
 const MOBILE = (typeof innerWidth === 'number' && innerWidth <= 760) ||
   /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent || '');
-const MAX_DROPS = MOBILE ? 480 : 1180;
+const MAX_DROPS = MOBILE ? 1600 : 6000;
 const FLOATS_PER_VERTEX = 5;
 const vertexData = new Float32Array(MAX_DROPS * 6 * FLOATS_PER_VERTEX);
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -82,6 +82,11 @@ function puddlePolygon(lng, lat, rx, ry, rotation, seed, points = 9) {
 }
 function mercator(lng, lat, altitudeM) {
   const safeLat = clamp(lat, -85, 85), r = safeLat * RAD, unit = 1 / (EARTH_CIRCUMFERENCE * Math.max(0.12, Math.cos(r)));
+  const MC = window.maplibregl?.MercatorCoordinate || window.MapLibreGL?.MercatorCoordinate;
+  if (MC?.fromLngLat) {
+    const c = MC.fromLngLat({ lng, lat }, Math.max(0, altitudeM));
+    return { x: c.x, y: c.y, z: c.z, unit: c.meterInMercatorCoordinateUnits() };
+  }
   return {
     x: (lng + 180) / 360,
     y: (1 - Math.log(Math.tan(Math.PI / 4 + r / 2)) / Math.PI) / 2,
@@ -95,11 +100,12 @@ function firstLayer(map, ids) {
 }
 
 export function initRainLayer(map, getScene = () => ({})) {
-  if (map.__bpRainRendererV6062) return map.__bpRainRendererV6062;
+  if (map.__bpRainRendererV6064) return map.__bpRainRendererV6064;
   let enabled = true, buffer = null, bufferAllocated = false, vao = null, vaoExt = null, vaoMode = 'none';
   let programCache = new Map(), scene = {}, cells = [], drops = [], cellMemories = new Map();
   let animationRaf = 0, groundTimer = 0, lastRepaint = 0, vertexCount = 0;
   let rendererError = null, droppedFrames = 0, lastRenderAt = 0, lastGroundUpdate = 0, puddleCount = 0;
+  let lastProjectionMode = 'not-rendered', projectionUniformsBound = false;
   const timeOrigin = performance.now();
 
   function ensureGroundLayers() {
@@ -109,19 +115,19 @@ export function initRainLayer(map, getScene = () => ({})) {
       if (!map.getLayer(WET_LAYER)) map.addLayer({
         id: WET_LAYER, type: 'fill', source: GROUND_SOURCE, minzoom: 8,
         filter: ['==', ['get', 'kind'], 'wet-ground'],
-        paint: { 'fill-color': '#263e49', 'fill-opacity': ['interpolate', ['linear'], ['get', 'wetness'], 0, 0.015, 0.25, 0.055, 0.65, 0.095, 1, 0.14] }
+        paint: { 'fill-color': '#263e49', 'fill-opacity': ['interpolate', ['linear'], ['get', 'wetness'], 0, 0.025, 0.25, 0.075, 0.65, 0.14, 1, 0.19] }
       }, before);
       if (!map.getLayer(PUDDLE_LAYER)) map.addLayer({
         id: PUDDLE_LAYER, type: 'fill', source: GROUND_SOURCE, minzoom: 13.5,
         filter: ['==', ['get', 'kind'], 'puddle'],
         paint: { 'fill-color': ['match', ['get', 'shade'], 1, '#2b5b6b', 2, '#355a65', '#254b5d'],
-          'fill-opacity': ['interpolate', ['linear'], ['get', 'wetness'], 0, 0.015, 0.2, 0.1, 0.6, 0.2, 1, 0.29] }
+          'fill-opacity': ['interpolate', ['linear'], ['get', 'wetness'], 0, 0.025, 0.2, 0.19, 0.6, 0.34, 1, 0.48] }
       }, before);
       if (!map.getLayer(PUDDLE_GLINT)) map.addLayer({
         id: PUDDLE_GLINT, type: 'line', source: GROUND_SOURCE, minzoom: 14,
         filter: ['==', ['get', 'kind'], 'puddle'],
         paint: { 'line-color': '#a9deea', 'line-width': ['interpolate', ['linear'], ['zoom'], 14, 0.2, 17, 0.75, 20, 1.15],
-          'line-opacity': ['interpolate', ['linear'], ['get', 'wetness'], 0, 0.015, 0.25, 0.1, 0.7, 0.22, 1, 0.3], 'line-blur': 0.25 }
+          'line-opacity': ['interpolate', ['linear'], ['get', 'wetness'], 0, 0.025, 0.25, 0.18, 0.7, 0.38, 1, 0.58], 'line-blur': 0.25 }
       }, before);
       for (const id of [WET_LAYER, PUDDLE_LAYER, PUDDLE_GLINT]) {
         const current = map.getLayoutProperty?.(id, 'visibility');
@@ -163,7 +169,7 @@ export function initRainLayer(map, getScene = () => ({})) {
 
   function shaderInfo(gl, args) {
     const shaderData = args?.shaderData;
-    const webgl2 = typeof WebGL2RenderingContext !== 'undefined' && gl instanceof WebGL2RenderingContext;
+    const webgl2 = String(gl.getParameter(gl.VERSION) || '').includes('WebGL 2');
     const projectionAware = !!(webgl2 && shaderData && typeof shaderData.vertexShaderPrelude === 'string' &&
       shaderData.vertexShaderPrelude.length && typeof shaderData.define === 'string');
     const preamble = projectionAware ? shaderData.vertexShaderPrelude + '\n' + shaderData.define + '\n' : '';
@@ -208,7 +214,14 @@ export function initRainLayer(map, getScene = () => ({})) {
     }
     const info = { program, projectionAware,
       attrs: { pos: gl.getAttribLocation(program, 'a_pos'), altitude: gl.getAttribLocation(program, 'a_altitude'),
-        alpha: gl.getAttribLocation(program, 'a_alpha'), matrix: gl.getUniformLocation(program, 'u_matrix') } };
+        alpha: gl.getAttribLocation(program, 'a_alpha'), matrix: gl.getUniformLocation(program, 'u_matrix') },
+      uniforms: {
+        projectionMatrix: gl.getUniformLocation(program, 'u_projection_matrix'),
+        projectionFallbackMatrix: gl.getUniformLocation(program, 'u_projection_fallback_matrix'),
+        projectionTileMercatorCoords: gl.getUniformLocation(program, 'u_projection_tile_mercator_coords'),
+        projectionClippingPlane: gl.getUniformLocation(program, 'u_projection_clipping_plane'),
+        projectionTransition: gl.getUniformLocation(program, 'u_projection_transition')
+      } };
     programCache.set(key, info);
     return info;
   }
@@ -281,7 +294,7 @@ export function initRainLayer(map, getScene = () => ({})) {
     }).filter(Boolean);
     const view = center ? { lng: center.lng, lat: center.lat } : { lng: 0, lat: 0 };
     candidates.sort((a, b) => distanceMeters(a, view) - distanceMeters(b, view));
-    return candidates.slice(0, z >= 13 ? (MOBILE ? 2 : 4) : (MOBILE ? 3 : 6));
+    return candidates.slice(0, z >= 13 ? (MOBILE ? 4 : 8) : (MOBILE ? 5 : 10));
   }
 
   function makeDropSeeds(nextCells) {
@@ -299,8 +312,8 @@ export function initRainLayer(map, getScene = () => ({})) {
         const fallSpeedMps = 7.5 + hash(seedBase, i, 19) * 4.5;
         all.push({ lng, lat, groundM, baseAglM, windHeading: cell.wind.heading, windMps: cell.wind.mps,
           phase: hash(seedBase, i, 17), fallRate: fallSpeedMps / Math.max(300, baseAglM),
-          segmentM: 2.2 + hash(seedBase, i, 23) * 5.5, widthM: 0.12 + hash(seedBase, i, 29) * 0.12,
-          alpha: 0.40 + hash(seedBase, i, 31) * 0.32 });
+          segmentM: 18 + hash(seedBase, i, 23) * 42, widthM: 0.16 + hash(seedBase, i, 29) * 0.20,
+          alpha: 0.54 + hash(seedBase, i, 31) * 0.34 });
       }
     }
     return all;
@@ -320,7 +333,7 @@ export function initRainLayer(map, getScene = () => ({})) {
     for (const d of drops) {
       if (n >= MAX_DROPS * 6) break;
       const screenScaleM = metersPerPixel(d.lat, zoom);
-      const segmentM = Math.min(d.baseAglM * 0.72, Math.max(d.segmentM, screenScaleM * 3.8));
+      const segmentM = Math.min(d.baseAglM * 0.72, Math.max(d.segmentM, screenScaleM * 12));
       const phase = mod(d.phase + seconds * d.fallRate, 1);
       const fallAgl = d.baseAglM * (1 - phase), lowerAgl = Math.max(0, fallAgl - segmentM);
       const shiftM = Math.min(220, d.windMps * (d.baseAglM - fallAgl) / Math.max(5, 8.5));
@@ -333,7 +346,7 @@ export function initRainLayer(map, getScene = () => ({})) {
       const bLat = clamp(lat + Math.cos(d.windHeading) * tiltM / 111320, -84, 84);
       const bLng = lng + Math.sin(d.windHeading) * tiltM / (111320 * Math.max(0.12, Math.cos(bLat * RAD)));
       const b = mercator(bLng, bLat, bottomAlt);
-      const adaptiveWidthM = Math.max(d.widthM, metersPerPixel(lat, zoom) * 0.58);
+      const adaptiveWidthM = Math.max(d.widthM, metersPerPixel(lat, zoom) * 0.88);
       const halfW = c.unit * adaptiveWidthM * 0.5, halfSide = c.unit * adaptiveWidthM * 0.06;
       const lx = Math.cos(d.windHeading) * halfW, ly = -Math.sin(d.windHeading) * halfW;
       const bx = Math.sin(d.windHeading) * halfSide, by = Math.cos(d.windHeading) * halfSide;
@@ -373,14 +386,28 @@ export function initRainLayer(map, getScene = () => ({})) {
       gl.enableVertexAttribArray(a.pos); gl.vertexAttribPointer(a.pos, 3, gl.FLOAT, false, stride, 0);
       gl.enableVertexAttribArray(a.altitude); gl.vertexAttribPointer(a.altitude, 1, gl.FLOAT, false, stride, 3 * 4);
       gl.enableVertexAttribArray(a.alpha); gl.vertexAttribPointer(a.alpha, 1, gl.FLOAT, false, stride, 4 * 4);
-      if (!info.projectionAware && info.attrs.matrix) gl.uniformMatrix4fv(info.attrs.matrix, false, matrix);
+      if (info.projectionAware) {
+        const p = args?.defaultProjectionData;
+        if (!p) throw new Error('MapLibre projection uniforms unavailable for 3D rain');
+        gl.uniformMatrix4fv(info.uniforms.projectionMatrix, false, p.mainMatrix);
+        gl.uniformMatrix4fv(info.uniforms.projectionFallbackMatrix, false, p.fallbackMatrix);
+        gl.uniform4fv(info.uniforms.projectionTileMercatorCoords, p.tileMercatorCoords);
+        gl.uniform4fv(info.uniforms.projectionClippingPlane, p.clippingPlane);
+        gl.uniform1f(info.uniforms.projectionTransition, p.projectionTransition);
+        lastProjectionMode = 'maplibre-projectTileFor3D';
+        projectionUniformsBound = true;
+      } else {
+        if (info.attrs.matrix) gl.uniformMatrix4fv(info.attrs.matrix, false, matrix);
+        lastProjectionMode = 'main-matrix-fallback';
+        projectionUniformsBound = false;
+      }
       gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL); gl.depthMask(false);
       gl.enable(gl.BLEND); gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
       gl.disable(gl.CULL_FACE);
       gl.drawArrays(gl.TRIANGLES, 0, n);
       lastRenderAt = Date.now(); rendererError = null;
     } catch (e) {
-      droppedFrames++; rendererError = String(e?.stack || e).slice(0, 320);
+      droppedFrames++; projectionUniformsBound = false; rendererError = String(e?.stack || e).slice(0, 320);
     } finally { restoreGL(gl, saved); }
   }
 
@@ -403,10 +430,10 @@ export function initRainLayer(map, getScene = () => ({})) {
     const canvas = map.getCanvas?.();
     if (z >= 13.5 && canvas && center) {
       const maxRadius = clamp(metersPerPixel(center.lat, z) * Math.min(canvas.clientWidth || 400, canvas.clientHeight || 700) * 0.26, 90, 850);
-      const spacing = MOBILE ? 46 : 38;
+      const spacing = MOBILE ? 32 : 28;
       const iy0 = Math.floor((center.lat * 111320) / spacing), ix0 = Math.floor((center.lng * 111320 * Math.cos(center.lat * RAD)) / spacing);
       const reach = Math.ceil(maxRadius / spacing) + 1;
-      const budget = MOBILE ? 56 : 176;
+      const budget = MOBILE ? 96 : 240;
       const localCells = ordered.filter(mem => mem.wetness > 0.09 && now - mem.lastRainAt <= 9 * 60 * 1000 &&
         distanceMeters(mem.cell, center) <= mem.cell.radiusM);
       let made = 0;
@@ -421,7 +448,7 @@ export function initRainLayer(map, getScene = () => ({})) {
           if (distanceMeters(at, center) > maxRadius) continue;
           const mem = localCells.find(m => distanceMeters(at, m.cell) <= m.cell.radiusM);
           if (!mem || hash(seed, 9, 4) > (MOBILE ? 0.34 : 0.42)) continue;
-          const size = 0.75 + hash(seed, 13, 3) * 3.2, length = size * (0.45 + hash(seed, 16, 5) * 0.65);
+          const size = clamp(metersPerPixel(lat, z) * (0.55 + hash(seed, 13, 3) * 1.55), 2.2, 26), length = size * (0.55 + hash(seed, 16, 5) * 0.9);
           const rotation = hash(seed, 19, 7) * Math.PI;
           features.push({ type: 'Feature',
             geometry: { type: 'Polygon', coordinates: [puddlePolygon(lng, lat, size, length, rotation, seed, 8)] },
@@ -489,10 +516,11 @@ export function initRainLayer(map, getScene = () => ({})) {
     animationRaf = 0;
   }
   function publishDiagnostic() {
-    const d = window.__BP_RAIN_RENDERER_V6062__ || (window.__BP_RAIN_RENDERER_V6062__ = {});
+    const d = window.__BP_RAIN_RENDERER_V6064__ || (window.__BP_RAIN_RENDERER_V6064__ = {});
     Object.assign(d, { version: VERSION, renderer: 'georeferenced-3D-rain-ribbons', enabled,
       worldAnchored: true, layerAttached: !!map.getLayer?.(LAYER_ID), shaderVariants: programCache.size,
-      rainCellCount: cells.length, particleSeeds: drops.length, activeVertices: vertexCount, puddleCount,
+      projectionAware: Array.from(programCache.values()).some(info => info.projectionAware), projectionMode: lastProjectionMode,
+      projectionUniformsBound, rainCellCount: cells.length, particleSeeds: drops.length, activeVertices: vertexCount, puddleCount,
       groundSourceAttached: !!map.getSource?.(GROUND_SOURCE), rendererError, droppedFrames, lastRenderAt,
       lastGroundUpdate, updatedAt: Date.now(), zoom: safeNum(map.getZoom?.(), 0) });
   }
@@ -521,11 +549,12 @@ export function initRainLayer(map, getScene = () => ({})) {
   });
   const api = { version: VERSION, map, setScene: refreshScene, setEnabled,
     get state() { return { version: VERSION, enabled, layerAttached: !!map.getLayer?.(LAYER_ID),
-      shaderVariants: programCache.size, rainCellCount: cells.length, particleSeeds: drops.length, activeVertices: vertexCount,
+      shaderVariants: programCache.size, projectionAware: Array.from(programCache.values()).some(info => info.projectionAware),
+       projectionMode: lastProjectionMode, projectionUniformsBound, rainCellCount: cells.length, particleSeeds: drops.length, activeVertices: vertexCount,
       anchorFingerprint: drops.slice(0, 8).map(d => `${d.lng.toFixed(5)},${d.lat.toFixed(5)},${d.baseAglM.toFixed(0)}`).join('|'),
       puddleCount, rendererError, droppedFrames, lastRenderAt, lastGroundUpdate, worldAnchored: true }; } };
-  map.__bpRainRendererV6062 = api;
-  window.__BP_RAIN_RENDERER_V6062__ = api;
+  map.__bpRainRendererV6064 = api;
+  window.__BP_RAIN_RENDERER_V6064__ = api;
   refreshScene(getScene?.() || {});
   return api;
 }

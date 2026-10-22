@@ -444,25 +444,34 @@ jobs:
           node --input-type=module --check < site/world-v2300-realism.js
           node --input-type=module --check < site/gis-core-orchestrator-v5910.js
           grep -Fq 'Real satellite bands. No AI-drawn pixels.' site/world-v2300-spectral-imagery.js
-          grep -Fq 'world-v2300-clouds.js?v=6058-rain-cloud-anchor' site/app.js
-          grep -Fq 'world-v2300-clouds.js?v=6058-rain-cloud-anchor' site/landing.js
-          grep -Fq 'world-v2300-weather.js?v=6063-legacy-screen-rain-retired' site/app.js
-          grep -Fq 'world-v2300-rain.js?v=6062-world-anchored-rain-streaks' site/world-v2300-weather.js
+          grep -Fq 'world-v2300-clouds.js?v=6064-weather-driven-rain-clouds' site/app.js
+          grep -Fq 'world-v2300-clouds.js?v=6064-weather-driven-rain-clouds' site/landing.js
+          grep -Fq 'world-v2300-weather.js?v=6064-cloud-projection-rain' site/app.js
+          grep -Fq 'world-v2300-rain.js?v=6064-cloud-projection-rain' site/world-v2300-weather.js
           grep -Fq 'retireLegacyScreenSpaceRain' site/world-v2300-weather.js
           grep -Fq '__BP_SCREEN_SPACE_RAIN_RETIRE_V6063__' site/world-v2300-weather.js
-          grep -Fq 'world-v2300-rain.js?v=6062-world-anchored-rain-streaks' site/app/world-v2300-weather.js
+          grep -Fq 'world-v2300-rain.js?v=6064-cloud-projection-rain' site/app/world-v2300-weather.js
           grep -Fq 'projectTileFor3D(a_pos.xy,a_altitude)' site/world-v2300-rain.js
           grep -Fq 'worldAnchored: true' site/world-v2300-rain.js
           grep -Fq "kind: 'puddle'" site/world-v2300-rain.js
           grep -Fq 'minzoom: 10' site/world-v2300-rain.js
-          grep -Fq 'const VERSION = 6062;' site/world-v2300-rain.js
+          grep -Fq 'const VERSION = 6064;' site/world-v2300-rain.js
           grep -Fq 'adaptiveWidthM' site/world-v2300-rain.js
-          grep -Fq 'screenScaleM * 3.8' site/world-v2300-rain.js
+          grep -Fq 'u_projection_fallback_matrix' site/world-v2300-rain.js
+          grep -Fq 'u_projection_tile_mercator_coords' site/world-v2300-rain.js
+          grep -Fq 'projectionUniformsBound' site/world-v2300-rain.js
+          grep -Fq 'const MAX_DROPS = MOBILE ? 1600 : 6000;' site/world-v2300-rain.js
+          grep -Fq 'return candidates.slice(0, z >= 13 ? (MOBILE ? 4 : 8) : (MOBILE ? 5 : 10));' site/world-v2300-rain.js
+          grep -Fq "'fill-opacity': ['interpolate', ['linear'], ['get', 'wetness'], 0, 0.025, 0.2, 0.19, 0.6, 0.34, 1, 0.48]" site/world-v2300-rain.js
+          grep -Fq 'const size = clamp(metersPerPixel(lat, z) * (0.55 + hash(seed, 13, 3) * 1.55), 2.2, 26)' site/world-v2300-rain.js
+          grep -Fq 'rainAnchorObservations.slice(0, MOBILE ? 4 : 8)' site/world-v2300-clouds.js
+          grep -Fq "window.addEventListener('bp2300:weather-updated', onWeatherUpdated)" site/world-v2300-clouds.js
+          grep -Fq 'screenScaleM * 12' site/world-v2300-rain.js
           grep -Fq 'thunder ? 9800 : 5600' site/world-v2300-rain.js
           grep -Fq 'baseAglM: clamp(safeNum(o.cloud_base_height_m ?? o.cloudBaseHeightM, thunder ? 1650 : 1050), 650, 4200)' site/world-v2300-rain.js
           grep -Fq "if(pr==='rain')return;" site/world-v2300-weather.js
           grep -Fq "'rain-cell'" site/world-v2300-clouds.js
-          grep -Fq 'world-v2300-weather.js?v=6063-legacy-screen-rain-retired' site/landing.js
+          grep -Fq 'world-v2300-weather.js?v=6064-cloud-projection-rain' site/landing.js
           grep -Fq 'bindWeatherVertexArray(gl,weatherVao,weatherVaoMode,weatherVaoExt)' site/world-v2300-weather.js
           grep -Fq 'isolatedVao' site/world-v2300-weather.js
           grep -Fq 'window.__BP_WEATHER_GL_HEALTH_V6057__' site/world-v2300-weather.js
@@ -472,9 +481,9 @@ jobs:
           grep -Fq 'hideLegacyNativeWeatherLayers(map)' site/world-v2300-weather.js
           grep -Fq "renderer:'v2300-cinematic-fx'" site/app.js
           grep -Fq "renderer:'isolated-webgl-particle-layer'" site/landing.js
-          grep -Fq 'world-v2300-weather.js?v=6063-legacy-screen-rain-retired' site/index.html
-          grep -Fq 'world-v2300-weather.js?v=6063-legacy-screen-rain-retired' site/app/index.html
-          grep -Fq 'world-v2300-weather.js?v=6063-legacy-screen-rain-retired' site/app/world-v2300-bootstrap.js
+          grep -Fq 'world-v2300-weather.js?v=6064-cloud-projection-rain' site/index.html
+          grep -Fq 'world-v2300-weather.js?v=6064-cloud-projection-rain' site/app/index.html
+          grep -Fq 'world-v2300-weather.js?v=6064-cloud-projection-rain' site/app/world-v2300-bootstrap.js
           grep -Fq 'world-v2300-time-slider.js?v=6055-early-layer-attach' site/app.js
           grep -Fq 'world-v2300-time-slider.js?v=6055-early-layer-attach' site/landing.js
           grep -Fq 'world-v2300-spectral-imagery.js?v=5934-world-controls' site/app.js

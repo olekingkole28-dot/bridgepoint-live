@@ -569,7 +569,7 @@ function generateGeometry() {
         const db = Math.hypot((Number(b.lng ?? b.longitude) - c.lng) * Math.cos(c.lat * Math.PI / 180), Number(b.lat ?? b.latitude) - c.lat);
         return da - db;
       });
-    for (const sample of rainAnchorObservations.slice(0, MOBILE ? 2 : 4)) {
+    for (const sample of rainAnchorObservations.slice(0, MOBILE ? 4 : 8)) {
       const lng = number(sample.lng, number(sample.longitude, NaN));
       const lat = number(sample.lat, number(sample.latitude, NaN));
       if (!Number.isFinite(lng) || !Number.isFinite(lat)) continue;
@@ -726,12 +726,19 @@ function scheduleGeometry(delay = 180) {
     publishState();
   }
   function onMoveEnd() { if (enabled) publishState(); }
+  function onWeatherUpdated() {
+    // Weather arrives after the global cloud field starts. Rebuild the local
+    // rain-cell cloud formations from the same observation coordinates/heights
+    // so precipitation has a real 3D cloud base over its reported rain footprint.
+    if (enabled && !disposed) scheduleGeometry(0);
+  }
   function onStyleData() { if (enabled && !map.getLayer?.(LAYER_ID)) { layerRetryAttempts = 0; addLayerIfReady(); } }
   function onLayerIdle() { if (enabled && !disposed && !map.getLayer?.(LAYER_ID)) { layerRetryAttempts = 0; addLayerIfReady(); } }
 
   map.on?.('moveend', onMoveEnd); map.on?.('zoomend', onMoveEnd); map.on?.('resize', onMoveEnd);
   map.on?.('styledata', onStyleData);
   map.on?.('style.load', onStyleData);
+  window.addEventListener('bp2300:weather-updated', onWeatherUpdated);
   map.on?.('load', onLayerIdle);
   map.on?.('idle', onLayerIdle);
   document.addEventListener('visibilitychange', onVisibility);
@@ -750,6 +757,7 @@ function scheduleGeometry(delay = 180) {
       stopAnimation(); clearTimeout(rebuildTimer); clearTimeout(refreshHandle); clearLayerRetry();
       map.off?.('moveend', onMoveEnd); map.off?.('zoomend', onMoveEnd); map.off?.('resize', onMoveEnd); map.off?.('styledata', onStyleData); map.off?.('style.load', onStyleData); map.off?.('load', onLayerIdle); map.off?.('idle', onLayerIdle);
       document.removeEventListener('visibilitychange', onVisibility); window.removeEventListener('bp:sky-cloud-toggle', onToggleEvent);
+      window.removeEventListener('bp2300:weather-updated', onWeatherUpdated);
       setWorldGrade(false);
       try { if (map.getLayer?.(LAYER_ID)) map.removeLayer(LAYER_ID); } catch (_) {}
       overlay.remove();

@@ -123,7 +123,7 @@ async function initSharedVisualWeather(targetWorld,{activate=true}={}){
  const styleReady=()=>{try{return map.isStyleLoaded?.()===true||!!map.getSource?.('ofm')}catch{return false}};
  if(!styleReady())await new Promise(resolve=>{let done=false;const finish=()=>{if(done)return;done=true;resolve()};map.once?.('load',finish);setTimeout(finish,5000)});
  try{
-  const wm=await import('./world-v2300-weather.js?v=6063-legacy-screen-rain-retired');
+  const wm=await import('./world-v2300-weather.js?v=6064-cloud-projection-rain');
   const weather=wm.initWeather(map,{deferActivation:!activate});
   let present=window.__bpPresentWeatherV2301||null;
   if(activate){
@@ -154,7 +154,7 @@ async function bootMap(){
  // initialization avoids a burst of source/layer changes during the first Gold LOD render.
  // Initialize the persistent global 3D cloud field as soon as the core map exists;
  // do not make the globe wait behind the idle-only optional module queue.
- void import('./world-v2300-clouds.js?v=6058-rain-cloud-anchor')
+ void import('./world-v2300-clouds.js?v=6064-weather-driven-rain-clouds')
   .then(m=>{if(world?.map)window.__BP_SKY_CLOUDS_V5908__=m.initSkyClouds(world)})
   .catch(e=>console.warn('BridgePoint global 3D cloud field unavailable',e));
  const optionalWorldJobs=[
