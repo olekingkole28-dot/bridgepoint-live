@@ -29,7 +29,7 @@ function makeShaders(webgl2) {
     (webgl2 ? 'in vec3 v_local;\nin float v_tint;\nout vec4 bpColor;\n' : 'varying vec3 v_local;\nvarying float v_tint;\n') +
     'uniform float u_time;\n' +
     'float noise3(vec3 p){vec3 q=floor(p);vec3 f=fract(p);f=f*f*(3.0-2.0*f);float n=q.x+q.y*57.0+q.z*113.0;float a=fract(sin(n)*43758.5453);float b=fract(sin(n+1.0)*43758.5453);float c=fract(sin(n+57.0)*43758.5453);float d=fract(sin(n+58.0)*43758.5453);float e=fract(sin(n+113.0)*43758.5453);float f1=fract(sin(n+114.0)*43758.5453);float g=fract(sin(n+170.0)*43758.5453);float h=fract(sin(n+171.0)*43758.5453);return mix(mix(mix(a,b,f.x),mix(c,d,f.x),f.y),mix(mix(e,f1,f.x),mix(g,h,f.x),f.y),f.z);}\n' +
-    'void main(){vec3 n=normalize(v_local);float edge=clamp(0.58+abs(v_local.z)*0.18,0.0,1.0);float broad=noise3(v_local*3.0+vec3(u_time*0.004,v_tint*1.7,0.0));float detail=noise3(v_local*7.0+vec3(u_time*0.018,v_tint*4.0,0.0));float billow=noise3(v_local*15.0+vec3(0.0,u_time*0.012,v_tint*8.0));float fine=noise3(v_local*27.0+vec3(u_time*0.008,v_tint*11.0,0.0));float diffuse=max(0.0,dot(n,normalize(vec3(-0.42,0.55,0.72))));float density=broad*0.42+detail*0.33+billow*0.25;float sculpt=smoothstep(0.22,0.66,density);float silver=clamp(0.24+diffuse*0.77+broad*0.08+detail*0.08+billow*0.05,0.0,1.0);vec3 lit=mix(vec3(0.27,0.37,0.47),vec3(0.95,0.98,1.0),silver);lit=mix(lit,vec3(0.84,0.89,0.95),pow(max(0.0,1.0-abs(dot(n,normalize(vec3(0.2,0.0,1.0))))),2.0)*0.16);float alpha=clamp(edge*(0.13+sculpt*0.37+diffuse*0.14+fine*0.07),0.025,0.60);' +
+    'void main(){vec3 n=normalize(v_local);float edge=clamp(0.58+abs(v_local.z)*0.18,0.0,1.0);float broad=noise3(v_local*3.0+vec3(u_time*0.004,v_tint*1.7,0.0));float detail=noise3(v_local*7.0+vec3(u_time*0.018,v_tint*4.0,0.0));float billow=noise3(v_local*15.0+vec3(0.0,u_time*0.012,v_tint*8.0));float fine=noise3(v_local*27.0+vec3(u_time*0.008,v_tint*11.0,0.0));float diffuse=max(0.0,dot(n,normalize(vec3(-0.42,0.55,0.72))));float density=broad*0.42+detail*0.33+billow*0.25;float sculpt=smoothstep(0.22,0.66,density);float silver=clamp(0.24+diffuse*0.77+broad*0.08+detail*0.08+billow*0.05,0.0,1.0);vec3 lit=mix(vec3(0.30,0.39,0.48),vec3(0.98,0.99,1.0),silver);lit=mix(lit,vec3(0.84,0.89,0.95),pow(max(0.0,1.0-abs(dot(n,normalize(vec3(0.2,0.0,1.0))))),2.0)*0.16);float alpha=clamp(edge*(0.18+sculpt*0.42+diffuse*0.16+fine*0.07),0.045,0.72);' +
     (webgl2 ? 'bpColor=vec4(lit,alpha);' : 'gl_FragColor=vec4(lit,alpha);') +
     '}';
   return { vertex, fragment };
@@ -198,8 +198,9 @@ export function initSkyClouds(target) {
     container.appendChild(overlay);
   }
 
-  let enabled = false, disposed = false, raf = 0, rebuildTimer = 0, refreshHandle = 0;
-  let lastFrame = 0, vertexData = new Float32Array(0), indexData = new Uint16Array(0);
+  let enabled = false, disposed = false, animationTimer = 0, rebuildTimer = 0, refreshHandle = 0;
+  let vertexData = new Float32Array(0), indexData = new Uint16Array(0);
+  let globalCloudGeometryCache = null;
   let geometryDirty = true, formationCount = 0, measuredCount = 0, funnelCount = 0, stormCount = 0;
   let heightSource = 'not connected', rendererError = null, program = null, vbo = null, ibo = null, glRef = null;
   let attrs = null, uniforms = null, layerInstalled = false, originalFog, fogCaptured = false;
@@ -214,10 +215,11 @@ export function initSkyClouds(target) {
   }
   function publishState() {
     const state = {
-      version: 6031, map, enabled, visible: enabled && !document.hidden,
+      version: 6045, map, enabled, visible: enabled && !document.hidden,
       kind: 'georeferenced 3D cloud-volume layer',
       renderer: 'single shared MapLibre WebGL context',
-      cloudFormations: formationCount, measuredCloudSamples: measuredCount,
+      cloudFormations: formationCount, globalCloudFormations: globalCloudGeometryCache?.formationCount || 0,
+      persistentGlobalCloudField: true, redrawIntervalMs: MOBILE ? 220 : 125, measuredCloudSamples: measuredCount,
       cloudHeightSource: heightSource,
       cloudHeightMode: measuredCount ? 'source-backed cloud-top height samples, with procedural fill between samples' : 'procedural altitude only; measured global cloud-top heights are not connected',
       warningFunnels: funnelCount, hurricaneStormVolumes: stormCount,
@@ -227,15 +229,16 @@ export function initSkyClouds(target) {
     window.__BP_SKY_CLOUDS_STATE_V5908__ = state;
     window.__BP_SKY_CLOUDS_STATE_V6029__ = state;
     window.__BP_SKY_CLOUDS_STATE_V6031__ = state;
+    window.__BP_SKY_CLOUDS_STATE_V6045__ = state;
     window.dispatchEvent(new CustomEvent('bp:sky-cloud-state', { detail: state }));
     return state;
   }
   function setWorldGrade(on) {
     if (canvas?.style) {
-      canvas.style.transition = 'filter .32s ease';
-      canvas.style.willChange = on ? 'filter' : originalWillChange;
-      canvas.style.filter = on ? 'contrast(1.16) saturate(.78) brightness(.91)' : originalFilter;
-      if (!on) canvas.style.transition = originalTransition;
+      // Do not post-process the entire map canvas; this keeps phone rendering responsive.
+      canvas.style.transition = originalTransition;
+      canvas.style.willChange = originalWillChange;
+      canvas.style.filter = originalFilter;
     }
     try {
       if (!fogCaptured) {
@@ -323,6 +326,47 @@ export function initSkyClouds(target) {
     }
   }
 
+  function buildGlobalCloudGeometry() {
+    if (globalCloudGeometryCache) return globalCloudGeometryCache;
+    const vertices = [], indices = [], candidates = [];
+    const columns = 40, rows = 18, maxGlobal = MOBILE ? 250 : 380;
+    for (let gy = 0; gy < rows; gy++) for (let gx = 0; gx < columns; gx++) {
+      const broad = hash(Math.floor(gx / 3), Math.floor(gy / 2), 901);
+      const fine = hash(gx, gy, 902);
+      if (broad * 0.58 + fine * 0.42 > 0.94) continue;
+      candidates.push({ gx, gy, rank: hash(gx, gy, 903), seed: hash(gx, gy, 904) });
+    }
+    candidates.sort((a, b) => a.rank - b.rank);
+    const formations = candidates.slice(0, maxGlobal);
+    for (let k = 0; k < formations.length; k++) {
+      const q = formations[k];
+      const lat = clamp(-76 + q.gy * (152 / (rows - 1)) + (hash(q.gx, q.gy, 905) - 0.5) * 4.2, -77, 77);
+      const lng = (((( -180 + q.gx * 9 + (hash(q.gx, q.gy, 906) - 0.5) * 5.2) + 180) % 360 + 360) % 360) - 180;
+      const latScale = Math.sqrt(Math.max(0.16, Math.cos(lat * Math.PI / 180)));
+      const radius = clamp(9 * 111320 * (0.39 + hash(q.gx, q.gy, 907) * 0.43) * latScale, 170000, 510000);
+      const top = 4100 + hash(q.gx, q.gy, 908) * 7600;
+      const base = Math.max(750, top * (0.29 + hash(q.gx, q.gy, 909) * 0.30));
+      for (let i = 0; i < 3; i++) {
+        const a = i * 2.399 + q.seed * 5.3;
+        const ring = i === 0 ? 0 : radius * (0.28 + hash(k, i, 910) * 0.31);
+        const puffLat = lat + Math.sin(a) * ring / 111320;
+        const puffLng = lng + Math.cos(a) * ring / (111320 * Math.max(0.12, Math.cos(lat * Math.PI / 180)));
+        const rx = radius * (i === 0 ? 1 : 0.44 + hash(k, i, 911) * 0.28);
+        const ry = radius * (i === 0 ? 0.74 : 0.42 + hash(k, i, 912) * 0.31);
+        const altitude = base + (top - base) * (i === 0 ? 0.48 : 0.24 + hash(k, i, 913) * 0.48);
+        const vertical = Math.max(950, (top - base) * (i === 0 ? 0.58 : 0.40 + hash(k, i, 914) * 0.20));
+        makePuffGeometry(null, MC, vertices, indices, puffLng, puffLat, altitude, rx, ry, vertical,
+          0.28 + hash(k, i, 915) * 0.52, 6, 4);
+      }
+    }
+    globalCloudGeometryCache = {
+      vertices: new Float32Array(vertices),
+      indices: new Uint16Array(indices),
+      formationCount: formations.length
+    };
+    return globalCloudGeometryCache;
+  }
+
   function generateGeometry() {
     if (disposed || !enabled) return;
     const bounds = map.getBounds?.();
@@ -330,9 +374,9 @@ export function initSkyClouds(target) {
     const z = number(map.getZoom?.()), west0 = number(bounds.getWest()), east0 = number(bounds.getEast());
     const south = clamp(number(bounds.getSouth(), -55), -78, 82), north = clamp(number(bounds.getNorth(), 70), -78, 82);
     const west = Math.min(west0, east0), east = Math.max(west0, east0);
-    const cell = z < 1.2 ? 9 : z < 3 ? 6.5 : z < 5 ? 2.7 : z < 7 ? 0.85 : z < 9 ? 0.27 : z < 11 ? 0.085 : z < 13 ? 0.026 : z < 15 ? 0.008 : 0.003;
+    const cell = z < 1.2 ? 9 : z < 3 ? 6.5 : z < 5 ? 2.7 : z < 7 ? 0.85 : z < 9 ? 0.27 : z < 11 ? 0.085 : z < 13 ? 0.035 : z < 15 ? 0.014 : 0.006;
     /* Keep the mesh under 16-bit index limits while increasing close-range shape detail. */
-    const maxForm = MOBILE ? (z < 2 ? 54 : 38) : (z < 2 ? 125 : z < 9 ? 105 : 95);
+    const maxForm = MOBILE ? (z < 5 ? 8 : 12) : (z < 5 ? 16 : 24);
     const vertices = [], indices = [], formations = [];
     measuredCount = 0; funnelCount = 0; stormCount = 0;
     const scene = getScene();
@@ -388,11 +432,11 @@ export function initSkyClouds(target) {
     /* Sample the full visible world before applying the mesh budget. The previous
        row-major loop hit its cloud cap in the first few rows, so globe-level
        clouds appeared in one band instead of across the full planet. */
-    const pad = cell * 1.4;
+    const pad = z >= 14 ? 0.09 : z >= 9 ? 0.18 : cell * 1.4;
     const lngStart = Math.floor((west - pad) / cell), lngEnd = Math.ceil((east + pad) / cell);
     const latStart = Math.floor((south - pad) / cell), latEnd = Math.ceil((north + pad) / cell);
     const gridX = Math.max(1, lngEnd - lngStart + 1), gridY = Math.max(1, latEnd - latStart + 1);
-    const totalCells = gridX * gridY, sampleCount = Math.min(totalCells, 12000);
+    const totalCells = gridX * gridY, sampleCount = Math.min(totalCells, z >= 9 ? 1800 : 3500);
     const candidates = [];
     for (let sample = 0; sample < sampleCount; sample++) {
       const linear = totalCells <= sampleCount ? sample : Math.floor((sample + 0.5) * totalCells / sampleCount);
@@ -422,8 +466,10 @@ export function initSkyClouds(target) {
     if (!formations.length) addFormation(number(map.getCenter?.()?.lng), number(map.getCenter?.()?.lat), 8000, 2200, 8500, 0.43);
 
     function puff(lng, lat, altitude, rx, ry, rz, seed, tint, detailed) {
+      const slices = detailed ? (z >= 12 ? 9 : 8) : 6;
+      const stacks = detailed ? (z >= 12 ? 6 : 5) : 4;
       makePuffGeometry(null, MC, vertices, indices, getLon(lng), clamp(lat, -82, 82),
-        altitude, rx, ry, rz, tint, detailed ? (z >= 9 ? 11 : 9) : 7, detailed ? (z >= 9 ? 7 : 6) : 5);
+        altitude, rx, ry, rz, tint, slices, stacks);
     }
     for (let k = 0; k < formations.length; k++) {
       const f = formations[k], n = MOBILE ? 3 : (z < 2 ? 6 : 5);
@@ -436,17 +482,25 @@ export function initSkyClouds(target) {
         const scaleY = i === 0 ? 0.76 : 0.44 + hash(k, i, 4) * 0.48;
         const altitude = f.baseM + (f.topM - f.baseM) * (i === 0 ? 0.42 : 0.18 + hash(k, i, 5) * 0.70);
         const vertical = Math.max(420, (f.topM - f.baseM) * (i === 0 ? 0.54 : 0.34 + hash(k, i, 6) * 0.20));
-        puff(lng, lat, altitude, f.radiusM * scaleX, f.radiusM * scaleY, vertical, f.seed, f.kind === 'hurricane' ? 0.84 : 0.22 + hash(k, i, 7) * 0.52, true);
+        puff(lng, lat, altitude, f.radiusM * scaleX, f.radiusM * scaleY, vertical, f.seed, f.kind === 'hurricane' ? 0.84 : 0.22 + hash(k, i, 7) * 0.52, z >= 5);
       }
       if (f.kind === 'funnel' && !MOBILE) makeFunnelGeometry(MC, vertices, indices, f.lng, f.lat, f.topM, 0.92);
     }
     /* Cap is intentionally bounded for low-memory phones; 16-bit indices avoid uint-index extensions. */
-    const vertexCount = Math.min(Math.floor(vertices.length / 7), 65530);
-    const cappedVertices = vertices.slice(0, vertexCount * 7);
-    const cappedIndices = indices.filter(i => i < vertexCount);
-    vertexData = new Float32Array(cappedVertices);
-    indexData = new Uint16Array(cappedIndices);
-    formationCount = formations.length;
+    const global = buildGlobalCloudGeometry();
+    const globalVertexCount = Math.floor(global.vertices.length / 7);
+    const localVertexCount = Math.min(Math.floor(vertices.length / 7), 65530 - globalVertexCount);
+    vertexData = new Float32Array(global.vertices.length + localVertexCount * 7);
+    vertexData.set(global.vertices, 0);
+    vertexData.set(vertices.slice(0, localVertexCount * 7), global.vertices.length);
+    const mergedIndices = new Uint16Array(global.indices.length + indices.length);
+    mergedIndices.set(global.indices, 0);
+    let mergedCount = global.indices.length;
+    for (const index of indices) {
+      if (index < localVertexCount && globalVertexCount + index < 65530) mergedIndices[mergedCount++] = globalVertexCount + index;
+    }
+    indexData = mergedCount === mergedIndices.length ? mergedIndices : mergedIndices.slice(0, mergedCount);
+    formationCount = global.formationCount + formations.length;
     geometryDirty = true;
     rendererError = null;
     publishState();
@@ -462,17 +516,16 @@ export function initSkyClouds(target) {
       }
     }, delay);
   }
-  function tick() {
-    if (disposed || !enabled || document.hidden) { raf = 0; return; }
-    const now = performance.now();
-    if (now - lastFrame >= (MOBILE ? 100 : 50)) {
-      lastFrame = now;
-      if (layerInstalled) map.triggerRepaint?.();
-    }
-    raf = requestAnimationFrame(tick);
+  function startAnimation() {
+    if (animationTimer || !enabled || document.hidden) return;
+    animationTimer = setInterval(() => {
+      if (!disposed && enabled && !document.hidden && layerInstalled) map.triggerRepaint?.();
+    }, MOBILE ? 220 : 125);
   }
-  function startAnimation() { if (!raf && enabled && !document.hidden) raf = requestAnimationFrame(tick); }
-  function stopAnimation() { if (raf) cancelAnimationFrame(raf); raf = 0; }
+  function stopAnimation() {
+    if (animationTimer) clearInterval(animationTimer);
+    animationTimer = 0;
+  }
 
   function setEnabled(value) {
     enabled = !!value;
@@ -508,10 +561,10 @@ export function initSkyClouds(target) {
   else map.once?.('load', addLayerIfReady);
 
   const api = {
-    version: 6031, map, overlay,
+    version: 6045, map, overlay,
     get enabled() { return enabled; },
     setEnabled, toggle,
-    get state() { return window.__BP_SKY_CLOUDS_STATE_V6031__ || window.__BP_SKY_CLOUDS_STATE_V6029__ || window.__BP_SKY_CLOUDS_STATE_V5908__ || null; },
+    get state() { return window.__BP_SKY_CLOUDS_STATE_V6045__ || window.__BP_SKY_CLOUDS_STATE_V6031__ || window.__BP_SKY_CLOUDS_STATE_V6029__ || window.__BP_SKY_CLOUDS_STATE_V5908__ || null; },
     destroy() {
       if (disposed) return; disposed = true;
       stopAnimation(); clearTimeout(rebuildTimer); clearTimeout(refreshHandle);
