@@ -153,8 +153,9 @@ jobs:
               await p.evaluate(()=>window.__bpWeatherV2300.refresh(true));
               await p.waitForFunction(()=>window.__bpWeatherV2300?.state?.counts?.alerts===3,{timeout:15000});
               await p.waitForFunction(()=>Number(window.__BP_SKY_CLOUDS_STATE_V5908__?.localCloudFormations||0)>0,{timeout:15000});
-              const stormCloudDiag=await p.evaluate(()=>{const s=window.__BP_SKY_CLOUDS_STATE_V5908__||{};return{version:s.version,globalThinLayerSlices:s.globalThinLayerSlices,globalThinLayerStacks:s.globalThinLayerStacks,globalMacroRadiusMaxKm:s.globalMacroRadiusMaxKm,hurricaneSpiralCloudCenters:s.hurricaneSpiralCloudCenters,hurricaneCloudShieldRadiusKm:s.hurricaneCloudShieldRadiusKm,rendererError:s.rendererError};});
+              const stormCloudDiag=await p.evaluate(()=>{const s=window.__BP_SKY_CLOUDS_STATE_V5908__||{};return{version:s.version,globalCloudFormations:s.globalCloudFormations,globalThinLayerSlices:s.globalThinLayerSlices,globalThinLayerStacks:s.globalThinLayerStacks,globalMacroRadiusMaxKm:s.globalMacroRadiusMaxKm,hurricaneSpiralCloudCenters:s.hurricaneSpiralCloudCenters,hurricaneCloudShieldRadiusKm:s.hurricaneCloudShieldRadiusKm,rendererError:s.rendererError};});
               console.log('BRIDGEPOINT_ROUNDED_GLOBAL_CLOUDS_AND_HURRICANE_SPIRAL_DIAG',JSON.stringify(stormCloudDiag));
+              assert(stormCloudDiag.globalCloudFormations>=1600,'mobile global field must retain approximately 1,620 formations');
               assert.equal(stormCloudDiag.globalThinLayerSlices,8,'thin global clouds must use a rounded eight-segment silhouette');
               assert.equal(stormCloudDiag.globalThinLayerStacks,2,'thin cloud geometry must stay thin and low-cost');
               assert(stormCloudDiag.globalMacroRadiusMaxKm>=560,'large global cloud banks must extend to a regional scale');
