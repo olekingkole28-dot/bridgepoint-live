@@ -440,8 +440,8 @@ jobs:
           node --input-type=module --check < site/world-v2300-realism.js
           node --input-type=module --check < site/gis-core-orchestrator-v5910.js
           grep -Fq 'Real satellite bands. No AI-drawn pixels.' site/world-v2300-spectral-imagery.js
-          grep -Fq 'world-v2300-clouds.js?v=6029-georeferenced-3d-clouds' site/app.js
-          grep -Fq 'world-v2300-clouds.js?v=6029-georeferenced-3d-clouds' site/landing.js
+          grep -Fq 'world-v2300-clouds.js?v=6030-instant-global-clouds' site/app.js
+          grep -Fq 'world-v2300-clouds.js?v=6030-instant-global-clouds' site/landing.js
           grep -Fq 'world-v2300-time-slider.js?v=6015-nasa-toggle-opt-in-layers' site/app.js
           grep -Fq 'world-v2300-time-slider.js?v=6015-nasa-toggle-opt-in-layers' site/landing.js
           grep -Fq 'world-v2300-spectral-imagery.js?v=5934-world-controls' site/app.js
