@@ -466,8 +466,9 @@ jobs:
           grep -Fq 'const size = clamp(metersPerPixel(lat, z) * (0.55 + hash(seed, 13, 3) * 1.55), 2.2, 26)' site/world-v2300-rain.js
           grep -Fq 'rainAnchorObservations.slice(0, MOBILE ? 4 : 8)' site/world-v2300-clouds.js
           grep -Fq "window.addEventListener('bp2300:weather-updated', onWeatherUpdated)" site/world-v2300-clouds.js
-          grep -Fq 'screenScaleM * 20' site/world-v2300-rain.js
-          grep -Fq 'metersPerPixel(lat, zoom) * 1.3' site/world-v2300-rain.js
+          grep -Fq 'screenScaleM * 2.6' site/world-v2300-rain.js
+          grep -Fq 'metersPerPixel(lat, zoom) * 0.78' site/world-v2300-rain.js
+          grep -Fq 'segmentM: 7 + hash(seedBase, i, 23) * 12' site/world-v2300-rain.js
           grep -Fq 'else radiusM = thunder ? 3200 : 2200;' site/world-v2300-rain.js
           grep -Fq '(thunderstorm ? 3200 : 2200);' site/world-v2300-clouds.js
           grep -Fq 'thunderstorm ? 450 : 350' site/world-v2300-clouds.js
