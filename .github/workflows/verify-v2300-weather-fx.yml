@@ -34,7 +34,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium || true)
           rm -rf /tmp/bp2300wx && mkdir -p /tmp/bp2300wx/vendor
           cp release-v2300/world-v2300-config.js /tmp/bp2300wx/world-v2300-config.js
           cp release-v2300/world-v2300-map.js /tmp/bp2300wx/world-v2300-map.js
@@ -60,7 +60,7 @@ jobs:
           grep -Fq 'map.project([d.lng, d.lat])' /tmp/bp2300wx/world-v2300-rain.js
           grep -Fq 'const MAX_DROPS = MOBILE ? 900 : 3600;' /tmp/bp2300wx/world-v2300-rain.js
           grep -Fq 'screenScaleM * 0.75' /tmp/bp2300wx/world-v2300-rain.js
-          grep -Fq 'const shelfAltitude = f.baseM + clamp((f.topM - f.baseM) * 0.06, 90, 180);' /tmp/bp2300wx/world-v2300-clouds.js
+          grep -Fq 'const shelfAltitude = f.baseM + clamp((f.topM - f.baseM) * 0.12, 160, 260);' /tmp/bp2300wx/world-v2300-clouds.js
           grep -Fq 'metersPerPixel(lat, zoom) * 0.78' /tmp/bp2300wx/world-v2300-rain.js
           grep -Fq 'segmentM: 1.2 + hash(seedBase, i, 23) * 2.4' /tmp/bp2300wx/world-v2300-rain.js
           grep -Fq 'else radiusM = thunder ? 900 : 650;' /tmp/bp2300wx/world-v2300-rain.js
@@ -106,9 +106,11 @@ jobs:
           (cd /tmp/bp2300wx && python3 -m http.server 8770 >/tmp/bp2300wx-http.log 2>&1 &)
           cd /tmp
           npm init -y >/dev/null 2>&1 || true
-          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          npm install puppeteer@24 --no-audit --no-fund >/dev/null 2>&1
+          if [[ -z "$CHROME" ]]; then CHROME=$(node -e "process.stdout.write(require('puppeteer').executablePath())"); fi
+          [[ -x "$CHROME" ]] || { echo "No usable Chrome/Chromium binary for Android weather gate: $CHROME"; exit 1; }
           CHROME_PATH="$CHROME" node <<'NODE'
-          const puppeteer=require('puppeteer-core'),assert=require('assert');
+          const puppeteer=require('puppeteer'),assert=require('assert');
           (async()=>{
             const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader','--disable-gpu-sandbox']});
             try{
