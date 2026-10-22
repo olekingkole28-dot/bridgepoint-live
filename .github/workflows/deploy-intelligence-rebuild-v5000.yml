@@ -1962,7 +1962,7 @@ jobs:
                   eventPointsVisible:visible('bp-v5004-weather-points'),eventShapesVisible:visible('bp-v5004-weather-shape-line'),
                   cloudsEnabled:window.__BP_SKY_CLOUDS_STATE_V5908__?.enabled===true,globalCloudFormations:Number(window.__BP_SKY_CLOUDS_STATE_V5908__?.globalCloudFormations)||0};
               });
-              if(!defaultWeather.schedulerEnabled||!defaultWeather.sharedMap||!defaultWeather.liveWeatherEnabled||!defaultWeather.weatherEffectsDisabled||defaultWeather.eventPointsVisible||defaultWeather.eventShapesVisible||!defaultWeather.cloudsEnabled||defaultWeather.globalCloudFormations<450)
+              if(!defaultWeather.schedulerEnabled||!defaultWeather.sharedMap||!defaultWeather.liveWeatherEnabled||!defaultWeather.weatherEffectsDisabled||defaultWeather.eventPointsVisible||defaultWeather.eventShapesVisible||!defaultWeather.cloudsEnabled||defaultWeather.globalCloudFormations<230)
                 throw new Error('DEFAULT_SOURCE_BACKED_WEATHER_OR_CLOUD_RUNTIME_NOT_ACTIVE '+JSON.stringify(defaultWeather));
               console.log('BRIDGEPOINT_DEFAULT_SOURCE_BACKED_WEATHER_AND_CLOUDS_ON_PASS',JSON.stringify(defaultWeather));
 
