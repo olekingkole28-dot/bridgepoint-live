@@ -26,19 +26,19 @@ function makeShaders(webgl2, shaderData = null) {
   const vertex = (webgl2 ? '#version 300 es\n' : '') + projectionPreamble +
     'precision highp float;\n' +
     (webgl2
-      ? 'in vec3 a_pos;\nin float a_altitude;\nin vec3 a_local;\nin float a_tint;\nout vec3 v_local;\nout float v_tint;\n'
-      : 'attribute vec3 a_pos;\nattribute float a_altitude;\nattribute vec3 a_local;\nattribute float a_tint;\nvarying vec3 v_local;\nvarying float v_tint;\n') +
+      ? 'in vec3 a_pos;\nin float a_altitude;\nin vec3 a_local;\nin float a_tint;\nin vec2 a_wind;\nout vec3 v_local;\nout float v_tint;\n'
+      : 'attribute vec3 a_pos;\nattribute float a_altitude;\nattribute vec3 a_local;\nattribute float a_tint;\nattribute vec2 a_wind;\nvarying vec3 v_local;\nvarying float v_tint;\n') +
     (projectionAware ? '' : 'uniform mat4 u_matrix;\n') +
     'uniform highp float u_motion_time;\n' +
-    'void main(){v_local=a_local;v_tint=a_tint;float rainCell=smoothstep(1.1,1.3,a_tint);float seed=floor(a_tint*1000.0);float windAngle=fract(sin(seed*12.9898+23.7)*43758.5453)*6.2831853;float stormSpeed=mix(0.00000016,0.00000038,smoothstep(0.88,1.06,a_tint));float driftSpeed=stormSpeed*(1.0-rainCell);vec2 advect=vec2(cos(windAngle),sin(windAngle))*u_motion_time*driftSpeed;gl_Position=' +
-    (projectionAware ? 'projectTileFor3D(a_pos.xy+advect,a_altitude)' : 'u_matrix*vec4(a_pos.xy+advect,a_pos.z,1.0)') + ';}';
+    'void main(){v_local=a_local;v_tint=a_tint;vec2 advect=a_wind*u_motion_time;vec2 moved=vec2(fract(a_pos.x+advect.x),clamp(a_pos.y+advect.y,0.0005,0.9995));gl_Position=' +
+    (projectionAware ? 'projectTileFor3D(moved,a_altitude)' : 'u_matrix*vec4(moved,a_pos.z,1.0)') + ';}';
 
   const fragment = (webgl2 ? '#version 300 es\n' : '') +
     'precision mediump float;\n' +
     (webgl2 ? 'in vec3 v_local;\nin float v_tint;\nout vec4 bpColor;\n' : 'varying vec3 v_local;\nvarying float v_tint;\n') +
     'uniform float u_time;\n' +
     'float noise3(vec3 p){vec3 q=floor(p);vec3 f=fract(p);f=f*f*(3.0-2.0*f);float n=q.x+q.y*57.0+q.z*113.0;float a=fract(sin(n)*43758.5453);float b=fract(sin(n+1.0)*43758.5453);float c=fract(sin(n+57.0)*43758.5453);float d=fract(sin(n+58.0)*43758.5453);float e=fract(sin(n+113.0)*43758.5453);float f1=fract(sin(n+114.0)*43758.5453);float g=fract(sin(n+170.0)*43758.5453);float h=fract(sin(n+171.0)*43758.5453);return mix(mix(mix(a,b,f.x),mix(c,d,f.x),f.y),mix(mix(e,f1,f.x),mix(g,h,f.x),f.y),f.z);}\n' +
-    'void main(){vec3 n=normalize(v_local);float edge=clamp(0.58+abs(v_local.z)*0.18,0.0,1.0);float broad=noise3(v_local*3.0+vec3(u_time*0.004,v_tint*1.7,0.0));float detail=noise3(v_local*7.0+vec3(u_time*0.018,v_tint*4.0,0.0));float billow=noise3(v_local*15.0+vec3(0.0,u_time*0.012,v_tint*8.0));float fine=noise3(v_local*27.0+vec3(u_time*0.008,v_tint*11.0,0.0));float diffuse=max(0.0,dot(n,normalize(vec3(-0.42,0.55,0.72))));float density=broad*0.37+detail*0.34+billow*0.29;float sculpt=smoothstep(0.20,0.68,density);float silver=clamp(0.18+diffuse*0.86+broad*0.08+detail*0.07+billow*0.06,0.0,1.0);vec3 lit=mix(vec3(0.28,0.36,0.46),vec3(0.99,0.995,1.0),silver);float underside=pow(max(0.0,-n.z),1.35);lit=mix(lit,vec3(0.27,0.35,0.46),underside*0.48);lit=mix(lit,vec3(0.84,0.89,0.96),pow(max(0.0,1.0-abs(dot(n,normalize(vec3(0.2,0.0,1.0))))),2.0)*0.19);float rainCell=smoothstep(1.1,1.3,v_tint);float stormCell=smoothstep(0.89,0.95,v_tint)*(1.0-rainCell);float hurricaneCell=smoothstep(1.00,1.07,v_tint)*(1.0-rainCell);lit=mix(lit,vec3(0.27,0.33,0.42),rainCell*0.68);lit=mix(lit,vec3(0.19,0.23,0.30),stormCell*0.46+hurricaneCell*0.62);float alphaBase=edge*(0.20+sculpt*0.47+diffuse*0.17+fine*0.08)*(1.0+rainCell*1.8+stormCell*0.14+hurricaneCell*0.24);float thinCell=1.0-smoothstep(0.19,0.26,v_tint);float alpha=clamp(mix(alphaBase,alphaBase*0.60,thinCell),0.035,0.96);' +
+    'void main(){vec3 n=normalize(v_local);float edge=clamp(0.58+abs(v_local.z)*0.18,0.0,1.0);float broad=noise3(v_local*3.0+vec3(u_time*0.004,v_tint*1.7,0.0));float detail=noise3(v_local*7.0+vec3(u_time*0.018,v_tint*4.0,0.0));float billow=noise3(v_local*15.0+vec3(0.0,u_time*0.012,v_tint*8.0));float fine=noise3(v_local*27.0+vec3(u_time*0.008,v_tint*11.0,0.0));float diffuse=max(0.0,dot(n,normalize(vec3(-0.42,0.55,0.72))));float density=broad*0.37+detail*0.34+billow*0.29;float sculpt=smoothstep(0.20,0.68,density);float silver=clamp(0.18+diffuse*0.86+broad*0.08+detail*0.07+billow*0.06,0.0,1.0);vec3 lit=mix(vec3(0.28,0.36,0.46),vec3(0.99,0.995,1.0),silver);float underside=pow(max(0.0,-n.z),1.35);lit=mix(lit,vec3(0.27,0.35,0.46),underside*0.48);lit=mix(lit,vec3(0.84,0.89,0.96),pow(max(0.0,1.0-abs(dot(n,normalize(vec3(0.2,0.0,1.0))))),2.0)*0.19);float rainCell=smoothstep(1.1,1.3,v_tint);float stormCell=smoothstep(0.89,0.95,v_tint)*(1.0-rainCell);float hurricaneCell=smoothstep(1.00,1.07,v_tint)*(1.0-rainCell);lit=mix(lit,vec3(0.27,0.33,0.42),rainCell*0.68);lit=mix(lit,vec3(0.19,0.23,0.30),stormCell*0.46+hurricaneCell*0.62);float alphaBase=edge*(0.20+sculpt*0.47+diffuse*0.17+fine*0.08)*(1.0+rainCell*1.8+stormCell*0.14+hurricaneCell*0.24);float thinCell=1.0-smoothstep(0.19,0.26,v_tint);float alpha=clamp(mix(alphaBase,alphaBase*0.66,thinCell),0.035,0.96);' +
     (webgl2 ? 'bpColor=vec4(lit,alpha);' : 'gl_FragColor=vec4(lit,alpha);') +
     '}';
   return { vertex, fragment, projectionAware };
@@ -168,10 +168,10 @@ function collectHeightFeatures(scene) {
   return list.filter(x => Number.isFinite(Number(x?.lng)) && Number.isFinite(Number(x?.lat)) &&
     (Number.isFinite(Number(x?.cloud_top_height_m)) || Number.isFinite(Number(x?.cloudTopHeightM))));
 }
-function makePuffGeometry(THREEless, MC, vertices, indices, lng, lat, altitude, rx, ry, rz, tint, slices = 8, stacks = 5, shapeSeed = 0) {
+function makePuffGeometry(THREEless, MC, vertices, indices, lng, lat, altitude, rx, ry, rz, tint, slices = 8, stacks = 5, shapeSeed = 0, windX = 0, windY = 0) {
   const c = MC.fromLngLat({ lng, lat }, Math.max(0, altitude));
   const unit = c.meterInMercatorCoordinateUnits();
-  const base = vertices.length / 8;
+  const base = vertices.length / 10;
   for (let j = 0; j <= stacks; j++) {
     const v = j / stacks, phi = Math.PI * v;
     const sz = Math.cos(phi), ring = Math.sin(phi);
@@ -187,7 +187,7 @@ function makePuffGeometry(THREEless, MC, vertices, indices, lng, lat, altitude, 
       const lx = Math.cos(theta) * ring * billow;
       const ly = Math.sin(theta) * ring * billow;
       const lz = sz * billow;
-      vertices.push(c.x + lx * rx * unit, c.y + ly * ry * unit, c.z + lz * rz * unit, altitude + lz * rz, lx, ly, lz, tint);
+      vertices.push(c.x + lx * rx * unit, c.y + ly * ry * unit, c.z + lz * rz * unit, altitude + lz * rz, lx, ly, lz, tint, windX, windY);
     }
   }
   for (let j = 0; j < stacks; j++) for (let i = 0; i < slices; i++) {
@@ -197,7 +197,7 @@ function makePuffGeometry(THREEless, MC, vertices, indices, lng, lat, altitude, 
 }
 function makeFunnelGeometry(MC, vertices, indices, lng, lat, altitudeTop, tint) {
   const center = MC.fromLngLat({ lng, lat }, 0), unit = center.meterInMercatorCoordinateUnits();
-  const base = vertices.length / 8, rings = 11, segments = 12;
+  const base = vertices.length / 10, rings = 11, segments = 12;
   const bottomM = 220, topM = 5600;
   for (let j = 0; j <= rings; j++) {
     const t = j / rings;
@@ -206,7 +206,7 @@ function makeFunnelGeometry(MC, vertices, indices, lng, lat, altitudeTop, tint) 
     for (let i = 0; i <= segments; i++) {
       const a = TAU * i / segments, lx = Math.cos(a), ly = Math.sin(a);
       vertices.push(center.x + lx * radius * unit, center.y + ly * radius * unit, center.z + zM * unit, zM,
-        lx * radius / topM, ly * radius / topM, t, tint);
+        lx * radius / topM, ly * radius / topM, t, tint, 0, 0);
     }
   }
   for (let j = 0; j < rings; j++) for (let i = 0; i < segments; i++) {
@@ -222,7 +222,7 @@ export function initSkyClouds(target) {
   if (!map || !container || !MC?.fromLngLat) return null;
   const existingCloudController = window.__BP_SKY_CLOUDS_V5908__;
   if (existingCloudController?.map === map) {
-    const existingState = window.__BP_SKY_CLOUDS_STATE_V6076__ ||
+    const existingState = window.__BP_SKY_CLOUDS_STATE_V6077__ || window.__BP_SKY_CLOUDS_STATE_V6076__ ||
       window.__BP_SKY_CLOUDS_STATE_V6075__ ||
       window.__BP_SKY_CLOUDS_STATE_V6074__ ||
       window.__BP_SKY_CLOUDS_STATE_V6073__ ||
@@ -230,8 +230,8 @@ export function initSkyClouds(target) {
       existingCloudController.state || null;
     // Cache-busted modules still share this global controller slot. Never silently
     // return a legacy controller whose geometry predates the requested cloud field.
-    if (Number(existingCloudController.version) >= 6076 &&
-        Number(existingState?.coverageVersion || existingState?.version) >= 6076) {
+    if (Number(existingCloudController.version) >= 6077 &&
+        Number(existingState?.coverageVersion || existingState?.version) >= 6077) {
       return existingCloudController;
     }
     try { existingCloudController.destroy?.(); } catch (error) {
@@ -275,7 +275,8 @@ export function initSkyClouds(target) {
       terrainHeightQueries++;
       if (typeof raw === 'number' && Number.isFinite(raw)) {
         terrainHeightKnownSamples++;
-        const height = clamp(Math.max(0, raw) + 450, 450, 9500);
+        // Cloud altitudes are heights above the sampled land surface, or mean-sea-level 0 m when the DEM returns a sub-sea-level bed. Bathymetry is not used as the sea-surface height.
+        const height = clamp(raw < 0 ? 0 : raw, 0, 9500);
         terrainHeightCache.set(key, height);
         return height;
       }
@@ -283,6 +284,7 @@ export function initSkyClouds(target) {
     return 0;
   }
   let activeProgramInfo = null, layerInstalled = false, originalFog, fogCaptured = false;
+  const motionEpoch = typeof performance !== 'undefined' ? performance.now() : Date.now();
   const canvas = map.getCanvas?.(), originalFilter = canvas?.style?.filter || '';
   const originalWillChange = canvas?.style?.willChange || '', originalTransition = canvas?.style?.transition || '';
 
@@ -292,20 +294,91 @@ export function initSkyClouds(target) {
       window.__bpWeatherFXV2300?.state?.scene ||
       window.__BP_WEATHER_SCENE_V2300__ || {};
   }
+
+  const WORLD_CIRCUMFERENCE_M = 40075016.68557849;
+  const smooth01 = (edge0,edge1,value) => { const t=clamp((value-edge0)/Math.max(1e-6,edge1-edge0),0,1); return t*t*(3-2*t); };
+  let windSampleScene = null, windSampleCache = [];
+  function collectHeightResolvedWindSamples(scene) {
+    if(scene===windSampleScene)return windSampleCache;
+    windSampleScene=scene;windSampleCache=[];
+    const rows=[],flatten=value=>{if(Array.isArray(value))rows.push(...value);else if(Array.isArray(value?.features))rows.push(...value.features);else if(Array.isArray(value?.samples))rows.push(...value.samples);else if(Array.isArray(value?.data))rows.push(...value.data);};
+    [scene?.cloud_wind_grid,scene?.cloudWindGrid,scene?.upper_air_winds,scene?.upperAirWinds,scene?.wind_profiles,scene?.windProfiles,scene?.wind_grid,scene?.windGrid].forEach(flatten);
+    const now=Date.now();
+    for(const item of rows.slice(0,1800)){
+      const p=item?.properties||item||{},coords=item?.geometry?.coordinates;
+      const lng=number(p.lng,number(p.longitude,Array.isArray(coords)?number(coords[0],NaN):NaN));
+      const lat=number(p.lat,number(p.latitude,Array.isArray(coords)?number(coords[1],NaN):NaN));
+      const pressure=number(p.pressure_hpa,number(p.pressureHpa,NaN));
+      const altitude=number(p.altitude_m,number(p.altitudeM,number(p.geopotential_height_m,number(p.geopotentialHeightM,number(p.height_m,number(p.heightM,number(p.level_m,Number.isFinite(pressure)&&pressure>0&&pressure<=1100?44330*(1-Math.pow(pressure/1013.25,0.1903)):NaN)))))));
+      const timestamp=p.valid_time||p.validTime||p.observed_at||p.observedAt||p.timestamp||p.time||null;
+      if(timestamp!=null){let ms=typeof timestamp==='number'?timestamp:Date.parse(timestamp);if(Number.isFinite(ms)&&ms>0){if(ms<1e12)ms*=1000;if(ms<now-6*3600000||ms>now+3600000)continue;}}
+      let east=number(p.eastward_wind_mps,number(p.u_wind_mps,number(p.u_mps,NaN)));
+      let north=number(p.northward_wind_mps,number(p.v_wind_mps,number(p.v_mps,NaN)));
+      if(!Number.isFinite(east)||!Number.isFinite(north)){
+        const dir=number(p.wind_dir_deg,number(p.wind_direction_deg,number(p.windDirectionDeg,number(p.direction_deg,NaN))));
+        const kt=number(p.wind_speed_kt,NaN),mph=number(p.wind_speed_mph,NaN);
+        const speed=number(p.wind_speed_mps,number(p.wind_speed_ms,number(p.speed_mps,Number.isFinite(kt)?kt*0.514444:Number.isFinite(mph)?mph*0.44704:NaN)));
+        if(!Number.isFinite(dir)||!Number.isFinite(speed))continue;
+        const to=(dir+180)*Math.PI/180;east=Math.sin(to)*speed;north=Math.cos(to)*speed;
+      }
+      if(![lng,lat,altitude,east,north].every(Number.isFinite)||Math.abs(lat)>86||Math.abs(east)>100||Math.abs(north)>100)continue;
+      windSampleCache.push({lng:((((lng+180)%360)+360)%360)-180,lat,altitude,east,north,source:String(p.source||p.provenance||'height-resolved upper-air wind sample'),timestamp});
+    }
+    return windSampleCache;
+  }
+  function cloudWindVectorFor(lng,lat,altitude,scene,stormContext=null){
+    const samples=collectHeightResolvedWindSamples(scene);
+    let best=null,bestScore=Infinity;const latCos=Math.max(0.12,Math.cos(lat*Math.PI/180));
+    for(const sample of samples){
+      const dLng=((((sample.lng-lng+540)%360)+360)%360)-180;
+      const distanceKm=Math.hypot(dLng*latCos,sample.lat-lat)*111.32,heightDelta=Math.abs(sample.altitude-altitude);
+      if(distanceKm>1800||heightDelta>6500)continue;
+      const score=distanceKm+heightDelta/35;if(score<bestScore){bestScore=score;best=sample;}
+    }
+    let east=0,north=0,mode='modelled-latitude-altitude-flow';
+    if(best){east=best.east;north=best.north;mode='height-resolved-source-wind';}
+    else{
+      let cyclone=stormContext;
+      if(!cyclone){
+        let nearest=Infinity;
+        for(const st of (Array.isArray(scene?.storms)?scene.storms:[])){
+          const slng=number(st.lng,number(st.longitude,NaN)),slat=number(st.lat,number(st.latitude,NaN));if(!Number.isFinite(slng)||!Number.isFinite(slat))continue;
+          const stName=String(st.name||st.event||st.type||'').toLowerCase(),stMph=number(st.wind_mph,number(st.wind_kt,0)*1.15078);
+          if(!(/hurricane|tropical|cyclone|typhoon/.test(stName)||stMph>=64))continue;
+          const dx=((((lng-slng+540)%360)+360)%360)-180,d=Math.hypot(dx*Math.cos(slat*Math.PI/180),lat-slat)*111320;
+          const rad=number(st.cloud_shield_radius_m,number(st.cloudShieldRadiusM,number(st.cloud_radius_m,number(st.cloudRadiusM,NaN))));
+          const limit=Number.isFinite(rad)&&rad>0?Math.min(1200000,Math.max(120000,rad*1.3)):700000;
+          if(d<limit&&d<nearest){nearest=d;const eyeMi=number(st.eye_radius_mi,18);cyclone={centerLng:slng,centerLat:slat,shieldRadiusM:limit/1.3,eyeRadiusM:clamp(eyeMi*1609.34,6000,75000),windMph:clamp(number(st.wind_mph,number(st.wind_kt,0)*1.15078),35,190)};}
+        }
+      }
+      if(cyclone){
+        const dx=(((((lng-cyclone.centerLng+540)%360)+360)%360)-180)*Math.cos(cyclone.centerLat*Math.PI/180)*111320,dy=(lat-cyclone.centerLat)*111320,r=Math.max(1,Math.hypot(dx,dy));
+        const shield=Math.max(1,Number(cyclone.shieldRadiusM)||520000),eye=Math.max(1,Number(cyclone.eyeRadiusM)||28000),peak=clamp((Number(cyclone.windMph)||70)*0.44704*0.42,5,38),speed=peak*clamp((shield-r)/Math.max(1,shield-eye),0.16,1),hemisphere=cyclone.centerLat>=0?1:-1;
+        east=-dy/r*speed*hemisphere;north=dx/r*speed*hemisphere;mode='modelled-cyclone-circulation';
+      }else{
+        const a=Math.abs(lat),upper=clamp((altitude-1800)/10000,0,1),tropics=1-smooth01(18,31,a),midlat=smooth01(26,38,a)*(1-smooth01(54,66,a)),polar=smooth01(60,76,a);
+        east=-(7+7*upper)*tropics+(9+13*upper)*midlat-(4+7*upper)*polar;
+        north=Math.sin((lng*0.035+lat*0.11)*Math.PI/180)*(1.2+upper*1.8);
+      }
+    }
+    const scale=1/(WORLD_CIRCUMFERENCE_M*latCos);
+    return {dx:east*scale,dy:-north*scale,mode,speedMps:Math.hypot(east,north),sourceBacked:mode==='height-resolved-source-wind'};
+  }
   function publishState() {
     const state = {
-      version: 6076, map, enabled, visible: enabled && !document.hidden,
+      version: 6077, map, enabled, visible: enabled && !document.hidden,
       kind: 'georeferenced 3D cloud-volume layer',
       renderer: 'shared MapLibre WebGL context with isolated cloud vertex state where supported',
-      cloudFormations: formationCount, globalCloudFormations: globalCloudGeometryCache?.formationCount || 0, coverageVersion: 6076, globalMacroRadiusMinKm: globalCloudGeometryCache?.macroRadiusMinKm || 0, globalMacroRadiusMaxKm: globalCloudGeometryCache?.macroRadiusMaxKm || 0, globalThinLayerSlices: globalCloudGeometryCache?.thinLayerSlices || 0, globalThinLayerStacks: globalCloudGeometryCache?.thinLayerStacks || 0, hurricaneSpiralCloudCenters, hurricaneCloudShieldRadiusKm, globalMacroFormations: globalCloudGeometryCache?.macroFormationCount || 0, globalFineFormations: globalCloudGeometryCache?.fineFormationCount || 0, globalIsolatedFormations: globalCloudGeometryCache?.isolatedFormationCount || 0, globalThinLayerFormations: globalCloudGeometryCache?.thinLayerFormationCount || 0, globalCloudPuffs: globalCloudGeometryCache?.puffCount || 0, globalTerrainQuerySamples: terrainHeightKnownSamples, terrainRelativeCloudBases: terrainQueryAvailable, cloudMotion: 'GPU vertex advection of broad cloud banks, independent cumulus and high-level cloud puffs; live wind-vector coupling is not yet source-backed',
+      cloudFormations: formationCount, globalCloudFormations: globalCloudGeometryCache?.formationCount || 0, coverageVersion: 6077, globalMacroRadiusMinKm: globalCloudGeometryCache?.macroRadiusMinKm || 0, globalMacroRadiusMaxKm: globalCloudGeometryCache?.macroRadiusMaxKm || 0, globalThinLayerSlices: globalCloudGeometryCache?.thinLayerSlices || 0, globalThinLayerStacks: globalCloudGeometryCache?.thinLayerStacks || 0, globalSingleLayerSlices: globalCloudGeometryCache?.singleLayerSlices || 0, globalSingleLayerStacks: globalCloudGeometryCache?.singleLayerStacks || 0, hurricaneSpiralCloudCenters, hurricaneEyeWallCloudCenters, hurricaneEyeRadiusKm, hurricaneEyeRadiusSource, hurricaneCloudShieldRadiusKm, globalHeightResolvedWindPuffs: globalCloudGeometryCache?.heightResolvedWindPuffs || 0, globalModelledWindPuffs: globalCloudGeometryCache?.modelledWindPuffs || 0, localWindSourcePuffs, localWindModelledPuffs, globalMacroFormations: globalCloudGeometryCache?.macroFormationCount || 0, globalFineFormations: globalCloudGeometryCache?.fineFormationCount || 0, globalIsolatedFormations: globalCloudGeometryCache?.isolatedFormationCount || 0, globalThinLayerFormations: globalCloudGeometryCache?.thinLayerFormationCount || 0, globalCloudPuffs: globalCloudGeometryCache?.puffCount || 0, globalTerrainQuerySamples: terrainHeightKnownSamples, terrainRelativeCloudBases: terrainQueryAvailable, cloudMotion: (globalCloudGeometryCache?.heightResolvedWindPuffs || 0) > 0 ? 'Height-resolved source wind advects matched cloud puffs; modelled atmospheric flow fills unmatched locations' : 'Height/latitude-aware modelled atmospheric flow and hemisphere-aware cyclone circulation; no source-backed global upper-air wind grid is connected',
       projectionMode: 'MapLibre shaderData projectTileFor3D', projectionShaderVariants: programCache.size,
       projectionShaderVariantNames: Array.from(programCache.keys()),
-      persistentGlobalCloudField: true, globalCoverageModel: 'three procedural layers: enlarged rounded regional cloud banks, 700/760 individual cloud cells, and 750/850 rounded high-level cloud puffs; global satellite cloud-mask feed not yet connected', localCloudFormations: Math.max(0, formationCount - (globalCloudGeometryCache?.formationCount || 0)), rainCellShelfClouds: rainCellShelfCount, redrawIntervalMs: MOBILE ? 450 : 300, measuredCloudSamples: measuredCount, sourceCloudObservationFormations: sourceCloudObservationCount,
+      persistentGlobalCloudField: true, globalCoverageModel: 'three procedural spatial layers: broad connected regional cloud banks, 700/760 rounded individual cloud cells and 750/850 thin high-level puffs; global satellite cloud-mask feed not yet connected', localCloudFormations: Math.max(0, formationCount - (globalCloudGeometryCache?.formationCount || 0)), rainCellShelfClouds: rainCellShelfCount, redrawIntervalMs: MOBILE ? 450 : 300, measuredCloudSamples: measuredCount, sourceCloudObservationFormations: sourceCloudObservationCount,
       cloudHeightSource: heightSource,
+      cloudWaterHeightReference: terrainQueryAvailable ? 'Map terrain heights on land; sub-sea-level samples use mean-sea-level 0 m fallback. Tides, inland water levels and verified bathymetry are not connected.' : 'No terrain elevation query; 0 m mean-sea-level fallback over water; source-backed water levels and bathymetry are not connected.',
       layerPresent: !!map.getLayer?.(LAYER_ID), layerInstalled,
       layerRetryAttempts, mapStyleLoaded: map.isStyleLoaded?.() === true,
       mapStyleLayerCount: map.getStyle?.()?.layers?.length ?? 0, documentHidden: !!document.hidden,
-      cloudHeightMode: measuredCount ? 'source-backed cloud-top height samples, with procedural fill between samples' : 'procedural altitude only; measured global cloud-top heights are not connected',
+      cloudHeightMode: measuredCount ? 'source-backed local cloud-top height samples with procedural fill between samples; a complete global cloud-height field is not connected' : 'procedural altitude only; measured global cloud-top heights are not connected',
       warningFunnels: funnelCount, hurricaneStormVolumes: stormCount,
       funnelCaveat: funnelCount ? 'Illustrative funnel context inside active tornado-warning geometry; a warning is not confirmation of a tornado.' : null,
       rendererError, zoom: number(map.getZoom?.()), pitch: number(map.getPitch?.()), updatedAt: Date.now()
@@ -321,6 +394,7 @@ export function initSkyClouds(target) {
     window.__BP_SKY_CLOUDS_STATE_V6074__ = state;
     window.__BP_SKY_CLOUDS_STATE_V6075__ = state;
     window.__BP_SKY_CLOUDS_STATE_V6076__ = state;
+    window.__BP_SKY_CLOUDS_STATE_V6077__ = state;
     window.dispatchEvent(new CustomEvent('bp:sky-cloud-state', { detail: state }));
     return state;
   }
@@ -360,7 +434,8 @@ export function initSkyClouds(target) {
         pos: gl.getAttribLocation(program, 'a_pos'),
         altitude: gl.getAttribLocation(program, 'a_altitude'),
         local: gl.getAttribLocation(program, 'a_local'),
-        tint: gl.getAttribLocation(program, 'a_tint')
+        tint: gl.getAttribLocation(program, 'a_tint'),
+        wind: gl.getAttribLocation(program, 'a_wind')
       },
       uniforms: {
         matrix: gl.getUniformLocation(program, 'u_matrix'),
@@ -428,7 +503,7 @@ export function initSkyClouds(target) {
         if (!info?.program) return;
         const matrix = args?.defaultProjectionData?.mainMatrix || args?.modelViewProjectionMatrix || args;
         if (!info.projectionAware && (!matrix || typeof matrix.length !== 'number' || matrix.length < 16)) return;
-        saved = captureCloudGLState(gl, [info.attrs.pos, info.attrs.altitude, info.attrs.local, info.attrs.tint], cloudVaoExt, !!cloudVao);
+        saved = captureCloudGLState(gl, [info.attrs.pos, info.attrs.altitude, info.attrs.local, info.attrs.tint, info.attrs.wind], cloudVaoExt, !!cloudVao);
         bindCloudVertexArray(gl, cloudVao, cloudVaoMode, cloudVaoExt);
         gl.useProgram(info.program);
         gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
@@ -438,11 +513,12 @@ export function initSkyClouds(target) {
           gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indexData, gl.STATIC_DRAW);
           geometryDirty = false;
         } else gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
-        const stride = 8 * Float32Array.BYTES_PER_ELEMENT;
+        const stride = 10 * Float32Array.BYTES_PER_ELEMENT;
         gl.enableVertexAttribArray(info.attrs.pos); gl.vertexAttribPointer(info.attrs.pos, 3, gl.FLOAT, false, stride, 0);
         gl.enableVertexAttribArray(info.attrs.altitude); gl.vertexAttribPointer(info.attrs.altitude, 1, gl.FLOAT, false, stride, 3 * Float32Array.BYTES_PER_ELEMENT);
         gl.enableVertexAttribArray(info.attrs.local); gl.vertexAttribPointer(info.attrs.local, 3, gl.FLOAT, false, stride, 4 * Float32Array.BYTES_PER_ELEMENT);
         gl.enableVertexAttribArray(info.attrs.tint); gl.vertexAttribPointer(info.attrs.tint, 1, gl.FLOAT, false, stride, 7 * Float32Array.BYTES_PER_ELEMENT);
+        gl.enableVertexAttribArray(info.attrs.wind); gl.vertexAttribPointer(info.attrs.wind, 2, gl.FLOAT, false, stride, 8 * Float32Array.BYTES_PER_ELEMENT);
         if (info.projectionAware) {
           const p = args?.defaultProjectionData;
           if (!p) throw new Error('MapLibre projection uniforms unavailable for 3D clouds');
@@ -455,8 +531,9 @@ export function initSkyClouds(target) {
           gl.uniformMatrix4fv(info.uniforms.matrix, false, matrix);
         }
         const cloudTime = (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000;
+        const motionTime = Math.max(0, ((typeof performance !== 'undefined' ? performance.now() : Date.now()) - motionEpoch) / 1000);
         gl.uniform1f(info.uniforms.time, cloudTime);
-        if (info.uniforms.motionTime) gl.uniform1f(info.uniforms.motionTime, cloudTime);
+        if (info.uniforms.motionTime) gl.uniform1f(info.uniforms.motionTime, motionTime);
         gl.enable(gl.DEPTH_TEST); gl.enable(gl.BLEND);
         gl.blendEquationSeparate(gl.FUNC_ADD, gl.FUNC_ADD); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
         gl.disable(gl.CULL_FACE); gl.depthMask(false);
@@ -519,6 +596,13 @@ export function initSkyClouds(target) {
   function buildGlobalCloudGeometry() {
     if (globalCloudGeometryCache) return globalCloudGeometryCache;
     const vertices = [], indices = [], macroCandidates = [];
+    const windScene = getScene();
+    let heightResolvedWindPuffs = 0, modelledWindPuffs = 0;
+    const addGlobalPuff = (lng,lat,altitude,rx,ry,rz,tint,slices,stacks,seed) => {
+      const wind=cloudWindVectorFor(lng,lat,altitude,windScene);
+      if(wind.sourceBacked)heightResolvedWindPuffs++;else modelledWindPuffs++;
+      makePuffGeometry(null,MC,vertices,indices,lng,lat,altitude,rx,ry,rz,tint,slices,stacks,seed,wind.dx,wind.dy);
+    };
     const columns = 40, rows = 18, maxMacro = MOBILE ? 110 : 130;
     const cloudScore = (gx, gy, cols, rowCount, edgeSeed) => {
       const waveX = (gx + 0.5) / cols * TAU;
@@ -536,7 +620,7 @@ export function initSkyClouds(target) {
     for (let gy = 0; gy < rows; gy++) for (let gx = 0; gx < columns; gx++) {
       const field = cloudScore(gx, gy, columns, rows, 902);
       if (field.score > 0.58) continue;
-      macroCandidates.push({ gx, gy, rank: hash(gx, gy, 903), seed: hash(gx, gy, 904), cloudness: 1 - field.broad });
+      macroCandidates.push({ gx, gy, rank: field.score + hash(gx, gy, 903) * 0.035, seed: hash(gx, gy, 904), cloudness: 1 - field.broad });
     }
     macroCandidates.sort((a, b) => a.rank - b.rank);
     const macro = macroCandidates.slice(0, maxMacro);
@@ -546,7 +630,7 @@ export function initSkyClouds(target) {
       const lng = (((( -180 + q.gx * 9 + (hash(q.gx, q.gy, 906) - 0.5) * 5.2) + 180) % 360 + 360) % 360) - 180;
       const ground = terrainElevationAt(lng, lat);
       const latScale = Math.sqrt(Math.max(0.16, Math.cos(lat * Math.PI / 180)));
-      const bankRadius = clamp(111320 * (2.00 + hash(q.gx, q.gy, 907) * 2.90) * latScale, 220000, 560000);
+      const bankRadius = clamp(111320 * (2.70 + hash(q.gx, q.gy, 907) * 3.95) * latScale, 320000, 760000);
       const baseAgl = 2200 + hash(q.gx, q.gy, 908) * 2200;
       const topAgl = Math.max(baseAgl + 6500, 10800 + hash(q.gx, q.gy, 909) * 6800);
       const range = topAgl - baseAgl;
@@ -561,8 +645,7 @@ export function initSkyClouds(target) {
         const centerFraction = i === 0 ? 0.50 : 0.48 + hash(k, i, 913) * 0.04;
         const altitude = puffGround + baseAgl + range * centerFraction;
         const vertical = range * (0.425 + hash(k, i, 914) * 0.035);
-        makePuffGeometry(null, MC, vertices, indices, puffLng, puffLat, altitude, rx, ry, vertical,
-          0.30 + hash(q.gx, q.gy, 915) * 0.30, MOBILE ? 6 : 7, 4, hash(q.gx, q.gy, i + 973));
+        addGlobalPuff(puffLng,puffLat,altitude,rx,ry,vertical,0.30+hash(q.gx,q.gy,915)*0.30,MOBILE?6:7,3,hash(q.gx,q.gy,i+973));
       }
     }
 
@@ -596,9 +679,7 @@ export function initSkyClouds(target) {
       const range = topAgl - baseAgl;
       const altitude = ground + baseAgl + range * (0.49 + hash(q.gx, q.gy, 958) * 0.02);
       const vertical = range * (0.40 + hash(q.gx, q.gy, 959) * 0.04);
-      makePuffGeometry(null, MC, vertices, indices, lng, lat, altitude, radius,
-        radius * (0.58 + hash(q.gx, q.gy, 960) * 0.28), vertical,
-        0.28 + hash(q.gx, q.gy, 961) * 0.34, MOBILE ? 5 : 6, 4, hash(q.gx, q.gy, 962));
+      addGlobalPuff(lng,lat,altitude,radius,radius*(0.58+hash(q.gx,q.gy,960)*0.28),vertical,0.28+hash(q.gx,q.gy,961)*0.34,MOBILE?5:6,3,hash(q.gx,q.gy,962));
     }
 
     // Layer 2b — preserve the independent small-cloud population around the planet.
@@ -609,7 +690,7 @@ export function initSkyClouds(target) {
     for (let gy = 0; gy < smallRows; gy++) for (let gx = 0; gx < smallColumns; gx++) {
       const field = cloudScore(gx, gy, smallColumns, smallRows, 967);
       if (field.score > 0.58) continue;
-      smallCandidates.push({ gx, gy, rank: hash(gx, gy, 968), cloudness: 1 - field.broad });
+      smallCandidates.push({ gx, gy, rank: field.score + hash(gx, gy, 968) * 0.04, cloudness: 1 - field.broad });
     }
     smallCandidates.sort((a, b) => a.rank - b.rank);
     const singles = smallCandidates.slice(0, maxSingles);
@@ -640,10 +721,7 @@ export function initSkyClouds(target) {
       const range = topAgl - baseAgl;
       const altitude = ground + baseAgl + range * 0.5;
       const vertical = range * verticalFraction;
-      makePuffGeometry(null, MC, vertices, indices, lng, lat, altitude,
-        radius * (0.72 + hash(q.gx, q.gy, 985) * 0.20),
-        radius * (0.56 + hash(q.gx, q.gy, 986) * 0.30), vertical,
-        0.26 + hash(q.gx, q.gy, 987) * 0.40, 4, 3, hash(q.gx, q.gy, 988));
+      addGlobalPuff(lng,lat,altitude,radius*(0.72+hash(q.gx,q.gy,985)*0.20),radius*(0.56+hash(q.gx,q.gy,986)*0.30),vertical,0.26+hash(q.gx,q.gy,987)*0.40,8,2,hash(q.gx,q.gy,988));
     }
 
     // Layer 3 — sparse high-level cloudlets in the gaps between denser cloud banks.
@@ -663,21 +741,20 @@ export function initSkyClouds(target) {
       const lng = (((( -180 + q.gx * (360 / thinColumns) + (hash(q.gx, q.gy, 994) - 0.5) * 1.3) + 180) % 360 + 360) % 360) - 180;
       const ground = terrainElevationAt(lng, lat);
       const latScale = Math.sqrt(Math.max(0.16, Math.cos(lat * Math.PI / 180)));
-      const radius = clamp((145000 + hash(q.gx, q.gy, 995) * 190000) * latScale, 125000, 335000);
+      const radius = clamp((190000 + hash(q.gx, q.gy, 995) * 260000) * latScale, 165000, 450000);
       const baseAgl = 6800 + hash(q.gx, q.gy, 996) * 1700;
       const topAgl = Math.max(baseAgl + 2600, 11200 + hash(q.gx, q.gy, 997) * 4500);
       const range = topAgl - baseAgl;
       const altitude = ground + baseAgl + range * 0.5;
       const vertical = range * (0.30 + hash(q.gx, q.gy, 998) * 0.07);
-      makePuffGeometry(null, MC, vertices, indices, lng, lat, altitude, radius,
-        radius * (0.78 + hash(q.gx, q.gy, 999) * 0.28), vertical,
-        0.12 + hash(q.gx, q.gy, 1000) * 0.07, 8, 2, hash(q.gx, q.gy, 1001));
+      addGlobalPuff(lng,lat,altitude,radius,radius*(0.78+hash(q.gx,q.gy,999)*0.28),vertical,0.12+hash(q.gx,q.gy,1000)*0.07,9,2,hash(q.gx,q.gy,1001));
     }
     globalCloudGeometryCache = {
       vertices: new Float32Array(vertices),
       indices: new Uint16Array(indices),
       formationCount: macro.length + fine.length + singles.length + thin.length,
-      macroRadiusMinKm: 220, macroRadiusMaxKm: 560, thinLayerSlices: 8, thinLayerStacks: 2,
+      macroRadiusMinKm: 320, macroRadiusMaxKm: 760, thinLayerSlices: 9, thinLayerStacks: 2, singleLayerSlices: 8, singleLayerStacks: 2,
+      heightResolvedWindPuffs, modelledWindPuffs, windSampleSignature: windSampleSignature === 'uninitialized' ? 'no-height-resolved-wind-grid' : windSampleSignature,
       macroFormationCount: macro.length,
       fineFormationCount: fine.length,
       isolatedFormationCount: singles.length,
@@ -702,21 +779,25 @@ export function initSkyClouds(target) {
 function generateGeometry() {
     if (disposed || !enabled) return;
     const z = number(map.getZoom?.());
-    const maxForm = MOBILE ? 18 : (number(map.getZoom?.(), 10) <= 5.5 ? 40 : 28);
+    const overviewClouds = z <= 8.5;
+    const maxForm = z <= 5.5 ? (MOBILE ? 44 : 96) : z <= 8.5 ? (MOBILE ? 44 : 88) : (MOBILE ? 44 : 30);
     const vertices = [], indices = [], formations = [];
     measuredCount = 0; funnelCount = 0; stormCount = 0; rainCellShelfCount = 0; sourceCloudObservationCount = 0;
     hurricaneSpiralCloudCenters = 0; hurricaneCloudShieldRadiusKm = 0;
+    hurricaneEyeWallCloudCenters = 0; hurricaneEyeRadiusKm = 0; hurricaneEyeRadiusSource = 'no current source-backed hurricane';
+    localWindSourcePuffs = 0; localWindModelledPuffs = 0;
     const scene = getScene();
     const measured = collectHeightFeatures(scene);
     measuredCount = measured.length;
     heightSource = measuredCount ? String(measured[0]?.source || measured[0]?.provenance || 'world-effects cloud-height samples') : 'not connected';
-    const stormList = Array.isArray(scene?.storms) ? scene.storms : [];
+    const stormScore = st => { const name=String(st.name||st.event||st.type||'').toLowerCase(); return (/hurricane|tropical|cyclone|typhoon/.test(name)||number(st.wind_mph,number(st.wind_kt,0)*1.15078)>=64)?2:1; };
+    const stormList = (Array.isArray(scene?.storms)?scene.storms:[]).slice().sort((a,b)=>stormScore(b)-stormScore(a));
     const alerts = Array.isArray(scene?.alerts) ? scene.alerts : [];
     const getLon = lng => ((((lng + 180) % 360) + 360) % 360) - 180;
-    function addFormation(lng, lat, radiusM, baseM, topM, seed, kind = 'ordinary') {
+    function addFormation(lng, lat, radiusM, baseM, topM, seed, kind = 'ordinary', windContext = null) {
       if (!Number.isFinite(lng) || !Number.isFinite(lat) || Math.abs(lat) > 82 || formations.length >= maxForm) return;
       formations.push({ lng: getLon(lng), lat, radiusM: clamp(radiusM, 600, 520000),
-        baseM: clamp(baseM, 450, 14000), topM: clamp(topM, baseM + 180, 18500), seed, kind });
+        baseM: clamp(baseM, 450, 14000), topM: clamp(topM, baseM + 180, 18500), seed, kind, windContext });
     }
 
     // Rain-only cloud anchors: source-reported precipitation observations get a local 3D cloud base.
@@ -736,7 +817,7 @@ function generateGeometry() {
         const db = Math.hypot((Number(b.lng ?? b.longitude) - c.lng) * Math.cos(c.lat * Math.PI / 180), Number(b.lat ?? b.latitude) - c.lat);
         return da - db;
       });
-    for (const sample of rainAnchorObservations.slice(0, MOBILE ? 4 : 8)) {
+    for (const sample of rainAnchorObservations.slice(0, overviewClouds ? 0 : (MOBILE ? 4 : 8))) {
       const lng = number(sample.lng, number(sample.longitude, NaN));
       const lat = number(sample.lat, number(sample.latitude, NaN));
       if (!Number.isFinite(lng) || !Number.isFinite(lat)) continue;
@@ -755,49 +836,72 @@ function generateGeometry() {
     }
 
     // Existing source-measured cloud-height samples stay intact.
-    for (const sample of measured.slice(0, MOBILE ? 4 : 5)) {
+    for (const sample of measured.slice(0, overviewClouds ? 0 : (MOBILE ? 4 : 5))) {
       const top = number(sample.cloud_top_height_m, number(sample.cloudTopHeightM));
       if (top < 200 || top > 23000) continue;
       addFormation(number(sample.lng), number(sample.lat), number(sample.radius_m || sample.radius_meters, 6500),
         number(sample.cloud_base_height_m, top * 0.64), top, hash(number(sample.lng), number(sample.lat), 8), 'measured');
     }
 
-    // Cyclone/storm geometry uses the supplied storm coordinates, not camera bounds.
-    for (const storm of stormList.slice(0, MOBILE ? 1 : 4)) {
+    // Weather geometry is anchored to source storm coordinates, never the camera center.
+    // A hurricane is an eye + eyewall + three curved spiral arms, rather than a filled blob.
+    for (const storm of stormList.filter(st=>Number.isFinite(number(st.lng,number(st.longitude,NaN)))&&Number.isFinite(number(st.lat,number(st.latitude,NaN)))).slice(0, overviewClouds ? (MOBILE?1:2) : (MOBILE?1:4))) {
       const lng = number(storm.lng, number(storm.longitude, NaN)), lat = number(storm.lat, number(storm.latitude, NaN));
       if (!Number.isFinite(lng) || !Number.isFinite(lat) || Math.abs(lat) > 82) continue;
       const name = String(storm.name || storm.event || storm.type || '').toLowerCase();
-      const hurricane = /hurricane|tropical|cyclone|typhoon/.test(name) || number(storm.wind_mph) >= 64 || number(storm.wind_kt) >= 56;
-      // Eye radius describes the small eye, not the much larger cloud shield. Prefer an
-      // explicitly supplied cloud-shield radius; otherwise use a cyclone-scale envelope.
+      const windMph = clamp(number(storm.wind_mph,number(storm.wind_kt,0)*1.15078),0,220);
+      const hurricane = /hurricane|tropical|cyclone|typhoon/.test(name) || windMph >= 64;
       const suppliedShieldMi = number(storm.cloud_shield_radius_mi,
         number(storm.cloudShieldRadiusMi, number(storm.cloud_radius_mi,
           number(storm.cloudRadiusMi, number(storm.radius_mi, NaN)))));
-      const shieldRadiusM = Number.isFinite(suppliedShieldMi) && suppliedShieldMi > 0
-        ? clamp(suppliedShieldMi * 1609.34, hurricane ? 320000 : 85000, hurricane ? 980000 : 420000)
-        : (hurricane ? 520000 : 180000);
-      const turns = hurricane ? 14 : 6;
-      const phase = hash(lng, lat, 6059) * TAU;
-      for (let i = 0; i < turns; i++) {
-        const t = i / Math.max(1, turns - 1);
-        const a = phase + t * TAU * (hurricane ? 1.45 : 0.9) + Math.sin(t * TAU * 2) * 0.06;
-        const r = shieldRadiusM * (hurricane ? 0.40 + 0.55 * t : 0.28 + 0.66 * t);
-        const dlat = (r * Math.sin(a)) / 111320;
-        const dlng = (r * Math.cos(a)) / (111320 * Math.max(0.12, Math.cos(lat * Math.PI / 180)));
-        const cloudLng = lng + dlng, cloudLat = lat + dlat;
-        const ground = terrainElevationAt(cloudLng, cloudLat);
-        const baseAgl = 2600 + hash(lng, lat, i + 20) * 3000;
-        const topAgl = 7500 + hash(lng, lat, i + 30) * 6700;
-        const before = formations.length;
-        addFormation(cloudLng, cloudLat, shieldRadiusM * (hurricane ? 0.30 : 0.24),
-          ground + baseAgl, ground + topAgl,
-          hash(lng, lat, i + 40), hurricane ? 'hurricane' : 'storm');
-        if (hurricane && formations.length > before) {
-          hurricaneSpiralCloudCenters++;
-          hurricaneCloudShieldRadiusKm = Math.max(hurricaneCloudShieldRadiusKm, shieldRadiusM / 1000);
+      const suppliedShieldKm = number(storm.cloud_shield_radius_km,number(storm.cloudShieldRadiusKm,number(storm.cloud_radius_km,NaN)));
+      const sourceShieldM = Number.isFinite(suppliedShieldKm)&&suppliedShieldKm>0?suppliedShieldKm*1000:Number.isFinite(suppliedShieldMi)&&suppliedShieldMi>0?suppliedShieldMi*1609.34:NaN;
+      const shieldRadiusM = Number.isFinite(sourceShieldM)&&sourceShieldM>0
+        ? clamp(sourceShieldM,hurricane?320000:120000,hurricane?980000:600000)
+        : (hurricane?780000:300000);
+      const eyeKm = number(storm.eye_radius_km,number(storm.eyeRadiusKm,NaN));
+      const eyeMi = number(storm.eye_radius_mi,number(storm.eyeRadiusMi,NaN));
+      const eyeRawM = Number.isFinite(eyeKm)&&eyeKm>0?eyeKm*1000:Number.isFinite(eyeMi)&&eyeMi>0?eyeMi*1609.34:NaN;
+      const eyeRadiusM = Number.isFinite(eyeRawM)?clamp(eyeRawM,6000,75000):28000;
+      const context = hurricane ? {centerLng:lng,centerLat:lat,shieldRadiusM,eyeRadiusM,windMph} : null;
+      const phase = hash(lng,lat,6059)*TAU;
+      if(hurricane){
+        const wallCount = 18;
+        for(let i=0;i<wallCount&&formations.length<maxForm;i++){
+          const a=phase+i*TAU/wallCount, r=eyeRadiusM*1.55;
+          const cloudLng=lng+Math.cos(a)*r/(111320*Math.max(0.12,Math.cos(lat*Math.PI/180)));
+          const cloudLat=lat+Math.sin(a)*r/111320,ground=terrainElevationAt(cloudLng,cloudLat);
+          const baseAgl=2700+hash(lng,lat,i+6200)*1800,topAgl=11500+hash(lng,lat,i+6210)*4200;
+          const before=formations.length;
+          addFormation(cloudLng,cloudLat,Math.max(6500,eyeRadiusM*0.62),ground+baseAgl,ground+topAgl,hash(lng,lat,i+6220),'hurricane-eyewall',context);
+          if(formations.length>before)hurricaneEyeWallCloudCenters++;
         }
+        hurricaneEyeRadiusKm=Math.max(hurricaneEyeRadiusKm,eyeRadiusM/1000);
+        hurricaneEyeRadiusSource=Number.isFinite(eyeRawM)?'source storm eye radius':'modelled 28 km fallback; provider eye radius missing';
+        const spiralCount=MOBILE?24:30,arms=3,steps=Math.ceil(spiralCount/arms);
+        for(let i=0;i<spiralCount&&formations.length<maxForm;i++){
+          const arm=i%arms,step=Math.floor(i/arms),t=step/Math.max(1,steps-1);
+          const angle=phase+arm*TAU/arms+t*TAU*1.18+Math.sin(t*TAU*2+arm)*0.045;
+          const r=eyeRadiusM*2.8+t*Math.max(0,shieldRadiusM*0.94-eyeRadiusM*2.8);
+          const cloudLng=lng+Math.cos(angle)*r/(111320*Math.max(0.12,Math.cos(lat*Math.PI/180)));
+          const cloudLat=lat+Math.sin(angle)*r/111320,ground=terrainElevationAt(cloudLng,cloudLat);
+          const baseAgl=2400+hash(lng,lat,i+6300)*3200,topAgl=10000+hash(lng,lat,i+6310)*6200;
+          const before=formations.length;
+          addFormation(cloudLng,cloudLat,shieldRadiusM*0.075,ground+baseAgl,ground+topAgl,hash(lng,lat,i+6320),'hurricane-spiral',context);
+          if(formations.length>before)hurricaneSpiralCloudCenters++;
+        }
+        hurricaneCloudShieldRadiusKm=Math.max(hurricaneCloudShieldRadiusKm,shieldRadiusM/1000);
+        stormCount++;
+      }else{
+        const bandCount=overviewClouds?(MOBILE?6:10):4;
+        for(let i=0;i<bandCount&&formations.length<maxForm;i++){
+          const t=i/Math.max(1,bandCount-1),angle=phase+t*TAU*0.42+Math.sin(t*TAU*1.6)*0.22;
+          const r=shieldRadiusM*(0.18+0.78*t),cloudLng=lng+Math.cos(angle)*r/(111320*Math.max(0.12,Math.cos(lat*Math.PI/180))),cloudLat=lat+Math.sin(angle)*r/111320;
+          const ground=terrainElevationAt(cloudLng,cloudLat),baseAgl=1700+hash(lng,lat,i+6400)*2600,topAgl=8500+hash(lng,lat,i+6410)*6500;
+          addFormation(cloudLng,cloudLat,shieldRadiusM*0.10,ground+baseAgl,ground+topAgl,hash(lng,lat,i+6420),'storm',context);
+        }
+        stormCount++;
       }
-      if (hurricane) stormCount++;
     }
 
     // During clouds-only review, turn real weather-station cloud observations into cloud
@@ -838,7 +942,7 @@ function generateGeometry() {
           return da - db || b.fraction - a.fraction;
         });
       }
-      for (const item of selectedReports.slice(0, MOBILE ? 5 : 12)) {
+      for (const item of selectedReports.slice(0, overviewClouds ? (MOBILE ? 1 : 4) : (MOBILE ? 5 : 12))) {
         if (formations.length >= maxForm) break;
         const { o, lng, lat, raw, fraction } = item;
         const thunder = /thunderstorm|squall|hail|blizzard/.test(raw);
@@ -866,17 +970,17 @@ function generateGeometry() {
       if (center) { addFormation(center[0], center[1], 10000, 3000, 11000, hash(center[0], center[1], 88), 'funnel'); funnelCount++; }
     }
 
-    function puff(lng, lat, altitude, rx, ry, rz, seed, tint, lowCost = false) {
-      // Retain a higher-detail local mesh, but use fewer vertices for distant global clouds.
-      makePuffGeometry(null, MC, vertices, indices, getLon(lng), clamp(lat, -82, 82),
-        altitude, rx, ry, rz, tint, lowCost ? (MOBILE ? 6 : 7) : (MOBILE ? 8 : 9),
-        lowCost ? 4 : 6, seed);
+    function puff(lng,lat,altitude,rx,ry,rz,seed,tint,lowCost=false,windContext=null){
+      const wind=cloudWindVectorFor(lng,lat,altitude,scene,windContext);
+      if(wind.sourceBacked)localWindSourcePuffs++;else localWindModelledPuffs++;
+      makePuffGeometry(null,MC,vertices,indices,getLon(lng),clamp(lat,-82,82),altitude,rx,ry,rz,tint,
+        lowCost?(MOBILE?6:7):(MOBILE?7:8),lowCost?2:3,seed,wind.dx,wind.dy);
     }
-    const globeScale = z <= 5.5;
+    const globeScale = z <= 8.5;
     for (let k = 0; k < formations.length; k++) {
       const f = formations[k], n = globeScale
-        ? ((f.kind === 'hurricane' || f.kind === 'storm') ? 2 : 1)
-        : (MOBILE ? 3 : 5);
+        ? ((f.kind === 'hurricane-eyewall' || f.kind === 'hurricane-spiral' || f.kind === 'hurricane' || f.kind === 'storm') ? 2 : 1)
+        : (MOBILE ? 3 : 4);
       for (let i = 0; i < n; i++) {
         const a = i * 2.399 + f.seed * 5.3;
         const ring = i === 0 ? 0 : f.radiusM * (0.16 + hash(k, i, 1) * 0.24);
@@ -888,23 +992,23 @@ function generateGeometry() {
         const altitude = f.baseM + cloudRange * (i === 0 ? 0.50 : 0.48 + hash(k, i, 5) * 0.04);
         const vertical = cloudRange * (i === 0 ? 0.43 : 0.40 + hash(k, i, 6) * 0.035);
         puff(lng, lat, altitude, f.radiusM * scaleX, f.radiusM * scaleY, vertical, f.seed,
-          f.kind === 'rain-cell' ? 1.35 : f.kind === 'hurricane' ? 1.045 + hash(k, i, 7) * 0.035 : f.kind === 'storm' ? 0.90 + hash(k, i, 7) * 0.07 : f.kind === 'funnel' ? 1.14 : 0.22 + hash(k, i, 7) * 0.52, globeScale);
+          f.kind === 'rain-cell' ? 1.35 : f.kind === 'hurricane' ? 1.045 + hash(k, i, 7) * 0.035 : f.kind === 'hurricane-eyewall' ? 0.72 + hash(k,i,7)*0.10 : f.kind === 'hurricane-spiral' ? 0.88 + hash(k,i,7)*0.08 : f.kind === 'storm' ? 0.90 + hash(k, i, 7) * 0.07 : f.kind === 'funnel' ? 1.14 : 0.22 + hash(k, i, 7) * 0.52, globeScale, f.windContext);
       }
       if (f.kind === 'rain-cell') {
         // Distinct low rain-cloud shelf: same world coordinates and cloud base as rain seeds.
         const shelfAltitude = f.baseM + clamp((f.topM - f.baseM) * 0.12, 160, 260);
         puff(f.lng, f.lat, shelfAltitude, f.radiusM * 0.38, f.radiusM * 0.30,
-          clamp((f.topM - f.baseM) * 0.18, 260, 520), 1.35, 1.35, globeScale);
+          clamp((f.topM - f.baseM) * 0.18, 260, 520), 1.35, 1.35, globeScale, f.windContext);
         rainCellShelfCount++;
       }
       if (f.kind === 'funnel' && !MOBILE) makeFunnelGeometry(MC, vertices, indices, f.lng, f.lat, f.topM, 0.92);
     }
     const global = buildGlobalCloudGeometry();
-    const globalVertexCount = Math.floor(global.vertices.length / 8);
-    const localVertexCount = Math.min(Math.floor(vertices.length / 8), 65530 - globalVertexCount);
-    vertexData = new Float32Array(global.vertices.length + localVertexCount * 8);
+    const globalVertexCount = Math.floor(global.vertices.length / 10);
+    const localVertexCount = Math.min(Math.floor(vertices.length / 10), 65530 - globalVertexCount);
+    vertexData = new Float32Array(global.vertices.length + localVertexCount * 10);
     vertexData.set(global.vertices, 0);
-    vertexData.set(vertices.slice(0, localVertexCount * 8), global.vertices.length);
+    vertexData.set(vertices.slice(0, localVertexCount * 10), global.vertices.length);
     const mergedIndices = new Uint16Array(global.indices.length + indices.length);
     mergedIndices.set(global.indices, 0);
     let mergedCount = global.indices.length;
@@ -979,11 +1083,18 @@ function scheduleGeometry(delay = 180) {
     publishState();
   }
   function onMoveEnd() { if (enabled) publishState(); }
+  let windSampleSignature = 'uninitialized';
   function onWeatherUpdated() {
-    // Weather arrives after the global cloud field starts. Rebuild the local
-    // rain-cell cloud formations from the same observation coordinates/heights
-    // so precipitation has a real 3D cloud base over its reported rain footprint.
-    if (enabled && !disposed) scheduleGeometry(0);
+    // Refresh only the optional upper-air sample field when a new weather scene arrives.
+    // Rebuild the global cloud buffers only when the height-resolved wind grid changes.
+    if (!enabled || disposed) return;
+    const scene = getScene();
+    windSampleScene = null; windSampleCache = [];
+    const samples = collectHeightResolvedWindSamples(scene);
+    const nextSignature = samples.length + ':' + samples.slice(0,8).map(x=>`${x.lng.toFixed(2)},${x.lat.toFixed(2)},${Math.round(x.altitude)},${Math.round(x.east*10)},${Math.round(x.north*10)},${x.timestamp||''}`).join('|');
+    if (samples.length && globalCloudGeometryCache && nextSignature !== globalCloudGeometryCache.windSampleSignature) globalCloudGeometryCache = null;
+    windSampleSignature = nextSignature;
+    scheduleGeometry(0);
   }
   function onStyleData() { if (enabled && !map.getLayer?.(LAYER_ID)) { layerRetryAttempts = 0; addLayerIfReady(); } }
   function onLayerIdle() { if (enabled && !disposed && !map.getLayer?.(LAYER_ID)) { layerRetryAttempts = 0; addLayerIfReady(); } }
@@ -1001,10 +1112,10 @@ function scheduleGeometry(delay = 180) {
   else map.once?.('load', addLayerIfReady);
 
   const api = {
-    version: 6076, map, overlay,
+    version: 6077, map, overlay,
     get enabled() { return enabled; },
     setEnabled, toggle,
-    get state() { return window.__BP_SKY_CLOUDS_STATE_V6076__ || window.__BP_SKY_CLOUDS_STATE_V6075__ || window.__BP_SKY_CLOUDS_STATE_V6074__ || window.__BP_SKY_CLOUDS_STATE_V6073__ || window.__BP_SKY_CLOUDS_STATE_V6047__ || window.__BP_SKY_CLOUDS_STATE_V6046__ || window.__BP_SKY_CLOUDS_STATE_V6045__ || window.__BP_SKY_CLOUDS_STATE_V6031__ || window.__BP_SKY_CLOUDS_STATE_V6029__ || window.__BP_SKY_CLOUDS_STATE_V5908__ || null; },
+    get state() { return window.__BP_SKY_CLOUDS_STATE_V6077__ || window.__BP_SKY_CLOUDS_STATE_V6076__ || window.__BP_SKY_CLOUDS_STATE_V6074__ || window.__BP_SKY_CLOUDS_STATE_V6073__ || window.__BP_SKY_CLOUDS_STATE_V6047__ || window.__BP_SKY_CLOUDS_STATE_V6046__ || window.__BP_SKY_CLOUDS_STATE_V6045__ || window.__BP_SKY_CLOUDS_STATE_V6031__ || window.__BP_SKY_CLOUDS_STATE_V6029__ || window.__BP_SKY_CLOUDS_STATE_V5908__ || null; },
     destroy() {
       if (disposed) return; disposed = true;
       stopAnimation(); clearTimeout(rebuildTimer); clearTimeout(refreshHandle); clearLayerRetry();
