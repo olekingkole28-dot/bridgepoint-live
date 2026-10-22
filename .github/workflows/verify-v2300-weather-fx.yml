@@ -144,7 +144,7 @@ jobs:
               assert.equal(out.w.counts.alerts,3);assert.equal(out.w.counts.fires,1);assert.equal(out.w.counts.storms,1);assert.equal(out.w.counts.lightning,1);assert.equal(out.w.counts.water,1);
               await p.evaluate(()=>window.__bpWorldV2300.map.jumpTo({center:[-87.3425,41.538],zoom:14.5,pitch:58,bearing:-12}));
               await p.waitForFunction(()=>{const r=window.__BP_RAIN_RENDERER_V6065__;return !!r&&r.state?.rainCellCount>0&&r.state?.particleSeeds>0&&r.state?.activeVertices>0&&r.state?.worldAnchored===true&&r.state?.projectionUniformsBound===true&&r.state?.projectionMode==='maplibre-projectTileFor3D';},{timeout:15000});
-              const rainOut=await p.evaluate(()=>{const m=window.__bpWorldV2300.map,r=window.__BP_RAIN_RENDERER_V6065__,s=window.__BP_SKY_CLOUDS_STATE_V5908__||{};return{zoom:m.getZoom(),version:r?.version,state:r?.state,layerAttached:!!m.getLayer('bp2300-rain-world-volume-v6065'),cloudLocalFormations:Number(s.localCloudFormations||0),cloudDiag:{enabled:s.enabled,visible:s.visible,layerPresent:s.layerPresent,layerInstalled:s.layerInstalled,localCloudFormations:s.localCloudFormations,cloudFormations:s.cloudFormations,rendererError:s.rendererError,projectionMode:s.projectionMode}}});
+              const rainOut=await p.evaluate(()=>{const m=window.__bpWorldV2300.map,r=window.__BP_RAIN_RENDERER_V6065__,s=window.__BP_SKY_CLOUDS_STATE_V5908__||{};return{zoom:m.getZoom(),version:r?.version,state:r?.state,layerAttached:!!m.getLayer('bp2300-rain-world-volume-v6065'),cloudLocalFormations:Number(s.localCloudFormations||0),cloudDiag:{enabled:s.enabled,visible:s.visible,layerPresent:s.layerPresent,layerInstalled:s.layerInstalled,localCloudFormations:s.localCloudFormations,rainCellShelfClouds:s.rainCellShelfClouds,cloudFormations:s.cloudFormations,rendererError:s.rendererError,projectionMode:s.projectionMode}}});
               console.log('BRIDGEPOINT_RAIN_CLOUD_DIAG',JSON.stringify(rainOut.cloudDiag));
               await p.screenshot({path:'/tmp/bp2300wx/world-anchored-rain-zoom14-5.png',fullPage:false});
               assert(rainOut.zoom>=10,'rain renderer test must be above geographic rain activation zoom');
@@ -155,6 +155,9 @@ jobs:
               assert.equal(rainOut.state.projectionUniformsBound,true,'rain must bind main/fallback/tile/clipping/transition projection uniforms');
               assert.equal(rainOut.state.projectionMode,'maplibre-projectTileFor3D','rain must render through the cloud-compatible world projection path');
               assert(rainOut.cloudLocalFormations>0,'the live rain observation must create a matching 3D cloud formation');
+              assert.equal(rainOut.cloudDiag.layerInstalled,true,'3D rain-cloud mesh layer must be installed');
+              assert.equal(rainOut.cloudDiag.rendererError,null,'3D rain-cloud mesh must render without errors');
+              assert(Number(rainOut.cloudDiag.rainCellShelfClouds)>0,'a visible shelf cloud must be generated at the same rain-cell coordinates');
               assert(rainOut.state.rainCellCount>0&&rainOut.state.particleSeeds>0,'source-backed rain observations must create geographically anchored drops');
               assert(rainOut.state.activeVertices>0,'the 3D rain layer must actually generate render vertices at close zoom');
               assert.equal(rainOut.state.rendererError,null,'rain renderer must not report a runtime error');
