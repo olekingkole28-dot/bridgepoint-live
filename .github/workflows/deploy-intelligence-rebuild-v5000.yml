@@ -888,8 +888,8 @@ jobs:
            grep -Fq 'world-v2300-map.js?v=6043-satellite-imagery-layer-order' site/landing.js
            grep -Fq 'world-v2300-map.js?v=6043-satellite-imagery-layer-order' site/index.html
            grep -Fq 'world-v2300-map.js?v=6043-satellite-imagery-layer-order' site/app/index.html
-           grep -Fq 'world-v2300-lod-controls.js?v=6043-satellite-imagery-layer-order' site/app.js
-           grep -Fq 'world-v2300-lod-controls.js?v=6043-satellite-imagery-layer-order' site/landing.js
+           grep -Fq 'world-v2300-lod-controls.js?v=6038-world-lod-range-apply' site/app.js
+           grep -Fq 'world-v2300-lod-controls.js?v=6038-world-lod-range-apply' site/landing.js
            grep -Fq 'function activeWorldLodProfile()' site/world-v2300-map.js
            grep -Fq 'syncWorldLodLayerRanges' site/world-v2300-map.js
            grep -Fq 'data-bp-lod-tier' site/world-v2300-lod-controls.js
