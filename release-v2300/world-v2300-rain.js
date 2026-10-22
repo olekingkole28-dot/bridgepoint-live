@@ -155,7 +155,7 @@ export function initRainLayer(map, getScene = () => ({})) {
           buffer = null; bufferAllocated = false; vao = null; vaoMode = 'none'; programCache = new Map();
         },
         render(gl, args) { renderRain(gl, args); }
-      }, firstLayer(map, ['gta-context-buildings', 'gta-exact-building', 'gta-bp-buildings', 'gta-selected-body']));
+      }, map.getStyle?.()?.layers?.find(l => l.type === 'symbol')?.id);
       const layer = map.getLayer(LAYER_ID);
       if (layer && layer.layout?.visibility === 'none' && enabled) map.setLayoutProperty(LAYER_ID, 'visibility', 'visible');
     } catch (e) { rendererError = 'rain layer: ' + String(e?.message || e).slice(0, 180); }
