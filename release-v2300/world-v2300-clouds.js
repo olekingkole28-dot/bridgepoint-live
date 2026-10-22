@@ -225,7 +225,7 @@ export function initSkyClouds(target) {
     container.appendChild(overlay);
   }
 
-  let enabled = true, disposed = false, animationTimer = 0, rebuildTimer = 0, refreshHandle = 0;
+  let enabled = true, disposed = false, animationTimer = 0, rebuildTimer = 0, refreshHandle = 0, layerRetryTimer = 0, layerRetryAttempts = 0;
   let vertexData = new Float32Array(0), indexData = new Uint16Array(0);
   let globalCloudGeometryCache = null;
   let geometryDirty = true, formationCount = 0, measuredCount = 0, funnelCount = 0, stormCount = 0;
@@ -410,17 +410,42 @@ export function initSkyClouds(target) {
     onRemove(_map, gl) { if (gl) cleanupGpu(gl); layerInstalled = false; }
   };
 
+  function clearLayerRetry() {
+    if (layerRetryTimer) clearTimeout(layerRetryTimer);
+    layerRetryTimer = 0;
+    layerRetryAttempts = 0;
+  }
+  function scheduleLayerRetry(delay = 240) {
+    if (disposed || !enabled || layerRetryTimer || layerRetryAttempts >= 18) return;
+    layerRetryAttempts += 1;
+    layerRetryTimer = setTimeout(() => {
+      layerRetryTimer = 0;
+      if (disposed || !enabled) return;
+      addLayerIfReady();
+      if (!map.getLayer?.(LAYER_ID)) scheduleLayerRetry(Math.min(900, 180 + layerRetryAttempts * 45));
+    }, delay);
+  }
   function addLayerIfReady() {
-    if (disposed || !map.isStyleLoaded?.()) return;
-    if (map.getLayer?.(LAYER_ID)) { layerInstalled = true; return; }
+    if (disposed) return;
+    if (!map.isStyleLoaded?.()) { scheduleLayerRetry(240); return; }
+    if (map.getLayer?.(LAYER_ID)) {
+      layerInstalled = true;
+      clearLayerRetry();
+      return;
+    }
     layerInstalled = false;
     try {
       const firstSymbol = map.getStyle?.()?.layers?.find(l => l.type === 'symbol')?.id;
       map.addLayer(cloudLayer, firstSymbol);
-      layerInstalled = true;
-      if (enabled) map.triggerRepaint?.();
+      layerInstalled = !!map.getLayer?.(LAYER_ID);
+      if (layerInstalled) {
+        clearLayerRetry();
+        if (enabled) map.triggerRepaint?.();
+      } else if (enabled) scheduleLayerRetry(240);
     } catch (error) {
-      rendererError = String(error?.message || error).slice(0, 180); publishState();
+      rendererError = String(error?.message || error).slice(0, 180);
+      publishState();
+      if (enabled) scheduleLayerRetry(280);
     }
   }
 
@@ -623,7 +648,9 @@ function scheduleGeometry(delay = 180) {
     overlay.dataset.active = enabled && !document.hidden ? 'true' : 'false';
     setWorldGrade(enabled);
     if (enabled) {
+      layerRetryAttempts = 0;
       addLayerIfReady();
+      if (!map.getLayer?.(LAYER_ID)) scheduleLayerRetry(300);
       if (indexData.length < 3) {
         try { seedGlobalGeometry(); }
         catch (error) { rendererError = String(error?.message || error).slice(0, 180); publishState(); }
@@ -631,6 +658,7 @@ function scheduleGeometry(delay = 180) {
       scheduleGeometry(0);
       startAnimation();
     } else {
+      clearLayerRetry();
       stopAnimation(); clearTimeout(rebuildTimer);
       vertexData = new Float32Array(0); indexData = new Uint16Array(0);
       geometryDirty = true; formationCount = 0; measuredCount = 0; funnelCount = 0; stormCount = 0;
@@ -645,10 +673,12 @@ function scheduleGeometry(delay = 180) {
     publishState();
   }
   function onMoveEnd() { if (enabled) publishState(); }
-  function onStyleData() { if (enabled) addLayerIfReady(); }
+  function onStyleData() { if (enabled && !map.getLayer?.(LAYER_ID)) { layerRetryAttempts = 0; addLayerIfReady(); } }
+  function onLayerIdle() { if (enabled && !disposed && !map.getLayer?.(LAYER_ID)) { layerRetryAttempts = 0; addLayerIfReady(); } }
 
   map.on?.('moveend', onMoveEnd); map.on?.('zoomend', onMoveEnd); map.on?.('resize', onMoveEnd);
   map.on?.('styledata', onStyleData);
+  map.on?.('idle', onLayerIdle);
   document.addEventListener('visibilitychange', onVisibility);
   const onToggleEvent = event => { if (event?.detail?.map && event.detail.map !== map) return; toggle(); };
   window.addEventListener('bp:sky-cloud-toggle', onToggleEvent);
@@ -662,8 +692,8 @@ function scheduleGeometry(delay = 180) {
     get state() { return window.__BP_SKY_CLOUDS_STATE_V6047__ || window.__BP_SKY_CLOUDS_STATE_V6046__ || window.__BP_SKY_CLOUDS_STATE_V6045__ || window.__BP_SKY_CLOUDS_STATE_V6031__ || window.__BP_SKY_CLOUDS_STATE_V6029__ || window.__BP_SKY_CLOUDS_STATE_V5908__ || null; },
     destroy() {
       if (disposed) return; disposed = true;
-      stopAnimation(); clearTimeout(rebuildTimer); clearTimeout(refreshHandle);
-      map.off?.('moveend', onMoveEnd); map.off?.('zoomend', onMoveEnd); map.off?.('resize', onMoveEnd); map.off?.('styledata', onStyleData);
+      stopAnimation(); clearTimeout(rebuildTimer); clearTimeout(refreshHandle); clearLayerRetry();
+      map.off?.('moveend', onMoveEnd); map.off?.('zoomend', onMoveEnd); map.off?.('resize', onMoveEnd); map.off?.('styledata', onStyleData); map.off?.('idle', onLayerIdle);
       document.removeEventListener('visibilitychange', onVisibility); window.removeEventListener('bp:sky-cloud-toggle', onToggleEvent);
       setWorldGrade(false);
       try { if (map.getLayer?.(LAYER_ID)) map.removeLayer(LAYER_ID); } catch (_) {}
