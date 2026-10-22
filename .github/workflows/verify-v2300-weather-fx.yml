@@ -50,12 +50,24 @@ jobs:
           grep -Fq "if(pr==='rain')return;" /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq 'retireLegacyScreenSpaceRain' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq '__BP_SCREEN_SPACE_RAIN_RETIRE_V6063__' /tmp/bp2300wx/world-v2300-weather.js
-          grep -Fq "id: LAYER_ID, type: 'custom', renderingMode: '3d', minzoom: 10" /tmp/bp2300wx/world-v2300-rain.js
-          grep -Fq 'const VERSION = 6064;' /tmp/bp2300wx/world-v2300-rain.js
-          grep -Fq 'world-v2300-rain.js?v=6064-cloud-projection-rain' /tmp/bp2300wx/world-v2300-weather.js
-          grep -Fq 'u_projection_tile_mercator_coords' /tmp/bp2300wx/world-v2300-rain.js
-          grep -Fq 'u_projection_fallback_matrix' /tmp/bp2300wx/world-v2300-rain.js
-          grep -Fq 'const MAX_DROPS = MOBILE ? 1600 : 6000;' /tmp/bp2300wx/world-v2300-rain.js
+          grep -Fq "const RAIN_OVERLAY_ID = 'bp2300-rain-geographic-svg-v6068';" /tmp/bp2300wx/world-v2300-rain.js
+          grep -Fq 'const VERSION = 6068;' /tmp/bp2300wx/world-v2300-rain.js
+          grep -Fq "const RAIN_OVERLAY_ID = 'bp2300-rain-geographic-svg-v6068';" /tmp/bp2300wx/world-v2300-rain.js
+          grep -Fq 'function drawProjectedRain(now)' /tmp/bp2300wx/world-v2300-rain.js
+          grep -Fq 'map.project([d.lng, d.lat])' /tmp/bp2300wx/world-v2300-rain.js
+          grep -Fq 'world-v2300-rain.js?v=6068-geographic-svg-rain' /tmp/bp2300wx/world-v2300-weather.js
+          grep -Fq "lastProjectionMode = 'geographic-map-project'" /tmp/bp2300wx/world-v2300-rain.js
+          grep -Fq 'map.project([d.lng, d.lat])' /tmp/bp2300wx/world-v2300-rain.js
+          grep -Fq 'const MAX_DROPS = MOBILE ? 900 : 3600;' /tmp/bp2300wx/world-v2300-rain.js
+          grep -Fq 'screenScaleM * 0.75' /tmp/bp2300wx/world-v2300-rain.js
+          grep -Fq 'const shelfAltitude = f.baseM + clamp((f.topM - f.baseM) * 0.06, 90, 180);' /tmp/bp2300wx/world-v2300-clouds.js
+          grep -Fq 'metersPerPixel(lat, zoom) * 0.78' /tmp/bp2300wx/world-v2300-rain.js
+          grep -Fq 'segmentM: 1.2 + hash(seedBase, i, 23) * 2.4' /tmp/bp2300wx/world-v2300-rain.js
+          grep -Fq 'else radiusM = thunder ? 900 : 650;' /tmp/bp2300wx/world-v2300-rain.js
+          grep -Fq '(thunderstorm ? 900 : 650);' /tmp/bp2300wx/world-v2300-clouds.js
+          grep -Fq 'thunderstorm ? 450 : 350' /tmp/bp2300wx/world-v2300-clouds.js
+          grep -Fq 'thunderstorm ? 2800 : 1800' /tmp/bp2300wx/world-v2300-clouds.js
+          grep -Fq 'rainCell=smoothstep(1.1,1.3,v_tint)' /tmp/bp2300wx/world-v2300-clouds.js
           grep -Fq 'wildfireFlameParticles:true' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq 'tornadoCone:true' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq 'hurricaneSpiralEye:true' /tmp/bp2300wx/world-v2300-weather.js
@@ -105,6 +117,7 @@ jobs:
               p.on('console',m=>{const t=m.text();if(m.type()==='error'&&!/favicon/i.test(t)&&!/Failed to load resource: the server responded with a status of 404/i.test(t))errors.push(t)});
               await p.setRequestInterception(true);
               const cors={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization,x-client-info,apikey,content-type','Access-Control-Allow-Methods':'POST,OPTIONS'};
+              let rainVisualOnly = false;
               p.on('request',req=>{
                 const u=req.url();
                 if(u.includes('/functions/v1/bridgepoint-world-effects-v2190')){
@@ -112,6 +125,16 @@ jobs:
                   const poly=(x,y,r)=>({type:'Polygon',coordinates:[[[x-r,y-r],[x+r,y-r],[x+r,y+r],[x-r,y+r],[x-r,y-r]]]});
                   const now=new Date().toISOString();
                   const body={complete:true,generated_at:now,sources:['NOAA/NWS gate','NIFC/WFIGS gate','USGS gate'],alerts:[{geometry:poly(-87.3425,41.538,.025),properties:{phenom:'TO',event:'Tornado Warning'}},{geometry:poly(-87.40,41.50,.04),properties:{phenom:'FF',event:'Flash Flood Warning'}},{geometry:poly(-87.29,41.56,.035),properties:{event:'Ice Storm Warning'}}],fires:[{id:'gate-fire',name:'Gate Fire',acres:48000,contained_pct:37,source:'NIFC/WFIGS',geometry:poly(-87.325,41.53,.018)}],earthquakes:[{lng:-87.31,lat:41.55,magnitude:4.2}],storms:[{id:'gate-storm',name:'Gate Hurricane',lng:-87.37,lat:41.57,wind_mph:128,eye_radius_mi:11}],thermal:[{lng:-87.326,lat:41.531,frp:92}],observations:[{lng:-87.3425,lat:41.538,temperature_f:72,cloud_fraction:.92,visibility_mi:.65,weather:'Thunderstorms with heavy rain',wind_speed_mph:31,wind_dir_deg:235}],lightning_activity:[{lng:-87.34,lat:41.541,observed_at:now,exact_strike:false,source:'NOAA/NWS METAR thunderstorm activity'}],burn_scars:[{source:'authoritative-gate',geometry:poly(-87.318,41.522,.012)}],water_levels:[{lng:-87.36,lat:41.51,water_level_m:1.4,source:'NOAA CO-OPS'}]};
+                  if (rainVisualOnly) {
+                    body.alerts = [];
+                    body.fires = [];
+                    body.earthquakes = [];
+                    body.storms = [];
+                    body.thermal = [];
+                    body.lightning_activity = [];
+                    body.burn_scars = [];
+                    body.water_levels = [];
+                  }
                   return req.respond({status:200,headers:{...cors,'Content-Type':'application/json'},body:JSON.stringify(body)});
                 }
                 req.continue();
@@ -137,27 +160,40 @@ jobs:
               assert.equal(out.fx.sharedMapLibreWebGLContext,true);assert.equal(out.fx.secondaryCanvases,0);assert.equal(out.fx.shaderReady,true);assert(out.fx.activeParticles>40);
               assert(out.fx.budgets.maxPoints<=760);assert(out.fx.qualityScale>=.28&&out.fx.qualityScale<=1);
               assert.equal(out.w.counts.alerts,3);assert.equal(out.w.counts.fires,1);assert.equal(out.w.counts.storms,1);assert.equal(out.w.counts.lightning,1);assert.equal(out.w.counts.water,1);
+              rainVisualOnly = true;
+              await p.evaluate(()=>window.__bpWeatherV2300.refresh(true));
+              await p.waitForFunction(()=>{
+                const s=window.__bpWeatherV2300?.state?.counts;
+                return !!s&&s.alerts===0&&s.fires===0&&s.storms===0&&s.lightning===0&&s.water===0&&s.observations===1;
+              },{timeout:15000});
+              await new Promise(r=>setTimeout(r,550));
               await p.evaluate(()=>window.__bpWorldV2300.map.jumpTo({center:[-87.3425,41.538],zoom:14.5,pitch:58,bearing:-12}));
-              await p.waitForFunction(()=>{const r=window.__BP_RAIN_RENDERER_V6064__;return !!r&&r.state?.rainCellCount>0&&r.state?.particleSeeds>0&&r.state?.activeVertices>0&&r.state?.worldAnchored===true&&r.state?.projectionUniformsBound===true&&r.state?.projectionMode==='maplibre-projectTileFor3D';},{timeout:15000});
-              const rainOut=await p.evaluate(()=>{const m=window.__bpWorldV2300.map,r=window.__BP_RAIN_RENDERER_V6064__;return{zoom:m.getZoom(),version:r?.version,state:r?.state,layerAttached:!!m.getLayer('bp2300-rain-world-volume-v6064'),cloudLocalFormations:Number(window.__BP_SKY_CLOUDS_STATE_V5908__?.localCloudFormations||0)}});
+              await p.waitForFunction(()=>{const r=window.__BP_RAIN_RENDERER_V6068__;return !!r&&r.state?.rainCellCount>0&&r.state?.particleSeeds>0&&r.state?.activeVertices>0&&r.state?.worldAnchored===true&&r.state?.overlayAttached===true&&r.state?.renderedStreaks>40&&r.state?.projectionMode==='geographic-map-project';},{timeout:15000});
+              const rainOut=await p.evaluate(()=>{const m=window.__bpWorldV2300.map,r=window.__BP_RAIN_RENDERER_V6068__,s=window.__BP_SKY_CLOUDS_STATE_V5908__||{};return{zoom:m.getZoom(),version:r?.version,state:r?.state,overlayAttached:!!document.getElementById('bp2300-rain-geographic-svg-v6068'),cloudLocalFormations:Number(s.localCloudFormations||0),cloudDiag:{enabled:s.enabled,visible:s.visible,layerPresent:s.layerPresent,layerInstalled:s.layerInstalled,localCloudFormations:s.localCloudFormations,rainCellShelfClouds:s.rainCellShelfClouds,cloudFormations:s.cloudFormations,rendererError:s.rendererError,projectionMode:s.projectionMode}}});
+              console.log('BRIDGEPOINT_RAIN_CLOUD_DIAG',JSON.stringify(rainOut.cloudDiag));
               await p.screenshot({path:'/tmp/bp2300wx/world-anchored-rain-zoom14-5.png',fullPage:false});
               assert(rainOut.zoom>=10,'rain renderer test must be above geographic rain activation zoom');
-              assert.equal(rainOut.version,6064,'cloud-compatible world-anchored rain renderer must be loaded');
-              assert.equal(rainOut.layerAttached,true,'geographic 3D rain layer must be attached');
+              assert.equal(rainOut.version,6068,'v6068 cloud-footprint world-anchored rain renderer must be loaded');
+              assert.equal(rainOut.overlayAttached,true,'geographic rain SVG overlay must be attached');
               assert.equal(rainOut.state.worldAnchored,true,'rain layer must report its geographic 3D renderer');
               assert.equal(rainOut.state.projectionAware,true,'rain must use MapLibre 3D projection like the cloud renderer');
-              assert.equal(rainOut.state.projectionUniformsBound,true,'rain must bind main/fallback/tile/clipping/transition projection uniforms');
-              assert.equal(rainOut.state.projectionMode,'maplibre-projectTileFor3D','rain must render through the cloud-compatible world projection path');
+              assert.equal(rainOut.state.overlayAttached,true,'the geographic rain overlay must be active');
+              assert(rainOut.state.renderedStreaks>40,'the rainy cell must have many visible projected streaks');
+              assert.equal(rainOut.state.projectionMode,'geographic-map-project','rain must be reprojected through the live map on each frame');
               assert(rainOut.cloudLocalFormations>0,'the live rain observation must create a matching 3D cloud formation');
+              assert.equal(rainOut.cloudDiag.layerInstalled,true,'3D rain-cloud mesh layer must be installed');
+              assert.equal(rainOut.cloudDiag.rendererError,null,'3D rain-cloud mesh must render without errors');
+              assert(Number(rainOut.cloudDiag.rainCellShelfClouds)>0,'a visible shelf cloud must be generated at the same rain-cell coordinates');
               assert(rainOut.state.rainCellCount>0&&rainOut.state.particleSeeds>0,'source-backed rain observations must create geographically anchored drops');
-              assert(rainOut.state.activeVertices>0,'the 3D rain layer must actually generate render vertices at close zoom');
+              assert(rainOut.state.activeVertices>0,'the geographic rain overlay must actually generate streaks at close zoom');
               assert.equal(rainOut.state.rendererError,null,'rain renderer must not report a runtime error');
-              console.log('BRIDGEPOINT_WORLD_ANCHORED_RAIN_PASS',JSON.stringify({zoom:rainOut.zoom,version:rainOut.version,cells:rainOut.state.rainCellCount,seeds:rainOut.state.particleSeeds,vertices:rainOut.state.activeVertices,puddles:rainOut.state.puddleCount}));
+              console.log('BRIDGEPOINT_WORLD_ANCHORED_RAIN_PASS',JSON.stringify({zoom:rainOut.zoom,version:rainOut.version,cells:rainOut.state.rainCellCount,seeds:rainOut.state.particleSeeds,vertices:rainOut.state.activeVertices,streaks:rainOut.state.renderedStreaks,puddles:rainOut.state.puddleCount}));
               const anchorBefore=rainOut.state.anchorFingerprint;
               await p.evaluate(()=>window.__bpWorldV2300.map.jumpTo({center:[-87.3325,41.538],zoom:14.5,pitch:58,bearing:-12}));
               await new Promise(r=>setTimeout(r,650));
-              const anchorAfter=await p.evaluate(()=>window.__BP_RAIN_RENDERER_V6064__?.state?.anchorFingerprint);
+              const anchorAfter=await p.evaluate(()=>window.__BP_RAIN_RENDERER_V6068__?.state?.anchorFingerprint);
               assert.equal(anchorAfter,anchorBefore,'rain geographic particle seeds must remain fixed when the camera pans');
+              await p.screenshot({path:'/tmp/bp2300wx/world-anchored-rain-after-pan.png',fullPage:false});
               assert.equal(errors.length,0,errors.join('\n'));
               console.log('BRIDGEPOINT_V2300_WEATHER_FX_ANDROID_PASS',JSON.stringify({particles:out.fx.activeParticles,quality:out.fx.qualityScale,fps:out.fx.fps,maxPoints:out.fx.budgets.maxPoints,canvases:out.totalCanvases,projection:out.projection}));
             }finally{await browser.close()}
@@ -168,6 +204,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: bridgepoint-world-anchored-rain-visual-qa
-          path: /tmp/bp2300wx/world-anchored-rain-zoom14-5.png
+          path: /tmp/bp2300wx/world-anchored-rain-*.png
           if-no-files-found: ignore
           retention-days: 7

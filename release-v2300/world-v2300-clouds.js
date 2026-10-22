@@ -37,7 +37,7 @@ function makeShaders(webgl2, shaderData = null) {
     (webgl2 ? 'in vec3 v_local;\nin float v_tint;\nout vec4 bpColor;\n' : 'varying vec3 v_local;\nvarying float v_tint;\n') +
     'uniform float u_time;\n' +
     'float noise3(vec3 p){vec3 q=floor(p);vec3 f=fract(p);f=f*f*(3.0-2.0*f);float n=q.x+q.y*57.0+q.z*113.0;float a=fract(sin(n)*43758.5453);float b=fract(sin(n+1.0)*43758.5453);float c=fract(sin(n+57.0)*43758.5453);float d=fract(sin(n+58.0)*43758.5453);float e=fract(sin(n+113.0)*43758.5453);float f1=fract(sin(n+114.0)*43758.5453);float g=fract(sin(n+170.0)*43758.5453);float h=fract(sin(n+171.0)*43758.5453);return mix(mix(mix(a,b,f.x),mix(c,d,f.x),f.y),mix(mix(e,f1,f.x),mix(g,h,f.x),f.y),f.z);}\n' +
-    'void main(){vec3 n=normalize(v_local);float edge=clamp(0.58+abs(v_local.z)*0.18,0.0,1.0);float broad=noise3(v_local*3.0+vec3(u_time*0.004,v_tint*1.7,0.0));float detail=noise3(v_local*7.0+vec3(u_time*0.018,v_tint*4.0,0.0));float billow=noise3(v_local*15.0+vec3(0.0,u_time*0.012,v_tint*8.0));float fine=noise3(v_local*27.0+vec3(u_time*0.008,v_tint*11.0,0.0));float diffuse=max(0.0,dot(n,normalize(vec3(-0.42,0.55,0.72))));float density=broad*0.42+detail*0.33+billow*0.25;float sculpt=smoothstep(0.22,0.66,density);float silver=clamp(0.24+diffuse*0.77+broad*0.08+detail*0.08+billow*0.05,0.0,1.0);vec3 lit=mix(vec3(0.30,0.39,0.48),vec3(0.98,0.99,1.0),silver);lit=mix(lit,vec3(0.84,0.89,0.95),pow(max(0.0,1.0-abs(dot(n,normalize(vec3(0.2,0.0,1.0))))),2.0)*0.16);float alpha=clamp(edge*(0.18+sculpt*0.42+diffuse*0.16+fine*0.07),0.045,0.72);' +
+    'void main(){vec3 n=normalize(v_local);float edge=clamp(0.58+abs(v_local.z)*0.18,0.0,1.0);float broad=noise3(v_local*3.0+vec3(u_time*0.004,v_tint*1.7,0.0));float detail=noise3(v_local*7.0+vec3(u_time*0.018,v_tint*4.0,0.0));float billow=noise3(v_local*15.0+vec3(0.0,u_time*0.012,v_tint*8.0));float fine=noise3(v_local*27.0+vec3(u_time*0.008,v_tint*11.0,0.0));float diffuse=max(0.0,dot(n,normalize(vec3(-0.42,0.55,0.72))));float density=broad*0.42+detail*0.33+billow*0.25;float sculpt=smoothstep(0.22,0.66,density);float silver=clamp(0.24+diffuse*0.77+broad*0.08+detail*0.08+billow*0.05,0.0,1.0);vec3 lit=mix(vec3(0.30,0.39,0.48),vec3(0.98,0.99,1.0),silver);lit=mix(lit,vec3(0.84,0.89,0.95),pow(max(0.0,1.0-abs(dot(n,normalize(vec3(0.2,0.0,1.0))))),2.0)*0.16);float rainCell=smoothstep(1.1,1.3,v_tint);lit=mix(lit,vec3(0.27,0.33,0.42),rainCell*0.68);float alpha=clamp(edge*(0.18+sculpt*0.42+diffuse*0.16+fine*0.07)*(1.0+rainCell*1.8),0.045,0.94);' +
     (webgl2 ? 'bpColor=vec4(lit,alpha);' : 'gl_FragColor=vec4(lit,alpha);') +
     '}';
   return { vertex, fragment, projectionAware };
@@ -226,6 +226,7 @@ export function initSkyClouds(target) {
   }
 
   let enabled = true, disposed = false, animationTimer = 0, rebuildTimer = 0, refreshHandle = 0, layerRetryTimer = 0, layerRetryAttempts = 0, lastLayerHealthCheckAt = 0;
+  let rainCellShelfCount = 0;
   let vertexData = new Float32Array(0), indexData = new Uint16Array(0);
   let globalCloudGeometryCache = null;
   let geometryDirty = true, formationCount = 0, measuredCount = 0, funnelCount = 0, stormCount = 0;
@@ -250,7 +251,7 @@ export function initSkyClouds(target) {
       cloudFormations: formationCount, globalCloudFormations: globalCloudGeometryCache?.formationCount || 0,
       projectionMode: 'MapLibre shaderData projectTileFor3D', projectionShaderVariants: programCache.size,
       projectionShaderVariantNames: Array.from(programCache.keys()),
-      persistentGlobalCloudField: true, localCloudFormations: Math.max(0, formationCount - (globalCloudGeometryCache?.formationCount || 0)), redrawIntervalMs: MOBILE ? 450 : 300, measuredCloudSamples: measuredCount,
+      persistentGlobalCloudField: true, localCloudFormations: Math.max(0, formationCount - (globalCloudGeometryCache?.formationCount || 0)), rainCellShelfClouds: rainCellShelfCount, redrawIntervalMs: MOBILE ? 450 : 300, measuredCloudSamples: measuredCount,
       cloudHeightSource: heightSource,
       layerPresent: !!map.getLayer?.(LAYER_ID), layerInstalled,
       layerRetryAttempts, mapStyleLoaded: map.isStyleLoaded?.() === true,
@@ -538,7 +539,7 @@ function generateGeometry() {
     const z = number(map.getZoom?.());
     const maxForm = MOBILE ? 6 : 12;
     const vertices = [], indices = [], formations = [];
-    measuredCount = 0; funnelCount = 0; stormCount = 0;
+    measuredCount = 0; funnelCount = 0; stormCount = 0; rainCellShelfCount = 0;
     const scene = getScene();
     const measured = collectHeightFeatures(scene);
     measuredCount = measured.length;
@@ -577,12 +578,12 @@ function generateGeometry() {
         .filter(Boolean).join(' ')).toLowerCase();
       const thunderstorm = /thunderstorm|\bts\b|squall/.test(raw);
       const elevation = Math.max(0, number(map.queryTerrainElevation?.([lng, lat]), 0));
-      const baseAgl = clamp(number(sample.cloud_base_height_m, number(sample.cloudBaseHeightM, thunderstorm ? 1650 : 1050)), 650, 4200);
-      const top = clamp(number(sample.cloud_top_height_m, number(sample.cloudTopHeightM, thunderstorm ? 10400 : 6500)), baseAgl + 500, 16000);
+      const baseAgl = clamp(number(sample.cloud_base_height_m, number(sample.cloudBaseHeightM, thunderstorm ? 450 : 350)), 180, 4200);
+      const top = clamp(number(sample.cloud_top_height_m, number(sample.cloudTopHeightM, thunderstorm ? 2800 : 1800)), baseAgl + 500, 16000);
       const suppliedRadius = number(sample.precipitation_radius_mi, number(sample.rain_radius_mi, NaN));
       const radiusM = Number.isFinite(suppliedRadius) && suppliedRadius > 0
         ? clamp(suppliedRadius * 1609.34, 2200, 26000)
-        : (thunderstorm ? 9800 : 5600);
+        : (thunderstorm ? 900 : 650);
       addFormation(lng, lat, radiusM, elevation + baseAgl, elevation + top,
         hash(lng, lat, 6058), 'rain-cell');
     }
@@ -642,7 +643,14 @@ function generateGeometry() {
         const altitude = f.baseM + (f.topM - f.baseM) * (i === 0 ? 0.42 : 0.18 + hash(k, i, 5) * 0.70);
         const vertical = Math.max(420, (f.topM - f.baseM) * (i === 0 ? 0.54 : 0.34 + hash(k, i, 6) * 0.20));
         puff(lng, lat, altitude, f.radiusM * scaleX, f.radiusM * scaleY, vertical, f.seed,
-          f.kind === 'hurricane' ? 0.84 : 0.22 + hash(k, i, 7) * 0.52);
+          f.kind === 'rain-cell' ? 1.35 : f.kind === 'hurricane' ? 0.84 : 0.22 + hash(k, i, 7) * 0.52);
+      }
+      if (f.kind === 'rain-cell') {
+        // Distinct low rain-cloud shelf: same world coordinates and cloud base as rain seeds.
+        const shelfAltitude = f.baseM + clamp((f.topM - f.baseM) * 0.06, 90, 180);
+        puff(f.lng, f.lat, shelfAltitude, f.radiusM * 0.38, f.radiusM * 0.30,
+          clamp((f.topM - f.baseM) * 0.10, 180, 320), 1.35, 1.35);
+        rainCellShelfCount++;
       }
       if (f.kind === 'funnel' && !MOBILE) makeFunnelGeometry(MC, vertices, indices, f.lng, f.lat, f.topM, 0.92);
     }
