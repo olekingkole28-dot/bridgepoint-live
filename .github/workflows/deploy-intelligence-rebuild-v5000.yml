@@ -444,8 +444,8 @@ jobs:
           node --input-type=module --check < site/world-v2300-realism.js
           node --input-type=module --check < site/gis-core-orchestrator-v5910.js
           grep -Fq 'Real satellite bands. No AI-drawn pixels.' site/world-v2300-spectral-imagery.js
-          grep -Fq 'world-v2300-clouds.js?v=6071-rounded-billow-cloud-banks' site/app.js
-          grep -Fq 'world-v2300-clouds.js?v=6071-rounded-billow-cloud-banks' site/landing.js
+          grep -Fq 'world-v2300-clouds.js?v=6072-tall-discrete-cumulus' site/app.js
+          grep -Fq 'world-v2300-clouds.js?v=6072-tall-discrete-cumulus' site/landing.js
           grep -Fq 'world-v2300-weather.js?v=6070-clouds-only-phase' site/app.js
           grep -Fq 'world-v2300-rain.js?v=6070-clouds-only-phase' site/world-v2300-weather.js
           grep -Fq 'retireLegacyScreenSpaceRain' site/world-v2300-weather.js
@@ -526,12 +526,16 @@ jobs:
           grep -Fq 'version: 6048, map, overlay' site/world-v2300-clouds.js
           grep -Fq 'const billow = 1.0 +' site/world-v2300-clouds.js
           grep -Fq 'activeMacroCells' site/world-v2300-clouds.js
-          grep -Fq 'MOBILE ? 8 : 9, 6, hash(q.gx, q.gy, i + 973)' site/world-v2300-clouds.js
-          grep -Fq 'cloud-bank motion; wind-field coupling is not yet source-backed' site/world-v2300-clouds.js
-          grep -Fq 'coverageVersion: 6070' site/world-v2300-clouds.js
+          grep -Fq 'MOBILE ? 8 : 9, 7, hash(q.gx, q.gy, i + 973)' site/world-v2300-clouds.js
+          grep -Fq 'separate cloud banks and independent cloud cells; live wind-vector coupling is not yet source-backed' site/world-v2300-clouds.js
+          grep -Fq 'coverageVersion: 6072' site/world-v2300-clouds.js
           grep -Fq 'broad * 0.72 + edgeNoise * 0.28 > 0.58' site/world-v2300-clouds.js
           grep -Fq 'const waveX = (gx + 0.5) / columns * TAU' site/world-v2300-clouds.js
           grep -Fq 'globalCloudPuffs' site/world-v2300-clouds.js
+          grep -Fq 'const smallColumns = 140, smallRows = 62, maxSingles = MOBILE ? 700 : 760;' site/world-v2300-clouds.js
+          grep -Fq 'isolatedFormationCount: singles.length' site/world-v2300-clouds.js
+          grep -Fq 'underside*0.48' site/world-v2300-clouds.js
+          grep -Fq 'multiscale cloud banks plus independently distributed cumulus cells' site/world-v2300-clouds.js
           grep -Fq 'window.__BP_CLOUDS_ONLY_PHASE_V6070__=true;' site/app.js
           grep -Fq 'window.__BP_CLOUDS_ONLY_PHASE_V6070__=true;' site/landing.js
           grep -Fq 'enabled = CLOUDS_ONLY_PHASE() ? false : !!value;' site/world-v2300-rain.js
@@ -732,7 +736,7 @@ jobs:
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/app.js
           grep -Fq 'activateLiveWeather();' site/app.js
           grep -Fq 'enabled:true,serializedWeather:true' site/app.js
-          grep -Fq 'app.js?v=6071-rounded-billow-cloud-banks' site/app/index.html
+          grep -Fq 'app.js?v=6072-tall-discrete-cumulus' site/app/index.html
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/landing.js
           grep -Fq 'WMO_CAP_WARNING' site/app.js
           grep -Fq 'WMO_CAP_WARNING' site/landing.js
@@ -955,8 +959,8 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=6071-rounded-billow-cloud-banks' site/app/index.html
-          grep -Fq 'landing.js?v=6071-rounded-billow-cloud-banks' site/index.html
+          grep -Fq 'app.js?v=6072-tall-discrete-cumulus' site/app/index.html
+          grep -Fq 'landing.js?v=6072-tall-discrete-cumulus' site/index.html
            grep -Fq 'world-v2300-map.js?v=6056-ground-camera-readiness' site/app.js
            grep -Fq 'world-v2300-map.js?v=6056-ground-camera-readiness' site/landing.js
            grep -Fq 'world-v2300-map.js?v=6056-ground-camera-readiness' site/index.html
