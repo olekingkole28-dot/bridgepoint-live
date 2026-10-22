@@ -31,7 +31,7 @@ function makeShaders(webgl2, shaderData = null) {
     'uniform float u_time;\n' +
     (projectionAware ? '' : 'uniform mat4 u_matrix;\n') +
     'void main(){vec2 xy=a_pos.xy;float altitude=a_altitude;float stormTag=step(2.0,a_tint)*(1.0-step(2.5,a_tint));float rainTag=step(2.5,a_tint)*(1.0-step(3.5,a_tint));' +
-    'if(stormTag>0.5||rainTag>0.5){float radial=length(xy-a_center);float direction=(a_tint<2.2|| (rainTag>0.5&&a_tint<3.0))?-1.0:1.0;float angularRate=rainTag>0.5?0.065:(0.055+0.026/(0.04+radial*60.0));float angle=direction*u_time*angularRate;float sn=sin(angle);float cs=cos(angle);vec2 d=xy-a_center;xy=a_center+vec2(d.x*cs-d.y*sn,d.x*sn+d.y*cs);if(stormTag>0.5)altitude+=sin(u_time*0.72+a_tint*83.0+radial*1400.0)*70.0;}' +
+    'if(stormTag>0.5||rainTag>0.5){float radial=length(xy-a_center);float direction=(a_tint<2.2||(stormTag>0.5&&a_tint<2.45)||(rainTag>0.5&&a_tint<3.0))?-1.0:1.0;float angularRate=rainTag>0.5?0.065:(0.055+0.026/(0.04+radial*60.0));float angle=direction*u_time*angularRate;float sn=sin(angle);float cs=cos(angle);vec2 d=xy-a_center;xy=a_center+vec2(d.x*cs-d.y*sn,d.x*sn+d.y*cs);if(stormTag>0.5){if(a_tint>=2.4){float phaseBase=a_tint<2.45?2.405:2.455;float climbPhase=mod(u_time*130.0+(a_tint-phaseBase)*130000.0,13000.0);float climbFraction=climbPhase/13000.0;xy=a_center+(xy-a_center)*(1.0+climbFraction*0.48);altitude=450.0+climbPhase+a_local.z*380.0;}else{altitude+=sin(u_time*0.72+a_tint*83.0+radial*1400.0)*70.0;}}}' +
     'if(rainTag>0.5){float fallPhase=mod(u_time*620.0+fract(a_tint*37.0)*10800.0,10800.0);altitude=180.0+mod(a_altitude-180.0-fallPhase+10800.0,10800.0)-a_local.z*260.0;}' +
     'v_local=a_local;v_tint=a_tint;v_anim_altitude=altitude;gl_Position=' +
     (projectionAware
@@ -228,6 +228,25 @@ function makeHurricaneWallGeometry(MC, vertices, indices, lng, lat, eyeRadiusM, 
         indices.push(base, base + 1, base + 2, base + 1, base + 3, base + 2);
       }
     }
+  }
+}
+function makeHurricaneUpdraftPuffs(MC, vertices, indices, lng, lat, eyeRadiusM, outerRadiusM, topM, seed) {
+  const count = MOBILE ? 14 : 26;
+  for (let i = 0; i < count; i++) {
+    const angle = (i / count) * TAU * 1.7 + hash(i, seed, 501) * 0.85;
+    const radius = clamp(eyeRadiusM * 0.48, 4500, 26000) +
+      hash(i, seed, 502) * Math.max(9000, outerRadiusM * 0.28);
+    const dlat = (radius * Math.sin(angle)) / 111320;
+    const dlng = (radius * Math.cos(angle)) / (111320 * Math.max(0.12, Math.cos(lat * Math.PI / 180)));
+    const puffLat = clamp(lat + dlat, -82, 82), puffLng = getLon(lng + dlng);
+    const altitude = 520 + hash(i, seed, 503) * Math.max(6500, topM - 900);
+    const radiusX = clamp(1000 + hash(i, seed, 504) * 2600, 900, 3700);
+    const radiusY = radiusX * (0.72 + hash(i, seed, 505) * 0.52);
+    const tint = lat >= 0 ? 2.405 + hash(i, seed, 506) * 0.039 : 2.455 + hash(i, seed, 506) * 0.039;
+    // The shader raises each small cloud volume from the lower eyewall, rotates it,
+    // then lets it drift outward aloft before it recycles to the lower circulation.
+    makePuffGeometry(null, MC, vertices, indices, puffLng, puffLat, altitude,
+      radiusX, radiusY, 430 + hash(i, seed, 507) * 380, tint, 6, 4, { lng, lat });
   }
 }
 function makeHurricaneRainGeometry(MC, vertices, indices, lng, lat, eyeRadiusM, outerRadiusM, topM, seed) {
@@ -595,6 +614,7 @@ export function initSkyClouds(target) {
       const topM = clamp(9000 + windMph * 30, 9800, 15000);
       const wallTint = lat >= 0 ? 2.05 : 2.33;
       makeHurricaneWallGeometry(MC, vertices, indices, lng, lat, eyeRadiusM, topM, wallTint + hash(lng, lat, 401) * 0.055);
+      if (z >= 3.2) makeHurricaneUpdraftPuffs(MC, vertices, indices, lng, lat, eyeRadiusM, outerRadiusM, topM, hash(lng, lat, 402));
       if (z >= 3.8) {
         makeHurricaneRainGeometry(MC, vertices, indices, lng, lat, eyeRadiusM, outerRadiusM, topM, hash(lng, lat, 402));
       }
