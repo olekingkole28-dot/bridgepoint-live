@@ -124,10 +124,10 @@ async function startLandingNationalWeather(world){
  clearInterval(landingWeatherTimer);clearTimeout(landingListingTimer);
  landingWeatherTimer=setInterval(()=>{if(landingWeatherEnabled)void loadLandingNationalWeather(world,0)},60000)
 }
-function hideLegacyLandingWeather(map=map){
- if(!map)return;
- for(const id of ['bp-landing-radar-a','bp-landing-radar-b','bp-landing-weather-fill','bp-landing-weather-line','bp-landing-weather-points','bp-landing-weather-glow','bp-landing-weather-hit'])try{if(map.getLayer(id))map.setLayoutProperty(id,'visibility','none')}catch(_){}
- for(const id of ['bp-landing-radar-a','bp-landing-radar-b'])try{if(map.getLayer(id))map.setPaintProperty(id,'raster-opacity',0)}catch(_){}
+function hideLegacyLandingWeather(targetMap=map){
+ const m=targetMap;if(!m)return;
+ for(const id of ['bp-landing-radar-a','bp-landing-radar-b','bp-landing-weather-fill','bp-landing-weather-line','bp-landing-weather-points','bp-landing-weather-glow','bp-landing-weather-hit'])try{if(m.getLayer(id))m.setLayoutProperty(id,'visibility','none')}catch(_){}
+ for(const id of ['bp-landing-radar-a','bp-landing-radar-b'])try{if(m.getLayer(id))m.setPaintProperty(id,'raster-opacity',0)}catch(_){}
  window.__BP_LANDING_LEGACY_WEATHER_HIDDEN_V6057__={hidden:true,renderer:'cinematic-v2300-only',updatedAt:Date.now()}
 }
 function setLandingWeatherEnabled(world,on){
@@ -158,7 +158,7 @@ function setLandingWeatherEnabled(world,on){
   window.__BP_LANDING_VISUAL_WEATHER__={version:6057,renderer:'isolated-webgl-particle-layer',...landingWeatherModules,enabled:true,cinematicFx:true,mapShared:true,nationalWeather:true,networkActivationDeferred:false,legacyOverlaysHidden:true,radarVisible:false,radarAnimatedAtCloseZoom:false,radarGroundDrape:true,asyncAttach:true,updatedAt:Date.now()};
   if($('landingWeatherCount'))$('landingWeatherCount').textContent='FX ACTIVE';
   if($('landingWeatherTime'))$('landingWeatherTime').textContent='Shared cinematic renderer active · source-driven rain, snow/hail, lightning, tornado/hurricane vortices, wildfire flames and smoke where reported.';
-  try{window.__BP_LANDING_CINEMATIC_GUARD_V6057__=window.__BP_LANDING_CINEMATIC_GUARD_V6057__||true;m.on('styledata',()=>hideLegacyLandingWeather(m))}catch(_){}
+  try{if(!m.__bpLandingCinematicGuard6057){m.__bpLandingCinematicGuard6057=true;m.on('styledata',()=>hideLegacyLandingWeather(m))}}catch(_){}
   [150,600,1400].forEach(ms=>setTimeout(()=>{if(landingWeatherEnabled)hideLegacyLandingWeather(m)},ms));
   return true
  };
