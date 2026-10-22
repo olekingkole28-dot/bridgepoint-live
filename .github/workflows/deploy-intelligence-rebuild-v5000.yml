@@ -440,12 +440,12 @@ jobs:
           node --input-type=module --check < site/world-v2300-realism.js
           node --input-type=module --check < site/gis-core-orchestrator-v5910.js
           grep -Fq 'Real satellite bands. No AI-drawn pixels.' site/world-v2300-spectral-imagery.js
-          grep -Fq 'world-v2300-clouds.js?v=6053-cloud-layer-recovery' site/app.js
-          grep -Fq 'world-v2300-clouds.js?v=6053-cloud-layer-recovery' site/landing.js
+          grep -Fq 'world-v2300-clouds.js?v=6054-persistent-cloud-retry' site/app.js
+          grep -Fq 'world-v2300-clouds.js?v=6054-persistent-cloud-retry' site/landing.js
           grep -Fq 'world-v2300-weather.js?v=6052-weather-default-on' site/app.js
           grep -Fq 'world-v2300-weather.js?v=6052-weather-default-on' site/landing.js
-          grep -Fq 'world-v2300-time-slider.js?v=6053-cloud-layer-recovery' site/app.js
-          grep -Fq 'world-v2300-time-slider.js?v=6053-cloud-layer-recovery' site/landing.js
+          grep -Fq 'world-v2300-time-slider.js?v=6054-persistent-cloud-retry' site/app.js
+          grep -Fq 'world-v2300-time-slider.js?v=6054-persistent-cloud-retry' site/landing.js
           grep -Fq 'world-v2300-spectral-imagery.js?v=5934-world-controls' site/app.js
           grep -Fq 'world-v2300-underground-xray.js?v=5965-landmarks-and-effects' site/app.js
           grep -Fq 'world-v2300-underground-xray.js?v=5965-landmarks-and-effects' site/landing.js
@@ -662,7 +662,7 @@ jobs:
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/app.js
           grep -Fq 'activateLiveWeather();' site/app.js
           grep -Fq 'enabled:true,serializedWeather:true' site/app.js
-          grep -Fq 'app.js?v=6053-cloud-layer-recovery' site/app/index.html
+          grep -Fq 'app.js?v=6054-persistent-cloud-retry' site/app/index.html
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/landing.js
           grep -Fq 'WMO_CAP_WARNING' site/app.js
           grep -Fq 'WMO_CAP_WARNING' site/landing.js
@@ -885,8 +885,8 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=6053-cloud-layer-recovery' site/app/index.html
-          grep -Fq 'landing.js?v=6053-cloud-layer-recovery' site/index.html
+          grep -Fq 'app.js?v=6054-persistent-cloud-retry' site/app/index.html
+          grep -Fq 'landing.js?v=6054-persistent-cloud-retry' site/index.html
            grep -Fq 'world-v2300-map.js?v=6043-satellite-imagery-layer-order' site/app.js
            grep -Fq 'world-v2300-map.js?v=6043-satellite-imagery-layer-order' site/landing.js
            grep -Fq 'world-v2300-map.js?v=6043-satellite-imagery-layer-order' site/index.html
@@ -1277,6 +1277,14 @@ jobs:
                    base:window.__BP_LANDING_WORLD__?.state?.base||window.__BP_LANDING_WORLD__?.base||null,
                    version:window.__BP_SKY_CLOUDS_STATE_V6047__?.version,
                    cloudFormations:window.__BP_SKY_CLOUDS_STATE_V6047__?.cloudFormations,
+                   globalCloudFormations:window.__BP_SKY_CLOUDS_STATE_V6047__?.globalCloudFormations,
+                   projectionShaderVariants:window.__BP_SKY_CLOUDS_STATE_V6047__?.projectionShaderVariants,
+                   rendererError:window.__BP_SKY_CLOUDS_STATE_V6047__?.rendererError,
+                   retryAttempts:window.__BP_SKY_CLOUDS_STATE_V6047__?.layerRetryAttempts,
+                   layerInstalled:window.__BP_SKY_CLOUDS_STATE_V6047__?.layerInstalled,
+                   mapStyleLoaded:window.__BP_SKY_CLOUDS_STATE_V6047__?.mapStyleLoaded,
+                   documentHidden:window.__BP_SKY_CLOUDS_STATE_V6047__?.documentHidden,
+                   cloudLayerIds:(window.__BP_LANDING_WORLD__?.map?.getStyle?.()?.layers||[]).map(l=>l.id).filter(id=>/cloud/i.test(id)),
                    layer:!!window.__BP_LANDING_WORLD__?.map?.getLayer('bp-sky-cloud-volume-v6029')
                  }));
                  if(state.pressed!=='true'||state.enabled!==true||state.base!=='satellite'||state.layer!==true||Number(state.cloudFormations)<=0||state.version!==6048)

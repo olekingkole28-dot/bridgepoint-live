@@ -252,6 +252,8 @@ export function initSkyClouds(target) {
       projectionShaderVariantNames: Array.from(programCache.keys()),
       persistentGlobalCloudField: true, localCloudFormations: Math.max(0, formationCount - (globalCloudGeometryCache?.formationCount || 0)), redrawIntervalMs: MOBILE ? 450 : 300, measuredCloudSamples: measuredCount,
       cloudHeightSource: heightSource,
+      layerPresent: !!map.getLayer?.(LAYER_ID), layerInstalled,
+      layerRetryAttempts, mapStyleLoaded: map.isStyleLoaded?.() === true, documentHidden: !!document.hidden,
       cloudHeightMode: measuredCount ? 'source-backed cloud-top height samples, with procedural fill between samples' : 'procedural altitude only; measured global cloud-top heights are not connected',
       warningFunnels: funnelCount, hurricaneStormVolumes: stormCount,
       funnelCaveat: funnelCount ? 'Illustrative funnel context inside active tornado-warning geometry; a warning is not confirmation of a tornado.' : null,
@@ -416,7 +418,9 @@ export function initSkyClouds(target) {
     layerRetryAttempts = 0;
   }
   function scheduleLayerRetry(delay = 240) {
-    if (disposed || !enabled || layerRetryTimer || layerRetryAttempts >= 18) return;
+    // Keep retrying at a low rate until the map style accepts the custom layer. A finite
+    // retry cap can leave clouds missing after a temporary style transition or background tab.
+    if (disposed || !enabled || layerRetryTimer) return;
     layerRetryAttempts += 1;
     layerRetryTimer = setTimeout(() => {
       layerRetryTimer = 0;
