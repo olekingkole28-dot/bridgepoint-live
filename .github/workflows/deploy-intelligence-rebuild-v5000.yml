@@ -444,8 +444,8 @@ jobs:
           node --input-type=module --check < site/world-v2300-realism.js
           node --input-type=module --check < site/gis-core-orchestrator-v5910.js
           grep -Fq 'Real satellite bands. No AI-drawn pixels.' site/world-v2300-spectral-imagery.js
-          grep -Fq 'world-v2300-clouds.js?v=6064-weather-driven-rain-clouds' site/app.js
-          grep -Fq 'world-v2300-clouds.js?v=6064-weather-driven-rain-clouds' site/landing.js
+          grep -Fq 'world-v2300-clouds.js?v=6065-rain-cloud-footprint' site/app.js
+          grep -Fq 'world-v2300-clouds.js?v=6065-rain-cloud-footprint' site/landing.js
           grep -Fq 'world-v2300-weather.js?v=6065-rain-visible-curtain' site/app.js
           grep -Fq 'world-v2300-rain.js?v=6065-rain-visible-curtain' site/world-v2300-weather.js
           grep -Fq 'retireLegacyScreenSpaceRain' site/world-v2300-weather.js
@@ -460,7 +460,7 @@ jobs:
           grep -Fq 'u_projection_fallback_matrix' site/world-v2300-rain.js
           grep -Fq 'u_projection_tile_mercator_coords' site/world-v2300-rain.js
           grep -Fq 'projectionUniformsBound' site/world-v2300-rain.js
-          grep -Fq 'const MAX_DROPS = MOBILE ? 2400 : 7600;' site/world-v2300-rain.js
+          grep -Fq 'const MAX_DROPS = MOBILE ? 1600 : 6000;' site/world-v2300-rain.js
           grep -Fq 'return candidates.slice(0, z >= 13 ? (MOBILE ? 4 : 8) : (MOBILE ? 5 : 10));' site/world-v2300-rain.js
           grep -Fq "'fill-opacity': ['interpolate', ['linear'], ['get', 'wetness'], 0, 0.025, 0.2, 0.19, 0.6, 0.34, 1, 0.48]" site/world-v2300-rain.js
           grep -Fq 'const size = clamp(metersPerPixel(lat, z) * (0.55 + hash(seed, 13, 3) * 1.55), 2.2, 26)' site/world-v2300-rain.js
@@ -468,8 +468,11 @@ jobs:
           grep -Fq "window.addEventListener('bp2300:weather-updated', onWeatherUpdated)" site/world-v2300-clouds.js
           grep -Fq 'screenScaleM * 42' site/world-v2300-rain.js
           grep -Fq 'metersPerPixel(lat, zoom) * 1.85' site/world-v2300-rain.js
+          grep -Fq 'else radiusM = thunder ? 3200 : 2200;' site/world-v2300-rain.js
+          grep -Fq '(thunderstorm ? 3200 : 2200);' site/world-v2300-clouds.js
+          grep -Fq 'thunderstorm ? 900 : 750' site/world-v2300-clouds.js
           grep -Fq 'thunder ? 9800 : 5600' site/world-v2300-rain.js
-          grep -Fq 'baseAglM: clamp(safeNum(o.cloud_base_height_m ?? o.cloudBaseHeightM, thunder ? 1650 : 1050), 650, 4200)' site/world-v2300-rain.js
+          grep -Fq 'baseAglM: clamp(safeNum(o.cloud_base_height_m ?? o.cloudBaseHeightM, thunder ? 900 : 750), 650, 4200)' site/world-v2300-rain.js
           grep -Fq "if(pr==='rain')return;" site/world-v2300-weather.js
           grep -Fq "'rain-cell'" site/world-v2300-clouds.js
           grep -Fq 'world-v2300-weather.js?v=6065-rain-visible-curtain' site/landing.js
