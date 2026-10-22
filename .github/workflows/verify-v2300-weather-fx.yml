@@ -51,8 +51,11 @@ jobs:
           grep -Fq 'retireLegacyScreenSpaceRain' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq '__BP_SCREEN_SPACE_RAIN_RETIRE_V6063__' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq "id: LAYER_ID, type: 'custom', renderingMode: '3d', minzoom: 10" /tmp/bp2300wx/world-v2300-rain.js
-          grep -Fq 'const VERSION = 6067;' /tmp/bp2300wx/world-v2300-rain.js
-          grep -Fq 'world-v2300-rain.js?v=6067-short-world-rain' /tmp/bp2300wx/world-v2300-weather.js
+          grep -Fq 'const VERSION = 6068;' /tmp/bp2300wx/world-v2300-rain.js
+          grep -Fq "const RAIN_OVERLAY_ID = 'bp2300-rain-geographic-svg-v6068';" /tmp/bp2300wx/world-v2300-rain.js
+          grep -Fq 'function drawProjectedRain(now)' /tmp/bp2300wx/world-v2300-rain.js
+          grep -Fq 'map.project([d.lng, d.lat])' /tmp/bp2300wx/world-v2300-rain.js
+          grep -Fq 'world-v2300-rain.js?v=6068-geographic-svg-rain' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq 'u_projection_tile_mercator_coords' /tmp/bp2300wx/world-v2300-rain.js
           grep -Fq 'u_projection_fallback_matrix' /tmp/bp2300wx/world-v2300-rain.js
           grep -Fq 'const MAX_DROPS = MOBILE ? 900 : 3600;' /tmp/bp2300wx/world-v2300-rain.js
@@ -147,29 +150,30 @@ jobs:
               assert(out.fx.budgets.maxPoints<=760);assert(out.fx.qualityScale>=.28&&out.fx.qualityScale<=1);
               assert.equal(out.w.counts.alerts,3);assert.equal(out.w.counts.fires,1);assert.equal(out.w.counts.storms,1);assert.equal(out.w.counts.lightning,1);assert.equal(out.w.counts.water,1);
               await p.evaluate(()=>window.__bpWorldV2300.map.jumpTo({center:[-87.3425,41.538],zoom:14.5,pitch:58,bearing:-12}));
-              await p.waitForFunction(()=>{const r=window.__BP_RAIN_RENDERER_V6067__;return !!r&&r.state?.rainCellCount>0&&r.state?.particleSeeds>0&&r.state?.activeVertices>0&&r.state?.worldAnchored===true&&r.state?.projectionUniformsBound===true&&r.state?.projectionMode==='maplibre-projectTileFor3D';},{timeout:15000});
-              const rainOut=await p.evaluate(()=>{const m=window.__bpWorldV2300.map,r=window.__BP_RAIN_RENDERER_V6067__,s=window.__BP_SKY_CLOUDS_STATE_V5908__||{};return{zoom:m.getZoom(),version:r?.version,state:r?.state,layerAttached:!!m.getLayer('bp2300-rain-world-volume-v6067'),cloudLocalFormations:Number(s.localCloudFormations||0),cloudDiag:{enabled:s.enabled,visible:s.visible,layerPresent:s.layerPresent,layerInstalled:s.layerInstalled,localCloudFormations:s.localCloudFormations,rainCellShelfClouds:s.rainCellShelfClouds,cloudFormations:s.cloudFormations,rendererError:s.rendererError,projectionMode:s.projectionMode}}});
+              await p.waitForFunction(()=>{const r=window.__BP_RAIN_RENDERER_V6068__;return !!r&&r.state?.rainCellCount>0&&r.state?.particleSeeds>0&&r.state?.activeVertices>0&&r.state?.worldAnchored===true&&r.state?.overlayAttached===true&&r.state?.renderedStreaks>40&&r.state?.projectionMode==='geographic-map-project';},{timeout:15000});
+              const rainOut=await p.evaluate(()=>{const m=window.__bpWorldV2300.map,r=window.__BP_RAIN_RENDERER_V6068__,s=window.__BP_SKY_CLOUDS_STATE_V5908__||{};return{zoom:m.getZoom(),version:r?.version,state:r?.state,overlayAttached:!!document.getElementById('bp2300-rain-geographic-svg-v6068'),cloudLocalFormations:Number(s.localCloudFormations||0),cloudDiag:{enabled:s.enabled,visible:s.visible,layerPresent:s.layerPresent,layerInstalled:s.layerInstalled,localCloudFormations:s.localCloudFormations,rainCellShelfClouds:s.rainCellShelfClouds,cloudFormations:s.cloudFormations,rendererError:s.rendererError,projectionMode:s.projectionMode}}});
               console.log('BRIDGEPOINT_RAIN_CLOUD_DIAG',JSON.stringify(rainOut.cloudDiag));
               await p.screenshot({path:'/tmp/bp2300wx/world-anchored-rain-zoom14-5.png',fullPage:false});
               assert(rainOut.zoom>=10,'rain renderer test must be above geographic rain activation zoom');
-              assert.equal(rainOut.version,6067,'v6067 cloud-footprint world-anchored rain renderer must be loaded');
-              assert.equal(rainOut.layerAttached,true,'geographic 3D rain layer must be attached');
+              assert.equal(rainOut.version,6068,'v6068 cloud-footprint world-anchored rain renderer must be loaded');
+              assert.equal(rainOut.overlayAttached,true,'geographic rain SVG overlay must be attached');
               assert.equal(rainOut.state.worldAnchored,true,'rain layer must report its geographic 3D renderer');
               assert.equal(rainOut.state.projectionAware,true,'rain must use MapLibre 3D projection like the cloud renderer');
-              assert.equal(rainOut.state.projectionUniformsBound,true,'rain must bind main/fallback/tile/clipping/transition projection uniforms');
-              assert.equal(rainOut.state.projectionMode,'maplibre-projectTileFor3D','rain must render through the cloud-compatible world projection path');
+              assert.equal(rainOut.state.overlayAttached,true,'the geographic rain overlay must be active');
+              assert(rainOut.state.renderedStreaks>40,'the rainy cell must have many visible projected streaks');
+              assert.equal(rainOut.state.projectionMode,'geographic-map-project','rain must be reprojected through the live map on each frame');
               assert(rainOut.cloudLocalFormations>0,'the live rain observation must create a matching 3D cloud formation');
               assert.equal(rainOut.cloudDiag.layerInstalled,true,'3D rain-cloud mesh layer must be installed');
               assert.equal(rainOut.cloudDiag.rendererError,null,'3D rain-cloud mesh must render without errors');
               assert(Number(rainOut.cloudDiag.rainCellShelfClouds)>0,'a visible shelf cloud must be generated at the same rain-cell coordinates');
               assert(rainOut.state.rainCellCount>0&&rainOut.state.particleSeeds>0,'source-backed rain observations must create geographically anchored drops');
-              assert(rainOut.state.activeVertices>0,'the 3D rain layer must actually generate render vertices at close zoom');
+              assert(rainOut.state.activeVertices>0,'the geographic rain overlay must actually generate streaks at close zoom');
               assert.equal(rainOut.state.rendererError,null,'rain renderer must not report a runtime error');
-              console.log('BRIDGEPOINT_WORLD_ANCHORED_RAIN_PASS',JSON.stringify({zoom:rainOut.zoom,version:rainOut.version,cells:rainOut.state.rainCellCount,seeds:rainOut.state.particleSeeds,vertices:rainOut.state.activeVertices,puddles:rainOut.state.puddleCount}));
+              console.log('BRIDGEPOINT_WORLD_ANCHORED_RAIN_PASS',JSON.stringify({zoom:rainOut.zoom,version:rainOut.version,cells:rainOut.state.rainCellCount,seeds:rainOut.state.particleSeeds,vertices:rainOut.state.activeVertices,streaks:rainOut.state.renderedStreaks,puddles:rainOut.state.puddleCount}));
               const anchorBefore=rainOut.state.anchorFingerprint;
               await p.evaluate(()=>window.__bpWorldV2300.map.jumpTo({center:[-87.3325,41.538],zoom:14.5,pitch:58,bearing:-12}));
               await new Promise(r=>setTimeout(r,650));
-              const anchorAfter=await p.evaluate(()=>window.__BP_RAIN_RENDERER_V6067__?.state?.anchorFingerprint);
+              const anchorAfter=await p.evaluate(()=>window.__BP_RAIN_RENDERER_V6068__?.state?.anchorFingerprint);
               assert.equal(anchorAfter,anchorBefore,'rain geographic particle seeds must remain fixed when the camera pans');
               await p.screenshot({path:'/tmp/bp2300wx/world-anchored-rain-after-pan.png',fullPage:false});
               assert.equal(errors.length,0,errors.join('\n'));
