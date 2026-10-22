@@ -454,6 +454,9 @@ jobs:
           grep -Fq 'hideLegacyNativeWeatherLayers(map)' site/world-v2300-weather.js
           grep -Fq "renderer:'v2300-cinematic-fx'" site/app.js
           grep -Fq "renderer:'isolated-webgl-particle-layer'" site/landing.js
+          grep -Fq 'world-v2300-weather.js?v=6057-cinematic-weather-gl-isolation' site/index.html
+          grep -Fq 'world-v2300-weather.js?v=6057-cinematic-weather-gl-isolation' site/app/index.html
+          grep -Fq 'world-v2300-weather.js?v=6057-cinematic-weather-gl-isolation' site/app/world-v2300-bootstrap.js
           grep -Fq 'world-v2300-time-slider.js?v=6055-early-layer-attach' site/app.js
           grep -Fq 'world-v2300-time-slider.js?v=6055-early-layer-attach' site/landing.js
           grep -Fq 'world-v2300-spectral-imagery.js?v=5934-world-controls' site/app.js
