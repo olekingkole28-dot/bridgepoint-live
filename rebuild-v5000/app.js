@@ -154,7 +154,7 @@ async function bootMap(){
  // initialization avoids a burst of source/layer changes during the first Gold LOD render.
  // Initialize the persistent global 3D cloud field as soon as the core map exists;
  // do not make the globe wait behind the idle-only optional module queue.
- void import('./world-v2300-clouds.js?v=6065-rain-cloud-footprint')
+ void import('./world-v2300-clouds.js?v=6066-rain-cloud-contrast')
   .then(m=>{if(world?.map)window.__BP_SKY_CLOUDS_V5908__=m.initSkyClouds(world)})
   .catch(e=>console.warn('BridgePoint global 3D cloud field unavailable',e));
  const optionalWorldJobs=[
