@@ -30,7 +30,7 @@ function makeShaders(webgl2, shaderData = null) {
       : 'attribute vec3 a_pos;\nattribute float a_altitude;\nattribute vec3 a_local;\nattribute float a_tint;\nvarying vec3 v_local;\nvarying float v_tint;\n') +
     (projectionAware ? '' : 'uniform mat4 u_matrix;\n') +
     'uniform highp float u_motion_time;\n' +
-    'void main(){v_local=a_local;v_tint=a_tint;float rainCell=smoothstep(1.1,1.3,a_tint);float seed=floor(a_pos.x*137.0)+floor(a_pos.y*137.0)*57.0;float windAngle=fract(sin(seed*12.9898+23.7)*43758.5453)*6.2831853;float stormSpeed=mix(0.00000016,0.00000038,smoothstep(0.88,1.06,a_tint));float driftSpeed=stormSpeed*(1.0-rainCell);vec2 advect=vec2(cos(windAngle),sin(windAngle))*u_motion_time*driftSpeed;gl_Position=' +
+    'void main(){v_local=a_local;v_tint=a_tint;float rainCell=smoothstep(1.1,1.3,a_tint);float seed=floor(a_pos.x*19.0)+floor(a_pos.y*19.0)*57.0;float windAngle=fract(sin(seed*12.9898+23.7)*43758.5453)*6.2831853;float stormSpeed=mix(0.00000016,0.00000038,smoothstep(0.88,1.06,a_tint));float driftSpeed=stormSpeed*(1.0-rainCell);vec2 advect=vec2(cos(windAngle),sin(windAngle))*u_motion_time*driftSpeed;gl_Position=' +
     (projectionAware ? 'projectTileFor3D(a_pos.xy+advect,a_altitude)' : 'u_matrix*vec4(a_pos.xy+advect,a_pos.z,1.0)') + ';}';
 
   const fragment = (webgl2 ? '#version 300 es\n' : '') +
@@ -653,27 +653,27 @@ function generateGeometry() {
     function puff(lng, lat, altitude, rx, ry, rz, seed, tint) {
       // Use a real 3D ellipsoid mesh at every camera zoom, not a 2D fallback at close range.
       makePuffGeometry(null, MC, vertices, indices, getLon(lng), clamp(lat, -82, 82),
-        altitude, rx, ry, rz, tint, MOBILE ? 6 : 8, MOBILE ? 4 : 5);
+        altitude, rx, ry, rz, tint, MOBILE ? 8 : 9, 6, seed);
     }
     for (let k = 0; k < formations.length; k++) {
       const f = formations[k], n = MOBILE ? 3 : 5;
       for (let i = 0; i < n; i++) {
         const a = i * 2.399 + f.seed * 5.3;
-        const ring = i === 0 ? 0 : f.radiusM * (0.20 + hash(k, i, 1) * 0.46);
+        const ring = i === 0 ? 0 : f.radiusM * (0.16 + hash(k, i, 1) * 0.24);
         const lat = f.lat + Math.sin(a) * ring / 111320;
         const lng = f.lng + Math.cos(a) * ring / (111320 * Math.max(0.12, Math.cos(f.lat * Math.PI / 180)));
-        const scaleX = i === 0 ? 1.00 : 0.45 + hash(k, i, 3) * 0.54;
-        const scaleY = i === 0 ? 0.76 : 0.44 + hash(k, i, 4) * 0.48;
-        const altitude = f.baseM + (f.topM - f.baseM) * (i === 0 ? 0.42 : 0.18 + hash(k, i, 5) * 0.70);
-        const vertical = Math.max(420, (f.topM - f.baseM) * (i === 0 ? 0.54 : 0.34 + hash(k, i, 6) * 0.20));
+        const scaleX = i === 0 ? 1.00 : 0.50 + hash(k, i, 3) * 0.24;
+        const scaleY = i === 0 ? 0.82 : 0.54 + hash(k, i, 4) * 0.22;
+        const altitude = f.baseM + (f.topM - f.baseM) * (i === 0 ? 0.50 : 0.44 + hash(k, i, 5) * 0.12);
+        const vertical = Math.max(1200, (f.topM - f.baseM) * (i === 0 ? 0.68 : 0.54 + hash(k, i, 6) * 0.12));
         puff(lng, lat, altitude, f.radiusM * scaleX, f.radiusM * scaleY, vertical, f.seed,
           f.kind === 'rain-cell' ? 1.35 : f.kind === 'hurricane' ? 1.02 + hash(k, i, 7) * 0.05 : f.kind === 'storm' ? 0.90 + hash(k, i, 7) * 0.07 : f.kind === 'funnel' ? 1.14 : 0.22 + hash(k, i, 7) * 0.52);
       }
       if (f.kind === 'rain-cell') {
         // Distinct low rain-cloud shelf: same world coordinates and cloud base as rain seeds.
-        const shelfAltitude = f.baseM + clamp((f.topM - f.baseM) * 0.06, 90, 180);
+        const shelfAltitude = f.baseM + clamp((f.topM - f.baseM) * 0.12, 160, 260);
         puff(f.lng, f.lat, shelfAltitude, f.radiusM * 0.38, f.radiusM * 0.30,
-          clamp((f.topM - f.baseM) * 0.10, 180, 320), 1.35, 1.35);
+          clamp((f.topM - f.baseM) * 0.18, 260, 520), 1.35, 1.35);
         rainCellShelfCount++;
       }
       if (f.kind === 'funnel' && !MOBILE) makeFunnelGeometry(MC, vertices, indices, f.lng, f.lat, f.topM, 0.92);
