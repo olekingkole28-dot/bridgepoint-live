@@ -342,6 +342,8 @@ export function initSkyClouds(target) {
         let nearest=Infinity;
         for(const st of (Array.isArray(scene?.storms)?scene.storms:[])){
           const slng=number(st.lng,number(st.longitude,NaN)),slat=number(st.lat,number(st.latitude,NaN));if(!Number.isFinite(slng)||!Number.isFinite(slat))continue;
+          const stName=String(st.name||st.event||st.type||'').toLowerCase(),stMph=number(st.wind_mph,number(st.wind_kt,0)*1.15078);
+          if(!(/hurricane|tropical|cyclone|typhoon/.test(stName)||stMph>=64))continue;
           const dx=((((lng-slng+540)%360)+360)%360)-180,d=Math.hypot(dx*Math.cos(slat*Math.PI/180),lat-slat)*111320;
           const rad=number(st.cloud_shield_radius_m,number(st.cloudShieldRadiusM,number(st.cloud_radius_m,number(st.cloudRadiusM,NaN))));
           const limit=Number.isFinite(rad)&&rad>0?Math.min(1200000,Math.max(120000,rad*1.3)):700000;
@@ -813,7 +815,7 @@ function generateGeometry() {
         const db = Math.hypot((Number(b.lng ?? b.longitude) - c.lng) * Math.cos(c.lat * Math.PI / 180), Number(b.lat ?? b.latitude) - c.lat);
         return da - db;
       });
-    for (const sample of rainAnchorObservations.slice(0, MOBILE ? 4 : 8)) {
+    for (const sample of rainAnchorObservations.slice(0, overviewClouds ? 0 : (MOBILE ? 4 : 8))) {
       const lng = number(sample.lng, number(sample.longitude, NaN));
       const lat = number(sample.lat, number(sample.latitude, NaN));
       if (!Number.isFinite(lng) || !Number.isFinite(lat)) continue;
@@ -832,7 +834,7 @@ function generateGeometry() {
     }
 
     // Existing source-measured cloud-height samples stay intact.
-    for (const sample of measured.slice(0, MOBILE ? 4 : 5)) {
+    for (const sample of measured.slice(0, overviewClouds ? 0 : (MOBILE ? 4 : 5))) {
       const top = number(sample.cloud_top_height_m, number(sample.cloudTopHeightM));
       if (top < 200 || top > 23000) continue;
       addFormation(number(sample.lng), number(sample.lat), number(sample.radius_m || sample.radius_meters, 6500),
@@ -854,12 +856,12 @@ function generateGeometry() {
       const sourceShieldM = Number.isFinite(suppliedShieldKm)&&suppliedShieldKm>0?suppliedShieldKm*1000:Number.isFinite(suppliedShieldMi)&&suppliedShieldMi>0?suppliedShieldMi*1609.34:NaN;
       const shieldRadiusM = Number.isFinite(sourceShieldM)&&sourceShieldM>0
         ? clamp(sourceShieldM,hurricane?320000:120000,hurricane?980000:600000)
-        : (hurricane?520000:300000);
+        : (hurricane?780000:300000);
       const eyeKm = number(storm.eye_radius_km,number(storm.eyeRadiusKm,NaN));
       const eyeMi = number(storm.eye_radius_mi,number(storm.eyeRadiusMi,NaN));
       const eyeRawM = Number.isFinite(eyeKm)&&eyeKm>0?eyeKm*1000:Number.isFinite(eyeMi)&&eyeMi>0?eyeMi*1609.34:NaN;
       const eyeRadiusM = Number.isFinite(eyeRawM)?clamp(eyeRawM,6000,75000):28000;
-      const context = {centerLng:lng,centerLat:lat,shieldRadiusM,eyeRadiusM,windMph};
+      const context = hurricane ? {centerLng:lng,centerLat:lat,shieldRadiusM,eyeRadiusM,windMph} : null;
       const phase = hash(lng,lat,6059)*TAU;
       if(hurricane){
         const wallCount = 18;
@@ -938,7 +940,7 @@ function generateGeometry() {
           return da - db || b.fraction - a.fraction;
         });
       }
-      for (const item of selectedReports.slice(0, MOBILE ? 5 : 12)) {
+      for (const item of selectedReports.slice(0, overviewClouds ? (MOBILE ? 1 : 4) : (MOBILE ? 5 : 12))) {
         if (formations.length >= maxForm) break;
         const { o, lng, lat, raw, fraction } = item;
         const thunder = /thunderstorm|squall|hail|blizzard/.test(raw);
