@@ -226,6 +226,7 @@ export function initSkyClouds(target) {
   }
 
   let enabled = true, disposed = false, animationTimer = 0, rebuildTimer = 0, refreshHandle = 0, layerRetryTimer = 0, layerRetryAttempts = 0, lastLayerHealthCheckAt = 0;
+  let rainCellShelfCount = 0;
   let vertexData = new Float32Array(0), indexData = new Uint16Array(0);
   let globalCloudGeometryCache = null;
   let geometryDirty = true, formationCount = 0, measuredCount = 0, funnelCount = 0, stormCount = 0;
@@ -250,7 +251,7 @@ export function initSkyClouds(target) {
       cloudFormations: formationCount, globalCloudFormations: globalCloudGeometryCache?.formationCount || 0,
       projectionMode: 'MapLibre shaderData projectTileFor3D', projectionShaderVariants: programCache.size,
       projectionShaderVariantNames: Array.from(programCache.keys()),
-      persistentGlobalCloudField: true, localCloudFormations: Math.max(0, formationCount - (globalCloudGeometryCache?.formationCount || 0)), redrawIntervalMs: MOBILE ? 450 : 300, measuredCloudSamples: measuredCount,
+      persistentGlobalCloudField: true, localCloudFormations: Math.max(0, formationCount - (globalCloudGeometryCache?.formationCount || 0)), rainCellShelfClouds: rainCellShelfCount, redrawIntervalMs: MOBILE ? 450 : 300, measuredCloudSamples: measuredCount,
       cloudHeightSource: heightSource,
       layerPresent: !!map.getLayer?.(LAYER_ID), layerInstalled,
       layerRetryAttempts, mapStyleLoaded: map.isStyleLoaded?.() === true,
@@ -538,7 +539,7 @@ function generateGeometry() {
     const z = number(map.getZoom?.());
     const maxForm = MOBILE ? 6 : 12;
     const vertices = [], indices = [], formations = [];
-    measuredCount = 0; funnelCount = 0; stormCount = 0;
+    measuredCount = 0; funnelCount = 0; stormCount = 0; rainCellShelfCount = 0;
     const scene = getScene();
     const measured = collectHeightFeatures(scene);
     measuredCount = measured.length;
@@ -643,6 +644,13 @@ function generateGeometry() {
         const vertical = Math.max(420, (f.topM - f.baseM) * (i === 0 ? 0.54 : 0.34 + hash(k, i, 6) * 0.20));
         puff(lng, lat, altitude, f.radiusM * scaleX, f.radiusM * scaleY, vertical, f.seed,
           f.kind === 'rain-cell' ? 1.35 : f.kind === 'hurricane' ? 0.84 : 0.22 + hash(k, i, 7) * 0.52);
+      }
+      if (f.kind === 'rain-cell') {
+        // Distinct low rain-cloud shelf: same world coordinates and cloud base as rain seeds.
+        const shelfAltitude = f.baseM + clamp((f.topM - f.baseM) * 0.12, 160, 360);
+        puff(f.lng, f.lat, shelfAltitude, f.radiusM * 0.82, f.radiusM * 0.64,
+          clamp((f.topM - f.baseM) * 0.22, 480, 850), 1.35, 1.35);
+        rainCellShelfCount++;
       }
       if (f.kind === 'funnel' && !MOBILE) makeFunnelGeometry(MC, vertices, indices, f.lng, f.lat, f.topM, 0.92);
     }
