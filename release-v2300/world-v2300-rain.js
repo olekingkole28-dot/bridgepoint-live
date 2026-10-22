@@ -517,7 +517,7 @@ export function initRainLayer(map, getScene = () => ({})) {
   map.on?.('load', () => { ensureGroundLayers(); ensureRainLayer(); publishDiagnostic(); });
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) stopAnimation();
-    else if (enabled && cells.length && safeNum(map.getZoom?.(), 0) >= 8) startAnimation();
+    else if (enabled && cells.length && safeNum(map.getZoom?.(), 0) >= 16) startAnimation();
   });
   const api = { version: VERSION, map, setScene: refreshScene, setEnabled,
     get state() { return { version: VERSION, enabled, layerAttached: !!map.getLayer?.(LAYER_ID),
