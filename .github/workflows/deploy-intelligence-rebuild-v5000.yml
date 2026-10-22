@@ -660,6 +660,9 @@ jobs:
           grep -Fq 'groundDrapeThroughZoom:24' site/app.js
           grep -Fq 'radarGroundDrape:true' site/landing.js
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/app.js
+          grep -Fq 'activateLiveWeather();' site/app.js
+          grep -Fq 'enabled:true,serializedWeather:true' site/app.js
+          grep -Fq 'app.js?v=6051-weather-default-on' site/app/index.html
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/landing.js
           grep -Fq 'WMO_CAP_WARNING' site/app.js
           grep -Fq 'WMO_CAP_WARNING' site/landing.js

@@ -858,7 +858,7 @@ function startLiveWeather(){
  const map=world?.map;
  if(map&&!map.__bpWeatherStyleHeal5806){map.__bpWeatherStyleHeal5806=true;map.on('styledata',()=>{if(!map.getLayer('bp-v5004-weather-points')||!map.getSource('bpV5004WeatherPoints')){installLiveContextLayers();if(liveContextVisible)setTimeout(()=>{if(liveContextVisible)queueAfterMap('live-weather-style-heal',loadLiveWeather)},250)}})}
  const b=$('toggleLiveContext');if(b)b.onclick=()=>{if(liveContextVisible)stopLiveWeather();else activateLiveWeather()};
- stopLiveWeather();
+ activateLiveWeather();
 }
 
 
