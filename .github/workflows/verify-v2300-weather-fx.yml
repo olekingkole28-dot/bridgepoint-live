@@ -55,10 +55,11 @@ jobs:
           grep -Fq 'world-v2300-rain.js?v=6065-rain-visible-curtain' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq 'u_projection_tile_mercator_coords' /tmp/bp2300wx/world-v2300-rain.js
           grep -Fq 'u_projection_fallback_matrix' /tmp/bp2300wx/world-v2300-rain.js
-          grep -Fq 'const MAX_DROPS = MOBILE ? 1600 : 6000;' /tmp/bp2300wx/world-v2300-rain.js
-          grep -Fq 'screenScaleM * 42' /tmp/bp2300wx/world-v2300-rain.js
+          grep -Fq 'const MAX_DROPS = MOBILE ? 900 : 3600;' /tmp/bp2300wx/world-v2300-rain.js
+          grep -Fq 'screenScaleM * 20' /tmp/bp2300wx/world-v2300-rain.js
           grep -Fq 'else radiusM = thunder ? 3200 : 2200;' /tmp/bp2300wx/world-v2300-rain.js
-          grep -Fq 'thunderstorm ? 900 : 750' /tmp/bp2300wx/world-v2300-clouds.js
+          grep -Fq 'thunderstorm ? 450 : 350' /tmp/bp2300wx/world-v2300-clouds.js
+          grep -Fq 'thunderstorm ? 2800 : 1800' /tmp/bp2300wx/world-v2300-clouds.js
           grep -Fq 'wildfireFlameParticles:true' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq 'tornadoCone:true' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq 'hurricaneSpiralEye:true' /tmp/bp2300wx/world-v2300-weather.js
