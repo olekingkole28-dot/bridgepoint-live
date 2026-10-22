@@ -1,5 +1,5 @@
 name: Deploy BridgePoint Intelligence V5000 Rebuild
-# combined surface republish: distribution-network-v5202 · NASA Earth + stable 3D cloud/WebGL renderer v6031 · entrypoint cache v6043 satellite basemap order · final imagery layer-order fix · restore prior basemap from world state v6044
+# combined surface republish: distribution-network-v5202 · NASA Earth + stable 3D cloud/WebGL renderer v6031 · entrypoint cache v6043 satellite basemap order · final imagery layer-order fix · restore prior basemap from world state v6044 · nested API state check
 
 on:
   workflow_dispatch:
