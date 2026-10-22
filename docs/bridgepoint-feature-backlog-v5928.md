@@ -28,6 +28,10 @@ This is the tracked implementation ledger for the live website globe and app. A 
 9. **Historical changes.** The activity scrub returns source observations and database/materialization events for the selected time window. It does not reconstruct past imagery, all parcel/building geometry changes, or verified landslide/volcano polygons where no source records exist.
 10. **Ship verification.** Run build syntax checks, app + website smoke tests (including an actual phone viewport), and production cutover. Keep feature changes visible as they merge; do not report them live before deployment checks pass.
 
+## Explicit owner-requested Earth-reality backlog
+
+The water-depth, global cloud realism, storm-eye, wind/height, and look-up camera requirements are tracked as OPEN items in [docs/earth-reality-cloud-water-backlog.md](earth-reality-cloud-water-backlog.md). Treat the suspected bathymetry/camera relationship as a testable hypothesis, inventory existing data first, and do not call global clouds, hurricane eyes, underwater collision, water motion, or street-level sky viewing complete until their source/visual/production acceptance checks pass.
+
 ## Rules for future changes
 
 - BridgePoint keeps listing details and interaction in its own UI; don't create external listing-card clickthroughs.
