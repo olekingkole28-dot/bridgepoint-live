@@ -190,8 +190,8 @@ function createFx(map){
   if(precipCells.length){
    const total=Math.max(24,Math.floor(BUDGET.precip*q)),perCell=globalView?Math.min(30,Math.max(8,Math.floor(total/precipCells.length))):Math.max(16,Math.floor(total/precipCells.length));
    precipCells.forEach((cell,ci)=>{
-    if(pr==='rain'&&z>=16)return;
     const {o:obs,kind:pr,c:precipCenter,p:precipPoint}=cell,kind=pr==='rain'?0:pr==='snow'?1:2,sp=pr==='snow'?.000055:pr==='hail'?.00034:.00023;
+    if(pr==='rain'&&z>=16)return;
     const miles=Number(obs.precipitation_radius_mi??obs.rain_radius_mi??(pr==='hail'?18:pr==='snow'?42:32)),rawRadius=radiusPx(precipCenter,Number.isFinite(miles)&&miles>0?miles:32);
     const radius=globalView?clamp(rawRadius,4,10):z<5?clamp(rawRadius,8,22):clamp(rawRadius,18,z>=8?180:125);
     const particleCount=Math.min(perCell,MAX_POINTS),flutterScale=globalView?1.1:Math.min(3,radius*.035);
