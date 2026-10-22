@@ -30,7 +30,7 @@ function makeShaders(webgl2, shaderData = null) {
       : 'attribute vec3 a_pos;\nattribute float a_altitude;\nattribute vec3 a_local;\nattribute float a_tint;\nvarying vec3 v_local;\nvarying float v_tint;\n') +
     (projectionAware ? '' : 'uniform mat4 u_matrix;\n') +
     'uniform highp float u_motion_time;\n' +
-    'void main(){v_local=a_local;v_tint=a_tint;float rainCell=smoothstep(1.1,1.3,a_tint);float seed=floor(a_tint*1000.0);float windAngle=fract(sin(seed*12.9898+23.7)*43758.5453)*6.2831853;float stormSpeed=mix(0.00000016,0.00000038,smoothstep(0.88,1.06,a_tint));float driftSpeed=stormSpeed*(1.0-rainCell);vec2 advect=vec2(cos(windAngle),sin(windAngle))*u_motion_time*driftSpeed;gl_Position=' +
+    'void main(){v_local=a_local;v_tint=a_tint;float rainCell=smoothstep(1.1,1.3,a_tint);float seed=floor(a_pos.x*137.0)+floor(a_pos.y*137.0)*57.0;float windAngle=fract(sin(seed*12.9898+23.7)*43758.5453)*6.2831853;float stormSpeed=mix(0.00000016,0.00000038,smoothstep(0.88,1.06,a_tint));float driftSpeed=stormSpeed*(1.0-rainCell);vec2 advect=vec2(cos(windAngle),sin(windAngle))*u_motion_time*driftSpeed;gl_Position=' +
     (projectionAware ? 'projectTileFor3D(a_pos.xy+advect,a_altitude)' : 'u_matrix*vec4(a_pos.xy+advect,a_pos.z,1.0)') + ';}';
 
   const fragment = (webgl2 ? '#version 300 es\n' : '') +
@@ -168,7 +168,7 @@ function collectHeightFeatures(scene) {
   return list.filter(x => Number.isFinite(Number(x?.lng)) && Number.isFinite(Number(x?.lat)) &&
     (Number.isFinite(Number(x?.cloud_top_height_m)) || Number.isFinite(Number(x?.cloudTopHeightM))));
 }
-function makePuffGeometry(THREEless, MC, vertices, indices, lng, lat, altitude, rx, ry, rz, tint, slices = 8, stacks = 5) {
+function makePuffGeometry(THREEless, MC, vertices, indices, lng, lat, altitude, rx, ry, rz, tint, slices = 8, stacks = 5, shapeSeed = 0) {
   const c = MC.fromLngLat({ lng, lat }, Math.max(0, altitude));
   const unit = c.meterInMercatorCoordinateUnits();
   const base = vertices.length / 8;
@@ -177,9 +177,17 @@ function makePuffGeometry(THREEless, MC, vertices, indices, lng, lat, altitude, 
     const sz = Math.cos(phi), ring = Math.sin(phi);
     for (let i = 0; i <= slices; i++) {
       const u = i / slices, theta = TAU * u;
-      const lx = Math.cos(theta) * ring;
-      const ly = Math.sin(theta) * ring;
-      vertices.push(c.x + lx * rx * unit, c.y + ly * ry * unit, c.z + sz * rz * unit, altitude + sz * rz, lx, ly, sz, tint);
+      // Low-frequency radial billows break the perfect-egg silhouette without adding
+      // extra draw calls. This remains deterministic so vertices stay stable between frames.
+      const seed = shapeSeed * TAU;
+      const lobeA = Math.sin(theta * 3.0 + seed) * Math.sin(phi * 2.0 + seed * 0.73);
+      const lobeB = Math.cos(theta * 5.0 - phi * 3.0 + seed * 1.31);
+      const lobeC = Math.sin(theta * 2.0 + phi * 4.0 + seed * 2.17);
+      const billow = 1.0 + (0.075 * lobeA + 0.045 * lobeB + 0.025 * lobeC) * Math.pow(Math.max(0.001, ring), 0.35);
+      const lx = Math.cos(theta) * ring * billow;
+      const ly = Math.sin(theta) * ring * billow;
+      const lz = sz * billow;
+      vertices.push(c.x + lx * rx * unit, c.y + ly * ry * unit, c.z + lz * rz * unit, altitude + lz * rz, lx, ly, lz, tint);
     }
   }
   for (let j = 0; j < stacks; j++) for (let i = 0; i < slices; i++) {
@@ -249,10 +257,10 @@ export function initSkyClouds(target) {
       version: 6048, map, enabled, visible: enabled && !document.hidden,
       kind: 'georeferenced 3D cloud-volume layer',
       renderer: 'shared MapLibre WebGL context with isolated cloud vertex state where supported',
-      cloudFormations: formationCount, globalCloudFormations: globalCloudGeometryCache?.formationCount || 0, coverageVersion: 6070, globalMacroFormations: globalCloudGeometryCache?.macroFormationCount || 0, globalFineFormations: globalCloudGeometryCache?.fineFormationCount || 0, globalCloudPuffs: globalCloudGeometryCache?.puffCount || 0, cloudMotion: 'GPU vertex advection; source-located storm volumes prioritized; rain-cell anchors held fixed in cloud-only phase',
+      cloudFormations: formationCount, globalCloudFormations: globalCloudGeometryCache?.formationCount || 0, coverageVersion: 6070, globalMacroFormations: globalCloudGeometryCache?.macroFormationCount || 0, globalFineFormations: globalCloudGeometryCache?.fineFormationCount || 0, globalCloudPuffs: globalCloudGeometryCache?.puffCount || 0, cloudMotion: 'GPU vertex advection with spatially coherent cloud-bank motion; wind-field coupling is not yet source-backed',
       projectionMode: 'MapLibre shaderData projectTileFor3D', projectionShaderVariants: programCache.size,
       projectionShaderVariantNames: Array.from(programCache.keys()),
-      persistentGlobalCloudField: true, localCloudFormations: Math.max(0, formationCount - (globalCloudGeometryCache?.formationCount || 0)), rainCellShelfClouds: rainCellShelfCount, redrawIntervalMs: MOBILE ? 450 : 300, measuredCloudSamples: measuredCount,
+      persistentGlobalCloudField: true, globalCoverageModel: 'procedural macro mask with clustered sub-clouds; satellite cloud-mask feed not yet connected', localCloudFormations: Math.max(0, formationCount - (globalCloudGeometryCache?.formationCount || 0)), rainCellShelfClouds: rainCellShelfCount, redrawIntervalMs: MOBILE ? 450 : 300, measuredCloudSamples: measuredCount,
       cloudHeightSource: heightSource,
       layerPresent: !!map.getLayer?.(LAYER_ID), layerInstalled,
       layerRetryAttempts, mapStyleLoaded: map.isStyleLoaded?.() === true,
@@ -466,7 +474,7 @@ export function initSkyClouds(target) {
   function buildGlobalCloudGeometry() {
     if (globalCloudGeometryCache) return globalCloudGeometryCache;
     const vertices = [], indices = [], macroCandidates = [];
-    const columns = 40, rows = 18, maxMacro = MOBILE ? 170 : 240;
+    const columns = 40, rows = 18, maxMacro = MOBILE ? 170 : 160;
     for (let gy = 0; gy < rows; gy++) for (let gx = 0; gx < columns; gx++) {
       const broad = hash(Math.floor(gx / 3), Math.floor(gy / 2), 901);
       const fine = hash(gx, gy, 902);
@@ -485,22 +493,34 @@ export function initSkyClouds(target) {
       const base = Math.max(750, top * (0.29 + hash(q.gx, q.gy, 909) * 0.30));
       for (let i = 0; i < 3; i++) {
         const a = i * 2.399 + q.seed * 5.3;
-        const ring = i === 0 ? 0 : radius * (0.28 + hash(k, i, 910) * 0.34);
+        const ring = i === 0 ? 0 : radius * (0.22 + hash(k, i, 910) * 0.22);
         const puffLat = lat + Math.sin(a) * ring / 111320;
         const puffLng = lng + Math.cos(a) * ring / (111320 * Math.max(0.12, Math.cos(lat * Math.PI / 180)));
-        const rx = radius * (i === 0 ? 1 : 0.42 + hash(k, i, 911) * 0.27);
-        const ry = radius * (i === 0 ? 0.82 : 0.44 + hash(k, i, 912) * 0.29);
-        const altitude = base + (top - base) * (i === 0 ? 0.52 : i === 1 ? 0.46 : 0.76 + hash(k, i, 913) * 0.04);
-        const vertical = Math.max(1400, (top - base) * (i === 0 ? 0.88 : i === 1 ? 0.40 : 0.20 + hash(k, i, 914) * 0.06));
+        const rx = radius * (i === 0 ? 1 : 0.52 + hash(k, i, 911) * 0.20);
+        const ry = radius * (i === 0 ? 0.82 : 0.52 + hash(k, i, 912) * 0.18);
+        const altitude = base + (top - base) * (i === 0 ? 0.50 : 0.46 + hash(k, i, 913) * 0.08);
+        const vertical = Math.max(1900, (top - base) * (i === 0 ? 0.64 : 0.52 + hash(k, i, 914) * 0.12));
         makePuffGeometry(null, MC, vertices, indices, puffLng, puffLat, altitude, rx, ry, vertical,
-          0.28 + hash(k, i, 915) * 0.52, MOBILE ? 6 : 7, 4);
+          0.28 + hash(q.gx, q.gy, 915) * 0.52, MOBILE ? 8 : 9, 6, hash(q.gx, q.gy, i + 973));
       }
     }
 
     // A finer, fixed geographic lattice keeps recognizable 3D clouds present on close zooms.
-    const fineColumns = 84, fineRows = 38, maxFine = MOBILE ? 360 : 680;
+    const fineColumns = 84, fineRows = 38, maxFine = MOBILE ? 340 : 300;
+    const activeMacroCells = new Set(macro.map(q => `${q.gx}:${q.gy}`));
     const fineCandidates = [];
     for (let gy = 0; gy < fineRows; gy++) for (let gx = 0; gx < fineColumns; gx++) {
+      // Sub-clouds live near active macro banks rather than being scattered uniformly
+      // over clear areas. This preserves visible blue-sky gaps and coherent cloud systems.
+      const macroX = Math.round(gx * (columns - 1) / (fineColumns - 1));
+      const macroY = Math.round(gy * (rows - 1) / (fineRows - 1));
+      let nearCloudBank = false;
+      for (let dy = -1; dy <= 1 && !nearCloudBank; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          if (activeMacroCells.has(`${macroX + dx}:${macroY + dy}`)) { nearCloudBank = true; break; }
+        }
+      }
+      if (!nearCloudBank) continue;
       fineCandidates.push({ gx, gy, rank: hash(gx, gy, 951), seed: hash(gx, gy, 952) });
     }
     fineCandidates.sort((a, b) => a.rank - b.rank);
@@ -513,11 +533,11 @@ export function initSkyClouds(target) {
       const radius = clamp((26000 + hash(q.gx, q.gy, 955) * 78000) * latScale, 18000, 105000);
       const top = 2700 + hash(q.gx, q.gy, 956) * 8800;
       const base = Math.max(550, top * (0.28 + hash(q.gx, q.gy, 957) * 0.36));
-      const altitude = base + (top - base) * (0.51 + hash(q.gx, q.gy, 958) * 0.12);
-      const vertical = Math.max(1600, (top - base) * (0.38 + hash(q.gx, q.gy, 959) * 0.12));
+      const altitude = base + (top - base) * (0.48 + hash(q.gx, q.gy, 958) * 0.08);
+      const vertical = Math.max(2200, (top - base) * (0.48 + hash(q.gx, q.gy, 959) * 0.12));
       makePuffGeometry(null, MC, vertices, indices, lng, lat, altitude, radius,
         radius * (0.58 + hash(q.gx, q.gy, 960) * 0.36), vertical,
-        0.26 + hash(q.gx, q.gy, 961) * 0.62, MOBILE ? 6 : 7, 4);
+        0.26 + hash(q.gx, q.gy, 961) * 0.62, MOBILE ? 8 : 9, 6, hash(q.gx, q.gy, 962));
     }
     globalCloudGeometryCache = {
       vertices: new Float32Array(vertices),
