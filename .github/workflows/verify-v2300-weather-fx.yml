@@ -167,7 +167,7 @@ jobs:
               assert(stormCloudDiag.hurricaneEyeRadiusKm>0&&String(stormCloudDiag.hurricaneEyeRadiusSource).includes('source'),'fixture hurricane eye radius must be source-backed');
               assert(stormCloudDiag.hurricaneCloudShieldRadiusKm>=520,'hurricane cloud shield must use storm-scale radius, not eye radius');
               assert(stormCloudDiag.globalModelledWindPuffs>0,'the global field must expose modelled wind fallback honestly when no upper-air wind grid is supplied');
-              assert(String(stormCloudDiag.cloudWaterHeightReference).includes('mean-sea-level 0 m fallback'),'clouds over water must use mean sea level as the fallback reference, not seabed elevation');
+              assert(/(?:mean-sea-level 0 m fallback|0 m mean-sea-level fallback)/.test(String(stormCloudDiag.cloudWaterHeightReference)),'clouds over water must use mean sea level as the fallback reference, not seabed elevation');
               await p.waitForFunction(()=>window.__bpWeatherV2300?.fx?.state?.shaderReady===true,{timeout:15000});
               await p.waitForFunction(()=>window.__bpWeatherV2300?.fx?.state?.activeParticles>40,{timeout:15000});
               await new Promise(r=>setTimeout(r,1200));
