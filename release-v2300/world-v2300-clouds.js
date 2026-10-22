@@ -647,9 +647,9 @@ function generateGeometry() {
       }
       if (f.kind === 'rain-cell') {
         // Distinct low rain-cloud shelf: same world coordinates and cloud base as rain seeds.
-        const shelfAltitude = f.baseM + clamp((f.topM - f.baseM) * 0.12, 160, 360);
-        puff(f.lng, f.lat, shelfAltitude, f.radiusM * 0.82, f.radiusM * 0.64,
-          clamp((f.topM - f.baseM) * 0.22, 480, 850), 1.35, 1.35);
+        const shelfAltitude = f.baseM + clamp((f.topM - f.baseM) * 0.06, 90, 180);
+        puff(f.lng, f.lat, shelfAltitude, f.radiusM * 0.38, f.radiusM * 0.30,
+          clamp((f.topM - f.baseM) * 0.10, 180, 320), 1.35, 1.35);
         rainCellShelfCount++;
       }
       if (f.kind === 'funnel' && !MOBILE) makeFunnelGeometry(MC, vertices, indices, f.lng, f.lat, f.topM, 0.92);
