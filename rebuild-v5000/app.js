@@ -152,8 +152,8 @@ async function bootMap(){
  // Initialize optional map overlays only after the first core map load. Serializing their
  // initialization avoids a burst of source/layer changes during the first Gold LOD render.
  const optionalWorldJobs=[
-  ['clouds',async()=>{const m=await import('./world-v2300-clouds.js?v=6031-earth-cloud-mode-stable-gl');window.__BP_SKY_CLOUDS_V5908__=m.initSkyClouds(world)}],
-  ['time-slider',async()=>{const m=await import('./world-v2300-time-slider.js?v=6044-earth-cloud-toggle-state-base');window.__BP_WORLD_TIME_SLIDER_V5908__=m.initWorldTimeSlider(world,rpc)}],
+  ['clouds',async()=>{const m=await import('./world-v2300-clouds.js?v=6045-global-persistent-cloud-lod');window.__BP_SKY_CLOUDS_V5908__=m.initSkyClouds(world)}],
+  ['time-slider',async()=>{const m=await import('./world-v2300-time-slider.js?v=6045-global-persistent-cloud-lod');window.__BP_WORLD_TIME_SLIDER_V5908__=m.initWorldTimeSlider(world,rpc)}],
   ['spectral-imagery',async()=>{const m=await import('./world-v2300-spectral-imagery.js?v=5934-world-controls');window.__BP_SPECTRAL_IMAGERY_V5931__=m.initSpectralImagery(world)}],
   ['underground',async()=>{const m=await import('./world-v2300-underground-xray.js?v=5965-landmarks-and-effects');window.__BP_UNDERGROUND_XRAY_V5935__=m.initUndergroundXray(world)}],
   ['infrastructure',async()=>{const m=await import('./world-v2300-infrastructure-volume-v5962.js?v=5962-power-grid-fcc-towers');window.__BP_INFRASTRUCTURE_VOLUME_V5962__=m.initInfrastructureVolume(world)}],

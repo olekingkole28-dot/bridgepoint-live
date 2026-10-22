@@ -219,7 +219,7 @@ export function initSkyClouds(target) {
       kind: 'georeferenced 3D cloud-volume layer',
       renderer: 'single shared MapLibre WebGL context',
       cloudFormations: formationCount, globalCloudFormations: globalCloudGeometryCache?.formationCount || 0,
-      persistentGlobalCloudField: true, redrawIntervalMs: MOBILE ? 220 : 125, measuredCloudSamples: measuredCount,
+      persistentGlobalCloudField: true, localCloudFormations: Math.max(0, formationCount - (globalCloudGeometryCache?.formationCount || 0)), redrawIntervalMs: MOBILE ? 220 : 125, measuredCloudSamples: measuredCount,
       cloudHeightSource: heightSource,
       cloudHeightMode: measuredCount ? 'source-backed cloud-top height samples, with procedural fill between samples' : 'procedural altitude only; measured global cloud-top heights are not connected',
       warningFunnels: funnelCount, hurricaneStormVolumes: stormCount,
@@ -432,6 +432,7 @@ export function initSkyClouds(target) {
     /* Sample the full visible world before applying the mesh budget. The previous
        row-major loop hit its cloud cap in the first few rows, so globe-level
        clouds appeared in one band instead of across the full planet. */
+    if (z >= 2.2) {
     const pad = z >= 14 ? 0.09 : z >= 9 ? 0.18 : cell * 1.4;
     const lngStart = Math.floor((west - pad) / cell), lngEnd = Math.ceil((east + pad) / cell);
     const latStart = Math.floor((south - pad) / cell), latEnd = Math.ceil((north + pad) / cell);
@@ -463,7 +464,8 @@ export function initSkyClouds(target) {
       const base = Math.max(650, top * (0.31 + hash(xi, yi, 10) * 0.38));
       addFormation(lng, lat, radius, base, top, seed, 'ordinary');
     }
-    if (!formations.length) addFormation(number(map.getCenter?.()?.lng), number(map.getCenter?.()?.lat), 8000, 2200, 8500, 0.43);
+    }
+    if (!formations.length && z >= 2.2) addFormation(number(map.getCenter?.()?.lng), number(map.getCenter?.()?.lat), 8000, 2200, 8500, 0.43);
 
     function puff(lng, lat, altitude, rx, ry, rz, seed, tint, detailed) {
       const slices = detailed ? (z >= 12 ? 9 : 8) : 6;

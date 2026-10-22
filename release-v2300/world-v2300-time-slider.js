@@ -274,7 +274,7 @@ export function initWorldTimeSlider(target,rpc){
   try{
    let cloud=window.__BP_SKY_CLOUDS_V5908__;
    if(!cloud||cloud.map!==map||typeof cloud.setEnabled!=='function'){
-    const mod=await import('./world-v2300-clouds.js?v=6031-earth-cloud-mode-stable-gl');
+    const mod=await import('./world-v2300-clouds.js?v=6045-global-persistent-cloud-lod');
     cloud=window.__BP_SKY_CLOUDS_V5908__;if(!cloud||cloud.map!==map)cloud=mod.initSkyClouds(map)
    }
    if(!cloud||cloud.map!==map||typeof cloud.setEnabled!=='function')throw new Error('3D cloud controller did not attach to this map');
