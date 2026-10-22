@@ -1,9 +1,10 @@
-const VERSION = 6067;
-const LAYER_ID = 'bp2300-rain-world-volume-v6067';
-const GROUND_SOURCE = 'bp2300-rain-ground-source-v6067';
-const WET_LAYER = 'bp2300-rain-wet-ground-v6067';
-const PUDDLE_LAYER = 'bp2300-rain-puddle-fill-v6067';
-const PUDDLE_GLINT = 'bp2300-rain-puddle-glint-v6067';
+const VERSION = 6068;
+const LAYER_ID = 'bp2300-rain-world-volume-v6068';
+const GROUND_SOURCE = 'bp2300-rain-ground-source-v6068';
+const WET_LAYER = 'bp2300-rain-wet-ground-v6068';
+const PUDDLE_LAYER = 'bp2300-rain-puddle-fill-v6068';
+const PUDDLE_GLINT = 'bp2300-rain-puddle-glint-v6068';
+const RAIN_OVERLAY_ID = 'bp2300-rain-geographic-svg-v6068';
 const EARTH_CIRCUMFERENCE = 40075016.68557849;
 const RAD = Math.PI / 180;
 const MOBILE = (typeof innerWidth === 'number' && innerWidth <= 760) ||
@@ -100,12 +101,13 @@ function firstLayer(map, ids) {
 }
 
 export function initRainLayer(map, getScene = () => ({})) {
-  if (map.__bpRainRendererV6067) return map.__bpRainRendererV6067;
+  if (map.__bpRainRendererV6068) return map.__bpRainRendererV6068;
   let enabled = true, buffer = null, bufferAllocated = false, vao = null, vaoExt = null, vaoMode = 'none';
   let programCache = new Map(), scene = {}, cells = [], drops = [], cellMemories = new Map();
   let animationRaf = 0, groundTimer = 0, lastRepaint = 0, vertexCount = 0;
   let rendererError = null, droppedFrames = 0, lastRenderAt = 0, lastGroundUpdate = 0, puddleCount = 0;
   let lastProjectionMode = 'not-rendered', projectionUniformsBound = false;
+  let rainSvg = null, rainPaths = [], renderedStreaks = 0, svgHost = null;
   const timeOrigin = performance.now();
 
   function ensureGroundLayers() {
@@ -138,33 +140,96 @@ export function initRainLayer(map, getScene = () => ({})) {
 
   function ensureRainLayer() {
     try {
-      if (!map.getLayer(LAYER_ID)) map.addLayer({
-        id: LAYER_ID, type: 'custom', renderingMode: '3d', minzoom: 10,
-        onAdd(_map, gl) {
-          buffer = gl.createBuffer(); bufferAllocated = false; vao = null; vaoExt = null; vaoMode = 'none';
-          try {
-            if (typeof gl.createVertexArray === 'function' && typeof gl.bindVertexArray === 'function') {
-              vao = gl.createVertexArray(); if (vao) vaoMode = 'native';
-            } else {
-              vaoExt = gl.getExtension?.('OES_vertex_array_object') || null;
-              if (vaoExt) { vao = vaoExt.createVertexArrayOES(); if (vao) vaoMode = 'extension'; }
-            }
-          } catch (_) { vao = null; vaoMode = 'none'; }
-        },
-        onRemove(_map, gl) {
-          try {
-            if (buffer) gl.deleteBuffer(buffer);
-            if (vao && vaoMode === 'native') gl.deleteVertexArray(vao);
-            else if (vao && vaoMode === 'extension') vaoExt?.deleteVertexArrayOES?.(vao);
-            for (const info of programCache.values()) if (info.program) gl.deleteProgram(info.program);
-          } catch (_) {}
-          buffer = null; bufferAllocated = false; vao = null; vaoMode = 'none'; programCache = new Map();
-        },
-        render(gl, args) { renderRain(gl, args); }
-      }, map.getStyle?.()?.layers?.find(l => l.type === 'symbol')?.id);
-      const layer = map.getLayer(LAYER_ID);
-      if (layer && layer.layout?.visibility === 'none' && enabled) map.setLayoutProperty(LAYER_ID, 'visibility', 'visible');
-    } catch (e) { rendererError = 'rain layer: ' + String(e?.message || e).slice(0, 180); }
+      // Retire the old 3D ribbon layer: its world-height ribbons were projecting
+      // into tall columns at pitched camera angles. The replacement is still
+      // geographically anchored: every streak is reprojected from fixed lng/lat
+      // through MapLibre on every animation frame.
+      if (map.getLayer?.(LAYER_ID)) {
+        try { map.removeLayer(LAYER_ID); } catch (_) {}
+      }
+      svgHost = map.getCanvasContainer?.() || map.getContainer?.();
+      if (!svgHost) throw new Error('MapLibre canvas container unavailable');
+      rainSvg = document.getElementById(RAIN_OVERLAY_ID);
+      if (!rainSvg) {
+        rainSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        rainSvg.id = RAIN_OVERLAY_ID;
+        rainSvg.setAttribute('aria-hidden', 'true');
+        rainSvg.setAttribute('preserveAspectRatio', 'none');
+        Object.assign(rainSvg.style, {
+          position: 'absolute', inset: '0', width: '100%', height: '100%',
+          pointerEvents: 'none', overflow: 'hidden', zIndex: '1',
+          display: enabled ? 'block' : 'none'
+        });
+        rainPaths = [];
+        for (let i = 0; i < 3; i++) {
+          const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          p.setAttribute('fill', 'none');
+          p.setAttribute('stroke', i === 2 ? '#e2f4fb' : '#bfdce9');
+          p.setAttribute('stroke-width', i === 2 ? '1.35' : (i === 1 ? '1.05' : '0.85'));
+          p.setAttribute('stroke-linecap', 'round');
+          p.setAttribute('opacity', i === 2 ? '0.82' : (i === 1 ? '0.62' : '0.42'));
+          rainSvg.appendChild(p);
+          rainPaths.push(p);
+        }
+        svgHost.appendChild(rainSvg);
+      } else {
+        rainPaths = Array.from(rainSvg.querySelectorAll('path')).slice(0, 3);
+        rainSvg.style.display = enabled ? 'block' : 'none';
+      }
+      lastProjectionMode = 'geographic-map-project';
+      projectionUniformsBound = false;
+    } catch (e) {
+      rendererError = 'rain overlay: ' + String(e?.message || e).slice(0, 180);
+    }
+  }
+
+  function drawProjectedRain(now) {
+    if (!rainSvg || rainPaths.length < 3) ensureRainLayer();
+    if (!rainSvg || rainPaths.length < 3) return;
+    const zoom = safeNum(map.getZoom?.(), 0);
+    if (!enabled || !cells.length || zoom < 10 || document.hidden) {
+      for (const path of rainPaths) path.setAttribute('d', '');
+      renderedStreaks = 0;
+      return;
+    }
+    const canvas = map.getCanvas?.();
+    const width = canvas?.clientWidth || svgHost?.clientWidth || 390;
+    const height = canvas?.clientHeight || svgHost?.clientHeight || 844;
+    rainSvg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+    rainSvg.setAttribute('width', String(width));
+    rainSvg.setAttribute('height', String(height));
+    const seconds = (now - timeOrigin) / 1000;
+    const pitchFactor = Math.max(0.35, Math.sin(safeNum(map.getPitch?.(), 0) * RAD) * 1.5);
+    const paths = [[], [], []];
+    let count = 0;
+    for (const d of drops) {
+      let ground;
+      try { ground = map.project([d.lng, d.lat]); } catch (_) { continue; }
+      if (!ground || !Number.isFinite(ground.x) || !Number.isFinite(ground.y)) continue;
+      const mpp = metersPerPixel(d.lat, zoom);
+      const columnHeight = clamp(d.baseAglM / Math.max(0.3, mpp) * pitchFactor, 34, 560);
+      if (ground.x < -18 || ground.x > width + 18 ||
+          ground.y < -columnHeight - 10 || ground.y > height + columnHeight) continue;
+      const phase = mod(d.phase + seconds * d.fallRate, 1);
+      const altitudePosition = 1 - phase;
+      const windDrift = Math.min(18, d.windMps * altitudePosition * 0.22);
+      const x = ground.x + Math.sin(d.windHeading) * windDrift;
+      const y = ground.y - columnHeight * altitudePosition;
+      // Keep each streak short in screen space. The whole column is filled by
+      // many independently falling geographic drops, not one ribbon from sky to ground.
+      const lengthPx = clamp(1.8 + d.segmentM * 0.42, 2.0, 4.2);
+      const side = Math.sin(d.windHeading) * Math.min(1.4, d.windMps * 0.025);
+      const group = d.alpha < 0.64 ? 0 : (d.alpha < 0.78 ? 1 : 2);
+      paths[group].push(`M${x.toFixed(1)} ${y.toFixed(1)}L${(x + side).toFixed(1)} ${(y + lengthPx).toFixed(1)}`);
+      count++;
+    }
+    for (let i = 0; i < rainPaths.length; i++) rainPaths[i].setAttribute('d', paths[i].join(''));
+    renderedStreaks = count;
+    vertexCount = count * 2;
+    lastRenderAt = Date.now();
+    rendererError = null;
+    lastProjectionMode = 'geographic-map-project';
+    publishDiagnostic();
   }
 
   function shaderInfo(gl, args) {
@@ -516,7 +581,7 @@ export function initRainLayer(map, getScene = () => ({})) {
     animationRaf = 0;
   }
   function publishDiagnostic() {
-    const d = window.__BP_RAIN_RENDERER_V6067__ || (window.__BP_RAIN_RENDERER_V6067__ = {});
+    const d = window.__BP_RAIN_RENDERER_V6068__ || (window.__BP_RAIN_RENDERER_V6068__ = {});
     Object.assign(d, { version: VERSION, renderer: 'georeferenced-3D-rain-ribbons', enabled,
       worldAnchored: true, layerAttached: !!map.getLayer?.(LAYER_ID), shaderVariants: programCache.size,
       projectionAware: Array.from(programCache.values()).some(info => info.projectionAware), projectionMode: lastProjectionMode,
@@ -553,8 +618,8 @@ export function initRainLayer(map, getScene = () => ({})) {
        projectionMode: lastProjectionMode, projectionUniformsBound, rainCellCount: cells.length, particleSeeds: drops.length, activeVertices: vertexCount,
       anchorFingerprint: drops.slice(0, 8).map(d => `${d.lng.toFixed(5)},${d.lat.toFixed(5)},${d.baseAglM.toFixed(0)}`).join('|'),
       puddleCount, rendererError, droppedFrames, lastRenderAt, lastGroundUpdate, worldAnchored: true }; } };
-  map.__bpRainRendererV6067 = api;
-  window.__BP_RAIN_RENDERER_V6067__ = api;
+  map.__bpRainRendererV6068 = api;
+  window.__BP_RAIN_RENDERER_V6068__ = api;
   refreshScene(getScene?.() || {});
   return api;
 }
