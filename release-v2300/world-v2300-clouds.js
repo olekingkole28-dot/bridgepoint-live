@@ -225,7 +225,7 @@ export function initSkyClouds(target) {
     container.appendChild(overlay);
   }
 
-  let enabled = true, disposed = false, animationTimer = 0, rebuildTimer = 0, refreshHandle = 0, layerRetryTimer = 0, layerRetryAttempts = 0;
+  let enabled = true, disposed = false, animationTimer = 0, rebuildTimer = 0, refreshHandle = 0, layerRetryTimer = 0, layerRetryAttempts = 0, lastLayerHealthCheckAt = 0;
   let vertexData = new Float32Array(0), indexData = new Uint16Array(0);
   let globalCloudGeometryCache = null;
   let geometryDirty = true, formationCount = 0, measuredCount = 0, funnelCount = 0, stormCount = 0;
@@ -634,8 +634,17 @@ function scheduleGeometry(delay = 180) {
   function startAnimation() {
     if (animationTimer || !enabled || document.hidden) return;
     animationTimer = setInterval(() => {
+      if (disposed || !enabled || document.hidden) return;
+      // If another map subsystem replaces the style/layers, restore our custom cloud renderer.
+      // This check is intentionally sparse so the always-on cloud field stays light on phones.
+      const now = Date.now();
+      if (!map.getLayer?.(LAYER_ID) && now - lastLayerHealthCheckAt >= 1800) {
+        lastLayerHealthCheckAt = now;
+        layerRetryAttempts = 0;
+        addLayerIfReady();
+      }
       // Map gestures already drive frames. Avoid stacking extra cloud repaint requests while moving.
-      if (!disposed && enabled && !document.hidden && layerInstalled && !map.isMoving?.()) map.triggerRepaint?.();
+      if (layerInstalled && !map.isMoving?.()) map.triggerRepaint?.();
     }, MOBILE ? 450 : 300);
   }
   function stopAnimation() {
@@ -678,6 +687,8 @@ function scheduleGeometry(delay = 180) {
 
   map.on?.('moveend', onMoveEnd); map.on?.('zoomend', onMoveEnd); map.on?.('resize', onMoveEnd);
   map.on?.('styledata', onStyleData);
+  map.on?.('style.load', onStyleData);
+  map.on?.('load', onLayerIdle);
   map.on?.('idle', onLayerIdle);
   document.addEventListener('visibilitychange', onVisibility);
   const onToggleEvent = event => { if (event?.detail?.map && event.detail.map !== map) return; toggle(); };
@@ -693,7 +704,7 @@ function scheduleGeometry(delay = 180) {
     destroy() {
       if (disposed) return; disposed = true;
       stopAnimation(); clearTimeout(rebuildTimer); clearTimeout(refreshHandle); clearLayerRetry();
-      map.off?.('moveend', onMoveEnd); map.off?.('zoomend', onMoveEnd); map.off?.('resize', onMoveEnd); map.off?.('styledata', onStyleData); map.off?.('idle', onLayerIdle);
+      map.off?.('moveend', onMoveEnd); map.off?.('zoomend', onMoveEnd); map.off?.('resize', onMoveEnd); map.off?.('styledata', onStyleData); map.off?.('style.load', onStyleData); map.off?.('load', onLayerIdle); map.off?.('idle', onLayerIdle);
       document.removeEventListener('visibilitychange', onVisibility); window.removeEventListener('bp:sky-cloud-toggle', onToggleEvent);
       setWorldGrade(false);
       try { if (map.getLayer?.(LAYER_ID)) map.removeLayer(LAYER_ID); } catch (_) {}
