@@ -446,16 +446,21 @@ jobs:
           grep -Fq 'Real satellite bands. No AI-drawn pixels.' site/world-v2300-spectral-imagery.js
           grep -Fq 'world-v2300-clouds.js?v=6068-low-rain-shelf' site/app.js
           grep -Fq 'world-v2300-clouds.js?v=6068-low-rain-shelf' site/landing.js
-          grep -Fq 'world-v2300-weather.js?v=6067-short-world-rain' site/app.js
-          grep -Fq 'world-v2300-rain.js?v=6067-short-world-rain' site/world-v2300-weather.js
+          grep -Fq 'world-v2300-weather.js?v=6068-geographic-svg-rain' site/app.js
+          grep -Fq 'world-v2300-rain.js?v=6068-geographic-svg-rain' site/world-v2300-weather.js
           grep -Fq 'retireLegacyScreenSpaceRain' site/world-v2300-weather.js
           grep -Fq '__BP_SCREEN_SPACE_RAIN_RETIRE_V6063__' site/world-v2300-weather.js
-          grep -Fq 'world-v2300-rain.js?v=6067-short-world-rain' site/app/world-v2300-weather.js
+          grep -Fq 'world-v2300-rain.js?v=6068-geographic-svg-rain' site/app/world-v2300-weather.js
           grep -Fq 'projectTileFor3D(a_pos.xy,a_altitude)' site/world-v2300-rain.js
           grep -Fq 'worldAnchored: true' site/world-v2300-rain.js
           grep -Fq "kind: 'puddle'" site/world-v2300-rain.js
           grep -Fq 'minzoom: 10' site/world-v2300-rain.js
-          grep -Fq 'const VERSION = 6067;' site/world-v2300-rain.js
+          grep -Fq 'const VERSION = 6068;' site/world-v2300-rain.js
+          grep -Fq "const RAIN_OVERLAY_ID = 'bp2300-rain-geographic-svg-v6068';" site/world-v2300-rain.js
+          grep -Fq 'function drawProjectedRain(now)' site/world-v2300-rain.js
+          grep -Fq 'map.project([d.lng, d.lat])' site/world-v2300-rain.js
+          grep -Fq "lastProjectionMode = 'geographic-map-project'" site/world-v2300-rain.js
+          grep -Fq 'renderedStreaks' site/world-v2300-rain.js
           grep -Fq 'adaptiveWidthM' site/world-v2300-rain.js
           grep -Fq 'u_projection_fallback_matrix' site/world-v2300-rain.js
           grep -Fq 'u_projection_tile_mercator_coords' site/world-v2300-rain.js
@@ -482,7 +487,7 @@ jobs:
           grep -Fq 'baseAglM: clamp(safeNum(o.cloud_base_height_m ?? o.cloudBaseHeightM, thunder ? 450 : 350), 650, 4200)' site/world-v2300-rain.js
           grep -Fq "if(pr==='rain')return;" site/world-v2300-weather.js
           grep -Fq "'rain-cell'" site/world-v2300-clouds.js
-          grep -Fq 'world-v2300-weather.js?v=6067-short-world-rain' site/landing.js
+          grep -Fq 'world-v2300-weather.js?v=6068-geographic-svg-rain' site/landing.js
           grep -Fq 'bindWeatherVertexArray(gl,weatherVao,weatherVaoMode,weatherVaoExt)' site/world-v2300-weather.js
           grep -Fq 'isolatedVao' site/world-v2300-weather.js
           grep -Fq 'window.__BP_WEATHER_GL_HEALTH_V6057__' site/world-v2300-weather.js
@@ -492,9 +497,9 @@ jobs:
           grep -Fq 'hideLegacyNativeWeatherLayers(map)' site/world-v2300-weather.js
           grep -Fq "renderer:'v2300-cinematic-fx'" site/app.js
           grep -Fq "renderer:'isolated-webgl-particle-layer'" site/landing.js
-          grep -Fq 'world-v2300-weather.js?v=6067-short-world-rain' site/index.html
-          grep -Fq 'world-v2300-weather.js?v=6067-short-world-rain' site/app/index.html
-          grep -Fq 'world-v2300-weather.js?v=6067-short-world-rain' site/app/world-v2300-bootstrap.js
+          grep -Fq 'world-v2300-weather.js?v=6068-geographic-svg-rain' site/index.html
+          grep -Fq 'world-v2300-weather.js?v=6068-geographic-svg-rain' site/app/index.html
+          grep -Fq 'world-v2300-weather.js?v=6068-geographic-svg-rain' site/app/world-v2300-bootstrap.js
           grep -Fq 'world-v2300-time-slider.js?v=6055-early-layer-attach' site/app.js
           grep -Fq 'world-v2300-time-slider.js?v=6055-early-layer-attach' site/landing.js
           grep -Fq 'world-v2300-spectral-imagery.js?v=5934-world-controls' site/app.js
