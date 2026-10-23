@@ -218,7 +218,7 @@ jobs:
               assert.equal(modeledGlobalStorms.sourceStormCount,0,'modeled vortices must not be counted as source storms');
               assert.equal(modeledGlobalStorms.sourceTornadoAlertCount,0,'modeled funnel must not be counted as a live tornado warning');
               assert(String(modeledGlobalStorms.stormVisualProvenance).includes('not source-backed live weather'),'modeled fallback provenance must be explicit');
-              await p.evaluate(()=>{window.__BP_STORM_RAY_DEBUG__=true;window.__bpWorldV2300.map.triggerRepaint();});
+              await p.evaluate(()=>{window.__BP_STORM_RAY_DEBUG_MODE__=4;window.__bpWorldV2300.map.triggerRepaint();});
               await new Promise(r=>setTimeout(r,900));
               await p.screenshot({path:'/tmp/bp2300wx/world-anchored-rain-modeled-storm-global.png',fullPage:false});
               await p.evaluate(()=>window.__bpWorldV2300.map.jumpTo({center:[-97.45,35.55],zoom:10.5,pitch:58,bearing:-12}));
@@ -226,7 +226,7 @@ jobs:
               await p.waitForFunction(()=>{const s=window.__BP_SKY_CLOUDS_STATE_V5908__||{};return s.globalStormLod==='physical-local'&&s.modeledTornadoVisualCount===1&&s.warningFunnels>=1&&s.tornadoVisualHeightKm<30;},{timeout:15000});
               await new Promise(r=>setTimeout(r,650));
               await p.screenshot({path:'/tmp/bp2300wx/world-anchored-rain-modeled-tornado-close.png',fullPage:false});
-              await p.evaluate(()=>{window.__BP_STORM_RAY_DEBUG__=false;window.__bpWorldV2300.map.triggerRepaint();});
+              await p.evaluate(()=>{window.__BP_STORM_RAY_DEBUG_MODE__=0;window.__bpWorldV2300.map.triggerRepaint();});
               await p.evaluate(()=>window.__bpWorldV2300.map.jumpTo({center:[-87.3425,41.538],zoom:14.5,pitch:58,bearing:-12}));
               await p.waitForFunction(()=>{const r=window.__BP_RAIN_RENDERER_V6068__;return !!r&&r.state?.rainCellCount>0&&r.state?.particleSeeds>0&&r.state?.activeVertices>0&&r.state?.worldAnchored===true&&r.state?.overlayAttached===true&&r.state?.renderedStreaks>40&&r.state?.projectionMode==='geographic-map-project';},{timeout:15000});
               const rainOut=await p.evaluate(()=>{const m=window.__bpWorldV2300.map,r=window.__BP_RAIN_RENDERER_V6068__,s=window.__BP_SKY_CLOUDS_STATE_V5908__||{};return{zoom:m.getZoom(),version:r?.version,state:r?.state,overlayAttached:!!document.getElementById('bp2300-rain-geographic-svg-v6068'),cloudLocalFormations:Number(s.localCloudFormations||0),cloudDiag:{enabled:s.enabled,visible:s.visible,layerPresent:s.layerPresent,layerInstalled:s.layerInstalled,localCloudFormations:s.localCloudFormations,rainCellShelfClouds:s.rainCellShelfClouds,cloudFormations:s.cloudFormations,globalThinLayerSlices:s.globalThinLayerSlices,globalThinLayerStacks:s.globalThinLayerStacks,globalSingleLayerSlices:s.globalSingleLayerSlices,globalSingleLayerStacks:s.globalSingleLayerStacks,globalMacroRadiusMaxKm:s.globalMacroRadiusMaxKm,hurricaneSpiralCloudCenters:s.hurricaneSpiralCloudCenters,hurricaneEyeWallCloudCenters:s.hurricaneEyeWallCloudCenters,hurricaneEyeRadiusKm:s.hurricaneEyeRadiusKm,hurricaneEyeRadiusSource:s.hurricaneEyeRadiusSource,hurricaneCloudShieldRadiusKm:s.hurricaneCloudShieldRadiusKm,cloudWaterHeightReference:s.cloudWaterHeightReference,globalHeightResolvedWindPuffs:s.globalHeightResolvedWindPuffs,globalModelledWindPuffs:s.globalModelledWindPuffs,rendererError:s.rendererError,projectionMode:s.projectionMode}}});
