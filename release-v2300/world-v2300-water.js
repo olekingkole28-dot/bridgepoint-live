@@ -335,7 +335,7 @@ function buildShaders(gl, shaderDescription) {
     '  vec3 waveNormal = normalize(vec3(-dFdx(v_wave) * 28.0, -dFdy(v_wave) * 28.0, 1.0));',
     '  float specular = pow(max(dot(waveNormal, normalize(vec3(-0.34, 0.48, 0.81))), 0.0), 18.0);',
     '  float glancingGlint = pow(max(dot(waveNormal, normalize(vec3(0.64, 0.24, 0.73))), 0.0), 28.0);',
-    '  float highlight = clamp(specular * 1.7 + glancingGlint * 0.75, 0.0, 1.0);'
+    '  float highlight = clamp(specular * 1.7 + glancingGlint * 0.75, 0.0, 1.0);',
     '  if (v_kind > 1.5 && v_kind < 2.5) {',
     '    vec2 flowDir = length(v_flow) > 0.001 ? normalize(v_flow) : vec2(1.0, 0.0);',
     '    float streamPhase = sin(dot(v_coord, flowDir) * u_flowCycles * 6.2831853 + v_streamPhaseOffset + u_time * 1.85);',
