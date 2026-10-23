@@ -252,6 +252,7 @@ jobs:
           sed -i 's#world-v2300-sensor-layers.js?v=6015-nasa-light-toggle#world-v2300-sensor-layers.js?v=6027-nasa-nightlight-corrected-radiance#g' site/app.js site/landing.js
           sed -i 's#world-v2300-clouds.js?v=6075-global-coverage-fill#world-v2300-clouds.js?v=6090-physical-storm-motion#g' site/app.js site/landing.js
           sed -i 's#world-v2300-clouds.js?v=6076-rounded-cloud-banks#world-v2300-clouds.js?v=6090-physical-storm-motion#g' site/app.js site/landing.js
+          sed -i 's#world-v2300-clouds.js?v=6088-fuller-local-tornado#world-v2300-clouds.js?v=6090-physical-storm-motion#g' site/app.js site/landing.js
           sed -i 's#world-v2300-weather.js?v=6070-clouds-only-phase#world-v2300-weather.js?v=6090-five-minute-source-track-refresh#g' site/app.js site/landing.js site/index.html site/app/index.html
           sed -i 's#world-v2300-time-slider.js?v=6076-rounded-cloud-banks#world-v2300-time-slider.js?v=6077-sky-restore-safe-pitch#g' site/app.js site/landing.js
           sed -i 's#world-v2300-time-slider.js?v=6077-cloud-base-restore#world-v2300-time-slider.js?v=6077-sky-restore-safe-pitch#g' site/app.js site/landing.js
