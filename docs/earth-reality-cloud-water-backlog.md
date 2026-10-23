@@ -2,7 +2,7 @@
 
 **Status: OPEN / NOT COMPLETE.** This is a durable owner-requested implementation ledger. Keep it current across coding sessions. Do not mark an item complete because a button, prototype, synthetic shape, or passing source-code check exists; require working data, visual inspection, and production verification.
 
-### Water engine v6112 close-zoom hardening pass (visual verification pending)
+### Water engine v6113 inland surface continuity guard (visual verification pending)
 
 The renderer now uses viewport-filtered source geometry, allows real water polygons to render while optional land-mask tiles are delayed, estimates one level surface per inland polygon when explicit compatible water-level observations are absent, limits gauge influence to nearby water, renders only source-reported flood-depth polygons as a distinct inundation material, and uses zoom-adaptive world-anchored wave shading within a bounded vertex budget. The v6111 pass adds physical elevation bounds, rejects implausible vertical jumps in additive river ribbons, corrects isolated mesh-corner outliers, restricts marine surfaces to near-mean-sea-level elevations, and strengthens the ocean shimmer at globe scale. These are defensive rendering controls—not a declaration that global/coastal/street-level water is complete. The v6112 pass adds a close-zoom source-corner shoreline guard and rejects long, implausibly elevated or steep additive river ribbons; native map water and waterways remain the fallback when a custom cell/segment is rejected. This is targeted artifact containment, not visual acceptance. Bathymetry, authoritative currents, tide/stage fields and flood products remain source-dependent; keep the ledger open until visual and runtime verification succeeds.
 
