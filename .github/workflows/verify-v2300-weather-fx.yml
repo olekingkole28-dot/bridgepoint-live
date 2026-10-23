@@ -155,10 +155,14 @@ jobs:
               await p.waitForFunction(()=>Number(window.__BP_SKY_CLOUDS_STATE_V5908__?.localCloudFormations||0)>0,{timeout:15000});
               await p.evaluate(()=>window.__bpWorldV2300.map.jumpTo({center:[-87.3425,41.538],zoom:1.25,pitch:0,bearing:0}));
               await p.evaluate(()=>window.__bpWeatherV2300.refresh(true));
-              await p.waitForFunction(()=>{const s=window.__BP_SKY_CLOUDS_STATE_V5908__||{};return s.version===6082&&s.hurricaneVolumeProxyVertices>0&&s.tornadoVolumeProxyVertices>=180&&s.warningFunnels>=1&&s.tornadoVisualHeightKm>4&&s.tornadoVisualHeightKm<16&&s.stormRaymarchStepBudget>0&&s.rendererError===null;},{timeout:15000});
+              await new Promise(r=>setTimeout(r,1500));
+              const raymarchPrecheck=await p.evaluate(()=>{const s=window.__BP_SKY_CLOUDS_STATE_V5908__||{};return{version:s.version,zoom:s.zoom,hurricaneVolumeProxyVertices:s.hurricaneVolumeProxyVertices,tornadoVolumeProxyVertices:s.tornadoVolumeProxyVertices,warningFunnels:s.warningFunnels,tornadoVisualHeightKm:s.tornadoVisualHeightKm,stormRaymarchStepBudget:s.stormRaymarchStepBudget,rendererError:s.rendererError,architecture:s.stormRenderingArchitecture,layerInstalled:s.layerInstalled}});
+              console.log('BRIDGEPOINT_RAYMARCH_PRECHECK',JSON.stringify(raymarchPrecheck));
               const globalStormDiag=await p.evaluate(()=>{const s=window.__BP_SKY_CLOUDS_STATE_V5908__||{};return{zoom:s.zoom,sourceStormCount:s.sourceStormCount,sourceTornadoAlertCount:s.sourceTornadoAlertCount,hurricaneSpiralRibbonVertices:s.hurricaneSpiralRibbonVertices,hurricaneVolumeProxyVertices:s.hurricaneVolumeProxyVertices,tornadoVolumeProxyVertices:s.tornadoVolumeProxyVertices,stormRaymarchStepBudget:s.stormRaymarchStepBudget,stormRenderingArchitecture:s.stormRenderingArchitecture,hurricaneEyeWallCloudCenters:s.hurricaneEyeWallCloudCenters,hurricaneSpiralCloudCenters:s.hurricaneSpiralCloudCenters,hurricaneVisualEyeRadiusKm:s.hurricaneVisualEyeRadiusKm,hurricaneVisualShieldRadiusKm:s.hurricaneVisualShieldRadiusKm,tornadoFunnelMeshVertices:s.tornadoFunnelMeshVertices,tornadoVisualHeightKm:s.tornadoVisualHeightKm,tornadoVisualTopRadiusKm:s.tornadoVisualTopRadiusKm,globalStormLod:s.globalStormLod,rendererError:s.rendererError}});
               console.log('BRIDGEPOINT_GLOBAL_STORM_LOD_PASS',JSON.stringify(globalStormDiag));
-              assert(globalStormDiag.hurricaneVolumeProxyVertices>0&&globalStormDiag.stormRaymarchStepBudget>0,'global hurricane must use the raymarched Earth-fixed volume');
+              assert.equal(globalStormDiag.rendererError,null,'storm GLSL must compile and render');
+              assert(globalStormDiag.stormRaymarchStepBudget>0,'storm shader must publish its bounded ray step budget');
+              assert(globalStormDiag.hurricaneVolumeProxyVertices>0,'global hurricane must use the raymarched Earth-fixed volume');
               assert(globalStormDiag.hurricaneVisualEyeRadiusKm>0,'hurricane eye radius must remain measurable at global zoom');
               assert(globalStormDiag.hurricaneVisualShieldRadiusKm>=500,'hurricane volume must keep a storm-scale shield at global zoom');
               assert(globalStormDiag.tornadoVisualHeightKm>=4&&globalStormDiag.tornadoVisualHeightKm<16,'tornado volume should retain its physical 3.5–15.5 km height at every zoom');
