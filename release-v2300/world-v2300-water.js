@@ -77,6 +77,7 @@ function sourceFeatures(map, sourceLayer, limit) {
     const prepared = [];
     for (const row of raw || []) {
       if (prepared.length >= limit) break;
+      if (!row || typeof row !== 'object') continue;
       const item = prepareFeature(row);
       if (item) prepared.push(item);
     }
@@ -112,7 +113,8 @@ function collectDepthFeatures(scene) {
 function absoluteWaterLevelAt(scene, lng, lat) {
   let best = null, bestD = Infinity;
   for (const row of scene.water_levels || []) {
-    const p = row.properties || row;
+    if (!row || typeof row !== 'object') continue;
+    const p = row.properties && typeof row.properties === 'object' ? row.properties : row;
     // Only use fields that explicitly claim a surface elevation. "water_level_m"
     // alone can be a gauge stage with an unknown datum and must not be treated as elevation.
     const h = Number(p.water_surface_elevation_m ?? p.surface_elevation_msl ?? p.sea_surface_height_m);
@@ -160,7 +162,8 @@ function stormSignals(scene) {
 function nearestWind(scene, lng, lat) {
   let best = null, bestD = Infinity;
   for (const row of scene.observations || []) {
-    const p = row.properties || row;
+    if (!row || typeof row !== 'object') continue;
+    const p = row.properties && typeof row.properties === 'object' ? row.properties : row;
     const x = Number(row.lng ?? row.longitude ?? p.lng ?? p.longitude);
     const y = Number(row.lat ?? row.latitude ?? p.lat ?? p.latitude);
     if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
@@ -180,7 +183,9 @@ function lineParts(geometry) {
   return [];
 }
 function featureWaterwayWidth(feature) {
-  const p = feature.properties || {};
+  const p = feature && typeof feature === 'object'
+    ? (feature.properties && typeof feature.properties === 'object' ? feature.properties : feature)
+    : {};
   const cls = text([p.class, p.waterway, p.type, p.natural].filter(Boolean).join(' '));
   const parsed = parseFloat(String(p.width || '').replace(',', '.'));
   if (Number.isFinite(parsed) && parsed > 0) return clamp(parsed, 1, 36);
@@ -523,9 +528,10 @@ export function initWaterEngine(mapOrWorld, options = {}) {
         arr[p] = s.x; arr[p + 1] = s.y; arr[p + 2] = s.radiusM; arr[p + 3] = s.intensity;
       });
       this.stormUniforms = arr;
-      this.sourceWaterLevelCount = (scene.water_levels || []).length;
+      this.sourceWaterLevelCount = (scene.water_levels || []).filter(row => row && typeof row === 'object').length;
       this.absoluteWaterLevelCount = (scene.water_levels || []).filter(row => {
-        const p = row.properties || row;
+        if (!row || typeof row !== 'object') return false;
+        const p = row.properties && typeof row.properties === 'object' ? row.properties : row;
         return Number.isFinite(Number(p.water_surface_elevation_m ?? p.surface_elevation_msl ?? p.sea_surface_height_m));
       }).length;
       this.sourceFloodPolygonCount = (scene.flood_depths || []).length;
