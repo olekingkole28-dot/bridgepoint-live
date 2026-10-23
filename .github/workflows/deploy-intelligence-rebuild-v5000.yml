@@ -252,12 +252,12 @@ jobs:
           sed -i 's#world-v2300-sensor-layers.js?v=6015-nasa-light-toggle#world-v2300-sensor-layers.js?v=6027-nasa-nightlight-corrected-radiance#g' site/app.js site/landing.js
           sed -i 's#world-v2300-clouds.js?v=6075-global-coverage-fill#world-v2300-clouds.js?v=6077-cloud-base-restore#g' site/app.js site/landing.js
           sed -i 's#world-v2300-clouds.js?v=6076-rounded-cloud-banks#world-v2300-clouds.js?v=6077-cloud-base-restore#g' site/app.js site/landing.js
-          sed -i 's#world-v2300-time-slider.js?v=6076-rounded-cloud-banks#world-v2300-time-slider.js?v=6077-sky-look-up-camera#g' site/app.js site/landing.js
-          sed -i 's#world-v2300-time-slider.js?v=6077-cloud-base-restore#world-v2300-time-slider.js?v=6077-sky-look-up-camera#g' site/app.js site/landing.js
-          sed -i 's#app.js?v=6077-cloud-base-restore#app.js?v=6077-sky-look-up-camera#g' site/app/index.html
-          sed -i 's#landing.js?v=6077-cloud-base-restore#landing.js?v=6077-sky-look-up-camera#g' site/index.html
-          sed -i 's#app.js?v=6076-rounded-cloud-banks#app.js?v=6077-sky-look-up-camera#g' site/app/index.html
-          sed -i 's#landing.js?v=6076-rounded-cloud-banks#landing.js?v=6077-sky-look-up-camera#g' site/index.html
+          sed -i 's#world-v2300-time-slider.js?v=6076-rounded-cloud-banks#world-v2300-time-slider.js?v=6077-sky-pitch-wait2#g' site/app.js site/landing.js
+          sed -i 's#world-v2300-time-slider.js?v=6077-cloud-base-restore#world-v2300-time-slider.js?v=6077-sky-pitch-wait2#g' site/app.js site/landing.js
+          sed -i 's#app.js?v=6077-cloud-base-restore#app.js?v=6077-sky-pitch-wait2#g' site/app/index.html
+          sed -i 's#landing.js?v=6077-cloud-base-restore#landing.js?v=6077-sky-pitch-wait2#g' site/index.html
+          sed -i 's#app.js?v=6076-rounded-cloud-banks#app.js?v=6077-sky-pitch-wait2#g' site/app/index.html
+          sed -i 's#landing.js?v=6076-rounded-cloud-banks#landing.js?v=6077-sky-pitch-wait2#g' site/index.html
           cp release-v2300/world-v2300-realism.js site/world-v2300-realism.js
           cp release-v2300/gis-core-orchestrator-v5910.js site/gis-core-orchestrator-v5910.js
           cp release-v2300/world-v2300-config.js site/app/world-v2300-config.js
@@ -508,8 +508,8 @@ jobs:
           grep -Fq 'world-v2300-weather.js?v=6070-clouds-only-phase' site/index.html
           grep -Fq 'world-v2300-weather.js?v=6070-clouds-only-phase' site/app/index.html
           grep -Fq 'world-v2300-weather.js?v=6070-clouds-only-phase' site/app/world-v2300-bootstrap.js
-          grep -Fq 'world-v2300-time-slider.js?v=6077-sky-look-up-camera' site/app.js
-          grep -Fq 'world-v2300-time-slider.js?v=6077-sky-look-up-camera' site/landing.js
+          grep -Fq 'world-v2300-time-slider.js?v=6077-sky-pitch-wait2' site/app.js
+          grep -Fq 'world-v2300-time-slider.js?v=6077-sky-pitch-wait2' site/landing.js
           grep -Fq 'world-v2300-spectral-imagery.js?v=5934-world-controls' site/app.js
           grep -Fq 'world-v2300-underground-xray.js?v=5965-landmarks-and-effects' site/app.js
           grep -Fq 'world-v2300-underground-xray.js?v=5965-landmarks-and-effects' site/landing.js
@@ -770,7 +770,7 @@ jobs:
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/app.js
           grep -Fq 'activateLiveWeather();' site/app.js
           grep -Fq 'enabled:true,serializedWeather:true' site/app.js
-          grep -Fq 'app.js?v=6077-sky-look-up-camera' site/app/index.html
+          grep -Fq 'app.js?v=6077-sky-pitch-wait2' site/app/index.html
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/landing.js
           grep -Fq 'WMO_CAP_WARNING' site/app.js
           grep -Fq 'WMO_CAP_WARNING' site/landing.js
@@ -993,8 +993,8 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=6077-sky-look-up-camera' site/app/index.html
-          grep -Fq 'landing.js?v=6077-sky-look-up-camera' site/index.html
+          grep -Fq 'app.js?v=6077-sky-pitch-wait2' site/app/index.html
+          grep -Fq 'landing.js?v=6077-sky-pitch-wait2' site/index.html
            grep -Fq 'world-v2300-map.js?v=6056-ground-camera-readiness' site/app.js
            grep -Fq 'world-v2300-map.js?v=6056-ground-camera-readiness' site/landing.js
            grep -Fq 'world-v2300-map.js?v=6056-ground-camera-readiness' site/index.html
