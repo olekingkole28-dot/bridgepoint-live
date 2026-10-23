@@ -139,7 +139,7 @@ function absoluteWaterLevelAt(scene, lng, lat) {
     const d = Math.hypot(dx, dy);
     if (d < bestD) { bestD = d; best = h; }
   }
-  return bestD <= 0.35 ? best : null;
+  return bestD <= 0.06 ? best : null;
 }
 function coordsOfPoint(row) {
   const p = row && (row.properties || row);
@@ -630,6 +630,42 @@ export function initWaterEngine(mapOrWorld, options = {}) {
     return value;
   }
   function sceneLevelAt(scene, lng, lat) { return absoluteWaterLevelAt(scene, lng, lat); }
+  function estimatedInlandSurface(feature, scene, terrainCache, cellKey, lng, lat) {
+    const explicit = sceneLevelAt(scene, lng, lat);
+    if (explicit !== null) return explicit;
+    if (!feature || !feature.parts || map.getZoom() < 5 || typeof map.queryTerrainElevation !== 'function') {
+      return terrainHeight(lng, lat, terrainCache, 'e:' + cellKey);
+    }
+    if (api._inlandLevels && api._inlandLevels.has(feature)) return api._inlandLevels.get(feature);
+    const samples = [];
+    let sampled = 0;
+    // Use one robust shoreline-terrain estimate per inland polygon so the visible surface
+    // stays level instead of following every underlying DEM vertex. Source water levels win.
+    for (const polygon of feature.parts) {
+      const ring = polygon && polygon[0];
+      if (!ring || ring.length < 3) continue;
+      const step = Math.max(1, Math.floor((ring.length - 1) / 8));
+      for (let i = 0; i < ring.length - 1 && sampled < 8; i += step, sampled++) {
+        const point = ring[i];
+        if (!point || !finite(point[0]) || !finite(point[1])) continue;
+        try {
+          const h = map.queryTerrainElevation([wrapLon(point[0]), clamp(Number(point[1]), -85, 85)], { exaggerated: false });
+          if (Number.isFinite(h) && h >= -500 && h <= 9000) { samples.push(h); api.terrainSamples++; }
+          else api.terrainMissing++;
+        } catch (_) { api.terrainMissing++; }
+      }
+      if (sampled >= 8) break;
+    }
+    let level;
+    if (samples.length) {
+      samples.sort((a, b) => a - b);
+      const mid = Math.floor(samples.length / 2);
+      level = samples.length % 2 ? samples[mid] : (samples[mid - 1] + samples[mid]) * 0.5;
+    } else level = terrainHeight(lng, lat, terrainCache, 'e:' + cellKey);
+    if (!api._inlandLevels) api._inlandLevels = new Map();
+    api._inlandLevels.set(feature, level);
+    return level;
+  }
   // MapLibre may keep isStyleLoaded() false while vector tiles/weather layers are
   // still refreshing. The map style can already accept layers and expose its sources.
   function mapCanHostWater() {
@@ -819,6 +855,7 @@ export function initWaterEngine(mapOrWorld, options = {}) {
     api.syncScene(scene, map);
     api._floodFeatures = collectDepthFeatures(scene, bounds);
     const terrainCache = new Map();
+    api._inlandLevels = new Map();
     const surface = [], flow = [];
     let polygonCells = 0, fallbackCells = 0, floodedLandCells = 0;
     const gridKey = (i, j, kind) => kind + ':' + i + ':' + j;
@@ -826,10 +863,12 @@ export function initWaterEngine(mapOrWorld, options = {}) {
       const key = gridKey(i, j, kind);
       if (terrainCache.has(key)) return terrainCache.get(key);
       let h = 0;
-      const marine = kind === 0 || (feature && marineFeature(feature));
-      const sourceLevel = sceneLevelAt(sceneRef, lng, lat);
+      const marine = kind === 0 || kind === 3 || (feature && marineFeature(feature));
+      const sourceLevel = kind === 4 ? null : sceneLevelAt(sceneRef, lng, lat);
       if (sourceLevel !== null) h = sourceLevel;
-      else if (!marine) h = terrainHeight(lng, lat, terrainCache, 'e:' + key);
+      else if (marine) h = 0;
+      else if (kind === 1) h = estimatedInlandSurface(feature, sceneRef, terrainCache, key, lng, lat);
+      else h = terrainHeight(lng, lat, terrainCache, 'e:' + key);
       terrainCache.set(key, h);
       return h;
     };
