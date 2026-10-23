@@ -675,7 +675,7 @@ export function initSkyClouds(target) {
         const metresPerPixel=40075016.68557849/(512*Math.pow(2,zoomNow));
         const cameraAltitude=clamp(metresPerPixel*Math.max(1,container.clientHeight||gl.drawingBufferHeight||768)*0.58/Math.max(0.45,Math.cos(pitchRad)),900,50000000);
         const raySteps=zoomNow>8.5?(MOBILE?20:28):(MOBILE?28:40);
-        stormRaymarchStepBudget=raySteps;
+        if(stormRaymarchStepBudget!==raySteps){stormRaymarchStepBudget=raySteps;publishState();}
         if(info.uniforms.cameraCenter)gl.uniform2f(info.uniforms.cameraCenter,cameraCenter.x,cameraCenter.y);
         if(info.uniforms.cameraAltitude)gl.uniform1f(info.uniforms.cameraAltitude,cameraAltitude);
         if(info.uniforms.raySteps)gl.uniform1f(info.uniforms.raySteps,raySteps);
