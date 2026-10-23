@@ -543,6 +543,7 @@ export function initWaterEngine(mapOrWorld, options = {}) {
       if (buildTimer) clearTimeout(buildTimer);
       if (layer && layer.frameTimer) clearTimeout(layer.frameTimer);
       try { if (map.getLayer(LAYER_ID)) map.removeLayer(LAYER_ID); } catch (_) {}
+      for (const spec of SOURCE_ANCHORS) { try { if (map.getLayer(spec.id)) map.removeLayer(spec.id); } catch (_) {} }
       if (window.__BP_WATER_ENGINE_V6100__ === this) window.__BP_WATER_ENGINE_V6100__ = null;
     },
     get buffers() {
@@ -556,6 +557,7 @@ export function initWaterEngine(mapOrWorld, options = {}) {
         nativeWaterLayerPresent: (()=>{try{return !!map.getLayer('gta-water')}catch(_){return false}})(),
         vectorSourcePresent: (()=>{try{return !!map.getSource('ofm')}catch(_){return false}})(),
         installError: this.installError || null, buildError: this.buildError || null,
+        sourceAnchorLayersPresent: this.sourceAnchorLayersPresent || 0, sourceAnchorError: this.sourceAnchorError || null,
         waitingForVectorFeatures: !!this.waitingForVectorFeatures,
         gpuVertexDisplacement: true, adaptiveLOD: true, boundedGeometry: true,
         sourceWaterFeatures: this.sourceWaterFeatures, sourceLandFeatures: this.sourceLandFeatures,
@@ -596,6 +598,43 @@ export function initWaterEngine(mapOrWorld, options = {}) {
       const style = map.getStyle && map.getStyle();
       return !!(style && Array.isArray(style.layers) && map.getLayer('gta-water') && map.getSource('ofm'));
     } catch (_) { return false; }
+  }
+  const SOURCE_ANCHORS = [
+    { id: 'bp-water-data-anchor-v6102-water', type: 'fill', sourceLayer: 'water', minzoom: 0,
+      paint: { 'fill-color': '#000000', 'fill-opacity': 0 } },
+    { id: 'bp-water-data-anchor-v6102-landcover', type: 'fill', sourceLayer: 'landcover', minzoom: 0,
+      paint: { 'fill-color': '#000000', 'fill-opacity': 0 } },
+    { id: 'bp-water-data-anchor-v6102-landuse', type: 'fill', sourceLayer: 'landuse', minzoom: 0,
+      paint: { 'fill-color': '#000000', 'fill-opacity': 0 } },
+    { id: 'bp-water-data-anchor-v6102-waterway', type: 'line', sourceLayer: 'waterway', minzoom: 5.5,
+      paint: { 'line-color': '#000000', 'line-width': 1, 'line-opacity': 0 } }
+  ];
+  function ensureSourceAnchors() {
+    if (!map.getSource('ofm')) return false;
+    const before = map.getLayer('gta-coast-shadow') ? 'gta-coast-shadow' :
+      (map.getLayer('gta-landcover') ? 'gta-landcover' : undefined);
+    let anyError = null;
+    for (const spec of SOURCE_ANCHORS) {
+      try {
+        if (map.getLayer(spec.id)) continue;
+        map.addLayer({
+          id: spec.id,
+          type: spec.type,
+          source: 'ofm',
+          'source-layer': spec.sourceLayer,
+          minzoom: spec.minzoom,
+          layout: { visibility: 'visible' },
+          paint: spec.paint
+        }, before);
+      } catch (error) {
+        anyError = String(error && error.message || error).slice(0, 180);
+      }
+    }
+    api.sourceAnchorLayersPresent = SOURCE_ANCHORS.filter(s => !!map.getLayer(s.id)).length;
+    api.sourceAnchorError = anyError;
+    // Water + land masks are mandatory. Waterways are an optional extra stream-flow detail.
+    return ['bp-water-data-anchor-v6102-water', 'bp-water-data-anchor-v6102-landcover',
+      'bp-water-data-anchor-v6102-landuse'].every(id => !!map.getLayer(id));
   }
   function floodDepthAt(floodFeatures, lng, lat) {
     let depth = 0;
@@ -704,14 +743,25 @@ export function initWaterEngine(mapOrWorld, options = {}) {
     const waterFeatures = sourceFeatures(map, 'water', 850);
     const landCoverFeatures = sourceFeatures(map, 'landcover', 900);
     const landUseFeatures = sourceFeatures(map, 'landuse', 900);
-    // During initial style swaps, source objects can exist before their visible vector tiles.
-    // Do not mistake an empty initial feature query for ocean and paint water over land.
-    if (!waterFeatures.length && !landCoverFeatures.length && !landUseFeatures.length) {
-      api.waitingForVectorFeatures = true;
-      api.sourceWaterFeatures = api.sourceLandFeatures = api.sourceWaterwayFeatures = 0;
+    const hasLandMask = landCoverFeatures.length + landUseFeatures.length > 0;
+    api.sourceWaterFeatures = waterFeatures.length;
+    api.sourceLandFeatures = landCoverFeatures.length + landUseFeatures.length;
+    api.waitingForVectorFeatures = !(waterFeatures.length > 0 && hasLandMask);
+    // Do not paint ocean fallback without both source water features and a land mask.
+    // The zero-alpha source-anchor layers below keep these vector layers requested even
+    // when the selected basemap is satellite and native GTA fills are not visible.
+    if (!waterFeatures.length || !hasLandMask) {
+      api.sourceWaterwayFeatures = 0;
+      api.waterPolygonCells = 0;
+      api.oceanFallbackCells = 0;
+      api.flowSegments = 0;
+      api.surfaceVertexCount = 0;
+      api.flowVertexCount = 0;
+      api.surfaceDataBytes = 0;
+      api.flowDataBytes = 0;
+      if (layer) layer.setGeometry([], []);
       return;
     }
-    api.waitingForVectorFeatures = false;
     const flowRaw = [];
     if (z >= 5.5) {
       try {
@@ -761,7 +811,7 @@ export function initWaterEngine(mapOrWorld, options = {}) {
         if (!waterFeature) {
           const isLand = locate(landCoverFeatures, lon, lat) || locate(landUseFeatures, lon, lat);
           if (isLand) continue;
-          kind = 0; // faint ocean shimmer behind native cartography; unknown land is never flooded.
+          kind = 0; // faint ocean shimmer only where source land masks establish it is not land.
         }
         const flood = floodDepthAt(api._floodFeatures, lon, lat);
         const points = [
@@ -816,11 +866,13 @@ export function initWaterEngine(mapOrWorld, options = {}) {
   const layerRef = createLayer(api, map);
   layer = layerRef;
   try { Object.defineProperty(api, '_layer', { value: layer, enumerable: false }); } catch (_) {}
+  let installing = false;
   function ensureInstalled() {
-    if (!api.active || destroyed || !mapCanHostWater()) return;
-    if (map.getLayer(LAYER_ID)) { if (!layer.gl) scheduleBuild(80); return; }
-    if (!map.getLayer('gta-water') || !map.getSource('ofm')) return;
+    if (!api.active || destroyed || installing || !mapCanHostWater()) return;
+    installing = true;
     try {
+      if (!ensureSourceAnchors()) return;
+      if (map.getLayer(LAYER_ID)) { if (!layer.gl) scheduleBuild(80); return; }
       const before = map.getLayer('gta-coast-shadow') ? 'gta-coast-shadow' :
         (map.getLayer('gta-landcover') ? 'gta-landcover' : undefined);
       map.addLayer(layer, before);
@@ -828,6 +880,8 @@ export function initWaterEngine(mapOrWorld, options = {}) {
     } catch (error) {
       api.installError = String(error && error.message || error).slice(0, 180);
       console.warn('BridgePoint GPU water layer deferred; native water remains enabled', error);
+    } finally {
+      installing = false;
     }
   }
   map.on('load', ensureInstalled);
