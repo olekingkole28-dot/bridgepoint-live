@@ -289,12 +289,13 @@ function buildShaders(gl, shaderDescription) {
     'uniform float u_flowCycles;',
     'uniform float u_flowPhaseA;',
     'uniform float u_flowPhaseB;',
+    'uniform float u_flowPhaseDetail;',
     'uniform float u_windSpeed;',
     'out highp vec4 fragColor;',
     'void main() {',
     '  float sparkle = sin((v_coord.x * 0.71 + v_coord.y * 0.29) * u_flowCycles * 6.2831853 + u_flowPhaseA + u_time * 0.38);',
     '  float fine = sin((v_coord.x * 0.27 - v_coord.y * 0.91) * u_flowCycles * 3.71 + u_flowPhaseB - u_time * 0.57);',
-    '  float detail = 0.5 + 0.5 * sin((v_coord.x * 0.61 + v_coord.y * 0.39) * u_flowCycles * 1.37 * 6.2831853 + u_flowPhaseA * 0.73 + u_time * 0.21);',
+    '  float detail = 0.5 + 0.5 * sin((v_coord.x * 0.61 + v_coord.y * 0.39) * u_flowCycles * 1.37 * 6.2831853 + u_flowPhaseDetail + u_time * 0.21);',
     '  float glint = pow(max(0.0, 0.5 + 0.5 * (0.62 * sparkle + 0.24 * fine + 0.14 * detail)), 7.0);',
     '  float foam = (smoothstep(0.79, 0.98, v_wave) * 0.7 + smoothstep(0.81, 0.97, detail) * 0.08) * (0.05 + min(0.62, u_windSpeed / 120.0) + 0.42 * v_storm);',
     '  vec3 deep = vec3(0.006, 0.075, 0.135);',
@@ -356,7 +357,7 @@ function buildShaders(gl, shaderDescription) {
   const names = ['u_projection_fallback_matrix', 'u_projection_matrix', 'u_projection_tile_mercator_coords',
     'u_projection_clipping_plane', 'u_projection_transition', 'u_time', 'u_waveOrigin', 'u_wavePhaseA',
     'u_wavePhaseB', 'u_waveK', 'u_waveAmp', 'u_windSpeed', 'u_windDir', 'u_storms[0]',
-    'u_flowCycles', 'u_flowPhaseA', 'u_flowPhaseB'];
+    'u_flowCycles', 'u_flowPhaseA', 'u_flowPhaseB', 'u_flowPhaseDetail'];
   const uniforms = {};
   for (const name of names) uniforms[name] = gl.getUniformLocation(program, name);
   const attributes = {
@@ -488,6 +489,7 @@ function createLayer(api, map) {
         if (u.u_flowCycles) gl.uniform1f(u.u_flowCycles, flowCycles);
         if (u.u_flowPhaseA) gl.uniform1f(u.u_flowPhaseA, Math.PI * 2 * frac(flowCycles * (0.71 * originX + 0.29 * originY)));
         if (u.u_flowPhaseB) gl.uniform1f(u.u_flowPhaseB, Math.PI * 2 * 3.71 * frac(flowCycles * (0.27 * originX - 0.91 * originY)));
+        if (u.u_flowPhaseDetail) gl.uniform1f(u.u_flowPhaseDetail, Math.PI * 2 * 1.37 * frac(flowCycles * (0.61 * originX + 0.39 * originY)));
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
         gl.depthMask(false);
