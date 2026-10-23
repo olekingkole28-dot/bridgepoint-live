@@ -250,6 +250,8 @@ jobs:
               const anchorAfter=await p.evaluate(()=>window.__BP_RAIN_RENDERER_V6068__?.state?.anchorFingerprint);
               assert.equal(anchorAfter,anchorBefore,'rain geographic particle seeds must remain fixed when the camera pans');
               await p.screenshot({path:'/tmp/bp2300wx/world-anchored-rain-after-pan.png',fullPage:false});
+              // Production checks run after a main-branch deployment, not against the still-old live site during PR validation.
+              if(process.env.GITHUB_EVENT_NAME!=='pull_request'){
               // Test the actual public site too: the fixture above uses a blank background style,
               // which is useful for deterministic geometry but cannot validate the visible globe.
               const livePage=await browser.newPage();
@@ -333,6 +335,7 @@ jobs:
               console.log('BRIDGEPOINT_LIVE_SITE_STORM_VISUAL_DIAGNOSTICS_PASS',JSON.stringify({global:liveGlobal,close:liveClose,pageErrors:livePageErrors.slice(0,8)}));
               assert.equal(livePageErrors.length,0,livePageErrors.join('\n'));
               console.log('BRIDGEPOINT_V2300_WEATHER_FX_ANDROID_PASS',JSON.stringify({particles:out.fx.activeParticles,quality:out.fx.qualityScale,fps:out.fx.fps,maxPoints:out.fx.budgets.maxPoints,canvases:out.totalCanvases,projection:out.projection}));
+              }
             }finally{await browser.close()}
           })().catch(e=>{console.error(e.stack||e);process.exit(1)});
           NODE
