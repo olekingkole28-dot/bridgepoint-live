@@ -67,7 +67,7 @@ jobs:
           grep -Fq '(thunderstorm ? 900 : 650);' /tmp/bp2300wx/world-v2300-clouds.js
           grep -Fq 'thunderstorm ? 450 : 350' /tmp/bp2300wx/world-v2300-clouds.js
           grep -Fq 'thunderstorm ? 2800 : 1800' /tmp/bp2300wx/world-v2300-clouds.js
-          grep -Fq 'rainCell=smoothstep(1.1,1.3,v_tint)' /tmp/bp2300wx/world-v2300-clouds.js
+          grep -Fq 'rainCell=smoothstep(1.30,1.34,v_tint)' /tmp/bp2300wx/world-v2300-clouds.js
           grep -Fq 'wildfireFlameParticles:true' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq 'tornadoCone:true' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq 'hurricaneSpiralEye:true' /tmp/bp2300wx/world-v2300-weather.js
