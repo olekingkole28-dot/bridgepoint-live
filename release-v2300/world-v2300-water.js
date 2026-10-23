@@ -489,7 +489,20 @@ function currentScene() {
     window.__BP_SHARED_VISUAL_WEATHER__ && window.__BP_SHARED_VISUAL_WEATHER__.weather,
     window.__BP_LANDING_VISUAL_WEATHER__ && window.__BP_LANDING_VISUAL_WEATHER__.weather
   ];
-  for (const item of candidates) if (item && item.scene) return item.scene;
+  for (const item of candidates) {
+    if (!item || typeof item !== 'object') continue;
+    // The live weather module exposes getScene(), not a .scene data property.
+    // Read the actual live scene so hurricanes, winds and source flood polygons
+    // reach the water shader instead of silently falling back to empty data.
+    try {
+      if (typeof item.getScene === 'function') {
+        const live = item.getScene();
+        if (live && typeof live === 'object') return live;
+      }
+    } catch (_) {}
+    if (item.scene && typeof item.scene === 'object') return item.scene;
+    if (Array.isArray(item.storms) || Array.isArray(item.water_levels) || Array.isArray(item.flood_depths)) return item;
+  }
   return { storms: [], observations: [], water_levels: [], flood_depths: [], alerts: [] };
 }
 
@@ -505,6 +518,7 @@ export function initWaterEngine(mapOrWorld, options = {}) {
     waterPolygonCells: 0, oceanFallbackCells: 0, flowSegments: 0, surfaceVertexCount: 0, flowVertexCount: 0,
     geometryBuilds: 0, sourceWaterFeatures: 0, sourceLandFeatures: 0, sourceWaterwayFeatures: 0,
     sourceFloodPolygonCount: 0, sourceWaterLevelCount: 0, absoluteWaterLevelCount: 0,
+    sourceStormCount: 0, floodedLandCells: 0,
     terrainSamples: 0, terrainMissing: 0, stormCount: 0, stormSurgeIsModelled: true,
     floodHeightPolicy: 'only explicit source-reported depth_m/flood_depth_m/water_depth_m/inundation_depth_m; no fabricated land inundation',
     gaugeHeightPolicy: 'only explicit water_surface_elevation_m / surface_elevation_msl / sea_surface_height_m fields; ambiguous water_level_m is not absolute elevation',
@@ -518,9 +532,11 @@ export function initWaterEngine(mapOrWorld, options = {}) {
       return z < 3 ? 65 : z < 10 ? 45 : 33;
     },
     syncScene(scene, mapRef) {
+      const safeScene = scene && typeof scene === 'object' ? scene : {};
       const center = mapRef.getCenter();
-      this.wind = nearestWind(scene, center.lng, center.lat);
-      const storms = stormSignals(scene);
+      this.wind = nearestWind(safeScene, center.lng, center.lat);
+      const storms = stormSignals(safeScene);
+      this.sourceStormCount = Array.isArray(safeScene.storms) ? safeScene.storms.length : 0;
       this.stormCount = storms.length;
       const arr = new Float32Array(16);
       storms.forEach((s, i) => {
@@ -528,13 +544,15 @@ export function initWaterEngine(mapOrWorld, options = {}) {
         arr[p] = s.x; arr[p + 1] = s.y; arr[p + 2] = s.radiusM; arr[p + 3] = s.intensity;
       });
       this.stormUniforms = arr;
-      this.sourceWaterLevelCount = (scene.water_levels || []).filter(row => row && typeof row === 'object').length;
-      this.absoluteWaterLevelCount = (scene.water_levels || []).filter(row => {
+      const waterLevels = Array.isArray(safeScene.water_levels) ? safeScene.water_levels : [];
+      const floodDepths = Array.isArray(safeScene.flood_depths) ? safeScene.flood_depths : [];
+      this.sourceWaterLevelCount = waterLevels.filter(row => row && typeof row === 'object').length;
+      this.absoluteWaterLevelCount = waterLevels.filter(row => {
         if (!row || typeof row !== 'object') return false;
         const p = row.properties && typeof row.properties === 'object' ? row.properties : row;
         return Number.isFinite(Number(p.water_surface_elevation_m ?? p.surface_elevation_msl ?? p.sea_surface_height_m));
       }).length;
-      this.sourceFloodPolygonCount = (scene.flood_depths || []).length;
+      this.sourceFloodPolygonCount = floodDepths.length;
     },
     setEnabled(value) {
       this.enabled = !!value;
@@ -550,6 +568,7 @@ export function initWaterEngine(mapOrWorld, options = {}) {
       if (layer && layer.frameTimer) clearTimeout(layer.frameTimer);
       try { if (map.getLayer(LAYER_ID)) map.removeLayer(LAYER_ID); } catch (_) {}
       for (const spec of SOURCE_ANCHORS) { try { if (map.getLayer(spec.id)) map.removeLayer(spec.id); } catch (_) {} }
+      try { window.removeEventListener('bp2300:weather-updated', onWeatherUpdated); } catch (_) {}
       if (window.__BP_WATER_ENGINE_V6100__ === this) window.__BP_WATER_ENGINE_V6100__ = null;
     },
     get buffers() {
@@ -571,7 +590,8 @@ export function initWaterEngine(mapOrWorld, options = {}) {
         oceanFallbackCells: this.oceanFallbackCells, flowSegments: this.flowSegments,
         surfaceVertexCount: this.surfaceVertexCount, flowVertexCount: this.flowVertexCount,
         gpuBufferBytes: this.surfaceDataBytes + this.flowDataBytes, geometryBuilds: this.geometryBuilds,
-        stormCentersUsed: this.stormCount, sourceFloodPolygonCount: this.sourceFloodPolygonCount,
+        stormCentersUsed: this.stormCount, sourceStormCount: this.sourceStormCount,
+        sourceFloodPolygonCount: this.sourceFloodPolygonCount, floodedLandCells: this.floodedLandCells,
         sourceWaterLevelCount: this.sourceWaterLevelCount, absoluteWaterLevelCount: this.absoluteWaterLevelCount,
         terrainSamples: this.terrainSamples, terrainMissing: this.terrainMissing, zoom: +map.getZoom().toFixed(2),
         tier: this.low ? 'LOW' : this.mobile ? 'MOBILE' : 'DESKTOP',
@@ -761,6 +781,7 @@ export function initWaterEngine(mapOrWorld, options = {}) {
       api.sourceWaterwayFeatures = 0;
       api.waterPolygonCells = 0;
       api.oceanFallbackCells = 0;
+      api.floodedLandCells = 0;
       api.flowSegments = 0;
       api.surfaceVertexCount = 0;
       api.flowVertexCount = 0;
@@ -786,7 +807,7 @@ export function initWaterEngine(mapOrWorld, options = {}) {
     api._floodFeatures = collectDepthFeatures(scene);
     const terrainCache = new Map();
     const surface = [], flow = [];
-    let polygonCells = 0, fallbackCells = 0;
+    let polygonCells = 0, fallbackCells = 0, floodedLandCells = 0;
     const gridKey = (i, j, kind) => kind + ':' + i + ':' + j;
     const heightAt = (i, j, kind, feature, lng, lat, sceneRef) => {
       const key = gridKey(i, j, kind);
@@ -813,15 +834,22 @@ export function initWaterEngine(mapOrWorld, options = {}) {
         const xCenterRaw = (xLeftRaw + xRightRaw) * 0.5, yCenter = (yTop + yBottom) * 0.5;
         const lon = wrapLon(xCenterRaw * 360 - 180), lat = unmercY(yCenter);
         const waterFeature = locate(waterFeatures, lon, lat);
-        // Kind 3 is source-classified ocean/sea; kind 1 is inland lake/pond/reservoir.
-        // Only open-marine and ocean-fallback cells receive the storm-surge approximation.
+        // Draw land inundation only inside a source flood polygon with explicit depth.
+        // A storm alone animates offshore surge; it must not invent flooded land.
+        const flood = floodDepthAt(api._floodFeatures, lon, lat);
+        // Kind 3 is source-classified ocean/sea; kind 1 is inland or source-flooded water.
+        // Only open-marine and open-water fallback cells receive the storm-surge approximation.
         let kind = waterFeature && marineFeature(waterFeature) ? 3 : 1;
         if (!waterFeature) {
-          const isLand = locate(landCoverFeatures, lon, lat) || locate(landUseFeatures, lon, lat);
-          if (isLand) continue;
-          kind = 0; // faint ocean shimmer only where source land masks establish it is not land.
+          const isLand = !!(locate(landCoverFeatures, lon, lat) || locate(landUseFeatures, lon, lat));
+          if (isLand && flood <= 0) continue;
+          if (flood > 0) {
+            kind = 1;
+            floodedLandCells++;
+          } else {
+            kind = 0; // faint ocean shimmer only where source land masks establish it is not land.
+          }
         }
-        const flood = floodDepthAt(api._floodFeatures, lon, lat);
         const points = [
           [xLeftRaw, yTop, i, j],
           [xRightRaw, yTop, i + 1, j],
@@ -849,6 +877,7 @@ export function initWaterEngine(mapOrWorld, options = {}) {
     if (layer) layer.setGeometry(surface, flow);
     api.waterPolygonCells = polygonCells;
     api.oceanFallbackCells = fallbackCells;
+    api.floodedLandCells = floodedLandCells;
     api.flowSegments = flowCount;
     api.surfaceVertexCount = Math.floor(surface.length / 7);
     api.flowVertexCount = Math.floor(flow.length / 7);
@@ -892,6 +921,14 @@ export function initWaterEngine(mapOrWorld, options = {}) {
       installing = false;
     }
   }
+  const onWeatherUpdated = () => {
+    if (!api.active || destroyed) return;
+    try { api.syncScene(currentScene(), map); } catch (_) {}
+    scheduleBuild(140);
+    try { map.triggerRepaint(); } catch (_) {}
+  };
+  try { api.syncScene(currentScene(), map); } catch (_) {}
+  window.addEventListener('bp2300:weather-updated', onWeatherUpdated);
   map.on('load', ensureInstalled);
   map.on('styledata', ensureInstalled);
   map.on('movestart', () => { moving = true; });
