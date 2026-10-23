@@ -51,6 +51,9 @@ jobs:
           node --check rebuild-v5000/bridgepoint-reality-assets-v5968.js
           node --check rebuild-v5000/bridgepoint-volumetric-fields-v5978.js
           node --check rebuild-v5000/bridgepoint-realworld-effects-v5927.js
+          node --input-type=module --check < release-v2300/world-v2300-water.js
+          node --check rebuild-v5000/app.js
+          node --check rebuild-v5000/landing.js
           node --check rebuild-v5000/bridgepoint-view-v5917.js
           node --check rebuild-v5000/bridgepoint-live-rail-v5969.js
           node tools/reality_assets/test_live_rail.mjs
@@ -237,6 +240,8 @@ jobs:
           # Carry forward only the proven map engine pieces used by the new shell.
           cp release-v2300/world-v2300-config.js site/world-v2300-config.js
           cp release-v2300/world-v2300-map.js site/world-v2300-map.js
+          cp release-v2300/world-v2300-water.js site/world-v2300-water.js
+          test -s site/world-v2300-water.js
           cp release-v2300/world-v2300-lod-controls.js site/world-v2300-lod-controls.js
           cp release-v2300/world-v2300-space.js site/world-v2300-space.js
           cp release-v2300/world-v2300-worker.js site/world-v2300-worker.js
@@ -270,6 +275,8 @@ jobs:
           cp release-v2300/gis-core-orchestrator-v5910.js site/gis-core-orchestrator-v5910.js
           cp release-v2300/world-v2300-config.js site/app/world-v2300-config.js
           cp release-v2300/world-v2300-map.js site/app/world-v2300-map.js
+          cp release-v2300/world-v2300-water.js site/app/world-v2300-water.js
+          test -s site/app/world-v2300-water.js
           cp release-v2300/world-v2300-lod-controls.js site/app/world-v2300-lod-controls.js
           cp release-v2300/world-v2300-space.js site/app/world-v2300-space.js
           cp release-v2300/world-v2300-worker.js site/app/world-v2300-worker.js
