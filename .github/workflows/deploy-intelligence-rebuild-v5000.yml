@@ -250,17 +250,22 @@ jobs:
           cp release-v2300/world-v2300-infrastructure-volume-v5962.js site/world-v2300-infrastructure-volume-v5962.js
           cp release-v2300/world-v2300-sensor-layers.js site/world-v2300-sensor-layers.js
           sed -i 's#world-v2300-sensor-layers.js?v=6015-nasa-light-toggle#world-v2300-sensor-layers.js?v=6027-nasa-nightlight-corrected-radiance#g' site/app.js site/landing.js
-          sed -i 's#world-v2300-clouds.js?v=6075-global-coverage-fill#world-v2300-clouds.js?v=6092-posttropical-global-clouds#g' site/app.js site/landing.js
-          sed -i 's#world-v2300-clouds.js?v=6076-rounded-cloud-banks#world-v2300-clouds.js?v=6092-posttropical-global-clouds#g' site/app.js site/landing.js
-          sed -i 's#world-v2300-clouds.js?v=6088-fuller-local-tornado#world-v2300-clouds.js?v=6092-posttropical-global-clouds#g' site/app.js site/landing.js
+          sed -i 's#world-v2300-clouds.js?v=6075-global-coverage-fill#world-v2300-clouds.js?v=6094-josephine-spiral-unified#g' site/app.js site/landing.js
+          sed -i 's#world-v2300-clouds.js?v=6076-rounded-cloud-banks#world-v2300-clouds.js?v=6094-josephine-spiral-unified#g' site/app.js site/landing.js
+          sed -i 's#world-v2300-clouds.js?v=6088-fuller-local-tornado#world-v2300-clouds.js?v=6094-josephine-spiral-unified#g' site/app.js site/landing.js
+          sed -i 's#world-v2300-clouds.js?v=6092-posttropical-global-clouds#world-v2300-clouds.js?v=6094-josephine-spiral-unified#g' site/app.js site/landing.js
+          sed -i 's#world-v2300-clouds.js?v=6093-josephine-global-track#world-v2300-clouds.js?v=6094-josephine-spiral-unified#g' site/app.js site/landing.js
           sed -i 's#world-v2300-weather.js?v=6070-clouds-only-phase#world-v2300-weather.js?v=6093-josephine-global-track#g' site/app.js site/landing.js site/index.html site/app/index.html
           sed -i 's#world-v2300-weather.js?v=6091-global-storm-centers#world-v2300-weather.js?v=6093-josephine-global-track#g' site/app.js site/landing.js site/index.html site/app/index.html
-          sed -i 's#world-v2300-time-slider.js?v=6076-rounded-cloud-banks#world-v2300-time-slider.js?v=6092-posttropical-global-clouds#g' site/app.js site/landing.js
-          sed -i 's#world-v2300-time-slider.js?v=6077-cloud-base-restore#world-v2300-time-slider.js?v=6092-posttropical-global-clouds#g' site/app.js site/landing.js
+          sed -i 's#world-v2300-time-slider.js?v=6076-rounded-cloud-banks#world-v2300-time-slider.js?v=6094-josephine-spiral-unified#g' site/app.js site/landing.js
+          sed -i 's#world-v2300-time-slider.js?v=6077-cloud-base-restore#world-v2300-time-slider.js?v=6094-josephine-spiral-unified#g' site/app.js site/landing.js
+          sed -i 's#world-v2300-time-slider.js?v=6092-posttropical-global-clouds#world-v2300-time-slider.js?v=6094-josephine-spiral-unified#g' site/app.js site/landing.js
           sed -i 's#app.js?v=6077-cloud-base-restore#app.js?v=6077-sky-restore-safe-pitch#g' site/app/index.html
           sed -i 's#landing.js?v=6077-cloud-base-restore#landing.js?v=6077-sky-restore-safe-pitch#g' site/index.html
           sed -i 's#app.js?v=6076-rounded-cloud-banks#app.js?v=6077-sky-restore-safe-pitch#g' site/app/index.html
           sed -i 's#landing.js?v=6076-rounded-cloud-banks#landing.js?v=6077-sky-restore-safe-pitch#g' site/index.html
+          sed -i 's#app.js?v=6092-posttropical-global-clouds#app.js?v=6094-josephine-spiral-unified#g' site/app/index.html
+          sed -i 's#landing.js?v=6091-global-storm-centers-data-only#landing.js?v=6094-josephine-spiral-unified#g' site/index.html
           cp release-v2300/world-v2300-realism.js site/world-v2300-realism.js
           cp release-v2300/gis-core-orchestrator-v5910.js site/gis-core-orchestrator-v5910.js
           cp release-v2300/world-v2300-config.js site/app/world-v2300-config.js
@@ -459,16 +464,16 @@ jobs:
           node --input-type=module --check < site/world-v2300-realism.js
           node --input-type=module --check < site/gis-core-orchestrator-v5910.js
           grep -Fq 'Real satellite bands. No AI-drawn pixels.' site/world-v2300-spectral-imagery.js
-          grep -Fq 'world-v2300-clouds.js?v=6092-posttropical-global-clouds' site/app.js
-          grep -Fq 'world-v2300-clouds.js?v=6092-posttropical-global-clouds' site/landing.js
+          grep -Fq 'world-v2300-clouds.js?v=6094-josephine-spiral-unified' site/app.js
+          grep -Fq 'world-v2300-clouds.js?v=6094-josephine-spiral-unified' site/landing.js
           grep -Fq 'world-v2300-weather.js?v=6093-josephine-global-track' site/app.js
           grep -Fq 'function isPostTropicalCyclone(st={})' site/world-v2300-clouds.js
           grep -Fq 'postTropicalSurfaceCloudVertices+=makeCycloneRibbon' site/world-v2300-clouds.js
           grep -Fq 'post-tropical lows use asymmetric cloud shields' site/world-v2300-clouds.js
-          grep -Fq 'world-v2300-clouds.js?v=6092-posttropical-global-clouds' site/world-v2300-time-slider.js
+          grep -Fq 'world-v2300-clouds.js?v=6094-josephine-spiral-unified' site/world-v2300-time-slider.js
           grep -Fq 'function isPostTropicalCyclone(st={})' site/app/world-v2300-clouds.js
           grep -Fq 'postTropicalSurfaceCloudVertices+=makeCycloneRibbon' site/app/world-v2300-clouds.js
-          grep -Fq 'world-v2300-clouds.js?v=6092-posttropical-global-clouds' site/app/world-v2300-time-slider.js
+          grep -Fq 'world-v2300-clouds.js?v=6094-josephine-spiral-unified' site/app/world-v2300-time-slider.js
           grep -Fq 'world-v2300-rain.js?v=6070-clouds-only-phase' site/world-v2300-weather.js
           grep -Fq 'retireLegacyScreenSpaceRain' site/world-v2300-weather.js
           grep -Fq '__BP_SCREEN_SPACE_RAIN_RETIRE_V6063__' site/world-v2300-weather.js
@@ -522,8 +527,8 @@ jobs:
           grep -Fq 'world-v2300-weather.js?v=6093-josephine-global-track' site/index.html
           grep -Fq 'world-v2300-weather.js?v=6093-josephine-global-track' site/app/index.html
           grep -Fq 'world-v2300-weather.js?v=6093-josephine-global-track' site/app/world-v2300-bootstrap.js
-          grep -Fq 'world-v2300-time-slider.js?v=6092-posttropical-global-clouds' site/app.js
-          grep -Fq 'world-v2300-time-slider.js?v=6092-posttropical-global-clouds' site/landing.js
+          grep -Fq 'world-v2300-time-slider.js?v=6094-josephine-spiral-unified' site/app.js
+          grep -Fq 'world-v2300-time-slider.js?v=6094-josephine-spiral-unified' site/landing.js
           grep -Fq 'world-v2300-spectral-imagery.js?v=5934-world-controls' site/app.js
           grep -Fq 'world-v2300-underground-xray.js?v=5965-landmarks-and-effects' site/app.js
           grep -Fq 'world-v2300-underground-xray.js?v=5965-landmarks-and-effects' site/landing.js
@@ -545,12 +550,13 @@ jobs:
           grep -Fq 'bridgepoint-gebco-depth-image-v5937' site/world-v2300-sensor-layers.js
           grep -Fq 'bridgepoint-nasa-nightlights-v5937' site/world-v2300-sensor-layers.js
           grep -Fq "kind: 'georeferenced 3D cloud-volume layer'" site/world-v2300-clouds.js
-          grep -Fq 'version: 6090, map, overlay' site/world-v2300-clouds.js
+          grep -Fq 'version: 6094, map, overlay' site/world-v2300-clouds.js
+          grep -Fq 'josephineHurricaneGeometryCount' site/world-v2300-clouds.js
           grep -Fq 'const billow = 1.0 +' site/world-v2300-clouds.js
           grep -Fq 'activeMacroCells' site/world-v2300-clouds.js
           grep -Fq 'MOBILE?8:9,3,hash(q.gx,q.gy,i+973)' site/world-v2300-clouds.js
           grep -Fq 'Height/latitude-aware modelled atmospheric flow; no source-backed global upper-air wind grid is connected' site/world-v2300-clouds.js
-          grep -Fq 'coverageVersion: 6090' site/world-v2300-clouds.js
+          grep -Fq 'coverageVersion: 6094' site/world-v2300-clouds.js
           grep -Fq 'function makeTornadoSurfaceCone' site/world-v2300-clouds.js
           grep -Fq 'hurricaneSurfaceCloudVertices+=vertices.length/13-before' site/world-v2300-clouds.js
           grep -Fq 'tornadoSurfaceMeshVertices+=surfaceAdded' site/world-v2300-clouds.js
@@ -585,7 +591,7 @@ jobs:
           grep -Fq '190000, 580000' site/world-v2300-clouds.js
           grep -Fq 'maxMacro = MOBILE ? 110 : 130' site/world-v2300-clouds.js
           grep -Fq 'globalThinLayerFormations: globalCloudGeometryCache?.thinLayerFormationCount || 0' site/world-v2300-clouds.js
-          grep -Fq 'if (Number(existingCloudController.version) >= 6090' site/world-v2300-clouds.js
+          grep -Fq 'if (Number(existingCloudController.version) >= 6094' site/world-v2300-clouds.js
           grep -Fq 'const columns = 40, rows = 18, maxMacro = MOBILE ? 110 : 130;' site/world-v2300-clouds.js
           grep -Fq '400000, 900000' site/world-v2300-clouds.js
           grep -Fq 'vertical,0.26+hash(q.gx,q.gy,987)*0.40,8,2,hash(q.gx,q.gy,988));' site/world-v2300-clouds.js
@@ -626,7 +632,7 @@ jobs:
           grep -Fq 'world-v2300-weather.js?v=6093-josephine-global-track' site/app.js
           grep -Fq 'sourceDataReady:true,cloudsOnlyPhase:true' site/landing.js
           grep -Fq 'if(window.__BP_CLOUDS_ONLY_PHASE_V6070__===true && m)' site/landing.js
-          grep -Fq 'landing.js?v=6091-global-storm-centers-data-only' site/index.html
+          grep -Fq 'landing.js?v=6094-josephine-spiral-unified' site/index.html
           grep -Fq 'async function toggleNasaNightlights()' site/world-v2300-time-slider.js
           grep -Fq 'async function toggleSkyClouds()' site/world-v2300-time-slider.js
           grep -Fq 'data-skyview' site/world-v2300-time-slider.js
@@ -828,7 +834,7 @@ jobs:
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/app.js
           grep -Fq 'activateLiveWeather();' site/app.js
           grep -Fq 'enabled:true,serializedWeather:true' site/app.js
-          grep -Fq 'app.js?v=6092-posttropical-global-clouds' site/app/index.html
+          grep -Fq 'app.js?v=6094-josephine-spiral-unified' site/app/index.html
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/landing.js
           grep -Fq 'WMO_CAP_WARNING' site/app.js
           grep -Fq 'WMO_CAP_WARNING' site/landing.js
@@ -1051,8 +1057,8 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=6092-posttropical-global-clouds' site/app/index.html
-          grep -Fq 'landing.js?v=6091-global-storm-centers-data-only' site/index.html
+          grep -Fq 'app.js?v=6094-josephine-spiral-unified' site/app/index.html
+          grep -Fq 'landing.js?v=6094-josephine-spiral-unified' site/index.html
            grep -Fq 'world-v2300-map.js?v=6056-ground-camera-readiness' site/app.js
            grep -Fq 'world-v2300-map.js?v=6056-ground-camera-readiness' site/landing.js
            grep -Fq 'world-v2300-map.js?v=6056-ground-camera-readiness' site/index.html
@@ -1409,7 +1415,7 @@ jobs:
                  controllerVersion:window.__BP_SKY_CLOUDS_V5908__?.version,
                  pressed:document.querySelector('#bp-world-time-slider-v5908 [data-clouds]')?.getAttribute('aria-pressed')
                }));
-               if(!cloudBaseline.button||!cloudBaseline.enabled||cloudBaseline.controllerVersion!==6090||cloudBaseline.base!=='satellite'||cloudBaseline.pressed!=='true')
+               if(!cloudBaseline.button||!cloudBaseline.enabled||cloudBaseline.controllerVersion!==6094||cloudBaseline.base!=='satellite'||cloudBaseline.pressed!=='true')
                  throw new Error('NASA_EARTH_CLOUD_DEFAULT_ON_NOT_READY '+JSON.stringify(cloudBaseline));
                // Clouds are intentionally ON at startup. Verify OFF restores the previous basemap,
                // then verify ON reactivates the georeferenced 3D volume layer.
@@ -1435,7 +1441,7 @@ jobs:
                try {
                  await p.waitForFunction(()=>{
                    const w=window.__BP_LANDING_WORLD__,m=w?.map,c=window.__BP_SKY_CLOUDS_V5908__,s=window.__BP_SKY_CLOUDS_STATE_V6077__||window.__BP_SKY_CLOUDS_STATE_V6047__,b=document.querySelector('#bp-world-time-slider-v5908 [data-clouds]');
-                   return b?.getAttribute('aria-pressed')==='true'&&(w?.state?.base==='satellite'||w?.base==='satellite')&&c?.enabled===true&&c?.version===6090&&!!m?.getLayer('bp-sky-cloud-volume-v6029')&&Number(s?.cloudFormations)>0&&s?.version===6090;
+                   return b?.getAttribute('aria-pressed')==='true'&&(w?.state?.base==='satellite'||w?.base==='satellite')&&c?.enabled===true&&c?.version===6094&&!!m?.getLayer('bp-sky-cloud-volume-v6029')&&Number(s?.cloudFormations)>0&&s?.version===6094;
                  },{timeout:15000});
                } catch(error) {
                  const state=await p.evaluate(()=>({
@@ -1455,7 +1461,7 @@ jobs:
                    styleLayerCount:(window.__BP_SKY_CLOUDS_STATE_V6077__||window.__BP_SKY_CLOUDS_STATE_V6047__)?.mapStyleLayerCount,
                    layer:!!window.__BP_LANDING_WORLD__?.map?.getLayer('bp-sky-cloud-volume-v6029')
                  }));
-                 if(state.pressed!=='true'||state.enabled!==true||state.base!=='satellite'||state.layer!==true||Number(state.cloudFormations)<=0||state.version!==6090)
+                 if(state.pressed!=='true'||state.enabled!==true||state.base!=='satellite'||state.layer!==true||Number(state.cloudFormations)<=0||state.version!==6094)
                    throw new Error('NASA_EARTH_CLOUD_ON_TOGGLE_FAILED '+JSON.stringify(state)+' '+String(error?.message||error));
                  console.log('BRIDGEPOINT_NASA_EARTH_CLOUD_MODE_ON_STATE_CONFIRMED_AFTER_WAIT',JSON.stringify({...state,waitTimedOut:true}));
                }
@@ -1468,7 +1474,7 @@ jobs:
                 });
                 await p.waitForFunction(()=>{
                   const m=window.__BP_LANDING_WORLD__?.map,c=window.__BP_SKY_CLOUDS_V5908__,s=window.__BP_SKY_CLOUDS_STATE_V6077__||window.__BP_SKY_CLOUDS_STATE_V6047__;
-                  return !!m&&m.getZoom()<=1.3&&c?.enabled===true&&c?.version===6090&&s?.version===6090&&s?.projectionMode==='MapLibre shaderData projectTileFor3D'&&s?.persistentGlobalCloudField===true&&
+                  return !!m&&m.getZoom()<=1.3&&c?.enabled===true&&c?.version===6094&&s?.version===6094&&s?.projectionMode==='MapLibre shaderData projectTileFor3D'&&s?.persistentGlobalCloudField===true&&
                     Number(s?.globalCloudFormations)>=1600&&Number(s?.globalThinLayerSlices)===9&&Number(s?.globalThinLayerStacks)===2&&Number(s?.globalSingleLayerSlices)===8&&Number(s?.globalSingleLayerStacks)===2&&Number(s?.globalMacroRadiusMaxKm)>=900&&Number(s?.projectionShaderVariants)>0&&!!m.getLayer('bp-sky-cloud-volume-v6029');
                 },{timeout:18000});
                 const globeClouds=await p.evaluate(()=>{const s=window.__BP_SKY_CLOUDS_STATE_V6077__||window.__BP_SKY_CLOUDS_STATE_V6047__;const c=window.__BP_SKY_CLOUDS_V5908__,w=window.__BP_LANDING_WORLD__,m=w?.map,b=document.querySelector('#bp-world-time-slider-v5908 [data-clouds]');return s?{version:s.version,enabled:s.enabled,visible:s.visible,zoom:m?.getZoom?.(),controllerVersion:c?.version,controllerEnabled:c?.enabled,controllerMapMatchesWorld:c?.map===m,layerPresent:s.layerPresent,layerInstalled:s.layerInstalled,rendererError:s.rendererError,cloudFormations:s.cloudFormations,globalCloudFormations:s.globalCloudFormations,globalThinLayerSlices:s.globalThinLayerSlices,globalSingleLayerSlices:s.globalSingleLayerSlices,globalMacroRadiusMaxKm:s.globalMacroRadiusMaxKm,projectionShaderVariants:s.projectionShaderVariants}: {stateAvailable:false,controllerVersion:c?.version,controllerEnabled:c?.enabled,controllerMapMatchesWorld:c?.map===m,buttonPressed:b?.getAttribute('aria-pressed'),worldBase:w?.base,worldStateBase:w?.state?.base}});
@@ -1480,7 +1486,7 @@ jobs:
                 await new Promise(resolve=>setTimeout(resolve,500));
                 await p.waitForFunction(()=>{
                   const c=window.__BP_SKY_CLOUDS_V5908__,s=window.__BP_SKY_CLOUDS_STATE_V6077__||window.__BP_SKY_CLOUDS_STATE_V6047__;
-                  return c?.enabled===true&&c?.version===6090&&s?.persistentGlobalCloudField===true&&Number(s?.globalCloudFormations)>=1600&&Number(s?.globalThinLayerSlices)===9&&Number(s?.globalThinLayerStacks)===2&&Number(s?.globalSingleLayerSlices)===8&&Number(s?.globalSingleLayerStacks)===2&&Number(s?.globalMacroRadiusMaxKm)>=900;
+                  return c?.enabled===true&&c?.version===6094&&s?.persistentGlobalCloudField===true&&Number(s?.globalCloudFormations)>=1600&&Number(s?.globalThinLayerSlices)===9&&Number(s?.globalThinLayerStacks)===2&&Number(s?.globalSingleLayerSlices)===8&&Number(s?.globalSingleLayerStacks)===2&&Number(s?.globalMacroRadiusMaxKm)>=900;
                 },{timeout:12000});
                 console.log('BRIDGEPOINT_GLOBAL_CLOUDS_STAY_ANCHORED_ON_GLOBE_MOVE_PASS',JSON.stringify(await p.evaluate(()=>{const s=window.__BP_SKY_CLOUDS_STATE_V6077__||window.__BP_SKY_CLOUDS_STATE_V6047__;const c=window.__BP_SKY_CLOUDS_V5908__,w=window.__BP_LANDING_WORLD__,m=w?.map,b=document.querySelector('#bp-world-time-slider-v5908 [data-clouds]');return s?{version:s.version,enabled:s.enabled,visible:s.visible,zoom:m?.getZoom?.(),controllerVersion:c?.version,controllerEnabled:c?.enabled,controllerMapMatchesWorld:c?.map===m,layerPresent:s.layerPresent,layerInstalled:s.layerInstalled,rendererError:s.rendererError,cloudFormations:s.cloudFormations,globalCloudFormations:s.globalCloudFormations,globalThinLayerSlices:s.globalThinLayerSlices,globalSingleLayerSlices:s.globalSingleLayerSlices,globalMacroRadiusMaxKm:s.globalMacroRadiusMaxKm,projectionShaderVariants:s.projectionShaderVariants}: {stateAvailable:false,controllerVersion:c?.version,controllerEnabled:c?.enabled,controllerMapMatchesWorld:c?.map===m,buttonPressed:b?.getAttribute('aria-pressed'),worldBase:w?.base,worldStateBase:w?.state?.base}})));
                 await p.evaluate(()=>{
