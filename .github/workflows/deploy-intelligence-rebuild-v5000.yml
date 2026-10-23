@@ -252,6 +252,7 @@ jobs:
           sed -i 's#world-v2300-sensor-layers.js?v=6015-nasa-light-toggle#world-v2300-sensor-layers.js?v=6027-nasa-nightlight-corrected-radiance#g' site/app.js site/landing.js
           sed -i 's#world-v2300-clouds.js?v=6075-global-coverage-fill#world-v2300-clouds.js?v=6090-physical-storm-motion#g' site/app.js site/landing.js
           sed -i 's#world-v2300-clouds.js?v=6076-rounded-cloud-banks#world-v2300-clouds.js?v=6090-physical-storm-motion#g' site/app.js site/landing.js
+          sed -i 's#world-v2300-weather.js?v=6090-five-minute-source-track-refresh#world-v2300-weather.js?v=6090-five-minute-source-track-refresh#g' site/app.js site/landing.js site/index.html site/app/index.html site/app/world-v2300-bootstrap.js
           sed -i 's#world-v2300-time-slider.js?v=6076-rounded-cloud-banks#world-v2300-time-slider.js?v=6077-sky-restore-safe-pitch#g' site/app.js site/landing.js
           sed -i 's#world-v2300-time-slider.js?v=6077-cloud-base-restore#world-v2300-time-slider.js?v=6077-sky-restore-safe-pitch#g' site/app.js site/landing.js
           sed -i 's#app.js?v=6077-cloud-base-restore#app.js?v=6077-sky-restore-safe-pitch#g' site/app/index.html
@@ -454,7 +455,7 @@ jobs:
           grep -Fq 'Real satellite bands. No AI-drawn pixels.' site/world-v2300-spectral-imagery.js
           grep -Fq 'world-v2300-clouds.js?v=6090-physical-storm-motion' site/app.js
           grep -Fq 'world-v2300-clouds.js?v=6090-physical-storm-motion' site/landing.js
-          grep -Fq 'world-v2300-weather.js?v=6070-clouds-only-phase' site/app.js
+          grep -Fq 'world-v2300-weather.js?v=6090-five-minute-source-track-refresh' site/app.js
           grep -Fq 'world-v2300-rain.js?v=6070-clouds-only-phase' site/world-v2300-weather.js
           grep -Fq 'retireLegacyScreenSpaceRain' site/world-v2300-weather.js
           grep -Fq '__BP_SCREEN_SPACE_RAIN_RETIRE_V6063__' site/world-v2300-weather.js
@@ -495,7 +496,7 @@ jobs:
           grep -Fq 'baseAglM: clamp(safeNum(o.cloud_base_height_m ?? o.cloudBaseHeightM, thunder ? 450 : 350), 180, 4200)' site/world-v2300-rain.js
           grep -Fq "if(pr==='rain')return;" site/world-v2300-weather.js
           grep -Fq "'rain-cell'" site/world-v2300-clouds.js
-          grep -Fq 'world-v2300-weather.js?v=6070-clouds-only-phase' site/landing.js
+          grep -Fq 'world-v2300-weather.js?v=6090-five-minute-source-track-refresh' site/landing.js
           grep -Fq 'bindWeatherVertexArray(gl,weatherVao,weatherVaoMode,weatherVaoExt)' site/world-v2300-weather.js
           grep -Fq 'isolatedVao' site/world-v2300-weather.js
           grep -Fq 'window.__BP_WEATHER_GL_HEALTH_V6057__' site/world-v2300-weather.js
@@ -505,9 +506,9 @@ jobs:
           grep -Fq 'hideLegacyNativeWeatherLayers(map)' site/world-v2300-weather.js
           grep -Fq "renderer:'v2300-cinematic-fx'" site/app.js
           grep -Fq "renderer:'isolated-webgl-particle-layer'" site/landing.js
-          grep -Fq 'world-v2300-weather.js?v=6070-clouds-only-phase' site/index.html
-          grep -Fq 'world-v2300-weather.js?v=6070-clouds-only-phase' site/app/index.html
-          grep -Fq 'world-v2300-weather.js?v=6070-clouds-only-phase' site/app/world-v2300-bootstrap.js
+          grep -Fq 'world-v2300-weather.js?v=6090-five-minute-source-track-refresh' site/index.html
+          grep -Fq 'world-v2300-weather.js?v=6090-five-minute-source-track-refresh' site/app/index.html
+          grep -Fq 'world-v2300-weather.js?v=6090-five-minute-source-track-refresh' site/app/world-v2300-bootstrap.js
           grep -Fq 'world-v2300-time-slider.js?v=6077-sky-restore-safe-pitch' site/app.js
           grep -Fq 'world-v2300-time-slider.js?v=6077-sky-restore-safe-pitch' site/landing.js
           grep -Fq 'world-v2300-spectral-imagery.js?v=5934-world-controls' site/app.js
@@ -535,7 +536,7 @@ jobs:
           grep -Fq 'const billow = 1.0 +' site/world-v2300-clouds.js
           grep -Fq 'activeMacroCells' site/world-v2300-clouds.js
           grep -Fq 'MOBILE?8:9,3,hash(q.gx,q.gy,i+973)' site/world-v2300-clouds.js
-          grep -Fq 'Height/latitude-aware modelled atmospheric flow and hemisphere-aware cyclone circulation; no source-backed global upper-air wind grid is connected' site/world-v2300-clouds.js
+          grep -Fq 'Height/latitude-aware modelled atmospheric flow; no source-backed global upper-air wind grid is connected' site/world-v2300-clouds.js
           grep -Fq 'coverageVersion: 6090' site/world-v2300-clouds.js
           grep -Fq 'function makeTornadoSurfaceCone' site/world-v2300-clouds.js
           grep -Fq 'hurricaneSurfaceCloudVertices+=vertices.length/13-before' site/world-v2300-clouds.js
