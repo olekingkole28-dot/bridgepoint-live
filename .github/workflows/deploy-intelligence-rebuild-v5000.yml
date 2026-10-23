@@ -577,7 +577,9 @@ jobs:
           grep -Fq 'async function toggleSkyClouds()' site/world-v2300-time-slider.js
           grep -Fq 'data-skyview' site/world-v2300-time-slider.js
           grep -Fq 'setCenterClampedToGround(false)' site/world-v2300-time-slider.js
-          grep -Fq 'pitch:145' site/world-v2300-time-slider.js
+          grep -Fq 'const targetSkyPitch=125' site/world-v2300-time-slider.js
+          grep -Fq 'map.setCenterElevation(centerElevation)' site/world-v2300-time-slider.js
+          grep -Fq 'skyViewDiag.pivot={targetSkyPitch,skyZoom,cameraDistanceMeters:cameraDistance' site/world-v2300-time-slider.js
           grep -Fq 'streetlight_poles' site/world-v2300-sensor-layers.js
           grep -Fq 'data-filter-category' site/world-v2300-time-slider.js
           grep -Fq 'data-window-hours' site/world-v2300-time-slider.js
