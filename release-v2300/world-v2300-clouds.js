@@ -16,6 +16,82 @@ const CSS = [
   '@media(prefers-reduced-motion:reduce){:is(#liveMap,#previewMap) .' + ROOT_CLASS + '{transition:none;}}'
 ].join('');
 
+function makeStormVolumeProxy(MC,vertices,indices,lng,lat,groundM,radiusM,baseAGL,topAGL,tint){
+  const segments=MOBILE?28:40,levels=MOBILE?[0,0.22,0.48,0.74,1]:[0,0.16,0.34,0.54,0.74,0.90,1];
+  const start=vertices.length/10,center=MC.fromLngLat({lng,lat},groundM),cosLat=Math.max(0.12,Math.cos(lat*Math.PI/180));
+  const wrapLng=value=>((((value+180)%360)+360)%360)-180;
+  const addVertex=(east,north,height)=>{
+    const vLat=clamp(lat+north/111320,-85,85),vLng=wrapLng(lng+east/(111320*cosLat)),alt=groundM+baseAGL+height;
+    const p=MC.fromLngLat({lng:vLng,lat:vLat},alt);
+    vertices.push(p.x,p.y,p.z,alt,east,north,height,tint,center.x,center.y);
+    return vertices.length/10-1;
+  };
+  const rings=[];
+  for(const fraction of levels){
+    const ring=[],z=topAGL*fraction;
+    for(let i=0;i<=segments;i++){const angle=TAU*(i%segments)/segments;ring.push(addVertex(Math.cos(angle)*radiusM,Math.sin(angle)*radiusM,z));}
+    rings.push(ring);
+  }
+  for(let j=0;j<rings.length-1;j++){
+    const lower=rings[j],upper=rings[j+1];
+    for(let i=0;i<segments;i++){const a=lower[i],b=lower[i+1],c=upper[i],d=upper[i+1];indices.push(a,b,c,b,d,c);}
+  }
+  const bottom=addVertex(0,0,0),top=addVertex(0,0,topAGL);
+  for(let i=0;i<segments;i++){indices.push(bottom,rings[0][i+1],rings[0][i]);const cap=rings[rings.length-1];indices.push(top,cap[i],cap[i+1]);}
+  return vertices.length/10-start;
+}
+const STORM_VOLUME_FRAGMENT = String.raw`float bpStormExitDistance(vec3 p,vec3 d,float radius,float height){
+  float exitT=1.0e20,a=dot(d.xy,d.xy),b=dot(p.xy,d.xy),c=dot(p.xy,p.xy)-radius*radius,disc=b*b-a*c;
+  if(a>1.0e-8&&disc>=0.0){float side=(-b+sqrt(disc))/a;if(side>0.0)exitT=min(exitT,side);}
+  if(d.z>1.0e-5)exitT=min(exitT,(height-p.z)/d.z);else if(d.z< -1.0e-5)exitT=min(exitT,(0.0-p.z)/d.z);
+  return max(0.0,exitT);
+}
+float bpStormDensity(vec3 p,float tint,float time,float radius,float height,float eyeRatio){
+  float rho=length(p.xy)/max(radius,1.0),z=clamp(p.z/max(height,1.0),0.0,1.0);
+  vec3 coarseP=vec3(p.xy/52000.0,p.z/4300.0)+vec3(time*0.018,-time*0.012,time*0.009);
+  float broad=noise3(coarseP),fine=noise3(coarseP*2.7+vec3(time*0.10,-time*0.06,time*0.08)),micro=noise3(coarseP*5.1+vec3(-time*0.15,time*0.11,time*0.07));
+  if(tint<1.481){
+    float taper=mix(0.0045,0.105,pow(z,0.78)),rough=(broad-0.5)*0.020+(fine-0.5)*0.010+(micro-0.5)*0.006,radial=length(p.xy)/18000.0;
+    float edge=1.0-smoothstep(taper*0.74,taper*1.20,radial+rough),twist=atan(p.y,p.x)-time*1.55+z*5.4+(fine-0.5)*1.4;
+    float striation=0.54+0.46*(0.5+0.5*cos(twist*3.1)),broken=smoothstep(0.18,0.40,broad*0.52+fine*0.32+micro*0.16);
+    float vertical=smoothstep(0.006,0.075,z)*(1.0-smoothstep(0.91,1.0,z)),inside=1.0-smoothstep(taper*0.10,taper*0.46,radial);
+    return clamp((edge*(0.52+0.48*broken)*striation*vertical*1.38)+(inside*vertical*broken*0.08),0.0,1.0);
+  }
+  float safeEye=clamp(eyeRatio,0.008,0.095),vertical=smoothstep(0.065,0.18,z)*(1.0-smoothstep(0.84,0.99,z));
+  float eyeClear=smoothstep(safeEye*0.98,safeEye*1.28,rho),outerFade=1.0-smoothstep(0.82,0.995,rho);
+  float phase=atan(p.y,p.x)-log(max(rho,safeEye*1.32))*1.82-time*0.22,spiralSignal=0.5+0.5*cos(phase*5.0+(broad-0.5)*1.7+(fine-0.5)*0.9);
+  float spiralBands=smoothstep(0.26,0.72,spiralSignal),cloudTexture=smoothstep(0.24,0.48,broad*0.54+fine*0.30+micro*0.16);
+  float brokenBands=mix(0.10,1.0,spiralBands)*(0.36+0.64*cloudTexture),eyeWallRadius=safeEye*1.50,eyeWallWidth=max(0.012,safeEye*0.43);
+  float eyeWall=exp(-pow((rho-eyeWallRadius)/eyeWallWidth,2.0))*(0.70+0.30*broad),outerBands=eyeClear*outerFade*vertical*brokenBands;
+  return clamp(max(outerBands*1.36,eyeWall*vertical*1.28),0.0,1.0);
+}
+vec4 bpRaymarchStorm(vec3 entry,vec2 cameraXY,float tint,float time,float cameraAltitude,float requestedSteps){
+  bool funnel=tint<1.481,southern=(!funnel&&tint>1.520);
+  float radius=funnel?18000.0:max(180000.0,(tint-1.482-(southern?0.040:0.0))*100000000.0);
+  float height=funnel?clamp((tint-1.474)*100000000.0,4500.0,15500.0):16000.0,eyeRatio=clamp(28000.0/radius,0.008,0.095);
+  vec3 camera=vec3(cameraXY,cameraAltitude),toCamera=normalize(camera-entry),normal;
+  if(entry.z<0.5)normal=vec3(0.0,0.0,-1.0);else if(entry.z>height-0.5)normal=vec3(0.0,0.0,1.0);else normal=normalize(vec3(entry.xy,0.0001));
+  if(dot(normal,toCamera)<=0.002)return vec4(0.0);
+  vec3 direction=-toCamera;float exitT=bpStormExitDistance(entry,direction,radius,height);
+  if(exitT<1.0||exitT>1.0e20)return vec4(0.0);
+  float steps=clamp(requestedSteps,12.0,40.0),stepLength=exitT/steps,accumulatedAlpha=0.0;
+  vec3 accumulatedColor=vec3(0.0);
+  for(int i=0;i<40;i++){
+    if(float(i)>=steps||accumulatedAlpha>0.965)break;
+    vec3 samplePos=entry+direction*((float(i)+0.5)*stepLength);
+    float density=bpStormDensity(samplePos,tint,time,radius,height,eyeRatio);
+    if(density>0.012){
+      float broad=noise3(vec3(samplePos.xy/21000.0,samplePos.z/2900.0)+vec3(time*0.02,-time*0.01,time*0.015));
+      float heightShade=clamp(samplePos.z/height,0.0,1.0),radialShade=clamp(length(samplePos.xy)/radius,0.0,1.0);
+      float silver=clamp(0.45+0.26*broad+0.20*heightShade-0.16*radialShade,0.16,1.0);
+      vec3 cloudColor=mix(vec3(0.20,0.25,0.32),vec3(0.93,0.96,1.0),silver);
+      float extinction=funnel?0.000105:0.000060,sampleAlpha=clamp(1.0-exp(-density*stepLength*extinction),0.0,0.50);
+      accumulatedColor+=cloudColor*((1.0-accumulatedAlpha)*sampleAlpha);accumulatedAlpha+=(1.0-accumulatedAlpha)*sampleAlpha;
+    }
+  }
+  if(accumulatedAlpha<0.028)return vec4(0.0);
+  return vec4(accumulatedColor/max(accumulatedAlpha,0.001),clamp(accumulatedAlpha,0.0,0.93));
+}`;
 function makeShaders(webgl2, shaderData = null) {
   const projectionAware = !!(webgl2 && shaderData &&
     typeof shaderData.vertexShaderPrelude === 'string' && shaderData.vertexShaderPrelude.length &&
@@ -26,19 +102,20 @@ function makeShaders(webgl2, shaderData = null) {
   const vertex = (webgl2 ? '#version 300 es\n' : '') + projectionPreamble +
     'precision highp float;\n' +
     (webgl2
-      ? 'in vec3 a_pos;\nin float a_altitude;\nin vec3 a_local;\nin float a_tint;\nin vec2 a_wind;\nout vec3 v_local;\nout float v_tint;\n'
-      : 'attribute vec3 a_pos;\nattribute float a_altitude;\nattribute vec3 a_local;\nattribute float a_tint;\nattribute vec2 a_wind;\nvarying vec3 v_local;\nvarying float v_tint;\n') +
+      ? 'in vec3 a_pos;\nin float a_altitude;\nin vec3 a_local;\nin float a_tint;\nin vec2 a_wind;\nout vec3 v_local;\nout float v_tint;\nout vec2 v_camera_local;\n'
+      : 'attribute vec3 a_pos;\nattribute float a_altitude;\nattribute vec3 a_local;\nattribute float a_tint;\nattribute vec2 a_wind;\nvarying vec3 v_local;\nvarying float v_tint;\nvarying vec2 v_camera_local;\n') +
     (projectionAware ? '' : 'uniform mat4 u_matrix;\n') +
-    'uniform highp float u_motion_time;\n' +
-    'void main(){v_local=a_local;v_tint=a_tint;vec2 moved;if(a_tint>1.40){vec2 rel=a_pos.xy-a_wind;float spin=a_tint>1.455?1.0:-1.0;float angle=spin*u_motion_time*2.05+a_altitude*0.000035;float cs=cos(angle),sn=sin(angle);moved=a_wind+vec2(rel.x*cs-rel.y*sn,rel.x*sn+rel.y*cs);}else if(a_tint>1.20&&a_tint<1.30){vec2 rel=a_pos.xy-a_wind;float spin=((a_tint<1.235)||(a_tint>1.25&&a_tint<1.275))?-1.0:1.0;float angle=spin*u_motion_time*0.68+a_altitude*0.0000012;float cs=cos(angle),sn=sin(angle);moved=a_wind+vec2(rel.x*cs-rel.y*sn,rel.x*sn+rel.y*cs);}else{vec2 advect=a_wind*u_motion_time;moved=vec2(fract(a_pos.x+advect.x),clamp(a_pos.y+advect.y,0.0005,0.9995));}gl_Position=' +
+    'uniform highp float u_motion_time;\nuniform vec2 u_camera_center_mercator;\n' +
+    'void main(){v_local=a_local;v_tint=a_tint;float stormLat=2.0*atan(exp((0.5-a_wind.y)*6.28318530718))-1.57079632679;vec2 cameraDelta=u_camera_center_mercator-a_wind;cameraDelta.x-=floor(cameraDelta.x+0.5);v_camera_local=vec2(cameraDelta.x*40075016.68557849*cos(stormLat),-cameraDelta.y*40075016.68557849*cos(stormLat));vec2 moved;if(a_tint>1.47){moved=a_pos.xy;}else if(a_tint>1.40){vec2 rel=a_pos.xy-a_wind;float spin=a_tint>1.455?1.0:-1.0;float angle=spin*u_motion_time*2.05+a_altitude*0.000035;float cs=cos(angle),sn=sin(angle);moved=a_wind+vec2(rel.x*cs-rel.y*sn,rel.x*sn+rel.y*cs);}else if(a_tint>1.20&&a_tint<1.30){vec2 rel=a_pos.xy-a_wind;float spin=((a_tint<1.235)||(a_tint>1.25&&a_tint<1.275))?-1.0:1.0;float angle=spin*u_motion_time*0.68+a_altitude*0.0000012;float cs=cos(angle),sn=sin(angle);moved=a_wind+vec2(rel.x*cs-rel.y*sn,rel.x*sn+rel.y*cs);}else{vec2 advect=a_wind*u_motion_time;moved=vec2(fract(a_pos.x+advect.x),clamp(a_pos.y+advect.y,0.0005,0.9995));}gl_Position=' +
     (projectionAware ? 'projectTileFor3D(moved,a_altitude)' : 'u_matrix*vec4(moved,a_pos.z,1.0)') + ';}';
 
   const fragment = (webgl2 ? '#version 300 es\n' : '') +
     'precision mediump float;\n' +
-    (webgl2 ? 'in vec3 v_local;\nin float v_tint;\nout vec4 bpColor;\n' : 'varying vec3 v_local;\nvarying float v_tint;\n') +
-    'uniform float u_time;\n' +
+    (webgl2 ? 'in vec3 v_local;\nin float v_tint;\nin vec2 v_camera_local;\nout vec4 bpColor;\n' : 'varying vec3 v_local;\nvarying float v_tint;\nvarying vec2 v_camera_local;\n') +
+    'uniform highp float u_time;\nuniform highp float u_camera_altitude_m;\nuniform highp float u_ray_steps;\n' +
     'float noise3(vec3 p){vec3 q=floor(p);vec3 f=fract(p);f=f*f*(3.0-2.0*f);float n=q.x+q.y*57.0+q.z*113.0;float a=fract(sin(n)*43758.5453);float b=fract(sin(n+1.0)*43758.5453);float c=fract(sin(n+57.0)*43758.5453);float d=fract(sin(n+58.0)*43758.5453);float e=fract(sin(n+113.0)*43758.5453);float f1=fract(sin(n+114.0)*43758.5453);float g=fract(sin(n+170.0)*43758.5453);float h=fract(sin(n+171.0)*43758.5453);return mix(mix(mix(a,b,f.x),mix(c,d,f.x),f.y),mix(mix(e,f1,f.x),mix(g,h,f.x),f.y),f.z);}\n' +
-    'void main(){vec3 n=normalize(v_local);float edge=clamp(0.58+abs(v_local.z)*0.18,0.0,1.0);float broad=noise3(v_local*3.0+vec3(u_time*0.004,v_tint*1.7,0.0));float detail=noise3(v_local*7.0+vec3(u_time*0.018,v_tint*4.0,0.0));float billow=noise3(v_local*15.0+vec3(0.0,u_time*0.012,v_tint*8.0));float fine=noise3(v_local*27.0+vec3(u_time*0.008,v_tint*11.0,0.0));float diffuse=max(0.0,dot(n,normalize(vec3(-0.42,0.55,0.72))));float density=broad*0.37+detail*0.34+billow*0.29;float sculpt=smoothstep(0.20,0.68,density);float silver=clamp(0.18+diffuse*0.86+broad*0.08+detail*0.07+billow*0.06,0.0,1.0);vec3 lit=mix(vec3(0.28,0.36,0.46),vec3(0.99,0.995,1.0),silver);float underside=pow(max(0.0,-n.z),1.35);lit=mix(lit,vec3(0.27,0.35,0.46),underside*0.48);lit=mix(lit,vec3(0.84,0.89,0.96),pow(max(0.0,1.0-abs(dot(n,normalize(vec3(0.2,0.0,1.0))))),2.0)*0.19);float tornadoCell=smoothstep(1.40,1.44,v_tint);float rainCell=smoothstep(1.30,1.34,v_tint)*(1.0-tornadoCell);float stormCell=smoothstep(0.89,0.95,v_tint)*(1.0-rainCell)*(1.0-tornadoCell);float hurricaneCell=smoothstep(1.20,1.23,v_tint)*(1.0-smoothstep(1.28,1.30,v_tint));float hurricaneRibbonCell=smoothstep(1.286,1.290,v_tint)*(1.0-smoothstep(1.294,1.298,v_tint));float tornadoStriation=0.5+0.5*sin(atan(v_local.y,v_local.x)*6.0-u_time*4.8+v_local.z*17.0+detail*2.1);lit=mix(lit,vec3(0.27,0.33,0.42),rainCell*0.68);lit=mix(lit,vec3(0.19,0.23,0.30),stormCell*0.46+hurricaneCell*0.62+tornadoCell*0.78);lit=mix(lit,vec3(0.83,0.88,0.93),tornadoCell*tornadoStriation*0.62);lit=mix(lit,mix(vec3(0.46,0.58,0.72),vec3(0.97,0.985,1.0),detail),hurricaneRibbonCell*0.86);float alphaBase=edge*(0.20+sculpt*0.47+diffuse*0.17+fine*0.08)*(1.0+rainCell*1.8+stormCell*0.14+hurricaneCell*0.3+hurricaneRibbonCell*1.8+tornadoCell*(0.55+tornadoStriation*0.50));float thinCell=1.0-smoothstep(0.19,0.26,v_tint);float alpha=clamp(mix(alphaBase,alphaBase*0.66,thinCell),0.035,0.96);' +
+    STORM_VOLUME_FRAGMENT + '\\n' +
+    'void main(){if(v_tint>1.47){vec4 stormColor=bpRaymarchStorm(v_local,v_camera_local,v_tint,u_time,u_camera_altitude_m,u_ray_steps);' + (webgl2 ? 'bpColor=stormColor;' : 'gl_FragColor=stormColor;') + 'return;}vec3 n=normalize(v_local);float edge=clamp(0.58+abs(v_local.z)*0.18,0.0,1.0);float broad=noise3(v_local*3.0+vec3(u_time*0.004,v_tint*1.7,0.0));float detail=noise3(v_local*7.0+vec3(u_time*0.018,v_tint*4.0,0.0));float billow=noise3(v_local*15.0+vec3(0.0,u_time*0.012,v_tint*8.0));float fine=noise3(v_local*27.0+vec3(u_time*0.008,v_tint*11.0,0.0));float diffuse=max(0.0,dot(n,normalize(vec3(-0.42,0.55,0.72))));float density=broad*0.37+detail*0.34+billow*0.29;float sculpt=smoothstep(0.20,0.68,density);float silver=clamp(0.18+diffuse*0.86+broad*0.08+detail*0.07+billow*0.06,0.0,1.0);vec3 lit=mix(vec3(0.28,0.36,0.46),vec3(0.99,0.995,1.0),silver);float underside=pow(max(0.0,-n.z),1.35);lit=mix(lit,vec3(0.27,0.35,0.46),underside*0.48);lit=mix(lit,vec3(0.84,0.89,0.96),pow(max(0.0,1.0-abs(dot(n,normalize(vec3(0.2,0.0,1.0))))),2.0)*0.19);float tornadoCell=smoothstep(1.40,1.44,v_tint);float rainCell=smoothstep(1.30,1.34,v_tint)*(1.0-tornadoCell);float stormCell=smoothstep(0.89,0.95,v_tint)*(1.0-rainCell)*(1.0-tornadoCell);float hurricaneCell=smoothstep(1.20,1.23,v_tint)*(1.0-smoothstep(1.28,1.30,v_tint));float hurricaneRibbonCell=smoothstep(1.286,1.290,v_tint)*(1.0-smoothstep(1.294,1.298,v_tint));float tornadoStriation=0.5+0.5*sin(atan(v_local.y,v_local.x)*6.0-u_time*4.8+v_local.z*17.0+detail*2.1);lit=mix(lit,vec3(0.27,0.33,0.42),rainCell*0.68);lit=mix(lit,vec3(0.19,0.23,0.30),stormCell*0.46+hurricaneCell*0.62+tornadoCell*0.78);lit=mix(lit,vec3(0.83,0.88,0.93),tornadoCell*tornadoStriation*0.62);lit=mix(lit,mix(vec3(0.46,0.58,0.72),vec3(0.97,0.985,1.0),detail),hurricaneRibbonCell*0.86);float alphaBase=edge*(0.20+sculpt*0.47+diffuse*0.17+fine*0.08)*(1.0+rainCell*1.8+stormCell*0.14+hurricaneCell*0.3+hurricaneRibbonCell*1.8+tornadoCell*(0.55+tornadoStriation*0.50));float thinCell=1.0-smoothstep(0.19,0.26,v_tint);float alpha=clamp(mix(alphaBase,alphaBase*0.66,thinCell),0.035,0.96);' +
     (webgl2 ? 'bpColor=vec4(lit,alpha);' : 'gl_FragColor=vec4(lit,alpha);') +
     '}';
   return { vertex, fragment, projectionAware };
@@ -494,6 +571,9 @@ export function initSkyClouds(target) {
         matrix: gl.getUniformLocation(program, 'u_matrix'),
         time: gl.getUniformLocation(program, 'u_time'),
         motionTime: gl.getUniformLocation(program, 'u_motion_time'),
+        cameraCenter: gl.getUniformLocation(program, 'u_camera_center_mercator'),
+        cameraAltitude: gl.getUniformLocation(program, 'u_camera_altitude_m'),
+        raySteps: gl.getUniformLocation(program, 'u_ray_steps'),
         projectionMatrix: gl.getUniformLocation(program, 'u_projection_matrix'),
         projectionFallbackMatrix: gl.getUniformLocation(program, 'u_projection_fallback_matrix'),
         projectionTileMercatorCoords: gl.getUniformLocation(program, 'u_projection_tile_mercator_coords'),
