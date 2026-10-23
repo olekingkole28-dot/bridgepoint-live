@@ -362,9 +362,11 @@ export function initSkyClouds(target) {
   }
   function isTropicalCyclone(st={}) {
     const p=st?.properties||st||{};
-    const label=String([p.name,p.event,p.type,p.category,p.phenom,p.kind,p.system_type,p.systemType,p.storm_type,p.stormType,p.headline,p.event_name,p.description].filter(Boolean).join(' ')).toLowerCase();
-    if (/extra[\s-]?tropical/.test(label)) return false;
-    return /hurricane|typhoon|tropical[\s-]+(?:storm|cyclone|depression|system)|\bcyclone\b/.test(label) || String(p.phenom||'').toUpperCase()==='HU';
+    const classification=String(p.classification??p.classificationCode??p.classification_code??p.stormClass??'').trim().toUpperCase();
+    const label=String([p.name,p.event,p.type,p.category,p.phenom,p.kind,p.classification,p.classificationCode,p.system_type,p.systemType,p.storm_type,p.stormType,p.headline,p.event_name,p.description].filter(Boolean).join(' ')).toLowerCase();
+    if (/extra[\s-]?tropical|post[\s-]?tropical/.test(label) || classification==='PTC' || classification==='EX') return false;
+    if (/^(?:HU|TY|TS|TD|STS|STD|PC)$/.test(classification)) return true;
+    return /hurricane|typhoon|tropical[\s-]+(?:storm|cyclone|depression|system|disturbance)|subtropical\s+(?:storm|depression)|potential\s+tropical\s+cyclone|\bcyclone\b/.test(label) || String(p.phenom||'').toUpperCase()==='HU';
   }
   function isTornadoSource(st={}) {
     const p=st?.properties||st||{};
