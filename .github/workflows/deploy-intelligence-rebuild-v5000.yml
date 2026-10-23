@@ -250,8 +250,8 @@ jobs:
           cp release-v2300/world-v2300-infrastructure-volume-v5962.js site/world-v2300-infrastructure-volume-v5962.js
           cp release-v2300/world-v2300-sensor-layers.js site/world-v2300-sensor-layers.js
           sed -i 's#world-v2300-sensor-layers.js?v=6015-nasa-light-toggle#world-v2300-sensor-layers.js?v=6027-nasa-nightlight-corrected-radiance#g' site/app.js site/landing.js
-          sed -i 's#world-v2300-clouds.js?v=6075-global-coverage-fill#world-v2300-clouds.js?v=6084-visible-cyclone-ribbons#g' site/app.js site/landing.js
-          sed -i 's#world-v2300-clouds.js?v=6076-rounded-cloud-banks#world-v2300-clouds.js?v=6084-visible-cyclone-ribbons#g' site/app.js site/landing.js
+          sed -i 's#world-v2300-clouds.js?v=6075-global-coverage-fill#world-v2300-clouds.js?v=6085-global-storm-lod-texture#g' site/app.js site/landing.js
+          sed -i 's#world-v2300-clouds.js?v=6076-rounded-cloud-banks#world-v2300-clouds.js?v=6085-global-storm-lod-texture#g' site/app.js site/landing.js
           sed -i 's#world-v2300-time-slider.js?v=6076-rounded-cloud-banks#world-v2300-time-slider.js?v=6077-sky-restore-safe-pitch#g' site/app.js site/landing.js
           sed -i 's#world-v2300-time-slider.js?v=6077-cloud-base-restore#world-v2300-time-slider.js?v=6077-sky-restore-safe-pitch#g' site/app.js site/landing.js
           sed -i 's#app.js?v=6077-cloud-base-restore#app.js?v=6077-sky-restore-safe-pitch#g' site/app/index.html
@@ -452,8 +452,8 @@ jobs:
           node --input-type=module --check < site/world-v2300-realism.js
           node --input-type=module --check < site/gis-core-orchestrator-v5910.js
           grep -Fq 'Real satellite bands. No AI-drawn pixels.' site/world-v2300-spectral-imagery.js
-          grep -Fq 'world-v2300-clouds.js?v=6084-visible-cyclone-ribbons' site/app.js
-          grep -Fq 'world-v2300-clouds.js?v=6084-visible-cyclone-ribbons' site/landing.js
+          grep -Fq 'world-v2300-clouds.js?v=6085-global-storm-lod-texture' site/app.js
+          grep -Fq 'world-v2300-clouds.js?v=6085-global-storm-lod-texture' site/landing.js
           grep -Fq 'world-v2300-weather.js?v=6070-clouds-only-phase' site/app.js
           grep -Fq 'world-v2300-rain.js?v=6070-clouds-only-phase' site/world-v2300-weather.js
           grep -Fq 'retireLegacyScreenSpaceRain' site/world-v2300-weather.js
@@ -543,6 +543,10 @@ jobs:
           grep -Fq 'function makeCycloneRibbon' site/world-v2300-clouds.js
           grep -Fq 'hurricaneSurfaceCloudVertices+=makeCycloneRibbon' site/world-v2300-clouds.js
           grep -Fq 'const physicalSurfaceHeightM=clamp(physicalHeightM,2500,4500)' site/world-v2300-clouds.js
+          grep -Fq 'physicalSurfaceHeightM+Math.max(0,500000-physicalSurfaceHeightM)*visualBoost' site/world-v2300-clouds.js
+          grep -Fq 'visualShieldRadiusM = shieldRadiusM + Math.max(0,4000000-shieldRadiusM)*overviewBoost' site/world-v2300-clouds.js
+          grep -Fq 'visualEyeRadiusM = Math.max(eyeRadiusM,visualShieldRadiusM*0.090)' site/world-v2300-clouds.js
+          grep -Fq 'tornadoSurfaceMeshVertices+=vertices.length/10-before' site/world-v2300-clouds.js
           grep -Fq 'if (field.score > 0.58) continue;' site/world-v2300-clouds.js
           grep -Fq 'const waveX = (gx + 0.5) / cols * TAU' site/world-v2300-clouds.js
           grep -Fq 'globalCloudPuffs' site/world-v2300-clouds.js

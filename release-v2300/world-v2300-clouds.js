@@ -46,8 +46,8 @@ function makeTornadoSurfaceCone(MC,vertices,indices,lng,lat,groundM,heightM,topR
   const start=vertices.length/10,center=MC.fromLngLat({lng,lat},0),cosLat=Math.max(0.12,Math.cos(lat*Math.PI/180));
   const wrapLng=value=>((((value+180)%360)+360)%360)-180,rings=[];
   const addVertex=(fraction,radialFraction,angle)=>{
-    const twistedAngle=angle+fraction*0.42+0.05*Math.sin(fraction*8.0),rough=1.0+0.055*Math.sin(angle*5.0+fraction*7.0)+0.025*Math.sin(angle*9.0-fraction*12.0),displacedRadius=radialFraction*rough;
-    const east=Math.cos(twistedAngle)*topRadiusM*displacedRadius,north=Math.sin(twistedAngle)*topRadiusM*displacedRadius;
+    const twistedAngle=angle+fraction*0.82+0.10*Math.sin(fraction*8.0),rough=1.0+0.15*Math.sin(angle*5.0+fraction*7.0)+0.065*Math.sin(angle*9.0-fraction*12.0)+0.04*Math.sin(angle*3.0+fraction*10.0),displacedRadius=radialFraction*rough,driftX=topRadiusM*0.13*Math.sin(fraction*3.1),driftY=topRadiusM*0.10*(1.0-Math.cos(fraction*2.7));
+    const east=Math.cos(twistedAngle)*topRadiusM*displacedRadius+driftX,north=Math.sin(twistedAngle)*topRadiusM*displacedRadius+driftY;
     const vLat=clamp(lat+north/111320,-85,85),vLng=wrapLng(lng+east/(111320*cosLat)),alt=groundM+heightM*fraction;
     const p=MC.fromLngLat({lng:vLng,lat:vLat},alt);
     vertices.push(p.x,p.y,p.z,alt,Math.cos(twistedAngle)*displacedRadius,Math.sin(twistedAngle)*displacedRadius,fraction,tint,center.x,center.y);
@@ -1167,8 +1167,8 @@ function generateGeometry() {
       const eyeMi = number(storm.eye_radius_mi,number(storm.eyeRadiusMi,NaN));
       const eyeRawM = Number.isFinite(eyeKm)&&eyeKm>0?eyeKm*1000:Number.isFinite(eyeMi)&&eyeMi>0?eyeMi*1609.34:NaN;
       const eyeRadiusM = Number.isFinite(eyeRawM)?clamp(eyeRawM,6000,75000):28000;
-      const visualShieldRadiusM = shieldRadiusM + Math.max(0,1400000-shieldRadiusM)*overviewBoost;
-      const visualEyeRadiusM = Math.max(eyeRadiusM,visualShieldRadiusM*0.060);
+      const visualShieldRadiusM = shieldRadiusM + Math.max(0,4000000-shieldRadiusM)*overviewBoost;
+      const visualEyeRadiusM = Math.max(eyeRadiusM,visualShieldRadiusM*0.090);
       if(hurricane){hurricaneVisualEyeRadiusKm=Math.max(hurricaneVisualEyeRadiusKm,visualEyeRadiusM/1000);hurricaneVisualShieldRadiusKm=Math.max(hurricaneVisualShieldRadiusKm,visualShieldRadiusM/1000);}
       if(hurricane){
         const ground=terrainElevationAt(lng,lat),southern=lat<0?0.040:0.0;
@@ -1191,12 +1191,12 @@ function generateGeometry() {
           makePuffGeometry(null,MC,vertices,indices,pLng,pLat,altitude,rx,ry,rz,tint,MOBILE?7:9,MOBILE?2:3,hash(lng,pLat,seed),cyclonePivot.x,cyclonePivot.y);
           hurricaneSurfaceCloudVertices+=vertices.length/10-before;
         };
-        const eyewallRadiusM=Math.max(visualEyeRadiusM*1.85,80000),eyewallPuffRadius=clamp(visualEyeRadiusM*0.75,32000,88000),eyewallCount=MOBILE?14:18;
+        const eyewallRadiusM=Math.max(visualEyeRadiusM*1.85,80000),eyewallPuffRadius=clamp(visualEyeRadiusM*0.75,32000,190000),eyewallCount=MOBILE?14:18;
         for(let i=0;i<eyewallCount;i++){
           const angle=TAU*i/eyewallCount+0.08*Math.sin(i*2.17),radius=eyewallRadiusM*(0.97+hash(i,lng,lat)*0.06);
           appendCycloneCloud(Math.cos(angle)*radius,Math.sin(angle)*radius,eyewallPuffRadius,i%5===0?1.282:1.295,6600+i);
         }
-        const armSteps=MOBILE?7:9,armPuffRadius=clamp(visualShieldRadiusM*0.075,35000,95000);
+        const armSteps=MOBILE?7:9,armPuffRadius=clamp(visualShieldRadiusM*0.10,50000,260000);
         const armStart=Math.max(eyewallRadiusM*1.85,visualEyeRadiusM*3.8),armEnd=visualShieldRadiusM*0.93;
         if(armEnd>armStart){
           for(let arm=0;arm<3;arm++)for(let step=0;step<armSteps;step++){
@@ -1205,7 +1205,7 @@ function generateGeometry() {
           }
         }
         // A continuous vertical eyewall ring and thick, connected arms make the eye/spiral legible at globe scale.
-        const eyewallSteps=MOBILE?40:64,eyewallHalfWidth=clamp(visualEyeRadiusM*0.34,20000,60000),eyewallPath=[];
+        const eyewallSteps=MOBILE?40:64,eyewallHalfWidth=clamp(visualEyeRadiusM*0.48,30000,160000),eyewallPath=[];
         for(let i=0;i<eyewallSteps;i++){
           const angle=TAU*i/eyewallSteps,radius=eyewallRadiusM*(1+0.018*Math.sin(angle*5.0)+0.009*Math.sin(angle*9.0));
           eyewallPath.push({east:Math.cos(angle)*radius,north:Math.sin(angle)*radius,heightOffset:500*Math.sin(angle*3.0)});
@@ -1216,7 +1216,7 @@ function generateGeometry() {
           const ribbonPath=[];
           for(let step=0;step<ribbonSteps;step++){
             const t=step/(ribbonSteps-1),radius=armStart+(armEnd-armStart)*t,angle=arm*TAU/3+0.24+Math.log(radius/Math.max(armStart,1))*1.85;
-            ribbonPath.push({east:Math.cos(angle)*radius,north:Math.sin(angle)*radius,widthM:clamp(armPuffRadius*(0.35+0.45*t),18000,52000),heightOffset:800*Math.sin(t*TAU*1.5+arm)});
+            ribbonPath.push({east:Math.cos(angle)*radius,north:Math.sin(angle)*radius,widthM:clamp(armPuffRadius*(0.45+0.40*t),30000,220000),heightOffset:800*Math.sin(t*TAU*1.5+arm)});
           }
           hurricaneSurfaceCloudVertices+=makeCycloneRibbon(MC,vertices,indices,lng,lat,ground,ribbonPath,armPuffRadius*0.55,7600,5100,1.295,cyclonePivot.x,cyclonePivot.y,false,visualShieldRadiusM);
         }
@@ -1238,21 +1238,35 @@ function generateGeometry() {
       if(f.kind==='funnel'){
         const ground=terrainElevationAt(f.lng,f.lat),physicalHeightM=clamp(f.topM-ground,4500,15500),visualBoost=clamp(overviewBoost,0,1);
         const visualHeightM=physicalHeightM + Math.max(0,260000-physicalHeightM)*visualBoost;
-        const visualRadiusM=18000 + 77000*visualBoost;
+        const visualRadiusM=18000 + 550000*visualBoost;
         // Draw a tapered, animated surface cone through the normal cloud-mesh shader as a
         // high-contrast visibility layer; retain the raymarched volume for soft interior wisps.
         // Keep the physical top radius local, then enlarge it smoothly only on the distant globe.
-        const physicalSurfaceHeightM=clamp(physicalHeightM,2500,4500),surfaceHeightM=physicalSurfaceHeightM+Math.max(0,260000-physicalSurfaceHeightM)*visualBoost;
+        const physicalSurfaceHeightM=clamp(physicalHeightM,2500,4500),surfaceHeightM=physicalSurfaceHeightM+Math.max(0,500000-physicalSurfaceHeightM)*visualBoost;
         const surfaceTopRadiusM=800+Math.max(0,visualRadiusM*0.70-800)*visualBoost;
-        const surfaceAdded=makeTornadoSurfaceCone(MC,vertices,indices,f.lng,f.lat,ground,surfaceHeightM,surfaceTopRadiusM,1.439);
+        const surfaceAdded=makeTornadoSurfaceCone(MC,vertices,indices,f.lng,f.lat,ground,surfaceHeightM,surfaceTopRadiusM,1.416);
         tornadoSurfaceMeshVertices+=surfaceAdded;
         // A ragged parent-cloud base hides the hard top seam and anchors the funnel in the storm.
-        const tornadoPivot=MC.fromLngLat({lng:f.lng,lat:f.lat},0),basePuffRadius=clamp(surfaceTopRadiusM*1.05,650,42000),basePuffCount=MOBILE?7:9;
+        const tornadoPivot=MC.fromLngLat({lng:f.lng,lat:f.lat},0),basePuffRadius=clamp(surfaceTopRadiusM*0.72,650,180000),basePuffCount=MOBILE?7:9;
         for(let i=0;i<basePuffCount;i++){
           const angle=TAU*i/basePuffCount+0.10*Math.sin(i*2.2),east=Math.cos(angle)*surfaceTopRadiusM*0.34,north=Math.sin(angle)*surfaceTopRadiusM*0.34;
           const pLat=clamp(f.lat+north/111320,-78,78),pLng=getLon(f.lng+east/(111320*Math.max(0.12,Math.cos(f.lat*Math.PI/180))));
           const puffGround=terrainElevationAt(pLng,pLat),altitude=puffGround+surfaceHeightM*0.92,before=vertices.length/10;
           makePuffGeometry(null,MC,vertices,indices,pLng,pLat,altitude,basePuffRadius*(0.86+hash(i,f.lng,f.lat)*0.18),basePuffRadius*(0.60+hash(i,f.lat,f.lng)*0.24),clamp(basePuffRadius*0.32,500,15000),i%3===0?1.282:1.295,MOBILE?8:9,MOBILE?2:3,hash(i,f.lng,f.lat),tornadoPivot.x,tornadoPivot.y);
+          tornadoSurfaceMeshVertices+=vertices.length/10-before;
+        }
+        // A rotating chain of ragged cloud billows wraps down the condensation funnel,
+        // preserving small local scale while expanding only with the overview LOD.
+        const funnelCloudSteps=MOBILE?9:13;
+        for(let j=0;j<funnelCloudSteps;j++){
+          const t=0.14+0.82*j/Math.max(1,funnelCloudSteps-1),angle=j*2.18+f.seed*TAU,
+            orbitRadius=surfaceTopRadiusM*(0.08+0.74*t),east=Math.cos(angle)*orbitRadius,north=Math.sin(angle)*orbitRadius,
+            pLat=clamp(f.lat+north/111320,-78,78),pLng=getLon(f.lng+east/(111320*Math.max(0.12,Math.cos(f.lat*Math.PI/180)))),
+            puffGround=terrainElevationAt(pLng,pLat),puffAltitude=puffGround+surfaceHeightM*t,
+            puffRadius=clamp(surfaceTopRadiusM*(0.22+0.32*t),350,85000),before=vertices.length/10;
+          makePuffGeometry(null,MC,vertices,indices,pLng,pLat,puffAltitude,
+            puffRadius*(1.15+0.20*hash(j,f.lng,f.lat)),puffRadius*(0.68+0.20*hash(j,f.lat,f.lng)),
+            clamp(puffRadius*0.42,240,18000),j%3===0?1.282:1.295,MOBILE?7:8,MOBILE?2:3,hash(j,f.lng,f.lat),tornadoPivot.x,tornadoPivot.y);
           tornadoSurfaceMeshVertices+=vertices.length/10-before;
         }
         const added=makeStormVolumeProxy(MC,stormVolumeVertices,stormVolumeIndices,f.lng,f.lat,ground,visualRadiusM,0,visualHeightM,1.474+visualHeightM/100000000);
