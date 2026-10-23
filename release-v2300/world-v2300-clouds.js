@@ -48,16 +48,20 @@ const STORM_VOLUME_FRAGMENT = String.raw`float bpStormExitDistance(vec3 p,vec3 d
 }
 float bpStormDensity(vec3 p,float tint,float time,float radius,float height,float eyeRatio){
   float rho=length(p.xy)/max(radius,1.0),z=clamp(p.z/max(height,1.0),0.0,1.0);
+  float funnelTaper=mix(0.0045,0.105,pow(z,0.78)),funnelRadial=length(p.xy)/18000.0;
+  float safeEye=clamp(eyeRatio,0.008,0.095);
+  if(tint<1.481&&funnelRadial>funnelTaper*1.20+0.002)return 0.0;
+  if(tint>=1.481&&rho<safeEye*0.98)return 0.0;
   vec3 coarseP=vec3(p.xy/52000.0,p.z/4300.0)+vec3(time*0.018,-time*0.012,time*0.009);
   float broad=noise3(coarseP),fine=noise3(coarseP*2.7+vec3(time*0.10,-time*0.06,time*0.08)),micro=noise3(coarseP*5.1+vec3(-time*0.15,time*0.11,time*0.07));
   if(tint<1.481){
-    float taper=mix(0.0045,0.105,pow(z,0.78)),rough=(broad-0.5)*0.020+(fine-0.5)*0.010+(micro-0.5)*0.006,radial=length(p.xy)/18000.0;
+    float taper=funnelTaper,rough=(broad-0.5)*0.020+(fine-0.5)*0.010+(micro-0.5)*0.006,radial=funnelRadial;
     float edge=1.0-smoothstep(taper*0.74,taper*1.20,radial+rough),twist=atan(p.y,p.x)-time*1.55+z*5.4+(fine-0.5)*1.4;
     float striation=0.54+0.46*(0.5+0.5*cos(twist*3.1)),broken=smoothstep(0.18,0.40,broad*0.52+fine*0.32+micro*0.16);
     float vertical=smoothstep(0.006,0.075,z)*(1.0-smoothstep(0.91,1.0,z)),inside=1.0-smoothstep(taper*0.10,taper*0.46,radial);
     return clamp((edge*(0.52+0.48*broken)*striation*vertical*1.38)+(inside*vertical*broken*0.08),0.0,1.0);
   }
-  float safeEye=clamp(eyeRatio,0.008,0.095),vertical=smoothstep(0.065,0.18,z)*(1.0-smoothstep(0.84,0.99,z));
+  float vertical=smoothstep(0.065,0.18,z)*(1.0-smoothstep(0.84,0.99,z));
   float eyeClear=smoothstep(safeEye*0.98,safeEye*1.28,rho),outerFade=1.0-smoothstep(0.82,0.995,rho);
   float phase=atan(p.y,p.x)-log(max(rho,safeEye*1.32))*1.82-time*0.22,spiralSignal=0.5+0.5*cos(phase*5.0+(broad-0.5)*1.7+(fine-0.5)*0.9);
   float spiralBands=smoothstep(0.26,0.72,spiralSignal),cloudTexture=smoothstep(0.24,0.48,broad*0.54+fine*0.30+micro*0.16);
@@ -66,22 +70,27 @@ float bpStormDensity(vec3 p,float tint,float time,float radius,float height,floa
   return clamp(max(outerBands*1.36,eyeWall*vertical*1.28),0.0,1.0);
 }
 vec4 bpRaymarchStorm(vec3 entry,vec2 cameraXY,float tint,float time,float cameraAltitude,float requestedSteps){
+  bool diagnostic=requestedSteps < -0.5;
   bool funnel=tint<1.481,southern=(!funnel&&tint>1.520);
   float radius=funnel?18000.0:max(180000.0,(tint-1.482-(southern?0.040:0.0))*100000000.0);
   float height=funnel?clamp((tint-1.474)*100000000.0,4500.0,15500.0):16000.0,eyeRatio=clamp(28000.0/radius,0.008,0.095);
   float volumeBase=funnel?0.0:1700.0,cameraZ=cameraAltitude-volumeBase;
   vec3 camera=vec3(cameraXY,cameraZ),toCamera=normalize(camera-entry),normal;
-  if(entry.z<0.5)normal=vec3(0.0,0.0,-1.0);else if(entry.z>height-0.5)normal=vec3(0.0,0.0,1.0);else normal=normalize(vec3(entry.xy,0.0001));
+  float capTolerance=max(50.0,height*0.003);
+  if(entry.z<capTolerance)normal=vec3(0.0,0.0,-1.0);else if(entry.z>height-capTolerance)normal=vec3(0.0,0.0,1.0);else normal=normalize(vec3(entry.xy,0.0001));
   float facing=dot(normal,toCamera),insideVolume=(length(cameraXY)<radius&&cameraZ>0.0&&cameraZ<height)?1.0:0.0;
-  if(facing<=0.002&&insideVolume<0.5)return vec4(0.0);
+  if(facing<=0.002&&insideVolume<0.5){if(diagnostic)return entry.z>height-capTolerance?vec4(0.0,0.18,1.0,0.72):vec4(1.0,0.0,0.0,0.72);return vec4(0.0);}
   vec3 direction=facing>0.002?-toCamera:toCamera;float exitT=bpStormExitDistance(entry,direction,radius,height);
-  if(exitT<1.0||exitT>1.0e20)return vec4(0.0);
-  float steps=clamp(requestedSteps,12.0,40.0),stepLength=exitT/steps,accumulatedAlpha=0.0;
+  if(exitT<1.0||exitT>1.0e20){if(diagnostic)return vec4(1.0,0.8,0.0,0.72);return vec4(0.0);}
+  if(diagnostic&&requestedSteps>-2.5)return vec4(0.0,0.9,0.2,0.72);
+  float steps=clamp(max(requestedSteps,ceil(exitT/50000.0)),12.0,40.0),stepLength=exitT/steps,accumulatedAlpha=0.0;
   vec3 accumulatedColor=vec3(0.0);
+  float maxDensity=0.0;
   for(int i=0;i<40;i++){
     if(float(i)>=steps||accumulatedAlpha>0.965)break;
     vec3 samplePos=entry+direction*((float(i)+0.5)*stepLength);
     float density=bpStormDensity(samplePos,tint,time,radius,height,eyeRatio);
+    maxDensity=max(maxDensity,density);
     if(density>0.012){
       float broad=noise3(vec3(samplePos.xy/21000.0,samplePos.z/2900.0)+vec3(time*0.02,-time*0.01,time*0.015));
       float heightShade=clamp(samplePos.z/height,0.0,1.0),radialShade=clamp(length(samplePos.xy)/radius,0.0,1.0);
@@ -91,6 +100,7 @@ vec4 bpRaymarchStorm(vec3 entry,vec2 cameraXY,float tint,float time,float camera
       accumulatedColor+=cloudColor*((1.0-accumulatedAlpha)*sampleAlpha);accumulatedAlpha+=(1.0-accumulatedAlpha)*sampleAlpha;
     }
   }
+  if(diagnostic)return vec4(clamp(maxDensity,0.0,1.0),clamp(accumulatedAlpha,0.0,1.0),clamp(length(entry.xy)/radius,0.0,1.0),0.78);
   if(accumulatedAlpha<0.028)return vec4(0.0);
   return vec4(accumulatedColor/max(accumulatedAlpha,0.001),clamp(accumulatedAlpha,0.0,0.93));
 }`;
@@ -501,7 +511,7 @@ export function initSkyClouds(target) {
       version: 6082, map, enabled, visible: enabled && !document.hidden,
       kind: 'georeferenced 3D cloud-volume layer',
       renderer: 'shared MapLibre WebGL context; storms use world-anchored raymarched volume proxies',
-      stormRenderingArchitecture: 'Earth-coordinate proxy cylinders with shader-integrated spiral/funnel density, shader-time rotation and early termination; no camera-scaled storm meshes',
+      stormRenderingArchitecture: 'Earth-coordinate proxy cylinders with world-anchored raymarched spiral/funnel density; shader-time rotation and early termination; no camera-scaled storm meshes',
       stormVolumeProxyVertices, hurricaneVolumeProxyVertices, tornadoVolumeProxyVertices, stormRaymarchStepBudget,
       cloudFormations: formationCount, globalCloudFormations: globalCloudGeometryCache?.formationCount || 0, coverageVersion: 6082, globalStormMaskCount: globalCloudGeometryCache?.stormEyeMaskCount || 0, globalCloudLodBand: globalCloudGeometryCache?.cloudLodBand || 'unbuilt', globalStormLod, sourceStormCount, sourceTornadoAlertCount, modeledHurricaneVisualCount, modeledTornadoVisualCount, hurricaneSpiralRibbonVertices, stormVisualProvenance: (modeledHurricaneVisualCount || modeledTornadoVisualCount) ? 'modeled fallback cloud structures are visual examples, not source-backed live weather or alerts' : 'storm geometry is source-backed', globalMacroRadiusMinKm: globalCloudGeometryCache?.macroRadiusMinKm || 0, globalMacroRadiusMaxKm: globalCloudGeometryCache?.macroRadiusMaxKm || 0, globalThinLayerSlices: globalCloudGeometryCache?.thinLayerSlices || 0, globalThinLayerStacks: globalCloudGeometryCache?.thinLayerStacks || 0, globalSingleLayerSlices: globalCloudGeometryCache?.singleLayerSlices || 0, globalSingleLayerStacks: globalCloudGeometryCache?.singleLayerStacks || 0, hurricaneSpiralCloudCenters, hurricaneEyeWallCloudCenters, hurricaneEyeRadiusKm, hurricaneEyeRadiusSource, hurricaneCloudShieldRadiusKm, hurricaneVisualEyeRadiusKm, hurricaneVisualShieldRadiusKm, tornadoVisualHeightKm, tornadoVisualTopRadiusKm, tornadoVisualBoost, globalHeightResolvedWindPuffs: globalCloudGeometryCache?.heightResolvedWindPuffs || 0, globalModelledWindPuffs: globalCloudGeometryCache?.modelledWindPuffs || 0, localWindSourcePuffs, localWindModelledPuffs, globalMacroFormations: globalCloudGeometryCache?.macroFormationCount || 0, globalFineFormations: globalCloudGeometryCache?.fineFormationCount || 0, globalIsolatedFormations: globalCloudGeometryCache?.isolatedFormationCount || 0, globalThinLayerFormations: globalCloudGeometryCache?.thinLayerFormationCount || 0, globalCloudPuffs: globalCloudGeometryCache?.puffCount || 0, globalTerrainQuerySamples: terrainHeightKnownSamples, terrainRelativeCloudBases: terrainQueryAvailable, cloudMotion: (globalCloudGeometryCache?.heightResolvedWindPuffs || 0) > 0 ? 'Height-resolved source wind advects matched cloud puffs; modelled atmospheric flow fills unmatched locations' : 'Height/latitude-aware modelled atmospheric flow and hemisphere-aware cyclone circulation; no source-backed global upper-air wind grid is connected',
       projectionMode: 'MapLibre shaderData projectTileFor3D', projectionShaderVariants: programCache.size,
@@ -675,10 +685,10 @@ export function initSkyClouds(target) {
         const metresPerPixel=40075016.68557849/(512*Math.pow(2,zoomNow));
         const cameraAltitude=clamp(metresPerPixel*Math.max(1,container.clientHeight||gl.drawingBufferHeight||768)*0.58/Math.max(0.45,Math.cos(pitchRad)),900,50000000);
         const raySteps=zoomNow>8.5?(MOBILE?20:28):(MOBILE?28:40);
-        stormRaymarchStepBudget=raySteps;
+        if(stormRaymarchStepBudget!==raySteps){stormRaymarchStepBudget=raySteps;publishState();}
         if(info.uniforms.cameraCenter)gl.uniform2f(info.uniforms.cameraCenter,cameraCenter.x,cameraCenter.y);
         if(info.uniforms.cameraAltitude)gl.uniform1f(info.uniforms.cameraAltitude,cameraAltitude);
-        if(info.uniforms.raySteps)gl.uniform1f(info.uniforms.raySteps,raySteps);
+        if(info.uniforms.raySteps){const debugMode=Number(window.__BP_STORM_RAY_DEBUG_MODE__)||0;gl.uniform1f(info.uniforms.raySteps,debugMode>0?-debugMode:raySteps);}
         gl.uniform1f(info.uniforms.time, cloudTime);
         if (info.uniforms.motionTime) gl.uniform1f(info.uniforms.motionTime, motionTime);
         gl.enable(gl.DEPTH_TEST); gl.enable(gl.BLEND);
@@ -1018,9 +1028,29 @@ function generateGeometry() {
       formations.push({ lng: getLon(lng), lat, radiusM: clamp(radiusM, 600, 520000),
         baseM: clamp(baseM, 450, 14000), topM: clamp(topM, baseM + 180, 18500), seed, kind, windContext });
     }
-    if (modeledTornadoNeeded) {
-      const lng=-97.45,lat=35.55,ground=terrainElevationAt(lng,lat);
+    // Materialize source-backed tornado alerts/reports into the local formation list first.
+    // Merely seeing a tornado-labeled source row is not enough; it must become a valid volume.
+    const tornadoCenters=[];
+    for(const alert of tornadoAlerts){
+      const center=centerOf(alert);
+      if(!center||tornadoCenters.some(q=>Math.hypot((q[0]-center[0])*Math.cos(center[1]*Math.PI/180),q[1]-center[1])<0.12))continue;
       const before=formations.length;
+      addFormation(center[0],center[1],10000,3000,11000,hash(center[0],center[1],88),'funnel');
+      if(formations.length>before){funnelCount++;tornadoCenters.push(center);}
+    }
+    for(const st of sourceTornadoRecords){
+      const lng=number(st.lng,number(st.longitude,NaN)),lat=number(st.lat,number(st.latitude,NaN));
+      if(!Number.isFinite(lng)||!Number.isFinite(lat)||Math.abs(lat)>82)continue;
+      if(tornadoCenters.some(q=>Math.hypot((q[0]-lng)*Math.cos(lat*Math.PI/180),q[1]-lat)<0.12))continue;
+      const ground=terrainElevationAt(lng,lat),height=clamp(number(st.cloud_top_height_m,number(st.cloudTopHeightM,11000)),4500,15500);
+      const before=formations.length;
+      addFormation(lng,lat,10000,ground+Math.min(3000,height*0.25),ground+height,hash(lng,lat,6080),'funnel');
+      if(formations.length>before){funnelCount++;tornadoCenters.push([lng,lat]);}
+    }
+    // Fallback only when no usable source warning/report became a volume.
+    // It is explicitly identified as a visual example, never a live tornado.
+    if(funnelCount===0){
+      const lng=-97.45,lat=35.55,ground=terrainElevationAt(lng,lat),before=formations.length;
       addFormation(lng,lat,12500,ground+1900,ground+12500,hash(lng,lat,6079),'funnel');
       if(formations.length>before){funnelCount++;modeledTornadoVisualCount=1;}
     }
@@ -1098,7 +1128,6 @@ function generateGeometry() {
         hurricaneEyeRadiusKm=Math.max(hurricaneEyeRadiusKm,eyeRadiusM/1000);
         hurricaneEyeRadiusSource=storm.__bpModeledVisual?'illustrative model-only vortex; not a live source-backed hurricane':(Number.isFinite(eyeRawM)?'source eye-radius value':'shader estimate; provider eye radius missing');
         hurricaneEyeWallCloudCenters=1;hurricaneSpiralCloudCenters=3;
-        hurricaneSpiralRibbonVertices=added;
         hurricaneCloudShieldRadiusKm=Math.max(hurricaneCloudShieldRadiusKm,shieldRadiusM/1000);
         stormCount++;
       }

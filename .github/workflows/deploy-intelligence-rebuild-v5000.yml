@@ -452,8 +452,8 @@ jobs:
           node --input-type=module --check < site/world-v2300-realism.js
           node --input-type=module --check < site/gis-core-orchestrator-v5910.js
           grep -Fq 'Real satellite bands. No AI-drawn pixels.' site/world-v2300-spectral-imagery.js
-          grep -Fq 'world-v2300-clouds.js?v=6081-nhc-live-storms' site/app.js
-          grep -Fq 'world-v2300-clouds.js?v=6081-nhc-live-storms' site/landing.js
+          grep -Fq 'world-v2300-clouds.js?v=6082-raymarched-storms' site/app.js
+          grep -Fq 'world-v2300-clouds.js?v=6082-raymarched-storms' site/landing.js
           grep -Fq 'world-v2300-weather.js?v=6070-clouds-only-phase' site/app.js
           grep -Fq 'world-v2300-rain.js?v=6070-clouds-only-phase' site/world-v2300-weather.js
           grep -Fq 'retireLegacyScreenSpaceRain' site/world-v2300-weather.js
@@ -531,25 +531,27 @@ jobs:
           grep -Fq 'bridgepoint-gebco-depth-image-v5937' site/world-v2300-sensor-layers.js
           grep -Fq 'bridgepoint-nasa-nightlights-v5937' site/world-v2300-sensor-layers.js
           grep -Fq "kind: 'georeferenced 3D cloud-volume layer'" site/world-v2300-clouds.js
-          grep -Fq 'version: 6079, map, overlay' site/world-v2300-clouds.js
+          grep -Fq 'version: 6082, map, overlay' site/world-v2300-clouds.js
           grep -Fq 'const billow = 1.0 +' site/world-v2300-clouds.js
           grep -Fq 'activeMacroCells' site/world-v2300-clouds.js
           grep -Fq 'MOBILE?8:9,3,hash(q.gx,q.gy,i+973)' site/world-v2300-clouds.js
           grep -Fq 'Height/latitude-aware modelled atmospheric flow and hemisphere-aware cyclone circulation; no source-backed global upper-air wind grid is connected' site/world-v2300-clouds.js
-          grep -Fq 'coverageVersion: 6079' site/world-v2300-clouds.js
+          grep -Fq 'coverageVersion: 6082' site/world-v2300-clouds.js
           grep -Fq 'if (field.score > 0.58) continue;' site/world-v2300-clouds.js
           grep -Fq 'const waveX = (gx + 0.5) / cols * TAU' site/world-v2300-clouds.js
           grep -Fq 'globalCloudPuffs' site/world-v2300-clouds.js
           grep -Fq 'thinLayerSlices: 9, thinLayerStacks: 2, singleLayerSlices: 8, singleLayerStacks: 2' site/world-v2300-clouds.js
-          grep -Fq 'const spiralCount=overviewClouds&&MOBILE?20:(MOBILE?24:30),arms=3,steps=Math.ceil(spiralCount/arms);' site/world-v2300-clouds.js
-          grep -Fq 'function addHurricaneSpiralRibbon' site/world-v2300-clouds.js
+          grep -Fq 'const STORM_VOLUME_FRAGMENT = String.raw' site/world-v2300-clouds.js
+          grep -Fq 'function makeStormVolumeProxy' site/world-v2300-clouds.js
+          grep -Fq 'bpRaymarchStorm' site/world-v2300-clouds.js
+          grep -Fq 'uniform vec2 u_camera_center_mercator' site/world-v2300-clouds.js
           grep -Fq 'hurricaneCloudShieldRadiusKm' site/world-v2300-clouds.js
           grep -Fq 'if (field.score <= 0.58 || field.score > 0.90) continue;' site/world-v2300-clouds.js
           grep -Fq 'maxThin = MOBILE ? 750 : 850' site/world-v2300-clouds.js
           grep -Fq '190000, 580000' site/world-v2300-clouds.js
           grep -Fq 'maxMacro = MOBILE ? 110 : 130' site/world-v2300-clouds.js
           grep -Fq 'globalThinLayerFormations: globalCloudGeometryCache?.thinLayerFormationCount || 0' site/world-v2300-clouds.js
-          grep -Fq 'if (Number(existingCloudController.version) >= 6079' site/world-v2300-clouds.js
+          grep -Fq 'if (Number(existingCloudController.version) >= 6082' site/world-v2300-clouds.js
           grep -Fq 'const columns = 40, rows = 18, maxMacro = MOBILE ? 110 : 130;' site/world-v2300-clouds.js
           grep -Fq '400000, 900000' site/world-v2300-clouds.js
           grep -Fq 'vertical,0.26+hash(q.gx,q.gy,987)*0.40,8,2,hash(q.gx,q.gy,988));' site/world-v2300-clouds.js
@@ -776,7 +778,7 @@ jobs:
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/app.js
           grep -Fq 'activateLiveWeather();' site/app.js
           grep -Fq 'enabled:true,serializedWeather:true' site/app.js
-          grep -Fq 'app.js?v=6081-nhc-live-storms' site/app/index.html
+          grep -Fq 'app.js?v=6082-raymarched-storms' site/app/index.html
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/landing.js
           grep -Fq 'WMO_CAP_WARNING' site/app.js
           grep -Fq 'WMO_CAP_WARNING' site/landing.js
@@ -999,8 +1001,8 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=6081-nhc-live-storms' site/app/index.html
-          grep -Fq 'landing.js?v=6081-nhc-live-storms' site/index.html
+          grep -Fq 'app.js?v=6082-raymarched-storms' site/app/index.html
+          grep -Fq 'landing.js?v=6082-raymarched-storms' site/index.html
            grep -Fq 'world-v2300-map.js?v=6056-ground-camera-readiness' site/app.js
            grep -Fq 'world-v2300-map.js?v=6056-ground-camera-readiness' site/landing.js
            grep -Fq 'world-v2300-map.js?v=6056-ground-camera-readiness' site/index.html
