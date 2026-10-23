@@ -58,6 +58,17 @@ export async function rpc(name,args={},timeout=9000){
   }
   throw lastError||new Error('RPC unavailable');
 }
+export async function publicRpc(name,args={},timeout=9000){
+  const c=new AbortController(),t=setTimeout(()=>c.abort(),timeout);
+  try{
+    // Public-safe bootstrap RPC: intentionally omit Authorization so anonymous clients
+    // use the published API key rather than an empty "Bearer " token.
+    const r=await fetch(RPC+name,{method:'POST',headers:{apikey:KEY,'Content-Type':'application/json','Cache-Control':'no-cache'},body:JSON.stringify(args),signal:c.signal,cache:'no-store'});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(d?.message||d?.error||d?.hint||`HTTP ${r.status}`);
+    return d;
+  }finally{clearTimeout(t)}
+}
 export async function edge(name,args={},timeout=15000){
   const c=new AbortController(),t=setTimeout(()=>c.abort(),timeout);
   try{
