@@ -44,6 +44,9 @@ jobs:
           set -euo pipefail
           grep -Fq "export function initWaterEngine" release-v2300/world-v2300-water.js
           grep -Fq "projectTileFor3D(a_pos" release-v2300/world-v2300-water.js
+          grep -Fq "function mapCanHostWater()" release-v2300/world-v2300-water.js
+          grep -Fq "float marineSurgeMask" release-v2300/world-v2300-water.js
+          ! grep -Fq "!map.isStyleLoaded?.()" release-v2300/world-v2300-water.js
           grep -Fq "window.__BP_WATER_FIELD_V6100__" release-v2300/world-v2300-water.js
           grep -Fq "world-v2300-water.js?v=6100-geowater-gpu" rebuild-v5000/app.js
           grep -Fq "world-v2300-water.js?v=6100-geowater-gpu" rebuild-v5000/landing.js
