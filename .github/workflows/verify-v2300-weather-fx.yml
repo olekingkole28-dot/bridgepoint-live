@@ -120,8 +120,15 @@ jobs:
               await p.setRequestInterception(true);
               const cors={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization,x-client-info,apikey,content-type','Access-Control-Allow-Methods':'POST,OPTIONS'};
               let rainVisualOnly = false;
+              let bootstrapTrackMode = false;
               p.on('request',req=>{
                 const u=req.url();
+                if(u.includes('/rest/v1/rpc/bridgepoint_public_weather_bootstrap_v5823')){
+                  if(req.method()==='OPTIONS')return req.respond({status:204,headers:cors,body:''});
+                  const now=new Date().toISOString();
+                  const items=bootstrapTrackMode?[{type:'HURRICANE',name:'Hurricane Bootstrap Vance',event:'Hurricane Bootstrap Vance',classification:'HU',lat:24,lng:-18,observed:true,observed_at:now,ends_at:new Date(Date.now()+6*3600000).toISOString(),source:'NASA EONET · Severe Storms',geometry:{type:'LineString',coordinates:[[-24,19],[-21,21],[-18,24]]}}]:[];
+                  return req.respond({status:200,headers:{...cors,'Content-Type':'application/json'},body:JSON.stringify({version:5823,fresh:true,generated_at:now,items,counts:{global_eonet:items.length}})});
+                }
                 if(u.includes('/functions/v1/bridgepoint-world-effects-v2190')){
                   if(req.method()==='OPTIONS')return req.respond({status:204,headers:cors,body:''});
                   const poly=(x,y,r)=>({type:'Polygon',coordinates:[[[x-r,y-r],[x+r,y-r],[x+r,y+r],[x-r,y+r],[x-r,y-r]]]});
@@ -216,6 +223,18 @@ jobs:
               assert.equal(modeledGlobalStorms.sourceStormCount,0,'modeled vortices must not be counted as source storms');
               assert.equal(modeledGlobalStorms.sourceTornadoAlertCount,0,'modeled funnel must not be counted as a live tornado warning');
               assert.equal(modeledGlobalStorms.tornadoVolumeProxyVertices,0,'an empty feed has no tornado volume');
+              // Regression gate: source-backed track/center data can still drive the 3D hurricane when
+              // the separate world-effects endpoint returns no storm points for the current globe view.
+              bootstrapTrackMode = true;
+              await p.evaluate(async()=>{window.__bpWorldV2300.map.jumpTo({center:[0,24],zoom:1.25,pitch:0,bearing:0});await window.__bpWeatherV2300.refresh(true)});
+              await p.waitForFunction(()=>{const s=window.__BP_SKY_CLOUDS_STATE_V5908__||{},d=window.__BP_PUBLIC_CYCLONE_CENTER_FALLBACK__;return d?.publicStormCount===1&&s.sourceStormCount===1&&s.hurricaneVolumeProxyVertices>0&&s.hurricaneSurfaceCloudVertices>0&&s.globalStormLod==='physical-global-scale';},{timeout:25000});
+              const bridged=await p.evaluate(()=>{const s=window.__BP_SKY_CLOUDS_STATE_V5908__||{},d=window.__BP_PUBLIC_CYCLONE_CENTER_FALLBACK__;return{diag:d,sourceStormCount:s.sourceStormCount,volumeVertices:s.hurricaneVolumeProxyVertices,surfaceVertices:s.hurricaneSurfaceCloudVertices,eyeRadiusKm:s.hurricaneVisualEyeRadiusKm,shieldRadiusKm:s.hurricaneVisualShieldRadiusKm,zoom:s.zoom,lod:s.globalStormLod}});
+              console.log('BRIDGEPOINT_PUBLIC_TRACK_TO_3D_HURRICANE_PASS',JSON.stringify(bridged));
+              assert(bridged.volumeVertices>0&&bridged.surfaceVertices>0,'public live storm track must result in visible source-anchored 3D hurricane geometry at globe zoom');
+              assert(bridged.zoom<=1.5&&bridged.eyeRadiusKm>=6&&bridged.shieldRadiusKm>=320,'the global hurricane uses physical geometry bounds');
+              bootstrapTrackMode = false;
+              await p.evaluate(()=>window.__bpWeatherV2300.refresh(true));
+              await p.waitForFunction(()=>{const s=window.__BP_SKY_CLOUDS_STATE_V5908__||{};return s.sourceStormCount===0&&s.hurricaneVolumeProxyVertices===0&&s.hurricaneSurfaceCloudVertices===0;},{timeout:15000});
               await new Promise(r=>setTimeout(r,900));
               await p.screenshot({path:'/tmp/bp2300wx/world-anchored-rain-modeled-storm-global.png',fullPage:false});
               await p.evaluate(()=>window.__bpWorldV2300.map.jumpTo({center:[-97.45,35.55],zoom:10.5,pitch:58,bearing:-12}));
