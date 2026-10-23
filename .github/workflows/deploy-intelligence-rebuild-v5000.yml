@@ -252,12 +252,12 @@ jobs:
           sed -i 's#world-v2300-sensor-layers.js?v=6015-nasa-light-toggle#world-v2300-sensor-layers.js?v=6027-nasa-nightlight-corrected-radiance#g' site/app.js site/landing.js
           sed -i 's#world-v2300-clouds.js?v=6075-global-coverage-fill#world-v2300-clouds.js?v=6077-cloud-base-restore#g' site/app.js site/landing.js
           sed -i 's#world-v2300-clouds.js?v=6076-rounded-cloud-banks#world-v2300-clouds.js?v=6077-cloud-base-restore#g' site/app.js site/landing.js
-          sed -i 's#world-v2300-time-slider.js?v=6076-rounded-cloud-banks#world-v2300-time-slider.js?v=6077-sky-pivot-elevation#g' site/app.js site/landing.js
-          sed -i 's#world-v2300-time-slider.js?v=6077-cloud-base-restore#world-v2300-time-slider.js?v=6077-sky-pivot-elevation#g' site/app.js site/landing.js
-          sed -i 's#app.js?v=6077-cloud-base-restore#app.js?v=6077-sky-pivot-elevation#g' site/app/index.html
-          sed -i 's#landing.js?v=6077-cloud-base-restore#landing.js?v=6077-sky-pivot-elevation#g' site/index.html
-          sed -i 's#app.js?v=6076-rounded-cloud-banks#app.js?v=6077-sky-pivot-elevation#g' site/app/index.html
-          sed -i 's#landing.js?v=6076-rounded-cloud-banks#landing.js?v=6077-sky-pivot-elevation#g' site/index.html
+          sed -i 's#world-v2300-time-slider.js?v=6076-rounded-cloud-banks#world-v2300-time-slider.js?v=6077-sky-restore-safe-pitch#g' site/app.js site/landing.js
+          sed -i 's#world-v2300-time-slider.js?v=6077-cloud-base-restore#world-v2300-time-slider.js?v=6077-sky-restore-safe-pitch#g' site/app.js site/landing.js
+          sed -i 's#app.js?v=6077-cloud-base-restore#app.js?v=6077-sky-restore-safe-pitch#g' site/app/index.html
+          sed -i 's#landing.js?v=6077-cloud-base-restore#landing.js?v=6077-sky-restore-safe-pitch#g' site/index.html
+          sed -i 's#app.js?v=6076-rounded-cloud-banks#app.js?v=6077-sky-restore-safe-pitch#g' site/app/index.html
+          sed -i 's#landing.js?v=6076-rounded-cloud-banks#landing.js?v=6077-sky-restore-safe-pitch#g' site/index.html
           cp release-v2300/world-v2300-realism.js site/world-v2300-realism.js
           cp release-v2300/gis-core-orchestrator-v5910.js site/gis-core-orchestrator-v5910.js
           cp release-v2300/world-v2300-config.js site/app/world-v2300-config.js
@@ -508,8 +508,8 @@ jobs:
           grep -Fq 'world-v2300-weather.js?v=6070-clouds-only-phase' site/index.html
           grep -Fq 'world-v2300-weather.js?v=6070-clouds-only-phase' site/app/index.html
           grep -Fq 'world-v2300-weather.js?v=6070-clouds-only-phase' site/app/world-v2300-bootstrap.js
-          grep -Fq 'world-v2300-time-slider.js?v=6077-sky-pivot-elevation' site/app.js
-          grep -Fq 'world-v2300-time-slider.js?v=6077-sky-pivot-elevation' site/landing.js
+          grep -Fq 'world-v2300-time-slider.js?v=6077-sky-restore-safe-pitch' site/app.js
+          grep -Fq 'world-v2300-time-slider.js?v=6077-sky-restore-safe-pitch' site/landing.js
           grep -Fq 'world-v2300-spectral-imagery.js?v=5934-world-controls' site/app.js
           grep -Fq 'world-v2300-underground-xray.js?v=5965-landmarks-and-effects' site/app.js
           grep -Fq 'world-v2300-underground-xray.js?v=5965-landmarks-and-effects' site/landing.js
@@ -579,6 +579,8 @@ jobs:
           grep -Fq 'setCenterClampedToGround(false)' site/world-v2300-time-slider.js
           grep -Fq 'const targetSkyPitch=125' site/world-v2300-time-slider.js
           grep -Fq 'map.setCenterElevation(centerElevation)' site/world-v2300-time-slider.js
+          grep -Fq 'safe pitch before projection restore' site/world-v2300-time-slider.js
+          grep -Fq 'map.getCenterClampedToGround?.()===true' site/world-v2300-time-slider.js
           grep -Fq 'skyViewDiag.pivot={targetSkyPitch,skyZoom,cameraDistanceMeters:cameraDistance' site/world-v2300-time-slider.js
           grep -Fq 'streetlight_poles' site/world-v2300-sensor-layers.js
           grep -Fq 'data-filter-category' site/world-v2300-time-slider.js
@@ -772,7 +774,7 @@ jobs:
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/app.js
           grep -Fq 'activateLiveWeather();' site/app.js
           grep -Fq 'enabled:true,serializedWeather:true' site/app.js
-          grep -Fq 'app.js?v=6077-sky-pivot-elevation' site/app/index.html
+          grep -Fq 'app.js?v=6077-sky-restore-safe-pitch' site/app/index.html
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/landing.js
           grep -Fq 'WMO_CAP_WARNING' site/app.js
           grep -Fq 'WMO_CAP_WARNING' site/landing.js
@@ -995,8 +997,8 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=6077-sky-pivot-elevation' site/app/index.html
-          grep -Fq 'landing.js?v=6077-sky-pivot-elevation' site/index.html
+          grep -Fq 'app.js?v=6077-sky-restore-safe-pitch' site/app/index.html
+          grep -Fq 'landing.js?v=6077-sky-restore-safe-pitch' site/index.html
            grep -Fq 'world-v2300-map.js?v=6056-ground-camera-readiness' site/app.js
            grep -Fq 'world-v2300-map.js?v=6056-ground-camera-readiness' site/landing.js
            grep -Fq 'world-v2300-map.js?v=6056-ground-camera-readiness' site/index.html
@@ -1438,7 +1440,7 @@ jobs:
                 },{timeout:15000});
                 console.log('BRIDGEPOINT_GLOBAL_CLOUDS_REMAIN_WHILE_ZOOMING_IN_PASS',JSON.stringify(await p.evaluate(()=>{const s=window.__BP_SKY_CLOUDS_STATE_V6077__||window.__BP_SKY_CLOUDS_STATE_V6047__;const c=window.__BP_SKY_CLOUDS_V5908__,w=window.__BP_LANDING_WORLD__,m=w?.map,b=document.querySelector('#bp-world-time-slider-v5908 [data-clouds]');return s?{version:s.version,enabled:s.enabled,visible:s.visible,zoom:m?.getZoom?.(),controllerVersion:c?.version,controllerEnabled:c?.enabled,controllerMapMatchesWorld:c?.map===m,layerPresent:s.layerPresent,layerInstalled:s.layerInstalled,rendererError:s.rendererError,cloudFormations:s.cloudFormations,globalCloudFormations:s.globalCloudFormations,globalThinLayerSlices:s.globalThinLayerSlices,globalSingleLayerSlices:s.globalSingleLayerSlices,globalMacroRadiusMaxKm:s.globalMacroRadiusMaxKm,projectionShaderVariants:s.projectionShaderVariants}: {stateAvailable:false,controllerVersion:c?.version,controllerEnabled:c?.enabled,controllerMapMatchesWorld:c?.map===m,buttonPressed:b?.getAttribute('aria-pressed'),worldBase:w?.base,worldStateBase:w?.state?.base}})));
 
-               const skyBaseline=await p.evaluate(()=>{const m=window.__BP_LANDING_WORLD__?.map,d=window.__BP_SKY_VIEW_CONTROLLER_V6077__;return{button:!!document.querySelector('#bp-world-time-slider-v5908 [data-skyview]'),pitch:m?.getPitch?.(),zoom:m?.getZoom?.(),projection:m?.getProjection?.()?.type||'unknown',controller:d?{version:d.version,listenerBound:d.listenerBound,clickCount:d.clickCount,phase:d.phase}:null,clouds:window.__BP_SKY_CLOUDS_STATE_V6077__?.enabled===true};});
+               const skyBaseline=await p.evaluate(()=>{const m=window.__BP_LANDING_WORLD__?.map,d=window.__BP_SKY_VIEW_CONTROLLER_V6077__,c=m?.getCenter?.();return{button:!!document.querySelector('#bp-world-time-slider-v5908 [data-skyview]'),pitch:m?.getPitch?.(),zoom:m?.getZoom?.(),bearing:m?.getBearing?.(),center:c?.toArray?.(),centerClamped:m?.getCenterClampedToGround?.(),projection:m?.getProjection?.()?.type||'unknown',controller:d?{version:d.version,listenerBound:d.listenerBound,clickCount:d.clickCount,phase:d.phase}:null,clouds:window.__BP_SKY_CLOUDS_STATE_V6077__?.enabled===true};});
                if(!skyBaseline.button||!(skyBaseline.pitch>20&&skyBaseline.pitch<90))throw new Error('SKY_LOOKUP_BASELINE_NOT_READY '+JSON.stringify(skyBaseline));
                await p.evaluate(()=>document.querySelector('#bp-world-time-slider-v5908 [data-skyview]')?.click());
                try{
@@ -1451,9 +1453,9 @@ jobs:
                console.log('BRIDGEPOINT_STREET_LEVEL_SKY_LOOKUP_PASS',JSON.stringify(skyUp));
                await p.evaluate(()=>document.querySelector('#bp-world-time-slider-v5908 [data-skyview]')?.click());
                try{
-                 await p.waitForFunction(expected=>{const m=window.__BP_LANDING_WORLD__?.map,b=document.querySelector('#bp-world-time-slider-v5908 [data-skyview]');return b?.getAttribute('aria-pressed')==='false'&&m?.getProjection?.()?.type===expected.projection&&m?.getZoom?.()>13&&m?.getPitch?.()<90;},{timeout:12000},skyBaseline);
+                 await p.waitForFunction(expected=>{const m=window.__BP_LANDING_WORLD__?.map,b=document.querySelector('#bp-world-time-slider-v5908 [data-skyview]'),c=m?.getCenter?.()?.toArray?.(),bearing=Number(m?.getBearing?.()||0),d=((bearing-(Number(expected.bearing)||0)+540)%360)-180;return b?.getAttribute('aria-pressed')==='false'&&m?.getProjection?.()?.type===expected.projection&&Math.abs((m?.getZoom?.()||0)-(Number(expected.zoom)||0))<0.25&&Math.abs((m?.getPitch?.()||0)-(Number(expected.pitch)||0))<2&&Array.isArray(c)&&Array.isArray(expected.center)&&Math.abs(c[0]-expected.center[0])<0.015&&Math.abs(c[1]-expected.center[1])<0.015&&Math.abs(d)<1&&m?.getCenterClampedToGround?.()===true;},{timeout:15000},skyBaseline);
                }catch(error){
-                 const d=await p.evaluate(()=>{const m=window.__BP_LANDING_WORLD__?.map,b=document.querySelector('#bp-world-time-slider-v5908 [data-skyview]');return{button:b?.getAttribute('aria-pressed'),pitch:m?.getPitch?.(),maxPitch:m?.getMaxPitch?.(),projection:m?.getProjection?.()?.type,zoom:m?.getZoom?.()};});
+                 const d=await p.evaluate(()=>{const m=window.__BP_LANDING_WORLD__?.map,b=document.querySelector('#bp-world-time-slider-v5908 [data-skyview]'),c=m?.getCenter?.();const d=window.__BP_SKY_VIEW_CONTROLLER_V6077__;return{button:b?.getAttribute('aria-pressed'),pitch:m?.getPitch?.(),maxPitch:m?.getMaxPitch?.(),projection:m?.getProjection?.()?.type,zoom:m?.getZoom?.(),bearing:m?.getBearing?.(),center:c?.toArray?.(),centerClamped:m?.getCenterClampedToGround?.(),skyController:d?{phase:d.phase,lastError:d.lastError,failedAt:d.failedAt,initial:d.initial,pivot:d.pivot,final:d.final}:null};});
                  throw new Error('SKY_LOOKUP_RESTORE_FAILED '+JSON.stringify(d)+' '+String(error?.message||error));
                }
                console.log('BRIDGEPOINT_STREET_LEVEL_SKY_LOOKUP_RESTORE_PASS',JSON.stringify(await p.evaluate(()=>({pitch:window.__BP_LANDING_WORLD__?.map?.getPitch?.(),projection:window.__BP_LANDING_WORLD__?.map?.getProjection?.()?.type,button:document.querySelector('#bp-world-time-slider-v5908 [data-skyview]')?.getAttribute('aria-pressed')}))));
