@@ -1,4 +1,4 @@
-import{VERSION,EMPTY,MOBILE,LOW,TIER,edge,publicRpc,bbox,fc,clamp}from'./world-v2300-config.js';
+import{VERSION,EMPTY,MOBILE,LOW,TIER,edge,publicRpc,bbox,fc,clamp}from'./world-v2300-config.js?v=6091-public-weather-rpc';
 import{initRainLayer}from'./world-v2300-rain.js?v=6070-clouds-only-phase';
 
 function retireLegacyScreenSpaceRain() {
