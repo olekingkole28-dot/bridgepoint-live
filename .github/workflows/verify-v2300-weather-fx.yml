@@ -170,10 +170,10 @@ jobs:
               assert.equal(globalStormDiag.globalStormLod,'global-exaggerated-visibility','whole-globe zoom selects global storm LOD');
               await p.evaluate(()=>window.__bpWorldV2300.map.jumpTo({center:[-87.3425,41.538],zoom:10.5,pitch:58,bearing:-12}));
               await p.evaluate(()=>window.__bpWeatherV2300.refresh(true));
-              await p.waitForFunction(()=>{const s=window.__BP_SKY_CLOUDS_STATE_V5908__||{};return s.globalStormLod==='physical-local'&&s.hurricaneVisualEyeRadiusKm>0&&s.tornadoVisualHeightKm<30;},{timeout:15000});
+              await p.waitForFunction(()=>{const s=window.__BP_SKY_CLOUDS_STATE_V5908__||{};return s.globalStormLod==='physical-local'&&s.hurricaneVisualEyeRadiusKm>0&&s.tornadoVisualHeightKm>=4&&s.tornadoVisualHeightKm<16;},{timeout:15000});
               const stormCloudDiag=await p.evaluate(()=>{const s=window.__BP_SKY_CLOUDS_STATE_V5908__||{};return{version:s.version,hurricaneSpiralRibbonVertices:s.hurricaneSpiralRibbonVertices,hurricaneVolumeProxyVertices:s.hurricaneVolumeProxyVertices,tornadoVolumeProxyVertices:s.tornadoVolumeProxyVertices,stormRaymarchStepBudget:s.stormRaymarchStepBudget,stormRenderingArchitecture:s.stormRenderingArchitecture,globalCloudFormations:s.globalCloudFormations,globalThinLayerSlices:s.globalThinLayerSlices,globalThinLayerStacks:s.globalThinLayerStacks,globalSingleLayerSlices:s.globalSingleLayerSlices,globalSingleLayerStacks:s.globalSingleLayerStacks,globalMacroRadiusMaxKm:s.globalMacroRadiusMaxKm,hurricaneSpiralCloudCenters:s.hurricaneSpiralCloudCenters,hurricaneEyeWallCloudCenters:s.hurricaneEyeWallCloudCenters,hurricaneEyeRadiusKm:s.hurricaneEyeRadiusKm,hurricaneEyeRadiusSource:s.hurricaneEyeRadiusSource,hurricaneCloudShieldRadiusKm:s.hurricaneCloudShieldRadiusKm,warningFunnels:s.warningFunnels,tornadoFunnelMeshVertices:s.tornadoFunnelMeshVertices,tornadoFunnelAnimated:s.tornadoFunnelAnimated,hurricaneVortexAnimated:s.hurricaneVortexAnimated,cloudWaterHeightReference:s.cloudWaterHeightReference,globalHeightResolvedWindPuffs:s.globalHeightResolvedWindPuffs,globalModelledWindPuffs:s.globalModelledWindPuffs,rendererError:s.rendererError};});
               console.log('BRIDGEPOINT_ROUNDED_GLOBAL_CLOUDS_AND_RAYMARCHED_STORMS_DIAG',JSON.stringify(stormCloudDiag));
-              assert(Math.abs(globalStormDiag.tornadoVisualHeightKm-stormCloudDiag.tornadoVisualHeightKm)<0.05,'camera zoom must not scale the physical tornado volume');
+              assert(stormCloudDiag.tornadoVisualHeightKm>=4&&stormCloudDiag.tornadoVisualHeightKm<16,'close-up tornado volume must stay within physical storm height, not receive zoom-based exaggeration');
               assert.equal(stormCloudDiag.version,6082,'v6082 raymarched storm renderer must be loaded');
               assert(stormCloudDiag.globalCloudFormations>=1600,'mobile global field must retain approximately 1,620 formations');
               assert.equal(stormCloudDiag.globalThinLayerSlices,9,'thin global clouds must use a smooth nine-segment shallow silhouette');
@@ -324,7 +324,7 @@ jobs:
               console.log('BRIDGEPOINT_LIVE_SITE_STORM_CLOSE_DIAG',JSON.stringify(liveClose));
               await livePage.screenshot({path:'/tmp/bp2300wx/world-anchored-rain-production-tornado-close.png',fullPage:false});
               assert(liveClose.tornadoFunnelMeshVertices>0,'public close-up must retain the 3D tornado funnel mesh');
-              assert(liveClose.tornadoVisualHeightKm<30,'public close-up must transition the funnel back to local scale');
+              assert(liveClose.tornadoVisualHeightKm>=4&&liveClose.tornadoVisualHeightKm<16,'public close-up tornado must retain physical height without zoom exaggeration');
               assert.equal(liveClose.rendererError,null,'public close-up renderer must not report an error');
               console.log('BRIDGEPOINT_LIVE_SITE_STORM_VISUAL_DIAGNOSTICS_PASS',JSON.stringify({global:liveGlobal,close:liveClose,pageErrors:livePageErrors.slice(0,8)}));
               assert.equal(livePageErrors.length,0,livePageErrors.join('\n'));
