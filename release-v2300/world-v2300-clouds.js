@@ -1279,7 +1279,7 @@ function generateGeometry() {
         const visualRadiusM=clamp(f.radiusM,500,15000);
         // Draw a tapered, animated surface cone through the normal cloud-mesh shader as a
         // high-contrast visibility layer; retain the raymarched volume for soft interior wisps.
-        // Keep the physical top radius local, then enlarge it smoothly only on the distant globe.
+        // Keep the funnel's physical top radius invariant at every camera zoom.
         const surfaceHeightM=physicalHeightM;
         const surfaceTopRadiusM=clamp(f.radiusM*0.14,350,1800),funnelMotion=f.stormMotion||{x:0,y:0},funnelEpoch=0;
         const surfaceStartVertex=vertices.length/13,surfaceAdded=makeTornadoSurfaceCone(MC,vertices,indices,f.lng,f.lat,ground,surfaceHeightM,surfaceTopRadiusM,1.445,funnelMotion.x,funnelMotion.y,funnelEpoch);
@@ -1308,7 +1308,7 @@ function generateGeometry() {
           tornadoSurfaceMeshVertices+=vertices.length/13-before;
         }
         tornadoSurfaceVertexRanges.push({start:surfaceStartVertex,end:vertices.length/13});
-        const added=makeStormVolumeProxy(MC,stormVolumeVertices,stormVolumeIndices,f.lng,f.lat,ground,visualRadiusM,0,visualHeightM,1.474+visualHeightM/100000000);
+        const added=makeStormVolumeProxy(MC,stormVolumeVertices,stormVolumeIndices,f.lng,f.lat,ground,visualRadiusM,0,visualHeightM,1.474+visualHeightM/100000000,funnelMotion.x,funnelMotion.y,funnelEpoch);
         tornadoFunnelMeshVertices+=added+surfaceAdded;tornadoVolumeProxyVertices+=added;stormVolumeProxyVertices+=added;
         tornadoVisualHeightKm=Math.max(tornadoVisualHeightKm,surfaceHeightM/1000);tornadoVisualTopRadiusKm=Math.max(tornadoVisualTopRadiusKm,surfaceTopRadiusM/1000);tornadoVisualBoost=visualBoost;
         continue;
@@ -1344,14 +1344,14 @@ function generateGeometry() {
     }
     const global = buildGlobalCloudGeometry();
     const globalVertexCount = Math.floor(global.vertices.length / 13);
-    const requestedStormVertexCount = Math.floor(stormVolumeVertices.length/10);
+    const requestedStormVertexCount = Math.floor(stormVolumeVertices.length/13);
     const localVertexCount = Math.min(Math.floor(vertices.length / 13), Math.max(0,65530-globalVertexCount-requestedStormVertexCount));
     tornadoSurfaceVerticesSubmitted = tornadoSurfaceVertexRanges.reduce((total,r)=>total + Math.max(0,Math.min(r.end,localVertexCount)-r.start),0);
     const stormVertexCount = Math.min(requestedStormVertexCount,Math.max(0,65530-globalVertexCount-localVertexCount));
-    vertexData = new Float32Array(global.vertices.length + localVertexCount * 10 + stormVertexCount * 10);
+    vertexData = new Float32Array(global.vertices.length + localVertexCount * 13 + stormVertexCount * 13);
     vertexData.set(global.vertices, 0);
-    vertexData.set(vertices.slice(0, localVertexCount * 10), global.vertices.length);
-    vertexData.set(stormVolumeVertices.slice(0,stormVertexCount*10),global.vertices.length+localVertexCount*10);
+    vertexData.set(vertices.slice(0, localVertexCount * 13), global.vertices.length);
+    vertexData.set(stormVolumeVertices.slice(0,stormVertexCount*13),(globalVertexCount+localVertexCount)*13);
     const mergedIndices = new Uint16Array(global.indices.length + indices.length + stormVolumeIndices.length);
     mergedIndices.set(global.indices, 0);
     let mergedCount = global.indices.length;
