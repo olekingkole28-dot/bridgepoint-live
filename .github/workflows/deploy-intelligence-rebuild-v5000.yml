@@ -582,8 +582,8 @@ jobs:
           grep -Fq 'function terrainElevationAt(lng, lat)' site/world-v2300-clouds.js
           grep -Fq 'sub-sea-level samples use mean-sea-level 0 m fallback' site/world-v2300-clouds.js
           grep -Fq 'const altitude = ground + baseAgl + range * 0.5;' site/world-v2300-clouds.js
-          grep -Fq "const vertical = f.kind === 'funnel' ? Math.max(globeScale ? 18000 : 3200, cloudRange * (globeScale ? 0.10 : 0.48))" site/world-v2300-clouds.js
-          grep -Fq "const parentScale = f.kind === 'funnel' ? (globeScale ? 0.92 : 0.60) : 1;" site/world-v2300-clouds.js
+          grep -Fq "const vertical = f.kind === 'funnel' ? Math.max(3200, cloudRange * 0.48)" site/world-v2300-clouds.js
+          grep -Fq 'const parentScale = 1;' site/world-v2300-clouds.js
           grep -Fq 'const smallColumns = 140, smallRows = 62, maxSingles = MOBILE ? 700 : 760;' site/world-v2300-clouds.js
           grep -Fq 'isolatedFormationCount: singles.length' site/world-v2300-clouds.js
           grep -Fq 'underside*0.48' site/world-v2300-clouds.js
