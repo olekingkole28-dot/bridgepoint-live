@@ -253,7 +253,7 @@ jobs:
           sed -i 's#world-v2300-clouds.js?v=6075-global-coverage-fill#world-v2300-clouds.js?v=6090-physical-storm-motion#g' site/app.js site/landing.js
           sed -i 's#world-v2300-clouds.js?v=6076-rounded-cloud-banks#world-v2300-clouds.js?v=6090-physical-storm-motion#g' site/app.js site/landing.js
           sed -i 's#world-v2300-clouds.js?v=6088-fuller-local-tornado#world-v2300-clouds.js?v=6090-physical-storm-motion#g' site/app.js site/landing.js
-          sed -i 's#world-v2300-weather.js?v=6070-clouds-only-phase#world-v2300-weather.js?v=6090-five-minute-source-track-refresh#g' site/app.js site/landing.js site/index.html site/app/index.html
+          sed -i 's#world-v2300-weather.js?v=6070-clouds-only-phase#world-v2300-weather.js?v=6091-global-storm-centers#g' site/app.js site/landing.js site/index.html site/app/index.html
           sed -i 's#world-v2300-time-slider.js?v=6076-rounded-cloud-banks#world-v2300-time-slider.js?v=6077-sky-restore-safe-pitch#g' site/app.js site/landing.js
           sed -i 's#world-v2300-time-slider.js?v=6077-cloud-base-restore#world-v2300-time-slider.js?v=6077-sky-restore-safe-pitch#g' site/app.js site/landing.js
           sed -i 's#app.js?v=6077-cloud-base-restore#app.js?v=6077-sky-restore-safe-pitch#g' site/app/index.html
@@ -280,7 +280,7 @@ jobs:
           cp release-v2300/gis-core-orchestrator-v5910.js site/app/gis-core-orchestrator-v5910.js
           cp release-v2300/world-v2300-inspector.js site/app/world-v2300-inspector.js
           cp release-v2300/world-v2300-bootstrap.js site/app/world-v2300-bootstrap.js
-          sed -i 's#world-v2300-weather.js?v=6070-clouds-only-phase#world-v2300-weather.js?v=6090-five-minute-source-track-refresh#g' site/app/world-v2300-bootstrap.js
+          sed -i 's#world-v2300-weather.js?v=6070-clouds-only-phase#world-v2300-weather.js?v=6091-global-storm-centers#g' site/app/world-v2300-bootstrap.js
           cp release-v2300/world-v2300.css site/app/world-v2300.css
 
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.js -o site/vendor/maplibre-gl.js
@@ -457,7 +457,7 @@ jobs:
           grep -Fq 'Real satellite bands. No AI-drawn pixels.' site/world-v2300-spectral-imagery.js
           grep -Fq 'world-v2300-clouds.js?v=6090-physical-storm-motion' site/app.js
           grep -Fq 'world-v2300-clouds.js?v=6090-physical-storm-motion' site/landing.js
-          grep -Fq 'world-v2300-weather.js?v=6090-five-minute-source-track-refresh' site/app.js
+          grep -Fq 'world-v2300-weather.js?v=6091-global-storm-centers' site/app.js
           grep -Fq 'world-v2300-rain.js?v=6070-clouds-only-phase' site/world-v2300-weather.js
           grep -Fq 'retireLegacyScreenSpaceRain' site/world-v2300-weather.js
           grep -Fq '__BP_SCREEN_SPACE_RAIN_RETIRE_V6063__' site/world-v2300-weather.js
@@ -498,7 +498,7 @@ jobs:
           grep -Fq 'baseAglM: clamp(safeNum(o.cloud_base_height_m ?? o.cloudBaseHeightM, thunder ? 450 : 350), 180, 4200)' site/world-v2300-rain.js
           grep -Fq "if(pr==='rain')return;" site/world-v2300-weather.js
           grep -Fq "'rain-cell'" site/world-v2300-clouds.js
-          grep -Fq 'world-v2300-weather.js?v=6090-five-minute-source-track-refresh' site/landing.js
+          grep -Fq 'world-v2300-weather.js?v=6091-global-storm-centers' site/landing.js
           grep -Fq 'bindWeatherVertexArray(gl,weatherVao,weatherVaoMode,weatherVaoExt)' site/world-v2300-weather.js
           grep -Fq 'isolatedVao' site/world-v2300-weather.js
           grep -Fq 'window.__BP_WEATHER_GL_HEALTH_V6057__' site/world-v2300-weather.js
@@ -508,9 +508,9 @@ jobs:
           grep -Fq 'hideLegacyNativeWeatherLayers(map)' site/world-v2300-weather.js
           grep -Fq "renderer:'v2300-cinematic-fx'" site/app.js
           grep -Fq "renderer:'isolated-webgl-particle-layer'" site/landing.js
-          grep -Fq 'world-v2300-weather.js?v=6090-five-minute-source-track-refresh' site/index.html
-          grep -Fq 'world-v2300-weather.js?v=6090-five-minute-source-track-refresh' site/app/index.html
-          grep -Fq 'world-v2300-weather.js?v=6090-five-minute-source-track-refresh' site/app/world-v2300-bootstrap.js
+          grep -Fq 'world-v2300-weather.js?v=6091-global-storm-centers' site/index.html
+          grep -Fq 'world-v2300-weather.js?v=6091-global-storm-centers' site/app/index.html
+          grep -Fq 'world-v2300-weather.js?v=6091-global-storm-centers' site/app/world-v2300-bootstrap.js
           grep -Fq 'world-v2300-time-slider.js?v=6077-sky-restore-safe-pitch' site/app.js
           grep -Fq 'world-v2300-time-slider.js?v=6077-sky-restore-safe-pitch' site/landing.js
           grep -Fq 'world-v2300-spectral-imagery.js?v=5934-world-controls' site/app.js
@@ -604,6 +604,12 @@ jobs:
           grep -Fq 'global.vertices.length + localVertexCount * 13 + stormVertexCount * 13' site/world-v2300-clouds.js
           grep -Fq 'vertices.slice(0, localVertexCount * 13)' site/world-v2300-clouds.js
           grep -Fq 'stormVolumeVertices.slice(0,stormVertexCount*13)' site/world-v2300-clouds.js
+          grep -Fq 'export async function publicRpc(name,args={},timeout=9000)' site/world-v2300-config.js
+          grep -Fq 'function currentBootstrapCyclones(payload)' site/world-v2300-weather.js
+          grep -Fq "publicRpc('bridgepoint_public_weather_bootstrap_v5823'" site/world-v2300-weather.js
+          grep -Fq "center_source:'latest point from source track'" site/world-v2300-weather.js
+          grep -Fq 'world-v2300-weather.js?v=6091-global-storm-centers' site/landing.js
+          grep -Fq 'world-v2300-weather.js?v=6091-global-storm-centers' site/app.js
           grep -Fq 'async function toggleNasaNightlights()' site/world-v2300-time-slider.js
           grep -Fq 'async function toggleSkyClouds()' site/world-v2300-time-slider.js
           grep -Fq 'data-skyview' site/world-v2300-time-slider.js
