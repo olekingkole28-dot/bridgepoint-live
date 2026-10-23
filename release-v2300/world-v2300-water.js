@@ -235,9 +235,10 @@ function buildShaders(gl, shaderDescription) {
     '      stormSurge = max(stormSurge, influence * min(3.2, 0.55 + u_storms[i].w * 1.65));',
     '    }',
     '  }',
-    '  float localScale = a_kind < 0.5 ? 0.28 : (a_kind > 1.5 ? 0.22 : 1.0);',
+    '  float localScale = a_kind < 0.5 ? 0.28 : (a_kind > 2.5 ? 1.0 : (a_kind > 1.5 ? 0.22 : 0.18));',
     '  float amplitude = u_waveAmp * localScale * (1.0 + stormInfluence * (0.9 + u_windSpeed * 0.011));',
-    '  float offsetM = wave * amplitude + stormSurge + a_flood;',
+    '  float marineSurgeMask = (a_kind < 0.5 || a_kind > 2.5) ? 1.0 : 0.0;',
+    '  float offsetM = wave * amplitude + stormSurge * marineSurgeMask + a_flood;',
     '  gl_Position = projectTileFor3D(a_pos, a_height + offsetM);',
     '  v_coord = a_pos;',
     '  v_kind = a_kind;',
@@ -745,7 +746,9 @@ export function initWaterEngine(mapOrWorld, options = {}) {
         const xCenterRaw = (xLeftRaw + xRightRaw) * 0.5, yCenter = (yTop + yBottom) * 0.5;
         const lon = wrapLon(xCenterRaw * 360 - 180), lat = unmercY(yCenter);
         const waterFeature = locate(waterFeatures, lon, lat);
-        let kind = 1;
+        // Kind 3 is source-classified ocean/sea; kind 1 is inland lake/pond/reservoir.
+        // Only open-marine and ocean-fallback cells receive the storm-surge approximation.
+        let kind = waterFeature && marineFeature(waterFeature) ? 3 : 1;
         if (!waterFeature) {
           const isLand = locate(landCoverFeatures, lon, lat) || locate(landUseFeatures, lon, lat);
           if (isLand) continue;
