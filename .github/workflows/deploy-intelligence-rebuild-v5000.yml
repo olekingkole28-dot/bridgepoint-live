@@ -51,6 +51,9 @@ jobs:
           node --check rebuild-v5000/bridgepoint-reality-assets-v5968.js
           node --check rebuild-v5000/bridgepoint-volumetric-fields-v5978.js
           node --check rebuild-v5000/bridgepoint-realworld-effects-v5927.js
+          node --input-type=module --check < release-v2300/world-v2300-water.js
+          node --check rebuild-v5000/app.js
+          node --check rebuild-v5000/landing.js
           node --check rebuild-v5000/bridgepoint-view-v5917.js
           node --check rebuild-v5000/bridgepoint-live-rail-v5969.js
           node tools/reality_assets/test_live_rail.mjs
@@ -237,6 +240,8 @@ jobs:
           # Carry forward only the proven map engine pieces used by the new shell.
           cp release-v2300/world-v2300-config.js site/world-v2300-config.js
           cp release-v2300/world-v2300-map.js site/world-v2300-map.js
+          cp release-v2300/world-v2300-water.js site/world-v2300-water.js
+          test -s site/world-v2300-water.js
           cp release-v2300/world-v2300-lod-controls.js site/world-v2300-lod-controls.js
           cp release-v2300/world-v2300-space.js site/world-v2300-space.js
           cp release-v2300/world-v2300-worker.js site/world-v2300-worker.js
@@ -264,12 +269,14 @@ jobs:
           sed -i 's#landing.js?v=6077-cloud-base-restore#landing.js?v=6077-sky-restore-safe-pitch#g' site/index.html
           sed -i 's#app.js?v=6076-rounded-cloud-banks#app.js?v=6077-sky-restore-safe-pitch#g' site/app/index.html
           sed -i 's#landing.js?v=6076-rounded-cloud-banks#landing.js?v=6077-sky-restore-safe-pitch#g' site/index.html
-          sed -i 's#app.js?v=6092-posttropical-global-clouds#app.js?v=6094-josephine-spiral-unified#g' site/app/index.html
-          sed -i 's#landing.js?v=6091-global-storm-centers-data-only#landing.js?v=6094-josephine-spiral-unified#g' site/index.html
+          sed -i 's#app.js?v=6092-posttropical-global-clouds#app.js?v=6100-geowater-gpu#g' site/app/index.html
+          sed -i 's#landing.js?v=6091-global-storm-centers-data-only#landing.js?v=6100-geowater-gpu#g' site/index.html
           cp release-v2300/world-v2300-realism.js site/world-v2300-realism.js
           cp release-v2300/gis-core-orchestrator-v5910.js site/gis-core-orchestrator-v5910.js
           cp release-v2300/world-v2300-config.js site/app/world-v2300-config.js
           cp release-v2300/world-v2300-map.js site/app/world-v2300-map.js
+          cp release-v2300/world-v2300-water.js site/app/world-v2300-water.js
+          test -s site/app/world-v2300-water.js
           cp release-v2300/world-v2300-lod-controls.js site/app/world-v2300-lod-controls.js
           cp release-v2300/world-v2300-space.js site/app/world-v2300-space.js
           cp release-v2300/world-v2300-worker.js site/app/world-v2300-worker.js
@@ -632,7 +639,7 @@ jobs:
           grep -Fq 'world-v2300-weather.js?v=6093-josephine-global-track' site/app.js
           grep -Fq 'sourceDataReady:true,cloudsOnlyPhase:true' site/landing.js
           grep -Fq 'if(window.__BP_CLOUDS_ONLY_PHASE_V6070__===true && m)' site/landing.js
-          grep -Fq 'landing.js?v=6094-josephine-spiral-unified' site/index.html
+          grep -Fq 'landing.js?v=6100-geowater-gpu' site/index.html
           grep -Fq 'async function toggleNasaNightlights()' site/world-v2300-time-slider.js
           grep -Fq 'async function toggleSkyClouds()' site/world-v2300-time-slider.js
           grep -Fq 'data-skyview' site/world-v2300-time-slider.js
@@ -834,7 +841,7 @@ jobs:
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/app.js
           grep -Fq 'activateLiveWeather();' site/app.js
           grep -Fq 'enabled:true,serializedWeather:true' site/app.js
-          grep -Fq 'app.js?v=6094-josephine-spiral-unified' site/app/index.html
+          grep -Fq 'app.js?v=6100-geowater-gpu' site/app/index.html
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/landing.js
           grep -Fq 'WMO_CAP_WARNING' site/app.js
           grep -Fq 'WMO_CAP_WARNING' site/landing.js
@@ -1057,8 +1064,8 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=6094-josephine-spiral-unified' site/app/index.html
-          grep -Fq 'landing.js?v=6094-josephine-spiral-unified' site/index.html
+          grep -Fq 'app.js?v=6100-geowater-gpu' site/app/index.html
+          grep -Fq 'landing.js?v=6100-geowater-gpu' site/index.html
            grep -Fq 'world-v2300-map.js?v=6056-ground-camera-readiness' site/app.js
            grep -Fq 'world-v2300-map.js?v=6056-ground-camera-readiness' site/landing.js
            grep -Fq 'world-v2300-map.js?v=6056-ground-camera-readiness' site/index.html
@@ -1408,6 +1415,24 @@ jobs:
               if(report.renderedEiffelBlocks.length)
                 throw new Error('EIFFEL_DUPLICATE_BLOCK_STILL_RENDERED '+JSON.stringify(report.renderedEiffelBlocks));
               console.log('BRIDGEPOINT_EIFFEL_TOWER_ANCHOR_AND_DUPLICATE_FILTER_PASS',JSON.stringify(report));
+               // Runtime gate for the new shared-context water renderer: verify the custom layer
+               // builds bounded geometry and executes its GPU shader without disturbing native water.
+               try {
+                 await p.waitForFunction(()=>{
+                   const s=window.__BP_WATER_ENGINE_LANDING_V6100__?.state;
+                   return !!s?.installed && (Number(s.surfaceVertexCount||0)+Number(s.flowVertexCount||0)>0) &&
+                     (Number(s.lastDrawAt||0)>0 || !!s.shaderError);
+                 },null,{timeout:25000});
+               } catch(error) {
+                 const state=await p.evaluate(()=>window.__BP_WATER_ENGINE_LANDING_V6100__?.state||null);
+                 throw new Error('GPU_WATER_LAYER_BOOT_TIMEOUT '+JSON.stringify(state)+' '+String(error?.message||error));
+               }
+               const waterBaseline=await p.evaluate(()=>window.__BP_WATER_ENGINE_LANDING_V6100__?.state||null);
+               if(!waterBaseline?.installed||!waterBaseline.contextReady||
+                  (Number(waterBaseline.surfaceVertexCount||0)+Number(waterBaseline.flowVertexCount||0)===0)||
+                  !waterBaseline.lastDrawAt||waterBaseline.shaderError)
+                 throw new Error('GPU_WATER_RUNTIME_NOT_RENDERING '+JSON.stringify(waterBaseline));
+               console.log('BRIDGEPOINT_GPU_WATER_ENGINE_READY_PASS',JSON.stringify(waterBaseline));
                const cloudBaseline=await p.evaluate(()=>({
                  button:!!document.querySelector('#bp-world-time-slider-v5908 [data-clouds]'),
                  base:window.__BP_LANDING_WORLD__?.state?.base||window.__BP_LANDING_WORLD__?.base||'gta',
