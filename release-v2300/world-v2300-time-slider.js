@@ -315,16 +315,28 @@ export function initWorldTimeSlider(target,rpc){
   window.__BP_SKY_VIEW_OVERRIDE_V6077__=true;
   map.stop?.();
   const targetProjection=restore.projection==='globe'?'globe':restore.projection;
+  const safePitch=Math.max(0,Math.min(Number(restore.pitch)||0,85));
+  // First bring the elevated camera pivot back under 90 degrees while still in Mercator.
+  // Switching projection while pitched above the horizon can be ignored by MapLibre.
+  if(skyProjectionType()==='mercator'){
+   map.setMaxPitch(160);
+   map.jumpTo({center:restore.center,zoom:restore.zoom,bearing:restore.bearing,pitch:safePitch});
+   map.triggerRepaint?.();
+   await waitSkyMapState(()=>map.getPitch()<90&&skyProjectionType()==='mercator',5000,'safe pitch before projection restore');
+  }
+  map.setCenterClampedToGround(true);
+  map.triggerRepaint?.();
+  await waitSkyMapState(()=>map.getPitch()<90&&map.getCenterClampedToGround?.()===true,3000,'ground clamp restore');
   map.setProjection({type:targetProjection});
   map.triggerRepaint?.();
-  await waitSkyMapState(()=>skyProjectionType()===targetProjection,5000,'projection restore');
-  const limit=Math.max(60,Math.min(restore.maxPitch,targetProjection==='globe'?85:160));
+  await waitSkyMapState(()=>skyProjectionType()===targetProjection,6000,'projection restore');
+  const limit=Math.max(60,Math.min(Number(restore.maxPitch)||85,targetProjection==='globe'?85:110));
   map.setMaxPitch(limit);
   await waitSkyMapState(()=>Number(map.getMaxPitch?.())>=Math.min(limit,85),3000,'pitch-limit restore');
   map.setCenterClampedToGround(true);
-  map.jumpTo({center:restore.center,zoom:restore.zoom,bearing:restore.bearing,pitch:Math.max(0,Math.min(restore.pitch,targetProjection==='globe'?85:limit))});
+  map.jumpTo({center:restore.center,zoom:restore.zoom,bearing:restore.bearing,pitch:safePitch});
   map.triggerRepaint?.();
-  await waitSkyMapState(()=>map.getZoom()>0&&map.getPitch()<90&&skyProjectionType()===targetProjection,5000,'street camera restore');
+  await waitSkyMapState(()=>map.getZoom()>0&&Math.abs(map.getZoom()-restore.zoom)<0.25&&map.getPitch()<90&&Math.abs(map.getPitch()-safePitch)<2&&skyProjectionType()===targetProjection,5000,'street camera restore');
   window.__BP_SKY_VIEW_OVERRIDE_V6077__=false;
  }
  async function toggleSkyView(){
