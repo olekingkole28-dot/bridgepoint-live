@@ -365,6 +365,7 @@ export function initWorldTimeSlider(target,rpc){
   }finally{skyViewBusy=false;skyViewBtn.disabled=false}
  }
 
+ skyViewBtn?.addEventListener('click',()=>{void toggleSkyView()});
  cloudBtn.addEventListener('click',()=>{void toggleSkyClouds()});
  const onBounds=()=>schedule(false,360),onStyle=()=>{ensureLayers();if(!map.getSource(SOURCE_ID))setTimeout(ensureLayers,250)};
  map.on('moveend',onBounds);map.on('zoomend',onBounds);map.on('styledata',onStyle);
