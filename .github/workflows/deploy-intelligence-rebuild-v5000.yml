@@ -448,6 +448,8 @@ jobs:
           node --input-type=module --check < site/world-v2300-weather.js
           node --input-type=module --check < site/world-v2300-rain.js
           node --input-type=module --check < site/world-v2300-time-slider.js
+          node --input-type=module --check < site/app/world-v2300-clouds.js
+          node --input-type=module --check < site/app/world-v2300-time-slider.js
           node --input-type=module --check < site/world-v2300-spectral-imagery.js
           node --input-type=module --check < site/world-v2300-underground-xray.js
           node --input-type=module --check < site/world-v2300-infrastructure-volume-v5962.js
@@ -462,6 +464,9 @@ jobs:
           grep -Fq 'postTropicalSurfaceCloudVertices+=makeCycloneRibbon' site/world-v2300-clouds.js
           grep -Fq 'post-tropical lows use asymmetric cloud shields' site/world-v2300-clouds.js
           grep -Fq 'world-v2300-clouds.js?v=6092-posttropical-global-clouds' site/world-v2300-time-slider.js
+          grep -Fq 'function isPostTropicalCyclone(st={})' site/app/world-v2300-clouds.js
+          grep -Fq 'postTropicalSurfaceCloudVertices+=makeCycloneRibbon' site/app/world-v2300-clouds.js
+          grep -Fq 'world-v2300-clouds.js?v=6092-posttropical-global-clouds' site/app/world-v2300-time-slider.js
           grep -Fq 'world-v2300-rain.js?v=6070-clouds-only-phase' site/world-v2300-weather.js
           grep -Fq 'retireLegacyScreenSpaceRain' site/world-v2300-weather.js
           grep -Fq '__BP_SCREEN_SPACE_RAIN_RETIRE_V6063__' site/world-v2300-weather.js
