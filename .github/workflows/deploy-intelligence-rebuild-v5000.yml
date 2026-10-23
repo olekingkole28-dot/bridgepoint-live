@@ -599,6 +599,10 @@ jobs:
           grep -Fq 'hurricaneEyeWallCloudCenters' site/world-v2300-clouds.js
           grep -Fq 'globalHeightResolvedWindPuffs' site/world-v2300-clouds.js
           grep -Fq 'const stride = 13 * Float32Array.BYTES_PER_ELEMENT;' site/world-v2300-clouds.js
+          grep -Fq 'const requestedStormVertexCount = Math.floor(stormVolumeVertices.length/13);' site/world-v2300-clouds.js
+          grep -Fq 'global.vertices.length + localVertexCount * 13 + stormVertexCount * 13' site/world-v2300-clouds.js
+          grep -Fq 'vertices.slice(0, localVertexCount * 13)' site/world-v2300-clouds.js
+          grep -Fq 'stormVolumeVertices.slice(0,stormVertexCount*13)' site/world-v2300-clouds.js
           grep -Fq 'async function toggleNasaNightlights()' site/world-v2300-time-slider.js
           grep -Fq 'async function toggleSkyClouds()' site/world-v2300-time-slider.js
           grep -Fq 'data-skyview' site/world-v2300-time-slider.js
