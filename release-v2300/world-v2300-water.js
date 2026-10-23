@@ -70,16 +70,29 @@ function featureContains(feature, lng, lat) {
   }
   return false;
 }
-function sourceFeatures(map, sourceLayer, limit) {
+function featureIntersectsBounds(feature, bounds) {
+  if (!bounds) return true;
+  const [minLng, minLat, maxLng, maxLat] = feature.bbox;
+  const top = mercY(maxLat), bottom = mercY(minLat), pad = 0.025;
+  if (bottom < bounds.y0 - pad || top > bounds.y1 + pad) return false;
+  if (maxLng - minLng > 300) return true;
+  const fx0 = (minLng + 180) / 360, fx1 = (maxLng + 180) / 360;
+  for (const shift of [-1, 0, 1]) {
+    if (fx1 + shift >= bounds.x0 - pad && fx0 + shift <= bounds.x1 + pad) return true;
+  }
+  return false;
+}
+function sourceFeatures(map, sourceLayer, limit, bounds) {
   try {
     if (!map.getSource('ofm')) return [];
     const raw = map.querySourceFeatures('ofm', { sourceLayer });
     const prepared = [];
     for (const row of raw || []) {
-      if (prepared.length >= limit) break;
       if (!row || typeof row !== 'object') continue;
       const item = prepareFeature(row);
-      if (item) prepared.push(item);
+      if (!item || !featureIntersectsBounds(item, bounds)) continue;
+      if (prepared.length >= limit) break;
+      prepared.push(item);
     }
     return prepared;
   } catch (_) { return []; }
