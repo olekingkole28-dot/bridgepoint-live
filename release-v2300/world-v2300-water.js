@@ -1,8 +1,8 @@
-// BridgePoint Water & Hydrology GPU surface v6100.
+// BridgePoint Water & Hydrology GPU surface v6110.
 // Additive MapLibre custom layer: one shared map canvas/context, bounded source geometry,
 // GPU wave displacement, source-gated flood elevations, and view-aware mesh LOD.
-const VERSION = 6100;
-const LAYER_ID = 'bp-water-surface-gpu-v6100';
+const VERSION = 6110;
+const LAYER_ID = 'bp-water-surface-gpu-v6110';
 const EARTH_CIRCUMFERENCE_M = 40075016.68557849;
 const RAD = Math.PI / 180;
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -509,7 +509,7 @@ function currentScene() {
 export function initWaterEngine(mapOrWorld, options = {}) {
   const map = mapOrWorld && mapOrWorld.map ? mapOrWorld.map : mapOrWorld;
   if (!map || typeof map.addLayer !== 'function' || typeof map.querySourceFeatures !== 'function') return null;
-  if (window.__BP_WATER_ENGINE_V6100__ && window.__BP_WATER_ENGINE_V6100__.map === map) return window.__BP_WATER_ENGINE_V6100__;
+  if (window.__BP_WATER_ENGINE_V6110__ && window.__BP_WATER_ENGINE_V6110__.map === map) return window.__BP_WATER_ENGINE_V6110__;
   const mobile = window.innerWidth <= 900 || /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
   const low = Number(navigator.deviceMemory || 4) <= 3 || Number(navigator.hardwareConcurrency || 4) <= 4;
   const api = {
@@ -569,7 +569,7 @@ export function initWaterEngine(mapOrWorld, options = {}) {
       try { if (map.getLayer(LAYER_ID)) map.removeLayer(LAYER_ID); } catch (_) {}
       for (const spec of SOURCE_ANCHORS) { try { if (map.getLayer(spec.id)) map.removeLayer(spec.id); } catch (_) {} }
       try { window.removeEventListener('bp2300:weather-updated', onWeatherUpdated); } catch (_) {}
-      if (window.__BP_WATER_ENGINE_V6100__ === this) window.__BP_WATER_ENGINE_V6100__ = null;
+      if (window.__BP_WATER_ENGINE_V6110__ === this) window.__BP_WATER_ENGINE_V6110__ = null;
     },
     get buffers() {
       return layer ? { surface: layer.buffer, flow: layer.flowBuffer, strideFloats: 7, strideBytes: 28, vertexCount: layer.surfaceVertexCount + layer.flowVertexCount } : null;
@@ -888,7 +888,7 @@ export function initWaterEngine(mapOrWorld, options = {}) {
     api.sourceWaterwayFeatures = flowFeatures.length;
     api.geometryBuilds++;
     api.lastSourceRefreshAt = Date.now();
-    window.__BP_WATER_FIELD_V6100__ = {
+    window.__BP_WATER_FIELD_V6110__ = {
       version: VERSION, map, buffers: api.buffers,
       get state() { return api.state; },
       get weatherScene() { return currentScene(); },
@@ -944,8 +944,8 @@ export function initWaterEngine(mapOrWorld, options = {}) {
   });
   scheduleBuild(250);
   for (const delay of [700, 1700, 3400]) window.setTimeout(() => { ensureInstalled(); scheduleBuild(0); }, delay);
-  window.__BP_WATER_ENGINE_V6100__ = api;
-  window.__BP_WATER_FIELD_V6100__ = {
+  window.__BP_WATER_ENGINE_V6110__ = api;
+  window.__BP_WATER_FIELD_V6110__ = {
     version: VERSION, map, get buffers() { return api.buffers; },
     get state() { return api.state; },
     get weatherScene() { return currentScene(); },
