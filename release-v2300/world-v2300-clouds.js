@@ -70,7 +70,7 @@ float bpStormDensity(vec3 p,float tint,float time,float radius,float height,floa
   return clamp(max(outerBands*1.36,eyeWall*vertical*1.28),0.0,1.0);
 }
 vec4 bpRaymarchStorm(vec3 entry,vec2 cameraXY,float tint,float time,float cameraAltitude,float requestedSteps){
-  if(requestedSteps < -0.5)return vec4(0.96,0.02,0.88,0.52);
+  bool diagnostic=requestedSteps < -0.5;
   bool funnel=tint<1.481,southern=(!funnel&&tint>1.520);
   float radius=funnel?18000.0:max(180000.0,(tint-1.482-(southern?0.040:0.0))*100000000.0);
   float height=funnel?clamp((tint-1.474)*100000000.0,4500.0,15500.0):16000.0,eyeRatio=clamp(28000.0/radius,0.008,0.095);
@@ -78,15 +78,18 @@ vec4 bpRaymarchStorm(vec3 entry,vec2 cameraXY,float tint,float time,float camera
   vec3 camera=vec3(cameraXY,cameraZ),toCamera=normalize(camera-entry),normal;
   if(entry.z<0.5)normal=vec3(0.0,0.0,-1.0);else if(entry.z>height-0.5)normal=vec3(0.0,0.0,1.0);else normal=normalize(vec3(entry.xy,0.0001));
   float facing=dot(normal,toCamera),insideVolume=(length(cameraXY)<radius&&cameraZ>0.0&&cameraZ<height)?1.0:0.0;
-  if(facing<=0.002&&insideVolume<0.5)return vec4(0.0);
+  if(facing<=0.002&&insideVolume<0.5){if(diagnostic)return vec4(1.0,0.0,0.0,0.72);return vec4(0.0);}
   vec3 direction=facing>0.002?-toCamera:toCamera;float exitT=bpStormExitDistance(entry,direction,radius,height);
-  if(exitT<1.0||exitT>1.0e20)return vec4(0.0);
+  if(exitT<1.0||exitT>1.0e20){if(diagnostic)return vec4(1.0,0.8,0.0,0.72);return vec4(0.0);}
+  if(diagnostic&&requestedSteps>-2.5)return vec4(0.0,0.9,0.2,0.72);
   float steps=clamp(max(requestedSteps,ceil(exitT/50000.0)),12.0,40.0),stepLength=exitT/steps,accumulatedAlpha=0.0;
   vec3 accumulatedColor=vec3(0.0);
+  float maxDensity=0.0;
   for(int i=0;i<40;i++){
     if(float(i)>=steps||accumulatedAlpha>0.965)break;
     vec3 samplePos=entry+direction*((float(i)+0.5)*stepLength);
     float density=bpStormDensity(samplePos,tint,time,radius,height,eyeRatio);
+    maxDensity=max(maxDensity,density);
     if(density>0.012){
       float broad=noise3(vec3(samplePos.xy/21000.0,samplePos.z/2900.0)+vec3(time*0.02,-time*0.01,time*0.015));
       float heightShade=clamp(samplePos.z/height,0.0,1.0),radialShade=clamp(length(samplePos.xy)/radius,0.0,1.0);
@@ -96,6 +99,7 @@ vec4 bpRaymarchStorm(vec3 entry,vec2 cameraXY,float tint,float time,float camera
       accumulatedColor+=cloudColor*((1.0-accumulatedAlpha)*sampleAlpha);accumulatedAlpha+=(1.0-accumulatedAlpha)*sampleAlpha;
     }
   }
+  if(diagnostic)return vec4(clamp(maxDensity,0.0,1.0),clamp(accumulatedAlpha,0.0,1.0),clamp(length(entry.xy)/radius,0.0,1.0),0.78);
   if(accumulatedAlpha<0.028)return vec4(0.0);
   return vec4(accumulatedColor/max(accumulatedAlpha,0.001),clamp(accumulatedAlpha,0.0,0.93));
 }`;
@@ -683,7 +687,7 @@ export function initSkyClouds(target) {
         if(stormRaymarchStepBudget!==raySteps){stormRaymarchStepBudget=raySteps;publishState();}
         if(info.uniforms.cameraCenter)gl.uniform2f(info.uniforms.cameraCenter,cameraCenter.x,cameraCenter.y);
         if(info.uniforms.cameraAltitude)gl.uniform1f(info.uniforms.cameraAltitude,cameraAltitude);
-        if(info.uniforms.raySteps)gl.uniform1f(info.uniforms.raySteps,window.__BP_STORM_RAY_DEBUG__===true?-1.0:raySteps);
+        if(info.uniforms.raySteps){const debugMode=Number(window.__BP_STORM_RAY_DEBUG_MODE__)||0;gl.uniform1f(info.uniforms.raySteps,debugMode>0?-debugMode:raySteps);}
         gl.uniform1f(info.uniforms.time, cloudTime);
         if (info.uniforms.motionTime) gl.uniform1f(info.uniforms.motionTime, motionTime);
         gl.enable(gl.DEPTH_TEST); gl.enable(gl.BLEND);
