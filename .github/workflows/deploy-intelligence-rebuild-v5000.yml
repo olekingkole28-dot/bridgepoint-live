@@ -281,7 +281,8 @@ jobs:
           cp release-v2300/gis-core-orchestrator-v5910.js site/app/gis-core-orchestrator-v5910.js
           cp release-v2300/world-v2300-inspector.js site/app/world-v2300-inspector.js
           cp release-v2300/world-v2300-bootstrap.js site/app/world-v2300-bootstrap.js
-          sed -i 's#world-v2300-weather.js?v=6070-clouds-only-phase#world-v2300-weather.js?v=6091-global-storm-centers#g' site/app/world-v2300-bootstrap.js
+          sed -i 's#world-v2300-weather.js?v=6070-clouds-only-phase#world-v2300-weather.js?v=6093-josephine-global-track#g' site/app/world-v2300-bootstrap.js
+          sed -i 's#world-v2300-weather.js?v=6091-global-storm-centers#world-v2300-weather.js?v=6093-josephine-global-track#g' site/app/world-v2300-bootstrap.js
           cp release-v2300/world-v2300.css site/app/world-v2300.css
 
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.js -o site/vendor/maplibre-gl.js
@@ -460,7 +461,7 @@ jobs:
           grep -Fq 'Real satellite bands. No AI-drawn pixels.' site/world-v2300-spectral-imagery.js
           grep -Fq 'world-v2300-clouds.js?v=6092-posttropical-global-clouds' site/app.js
           grep -Fq 'world-v2300-clouds.js?v=6092-posttropical-global-clouds' site/landing.js
-          grep -Fq 'world-v2300-weather.js?v=6091-global-storm-centers' site/app.js
+          grep -Fq 'world-v2300-weather.js?v=6093-josephine-global-track' site/app.js
           grep -Fq 'function isPostTropicalCyclone(st={})' site/world-v2300-clouds.js
           grep -Fq 'postTropicalSurfaceCloudVertices+=makeCycloneRibbon' site/world-v2300-clouds.js
           grep -Fq 'post-tropical lows use asymmetric cloud shields' site/world-v2300-clouds.js
@@ -508,7 +509,7 @@ jobs:
           grep -Fq 'baseAglM: clamp(safeNum(o.cloud_base_height_m ?? o.cloudBaseHeightM, thunder ? 450 : 350), 180, 4200)' site/world-v2300-rain.js
           grep -Fq "if(pr==='rain')return;" site/world-v2300-weather.js
           grep -Fq "'rain-cell'" site/world-v2300-clouds.js
-          grep -Fq 'world-v2300-weather.js?v=6091-global-storm-centers' site/landing.js
+          grep -Fq 'world-v2300-weather.js?v=6093-josephine-global-track' site/landing.js
           grep -Fq 'bindWeatherVertexArray(gl,weatherVao,weatherVaoMode,weatherVaoExt)' site/world-v2300-weather.js
           grep -Fq 'isolatedVao' site/world-v2300-weather.js
           grep -Fq 'window.__BP_WEATHER_GL_HEALTH_V6057__' site/world-v2300-weather.js
@@ -518,9 +519,9 @@ jobs:
           grep -Fq 'hideLegacyNativeWeatherLayers(map)' site/world-v2300-weather.js
           grep -Fq "renderer:'v2300-cinematic-fx'" site/app.js
           grep -Fq "renderer:'isolated-webgl-particle-layer'" site/landing.js
-          grep -Fq 'world-v2300-weather.js?v=6091-global-storm-centers' site/index.html
-          grep -Fq 'world-v2300-weather.js?v=6091-global-storm-centers' site/app/index.html
-          grep -Fq 'world-v2300-weather.js?v=6091-global-storm-centers' site/app/world-v2300-bootstrap.js
+          grep -Fq 'world-v2300-weather.js?v=6093-josephine-global-track' site/index.html
+          grep -Fq 'world-v2300-weather.js?v=6093-josephine-global-track' site/app/index.html
+          grep -Fq 'world-v2300-weather.js?v=6093-josephine-global-track' site/app/world-v2300-bootstrap.js
           grep -Fq 'world-v2300-time-slider.js?v=6092-posttropical-global-clouds' site/app.js
           grep -Fq 'world-v2300-time-slider.js?v=6092-posttropical-global-clouds' site/landing.js
           grep -Fq 'world-v2300-spectral-imagery.js?v=5934-world-controls' site/app.js
@@ -621,8 +622,8 @@ jobs:
           grep -Fq 'function archivedJosephineForecast' site/world-v2300-weather.js
           grep -Fq 'bp2300-storm-track-source-v6093' site/world-v2300-weather.js
           grep -Fq 'bp2300-storm-track-forecast-v6093' site/world-v2300-weather.js
-          grep -Fq 'world-v2300-weather.js?v=6091-global-storm-centers' site/landing.js
-          grep -Fq 'world-v2300-weather.js?v=6091-global-storm-centers' site/app.js
+          grep -Fq 'world-v2300-weather.js?v=6093-josephine-global-track' site/landing.js
+          grep -Fq 'world-v2300-weather.js?v=6093-josephine-global-track' site/app.js
           grep -Fq 'sourceDataReady:true,cloudsOnlyPhase:true' site/landing.js
           grep -Fq 'if(window.__BP_CLOUDS_ONLY_PHASE_V6070__===true && m)' site/landing.js
           grep -Fq 'landing.js?v=6091-global-storm-centers-data-only' site/index.html
