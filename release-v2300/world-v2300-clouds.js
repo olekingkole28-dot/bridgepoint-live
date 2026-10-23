@@ -149,7 +149,10 @@ vec4 bpRaymarchStorm(vec3 entry,vec2 cameraXY,float tint,float time,float camera
   bool funnel=tint<1.481,southern=(!funnel&&tint>1.520);
   float height=funnel?clamp((tint-1.474)*100000000.0,4500.0,500000.0):16000.0;
   float funnelLod=clamp((height-15500.0)/484500.0,0.0,1.0);
-  float radius=funnel?mix(18000.0,400000.0,funnelLod):max(180000.0,(tint-1.482-(southern?0.040:0.0))*100000000.0),eyeRatio=clamp(max(28000.0/radius,0.060),0.008,0.095);
+  float packedStorm=tint-1.482-(southern?0.040:0.0);
+  float shieldUnits=floor(packedStorm/0.0001+0.5),radius=funnel?mix(18000.0,400000.0,funnelLod):max(10000.0,shieldUnits*10000.0);
+  float eyeRadiusKm=clamp((packedStorm-shieldUnits*0.0001)/0.0000003,6.0,75.0);
+  float eyeRatio=funnel?0.060:clamp((eyeRadiusKm*1000.0)/radius,0.008,0.095);
   float volumeBase=funnel?0.0:1700.0,cameraZ=cameraAltitude-volumeBase;
   vec3 camera=vec3(cameraXY,cameraZ),toCamera=normalize(camera-entry),normal;
   if(entry.z<0.5)normal=vec3(0.0,0.0,-1.0);else if(entry.z>height-0.5)normal=vec3(0.0,0.0,1.0);else normal=normalize(vec3(entry.xy,0.0001));
@@ -1074,7 +1077,7 @@ function generateGeometry() {
     const z = number(map.getZoom?.());
     const overviewClouds = z <= 8.5;
     const overviewBoost = stormVisibilityBoost(z);
-    globalStormLod = z <= 5.5 ? 'global-exaggerated-visibility' : z <= 8.5 ? 'regional-transition' : 'physical-local';
+    globalStormLod = z <= 5.5 ? 'physical-global-scale' : z <= 8.5 ? 'physical-regional-scale' : 'physical-local';
     let maxForm = z <= 5.5 ? (MOBILE ? 72 : 96) : z <= 8.5 ? (MOBILE ? 44 : 88) : (MOBILE ? 44 : 30);
     const vertices = [], indices = [], formations = [], stormVolumeVertices = [], stormVolumeIndices = [], tornadoSurfaceVertexRanges = [];
     measuredCount = 0; funnelCount = 0; tornadoFunnelMeshVertices = 0; stormCount = 0; rainCellShelfCount = 0; sourceCloudObservationCount = 0;
