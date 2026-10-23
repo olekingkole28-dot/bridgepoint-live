@@ -1421,8 +1421,10 @@ jobs:
                  await p.waitForFunction(()=>{
                    const s=window.__BP_WATER_ENGINE_LANDING_V6100__?.state;
                    return !!s?.installed && (Number(s.surfaceVertexCount||0)+Number(s.flowVertexCount||0)>0) &&
+                     Number(s.sourceWaterFeatures||0)>0 && Number(s.sourceLandFeatures||0)>0 &&
+                     Number(s.sourceAnchorLayersPresent||0)>=3 && !s.waitingForVectorFeatures &&
                      (Number(s.lastDrawAt||0)>0 || !!s.shaderError);
-                 },null,{timeout:25000});
+                 },{timeout:35000});
                } catch(error) {
                  const state=await p.evaluate(()=>window.__BP_WATER_ENGINE_LANDING_V6100__?.state||null);
                  throw new Error('GPU_WATER_LAYER_BOOT_TIMEOUT '+JSON.stringify(state)+' '+String(error?.message||error));
@@ -1430,6 +1432,8 @@ jobs:
                const waterBaseline=await p.evaluate(()=>window.__BP_WATER_ENGINE_LANDING_V6100__?.state||null);
                if(!waterBaseline?.installed||!waterBaseline.contextReady||
                   (Number(waterBaseline.surfaceVertexCount||0)+Number(waterBaseline.flowVertexCount||0)===0)||
+                  Number(waterBaseline.sourceWaterFeatures||0)===0||Number(waterBaseline.sourceLandFeatures||0)===0||
+                  Number(waterBaseline.sourceAnchorLayersPresent||0)<3||waterBaseline.waitingForVectorFeatures||
                   !waterBaseline.lastDrawAt||waterBaseline.shaderError)
                  throw new Error('GPU_WATER_RUNTIME_NOT_RENDERING '+JSON.stringify(waterBaseline));
                console.log('BRIDGEPOINT_GPU_WATER_ENGINE_READY_PASS',JSON.stringify(waterBaseline));
