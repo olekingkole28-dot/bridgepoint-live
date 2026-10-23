@@ -40,6 +40,8 @@ The suspected failure is that BridgePoint's vertical world model may not yet hav
 
 - [ ] Solve the existing inability to tilt the street-level camera above the visible horizon and look up into the sky. The current MapLibre map camera's pitch cap has been observed clamping at 85 degrees even though source code requests 110; simply raising the numeric setting is not a fix.
 - [ ] Design/test a real sky-facing camera mode that preserves the current geographic world position and links to the same georeferenced cloud layer and cloud heights. Clouds, sky, and future Sun/light effects must be visible overhead at minimum street zoom; do not fake this by stretching clouds across a screen-space overlay.
+  - Production finding: MapLibre GL JS 5.24.0 is live. The previous test succeeded in switching to Mercator and reported `maxPitch: 160`, but the camera stopped at `pitch: 90`; the mobile stability guard also clamps ordinary map gestures to 78° Android / 82° mobile. The guard now allows higher pitch only while the explicit sky-view override is active.
+  - Latest candidate raises the center pivot with MapLibre's `elevation` / `setCenterElevation` after disabling center-ground clamping, calculating the pivot elevation from camera distance to keep the camera above local ground. **Not yet verified:** the production browser smoke must reach above 120° and successfully restore the saved center/zoom/bearing/pitch/projection. Keep this separate from the independent DEM elevation-readiness timeout.
 - [ ] Ensure the user can return to the ordinary map view without losing location, selected property, layers, cloud state or LOD. Keep this scoped to the world camera / clouds rather than adding unrelated UI.
 
 ## Acceptance checks before marking complete
