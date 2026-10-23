@@ -67,7 +67,7 @@ jobs:
           grep -Fq "dFdx(v_wave)" release-v2300/world-v2300-water.js
           grep -Fq "float glancingGlint = pow(" release-v2300/world-v2300-water.js
           grep -Fq "sourceLevel !== null && sourceLevel >= -MAX_VALID_MARINE_SURFACE_OFFSET_M" release-v2300/world-v2300-water.js
-          grep -Fq "clamp(0.15 + shimmer * 0.13, 0.15, 0.32)" release-v2300/world-v2300-water.js
+          grep -Fq "clamp(0.22 + shimmer * 0.20, 0.22, 0.50)" release-v2300/world-v2300-water.js
           grep -Fq "world-v2300-water.js?v=6114-specular-wave-shading" rebuild-v5000/app.js
           grep -Fq "world-v2300-water.js?v=6114-specular-wave-shading" rebuild-v5000/landing.js
           grep -Fq "landing.js?v=6114-specular-wave-shading" rebuild-v5000/index.html
