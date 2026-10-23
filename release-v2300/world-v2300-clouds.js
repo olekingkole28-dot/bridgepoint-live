@@ -49,7 +49,7 @@ const STORM_VOLUME_FRAGMENT = String.raw`float bpStormExitDistance(vec3 p,vec3 d
 float bpStormDensity(vec3 p,float tint,float time,float radius,float height,float eyeRatio){
   float rho=length(p.xy)/max(radius,1.0),z=clamp(p.z/max(height,1.0),0.0,1.0);
   float funnelTaper=mix(0.0045,0.105,pow(z,0.78)),funnelRadial=length(p.xy)/18000.0;
-  float safeEye=clamp(28000.0/max(radius,1.0),0.008,0.095);
+  float safeEye=clamp(eyeRatio,0.008,0.095);
   if(tint<1.481&&funnelRadial>funnelTaper*1.20+0.002)return 0.0;
   if(tint>=1.481&&rho<safeEye*0.98)return 0.0;
   vec3 coarseP=vec3(p.xy/52000.0,p.z/4300.0)+vec3(time*0.018,-time*0.012,time*0.009);
@@ -61,7 +61,7 @@ float bpStormDensity(vec3 p,float tint,float time,float radius,float height,floa
     float vertical=smoothstep(0.006,0.075,z)*(1.0-smoothstep(0.91,1.0,z)),inside=1.0-smoothstep(taper*0.10,taper*0.46,radial);
     return clamp((edge*(0.52+0.48*broken)*striation*vertical*1.38)+(inside*vertical*broken*0.08),0.0,1.0);
   }
-  float safeEye=clamp(eyeRatio,0.008,0.095),vertical=smoothstep(0.065,0.18,z)*(1.0-smoothstep(0.84,0.99,z));
+  float vertical=smoothstep(0.065,0.18,z)*(1.0-smoothstep(0.84,0.99,z));
   float eyeClear=smoothstep(safeEye*0.98,safeEye*1.28,rho),outerFade=1.0-smoothstep(0.82,0.995,rho);
   float phase=atan(p.y,p.x)-log(max(rho,safeEye*1.32))*1.82-time*0.22,spiralSignal=0.5+0.5*cos(phase*5.0+(broad-0.5)*1.7+(fine-0.5)*0.9);
   float spiralBands=smoothstep(0.26,0.72,spiralSignal),cloudTexture=smoothstep(0.24,0.48,broad*0.54+fine*0.30+micro*0.16);
