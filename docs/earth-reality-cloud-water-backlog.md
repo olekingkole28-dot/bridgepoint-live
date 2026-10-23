@@ -2,9 +2,16 @@
 
 **Status: OPEN / NOT COMPLETE.** This is a durable owner-requested implementation ledger. Keep it current across coding sessions. Do not mark an item complete because a button, prototype, synthetic shape, or passing source-code check exists; require working data, visual inspection, and production verification.
 
-### Water engine v6110 implementation pass (visual verification pending)
+### Water engine v6111 implementation pass (visual verification pending)
 
-The renderer now uses viewport-filtered source geometry, allows real water polygons to render while optional land-mask tiles are delayed, estimates one level surface per inland polygon when explicit compatible water-level observations are absent, limits gauge influence to nearby water, renders only source-reported flood-depth polygons as a distinct inundation material, and uses zoom-adaptive world-anchored wave shading within a bounded vertex budget. These are implementation changes, not a declaration that global/coastal/street-level water is complete. Bathymetry, authoritative currents, tide/stage fields and flood products remain source-dependent; keep the ledger open until visual and runtime verification succeeds.
+The renderer now uses viewport-filtered source geometry, allows real water polygons to render while optional land-mask tiles are delayed, estimates one level surface per inland polygon when explicit compatible water-level observations are absent, limits gauge influence to nearby water, renders only source-reported flood-depth polygons as a distinct inundation material, and uses zoom-adaptive world-anchored wave shading within a bounded vertex budget. The v6111 pass adds physical elevation bounds, rejects implausible vertical jumps in additive river ribbons, corrects isolated mesh-corner outliers, restricts marine surfaces to near-mean-sea-level elevations, and strengthens the ocean shimmer at globe scale. These are defensive rendering controls—not a declaration that global/coastal/street-level water is complete. Bathymetry, authoritative currents, tide/stage fields and flood products remain source-dependent; keep the ledger open until visual and runtime verification succeeds.
+
+### v6111 visual hardening (production visual acceptance still open)
+
+- Terrain samples outside -500 m to 8,900 m are rejected instead of clamped into apparent real terrain. One large endpoint jump cannot produce a sky-reaching additive waterway ribbon, and isolated water-mesh corner outliers are replaced by the local four-corner median.
+- Marine surface vertices accept only near-mean-sea-level offsets. Inland absolute water elevations are bounded separately and only consumed close to their source; ambiguous sea-surface offsets cannot lift an ocean patch into the sky.
+- Global ocean shimmer has a more visible baseline while remaining translucent. The underlying native basemap and native waterways are not removed when a custom segment fails a geometry sanity check.
+- Runtime diagnostics report rejected terrain/water-level samples, corrected surface outliers, and skipped implausible ribbon segments. The renderer still requires visual testing at global, coastal, lake, river and oblique street zoom; source-backed bathymetry, tides/currents, and actual inundation observations remain separate unfinished work.
 
 ## Working hypothesis: underwater zoom-through and shoreline problems
 

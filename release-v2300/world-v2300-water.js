@@ -1,10 +1,14 @@
-// BridgePoint Water & Hydrology GPU surface v6110.
+// BridgePoint Water & Hydrology GPU surface v6111.
 // Additive MapLibre custom layer: one shared map canvas/context, bounded source geometry,
 // GPU wave displacement, source-gated flood elevations, and view-aware mesh LOD.
-const VERSION = 6110;
-const LAYER_ID = 'bp-water-surface-gpu-v6110';
+const VERSION = 6111;
+const LAYER_ID = 'bp-water-surface-gpu-v6111';
 const EARTH_CIRCUMFERENCE_M = 40075016.68557849;
 const RAD = Math.PI / 180;
+const MIN_VALID_TERRAIN_ELEVATION_M = -500;
+const MAX_VALID_TERRAIN_ELEVATION_M = 8900;
+const MAX_VALID_INLAND_WATER_ELEVATION_M = 6000;
+const MAX_VALID_MARINE_SURFACE_OFFSET_M = 15;
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const finite = v => Number.isFinite(Number(v));
 const text = v => String(v == null ? '' : v).toLowerCase();
@@ -128,19 +132,40 @@ function absoluteWaterLevelAt(scene, lng, lat) {
   for (const row of scene.water_levels || []) {
     if (!row || typeof row !== 'object') continue;
     const p = row.properties && typeof row.properties === 'object' ? row.properties : row;
-    // Only use fields that explicitly claim a surface elevation. "water_level_m"
-    // alone can be a gauge stage with an unknown datum and must not be treated as elevation.
-    const h = Number(p.water_surface_elevation_m ?? p.surface_elevation_msl ?? p.sea_surface_height_m);
+    // Keep absolute inland elevations distinct from sea-surface offsets. A corrupt or
+    // mismatched vertical datum must never become a kilometre-scale water surface.
+    let h = null, isSeaSurfaceOffset = false;
+    if (p.water_surface_elevation_m != null) h = Number(p.water_surface_elevation_m);
+    else if (p.surface_elevation_msl != null) h = Number(p.surface_elevation_msl);
+    else if (p.sea_surface_height_m != null) {
+      h = Number(p.sea_surface_height_m);
+      isSeaSurfaceOffset = true;
+    } else continue;
+    const maxAllowed = isSeaSurfaceOffset ? MAX_VALID_MARINE_SURFACE_OFFSET_M : MAX_VALID_INLAND_WATER_ELEVATION_M;
+    if (!Number.isFinite(h) || h < (isSeaSurfaceOffset ? -MAX_VALID_MARINE_SURFACE_OFFSET_M : MIN_VALID_TERRAIN_ELEVATION_M) ||
+        h > maxAllowed) {
+      apiWaterLevelReject(scene);
+      continue;
+    }
     const x = Number(row.lng ?? row.longitude ?? p.lng ?? p.longitude);
     const y = Number(row.lat ?? row.latitude ?? p.lat ?? p.latitude);
-    if (!Number.isFinite(h) || !Number.isFinite(x) || !Number.isFinite(y) || h < -15 || h > 9000) continue;
+    if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
     const dx = wrapLon(x - lng) * Math.cos(lat * RAD);
     const dy = y - lat;
     const d = Math.hypot(dx, dy);
     if (d < bestD) { bestD = d; best = h; }
   }
-  return bestD <= 0.06 ? best : null;
+  // A gauge several kilometres away may belong to another river, lake or elevation
+  // regime. Prefer a conservative default over projecting that level across land.
+  return bestD <= 0.03 ? best : null;
 }
+function apiWaterLevelReject(scene) {
+  // Keep a lightweight per-build diagnostic without changing the source weather object.
+  if (window.__BP_WATER_ENGINE_V6111__ && Number.isFinite(window.__BP_WATER_ENGINE_V6111__.rejectedWaterLevelSamples)) {
+    window.__BP_WATER_ENGINE_V6111__.rejectedWaterLevelSamples++;
+  }
+}
+
 function coordsOfPoint(row) {
   const p = row && (row.properties || row);
   const g = geometryOf(row);
@@ -320,7 +345,7 @@ function buildShaders(gl, shaderDescription) {
     '    float shimmer = glint * 0.65 + foam * 0.13 + v_storm * 0.22;',
     '    vec3 color = mix(deep, mid, 0.28 + shimmer);',
     '    color = mix(color, crest, shimmer * 0.34);',
-    '    fragColor = vec4(color, clamp(0.095 + shimmer * 0.115, 0.09, 0.26));',
+    '    fragColor = vec4(color, clamp(0.15 + shimmer * 0.13, 0.15, 0.32));',
     '    return;',
     '  }',
     '  float sheen = clamp(glint * 0.36 + foam * 0.6 + v_storm * 0.12, 0.0, 0.72);',
@@ -561,7 +586,7 @@ function currentScene() {
 export function initWaterEngine(mapOrWorld, options = {}) {
   const map = mapOrWorld && mapOrWorld.map ? mapOrWorld.map : mapOrWorld;
   if (!map || typeof map.addLayer !== 'function' || typeof map.querySourceFeatures !== 'function') return null;
-  if (window.__BP_WATER_ENGINE_V6110__ && window.__BP_WATER_ENGINE_V6110__.map === map) return window.__BP_WATER_ENGINE_V6110__;
+  if (window.__BP_WATER_ENGINE_V6111__ && window.__BP_WATER_ENGINE_V6111__.map === map) return window.__BP_WATER_ENGINE_V6111__;
   const mobile = window.innerWidth <= 900 || /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
   const low = Number(navigator.deviceMemory || 4) <= 3 || Number(navigator.hardwareConcurrency || 4) <= 4;
   const api = {
@@ -570,8 +595,10 @@ export function initWaterEngine(mapOrWorld, options = {}) {
     waterPolygonCells: 0, oceanFallbackCells: 0, flowSegments: 0, surfaceVertexCount: 0, flowVertexCount: 0,
     geometryBuilds: 0, sourceWaterFeatures: 0, sourceLandFeatures: 0, sourceWaterwayFeatures: 0,
     sourceFloodPolygonCount: 0, sourceWaterLevelCount: 0, absoluteWaterLevelCount: 0,
-    sourceStormCount: 0, floodedLandCells: 0,
-    terrainSamples: 0, terrainMissing: 0, stormCount: 0, stormSurgeIsModelled: true,
+    sourceStormCount: 0, floodedLandCells: 0, rejectedWaterLevelSamples: 0,
+    terrainSamples: 0, terrainMissing: 0, terrainRejectedSamples: 0,
+    surfaceHeightOutliersCorrected: 0, flowSegmentsRejectedElevationJump: 0,
+    stormCount: 0, stormSurgeIsModelled: true,
     floodHeightPolicy: 'only explicit source-reported depth_m/flood_depth_m/water_depth_m/inundation_depth_m; no fabricated land inundation',
     gaugeHeightPolicy: 'only explicit water_surface_elevation_m / surface_elevation_msl / sea_surface_height_m fields; ambiguous water_level_m is not absolute elevation',
     stormWavePolicy: 'source cyclone centers drive a local visual wave/surge approximation, not an observed storm-surge forecast',
@@ -621,7 +648,7 @@ export function initWaterEngine(mapOrWorld, options = {}) {
       try { if (map.getLayer(LAYER_ID)) map.removeLayer(LAYER_ID); } catch (_) {}
       for (const spec of SOURCE_ANCHORS) { try { if (map.getLayer(spec.id)) map.removeLayer(spec.id); } catch (_) {} }
       try { window.removeEventListener('bp2300:weather-updated', onWeatherUpdated); } catch (_) {}
-      if (window.__BP_WATER_ENGINE_V6110__ === this) window.__BP_WATER_ENGINE_V6110__ = null;
+      if (window.__BP_WATER_ENGINE_V6111__ === this) window.__BP_WATER_ENGINE_V6111__ = null;
     },
     get buffers() {
       return layer ? { surface: layer.buffer, flow: layer.flowBuffer, strideFloats: 7, strideBytes: 28, vertexCount: layer.surfaceVertexCount + layer.flowVertexCount } : null;
@@ -644,8 +671,10 @@ export function initWaterEngine(mapOrWorld, options = {}) {
         gpuBufferBytes: this.surfaceDataBytes + this.flowDataBytes, geometryBuilds: this.geometryBuilds,
         stormCentersUsed: this.stormCount, sourceStormCount: this.sourceStormCount,
         sourceFloodPolygonCount: this.sourceFloodPolygonCount, floodedLandCells: this.floodedLandCells,
+        rejectedWaterLevelSamples: this.rejectedWaterLevelSamples, surfaceHeightOutliersCorrected: this.surfaceHeightOutliersCorrected,
         sourceWaterLevelCount: this.sourceWaterLevelCount, absoluteWaterLevelCount: this.absoluteWaterLevelCount,
-        terrainSamples: this.terrainSamples, terrainMissing: this.terrainMissing, zoom: +map.getZoom().toFixed(2),
+        terrainSamples: this.terrainSamples, terrainMissing: this.terrainMissing, terrainRejectedSamples: this.terrainRejectedSamples,
+        flowSegmentsRejectedElevationJump: this.flowSegmentsRejectedElevationJump, zoom: +map.getZoom().toFixed(2),
         tier: this.low ? 'LOW' : this.mobile ? 'MOBILE' : 'DESKTOP',
         stormSurgeIsModelled: this.stormSurgeIsModelled, floodHeightPolicy: this.floodHeightPolicy,
         gaugeHeightPolicy: this.gaugeHeightPolicy, stormWavePolicy: this.stormWavePolicy,
@@ -656,19 +685,27 @@ export function initWaterEngine(mapOrWorld, options = {}) {
   let buildTimer = 0, moving = false, layer = null, destroyed = false;
 
   function terrainHeight(lng, lat, cache, key) {
-    if (cache && cache.has(key)) return cache.get(key);
-    let value = 0;
-    if (map.getZoom() >= 5 && typeof map.queryTerrainElevation === 'function') {
-      try {
-        const h = map.queryTerrainElevation([lng, lat], { exaggerated: false });
-        if (Number.isFinite(h)) { value = clamp(h, -12000, 9000); api.terrainSamples++; }
-        else api.terrainMissing++;
-      } catch (_) { api.terrainMissing++; }
-    }
-    if (cache) cache.set(key, value);
-    return value;
+  if (cache && cache.has(key)) return cache.get(key);
+  let value = 0;
+  if (map.getZoom() >= 5 && typeof map.queryTerrainElevation === 'function') {
+    try {
+      const h = map.queryTerrainElevation([lng, lat], { exaggerated: false });
+      // Do not clamp corrupt DEM sentinels (for example 32767) into valid 9 km terrain.
+      // Missing/out-of-range samples fall back safely; the native basemap remains visible.
+      if (Number.isFinite(h) && h >= MIN_VALID_TERRAIN_ELEVATION_M && h <= MAX_VALID_TERRAIN_ELEVATION_M) {
+        value = h;
+        api.terrainSamples++;
+      } else {
+        api.terrainMissing++;
+        if (Number.isFinite(h)) api.terrainRejectedSamples++;
+      }
+    } catch (_) { api.terrainMissing++; }
   }
-  function sceneLevelAt(scene, lng, lat) { return absoluteWaterLevelAt(scene, lng, lat); }
+  if (cache) cache.set(key, value);
+  return value;
+}
+
+function sceneLevelAt(scene, lng, lat) { return absoluteWaterLevelAt(scene, lng, lat); }
   function estimatedInlandSurface(feature, scene, terrainCache, cellKey, lng, lat) {
     const explicit = sceneLevelAt(scene, lng, lat);
     if (explicit !== null) return explicit;
@@ -689,8 +726,12 @@ export function initWaterEngine(mapOrWorld, options = {}) {
         if (!point || !finite(point[0]) || !finite(point[1])) continue;
         try {
           const h = map.queryTerrainElevation([wrapLon(point[0]), clamp(Number(point[1]), -85, 85)], { exaggerated: false });
-          if (Number.isFinite(h) && h >= -500 && h <= 9000) { samples.push(h); api.terrainSamples++; }
-          else api.terrainMissing++;
+          if (Number.isFinite(h) && h >= MIN_VALID_TERRAIN_ELEVATION_M && h <= MAX_VALID_TERRAIN_ELEVATION_M) {
+            samples.push(h); api.terrainSamples++;
+          } else {
+            api.terrainMissing++;
+            if (Number.isFinite(h)) api.terrainRejectedSamples++;
+          }
         } catch (_) { api.terrainMissing++; }
       }
       if (sampled >= 8) break;
@@ -786,6 +827,10 @@ export function initWaterEngine(mapOrWorld, options = {}) {
           const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy);
           if (len < 1e-10) continue;
           const cosLat = Math.max(0.12, Math.cos(((latA + latB) * 0.5) * RAD));
+          const segmentMeters = Math.hypot(
+            (lngB - lngA) * RAD * (EARTH_CIRCUMFERENCE_M / (2 * Math.PI)) * cosLat,
+            (latB - latA) * RAD * (EARTH_CIRCUMFERENCE_M / (2 * Math.PI))
+          );
           const half = clamp(widthM, 1, 36) / (2 * EARTH_CIRCUMFERENCE_M * cosLat);
           const ox = -dy / len * half, oy = dx / len * half;
           const cx = (lngA + lngB) * 0.5, cy = (latA + latB) * 0.5;
@@ -793,6 +838,14 @@ export function initWaterEngine(mapOrWorld, options = {}) {
           const k2 = 'r' + Math.round(x2 * 10000000) + ':' + Math.round(y2 * 10000000);
           const h1 = terrainHeight(lngA, latA, terrainCache, k1);
           const h2 = terrainHeight(lngB, latB, terrainCache, k2);
+          // A single bad DEM vertex used to create a tall triangular blue wall. Skip only
+          // this additive ribbon segment when its rise is implausible for its geodesic length;
+          // native waterway/cartography is left untouched underneath it.
+          const maxRiseM = clamp(segmentMeters * 0.18, 25, 250);
+          if (Math.abs(h2 - h1) > maxRiseM) {
+            api.flowSegmentsRejectedElevationJump++;
+            continue;
+          }
           const flood = floodDepthAt(api._floodFeatures, cx, cy);
           const flowX = dx / len, flowY = dy / len;
           const p1 = [x1 + ox, y1 + oy, h1], p2 = [x1 - ox, y1 - oy, h1];
@@ -825,7 +878,9 @@ export function initWaterEngine(mapOrWorld, options = {}) {
   }
   function buildGeometry() {
     if (!api.enabled || !mapCanHostWater()) return;
-    api.terrainSamples = 0; api.terrainMissing = 0;
+    api.terrainSamples = 0; api.terrainMissing = 0; api.terrainRejectedSamples = 0;
+    api.rejectedWaterLevelSamples = 0; api.surfaceHeightOutliersCorrected = 0;
+    api.flowSegmentsRejectedElevationJump = 0;
     let b;
     try { b = map.getBounds(); } catch (_) { return; }
     let west = Number(b.getWest()), east = Number(b.getEast()), south = clamp(Number(b.getSouth()), -85, 85), north = clamp(Number(b.getNorth()), -85, 85);
@@ -905,8 +960,12 @@ export function initWaterEngine(mapOrWorld, options = {}) {
       let h = 0;
       const marine = kind === 0 || kind === 3 || (feature && marineFeature(feature));
       const sourceLevel = kind === 4 ? null : sceneLevelAt(sceneRef, lng, lat);
-      if (sourceLevel !== null) h = sourceLevel;
-      else if (marine) h = 0;
+      if (marine) {
+        // Ocean/sea mesh must remain near mean sea level; never inherit an inland gauge datum.
+        h = sourceLevel !== null && sourceLevel >= -MAX_VALID_MARINE_SURFACE_OFFSET_M &&
+          sourceLevel <= MAX_VALID_MARINE_SURFACE_OFFSET_M ? sourceLevel : 0;
+      } else if (sourceLevel !== null && sourceLevel >= MIN_VALID_TERRAIN_ELEVATION_M &&
+          sourceLevel <= MAX_VALID_INLAND_WATER_ELEVATION_M) h = sourceLevel;
       else if (kind === 1) h = estimatedInlandSurface(feature, sceneRef, terrainCache, key, lng, lat);
       else h = terrainHeight(lng, lat, terrainCache, 'e:' + key);
       terrainCache.set(key, h);
@@ -954,6 +1013,20 @@ export function initWaterEngine(mapOrWorld, options = {}) {
           const plon = wrapLon(pt[0] * 360 - 180), plat = unmercY(py);
           return heightAt(pt[2], pt[3], kind, waterFeature, plon, plat, scene);
         });
+        // Clamp only isolated corner outliers, never the whole water surface. This protects
+        // close-zoom flood/shore meshes against one anomalous DEM sample without smoothing
+        // ordinary terrain relief or changing underlying land geometry.
+        const sortedHeights = heights.slice().sort((a, b) => a - b);
+        const medianHeight = (sortedHeights[1] + sortedHeights[2]) * 0.5;
+        const cellSpanMeters = Math.max(dx, dy) * EARTH_CIRCUMFERENCE_M *
+          Math.max(0.12, Math.cos(lat * RAD));
+        const maxLocalReliefM = clamp(cellSpanMeters * 0.35, 60, 600);
+        for (let hi = 0; hi < heights.length; hi++) {
+          if (Math.abs(heights[hi] - medianHeight) > maxLocalReliefM) {
+            heights[hi] = medianHeight;
+            api.surfaceHeightOutliersCorrected++;
+          }
+        }
         const flowDir = api.wind.direction * RAD;
         const fx = Math.sin(flowDir), fy = -Math.cos(flowDir);
         // Each cell is two triangles. Center-point masking follows native water polygons;
@@ -982,7 +1055,7 @@ export function initWaterEngine(mapOrWorld, options = {}) {
     api.sourceWaterwayFeatures = flowFeatures.length;
     api.geometryBuilds++;
     api.lastSourceRefreshAt = Date.now();
-    window.__BP_WATER_FIELD_V6110__ = {
+    window.__BP_WATER_FIELD_V6111__ = {
       version: VERSION, map, buffers: api.buffers,
       get state() { return api.state; },
       get weatherScene() { return currentScene(); },
@@ -1038,8 +1111,8 @@ export function initWaterEngine(mapOrWorld, options = {}) {
   });
   scheduleBuild(250);
   for (const delay of [700, 1700, 3400]) window.setTimeout(() => { ensureInstalled(); scheduleBuild(0); }, delay);
-  window.__BP_WATER_ENGINE_V6110__ = api;
-  window.__BP_WATER_FIELD_V6110__ = {
+  window.__BP_WATER_ENGINE_V6111__ = api;
+  window.__BP_WATER_FIELD_V6111__ = {
     version: VERSION, map, get buffers() { return api.buffers; },
     get state() { return api.state; },
     get weatherScene() { return currentScene(); },
