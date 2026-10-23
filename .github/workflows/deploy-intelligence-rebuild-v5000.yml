@@ -250,8 +250,9 @@ jobs:
           cp release-v2300/world-v2300-infrastructure-volume-v5962.js site/world-v2300-infrastructure-volume-v5962.js
           cp release-v2300/world-v2300-sensor-layers.js site/world-v2300-sensor-layers.js
           sed -i 's#world-v2300-sensor-layers.js?v=6015-nasa-light-toggle#world-v2300-sensor-layers.js?v=6027-nasa-nightlight-corrected-radiance#g' site/app.js site/landing.js
-          sed -i 's#world-v2300-clouds.js?v=6075-global-coverage-fill#world-v2300-clouds.js?v=6088-fuller-local-tornado#g' site/app.js site/landing.js
-          sed -i 's#world-v2300-clouds.js?v=6076-rounded-cloud-banks#world-v2300-clouds.js?v=6088-fuller-local-tornado#g' site/app.js site/landing.js
+          sed -i 's#world-v2300-clouds.js?v=6075-global-coverage-fill#world-v2300-clouds.js?v=6090-physical-storm-motion#g' site/app.js site/landing.js
+          sed -i 's#world-v2300-clouds.js?v=6076-rounded-cloud-banks#world-v2300-clouds.js?v=6090-physical-storm-motion#g' site/app.js site/landing.js
+          sed -i 's#world-v2300-weather.js?v=6070-clouds-only-phase#world-v2300-weather.js?v=6090-five-minute-source-track-refresh#g' site/app.js site/landing.js site/index.html site/app/index.html
           sed -i 's#world-v2300-time-slider.js?v=6076-rounded-cloud-banks#world-v2300-time-slider.js?v=6077-sky-restore-safe-pitch#g' site/app.js site/landing.js
           sed -i 's#world-v2300-time-slider.js?v=6077-cloud-base-restore#world-v2300-time-slider.js?v=6077-sky-restore-safe-pitch#g' site/app.js site/landing.js
           sed -i 's#app.js?v=6077-cloud-base-restore#app.js?v=6077-sky-restore-safe-pitch#g' site/app/index.html
@@ -278,6 +279,7 @@ jobs:
           cp release-v2300/gis-core-orchestrator-v5910.js site/app/gis-core-orchestrator-v5910.js
           cp release-v2300/world-v2300-inspector.js site/app/world-v2300-inspector.js
           cp release-v2300/world-v2300-bootstrap.js site/app/world-v2300-bootstrap.js
+          sed -i 's#world-v2300-weather.js?v=6070-clouds-only-phase#world-v2300-weather.js?v=6090-five-minute-source-track-refresh#g' site/app/world-v2300-bootstrap.js
           cp release-v2300/world-v2300.css site/app/world-v2300.css
 
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.js -o site/vendor/maplibre-gl.js
@@ -452,9 +454,9 @@ jobs:
           node --input-type=module --check < site/world-v2300-realism.js
           node --input-type=module --check < site/gis-core-orchestrator-v5910.js
           grep -Fq 'Real satellite bands. No AI-drawn pixels.' site/world-v2300-spectral-imagery.js
-          grep -Fq 'world-v2300-clouds.js?v=6088-fuller-local-tornado' site/app.js
-          grep -Fq 'world-v2300-clouds.js?v=6088-fuller-local-tornado' site/landing.js
-          grep -Fq 'world-v2300-weather.js?v=6070-clouds-only-phase' site/app.js
+          grep -Fq 'world-v2300-clouds.js?v=6090-physical-storm-motion' site/app.js
+          grep -Fq 'world-v2300-clouds.js?v=6090-physical-storm-motion' site/landing.js
+          grep -Fq 'world-v2300-weather.js?v=6090-five-minute-source-track-refresh' site/app.js
           grep -Fq 'world-v2300-rain.js?v=6070-clouds-only-phase' site/world-v2300-weather.js
           grep -Fq 'retireLegacyScreenSpaceRain' site/world-v2300-weather.js
           grep -Fq '__BP_SCREEN_SPACE_RAIN_RETIRE_V6063__' site/world-v2300-weather.js
@@ -495,7 +497,7 @@ jobs:
           grep -Fq 'baseAglM: clamp(safeNum(o.cloud_base_height_m ?? o.cloudBaseHeightM, thunder ? 450 : 350), 180, 4200)' site/world-v2300-rain.js
           grep -Fq "if(pr==='rain')return;" site/world-v2300-weather.js
           grep -Fq "'rain-cell'" site/world-v2300-clouds.js
-          grep -Fq 'world-v2300-weather.js?v=6070-clouds-only-phase' site/landing.js
+          grep -Fq 'world-v2300-weather.js?v=6090-five-minute-source-track-refresh' site/landing.js
           grep -Fq 'bindWeatherVertexArray(gl,weatherVao,weatherVaoMode,weatherVaoExt)' site/world-v2300-weather.js
           grep -Fq 'isolatedVao' site/world-v2300-weather.js
           grep -Fq 'window.__BP_WEATHER_GL_HEALTH_V6057__' site/world-v2300-weather.js
@@ -505,9 +507,9 @@ jobs:
           grep -Fq 'hideLegacyNativeWeatherLayers(map)' site/world-v2300-weather.js
           grep -Fq "renderer:'v2300-cinematic-fx'" site/app.js
           grep -Fq "renderer:'isolated-webgl-particle-layer'" site/landing.js
-          grep -Fq 'world-v2300-weather.js?v=6070-clouds-only-phase' site/index.html
-          grep -Fq 'world-v2300-weather.js?v=6070-clouds-only-phase' site/app/index.html
-          grep -Fq 'world-v2300-weather.js?v=6070-clouds-only-phase' site/app/world-v2300-bootstrap.js
+          grep -Fq 'world-v2300-weather.js?v=6090-five-minute-source-track-refresh' site/index.html
+          grep -Fq 'world-v2300-weather.js?v=6090-five-minute-source-track-refresh' site/app/index.html
+          grep -Fq 'world-v2300-weather.js?v=6090-five-minute-source-track-refresh' site/app/world-v2300-bootstrap.js
           grep -Fq 'world-v2300-time-slider.js?v=6077-sky-restore-safe-pitch' site/app.js
           grep -Fq 'world-v2300-time-slider.js?v=6077-sky-restore-safe-pitch' site/landing.js
           grep -Fq 'world-v2300-spectral-imagery.js?v=5934-world-controls' site/app.js
@@ -531,32 +533,32 @@ jobs:
           grep -Fq 'bridgepoint-gebco-depth-image-v5937' site/world-v2300-sensor-layers.js
           grep -Fq 'bridgepoint-nasa-nightlights-v5937' site/world-v2300-sensor-layers.js
           grep -Fq "kind: 'georeferenced 3D cloud-volume layer'" site/world-v2300-clouds.js
-          grep -Fq 'version: 6082, map, overlay' site/world-v2300-clouds.js
+          grep -Fq 'version: 6090, map, overlay' site/world-v2300-clouds.js
           grep -Fq 'const billow = 1.0 +' site/world-v2300-clouds.js
           grep -Fq 'activeMacroCells' site/world-v2300-clouds.js
           grep -Fq 'MOBILE?8:9,3,hash(q.gx,q.gy,i+973)' site/world-v2300-clouds.js
-          grep -Fq 'Height/latitude-aware modelled atmospheric flow and hemisphere-aware cyclone circulation; no source-backed global upper-air wind grid is connected' site/world-v2300-clouds.js
-          grep -Fq 'coverageVersion: 6082' site/world-v2300-clouds.js
+          grep -Fq 'Height/latitude-aware modelled atmospheric flow; no source-backed global upper-air wind grid is connected' site/world-v2300-clouds.js
+          grep -Fq 'coverageVersion: 6090' site/world-v2300-clouds.js
           grep -Fq 'function makeTornadoSurfaceCone' site/world-v2300-clouds.js
-          grep -Fq 'hurricaneSurfaceCloudVertices+=vertices.length/10-before' site/world-v2300-clouds.js
+          grep -Fq 'hurricaneSurfaceCloudVertices+=vertices.length/13-before' site/world-v2300-clouds.js
           grep -Fq 'tornadoSurfaceMeshVertices+=surfaceAdded' site/world-v2300-clouds.js
           grep -Fq 'if(v_tint>1.438&&v_tint<1.47)' site/world-v2300-clouds.js
           grep -Fq 'surfaceTopRadiusM,1.445' site/world-v2300-clouds.js
-          grep -Fq 'surfaceTopRadiusM=1400+Math.max(0,visualRadiusM*0.70-1400)*visualBoost' site/world-v2300-clouds.js
+          grep -Fq 'surfaceTopRadiusM=clamp(f.radiusM*0.14,350,1800)' site/world-v2300-clouds.js
           grep -Fq 'const funnelCloudSteps=MOBILE?12:16' site/world-v2300-clouds.js
           grep -Fq 'tornadoVisualTopRadiusKm=Math.max(tornadoVisualTopRadiusKm,surfaceTopRadiusM/1000)' site/world-v2300-clouds.js
           grep -Fq 'tornadoSurfaceVerticesSubmitted = tornadoSurfaceVertexRanges.reduce' site/world-v2300-clouds.js
           grep -Fq 'function makeCycloneRibbon' site/world-v2300-clouds.js
           grep -Fq 'hurricaneSurfaceCloudVertices+=makeCycloneRibbon' site/world-v2300-clouds.js
-          grep -Fq 'const physicalSurfaceHeightM=clamp(physicalHeightM,2500,4500)' site/world-v2300-clouds.js
-          grep -Fq 'physicalSurfaceHeightM+Math.max(0,500000-physicalSurfaceHeightM)*visualBoost' site/world-v2300-clouds.js
-          grep -Fq 'visualShieldRadiusM = shieldRadiusM + Math.max(0,4000000-shieldRadiusM)*overviewBoost' site/world-v2300-clouds.js
-          grep -Fq 'visualEyeRadiusM = Math.max(eyeRadiusM,visualShieldRadiusM*0.090)' site/world-v2300-clouds.js
+          grep -Fq 'const surfaceHeightM=physicalHeightM' site/world-v2300-clouds.js
+          grep -Fq 'const surfaceHeightM=physicalHeightM;' site/world-v2300-clouds.js
+          grep -Fq 'const visualShieldRadiusM = shieldRadiusM;' site/world-v2300-clouds.js
+          grep -Fq 'const visualEyeRadiusM = eyeRadiusM;' site/world-v2300-clouds.js
           grep -Fq 'float height=funnel?clamp((tint-1.474)*100000000.0,4500.0,500000.0):16000.0' site/world-v2300-clouds.js
-          grep -Fq 'float radius=funnel?mix(18000.0,400000.0,funnelLod)' site/world-v2300-clouds.js
-          grep -Fq 'const visualHeightM=physicalHeightM + Math.max(0,500000-physicalHeightM)*visualBoost;' site/world-v2300-clouds.js
+          grep -Fq 'float shieldUnits=floor(packedStorm/0.0001+0.5),radius=funnel?mix(18000.0,400000.0,funnelLod):max(10000.0,shieldUnits*10000.0)' site/world-v2300-clouds.js
+          grep -Fq 'const visualHeightM=physicalHeightM;' site/world-v2300-clouds.js
           grep -Fq 'tornadoVisualHeightKm=Math.max(tornadoVisualHeightKm,surfaceHeightM/1000)' site/world-v2300-clouds.js
-          grep -Fq 'tornadoSurfaceMeshVertices+=vertices.length/10-before' site/world-v2300-clouds.js
+          grep -Fq 'tornadoSurfaceMeshVertices+=vertices.length/13-before' site/world-v2300-clouds.js
           grep -Fq 'if (field.score > 0.58) continue;' site/world-v2300-clouds.js
           grep -Fq 'const waveX = (gx + 0.5) / cols * TAU' site/world-v2300-clouds.js
           grep -Fq 'globalCloudPuffs' site/world-v2300-clouds.js
@@ -564,14 +566,14 @@ jobs:
           grep -Fq 'float spiralBands=smoothstep(0.26,0.72,spiralSignal)' site/world-v2300-clouds.js
           grep -Fq 'float eyeWall=exp(-pow((rho-eyeWallRadius)/eyeWallWidth,2.0))' site/world-v2300-clouds.js
           grep -Fq 'tornadoVolumeProxyVertices+=added' site/world-v2300-clouds.js
-          grep -Fq 'const visualHeightM=physicalHeightM + Math.max(0,500000-physicalHeightM)*visualBoost;' site/world-v2300-clouds.js
+          grep -Fq 'const visualHeightM=physicalHeightM;' site/world-v2300-clouds.js
           grep -Fq 'hurricaneCloudShieldRadiusKm' site/world-v2300-clouds.js
           grep -Fq 'if (field.score <= 0.58 || field.score > 0.90) continue;' site/world-v2300-clouds.js
           grep -Fq 'maxThin = MOBILE ? 750 : 850' site/world-v2300-clouds.js
           grep -Fq '190000, 580000' site/world-v2300-clouds.js
           grep -Fq 'maxMacro = MOBILE ? 110 : 130' site/world-v2300-clouds.js
           grep -Fq 'globalThinLayerFormations: globalCloudGeometryCache?.thinLayerFormationCount || 0' site/world-v2300-clouds.js
-          grep -Fq 'if (Number(existingCloudController.version) >= 6079' site/world-v2300-clouds.js
+          grep -Fq 'if (Number(existingCloudController.version) >= 6090' site/world-v2300-clouds.js
           grep -Fq 'const columns = 40, rows = 18, maxMacro = MOBILE ? 110 : 130;' site/world-v2300-clouds.js
           grep -Fq '400000, 900000' site/world-v2300-clouds.js
           grep -Fq 'vertical,0.26+hash(q.gx,q.gy,987)*0.40,8,2,hash(q.gx,q.gy,988));' site/world-v2300-clouds.js
@@ -580,8 +582,8 @@ jobs:
           grep -Fq 'function terrainElevationAt(lng, lat)' site/world-v2300-clouds.js
           grep -Fq 'sub-sea-level samples use mean-sea-level 0 m fallback' site/world-v2300-clouds.js
           grep -Fq 'const altitude = ground + baseAgl + range * 0.5;' site/world-v2300-clouds.js
-          grep -Fq "const vertical = f.kind === 'funnel' ? Math.max(globeScale ? 18000 : 3200, cloudRange * (globeScale ? 0.10 : 0.48))" site/world-v2300-clouds.js
-          grep -Fq "const parentScale = f.kind === 'funnel' ? (globeScale ? 0.92 : 0.60) : 1;" site/world-v2300-clouds.js
+          grep -Fq "const vertical = f.kind === 'funnel' ? Math.max(3200, cloudRange * 0.48)" site/world-v2300-clouds.js
+          grep -Fq 'const parentScale = 1;' site/world-v2300-clouds.js
           grep -Fq 'const smallColumns = 140, smallRows = 62, maxSingles = MOBILE ? 700 : 760;' site/world-v2300-clouds.js
           grep -Fq 'isolatedFormationCount: singles.length' site/world-v2300-clouds.js
           grep -Fq 'underside*0.48' site/world-v2300-clouds.js
@@ -596,7 +598,7 @@ jobs:
           grep -Fq 'collectHeightResolvedWindSamples' site/world-v2300-clouds.js
           grep -Fq 'hurricaneEyeWallCloudCenters' site/world-v2300-clouds.js
           grep -Fq 'globalHeightResolvedWindPuffs' site/world-v2300-clouds.js
-          grep -Fq 'const stride = 10 * Float32Array.BYTES_PER_ELEMENT;' site/world-v2300-clouds.js
+          grep -Fq 'const stride = 13 * Float32Array.BYTES_PER_ELEMENT;' site/world-v2300-clouds.js
           grep -Fq 'async function toggleNasaNightlights()' site/world-v2300-time-slider.js
           grep -Fq 'async function toggleSkyClouds()' site/world-v2300-time-slider.js
           grep -Fq 'data-skyview' site/world-v2300-time-slider.js
