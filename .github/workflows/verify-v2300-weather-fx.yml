@@ -84,7 +84,7 @@ jobs:
             import {initWorld} from './world-v2300-map.js';
             import {initWeather} from './world-v2300-weather.js';
             import {initSkyClouds} from './world-v2300-clouds.js';
-            const world=initWorld();window.__bpWorldV2300=world;
+            window.__BP_TEST_DISABLE_ARCHIVED_JOSEPHINE_FALLBACK__=true;const world=initWorld();window.__bpWorldV2300=world;
             // Production-map integration is verified by V5000. This weather gate removes
             // third-party tile latency while retaining the production MapLibre canvas/context.
             world.map.setStyle({version:8,sources:{},layers:[{id:'gate-bg',type:'background',paint:{'background-color':'#071017'}}]});
@@ -315,8 +315,10 @@ jobs:
                   modeledHurricaneVisualCount:s.modeledHurricaneVisualCount,modeledTornadoVisualCount:s.modeledTornadoVisualCount,
                   hurricaneSpiralRibbonVertices:s.hurricaneSpiralRibbonVertices,hurricaneVolumeProxyVertices:s.hurricaneVolumeProxyVertices,tornadoVolumeProxyVertices:s.tornadoVolumeProxyVertices,hurricaneSurfaceCloudVertices:s.hurricaneSurfaceCloudVertices,tornadoSurfaceMeshVertices:s.tornadoSurfaceMeshVertices,tornadoSurfaceVerticesSubmitted:s.tornadoSurfaceVerticesSubmitted,hurricaneEyeWallCloudCenters:s.hurricaneEyeWallCloudCenters,hurricaneSpiralCloudCenters:s.hurricaneSpiralCloudCenters,
                   hurricaneEyeRadiusSource:s.hurricaneEyeRadiusSource,warningFunnels:s.warningFunnels,tornadoVisualHeightKm:s.tornadoVisualHeightKm,
-                  stormVisualProvenance:s.stormVisualProvenance,canvases:document.querySelectorAll('canvas').length,
-                  actualStorms:actualStorms.map(st=>({id:st.id,name:st.name,type:st.type,classification:st.classification,lat:st.lat,lng:st.lng,wind_mph:st.wind_mph,updated_at:st.updated_at,source:st.source}))};
+                  postTropicalStormCount:s.postTropicalStormCount,postTropicalSurfaceCloudVertices:s.postTropicalSurfaceCloudVertices,
+                  stormTrackFeatureCount:window.__BP_PUBLIC_CYCLONE_CENTER_FALLBACK__?.stormTrackFeatureCount,trackLayerPresent:window.__BP_PUBLIC_CYCLONE_CENTER_FALLBACK__?.trackLayerPresent,
+                  josephine:window.__BP_PUBLIC_CYCLONE_CENTER_FALLBACK__?.josephine,stormVisualProvenance:s.stormVisualProvenance,canvases:document.querySelectorAll('canvas').length,
+                  actualStorms:actualStorms.map(st=>({id:st.id,name:st.name,type:st.type,classification:st.classification,lat:st.lat,lng:st.lng,wind_mph:st.wind_mph,updated_at:st.updated_at,source:st.source,officialForecast:st.is_official_forecast===true,centerSource:st.center_source,forecastValidAt:st.forecast_valid_at}))};
               });
               console.log('BRIDGEPOINT_LIVE_SITE_STORM_GLOBAL_DIAG',JSON.stringify(liveGlobal));
               await livePage.screenshot({path:'/tmp/bp2300wx/world-anchored-rain-production-global.png',fullPage:false});
@@ -325,8 +327,8 @@ jobs:
               assert.equal(liveGlobal.layerInstalled,true,'public cloud layer must be installed');
               assert.equal(liveGlobal.modeledHurricaneVisualCount,0,'production must not inject a synthetic hurricane');assert.equal(liveGlobal.modeledTornadoVisualCount,0,'production must not inject a synthetic tornado');
               if(liveGlobal.actualStorms.length)assert(liveGlobal.actualStorms.some(st=>st.source==='NOAA/NHC'||st.source==='GDACS'),'any production storm row must be source-attributed to NOAA/NHC or GDACS');
-              const hasLiveCyclone=liveGlobal.actualStorms.some(st=>/hurricane|typhoon|tropical|cyclone/i.test([st.name,st.type,st.classification].join(' ')));if(hasLiveCyclone)assert(liveGlobal.hurricaneEyeWallCloudCenters>0&&liveGlobal.hurricaneSpiralCloudCenters>0,'source-backed cyclone must generate eye/spiral geometry');else assert.equal(liveGlobal.hurricaneEyeWallCloudCenters,0,'no cyclone source point means no synthetic hurricane geometry');
-              if(hasLiveCyclone)assert(liveGlobal.hurricaneSurfaceCloudVertices>0,'source-backed cyclone must draw actual eyewall/spiral cloud cells');
+              const cycloneLabels=liveGlobal.actualStorms.map(st=>[st.name,st.type,st.classification].join(' ')).join(' ');const hasLiveCyclone=/hurricane|typhoon|tropical|cyclone/i.test(cycloneLabels);const hasTropicalCyclone=liveGlobal.actualStorms.some(st=>/hurricane|typhoon|tropical storm|tropical cyclone|tropical depression/i.test([st.name,st.type,st.classification].join(' '))&&!/post[- ]?tropical|extra[- ]?tropical/i.test([st.name,st.type,st.classification].join(' ')));const hasPostTropical=liveGlobal.actualStorms.some(st=>/post[- ]?tropical|extra[- ]?tropical/i.test([st.name,st.type,st.classification].join(' ')));if(hasTropicalCyclone)assert(liveGlobal.hurricaneEyeWallCloudCenters>0&&liveGlobal.hurricaneSpiralCloudCenters>0,'source-backed tropical cyclone must generate eye/spiral geometry');else assert.equal(liveGlobal.hurricaneEyeWallCloudCenters,0,'post-tropical cyclones must not be given a fabricated tropical eye');
+              if(hasTropicalCyclone)assert(liveGlobal.hurricaneSurfaceCloudVertices>0,'source-backed tropical cyclone must draw actual eyewall/spiral cloud cells');if(hasPostTropical)assert(liveGlobal.postTropicalStormCount>0&&liveGlobal.postTropicalSurfaceCloudVertices>0,'source-backed post-tropical cyclone must draw the asymmetric rotating cloud shield');
               if(liveGlobal.warningFunnels>0)assert(liveGlobal.tornadoSurfaceMeshVertices>0,'source-point tornado data must draw an actual cone mesh');
               if(liveGlobal.warningFunnels>0)assert(liveGlobal.tornadoSurfaceVerticesSubmitted>200,'source-point tornado cone vertices must reach the renderer');
               if(liveGlobal.warningFunnels===0)assert.equal(liveGlobal.tornadoSurfaceMeshVertices,0,'warning polygons alone must not spawn a fabricated tornado cone');
@@ -355,10 +357,28 @@ jobs:
               assert(liveClose.tornadoVisualHeightKm<16,'tornado height remains physical after zooming in');
               if(liveClose.warningFunnels>0)assert(liveClose.tornadoVisualTopRadiusKm<=1.8,'source-point tornado width remains physical after zooming in');
               assert.equal(liveClose.rendererError,null,'public close-up renderer must not report an error');
+              if(Date.now()<Date.parse('2026-10-25T18:00:00Z')){assert(liveGlobal.actualStorms.some(st=>/josephine/i.test(st.name||'')),'official NHC post-tropical Josephine forecast must be in the live scene before predicted dissipation');assert.equal(liveGlobal.trackLayerPresent,true,'global hurricane track overlay must be present');assert(Number(liveGlobal.stormTrackFeatureCount)>=2,'Josephine should contribute history and forecast track lines');assert(liveGlobal.postTropicalStormCount>0&&liveGlobal.postTropicalSurfaceCloudVertices>0,'Josephine forecast must create its asymmetric rotating 3D cyclone shield');}
               console.log('BRIDGEPOINT_LIVE_SITE_STORM_VISUAL_DIAGNOSTICS_PASS',JSON.stringify({global:liveGlobal,close:liveClose,pageErrors:livePageErrors.slice(0,8)}));
               assert.equal(livePageErrors.length,0,livePageErrors.join('\n'));
               console.log('BRIDGEPOINT_V2300_WEATHER_FX_ANDROID_PASS',JSON.stringify({particles:out.fx.activeParticles,quality:out.fx.qualityScale,fps:out.fx.fps,maxPoints:out.fx.budgets.maxPoints,canvases:out.totalCanvases,projection:out.projection}));
               }
+
+              // Empty-feed regression for the bounded NOAA/NHC Josephine forecast fallback.
+              await p.evaluate(()=>{window.__BP_TEST_DISABLE_ARCHIVED_JOSEPHINE_FALLBACK__=false;});
+              bootstrapTrackMode=false;rainVisualOnly=true;
+              await p.evaluate(async()=>{const m=window.__bpWorldV2300.map;m.stop?.();m.jumpTo({center:[-35,24],zoom:1.25,pitch:0,bearing:0});await window.__bpWeatherV2300.refresh(true);m.triggerRepaint?.();});
+              if(Date.now()<Date.parse('2026-10-25T18:00:00Z')){
+                await p.waitForFunction(()=>{const d=window.__BP_PUBLIC_CYCLONE_CENTER_FALLBACK__,s=window.__BP_SKY_CLOUDS_STATE_V5908__||{};return d?.josephine?.officialForecast===true&&d?.trackLayerPresent===true&&Number(d?.stormTrackFeatureCount)>=2&&s?.postTropicalStormCount>0&&s?.postTropicalSurfaceCloudVertices>0;},{timeout:25000});
+                const jp=await p.evaluate(()=>{const d=window.__BP_PUBLIC_CYCLONE_CENTER_FALLBACK__||{},scene=window.__bpWeatherV2300?.getScene?.()||{},j=(scene.storms||[]).find(st=>/josephine/i.test(String(st.name||st.event||''))),s=window.__BP_SKY_CLOUDS_STATE_V5908__||{};return{diag:d,josephine:j?{name:j.name,type:j.type,classification:j.classification,lng:j.lng,lat:j.lat,source:j.source,officialForecast:j.is_official_forecast===true}:null,postTropicalStormCount:s.postTropicalStormCount,postTropicalVertices:s.postTropicalSurfaceCloudVertices,trackLayers:['bp2300-storm-track-history-v6093','bp2300-storm-track-forecast-v6093'].map(id=>({id,present:!!window.__bpWorldV2300.map.getLayer(id)}))};});
+                console.log('BRIDGEPOINT_JOSEPHINE_GLOBAL_TRACK_REGRESSION_PASS',JSON.stringify(jp));
+                assert(jp.josephine&&jp.josephine.officialForecast,'Josephine must be attributed as an official forecast, not a live observation');
+                assert(jp.josephine.lat>35&&jp.josephine.lat<50&&jp.josephine.lng< -48&&jp.josephine.lng> -70,'Josephine must use the forecast-interpolated Atlantic location, not an old CT/NY position');
+                assert.equal(jp.josephine.source,'NOAA/NHC','Josephine must retain official source attribution');
+                assert.equal(jp.josephine.classification,'PTC','Josephine must retain the post-tropical classification');
+                assert(jp.diag.stormTrackFeatureCount>=2&&jp.diag.trackLayerPresent,'historical and forecast tracks must be present at globe zoom');
+                assert(jp.trackLayers.every(x=>x.present),'track overlays must exist in MapLibre style');
+                assert(jp.postTropicalStormCount>0&&jp.postTropicalVertices>0,'Josephine must generate the animated post-tropical cloud shield');
+              }else console.log('BRIDGEPOINT_JOSEPHINE_EXPIRED_FORECAST_PASS: archived forecast correctly retired after NHC dissipation time');
             }finally{await browser.close()}
           })().catch(e=>{console.error(e.stack||e);process.exit(1)});
           NODE

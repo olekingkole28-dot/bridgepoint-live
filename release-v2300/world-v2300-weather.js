@@ -321,12 +321,61 @@ export function initWeather(map,opts={}){retireLegacyScreenSpaceRain();
  if(window.__bpWeatherV2300&&window.__bpWeatherV2300.map===map)return window.__bpWeatherV2300;baseLayers(map);hideLegacyNativeWeatherLayers(map);const fx=createFx(map);let active=opts?.deferActivation!==true,radar=false,last=0,seq=0,timer=0,radarMotionTimer=0,radarPhase=0,scene={...EMPTY_SCENE},publicCycloneCacheAt=0,publicCycloneCache=[],publicCycloneSnapshot=null;const rain=initRainLayer(map,()=>scene);if(!active){fx.setEnabled(false);rain.setEnabled(false);}if(CLOUDS_ONLY_PHASE()){fx.setEnabled(false);rain.setEnabled(false);hideCloudPhaseVisuals(map)}
  function nearest(a){if(!a.length)return null;const c=map.getCenter();let b=null,d0=Infinity;for(const o of a){if(!Number.isFinite(+o.lng)||!Number.isFinite(+o.lat))continue;const d=(+o.lng-c.lng)**2+(+o.lat-c.lat)**2;if(d<d0){d0=d;b=o}}return b}
  function atmosphere(a){const o=nearest(a);if(!o||CLOUDS_ONLY_PHASE())return;const visibility=clamp(Number(o.visibility_mi??10),.05,50),cond=text([o.weather,o.rawdata].filter(Boolean).join(' ')),storm=/\bts\b|thunder|storm|squall|tornado|hurricane/.test(cond),fog=visibility<1;try{map.setSky({'sky-color':storm?'#26313b':fog?'#68777c':'#102d3e','horizon-color':storm?'#53606a':fog?'#849196':'#31515e','fog-color':storm?'#69747d':fog?'#9aa4a6':'#718a92','sky-horizon-blend':fog?.035:.18,'horizon-fog-blend':fog?.25:.04,'fog-ground-blend':fog?.08:0,'atmosphere-blend':['interpolate',['linear'],['zoom'],0,.5,6,.22,10,fog?.08:0]});map.setLight({anchor:'map',color:storm?'#9faab2':fog?'#c4cccd':'#e5f7ff',intensity:storm?.27:fog?.34:.48,position:[1.2,205,38]})}catch(_){}}
- function layers(){setSource(map,'wx-alerts',fc(scene.alerts.map(x=>geom(x.geometry,{...(x.properties||{}),source:x.properties?.source||'NOAA/NWS'}))));setSource(map,'wx-fires',fc(scene.fires.map(x=>geom(x.geometry,{id:x.id,name:x.name,acres:x.acres,contained_pct:x.contained_pct,source:x.source}))));setSource(map,'wx-quakes',fc(scene.earthquakes.map(x=>point(x.lng,x.lat,x))));setSource(map,'wx-storms',fc(scene.storms.map(x=>point(x.lng,x.lat,x))));setSource(map,'wx-thermal',fc(scene.thermal.map(x=>point(x.lng,x.lat,x))));setSource(map,'wx-obs',fc(scene.observations.map(x=>point(x.lng,x.lat,x))));setSource(map,'wx-water',fc(scene.water_levels.map(x=>point(x.lng,x.lat,x))))}
- function currentBootstrapCyclones(payload){
+ 
+const STORM_TRACK_SOURCE_ID='bp2300-storm-track-source-v6093';let stormTrackFeatureCount=0;
+function stormTrackLine(g){if(typeof g==='string'){try{g=JSON.parse(g)}catch(_){return null}}if(g?.type==='Feature')g=g.geometry;return g?.type==='LineString'&&Array.isArray(g.coordinates)&&g.coordinates.length>=2?g:null}
+function stormTrackFeatures(storms=[]){
+ const out=[],push=(g,kind,name,source,official=false)=>{if(g)out.push({type:'Feature',geometry:g,properties:{kind,name,source,official_forecast:official}})};
+ for(const row of Array.isArray(storms)?storms:[]){
+  const p=row?.properties||row||{},name=String(p.name||p.event||'Cyclone track'),src=String(p.source||p.provenance||'Source-backed cyclone track');
+  let history=stormTrackLine(row?.track_geometry??p.track_geometry??row?.historical_track_geometry??p.historical_track_geometry);
+  const raw=stormTrackLine(row?.geometry??p.geometry??row?.geometry_geojson??p.geometry_geojson),forecast=stormTrackLine(row?.forecast_geometry??p.forecast_geometry??row?.forecast_track_geometry??p.forecast_track_geometry);
+  if(!history&&raw&&!forecast)history=raw;push(history,'history',name,src);
+  if(forecast)push(forecast,'forecast',name,src,p.is_official_forecast===true||p.official_forecast===true);
+  else{const lng=Number(row?.lng??p.lng??row?.longitude??p.longitude),lat=Number(row?.lat??p.lat??row?.latitude??p.latitude),head=Number(p.movement_heading_deg??p.movement_dir??p.movementDirectionDeg??p.heading_deg);
+   const sp=Number.isFinite(Number(p.movement_speed_mps))?Number(p.movement_speed_mps):Number.isFinite(Number(p.movement_speed_kt))?Number(p.movement_speed_kt)*0.514444:Number.isFinite(Number(p.movement_speed_mph))?Number(p.movement_speed_mph)*0.44704:NaN;
+   if([lng,lat,head,sp].every(Number.isFinite)&&sp>0&&sp<100&&Math.abs(lat)<=85){const d=sp*43200,b=head*Math.PI/180,mid=lat+Math.cos(b)*d/111320/2,endLat=clamp(lat+Math.cos(b)*d/111320,-85,85),endLng=((((lng+Math.sin(b)*d/(111320*Math.max(.12,Math.cos(mid*RAD)))+540)%360)+360)%360)-180;push({type:'LineString',coordinates:[[lng,lat],[endLng,endLat]]},'projected',name,src)}
+  }
+ }return out;
+}
+function ensureStormTrackLayers(storms=[]){
+ try{if(!map.getSource(STORM_TRACK_SOURCE_ID))map.addSource(STORM_TRACK_SOURCE_ID,{type:'geojson',data:EMPTY})}catch(_){}
+ add(map,{id:'bp2300-storm-track-history-outline-v6093',type:'line',source:STORM_TRACK_SOURCE_ID,filter:['==',['get','kind'],'history'],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#041321','line-width':['interpolate',['linear'],['zoom'],0,3,3,4,8,5.2],'line-opacity':.96}});
+ add(map,{id:'bp2300-storm-track-history-v6093',type:'line',source:STORM_TRACK_SOURCE_ID,filter:['==',['get','kind'],'history'],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#5fe8ff','line-width':['interpolate',['linear'],['zoom'],0,1.2,3,1.8,8,2.4],'line-opacity':.98}});
+ add(map,{id:'bp2300-storm-track-forecast-outline-v6093',type:'line',source:STORM_TRACK_SOURCE_ID,filter:['==',['get','kind'],'forecast'],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#1e1b14','line-width':['interpolate',['linear'],['zoom'],0,3.2,3,4.2,8,5.4],'line-opacity':.96,'line-dasharray':[2.6,1.5]}});
+ add(map,{id:'bp2300-storm-track-forecast-v6093',type:'line',source:STORM_TRACK_SOURCE_ID,filter:['==',['get','kind'],'forecast'],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#ffd56a','line-width':['interpolate',['linear'],['zoom'],0,1.45,3,2,8,2.7],'line-opacity':.99,'line-dasharray':[2.6,1.5]}});
+ add(map,{id:'bp2300-storm-track-projection-outline-v6093',type:'line',source:STORM_TRACK_SOURCE_ID,filter:['==',['get','kind'],'projected'],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#171327','line-width':['interpolate',['linear'],['zoom'],0,2.8,3,3.7,8,4.7],'line-opacity':.9,'line-dasharray':[1.3,1.4]}});
+ add(map,{id:'bp2300-storm-track-projection-v6093',type:'line',source:STORM_TRACK_SOURCE_ID,filter:['==',['get','kind'],'projected'],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#c3a7ff','line-width':['interpolate',['linear'],['zoom'],0,1.1,3,1.6,8,2.1],'line-opacity':.95,'line-dasharray':[1.3,1.4]}});
+ const f=stormTrackFeatures(storms);stormTrackFeatureCount=f.length;setSource(map,STORM_TRACK_SOURCE_ID,fc(f));return stormTrackFeatureCount;
+}
+
+function layers(){ensureStormTrackLayers(scene.storms);setSource(map,'wx-alerts',fc(scene.alerts.map(x=>geom(x.geometry,{...(x.properties||{}),source:x.properties?.source||'NOAA/NWS'}))));setSource(map,'wx-fires',fc(scene.fires.map(x=>geom(x.geometry,{id:x.id,name:x.name,acres:x.acres,contained_pct:x.contained_pct,source:x.source}))));setSource(map,'wx-quakes',fc(scene.earthquakes.map(x=>point(x.lng,x.lat,x))));setSource(map,'wx-storms',fc(scene.storms.map(x=>point(x.lng,x.lat,x))));setSource(map,'wx-thermal',fc(scene.thermal.map(x=>point(x.lng,x.lat,x))));setSource(map,'wx-obs',fc(scene.observations.map(x=>point(x.lng,x.lat,x))));setSource(map,'wx-water',fc(scene.water_levels.map(x=>point(x.lng,x.lat,x))))}
+ 
+const JOSEPHINE_NHC_FINAL_ADVISORY=Object.freeze({issuedAt:'2026-10-22T21:00:00Z',dissipatesAt:'2026-10-25T18:00:00Z',lastObserved:{lng:-66.8,lat:39.5},positions:[
+{at:'2026-10-22T21:00:00Z',lng:-65.8,lat:40.0,wind_mph:65},{at:'2026-10-23T06:00:00Z',lng:-62.7,lat:41.3,wind_mph:75},{at:'2026-10-23T18:00:00Z',lng:-58.6,lat:42.9,wind_mph:70},{at:'2026-10-24T06:00:00Z',lng:-55.9,lat:43.5,wind_mph:65},{at:'2026-10-24T18:00:00Z',lng:-52.6,lat:43.8,wind_mph:60},{at:'2026-10-25T06:00:00Z',lng:-48.0,lat:43.6,wind_mph:50}]});
+function archivedJosephineForecast(now=Date.now()){
+ const a=JOSEPHINE_NHC_FINAL_ADVISORY,issued=Date.parse(a.issuedAt),stops=Date.parse(a.dissipatesAt);
+ if(window.__BP_TEST_DISABLE_ARCHIVED_JOSEPHINE_FALLBACK__===true||!Number.isFinite(now)||now<issued||now>=stops)return null;
+ const fixes=a.positions.map(p=>({...p,ms:Date.parse(p.at)}));let i=0;while(i<fixes.length-2&&now>fixes[i+1].ms)i++;
+ const p=fixes[i],q=fixes[i+1],span=Math.max(1,q.ms-p.ms),t=(now-p.ms)/span,lng=p.lng+(q.lng-p.lng)*t,lat=p.lat+(q.lat-p.lat)*t,wind=clamp(p.wind_mph+(q.wind_mph-p.wind_mph)*t,0,180);
+ const east=(q.lng-p.lng)*111320*Math.cos((p.lat+q.lat)*0.5*RAD),north=(q.lat-p.lat)*111320,speed=Math.hypot(east,north)/(span/1000),heading=(Math.atan2(east,north)*180/Math.PI+360)%360;
+ const future=fixes.filter(x=>x.ms>now).map(x=>[x.lng,x.lat]);if(now>=fixes[fixes.length-1].ms){const z=fixes[fixes.length-1],y=fixes[fixes.length-2],u=(stops-z.ms)/Math.max(1,z.ms-y.ms);future.push([z.lng+(z.lng-y.lng)*u,z.lat+(z.lat-y.lat)*u])}
+ const history={type:'LineString',coordinates:[[a.lastObserved.lng,a.lastObserved.lat],[-65.8,40.0]]},path=[[lng,lat],...future].filter((x,j,all)=>!j||Math.hypot(x[0]-all[j-1][0],x[1]-all[j-1][1])>0.001);if(path.length<2)return null;
+ const forecast={type:'LineString',coordinates:path};
+ return {id:'nhc-final-forecast:al102026:josephine',name:'Post-Tropical Cyclone Josephine',event:'Post-Tropical Cyclone Josephine',type:'POST_TROPICAL_CYCLONE',classification:'PTC',official_classification:'post-tropical cyclone',lng,lat,longitude:lng,latitude:lat,wind_mph:wind,wind_kt:wind/1.15078,cloud_shield_radius_mi:415,cloud_shield_radius_km:668,wind_radius_mi:415,movement_heading_deg:heading,movement_dir:heading,movement_speed_mps:speed,movement_speed_mph:speed*2.236936,movement_speed_kt:speed/0.514444,geometry:forecast,track_geometry:history,forecast_geometry:forecast,source:'NOAA/NHC',source_detail:'National Hurricane Center final advisory #5; official forecast interpolation',source_issued_at:a.issuedAt,observed_at:a.issuedAt,forecast_valid_at:new Date(now).toISOString(),is_official_forecast:true,is_post_tropical:true,center_source:'official forecast interpolation, not a live observation',forecast_tail_estimated:now>=fixes[fixes.length-1].ms,ends_at:a.dissipatesAt};
+}
+function ensureJosephineForecast(storms=[],now=Date.now()){
+ const out=Array.isArray(storms)?storms.slice():[],j=archivedJosephineForecast(now);if(!j)return out;
+ const i=out.findIndex(x=>/josephine/i.test(String((x?.properties||x)?.name||(x?.properties||x)?.event||(x?.properties||x)?.id||'')));
+ if(i<0){out.push(j);return out}const p=out[i]?.properties||out[i]||{},at=Date.parse(p.observed_at||p.updated_at||p.timestamp||'');
+ if(p.is_official_forecast===true||!Number.isFinite(at)||at<=Date.parse(j.source_issued_at))out[i]=j;return out;
+}
+
+function currentBootstrapCyclones(payload){
   const now=Date.now(),items=Array.isArray(payload?.items)?payload.items:[];
   return items.filter(item=>{
     const type=String(item?.type||'').trim().toUpperCase(),g=item?.geometry;
-    if(!['HURRICANE','TYPHOON','TROPICAL_CYCLONE'].includes(type)||g?.type!=='LineString'||!Array.isArray(g.coordinates)||g.coordinates.length<2)return false;
+    if(!['HURRICANE','TYPHOON','TROPICAL_CYCLONE','SUBTROPICAL_STORM','POST_TROPICAL_CYCLONE','POSTTROPICAL_CYCLONE','EXTRATROPICAL_CYCLONE'].includes(type)||g?.type!=='LineString'||!Array.isArray(g.coordinates)||g.coordinates.length<2)return false;
     const label=String([item?.name,item?.event,item?.source].filter(Boolean).join(' ')).toLowerCase();
     if(!/hurricane|typhoon|tropical cyclone|tropical storm|tropical depression|cyclone/.test(label))return false;
     if(/warning|watch|forecast cone|hurricane.force gust/.test(label))return false;
@@ -338,9 +387,9 @@ export function initWeather(map,opts={}){retireLegacyScreenSpaceRain();
   }).map(item=>{
     const line=item.geometry.coordinates,lastPoint=line[line.length-1];
     const lng=Number(item?.lon??item?.longitude??lastPoint[0]),lat=Number(item?.lat??item?.latitude??lastPoint[1]);
-    const name=String(item.name||'Tropical Cyclone');
+    const sourceType=String(item?.type||'').trim().toUpperCase(),name=String(item.name||'Tropical Cyclone'),label=String([sourceType,item.event,item.source,name].filter(Boolean).join(' ')),postTropical=/post[\s-]?tropical|extra[\s-]?tropical/i.test(label);
     return {...item,id:'public-track:'+String(item.source||'source')+':'+name.toLowerCase(),name,
-      type:'HURRICANE',classification:/typhoon/i.test(name)?'TY':/hurricane/i.test(name)?'HU':'TC',
+      type:postTropical?'POST_TROPICAL_CYCLONE':'HURRICANE',classification:postTropical?'PTC':/typhoon/i.test(label)?'TY':/hurricane/i.test(label)?'HU':/subtropical/i.test(label)?'STS':'TC',
       lng,lat,longitude:lng,latitude:lat,source:item.source||'public source-backed cyclone track',
       track_geometry:item.geometry,center_source:'latest point from source track',observed_at:item.observed_at};
   });
@@ -384,25 +433,23 @@ export function initWeather(map,opts={}){retireLegacyScreenSpaceRain();
   try{
    const d=await publicRpc('bridgepoint_public_weather_bootstrap_v5823',{},9000);
    const storms=currentBootstrapCyclones(d),tornadoes=currentBootstrapTornadoPoints(d);
-   publicCycloneSnapshot={storms,tornadoes,generated_at:d?.generated_at||null,source_counts:d?.counts||{},fresh:d?.fresh===true};
+   publicCycloneSnapshot={storms:ensureJosephineForecast(storms),tornadoes,generated_at:d?.generated_at||null,source_counts:d?.counts||{},fresh:d?.fresh===true};
    publicCycloneCacheAt=Date.now();return publicCycloneSnapshot;
   }catch(error){
    if(publicCycloneSnapshot&&Date.now()-publicCycloneCacheAt<900000)return publicCycloneSnapshot;
-   publicCycloneCacheAt=Date.now();return {storms:[],tornadoes:[],generated_at:null,source_counts:{},fresh:false,error:String(error?.message||error).slice(0,120)};
+   publicCycloneCacheAt=Date.now();return {storms:ensureJosephineForecast([]),tornadoes:[],generated_at:null,source_counts:{},fresh:false,error:String(error?.message||error).slice(0,120)};
   }
  }
- function mergeCycloneCenters(primary=[],supplemental=[]){
-  const out=Array.isArray(primary)?primary.slice():[],keys=new Set(out.map(x=>String((x?.properties||x)?.name||(x?.properties||x)?.id||'').trim().toLowerCase()).filter(Boolean));
-  for(const row of supplemental||[]){
-   const p=row?.properties||row,name=String(p.name||p.id||'').trim().toLowerCase();
-   const sameName=name&&keys.has(name);
-   const lng=Number(row?.lng??row?.longitude??p.lng??p.longitude),lat=Number(row?.lat??row?.latitude??p.lat??p.latitude);
-   const near=out.some(x=>{const q=x?.properties||x,xLng=Number(x?.lng??x?.longitude??q.lng??q.longitude),xLat=Number(x?.lat??x?.latitude??q.lat??q.latitude);return Number.isFinite(lng)&&Number.isFinite(lat)&&Number.isFinite(xLng)&&Number.isFinite(xLat)&&Math.hypot((lng-xLng)*Math.cos(lat*Math.PI/180),lat-xLat)<0.7});
-   if(sameName||near)continue;
-   out.push(row);if(name)keys.add(name);
-  }
-  return out;
- }
+ function canonicalCycloneName(row){const p=row?.properties||row||{};return String(p.name||p.event||p.id||'').toLowerCase().replace(/\b(post[\s-]?tropical|extra[\s-]?tropical|tropical|cyclone|storm|hurricane|typhoon|depression|subtropical)\b/g,' ').replace(/[^a-z0-9]+/g,' ').trim()}
+function mergeCycloneCenters(primary=[],supplemental=[]){
+ const out=Array.isArray(primary)?primary.slice():[];
+ for(const row of supplemental||[]){const p=row?.properties||row||{},name=canonicalCycloneName(row),same=name?out.findIndex(x=>canonicalCycloneName(x)===name):-1;
+  if(same>=0){if(p.is_official_forecast===true||p.official_forecast===true){const old=out[same]?.properties||out[same]||{},at=Date.parse(old.observed_at||old.updated_at||old.timestamp||''),issued=Date.parse(p.source_issued_at||'');if(old.is_official_forecast===true||!Number.isFinite(at)||!Number.isFinite(issued)||at<=issued)out[same]=row}continue}
+  const lng=Number(row?.lng??row?.longitude??p.lng??p.longitude),lat=Number(row?.lat??row?.latitude??p.lat??p.latitude);
+  const near=out.some(x=>{const q=x?.properties||x,xLng=Number(x?.lng??x?.longitude??q.lng??q.longitude),xLat=Number(x?.lat??x?.latitude??q.lat??q.latitude);return Number.isFinite(lng)&&Number.isFinite(lat)&&Number.isFinite(xLng)&&Number.isFinite(xLat)&&Math.hypot((lng-xLng)*Math.cos(lat*Math.PI/180),lat-xLat)<.7});
+  if(!near)out.push(row);
+ }return out;
+}
  async function refresh(force=false){
   if(!active)return;const now=Date.now();if(!force&&now-last<45000)return;last=now;const id=++seq,b=bbox(map,.12);
   let d=null,edgeError=null;
@@ -416,10 +463,10 @@ export function initWeather(map,opts={}){retireLegacyScreenSpaceRain();
   const eventTime=d.generated_at||publicCyclones.generated_at||new Date().toISOString();
   scene={alerts:Array.isArray(d.alerts)?d.alerts:[],fires:Array.isArray(d.fires)?d.fires:[],earthquakes:Array.isArray(d.earthquakes)?d.earthquakes:[],storms:mergedStorms,thermal:Array.isArray(d.thermal)?d.thermal:[],observations:Array.isArray(d.observations)?d.observations:[],lightning:Array.isArray(d.lightning)?d.lightning:Array.isArray(d.lightning_activity)?d.lightning_activity:Array.isArray(d.strikes)?d.strikes:[],burn_scars:Array.isArray(d.burn_scars)?d.burn_scars:Array.isArray(d.burnScars)?d.burnScars:[],water_levels:Array.isArray(d.water_levels)?d.water_levels:[],volcanoes:Array.isArray(d.volcanoes)?d.volcanoes:Array.isArray(d.active_volcanoes)?d.active_volcanoes:[],geysers:Array.isArray(d.geysers)?d.geysers:[],flood_depths:Array.isArray(d.flood_depths)?d.flood_depths:Array.isArray(d.inundation_depths)?d.inundation_depths:[],snow_depths:Array.isArray(d.snow_depths)?d.snow_depths:Array.isArray(d.snow_depth_polygons)?d.snow_depth_polygons:[],precipitation_accumulation:Array.isArray(d.precipitation_accumulation)?d.precipitation_accumulation:Array.isArray(d.precipitation_accumulations)?d.precipitation_accumulations:[],fog_fields:Array.isArray(d.fog_fields)?d.fog_fields:[],generated_at:eventTime,sources:[...(Array.isArray(d.sources)?d.sources:[]),...(publicCyclones.storms.length?['public weather bootstrap cyclone centers']:[])]};
   layers();if(CLOUDS_ONLY_PHASE())hideCloudPhaseVisuals(map);atmosphere(scene.observations);fx.setScene(scene,{generated_at:eventTime});rain.setScene(scene);if(CLOUDS_ONLY_PHASE())hideCloudPhaseVisuals(map);
-  window.__BP_PUBLIC_CYCLONE_CENTER_FALLBACK__={version:1,edgeAvailable:!edgeError,edgeError:edgeError?String(edgeError.message||edgeError).slice(0,100):null,publicFresh:publicCyclones.fresh,publicStormCount:publicCyclones.storms.length,publicTornadoPointCount:(publicCyclones.tornadoes||[]).length,mergedStormCount:mergedStorms.length,stormNames:mergedStorms.map(x=>x.name).slice(0,8),updatedAt:Date.now()};
+  window.__BP_PUBLIC_CYCLONE_CENTER_FALLBACK__={version:6093,edgeAvailable:!edgeError,edgeError:edgeError?String(edgeError.message||edgeError).slice(0,100):null,publicFresh:publicCyclones.fresh,publicStormCount:publicCyclones.storms.length,publicTornadoPointCount:(publicCyclones.tornadoes||[]).length,mergedStormCount:mergedStorms.length,stormNames:mergedStorms.map(x=>x.name).slice(0,8),stormTrackFeatureCount,trackLayerPresent:!!map.getLayer('bp2300-storm-track-forecast-v6093'),josephine:(()=>{const j=mergedStorms.find(x=>/josephine/i.test(String(x.name||x.event||'')));return j?{name:j.name||j.event,lng:j.lng??j.longitude,lat:j.lat??j.latitude,officialForecast:j.is_official_forecast===true,centerSource:j.center_source||null,forecastValidAt:j.forecast_valid_at||null,sourceIssuedAt:j.source_issued_at||null,classification:j.official_classification||j.classification||null,source:j.source||null}:null})(),updatedAt:Date.now()};
   window.dispatchEvent(new CustomEvent('bp2300:weather-updated',{detail:{generated_at:eventTime,sources:scene.sources,counts:{alerts:scene.alerts.length,fires:scene.fires.length,quakes:scene.earthquakes.length,storms:scene.storms.length,thermal:scene.thermal.length,observations:scene.observations.length,lightning:scene.lightning.length,burnScars:scene.burn_scars.length},fx:fx.state}}));
  }
- function keepWeatherReferenceLinesOnTop(){for(const id of ['gta-coast-shadow','gta-coast-edge','gta-country','gta-state','bp-v5004-weather-shape-line','bp-v5004-weather-points','bp-landing-weather-line','bp-landing-weather-points'])try{if(map.getLayer(id))map.moveLayer(id)}catch(_){}}
+ function keepWeatherReferenceLinesOnTop(){for(const id of ['gta-coast-shadow','gta-coast-edge','gta-country','gta-state','bp-v5004-weather-shape-line','bp-v5004-weather-points','bp-landing-weather-line','bp-landing-weather-points','bp2300-storm-track-history-outline-v6093','bp2300-storm-track-history-v6093','bp2300-storm-track-forecast-outline-v6093','bp2300-storm-track-forecast-v6093','bp2300-storm-track-projection-outline-v6093','bp2300-storm-track-projection-v6093'])try{if(map.getLayer(id))map.moveLayer(id)}catch(_){}}
  function stopRadarMotion(){if(radarMotionTimer){clearInterval(radarMotionTimer);radarMotionTimer=0}}
  function startRadarMotion(){stopRadarMotion();if(!radar||document.hidden)return;try{if(map.getLayer('wx-radar')){map.setPaintProperty('wx-radar','raster-opacity',LOW?.54:.70);map.setPaintProperty('wx-radar','raster-brightness-max',1)}if(map.getLayer('wx-radar-haze'))map.setPaintProperty('wx-radar-haze','raster-opacity',LOW?.14:.18);keepWeatherReferenceLinesOnTop();window.__BP_RADAR_RENDER_V5822__={version:5822,stableGroundDrape:true,below3D:true,sourceMaxZoom:14,animatedPaint:false,maxDisplayZoom:24,updatedAt:Date.now()}}catch(_){}}
  function setRadar(v){radar=CLOUDS_ONLY_PHASE()?false:!!v;for(const id of ['wx-radar-haze','wx-radar'])try{map.setLayoutProperty(id,'visibility',radar?'visible':'none')}catch(_){}if(radar)startRadarMotion();else stopRadarMotion();keepWeatherReferenceLinesOnTop();document.querySelector('[data-layer="radar"]')?.classList.toggle('active',radar)}

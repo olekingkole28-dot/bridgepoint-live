@@ -253,7 +253,8 @@ jobs:
           sed -i 's#world-v2300-clouds.js?v=6075-global-coverage-fill#world-v2300-clouds.js?v=6092-posttropical-global-clouds#g' site/app.js site/landing.js
           sed -i 's#world-v2300-clouds.js?v=6076-rounded-cloud-banks#world-v2300-clouds.js?v=6092-posttropical-global-clouds#g' site/app.js site/landing.js
           sed -i 's#world-v2300-clouds.js?v=6088-fuller-local-tornado#world-v2300-clouds.js?v=6092-posttropical-global-clouds#g' site/app.js site/landing.js
-          sed -i 's#world-v2300-weather.js?v=6070-clouds-only-phase#world-v2300-weather.js?v=6091-global-storm-centers#g' site/app.js site/landing.js site/index.html site/app/index.html
+          sed -i 's#world-v2300-weather.js?v=6070-clouds-only-phase#world-v2300-weather.js?v=6093-josephine-global-track#g' site/app.js site/landing.js site/index.html site/app/index.html
+          sed -i 's#world-v2300-weather.js?v=6091-global-storm-centers#world-v2300-weather.js?v=6093-josephine-global-track#g' site/app.js site/landing.js site/index.html site/app/index.html
           sed -i 's#world-v2300-time-slider.js?v=6076-rounded-cloud-banks#world-v2300-time-slider.js?v=6092-posttropical-global-clouds#g' site/app.js site/landing.js
           sed -i 's#world-v2300-time-slider.js?v=6077-cloud-base-restore#world-v2300-time-slider.js?v=6092-posttropical-global-clouds#g' site/app.js site/landing.js
           sed -i 's#app.js?v=6077-cloud-base-restore#app.js?v=6077-sky-restore-safe-pitch#g' site/app/index.html
@@ -617,6 +618,9 @@ jobs:
           grep -Fq 'function currentBootstrapCyclones(payload)' site/world-v2300-weather.js
           grep -Fq "publicRpc('bridgepoint_public_weather_bootstrap_v5823'" site/world-v2300-weather.js
           grep -Fq "center_source:'latest point from source track'" site/world-v2300-weather.js
+          grep -Fq 'function archivedJosephineForecast' site/world-v2300-weather.js
+          grep -Fq 'bp2300-storm-track-source-v6093' site/world-v2300-weather.js
+          grep -Fq 'bp2300-storm-track-forecast-v6093' site/world-v2300-weather.js
           grep -Fq 'world-v2300-weather.js?v=6091-global-storm-centers' site/landing.js
           grep -Fq 'world-v2300-weather.js?v=6091-global-storm-centers' site/app.js
           grep -Fq 'sourceDataReady:true,cloudsOnlyPhase:true' site/landing.js
