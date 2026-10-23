@@ -25,19 +25,21 @@ function patchMapLibre(){
  window.__bp2219MapLibrePatched=true;
  const P=Base.prototype;
  const fly=P.flyTo,ease=P.easeTo,maxPitch=P.setMaxPitch;
+ const skyOverride=()=>window.__BP_SKY_VIEW_OVERRIDE_V6077__===true;
+ const pitchCap=value=>skyOverride()?Math.min(160,Math.max(0,value)):Math.min(ANDROID?78:82,Math.max(0,value));
  // Keep camera transitions short on phones, but preserve the free high-pitch game camera.
  if(typeof fly==='function')P.flyTo=function(o={},eventData){
    const z=Number.isFinite(+o.zoom)?+o.zoom:Number(this.getZoom?.()||0);
    const startupLocate=z>=15.5&&Number(o.duration||0)>=700;
    if(startupLocate&&!isManual())return this;
-   const n={...o,duration:Math.min(Number.isFinite(+o.duration)?+o.duration:180,ANDROID?180:240),pitch:Math.min(ANDROID?78:82,Number.isFinite(+o.pitch)?+o.pitch:Number(this.getPitch?.()||0))};
+   const n={...o,duration:Math.min(Number.isFinite(+o.duration)?+o.duration:180,ANDROID?180:240),pitch:pitchCap(Number.isFinite(+o.pitch)?+o.pitch:Number(this.getPitch?.()||0))};
    try{return fly.call(this,n,eventData)}catch(_){return this.jumpTo?.(n,eventData)||this}
  };
  if(typeof ease==='function')P.easeTo=function(o={},eventData){
-   const n={...o,duration:Math.min(Number.isFinite(+o.duration)?+o.duration:140,ANDROID?160:220),pitch:Math.min(ANDROID?78:82,Number.isFinite(+o.pitch)?+o.pitch:Number(this.getPitch?.()||0))};
+   const n={...o,duration:Math.min(Number.isFinite(+o.duration)?+o.duration:140,ANDROID?160:220),pitch:pitchCap(Number.isFinite(+o.pitch)?+o.pitch:Number(this.getPitch?.()||0))};
    try{return ease.call(this,n,eventData)}catch(_){return this.jumpTo?.(n,eventData)||this}
  };
- if(typeof maxPitch==='function')P.setMaxPitch=function(v){return maxPitch.call(this,Math.min(+v||82,ANDROID?78:82))};
+ if(typeof maxPitch==='function')P.setMaxPitch=function(v){const requested=Number.isFinite(+v)?+v:(ANDROID?78:82);return maxPitch.call(this,pitchCap(requested))};
  return true;
 }
 patchMapLibre();
