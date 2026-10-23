@@ -345,8 +345,8 @@ export function initWeather(map,opts={}){retireLegacyScreenSpaceRain();
       track_geometry:item.geometry,center_source:'latest point from source track',observed_at:item.observed_at};
   });
  }
- async function getPublicCyclones(){
-  if(publicCycloneSnapshot&&Date.now()-publicCycloneCacheAt<240000)return publicCycloneSnapshot;
+ async function getPublicCyclones(force=false){
+  if(!force&&publicCycloneSnapshot&&Date.now()-publicCycloneCacheAt<240000)return publicCycloneSnapshot;
   try{
    const d=await publicRpc('bridgepoint_public_weather_bootstrap_v5823',{},9000);
    const storms=currentBootstrapCyclones(d);
@@ -373,7 +373,7 @@ export function initWeather(map,opts={}){retireLegacyScreenSpaceRain();
   if(!active)return;const now=Date.now();if(!force&&now-last<45000)return;last=now;const id=++seq,b=bbox(map,.12);
   let d=null,edgeError=null;
   try{d=await edge('bridgepoint-world-effects-v2190',{west:b.west,south:b.south,east:b.east,north:b.north,zoom:map.getZoom(),modes:['all']},14500)}catch(e){edgeError=e}
-  const publicCyclones=await getPublicCyclones();if(id!==seq)return;
+  const publicCyclones=await getPublicCyclones(force);if(id!==seq)return;
   if(!d&&publicCyclones.storms.length===0){console.warn('V2300 weather: storm feeds unavailable',String(edgeError?.message||edgeError||publicCyclones.error||'no public cyclone centers'));return}
   d=d||{};
   const edgeStorms=Array.isArray(d.storms)?d.storms:[];
