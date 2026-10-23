@@ -172,7 +172,7 @@ jobs:
               await p.waitForFunction(()=>{const s=window.__BP_SKY_CLOUDS_STATE_V5908__||{};return s.globalStormLod==='physical-local'&&s.hurricaneVisualEyeRadiusKm>0&&s.tornadoVisualHeightKm>=14&&s.tornadoVisualHeightKm<16;},{timeout:15000});
               const stormCloudDiag=await p.evaluate(()=>{const s=window.__BP_SKY_CLOUDS_STATE_V5908__||{};return{version:s.version,hurricaneSpiralRibbonVertices:s.hurricaneSpiralRibbonVertices,hurricaneVolumeProxyVertices:s.hurricaneVolumeProxyVertices,tornadoVolumeProxyVertices:s.tornadoVolumeProxyVertices,hurricaneSurfaceCloudVertices:s.hurricaneSurfaceCloudVertices,tornadoSurfaceMeshVertices:s.tornadoSurfaceMeshVertices,tornadoSurfaceVerticesSubmitted:s.tornadoSurfaceVerticesSubmitted,globalCloudFormations:s.globalCloudFormations,globalThinLayerSlices:s.globalThinLayerSlices,globalThinLayerStacks:s.globalThinLayerStacks,globalSingleLayerSlices:s.globalSingleLayerSlices,globalSingleLayerStacks:s.globalSingleLayerStacks,globalMacroRadiusMaxKm:s.globalMacroRadiusMaxKm,hurricaneSpiralCloudCenters:s.hurricaneSpiralCloudCenters,hurricaneEyeWallCloudCenters:s.hurricaneEyeWallCloudCenters,hurricaneEyeRadiusKm:s.hurricaneEyeRadiusKm,hurricaneEyeRadiusSource:s.hurricaneEyeRadiusSource,hurricaneCloudShieldRadiusKm:s.hurricaneCloudShieldRadiusKm,warningFunnels:s.warningFunnels,tornadoFunnelMeshVertices:s.tornadoFunnelMeshVertices,tornadoFunnelAnimated:s.tornadoFunnelAnimated,hurricaneVortexAnimated:s.hurricaneVortexAnimated,cloudWaterHeightReference:s.cloudWaterHeightReference,globalHeightResolvedWindPuffs:s.globalHeightResolvedWindPuffs,globalModelledWindPuffs:s.globalModelledWindPuffs,rendererError:s.rendererError};});
               console.log('BRIDGEPOINT_ROUNDED_GLOBAL_CLOUDS_AND_HURRICANE_SPIRAL_DIAG',JSON.stringify(stormCloudDiag));
-              assert.equal(stormCloudDiag.version,6090,'v6082 cloud renderer must be loaded');
+              assert.equal(stormCloudDiag.version,6090,'v6090 cloud renderer must be loaded');
               assert(stormCloudDiag.globalCloudFormations>=1600,'mobile global field must retain approximately 1,620 formations');
               assert.equal(stormCloudDiag.globalThinLayerSlices,9,'thin global clouds must use a smooth nine-segment shallow silhouette');
               assert.equal(stormCloudDiag.globalThinLayerStacks,2,'thin cloud geometry must stay thin and low-cost');
@@ -259,9 +259,9 @@ jobs:
               await livePage.goto('https://bridgepointintelligence.online/',{waitUntil:'domcontentloaded',timeout:60000});
               await livePage.waitForFunction(()=>{
                 const w=window.__BP_LANDING_WORLD__,c=window.__BP_SKY_CLOUDS_V5908__,s=window.__BP_SKY_CLOUDS_STATE_V6079__;
-                return !!w?.map&&c?.map===w.map&&c?.enabled===true&&s?.version===6082;
+                return !!w?.map&&c?.map===w.map&&c?.enabled===true&&s?.version===6090;
               },{timeout:60000});
-              await livePage.waitForFunction(()=>{const m=window.__BP_LANDING_WORLD__?.map,s=window.__BP_SKY_CLOUDS_STATE_V6079__;return !!m&&!!s&&s.enabled===true&&s.layerInstalled===true&&s.hurricaneSurfaceCloudVertices>0&&s.tornadoSurfaceMeshVertices>0;},{timeout:60000});
+              await livePage.waitForFunction(()=>{const m=window.__BP_LANDING_WORLD__?.map,s=window.__BP_SKY_CLOUDS_STATE_V6079__;return !!m&&!!s&&s.enabled===true&&s.layerInstalled===true;},{timeout:60000});
               await livePage.evaluate(async()=>{
                 const m=window.__BP_LANDING_WORLD__?.map;
                 window.__BP_SKY_CLOUDS_V5908__?.setEnabled?.(true);
@@ -298,13 +298,13 @@ jobs:
               assert.equal(liveGlobal.enabled,true,'public cloud renderer must be enabled');
               assert.equal(liveGlobal.layerPresent,true,'public cloud layer must exist');
               assert.equal(liveGlobal.layerInstalled,true,'public cloud layer must be installed');
-              assert(liveGlobal.sourceStormCount>=1,'real NHC storm records must reach the production cloud renderer');
-              assert(liveGlobal.actualStorms.some(st=>st.source==='NOAA/NHC'||st.source==='GDACS'),'production scene must contain current storm rows from NOAA/NHC or global GDACS feed');
-              assert(liveGlobal.hurricaneEyeWallCloudCenters>0&&liveGlobal.hurricaneSpiralCloudCenters>0,'public globe must generate visible eye/spiral cloud geometry from current source records');
-              assert(liveGlobal.hurricaneSurfaceCloudVertices>0,'public globe must draw actual eyewall/spiral cloud cells');
+              assert.equal(liveGlobal.modeledHurricaneVisualCount,0,'production must not inject a synthetic hurricane');assert.equal(liveGlobal.modeledTornadoVisualCount,0,'production must not inject a synthetic tornado');
+              if(liveGlobal.actualStorms.length)assert(liveGlobal.actualStorms.some(st=>st.source==='NOAA/NHC'||st.source==='GDACS'),'any production storm row must be source-attributed to NOAA/NHC or GDACS');
+              const hasLiveCyclone=liveGlobal.actualStorms.some(st=>/hurricane|typhoon|tropical|cyclone/i.test([st.name,st.type,st.classification].join(' ')));if(hasLiveCyclone)assert(liveGlobal.hurricaneEyeWallCloudCenters>0&&liveGlobal.hurricaneSpiralCloudCenters>0,'source-backed cyclone must generate eye/spiral geometry');else assert.equal(liveGlobal.hurricaneEyeWallCloudCenters,0,'no cyclone source point means no synthetic hurricane geometry');
+              if(hasLiveCyclone)assert(liveGlobal.hurricaneSurfaceCloudVertices>0,'source-backed cyclone must draw actual eyewall/spiral cloud cells');
               if(liveGlobal.warningFunnels>0)assert(liveGlobal.tornadoSurfaceMeshVertices>0,'source-point tornado data must draw an actual cone mesh');
               if(liveGlobal.warningFunnels>0)assert(liveGlobal.tornadoSurfaceVerticesSubmitted>200,'source-point tornado cone vertices must reach the renderer');
-              assert(liveGlobal.warningFunnels>=0,'warning polygons are not misrepresented as observed tornado centers');
+              if(liveGlobal.warningFunnels===0)assert.equal(liveGlobal.tornadoSurfaceMeshVertices,0,'warning polygons alone must not spawn a fabricated tornado cone');
               assert.equal(liveGlobal.rendererError,null,'public cloud renderer must not report a rendering error');
               await livePage.evaluate(()=>{
                 const m=window.__BP_LANDING_WORLD__?.map;
@@ -312,7 +312,7 @@ jobs:
               });
               await livePage.waitForFunction(()=>{
                 const s=window.__BP_SKY_CLOUDS_STATE_V6079__,m=window.__BP_LANDING_WORLD__?.map;
-                return !!m&&m.getZoom()>9&&s?.globalStormLod==='physical-local';
+                return !!m&&m.getZoom()>9&&s?.globalStormLod==='physical-local'&&s?.version===6090;
               },{timeout:30000});
               await new Promise(resolve=>setTimeout(resolve,1200));
               const liveClose=await livePage.evaluate(()=>{
