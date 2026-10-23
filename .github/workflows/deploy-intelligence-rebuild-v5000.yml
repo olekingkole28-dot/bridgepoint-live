@@ -452,8 +452,8 @@ jobs:
           node --input-type=module --check < site/world-v2300-realism.js
           node --input-type=module --check < site/gis-core-orchestrator-v5910.js
           grep -Fq 'Real satellite bands. No AI-drawn pixels.' site/world-v2300-spectral-imagery.js
-          grep -Fq 'world-v2300-clouds.js?v=6080-storm-visual-fallbacks' site/app.js
-          grep -Fq 'world-v2300-clouds.js?v=6080-storm-visual-fallbacks' site/landing.js
+          grep -Fq 'world-v2300-clouds.js?v=6081-nhc-live-storms' site/app.js
+          grep -Fq 'world-v2300-clouds.js?v=6081-nhc-live-storms' site/landing.js
           grep -Fq 'world-v2300-weather.js?v=6070-clouds-only-phase' site/app.js
           grep -Fq 'world-v2300-rain.js?v=6070-clouds-only-phase' site/world-v2300-weather.js
           grep -Fq 'retireLegacyScreenSpaceRain' site/world-v2300-weather.js
@@ -774,7 +774,7 @@ jobs:
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/app.js
           grep -Fq 'activateLiveWeather();' site/app.js
           grep -Fq 'enabled:true,serializedWeather:true' site/app.js
-          grep -Fq 'app.js?v=6080-storm-visual-fallbacks' site/app/index.html
+          grep -Fq 'app.js?v=6081-nhc-live-storms' site/app/index.html
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/landing.js
           grep -Fq 'WMO_CAP_WARNING' site/app.js
           grep -Fq 'WMO_CAP_WARNING' site/landing.js
@@ -997,8 +997,8 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=6080-storm-visual-fallbacks' site/app/index.html
-          grep -Fq 'landing.js?v=6080-storm-visual-fallbacks' site/index.html
+          grep -Fq 'app.js?v=6081-nhc-live-storms' site/app/index.html
+          grep -Fq 'landing.js?v=6081-nhc-live-storms' site/index.html
            grep -Fq 'world-v2300-map.js?v=6056-ground-camera-readiness' site/app.js
            grep -Fq 'world-v2300-map.js?v=6056-ground-camera-readiness' site/landing.js
            grep -Fq 'world-v2300-map.js?v=6056-ground-camera-readiness' site/index.html
