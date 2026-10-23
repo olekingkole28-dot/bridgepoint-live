@@ -610,6 +610,9 @@ jobs:
           grep -Fq "center_source:'latest point from source track'" site/world-v2300-weather.js
           grep -Fq 'world-v2300-weather.js?v=6091-global-storm-centers' site/landing.js
           grep -Fq 'world-v2300-weather.js?v=6091-global-storm-centers' site/app.js
+          grep -Fq 'sourceDataReady:true,cloudsOnlyPhase:true' site/landing.js
+          grep -Fq 'if(window.__BP_CLOUDS_ONLY_PHASE_V6070__===true && m)' site/landing.js
+          grep -Fq 'landing.js?v=6091-global-storm-centers-data-only' site/index.html
           grep -Fq 'async function toggleNasaNightlights()' site/world-v2300-time-slider.js
           grep -Fq 'async function toggleSkyClouds()' site/world-v2300-time-slider.js
           grep -Fq 'data-skyview' site/world-v2300-time-slider.js
@@ -1035,7 +1038,7 @@ jobs:
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
           grep -Fq 'app.js?v=6081-nhc-live-storms' site/app/index.html
-          grep -Fq 'landing.js?v=6081-nhc-live-storms' site/index.html
+          grep -Fq 'landing.js?v=6091-global-storm-centers-data-only' site/index.html
            grep -Fq 'world-v2300-map.js?v=6056-ground-camera-readiness' site/app.js
            grep -Fq 'world-v2300-map.js?v=6056-ground-camera-readiness' site/landing.js
            grep -Fq 'world-v2300-map.js?v=6056-ground-camera-readiness' site/index.html
