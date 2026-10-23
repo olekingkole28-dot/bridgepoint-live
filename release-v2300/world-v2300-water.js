@@ -257,16 +257,18 @@ function buildShaders(gl, shaderDescription) {
     '      stormSurge = max(stormSurge, influence * min(3.2, 0.55 + u_storms[i].w * 1.65));',
     '    }',
     '  }',
-    '  float localScale = a_kind < 0.5 ? 0.28 : (a_kind > 2.5 ? 1.0 : (a_kind > 1.5 ? 0.22 : 0.18));',
-    '  float amplitude = u_waveAmp * localScale * (1.0 + stormInfluence * (0.9 + u_windSpeed * 0.011));',
-    '  float marineSurgeMask = (a_kind < 0.5 || a_kind > 2.5) ? 1.0 : 0.0;',
+    '  float localScale = a_kind < 0.5 ? 0.28 : (a_kind > 3.5 ? 0.14 : (a_kind > 2.5 ? 1.0 : (a_kind > 1.5 ? 0.22 : 0.18)));',
+    '  float localWindBoost = 0.72 + min(0.65, u_windSpeed / 80.0);',
+    '  float amplitude = u_waveAmp * localScale * localWindBoost * (1.0 + stormInfluence * (0.9 + u_windSpeed * 0.011));',
+    '  float marineSurgeMask = (a_kind < 0.5 || (a_kind > 2.5 && a_kind < 3.5)) ? 1.0 : 0.0;',
     '  float offsetM = wave * amplitude + stormSurge * marineSurgeMask + a_flood;',
     '  gl_Position = projectTileFor3D(a_pos, a_height + offsetM);',
-    '  v_coord = a_pos;',
+    '  v_coord = a_pos - u_waveOrigin;',
     '  v_kind = a_kind;',
     '  v_wave = clamp(0.5 + wave * 0.34, 0.0, 1.0);',
     '  v_storm = clamp(stormInfluence, 0.0, 1.0);',
     '  v_flow = a_flow;',
+    '  v_flood = a_flood;',
     '}'
   ].join('\n');
   const fragmentSource = [
