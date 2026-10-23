@@ -235,9 +235,10 @@ function buildShaders(gl, shaderDescription) {
     '      stormSurge = max(stormSurge, influence * min(3.2, 0.55 + u_storms[i].w * 1.65));',
     '    }',
     '  }',
-    '  float localScale = a_kind < 0.5 ? 0.28 : (a_kind > 1.5 ? 0.22 : 1.0);',
+    '  float localScale = a_kind < 0.5 ? 0.28 : (a_kind > 2.5 ? 1.0 : (a_kind > 1.5 ? 0.22 : 0.18));',
     '  float amplitude = u_waveAmp * localScale * (1.0 + stormInfluence * (0.9 + u_windSpeed * 0.011));',
-    '  float offsetM = wave * amplitude + stormSurge + a_flood;',
+    '  float marineSurgeMask = (a_kind < 0.5 || a_kind > 2.5) ? 1.0 : 0.0;',
+    '  float offsetM = wave * amplitude + stormSurge * marineSurgeMask + a_flood;',
     '  gl_Position = projectTileFor3D(a_pos, a_height + offsetM);',
     '  v_coord = a_pos;',
     '  v_kind = a_kind;',
@@ -551,6 +552,11 @@ export function initWaterEngine(mapOrWorld, options = {}) {
       return {
         version: VERSION, installed: !!map.getLayer(LAYER_ID), enabled: this.enabled, active: this.active,
         contextReady: this.contextReady, sharedMapLibreCanvas: true, secondaryCanvases: 0,
+        styleLoaded: (()=>{try{return !!map.isStyleLoaded?.()}catch(_){return false}})(),
+        nativeWaterLayerPresent: (()=>{try{return !!map.getLayer('gta-water')}catch(_){return false}})(),
+        vectorSourcePresent: (()=>{try{return !!map.getSource('ofm')}catch(_){return false}})(),
+        installError: this.installError || null, buildError: this.buildError || null,
+        waitingForVectorFeatures: !!this.waitingForVectorFeatures,
         gpuVertexDisplacement: true, adaptiveLOD: true, boundedGeometry: true,
         sourceWaterFeatures: this.sourceWaterFeatures, sourceLandFeatures: this.sourceLandFeatures,
         sourceWaterwayFeatures: this.sourceWaterwayFeatures, waterPolygonCells: this.waterPolygonCells,
@@ -583,6 +589,14 @@ export function initWaterEngine(mapOrWorld, options = {}) {
     return value;
   }
   function sceneLevelAt(scene, lng, lat) { return absoluteWaterLevelAt(scene, lng, lat); }
+  // MapLibre may keep isStyleLoaded() false while vector tiles/weather layers are
+  // still refreshing. The map style can already accept layers and expose its sources.
+  function mapCanHostWater() {
+    try {
+      const style = map.getStyle && map.getStyle();
+      return !!(style && Array.isArray(style.layers) && map.getLayer('gta-water') && map.getSource('ofm'));
+    } catch (_) { return false; }
+  }
   function floodDepthAt(floodFeatures, lng, lat) {
     let depth = 0;
     for (const feature of floodFeatures) {
@@ -644,10 +658,19 @@ export function initWaterEngine(mapOrWorld, options = {}) {
   function scheduleBuild(delay = 220) {
     if (!api.active || destroyed) return;
     if (buildTimer) clearTimeout(buildTimer);
-    buildTimer = window.setTimeout(() => { buildTimer = 0; if (!moving && api.active && !destroyed) buildGeometry(); }, delay);
+    buildTimer = window.setTimeout(() => {
+      buildTimer = 0;
+      if (!moving && api.active && !destroyed) {
+        try { buildGeometry(); api.buildError = null; }
+        catch (error) {
+          api.buildError = String(error && error.message || error).slice(0, 220);
+          console.warn('BridgePoint GPU water geometry build deferred; native water remains enabled', error);
+        }
+      }
+    }, delay);
   }
   function buildGeometry() {
-    if (!api.enabled || !map.isStyleLoaded?.() || !map.getLayer('gta-water') || !map.getSource('ofm')) return;
+    if (!api.enabled || !mapCanHostWater()) return;
     api.terrainSamples = 0; api.terrainMissing = 0;
     let b;
     try { b = map.getBounds(); } catch (_) { return; }
@@ -681,6 +704,14 @@ export function initWaterEngine(mapOrWorld, options = {}) {
     const waterFeatures = sourceFeatures(map, 'water', 850);
     const landCoverFeatures = sourceFeatures(map, 'landcover', 900);
     const landUseFeatures = sourceFeatures(map, 'landuse', 900);
+    // During initial style swaps, source objects can exist before their visible vector tiles.
+    // Do not mistake an empty initial feature query for ocean and paint water over land.
+    if (!waterFeatures.length && !landCoverFeatures.length && !landUseFeatures.length) {
+      api.waitingForVectorFeatures = true;
+      api.sourceWaterFeatures = api.sourceLandFeatures = api.sourceWaterwayFeatures = 0;
+      return;
+    }
+    api.waitingForVectorFeatures = false;
     const flowRaw = [];
     if (z >= 5.5) {
       try {
@@ -724,7 +755,9 @@ export function initWaterEngine(mapOrWorld, options = {}) {
         const xCenterRaw = (xLeftRaw + xRightRaw) * 0.5, yCenter = (yTop + yBottom) * 0.5;
         const lon = wrapLon(xCenterRaw * 360 - 180), lat = unmercY(yCenter);
         const waterFeature = locate(waterFeatures, lon, lat);
-        let kind = 1;
+        // Kind 3 is source-classified ocean/sea; kind 1 is inland lake/pond/reservoir.
+        // Only open-marine and ocean-fallback cells receive the storm-surge approximation.
+        let kind = waterFeature && marineFeature(waterFeature) ? 3 : 1;
         if (!waterFeature) {
           const isLand = locate(landCoverFeatures, lon, lat) || locate(landUseFeatures, lon, lat);
           if (isLand) continue;
@@ -784,7 +817,7 @@ export function initWaterEngine(mapOrWorld, options = {}) {
   layer = layerRef;
   try { Object.defineProperty(api, '_layer', { value: layer, enumerable: false }); } catch (_) {}
   function ensureInstalled() {
-    if (!api.active || destroyed || !map.isStyleLoaded?.()) return;
+    if (!api.active || destroyed || !mapCanHostWater()) return;
     if (map.getLayer(LAYER_ID)) { if (!layer.gl) scheduleBuild(80); return; }
     if (!map.getLayer('gta-water') || !map.getSource('ofm')) return;
     try {
