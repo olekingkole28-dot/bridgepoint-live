@@ -556,6 +556,7 @@ export function initWaterEngine(mapOrWorld, options = {}) {
         nativeWaterLayerPresent: (()=>{try{return !!map.getLayer('gta-water')}catch(_){return false}})(),
         vectorSourcePresent: (()=>{try{return !!map.getSource('ofm')}catch(_){return false}})(),
         installError: this.installError || null, buildError: this.buildError || null,
+        waitingForVectorFeatures: !!this.waitingForVectorFeatures,
         gpuVertexDisplacement: true, adaptiveLOD: true, boundedGeometry: true,
         sourceWaterFeatures: this.sourceWaterFeatures, sourceLandFeatures: this.sourceLandFeatures,
         sourceWaterwayFeatures: this.sourceWaterwayFeatures, waterPolygonCells: this.waterPolygonCells,
@@ -703,6 +704,14 @@ export function initWaterEngine(mapOrWorld, options = {}) {
     const waterFeatures = sourceFeatures(map, 'water', 850);
     const landCoverFeatures = sourceFeatures(map, 'landcover', 900);
     const landUseFeatures = sourceFeatures(map, 'landuse', 900);
+    // During initial style swaps, source objects can exist before their visible vector tiles.
+    // Do not mistake an empty initial feature query for ocean and paint water over land.
+    if (!waterFeatures.length && !landCoverFeatures.length && !landUseFeatures.length) {
+      api.waitingForVectorFeatures = true;
+      api.sourceWaterFeatures = api.sourceLandFeatures = api.sourceWaterwayFeatures = 0;
+      return;
+    }
+    api.waitingForVectorFeatures = false;
     const flowRaw = [];
     if (z >= 5.5) {
       try {
