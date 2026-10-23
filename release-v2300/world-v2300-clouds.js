@@ -30,7 +30,7 @@ function makeShaders(webgl2, shaderData = null) {
       : 'attribute vec3 a_pos;\nattribute float a_altitude;\nattribute vec3 a_local;\nattribute float a_tint;\nattribute vec2 a_wind;\nvarying vec3 v_local;\nvarying float v_tint;\n') +
     (projectionAware ? '' : 'uniform mat4 u_matrix;\n') +
     'uniform highp float u_motion_time;\n' +
-    'void main(){v_local=a_local;v_tint=a_tint;vec2 advect=a_wind*u_motion_time;vec2 moved=vec2(fract(a_pos.x+advect.x),clamp(a_pos.y+advect.y,0.0005,0.9995));gl_Position=' +
+    'void main(){v_local=a_local;v_tint=a_tint;vec2 moved;if(a_tint>1.40){vec2 rel=a_pos.xy-a_wind;float spin=a_tint>1.455?1.0:-1.0;float angle=spin*u_motion_time*2.05+a_altitude*0.000035;float cs=cos(angle),sn=sin(angle);moved=a_wind+vec2(rel.x*cs-rel.y*sn,rel.x*sn+rel.y*cs);}else if(a_tint>1.20&&a_tint<1.30){vec2 rel=a_pos.xy-a_wind;float spin=((a_tint<1.235)||(a_tint>1.25&&a_tint<1.275))?-1.0:1.0;float angle=spin*u_motion_time*0.68+a_altitude*0.0000012;float cs=cos(angle),sn=sin(angle);moved=a_wind+vec2(rel.x*cs-rel.y*sn,rel.x*sn+rel.y*cs);}else{vec2 advect=a_wind*u_motion_time;moved=vec2(fract(a_pos.x+advect.x),clamp(a_pos.y+advect.y,0.0005,0.9995));}gl_Position=' +
     (projectionAware ? 'projectTileFor3D(moved,a_altitude)' : 'u_matrix*vec4(moved,a_pos.z,1.0)') + ';}';
 
   const fragment = (webgl2 ? '#version 300 es\n' : '') +
@@ -38,7 +38,7 @@ function makeShaders(webgl2, shaderData = null) {
     (webgl2 ? 'in vec3 v_local;\nin float v_tint;\nout vec4 bpColor;\n' : 'varying vec3 v_local;\nvarying float v_tint;\n') +
     'uniform float u_time;\n' +
     'float noise3(vec3 p){vec3 q=floor(p);vec3 f=fract(p);f=f*f*(3.0-2.0*f);float n=q.x+q.y*57.0+q.z*113.0;float a=fract(sin(n)*43758.5453);float b=fract(sin(n+1.0)*43758.5453);float c=fract(sin(n+57.0)*43758.5453);float d=fract(sin(n+58.0)*43758.5453);float e=fract(sin(n+113.0)*43758.5453);float f1=fract(sin(n+114.0)*43758.5453);float g=fract(sin(n+170.0)*43758.5453);float h=fract(sin(n+171.0)*43758.5453);return mix(mix(mix(a,b,f.x),mix(c,d,f.x),f.y),mix(mix(e,f1,f.x),mix(g,h,f.x),f.y),f.z);}\n' +
-    'void main(){vec3 n=normalize(v_local);float edge=clamp(0.58+abs(v_local.z)*0.18,0.0,1.0);float broad=noise3(v_local*3.0+vec3(u_time*0.004,v_tint*1.7,0.0));float detail=noise3(v_local*7.0+vec3(u_time*0.018,v_tint*4.0,0.0));float billow=noise3(v_local*15.0+vec3(0.0,u_time*0.012,v_tint*8.0));float fine=noise3(v_local*27.0+vec3(u_time*0.008,v_tint*11.0,0.0));float diffuse=max(0.0,dot(n,normalize(vec3(-0.42,0.55,0.72))));float density=broad*0.37+detail*0.34+billow*0.29;float sculpt=smoothstep(0.20,0.68,density);float silver=clamp(0.18+diffuse*0.86+broad*0.08+detail*0.07+billow*0.06,0.0,1.0);vec3 lit=mix(vec3(0.28,0.36,0.46),vec3(0.99,0.995,1.0),silver);float underside=pow(max(0.0,-n.z),1.35);lit=mix(lit,vec3(0.27,0.35,0.46),underside*0.48);lit=mix(lit,vec3(0.84,0.89,0.96),pow(max(0.0,1.0-abs(dot(n,normalize(vec3(0.2,0.0,1.0))))),2.0)*0.19);float rainCell=smoothstep(1.1,1.3,v_tint);float stormCell=smoothstep(0.89,0.95,v_tint)*(1.0-rainCell);float hurricaneCell=smoothstep(1.00,1.07,v_tint)*(1.0-rainCell);lit=mix(lit,vec3(0.27,0.33,0.42),rainCell*0.68);lit=mix(lit,vec3(0.19,0.23,0.30),stormCell*0.46+hurricaneCell*0.62);float alphaBase=edge*(0.20+sculpt*0.47+diffuse*0.17+fine*0.08)*(1.0+rainCell*1.8+stormCell*0.14+hurricaneCell*0.24);float thinCell=1.0-smoothstep(0.19,0.26,v_tint);float alpha=clamp(mix(alphaBase,alphaBase*0.66,thinCell),0.035,0.96);' +
+    'void main(){vec3 n=normalize(v_local);float edge=clamp(0.58+abs(v_local.z)*0.18,0.0,1.0);float broad=noise3(v_local*3.0+vec3(u_time*0.004,v_tint*1.7,0.0));float detail=noise3(v_local*7.0+vec3(u_time*0.018,v_tint*4.0,0.0));float billow=noise3(v_local*15.0+vec3(0.0,u_time*0.012,v_tint*8.0));float fine=noise3(v_local*27.0+vec3(u_time*0.008,v_tint*11.0,0.0));float diffuse=max(0.0,dot(n,normalize(vec3(-0.42,0.55,0.72))));float density=broad*0.37+detail*0.34+billow*0.29;float sculpt=smoothstep(0.20,0.68,density);float silver=clamp(0.18+diffuse*0.86+broad*0.08+detail*0.07+billow*0.06,0.0,1.0);vec3 lit=mix(vec3(0.28,0.36,0.46),vec3(0.99,0.995,1.0),silver);float underside=pow(max(0.0,-n.z),1.35);lit=mix(lit,vec3(0.27,0.35,0.46),underside*0.48);lit=mix(lit,vec3(0.84,0.89,0.96),pow(max(0.0,1.0-abs(dot(n,normalize(vec3(0.2,0.0,1.0))))),2.0)*0.19);float tornadoCell=smoothstep(1.40,1.44,v_tint);float rainCell=smoothstep(1.30,1.34,v_tint)*(1.0-tornadoCell);float stormCell=smoothstep(0.89,0.95,v_tint)*(1.0-rainCell)*(1.0-tornadoCell);float hurricaneCell=smoothstep(1.20,1.23,v_tint)*(1.0-smoothstep(1.28,1.30,v_tint));float tornadoStriation=0.5+0.5*sin(atan(v_local.y,v_local.x)*6.0-u_time*4.8+v_local.z*17.0+detail*2.1);lit=mix(lit,vec3(0.27,0.33,0.42),rainCell*0.68);lit=mix(lit,vec3(0.19,0.23,0.30),stormCell*0.46+hurricaneCell*0.62+tornadoCell*0.64);lit=mix(lit,vec3(0.83,0.88,0.93),tornadoCell*tornadoStriation*0.46);float alphaBase=edge*(0.20+sculpt*0.47+diffuse*0.17+fine*0.08)*(1.0+rainCell*1.8+stormCell*0.14+hurricaneCell*0.3+tornadoCell*(0.3+tornadoStriation*0.24));float thinCell=1.0-smoothstep(0.19,0.26,v_tint);float alpha=clamp(mix(alphaBase,alphaBase*0.66,thinCell),0.035,0.96);' +
     (webgl2 ? 'bpColor=vec4(lit,alpha);' : 'gl_FragColor=vec4(lit,alpha);') +
     '}';
   return { vertex, fragment, projectionAware };
@@ -197,16 +197,22 @@ function makePuffGeometry(THREEless, MC, vertices, indices, lng, lat, altitude, 
 }
 function makeFunnelGeometry(MC, vertices, indices, lng, lat, altitudeTop, tint) {
   const center = MC.fromLngLat({ lng, lat }, 0), unit = center.meterInMercatorCoordinateUnits();
-  const base = vertices.length / 10, rings = 11, segments = 12;
-  const bottomM = 220, topM = 5600;
+  const base = vertices.length / 10, rings = MOBILE ? 13 : 22, segments = MOBILE ? 14 : 24;
+  const heightM = clamp(Math.max(altitudeTop, 3500), 3500, 15500);
+  const bottomM = 35, topM = clamp(heightM * 0.14, 650, 1700);
   for (let j = 0; j <= rings; j++) {
     const t = j / rings;
-    const zM = 220 + t * (Math.max(altitudeTop, 3500) - 220);
-    const radius = bottomM + Math.pow(t, 0.9) * (Math.min(2600, topM) - bottomM);
+    const zM = 220 + t * (heightM - 220);
+    const radius = bottomM + Math.pow(t, 0.72) * (topM - bottomM);
+    const twist = t * 0.72 + Math.sin(t * Math.PI * 2) * 0.08;
+    const centerX = Math.sin(t * Math.PI * 1.35) * topM * 0.12;
+    const centerY = Math.sin(t * Math.PI * 2.0) * topM * 0.045;
     for (let i = 0; i <= segments; i++) {
-      const a = TAU * i / segments, lx = Math.cos(a), ly = Math.sin(a);
-      vertices.push(center.x + lx * radius * unit, center.y + ly * radius * unit, center.z + zM * unit, zM,
-        lx * radius / topM, ly * radius / topM, t, tint, 0, 0);
+      const a = TAU * i / segments + twist;
+      const lobe = 1.0 + 0.075 * Math.sin(a * 3.0 + t * 8.0) + 0.035 * Math.cos(a * 5.0 - t * 11.0);
+      const rx = Math.cos(a) * radius * lobe, ry = Math.sin(a) * radius * lobe;
+      vertices.push(center.x + (centerX + rx) * unit, center.y + (centerY + ry) * unit,
+        center.z + zM * unit, zM, rx / topM, ry / topM, t, tint, center.x, center.y);
     }
   }
   for (let j = 0; j < rings; j++) for (let i = 0; i < segments; i++) {
@@ -255,7 +261,7 @@ export function initSkyClouds(target) {
   }
 
   let enabled = true, disposed = false, animationTimer = 0, rebuildTimer = 0, refreshHandle = 0, layerRetryTimer = 0, layerRetryAttempts = 0, lastLayerHealthCheckAt = 0;
-  let rainCellShelfCount = 0, sourceCloudObservationCount = 0;
+  let rainCellShelfCount = 0, sourceCloudObservationCount = 0, tornadoFunnelMeshVertices = 0;
   let hurricaneSpiralCloudCenters = 0, hurricaneCloudShieldRadiusKm = 0;
   let hurricaneEyeWallCloudCenters = 0, hurricaneEyeRadiusKm = 0;
   let hurricaneEyeRadiusSource = 'no current source-backed hurricane';
@@ -329,6 +335,14 @@ export function initSkyClouds(target) {
     }
     return windSampleCache;
   }
+  function isTropicalCyclone(st={}) {
+    const label=String([st.name,st.event,st.type,st.category,st.phenom,st.kind,st.system_type,st.systemType,st.storm_type,st.stormType].filter(Boolean).join(' ')).toLowerCase();
+    if (/extra[\s-]?tropical/.test(label)) return false;
+    return /hurricane|typhoon|tropical[\s-]+(?:storm|cyclone|depression|system)|\bcyclone\b/.test(label) || String(st.phenom||'').toUpperCase()==='HU';
+  }
+  function isTornadoSource(st={}) {
+    return /tornado|waterspout/i.test(String([st.name,st.event,st.type,st.category,st.phenom,st.kind].filter(Boolean).join(' '))) || String(st.phenom||'').toUpperCase()==='TO';
+  }
   function cloudWindVectorFor(lng,lat,altitude,scene,stormContext=null){
     const samples=collectHeightResolvedWindSamples(scene);
     let best=null,bestScore=Infinity;const latCos=Math.max(0.12,Math.cos(lat*Math.PI/180));
@@ -347,7 +361,7 @@ export function initSkyClouds(target) {
         for(const st of (Array.isArray(scene?.storms)?scene.storms:[])){
           const slng=number(st.lng,number(st.longitude,NaN)),slat=number(st.lat,number(st.latitude,NaN));if(!Number.isFinite(slng)||!Number.isFinite(slat))continue;
           const stName=String(st.name||st.event||st.type||'').toLowerCase(),stMph=number(st.wind_mph,number(st.wind_kt,0)*1.15078);
-          if(!(/hurricane|tropical|cyclone|typhoon/.test(stName)||stMph>=64))continue;
+          if(!isTropicalCyclone(st))continue;
           const dx=((((lng-slng+540)%360)+360)%360)-180,d=Math.hypot(dx*Math.cos(slat*Math.PI/180),lat-slat)*111320;
           const rad=number(st.cloud_shield_radius_m,number(st.cloudShieldRadiusM,number(st.cloud_radius_m,number(st.cloudRadiusM,NaN))));
           const limit=Number.isFinite(rad)&&rad>0?Math.min(1200000,Math.max(120000,rad*1.3)):700000;
@@ -382,7 +396,7 @@ export function initSkyClouds(target) {
       layerRetryAttempts, mapStyleLoaded: map.isStyleLoaded?.() === true,
       mapStyleLayerCount: map.getStyle?.()?.layers?.length ?? 0, documentHidden: !!document.hidden,
       cloudHeightMode: measuredCount ? 'source-backed local cloud-top height samples with procedural fill between samples; a complete global cloud-height field is not connected' : 'procedural altitude only; measured global cloud-top heights are not connected',
-      warningFunnels: funnelCount, hurricaneStormVolumes: stormCount,
+      warningFunnels: funnelCount, tornadoFunnelMeshVertices, tornadoFunnelAnimated: tornadoFunnelMeshVertices > 0, hurricaneStormVolumes: stormCount, hurricaneVortexAnimated: hurricaneSpiralCloudCenters > 0 && hurricaneEyeWallCloudCenters > 0,
       funnelCaveat: funnelCount ? 'Illustrative funnel context inside active tornado-warning geometry; a warning is not confirmation of a tornado.' : null,
       rendererError, zoom: number(map.getZoom?.()), pitch: number(map.getPitch?.()), updatedAt: Date.now()
     };
@@ -783,9 +797,9 @@ function generateGeometry() {
     if (disposed || !enabled) return;
     const z = number(map.getZoom?.());
     const overviewClouds = z <= 8.5;
-    const maxForm = z <= 5.5 ? (MOBILE ? 44 : 96) : z <= 8.5 ? (MOBILE ? 44 : 88) : (MOBILE ? 44 : 30);
+    let maxForm = z <= 5.5 ? (MOBILE ? 44 : 96) : z <= 8.5 ? (MOBILE ? 44 : 88) : (MOBILE ? 44 : 30);
     const vertices = [], indices = [], formations = [];
-    measuredCount = 0; funnelCount = 0; stormCount = 0; rainCellShelfCount = 0; sourceCloudObservationCount = 0;
+    measuredCount = 0; funnelCount = 0; tornadoFunnelMeshVertices = 0; stormCount = 0; rainCellShelfCount = 0; sourceCloudObservationCount = 0;
     hurricaneSpiralCloudCenters = 0; hurricaneCloudShieldRadiusKm = 0;
     hurricaneEyeWallCloudCenters = 0; hurricaneEyeRadiusKm = 0; hurricaneEyeRadiusSource = 'no current source-backed hurricane';
     localWindSourcePuffs = 0; localWindModelledPuffs = 0;
@@ -793,9 +807,12 @@ function generateGeometry() {
     const measured = collectHeightFeatures(scene);
     measuredCount = measured.length;
     heightSource = measuredCount ? String(measured[0]?.source || measured[0]?.provenance || 'world-effects cloud-height samples') : 'not connected';
-    const stormScore = st => { const name=String(st.name||st.event||st.type||'').toLowerCase(); return (/hurricane|tropical|cyclone|typhoon/.test(name)||number(st.wind_mph,number(st.wind_kt,0)*1.15078)>=64)?2:1; };
+    const stormScore = st => isTropicalCyclone(st) ? 2 : 1;
     const stormList = (Array.isArray(scene?.storms)?scene.storms:[]).slice().sort((a,b)=>stormScore(b)-stormScore(a));
     const alerts = Array.isArray(scene?.alerts) ? scene.alerts : [];
+    const tornadoAlertCount = alerts.filter(alert => { const p=alert?.properties||alert||{}; const desc=String([p.phenom,p.event,p.headline,p.event_name,p.description].join(' ')).toLowerCase(); return /\btornado\b/.test(desc)||String(p.phenom||'').toUpperCase()==='TO'; }).length;
+    const sourceTornadoCount = (Array.isArray(scene?.storms)?scene.storms:[]).filter(isTornadoSource).length;
+    maxForm += Math.min(MOBILE ? 2 : 4, tornadoAlertCount + sourceTornadoCount);
     const getLon = lng => ((((lng + 180) % 360) + 360) % 360) - 180;
     function addFormation(lng, lat, radiusM, baseM, topM, seed, kind = 'ordinary', windContext = null) {
       if (!Number.isFinite(lng) || !Number.isFinite(lat) || Math.abs(lat) > 82 || formations.length >= maxForm) return;
@@ -851,9 +868,8 @@ function generateGeometry() {
     for (const storm of stormList.filter(st=>Number.isFinite(number(st.lng,number(st.longitude,NaN)))&&Number.isFinite(number(st.lat,number(st.latitude,NaN)))).slice(0, overviewClouds ? (MOBILE?1:2) : (MOBILE?1:4))) {
       const lng = number(storm.lng, number(storm.longitude, NaN)), lat = number(storm.lat, number(storm.latitude, NaN));
       if (!Number.isFinite(lng) || !Number.isFinite(lat) || Math.abs(lat) > 82) continue;
-      const name = String(storm.name || storm.event || storm.type || '').toLowerCase();
       const windMph = clamp(number(storm.wind_mph,number(storm.wind_kt,0)*1.15078),0,220);
-      const hurricane = /hurricane|tropical|cyclone|typhoon/.test(name) || windMph >= 64;
+      const hurricane = isTropicalCyclone(storm);
       const suppliedShieldMi = number(storm.cloud_shield_radius_mi,
         number(storm.cloudShieldRadiusMi, number(storm.cloud_radius_mi,
           number(storm.cloudRadiusMi, number(storm.radius_mi, NaN)))));
@@ -964,20 +980,32 @@ function generateGeometry() {
     }
 
     // A warning polygon is illustrative context, not confirmation of a tornado.
-    for (const alert of (window.__BP_CLOUDS_ONLY_PHASE_V6070__ === true ? [] : alerts)) {
+    const tornadoCenters = [];
+    for (const alert of alerts) {
       if (formations.length >= maxForm) break;
       const p = alert?.properties || alert || {};
       const desc = String([p.phenom, p.event, p.headline, p.event_name, p.description].join(' ')).toLowerCase();
       if (!(/\btornado\b/.test(desc) || String(p.phenom || '').toUpperCase() === 'TO')) continue;
       const center = centerOf(alert);
-      if (center) { addFormation(center[0], center[1], 10000, 3000, 11000, hash(center[0], center[1], 88), 'funnel'); funnelCount++; }
+      if (center) { addFormation(center[0], center[1], 10000, 3000, 11000, hash(center[0], center[1], 88), 'funnel'); funnelCount++; tornadoCenters.push(center); }
+    }
+    // Accept source-coordinate tornado/waterspout reports as well as polygon warnings.
+    for (const st of (Array.isArray(scene?.storms)?scene.storms:[]).filter(isTornadoSource)) {
+      if (formations.length >= maxForm) break;
+      const lng=number(st.lng,number(st.longitude,NaN)),lat=number(st.lat,number(st.latitude,NaN));
+      if (!Number.isFinite(lng)||!Number.isFinite(lat)) continue;
+      if (tornadoCenters.some(c=>Math.hypot((c[0]-lng)*Math.cos(lat*Math.PI/180),c[1]-lat)<0.12)) continue;
+      addFormation(lng,lat,10000,3000,clamp(number(st.cloud_top_height_m,number(st.cloudTopHeightM,11000)),4500,15500),hash(lng,lat,6080),'funnel');
+      funnelCount++; tornadoCenters.push([lng,lat]);
     }
 
     function puff(lng,lat,altitude,rx,ry,rz,seed,tint,lowCost=false,windContext=null){
       const wind=cloudWindVectorFor(lng,lat,altitude,scene,windContext);
       if(wind.sourceBacked)localWindSourcePuffs++;else localWindModelledPuffs++;
+      // Keep the cyclone cloud shield orbiting its center; straight-line advection drifts it apart over time.
+      const pivot=windContext?MC.fromLngLat({lng:windContext.centerLng,lat:windContext.centerLat},0):null;
       makePuffGeometry(null,MC,vertices,indices,getLon(lng),clamp(lat,-82,82),altitude,rx,ry,rz,tint,
-        lowCost?(MOBILE?6:7):(MOBILE?7:8),lowCost?2:3,seed,wind.dx,wind.dy);
+        lowCost?(MOBILE?6:7):(MOBILE?7:8),lowCost?2:3,seed,pivot?pivot.x:wind.dx,pivot?pivot.y:wind.dy);
     }
     const globeScale = z <= 8.5;
     for (let k = 0; k < formations.length; k++) {
@@ -995,7 +1023,7 @@ function generateGeometry() {
         const altitude = f.baseM + cloudRange * (i === 0 ? 0.50 : 0.48 + hash(k, i, 5) * 0.04);
         const vertical = cloudRange * (i === 0 ? 0.43 : 0.40 + hash(k, i, 6) * 0.035);
         puff(lng, lat, altitude, f.radiusM * scaleX, f.radiusM * scaleY, vertical, f.seed,
-          f.kind === 'rain-cell' ? 1.35 : f.kind === 'hurricane' ? 1.045 + hash(k, i, 7) * 0.035 : f.kind === 'hurricane-eyewall' ? 0.72 + hash(k,i,7)*0.10 : f.kind === 'hurricane-spiral' ? 0.88 + hash(k,i,7)*0.08 : f.kind === 'storm' ? 0.90 + hash(k, i, 7) * 0.07 : f.kind === 'funnel' ? 1.14 : 0.22 + hash(k, i, 7) * 0.52, globeScale, f.windContext);
+          f.kind === 'rain-cell' ? 1.35 : f.kind === 'hurricane' ? (f.windContext?.centerLat < 0 ? 1.28 : 1.27) : f.kind === 'hurricane-eyewall' ? (f.windContext?.centerLat < 0 ? 1.24 : 1.23) : f.kind === 'hurricane-spiral' ? (f.windContext?.centerLat < 0 ? 1.28 : 1.27) : f.kind === 'storm' ? 0.90 + hash(k, i, 7) * 0.07 : f.kind === 'funnel' ? (f.lat < 0 ? 1.46 : 1.45) : 0.22 + hash(k, i, 7) * 0.52, globeScale, f.windContext);
       }
       if (f.kind === 'rain-cell') {
         // Distinct low rain-cloud shelf: same world coordinates and cloud base as rain seeds.
@@ -1004,7 +1032,7 @@ function generateGeometry() {
           clamp((f.topM - f.baseM) * 0.18, 260, 520), 1.35, 1.35, globeScale, f.windContext);
         rainCellShelfCount++;
       }
-      if (f.kind === 'funnel' && !MOBILE) makeFunnelGeometry(MC, vertices, indices, f.lng, f.lat, f.topM, 0.92);
+      if (f.kind === 'funnel') { const beforeFunnelVertices=vertices.length/10; makeFunnelGeometry(MC, vertices, indices, f.lng, f.lat, f.topM, f.lat < 0 ? 1.46 : 1.45); tornadoFunnelMeshVertices += vertices.length/10-beforeFunnelVertices; }
     }
     const global = buildGlobalCloudGeometry();
     const globalVertexCount = Math.floor(global.vertices.length / 10);
@@ -1074,7 +1102,7 @@ function scheduleGeometry(delay = 180) {
       clearLayerRetry();
       stopAnimation(); clearTimeout(rebuildTimer);
       vertexData = new Float32Array(0); indexData = new Uint16Array(0);
-      geometryDirty = true; formationCount = 0; measuredCount = 0; funnelCount = 0; stormCount = 0;
+      geometryDirty = true; formationCount = 0; measuredCount = 0; funnelCount = 0; tornadoFunnelMeshVertices = 0; stormCount = 0;
     }
     publishState(); map.triggerRepaint?.();
     return enabled;

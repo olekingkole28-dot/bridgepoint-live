@@ -67,7 +67,7 @@ jobs:
           grep -Fq '(thunderstorm ? 900 : 650);' /tmp/bp2300wx/world-v2300-clouds.js
           grep -Fq 'thunderstorm ? 450 : 350' /tmp/bp2300wx/world-v2300-clouds.js
           grep -Fq 'thunderstorm ? 2800 : 1800' /tmp/bp2300wx/world-v2300-clouds.js
-          grep -Fq 'rainCell=smoothstep(1.1,1.3,v_tint)' /tmp/bp2300wx/world-v2300-clouds.js
+          grep -Fq 'rainCell=smoothstep(1.30,1.34,v_tint)' /tmp/bp2300wx/world-v2300-clouds.js
           grep -Fq 'wildfireFlameParticles:true' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq 'tornadoCone:true' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq 'hurricaneSpiralEye:true' /tmp/bp2300wx/world-v2300-weather.js
@@ -153,7 +153,7 @@ jobs:
               await p.evaluate(()=>window.__bpWeatherV2300.refresh(true));
               await p.waitForFunction(()=>window.__bpWeatherV2300?.state?.counts?.alerts===3,{timeout:15000});
               await p.waitForFunction(()=>Number(window.__BP_SKY_CLOUDS_STATE_V5908__?.localCloudFormations||0)>0,{timeout:15000});
-              const stormCloudDiag=await p.evaluate(()=>{const s=window.__BP_SKY_CLOUDS_STATE_V5908__||{};return{version:s.version,globalCloudFormations:s.globalCloudFormations,globalThinLayerSlices:s.globalThinLayerSlices,globalThinLayerStacks:s.globalThinLayerStacks,globalSingleLayerSlices:s.globalSingleLayerSlices,globalSingleLayerStacks:s.globalSingleLayerStacks,globalMacroRadiusMaxKm:s.globalMacroRadiusMaxKm,hurricaneSpiralCloudCenters:s.hurricaneSpiralCloudCenters,hurricaneEyeWallCloudCenters:s.hurricaneEyeWallCloudCenters,hurricaneEyeRadiusKm:s.hurricaneEyeRadiusKm,hurricaneEyeRadiusSource:s.hurricaneEyeRadiusSource,hurricaneCloudShieldRadiusKm:s.hurricaneCloudShieldRadiusKm,cloudWaterHeightReference:s.cloudWaterHeightReference,globalHeightResolvedWindPuffs:s.globalHeightResolvedWindPuffs,globalModelledWindPuffs:s.globalModelledWindPuffs,rendererError:s.rendererError};});
+              const stormCloudDiag=await p.evaluate(()=>{const s=window.__BP_SKY_CLOUDS_STATE_V5908__||{};return{version:s.version,globalCloudFormations:s.globalCloudFormations,globalThinLayerSlices:s.globalThinLayerSlices,globalThinLayerStacks:s.globalThinLayerStacks,globalSingleLayerSlices:s.globalSingleLayerSlices,globalSingleLayerStacks:s.globalSingleLayerStacks,globalMacroRadiusMaxKm:s.globalMacroRadiusMaxKm,hurricaneSpiralCloudCenters:s.hurricaneSpiralCloudCenters,hurricaneEyeWallCloudCenters:s.hurricaneEyeWallCloudCenters,hurricaneEyeRadiusKm:s.hurricaneEyeRadiusKm,hurricaneEyeRadiusSource:s.hurricaneEyeRadiusSource,hurricaneCloudShieldRadiusKm:s.hurricaneCloudShieldRadiusKm,warningFunnels:s.warningFunnels,tornadoFunnelMeshVertices:s.tornadoFunnelMeshVertices,tornadoFunnelAnimated:s.tornadoFunnelAnimated,hurricaneVortexAnimated:s.hurricaneVortexAnimated,cloudWaterHeightReference:s.cloudWaterHeightReference,globalHeightResolvedWindPuffs:s.globalHeightResolvedWindPuffs,globalModelledWindPuffs:s.globalModelledWindPuffs,rendererError:s.rendererError};});
               console.log('BRIDGEPOINT_ROUNDED_GLOBAL_CLOUDS_AND_HURRICANE_SPIRAL_DIAG',JSON.stringify(stormCloudDiag));
               assert.equal(stormCloudDiag.version,6077,'v6077 cloud renderer must be loaded');
               assert(stormCloudDiag.globalCloudFormations>=1600,'mobile global field must retain approximately 1,620 formations');
@@ -166,6 +166,10 @@ jobs:
               assert(stormCloudDiag.hurricaneSpiralCloudCenters>=24,'source hurricane must produce multiple curved spiral arms');
               assert(stormCloudDiag.hurricaneEyeRadiusKm>0&&String(stormCloudDiag.hurricaneEyeRadiusSource).includes('source'),'fixture hurricane eye radius must be source-backed');
               assert(stormCloudDiag.hurricaneCloudShieldRadiusKm>=520,'hurricane cloud shield must use storm-scale radius, not eye radius');
+              assert(stormCloudDiag.warningFunnels>=1,'a source tornado warning must create a cloud-layer funnel');
+              assert(stormCloudDiag.tornadoFunnelMeshVertices>=180,'the 3D tornado mesh must render on mobile as well as desktop');
+              assert.equal(stormCloudDiag.tornadoFunnelAnimated,true,'the 3D tornado mesh must rotate');
+              assert.equal(stormCloudDiag.hurricaneVortexAnimated,true,'hurricane eyewall and spiral geometry must animate around the eye');
               assert(stormCloudDiag.globalModelledWindPuffs>0,'the global field must expose modelled wind fallback honestly when no upper-air wind grid is supplied');
               assert(/(?:mean-sea-level 0 m fallback|0 m mean-sea-level fallback)/.test(String(stormCloudDiag.cloudWaterHeightReference)),'clouds over water must use mean sea level as the fallback reference, not seabed elevation');
               await p.waitForFunction(()=>window.__bpWeatherV2300?.fx?.state?.shaderReady===true,{timeout:15000});
