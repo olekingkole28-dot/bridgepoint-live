@@ -420,8 +420,8 @@ export function initSkyClouds(target) {
       existingCloudController.state || null;
     // Cache-busted modules still share this global controller slot. Never silently
     // return a legacy controller whose geometry predates the requested cloud field.
-    if (Number(existingCloudController.version) >= 6090 &&
-        Number(existingState?.coverageVersion || existingState?.version) >= 6090) {
+    if (Number(existingCloudController.version) >= 6094 &&
+        Number(existingState?.coverageVersion || existingState?.version) >= 6094) {
       return existingCloudController;
     }
     try { existingCloudController.destroy?.(); } catch (error) {
@@ -453,6 +453,7 @@ export function initSkyClouds(target) {
   let stormVolumeIndexOffset=0, stormVolumeIndexCount=0, stormVolumeProxyVertices=0, hurricaneVolumeProxyVertices=0, tornadoVolumeProxyVertices=0, stormRaymarchStepBudget=0;
   let hurricaneSurfaceCloudVertices=0, tornadoSurfaceMeshVertices=0;
   let postTropicalSurfaceCloudVertices=0, postTropicalStormCount=0, postTropicalCloudShieldRadiusKm=0;
+  let josephineHurricaneGeometryCount=0, josephineVisualEyeRadiusKm=0, josephineVisualShieldRadiusKm=0;
   let hurricaneSpiralCloudCenters = 0, hurricaneCloudShieldRadiusKm = 0;
   let hurricaneEyeWallCloudCenters = 0, hurricaneEyeRadiusKm = 0;
   let hurricaneEyeRadiusSource = 'no current source-backed hurricane';
@@ -543,6 +544,16 @@ export function initSkyClouds(target) {
     const label=String([p.name,p.event,p.type,p.category,p.phenom,p.kind,p.classification,p.classificationCode,p.system_type,p.systemType,p.storm_type,p.stormType,p.headline,p.event_name,p.description].filter(Boolean).join(' ')).toLowerCase();
     return classification==='PTC'||classification==='EX'||/extra[\s-]?tropical|post[\s-]?tropical/.test(label);
   }
+  // Josephine's source classification remains post-tropical. This visual-only compatibility
+  // rule routes Josephine through the shared animated eye/spiral renderer used by hurricanes.
+  function isJosephineCyclone(st={}) {
+    const p=st?.properties||st||{};
+    const identity=String([p.name,p.event,p.id,p.stormName,p.storm_name].filter(Boolean).join(' ')).toLowerCase();
+    return /\bjosephine\b/.test(identity);
+  }
+  function usesHurricaneGeometry(st={}) {
+    return isTropicalCyclone(st) || (isJosephineCyclone(st) && isPostTropicalCyclone(st));
+  }
   function isHurricaneClass(st={}) {
     const p=st?.properties||st||{};
     const cls=String(p.classification??p.classificationCode??p.classification_code??p.category??'').trim().toUpperCase();
@@ -599,7 +610,7 @@ export function initSkyClouds(target) {
         for(const st of (Array.isArray(scene?.storms)?scene.storms:[])){
           const slng=number(st.lng,number(st.longitude,NaN)),slat=number(st.lat,number(st.latitude,NaN));if(!Number.isFinite(slng)||!Number.isFinite(slat))continue;
           const stName=String(st.name||st.event||st.type||'').toLowerCase(),stMph=number(st.wind_mph,number(st.wind_kt,0)*1.15078);
-          if(!isTropicalCyclone(st))continue;
+          if(!usesHurricaneGeometry(st))continue;
           const dx=((((lng-slng+540)%360)+360)%360)-180,d=Math.hypot(dx*Math.cos(slat*Math.PI/180),lat-slat)*111320;
           const rad=number(st.cloud_shield_radius_m,number(st.cloudShieldRadiusM,number(st.cloud_radius_m,number(st.cloudRadiusM,NaN))));
           const limit=Number.isFinite(rad)&&rad>0?Math.min(1200000,Math.max(120000,rad*1.3)):700000;
@@ -621,12 +632,12 @@ export function initSkyClouds(target) {
   }
   function publishState() {
     const state = {
-      version: 6090, map, enabled, visible: enabled && !document.hidden,
+      version: 6094, map, enabled, visible: enabled && !document.hidden,
       kind: 'georeferenced 3D cloud-volume layer',
       renderer: 'shared MapLibre WebGL context; storms use world-anchored raymarched volume proxies',
       stormRenderingArchitecture: 'Earth-coordinate storm geometry in fixed metres, source-centre anchored, with shader-interpolated source-motion vectors and no zoom-driven storm-size boosts',
-      stormVolumeProxyVertices, hurricaneVolumeProxyVertices, tornadoVolumeProxyVertices, hurricaneSurfaceCloudVertices, tornadoSurfaceMeshVertices, tornadoSurfaceVerticesSubmitted, postTropicalSurfaceCloudVertices, postTropicalStormCount, postTropicalCloudShieldRadiusKm, stormRaymarchStepBudget,
-      cloudFormations: formationCount, globalCloudFormations: globalCloudGeometryCache?.formationCount || 0, coverageVersion: 6090, globalStormMaskCount: globalCloudGeometryCache?.stormEyeMaskCount || 0, globalCloudLodBand: globalCloudGeometryCache?.cloudLodBand || 'unbuilt', globalStormLod, sourceStormCount, sourceTornadoAlertCount, modeledHurricaneVisualCount, modeledTornadoVisualCount, hurricaneSpiralRibbonVertices, stormVisualProvenance: (modeledHurricaneVisualCount || modeledTornadoVisualCount) ? 'modeled fallback cloud structures are visual examples, not source-backed live weather or alerts' : (sourceStormCount ? 'source-anchored storm bodies; tropical cyclones use eye/spiral geometry, post-tropical lows use asymmetric cloud shields, no synthetic storm centres' : 'no source-backed storm record; synthetic storm fallbacks disabled'), globalMacroRadiusMinKm: globalCloudGeometryCache?.macroRadiusMinKm || 0, globalMacroRadiusMaxKm: globalCloudGeometryCache?.macroRadiusMaxKm || 0, globalThinLayerSlices: globalCloudGeometryCache?.thinLayerSlices || 0, globalThinLayerStacks: globalCloudGeometryCache?.thinLayerStacks || 0, globalSingleLayerSlices: globalCloudGeometryCache?.singleLayerSlices || 0, globalSingleLayerStacks: globalCloudGeometryCache?.singleLayerStacks || 0, hurricaneSpiralCloudCenters, hurricaneEyeWallCloudCenters, hurricaneEyeRadiusKm, hurricaneEyeRadiusSource, hurricaneCloudShieldRadiusKm, hurricaneVisualEyeRadiusKm, hurricaneVisualShieldRadiusKm, tornadoVisualHeightKm, tornadoVisualTopRadiusKm, tornadoVisualBoost, globalHeightResolvedWindPuffs: globalCloudGeometryCache?.heightResolvedWindPuffs || 0, globalModelledWindPuffs: globalCloudGeometryCache?.modelledWindPuffs || 0, localWindSourcePuffs, localWindModelledPuffs, globalMacroFormations: globalCloudGeometryCache?.macroFormationCount || 0, globalFineFormations: globalCloudGeometryCache?.fineFormationCount || 0, globalIsolatedFormations: globalCloudGeometryCache?.isolatedFormationCount || 0, globalThinLayerFormations: globalCloudGeometryCache?.thinLayerFormationCount || 0, globalCloudPuffs: globalCloudGeometryCache?.puffCount || 0, globalTerrainQuerySamples: terrainHeightKnownSamples, terrainRelativeCloudBases: terrainQueryAvailable, cloudMotion: (globalCloudGeometryCache?.heightResolvedWindPuffs || 0) > 0 ? 'Height-resolved source wind advects matched cloud puffs; modelled atmospheric flow fills unmatched locations' : 'Height/latitude-aware modelled atmospheric flow; no source-backed global upper-air wind grid is connected',
+      stormVolumeProxyVertices, hurricaneVolumeProxyVertices, tornadoVolumeProxyVertices, hurricaneSurfaceCloudVertices, tornadoSurfaceMeshVertices, tornadoSurfaceVerticesSubmitted, postTropicalSurfaceCloudVertices, postTropicalStormCount, postTropicalCloudShieldRadiusKm, josephineHurricaneGeometryCount, josephineVisualEyeRadiusKm, josephineVisualShieldRadiusKm, josephineSourceClassification: (()=>{const j=(Array.isArray(getScene()?.storms)?getScene().storms:[]).find(isJosephineCyclone);const p=j?.properties||j||{};return String(p.official_classification||p.classification||p.classificationCode||p.type||'unknown');})(), stormRaymarchStepBudget,
+      cloudFormations: formationCount, globalCloudFormations: globalCloudGeometryCache?.formationCount || 0, coverageVersion: 6094, globalStormMaskCount: globalCloudGeometryCache?.stormEyeMaskCount || 0, globalCloudLodBand: globalCloudGeometryCache?.cloudLodBand || 'unbuilt', globalStormLod, sourceStormCount, sourceTornadoAlertCount, modeledHurricaneVisualCount, modeledTornadoVisualCount, hurricaneSpiralRibbonVertices, stormVisualProvenance: (modeledHurricaneVisualCount || modeledTornadoVisualCount) ? 'modeled fallback cloud structures are visual examples, not source-backed live weather or alerts' : (sourceStormCount ? 'source-anchored storm bodies; tropical cyclones use eye/spiral geometry, post-tropical lows use asymmetric cloud shields except Josephine's visual-compatibility override; official classification is preserved, no synthetic storm centres' : 'no source-backed storm record; synthetic storm fallbacks disabled'), globalMacroRadiusMinKm: globalCloudGeometryCache?.macroRadiusMinKm || 0, globalMacroRadiusMaxKm: globalCloudGeometryCache?.macroRadiusMaxKm || 0, globalThinLayerSlices: globalCloudGeometryCache?.thinLayerSlices || 0, globalThinLayerStacks: globalCloudGeometryCache?.thinLayerStacks || 0, globalSingleLayerSlices: globalCloudGeometryCache?.singleLayerSlices || 0, globalSingleLayerStacks: globalCloudGeometryCache?.singleLayerStacks || 0, hurricaneSpiralCloudCenters, hurricaneEyeWallCloudCenters, hurricaneEyeRadiusKm, hurricaneEyeRadiusSource, hurricaneCloudShieldRadiusKm, hurricaneVisualEyeRadiusKm, hurricaneVisualShieldRadiusKm, tornadoVisualHeightKm, tornadoVisualTopRadiusKm, tornadoVisualBoost, globalHeightResolvedWindPuffs: globalCloudGeometryCache?.heightResolvedWindPuffs || 0, globalModelledWindPuffs: globalCloudGeometryCache?.modelledWindPuffs || 0, localWindSourcePuffs, localWindModelledPuffs, globalMacroFormations: globalCloudGeometryCache?.macroFormationCount || 0, globalFineFormations: globalCloudGeometryCache?.fineFormationCount || 0, globalIsolatedFormations: globalCloudGeometryCache?.isolatedFormationCount || 0, globalThinLayerFormations: globalCloudGeometryCache?.thinLayerFormationCount || 0, globalCloudPuffs: globalCloudGeometryCache?.puffCount || 0, globalTerrainQuerySamples: terrainHeightKnownSamples, terrainRelativeCloudBases: terrainQueryAvailable, cloudMotion: (globalCloudGeometryCache?.heightResolvedWindPuffs || 0) > 0 ? 'Height-resolved source wind advects matched cloud puffs; modelled atmospheric flow fills unmatched locations' : 'Height/latitude-aware modelled atmospheric flow; no source-backed global upper-air wind grid is connected',
       stormMotionModel: 'Uses feed-provided motion where present; otherwise derives speed and heading from consecutive source fixes. No position interpolation is invented without track history.',
       projectionMode: 'MapLibre shaderData projectTileFor3D', projectionShaderVariants: programCache.size,
       projectionShaderVariantNames: Array.from(programCache.keys()),
@@ -643,6 +654,7 @@ export function initSkyClouds(target) {
     };
     window.__BP_SKY_CLOUDS_STATE_V5908__ = state;
     window.__BP_SKY_CLOUDS_STATE_V6090__ = state;
+    window.__BP_SKY_CLOUDS_STATE_V6094__ = state;
     window.__BP_SKY_CLOUDS_STATE_V6029__ = state;
     window.__BP_SKY_CLOUDS_STATE_V6031__ = state;
     window.__BP_SKY_CLOUDS_STATE_V6045__ = state;
@@ -881,8 +893,8 @@ export function initSkyClouds(target) {
     const zoom = number(map.getZoom?.(), 10);
     const cloudLodBand = zoom <= 5.5 ? 'global' : zoom <= 8.5 ? 'regional' : 'local';
     const sourceCyclones = [
-      ...(Array.isArray(windScene?.storms) ? windScene.storms.filter(isTropicalCyclone) : []),
-      ...(Array.isArray(windScene?.alerts) ? windScene.alerts.filter(isTropicalCyclone) : [])
+      ...(Array.isArray(windScene?.storms) ? windScene.storms.filter(usesHurricaneGeometry) : []),
+      ...(Array.isArray(windScene?.alerts) ? windScene.alerts.filter(usesHurricaneGeometry) : [])
     ].map(st => {
       const p=st?.properties||st||{};
       const c=Number.isFinite(number(p.lng,number(p.longitude,NaN)))&&Number.isFinite(number(p.lat,number(p.latitude,NaN)))
@@ -1091,7 +1103,7 @@ function generateGeometry() {
     globalStormLod = z <= 5.5 ? 'physical-global-scale' : z <= 8.5 ? 'physical-regional-scale' : 'physical-local';
     let maxForm = z <= 5.5 ? (MOBILE ? 72 : 96) : z <= 8.5 ? (MOBILE ? 44 : 88) : (MOBILE ? 44 : 30);
     const vertices = [], indices = [], formations = [], stormVolumeVertices = [], stormVolumeIndices = [], tornadoSurfaceVertexRanges = [];
-    measuredCount = 0; funnelCount = 0; tornadoFunnelMeshVertices = 0; stormCount = 0; postTropicalStormCount=0; postTropicalCloudShieldRadiusKm=0; postTropicalSurfaceCloudVertices=0; rainCellShelfCount = 0; sourceCloudObservationCount = 0;
+    measuredCount = 0; funnelCount = 0; tornadoFunnelMeshVertices = 0; stormCount = 0; postTropicalStormCount=0; postTropicalCloudShieldRadiusKm=0; postTropicalSurfaceCloudVertices=0; josephineHurricaneGeometryCount=0; josephineVisualEyeRadiusKm=0; josephineVisualShieldRadiusKm=0; rainCellShelfCount = 0; sourceCloudObservationCount = 0;
     hurricaneSpiralCloudCenters = 0; hurricaneCloudShieldRadiusKm = 0; hurricaneSpiralRibbonVertices = 0; stormVolumeIndexOffset=0; stormVolumeIndexCount=0; stormVolumeProxyVertices=0; hurricaneVolumeProxyVertices=0; tornadoVolumeProxyVertices=0; hurricaneSurfaceCloudVertices=0; tornadoSurfaceMeshVertices=0; postTropicalSurfaceCloudVertices=0; postTropicalStormCount=0; postTropicalCloudShieldRadiusKm=0;
     hurricaneEyeWallCloudCenters = 0; hurricaneEyeRadiusKm = 0; hurricaneEyeRadiusSource = 'no current source-backed hurricane';
     hurricaneVisualEyeRadiusKm = 0; hurricaneVisualShieldRadiusKm = 0; tornadoVisualHeightKm = 0; tornadoVisualTopRadiusKm = 0; tornadoVisualBoost = 0; tornadoSurfaceVerticesSubmitted = 0; sourceStormCount = 0; sourceTornadoAlertCount = 0; modeledHurricaneVisualCount = 0; modeledTornadoVisualCount = 0;
@@ -1101,7 +1113,7 @@ function generateGeometry() {
     measuredCount = measured.length;
     heightSource = measuredCount ? String(measured[0]?.source || measured[0]?.provenance || 'world-effects cloud-height samples') : 'not connected';
     const alerts = Array.isArray(scene?.alerts) ? scene.alerts : [];
-    const stormScore = st => isTropicalCyclone(st) ? 2 : 1;
+    const stormScore = st => usesHurricaneGeometry(st) ? 2 : 1;
     // Only point-based storm records may anchor cyclone centres. Watch/warning polygons remain alert geometry.
     const stormList = (Array.isArray(scene?.storms)?scene.storms:[]).slice();
     stormList.sort((a,b)=>stormScore(b)-stormScore(a));
@@ -1197,17 +1209,22 @@ function generateGeometry() {
     // cloud shield, so an active source-backed storm never crowds out Josephine-class
     // extratropical systems simply because their track is ranked lower.
     const tropicalStormLimit = z<=5.5 ? (MOBILE?2:3) : overviewClouds ? (MOBILE?1:3) : (MOBILE?1:4);
+    // Reserve Josephine's source-anchored system separately, so busy global views cannot
+    // drop it behind the active-tropical-cyclone draw budget.
+    const josephineVisualStorms = visualStormList.filter(isJosephineCyclone).slice(0,1);
     const renderStormList = [
-      ...visualStormList.filter(isTropicalCyclone).slice(0,tropicalStormLimit),
-      ...visualStormList.filter(isPostTropicalCyclone).slice(0,MOBILE?1:2)
+      ...visualStormList.filter(st=>usesHurricaneGeometry(st)&&!isJosephineCyclone(st)).slice(0,tropicalStormLimit),
+      ...josephineVisualStorms,
+      ...visualStormList.filter(st=>isPostTropicalCyclone(st)&&!isJosephineCyclone(st)).slice(0,MOBILE?1:2)
     ];
-    // All storm geometry is fixed in Earth metres. Post-tropical systems have a broad,
-    // asymmetric cloud shield, not a manufactured tropical eye or symmetric eyewall.
+    // Physical sizes remain Earth-anchored. Other post-tropical lows keep their asymmetric
+    // shield; Josephine alone reuses the shared hurricane eye/spiral look without relabeling its source data.
     for (const storm of renderStormList.filter(st=>Number.isFinite(number(st.lng,number(st.longitude,NaN)))&&Number.isFinite(number(st.lat,number(st.latitude,NaN))))) {
       const lng = number(storm.lng, number(storm.longitude, NaN)), lat = number(storm.lat, number(storm.latitude, NaN));
       if (!Number.isFinite(lng) || !Number.isFinite(lat) || Math.abs(lat) > 82) continue;
       const windMph = clamp(number(storm.wind_mph,number(storm.wind_kt,0)*1.15078),0,220);
-      const hurricane = isTropicalCyclone(storm);
+      const josephineVisualStorm = isJosephineCyclone(storm);
+      const hurricane = usesHurricaneGeometry(storm);
       const postTropical = !hurricane && isPostTropicalCyclone(storm);
       const stormMotion = stormMotionFor(storm,lat), stormEpoch = 0;
       const suppliedShieldMi = number(storm.cloud_shield_radius_mi,
@@ -1225,6 +1242,11 @@ function generateGeometry() {
       const eyeRadiusM = Number.isFinite(eyeRawM)?clamp(eyeRawM,6000,75000):28000;
       const visualShieldRadiusM = shieldRadiusM;
       const visualEyeRadiusM = eyeRadiusM;
+      if(hurricane && josephineVisualStorm){
+        josephineHurricaneGeometryCount++;
+        josephineVisualEyeRadiusKm=visualEyeRadiusM/1000;
+        josephineVisualShieldRadiusKm=visualShieldRadiusM/1000;
+      }
       if(hurricane){hurricaneVisualEyeRadiusKm=Math.max(hurricaneVisualEyeRadiusKm,visualEyeRadiusM/1000);hurricaneVisualShieldRadiusKm=Math.max(hurricaneVisualShieldRadiusKm,visualShieldRadiusM/1000);}
       if(hurricane){
         const ground=terrainElevationAt(lng,lat),southern=lat<0?0.040:0.0;
@@ -1562,7 +1584,7 @@ function scheduleGeometry(delay = 180) {
   else map.once?.('load', addLayerIfReady);
 
   const api = {
-    version: 6090, map, overlay,
+    version: 6094, map, overlay,
     get enabled() { return enabled; },
     setEnabled, toggle,
     get state() { return window.__BP_SKY_CLOUDS_STATE_V6077__ || window.__BP_SKY_CLOUDS_STATE_V6076__ || window.__BP_SKY_CLOUDS_STATE_V6074__ || window.__BP_SKY_CLOUDS_STATE_V6073__ || window.__BP_SKY_CLOUDS_STATE_V6047__ || window.__BP_SKY_CLOUDS_STATE_V6046__ || window.__BP_SKY_CLOUDS_STATE_V6045__ || window.__BP_SKY_CLOUDS_STATE_V6031__ || window.__BP_SKY_CLOUDS_STATE_V6029__ || window.__BP_SKY_CLOUDS_STATE_V5908__ || null; },
