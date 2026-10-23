@@ -1,8 +1,8 @@
-// BridgePoint Water & Hydrology GPU surface v6113.
+// BridgePoint Water & Hydrology GPU surface v6114.
 // Additive MapLibre custom layer: one shared map canvas/context, bounded source geometry,
 // GPU wave displacement, source-gated flood elevations, and view-aware mesh LOD.
-const VERSION = 6113;
-const LAYER_ID = 'bp-water-surface-gpu-v6113';
+const VERSION = 6114;
+const LAYER_ID = 'bp-water-surface-gpu-v6114';
 const EARTH_CIRCUMFERENCE_M = 40075016.68557849;
 const RAD = Math.PI / 180;
 const MIN_VALID_TERRAIN_ELEVATION_M = -500;
@@ -165,8 +165,8 @@ function absoluteWaterLevelAt(scene, lng, lat) {
 }
 function apiWaterLevelReject(scene) {
   // Keep a lightweight per-build diagnostic without changing the source weather object.
-  if (window.__BP_WATER_ENGINE_V6113__ && Number.isFinite(window.__BP_WATER_ENGINE_V6113__.rejectedWaterLevelSamples)) {
-    window.__BP_WATER_ENGINE_V6113__.rejectedWaterLevelSamples++;
+  if (window.__BP_WATER_ENGINE_V6114__ && Number.isFinite(window.__BP_WATER_ENGINE_V6114__.rejectedWaterLevelSamples)) {
+    window.__BP_WATER_ENGINE_V6114__.rejectedWaterLevelSamples++;
   }
 }
 
@@ -330,33 +330,39 @@ function buildShaders(gl, shaderDescription) {
     '  vec3 deep = vec3(0.006, 0.075, 0.135);',
     '  vec3 mid = vec3(0.012, 0.24, 0.345);',
     '  vec3 crest = vec3(0.42, 0.76, 0.82);',
+    // Screen-space wave normals give the animated surface readable specular streaks,
+    // rather than a flat cyan overlay. The wave field remains geographically anchored.
+    '  vec3 waveNormal = normalize(vec3(-dFdx(v_wave) * 28.0, -dFdy(v_wave) * 28.0, 1.0));',
+    '  float specular = pow(max(dot(waveNormal, normalize(vec3(-0.34, 0.48, 0.81))), 0.0), 18.0);',
+    '  float glancingGlint = pow(max(dot(waveNormal, normalize(vec3(0.64, 0.24, 0.73))), 0.0), 28.0);',
+    '  float highlight = clamp(specular * 1.7 + glancingGlint * 0.75, 0.0, 1.0);'
     '  if (v_kind > 1.5 && v_kind < 2.5) {',
     '    vec2 flowDir = length(v_flow) > 0.001 ? normalize(v_flow) : vec2(1.0, 0.0);',
     '    float streamPhase = sin(dot(v_coord, flowDir) * u_flowCycles * 6.2831853 + v_streamPhaseOffset + u_time * 1.85);',
     '    float streak = smoothstep(0.73, 0.98, 0.5 + 0.5 * streamPhase);',
-    '    vec3 streamColor = mix(mid, crest, streak * 0.78);',
-    '    fragColor = vec4(streamColor, 0.24 + streak * 0.42);',
+    '    vec3 streamColor = mix(mid, crest, clamp(streak * 0.78 + highlight * 0.28, 0.0, 1.0));',
+    '    fragColor = vec4(streamColor, clamp(0.30 + streak * 0.42 + highlight * 0.12, 0.30, 0.80));',
     '    return;',
     '  }',
     '  if (v_kind > 3.5) {',
     '    float depthTint = clamp(v_flood / 4.0, 0.0, 1.0);',
     '    vec3 floodColor = mix(vec3(0.08, 0.29, 0.31), vec3(0.015, 0.16, 0.25), depthTint);',
-    '    floodColor = mix(floodColor, crest, glint * 0.24);',
+    '    floodColor = mix(floodColor, crest, clamp(glint * 0.24 + highlight * 0.26, 0.0, 0.75));',
     '    fragColor = vec4(floodColor, clamp(0.36 + v_flood * 0.028 + glint * 0.08, 0.36, 0.68));',
     '    return;',
     '  }',
     '  if (v_kind < 0.5) {',
-    '    float shimmer = glint * 0.65 + foam * 0.13 + v_storm * 0.22;',
-    '    vec3 color = mix(deep, mid, 0.28 + shimmer);',
-    '    color = mix(color, crest, shimmer * 0.34);',
-    '    fragColor = vec4(color, clamp(0.15 + shimmer * 0.13, 0.15, 0.32));',
+    '    float shimmer = glint * 0.65 + foam * 0.13 + v_storm * 0.22 + highlight * 0.42;',
+    '    vec3 color = mix(deep, mid, clamp(0.28 + shimmer, 0.0, 1.0));',
+    '    color = mix(color, crest, clamp(shimmer * 0.34 + highlight * 0.30, 0.0, 0.90));',
+    '    fragColor = vec4(color, clamp(0.22 + shimmer * 0.20, 0.22, 0.50));',
     '    return;',
     '  }',
-    '  float sheen = clamp(glint * 0.36 + foam * 0.6 + v_storm * 0.12, 0.0, 0.72);',
+    '  float sheen = clamp(glint * 0.34 + foam * 0.54 + v_storm * 0.12 + highlight * 0.78, 0.0, 0.94);',
     '  vec3 color = mix(deep, mid, 0.22 + v_wave * 0.45);',
     '  color = mix(color, crest, sheen);',
-    '  float alpha = v_kind > 2.5 ? 0.22 + glint * 0.21 + foam * 0.20 + v_storm * 0.10 : 0.17 + glint * 0.14 + foam * 0.11;',
-    '  fragColor = vec4(color, clamp(alpha, 0.16, 0.62));',
+    '  float alpha = v_kind > 2.5 ? 0.31 + glint * 0.20 + foam * 0.18 + v_storm * 0.12 + highlight * 0.10 : 0.24 + glint * 0.19 + foam * 0.12 + highlight * 0.10;',
+    '  fragColor = vec4(color, clamp(alpha, v_kind > 2.5 ? 0.32 : 0.25, 0.78));',
     '}'
   ].join('\n');
   function compile(type, source) {
@@ -590,7 +596,7 @@ function currentScene() {
 export function initWaterEngine(mapOrWorld, options = {}) {
   const map = mapOrWorld && mapOrWorld.map ? mapOrWorld.map : mapOrWorld;
   if (!map || typeof map.addLayer !== 'function' || typeof map.querySourceFeatures !== 'function') return null;
-  if (window.__BP_WATER_ENGINE_V6113__ && window.__BP_WATER_ENGINE_V6113__.map === map) return window.__BP_WATER_ENGINE_V6113__;
+  if (window.__BP_WATER_ENGINE_V6114__ && window.__BP_WATER_ENGINE_V6114__.map === map) return window.__BP_WATER_ENGINE_V6114__;
   const mobile = window.innerWidth <= 900 || /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
   const low = Number(navigator.deviceMemory || 4) <= 3 || Number(navigator.hardwareConcurrency || 4) <= 4;
   const api = {
@@ -613,9 +619,11 @@ export function initWaterEngine(mapOrWorld, options = {}) {
     surfaceDataBytes: 0, flowDataBytes: 0, lastSourceRefreshAt: 0,
     frameDelay() {
       const z = map.getZoom();
-      if (low) return z < 3 ? 110 : z < 10 ? 90 : 65;
-      if (mobile) return z < 3 ? 85 : z < 10 ? 62 : 45;
-      return z < 3 ? 65 : z < 10 ? 45 : 33;
+      // Keep the moving water perceptible at orbit scale without forcing every device
+      // to render a desktop-rate loop.
+      if (low) return z < 3 ? 90 : 65;
+      if (mobile) return z < 3 ? 50 : 45;
+      return 33;
     },
     syncScene(scene, mapRef) {
       const safeScene = scene && typeof scene === 'object' ? scene : {};
@@ -655,7 +663,7 @@ export function initWaterEngine(mapOrWorld, options = {}) {
       try { if (map.getLayer(LAYER_ID)) map.removeLayer(LAYER_ID); } catch (_) {}
       for (const spec of SOURCE_ANCHORS) { try { if (map.getLayer(spec.id)) map.removeLayer(spec.id); } catch (_) {} }
       try { window.removeEventListener('bp2300:weather-updated', onWeatherUpdated); } catch (_) {}
-      if (window.__BP_WATER_ENGINE_V6113__ === this) window.__BP_WATER_ENGINE_V6113__ = null;
+      if (window.__BP_WATER_ENGINE_V6114__ === this) window.__BP_WATER_ENGINE_V6114__ = null;
     },
     get buffers() {
       return layer ? { surface: layer.buffer, flow: layer.flowBuffer, strideFloats: 7, strideBytes: 28, vertexCount: layer.surfaceVertexCount + layer.flowVertexCount } : null;
@@ -1156,7 +1164,7 @@ function sceneLevelAt(scene, lng, lat) { return absoluteWaterLevelAt(scene, lng,
     api.sourceWaterwayFeatures = flowFeatures.length;
     api.geometryBuilds++;
     api.lastSourceRefreshAt = Date.now();
-    window.__BP_WATER_FIELD_V6113__ = {
+    window.__BP_WATER_FIELD_V6114__ = {
       version: VERSION, map, buffers: api.buffers,
       get state() { return api.state; },
       get weatherScene() { return currentScene(); },
@@ -1212,8 +1220,8 @@ function sceneLevelAt(scene, lng, lat) { return absoluteWaterLevelAt(scene, lng,
   });
   scheduleBuild(250);
   for (const delay of [700, 1700, 3400]) window.setTimeout(() => { ensureInstalled(); scheduleBuild(0); }, delay);
-  window.__BP_WATER_ENGINE_V6113__ = api;
-  window.__BP_WATER_FIELD_V6113__ = {
+  window.__BP_WATER_ENGINE_V6114__ = api;
+  window.__BP_WATER_FIELD_V6114__ = {
     version: VERSION, map, get buffers() { return api.buffers; },
     get state() { return api.state; },
     get weatherScene() { return currentScene(); },
