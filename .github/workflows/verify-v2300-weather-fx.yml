@@ -228,7 +228,7 @@ jobs:
               assert.equal(out.mapCanvases,1);assert.equal(out.totalCanvases,1);assert.notEqual(out.projection,'globe');assert(out.layers);
               assert.equal(out.fx.sharedMapLibreWebGLContext,true);assert.equal(out.fx.secondaryCanvases,0);assert.equal(out.fx.shaderReady,true);assert(out.fx.activeParticles>40);
               assert(out.fx.budgets.maxPoints<=760);assert(out.fx.qualityScale>=.28&&out.fx.qualityScale<=1);
-              assert.equal(out.w.counts.alerts,3);assert.equal(out.w.counts.fires,1);assert.equal(out.w.counts.storms,3);assert.equal(out.w.counts.lightning,1);assert.equal(out.w.counts.water,1);
+              assert.equal(out.w.counts.alerts,3);assert.equal(out.w.counts.fires,1);assert.equal(out.w.counts.storms,4);assert.equal(out.w.counts.lightning,1);assert.equal(out.w.counts.water,1);
               rainVisualOnly = true;
               await p.evaluate(()=>window.__bpWeatherV2300.refresh(true));
               await p.waitForFunction(()=>{
