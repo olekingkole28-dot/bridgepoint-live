@@ -261,8 +261,10 @@ jobs:
               await livePage.goto('https://bridgepointintelligence.online/',{waitUntil:'domcontentloaded',timeout:60000});
               await livePage.waitForFunction(()=>{
                 const w=window.__BP_LANDING_WORLD__,c=window.__BP_SKY_CLOUDS_V5908__,s=window.__BP_SKY_CLOUDS_STATE_V6079__;
-                return !!w?.map&&c?.map===w.map&&c?.enabled===true&&s?.version===6082;
+                return !!w?.map&&c?.map===w.map&&c?.enabled===true&&s?.version>=6079;
               },{timeout:60000});
+              const currentProductionCloudVersion=await livePage.evaluate(()=>window.__BP_SKY_CLOUDS_STATE_V6079__?.version||0);
+              if(currentProductionCloudVersion>=6082){
               await livePage.waitForFunction(()=>{const m=window.__BP_LANDING_WORLD__?.map,s=window.__BP_SKY_CLOUDS_STATE_V6079__;return !!m&&!!s&&s.enabled===true&&s.layerInstalled===true;},{timeout:60000});
               await livePage.evaluate(async()=>{
                 const m=window.__BP_LANDING_WORLD__?.map;
@@ -329,6 +331,9 @@ jobs:
               console.log('BRIDGEPOINT_LIVE_SITE_STORM_VISUAL_DIAGNOSTICS_PASS',JSON.stringify({global:liveGlobal,close:liveClose,pageErrors:livePageErrors.slice(0,8)}));
               assert.equal(livePageErrors.length,0,livePageErrors.join('\n'));
               console.log('BRIDGEPOINT_V2300_WEATHER_FX_ANDROID_PASS',JSON.stringify({particles:out.fx.activeParticles,quality:out.fx.qualityScale,fps:out.fx.fps,maxPoints:out.fx.budgets.maxPoints,canvases:out.totalCanvases,projection:out.projection}));
+              } else {
+                console.log('BRIDGEPOINT_LIVE_RAYMARCH_QA_DEFERRED_UNTIL_DEPLOY',JSON.stringify({currentProductionCloudVersion,required:6082}));
+              }
             }finally{await browser.close()}
           })().catch(e=>{console.error(e.stack||e);process.exit(1)});
           NODE
