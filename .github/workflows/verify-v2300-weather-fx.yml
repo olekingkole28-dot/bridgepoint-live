@@ -244,6 +244,66 @@ jobs:
               const anchorAfter=await p.evaluate(()=>window.__BP_RAIN_RENDERER_V6068__?.state?.anchorFingerprint);
               assert.equal(anchorAfter,anchorBefore,'rain geographic particle seeds must remain fixed when the camera pans');
               await p.screenshot({path:'/tmp/bp2300wx/world-anchored-rain-after-pan.png',fullPage:false});
+              // Test the actual public site too: the fixture above uses a blank background style,
+              // which is useful for deterministic geometry but cannot validate the visible globe.
+              const livePage=await browser.newPage();
+              await livePage.setViewport({width:390,height:844,deviceScaleFactor:1,isMobile:true,hasTouch:true});
+              const livePageErrors=[];
+              livePage.on('pageerror',e=>livePageErrors.push(String(e.stack||e.message||e)));
+              await livePage.goto('https://bridgepointintelligence.online/',{waitUntil:'domcontentloaded',timeout:60000});
+              await livePage.waitForFunction(()=>{
+                const w=window.__BP_LANDING_WORLD__,c=window.__BP_SKY_CLOUDS_V5908__,s=window.__BP_SKY_CLOUDS_STATE_V6079__;
+                return !!w?.map&&c?.map===w.map&&c?.enabled===true&&s?.version===6079;
+              },{timeout:60000});
+              await livePage.evaluate(()=>{
+                const m=window.__BP_LANDING_WORLD__?.map;
+                window.__BP_SKY_CLOUDS_V5908__?.setEnabled?.(true);
+                m?.stop?.();m?.jumpTo({center:[-35,24],zoom:1.25,pitch:0,bearing:0});
+              });
+              await livePage.waitForFunction(()=>{
+                const s=window.__BP_SKY_CLOUDS_STATE_V6079__;
+                return !!s&&s.zoom<=1.5&&s.hurricaneEyeWallCloudCenters>0&&s.hurricaneSpiralCloudCenters>0&&s.warningFunnels>0&&s.layerInstalled===true;
+              },{timeout:30000});
+              await new Promise(resolve=>setTimeout(resolve,1800));
+              const liveGlobal=await livePage.evaluate(()=>{
+                const s=window.__BP_SKY_CLOUDS_STATE_V6079__||{},w=window.__BP_LANDING_WORLD__,m=w?.map;
+                return{zoom:m?.getZoom?.(),enabled:s.enabled,visible:s.visible,layerPresent:s.layerPresent,layerInstalled:s.layerInstalled,
+                  rendererError:s.rendererError,sourceStormCount:s.sourceStormCount,sourceTornadoAlertCount:s.sourceTornadoAlertCount,
+                  modeledHurricaneVisualCount:s.modeledHurricaneVisualCount,modeledTornadoVisualCount:s.modeledTornadoVisualCount,
+                  hurricaneEyeWallCloudCenters:s.hurricaneEyeWallCloudCenters,hurricaneSpiralCloudCenters:s.hurricaneSpiralCloudCenters,
+                  hurricaneEyeRadiusSource:s.hurricaneEyeRadiusSource,warningFunnels:s.warningFunnels,tornadoVisualHeightKm:s.tornadoVisualHeightKm,
+                  stormVisualProvenance:s.stormVisualProvenance,canvases:document.querySelectorAll('canvas').length};
+              });
+              console.log('BRIDGEPOINT_LIVE_SITE_STORM_GLOBAL_DIAG',JSON.stringify(liveGlobal));
+              await livePage.screenshot({path:'/tmp/bp2300wx/world-anchored-rain-production-global.png',fullPage:false});
+              assert.equal(liveGlobal.enabled,true,'public cloud renderer must be enabled');
+              assert.equal(liveGlobal.layerPresent,true,'public cloud layer must exist');
+              assert.equal(liveGlobal.layerInstalled,true,'public cloud layer must be installed');
+              assert(liveGlobal.hurricaneEyeWallCloudCenters>0&&liveGlobal.hurricaneSpiralCloudCenters>0,'public globe must generate the hurricane eye and spiral geometry');
+              assert(liveGlobal.warningFunnels>0,'public globe must generate a tornado funnel');
+              assert.equal(liveGlobal.rendererError,null,'public cloud renderer must not report a rendering error');
+              await livePage.evaluate(()=>{
+                const m=window.__BP_LANDING_WORLD__?.map;
+                m?.stop?.();m?.jumpTo({center:[-97.45,35.55],zoom:10.5,pitch:58,bearing:-12});
+              });
+              await livePage.waitForFunction(()=>{
+                const s=window.__BP_SKY_CLOUDS_STATE_V6079__,m=window.__BP_LANDING_WORLD__?.map;
+                return !!m&&m.getZoom()>9&&s?.globalStormLod==='physical-local'&&s?.warningFunnels>0&&s?.tornadoFunnelMeshVertices>0;
+              },{timeout:30000});
+              await new Promise(resolve=>setTimeout(resolve,1200));
+              const liveClose=await livePage.evaluate(()=>{
+                const s=window.__BP_SKY_CLOUDS_STATE_V6079__||{},m=window.__BP_LANDING_WORLD__?.map;
+                return{zoom:m?.getZoom?.(),enabled:s.enabled,layerInstalled:s.layerInstalled,rendererError:s.rendererError,
+                  warningFunnels:s.warningFunnels,tornadoFunnelMeshVertices:s.tornadoFunnelMeshVertices,
+                  tornadoVisualHeightKm:s.tornadoVisualHeightKm,tornadoVisualTopRadiusKm:s.tornadoVisualTopRadiusKm,
+                  modeledTornadoVisualCount:s.modeledTornadoVisualCount,sourceTornadoAlertCount:s.sourceTornadoAlertCount};
+              });
+              console.log('BRIDGEPOINT_LIVE_SITE_STORM_CLOSE_DIAG',JSON.stringify(liveClose));
+              await livePage.screenshot({path:'/tmp/bp2300wx/world-anchored-rain-production-tornado-close.png',fullPage:false});
+              assert(liveClose.tornadoFunnelMeshVertices>0,'public close-up must retain the 3D tornado funnel mesh');
+              assert(liveClose.tornadoVisualHeightKm<30,'public close-up must transition the funnel back to local scale');
+              assert.equal(liveClose.rendererError,null,'public close-up renderer must not report an error');
+              console.log('BRIDGEPOINT_LIVE_SITE_STORM_VISUAL_DIAGNOSTICS_PASS',JSON.stringify({global:liveGlobal,close:liveClose,pageErrors:livePageErrors.slice(0,8)}));
               assert.equal(errors.length,0,errors.join('\n'));
               console.log('BRIDGEPOINT_V2300_WEATHER_FX_ANDROID_PASS',JSON.stringify({particles:out.fx.activeParticles,quality:out.fx.qualityScale,fps:out.fx.fps,maxPoints:out.fx.budgets.maxPoints,canvases:out.totalCanvases,projection:out.projection}));
             }finally{await browser.close()}
