@@ -76,7 +76,8 @@ vec4 bpRaymarchStorm(vec3 entry,vec2 cameraXY,float tint,float time,float camera
   float height=funnel?clamp((tint-1.474)*100000000.0,4500.0,15500.0):16000.0,eyeRatio=clamp(28000.0/radius,0.008,0.095);
   float volumeBase=funnel?0.0:1700.0,cameraZ=cameraAltitude-volumeBase;
   vec3 camera=vec3(cameraXY,cameraZ),toCamera=normalize(camera-entry),normal;
-  if(entry.z<0.5)normal=vec3(0.0,0.0,-1.0);else if(entry.z>height-0.5)normal=vec3(0.0,0.0,1.0);else normal=normalize(vec3(entry.xy,0.0001));
+  float capTolerance=max(50.0,height*0.003);
+  if(entry.z<capTolerance)normal=vec3(0.0,0.0,-1.0);else if(entry.z>height-capTolerance)normal=vec3(0.0,0.0,1.0);else normal=normalize(vec3(entry.xy,0.0001));
   float facing=dot(normal,toCamera),insideVolume=(length(cameraXY)<radius&&cameraZ>0.0&&cameraZ<height)?1.0:0.0;
   if(facing<=0.002&&insideVolume<0.5){if(diagnostic)return vec4(1.0,0.0,0.0,0.72);return vec4(0.0);}
   vec3 direction=facing>0.002?-toCamera:toCamera;float exitT=bpStormExitDistance(entry,direction,radius,height);
