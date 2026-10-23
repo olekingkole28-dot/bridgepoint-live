@@ -1325,9 +1325,9 @@ function generateGeometry() {
         const scaleX = i === 0 ? 1.00 : 0.50 + hash(k, i, 3) * 0.24;
         const scaleY = i === 0 ? 0.82 : 0.54 + hash(k, i, 4) * 0.22;
         const cloudRange = funnelTopM - f.baseM;
-        const altitude = f.baseM + cloudRange * (f.kind === 'funnel' ? (globeScale ? 0.91 : 0.86) : (i === 0 ? 0.50 : 0.48 + hash(k, i, 5) * 0.04));
-        const vertical = f.kind === 'funnel' ? Math.max(globeScale ? 18000 : 3200, cloudRange * (globeScale ? 0.10 : 0.48)) : cloudRange * (i === 0 ? 0.43 : 0.40 + hash(k, i, 6) * 0.035);
-        const parentScale = f.kind === 'funnel' ? (globeScale ? 0.92 : 0.60) : 1;
+        const altitude = f.baseM + cloudRange * (f.kind === 'funnel' ? 0.86 : (i === 0 ? 0.50 : 0.48 + hash(k, i, 5) * 0.04));
+        const vertical = f.kind === 'funnel' ? Math.max(3200, cloudRange * 0.48) : cloudRange * (i === 0 ? 0.43 : 0.40 + hash(k, i, 6) * 0.035);
+        const parentScale = 1;
         const puffTint = f.kind === 'rain-cell' ? 1.35 : f.kind === 'hurricane' ? (f.windContext?.centerLat < 0 ? 1.28 : 1.27) : f.kind === 'hurricane-eyewall' ? (f.windContext?.centerLat < 0 ? 1.24 : 1.23) : f.kind === 'hurricane-spiral' ? (f.windContext?.centerLat < 0 ? 1.28 : 1.27) : f.kind === 'storm' || f.kind === 'funnel' ? 0.93 + hash(k, i, 7) * 0.035 : 0.22 + hash(k, i, 7) * 0.52;
         puff(lng, lat, altitude, funnelRadiusM * scaleX * parentScale, funnelRadiusM * scaleY * parentScale, vertical, f.seed,
           puffTint, globeScale, f.windContext, f.kind === 'funnel' ? {lng:f.lng,lat:f.lat} : null);
@@ -1450,9 +1450,9 @@ function scheduleGeometry(delay = 180) {
         const speedMps = Math.hypot(eastM,northM)/elapsed;
         // Accept plausible centre translation only; reject source ID collisions, coordinate swaps, and implausible jumps.
         if (speedMps >= 0.2 && speedMps <= 40) {
-          row.bridgepoint_motion_speed_mps = speedMps;
-          row.bridgepoint_motion_heading_deg = (Math.atan2(eastM,northM)*180/Math.PI+360)%360;
-          row.bridgepoint_motion_derived = true;
+          p.bridgepoint_motion_speed_mps = speedMps;
+          p.bridgepoint_motion_heading_deg = (Math.atan2(eastM,northM)*180/Math.PI+360)%360;
+          p.bridgepoint_motion_derived = true;
         }
       }
       next.set(label,{lng,lat});
