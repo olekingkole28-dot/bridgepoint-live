@@ -151,7 +151,23 @@ jobs:
               await p.setUserAgent('Mozilla/5.0 (Linux; Android 16; Pixel 9a) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');
               await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
               await p.goto('http://127.0.0.1:8770/',{waitUntil:'domcontentloaded',timeout:20000});
-              await p.waitForFunction(()=>window.__BP_WX_TEST_READY__===true||window.__BP_WX_TEST_ERROR__,{timeout:25000});
+              try {
+            await p.waitForFunction(()=>window.__BP_WX_TEST_READY__===true||window.__BP_WX_TEST_ERROR__,{timeout:25000});
+          } catch (error) {
+            const bootstrapDiag = await p.evaluate(()=>({
+              ready:window.__BP_WX_TEST_READY__===true,
+              testError:window.__BP_WX_TEST_ERROR__||null,
+              worldAvailable:!!window.__bpWorldV2300,
+              mapAvailable:!!window.__bpWorldV2300?.map,
+              mapLoaded:!!window.__bpWorldV2300?.map?.loaded?.(),
+              styleLoaded:!!window.__bpWorldV2300?.map?.isStyleLoaded?.(),
+              styleLayerCount:window.__bpWorldV2300?.map?.getStyle?.()?.layers?.length||0,
+              mapContainer:!!document.getElementById('liveMap'),
+              moduleScripts:[...document.scripts].filter(x=>x.type==='module').map(x=>x.src)
+            }));
+            console.error('BRIDGEPOINT_WEATHER_GATE_BOOTSTRAP_DIAG',JSON.stringify({bootstrapDiag,pageErrors:errors.slice(0,10),consoleErrors:errors.slice(10,20),failure:String(error?.message||error)}));
+            throw error;
+          }
               const initErr=await p.evaluate(()=>window.__BP_WX_TEST_ERROR__||null);assert.equal(initErr,null,initErr||'');
               const retired=await p.evaluate(()=>({canvasGone:!document.getElementById('bp2081WeatherCanvas'),blocked:window.__BP_SCREEN_SPACE_RAIN_RETIRE_V6063__?.legacyRuntimeBlocked===true}));
               assert.equal(retired.canvasGone,true,'legacy screen-space weather canvas must be removed');
