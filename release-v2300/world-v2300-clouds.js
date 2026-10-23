@@ -185,11 +185,11 @@ function makeShaders(webgl2, shaderData = null) {
   const vertex = (webgl2 ? '#version 300 es\n' : '') + projectionPreamble +
     'precision highp float;\n' +
     (webgl2
-      ? 'in vec3 a_pos;\nin float a_altitude;\nin vec3 a_local;\nin float a_tint;\nin vec2 a_wind;\nout vec3 v_local;\nout float v_tint;\nout vec2 v_camera_local;\n'
-      : 'attribute vec3 a_pos;\nattribute float a_altitude;\nattribute vec3 a_local;\nattribute float a_tint;\nattribute vec2 a_wind;\nvarying vec3 v_local;\nvarying float v_tint;\nvarying vec2 v_camera_local;\n') +
+      ? 'in vec3 a_pos;\nin float a_altitude;\nin vec3 a_local;\nin float a_tint;\nin vec2 a_wind;\nin vec2 a_storm_motion;\nin float a_storm_epoch;\nout vec3 v_local;\nout float v_tint;\nout vec2 v_camera_local;\n'
+      : 'attribute vec3 a_pos;\nattribute float a_altitude;\nattribute vec3 a_local;\nattribute float a_tint;\nattribute vec2 a_wind;\nattribute vec2 a_storm_motion;\nattribute float a_storm_epoch;\nvarying vec3 v_local;\nvarying float v_tint;\nvarying vec2 v_camera_local;\n') +
     (projectionAware ? '' : 'uniform mat4 u_matrix;\n') +
-    'uniform highp float u_motion_time;\nuniform vec2 u_camera_center_mercator;\n' +
-    'void main(){v_local=a_local;v_tint=a_tint;float stormLat=2.0*atan(exp((0.5-a_wind.y)*6.28318530718))-1.57079632679;vec2 cameraDelta=u_camera_center_mercator-a_wind;cameraDelta.x-=floor(cameraDelta.x+0.5);v_camera_local=vec2(cameraDelta.x*40075016.68557849*cos(stormLat),-cameraDelta.y*40075016.68557849*cos(stormLat));vec2 moved;if(a_tint>1.47){moved=a_pos.xy;}else if(a_tint>1.40){vec2 rel=a_pos.xy-a_wind;float spin=a_tint>1.455?1.0:-1.0;float angle=spin*u_motion_time*2.05+a_altitude*0.000035;float cs=cos(angle),sn=sin(angle);moved=a_wind+vec2(rel.x*cs-rel.y*sn,rel.x*sn+rel.y*cs);}else if(a_tint>1.20&&a_tint<1.30){vec2 rel=a_pos.xy-a_wind;float spin=((a_tint<1.235)||(a_tint>1.25&&a_tint<1.275))?-1.0:1.0;float angle=spin*u_motion_time*0.68+a_altitude*0.0000012;float cs=cos(angle),sn=sin(angle);moved=a_wind+vec2(rel.x*cs-rel.y*sn,rel.x*sn+rel.y*cs);}else{vec2 advect=a_wind*u_motion_time;moved=vec2(fract(a_pos.x+advect.x),clamp(a_pos.y+advect.y,0.0005,0.9995));}gl_Position=' +
+    'uniform highp float u_motion_time;\nuniform highp float u_storm_motion_time;\nuniform vec2 u_camera_center_mercator;\n' +
+    'void main(){v_local=a_local;v_tint=a_tint;float stormAge=max(0.0,u_storm_motion_time-a_storm_epoch);vec2 stormShift=a_storm_motion*stormAge;vec2 movingPivot=a_wind+stormShift;float stormLat=2.0*atan(exp((0.5-movingPivot.y)*6.28318530718))-1.57079632679;vec2 cameraDelta=u_camera_center_mercator-movingPivot;cameraDelta.x-=floor(cameraDelta.x+0.5);v_camera_local=vec2(cameraDelta.x*40075016.68557849*cos(stormLat),-cameraDelta.y*40075016.68557849*cos(stormLat));vec2 moved;if(a_tint>1.47){moved=a_pos.xy+stormShift;}else if(a_tint>1.40){vec2 rel=a_pos.xy-a_wind;float spin=a_tint>1.455?1.0:-1.0;float angle=spin*u_motion_time*2.05+a_altitude*0.000035;float cs=cos(angle),sn=sin(angle);moved=movingPivot+vec2(rel.x*cs-rel.y*sn,rel.x*sn+rel.y*cs);}else if(a_tint>1.20&&a_tint<1.30){vec2 rel=a_pos.xy-a_wind;float spin=((a_tint<1.235)||(a_tint>1.25&&a_tint<1.275))?-1.0:1.0;float angle=spin*u_motion_time*0.68+a_altitude*0.0000012;float cs=cos(angle),sn=sin(angle);moved=movingPivot+vec2(rel.x*cs-rel.y*sn,rel.x*sn+rel.y*cs);}else{vec2 advect=a_wind*u_motion_time;moved=vec2(fract(a_pos.x+advect.x),clamp(a_pos.y+advect.y,0.0005,0.9995));}gl_Position=' +
     (projectionAware ? 'projectTileFor3D(moved,a_altitude)' : 'u_matrix*vec4(moved,a_pos.z,1.0)') + ';}';
 
   const fragment = (webgl2 ? '#version 300 es\n' : '') +
@@ -481,6 +481,9 @@ export function initSkyClouds(target) {
   }
   let activeProgramInfo = null, layerInstalled = false, originalFog, fogCaptured = false;
   const motionEpoch = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  let stormMotionEpoch = motionEpoch;
+  const monotonicNow = () => typeof performance !== 'undefined' && Number.isFinite(performance.now()) ? performance.now() : Date.now();
+  const getStormMotionTime = () => Math.max(0, (monotonicNow() - stormMotionEpoch) / 1000);
   const canvas = map.getCanvas?.(), originalFilter = canvas?.style?.filter || '';
   const originalWillChange = canvas?.style?.willChange || '', originalTransition = canvas?.style?.transition || '';
 
@@ -539,6 +542,31 @@ export function initSkyClouds(target) {
   function isTornadoSource(st={}) {
     const p=st?.properties||st||{};
     return /tornado|waterspout/i.test(String([p.name,p.event,p.type,p.category,p.phenom,p.kind,p.headline,p.event_name,p.description].filter(Boolean).join(' '))) || String(p.phenom||'').toUpperCase()==='TO';
+  }
+  function exactTornadoPoint(feature) {
+    const p=feature?.properties||feature||{},lng=firstFinite(p.lng,p.longitude,p.lon),lat=firstFinite(p.lat,p.latitude);
+    if(Number.isFinite(lng)&&Number.isFinite(lat)&&Math.abs(lat)<=90&&Math.abs(lng)<=180)return [lng,lat];
+    const g=feature?.geometry;
+    if(g?.type==='Point'&&Array.isArray(g.coordinates)){
+      const x=firstFinite(g.coordinates[0]),y=firstFinite(g.coordinates[1]);
+      if(Number.isFinite(x)&&Number.isFinite(y)&&Math.abs(y)<=90&&Math.abs(x)<=180)return [x,y];
+    }
+    return null;
+  }
+  function stormMotionFor(record,latFallback=0) {
+    const p=record?.properties||record||{};
+    const speedMps=firstFinite(p.movement_speed_mps,p.motion_speed_mps,p.translation_speed_mps,p.forward_speed_mps,
+      Number.isFinite(firstFinite(p.movement_speed_kt))?Number(p.movement_speed_kt)*0.514444:NaN,
+      Number.isFinite(firstFinite(p.motion_speed_kt))?Number(p.motion_speed_kt)*0.514444:NaN,
+      Number.isFinite(firstFinite(p.translation_speed_kt))?Number(p.translation_speed_kt)*0.514444:NaN,
+      Number.isFinite(firstFinite(p.forward_speed_kt))?Number(p.forward_speed_kt)*0.514444:NaN,
+      Number.isFinite(firstFinite(p.movement_speed_mph))?Number(p.movement_speed_mph)*0.44704:NaN,
+      Number.isFinite(firstFinite(p.motion_speed_mph))?Number(p.motion_speed_mph)*0.44704:NaN,
+      Number.isFinite(firstFinite(p.forward_speed_mph))?Number(p.forward_speed_mph)*0.44704:NaN);
+    const heading=firstFinite(p.movement_heading_deg,p.motion_heading_deg,p.track_heading_deg,p.movement_direction_deg,p.motion_direction_deg,p.direction_of_motion_deg,p.heading_deg,p.heading,p.movement_bearing_deg,p.track_bearing_deg);
+    if(!Number.isFinite(speedMps)||!Number.isFinite(heading)||speedMps<0||speedMps>100)return {x:0,y:0,sourceBacked:false};
+    const speed=Math.min(40,speedMps),angle=heading*Math.PI/180,cosLat=Math.max(0.12,Math.cos(latFallback*Math.PI/180));
+    return {x:Math.sin(angle)*speed/(EARTH_CIRCUMFERENCE_METERS*cosLat),y:-Math.cos(angle)*speed/(EARTH_CIRCUMFERENCE_METERS*cosLat),sourceBacked:true};
   }
   function cloudWindVectorFor(lng,lat,altitude,scene,stormContext=null){
     const samples=collectHeightResolvedWindSamples(scene);
@@ -652,12 +680,15 @@ export function initSkyClouds(target) {
         altitude: gl.getAttribLocation(program, 'a_altitude'),
         local: gl.getAttribLocation(program, 'a_local'),
         tint: gl.getAttribLocation(program, 'a_tint'),
-        wind: gl.getAttribLocation(program, 'a_wind')
+        wind: gl.getAttribLocation(program, 'a_wind'),
+        stormMotion: gl.getAttribLocation(program, 'a_storm_motion'),
+        stormEpoch: gl.getAttribLocation(program, 'a_storm_epoch')
       },
       uniforms: {
         matrix: gl.getUniformLocation(program, 'u_matrix'),
         time: gl.getUniformLocation(program, 'u_time'),
         motionTime: gl.getUniformLocation(program, 'u_motion_time'),
+        stormMotionTime: gl.getUniformLocation(program, 'u_storm_motion_time'),
         cameraCenter: gl.getUniformLocation(program, 'u_camera_center_mercator'),
         cameraAltitude: gl.getUniformLocation(program, 'u_camera_altitude_m'),
         raySteps: gl.getUniformLocation(program, 'u_ray_steps'),
@@ -723,7 +754,7 @@ export function initSkyClouds(target) {
         if (!info?.program) return;
         const matrix = args?.defaultProjectionData?.mainMatrix || args?.modelViewProjectionMatrix || args;
         if (!info.projectionAware && (!matrix || typeof matrix.length !== 'number' || matrix.length < 16)) return;
-        saved = captureCloudGLState(gl, [info.attrs.pos, info.attrs.altitude, info.attrs.local, info.attrs.tint, info.attrs.wind], cloudVaoExt, !!cloudVao);
+        saved = captureCloudGLState(gl, [info.attrs.pos, info.attrs.altitude, info.attrs.local, info.attrs.tint, info.attrs.wind, info.attrs.stormMotion, info.attrs.stormEpoch], cloudVaoExt, !!cloudVao);
         bindCloudVertexArray(gl, cloudVao, cloudVaoMode, cloudVaoExt);
         gl.useProgram(info.program);
         gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
@@ -739,6 +770,8 @@ export function initSkyClouds(target) {
         gl.enableVertexAttribArray(info.attrs.local); gl.vertexAttribPointer(info.attrs.local, 3, gl.FLOAT, false, stride, 4 * Float32Array.BYTES_PER_ELEMENT);
         gl.enableVertexAttribArray(info.attrs.tint); gl.vertexAttribPointer(info.attrs.tint, 1, gl.FLOAT, false, stride, 7 * Float32Array.BYTES_PER_ELEMENT);
         gl.enableVertexAttribArray(info.attrs.wind); gl.vertexAttribPointer(info.attrs.wind, 2, gl.FLOAT, false, stride, 8 * Float32Array.BYTES_PER_ELEMENT);
+        gl.enableVertexAttribArray(info.attrs.stormMotion); gl.vertexAttribPointer(info.attrs.stormMotion, 2, gl.FLOAT, false, stride, 10 * Float32Array.BYTES_PER_ELEMENT);
+        gl.enableVertexAttribArray(info.attrs.stormEpoch); gl.vertexAttribPointer(info.attrs.stormEpoch, 1, gl.FLOAT, false, stride, 12 * Float32Array.BYTES_PER_ELEMENT);
         if (info.projectionAware) {
           const p = args?.defaultProjectionData;
           if (!p) throw new Error('MapLibre projection uniforms unavailable for 3D clouds');
@@ -751,7 +784,8 @@ export function initSkyClouds(target) {
           gl.uniformMatrix4fv(info.uniforms.matrix, false, matrix);
         }
         const cloudTime = (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000;
-        const motionTime = Math.max(0, ((typeof performance !== 'undefined' ? performance.now() : Date.now()) - motionEpoch) / 1000);
+        const motionTime = Math.max(0, (monotonicNow() - motionEpoch) / 1000);
+        const stormMotionTime = getStormMotionTime();
         const cameraCenter=MC.fromLngLat(map.getCenter?.()||{lng:0,lat:0},0);
         const zoomNow=number(map.getZoom?.(),0),pitchRad=number(map.getPitch?.(),0)*Math.PI/180;
         const metresPerPixel=40075016.68557849/(512*Math.pow(2,zoomNow));
@@ -763,6 +797,7 @@ export function initSkyClouds(target) {
         if(info.uniforms.raySteps)gl.uniform1f(info.uniforms.raySteps,raySteps);
         gl.uniform1f(info.uniforms.time, cloudTime);
         if (info.uniforms.motionTime) gl.uniform1f(info.uniforms.motionTime, motionTime);
+        if (info.uniforms.stormMotionTime) gl.uniform1f(info.uniforms.stormMotionTime, stormMotionTime);
         gl.enable(gl.DEPTH_TEST); gl.enable(gl.BLEND);
         gl.blendEquationSeparate(gl.FUNC_ADD, gl.FUNC_ADD); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
         gl.disable(gl.CULL_FACE); gl.depthMask(false);
