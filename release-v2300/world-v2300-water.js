@@ -444,12 +444,12 @@ function createLayer(api, map) {
           gl.drawArrays(gl.TRIANGLES, 0, this.flowVertexCount);
         }
         gl.depthMask(true);
-        gl.disable(gl.BLEND);
+        // Leave blending enabled for later translucent MapLibre style layers.
         gl.bindBuffer(gl.ARRAY_BUFFER, null);
         gl.useProgram(null);
         this.lastRender = now;
         api.lastDrawAt = Date.now();
-        if (api.active && !document.hidden && (!api.mobile || z >= 3) && !this.frameTimer) {
+        if (api.active && !document.hidden && !this.frameTimer) {
           const delay = api.frameDelay();
           this.frameTimer = window.setTimeout(() => {
             this.frameTimer = 0;
