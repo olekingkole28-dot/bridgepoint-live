@@ -398,7 +398,7 @@ jobs:
                 assert.equal(jp.josephine.classification,'PTC','Josephine must retain the post-tropical classification');
                 assert(jp.diag.stormTrackFeatureCount>=2&&jp.diag.trackLayerPresent,'historical and forecast tracks must be present at globe zoom');
                 assert(jp.trackLayers.every(x=>x.present),'track overlays must exist in MapLibre style');
-                assert.equal(jp.josephineHurricaneGeometryCount,1,'Josephine must use the shared hurricane mesh and animation path');assert(jp.hurricaneSurfaceCloudVertices>0&&jp.josephineVisualEyeRadiusKm>0&&jp.josephineVisualShieldRadiusKm>0,'Josephine must render visible source-anchored eye and spiral structures');assert.equal(jp.josephineSourceClassification,'PTC','the visual override must preserve post-tropical source classification');
+                assert.equal(jp.josephineHurricaneGeometryCount,1,'Josephine must use the shared hurricane mesh and animation path');assert(jp.hurricaneSurfaceCloudVertices>0&&jp.josephineVisualEyeRadiusKm>0&&jp.josephineVisualShieldRadiusKm>0,'Josephine must render visible source-anchored eye and spiral structures');assert.equal(jp.josephineSourceClassification,'post-tropical cyclone','the visual override must preserve official post-tropical source classification');
               }else console.log('BRIDGEPOINT_JOSEPHINE_EXPIRED_FORECAST_PASS: archived forecast correctly retired after NHC dissipation time');
             }finally{await browser.close()}
           })().catch(e=>{console.error(e.stack||e);process.exit(1)});
