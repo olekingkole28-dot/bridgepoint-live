@@ -255,31 +255,40 @@ jobs:
                 const w=window.__BP_LANDING_WORLD__,c=window.__BP_SKY_CLOUDS_V5908__,s=window.__BP_SKY_CLOUDS_STATE_V6079__;
                 return !!w?.map&&c?.map===w.map&&c?.enabled===true&&s?.version===6079;
               },{timeout:60000});
-              await livePage.evaluate(()=>{
+              await livePage.waitForFunction(()=>!!window.__BP_LANDING_VISUAL_WEATHER__?.weather?.refresh,{timeout:60000});
+              await livePage.evaluate(async()=>{
                 const m=window.__BP_LANDING_WORLD__?.map;
                 window.__BP_SKY_CLOUDS_V5908__?.setEnabled?.(true);
                 m?.stop?.();m?.jumpTo({center:[-35,24],zoom:1.25,pitch:0,bearing:0});
+                const wx=window.__BP_LANDING_VISUAL_WEATHER__?.weather||window.__bpWeatherV2300;
+                await wx?.refresh?.(true);
+                m?.triggerRepaint?.();
               });
               await livePage.waitForFunction(()=>{
-                const s=window.__BP_SKY_CLOUDS_STATE_V6079__;
-                return !!s&&s.zoom<=1.5&&s.hurricaneEyeWallCloudCenters>0&&s.hurricaneSpiralCloudCenters>0&&s.warningFunnels>0&&s.layerInstalled===true;
-              },{timeout:30000});
+                const s=window.__BP_SKY_CLOUDS_STATE_V6079__,storms=window.__BP_LANDING_VISUAL_WEATHER__?.weather?.getScene?.()?.storms||[];
+                return !!s&&s.zoom<=1.5&&s.sourceStormCount>=1&&storms.some(st=>st.source==='NOAA/NHC')&&
+                  s.hurricaneEyeWallCloudCenters>0&&s.hurricaneSpiralCloudCenters>0&&s.warningFunnels>0&&s.layerInstalled===true;
+              },{timeout:45000});
               await new Promise(resolve=>setTimeout(resolve,1800));
               const liveGlobal=await livePage.evaluate(()=>{
                 const s=window.__BP_SKY_CLOUDS_STATE_V6079__||{},w=window.__BP_LANDING_WORLD__,m=w?.map;
+                const actualStorms=window.__BP_LANDING_VISUAL_WEATHER__?.weather?.getScene?.()?.storms||[];
                 return{zoom:m?.getZoom?.(),enabled:s.enabled,visible:s.visible,layerPresent:s.layerPresent,layerInstalled:s.layerInstalled,
                   rendererError:s.rendererError,sourceStormCount:s.sourceStormCount,sourceTornadoAlertCount:s.sourceTornadoAlertCount,
                   modeledHurricaneVisualCount:s.modeledHurricaneVisualCount,modeledTornadoVisualCount:s.modeledTornadoVisualCount,
                   hurricaneEyeWallCloudCenters:s.hurricaneEyeWallCloudCenters,hurricaneSpiralCloudCenters:s.hurricaneSpiralCloudCenters,
                   hurricaneEyeRadiusSource:s.hurricaneEyeRadiusSource,warningFunnels:s.warningFunnels,tornadoVisualHeightKm:s.tornadoVisualHeightKm,
-                  stormVisualProvenance:s.stormVisualProvenance,canvases:document.querySelectorAll('canvas').length};
+                  stormVisualProvenance:s.stormVisualProvenance,canvases:document.querySelectorAll('canvas').length,
+                  actualStorms:actualStorms.map(st=>({id:st.id,name:st.name,type:st.type,classification:st.classification,lat:st.lat,lng:st.lng,wind_mph:st.wind_mph,updated_at:st.updated_at,source:st.source}))};
               });
               console.log('BRIDGEPOINT_LIVE_SITE_STORM_GLOBAL_DIAG',JSON.stringify(liveGlobal));
               await livePage.screenshot({path:'/tmp/bp2300wx/world-anchored-rain-production-global.png',fullPage:false});
               assert.equal(liveGlobal.enabled,true,'public cloud renderer must be enabled');
               assert.equal(liveGlobal.layerPresent,true,'public cloud layer must exist');
               assert.equal(liveGlobal.layerInstalled,true,'public cloud layer must be installed');
-              assert(liveGlobal.hurricaneEyeWallCloudCenters>0&&liveGlobal.hurricaneSpiralCloudCenters>0,'public globe must generate the hurricane eye and spiral geometry');
+              assert(liveGlobal.sourceStormCount>=1,'real NHC storm records must reach the production cloud renderer');
+              assert(liveGlobal.actualStorms.some(st=>st.source==='NOAA/NHC'),'production scene must contain storm rows from the NHC feed');
+              assert(liveGlobal.hurricaneEyeWallCloudCenters>0&&liveGlobal.hurricaneSpiralCloudCenters>0,'public globe must generate the cyclone eye and spiral geometry from actual source records');
               assert(liveGlobal.warningFunnels>0,'public globe must generate a tornado funnel');
               assert.equal(liveGlobal.rendererError,null,'public cloud renderer must not report a rendering error');
               await livePage.evaluate(()=>{
@@ -304,7 +313,7 @@ jobs:
               assert(liveClose.tornadoVisualHeightKm<30,'public close-up must transition the funnel back to local scale');
               assert.equal(liveClose.rendererError,null,'public close-up renderer must not report an error');
               console.log('BRIDGEPOINT_LIVE_SITE_STORM_VISUAL_DIAGNOSTICS_PASS',JSON.stringify({global:liveGlobal,close:liveClose,pageErrors:livePageErrors.slice(0,8)}));
-              assert.equal(errors.length,0,errors.join('\n'));
+              assert.equal(livePageErrors.length,0,livePageErrors.join('\n'));
               console.log('BRIDGEPOINT_V2300_WEATHER_FX_ANDROID_PASS',JSON.stringify({particles:out.fx.activeParticles,quality:out.fx.qualityScale,fps:out.fx.fps,maxPoints:out.fx.budgets.maxPoints,canvases:out.totalCanvases,projection:out.projection}));
             }finally{await browser.close()}
           })().catch(e=>{console.error(e.stack||e);process.exit(1)});
