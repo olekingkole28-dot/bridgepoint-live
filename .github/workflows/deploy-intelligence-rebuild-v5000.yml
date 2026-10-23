@@ -558,7 +558,7 @@ jobs:
           grep -Fq 'float spiralBands=smoothstep(0.26,0.72,spiralSignal)' site/world-v2300-clouds.js
           grep -Fq 'float eyeWall=exp(-pow((rho-eyeWallRadius)/eyeWallWidth,2.0))' site/world-v2300-clouds.js
           grep -Fq 'tornadoVolumeProxyVertices+=added' site/world-v2300-clouds.js
-          grep -Fq 'const visualHeightM=physicalHeightM + Math.max(0,260000-physicalHeightM)*visualBoost;' site/world-v2300-clouds.js
+          grep -Fq 'const visualHeightM=physicalHeightM + Math.max(0,500000-physicalHeightM)*visualBoost;' site/world-v2300-clouds.js
           grep -Fq 'hurricaneCloudShieldRadiusKm' site/world-v2300-clouds.js
           grep -Fq 'if (field.score <= 0.58 || field.score > 0.90) continue;' site/world-v2300-clouds.js
           grep -Fq 'maxThin = MOBILE ? 750 : 850' site/world-v2300-clouds.js
