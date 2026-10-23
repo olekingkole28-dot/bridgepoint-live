@@ -487,7 +487,7 @@ jobs:
           grep -Fq '(thunderstorm ? 900 : 650);' site/world-v2300-clouds.js
           grep -Fq 'thunderstorm ? 450 : 350' site/world-v2300-clouds.js
           grep -Fq 'thunderstorm ? 2800 : 1800' site/world-v2300-clouds.js
-          grep -Fq 'rainCell=smoothstep(1.1,1.3,v_tint)' site/world-v2300-clouds.js
+          grep -Fq 'rainCell=smoothstep(1.30,1.34,v_tint)' site/world-v2300-clouds.js
           grep -Fq 'rainCellShelfClouds: rainCellShelfCount' site/world-v2300-clouds.js
           grep -Fq "if (f.kind === 'rain-cell')" site/world-v2300-clouds.js
           grep -Fq 'const shelfAltitude = f.baseM + clamp((f.topM - f.baseM) * 0.12, 160, 260);' site/world-v2300-clouds.js
