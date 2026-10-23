@@ -457,6 +457,7 @@ export function initSkyClouds(target) {
   let hurricaneSpiralCloudCenters = 0, hurricaneCloudShieldRadiusKm = 0;
   let hurricaneEyeWallCloudCenters = 0, hurricaneEyeRadiusKm = 0;
   let hurricaneEyeRadiusSource = 'no current source-backed hurricane';
+  let sourceHurricaneEyeRadiusValueFound = false;
   let localWindSourcePuffs = 0, localWindModelledPuffs = 0;
   let vertexData = new Float32Array(0), indexData = new Uint16Array(0);
   let globalCloudGeometryCache = null;
@@ -1105,7 +1106,7 @@ function generateGeometry() {
     const vertices = [], indices = [], formations = [], stormVolumeVertices = [], stormVolumeIndices = [], tornadoSurfaceVertexRanges = [];
     measuredCount = 0; funnelCount = 0; tornadoFunnelMeshVertices = 0; stormCount = 0; postTropicalStormCount=0; postTropicalCloudShieldRadiusKm=0; postTropicalSurfaceCloudVertices=0; josephineHurricaneGeometryCount=0; josephineVisualEyeRadiusKm=0; josephineVisualShieldRadiusKm=0; sourceHurricaneVisualEyeRadiusKm=0; rainCellShelfCount = 0; sourceCloudObservationCount = 0;
     hurricaneSpiralCloudCenters = 0; hurricaneCloudShieldRadiusKm = 0; hurricaneSpiralRibbonVertices = 0; stormVolumeIndexOffset=0; stormVolumeIndexCount=0; stormVolumeProxyVertices=0; hurricaneVolumeProxyVertices=0; tornadoVolumeProxyVertices=0; hurricaneSurfaceCloudVertices=0; tornadoSurfaceMeshVertices=0; postTropicalSurfaceCloudVertices=0; postTropicalStormCount=0; postTropicalCloudShieldRadiusKm=0;
-    hurricaneEyeWallCloudCenters = 0; hurricaneEyeRadiusKm = 0; hurricaneEyeRadiusSource = 'no current source-backed hurricane';
+    hurricaneEyeWallCloudCenters = 0; hurricaneEyeRadiusKm = 0; hurricaneEyeRadiusSource = 'no current source-backed hurricane'; sourceHurricaneEyeRadiusValueFound = false;
     hurricaneVisualEyeRadiusKm = 0; hurricaneVisualShieldRadiusKm = 0; tornadoVisualHeightKm = 0; tornadoVisualTopRadiusKm = 0; tornadoVisualBoost = 0; tornadoSurfaceVerticesSubmitted = 0; sourceStormCount = 0; sourceTornadoAlertCount = 0; modeledHurricaneVisualCount = 0; modeledTornadoVisualCount = 0;
     localWindSourcePuffs = 0; localWindModelledPuffs = 0;
     const scene = getScene();
@@ -1256,7 +1257,9 @@ function generateGeometry() {
         const added=makeStormVolumeProxy(MC,stormVolumeVertices,stormVolumeIndices,lng,lat,ground,visualShieldRadiusM,1700,16000,volumeTint,stormMotion.x,stormMotion.y,stormEpoch);
         hurricaneVolumeProxyVertices+=added;stormVolumeProxyVertices+=added;
         hurricaneEyeRadiusKm=Math.max(hurricaneEyeRadiusKm,eyeRadiusM/1000);
-        hurricaneEyeRadiusSource=storm.__bpModeledVisual?'illustrative model-only vortex; not a live source-backed hurricane':(Number.isFinite(eyeRawM)?'source eye-radius value':'shader estimate; provider eye radius missing');
+        const eyeRadiusSourceLabel=storm.__bpModeledVisual?'illustrative model-only vortex; not a live source-backed hurricane':(Number.isFinite(eyeRawM)?'source eye-radius value':'shader estimate; provider eye radius missing');
+        if(!sourceHurricaneEyeRadiusValueFound && (!josephineVisualStorm || !Number.isFinite(eyeRawM)))hurricaneEyeRadiusSource=eyeRadiusSourceLabel;
+        if(!josephineVisualStorm && Number.isFinite(eyeRawM)){hurricaneEyeRadiusSource='source eye-radius value';sourceHurricaneEyeRadiusValueFound=true;}
         hurricaneEyeWallCloudCenters=1;hurricaneSpiralCloudCenters=3;
         hurricaneSpiralRibbonVertices=added;
         hurricaneCloudShieldRadiusKm=Math.max(hurricaneCloudShieldRadiusKm,shieldRadiusM/1000);
