@@ -1022,9 +1022,29 @@ function generateGeometry() {
       formations.push({ lng: getLon(lng), lat, radiusM: clamp(radiusM, 600, 520000),
         baseM: clamp(baseM, 450, 14000), topM: clamp(topM, baseM + 180, 18500), seed, kind, windContext });
     }
-    if (modeledTornadoNeeded) {
-      const lng=-97.45,lat=35.55,ground=terrainElevationAt(lng,lat);
+    // Materialize source-backed tornado alerts/reports into the local formation list first.
+    // Merely seeing a tornado-labeled source row is not enough; it must become a valid volume.
+    const tornadoCenters=[];
+    for(const alert of tornadoAlerts){
+      const center=centerOf(alert);
+      if(!center||tornadoCenters.some(q=>Math.hypot((q[0]-center[0])*Math.cos(center[1]*Math.PI/180),q[1]-center[1])<0.12))continue;
       const before=formations.length;
+      addFormation(center[0],center[1],10000,3000,11000,hash(center[0],center[1],88),'funnel');
+      if(formations.length>before){funnelCount++;tornadoCenters.push(center);}
+    }
+    for(const st of sourceTornadoRecords){
+      const lng=number(st.lng,number(st.longitude,NaN)),lat=number(st.lat,number(st.latitude,NaN));
+      if(!Number.isFinite(lng)||!Number.isFinite(lat)||Math.abs(lat)>82)continue;
+      if(tornadoCenters.some(q=>Math.hypot((q[0]-lng)*Math.cos(lat*Math.PI/180),q[1]-lat)<0.12))continue;
+      const ground=terrainElevationAt(lng,lat),height=clamp(number(st.cloud_top_height_m,number(st.cloudTopHeightM,11000)),4500,15500);
+      const before=formations.length;
+      addFormation(lng,lat,10000,ground+Math.min(3000,height*0.25),ground+height,hash(lng,lat,6080),'funnel');
+      if(formations.length>before){funnelCount++;tornadoCenters.push([lng,lat]);}
+    }
+    // Fallback only when no usable source warning/report became a volume.
+    // It is explicitly identified as a visual example, never a live tornado.
+    if(funnelCount===0){
+      const lng=-97.45,lat=35.55,ground=terrainElevationAt(lng,lat),before=formations.length;
       addFormation(lng,lat,12500,ground+1900,ground+12500,hash(lng,lat,6079),'funnel');
       if(formations.length>before){funnelCount++;modeledTornadoVisualCount=1;}
     }
