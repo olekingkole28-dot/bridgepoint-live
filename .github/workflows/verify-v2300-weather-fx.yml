@@ -260,7 +260,7 @@ jobs:
                 const w=window.__BP_LANDING_WORLD__,c=window.__BP_SKY_CLOUDS_V5908__,s=window.__BP_SKY_CLOUDS_STATE_V6079__;
                 return !!w?.map&&c?.map===w.map&&c?.enabled===true&&s?.version===6082;
               },{timeout:60000});
-              await livePage.waitForFunction(()=>{const m=window.__BP_LANDING_WORLD__?.map,s=window.__BP_SKY_CLOUDS_STATE_V6079__;return !!m&&!!s&&s.enabled===true&&s.layerInstalled===true;},{timeout:60000});
+              await livePage.waitForFunction(()=>{const m=window.__BP_LANDING_WORLD__?.map,s=window.__BP_SKY_CLOUDS_STATE_V6079__;return !!m&&!!s&&s.enabled===true&&s.layerInstalled===true&&s.hurricaneSurfaceCloudVertices>0&&s.tornadoSurfaceMeshVertices>0;},{timeout:60000});
               await livePage.evaluate(async()=>{
                 const m=window.__BP_LANDING_WORLD__?.map;
                 window.__BP_SKY_CLOUDS_V5908__?.setEnabled?.(true);
@@ -316,7 +316,7 @@ jobs:
               const liveClose=await livePage.evaluate(()=>{
                 const s=window.__BP_SKY_CLOUDS_STATE_V6079__||{},m=window.__BP_LANDING_WORLD__?.map;
                 return{zoom:m?.getZoom?.(),enabled:s.enabled,layerInstalled:s.layerInstalled,rendererError:s.rendererError,
-                  warningFunnels:s.warningFunnels,tornadoFunnelMeshVertices:s.tornadoFunnelMeshVertices,
+                  warningFunnels:s.warningFunnels,tornadoFunnelMeshVertices:s.tornadoFunnelMeshVertices,tornadoSurfaceMeshVertices:s.tornadoSurfaceMeshVertices,
                   tornadoVisualHeightKm:s.tornadoVisualHeightKm,tornadoVisualTopRadiusKm:s.tornadoVisualTopRadiusKm,
                   modeledTornadoVisualCount:s.modeledTornadoVisualCount,sourceTornadoAlertCount:s.sourceTornadoAlertCount};
               });
