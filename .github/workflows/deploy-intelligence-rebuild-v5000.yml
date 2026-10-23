@@ -252,7 +252,7 @@ jobs:
           sed -i 's#world-v2300-sensor-layers.js?v=6015-nasa-light-toggle#world-v2300-sensor-layers.js?v=6027-nasa-nightlight-corrected-radiance#g' site/app.js site/landing.js
           sed -i 's#world-v2300-clouds.js?v=6075-global-coverage-fill#world-v2300-clouds.js?v=6090-physical-storm-motion#g' site/app.js site/landing.js
           sed -i 's#world-v2300-clouds.js?v=6076-rounded-cloud-banks#world-v2300-clouds.js?v=6090-physical-storm-motion#g' site/app.js site/landing.js
-          sed -i 's#world-v2300-weather.js?v=6090-five-minute-source-track-refresh#world-v2300-weather.js?v=6090-five-minute-source-track-refresh#g' site/app.js site/landing.js site/index.html site/app/index.html site/app/world-v2300-bootstrap.js
+          sed -i 's#world-v2300-weather.js?v=6070-clouds-only-phase#world-v2300-weather.js?v=6090-five-minute-source-track-refresh#g' site/app.js site/landing.js site/index.html site/app/index.html
           sed -i 's#world-v2300-time-slider.js?v=6076-rounded-cloud-banks#world-v2300-time-slider.js?v=6077-sky-restore-safe-pitch#g' site/app.js site/landing.js
           sed -i 's#world-v2300-time-slider.js?v=6077-cloud-base-restore#world-v2300-time-slider.js?v=6077-sky-restore-safe-pitch#g' site/app.js site/landing.js
           sed -i 's#app.js?v=6077-cloud-base-restore#app.js?v=6077-sky-restore-safe-pitch#g' site/app/index.html
@@ -279,6 +279,7 @@ jobs:
           cp release-v2300/gis-core-orchestrator-v5910.js site/app/gis-core-orchestrator-v5910.js
           cp release-v2300/world-v2300-inspector.js site/app/world-v2300-inspector.js
           cp release-v2300/world-v2300-bootstrap.js site/app/world-v2300-bootstrap.js
+          sed -i 's#world-v2300-weather.js?v=6070-clouds-only-phase#world-v2300-weather.js?v=6090-five-minute-source-track-refresh#g' site/app/world-v2300-bootstrap.js
           cp release-v2300/world-v2300.css site/app/world-v2300.css
 
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.js -o site/vendor/maplibre-gl.js
