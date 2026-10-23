@@ -1098,7 +1098,6 @@ function generateGeometry() {
         hurricaneEyeRadiusKm=Math.max(hurricaneEyeRadiusKm,eyeRadiusM/1000);
         hurricaneEyeRadiusSource=storm.__bpModeledVisual?'illustrative model-only vortex; not a live source-backed hurricane':(Number.isFinite(eyeRawM)?'source eye-radius value':'shader estimate; provider eye radius missing');
         hurricaneEyeWallCloudCenters=1;hurricaneSpiralCloudCenters=3;
-        hurricaneSpiralRibbonVertices=added;
         hurricaneCloudShieldRadiusKm=Math.max(hurricaneCloudShieldRadiusKm,shieldRadiusM/1000);
         stormCount++;
       }
