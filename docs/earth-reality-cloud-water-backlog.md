@@ -2,6 +2,10 @@
 
 **Status: OPEN / NOT COMPLETE.** This is a durable owner-requested implementation ledger. Keep it current across coding sessions. Do not mark an item complete because a button, prototype, synthetic shape, or passing source-code check exists; require working data, visual inspection, and production verification.
 
+### Water engine v6110 implementation pass (visual verification pending)
+
+The renderer now uses viewport-filtered source geometry, allows real water polygons to render while optional land-mask tiles are delayed, estimates one level surface per inland polygon when explicit compatible water-level observations are absent, limits gauge influence to nearby water, renders only source-reported flood-depth polygons as a distinct inundation material, and uses zoom-adaptive world-anchored wave shading within a bounded vertex budget. These are implementation changes, not a declaration that global/coastal/street-level water is complete. Bathymetry, authoritative currents, tide/stage fields and flood products remain source-dependent; keep the ledger open until visual and runtime verification succeeds.
+
 ## Working hypothesis: underwater zoom-through and shoreline problems
 
 The suspected failure is that BridgePoint's vertical world model may not yet have consistent, source-backed elevations for the ocean floor and inland water bodies. If bathymetry is missing at a tile, mixed with an incompatible vertical datum, or not participating in the camera ground guard, the camera may zoom through the apparent underwater floor and coastlines may look rough or misaligned.

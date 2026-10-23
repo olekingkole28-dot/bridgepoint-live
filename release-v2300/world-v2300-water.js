@@ -1,8 +1,8 @@
-// BridgePoint Water & Hydrology GPU surface v6100.
+// BridgePoint Water & Hydrology GPU surface v6110.
 // Additive MapLibre custom layer: one shared map canvas/context, bounded source geometry,
 // GPU wave displacement, source-gated flood elevations, and view-aware mesh LOD.
-const VERSION = 6100;
-const LAYER_ID = 'bp-water-surface-gpu-v6100';
+const VERSION = 6110;
+const LAYER_ID = 'bp-water-surface-gpu-v6110';
 const EARTH_CIRCUMFERENCE_M = 40075016.68557849;
 const RAD = Math.PI / 180;
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -70,16 +70,29 @@ function featureContains(feature, lng, lat) {
   }
   return false;
 }
-function sourceFeatures(map, sourceLayer, limit) {
+function featureIntersectsBounds(feature, bounds) {
+  if (!bounds) return true;
+  const [minLng, minLat, maxLng, maxLat] = feature.bbox;
+  const top = mercY(maxLat), bottom = mercY(minLat), pad = 0.025;
+  if (bottom < bounds.y0 - pad || top > bounds.y1 + pad) return false;
+  if (maxLng - minLng > 300) return true;
+  const fx0 = (minLng + 180) / 360, fx1 = (maxLng + 180) / 360;
+  for (const shift of [-1, 0, 1]) {
+    if (fx1 + shift >= bounds.x0 - pad && fx0 + shift <= bounds.x1 + pad) return true;
+  }
+  return false;
+}
+function sourceFeatures(map, sourceLayer, limit, bounds) {
   try {
     if (!map.getSource('ofm')) return [];
     const raw = map.querySourceFeatures('ofm', { sourceLayer });
     const prepared = [];
     for (const row of raw || []) {
-      if (prepared.length >= limit) break;
       if (!row || typeof row !== 'object') continue;
       const item = prepareFeature(row);
-      if (item) prepared.push(item);
+      if (!item || !featureIntersectsBounds(item, bounds)) continue;
+      if (prepared.length >= limit) break;
+      prepared.push(item);
     }
     return prepared;
   } catch (_) { return []; }
@@ -100,12 +113,12 @@ function featureDepth(feature) {
   }
   return 0;
 }
-function collectDepthFeatures(scene) {
+function collectDepthFeatures(scene, bounds) {
   const out = [];
   for (const row of scene.flood_depths || []) {
     const f = prepareFeature(row);
     const depth = f && featureDepth(f);
-    if (f && depth > 0) { f.depth = depth; out.push(f); }
+    if (f && depth > 0 && featureIntersectsBounds(f, bounds)) { f.depth = depth; out.push(f); }
     if (out.length >= 160) break;
   }
   return out;
@@ -126,7 +139,7 @@ function absoluteWaterLevelAt(scene, lng, lat) {
     const d = Math.hypot(dx, dy);
     if (d < bestD) { bestD = d; best = h; }
   }
-  return bestD <= 0.35 ? best : null;
+  return bestD <= 0.06 ? best : null;
 }
 function coordsOfPoint(row) {
   const p = row && (row.properties || row);
@@ -207,7 +220,11 @@ function buildShaders(gl, shaderDescription) {
     'in vec2 a_flow;',
     'in float a_flood;',
     'uniform float u_time;',
+    'uniform vec2 u_waveOrigin;',
+    'uniform float u_wavePhaseA;',
+    'uniform float u_wavePhaseB;',
     'uniform float u_waveK;',
+    'uniform float u_flowCycles;',
     'uniform float u_waveAmp;',
     'uniform float u_windSpeed;',
     'uniform vec2 u_windDir;',
@@ -217,14 +234,16 @@ function buildShaders(gl, shaderDescription) {
     'out float v_wave;',
     'out float v_storm;',
     'out vec2 v_flow;',
+    'out float v_flood;',
+    'out float v_streamPhaseOffset;',
     'void main() {',
     '  float lat = atan(sinh(3.141592653589793 * (1.0 - 2.0 * a_pos.y)));',
     '  float cLat = max(0.12, cos(lat));',
-    '  vec2 ground = a_pos * (40075016.6856 * cLat);',
+    '  vec2 ground = (a_pos - u_waveOrigin) * (40075016.6856 * cLat);',
     '  vec2 windDir = length(u_windDir) > 0.001 ? normalize(u_windDir) : vec2(1.0, 0.0);',
-    '  float phaseA = dot(ground, windDir) * u_waveK - u_time * (0.48 + u_windSpeed * 0.014);',
+    '  float phaseA = dot(ground, windDir) * u_waveK + u_wavePhaseA - u_time * (0.48 + u_windSpeed * 0.014);',
     '  vec2 dirB = normalize(windDir + vec2(0.52, 0.31));',
-    '  float phaseB = dot(ground, dirB) * u_waveK * 0.61 + u_time * 0.33;',
+    '  float phaseB = dot(ground, dirB) * u_waveK * 0.61 + u_wavePhaseB + u_time * 0.33;',
     '  float wave = 0.63 * sin(phaseA) + 0.25 * sin(phaseA * 1.91 + 0.71) + 0.18 * sin(phaseB);',
     '  float stormInfluence = 0.0;',
     '  float stormSurge = 0.0;',
@@ -240,16 +259,20 @@ function buildShaders(gl, shaderDescription) {
     '      stormSurge = max(stormSurge, influence * min(3.2, 0.55 + u_storms[i].w * 1.65));',
     '    }',
     '  }',
-    '  float localScale = a_kind < 0.5 ? 0.28 : (a_kind > 2.5 ? 1.0 : (a_kind > 1.5 ? 0.22 : 0.18));',
-    '  float amplitude = u_waveAmp * localScale * (1.0 + stormInfluence * (0.9 + u_windSpeed * 0.011));',
-    '  float marineSurgeMask = (a_kind < 0.5 || a_kind > 2.5) ? 1.0 : 0.0;',
+    '  float localScale = a_kind < 0.5 ? 0.28 : (a_kind > 3.5 ? 0.14 : (a_kind > 2.5 ? 1.0 : (a_kind > 1.5 ? 0.22 : 0.18)));',
+    '  float localWindBoost = 0.72 + min(0.65, u_windSpeed / 80.0);',
+    '  float amplitude = u_waveAmp * localScale * localWindBoost * (1.0 + stormInfluence * (0.9 + u_windSpeed * 0.011));',
+    '  float marineSurgeMask = (a_kind < 0.5 || (a_kind > 2.5 && a_kind < 3.5)) ? 1.0 : 0.0;',
     '  float offsetM = wave * amplitude + stormSurge * marineSurgeMask + a_flood;',
     '  gl_Position = projectTileFor3D(a_pos, a_height + offsetM);',
-    '  v_coord = a_pos;',
+    '  v_coord = a_pos - u_waveOrigin;',
     '  v_kind = a_kind;',
     '  v_wave = clamp(0.5 + wave * 0.34, 0.0, 1.0);',
     '  v_storm = clamp(stormInfluence, 0.0, 1.0);',
     '  v_flow = a_flow;',
+    '  v_flood = a_flood;',
+    '  vec2 ribbonDir = length(a_flow) > 0.001 ? normalize(a_flow) : vec2(1.0, 0.0);',
+    '  v_streamPhaseOffset = 6.2831853 * fract(dot(u_waveOrigin, ribbonDir) * u_flowCycles);',
     '}'
   ].join('\n');
   const fragmentSource = [
@@ -260,38 +283,51 @@ function buildShaders(gl, shaderDescription) {
     'in float v_wave;',
     'in float v_storm;',
     'in vec2 v_flow;',
+    'in float v_flood;',
+    'in float v_streamPhaseOffset;',
     'uniform float u_time;',
     'uniform float u_flowCycles;',
+    'uniform float u_flowPhaseA;',
+    'uniform float u_flowPhaseB;',
+    'uniform float u_flowPhaseDetail;',
     'uniform float u_windSpeed;',
     'out highp vec4 fragColor;',
     'void main() {',
-    '  float sparkle = sin((v_coord.x * 0.71 + v_coord.y * 0.29) * u_flowCycles * 6.2831853 + u_time * 0.38);',
-    '  float fine = sin((v_coord.x * 0.27 - v_coord.y * 0.91) * u_flowCycles * 3.71 - u_time * 0.57);',
-    '  float glint = pow(max(0.0, 0.5 + 0.5 * (0.72 * sparkle + 0.28 * fine)), 7.0);',
-    '  float foam = smoothstep(0.79, 0.98, v_wave) * (0.05 + min(0.62, u_windSpeed / 120.0) + 0.42 * v_storm);',
-    '  vec3 deep = vec3(0.008, 0.095, 0.16);',
-    '  vec3 mid = vec3(0.02, 0.23, 0.32);',
-    '  vec3 crest = vec3(0.39, 0.78, 0.83);',
-    '  if (v_kind > 1.5) {',
+    '  float sparkle = sin((v_coord.x * 0.71 + v_coord.y * 0.29) * u_flowCycles * 6.2831853 + u_flowPhaseA + u_time * 0.38);',
+    '  float fine = sin((v_coord.x * 0.27 - v_coord.y * 0.91) * u_flowCycles * 3.71 + u_flowPhaseB - u_time * 0.57);',
+    '  float detail = 0.5 + 0.5 * sin((v_coord.x * 0.61 + v_coord.y * 0.39) * u_flowCycles * 1.37 * 6.2831853 + u_flowPhaseDetail + u_time * 0.21);',
+    '  float glint = pow(max(0.0, 0.5 + 0.5 * (0.62 * sparkle + 0.24 * fine + 0.14 * detail)), 7.0);',
+    '  float foam = (smoothstep(0.79, 0.98, v_wave) * 0.7 + smoothstep(0.81, 0.97, detail) * 0.08) * (0.05 + min(0.62, u_windSpeed / 120.0) + 0.42 * v_storm);',
+    '  vec3 deep = vec3(0.006, 0.075, 0.135);',
+    '  vec3 mid = vec3(0.012, 0.24, 0.345);',
+    '  vec3 crest = vec3(0.42, 0.76, 0.82);',
+    '  if (v_kind > 1.5 && v_kind < 2.5) {',
     '    vec2 flowDir = length(v_flow) > 0.001 ? normalize(v_flow) : vec2(1.0, 0.0);',
-    '    float streamPhase = sin(dot(v_coord, flowDir) * u_flowCycles * 6.2831853 + u_time * 1.85);',
+    '    float streamPhase = sin(dot(v_coord, flowDir) * u_flowCycles * 6.2831853 + v_streamPhaseOffset + u_time * 1.85);'
     '    float streak = smoothstep(0.73, 0.98, 0.5 + 0.5 * streamPhase);',
     '    vec3 streamColor = mix(mid, crest, streak * 0.78);',
     '    fragColor = vec4(streamColor, 0.24 + streak * 0.42);',
+    '    return;',
+    '  }',
+    '  if (v_kind > 3.5) {',
+    '    float depthTint = clamp(v_flood / 4.0, 0.0, 1.0);',
+    '    vec3 floodColor = mix(vec3(0.08, 0.29, 0.31), vec3(0.015, 0.16, 0.25), depthTint);',
+    '    floodColor = mix(floodColor, crest, glint * 0.24);',
+    '    fragColor = vec4(floodColor, clamp(0.36 + v_flood * 0.028 + glint * 0.08, 0.36, 0.68));',
     '    return;',
     '  }',
     '  if (v_kind < 0.5) {',
     '    float shimmer = glint * 0.65 + foam * 0.13 + v_storm * 0.22;',
     '    vec3 color = mix(deep, mid, 0.28 + shimmer);',
     '    color = mix(color, crest, shimmer * 0.34);',
-    '    fragColor = vec4(color, 0.032 + shimmer * 0.055);',
+    '    fragColor = vec4(color, clamp(0.095 + shimmer * 0.115, 0.09, 0.26));',
     '    return;',
     '  }',
     '  float sheen = clamp(glint * 0.36 + foam * 0.6 + v_storm * 0.12, 0.0, 0.72);',
     '  vec3 color = mix(deep, mid, 0.22 + v_wave * 0.45);',
     '  color = mix(color, crest, sheen);',
-    '  float alpha = 0.13 + glint * 0.21 + foam * 0.19 + v_storm * 0.08;',
-    '  fragColor = vec4(color, clamp(alpha, 0.12, 0.54));',
+    '  float alpha = v_kind > 2.5 ? 0.22 + glint * 0.21 + foam * 0.20 + v_storm * 0.10 : 0.17 + glint * 0.14 + foam * 0.11;',
+    '  fragColor = vec4(color, clamp(alpha, 0.16, 0.62));',
     '}'
   ].join('\n');
   function compile(type, source) {
@@ -319,8 +355,9 @@ function buildShaders(gl, shaderDescription) {
     throw new Error(error);
   }
   const names = ['u_projection_fallback_matrix', 'u_projection_matrix', 'u_projection_tile_mercator_coords',
-    'u_projection_clipping_plane', 'u_projection_transition', 'u_time', 'u_waveK', 'u_waveAmp',
-    'u_windSpeed', 'u_windDir', 'u_storms[0]', 'u_flowCycles'];
+    'u_projection_clipping_plane', 'u_projection_transition', 'u_time', 'u_waveOrigin', 'u_wavePhaseA',
+    'u_wavePhaseB', 'u_waveK', 'u_waveAmp', 'u_windSpeed', 'u_windDir', 'u_storms[0]',
+    'u_flowCycles', 'u_flowPhaseA', 'u_flowPhaseB', 'u_flowPhaseDetail'];
   const uniforms = {};
   for (const name of names) uniforms[name] = gl.getUniformLocation(program, name);
   const attributes = {
@@ -425,19 +462,34 @@ function createLayer(api, map) {
         }
         const u = info.uniforms;
         const z = map.getZoom();
-        const wavesPerWorld = Math.min(220000, 8.53 * Math.pow(2, clamp(z, 0.6, 15)));
+        // Do not cap global wave cycles at 220k: that stretched waves into giant
+        // low-frequency bands at street zoom. Geometry stays capped; detail is shader-side.
+        const wavesPerWorld = 8.53 * Math.pow(2, clamp(z, 0.6, 20.0));
         const waveNumber = Math.PI * 2 * wavesPerWorld;
-        const amp = z < 2.5 ? 0.18 : z < 7 ? 0.32 : z < 12 ? 0.62 : z < 15 ? 1.0 : 1.3;
+        const amp = z < 2.5 ? 0.85 : z < 7 ? 0.75 : z < 12 ? 1.0 : z < 15 ? 1.35 : 1.8;
+        const center = map.getCenter();
+        const originX = mercX(center.lng), originY = mercY(center.lat);
+        const centerCosLat = Math.max(0.12, Math.cos(center.lat * RAD));
+        const dir = api.wind.direction * RAD;
+        const windX = Math.sin(dir), windY = -Math.cos(dir);
+        let dirBX = windX + 0.52, dirBY = windY + 0.31;
+        const dirBLen = Math.hypot(dirBX, dirBY) || 1;
+        dirBX /= dirBLen; dirBY /= dirBLen;
+        const frac = value => ((value % 1) + 1) % 1;
+        const flowCycles = wavesPerWorld * 2.4;
         if (u.u_time) gl.uniform1f(u.u_time, ((now - this.timeOrigin) / 1000) % 4096);
+        if (u.u_waveOrigin) gl.uniform2f(u.u_waveOrigin, originX, originY);
+        if (u.u_wavePhaseA) gl.uniform1f(u.u_wavePhaseA, Math.PI * 2 * frac(wavesPerWorld * centerCosLat * (originX * windX + originY * windY)));
+        if (u.u_wavePhaseB) gl.uniform1f(u.u_wavePhaseB, Math.PI * 2 * frac(wavesPerWorld * 0.61 * centerCosLat * (originX * dirBX + originY * dirBY)));
         if (u.u_waveK) gl.uniform1f(u.u_waveK, waveNumber / EARTH_CIRCUMFERENCE_M);
         if (u.u_waveAmp) gl.uniform1f(u.u_waveAmp, amp);
         if (u.u_windSpeed) gl.uniform1f(u.u_windSpeed, api.wind.mph);
-        if (u.u_windDir) {
-          const dir = api.wind.direction * RAD;
-          gl.uniform2f(u.u_windDir, Math.sin(dir), -Math.cos(dir));
-        }
+        if (u.u_windDir) gl.uniform2f(u.u_windDir, windX, windY);
         if (u['u_storms[0]']) gl.uniform4fv(u['u_storms[0]'], api.stormUniforms);
-        if (u.u_flowCycles) gl.uniform1f(u.u_flowCycles, Math.min(260000, wavesPerWorld * 2.4));
+        if (u.u_flowCycles) gl.uniform1f(u.u_flowCycles, flowCycles);
+        if (u.u_flowPhaseA) gl.uniform1f(u.u_flowPhaseA, Math.PI * 2 * frac(flowCycles * (0.71 * originX + 0.29 * originY)));
+        if (u.u_flowPhaseB) gl.uniform1f(u.u_flowPhaseB, Math.PI * 2 * 3.71 * frac(flowCycles * (0.27 * originX - 0.91 * originY)));
+        if (u.u_flowPhaseDetail) gl.uniform1f(u.u_flowPhaseDetail, Math.PI * 2 * 1.37 * frac(flowCycles * (0.61 * originX + 0.39 * originY)));
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
         gl.depthMask(false);
@@ -509,7 +561,7 @@ function currentScene() {
 export function initWaterEngine(mapOrWorld, options = {}) {
   const map = mapOrWorld && mapOrWorld.map ? mapOrWorld.map : mapOrWorld;
   if (!map || typeof map.addLayer !== 'function' || typeof map.querySourceFeatures !== 'function') return null;
-  if (window.__BP_WATER_ENGINE_V6100__ && window.__BP_WATER_ENGINE_V6100__.map === map) return window.__BP_WATER_ENGINE_V6100__;
+  if (window.__BP_WATER_ENGINE_V6110__ && window.__BP_WATER_ENGINE_V6110__.map === map) return window.__BP_WATER_ENGINE_V6110__;
   const mobile = window.innerWidth <= 900 || /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
   const low = Number(navigator.deviceMemory || 4) <= 3 || Number(navigator.hardwareConcurrency || 4) <= 4;
   const api = {
@@ -569,7 +621,7 @@ export function initWaterEngine(mapOrWorld, options = {}) {
       try { if (map.getLayer(LAYER_ID)) map.removeLayer(LAYER_ID); } catch (_) {}
       for (const spec of SOURCE_ANCHORS) { try { if (map.getLayer(spec.id)) map.removeLayer(spec.id); } catch (_) {} }
       try { window.removeEventListener('bp2300:weather-updated', onWeatherUpdated); } catch (_) {}
-      if (window.__BP_WATER_ENGINE_V6100__ === this) window.__BP_WATER_ENGINE_V6100__ = null;
+      if (window.__BP_WATER_ENGINE_V6110__ === this) window.__BP_WATER_ENGINE_V6110__ = null;
     },
     get buffers() {
       return layer ? { surface: layer.buffer, flow: layer.flowBuffer, strideFloats: 7, strideBytes: 28, vertexCount: layer.surfaceVertexCount + layer.flowVertexCount } : null;
@@ -617,6 +669,42 @@ export function initWaterEngine(mapOrWorld, options = {}) {
     return value;
   }
   function sceneLevelAt(scene, lng, lat) { return absoluteWaterLevelAt(scene, lng, lat); }
+  function estimatedInlandSurface(feature, scene, terrainCache, cellKey, lng, lat) {
+    const explicit = sceneLevelAt(scene, lng, lat);
+    if (explicit !== null) return explicit;
+    if (!feature || !feature.parts || map.getZoom() < 5 || typeof map.queryTerrainElevation !== 'function') {
+      return terrainHeight(lng, lat, terrainCache, 'e:' + cellKey);
+    }
+    if (api._inlandLevels && api._inlandLevels.has(feature)) return api._inlandLevels.get(feature);
+    const samples = [];
+    let sampled = 0;
+    // Use one robust shoreline-terrain estimate per inland polygon so the visible surface
+    // stays level instead of following every underlying DEM vertex. Source water levels win.
+    for (const polygon of feature.parts) {
+      const ring = polygon && polygon[0];
+      if (!ring || ring.length < 3) continue;
+      const step = Math.max(1, Math.floor((ring.length - 1) / 8));
+      for (let i = 0; i < ring.length - 1 && sampled < 8; i += step, sampled++) {
+        const point = ring[i];
+        if (!point || !finite(point[0]) || !finite(point[1])) continue;
+        try {
+          const h = map.queryTerrainElevation([wrapLon(point[0]), clamp(Number(point[1]), -85, 85)], { exaggerated: false });
+          if (Number.isFinite(h) && h >= -500 && h <= 9000) { samples.push(h); api.terrainSamples++; }
+          else api.terrainMissing++;
+        } catch (_) { api.terrainMissing++; }
+      }
+      if (sampled >= 8) break;
+    }
+    let level;
+    if (samples.length) {
+      samples.sort((a, b) => a - b);
+      const mid = Math.floor(samples.length / 2);
+      level = samples.length % 2 ? samples[mid] : (samples[mid - 1] + samples[mid]) * 0.5;
+    } else level = terrainHeight(lng, lat, terrainCache, 'e:' + cellKey);
+    if (!api._inlandLevels) api._inlandLevels = new Map();
+    api._inlandLevels.set(feature, level);
+    return level;
+  }
   // MapLibre may keep isStyleLoaded() false while vector tiles/weather layers are
   // still refreshing. The map style can already accept layers and expose its sources.
   function mapCanHostWater() {
@@ -754,10 +842,11 @@ export function initWaterEngine(mapOrWorld, options = {}) {
     const z = map.getZoom(), canvas = map.getCanvas();
     const width = Math.max(240, canvas.clientWidth || canvas.width || 800);
     const height = Math.max(240, canvas.clientHeight || canvas.height || 600);
-    let targetPx = api.low ? 23 : api.mobile ? 18 : 14;
+    let targetPx = api.low ? 28 : api.mobile ? 20 : 15;
     if (z < 2.5) targetPx = Math.max(targetPx, 22);
-    if (z > 15 && api.mobile) targetPx = 21;
-    const maxCells = api.low ? 1050 : api.mobile ? 1700 : 5800;
+    if (z >= 12) targetPx = api.low ? 30 : api.mobile ? 21 : 12;
+    if (z > 15) targetPx = api.low ? 32 : api.mobile ? 24 : 10;
+    const maxCells = api.low ? 1050 : api.mobile ? 1800 : 5800;
     let nx = clamp(Math.ceil(width / targetPx), 16, 106);
     let ny = clamp(Math.ceil(height / targetPx), 12, 84);
     if (nx * ny > maxCells) {
@@ -767,17 +856,17 @@ export function initWaterEngine(mapOrWorld, options = {}) {
     }
     const dx = (bounds.x1 - bounds.x0) / nx;
     const dy = (bounds.y1 - bounds.y0) / ny;
-    const waterFeatures = sourceFeatures(map, 'water', 850);
-    const landCoverFeatures = sourceFeatures(map, 'landcover', 900);
-    const landUseFeatures = sourceFeatures(map, 'landuse', 900);
+    const waterFeatures = sourceFeatures(map, 'water', 850, bounds);
+    const landCoverFeatures = sourceFeatures(map, 'landcover', 900, bounds);
+    const landUseFeatures = sourceFeatures(map, 'landuse', 900, bounds);
     const hasLandMask = landCoverFeatures.length + landUseFeatures.length > 0;
     api.sourceWaterFeatures = waterFeatures.length;
     api.sourceLandFeatures = landCoverFeatures.length + landUseFeatures.length;
-    api.waitingForVectorFeatures = !(waterFeatures.length > 0 && hasLandMask);
+    api.waitingForVectorFeatures = !(waterFeatures.length > 0 || hasLandMask);
     // Do not paint ocean fallback without both source water features and a land mask.
     // The zero-alpha source-anchor layers below keep these vector layers requested even
     // when the selected basemap is satellite and native GTA fills are not visible.
-    if (!waterFeatures.length || !hasLandMask) {
+    if (!waterFeatures.length && !hasLandMask) {
       api.sourceWaterwayFeatures = 0;
       api.waterPolygonCells = 0;
       api.oceanFallbackCells = 0;
@@ -804,8 +893,9 @@ export function initWaterEngine(mapOrWorld, options = {}) {
     api.sourceWaterwayFeatures = flowFeatures.length;
     const scene = currentScene();
     api.syncScene(scene, map);
-    api._floodFeatures = collectDepthFeatures(scene);
+    api._floodFeatures = collectDepthFeatures(scene, bounds);
     const terrainCache = new Map();
+    api._inlandLevels = new Map();
     const surface = [], flow = [];
     let polygonCells = 0, fallbackCells = 0, floodedLandCells = 0;
     const gridKey = (i, j, kind) => kind + ':' + i + ':' + j;
@@ -813,10 +903,12 @@ export function initWaterEngine(mapOrWorld, options = {}) {
       const key = gridKey(i, j, kind);
       if (terrainCache.has(key)) return terrainCache.get(key);
       let h = 0;
-      const marine = kind === 0 || (feature && marineFeature(feature));
-      const sourceLevel = sceneLevelAt(sceneRef, lng, lat);
+      const marine = kind === 0 || kind === 3 || (feature && marineFeature(feature));
+      const sourceLevel = kind === 4 ? null : sceneLevelAt(sceneRef, lng, lat);
       if (sourceLevel !== null) h = sourceLevel;
-      else if (!marine) h = terrainHeight(lng, lat, terrainCache, 'e:' + key);
+      else if (marine) h = 0;
+      else if (kind === 1) h = estimatedInlandSurface(feature, sceneRef, terrainCache, key, lng, lat);
+      else h = terrainHeight(lng, lat, terrainCache, 'e:' + key);
       terrainCache.set(key, h);
       return h;
     };
@@ -844,10 +936,11 @@ export function initWaterEngine(mapOrWorld, options = {}) {
           const isLand = !!(locate(landCoverFeatures, lon, lat) || locate(landUseFeatures, lon, lat));
           if (isLand && flood <= 0) continue;
           if (flood > 0) {
-            kind = 1;
+            kind = 4; // distinct flood surface, only when explicit depth is in the source polygon.
             floodedLandCells++;
           } else {
-            kind = 0; // faint ocean shimmer only where source land masks establish it is not land.
+            if (!waterFeatures.length || !hasLandMask) continue;
+            kind = 0; // faint ocean shimmer only where both source masks are available.
           }
         }
         const points = [
@@ -867,9 +960,10 @@ export function initWaterEngine(mapOrWorld, options = {}) {
         // one-cell shoreline antialiasing is provided by the existing GTA fill/foam layers.
         for (const k of [0, 1, 2, 0, 2, 3]) {
           const pt = points[k], h = heights[k];
-          pushVertex(surface, pt[0], pt[1], h, kind, fx, fy, flood);
+          pushVertex(surface, pt[0], pt[1], h, kind, fx, fy, kind === 4 ? flood : 0);
         }
-        if (kind === 1) polygonCells++; else fallbackCells++;
+        if (kind === 1 || kind === 3) polygonCells++;
+        else if (kind === 0) fallbackCells++;
       }
     }
     const maxSegs = api.low ? 110 : api.mobile ? 240 : 580;
@@ -888,7 +982,7 @@ export function initWaterEngine(mapOrWorld, options = {}) {
     api.sourceWaterwayFeatures = flowFeatures.length;
     api.geometryBuilds++;
     api.lastSourceRefreshAt = Date.now();
-    window.__BP_WATER_FIELD_V6100__ = {
+    window.__BP_WATER_FIELD_V6110__ = {
       version: VERSION, map, buffers: api.buffers,
       get state() { return api.state; },
       get weatherScene() { return currentScene(); },
@@ -944,8 +1038,8 @@ export function initWaterEngine(mapOrWorld, options = {}) {
   });
   scheduleBuild(250);
   for (const delay of [700, 1700, 3400]) window.setTimeout(() => { ensureInstalled(); scheduleBuild(0); }, delay);
-  window.__BP_WATER_ENGINE_V6100__ = api;
-  window.__BP_WATER_FIELD_V6100__ = {
+  window.__BP_WATER_ENGINE_V6110__ = api;
+  window.__BP_WATER_FIELD_V6110__ = {
     version: VERSION, map, get buffers() { return api.buffers; },
     get state() { return api.state; },
     get weatherScene() { return currentScene(); },
