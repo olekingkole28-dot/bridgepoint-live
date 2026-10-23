@@ -17,7 +17,7 @@ const CSS = [
 ].join('');
 
 function makeStormVolumeProxy(MC,vertices,indices,lng,lat,groundM,radiusM,baseAGL,topAGL,tint){
-  const segments=MOBILE?28:40,levels=MOBILE?[0,0.22,0.48,0.74,1]:[0,0.16,0.34,0.54,0.74,0.90,1];
+  const segments=MOBILE?32:48,levels=MOBILE?[0,0.16,0.32,0.50,0.68,0.84,1]:[0,0.12,0.28,0.46,0.64,0.82,0.94,1];
   const start=vertices.length/10,center=MC.fromLngLat({lng,lat},groundM),cosLat=Math.max(0.12,Math.cos(lat*Math.PI/180));
   const wrapLng=value=>((((value+180)%360)+360)%360)-180;
   const addVertex=(east,north,height)=>{
@@ -69,10 +69,12 @@ vec4 bpRaymarchStorm(vec3 entry,vec2 cameraXY,float tint,float time,float camera
   bool funnel=tint<1.481,southern=(!funnel&&tint>1.520);
   float radius=funnel?18000.0:max(180000.0,(tint-1.482-(southern?0.040:0.0))*100000000.0);
   float height=funnel?clamp((tint-1.474)*100000000.0,4500.0,15500.0):16000.0,eyeRatio=clamp(28000.0/radius,0.008,0.095);
-  vec3 camera=vec3(cameraXY,cameraAltitude),toCamera=normalize(camera-entry),normal;
+  float volumeBase=funnel?0.0:1700.0,cameraZ=cameraAltitude-volumeBase;
+  vec3 camera=vec3(cameraXY,cameraZ),toCamera=normalize(camera-entry),normal;
   if(entry.z<0.5)normal=vec3(0.0,0.0,-1.0);else if(entry.z>height-0.5)normal=vec3(0.0,0.0,1.0);else normal=normalize(vec3(entry.xy,0.0001));
-  if(dot(normal,toCamera)<=0.002)return vec4(0.0);
-  vec3 direction=-toCamera;float exitT=bpStormExitDistance(entry,direction,radius,height);
+  float facing=dot(normal,toCamera),insideVolume=(length(cameraXY)<radius&&cameraZ>0.0&&cameraZ<height)?1.0:0.0;
+  if(facing<=0.002&&insideVolume<0.5)return vec4(0.0);
+  vec3 direction=facing>0.002?-toCamera:toCamera;float exitT=bpStormExitDistance(entry,direction,radius,height);
   if(exitT<1.0||exitT>1.0e20)return vec4(0.0);
   float steps=clamp(requestedSteps,12.0,40.0),stepLength=exitT/steps,accumulatedAlpha=0.0;
   vec3 accumulatedColor=vec3(0.0);
@@ -110,7 +112,7 @@ function makeShaders(webgl2, shaderData = null) {
     (projectionAware ? 'projectTileFor3D(moved,a_altitude)' : 'u_matrix*vec4(moved,a_pos.z,1.0)') + ';}';
 
   const fragment = (webgl2 ? '#version 300 es\n' : '') +
-    'precision mediump float;\n' +
+    'precision highp float;\n' +
     (webgl2 ? 'in vec3 v_local;\nin float v_tint;\nin vec2 v_camera_local;\nout vec4 bpColor;\n' : 'varying vec3 v_local;\nvarying float v_tint;\nvarying vec2 v_camera_local;\n') +
     'uniform highp float u_time;\nuniform highp float u_camera_altitude_m;\nuniform highp float u_ray_steps;\n' +
     'float noise3(vec3 p){vec3 q=floor(p);vec3 f=fract(p);f=f*f*(3.0-2.0*f);float n=q.x+q.y*57.0+q.z*113.0;float a=fract(sin(n)*43758.5453);float b=fract(sin(n+1.0)*43758.5453);float c=fract(sin(n+57.0)*43758.5453);float d=fract(sin(n+58.0)*43758.5453);float e=fract(sin(n+113.0)*43758.5453);float f1=fract(sin(n+114.0)*43758.5453);float g=fract(sin(n+170.0)*43758.5453);float h=fract(sin(n+171.0)*43758.5453);return mix(mix(mix(a,b,f.x),mix(c,d,f.x),f.y),mix(mix(e,f1,f.x),mix(g,h,f.x),f.y),f.z);}\n' +
@@ -1091,9 +1093,12 @@ function generateGeometry() {
       if(hurricane){
         const ground=terrainElevationAt(lng,lat),southern=lat<0?0.040:0.0;
         const volumeTint=1.482+shieldRadiusM/100000000+southern;
-        const added=makeStormVolumeProxy(MC,stormVolumeVertices,stormVolumeIndices,lng,lat,ground,shieldRadiusM,0,16000,volumeTint);
+        const added=makeStormVolumeProxy(MC,stormVolumeVertices,stormVolumeIndices,lng,lat,ground,shieldRadiusM,1700,16000,volumeTint);
         hurricaneVolumeProxyVertices+=added;stormVolumeProxyVertices+=added;
-        hurricaneEyeWallCloudCenters++;hurricaneSpiralCloudCenters+=5;
+        hurricaneEyeRadiusKm=Math.max(hurricaneEyeRadiusKm,eyeRadiusM/1000);
+        hurricaneEyeRadiusSource=storm.__bpModeledVisual?'illustrative model-only vortex; not a live source-backed hurricane':(Number.isFinite(eyeRawM)?'source eye-radius value':'shader estimate; provider eye radius missing');
+        hurricaneEyeWallCloudCenters=1;hurricaneSpiralCloudCenters=3;
+        hurricaneSpiralRibbonVertices=added;
         hurricaneCloudShieldRadiusKm=Math.max(hurricaneCloudShieldRadiusKm,shieldRadiusM/1000);
         stormCount++;
       }
@@ -1106,46 +1111,6 @@ function generateGeometry() {
       const pivot=center?MC.fromLngLat({lng:center.lng,lat:center.lat},0):null;
       makePuffGeometry(null,MC,vertices,indices,getLon(lng),clamp(lat,-82,82),altitude,rx,ry,rz,tint,
         lowCost?(MOBILE?6:7):(MOBILE?7:8),lowCost?2:3,seed,pivot?pivot.x:wind.dx,pivot?pivot.y:wind.dy);
-    }
-    function addHurricaneSpiralRibbon(centerLng,centerLat,phase,eyeRadiusM,shieldRadiusM,overviewBoost){
-      const pivot=MC.fromLngLat({lng:centerLng,lat:centerLat},0),segments=MOBILE?22:34,latCos=Math.max(0.16,Math.cos(centerLat*Math.PI/180));
-      for(let arm=0;arm<3;arm++){
-        const base=vertices.length/10;
-        for(let j=0;j<=segments;j++){
-          const t=j/segments,angle=phase+arm*TAU/3+t*TAU*1.18+Math.sin(t*TAU*2+arm)*0.045;
-          const radius=eyeRadiusM*2.65+t*Math.max(0,shieldRadiusM*0.94-eyeRadiusM*2.65);
-          const dr=Math.max(1,shieldRadiusM*0.94-eyeRadiusM*2.65),da=TAU*1.18;
-          const tx=dr*Math.cos(angle)-radius*da*Math.sin(angle),ty=dr*Math.sin(angle)+radius*da*Math.cos(angle),length=Math.max(1,Math.hypot(tx,ty));
-          const nx=-ty/length,ny=tx/length,width=Math.max(52000,shieldRadiusM*(0.055+0.01*t));
-          const centerX=Math.cos(angle)*radius,centerY=Math.sin(angle)*radius;
-          const lngLat=[];
-          for(const side of [-1,1]){
-            const x=centerX+nx*width*side,y=centerY+ny*width*side;
-            lngLat.push([getLon(centerLng+x/(111320*latCos)),clamp(centerLat+y/111320,-82,82)]);
-          }
-          const baseAlt=7600+hash(centerLng,centerLat,arm*100+j+6300)*1700;
-          const topAlt=13300+hash(centerLng,centerLat,arm*100+j+6400)*2300;
-          const pts=[
-            MC.fromLngLat({lng:lngLat[0][0],lat:lngLat[0][1]},baseAlt),
-            MC.fromLngLat({lng:lngLat[1][0],lat:lngLat[1][1]},baseAlt),
-            MC.fromLngLat({lng:lngLat[0][0],lat:lngLat[0][1]},topAlt),
-            MC.fromLngLat({lng:lngLat[1][0],lat:lngLat[1][1]},topAlt)
-          ];
-          const localStart=vertices.length/10;
-          for(let k=0;k<4;k++){
-            const p=pts[k],side=(k===0||k===2)?-1:1,high=k>=2?1:0;
-            vertices.push(p.x,p.y,p.z,k>=2?topAlt:baseAlt,side*0.82,t*3.2,high*0.95,1.292,pivot.x,pivot.y);
-          }
-          hurricaneSpiralRibbonVertices+=4;
-          if(j>0){
-            const prev=localStart-4,cur=localStart;
-            indices.push(prev+2,prev+3,cur+2,prev+3,cur+3,cur+2);
-            indices.push(prev,cur,prev+2,cur,cur+2,prev+2);
-            indices.push(prev+1,prev+3,cur+1,prev+3,cur+3,cur+1);
-            indices.push(prev,prev+1,cur,prev+1,cur+1,cur);
-          }
-        }
-      }
     }
     const globeScale = z <= 8.5;
     for (let k = 0; k < formations.length; k++) {
