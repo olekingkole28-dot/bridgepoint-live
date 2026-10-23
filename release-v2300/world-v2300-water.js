@@ -842,10 +842,11 @@ export function initWaterEngine(mapOrWorld, options = {}) {
     const z = map.getZoom(), canvas = map.getCanvas();
     const width = Math.max(240, canvas.clientWidth || canvas.width || 800);
     const height = Math.max(240, canvas.clientHeight || canvas.height || 600);
-    let targetPx = api.low ? 23 : api.mobile ? 18 : 14;
+    let targetPx = api.low ? 28 : api.mobile ? 20 : 15;
     if (z < 2.5) targetPx = Math.max(targetPx, 22);
-    if (z > 15 && api.mobile) targetPx = 21;
-    const maxCells = api.low ? 1050 : api.mobile ? 1700 : 5800;
+    if (z >= 12) targetPx = api.low ? 30 : api.mobile ? 21 : 12;
+    if (z > 15) targetPx = api.low ? 32 : api.mobile ? 24 : 10;
+    const maxCells = api.low ? 1050 : api.mobile ? 1800 : 5800;
     let nx = clamp(Math.ceil(width / targetPx), 16, 106);
     let ny = clamp(Math.ceil(height / targetPx), 12, 84);
     if (nx * ny > maxCells) {
