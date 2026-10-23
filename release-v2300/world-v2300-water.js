@@ -896,10 +896,11 @@ export function initWaterEngine(mapOrWorld, options = {}) {
           const isLand = !!(locate(landCoverFeatures, lon, lat) || locate(landUseFeatures, lon, lat));
           if (isLand && flood <= 0) continue;
           if (flood > 0) {
-            kind = 1;
+            kind = 4; // distinct flood surface, only when explicit depth is in the source polygon.
             floodedLandCells++;
           } else {
-            kind = 0; // faint ocean shimmer only where source land masks establish it is not land.
+            if (!waterFeatures.length || !hasLandMask) continue;
+            kind = 0; // faint ocean shimmer only where both source masks are available.
           }
         }
         const points = [
@@ -919,9 +920,10 @@ export function initWaterEngine(mapOrWorld, options = {}) {
         // one-cell shoreline antialiasing is provided by the existing GTA fill/foam layers.
         for (const k of [0, 1, 2, 0, 2, 3]) {
           const pt = points[k], h = heights[k];
-          pushVertex(surface, pt[0], pt[1], h, kind, fx, fy, flood);
+          pushVertex(surface, pt[0], pt[1], h, kind, fx, fy, kind === 4 ? flood : 0);
         }
-        if (kind === 1) polygonCells++; else fallbackCells++;
+        if (kind === 1 || kind === 3) polygonCells++;
+        else if (kind === 0) fallbackCells++;
       }
     }
     const maxSegs = api.low ? 110 : api.mobile ? 240 : 580;
