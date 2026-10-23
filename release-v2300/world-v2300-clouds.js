@@ -48,10 +48,14 @@ const STORM_VOLUME_FRAGMENT = String.raw`float bpStormExitDistance(vec3 p,vec3 d
 }
 float bpStormDensity(vec3 p,float tint,float time,float radius,float height,float eyeRatio){
   float rho=length(p.xy)/max(radius,1.0),z=clamp(p.z/max(height,1.0),0.0,1.0);
+  float funnelTaper=mix(0.0045,0.105,pow(z,0.78)),funnelRadial=length(p.xy)/18000.0;
+  float safeEye=clamp(28000.0/max(radius,1.0),0.008,0.095);
+  if(tint<1.481&&funnelRadial>funnelTaper*1.20+0.002)return 0.0;
+  if(tint>=1.481&&rho<safeEye*0.98)return 0.0;
   vec3 coarseP=vec3(p.xy/52000.0,p.z/4300.0)+vec3(time*0.018,-time*0.012,time*0.009);
   float broad=noise3(coarseP),fine=noise3(coarseP*2.7+vec3(time*0.10,-time*0.06,time*0.08)),micro=noise3(coarseP*5.1+vec3(-time*0.15,time*0.11,time*0.07));
   if(tint<1.481){
-    float taper=mix(0.0045,0.105,pow(z,0.78)),rough=(broad-0.5)*0.020+(fine-0.5)*0.010+(micro-0.5)*0.006,radial=length(p.xy)/18000.0;
+    float taper=funnelTaper,rough=(broad-0.5)*0.020+(fine-0.5)*0.010+(micro-0.5)*0.006,radial=funnelRadial;
     float edge=1.0-smoothstep(taper*0.74,taper*1.20,radial+rough),twist=atan(p.y,p.x)-time*1.55+z*5.4+(fine-0.5)*1.4;
     float striation=0.54+0.46*(0.5+0.5*cos(twist*3.1)),broken=smoothstep(0.18,0.40,broad*0.52+fine*0.32+micro*0.16);
     float vertical=smoothstep(0.006,0.075,z)*(1.0-smoothstep(0.91,1.0,z)),inside=1.0-smoothstep(taper*0.10,taper*0.46,radial);
@@ -76,7 +80,7 @@ vec4 bpRaymarchStorm(vec3 entry,vec2 cameraXY,float tint,float time,float camera
   if(facing<=0.002&&insideVolume<0.5)return vec4(0.0);
   vec3 direction=facing>0.002?-toCamera:toCamera;float exitT=bpStormExitDistance(entry,direction,radius,height);
   if(exitT<1.0||exitT>1.0e20)return vec4(0.0);
-  float steps=clamp(requestedSteps,12.0,40.0),stepLength=exitT/steps,accumulatedAlpha=0.0;
+  float steps=clamp(max(requestedSteps,ceil(exitT/50000.0)),12.0,40.0),stepLength=exitT/steps,accumulatedAlpha=0.0;
   vec3 accumulatedColor=vec3(0.0);
   for(int i=0;i<40;i++){
     if(float(i)>=steps||accumulatedAlpha>0.965)break;
