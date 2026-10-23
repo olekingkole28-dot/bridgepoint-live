@@ -1415,6 +1415,24 @@ jobs:
               if(report.renderedEiffelBlocks.length)
                 throw new Error('EIFFEL_DUPLICATE_BLOCK_STILL_RENDERED '+JSON.stringify(report.renderedEiffelBlocks));
               console.log('BRIDGEPOINT_EIFFEL_TOWER_ANCHOR_AND_DUPLICATE_FILTER_PASS',JSON.stringify(report));
+               // Runtime gate for the new shared-context water renderer: verify the custom layer
+               // builds bounded geometry and executes its GPU shader without disturbing native water.
+               try {
+                 await p.waitForFunction(()=>{
+                   const s=window.__BP_WATER_ENGINE_LANDING_V6100__?.state;
+                   return !!s?.installed && (Number(s.surfaceVertexCount||0)+Number(s.flowVertexCount||0)>0) &&
+                     (Number(s.lastDrawAt||0)>0 || !!s.shaderError);
+                 },null,{timeout:25000});
+               } catch(error) {
+                 const state=await p.evaluate(()=>window.__BP_WATER_ENGINE_LANDING_V6100__?.state||null);
+                 throw new Error('GPU_WATER_LAYER_BOOT_TIMEOUT '+JSON.stringify(state)+' '+String(error?.message||error));
+               }
+               const waterBaseline=await p.evaluate(()=>window.__BP_WATER_ENGINE_LANDING_V6100__?.state||null);
+               if(!waterBaseline?.installed||!waterBaseline.contextReady||
+                  (Number(waterBaseline.surfaceVertexCount||0)+Number(waterBaseline.flowVertexCount||0)===0)||
+                  !waterBaseline.lastDrawAt||waterBaseline.shaderError)
+                 throw new Error('GPU_WATER_RUNTIME_NOT_RENDERING '+JSON.stringify(waterBaseline));
+               console.log('BRIDGEPOINT_GPU_WATER_ENGINE_READY_PASS',JSON.stringify(waterBaseline));
                const cloudBaseline=await p.evaluate(()=>({
                  button:!!document.querySelector('#bp-world-time-slider-v5908 [data-clouds]'),
                  base:window.__BP_LANDING_WORLD__?.state?.base||window.__BP_LANDING_WORLD__?.base||'gta',
