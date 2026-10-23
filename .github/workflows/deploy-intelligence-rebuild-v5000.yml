@@ -253,10 +253,13 @@ jobs:
           sed -i 's#world-v2300-clouds.js?v=6075-global-coverage-fill#world-v2300-clouds.js?v=6094-josephine-spiral-unified#g' site/app.js site/landing.js
           sed -i 's#world-v2300-clouds.js?v=6076-rounded-cloud-banks#world-v2300-clouds.js?v=6094-josephine-spiral-unified#g' site/app.js site/landing.js
           sed -i 's#world-v2300-clouds.js?v=6088-fuller-local-tornado#world-v2300-clouds.js?v=6094-josephine-spiral-unified#g' site/app.js site/landing.js
+          sed -i 's#world-v2300-clouds.js?v=6092-posttropical-global-clouds#world-v2300-clouds.js?v=6094-josephine-spiral-unified#g' site/app.js site/landing.js
+          sed -i 's#world-v2300-clouds.js?v=6093-josephine-global-track#world-v2300-clouds.js?v=6094-josephine-spiral-unified#g' site/app.js site/landing.js
           sed -i 's#world-v2300-weather.js?v=6070-clouds-only-phase#world-v2300-weather.js?v=6093-josephine-global-track#g' site/app.js site/landing.js site/index.html site/app/index.html
           sed -i 's#world-v2300-weather.js?v=6091-global-storm-centers#world-v2300-weather.js?v=6093-josephine-global-track#g' site/app.js site/landing.js site/index.html site/app/index.html
           sed -i 's#world-v2300-time-slider.js?v=6076-rounded-cloud-banks#world-v2300-time-slider.js?v=6094-josephine-spiral-unified#g' site/app.js site/landing.js
           sed -i 's#world-v2300-time-slider.js?v=6077-cloud-base-restore#world-v2300-time-slider.js?v=6094-josephine-spiral-unified#g' site/app.js site/landing.js
+          sed -i 's#world-v2300-time-slider.js?v=6092-posttropical-global-clouds#world-v2300-time-slider.js?v=6094-josephine-spiral-unified#g' site/app.js site/landing.js
           sed -i 's#app.js?v=6077-cloud-base-restore#app.js?v=6077-sky-restore-safe-pitch#g' site/app/index.html
           sed -i 's#landing.js?v=6077-cloud-base-restore#landing.js?v=6077-sky-restore-safe-pitch#g' site/index.html
           sed -i 's#app.js?v=6076-rounded-cloud-banks#app.js?v=6077-sky-restore-safe-pitch#g' site/app/index.html
