@@ -113,12 +113,12 @@ function featureDepth(feature) {
   }
   return 0;
 }
-function collectDepthFeatures(scene) {
+function collectDepthFeatures(scene, bounds) {
   const out = [];
   for (const row of scene.flood_depths || []) {
     const f = prepareFeature(row);
     const depth = f && featureDepth(f);
-    if (f && depth > 0) { f.depth = depth; out.push(f); }
+    if (f && depth > 0 && featureIntersectsBounds(f, bounds)) { f.depth = depth; out.push(f); }
     if (out.length >= 160) break;
   }
   return out;
@@ -780,17 +780,17 @@ export function initWaterEngine(mapOrWorld, options = {}) {
     }
     const dx = (bounds.x1 - bounds.x0) / nx;
     const dy = (bounds.y1 - bounds.y0) / ny;
-    const waterFeatures = sourceFeatures(map, 'water', 850);
-    const landCoverFeatures = sourceFeatures(map, 'landcover', 900);
-    const landUseFeatures = sourceFeatures(map, 'landuse', 900);
+    const waterFeatures = sourceFeatures(map, 'water', 850, bounds);
+    const landCoverFeatures = sourceFeatures(map, 'landcover', 900, bounds);
+    const landUseFeatures = sourceFeatures(map, 'landuse', 900, bounds);
     const hasLandMask = landCoverFeatures.length + landUseFeatures.length > 0;
     api.sourceWaterFeatures = waterFeatures.length;
     api.sourceLandFeatures = landCoverFeatures.length + landUseFeatures.length;
-    api.waitingForVectorFeatures = !(waterFeatures.length > 0 && hasLandMask);
+    api.waitingForVectorFeatures = !(waterFeatures.length > 0 || hasLandMask);
     // Do not paint ocean fallback without both source water features and a land mask.
     // The zero-alpha source-anchor layers below keep these vector layers requested even
     // when the selected basemap is satellite and native GTA fills are not visible.
-    if (!waterFeatures.length || !hasLandMask) {
+    if (!waterFeatures.length && !hasLandMask) {
       api.sourceWaterwayFeatures = 0;
       api.waterPolygonCells = 0;
       api.oceanFallbackCells = 0;
@@ -817,7 +817,7 @@ export function initWaterEngine(mapOrWorld, options = {}) {
     api.sourceWaterwayFeatures = flowFeatures.length;
     const scene = currentScene();
     api.syncScene(scene, map);
-    api._floodFeatures = collectDepthFeatures(scene);
+    api._floodFeatures = collectDepthFeatures(scene, bounds);
     const terrainCache = new Map();
     const surface = [], flow = [];
     let polygonCells = 0, fallbackCells = 0, floodedLandCells = 0;
