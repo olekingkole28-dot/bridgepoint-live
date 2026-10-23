@@ -344,9 +344,22 @@ export function initWorldTimeSlider(target,rpc){
     await waitSkyMapState(()=>skyProjectionType()==='mercator',6000,'mercator projection activation');
     skyViewDiag.phase='raising-pitch-cap';skyViewDiag.updatedAt=Date.now();map.setMaxPitch(160);
     await waitSkyMapState(()=>Number(map.getMaxPitch?.())>=145,4000,'above-horizon pitch limit');
-    skyViewDiag.phase='jumping-above-horizon';skyViewDiag.updatedAt=Date.now();map.setCenterClampedToGround(false);
-    map.jumpTo({center:skyViewRestore.center,zoom:Math.max(15.2,skyViewRestore.zoom),bearing:skyViewRestore.bearing,pitch:145});
+    skyViewDiag.phase='raising-center-pivot';skyViewDiag.updatedAt=Date.now();map.setCenterClampedToGround(false);
+    const targetSkyPitch=125,skyZoom=Math.min((Number(map.getMaxZoom?.())||22)-0.1,Math.max(18.8,skyViewRestore.zoom)),skyCenter=map.getCenter();
+    // Above 90°, the camera sits on the opposite side of the pivot. Raise that pivot so the camera remains above ground instead of being clipped at the horizon.
+    if(typeof map.setCenterElevation==='function')map.setCenterElevation(0);
+    map.jumpTo({center:[skyCenter.lng,skyCenter.lat],zoom:skyZoom,bearing:skyViewRestore.bearing,pitch:55,elevation:0});
     map.triggerRepaint?.();
+    await waitSkyMapState(()=>map.getZoom()>=skyZoom-0.15&&Number(map.getPitch())<90,6000,'street-zoom sky baseline');
+    const free=map.getFreeCameraOptions?.(),cameraAltitude=free?.position?.toAltitude?.(),basePitchRad=Number(map.getPitch())*Math.PI/180;
+    let cameraDistance=Number.isFinite(cameraAltitude)&&Math.cos(basePitchRad)>0.1?cameraAltitude/Math.cos(basePitchRad):NaN;
+    if(!Number.isFinite(cameraDistance)||cameraDistance<=0){const height=map.getCanvas?.()?.clientHeight||window.innerHeight||844,fov=Number(map.getVerticalFieldOfView?.())||36.87,pixels=(height/2)/Math.tan(fov*Math.PI/360),worldPixels=512*Math.pow(2,skyZoom),latScale=Math.max(0.12,Math.cos(skyCenter.lat*Math.PI/180)),pixelsPerMeter=worldPixels/(40075016.68557849*latScale);cameraDistance=pixels/pixelsPerMeter;}
+    const rawGround=typeof map.queryTerrainElevation==='function'?map.queryTerrainElevation(skyCenter,{exaggerated:true}):null,groundReference=Number.isFinite(rawGround)?Math.max(0,rawGround):0,centerElevation=groundReference+6-Math.cos(targetSkyPitch*Math.PI/180)*cameraDistance;
+    if(!Number.isFinite(centerElevation)||centerElevation<0||centerElevation>10000)throw new Error('sky pivot elevation out of bounds · distance='+cameraDistance+' · centerElevation='+centerElevation);
+    if(typeof map.setCenterElevation==='function')map.setCenterElevation(centerElevation);
+    map.jumpTo({center:[skyCenter.lng,skyCenter.lat],zoom:skyZoom,bearing:skyViewRestore.bearing,pitch:targetSkyPitch,elevation:centerElevation});
+    skyViewDiag.pivot={targetSkyPitch,skyZoom,cameraDistanceMeters:cameraDistance,centerElevationMeters:centerElevation,groundReferenceMeters:groundReference,terrainSampleAvailable:Number.isFinite(rawGround)};
+    skyViewDiag.phase='looking-above-horizon';skyViewDiag.updatedAt=Date.now();map.triggerRepaint?.();
     await waitSkyMapState(()=>skyProjectionType()==='mercator'&&Number(map.getMaxPitch?.())>=145&&Number(map.getPitch?.())>=120,8000,'above-horizon camera');
     syncSkyViewButton(true);skyViewDiag.phase='sky-active';skyViewDiag.updatedAt=Date.now();
     setStatus('SKY VIEW ON · looking above the street horizon · press RETURN TO STREET to restore');
