@@ -70,6 +70,7 @@ float bpStormDensity(vec3 p,float tint,float time,float radius,float height,floa
   return clamp(max(outerBands*1.36,eyeWall*vertical*1.28),0.0,1.0);
 }
 vec4 bpRaymarchStorm(vec3 entry,vec2 cameraXY,float tint,float time,float cameraAltitude,float requestedSteps){
+  if(requestedSteps < -0.5)return vec4(0.96,0.02,0.88,0.52);
   bool funnel=tint<1.481,southern=(!funnel&&tint>1.520);
   float radius=funnel?18000.0:max(180000.0,(tint-1.482-(southern?0.040:0.0))*100000000.0);
   float height=funnel?clamp((tint-1.474)*100000000.0,4500.0,15500.0):16000.0,eyeRatio=clamp(28000.0/radius,0.008,0.095);
@@ -682,7 +683,7 @@ export function initSkyClouds(target) {
         if(stormRaymarchStepBudget!==raySteps){stormRaymarchStepBudget=raySteps;publishState();}
         if(info.uniforms.cameraCenter)gl.uniform2f(info.uniforms.cameraCenter,cameraCenter.x,cameraCenter.y);
         if(info.uniforms.cameraAltitude)gl.uniform1f(info.uniforms.cameraAltitude,cameraAltitude);
-        if(info.uniforms.raySteps)gl.uniform1f(info.uniforms.raySteps,raySteps);
+        if(info.uniforms.raySteps)gl.uniform1f(info.uniforms.raySteps,window.__BP_STORM_RAY_DEBUG__===true?-1.0:raySteps);
         gl.uniform1f(info.uniforms.time, cloudTime);
         if (info.uniforms.motionTime) gl.uniform1f(info.uniforms.motionTime, motionTime);
         gl.enable(gl.DEPTH_TEST); gl.enable(gl.BLEND);
