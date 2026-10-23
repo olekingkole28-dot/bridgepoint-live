@@ -541,7 +541,8 @@ jobs:
           grep -Fq 'const waveX = (gx + 0.5) / cols * TAU' site/world-v2300-clouds.js
           grep -Fq 'globalCloudPuffs' site/world-v2300-clouds.js
           grep -Fq 'thinLayerSlices: 9, thinLayerStacks: 2, singleLayerSlices: 8, singleLayerStacks: 2' site/world-v2300-clouds.js
-          grep -Fq 'const spiralCount=MOBILE?24:30,arms=3,steps=Math.ceil(spiralCount/arms);' site/world-v2300-clouds.js
+          grep -Fq 'const spiralCount=overviewClouds&&MOBILE?20:(MOBILE?24:30),arms=3,steps=Math.ceil(spiralCount/arms);' site/world-v2300-clouds.js
+grep -Fq 'function addHurricaneSpiralRibbon' site/world-v2300-clouds.js
           grep -Fq 'hurricaneCloudShieldRadiusKm' site/world-v2300-clouds.js
           grep -Fq 'if (field.score <= 0.58 || field.score > 0.90) continue;' site/world-v2300-clouds.js
           grep -Fq 'maxThin = MOBILE ? 750 : 850' site/world-v2300-clouds.js
@@ -557,7 +558,8 @@ jobs:
           grep -Fq 'function terrainElevationAt(lng, lat)' site/world-v2300-clouds.js
           grep -Fq 'sub-sea-level samples use mean-sea-level 0 m fallback' site/world-v2300-clouds.js
           grep -Fq 'const altitude = ground + baseAgl + range * 0.5;' site/world-v2300-clouds.js
-          grep -Fq "const vertical = f.kind === 'funnel' ? Math.max(1800, cloudRange * 0.08)" site/world-v2300-clouds.js
+          grep -Fq "const vertical = f.kind === 'funnel' ? Math.max(globeScale ? 18000 : 3200, cloudRange * (globeScale ? 0.10 : 0.48))" site/world-v2300-clouds.js
+grep -Fq "const parentScale = f.kind === 'funnel' ? (globeScale ? 0.92 : 0.60) : 1;" site/world-v2300-clouds.js
           grep -Fq 'const smallColumns = 140, smallRows = 62, maxSingles = MOBILE ? 700 : 760;' site/world-v2300-clouds.js
           grep -Fq 'isolatedFormationCount: singles.length' site/world-v2300-clouds.js
           grep -Fq 'underside*0.48' site/world-v2300-clouds.js
