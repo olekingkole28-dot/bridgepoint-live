@@ -48,6 +48,8 @@ jobs:
           grep -Fq "float marineSurgeMask" release-v2300/world-v2300-water.js
           ! grep -Fq "!map.isStyleLoaded?.()" release-v2300/world-v2300-water.js
           grep -Fq "window.__BP_WATER_FIELD_V6100__" release-v2300/world-v2300-water.js
+          grep -Fq "const raw = feature && feature.row ? feature.row : feature;" release-v2300/world-v2300-water.js
+          grep -Fq "sourceAnchorLayersPresent" release-v2300/world-v2300-water.js
           grep -Fq "world-v2300-water.js?v=6100-geowater-gpu" rebuild-v5000/app.js
           grep -Fq "world-v2300-water.js?v=6100-geowater-gpu" rebuild-v5000/landing.js
           grep -Fq "landing.js?v=6100-geowater-gpu" rebuild-v5000/index.html
