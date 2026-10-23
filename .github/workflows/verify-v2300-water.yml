@@ -1,0 +1,53 @@
+name: Verify BridgePoint GPU Water v6100
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'release-v2300/world-v2300-water.js'
+      - 'rebuild-v5000/app.js'
+      - 'rebuild-v5000/landing.js'
+      - 'rebuild-v5000/index.html'
+      - 'rebuild-v5000/app-index.html'
+      - '.github/workflows/deploy-intelligence-rebuild-v5000.yml'
+      - '.github/workflows/verify-v2300-water.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'release-v2300/world-v2300-water.js'
+      - 'rebuild-v5000/app.js'
+      - 'rebuild-v5000/landing.js'
+      - 'rebuild-v5000/index.html'
+      - 'rebuild-v5000/app-index.html'
+      - '.github/workflows/deploy-intelligence-rebuild-v5000.yml'
+      - '.github/workflows/verify-v2300-water.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  water-engine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module --check < release-v2300/world-v2300-water.js
+          node --check rebuild-v5000/app.js
+          node --check rebuild-v5000/landing.js
+      - name: Verify runtime wiring and deployment copies
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq "export function initWaterEngine" release-v2300/world-v2300-water.js
+          grep -Fq "projectTileFor3D(a_pos" release-v2300/world-v2300-water.js
+          grep -Fq "window.__BP_WATER_FIELD_V6100__" release-v2300/world-v2300-water.js
+          grep -Fq "world-v2300-water.js?v=6100-geowater-gpu" rebuild-v5000/app.js
+          grep -Fq "world-v2300-water.js?v=6100-geowater-gpu" rebuild-v5000/landing.js
+          grep -Fq "landing.js?v=6100-geowater-gpu" rebuild-v5000/index.html
+          grep -Fq "app.js?v=6100-geowater-gpu" rebuild-v5000/app-index.html
+          grep -Fq "cp release-v2300/world-v2300-water.js site/world-v2300-water.js" .github/workflows/deploy-intelligence-rebuild-v5000.yml
+          grep -Fq "cp release-v2300/world-v2300-water.js site/app/world-v2300-water.js" .github/workflows/deploy-intelligence-rebuild-v5000.yml
