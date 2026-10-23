@@ -51,7 +51,7 @@ float bpStormDensity(vec3 p,float tint,float time,float radius,float height,floa
   vec3 coarseP=vec3(p.xy/52000.0,p.z/4300.0)+vec3(time*0.018,-time*0.012,time*0.009);
   float broad=noise3(coarseP),fine=noise3(coarseP*2.7+vec3(time*0.10,-time*0.06,time*0.08)),micro=noise3(coarseP*5.1+vec3(-time*0.15,time*0.11,time*0.07));
   if(tint<1.481){
-    float funnelLod=clamp((height-15500.0)/244500.0,0.0,1.0),topSpread=mix(0.105,0.24,funnelLod),taper=mix(0.0045,topSpread,pow(z,0.78)),rough=(broad-0.5)*0.020+(fine-0.5)*0.010+(micro-0.5)*0.006,radial=length(p.xy)/max(radius,18000.0);
+    float funnelLod=clamp((height-15500.0)/244500.0,0.0,1.0),topSpread=mix(0.105,0.70,funnelLod),taper=mix(0.0045,topSpread,pow(z,0.78)),rough=(broad-0.5)*0.020+(fine-0.5)*0.010+(micro-0.5)*0.006,radial=length(p.xy)/max(radius,18000.0);
     float edge=1.0-smoothstep(taper*0.74,taper*1.20,radial+rough),twist=atan(p.y,p.x)-time*1.55+z*5.4+(fine-0.5)*1.4;
     float striation=0.54+0.46*(0.5+0.5*cos(twist*3.1)),broken=smoothstep(0.18,0.40,broad*0.52+fine*0.32+micro*0.16);
     float vertical=smoothstep(0.006,0.075,z)*(1.0-smoothstep(0.91,1.0,z)),inside=1.0-smoothstep(taper*0.10,taper*0.46,radial);
@@ -69,7 +69,7 @@ vec4 bpRaymarchStorm(vec3 entry,vec2 cameraXY,float tint,float time,float camera
   bool funnel=tint<1.481,southern=(!funnel&&tint>1.520);
   float height=funnel?clamp((tint-1.474)*100000000.0,4500.0,260000.0):16000.0;
   float funnelLod=clamp((height-15500.0)/244500.0,0.0,1.0);
-  float radius=funnel?mix(18000.0,95000.0,funnelLod):max(180000.0,(tint-1.482-(southern?0.040:0.0))*100000000.0),eyeRatio=clamp(28000.0/radius,0.008,0.095);
+  float radius=funnel?mix(18000.0,95000.0,funnelLod):max(180000.0,(tint-1.482-(southern?0.040:0.0))*100000000.0),eyeRatio=clamp(max(28000.0/radius,0.060),0.008,0.095);
   float volumeBase=funnel?0.0:1700.0,cameraZ=cameraAltitude-volumeBase;
   vec3 camera=vec3(cameraXY,cameraZ),toCamera=normalize(camera-entry),normal;
   if(entry.z<0.5)normal=vec3(0.0,0.0,-1.0);else if(entry.z>height-0.5)normal=vec3(0.0,0.0,1.0);else normal=normalize(vec3(entry.xy,0.0001));
@@ -1019,6 +1019,18 @@ function generateGeometry() {
       formations.push({ lng: getLon(lng), lat, radiusM: clamp(radiusM, 600, 520000),
         baseM: clamp(baseM, 450, 14000), topM: clamp(topM, baseM + 180, 18500), seed, kind, windContext });
     }
+    // A warning polygon or a source-backed tornado report must produce a funnel in the same geographic cloud-volume layer.
+    // Use the warning's own center, deduplicate nearby overlapping warnings, and keep model-only fallback provenance separate.
+    const sourceTornadoCenters=[];
+    const addSourceTornadoFunnel=(lng,lat,seed)=>{
+      if(!Number.isFinite(lng)||!Number.isFinite(lat)||Math.abs(lat)>82)return;
+      if(sourceTornadoCenters.some(c=>cloudDistanceMeters(c[0],c[1],lng,lat)<28000))return;
+      const ground=terrainElevationAt(lng,lat),before=formations.length;
+      addFormation(lng,lat,10500,ground+1000,ground+14500,hash(lng,lat,seed),'funnel');
+      if(formations.length>before){sourceTornadoCenters.push([getLon(lng),lat]);funnelCount++;}
+    };
+    tornadoAlerts.forEach((alert,i)=>{const center=centerOf(alert);if(center)addSourceTornadoFunnel(center[0],center[1],6180+i);});
+    sourceTornadoRecords.forEach((st,i)=>addSourceTornadoFunnel(number(st.lng,number(st.longitude,NaN)),number(st.lat,number(st.latitude,NaN)),6280+i));
     if (modeledTornadoNeeded) {
       const lng=-97.45,lat=35.55,ground=terrainElevationAt(lng,lat);
       const before=formations.length;
@@ -1088,13 +1100,13 @@ function generateGeometry() {
       const eyeMi = number(storm.eye_radius_mi,number(storm.eyeRadiusMi,NaN));
       const eyeRawM = Number.isFinite(eyeKm)&&eyeKm>0?eyeKm*1000:Number.isFinite(eyeMi)&&eyeMi>0?eyeMi*1609.34:NaN;
       const eyeRadiusM = Number.isFinite(eyeRawM)?clamp(eyeRawM,6000,75000):28000;
-      const visualEyeRadiusM = eyeRadiusM;
-      const visualShieldRadiusM = shieldRadiusM;
+      const visualShieldRadiusM = shieldRadiusM + Math.max(0,1400000-shieldRadiusM)*overviewBoost;
+      const visualEyeRadiusM = Math.max(eyeRadiusM,visualShieldRadiusM*0.060);
       if(hurricane){hurricaneVisualEyeRadiusKm=Math.max(hurricaneVisualEyeRadiusKm,visualEyeRadiusM/1000);hurricaneVisualShieldRadiusKm=Math.max(hurricaneVisualShieldRadiusKm,visualShieldRadiusM/1000);}
       if(hurricane){
         const ground=terrainElevationAt(lng,lat),southern=lat<0?0.040:0.0;
-        const volumeTint=1.482+shieldRadiusM/100000000+southern;
-        const added=makeStormVolumeProxy(MC,stormVolumeVertices,stormVolumeIndices,lng,lat,ground,shieldRadiusM,1700,16000,volumeTint);
+        const volumeTint=1.482+visualShieldRadiusM/100000000+southern;
+        const added=makeStormVolumeProxy(MC,stormVolumeVertices,stormVolumeIndices,lng,lat,ground,visualShieldRadiusM,1700,16000,volumeTint);
         hurricaneVolumeProxyVertices+=added;stormVolumeProxyVertices+=added;
         hurricaneEyeRadiusKm=Math.max(hurricaneEyeRadiusKm,eyeRadiusM/1000);
         hurricaneEyeRadiusSource=storm.__bpModeledVisual?'illustrative model-only vortex; not a live source-backed hurricane':(Number.isFinite(eyeRawM)?'source eye-radius value':'shader estimate; provider eye radius missing');
@@ -1122,7 +1134,7 @@ function generateGeometry() {
         const visualRadiusM=18000 + 77000*visualBoost;
         const added=makeStormVolumeProxy(MC,stormVolumeVertices,stormVolumeIndices,f.lng,f.lat,ground,visualRadiusM,0,visualHeightM,1.474+visualHeightM/100000000);
         tornadoFunnelMeshVertices+=added;tornadoVolumeProxyVertices+=added;stormVolumeProxyVertices+=added;
-        tornadoVisualHeightKm=Math.max(tornadoVisualHeightKm,visualHeightM/1000);tornadoVisualTopRadiusKm=Math.max(tornadoVisualTopRadiusKm,visualRadiusM*(0.105+0.135*visualBoost)/1000);tornadoVisualBoost=visualBoost;
+        tornadoVisualHeightKm=Math.max(tornadoVisualHeightKm,visualHeightM/1000);tornadoVisualTopRadiusKm=Math.max(tornadoVisualTopRadiusKm,visualRadiusM*(0.105+0.595*visualBoost)/1000);tornadoVisualBoost=visualBoost;
         continue;
       }
       const n = f.kind === 'funnel' ? (globeScale ? 1 : 1) : globeScale
