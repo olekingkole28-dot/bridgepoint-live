@@ -658,7 +658,8 @@ export function initWaterEngine(mapOrWorld, options = {}) {
     let count = 0;
     const wx = bounds.x0, ex = bounds.x1, ny = bounds.y0, sy = bounds.y1;
     for (const feature of flowFeatures) {
-      const raw = feature.row;
+      // Callers pass raw MapLibre features; also accept prepared { row } wrappers.
+      const raw = feature && feature.row ? feature.row : feature;
       const geometry = geometryOf(raw);
       const coordsSet = lineParts(geometry);
       const widthM = featureWaterwayWidth(raw);
@@ -779,6 +780,7 @@ export function initWaterEngine(mapOrWorld, options = {}) {
       } catch (_) {}
     }
     const flowFeatures = flowRaw;
+    api.sourceWaterwayFeatures = flowFeatures.length;
     const scene = currentScene();
     api.syncScene(scene, map);
     api._floodFeatures = collectDepthFeatures(scene);
