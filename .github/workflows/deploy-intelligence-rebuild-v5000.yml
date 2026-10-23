@@ -152,11 +152,11 @@ jobs:
           test -s site/assets/eiffel-tower-koterstudios-v5983.glb
           # Same-origin Potree Brotli worker for the original Lincoln Memorial point-cloud LOD stream.
           mkdir -p site/assets/bp-potree-lincoln-runtime/workers/2.0 site/assets/bp-potree-lincoln-runtime/workers
-          curl --retry 4 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 180 'https://pointcloud.ucsd.edu/archive_temp/oh3d_store/oh3d-vis/base_potree_template/build/potree/workers/2.0/DecoderWorker_brotli.js' -o site/assets/bp-potree-lincoln-runtime/workers/2.0/DecoderWorker_brotli.js
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 180 'https://potree.norm3d.com/build/potree/workers/2.0/DecoderWorker_brotli.js' -o site/assets/bp-potree-lincoln-runtime/workers/2.0/DecoderWorker_brotli.js
           test "$(stat -c%s site/assets/bp-potree-lincoln-runtime/workers/2.0/DecoderWorker_brotli.js)" -gt 100000
-          curl --retry 4 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 120 'https://pointcloud.ucsd.edu/archive_temp/oh3d_store/oh3d-vis/base_potree_template/build/potree/workers/2.0/DecoderWorker.js' -o site/assets/bp-potree-lincoln-runtime/workers/2.0/DecoderWorker.js
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 120 'https://potree.norm3d.com/build/potree/workers/2.0/DecoderWorker.js' -o site/assets/bp-potree-lincoln-runtime/workers/2.0/DecoderWorker.js
           test -s site/assets/bp-potree-lincoln-runtime/workers/2.0/DecoderWorker.js
-          curl --retry 4 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 120 'https://pointcloud.ucsd.edu/archive_temp/oh3d_store/oh3d-vis/base_potree_template/build/potree/workers/laz-perf.wasm' -o site/assets/bp-potree-lincoln-runtime/workers/laz-perf.wasm
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 120 'https://potree.norm3d.com/build/potree/workers/laz-perf.wasm' -o site/assets/bp-potree-lincoln-runtime/workers/laz-perf.wasm
           test -s site/assets/bp-potree-lincoln-runtime/workers/laz-perf.wasm
           cp rebuild-v5000/bridgepoint-view-v5917.js site/bridgepoint-view-v5917.js
           cp rebuild-v5000/bridgepoint-map-key-v5920.js site/bridgepoint-map-key-v5920.js
