@@ -224,6 +224,7 @@ function buildShaders(gl, shaderDescription) {
     'uniform float u_wavePhaseA;',
     'uniform float u_wavePhaseB;',
     'uniform float u_waveK;',
+    'uniform float u_flowCycles;',
     'uniform float u_waveAmp;',
     'uniform float u_windSpeed;',
     'uniform vec2 u_windDir;',
@@ -234,6 +235,7 @@ function buildShaders(gl, shaderDescription) {
     'out float v_storm;',
     'out vec2 v_flow;',
     'out float v_flood;',
+    'out float v_streamPhaseOffset;',
     'void main() {',
     '  float lat = atan(sinh(3.141592653589793 * (1.0 - 2.0 * a_pos.y)));',
     '  float cLat = max(0.12, cos(lat));',
@@ -269,6 +271,8 @@ function buildShaders(gl, shaderDescription) {
     '  v_storm = clamp(stormInfluence, 0.0, 1.0);',
     '  v_flow = a_flow;',
     '  v_flood = a_flood;',
+    '  vec2 ribbonDir = length(a_flow) > 0.001 ? normalize(a_flow) : vec2(1.0, 0.0);',
+    '  v_streamPhaseOffset = 6.2831853 * fract(dot(u_waveOrigin, ribbonDir) * u_flowCycles);',
     '}'
   ].join('\n');
   const fragmentSource = [
@@ -280,6 +284,7 @@ function buildShaders(gl, shaderDescription) {
     'in float v_storm;',
     'in vec2 v_flow;',
     'in float v_flood;',
+    'in float v_streamPhaseOffset;',
     'uniform float u_time;',
     'uniform float u_flowCycles;',
     'uniform float u_flowPhaseA;',
@@ -297,7 +302,7 @@ function buildShaders(gl, shaderDescription) {
     '  vec3 crest = vec3(0.42, 0.76, 0.82);',
     '  if (v_kind > 1.5 && v_kind < 2.5) {',
     '    vec2 flowDir = length(v_flow) > 0.001 ? normalize(v_flow) : vec2(1.0, 0.0);',
-    '    float streamPhase = sin(dot(v_coord, flowDir) * u_flowCycles * 6.2831853 + u_time * 1.85);',
+    '    float streamPhase = sin(dot(v_coord, flowDir) * u_flowCycles * 6.2831853 + v_streamPhaseOffset + u_time * 1.85);'
     '    float streak = smoothstep(0.73, 0.98, 0.5 + 0.5 * streamPhase);',
     '    vec3 streamColor = mix(mid, crest, streak * 0.78);',
     '    fragColor = vec4(streamColor, 0.24 + streak * 0.42);',
