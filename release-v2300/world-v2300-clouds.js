@@ -451,7 +451,8 @@ export function initSkyClouds(target) {
   let sourceStormCount = 0, sourceTornadoAlertCount = 0, globalStormLod = 'physical-local';
   let modeledHurricaneVisualCount = 0, modeledTornadoVisualCount = 0, hurricaneSpiralRibbonVertices = 0;
   let stormVolumeIndexOffset=0, stormVolumeIndexCount=0, stormVolumeProxyVertices=0, hurricaneVolumeProxyVertices=0, tornadoVolumeProxyVertices=0, stormRaymarchStepBudget=0;
-  let hurricaneSurfaceCloudVertices=0, tornadoSurfaceMeshVertices=0;\n  let postTropicalSurfaceCloudVertices=0, postTropicalStormCount=0, postTropicalCloudShieldRadiusKm=0;
+  let hurricaneSurfaceCloudVertices=0, tornadoSurfaceMeshVertices=0;
+  let postTropicalSurfaceCloudVertices=0, postTropicalStormCount=0, postTropicalCloudShieldRadiusKm=0;
   let hurricaneSpiralCloudCenters = 0, hurricaneCloudShieldRadiusKm = 0;
   let hurricaneEyeWallCloudCenters = 0, hurricaneEyeRadiusKm = 0;
   let hurricaneEyeRadiusSource = 'no current source-backed hurricane';
@@ -1204,7 +1205,8 @@ function generateGeometry() {
       const lng = number(storm.lng, number(storm.longitude, NaN)), lat = number(storm.lat, number(storm.latitude, NaN));
       if (!Number.isFinite(lng) || !Number.isFinite(lat) || Math.abs(lat) > 82) continue;
       const windMph = clamp(number(storm.wind_mph,number(storm.wind_kt,0)*1.15078),0,220);
-      const hurricane = isTropicalCyclone(storm);\n      const postTropical = !hurricane && isPostTropicalCyclone(storm);
+      const hurricane = isTropicalCyclone(storm);
+      const postTropical = !hurricane && isPostTropicalCyclone(storm);
       const stormMotion = stormMotionFor(storm,lat), stormEpoch = 0;
       const suppliedShieldMi = number(storm.cloud_shield_radius_mi,
         number(storm.cloudShieldRadiusMi, number(storm.cloud_radius_mi,
