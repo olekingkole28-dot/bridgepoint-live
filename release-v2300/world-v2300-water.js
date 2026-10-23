@@ -303,7 +303,7 @@ function buildShaders(gl, shaderDescription) {
     '  vec3 crest = vec3(0.42, 0.76, 0.82);',
     '  if (v_kind > 1.5 && v_kind < 2.5) {',
     '    vec2 flowDir = length(v_flow) > 0.001 ? normalize(v_flow) : vec2(1.0, 0.0);',
-    '    float streamPhase = sin(dot(v_coord, flowDir) * u_flowCycles * 6.2831853 + v_streamPhaseOffset + u_time * 1.85);'
+    '    float streamPhase = sin(dot(v_coord, flowDir) * u_flowCycles * 6.2831853 + v_streamPhaseOffset + u_time * 1.85);',
     '    float streak = smoothstep(0.73, 0.98, 0.5 + 0.5 * streamPhase);',
     '    vec3 streamColor = mix(mid, crest, streak * 0.78);',
     '    fragColor = vec4(streamColor, 0.24 + streak * 0.42);',
