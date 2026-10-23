@@ -349,8 +349,9 @@ function buildShaders(gl, shaderDescription) {
     throw new Error(error);
   }
   const names = ['u_projection_fallback_matrix', 'u_projection_matrix', 'u_projection_tile_mercator_coords',
-    'u_projection_clipping_plane', 'u_projection_transition', 'u_time', 'u_waveK', 'u_waveAmp',
-    'u_windSpeed', 'u_windDir', 'u_storms[0]', 'u_flowCycles'];
+    'u_projection_clipping_plane', 'u_projection_transition', 'u_time', 'u_waveOrigin', 'u_wavePhaseA',
+    'u_wavePhaseB', 'u_waveK', 'u_waveAmp', 'u_windSpeed', 'u_windDir', 'u_storms[0]',
+    'u_flowCycles', 'u_flowPhaseA', 'u_flowPhaseB'];
   const uniforms = {};
   for (const name of names) uniforms[name] = gl.getUniformLocation(program, name);
   const attributes = {
@@ -455,19 +456,33 @@ function createLayer(api, map) {
         }
         const u = info.uniforms;
         const z = map.getZoom();
-        const wavesPerWorld = Math.min(220000, 8.53 * Math.pow(2, clamp(z, 0.6, 15)));
+        // Do not cap global wave cycles at 220k: that stretched waves into giant
+        // low-frequency bands at street zoom. Geometry stays capped; detail is shader-side.
+        const wavesPerWorld = 8.53 * Math.pow(2, clamp(z, 0.6, 20.0));
         const waveNumber = Math.PI * 2 * wavesPerWorld;
-        const amp = z < 2.5 ? 0.18 : z < 7 ? 0.32 : z < 12 ? 0.62 : z < 15 ? 1.0 : 1.3;
+        const amp = z < 2.5 ? 0.85 : z < 7 ? 0.75 : z < 12 ? 1.0 : z < 15 ? 1.35 : 1.8;
+        const center = map.getCenter();
+        const originX = mercX(center.lng), originY = mercY(center.lat);
+        const centerCosLat = Math.max(0.12, Math.cos(center.lat * RAD));
+        const dir = api.wind.direction * RAD;
+        const windX = Math.sin(dir), windY = -Math.cos(dir);
+        let dirBX = windX + 0.52, dirBY = windY + 0.31;
+        const dirBLen = Math.hypot(dirBX, dirBY) || 1;
+        dirBX /= dirBLen; dirBY /= dirBLen;
+        const frac = value => ((value % 1) + 1) % 1;
+        const flowCycles = wavesPerWorld * 2.4;
         if (u.u_time) gl.uniform1f(u.u_time, ((now - this.timeOrigin) / 1000) % 4096);
+        if (u.u_waveOrigin) gl.uniform2f(u.u_waveOrigin, originX, originY);
+        if (u.u_wavePhaseA) gl.uniform1f(u.u_wavePhaseA, Math.PI * 2 * frac(wavesPerWorld * centerCosLat * (originX * windX + originY * windY)));
+        if (u.u_wavePhaseB) gl.uniform1f(u.u_wavePhaseB, Math.PI * 2 * frac(wavesPerWorld * 0.61 * centerCosLat * (originX * dirBX + originY * dirBY)));
         if (u.u_waveK) gl.uniform1f(u.u_waveK, waveNumber / EARTH_CIRCUMFERENCE_M);
         if (u.u_waveAmp) gl.uniform1f(u.u_waveAmp, amp);
         if (u.u_windSpeed) gl.uniform1f(u.u_windSpeed, api.wind.mph);
-        if (u.u_windDir) {
-          const dir = api.wind.direction * RAD;
-          gl.uniform2f(u.u_windDir, Math.sin(dir), -Math.cos(dir));
-        }
+        if (u.u_windDir) gl.uniform2f(u.u_windDir, windX, windY);
         if (u['u_storms[0]']) gl.uniform4fv(u['u_storms[0]'], api.stormUniforms);
-        if (u.u_flowCycles) gl.uniform1f(u.u_flowCycles, Math.min(260000, wavesPerWorld * 2.4));
+        if (u.u_flowCycles) gl.uniform1f(u.u_flowCycles, flowCycles);
+        if (u.u_flowPhaseA) gl.uniform1f(u.u_flowPhaseA, Math.PI * 2 * frac(flowCycles * (0.71 * originX + 0.29 * originY)));
+        if (u.u_flowPhaseB) gl.uniform1f(u.u_flowPhaseB, Math.PI * 2 * 3.71 * frac(flowCycles * (0.27 * originX - 0.91 * originY)));
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
         gl.depthMask(false);
