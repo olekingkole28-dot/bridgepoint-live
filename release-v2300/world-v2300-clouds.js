@@ -40,6 +40,39 @@ function makeStormVolumeProxy(MC,vertices,indices,lng,lat,groundM,radiusM,baseAG
   for(let i=0;i<segments;i++){indices.push(bottom,rings[0][i+1],rings[0][i]);const cap=rings[rings.length-1];indices.push(top,cap[i],cap[i+1]);}
   return vertices.length/10-start;
 }
+
+function makeTornadoSurfaceCone(MC,vertices,indices,lng,lat,groundM,heightM,topRadiusM,tint=1.439){
+  const segments=MOBILE?28:40,levels=[0,0.10,0.23,0.38,0.54,0.70,0.86,1],radii=[0.035,0.045,0.070,0.12,0.22,0.40,0.68,1];
+  const start=vertices.length/10,center=MC.fromLngLat({lng,lat},0),cosLat=Math.max(0.12,Math.cos(lat*Math.PI/180));
+  const wrapLng=value=>((((value+180)%360)+360)%360)-180,rings=[];
+  const addVertex=(fraction,radialFraction,angle)=>{
+    const east=Math.cos(angle)*topRadiusM*radialFraction,north=Math.sin(angle)*topRadiusM*radialFraction;
+    const vLat=clamp(lat+north/111320,-85,85),vLng=wrapLng(lng+east/(111320*cosLat)),alt=groundM+heightM*fraction;
+    const p=MC.fromLngLat({lng:vLng,lat:vLat},alt);
+    vertices.push(p.x,p.y,p.z,alt,Math.cos(angle)*radialFraction,Math.sin(angle)*radialFraction,fraction,tint,center.x,center.y);
+    return vertices.length/10-1;
+  };
+  for(let j=0;j<levels.length;j++){
+    const ring=[];
+    for(let i=0;i<=segments;i++)ring.push(addVertex(levels[j],radii[j],TAU*(i%segments)/segments));
+    rings.push(ring);
+  }
+  for(let j=0;j<rings.length-1;j++){
+    const lower=rings[j],upper=rings[j+1];
+    for(let i=0;i<segments;i++){const a=lower[i],b=lower[i+1],c=upper[i],d=upper[i+1];indices.push(a,b,c,b,d,c);}
+  }
+  const cap=(fraction)=>{
+    const alt=groundM+heightM*fraction,p=MC.fromLngLat({lng,lat},alt);
+    vertices.push(p.x,p.y,p.z,alt,0,0,fraction,tint,center.x,center.y);
+    return vertices.length/10-1;
+  };
+  const bottom=cap(0),top=cap(1);
+  for(let i=0;i<segments;i++){
+    indices.push(bottom,rings[0][i+1],rings[0][i]);
+    const upper=rings[rings.length-1];indices.push(top,upper[i],upper[i+1]);
+  }
+  return vertices.length/10-start;
+}
 const STORM_VOLUME_FRAGMENT = String.raw`float bpStormExitDistance(vec3 p,vec3 d,float radius,float height){
   float exitT=1.0e20,a=dot(d.xy,d.xy),b=dot(p.xy,d.xy),c=dot(p.xy,p.xy)-radius*radius,disc=b*b-a*c;
   if(a>1.0e-8&&disc>=0.0){float side=(-b+sqrt(disc))/a;if(side>0.0)exitT=min(exitT,side);}
@@ -368,6 +401,7 @@ export function initSkyClouds(target) {
   let sourceStormCount = 0, sourceTornadoAlertCount = 0, globalStormLod = 'physical-local';
   let modeledHurricaneVisualCount = 0, modeledTornadoVisualCount = 0, hurricaneSpiralRibbonVertices = 0;
   let stormVolumeIndexOffset=0, stormVolumeIndexCount=0, stormVolumeProxyVertices=0, hurricaneVolumeProxyVertices=0, tornadoVolumeProxyVertices=0, stormRaymarchStepBudget=0;
+  let hurricaneSurfaceCloudVertices=0, tornadoSurfaceMeshVertices=0;
   let hurricaneSpiralCloudCenters = 0, hurricaneCloudShieldRadiusKm = 0;
   let hurricaneEyeWallCloudCenters = 0, hurricaneEyeRadiusKm = 0;
   let hurricaneEyeRadiusSource = 'no current source-backed hurricane';
@@ -503,7 +537,7 @@ export function initSkyClouds(target) {
       kind: 'georeferenced 3D cloud-volume layer',
       renderer: 'shared MapLibre WebGL context; storms use world-anchored raymarched volume proxies',
       stormRenderingArchitecture: 'Earth-coordinate proxy cylinders with shader-integrated spiral/funnel density, shader-time rotation and early termination; no camera-scaled storm meshes',
-      stormVolumeProxyVertices, hurricaneVolumeProxyVertices, tornadoVolumeProxyVertices, stormRaymarchStepBudget,
+      stormVolumeProxyVertices, hurricaneVolumeProxyVertices, tornadoVolumeProxyVertices, hurricaneSurfaceCloudVertices, tornadoSurfaceMeshVertices, stormRaymarchStepBudget,
       cloudFormations: formationCount, globalCloudFormations: globalCloudGeometryCache?.formationCount || 0, coverageVersion: 6082, globalStormMaskCount: globalCloudGeometryCache?.stormEyeMaskCount || 0, globalCloudLodBand: globalCloudGeometryCache?.cloudLodBand || 'unbuilt', globalStormLod, sourceStormCount, sourceTornadoAlertCount, modeledHurricaneVisualCount, modeledTornadoVisualCount, hurricaneSpiralRibbonVertices, stormVisualProvenance: (modeledHurricaneVisualCount || modeledTornadoVisualCount) ? 'modeled fallback cloud structures are visual examples, not source-backed live weather or alerts' : 'storm geometry is source-backed', globalMacroRadiusMinKm: globalCloudGeometryCache?.macroRadiusMinKm || 0, globalMacroRadiusMaxKm: globalCloudGeometryCache?.macroRadiusMaxKm || 0, globalThinLayerSlices: globalCloudGeometryCache?.thinLayerSlices || 0, globalThinLayerStacks: globalCloudGeometryCache?.thinLayerStacks || 0, globalSingleLayerSlices: globalCloudGeometryCache?.singleLayerSlices || 0, globalSingleLayerStacks: globalCloudGeometryCache?.singleLayerStacks || 0, hurricaneSpiralCloudCenters, hurricaneEyeWallCloudCenters, hurricaneEyeRadiusKm, hurricaneEyeRadiusSource, hurricaneCloudShieldRadiusKm, hurricaneVisualEyeRadiusKm, hurricaneVisualShieldRadiusKm, tornadoVisualHeightKm, tornadoVisualTopRadiusKm, tornadoVisualBoost, globalHeightResolvedWindPuffs: globalCloudGeometryCache?.heightResolvedWindPuffs || 0, globalModelledWindPuffs: globalCloudGeometryCache?.modelledWindPuffs || 0, localWindSourcePuffs, localWindModelledPuffs, globalMacroFormations: globalCloudGeometryCache?.macroFormationCount || 0, globalFineFormations: globalCloudGeometryCache?.fineFormationCount || 0, globalIsolatedFormations: globalCloudGeometryCache?.isolatedFormationCount || 0, globalThinLayerFormations: globalCloudGeometryCache?.thinLayerFormationCount || 0, globalCloudPuffs: globalCloudGeometryCache?.puffCount || 0, globalTerrainQuerySamples: terrainHeightKnownSamples, terrainRelativeCloudBases: terrainQueryAvailable, cloudMotion: (globalCloudGeometryCache?.heightResolvedWindPuffs || 0) > 0 ? 'Height-resolved source wind advects matched cloud puffs; modelled atmospheric flow fills unmatched locations' : 'Height/latitude-aware modelled atmospheric flow and hemisphere-aware cyclone circulation; no source-backed global upper-air wind grid is connected',
       projectionMode: 'MapLibre shaderData projectTileFor3D', projectionShaderVariants: programCache.size,
       projectionShaderVariantNames: Array.from(programCache.keys()),
@@ -963,7 +997,7 @@ function generateGeometry() {
     let maxForm = z <= 5.5 ? (MOBILE ? 72 : 96) : z <= 8.5 ? (MOBILE ? 44 : 88) : (MOBILE ? 44 : 30);
     const vertices = [], indices = [], formations = [], stormVolumeVertices = [], stormVolumeIndices = [];
     measuredCount = 0; funnelCount = 0; tornadoFunnelMeshVertices = 0; stormCount = 0; rainCellShelfCount = 0; sourceCloudObservationCount = 0;
-    hurricaneSpiralCloudCenters = 0; hurricaneCloudShieldRadiusKm = 0; hurricaneSpiralRibbonVertices = 0; stormVolumeIndexOffset=0; stormVolumeIndexCount=0; stormVolumeProxyVertices=0; hurricaneVolumeProxyVertices=0; tornadoVolumeProxyVertices=0;
+    hurricaneSpiralCloudCenters = 0; hurricaneCloudShieldRadiusKm = 0; hurricaneSpiralRibbonVertices = 0; stormVolumeIndexOffset=0; stormVolumeIndexCount=0; stormVolumeProxyVertices=0; hurricaneVolumeProxyVertices=0; tornadoVolumeProxyVertices=0; hurricaneSurfaceCloudVertices=0; tornadoSurfaceMeshVertices=0;
     hurricaneEyeWallCloudCenters = 0; hurricaneEyeRadiusKm = 0; hurricaneEyeRadiusSource = 'no current source-backed hurricane';
     hurricaneVisualEyeRadiusKm = 0; hurricaneVisualShieldRadiusKm = 0; tornadoVisualHeightKm = 0; tornadoVisualTopRadiusKm = 0; tornadoVisualBoost = 0; sourceStormCount = 0; sourceTornadoAlertCount = 0; modeledHurricaneVisualCount = 0; modeledTornadoVisualCount = 0;
     localWindSourcePuffs = 0; localWindModelledPuffs = 0;
@@ -1113,6 +1147,30 @@ function generateGeometry() {
         hurricaneEyeWallCloudCenters=1;hurricaneSpiralCloudCenters=3;
         hurricaneSpiralRibbonVertices=added;
         hurricaneCloudShieldRadiusKm=Math.max(hurricaneCloudShieldRadiusKm,shieldRadiusM/1000);
+        // Add actual, geographic cloud meshes over the raymarched vortex. The shader-only
+        // volume can be too faint at globe scale; these cloud cells draw the eyewall and
+        // three curved spiral arms using the existing cloud renderer and shared WebGL layer.
+        const cyclonePivot=MC.fromLngLat({lng,lat},0);
+        const appendCycloneCloud=(east,north,radiusM,tint,seed)=>{
+          const pLat=clamp(lat+north/111320,-78,78),pLng=getLon(lng+east/(111320*Math.max(0.12,Math.cos(lat*Math.PI/180))));
+          const puffGround=terrainElevationAt(pLng,pLat),altitude=puffGround+10500+(hash(seed,lng,lat)-0.5)*1500,before=vertices.length/10;
+          const rx=radiusM*(0.82+hash(seed,1,2)*0.20),ry=radiusM*(0.72+hash(seed,3,4)*0.24),rz=clamp(radiusM*0.065,2400,6200);
+          makePuffGeometry(null,MC,vertices,indices,pLng,pLat,altitude,rx,ry,rz,tint,MOBILE?7:9,MOBILE?2:3,hash(lng,pLat,seed),cyclonePivot.x,cyclonePivot.y);
+          hurricaneSurfaceCloudVertices+=vertices.length/10-before;
+        };
+        const eyewallRadiusM=Math.max(visualEyeRadiusM*1.85,80000),eyewallPuffRadius=clamp(visualEyeRadiusM*0.75,32000,88000),eyewallCount=MOBILE?14:18;
+        for(let i=0;i<eyewallCount;i++){
+          const angle=TAU*i/eyewallCount+0.08*Math.sin(i*2.17),radius=eyewallRadiusM*(0.97+hash(i,lng,lat)*0.06);
+          appendCycloneCloud(Math.cos(angle)*radius,Math.sin(angle)*radius,eyewallPuffRadius,i%5===0?1.282:1.295,6600+i);
+        }
+        const armSteps=MOBILE?7:9,armPuffRadius=clamp(visualShieldRadiusM*0.075,35000,95000);
+        const armStart=Math.max(eyewallRadiusM*1.85,visualEyeRadiusM*3.8),armEnd=visualShieldRadiusM*0.93;
+        if(armEnd>armStart){
+          for(let arm=0;arm<3;arm++)for(let step=0;step<armSteps;step++){
+            const t=(step+1)/armSteps,radius=armStart+(armEnd-armStart)*t,angle=arm*TAU/3+0.24+Math.log(radius/Math.max(armStart,1))*1.85;
+            appendCycloneCloud(Math.cos(angle)*radius,Math.sin(angle)*radius,armPuffRadius*(0.70+0.30*t),1.295,6700+arm*37+step);
+          }
+        }
         stormCount++;
       }
     }
@@ -1132,8 +1190,14 @@ function generateGeometry() {
         const ground=terrainElevationAt(f.lng,f.lat),physicalHeightM=clamp(f.topM-ground,4500,15500),visualBoost=clamp(overviewBoost,0,1);
         const visualHeightM=physicalHeightM + Math.max(0,260000-physicalHeightM)*visualBoost;
         const visualRadiusM=18000 + 77000*visualBoost;
+        // Draw a tapered, animated surface cone through the normal cloud-mesh shader as a
+        // high-contrast visibility layer; retain the raymarched volume for soft interior wisps.
+        // Keep the physical top radius local, then enlarge it smoothly only on the distant globe.
+        const surfaceTopRadiusM=900 + Math.max(0,visualRadiusM*0.70-900)*visualBoost;
+        const surfaceAdded=makeTornadoSurfaceCone(MC,vertices,indices,f.lng,f.lat,ground,visualHeightM,surfaceTopRadiusM,1.439);
+        tornadoSurfaceMeshVertices+=surfaceAdded;
         const added=makeStormVolumeProxy(MC,stormVolumeVertices,stormVolumeIndices,f.lng,f.lat,ground,visualRadiusM,0,visualHeightM,1.474+visualHeightM/100000000);
-        tornadoFunnelMeshVertices+=added;tornadoVolumeProxyVertices+=added;stormVolumeProxyVertices+=added;
+        tornadoFunnelMeshVertices+=added+surfaceAdded;tornadoVolumeProxyVertices+=added;stormVolumeProxyVertices+=added;
         tornadoVisualHeightKm=Math.max(tornadoVisualHeightKm,visualHeightM/1000);tornadoVisualTopRadiusKm=Math.max(tornadoVisualTopRadiusKm,visualRadiusM*(0.105+0.595*visualBoost)/1000);tornadoVisualBoost=visualBoost;
         continue;
       }
