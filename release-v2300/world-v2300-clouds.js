@@ -660,9 +660,11 @@ export function initSkyClouds(target) {
       if(!c) return null;
       return {lng:c[0],lat:c[1],eyeRadiusM:sourceEyeRadiusMeters(st),key:String(p.id||p.name||p.event||p.type||p.phenom||'cyclone')};
     }).filter(Boolean);
-    const hasRealHurricaneInScene=sourceCyclones.some(st=>isHurricaneClass(st));
+    const maskViewCenter=map.getCenter?.();
+    const isInFrontHemisphere=st=>{if(!maskViewCenter)return true;const r=Math.PI/180,a=number(maskViewCenter.lat,0)*r,b=number(st.lat,0)*r,d=(number(st.lng,0)-number(maskViewCenter.lng,0))*r;return Math.sin(a)*Math.sin(b)+Math.cos(a)*Math.cos(b)*Math.cos(d)>-0.08;};
+    const hasVisibleRealHurricane=sourceCyclones.some(st=>isHurricaneClass(st)&&isInFrontHemisphere(st));
     if (!sourceCyclones.length) sourceCyclones.push({lng:-58.5,lat:19.5,eyeRadiusM:160000,key:'modeled-atlantic-cloud-vortex'});
-    else if (zoom<=5.5&&!hasRealHurricaneInScene) sourceCyclones.push({lng:-58.5,lat:19.5,eyeRadiusM:160000,key:'modeled-atlantic-cloud-vortex'});
+    else if (zoom<=5.5&&!hasVisibleRealHurricane) sourceCyclones.push({lng:-58.5,lat:19.5,eyeRadiusM:160000,key:'modeled-atlantic-cloud-vortex'});
     const stormSignature=cloudLodBand+'|'+sourceCyclones.map(s=>s.key+':'+s.lng.toFixed(3)+','+s.lat.toFixed(3)+':'+Math.round(s.eyeRadiusM)).sort().join('|');
     if (globalCloudGeometryCache && globalCloudGeometryCache.stormSignature === stormSignature) return globalCloudGeometryCache;
     globalCloudGeometryCache = null;
