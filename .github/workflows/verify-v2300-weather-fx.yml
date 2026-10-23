@@ -126,7 +126,7 @@ jobs:
                 if(u.includes('/rest/v1/rpc/bridgepoint_public_weather_bootstrap_v5823')){
                   if(req.method()==='OPTIONS')return req.respond({status:204,headers:cors,body:''});
                   const now=new Date().toISOString();
-                  const items=bootstrapTrackMode?[{type:'HURRICANE',name:'Hurricane Bootstrap Vance',event:'Hurricane Bootstrap Vance',classification:'HU',lat:24,lng:-18,observed:true,observed_at:now,ends_at:new Date(Date.now()+6*3600000).toISOString(),source:'NASA EONET · Severe Storms',geometry:{type:'LineString',coordinates:[[-24,19],[-21,21],[-18,24]]}}]:[];
+                  const items=bootstrapTrackMode?[{type:'HURRICANE',name:'Hurricane Bootstrap Vance',event:'Hurricane Bootstrap Vance',classification:'HU',lat:24,lng:-18,observed:true,observed_at:now,ends_at:new Date(Date.now()+6*3600000).toISOString(),source:'NASA EONET · Severe Storms',geometry:{type:'LineString',coordinates:[[-24,19],[-21,21],[-18,24]]}},{type:'TORNADO',name:'Observed Tornado Point Report',event:'Observed Tornado',lat:27,lng:-16,observed:true,observed_at:now,ends_at:new Date(Date.now()+45*60000).toISOString(),source:'Official observed-point fixture',geometry:{type:'Point',coordinates:[-16,27]}}]:[];
                   return req.respond({status:200,headers:{...cors,'Content-Type':'application/json'},body:JSON.stringify({version:5823,fresh:true,generated_at:now,items,counts:{global_eonet:items.length}})});
                 }
                 if(u.includes('/functions/v1/bridgepoint-world-effects-v2190')){
@@ -227,10 +227,11 @@ jobs:
               // the separate world-effects endpoint returns no storm points for the current globe view.
               bootstrapTrackMode = true;
               await p.evaluate(async()=>{window.__bpWorldV2300.map.jumpTo({center:[0,24],zoom:1.25,pitch:0,bearing:0});await window.__bpWeatherV2300.refresh(true)});
-              await p.waitForFunction(()=>{const s=window.__BP_SKY_CLOUDS_STATE_V5908__||{},d=window.__BP_PUBLIC_CYCLONE_CENTER_FALLBACK__;return d?.publicStormCount===1&&s.sourceStormCount===1&&s.hurricaneVolumeProxyVertices>0&&s.hurricaneSurfaceCloudVertices>0&&s.globalStormLod==='physical-global-scale';},{timeout:25000});
-              const bridged=await p.evaluate(()=>{const s=window.__BP_SKY_CLOUDS_STATE_V5908__||{},d=window.__BP_PUBLIC_CYCLONE_CENTER_FALLBACK__;return{diag:d,sourceStormCount:s.sourceStormCount,volumeVertices:s.hurricaneVolumeProxyVertices,surfaceVertices:s.hurricaneSurfaceCloudVertices,eyeRadiusKm:s.hurricaneVisualEyeRadiusKm,shieldRadiusKm:s.hurricaneVisualShieldRadiusKm,zoom:s.zoom,lod:s.globalStormLod}});
-              console.log('BRIDGEPOINT_PUBLIC_TRACK_TO_3D_HURRICANE_PASS',JSON.stringify(bridged));
+              await p.waitForFunction(()=>{const s=window.__BP_SKY_CLOUDS_STATE_V5908__||{},d=window.__BP_PUBLIC_CYCLONE_CENTER_FALLBACK__;return d?.publicStormCount===1&&d?.publicTornadoPointCount===1&&s.sourceStormCount===2&&s.sourceTornadoAlertCount>=1&&s.hurricaneVolumeProxyVertices>0&&s.hurricaneSurfaceCloudVertices>0&&s.tornadoSurfaceMeshVertices>0&&s.globalStormLod==='physical-global-scale';},{timeout:25000});
+              const bridged=await p.evaluate(()=>{const s=window.__BP_SKY_CLOUDS_STATE_V5908__||{},d=window.__BP_PUBLIC_CYCLONE_CENTER_FALLBACK__;return{diag:d,sourceStormCount:s.sourceStormCount,sourceTornadoAlertCount:s.sourceTornadoAlertCount,volumeVertices:s.hurricaneVolumeProxyVertices,surfaceVertices:s.hurricaneSurfaceCloudVertices,tornadoVertices:s.tornadoSurfaceMeshVertices,warningFunnels:s.warningFunnels,eyeRadiusKm:s.hurricaneVisualEyeRadiusKm,shieldRadiusKm:s.hurricaneVisualShieldRadiusKm,zoom:s.zoom,lod:s.globalStormLod}});
+              console.log('BRIDGEPOINT_PUBLIC_TRACK_TO_3D_STORMS_PASS',JSON.stringify(bridged));
               assert(bridged.volumeVertices>0&&bridged.surfaceVertices>0,'public live storm track must result in visible source-anchored 3D hurricane geometry at globe zoom');
+              assert(bridged.tornadoVertices>0&&bridged.warningFunnels>=1,'a fresh observed tornado point must create a georeferenced 3D funnel at globe zoom');
               assert(bridged.zoom<=1.5&&bridged.eyeRadiusKm>=6&&bridged.shieldRadiusKm>=320,'the global hurricane uses physical geometry bounds');
               bootstrapTrackMode = false;
               await p.evaluate(()=>window.__bpWeatherV2300.refresh(true));
