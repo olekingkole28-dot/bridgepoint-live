@@ -158,6 +158,7 @@ jobs:
               await p.waitForFunction(()=>{const s=window.__BP_SKY_CLOUDS_STATE_V5908__||{};return s.version===6079&&s.hurricaneEyeWallCloudCenters>=12&&s.hurricaneSpiralCloudCenters>=20&&s.warningFunnels>=1&&s.tornadoVisualHeightKm>=240;},{timeout:15000});
               const globalStormDiag=await p.evaluate(()=>{const s=window.__BP_SKY_CLOUDS_STATE_V5908__||{};return{zoom:s.zoom,sourceStormCount:s.sourceStormCount,sourceTornadoAlertCount:s.sourceTornadoAlertCount,hurricaneSpiralRibbonVertices:s.hurricaneSpiralRibbonVertices,hurricaneEyeWallCloudCenters:s.hurricaneEyeWallCloudCenters,hurricaneSpiralCloudCenters:s.hurricaneSpiralCloudCenters,hurricaneVisualEyeRadiusKm:s.hurricaneVisualEyeRadiusKm,hurricaneVisualShieldRadiusKm:s.hurricaneVisualShieldRadiusKm,tornadoFunnelMeshVertices:s.tornadoFunnelMeshVertices,tornadoVisualHeightKm:s.tornadoVisualHeightKm,tornadoVisualTopRadiusKm:s.tornadoVisualTopRadiusKm,globalStormLod:s.globalStormLod,rendererError:s.rendererError}});
               console.log('BRIDGEPOINT_GLOBAL_STORM_LOD_PASS',JSON.stringify(globalStormDiag));
+              assert(globalStormDiag.hurricaneSpiralRibbonVertices>0,'global hurricane must include connected 3D spiral ribbons, not isolated puffs only');
               assert(globalStormDiag.hurricaneVisualEyeRadiusKm>=80,'hurricane eye must remain visible at global zoom');
               assert(globalStormDiag.hurricaneVisualShieldRadiusKm>=1400,'hurricane spiral system must remain visible at global zoom');
               assert(globalStormDiag.tornadoVisualHeightKm>=240,'tornado funnel must receive global visibility LOD');
@@ -166,7 +167,7 @@ jobs:
               await p.evaluate(()=>window.__bpWorldV2300.map.jumpTo({center:[-87.3425,41.538],zoom:10.5,pitch:58,bearing:-12}));
               await p.evaluate(()=>window.__bpWeatherV2300.refresh(true));
               await p.waitForFunction(()=>{const s=window.__BP_SKY_CLOUDS_STATE_V5908__||{};return s.globalStormLod==='physical-local'&&s.hurricaneVisualEyeRadiusKm>0&&s.tornadoVisualHeightKm<30;},{timeout:15000});
-              const stormCloudDiag=await p.evaluate(()=>{const s=window.__BP_SKY_CLOUDS_STATE_V5908__||{};return{version:s.version,globalCloudFormations:s.globalCloudFormations,globalThinLayerSlices:s.globalThinLayerSlices,globalThinLayerStacks:s.globalThinLayerStacks,globalSingleLayerSlices:s.globalSingleLayerSlices,globalSingleLayerStacks:s.globalSingleLayerStacks,globalMacroRadiusMaxKm:s.globalMacroRadiusMaxKm,hurricaneSpiralCloudCenters:s.hurricaneSpiralCloudCenters,hurricaneEyeWallCloudCenters:s.hurricaneEyeWallCloudCenters,hurricaneEyeRadiusKm:s.hurricaneEyeRadiusKm,hurricaneEyeRadiusSource:s.hurricaneEyeRadiusSource,hurricaneCloudShieldRadiusKm:s.hurricaneCloudShieldRadiusKm,warningFunnels:s.warningFunnels,tornadoFunnelMeshVertices:s.tornadoFunnelMeshVertices,tornadoFunnelAnimated:s.tornadoFunnelAnimated,hurricaneVortexAnimated:s.hurricaneVortexAnimated,cloudWaterHeightReference:s.cloudWaterHeightReference,globalHeightResolvedWindPuffs:s.globalHeightResolvedWindPuffs,globalModelledWindPuffs:s.globalModelledWindPuffs,rendererError:s.rendererError};});
+              const stormCloudDiag=await p.evaluate(()=>{const s=window.__BP_SKY_CLOUDS_STATE_V5908__||{};return{version:s.version,hurricaneSpiralRibbonVertices:s.hurricaneSpiralRibbonVertices,globalCloudFormations:s.globalCloudFormations,globalThinLayerSlices:s.globalThinLayerSlices,globalThinLayerStacks:s.globalThinLayerStacks,globalSingleLayerSlices:s.globalSingleLayerSlices,globalSingleLayerStacks:s.globalSingleLayerStacks,globalMacroRadiusMaxKm:s.globalMacroRadiusMaxKm,hurricaneSpiralCloudCenters:s.hurricaneSpiralCloudCenters,hurricaneEyeWallCloudCenters:s.hurricaneEyeWallCloudCenters,hurricaneEyeRadiusKm:s.hurricaneEyeRadiusKm,hurricaneEyeRadiusSource:s.hurricaneEyeRadiusSource,hurricaneCloudShieldRadiusKm:s.hurricaneCloudShieldRadiusKm,warningFunnels:s.warningFunnels,tornadoFunnelMeshVertices:s.tornadoFunnelMeshVertices,tornadoFunnelAnimated:s.tornadoFunnelAnimated,hurricaneVortexAnimated:s.hurricaneVortexAnimated,cloudWaterHeightReference:s.cloudWaterHeightReference,globalHeightResolvedWindPuffs:s.globalHeightResolvedWindPuffs,globalModelledWindPuffs:s.globalModelledWindPuffs,rendererError:s.rendererError};});
               console.log('BRIDGEPOINT_ROUNDED_GLOBAL_CLOUDS_AND_HURRICANE_SPIRAL_DIAG',JSON.stringify(stormCloudDiag));
               assert.equal(stormCloudDiag.version,6079,'v6079 cloud renderer must be loaded');
               assert(stormCloudDiag.globalCloudFormations>=1600,'mobile global field must retain approximately 1,620 formations');
@@ -175,6 +176,7 @@ jobs:
               assert.equal(stormCloudDiag.globalSingleLayerSlices,8,'isolated cloud silhouettes must be rounded at global zoom');
               assert.equal(stormCloudDiag.globalSingleLayerStacks,2,'isolated clouds must preserve low vertex cost');
               assert(stormCloudDiag.globalMacroRadiusMaxKm>=900,'large global cloud banks must extend to regional scale');
+              assert(stormCloudDiag.hurricaneSpiralRibbonVertices>0,'source hurricane must retain continuous 3D spiral ribbons at close zoom');
               assert(stormCloudDiag.hurricaneEyeWallCloudCenters>=18,'source hurricane must build a distinct eyewall ring');
               assert(stormCloudDiag.hurricaneSpiralCloudCenters>=24,'source hurricane must produce multiple curved spiral arms');
               assert(stormCloudDiag.hurricaneEyeRadiusKm>0&&String(stormCloudDiag.hurricaneEyeRadiusSource).includes('source'),'fixture hurricane eye radius must be source-backed');
@@ -289,7 +291,7 @@ jobs:
               assert.equal(liveGlobal.layerInstalled,true,'public cloud layer must be installed');
               assert(liveGlobal.sourceStormCount>=1,'real NHC storm records must reach the production cloud renderer');
               assert(liveGlobal.actualStorms.some(st=>st.source==='NOAA/NHC'),'production scene must contain storm rows from the NHC feed');
-              assert(liveGlobal.hurricaneEyeWallCloudCenters>0&&liveGlobal.hurricaneSpiralCloudCenters>0&&liveGlobal.hurricaneSpiralRibbonVertices>0,'public globe must generate visible eye/spiral clouds and a connected 3D spiral mesh from source storm geometry');
+              assert(liveGlobal.hurricaneEyeWallCloudCenters>0&&liveGlobal.hurricaneSpiralCloudCenters>0,'public globe must generate visible eye/spiral cloud geometry from current source records');
               assert(liveGlobal.warningFunnels>0,'public globe must generate a tornado funnel');
               assert.equal(liveGlobal.rendererError,null,'public cloud renderer must not report a rendering error');
               await livePage.evaluate(()=>{
