@@ -571,10 +571,12 @@ export function initSkyClouds(target) {
       Number.isFinite(firstFinite(p.translation_speed_kt))?Number(p.translation_speed_kt)*0.514444:NaN,
       Number.isFinite(firstFinite(p.forward_speed_kt))?Number(p.forward_speed_kt)*0.514444:NaN,
       Number.isFinite(firstFinite(p.movement_speed_mph))?Number(p.movement_speed_mph)*0.44704:NaN,
+      Number.isFinite(firstFinite(p.movement_mph))?Number(p.movement_mph)*0.44704:NaN,
+      Number.isFinite(firstFinite(p.movementSpeedMph))?Number(p.movementSpeedMph)*0.44704:NaN,
       Number.isFinite(firstFinite(p.motion_speed_mph))?Number(p.motion_speed_mph)*0.44704:NaN,
       Number.isFinite(firstFinite(p.forward_speed_mph))?Number(p.forward_speed_mph)*0.44704:NaN,
-      firstFinite(p.bridgepoint_motion_speed_mps));
-    const heading=firstFinite(p.movement_heading_deg,p.motion_heading_deg,p.track_heading_deg,p.movement_direction_deg,p.motion_direction_deg,p.direction_of_motion_deg,p.heading_deg,p.heading,p.movement_bearing_deg,p.track_bearing_deg,p.bridgepoint_motion_heading_deg);
+      firstFinite(p.movement_speed_mps,p.movementSpeedMps,p.bridgepoint_motion_speed_mps));
+    const heading=firstFinite(p.movement_heading_deg,p.movement_dir,p.movementDir,p.movementDirectionDeg,p.movement_heading,p.motion_heading_deg,p.track_heading_deg,p.movement_direction_deg,p.motion_direction_deg,p.direction_of_motion_deg,p.heading_deg,p.heading,p.movement_bearing_deg,p.track_bearing_deg,p.bridgepoint_motion_heading_deg);
     if(!Number.isFinite(speedMps)||!Number.isFinite(heading)||speedMps<0||speedMps>100)return {x:0,y:0,sourceBacked:false};
     const speed=Math.min(40,speedMps),angle=heading*Math.PI/180,cosLat=Math.max(0.12,Math.cos(latFallback*Math.PI/180));
     return {x:Math.sin(angle)*speed/(EARTH_CIRCUMFERENCE_METERS*cosLat),y:-Math.cos(angle)*speed/(EARTH_CIRCUMFERENCE_METERS*cosLat),sourceBacked:true};
