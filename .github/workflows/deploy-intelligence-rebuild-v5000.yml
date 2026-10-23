@@ -250,8 +250,8 @@ jobs:
           cp release-v2300/world-v2300-infrastructure-volume-v5962.js site/world-v2300-infrastructure-volume-v5962.js
           cp release-v2300/world-v2300-sensor-layers.js site/world-v2300-sensor-layers.js
           sed -i 's#world-v2300-sensor-layers.js?v=6015-nasa-light-toggle#world-v2300-sensor-layers.js?v=6027-nasa-nightlight-corrected-radiance#g' site/app.js site/landing.js
-          sed -i 's#world-v2300-clouds.js?v=6075-global-coverage-fill#world-v2300-clouds.js?v=6087-textured-tornado-priority#g' site/app.js site/landing.js
-          sed -i 's#world-v2300-clouds.js?v=6076-rounded-cloud-banks#world-v2300-clouds.js?v=6087-textured-tornado-priority#g' site/app.js site/landing.js
+          sed -i 's#world-v2300-clouds.js?v=6075-global-coverage-fill#world-v2300-clouds.js?v=6088-fuller-local-tornado#g' site/app.js site/landing.js
+          sed -i 's#world-v2300-clouds.js?v=6076-rounded-cloud-banks#world-v2300-clouds.js?v=6088-fuller-local-tornado#g' site/app.js site/landing.js
           sed -i 's#world-v2300-time-slider.js?v=6076-rounded-cloud-banks#world-v2300-time-slider.js?v=6077-sky-restore-safe-pitch#g' site/app.js site/landing.js
           sed -i 's#world-v2300-time-slider.js?v=6077-cloud-base-restore#world-v2300-time-slider.js?v=6077-sky-restore-safe-pitch#g' site/app.js site/landing.js
           sed -i 's#app.js?v=6077-cloud-base-restore#app.js?v=6077-sky-restore-safe-pitch#g' site/app/index.html
@@ -452,8 +452,8 @@ jobs:
           node --input-type=module --check < site/world-v2300-realism.js
           node --input-type=module --check < site/gis-core-orchestrator-v5910.js
           grep -Fq 'Real satellite bands. No AI-drawn pixels.' site/world-v2300-spectral-imagery.js
-          grep -Fq 'world-v2300-clouds.js?v=6087-textured-tornado-priority' site/app.js
-          grep -Fq 'world-v2300-clouds.js?v=6087-textured-tornado-priority' site/landing.js
+          grep -Fq 'world-v2300-clouds.js?v=6088-fuller-local-tornado' site/app.js
+          grep -Fq 'world-v2300-clouds.js?v=6088-fuller-local-tornado' site/landing.js
           grep -Fq 'world-v2300-weather.js?v=6070-clouds-only-phase' site/app.js
           grep -Fq 'world-v2300-rain.js?v=6070-clouds-only-phase' site/world-v2300-weather.js
           grep -Fq 'retireLegacyScreenSpaceRain' site/world-v2300-weather.js
@@ -542,6 +542,9 @@ jobs:
           grep -Fq 'tornadoSurfaceMeshVertices+=surfaceAdded' site/world-v2300-clouds.js
           grep -Fq 'if(v_tint>1.438&&v_tint<1.47)' site/world-v2300-clouds.js
           grep -Fq 'surfaceTopRadiusM,1.445' site/world-v2300-clouds.js
+          grep -Fq 'surfaceTopRadiusM=1400+Math.max(0,visualRadiusM*0.70-1400)*visualBoost' site/world-v2300-clouds.js
+          grep -Fq 'const funnelCloudSteps=MOBILE?12:16' site/world-v2300-clouds.js
+          grep -Fq 'tornadoVisualTopRadiusKm=Math.max(tornadoVisualTopRadiusKm,surfaceTopRadiusM/1000)' site/world-v2300-clouds.js
           grep -Fq 'tornadoSurfaceVerticesSubmitted = tornadoSurfaceVertexRanges.reduce' site/world-v2300-clouds.js
           grep -Fq 'function makeCycloneRibbon' site/world-v2300-clouds.js
           grep -Fq 'hurricaneSurfaceCloudVertices+=makeCycloneRibbon' site/world-v2300-clouds.js

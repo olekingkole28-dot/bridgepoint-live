@@ -328,6 +328,7 @@ jobs:
               assert(liveClose.tornadoSurfaceMeshVertices>0,'public close-up must draw the visible tapered tornado surface');
               assert(liveClose.tornadoSurfaceVerticesSubmitted>200,'public close-up must submit the actual cone triangles, not only cloud puffs');
               assert(liveClose.tornadoVisualHeightKm<6,'public close-up must transition the funnel back to local scale');
+              assert(liveClose.tornadoVisualTopRadiusKm>=1.2,'public close-up must render a visible large-tornado funnel width at local scale');
               assert.equal(liveClose.rendererError,null,'public close-up renderer must not report an error');
               console.log('BRIDGEPOINT_LIVE_SITE_STORM_VISUAL_DIAGNOSTICS_PASS',JSON.stringify({global:liveGlobal,close:liveClose,pageErrors:livePageErrors.slice(0,8)}));
               assert.equal(livePageErrors.length,0,livePageErrors.join('\n'));
