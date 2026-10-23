@@ -258,7 +258,7 @@ jobs:
                 const w=window.__BP_LANDING_WORLD__,c=window.__BP_SKY_CLOUDS_V5908__,s=window.__BP_SKY_CLOUDS_STATE_V6079__;
                 return !!w?.map&&c?.map===w.map&&c?.enabled===true&&s?.version===6079;
               },{timeout:60000});
-              await livePage.waitForFunction(()=>!!window.__BP_LANDING_VISUAL_WEATHER__?.weather?.refresh,{timeout:60000});
+              await livePage.waitForFunction(()=>{const m=window.__BP_LANDING_WORLD__?.map,s=window.__BP_SKY_CLOUDS_STATE_V6079__;return !!m&&!!s&&s.enabled===true&&s.layerInstalled===true;},{timeout:60000});
               await livePage.evaluate(async()=>{
                 const m=window.__BP_LANDING_WORLD__?.map;
                 window.__BP_SKY_CLOUDS_V5908__?.setEnabled?.(true);
