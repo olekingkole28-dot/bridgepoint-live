@@ -387,7 +387,7 @@ function currentBootstrapCyclones(payload){
   }).map(item=>{
     const line=item.geometry.coordinates,lastPoint=line[line.length-1];
     const lng=Number(item?.lon??item?.longitude??lastPoint[0]),lat=Number(item?.lat??item?.latitude??lastPoint[1]);
-    const name=String(item.name||'Tropical Cyclone'),label=String([type,item.event,item.source,name].filter(Boolean).join(' ')),postTropical=/post[\s-]?tropical|extra[\s-]?tropical/i.test(label);
+    const sourceType=String(item?.type||'').trim().toUpperCase(),name=String(item.name||'Tropical Cyclone'),label=String([sourceType,item.event,item.source,name].filter(Boolean).join(' ')),postTropical=/post[\s-]?tropical|extra[\s-]?tropical/i.test(label);
     return {...item,id:'public-track:'+String(item.source||'source')+':'+name.toLowerCase(),name,
       type:postTropical?'POST_TROPICAL_CYCLONE':'HURRICANE',classification:postTropical?'PTC':/typhoon/i.test(label)?'TY':/hurricane/i.test(label)?'HU':/subtropical/i.test(label)?'STS':'TC',
       lng,lat,longitude:lng,latitude:lat,source:item.source||'public source-backed cyclone track',
