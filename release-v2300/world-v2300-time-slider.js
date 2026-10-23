@@ -307,7 +307,7 @@ export function initWorldTimeSlider(target,rpc){
   }finally{cloudToggleBusy=false;cloudBtn.disabled=false}
  }
  
- let skyViewBusy=false,skyViewRestore=null;
+ let skyViewBusy=false,skyViewRestore=null;const skyViewDiag=window.__BP_SKY_VIEW_CONTROLLER_V6077__={version:6077,map,listenerBound:false,clickCount:0,busy:false,phase:'initialized',lastError:null,initial:null,updatedAt:Date.now()};
  function skyProjectionType(){return String(map.getProjection?.()?.type||'mercator')}
  function syncSkyViewButton(active){skyViewBtn?.setAttribute('aria-pressed',String(!!active));if(skyViewBtn)skyViewBtn.textContent=active?'⬇ RETURN TO STREET':'⬆ LOOK UP · SKY VIEW'}
  function waitSkyMapState(test,timeoutMs,label){return new Promise((resolve,reject)=>{const start=performance.now();const tick=()=>{let ok=false;try{ok=!!test()}catch(_){}if(ok){resolve(true);return}if(performance.now()-start>=timeoutMs){reject(new Error(label+' timeout · projection='+skyProjectionType()+' · maxPitch='+String(map.getMaxPitch?.())+' · pitch='+String(map.getPitch?.())));return}requestAnimationFrame(tick)};requestAnimationFrame(tick)})}
@@ -327,25 +327,25 @@ export function initWorldTimeSlider(target,rpc){
  }
  async function toggleSkyView(){
   if(skyViewBusy||!skyViewBtn)return;
-  skyViewBusy=true;skyViewBtn.disabled=true;
+  skyViewBusy=true;skyViewBtn.disabled=true;skyViewDiag.clickCount++;skyViewDiag.busy=true;skyViewDiag.phase='starting';skyViewDiag.lastError=null;skyViewDiag.updatedAt=Date.now();
   try{
    if(!skyViewRestore){
     if(typeof map.setProjection!=='function'||typeof map.setMaxPitch!=='function'||typeof map.setCenterClampedToGround!=='function')throw new Error('free sky camera API unavailable');
     const center=map.getCenter(),projection=skyProjectionType(),previousPitch=map.getPitch(),previousMaxPitch=map.getMaxPitch?.()??85;
-    skyViewRestore={center:[center.lng,center.lat],zoom:map.getZoom(),bearing:map.getBearing(),pitch:previousPitch,projection,maxPitch:previousMaxPitch};
+    skyViewRestore={center:[center.lng,center.lat],zoom:map.getZoom(),bearing:map.getBearing(),pitch:previousPitch,projection,maxPitch:previousMaxPitch};skyViewDiag.initial={center:skyViewRestore.center,zoom:skyViewRestore.zoom,bearing:skyViewRestore.bearing,pitch:previousPitch,maxPitch:previousMaxPitch,projection};
     map.stop?.();
     // MapLibre applies a projection change on its render cycle. Wait until Mercator is active
     // before raising maxPitch; otherwise the globe projection can keep the effective cap at 85°.
-    map.setProjection({type:'mercator'});
+    skyViewDiag.phase='setting-mercator';skyViewDiag.updatedAt=Date.now();map.setProjection({type:'mercator'});
     map.triggerRepaint?.();
     await waitSkyMapState(()=>skyProjectionType()==='mercator',6000,'mercator projection activation');
-    map.setMaxPitch(160);
+    skyViewDiag.phase='raising-pitch-cap';skyViewDiag.updatedAt=Date.now();map.setMaxPitch(160);
     await waitSkyMapState(()=>Number(map.getMaxPitch?.())>=145,4000,'above-horizon pitch limit');
-    map.setCenterClampedToGround(false);
+    skyViewDiag.phase='jumping-above-horizon';skyViewDiag.updatedAt=Date.now();map.setCenterClampedToGround(false);
     map.jumpTo({center:skyViewRestore.center,zoom:Math.max(15.2,skyViewRestore.zoom),bearing:skyViewRestore.bearing,pitch:145});
     map.triggerRepaint?.();
     await waitSkyMapState(()=>skyProjectionType()==='mercator'&&Number(map.getMaxPitch?.())>=145&&Number(map.getPitch?.())>=120,8000,'above-horizon camera');
-    syncSkyViewButton(true);
+    syncSkyViewButton(true);skyViewDiag.phase='sky-active';skyViewDiag.updatedAt=Date.now();
     setStatus('SKY VIEW ON · looking above the street horizon · press RETURN TO STREET to restore');
    }else{
     const restore=skyViewRestore;
@@ -359,13 +359,13 @@ export function initWorldTimeSlider(target,rpc){
    if(restore){
     try{await restoreSkyStreetView(restore)}catch(restoreError){console.warn('BridgePoint sky camera restore required fallback',restoreError);try{map.stop?.();map.setMaxPitch(85);map.setCenterClampedToGround(true);map.setProjection({type:'globe'});map.jumpTo({center:restore.center,zoom:restore.zoom,bearing:restore.bearing,pitch:Math.min(restore.pitch,85)})}catch(_){}}
    }
-   skyViewRestore=null;syncSkyViewButton(false);
+   skyViewDiag.phase='error-restoring';skyViewDiag.lastError=String(error?.message||error);skyViewDiag.updatedAt=Date.now();skyViewRestore=null;syncSkyViewButton(false);
    setStatus('SKY VIEW UNAVAILABLE · '+String(error?.message||error).slice(0,140),true);
    console.warn('BridgePoint sky-facing camera failed',error);
-  }finally{skyViewBusy=false;skyViewBtn.disabled=false}
+  }finally{skyViewBusy=false;skyViewBtn.disabled=false;skyViewDiag.busy=false;skyViewDiag.final={phase:skyViewDiag.phase,projection:skyProjectionType(),pitch:map.getPitch?.(),maxPitch:map.getMaxPitch?.(),zoom:map.getZoom?.(),buttonPressed:skyViewBtn?.getAttribute('aria-pressed')};skyViewDiag.updatedAt=Date.now()}
  }
 
- skyViewBtn?.addEventListener('click',()=>{void toggleSkyView()});
+ skyViewBtn?.addEventListener('click',()=>{void toggleSkyView()});skyViewDiag.listenerBound=true;skyViewDiag.phase='ready';skyViewDiag.updatedAt=Date.now();
  cloudBtn.addEventListener('click',()=>{void toggleSkyClouds()});
  const onBounds=()=>schedule(false,360),onStyle=()=>{ensureLayers();if(!map.getSource(SOURCE_ID))setTimeout(ensureLayers,250)};
  map.on('moveend',onBounds);map.on('zoomend',onBounds);map.on('styledata',onStyle);
