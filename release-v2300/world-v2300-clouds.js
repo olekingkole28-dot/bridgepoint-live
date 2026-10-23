@@ -79,7 +79,7 @@ vec4 bpRaymarchStorm(vec3 entry,vec2 cameraXY,float tint,float time,float camera
   float capTolerance=max(50.0,height*0.003);
   if(entry.z<capTolerance)normal=vec3(0.0,0.0,-1.0);else if(entry.z>height-capTolerance)normal=vec3(0.0,0.0,1.0);else normal=normalize(vec3(entry.xy,0.0001));
   float facing=dot(normal,toCamera),insideVolume=(length(cameraXY)<radius&&cameraZ>0.0&&cameraZ<height)?1.0:0.0;
-  if(facing<=0.002&&insideVolume<0.5){if(diagnostic)return vec4(1.0,0.0,0.0,0.72);return vec4(0.0);}
+  if(facing<=0.002&&insideVolume<0.5){if(diagnostic)return entry.z>height-capTolerance?vec4(0.0,0.18,1.0,0.72):vec4(1.0,0.0,0.0,0.72);return vec4(0.0);}
   vec3 direction=facing>0.002?-toCamera:toCamera;float exitT=bpStormExitDistance(entry,direction,radius,height);
   if(exitT<1.0||exitT>1.0e20){if(diagnostic)return vec4(1.0,0.8,0.0,0.72);return vec4(0.0);}
   if(diagnostic&&requestedSteps>-2.5)return vec4(0.0,0.9,0.2,0.72);
