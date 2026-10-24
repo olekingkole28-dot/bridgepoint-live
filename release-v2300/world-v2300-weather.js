@@ -366,7 +366,8 @@ function archivedJosephineForecast(now=Date.now()){
  return {id:'nhc-final-forecast:al102026:josephine',name:'Post-Tropical Cyclone Josephine',event:'Post-Tropical Cyclone Josephine',type:'POST_TROPICAL_CYCLONE',classification:'PTC',official_classification:'post-tropical cyclone',lng,lat,longitude:lng,latitude:lat,wind_mph:wind,wind_kt:wind/1.15078,cloud_shield_radius_mi:415,cloud_shield_radius_km:668,wind_radius_mi:415,movement_heading_deg:heading,movement_dir:heading,movement_speed_mps:speed,movement_speed_mph:speed*2.236936,movement_speed_kt:speed/0.514444,geometry:forecast,track_geometry:history,forecast_geometry:forecast,source:'NOAA/NHC',source_detail:'National Hurricane Center final advisory #5; official forecast interpolation',source_issued_at:a.issuedAt,observed_at:a.issuedAt,forecast_valid_at:new Date(now).toISOString(),is_official_forecast:true,is_post_tropical:true,center_source:'official forecast interpolation, not a live observation',forecast_tail_estimated:now>=fixes[fixes.length-1].ms,ends_at:a.dissipatesAt};
 }
 function ensureJosephineForecast(storms=[],now=Date.now()){
- const out=Array.isArray(storms)?storms.slice():[],j=archivedJosephineForecast(now);if(!j)return out;
+ const out=Array.isArray(storms)?storms.slice():[],j=archivedJosephineForecast(now);
+ if(!j){const retired=out.findIndex(x=>String((x?.properties||x)?.id||'')==='nhc-final-forecast:al102026:josephine');if(retired>=0)out.splice(retired,1);return out;}
  const i=out.findIndex(x=>/josephine/i.test(String((x?.properties||x)?.name||(x?.properties||x)?.event||(x?.properties||x)?.id||'')));
  if(i<0){out.push(j);return out}const p=out[i]?.properties||out[i]||{},at=Date.parse(p.observed_at||p.updated_at||p.timestamp||'');
  if(p.is_official_forecast===true||!Number.isFinite(at)||at<=Date.parse(j.source_issued_at))out[i]=j;return out;
@@ -430,7 +431,7 @@ function currentBootstrapCyclones(payload){
   return out;
  }
  async function getPublicCyclones(force=false){
-  if(!force&&publicCycloneSnapshot&&Date.now()-publicCycloneCacheAt<240000)return publicCycloneSnapshot;
+  if(!force&&publicCycloneSnapshot&&Date.now()-publicCycloneCacheAt<240000){publicCycloneSnapshot={...publicCycloneSnapshot,storms:ensureJosephineForecast(publicCycloneSnapshot.storms)};return publicCycloneSnapshot;}
   try{
    const d=await publicRpc('bridgepoint_public_weather_bootstrap_v5823',{},9000);
    const storms=currentBootstrapCyclones(d),tornadoes=currentBootstrapTornadoPoints(d);
