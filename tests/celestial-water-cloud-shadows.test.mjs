@@ -85,12 +85,12 @@ test('entrypoints use fresh cache keys for updated map, water, clouds, weather a
   for (const source of [app, landing]) {
     assert.match(source, /world-v2300-map\.js\?v=6137-globe-first-weather-lockstep/);
     assert.match(source, /world-v2300-water\.js\?v=6124-solar-ocean-swell/);
-    assert.match(source, /world-v2300-clouds\.js\?v=6140-live-satellite-cloud-volume/);
+    assert.match(source, /world-v2300-clouds\.js\?v=6150-global-satellite-cloud-mosaic/);
     assert.match(source, /world-v2300-weather\.js\?v=6138-cloud-linked-lightning/);
     assert.match(source, /world-v2300-time-slider\.js\?v=6137-globe-first-weather-lockstep/);
   }
   assert.match(map, /world-v2300-space\.js\?v=6125-manual-globe-camera/);
-  assert.match(timeSlider, /world-v2300-clouds\.js\?v=6140-live-satellite-cloud-volume/);
+  assert.match(timeSlider, /world-v2300-clouds\.js\?v=6150-global-satellite-cloud-mosaic/);
   assert.match(bootstrap, /world-v2300-weather\.js\?v=6138-cloud-linked-lightning/);
   assert.match(appHtml, /app\.js\?v=6138-cloud-linked-lightning/);
   assert.match(landingHtml, /landing\.js\?v=6138-cloud-linked-lightning/);
@@ -112,15 +112,18 @@ test('new rain/lightning and global source markers stay separate from legacy eff
   assert.match(rain, /source_anchor_kind: 'warning'/);
   assert.match(rain, /windFields\(p, c, true\)/);
   assert.match(clouds, /sourceRainAnchors/);
-  assert.match(clouds, /coverageVersion: 6140/);
-  assert.match(clouds, /bp6133-noaa-geocolor-cloud-context/);
-  assert.match(clouds, /MERGEDGC_current\/ImageServer\/exportImage/);
+  assert.match(clouds, /coverageVersion: 6150/);
+  assert.match(clouds, /bp6150-nasa-geostationary-cloud-context/);
+  assert.match(clouds, /bp6150-nasa-geostationary-cloud-source/);
+  assert.match(clouds, /GOES-East_ABI_Band13_Clean_Infrared/);
+  assert.match(clouds, /Himawari_AHI_Band13_Clean_Infrared/);
+  assert.match(clouds, /mtg_fd:rgb_geocolour/);
   assert.match(clouds, /initSatelliteCloudContextV6134/);
-  assert.match(clouds, /refreshSatelliteCloudMaskV6140/);
+  assert.match(clouds, /refreshSatelliteCloudMaskV6150/);
   assert.match(clouds, /state\.maskTimer=setInterval/);
-  assert.match(clouds, /window\.__BP_SATELLITE_CLOUD_MASK_V6140__/);
+  assert.match(clouds, /window\.__BP_SATELLITE_CLOUD_MASK_V6150__/);
   assert.match(clouds, /bp2300:satellite-cloud-mask-updated/);
-  assert.match(clouds, /satelliteMaskIndexV6140/);
+  assert.match(clouds, /satelliteMaskIndexV6150/);
   assert.match(clouds, /satelliteCloudAnchors/);
   assert.doesNotMatch(clouds, /global satellite cloud-mask feed not yet connected/);
   assert.match(clouds, /placedBelowBuildings/);

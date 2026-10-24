@@ -333,7 +333,7 @@ function collectHeightFeatures(scene) {
   return list.filter(x => Number.isFinite(Number(x?.lng)) && Number.isFinite(Number(x?.lat)) &&
     (Number.isFinite(Number(x?.cloud_top_height_m)) || Number.isFinite(Number(x?.cloudTopHeightM))));
 }
-function makePuffGeometry(THREEless, MC, vertices, indices, lng, lat, altitude, rx, ry, rz, tint, slices = 8, stacks = 5, shapeSeed = 0, windX = 0, windY = 0, motionX = 0, motionY = 0, stormEpoch = 0) {
+function makePuffGeometry(THREEless, MC, vertices, indices, lng, lat, altitude, rx, ry, rz, tint, slices = 8, stacks = 5, shapeSeed = 0, windX = 0, windY = 0, motionX = 0, motionY = 0, stormEpoch = 0, shapeAngle = 0) {
   const c = MC.fromLngLat({ lng, lat }, Math.max(0, altitude));
   const unit = c.meterInMercatorCoordinateUnits();
   const base = vertices.length / 13;
@@ -352,7 +352,8 @@ function makePuffGeometry(THREEless, MC, vertices, indices, lng, lat, altitude, 
       const lx = Math.cos(theta) * ring * billow;
       const ly = Math.sin(theta) * ring * billow;
       const lz = sz * billow;
-      vertices.push(c.x + lx * rx * unit, c.y + ly * ry * unit, c.z + lz * rz * unit, altitude + lz * rz, lx, ly, lz, tint, windX, windY, motionX, motionY, stormEpoch);
+      const cs=Math.cos(shapeAngle),sn=Math.sin(shapeAngle),orientedX=lx*cs-ly*sn,orientedY=lx*sn+ly*cs;
+      vertices.push(c.x + orientedX * rx * unit, c.y + orientedY * ry * unit, c.z + lz * rz * unit, altitude + lz * rz, lx, ly, lz, tint, windX, windY, motionX, motionY, stormEpoch);
     }
   }
   for (let j = 0; j < stacks; j++) for (let i = 0; i < slices; i++) {
@@ -417,7 +418,7 @@ const SATELLITE_CLOUD_MASK_V6140 = Object.freeze({
   minY: -13606546.0, maxY: 13591602.0,
   earthRadiusM: 6378137
 });
-function satelliteMaskIndexV6140(mask,lng,lat){
+function satelliteMaskIndexLegacyV6140(mask,lng,lat){
   if(!mask||!Number.isFinite(lng)||!Number.isFinite(lat))return -1;
   const width=Number(mask.width)||0,height=Number(mask.height)||0;
   if(width<1||height<1||!mask.coverage)return -1;
@@ -429,7 +430,7 @@ function satelliteMaskIndexV6140(mask,lng,lat){
   const col=Math.floor(x),row=Math.floor(y);
   return row*width+col;
 }
-function satelliteMaskCellCenterV6140(mask,col,row){
+function satelliteMaskCellCenterLegacyV6140(mask,col,row){
   const x=Number(mask.minX)+(col+.5)/Number(mask.width)*(Number(mask.maxX)-Number(mask.minX));
   const y=Number(mask.maxY)-(row+.5)/Number(mask.height)*(Number(mask.maxY)-Number(mask.minY));
   return {
@@ -451,7 +452,7 @@ function ensureLiveSatelliteCloudContextV6134(map){
    if(map.isStyleLoaded?.()===false)return;
    map.off?.('load',retry);map.off?.('style.load',retry);map.off?.('styledata',retry);
    map.__bpGoesCloudStyleWaiterV6134=false;
-   ensureLiveSatelliteCloudContextV6134(map);
+   ensureLiveSatelliteCloudContextV6150(map);
   };
   map.on?.('load',retry);map.on?.('style.load',retry);map.on?.('styledata',retry);
  }
@@ -607,7 +608,7 @@ function ensureLiveSatelliteCloudContextV6134(map){
    };
    state.timer=setInterval(()=>state.refresh(false),state.refreshIntervalMs);
    map.on?.('styledata',()=>{
-    if(!map.getSource(GOES_CLOUD_SOURCE_ID_V6134)||!map.getLayer(GOES_CLOUD_LAYER_ID_V6134))ensureLiveSatelliteCloudContextV6134(map);
+    if(!map.getSource(GOES_CLOUD_SOURCE_ID_V6134)||!map.getLayer(GOES_CLOUD_LAYER_ID_V6134))ensureLiveSatelliteCloudContextV6150(map);
     else{state.placedBelowBuildings=placeBelowBuildings();state.updatedAt=Date.now()}
    });
    map.on?.('moveend',()=>state.refresh(false));
@@ -634,17 +635,179 @@ function ensureLiveSatelliteCloudContextV6134(map){
 }
 export function initSatelliteCloudContextV6134(target){
  const map=target?.map||target;
- return ensureLiveSatelliteCloudContextV6134(map);
+ return ensureLiveSatelliteCloudContextV6150(map);
 }
+
+const SATELLITE_CLOUD_SOURCE_ID_V6150='bp6150-nasa-geostationary-cloud-source';
+const SATELLITE_CLOUD_LAYER_ID_V6150='bp6150-nasa-geostationary-cloud-context';
+const EUMETSAT_CLOUD_SOURCE_ID_V6150='bp6150-eumetsat-geostationary-cloud-source';
+const EUMETSAT_CLOUD_LAYER_ID_V6150='bp6150-eumetsat-geostationary-cloud-context';
+const NASA_GIBS_WMS_3857_V6150='https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi';
+const NASA_GIBS_WMS_4326_V6150='https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi';
+const EUMETSAT_WMS_V6150='https://view.eumetsat.int/geoserver/wms';
+const SATELLITE_CLOUD_MASK_V6150=Object.freeze({width:MOBILE?640:1024,height:MOBILE?320:512,minLng:-180,maxLng:180,minLat:-85,maxLat:85});
+const SATELLITE_CLOUD_MASK_SOURCES_V6150=Object.freeze([
+ {key:'goes-east-ir',provider:'NASA GIBS',layer:'GOES-East_ABI_Band13_Clean_Infrared',centralLongitude:-75.2,kind:'infrared'},
+ {key:'goes-west-ir',provider:'NASA GIBS',layer:'GOES-West_ABI_Band13_Clean_Infrared',centralLongitude:-137.2,kind:'infrared'},
+ {key:'himawari-ir',provider:'NASA GIBS',layer:'Himawari_AHI_Band13_Clean_Infrared',centralLongitude:140.7,kind:'infrared'},
+ {key:'meteosat-0-rgb',provider:'EUMETSAT',layer:'mtg_fd:rgb_geocolour',centralLongitude:0,kind:'geocolor'},
+ {key:'meteosat-iodc-rgb',provider:'EUMETSAT',layer:'msg_iodc:rgb_natural',centralLongitude:45.5,kind:'geocolor'}
+]);
+function satelliteMaskIndexV6150(mask,lng,lat){
+ if(!mask||!Number.isFinite(lng)||!Number.isFinite(lat))return -1;
+ const w=Number(mask.width)||0,h=Number(mask.height)||0;if(w<1||h<1||!mask.coverage)return -1;
+ const x=clamp((lng-Number(mask.minLng))/Math.max(1,Number(mask.maxLng)-Number(mask.minLng)),0,.999999999)*w;
+ const y=clamp((Number(mask.maxLat)-lat)/Math.max(1,Number(mask.maxLat)-Number(mask.minLat)),0,.999999999)*h;
+ return Math.floor(y)*w+Math.floor(x);
+}
+function satelliteMaskCellCenterV6150(mask,col,row){
+ return {lng:Number(mask.minLng)+(col+.5)/Number(mask.width)*(Number(mask.maxLng)-Number(mask.minLng)),
+  lat:Number(mask.maxLat)-(row+.5)/Number(mask.height)*(Number(mask.maxLat)-Number(mask.minLat))};
+}
+function satelliteFrameEpochV6150(){return Math.floor(Date.now()/600000)*600000}
+function satelliteWmsUrlV6150(endpoint,layers,width,height,crs='EPSG:4326'){
+ const bbox=crs==='EPSG:4326'?'-180,-85,180,85':'{bbox-epsg-3857}';
+ return endpoint+'?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&LAYERS='+encodeURIComponent(layers)+
+  '&STYLES=&SRS='+encodeURIComponent(crs)+'&BBOX='+bbox+'&WIDTH='+width+'&HEIGHT='+height+
+  '&FORMAT=image/png&TRANSPARENT=TRUE&bp_refresh='+satelliteFrameEpochV6150();
+}
+function satelliteWrapLongitudeV6150(v){return ((v+540)%360)-180}
+function geostationaryFootprintVisibleV6150(lng,lat,centralLongitude){
+ return Math.cos(lat*Math.PI/180)*Math.cos(satelliteWrapLongitudeV6150(lng-centralLongitude)*Math.PI/180)>.155;
+}
+function cloudProbabilityFromImagePixelV6150(r,g,b,kind){
+ const hi=Math.max(r,g,b),lo=Math.min(r,g,b),sat=hi-lo,lum=.2126*r+.7152*g+.0722*b;
+ if(kind==='infrared')return clamp((lum-54)/162,0,1)*(1-.35*clamp((sat-40)/170,0,1));
+ const neutral=clamp((lum-88)/145,0,1)*(1-.78*clamp((sat-38)/135,0,1));
+ const cool=clamp((b-84)/155,0,1)*clamp((g-64)/150,0,1)*.55;
+ const warm=clamp((r-116)/139,0,1)*clamp((g-86)/145,0,1)*clamp((r-b-12)/115,0,1)*.40;
+ const white=clamp((lum-130)/122,0,1)*clamp(1-sat/190,0,1);
+ return clamp(Math.max(neutral,cool,warm,white),0,1);
+}
+async function fetchSatelliteSourcePixelsV6150(source,width,height,signal){
+ const endpoint=source.provider==='NASA GIBS'?NASA_GIBS_WMS_4326_V6150:EUMETSAT_WMS_V6150;
+ const url=satelliteWmsUrlV6150(endpoint,source.layer,width,height,'EPSG:4326');
+ const response=await fetch(url,{mode:'cors',cache:'no-store',signal,headers:{Accept:'image/png'}});
+ if(!response.ok)throw new Error(source.key+' HTTP '+response.status);
+ const blob=await response.blob();if(!/^image\//i.test(String(blob.type||'')))throw new Error(source.key+' returned non-image response');
+ let bitmap=null,obj=null;
+ try{
+  if(typeof createImageBitmap==='function')bitmap=await createImageBitmap(blob);
+  else{obj=URL.createObjectURL(blob);bitmap=await new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>resolve(im);im.onerror=()=>reject(new Error(source.key+' decode failed'));im.src=obj})}
+  const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;
+  const ctx=canvas.getContext('2d',{willReadFrequently:true});if(!ctx)throw Error('Cloud analysis canvas unavailable');
+  ctx.drawImage(bitmap,0,0,width,height);return {source,rgba:ctx.getImageData(0,0,width,height).data};
+ }finally{try{bitmap?.close?.()}catch(_){}if(obj)try{URL.revokeObjectURL(obj)}catch(_){}}
+}
+function nasaGeoColorTilesV6150(){
+ return satelliteWmsUrlV6150(NASA_GIBS_WMS_3857_V6150,'GOES-West_ABI_GeoColor,GOES-East_ABI_GeoColor,Himawari_AHI_Air_Mass',256,256,'EPSG:3857');
+}
+function eumetsatGeoColorTilesV6150(){
+ return satelliteWmsUrlV6150(EUMETSAT_WMS_V6150,'mtg_fd:rgb_geocolour,msg_iodc:rgb_natural',256,256,'EPSG:3857');
+}
+function ensureLiveSatelliteCloudContextV6150(map){
+ if(!map?.addSource||!map?.getLayer)return false;
+ const ready=map.isStyleLoaded?.()!==false;
+ if(!ready&&!map.__bpSatelliteCloudStyleWaiterV6150){
+  map.__bpSatelliteCloudStyleWaiterV6150=true;
+  const retry=()=>{if(map.isStyleLoaded?.()===false)return;map.off?.('load',retry);map.off?.('style.load',retry);map.off?.('styledata',retry);map.__bpSatelliteCloudStyleWaiterV6150=false;ensureLiveSatelliteCloudContextV6150(map)};
+  map.on?.('load',retry);map.on?.('style.load',retry);map.on?.('styledata',retry);
+ }
+ const refreshSatelliteCloudMaskV6150=async(state,force=false)=>{
+  if(document.hidden)return false;if(state.maskRefreshPromise)return state.maskRefreshPromise;
+  const now=Date.now();if(!force&&now-Number(state.maskLastAttemptAt||0)<480000)return false;
+  state.maskLastAttemptAt=now;state.maskStatus='fetching';state.maskLastError=null;
+  state.maskRefreshPromise=(async()=>{
+   const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),28000);
+   try{
+    const w=SATELLITE_CLOUD_MASK_V6150.width,h=SATELLITE_CLOUD_MASK_V6150.height;
+    const results=await Promise.allSettled(SATELLITE_CLOUD_MASK_SOURCES_V6150.map(source=>fetchSatelliteSourcePixelsV6150(source,w,h,controller.signal)));
+    const images=results.filter(x=>x.status==='fulfilled').map(x=>x.value);
+    const failures=results.filter(x=>x.status==='rejected').map(x=>String(x.reason?.message||x.reason).slice(0,140));
+    if(!images.length)throw Error('All NASA/EUMETSAT cloud image requests failed: '+failures.join('; '));
+    const coverage=new Uint8Array(w*h),probability=new Uint8Array(w*h),sourceDiagnostics=[];
+    for(const image of images){
+     const src=image.source,rgba=image.rgba;let sourceCells=0,sourceCloudCells=0;
+     for(let row=0;row<h;row++){
+      const lat=SATELLITE_CLOUD_MASK_V6150.maxLat-(row+.5)/h*(SATELLITE_CLOUD_MASK_V6150.maxLat-SATELLITE_CLOUD_MASK_V6150.minLat);
+      for(let col=0;col<w;col++){
+       const lng=SATELLITE_CLOUD_MASK_V6150.minLng+(col+.5)/w*(SATELLITE_CLOUD_MASK_V6150.maxLng-SATELLITE_CLOUD_MASK_V6150.minLng);
+       if(!geostationaryFootprintVisibleV6150(lng,lat,src.centralLongitude))continue;
+       const i=row*w+col,k=i*4;if(rgba[k+3]<12)continue;
+       const p=cloudProbabilityFromImagePixelV6150(rgba[k],rgba[k+1],rgba[k+2],src.kind);
+       coverage[i]=255;sourceCells++;if(p*255>probability[i])probability[i]=Math.round(p*255);if(p>=.30)sourceCloudCells++;
+      }
+     }
+     sourceDiagnostics.push({key:src.key,provider:src.provider,layer:src.layer,coverageCells:sourceCells,cloudCells:sourceCloudCells});
+    }
+    let coverageCells=0,cloudCells=0;for(let i=0;i<coverage.length;i++){if(coverage[i])coverageCells++;if(coverage[i]&&probability[i]>=72)cloudCells++}
+    if(coverageCells<600)throw Error('Multi-satellite mosaic footprint too small: '+coverageCells+' cells');
+    if(cloudCells<20)throw Error('Satellite cloud classifier too sparse: '+cloudCells+' cells');
+    const prev=window.__BP_SATELLITE_CLOUD_MASK_V6150__||window.__BP_SATELLITE_CLOUD_MASK_V6140__;
+    const mask={version:6150,map,width:w,height:h,minLng:-180,maxLng:180,minLat:-85,maxLat:85,coverage,probability,coverageCells,cloudCells,
+     coverageFraction:coverageCells/(w*h),source:'NASA GIBS GOES-East/West + Himawari infrared and EUMETSAT Meteosat/Indian Ocean RGB satellite mosaic',
+     sourceUrl:'NASA GIBS WMS + EUMETSAT GeoServer WMS; latest available image from each provider',
+     sourceLayers:images.map(x=>({key:x.source.key,provider:x.source.provider,layer:x.source.layer})),sourceDiagnostics,
+     providerCount:new Set(images.map(x=>x.source.provider)).size,sourceEpoch:Date.now(),updatedAt:Date.now(),generation:(Number(prev?.generation)||0)+1,
+     cloudProbabilityMethod:'Satellite RGB/infrared-derived likelihood; not an official scientific cloud-mask product',
+     cloudHeightSource:'Cloud bases, tops and morphology are modeled estimates; imagery does not provide measured per-cloud heights',lastError:null};
+    window.__BP_SATELLITE_CLOUD_MASK_V6150__=mask;window.__BP_SATELLITE_CLOUD_MASK_V6140__=mask;
+    state.maskStatus='fresh';state.maskLastSuccessAt=mask.updatedAt;state.maskGeneration=mask.generation;state.maskCoverageCells=coverageCells;
+    state.maskCloudCells=cloudCells;state.maskCoverageFraction=mask.coverageFraction;state.maskSourceDiagnostics=sourceDiagnostics;state.maskProviderCount=mask.providerCount;state.maskWarnings=failures;
+    try{window.dispatchEvent(new CustomEvent('bp2300:satellite-cloud-mask-updated',{detail:{map,generation:mask.generation,coverageCells,cloudCells,coverageFraction:mask.coverageFraction,providers:mask.providerCount,updatedAt:mask.updatedAt}}))}catch(_){}
+    map.triggerRepaint?.();return true;
+   }catch(error){state.maskStatus=Number(window.__BP_SATELLITE_CLOUD_MASK_V6150__?.version)>=6150?'stale':'unavailable';state.maskLastError=String(error?.message||error).slice(0,320);return false}
+   finally{clearTimeout(timeout);state.maskRefreshPromise=null}
+  })();return state.maskRefreshPromise;
+ };
+ const groundLayer=()=>{const ls=map.getStyle?.()?.layers||[];return ['bp-v6132-ground-radar','bp-landing-v6132-ground-radar','gta-context-building-shadow','gta-context-buildings','gta-landmark3d-base','gta-bridge3d-pier','gta-place-label'].find(id=>map.getLayer(id))||ls.find(x=>x.type==='fill-extrusion')?.id||ls.find(x=>x.type==='symbol')?.id};
+ const placeUnder=id=>{try{const layers=map.getStyle?.()?.layers||[],at=layers.findIndex(x=>x.id===id),before=groundLayer(),bt=before?layers.findIndex(x=>x.id===before):-1;if(at>=0&&bt>=0&&at>bt)map.moveLayer(id,before);const ls=map.getStyle?.()?.layers||[];return !!map.getLayer(id)&&(!before||ls.findIndex(x=>x.id===id)<ls.findIndex(x=>x.id===before))}catch(_){return false}};
+ try{
+  const before=groundLayer();
+  if(ready){
+   if(!map.getSource(SATELLITE_CLOUD_SOURCE_ID_V6150))map.addSource(SATELLITE_CLOUD_SOURCE_ID_V6150,{type:'raster',tiles:[nasaGeoColorTilesV6150()],tileSize:256,minzoom:0,maxzoom:14,bounds:[-180,-85,180,85],attribution:'NASA EOSDIS GIBS · GOES and Himawari satellite imagery'});
+   if(!map.getLayer(SATELLITE_CLOUD_LAYER_ID_V6150))map.addLayer({id:SATELLITE_CLOUD_LAYER_ID_V6150,type:'raster',source:SATELLITE_CLOUD_SOURCE_ID_V6150,minzoom:0,maxzoom:24,layout:{visibility:'visible'},paint:{'raster-opacity':['interpolate',['linear'],['zoom'],0,.34,1.2,.30,2.5,.23,4,.15,6,.06,8.2,0],'raster-saturation':.06,'raster-contrast':.08,'raster-fade-duration':0,'raster-resampling':'linear'}},before);
+   if(!map.getSource(EUMETSAT_CLOUD_SOURCE_ID_V6150))map.addSource(EUMETSAT_CLOUD_SOURCE_ID_V6150,{type:'raster',tiles:[eumetsatGeoColorTilesV6150()],tileSize:256,minzoom:0,maxzoom:14,bounds:[-180,-85,180,85],attribution:'EUMETSAT · Meteosat satellite imagery'});
+   if(!map.getLayer(EUMETSAT_CLOUD_LAYER_ID_V6150))map.addLayer({id:EUMETSAT_CLOUD_LAYER_ID_V6150,type:'raster',source:EUMETSAT_CLOUD_SOURCE_ID_V6150,minzoom:0,maxzoom:24,layout:{visibility:'visible'},paint:{'raster-opacity':['interpolate',['linear'],['zoom'],0,.25,1.2,.22,2.5,.18,4,.11,6,.04,8.2,0],'raster-saturation':.03,'raster-contrast':.05,'raster-fade-duration':0,'raster-resampling':'linear'}},before);
+  }
+  const placedBelowLayers={nasa:placeUnder(SATELLITE_CLOUD_LAYER_ID_V6150),eumetsat:placeUnder(EUMETSAT_CLOUD_LAYER_ID_V6150)};
+  if(ready&&map.getLayer(SATELLITE_CLOUD_LAYER_ID_V6150)&&map.getLayer(EUMETSAT_CLOUD_LAYER_ID_V6150)){
+   try{if(map.getLayer('bp6133-noaa-geocolor-cloud-context'))map.removeLayer('bp6133-noaa-geocolor-cloud-context')}catch(_){}
+   try{if(map.getSource('bp6133-noaa-geocolor-source'))map.removeSource('bp6133-noaa-geocolor-source')}catch(_){}
+  }
+  let state=window.__BP_SATELLITE_CLOUD_CONTEXT_V6150__;
+  const priorContext=window.__BP_GOES_CLOUD_CONTEXT_V6134__;
+  if((!state||state.map!==map||Number(state.version)<6150)&&priorContext?.map===map){try{if(priorContext.timer)clearInterval(priorContext.timer);if(priorContext.maskTimer)clearInterval(priorContext.maskTimer)}catch(_){}state=null}
+  if(!state||state.map!==map){
+   try{if(state?.timer)clearInterval(state.timer);if(state?.maskTimer)clearInterval(state.maskTimer)}catch(_){}
+   state={version:6150,map,enabled:true,sourceId:SATELLITE_CLOUD_SOURCE_ID_V6150,layerId:SATELLITE_CLOUD_LAYER_ID_V6150,eumetsatSourceId:EUMETSAT_CLOUD_SOURCE_ID_V6150,eumetsatLayerId:EUMETSAT_CLOUD_LAYER_ID_V6150,source:'NASA GIBS + EUMETSAT multi-satellite cloud mosaic',groundDraped:true,refreshIntervalMs:600000,requestedFrameEpoch:satelliteFrameEpochV6150(),updatedAt:Date.now(),maskStatus:'pending',placedBelowBuildings:!!(placedBelowLayers.nasa&&placedBelowLayers.eumetsat),placedBelowBuildingsByLayer:placedBelowLayers};
+   state.refresh=(force=false)=>{if(document.hidden)return false;try{const epoch=satelliteFrameEpochV6150(),a=map.getSource(SATELLITE_CLOUD_SOURCE_ID_V6150),b=map.getSource(EUMETSAT_CLOUD_SOURCE_ID_V6150);if(!a?.setTiles||!b?.setTiles)return false;if(!force&&epoch===state.requestedFrameEpoch){map.triggerRepaint?.();return true}a.setTiles([nasaGeoColorTilesV6150()]);b.setTiles([eumetsatGeoColorTilesV6150()]);state.requestedFrameEpoch=epoch;state.updatedAt=Date.now();map.triggerRepaint?.();return true}catch(e){state.lastError=String(e?.message||e).slice(0,180);return false}};
+   state.timer=setInterval(()=>state.refresh(false),600000);
+   map.on?.('styledata',()=>{if(!map.getSource(SATELLITE_CLOUD_SOURCE_ID_V6150)||!map.getLayer(SATELLITE_CLOUD_LAYER_ID_V6150)||!map.getSource(EUMETSAT_CLOUD_SOURCE_ID_V6150)||!map.getLayer(EUMETSAT_CLOUD_LAYER_ID_V6150))ensureLiveSatelliteCloudContextV6150(map);else {state.placedBelowBuildingsByLayer={nasa:placeUnder(SATELLITE_CLOUD_LAYER_ID_V6150),eumetsat:placeUnder(EUMETSAT_CLOUD_LAYER_ID_V6150)};state.placedBelowBuildings=!!(state.placedBelowBuildingsByLayer.nasa&&state.placedBelowBuildingsByLayer.eumetsat)}});
+   map.on?.('moveend',()=>state.refresh(false));document.addEventListener('visibilitychange',()=>{if(!document.hidden)state.refresh(false)});
+   window.__BP_SATELLITE_CLOUD_CONTEXT_V6150__=state;window.__BP_GOES_CLOUD_CONTEXT_V6134__=state;
+  }
+  state.refreshMask=(force=false)=>refreshSatelliteCloudMaskV6150(state,force);
+  if(state.maskTimer)clearInterval(state.maskTimer);
+  state.maskTimer=setInterval(()=>{state.refresh(false);void state.refreshMask(false)},600000);
+  if(state.maskVisibilityHandler)document.removeEventListener('visibilitychange',state.maskVisibilityHandler);
+  state.maskVisibilityHandler=()=>{if(!document.hidden){state.refresh(true);void state.refreshMask(true)}};
+  document.addEventListener('visibilitychange',state.maskVisibilityHandler);
+  if(!state.maskInitialFetchStarted){state.maskInitialFetchStarted=true;void state.refreshMask(true)}
+  window.__BP_SATELLITE_CLOUD_CONTEXT_V6150__=state;window.__BP_GOES_CLOUD_CONTEXT_V6134__=state;return true;
+ }catch(e){window.__BP_SATELLITE_CLOUD_CONTEXT_V6150_ERROR__=String(e?.message||e).slice(0,220);return false}
+}
+export function initSatelliteCloudContextV6150(target){return ensureLiveSatelliteCloudContextV6150(target?.map||target)}
+
 export function initSkyClouds(target) {
   const map = target?.map || target;
   const container = map?.getContainer?.();
   const MC = window.maplibregl?.MercatorCoordinate || window.MapLibreGL?.MercatorCoordinate;
   if (!map || !container || !MC?.fromLngLat) return null;
-  ensureLiveSatelliteCloudContextV6134(map);
+  ensureLiveSatelliteCloudContextV6150(map);
   const existingCloudController = window.__BP_SKY_CLOUDS_V5908__;
   if (existingCloudController?.map === map) {
-    const existingState = window.__BP_SKY_CLOUDS_STATE_V6079__ || window.__BP_SKY_CLOUDS_STATE_V6077__ || window.__BP_SKY_CLOUDS_STATE_V6076__ ||
+    const existingState = window.__BP_SKY_CLOUDS_STATE_V6150__ || window.__BP_SKY_CLOUDS_STATE_V6079__ || window.__BP_SKY_CLOUDS_STATE_V6077__ || window.__BP_SKY_CLOUDS_STATE_V6076__ ||
       window.__BP_SKY_CLOUDS_STATE_V6075__ ||
       window.__BP_SKY_CLOUDS_STATE_V6074__ ||
       window.__BP_SKY_CLOUDS_STATE_V6073__ ||
@@ -652,8 +815,8 @@ export function initSkyClouds(target) {
       existingCloudController.state || null;
     // Cache-busted modules still share this global controller slot. Never silently
     // return a legacy controller whose geometry predates the requested cloud field.
-    if (Number(existingCloudController.version) >= 6140 &&
-        Number(existingState?.coverageVersion || existingState?.version) >= 6140) {
+    if (Number(existingCloudController.version) >= 6150 &&
+        Number(existingState?.coverageVersion || existingState?.version) >= 6150) {
       return existingCloudController;
     }
     try { existingCloudController.destroy?.(); } catch (error) {
@@ -1014,12 +1177,12 @@ export function initSkyClouds(target) {
   }
 
   function publishState() {
-    const satelliteMask = window.__BP_SATELLITE_CLOUD_MASK_V6140__;
+    const satelliteMask = window.__BP_SATELLITE_CLOUD_MASK_V6150__ || window.__BP_SATELLITE_CLOUD_MASK_V6140__;
     const satelliteMaskAgeMs = satelliteMask?.map===map && satelliteMask?.updatedAt ? Math.max(0,Date.now()-Number(satelliteMask.updatedAt)) : null;
-    const satelliteMaskUsable = satelliteMask?.map===map && satelliteMaskAgeMs!=null && satelliteMaskAgeMs<3600000;
+    const satelliteMaskUsable = Number(satelliteMask?.version)>=6150 && satelliteMask?.map===map && satelliteMaskAgeMs!=null && satelliteMaskAgeMs<3600000;
     const satelliteMaskStatus = satelliteMaskUsable ? 'fresh-observation-derived' : (window.__BP_GOES_CLOUD_CONTEXT_V6134__?.maskStatus || 'procedural-fallback');
     const state = {
-      version: 6140, map, enabled, visible: enabled && !document.hidden,
+      version: 6150, map, enabled, visible: enabled && !document.hidden,
       cloudShadowLayerAttached: !!map.getLayer?.(SHADOW_LAYER_ID), cloudShadowFeatureCount: shadowFeatureCount,
       cloudShadowUpdatedAt: shadowLastUpdateAt, cloudShadowHeightResolvedWindCount: shadowWindSourceCount,
       cloudShadowLayerError: shadowLayerError, weatherSceneGeneratedAt: getScene()?.generated_at || getScene()?.updated_at || null,
@@ -1027,7 +1190,7 @@ export function initSkyClouds(target) {
       renderer: 'shared MapLibre WebGL context; storms use world-anchored raymarched volume proxies',
       stormRenderingArchitecture: 'Earth-coordinate storm geometry in fixed metres, source-centre anchored, with shader-interpolated source-motion vectors and no zoom-driven storm-size boosts',
       stormVolumeProxyVertices, hurricaneVolumeProxyVertices, tornadoVolumeProxyVertices, hurricaneSurfaceCloudVertices, tornadoSurfaceMeshVertices, tornadoSurfaceVerticesSubmitted, postTropicalSurfaceCloudVertices, postTropicalStormCount, postTropicalCloudShieldRadiusKm, josephineHurricaneGeometryCount, josephineVisualEyeRadiusKm, josephineVisualShieldRadiusKm, sourceHurricaneVisualEyeRadiusKm, josephineSourceClassification: (()=>{const j=(Array.isArray(getScene()?.storms)?getScene().storms:[]).find(isJosephineCyclone);const p=j?.properties||j||{};return String(p.official_classification||p.classification||p.classificationCode||p.type||'unknown');})(), stormRaymarchStepBudget,
-      cloudFormations: formationCount, globalCloudFormations: globalCloudGeometryCache?.formationCount || 0, coverageVersion: 6140, globalStormMaskCount: globalCloudGeometryCache?.stormEyeMaskCount || 0, globalCloudLodBand: globalCloudGeometryCache?.cloudLodBand || 'unbuilt', globalStormLod, sourceStormCount, sourceTornadoAlertCount, modeledHurricaneVisualCount, modeledTornadoVisualCount, hurricaneSpiralRibbonVertices, stormVisualProvenance: (modeledHurricaneVisualCount || modeledTornadoVisualCount) ? 'modeled fallback cloud structures are visual examples, not source-backed live weather or alerts' : (sourceStormCount ? 'source-anchored storm bodies; tropical cyclones use eye/spiral geometry, post-tropical lows use asymmetric cloud shields except the Josephine-specific visual-compatibility override; official classification is preserved, no synthetic storm centres' : 'no source-backed storm record; synthetic storm fallbacks disabled'), globalMacroRadiusMinKm: globalCloudGeometryCache?.macroRadiusMinKm || 0, globalMacroRadiusMaxKm: globalCloudGeometryCache?.macroRadiusMaxKm || 0, globalThinLayerSlices: globalCloudGeometryCache?.thinLayerSlices || 0, globalThinLayerStacks: globalCloudGeometryCache?.thinLayerStacks || 0, globalSingleLayerSlices: globalCloudGeometryCache?.singleLayerSlices || 0, globalSingleLayerStacks: globalCloudGeometryCache?.singleLayerStacks || 0, hurricaneSpiralCloudCenters, hurricaneEyeWallCloudCenters, hurricaneEyeRadiusKm, hurricaneEyeRadiusSource, hurricaneCloudShieldRadiusKm, hurricaneVisualEyeRadiusKm, hurricaneVisualShieldRadiusKm, tornadoVisualHeightKm, tornadoVisualTopRadiusKm, tornadoVisualBoost, globalHeightResolvedWindPuffs: globalCloudGeometryCache?.heightResolvedWindPuffs || 0, globalModelledWindPuffs: globalCloudGeometryCache?.modelledWindPuffs || 0, localWindSourcePuffs, localWindModelledPuffs, globalMacroFormations: globalCloudGeometryCache?.macroFormationCount || 0, globalFineFormations: globalCloudGeometryCache?.fineFormationCount || 0, globalIsolatedFormations: globalCloudGeometryCache?.isolatedFormationCount || 0, globalThinLayerFormations: globalCloudGeometryCache?.thinLayerFormationCount || 0, globalCloudPuffs: globalCloudGeometryCache?.puffCount || 0, globalTerrainQuerySamples: terrainHeightKnownSamples, terrainRelativeCloudBases: terrainQueryAvailable, cloudMotion: (globalCloudGeometryCache?.heightResolvedWindPuffs || 0) > 0 ? 'Height-resolved source wind advects matched cloud puffs; modelled atmospheric flow fills unmatched locations' : 'Height/latitude-aware modelled atmospheric flow; no source-backed global upper-air wind grid is connected',
+      cloudFormations: formationCount, globalCloudFormations: globalCloudGeometryCache?.formationCount || 0, coverageVersion: 6150, globalStormMaskCount: globalCloudGeometryCache?.stormEyeMaskCount || 0, globalCloudLodBand: globalCloudGeometryCache?.cloudLodBand || 'unbuilt', globalStormLod, sourceStormCount, sourceTornadoAlertCount, modeledHurricaneVisualCount, modeledTornadoVisualCount, hurricaneSpiralRibbonVertices, stormVisualProvenance: (modeledHurricaneVisualCount || modeledTornadoVisualCount) ? 'modeled fallback cloud structures are visual examples, not source-backed live weather or alerts' : (sourceStormCount ? 'source-anchored storm bodies; tropical cyclones use eye/spiral geometry, post-tropical lows use asymmetric cloud shields except the Josephine-specific visual-compatibility override; official classification is preserved, no synthetic storm centres' : 'no source-backed storm record; synthetic storm fallbacks disabled'), globalMacroRadiusMinKm: globalCloudGeometryCache?.macroRadiusMinKm || 0, globalMacroRadiusMaxKm: globalCloudGeometryCache?.macroRadiusMaxKm || 0, globalThinLayerSlices: globalCloudGeometryCache?.thinLayerSlices || 0, globalThinLayerStacks: globalCloudGeometryCache?.thinLayerStacks || 0, globalSingleLayerSlices: globalCloudGeometryCache?.singleLayerSlices || 0, globalSingleLayerStacks: globalCloudGeometryCache?.singleLayerStacks || 0, hurricaneSpiralCloudCenters, hurricaneEyeWallCloudCenters, hurricaneEyeRadiusKm, hurricaneEyeRadiusSource, hurricaneCloudShieldRadiusKm, hurricaneVisualEyeRadiusKm, hurricaneVisualShieldRadiusKm, tornadoVisualHeightKm, tornadoVisualTopRadiusKm, tornadoVisualBoost, globalHeightResolvedWindPuffs: globalCloudGeometryCache?.heightResolvedWindPuffs || 0, globalModelledWindPuffs: globalCloudGeometryCache?.modelledWindPuffs || 0, localWindSourcePuffs, localWindModelledPuffs, globalMacroFormations: globalCloudGeometryCache?.macroFormationCount || 0, globalFineFormations: globalCloudGeometryCache?.fineFormationCount || 0, globalIsolatedFormations: globalCloudGeometryCache?.isolatedFormationCount || 0, globalThinLayerFormations: globalCloudGeometryCache?.thinLayerFormationCount || 0, globalCloudPuffs: globalCloudGeometryCache?.puffCount || 0, globalTerrainQuerySamples: terrainHeightKnownSamples, terrainRelativeCloudBases: terrainQueryAvailable, cloudMotion: (globalCloudGeometryCache?.heightResolvedWindPuffs || 0) > 0 ? 'Height-resolved source wind advects matched cloud puffs; modelled atmospheric flow fills unmatched locations' : 'Height/latitude-aware modelled atmospheric flow; no source-backed global upper-air wind grid is connected',
       stormMotionModel: 'Uses feed-provided motion where present; otherwise derives speed and heading from consecutive source fixes. No position interpolation is invented without track history.',
       projectionMode: 'MapLibre shaderData projectTileFor3D', projectionShaderVariants: programCache.size,
       projectionShaderVariantNames: Array.from(programCache.keys()),
@@ -1037,7 +1200,7 @@ export function initSkyClouds(target) {
         : 'Procedural fallback remains active until a usable NOAA GOES East/West image-derived cloud mask is available; last successful mask is retained for diagnosis',
       satelliteCloudMaskVersion: satelliteMask?.version || null,
       satelliteCloudMaskStatus: satelliteMaskStatus,
-      satelliteCloudMaskSource: satelliteMask?.source || 'NOAA NESDIS MERGEDGC_current GeoColor (not yet sampled)',
+      satelliteCloudMaskSource: satelliteMask?.source || 'NASA GIBS GOES/Himawari + EUMETSAT Meteosat satellite mosaic (not yet sampled)',
       satelliteCloudMaskUpdatedAt: satelliteMask?.updatedAt || null,
       satelliteCloudMaskAgeMs: satelliteMaskAgeMs,
       satelliteCloudMaskGeneration: satelliteMask?.generation || 0,
@@ -1062,6 +1225,7 @@ export function initSkyClouds(target) {
       rendererError, zoom: number(map.getZoom?.()), pitch: number(map.getPitch?.()), updatedAt: Date.now()
     };
     window.__BP_SKY_CLOUDS_STATE_V5908__ = state;
+    window.__BP_SKY_CLOUDS_STATE_V6150__ = state;
     window.__BP_SKY_CLOUDS_STATE_V6140__ = state;
     window.__BP_SKY_CLOUDS_STATE_V6090__ = state;
     window.__BP_SKY_CLOUDS_STATE_V6094__ = state;
@@ -1301,16 +1465,16 @@ export function initSkyClouds(target) {
 
   function buildGlobalCloudGeometry() {
     const windScene = getScene();
-    const satelliteMask = window.__BP_SATELLITE_CLOUD_MASK_V6140__;
+    const satelliteMask = window.__BP_SATELLITE_CLOUD_MASK_V6150__ || window.__BP_SATELLITE_CLOUD_MASK_V6140__;
     const satelliteMaskAgeMs = satelliteMask?.updatedAt ? Math.max(0,Date.now()-Number(satelliteMask.updatedAt)) : Infinity;
-    const satelliteMaskReady = satelliteMask?.map===map && satelliteMaskAgeMs<3600000 &&
+    const satelliteMaskReady = Number(satelliteMask?.version)>=6150 && satelliteMask?.map===map && satelliteMaskAgeMs<3600000 &&
       Number(satelliteMask.coverageCells)>=600 && Number(satelliteMask.cloudCells)>=20 &&
       satelliteMask.coverage?.length===Number(satelliteMask.width)*Number(satelliteMask.height) &&
       satelliteMask.probability?.length===Number(satelliteMask.width)*Number(satelliteMask.height);
     const satelliteMaskGeneration = satelliteMaskReady ? Number(satelliteMask.generation)||0 : 0;
     const satelliteCoverageAt = (lng,lat) => {
       if(!satelliteMaskReady)return false;
-      const idx=satelliteMaskIndexV6140(satelliteMask,lng,lat);
+      const idx=satelliteMaskIndexV6150(satelliteMask,lng,lat);
       return idx>=0 && Number(satelliteMask.coverage[idx])>=192;
     };
     const zoom = number(map.getZoom?.(), 10);
@@ -1334,12 +1498,12 @@ export function initSkyClouds(target) {
     globalCloudGeometryCache = null;
     const vertices = [], indices = [], macroCandidates = [], shadowAnchors = [];
     const satelliteCloudAnchors = [];
-    const satelliteMaxClouds = MOBILE ? 320 : 480;
-    const satellitePuffVertexCount = ((MOBILE ? 6 : 7) + 1) * 3;
+    const satelliteMaxClouds = MOBILE ? 520 : 980;
+    const satellitePuffVertexCount = (MOBILE ? 7 : 9) * (MOBILE ? 5 : 6);
     const satelliteVertexReserve = satelliteMaskReady ? satelliteMaxClouds * satellitePuffVertexCount : 0;
     let heightResolvedWindPuffs = 0, modelledWindPuffs = 0, globalPuffCount = 0;
     const eyeMaskRadius=st=>cloudLodBand==='global'?Math.max(st.eyeRadiusM,90000):cloudLodBand==='regional'?Math.max(st.eyeRadiusM,45000):st.eyeRadiusM;
-    const addGlobalPuff = (lng,lat,altitude,rx,ry,rz,tint,slices,stacks,seed,sourceDriven=false) => {
+    const addGlobalPuff = (lng,lat,altitude,rx,ry,rz,tint,slices,stacks,seed,sourceDriven=false,shapeAngle=0) => {
       if(!sourceDriven && satelliteCoverageAt(lng,lat))return false;
       const requiredVertices=(slices+1)*(stacks+1);
       const vertexLimit=sourceDriven?65400:Math.max(0,65400-satelliteVertexReserve);
@@ -1352,7 +1516,7 @@ export function initSkyClouds(target) {
       }
       const wind=cloudWindVectorFor(lng,lat,altitude,windScene);
       if(wind.sourceBacked)heightResolvedWindPuffs++;else modelledWindPuffs++;
-      makePuffGeometry(null,MC,vertices,indices,lng,lat,altitude,safeRx,safeRy,rz,tint,slices,stacks,seed,wind.dx,wind.dy);
+      makePuffGeometry(null,MC,vertices,indices,lng,lat,altitude,safeRx,safeRy,rz,tint,slices,stacks,seed,wind.dx,wind.dy,0,0,0,shapeAngle);
       globalPuffCount++;
       return true;
     };
@@ -1513,45 +1677,41 @@ export function initSkyClouds(target) {
     // below are explicit visualization estimates. New imagery replaces this field automatically.
     let satelliteCandidateCount = 0;
     if(satelliteMaskReady){
-      const coverage=satelliteMask.coverage,probability=satelliteMask.probability;
-      const width=Number(satelliteMask.width),height=Number(satelliteMask.height),candidates=[];
-      for(let row=0;row<height;row++)for(let col=0;col<width;col++){
-        const i=row*width+col;
-        if(Number(coverage[i])<192||Number(probability[i])<110)continue;
-        const point=satelliteMaskCellCenterV6140(satelliteMask,col,row);
-        if(!Number.isFinite(point.lng)||!Number.isFinite(point.lat)||Math.abs(point.lat)>76.2)continue;
-        const p=Number(probability[i])/255;
-        candidates.push({...point,p,col,row,rank:p+hash(col,row,Number(satelliteMask.generation)||0)*0.055});
+      const coverage=satelliteMask.coverage,probability=satelliteMask.probability,width=Number(satelliteMask.width),height=Number(satelliteMask.height);
+      const pAt=(x,y)=>x<0||x>=width||y<0||y>=height?0:probability[y*width+x]/255,candidates=[];
+      for(let row=1;row<height-1;row++)for(let col=1;col<width-1;col++){
+        const i=row*width+col;if(Number(coverage[i])<192)continue;const raw=Number(probability[i])/255;if(raw<.24)continue;
+        const left=pAt(col-1,row),right=pAt(col+1,row),above=pAt(col,row-1),below=pAt(col,row+1);
+        let sum=0,n=0;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){sum+=pAt(col+dx,row+dy);n++}
+        const mean=sum/n,gradient=clamp((Math.abs(right-left)+Math.abs(below-above))*1.6,0,1),p=clamp(raw*.72+mean*.28,0,1);
+        if(p<.275&&gradient<.06)continue;const point=satelliteMaskCellCenterV6150(satelliteMask,col,row);
+        if(!Number.isFinite(point.lng)||!Number.isFinite(point.lat)||Math.abs(point.lat)>84.5)continue;
+        const seed=hash(col,row,Number(satelliteMask.generation)||0),thin=p<.47||(p<.66&&gradient>.56);
+        candidates.push({...point,p,gradient,col,row,left,right,above,below,thin,tall:p>=.78,rank:p*.68+mean*.16+gradient*.11+seed*.05});
       }
-      satelliteCandidateCount=candidates.length;
-      candidates.sort((a,b)=>b.rank-a.rank);
-      const selected=[];
-      const minimumSpacingM=MOBILE?92000:76000;
-      for(const q of candidates){
-        if(satelliteCloudAnchors.length>=satelliteMaxClouds)break;
-        if(selected.some(s=>cloudDistanceMeters(s.lng,s.lat,q.lng,q.lat)<minimumSpacingM))continue;
-        const ground=terrainElevationAt(q.lng,q.lat);
-        const cloudBaseAglM=clamp(1050+(1-q.p)*1900,900,3000);
-        const cloudTopAglM=clamp(5200+q.p*6500,6500,12400);
-        const radiusM=clamp(41000+q.p*52000,43000,105000);
-        const altitude=ground+cloudBaseAglM+(cloudTopAglM-cloudBaseAglM)*0.52;
-        const vertical=(cloudTopAglM-cloudBaseAglM)*0.47;
-        const rendered=addGlobalPuff(q.lng,q.lat,altitude,radiusM,radiusM*(0.62+q.p*0.15),vertical,
-          0.52+q.p*0.25,MOBILE?6:7,2,hash(q.col,q.row,6140+Number(satelliteMask.generation||0)),true);
-        if(!rendered)continue;
-        selected.push(q);
-        satelliteCloudAnchors.push({
-          lng:q.lng,lat:q.lat,radiusM:clamp(radiusM*0.78,25000,88000),
-          cloudBaseAglM,cloudTopAglM,cloudBaseM:ground+cloudBaseAglM,cloudTopM:ground+cloudTopAglM,
-          probability:q.p,source:'NOAA GOES East/West GeoColor-derived cloud-location probability',
-          cloudHeightSource:'modeled visualization prior; no measured cloud-top field in GeoColor',
-          geometryVersion:6140,cloudMaskGeneration:satelliteMaskGeneration
-        });
-        if(satelliteCloudAnchors.length%7===0&&shadowAnchors.length<(MOBILE?70:112)){
-          const shadow=makeGroundShadowAnchor(q.lng,q.lat,altitude,radiusM*0.72,'satellite-cloud',windScene);
-          if(shadow)shadowAnchors.push(shadow);
-        }
-      }
+      satelliteCandidateCount=candidates.length;candidates.sort((a,b)=>b.rank-a.rank);
+      const chosen=[],minGap=MOBILE?17000:13000,latCell=minGap/111320,buckets=new Map();
+      const bucket=(lng,lat)=>{const y=Math.floor((lat+90)/latCell),mid=(y+.5)*latCell-90,cols=Math.max(1,Math.round(40075016.68557849*Math.max(.08,Math.cos(mid*Math.PI/180))/minGap));return {y,x:Math.floor((((lng+180)%360+360)%360)/360*cols),cols}};
+      const crowded=q=>{const b=bucket(q.lng,q.lat);for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){const y=b.y+dy,mid=(y+.5)*latCell-90,cols=Math.max(1,Math.round(40075016.68557849*Math.max(.08,Math.cos(mid*Math.PI/180))/minGap));let x=(b.x+dx)%cols;if(x<0)x+=cols;for(const o of buckets.get(y+':'+x)||[])if(cloudDistanceMeters(o.lng,o.lat,q.lng,q.lat)<minGap)return true}return false};
+      const reserve=q=>{const b=bucket(q.lng,q.lat),k=b.y+':'+b.x;if(!buckets.has(k))buckets.set(k,[]);buckets.get(k).push(q)};
+      const addSatellite=q=>{
+        if(chosen.length>=satelliteMaxClouds||crowded(q))return false;
+        const ground=terrainElevationAt(q.lng,q.lat),h0=hash(q.col,q.row,1201),h1=hash(q.col,q.row,1202),h2=hash(q.col,q.row,1203);
+        let base,top,radius,rx,ry,vertical,tint,cloudType;
+        if(q.thin){base=5000+h0*2800;top=clamp(base+850+h1*2700,5600,11200);radius=clamp(62000+h2*82000,52000,148000);rx=radius;ry=radius*(.13+h1*.21);vertical=Math.max(420,(top-base)*.50);tint=.12;cloudType='high-thin-wispy'}
+        else if(q.tall){base=850+h0*1750;top=clamp(8700+q.p*6000+h1*1500,9800,16500);radius=clamp(36000+h2*51000,33000,90000);rx=radius;ry=radius*(.56+h1*.54);vertical=Math.max(1300,(top-base)*.50);tint=.61;cloudType='deep-convective-proxy'}
+        else{base=1450+h0*2600;top=clamp(5200+q.p*5200+h1*2200,6100,12500);radius=clamp(52000+q.p*25000+h2*34000,46000,114000);rx=radius;ry=radius*(.34+h1*.62);vertical=Math.max(1000,(top-base)*.49);tint=.40;cloudType='layered-cumuliform-proxy'}
+        const angle=Math.atan2(q.below-q.above,q.right-q.left)+Math.PI/2+(h2-.5)*.65,altitude=ground+(base+top)*.5;
+        if(!addGlobalPuff(q.lng,q.lat,altitude,rx,ry,vertical,tint,MOBILE?6:8,MOBILE?4:5,hash(q.col,q.row,1301),true,angle))return false;
+        const record={lng:q.lng,lat:q.lat,p:q.p,radius,base,top};chosen.push(record);reserve(record);
+        satelliteCloudAnchors.push({lng:q.lng,lat:q.lat,radiusM:clamp(Math.max(rx,ry)*.82,25000,155000),cloudBaseAglM:base,cloudTopAglM:top,cloudBaseM:ground+base,cloudTopM:ground+top,probability:q.p,cloudType,source:'NASA GIBS GOES/Himawari + EUMETSAT Meteosat satellite image-derived cloud location',cloudHeightSource:'Modeled visualization category; not measured cloud-top height',geometryVersion:6150,cloudMaskGeneration:satelliteMaskGeneration});
+        if(satelliteCloudAnchors.length%7===0&&shadowAnchors.length<(MOBILE?70:112)){const sh=makeGroundShadowAnchor(q.lng,q.lat,altitude,Math.max(rx,ry)*.72,'satellite-cloud',windScene);if(sh)shadowAnchors.push(sh)}
+        return true;
+      };
+      const thickBudget=Math.floor(satelliteMaxClouds*.62);let thickCount=0;
+      for(const q of candidates){if(chosen.length>=satelliteMaxClouds||thickCount>=thickBudget)break;if(q.thin)continue;if(addSatellite(q))thickCount++}
+      for(const q of candidates){if(chosen.length>=satelliteMaxClouds)break;if(!q.thin)addSatellite(q)}
+      for(const q of candidates){if(chosen.length>=satelliteMaxClouds)break;if(q.thin)addSatellite(q)}
     }
     globalCloudGeometryCache = {
       vertices: new Float32Array(vertices),
@@ -2165,10 +2325,10 @@ function scheduleGeometry(delay = 180) {
   else map.once?.('load', addLayerIfReady);
 
   const api = {
-    version: 6140, map, overlay,
+    version: 6150, map, overlay,
     get enabled() { return enabled; },
     setEnabled, toggle,
-    get state() { return window.__BP_SKY_CLOUDS_STATE_V6140__ || window.__BP_SKY_CLOUDS_STATE_V6077__ || window.__BP_SKY_CLOUDS_STATE_V6076__ || window.__BP_SKY_CLOUDS_STATE_V6074__ || window.__BP_SKY_CLOUDS_STATE_V6073__ || window.__BP_SKY_CLOUDS_STATE_V6047__ || window.__BP_SKY_CLOUDS_STATE_V6046__ || window.__BP_SKY_CLOUDS_STATE_V6045__ || window.__BP_SKY_CLOUDS_STATE_V6031__ || window.__BP_SKY_CLOUDS_STATE_V6029__ || window.__BP_SKY_CLOUDS_STATE_V5908__ || null; },
+    get state() { return window.__BP_SKY_CLOUDS_STATE_V6150__ || window.__BP_SKY_CLOUDS_STATE_V6140__ || window.__BP_SKY_CLOUDS_STATE_V6077__ || window.__BP_SKY_CLOUDS_STATE_V6076__ || window.__BP_SKY_CLOUDS_STATE_V6074__ || window.__BP_SKY_CLOUDS_STATE_V6073__ || window.__BP_SKY_CLOUDS_STATE_V6047__ || window.__BP_SKY_CLOUDS_STATE_V6046__ || window.__BP_SKY_CLOUDS_STATE_V6045__ || window.__BP_SKY_CLOUDS_STATE_V6031__ || window.__BP_SKY_CLOUDS_STATE_V6029__ || window.__BP_SKY_CLOUDS_STATE_V5908__ || null; },
     destroy() {
       if (disposed) return; disposed = true;
       stopAnimation(); clearTimeout(rebuildTimer); clearTimeout(refreshHandle); clearLayerRetry();
@@ -2185,7 +2345,7 @@ function scheduleGeometry(delay = 180) {
   window.__BP_SKY_CLOUDS_V5908__ = api;
   // Retry the satellite source after the renderer is installed; style replacement can
   // make the first init attempt happen before MapLibre reports a fully loaded style.
-  ensureLiveSatelliteCloudContextV6134(map);
+  ensureLiveSatelliteCloudContextV6150(map);
   publishState();
   if (enabled) setEnabled(true);
   return api;
