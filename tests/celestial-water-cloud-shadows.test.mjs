@@ -85,12 +85,12 @@ test('entrypoints use fresh cache keys for updated map, water, clouds, weather a
     assert.match(source, /world-v2300-map\.js\?v=6125-manual-globe-camera/);
     assert.match(source, /world-v2300-water\.js\?v=6124-solar-ocean-swell/);
     assert.match(source, /world-v2300-clouds\.js\?v=6130-cloud-rain-lightning/);
-    assert.match(source, /world-v2300-weather\.js\?v=6130-cloud-rain-lightning/);
+    assert.match(source, /world-v2300-weather\.js\?v=6131-close-zoom-rain-density/);
     assert.match(source, /world-v2300-time-slider\.js\?v=6124-live-cloud-shadow-motion/);
   }
   assert.match(map, /world-v2300-space\.js\?v=6125-manual-globe-camera/);
   assert.match(timeSlider, /world-v2300-clouds\.js\?v=6130-cloud-rain-lightning/);
-  assert.match(bootstrap, /world-v2300-weather\.js\?v=6130-cloud-rain-lightning/);
+  assert.match(bootstrap, /world-v2300-weather\.js\?v=6131-close-zoom-rain-density/);
   assert.match(appHtml, /app\.js\?v=6130-cloud-rain-lightning-markers/);
   assert.match(landingHtml, /landing\.js\?v=6130-cloud-rain-lightning-markers/);
 });
