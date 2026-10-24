@@ -298,8 +298,8 @@ async function initMap(){
   map=world.map;
   window.__BP_LANDING_WORLD__=world;
   // Add the GPU water/hydrology surface to this same globe canvas before other visual modules.
-  void import('./world-v2300-water.js?v=6120-mesh-safe-wave-frequency')
-   .then(m=>{if(world?.map)window.__BP_WATER_ENGINE_LANDING_V6120__=m.initWaterEngine(world,{surface:'landing'})})
+  void import('./world-v2300-water.js?v=6121-horizon-safe-vertex-displacement')
+   .then(m=>{if(world?.map)window.__BP_WATER_ENGINE_LANDING_V6121__=m.initWaterEngine(world,{surface:'landing'})})
    .catch(e=>console.warn('BridgePoint GPU water layer unavailable; native water remains enabled',e));
   // Start persistent global 3D clouds immediately on the homepage globe, before other visual modules.
   void import('./world-v2300-clouds.js?v=6092-posttropical-global-clouds')

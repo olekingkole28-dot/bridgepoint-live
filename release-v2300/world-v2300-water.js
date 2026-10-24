@@ -1,8 +1,8 @@
-// BridgePoint Water & Hydrology GPU surface v6120.
+// BridgePoint Water & Hydrology GPU surface v6121.
 // Additive MapLibre custom layer: one shared map canvas/context, bounded source geometry,
 // GPU wave displacement, source-gated flood elevations, and view-aware mesh LOD.
-const VERSION = 6120;
-const LAYER_ID = 'bp-water-surface-gpu-v6120';
+const VERSION = 6121;
+const LAYER_ID = 'bp-water-surface-gpu-v6121';
 const EARTH_CIRCUMFERENCE_M = 40075016.68557849;
 const RAD = Math.PI / 180;
 const MIN_VALID_TERRAIN_ELEVATION_M = -500;
@@ -47,6 +47,24 @@ export function resolveWaveFrequencyCyclesPerWorld(requestedCyclesPerWorld, cent
     samplesPerPeriod,
     capped: cycles + 1e-8 < requested
   };
+}
+
+// In a close, steeply pitched view, tiny vertical changes are projected toward the
+// horizon and can stretch into sky-reaching spikes. Reduce only GPU vertex-height
+// motion there; animated fragment waves, specular response, and source-backed flood
+// depth remain active. Far/global views keep their existing geometry.
+export function resolvePitchDisplacementPolicy(zoom, pitchDegrees) {
+  const z = Number(zoom);
+  const pitch = Number(pitchDegrees);
+  if (!Number.isFinite(z) || !Number.isFinite(pitch)) {
+    return { scale: 0, maxOffsetM: 0, guarded: true };
+  }
+  if (z < 10 || pitch <= 32) {
+    return { scale: 1, maxOffsetM: 1000, guarded: false };
+  }
+  const t = clamp((68 - pitch) / 36, 0, 1);
+  const scale = t * t;
+  return { scale, maxOffsetM: 0.45 * scale, guarded: true };
 }
 
 function mercX(lng) { return (Number(lng) + 180) / 360; }
@@ -196,8 +214,8 @@ function absoluteWaterLevelAt(scene, lng, lat) {
 }
 function apiWaterLevelReject(scene) {
   // Keep a lightweight per-build diagnostic without changing the source weather object.
-  if (window.__BP_WATER_ENGINE_V6120__ && Number.isFinite(window.__BP_WATER_ENGINE_V6120__.rejectedWaterLevelSamples)) {
-    window.__BP_WATER_ENGINE_V6120__.rejectedWaterLevelSamples++;
+  if (window.__BP_WATER_ENGINE_V6121__ && Number.isFinite(window.__BP_WATER_ENGINE_V6121__.rejectedWaterLevelSamples)) {
+    window.__BP_WATER_ENGINE_V6121__.rejectedWaterLevelSamples++;
   }
 }
 
@@ -286,6 +304,8 @@ function buildShaders(gl, shaderDescription) {
     'uniform float u_waveK;',
     'uniform float u_flowCycles;',
     'uniform float u_waveAmp;',
+    'uniform float u_pitchWaveScale;',
+    'uniform float u_waveOffsetLimit;',
     'uniform float u_windSpeed;',
     'uniform vec2 u_windDir;',
     'uniform vec4 u_storms[4];',
@@ -323,7 +343,8 @@ function buildShaders(gl, shaderDescription) {
     '  float localWindBoost = 0.72 + min(0.65, u_windSpeed / 80.0);',
     '  float amplitude = u_waveAmp * localScale * localWindBoost * (1.0 + stormInfluence * (0.9 + u_windSpeed * 0.011));',
     '  float marineSurgeMask = (a_kind < 0.5 || (a_kind > 2.5 && a_kind < 3.5)) ? 1.0 : 0.0;',
-    '  float offsetM = wave * amplitude + stormSurge * marineSurgeMask + a_flood;',
+    '  float dynamicOffsetM = (wave * amplitude + stormSurge * marineSurgeMask) * u_pitchWaveScale;',
+    '  float offsetM = clamp(dynamicOffsetM, -u_waveOffsetLimit, u_waveOffsetLimit) + a_flood;',
     '  gl_Position = projectTileFor3D(a_pos, a_height + offsetM);',
     '  v_coord = a_pos - u_waveOrigin;',
     '  v_kind = a_kind;',
@@ -422,7 +443,7 @@ function buildShaders(gl, shaderDescription) {
   }
   const names = ['u_projection_fallback_matrix', 'u_projection_matrix', 'u_projection_tile_mercator_coords',
     'u_projection_clipping_plane', 'u_projection_transition', 'u_time', 'u_waveOrigin', 'u_wavePhaseA',
-    'u_wavePhaseB', 'u_waveK', 'u_waveAmp', 'u_windSpeed', 'u_windDir', 'u_storms[0]',
+    'u_wavePhaseB', 'u_waveK', 'u_waveAmp', 'u_pitchWaveScale', 'u_waveOffsetLimit', 'u_windSpeed', 'u_windDir', 'u_storms[0]',
     'u_flowCycles', 'u_flowPhaseA', 'u_flowPhaseB', 'u_flowPhaseDetail'];
   const uniforms = {};
   for (const name of names) uniforms[name] = gl.getUniformLocation(program, name);
@@ -540,6 +561,9 @@ function createLayer(api, map) {
         const safeWaveFrequency = resolveWaveFrequencyCyclesPerWorld(
           requestedWavesPerWorld, centerCosLat, api.waterGridStepWorld
         );
+        const pitchPolicy = resolvePitchDisplacementPolicy(z, Number(map.getPitch?.() || 0));
+        api.pitchWaveDisplacementScale = pitchPolicy.scale;
+        api.pitchWaveDisplacementLimitM = pitchPolicy.maxOffsetM;
         const wavesPerWorld = safeWaveFrequency.cyclesPerWorld;
         const waveNumber = Math.PI * 2 * wavesPerWorld;
         const amp = z < 2.5 ? 0.85 : z < 7 ? 0.75 : z < 12 ? 1.0 : z < 15 ? 1.35 : 1.8;
@@ -558,12 +582,16 @@ function createLayer(api, map) {
         api.waveFrequencyCappedForMesh = safeWaveFrequency.capped;
         api.waveGridStepUsedWorld = api.waterGridStepWorld;
         api.detailCyclesPerWorld = detailCyclesPerWorld;
-        if (u.u_time) gl.uniform1f(u.u_time, ((now - this.timeOrigin) / 1000) % 4096);
+        const waterAnimationTimeSeconds = ((now - this.timeOrigin) / 1000) % 4096;
+        api.animationTimeSeconds = waterAnimationTimeSeconds;
+        if (u.u_time) gl.uniform1f(u.u_time, waterAnimationTimeSeconds);
         if (u.u_waveOrigin) gl.uniform2f(u.u_waveOrigin, originX, originY);
         if (u.u_wavePhaseA) gl.uniform1f(u.u_wavePhaseA, Math.PI * 2 * frac(wavesPerWorld * centerCosLat * (originX * windX + originY * windY)));
         if (u.u_wavePhaseB) gl.uniform1f(u.u_wavePhaseB, Math.PI * 2 * frac(wavesPerWorld * 0.61 * centerCosLat * (originX * dirBX + originY * dirBY)));
         if (u.u_waveK) gl.uniform1f(u.u_waveK, waveNumber / EARTH_CIRCUMFERENCE_M);
         if (u.u_waveAmp) gl.uniform1f(u.u_waveAmp, amp);
+        if (u.u_pitchWaveScale) gl.uniform1f(u.u_pitchWaveScale, pitchPolicy.scale);
+        if (u.u_waveOffsetLimit) gl.uniform1f(u.u_waveOffsetLimit, pitchPolicy.maxOffsetM);
         if (u.u_windSpeed) gl.uniform1f(u.u_windSpeed, api.wind.mph);
         if (u.u_windDir) gl.uniform2f(u.u_windDir, windX, windY);
         if (u['u_storms[0]']) gl.uniform4fv(u['u_storms[0]'], api.stormUniforms);
@@ -642,12 +670,12 @@ function currentScene() {
 export function initWaterEngine(mapOrWorld, options = {}) {
   const map = mapOrWorld && mapOrWorld.map ? mapOrWorld.map : mapOrWorld;
   if (!map || typeof map.addLayer !== 'function' || typeof map.querySourceFeatures !== 'function') return null;
-  if (window.__BP_WATER_ENGINE_V6120__ && window.__BP_WATER_ENGINE_V6120__.map === map) return window.__BP_WATER_ENGINE_V6120__;
+  if (window.__BP_WATER_ENGINE_V6121__ && window.__BP_WATER_ENGINE_V6121__.map === map) return window.__BP_WATER_ENGINE_V6121__;
   const mobile = window.innerWidth <= 900 || /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
   const low = Number(navigator.deviceMemory || 4) <= 3 || Number(navigator.hardwareConcurrency || 4) <= 4;
   const api = {
     version: VERSION, map, options, enabled: true, active: true, mobile, low,
-    contextReady: false, glContextShared: true, shaderError: null, lastDrawAt: 0,
+    contextReady: false, glContextShared: true, shaderError: null, lastDrawAt: 0, animationTimeSeconds: 0,
     waterPolygonCells: 0, oceanFallbackCells: 0, flowSegments: 0, surfaceVertexCount: 0, flowVertexCount: 0,
     geometryBuilds: 0, sourceWaterFeatures: 0, sourceLandFeatures: 0, sourceWaterwayFeatures: 0,
     sourceFloodPolygonCount: 0, sourceWaterLevelCount: 0, absoluteWaterLevelCount: 0,
@@ -667,6 +695,7 @@ export function initWaterEngine(mapOrWorld, options = {}) {
     wind: { mph: 0, direction: 0 }, stormUniforms: new Float32Array(16), waveDisplacementZoomCap: 15,
     waveFrequencyCyclesPerWorld: null, requestedWaveFrequencyCyclesPerWorld: null,
     waveFrequencySafetyCapCyclesPerWorld: null, waveSamplesPerPeriod: null, waveFrequencyCappedForMesh: false,
+    pitchWaveDisplacementScale: 1, pitchWaveDisplacementLimitM: 1000,
     waterGridStepWorld: null, waveGridStepUsedWorld: null, waterGridColumns: 0, waterGridRows: 0, detailCyclesPerWorld: null, lastMetricsAt: 0,
     surfaceDataBytes: 0, flowDataBytes: 0, lastSourceRefreshAt: 0,
     frameDelay() {
@@ -715,7 +744,7 @@ export function initWaterEngine(mapOrWorld, options = {}) {
       try { if (map.getLayer(LAYER_ID)) map.removeLayer(LAYER_ID); } catch (_) {}
       for (const spec of SOURCE_ANCHORS) { try { if (map.getLayer(spec.id)) map.removeLayer(spec.id); } catch (_) {} }
       try { window.removeEventListener('bp2300:weather-updated', onWeatherUpdated); } catch (_) {}
-      if (window.__BP_WATER_ENGINE_V6120__ === this) window.__BP_WATER_ENGINE_V6120__ = null;
+      if (window.__BP_WATER_ENGINE_V6121__ === this) window.__BP_WATER_ENGINE_V6121__ = null;
     },
     get buffers() {
       return layer ? { surface: layer.buffer, flow: layer.flowBuffer, strideFloats: 7, strideBytes: 28, vertexCount: layer.surfaceVertexCount + layer.flowVertexCount } : null;
@@ -760,6 +789,9 @@ export function initWaterEngine(mapOrWorld, options = {}) {
         waterLevelsRejectedByShoreline: this.waterLevelsRejectedByShoreline,
         flowSegmentsRejectedOutsideWater: this.flowSegmentsRejectedOutsideWater,
         zoom: +map.getZoom().toFixed(2),
+        pitchDegrees: +Number(map.getPitch?.() || 0).toFixed(1),
+        pitchWaveDisplacementScale: this.pitchWaveDisplacementScale,
+        pitchWaveDisplacementLimitM: this.pitchWaveDisplacementLimitM,
         waveDisplacementZoomCap: this.waveDisplacementZoomCap,
         waveFrequencyCyclesPerWorld: this.waveFrequencyCyclesPerWorld,
         requestedWaveFrequencyCyclesPerWorld: this.requestedWaveFrequencyCyclesPerWorld,
@@ -771,7 +803,7 @@ export function initWaterEngine(mapOrWorld, options = {}) {
         tier: this.low ? 'LOW' : this.mobile ? 'MOBILE' : 'DESKTOP',
         stormSurgeIsModelled: this.stormSurgeIsModelled, floodHeightPolicy: this.floodHeightPolicy,
         gaugeHeightPolicy: this.gaugeHeightPolicy, stormWavePolicy: this.stormWavePolicy,
-        shaderError: this.shaderError, lastDrawAt: this.lastDrawAt, updatedAt: Date.now()
+        shaderError: this.shaderError, lastDrawAt: this.lastDrawAt, animationTimeSeconds: this.animationTimeSeconds, updatedAt: Date.now()
       };
     }
   };
@@ -1338,7 +1370,7 @@ function sceneLevelAt(scene, lng, lat) { return absoluteWaterLevelAt(scene, lng,
     api.sourceWaterwayFeatures = flowFeatures.length;
     api.geometryBuilds++;
     api.lastSourceRefreshAt = Date.now();
-    window.__BP_WATER_FIELD_V6120__ = {
+    window.__BP_WATER_FIELD_V6121__ = {
       version: VERSION, map, buffers: api.buffers,
       get state() { return api.state; },
       get weatherScene() { return currentScene(); },
@@ -1394,8 +1426,8 @@ function sceneLevelAt(scene, lng, lat) { return absoluteWaterLevelAt(scene, lng,
   });
   scheduleBuild(250);
   for (const delay of [700, 1700, 3400]) window.setTimeout(() => { ensureInstalled(); scheduleBuild(0); }, delay);
-  window.__BP_WATER_ENGINE_V6120__ = api;
-  window.__BP_WATER_FIELD_V6120__ = {
+  window.__BP_WATER_ENGINE_V6121__ = api;
+  window.__BP_WATER_FIELD_V6121__ = {
     version: VERSION, map, get buffers() { return api.buffers; },
     get state() { return api.state; },
     get weatherScene() { return currentScene(); },
