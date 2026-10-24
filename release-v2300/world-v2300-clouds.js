@@ -1468,7 +1468,7 @@ function generateGeometry() {
         }, null)?.row;
         const w = { wind_speed_mph: p.wind_speed_mph ?? nearby?.wind_speed_mph, wind_speed_kt: p.wind_speed_kt ?? nearby?.wind_speed_kt,
           wind_dir_deg: p.wind_dir_deg ?? p.wind_direction_deg ?? nearby?.wind_dir_deg ?? nearby?.wind_direction_deg };
-        sourceRainAnchors.push({ ...p, ...w, ...c, weather: 'thunderstorm rain', rain_radius_mi: Number(p.rain_radius_mi ?? p.precipitation_radius_mi ?? 36) });
+        sourceRainAnchors.push({ ...p, ...w, ...c, __bpSourceStormAnchor: true, weather: 'thunderstorm rain', rain_radius_mi: Number(p.rain_radius_mi ?? p.precipitation_radius_mi ?? 36) });
       }
     }
     for (const storm of (Array.isArray(scene?.storms) ? scene.storms : []).slice(0, 30)) {
@@ -1481,7 +1481,7 @@ function generateGeometry() {
         const moveSpeedMph = number(p.movement_speed_mph, number(p.translation_speed_mph, NaN));
         const moveSpeed = number(p.movement_speed_mps, number(p.translation_speed_mps, NaN));
         const moveHeading = number(p.movement_heading_deg, number(p.movement_dir, NaN));
-        sourceRainAnchors.push({ ...p, lng, lat, weather: 'thunderstorm rain',
+        sourceRainAnchors.push({ ...p, lng, lat, __bpSourceStormAnchor: true, weather: 'thunderstorm rain',
           wind_speed_mph: p.wind_speed_mph ?? (Number.isFinite(moveSpeedMph) ? moveSpeedMph : Number.isFinite(moveSpeed) ? moveSpeed * 2.23694 : undefined),
           wind_dir_deg: p.wind_dir_deg ?? p.wind_direction_deg ?? (Number.isFinite(moveHeading) ? (moveHeading + 180) % 360 : undefined),
           rain_radius_mi: Number(p.rain_radius_mi ?? p.precipitation_radius_mi ?? (/hurricane|tropical|cyclone/.test(label) ? 60 : 28)) });
@@ -1496,6 +1496,7 @@ function generateGeometry() {
       })
       .filter(o => Number.isFinite(Number(o?.lng ?? o?.longitude)) && Number.isFinite(Number(o?.lat ?? o?.latitude)))
       .sort((a, b) => {
+        if (overviewClouds && !!a.__bpSourceStormAnchor !== !!b.__bpSourceStormAnchor) return a.__bpSourceStormAnchor ? -1 : 1;
         const c = map.getCenter?.();
         if (!c) return 0;
         const da = Math.hypot((Number(a.lng ?? a.longitude) - c.lng) * Math.cos(c.lat * Math.PI / 180), Number(a.lat ?? a.latitude) - c.lat);
