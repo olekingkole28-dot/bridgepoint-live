@@ -42,6 +42,7 @@ jobs:
           cp release-v2300/world-v2300-worker.js /tmp/bp2300wx/world-v2300-worker.js
           cp release-v2300/world-v2300-weather.js /tmp/bp2300wx/world-v2300-weather.js
           cp release-v2300/world-v2300-rain.js /tmp/bp2300wx/world-v2300-rain.js
+          cp release-v2300/world-v2300-lightning.js /tmp/bp2300wx/world-v2300-lightning.js
           cp release-v2300/world-v2300-clouds.js /tmp/bp2300wx/world-v2300-clouds.js
           curl --retry 4 --retry-all-errors --retry-delay 1 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.js -o /tmp/bp2300wx/vendor/maplibre-gl.js
           curl --retry 4 --retry-all-errors --retry-delay 1 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.css -o /tmp/bp2300wx/vendor/maplibre-gl.css
@@ -51,11 +52,11 @@ jobs:
           grep -Fq 'retireLegacyScreenSpaceRain' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq '__BP_SCREEN_SPACE_RAIN_RETIRE_V6063__' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq "const RAIN_OVERLAY_ID = 'bp2300-rain-geographic-svg-v6068';" /tmp/bp2300wx/world-v2300-rain.js
-          grep -Fq 'const VERSION = 6068;' /tmp/bp2300wx/world-v2300-rain.js
+          grep -Fq 'const VERSION = 6130;' /tmp/bp2300wx/world-v2300-rain.js
           grep -Fq "const RAIN_OVERLAY_ID = 'bp2300-rain-geographic-svg-v6068';" /tmp/bp2300wx/world-v2300-rain.js
           grep -Fq 'function drawProjectedRain(now)' /tmp/bp2300wx/world-v2300-rain.js
           grep -Fq 'map.project([d.lng, d.lat])' /tmp/bp2300wx/world-v2300-rain.js
-          grep -Fq 'world-v2300-rain.js?v=6070-clouds-only-phase' /tmp/bp2300wx/world-v2300-weather.js
+          grep -Fq 'world-v2300-rain.js?v=6130-cloud-rain-lightning' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq "lastProjectionMode = 'geographic-map-project'" /tmp/bp2300wx/world-v2300-rain.js
           grep -Fq 'map.project([d.lng, d.lat])' /tmp/bp2300wx/world-v2300-rain.js
           grep -Fq 'const MAX_DROPS = MOBILE ? 900 : 3600;' /tmp/bp2300wx/world-v2300-rain.js
@@ -63,8 +64,8 @@ jobs:
           grep -Fq 'const shelfAltitude = f.baseM + clamp((f.topM - f.baseM) * 0.12, 160, 260);' /tmp/bp2300wx/world-v2300-clouds.js
           grep -Fq 'metersPerPixel(lat, zoom) * 0.78' /tmp/bp2300wx/world-v2300-rain.js
           grep -Fq 'segmentM: 1.2 + hash(seedBase, i, 23) * 2.4' /tmp/bp2300wx/world-v2300-rain.js
-          grep -Fq 'else radiusM = thunder ? 900 : 650;' /tmp/bp2300wx/world-v2300-rain.js
-          grep -Fq '(thunderstorm ? 900 : 650);' /tmp/bp2300wx/world-v2300-clouds.js
+          grep -Fq 'else radiusM = thunder ? 28000 : 16000;' /tmp/bp2300wx/world-v2300-rain.js
+          grep -Fq '(thunderstorm ? 28000 : 16000);' /tmp/bp2300wx/world-v2300-clouds.js
           grep -Fq 'thunderstorm ? 450 : 350' /tmp/bp2300wx/world-v2300-clouds.js
           grep -Fq 'thunderstorm ? 2800 : 1800' /tmp/bp2300wx/world-v2300-clouds.js
           grep -Fq 'rainCell=smoothstep(1.30,1.34,v_tint)' /tmp/bp2300wx/world-v2300-clouds.js
@@ -178,7 +179,7 @@ jobs:
               await p.waitForFunction(()=>Number(window.__BP_SKY_CLOUDS_STATE_V5908__?.localCloudFormations||0)>0,{timeout:15000});
               await p.evaluate(()=>window.__bpWorldV2300.map.jumpTo({center:[-87.3425,41.538],zoom:1.25,pitch:0,bearing:0}));
               await p.evaluate(()=>window.__bpWeatherV2300.refresh(true));
-              await p.waitForFunction(()=>{const s=window.__BP_SKY_CLOUDS_STATE_V5908__||{};return s.version===6124&&s.hurricaneEyeWallCloudCenters>=1&&s.hurricaneSpiralCloudCenters>=3&&s.warningFunnels>=1&&s.tornadoVisualHeightKm>=14&&s.tornadoVisualHeightKm<16;},{timeout:25000});
+              await p.waitForFunction(()=>{const s=window.__BP_SKY_CLOUDS_STATE_V5908__||{};return s.version===6130&&s.hurricaneEyeWallCloudCenters>=1&&s.hurricaneSpiralCloudCenters>=3&&s.warningFunnels>=1&&s.tornadoVisualHeightKm>=14&&s.tornadoVisualHeightKm<16;},{timeout:25000});
               const globalStormDiag=await p.evaluate(()=>{const s=window.__BP_SKY_CLOUDS_STATE_V5908__||{};return{zoom:s.zoom,sourceStormCount:s.sourceStormCount,sourceTornadoAlertCount:s.sourceTornadoAlertCount,postTropicalStormCount:s.postTropicalStormCount,postTropicalSurfaceCloudVertices:s.postTropicalSurfaceCloudVertices,postTropicalCloudShieldRadiusKm:s.postTropicalCloudShieldRadiusKm,josephineHurricaneGeometryCount:s.josephineHurricaneGeometryCount,josephineVisualEyeRadiusKm:s.josephineVisualEyeRadiusKm,josephineVisualShieldRadiusKm:s.josephineVisualShieldRadiusKm,sourceHurricaneVisualEyeRadiusKm:s.sourceHurricaneVisualEyeRadiusKm,josephineSourceClassification:s.josephineSourceClassification,hurricaneSpiralRibbonVertices:s.hurricaneSpiralRibbonVertices,hurricaneVolumeProxyVertices:s.hurricaneVolumeProxyVertices,tornadoVolumeProxyVertices:s.tornadoVolumeProxyVertices,hurricaneSurfaceCloudVertices:s.hurricaneSurfaceCloudVertices,tornadoSurfaceMeshVertices:s.tornadoSurfaceMeshVertices,tornadoSurfaceVerticesSubmitted:s.tornadoSurfaceVerticesSubmitted,hurricaneEyeWallCloudCenters:s.hurricaneEyeWallCloudCenters,hurricaneSpiralCloudCenters:s.hurricaneSpiralCloudCenters,hurricaneVisualEyeRadiusKm:s.hurricaneVisualEyeRadiusKm,hurricaneVisualShieldRadiusKm:s.hurricaneVisualShieldRadiusKm,tornadoFunnelMeshVertices:s.tornadoFunnelMeshVertices,tornadoVisualHeightKm:s.tornadoVisualHeightKm,tornadoVisualTopRadiusKm:s.tornadoVisualTopRadiusKm,globalStormLod:s.globalStormLod,rendererError:s.rendererError}});
               console.log('BRIDGEPOINT_GLOBAL_STORM_LOD_PASS',JSON.stringify(globalStormDiag));
               assert(globalStormDiag.hurricaneVolumeProxyVertices>0,'global hurricane must include a raymarched volume with spiral-density bands');
@@ -202,7 +203,7 @@ jobs:
               await p.waitForFunction(()=>{const s=window.__BP_SKY_CLOUDS_STATE_V5908__||{};return s.globalStormLod==='physical-local'&&s.hurricaneVisualEyeRadiusKm>0&&s.tornadoVisualHeightKm>=14&&s.tornadoVisualHeightKm<16;},{timeout:15000});
               const stormCloudDiag=await p.evaluate(()=>{const s=window.__BP_SKY_CLOUDS_STATE_V5908__||{};return{version:s.version,hurricaneSpiralRibbonVertices:s.hurricaneSpiralRibbonVertices,hurricaneVolumeProxyVertices:s.hurricaneVolumeProxyVertices,tornadoVolumeProxyVertices:s.tornadoVolumeProxyVertices,hurricaneSurfaceCloudVertices:s.hurricaneSurfaceCloudVertices,tornadoSurfaceMeshVertices:s.tornadoSurfaceMeshVertices,tornadoSurfaceVerticesSubmitted:s.tornadoSurfaceVerticesSubmitted,globalCloudFormations:s.globalCloudFormations,globalThinLayerSlices:s.globalThinLayerSlices,globalThinLayerStacks:s.globalThinLayerStacks,globalSingleLayerSlices:s.globalSingleLayerSlices,globalSingleLayerStacks:s.globalSingleLayerStacks,globalMacroRadiusMaxKm:s.globalMacroRadiusMaxKm,hurricaneSpiralCloudCenters:s.hurricaneSpiralCloudCenters,hurricaneEyeWallCloudCenters:s.hurricaneEyeWallCloudCenters,hurricaneEyeRadiusKm:s.hurricaneEyeRadiusKm,hurricaneEyeRadiusSource:s.hurricaneEyeRadiusSource,hurricaneCloudShieldRadiusKm:s.hurricaneCloudShieldRadiusKm,warningFunnels:s.warningFunnels,tornadoFunnelMeshVertices:s.tornadoFunnelMeshVertices,tornadoFunnelAnimated:s.tornadoFunnelAnimated,hurricaneVortexAnimated:s.hurricaneVortexAnimated,cloudWaterHeightReference:s.cloudWaterHeightReference,globalHeightResolvedWindPuffs:s.globalHeightResolvedWindPuffs,globalModelledWindPuffs:s.globalModelledWindPuffs,rendererError:s.rendererError};});
               console.log('BRIDGEPOINT_ROUNDED_GLOBAL_CLOUDS_AND_HURRICANE_SPIRAL_DIAG',JSON.stringify(stormCloudDiag));
-              assert.equal(stormCloudDiag.version,6124,'v6124 cloud renderer must be loaded');
+              assert.equal(stormCloudDiag.version,6130,'v6124 cloud renderer must be loaded');
               assert(stormCloudDiag.globalCloudFormations>=1600,'mobile global field must retain approximately 1,620 formations');
               assert.equal(stormCloudDiag.globalThinLayerSlices,9,'thin global clouds must use a smooth nine-segment shallow silhouette');
               assert.equal(stormCloudDiag.globalThinLayerStacks,2,'thin cloud geometry must stay thin and low-cost');
@@ -237,7 +238,7 @@ jobs:
               },{timeout:15000});
               await p.evaluate(()=>window.__bpWorldV2300.map.jumpTo({center:[0,24],zoom:1.25,pitch:0,bearing:0}));
               await p.evaluate(()=>window.__bpWeatherV2300.refresh(true));
-              await p.waitForFunction(()=>{const s=window.__BP_SKY_CLOUDS_STATE_V5908__||{};return s.version===6124&&s.sourceStormCount===0&&s.sourceTornadoAlertCount===0&&s.modeledHurricaneVisualCount===0&&s.modeledTornadoVisualCount===0&&s.hurricaneEyeWallCloudCenters===0&&s.hurricaneSpiralCloudCenters===0&&s.warningFunnels===0&&s.tornadoVisualHeightKm===0;},{timeout:15000});
+              await p.waitForFunction(()=>{const s=window.__BP_SKY_CLOUDS_STATE_V5908__||{};return s.version===6130&&s.sourceStormCount===0&&s.sourceTornadoAlertCount===0&&s.modeledHurricaneVisualCount===0&&s.modeledTornadoVisualCount===0&&s.hurricaneEyeWallCloudCenters===0&&s.hurricaneSpiralCloudCenters===0&&s.warningFunnels===0&&s.tornadoVisualHeightKm===0;},{timeout:15000});
               const modeledGlobalStorms=await p.evaluate(()=>{const s=window.__BP_SKY_CLOUDS_STATE_V5908__||{};return{zoom:s.zoom,sourceStormCount:s.sourceStormCount,sourceTornadoAlertCount:s.sourceTornadoAlertCount,modeledHurricaneVisualCount:s.modeledHurricaneVisualCount,modeledTornadoVisualCount:s.modeledTornadoVisualCount,hurricaneSpiralRibbonVertices:s.hurricaneSpiralRibbonVertices,hurricaneVolumeProxyVertices:s.hurricaneVolumeProxyVertices,tornadoVolumeProxyVertices:s.tornadoVolumeProxyVertices,hurricaneSurfaceCloudVertices:s.hurricaneSurfaceCloudVertices,tornadoSurfaceMeshVertices:s.tornadoSurfaceMeshVertices,tornadoSurfaceVerticesSubmitted:s.tornadoSurfaceVerticesSubmitted,hurricaneEyeWallCloudCenters:s.hurricaneEyeWallCloudCenters,hurricaneSpiralCloudCenters:s.hurricaneSpiralCloudCenters,hurricaneEyeRadiusSource:s.hurricaneEyeRadiusSource,warningFunnels:s.warningFunnels,tornadoVisualHeightKm:s.tornadoVisualHeightKm,stormVisualProvenance:s.stormVisualProvenance,rendererError:s.rendererError};});
               console.log('BRIDGEPOINT_MODELED_STORM_FALLBACK_EMPTY_FEED_PASS',JSON.stringify(modeledGlobalStorms));
               assert.equal(modeledGlobalStorms.modeledHurricaneVisualCount,0,'empty live feed must not show a fabricated hurricane');
@@ -272,7 +273,7 @@ jobs:
               console.log('BRIDGEPOINT_RAIN_CLOUD_DIAG',JSON.stringify(rainOut.cloudDiag));
               await p.screenshot({path:'/tmp/bp2300wx/world-anchored-rain-zoom14-5.png',fullPage:false});
               assert(rainOut.zoom>=10,'rain renderer test must be above geographic rain activation zoom');
-              assert.equal(rainOut.version,6068,'v6068 cloud-footprint world-anchored rain renderer must be loaded');
+              assert.equal(rainOut.version,6130,'v6068 cloud-footprint world-anchored rain renderer must be loaded');
               assert.equal(rainOut.overlayAttached,true,'geographic rain SVG overlay must be attached');
               assert.equal(rainOut.state.worldAnchored,true,'rain layer must report its geographic 3D renderer');
               assert.equal(rainOut.state.projectionAware,true,'rain must use MapLibre 3D projection like the cloud renderer');
