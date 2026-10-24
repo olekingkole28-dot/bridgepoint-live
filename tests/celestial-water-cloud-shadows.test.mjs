@@ -83,17 +83,17 @@ test('cloud shadows update on the map and use available source winds', () => {
 
 test('entrypoints use fresh cache keys for updated map, water, clouds, weather and space', () => {
   for (const source of [app, landing]) {
-    assert.match(source, /world-v2300-map\.js\?v=6125-manual-globe-camera/);
+    assert.match(source, /world-v2300-map\.js\?v=6137-globe-first-weather-lockstep/);
     assert.match(source, /world-v2300-water\.js\?v=6124-solar-ocean-swell/);
-    assert.match(source, /world-v2300-clouds\.js\?v=6135-rain-lightning-cloud-anchors/);
-    assert.match(source, /world-v2300-weather\.js\?v=6135-cloud-rain-lightning/);
-    assert.match(source, /world-v2300-time-slider\.js\?v=6135-cloud-anchor-loader/);
+    assert.match(source, /world-v2300-clouds\.js\?v=6137-globe-first-weather-lockstep/);
+    assert.match(source, /world-v2300-weather\.js\?v=6137-globe-first-weather-lockstep/);
+    assert.match(source, /world-v2300-time-slider\.js\?v=6137-globe-first-weather-lockstep/);
   }
   assert.match(map, /world-v2300-space\.js\?v=6125-manual-globe-camera/);
-  assert.match(timeSlider, /world-v2300-clouds\.js\?v=6135-rain-lightning-cloud-anchors/);
-  assert.match(bootstrap, /world-v2300-weather\.js\?v=6135-cloud-rain-lightning/);
-  assert.match(appHtml, /app\.js\?v=6136-cloud-anchored-rain-lightning/);
-  assert.match(landingHtml, /landing\.js\?v=6136-cloud-anchored-rain-lightning/);
+  assert.match(timeSlider, /world-v2300-clouds\.js\?v=6137-globe-first-weather-lockstep/);
+  assert.match(bootstrap, /world-v2300-weather\.js\?v=6137-globe-first-weather-lockstep/);
+  assert.match(appHtml, /app\.js\?v=6137-globe-first-weather-lockstep/);
+  assert.match(landingHtml, /landing\.js\?v=6137-globe-first-weather-lockstep/);
   assert.match(appHtml, /intelligence-global-v5507\.js\?v=6134-global-precip-lod/);
   assert.match(landingHtml, /intelligence-global-v5507\.js\?v=6134-global-precip-lod/);
 });
@@ -175,4 +175,12 @@ test('public cyclone fallback is fetched concurrently with edge weather', () => 
   assert.match(weather, /\.then\(value=>\(\{value,error:null\}\),error=>\(\{value:null,error\}\)\)/);
   assert.match(weather, /getPublicCyclones\(force\)/);
   assert.match(weather, /source:'NOAA\/NHC'/);
+});
+
+
+test('website and app start on the same globe-first weather build', () => {
+  assert.match(landingHtml, /bp-globe-only-first-frame-v6137/);
+  assert.match(appHtml, /bp-app-globe-only-first-frame-v6137/);
+  assert.ok(landingHtml.includes('landing.js?v=6137-globe-first-weather-lockstep'));
+  assert.ok(appHtml.includes('app.js?v=6137-globe-first-weather-lockstep'));
 });
