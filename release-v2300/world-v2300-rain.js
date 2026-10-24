@@ -359,20 +359,44 @@ export function initRainLayer(map, getScene = () => ({})) {
     const w = canvas?.clientWidth || 900, h = canvas?.clientHeight || 700;
     const raw = Array.isArray(nextScene?.observations) ? nextScene.observations : [];
     const reportCandidates = raw.filter(isRainObservation);
+    const nearestWindObservation = c => {
+      let best = null, bestDistance = Infinity;
+      for (const row of raw) {
+        const rc = weatherCenter(row); if (!rc) continue;
+        const distance = distanceMeters(c, rc);
+        if (distance < bestDistance) { best = row; bestDistance = distance; }
+      }
+      return bestDistance <= 350000 ? best : null;
+    };
+    const windFields = (properties, c, allowMotion = false) => {
+      const nearby = nearestWindObservation(c) || {};
+      let speed = properties.wind_speed_mph ?? nearby.wind_speed_mph;
+      let speedKt = properties.wind_speed_kt ?? nearby.wind_speed_kt;
+      let direction = properties.wind_dir_deg ?? properties.wind_direction_deg ?? nearby.wind_dir_deg ?? nearby.wind_direction_deg;
+      if (speed == null && speedKt == null && allowMotion) {
+        const movement = safeNum(properties.movement_speed_mps ?? properties.translation_speed_mps, NaN);
+        if (Number.isFinite(movement)) speed = movement * 2.23694;
+      }
+      if (direction == null && allowMotion) {
+        const heading = safeNum(properties.movement_heading_deg ?? properties.movement_dir, NaN);
+        if (Number.isFinite(heading)) direction = (heading + 180) % 360;
+      }
+      return { wind_speed_mph: speed, wind_speed_kt: speedKt, wind_dir_deg: direction };
+    };
     // Source-backed convective warnings and storm centers extend rain beyond sparse METAR stations.
     for (const alert of (Array.isArray(nextScene?.alerts) ? nextScene.alerts : []).slice(0, 100)) {
       const p = alert?.properties || alert || {};
       const label = text([p.event, p.name, p.type, p.phenom, p.phenomenon, p.product, p.headline, p.description].filter(Boolean).join(' '));
       if (!/prob.?severe|severe thunderstorm|thunderstorm|tornado|squall|\bsv\b/.test(label) && String(p.phenom ?? p.phenomenon ?? '').toUpperCase() !== 'TO') continue;
       const c = weatherCenter(alert); if (!c) continue;
-      reportCandidates.push({ ...p, lng: c.lng, lat: c.lat, weather: 'thunderstorm rain', rain_radius_mi: safeNum(p.rain_radius_mi ?? p.precipitation_radius_mi, /tornado|\bto\b/.test(label) ? 24 : 36), source_anchor_kind: 'warning' });
+      reportCandidates.push({ ...p, ...windFields(p, c), lng: c.lng, lat: c.lat, weather: 'thunderstorm rain', rain_radius_mi: safeNum(p.rain_radius_mi ?? p.precipitation_radius_mi, /tornado/.test(label) ? 24 : 36), source_anchor_kind: 'warning' });
     }
     for (const storm of (Array.isArray(nextScene?.storms) ? nextScene.storms : []).slice(0, 40)) {
       const p = storm?.properties || storm || {};
       const label = text([p.event, p.name, p.type, p.classification, p.official_classification, p.system_type].filter(Boolean).join(' '));
       if (!/hurricane|tropical storm|tropical cyclone|post.?tropical cyclone|cyclone|severe thunderstorm|convective/.test(label)) continue;
       const c = weatherCenter(storm); if (!c) continue;
-      reportCandidates.push({ ...p, lng: c.lng, lat: c.lat, weather: 'thunderstorm rain', rain_radius_mi: safeNum(p.rain_radius_mi ?? p.precipitation_radius_mi, /hurricane|tropical|cyclone/.test(label) ? 60 : 28), source_anchor_kind: 'storm' });
+      reportCandidates.push({ ...p, ...windFields(p, c, true), lng: c.lng, lat: c.lat, weather: 'thunderstorm rain', rain_radius_mi: safeNum(p.rain_radius_mi ?? p.precipitation_radius_mi, /hurricane|tropical|cyclone/.test(label) ? 60 : 28), source_anchor_kind: 'storm' });
     }
     const candidates = reportCandidates.map(o => {
       const c = weatherCenter(o); if (!c) return null;
