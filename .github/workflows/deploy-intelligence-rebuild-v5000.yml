@@ -594,8 +594,8 @@ jobs:
           grep -Fq 'world-v2300-weather.js?v=6138-cloud-linked-lightning' site/index.html
           grep -Fq 'world-v2300-weather.js?v=6138-cloud-linked-lightning' site/app/index.html
           grep -Fq 'world-v2300-weather.js?v=6138-cloud-linked-lightning' site/app/world-v2300-bootstrap.js
-          grep -Fq 'world-v2300-time-slider.js?v=6137-globe-first-weather-lockstep' site/app.js
-          grep -Fq 'world-v2300-time-slider.js?v=6137-globe-first-weather-lockstep' site/landing.js
+          grep -Fq 'world-v2300-time-slider.js?v=6160-cloud-volume-clarity' site/app.js
+          grep -Fq 'world-v2300-time-slider.js?v=6160-cloud-volume-clarity' site/landing.js
           grep -Fq 'world-v2300-spectral-imagery.js?v=5934-world-controls' site/app.js
           grep -Fq 'world-v2300-underground-xray.js?v=5965-landmarks-and-effects' site/app.js
           grep -Fq 'world-v2300-underground-xray.js?v=5965-landmarks-and-effects' site/landing.js
@@ -711,7 +711,7 @@ jobs:
           grep -Fq 'BP_SOURCE_WEATHER_CACHE_KEY_V6134' site/app.js
           grep -Fq 'restoreCachedLiveWeatherFirstFrameV6134' site/app.js
           ! grep -Fq 'if(window.__BP_CLOUDS_ONLY_PHASE_V6070__===true && m)' site/landing.js
-          grep -Fq 'landing.js?v=6138-cloud-linked-lightning' site/index.html
+          grep -Fq 'landing.js?v=6160-cloud-volume-clarity' site/index.html
           grep -Fq 'async function toggleNasaNightlights()' site/world-v2300-time-slider.js
           grep -Fq 'async function toggleSkyClouds()' site/world-v2300-time-slider.js
           grep -Fq 'data-skyview' site/world-v2300-time-slider.js
@@ -913,7 +913,7 @@ jobs:
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/app.js
           grep -Fq 'activateLiveWeather();' site/app.js
           grep -Fq 'enabled:true,serializedWeather:true' site/app.js
-          grep -Fq 'app.js?v=6138-cloud-linked-lightning' site/app/index.html
+          grep -Fq 'app.js?v=6160-cloud-volume-clarity' site/app/index.html
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/landing.js
           grep -Fq 'WMO_CAP_WARNING' site/app.js
           grep -Fq 'WMO_CAP_WARNING' site/landing.js
@@ -1141,8 +1141,8 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=6138-cloud-linked-lightning' site/app/index.html
-          grep -Fq 'landing.js?v=6138-cloud-linked-lightning' site/index.html
+          grep -Fq 'app.js?v=6160-cloud-volume-clarity' site/app/index.html
+          grep -Fq 'landing.js?v=6160-cloud-volume-clarity' site/index.html
            grep -Fq 'world-v2300-map.js?v=6137-globe-first-weather-lockstep' site/app.js
            grep -Fq 'world-v2300-map.js?v=6137-globe-first-weather-lockstep' site/landing.js
            grep -Fq 'world-v2300-map.js?v=6137-globe-first-weather-lockstep' site/index.html
