@@ -2027,7 +2027,7 @@ jobs:
                   weatherLayerState:window.__BP_LANDING_WEATHER_LAYER_STATE__||null,
                   sourceWeatherState:window.__BP_LANDING_LIVE_WEATHER__||window.__BP_LANDING_WEATHER_CACHE_FIRST_FRAME_V6134__||window.__BP_LANDING_WEATHER_STALE_V6134__||null,
                   groundRadarVisible:visible('bp-landing-v6132-ground-radar')&&window.__BP_LANDING_GROUND_RADAR_DRAPE_V6132__?.placedBelowBuildings===true,
-                  satelliteCloudVisible:visible('bp6133-noaa-geocolor-cloud-context')&&window.__BP_GOES_CLOUD_CONTEXT_V6134__?.groundDraped===true,
+                  satelliteCloudVisible:visible('bp6133-noaa-geocolor-cloud-context')&&window.__BP_GOES_CLOUD_CONTEXT_V6134__?.groundDraped===true&&window.__BP_GOES_CLOUD_CONTEXT_V6134__?.placedBelowBuildings===true,
                   legacyWeatherEffectsDisabled:window.__BP_CLOUDS_ONLY_PHASE_V6070__!==true&&window.__BP_LANDING_VISUAL_WEATHER__?.legacyCinematicFxDisabled===true,
                   canvasCount:document.querySelectorAll('#previewMap canvas').length,
                   contextLosses:Number(diag.contextLosses)||0,
