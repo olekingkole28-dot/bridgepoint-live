@@ -92,7 +92,7 @@ test('entrypoints use fresh cache keys for updated map, water, clouds, weather a
   assert.match(map, /world-v2300-space\.js\?v=6125-manual-globe-camera/);
   assert.match(timeSlider, /world-v2300-clouds\.js\?v=6134-source-satellite-clouds/);
   assert.match(bootstrap, /world-v2300-weather\.js\?v=6134-first-frame-weather/);
-  assert.match(appHtml, /app\.js\?v=6134-first-frame-weather/);
+  assert.match(appHtml, /app\.js\?v=6135-source-weather-entrypoint/);
   assert.match(landingHtml, /landing\.js\?v=6135-source-weather-entrypoint/);
   assert.match(appHtml, /intelligence-global-v5507\.js\?v=6134-global-precip-lod/);
   assert.match(landingHtml, /intelligence-global-v5507\.js\?v=6134-global-precip-lod/);
