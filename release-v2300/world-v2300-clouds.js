@@ -418,7 +418,7 @@ const SATELLITE_CLOUD_MASK_V6140 = Object.freeze({
   minY: -13606546.0, maxY: 13591602.0,
   earthRadiusM: 6378137
 });
-function satelliteMaskIndexV6150(mask,lng,lat){
+function satelliteMaskIndexLegacyV6140(mask,lng,lat){
   if(!mask||!Number.isFinite(lng)||!Number.isFinite(lat))return -1;
   const width=Number(mask.width)||0,height=Number(mask.height)||0;
   if(width<1||height<1||!mask.coverage)return -1;
@@ -430,7 +430,7 @@ function satelliteMaskIndexV6150(mask,lng,lat){
   const col=Math.floor(x),row=Math.floor(y);
   return row*width+col;
 }
-function satelliteMaskCellCenterV6150(mask,col,row){
+function satelliteMaskCellCenterLegacyV6140(mask,col,row){
   const x=Number(mask.minX)+(col+.5)/Number(mask.width)*(Number(mask.maxX)-Number(mask.minX));
   const y=Number(mask.maxY)-(row+.5)/Number(mask.height)*(Number(mask.maxY)-Number(mask.minY));
   return {
