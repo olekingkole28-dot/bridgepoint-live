@@ -67,7 +67,7 @@ function installLandingNationalWeather(world){
   try{if(!m.getSource('bpLandingWeatherPoints'))m.addSource('bpLandingWeatherPoints',{type:'geojson',data:empty})}catch(e){console.warn('Landing weather point source',e)}
   try{if(!m.getSource('bpLandingWeatherShapes'))m.addSource('bpLandingWeatherShapes',{type:'geojson',data:empty})}catch(e){console.warn('Landing weather shape source',e)}
   const add=layer=>{try{if(!m.getLayer(layer.id))m.addLayer(layer);return !!m.getLayer(layer.id)}catch(e){window.__BP_LANDING_WEATHER_LAYER_ERRORS__=[...(window.__BP_LANDING_WEATHER_LAYER_ERRORS__||[]),{id:layer.id,message:String(e?.message||e),at:Date.now()}].slice(-12);console.warn('Landing weather layer '+layer.id,e);return false}};
-  add({id:'bp-landing-weather-fill',type:'fill',source:'bpLandingWeatherShapes',minzoom:0,paint:{'fill-color':landingWeatherColorExpr(),'fill-opacity':['case',['==',['get','observed'],true],.32,.23]}});
+  add({id:'bp-landing-weather-fill',type:'fill',source:'bpLandingWeatherShapes',minzoom:0,layout:{visibility:'none'},paint:{'fill-color':landingWeatherColorExpr(),'fill-opacity':['case',['==',['get','observed'],true],.32,.23]}});
   add({id:'bp-landing-weather-line',type:'line',source:'bpLandingWeatherShapes',minzoom:0,paint:{'line-color':landingWeatherColorExpr(),'line-width':['interpolate',['linear'],['zoom'],0,1.45,1.2,1.8,2.2,2.4,4,3.2,8,4.6,14,6.4],'line-opacity':['case',['==',['get','observed'],true],1,.98]}});
   add({id:'bp-landing-weather-glow',type:'circle',source:'bpLandingWeatherPoints',minzoom:0,paint:{'circle-radius':['interpolate',['linear'],['zoom'],0,4,1.2,5,2.2,6.5,3.5,8,4.5,9.5,9,13,14,17],'circle-color':landingWeatherColorExpr(),'circle-opacity':['case',['==',['get','observed'],true],.43,.28],'circle-blur':.62}});
   add({id:'bp-landing-weather-points',type:'circle',source:'bpLandingWeatherPoints',minzoom:0,paint:{'circle-radius':['interpolate',['linear'],['zoom'],0,2.8,1.2,3.6,2.2,4.5,3.5,5.2,4.5,6.2,9,8.3,14,10.2],'circle-color':landingWeatherColorExpr(),'circle-opacity':['case',['==',['get','observed'],true],.99,.92],'circle-stroke-color':'#f5fdff','circle-stroke-width':['interpolate',['linear'],['zoom'],0,.65,2.2,.9,3.5,1.1,4.5,1.35,12,1.8],'circle-stroke-opacity':['interpolate',['linear'],['zoom'],0,.42,3.5,.55,6,.72,12,.88]}});
@@ -95,8 +95,8 @@ async function loadLandingNationalWeather(world,attempt=0){if(!landingWeatherEna
   const wx=landingWeatherCollections(d.items||[]);
   m.getSource('bpLandingWeatherPoints')?.setData(wx.points);
   m.getSource('bpLandingWeatherShapes')?.setData(wx.shapes);
-  for(const id of ['bp-landing-weather-fill','bp-landing-weather-line','bp-landing-weather-glow','bp-landing-weather-points','bp-landing-weather-hit'])try{if(m.getLayer(id))m.setLayoutProperty(id,'visibility','visible')}catch(_){}
-  for(const id of ['bp-landing-weather-fill','bp-landing-weather-line','bp-landing-weather-glow','bp-landing-weather-points'])try{if(m.getLayer(id))m.moveLayer(id)}catch(_){}
+  for(const id of ['bp-landing-weather-line','bp-landing-weather-glow','bp-landing-weather-points','bp-landing-weather-hit'])try{if(m.getLayer(id))m.setLayoutProperty(id,'visibility','visible')}catch(_){}
+  for(const id of ['bp-landing-weather-line','bp-landing-weather-glow','bp-landing-weather-points'])try{if(m.getLayer(id))m.moveLayer(id)}catch(_){}
   if($('landingWeatherCount'))$('landingWeatherCount').textContent=(d.items?.length||0)+' EVENTS';
   if($('landingWeatherTime'))$('landingWeatherTime').textContent='Fresh '+new Date(d.generated_at).toLocaleTimeString()+' · global source events + tracks · U.S. watch/warning geometry · live precipitation context';
   window.__BP_LANDING_LIVE_WEATHER__={fresh:true,count:d.items?.length||0,shapeCount:wx.shapes.features.length,pointCount:wx.points.features.length,updatedAt:Date.now()};
@@ -128,7 +128,7 @@ async function startLandingNationalWeather(world){
 function hideLegacyLandingWeather(targetMap=map){
  const m=targetMap;if(!m)return;
  // Leave official source-backed weather geometries visible; only suppress legacy radar imagery here.
- for(const id of ['bp-landing-radar-a','bp-landing-radar-b'])try{if(m.getLayer(id)){if((m.getLayoutProperty(id,'visibility')||'visible')!=='none')m.setLayoutProperty(id,'visibility','none');if(Number(m.getPaintProperty(id,'raster-opacity')??1)!==0)m.setPaintProperty(id,'raster-opacity',0)}}catch(_){}
+ for(const id of ['bp-landing-radar-a','bp-landing-radar-b','bp-landing-weather-fill'])try{if(m.getLayer(id)){if((m.getLayoutProperty(id,'visibility')||'visible')!=='none')m.setLayoutProperty(id,'visibility','none');if(id!=='bp-landing-weather-fill'&&Number(m.getPaintProperty(id,'raster-opacity')??1)!==0)m.setPaintProperty(id,'raster-opacity',0)}}catch(_){}
  window.__BP_LANDING_LEGACY_WEATHER_HIDDEN_V6057__={hidden:true,legacyRadarHidden:true,sourceWeatherOverlaysPreserved:true,renderer:'cinematic-v2300-only',updatedAt:Date.now()}
 }
 function setLandingWeatherEnabled(world,on){
