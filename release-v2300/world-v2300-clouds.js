@@ -417,6 +417,15 @@ function goesGeoColorTileUrlV6133(epoch) {
 function ensureLiveSatelliteCloudContextV6133(map) {
   if (!map?.addSource || !map?.getLayer) return false;
   const frame = () => Math.floor(Date.now() / 600000) * 600000;
+  if (map.isStyleLoaded?.() === false) {
+    if (!map.__bpGoesCloudStyleWaiterV6133) {
+      map.__bpGoesCloudStyleWaiterV6133 = true;
+      const retry = () => { map.__bpGoesCloudStyleWaiterV6133 = false; ensureLiveSatelliteCloudContextV6133(map); };
+      map.once?.('load', retry);
+      map.once?.('style.load', retry);
+    }
+    return false;
+  }
   try {
     const before = ['bp-v6132-ground-radar','bp-landing-v6132-ground-radar',
       'gta-landmark3d-base','gta-bridge3d-pier','gta-context-building-shadow',
@@ -454,6 +463,7 @@ function ensureLiveSatelliteCloudContextV6133(map) {
     }
     let state = window.__BP_GOES_CLOUD_CONTEXT_V6133__;
     if (!state || state.map !== map) {
+      try { if (state?.timer) clearInterval(state.timer); } catch (_) {}
       state = {
         version: 6133,
         map,
@@ -491,6 +501,7 @@ function ensureLiveSatelliteCloudContextV6133(map) {
           ensureLiveSatelliteCloudContextV6133(map);
         }
       });
+      map.on?.('moveend', () => { if (!document.hidden) state.refresh(); });
       document.addEventListener('visibilitychange', () => {
         if (!document.hidden) state.refresh();
       });
