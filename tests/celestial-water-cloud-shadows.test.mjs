@@ -97,3 +97,10 @@ test('sky-view restoration returns to street with bounded cleanup waits', () => 
   assert.match(timeSlider, /skyViewDiag\.phase='restoring-street'/);
   assert.doesNotMatch(timeSlider, /'ground clamp restore'/);
 });
+
+test('public cyclone fallback is fetched concurrently with edge weather', () => {
+  assert.match(weather, /const \[edgeResult,publicCyclones\]=await Promise\.all\(\[/);
+  assert.match(weather, /\.then\(value=>\(\{value,error:null\}\),error=>\(\{value:null,error\}\)\)/);
+  assert.match(weather, /getPublicCyclones\(force\)/);
+  assert.match(weather, /source:'NOAA\/NHC'/);
+});
