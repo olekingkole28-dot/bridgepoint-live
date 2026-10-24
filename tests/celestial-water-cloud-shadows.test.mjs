@@ -97,6 +97,11 @@ test('entrypoints use fresh cache keys for updated map, water, clouds, weather a
 
 test('new rain/lightning and global source markers stay separate from legacy effects', () => {
   assert.match(weather, /active=!!v;/);
+  assert.match(weather, /const LEGACY_NATIVE_WEATHER_LAYERS=\['wx-snow-depth','wx-alert-fill','wx-fire-fill','wx-thermal','wx-quake-glow','wx-storm-glow'\]/);
+  assert.match(weather, /for\(const id of \['wx-alert-line','wx-fire-line','wx-quake','wx-storm','wx-obs','wx-water'\]\)/);
+  assert.match(app, /setLayoutProperty\('bp-v5004-weather-shape-fill','visibility','none'\)/);
+  assert.match(landing, /bp-landing-weather-fill/);
+  assert.match(landing, /layout:\{visibility:'none'\},paint:\{'fill-color':landingWeatherColorExpr\(\)/);
   assert.doesNotMatch(weather, /active=CLOUDS_ONLY_PHASE\(\)\?true:!!v/);
   assert.match(weather, /initLightningLayer/);
   assert.doesNotMatch(weather, /'bp2300-rain-wet-ground-v6068','bp2300-rain-puddle-fill-v6068/);
