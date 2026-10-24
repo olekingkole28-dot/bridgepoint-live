@@ -134,10 +134,10 @@ test('new rain/lightning and global source markers stay separate from legacy eff
   assert.match(app, /\['zoom'\],0,1\.28,1\.5,1\.24,3,1\.18/);
   assert.match(landing, /\['zoom'\],0,1\.28,1\.5,1\.24,3,1\.18/);
   assert.match(app, /sourceWeatherOverlaysPreserved:true/);
-  assert.match(app, /fill-opacity':\['interpolate',\['linear',\],\['zoom'\],0,\.26,2,\.28/);
-  assert.match(app, /line-width':\['interpolate',\['linear',\],\['zoom'\],0,3\.2/);
-  assert.match(landing, /fill-opacity':\['interpolate',\['linear',\],\['zoom'\],0,\.26,2,\.28/);
-  assert.match(landing, /line-width':\['interpolate',\['linear',\],\['zoom'\],0,3\.2/);
+  assert.match(app, /fill-opacity':\['interpolate',\['linear'\],\['zoom'\],0,\.26,2,\.28/);
+  assert.match(app, /line-width':\['interpolate',\['linear'\],\['zoom'\],0,3\.2/);
+  assert.match(landing, /fill-opacity':\['interpolate',\['linear'\],\['zoom'\],0,\.26,2,\.28/);
+  assert.match(landing, /line-width':\['interpolate',\['linear'\],\['zoom'\],0,3\.2/);
   assert.match(globalWeather, /raster-opacity':\['interpolate',\['linear',\],\['zoom'\],0,\.50,1\.5,\.48,3,\.40,4\.5,\.25,6,\.15,7,\.09,8,\.035,8\.5,0/);
   assert.match(clouds, /rainAnchorObservations\.slice\(0, overviewClouds \? \(MOBILE \? 2 : 4\) : \(MOBILE \? 4 : 8\)\)/);
   assert.match(landing, /legacyCinematicFxDisabled:true/);
