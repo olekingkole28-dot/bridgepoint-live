@@ -407,11 +407,108 @@ function makeFunnelGeometry(MC, vertices, indices, lng, lat, altitudeTop, tint, 
   return {heightM, topRadiusM: topM, bottomRadiusM: bottomM, zoomBoost};
 }
 
+
+const GOES_CLOUD_SOURCE_ID_V6133 = 'bp6133-noaa-geocolor-source';
+const GOES_CLOUD_LAYER_ID_V6133 = 'bp6133-noaa-geocolor-cloud-context';
+function goesGeoColorTileUrlV6133(epoch) {
+  const endpoint = 'https://satellitemaps.nesdis.noaa.gov/arcgis/rest/services/Most_Recent_MERGEDGC/ImageServer/exportImage';
+  return endpoint + '?bbox={bbox-epsg-3857}&bboxSR=3857&imageSR=3857&size=256,256&format=png32&transparent=true&time=' + encodeURIComponent(String(epoch)) + '&f=image';
+}
+function ensureLiveSatelliteCloudContextV6133(map) {
+  if (!map?.addSource || !map?.getLayer) return false;
+  const frame = () => Math.floor(Date.now() / 600000) * 600000;
+  try {
+    const before = ['bp-v6132-ground-radar','bp-landing-v6132-ground-radar',
+      'gta-landmark3d-base','gta-bridge3d-pier','gta-context-building-shadow',
+      'gta-context-buildings','gta-place-label'].find(id => map.getLayer(id));
+    if (!map.getSource(GOES_CLOUD_SOURCE_ID_V6133)) {
+      map.addSource(GOES_CLOUD_SOURCE_ID_V6133, {
+        type: 'raster',
+        tiles: [goesGeoColorTileUrlV6133(frame())],
+        tileSize: 256,
+        minzoom: 0,
+        maxzoom: 14,
+        bounds: [-180, -76.49, 180, 76.46],
+        attribution: 'NOAA NESDIS · merged GOES East/West GeoColor satellite imagery'
+      });
+    }
+    if (!map.getLayer(GOES_CLOUD_LAYER_ID_V6133)) {
+      map.addLayer({
+        id: GOES_CLOUD_LAYER_ID_V6133,
+        type: 'raster',
+        source: GOES_CLOUD_SOURCE_ID_V6133,
+        minzoom: 0,
+        maxzoom: 24,
+        layout: { visibility: 'visible' },
+        paint: {
+          'raster-opacity': ['interpolate', ['linear'], ['zoom'],
+            0, .31, 1.2, .29, 2.5, .23, 4, .14, 6, .055, 8, 0],
+          'raster-saturation': .12,
+          'raster-contrast': .08,
+          'raster-fade-duration': 0,
+          'raster-resampling': 'linear'
+        }
+      }, before);
+    } else if ((map.getLayoutProperty(GOES_CLOUD_LAYER_ID_V6133, 'visibility') || 'visible') !== 'visible') {
+      map.setLayoutProperty(GOES_CLOUD_LAYER_ID_V6133, 'visibility', 'visible');
+    }
+    let state = window.__BP_GOES_CLOUD_CONTEXT_V6133__;
+    if (!state || state.map !== map) {
+      state = {
+        version: 6133,
+        map,
+        enabled: true,
+        sourceId: GOES_CLOUD_SOURCE_ID_V6133,
+        layerId: GOES_CLOUD_LAYER_ID_V6133,
+        source: 'NOAA NESDIS merged GOES East/West GeoColor',
+        sourceCoverage: { west: -180, south: -76.49, east: 180, north: 76.46 },
+        groundDraped: true,
+        cloudOnlyMask: false,
+        refreshIntervalMs: 600000,
+        refreshRequestedAt: null,
+        updatedAt: Date.now()
+      };
+      state.refresh = () => {
+        if (document.hidden || map.isMoving?.()) return false;
+        try {
+          const source = map.getSource(GOES_CLOUD_SOURCE_ID_V6133);
+          if (!source?.setTiles) return false;
+          const epoch = frame();
+          source.setTiles([goesGeoColorTileUrlV6133(epoch)]);
+          state.requestedFrameEpoch = epoch;
+          state.refreshRequestedAt = Date.now();
+          state.updatedAt = Date.now();
+          map.triggerRepaint?.();
+          return true;
+        } catch (error) {
+          state.lastError = String(error?.message || error).slice(0, 180);
+          return false;
+        }
+      };
+      state.timer = setInterval(state.refresh, state.refreshIntervalMs);
+      map.on?.('styledata', () => {
+        if (!map.getSource(GOES_CLOUD_SOURCE_ID_V6133) || !map.getLayer(GOES_CLOUD_LAYER_ID_V6133)) {
+          ensureLiveSatelliteCloudContextV6133(map);
+        }
+      });
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) state.refresh();
+      });
+      window.__BP_GOES_CLOUD_CONTEXT_V6133__ = state;
+    }
+    return true;
+  } catch (error) {
+    window.__BP_GOES_CLOUD_CONTEXT_V6133_ERROR__ = String(error?.message || error).slice(0, 200);
+    return false;
+  }
+}
+
 export function initSkyClouds(target) {
   const map = target?.map || target;
   const container = map?.getContainer?.();
   const MC = window.maplibregl?.MercatorCoordinate || window.MapLibreGL?.MercatorCoordinate;
   if (!map || !container || !MC?.fromLngLat) return null;
+  ensureLiveSatelliteCloudContextV6133(map);
   const existingCloudController = window.__BP_SKY_CLOUDS_V5908__;
   if (existingCloudController?.map === map) {
     const existingState = window.__BP_SKY_CLOUDS_STATE_V6079__ || window.__BP_SKY_CLOUDS_STATE_V6077__ || window.__BP_SKY_CLOUDS_STATE_V6076__ ||
