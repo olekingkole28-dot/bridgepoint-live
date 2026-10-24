@@ -1736,6 +1736,21 @@ function generateGeometry() {
       }
 
     }
+    // Publish the exact geographic rain-cloud formations already submitted to the 3D cloud mesh.
+    // Lightning consumes these same source-backed cloud centers, rather than inventing a screen-space cloud.
+    const lightningCloudAnchors = formations.filter(f => f.kind === 'rain-cell').map(f => {
+      const groundM = terrainElevationAt(f.lng, f.lat);
+      return {
+        lng: f.lng, lat: f.lat, radiusM: f.radiusM,
+        cloudBaseAglM: clamp(f.baseM - groundM, 180, 4200),
+        cloudTopAglM: clamp(f.topM - groundM, 680, 16000),
+        cloudBaseM: f.baseM, cloudTopM: f.topM,
+        source: 'shared-rendered-rain-cell-cloud', geometryVersion: 6135
+      };
+    });
+    window.__BP_LIGHTNING_CLOUD_ANCHORS_V6135__ = {
+      map, anchors: lightningCloudAnchors, count: lightningCloudAnchors.length, updatedAt: Date.now()
+    };
     const global = buildGlobalCloudGeometry();
     const globalVertexCount = Math.floor(global.vertices.length / 13);
     const requestedStormVertexCount = Math.floor(stormVolumeVertices.length/13);
