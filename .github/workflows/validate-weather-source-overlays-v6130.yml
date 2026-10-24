@@ -97,6 +97,9 @@ jobs:
           grep -Fq 'world-v2300-weather.js?v=6135-cloud-rain-lightning' rebuild-v5000/app.js
           grep -Fq 'world-v2300-weather.js?v=6135-cloud-rain-lightning' rebuild-v5000/landing.js
           grep -Fq 'world-v2300-lightning.js?v=6135-cloud-ground-lightning' release-v2300/world-v2300-weather.js
+          grep -Fq "const RAIN_CELL_CONTEXT_GLOW = 'bp2300-rain-cell-lod-glow-v6135';" release-v2300/world-v2300-rain.js
+          grep -Fq "const RAIN_CELL_CONTEXT_CORE = 'bp2300-rain-cell-lod-core-v6135';" release-v2300/world-v2300-rain.js
+          grep -Fq 'const limit = z < 3.5 ? (MOBILE ? 16 : 36)' release-v2300/world-v2300-rain.js
           grep -Fq 'const RAIN_START_ZOOM = MOBILE ? 8 : 7;' release-v2300/world-v2300-rain.js
           grep -Fq 'sourceRainAnchors' release-v2300/world-v2300-clouds.js
           grep -Fq 'const reportCandidates = raw.filter(isRainObservation);' release-v2300/world-v2300-rain.js
