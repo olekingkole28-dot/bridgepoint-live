@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const read = path => readFile(new URL(path, import.meta.url), 'utf8');
-const [water, map, space, clouds, weather, rain, lightning, app, landing, listingView, timeSlider, bootstrap, appHtml, landingHtml] = await Promise.all([
+const [water, map, space, clouds, weather, rain, lightning, app, landing, listingView, timeSlider, bootstrap, appHtml, landingHtml, globalWeather] = await Promise.all([
   read('../release-v2300/world-v2300-water.js'),
   read('../release-v2300/world-v2300-map.js'),
   read('../release-v2300/world-v2300-space.js'),
@@ -16,7 +16,8 @@ const [water, map, space, clouds, weather, rain, lightning, app, landing, listin
   read('../release-v2300/world-v2300-time-slider.js'),
   read('../release-v2300/world-v2300-bootstrap.js'),
   read('../rebuild-v5000/app-index.html'),
-  read('../rebuild-v5000/index.html')
+  read('../rebuild-v5000/index.html'),
+  read('../rebuild-v5000/intelligence-global-v5507.js')
 ]);
 
 function test(name, fn) {
@@ -84,15 +85,17 @@ test('entrypoints use fresh cache keys for updated map, water, clouds, weather a
   for (const source of [app, landing]) {
     assert.match(source, /world-v2300-map\.js\?v=6125-manual-globe-camera/);
     assert.match(source, /world-v2300-water\.js\?v=6124-solar-ocean-swell/);
-    assert.match(source, /world-v2300-clouds\.js\?v=6130-cloud-rain-lightning/);
-    assert.match(source, /world-v2300-weather\.js\?v=6131-close-zoom-rain-density/);
-    assert.match(source, /world-v2300-time-slider\.js\?v=6124-live-cloud-shadow-motion/);
+    assert.match(source, /world-v2300-clouds\.js\?v=6134-source-satellite-clouds/);
+    assert.match(source, /world-v2300-weather\.js\?v=6134-first-frame-weather/);
+    assert.match(source, /world-v2300-time-slider\.js\?v=6134-source-satellite-clouds/);
   }
   assert.match(map, /world-v2300-space\.js\?v=6125-manual-globe-camera/);
-  assert.match(timeSlider, /world-v2300-clouds\.js\?v=6130-cloud-rain-lightning/);
-  assert.match(bootstrap, /world-v2300-weather\.js\?v=6131-close-zoom-rain-density/);
-  assert.match(appHtml, /app\.js\?v=6132-global-weather-icons-ground-radar/);
-  assert.match(landingHtml, /landing\.js\?v=6132-global-weather-icons-ground-radar/);
+  assert.match(timeSlider, /world-v2300-clouds\.js\?v=6134-source-satellite-clouds/);
+  assert.match(bootstrap, /world-v2300-weather\.js\?v=6134-first-frame-weather/);
+  assert.match(appHtml, /app\.js\?v=6134-first-frame-weather/);
+  assert.match(landingHtml, /landing\.js\?v=6134-first-frame-weather/);
+  assert.match(appHtml, /intelligence-global-v5507\.js\?v=6134-global-precip-lod/);
+  assert.match(landingHtml, /intelligence-global-v5507\.js\?v=6134-global-precip-lod/);
 });
 
 test('new rain/lightning and global source markers stay separate from legacy effects', () => {
@@ -110,6 +113,24 @@ test('new rain/lightning and global source markers stay separate from legacy eff
   assert.match(rain, /windFields\(p, c, true\)/);
   assert.match(clouds, /sourceRainAnchors/);
   assert.match(clouds, /coverageVersion: 6130/);
+  assert.match(clouds, /bp6133-noaa-geocolor-cloud-context/);
+  assert.match(clouds, /MERGEDGC_current\/ImageServer\/exportImage/);
+  assert.match(clouds, /initSatelliteCloudContextV6134/);
+  assert.match(clouds, /placedBelowBuildings/);
+  assert.match(clouds, /rainAnchorObservations\.slice\(0, overviewClouds \? \(MOBILE \? 2 : 4\)/);
+  assert.match(lightning, /bp6130-cloud-expansion/);
+  assert.match(lightning, /bp6130-cloud-flash-gradient/);
+  assert.doesNotMatch(app, /window\.__BP_CLOUDS_ONLY_PHASE_V6070__=true;/);
+  assert.doesNotMatch(landing, /window\.__BP_CLOUDS_ONLY_PHASE_V6070__=true;/);
+  assert.match(app, /BP_SOURCE_WEATHER_CACHE_KEY_V6134/);
+  assert.match(app, /restoreCachedLiveWeatherFirstFrameV6134/);
+  assert.match(app, /warmLiveWeatherFirstFrameV6134/);
+  assert.match(landing, /BP_SOURCE_WEATHER_CACHE_KEY_V6134/);
+  assert.match(landing, /restoreLandingWeatherFirstFrameV6134/);
+  assert.match(landing, /void startLandingNationalWeather\(world\)/);
+  assert.match(app, /'raster-opacity':\['interpolate',\['linear'\],\['zoom'\],0,\.50,1\.5,\.50,3,\.53,5,\.59,8,\.63,12,\.66,18,\.66/);
+  assert.match(landing, /'raster-opacity':\['interpolate',\['linear'\],\['zoom'\],0,\.50,1\.5,\.50,3,\.53,5,\.59,8,\.63,12,\.66,18,\.66/);
+  assert.match(globalWeather, /'raster-opacity':\['interpolate',\['linear'\],\['zoom'\],0,\.50,1\.5,\.48,3,\.40,4\.5,\.25,6,\.15,7,\.09,8,\.035,8\.5,0/);
   assert.match(lightning, /export function initLightningLayer/);
   assert.match(lightning, /durationMs:2450/);
   assert.match(lightning, /overlayConnected/);

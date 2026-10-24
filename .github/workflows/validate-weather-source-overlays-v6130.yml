@@ -73,6 +73,18 @@ jobs:
           grep -Fq 'initialFetchRequested:true' rebuild-v5000/app.js
           grep -Fq 'BP_LANDING_WEATHER_ICON_CATALOG_V6132' rebuild-v5000/landing.js
           grep -Fq 'bp-landing-v6132-weather-icons' rebuild-v5000/landing.js
+          ! grep -Fq 'window.__BP_CLOUDS_ONLY_PHASE_V6070__=true;' rebuild-v5000/app.js
+          ! grep -Fq 'window.__BP_CLOUDS_ONLY_PHASE_V6070__=true;' rebuild-v5000/landing.js
+          grep -Fq 'BP_SOURCE_WEATHER_CACHE_KEY_V6134' rebuild-v5000/app.js
+          grep -Fq 'restoreCachedLiveWeatherFirstFrameV6134' rebuild-v5000/app.js
+          grep -Fq 'warmLiveWeatherFirstFrameV6134' rebuild-v5000/app.js
+          grep -Fq 'BP_SOURCE_WEATHER_CACHE_KEY_V6134' rebuild-v5000/landing.js
+          grep -Fq 'restoreLandingWeatherFirstFrameV6134' rebuild-v5000/landing.js
+          grep -Fq 'void startLandingNationalWeather(world)' rebuild-v5000/landing.js
+          grep -Fq 'bp6133-noaa-geocolor-cloud-context' release-v2300/world-v2300-clouds.js
+          grep -Fq 'initSatelliteCloudContextV6134' release-v2300/world-v2300-clouds.js
+          grep -Fq 'MERGEDGC_current/ImageServer/exportImage' release-v2300/world-v2300-clouds.js
+          grep -Fq 'bp6130-cloud-expansion' release-v2300/world-v2300-lightning.js
           grep -Fq 'bp-landing-v6132-ground-radar' rebuild-v5000/landing.js
           grep -Fq "layout:{visibility:'visible'},paint:{'fill-color':landingWeatherColorExpr()" rebuild-v5000/landing.js
           ! grep -Fq 'active=CLOUDS_ONLY_PHASE()?true:!!v' release-v2300/world-v2300-weather.js
@@ -86,6 +98,6 @@ jobs:
           grep -Fq 'BP_LISTINGS_MONEY_V6130' rebuild-v5000/bridgepoint-view-v5917.js
           grep -Fq 'sourceWeatherOverlaysPreserved:true' rebuild-v5000/app.js
           grep -Fq 'sourceWeatherOverlaysPreserved:true' rebuild-v5000/landing.js
-          grep -Fq 'world-v2300-clouds.js?v=6130-cloud-rain-lightning' rebuild-v5000/app.js
-          grep -Fq 'world-v2300-clouds.js?v=6130-cloud-rain-lightning' rebuild-v5000/landing.js
-          grep -Fq 'world-v2300-clouds.js?v=6130-cloud-rain-lightning' release-v2300/world-v2300-time-slider.js
+          grep -Fq 'world-v2300-clouds.js?v=6134-source-satellite-clouds' rebuild-v5000/app.js
+          grep -Fq 'world-v2300-clouds.js?v=6134-source-satellite-clouds' rebuild-v5000/landing.js
+          grep -Fq 'world-v2300-clouds.js?v=6134-source-satellite-clouds' release-v2300/world-v2300-time-slider.js
