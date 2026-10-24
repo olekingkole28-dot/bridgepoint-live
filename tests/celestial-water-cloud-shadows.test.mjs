@@ -127,7 +127,7 @@ test('new rain/lightning and global source markers stay separate from legacy eff
   assert.match(landing, /landingWeatherModules\.present\?\.setActive\?\.\(false\)/);
   assert.match(clouds, /bp6133-noaa-geocolor-cloud-context/);
   assert.match(clouds, /Most_Recent_MERGEDGC\/ImageServer\/exportImage/);
-  assert.match(clouds, /refreshIntervalMs:600000/);
+  assert.match(clouds, /refreshIntervalMs:\s*600000/);
   assert.match(lightning, /bp6130-cloud-expansion/);
   assert.match(lightning, /bp6130-cloud-flash-gradient/);
   assert.match(app, /\['zoom'\],0,1\.08,1\.5,1\.12,3,1\.16/);
