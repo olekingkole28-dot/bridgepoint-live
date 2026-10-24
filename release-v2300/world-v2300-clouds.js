@@ -327,11 +327,17 @@ function centerOf(feature) {
   for (const point of points) { lng += point[0]; lat += point[1]; }
   return [lng / points.length, lat / points.length];
 }
-function collectHeightFeatures(scene) {
+function collectHeightFeatures(scene, includeGlobalFeed = true) {
   const raw = scene?.cloud_top_height_samples || scene?.cloud_top_heights || scene?.cloudHeightSamples || [];
   const list = Array.isArray(raw) ? raw.slice() : Array.isArray(raw?.features) ? raw.features.map(f => ({ ...f.properties, lng: f.geometry?.coordinates?.[0], lat: f.geometry?.coordinates?.[1] })) : [];
-  const feedSamples = window.__BP_CLOUD_HEIGHT_FEED_V6162__?.samples;
-  if (Array.isArray(feedSamples) && feedSamples.length) list.push(...feedSamples);
+  if (includeGlobalFeed) {
+    const feedSamples = window.__BP_CLOUD_HEIGHT_FEED_V6162__?.samples;
+    if (Array.isArray(feedSamples) && feedSamples.length) {
+      const maxFeedSamples = MOBILE ? 65000 : 140000;
+      const stride = Math.max(1, Math.ceil(feedSamples.length / maxFeedSamples));
+      for (let i = 0; i < feedSamples.length; i += stride) list.push(feedSamples[i]);
+    }
+  }
   return list.filter(x => Number.isFinite(Number(x?.lng)) && Number.isFinite(Number(x?.lat)) &&
     Number.isFinite(Number(x?.cloud_top_height_m ?? x?.cloudTopHeightM)));
 }
@@ -1936,10 +1942,9 @@ function generateGeometry() {
     hurricaneVisualEyeRadiusKm = 0; hurricaneVisualShieldRadiusKm = 0; tornadoVisualHeightKm = 0; tornadoVisualTopRadiusKm = 0; tornadoVisualBoost = 0; tornadoSurfaceVerticesSubmitted = 0; sourceStormCount = 0; sourceTornadoAlertCount = 0; modeledHurricaneVisualCount = 0; modeledTornadoVisualCount = 0;
     localWindSourcePuffs = 0; localWindModelledPuffs = 0;
     const scene = getScene();
-    const allHeightSamples = collectHeightFeatures(scene);
-    // The global source feed enriches the persistent global puffs above. Do not turn the
-    // first few samples in a global grid into unrelated local formations at street zoom.
-    const measured = allHeightSamples.filter(sample => !sample.__bpCloudHeightFeedSample);
+    // Do not re-copy the global height grid during ordinary zoom/pan geometry updates.
+    // Global satellite puffs consume the measured feed only in buildGlobalCloudGeometry().
+    const measured = collectHeightFeatures(scene, false);
     measuredCount = measured.length;
     heightSource = measuredCount ? String(measured[0]?.source || measured[0]?.provenance || 'world-effects cloud-height samples')
       : (window.__BP_CLOUD_HEIGHT_FEED_V6162__?.samples?.length ? 'NASA SatCORPS / NOAA GOES measured height feed' : 'not connected');
