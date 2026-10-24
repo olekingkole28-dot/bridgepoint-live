@@ -1298,7 +1298,7 @@ export function initSkyClouds(target) {
       satelliteCloudMaskCoverageCells: satelliteMask?.coverageCells || 0,
       satelliteCloudMaskCloudCells: satelliteMask?.cloudCells || 0,
       satelliteCloudMaskObservedFootprintOnly: true,
-      satelliteCloudHeightsMeasured: false,
+      satelliteCloudHeightsMeasured: (globalCloudGeometryCache?.sourceHeightMatchedCount || 0) > 0,
       satelliteCloudHeightSource: satelliteMask?.cloudHeightSource || 'No satellite-derived cloud-height sample yet',
       satelliteCloudMaskLastError: window.__BP_GOES_CLOUD_CONTEXT_V6134__?.maskLastError || satelliteMask?.lastError || null,
       satelliteCloudVolumesRendered: globalCloudGeometryCache?.satelliteCloudAnchorCount || 0,
