@@ -85,12 +85,12 @@ test('entrypoints use fresh cache keys for updated map, water, clouds, weather a
   for (const source of [app, landing]) {
     assert.match(source, /world-v2300-map\.js\?v=6137-globe-first-weather-lockstep/);
     assert.match(source, /world-v2300-water\.js\?v=6124-solar-ocean-swell/);
-    assert.match(source, /world-v2300-clouds\.js\?v=6137-globe-first-weather-lockstep/);
+    assert.match(source, /world-v2300-clouds\.js\?v=6140-live-satellite-cloud-volume/);
     assert.match(source, /world-v2300-weather\.js\?v=6138-cloud-linked-lightning/);
     assert.match(source, /world-v2300-time-slider\.js\?v=6137-globe-first-weather-lockstep/);
   }
   assert.match(map, /world-v2300-space\.js\?v=6125-manual-globe-camera/);
-  assert.match(timeSlider, /world-v2300-clouds\.js\?v=6137-globe-first-weather-lockstep/);
+  assert.match(timeSlider, /world-v2300-clouds\.js\?v=6140-live-satellite-cloud-volume/);
   assert.match(bootstrap, /world-v2300-weather\.js\?v=6138-cloud-linked-lightning/);
   assert.match(appHtml, /app\.js\?v=6138-cloud-linked-lightning/);
   assert.match(landingHtml, /landing\.js\?v=6138-cloud-linked-lightning/);
@@ -112,10 +112,17 @@ test('new rain/lightning and global source markers stay separate from legacy eff
   assert.match(rain, /source_anchor_kind: 'warning'/);
   assert.match(rain, /windFields\(p, c, true\)/);
   assert.match(clouds, /sourceRainAnchors/);
-  assert.match(clouds, /coverageVersion: 6130/);
+  assert.match(clouds, /coverageVersion: 6140/);
   assert.match(clouds, /bp6133-noaa-geocolor-cloud-context/);
   assert.match(clouds, /MERGEDGC_current\/ImageServer\/exportImage/);
   assert.match(clouds, /initSatelliteCloudContextV6134/);
+  assert.match(clouds, /refreshSatelliteCloudMaskV6140/);
+  assert.match(clouds, /state\.maskTimer=setInterval/);
+  assert.match(clouds, /window\.__BP_SATELLITE_CLOUD_MASK_V6140__/);
+  assert.match(clouds, /bp2300:satellite-cloud-mask-updated/);
+  assert.match(clouds, /satelliteMaskIndexV6140/);
+  assert.match(clouds, /satelliteCloudAnchors/);
+  assert.doesNotMatch(clouds, /global satellite cloud-mask feed not yet connected/);
   assert.match(clouds, /placedBelowBuildings/);
   assert.match(clouds, /rainAnchorObservations\.slice\(0, overviewClouds \? \(MOBILE \? 2 : 4\)/);
   assert.match(lightning, /bp6130-cloud-expansion/);
@@ -148,6 +155,8 @@ test('new rain/lightning and global source markers stay separate from legacy eff
   assert.match(lightning, /map\.project\(\[anchor\.cloudLng\?\?anchor\.lng,anchor\.cloudLat\?\?anchor\.lat\]\)/);
   assert.match(lightning, /const top=\{x:clamp\(cloudScreen\.x\+jitter,0,bounds\.w\),y:Math\.max\(-12,cloudScreen\.y-height\)\}/);
   assert.match(lightning, /cloudAnchorRejectedCount/);
+  assert.match(clouds, /satelliteLightningCloudAnchors/);
+  assert.match(clouds, /satelliteCloudHeightsMeasured:\s*false/);
   assert.match(lightning, /bp6135-ground-flash-gradient/);
   assert.match(lightning, /bp6130-ground-flash/);
   assert.match(lightning, /globalLodMarkers/);

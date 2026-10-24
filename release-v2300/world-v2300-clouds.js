@@ -410,21 +410,151 @@ function makeFunnelGeometry(MC, vertices, indices, lng, lat, altitudeTop, tint, 
 
 const GOES_CLOUD_SOURCE_ID_V6134='bp6133-noaa-geocolor-source';
 const GOES_CLOUD_LAYER_ID_V6134='bp6133-noaa-geocolor-cloud-context';
+
+const SATELLITE_CLOUD_MASK_V6140 = Object.freeze({
+  width: 256, height: 128,
+  minX: -20037508.342789244, maxX: 20037508.342789244,
+  minY: -13606546.0, maxY: 13591602.0,
+  earthRadiusM: 6378137
+});
+function satelliteMaskIndexV6140(mask,lng,lat){
+  if(!mask||!Number.isFinite(lng)||!Number.isFinite(lat))return -1;
+  const width=Number(mask.width)||0,height=Number(mask.height)||0;
+  if(width<1||height<1||!mask.coverage)return -1;
+  const r=Number(mask.earthRadiusM)||6378137;
+  const clampedLat=clamp(lat,-76.49,76.46)*Math.PI/180;
+  const x=clamp((lng+180)/360,0,.999999999)*width;
+  const yProjected=r*Math.log(Math.tan(Math.PI/4+clampedLat/2));
+  const y=clamp((Number(mask.maxY)-yProjected)/Math.max(1,Number(mask.maxY)-Number(mask.minY)),0,.999999999)*height;
+  const col=Math.floor(x),row=Math.floor(y);
+  return row*width+col;
+}
+function satelliteMaskCellCenterV6140(mask,col,row){
+  const x=Number(mask.minX)+(col+.5)/Number(mask.width)*(Number(mask.maxX)-Number(mask.minX));
+  const y=Number(mask.maxY)-(row+.5)/Number(mask.height)*(Number(mask.maxY)-Number(mask.minY));
+  return {
+    lng:x/(Number(mask.earthRadiusM)||6378137)*180/Math.PI,
+    lat:(2*Math.atan(Math.exp(y/(Number(mask.earthRadiusM)||6378137)))-Math.PI/2)*180/Math.PI
+  };
+}
+
 function goesGeoColorTileUrlV6134(epoch){
  const endpoint='https://satellitemaps.nesdis.noaa.gov/arcgis/rest/services/MERGEDGC_current/ImageServer/exportImage';
  return endpoint+'?bbox={bbox-epsg-3857}&bboxSR=3857&imageSR=3857&size=256,256&format=png32&transparent=true&frame='+encodeURIComponent(String(epoch))+'&f=image';
 }
 function ensureLiveSatelliteCloudContextV6134(map){
  if(!map?.addSource||!map?.getLayer)return false;
- if(map.isStyleLoaded?.()===false){
-  if(!map.__bpGoesCloudStyleWaiterV6134){
-   map.__bpGoesCloudStyleWaiterV6134=true;
-   const retry=()=>{map.__bpGoesCloudStyleWaiterV6134=false;ensureLiveSatelliteCloudContextV6134(map)};
-   map.once?.('load',retry);map.once?.('style.load',retry);
-  }
-  return false;
+ const styleReady=map.isStyleLoaded?.()!==false;
+ if(!styleReady&&!map.__bpGoesCloudStyleWaiterV6134){
+  map.__bpGoesCloudStyleWaiterV6134=true;
+  const retry=()=>{
+   if(map.isStyleLoaded?.()===false)return;
+   map.off?.('load',retry);map.off?.('style.load',retry);map.off?.('styledata',retry);
+   map.__bpGoesCloudStyleWaiterV6134=false;
+   ensureLiveSatelliteCloudContextV6134(map);
+  };
+  map.on?.('load',retry);map.on?.('style.load',retry);map.on?.('styledata',retry);
  }
  const frame=()=>Math.floor(Date.now()/600000)*600000;
+
+ const refreshSatelliteCloudMaskV6140=async(maskState,force=false)=>{
+  if(document.hidden)return false;
+  const now=Date.now();
+  if(maskState.maskRefreshPromise)return maskState.maskRefreshPromise;
+  if(!force&&now-Number(maskState.maskLastAttemptAt||0)<480000)return false;
+  maskState.maskLastAttemptAt=now;
+  maskState.maskStatus='fetching';
+  maskState.maskLastError=null;
+  maskState.maskRefreshPromise=(async()=>{
+   const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),22000);
+   let bitmap=null,objectUrl=null;
+   try{
+    const epoch=frame(),bbox=[SATELLITE_CLOUD_MASK_V6140.minX,SATELLITE_CLOUD_MASK_V6140.minY,SATELLITE_CLOUD_MASK_V6140.maxX,SATELLITE_CLOUD_MASK_V6140.maxY].join(',');
+    const url='https://satellitemaps.nesdis.noaa.gov/arcgis/rest/services/MERGEDGC_current/ImageServer/exportImage'
+      +'?bbox='+bbox+'&bboxSR=3857&imageSR=3857&size=512,256&format=png32&transparent=true&frame='+encodeURIComponent(String(epoch))+'&f=image';
+    const response=await fetch(url,{mode:'cors',cache:'no-store',signal:controller.signal});
+    if(!response.ok)throw new Error('NOAA cloud image HTTP '+response.status);
+    const blob=await response.blob();
+    if(!/^image\//i.test(String(blob.type||'')))throw new Error('NOAA cloud image did not return an image MIME type');
+    if(typeof createImageBitmap==='function')bitmap=await createImageBitmap(blob);
+    else{
+     objectUrl=URL.createObjectURL(blob);
+     bitmap=await new Promise((resolve,reject)=>{
+      const img=new Image();
+      img.onload=()=>resolve(img);
+      img.onerror=()=>reject(new Error('NOAA cloud image decode failed'));
+      img.src=objectUrl;
+     });
+    }
+    if(!bitmap?.width||!bitmap?.height)throw new Error('NOAA cloud image has empty dimensions');
+    const width=SATELLITE_CLOUD_MASK_V6140.width,height=SATELLITE_CLOUD_MASK_V6140.height;
+    const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;
+    const ctx=canvas.getContext('2d',{willReadFrequently:true});
+    if(!ctx)throw new Error('Canvas pixel sampling unavailable');
+    ctx.clearRect(0,0,width,height);
+    ctx.imageSmoothingEnabled=true;
+    ctx.drawImage(bitmap,0,0,width,height);
+    const rgba=ctx.getImageData(0,0,width,height).data;
+    const coverage=new Uint8Array(width*height),probability=new Uint8Array(width*height);
+    let coverageCells=0,cloudCells=0,validSamples=0;
+    const cloudScore=(r,g,b)=>{
+     const hi=Math.max(r,g,b),lo=Math.min(r,g,b),sat=hi-lo,lum=.2126*r+.7152*g+.0722*b;
+     const neutral=clamp((lum-96)/130,0,1)*(1-.74*clamp((sat-42)/125,0,1));
+     const warm=clamp((r-92)/145,0,1)*clamp((g-42)/155,0,1)*clamp((r-b-8)/105,0,1)*.84;
+     const ice=clamp((b-82)/165,0,1)*clamp((g-66)/160,0,1)*.62;
+     return clamp(Math.max(neutral,warm,ice),0,1);
+    };
+    for(let i=0;i<width*height;i++){
+     const a=rgba[i*4+3];
+     if(a<16)continue;
+     validSamples++;
+     coverage[i]=255;
+     const score=cloudScore(rgba[i*4],rgba[i*4+1],rgba[i*4+2]);
+     probability[i]=Math.round(score*255);
+     if(score>=.43)cloudCells++;
+    }
+    for(let i=0;i<coverage.length;i++)if(coverage[i])coverageCells++;
+    if(coverageCells<600)throw new Error('NOAA cloud image did not provide a useful observed footprint ('+coverageCells+' valid grid cells)');
+    if(cloudCells<20)throw new Error('NOAA cloud image cloud classifier was unexpectedly empty ('+cloudCells+' cloudy samples)');
+    const prior=window.__BP_SATELLITE_CLOUD_MASK_V6140__;
+    const mask={
+     version:6140,map,width,height,
+     minX:SATELLITE_CLOUD_MASK_V6140.minX,maxX:SATELLITE_CLOUD_MASK_V6140.maxX,
+     minY:SATELLITE_CLOUD_MASK_V6140.minY,maxY:SATELLITE_CLOUD_MASK_V6140.maxY,
+     earthRadiusM:SATELLITE_CLOUD_MASK_V6140.earthRadiusM,
+     source:'NOAA NESDIS MERGEDGC_current GOES East/West GeoColor · pixel-derived cloud likelihood',
+     sourceUrl:'https://satellitemaps.nesdis.noaa.gov/arcgis/rest/services/MERGEDGC_current/ImageServer/exportImage',
+     sourceEpoch:epoch,updatedAt:Date.now(),generation:Number(prior?.generation||0)+1,
+     widthPixels:bitmap.width,heightPixels:bitmap.height,coverage,probability,
+     coverageCells,cloudCells,validSamples,
+     cloudProbabilityMethod:'GeoColor RGB brightness/colour heuristic; not NOAA official Cloud Mask',
+     cloudHeightSource:'modeled visualization prior; cloud top/base heights are not measured in this GeoColor product',
+     observedFootprintOnly:true,lastError:null
+    };
+    window.__BP_SATELLITE_CLOUD_MASK_V6140__=mask;
+    maskState.maskStatus='fresh';maskState.maskLastSuccessAt=mask.updatedAt;maskState.maskLastError=null;
+    maskState.maskGeneration=mask.generation;maskState.maskCoverageCells=coverageCells;maskState.maskCloudCells=cloudCells;
+    maskState.maskSourceEpoch=epoch;maskState.maskImageWidth=bitmap.width;maskState.maskImageHeight=bitmap.height;
+    try{window.dispatchEvent(new CustomEvent('bp2300:satellite-cloud-mask-updated',{detail:{map,generation:mask.generation,coverageCells,cloudCells,updatedAt:mask.updatedAt}}))}catch(_){}
+    map.triggerRepaint?.();
+    return true;
+   }catch(error){
+    const message=String(error?.message||error).slice(0,220);
+    maskState.maskStatus=window.__BP_SATELLITE_CLOUD_MASK_V6140__?.map===map?'stale':'unavailable';
+    maskState.maskLastError=message;
+    const current=window.__BP_SATELLITE_CLOUD_MASK_V6140__;
+    if(current?.map===map)current.lastError=message;
+    return false;
+   }finally{
+    clearTimeout(timeout);
+    try{bitmap?.close?.()}catch(_){}
+    if(objectUrl)try{URL.revokeObjectURL(objectUrl)}catch(_){}
+    maskState.maskRefreshPromise=null;
+   }
+  })();
+  return maskState.maskRefreshPromise;
+ };
+
  const beforeGround=()=>{
   const layers=map.getStyle?.()?.layers||[];
   return ['bp-v6132-ground-radar','bp-landing-v6132-ground-radar','gta-context-building-shadow','gta-context-buildings','gta-landmark3d-base','gta-bridge3d-pier','gta-place-label'].find(id=>map.getLayer(id))||
@@ -442,21 +572,23 @@ function ensureLiveSatelliteCloudContextV6134(map){
  };
  try{
   const before=beforeGround();
-  if(!map.getSource(GOES_CLOUD_SOURCE_ID_V6134))map.addSource(GOES_CLOUD_SOURCE_ID_V6134,{
-   type:'raster',tiles:[goesGeoColorTileUrlV6134(frame())],tileSize:256,minzoom:0,maxzoom:14,
-   bounds:[-180,-76.49,180,76.46],
-   attribution:'NOAA NESDIS · merged GOES East/West GeoColor latest imagery'
-  });
-  if(!map.getLayer(GOES_CLOUD_LAYER_ID_V6134))map.addLayer({
-   id:GOES_CLOUD_LAYER_ID_V6134,type:'raster',source:GOES_CLOUD_SOURCE_ID_V6134,minzoom:0,maxzoom:24,
-   layout:{visibility:'visible'},
-   paint:{
-    'raster-opacity':['interpolate',['linear'],['zoom'],0,.31,1.2,.29,2.5,.23,4,.14,6,.055,8.2,0],
-    'raster-saturation':.12,'raster-contrast':.08,'raster-fade-duration':0,'raster-resampling':'linear'
-   }
-  },before);
-  else if((map.getLayoutProperty(GOES_CLOUD_LAYER_ID_V6134,'visibility')||'visible')!=='visible')map.setLayoutProperty(GOES_CLOUD_LAYER_ID_V6134,'visibility','visible');
-  const placedBelowBuildings=placeBelowBuildings();
+  if(styleReady){
+   if(!map.getSource(GOES_CLOUD_SOURCE_ID_V6134))map.addSource(GOES_CLOUD_SOURCE_ID_V6134,{
+    type:'raster',tiles:[goesGeoColorTileUrlV6134(frame())],tileSize:256,minzoom:0,maxzoom:14,
+    bounds:[-180,-76.49,180,76.46],
+    attribution:'NOAA NESDIS · merged GOES East/West GeoColor latest imagery'
+   });
+   if(!map.getLayer(GOES_CLOUD_LAYER_ID_V6134))map.addLayer({
+    id:GOES_CLOUD_LAYER_ID_V6134,type:'raster',source:GOES_CLOUD_SOURCE_ID_V6134,minzoom:0,maxzoom:24,
+    layout:{visibility:'visible'},
+    paint:{
+     'raster-opacity':['interpolate',['linear'],['zoom'],0,.31,1.2,.29,2.5,.23,4,.14,6,.055,8.2,0],
+     'raster-saturation':.12,'raster-contrast':.08,'raster-fade-duration':0,'raster-resampling':'linear'
+    }
+   },before);
+   else if((map.getLayoutProperty(GOES_CLOUD_LAYER_ID_V6134,'visibility')||'visible')!=='visible')map.setLayoutProperty(GOES_CLOUD_LAYER_ID_V6134,'visibility','visible');
+  }
+  const placedBelowBuildings=styleReady?placeBelowBuildings():false;
   let state=window.__BP_GOES_CLOUD_CONTEXT_V6134__;
   if(!state||state.map!==map){
    try{if(state?.timer)clearInterval(state.timer)}catch(_){}
@@ -482,6 +614,21 @@ function ensureLiveSatelliteCloudContextV6134(map){
    document.addEventListener('visibilitychange',()=>{if(!document.hidden)state.refresh(false)});
    window.__BP_GOES_CLOUD_CONTEXT_V6134__=state;
   }
+
+  state.refreshMask=(force=false)=>refreshSatelliteCloudMaskV6140(state,force);
+  state.maskStatus=state.maskStatus||'pending';
+  if(state.maskTimer)clearInterval(state.maskTimer);
+  state.maskTimer=setInterval(()=>{
+   state.refresh(false);
+   void state.refreshMask(false);
+  },state.refreshIntervalMs||600000);
+  if(state.maskVisibilityHandler)document.removeEventListener('visibilitychange',state.maskVisibilityHandler);
+  state.maskVisibilityHandler=()=>{if(!document.hidden){state.refresh(true);void state.refreshMask(true)}};
+  document.addEventListener('visibilitychange',state.maskVisibilityHandler);
+  if(!state.maskInitialFetchStarted){
+   state.maskInitialFetchStarted=true;
+   void state.refreshMask(true);
+  }
   return true;
  }catch(error){window.__BP_GOES_CLOUD_CONTEXT_V6134_ERROR__=String(error?.message||error).slice(0,200);return false}
 }
@@ -505,8 +652,8 @@ export function initSkyClouds(target) {
       existingCloudController.state || null;
     // Cache-busted modules still share this global controller slot. Never silently
     // return a legacy controller whose geometry predates the requested cloud field.
-    if (Number(existingCloudController.version) >= 6130 &&
-        Number(existingState?.coverageVersion || existingState?.version) >= 6130) {
+    if (Number(existingCloudController.version) >= 6140 &&
+        Number(existingState?.coverageVersion || existingState?.version) >= 6140) {
       return existingCloudController;
     }
     try { existingCloudController.destroy?.(); } catch (error) {
@@ -867,8 +1014,12 @@ export function initSkyClouds(target) {
   }
 
   function publishState() {
+    const satelliteMask = window.__BP_SATELLITE_CLOUD_MASK_V6140__;
+    const satelliteMaskAgeMs = satelliteMask?.map===map && satelliteMask?.updatedAt ? Math.max(0,Date.now()-Number(satelliteMask.updatedAt)) : null;
+    const satelliteMaskUsable = satelliteMask?.map===map && satelliteMaskAgeMs!=null && satelliteMaskAgeMs<3600000;
+    const satelliteMaskStatus = satelliteMaskUsable ? 'fresh-observation-derived' : (window.__BP_GOES_CLOUD_CONTEXT_V6134__?.maskStatus || 'procedural-fallback');
     const state = {
-      version: 6130, map, enabled, visible: enabled && !document.hidden,
+      version: 6140, map, enabled, visible: enabled && !document.hidden,
       cloudShadowLayerAttached: !!map.getLayer?.(SHADOW_LAYER_ID), cloudShadowFeatureCount: shadowFeatureCount,
       cloudShadowUpdatedAt: shadowLastUpdateAt, cloudShadowHeightResolvedWindCount: shadowWindSourceCount,
       cloudShadowLayerError: shadowLayerError, weatherSceneGeneratedAt: getScene()?.generated_at || getScene()?.updated_at || null,
@@ -876,22 +1027,42 @@ export function initSkyClouds(target) {
       renderer: 'shared MapLibre WebGL context; storms use world-anchored raymarched volume proxies',
       stormRenderingArchitecture: 'Earth-coordinate storm geometry in fixed metres, source-centre anchored, with shader-interpolated source-motion vectors and no zoom-driven storm-size boosts',
       stormVolumeProxyVertices, hurricaneVolumeProxyVertices, tornadoVolumeProxyVertices, hurricaneSurfaceCloudVertices, tornadoSurfaceMeshVertices, tornadoSurfaceVerticesSubmitted, postTropicalSurfaceCloudVertices, postTropicalStormCount, postTropicalCloudShieldRadiusKm, josephineHurricaneGeometryCount, josephineVisualEyeRadiusKm, josephineVisualShieldRadiusKm, sourceHurricaneVisualEyeRadiusKm, josephineSourceClassification: (()=>{const j=(Array.isArray(getScene()?.storms)?getScene().storms:[]).find(isJosephineCyclone);const p=j?.properties||j||{};return String(p.official_classification||p.classification||p.classificationCode||p.type||'unknown');})(), stormRaymarchStepBudget,
-      cloudFormations: formationCount, globalCloudFormations: globalCloudGeometryCache?.formationCount || 0, coverageVersion: 6130, globalStormMaskCount: globalCloudGeometryCache?.stormEyeMaskCount || 0, globalCloudLodBand: globalCloudGeometryCache?.cloudLodBand || 'unbuilt', globalStormLod, sourceStormCount, sourceTornadoAlertCount, modeledHurricaneVisualCount, modeledTornadoVisualCount, hurricaneSpiralRibbonVertices, stormVisualProvenance: (modeledHurricaneVisualCount || modeledTornadoVisualCount) ? 'modeled fallback cloud structures are visual examples, not source-backed live weather or alerts' : (sourceStormCount ? 'source-anchored storm bodies; tropical cyclones use eye/spiral geometry, post-tropical lows use asymmetric cloud shields except the Josephine-specific visual-compatibility override; official classification is preserved, no synthetic storm centres' : 'no source-backed storm record; synthetic storm fallbacks disabled'), globalMacroRadiusMinKm: globalCloudGeometryCache?.macroRadiusMinKm || 0, globalMacroRadiusMaxKm: globalCloudGeometryCache?.macroRadiusMaxKm || 0, globalThinLayerSlices: globalCloudGeometryCache?.thinLayerSlices || 0, globalThinLayerStacks: globalCloudGeometryCache?.thinLayerStacks || 0, globalSingleLayerSlices: globalCloudGeometryCache?.singleLayerSlices || 0, globalSingleLayerStacks: globalCloudGeometryCache?.singleLayerStacks || 0, hurricaneSpiralCloudCenters, hurricaneEyeWallCloudCenters, hurricaneEyeRadiusKm, hurricaneEyeRadiusSource, hurricaneCloudShieldRadiusKm, hurricaneVisualEyeRadiusKm, hurricaneVisualShieldRadiusKm, tornadoVisualHeightKm, tornadoVisualTopRadiusKm, tornadoVisualBoost, globalHeightResolvedWindPuffs: globalCloudGeometryCache?.heightResolvedWindPuffs || 0, globalModelledWindPuffs: globalCloudGeometryCache?.modelledWindPuffs || 0, localWindSourcePuffs, localWindModelledPuffs, globalMacroFormations: globalCloudGeometryCache?.macroFormationCount || 0, globalFineFormations: globalCloudGeometryCache?.fineFormationCount || 0, globalIsolatedFormations: globalCloudGeometryCache?.isolatedFormationCount || 0, globalThinLayerFormations: globalCloudGeometryCache?.thinLayerFormationCount || 0, globalCloudPuffs: globalCloudGeometryCache?.puffCount || 0, globalTerrainQuerySamples: terrainHeightKnownSamples, terrainRelativeCloudBases: terrainQueryAvailable, cloudMotion: (globalCloudGeometryCache?.heightResolvedWindPuffs || 0) > 0 ? 'Height-resolved source wind advects matched cloud puffs; modelled atmospheric flow fills unmatched locations' : 'Height/latitude-aware modelled atmospheric flow; no source-backed global upper-air wind grid is connected',
+      cloudFormations: formationCount, globalCloudFormations: globalCloudGeometryCache?.formationCount || 0, coverageVersion: 6140, globalStormMaskCount: globalCloudGeometryCache?.stormEyeMaskCount || 0, globalCloudLodBand: globalCloudGeometryCache?.cloudLodBand || 'unbuilt', globalStormLod, sourceStormCount, sourceTornadoAlertCount, modeledHurricaneVisualCount, modeledTornadoVisualCount, hurricaneSpiralRibbonVertices, stormVisualProvenance: (modeledHurricaneVisualCount || modeledTornadoVisualCount) ? 'modeled fallback cloud structures are visual examples, not source-backed live weather or alerts' : (sourceStormCount ? 'source-anchored storm bodies; tropical cyclones use eye/spiral geometry, post-tropical lows use asymmetric cloud shields except the Josephine-specific visual-compatibility override; official classification is preserved, no synthetic storm centres' : 'no source-backed storm record; synthetic storm fallbacks disabled'), globalMacroRadiusMinKm: globalCloudGeometryCache?.macroRadiusMinKm || 0, globalMacroRadiusMaxKm: globalCloudGeometryCache?.macroRadiusMaxKm || 0, globalThinLayerSlices: globalCloudGeometryCache?.thinLayerSlices || 0, globalThinLayerStacks: globalCloudGeometryCache?.thinLayerStacks || 0, globalSingleLayerSlices: globalCloudGeometryCache?.singleLayerSlices || 0, globalSingleLayerStacks: globalCloudGeometryCache?.singleLayerStacks || 0, hurricaneSpiralCloudCenters, hurricaneEyeWallCloudCenters, hurricaneEyeRadiusKm, hurricaneEyeRadiusSource, hurricaneCloudShieldRadiusKm, hurricaneVisualEyeRadiusKm, hurricaneVisualShieldRadiusKm, tornadoVisualHeightKm, tornadoVisualTopRadiusKm, tornadoVisualBoost, globalHeightResolvedWindPuffs: globalCloudGeometryCache?.heightResolvedWindPuffs || 0, globalModelledWindPuffs: globalCloudGeometryCache?.modelledWindPuffs || 0, localWindSourcePuffs, localWindModelledPuffs, globalMacroFormations: globalCloudGeometryCache?.macroFormationCount || 0, globalFineFormations: globalCloudGeometryCache?.fineFormationCount || 0, globalIsolatedFormations: globalCloudGeometryCache?.isolatedFormationCount || 0, globalThinLayerFormations: globalCloudGeometryCache?.thinLayerFormationCount || 0, globalCloudPuffs: globalCloudGeometryCache?.puffCount || 0, globalTerrainQuerySamples: terrainHeightKnownSamples, terrainRelativeCloudBases: terrainQueryAvailable, cloudMotion: (globalCloudGeometryCache?.heightResolvedWindPuffs || 0) > 0 ? 'Height-resolved source wind advects matched cloud puffs; modelled atmospheric flow fills unmatched locations' : 'Height/latitude-aware modelled atmospheric flow; no source-backed global upper-air wind grid is connected',
       stormMotionModel: 'Uses feed-provided motion where present; otherwise derives speed and heading from consecutive source fixes. No position interpolation is invented without track history.',
       projectionMode: 'MapLibre shaderData projectTileFor3D', projectionShaderVariants: programCache.size,
       projectionShaderVariantNames: Array.from(programCache.keys()),
-      persistentGlobalCloudField: true, globalCoverageModel: 'three procedural spatial layers: broad connected regional cloud banks, 700/760 rounded individual cloud cells and 750/850 thin high-level puffs; global satellite cloud-mask feed not yet connected', localCloudFormations: Math.max(0, formationCount - (globalCloudGeometryCache?.formationCount || 0)), rainCellShelfClouds: rainCellShelfCount, redrawIntervalMs: MOBILE ? 450 : 300, measuredCloudSamples: measuredCount, sourceCloudObservationFormations: sourceCloudObservationCount,
+      persistentGlobalCloudField: true,
+      globalCoverageModel: satelliteMaskUsable
+        ? 'NOAA GOES East/West GeoColor-derived cloud positions inside the observed image footprint; procedural cloud fill only outside that footprint; image-derived cloud probability and modeled vertical heights, not an official cloud-mask product'
+        : 'Procedural fallback remains active until a usable NOAA GOES East/West image-derived cloud mask is available; last successful mask is retained for diagnosis',
+      satelliteCloudMaskVersion: satelliteMask?.version || null,
+      satelliteCloudMaskStatus: satelliteMaskStatus,
+      satelliteCloudMaskSource: satelliteMask?.source || 'NOAA NESDIS MERGEDGC_current GeoColor (not yet sampled)',
+      satelliteCloudMaskUpdatedAt: satelliteMask?.updatedAt || null,
+      satelliteCloudMaskAgeMs: satelliteMaskAgeMs,
+      satelliteCloudMaskGeneration: satelliteMask?.generation || 0,
+      satelliteCloudMaskCoverageCells: satelliteMask?.coverageCells || 0,
+      satelliteCloudMaskCloudCells: satelliteMask?.cloudCells || 0,
+      satelliteCloudMaskObservedFootprintOnly: true,
+      satelliteCloudHeightsMeasured: false,
+      satelliteCloudHeightSource: satelliteMask?.cloudHeightSource || 'No satellite-derived cloud-height sample yet',
+      satelliteCloudMaskLastError: window.__BP_GOES_CLOUD_CONTEXT_V6134__?.maskLastError || satelliteMask?.lastError || null,
+      satelliteCloudVolumesRendered: globalCloudGeometryCache?.satelliteCloudAnchorCount || 0,
+      localCloudFormations: Math.max(0, formationCount - (globalCloudGeometryCache?.formationCount || 0)), rainCellShelfClouds: rainCellShelfCount, redrawIntervalMs: MOBILE ? 450 : 300, measuredCloudSamples: measuredCount, sourceCloudObservationFormations: sourceCloudObservationCount,
       cloudHeightSource: heightSource,
       cloudWaterHeightReference: terrainQueryAvailable ? 'Map terrain heights on land; sub-sea-level samples use mean-sea-level 0 m fallback. Tides, inland water levels and verified bathymetry are not connected.' : 'No terrain elevation query; 0 m mean-sea-level fallback over water; source-backed water levels and bathymetry are not connected.',
       layerPresent: !!map.getLayer?.(LAYER_ID), layerInstalled,
       layerRetryAttempts, mapStyleLoaded: map.isStyleLoaded?.() === true,
       mapStyleLayerCount: map.getStyle?.()?.layers?.length ?? 0, documentHidden: !!document.hidden,
-      cloudHeightMode: measuredCount ? 'source-backed local cloud-top height samples with procedural fill between samples; a complete global cloud-height field is not connected' : 'procedural altitude only; measured global cloud-top heights are not connected',
+      cloudHeightMode: satelliteMaskUsable
+        ? 'Satellite-derived horizontal cloud positions in the observed GOES footprint; modeled cloud volumes and wind-advection between updates; cloud heights are not measured by the GeoColor input'
+        : (measuredCount ? 'source-backed local cloud-top height samples with procedural fill between samples; a complete global cloud-height field is not connected' : 'procedural altitude only; measured global cloud-top heights are not connected'),
       warningFunnels: funnelCount, tornadoFunnelMeshVertices, tornadoFunnelAnimated: tornadoFunnelMeshVertices > 0, hurricaneStormVolumes: stormCount, hurricaneVortexAnimated: hurricaneVolumeProxyVertices > 0 && hurricaneEyeWallCloudCenters > 0,
       funnelCaveat: modeledTornadoVisualCount ? 'Illustrative modeled funnel geometry only; not a live tornado alert or confirmation of a tornado.' : funnelCount ? 'Illustrative funnel context inside active tornado-warning geometry; a warning is not confirmation of a tornado.' : null,
       rendererError, zoom: number(map.getZoom?.()), pitch: number(map.getPitch?.()), updatedAt: Date.now()
     };
     window.__BP_SKY_CLOUDS_STATE_V5908__ = state;
+    window.__BP_SKY_CLOUDS_STATE_V6140__ = state;
     window.__BP_SKY_CLOUDS_STATE_V6090__ = state;
     window.__BP_SKY_CLOUDS_STATE_V6094__ = state;
     window.__BP_SKY_CLOUDS_STATE_V6029__ = state;
@@ -1130,6 +1301,18 @@ export function initSkyClouds(target) {
 
   function buildGlobalCloudGeometry() {
     const windScene = getScene();
+    const satelliteMask = window.__BP_SATELLITE_CLOUD_MASK_V6140__;
+    const satelliteMaskAgeMs = satelliteMask?.updatedAt ? Math.max(0,Date.now()-Number(satelliteMask.updatedAt)) : Infinity;
+    const satelliteMaskReady = satelliteMask?.map===map && satelliteMaskAgeMs<3600000 &&
+      Number(satelliteMask.coverageCells)>=600 && Number(satelliteMask.cloudCells)>=20 &&
+      satelliteMask.coverage?.length===Number(satelliteMask.width)*Number(satelliteMask.height) &&
+      satelliteMask.probability?.length===Number(satelliteMask.width)*Number(satelliteMask.height);
+    const satelliteMaskGeneration = satelliteMaskReady ? Number(satelliteMask.generation)||0 : 0;
+    const satelliteCoverageAt = (lng,lat) => {
+      if(!satelliteMaskReady)return false;
+      const idx=satelliteMaskIndexV6140(satelliteMask,lng,lat);
+      return idx>=0 && Number(satelliteMask.coverage[idx])>=192;
+    };
     const zoom = number(map.getZoom?.(), 10);
     const cloudLodBand = zoom <= 5.5 ? 'global' : zoom <= 8.5 ? 'regional' : 'local';
     const sourceCyclones = [
@@ -1145,22 +1328,33 @@ export function initSkyClouds(target) {
     const maskViewCenter=map.getCenter?.();
     const isInFrontHemisphere=st=>{if(!maskViewCenter)return true;const r=Math.PI/180,a=number(maskViewCenter.lat,0)*r,b=number(st.lat,0)*r,d=(number(st.lng,0)-number(maskViewCenter.lng,0))*r;return Math.sin(a)*Math.sin(b)+Math.cos(a)*Math.cos(b)*Math.cos(d)>-0.08;};
     // Do not inject a model-only cyclone into the live global cloud mask when the source has no storm.
-    const stormSignature=cloudLodBand+'|'+sourceCyclones.map(s=>s.key+':'+s.lng.toFixed(3)+','+s.lat.toFixed(3)+':'+Math.round(s.eyeRadiusM)).sort().join('|');
+    const stormSignature=cloudLodBand+'|'+sourceCyclones.map(s=>s.key+':'+s.lng.toFixed(3)+','+s.lat.toFixed(3)+':'+Math.round(s.eyeRadiusM)).sort().join('|')+
+      '|sat-mask:'+satelliteMaskGeneration+':'+(satelliteMaskReady?'active':'fallback');
     if (globalCloudGeometryCache && globalCloudGeometryCache.stormSignature === stormSignature) return globalCloudGeometryCache;
     globalCloudGeometryCache = null;
     const vertices = [], indices = [], macroCandidates = [], shadowAnchors = [];
-    let heightResolvedWindPuffs = 0, modelledWindPuffs = 0;
+    const satelliteCloudAnchors = [];
+    const satelliteMaxClouds = MOBILE ? 320 : 480;
+    const satellitePuffVertexCount = ((MOBILE ? 6 : 7) + 1) * 3;
+    const satelliteVertexReserve = satelliteMaskReady ? satelliteMaxClouds * satellitePuffVertexCount : 0;
+    let heightResolvedWindPuffs = 0, modelledWindPuffs = 0, globalPuffCount = 0;
     const eyeMaskRadius=st=>cloudLodBand==='global'?Math.max(st.eyeRadiusM,90000):cloudLodBand==='regional'?Math.max(st.eyeRadiusM,45000):st.eyeRadiusM;
-    const addGlobalPuff = (lng,lat,altitude,rx,ry,rz,tint,slices,stacks,seed) => {
+    const addGlobalPuff = (lng,lat,altitude,rx,ry,rz,tint,slices,stacks,seed,sourceDriven=false) => {
+      if(!sourceDriven && satelliteCoverageAt(lng,lat))return false;
+      const requiredVertices=(slices+1)*(stacks+1);
+      const vertexLimit=sourceDriven?65400:Math.max(0,65400-satelliteVertexReserve);
+      if(vertices.length/13+requiredVertices>vertexLimit)return false;
       let safeRx=rx,safeRy=ry;
       for(const storm of sourceCyclones){
         const distance=cloudDistanceMeters(lng,lat,storm.lng,storm.lat),eye=eyeMaskRadius(storm),radius=Math.max(safeRx,safeRy);
-        if(distance<=eye) return;
-        if(distance<eye+radius){const factor=clamp((distance-eye)/Math.max(1,radius),0,1);if(factor<0.04)return;safeRx*=factor;safeRy*=factor;}
+        if(distance<=eye) return false;
+        if(distance<eye+radius){const factor=clamp((distance-eye)/Math.max(1,radius),0,1);if(factor<0.04)return false;safeRx*=factor;safeRy*=factor;}
       }
       const wind=cloudWindVectorFor(lng,lat,altitude,windScene);
       if(wind.sourceBacked)heightResolvedWindPuffs++;else modelledWindPuffs++;
       makePuffGeometry(null,MC,vertices,indices,lng,lat,altitude,safeRx,safeRy,rz,tint,slices,stacks,seed,wind.dx,wind.dy);
+      globalPuffCount++;
+      return true;
     };
     const columns = 40, rows = 18, maxMacro = MOBILE ? 110 : 130;
     const cloudScore = (gx, gy, cols, rowCount, edgeSeed) => {
@@ -1312,11 +1506,65 @@ export function initSkyClouds(target) {
       const vertical = range * (0.30 + hash(q.gx, q.gy, 998) * 0.07);
       addGlobalPuff(lng,lat,altitude,radius,radius*(0.78+hash(q.gx,q.gy,999)*0.28),vertical,0.12+hash(q.gx,q.gy,1000)*0.07,9,2,hash(q.gx,q.gy,1001));
     }
+
+    // Layer 4 — current satellite-derived cloud positions. Covered-but-clear pixels suppress
+    // the procedural fallback above; only pixels classified as cloud produce 3D cloud volumes.
+    // GeoColor provides location texture, not measured cloud-top height: vertical dimensions
+    // below are explicit visualization estimates. New imagery replaces this field automatically.
+    let satelliteCandidateCount = 0;
+    if(satelliteMaskReady){
+      const coverage=satelliteMask.coverage,probability=satelliteMask.probability;
+      const width=Number(satelliteMask.width),height=Number(satelliteMask.height),candidates=[];
+      for(let row=0;row<height;row++)for(let col=0;col<width;col++){
+        const i=row*width+col;
+        if(Number(coverage[i])<192||Number(probability[i])<110)continue;
+        const point=satelliteMaskCellCenterV6140(satelliteMask,col,row);
+        if(!Number.isFinite(point.lng)||!Number.isFinite(point.lat)||Math.abs(point.lat)>76.2)continue;
+        const p=Number(probability[i])/255;
+        candidates.push({...point,p,col,row,rank:p+hash(col,row,Number(satelliteMask.generation)||0)*0.055});
+      }
+      satelliteCandidateCount=candidates.length;
+      candidates.sort((a,b)=>b.rank-a.rank);
+      const selected=[];
+      const minimumSpacingM=MOBILE?92000:76000;
+      for(const q of candidates){
+        if(satelliteCloudAnchors.length>=satelliteMaxClouds)break;
+        if(selected.some(s=>cloudDistanceMeters(s.lng,s.lat,q.lng,q.lat)<minimumSpacingM))continue;
+        const ground=terrainElevationAt(q.lng,q.lat);
+        const cloudBaseAglM=clamp(1050+(1-q.p)*1900,900,3000);
+        const cloudTopAglM=clamp(5200+q.p*6500,6500,12400);
+        const radiusM=clamp(41000+q.p*52000,43000,105000);
+        const altitude=ground+cloudBaseAglM+(cloudTopAglM-cloudBaseAglM)*0.52;
+        const vertical=(cloudTopAglM-cloudBaseAglM)*0.47;
+        const rendered=addGlobalPuff(q.lng,q.lat,altitude,radiusM,radiusM*(0.62+q.p*0.15),vertical,
+          0.52+q.p*0.25,MOBILE?6:7,2,hash(q.col,q.row,6140+Number(satelliteMask.generation||0)),true);
+        if(!rendered)continue;
+        selected.push(q);
+        satelliteCloudAnchors.push({
+          lng:q.lng,lat:q.lat,radiusM:clamp(radiusM*0.78,25000,88000),
+          cloudBaseAglM,cloudTopAglM,cloudBaseM:ground+cloudBaseAglM,cloudTopM:ground+cloudTopAglM,
+          probability:q.p,source:'NOAA GOES East/West GeoColor-derived cloud-location probability',
+          cloudHeightSource:'modeled visualization prior; no measured cloud-top field in GeoColor',
+          geometryVersion:6140,cloudMaskGeneration:satelliteMaskGeneration
+        });
+        if(satelliteCloudAnchors.length%7===0&&shadowAnchors.length<(MOBILE?70:112)){
+          const shadow=makeGroundShadowAnchor(q.lng,q.lat,altitude,radiusM*0.72,'satellite-cloud',windScene);
+          if(shadow)shadowAnchors.push(shadow);
+        }
+      }
+    }
     globalCloudGeometryCache = {
       vertices: new Float32Array(vertices),
       indices: new Uint16Array(indices),
       shadowAnchors,
-      formationCount: macro.length + fine.length + singles.length + thin.length, stormSignature, stormEyeMaskCount: sourceCyclones.length, cloudLodBand,
+      formationCount: globalPuffCount, stormSignature, stormEyeMaskCount: sourceCyclones.length, cloudLodBand,
+      satelliteMaskGeneration, satelliteMaskUpdatedAt: satelliteMaskReady ? satelliteMask.updatedAt : null,
+      satelliteMaskAgeMs: satelliteMaskReady ? satelliteMaskAgeMs : null,
+      satelliteMaskCoverageCells: satelliteMaskReady ? satelliteMask.coverageCells : 0,
+      satelliteMaskCloudCells: satelliteMaskReady ? satelliteMask.cloudCells : 0,
+      satelliteMaskObservedFootprintOnly: true,
+      satelliteCandidateCount, satelliteCloudAnchors, satelliteCloudAnchorCount: satelliteCloudAnchors.length,
+      satelliteCloudHeightsMeasured: false,
       macroRadiusMinKm: 400, macroRadiusMaxKm: 900, thinLayerSlices: 9, thinLayerStacks: 2, singleLayerSlices: 8, singleLayerStacks: 2,
       heightResolvedWindPuffs, modelledWindPuffs, windSampleSignature: windSampleSignature === 'uninitialized' ? 'no-height-resolved-wind-grid' : windSampleSignature,
       macroFormationCount: macro.length,
@@ -1324,7 +1572,7 @@ export function initSkyClouds(target) {
       isolatedFormationCount: singles.length,
       thinLayerFormationCount: thin.length,
       terrainAwareFormationCount: terrainHeightKnownSamples,
-      puffCount: macro.length * 3 + fine.length + singles.length + thin.length
+      puffCount: globalPuffCount, satellitePuffCount: satelliteCloudAnchors.length
     };
     return globalCloudGeometryCache;
   }
@@ -1748,10 +1996,14 @@ function generateGeometry() {
         source: 'shared-rendered-rain-cell-cloud', geometryVersion: 6135
       };
     });
+      const global = buildGlobalCloudGeometry();
+    const satelliteLightningCloudAnchors = Array.isArray(global.satelliteCloudAnchors) ? global.satelliteCloudAnchors : [];
+    const sharedLightningCloudAnchors = lightningCloudAnchors.concat(satelliteLightningCloudAnchors);
     window.__BP_LIGHTNING_CLOUD_ANCHORS_V6135__ = {
-      map, anchors: lightningCloudAnchors, count: lightningCloudAnchors.length, updatedAt: Date.now()
+      map, anchors: sharedLightningCloudAnchors, count: sharedLightningCloudAnchors.length,
+      rainCellCount: lightningCloudAnchors.length, satelliteCellCount: satelliteLightningCloudAnchors.length,
+      cloudMaskGeneration: global.satelliteMaskGeneration || 0, updatedAt: Date.now()
     };
-    const global = buildGlobalCloudGeometry();
     const globalVertexCount = Math.floor(global.vertices.length / 13);
     const requestedStormVertexCount = Math.floor(stormVolumeVertices.length/13);
     const localVertexCount = Math.min(Math.floor(vertices.length / 13), Math.max(0,65530-globalVertexCount-requestedStormVertexCount));
@@ -1891,11 +2143,19 @@ function scheduleGeometry(delay = 180) {
   }
   function onStyleData() { try { ensureCloudShadowLayers(); } catch (_) {} if (enabled && !map.getLayer?.(LAYER_ID)) { layerRetryAttempts = 0; addLayerIfReady(); } }
   function onLayerIdle() { try { ensureCloudShadowLayers(); } catch (_) {} if (enabled && !disposed && !map.getLayer?.(LAYER_ID)) { layerRetryAttempts = 0; addLayerIfReady(); } }
+  const onSatelliteCloudMaskUpdated = event => {
+    if(event?.detail?.map && event.detail.map!==map)return;
+    if(!enabled||disposed)return;
+    globalCloudGeometryCache=null;
+    scheduleGeometry(0);
+    publishState();
+  };
 
   map.on?.('moveend', onMoveEnd); map.on?.('zoomend', onMoveEnd); map.on?.('resize', onMoveEnd);
   map.on?.('styledata', onStyleData);
   map.on?.('style.load', onStyleData);
   window.addEventListener('bp2300:weather-updated', onWeatherUpdated);
+  window.addEventListener('bp2300:satellite-cloud-mask-updated', onSatelliteCloudMaskUpdated);
   map.on?.('load', onLayerIdle);
   map.on?.('idle', onLayerIdle);
   document.addEventListener('visibilitychange', onVisibility);
@@ -1905,16 +2165,17 @@ function scheduleGeometry(delay = 180) {
   else map.once?.('load', addLayerIfReady);
 
   const api = {
-    version: 6130, map, overlay,
+    version: 6140, map, overlay,
     get enabled() { return enabled; },
     setEnabled, toggle,
-    get state() { return window.__BP_SKY_CLOUDS_STATE_V6077__ || window.__BP_SKY_CLOUDS_STATE_V6076__ || window.__BP_SKY_CLOUDS_STATE_V6074__ || window.__BP_SKY_CLOUDS_STATE_V6073__ || window.__BP_SKY_CLOUDS_STATE_V6047__ || window.__BP_SKY_CLOUDS_STATE_V6046__ || window.__BP_SKY_CLOUDS_STATE_V6045__ || window.__BP_SKY_CLOUDS_STATE_V6031__ || window.__BP_SKY_CLOUDS_STATE_V6029__ || window.__BP_SKY_CLOUDS_STATE_V5908__ || null; },
+    get state() { return window.__BP_SKY_CLOUDS_STATE_V6140__ || window.__BP_SKY_CLOUDS_STATE_V6077__ || window.__BP_SKY_CLOUDS_STATE_V6076__ || window.__BP_SKY_CLOUDS_STATE_V6074__ || window.__BP_SKY_CLOUDS_STATE_V6073__ || window.__BP_SKY_CLOUDS_STATE_V6047__ || window.__BP_SKY_CLOUDS_STATE_V6046__ || window.__BP_SKY_CLOUDS_STATE_V6045__ || window.__BP_SKY_CLOUDS_STATE_V6031__ || window.__BP_SKY_CLOUDS_STATE_V6029__ || window.__BP_SKY_CLOUDS_STATE_V5908__ || null; },
     destroy() {
       if (disposed) return; disposed = true;
       stopAnimation(); clearTimeout(rebuildTimer); clearTimeout(refreshHandle); clearLayerRetry();
       map.off?.('moveend', onMoveEnd); map.off?.('zoomend', onMoveEnd); map.off?.('resize', onMoveEnd); map.off?.('styledata', onStyleData); map.off?.('style.load', onStyleData); map.off?.('load', onLayerIdle); map.off?.('idle', onLayerIdle);
       document.removeEventListener('visibilitychange', onVisibility); window.removeEventListener('bp:sky-cloud-toggle', onToggleEvent);
       window.removeEventListener('bp2300:weather-updated', onWeatherUpdated);
+      window.removeEventListener('bp2300:satellite-cloud-mask-updated', onSatelliteCloudMaskUpdated);
       setWorldGrade(false);
       try { if (map.getLayer?.(LAYER_ID)) map.removeLayer(LAYER_ID); } catch (_) {}
       overlay.remove();
@@ -1922,6 +2183,9 @@ function scheduleGeometry(delay = 180) {
     }
   };
   window.__BP_SKY_CLOUDS_V5908__ = api;
+  // Retry the satellite source after the renderer is installed; style replacement can
+  // make the first init attempt happen before MapLibre reports a fully loaded style.
+  ensureLiveSatelliteCloudContextV6134(map);
   publishState();
   if (enabled) setEnabled(true);
   return api;
