@@ -1,4 +1,4 @@
-// BridgePoint v6135 — world-anchored lightning connected to rendered storm clouds and ground illumination.
+// BridgePoint v6136 — lightning originates at shared rendered rain-cloud anchors and remains geographically pinned.
  // This is separate from the legacy precipitation/fire/hail/snow particle bundle.
  // Source-backed storm/lightning features place the visual anchor; a point does not
  // imply that BridgePoint has verified an exact ground-strike location.
@@ -111,9 +111,10 @@ function svgPath(svg,d,attrs={}){
 }
 export function initLightningLayer(map,getScene=()=>({})){
   if(!map||typeof map.project!=='function')return null;
-  const current=window.__BP_LIGHTNING_RENDERER_V6135__?.map===map?window.__BP_LIGHTNING_RENDERER_V6135__:
+  const current=window.__BP_LIGHTNING_RENDERER_V6136__?.map===map?window.__BP_LIGHTNING_RENDERER_V6136__:
+    window.__BP_LIGHTNING_RENDERER_V6135__?.map===map?window.__BP_LIGHTNING_RENDERER_V6135__:
     window.__BP_LIGHTNING_RENDERER_V6130__?.map===map?window.__BP_LIGHTNING_RENDERER_V6130__:null;
-  if(current&&Number(current.version)>=6135&&typeof current.setScene==='function')return current;
+  if(current&&Number(current.version)>=6136&&typeof current.setScene==='function')return current;
   if(current&&typeof current.destroy==='function')try{current.destroy()}catch(_){};
   const container=map.getContainer?.();if(!container)return null;
   const overlay=document.createElementNS('http://www.w3.org/2000/svg','svg');
@@ -130,7 +131,7 @@ export function initLightningLayer(map,getScene=()=>({})){
   style.textContent='@keyframes bp6130-long-flash{0%{opacity:0}2%{opacity:1}8%{opacity:.76}15%{opacity:1}25%{opacity:.54}36%{opacity:.94}48%{opacity:.38}60%{opacity:.82}76%{opacity:.32}88%{opacity:.58}100%{opacity:0}} .bp6130-long-bolt{animation:bp6130-long-flash 3.2s ease-out forwards} @keyframes bp6130-cloud-expansion{0%{opacity:0;transform:scale(.34)}5%{opacity:.76;transform:scale(.68)}13%{opacity:1;transform:scale(1)}22%{opacity:.34;transform:scale(1.15)}31%{opacity:.9;transform:scale(1.25)}42%{opacity:.2;transform:scale(1.38)}56%{opacity:.78;transform:scale(1.5)}74%{opacity:.22;transform:scale(1.68)}100%{opacity:0;transform:scale(1.9)}} .bp6130-cloud-flash{transform-box:fill-box;transform-origin:center;animation:bp6130-cloud-expansion 3.2s ease-out forwards} @keyframes bp6135-ground-illumination{0%{opacity:0;transform:scale(.35)}5%{opacity:.74;transform:scale(.58)}12%{opacity:1;transform:scale(1)}20%{opacity:.34;transform:scale(1.14)}31%{opacity:.88;transform:scale(1.26)}43%{opacity:.24;transform:scale(1.42)}57%{opacity:.72;transform:scale(1.6)}74%{opacity:.16;transform:scale(1.78)}100%{opacity:0;transform:scale(2.05)}} .bp6130-ground-flash{transform-box:fill-box;transform-origin:center;animation:bp6135-ground-illumination 3.2s ease-out forwards}';
   overlay.appendChild(style);container.appendChild(overlay);
   let enabled=true,disposed=false,scene={},timeout=0,seq=0,activeFlashes=[];
-  const state={version:6135,enabled:true,renderer:'shared-cloud-anchored-ground-illuminating-lightning',durationMs:3200,anchors:0,visibleAnchors:0,cloudAnchorsAvailable:0,cloudAnchorsUsed:0,globalLodMarkers:0,activeBolts:0,lastFlashAt:null,updatedAt:Date.now()};
+  const state={version:6136,enabled:true,renderer:'shared-geographic-rain-cloud-to-ground-lightning',durationMs:3200,anchors:0,visibleAnchors:0,cloudAnchorsAvailable:0,cloudAnchorsUsed:0,cloudAnchorRejectedCount:0,globalLodMarkers:0,activeBolts:0,lastFlashAt:null,updatedAt:Date.now()};
   function dimensions(){
     const rect=container.getBoundingClientRect();
     const w=Math.max(1,rect.width||container.clientWidth||1),h=Math.max(1,rect.height||container.clientHeight||1);
@@ -140,7 +141,7 @@ export function initLightningLayer(map,getScene=()=>({})){
   function projectedAnchors(){
     const {w,h}=dimensions(),z=finite(map.getZoom?.())||0;
     const center=map.getCenter?.();
-    let source=[],clouds=[];
+    let source=[],clouds=[],cloudAnchorRejectedCount=0;
     try{source=pickLightningAnchors(scene)}catch(_){source=[]}
     try{clouds=sharedRainCloudAnchors(map)}catch(_){clouds=[]}
     const candidates=[];
@@ -149,14 +150,16 @@ export function initLightningLayer(map,getScene=()=>({})){
         const p=map.project([a.lng,a.lat]);
         if(!p||!Number.isFinite(p.x)||!Number.isFinite(p.y)||p.x<8||p.x>w-8||p.y<16||p.y>h+160)continue;
         const cloud=nearestRainCloud(a,clouds);
-        const cc=cloud||{lng:a.lng,lat:a.lat,cloudTopAglM:2800,radiusM:22000};
-        const cp=map.project([cc.lng,cc.lat]);
+        // Never synthesize a cloud at the lightning point. If no rendered rain-cloud anchor
+        // is nearby, suppress this bolt instead of showing a disconnected sky-to-ground flash.
+        if(!cloud){cloudAnchorRejectedCount++;continue;}
+        const cp=map.project([cloud.lng,cloud.lat]);
         if(!cp||!Number.isFinite(cp.x)||!Number.isFinite(cp.y))continue;
         const dist=center?Math.hypot((a.lng-center.lng)*Math.cos((a.lat+center.lat)*Math.PI/360),a.lat-center.lat):0;
-        candidates.push({...a,x:p.x,y:p.y,cloudLng:Number(cc.lng),cloudLat:Number(cc.lat),
-          cloudX:cp.x,cloudY:cp.y,cloudTopAglM:clamp(Number(cc.cloudTopAglM)||2800,700,16000),
-          cloudRadiusM:clamp(Number(cc.radiusM)||22000,2500,90000),cloudAnchorFound:!!cloud,
-          cloudDistanceMeters:cloud?.distanceMeters??null,dist,zoom:z});
+        candidates.push({...a,x:p.x,y:p.y,cloudLng:Number(cloud.lng),cloudLat:Number(cloud.lat),
+          cloudX:cp.x,cloudY:cp.y,cloudTopAglM:clamp(Number(cloud.cloudTopAglM),700,16000),
+          cloudRadiusM:clamp(Number(cloud.radiusM)||22000,2500,90000),cloudAnchorFound:true,
+          cloudDistanceMeters:cloud.distanceMeters,dist,zoom:z});
       }catch(_){}
     }
     candidates.sort((a,b)=>b.weight-a.weight||a.dist-b.dist);
@@ -166,6 +169,7 @@ export function initLightningLayer(map,getScene=()=>({})){
     const result=candidates.slice(0,max);
     state.anchors=source.length;state.visibleAnchors=candidates.length;
     state.cloudAnchorsAvailable=clouds.length;state.cloudAnchorsUsed=result.filter(a=>a.cloudAnchorFound).length;
+    state.cloudAnchorRejectedCount=cloudAnchorRejectedCount;
     state.globalLodMarkers=result.filter(a=>z<3.5).length;state.updatedAt=Date.now();
     return result;
   }
@@ -181,20 +185,18 @@ export function initLightningLayer(map,getScene=()=>({})){
     const bounds=dimensions(),z=finite(map.getZoom?.())||0,lowLod=z<3.5;
     const ground={x:clamp(anchor.x,0,bounds.w),y:clamp(anchor.y,0,bounds.h+80)};
     const rng=randomizer(seed);
+    // Project the cloud's geographic anchor at every LOD. Global zoom may shorten
+    // the bolt, but never replaces the cloud origin with a screen-space ground offset.
     let cloudScreen=ground;
-    if(!lowLod){
-      try{
-        const cp=map.project([anchor.cloudLng??anchor.lng,anchor.cloudLat??anchor.lat]);
-        if(cp&&Number.isFinite(cp.x)&&Number.isFinite(cp.y))cloudScreen=cp;
-      }catch(_){}
-    }
+    try{
+      const cp=map.project([anchor.cloudLng??anchor.lng,anchor.cloudLat??anchor.lat]);
+      if(cp&&Number.isFinite(cp.x)&&Number.isFinite(cp.y))cloudScreen=cp;
+    }catch(_){};
     const cloudTopAglM=clamp(Number(anchor.cloudTopAglM)||2800,700,16000);
     const height=lowLod?clamp(12+z*2.1,12,19):
       clamp(44+(cloudTopAglM/Math.max(0.3,metersPerPixel(anchor.cloudLat??anchor.lat,z)))*0.42,44,320);
     const jitter=lowLod?(rng()-.5)*2:(rng()-.5)*Math.min(22,bounds.w*.035);
-    const top=lowLod
-      ?{x:ground.x+jitter,y:Math.max(-12,ground.y-height)}
-      :{x:clamp(cloudScreen.x+jitter,0,bounds.w),y:Math.max(-12,cloudScreen.y-height)};
+    const top={x:clamp(cloudScreen.x+jitter,0,bounds.w),y:Math.max(-12,cloudScreen.y-height)};
 
     // Diffuse light appears inside the actual cloud anchor and spills onto the ground footprint.
     let cloudFlash=group.querySelector('ellipse.bp6130-cloud-flash');
@@ -295,12 +297,12 @@ export function initLightningLayer(map,getScene=()=>({})){
     try{map.off?.('move',onMove);map.off?.('moveend',onMove);map.off?.('zoom',onMove);map.off?.('resize',onMove)}catch(_){}
     document.removeEventListener('visibilitychange',onVisibility);
     try{overlay.remove()}catch(_){}
-    if(window.__BP_LIGHTNING_RENDERER_V6135__?.map===map)delete window.__BP_LIGHTNING_RENDERER_V6135__;if(window.__BP_LIGHTNING_RENDERER_V6130__?.map===map)delete window.__BP_LIGHTNING_RENDERER_V6130__;
+    if(window.__BP_LIGHTNING_RENDERER_V6136__?.map===map)delete window.__BP_LIGHTNING_RENDERER_V6136__;if(window.__BP_LIGHTNING_RENDERER_V6135__?.map===map)delete window.__BP_LIGHTNING_RENDERER_V6135__;if(window.__BP_LIGHTNING_RENDERER_V6130__?.map===map)delete window.__BP_LIGHTNING_RENDERER_V6130__;
   }
   for(const event of ['move','moveend','zoom','resize'])try{map.on?.(event,onMove)}catch(_){}
   document.addEventListener('visibilitychange',onVisibility);
   const controller={version:6135,map,get state(){return {...state,enabled,activeBolts:activeFlashes.length,overlayConnected:overlay.isConnected}},setScene,setEnabled,destroy};
-  window.__BP_LIGHTNING_RENDERER_V6135__=controller;
+  window.__BP_LIGHTNING_RENDERER_V6136__=controller;window.__BP_LIGHTNING_RENDERER_V6135__=controller;
   window.__BP_LIGHTNING_RENDERER_V6130__=controller;
   setScene(typeof getScene==='function'?getScene():{});
   return controller;
