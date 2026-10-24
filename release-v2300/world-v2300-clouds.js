@@ -727,14 +727,20 @@ export function initSkyClouds(target) {
       if(!enabled||disposed){map.getSource?.(SHADOW_SOURCE_ID)?.setData?.({type:'FeatureCollection',features:[]});shadowFeatureCount=0;shadowWindSourceCount=0;return;}
       if(!ensureCloudShadowLayers())return;
       const zoom=number(map.getZoom?.(),2),center=map.getCenter?.()||{lng:0,lat:0};
+      // Advance anchors incrementally instead of measuring from a fixed epoch; this avoids freezing after a long tab pause.
+      shadowAnchorCache=shadowAnchorCache.map(anchor=>{
+        const elapsed=clamp((now-anchor.epochMs)/1000,0,1200);
+        if(!anchor||elapsed<0.25)return anchor;
+        const moved=offsetLngLatMeters(anchor.lng,anchor.lat,anchor.eastMps*elapsed,anchor.northMps*elapsed);
+        return {...anchor,lng:moved.lng,lat:moved.lat,epochMs:now};
+      });
       const maxDistanceKm=zoom<=2.5?20500:zoom<=4.5?10500:zoom<=6.5?5200:zoom<=8.5?2100:zoom<=10.5?650:zoom<=12.5?220:zoom<=15?80:36;
       const maxFeatures=MOBILE?104:164,features=[];
       shadowWindSourceCount=0;
       const ordered=zoom>8?shadowAnchorCache:shadowAnchorCache.slice().sort((a,b)=>(a.kind==='global-macro'?-1:0)-(b.kind==='global-macro'?-1:0));
       for(const anchor of ordered){
         if(!anchor||features.length>=maxFeatures)break;
-        const elapsed=clamp((now-anchor.epochMs)/1000,0,1200);
-        const advected=offsetLngLatMeters(anchor.lng,anchor.lat,anchor.eastMps*elapsed,anchor.northMps*elapsed);
+        const advected={lng:anchor.lng,lat:anchor.lat};
         const dLng=((((advected.lng-center.lng+540)%360)+360)%360)-180;
         const distanceKm=Math.hypot(dLng*Math.max(0.12,Math.cos(center.lat*Math.PI/180)),advected.lat-center.lat)*111.32;
         if(distanceKm>maxDistanceKm||Math.abs(advected.lat)>85)continue;
@@ -763,6 +769,17 @@ export function initSkyClouds(target) {
       if(a)local.push(a);
     }
     shadowAnchorCache=number(map.getZoom?.(),2)>8?[...local,...global]:[...global,...local];
+    // Re-evaluate source winds on every weather/geometry refresh, while the 12-second renderer tick only advances cached positions.
+    const windEpoch=Date.now();
+    shadowAnchorCache=shadowAnchorCache.map(anchor=>{
+      const wind=cloudWindVectorFor(anchor.lng,anchor.lat,anchor.altitudeM,scene);
+      const cosLat=Math.max(0.12,Math.cos(anchor.lat*Math.PI/180));
+      return {...anchor,
+        eastMps:clamp(number(wind.dx,0)*WORLD_CIRCUMFERENCE_M*cosLat,-45,45),
+        northMps:clamp(-number(wind.dy,0)*WORLD_CIRCUMFERENCE_M*cosLat,-45,45),
+        sourceHeightWind:wind.sourceBacked===true,
+        windMode:wind.mode||'modelled-latitude-altitude-flow',epochMs:windEpoch};
+    });
     refreshGroundShadows(true);
   }
 
