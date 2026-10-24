@@ -1501,7 +1501,7 @@ jobs:
                console.log('BRIDGEPOINT_GPU_WATER_CLOSE_COAST_PASS',JSON.stringify(closeWater));
               const preTiltAnimationTime=Number(closeWater.animationTimeSeconds||0);
               const preTiltDrawTime=Number(closeWater.lastDrawAt||0);
-              await p.waitForTimeout(550);
+              await new Promise(resolve=>setTimeout(resolve,550));
               const tiltedWaterMotion=await p.evaluate(()=>{const s=window.__BP_WATER_ENGINE_LANDING_V6122__?.state;return{animationTimeSeconds:Number(s?.animationTimeSeconds||0),lastDrawAt:Number(s?.lastDrawAt||0),pitchWaveDisplacementScale:Number(s?.pitchWaveDisplacementScale),pitchWaveDisplacementLimitM:Number(s?.pitchWaveDisplacementLimitM),pitchDegrees:Number(s?.pitchDegrees),zoom:Number(s?.zoom)}});
               if(!(tiltedWaterMotion.animationTimeSeconds>preTiltAnimationTime&&tiltedWaterMotion.lastDrawAt>preTiltDrawTime&&tiltedWaterMotion.pitchWaveDisplacementScale<=0.25&&tiltedWaterMotion.pitchWaveDisplacementLimitM<=0.12))
                 throw new Error('TILTED_WATER_ANIMATION_OR_HORIZON_GUARD_STALLED '+JSON.stringify({closeWater,tiltedWaterMotion}));
@@ -1523,7 +1523,7 @@ jobs:
               const topDownWater=await p.evaluate(()=>window.__BP_WATER_ENGINE_LANDING_V6122__?.state||null);
               const topDownAnimationBefore=Number(topDownWater?.animationTimeSeconds||0);
               const topDownDrawBefore=Number(topDownWater?.lastDrawAt||0);
-              await p.waitForTimeout(550);
+              await new Promise(resolve=>setTimeout(resolve,550));
               const topDownMotion=await p.evaluate(()=>{const s=window.__BP_WATER_ENGINE_LANDING_V6122__?.state;return{version:s?.version,zoom:s?.zoom,pitchDegrees:s?.pitchDegrees,pitchWaveDisplacementScale:s?.pitchWaveDisplacementScale,pitchWaveDisplacementLimitM:s?.pitchWaveDisplacementLimitM,animationTimeSeconds:s?.animationTimeSeconds,lastDrawAt:s?.lastDrawAt,surfaceVertexCount:s?.surfaceVertexCount,shaderError:s?.shaderError}});
               if(!(topDownMotion.version===6122&&topDownMotion.zoom>=15.5&&topDownMotion.pitchDegrees<=1&&topDownMotion.pitchWaveDisplacementScale===0&&topDownMotion.pitchWaveDisplacementLimitM===0&&topDownMotion.animationTimeSeconds>topDownAnimationBefore&&topDownMotion.lastDrawAt>topDownDrawBefore&&topDownMotion.surfaceVertexCount>0&&!topDownMotion.shaderError))
                 throw new Error('TOP_DOWN_CLOSE_WATER_ANIMATION_OR_GEOMETRY_GUARD_FAILED '+JSON.stringify({topDownWater,topDownMotion,topDownAnimationBefore,topDownDrawBefore}));
@@ -2301,7 +2301,7 @@ jobs:
                   }
                   return null;
                 });
-                if(!clicked)await p.waitForTimeout(450);
+                if(!clicked)await new Promise(resolve=>setTimeout(resolve,450));
               }
               if(!clicked){
                 const clickDiag=await p.evaluate(()=>{
