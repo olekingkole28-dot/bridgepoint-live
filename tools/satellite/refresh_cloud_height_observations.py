@@ -24,8 +24,6 @@ from typing import Any
 
 import numpy as np
 import requests
-import xarray as xr
-from pyproj import CRS, Transformer
 
 USER_AGENT = "BridgePoint-CloudHeightFeed/1.0 (+https://github.com/olekingkole28-dot/bridgepoint-live)"
 TIMEOUT = (12, 35)
@@ -252,6 +250,9 @@ def download_netcdf(session: requests.Session, url: str, target: Path) -> bool:
 
 
 def extract_satcorps(path: Path, source_index: int) -> tuple[list[list[Any]], dict[str, Any]]:
+    # Heavy NetCDF dependency is loaded only when a file is actually retrieved.
+    import xarray as xr
+
     with xr.open_dataset(path, decode_cf=True, mask_and_scale=True) as original:
         ds = original
         top_name = find_variable(ds, ("cloud_top_height", "Cloud_Top_Height", "cloud_top_height_km"))
@@ -313,6 +314,10 @@ def list_noaa_files(session: requests.Session, satellite: str, now: dt.datetime)
 
 
 def extract_noaa(path: Path, source_index: int, metadata: dict[str, Any]) -> tuple[list[list[Any]], dict[str, Any]]:
+    # NetCDF and projection libraries are only needed once a usable GOES file exists.
+    import xarray as xr
+    from pyproj import CRS, Transformer
+
     with xr.open_dataset(path, decode_cf=True, mask_and_scale=True) as original:
         ds = original
         height_name = find_variable(ds, ("HT", "cloud_top_height"))
