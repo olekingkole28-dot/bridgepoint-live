@@ -1768,12 +1768,10 @@ export function initSkyClouds(target) {
             ? 'Source-reported cloud-top height; cloud base estimated'
             : 'Source-reported cloud-top and cloud-base heights';
           cloudTopHeightSampleSource = heightMatch.sample.source;
-          sourceHeightMatchedCount++;
-        } else {
-          sourceHeightModelledCount++;
         }
         const angle=Math.atan2(q.below-q.above,q.right-q.left)+Math.PI/2+(h2-.5)*.65,altitude=ground+(base+top)*.5;
         if(!addGlobalPuff(q.lng,q.lat,altitude,rx,ry,vertical,tint,MOBILE?6:8,MOBILE?4:5,hash(q.col,q.row,1301),true,angle))return false;
+        if(heightMatch)sourceHeightMatchedCount++;else sourceHeightModelledCount++;
         const record={lng:q.lng,lat:q.lat,p:q.p,radius,base,top};chosen.push(record);reserve(record);
         satelliteCloudAnchors.push({lng:q.lng,lat:q.lat,radiusM:clamp(Math.max(rx,ry)*.82,25000,155000),cloudBaseAglM:base,cloudTopAglM:top,cloudBaseM:ground+base,cloudTopM:ground+top,probability:q.p,cloudType,source:'NASA GIBS GOES/Himawari + EUMETSAT Meteosat satellite image-derived cloud location',cloudHeightSource:heightSourceLabel,cloudTopHeightSampleSource,cloudTopHeightSampleDistanceM:heightMatch?.distanceM ?? null,geometryVersion:6160,cloudMaskGeneration:satelliteMaskGeneration});
         if(satelliteCloudAnchors.length%7===0&&shadowAnchors.length<(MOBILE?70:112)){const sh=makeGroundShadowAnchor(q.lng,q.lat,altitude,Math.max(rx,ry)*.72,'satellite-cloud',windScene);if(sh)shadowAnchors.push(sh)}
