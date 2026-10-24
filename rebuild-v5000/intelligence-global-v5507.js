@@ -19,7 +19,7 @@ async function installGlobalWeather(){
  try{
   if(dateChanged){if(C.map.getLayer(layer))C.map.removeLayer(layer);if(C.map.getSource(id))C.map.removeSource(id)}
   if(!C.map.getSource(id))C.map.addSource(id,{type:'raster',tiles:[imergTile(resolved.date)],tileSize:256,minzoom:0,maxzoom:6,attribution:'NASA GPM IMERG via Earthdata GIBS'});
-  if(!C.map.getLayer(layer))C.map.addLayer({id:layer,type:'raster',source:id,minzoom:0,maxzoom:24,paint:{'raster-opacity':['interpolate',['linear'],['zoom'],0,.48,8,.46,14,.35,20,.22,24,.15],'raster-fade-duration':0,'raster-resampling':'linear'}},weatherBefore());try{const b=weatherBefore();if(b&&C.map.getLayer(layer))C.map.moveLayer(layer,b)}catch(_){};
+  if(!C.map.getLayer(layer))C.map.addLayer({id:layer,type:'raster',source:id,minzoom:0,maxzoom:24,paint:{'raster-opacity':['interpolate',['linear'],['zoom'],0,.50,1.5,.48,3,.40,4.5,.23,6,.08,7,0,24,0],'raster-fade-duration':0,'raster-resampling':'linear'}},weatherBefore());try{const b=weatherBefore();if(b&&C.map.getLayer(layer))C.map.moveLayer(layer,b)}catch(_){};
   C.imergDate=resolved.date;
  }catch(e){console.warn('BP global precipitation attach',e)}
  window.__BP_GLOBAL_WEATHER_V5822__={version:5822,projection:'globe',imerg:true,imergDate:C.imergDate,truth:'NASA_GPM_IMERG_NEAR_REALTIME_NOT_ZERO_LATENCY',groundDrape:true,below3D:true,visibleThroughZoom:24,updatedAt:Date.now()};
