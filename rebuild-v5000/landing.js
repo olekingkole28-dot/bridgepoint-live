@@ -443,6 +443,7 @@ async function initMap(){
   if(!world?.map)throw new Error('Shared BridgePoint world renderer unavailable');
   map=world.map;
   window.__BP_LANDING_WORLD__=world;
+  void startLandingNationalWeather(world);
   // Add the GPU water/hydrology surface to this same globe canvas before other visual modules.
   void import('./world-v2300-water.js?v=6124-solar-ocean-swell')
    .then(m=>{if(world?.map)window.__BP_WATER_ENGINE_LANDING_V6123__=m.initWaterEngine(world,{surface:'landing'})})
@@ -512,7 +513,7 @@ async function initMap(){
   const weatherButton=$('landingWeatherActivation');
   if(weatherButton&&!weatherButton.dataset.bpBound){weatherButton.dataset.bpBound='1';weatherButton.addEventListener('click',()=>{void setLandingWeatherEnabled(world,!landingWeatherEnabled)})}
   void setLandingWeatherEnabled(world,true);
-   void startLandingNationalWeather(world);
+
  }catch(e){
   const msg=String(e?.stack||e?.message||e||'UNKNOWN_MAP_BOOT_ERROR');
   window.__BP_LANDING_MAP_BOOT__={stage:'error',error:msg,maplibre:!!window.maplibregl,module:!!window.__BP_WORLD_RENDER_VERSION__,provisional:!!window.__bpLandingWorldV5420?.map,at:Date.now()};
