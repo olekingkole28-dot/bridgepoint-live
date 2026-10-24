@@ -329,6 +329,7 @@ jobs:
           sed -i 's#world-v2300-weather.js?v=6091-global-storm-centers#world-v2300-weather.js?v=6093-josephine-global-track#g' site/app/world-v2300-bootstrap.js
           sed -i 's#world-v2300-weather.js?v=6093-josephine-global-track#world-v2300-weather.js?v=6138-cloud-linked-lightning#g' site/app/world-v2300-bootstrap.js
           cp release-v2300/world-v2300.css site/app/world-v2300.css
+          sed -i 's#world-v2300-clouds.js?v=6137-globe-first-weather-lockstep#world-v2300-clouds.js?v=6140-live-satellite-cloud-volume#g' site/app.js site/landing.js site/index.html site/app/index.html site/world-v2300-time-slider.js site/app/world-v2300-time-slider.js
 
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.js -o site/vendor/maplibre-gl.js
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.css -o site/vendor/maplibre-gl.css
@@ -506,16 +507,16 @@ jobs:
           node --input-type=module --check < site/world-v2300-realism.js
           node --input-type=module --check < site/gis-core-orchestrator-v5910.js
           grep -Fq 'Real satellite bands. No AI-drawn pixels.' site/world-v2300-spectral-imagery.js
-          grep -Fq 'world-v2300-clouds.js?v=6137-globe-first-weather-lockstep' site/app.js
-          grep -Fq 'world-v2300-clouds.js?v=6137-globe-first-weather-lockstep' site/landing.js
+          grep -Fq 'world-v2300-clouds.js?v=6140-live-satellite-cloud-volume' site/app.js
+          grep -Fq 'world-v2300-clouds.js?v=6140-live-satellite-cloud-volume' site/landing.js
           grep -Fq 'world-v2300-weather.js?v=6138-cloud-linked-lightning' site/app.js
           grep -Fq 'function isPostTropicalCyclone(st={})' site/world-v2300-clouds.js
           grep -Fq 'postTropicalSurfaceCloudVertices+=makeCycloneRibbon' site/world-v2300-clouds.js
           grep -Fq 'post-tropical lows use asymmetric cloud shields' site/world-v2300-clouds.js
-          grep -Fq 'world-v2300-clouds.js?v=6137-globe-first-weather-lockstep' site/world-v2300-time-slider.js
+          grep -Fq 'world-v2300-clouds.js?v=6140-live-satellite-cloud-volume' site/world-v2300-time-slider.js
           grep -Fq 'function isPostTropicalCyclone(st={})' site/app/world-v2300-clouds.js
           grep -Fq 'postTropicalSurfaceCloudVertices+=makeCycloneRibbon' site/app/world-v2300-clouds.js
-          grep -Fq 'world-v2300-clouds.js?v=6137-globe-first-weather-lockstep' site/app/world-v2300-time-slider.js
+          grep -Fq 'world-v2300-clouds.js?v=6140-live-satellite-cloud-volume' site/app/world-v2300-time-slider.js
           grep -Fq 'world-v2300-rain.js?v=6137-globe-first-weather-lockstep' site/world-v2300-weather.js
           grep -Fq 'retireLegacyScreenSpaceRain' site/world-v2300-weather.js
           grep -Fq '__BP_SCREEN_SPACE_RAIN_RETIRE_V6063__' site/world-v2300-weather.js
