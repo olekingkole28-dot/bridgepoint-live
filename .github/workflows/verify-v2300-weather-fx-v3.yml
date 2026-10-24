@@ -151,14 +151,14 @@ jobs:
                 m.jumpTo({center:[-87.3425,41.538],zoom:1.25,pitch:0,bearing:0});
               });
               await new Promise(resolve=>setTimeout(resolve,700));
-              await p.waitForFunction(()=>{const m=window.__bpWorldV2300?.map,visible=id=>!!m?.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none';return visible('wx-alert-line')&&visible('wx-storms')&&visible('wx-obs')&&Number(window.__bpWeatherV2300?.state?.counts?.alerts||0)>0;},{timeout:10000});
+              await p.waitForFunction(()=>{const m=window.__bpWorldV2300?.map,visible=id=>!!m?.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none';return visible('wx-alert-line')&&visible('wx-storm')&&visible('wx-obs')&&Number(window.__bpWeatherV2300?.state?.counts?.alerts||0)>0;},{timeout:10000});
               const globe=await p.evaluate(()=>{
                 const m=window.__bpWorldV2300?.map,fx=window.__bpWeatherV2300?.fx?.state;
                 const d=window.__BP_WEATHER_FX_DIAGNOSTIC_V6050__||{};
                 return{zoom:m?.getZoom?.(),activeParticles:fx?.activeParticles,maxPoints:fx?.budgets?.maxPoints,
                   singleCanvas:document.querySelectorAll('#liveMap canvas').length===1&&document.querySelectorAll('canvas#bp-space-canvas-v6124').length===1&&document.querySelectorAll('canvas').length===2,
                   rendererErrors:d.particleErrors||0,lastParticleError:d.lastParticleError||null,
-                  sourceWeatherVisible:['wx-alert-line','wx-storms','wx-obs'].every(id=>!!m?.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none'),
+                  sourceWeatherVisible:['wx-alert-line','wx-storm','wx-obs'].every(id=>!!m?.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none'),
                   capabilities:fx?.capabilities||{}};
               });
               assert(globe.zoom<3,'GLOBAL_VIEW_WEATHER_TEST_DID_NOT_REACH_GLOBE '+JSON.stringify(globe));
