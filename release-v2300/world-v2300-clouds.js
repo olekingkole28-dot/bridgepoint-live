@@ -1272,6 +1272,18 @@ export function initSkyClouds(target) {
 
   function buildGlobalCloudGeometry() {
     const windScene = getScene();
+    const satelliteMask = window.__BP_SATELLITE_CLOUD_MASK_V6140__;
+    const satelliteMaskAgeMs = satelliteMask?.updatedAt ? Math.max(0,Date.now()-Number(satelliteMask.updatedAt)) : Infinity;
+    const satelliteMaskReady = satelliteMask?.map===map && satelliteMaskAgeMs<3600000 &&
+      Number(satelliteMask.coverageCells)>=600 && Number(satelliteMask.cloudCells)>=20 &&
+      satelliteMask.coverage?.length===Number(satelliteMask.width)*Number(satelliteMask.height) &&
+      satelliteMask.probability?.length===Number(satelliteMask.width)*Number(satelliteMask.height);
+    const satelliteMaskGeneration = satelliteMaskReady ? Number(satelliteMask.generation)||0 : 0;
+    const satelliteCoverageAt = (lng,lat) => {
+      if(!satelliteMaskReady)return false;
+      const idx=satelliteMaskIndexV6140(satelliteMask,lng,lat);
+      return idx>=0 && Number(satelliteMask.coverage[idx])>=192;
+    };
     const zoom = number(map.getZoom?.(), 10);
     const cloudLodBand = zoom <= 5.5 ? 'global' : zoom <= 8.5 ? 'regional' : 'local';
     const sourceCyclones = [
@@ -1287,22 +1299,33 @@ export function initSkyClouds(target) {
     const maskViewCenter=map.getCenter?.();
     const isInFrontHemisphere=st=>{if(!maskViewCenter)return true;const r=Math.PI/180,a=number(maskViewCenter.lat,0)*r,b=number(st.lat,0)*r,d=(number(st.lng,0)-number(maskViewCenter.lng,0))*r;return Math.sin(a)*Math.sin(b)+Math.cos(a)*Math.cos(b)*Math.cos(d)>-0.08;};
     // Do not inject a model-only cyclone into the live global cloud mask when the source has no storm.
-    const stormSignature=cloudLodBand+'|'+sourceCyclones.map(s=>s.key+':'+s.lng.toFixed(3)+','+s.lat.toFixed(3)+':'+Math.round(s.eyeRadiusM)).sort().join('|');
+    const stormSignature=cloudLodBand+'|'+sourceCyclones.map(s=>s.key+':'+s.lng.toFixed(3)+','+s.lat.toFixed(3)+':'+Math.round(s.eyeRadiusM)).sort().join('|')+
+      '|sat-mask:'+satelliteMaskGeneration+':'+(satelliteMaskReady?'active':'fallback');
     if (globalCloudGeometryCache && globalCloudGeometryCache.stormSignature === stormSignature) return globalCloudGeometryCache;
     globalCloudGeometryCache = null;
     const vertices = [], indices = [], macroCandidates = [], shadowAnchors = [];
-    let heightResolvedWindPuffs = 0, modelledWindPuffs = 0;
+    const satelliteCloudAnchors = [];
+    const satelliteMaxClouds = MOBILE ? 320 : 480;
+    const satellitePuffVertexCount = ((MOBILE ? 6 : 7) + 1) * 3;
+    const satelliteVertexReserve = satelliteMaskReady ? satelliteMaxClouds * satellitePuffVertexCount : 0;
+    let heightResolvedWindPuffs = 0, modelledWindPuffs = 0, globalPuffCount = 0;
     const eyeMaskRadius=st=>cloudLodBand==='global'?Math.max(st.eyeRadiusM,90000):cloudLodBand==='regional'?Math.max(st.eyeRadiusM,45000):st.eyeRadiusM;
-    const addGlobalPuff = (lng,lat,altitude,rx,ry,rz,tint,slices,stacks,seed) => {
+    const addGlobalPuff = (lng,lat,altitude,rx,ry,rz,tint,slices,stacks,seed,sourceDriven=false) => {
+      if(!sourceDriven && satelliteCoverageAt(lng,lat))return false;
+      const requiredVertices=(slices+1)*(stacks+1);
+      const vertexLimit=sourceDriven?65400:Math.max(0,65400-satelliteVertexReserve);
+      if(vertices.length/13+requiredVertices>vertexLimit)return false;
       let safeRx=rx,safeRy=ry;
       for(const storm of sourceCyclones){
         const distance=cloudDistanceMeters(lng,lat,storm.lng,storm.lat),eye=eyeMaskRadius(storm),radius=Math.max(safeRx,safeRy);
-        if(distance<=eye) return;
-        if(distance<eye+radius){const factor=clamp((distance-eye)/Math.max(1,radius),0,1);if(factor<0.04)return;safeRx*=factor;safeRy*=factor;}
+        if(distance<=eye) return false;
+        if(distance<eye+radius){const factor=clamp((distance-eye)/Math.max(1,radius),0,1);if(factor<0.04)return false;safeRx*=factor;safeRy*=factor;}
       }
       const wind=cloudWindVectorFor(lng,lat,altitude,windScene);
       if(wind.sourceBacked)heightResolvedWindPuffs++;else modelledWindPuffs++;
       makePuffGeometry(null,MC,vertices,indices,lng,lat,altitude,safeRx,safeRy,rz,tint,slices,stacks,seed,wind.dx,wind.dy);
+      globalPuffCount++;
+      return true;
     };
     const columns = 40, rows = 18, maxMacro = MOBILE ? 110 : 130;
     const cloudScore = (gx, gy, cols, rowCount, edgeSeed) => {
@@ -1454,11 +1477,65 @@ export function initSkyClouds(target) {
       const vertical = range * (0.30 + hash(q.gx, q.gy, 998) * 0.07);
       addGlobalPuff(lng,lat,altitude,radius,radius*(0.78+hash(q.gx,q.gy,999)*0.28),vertical,0.12+hash(q.gx,q.gy,1000)*0.07,9,2,hash(q.gx,q.gy,1001));
     }
+
+    // Layer 4 — current satellite-derived cloud positions. Covered-but-clear pixels suppress
+    // the procedural fallback above; only pixels classified as cloud produce 3D cloud volumes.
+    // GeoColor provides location texture, not measured cloud-top height: vertical dimensions
+    // below are explicit visualization estimates. New imagery replaces this field automatically.
+    let satelliteCandidateCount = 0;
+    if(satelliteMaskReady){
+      const coverage=satelliteMask.coverage,probability=satelliteMask.probability;
+      const width=Number(satelliteMask.width),height=Number(satelliteMask.height),candidates=[];
+      for(let row=0;row<height;row++)for(let col=0;col<width;col++){
+        const i=row*width+col;
+        if(Number(coverage[i])<192||Number(probability[i])<110)continue;
+        const point=satelliteMaskCellCenterV6140(satelliteMask,col,row);
+        if(!Number.isFinite(point.lng)||!Number.isFinite(point.lat)||Math.abs(point.lat)>76.2)continue;
+        const p=Number(probability[i])/255;
+        candidates.push({...point,p,col,row,rank:p+hash(col,row,Number(satelliteMask.generation)||0)*0.055});
+      }
+      satelliteCandidateCount=candidates.length;
+      candidates.sort((a,b)=>b.rank-a.rank);
+      const selected=[];
+      const minimumSpacingM=MOBILE?92000:76000;
+      for(const q of candidates){
+        if(satelliteCloudAnchors.length>=satelliteMaxClouds)break;
+        if(selected.some(s=>cloudDistanceMeters(s.lng,s.lat,q.lng,q.lat)<minimumSpacingM))continue;
+        const ground=terrainElevationAt(q.lng,q.lat);
+        const cloudBaseAglM=clamp(1050+(1-q.p)*1900,900,3000);
+        const cloudTopAglM=clamp(5200+q.p*6500,6500,12400);
+        const radiusM=clamp(41000+q.p*52000,43000,105000);
+        const altitude=ground+cloudBaseAglM+(cloudTopAglM-cloudBaseAglM)*0.52;
+        const vertical=(cloudTopAglM-cloudBaseAglM)*0.47;
+        const rendered=addGlobalPuff(q.lng,q.lat,altitude,radiusM,radiusM*(0.62+q.p*0.15),vertical,
+          0.52+q.p*0.25,MOBILE?6:7,2,hash(q.col,q.row,6140+Number(satelliteMask.generation||0)),true);
+        if(!rendered)continue;
+        selected.push(q);
+        satelliteCloudAnchors.push({
+          lng:q.lng,lat:q.lat,radiusM:clamp(radiusM*0.78,25000,88000),
+          cloudBaseAglM,cloudTopAglM,cloudBaseM:ground+cloudBaseAglM,cloudTopM:ground+cloudTopAglM,
+          probability:q.p,source:'NOAA GOES East/West GeoColor-derived cloud-location probability',
+          cloudHeightSource:'modeled visualization prior; no measured cloud-top field in GeoColor',
+          geometryVersion:6140,cloudMaskGeneration:satelliteMaskGeneration
+        });
+        if(satelliteCloudAnchors.length%7===0&&shadowAnchors.length<(MOBILE?70:112)){
+          const shadow=makeGroundShadowAnchor(q.lng,q.lat,altitude,radiusM*0.72,'satellite-cloud',windScene);
+          if(shadow)shadowAnchors.push(shadow);
+        }
+      }
+    }
     globalCloudGeometryCache = {
       vertices: new Float32Array(vertices),
       indices: new Uint16Array(indices),
       shadowAnchors,
-      formationCount: macro.length + fine.length + singles.length + thin.length, stormSignature, stormEyeMaskCount: sourceCyclones.length, cloudLodBand,
+      formationCount: globalPuffCount, stormSignature, stormEyeMaskCount: sourceCyclones.length, cloudLodBand,
+      satelliteMaskGeneration, satelliteMaskUpdatedAt: satelliteMaskReady ? satelliteMask.updatedAt : null,
+      satelliteMaskAgeMs: satelliteMaskReady ? satelliteMaskAgeMs : null,
+      satelliteMaskCoverageCells: satelliteMaskReady ? satelliteMask.coverageCells : 0,
+      satelliteMaskCloudCells: satelliteMaskReady ? satelliteMask.cloudCells : 0,
+      satelliteMaskObservedFootprintOnly: true,
+      satelliteCandidateCount, satelliteCloudAnchors, satelliteCloudAnchorCount: satelliteCloudAnchors.length,
+      satelliteCloudHeightsMeasured: false,
       macroRadiusMinKm: 400, macroRadiusMaxKm: 900, thinLayerSlices: 9, thinLayerStacks: 2, singleLayerSlices: 8, singleLayerStacks: 2,
       heightResolvedWindPuffs, modelledWindPuffs, windSampleSignature: windSampleSignature === 'uninitialized' ? 'no-height-resolved-wind-grid' : windSampleSignature,
       macroFormationCount: macro.length,
@@ -1466,7 +1543,7 @@ export function initSkyClouds(target) {
       isolatedFormationCount: singles.length,
       thinLayerFormationCount: thin.length,
       terrainAwareFormationCount: terrainHeightKnownSamples,
-      puffCount: macro.length * 3 + fine.length + singles.length + thin.length
+      puffCount: globalPuffCount, satellitePuffCount: satelliteCloudAnchors.length
     };
     return globalCloudGeometryCache;
   }
