@@ -58,8 +58,8 @@ test('space layer keeps globe interactive while drawing stable stars, Sun and Mo
   assert.match(space, /cameraControlsDisabled: false/);
   assert.match(space, /autoRotation: 'disabled; camera motion remains user-driven'/);
   assert.doesNotMatch(space, /SIDEREAL_DEG_PER_SECOND/);
-  assert.doesNotMatch(space, /map\\.easeTo/);
-  assert.doesNotMatch(space, /map\\.stop\\?\\.\\(\\)/);
+  assert.doesNotMatch(space, /map\.easeTo/);
+  assert.doesNotMatch(space, /map\.stop/);
   assert.match(space, /function drawSun/);
   assert.match(space, /function drawMoon/);
   assert.match(map, /initSpace\(map,container,\{solarPosition\}\)/);
