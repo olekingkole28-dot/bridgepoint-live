@@ -329,9 +329,11 @@ function centerOf(feature) {
 }
 function collectHeightFeatures(scene) {
   const raw = scene?.cloud_top_height_samples || scene?.cloud_top_heights || scene?.cloudHeightSamples || [];
-  const list = Array.isArray(raw) ? raw : Array.isArray(raw?.features) ? raw.features.map(f => ({ ...f.properties, lng: f.geometry?.coordinates?.[0], lat: f.geometry?.coordinates?.[1] })) : [];
+  const list = Array.isArray(raw) ? raw.slice() : Array.isArray(raw?.features) ? raw.features.map(f => ({ ...f.properties, lng: f.geometry?.coordinates?.[0], lat: f.geometry?.coordinates?.[1] })) : [];
+  const feedSamples = window.__BP_CLOUD_HEIGHT_FEED_V6162__?.samples;
+  if (Array.isArray(feedSamples) && feedSamples.length) list.push(...feedSamples);
   return list.filter(x => Number.isFinite(Number(x?.lng)) && Number.isFinite(Number(x?.lat)) &&
-    (Number.isFinite(Number(x?.cloud_top_height_m)) || Number.isFinite(Number(x?.cloudTopHeightM))));
+    Number.isFinite(Number(x?.cloud_top_height_m ?? x?.cloudTopHeightM)));
 }
 function makePuffGeometry(THREEless, MC, vertices, indices, lng, lat, altitude, rx, ry, rz, tint, slices = 8, stacks = 5, shapeSeed = 0, windX = 0, windY = 0, motionX = 0, motionY = 0, stormEpoch = 0, shapeAngle = 0) {
   const c = MC.fromLngLat({ lng, lat }, Math.max(0, altitude));
@@ -409,6 +411,7 @@ function makeFunnelGeometry(MC, vertices, indices, lng, lat, altitudeTop, tint, 
 }
 
 
+const CLOUD_HEIGHT_FEED_URL_V6162='https://raw.githubusercontent.com/olekingkole28-dot/bridgepoint-live/cloud-height-data/data/cloud-height-observations.json';
 const GOES_CLOUD_SOURCE_ID_V6134='bp6133-noaa-geocolor-source';
 const GOES_CLOUD_LAYER_ID_V6134='bp6133-noaa-geocolor-cloud-context';
 
@@ -862,6 +865,7 @@ export function initSkyClouds(target) {
   let globalCloudGeometryCache = null;
   let geometryDirty = true, formationCount = 0, measuredCount = 0, funnelCount = 0, stormCount = 0;
   let heightSource = 'not connected', rendererError = null, vbo = null, ibo = null, glRef = null;
+  let cloudHeightFeedPromise = null, cloudHeightFeedTimer = 0, cloudHeightFeedLastAttemptAt = 0;
   let cloudVao = null, cloudVaoExt = null, cloudVaoMode = 'none';
   const programCache = new Map();
   const terrainHeightCache = new Map();
@@ -898,6 +902,83 @@ export function initSkyClouds(target) {
       window.__bpPresentWeatherV2301?.getScene?.() ||
       window.__bpWeatherFXV2300?.state?.scene ||
       window.__BP_WEATHER_SCENE_V2300__ || {};
+  }
+
+  async function refreshCloudHeightFeedV6162(force = false) {
+    if (document.hidden || disposed) return false;
+    if (cloudHeightFeedPromise) return cloudHeightFeedPromise;
+    const now = Date.now();
+    const existing = window.__BP_CLOUD_HEIGHT_FEED_V6162__;
+    if (!force && existing?.samples?.length && now - Number(existing.updatedAt || 0) < 600000) return true;
+    if (!force && now - cloudHeightFeedLastAttemptAt < 480000) return false;
+    cloudHeightFeedLastAttemptAt = now;
+    cloudHeightFeedPromise = (async () => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 18000);
+      try {
+        const freshnessKey = Math.floor(Date.now() / 600000);
+        const response = await fetch(CLOUD_HEIGHT_FEED_URL_V6162 + '?t=' + freshnessKey, {
+          mode: 'cors', cache: 'no-store', headers: { Accept: 'application/json' }, signal: controller.signal
+        });
+        if (!response.ok) throw new Error('Cloud-height feed HTTP ' + response.status);
+        const payload = await response.json();
+        if (Number(payload?.schema_version) !== 1 || !Array.isArray(payload?.samples) || !Array.isArray(payload?.sources)) {
+          throw new Error('Cloud-height feed schema is invalid');
+        }
+        const rows = payload.samples.slice(0, 220000);
+        const sources = payload.sources.slice(0, 16);
+        const samples = [];
+        for (const row of rows) {
+          if (!Array.isArray(row) || row.length < 5) continue;
+          const lng = number(row[0], NaN), lat = number(row[1], NaN), top = number(row[2], NaN);
+          const sourceIndex = Math.trunc(number(row[4], -1)), source = sources[sourceIndex];
+          if (![lng, lat, top].every(Number.isFinite) || Math.abs(lat) > 85 || Math.abs(lng) > 180 ||
+              top < 200 || top > 23000 || !source || source.status !== 'available') continue;
+          const sample = {
+            lng, lat, cloud_top_height_m: top,
+            source: String(source.source || source.label || 'source-reported cloud-top height').slice(0, 180),
+            timestamp: String(source.observed_at || source.retrieved_at || payload.generated_at || ''),
+            height_reference: String(source.height_reference || payload.height_reference || 'MSL').toUpperCase(),
+            __bpCloudHeightFeedSample: true
+          };
+          if (row[3] !== null && row[3] !== undefined && Number.isFinite(Number(row[3]))) {
+            const base = Number(row[3]);
+            if (base >= 0 && base < top - 150) sample.cloud_base_height_m = base;
+          }
+          samples.push(sample);
+        }
+        const signature = String(payload.generated_at || '') + '|' + samples.length + '|' +
+          sources.map(x => [x.source || x.label, x.status, x.observed_at, x.sample_count].join(':')).join('|');
+        const prior = window.__BP_CLOUD_HEIGHT_FEED_V6162__;
+        cloudHeightFeedLastAttemptAt = Date.now();
+        if (!prior || prior.signature !== signature || prior.samples?.length !== samples.length) {
+          window.__BP_CLOUD_HEIGHT_FEED_V6162__ = {
+            version: 1, signature, samples, sources, generatedAt: payload.generated_at || null,
+            publishedSampleCount: Number(payload.sample_count) || rows.length,
+            warnings: Array.isArray(payload.warnings) ? payload.warnings.slice(0, 8) : [],
+            updatedAt: Date.now(), heightReference: String(payload.height_reference || 'MSL')
+          };
+          if (samples.length && enabled && !disposed) {
+            globalCloudGeometryCache = null;
+            scheduleGeometry(0);
+          }
+        } else {
+          prior.updatedAt = Date.now();
+        }
+        window.__BP_CLOUD_HEIGHT_FEED_V6162_ERROR__ = null;
+        publishState();
+        if (samples.length) map.triggerRepaint?.();
+        return true;
+      } catch (error) {
+        window.__BP_CLOUD_HEIGHT_FEED_V6162_ERROR__ = String(error?.message || error).slice(0, 220);
+        publishState();
+        return false;
+      } finally {
+        clearTimeout(timeout);
+        cloudHeightFeedPromise = null;
+      }
+    })();
+    return cloudHeightFeedPromise;
   }
 
   const WORLD_CIRCUMFERENCE_M = 40075016.68557849;
