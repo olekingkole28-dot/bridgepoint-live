@@ -282,7 +282,7 @@ async function initMap(){
  if(!window.maplibregl){window.__BP_LANDING_MAP_BOOT__={stage:'error',error:'MAPLIBRE_UNAVAILABLE',maplibre:false,at:Date.now()};return}
  try{
   window.__BP_LANDING_MAP_BOOT__={stage:'importing-world',maplibre:true,at:Date.now()};
-  const mod=await import('./world-v2300-map.js?v=6056-ground-camera-readiness');
+  const mod=await import('./world-v2300-map.js?v=6123-satellite-water-mask');
   window.__BP_LANDING_MAP_BOOT__={stage:'initializing-world',maplibre:true,module:true,at:Date.now()};
   const world=mod.initWorld({
    containerId:'previewMap',
@@ -298,8 +298,8 @@ async function initMap(){
   map=world.map;
   window.__BP_LANDING_WORLD__=world;
   // Add the GPU water/hydrology surface to this same globe canvas before other visual modules.
-  void import('./world-v2300-water.js?v=6122-topdown-vertex-displacement-off')
-   .then(m=>{if(world?.map)window.__BP_WATER_ENGINE_LANDING_V6122__=m.initWaterEngine(world,{surface:'landing'})})
+  void import('./world-v2300-water.js?v=6123-aaa-water-lod-land-only')
+   .then(m=>{if(world?.map)window.__BP_WATER_ENGINE_LANDING_V6123__=m.initWaterEngine(world,{surface:'landing'})})
    .catch(e=>console.warn('BridgePoint GPU water layer unavailable; native water remains enabled',e));
   // Start persistent global 3D clouds immediately on the homepage globe, before other visual modules.
   void import('./world-v2300-clouds.js?v=6092-posttropical-global-clouds')
