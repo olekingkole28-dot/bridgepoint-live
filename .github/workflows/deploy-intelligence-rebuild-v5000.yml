@@ -812,7 +812,7 @@ jobs:
           grep -Fq '__BP_FULL_REFRESH_V5535__' site/refresh-v5535.js
           grep -Fq '__BP_FULL_REFRESH_V5548__' site/refresh-v5535.js
           grep -Fq 'deferred-active-use' site/refresh-v5535.js
-          grep -Fq 'bp-intelligence-v5929-globe-recovery' site/sw.js
+          grep -Fq 'bp-intelligence-v6135-source-weather-entrypoint' site/sw.js
           node --check site/app-update-v5820.js
           grep -Fq '/app-update-v5820.js?v=5912' site/index.html
           grep -Fq '/app-update-v5820.js?v=5912' site/app/index.html
@@ -1328,7 +1328,7 @@ jobs:
               && grep -Fq 'bridgepoint_public_weather_bootstrap_v5512' /tmp/app.js \
               && grep -Fq 'const VERSION=1068' /tmp/language-selector-v5200.js \
               && grep -Fq 'BridgePointLanguage' /tmp/language-selector-v5200.js \
-              && grep -Fq "const V='bp-intelligence-v5929-globe-recovery'" /tmp/sw.js \
+              && grep -Fq "const V='bp-intelligence-v6135-source-weather-entrypoint'" /tmp/sw.js \
               && grep -Fq 'BUILD=5912' /tmp/app-update-v5820.js \
               && grep -Fq 'bridgepoint-intelligence-legacy-retire-v5820' /tmp/flutter-service-worker-retire.js \
               && grep -Fq 'migrated=legacy-intelligence-v5820' /tmp/legacy-intelligence-launch.html \
