@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const read = path => readFile(new URL(path, import.meta.url), 'utf8');
-const [water, map, space, clouds, weather, rain, lightning, app, landing, listingView, timeSlider, bootstrap, appHtml, landingHtml] = await Promise.all([
+const [water, map, space, clouds, weather, rain, lightning, app, landing, listingView, timeSlider, bootstrap, appHtml, landingHtml, globalWeather] = await Promise.all([
   read('../release-v2300/world-v2300-water.js'),
   read('../release-v2300/world-v2300-map.js'),
   read('../release-v2300/world-v2300-space.js'),
@@ -16,7 +16,8 @@ const [water, map, space, clouds, weather, rain, lightning, app, landing, listin
   read('../release-v2300/world-v2300-time-slider.js'),
   read('../release-v2300/world-v2300-bootstrap.js'),
   read('../rebuild-v5000/app-index.html'),
-  read('../rebuild-v5000/index.html')
+  read('../rebuild-v5000/index.html'),
+  read('../rebuild-v5000/intelligence-global-v5507.js')
 ]);
 
 function test(name, fn) {
@@ -130,9 +131,15 @@ test('new rain/lightning and global source markers stay separate from legacy eff
   assert.match(clouds, /refreshIntervalMs:\s*600000/);
   assert.match(lightning, /bp6130-cloud-expansion/);
   assert.match(lightning, /bp6130-cloud-flash-gradient/);
-  assert.match(app, /\['zoom'\],0,1\.08,1\.5,1\.12,3,1\.16/);
-  assert.match(landing, /\['zoom'\],0,1\.08,1\.5,1\.12,3,1\.16/);
+  assert.match(app, /\['zoom'\],0,1\.28,1\.5,1\.24,3,1\.18/);
+  assert.match(landing, /\['zoom'\],0,1\.28,1\.5,1\.24,3,1\.18/);
   assert.match(app, /sourceWeatherOverlaysPreserved:true/);
+  assert.match(app, /fill-opacity':\['interpolate',\['linear',\],\['zoom'\],0,\.26,2,\.28/);
+  assert.match(app, /line-width':\['interpolate',\['linear',\],\['zoom'\],0,3\.2/);
+  assert.match(landing, /fill-opacity':\['interpolate',\['linear',\],\['zoom'\],0,\.26,2,\.28/);
+  assert.match(landing, /line-width':\['interpolate',\['linear',\],\['zoom'\],0,3\.2/);
+  assert.match(globalWeather, /raster-opacity':\['interpolate',\['linear',\],\['zoom'\],0,\.50,1\.5,\.48,3,\.40,4\.5,\.25,6,\.15,7,\.09,8,\.035,8\.5,0/);
+  assert.match(clouds, /rainAnchorObservations\.slice\(0, overviewClouds \? \(MOBILE \? 2 : 4\) : \(MOBILE \? 4 : 8\)\)/);
   assert.match(landing, /legacyCinematicFxDisabled:true/);
   assert.match(listingView, /BP_LISTINGS_MONEY_V6130/);
   assert.match(listingView, /listingOverlayOn=true/);
