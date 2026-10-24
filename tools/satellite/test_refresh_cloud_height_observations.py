@@ -4,6 +4,7 @@ import numpy as np
 
 from tools.satellite.refresh_cloud_height_observations import (
     compact_grid_samples,
+    compact_point_samples,
     is_netcdf_url,
     meters,
     sampling_indices,
@@ -32,6 +33,20 @@ class CloudHeightFeedTests(unittest.TestCase):
         lon = np.array([[25.0]])
         samples = compact_grid_samples(lat, lon, np.array([[4500.0]]), np.array([[4600.0]]), None, source_index=0)
         self.assertEqual(samples, [[25.0, 5.0, 4500.0, None, 0]])
+
+    def test_flat_geolocated_pixels_are_sampled_and_quality_filtered(self):
+        samples = compact_point_samples(
+            np.array([1.0, 2.0, 3.0]),
+            np.array([10.0, 11.0, 12.0]),
+            np.array([900.0, 3200.0, 5000.0]),
+            np.array([200.0, 2800.0, 6000.0]),
+            np.array([0, 1, 3]),
+            source_index=4,
+        )
+        self.assertEqual(samples, [
+            [10.0, 1.0, 900.0, 200.0, 4],
+            [11.0, 2.0, 3200.0, 2800.0, 4],
+        ])
 
     def test_sampling_budget_is_bounded(self):
         rows, cols = sampling_indices(1086, 1086)
