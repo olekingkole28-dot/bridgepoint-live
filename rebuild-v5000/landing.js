@@ -278,7 +278,7 @@ function setLandingWeatherEnabled(world,on){
   landingWeatherModules.weather?.setActive?.(true);
   landingWeatherModules.weather?.setRadar?.(false);
   landingWeatherModules.present?.setActive?.(false);
-  window.__BP_LANDING_VISUAL_WEATHER__={version:6130,renderer:'source-weather-data-plus-dedicated-rain-lightning',...landingWeatherModules,enabled:true,cinematicFx:false,legacyCinematicFxDisabled:true,sourceWeatherVisible:true,mapShared:true,nationalWeather:true,networkActivationDeferred:false,legacyOverlaysHidden:true,radarVisible:false,radarAnimatedAtCloseZoom:false,radarGroundDrape:true,asyncAttach:true,updatedAt:Date.now()};
+  window.__BP_LANDING_VISUAL_WEATHER__={version:6130,renderer:'source-weather-data-plus-dedicated-rain-lightning',...landingWeatherModules,enabled:true,cinematicFx:false,legacyCinematicFxDisabled:true,sourceWeatherVisible:true,sourceWeatherOverlaysPreserved:true,mapShared:true,nationalWeather:true,networkActivationDeferred:false,legacyOverlaysHidden:true,radarVisible:true,radarOwnedByGroundDrape:true,radarAnimatedAtCloseZoom:false,radarGroundDrape:true,asyncAttach:true,updatedAt:Date.now()};
   if($('landingWeatherCount'))$('landingWeatherCount').textContent='SOURCE WEATHER · LIVE';
   if($('landingWeatherTime'))$('landingWeatherTime').textContent='Live source-backed hazard dots, warning boundaries and storm tracks. New cloud-linked rain and longer cloud-to-ground lightning are separate; legacy snow/hail/fire effects stay disabled.';
   try{if(!m.__bpLandingCinematicGuard6057){m.__bpLandingCinematicGuard6057=true;m.on('styledata',()=>hideLegacyLandingWeather(m))}}catch(_){}
