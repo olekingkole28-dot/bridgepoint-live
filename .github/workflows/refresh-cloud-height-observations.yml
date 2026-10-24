@@ -4,6 +4,12 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '*/15 * * * *'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/refresh-cloud-height-observations.yml'
+      - 'tools/satellite/refresh_cloud_height_observations.py'
+      - 'tools/satellite/test_refresh_cloud_height_observations.py'
 
 permissions:
   contents: write
