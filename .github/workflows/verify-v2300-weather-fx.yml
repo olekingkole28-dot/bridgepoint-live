@@ -61,7 +61,7 @@ jobs:
           grep -Fq 'window.__BP_LIGHTNING_CLOUD_ANCHORS_V6135__' /tmp/bp2300wx/world-v2300-clouds.js
           grep -Fq 'bp6135-ground-flash-gradient' /tmp/bp2300wx/world-v2300-lightning.js
           grep -Fq 'map.project([d.lng, d.lat])' /tmp/bp2300wx/world-v2300-rain.js
-          grep -Fq 'world-v2300-rain.js?v=6135-geographic-rain-lod' /tmp/bp2300wx/world-v2300-weather.js
+          grep -Fq 'world-v2300-rain.js?v=6137-globe-first-weather-lockstep' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq "lastProjectionMode = 'geographic-map-project'" /tmp/bp2300wx/world-v2300-rain.js
           grep -Fq 'zoom < RAIN_START_ZOOM || document.hidden' /tmp/bp2300wx/world-v2300-rain.js
           grep -Fq 'window.__BP_LIGHTNING_CLOUD_ANCHORS_V6135__' /tmp/bp2300wx/world-v2300-clouds.js
