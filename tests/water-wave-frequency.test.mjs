@@ -22,9 +22,17 @@ assert.equal(noGrid.samplesPerPeriod, null, 'unknown spacing must not report a m
 const invalid = resolveWaveFrequencyCyclesPerWorld(Number.NaN, 0.76, 0.000004);
 assert.equal(invalid.cyclesPerWorld, 0, 'invalid requested frequency must fail closed');
 
-const topDownStreet = resolvePitchDisplacementPolicy(16, 18);
-assert.equal(topDownStreet.scale, 1, 'top-down close view preserves geometric waves');
-assert.equal(topDownStreet.maxOffsetM, 1000, 'top-down close view keeps the existing wave-height envelope');
+const topDownStreet = resolvePitchDisplacementPolicy(16, 0);
+assert.equal(topDownStreet.scale, 0, 'close top-down view disables dynamic vertex-height motion');
+assert.equal(topDownStreet.maxOffsetM, 0, 'top-down close view cannot project animated vertex heights into vertical spikes');
+assert.equal(topDownStreet.guarded, true, 'top-down close view must activate the close-zoom geometry guard');
+
+const topDownAtStreetPitch = resolvePitchDisplacementPolicy(16, 18);
+assert.equal(topDownAtStreetPitch.scale, 0, 'the entire close-zoom top-down camera range must be guarded');
+assert.equal(topDownAtStreetPitch.maxOffsetM, 0, 'close zoom stays geometry-safe across low camera pitches');
+
+const belowCloseZoom = resolvePitchDisplacementPolicy(11.5, 18);
+assert.equal(belowCloseZoom.scale, 1, 'the hard zero-displacement rule is restricted to close zoom');
 
 const moderatePitchStreet = resolvePitchDisplacementPolicy(16, 52);
 assert.ok(moderatePitchStreet.guarded, 'close, pitched camera must activate the perspective safety guard');
@@ -52,5 +60,9 @@ assert.ok(engineSource.includes('float dynamicOffsetM = (wave * amplitude + stor
   'vertex displacement must be scaled by the pitch-aware policy');
 assert.ok(engineSource.includes('float offsetM = clamp(dynamicOffsetM, -u_waveOffsetLimit, u_waveOffsetLimit) + a_flood;'),
   'source-backed flood depth must remain separate from the capped animated offset');
+assert.ok(engineSource.includes('if (z >= 12) {\n    return { scale: 0, maxOffsetM: 0, guarded: true };'),
+  'close zoom must disable dynamic water vertex displacement even in a top-down view');
+assert.ok(engineSource.includes('v_wave = clamp(0.5 + wave * 0.34, 0.0, 1.0);'),
+  'optical wave motion remains independent from geometric displacement');
 console.log('BRIDGEPOINT_WATER_MESH_FREQUENCY_TEST_PASS');
-console.log('BRIDGEPOINT_WATER_HORIZON_DISPLACEMENT_TEST_PASS');
+console.log('BRIDGEPOINT_WATER_CLOSE_ZOOM_VERTEX_DISPLACEMENT_TEST_PASS');
