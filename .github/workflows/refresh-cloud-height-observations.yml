@@ -1,0 +1,58 @@
+name: Refresh measured cloud-height observations
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/15 * * * *'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bridgepoint-cloud-height-feed
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install numeric satellite-data readers
+        run: python -m pip install --disable-pip-version-check numpy requests xarray netCDF4 pyproj
+
+      - name: Retrieve numeric NASA SatCORPS / NOAA GOES cloud-height products
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tools/satellite/refresh_cloud_height_observations.py --output "$RUNNER_TEMP/cloud-height-observations.json"
+          test -s "$RUNNER_TEMP/cloud-height-observations.json"
+          python - <<'PY'
+          import json, os
+          p = os.path.join(os.environ["RUNNER_TEMP"], "cloud-height-observations.json")
+          d = json.load(open(p, encoding="utf-8"))
+          assert d.get("schema_version") == 1
+          assert d.get("samples") and len(d["samples"]) == d.get("sample_count")
+          assert all(len(row) == 5 and isinstance(row[0], (int, float)) and isinstance(row[1], (int, float)) for row in d["samples"])
+          print("CLOUD_HEIGHT_FEED_SCHEMA_PASS", d["sample_count"], "samples")
+          PY
+
+      - name: Publish compact data-only feed without rebuilding the website
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan cloud-height-feed-publish
+          git rm -rf . >/dev/null 2>&1 || true
+          mkdir -p data
+          cp "$RUNNER_TEMP/cloud-height-observations.json" data/cloud-height-observations.json
+          git add data/cloud-height-observations.json
+          git commit -m "Refresh measured cloud-height observations $(date -u +'%Y-%m-%dT%H:%MZ')"
+          git push origin HEAD:cloud-height-data --force
