@@ -1555,16 +1555,18 @@ export function initSkyClouds(target) {
   function buildGlobalCloudGeometry() {
     const windScene = getScene();
     const satelliteMask = window.__BP_SATELLITE_CLOUD_MASK_V6150__ || window.__BP_SATELLITE_CLOUD_MASK_V6140__;
-    // This module uses source heights only when the upstream weather scene supplies samples; no global height feed is fetched here. Image brightness alone is not a measured cloud-top/base retrieval.
+    // Measured values arrive from the separately refreshed NASA SatCORPS / NOAA GOES feed and any scene-native observations.
+    // Image brightness is never decoded into a claimed physical altitude.
     const sourceHeightSamples = collectHeightFeatures(windScene).map(sample => {
       const lng = number(sample.lng, NaN), lat = number(sample.lat, NaN);
-      const topM = number(sample.cloud_top_height_m, number(sample.cloudTopHeightM, NaN));
-      const rawBaseM = number(sample.cloud_base_height_m, number(sample.cloudBaseHeightM, NaN));
+      const topM = firstFinite(sample.cloud_top_height_m, sample.cloudTopHeightM);
+      const rawBaseM = firstFinite(sample.cloud_base_height_m, sample.cloudBaseHeightM);
       if (![lng, lat, topM].every(Number.isFinite) || Math.abs(lat) > 85 || topM < 200 || topM > 23000) return null;
+      const heightReference = String(sample.height_reference || sample.heightReference || 'AGL').toUpperCase().includes('MSL') ? 'MSL' : 'AGL';
       return {
-        lng: wrapLongitude(lng), lat, topM,
+        lng: wrapLongitude(lng), lat, topM, heightReference,
         baseM: Number.isFinite(rawBaseM) && rawBaseM >= 0 && rawBaseM < topM - 150 ? rawBaseM : null,
-        source: String(sample.source || sample.provenance || sample.provider || 'source cloud-top-height sample').slice(0, 160),
+        source: String(sample.source || sample.provenance || sample.provider || 'source cloud-top-height sample').slice(0, 180),
         timestamp: String(sample.timestamp || sample.observation_time || sample.time || '')
       };
     }).filter(Boolean);
@@ -1583,6 +1585,7 @@ export function initSkyClouds(target) {
       sourceHeightHash = Math.imul(sourceHeightHash ^ Math.round((sample.lat + 90) * 10000), 16777619);
       sourceHeightHash = Math.imul(sourceHeightHash ^ Math.round(sample.topM), 16777619);
       sourceHeightHash = Math.imul(sourceHeightHash ^ Math.round(sample.baseM || 0), 16777619);
+      sourceHeightHash = Math.imul(sourceHeightHash ^ (sample.heightReference === 'MSL' ? 1 : 0), 16777619);
     }
     const sourceHeightSignature = sourceHeightSamples.length + ':' + (sourceHeightHash >>> 0);
     const sourceHeightMatchRadiusM = MOBILE ? 90000 : 65000;
@@ -1834,8 +1837,10 @@ export function initSkyClouds(target) {
       const reserve=q=>{const b=bucket(q.lng,q.lat),k=b.y+':'+b.x;if(!buckets.has(k))buckets.set(k,[]);buckets.get(k).push(q)};
       const addSatellite=q=>{
         if(chosen.length>=satelliteMaxClouds||crowded(q))return false;
-        const heightMatch=nearestSourceHeight(q.lng,q.lat);
+        let heightMatch=nearestSourceHeight(q.lng,q.lat);
         const ground=terrainElevationAt(q.lng,q.lat),h0=hash(q.col,q.row,1201),h1=hash(q.col,q.row,1202),h2=hash(q.col,q.row,1203);
+        // Official GOES/SatCORPS height fields are referenced to mean sea level; reject a purported top below sampled terrain.
+        if(heightMatch&&heightMatch.sample.heightReference==='MSL'&&heightMatch.sample.topM-ground<200)heightMatch=null;
         let base,top,radius,rx,ry,vertical,tint,cloudType;
         if(q.thin){base=5000+h0*2800;top=clamp(base+1400+h1*2700,6500,12200);radius=clamp(62000+h2*82000,52000,148000);rx=radius;ry=radius*(.20+h1*.22);vertical=Math.max(700,(top-base)*.58);tint=.12;cloudType='high-thin-wispy'}
         else if(q.tall){base=850+h0*1750;top=clamp(8700+q.p*6000+h1*1500,9800,16500);radius=clamp(36000+h2*51000,33000,90000);rx=radius;ry=radius*(.56+h1*.54);vertical=Math.max(1300,(top-base)*.50);tint=.61;cloudType='deep-convective-proxy'}
@@ -1843,16 +1848,19 @@ export function initSkyClouds(target) {
         let heightSourceLabel = 'Modeled visualization category; not measured cloud-top height';
         let cloudTopHeightSampleSource = null;
         if (heightMatch) {
-          const observedTopAgl = clamp(heightMatch.sample.topM, 200, 23000);
-          const inferredBaseAgl = heightMatch.sample.baseM == null
-            ? (q.thin ? observedTopAgl * 0.72 : q.tall ? Math.min(1800, observedTopAgl * 0.12) : Math.min(2600, observedTopAgl * 0.30))
-            : heightMatch.sample.baseM;
+          const isMsl = heightMatch.sample.heightReference === 'MSL';
+          const observedTopAgl = clamp(heightMatch.sample.topM - (isMsl ? ground : 0), 200, 23000);
+          const rawBaseAgl = heightMatch.sample.baseM == null ? NaN : heightMatch.sample.baseM - (isMsl ? ground : 0);
+          const measuredBaseUsable = Number.isFinite(rawBaseAgl) && rawBaseAgl >= 0 && rawBaseAgl < observedTopAgl - 150;
+          const inferredBaseAgl = measuredBaseUsable
+            ? rawBaseAgl
+            : (q.thin ? observedTopAgl * 0.72 : q.tall ? Math.min(1800, observedTopAgl * 0.12) : Math.min(2600, observedTopAgl * 0.30));
           base = clamp(inferredBaseAgl, 0, Math.max(0, observedTopAgl - 200));
           top = observedTopAgl;
           vertical = Math.max(180, (top - base) * 0.50);
-          heightSourceLabel = heightMatch.sample.baseM == null
-            ? 'Source-reported cloud-top height; cloud base estimated'
-            : 'Source-reported cloud-top and cloud-base heights';
+          heightSourceLabel = measuredBaseUsable
+            ? 'Source-reported cloud-top and cloud-base heights'
+            : 'Source-reported cloud-top height; cloud base estimated';
           cloudTopHeightSampleSource = heightMatch.sample.source;
         }
         const angle=Math.atan2(q.below-q.above,q.right-q.left)+Math.PI/2+(h2-.5)*.65,altitude=ground+(base+top)*.5;
@@ -1920,9 +1928,13 @@ function generateGeometry() {
     hurricaneVisualEyeRadiusKm = 0; hurricaneVisualShieldRadiusKm = 0; tornadoVisualHeightKm = 0; tornadoVisualTopRadiusKm = 0; tornadoVisualBoost = 0; tornadoSurfaceVerticesSubmitted = 0; sourceStormCount = 0; sourceTornadoAlertCount = 0; modeledHurricaneVisualCount = 0; modeledTornadoVisualCount = 0;
     localWindSourcePuffs = 0; localWindModelledPuffs = 0;
     const scene = getScene();
-    const measured = collectHeightFeatures(scene);
+    const allHeightSamples = collectHeightFeatures(scene);
+    // The global source feed enriches the persistent global puffs above. Do not turn the
+    // first few samples in a global grid into unrelated local formations at street zoom.
+    const measured = allHeightSamples.filter(sample => !sample.__bpCloudHeightFeedSample);
     measuredCount = measured.length;
-    heightSource = measuredCount ? String(measured[0]?.source || measured[0]?.provenance || 'world-effects cloud-height samples') : 'not connected';
+    heightSource = measuredCount ? String(measured[0]?.source || measured[0]?.provenance || 'world-effects cloud-height samples')
+      : (window.__BP_CLOUD_HEIGHT_FEED_V6162__?.samples?.length ? 'NASA SatCORPS / NOAA GOES measured height feed' : 'not connected');
     const alerts = Array.isArray(scene?.alerts) ? scene.alerts : [];
     const stormScore = st => usesHurricaneGeometry(st) ? 2 : 1;
     // Only point-based storm records may anchor cyclone centres. Watch/warning polygons remain alert geometry.
