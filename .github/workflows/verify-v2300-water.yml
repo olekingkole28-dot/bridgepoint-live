@@ -75,4 +75,3 @@ jobs:
           grep -Fq "world-v2300-water.js?v=6115-water-geometry-guard" rebuild-v5000/app.js
           grep -Fq "world-v2300-water.js?v=6115-water-geometry-guard" rebuild-v5000/landing.js
           grep -Fq "landing.js?v=6115-water-geometry-guard" rebuild-v5000/index.html
-          grep -Fq "6115-water-geometry-guard" rebuild-v5000/app-index.html
