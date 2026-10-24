@@ -93,6 +93,6 @@ jobs:
           grep -Fq 'BP_LISTINGS_MONEY_V6130' rebuild-v5000/bridgepoint-view-v5917.js
           grep -Fq 'sourceWeatherOverlaysPreserved:true' rebuild-v5000/app.js
           grep -Fq 'sourceWeatherOverlaysPreserved:true' rebuild-v5000/landing.js
-          grep -Fq 'world-v2300-clouds.js?v=6130-cloud-rain-lightning' rebuild-v5000/app.js
-          grep -Fq 'world-v2300-clouds.js?v=6130-cloud-rain-lightning' rebuild-v5000/landing.js
-          grep -Fq 'world-v2300-clouds.js?v=6130-cloud-rain-lightning' release-v2300/world-v2300-time-slider.js
+          grep -Fq 'world-v2300-clouds.js?v=6133-source-satellite-clouds' rebuild-v5000/app.js
+          grep -Fq 'world-v2300-clouds.js?v=6133-source-satellite-clouds' rebuild-v5000/landing.js
+          grep -Fq 'world-v2300-clouds.js?v=6133-source-satellite-clouds' release-v2300/world-v2300-time-slider.js
