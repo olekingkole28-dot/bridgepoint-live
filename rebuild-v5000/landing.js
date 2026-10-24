@@ -425,7 +425,7 @@ async function initMap(){
    .then(m=>{if(world?.map)window.__BP_WATER_ENGINE_LANDING_V6123__=m.initWaterEngine(world,{surface:'landing'})})
    .catch(e=>console.warn('BridgePoint GPU water layer unavailable; native water remains enabled',e));
   // Start persistent global 3D clouds immediately on the homepage globe, before other visual modules.
-  void import('./world-v2300-clouds.js?v=6150-global-satellite-cloud-mosaic')
+  void import('./world-v2300-clouds.js?v=6160-cloud-volume-clarity')
    .then(m=>{window.__BP_SKY_CLOUDS_V5908__=m.initSkyClouds(world)})
    .catch(e=>console.warn('BridgePoint global 3D cloud field unavailable',e));
   // Keep source weather feeds live so global-zoom storm-cloud geometry is source-backed; non-cloud visuals stay locked off.
@@ -940,5 +940,5 @@ function bind(){document.querySelectorAll('.auth-open').forEach(b=>b.onclick=()=
  try{window.__BP_LANDING_WORLD__?.map?.triggerRepaint?.()}catch(_){}
  window.__BP_LANDING_SOFT_REFRESH__={hardReload:false,lastAt:Date.now()}
 });
-if(!hashSession()){bind();bindMetricNavigation();bindWorldBackdrop();bindConversionPreview();watchCriticalCopy();hydrateLiveMetricSnapshot();headline();warmLandingWeatherFirstFrameV6134();initMap();setInterval(headline,60000);liveCountryCounters();setInterval(liveCountryCounters,30000);window.__BP_LIVE_COUNTER_LOOP_V5906__={intervalMs:30000,source:'bridgepoint_public_live_counters_v5902',updatedAt:Date.now()};globalCoverage();setInterval(globalCoverage,300000);opportunitySummary();setInterval(opportunitySummary,300000);packages();if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=6135-source-weather-entrypoint',{updateViaCache:'none'}).catch(()=>{})}
+if(!hashSession()){bind();bindMetricNavigation();bindWorldBackdrop();bindConversionPreview();watchCriticalCopy();hydrateLiveMetricSnapshot();headline();warmLandingWeatherFirstFrameV6134();initMap();setInterval(headline,60000);liveCountryCounters();setInterval(liveCountryCounters,30000);window.__BP_LIVE_COUNTER_LOOP_V5906__={intervalMs:30000,source:'bridgepoint_public_live_counters_v5902',updatedAt:Date.now()};globalCoverage();setInterval(globalCoverage,300000);opportunitySummary();setInterval(opportunitySummary,300000);packages();if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=6160-cloud-volume-clarity',{updateViaCache:'none'}).catch(()=>{})}
 // BP_V5441_DEPLOY_SYNC: compact national hazard dots; radar and boundaries unchanged.
