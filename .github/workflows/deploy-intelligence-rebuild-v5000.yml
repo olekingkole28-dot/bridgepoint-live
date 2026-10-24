@@ -964,7 +964,7 @@ jobs:
           grep -Fq "pressureTreeOnly:true" site/world-v2300-map.js
           grep -Fq '__BP_TREE_STATIONARY_RECOVERY_V1123__' site/world-v2300-map.js
           grep -Fq "id:'gta-bp-floor-lines'" site/world-v2300-map.js
-          grep -Fq "setBase('gta')" site/world-v2300-map.js
+          grep -Fq "setBase('satellite')" site/world-v2300-map.js
           grep -Fq 'PUBLIC_PARCEL_GEOMETRY=false' site/global-property-v957.js
           grep -Fq '__BP_MATERIAL_LAZYLOAD_V5587__' site/world-v2300-map.js
           grep -Fq '__BP_GEOMETRY_TRUTH_V5590__' site/world-v2300-map.js
