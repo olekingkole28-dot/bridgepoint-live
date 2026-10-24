@@ -1,4 +1,4 @@
-const VERSION = 6131;
+const VERSION = 6135;
 const CLOUDS_ONLY_PHASE = () => window.__BP_CLOUDS_ONLY_PHASE_V6070__ === true;
 const LAYER_ID = 'bp2300-rain-world-volume-v6068';
 const GROUND_SOURCE = 'bp2300-rain-ground-source-v6068';
@@ -204,7 +204,7 @@ export function initRainLayer(map, getScene = () => ({})) {
     if (!rainSvg || rainPaths.length < 3) ensureRainLayer();
     if (!rainSvg || rainPaths.length < 3) return;
     const zoom = safeNum(map.getZoom?.(), 0);
-    if (!enabled || !cells.length || zoom < 10 || document.hidden) {
+    if (!enabled || !cells.length || zoom < RAIN_START_ZOOM || document.hidden) {
       for (const path of rainPaths) path.setAttribute('d', '');
       renderedStreaks = 0;
       return;
