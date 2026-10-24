@@ -7,6 +7,7 @@ on:
     paths:
       - 'release-v2300/world-v2300-weather.js'
       - 'release-v2300/world-v2300-rain.js'
+      - 'release-v2300/world-v2300-lightning.js'
       - '.github/workflows/verify-v2300-weather-fx-v2.yml'
 
   pull_request:
@@ -14,6 +15,7 @@ on:
     paths:
       - 'release-v2300/world-v2300-weather.js'
       - 'release-v2300/world-v2300-rain.js'
+      - 'release-v2300/world-v2300-lightning.js'
       - '.github/workflows/verify-v2300-weather-fx-v2.yml'
 
 permissions:
@@ -38,7 +40,7 @@ jobs:
           done
           # Use the current source modules in this repository rather than the retired
           # /app bootstrap dependency tree; that path no longer publishes all its legacy imports.
-          for f in world-v2300-config.js world-v2300-map.js world-v2300-space.js world-v2300-weather.js world-v2300-rain.js; do
+          for f in world-v2300-config.js world-v2300-map.js world-v2300-space.js world-v2300-weather.js world-v2300-rain.js world-v2300-lightning.js; do
             cp "release-v2300/$f" "/tmp/bp2300wx2/$f"
           done
           cat >/tmp/bp2300wx2/index.html <<'HTML'

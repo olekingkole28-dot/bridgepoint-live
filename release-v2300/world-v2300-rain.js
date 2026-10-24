@@ -1,4 +1,4 @@
-const VERSION = 6068;
+const VERSION = 6131;
 const CLOUDS_ONLY_PHASE = () => window.__BP_CLOUDS_ONLY_PHASE_V6070__ === true;
 const LAYER_ID = 'bp2300-rain-world-volume-v6068';
 const GROUND_SOURCE = 'bp2300-rain-ground-source-v6068';
@@ -11,6 +11,7 @@ const RAD = Math.PI / 180;
 const MOBILE = (typeof innerWidth === 'number' && innerWidth <= 760) ||
   /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent || '');
 const MAX_DROPS = MOBILE ? 900 : 3600;
+const RAIN_START_ZOOM = MOBILE ? 8 : 7;
 const FLOATS_PER_VERTEX = 5;
 const vertexData = new Float32Array(MAX_DROPS * 6 * FLOATS_PER_VERTEX);
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -37,6 +38,20 @@ function weatherCenter(o) {
     if (g?.type === 'Feature') g = g.geometry;
     if (g?.type === 'Point' && Array.isArray(g.coordinates)) {
       lng = safeNum(g.coordinates[0]); lat = safeNum(g.coordinates[1]);
+    } else if (g?.coordinates) {
+      const coordinates = [];
+      const walk = value => {
+        if (!Array.isArray(value)) return;
+        if (value.length >= 2 && typeof value[0] === 'number' && typeof value[1] === 'number') { coordinates.push([value[0], value[1]]); return; }
+        for (const child of value) walk(child);
+      };
+      walk(g.coordinates);
+      if (coordinates.length) {
+        const lonX = coordinates.reduce((sum, p) => sum + Math.cos(p[0] * RAD), 0);
+        const lonY = coordinates.reduce((sum, p) => sum + Math.sin(p[0] * RAD), 0);
+        lng = Math.atan2(lonY, lonX) / RAD;
+        lat = coordinates.reduce((sum, p) => sum + p[1], 0) / coordinates.length;
+      }
     }
   }
   return Number.isFinite(lng) && Number.isFinite(lat) && Math.abs(lat) < 85
@@ -103,7 +118,7 @@ function firstLayer(map, ids) {
 
 export function initRainLayer(map, getScene = () => ({})) {
   if (map.__bpRainRendererV6068) return map.__bpRainRendererV6068;
-  let enabled = !CLOUDS_ONLY_PHASE(), buffer = null, bufferAllocated = false, vao = null, vaoExt = null, vaoMode = 'none';
+  let enabled = true, buffer = null, bufferAllocated = false, vao = null, vaoExt = null, vaoMode = 'none';
   let programCache = new Map(), scene = {}, cells = [], drops = [], cellMemories = new Map();
   let animationRaf = 0, groundTimer = 0, lastRepaint = 0, vertexCount = 0;
   let rendererError = null, droppedFrames = 0, lastRenderAt = 0, lastGroundUpdate = 0, puddleCount = 0;
@@ -343,13 +358,55 @@ export function initRainLayer(map, getScene = () => ({})) {
     const z = safeNum(map.getZoom?.(), 0), canvas = map.getCanvas?.(), center = map.getCenter?.();
     const w = canvas?.clientWidth || 900, h = canvas?.clientHeight || 700;
     const raw = Array.isArray(nextScene?.observations) ? nextScene.observations : [];
-    const candidates = raw.filter(isRainObservation).map(o => {
+    const reportCandidates = raw.filter(isRainObservation);
+    const nearestWindObservation = c => {
+      let best = null, bestDistance = Infinity;
+      for (const row of raw) {
+        const rc = weatherCenter(row); if (!rc) continue;
+        const distance = distanceMeters(c, rc);
+        if (distance < bestDistance) { best = row; bestDistance = distance; }
+      }
+      return bestDistance <= 350000 ? best : null;
+    };
+    const windFields = (properties, c, allowMotion = false) => {
+      const nearby = nearestWindObservation(c) || {};
+      let speed = properties.wind_speed_mph ?? nearby.wind_speed_mph;
+      let speedKt = properties.wind_speed_kt ?? nearby.wind_speed_kt;
+      let direction = properties.wind_dir_deg ?? properties.wind_direction_deg ?? nearby.wind_dir_deg ?? nearby.wind_direction_deg;
+      if (speed == null && speedKt == null && allowMotion) {
+        const movementMph = safeNum(properties.movement_speed_mph ?? properties.translation_speed_mph, NaN);
+        const movement = safeNum(properties.movement_speed_mps ?? properties.translation_speed_mps, NaN);
+        if (Number.isFinite(movementMph)) speed = movementMph;
+        else if (Number.isFinite(movement)) speed = movement * 2.23694;
+      }
+      if (direction == null && allowMotion) {
+        const heading = safeNum(properties.movement_heading_deg ?? properties.movement_dir, NaN);
+        if (Number.isFinite(heading)) direction = (heading + 180) % 360;
+      }
+      return { wind_speed_mph: speed, wind_speed_kt: speedKt, wind_dir_deg: direction };
+    };
+    // Source-backed convective warnings and storm centers extend rain beyond sparse METAR stations.
+    for (const alert of (Array.isArray(nextScene?.alerts) ? nextScene.alerts : []).slice(0, 100)) {
+      const p = alert?.properties || alert || {};
+      const label = text([p.event, p.name, p.type, p.phenom, p.phenomenon, p.product, p.headline, p.description].filter(Boolean).join(' '));
+      if (!/prob.?severe|severe thunderstorm|thunderstorm|tornado|squall|\bsv\b/.test(label) && String(p.phenom ?? p.phenomenon ?? '').toUpperCase() !== 'TO') continue;
+      const c = weatherCenter(alert); if (!c) continue;
+      reportCandidates.push({ ...p, ...windFields(p, c), lng: c.lng, lat: c.lat, weather: 'thunderstorm rain', rain_radius_mi: safeNum(p.rain_radius_mi ?? p.precipitation_radius_mi, /tornado/.test(label) ? 24 : 36), source_anchor_kind: 'warning' });
+    }
+    for (const storm of (Array.isArray(nextScene?.storms) ? nextScene.storms : []).slice(0, 40)) {
+      const p = storm?.properties || storm || {};
+      const label = text([p.event, p.name, p.type, p.classification, p.official_classification, p.system_type].filter(Boolean).join(' '));
+      if (!/hurricane|tropical storm|tropical cyclone|post.?tropical cyclone|cyclone|severe thunderstorm|convective/.test(label)) continue;
+      const c = weatherCenter(storm); if (!c) continue;
+      reportCandidates.push({ ...p, ...windFields(p, c, true), lng: c.lng, lat: c.lat, weather: 'thunderstorm rain', rain_radius_mi: safeNum(p.rain_radius_mi ?? p.precipitation_radius_mi, /hurricane|tropical|cyclone/.test(label) ? 60 : 28), source_anchor_kind: 'storm' });
+    }
+    const candidates = reportCandidates.map(o => {
       const c = weatherCenter(o); if (!c) return null;
       const supplied = safeNum(o.precipitation_radius_mi ?? o.rain_radius_mi, NaN);
       const thunder = /thunderstorm|\bts\b|squall/.test(rawWeather(o));
       let radiusM;
-      if (Number.isFinite(supplied) && supplied > 0) radiusM = clamp(supplied * 1609.34, 2200, 26000);
-      else radiusM = thunder ? 900 : 650;
+      if (Number.isFinite(supplied) && supplied > 0) radiusM = clamp(supplied * 1609.34, 2200, 90000);
+      else radiusM = thunder ? 28000 : 16000;
       let p = null;
       try { p = map.project([c.lng, c.lat]); } catch (_) {}
       const margin = radiusM / Math.max(0.4, metersPerPixel(c.lat, z));
@@ -365,15 +422,31 @@ export function initRainLayer(map, getScene = () => ({})) {
   }
 
   function makeDropSeeds(nextCells) {
-    const all = [], perCell = nextCells.length ? Math.max(1, Math.floor(MAX_DROPS / nextCells.length)) : 0;
+    const all = [];
+    const perCell = nextCells.length ? Math.max(1, Math.floor(MAX_DROPS / nextCells.length)) : 0;
+    const zoom = safeNum(map.getZoom?.(), 0);
+    const canvas = map.getCanvas?.();
+    const viewCenter = map.getCenter?.();
+    const width = canvas?.clientWidth || 390;
+    const height = canvas?.clientHeight || 844;
+    // Keep each particle tied to its source-backed weather center across camera
+    // moves. At close zoom, concentrate the fixed particle budget inside a
+    // phone/desktop-sized geographic radius instead of scattering nearly all
+    // drops across the full storm footprint.
+    const viewRadiusM = zoom >= 10 && viewCenter
+      ? clamp(metersPerPixel(viewCenter.lat, zoom) * Math.hypot(width, height) * 0.58, 500, 90000)
+      : 0;
     for (let ci = 0; ci < nextCells.length; ci++) {
-      const cell = nextCells[ci], cosLat = Math.max(0.12, Math.cos(cell.lat * RAD));
+      const cell = nextCells[ci];
+      const seedCenter = { lng: cell.lng, lat: cell.lat };
+      const sampleRadiusM = viewRadiusM > 0 ? Math.min(cell.radiusM, viewRadiusM) : cell.radiusM;
+      const cosLat = Math.max(0.12, Math.cos(seedCenter.lat * RAD));
       const seedBase = Math.round((cell.lng + 180) * 1000) * 7 + Math.round((cell.lat + 90) * 1000) + ci * 931;
       for (let i = 0; i < perCell && all.length < MAX_DROPS; i++) {
         const a = hash(seedBase, i, 7) * Math.PI * 2;
-        const r = Math.sqrt(hash(seedBase, i, 11)) * cell.radiusM;
-        const lng = cell.lng + Math.cos(a) * r / (111320 * cosLat);
-        const lat = clamp(cell.lat + Math.sin(a) * r / 111320, -84, 84);
+        const r = Math.sqrt(hash(seedBase, i, 11)) * sampleRadiusM;
+        const lng = seedCenter.lng + Math.cos(a) * r / (111320 * cosLat);
+        const lat = clamp(seedCenter.lat + Math.sin(a) * r / 111320, -84, 84);
         const groundM = groundElevation(map, lng, lat);
         const baseAglM = cell.baseAglM;
         const fallSpeedMps = 7.5 + hash(seedBase, i, 19) * 4.5;
@@ -385,7 +458,6 @@ export function initRainLayer(map, getScene = () => ({})) {
     }
     return all;
   }
-
   function addVertex(n, x, y, z, altitude, alpha) {
     const k = n * FLOATS_PER_VERTEX;
     vertexData[k] = x; vertexData[k + 1] = y; vertexData[k + 2] = z;
@@ -395,7 +467,7 @@ export function initRainLayer(map, getScene = () => ({})) {
   function rainVertices(t) {
     let n = 0;
     const zoom = safeNum(map.getZoom?.(), 0);
-    if (!enabled || !cells.length || zoom < 10) return 0;
+    if (!enabled || !cells.length || zoom < RAIN_START_ZOOM) return 0;
     const seconds = (t - timeOrigin) / 1000;
     for (const d of drops) {
       if (n >= MAX_DROPS * 6) break;
@@ -431,7 +503,7 @@ export function initRainLayer(map, getScene = () => ({})) {
   }
 
   function renderRain(gl, args) {
-    if (!enabled || !cells.length || safeNum(map.getZoom?.(), 0) < 10 || document.hidden) return;
+    if (!enabled || !cells.length || safeNum(map.getZoom?.(), 0) < RAIN_START_ZOOM || document.hidden) return;
     const matrix = args?.defaultProjectionData?.mainMatrix || args?.modelViewProjectionMatrix || args;
     let saved = null, info = null, n = 0;
     try {
@@ -557,7 +629,7 @@ export function initRainLayer(map, getScene = () => ({})) {
     }
     drops = makeDropSeeds(cells);
     ensureGroundLayers(); ensureRainLayer(); updateGround();
-    if (cells.length && enabled && safeNum(map.getZoom?.(), 0) >= 10) startAnimation();
+    if (cells.length && enabled && safeNum(map.getZoom?.(), 0) >= RAIN_START_ZOOM) startAnimation();
     else stopAnimation();
     if (!groundTimer && cellMemories.size) groundTimer = setTimeout(tickGround, 5000);
     publishDiagnostic();
@@ -569,7 +641,7 @@ export function initRainLayer(map, getScene = () => ({})) {
     const loop = t => {
       animationRaf = 0;
       if (!enabled || !cells.length || document.hidden) return;
-      if (safeNum(map.getZoom?.(), 0) < 10) { animationRaf = 0; return; }
+      if (safeNum(map.getZoom?.(), 0) < RAIN_START_ZOOM) { animationRaf = 0; return; }
       if (t - lastRepaint >= 33) {
         lastRepaint = t;
         try { drawProjectedRain(t); } catch (e) { rendererError = String(e?.message || e).slice(0, 200); publishDiagnostic(); }
@@ -594,7 +666,7 @@ export function initRainLayer(map, getScene = () => ({})) {
       lastGroundUpdate, updatedAt: Date.now(), zoom: safeNum(map.getZoom?.(), 0) });
   }
   function setEnabled(value) {
-    enabled = CLOUDS_ONLY_PHASE() ? false : !!value;
+    enabled = !!value;
     try {
       for (const id of [WET_LAYER, PUDDLE_LAYER, PUDDLE_GLINT]) {
         const current = map.getLayoutProperty?.(id, 'visibility'), wanted = enabled ? 'visible' : 'none';
@@ -602,7 +674,7 @@ export function initRainLayer(map, getScene = () => ({})) {
       }
       if (rainSvg) rainSvg.style.display = enabled ? 'block' : 'none';
     } catch (_) {}
-    if (enabled && cells.length && safeNum(map.getZoom?.(), 0) >= 10) {
+    if (enabled && cells.length && safeNum(map.getZoom?.(), 0) >= RAIN_START_ZOOM) {
       startAnimation(); drawProjectedRain(performance.now());
     } else stopAnimation();
     publishDiagnostic();
@@ -616,7 +688,7 @@ export function initRainLayer(map, getScene = () => ({})) {
   map.on?.('load', () => { ensureGroundLayers(); ensureRainLayer(); publishDiagnostic(); });
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) stopAnimation();
-    else if (enabled && cells.length && safeNum(map.getZoom?.(), 0) >= 10) startAnimation();
+    else if (enabled && cells.length && safeNum(map.getZoom?.(), 0) >= RAIN_START_ZOOM) startAnimation();
   });
   const api = { version: VERSION, map, setScene: refreshScene, setEnabled,
     get state() { return { version: VERSION, enabled, layerAttached: !!rainSvg, overlayAttached: !!rainSvg,

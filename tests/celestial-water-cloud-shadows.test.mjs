@@ -2,14 +2,17 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const read = path => readFile(new URL(path, import.meta.url), 'utf8');
-const [water, map, space, clouds, weather, app, landing, timeSlider, bootstrap, appHtml, landingHtml] = await Promise.all([
+const [water, map, space, clouds, weather, rain, lightning, app, landing, listingView, timeSlider, bootstrap, appHtml, landingHtml] = await Promise.all([
   read('../release-v2300/world-v2300-water.js'),
   read('../release-v2300/world-v2300-map.js'),
   read('../release-v2300/world-v2300-space.js'),
   read('../release-v2300/world-v2300-clouds.js'),
   read('../release-v2300/world-v2300-weather.js'),
+  read('../release-v2300/world-v2300-rain.js'),
+  read('../release-v2300/world-v2300-lightning.js'),
   read('../rebuild-v5000/app.js'),
   read('../rebuild-v5000/landing.js'),
+  read('../rebuild-v5000/bridgepoint-view-v5917.js'),
   read('../release-v2300/world-v2300-time-slider.js'),
   read('../release-v2300/world-v2300-bootstrap.js'),
   read('../rebuild-v5000/app-index.html'),
@@ -81,15 +84,39 @@ test('entrypoints use fresh cache keys for updated map, water, clouds, weather a
   for (const source of [app, landing]) {
     assert.match(source, /world-v2300-map\.js\?v=6125-manual-globe-camera/);
     assert.match(source, /world-v2300-water\.js\?v=6124-solar-ocean-swell/);
-    assert.match(source, /world-v2300-clouds\.js\?v=6124-live-cloud-shadow-advection/);
-    assert.match(source, /world-v2300-weather\.js\?v=6124-live-cloud-weather-refresh/);
+    assert.match(source, /world-v2300-clouds\.js\?v=6130-cloud-rain-lightning/);
+    assert.match(source, /world-v2300-weather\.js\?v=6131-close-zoom-rain-density/);
     assert.match(source, /world-v2300-time-slider\.js\?v=6124-live-cloud-shadow-motion/);
   }
   assert.match(map, /world-v2300-space\.js\?v=6125-manual-globe-camera/);
-  assert.match(timeSlider, /world-v2300-clouds\.js\?v=6124-live-cloud-shadow-advection/);
-  assert.match(bootstrap, /world-v2300-weather\.js\?v=6124-live-cloud-weather-refresh/);
-  assert.match(appHtml, /app\.js\?v=6125-manual-globe-camera/);
-  assert.match(landingHtml, /landing\.js\?v=6125-manual-globe-camera/);
+  assert.match(timeSlider, /world-v2300-clouds\.js\?v=6130-cloud-rain-lightning/);
+  assert.match(bootstrap, /world-v2300-weather\.js\?v=6131-close-zoom-rain-density/);
+  assert.match(appHtml, /app\.js\?v=6130-cloud-rain-lightning-markers/);
+  assert.match(landingHtml, /landing\.js\?v=6130-cloud-rain-lightning-markers/);
+});
+
+test('new rain/lightning and global source markers stay separate from legacy effects', () => {
+  assert.match(weather, /active=!!v;/);
+  assert.match(weather, /const LEGACY_NATIVE_WEATHER_LAYERS=\['wx-snow-depth','wx-alert-fill','wx-fire-fill','wx-thermal','wx-quake-glow','wx-storm-glow'\]/);
+  assert.match(weather, /for\(const id of \['wx-alert-line','wx-fire-line','wx-quake','wx-storm','wx-obs','wx-water'\]\)/);
+  assert.match(app, /setLayoutProperty\('bp-v5004-weather-shape-fill','visibility','none'\)/);
+  assert.match(landing, /bp-landing-weather-fill/);
+  assert.match(landing, /layout:\{visibility:'none'\},paint:\{'fill-color':landingWeatherColorExpr\(\)/);
+  assert.doesNotMatch(weather, /active=CLOUDS_ONLY_PHASE\(\)\?true:!!v/);
+  assert.match(weather, /initLightningLayer/);
+  assert.doesNotMatch(weather, /'bp2300-rain-wet-ground-v6068','bp2300-rain-puddle-fill-v6068/);
+  assert.match(rain, /const RAIN_START_ZOOM = MOBILE \? 8 : 7;/);
+  assert.match(rain, /source_anchor_kind: 'warning'/);
+  assert.match(rain, /windFields\(p, c, true\)/);
+  assert.match(clouds, /sourceRainAnchors/);
+  assert.match(clouds, /coverageVersion: 6130/);
+  assert.match(lightning, /export function initLightningLayer/);
+  assert.match(lightning, /durationMs:2450/);
+  assert.match(lightning, /overlayConnected/);
+  assert.match(app, /sourceWeatherOverlaysPreserved:true/);
+  assert.match(landing, /legacyCinematicFxDisabled:true/);
+  assert.match(listingView, /BP_LISTINGS_MONEY_V6130/);
+  assert.match(listingView, /listingOverlayOn=true/);
 });
 
 test('sky-view restoration returns to street with bounded cleanup waits', () => {
