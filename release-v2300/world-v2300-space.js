@@ -188,7 +188,7 @@ function initSpace(map, container, options = {}) {
   }
   const onVisibility = () => { if (document.hidden) { if (raf) cancelAnimationFrame(raf); raf = 0; } else requestDraw(); };
   document.addEventListener('visibilitychange', onVisibility);
-  // No autonomous map.easeTo loop: camera motion stays entirely user-driven.
+  // No automatic camera animation loop: all globe movement stays user-driven.
   solarTimer = setInterval(requestDraw, 30000);
   render(true);
 
