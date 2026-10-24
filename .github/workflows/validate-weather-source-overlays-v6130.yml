@@ -1,6 +1,14 @@
 name: Validate source weather layers v6130
 
 on:
+  push:
+    branches: [weather-source-overlays-rain-lightning]
+    paths:
+      - 'release-v2300/**'
+      - 'rebuild-v5000/app.js'
+      - 'rebuild-v5000/landing.js'
+      - 'rebuild-v5000/bridgepoint-view-v5917.js'
+      - '.github/workflows/validate-weather-source-overlays-v6130.yml'
   pull_request:
     branches: [main]
     paths:
