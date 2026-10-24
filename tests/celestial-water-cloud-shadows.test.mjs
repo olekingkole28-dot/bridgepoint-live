@@ -79,8 +79,15 @@ test('clouds render as bright 3D volumes, not as a false-colour raster sheet', (
   assert.match(clouds, /setLayoutProperty\(SATELLITE_CLOUD_LAYER_ID_V6150,'visibility','none'\)/);
   assert.match(clouds, /setLayoutProperty\(EUMETSAT_CLOUD_LAYER_ID_V6150,'visibility','none'\)/);
   assert.match(clouds, /vec3\(0\.70,0\.76,0\.84\)/);
-  assert.match(clouds, /version: 6163, map, overlay/);
-  assert.match(clouds, /coverageVersion: 6163/);
+  assert.match(clouds, /version: 6164, map, overlay/);
+  assert.match(clouds, /coverageVersion: 6164/);
+});
+
+test('satellite imagery uncertainty cannot blank the global 3D cloud field', () => {
+  assert.match(clouds, /const p=clamp\(Number\(satelliteMask\.probability\[idx\]\)\/255,0,1\)/);
+  assert.match(clouds, /return p<=0\.08 \|\| p>=0\.68/);
+  assert.match(clouds, /This RGB\/infrared heuristic is not an official cloud-mask product/);
+  assert.match(clouds, /keep modeled 3D billows through ambiguous probabilities/);
 });
 
 test('cloud shadows update on the map and use available source winds', () => {
@@ -97,29 +104,29 @@ test('entrypoints use fresh cache keys for updated map, water, clouds, weather a
   for (const source of [app, landing]) {
     assert.match(source, /world-v2300-map\.js\?v=6137-globe-first-weather-lockstep/);
     assert.match(source, /world-v2300-water\.js\?v=6124-solar-ocean-swell/);
-    assert.match(source, /world-v2300-clouds\.js\?v=6163-cloud-startup-cutover/);
+    assert.match(source, /world-v2300-clouds\.js\?v=6164-cloud-mask-confidence-clouds/);
     assert.match(source, /world-v2300-weather\.js\?v=6138-cloud-linked-lightning/);
-    assert.match(source, /world-v2300-time-slider\.js\?v=6163-cloud-startup-cutover/);
+    assert.match(source, /world-v2300-time-slider\.js\?v=6164-cloud-mask-confidence-clouds/);
   }
   assert.match(map, /world-v2300-space\.js\?v=6125-manual-globe-camera/);
-  assert.match(timeSlider, /world-v2300-clouds\.js\?v=6163-cloud-startup-cutover/);
+  assert.match(timeSlider, /world-v2300-clouds\.js\?v=6164-cloud-mask-confidence-clouds/);
   assert.match(bootstrap, /world-v2300-weather\.js\?v=6138-cloud-linked-lightning/);
-  assert.match(appHtml, /app\.js\?v=6163-cloud-startup-cutover/);
-  assert.match(landingHtml, /landing\.js\?v=6163-cloud-startup-cutover/);
+  assert.match(appHtml, /app\.js\?v=6164-cloud-mask-confidence-clouds/);
+  assert.match(landingHtml, /landing\.js\?v=6164-cloud-mask-confidence-clouds/);
   assert.match(appHtml, /intelligence-global-v5507\.js\?v=6134-global-precip-lod/);
   assert.match(landingHtml, /intelligence-global-v5507\.js\?v=6134-global-precip-lod/);
 });
 
-test('both entrypoints perform a real 6163 service-worker cutover before stale startup survives', () => {
-  assert.match(landingHtml, /app-update-v5820\.js\?v=6163-cloud-startup-cutover/);
-  assert.match(appHtml, /app-update-v5820\.js\?v=6163-cloud-startup-cutover/);
-  assert.match(appUpdate, /const BUILD=6163/);
-  assert.match(appUpdate, /CURRENT_CACHE='bp-intelligence-v6163-cloud-startup-cutover'/);
+test('both entrypoints perform a real 6164 service-worker cutover before stale startup survives', () => {
+  assert.match(landingHtml, /app-update-v5820\.js\?v=6164-cloud-mask-confidence-clouds/);
+  assert.match(appHtml, /app-update-v5820\.js\?v=6164-cloud-mask-confidence-clouds/);
+  assert.match(appUpdate, /const BUILD=6164/);
+  assert.match(appUpdate, /CURRENT_CACHE='bp-intelligence-v6164-cloud-mask-confidence-clouds'/);
   assert.match(appUpdate, /function reloadOnce\(reason\)/);
   assert.match(appUpdate, /location\.replace\(u\.href\)/);
   assert.match(appUpdate, /navigator\.serviceWorker\?\.addEventListener\('controllerchange'/);
-  assert.match(serviceWorker, /const V='bp-intelligence-v6163-cloud-startup-cutover'/);
-  assert.match(clouds, /Number\(existingCloudController\.version\) >= 6163[\s\S]{0,180}Number\(existingState\?\.coverageVersion \|\| existingState\?\.version\) >= 6163/);
+  assert.match(serviceWorker, /const V='bp-intelligence-v6164-cloud-mask-confidence-clouds'/);
+  assert.match(clouds, /Number\(existingCloudController\.version\) >= 6164[\s\S]{0,180}Number\(existingState\?\.coverageVersion \|\| existingState\?\.version\) >= 6164/);
 });
 
 test('new rain/lightning and global source markers stay separate from legacy effects', () => {
@@ -136,11 +143,11 @@ test('new rain/lightning and global source markers stay separate from legacy eff
   assert.match(rain, /source_anchor_kind: 'warning'/);
   assert.match(rain, /windFields\(p, c, true\)/);
   assert.match(clouds, /sourceRainAnchors/);
-  assert.match(clouds, /coverageVersion: 6163/);
+  assert.match(clouds, /coverageVersion: 6164/);
   assert.match(clouds, /sourceHeightMatchedCount/);
   assert.match(clouds, /satelliteCloudHeightFeedStatus/);
   assert.match(clouds, /alphaBase\*0\.82/);
-  assert.match(clouds, /version: 6163, map, overlay/);
+  assert.match(clouds, /version: 6164, map, overlay/);
   assert.match(clouds, /bp6150-nasa-geostationary-cloud-context/);
   assert.match(clouds, /bp6150-nasa-geostationary-cloud-source/);
   assert.match(clouds, /GOES-East_ABI_Band13_Clean_Infrared/);
@@ -227,6 +234,6 @@ test('public cyclone fallback is fetched concurrently with edge weather', () => 
 test('website and app start on the same globe-first weather build', () => {
   assert.match(landingHtml, /bp-globe-only-first-frame-v6137/);
   assert.match(appHtml, /bp-app-globe-only-first-frame-v6137/);
-  assert.ok(landingHtml.includes('landing.js?v=6163-cloud-startup-cutover'));
-  assert.ok(appHtml.includes('app.js?v=6163-cloud-startup-cutover'));
+  assert.ok(landingHtml.includes('landing.js?v=6164-cloud-mask-confidence-clouds'));
+  assert.ok(appHtml.includes('app.js?v=6164-cloud-mask-confidence-clouds'));
 });
