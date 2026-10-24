@@ -128,12 +128,12 @@ jobs:
               await p.waitForFunction(()=>window.__bpWeatherV2300?.state?.counts?.alerts===3,{timeout:15000});
               await p.waitForFunction(()=>window.__bpWeatherV2300?.fx?.state?.shaderReady===true,{timeout:15000});
               console.log('WX_PARTICLE_DIAG',JSON.stringify(await p.evaluate(()=>{const m=window.__bpWorldV2300?.map,w=window.__bpWeatherV2300,fx=w?.fx?.state,c=m?.getCanvas?.(),sc=m?.getContainer?.()?.closest?.('[data-surface]'),obs=w?.fx?.scene?.observations?.[0],sch=window.__BP_WEATHER_RENDER_SCHEDULER_V6040__;return{activeParticles:fx?.activeParticles,quality:fx?.qualityScale,shaderReady:fx?.shaderReady,enabled:fx?.enabled,moving:fx?.moving,zoom:m?.getZoom?.(),center:m?.getCenter?.().toArray?.(),canvas:c?{clientWidth:c.clientWidth,clientHeight:c.clientHeight,width:c.width,height:c.height}:null,counts:w?.state?.counts,layerPresent:!!m?.getLayer?.('bp2300-weather-fx-gpu'),renderer:window.__BP_WEATHER_FX_DIAGNOSTIC_V6050__||null,scheduler:sch?{mode:sch.mode,visibleAnimatedEffects:sch.visibleAnimatedEffects,enabled:sch.enabled,moving:sch.moving,counts:sch.counts}:null,surface:sc?{className:sc.className,hidden:sc.hidden,active:sc.classList.contains('active')}:null,obs:obs?{lng:obs.lng,lat:obs.lat,weather:obs.weather,present_weather:obs.present_weather,rawdata:obs.rawdata,visibility_mi:obs.visibility_mi}:null,scene:fx?{observations:w?.fx?.scene?.observations?.length,fires:w?.fx?.scene?.fires?.length,storms:w?.fx?.scene?.storms?.length,alerts:w?.fx?.scene?.alerts?.length,earthquakes:w?.fx?.scene?.earthquakes?.length,lightning:w?.fx?.scene?.lightning?.length}:null,documentHidden:document.hidden}})));
-              await p.waitForFunction(()=>window.__bpWeatherV2300?.fx?.state?.activeParticles>40,{timeout:15000});
+              await p.waitForFunction(()=>{const r=window.__BP_RAIN_RENDERER_V6068__?.state,l=window.__BP_LIGHTNING_RENDERER_V6130__?.state;return r?.worldAnchored===true&&r?.overlayAttached===true&&r?.renderedStreaks>0&&l?.enabled===true&&l?.overlayConnected===true&&l?.anchors>0;},{timeout:15000});
               await new Promise(r=>setTimeout(r,1200));
-              const out=await p.evaluate(()=>{const m=window.__bpWorldV2300.map,fx=window.__bpWeatherV2300.fx.state,w=window.__bpWeatherV2300.state;return{fx,w,mapCanvases:document.querySelectorAll('#liveMap canvas').length,totalCanvases:document.querySelectorAll('canvas').length,canvasIds:[...document.querySelectorAll('canvas')].map(c=>c.id||''),layers:['bp2300-weather-fx-gpu','bp2300-fx-tornado','bp2300-fx-hurricane','bp2300-fx-flood-fill','bp2300-fx-ice-fill','bp2300-fx-burn','bp2300-fx-containment'].every(id=>!!m.getLayer(id))}});
+              const out=await p.evaluate(()=>{const m=window.__bpWorldV2300.map,fx=window.__bpWeatherV2300.fx.state,w=window.__bpWeatherV2300.state;return{fx,w,rain:window.__BP_RAIN_RENDERER_V6068__?.state,lightning:window.__BP_LIGHTNING_RENDERER_V6130__?.state,mapCanvases:document.querySelectorAll('#liveMap canvas').length,totalCanvases:document.querySelectorAll('canvas').length,canvasIds:[...document.querySelectorAll('canvas')].map(c=>c.id||''),layers:['bp2300-weather-fx-gpu','bp2300-fx-tornado','bp2300-fx-hurricane','bp2300-fx-flood-fill','bp2300-fx-ice-fill','bp2300-fx-burn','bp2300-fx-containment'].every(id=>!!m.getLayer(id))}});
               console.log('V2300_WX3',JSON.stringify(out));
               assert.equal(out.mapCanvases,1,'the MapLibre map must retain exactly one canvas');assert.equal(out.totalCanvases,2,'only the MapLibre canvas and transparent celestial backdrop are expected');assert.equal((out.canvasIds||[]).filter(id=>id==='bp-space-canvas-v6124').length,1,'the only auxiliary canvas must be the celestial backdrop');assert(out.layers);
-              assert.equal(out.fx.sharedMapLibreWebGLContext,true);assert.equal(out.fx.secondaryCanvases,0);assert.equal(out.fx.shaderReady,true);assert(out.fx.activeParticles>40);
+              assert.equal(out.fx.sharedMapLibreWebGLContext,true);assert.equal(out.fx.secondaryCanvases,0);assert.equal(out.fx.shaderReady,true);assert.equal(out.fx.enabled,false,'legacy generic particle bundle must stay off; dedicated rain and lightning renderers are used');assert(out.rain?.worldAnchored===true&&out.rain?.overlayAttached===true&&out.rain?.renderedStreaks>0,'source-anchored rain must render');assert(out.lightning?.enabled===true&&out.lightning?.overlayConnected===true&&out.lightning?.anchors>0,'source-anchored lightning must attach');
               assert(out.fx.budgets.maxPoints<=760);assert(out.fx.qualityScale>=.28&&out.fx.qualityScale<=1);
               assert.equal(out.w.counts.alerts,3);assert.equal(out.w.counts.fires,1);assert.equal(out.w.counts.storms,1);assert.equal(out.w.counts.lightning,1);assert.equal(out.w.counts.water,1);
               const lightningPrecheck=await p.evaluate(()=>({present:!!window.__BP_LIGHTNING_RENDERER_V6130__,state:window.__BP_LIGHTNING_RENDERER_V6130__?.state||null,weatherScene:window.__bpWeatherV2300?.getScene?.()?.lightning?.length||0,alertCount:window.__bpWeatherV2300?.getScene?.()?.alerts?.length||0}));
@@ -144,24 +144,25 @@ jobs:
               const lightningDiag=await p.evaluate(()=>window.__BP_LIGHTNING_RENDERER_V6130__?.state||null);
               assert(lightningDiag&&lightningDiag.activeBolts>0&&lightningDiag.durationMs>=2400,'cloud-to-ground lightning must appear as a long, source-anchored branching flash '+JSON.stringify(lightningDiag));
               assert.equal(errors.length,0,errors.join('\n'));
-              console.log('BRIDGEPOINT_V2300_WEATHER_FX_ANDROID_PASS',JSON.stringify({particles:out.fx.activeParticles,quality:out.fx.qualityScale,fps:out.fx.fps,maxPoints:out.fx.budgets.maxPoints,canvases:out.totalCanvases}));
+              console.log('BRIDGEPOINT_V2300_WEATHER_FX_ANDROID_PASS',JSON.stringify({rainStreaks:out.rain?.renderedStreaks,lightningBolts:out.lightning?.activeBolts,quality:out.fx.qualityScale,fps:out.fx.fps,maxPoints:out.fx.budgets.maxPoints,canvases:out.totalCanvases}));
               await p.evaluate(()=>{
                 const m=window.__bpWorldV2300.map;
                 m.stop?.();
                 m.jumpTo({center:[-87.3425,41.538],zoom:1.25,pitch:0,bearing:0});
               });
               await new Promise(resolve=>setTimeout(resolve,700));
-              await p.waitForFunction(()=>window.__bpWeatherV2300?.fx?.state?.activeParticles>0,{timeout:10000});
+              await p.waitForFunction(()=>{const m=window.__bpWorldV2300?.map,visible=id=>!!m?.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none';return visible('wx-alert-line')&&visible('wx-storms')&&visible('wx-obs')&&Number(window.__bpWeatherV2300?.state?.counts?.alerts||0)>0;},{timeout:10000});
               const globe=await p.evaluate(()=>{
                 const m=window.__bpWorldV2300?.map,fx=window.__bpWeatherV2300?.fx?.state;
                 const d=window.__BP_WEATHER_FX_DIAGNOSTIC_V6050__||{};
                 return{zoom:m?.getZoom?.(),activeParticles:fx?.activeParticles,maxPoints:fx?.budgets?.maxPoints,
                   singleCanvas:document.querySelectorAll('#liveMap canvas').length===1&&document.querySelectorAll('canvas#bp-space-canvas-v6124').length===1&&document.querySelectorAll('canvas').length===2,
                   rendererErrors:d.particleErrors||0,lastParticleError:d.lastParticleError||null,
+                  sourceWeatherVisible:['wx-alert-line','wx-storms','wx-obs'].every(id=>!!m?.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none'),
                   capabilities:fx?.capabilities||{}};
               });
               assert(globe.zoom<3,'GLOBAL_VIEW_WEATHER_TEST_DID_NOT_REACH_GLOBE '+JSON.stringify(globe));
-              assert(globe.activeParticles>0,'GLOBAL_VIEW_WEATHER_EFFECTS_NOT_VISIBLE '+JSON.stringify(globe));
+              assert(globe.sourceWeatherVisible,'GLOBAL_VIEW_SOURCE_WEATHER_NOT_VISIBLE '+JSON.stringify(globe));
               assert(globe.activeParticles<=globe.maxPoints,'GLOBAL_VIEW_WEATHER_BUDGET_EXCEEDED '+JSON.stringify(globe));
               assert.equal(globe.singleCanvas,true,'GLOBAL_VIEW_SECONDARY_CANVAS '+JSON.stringify(globe));
               assert.equal(globe.rendererErrors,0,'GLOBAL_VIEW_WEATHER_RENDER_ERRORS '+JSON.stringify(globe));
