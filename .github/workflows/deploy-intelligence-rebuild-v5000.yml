@@ -329,7 +329,7 @@ jobs:
           sed -i 's#world-v2300-weather.js?v=6091-global-storm-centers#world-v2300-weather.js?v=6093-josephine-global-track#g' site/app/world-v2300-bootstrap.js
           sed -i 's#world-v2300-weather.js?v=6093-josephine-global-track#world-v2300-weather.js?v=6138-cloud-linked-lightning#g' site/app/world-v2300-bootstrap.js
           cp release-v2300/world-v2300.css site/app/world-v2300.css
-          sed -i 's#world-v2300-clouds.js?v=6137-globe-first-weather-lockstep#world-v2300-clouds.js?v=6150-global-satellite-cloud-mosaic#g; s#world-v2300-clouds.js?v=6150-global-satellite-cloud-mosaic#world-v2300-clouds.js?v=6150-global-satellite-cloud-mosaic#g' site/app.js site/landing.js site/index.html site/app/index.html site/world-v2300-time-slider.js site/app/world-v2300-time-slider.js
+          sed -i 's#world-v2300-clouds.js?v=6137-globe-first-weather-lockstep#world-v2300-clouds.js?v=6160-cloud-volume-clarity#g; s#world-v2300-clouds.js?v=6150-global-satellite-cloud-mosaic#world-v2300-clouds.js?v=6160-cloud-volume-clarity#g' site/app.js site/landing.js site/index.html site/app/index.html site/world-v2300-time-slider.js site/app/world-v2300-time-slider.js
 
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.js -o site/vendor/maplibre-gl.js
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.css -o site/vendor/maplibre-gl.css
@@ -507,16 +507,16 @@ jobs:
           node --input-type=module --check < site/world-v2300-realism.js
           node --input-type=module --check < site/gis-core-orchestrator-v5910.js
           grep -Fq 'Real satellite bands. No AI-drawn pixels.' site/world-v2300-spectral-imagery.js
-          grep -Fq 'world-v2300-clouds.js?v=6150-global-satellite-cloud-mosaic' site/app.js
-          grep -Fq 'world-v2300-clouds.js?v=6150-global-satellite-cloud-mosaic' site/landing.js
+          grep -Fq 'world-v2300-clouds.js?v=6160-cloud-volume-clarity' site/app.js
+          grep -Fq 'world-v2300-clouds.js?v=6160-cloud-volume-clarity' site/landing.js
           grep -Fq 'world-v2300-weather.js?v=6138-cloud-linked-lightning' site/app.js
           grep -Fq 'function isPostTropicalCyclone(st={})' site/world-v2300-clouds.js
           grep -Fq 'postTropicalSurfaceCloudVertices+=makeCycloneRibbon' site/world-v2300-clouds.js
           grep -Fq 'post-tropical lows use asymmetric cloud shields' site/world-v2300-clouds.js
-          grep -Fq 'world-v2300-clouds.js?v=6150-global-satellite-cloud-mosaic' site/world-v2300-time-slider.js
+          grep -Fq 'world-v2300-clouds.js?v=6160-cloud-volume-clarity' site/world-v2300-time-slider.js
           grep -Fq 'function isPostTropicalCyclone(st={})' site/app/world-v2300-clouds.js
           grep -Fq 'postTropicalSurfaceCloudVertices+=makeCycloneRibbon' site/app/world-v2300-clouds.js
-          grep -Fq 'world-v2300-clouds.js?v=6150-global-satellite-cloud-mosaic' site/app/world-v2300-time-slider.js
+          grep -Fq 'world-v2300-clouds.js?v=6160-cloud-volume-clarity' site/app/world-v2300-time-slider.js
           grep -Fq 'world-v2300-rain.js?v=6137-globe-first-weather-lockstep' site/world-v2300-weather.js
           grep -Fq 'retireLegacyScreenSpaceRain' site/world-v2300-weather.js
           grep -Fq '__BP_SCREEN_SPACE_RAIN_RETIRE_V6063__' site/world-v2300-weather.js
@@ -617,13 +617,13 @@ jobs:
           grep -Fq 'bridgepoint-gebco-depth-image-v5937' site/world-v2300-sensor-layers.js
           grep -Fq 'bridgepoint-nasa-nightlights-v5937' site/world-v2300-sensor-layers.js
           grep -Fq "kind: 'georeferenced 3D cloud-volume layer'" site/world-v2300-clouds.js
-          grep -Fq 'version: 6150, map, overlay' site/world-v2300-clouds.js
+          grep -Fq 'version: 6160, map, overlay' site/world-v2300-clouds.js
           grep -Fq 'josephineHurricaneGeometryCount' site/world-v2300-clouds.js
           grep -Fq 'const billow = 1.0 +' site/world-v2300-clouds.js
           grep -Fq 'activeMacroCells' site/world-v2300-clouds.js
           grep -Fq 'MOBILE?8:9,3,hash(q.gx,q.gy,i+973)' site/world-v2300-clouds.js
           grep -Fq 'Height/latitude-aware modelled atmospheric flow; no source-backed global upper-air wind grid is connected' site/world-v2300-clouds.js
-          grep -Fq 'coverageVersion: 6150' site/world-v2300-clouds.js
+          grep -Fq 'coverageVersion: 6160' site/world-v2300-clouds.js
           grep -Fq 'function makeTornadoSurfaceCone' site/world-v2300-clouds.js
           grep -Fq 'hurricaneSurfaceCloudVertices+=vertices.length/13-before' site/world-v2300-clouds.js
           grep -Fq 'tornadoSurfaceMeshVertices+=surfaceAdded' site/world-v2300-clouds.js
@@ -658,7 +658,7 @@ jobs:
           grep -Fq '190000, 580000' site/world-v2300-clouds.js
           grep -Fq 'maxMacro = MOBILE ? 110 : 130' site/world-v2300-clouds.js
           grep -Fq 'globalThinLayerFormations: globalCloudGeometryCache?.thinLayerFormationCount || 0' site/world-v2300-clouds.js
-          grep -Fq 'if (Number(existingCloudController.version) >= 6150' site/world-v2300-clouds.js
+          grep -Fq 'if (Number(existingCloudController.version) >= 6160' site/world-v2300-clouds.js
           grep -Fq 'const columns = 40, rows = 18, maxMacro = MOBILE ? 110 : 130;' site/world-v2300-clouds.js
           grep -Fq '400000, 900000' site/world-v2300-clouds.js
           grep -Fq 'vertical,0.26+hash(q.gx,q.gy,987)*0.40,8,2,hash(q.gx,q.gy,988));' site/world-v2300-clouds.js
