@@ -123,7 +123,7 @@ test('new rain/lightning and global source markers stay separate from legacy eff
   assert.match(clouds, /state\.maskTimer=setInterval/);
   assert.match(clouds, /window\\.__BP_SATELLITE_CLOUD_MASK_V6150__/);
   assert.match(clouds, /bp2300:satellite-cloud-mask-updated/);
-  assert.match(clouds, /satelliteMaskIndexV6140/);
+  assert.match(clouds, /satelliteMaskIndexV6150/);
   assert.match(clouds, /satelliteCloudAnchors/);
   assert.doesNotMatch(clouds, /global satellite cloud-mask feed not yet connected/);
   assert.match(clouds, /placedBelowBuildings/);
