@@ -83,7 +83,7 @@ jobs:
           grep -Fq 'void startLandingNationalWeather(world)' rebuild-v5000/landing.js
           grep -Fq 'bp6133-noaa-geocolor-cloud-context' release-v2300/world-v2300-clouds.js
           grep -Fq 'initSatelliteCloudContextV6134' release-v2300/world-v2300-clouds.js
-          grep -Fq 'Most_Recent_MERGEDGC/ImageServer/exportImage' release-v2300/world-v2300-clouds.js
+          grep -Fq 'MERGEDGC_current/ImageServer/exportImage' release-v2300/world-v2300-clouds.js
           grep -Fq 'bp6130-cloud-expansion' release-v2300/world-v2300-lightning.js
           grep -Fq 'bp-landing-v6132-ground-radar' rebuild-v5000/landing.js
           grep -Fq "layout:{visibility:'visible'},paint:{'fill-color':landingWeatherColorExpr()" rebuild-v5000/landing.js
