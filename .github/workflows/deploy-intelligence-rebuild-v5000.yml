@@ -1444,6 +1444,34 @@ jobs:
               if(report.renderedEiffelBlocks.length)
                 throw new Error('EIFFEL_DUPLICATE_BLOCK_STILL_RENDERED '+JSON.stringify(report.renderedEiffelBlocks));
               console.log('BRIDGEPOINT_EIFFEL_TOWER_ANCHOR_AND_DUPLICATE_FILTER_PASS',JSON.stringify(report));
+               // Water data readiness must be tested at a real shoreline, not at the Eiffel Tower.
+               // A landmark camera can legitimately have no water polygons in its visible tiles.
+               await p.evaluate(()=>{
+                 const m=window.__BP_LANDING_WORLD__?.map;
+                 m?.stop?.();
+                 m?.jumpTo({center:[-74.0445,40.6893],zoom:15.2,pitch:58,bearing:-8});
+                 m?.triggerRepaint?.();
+               });
+               await p.waitForFunction(()=>{
+                 const m=window.__BP_LANDING_WORLD__?.map;
+                 if(!m||m.getZoom()<15)return false;
+                 try{
+                   const water=m.querySourceFeatures('ofm',{sourceLayer:'water'})||[];
+                   const landcover=m.querySourceFeatures('ofm',{sourceLayer:'landcover'})||[];
+                   const landuse=m.querySourceFeatures('ofm',{sourceLayer:'landuse'})||[];
+                   return water.length>0&&(landcover.length+landuse.length)>0;
+                 }catch(_){return false}
+               },{timeout:25000}).catch(async error=>{
+                 const diag=await p.evaluate(()=>{
+                   const m=window.__BP_LANDING_WORLD__?.map;
+                   const count=layer=>{try{return(m?.querySourceFeatures('ofm',{sourceLayer:layer})||[]).length}catch(_){return -1}};
+                   return{center:m?.getCenter?.()?.toArray?.(),zoom:m?.getZoom?.(),pitch:m?.getPitch?.(),projection:m?.getProjection?.()?.type,
+                     styleLoaded:m?.isStyleLoaded?.(),sourceLoaded:(()=>{try{return m?.isSourceLoaded?.('ofm')}catch(_){return null}})(),
+                     vectorSourcePresent:!!m?.getSource?.('ofm'),sourceFeatures:{water:count('water'),landcover:count('landcover'),landuse:count('landuse')},
+                     anchorLayers:['bp-water-data-anchor-v6102-water','bp-water-data-anchor-v6102-landcover','bp-water-data-anchor-v6102-landuse'].map(id=>({id,present:!!m?.getLayer?.(id)}))};
+                 });
+                 throw new Error('WATER_SHORELINE_SOURCE_FIXTURE_NOT_READY '+JSON.stringify(diag)+' '+String(error?.message||error));
+               });
                // Runtime gate for the new shared-context water renderer: verify the custom layer
                // builds bounded geometry and executes its GPU shader without disturbing native water.
                try {
