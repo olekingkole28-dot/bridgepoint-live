@@ -2294,19 +2294,23 @@ jobs:
                 return caps?.rainSnowHail===true&&caps?.wildfireFlameParticles===true;
               },{timeout:30000});
               await p.waitForFunction(()=>{
-                const shared=window.__BP_SHARED_VISUAL_WEATHER__,w=shared?.weather;
-                return window.__BP_STARTUP_SCHEDULER_V5939__?.enabled===true&&shared?.mapShared===true&&w?.state?.active===true&&w?.fx?.state?.enabled===false&&window.__BP_CLOUDS_ONLY_PHASE_V6070__===true;
-              },{timeout:20000});
+                const m=window.__BP_V5000_WORLD?.map,shared=window.__BP_SHARED_VISUAL_WEATHER__,w=shared?.weather;
+                const visible=id=>!!m?.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')==='visible';
+                return window.__BP_STARTUP_SCHEDULER_V5939__?.enabled===true&&shared?.mapShared===true&&w?.state?.active===true&&w?.fx?.state?.enabled===false&&window.__BP_CLOUDS_ONLY_PHASE_V6070__!==true&&
+                  visible('bp-v5004-weather-points')&&visible('bp-v5004-weather-shape-line')&&visible('bp-v6132-ground-radar')&&visible('bp6133-noaa-geocolor-cloud-context');
+              },{timeout:30000});
               const defaultWeather=await p.evaluate(()=>{
                 const m=window.__BP_V5000_WORLD?.map,shared=window.__BP_SHARED_VISUAL_WEATHER__,w=shared?.weather;
                 const visible=id=>!!m?.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')==='visible';
                 return{schedulerEnabled:window.__BP_STARTUP_SCHEDULER_V5939__?.enabled===true,sharedMap:shared?.mapShared===true,
                   liveWeatherEnabled:w?.state?.active===true,weatherEffectsDisabled:w?.fx?.state?.enabled===false,
+                  sourceWeatherCacheFirstFrame:!!window.__BP_LIVE_WEATHER_CACHE_FIRST_FRAME_V6134__||!!window.__BP_LIVE_WEATHER_STATE_V5806__||!!window.__BP_LIVE_WEATHER_STALE_V6134__,
                   eventPointsVisible:visible('bp-v5004-weather-points'),eventShapesVisible:visible('bp-v5004-weather-shape-line'),
+                  groundRadarVisible:visible('bp-v6132-ground-radar'),satelliteCloudContextVisible:visible('bp6133-noaa-geocolor-cloud-context'),
                   cloudsEnabled:window.__BP_SKY_CLOUDS_STATE_V5908__?.enabled===true,globalCloudFormations:Number(window.__BP_SKY_CLOUDS_STATE_V5908__?.globalCloudFormations)||0};
               });
-              if(!defaultWeather.schedulerEnabled||!defaultWeather.sharedMap||!defaultWeather.liveWeatherEnabled||!defaultWeather.weatherEffectsDisabled||!defaultWeather.eventPointsVisible||!defaultWeather.eventShapesVisible||!defaultWeather.cloudsEnabled||defaultWeather.globalCloudFormations<230)
-                throw new Error('DEFAULT_SOURCE_BACKED_WEATHER_OR_CLOUD_RUNTIME_NOT_ACTIVE '+JSON.stringify(defaultWeather));
+              if(!defaultWeather.schedulerEnabled||!defaultWeather.sharedMap||!defaultWeather.liveWeatherEnabled||!defaultWeather.weatherEffectsDisabled||!defaultWeather.eventPointsVisible||!defaultWeather.eventShapesVisible||!defaultWeather.groundRadarVisible||!defaultWeather.satelliteCloudContextVisible||!defaultWeather.cloudsEnabled||defaultWeather.globalCloudFormations<230)
+                throw new Error('DEFAULT_FIRST_FRAME_SOURCE_BACKED_WEATHER_OR_CLOUD_RUNTIME_NOT_ACTIVE '+JSON.stringify(defaultWeather));
               console.log('BRIDGEPOINT_DEFAULT_SOURCE_BACKED_WEATHER_AND_CLOUDS_ON_PASS',JSON.stringify(defaultWeather));
 
               const state=await p.evaluate(()=>{
