@@ -590,8 +590,8 @@ jobs:
           grep -Fq 'world-v2300-weather.js?v=6135-cloud-rain-lightning' site/index.html
           grep -Fq 'world-v2300-weather.js?v=6135-cloud-rain-lightning' site/app/index.html
           grep -Fq 'world-v2300-weather.js?v=6135-cloud-rain-lightning' site/app/world-v2300-bootstrap.js
-          grep -Fq 'world-v2300-time-slider.js?v=6134-source-satellite-clouds' site/app.js
-          grep -Fq 'world-v2300-time-slider.js?v=6134-source-satellite-clouds' site/landing.js
+          grep -Fq 'world-v2300-time-slider.js?v=6135-cloud-anchor-loader' site/app.js
+          grep -Fq 'world-v2300-time-slider.js?v=6135-cloud-anchor-loader' site/landing.js
           grep -Fq 'world-v2300-spectral-imagery.js?v=5934-world-controls' site/app.js
           grep -Fq 'world-v2300-underground-xray.js?v=5965-landmarks-and-effects' site/app.js
           grep -Fq 'world-v2300-underground-xray.js?v=5965-landmarks-and-effects' site/landing.js
