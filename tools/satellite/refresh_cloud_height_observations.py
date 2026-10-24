@@ -29,6 +29,7 @@ USER_AGENT = "BridgePoint-CloudHeightFeed/1.0 (+https://github.com/olekingkole28
 TIMEOUT = (12, 35)
 MAX_NETCDF_BYTES = 120 * 1024 * 1024
 MAX_SAMPLES_PER_SOURCE = 65000
+MAX_NOAA_SAMPLES = 24000
 NOAA_BUCKETS = (("19", "NOAA GOES-19 ABI-L2-ACHAF Cloud Top Height"), ("18", "NOAA GOES-18 ABI-L2-ACHAF Cloud Top Height"))
 SATCORPS_CANDIDATES = (
     ("NASA SatCORPS GCC Global V2", "https://satcorps.larc.nasa.gov/prod/GCC-GEO-LEO/visst-pixel-gif-v2/"),
@@ -401,7 +402,7 @@ def extract_noaa(path: Path, source_index: int, metadata: dict[str, Any]) -> tup
             y = y * perspective_height
         if x.ndim != 1 or y.ndim != 1 or len(y) != top.shape[0] or len(x) != top.shape[1]:
             raise ValueError(f"GOES x/y axes do not match HT grid: {top.shape}, {x.shape}, {y.shape}")
-        row_idx, col_idx = sampling_indices(*top.shape, max_samples=MAX_SAMPLES_PER_SOURCE)
+        row_idx, col_idx = sampling_indices(*top.shape, max_samples=MAX_NOAA_SAMPLES)
         xs, ys = x[col_idx], y[row_idx]
         xx, yy = np.meshgrid(xs, ys)
         crs = CRS.from_proj4(f"+proj=geos +h={perspective_height} +lon_0={lon0} +sweep={sweep} +a={semi_major} +b={semi_minor} +units=m +no_defs")
