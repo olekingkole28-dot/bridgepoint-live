@@ -1,9 +1,7 @@
-// BridgePoint global celestial backdrop v6124.
+// BridgePoint global celestial backdrop v6125 (manual-camera safety hotfix).
 // This is a transparent space backdrop only. The interactive Earth globe remains the map renderer.
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-const wrapLng = value => ((((value + 180) % 360) + 360) % 360) - 180;
 const RAD = Math.PI / 180;
-const SIDEREAL_DEG_PER_SECOND = 360 / 86164.0905;
 const PHASE_EPOCH_MS = Date.UTC(2000, 0, 6, 18, 14);
 const SYNODIC_MONTH_MS = 29.530588853 * 86400000;
 
@@ -38,19 +36,13 @@ function initSpace(map, container, options = {}) {
     alpha: 0.26 + random() * 0.62, hue: random() < 0.16 ? 205 : random() < 0.55 ? 215 : 0,
     phase: i
   }));
-  let raf = 0, destroyed = false, pausedUntil = Date.now() + 4000, lastSpinAt = Date.now();
-  let lastSize = '', lastDrawAt = 0, spinTimer = 0, solarTimer = 0;
+  let raf = 0, destroyed = false;
+  let lastSize = '', lastDrawAt = 0, solarTimer = 0;
   const listeners = [];
 
   function onMap(event, handler) {
     map.on?.(event, handler);
     listeners.push([event, handler]);
-  }
-  function pauseSpin(event) {
-    if (event && event.originalEvent === undefined && event.type !== 'pointerdown' && event.type !== 'touchstart') return;
-    pausedUntil = Date.now() + 25000;
-    try { map.stop?.(); } catch (_) {}
-    lastSpinAt = Date.now();
   }
   function viewportSize() {
     const rect = host.getBoundingClientRect();
@@ -185,41 +177,18 @@ function initSpace(map, container, options = {}) {
       version: 6124, active, zoom, starCount: stars.length, stableStars: true,
       stationarySpaceBackdrop: true, transparentEarthAperture: true,
       mapCanvasHidden: false, cameraControlsDisabled: false,
-      autoRotation: 'global-only sidereal-like drift; pauses for direct user input',
+      autoRotation: 'disabled; camera motion remains user-driven',
       sunAltitude, updatedAt: Date.now()
     };
     window.__BP_SPACE_V6124__ = state;
     return state;
-  }
-  const pointerPause = event => {
-    pausedUntil = Date.now() + 25000;
-    lastSpinAt = Date.now();
-    try { map.stop?.(); } catch (_) {}
-    requestDraw();
-  };
-  for (const eventName of ['pointerdown', 'touchstart', 'wheel', 'mousedown']) {
-    host.addEventListener(eventName, pointerPause, { passive: true });
   }
   for (const eventName of ['move', 'zoom', 'rotate', 'pitch', 'resize', 'moveend', 'zoomend', 'rotateend']) {
     onMap(eventName, requestDraw);
   }
   const onVisibility = () => { if (document.hidden) { if (raf) cancelAnimationFrame(raf); raf = 0; } else requestDraw(); };
   document.addEventListener('visibilitychange', onVisibility);
-  const spinTick = () => {
-    if (destroyed || document.hidden) return;
-    const now = Date.now(), delta = clamp((now - lastSpinAt) / 1000, 0, 3);
-    lastSpinAt = now;
-    const zoom = Number(map.getZoom?.() ?? 10);
-    if (zoom <= 2.1 && now >= pausedUntil && !map.isMoving?.()) {
-      const center = map.getCenter?.();
-      if (center && delta > 0) {
-        const shift = SIDEREAL_DEG_PER_SECOND * delta;
-        try { map.easeTo({ center: [wrapLng(center.lng + shift), center.lat], duration: 1000, easing: t => t, essential: false }); } catch (_) {}
-      }
-    }
-    requestDraw();
-  };
-  spinTimer = setInterval(spinTick, 1000);
+  // No autonomous map.easeTo loop: camera motion stays entirely user-driven.
   solarTimer = setInterval(requestDraw, 30000);
   render(true);
 
@@ -229,10 +198,9 @@ function initSpace(map, container, options = {}) {
     destroy() {
       if (destroyed) return;
       destroyed = true;
-      clearInterval(spinTimer); clearInterval(solarTimer);
+      clearInterval(solarTimer);
       if (raf) cancelAnimationFrame(raf);
       for (const [event, handler] of listeners) map.off?.(event, handler);
-      for (const eventName of ['pointerdown', 'touchstart', 'wheel', 'mousedown']) host.removeEventListener(eventName, pointerPause);
       document.removeEventListener('visibilitychange', onVisibility);
       canvas.remove();
       if (window.__BP_SPACE_V6124__?.map === map) delete window.__BP_SPACE_V6124__;
