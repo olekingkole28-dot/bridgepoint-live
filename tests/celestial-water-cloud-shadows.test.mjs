@@ -84,15 +84,15 @@ test('entrypoints use fresh cache keys for updated map, water, clouds, weather a
   for (const source of [app, landing]) {
     assert.match(source, /world-v2300-map\.js\?v=6125-manual-globe-camera/);
     assert.match(source, /world-v2300-water\.js\?v=6124-solar-ocean-swell/);
-    assert.match(source, /world-v2300-clouds\.js\?v=6130-cloud-rain-lightning/);
+    assert.match(source, /world-v2300-clouds\.js\?v=6133-source-satellite-clouds/);
     assert.match(source, /world-v2300-weather\.js\?v=6131-close-zoom-rain-density/);
     assert.match(source, /world-v2300-time-slider\.js\?v=6124-live-cloud-shadow-motion/);
   }
   assert.match(map, /world-v2300-space\.js\?v=6125-manual-globe-camera/);
-  assert.match(timeSlider, /world-v2300-clouds\.js\?v=6130-cloud-rain-lightning/);
+  assert.match(timeSlider, /world-v2300-clouds\.js\?v=6133-source-satellite-clouds/);
   assert.match(bootstrap, /world-v2300-weather\.js\?v=6131-close-zoom-rain-density/);
-  assert.match(appHtml, /app\.js\?v=6132-global-weather-icons-ground-radar/);
-  assert.match(landingHtml, /landing\.js\?v=6132-global-weather-icons-ground-radar/);
+  assert.match(appHtml, /app\.js\?v=6133-source-satellite-clouds/);
+  assert.match(landingHtml, /landing\.js\?v=6133-source-satellite-clouds/);
 });
 
 test('new rain/lightning and global source markers stay separate from legacy effects', () => {
@@ -121,6 +121,17 @@ test('new rain/lightning and global source markers stay separate from legacy eff
   assert.match(landing, /bp-landing-v6132-weather-icons/);
   assert.match(landing, /bp-landing-v6132-ground-radar/);
   assert.match(landing, /groundDraped:true/);
+  assert.doesNotMatch(app, /window\.__BP_CLOUDS_ONLY_PHASE_V6070__=true;/);
+  assert.doesNotMatch(landing, /window\.__BP_CLOUDS_ONLY_PHASE_V6070__=true;/);
+  assert.match(app, /present\?\.setActive\?\.\(false\)/);
+  assert.match(landing, /landingWeatherModules\.present\?\.setActive\?\.\(false\)/);
+  assert.match(clouds, /bp6133-noaa-geocolor-cloud-context/);
+  assert.match(clouds, /Most_Recent_MERGEDGC\/ImageServer\/exportImage/);
+  assert.match(clouds, /refreshIntervalMs:600000/);
+  assert.match(lightning, /bp6130-cloud-expansion/);
+  assert.match(lightning, /bp6130-cloud-flash-gradient/);
+  assert.match(app, /\['zoom'\],0,1\.08,1\.5,1\.12,3,1\.16/);
+  assert.match(landing, /\['zoom'\],0,1\.08,1\.5,1\.12,3,1\.16/);
   assert.match(app, /sourceWeatherOverlaysPreserved:true/);
   assert.match(landing, /legacyCinematicFxDisabled:true/);
   assert.match(listingView, /BP_LISTINGS_MONEY_V6130/);
