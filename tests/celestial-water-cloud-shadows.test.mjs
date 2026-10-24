@@ -79,17 +79,17 @@ test('cloud shadows update on the map and use available source winds', () => {
 
 test('entrypoints use fresh cache keys for updated map, water, clouds, weather and space', () => {
   for (const source of [app, landing]) {
-    assert.match(source, /world-v2300-map\.js\?v=6124-solar-space-coast/);
+    assert.match(source, /world-v2300-map\.js\?v=6125-manual-globe-camera/);
     assert.match(source, /world-v2300-water\.js\?v=6124-solar-ocean-swell/);
     assert.match(source, /world-v2300-clouds\.js\?v=6124-live-cloud-shadow-advection/);
     assert.match(source, /world-v2300-weather\.js\?v=6124-live-cloud-weather-refresh/);
     assert.match(source, /world-v2300-time-slider\.js\?v=6124-live-cloud-shadow-motion/);
   }
-  assert.match(map, /world-v2300-space\.js\?v=6124-sun-moon-fixed-stars/);
+  assert.match(map, /world-v2300-space\.js\?v=6125-manual-globe-camera/);
   assert.match(timeSlider, /world-v2300-clouds\.js\?v=6124-live-cloud-shadow-advection/);
   assert.match(bootstrap, /world-v2300-weather\.js\?v=6124-live-cloud-weather-refresh/);
-  assert.match(appHtml, /app\.js\?v=6124-solar-ocean-swell/);
-  assert.match(landingHtml, /landing\.js\?v=6124-solar-ocean-swell/);
+  assert.match(appHtml, /app\.js\?v=6125-manual-globe-camera/);
+  assert.match(landingHtml, /landing\.js\?v=6125-manual-globe-camera/);
 });
 
 test('sky-view restoration returns to street with bounded cleanup waits', () => {
