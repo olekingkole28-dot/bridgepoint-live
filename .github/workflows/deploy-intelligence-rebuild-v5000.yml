@@ -52,7 +52,7 @@ jobs:
           node --check rebuild-v5000/bridgepoint-volumetric-fields-v5978.js
           node --check rebuild-v5000/bridgepoint-realworld-effects-v5927.js
           node --input-type=module --check < release-v2300/world-v2300-water.js
-          grep -Fq "const VERSION = 6121;" release-v2300/world-v2300-water.js
+          grep -Fq "const VERSION = 6122;" release-v2300/world-v2300-water.js
           grep -Fq "resolvePitchDisplacementPolicy" release-v2300/world-v2300-water.js
           grep -Fq "uniform float u_pitchWaveScale;" release-v2300/world-v2300-water.js
           grep -Fq "float offsetM = clamp(dynamicOffsetM, -u_waveOffsetLimit, u_waveOffsetLimit) + a_flood;" release-v2300/world-v2300-water.js
@@ -288,8 +288,8 @@ jobs:
           sed -i 's#landing.js?v=6077-cloud-base-restore#landing.js?v=6077-sky-restore-safe-pitch#g' site/index.html
           sed -i 's#app.js?v=6076-rounded-cloud-banks#app.js?v=6077-sky-restore-safe-pitch#g' site/app/index.html
           sed -i 's#landing.js?v=6076-rounded-cloud-banks#landing.js?v=6077-sky-restore-safe-pitch#g' site/index.html
-          sed -i 's#app.js?v=6092-posttropical-global-clouds#app.js?v=6121-horizon-safe-vertex-displacement#g' site/app/index.html
-          sed -i 's#landing.js?v=6091-global-storm-centers-data-only#landing.js?v=6121-horizon-safe-vertex-displacement#g' site/index.html
+          sed -i 's#app.js?v=6092-posttropical-global-clouds#app.js?v=6122-topdown-vertex-displacement-off#g' site/app/index.html
+          sed -i 's#landing.js?v=6091-global-storm-centers-data-only#landing.js?v=6122-topdown-vertex-displacement-off#g' site/index.html
           cp release-v2300/world-v2300-realism.js site/world-v2300-realism.js
           cp release-v2300/gis-core-orchestrator-v5910.js site/gis-core-orchestrator-v5910.js
           cp release-v2300/world-v2300-config.js site/app/world-v2300-config.js
@@ -658,7 +658,7 @@ jobs:
           grep -Fq 'world-v2300-weather.js?v=6093-josephine-global-track' site/app.js
           grep -Fq 'sourceDataReady:true,cloudsOnlyPhase:true' site/landing.js
           grep -Fq 'if(window.__BP_CLOUDS_ONLY_PHASE_V6070__===true && m)' site/landing.js
-          grep -Fq 'landing.js?v=6121-horizon-safe-vertex-displacement' site/index.html
+          grep -Fq 'landing.js?v=6122-topdown-vertex-displacement-off' site/index.html
           grep -Fq 'async function toggleNasaNightlights()' site/world-v2300-time-slider.js
           grep -Fq 'async function toggleSkyClouds()' site/world-v2300-time-slider.js
           grep -Fq 'data-skyview' site/world-v2300-time-slider.js
@@ -860,7 +860,7 @@ jobs:
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/app.js
           grep -Fq 'activateLiveWeather();' site/app.js
           grep -Fq 'enabled:true,serializedWeather:true' site/app.js
-          grep -Fq 'app.js?v=6121-horizon-safe-vertex-displacement' site/app/index.html
+          grep -Fq 'app.js?v=6122-topdown-vertex-displacement-off' site/app/index.html
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/landing.js
           grep -Fq 'WMO_CAP_WARNING' site/app.js
           grep -Fq 'WMO_CAP_WARNING' site/landing.js
@@ -1083,8 +1083,8 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=6121-horizon-safe-vertex-displacement' site/app/index.html
-          grep -Fq 'landing.js?v=6121-horizon-safe-vertex-displacement' site/index.html
+          grep -Fq 'app.js?v=6122-topdown-vertex-displacement-off' site/app/index.html
+          grep -Fq 'landing.js?v=6122-topdown-vertex-displacement-off' site/index.html
            grep -Fq 'world-v2300-map.js?v=6056-ground-camera-readiness' site/app.js
            grep -Fq 'world-v2300-map.js?v=6056-ground-camera-readiness' site/landing.js
            grep -Fq 'world-v2300-map.js?v=6056-ground-camera-readiness' site/index.html
@@ -1438,19 +1438,19 @@ jobs:
                // builds bounded geometry and executes its GPU shader without disturbing native water.
                try {
                  await p.waitForFunction(()=>{
-                   const s=window.__BP_WATER_ENGINE_LANDING_V6121__?.state;
-                   return s?.version===6120 && Number.isFinite(Number(s.flowSegmentsRejectedOutsideWater)) && !!s?.installed && (Number(s.surfaceVertexCount||0)+Number(s.flowVertexCount||0)>0) &&
+                   const s=window.__BP_WATER_ENGINE_LANDING_V6122__?.state;
+                   return s?.version===6122 && Number.isFinite(Number(s.flowSegmentsRejectedOutsideWater)) && !!s?.installed && (Number(s.surfaceVertexCount||0)+Number(s.flowVertexCount||0)>0) &&
                      Number(s.sourceWaterFeatures||0)>0 && Number(s.sourceLandFeatures||0)>0 &&
                      Number(s.sourceAnchorLayersPresent||0)>=3 && !s.waitingForVectorFeatures &&
            Number(s.stormCentersUsed||0)>0 &&
                      (Number(s.lastDrawAt||0)>0 || !!s.shaderError);
                  },{timeout:35000});
                } catch(error) {
-                 const state=await p.evaluate(()=>window.__BP_WATER_ENGINE_LANDING_V6121__?.state||null);
+                 const state=await p.evaluate(()=>window.__BP_WATER_ENGINE_LANDING_V6122__?.state||null);
                  throw new Error('GPU_WATER_LAYER_BOOT_TIMEOUT '+JSON.stringify(state)+' '+String(error?.message||error));
                }
-               const waterBaseline=await p.evaluate(()=>window.__BP_WATER_ENGINE_LANDING_V6121__?.state||null);
-               if(waterBaseline?.version!==6120||!Number.isFinite(Number(waterBaseline.flowSegmentsRejectedOutsideWater))||!waterBaseline?.installed||!waterBaseline.contextReady||
+               const waterBaseline=await p.evaluate(()=>window.__BP_WATER_ENGINE_LANDING_V6122__?.state||null);
+               if(waterBaseline?.version!==6122||!Number.isFinite(Number(waterBaseline.flowSegmentsRejectedOutsideWater))||!waterBaseline?.installed||!waterBaseline.contextReady||
                   (Number(waterBaseline.surfaceVertexCount||0)+Number(waterBaseline.flowVertexCount||0)===0)||
                   Number(waterBaseline.sourceWaterFeatures||0)===0||Number(waterBaseline.sourceLandFeatures||0)===0||
                   Number(waterBaseline.sourceAnchorLayersPresent||0)<3||waterBaseline.waitingForVectorFeatures||
@@ -1461,15 +1461,15 @@ jobs:
                // inland-height cache policy on a real, dense water/land boundary.
                await p.evaluate(()=>{
                  const m=window.__BP_LANDING_WORLD__?.map;
-                 window.__BP_WATER_PRE_CLOSE_BUILD_V6121__=Number(window.__BP_WATER_ENGINE_LANDING_V6121__?.state?.geometryBuilds||0);
+                 window.__BP_WATER_PRE_CLOSE_BUILD_V6122__=Number(window.__BP_WATER_ENGINE_LANDING_V6122__?.state?.geometryBuilds||0);
                  m?.stop?.();
                  m?.jumpTo({center:[-74.0445,40.6893],zoom:16.0,pitch:52,bearing:-8});
                });
                try {
                  await p.waitForFunction(()=>{
                    const m=window.__BP_LANDING_WORLD__?.map;
-                   const s=window.__BP_WATER_ENGINE_LANDING_V6121__?.state;
-                   return !!m&&s?.version===6120&&Number(s.zoom)>=15.5&&
+                   const s=window.__BP_WATER_ENGINE_LANDING_V6122__?.state;
+                   return !!m&&s?.version===6122&&Number(s.zoom)>=15.5&&
                       Number.isFinite(Number(s.waveFrequencyCyclesPerWorld))&&
                       Number.isFinite(Number(s.detailCyclesPerWorld))&&
                       Number.isFinite(Number(s.waterGridStepWorld))&&Number(s.waterGridStepWorld)>0&&
@@ -1479,7 +1479,7 @@ jobs:
                       Number(s.pitchWaveDisplacementLimitM)>=0&&Number(s.pitchWaveDisplacementLimitM)<=0.12&&
                       Number(s.waveFrequencyCyclesPerWorld)<=Number(s.requestedWaveFrequencyCyclesPerWorld)+0.01&&
                       Number(s.detailCyclesPerWorld)>Number(s.waveFrequencyCyclesPerWorld)&&
-                     Number(s.geometryBuilds)>Number(window.__BP_WATER_PRE_CLOSE_BUILD_V6121__||0)&&
+                     Number(s.geometryBuilds)>Number(window.__BP_WATER_PRE_CLOSE_BUILD_V6122__||0)&&
                      Number(s.sourceWaterFeatures)>0&&Number(s.sourceLandFeatures)>0&&
                      Number(s.surfaceVertexCount)>0&&Number.isFinite(Number(s.flowSegmentsRejectedOutsideWater))&&
                      s.surfaceMaskValidationAllZooms===true&&
@@ -1494,18 +1494,41 @@ jobs:
                      !s.shaderError&&Number(s.lastDrawAt||0)>0;
                  },{timeout:35000});
                } catch(error) {
-                 const state=await p.evaluate(()=>window.__BP_WATER_ENGINE_LANDING_V6121__?.state||null);
+                 const state=await p.evaluate(()=>window.__BP_WATER_ENGINE_LANDING_V6122__?.state||null);
                  throw new Error('GPU_WATER_CLOSE_COAST_GEOMETRY_GATE_FAILED '+JSON.stringify(state)+' '+String(error?.message||error));
                }
-               const closeWater=await p.evaluate(()=>window.__BP_WATER_ENGINE_LANDING_V6121__?.state||null);
+               const closeWater=await p.evaluate(()=>window.__BP_WATER_ENGINE_LANDING_V6122__?.state||null);
                console.log('BRIDGEPOINT_GPU_WATER_CLOSE_COAST_PASS',JSON.stringify(closeWater));
               const preTiltAnimationTime=Number(closeWater.animationTimeSeconds||0);
               const preTiltDrawTime=Number(closeWater.lastDrawAt||0);
               await p.waitForTimeout(550);
-              const tiltedWaterMotion=await p.evaluate(()=>{const s=window.__BP_WATER_ENGINE_LANDING_V6121__?.state;return{animationTimeSeconds:Number(s?.animationTimeSeconds||0),lastDrawAt:Number(s?.lastDrawAt||0),pitchWaveDisplacementScale:Number(s?.pitchWaveDisplacementScale),pitchWaveDisplacementLimitM:Number(s?.pitchWaveDisplacementLimitM),pitchDegrees:Number(s?.pitchDegrees),zoom:Number(s?.zoom)}});
+              const tiltedWaterMotion=await p.evaluate(()=>{const s=window.__BP_WATER_ENGINE_LANDING_V6122__?.state;return{animationTimeSeconds:Number(s?.animationTimeSeconds||0),lastDrawAt:Number(s?.lastDrawAt||0),pitchWaveDisplacementScale:Number(s?.pitchWaveDisplacementScale),pitchWaveDisplacementLimitM:Number(s?.pitchWaveDisplacementLimitM),pitchDegrees:Number(s?.pitchDegrees),zoom:Number(s?.zoom)}});
               if(!(tiltedWaterMotion.animationTimeSeconds>preTiltAnimationTime&&tiltedWaterMotion.lastDrawAt>preTiltDrawTime&&tiltedWaterMotion.pitchWaveDisplacementScale<=0.25&&tiltedWaterMotion.pitchWaveDisplacementLimitM<=0.12))
                 throw new Error('TILTED_WATER_ANIMATION_OR_HORIZON_GUARD_STALLED '+JSON.stringify({closeWater,tiltedWaterMotion}));
               console.log('BRIDGEPOINT_TILTED_WATER_ANIMATION_CONTINUES_PASS',JSON.stringify(tiltedWaterMotion));
+              await p.evaluate(()=>{const m=window.__BP_LANDING_WORLD__?.map;if(!m)throw new Error('TOP_DOWN_WATER_MAP_UNAVAILABLE');m.stop?.();m.jumpTo({center:[-74.0445,40.6893],zoom:16,pitch:0,bearing:0})});
+              try {
+                await p.waitForFunction(()=>{
+                  const m=window.__BP_LANDING_WORLD__?.map;
+                  const s=window.__BP_WATER_ENGINE_LANDING_V6122__?.state;
+                  return !!m&&Math.abs(Number(m.getPitch?.()||0))<1&&s?.version===6122&&Number(s.zoom)>=15.5&&
+                    Number(s.pitchDegrees)<=1&&Number(s.pitchWaveDisplacementScale)===0&&
+                    Number(s.pitchWaveDisplacementLimitM)===0&&Number(s.surfaceVertexCount)>0&&
+                    Number(s.lastDrawAt||0)>0&&!s.shaderError;
+                },{timeout:20000});
+              } catch(error) {
+                const state=await p.evaluate(()=>window.__BP_WATER_ENGINE_LANDING_V6122__?.state||null);
+                throw new Error('TOP_DOWN_CLOSE_WATER_GEOMETRY_GUARD_FAILED '+JSON.stringify(state)+' '+String(error?.message||error));
+              }
+              const topDownWater=await p.evaluate(()=>window.__BP_WATER_ENGINE_LANDING_V6122__?.state||null);
+              const topDownAnimationBefore=Number(topDownWater?.animationTimeSeconds||0);
+              const topDownDrawBefore=Number(topDownWater?.lastDrawAt||0);
+              await p.waitForTimeout(550);
+              const topDownMotion=await p.evaluate(()=>{const s=window.__BP_WATER_ENGINE_LANDING_V6122__?.state;return{version:s?.version,zoom:s?.zoom,pitchDegrees:s?.pitchDegrees,pitchWaveDisplacementScale:s?.pitchWaveDisplacementScale,pitchWaveDisplacementLimitM:s?.pitchWaveDisplacementLimitM,animationTimeSeconds:s?.animationTimeSeconds,lastDrawAt:s?.lastDrawAt,surfaceVertexCount:s?.surfaceVertexCount,shaderError:s?.shaderError}});
+              if(!(topDownMotion.version===6122&&topDownMotion.zoom>=15.5&&topDownMotion.pitchDegrees<=1&&topDownMotion.pitchWaveDisplacementScale===0&&topDownMotion.pitchWaveDisplacementLimitM===0&&topDownMotion.animationTimeSeconds>topDownAnimationBefore&&topDownMotion.lastDrawAt>topDownDrawBefore&&topDownMotion.surfaceVertexCount>0&&!topDownMotion.shaderError))
+                throw new Error('TOP_DOWN_CLOSE_WATER_ANIMATION_OR_GEOMETRY_GUARD_FAILED '+JSON.stringify({topDownWater,topDownMotion,topDownAnimationBefore,topDownDrawBefore}));
+              console.log('BRIDGEPOINT_TOP_DOWN_CLOSE_WATER_VERTEX_DISPLACEMENT_DISABLED_ANIMATION_PRESERVED_PASS',JSON.stringify(topDownMotion));
+
                const cloudBaseline=await p.evaluate(()=>({
                  button:!!document.querySelector('#bp-world-time-slider-v5908 [data-clouds]'),
                  base:window.__BP_LANDING_WORLD__?.state?.base||window.__BP_LANDING_WORLD__?.base||'gta',
