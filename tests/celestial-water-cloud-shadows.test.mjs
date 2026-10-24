@@ -134,6 +134,11 @@ test('new rain/lightning and global source markers stay separate from legacy eff
   assert.match(lightning, /export function initLightningLayer/);
   assert.match(lightning, /durationMs:3200/);
   assert.match(rain, /if \(!enabled \|\| !cells\.length \|\| zoom < RAIN_START_ZOOM \|\| document\.hidden\)/);
+  assert.match(rain, /RAIN_CELL_CONTEXT_GLOW/);
+  assert.match(rain, /RAIN_CELL_CONTEXT_CORE/);
+  assert.match(rain, /const limit = z < 3\.5 \? \(MOBILE \? 16 : 36\)/);
+  assert.match(rain, /rainContextLayerAttached/);
+  assert.match(rain, /globalRainLod: true/);
   assert.doesNotMatch(rain, /zoom < 10 \|\| document\.hidden/);
   assert.match(clouds, /window\.__BP_LIGHTNING_CLOUD_ANCHORS_V6135__/);
   assert.match(lightning, /window\.__BP_LIGHTNING_CLOUD_ANCHORS_V6135__/);
