@@ -582,7 +582,9 @@ function createLayer(api, map) {
         api.waveFrequencyCappedForMesh = safeWaveFrequency.capped;
         api.waveGridStepUsedWorld = api.waterGridStepWorld;
         api.detailCyclesPerWorld = detailCyclesPerWorld;
-        if (u.u_time) gl.uniform1f(u.u_time, ((now - this.timeOrigin) / 1000) % 4096);
+        const waterAnimationTimeSeconds = ((now - this.timeOrigin) / 1000) % 4096;
+        api.animationTimeSeconds = waterAnimationTimeSeconds;
+        if (u.u_time) gl.uniform1f(u.u_time, waterAnimationTimeSeconds);
         if (u.u_waveOrigin) gl.uniform2f(u.u_waveOrigin, originX, originY);
         if (u.u_wavePhaseA) gl.uniform1f(u.u_wavePhaseA, Math.PI * 2 * frac(wavesPerWorld * centerCosLat * (originX * windX + originY * windY)));
         if (u.u_wavePhaseB) gl.uniform1f(u.u_wavePhaseB, Math.PI * 2 * frac(wavesPerWorld * 0.61 * centerCosLat * (originX * dirBX + originY * dirBY)));
@@ -673,7 +675,7 @@ export function initWaterEngine(mapOrWorld, options = {}) {
   const low = Number(navigator.deviceMemory || 4) <= 3 || Number(navigator.hardwareConcurrency || 4) <= 4;
   const api = {
     version: VERSION, map, options, enabled: true, active: true, mobile, low,
-    contextReady: false, glContextShared: true, shaderError: null, lastDrawAt: 0,
+    contextReady: false, glContextShared: true, shaderError: null, lastDrawAt: 0, animationTimeSeconds: 0,
     waterPolygonCells: 0, oceanFallbackCells: 0, flowSegments: 0, surfaceVertexCount: 0, flowVertexCount: 0,
     geometryBuilds: 0, sourceWaterFeatures: 0, sourceLandFeatures: 0, sourceWaterwayFeatures: 0,
     sourceFloodPolygonCount: 0, sourceWaterLevelCount: 0, absoluteWaterLevelCount: 0,
@@ -801,7 +803,7 @@ export function initWaterEngine(mapOrWorld, options = {}) {
         tier: this.low ? 'LOW' : this.mobile ? 'MOBILE' : 'DESKTOP',
         stormSurgeIsModelled: this.stormSurgeIsModelled, floodHeightPolicy: this.floodHeightPolicy,
         gaugeHeightPolicy: this.gaugeHeightPolicy, stormWavePolicy: this.stormWavePolicy,
-        shaderError: this.shaderError, lastDrawAt: this.lastDrawAt, updatedAt: Date.now()
+        shaderError: this.shaderError, lastDrawAt: this.lastDrawAt, animationTimeSeconds: this.animationTimeSeconds, updatedAt: Date.now()
       };
     }
   };
