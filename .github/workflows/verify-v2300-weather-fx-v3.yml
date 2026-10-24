@@ -48,7 +48,7 @@ jobs:
           cp release-v2300/world-v2300-weather.js /tmp/bpwx3/world-v2300-weather.js
           cp release-v2300/world-v2300-rain.js /tmp/bpwx3/world-v2300-rain.js
           cp release-v2300/world-v2300-lightning.js /tmp/bpwx3/world-v2300-lightning.js
-          cp release-v2300/world-v2300-clouds.js /tmp/bpwx3/world-v2300-lightning.js
+          cp release-v2300/world-v2300-clouds.js /tmp/bpwx3/world-v2300-clouds.js
           curl --retry 4 --retry-all-errors --retry-delay 1 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.js -o /tmp/bpwx3/vendor/maplibre-gl.js
           curl --retry 4 --retry-all-errors --retry-delay 1 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.css -o /tmp/bpwx3/vendor/maplibre-gl.css
 
