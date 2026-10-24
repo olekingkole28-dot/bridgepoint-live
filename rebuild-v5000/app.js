@@ -128,7 +128,7 @@ async function initSharedVisualWeather(targetWorld,{activate=true}={}){
   let present=window.__bpPresentWeatherV2301||null;
   if(activate){
    weather?.setActive?.(true);
-   const pm=await import('./world-v2300-present-weather.js?v=6070-clouds-only-phase');
+   const pm=await import('./world-v2300-present-weather.js?v=6134-legacy-fx-disabled');
    present=pm.initPresentWeather(map);
    present?.setActive?.(false)
   }
