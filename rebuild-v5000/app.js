@@ -133,7 +133,7 @@ async function initSharedVisualWeather(targetWorld,{activate=true}={}){
    present?.setActive?.(false)
   }
   weather?.setRadar?.(false);
-  window.__BP_SHARED_VISUAL_WEATHER__={version:6057,weather,present,mapShared:true,capabilitiesRegistered:true,networkActivationDeferred:!activate,streetWalkLiveSimulation:false,cinematicFx:window.__BP_CLOUDS_ONLY_PHASE_V6070__!==true,cloudsOnlyPhase:window.__BP_CLOUDS_ONLY_PHASE_V6070__===true,visualWeatherEffectsEnabled:window.__BP_CLOUDS_ONLY_PHASE_V6070__!==true,legacyOverlaysHidden:true,renderer:'isolated-webgl-particle-layer',radarVisible:false,radarOwnedByAppLiveStack:false,radarAnimatedAtCloseZoom:false,radarGroundDrape:true,globalFx:true,updatedAt:Date.now()};
+  window.__BP_SHARED_VISUAL_WEATHER__={version:6057,weather,present,mapShared:true,capabilitiesRegistered:true,networkActivationDeferred:!activate,streetWalkLiveSimulation:false,cinematicFx:false,cloudsOnlyPhase:false,visualWeatherEffectsEnabled:true,legacyCinematicFxDisabled:true,sourceWeatherOverlaysPreserved:true,legacyOverlaysHidden:true,renderer:'source-backed-weather-plus-dedicated-rain-lightning',radarVisible:true,radarOwnedByAppLiveStack:true,radarAnimatedAtCloseZoom:false,radarGroundDrape:true,globalFx:true,updatedAt:Date.now()};
   return window.__BP_SHARED_VISUAL_WEATHER__
  }catch(e){console.warn('BridgePoint shared visual weather',e);return null}
 }
