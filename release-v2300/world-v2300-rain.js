@@ -1,4 +1,4 @@
-const VERSION = 6131;
+const VERSION = 6135;
 const CLOUDS_ONLY_PHASE = () => window.__BP_CLOUDS_ONLY_PHASE_V6070__ === true;
 const LAYER_ID = 'bp2300-rain-world-volume-v6068';
 const GROUND_SOURCE = 'bp2300-rain-ground-source-v6068';
@@ -6,6 +6,9 @@ const WET_LAYER = 'bp2300-rain-wet-ground-v6068';
 const PUDDLE_LAYER = 'bp2300-rain-puddle-fill-v6068';
 const PUDDLE_GLINT = 'bp2300-rain-puddle-glint-v6068';
 const RAIN_OVERLAY_ID = 'bp2300-rain-geographic-svg-v6068';
+const RAIN_CELL_CONTEXT_SOURCE = 'bp2300-rain-cell-lod-source-v6135';
+const RAIN_CELL_CONTEXT_GLOW = 'bp2300-rain-cell-lod-glow-v6135';
+const RAIN_CELL_CONTEXT_CORE = 'bp2300-rain-cell-lod-core-v6135';
 const EARTH_CIRCUMFERENCE = 40075016.68557849;
 const RAD = Math.PI / 180;
 const MOBILE = (typeof innerWidth === 'number' && innerWidth <= 760) ||
@@ -123,13 +126,37 @@ export function initRainLayer(map, getScene = () => ({})) {
   let animationRaf = 0, groundTimer = 0, lastRepaint = 0, vertexCount = 0;
   let rendererError = null, droppedFrames = 0, lastRenderAt = 0, lastGroundUpdate = 0, puddleCount = 0;
   let lastProjectionMode = 'not-rendered', projectionUniformsBound = false;
-  let rainSvg = null, rainPaths = [], renderedStreaks = 0, svgHost = null;
+  let rainSvg = null, rainPaths = [], renderedStreaks = 0, svgHost = null, rainContextCount = 0;
   const timeOrigin = performance.now();
 
   function ensureGroundLayers() {
     try {
       if (!map.getSource(GROUND_SOURCE)) map.addSource(GROUND_SOURCE, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+      if (!map.getSource(RAIN_CELL_CONTEXT_SOURCE)) map.addSource(RAIN_CELL_CONTEXT_SOURCE, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
       const before = firstLayer(map, ['gta-context-buildings', 'gta-exact-building', 'gta-bp-buildings', 'gta-selected-body']);
+      // Globe/regional LOD: source-backed rain cells remain geographically pinned and visible
+      // when physical falling streaks are sub-pixel. Their glow hands off to falling streaks
+      // as the camera closes in; no screen-fixed weather sprites are used.
+      if (!map.getLayer(RAIN_CELL_CONTEXT_GLOW)) map.addLayer({
+        id: RAIN_CELL_CONTEXT_GLOW, type: 'circle', source: RAIN_CELL_CONTEXT_SOURCE, minzoom: 0,
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 5.2, 2, 6.8, 4, 8.6, 6, 10.5, 8, 10.8, 10, 8.0],
+          'circle-color': ['case', ['==', ['get', 'thunderstorm'], true], '#a9d8ff', '#48bfff'],
+          'circle-opacity': ['interpolate', ['linear'], ['zoom'], 0, 0.52, 2, 0.48, 4, 0.39, 6, 0.28, 8, 0.14, 9.5, 0.04, 10.5, 0],
+          'circle-blur': 0.82
+        }
+      }, before);
+      if (!map.getLayer(RAIN_CELL_CONTEXT_CORE)) map.addLayer({
+        id: RAIN_CELL_CONTEXT_CORE, type: 'circle', source: RAIN_CELL_CONTEXT_SOURCE, minzoom: 0,
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 2.1, 2, 2.8, 4, 3.6, 6, 4.5, 8, 5.2, 10, 4.2],
+          'circle-color': ['case', ['==', ['get', 'thunderstorm'], true], '#d8ecff', '#80dcff'],
+          'circle-stroke-color': '#e8f8ff',
+          'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 0, 0.55, 5, 0.85, 9, 1.05],
+          'circle-stroke-opacity': ['interpolate', ['linear'], ['zoom'], 0, 0.82, 6, 0.88, 8, 0.62, 10, 0.12, 10.5, 0],
+          'circle-opacity': ['interpolate', ['linear'], ['zoom'], 0, 0.92, 4, 0.88, 6, 0.76, 8, 0.48, 9.5, 0.18, 10.5, 0]
+        }
+      }, before);
       if (!map.getLayer(WET_LAYER)) map.addLayer({
         id: WET_LAYER, type: 'fill', source: GROUND_SOURCE, minzoom: 8,
         filter: ['==', ['get', 'kind'], 'wet-ground'],
@@ -147,12 +174,30 @@ export function initRainLayer(map, getScene = () => ({})) {
         paint: { 'line-color': '#a9deea', 'line-width': ['interpolate', ['linear'], ['zoom'], 14, 0.2, 17, 0.75, 20, 1.15],
           'line-opacity': ['interpolate', ['linear'], ['get', 'wetness'], 0, 0.025, 0.25, 0.18, 0.7, 0.38, 1, 0.58], 'line-blur': 0.25 }
       }, before);
-      for (const id of [WET_LAYER, PUDDLE_LAYER, PUDDLE_GLINT]) {
+      for (const id of [RAIN_CELL_CONTEXT_GLOW, RAIN_CELL_CONTEXT_CORE, WET_LAYER, PUDDLE_LAYER, PUDDLE_GLINT]) {
         const current = map.getLayoutProperty?.(id, 'visibility');
         const wanted = enabled ? 'visible' : 'none';
         if (map.getLayer?.(id) && current !== wanted) map.setLayoutProperty(id, 'visibility', wanted);
       }
     } catch (e) { rendererError = 'ground layers: ' + String(e?.message || e).slice(0, 160); }
+  }
+
+  function updateRainCellContext() {
+    const features = cells.map(c => ({
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [c.lng, c.lat] },
+      properties: {
+        kind: 'source-rain-cell',
+        thunderstorm: !!c.thunderstorm,
+        radius_m: Math.round(c.radiusM),
+        source_anchor_kind: String(c.obs?.source_anchor_kind || (c.thunderstorm ? 'thunderstorm-observation' : 'precipitation-observation'))
+      }
+    }));
+    rainContextCount = features.length;
+    try {
+      const src = map.getSource?.(RAIN_CELL_CONTEXT_SOURCE);
+      if (src?.setData) src.setData({ type: 'FeatureCollection', features });
+    } catch (_) {}
   }
 
   function ensureRainLayer() {
@@ -204,7 +249,7 @@ export function initRainLayer(map, getScene = () => ({})) {
     if (!rainSvg || rainPaths.length < 3) ensureRainLayer();
     if (!rainSvg || rainPaths.length < 3) return;
     const zoom = safeNum(map.getZoom?.(), 0);
-    if (!enabled || !cells.length || zoom < 10 || document.hidden) {
+    if (!enabled || !cells.length || zoom < RAIN_START_ZOOM || document.hidden) {
       for (const path of rainPaths) path.setAttribute('d', '');
       renderedStreaks = 0;
       return;
@@ -418,7 +463,8 @@ export function initRainLayer(map, getScene = () => ({})) {
     }).filter(Boolean);
     const view = center ? { lng: center.lng, lat: center.lat } : { lng: 0, lat: 0 };
     candidates.sort((a, b) => distanceMeters(a, view) - distanceMeters(b, view));
-    return candidates.slice(0, z >= 13 ? (MOBILE ? 4 : 8) : (MOBILE ? 5 : 10));
+    const limit = z < 3.5 ? (MOBILE ? 16 : 36) : z >= 13 ? (MOBILE ? 4 : 8) : (MOBILE ? 5 : 10);
+    return candidates.slice(0, limit);
   }
 
   function makeDropSeeds(nextCells) {
@@ -628,7 +674,7 @@ export function initRainLayer(map, getScene = () => ({})) {
       else cellMemories.set(c.key, createMemory(c, now));
     }
     drops = makeDropSeeds(cells);
-    ensureGroundLayers(); ensureRainLayer(); updateGround();
+    ensureGroundLayers(); ensureRainLayer(); updateRainCellContext(); updateGround();
     if (cells.length && enabled && safeNum(map.getZoom?.(), 0) >= RAIN_START_ZOOM) startAnimation();
     else stopAnimation();
     if (!groundTimer && cellMemories.size) groundTimer = setTimeout(tickGround, 5000);
@@ -662,13 +708,13 @@ export function initRainLayer(map, getScene = () => ({})) {
       worldAnchored: true, layerAttached: !!rainSvg, overlayAttached: !!rainSvg, shaderVariants: 0,
       projectionAware: true, projectionMode: 'geographic-map-project', projectionUniformsBound: false,
       rainCellCount: cells.length, particleSeeds: drops.length, renderedStreaks, activeVertices: vertexCount, puddleCount,
-      groundSourceAttached: !!map.getSource?.(GROUND_SOURCE), rendererError, droppedFrames, lastRenderAt,
+      groundSourceAttached: !!map.getSource?.(GROUND_SOURCE), rainContextSourceAttached: !!map.getSource?.(RAIN_CELL_CONTEXT_SOURCE), rainContextLayerAttached: !!map.getLayer?.(RAIN_CELL_CONTEXT_CORE), rainContextCount, globalLodRainCells: rainContextCount, rendererError, droppedFrames, lastRenderAt,
       lastGroundUpdate, updatedAt: Date.now(), zoom: safeNum(map.getZoom?.(), 0) });
   }
   function setEnabled(value) {
     enabled = !!value;
     try {
-      for (const id of [WET_LAYER, PUDDLE_LAYER, PUDDLE_GLINT]) {
+      for (const id of [RAIN_CELL_CONTEXT_GLOW, RAIN_CELL_CONTEXT_CORE, WET_LAYER, PUDDLE_LAYER, PUDDLE_GLINT]) {
         const current = map.getLayoutProperty?.(id, 'visibility'), wanted = enabled ? 'visible' : 'none';
         if (map.getLayer?.(id) && current !== wanted) map.setLayoutProperty(id, 'visibility', wanted);
       }
@@ -684,8 +730,8 @@ export function initRainLayer(map, getScene = () => ({})) {
   const onMoveEnd = () => refreshScene(getScene?.() || scene);
   map.on?.('moveend', onMoveEnd);
   map.on?.('zoomend', onMoveEnd);
-  map.on?.('styledata', () => { ensureGroundLayers(); ensureRainLayer(); publishDiagnostic(); });
-  map.on?.('load', () => { ensureGroundLayers(); ensureRainLayer(); publishDiagnostic(); });
+  map.on?.('styledata', () => { ensureGroundLayers(); ensureRainLayer(); updateRainCellContext(); publishDiagnostic(); });
+  map.on?.('load', () => { ensureGroundLayers(); ensureRainLayer(); updateRainCellContext(); publishDiagnostic(); });
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) stopAnimation();
     else if (enabled && cells.length && safeNum(map.getZoom?.(), 0) >= RAIN_START_ZOOM) startAnimation();
@@ -696,7 +742,7 @@ export function initRainLayer(map, getScene = () => ({})) {
       projectionMode: 'geographic-map-project', projectionUniformsBound: false, rainCellCount: cells.length,
       particleSeeds: drops.length, renderedStreaks, activeVertices: vertexCount,
       anchorFingerprint: drops.slice(0, 8).map(d => `${d.lng.toFixed(5)},${d.lat.toFixed(5)},${d.baseAglM.toFixed(0)}`).join('|'),
-      puddleCount, rendererError, droppedFrames, lastRenderAt, lastGroundUpdate, worldAnchored: true }; } };
+      puddleCount, rainContextCount, rainContextSourceAttached: !!map.getSource?.(RAIN_CELL_CONTEXT_SOURCE), rainContextLayerAttached: !!map.getLayer?.(RAIN_CELL_CONTEXT_CORE), rendererError, droppedFrames, lastRenderAt, lastGroundUpdate, worldAnchored: true, globalRainLod: true }; } };
   map.__bpRainRendererV6068 = api;
   window.__BP_RAIN_RENDERER_V6068__ = api;
   refreshScene(getScene?.() || {});

@@ -54,12 +54,18 @@ jobs:
           grep -Fq 'retireLegacyScreenSpaceRain' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq '__BP_SCREEN_SPACE_RAIN_RETIRE_V6063__' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq "const RAIN_OVERLAY_ID = 'bp2300-rain-geographic-svg-v6068';" /tmp/bp2300wx/world-v2300-rain.js
-          grep -Fq 'const VERSION = 6131;' /tmp/bp2300wx/world-v2300-rain.js
+          grep -Fq 'const VERSION = 6135;' /tmp/bp2300wx/world-v2300-rain.js
           grep -Fq "const RAIN_OVERLAY_ID = 'bp2300-rain-geographic-svg-v6068';" /tmp/bp2300wx/world-v2300-rain.js
           grep -Fq 'function drawProjectedRain(now)' /tmp/bp2300wx/world-v2300-rain.js
+          grep -Fq 'zoom < RAIN_START_ZOOM || document.hidden' /tmp/bp2300wx/world-v2300-rain.js
+          grep -Fq 'window.__BP_LIGHTNING_CLOUD_ANCHORS_V6135__' /tmp/bp2300wx/world-v2300-clouds.js
+          grep -Fq 'bp6135-ground-flash-gradient' /tmp/bp2300wx/world-v2300-lightning.js
           grep -Fq 'map.project([d.lng, d.lat])' /tmp/bp2300wx/world-v2300-rain.js
-          grep -Fq 'world-v2300-rain.js?v=6131-close-zoom-rain-density' /tmp/bp2300wx/world-v2300-weather.js
+          grep -Fq 'world-v2300-rain.js?v=6135-geographic-rain-lod' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq "lastProjectionMode = 'geographic-map-project'" /tmp/bp2300wx/world-v2300-rain.js
+          grep -Fq 'zoom < RAIN_START_ZOOM || document.hidden' /tmp/bp2300wx/world-v2300-rain.js
+          grep -Fq 'window.__BP_LIGHTNING_CLOUD_ANCHORS_V6135__' /tmp/bp2300wx/world-v2300-clouds.js
+          grep -Fq 'bp6135-ground-flash-gradient' /tmp/bp2300wx/world-v2300-lightning.js
           grep -Fq 'map.project([d.lng, d.lat])' /tmp/bp2300wx/world-v2300-rain.js
           grep -Fq 'const MAX_DROPS = MOBILE ? 900 : 3600;' /tmp/bp2300wx/world-v2300-rain.js
           grep -Fq 'screenScaleM * 0.75' /tmp/bp2300wx/world-v2300-rain.js
@@ -243,6 +249,16 @@ jobs:
               await p.waitForFunction(()=>{const s=window.__BP_SKY_CLOUDS_STATE_V5908__||{};return s.version===6130&&s.sourceStormCount===0&&s.sourceTornadoAlertCount===0&&s.modeledHurricaneVisualCount===0&&s.modeledTornadoVisualCount===0&&s.hurricaneEyeWallCloudCenters===0&&s.hurricaneSpiralCloudCenters===0&&s.warningFunnels===0&&s.tornadoVisualHeightKm===0;},{timeout:15000});
               const modeledGlobalStorms=await p.evaluate(()=>{const s=window.__BP_SKY_CLOUDS_STATE_V5908__||{};return{zoom:s.zoom,sourceStormCount:s.sourceStormCount,sourceTornadoAlertCount:s.sourceTornadoAlertCount,modeledHurricaneVisualCount:s.modeledHurricaneVisualCount,modeledTornadoVisualCount:s.modeledTornadoVisualCount,hurricaneSpiralRibbonVertices:s.hurricaneSpiralRibbonVertices,hurricaneVolumeProxyVertices:s.hurricaneVolumeProxyVertices,tornadoVolumeProxyVertices:s.tornadoVolumeProxyVertices,hurricaneSurfaceCloudVertices:s.hurricaneSurfaceCloudVertices,tornadoSurfaceMeshVertices:s.tornadoSurfaceMeshVertices,tornadoSurfaceVerticesSubmitted:s.tornadoSurfaceVerticesSubmitted,hurricaneEyeWallCloudCenters:s.hurricaneEyeWallCloudCenters,hurricaneSpiralCloudCenters:s.hurricaneSpiralCloudCenters,hurricaneEyeRadiusSource:s.hurricaneEyeRadiusSource,warningFunnels:s.warningFunnels,tornadoVisualHeightKm:s.tornadoVisualHeightKm,stormVisualProvenance:s.stormVisualProvenance,rendererError:s.rendererError};});
               console.log('BRIDGEPOINT_MODELED_STORM_FALLBACK_EMPTY_FEED_PASS',JSON.stringify(modeledGlobalStorms));
+              await p.evaluate(()=>window.__bpWorldV2300.map.jumpTo({center:[-87.3425,41.538],zoom:1.25,pitch:0,bearing:0}));
+              await p.evaluate(()=>window.__bpWeatherV2300.refresh(true));
+              await p.waitForFunction(()=>{const r=window.__BP_RAIN_RENDERER_V6068__;return !!r&&r.state?.rainContextCount>0&&r.state?.rainContextSourceAttached===true;},{timeout:15000});
+              const globalRainOut=await p.evaluate(()=>{const m=window.__bpWorldV2300.map,r=window.__BP_RAIN_RENDERER_V6068__;return{zoom:m.getZoom(),state:r?.state,glow:!!m.getLayer('bp2300-rain-cell-lod-glow-v6135'),core:!!m.getLayer('bp2300-rain-cell-lod-core-v6135'),glowVisibility:m.getLayoutProperty('bp2300-rain-cell-lod-glow-v6135','visibility')||'visible',coreVisibility:m.getLayoutProperty('bp2300-rain-cell-lod-core-v6135','visibility')||'visible'};});
+              console.log('BRIDGEPOINT_GLOBAL_RAIN_LOD_DIAG',JSON.stringify(globalRainOut));
+              assert(globalRainOut.zoom<3.5,'rain global LOD assertion must run at globe zoom');
+              assert(globalRainOut.glow&&globalRainOut.core,'geographic rain-cell LOD layers must be attached at globe zoom');
+              assert(globalRainOut.glowVisibility==='visible'&&globalRainOut.coreVisibility==='visible','geographic rain-cell LOD layers must remain visible at globe zoom');
+              assert(globalRainOut.state?.rainContextSourceAttached===true&&globalRainOut.state?.rainContextCount>0,'source-backed rain cells must populate the geographically anchored globe LOD');
+              console.log('BRIDGEPOINT_GLOBAL_RAIN_LOD_PASS',JSON.stringify({zoom:globalRainOut.zoom,cells:globalRainOut.state?.rainContextCount,glow:globalRainOut.glow,core:globalRainOut.core}));
               assert.equal(modeledGlobalStorms.modeledHurricaneVisualCount,0,'empty live feed must not show a fabricated hurricane');
               assert.equal(modeledGlobalStorms.modeledTornadoVisualCount,0,'empty live feed must not show a fabricated tornado');
               assert.equal(modeledGlobalStorms.hurricaneVolumeProxyVertices,0,'an empty feed has no hurricane volume');
@@ -275,7 +291,7 @@ jobs:
               console.log('BRIDGEPOINT_RAIN_CLOUD_DIAG',JSON.stringify(rainOut.cloudDiag));
               await p.screenshot({path:'/tmp/bp2300wx/world-anchored-rain-zoom14-5.png',fullPage:false});
               assert(rainOut.zoom>=10,'rain renderer test must be above geographic rain activation zoom');
-              assert.equal(rainOut.version,6131,'v6068 cloud-footprint world-anchored rain renderer must be loaded');
+              assert.equal(rainOut.version,6135,'v6068 cloud-footprint world-anchored rain renderer must be loaded');
               assert.equal(rainOut.overlayAttached,true,'geographic rain SVG overlay must be attached');
               assert.equal(rainOut.state.worldAnchored,true,'rain layer must report its geographic 3D renderer');
               assert.equal(rainOut.state.projectionAware,true,'rain must use MapLibre 3D projection like the cloud renderer');

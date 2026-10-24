@@ -85,15 +85,15 @@ test('entrypoints use fresh cache keys for updated map, water, clouds, weather a
   for (const source of [app, landing]) {
     assert.match(source, /world-v2300-map\.js\?v=6125-manual-globe-camera/);
     assert.match(source, /world-v2300-water\.js\?v=6124-solar-ocean-swell/);
-    assert.match(source, /world-v2300-clouds\.js\?v=6134-source-satellite-clouds/);
-    assert.match(source, /world-v2300-weather\.js\?v=6134-first-frame-weather/);
-    assert.match(source, /world-v2300-time-slider\.js\?v=6134-source-satellite-clouds/);
+    assert.match(source, /world-v2300-clouds\.js\?v=6135-rain-lightning-cloud-anchors/);
+    assert.match(source, /world-v2300-weather\.js\?v=6135-cloud-rain-lightning/);
+    assert.match(source, /world-v2300-time-slider\.js\?v=6135-cloud-anchor-loader/);
   }
   assert.match(map, /world-v2300-space\.js\?v=6125-manual-globe-camera/);
-  assert.match(timeSlider, /world-v2300-clouds\.js\?v=6134-source-satellite-clouds/);
-  assert.match(bootstrap, /world-v2300-weather\.js\?v=6134-first-frame-weather/);
-  assert.match(appHtml, /app\.js\?v=6135-source-weather-entrypoint/);
-  assert.match(landingHtml, /landing\.js\?v=6135-source-weather-entrypoint/);
+  assert.match(timeSlider, /world-v2300-clouds\.js\?v=6135-rain-lightning-cloud-anchors/);
+  assert.match(bootstrap, /world-v2300-weather\.js\?v=6135-cloud-rain-lightning/);
+  assert.match(appHtml, /app\.js\?v=6136-cloud-anchored-rain-lightning/);
+  assert.match(landingHtml, /landing\.js\?v=6136-cloud-anchored-rain-lightning/);
   assert.match(appHtml, /intelligence-global-v5507\.js\?v=6134-global-precip-lod/);
   assert.match(landingHtml, /intelligence-global-v5507\.js\?v=6134-global-precip-lod/);
 });
@@ -132,7 +132,20 @@ test('new rain/lightning and global source markers stay separate from legacy eff
   assert.match(landing, /'raster-opacity':\['interpolate',\['linear'\],\['zoom'\],0,\.50,1\.5,\.50,3,\.53,5,\.59,8,\.63,12,\.66,18,\.66/);
   assert.match(globalWeather, /'raster-opacity':\['interpolate',\['linear'\],\['zoom'\],0,\.50,1\.5,\.48,3,\.40,4\.5,\.25,6,\.15,7,\.09,8,\.035,8\.5,0/);
   assert.match(lightning, /export function initLightningLayer/);
-  assert.match(lightning, /durationMs:2450/);
+  assert.match(lightning, /durationMs:3200/);
+  assert.match(rain, /if \(!enabled \|\| !cells\.length \|\| zoom < RAIN_START_ZOOM \|\| document\.hidden\)/);
+  assert.match(rain, /RAIN_CELL_CONTEXT_GLOW/);
+  assert.match(rain, /RAIN_CELL_CONTEXT_CORE/);
+  assert.match(rain, /const limit = z < 3\.5 \? \(MOBILE \? 16 : 36\)/);
+  assert.match(rain, /rainContextLayerAttached/);
+  assert.match(rain, /globalRainLod: true/);
+  assert.doesNotMatch(rain, /zoom < 10 \|\| document\.hidden/);
+  assert.match(clouds, /window\.__BP_LIGHTNING_CLOUD_ANCHORS_V6135__/);
+  assert.match(lightning, /window\.__BP_LIGHTNING_CLOUD_ANCHORS_V6135__/);
+  assert.match(lightning, /cloudAnchorFound/);
+  assert.match(lightning, /bp6135-ground-flash-gradient/);
+  assert.match(lightning, /bp6130-ground-flash/);
+  assert.match(lightning, /globalLodMarkers/);
   assert.match(lightning, /overlayConnected/);
   assert.match(app, /BP_WEATHER_ICON_CATALOG_V6132/);
   assert.match(app, /bp-v6132-weather-icons/);
