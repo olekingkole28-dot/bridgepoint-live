@@ -73,14 +73,14 @@ function ensureLandingGroundRadarDrapeV6132(map){
  try{
   if(!map.getSource(sourceId))map.addSource(sourceId,{type:'raster',tiles:[landingGroundRadarTileUrlV6132(frame())],tileSize:256,minzoom:0,maxzoom:14,attribution:'NOAA/NWS radar reflectivity'});
   if(!map.getLayer(layerId))map.addLayer({id:layerId,type:'raster',source:sourceId,minzoom:0,maxzoom:24,paint:{'raster-opacity':['interpolate',['linear'],['zoom'],0,.34,1.5,.38,3,.44,5,.53,8,.60,12,.64,18,.64],'raster-saturation':.28,'raster-contrast':.18,'raster-fade-duration':0,'raster-resampling':'linear'}},before);
-  try{map.setLayoutProperty(layerId,'visibility','visible')}catch(_){}
+  try{if((map.getLayoutProperty(layerId,'visibility')||'visible')!=='visible')map.setLayoutProperty(layerId,'visibility','visible')}catch(_){}
   let state=window.__BP_LANDING_GROUND_RADAR_DRAPE_V6132__;
   if(!state||state.map!==map){
    state={version:6132,map,enabled:true,layerId,sourceId,terrainAware:!!map.getTerrain?.(),placedBelowBuildings:true,region:'NOAA/NWS radar coverage',updatedAt:Date.now()};
    window.__BP_LANDING_GROUND_RADAR_DRAPE_V6132__=state;
    state.refresh=()=>{if(document.hidden||map.isMoving?.())return;try{map.getSource(sourceId)?.setTiles?.([landingGroundRadarTileUrlV6132(frame())]);map.triggerRepaint?.();state.updatedAt=Date.now()}catch(_){}};
    state.timer=setInterval(state.refresh,300000);
-   try{map.on('styledata',()=>{try{if(map.getLayer(layerId))map.setLayoutProperty(layerId,'visibility','visible');else ensureLandingGroundRadarDrapeV6132(map)}catch(_){}})}catch(_){}
+   try{map.on('styledata',()=>{try{if(map.getLayer(layerId)){if((map.getLayoutProperty(layerId,'visibility')||'visible')!=='visible')map.setLayoutProperty(layerId,'visibility','visible')}else ensureLandingGroundRadarDrapeV6132(map)}catch(_){}})}catch(_){}
   }
   return true
  }catch(error){window.__BP_LANDING_GROUND_RADAR_DRAPE_V6132_ERROR__=String(error?.message||error);return false}
