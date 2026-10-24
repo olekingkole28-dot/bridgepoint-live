@@ -1470,6 +1470,7 @@ export function initSkyClouds(target) {
   function buildGlobalCloudGeometry() {
     const windScene = getScene();
     const satelliteMask = window.__BP_SATELLITE_CLOUD_MASK_V6150__ || window.__BP_SATELLITE_CLOUD_MASK_V6140__;
+    // Heights stay explicitly modelled unless a validated source sample is present; image brightness alone is not a measured cloud-top/base retrieval.
     const sourceHeightSamples = collectHeightFeatures(windScene).map(sample => {
       const lng = number(sample.lng, NaN), lat = number(sample.lat, NaN);
       const topM = number(sample.cloud_top_height_m, number(sample.cloudTopHeightM, NaN));
