@@ -411,8 +411,8 @@ function makeFunnelGeometry(MC, vertices, indices, lng, lat, altitudeTop, tint, 
 const GOES_CLOUD_SOURCE_ID_V6134='bp6133-noaa-geocolor-source';
 const GOES_CLOUD_LAYER_ID_V6134='bp6133-noaa-geocolor-cloud-context';
 function goesGeoColorTileUrlV6134(epoch){
- const endpoint='https://satellitemaps.nesdis.noaa.gov/arcgis/rest/services/Most_Recent_MERGEDGC/ImageServer/exportImage';
- return endpoint+'?bbox={bbox-epsg-3857}&bboxSR=3857&imageSR=3857&size=256,256&format=png32&transparent=true&time='+encodeURIComponent(String(epoch))+'&f=image';
+ const endpoint='https://satellitemaps.nesdis.noaa.gov/arcgis/rest/services/MERGEDGC_current/ImageServer/exportImage';
+ return endpoint+'?bbox={bbox-epsg-3857}&bboxSR=3857&imageSR=3857&size=256,256&format=png32&transparent=true&frame='+encodeURIComponent(String(epoch))+'&f=image';
 }
 function ensureLiveSatelliteCloudContextV6134(map){
  if(!map?.addSource||!map?.getLayer)return false;
@@ -430,7 +430,7 @@ function ensureLiveSatelliteCloudContextV6134(map){
   if(!map.getSource(GOES_CLOUD_SOURCE_ID_V6134))map.addSource(GOES_CLOUD_SOURCE_ID_V6134,{
    type:'raster',tiles:[goesGeoColorTileUrlV6134(frame())],tileSize:256,minzoom:0,maxzoom:14,
    bounds:[-180,-76.49,180,76.46],
-   attribution:'NOAA NESDIS · merged GOES East/West GeoColor satellite imagery'
+   attribution:'NOAA NESDIS · merged GOES East/West GeoColor latest imagery'
   });
   if(!map.getLayer(GOES_CLOUD_LAYER_ID_V6134))map.addLayer({
    id:GOES_CLOUD_LAYER_ID_V6134,type:'raster',source:GOES_CLOUD_SOURCE_ID_V6134,minzoom:0,maxzoom:24,
@@ -445,7 +445,7 @@ function ensureLiveSatelliteCloudContextV6134(map){
   if(!state||state.map!==map){
    try{if(state?.timer)clearInterval(state.timer)}catch(_){}
    state={version:6134,map,enabled:true,sourceId:GOES_CLOUD_SOURCE_ID_V6134,layerId:GOES_CLOUD_LAYER_ID_V6134,
-    source:'NOAA NESDIS merged GOES East/West GeoColor',groundDraped:true,cloudOnlyMask:false,
+    source:'NOAA NESDIS MERGEDGC_current latest GeoColor',groundDraped:true,cloudOnlyMask:false,
     refreshIntervalMs:600000,requestedFrameEpoch:frame(),updatedAt:Date.now()};
    state.refresh=(force=false)=>{
     if(document.hidden)return false;
