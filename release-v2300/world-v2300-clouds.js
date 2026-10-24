@@ -770,7 +770,7 @@ function ensureLiveSatelliteCloudContextV6150(map){
    if(!map.getSource(EUMETSAT_CLOUD_SOURCE_ID_V6150))map.addSource(EUMETSAT_CLOUD_SOURCE_ID_V6150,{type:'raster',tiles:[eumetsatGeoColorTilesV6150()],tileSize:256,minzoom:0,maxzoom:14,bounds:[-180,-85,180,85],attribution:'EUMETSAT · Meteosat satellite imagery'});
    if(!map.getLayer(EUMETSAT_CLOUD_LAYER_ID_V6150))map.addLayer({id:EUMETSAT_CLOUD_LAYER_ID_V6150,type:'raster',source:EUMETSAT_CLOUD_SOURCE_ID_V6150,minzoom:0,maxzoom:24,layout:{visibility:'visible'},paint:{'raster-opacity':['interpolate',['linear'],['zoom'],0,.25,1.2,.22,2.5,.18,4,.11,6,.04,8.2,0],'raster-saturation':.03,'raster-contrast':.05,'raster-fade-duration':0,'raster-resampling':'linear'}},before);
   }
-  const placedBelowBuildings={nasa:placeUnder(SATELLITE_CLOUD_LAYER_ID_V6150),eumetsat:placeUnder(EUMETSAT_CLOUD_LAYER_ID_V6150)};
+  const placedBelowLayers={nasa:placeUnder(SATELLITE_CLOUD_LAYER_ID_V6150),eumetsat:placeUnder(EUMETSAT_CLOUD_LAYER_ID_V6150)};
   if(ready&&map.getLayer(SATELLITE_CLOUD_LAYER_ID_V6150)&&map.getLayer(EUMETSAT_CLOUD_LAYER_ID_V6150)){
    try{if(map.getLayer('bp6133-noaa-geocolor-cloud-context'))map.removeLayer('bp6133-noaa-geocolor-cloud-context')}catch(_){}
    try{if(map.getSource('bp6133-noaa-geocolor-source'))map.removeSource('bp6133-noaa-geocolor-source')}catch(_){}
@@ -778,10 +778,10 @@ function ensureLiveSatelliteCloudContextV6150(map){
   let state=window.__BP_SATELLITE_CLOUD_CONTEXT_V6150__||window.__BP_GOES_CLOUD_CONTEXT_V6134__;
   if(!state||state.map!==map){
    try{if(state?.timer)clearInterval(state.timer);if(state?.maskTimer)clearInterval(state.maskTimer)}catch(_){}
-   state={version:6150,map,enabled:true,sourceId:SATELLITE_CLOUD_SOURCE_ID_V6150,layerId:SATELLITE_CLOUD_LAYER_ID_V6150,eumetsatSourceId:EUMETSAT_CLOUD_SOURCE_ID_V6150,eumetsatLayerId:EUMETSAT_CLOUD_LAYER_ID_V6150,source:'NASA GIBS + EUMETSAT multi-satellite cloud mosaic',refreshIntervalMs:600000,requestedFrameEpoch:satelliteFrameEpochV6150(),updatedAt:Date.now(),maskStatus:'pending',placedBelowBuildings};
+   state={version:6150,map,enabled:true,sourceId:SATELLITE_CLOUD_SOURCE_ID_V6150,layerId:SATELLITE_CLOUD_LAYER_ID_V6150,eumetsatSourceId:EUMETSAT_CLOUD_SOURCE_ID_V6150,eumetsatLayerId:EUMETSAT_CLOUD_LAYER_ID_V6150,source:'NASA GIBS + EUMETSAT multi-satellite cloud mosaic',refreshIntervalMs:600000,requestedFrameEpoch:satelliteFrameEpochV6150(),updatedAt:Date.now(),maskStatus:'pending',placedBelowBuildings:!!(placedBelowLayers.nasa&&placedBelowLayers.eumetsat),placedBelowBuildingsByLayer:placedBelowLayers};
    state.refresh=(force=false)=>{if(document.hidden)return false;try{const epoch=satelliteFrameEpochV6150(),a=map.getSource(SATELLITE_CLOUD_SOURCE_ID_V6150),b=map.getSource(EUMETSAT_CLOUD_SOURCE_ID_V6150);if(!a?.setTiles||!b?.setTiles)return false;if(!force&&epoch===state.requestedFrameEpoch){map.triggerRepaint?.();return true}a.setTiles([nasaGeoColorTilesV6150()]);b.setTiles([eumetsatGeoColorTilesV6150()]);state.requestedFrameEpoch=epoch;state.updatedAt=Date.now();map.triggerRepaint?.();return true}catch(e){state.lastError=String(e?.message||e).slice(0,180);return false}};
    state.timer=setInterval(()=>state.refresh(false),600000);
-   map.on?.('styledata',()=>{if(!map.getSource(SATELLITE_CLOUD_SOURCE_ID_V6150)||!map.getLayer(SATELLITE_CLOUD_LAYER_ID_V6150)||!map.getSource(EUMETSAT_CLOUD_SOURCE_ID_V6150)||!map.getLayer(EUMETSAT_CLOUD_LAYER_ID_V6150))ensureLiveSatelliteCloudContextV6150(map);else state.placedBelowBuildings={nasa:placeUnder(SATELLITE_CLOUD_LAYER_ID_V6150),eumetsat:placeUnder(EUMETSAT_CLOUD_LAYER_ID_V6150)}});
+   map.on?.('styledata',()=>{if(!map.getSource(SATELLITE_CLOUD_SOURCE_ID_V6150)||!map.getLayer(SATELLITE_CLOUD_LAYER_ID_V6150)||!map.getSource(EUMETSAT_CLOUD_SOURCE_ID_V6150)||!map.getLayer(EUMETSAT_CLOUD_LAYER_ID_V6150))ensureLiveSatelliteCloudContextV6150(map);else {state.placedBelowBuildingsByLayer={nasa:placeUnder(SATELLITE_CLOUD_LAYER_ID_V6150),eumetsat:placeUnder(EUMETSAT_CLOUD_LAYER_ID_V6150)};state.placedBelowBuildings=!!(state.placedBelowBuildingsByLayer.nasa&&state.placedBelowBuildingsByLayer.eumetsat)}});
    map.on?.('moveend',()=>state.refresh(false));document.addEventListener('visibilitychange',()=>{if(!document.hidden)state.refresh(false)});
    window.__BP_SATELLITE_CLOUD_CONTEXT_V6150__=state;window.__BP_GOES_CLOUD_CONTEXT_V6134__=state;
   }
@@ -1223,6 +1223,7 @@ export function initSkyClouds(target) {
       rendererError, zoom: number(map.getZoom?.()), pitch: number(map.getPitch?.()), updatedAt: Date.now()
     };
     window.__BP_SKY_CLOUDS_STATE_V5908__ = state;
+    window.__BP_SKY_CLOUDS_STATE_V6150__ = state;
     window.__BP_SKY_CLOUDS_STATE_V6140__ = state;
     window.__BP_SKY_CLOUDS_STATE_V6090__ = state;
     window.__BP_SKY_CLOUDS_STATE_V6094__ = state;
