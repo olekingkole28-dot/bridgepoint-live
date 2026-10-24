@@ -87,7 +87,7 @@ test('entrypoints use fresh cache keys for updated map, water, clouds, weather a
     assert.match(source, /world-v2300-water\.js\?v=6124-solar-ocean-swell/);
     assert.match(source, /world-v2300-clouds\.js\?v=6160-cloud-volume-clarity/);
     assert.match(source, /world-v2300-weather\.js\?v=6138-cloud-linked-lightning/);
-    assert.match(source, /world-v2300-time-slider\.js\?v=6137-globe-first-weather-lockstep/);
+    assert.match(source, /world-v2300-time-slider\.js\?v=6160-cloud-volume-clarity/);
   }
   assert.match(map, /world-v2300-space\.js\?v=6125-manual-globe-camera/);
   assert.match(timeSlider, /world-v2300-clouds\.js\?v=6160-cloud-volume-clarity/);
@@ -202,6 +202,6 @@ test('public cyclone fallback is fetched concurrently with edge weather', () => 
 test('website and app start on the same globe-first weather build', () => {
   assert.match(landingHtml, /bp-globe-only-first-frame-v6137/);
   assert.match(appHtml, /bp-app-globe-only-first-frame-v6137/);
-  assert.ok(landingHtml.includes('landing.js?v=6138-cloud-linked-lightning'));
-  assert.ok(appHtml.includes('app.js?v=6138-cloud-linked-lightning'));
+  assert.ok(landingHtml.includes('landing.js?v=6160-cloud-volume-clarity'));
+  assert.ok(appHtml.includes('app.js?v=6160-cloud-volume-clarity'));
 });
