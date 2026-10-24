@@ -3,6 +3,13 @@
 **Status: OPEN / NOT COMPLETE.** This is a durable owner-requested implementation ledger. Keep it current across coding sessions. Do not mark an item complete because a button, prototype, synthetic shape, or passing source-code check exists; require working data, visual inspection, and production verification.
 
 
+### Main-world water engine v6116 all-zoom containment (visual verification required)
+
+The next main-world candidate moves source-water/land/flood surface-cell containment to every zoom instead of waiting until zoom 12, while retaining the native basemap as the safe shoreline fallback. Inland water heights are no longer reused from a generic grid-vertex cache shared by every inland water body; the estimate is scoped to each source feature. The runtime reports both policies explicitly.
+
+**Not accepted as fixed until verified** at global, medium, coastal, lake, river and tilted street zoom on desktop and mobile. All-zoom containment may reject animated edge cells where source geometry is sparse; the native water layer must remain continuous there. These safeguards contain unsupported custom geometry; they do not replace source-backed inland water-surface elevations, tides, or bathymetry.
+
+
 ### Water engine v6115 source-polygon ribbon guard (visual verification still required)
 
 The animated river-ribbon path now rejects any quad unless all four corners fit inside the same real source-water polygon. A waterway centerline by itself is no longer enough to draw a 3D surface over land. Accepted ribbons use one stable polygon-level water elevation rather than independently sampled terrain heights at each endpoint, preventing one bad DEM sample from tilting a ribbon into a blue wall or sky spike. Rejected ribbons leave the native map waterway in place and increment `flowSegmentsRejectedOutsideWater` for diagnosis. A bounded scan budget prevents the new geometry check from running unbounded on large source tiles.
