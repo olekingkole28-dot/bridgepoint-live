@@ -690,7 +690,7 @@ jobs:
           grep -Fq 'world-v2300-weather.js?v=6131-close-zoom-rain-density' site/app.js
           grep -Fq 'sourceDataReady:true,cloudsOnlyPhase:true' site/landing.js
           grep -Fq 'if(window.__BP_CLOUDS_ONLY_PHASE_V6070__===true && m)' site/landing.js
-          grep -Fq 'landing.js?v=6130-cloud-rain-lightning-markers' site/index.html
+          grep -Fq 'landing.js?v=6131-close-zoom-rain-density-markers' site/index.html
           grep -Fq 'async function toggleNasaNightlights()' site/world-v2300-time-slider.js
           grep -Fq 'async function toggleSkyClouds()' site/world-v2300-time-slider.js
           grep -Fq 'data-skyview' site/world-v2300-time-slider.js
@@ -892,7 +892,7 @@ jobs:
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/app.js
           grep -Fq 'activateLiveWeather();' site/app.js
           grep -Fq 'enabled:true,serializedWeather:true' site/app.js
-          grep -Fq 'app.js?v=6130-cloud-rain-lightning-markers' site/app/index.html
+          grep -Fq 'app.js?v=6131-close-zoom-rain-density-markers' site/app/index.html
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/landing.js
           grep -Fq 'WMO_CAP_WARNING' site/app.js
           grep -Fq 'WMO_CAP_WARNING' site/landing.js
@@ -1115,8 +1115,8 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=6130-cloud-rain-lightning-markers' site/app/index.html
-          grep -Fq 'landing.js?v=6130-cloud-rain-lightning-markers' site/index.html
+          grep -Fq 'app.js?v=6131-close-zoom-rain-density-markers' site/app/index.html
+          grep -Fq 'landing.js?v=6131-close-zoom-rain-density-markers' site/index.html
            grep -Fq 'world-v2300-map.js?v=6125-manual-globe-camera' site/app.js
            grep -Fq 'world-v2300-map.js?v=6125-manual-globe-camera' site/landing.js
            grep -Fq 'world-v2300-map.js?v=6125-manual-globe-camera' site/index.html
