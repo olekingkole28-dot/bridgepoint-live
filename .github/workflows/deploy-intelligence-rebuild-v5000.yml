@@ -294,7 +294,7 @@ jobs:
           sed -i 's#world-v2300-time-slider.js?v=6077-cloud-base-restore#world-v2300-time-slider.js?v=6094-josephine-spiral-unified#g' site/app.js site/landing.js
           sed -i 's#world-v2300-time-slider.js?v=6092-posttropical-global-clouds#world-v2300-time-slider.js?v=6094-josephine-spiral-unified#g' site/app.js site/landing.js
           sed -i 's#world-v2300-clouds.js?v=6094-josephine-spiral-unified#world-v2300-clouds.js?v=6124-live-cloud-shadow-advection#g' site/app.js site/landing.js
-          sed -i 's#world-v2300-weather.js?v=6093-josephine-global-track#world-v2300-weather.js?v=6134-first-frame-weather#g' site/app.js site/landing.js site/index.html site/app/index.html
+          sed -i 's#world-v2300-weather.js?v=6093-josephine-global-track#world-v2300-weather.js?v=6135-cloud-rain-lightning#g' site/app.js site/landing.js site/index.html site/app/index.html
           sed -i 's#world-v2300-time-slider.js?v=6094-josephine-spiral-unified#world-v6134-time-slider-first-frame-weather#g' site/app.js site/landing.js
           sed -i 's#app.js?v=6077-cloud-base-restore#app.js?v=6077-sky-restore-safe-pitch#g' site/app/index.html
           sed -i 's#landing.js?v=6077-cloud-base-restore#landing.js?v=6077-sky-restore-safe-pitch#g' site/index.html
@@ -327,7 +327,7 @@ jobs:
           cp release-v2300/world-v2300-bootstrap.js site/app/world-v2300-bootstrap.js
           sed -i 's#world-v2300-weather.js?v=6070-clouds-only-phase#world-v2300-weather.js?v=6093-josephine-global-track#g' site/app/world-v2300-bootstrap.js
           sed -i 's#world-v2300-weather.js?v=6091-global-storm-centers#world-v2300-weather.js?v=6093-josephine-global-track#g' site/app/world-v2300-bootstrap.js
-          sed -i 's#world-v2300-weather.js?v=6093-josephine-global-track#world-v2300-weather.js?v=6134-first-frame-weather#g' site/app/world-v2300-bootstrap.js
+          sed -i 's#world-v2300-weather.js?v=6093-josephine-global-track#world-v2300-weather.js?v=6135-cloud-rain-lightning#g' site/app/world-v2300-bootstrap.js
           cp release-v2300/world-v2300.css site/app/world-v2300.css
 
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.js -o site/vendor/maplibre-gl.js
@@ -506,20 +506,20 @@ jobs:
           node --input-type=module --check < site/world-v2300-realism.js
           node --input-type=module --check < site/gis-core-orchestrator-v5910.js
           grep -Fq 'Real satellite bands. No AI-drawn pixels.' site/world-v2300-spectral-imagery.js
-          grep -Fq 'world-v2300-clouds.js?v=6134-source-satellite-clouds' site/app.js
-          grep -Fq 'world-v2300-clouds.js?v=6134-source-satellite-clouds' site/landing.js
-          grep -Fq 'world-v2300-weather.js?v=6134-first-frame-weather' site/app.js
+          grep -Fq 'world-v2300-clouds.js?v=6135-rain-lightning-cloud-anchors' site/app.js
+          grep -Fq 'world-v2300-clouds.js?v=6135-rain-lightning-cloud-anchors' site/landing.js
+          grep -Fq 'world-v2300-weather.js?v=6135-cloud-rain-lightning' site/app.js
           grep -Fq 'function isPostTropicalCyclone(st={})' site/world-v2300-clouds.js
           grep -Fq 'postTropicalSurfaceCloudVertices+=makeCycloneRibbon' site/world-v2300-clouds.js
           grep -Fq 'post-tropical lows use asymmetric cloud shields' site/world-v2300-clouds.js
-          grep -Fq 'world-v2300-clouds.js?v=6134-source-satellite-clouds' site/world-v2300-time-slider.js
+          grep -Fq 'world-v2300-clouds.js?v=6135-rain-lightning-cloud-anchors' site/world-v2300-time-slider.js
           grep -Fq 'function isPostTropicalCyclone(st={})' site/app/world-v2300-clouds.js
           grep -Fq 'postTropicalSurfaceCloudVertices+=makeCycloneRibbon' site/app/world-v2300-clouds.js
-          grep -Fq 'world-v2300-clouds.js?v=6134-source-satellite-clouds' site/app/world-v2300-time-slider.js
-          grep -Fq 'world-v2300-rain.js?v=6131-close-zoom-rain-density' site/world-v2300-weather.js
+          grep -Fq 'world-v2300-clouds.js?v=6135-rain-lightning-cloud-anchors' site/app/world-v2300-time-slider.js
+          grep -Fq 'world-v2300-rain.js?v=6135-geographic-rain-lod' site/world-v2300-weather.js
           grep -Fq 'retireLegacyScreenSpaceRain' site/world-v2300-weather.js
           grep -Fq '__BP_SCREEN_SPACE_RAIN_RETIRE_V6063__' site/world-v2300-weather.js
-          grep -Fq 'world-v2300-rain.js?v=6131-close-zoom-rain-density' site/app/world-v2300-weather.js
+          grep -Fq 'world-v2300-rain.js?v=6135-geographic-rain-lod' site/app/world-v2300-weather.js
           grep -Fq 'map.project([d.lng, d.lat])' site/world-v2300-rain.js
           grep -Fq 'const RAIN_START_ZOOM = MOBILE ? 8 : 7;' site/world-v2300-rain.js
           grep -Fq 'export function initLightningLayer' site/world-v2300-lightning.js
@@ -528,7 +528,7 @@ jobs:
           grep -Fq 'worldAnchored: true' site/world-v2300-rain.js
           grep -Fq "kind: 'puddle'" site/world-v2300-rain.js
           grep -Fq "const RAIN_OVERLAY_ID = 'bp2300-rain-geographic-svg-v6068';" site/world-v2300-rain.js
-          grep -Fq 'const VERSION = 6131;' site/world-v2300-rain.js
+          grep -Fq 'const VERSION = 6135;' site/world-v2300-rain.js
           grep -Fq "const RAIN_OVERLAY_ID = 'bp2300-rain-geographic-svg-v6068';" site/world-v2300-rain.js
           grep -Fq 'function drawProjectedRain(now)' site/world-v2300-rain.js
           grep -Fq 'map.project([d.lng, d.lat])' site/world-v2300-rain.js
@@ -548,10 +548,14 @@ jobs:
           grep -Fq 'const size = clamp(metersPerPixel(lat, z) * (0.55 + hash(seed, 13, 3) * 1.55), 2.2, 26)' site/world-v2300-rain.js
           grep -Fq 'rainAnchorObservations.slice(0, overviewClouds ? (MOBILE ? 2 : 4) : (MOBILE ? 4 : 8))' site/world-v2300-clouds.js
           grep -Fq 'sourceRainAnchors' site/world-v2300-clouds.js
+          grep -Fq 'window.__BP_LIGHTNING_CLOUD_ANCHORS_V6135__' site/world-v2300-clouds.js
+          grep -Fq 'window.__BP_LIGHTNING_CLOUD_ANCHORS_V6135__' site/world-v2300-lightning.js
+          grep -Fq 'bp6135-ground-flash-gradient' site/world-v2300-lightning.js
+          grep -Fq 'zoom < RAIN_START_ZOOM || document.hidden' site/world-v2300-rain.js
           grep -Fq 'rainCenterFromGeometry' site/world-v2300-clouds.js
           grep -Fq 'const reportCandidates = raw.filter(isRainObservation);' site/world-v2300-rain.js
           grep -Fq 'source_anchor_kind' site/world-v2300-rain.js
-          grep -Fq 'durationMs:2450' site/world-v2300-lightning.js
+          grep -Fq 'durationMs:3200' site/world-v2300-lightning.js
           ! grep -Fq "bp2300-rain-wet-ground-v6068','bp2300-rain-puddle-fill-v6068" site/world-v2300-weather.js
           grep -Fq "window.addEventListener('bp2300:weather-updated', onWeatherUpdated)" site/world-v2300-clouds.js
           grep -Fq 'screenScaleM * 0.75' site/world-v2300-rain.js
@@ -570,7 +574,7 @@ jobs:
           grep -Fq 'baseAglM: clamp(safeNum(o.cloud_base_height_m ?? o.cloudBaseHeightM, thunder ? 450 : 350), 180, 4200)' site/world-v2300-rain.js
           grep -Fq "if(pr==='rain')return;" site/world-v2300-weather.js
           grep -Fq "'rain-cell'" site/world-v2300-clouds.js
-          grep -Fq 'world-v2300-weather.js?v=6134-first-frame-weather' site/landing.js
+          grep -Fq 'world-v2300-weather.js?v=6135-cloud-rain-lightning' site/landing.js
           grep -Fq 'bindWeatherVertexArray(gl,weatherVao,weatherVaoMode,weatherVaoExt)' site/world-v2300-weather.js
           grep -Fq 'isolatedVao' site/world-v2300-weather.js
           grep -Fq 'window.__BP_WEATHER_GL_HEALTH_V6057__' site/world-v2300-weather.js
@@ -583,9 +587,9 @@ jobs:
           grep -Fq 'sourceWeatherOverlaysPreserved:true' site/landing.js
           grep -Fq 'sourceWeatherOverlaysPreserved:true' site/app.js
           grep -Fq 'legacyCinematicFxDisabled:true' site/landing.js
-          grep -Fq 'world-v2300-weather.js?v=6134-first-frame-weather' site/index.html
-          grep -Fq 'world-v2300-weather.js?v=6134-first-frame-weather' site/app/index.html
-          grep -Fq 'world-v2300-weather.js?v=6134-first-frame-weather' site/app/world-v2300-bootstrap.js
+          grep -Fq 'world-v2300-weather.js?v=6135-cloud-rain-lightning' site/index.html
+          grep -Fq 'world-v2300-weather.js?v=6135-cloud-rain-lightning' site/app/index.html
+          grep -Fq 'world-v2300-weather.js?v=6135-cloud-rain-lightning' site/app/world-v2300-bootstrap.js
           grep -Fq 'world-v2300-time-slider.js?v=6134-source-satellite-clouds' site/app.js
           grep -Fq 'world-v2300-time-slider.js?v=6134-source-satellite-clouds' site/landing.js
           grep -Fq 'world-v2300-spectral-imagery.js?v=5934-world-controls' site/app.js
@@ -688,8 +692,8 @@ jobs:
           grep -Fq 'function archivedJosephineForecast' site/world-v2300-weather.js
           grep -Fq 'bp2300-storm-track-source-v6093' site/world-v2300-weather.js
           grep -Fq 'bp2300-storm-track-forecast-v6093' site/world-v2300-weather.js
-          grep -Fq 'world-v2300-weather.js?v=6134-first-frame-weather' site/landing.js
-          grep -Fq 'world-v2300-weather.js?v=6134-first-frame-weather' site/app.js
+          grep -Fq 'world-v2300-weather.js?v=6135-cloud-rain-lightning' site/landing.js
+          grep -Fq 'world-v2300-weather.js?v=6135-cloud-rain-lightning' site/app.js
           grep -Fq 'BP_WEATHER_ICON_CATALOG_V6132' site/app.js
           grep -Fq 'bp-v6132-weather-icons' site/app.js
           grep -Fq 'bp-v6132-ground-radar' site/app.js
@@ -703,7 +707,7 @@ jobs:
           grep -Fq 'BP_SOURCE_WEATHER_CACHE_KEY_V6134' site/app.js
           grep -Fq 'restoreCachedLiveWeatherFirstFrameV6134' site/app.js
           ! grep -Fq 'if(window.__BP_CLOUDS_ONLY_PHASE_V6070__===true && m)' site/landing.js
-          grep -Fq 'landing.js?v=6135-source-weather-entrypoint' site/index.html
+          grep -Fq 'landing.js?v=6136-cloud-anchored-rain-lightning' site/index.html
           grep -Fq 'async function toggleNasaNightlights()' site/world-v2300-time-slider.js
           grep -Fq 'async function toggleSkyClouds()' site/world-v2300-time-slider.js
           grep -Fq 'data-skyview' site/world-v2300-time-slider.js
@@ -905,7 +909,7 @@ jobs:
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/app.js
           grep -Fq 'activateLiveWeather();' site/app.js
           grep -Fq 'enabled:true,serializedWeather:true' site/app.js
-          grep -Fq 'app.js?v=6135-source-weather-entrypoint' site/app/index.html
+          grep -Fq 'app.js?v=6136-cloud-anchored-rain-lightning' site/app/index.html
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/landing.js
           grep -Fq 'WMO_CAP_WARNING' site/app.js
           grep -Fq 'WMO_CAP_WARNING' site/landing.js
@@ -1133,8 +1137,8 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=6135-source-weather-entrypoint' site/app/index.html
-          grep -Fq 'landing.js?v=6135-source-weather-entrypoint' site/index.html
+          grep -Fq 'app.js?v=6136-cloud-anchored-rain-lightning' site/app/index.html
+          grep -Fq 'landing.js?v=6136-cloud-anchored-rain-lightning' site/index.html
            grep -Fq 'world-v2300-map.js?v=6125-manual-globe-camera' site/app.js
            grep -Fq 'world-v2300-map.js?v=6125-manual-globe-camera' site/landing.js
            grep -Fq 'world-v2300-map.js?v=6125-manual-globe-camera' site/index.html
