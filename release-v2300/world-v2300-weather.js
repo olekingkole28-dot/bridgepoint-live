@@ -1,5 +1,5 @@
 import{VERSION,EMPTY,MOBILE,LOW,TIER,edge,publicRpc,bbox,fc,clamp}from'./world-v2300-config.js?v=6091-public-weather-rpc';
-import{initRainLayer}from'./world-v2300-rain.js?v=6130-cloud-rain-lightning';
+import{initRainLayer}from'./world-v2300-rain.js?v=6131-close-zoom-rain-density';
 import{initLightningLayer}from'./world-v2300-lightning.js?v=6130-cloud-rain-lightning';
 
 function retireLegacyScreenSpaceRain() {
