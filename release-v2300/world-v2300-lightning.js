@@ -58,7 +58,7 @@ function pickLightningAnchors(scene){
   }
   for(const row of (Array.isArray(scene?.observations)?scene.observations:[]).slice(0,400)){
     const t=textOf(row);
-    if(/thunderstorm|lightning|\\bts\\b|squall|convective/.test(t))add(row,'observation',.85);
+    if(/thunderstorm|lightning|\bts\b|squall|convective/.test(t))add(row,'observation',.85);
   }
   return picked;
 }
