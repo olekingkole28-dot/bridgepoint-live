@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from refresh_cloud_height_observations import (
+from tools.satellite.refresh_cloud_height_observations import (
     compact_grid_samples,
     is_netcdf_url,
     meters,
