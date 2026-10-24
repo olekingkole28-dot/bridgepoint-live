@@ -11,6 +11,7 @@ const RAD = Math.PI / 180;
 const MOBILE = (typeof innerWidth === 'number' && innerWidth <= 760) ||
   /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent || '');
 const MAX_DROPS = MOBILE ? 900 : 3600;
+const RAIN_START_ZOOM = MOBILE ? 8 : 7;
 const FLOATS_PER_VERTEX = 5;
 const vertexData = new Float32Array(MAX_DROPS * 6 * FLOATS_PER_VERTEX);
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -349,7 +350,7 @@ export function initRainLayer(map, getScene = () => ({})) {
       const thunder = /thunderstorm|\bts\b|squall/.test(rawWeather(o));
       let radiusM;
       if (Number.isFinite(supplied) && supplied > 0) radiusM = clamp(supplied * 1609.34, 2200, 26000);
-      else radiusM = thunder ? 900 : 650;
+      else radiusM = thunder ? 9000 : 5000;
       let p = null;
       try { p = map.project([c.lng, c.lat]); } catch (_) {}
       const margin = radiusM / Math.max(0.4, metersPerPixel(c.lat, z));
@@ -395,7 +396,7 @@ export function initRainLayer(map, getScene = () => ({})) {
   function rainVertices(t) {
     let n = 0;
     const zoom = safeNum(map.getZoom?.(), 0);
-    if (!enabled || !cells.length || zoom < 10) return 0;
+    if (!enabled || !cells.length || zoom < RAIN_START_ZOOM) return 0;
     const seconds = (t - timeOrigin) / 1000;
     for (const d of drops) {
       if (n >= MAX_DROPS * 6) break;
@@ -431,7 +432,7 @@ export function initRainLayer(map, getScene = () => ({})) {
   }
 
   function renderRain(gl, args) {
-    if (!enabled || !cells.length || safeNum(map.getZoom?.(), 0) < 10 || document.hidden) return;
+    if (!enabled || !cells.length || safeNum(map.getZoom?.(), 0) < RAIN_START_ZOOM || document.hidden) return;
     const matrix = args?.defaultProjectionData?.mainMatrix || args?.modelViewProjectionMatrix || args;
     let saved = null, info = null, n = 0;
     try {
@@ -557,7 +558,7 @@ export function initRainLayer(map, getScene = () => ({})) {
     }
     drops = makeDropSeeds(cells);
     ensureGroundLayers(); ensureRainLayer(); updateGround();
-    if (cells.length && enabled && safeNum(map.getZoom?.(), 0) >= 10) startAnimation();
+    if (cells.length && enabled && safeNum(map.getZoom?.(), 0) >= RAIN_START_ZOOM) startAnimation();
     else stopAnimation();
     if (!groundTimer && cellMemories.size) groundTimer = setTimeout(tickGround, 5000);
     publishDiagnostic();
@@ -569,7 +570,7 @@ export function initRainLayer(map, getScene = () => ({})) {
     const loop = t => {
       animationRaf = 0;
       if (!enabled || !cells.length || document.hidden) return;
-      if (safeNum(map.getZoom?.(), 0) < 10) { animationRaf = 0; return; }
+      if (safeNum(map.getZoom?.(), 0) < RAIN_START_ZOOM) { animationRaf = 0; return; }
       if (t - lastRepaint >= 33) {
         lastRepaint = t;
         try { drawProjectedRain(t); } catch (e) { rendererError = String(e?.message || e).slice(0, 200); publishDiagnostic(); }
@@ -602,7 +603,7 @@ export function initRainLayer(map, getScene = () => ({})) {
       }
       if (rainSvg) rainSvg.style.display = enabled ? 'block' : 'none';
     } catch (_) {}
-    if (enabled && cells.length && safeNum(map.getZoom?.(), 0) >= 10) {
+    if (enabled && cells.length && safeNum(map.getZoom?.(), 0) >= RAIN_START_ZOOM) {
       startAnimation(); drawProjectedRain(performance.now());
     } else stopAnimation();
     publishDiagnostic();
@@ -616,7 +617,7 @@ export function initRainLayer(map, getScene = () => ({})) {
   map.on?.('load', () => { ensureGroundLayers(); ensureRainLayer(); publishDiagnostic(); });
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) stopAnimation();
-    else if (enabled && cells.length && safeNum(map.getZoom?.(), 0) >= 10) startAnimation();
+    else if (enabled && cells.length && safeNum(map.getZoom?.(), 0) >= RAIN_START_ZOOM) startAnimation();
   });
   const api = { version: VERSION, map, setScene: refreshScene, setEnabled,
     get state() { return { version: VERSION, enabled, layerAttached: !!rainSvg, overlayAttached: !!rainSvg,
