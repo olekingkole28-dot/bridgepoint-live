@@ -54,12 +54,18 @@ jobs:
           grep -Fq 'retireLegacyScreenSpaceRain' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq '__BP_SCREEN_SPACE_RAIN_RETIRE_V6063__' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq "const RAIN_OVERLAY_ID = 'bp2300-rain-geographic-svg-v6068';" /tmp/bp2300wx/world-v2300-rain.js
-          grep -Fq 'const VERSION = 6131;' /tmp/bp2300wx/world-v2300-rain.js
+          grep -Fq 'const VERSION = 6135;' /tmp/bp2300wx/world-v2300-rain.js
           grep -Fq "const RAIN_OVERLAY_ID = 'bp2300-rain-geographic-svg-v6068';" /tmp/bp2300wx/world-v2300-rain.js
           grep -Fq 'function drawProjectedRain(now)' /tmp/bp2300wx/world-v2300-rain.js
+          grep -Fq 'zoom < RAIN_START_ZOOM || document.hidden' /tmp/bp2300wx/world-v2300-rain.js
+          grep -Fq 'window.__BP_LIGHTNING_CLOUD_ANCHORS_V6135__' /tmp/bp2300wx/world-v2300-clouds.js
+          grep -Fq 'bp6135-ground-flash-gradient' /tmp/bp2300wx/world-v2300-lightning.js
           grep -Fq 'map.project([d.lng, d.lat])' /tmp/bp2300wx/world-v2300-rain.js
-          grep -Fq 'world-v2300-rain.js?v=6131-close-zoom-rain-density' /tmp/bp2300wx/world-v2300-weather.js
+          grep -Fq 'world-v2300-rain.js?v=6135-geographic-rain-lod' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq "lastProjectionMode = 'geographic-map-project'" /tmp/bp2300wx/world-v2300-rain.js
+          grep -Fq 'zoom < RAIN_START_ZOOM || document.hidden' /tmp/bp2300wx/world-v2300-rain.js
+          grep -Fq 'window.__BP_LIGHTNING_CLOUD_ANCHORS_V6135__' /tmp/bp2300wx/world-v2300-clouds.js
+          grep -Fq 'bp6135-ground-flash-gradient' /tmp/bp2300wx/world-v2300-lightning.js
           grep -Fq 'map.project([d.lng, d.lat])' /tmp/bp2300wx/world-v2300-rain.js
           grep -Fq 'const MAX_DROPS = MOBILE ? 900 : 3600;' /tmp/bp2300wx/world-v2300-rain.js
           grep -Fq 'screenScaleM * 0.75' /tmp/bp2300wx/world-v2300-rain.js
@@ -275,7 +281,7 @@ jobs:
               console.log('BRIDGEPOINT_RAIN_CLOUD_DIAG',JSON.stringify(rainOut.cloudDiag));
               await p.screenshot({path:'/tmp/bp2300wx/world-anchored-rain-zoom14-5.png',fullPage:false});
               assert(rainOut.zoom>=10,'rain renderer test must be above geographic rain activation zoom');
-              assert.equal(rainOut.version,6131,'v6068 cloud-footprint world-anchored rain renderer must be loaded');
+              assert.equal(rainOut.version,6135,'v6068 cloud-footprint world-anchored rain renderer must be loaded');
               assert.equal(rainOut.overlayAttached,true,'geographic rain SVG overlay must be attached');
               assert.equal(rainOut.state.worldAnchored,true,'rain layer must report its geographic 3D renderer');
               assert.equal(rainOut.state.projectionAware,true,'rain must use MapLibre 3D projection like the cloud renderer');
