@@ -62,6 +62,10 @@ jobs:
         run: |
           set -euo pipefail
           grep -Fq 'active=!!v;' release-v2300/world-v2300-weather.js
+          grep -Fq "const LEGACY_NATIVE_WEATHER_LAYERS=['wx-snow-depth','wx-alert-fill','wx-fire-fill','wx-thermal','wx-quake-glow','wx-storm-glow']" release-v2300/world-v2300-weather.js
+          grep -Fq "for(const id of ['wx-alert-line','wx-fire-line','wx-quake','wx-storm','wx-obs','wx-water'])" release-v2300/world-v2300-weather.js
+          grep -Fq "bp-v5004-weather-shape-fill" rebuild-v5000/app.js
+          grep -Fq "bp-landing-weather-fill" rebuild-v5000/landing.js
           ! grep -Fq 'active=CLOUDS_ONLY_PHASE()?true:!!v' release-v2300/world-v2300-weather.js
           ! grep -Fq 'enabled = CLOUDS_ONLY_PHASE() ? false : !!value;' release-v2300/world-v2300-rain.js
           ! grep -Fq "bp2300-rain-wet-ground-v6068','bp2300-rain-puddle-fill-v6068" release-v2300/world-v2300-weather.js
