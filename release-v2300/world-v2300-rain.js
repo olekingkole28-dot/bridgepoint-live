@@ -429,32 +429,17 @@ export function initRainLayer(map, getScene = () => ({})) {
     const viewCenter = map.getCenter?.();
     const width = canvas?.clientWidth || 390;
     const height = canvas?.clientHeight || 844;
-    // At close zoom, sample drops over the visible geographic footprint instead
-    // of scattering the phone's particle budget across an entire 30–90 km cell.
-    // The particles remain georeferenced and are regenerated on map movement.
+    // Keep each particle tied to its source-backed weather center across camera
+    // moves. At close zoom, concentrate the fixed particle budget inside a
+    // phone/desktop-sized geographic radius instead of scattering nearly all
+    // drops across the full storm footprint.
     const viewRadiusM = zoom >= 10 && viewCenter
       ? clamp(metersPerPixel(viewCenter.lat, zoom) * Math.hypot(width, height) * 0.58, 500, 90000)
       : 0;
     for (let ci = 0; ci < nextCells.length; ci++) {
       const cell = nextCells[ci];
-      const sourceCenter = { lng: cell.lng, lat: cell.lat };
-      let seedCenter = sourceCenter;
-      let sampleRadiusM = cell.radiusM;
-      if (viewRadiusM > 0 && Number.isFinite(Number(viewCenter?.lng)) && Number.isFinite(Number(viewCenter?.lat))) {
-        const viewPoint = { lng: Number(viewCenter.lng), lat: Number(viewCenter.lat) };
-        const centerDistance = distanceMeters(sourceCenter, viewPoint);
-        // Keep the seed disk inside the source-backed precipitation footprint,
-        // while biasing it toward the current view when that view overlaps the cell.
-        const maxOffset = Math.max(0, cell.radiusM - viewRadiusM * 0.92);
-        const offset = Math.min(centerDistance, maxOffset);
-        const ratio = centerDistance > 1 ? offset / centerDistance : 0;
-        seedCenter = {
-          lng: cell.lng + (viewPoint.lng - cell.lng) * ratio,
-          lat: cell.lat + (viewPoint.lat - cell.lat) * ratio
-        };
-        const remainingRadius = Math.max(100, cell.radiusM - distanceMeters(sourceCenter, seedCenter));
-        sampleRadiusM = Math.min(viewRadiusM, remainingRadius * 0.94);
-      }
+      const seedCenter = { lng: cell.lng, lat: cell.lat };
+      const sampleRadiusM = viewRadiusM > 0 ? Math.min(cell.radiusM, viewRadiusM) : cell.radiusM;
       const cosLat = Math.max(0.12, Math.cos(seedCenter.lat * RAD));
       const seedBase = Math.round((cell.lng + 180) * 1000) * 7 + Math.round((cell.lat + 90) * 1000) + ci * 931;
       for (let i = 0; i < perCell && all.length < MAX_DROPS; i++) {
