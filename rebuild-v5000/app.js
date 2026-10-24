@@ -156,7 +156,7 @@ async function bootMap(){
  // initialization avoids a burst of source/layer changes during the first Gold LOD render.
  // Initialize the persistent global 3D cloud field as soon as the core map exists;
  // do not make the globe wait behind the idle-only optional module queue.
- void import('./world-v2300-clouds.js?v=6150-global-satellite-cloud-mosaic')
+ void import('./world-v2300-clouds.js?v=6160-cloud-volume-clarity')
   .then(m=>{if(world?.map)window.__BP_SKY_CLOUDS_V5908__=m.initSkyClouds(world)})
   .catch(e=>console.warn('BridgePoint global 3D cloud field unavailable',e));
  const optionalWorldJobs=[
@@ -1447,7 +1447,7 @@ async function start(){
  statusTimer=setInterval(()=>queueAfterMap('status-pulse',loadStatus),15000);
  tileTimer=setInterval(()=>queueAfterMap('tile-pulse',refreshTiles),BP_MOBILE?600000:300000);
  setTimeout(()=>queueAfterMap('tile-pulse',refreshTiles),BP_MOBILE?300000:120000);
- if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=6134-weather-first-frame',{updateViaCache:'none'}).catch(()=>{})
+ if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=6160-cloud-volume-clarity',{updateViaCache:'none'}).catch(()=>{})
 }
 window.addEventListener('bridgepoint:softrefresh',()=>{
  try{queueAfterMap('status-pulse',loadStatus)}catch(_){}
