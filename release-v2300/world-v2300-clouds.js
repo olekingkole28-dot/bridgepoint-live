@@ -444,18 +444,16 @@ function goesGeoColorTileUrlV6134(epoch){
 }
 function ensureLiveSatelliteCloudContextV6134(map){
  if(!map?.addSource||!map?.getLayer)return false;
- if(map.isStyleLoaded?.()===false){
-  if(!map.__bpGoesCloudStyleWaiterV6134){
-   map.__bpGoesCloudStyleWaiterV6134=true;
-   const retry=()=>{
-    if(map.isStyleLoaded?.()===false)return;
-    map.off?.('load',retry);map.off?.('style.load',retry);map.off?.('styledata',retry);
-    map.__bpGoesCloudStyleWaiterV6134=false;
-    ensureLiveSatelliteCloudContextV6134(map);
-   };
-   map.on?.('load',retry);map.on?.('style.load',retry);map.on?.('styledata',retry);
-  }
-  return false;
+ const styleReady=map.isStyleLoaded?.()!==false;
+ if(!styleReady&&!map.__bpGoesCloudStyleWaiterV6134){
+  map.__bpGoesCloudStyleWaiterV6134=true;
+  const retry=()=>{
+   if(map.isStyleLoaded?.()===false)return;
+   map.off?.('load',retry);map.off?.('style.load',retry);map.off?.('styledata',retry);
+   map.__bpGoesCloudStyleWaiterV6134=false;
+   ensureLiveSatelliteCloudContextV6134(map);
+  };
+  map.on?.('load',retry);map.on?.('style.load',retry);map.on?.('styledata',retry);
  }
  const frame=()=>Math.floor(Date.now()/600000)*600000;
 
@@ -574,21 +572,23 @@ function ensureLiveSatelliteCloudContextV6134(map){
  };
  try{
   const before=beforeGround();
-  if(!map.getSource(GOES_CLOUD_SOURCE_ID_V6134))map.addSource(GOES_CLOUD_SOURCE_ID_V6134,{
-   type:'raster',tiles:[goesGeoColorTileUrlV6134(frame())],tileSize:256,minzoom:0,maxzoom:14,
-   bounds:[-180,-76.49,180,76.46],
-   attribution:'NOAA NESDIS · merged GOES East/West GeoColor latest imagery'
-  });
-  if(!map.getLayer(GOES_CLOUD_LAYER_ID_V6134))map.addLayer({
-   id:GOES_CLOUD_LAYER_ID_V6134,type:'raster',source:GOES_CLOUD_SOURCE_ID_V6134,minzoom:0,maxzoom:24,
-   layout:{visibility:'visible'},
-   paint:{
-    'raster-opacity':['interpolate',['linear'],['zoom'],0,.31,1.2,.29,2.5,.23,4,.14,6,.055,8.2,0],
-    'raster-saturation':.12,'raster-contrast':.08,'raster-fade-duration':0,'raster-resampling':'linear'
-   }
-  },before);
-  else if((map.getLayoutProperty(GOES_CLOUD_LAYER_ID_V6134,'visibility')||'visible')!=='visible')map.setLayoutProperty(GOES_CLOUD_LAYER_ID_V6134,'visibility','visible');
-  const placedBelowBuildings=placeBelowBuildings();
+  if(styleReady){
+   if(!map.getSource(GOES_CLOUD_SOURCE_ID_V6134))map.addSource(GOES_CLOUD_SOURCE_ID_V6134,{
+    type:'raster',tiles:[goesGeoColorTileUrlV6134(frame())],tileSize:256,minzoom:0,maxzoom:14,
+    bounds:[-180,-76.49,180,76.46],
+    attribution:'NOAA NESDIS · merged GOES East/West GeoColor latest imagery'
+   });
+   if(!map.getLayer(GOES_CLOUD_LAYER_ID_V6134))map.addLayer({
+    id:GOES_CLOUD_LAYER_ID_V6134,type:'raster',source:GOES_CLOUD_SOURCE_ID_V6134,minzoom:0,maxzoom:24,
+    layout:{visibility:'visible'},
+    paint:{
+     'raster-opacity':['interpolate',['linear'],['zoom'],0,.31,1.2,.29,2.5,.23,4,.14,6,.055,8.2,0],
+     'raster-saturation':.12,'raster-contrast':.08,'raster-fade-duration':0,'raster-resampling':'linear'
+    }
+   },before);
+   else if((map.getLayoutProperty(GOES_CLOUD_LAYER_ID_V6134,'visibility')||'visible')!=='visible')map.setLayoutProperty(GOES_CLOUD_LAYER_ID_V6134,'visibility','visible');
+  }
+  const placedBelowBuildings=styleReady?placeBelowBuildings():false;
   let state=window.__BP_GOES_CLOUD_CONTEXT_V6134__;
   if(!state||state.map!==map){
    try{if(state?.timer)clearInterval(state.timer)}catch(_){}
