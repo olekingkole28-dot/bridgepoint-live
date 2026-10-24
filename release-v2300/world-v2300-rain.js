@@ -363,7 +363,7 @@ export function initRainLayer(map, getScene = () => ({})) {
     for (const alert of (Array.isArray(nextScene?.alerts) ? nextScene.alerts : []).slice(0, 100)) {
       const p = alert?.properties || alert || {};
       const label = text([p.event, p.name, p.type, p.phenom, p.phenomenon, p.product, p.headline, p.description].filter(Boolean).join(' '));
-      if (!/prob.?severe|severe thunderstorm|thunderstorm|tornado|squall|\bsv\b|\bto\b/.test(label)) continue;
+      if (!/prob.?severe|severe thunderstorm|thunderstorm|tornado|squall|\bsv\b/.test(label) && String(p.phenom ?? p.phenomenon ?? '').toUpperCase() !== 'TO') continue;
       const c = weatherCenter(alert); if (!c) continue;
       reportCandidates.push({ ...p, lng: c.lng, lat: c.lat, weather: 'thunderstorm rain', rain_radius_mi: safeNum(p.rain_radius_mi ?? p.precipitation_radius_mi, /tornado|\bto\b/.test(label) ? 24 : 36), source_anchor_kind: 'warning' });
     }
