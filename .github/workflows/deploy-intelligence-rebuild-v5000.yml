@@ -1445,7 +1445,6 @@ jobs:
                console.log('BRIDGEPOINT_GPU_WATER_ENGINE_READY_PASS',JSON.stringify(waterBaseline));
                // Water-specific close-coast smoke: exercise the exact shoreline mask and
                // inland-height cache policy on a real, dense water/land boundary.
-               const beforeCloseBuild=Number(waterBaseline.geometryBuilds||0);
                await p.evaluate(()=>{
                  const m=window.__BP_LANDING_WORLD__?.map;
                  window.__BP_WATER_PRE_CLOSE_BUILD_V6116__=Number(window.__BP_WATER_ENGINE_LANDING_V6116__?.state?.geometryBuilds||0);
@@ -1457,7 +1456,7 @@ jobs:
                    const m=window.__BP_LANDING_WORLD__?.map;
                    const s=window.__BP_WATER_ENGINE_LANDING_V6116__?.state;
                    return !!m&&s?.version===6116&&Number(s.zoom)>=14.5&&
-                     Number(s.geometryBuilds)>Math.max(beforeCloseBuild,Number(window.__BP_WATER_PRE_CLOSE_BUILD_V6116__||0))&&
+                     Number(s.geometryBuilds)>Number(window.__BP_WATER_PRE_CLOSE_BUILD_V6116__||0)&&
                      Number(s.sourceWaterFeatures)>0&&Number(s.sourceLandFeatures)>0&&
                      Number(s.surfaceVertexCount)>0&&Number.isFinite(Number(s.flowSegmentsRejectedOutsideWater))&&
                      s.surfaceMaskValidationAllZooms===true&&
