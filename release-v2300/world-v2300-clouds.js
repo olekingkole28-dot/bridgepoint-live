@@ -608,7 +608,7 @@ function ensureLiveSatelliteCloudContextV6134(map){
    };
    state.timer=setInterval(()=>state.refresh(false),state.refreshIntervalMs);
    map.on?.('styledata',()=>{
-    if(!map.getSource(GOES_CLOUD_SOURCE_ID_V6134)||!map.getLayer(GOES_CLOUD_LAYER_ID_V6134))ensureLiveSatelliteCloudContextV6134(map);
+    if(!map.getSource(GOES_CLOUD_SOURCE_ID_V6134)||!map.getLayer(GOES_CLOUD_LAYER_ID_V6134))ensureLiveSatelliteCloudContextV6150(map);
     else{state.placedBelowBuildings=placeBelowBuildings();state.updatedAt=Date.now()}
    });
    map.on?.('moveend',()=>state.refresh(false));
@@ -804,7 +804,7 @@ export function initSkyClouds(target) {
   const container = map?.getContainer?.();
   const MC = window.maplibregl?.MercatorCoordinate || window.MapLibreGL?.MercatorCoordinate;
   if (!map || !container || !MC?.fromLngLat) return null;
-  ensureLiveSatelliteCloudContextV6134(map);
+  ensureLiveSatelliteCloudContextV6150(map);
   const existingCloudController = window.__BP_SKY_CLOUDS_V5908__;
   if (existingCloudController?.map === map) {
     const existingState = window.__BP_SKY_CLOUDS_STATE_V6150__ || window.__BP_SKY_CLOUDS_STATE_V6079__ || window.__BP_SKY_CLOUDS_STATE_V6077__ || window.__BP_SKY_CLOUDS_STATE_V6076__ ||
@@ -1677,7 +1677,6 @@ export function initSkyClouds(target) {
     // below are explicit visualization estimates. New imagery replaces this field automatically.
     let satelliteCandidateCount = 0;
     if(satelliteMaskReady){
-          if(satelliteMaskReady){
       const coverage=satelliteMask.coverage,probability=satelliteMask.probability,width=Number(satelliteMask.width),height=Number(satelliteMask.height);
       const pAt=(x,y)=>x<0||x>=width||y<0||y>=height?0:probability[y*width+x]/255,candidates=[];
       for(let row=1;row<height-1;row++)for(let col=1;col<width-1;col++){
@@ -2326,10 +2325,10 @@ function scheduleGeometry(delay = 180) {
   else map.once?.('load', addLayerIfReady);
 
   const api = {
-    version: 6140, map, overlay,
+    version: 6150, map, overlay,
     get enabled() { return enabled; },
     setEnabled, toggle,
-    get state() { return window.__BP_SKY_CLOUDS_STATE_V6140__ || window.__BP_SKY_CLOUDS_STATE_V6077__ || window.__BP_SKY_CLOUDS_STATE_V6076__ || window.__BP_SKY_CLOUDS_STATE_V6074__ || window.__BP_SKY_CLOUDS_STATE_V6073__ || window.__BP_SKY_CLOUDS_STATE_V6047__ || window.__BP_SKY_CLOUDS_STATE_V6046__ || window.__BP_SKY_CLOUDS_STATE_V6045__ || window.__BP_SKY_CLOUDS_STATE_V6031__ || window.__BP_SKY_CLOUDS_STATE_V6029__ || window.__BP_SKY_CLOUDS_STATE_V5908__ || null; },
+    get state() { return window.__BP_SKY_CLOUDS_STATE_V6150__ || window.__BP_SKY_CLOUDS_STATE_V6140__ || window.__BP_SKY_CLOUDS_STATE_V6077__ || window.__BP_SKY_CLOUDS_STATE_V6076__ || window.__BP_SKY_CLOUDS_STATE_V6074__ || window.__BP_SKY_CLOUDS_STATE_V6073__ || window.__BP_SKY_CLOUDS_STATE_V6047__ || window.__BP_SKY_CLOUDS_STATE_V6046__ || window.__BP_SKY_CLOUDS_STATE_V6045__ || window.__BP_SKY_CLOUDS_STATE_V6031__ || window.__BP_SKY_CLOUDS_STATE_V6029__ || window.__BP_SKY_CLOUDS_STATE_V5908__ || null; },
     destroy() {
       if (disposed) return; disposed = true;
       stopAnimation(); clearTimeout(rebuildTimer); clearTimeout(refreshHandle); clearLayerRetry();
@@ -2346,7 +2345,7 @@ function scheduleGeometry(delay = 180) {
   window.__BP_SKY_CLOUDS_V5908__ = api;
   // Retry the satellite source after the renderer is installed; style replacement can
   // make the first init attempt happen before MapLibre reports a fully loaded style.
-  ensureLiveSatelliteCloudContextV6134(map);
+  ensureLiveSatelliteCloudContextV6150(map);
   publishState();
   if (enabled) setEnabled(true);
   return api;
