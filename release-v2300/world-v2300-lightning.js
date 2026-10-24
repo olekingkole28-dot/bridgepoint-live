@@ -102,10 +102,10 @@ export function initLightningLayer(map,getScene=()=>({})){
   defs.innerHTML='<filter id="bp6130-bolt-glow" x="-150%" y="-80%" width="400%" height="260%"><feGaussianBlur stdDeviation="4.2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>';
   overlay.appendChild(defs);
   const style=document.createElementNS('http://www.w3.org/2000/svg','style');
-  style.textContent='@keyframes bp6130-long-flash{0%{opacity:0}3%{opacity:1}12%{opacity:.72}21%{opacity:1}35%{opacity:.58}44%{opacity:.95}58%{opacity:.45}73%{opacity:.86}100%{opacity:0}} .bp6130-long-bolt{animation:bp6130-long-flash 1.85s ease-out forwards}';
+  style.textContent='@keyframes bp6130-long-flash{0%{opacity:0}3%{opacity:1}12%{opacity:.72}21%{opacity:1}35%{opacity:.58}44%{opacity:.95}58%{opacity:.45}73%{opacity:.86}88%{opacity:.55}100%{opacity:0}} .bp6130-long-bolt{animation:bp6130-long-flash 2.45s ease-out forwards}';
   overlay.appendChild(style);container.appendChild(overlay);
   let enabled=true,disposed=false,scene={},timeout=0,seq=0,activeFlashes=[];
-  const state={version:6130,enabled:true,renderer:'svg-cloud-to-ground',durationMs:1850,anchors:0,activeBolts:0,lastFlashAt:null,updatedAt:Date.now()};
+  const state={version:6130,enabled:true,renderer:'svg-cloud-to-ground',durationMs:2450,anchors:0,activeBolts:0,lastFlashAt:null,updatedAt:Date.now()};
   function dimensions(){
     const rect=container.getBoundingClientRect();
     const w=Math.max(1,rect.width||container.clientWidth||1),h=Math.max(1,rect.height||container.clientHeight||1);
@@ -170,9 +170,9 @@ export function initLightningLayer(map,getScene=()=>({})){
     renderBoltGeometry(group,anchor,seed);
     overlay.appendChild(group);
     const started=performance.now();
-    const flash={id,group,anchor,seed,started,expires:started+1850};
+    const flash={id,group,anchor,seed,started,expires:started+2450};
     activeFlashes.push(flash);state.activeBolts=activeFlashes.length;state.lastFlashAt=Date.now();
-    setTimeout(()=>{if(disposed)return;activeFlashes=activeFlashes.filter(x=>x!==flash);try{group.remove()}catch(_){}state.activeBolts=activeFlashes.length},1950);
+    setTimeout(()=>{if(disposed)return;activeFlashes=activeFlashes.filter(x=>x!==flash);try{group.remove()}catch(_){}state.activeBolts=activeFlashes.length},2550);
   }
   function schedule(){
     clearTimeout(timeout);if(!enabled||disposed||document.hidden)return;
