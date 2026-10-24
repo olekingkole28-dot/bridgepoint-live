@@ -45,6 +45,9 @@ const invalidPitch = resolvePitchDisplacementPolicy(16, Number.NaN);
 assert.equal(invalidPitch.scale, 0, 'unknown camera pitch fails safe');
 assert.ok(engineSource.includes('uniform float u_pitchWaveScale;'), 'shader must receive the pitch-aware scale');
 assert.ok(engineSource.includes('uniform float u_waveOffsetLimit;'), 'shader must receive a maximum dynamic height offset');
+assert.ok(engineSource.includes('api.animationTimeSeconds = waterAnimationTimeSeconds;'), 'animation clock must advance in the render loop');
+assert.ok(engineSource.includes('v_wave = clamp(0.5 + wave * 0.34, 0.0, 1.0);'),
+  'animated optical wave field must remain active when geometric displacement is pitch-limited');
 assert.ok(engineSource.includes('float dynamicOffsetM = (wave * amplitude + stormSurge * marineSurgeMask) * u_pitchWaveScale;'),
   'vertex displacement must be scaled by the pitch-aware policy');
 assert.ok(engineSource.includes('float offsetM = clamp(dynamicOffsetM, -u_waveOffsetLimit, u_waveOffsetLimit) + a_flood;'),
