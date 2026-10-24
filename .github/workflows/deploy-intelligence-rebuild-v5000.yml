@@ -552,6 +552,9 @@ jobs:
           grep -Fq 'window.__BP_LIGHTNING_CLOUD_ANCHORS_V6135__' site/world-v2300-lightning.js
           grep -Fq 'bp6135-ground-flash-gradient' site/world-v2300-lightning.js
           grep -Fq 'zoom < RAIN_START_ZOOM || document.hidden' site/world-v2300-rain.js
+          grep -Fq "const RAIN_CELL_CONTEXT_GLOW = 'bp2300-rain-cell-lod-glow-v6135';" site/world-v2300-rain.js
+          grep -Fq "const RAIN_CELL_CONTEXT_CORE = 'bp2300-rain-cell-lod-core-v6135';" site/world-v2300-rain.js
+          grep -Fq 'const limit = z < 3.5 ? (MOBILE ? 16 : 36)' site/world-v2300-rain.js
           grep -Fq 'rainCenterFromGeometry' site/world-v2300-clouds.js
           grep -Fq 'const reportCandidates = raw.filter(isRainObservation);' site/world-v2300-rain.js
           grep -Fq 'source_anchor_kind' site/world-v2300-rain.js
