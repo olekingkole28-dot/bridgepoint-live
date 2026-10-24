@@ -1,4 +1,4 @@
-const VERSION = 6068;
+const VERSION = 6130;
 const CLOUDS_ONLY_PHASE = () => window.__BP_CLOUDS_ONLY_PHASE_V6070__ === true;
 const LAYER_ID = 'bp2300-rain-world-volume-v6068';
 const GROUND_SOURCE = 'bp2300-rain-ground-source-v6068';
@@ -103,7 +103,7 @@ function firstLayer(map, ids) {
 
 export function initRainLayer(map, getScene = () => ({})) {
   if (map.__bpRainRendererV6068) return map.__bpRainRendererV6068;
-  let enabled = !CLOUDS_ONLY_PHASE(), buffer = null, bufferAllocated = false, vao = null, vaoExt = null, vaoMode = 'none';
+  let enabled = true, buffer = null, bufferAllocated = false, vao = null, vaoExt = null, vaoMode = 'none';
   let programCache = new Map(), scene = {}, cells = [], drops = [], cellMemories = new Map();
   let animationRaf = 0, groundTimer = 0, lastRepaint = 0, vertexCount = 0;
   let rendererError = null, droppedFrames = 0, lastRenderAt = 0, lastGroundUpdate = 0, puddleCount = 0;
@@ -594,7 +594,7 @@ export function initRainLayer(map, getScene = () => ({})) {
       lastGroundUpdate, updatedAt: Date.now(), zoom: safeNum(map.getZoom?.(), 0) });
   }
   function setEnabled(value) {
-    enabled = CLOUDS_ONLY_PHASE() ? false : !!value;
+    enabled = !!value;
     try {
       for (const id of [WET_LAYER, PUDDLE_LAYER, PUDDLE_GLINT]) {
         const current = map.getLayoutProperty?.(id, 'visibility'), wanted = enabled ? 'visible' : 'none';
