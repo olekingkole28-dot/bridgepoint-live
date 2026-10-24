@@ -1,4 +1,4 @@
-name: Verify BridgePoint GPU Water v6116
+name: Verify BridgePoint GPU Water v6117
 
 on:
   pull_request:
@@ -47,7 +47,7 @@ jobs:
           grep -Fq "function mapCanHostWater()" release-v2300/world-v2300-water.js
           grep -Fq "float marineSurgeMask" release-v2300/world-v2300-water.js
           ! grep -Fq "if (!map.isStyleLoaded?.())" release-v2300/world-v2300-water.js
-          grep -Fq "window.__BP_WATER_FIELD_V6116__" release-v2300/world-v2300-water.js
+          grep -Fq "window.__BP_WATER_FIELD_V6117__" release-v2300/world-v2300-water.js
           grep -Fq "const raw = feature && feature.row ? feature.row : feature;" release-v2300/world-v2300-water.js
           grep -Fq "typeof item.getScene === 'function'" release-v2300/world-v2300-water.js
           grep -Fq "bp2300:weather-updated" release-v2300/world-v2300-water.js
@@ -61,6 +61,10 @@ jobs:
           grep -Fq "api.flowSegmentsRejectedOutsideWater++;" release-v2300/world-v2300-water.js
           grep -Fq "quad.every((point, index) => featureContains(w, quadLons[index], quadLats[index]))" release-v2300/world-v2300-water.js
           grep -Fq "surfaceMaskValidationAllZooms: true" release-v2300/world-v2300-water.js
+          grep -Fq "No custom water is painted into unknown land/water cells." release-v2300/world-v2300-water.js
+          grep -Fq "function requiredTerrainHeight(" release-v2300/world-v2300-water.js
+          grep -Fq "api.surfaceCellsRejectedInvalidTerrain++;" release-v2300/world-v2300-water.js
+          grep -Fq "api.surfaceCellsRejectedTerrainRelief++;" release-v2300/world-v2300-water.js
           grep -Fq "if (kind !== 1 && terrainCache.has(key)) return terrainCache.get(key);" release-v2300/world-v2300-water.js
           grep -Fq "makeRibbon(flowFeatures, waterFeatures, bounds" release-v2300/world-v2300-water.js
           grep -Fq "estimatedInlandSurface(" release-v2300/world-v2300-water.js
@@ -72,5 +76,5 @@ jobs:
           grep -Fq "float glancingGlint = pow(" release-v2300/world-v2300-water.js
           grep -Fq "sourceLevel !== null && sourceLevel >= -MAX_VALID_MARINE_SURFACE_OFFSET_M" release-v2300/world-v2300-water.js
           grep -Fq "clamp(0.22 + shimmer * 0.20, 0.22, 0.50)" release-v2300/world-v2300-water.js
-          grep -Fq "world-v2300-water.js?v=6116-all-zoom-mask" rebuild-v5000/app.js
-          grep -Fq "world-v2300-water.js?v=6116-all-zoom-mask" rebuild-v5000/landing.js
+          grep -Fq "world-v2300-water.js?v=6117-land-water-mask" rebuild-v5000/app.js
+          grep -Fq "world-v2300-water.js?v=6117-land-water-mask" rebuild-v5000/landing.js
