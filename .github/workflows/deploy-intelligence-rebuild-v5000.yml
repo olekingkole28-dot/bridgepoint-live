@@ -1460,7 +1460,7 @@ jobs:
                  const m=window.__BP_LANDING_WORLD__?.map;
                  window.__BP_WATER_PRE_CLOSE_BUILD_V6119__=Number(window.__BP_WATER_ENGINE_LANDING_V6119__?.state?.geometryBuilds||0);
                  m?.stop?.();
-                 m?.jumpTo({center:[-74.0,40.65],zoom:16.0,pitch:52,bearing:-8});
+                 m?.jumpTo({center:[-74.0445,40.6893],zoom:16.0,pitch:52,bearing:-8});
                });
                try {
                  await p.waitForFunction(()=>{
