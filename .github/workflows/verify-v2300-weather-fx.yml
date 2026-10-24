@@ -7,6 +7,7 @@ on:
     paths:
       - 'release-v2300/world-v2300-weather.js'
       - 'release-v2300/world-v2300-rain.js'
+      - 'release-v2300/world-v2300-lightning.js'
       - 'release-v2300/world-v2300-clouds.js'
       - 'release-v2300/world-v2300-map.js'
       - 'release-v2300/world-v2300-config.js'
@@ -16,6 +17,7 @@ on:
     paths:
       - 'release-v2300/world-v2300-weather.js'
       - 'release-v2300/world-v2300-rain.js'
+      - 'release-v2300/world-v2300-lightning.js'
       - 'release-v2300/world-v2300-clouds.js'
       - 'release-v2300/world-v2300-map.js'
       - 'release-v2300/world-v2300-config.js'
