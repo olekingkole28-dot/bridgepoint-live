@@ -1723,7 +1723,7 @@ export function initSkyClouds(target) {
       addGlobalPuff(lng,lat,altitude,radius,radius*(0.78+hash(q.gx,q.gy,999)*0.28),vertical,0.12+hash(q.gx,q.gy,1000)*0.07,9,2,hash(q.gx,q.gy,1001));
     }
 
-    // Layer 4 — current satellite-derived cloud positions. Covered-but-clear pixels suppress
+    // Layer 4 — current satellite-derived cloud positions (v6160 source-height-aware volumes). Covered-but-clear pixels suppress
     // the procedural fallback above; only pixels classified as cloud produce 3D cloud volumes.
     // GeoColor provides location texture, not measured cloud-top height: vertical dimensions
     // below are explicit visualization estimates. New imagery replaces this field automatically.
