@@ -452,9 +452,12 @@ function mergeCycloneCenters(primary=[],supplemental=[]){
 }
  async function refresh(force=false){
   if(!active)return;const now=Date.now();if(!force&&now-last<45000)return;last=now;const id=++seq,b=bbox(map,.12);
-  let d=null,edgeError=null;
-  try{d=await edge('bridgepoint-world-effects-v2190',{west:b.west,south:b.south,east:b.east,north:b.north,zoom:map.getZoom(),modes:['all']},14500)}catch(e){edgeError=e}
-  const publicCyclones=await getPublicCyclones(force);if(id!==seq)return;
+  const [edgeResult,publicCyclones]=await Promise.all([
+   edge('bridgepoint-world-effects-v2190',{west:b.west,south:b.south,east:b.east,north:b.north,zoom:map.getZoom(),modes:['all']},14500)
+    .then(value=>({value,error:null}),error=>({value:null,error})),
+   getPublicCyclones(force)
+  ]);
+  const d=edgeResult.value,edgeError=edgeResult.error;if(id!==seq)return;
   if(!d&&publicCyclones.storms.length===0){console.warn('V2300 weather: storm feeds unavailable',String(edgeError?.message||edgeError||publicCyclones.error||'no public cyclone centers'));return}
   d=d||{};
   const edgeStorms=Array.isArray(d.storms)?d.storms:[];
