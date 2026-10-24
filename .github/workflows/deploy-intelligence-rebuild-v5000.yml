@@ -10,6 +10,7 @@ on:
       - 'tools/reality_assets/**'
       - '.github/workflows/validate-reality-assets-v5968.yml'
       - 'release-v2300/**'
+      - 'tests/celestial-water-cloud-shadows.test.mjs'
       - 'pricing/**'
       - 'newsroom/**'
       - 'terminal/**'
