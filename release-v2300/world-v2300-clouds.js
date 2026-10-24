@@ -1349,7 +1349,7 @@ function generateGeometry() {
     for (const alert of (Array.isArray(scene?.alerts) ? scene.alerts : []).slice(0, 70)) {
       const p = alert?.properties || alert || {};
       const label = String([p.event, p.name, p.type, p.phenom, p.phenomenon, p.product, p.headline, p.description].filter(Boolean).join(' ')).toLowerCase();
-      if (!/prob.?severe|severe thunderstorm|thunderstorm|tornado|squall|\bsv\b|\bto\b/.test(label)) continue;
+      if (!/prob.?severe|severe thunderstorm|thunderstorm|tornado|squall|\bsv\b/.test(label) && String(p.phenom ?? p.phenomenon ?? '').toUpperCase() !== 'TO') continue;
       const c = rainCenterFromGeometry(alert?.geometry ?? p.geometry);
       if (c && Number.isFinite(c.lng) && Number.isFinite(c.lat)) {
         const nearby = (Array.isArray(scene?.observations) ? scene.observations : []).reduce((best, row) => {
