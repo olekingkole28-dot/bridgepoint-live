@@ -93,7 +93,7 @@ function hideCloudPhaseVisuals(map){
  let hidden=0;
  for(const id of CLOUD_PHASE_HIDDEN_LAYERS)try{if(map.getLayer(id)&&(map.getLayoutProperty(id,'visibility')||'visible')!=='none'){map.setLayoutProperty(id,'visibility','none');hidden++}}catch(_){}
  for(const id of ['bp2081WeatherCanvas'])try{const el=document.getElementById(id);if(el){el.style.display='none';el.style.visibility='hidden'}}catch(_){}
- for(const sel of ['[data-layer="signals"]','[data-layer="radar"]']){const b=document.querySelector(sel);if(b){b.classList.remove('active');b.setAttribute('aria-pressed','false')}}
+ for(const sel of ['[data-layer="radar"]']){const b=document.querySelector(sel);if(b){b.classList.remove('active');b.setAttribute('aria-pressed','false')}}
  window.__BP_CLOUDS_ONLY_PHASE_STATE_V6070__={enabled:true,weatherFeedRetained:true,nonCloudVisualsHidden:true,hiddenLayerPasses:hidden,updatedAt:Date.now()};
 }
 function captureWeatherGLState(gl, locations, vaoExt = null, isolatedVao = false) {
@@ -482,6 +482,7 @@ function mergeCycloneCenters(primary=[],supplemental=[]){
   rain.setEnabled(active);
   lightning?.setEnabled?.(active);
   for(const id of ['wx-alert-fill','wx-alert-line','wx-fire-fill','wx-fire-line','wx-thermal','wx-quake-glow','wx-quake','wx-storm-glow','wx-storm','wx-obs','wx-water'])try{if(map.getLayer(id))map.setLayoutProperty(id,'visibility',active?'visible':'none')}catch(_){}
+  const signalsButton=document.querySelector('[data-layer="signals"]');if(signalsButton){signalsButton.classList.toggle('active',active);signalsButton.setAttribute('aria-pressed',String(active))}
   if(CLOUDS_ONLY_PHASE())hideCloudPhaseVisuals(map);
   if(active)refresh(true);
  }
