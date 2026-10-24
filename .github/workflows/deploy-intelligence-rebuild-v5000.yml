@@ -928,7 +928,7 @@ jobs:
           grep -Fq 'Bright hazard icons, outlines and translucent fills share the same category color at globe zoom' site/app.js
           grep -Fq 'bp-v5004-weather-shape-line' site/app.js
           grep -Fq 'bp6133-noaa-geocolor-cloud-context' site/world-v2300-clouds.js
-          grep -Fq 'Most_Recent_MERGEDGC/ImageServer/exportImage' site/world-v2300-clouds.js
+          grep -Fq 'MERGEDGC_current/ImageServer/exportImage' site/world-v2300-clouds.js
           grep -Fq 'bp6130-cloud-expansion' site/world-v2300-lightning.js
           grep -Fq '0,1.28,1.5,1.24,3,1.18' site/app.js
           grep -Fq '0,1.28,1.5,1.24,3,1.18' site/landing.js
