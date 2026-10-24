@@ -175,7 +175,7 @@ def is_netcdf_url(url: str) -> bool:
     return urllib.parse.urlparse(url).path.lower().endswith(NETCDF_SUFFIXES)
 
 
-def satcorps_find_files(session: requests.Session, start_url: str, budget: int = 28) -> list[str]:
+def satcorps_find_files(session: requests.Session, start_url: str, budget: int = 8) -> list[str]:
     """Walk a small number of recent directory listings; never crawl the whole archive."""
     root_path = urllib.parse.urlparse(start_url).path
     queue: list[tuple[str, int]] = [(start_url, 0)]
@@ -191,7 +191,7 @@ def satcorps_find_files(session: requests.Session, start_url: str, budget: int =
         visited.add(current)
         requests_used += 1
         try:
-            response = session.get(current, timeout=TIMEOUT, allow_redirects=True)
+            response = session.get(current, timeout=(4, 10), allow_redirects=True)
             response.raise_for_status()
         except requests.RequestException:
             continue
@@ -379,35 +379,32 @@ def refresh_feed(output_path: Path) -> dict[str, Any]:
     now = utc_now()
 
     # NASA global product first, so NOAA-only sources supplement rather than replace global cloud bases/tops.
-    nasa_candidates: list[tuple[str, str]] = []
-    tried: set[str] = set()
-    for label, endpoint in SATCORPS_CANDIDATES:
-        for url in satcorps_find_files(session, endpoint):
-            if url not in tried:
-                tried.add(url)
-                nasa_candidates.append((label, url))
-        if nasa_candidates:
-            break
     nasa_added = False
-    for label, url in nasa_candidates[:6]:
-        source_index = len(sources)
-        with tempfile.TemporaryDirectory(prefix="bp-satcorps-") as temp_dir:
-            file_path = Path(temp_dir) / "latest-satcorps.nc"
-            if not download_netcdf(session, url, file_path):
-                continue
-            try:
-                extracted, metadata = extract_satcorps(file_path, source_index)
-                if extracted:
-                    samples.extend(extracted)
-                    sources.append({**metadata, "endpoint": url, "retrieved_at": now.isoformat()})
-                    nasa_added = True
-                    break
-            except Exception as exc:
-                warnings.append(f"NASA SatCORPS candidate rejected: {type(exc).__name__}: {exc}")
+    nasa_last_endpoint = SATCORPS_CANDIDATES[0][1]
+    for label, endpoint in SATCORPS_CANDIDATES:
+        nasa_last_endpoint = endpoint
+        urls = satcorps_find_files(session, endpoint)
+        for url in urls[:5]:
+            source_index = len(sources)
+            with tempfile.TemporaryDirectory(prefix="bp-satcorps-") as temp_dir:
+                file_path = Path(temp_dir) / "latest-satcorps.nc"
+                if not download_netcdf(session, url, file_path):
+                    continue
+                try:
+                    extracted, metadata = extract_satcorps(file_path, source_index)
+                    if extracted:
+                        samples.extend(extracted)
+                        sources.append({**metadata, "endpoint": url, "retrieved_at": now.isoformat()})
+                        nasa_added = True
+                        break
+                except Exception as exc:
+                    warnings.append(f"NASA SatCORPS candidate rejected: {type(exc).__name__}: {exc}")
+        if nasa_added:
+            break
     if not nasa_added:
         warnings.append("NASA SatCORPS NetCDF directory did not yield a decodable current file; modelled heights remain the fallback outside valid GOES samples.")
         sources.append({"source": "NASA SatCORPS Global Cloud Composite", "variant": "GCC V2", "status": "unavailable",
-                        "endpoint": SATCORPS_CANDIDATES[0][1], "observed_at": None, "sample_count": 0,
+                        "endpoint": nasa_last_endpoint, "observed_at": None, "sample_count": 0,
                         "height_reference": "MSL"})
 
     # Official measured GOES cloud tops fill their geostationary coverage; the base stays estimated where absent.
