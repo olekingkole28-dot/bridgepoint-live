@@ -546,20 +546,26 @@ jobs:
           grep -Fq "'fill-opacity': ['interpolate', ['linear'], ['get', 'wetness'], 0, 0.025, 0.2, 0.19, 0.6, 0.34, 1, 0.48]" site/world-v2300-rain.js
           grep -Fq 'const size = clamp(metersPerPixel(lat, z) * (0.55 + hash(seed, 13, 3) * 1.55), 2.2, 26)' site/world-v2300-rain.js
           grep -Fq 'rainAnchorObservations.slice(0, overviewClouds ? 0 : (MOBILE ? 4 : 8))' site/world-v2300-clouds.js
+          grep -Fq 'sourceRainAnchors' site/world-v2300-clouds.js
+          grep -Fq 'rainCenterFromGeometry' site/world-v2300-clouds.js
+          grep -Fq 'const reportCandidates = raw.filter(isRainObservation);' site/world-v2300-rain.js
+          grep -Fq 'source_anchor_kind' site/world-v2300-rain.js
+          grep -Fq 'durationMs:2450' site/world-v2300-lightning.js
+          ! grep -Fq "bp2300-rain-wet-ground-v6068','bp2300-rain-puddle-fill-v6068" site/world-v2300-weather.js
           grep -Fq "window.addEventListener('bp2300:weather-updated', onWeatherUpdated)" site/world-v2300-clouds.js
           grep -Fq 'screenScaleM * 0.75' site/world-v2300-rain.js
           grep -Fq 'metersPerPixel(lat, zoom) * 0.78' site/world-v2300-rain.js
           grep -Fq 'segmentM: 1.2 + hash(seedBase, i, 23) * 2.4' site/world-v2300-rain.js
-          grep -Fq 'else radiusM = thunder ? 9000 : 5000;' site/world-v2300-rain.js
-          grep -Fq '(thunderstorm ? 9000 : 5000);' site/world-v2300-clouds.js
-          grep -Fq '(thunderstorm ? 9000 : 5000);' site/world-v2300-clouds.js
+          grep -Fq 'else radiusM = thunder ? 28000 : 16000;' site/world-v2300-rain.js
+          grep -Fq '(thunderstorm ? 28000 : 16000);' site/world-v2300-clouds.js
+          grep -Fq '(thunderstorm ? 28000 : 16000);' site/world-v2300-clouds.js
           grep -Fq 'thunderstorm ? 450 : 350' site/world-v2300-clouds.js
           grep -Fq 'thunderstorm ? 2800 : 1800' site/world-v2300-clouds.js
           grep -Fq 'rainCell=smoothstep(1.30,1.34,v_tint)' site/world-v2300-clouds.js
           grep -Fq 'rainCellShelfClouds: rainCellShelfCount' site/world-v2300-clouds.js
           grep -Fq "if (f.kind === 'rain-cell')" site/world-v2300-clouds.js
           grep -Fq 'const shelfAltitude = f.baseM + clamp((f.topM - f.baseM) * 0.12, 160, 260);' site/world-v2300-clouds.js
-          grep -Fq 'else radiusM = thunder ? 9000 : 5000;' site/world-v2300-rain.js
+          grep -Fq 'else radiusM = thunder ? 28000 : 16000;' site/world-v2300-rain.js
           grep -Fq 'baseAglM: clamp(safeNum(o.cloud_base_height_m ?? o.cloudBaseHeightM, thunder ? 450 : 350), 180, 4200)' site/world-v2300-rain.js
           grep -Fq "if(pr==='rain')return;" site/world-v2300-weather.js
           grep -Fq "'rain-cell'" site/world-v2300-clouds.js
@@ -573,6 +579,9 @@ jobs:
           grep -Fq 'hideLegacyNativeWeatherLayers(map)' site/world-v2300-weather.js
           grep -Fq "renderer:'v2300-cinematic-fx'" site/app.js
           grep -Fq "renderer:'source-weather-data-plus-dedicated-rain-lightning'" site/landing.js
+          grep -Fq 'sourceWeatherOverlaysPreserved:true' site/landing.js
+          grep -Fq 'sourceWeatherOverlaysPreserved:true' site/app.js
+          grep -Fq 'legacyCinematicFxDisabled:true' site/landing.js
           grep -Fq 'world-v2300-weather.js?v=6130-cloud-rain-lightning' site/index.html
           grep -Fq 'world-v2300-weather.js?v=6130-cloud-rain-lightning' site/app/index.html
           grep -Fq 'world-v2300-weather.js?v=6130-cloud-rain-lightning' site/app/world-v2300-bootstrap.js
