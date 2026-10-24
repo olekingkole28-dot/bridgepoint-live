@@ -447,8 +447,13 @@ function ensureLiveSatelliteCloudContextV6134(map){
  if(map.isStyleLoaded?.()===false){
   if(!map.__bpGoesCloudStyleWaiterV6134){
    map.__bpGoesCloudStyleWaiterV6134=true;
-   const retry=()=>{map.__bpGoesCloudStyleWaiterV6134=false;ensureLiveSatelliteCloudContextV6134(map)};
-   map.once?.('load',retry);map.once?.('style.load',retry);
+   const retry=()=>{
+    if(map.isStyleLoaded?.()===false)return;
+    map.off?.('load',retry);map.off?.('style.load',retry);map.off?.('styledata',retry);
+    map.__bpGoesCloudStyleWaiterV6134=false;
+    ensureLiveSatelliteCloudContextV6134(map);
+   };
+   map.on?.('load',retry);map.on?.('style.load',retry);map.on?.('styledata',retry);
   }
   return false;
  }
@@ -2178,6 +2183,9 @@ function scheduleGeometry(delay = 180) {
     }
   };
   window.__BP_SKY_CLOUDS_V5908__ = api;
+  // Retry the satellite source after the renderer is installed; style replacement can
+  // make the first init attempt happen before MapLibre reports a fully loaded style.
+  ensureLiveSatelliteCloudContextV6134(map);
   publishState();
   if (enabled) setEnabled(true);
   return api;
