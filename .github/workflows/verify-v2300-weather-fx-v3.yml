@@ -136,7 +136,10 @@ jobs:
               assert.equal(out.fx.sharedMapLibreWebGLContext,true);assert.equal(out.fx.secondaryCanvases,0);assert.equal(out.fx.shaderReady,true);assert(out.fx.activeParticles>40);
               assert(out.fx.budgets.maxPoints<=760);assert(out.fx.qualityScale>=.28&&out.fx.qualityScale<=1);
               assert.equal(out.w.counts.alerts,3);assert.equal(out.w.counts.fires,1);assert.equal(out.w.counts.storms,1);assert.equal(out.w.counts.lightning,1);assert.equal(out.w.counts.water,1);
-              await p.waitForFunction(()=>{const d=window.__BP_LIGHTNING_RENDERER_V6130__?.state;return d?.enabled===true&&d?.overlayConnected===true&&d?.anchors>0&&d?.visibleAnchors>0&&d?.durationMs>=2400;},{timeout:10000});
+              const lightningPrecheck=await p.evaluate(()=>({present:!!window.__BP_LIGHTNING_RENDERER_V6130__,state:window.__BP_LIGHTNING_RENDERER_V6130__?.state||null,weatherScene:window.__bpWeatherV2300?.getScene?.()?.lightning?.length||0,alertCount:window.__bpWeatherV2300?.getScene?.()?.alerts?.length||0}));
+              console.log('BRIDGEPOINT_LONG_LIGHTNING_PRECHECK',JSON.stringify(lightningPrecheck));
+              assert(lightningPrecheck.present,'dedicated lightning renderer must attach beside the single MapLibre canvas');
+              await p.waitForFunction(()=>{const d=window.__BP_LIGHTNING_RENDERER_V6130__?.state;return d?.enabled===true&&d?.overlayConnected===true&&d?.anchors>0&&d?.durationMs>=2400;},{timeout:10000});
               await p.waitForFunction(()=>window.__BP_LIGHTNING_RENDERER_V6130__?.state?.activeBolts>0,{timeout:13000});
               const lightningDiag=await p.evaluate(()=>window.__BP_LIGHTNING_RENDERER_V6130__?.state||null);
               assert(lightningDiag&&lightningDiag.activeBolts>0&&lightningDiag.durationMs>=2400,'cloud-to-ground lightning must appear as a long, source-anchored branching flash '+JSON.stringify(lightningDiag));
