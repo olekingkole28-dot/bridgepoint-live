@@ -1,8 +1,8 @@
-// BridgePoint Water & Hydrology GPU surface v6114.
+// BridgePoint Water & Hydrology GPU surface v6115.
 // Additive MapLibre custom layer: one shared map canvas/context, bounded source geometry,
 // GPU wave displacement, source-gated flood elevations, and view-aware mesh LOD.
-const VERSION = 6114;
-const LAYER_ID = 'bp-water-surface-gpu-v6114';
+const VERSION = 6115;
+const LAYER_ID = 'bp-water-surface-gpu-v6115';
 const EARTH_CIRCUMFERENCE_M = 40075016.68557849;
 const RAD = Math.PI / 180;
 const MIN_VALID_TERRAIN_ELEVATION_M = -500;
@@ -165,8 +165,8 @@ function absoluteWaterLevelAt(scene, lng, lat) {
 }
 function apiWaterLevelReject(scene) {
   // Keep a lightweight per-build diagnostic without changing the source weather object.
-  if (window.__BP_WATER_ENGINE_V6114__ && Number.isFinite(window.__BP_WATER_ENGINE_V6114__.rejectedWaterLevelSamples)) {
-    window.__BP_WATER_ENGINE_V6114__.rejectedWaterLevelSamples++;
+  if (window.__BP_WATER_ENGINE_V6115__ && Number.isFinite(window.__BP_WATER_ENGINE_V6115__.rejectedWaterLevelSamples)) {
+    window.__BP_WATER_ENGINE_V6115__.rejectedWaterLevelSamples++;
   }
 }
 
@@ -596,7 +596,7 @@ function currentScene() {
 export function initWaterEngine(mapOrWorld, options = {}) {
   const map = mapOrWorld && mapOrWorld.map ? mapOrWorld.map : mapOrWorld;
   if (!map || typeof map.addLayer !== 'function' || typeof map.querySourceFeatures !== 'function') return null;
-  if (window.__BP_WATER_ENGINE_V6114__ && window.__BP_WATER_ENGINE_V6114__.map === map) return window.__BP_WATER_ENGINE_V6114__;
+  if (window.__BP_WATER_ENGINE_V6115__ && window.__BP_WATER_ENGINE_V6115__.map === map) return window.__BP_WATER_ENGINE_V6115__;
   const mobile = window.innerWidth <= 900 || /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
   const low = Number(navigator.deviceMemory || 4) <= 3 || Number(navigator.hardwareConcurrency || 4) <= 4;
   const api = {
@@ -611,6 +611,7 @@ export function initWaterEngine(mapOrWorld, options = {}) {
     flowSegmentsRejectedLong: 0, flowSegmentsRejectedAltitude: 0, flowSegmentsRejectedSlope: 0,
     surfaceCellsRejectedAtShoreline: 0, surfaceCellsRejectedElevation: 0,
     waterLevelsRejectedByShoreline: 0,
+    flowSegmentsRejectedOutsideWater: 0,
     stormCount: 0, stormSurgeIsModelled: true,
     floodHeightPolicy: 'only explicit source-reported depth_m/flood_depth_m/water_depth_m/inundation_depth_m; no fabricated land inundation',
     gaugeHeightPolicy: 'only explicit water_surface_elevation_m / surface_elevation_msl / sea_surface_height_m fields; ambiguous water_level_m is not absolute elevation',
@@ -663,7 +664,7 @@ export function initWaterEngine(mapOrWorld, options = {}) {
       try { if (map.getLayer(LAYER_ID)) map.removeLayer(LAYER_ID); } catch (_) {}
       for (const spec of SOURCE_ANCHORS) { try { if (map.getLayer(spec.id)) map.removeLayer(spec.id); } catch (_) {} }
       try { window.removeEventListener('bp2300:weather-updated', onWeatherUpdated); } catch (_) {}
-      if (window.__BP_WATER_ENGINE_V6114__ === this) window.__BP_WATER_ENGINE_V6114__ = null;
+      if (window.__BP_WATER_ENGINE_V6115__ === this) window.__BP_WATER_ENGINE_V6115__ = null;
     },
     get buffers() {
       return layer ? { surface: layer.buffer, flow: layer.flowBuffer, strideFloats: 7, strideBytes: 28, vertexCount: layer.surfaceVertexCount + layer.flowVertexCount } : null;
@@ -696,6 +697,7 @@ export function initWaterEngine(mapOrWorld, options = {}) {
         surfaceCellsRejectedAtShoreline: this.surfaceCellsRejectedAtShoreline,
         surfaceCellsRejectedElevation: this.surfaceCellsRejectedElevation,
         waterLevelsRejectedByShoreline: this.waterLevelsRejectedByShoreline,
+        flowSegmentsRejectedOutsideWater: this.flowSegmentsRejectedOutsideWater,
         zoom: +map.getZoom().toFixed(2),
         tier: this.low ? 'LOW' : this.mobile ? 'MOBILE' : 'DESKTOP',
         stormSurgeIsModelled: this.stormSurgeIsModelled, floodHeightPolicy: this.floodHeightPolicy,
@@ -832,26 +834,26 @@ function sceneLevelAt(scene, lng, lat) { return absoluteWaterLevelAt(scene, lng,
   function pushVertex(target, x, y, height, kind, flowX, flowY, flood) {
     target.push(mod1(x), clamp(y, 0, 1), height, kind, flowX || 1, flowY || 0, flood || 0);
   }
-  function makeRibbon(flowFeatures, bounds, target, scene, terrainCache, maxSegments) {
+  function makeRibbon(flowFeatures, waterFeatures, bounds, target, scene, terrainCache, maxSegments) {
     const z = map.getZoom();
     if (z < 5.5) return 0;
     const closeZoom = z >= 8;
-    let count = 0;
+    let count = 0, inspected = 0;
     const wx = bounds.x0, ex = bounds.x1, ny = bounds.y0, sy = bounds.y1;
     for (const feature of flowFeatures) {
-      // Callers pass raw MapLibre features; also accept prepared { row } wrappers.
       const raw = feature && feature.row ? feature.row : feature;
       const geometry = geometryOf(raw);
       const coordsSet = lineParts(geometry);
       const widthM = featureWaterwayWidth(raw);
       for (const line of coordsSet) {
         for (let i = 1; i < line.length; i++) {
-          if (count >= maxSegments) return count;
+          if (count >= maxSegments || inspected >= maxSegments * 6) return count;
           const a = line[i - 1], b = line[i];
           if (!a || !b || !finite(a[0]) || !finite(a[1]) || !finite(b[0]) || !finite(b[1])) continue;
+          inspected++;
           const lngA = wrapLon(a[0]), lngB = wrapLon(b[0]);
           const latA = clamp(Number(a[1]), -85, 85), latB = clamp(Number(b[1]), -85, 85);
-          let x1 = mercX(lngA), x2 = mercX(lngB);
+          const x1 = mercX(lngA), x2 = mercX(lngB);
           if (Math.abs(x2 - x1) > 0.5) continue;
           const y1 = mercY(latA), y2 = mercY(latB);
           const mx = (x1 + x2) * 0.5, my = (y1 + y2) * 0.5;
@@ -863,49 +865,70 @@ function sceneLevelAt(scene, lng, lat) { return absoluteWaterLevelAt(scene, lng,
             (lngB - lngA) * RAD * (EARTH_CIRCUMFERENCE_M / (2 * Math.PI)) * cosLat,
             (latB - latA) * RAD * (EARTH_CIRCUMFERENCE_M / (2 * Math.PI))
           );
-          // Long source segments are cartographic connections, not trustworthy local banks.
-          // Do not span kilometres with an elevated, opaque GPU ribbon at close zoom.
+          // Long cartographic connections are not trustworthy local water-surface segments.
           if (segmentMeters > (closeZoom ? 1400 : 5000)) {
             api.flowSegmentsRejectedLong++;
             continue;
           }
-          const half = clamp(widthM, 1, 36) / (2 * EARTH_CIRCUMFERENCE_M * cosLat);
+          const half = clamp(widthM * 0.7, 1, 30) / (2 * EARTH_CIRCUMFERENCE_M * cosLat);
           const ox = -dy / len * half, oy = dx / len * half;
-          const cx = (lngA + lngB) * 0.5, cy = (latA + latB) * 0.5;
-          const k1 = 'r' + Math.round(x1 * 10000000) + ':' + Math.round(y1 * 10000000);
-          const k2 = 'r' + Math.round(x2 * 10000000) + ':' + Math.round(y2 * 10000000);
-          const h1 = terrainHeight(lngA, latA, terrainCache, k1);
-          const h2 = terrainHeight(lngB, latB, terrainCache, k2);
-          // At street zoom, only add animated lowland ribbons where terrain samples look
-          // like a plausible local watercourse. Keep native MapLibre rivers as the fallback.
-          // Native water remains visible where custom altitude cannot be trusted.
-          // Reject elevated ribbons at all zoom levels so a bad DEM/datum cannot extrude
-          // a thin blue triangle toward the sky.
-          if (Math.abs(h1) > MAX_CUSTOM_INLAND_WATER_SURFACE_ELEVATION_M ||
-              Math.abs(h2) > MAX_CUSTOM_INLAND_WATER_SURFACE_ELEVATION_M) {
+          const p1 = [x1 + ox, y1 + oy], p2 = [x1 - ox, y1 - oy];
+          const p3 = [x2 + ox, y2 + oy], p4 = [x2 - ox, y2 - oy];
+          const quad = [p1, p2, p3, p4];
+          const quadLons = quad.map(p => wrapLon(p[0] * 360 - 180));
+          const quadLats = quad.map(p => unmercY(clamp(p[1], 0, 1)));
+          const padLon = half * 360 + 0.00002;
+          const padLat = half * 360 + 0.00002;
+          const minLon = Math.min(...quadLons), maxLon = Math.max(...quadLons);
+          const minLat = Math.min(...quadLats), maxLat = Math.max(...quadLats);
+          // A waterway line alone is not proof of a filled water surface. Every animated
+          // ribbon quad must fit wholly inside one real source-water polygon. If it does
+          // not, skip the custom ribbon and leave MapLibre's native waterway visible.
+          const candidates = waterFeatures.filter(w => {
+            const [wMinLon, wMinLat, wMaxLon, wMaxLat] = w.bbox;
+            if (wMaxLat < minLat - padLat || wMinLat > maxLat + padLat) return false;
+            if (wMaxLon - wMinLon > 300) return true;
+            return !(wMaxLon < minLon - padLon || wMinLon > maxLon + padLon);
+          });
+          const waterPolygon = candidates.find(w =>
+            quad.every((point, index) => featureContains(w, quadLons[index], quadLats[index]))
+          );
+          if (!waterPolygon) {
+            api.flowSegmentsRejectedOutsideWater++;
+            continue;
+          }
+          // Keep the four vertices on one stable water-surface datum. Sampling each
+          // endpoint independently from terrain let bad DEM samples tilt a ribbon into
+          // a tall blue triangle. High or uncertain inland heights stay on native water.
+          const midLng = wrapLon((lngA + lngB) * 0.5);
+          const midLat = (latA + latB) * 0.5;
+          let waterLevel = 0;
+          if (marineFeature(waterPolygon)) {
+            const reported = sceneLevelAt(scene, midLng, midLat);
+            waterLevel = reported !== null &&
+              reported >= -MAX_VALID_MARINE_SURFACE_OFFSET_M &&
+              reported <= MAX_VALID_MARINE_SURFACE_OFFSET_M ? reported : 0;
+          } else {
+            waterLevel = estimatedInlandSurface(
+              waterPolygon, scene, terrainCache,
+              'r' + Math.round(mx * 10000000) + ':' + Math.round(my * 10000000),
+              midLng, midLat
+            );
+          }
+          if (!Number.isFinite(waterLevel) ||
+              waterLevel < MIN_VALID_TERRAIN_ELEVATION_M ||
+              waterLevel > MAX_CUSTOM_INLAND_WATER_SURFACE_ELEVATION_M) {
             api.flowSegmentsRejectedAltitude++;
             continue;
           }
-          // A lowland watercourse cannot safely climb tens or hundreds of metres per segment.
-          // Use a conservative close-zoom slope envelope to prevent tall blue triangular walls.
-          const maxRiseM = closeZoom
-            ? clamp(segmentMeters * 0.015, 1.5, 8)
-            : clamp(segmentMeters * 0.05, 8, 100);
-          if (Math.abs(h2 - h1) > maxRiseM) {
-            api.flowSegmentsRejectedElevationJump++;
-            api.flowSegmentsRejectedSlope++;
-            continue;
-          }
-          const flood = floodDepthAt(api._floodFeatures, cx, cy);
+          const flood = floodDepthAt(api._floodFeatures, midLng, midLat);
           const flowX = dx / len, flowY = dy / len;
-          const p1 = [x1 + ox, y1 + oy, h1], p2 = [x1 - ox, y1 - oy, h1];
-          const p3 = [x2 + ox, y2 + oy, h2], p4 = [x2 - ox, y2 - oy, h2];
-          pushVertex(target, p1[0], p1[1], p1[2], 2, flowX, flowY, flood);
-          pushVertex(target, p2[0], p2[1], p2[2], 2, flowX, flowY, flood);
-          pushVertex(target, p3[0], p3[1], p3[2], 2, flowX, flowY, flood);
-          pushVertex(target, p3[0], p3[1], p3[2], 2, flowX, flowY, flood);
-          pushVertex(target, p2[0], p2[1], p2[2], 2, flowX, flowY, flood);
-          pushVertex(target, p4[0], p4[1], p4[2], 2, flowX, flowY, flood);
+          pushVertex(target, p1[0], p1[1], waterLevel, 2, flowX, flowY, flood);
+          pushVertex(target, p2[0], p2[1], waterLevel, 2, flowX, flowY, flood);
+          pushVertex(target, p3[0], p3[1], waterLevel, 2, flowX, flowY, flood);
+          pushVertex(target, p3[0], p3[1], waterLevel, 2, flowX, flowY, flood);
+          pushVertex(target, p2[0], p2[1], waterLevel, 2, flowX, flowY, flood);
+          pushVertex(target, p4[0], p4[1], waterLevel, 2, flowX, flowY, flood);
           count++;
         }
       }
@@ -934,6 +957,7 @@ function sceneLevelAt(scene, lng, lat) { return absoluteWaterLevelAt(scene, lng,
     api.flowSegmentsRejectedLong = 0; api.flowSegmentsRejectedAltitude = 0;
     api.flowSegmentsRejectedSlope = 0; api.surfaceCellsRejectedAtShoreline = 0;
     api.surfaceCellsRejectedElevation = 0; api.waterLevelsRejectedByShoreline = 0;
+    api.flowSegmentsRejectedOutsideWater = 0;
     let b;
     try { b = map.getBounds(); } catch (_) { return; }
     let west = Number(b.getWest()), east = Number(b.getEast()), south = clamp(Number(b.getSouth()), -85, 85), north = clamp(Number(b.getNorth()), -85, 85);
@@ -1149,7 +1173,7 @@ function sceneLevelAt(scene, lng, lat) { return absoluteWaterLevelAt(scene, lng,
       }
     }
     const maxSegs = api.low ? 110 : api.mobile ? 240 : 580;
-    const flowCount = makeRibbon(flowFeatures, bounds, flow, scene, terrainCache, maxSegs);
+    const flowCount = makeRibbon(flowFeatures, waterFeatures, bounds, flow, scene, terrainCache, maxSegs);
     if (layer) layer.setGeometry(surface, flow);
     api.waterPolygonCells = polygonCells;
     api.oceanFallbackCells = fallbackCells;
@@ -1164,7 +1188,7 @@ function sceneLevelAt(scene, lng, lat) { return absoluteWaterLevelAt(scene, lng,
     api.sourceWaterwayFeatures = flowFeatures.length;
     api.geometryBuilds++;
     api.lastSourceRefreshAt = Date.now();
-    window.__BP_WATER_FIELD_V6114__ = {
+    window.__BP_WATER_FIELD_V6115__ = {
       version: VERSION, map, buffers: api.buffers,
       get state() { return api.state; },
       get weatherScene() { return currentScene(); },
@@ -1220,8 +1244,8 @@ function sceneLevelAt(scene, lng, lat) { return absoluteWaterLevelAt(scene, lng,
   });
   scheduleBuild(250);
   for (const delay of [700, 1700, 3400]) window.setTimeout(() => { ensureInstalled(); scheduleBuild(0); }, delay);
-  window.__BP_WATER_ENGINE_V6114__ = api;
-  window.__BP_WATER_FIELD_V6114__ = {
+  window.__BP_WATER_ENGINE_V6115__ = api;
+  window.__BP_WATER_FIELD_V6115__ = {
     version: VERSION, map, get buffers() { return api.buffers; },
     get state() { return api.state; },
     get weatherScene() { return currentScene(); },
