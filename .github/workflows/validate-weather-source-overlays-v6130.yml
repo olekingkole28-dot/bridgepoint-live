@@ -1,0 +1,70 @@
+name: Validate source weather layers v6130
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'release-v2300/world-v2300-weather.js'
+      - 'release-v2300/world-v2300-rain.js'
+      - 'release-v2300/world-v2300-clouds.js'
+      - 'release-v2300/world-v2300-lightning.js'
+      - 'release-v2300/world-v2300-time-slider.js'
+      - 'release-v2300/world-v2300-bootstrap.js'
+      - 'rebuild-v5000/app.js'
+      - 'rebuild-v5000/landing.js'
+      - 'rebuild-v5000/bridgepoint-view-v5917.js'
+      - '.github/workflows/deploy-intelligence-rebuild-v5000.yml'
+      - '.github/workflows/validate-weather-source-overlays-v6130.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate-weather-source-overlays:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out pull request
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Parse the edited JavaScript modules
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check rebuild-v5000/app.js
+          node --check rebuild-v5000/landing.js
+          node --check rebuild-v5000/bridgepoint-view-v5917.js
+          for file in \
+            release-v2300/world-v2300-weather.js \
+            release-v2300/world-v2300-rain.js \
+            release-v2300/world-v2300-clouds.js \
+            release-v2300/world-v2300-lightning.js \
+            release-v2300/world-v2300-time-slider.js \
+            release-v2300/world-v2300-bootstrap.js; do
+            echo "Checking $file"
+            node --input-type=module --check < "$file"
+          done
+
+      - name: Verify new weather layers remain separate from legacy effects
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq 'active=!!v;' release-v2300/world-v2300-weather.js
+          ! grep -Fq 'active=CLOUDS_ONLY_PHASE()?true:!!v' release-v2300/world-v2300-weather.js
+          ! grep -Fq 'enabled = CLOUDS_ONLY_PHASE() ? false : !!value;' release-v2300/world-v2300-rain.js
+          ! grep -Fq "bp2300-rain-wet-ground-v6068','bp2300-rain-puddle-fill-v6068" release-v2300/world-v2300-weather.js
+          grep -Fq 'const RAIN_START_ZOOM = MOBILE ? 8 : 7;' release-v2300/world-v2300-rain.js
+          grep -Fq 'sourceRainAnchors' release-v2300/world-v2300-clouds.js
+          grep -Fq 'const reportCandidates = raw.filter(isRainObservation);' release-v2300/world-v2300-rain.js
+          grep -Fq 'export function initLightningLayer' release-v2300/world-v2300-lightning.js
+          grep -Fq 'durationMs:2450' release-v2300/world-v2300-lightning.js
+          grep -Fq 'BP_LISTINGS_MONEY_V6130' rebuild-v5000/bridgepoint-view-v5917.js
+          grep -Fq 'sourceWeatherOverlaysPreserved:true' rebuild-v5000/app.js
+          grep -Fq 'sourceWeatherOverlaysPreserved:true' rebuild-v5000/landing.js
+          grep -Fq 'world-v2300-clouds.js?v=6130-cloud-rain-lightning' rebuild-v5000/app.js
+          grep -Fq 'world-v2300-clouds.js?v=6130-cloud-rain-lightning' rebuild-v5000/landing.js
+          grep -Fq 'world-v2300-clouds.js?v=6130-cloud-rain-lightning' release-v2300/world-v2300-time-slider.js
