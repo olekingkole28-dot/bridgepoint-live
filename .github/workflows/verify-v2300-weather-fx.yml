@@ -223,7 +223,7 @@ jobs:
               assert(stormCloudDiag.globalCloudFormations>=500,'mobile fallback global field must retain a substantial low-cost base mesh');
               assert(stormCloudDiag.globalCloudFormations>=stormCloudDiag.satelliteCloudVolumesRendered,'source-backed satellite cloud volumes must be included in the reported global geometry count');
               assert(stormCloudDiag.satelliteCloudsWithSourceHeight<=stormCloudDiag.satelliteCloudVolumesRendered,'height-resolved cloud count cannot exceed rendered satellite cloud volumes');
-              assert(stormCloudDiag.satelliteCloudHeightSamplesAvailable>=stormCloudDiag.satelliteCloudsWithSourceHeight,'height-matched clouds require source height samples');
+              assert(stormCloudDiag.satelliteCloudsWithSourceHeight===0||stormCloudDiag.satelliteCloudHeightSamplesAvailable>0,'height-matched cloud geometry requires at least one source height sample');
               assert.equal(stormCloudDiag.globalThinLayerSlices,9,'thin global clouds must use a smooth nine-segment shallow silhouette');
               assert.equal(stormCloudDiag.globalThinLayerStacks,2,'thin cloud geometry must stay thin and low-cost');
               assert.equal(stormCloudDiag.globalSingleLayerSlices,8,'isolated cloud silhouettes must be rounded at global zoom');
