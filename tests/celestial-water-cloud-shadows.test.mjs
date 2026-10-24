@@ -112,7 +112,7 @@ test('new rain/lightning and global source markers stay separate from legacy eff
   assert.match(rain, /source_anchor_kind: 'warning'/);
   assert.match(rain, /windFields\(p, c, true\)/);
   assert.match(clouds, /sourceRainAnchors/);
-  assert.match(clouds, /coverageVersion: 6130/);
+  assert.match(clouds, /coverageVersion: 6140/);
   assert.match(clouds, /bp6133-noaa-geocolor-cloud-context/);
   assert.match(clouds, /MERGEDGC_current\/ImageServer\/exportImage/);
   assert.match(clouds, /initSatelliteCloudContextV6134/);
