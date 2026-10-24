@@ -52,9 +52,11 @@ jobs:
           node --check rebuild-v5000/bridgepoint-volumetric-fields-v5978.js
           node --check rebuild-v5000/bridgepoint-realworld-effects-v5927.js
           node --input-type=module --check < release-v2300/world-v2300-water.js
-          grep -Fq "const VERSION = 6115;" release-v2300/world-v2300-water.js
+          grep -Fq "const VERSION = 6116;" release-v2300/world-v2300-water.js
           grep -Fq "api.flowSegmentsRejectedOutsideWater++;" release-v2300/world-v2300-water.js
           grep -Fq "quad.every((point, index) => featureContains(w, quadLons[index], quadLats[index]))" release-v2300/world-v2300-water.js
+          grep -Fq "surfaceMaskValidationAllZooms: true" release-v2300/world-v2300-water.js
+          grep -Fq "if (kind !== 1 && terrainCache.has(key)) return terrainCache.get(key);" release-v2300/world-v2300-water.js
           node --check rebuild-v5000/app.js
           node --check rebuild-v5000/landing.js
           node --check rebuild-v5000/bridgepoint-view-v5917.js
@@ -272,8 +274,8 @@ jobs:
           sed -i 's#landing.js?v=6077-cloud-base-restore#landing.js?v=6077-sky-restore-safe-pitch#g' site/index.html
           sed -i 's#app.js?v=6076-rounded-cloud-banks#app.js?v=6077-sky-restore-safe-pitch#g' site/app/index.html
           sed -i 's#landing.js?v=6076-rounded-cloud-banks#landing.js?v=6077-sky-restore-safe-pitch#g' site/index.html
-          sed -i 's#app.js?v=6092-posttropical-global-clouds#app.js?v=6115-water-geometry-guard#g' site/app/index.html
-          sed -i 's#landing.js?v=6091-global-storm-centers-data-only#landing.js?v=6115-water-geometry-guard#g' site/index.html
+          sed -i 's#app.js?v=6092-posttropical-global-clouds#app.js?v=6116-all-zoom-mask#g' site/app/index.html
+          sed -i 's#landing.js?v=6091-global-storm-centers-data-only#landing.js?v=6116-all-zoom-mask#g' site/index.html
           cp release-v2300/world-v2300-realism.js site/world-v2300-realism.js
           cp release-v2300/gis-core-orchestrator-v5910.js site/gis-core-orchestrator-v5910.js
           cp release-v2300/world-v2300-config.js site/app/world-v2300-config.js
@@ -642,7 +644,7 @@ jobs:
           grep -Fq 'world-v2300-weather.js?v=6093-josephine-global-track' site/app.js
           grep -Fq 'sourceDataReady:true,cloudsOnlyPhase:true' site/landing.js
           grep -Fq 'if(window.__BP_CLOUDS_ONLY_PHASE_V6070__===true && m)' site/landing.js
-          grep -Fq 'landing.js?v=6115-water-geometry-guard' site/index.html
+          grep -Fq 'landing.js?v=6116-all-zoom-mask' site/index.html
           grep -Fq 'async function toggleNasaNightlights()' site/world-v2300-time-slider.js
           grep -Fq 'async function toggleSkyClouds()' site/world-v2300-time-slider.js
           grep -Fq 'data-skyview' site/world-v2300-time-slider.js
@@ -844,7 +846,7 @@ jobs:
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/app.js
           grep -Fq 'activateLiveWeather();' site/app.js
           grep -Fq 'enabled:true,serializedWeather:true' site/app.js
-          grep -Fq 'app.js?v=6115-water-geometry-guard' site/app/index.html
+          grep -Fq 'app.js?v=6116-all-zoom-mask' site/app/index.html
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/landing.js
           grep -Fq 'WMO_CAP_WARNING' site/app.js
           grep -Fq 'WMO_CAP_WARNING' site/landing.js
@@ -1067,8 +1069,8 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=6115-water-geometry-guard' site/app/index.html
-          grep -Fq 'landing.js?v=6115-water-geometry-guard' site/index.html
+          grep -Fq 'app.js?v=6116-all-zoom-mask' site/app/index.html
+          grep -Fq 'landing.js?v=6116-all-zoom-mask' site/index.html
            grep -Fq 'world-v2300-map.js?v=6056-ground-camera-readiness' site/app.js
            grep -Fq 'world-v2300-map.js?v=6056-ground-camera-readiness' site/landing.js
            grep -Fq 'world-v2300-map.js?v=6056-ground-camera-readiness' site/index.html
@@ -1422,19 +1424,19 @@ jobs:
                // builds bounded geometry and executes its GPU shader without disturbing native water.
                try {
                  await p.waitForFunction(()=>{
-                   const s=window.__BP_WATER_ENGINE_LANDING_V6115__?.state;
-                   return s?.version===6115 && Number.isFinite(Number(s.flowSegmentsRejectedOutsideWater)) && !!s?.installed && (Number(s.surfaceVertexCount||0)+Number(s.flowVertexCount||0)>0) &&
+                   const s=window.__BP_WATER_ENGINE_LANDING_V6116__?.state;
+                   return s?.version===6116 && Number.isFinite(Number(s.flowSegmentsRejectedOutsideWater)) && !!s?.installed && (Number(s.surfaceVertexCount||0)+Number(s.flowVertexCount||0)>0) &&
                      Number(s.sourceWaterFeatures||0)>0 && Number(s.sourceLandFeatures||0)>0 &&
                      Number(s.sourceAnchorLayersPresent||0)>=3 && !s.waitingForVectorFeatures &&
            Number(s.stormCentersUsed||0)>0 &&
                      (Number(s.lastDrawAt||0)>0 || !!s.shaderError);
                  },{timeout:35000});
                } catch(error) {
-                 const state=await p.evaluate(()=>window.__BP_WATER_ENGINE_LANDING_V6115__?.state||null);
+                 const state=await p.evaluate(()=>window.__BP_WATER_ENGINE_LANDING_V6116__?.state||null);
                  throw new Error('GPU_WATER_LAYER_BOOT_TIMEOUT '+JSON.stringify(state)+' '+String(error?.message||error));
                }
-               const waterBaseline=await p.evaluate(()=>window.__BP_WATER_ENGINE_LANDING_V6115__?.state||null);
-               if(waterBaseline?.version!==6115||!Number.isFinite(Number(waterBaseline.flowSegmentsRejectedOutsideWater))||!waterBaseline?.installed||!waterBaseline.contextReady||
+               const waterBaseline=await p.evaluate(()=>window.__BP_WATER_ENGINE_LANDING_V6116__?.state||null);
+               if(waterBaseline?.version!==6116||!Number.isFinite(Number(waterBaseline.flowSegmentsRejectedOutsideWater))||!waterBaseline?.installed||!waterBaseline.contextReady||
                   (Number(waterBaseline.surfaceVertexCount||0)+Number(waterBaseline.flowVertexCount||0)===0)||
                   Number(waterBaseline.sourceWaterFeatures||0)===0||Number(waterBaseline.sourceLandFeatures||0)===0||
                   Number(waterBaseline.sourceAnchorLayersPresent||0)<3||waterBaseline.waitingForVectorFeatures||
