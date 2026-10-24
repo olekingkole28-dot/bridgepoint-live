@@ -1,11 +1,13 @@
-name: Verify BridgePoint GPU Water v6122
+name: Verify BridgePoint GPU Water v6123
 
 on:
   pull_request:
     branches: [main]
     paths:
       - 'release-v2300/world-v2300-water.js'
+      - 'release-v2300/world-v2300-map.js'
       - 'tests/water-wave-frequency.test.mjs'
+      - 'tests/water-lod-and-imagery.test.mjs'
       - 'rebuild-v5000/app.js'
       - 'rebuild-v5000/landing.js'
       - 'rebuild-v5000/index.html'
@@ -16,7 +18,9 @@ on:
     branches: [main]
     paths:
       - 'release-v2300/world-v2300-water.js'
+      - 'release-v2300/world-v2300-map.js'
       - 'tests/water-wave-frequency.test.mjs'
+      - 'tests/water-lod-and-imagery.test.mjs'
       - 'rebuild-v5000/app.js'
       - 'rebuild-v5000/landing.js'
       - 'rebuild-v5000/index.html'
@@ -39,6 +43,7 @@ jobs:
           set -euo pipefail
           node --input-type=module --check < release-v2300/world-v2300-water.js
           node tests/water-wave-frequency.test.mjs
+          node tests/water-lod-and-imagery.test.mjs
           node --check rebuild-v5000/app.js
           node --check rebuild-v5000/landing.js
       - name: Verify runtime wiring and deployment copies
@@ -46,7 +51,7 @@ jobs:
         run: |
           set -euo pipefail
           grep -Fq "export function initWaterEngine" release-v2300/world-v2300-water.js
-          grep -Fq "const VERSION = 6122;" release-v2300/world-v2300-water.js
+          grep -Fq "const VERSION = 6123;" release-v2300/world-v2300-water.js
           grep -Fq "resolvePitchDisplacementPolicy" release-v2300/world-v2300-water.js
           grep -Fq "uniform float u_pitchWaveScale;" release-v2300/world-v2300-water.js
           grep -Fq "float offsetM = clamp(dynamicOffsetM, -u_waveOffsetLimit, u_waveOffsetLimit) + a_flood;" release-v2300/world-v2300-water.js
@@ -61,7 +66,7 @@ jobs:
           grep -Fq "function mapCanHostWater()" release-v2300/world-v2300-water.js
           grep -Fq "float marineSurgeMask" release-v2300/world-v2300-water.js
           ! grep -Fq "if (!map.isStyleLoaded?.())" release-v2300/world-v2300-water.js
-          grep -Fq "window.__BP_WATER_FIELD_V6122__" release-v2300/world-v2300-water.js
+          grep -Fq "window.__BP_WATER_FIELD_V6123__" release-v2300/world-v2300-water.js
           grep -Fq "const raw = feature && feature.row ? feature.row : feature;" release-v2300/world-v2300-water.js
           grep -Fq "typeof item.getScene === 'function'" release-v2300/world-v2300-water.js
           grep -Fq "bp2300:weather-updated" release-v2300/world-v2300-water.js
@@ -95,5 +100,8 @@ jobs:
           grep -Fq "float glancingGlint = pow(" release-v2300/world-v2300-water.js
           grep -Fq "sourceLevel !== null && sourceLevel >= -MAX_VALID_MARINE_SURFACE_OFFSET_M" release-v2300/world-v2300-water.js
           grep -Fq "clamp(0.22 + shimmer * 0.20, 0.22, 0.50)" release-v2300/world-v2300-water.js
-          grep -Fq "world-v2300-water.js?v=6122-topdown-vertex-displacement-off" rebuild-v5000/app.js
-          grep -Fq "world-v2300-water.js?v=6122-topdown-vertex-displacement-off" rebuild-v5000/landing.js
+          grep -Fq "world-v2300-water.js?v=6123-aaa-water-lod-land-only" rebuild-v5000/app.js
+          grep -Fq "world-v2300-water.js?v=6123-aaa-water-lod-land-only" rebuild-v5000/landing.js
+          grep -Fq "paint(map,'gta-water','fill-opacity',sat?1:.97)" release-v2300/world-v2300-map.js
+          grep -Fq "setBase('satellite')" release-v2300/world-v2300-map.js
+          grep -Fq "gta-esri" release-v2300/world-v2300-map.js
