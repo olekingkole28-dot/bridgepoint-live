@@ -26,7 +26,7 @@ import numpy as np
 import requests
 
 USER_AGENT = "BridgePoint-CloudHeightFeed/1.0 (+https://github.com/olekingkole28-dot/bridgepoint-live)"
-TIMEOUT = (12, 35)
+TIMEOUT = (8, 20)
 MAX_NETCDF_BYTES = 120 * 1024 * 1024
 MAX_SAMPLES_PER_SOURCE = 65000
 MAX_NOAA_SAMPLES = 24000
@@ -449,7 +449,7 @@ def refresh_feed(output_path: Path) -> dict[str, Any]:
     for label, endpoint in SATCORPS_CANDIDATES:
         nasa_last_endpoint = endpoint
         urls = satcorps_find_files(session, endpoint)
-        for url in urls[:5]:
+        for url in urls[:1]:
             source_index = len(sources)
             with tempfile.TemporaryDirectory(prefix="bp-satcorps-") as temp_dir:
                 file_path = Path(temp_dir) / "latest-satcorps.nc"
