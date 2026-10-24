@@ -623,7 +623,7 @@ jobs:
           grep -Fq 'activeMacroCells' site/world-v2300-clouds.js
           grep -Fq 'MOBILE?8:9,3,hash(q.gx,q.gy,i+973)' site/world-v2300-clouds.js
           grep -Fq 'Height/latitude-aware modelled atmospheric flow; no source-backed global upper-air wind grid is connected' site/world-v2300-clouds.js
-          grep -Fq 'coverageVersion: 6130' site/world-v2300-clouds.js
+          grep -Fq 'coverageVersion: 6140' site/world-v2300-clouds.js
           grep -Fq 'function makeTornadoSurfaceCone' site/world-v2300-clouds.js
           grep -Fq 'hurricaneSurfaceCloudVertices+=vertices.length/13-before' site/world-v2300-clouds.js
           grep -Fq 'tornadoSurfaceMeshVertices+=surfaceAdded' site/world-v2300-clouds.js
@@ -1649,7 +1649,7 @@ jobs:
                try {
                  await p.waitForFunction(()=>{
                    const w=window.__BP_LANDING_WORLD__,m=w?.map,c=window.__BP_SKY_CLOUDS_V5908__,s=window.__BP_SKY_CLOUDS_STATE_V6077__||window.__BP_SKY_CLOUDS_STATE_V6047__,b=document.querySelector('#bp-world-time-slider-v5908 [data-clouds]');
-                   return b?.getAttribute('aria-pressed')==='true'&&(w?.state?.base==='satellite'||w?.base==='satellite')&&c?.enabled===true&&c?.version===6130&&!!m?.getLayer('bp-sky-cloud-volume-v6029')&&Number(s?.cloudFormations)>0&&s?.version===6130;
+                   return b?.getAttribute('aria-pressed')==='true'&&(w?.state?.base==='satellite'||w?.base==='satellite')&&c?.enabled===true&&c?.version===6140&&!!m?.getLayer('bp-sky-cloud-volume-v6029')&&Number(s?.cloudFormations)>0&&s?.version===6140;
                  },{timeout:15000});
                } catch(error) {
                  const state=await p.evaluate(()=>({
