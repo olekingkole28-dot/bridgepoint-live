@@ -71,6 +71,16 @@ test('space layer keeps globe interactive while drawing stable stars, Sun and Mo
   assert.doesNotMatch(space, /setInteractive\(false\)/);
 });
 
+test('clouds render as bright 3D volumes, not as a false-colour raster sheet', () => {
+  assert.match(clouds, /id: LAYER_ID, type: 'custom', renderingMode: '3d'/);
+  assert.match(clouds, /layout:\{visibility:'none'\}/);
+  assert.match(clouds, /setLayoutProperty\(SATELLITE_CLOUD_LAYER_ID_V6150,'visibility','none'\)/);
+  assert.match(clouds, /setLayoutProperty\(EUMETSAT_CLOUD_LAYER_ID_V6150,'visibility','none'\)/);
+  assert.match(clouds, /vec3\(0\.70,0\.76,0\.84\)/);
+  assert.match(clouds, /version: 6161, map, overlay/);
+  assert.match(clouds, /coverageVersion: 6161/);
+});
+
 test('cloud shadows update on the map and use available source winds', () => {
   assert.match(clouds, /bp-cloud-shadow-ground-v6124/);
   assert.match(clouds, /function refreshGroundShadows/);
