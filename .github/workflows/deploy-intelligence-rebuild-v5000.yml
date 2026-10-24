@@ -52,7 +52,7 @@ jobs:
           node --check rebuild-v5000/bridgepoint-volumetric-fields-v5978.js
           node --check rebuild-v5000/bridgepoint-realworld-effects-v5927.js
           node --input-type=module --check < release-v2300/world-v2300-water.js
-          grep -Fq "const VERSION = 6119;" release-v2300/world-v2300-water.js
+          grep -Fq "const VERSION = 6120;" release-v2300/world-v2300-water.js
           grep -Fq "const waveFrequencyZoom = clamp(z, 0.6, 15.0);" release-v2300/world-v2300-water.js
           grep -Fq "const detailFrequencyZoom = clamp(z, 0.6, 20.0);" release-v2300/world-v2300-water.js
           grep -Fq "const flowCycles = detailCyclesPerWorld * 2.4;" release-v2300/world-v2300-water.js
@@ -285,8 +285,8 @@ jobs:
           sed -i 's#landing.js?v=6077-cloud-base-restore#landing.js?v=6077-sky-restore-safe-pitch#g' site/index.html
           sed -i 's#app.js?v=6076-rounded-cloud-banks#app.js?v=6077-sky-restore-safe-pitch#g' site/app/index.html
           sed -i 's#landing.js?v=6076-rounded-cloud-banks#landing.js?v=6077-sky-restore-safe-pitch#g' site/index.html
-          sed -i 's#app.js?v=6092-posttropical-global-clouds#app.js?v=6119-wave-displacement-frequency-separation#g' site/app/index.html
-          sed -i 's#landing.js?v=6091-global-storm-centers-data-only#landing.js?v=6119-wave-displacement-frequency-separation#g' site/index.html
+          sed -i 's#app.js?v=6092-posttropical-global-clouds#app.js?v=6120-mesh-safe-wave-frequency#g' site/app/index.html
+          sed -i 's#landing.js?v=6091-global-storm-centers-data-only#landing.js?v=6120-mesh-safe-wave-frequency#g' site/index.html
           cp release-v2300/world-v2300-realism.js site/world-v2300-realism.js
           cp release-v2300/gis-core-orchestrator-v5910.js site/gis-core-orchestrator-v5910.js
           cp release-v2300/world-v2300-config.js site/app/world-v2300-config.js
@@ -655,7 +655,7 @@ jobs:
           grep -Fq 'world-v2300-weather.js?v=6093-josephine-global-track' site/app.js
           grep -Fq 'sourceDataReady:true,cloudsOnlyPhase:true' site/landing.js
           grep -Fq 'if(window.__BP_CLOUDS_ONLY_PHASE_V6070__===true && m)' site/landing.js
-          grep -Fq 'landing.js?v=6119-wave-displacement-frequency-separation' site/index.html
+          grep -Fq 'landing.js?v=6120-mesh-safe-wave-frequency' site/index.html
           grep -Fq 'async function toggleNasaNightlights()' site/world-v2300-time-slider.js
           grep -Fq 'async function toggleSkyClouds()' site/world-v2300-time-slider.js
           grep -Fq 'data-skyview' site/world-v2300-time-slider.js
@@ -857,7 +857,7 @@ jobs:
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/app.js
           grep -Fq 'activateLiveWeather();' site/app.js
           grep -Fq 'enabled:true,serializedWeather:true' site/app.js
-          grep -Fq 'app.js?v=6119-wave-displacement-frequency-separation' site/app/index.html
+          grep -Fq 'app.js?v=6120-mesh-safe-wave-frequency' site/app/index.html
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/landing.js
           grep -Fq 'WMO_CAP_WARNING' site/app.js
           grep -Fq 'WMO_CAP_WARNING' site/landing.js
@@ -1080,8 +1080,8 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=6119-wave-displacement-frequency-separation' site/app/index.html
-          grep -Fq 'landing.js?v=6119-wave-displacement-frequency-separation' site/index.html
+          grep -Fq 'app.js?v=6120-mesh-safe-wave-frequency' site/app/index.html
+          grep -Fq 'landing.js?v=6120-mesh-safe-wave-frequency' site/index.html
            grep -Fq 'world-v2300-map.js?v=6056-ground-camera-readiness' site/app.js
            grep -Fq 'world-v2300-map.js?v=6056-ground-camera-readiness' site/landing.js
            grep -Fq 'world-v2300-map.js?v=6056-ground-camera-readiness' site/index.html
@@ -1435,19 +1435,19 @@ jobs:
                // builds bounded geometry and executes its GPU shader without disturbing native water.
                try {
                  await p.waitForFunction(()=>{
-                   const s=window.__BP_WATER_ENGINE_LANDING_V6119__?.state;
-                   return s?.version===6119 && Number.isFinite(Number(s.flowSegmentsRejectedOutsideWater)) && !!s?.installed && (Number(s.surfaceVertexCount||0)+Number(s.flowVertexCount||0)>0) &&
+                   const s=window.__BP_WATER_ENGINE_LANDING_V6120__?.state;
+                   return s?.version===6120 && Number.isFinite(Number(s.flowSegmentsRejectedOutsideWater)) && !!s?.installed && (Number(s.surfaceVertexCount||0)+Number(s.flowVertexCount||0)>0) &&
                      Number(s.sourceWaterFeatures||0)>0 && Number(s.sourceLandFeatures||0)>0 &&
                      Number(s.sourceAnchorLayersPresent||0)>=3 && !s.waitingForVectorFeatures &&
            Number(s.stormCentersUsed||0)>0 &&
                      (Number(s.lastDrawAt||0)>0 || !!s.shaderError);
                  },{timeout:35000});
                } catch(error) {
-                 const state=await p.evaluate(()=>window.__BP_WATER_ENGINE_LANDING_V6119__?.state||null);
+                 const state=await p.evaluate(()=>window.__BP_WATER_ENGINE_LANDING_V6120__?.state||null);
                  throw new Error('GPU_WATER_LAYER_BOOT_TIMEOUT '+JSON.stringify(state)+' '+String(error?.message||error));
                }
-               const waterBaseline=await p.evaluate(()=>window.__BP_WATER_ENGINE_LANDING_V6119__?.state||null);
-               if(waterBaseline?.version!==6119||!Number.isFinite(Number(waterBaseline.flowSegmentsRejectedOutsideWater))||!waterBaseline?.installed||!waterBaseline.contextReady||
+               const waterBaseline=await p.evaluate(()=>window.__BP_WATER_ENGINE_LANDING_V6120__?.state||null);
+               if(waterBaseline?.version!==6120||!Number.isFinite(Number(waterBaseline.flowSegmentsRejectedOutsideWater))||!waterBaseline?.installed||!waterBaseline.contextReady||
                   (Number(waterBaseline.surfaceVertexCount||0)+Number(waterBaseline.flowVertexCount||0)===0)||
                   Number(waterBaseline.sourceWaterFeatures||0)===0||Number(waterBaseline.sourceLandFeatures||0)===0||
                   Number(waterBaseline.sourceAnchorLayersPresent||0)<3||waterBaseline.waitingForVectorFeatures||
@@ -1458,20 +1458,23 @@ jobs:
                // inland-height cache policy on a real, dense water/land boundary.
                await p.evaluate(()=>{
                  const m=window.__BP_LANDING_WORLD__?.map;
-                 window.__BP_WATER_PRE_CLOSE_BUILD_V6119__=Number(window.__BP_WATER_ENGINE_LANDING_V6119__?.state?.geometryBuilds||0);
+                 window.__BP_WATER_PRE_CLOSE_BUILD_V6120__=Number(window.__BP_WATER_ENGINE_LANDING_V6120__?.state?.geometryBuilds||0);
                  m?.stop?.();
                  m?.jumpTo({center:[-74.0445,40.6893],zoom:16.0,pitch:52,bearing:-8});
                });
                try {
                  await p.waitForFunction(()=>{
                    const m=window.__BP_LANDING_WORLD__?.map;
-                   const s=window.__BP_WATER_ENGINE_LANDING_V6119__?.state;
-                   return !!m&&s?.version===6119&&Number(s.zoom)>=15.5&&
+                   const s=window.__BP_WATER_ENGINE_LANDING_V6120__?.state;
+                   return !!m&&s?.version===6120&&Number(s.zoom)>=15.5&&
                       Number.isFinite(Number(s.waveFrequencyCyclesPerWorld))&&
                       Number.isFinite(Number(s.detailCyclesPerWorld))&&
-                      Number(s.waveFrequencyCyclesPerWorld)<=8.53*Math.pow(2,15.0)+0.01&&
+                      Number.isFinite(Number(s.waterGridStepWorld))&&Number(s.waterGridStepWorld)>0&&
+                      Number.isFinite(Number(s.waveGridStepUsedWorld))&&Math.abs(Number(s.waterGridStepWorld)-Number(s.waveGridStepUsedWorld))<1e-12&&
+                      Number(s.waveSamplesPerPeriod)>=7.99&&
+                      Number(s.waveFrequencyCyclesPerWorld)<=Number(s.requestedWaveFrequencyCyclesPerWorld)+0.01&&
                       Number(s.detailCyclesPerWorld)>Number(s.waveFrequencyCyclesPerWorld)&&
-                     Number(s.geometryBuilds)>Number(window.__BP_WATER_PRE_CLOSE_BUILD_V6119__||0)&&
+                     Number(s.geometryBuilds)>Number(window.__BP_WATER_PRE_CLOSE_BUILD_V6120__||0)&&
                      Number(s.sourceWaterFeatures)>0&&Number(s.sourceLandFeatures)>0&&
                      Number(s.surfaceVertexCount)>0&&Number.isFinite(Number(s.flowSegmentsRejectedOutsideWater))&&
                      s.surfaceMaskValidationAllZooms===true&&
@@ -1486,10 +1489,10 @@ jobs:
                      !s.shaderError&&Number(s.lastDrawAt||0)>0;
                  },{timeout:35000});
                } catch(error) {
-                 const state=await p.evaluate(()=>window.__BP_WATER_ENGINE_LANDING_V6119__?.state||null);
+                 const state=await p.evaluate(()=>window.__BP_WATER_ENGINE_LANDING_V6120__?.state||null);
                  throw new Error('GPU_WATER_CLOSE_COAST_GEOMETRY_GATE_FAILED '+JSON.stringify(state)+' '+String(error?.message||error));
                }
-               const closeWater=await p.evaluate(()=>window.__BP_WATER_ENGINE_LANDING_V6119__?.state||null);
+               const closeWater=await p.evaluate(()=>window.__BP_WATER_ENGINE_LANDING_V6120__?.state||null);
                console.log('BRIDGEPOINT_GPU_WATER_CLOSE_COAST_PASS',JSON.stringify(closeWater));
                const cloudBaseline=await p.evaluate(()=>({
                  button:!!document.querySelector('#bp-world-time-slider-v5908 [data-clouds]'),

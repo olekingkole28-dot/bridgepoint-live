@@ -1,10 +1,11 @@
-name: Verify BridgePoint GPU Water v6119
+name: Verify BridgePoint GPU Water v6120
 
 on:
   pull_request:
     branches: [main]
     paths:
       - 'release-v2300/world-v2300-water.js'
+      - 'tests/water-wave-frequency.test.mjs'
       - 'rebuild-v5000/app.js'
       - 'rebuild-v5000/landing.js'
       - 'rebuild-v5000/index.html'
@@ -15,6 +16,7 @@ on:
     branches: [main]
     paths:
       - 'release-v2300/world-v2300-water.js'
+      - 'tests/water-wave-frequency.test.mjs'
       - 'rebuild-v5000/app.js'
       - 'rebuild-v5000/landing.js'
       - 'rebuild-v5000/index.html'
@@ -36,6 +38,7 @@ jobs:
         run: |
           set -euo pipefail
           node --input-type=module --check < release-v2300/world-v2300-water.js
+          node tests/water-wave-frequency.test.mjs
           node --check rebuild-v5000/app.js
           node --check rebuild-v5000/landing.js
       - name: Verify runtime wiring and deployment copies
@@ -43,6 +46,10 @@ jobs:
         run: |
           set -euo pipefail
           grep -Fq "export function initWaterEngine" release-v2300/world-v2300-water.js
+          grep -Fq "MIN_WAVE_SAMPLES_PER_PERIOD = 8" release-v2300/world-v2300-water.js
+          grep -Fq "MAX_VERTEX_WAVE_HARMONIC = 1.91" release-v2300/world-v2300-water.js
+          grep -Fq "resolveWaveFrequencyCyclesPerWorld" release-v2300/world-v2300-water.js
+          grep -Fq "api.waterGridStepWorld = Math.max(dx, dy);" release-v2300/world-v2300-water.js
           grep -Fq "const waveFrequencyZoom = clamp(z, 0.6, 15.0);" release-v2300/world-v2300-water.js
           grep -Fq "const detailFrequencyZoom = clamp(z, 0.6, 20.0);" release-v2300/world-v2300-water.js
           grep -Fq "const flowCycles = detailCyclesPerWorld * 2.4;" release-v2300/world-v2300-water.js
@@ -50,7 +57,7 @@ jobs:
           grep -Fq "function mapCanHostWater()" release-v2300/world-v2300-water.js
           grep -Fq "float marineSurgeMask" release-v2300/world-v2300-water.js
           ! grep -Fq "if (!map.isStyleLoaded?.())" release-v2300/world-v2300-water.js
-          grep -Fq "window.__BP_WATER_FIELD_V6119__" release-v2300/world-v2300-water.js
+          grep -Fq "window.__BP_WATER_FIELD_V6120__" release-v2300/world-v2300-water.js
           grep -Fq "const raw = feature && feature.row ? feature.row : feature;" release-v2300/world-v2300-water.js
           grep -Fq "typeof item.getScene === 'function'" release-v2300/world-v2300-water.js
           grep -Fq "bp2300:weather-updated" release-v2300/world-v2300-water.js
@@ -84,5 +91,5 @@ jobs:
           grep -Fq "float glancingGlint = pow(" release-v2300/world-v2300-water.js
           grep -Fq "sourceLevel !== null && sourceLevel >= -MAX_VALID_MARINE_SURFACE_OFFSET_M" release-v2300/world-v2300-water.js
           grep -Fq "clamp(0.22 + shimmer * 0.20, 0.22, 0.50)" release-v2300/world-v2300-water.js
-          grep -Fq "world-v2300-water.js?v=6119-wave-displacement-frequency-separation" rebuild-v5000/app.js
-          grep -Fq "world-v2300-water.js?v=6119-wave-displacement-frequency-separation" rebuild-v5000/landing.js
+          grep -Fq "world-v2300-water.js?v=6120-mesh-safe-wave-frequency" rebuild-v5000/app.js
+          grep -Fq "world-v2300-water.js?v=6120-mesh-safe-wave-frequency" rebuild-v5000/landing.js
