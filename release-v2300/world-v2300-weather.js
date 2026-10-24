@@ -457,7 +457,7 @@ function mergeCycloneCenters(primary=[],supplemental=[]){
     .then(value=>({value,error:null}),error=>({value:null,error})),
    getPublicCyclones(force)
   ]);
-  const d=edgeResult.value,edgeError=edgeResult.error;if(id!==seq)return;
+  let d=edgeResult.value;const edgeError=edgeResult.error;if(id!==seq)return;
   if(!d&&publicCyclones.storms.length===0){console.warn('V2300 weather: storm feeds unavailable',String(edgeError?.message||edgeError||publicCyclones.error||'no public cyclone centers'));return}
   d=d||{};
   const edgeStorms=Array.isArray(d.storms)?d.storms:[];
