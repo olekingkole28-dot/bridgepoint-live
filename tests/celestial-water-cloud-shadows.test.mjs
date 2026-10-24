@@ -88,3 +88,12 @@ test('entrypoints use fresh cache keys for updated map, water, clouds, weather a
   assert.match(appHtml, /app\.js\?v=6124-solar-ocean-swell/);
   assert.match(landingHtml, /landing\.js\?v=6124-solar-ocean-swell/);
 });
+
+test('sky-view restoration returns to street with bounded cleanup waits', () => {
+  assert.match(timeSlider, /async function restoreSkyStreetView\(restore\)/);
+  assert.match(timeSlider, /waitSkyMapState\(\(\)=>map\.getPitch\(\)<90,1800,'safe pitch before projection restore'\)/);
+  assert.match(timeSlider, /waitSkyMapState\(\(\)=>skyProjectionType\(\)===targetProjection,3000,'projection restore'\)/);
+  assert.match(timeSlider, /'street camera restore'/);
+  assert.match(timeSlider, /skyViewDiag\.phase='restoring-street'/);
+  assert.doesNotMatch(timeSlider, /'ground clamp restore'/);
+});
