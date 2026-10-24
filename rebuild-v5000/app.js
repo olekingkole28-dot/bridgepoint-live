@@ -1054,6 +1054,7 @@ function startLiveWeather(){
  if(map&&!map.__bpCinematicWeatherLegacyGuard6057){map.__bpCinematicWeatherLegacyGuard6057=true;map.on('styledata',()=>hideLegacyLiveContextLayers(map));[120,450,1100].forEach(ms=>setTimeout(()=>hideLegacyLiveContextLayers(map),ms))}
  const b=$('toggleLiveContext');if(b)b.onclick=()=>{if(liveContextVisible)stopLiveWeather();else activateLiveWeather()};
  activateLiveWeather();
+ installLiveContextLayers();restoreCachedLiveWeatherFirstFrameV6134();
  void loadLiveWeather(true);
  clearInterval(liveContextTimer);liveContextTimer=setInterval(()=>{if(liveContextVisible)void loadLiveWeather(false)},60000);
  window.__BP_LIVE_WEATHER_REFRESH_V6132__={enabled:true,initialFetchRequested:true,refreshMs:60000,icons:true,sourcePolygons:true,groundRadar:true,updatedAt:Date.now()};
@@ -1415,7 +1416,7 @@ async function start(){
   .then(()=>requireAuthenticatedAppSession())
   .catch(error=>{console.warn('background app auth verification',error);renderAuthState();return null});
  window.__BP_APP_BOOT_PRIORITY_V5906__={version:5906,stage:'starting-public-map',authVerificationBackground:true,startedAt:Date.now()};
- const mapReady=bootMap();
+ warmLiveWeatherFirstFrameV6134(); const mapReady=bootMap();
  const landingPackage=localStorage.getItem('bp_landing_package');
  if(landingPackage){pendingPackageKey=landingPackage;localStorage.removeItem('bp_landing_package')}
  renderWorkspaceSignedOut();bindAppNavigation();bindMapGestureIsolation();
