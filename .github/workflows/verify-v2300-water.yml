@@ -16,6 +16,7 @@ on:
     branches: [main]
     paths:
       - 'release-v2300/world-v2300-water.js'
+      - 'tests/water-wave-frequency.test.mjs'
       - 'rebuild-v5000/app.js'
       - 'rebuild-v5000/landing.js'
       - 'rebuild-v5000/index.html'
@@ -37,7 +38,7 @@ jobs:
         run: |
           set -euo pipefail
           node --input-type=module --check < release-v2300/world-v2300-water.js
-          node --experimental-default-type=module tests/water-wave-frequency.test.mjs
+          node tests/water-wave-frequency.test.mjs
           node --check rebuild-v5000/app.js
           node --check rebuild-v5000/landing.js
       - name: Verify runtime wiring and deployment copies
