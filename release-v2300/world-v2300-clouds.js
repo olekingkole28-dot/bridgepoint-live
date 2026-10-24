@@ -1370,10 +1370,11 @@ function generateGeometry() {
       const lng = number(storm?.lng, number(storm?.longitude, number(p.lng, number(p.longitude, NaN))));
       const lat = number(storm?.lat, number(storm?.latitude, number(p.lat, number(p.latitude, NaN))));
       if (Number.isFinite(lng) && Number.isFinite(lat)) {
+        const moveSpeedMph = number(p.movement_speed_mph, number(p.translation_speed_mph, NaN));
         const moveSpeed = number(p.movement_speed_mps, number(p.translation_speed_mps, NaN));
         const moveHeading = number(p.movement_heading_deg, number(p.movement_dir, NaN));
         sourceRainAnchors.push({ ...p, lng, lat, weather: 'thunderstorm rain',
-          wind_speed_mph: p.wind_speed_mph ?? (Number.isFinite(moveSpeed) ? moveSpeed * 2.23694 : undefined),
+          wind_speed_mph: p.wind_speed_mph ?? (Number.isFinite(moveSpeedMph) ? moveSpeedMph : Number.isFinite(moveSpeed) ? moveSpeed * 2.23694 : undefined),
           wind_dir_deg: p.wind_dir_deg ?? p.wind_direction_deg ?? (Number.isFinite(moveHeading) ? (moveHeading + 180) % 360 : undefined),
           rain_radius_mi: Number(p.rain_radius_mi ?? p.precipitation_radius_mi ?? (/hurricane|tropical|cyclone/.test(label) ? 60 : 28)) });
       }
