@@ -556,6 +556,7 @@ function createLayer(api, map) {
         api.waveFrequencySafetyCapCyclesPerWorld = safeWaveFrequency.safetyCapCyclesPerWorld;
         api.waveSamplesPerPeriod = safeWaveFrequency.samplesPerPeriod;
         api.waveFrequencyCappedForMesh = safeWaveFrequency.capped;
+        api.waveGridStepUsedWorld = api.waterGridStepWorld;
         api.detailCyclesPerWorld = detailCyclesPerWorld;
         if (u.u_time) gl.uniform1f(u.u_time, ((now - this.timeOrigin) / 1000) % 4096);
         if (u.u_waveOrigin) gl.uniform2f(u.u_waveOrigin, originX, originY);
@@ -666,7 +667,7 @@ export function initWaterEngine(mapOrWorld, options = {}) {
     wind: { mph: 0, direction: 0 }, stormUniforms: new Float32Array(16), waveDisplacementZoomCap: 15,
     waveFrequencyCyclesPerWorld: null, requestedWaveFrequencyCyclesPerWorld: null,
     waveFrequencySafetyCapCyclesPerWorld: null, waveSamplesPerPeriod: null, waveFrequencyCappedForMesh: false,
-    waterGridStepWorld: null, waterGridColumns: 0, waterGridRows: 0, detailCyclesPerWorld: null, lastMetricsAt: 0,
+    waterGridStepWorld: null, waveGridStepUsedWorld: null, waterGridColumns: 0, waterGridRows: 0, detailCyclesPerWorld: null, lastMetricsAt: 0,
     surfaceDataBytes: 0, flowDataBytes: 0, lastSourceRefreshAt: 0,
     frameDelay() {
       const z = map.getZoom();
@@ -765,7 +766,7 @@ export function initWaterEngine(mapOrWorld, options = {}) {
         waveFrequencySafetyCapCyclesPerWorld: this.waveFrequencySafetyCapCyclesPerWorld,
         waveSamplesPerPeriod: this.waveSamplesPerPeriod,
         waveFrequencyCappedForMesh: this.waveFrequencyCappedForMesh,
-        waterGridStepWorld: this.waterGridStepWorld, waterGridColumns: this.waterGridColumns, waterGridRows: this.waterGridRows,
+        waterGridStepWorld: this.waterGridStepWorld, waveGridStepUsedWorld: this.waveGridStepUsedWorld, waterGridColumns: this.waterGridColumns, waterGridRows: this.waterGridRows,
         detailCyclesPerWorld: this.detailCyclesPerWorld,
         tier: this.low ? 'LOW' : this.mobile ? 'MOBILE' : 'DESKTOP',
         stormSurgeIsModelled: this.stormSurgeIsModelled, floodHeightPolicy: this.floodHeightPolicy,
