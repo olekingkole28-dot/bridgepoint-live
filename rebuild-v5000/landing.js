@@ -294,7 +294,7 @@ function setLandingWeatherEnabled(world,on){
  if(!m)return Promise.resolve(false);
  const enable=async()=>{
   if(!landingWeatherModules){
-   const [wm,pm]=await Promise.all([import('./world-v2300-weather.js?v=6134-first-frame-weather'),import('./world-v2300-present-weather.js?v=6134-legacy-fx-disabled')]);
+   const [wm,pm]=await Promise.all([import('./world-v2300-weather.js?v=6135-cloud-rain-lightning'),import('./world-v2300-present-weather.js?v=6134-legacy-fx-disabled')]);
    landingWeatherModules={weather:wm.initWeather(world.map),present:pm.initPresentWeather(world.map)}
   }
   if(!landingWeatherEnabled)return false;
@@ -425,12 +425,12 @@ async function initMap(){
    .then(m=>{if(world?.map)window.__BP_WATER_ENGINE_LANDING_V6123__=m.initWaterEngine(world,{surface:'landing'})})
    .catch(e=>console.warn('BridgePoint GPU water layer unavailable; native water remains enabled',e));
   // Start persistent global 3D clouds immediately on the homepage globe, before other visual modules.
-  void import('./world-v2300-clouds.js?v=6134-source-satellite-clouds')
+  void import('./world-v2300-clouds.js?v=6135-rain-lightning-cloud-anchors')
    .then(m=>{window.__BP_SKY_CLOUDS_V5908__=m.initSkyClouds(world)})
    .catch(e=>console.warn('BridgePoint global 3D cloud field unavailable',e));
   // Keep source weather feeds live so global-zoom storm-cloud geometry is source-backed; non-cloud visuals stay locked off.
   void Promise.all([
-   import('./world-v2300-weather.js?v=6134-first-frame-weather'),
+   import('./world-v2300-weather.js?v=6135-cloud-rain-lightning'),
    import('./world-v2300-present-weather.js?v=6134-legacy-fx-disabled')
   ]).then(([wm,pm])=>{
    if(!world?.map)return;
