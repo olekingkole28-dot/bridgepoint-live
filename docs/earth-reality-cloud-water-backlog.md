@@ -1,5 +1,11 @@
 # Earth-Scale Water, Clouds, Storms, and Sky Camera Backlog
 
+## 2026-10-24 cloud coverage checkpoint
+
+- [x] Automatic NOAA GOES East/West GeoColor refresh every 10 minutes with image-derived cloud-location probabilities and geographic 3D cloud-volume rebuilding inside its observed footprint.
+- [x] Expose cloud-mask freshness, source, coverage, generation and error diagnostics. A successful new image invalidates the cloud geometry cache and updates shared lightning anchors from the satellite-derived volumes.
+- [ ] Add additional geostationary sources for verified all-planet satellite-derived cloud placement. NOAA GeoColor alone is not a global cloud-mask product, and the RGB-derived cloud likelihood and cloud heights are modeled estimates, not official measured mask/height values.
+
 **Status: OPEN / NOT COMPLETE.** This is a durable owner-requested implementation ledger. Keep it current across coding sessions. Do not mark an item complete because a button, prototype, synthetic shape, or passing source-code check exists; require working data, visual inspection, and production verification.
 
 
