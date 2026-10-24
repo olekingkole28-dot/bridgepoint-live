@@ -112,11 +112,11 @@ test('new rain/lightning and global source markers stay separate from legacy eff
   assert.match(rain, /source_anchor_kind: 'warning'/);
   assert.match(rain, /windFields\(p, c, true\)/);
   assert.match(clouds, /sourceRainAnchors/);
-  assert.match(clouds, /coverageVersion: 6160/);
+  assert.match(clouds, /coverageVersion: 6161/);
   assert.match(clouds, /sourceHeightMatchedCount/);
   assert.match(clouds, /satelliteCloudHeightFeedStatus/);
   assert.match(clouds, /alphaBase\*0\.82/);
-  assert.match(clouds, /version: 6160, map, overlay/);
+  assert.match(clouds, /version: 6161, map, overlay/);
   assert.match(clouds, /bp6150-nasa-geostationary-cloud-context/);
   assert.match(clouds, /bp6150-nasa-geostationary-cloud-source/);
   assert.match(clouds, /GOES-East_ABI_Band13_Clean_Infrared/);
