@@ -1470,6 +1470,7 @@ jobs:
                       Number.isFinite(Number(s.waveFrequencyCyclesPerWorld))&&
                       Number.isFinite(Number(s.detailCyclesPerWorld))&&
                       Number.isFinite(Number(s.waterGridStepWorld))&&Number(s.waterGridStepWorld)>0&&
+                      Number.isFinite(Number(s.waveGridStepUsedWorld))&&Math.abs(Number(s.waterGridStepWorld)-Number(s.waveGridStepUsedWorld))<1e-12&&
                       Number(s.waveSamplesPerPeriod)>=7.99&&
                       Number(s.waveFrequencyCyclesPerWorld)<=Number(s.requestedWaveFrequencyCyclesPerWorld)+0.01&&
                       Number(s.detailCyclesPerWorld)>Number(s.waveFrequencyCyclesPerWorld)&&
