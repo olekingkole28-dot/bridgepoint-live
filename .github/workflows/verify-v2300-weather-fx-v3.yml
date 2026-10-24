@@ -55,6 +55,8 @@ jobs:
           <script type="module">
             import {initWorld} from './world-v2300-map.js';
             import {initWeather} from './world-v2300-weather.js';
+            // Keep this isolated weather fixture deterministic; the production-map gate tests live feed behavior separately.
+            window.__BP_TEST_DISABLE_ARCHIVED_JOSEPHINE_FALLBACK__=true;
             const world=initWorld();
             window.__bpWorldV2300=world;
             // The weather gate is intentionally deterministic: production-map behavior is
