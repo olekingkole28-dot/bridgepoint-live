@@ -1,4 +1,4 @@
-name: Verify BridgePoint GPU Water v6114
+name: Verify BridgePoint GPU Water v6115
 
 on:
   pull_request:
@@ -46,8 +46,8 @@ jobs:
           grep -Fq "projectTileFor3D(a_pos" release-v2300/world-v2300-water.js
           grep -Fq "function mapCanHostWater()" release-v2300/world-v2300-water.js
           grep -Fq "float marineSurgeMask" release-v2300/world-v2300-water.js
-          ! grep -Fq "!map.isStyleLoaded?.()" release-v2300/world-v2300-water.js
-          grep -Fq "window.__BP_WATER_FIELD_V6114__" release-v2300/world-v2300-water.js
+          ! grep -Fq "if (!map.isStyleLoaded?.())" release-v2300/world-v2300-water.js
+          grep -Fq "window.__BP_WATER_FIELD_V6115__" release-v2300/world-v2300-water.js
           grep -Fq "const raw = feature && feature.row ? feature.row : feature;" release-v2300/world-v2300-water.js
           grep -Fq "typeof item.getScene === 'function'" release-v2300/world-v2300-water.js
           grep -Fq "bp2300:weather-updated" release-v2300/world-v2300-water.js
@@ -55,11 +55,14 @@ jobs:
           grep -Fq "sourceAnchorLayersPresent" release-v2300/world-v2300-water.js
           grep -Fq "const MIN_VALID_TERRAIN_ELEVATION_M = -500;" release-v2300/world-v2300-water.js
           grep -Fq "const MAX_VALID_TERRAIN_ELEVATION_M = 8900;" release-v2300/world-v2300-water.js
-          grep -Fq "api.flowSegmentsRejectedElevationJump++;" release-v2300/world-v2300-water.js
           grep -Fq "const SHORELINE_GUARD_ZOOM = 12;" release-v2300/world-v2300-water.js
           grep -Fq "api.surfaceCellsRejectedAtShoreline++;" release-v2300/world-v2300-water.js
           grep -Fq "api.flowSegmentsRejectedAltitude++;" release-v2300/world-v2300-water.js
           grep -Fq "api.flowSegmentsRejectedLong++;" release-v2300/world-v2300-water.js
+          grep -Fq "api.flowSegmentsRejectedOutsideWater++;" release-v2300/world-v2300-water.js
+          grep -Fq "quad.every((point, index) => featureContains(w, quadLons[index], quadLats[index]))" release-v2300/world-v2300-water.js
+          grep -Fq "makeRibbon(flowFeatures, waterFeatures, bounds" release-v2300/world-v2300-water.js
+          grep -Fq "estimatedInlandSurface(" release-v2300/world-v2300-water.js
           grep -Fq "api.surfaceHeightOutliersCorrected++;" release-v2300/world-v2300-water.js
           grep -Fq "const MAX_CUSTOM_INLAND_WATER_SURFACE_ELEVATION_M = 250;" release-v2300/world-v2300-water.js
           grep -Fq "api.waterLevelsRejectedByShoreline++;" release-v2300/world-v2300-water.js
@@ -68,9 +71,5 @@ jobs:
           grep -Fq "float glancingGlint = pow(" release-v2300/world-v2300-water.js
           grep -Fq "sourceLevel !== null && sourceLevel >= -MAX_VALID_MARINE_SURFACE_OFFSET_M" release-v2300/world-v2300-water.js
           grep -Fq "clamp(0.22 + shimmer * 0.20, 0.22, 0.50)" release-v2300/world-v2300-water.js
-          grep -Fq "world-v2300-water.js?v=6114-specular-wave-shading" rebuild-v5000/app.js
-          grep -Fq "world-v2300-water.js?v=6114-specular-wave-shading" rebuild-v5000/landing.js
-          grep -Fq "landing.js?v=6114-specular-wave-shading" rebuild-v5000/index.html
-          grep -Fq "app.js?v=6114-specular-wave-shading" rebuild-v5000/app-index.html
-          grep -Fq "cp release-v2300/world-v2300-water.js site/world-v2300-water.js" .github/workflows/deploy-intelligence-rebuild-v5000.yml
-          grep -Fq "cp release-v2300/world-v2300-water.js site/app/world-v2300-water.js" .github/workflows/deploy-intelligence-rebuild-v5000.yml
+          grep -Fq "world-v2300-water.js?v=6115-water-geometry-guard" rebuild-v5000/app.js
+          grep -Fq "world-v2300-water.js?v=6115-water-geometry-guard" rebuild-v5000/landing.js

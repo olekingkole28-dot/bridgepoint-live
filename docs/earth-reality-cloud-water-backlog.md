@@ -2,6 +2,14 @@
 
 **Status: OPEN / NOT COMPLETE.** This is a durable owner-requested implementation ledger. Keep it current across coding sessions. Do not mark an item complete because a button, prototype, synthetic shape, or passing source-code check exists; require working data, visual inspection, and production verification.
 
+
+### Water engine v6115 source-polygon ribbon guard (visual verification still required)
+
+The animated river-ribbon path now rejects any quad unless all four corners fit inside the same real source-water polygon. A waterway centerline by itself is no longer enough to draw a 3D surface over land. Accepted ribbons use one stable polygon-level water elevation rather than independently sampled terrain heights at each endpoint, preventing one bad DEM sample from tilting a ribbon into a blue wall or sky spike. Rejected ribbons leave the native map waterway in place and increment `flowSegmentsRejectedOutsideWater` for diagnosis. A bounded scan budget prevents the new geometry check from running unbounded on large source tiles.
+
+**This is a targeted artifact-containment fix, not a claim of AAA completion.** Verify the exact deployed bundle, globe-wide oceans, river/lake/pond/canal coverage, shoreline seams, oblique close zoom, wave motion, storms, and both desktop and mobile before marking it accepted. If spikes remain after v6115, inspect the live diagnostics to identify whether they come from custom water cells, native basemap features, or a separate weather/elevation layer; do not keep retuning the material shader blindly.
+
+
 ### Water engine v6114 water shading and continuity pass (visual verification pending)
 
 The renderer now uses viewport-filtered source geometry, allows real water polygons to render while optional land-mask tiles are delayed, estimates one level surface per inland polygon when explicit compatible water-level observations are absent, limits gauge influence to nearby water, renders only source-reported flood-depth polygons as a distinct inundation material, and uses zoom-adaptive world-anchored wave shading within a bounded vertex budget. The v6111 pass adds physical elevation bounds, rejects implausible vertical jumps in additive river ribbons, corrects isolated mesh-corner outliers, restricts marine surfaces to near-mean-sea-level elevations, and strengthens the ocean shimmer at globe scale. These are defensive rendering controls—not a declaration that global/coastal/street-level water is complete. The v6112 pass adds a close-zoom source-corner shoreline guard and rejects long, implausibly elevated or steep additive river ribbons; native map water and waterways remain the fallback when a custom cell/segment is rejected. This is targeted artifact containment, not visual acceptance. Bathymetry, authoritative currents, tide/stage fields and flood products remain source-dependent; keep the ledger open until visual and runtime verification succeeds.
