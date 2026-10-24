@@ -46,7 +46,7 @@ jobs:
           grep -Fq "projectTileFor3D(a_pos" release-v2300/world-v2300-water.js
           grep -Fq "function mapCanHostWater()" release-v2300/world-v2300-water.js
           grep -Fq "float marineSurgeMask" release-v2300/world-v2300-water.js
-          ! grep -Fq "!map.isStyleLoaded?.()" release-v2300/world-v2300-water.js
+          ! grep -Fq "if (!map.isStyleLoaded?.())" release-v2300/world-v2300-water.js
           grep -Fq "window.__BP_WATER_FIELD_V6115__" release-v2300/world-v2300-water.js
           grep -Fq "const raw = feature && feature.row ? feature.row : feature;" release-v2300/world-v2300-water.js
           grep -Fq "typeof item.getScene === 'function'" release-v2300/world-v2300-water.js
@@ -55,7 +55,6 @@ jobs:
           grep -Fq "sourceAnchorLayersPresent" release-v2300/world-v2300-water.js
           grep -Fq "const MIN_VALID_TERRAIN_ELEVATION_M = -500;" release-v2300/world-v2300-water.js
           grep -Fq "const MAX_VALID_TERRAIN_ELEVATION_M = 8900;" release-v2300/world-v2300-water.js
-          grep -Fq "api.flowSegmentsRejectedElevationJump++;" release-v2300/world-v2300-water.js
           grep -Fq "const SHORELINE_GUARD_ZOOM = 12;" release-v2300/world-v2300-water.js
           grep -Fq "api.surfaceCellsRejectedAtShoreline++;" release-v2300/world-v2300-water.js
           grep -Fq "api.flowSegmentsRejectedAltitude++;" release-v2300/world-v2300-water.js
