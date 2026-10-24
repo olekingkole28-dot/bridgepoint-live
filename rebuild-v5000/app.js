@@ -142,6 +142,7 @@ async function bootMap(){
  const started=performance.now();
  while(!world?.map&&performance.now()-started<10000)await new Promise(r=>setTimeout(r,40));
  if(!world?.map)throw new Error('Map object readiness timeout');
+ startLiveWeather();
   // The water engine shares this map's WebGL context and uses the live hydrology/weather scene.
   void import('./world-v2300-water.js?v=6124-solar-ocean-swell').then(m=>{if(world?.map)window.__BP_WATER_ENGINE_APP_V6123__=m.initWaterEngine(world,{surface:'app'})}).catch(e=>console.warn('BridgePoint GPU water layer unavailable; native water remains enabled',e));
   void import('./world-v2300-lod-controls.js?v=6038-world-lod-range-apply').then(m=>{window.__BP_LOD_CONTROL_APP_V6016__=m.initWorldLodControls(world,{surface:'app'})}).catch(e=>console.warn('BridgePoint LOD controls unavailable',e));
@@ -1427,7 +1428,7 @@ async function start(){
   startupInteractiveUntil=Math.max(startupInteractiveUntil,performance.now()+(BP_MOBILE?3200:1000));
   window.__BP_INTERACTION_PRIORITY_UNTIL__=startupInteractiveUntil;
   bindPerformanceGovernor();bindParcelClicks();bindMapEngagement();bindMeasureTool();
-  startLiveWeather();startRuntimeTransport();startOpportunityBuildings();startPublicListings();
+  startRuntimeTransport();startOpportunityBuildings();startPublicListings();
   void authReady.then(()=>{if(authSession?.access_token)void loadWorkspace()}).catch(()=>{});
   setTimeout(()=>void loadPackageCatalog(),BP_MOBILE?1800:260);
   setTimeout(()=>void loadStatus(),BP_MOBILE?2200:380);
