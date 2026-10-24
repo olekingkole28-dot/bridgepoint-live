@@ -753,7 +753,7 @@ function ensureLiveSatelliteCloudContextV6150(map){
      cloudHeightSource:'Cloud bases, tops and morphology are modeled estimates; imagery does not provide measured per-cloud heights',lastError:null};
     window.__BP_SATELLITE_CLOUD_MASK_V6150__=mask;window.__BP_SATELLITE_CLOUD_MASK_V6140__=mask;
     state.maskStatus='fresh';state.maskLastSuccessAt=mask.updatedAt;state.maskGeneration=mask.generation;state.maskCoverageCells=coverageCells;
-    state.maskCloudCells=cloudCells;state.maskCoverageFraction=mask.coverageFraction;state.maskSourceDiagnostics=sourceDiagnostics;state.maskProviderCount=mask.providerCount;state.maskWarnings=failures;
+    state.maskCloudCells=cloudCells;state.maskCoverageFraction=mask.coverageFraction;state.maskSourceEpoch=mask.sourceEpoch;state.maskSourceUpdatedAt=mask.updatedAt;state.maskGeneration=mask.generation;state.maskSourceDiagnostics=sourceDiagnostics;state.maskProviderCount=mask.providerCount;state.maskWarnings=failures;
     try{window.dispatchEvent(new CustomEvent('bp2300:satellite-cloud-mask-updated',{detail:{map,generation:mask.generation,coverageCells,cloudCells,coverageFraction:mask.coverageFraction,providers:mask.providerCount,updatedAt:mask.updatedAt}}))}catch(_){}
     map.triggerRepaint?.();return true;
    }catch(error){state.maskStatus=Number(window.__BP_SATELLITE_CLOUD_MASK_V6150__?.version)>=6150?'stale':'unavailable';state.maskLastError=String(error?.message||error).slice(0,320);return false}
