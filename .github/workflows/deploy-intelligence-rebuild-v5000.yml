@@ -929,6 +929,14 @@ jobs:
           grep -Fq 'WMO SWIC' site/intelligence-global-v5507.js
           grep -Fq 'Bright hazard icons, outlines and translucent fills share the same category color at globe zoom' site/app.js
           grep -Fq 'bp-v5004-weather-shape-line' site/app.js
+          grep -Fq 'Most_Recent_MERGEDGC/ImageServer/exportImage' site/world-v2300-clouds.js
+          grep -Fq 'bp6133-noaa-geocolor-cloud-context' site/world-v2300-clouds.js
+          grep -Fq 'rainAnchorObservations.slice(0, overviewClouds ? (MOBILE ? 2 : 4)' site/world-v2300-clouds.js
+          grep -Fq '0,1.28,1.5,1.24,3,1.18' site/app.js
+          grep -Fq '0,1.28,1.5,1.24,3,1.18' site/landing.js
+          grep -Fq '0,.26,2,.28,4,.30' site/app.js
+          grep -Fq '0,.26,2,.28,4,.30' site/landing.js
+          grep -Fq '0,.50,1.5,.48,3,.40,4.5,.25,6,.15,7,.09,8,.035,8.5,0' site/intelligence-global-v5507.js
           test -s site/sample/storm-opportunity/index.html
           test -s site/assets/bp-city-world-background.webp
           test -s site/assets/molly-materson-bridgepoint.webp
