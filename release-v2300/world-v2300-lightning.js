@@ -88,6 +88,8 @@ function svgPath(svg,d,attrs={}){
 }
 export function initLightningLayer(map,getScene=()=>({})){
   if(!map||typeof map.project!=='function')return null;
+  const existing=window.__BP_LIGHTNING_RENDERER_V6130__;
+  if(existing?.map===map&&typeof existing.setScene==='function')return existing;
   const container=map.getContainer?.();if(!container)return null;
   const overlay=document.createElementNS('http://www.w3.org/2000/svg','svg');
   overlay.setAttribute('aria-hidden','true');
