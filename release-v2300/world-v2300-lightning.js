@@ -192,7 +192,11 @@ export function initLightningLayer(map,getScene=()=>({})){
     clearTimeout(timeout);if(!enabled||disposed||document.hidden)return;
     const anchors=projectedAnchors();
     if(!anchors.length){timeout=setTimeout(schedule,4200);return}
-    const gap=4800+Math.random()*5700;
+    const hasObservedLightning=anchors.some(a=>a.kind==='lightning');
+    const hasSevereAnchor=anchors.some(a=>a.kind==='probsevere'||a.kind==='warning'||a.kind==='storm');
+    // Start a source-anchored flash promptly after the real storm/lightning feed arrives.
+    // Do not emit anything unless projected source-backed convective anchors exist.
+    const gap=hasObservedLightning?(innerWidth<=760?850+Math.random()*1550:900+Math.random()*1800):hasSevereAnchor?(innerWidth<=760?1500+Math.random()*2200:1800+Math.random()*2500):(innerWidth<=760?2600+Math.random()*2200:3000+Math.random()*2600);
     timeout=setTimeout(()=>{
       if(!enabled||disposed||document.hidden){schedule();return}
       const current=projectedAnchors();
