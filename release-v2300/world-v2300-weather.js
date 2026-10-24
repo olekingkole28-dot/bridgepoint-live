@@ -82,12 +82,12 @@ function baseLayers(map){
 }
 
 
-const LEGACY_NATIVE_WEATHER_LAYERS=['wx-snow-depth'];
+const LEGACY_NATIVE_WEATHER_LAYERS=['wx-snow-depth','wx-alert-fill','wx-fire-fill','wx-thermal','wx-quake-glow','wx-storm-glow'];
 function hideLegacyNativeWeatherLayers(map){
  for(const id of LEGACY_NATIVE_WEATHER_LAYERS)try{if(map.getLayer(id))map.setLayoutProperty(id,'visibility','none')}catch(_){}
 }
 const CLOUDS_ONLY_PHASE=()=>window.__BP_CLOUDS_ONLY_PHASE_V6070__===true;
-const CLOUD_PHASE_HIDDEN_LAYERS=['bp-radar-a','bp-radar-b','bp5510-global-imerg','wx-snow-depth','wx-radar-haze','wx-radar','bp2300-weather-fx-gpu','bp2300-rain-world-volume-v6068','bp2300-fx-flood-fill','bp2300-fx-flood-line','bp2300-fx-ice-fill','bp2300-fx-ice-line','bp2300-fx-burn','bp2300-fx-containment','bp2300-fx-tornado','bp2300-fx-hurricane','bp2300-fx-flood-depth-volume','bp2300-fx-snow-depth-volume','bp2300-fx-wet-ground','bp2300-fx-lava-glow','bp2300-fx-lava-flow','bp-landing-radar-a','bp-landing-radar-b'];
+const CLOUD_PHASE_HIDDEN_LAYERS=['bp-radar-a','bp-radar-b','bp5510-global-imerg','wx-snow-depth','wx-alert-fill','wx-fire-fill','wx-thermal','wx-quake-glow','wx-storm-glow','wx-radar-haze','wx-radar','bp2300-weather-fx-gpu','bp2300-rain-world-volume-v6068','bp2300-fx-flood-fill','bp2300-fx-flood-line','bp2300-fx-ice-fill','bp2300-fx-ice-line','bp2300-fx-burn','bp2300-fx-containment','bp2300-fx-tornado','bp2300-fx-hurricane','bp2300-fx-flood-depth-volume','bp2300-fx-snow-depth-volume','bp2300-fx-wet-ground','bp2300-fx-lava-glow','bp2300-fx-lava-flow','bp-landing-radar-a','bp-landing-radar-b'];
 function hideCloudPhaseVisuals(map){
  if(!CLOUDS_ONLY_PHASE()||!map)return;
  let hidden=0;
@@ -471,7 +471,7 @@ function mergeCycloneCenters(primary=[],supplemental=[]){
   window.__BP_PUBLIC_CYCLONE_CENTER_FALLBACK__={version:6093,edgeAvailable:!edgeError,edgeError:edgeError?String(edgeError.message||edgeError).slice(0,100):null,publicFresh:publicCyclones.fresh,publicStormCount:publicCyclones.storms.length,publicTornadoPointCount:(publicCyclones.tornadoes||[]).length,mergedStormCount:mergedStorms.length,stormNames:mergedStorms.map(x=>x.name).slice(0,8),stormTrackFeatureCount,trackLayerPresent:!!map.getLayer('bp2300-storm-track-forecast-v6093'),josephine:(()=>{const j=mergedStorms.find(x=>/josephine/i.test(String(x.name||x.event||'')));return j?{name:j.name||j.event,lng:j.lng??j.longitude,lat:j.lat??j.latitude,officialForecast:j.is_official_forecast===true,centerSource:j.center_source||null,forecastValidAt:j.forecast_valid_at||null,sourceIssuedAt:j.source_issued_at||null,classification:j.official_classification||j.classification||null,source:j.source||null}:null})(),updatedAt:Date.now()};
   window.dispatchEvent(new CustomEvent('bp2300:weather-updated',{detail:{generated_at:eventTime,sources:scene.sources,counts:{alerts:scene.alerts.length,fires:scene.fires.length,quakes:scene.earthquakes.length,storms:scene.storms.length,thermal:scene.thermal.length,observations:scene.observations.length,lightning:scene.lightning.length,burnScars:scene.burn_scars.length},fx:fx.state}}));
  }
- function keepWeatherReferenceLinesOnTop(){for(const id of ['wx-alert-fill','wx-alert-line','wx-fire-fill','wx-fire-line','wx-thermal','wx-quake-glow','wx-quake','wx-storm-glow','wx-storm','wx-obs','wx-water','gta-coast-shadow','gta-coast-edge','gta-country','gta-state','bp-v5004-weather-shape-fill','bp-v5004-weather-shape-line','bp-v5004-weather-point-glow','bp-v5004-weather-points','bp-landing-weather-line','bp-landing-weather-points','bp2300-storm-track-history-outline-v6093','bp2300-storm-track-history-v6093','bp2300-storm-track-forecast-outline-v6093','bp2300-storm-track-forecast-v6093','bp2300-storm-track-projection-outline-v6093','bp2300-storm-track-projection-v6093'])try{if(map.getLayer(id))map.moveLayer(id)}catch(_){}}
+ function keepWeatherReferenceLinesOnTop(){for(const id of ['wx-alert-line','wx-fire-line','wx-quake','wx-storm','wx-obs','wx-water','gta-coast-shadow','gta-coast-edge','gta-country','gta-state','bp-v5004-weather-shape-fill','bp-v5004-weather-shape-line','bp-v5004-weather-point-glow','bp-v5004-weather-points','bp-landing-weather-line','bp-landing-weather-points','bp2300-storm-track-history-outline-v6093','bp2300-storm-track-history-v6093','bp2300-storm-track-forecast-outline-v6093','bp2300-storm-track-forecast-v6093','bp2300-storm-track-projection-outline-v6093','bp2300-storm-track-projection-v6093'])try{if(map.getLayer(id))map.moveLayer(id)}catch(_){}}
  function stopRadarMotion(){if(radarMotionTimer){clearInterval(radarMotionTimer);radarMotionTimer=0}}
  function startRadarMotion(){stopRadarMotion();if(!radar||document.hidden)return;try{if(map.getLayer('wx-radar')){map.setPaintProperty('wx-radar','raster-opacity',LOW?.54:.70);map.setPaintProperty('wx-radar','raster-brightness-max',1)}if(map.getLayer('wx-radar-haze'))map.setPaintProperty('wx-radar-haze','raster-opacity',LOW?.14:.18);keepWeatherReferenceLinesOnTop();window.__BP_RADAR_RENDER_V5822__={version:5822,stableGroundDrape:true,below3D:true,sourceMaxZoom:14,animatedPaint:false,maxDisplayZoom:24,updatedAt:Date.now()}}catch(_){}}
  function setRadar(v){radar=CLOUDS_ONLY_PHASE()?false:!!v;for(const id of ['wx-radar-haze','wx-radar'])try{map.setLayoutProperty(id,'visibility',radar?'visible':'none')}catch(_){}if(radar)startRadarMotion();else stopRadarMotion();keepWeatherReferenceLinesOnTop();document.querySelector('[data-layer="radar"]')?.classList.toggle('active',radar)}
@@ -482,7 +482,7 @@ function mergeCycloneCenters(primary=[],supplemental=[]){
   fx.setEnabled(false);
   rain.setEnabled(active);
   lightning?.setEnabled?.(active);
-  for(const id of ['wx-alert-fill','wx-alert-line','wx-fire-fill','wx-fire-line','wx-thermal','wx-quake-glow','wx-quake','wx-storm-glow','wx-storm','wx-obs','wx-water'])try{if(map.getLayer(id))map.setLayoutProperty(id,'visibility',active?'visible':'none')}catch(_){}
+  for(const id of ['wx-alert-line','wx-fire-line','wx-quake','wx-storm','wx-obs','wx-water'])try{if(map.getLayer(id))map.setLayoutProperty(id,'visibility',active?'visible':'none')}catch(_){}
   const signalsButton=document.querySelector('[data-layer="signals"]');if(signalsButton){signalsButton.classList.toggle('active',active);signalsButton.setAttribute('aria-pressed',String(active))}
   if(CLOUDS_ONLY_PHASE())hideCloudPhaseVisuals(map);
   if(active)refresh(true);
