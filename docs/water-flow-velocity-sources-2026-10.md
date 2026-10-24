@@ -35,7 +35,7 @@ Copernicus GloFAS provides modeled river discharge over broad geographic coverag
 For global ocean-current vectors, evaluate NOAA's Real-Time Ocean Forecast System (RTOFS). For more detailed regional coastal and estuary currents, NOAA Operational Forecast Systems expose velocity variables in supported domains. Regrid vectors into a compact, time-stamped raster/texture and sample them in the shader; keep current direction/speed distinct from wave direction/height.
 
 - NOAA RTOFS current forecast: https://ocean.weather.gov/Current_fcasts.php
-- NOAA Operational Forecast System data aggregation: https://opendap.co-ops.noaa.gov/ofsdataagg/index.html
+- NOAA Operational Forecast System data aggregation: https://opendap.co-ops.nos.noaa.gov/ofsdataagg/index.html
 
 ## Current implementation boundary
 
