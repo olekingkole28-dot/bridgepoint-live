@@ -9,6 +9,13 @@ on:
       - 'release-v2300/world-v2300-rain.js'
       - '.github/workflows/verify-v2300-weather-fx-v2.yml'
 
+  pull_request:
+    branches: [main]
+    paths:
+      - 'release-v2300/world-v2300-weather.js'
+      - 'release-v2300/world-v2300-rain.js'
+      - '.github/workflows/verify-v2300-weather-fx-v2.yml'
+
 permissions:
   contents: read
 
