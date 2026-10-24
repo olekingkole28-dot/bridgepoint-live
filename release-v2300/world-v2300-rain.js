@@ -742,7 +742,7 @@ export function initRainLayer(map, getScene = () => ({})) {
       projectionMode: 'geographic-map-project', projectionUniformsBound: false, rainCellCount: cells.length,
       particleSeeds: drops.length, renderedStreaks, activeVertices: vertexCount,
       anchorFingerprint: drops.slice(0, 8).map(d => `${d.lng.toFixed(5)},${d.lat.toFixed(5)},${d.baseAglM.toFixed(0)}`).join('|'),
-      puddleCount, rainContextCount, rainContextLayerAttached: !!map.getLayer?.(RAIN_CELL_CONTEXT_CORE), rendererError, droppedFrames, lastRenderAt, lastGroundUpdate, worldAnchored: true, globalRainLod: true }; } };
+      puddleCount, rainContextCount, rainContextSourceAttached: !!map.getSource?.(RAIN_CELL_CONTEXT_SOURCE), rainContextLayerAttached: !!map.getLayer?.(RAIN_CELL_CONTEXT_CORE), rendererError, droppedFrames, lastRenderAt, lastGroundUpdate, worldAnchored: true, globalRainLod: true }; } };
   map.__bpRainRendererV6068 = api;
   window.__BP_RAIN_RENDERER_V6068__ = api;
   refreshScene(getScene?.() || {});
