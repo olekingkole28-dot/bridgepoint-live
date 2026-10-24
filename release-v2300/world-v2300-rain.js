@@ -1,4 +1,4 @@
-const VERSION = 6130;
+const VERSION = 6131;
 const CLOUDS_ONLY_PHASE = () => window.__BP_CLOUDS_ONLY_PHASE_V6070__ === true;
 const LAYER_ID = 'bp2300-rain-world-volume-v6068';
 const GROUND_SOURCE = 'bp2300-rain-ground-source-v6068';
