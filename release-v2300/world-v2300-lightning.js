@@ -50,7 +50,7 @@ function pickLightningAnchors(scene){
   for(const row of (Array.isArray(scene?.lightning)?scene.lightning:[]).slice(0,100))add(row,'lightning',1.25);
   for(const row of (Array.isArray(scene?.alerts)?scene.alerts:[]).slice(0,300)){
     const t=textOf(row);
-    if(/prob.?severe|severe thunderstorm|thunderstorm|lightning|convective|tornado|hail|squall|\\bsv\\b/.test(t))add(row,/prob.?severe/.test(t)?'probsevere':'warning',1.15);
+    if(/prob.?severe|severe thunderstorm|thunderstorm|lightning|convective|tornado|hail|squall|\bsv\b/.test(t))add(row,/prob.?severe/.test(t)?'probsevere':'warning',1.15);
   }
   for(const row of (Array.isArray(scene?.storms)?scene.storms:[]).slice(0,80)){
     const t=textOf(row);
