@@ -296,7 +296,7 @@ function setLandingWeatherEnabled(world,on){
    const attachSourceOnly=async()=>{
     if(!landingWeatherModules){
      const [wm,pm]=await Promise.all([
-      import('./world-v2300-weather.js?v=6131-close-zoom-rain-density'),
+      import('./world-v2300-weather.js?v=6134-first-frame-weather'),
       import('./world-v2300-present-weather.js?v=6070-clouds-only-phase')
      ]);
      landingWeatherModules={weather:wm.initWeather(world.map),present:pm.initPresentWeather(world.map)};
@@ -318,7 +318,7 @@ function setLandingWeatherEnabled(world,on){
  if(!m)return Promise.resolve(false);
  const enable=async()=>{
   if(!landingWeatherModules){
-   const [wm,pm]=await Promise.all([import('./world-v2300-weather.js?v=6131-close-zoom-rain-density'),import('./world-v2300-present-weather.js?v=6070-clouds-only-phase')]);
+   const [wm,pm]=await Promise.all([import('./world-v2300-weather.js?v=6134-first-frame-weather'),import('./world-v2300-present-weather.js?v=6070-clouds-only-phase')]);
    landingWeatherModules={weather:wm.initWeather(world.map),present:pm.initPresentWeather(world.map)}
   }
   if(!landingWeatherEnabled)return false;
@@ -453,7 +453,7 @@ async function initMap(){
    .catch(e=>console.warn('BridgePoint global 3D cloud field unavailable',e));
   // Keep source weather feeds live so global-zoom storm-cloud geometry is source-backed; non-cloud visuals stay locked off.
   void Promise.all([
-   import('./world-v2300-weather.js?v=6131-close-zoom-rain-density'),
+   import('./world-v2300-weather.js?v=6134-first-frame-weather'),
    import('./world-v2300-present-weather.js?v=6070-clouds-only-phase')
   ]).then(([wm,pm])=>{
    if(!world?.map)return;
