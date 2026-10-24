@@ -71,7 +71,7 @@ function ensureLandingGroundRadarDrapeV6132(map){
  const before=['gta-landmark3d-base','gta-bridge3d-pier','gta-context-building-shadow','gta-context-buildings','gta-place-label'].find(id=>map.getLayer(id));
  try{
   if(!map.getSource(sourceId))map.addSource(sourceId,{type:'raster',tiles:[landingGroundRadarTileUrlV6132(frame())],tileSize:256,minzoom:0,maxzoom:14,attribution:'NOAA/NWS radar reflectivity'});
-  if(!map.getLayer(layerId))map.addLayer({id:layerId,type:'raster',source:sourceId,minzoom:0,maxzoom:24,paint:{'raster-opacity':['interpolate',['linear'],['zoom'],0,.34,1.5,.38,3,.44,5,.53,8,.60,12,.64,18,.64],'raster-saturation':.28,'raster-contrast':.18,'raster-fade-duration':0,'raster-resampling':'linear'}},before);
+  if(!map.getLayer(layerId))map.addLayer({id:layerId,type:'raster',source:sourceId,minzoom:0,maxzoom:24,paint:{'raster-opacity':['interpolate',['linear'],['zoom'],0,.50,1.5,.50,3,.53,5,.59,8,.63,12,.66,18,.66],'raster-saturation':.55,'raster-contrast':.32,'raster-fade-duration':0,'raster-resampling':'linear'}},before);
   try{if((map.getLayoutProperty(layerId,'visibility')||'visible')!=='visible')map.setLayoutProperty(layerId,'visibility','visible')}catch(_){}
   let state=window.__BP_LANDING_GROUND_RADAR_DRAPE_V6132__;
   if(!state||state.map!==map){
