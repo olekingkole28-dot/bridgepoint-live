@@ -689,9 +689,16 @@ jobs:
           grep -Fq 'bp2300-storm-track-forecast-v6093' site/world-v2300-weather.js
           grep -Fq 'world-v2300-weather.js?v=6131-close-zoom-rain-density' site/landing.js
           grep -Fq 'world-v2300-weather.js?v=6131-close-zoom-rain-density' site/app.js
+          grep -Fq 'BP_WEATHER_ICON_CATALOG_V6132' site/app.js
+          grep -Fq 'bp-v6132-weather-icons' site/app.js
+          grep -Fq 'bp-v6132-ground-radar' site/app.js
+          grep -Fq 'initialFetchRequested:true' site/app.js
+          grep -Fq 'BP_LANDING_WEATHER_ICON_CATALOG_V6132' site/landing.js
+          grep -Fq 'bp-landing-v6132-weather-icons' site/landing.js
+          grep -Fq 'bp-landing-v6132-ground-radar' site/landing.js
           grep -Fq 'sourceDataReady:true,cloudsOnlyPhase:true' site/landing.js
           grep -Fq 'if(window.__BP_CLOUDS_ONLY_PHASE_V6070__===true && m)' site/landing.js
-          grep -Fq 'landing.js?v=6131-close-zoom-rain-density-markers' site/index.html
+          grep -Fq 'landing.js?v=6132-global-weather-icons-ground-radar' site/index.html
           grep -Fq 'async function toggleNasaNightlights()' site/world-v2300-time-slider.js
           grep -Fq 'async function toggleSkyClouds()' site/world-v2300-time-slider.js
           grep -Fq 'data-skyview' site/world-v2300-time-slider.js
@@ -893,7 +900,7 @@ jobs:
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/app.js
           grep -Fq 'activateLiveWeather();' site/app.js
           grep -Fq 'enabled:true,serializedWeather:true' site/app.js
-          grep -Fq 'app.js?v=6131-close-zoom-rain-density-markers' site/app/index.html
+          grep -Fq 'app.js?v=6132-global-weather-icons-ground-radar' site/app/index.html
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/landing.js
           grep -Fq 'WMO_CAP_WARNING' site/app.js
           grep -Fq 'WMO_CAP_WARNING' site/landing.js
@@ -1116,8 +1123,8 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=6131-close-zoom-rain-density-markers' site/app/index.html
-          grep -Fq 'landing.js?v=6131-close-zoom-rain-density-markers' site/index.html
+          grep -Fq 'app.js?v=6132-global-weather-icons-ground-radar' site/app/index.html
+          grep -Fq 'landing.js?v=6132-global-weather-icons-ground-radar' site/index.html
            grep -Fq 'world-v2300-map.js?v=6125-manual-globe-camera' site/app.js
            grep -Fq 'world-v2300-map.js?v=6125-manual-globe-camera' site/landing.js
            grep -Fq 'world-v2300-map.js?v=6125-manual-globe-camera' site/index.html
@@ -1995,19 +2002,22 @@ jobs:
               await new Promise(r=>setTimeout(r,7000));
               const usWeather=await p.evaluate(()=>{
                 const m=window.__BP_LANDING_WORLD__?.map,r=window.__BP_CINEMATIC_WEATHER_RUNTIME__||{},diag=window.__BP_WEATHER_GL_HEALTH_V6057__||{};
-                const legacy=['bp-landing-weather-fill','bp-landing-weather-line','bp-landing-weather-points','bp-landing-weather-glow','bp-landing-weather-hit','bp-landing-radar-a','bp-landing-radar-b'];
+                const legacy=['bp-landing-radar-a','bp-landing-radar-b'];
                 return{
                   version:r.version||0,renderer:r.renderer||'',enabled:r.enabled===true,effectsEnabled:r.effectsEnabled===true,cloudsOnlyPhase:r.cloudsOnlyPhase===true,layerAttached:r.layerAttached===true,shaderReady:r.shaderReady===true,
                   particles:Number(r.particleCount)||0,canvasCount:document.querySelectorAll('#previewMap canvas').length,
                   contextLosses:Number(diag.contextLosses)||0,contextRestores:Number(diag.contextRestores)||0,
                   legacyLayersVisible:legacy.some(id=>m?.getLayer(id)&&((m.getLayoutProperty(id,'visibility')||'visible')!=='none')),
+                  sourceWeatherVisible:['bp-landing-weather-fill','bp-landing-weather-line','bp-landing-weather-points','bp-landing-v6132-weather-icons'].every(id=>!!m?.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none'),
+                  sourceWeatherState:window.__BP_LANDING_LIVE_WEATHER__||null,
+                  groundRadarVisible:!!m?.getLayer('bp-landing-v6132-ground-radar')&&(m.getLayoutProperty('bp-landing-v6132-ground-radar','visibility')||'visible')!=='none'&&window.__BP_LANDING_GROUND_RADAR_DRAPE_V6132__?.placedBelowBuildings===true,
                   rendererLegacyLayersHidden:r.legacyOverlaysHidden===true,
                   weatherLegend:!!document.getElementById('landingWeatherLegend'),
                   weatherMore:!!document.getElementById('landingWeatherToggle'),
                   count:document.getElementById('landingWeatherCount')?.textContent||''
                 }
               });
-              if(usWeather.version!==6057||usWeather.renderer!=='isolated-webgl-particle-layer'||!usWeather.enabled||usWeather.effectsEnabled||!usWeather.cloudsOnlyPhase||!usWeather.layerAttached||usWeather.canvasCount!==1||usWeather.contextLosses>0||usWeather.legacyLayersVisible||!usWeather.rendererLegacyLayersHidden||!usWeather.weatherLegend||!usWeather.weatherMore)throw new Error('CINEMATIC_WEATHER_ON_GLOBE_REGRESSION '+JSON.stringify(usWeather));
+              if(usWeather.version!==6057||usWeather.renderer!=='isolated-webgl-particle-layer'||!usWeather.enabled||usWeather.effectsEnabled||!usWeather.cloudsOnlyPhase||!usWeather.layerAttached||usWeather.canvasCount!==1||usWeather.contextLosses>0||usWeather.legacyLayersVisible||!usWeather.sourceWeatherVisible||!usWeather.groundRadarVisible||!usWeather.rendererLegacyLayersHidden||!usWeather.weatherLegend||!usWeather.weatherMore)throw new Error('CINEMATIC_WEATHER_ON_GLOBE_REGRESSION '+JSON.stringify(usWeather));
               console.log('BRIDGEPOINT_CINEMATIC_WEATHER_ON_GLOBE_PASS',JSON.stringify(usWeather));
               await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
 

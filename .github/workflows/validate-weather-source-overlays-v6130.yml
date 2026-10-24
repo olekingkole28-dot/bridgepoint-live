@@ -67,6 +67,14 @@ jobs:
           grep -Fq "for(const id of ['wx-alert-line','wx-fire-line','wx-quake','wx-storm','wx-obs','wx-water'])" release-v2300/world-v2300-weather.js
           grep -Fq "bp-v5004-weather-shape-fill" rebuild-v5000/app.js
           grep -Fq "bp-landing-weather-fill" rebuild-v5000/landing.js
+          grep -Fq 'BP_WEATHER_ICON_CATALOG_V6132' rebuild-v5000/app.js
+          grep -Fq 'bp-v6132-weather-icons' rebuild-v5000/app.js
+          grep -Fq 'bp-v6132-ground-radar' rebuild-v5000/app.js
+          grep -Fq 'initialFetchRequested:true' rebuild-v5000/app.js
+          grep -Fq 'BP_LANDING_WEATHER_ICON_CATALOG_V6132' rebuild-v5000/landing.js
+          grep -Fq 'bp-landing-v6132-weather-icons' rebuild-v5000/landing.js
+          grep -Fq 'bp-landing-v6132-ground-radar' rebuild-v5000/landing.js
+          grep -Fq "layout:{visibility:'visible'},paint:{'fill-color':landingWeatherColorExpr()" rebuild-v5000/landing.js
           ! grep -Fq 'active=CLOUDS_ONLY_PHASE()?true:!!v' release-v2300/world-v2300-weather.js
           ! grep -Fq 'enabled = CLOUDS_ONLY_PHASE() ? false : !!value;' release-v2300/world-v2300-rain.js
           ! grep -Fq "bp2300-rain-wet-ground-v6068','bp2300-rain-puddle-fill-v6068" release-v2300/world-v2300-weather.js

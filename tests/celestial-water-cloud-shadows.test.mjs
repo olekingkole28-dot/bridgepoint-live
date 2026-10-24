@@ -91,17 +91,17 @@ test('entrypoints use fresh cache keys for updated map, water, clouds, weather a
   assert.match(map, /world-v2300-space\.js\?v=6125-manual-globe-camera/);
   assert.match(timeSlider, /world-v2300-clouds\.js\?v=6130-cloud-rain-lightning/);
   assert.match(bootstrap, /world-v2300-weather\.js\?v=6131-close-zoom-rain-density/);
-  assert.match(appHtml, /app\.js\?v=6131-close-zoom-rain-density-markers/);
-  assert.match(landingHtml, /landing\.js\?v=6131-close-zoom-rain-density-markers/);
+  assert.match(appHtml, /app\.js\?v=6132-global-weather-icons-ground-radar/);
+  assert.match(landingHtml, /landing\.js\?v=6132-global-weather-icons-ground-radar/);
 });
 
 test('new rain/lightning and global source markers stay separate from legacy effects', () => {
   assert.match(weather, /active=!!v;/);
   assert.match(weather, /const LEGACY_NATIVE_WEATHER_LAYERS=\['wx-snow-depth','wx-alert-fill','wx-fire-fill','wx-thermal','wx-quake-glow','wx-storm-glow'\]/);
   assert.match(weather, /for\(const id of \['wx-alert-line','wx-fire-line','wx-quake','wx-storm','wx-obs','wx-water'\]\)/);
-  assert.match(app, /setLayoutProperty\('bp-v5004-weather-shape-fill','visibility','none'\)/);
+  assert.match(app, /id:'bp-v5004-weather-shape-fill'.{0,500}layout:\{visibility:'visible'\}/);
   assert.match(landing, /bp-landing-weather-fill/);
-  assert.match(landing, /layout:\{visibility:'none'\},paint:\{'fill-color':landingWeatherColorExpr\(\)/);
+  assert.match(landing, /id:'bp-landing-weather-fill'.{0,400}layout:\{visibility:'visible'\},paint:\{'fill-color':landingWeatherColorExpr\(\),'fill-opacity':\['interpolate'/);
   assert.doesNotMatch(weather, /active=CLOUDS_ONLY_PHASE\(\)\?true:!!v/);
   assert.match(weather, /initLightningLayer/);
   assert.doesNotMatch(weather, /'bp2300-rain-wet-ground-v6068','bp2300-rain-puddle-fill-v6068/);
@@ -113,6 +113,14 @@ test('new rain/lightning and global source markers stay separate from legacy eff
   assert.match(lightning, /export function initLightningLayer/);
   assert.match(lightning, /durationMs:2450/);
   assert.match(lightning, /overlayConnected/);
+  assert.match(app, /BP_WEATHER_ICON_CATALOG_V6132/);
+  assert.match(app, /bp-v6132-weather-icons/);
+  assert.match(app, /bp-v6132-ground-radar/);
+  assert.match(app, /initialFetchRequested:true/);
+  assert.match(landing, /BP_LANDING_WEATHER_ICON_CATALOG_V6132/);
+  assert.match(landing, /bp-landing-v6132-weather-icons/);
+  assert.match(landing, /bp-landing-v6132-ground-radar/);
+  assert.match(landing, /groundDraped:true/);
   assert.match(app, /sourceWeatherOverlaysPreserved:true/);
   assert.match(landing, /legacyCinematicFxDisabled:true/);
   assert.match(listingView, /BP_LISTINGS_MONEY_V6130/);
