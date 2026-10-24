@@ -177,6 +177,78 @@ function installLandingNationalWeather(world){
  try{m.once('styledata',install);m.once('idle',install);m.once('load',install)}catch(_){}
  setTimeout(install,180);setTimeout(install,700);return false
 }
+
+const BP_SOURCE_WEATHER_CACHE_KEY_V6134='bp_source_weather_items_v6134';
+const BP_SOURCE_WEATHER_CACHE_MAX_AGE_V6134=15*60*1000;
+let landingWeatherWarmupPromiseV6134=null;
+function saveLandingWeatherCacheV6134(items,generatedAt){
+ if(!Array.isArray(items)||!items.length)return false;
+ try{
+  let payload=null;
+  for(const limit of [250,160,100,60]){
+   payload=JSON.stringify({savedAt:Date.now(),generatedAt:generatedAt||null,items:items.slice(0,limit)});
+   if(payload.length<=850000)break;
+   payload=null;
+  }
+  if(!payload)return false;
+  localStorage.setItem(BP_SOURCE_WEATHER_CACHE_KEY_V6134,payload);
+  return true;
+ }catch(error){window.__BP_LANDING_WEATHER_CACHE_WRITE_ERROR_V6134__=String(error?.message||error).slice(0,160);return false}
+}
+function readLandingWeatherCacheV6134(){
+ try{
+  const value=JSON.parse(localStorage.getItem(BP_SOURCE_WEATHER_CACHE_KEY_V6134)||'null');
+  if(!Array.isArray(value?.items)||!value.items.length)return null;
+  const age=Date.now()-Number(value.savedAt||0);
+  if(age<0||age>BP_SOURCE_WEATHER_CACHE_MAX_AGE_V6134)return null;
+  return value;
+ }catch(_){return null}
+}
+async function requestLandingWeatherBootstrapV6134(){
+ try{return await rpc('bridgepoint_public_weather_bootstrap_v5823',{},7000)}
+ catch(first){console.warn('global weather bootstrap v5823',first);try{return await rpc('bridgepoint_public_weather_bootstrap_v5821',{},7000)}
+ catch(second){console.warn('global weather bootstrap v5821',second);return await rpc('bridgepoint_public_weather_bootstrap_v5512',{},6000)}}
+}
+function warmLandingWeatherFirstFrameV6134(){
+ if(landingWeatherWarmupPromiseV6134)return;
+ landingWeatherWarmupPromiseV6134=requestLandingWeatherBootstrapV6134().then(d=>{
+  if(d?.fresh===true&&Array.isArray(d.items))saveLandingWeatherCacheV6134(d.items,d.generated_at);
+  return d;
+ }).catch(error=>{console.warn('BridgePoint homepage first-frame weather warmup',error);return null});
+}
+async function takeLandingWeatherBootstrapV6134(){
+ if(landingWeatherWarmupPromiseV6134){
+  const pending=landingWeatherWarmupPromiseV6134;
+  landingWeatherWarmupPromiseV6134=null;
+  return await pending;
+ }
+ const d=await requestLandingWeatherBootstrapV6134();
+ if(d?.fresh===true&&Array.isArray(d.items))saveLandingWeatherCacheV6134(d.items,d.generated_at);
+ return d;
+}
+function applyLandingWeatherItemsV6134(world,items){
+ const m=world?.map;if(!m||!landingWeatherEnabled||!Array.isArray(items))return null;
+ const wx=landingWeatherCollections(items);
+ window.__BP_PENDING_LANDING_WEATHER_V6134__=wx;
+ installLandingNationalWeather(world);
+ const ps=m.getSource('bpLandingWeatherPoints'),ss=m.getSource('bpLandingWeatherShapes');
+ if(ps?.setData)ps.setData(wx.points);
+ if(ss?.setData)ss.setData(wx.shapes);
+ if(ps?.setData&&ss?.setData)window.__BP_PENDING_LANDING_WEATHER_V6134__=null;
+ for(const id of ['bp-landing-weather-fill','bp-landing-weather-line','bp-landing-weather-glow','bp-landing-weather-points','bp-landing-v6132-weather-icons','bp-landing-weather-hit'])try{if(m.getLayer(id))m.setLayoutProperty(id,'visibility','visible')}catch(_){}
+ return wx;
+}
+function restoreLandingWeatherFirstFrameV6134(world){
+ const cached=readLandingWeatherCacheV6134();
+ if(!cached||!world?.map||!landingWeatherEnabled)return false;
+ try{
+  const wx=applyLandingWeatherItemsV6134(world,cached.items);if(!wx)return false;
+  window.__BP_LANDING_WEATHER_CACHE_FIRST_FRAME_V6134__={used:true,items:cached.items.length,points:wx.points.features.length,shapes:wx.shapes.features.length,ageMs:Date.now()-cached.savedAt,generated_at:cached.generatedAt||null,updatedAt:Date.now()};
+  if($('landingWeatherCount'))$('landingWeatherCount').textContent=cached.items.length+' EVENTS · CACHED';
+  if($('landingWeatherTime'))$('landingWeatherTime').textContent='Showing last source snapshot while new observations refresh';
+  return true;
+ }catch(error){window.__BP_LANDING_WEATHER_CACHE_RESTORE_ERROR_V6134__=String(error?.message||error).slice(0,160);return false}
+}
 async function loadLandingNationalWeather(world,attempt=0){if(!landingWeatherEnabled)return false;
  const m=world?.map;if(!m)return false;
  try{
