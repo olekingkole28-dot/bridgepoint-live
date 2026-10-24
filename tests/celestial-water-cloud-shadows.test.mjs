@@ -181,6 +181,6 @@ test('public cyclone fallback is fetched concurrently with edge weather', () => 
 test('website and app start on the same globe-first weather build', () => {
   assert.match(landingHtml, /bp-globe-only-first-frame-v6137/);
   assert.match(appHtml, /bp-app-globe-only-first-frame-v6137/);
-  assert.match(landingHtml, /landing\\.js\\?v=6137-globe-first-weather-lockstep/);
-  assert.match(appHtml, /app\\.js\\?v=6137-globe-first-weather-lockstep/);
+  assert.ok(landingHtml.includes('landing.js?v=6137-globe-first-weather-lockstep'));
+  assert.ok(appHtml.includes('app.js?v=6137-globe-first-weather-lockstep'));
 });
