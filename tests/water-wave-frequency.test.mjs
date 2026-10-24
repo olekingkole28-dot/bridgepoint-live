@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict';
-import { resolveWaveFrequencyCyclesPerWorld } from '../release-v2300/world-v2300-water.js';
+import { readFile } from 'node:fs/promises';
+
+const engineSource = await readFile(new URL('../release-v2300/world-v2300-water.js', import.meta.url), 'utf8');
+const engineModuleUrl = 'data:text/javascript;base64,' + Buffer.from(engineSource).toString('base64');
+const { resolveWaveFrequencyCyclesPerWorld } = await import(engineModuleUrl);
 
 const requestedStreetWave = 8.53 * (2 ** 15);
 const closeStreet = resolveWaveFrequencyCyclesPerWorld(requestedStreetWave, 0.76, 0.000004);
