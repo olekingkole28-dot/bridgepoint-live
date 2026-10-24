@@ -81,15 +81,15 @@ test('entrypoints use fresh cache keys for updated map, water, clouds, weather a
   for (const source of [app, landing]) {
     assert.match(source, /world-v2300-map\.js\?v=6125-manual-globe-camera/);
     assert.match(source, /world-v2300-water\.js\?v=6124-solar-ocean-swell/);
-    assert.match(source, /world-v2300-clouds\.js\?v=6124-live-cloud-shadow-advection/);
-    assert.match(source, /world-v2300-weather\.js\?v=6124-live-cloud-weather-refresh/);
+    assert.match(source, /world-v2300-clouds\.js\?v=6130-cloud-rain-lightning/);
+    assert.match(source, /world-v2300-weather\.js\?v=6130-cloud-rain-lightning/);
     assert.match(source, /world-v2300-time-slider\.js\?v=6124-live-cloud-shadow-motion/);
   }
   assert.match(map, /world-v2300-space\.js\?v=6125-manual-globe-camera/);
-  assert.match(timeSlider, /world-v2300-clouds\.js\?v=6124-live-cloud-shadow-advection/);
-  assert.match(bootstrap, /world-v2300-weather\.js\?v=6124-live-cloud-weather-refresh/);
-  assert.match(appHtml, /app\.js\?v=6125-manual-globe-camera/);
-  assert.match(landingHtml, /landing\.js\?v=6125-manual-globe-camera/);
+  assert.match(timeSlider, /world-v2300-clouds\.js\?v=6130-cloud-rain-lightning/);
+  assert.match(bootstrap, /world-v2300-weather\.js\?v=6130-cloud-rain-lightning/);
+  assert.match(appHtml, /app\.js\?v=6130-cloud-rain-lightning-markers/);
+  assert.match(landingHtml, /landing\.js\?v=6130-cloud-rain-lightning-markers/);
 });
 
 test('sky-view restoration returns to street with bounded cleanup waits', () => {
