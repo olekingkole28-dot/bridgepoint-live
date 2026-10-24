@@ -130,7 +130,7 @@ async function initSharedVisualWeather(targetWorld,{activate=true}={}){
    weather?.setActive?.(true);
    const pm=await import('./world-v2300-present-weather.js?v=6070-clouds-only-phase');
    present=pm.initPresentWeather(map);
-   present?.setActive?.(true)
+   present?.setActive?.(false)
   }
   weather?.setRadar?.(false);
   window.__BP_SHARED_VISUAL_WEATHER__={version:6057,weather,present,mapShared:true,capabilitiesRegistered:true,networkActivationDeferred:!activate,streetWalkLiveSimulation:false,cinematicFx:window.__BP_CLOUDS_ONLY_PHASE_V6070__!==true,cloudsOnlyPhase:window.__BP_CLOUDS_ONLY_PHASE_V6070__===true,visualWeatherEffectsEnabled:window.__BP_CLOUDS_ONLY_PHASE_V6070__!==true,legacyOverlaysHidden:true,renderer:'isolated-webgl-particle-layer',radarVisible:false,radarOwnedByAppLiveStack:false,radarAnimatedAtCloseZoom:false,radarGroundDrape:true,globalFx:true,updatedAt:Date.now()};
