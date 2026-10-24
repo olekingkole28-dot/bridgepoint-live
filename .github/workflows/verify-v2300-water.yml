@@ -1,4 +1,4 @@
-name: Verify BridgePoint GPU Water v6120
+name: Verify BridgePoint GPU Water v6121
 
 on:
   pull_request:
@@ -46,6 +46,10 @@ jobs:
         run: |
           set -euo pipefail
           grep -Fq "export function initWaterEngine" release-v2300/world-v2300-water.js
+          grep -Fq "const VERSION = 6121;" release-v2300/world-v2300-water.js
+          grep -Fq "resolvePitchDisplacementPolicy" release-v2300/world-v2300-water.js
+          grep -Fq "uniform float u_pitchWaveScale;" release-v2300/world-v2300-water.js
+          grep -Fq "float offsetM = clamp(dynamicOffsetM, -u_waveOffsetLimit, u_waveOffsetLimit) + a_flood;" release-v2300/world-v2300-water.js
           grep -Fq "MIN_WAVE_SAMPLES_PER_PERIOD = 8" release-v2300/world-v2300-water.js
           grep -Fq "MAX_VERTEX_WAVE_HARMONIC = 1.91" release-v2300/world-v2300-water.js
           grep -Fq "resolveWaveFrequencyCyclesPerWorld" release-v2300/world-v2300-water.js
@@ -57,7 +61,7 @@ jobs:
           grep -Fq "function mapCanHostWater()" release-v2300/world-v2300-water.js
           grep -Fq "float marineSurgeMask" release-v2300/world-v2300-water.js
           ! grep -Fq "if (!map.isStyleLoaded?.())" release-v2300/world-v2300-water.js
-          grep -Fq "window.__BP_WATER_FIELD_V6120__" release-v2300/world-v2300-water.js
+          grep -Fq "window.__BP_WATER_FIELD_V6121__" release-v2300/world-v2300-water.js
           grep -Fq "const raw = feature && feature.row ? feature.row : feature;" release-v2300/world-v2300-water.js
           grep -Fq "typeof item.getScene === 'function'" release-v2300/world-v2300-water.js
           grep -Fq "bp2300:weather-updated" release-v2300/world-v2300-water.js
@@ -91,5 +95,5 @@ jobs:
           grep -Fq "float glancingGlint = pow(" release-v2300/world-v2300-water.js
           grep -Fq "sourceLevel !== null && sourceLevel >= -MAX_VALID_MARINE_SURFACE_OFFSET_M" release-v2300/world-v2300-water.js
           grep -Fq "clamp(0.22 + shimmer * 0.20, 0.22, 0.50)" release-v2300/world-v2300-water.js
-          grep -Fq "world-v2300-water.js?v=6120-mesh-safe-wave-frequency" rebuild-v5000/app.js
-          grep -Fq "world-v2300-water.js?v=6120-mesh-safe-wave-frequency" rebuild-v5000/landing.js
+          grep -Fq "world-v2300-water.js?v=6121-horizon-safe-vertex-displacement" rebuild-v5000/app.js
+          grep -Fq "world-v2300-water.js?v=6121-horizon-safe-vertex-displacement" rebuild-v5000/landing.js
