@@ -83,7 +83,7 @@ jobs:
           grep -Fq 'const RAIN_START_ZOOM = MOBILE ? 8 : 7;' release-v2300/world-v2300-rain.js
           grep -Fq 'sourceRainAnchors' release-v2300/world-v2300-clouds.js
           grep -Fq 'bp6133-noaa-geocolor-cloud-context' release-v2300/world-v2300-clouds.js
-          grep -Fq 'refreshIntervalMs:600000' release-v2300/world-v2300-clouds.js
+          grep -Fq 'refreshIntervalMs: 600000' release-v2300/world-v2300-clouds.js
           grep -Fq 'bp6130-cloud-expansion' release-v2300/world-v2300-lightning.js
           ! grep -Fq 'window.__BP_CLOUDS_ONLY_PHASE_V6070__=true;' rebuild-v5000/app.js
           ! grep -Fq 'window.__BP_CLOUDS_ONLY_PHASE_V6070__=true;' rebuild-v5000/landing.js
