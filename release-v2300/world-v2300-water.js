@@ -1,8 +1,8 @@
-// BridgePoint Water & Hydrology GPU surface v6121.
+// BridgePoint Water & Hydrology GPU surface v6122.
 // Additive MapLibre custom layer: one shared map canvas/context, bounded source geometry,
 // GPU wave displacement, source-gated flood elevations, and view-aware mesh LOD.
-const VERSION = 6121;
-const LAYER_ID = 'bp-water-surface-gpu-v6121';
+const VERSION = 6122;
+const LAYER_ID = 'bp-water-surface-gpu-v6122';
 const EARTH_CIRCUMFERENCE_M = 40075016.68557849;
 const RAD = Math.PI / 180;
 const MIN_VALID_TERRAIN_ELEVATION_M = -500;
@@ -57,6 +57,14 @@ export function resolvePitchDisplacementPolicy(zoom, pitchDegrees) {
   const z = Number(zoom);
   const pitch = Number(pitchDegrees);
   if (!Number.isFinite(z) || !Number.isFinite(pitch)) {
+    return { scale: 0, maxOffsetM: 0, guarded: true };
+  }
+  // At close zoom, disable dynamic vertex-height motion for every camera angle.
+  // The observed top-down failure bypasses the horizon-only guard; even sampled,
+  // metre-scale wave/surge offsets can turn into long blue facets near dense shorelines.
+  // Optical wave shading, glints, storm response, and source-backed flood depth remain
+  // active, while normal basemap water is the safe fallback for uncertain geometry.
+  if (z >= 12) {
     return { scale: 0, maxOffsetM: 0, guarded: true };
   }
   if (z < 10 || pitch <= 32) {
@@ -214,8 +222,8 @@ function absoluteWaterLevelAt(scene, lng, lat) {
 }
 function apiWaterLevelReject(scene) {
   // Keep a lightweight per-build diagnostic without changing the source weather object.
-  if (window.__BP_WATER_ENGINE_V6121__ && Number.isFinite(window.__BP_WATER_ENGINE_V6121__.rejectedWaterLevelSamples)) {
-    window.__BP_WATER_ENGINE_V6121__.rejectedWaterLevelSamples++;
+  if (window.__BP_WATER_ENGINE_V6122__ && Number.isFinite(window.__BP_WATER_ENGINE_V6122__.rejectedWaterLevelSamples)) {
+    window.__BP_WATER_ENGINE_V6122__.rejectedWaterLevelSamples++;
   }
 }
 
@@ -670,7 +678,7 @@ function currentScene() {
 export function initWaterEngine(mapOrWorld, options = {}) {
   const map = mapOrWorld && mapOrWorld.map ? mapOrWorld.map : mapOrWorld;
   if (!map || typeof map.addLayer !== 'function' || typeof map.querySourceFeatures !== 'function') return null;
-  if (window.__BP_WATER_ENGINE_V6121__ && window.__BP_WATER_ENGINE_V6121__.map === map) return window.__BP_WATER_ENGINE_V6121__;
+  if (window.__BP_WATER_ENGINE_V6122__ && window.__BP_WATER_ENGINE_V6122__.map === map) return window.__BP_WATER_ENGINE_V6122__;
   const mobile = window.innerWidth <= 900 || /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
   const low = Number(navigator.deviceMemory || 4) <= 3 || Number(navigator.hardwareConcurrency || 4) <= 4;
   const api = {
@@ -744,7 +752,7 @@ export function initWaterEngine(mapOrWorld, options = {}) {
       try { if (map.getLayer(LAYER_ID)) map.removeLayer(LAYER_ID); } catch (_) {}
       for (const spec of SOURCE_ANCHORS) { try { if (map.getLayer(spec.id)) map.removeLayer(spec.id); } catch (_) {} }
       try { window.removeEventListener('bp2300:weather-updated', onWeatherUpdated); } catch (_) {}
-      if (window.__BP_WATER_ENGINE_V6121__ === this) window.__BP_WATER_ENGINE_V6121__ = null;
+      if (window.__BP_WATER_ENGINE_V6122__ === this) window.__BP_WATER_ENGINE_V6122__ = null;
     },
     get buffers() {
       return layer ? { surface: layer.buffer, flow: layer.flowBuffer, strideFloats: 7, strideBytes: 28, vertexCount: layer.surfaceVertexCount + layer.flowVertexCount } : null;
@@ -1370,7 +1378,7 @@ function sceneLevelAt(scene, lng, lat) { return absoluteWaterLevelAt(scene, lng,
     api.sourceWaterwayFeatures = flowFeatures.length;
     api.geometryBuilds++;
     api.lastSourceRefreshAt = Date.now();
-    window.__BP_WATER_FIELD_V6121__ = {
+    window.__BP_WATER_FIELD_V6122__ = {
       version: VERSION, map, buffers: api.buffers,
       get state() { return api.state; },
       get weatherScene() { return currentScene(); },
@@ -1426,8 +1434,8 @@ function sceneLevelAt(scene, lng, lat) { return absoluteWaterLevelAt(scene, lng,
   });
   scheduleBuild(250);
   for (const delay of [700, 1700, 3400]) window.setTimeout(() => { ensureInstalled(); scheduleBuild(0); }, delay);
-  window.__BP_WATER_ENGINE_V6121__ = api;
-  window.__BP_WATER_FIELD_V6121__ = {
+  window.__BP_WATER_ENGINE_V6122__ = api;
+  window.__BP_WATER_FIELD_V6122__ = {
     version: VERSION, map, get buffers() { return api.buffers; },
     get state() { return api.state; },
     get weatherScene() { return currentScene(); },
