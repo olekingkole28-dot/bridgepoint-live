@@ -295,7 +295,7 @@ jobs:
           sed -i 's#world-v2300-time-slider.js?v=6092-posttropical-global-clouds#world-v2300-time-slider.js?v=6094-josephine-spiral-unified#g' site/app.js site/landing.js
           sed -i 's#world-v2300-clouds.js?v=6094-josephine-spiral-unified#world-v2300-clouds.js?v=6124-live-cloud-shadow-advection#g' site/app.js site/landing.js
           sed -i 's#world-v2300-weather.js?v=6093-josephine-global-track#world-v2300-weather.js?v=6134-first-frame-weather#g' site/app.js site/landing.js site/index.html site/app/index.html
-          sed -i 's#world-v2300-time-slider.js?v=6094-josephine-spiral-unified#world-v2300-time-slider.js?v=6124-live-cloud-shadow-motion#g' site/app.js site/landing.js
+          sed -i 's#world-v2300-time-slider.js?v=6094-josephine-spiral-unified#world-v6134-time-slider-first-frame-weather#g' site/app.js site/landing.js
           sed -i 's#app.js?v=6077-cloud-base-restore#app.js?v=6077-sky-restore-safe-pitch#g' site/app/index.html
           sed -i 's#landing.js?v=6077-cloud-base-restore#landing.js?v=6077-sky-restore-safe-pitch#g' site/index.html
           sed -i 's#app.js?v=6076-rounded-cloud-banks#app.js?v=6077-sky-restore-safe-pitch#g' site/app/index.html
@@ -586,8 +586,8 @@ jobs:
           grep -Fq 'world-v2300-weather.js?v=6134-first-frame-weather' site/index.html
           grep -Fq 'world-v2300-weather.js?v=6134-first-frame-weather' site/app/index.html
           grep -Fq 'world-v2300-weather.js?v=6134-first-frame-weather' site/app/world-v2300-bootstrap.js
-          grep -Fq 'world-v2300-time-slider.js?v=6124-live-cloud-shadow-motion' site/app.js
-          grep -Fq 'world-v2300-time-slider.js?v=6124-live-cloud-shadow-motion' site/landing.js
+          grep -Fq 'world-v2300-time-slider.js?v=6134-source-satellite-clouds' site/app.js
+          grep -Fq 'world-v2300-time-slider.js?v=6134-source-satellite-clouds' site/landing.js
           grep -Fq 'world-v2300-spectral-imagery.js?v=5934-world-controls' site/app.js
           grep -Fq 'world-v2300-underground-xray.js?v=5965-landmarks-and-effects' site/app.js
           grep -Fq 'world-v2300-underground-xray.js?v=5965-landmarks-and-effects' site/landing.js
