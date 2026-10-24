@@ -422,15 +422,46 @@ export function initRainLayer(map, getScene = () => ({})) {
   }
 
   function makeDropSeeds(nextCells) {
-    const all = [], perCell = nextCells.length ? Math.max(1, Math.floor(MAX_DROPS / nextCells.length)) : 0;
+    const all = [];
+    const perCell = nextCells.length ? Math.max(1, Math.floor(MAX_DROPS / nextCells.length)) : 0;
+    const zoom = safeNum(map.getZoom?.(), 0);
+    const canvas = map.getCanvas?.();
+    const viewCenter = map.getCenter?.();
+    const width = canvas?.clientWidth || 390;
+    const height = canvas?.clientHeight || 844;
+    // At close zoom, sample drops over the visible geographic footprint instead
+    // of scattering the phone's particle budget across an entire 30–90 km cell.
+    // The particles remain georeferenced and are regenerated on map movement.
+    const viewRadiusM = zoom >= 10 && viewCenter
+      ? clamp(metersPerPixel(viewCenter.lat, zoom) * Math.hypot(width, height) * 0.58, 500, 90000)
+      : 0;
     for (let ci = 0; ci < nextCells.length; ci++) {
-      const cell = nextCells[ci], cosLat = Math.max(0.12, Math.cos(cell.lat * RAD));
+      const cell = nextCells[ci];
+      const sourceCenter = { lng: cell.lng, lat: cell.lat };
+      let seedCenter = sourceCenter;
+      let sampleRadiusM = cell.radiusM;
+      if (viewRadiusM > 0 && Number.isFinite(Number(viewCenter?.lng)) && Number.isFinite(Number(viewCenter?.lat))) {
+        const viewPoint = { lng: Number(viewCenter.lng), lat: Number(viewCenter.lat) };
+        const centerDistance = distanceMeters(sourceCenter, viewPoint);
+        // Keep the seed disk inside the source-backed precipitation footprint,
+        // while biasing it toward the current view when that view overlaps the cell.
+        const maxOffset = Math.max(0, cell.radiusM - viewRadiusM * 0.92);
+        const offset = Math.min(centerDistance, maxOffset);
+        const ratio = centerDistance > 1 ? offset / centerDistance : 0;
+        seedCenter = {
+          lng: cell.lng + (viewPoint.lng - cell.lng) * ratio,
+          lat: cell.lat + (viewPoint.lat - cell.lat) * ratio
+        };
+        const remainingRadius = Math.max(100, cell.radiusM - distanceMeters(sourceCenter, seedCenter));
+        sampleRadiusM = Math.min(viewRadiusM, remainingRadius * 0.94);
+      }
+      const cosLat = Math.max(0.12, Math.cos(seedCenter.lat * RAD));
       const seedBase = Math.round((cell.lng + 180) * 1000) * 7 + Math.round((cell.lat + 90) * 1000) + ci * 931;
       for (let i = 0; i < perCell && all.length < MAX_DROPS; i++) {
         const a = hash(seedBase, i, 7) * Math.PI * 2;
-        const r = Math.sqrt(hash(seedBase, i, 11)) * cell.radiusM;
-        const lng = cell.lng + Math.cos(a) * r / (111320 * cosLat);
-        const lat = clamp(cell.lat + Math.sin(a) * r / 111320, -84, 84);
+        const r = Math.sqrt(hash(seedBase, i, 11)) * sampleRadiusM;
+        const lng = seedCenter.lng + Math.cos(a) * r / (111320 * cosLat);
+        const lat = clamp(seedCenter.lat + Math.sin(a) * r / 111320, -84, 84);
         const groundM = groundElevation(map, lng, lat);
         const baseAglM = cell.baseAglM;
         const fallSpeedMps = 7.5 + hash(seedBase, i, 19) * 4.5;
@@ -442,7 +473,6 @@ export function initRainLayer(map, getScene = () => ({})) {
     }
     return all;
   }
-
   function addVertex(n, x, y, z, altitude, alpha) {
     const k = n * FLOATS_PER_VERTEX;
     vertexData[k] = x; vertexData[k + 1] = y; vertexData[k + 2] = z;
