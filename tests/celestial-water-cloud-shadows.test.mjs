@@ -86,14 +86,14 @@ test('entrypoints use fresh cache keys for updated map, water, clouds, weather a
     assert.match(source, /world-v2300-map\.js\?v=6137-globe-first-weather-lockstep/);
     assert.match(source, /world-v2300-water\.js\?v=6124-solar-ocean-swell/);
     assert.match(source, /world-v2300-clouds\.js\?v=6137-globe-first-weather-lockstep/);
-    assert.match(source, /world-v2300-weather\.js\?v=6137-globe-first-weather-lockstep/);
+    assert.match(source, /world-v2300-weather\.js\?v=6138-cloud-linked-lightning/);
     assert.match(source, /world-v2300-time-slider\.js\?v=6137-globe-first-weather-lockstep/);
   }
   assert.match(map, /world-v2300-space\.js\?v=6125-manual-globe-camera/);
   assert.match(timeSlider, /world-v2300-clouds\.js\?v=6137-globe-first-weather-lockstep/);
-  assert.match(bootstrap, /world-v2300-weather\.js\?v=6137-globe-first-weather-lockstep/);
-  assert.match(appHtml, /app\.js\?v=6137-globe-first-weather-lockstep/);
-  assert.match(landingHtml, /landing\.js\?v=6137-globe-first-weather-lockstep/);
+  assert.match(bootstrap, /world-v2300-weather\.js\?v=6138-cloud-linked-lightning/);
+  assert.match(appHtml, /app\.js\?v=6138-cloud-linked-lightning/);
+  assert.match(landingHtml, /landing\.js\?v=6138-cloud-linked-lightning/);
   assert.match(appHtml, /intelligence-global-v5507\.js\?v=6134-global-precip-lod/);
   assert.match(landingHtml, /intelligence-global-v5507\.js\?v=6134-global-precip-lod/);
 });
