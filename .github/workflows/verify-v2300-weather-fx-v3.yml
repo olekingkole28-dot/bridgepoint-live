@@ -7,6 +7,7 @@ on:
     paths:
       - 'release-v2300/world-v2300-weather.js'
       - 'release-v2300/world-v2300-rain.js'
+      - 'release-v2300/world-v2300-lightning.js'
       - 'release-v2300/world-v2300-map.js'
       - 'release-v2300/world-v2300-config.js'
       - '.github/workflows/verify-v2300-weather-fx-v3.yml'
@@ -16,6 +17,7 @@ on:
     paths:
       - 'release-v2300/world-v2300-weather.js'
       - 'release-v2300/world-v2300-rain.js'
+      - 'release-v2300/world-v2300-lightning.js'
       - 'release-v2300/world-v2300-map.js'
       - 'release-v2300/world-v2300-config.js'
       - '.github/workflows/verify-v2300-weather-fx-v3.yml'
@@ -134,6 +136,10 @@ jobs:
               assert.equal(out.fx.sharedMapLibreWebGLContext,true);assert.equal(out.fx.secondaryCanvases,0);assert.equal(out.fx.shaderReady,true);assert(out.fx.activeParticles>40);
               assert(out.fx.budgets.maxPoints<=760);assert(out.fx.qualityScale>=.28&&out.fx.qualityScale<=1);
               assert.equal(out.w.counts.alerts,3);assert.equal(out.w.counts.fires,1);assert.equal(out.w.counts.storms,1);assert.equal(out.w.counts.lightning,1);assert.equal(out.w.counts.water,1);
+              await p.waitForFunction(()=>{const d=window.__BP_LIGHTNING_RENDERER_V6130__?.state;return d?.enabled===true&&d?.overlayConnected===true&&d?.anchors>0&&d?.visibleAnchors>0&&d?.durationMs>=2400;},{timeout:10000});
+              await p.waitForFunction(()=>window.__BP_LIGHTNING_RENDERER_V6130__?.state?.activeBolts>0,{timeout:13000});
+              const lightningDiag=await p.evaluate(()=>window.__BP_LIGHTNING_RENDERER_V6130__?.state||null);
+              assert(lightningDiag&&lightningDiag.activeBolts>0&&lightningDiag.durationMs>=2400,'cloud-to-ground lightning must appear as a long, source-anchored branching flash '+JSON.stringify(lightningDiag));
               assert.equal(errors.length,0,errors.join('\n'));
               console.log('BRIDGEPOINT_V2300_WEATHER_FX_ANDROID_PASS',JSON.stringify({particles:out.fx.activeParticles,quality:out.fx.qualityScale,fps:out.fx.fps,maxPoints:out.fx.budgets.maxPoints,canvases:out.totalCanvases}));
               await p.evaluate(()=>{
