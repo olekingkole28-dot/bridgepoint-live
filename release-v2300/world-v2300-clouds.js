@@ -1349,9 +1349,19 @@ function generateGeometry() {
     for (const alert of (Array.isArray(scene?.alerts) ? scene.alerts : []).slice(0, 70)) {
       const p = alert?.properties || alert || {};
       const label = String([p.event, p.name, p.type, p.phenom, p.phenomenon, p.product, p.headline, p.description].filter(Boolean).join(' ')).toLowerCase();
-      if (!/prob.?severe|severe thunderstorm|thunderstorm|tornado|squall|\\bsv\\b|\\bto\\b/.test(label)) continue;
+      if (!/prob.?severe|severe thunderstorm|thunderstorm|tornado|squall|\bsv\b|\bto\b/.test(label)) continue;
       const c = rainCenterFromGeometry(alert?.geometry ?? p.geometry);
-      if (c && Number.isFinite(c.lng) && Number.isFinite(c.lat)) sourceRainAnchors.push({ ...p, ...c, weather: 'thunderstorm rain', rain_radius_mi: Number(p.rain_radius_mi ?? p.precipitation_radius_mi ?? 36) });
+      if (c && Number.isFinite(c.lng) && Number.isFinite(c.lat)) {
+        const nearby = (Array.isArray(scene?.observations) ? scene.observations : []).reduce((best, row) => {
+          const lng = number(row?.lng, number(row?.longitude, NaN)), lat = number(row?.lat, number(row?.latitude, NaN));
+          if (!Number.isFinite(lng) || !Number.isFinite(lat)) return best;
+          const d = Math.hypot((lng - c.lng) * Math.cos(c.lat * Math.PI / 180), lat - c.lat);
+          return d < 3.5 && (!best || d < best.d) ? { row, d } : best;
+        }, null)?.row;
+        const w = { wind_speed_mph: p.wind_speed_mph ?? nearby?.wind_speed_mph, wind_speed_kt: p.wind_speed_kt ?? nearby?.wind_speed_kt,
+          wind_dir_deg: p.wind_dir_deg ?? p.wind_direction_deg ?? nearby?.wind_dir_deg ?? nearby?.wind_direction_deg };
+        sourceRainAnchors.push({ ...p, ...w, ...c, weather: 'thunderstorm rain', rain_radius_mi: Number(p.rain_radius_mi ?? p.precipitation_radius_mi ?? 36) });
+      }
     }
     for (const storm of (Array.isArray(scene?.storms) ? scene.storms : []).slice(0, 30)) {
       const p = storm?.properties || storm || {};
@@ -1359,7 +1369,14 @@ function generateGeometry() {
       if (!/hurricane|tropical storm|tropical cyclone|post.?tropical cyclone|cyclone|severe thunderstorm|convective/.test(label)) continue;
       const lng = number(storm?.lng, number(storm?.longitude, number(p.lng, number(p.longitude, NaN))));
       const lat = number(storm?.lat, number(storm?.latitude, number(p.lat, number(p.latitude, NaN))));
-      if (Number.isFinite(lng) && Number.isFinite(lat)) sourceRainAnchors.push({ ...p, lng, lat, weather: 'thunderstorm rain', rain_radius_mi: Number(p.rain_radius_mi ?? p.precipitation_radius_mi ?? (/hurricane|tropical|cyclone/.test(label) ? 60 : 28)) });
+      if (Number.isFinite(lng) && Number.isFinite(lat)) {
+        const moveSpeed = number(p.movement_speed_mps, number(p.translation_speed_mps, NaN));
+        const moveHeading = number(p.movement_heading_deg, number(p.movement_dir, NaN));
+        sourceRainAnchors.push({ ...p, lng, lat, weather: 'thunderstorm rain',
+          wind_speed_mph: p.wind_speed_mph ?? (Number.isFinite(moveSpeed) ? moveSpeed * 2.23694 : undefined),
+          wind_dir_deg: p.wind_dir_deg ?? p.wind_direction_deg ?? (Number.isFinite(moveHeading) ? (moveHeading + 180) % 360 : undefined),
+          rain_radius_mi: Number(p.rain_radius_mi ?? p.precipitation_radius_mi ?? (/hurricane|tropical|cyclone/.test(label) ? 60 : 28)) });
+      }
     }
     const rainAnchorObservations = [...(Array.isArray(scene?.observations) ? scene.observations : []), ...sourceRainAnchors]
       .filter(o => {
