@@ -855,7 +855,7 @@ jobs:
           grep -Fq '__BP_GLOBAL_RUNTIME_BOOT_V5516__' site/intelligence-global-v5507.js
           grep -Fq '__BP_PREMIUM_TOOLS_BOOT_V5516__' site/intelligence-tools-v5507.js
           grep -Fq "id:'gta-country'" site/world-v2300-map.js
-          grep -Fq 'preserving the last visible weather + global layer' site/app.js
+          grep -Fq 'Keeping the last available source snapshot visible while the newest observations load' site/app.js
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5512' site/landing.js
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5512' site/app.js
           grep -Fq 'bpUserMapGesture' site/landing.js
