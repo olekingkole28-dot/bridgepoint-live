@@ -92,7 +92,7 @@ test('entrypoints use fresh cache keys for updated map, water, clouds, weather a
   assert.match(timeSlider, /world-v2300-clouds\.js\?v=6130-cloud-rain-lightning/);
   assert.match(bootstrap, /world-v2300-weather\.js\?v=6131-close-zoom-rain-density/);
   assert.match(appHtml, /app\.js\?v=6130-cloud-rain-lightning-markers/);
-  assert.match(landingHtml, /landing\.js\?v=6130-cloud-rain-lightning-markers/);
+  assert.match(landingHtml, /landing\.js\?v=6131-close-zoom-rain-density-markers/);
 });
 
 test('new rain/lightning and global source markers stay separate from legacy effects', () => {
