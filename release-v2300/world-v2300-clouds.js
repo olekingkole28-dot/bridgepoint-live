@@ -1645,6 +1645,7 @@ function scheduleGeometry(delay = 180) {
 
   function setEnabled(value) {
     enabled = !!value;
+    if (!enabled) refreshGroundShadows(true);
     overlay.dataset.active = enabled && !document.hidden ? 'true' : 'false';
     setWorldGrade(enabled);
     if (enabled) {
