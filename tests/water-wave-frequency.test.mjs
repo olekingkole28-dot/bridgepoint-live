@@ -34,12 +34,16 @@ assert.equal(topDownAtStreetPitch.maxOffsetM, 0, 'close zoom stays geometry-safe
 const belowCloseZoom = resolvePitchDisplacementPolicy(11.5, 18);
 assert.equal(belowCloseZoom.scale, 1, 'the hard zero-displacement rule is restricted to close zoom');
 
-const moderatePitchStreet = resolvePitchDisplacementPolicy(16, 52);
+const moderatePitchStreet = resolvePitchDisplacementPolicy(11, 52);
 assert.ok(moderatePitchStreet.guarded, 'close, pitched camera must activate the perspective safety guard');
 assert.ok(moderatePitchStreet.scale > 0 && moderatePitchStreet.scale < 0.25,
-  'street-level pitch must greatly reduce only vertical displacement');
+  'mid-close pitched camera must reduce vertical displacement');
 assert.ok(moderatePitchStreet.maxOffsetM > 0 && moderatePitchStreet.maxOffsetM < 0.12,
-  'moderate horizon pitch must cap total dynamic height displacement below 12 cm');
+  'mid-close horizon pitch must cap dynamic height displacement below 12 cm');
+
+const closeTilt = resolvePitchDisplacementPolicy(16, 52);
+assert.equal(closeTilt.scale, 0, 'all close-zoom views must disable dynamic vertex displacement');
+assert.equal(closeTilt.maxOffsetM, 0, 'no close-zoom wave/surge vertex offset may produce a line into the sky');
 
 const horizonStreet = resolvePitchDisplacementPolicy(16, 72);
 assert.equal(horizonStreet.scale, 0, 'near-horizontal street view must remove geometric wave-height motion');
