@@ -1,4 +1,4 @@
-(()=>{const BUILD=6163,CACHE_VERSION='6163-cloud-startup-cutover',CURRENT_SW='/sw.js?v='+CACHE_VERSION,CURRENT_CACHE='bp-intelligence-v6163-cloud-startup-cutover',RELOAD_KEY='bp-update-reload-'+BUILD;
+(()=>{const BUILD=6164,CACHE_VERSION='6164-cloud-mask-confidence-clouds',CURRENT_SW='/sw.js?v='+CACHE_VERSION,CURRENT_CACHE='bp-intelligence-v6164-cloud-mask-confidence-clouds',RELOAD_KEY='bp-update-reload-'+BUILD;
 let busy=false;
 const sameOrigin=u=>{try{return new URL(u,location.href).origin===location.origin}catch{return false}};
 const scopePath=s=>{try{return new URL(s).pathname}catch{return''}};
