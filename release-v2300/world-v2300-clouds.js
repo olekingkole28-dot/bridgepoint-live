@@ -425,8 +425,23 @@ function ensureLiveSatelliteCloudContextV6134(map){
   return false;
  }
  const frame=()=>Math.floor(Date.now()/600000)*600000;
+ const beforeGround=()=>{
+  const layers=map.getStyle?.()?.layers||[];
+  return ['bp-v6132-ground-radar','bp-landing-v6132-ground-radar','gta-context-building-shadow','gta-context-buildings','gta-landmark3d-base','gta-bridge3d-pier','gta-place-label'].find(id=>map.getLayer(id))||
+   layers.find(layer=>layer.type==='fill-extrusion')?.id||layers.find(layer=>layer.type==='symbol')?.id;
+ };
+ const placeBelowBuildings=()=>{
+  if(!map.getLayer(GOES_CLOUD_LAYER_ID_V6134))return false;
+  const before=beforeGround();if(!before||before===GOES_CLOUD_LAYER_ID_V6134)return false;
+  try{
+   let layers=map.getStyle?.()?.layers||[],layerIndex=layers.findIndex(layer=>layer.id===GOES_CLOUD_LAYER_ID_V6134),beforeIndex=layers.findIndex(layer=>layer.id===before);
+   if(layerIndex>=0&&beforeIndex>=0&&layerIndex>beforeIndex)map.moveLayer(GOES_CLOUD_LAYER_ID_V6134,before);
+   layers=map.getStyle?.()?.layers||[];layerIndex=layers.findIndex(layer=>layer.id===GOES_CLOUD_LAYER_ID_V6134);beforeIndex=layers.findIndex(layer=>layer.id===before);
+   return layerIndex>=0&&beforeIndex>=0&&layerIndex<beforeIndex;
+  }catch(_){return false}
+ };
  try{
-  const before=['bp-v6132-ground-radar','bp-landing-v6132-ground-radar','gta-landmark3d-base','gta-bridge3d-pier','gta-context-building-shadow','gta-context-buildings','gta-place-label'].find(id=>map.getLayer(id));
+  const before=beforeGround();
   if(!map.getSource(GOES_CLOUD_SOURCE_ID_V6134))map.addSource(GOES_CLOUD_SOURCE_ID_V6134,{
    type:'raster',tiles:[goesGeoColorTileUrlV6134(frame())],tileSize:256,minzoom:0,maxzoom:14,
    bounds:[-180,-76.49,180,76.46],
@@ -441,11 +456,12 @@ function ensureLiveSatelliteCloudContextV6134(map){
    }
   },before);
   else if((map.getLayoutProperty(GOES_CLOUD_LAYER_ID_V6134,'visibility')||'visible')!=='visible')map.setLayoutProperty(GOES_CLOUD_LAYER_ID_V6134,'visibility','visible');
+  const placedBelowBuildings=placeBelowBuildings();
   let state=window.__BP_GOES_CLOUD_CONTEXT_V6134__;
   if(!state||state.map!==map){
    try{if(state?.timer)clearInterval(state.timer)}catch(_){}
    state={version:6134,map,enabled:true,sourceId:GOES_CLOUD_SOURCE_ID_V6134,layerId:GOES_CLOUD_LAYER_ID_V6134,
-    source:'NOAA NESDIS MERGEDGC_current latest GeoColor',groundDraped:true,cloudOnlyMask:false,
+    source:'NOAA NESDIS MERGEDGC_current latest GeoColor',groundDraped:true,placedBelowBuildings,cloudOnlyMask:false,
     refreshIntervalMs:600000,requestedFrameEpoch:frame(),updatedAt:Date.now()};
    state.refresh=(force=false)=>{
     if(document.hidden)return false;
@@ -458,7 +474,10 @@ function ensureLiveSatelliteCloudContextV6134(map){
     }catch(error){state.lastError=String(error?.message||error).slice(0,180);return false}
    };
    state.timer=setInterval(()=>state.refresh(false),state.refreshIntervalMs);
-   map.on?.('styledata',()=>{if(!map.getSource(GOES_CLOUD_SOURCE_ID_V6134)||!map.getLayer(GOES_CLOUD_LAYER_ID_V6134))ensureLiveSatelliteCloudContextV6134(map)});
+   map.on?.('styledata',()=>{
+    if(!map.getSource(GOES_CLOUD_SOURCE_ID_V6134)||!map.getLayer(GOES_CLOUD_LAYER_ID_V6134))ensureLiveSatelliteCloudContextV6134(map);
+    else{state.placedBelowBuildings=placeBelowBuildings();state.updatedAt=Date.now()}
+   });
    map.on?.('moveend',()=>state.refresh(false));
    document.addEventListener('visibilitychange',()=>{if(!document.hidden)state.refresh(false)});
    window.__BP_GOES_CLOUD_CONTEXT_V6134__=state;
