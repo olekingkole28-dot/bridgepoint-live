@@ -289,30 +289,6 @@ function setLandingWeatherEnabled(world,on){
   if(window.__BP_LANDING_RADAR_STATE__)window.__BP_LANDING_RADAR_STATE__={...window.__BP_LANDING_RADAR_STATE__,visible:false,enabled:false,updatedAt:Date.now()};
   for(const id of ['bp-landing-weather-fill','bp-landing-weather-line','bp-landing-weather-glow','bp-landing-weather-points','bp-landing-v6132-weather-icons','bp-landing-weather-hit'])try{if(m?.getLayer(id))m.setLayoutProperty(id,'visibility','none')}catch(_){}
   window.__BP_LANDING_VISUAL_WEATHER__={version:6130,enabled:false,sourceWeatherVisible:false,cinematicFx:false,legacyCinematicFxDisabled:true,renderer:'source-weather-data-plus-dedicated-rain-lightning',mapShared:true,legacyOverlaysHidden:true,radarVisible:false,updatedAt:Date.now()};
-  // Clouds-only mode suppresses particle FX, not the live weather data scene. The
-  // homepage preview still needs source cyclone centers so the shared 3D cloud
-  // renderer can draw the actual hurricane eye/eyewall/spiral rather than only its path.
-  if(window.__BP_CLOUDS_ONLY_PHASE_V6070__===true && m){
-   const attachSourceOnly=async()=>{
-    if(!landingWeatherModules){
-     const [wm,pm]=await Promise.all([
-      import('./world-v2300-weather.js?v=6134-first-frame-weather'),
-      import('./world-v2300-present-weather.js?v=6070-clouds-only-phase')
-     ]);
-     landingWeatherModules={weather:wm.initWeather(world.map),present:pm.initPresentWeather(world.map)};
-    }
-    if(window.__BP_CLOUDS_ONLY_PHASE_V6070__!==true||!m)return false;
-    hideLegacyLandingWeather(m);
-    landingWeatherModules.weather?.setRadar?.(false);
-    landingWeatherModules.weather?.setActive?.(false);
-    landingWeatherModules.present?.setActive?.(false);
-    window.__BP_LANDING_VISUAL_WEATHER__={version:6057,enabled:false,sourceDataReady:true,cloudsOnlyPhase:true,renderer:'shared-geospatial-weather-scene',...landingWeatherModules,mapShared:true,legacyOverlaysHidden:true,radarVisible:false,updatedAt:Date.now()};
-    return false;
-   };
-   if(landingWeatherActivationPromise)return landingWeatherActivationPromise;
-   landingWeatherActivationPromise=attachSourceOnly().catch(e=>{console.warn('BridgePoint clouds-only source weather startup',e);return false}).finally(()=>{landingWeatherActivationPromise=null});
-   return landingWeatherActivationPromise;
-  }
   return Promise.resolve(false)
  }
  if(!m)return Promise.resolve(false);
