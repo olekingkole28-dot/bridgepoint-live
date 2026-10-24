@@ -668,7 +668,8 @@ jobs:
           ! grep -Fq 'window.__BP_CLOUDS_ONLY_PHASE_V6070__=true;' site/app.js
           ! grep -Fq 'window.__BP_CLOUDS_ONLY_PHASE_V6070__=true;' site/landing.js
           grep -Fq 'enabled = !!value;' site/world-v2300-rain.js
-          grep -Fq "const CLOUD_PHASE_HIDDEN_LAYERS=['bp-radar-a','bp-radar-b','bp5510-global-imerg'" site/world-v2300-weather.js
+          grep -Fq 'const CLOUDS_ONLY_PHASE=()=>false;' site/world-v2300-weather.js
+          ! grep -Fq 'function hideCloudPhaseVisuals(map)' site/world-v2300-weather.js
           grep -Fq 'active=!!v;' site/world-v2300-weather.js
           grep -Fq 'uniform highp float u_motion_time' site/world-v2300-clouds.js
           grep -Fq 'attribute vec2 a_wind;' site/world-v2300-clouds.js
