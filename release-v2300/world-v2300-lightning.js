@@ -99,10 +99,10 @@ export function initLightningLayer(map,getScene=()=>({})){
   overlay.style.pointerEvents='none';overlay.style.overflow='hidden';overlay.style.zIndex='18';overlay.style.mixBlendMode='screen';
   overlay.style.display='block';
   const defs=document.createElementNS('http://www.w3.org/2000/svg','defs');
-  defs.innerHTML='<filter id="bp6130-bolt-glow" x="-150%" y="-80%" width="400%" height="260%"><feGaussianBlur stdDeviation="4.2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>';
+  defs.innerHTML='<filter id="bp6130-bolt-glow" x="-150%" y="-80%" width="400%" height="260%"><feGaussianBlur stdDeviation="4.2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter><radialGradient id="bp6130-cloud-flash-gradient"><stop offset="0%" stop-color="#ffffff" stop-opacity=".86"/><stop offset="34%" stop-color="#b9ecff" stop-opacity=".56"/><stop offset="68%" stop-color="#8ad5ff" stop-opacity=".25"/><stop offset="100%" stop-color="#8ad5ff" stop-opacity="0"/></radialGradient>';
   overlay.appendChild(defs);
   const style=document.createElementNS('http://www.w3.org/2000/svg','style');
-  style.textContent='@keyframes bp6130-long-flash{0%{opacity:0}3%{opacity:1}12%{opacity:.72}21%{opacity:1}35%{opacity:.58}44%{opacity:.95}58%{opacity:.45}73%{opacity:.86}88%{opacity:.55}100%{opacity:0}} .bp6130-long-bolt{animation:bp6130-long-flash 2.45s ease-out forwards}';
+  style.textContent='@keyframes bp6130-long-flash{0%{opacity:0}3%{opacity:1}12%{opacity:.72}21%{opacity:1}35%{opacity:.58}44%{opacity:.95}58%{opacity:.45}73%{opacity:.86}88%{opacity:.55}100%{opacity:0}} .bp6130-long-bolt{animation:bp6130-long-flash 2.45s ease-out forwards} @keyframes bp6130-cloud-expansion{0%{opacity:0;transform:scale(.34)}5%{opacity:.72;transform:scale(.68)}13%{opacity:1;transform:scale(1)}22%{opacity:.34;transform:scale(1.15)}31%{opacity:.9;transform:scale(1.25)}42%{opacity:.2;transform:scale(1.38)}56%{opacity:.78;transform:scale(1.5)}74%{opacity:.22;transform:scale(1.68)}100%{opacity:0;transform:scale(1.9)}} .bp6130-cloud-flash{transform-box:fill-box;transform-origin:center;animation:bp6130-cloud-expansion 2.45s ease-out forwards}';
   overlay.appendChild(style);container.appendChild(overlay);
   let enabled=true,disposed=false,scene={},timeout=0,seq=0,activeFlashes=[];
   const state={version:6130,enabled:true,renderer:'svg-cloud-to-ground',durationMs:2450,anchors:0,activeBolts:0,lastFlashAt:null,updatedAt:Date.now()};
@@ -147,6 +147,21 @@ export function initLightningLayer(map,getScene=()=>({})){
     const rng=randomizer(seed);
     const height=clamp(86+Math.max(0,z)*13,86,270);
     const top={x:ground.x+(rng()-.5)*Math.min(56,bounds.w*.08),y:Math.max(-12,ground.y-height)};
+    // Broad, layered flash anchored to the same projected storm coordinate as the bolt.
+    // Reposition it on camera movement so the glow follows the mapped cloud/storm area.
+    let cloudFlash=group.querySelector('ellipse.bp6130-cloud-flash');
+    if(!cloudFlash){
+      cloudFlash=document.createElementNS('http://www.w3.org/2000/svg','ellipse');
+      cloudFlash.setAttribute('class','bp6130-cloud-flash');
+      cloudFlash.setAttribute('fill','url(#bp6130-cloud-flash-gradient)');
+      cloudFlash.setAttribute('pointer-events','none');
+      group.insertBefore(cloudFlash,group.firstChild);
+    }
+    cloudFlash.setAttribute('cx',top.x.toFixed(1));
+    cloudFlash.setAttribute('cy',(top.y+height*.24).toFixed(1));
+    cloudFlash.setAttribute('rx',String(clamp(56+z*4.1,58,142)));
+    cloudFlash.setAttribute('ry',String(clamp(30+z*2.0,31,82)));
+    cloudFlash.setAttribute('opacity','.92');
     const mainD=lightningPath(top,ground,rng,21);
     svgPath(group,mainD,{'fill':'none','stroke':'#71cfff','stroke-width':8,'stroke-linecap':'round','stroke-linejoin':'round','opacity':'.28'});
     svgPath(group,mainD,{'fill':'none','stroke':'#c8f4ff','stroke-width':3.6,'stroke-linecap':'round','stroke-linejoin':'round','opacity':'.96'});

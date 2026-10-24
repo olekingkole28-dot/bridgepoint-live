@@ -1,5 +1,5 @@
 import{openScenarioLab,closeScenarioLab}from'/scenario-lab-v5525.js?v=5525';
-import{rpc,sessionKey,globe,refresh,globalVisible}from'/intelligence-global-v5507.js?v=6039-left-mapkey-only';
+import{rpc,sessionKey,globe,refresh,globalVisible}from'/intelligence-global-v5507.js?v=6133-global-precip-lod';
 const RoadDrive5527=(()=>{
 const SUPA='https://xdfsjztwgsbmabshzsjw.supabase.co';
 const KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
