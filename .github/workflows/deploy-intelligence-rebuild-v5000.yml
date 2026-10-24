@@ -617,13 +617,13 @@ jobs:
           grep -Fq 'bridgepoint-gebco-depth-image-v5937' site/world-v2300-sensor-layers.js
           grep -Fq 'bridgepoint-nasa-nightlights-v5937' site/world-v2300-sensor-layers.js
           grep -Fq "kind: 'georeferenced 3D cloud-volume layer'" site/world-v2300-clouds.js
-          grep -Fq 'version: 6160, map, overlay' site/world-v2300-clouds.js
+          grep -Fq 'version: 6161, map, overlay' site/world-v2300-clouds.js
           grep -Fq 'josephineHurricaneGeometryCount' site/world-v2300-clouds.js
           grep -Fq 'const billow = 1.0 +' site/world-v2300-clouds.js
           grep -Fq 'activeMacroCells' site/world-v2300-clouds.js
           grep -Fq 'MOBILE?8:9,3,hash(q.gx,q.gy,i+973)' site/world-v2300-clouds.js
           grep -Fq 'Height/latitude-aware modelled atmospheric flow; no source-backed global upper-air wind grid is connected' site/world-v2300-clouds.js
-          grep -Fq 'coverageVersion: 6160' site/world-v2300-clouds.js
+          grep -Fq 'coverageVersion: 6161' site/world-v2300-clouds.js
           grep -Fq 'function makeTornadoSurfaceCone' site/world-v2300-clouds.js
           grep -Fq 'hurricaneSurfaceCloudVertices+=vertices.length/13-before' site/world-v2300-clouds.js
           grep -Fq 'tornadoSurfaceMeshVertices+=surfaceAdded' site/world-v2300-clouds.js
@@ -658,7 +658,7 @@ jobs:
           grep -Fq '190000, 580000' site/world-v2300-clouds.js
           grep -Fq 'maxMacro = MOBILE ? 110 : 130' site/world-v2300-clouds.js
           grep -Fq 'globalThinLayerFormations: globalCloudGeometryCache?.thinLayerFormationCount || 0' site/world-v2300-clouds.js
-          grep -Fq 'if (Number(existingCloudController.version) >= 6160' site/world-v2300-clouds.js
+          grep -Fq 'if (Number(existingCloudController.version) >= 6161' site/world-v2300-clouds.js
           grep -Fq 'const columns = 40, rows = 18, maxMacro = MOBILE ? 110 : 130;' site/world-v2300-clouds.js
           grep -Fq '400000, 900000' site/world-v2300-clouds.js
           grep -Fq 'vertical,0.26+hash(q.gx,q.gy,987)*0.40,8,2,hash(q.gx,q.gy,988));' site/world-v2300-clouds.js
@@ -822,8 +822,8 @@ jobs:
           grep -Fq 'deferred-active-use' site/refresh-v5535.js
           grep -Fq 'bp-intelligence-v6161-clouds-3d-visible' site/sw.js
           node --check site/app-update-v5820.js
-          grep -Fq '/app-update-v5820.js?v=6160-cloud-shell-freshness' site/index.html
-          grep -Fq '/app-update-v5820.js?v=6160-cloud-shell-freshness' site/app/index.html
+          grep -Fq '/app-update-v5820.js?v=6161-clouds-3d-visible' site/index.html
+          grep -Fq '/app-update-v5820.js?v=6161-clouds-3d-visible' site/app/index.html
           grep -Fq 'bridgepoint-intelligence-legacy-retire-v5820' site/app/flutter_service_worker.js
           grep -Fq 'migrated=legacy-intelligence-v5820' site/app/intelligence-launch/index.html
           grep -Fq "bridgepoint-horizon-v5820" site/app/horizon/sw.js
@@ -1337,7 +1337,7 @@ jobs:
               && grep -Fq 'const VERSION=1068' /tmp/language-selector-v5200.js \
               && grep -Fq 'BridgePointLanguage' /tmp/language-selector-v5200.js \
               && grep -Fq "const V='bp-intelligence-v6161-clouds-3d-visible'" /tmp/sw.js \
-              && grep -Fq 'BUILD=6160' /tmp/app-update-v5820.js \
+              && grep -Fq 'BUILD=6161' /tmp/app-update-v5820.js \
               && grep -Fq 'bridgepoint-intelligence-legacy-retire-v5820' /tmp/flutter-service-worker-retire.js \
               && grep -Fq 'migrated=legacy-intelligence-v5820' /tmp/legacy-intelligence-launch.html \
               && grep -Fq "bridgepoint-horizon-v5820" /tmp/horizon-sw.js \
