@@ -112,7 +112,7 @@ test('entrypoints use fresh cache keys for updated map, water, clouds, weather a
   assert.match(landingHtml, /intelligence-global-v5507\.js\?v=6134-global-precip-lod/);
 });
 
-test('both entrypoints perform a real 6163 service-worker cutover before stale startup survives', () => {
+test('both entrypoints perform a real 6164 service-worker cutover before stale startup survives', () => {
   assert.match(landingHtml, /app-update-v5820\.js\?v=6164-cloud-mask-visible-volume/);
   assert.match(appHtml, /app-update-v5820\.js\?v=6164-cloud-mask-visible-volume/);
   assert.match(appUpdate, /const BUILD=6164/);
@@ -121,7 +121,7 @@ test('both entrypoints perform a real 6163 service-worker cutover before stale s
   assert.match(appUpdate, /location\.replace\(u\.href\)/);
   assert.match(appUpdate, /navigator\.serviceWorker\?\.addEventListener\('controllerchange'/);
   assert.match(serviceWorker, /const V='bp-intelligence-v6164-cloud-mask-visible-volume'/);
-  assert.match(clouds, /Number\(existingCloudController\.version\) >= 6163[\s\S]{0,180}Number\(existingState\?\.coverageVersion \|\| existingState\?\.version\) >= 6163/);
+  assert.match(clouds, /Number\(existingCloudController\.version\) >= 6164[\s\S]{0,180}Number\(existingState\?\.coverageVersion \|\| existingState\?\.version\) >= 6164/);
 });
 
 test('new rain/lightning and global source markers stay separate from legacy effects', () => {
