@@ -95,5 +95,5 @@ jobs:
           grep -Fq "float glancingGlint = pow(" release-v2300/world-v2300-water.js
           grep -Fq "sourceLevel !== null && sourceLevel >= -MAX_VALID_MARINE_SURFACE_OFFSET_M" release-v2300/world-v2300-water.js
           grep -Fq "clamp(0.22 + shimmer * 0.20, 0.22, 0.50)" release-v2300/world-v2300-water.js
-          grep -Fq "world-v2300-water.js?v=6122-horizon-safe-vertex-displacement" rebuild-v5000/app.js
-          grep -Fq "world-v2300-water.js?v=6122-horizon-safe-vertex-displacement" rebuild-v5000/landing.js
+          grep -Fq "world-v2300-water.js?v=6122-topdown-vertex-displacement-off" rebuild-v5000/app.js
+          grep -Fq "world-v2300-water.js?v=6122-topdown-vertex-displacement-off" rebuild-v5000/landing.js
