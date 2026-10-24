@@ -93,10 +93,14 @@ jobs:
           grep -Fq 'zoom < RAIN_START_ZOOM || document.hidden' release-v2300/world-v2300-rain.js
           grep -Fq 'window.__BP_LIGHTNING_CLOUD_ANCHORS_V6135__' release-v2300/world-v2300-clouds.js
           grep -Fq 'window.__BP_LIGHTNING_CLOUD_ANCHORS_V6135__' release-v2300/world-v2300-lightning.js
+          grep -Fq 'if(!cloud){cloudAnchorRejectedCount++;continue;}' release-v2300/world-v2300-lightning.js
+          ! grep -Fq 'const cc=cloud||' release-v2300/world-v2300-lightning.js
+          grep -Fq 'map.project([anchor.cloudLng??anchor.lng,anchor.cloudLat??anchor.lat])' release-v2300/world-v2300-lightning.js
+          grep -Fq 'const top={x:clamp(cloudScreen.x+jitter,0,bounds.w),y:Math.max(-12,cloudScreen.y-height)}' release-v2300/world-v2300-lightning.js
           grep -Fq 'bp6135-ground-flash-gradient' release-v2300/world-v2300-lightning.js
-          grep -Fq 'world-v2300-weather.js?v=6137-globe-first-weather-lockstep' rebuild-v5000/app.js
-          grep -Fq 'world-v2300-weather.js?v=6137-globe-first-weather-lockstep' rebuild-v5000/landing.js
-          grep -Fq 'world-v2300-lightning.js?v=6137-globe-first-weather-lockstep' release-v2300/world-v2300-weather.js
+          grep -Fq 'world-v2300-weather.js?v=6138-cloud-linked-lightning' rebuild-v5000/app.js
+          grep -Fq 'world-v2300-weather.js?v=6138-cloud-linked-lightning' rebuild-v5000/landing.js
+          grep -Fq 'world-v2300-lightning.js?v=6138-cloud-linked-lightning' release-v2300/world-v2300-weather.js
           grep -Fq "const RAIN_CELL_CONTEXT_GLOW = 'bp2300-rain-cell-lod-glow-v6135';" release-v2300/world-v2300-rain.js
           grep -Fq "const RAIN_CELL_CONTEXT_CORE = 'bp2300-rain-cell-lod-core-v6135';" release-v2300/world-v2300-rain.js
           grep -Fq 'const limit = z < 3.5 ? (MOBILE ? 16 : 36)' release-v2300/world-v2300-rain.js

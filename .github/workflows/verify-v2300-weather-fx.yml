@@ -59,12 +59,20 @@ jobs:
           grep -Fq 'function drawProjectedRain(now)' /tmp/bp2300wx/world-v2300-rain.js
           grep -Fq 'zoom < RAIN_START_ZOOM || document.hidden' /tmp/bp2300wx/world-v2300-rain.js
           grep -Fq 'window.__BP_LIGHTNING_CLOUD_ANCHORS_V6135__' /tmp/bp2300wx/world-v2300-clouds.js
+          grep -Fq 'if(!cloud){cloudAnchorRejectedCount++;continue;}' /tmp/bp2300wx/world-v2300-lightning.js
+          ! grep -Fq 'const cc=cloud||' /tmp/bp2300wx/world-v2300-lightning.js
+          grep -Fq 'map.project([anchor.cloudLng??anchor.lng,anchor.cloudLat??anchor.lat])' /tmp/bp2300wx/world-v2300-lightning.js
+          grep -Fq 'const top={x:clamp(cloudScreen.x+jitter,0,bounds.w),y:Math.max(-12,cloudScreen.y-height)}' /tmp/bp2300wx/world-v2300-lightning.js
           grep -Fq 'bp6135-ground-flash-gradient' /tmp/bp2300wx/world-v2300-lightning.js
           grep -Fq 'map.project([d.lng, d.lat])' /tmp/bp2300wx/world-v2300-rain.js
           grep -Fq 'world-v2300-rain.js?v=6137-globe-first-weather-lockstep' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq "lastProjectionMode = 'geographic-map-project'" /tmp/bp2300wx/world-v2300-rain.js
           grep -Fq 'zoom < RAIN_START_ZOOM || document.hidden' /tmp/bp2300wx/world-v2300-rain.js
           grep -Fq 'window.__BP_LIGHTNING_CLOUD_ANCHORS_V6135__' /tmp/bp2300wx/world-v2300-clouds.js
+          grep -Fq 'if(!cloud){cloudAnchorRejectedCount++;continue;}' /tmp/bp2300wx/world-v2300-lightning.js
+          ! grep -Fq 'const cc=cloud||' /tmp/bp2300wx/world-v2300-lightning.js
+          grep -Fq 'map.project([anchor.cloudLng??anchor.lng,anchor.cloudLat??anchor.lat])' /tmp/bp2300wx/world-v2300-lightning.js
+          grep -Fq 'const top={x:clamp(cloudScreen.x+jitter,0,bounds.w),y:Math.max(-12,cloudScreen.y-height)}' /tmp/bp2300wx/world-v2300-lightning.js
           grep -Fq 'bp6135-ground-flash-gradient' /tmp/bp2300wx/world-v2300-lightning.js
           grep -Fq 'map.project([d.lng, d.lat])' /tmp/bp2300wx/world-v2300-rain.js
           grep -Fq 'const MAX_DROPS = MOBILE ? 900 : 3600;' /tmp/bp2300wx/world-v2300-rain.js
