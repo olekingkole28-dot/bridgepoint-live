@@ -1491,7 +1491,7 @@ function generateGeometry() {
         const db = Math.hypot((Number(b.lng ?? b.longitude) - c.lng) * Math.cos(c.lat * Math.PI / 180), Number(b.lat ?? b.latitude) - c.lat);
         return da - db;
       });
-    for (const sample of rainAnchorObservations.slice(0, overviewClouds ? 0 : (MOBILE ? 4 : 8))) {
+    for (const sample of rainAnchorObservations.slice(0, overviewClouds ? (MOBILE ? 2 : 4) : (MOBILE ? 4 : 8))) {
       const lng = number(sample.lng, number(sample.longitude, NaN));
       const lat = number(sample.lat, number(sample.latitude, NaN));
       if (!Number.isFinite(lng) || !Number.isFinite(lat)) continue;
