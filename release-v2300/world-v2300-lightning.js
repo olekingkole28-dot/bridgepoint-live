@@ -35,7 +35,7 @@ function itemCenter(item){
 function textOf(item){
   const p=item?.properties||item||{};
   return str([item?.type,item?.kind,item?.classification,item?.name,item?.event,item?.phenom,item?.phenomenon,item?.description,
-    p.type,p.kind,p.classification,p.name,p.event,p.phenom,p.phenomenon,p.description,p.product,p.hazard,p.weather,p.present_weather,p.weather_text,p.wx,p.rawdata]
+    p.type,p.kind,p.classification,p.name,p.event,p.phenom,p.phenomenon,p.description,p.headline,p.event_name,p.product,p.hazard,p.weather,p.present_weather,p.weather_text,p.wx,p.rawdata]
     .filter(Boolean).join(' '));
 }
 function pickLightningAnchors(scene){
@@ -50,7 +50,7 @@ function pickLightningAnchors(scene){
   for(const row of (Array.isArray(scene?.lightning)?scene.lightning:[]).slice(0,100))add(row,'lightning',1.25);
   for(const row of (Array.isArray(scene?.alerts)?scene.alerts:[]).slice(0,300)){
     const t=textOf(row);
-    if(/prob.?severe|severe thunderstorm|thunderstorm|lightning|convective|tornado|hail|squall/.test(t))add(row,/prob.?severe/.test(t)?'probsevere':'warning',1.15);
+    if(/prob.?severe|severe thunderstorm|thunderstorm|lightning|convective|tornado|hail|squall|\\bsv\\b/.test(t))add(row,/prob.?severe/.test(t)?'probsevere':'warning',1.15);
   }
   for(const row of (Array.isArray(scene?.storms)?scene.storms:[]).slice(0,80)){
     const t=textOf(row);
@@ -135,19 +135,17 @@ export function initLightningLayer(map,getScene=()=>({})){
     for(const f of activeFlashes){try{f.group.remove()}catch(_){}}
     activeFlashes=[];state.activeBolts=0;
   }
-  function buildBolt(anchor){
+  function stableSeed(a){
+    const n=Math.sin(a.lng*17.31+a.lat*71.7+seq*13.7)*43758.5453;
+    return Math.abs(n%1)+.001;
+  }
+  function renderBoltGeometry(group,anchor,seed){
     const bounds=dimensions(),z=finite(map.getZoom?.())||0;
     const ground={x:clamp(anchor.x,0,bounds.w),y:clamp(anchor.y,0,bounds.h+80)};
-    // View-space ray length remains legible from world zoom through city zoom.
+    const rng=randomizer(seed);
     const height=clamp(86+Math.max(0,z)*13,86,270);
-    const top={x:ground.x+(rngFor(anchor)*2-1)*Math.min(28,bounds.w*.04),y:Math.max(-12,ground.y-height)};
-    const random=rngFor(anchor)+Date.now()/1000;
-    const rng=randomizer(random);
+    const top={x:ground.x+(rng()-.5)*Math.min(56,bounds.w*.08),y:Math.max(-12,ground.y-height)};
     const mainD=lightningPath(top,ground,rng,21);
-    const id='bp6130-bolt-'+(++seq);
-    const group=document.createElementNS('http://www.w3.org/2000/svg','g');
-    group.setAttribute('class','bp6130-long-bolt');group.setAttribute('data-bp-bolt-id',id);
-    group.setAttribute('filter','url(#bp6130-bolt-glow)');
     svgPath(group,mainD,{'fill':'none','stroke':'#71cfff','stroke-width':8,'stroke-linecap':'round','stroke-linejoin':'round','opacity':'.28'});
     svgPath(group,mainD,{'fill':'none','stroke':'#c8f4ff','stroke-width':3.6,'stroke-linecap':'round','stroke-linejoin':'round','opacity':'.96'});
     svgPath(group,mainD,{'fill':'none','stroke':'#ffffff','stroke-width':1.35,'stroke-linecap':'round','stroke-linejoin':'round','opacity':'1'});
@@ -160,12 +158,20 @@ export function initLightningLayer(map,getScene=()=>({})){
       const d=lightningPath(mid,end,rng,5+i);
       svgPath(group,d,{'fill':'none','stroke':'#b7ecff','stroke-width':1.7,'stroke-linecap':'round','stroke-linejoin':'round','opacity':'.88'});
     }
+  }
+  function buildBolt(anchor){
+    const id='bp6130-bolt-'+(++seq);
+    const group=document.createElementNS('http://www.w3.org/2000/svg','g');
+    group.setAttribute('class','bp6130-long-bolt');group.setAttribute('data-bp-bolt-id',id);
+    group.setAttribute('filter','url(#bp6130-bolt-glow)');
+    const seed=stableSeed(anchor);
+    renderBoltGeometry(group,anchor,seed);
     overlay.appendChild(group);
-    const flash={id,group,anchor,started:performance.now(),expires:performance.now()+1850,seed:random};
+    const started=performance.now();
+    const flash={id,group,anchor,seed,started,expires:started+1850};
     activeFlashes.push(flash);state.activeBolts=activeFlashes.length;state.lastFlashAt=Date.now();
     setTimeout(()=>{if(disposed)return;activeFlashes=activeFlashes.filter(x=>x!==flash);try{group.remove()}catch(_){}state.activeBolts=activeFlashes.length},1950);
   }
-  function rngFor(a){return (a.lng*17.31+a.lat*71.7+seq*13.7+performance.now()/1000)%1<0?Math.abs((a.lng*17.31+a.lat*71.7+seq*13.7+performance.now()/1000)%1):((Math.sin(a.lng*17.31+a.lat*71.7+seq*13.7+performance.now()/1000)*43758.5453)%1+1)%1}
   function schedule(){
     clearTimeout(timeout);if(!enabled||disposed||document.hidden)return;
     const anchors=projectedAnchors();
@@ -180,20 +186,14 @@ export function initLightningLayer(map,getScene=()=>({})){
   }
   function refreshActivePositions(){
     if(disposed||!activeFlashes.length)return;
-    const {w,h}=dimensions();
+    dimensions();
     for(const flash of activeFlashes){
       try{
         const p=map.project([flash.anchor.lng,flash.anchor.lat]);
         if(!p||!Number.isFinite(p.x)||!Number.isFinite(p.y))continue;
-        const age=performance.now()-flash.started;
-        // Reconstruct the same jagged bolt while the camera is moving so the strike follows its geographic anchor.
-        const ground={x:clamp(p.x,0,w),y:clamp(p.y,0,h+80)},z=finite(map.getZoom?.())||0;
-        const height=clamp(86+Math.max(0,z)*13,86,270);
-        const top={x:ground.x+(rngFor(flash.anchor)*2-1)*Math.min(28,w*.04),y:Math.max(-12,ground.y-height)};
-        const rng=randomizer(flash.seed);
-        const mainD=lightningPath(top,ground,rng,21);
-        const paths=flash.group.querySelectorAll('path');
-        if(paths.length>=3){paths[0].setAttribute('d',mainD);paths[1].setAttribute('d',mainD);paths[2].setAttribute('d',mainD)}
+        flash.anchor.x=p.x;flash.anchor.y=p.y;
+        flash.group.querySelectorAll('path').forEach(path=>path.remove());
+        renderBoltGeometry(flash.group,flash.anchor,flash.seed);
       }catch(_){}
     }
   }
