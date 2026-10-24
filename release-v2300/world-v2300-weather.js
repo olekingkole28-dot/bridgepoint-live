@@ -87,7 +87,7 @@ function hideLegacyNativeWeatherLayers(map){
  for(const id of LEGACY_NATIVE_WEATHER_LAYERS)try{if(map.getLayer(id))map.setLayoutProperty(id,'visibility','none')}catch(_){}
 }
 const CLOUDS_ONLY_PHASE=()=>window.__BP_CLOUDS_ONLY_PHASE_V6070__===true;
-const CLOUD_PHASE_HIDDEN_LAYERS=['bp-radar-a','bp-radar-b','bp5510-global-imerg','wx-snow-depth','wx-radar-haze','wx-radar','bp2300-weather-fx-gpu','bp2300-rain-world-volume-v6068','bp2300-rain-wet-ground-v6068','bp2300-rain-puddle-fill-v6068','bp2300-rain-puddle-glint-v6068','bp2300-fx-flood-fill','bp2300-fx-flood-line','bp2300-fx-ice-fill','bp2300-fx-ice-line','bp2300-fx-burn','bp2300-fx-containment','bp2300-fx-tornado','bp2300-fx-hurricane','bp2300-fx-flood-depth-volume','bp2300-fx-snow-depth-volume','bp2300-fx-wet-ground','bp2300-fx-lava-glow','bp2300-fx-lava-flow','bp-landing-radar-a','bp-landing-radar-b'];
+const CLOUD_PHASE_HIDDEN_LAYERS=['bp-radar-a','bp-radar-b','bp5510-global-imerg','wx-snow-depth','wx-radar-haze','wx-radar','bp2300-weather-fx-gpu','bp2300-rain-world-volume-v6068','bp2300-fx-flood-fill','bp2300-fx-flood-line','bp2300-fx-ice-fill','bp2300-fx-ice-line','bp2300-fx-burn','bp2300-fx-containment','bp2300-fx-tornado','bp2300-fx-hurricane','bp2300-fx-flood-depth-volume','bp2300-fx-snow-depth-volume','bp2300-fx-wet-ground','bp2300-fx-lava-glow','bp2300-fx-lava-flow','bp-landing-radar-a','bp-landing-radar-b'];
 function hideCloudPhaseVisuals(map){
  if(!CLOUDS_ONLY_PHASE()||!map)return;
  let hidden=0;
