@@ -66,8 +66,12 @@ def find_variable(ds: xr.Dataset, candidates: tuple[str, ...]) -> str | None:
 def reduce_to_2d(values: Any) -> np.ndarray:
     array = np.asarray(values)
     array = np.squeeze(array)
+    if array.ndim == 0:
+        return np.asarray(array, dtype=np.float64).reshape(1, 1)
     while array.ndim > 2:
         array = array[0]
+    if array.ndim == 1:
+        array = array.reshape(1, -1)
     if array.ndim != 2:
         raise ValueError(f"Expected a 2D cloud-height grid, received shape {array.shape}")
     return np.asarray(array, dtype=np.float64)
