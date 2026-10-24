@@ -1327,7 +1327,7 @@ function generateGeometry() {
 
     // Rain-only cloud anchors: source-reported precipitation observations get a local 3D cloud base.
     // This supplements, rather than replaces, the persistent global cloud field and existing cloud shader.
-    const rainAnchorObservations = (window.__BP_CLOUDS_ONLY_PHASE_V6070__ === true ? [] : (Array.isArray(scene?.observations) ? scene.observations : []))
+    const rainAnchorObservations = (Array.isArray(scene?.observations) ? scene.observations : [])
       .filter(o => {
         const raw = String([o?.weather, o?.present_weather, o?.weather_text, o?.wx, o?.condition, o?.conditions, o?.rawdata]
           .filter(Boolean).join(' ')).toLowerCase();
