@@ -970,6 +970,9 @@ function startLiveWeather(){
  if(map&&!map.__bpCinematicWeatherLegacyGuard6057){map.__bpCinematicWeatherLegacyGuard6057=true;map.on('styledata',()=>hideLegacyLiveContextLayers(map));[120,450,1100].forEach(ms=>setTimeout(()=>hideLegacyLiveContextLayers(map),ms))}
  const b=$('toggleLiveContext');if(b)b.onclick=()=>{if(liveContextVisible)stopLiveWeather();else activateLiveWeather()};
  activateLiveWeather();
+ void loadLiveWeather(true);
+ clearInterval(liveContextTimer);liveContextTimer=setInterval(()=>{if(liveContextVisible)void loadLiveWeather(false)},60000);
+ window.__BP_LIVE_WEATHER_REFRESH_V6132__={enabled:true,initialFetchRequested:true,refreshMs:60000,icons:true,sourcePolygons:true,groundRadar:true,updatedAt:Date.now()};
 }
 
 
