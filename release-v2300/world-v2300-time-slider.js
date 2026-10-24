@@ -282,7 +282,7 @@ export function initWorldTimeSlider(target,rpc){
   try{
    let cloud=window.__BP_SKY_CLOUDS_V5908__;
    if(!cloud||cloud.map!==map||typeof cloud.setEnabled!=='function'){
-    const mod=await import('./world-v2300-clouds.js?v=6094-josephine-spiral-unified');
+    const mod=await import('./world-v2300-clouds.js?v=6124-live-cloud-shadow-advection');
     cloud=window.__BP_SKY_CLOUDS_V5908__;if(!cloud||cloud.map!==map)cloud=mod.initSkyClouds(map)
    }
    if(!cloud||cloud.map!==map||typeof cloud.setEnabled!=='function')throw new Error('3D cloud controller did not attach to this map');
@@ -316,27 +316,28 @@ export function initWorldTimeSlider(target,rpc){
   map.stop?.();
   const targetProjection=restore.projection==='globe'?'globe':restore.projection;
   const safePitch=Math.max(0,Math.min(Number(restore.pitch)||0,85));
-  // First bring the elevated camera pivot back under 90 degrees while still in Mercator.
-  // Switching projection while pitched above the horizon can be ignored by MapLibre.
-  if(skyProjectionType()==='mercator'){
-   map.setMaxPitch(160);
-   map.jumpTo({center:restore.center,zoom:restore.zoom,bearing:restore.bearing,pitch:safePitch});
-   map.triggerRepaint?.();
-   await waitSkyMapState(()=>map.getPitch()<90&&skyProjectionType()==='mercator',5000,'safe pitch before projection restore');
-  }
-  map.setCenterClampedToGround(true);
+  const camera={center:restore.center,zoom:restore.zoom,bearing:restore.bearing,pitch:safePitch,elevation:0};
+  // Clear the above-horizon camera first. Keep this operation short and deterministic:
+  // the production gate must see the camera and control restored, not just a map that
+  // happens to look normal after a timed-out asynchronous cleanup.
+  try{map.setMaxPitch(160)}catch(_){}
+  try{map.setCenterClampedToGround(false)}catch(_){}
+  map.jumpTo(camera);
   map.triggerRepaint?.();
-  await waitSkyMapState(()=>map.getPitch()<90&&map.getCenterClampedToGround?.()===true,3000,'ground clamp restore');
+  await waitSkyMapState(()=>map.getPitch()<90,1800,'safe pitch before projection restore');
+
+  // Restore the requested projection only after the high pitch is gone.
+  map.setCenterClampedToGround(true);
   map.setProjection({type:targetProjection});
   map.triggerRepaint?.();
-  await waitSkyMapState(()=>skyProjectionType()===targetProjection,6000,'projection restore');
+  await waitSkyMapState(()=>skyProjectionType()===targetProjection,3000,'projection restore');
+
   const limit=Math.max(60,Math.min(Number(restore.maxPitch)||85,targetProjection==='globe'?85:110));
   map.setMaxPitch(limit);
-  await waitSkyMapState(()=>Number(map.getMaxPitch?.())>=Math.min(limit,85),3000,'pitch-limit restore');
   map.setCenterClampedToGround(true);
-  map.jumpTo({center:restore.center,zoom:restore.zoom,bearing:restore.bearing,pitch:safePitch});
+  map.jumpTo(camera);
   map.triggerRepaint?.();
-  await waitSkyMapState(()=>map.getZoom()>0&&Math.abs(map.getZoom()-restore.zoom)<0.25&&map.getPitch()<90&&Math.abs(map.getPitch()-safePitch)<2&&skyProjectionType()===targetProjection,5000,'street camera restore');
+  await waitSkyMapState(()=>map.getZoom()>0&&Math.abs(map.getZoom()-restore.zoom)<0.25&&map.getPitch()<90&&Math.abs(map.getPitch()-safePitch)<2&&skyProjectionType()===targetProjection&&map.getCenterClampedToGround?.()===true,3000,'street camera restore');
   window.__BP_SKY_VIEW_OVERRIDE_V6077__=false;
  }
  async function toggleSkyView(){
@@ -377,6 +378,7 @@ export function initWorldTimeSlider(target,rpc){
     setStatus('SKY VIEW ON · looking above the street horizon · press RETURN TO STREET to restore');
    }else{
     const restore=skyViewRestore;
+    skyViewDiag.phase='restoring-street';skyViewDiag.updatedAt=Date.now();
     await restoreSkyStreetView(restore);
     skyViewRestore=null;
     syncSkyViewButton(false);

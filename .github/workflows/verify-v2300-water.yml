@@ -6,6 +6,12 @@ on:
     paths:
       - 'release-v2300/world-v2300-water.js'
       - 'release-v2300/world-v2300-map.js'
+      - 'release-v2300/world-v2300-space.js'
+      - 'release-v2300/world-v2300-clouds.js'
+      - 'release-v2300/world-v2300-weather.js'
+      - 'release-v2300/world-v2300-time-slider.js'
+      - 'release-v2300/world-v2300-bootstrap.js'
+      - 'tests/celestial-water-cloud-shadows.test.mjs'
       - 'tests/water-wave-frequency.test.mjs'
       - 'tests/water-lod-and-imagery.test.mjs'
       - 'rebuild-v5000/app.js'
@@ -19,6 +25,12 @@ on:
     paths:
       - 'release-v2300/world-v2300-water.js'
       - 'release-v2300/world-v2300-map.js'
+      - 'release-v2300/world-v2300-space.js'
+      - 'release-v2300/world-v2300-clouds.js'
+      - 'release-v2300/world-v2300-weather.js'
+      - 'release-v2300/world-v2300-time-slider.js'
+      - 'release-v2300/world-v2300-bootstrap.js'
+      - 'tests/celestial-water-cloud-shadows.test.mjs'
       - 'tests/water-wave-frequency.test.mjs'
       - 'tests/water-lod-and-imagery.test.mjs'
       - 'rebuild-v5000/app.js'
@@ -42,7 +54,13 @@ jobs:
         run: |
           set -euo pipefail
           node --input-type=module --check < release-v2300/world-v2300-water.js
+          node --input-type=module --check < release-v2300/world-v2300-space.js
+          node --input-type=module --check < release-v2300/world-v2300-clouds.js
+          node --input-type=module --check < release-v2300/world-v2300-weather.js
+          node --input-type=module --check < release-v2300/world-v2300-time-slider.js
+          node --input-type=module --check < release-v2300/world-v2300-bootstrap.js
           node tests/water-wave-frequency.test.mjs
+          node tests/celestial-water-cloud-shadows.test.mjs
           node tests/water-lod-and-imagery.test.mjs
           node --check rebuild-v5000/app.js
           node --check rebuild-v5000/landing.js
@@ -100,8 +118,8 @@ jobs:
           grep -Fq "float glancingGlint = pow(" release-v2300/world-v2300-water.js
           grep -Fq "sourceLevel !== null && sourceLevel >= -MAX_VALID_MARINE_SURFACE_OFFSET_M" release-v2300/world-v2300-water.js
           grep -Fq "clamp(0.22 + shimmer * 0.20, 0.22, 0.50)" release-v2300/world-v2300-water.js
-          grep -Fq "world-v2300-water.js?v=6123-aaa-water-lod-land-only" rebuild-v5000/app.js
-          grep -Fq "world-v2300-water.js?v=6123-aaa-water-lod-land-only" rebuild-v5000/landing.js
+          grep -Fq "world-v2300-water.js?v=6124-solar-ocean-swell" rebuild-v5000/app.js
+          grep -Fq "world-v2300-water.js?v=6124-solar-ocean-swell" rebuild-v5000/landing.js
           grep -Fq "paint(map,'gta-water','fill-opacity',sat?1:.97)" release-v2300/world-v2300-map.js
           grep -Fq "setBase('satellite')" release-v2300/world-v2300-map.js
           grep -Fq "gta-esri" release-v2300/world-v2300-map.js

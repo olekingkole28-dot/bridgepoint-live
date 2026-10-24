@@ -124,7 +124,7 @@ async function initSharedVisualWeather(targetWorld,{activate=true}={}){
  const styleReady=()=>{try{return map.isStyleLoaded?.()===true||!!map.getSource?.('ofm')}catch{return false}};
  if(!styleReady())await new Promise(resolve=>{let done=false;const finish=()=>{if(done)return;done=true;resolve()};map.once?.('load',finish);setTimeout(finish,5000)});
  try{
-  const wm=await import('./world-v2300-weather.js?v=6091-global-storm-centers');
+  const wm=await import('./world-v2300-weather.js?v=6124-live-cloud-weather-refresh');
   const weather=wm.initWeather(map,{deferActivation:!activate});
   let present=window.__bpPresentWeatherV2301||null;
   if(activate){
@@ -139,12 +139,12 @@ async function initSharedVisualWeather(targetWorld,{activate=true}={}){
  }catch(e){console.warn('BridgePoint shared visual weather',e);return null}
 }
 async function bootMap(){
- const mod=await import('./world-v2300-map.js?v=6123-satellite-water-mask');world=mod.initWorld();window.__BP_V5000_WORLD=world;
+ const mod=await import('./world-v2300-map.js?v=6124-solar-space-coast');world=mod.initWorld();window.__BP_V5000_WORLD=world;
  const started=performance.now();
  while(!world?.map&&performance.now()-started<10000)await new Promise(r=>setTimeout(r,40));
  if(!world?.map)throw new Error('Map object readiness timeout');
   // The water engine shares this map's WebGL context and uses the live hydrology/weather scene.
-  void import('./world-v2300-water.js?v=6123-aaa-water-lod-land-only').then(m=>{if(world?.map)window.__BP_WATER_ENGINE_APP_V6123__=m.initWaterEngine(world,{surface:'app'})}).catch(e=>console.warn('BridgePoint GPU water layer unavailable; native water remains enabled',e));
+  void import('./world-v2300-water.js?v=6124-solar-ocean-swell').then(m=>{if(world?.map)window.__BP_WATER_ENGINE_APP_V6123__=m.initWaterEngine(world,{surface:'app'})}).catch(e=>console.warn('BridgePoint GPU water layer unavailable; native water remains enabled',e));
   void import('./world-v2300-lod-controls.js?v=6038-world-lod-range-apply').then(m=>{window.__BP_LOD_CONTROL_APP_V6016__=m.initWorldLodControls(world,{surface:'app'})}).catch(e=>console.warn('BridgePoint LOD controls unavailable',e));
  window.__BP_PENDING_LANDMARK_MAP_V5940__=world.map;
  try{window.dispatchEvent(new CustomEvent('bp:world-map-ready-v5940',{detail:{map:world.map,source:'app'}}))}catch(_){}
@@ -157,12 +157,12 @@ async function bootMap(){
  // initialization avoids a burst of source/layer changes during the first Gold LOD render.
  // Initialize the persistent global 3D cloud field as soon as the core map exists;
  // do not make the globe wait behind the idle-only optional module queue.
- void import('./world-v2300-clouds.js?v=6092-posttropical-global-clouds')
+ void import('./world-v2300-clouds.js?v=6124-live-cloud-shadow-advection')
   .then(m=>{if(world?.map)window.__BP_SKY_CLOUDS_V5908__=m.initSkyClouds(world)})
   .catch(e=>console.warn('BridgePoint global 3D cloud field unavailable',e));
  const optionalWorldJobs=[
-  ['time-slider',async()=>{const m=await import('./world-v2300-time-slider.js?v=6092-posttropical-global-clouds');window.__BP_WORLD_TIME_SLIDER_V5908__=m.initWorldTimeSlider(world,rpc)}],
-  ['time-slider',async()=>{const m=await import('./world-v2300-time-slider.js?v=6092-posttropical-global-clouds');window.__BP_WORLD_TIME_SLIDER_V5908__=m.initWorldTimeSlider(world,rpc)}],
+  ['time-slider',async()=>{const m=await import('./world-v2300-time-slider.js?v=6124-live-cloud-shadow-motion');window.__BP_WORLD_TIME_SLIDER_V5908__=m.initWorldTimeSlider(world,rpc)}],
+  ['time-slider',async()=>{const m=await import('./world-v2300-time-slider.js?v=6124-live-cloud-shadow-motion');window.__BP_WORLD_TIME_SLIDER_V5908__=m.initWorldTimeSlider(world,rpc)}],
   ['spectral-imagery',async()=>{const m=await import('./world-v2300-spectral-imagery.js?v=5934-world-controls');window.__BP_SPECTRAL_IMAGERY_V5931__=m.initSpectralImagery(world)}],
   ['underground',async()=>{const m=await import('./world-v2300-underground-xray.js?v=5965-landmarks-and-effects');window.__BP_UNDERGROUND_XRAY_V5935__=m.initUndergroundXray(world)}],
   ['infrastructure',async()=>{const m=await import('./world-v2300-infrastructure-volume-v5962.js?v=5962-power-grid-fcc-towers');window.__BP_INFRASTRUCTURE_VOLUME_V5962__=m.initInfrastructureVolume(world)}],

@@ -2,6 +2,7 @@
 // Additive MapLibre custom layer: one shared map canvas/context, bounded source geometry,
 // GPU wave displacement, source-gated flood elevations, and view-aware mesh LOD.
 const VERSION = 6123;
+const SURFACE_RENDER_REVISION = 6124;
 const LAYER_ID = 'bp-water-surface-gpu-v6123';
 const EARTH_CIRCUMFERENCE_M = 40075016.68557849;
 const RAD = Math.PI / 180;
@@ -405,10 +406,18 @@ function buildShaders(gl, shaderDescription) {
     'uniform float u_flowPhaseB;',
     'uniform float u_flowPhaseDetail;',
     'uniform float u_windSpeed;',
+    'uniform vec2 u_sunDirScreen;',
+    'uniform float u_sunElevation;',
     'out highp vec4 fragColor;',
     'void main() {',
     '  float sparkle = sin((v_coord.x * 0.71 + v_coord.y * 0.29) * u_flowCycles * 6.2831853 + u_flowPhaseA + u_time * 0.38);',
     '  float fine = sin((v_coord.x * 0.27 - v_coord.y * 0.91) * u_flowCycles * 3.71 + u_flowPhaseB - u_time * 0.57);',
+    // Long-period swell remains visible at global scale, while footprint filtering rejects street-level aliases.
+    '  float swellPhaseA = (v_coord.x * 0.84 + v_coord.y * 0.16) * 6.2831853 * max(3.2, u_flowCycles * 0.14) - u_time * (0.34 + min(u_windSpeed * 0.004, 0.20)) + u_flowPhaseA;',
+    '  float swellPhaseB = (v_coord.x * -0.34 + v_coord.y * 0.94) * 6.2831853 * max(2.3, u_flowCycles * 0.085) + u_time * (0.22 + min(u_windSpeed * 0.0015, 0.08)) + u_flowPhaseB;',
+    '  float swellFootprint = max(fwidth(swellPhaseA), fwidth(swellPhaseB));',
+    '  float swellFade = 1.0 - smoothstep(2.5, 5.5, swellFootprint);',
+    '  float globalSwell = (0.56 * sin(swellPhaseA) + 0.44 * sin(swellPhaseB)) * swellFade;',
     // GPU-only optical detail: footprint-aware bands fade before they shimmer at pixel limits.
     '  vec2 waterDir = length(v_flow) > 0.001 ? normalize(v_flow) : vec2(1.0, 0.0);',
     '  vec2 microDirB = normalize(waterDir + vec2(0.62, 0.41));',
@@ -420,18 +429,23 @@ function buildShaders(gl, shaderDescription) {
     '  float microFadeAB = 1.0 - smoothstep(0.85, 2.2, microPixelSpanAB);',
     '  float microFadeC = 1.0 - smoothstep(0.85, 2.2, fwidth(microPhaseC));',
     '  float microWave = (0.46 * sin(microPhaseA) + 0.34 * sin(microPhaseB)) * microFadeAB + 0.20 * sin(microPhaseC) * microFadeC;',
-    '  float detail = clamp(0.5 + 0.5 * sin((v_coord.x * 0.61 + v_coord.y * 0.39) * u_flowCycles * 1.37 * 6.2831853 + u_flowPhaseDetail + u_time * 0.21) + microWave * 0.14, 0.0, 1.0);',
+    '  float detail = clamp(0.5 + 0.5 * sin((v_coord.x * 0.61 + v_coord.y * 0.39) * u_flowCycles * 1.37 * 6.2831853 + u_flowPhaseDetail + u_time * 0.21) + microWave * 0.14 + globalSwell * 0.08, 0.0, 1.0);',
     '  float glint = pow(max(0.0, 0.5 + 0.5 * (0.56 * sparkle + 0.20 * fine + 0.13 * detail + 0.11 * microWave)), 7.0);',
-    '  float foam = (smoothstep(0.79, 0.98, v_wave) * 0.7 + smoothstep(0.81, 0.97, detail) * 0.08 + smoothstep(0.76, 0.98, 0.5 + 0.5 * microWave) * 0.035) * (0.05 + min(0.62, u_windSpeed / 120.0) + 0.42 * v_storm);',
+    '  float crestBreak = smoothstep(0.60, 0.96, 0.5 + 0.5 * (globalSwell + microWave));',
+    '  float foam = (smoothstep(0.79, 0.98, v_wave) * 0.7 + smoothstep(0.81, 0.97, detail) * 0.08 + smoothstep(0.76, 0.98, 0.5 + 0.5 * microWave) * 0.035 + crestBreak * 0.10) * (0.05 + min(0.62, u_windSpeed / 120.0) + 0.42 * v_storm);',
     '  vec3 deep = vec3(0.006, 0.075, 0.135);',
     '  vec3 mid = vec3(0.012, 0.24, 0.345);',
     '  vec3 crest = vec3(0.42, 0.76, 0.82);',
     // Screen-space normals include micro-wave bands without changing vertex elevations.
-    '  float opticalSurface = v_wave + microWave * 0.12;',
-    '  vec3 waveNormal = normalize(vec3(-dFdx(opticalSurface) * 32.0, -dFdy(opticalSurface) * 32.0, 1.0));',
-    '  float specular = pow(max(dot(waveNormal, normalize(vec3(-0.34, 0.48, 0.81))), 0.0), 18.0);',
-    '  float glancingGlint = pow(max(dot(waveNormal, normalize(vec3(0.64, 0.24, 0.73))), 0.0), 28.0);',
-    '  float highlight = clamp(specular * 1.7 + glancingGlint * 0.75, 0.0, 1.0);',
+    '  float opticalSurface = v_wave + microWave * 0.12 + globalSwell * 0.17;',
+    '  vec3 waveNormal = normalize(vec3(-dFdx(opticalSurface) * 36.0, -dFdy(opticalSurface) * 36.0, 1.0));',
+    '  float sunElevationRad = clamp(u_sunElevation, -12.0, 90.0) * 0.01745329252;',
+    '  vec2 sunScreen = length(u_sunDirScreen) > 0.001 ? normalize(u_sunDirScreen) : normalize(vec2(0.42, -0.62));',
+    '  vec3 sunDirection = normalize(vec3(sunScreen * max(0.18, cos(sunElevationRad)), max(0.025, sin(max(u_sunElevation, 1.0) * 0.01745329252))));',
+    '  float directSun = clamp((u_sunElevation + 5.0) / 22.0, 0.035, 1.0);',
+    '  float specular = pow(max(dot(waveNormal, sunDirection), 0.0), 34.0) * directSun;',
+    '  float glancingGlint = pow(max(dot(waveNormal, normalize(vec3(sunScreen * 0.90, 0.18))), 0.0), 52.0) * directSun;',
+    '  float highlight = clamp(specular * 2.8 + glancingGlint * 1.55, 0.0, 1.0);',
     '  if (v_kind > 1.5 && v_kind < 2.5) {',
     '    vec2 flowDir = length(v_flow) > 0.001 ? normalize(v_flow) : vec2(1.0, 0.0);',
     '    float streamSpeedScale = clamp(length(v_flow), 0.12, 3.4);',
@@ -449,14 +463,15 @@ function buildShaders(gl, shaderDescription) {
     '    return;',
     '  }',
     '  if (v_kind < 0.5) {',
-    '    float shimmer = glint * 0.65 + foam * 0.13 + v_storm * 0.22 + highlight * 0.42;',
+    '    float shimmer = glint * 0.58 + foam * 0.20 + v_storm * 0.22 + highlight * 0.72 + abs(globalSwell) * 0.18;',
     '    vec3 color = mix(deep, mid, clamp(0.28 + shimmer, 0.0, 1.0));',
     '    color = mix(color, crest, clamp(shimmer * 0.34 + highlight * 0.30, 0.0, 0.90));',
     '    fragColor = vec4(color, clamp(0.22 + shimmer * 0.20, 0.22, 0.50));',
     '    return;',
     '  }',
-    '  float sheen = clamp(glint * 0.34 + foam * 0.54 + v_storm * 0.12 + highlight * 0.78, 0.0, 0.94);',
-    '  vec3 color = mix(deep, mid, 0.22 + v_wave * 0.45);',
+    '  float nightAmbient = clamp((9.0 - u_sunElevation) / 34.0, 0.0, 0.30);',
+    '  float sheen = clamp(glint * 0.30 + foam * 0.68 + v_storm * 0.12 + highlight * 0.92 + abs(globalSwell) * 0.15 + nightAmbient * 0.18, 0.0, 0.98);',
+    '  vec3 color = mix(deep, mid, clamp(0.22 + v_wave * 0.40 + globalSwell * 0.10, 0.0, 1.0));',
     '  color = mix(color, crest, sheen);',
     '  float alpha = v_kind > 2.5 ? 0.31 + glint * 0.20 + foam * 0.18 + v_storm * 0.12 + highlight * 0.10 : 0.24 + glint * 0.19 + foam * 0.12 + highlight * 0.10;',
     '  fragColor = vec4(color, clamp(alpha, v_kind > 2.5 ? 0.32 : 0.25, 0.78));',
@@ -489,7 +504,7 @@ function buildShaders(gl, shaderDescription) {
   const names = ['u_projection_fallback_matrix', 'u_projection_matrix', 'u_projection_tile_mercator_coords',
     'u_projection_clipping_plane', 'u_projection_transition', 'u_time', 'u_waveOrigin', 'u_wavePhaseA',
     'u_wavePhaseB', 'u_waveK', 'u_waveAmp', 'u_pitchWaveScale', 'u_waveOffsetLimit', 'u_windSpeed', 'u_windDir', 'u_storms[0]',
-    'u_flowCycles', 'u_flowPhaseA', 'u_flowPhaseB', 'u_flowPhaseDetail'];
+    'u_flowCycles', 'u_flowPhaseA', 'u_flowPhaseB', 'u_flowPhaseDetail', 'u_sunDirScreen', 'u_sunElevation'];
   const uniforms = {};
   for (const name of names) uniforms[name] = gl.getUniformLocation(program, name);
   const attributes = {
@@ -630,6 +645,13 @@ function createLayer(api, map) {
         const waterAnimationTimeSeconds = ((now - this.timeOrigin) / 1000) % 4096;
         api.animationTimeSeconds = waterAnimationTimeSeconds;
         if (u.u_time) gl.uniform1f(u.u_time, waterAnimationTimeSeconds);
+        const worldSun = window.__BP_WORLD_LIGHT__ || {};
+        const sunAzimuth = Number(worldSun.sunAzimuth);
+        const sunElevation = Number(worldSun.sunAltitude);
+        const mapBearing = Number(map.getBearing?.() || 0);
+        const sunAngle = (Number.isFinite(sunAzimuth) ? sunAzimuth - mapBearing : 135 - mapBearing) * RAD;
+        if (u.u_sunDirScreen) gl.uniform2f(u.u_sunDirScreen, Math.sin(sunAngle), -Math.cos(sunAngle));
+        if (u.u_sunElevation) gl.uniform1f(u.u_sunElevation, Number.isFinite(sunElevation) ? sunElevation : -8.0);
         if (u.u_waveOrigin) gl.uniform2f(u.u_waveOrigin, originX, originY);
         if (u.u_wavePhaseA) gl.uniform1f(u.u_wavePhaseA, Math.PI * 2 * frac(wavesPerWorld * centerCosLat * (originX * windX + originY * windY)));
         if (u.u_wavePhaseB) gl.uniform1f(u.u_wavePhaseB, Math.PI * 2 * frac(wavesPerWorld * 0.61 * centerCosLat * (originX * dirBX + originY * dirBY)));

@@ -1,6 +1,8 @@
 const STYLE_ID = 'bp-sky-clouds-style-v6029';
 const ROOT_CLASS = 'bp-sky-cloudfield-v5908';
 const LAYER_ID = 'bp-sky-cloud-volume-v6029';
+const SHADOW_SOURCE_ID = 'bp-cloud-shadow-source-v6124';
+const SHADOW_LAYER_ID = 'bp-cloud-shadow-ground-v6124';
 const MOBILE = (typeof innerWidth === 'number' && innerWidth <= 760) || /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
 const TAU = Math.PI * 2;
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -466,6 +468,7 @@ export function initSkyClouds(target) {
   let cloudVao = null, cloudVaoExt = null, cloudVaoMode = 'none';
   const programCache = new Map();
   const terrainHeightCache = new Map();
+  let shadowAnchorCache = [], shadowLastUpdateAt = 0, shadowFeatureCount = 0, shadowLayerError = null, shadowWindSourceCount = 0;
   let terrainHeightQueries = 0, terrainHeightKnownSamples = 0;
   const terrainQueryAvailable = typeof map.queryTerrainElevation === 'function' && (typeof map.getTerrain !== 'function' || !!map.getTerrain?.());
   function terrainElevationAt(lng, lat) {
@@ -593,6 +596,43 @@ export function initSkyClouds(target) {
     const speed=Math.min(40,speedMps),angle=heading*Math.PI/180,cosLat=Math.max(0.12,Math.cos(latFallback*Math.PI/180));
     return {x:Math.sin(angle)*speed/(EARTH_CIRCUMFERENCE_METERS*cosLat),y:-Math.cos(angle)*speed/(EARTH_CIRCUMFERENCE_METERS*cosLat),sourceBacked:true};
   }
+  function nearestObservationWind(lng,lat,altitude,scene) {
+    if (altitude > 6500) return null;
+    const rows = Array.isArray(scene?.observations) ? scene.observations : [];
+    let best = null, bestScore = Infinity;
+    const now = Date.now(), latCos = Math.max(0.12, Math.cos(lat * Math.PI / 180));
+    const compass = {N:0,NNE:22.5,NE:45,ENE:67.5,E:90,ESE:112.5,SE:135,SSE:157.5,S:180,SSW:202.5,SW:225,WSW:247.5,W:270,WNW:292.5,NW:315,NNW:337.5};
+    for (const row of rows) {
+      const p = row?.properties || row || {}, wind = p.wind || row?.wind || {};
+      const olng = number(p.lng, number(p.longitude, number(p.lon, NaN)));
+      const olat = number(p.lat, number(p.latitude, NaN));
+      if (!Number.isFinite(olng) || !Number.isFinite(olat)) continue;
+      const rawMs = p.wind_speed_mps ?? p.windSpeedMps ?? p.wind_speed_ms ?? wind.speed_mps ?? wind.speedMps;
+      const rawKt = p.wind_speed_kt ?? p.wind_kt ?? p.windSpeedKt ?? wind.speed_kt;
+      const rawMph = p.wind_speed_mph ?? p.wind_mph ?? p.windSpeedMph ?? wind.speed_mph;
+      let speed = Number.parseFloat(rawMs);
+      if (!Number.isFinite(speed) && rawKt !== undefined) speed = Number.parseFloat(rawKt) * 0.514444;
+      if (!Number.isFinite(speed) && rawMph !== undefined) speed = Number.parseFloat(rawMph) * 0.44704;
+      const rawDir = p.wind_direction_deg ?? p.wind_dir_deg ?? p.windDirectionDeg ?? p.wind_direction ?? p.wind_dir ?? wind.direction_deg ?? wind.direction;
+      let direction = Number.parseFloat(rawDir);
+      if (!Number.isFinite(direction)) direction = compass[String(rawDir || '').trim().toUpperCase()];
+      if (!Number.isFinite(speed) || speed < 0.3 || !Number.isFinite(direction)) continue;
+      const timeValue = p.observed_at ?? p.observation_time ?? p.timestamp ?? p.datetime ?? p.time ?? row?.observed_at;
+      const stamp = Date.parse(timeValue || '');
+      const ageHours = Number.isFinite(stamp) ? (now - stamp) / 3600000 : 0;
+      if (Number.isFinite(stamp) && (ageHours < -0.1 || ageHours > 3)) continue;
+      const dLng = ((((olng - lng + 540) % 360) + 360) % 360) - 180;
+      const distanceKm = Math.hypot(dLng * latCos, olat - lat) * 111.32;
+      if (distanceKm > 280) continue;
+      const score = distanceKm + Math.max(0, ageHours) * 42;
+      if (score >= bestScore) continue;
+      const heading = (direction + 180) * Math.PI / 180, metresPerSecond = clamp(speed, 0.5, 35);
+      bestScore = score;
+      best = { east: Math.sin(heading) * metresPerSecond, north: Math.cos(heading) * metresPerSecond, distanceKm, ageHours: Math.max(0, ageHours) };
+    }
+    return best;
+  }
+
   function cloudWindVectorFor(lng,lat,altitude,scene,stormContext=null){
     const samples=collectHeightResolvedWindSamples(scene);
     let best=null,bestScore=Infinity;const latCos=Math.max(0.12,Math.cos(lat*Math.PI/180));
@@ -603,7 +643,9 @@ export function initSkyClouds(target) {
       const score=distanceKm+heightDelta/35;if(score<bestScore){bestScore=score;best=sample;}
     }
     let east=0,north=0,mode='modelled-latitude-altitude-flow';
+    const sourceSurfaceWind = !best ? nearestObservationWind(lng,lat,altitude,scene) : null;
     if(best){east=best.east;north=best.north;mode='height-resolved-source-wind';}
+    else if(sourceSurfaceWind){east=sourceSurfaceWind.east;north=sourceSurfaceWind.north;mode='source-surface-wind-proxy';}
     else{
       let cyclone=stormContext;
       if(!cyclone){
@@ -631,9 +673,122 @@ export function initSkyClouds(target) {
     const scale=1/(WORLD_CIRCUMFERENCE_M*latCos);
     return {dx:east*scale,dy:-north*scale,mode,speedMps:Math.hypot(east,north),sourceBacked:mode==='height-resolved-source-wind'};
   }
+  function cloudSolarPosition(date, lat, lng) {
+    const rad = Math.PI / 180, jd = date.getTime() / 86400000 + 2440587.5, n = jd - 2451545.0;
+    const L = (280.46 + 0.9856474 * n) % 360, g = (357.528 + 0.9856003 * n) % 360;
+    const lambda = (L + 1.915 * Math.sin(g * rad) + 0.02 * Math.sin(2 * g * rad)) * rad;
+    const eps = (23.439 - 0.0000004 * n) * rad;
+    const ra = Math.atan2(Math.cos(eps) * Math.sin(lambda), Math.cos(lambda));
+    const dec = Math.asin(Math.sin(eps) * Math.sin(lambda));
+    const gmst = (280.46061837 + 360.98564736629 * (jd - 2451545.0)) % 360;
+    const ha = (gmst + lng) * rad - ra, phi = lat * rad;
+    const alt = Math.asin(Math.sin(phi) * Math.sin(dec) + Math.cos(phi) * Math.cos(dec) * Math.cos(ha));
+    const az = Math.atan2(-Math.sin(ha), Math.tan(dec) * Math.cos(phi) - Math.sin(phi) * Math.cos(ha));
+    return { alt: alt / rad, az: (az / rad + 360) % 360 };
+  }
+  function makeGroundShadowAnchor(lng, lat, altitudeM, radiusM, kind, scene, stormContext = null) {
+    if (![lng,lat,altitudeM,radiusM].every(Number.isFinite) || Math.abs(lat) > 86) return null;
+    const wind = cloudWindVectorFor(lng, lat, altitudeM, scene || getScene(), stormContext);
+    const cosLat = Math.max(0.12, Math.cos(lat * Math.PI / 180));
+    return {
+      lng, lat, altitudeM, heightM: clamp(altitudeM - terrainElevationAt(lng,lat), 700, 18000),
+      radiusM: clamp(radiusM, 800, 300000),
+      eastMps: clamp(number(wind.dx,0) * EARTH_CIRCUMFERENCE_METERS * cosLat, -45, 45),
+      northMps: clamp(-number(wind.dy,0) * EARTH_CIRCUMFERENCE_METERS * cosLat, -45, 45),
+      sourceHeightWind: wind.sourceBacked === true, windMode: wind.mode || 'modelled-latitude-altitude-flow',
+      kind, epochMs: Date.now()
+    };
+  }
+  function ensureCloudShadowLayers() {
+    if (disposed) return false;
+    const style = map.getStyle?.();
+    if (!style || !Array.isArray(style.layers)) return false;
+    try {
+      if (!map.getSource?.(SHADOW_SOURCE_ID)) map.addSource(SHADOW_SOURCE_ID, {type:'geojson',data:{type:'FeatureCollection',features:[]}});
+      if (!map.getLayer?.(SHADOW_LAYER_ID)) {
+        const before = map.getLayer?.('gta-coast-shadow') ? 'gta-coast-shadow' : map.getLayer?.('gta-coast-edge') ? 'gta-coast-edge' : style.layers.find(layer=>layer.type==='symbol')?.id;
+        map.addLayer({id:SHADOW_LAYER_ID,type:'fill',source:SHADOW_SOURCE_ID,minzoom:0.8,paint:{
+          'fill-color':'#06121d',
+          'fill-opacity':['*',['get','shade'],['interpolate',['linear'],['zoom'],0,0.14,3,0.19,7,0.24,11,0.27,16,0.30,20,0.33]],
+          'fill-antialias':true
+        }},before);
+      }
+      const ids=map.getStyle?.()?.layers?.map(layer=>layer.id)||[],si=ids.indexOf(SHADOW_LAYER_ID),ci=ids.indexOf('gta-coast-shadow');
+      if(si>=0&&ci>=0&&si!==ci-1)map.moveLayer(SHADOW_LAYER_ID,'gta-coast-shadow');
+      shadowLayerError=null;
+      return !!map.getLayer?.(SHADOW_LAYER_ID)&&!!map.getSource?.(SHADOW_SOURCE_ID);
+    } catch(error){shadowLayerError=String(error?.message||error).slice(0,180);return false;}
+  }
+  function refreshGroundShadows(force=false) {
+    const now=Date.now();
+    if(!force&&now-shadowLastUpdateAt<12000)return;
+    shadowLastUpdateAt=now;
+    try{
+      if(!enabled||disposed){map.getSource?.(SHADOW_SOURCE_ID)?.setData?.({type:'FeatureCollection',features:[]});shadowFeatureCount=0;shadowWindSourceCount=0;return;}
+      if(!ensureCloudShadowLayers())return;
+      const zoom=number(map.getZoom?.(),2),center=map.getCenter?.()||{lng:0,lat:0};
+      // Advance anchors incrementally instead of measuring from a fixed epoch; this avoids freezing after a long tab pause.
+      shadowAnchorCache=shadowAnchorCache.map(anchor=>{
+        const elapsed=clamp((now-anchor.epochMs)/1000,0,1200);
+        if(!anchor||elapsed<0.25)return anchor;
+        const moved=offsetLngLatMeters(anchor.lng,anchor.lat,anchor.eastMps*elapsed,anchor.northMps*elapsed);
+        return {...anchor,lng:moved.lng,lat:moved.lat,epochMs:now};
+      });
+      const maxDistanceKm=zoom<=2.5?20500:zoom<=4.5?10500:zoom<=6.5?5200:zoom<=8.5?2100:zoom<=10.5?650:zoom<=12.5?220:zoom<=15?80:36;
+      const maxFeatures=MOBILE?104:164,features=[];
+      shadowWindSourceCount=0;
+      const ordered=zoom>8?shadowAnchorCache:shadowAnchorCache.slice().sort((a,b)=>(a.kind==='global-macro'?-1:0)-(b.kind==='global-macro'?-1:0));
+      for(const anchor of ordered){
+        if(!anchor||features.length>=maxFeatures)break;
+        const advected={lng:anchor.lng,lat:anchor.lat};
+        const dLng=((((advected.lng-center.lng+540)%360)+360)%360)-180;
+        const distanceKm=Math.hypot(dLng*Math.max(0.12,Math.cos(center.lat*Math.PI/180)),advected.lat-center.lat)*111.32;
+        if(distanceKm>maxDistanceKm||Math.abs(advected.lat)>85)continue;
+        const sun=cloudSolarPosition(new Date(now),advected.lat,advected.lng);
+        if(sun.alt<=1.8)continue;
+        const shiftM=clamp(anchor.heightM/Math.tan(Math.max(2.0,sun.alt)*Math.PI/180),900,72000);
+        const shadowCenter=offsetLngLatMeters(advected.lng,advected.lat,-Math.sin(sun.az*Math.PI/180)*shiftM,-Math.cos(sun.az*Math.PI/180)*shiftM);
+        const rx=clamp(anchor.radiusM*0.82,700,240000),ry=clamp(anchor.radiusM*0.54,550,170000),ring=[];
+        for(let i=0;i<=12;i++){const angle=i/12*TAU,p=offsetLngLatMeters(shadowCenter.lng,shadowCenter.lat,Math.cos(angle)*rx,Math.sin(angle)*ry);ring.push([p.lng,p.lat]);}
+        const shade=clamp((anchor.kind==='global-macro'?0.58:anchor.kind==='global-thin'?0.30:0.44)+(90-sun.alt)*0.0012,0.25,0.72);
+        features.push({type:'Feature',properties:{shade,windMode:anchor.windMode,sourceHeightWind:anchor.sourceHeightWind===true},geometry:{type:'Polygon',coordinates:[ring]}});
+        if(anchor.sourceHeightWind)shadowWindSourceCount++;
+      }
+      map.getSource?.(SHADOW_SOURCE_ID)?.setData?.({type:'FeatureCollection',features});
+      shadowFeatureCount=features.length;
+    }catch(error){shadowLayerError=String(error?.message||error).slice(0,180);}
+  }
+  function updateGroundShadows(globalAnchors=[],localFormations=[]) {
+    if(!enabled||disposed){shadowAnchorCache=[];refreshGroundShadows(true);return;}
+    const scene=getScene(),global=Array.isArray(globalAnchors)?globalAnchors.filter(Boolean).slice(0,MOBILE?74:112):[],local=[],localLimit=MOBILE?34:52;
+    for(let i=0;i<localFormations.length&&local.length<localLimit;i++){
+      const f=localFormations[i],lng=number(f?.lng,NaN),lat=number(f?.lat,NaN),base=number(f?.baseM,number(f?.base,NaN)),top=number(f?.topM,number(f?.top,NaN)),radius=number(f?.radiusM,number(f?.radius,NaN));
+      if(![lng,lat,base,top,radius].every(Number.isFinite)||top<=base)continue;
+      if(i%(MOBILE?2:1)!==0)continue;
+      const a=makeGroundShadowAnchor(lng,lat,(base+top)*0.5,radius,'local',scene,f?.windContext||null);
+      if(a)local.push(a);
+    }
+    shadowAnchorCache=number(map.getZoom?.(),2)>8?[...local,...global]:[...global,...local];
+    // Re-evaluate source winds on every weather/geometry refresh, while the 12-second renderer tick only advances cached positions.
+    const windEpoch=Date.now();
+    shadowAnchorCache=shadowAnchorCache.map(anchor=>{
+      const wind=cloudWindVectorFor(anchor.lng,anchor.lat,anchor.altitudeM,scene);
+      const cosLat=Math.max(0.12,Math.cos(anchor.lat*Math.PI/180));
+      return {...anchor,
+        eastMps:clamp(number(wind.dx,0)*WORLD_CIRCUMFERENCE_M*cosLat,-45,45),
+        northMps:clamp(-number(wind.dy,0)*WORLD_CIRCUMFERENCE_M*cosLat,-45,45),
+        sourceHeightWind:wind.sourceBacked===true,
+        windMode:wind.mode||'modelled-latitude-altitude-flow',epochMs:windEpoch};
+    });
+    refreshGroundShadows(true);
+  }
+
   function publishState() {
     const state = {
-      version: 6094, map, enabled, visible: enabled && !document.hidden,
+      version: 6124, map, enabled, visible: enabled && !document.hidden,
+      cloudShadowLayerAttached: !!map.getLayer?.(SHADOW_LAYER_ID), cloudShadowFeatureCount: shadowFeatureCount,
+      cloudShadowUpdatedAt: shadowLastUpdateAt, cloudShadowHeightResolvedWindCount: shadowWindSourceCount,
+      cloudShadowLayerError: shadowLayerError, weatherSceneGeneratedAt: getScene()?.generated_at || getScene()?.updated_at || null,
       kind: 'georeferenced 3D cloud-volume layer',
       renderer: 'shared MapLibre WebGL context; storms use world-anchored raymarched volume proxies',
       stormRenderingArchitecture: 'Earth-coordinate storm geometry in fixed metres, source-centre anchored, with shader-interpolated source-motion vectors and no zoom-driven storm-size boosts',
@@ -863,6 +1018,7 @@ export function initSkyClouds(target) {
   }
   function addLayerIfReady() {
     if (disposed) return;
+    try { ensureCloudShadowLayers(); } catch (_) {}
     // A style may expose its layer graph before all sources/tiles finish loading.
     // Attempt attachment as soon as the graph exists; MapLibre errors are caught below
     // and retried without blocking the existing map or cloud geometry.
@@ -909,7 +1065,7 @@ export function initSkyClouds(target) {
     const stormSignature=cloudLodBand+'|'+sourceCyclones.map(s=>s.key+':'+s.lng.toFixed(3)+','+s.lat.toFixed(3)+':'+Math.round(s.eyeRadiusM)).sort().join('|');
     if (globalCloudGeometryCache && globalCloudGeometryCache.stormSignature === stormSignature) return globalCloudGeometryCache;
     globalCloudGeometryCache = null;
-    const vertices = [], indices = [], macroCandidates = [];
+    const vertices = [], indices = [], macroCandidates = [], shadowAnchors = [];
     let heightResolvedWindPuffs = 0, modelledWindPuffs = 0;
     const eyeMaskRadius=st=>cloudLodBand==='global'?Math.max(st.eyeRadiusM,90000):cloudLodBand==='regional'?Math.max(st.eyeRadiusM,45000):st.eyeRadiusM;
     const addGlobalPuff = (lng,lat,altitude,rx,ry,rz,tint,slices,stacks,seed) => {
@@ -954,6 +1110,7 @@ export function initSkyClouds(target) {
       const baseAgl = 2200 + hash(q.gx, q.gy, 908) * 2200;
       const topAgl = Math.max(baseAgl + 6500, 10800 + hash(q.gx, q.gy, 909) * 6800);
       const range = topAgl - baseAgl;
+      if (k < (MOBILE ? 26 : 40)) { const anchor = makeGroundShadowAnchor(lng, lat, ground + baseAgl + range * 0.5, bankRadius * 0.82, 'global-macro', windScene); if (anchor) shadowAnchors.push(anchor); }
       for (let i = 0; i < 3; i++) {
         const a = i * 2.399 + q.seed * 5.3;
         const ring = i === 0 ? 0 : bankRadius * (0.24 + hash(k, i, 910) * 0.22);
@@ -998,6 +1155,7 @@ export function initSkyClouds(target) {
       const topAgl = Math.max(baseAgl + 2600, 6700 + hash(q.gx, q.gy, 957) * 5700);
       const range = topAgl - baseAgl;
       const altitude = ground + baseAgl + range * (0.49 + hash(q.gx, q.gy, 958) * 0.02);
+      if (k < (MOBILE ? 14 : 24)) { const anchor = makeGroundShadowAnchor(lng, lat, altitude, radius * 0.78, 'global-fine', windScene); if (anchor) shadowAnchors.push(anchor); }
       const vertical = range * (0.40 + hash(q.gx, q.gy, 959) * 0.04);
       addGlobalPuff(lng,lat,altitude,radius,radius*(0.58+hash(q.gx,q.gy,960)*0.28),vertical,0.28+hash(q.gx,q.gy,961)*0.34,MOBILE?5:6,3,hash(q.gx,q.gy,962));
     }
@@ -1040,6 +1198,7 @@ export function initSkyClouds(target) {
       }
       const range = topAgl - baseAgl;
       const altitude = ground + baseAgl + range * 0.5;
+      if (k % (MOBILE ? 35 : 22) === 0 && shadowAnchors.length < (MOBILE ? 58 : 92)) { const anchor = makeGroundShadowAnchor(lng, lat, altitude, radius * 0.74, 'global-single', windScene); if (anchor) shadowAnchors.push(anchor); }
       const vertical = range * verticalFraction;
       addGlobalPuff(lng,lat,altitude,radius*(0.72+hash(q.gx,q.gy,985)*0.20),radius*(0.56+hash(q.gx,q.gy,986)*0.30),vertical,0.26+hash(q.gx,q.gy,987)*0.40,8,2,hash(q.gx,q.gy,988));
     }
@@ -1066,12 +1225,14 @@ export function initSkyClouds(target) {
       const topAgl = Math.max(baseAgl + 2600, 11200 + hash(q.gx, q.gy, 997) * 4500);
       const range = topAgl - baseAgl;
       const altitude = ground + baseAgl + range * 0.5;
+      if (k % (MOBILE ? 24 : 16) === 0 && shadowAnchors.length < (MOBILE ? 70 : 112)) { const anchor = makeGroundShadowAnchor(lng, lat, altitude, radius * 0.76, 'global-thin', windScene); if (anchor) shadowAnchors.push(anchor); }
       const vertical = range * (0.30 + hash(q.gx, q.gy, 998) * 0.07);
       addGlobalPuff(lng,lat,altitude,radius,radius*(0.78+hash(q.gx,q.gy,999)*0.28),vertical,0.12+hash(q.gx,q.gy,1000)*0.07,9,2,hash(q.gx,q.gy,1001));
     }
     globalCloudGeometryCache = {
       vertices: new Float32Array(vertices),
       indices: new Uint16Array(indices),
+      shadowAnchors,
       formationCount: macro.length + fine.length + singles.length + thin.length, stormSignature, stormEyeMaskCount: sourceCyclones.length, cloudLodBand,
       macroRadiusMinKm: 400, macroRadiusMaxKm: 900, thinLayerSlices: 9, thinLayerStacks: 2, singleLayerSlices: 8, singleLayerStacks: 2,
       heightResolvedWindPuffs, modelledWindPuffs, windSampleSignature: windSampleSignature === 'uninitialized' ? 'no-height-resolved-wind-grid' : windSampleSignature,
@@ -1090,6 +1251,7 @@ export function initSkyClouds(target) {
     vertexData = global.vertices;
     indexData = global.indices;
     formationCount = global.formationCount;
+    updateGroundShadows(global.shadowAnchors || [], []);
     geometryDirty = true;
     rendererError = null;
     publishState();
@@ -1460,6 +1622,7 @@ function generateGeometry() {
     stormVolumeIndexCount=mergedCount-stormVolumeIndexOffset;
     indexData = mergedIndices.slice(0,mergedCount);
     formationCount = global.formationCount + formations.length;
+    updateGroundShadows(global.shadowAnchors || [], formations);
     geometryDirty = true;
     rendererError = null;
     publishState();
@@ -1482,6 +1645,7 @@ function scheduleGeometry(delay = 180) {
       // If another map subsystem replaces the style/layers, restore our custom cloud renderer.
       // This check is intentionally sparse so the always-on cloud field stays light on phones.
       const now = Date.now();
+      if (now - shadowLastUpdateAt >= 12000) refreshGroundShadows(true);
       if (!map.getLayer?.(LAYER_ID) && now - lastLayerHealthCheckAt >= 1800) {
         lastLayerHealthCheckAt = now;
         layerRetryAttempts = 0;
@@ -1498,6 +1662,7 @@ function scheduleGeometry(delay = 180) {
 
   function setEnabled(value) {
     enabled = !!value;
+    if (!enabled) refreshGroundShadows(true);
     overlay.dataset.active = enabled && !document.hidden ? 'true' : 'false';
     setWorldGrade(enabled);
     if (enabled) {
@@ -1559,6 +1724,7 @@ function scheduleGeometry(delay = 180) {
   }
   function onWeatherUpdated() {
     const scene = getScene();
+    try { ensureCloudShadowLayers(); } catch (_) {}
     deriveTrackMotion(scene);
     // Re-anchor interpolation to each newly fetched source snapshot.
     stormMotionEpoch = monotonicNow();
@@ -1572,8 +1738,8 @@ function scheduleGeometry(delay = 180) {
     windSampleSignature = nextSignature;
     scheduleGeometry(0);
   }
-  function onStyleData() { if (enabled && !map.getLayer?.(LAYER_ID)) { layerRetryAttempts = 0; addLayerIfReady(); } }
-  function onLayerIdle() { if (enabled && !disposed && !map.getLayer?.(LAYER_ID)) { layerRetryAttempts = 0; addLayerIfReady(); } }
+  function onStyleData() { try { ensureCloudShadowLayers(); } catch (_) {} if (enabled && !map.getLayer?.(LAYER_ID)) { layerRetryAttempts = 0; addLayerIfReady(); } }
+  function onLayerIdle() { try { ensureCloudShadowLayers(); } catch (_) {} if (enabled && !disposed && !map.getLayer?.(LAYER_ID)) { layerRetryAttempts = 0; addLayerIfReady(); } }
 
   map.on?.('moveend', onMoveEnd); map.on?.('zoomend', onMoveEnd); map.on?.('resize', onMoveEnd);
   map.on?.('styledata', onStyleData);
@@ -1588,7 +1754,7 @@ function scheduleGeometry(delay = 180) {
   else map.once?.('load', addLayerIfReady);
 
   const api = {
-    version: 6094, map, overlay,
+    version: 6124, map, overlay,
     get enabled() { return enabled; },
     setEnabled, toggle,
     get state() { return window.__BP_SKY_CLOUDS_STATE_V6077__ || window.__BP_SKY_CLOUDS_STATE_V6076__ || window.__BP_SKY_CLOUDS_STATE_V6074__ || window.__BP_SKY_CLOUDS_STATE_V6073__ || window.__BP_SKY_CLOUDS_STATE_V6047__ || window.__BP_SKY_CLOUDS_STATE_V6046__ || window.__BP_SKY_CLOUDS_STATE_V6045__ || window.__BP_SKY_CLOUDS_STATE_V6031__ || window.__BP_SKY_CLOUDS_STATE_V6029__ || window.__BP_SKY_CLOUDS_STATE_V5908__ || null; },
