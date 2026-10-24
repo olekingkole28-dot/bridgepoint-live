@@ -1327,7 +1327,41 @@ function generateGeometry() {
 
     // Rain-only cloud anchors: source-reported precipitation observations get a local 3D cloud base.
     // This supplements, rather than replaces, the persistent global cloud field and existing cloud shader.
-    const rainAnchorObservations = (Array.isArray(scene?.observations) ? scene.observations : [])
+    const sourceRainAnchors = [];
+    const rainCenterFromGeometry = geometry => {
+      let g = geometry;
+      if (typeof g === 'string') { try { g = JSON.parse(g); } catch (_) { g = null; } }
+      if (g?.type === 'Feature') g = g.geometry;
+      if (!g?.coordinates) return null;
+      const points = [];
+      const walk = value => {
+        if (!Array.isArray(value)) return;
+        if (value.length >= 2 && typeof value[0] === 'number' && typeof value[1] === 'number') { points.push([value[0], value[1]]); return; }
+        for (const child of value) walk(child);
+      };
+      walk(g.coordinates);
+      if (!points.length) return null;
+      const x = points.reduce((sum, p) => sum + Math.cos(p[0] * Math.PI / 180), 0);
+      const y = points.reduce((sum, p) => sum + Math.sin(p[0] * Math.PI / 180), 0);
+      return { lng: Math.atan2(y, x) * 180 / Math.PI, lat: points.reduce((sum, p) => sum + p[1], 0) / points.length };
+    };
+    // Treat official convective warning footprints as source-backed local rain/cloud anchors, not generic FX.
+    for (const alert of (Array.isArray(scene?.alerts) ? scene.alerts : []).slice(0, 70)) {
+      const p = alert?.properties || alert || {};
+      const label = String([p.event, p.name, p.type, p.phenom, p.phenomenon, p.product, p.headline, p.description].filter(Boolean).join(' ')).toLowerCase();
+      if (!/prob.?severe|severe thunderstorm|thunderstorm|tornado|squall|\\bsv\\b|\\bto\\b/.test(label)) continue;
+      const c = rainCenterFromGeometry(alert?.geometry ?? p.geometry);
+      if (c && Number.isFinite(c.lng) && Number.isFinite(c.lat)) sourceRainAnchors.push({ ...p, ...c, weather: 'thunderstorm rain', rain_radius_mi: Number(p.rain_radius_mi ?? p.precipitation_radius_mi ?? 36) });
+    }
+    for (const storm of (Array.isArray(scene?.storms) ? scene.storms : []).slice(0, 30)) {
+      const p = storm?.properties || storm || {};
+      const label = String([p.event, p.name, p.type, p.classification, p.official_classification, p.system_type].filter(Boolean).join(' ')).toLowerCase();
+      if (!/hurricane|tropical storm|tropical cyclone|post.?tropical cyclone|cyclone|severe thunderstorm|convective/.test(label)) continue;
+      const lng = number(storm?.lng, number(storm?.longitude, number(p.lng, number(p.longitude, NaN))));
+      const lat = number(storm?.lat, number(storm?.latitude, number(p.lat, number(p.latitude, NaN))));
+      if (Number.isFinite(lng) && Number.isFinite(lat)) sourceRainAnchors.push({ ...p, lng, lat, weather: 'thunderstorm rain', rain_radius_mi: Number(p.rain_radius_mi ?? p.precipitation_radius_mi ?? (/hurricane|tropical|cyclone/.test(label) ? 60 : 28)) });
+    }
+    const rainAnchorObservations = [...(Array.isArray(scene?.observations) ? scene.observations : []), ...sourceRainAnchors]
       .filter(o => {
         const raw = String([o?.weather, o?.present_weather, o?.weather_text, o?.wx, o?.condition, o?.conditions, o?.rawdata]
           .filter(Boolean).join(' ')).toLowerCase();
@@ -1354,8 +1388,8 @@ function generateGeometry() {
       const top = clamp(number(sample.cloud_top_height_m, number(sample.cloudTopHeightM, thunderstorm ? 2800 : 1800)), baseAgl + 500, 16000);
       const suppliedRadius = number(sample.precipitation_radius_mi, number(sample.rain_radius_mi, NaN));
       const radiusM = Number.isFinite(suppliedRadius) && suppliedRadius > 0
-        ? clamp(suppliedRadius * 1609.34, 2200, 26000)
-        : (thunderstorm ? 9000 : 5000);
+        ? clamp(suppliedRadius * 1609.34, 2200, 90000)
+        : (thunderstorm ? 28000 : 16000);
       addFormation(lng, lat, radiusM, elevation + baseAgl, elevation + top,
         hash(lng, lat, 6058), 'rain-cell');
     }
