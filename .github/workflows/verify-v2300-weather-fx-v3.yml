@@ -105,6 +105,14 @@ jobs:
                 if(u.includes('/functions/v1/bridgepoint-public-building-tile-v5019')||u.includes('/functions/v1/bridgepoint-spatial-tile-v1957')){
                   return req.respond({status:204,headers:{...cors,'Content-Type':'application/x-protobuf'},body:''});
                 }
+                // The local HTTP fixture has no RPC server. Return deterministic empty results
+                // for unrelated POST RPCs rather than letting Python's server return 501s.
+                if(req.method()==='OPTIONS'&&/\/rest\/v1\/rpc\//.test(u)){
+                  return req.respond({status:204,headers:{...cors,'Access-Control-Allow-Methods':'POST,OPTIONS'},body:''});
+                }
+                if(req.method()==='POST'&&/\/rest\/v1\/rpc\//.test(u)){
+                  return req.respond({status:200,headers:{...cors,'Content-Type':'application/json'},body:'{}'});
+                }
                 req.continue();
               });
               await p.setUserAgent('Mozilla/5.0 (Linux; Android 16; Pixel 9a) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');
