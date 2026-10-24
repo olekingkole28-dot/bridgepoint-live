@@ -672,7 +672,7 @@ jobs:
           grep -Fq 'const smallColumns = 140, smallRows = 62, maxSingles = MOBILE ? 700 : 760;' site/world-v2300-clouds.js
           grep -Fq 'isolatedFormationCount: singles.length' site/world-v2300-clouds.js
           grep -Fq 'underside*0.48' site/world-v2300-clouds.js
-          grep -Fq 'three procedural spatial layers: broad connected regional cloud banks, 700/760 rounded individual cloud cells and 750/850 thin high-level puffs' site/world-v2300-clouds.js
+          grep -Fq 'globalCoverageModel: satelliteMaskUsable' site/world-v2300-clouds.js
           ! grep -Fq 'window.__BP_CLOUDS_ONLY_PHASE_V6070__=true;' site/app.js
           ! grep -Fq 'window.__BP_CLOUDS_ONLY_PHASE_V6070__=true;' site/landing.js
           grep -Fq 'enabled = !!value;' site/world-v2300-rain.js
