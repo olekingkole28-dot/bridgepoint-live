@@ -19,7 +19,7 @@ class CloudHeightFeedTests(unittest.TestCase):
         lat = np.array([[0.0, 0.0], [10.0, 10.0]])
         lon = np.array([[0.0, 1.0], [0.0, 1.0]])
         top = np.array([[1200.0, 5000.0], [np.nan, 28000.0]])
-        base = np.array([[100.0, 4200.0], [400.0, 600.0]])
+        base = np.array([[-999.0, 4200.0], [400.0, 600.0]])
         # 0=good, 1=conditionally usable, all other values rejected.
         quality = np.array([[0, 1], [0, 3]])
         samples = compact_grid_samples(lat, lon, top, base, quality, source_index=2)
