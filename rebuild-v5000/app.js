@@ -133,7 +133,7 @@ async function initSharedVisualWeather(targetWorld,{activate=true}={}){
    present?.setActive?.(false)
   }
   weather?.setRadar?.(false);
-  window.__BP_SHARED_VISUAL_WEATHER__={version:6057,weather,present,mapShared:true,capabilitiesRegistered:true,networkActivationDeferred:!activate,streetWalkLiveSimulation:false,cinematicFx:window.__BP_CLOUDS_ONLY_PHASE_V6070__!==true,cloudsOnlyPhase:window.__BP_CLOUDS_ONLY_PHASE_V6070__===true,visualWeatherEffectsEnabled:window.__BP_CLOUDS_ONLY_PHASE_V6070__!==true,legacyOverlaysHidden:true,renderer:'isolated-webgl-particle-layer',radarVisible:false,radarOwnedByAppLiveStack:false,radarAnimatedAtCloseZoom:false,radarGroundDrape:true,globalFx:true,updatedAt:Date.now()};
+  window.__BP_SHARED_VISUAL_WEATHER__={version:6134,weather,present,mapShared:true,capabilitiesRegistered:true,networkActivationDeferred:!activate,streetWalkLiveSimulation:false,cinematicFx:false,cloudsOnlyPhase:false,visualWeatherEffectsEnabled:true,legacyCinematicFxDisabled:true,sourceWeatherOverlaysPreserved:true,legacyOverlaysHidden:true,renderer:'source-weather-data-plus-dedicated-rain-lightning',radarVisible:!!map.getLayer('bp-v6132-ground-radar')&&(map.getLayoutProperty('bp-v6132-ground-radar','visibility')||'visible')!=='none',radarOwnedByGroundDrape:true,radarAnimatedAtCloseZoom:false,radarGroundDrape:true,dedicatedRainLightning:true,legacyFxEnabled:false,updatedAt:Date.now()};
   return window.__BP_SHARED_VISUAL_WEATHER__
  }catch(e){console.warn('BridgePoint shared visual weather',e);return null}
 }
@@ -1048,7 +1048,7 @@ function activateLiveWeather(){
  const b=$('toggleLiveContext');if(b){b.textContent='WEATHER DATA · ON';b.title='Source-backed weather dots and warning boundaries are active. Legacy rain/snow/fire FX remain disabled';b.classList.add('active')}
  window.__BP_ACTIVATE_SHARED_WEATHER__?.();
  try{const shared=window.__BP_SHARED_VISUAL_WEATHER__;shared?.weather?.setRadar?.(false);shared?.weather?.setActive?.(true);shared?.present?.setActive?.(false)}catch(_){}
- window.__BP_STARTUP_SCHEDULER_V5939__={version:5939,enabled:true,serializedWeather:true,renderer:'v2300-cinematic-fx',radarRefreshMs:0,updatedAt:Date.now()};
+ window.__BP_STARTUP_SCHEDULER_V5939__={version:6134,enabled:true,serializedWeather:true,renderer:'source-weather-data-plus-dedicated-rain-lightning',radarRefreshMs:300000,groundDrapedRadar:true,sourceWeatherVisible:true,updatedAt:Date.now()};
 }
 function startLiveWeather(){
  const map=world?.map;ensureGroundRadarDrapeV6132(map);hideLegacyLiveContextLayers(map);
