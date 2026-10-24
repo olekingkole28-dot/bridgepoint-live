@@ -572,7 +572,7 @@ jobs:
           grep -Fq 'if(!map.getLayer(custom.id))installParticleLayer()' site/world-v2300-weather.js
           grep -Fq 'hideLegacyNativeWeatherLayers(map)' site/world-v2300-weather.js
           grep -Fq "renderer:'v2300-cinematic-fx'" site/app.js
-          grep -Fq "renderer:'isolated-webgl-particle-layer'" site/landing.js
+          grep -Fq "renderer:'source-weather-data-plus-dedicated-rain-lightning'" site/landing.js
           grep -Fq 'world-v2300-weather.js?v=6130-cloud-rain-lightning' site/index.html
           grep -Fq 'world-v2300-weather.js?v=6130-cloud-rain-lightning' site/app/index.html
           grep -Fq 'world-v2300-weather.js?v=6130-cloud-rain-lightning' site/app/world-v2300-bootstrap.js
