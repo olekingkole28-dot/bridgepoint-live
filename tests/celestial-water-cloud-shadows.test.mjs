@@ -143,6 +143,11 @@ test('new rain/lightning and global source markers stay separate from legacy eff
   assert.match(clouds, /window\.__BP_LIGHTNING_CLOUD_ANCHORS_V6135__/);
   assert.match(lightning, /window\.__BP_LIGHTNING_CLOUD_ANCHORS_V6135__/);
   assert.match(lightning, /cloudAnchorFound/);
+  assert.match(lightning, /if\(!cloud\)\{cloudAnchorRejectedCount\+\+;continue;\}/);
+  assert.doesNotMatch(lightning, /const cc=cloud\|\|\{/);
+  assert.match(lightning, /map\.project\(\[anchor\.cloudLng\?\?anchor\.lng,anchor\.cloudLat\?\?anchor\.lat\]\)/);
+  assert.match(lightning, /const top=\{x:clamp\(cloudScreen\.x\+jitter,0,bounds\.w\),y:Math\.max\(-12,cloudScreen\.y-height\)\}/);
+  assert.match(lightning, /cloudAnchorRejectedCount/);
   assert.match(lightning, /bp6135-ground-flash-gradient/);
   assert.match(lightning, /bp6130-ground-flash/);
   assert.match(lightning, /globalLodMarkers/);
@@ -181,6 +186,6 @@ test('public cyclone fallback is fetched concurrently with edge weather', () => 
 test('website and app start on the same globe-first weather build', () => {
   assert.match(landingHtml, /bp-globe-only-first-frame-v6137/);
   assert.match(appHtml, /bp-app-globe-only-first-frame-v6137/);
-  assert.ok(landingHtml.includes('landing.js?v=6137-globe-first-weather-lockstep'));
-  assert.ok(appHtml.includes('app.js?v=6137-globe-first-weather-lockstep'));
+  assert.ok(landingHtml.includes('landing.js?v=6138-cloud-linked-lightning'));
+  assert.ok(appHtml.includes('app.js?v=6138-cloud-linked-lightning'));
 });
