@@ -156,7 +156,7 @@ test('new rain/lightning and global source markers stay separate from legacy eff
   assert.match(lightning, /const top=\{x:clamp\(cloudScreen\.x\+jitter,0,bounds\.w\),y:Math\.max\(-12,cloudScreen\.y-height\)\}/);
   assert.match(lightning, /cloudAnchorRejectedCount/);
   assert.match(clouds, /satelliteLightningCloudAnchors/);
-  assert.match(clouds, /satelliteCloudHeightsMeasured:false/);
+  assert.match(clouds, /satelliteCloudHeightsMeasured:\s*false/);
   assert.match(lightning, /bp6135-ground-flash-gradient/);
   assert.match(lightning, /bp6130-ground-flash/);
   assert.match(lightning, /globalLodMarkers/);
