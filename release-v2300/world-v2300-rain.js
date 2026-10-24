@@ -374,8 +374,10 @@ export function initRainLayer(map, getScene = () => ({})) {
       let speedKt = properties.wind_speed_kt ?? nearby.wind_speed_kt;
       let direction = properties.wind_dir_deg ?? properties.wind_direction_deg ?? nearby.wind_dir_deg ?? nearby.wind_direction_deg;
       if (speed == null && speedKt == null && allowMotion) {
+        const movementMph = safeNum(properties.movement_speed_mph ?? properties.translation_speed_mph, NaN);
         const movement = safeNum(properties.movement_speed_mps ?? properties.translation_speed_mps, NaN);
-        if (Number.isFinite(movement)) speed = movement * 2.23694;
+        if (Number.isFinite(movementMph)) speed = movementMph;
+        else if (Number.isFinite(movement)) speed = movement * 2.23694;
       }
       if (direction == null && allowMotion) {
         const heading = safeNum(properties.movement_heading_deg ?? properties.movement_dir, NaN);
