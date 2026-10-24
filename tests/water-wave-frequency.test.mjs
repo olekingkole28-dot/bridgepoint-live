@@ -3,7 +3,18 @@ import { readFile } from 'node:fs/promises';
 
 const engineSource = await readFile(new URL('../release-v2300/world-v2300-water.js', import.meta.url), 'utf8');
 const engineModuleUrl = 'data:text/javascript;base64,' + Buffer.from(engineSource).toString('base64');
-const { resolveWaveFrequencyCyclesPerWorld, resolvePitchDisplacementPolicy } = await import(engineModuleUrl);
+const { resolveWaveFrequencyCyclesPerWorld, resolvePitchDisplacementPolicy, resolveStreamMotion } = await import(engineModuleUrl);
+
+const sourceSpeed = resolveStreamMotion({ properties: { velocity_m_s: '2.4', waterway: 'river' } });
+assert.equal(sourceSpeed.source, 'source', 'unit-tagged channel velocity must be treated as source-backed');
+assert.equal(sourceSpeed.velocityMps, 2.4, 'source speed remains expressed in metres per second');
+assert.equal(sourceSpeed.motionScale, 2.4, 'explicit speed changes the animation rate');
+assert.equal(resolveStreamMotion({ properties: { class: 'river' } }).source, 'visual-fallback',
+  'a waterway class alone must never be misreported as a speed measurement');
+assert.ok(engineSource.includes('microPixelSpanAB') && engineSource.includes('microFadeC'),
+  'fine detail must be screen-space filtered instead of multiplying CPU mesh size');
+assert.ok(engineSource.includes('float streamSpeedScale = clamp(length(v_flow), 0.12, 3.4);'),
+  'stream animation must use its bounded per-feature motion speed');
 
 const requestedStreetWave = 8.53 * (2 ** 15);
 const closeStreet = resolveWaveFrequencyCyclesPerWorld(requestedStreetWave, 0.76, 0.000004);
