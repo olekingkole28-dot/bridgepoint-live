@@ -1,4 +1,4 @@
-name: Verify BridgePoint GPU Water v6118
+name: Verify BridgePoint GPU Water v6119
 
 on:
   pull_request:
@@ -43,11 +43,14 @@ jobs:
         run: |
           set -euo pipefail
           grep -Fq "export function initWaterEngine" release-v2300/world-v2300-water.js
+          grep -Fq "const waveFrequencyZoom = clamp(z, 0.6, 15.0);" release-v2300/world-v2300-water.js
+          grep -Fq "const detailFrequencyZoom = clamp(z, 0.6, 20.0);" release-v2300/world-v2300-water.js
+          grep -Fq "const flowCycles = detailCyclesPerWorld * 2.4;" release-v2300/world-v2300-water.js
           grep -Fq "projectTileFor3D(a_pos" release-v2300/world-v2300-water.js
           grep -Fq "function mapCanHostWater()" release-v2300/world-v2300-water.js
           grep -Fq "float marineSurgeMask" release-v2300/world-v2300-water.js
           ! grep -Fq "if (!map.isStyleLoaded?.())" release-v2300/world-v2300-water.js
-          grep -Fq "window.__BP_WATER_FIELD_V6118__" release-v2300/world-v2300-water.js
+          grep -Fq "window.__BP_WATER_FIELD_V6119__" release-v2300/world-v2300-water.js
           grep -Fq "const raw = feature && feature.row ? feature.row : feature;" release-v2300/world-v2300-water.js
           grep -Fq "typeof item.getScene === 'function'" release-v2300/world-v2300-water.js
           grep -Fq "bp2300:weather-updated" release-v2300/world-v2300-water.js
@@ -81,5 +84,5 @@ jobs:
           grep -Fq "float glancingGlint = pow(" release-v2300/world-v2300-water.js
           grep -Fq "sourceLevel !== null && sourceLevel >= -MAX_VALID_MARINE_SURFACE_OFFSET_M" release-v2300/world-v2300-water.js
           grep -Fq "clamp(0.22 + shimmer * 0.20, 0.22, 0.50)" release-v2300/world-v2300-water.js
-          grep -Fq "world-v2300-water.js?v=6118-water-vertex-guard" rebuild-v5000/app.js
-          grep -Fq "world-v2300-water.js?v=6118-water-vertex-guard" rebuild-v5000/landing.js
+          grep -Fq "world-v2300-water.js?v=6119-wave-displacement-frequency-separation" rebuild-v5000/app.js
+          grep -Fq "world-v2300-water.js?v=6119-wave-displacement-frequency-separation" rebuild-v5000/landing.js
