@@ -388,8 +388,8 @@ jobs:
           grep -Fq 'bridgepoint-rail-mesh-v5973.js?v=5980-visible-detail-rails' site/app/index.html
           grep -Fq 'MAPPED_GROUND_ROAD_ENDPOINT' site/world-v2300-map.js
           grep -Fq 'groundConnectedRamps' site/world-v2300-map.js
-          grep -Fq '6124-solar-space-coast' site/app.js
-          grep -Fq '6124-solar-space-coast' site/landing.js
+          grep -Fq '6125-manual-globe-camera' site/app.js
+          grep -Fq '6125-manual-globe-camera' site/landing.js
           grep -Fq 'OpenStreetMap feature centroid' site/bridgepoint-pyramids-v5945.js
           grep -Fq 'currentHeightM: 138.5' site/bridgepoint-pyramids-v5945.js
           grep -Fq 'currentHeightM: 136.4' site/bridgepoint-pyramids-v5945.js
@@ -668,7 +668,7 @@ jobs:
           grep -Fq 'world-v2300-weather.js?v=6124-live-cloud-weather-refresh' site/app.js
           grep -Fq 'sourceDataReady:true,cloudsOnlyPhase:true' site/landing.js
           grep -Fq 'if(window.__BP_CLOUDS_ONLY_PHASE_V6070__===true && m)' site/landing.js
-          grep -Fq 'landing.js?v=6124-solar-ocean-swell' site/index.html
+          grep -Fq 'landing.js?v=6125-manual-globe-camera' site/index.html
           grep -Fq 'async function toggleNasaNightlights()' site/world-v2300-time-slider.js
           grep -Fq 'async function toggleSkyClouds()' site/world-v2300-time-slider.js
           grep -Fq 'data-skyview' site/world-v2300-time-slider.js
@@ -870,7 +870,7 @@ jobs:
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/app.js
           grep -Fq 'activateLiveWeather();' site/app.js
           grep -Fq 'enabled:true,serializedWeather:true' site/app.js
-          grep -Fq 'app.js?v=6124-solar-ocean-swell' site/app/index.html
+          grep -Fq 'app.js?v=6125-manual-globe-camera' site/app/index.html
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/landing.js
           grep -Fq 'WMO_CAP_WARNING' site/app.js
           grep -Fq 'WMO_CAP_WARNING' site/landing.js
@@ -1093,12 +1093,12 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=6124-solar-ocean-swell' site/app/index.html
-          grep -Fq 'landing.js?v=6124-solar-ocean-swell' site/index.html
-           grep -Fq 'world-v2300-map.js?v=6124-solar-space-coast' site/app.js
-           grep -Fq 'world-v2300-map.js?v=6124-solar-space-coast' site/landing.js
-           grep -Fq 'world-v2300-map.js?v=6124-solar-space-coast' site/index.html
-           grep -Fq 'world-v2300-map.js?v=6124-solar-space-coast' site/app/index.html
+          grep -Fq 'app.js?v=6125-manual-globe-camera' site/app/index.html
+          grep -Fq 'landing.js?v=6125-manual-globe-camera' site/index.html
+           grep -Fq 'world-v2300-map.js?v=6125-manual-globe-camera' site/app.js
+           grep -Fq 'world-v2300-map.js?v=6125-manual-globe-camera' site/landing.js
+           grep -Fq 'world-v2300-map.js?v=6125-manual-globe-camera' site/index.html
+           grep -Fq 'world-v2300-map.js?v=6125-manual-globe-camera' site/app/index.html
            grep -Fq 'world-v2300-lod-controls.js?v=6038-world-lod-range-apply' site/app.js
            grep -Fq 'world-v2300-lod-controls.js?v=6038-world-lod-range-apply' site/landing.js
            grep -Fq 'function activeWorldLodProfile()' site/world-v2300-map.js
