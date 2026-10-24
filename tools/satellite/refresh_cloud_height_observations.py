@@ -161,6 +161,49 @@ def compact_grid_samples(
     return output
 
 
+def compact_point_samples(
+    latitudes: np.ndarray,
+    longitudes: np.ndarray,
+    top_heights_m: np.ndarray,
+    base_heights_m: np.ndarray | None,
+    quality: np.ndarray | None,
+    source_index: int,
+    max_samples: int = MAX_SAMPLES_PER_SOURCE,
+) -> list[list[Any]]:
+    """Sample NetCDF products stored as 1D per-pixel geolocated records."""
+    lat = np.asarray(latitudes, dtype=np.float64).reshape(-1)
+    lon = np.asarray(longitudes, dtype=np.float64).reshape(-1)
+    top = np.asarray(top_heights_m, dtype=np.float64).reshape(-1)
+    if not (lat.size == lon.size == top.size):
+        raise ValueError("Geolocated pixel arrays must have matching latitude/longitude/top lengths")
+    base = None if base_heights_m is None else np.asarray(base_heights_m, dtype=np.float64).reshape(-1)
+    if base is not None and base.size != top.size:
+        base = None
+    qual = None if quality is None else np.asarray(quality).reshape(-1)
+    if qual is not None and qual.size != top.size:
+        qual = None
+    count = min(top.size, max_samples)
+    if count <= 0:
+        return []
+    indices = np.unique(np.linspace(0, top.size - 1, count, dtype=int))
+    output: list[list[Any]] = []
+    for i in indices:
+        tv, lav, lov = safe_float(top[i]), safe_float(lat[i]), safe_float(lon[i])
+        if not (200.0 <= tv <= 23000.0 and -85.0 <= lav <= 85.0 and -180.0 <= lov <= 180.0):
+            continue
+        if qual is not None:
+            q = safe_float(qual[i])
+            if not math.isfinite(q) or q < 0 or q > 1:
+                continue
+        bv: float | None = None
+        if base is not None:
+            candidate = safe_float(base[i])
+            if 0.0 <= candidate < tv - 150.0:
+                bv = round(candidate, 1)
+        output.append([round(lov, 4), round(lav, 4), round(tv, 1), bv, source_index])
+    return output
+
+
 class LinkParser(html.parser.HTMLParser):
     def __init__(self) -> None:
         super().__init__()
@@ -266,23 +309,35 @@ def extract_satcorps(path: Path, source_index: int) -> tuple[list[list[Any]], di
         if top_name is None or lat_name is None or lon_name is None:
             raise ValueError(f"SatCORPS file lacks required top/lat/lon variables; found {list(ds.variables)[:50]}")
         top_da = ds[top_name].squeeze(drop=True)
-        top = reduce_to_2d(top_da.values)
-        top = meters(top, str(top_da.attrs.get("units", "km")), "km")
-        base: np.ndarray | None = None
+        top_values = np.asarray(top_da.values)
+        base_values: np.ndarray | None = None
         if base_name:
             base_da = ds[base_name].squeeze(drop=True)
-            base = meters(reduce_to_2d(base_da.values), str(base_da.attrs.get("units", "km")), "km")
+            base_values = np.asarray(base_da.values)
         lat_da, lon_da = ds[lat_name].squeeze(drop=True), ds[lon_name].squeeze(drop=True)
         lat, lon = np.asarray(lat_da.values), np.asarray(lon_da.values)
-        if lat.ndim == 1 and lon.ndim == 1:
-            if lat.size == top.shape[0] and lon.size == top.shape[1]:
-                lat, lon = np.meshgrid(lat, lon, indexing="ij")
-            elif lon.size == top.shape[0] and lat.size == top.shape[1]:
-                lat, lon = np.meshgrid(lat, lon, indexing="ij")
-                lat, lon = lat.T, lon.T
         quality_name = find_variable(ds, ("DQF", "quality_flag", "cloud_quality_flag"))
         quality = None if quality_name is None else np.asarray(ds[quality_name].squeeze(drop=True).values)
-        samples = compact_grid_samples(lat, lon, top, base, quality, source_index)
+        top_units = str(top_da.attrs.get("units", "km"))
+        if lat.ndim == 1 and lon.ndim == 1 and lat.size == lon.size == top_values.size:
+            # Some GCC pixel files store flat geolocated pixels, not a 2D coordinate grid.
+            top_flat = meters(top_values.reshape(-1), top_units, "km")
+            base_flat = None
+            if base_values is not None:
+                base_flat = meters(base_values.reshape(-1), str(base_da.attrs.get("units", "km")), "km")
+            samples = compact_point_samples(lat, lon, top_flat, base_flat, quality, source_index)
+        else:
+            top = meters(reduce_to_2d(top_values), top_units, "km")
+            base: np.ndarray | None = None
+            if base_values is not None:
+                base = meters(reduce_to_2d(base_values), str(base_da.attrs.get("units", "km")), "km")
+            if lat.ndim == 1 and lon.ndim == 1:
+                if lat.size == top.shape[0] and lon.size == top.shape[1]:
+                    lat, lon = np.meshgrid(lat, lon, indexing="ij")
+                elif lon.size == top.shape[0] and lat.size == top.shape[1]:
+                    lat, lon = np.meshgrid(lat, lon, indexing="ij")
+                    lat, lon = lat.T, lon.T
+            samples = compact_grid_samples(lat, lon, top, base, quality, source_index)
         timestamp = str(ds.attrs.get("time_coverage_end") or ds.attrs.get("date_created") or ds.attrs.get("time_coverage_start") or "")
         if not timestamp:
             timestamp = path.name
