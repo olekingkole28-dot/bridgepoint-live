@@ -890,7 +890,12 @@ function sceneLevelAt(scene, lng, lat) { return absoluteWaterLevelAt(scene, lng,
             if (wMaxLon - wMinLon > 300) return true;
             return !(wMaxLon < minLon - padLon || wMinLon > maxLon + padLon);
           });
+          const midLng = wrapLon((lngA + lngB) * 0.5);
+          const midLat = (latA + latB) * 0.5;
           const waterPolygon = candidates.find(w =>
+            featureContains(w, lngA, latA) &&
+            featureContains(w, midLng, midLat) &&
+            featureContains(w, lngB, latB) &&
             quad.every((point, index) => featureContains(w, quadLons[index], quadLats[index]))
           );
           if (!waterPolygon) {
@@ -900,8 +905,6 @@ function sceneLevelAt(scene, lng, lat) { return absoluteWaterLevelAt(scene, lng,
           // Keep the four vertices on one stable water-surface datum. Sampling each
           // endpoint independently from terrain let bad DEM samples tilt a ribbon into
           // a tall blue triangle. High or uncertain inland heights stay on native water.
-          const midLng = wrapLon((lngA + lngB) * 0.5);
-          const midLat = (latA + latB) * 0.5;
           let waterLevel = 0;
           if (marineFeature(waterPolygon)) {
             const reported = sceneLevelAt(scene, midLng, midLat);
