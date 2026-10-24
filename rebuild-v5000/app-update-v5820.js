@@ -1,4 +1,4 @@
-(()=>{const BUILD=6160,CURRENT_SW='/sw.js?v=6160-cloud-volume-clarity',CURRENT_CACHE='bp-intelligence-v6160-cloud-volume-clarity',RELOAD_KEY='bp-update-reload-'+BUILD;
+(()=>{const BUILD=6161,CURRENT_SW='/sw.js?v=6161-clouds-3d-visible',CURRENT_CACHE='bp-intelligence-v6161-clouds-3d-visible',RELOAD_KEY='bp-update-reload-'+BUILD;
 let busy=false;
 const sameOrigin=u=>{try{return new URL(u,location.href).origin===location.origin}catch{return false}};
 const scopePath=s=>{try{return new URL(s).pathname}catch{return''}};

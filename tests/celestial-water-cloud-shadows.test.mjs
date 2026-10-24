@@ -71,6 +71,16 @@ test('space layer keeps globe interactive while drawing stable stars, Sun and Mo
   assert.doesNotMatch(space, /setInteractive\(false\)/);
 });
 
+test('clouds render as bright 3D volumes, not as a false-colour raster sheet', () => {
+  assert.match(clouds, /id: LAYER_ID, type: 'custom', renderingMode: '3d'/);
+  assert.match(clouds, /layout:\{visibility:'none'\}/);
+  assert.match(clouds, /setLayoutProperty\(SATELLITE_CLOUD_LAYER_ID_V6150,'visibility','none'\)/);
+  assert.match(clouds, /setLayoutProperty\(EUMETSAT_CLOUD_LAYER_ID_V6150,'visibility','none'\)/);
+  assert.match(clouds, /vec3\(0\.70,0\.76,0\.84\)/);
+  assert.match(clouds, /version: 6161, map, overlay/);
+  assert.match(clouds, /coverageVersion: 6161/);
+});
+
 test('cloud shadows update on the map and use available source winds', () => {
   assert.match(clouds, /bp-cloud-shadow-ground-v6124/);
   assert.match(clouds, /function refreshGroundShadows/);
@@ -85,15 +95,15 @@ test('entrypoints use fresh cache keys for updated map, water, clouds, weather a
   for (const source of [app, landing]) {
     assert.match(source, /world-v2300-map\.js\?v=6137-globe-first-weather-lockstep/);
     assert.match(source, /world-v2300-water\.js\?v=6124-solar-ocean-swell/);
-    assert.match(source, /world-v2300-clouds\.js\?v=6160-cloud-volume-clarity/);
+    assert.match(source, /world-v2300-clouds\.js\?v=6161-clouds-3d-visible/);
     assert.match(source, /world-v2300-weather\.js\?v=6138-cloud-linked-lightning/);
-    assert.match(source, /world-v2300-time-slider\.js\?v=6160-cloud-volume-clarity/);
+    assert.match(source, /world-v2300-time-slider\.js\?v=6161-clouds-3d-visible/);
   }
   assert.match(map, /world-v2300-space\.js\?v=6125-manual-globe-camera/);
-  assert.match(timeSlider, /world-v2300-clouds\.js\?v=6160-cloud-volume-clarity/);
+  assert.match(timeSlider, /world-v2300-clouds\.js\?v=6161-clouds-3d-visible/);
   assert.match(bootstrap, /world-v2300-weather\.js\?v=6138-cloud-linked-lightning/);
-  assert.match(appHtml, /app\.js\?v=6160-cloud-volume-clarity/);
-  assert.match(landingHtml, /landing\.js\?v=6160-cloud-volume-clarity/);
+  assert.match(appHtml, /app\.js\?v=6161-clouds-3d-visible/);
+  assert.match(landingHtml, /landing\.js\?v=6161-clouds-3d-visible/);
   assert.match(appHtml, /intelligence-global-v5507\.js\?v=6134-global-precip-lod/);
   assert.match(landingHtml, /intelligence-global-v5507\.js\?v=6134-global-precip-lod/);
 });
@@ -112,11 +122,11 @@ test('new rain/lightning and global source markers stay separate from legacy eff
   assert.match(rain, /source_anchor_kind: 'warning'/);
   assert.match(rain, /windFields\(p, c, true\)/);
   assert.match(clouds, /sourceRainAnchors/);
-  assert.match(clouds, /coverageVersion: 6160/);
+  assert.match(clouds, /coverageVersion: 6161/);
   assert.match(clouds, /sourceHeightMatchedCount/);
   assert.match(clouds, /satelliteCloudHeightFeedStatus/);
   assert.match(clouds, /alphaBase\*0\.82/);
-  assert.match(clouds, /version: 6160, map, overlay/);
+  assert.match(clouds, /version: 6161, map, overlay/);
   assert.match(clouds, /bp6150-nasa-geostationary-cloud-context/);
   assert.match(clouds, /bp6150-nasa-geostationary-cloud-source/);
   assert.match(clouds, /GOES-East_ABI_Band13_Clean_Infrared/);
@@ -202,6 +212,6 @@ test('public cyclone fallback is fetched concurrently with edge weather', () => 
 test('website and app start on the same globe-first weather build', () => {
   assert.match(landingHtml, /bp-globe-only-first-frame-v6137/);
   assert.match(appHtml, /bp-app-globe-only-first-frame-v6137/);
-  assert.ok(landingHtml.includes('landing.js?v=6160-cloud-volume-clarity'));
-  assert.ok(appHtml.includes('app.js?v=6160-cloud-volume-clarity'));
+  assert.ok(landingHtml.includes('landing.js?v=6161-clouds-3d-visible'));
+  assert.ok(appHtml.includes('app.js?v=6161-clouds-3d-visible'));
 });
