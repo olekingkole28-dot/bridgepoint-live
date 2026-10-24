@@ -1623,7 +1623,7 @@ jobs:
                   maskAutoRefresh:typeof window.__BP_GOES_CLOUD_CONTEXT_V6134__?.refreshMask==='function'&&Number(window.__BP_GOES_CLOUD_CONTEXT_V6134__?.refreshIntervalMs)===600000&&!!window.__BP_GOES_CLOUD_CONTEXT_V6134__?.maskTimer,
                  pressed:document.querySelector('#bp-world-time-slider-v5908 [data-clouds]')?.getAttribute('aria-pressed')
                }));
-               if(!cloudBaseline.button||!cloudBaseline.enabled||!cloudBaseline.maskAutoRefresh||cloudBaseline.controllerVersion!==6150||cloudBaseline.base!=='satellite'||cloudBaseline.pressed!=='true')
+               if(!cloudBaseline.button||!cloudBaseline.enabled||!cloudBaseline.maskAutoRefresh||cloudBaseline.controllerVersion!==6162||cloudBaseline.base!=='satellite'||cloudBaseline.pressed!=='true')
                  throw new Error('NASA_EARTH_CLOUD_DEFAULT_ON_NOT_READY '+JSON.stringify(cloudBaseline));
                // Clouds are intentionally ON at startup. Verify OFF restores the previous basemap,
                // then verify ON reactivates the georeferenced 3D volume layer.
