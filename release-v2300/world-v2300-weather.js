@@ -438,7 +438,7 @@ function currentBootstrapCyclones(payload){
    publicCycloneSnapshot={storms:ensureJosephineForecast(storms),tornadoes,generated_at:d?.generated_at||null,source_counts:d?.counts||{},fresh:d?.fresh===true};
    publicCycloneCacheAt=Date.now();return publicCycloneSnapshot;
   }catch(error){
-   if(publicCycloneSnapshot&&Date.now()-publicCycloneCacheAt<900000)return publicCycloneSnapshot;
+   if(publicCycloneSnapshot&&Date.now()-publicCycloneCacheAt<900000){publicCycloneSnapshot={...publicCycloneSnapshot,storms:ensureJosephineForecast(publicCycloneSnapshot.storms)};return publicCycloneSnapshot;}
    publicCycloneCacheAt=Date.now();return {storms:ensureJosephineForecast([]),tornadoes:[],generated_at:null,source_counts:{},fresh:false,error:String(error?.message||error).slice(0,120)};
   }
  }
