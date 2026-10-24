@@ -546,7 +546,7 @@ jobs:
           grep -Fq 'return candidates.slice(0, z >= 13 ? (MOBILE ? 4 : 8) : (MOBILE ? 5 : 10));' site/world-v2300-rain.js
           grep -Fq "'fill-opacity': ['interpolate', ['linear'], ['get', 'wetness'], 0, 0.025, 0.2, 0.19, 0.6, 0.34, 1, 0.48]" site/world-v2300-rain.js
           grep -Fq 'const size = clamp(metersPerPixel(lat, z) * (0.55 + hash(seed, 13, 3) * 1.55), 2.2, 26)' site/world-v2300-rain.js
-          grep -Fq 'rainAnchorObservations.slice(0, overviewClouds ? 0 : (MOBILE ? 4 : 8))' site/world-v2300-clouds.js
+          grep -Fq 'rainAnchorObservations.slice(0, overviewClouds ? (MOBILE ? 2 : 4) : (MOBILE ? 4 : 8))' site/world-v2300-clouds.js
           grep -Fq 'sourceRainAnchors' site/world-v2300-clouds.js
           grep -Fq 'rainCenterFromGeometry' site/world-v2300-clouds.js
           grep -Fq 'const reportCandidates = raw.filter(isRainObservation);' site/world-v2300-rain.js
