@@ -132,17 +132,18 @@ function hideLegacyLandingWeather(targetMap=map){
  window.__BP_LANDING_LEGACY_WEATHER_HIDDEN_V6057__={hidden:true,legacyRadarHidden:true,sourceWeatherOverlaysPreserved:true,renderer:'cinematic-v2300-only',updatedAt:Date.now()}
 }
 function setLandingWeatherEnabled(world,on){
- landingWeatherEnabled=window.__BP_CLOUDS_ONLY_PHASE_V6070__===true?true:!!on;
+ landingWeatherEnabled=!!on;
  const button=$('landingWeatherActivation');
  if(button){button.setAttribute('aria-pressed',String(landingWeatherEnabled));button.textContent='SOURCE WEATHER · '+(landingWeatherEnabled?'ON':'OFF');button.title=landingWeatherEnabled?'Live source-backed weather/hazard dots and warning boundaries are enabled; legacy rain/snow/hail/fire effects remain disabled':'Hide source-backed weather/hazard dots and warning boundaries'}
  const m=world?.map;ensureLandingWeatherLegend();hideLegacyLandingWeather(m);
  if(!landingWeatherEnabled){
   clearInterval(landingWeatherTimer);landingWeatherTimer=0;clearTimeout(landingWeatherRetryTimer);landingWeatherRetryTimer=0;clearInterval(landingRadarTimer);landingRadarTimer=0;
-  try{landingWeatherModules?.weather?.setRadar?.(false);if(window.__BP_CLOUDS_ONLY_PHASE_V6070__===true){landingWeatherModules?.weather?.setActive?.(true);landingWeatherModules?.present?.setActive?.(true)}else{landingWeatherModules?.weather?.setActive?.(false);landingWeatherModules?.present?.setActive?.(false)}}catch(_){}
-  if($('landingWeatherCount'))$('landingWeatherCount').textContent=window.__BP_CLOUDS_ONLY_PHASE_V6070__===true?'CLOUDS ONLY · DATA LIVE':'FX PAUSED';
-  if($('landingWeatherTime'))$('landingWeatherTime').textContent=window.__BP_CLOUDS_ONLY_PHASE_V6070__===true?'Global clouds are the only weather visuals in this phase. Source weather reports remain live for storm-cloud positioning.':'Cinematic weather particle effects are paused. Legacy flat icons and animated radar remain disabled.';
+  try{landingWeatherModules?.weather?.setRadar?.(false);landingWeatherModules?.weather?.setActive?.(false);landingWeatherModules?.present?.setActive?.(false)}catch(_){}
+  if($('landingWeatherCount'))$('landingWeatherCount').textContent='SOURCE WEATHER · OFF';
+  if($('landingWeatherTime'))$('landingWeatherTime').textContent='Source-backed weather dots and warning boundaries are hidden. Legacy rain/snow/hail/fire effects and animated radar remain disabled.';
   if(window.__BP_LANDING_RADAR_STATE__)window.__BP_LANDING_RADAR_STATE__={...window.__BP_LANDING_RADAR_STATE__,visible:false,enabled:false,updatedAt:Date.now()};
-  window.__BP_LANDING_VISUAL_WEATHER__={version:6057,enabled:false,cinematicFx:true,renderer:'isolated-webgl-particle-layer',mapShared:true,legacyOverlaysHidden:true,radarVisible:false,updatedAt:Date.now()};
+  for(const id of ['bp-landing-weather-fill','bp-landing-weather-line','bp-landing-weather-glow','bp-landing-weather-points','bp-landing-weather-hit'])try{if(m?.getLayer(id))m.setLayoutProperty(id,'visibility','none')}catch(_){}
+  window.__BP_LANDING_VISUAL_WEATHER__={version:6130,enabled:false,sourceWeatherVisible:false,cinematicFx:false,legacyCinematicFxDisabled:true,renderer:'source-weather-data-plus-dedicated-rain-lightning',mapShared:true,legacyOverlaysHidden:true,radarVisible:false,updatedAt:Date.now()};
   // Clouds-only mode suppresses particle FX, not the live weather data scene. The
   // homepage preview still needs source cyclone centers so the shared 3D cloud
   // renderer can draw the actual hurricane eye/eyewall/spiral rather than only its path.
@@ -158,7 +159,7 @@ function setLandingWeatherEnabled(world,on){
     if(window.__BP_CLOUDS_ONLY_PHASE_V6070__!==true||!m)return false;
     hideLegacyLandingWeather(m);
     landingWeatherModules.weather?.setRadar?.(false);
-    landingWeatherModules.weather?.setActive?.(true);
+    landingWeatherModules.weather?.setActive?.(false);
     landingWeatherModules.present?.setActive?.(window.__BP_CLOUDS_ONLY_PHASE_V6070__!==true);
     window.__BP_LANDING_VISUAL_WEATHER__={version:6057,enabled:false,sourceDataReady:true,cloudsOnlyPhase:true,renderer:'shared-geospatial-weather-scene',...landingWeatherModules,mapShared:true,legacyOverlaysHidden:true,radarVisible:false,updatedAt:Date.now()};
     return false;
