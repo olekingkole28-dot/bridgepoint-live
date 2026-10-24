@@ -1,8 +1,8 @@
-// BridgePoint Water & Hydrology GPU surface v6117.
+// BridgePoint Water & Hydrology GPU surface v6118.
 // Additive MapLibre custom layer: one shared map canvas/context, bounded source geometry,
 // GPU wave displacement, source-gated flood elevations, and view-aware mesh LOD.
-const VERSION = 6117;
-const LAYER_ID = 'bp-water-surface-gpu-v6117';
+const VERSION = 6118;
+const LAYER_ID = 'bp-water-surface-gpu-v6118';
 const EARTH_CIRCUMFERENCE_M = 40075016.68557849;
 const RAD = Math.PI / 180;
 const MIN_VALID_TERRAIN_ELEVATION_M = -500;
@@ -164,8 +164,8 @@ function absoluteWaterLevelAt(scene, lng, lat) {
 }
 function apiWaterLevelReject(scene) {
   // Keep a lightweight per-build diagnostic without changing the source weather object.
-  if (window.__BP_WATER_ENGINE_V6117__ && Number.isFinite(window.__BP_WATER_ENGINE_V6117__.rejectedWaterLevelSamples)) {
-    window.__BP_WATER_ENGINE_V6117__.rejectedWaterLevelSamples++;
+  if (window.__BP_WATER_ENGINE_V6118__ && Number.isFinite(window.__BP_WATER_ENGINE_V6118__.rejectedWaterLevelSamples)) {
+    window.__BP_WATER_ENGINE_V6118__.rejectedWaterLevelSamples++;
   }
 }
 
@@ -595,7 +595,7 @@ function currentScene() {
 export function initWaterEngine(mapOrWorld, options = {}) {
   const map = mapOrWorld && mapOrWorld.map ? mapOrWorld.map : mapOrWorld;
   if (!map || typeof map.addLayer !== 'function' || typeof map.querySourceFeatures !== 'function') return null;
-  if (window.__BP_WATER_ENGINE_V6117__ && window.__BP_WATER_ENGINE_V6117__.map === map) return window.__BP_WATER_ENGINE_V6117__;
+  if (window.__BP_WATER_ENGINE_V6118__ && window.__BP_WATER_ENGINE_V6118__.map === map) return window.__BP_WATER_ENGINE_V6118__;
   const mobile = window.innerWidth <= 900 || /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
   const low = Number(navigator.deviceMemory || 4) <= 3 || Number(navigator.hardwareConcurrency || 4) <= 4;
   const api = {
@@ -609,6 +609,7 @@ export function initWaterEngine(mapOrWorld, options = {}) {
     surfaceHeightOutliersCorrected: 0, flowSegmentsRejectedElevationJump: 0,
     flowSegmentsRejectedLong: 0, flowSegmentsRejectedAltitude: 0, flowSegmentsRejectedSlope: 0,
     surfaceCellsRejectedAtShoreline: 0, surfaceCellsRejectedElevation: 0,
+    surfaceCellsRejectedWaterFeatureBoundary: 0, surfaceCellsRejectedWaterHeightDiscontinuity: 0,
     surfaceCellsRejectedInvalidTerrain: 0, surfaceCellsRejectedTerrainRelief: 0,
     waterLevelsRejectedByShoreline: 0,
     flowSegmentsRejectedOutsideWater: 0,
@@ -664,7 +665,7 @@ export function initWaterEngine(mapOrWorld, options = {}) {
       try { if (map.getLayer(LAYER_ID)) map.removeLayer(LAYER_ID); } catch (_) {}
       for (const spec of SOURCE_ANCHORS) { try { if (map.getLayer(spec.id)) map.removeLayer(spec.id); } catch (_) {} }
       try { window.removeEventListener('bp2300:weather-updated', onWeatherUpdated); } catch (_) {}
-      if (window.__BP_WATER_ENGINE_V6117__ === this) window.__BP_WATER_ENGINE_V6117__ = null;
+      if (window.__BP_WATER_ENGINE_V6118__ === this) window.__BP_WATER_ENGINE_V6118__ = null;
     },
     get buffers() {
       return layer ? { surface: layer.buffer, flow: layer.flowBuffer, strideFloats: 7, strideBytes: 28, vertexCount: layer.surfaceVertexCount + layer.flowVertexCount } : null;
@@ -681,7 +682,8 @@ export function initWaterEngine(mapOrWorld, options = {}) {
         waitingForVectorFeatures: !!this.waitingForVectorFeatures,
         gpuVertexDisplacement: true, adaptiveLOD: true, boundedGeometry: true,
         surfaceMaskValidationAllZooms: true,
-        surfaceMaskPolicy: 'all four corners stay within source water; source flood stays within its polygon',
+        surfaceMaskPolicy: 'all four water-cell corners belong to the exact same source-water polygon; source flood stays within its polygon',
+        waterSurfaceContinuityPolicy: 'At close zoom, reject discontinuous water heights; never connect adjacent water polygons with different surface levels.',
         fallbackOceanPolicy: 'No custom water is painted into unknown land/water cells.',
         floodSurfaceTerrainPolicy: 'Require valid DEM terrain; reject missing or discontinuous flood-cell heights instead of falling back to zero.',
         inlandVertexCachePolicy: 'per-water-feature level; no shared kind-only grid-vertex height reuse',
@@ -701,6 +703,8 @@ export function initWaterEngine(mapOrWorld, options = {}) {
         flowSegmentsRejectedSlope: this.flowSegmentsRejectedSlope,
         surfaceCellsRejectedAtShoreline: this.surfaceCellsRejectedAtShoreline,
         surfaceCellsRejectedElevation: this.surfaceCellsRejectedElevation,
+        surfaceCellsRejectedWaterFeatureBoundary: this.surfaceCellsRejectedWaterFeatureBoundary,
+        surfaceCellsRejectedWaterHeightDiscontinuity: this.surfaceCellsRejectedWaterHeightDiscontinuity,
         surfaceCellsRejectedInvalidTerrain: this.surfaceCellsRejectedInvalidTerrain,
         surfaceCellsRejectedTerrainRelief: this.surfaceCellsRejectedTerrainRelief,
         waterLevelsRejectedByShoreline: this.waterLevelsRejectedByShoreline,
@@ -764,7 +768,12 @@ function sceneLevelAt(scene, lng, lat) { return absoluteWaterLevelAt(scene, lng,
     // Establish this polygon's own shoreline elevation before considering station data.
     // Choosing a different nearby gauge for each vertex can make adjoining vertices jump
     // to different heights and create blue walls or spikes.
-    if (!feature || !feature.parts || map.getZoom() < 5 || typeof map.queryTerrainElevation !== 'function') {
+    const zoom = map.getZoom();
+    if (zoom >= 8 && (!feature || !feature.parts || typeof map.queryTerrainElevation !== 'function')) {
+      api.terrainMissing++;
+      return NaN;
+    }
+    if (!feature || !feature.parts || zoom < 5 || typeof map.queryTerrainElevation !== 'function') {
       return terrainHeight(lng, lat, terrainCache, 'e:' + cellKey);
     }
     if (api._inlandLevels && api._inlandLevels.has(feature)) return api._inlandLevels.get(feature);
@@ -796,7 +805,7 @@ function sceneLevelAt(scene, lng, lat) { return absoluteWaterLevelAt(scene, lng,
       samples.sort((a, b) => a - b);
       const mid = Math.floor(samples.length / 2);
       level = samples.length % 2 ? samples[mid] : (samples[mid - 1] + samples[mid]) * 0.5;
-    } else level = terrainHeight(lng, lat, terrainCache, 'e:' + cellKey);
+    } else level = map.getZoom() >= 8 ? NaN : terrainHeight(lng, lat, terrainCache, 'e:' + cellKey);
     // A source height is accepted only when it agrees with the sampled shoreline within
     // 25 m. Then the accepted value is cached once for the whole source polygon, never
     // applied independently at each rendered grid vertex.
@@ -989,7 +998,8 @@ function sceneLevelAt(scene, lng, lat) { return absoluteWaterLevelAt(scene, lng,
     api.flowSegmentsRejectedElevationJump = 0;
     api.flowSegmentsRejectedLong = 0; api.flowSegmentsRejectedAltitude = 0;
     api.flowSegmentsRejectedSlope = 0; api.surfaceCellsRejectedAtShoreline = 0;
-    api.surfaceCellsRejectedElevation = 0; api.surfaceCellsRejectedInvalidTerrain = 0;
+    api.surfaceCellsRejectedElevation = 0; api.surfaceCellsRejectedWaterFeatureBoundary = 0;
+    api.surfaceCellsRejectedWaterHeightDiscontinuity = 0; api.surfaceCellsRejectedInvalidTerrain = 0;
     api.surfaceCellsRejectedTerrainRelief = 0; api.waterLevelsRejectedByShoreline = 0;
     api.flowSegmentsRejectedOutsideWater = 0;
     let b;
@@ -1163,12 +1173,15 @@ function sceneLevelAt(scene, lng, lat) { return absoluteWaterLevelAt(scene, lng,
         // This prevents medium-zoom cells from extending across dry land before the old
         // zoom-12 guard ever ran.
         if (waterFeature) {
-          const isMarine = marineFeature(waterFeature);
-          const cornersStayWet = points.every(pt => {
-            const candidate = waterAtGridVertex(pt);
-            return !!candidate && marineFeature(candidate) === isMarine;
-          });
-          if (!cornersStayWet) { api.surfaceCellsRejectedAtShoreline++; continue; }
+          // A cell whose centre belongs to one water polygon cannot borrow corner vertices
+          // from a different lake/river/sea polygon just because both share a broad class.
+          // Their surface datums may differ, creating a vertical blue seam/spike at close zoom.
+          const cornersStayInSameWaterFeature = points.every(pt => waterAtGridVertex(pt) === waterFeature);
+          if (!cornersStayInSameWaterFeature) {
+            api.surfaceCellsRejectedAtShoreline++;
+            api.surfaceCellsRejectedWaterFeatureBoundary++;
+            continue;
+          }
         } else if (kind === 0 && points.some(landAtGridVertex)) {
           api.surfaceCellsRejectedAtShoreline++;
           continue;
@@ -1206,6 +1219,17 @@ function sceneLevelAt(scene, lng, lat) { return absoluteWaterLevelAt(scene, lng,
         }
         const sortedHeights = heights.slice().sort((a, b) => a - b);
         const medianHeight = (sortedHeights[1] + sortedHeights[2]) * 0.5;
+        if (z >= 8 && (kind === 1 || kind === 3)) {
+          const localWaterHeightRangeM = sortedHeights[3] - sortedHeights[0];
+          // Within a single close-zoom surface cell, real open water should not have a
+          // multi-metre step between vertices. Such a quad is almost always an uncertain
+          // gauge/DEM datum seam. Skip it and let native basemap water show through.
+          if (!Number.isFinite(localWaterHeightRangeM) || localWaterHeightRangeM > 5) {
+            api.surfaceCellsRejectedWaterHeightDiscontinuity++;
+            continue;
+          }
+          for (let hi = 0; hi < heights.length; hi++) heights[hi] = medianHeight;
+        }
         const cellSpanMeters = Math.max(dx, dy) * EARTH_CIRCUMFERENCE_M *
           Math.max(0.12, Math.cos(lat * RAD));
         if (kind === 4) {
@@ -1253,7 +1277,7 @@ function sceneLevelAt(scene, lng, lat) { return absoluteWaterLevelAt(scene, lng,
     api.sourceWaterwayFeatures = flowFeatures.length;
     api.geometryBuilds++;
     api.lastSourceRefreshAt = Date.now();
-    window.__BP_WATER_FIELD_V6117__ = {
+    window.__BP_WATER_FIELD_V6118__ = {
       version: VERSION, map, buffers: api.buffers,
       get state() { return api.state; },
       get weatherScene() { return currentScene(); },
@@ -1309,8 +1333,8 @@ function sceneLevelAt(scene, lng, lat) { return absoluteWaterLevelAt(scene, lng,
   });
   scheduleBuild(250);
   for (const delay of [700, 1700, 3400]) window.setTimeout(() => { ensureInstalled(); scheduleBuild(0); }, delay);
-  window.__BP_WATER_ENGINE_V6117__ = api;
-  window.__BP_WATER_FIELD_V6117__ = {
+  window.__BP_WATER_ENGINE_V6118__ = api;
+  window.__BP_WATER_FIELD_V6118__ = {
     version: VERSION, map, get buffers() { return api.buffers; },
     get state() { return api.state; },
     get weatherScene() { return currentScene(); },
