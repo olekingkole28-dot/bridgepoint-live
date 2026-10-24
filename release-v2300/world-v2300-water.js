@@ -1,8 +1,8 @@
-// BridgePoint Water & Hydrology GPU surface v6122.
+// BridgePoint Water & Hydrology GPU surface v6123.
 // Additive MapLibre custom layer: one shared map canvas/context, bounded source geometry,
 // GPU wave displacement, source-gated flood elevations, and view-aware mesh LOD.
-const VERSION = 6122;
-const LAYER_ID = 'bp-water-surface-gpu-v6122';
+const VERSION = 6123;
+const LAYER_ID = 'bp-water-surface-gpu-v6123';
 const EARTH_CIRCUMFERENCE_M = 40075016.68557849;
 const RAD = Math.PI / 180;
 const MIN_VALID_TERRAIN_ELEVATION_M = -500;
@@ -222,8 +222,8 @@ function absoluteWaterLevelAt(scene, lng, lat) {
 }
 function apiWaterLevelReject(scene) {
   // Keep a lightweight per-build diagnostic without changing the source weather object.
-  if (window.__BP_WATER_ENGINE_V6122__ && Number.isFinite(window.__BP_WATER_ENGINE_V6122__.rejectedWaterLevelSamples)) {
-    window.__BP_WATER_ENGINE_V6122__.rejectedWaterLevelSamples++;
+  if (window.__BP_WATER_ENGINE_V6123__ && Number.isFinite(window.__BP_WATER_ENGINE_V6123__.rejectedWaterLevelSamples)) {
+    window.__BP_WATER_ENGINE_V6123__.rejectedWaterLevelSamples++;
   }
 }
 
@@ -292,6 +292,31 @@ function featureWaterwayWidth(feature) {
   if (/canal|fairway|dock/.test(cls)) return 8;
   if (/ditch|drain/.test(cls)) return 1.6;
   return 3.2;
+}
+
+// Read velocity only from fields whose names explicitly indicate metres/second.
+export function resolveStreamMotion(properties) {
+  const p = properties && typeof properties === 'object'
+    ? (properties.properties && typeof properties.properties === 'object' ? properties.properties : properties)
+    : {};
+  const speedKeys = ['velocity_m_s', 'velocity_mps', 'velocity_ms', 'stream_velocity_m_s',
+    'stream_velocity_mps', 'flow_velocity_m_s', 'flow_velocity_mps', 'speed_m_s', 'speed_mps'];
+  for (const key of speedKeys) {
+    if (p[key] == null || String(p[key]).trim() === '') continue;
+    const velocityMps = Number(String(p[key]).replace(',', '.'));
+    if (Number.isFinite(velocityMps) && velocityMps >= 0.01 && velocityMps <= 12) {
+      return { source: 'source', velocityMps, motionScale: clamp(velocityMps, 0.12, 3.4) };
+    }
+  }
+  // These differentiated class defaults are visual-only and are not reported as measurements.
+  const cls = text([p.class, p.waterway, p.type, p.natural].filter(Boolean).join(' '));
+  const motionScale = /waterfall|rapid/.test(cls) ? 2.1
+    : /river/.test(cls) ? 1.15
+    : /canal|fairway|dock/.test(cls) ? 0.82
+    : /stream|creek/.test(cls) ? 0.62
+    : /ditch|drain/.test(cls) ? 0.4
+    : 0.75;
+  return { source: 'visual-fallback', velocityMps: null, motionScale };
 }
 
 function buildShaders(gl, shaderDescription) {
@@ -384,21 +409,33 @@ function buildShaders(gl, shaderDescription) {
     'void main() {',
     '  float sparkle = sin((v_coord.x * 0.71 + v_coord.y * 0.29) * u_flowCycles * 6.2831853 + u_flowPhaseA + u_time * 0.38);',
     '  float fine = sin((v_coord.x * 0.27 - v_coord.y * 0.91) * u_flowCycles * 3.71 + u_flowPhaseB - u_time * 0.57);',
-    '  float detail = 0.5 + 0.5 * sin((v_coord.x * 0.61 + v_coord.y * 0.39) * u_flowCycles * 1.37 * 6.2831853 + u_flowPhaseDetail + u_time * 0.21);',
-    '  float glint = pow(max(0.0, 0.5 + 0.5 * (0.62 * sparkle + 0.24 * fine + 0.14 * detail)), 7.0);',
-    '  float foam = (smoothstep(0.79, 0.98, v_wave) * 0.7 + smoothstep(0.81, 0.97, detail) * 0.08) * (0.05 + min(0.62, u_windSpeed / 120.0) + 0.42 * v_storm);',
+    // GPU-only optical detail: footprint-aware bands fade before they shimmer at pixel limits.
+    '  vec2 waterDir = length(v_flow) > 0.001 ? normalize(v_flow) : vec2(1.0, 0.0);',
+    '  vec2 microDirB = normalize(waterDir + vec2(0.62, 0.41));',
+    '  vec2 microDirC = normalize(waterDir + vec2(-0.71, 0.36));',
+    '  float microPhaseA = dot(v_coord, waterDir) * u_flowCycles * 6.2831853 * 2.8 - u_time * (0.44 + min(0.026 * u_windSpeed, 0.9) + v_storm * 0.24);',
+    '  float microPhaseB = dot(v_coord, microDirB) * u_flowCycles * 6.2831853 * 4.7 + u_time * 0.37;',
+    '  float microPhaseC = dot(v_coord, microDirC) * u_flowCycles * 6.2831853 * 8.1 - u_time * 0.23;',
+    '  float microPixelSpanAB = max(fwidth(microPhaseA), fwidth(microPhaseB));',
+    '  float microFadeAB = 1.0 - smoothstep(0.85, 2.2, microPixelSpanAB);',
+    '  float microFadeC = 1.0 - smoothstep(0.85, 2.2, fwidth(microPhaseC));',
+    '  float microWave = (0.46 * sin(microPhaseA) + 0.34 * sin(microPhaseB)) * microFadeAB + 0.20 * sin(microPhaseC) * microFadeC;',
+    '  float detail = clamp(0.5 + 0.5 * sin((v_coord.x * 0.61 + v_coord.y * 0.39) * u_flowCycles * 1.37 * 6.2831853 + u_flowPhaseDetail + u_time * 0.21) + microWave * 0.14, 0.0, 1.0);',
+    '  float glint = pow(max(0.0, 0.5 + 0.5 * (0.56 * sparkle + 0.20 * fine + 0.13 * detail + 0.11 * microWave)), 7.0);',
+    '  float foam = (smoothstep(0.79, 0.98, v_wave) * 0.7 + smoothstep(0.81, 0.97, detail) * 0.08 + smoothstep(0.76, 0.98, 0.5 + 0.5 * microWave) * 0.035) * (0.05 + min(0.62, u_windSpeed / 120.0) + 0.42 * v_storm);',
     '  vec3 deep = vec3(0.006, 0.075, 0.135);',
     '  vec3 mid = vec3(0.012, 0.24, 0.345);',
     '  vec3 crest = vec3(0.42, 0.76, 0.82);',
-    // Screen-space wave normals give the animated surface readable specular streaks,
-    // rather than a flat cyan overlay. The wave field remains geographically anchored.
-    '  vec3 waveNormal = normalize(vec3(-dFdx(v_wave) * 28.0, -dFdy(v_wave) * 28.0, 1.0));',
+    // Screen-space normals include micro-wave bands without changing vertex elevations.
+    '  float opticalSurface = v_wave + microWave * 0.12;',
+    '  vec3 waveNormal = normalize(vec3(-dFdx(opticalSurface) * 32.0, -dFdy(opticalSurface) * 32.0, 1.0));',
     '  float specular = pow(max(dot(waveNormal, normalize(vec3(-0.34, 0.48, 0.81))), 0.0), 18.0);',
     '  float glancingGlint = pow(max(dot(waveNormal, normalize(vec3(0.64, 0.24, 0.73))), 0.0), 28.0);',
     '  float highlight = clamp(specular * 1.7 + glancingGlint * 0.75, 0.0, 1.0);',
     '  if (v_kind > 1.5 && v_kind < 2.5) {',
     '    vec2 flowDir = length(v_flow) > 0.001 ? normalize(v_flow) : vec2(1.0, 0.0);',
-    '    float streamPhase = sin(dot(v_coord, flowDir) * u_flowCycles * 6.2831853 + v_streamPhaseOffset + u_time * 1.85);',
+    '    float streamSpeedScale = clamp(length(v_flow), 0.12, 3.4);',
+    '    float streamPhase = sin(dot(v_coord, flowDir) * u_flowCycles * 6.2831853 + v_streamPhaseOffset + u_time * (0.55 + streamSpeedScale * 1.3));',
     '    float streak = smoothstep(0.73, 0.98, 0.5 + 0.5 * streamPhase);',
     '    vec3 streamColor = mix(mid, crest, clamp(streak * 0.78 + highlight * 0.28, 0.0, 1.0));',
     '    fragColor = vec4(streamColor, clamp(0.30 + streak * 0.42 + highlight * 0.12, 0.30, 0.80));',
@@ -678,13 +715,15 @@ function currentScene() {
 export function initWaterEngine(mapOrWorld, options = {}) {
   const map = mapOrWorld && mapOrWorld.map ? mapOrWorld.map : mapOrWorld;
   if (!map || typeof map.addLayer !== 'function' || typeof map.querySourceFeatures !== 'function') return null;
-  if (window.__BP_WATER_ENGINE_V6122__ && window.__BP_WATER_ENGINE_V6122__.map === map) return window.__BP_WATER_ENGINE_V6122__;
+  if (window.__BP_WATER_ENGINE_V6123__ && window.__BP_WATER_ENGINE_V6123__.map === map) return window.__BP_WATER_ENGINE_V6123__;
   const mobile = window.innerWidth <= 900 || /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
   const low = Number(navigator.deviceMemory || 4) <= 3 || Number(navigator.hardwareConcurrency || 4) <= 4;
   const api = {
     version: VERSION, map, options, enabled: true, active: true, mobile, low,
     contextReady: false, glContextShared: true, shaderError: null, lastDrawAt: 0, animationTimeSeconds: 0,
     waterPolygonCells: 0, oceanFallbackCells: 0, flowSegments: 0, surfaceVertexCount: 0, flowVertexCount: 0,
+    flowSegmentsWithSourceVelocity: 0, flowSegmentsUsingVisualFallback: 0, maxSourceStreamVelocityMps: 0,
+    flowVelocityDataPolicy: 'Explicit unit-labelled velocity fields are consumed as source speed; absent measurements use clearly marked visual-only class fallback.',
     geometryBuilds: 0, sourceWaterFeatures: 0, sourceLandFeatures: 0, sourceWaterwayFeatures: 0,
     sourceFloodPolygonCount: 0, sourceWaterLevelCount: 0, absoluteWaterLevelCount: 0,
     sourceStormCount: 0, floodedLandCells: 0, rejectedWaterLevelSamples: 0,
@@ -752,7 +791,7 @@ export function initWaterEngine(mapOrWorld, options = {}) {
       try { if (map.getLayer(LAYER_ID)) map.removeLayer(LAYER_ID); } catch (_) {}
       for (const spec of SOURCE_ANCHORS) { try { if (map.getLayer(spec.id)) map.removeLayer(spec.id); } catch (_) {} }
       try { window.removeEventListener('bp2300:weather-updated', onWeatherUpdated); } catch (_) {}
-      if (window.__BP_WATER_ENGINE_V6122__ === this) window.__BP_WATER_ENGINE_V6122__ = null;
+      if (window.__BP_WATER_ENGINE_V6123__ === this) window.__BP_WATER_ENGINE_V6123__ = null;
     },
     get buffers() {
       return layer ? { surface: layer.buffer, flow: layer.flowBuffer, strideFloats: 7, strideBytes: 28, vertexCount: layer.surfaceVertexCount + layer.flowVertexCount } : null;
@@ -777,6 +816,10 @@ export function initWaterEngine(mapOrWorld, options = {}) {
         sourceWaterFeatures: this.sourceWaterFeatures, sourceLandFeatures: this.sourceLandFeatures,
         sourceWaterwayFeatures: this.sourceWaterwayFeatures, waterPolygonCells: this.waterPolygonCells,
         oceanFallbackCells: this.oceanFallbackCells, flowSegments: this.flowSegments,
+         flowSegmentsWithSourceVelocity: this.flowSegmentsWithSourceVelocity,
+         flowSegmentsUsingVisualFallback: this.flowSegmentsUsingVisualFallback,
+         maxSourceStreamVelocityMps: this.maxSourceStreamVelocityMps,
+         flowVelocityDataPolicy: this.flowVelocityDataPolicy,
         surfaceVertexCount: this.surfaceVertexCount, flowVertexCount: this.flowVertexCount,
         gpuBufferBytes: this.surfaceDataBytes + this.flowDataBytes, geometryBuilds: this.geometryBuilds,
         stormCentersUsed: this.stormCount, sourceStormCount: this.sourceStormCount,
@@ -982,6 +1025,7 @@ function sceneLevelAt(scene, lng, lat) { return absoluteWaterLevelAt(scene, lng,
       const geometry = geometryOf(raw);
       const coordsSet = lineParts(geometry);
       const widthM = featureWaterwayWidth(raw);
+      const motion = resolveStreamMotion(raw);
       for (const line of coordsSet) {
         for (let i = 1; i < line.length; i++) {
           if (count >= maxSegments || inspected >= maxSegments * 6) return count;
@@ -1062,7 +1106,8 @@ function sceneLevelAt(scene, lng, lat) { return absoluteWaterLevelAt(scene, lng,
             continue;
           }
           const flood = floodDepthAt(api._floodFeatures, midLng, midLat);
-          const flowX = dx / len, flowY = dy / len;
+          // Magnitude encodes a bounded speed multiplier; the shader normalizes direction.
+           const flowX = dx / len * motion.motionScale, flowY = dy / len * motion.motionScale;
           pushVertex(target, p1[0], p1[1], waterLevel, 2, flowX, flowY, flood);
           pushVertex(target, p2[0], p2[1], waterLevel, 2, flowX, flowY, flood);
           pushVertex(target, p3[0], p3[1], waterLevel, 2, flowX, flowY, flood);
@@ -1070,6 +1115,10 @@ function sceneLevelAt(scene, lng, lat) { return absoluteWaterLevelAt(scene, lng,
           pushVertex(target, p2[0], p2[1], waterLevel, 2, flowX, flowY, flood);
           pushVertex(target, p4[0], p4[1], waterLevel, 2, flowX, flowY, flood);
           count++;
+          if (motion.source === 'source') {
+            api.flowSegmentsWithSourceVelocity++;
+            api.maxSourceStreamVelocityMps = Math.max(api.maxSourceStreamVelocityMps, motion.velocityMps);
+          } else api.flowSegmentsUsingVisualFallback++;
         }
       }
     }
@@ -1093,6 +1142,7 @@ function sceneLevelAt(scene, lng, lat) { return absoluteWaterLevelAt(scene, lng,
     if (!api.enabled || !mapCanHostWater()) return;
     api.terrainSamples = 0; api.terrainMissing = 0; api.terrainRejectedSamples = 0;
     api.rejectedWaterLevelSamples = 0; api.surfaceHeightOutliersCorrected = 0;
+    api.flowSegmentsWithSourceVelocity = 0; api.flowSegmentsUsingVisualFallback = 0; api.maxSourceStreamVelocityMps = 0;
     api.flowSegmentsRejectedElevationJump = 0;
     api.flowSegmentsRejectedLong = 0; api.flowSegmentsRejectedAltitude = 0;
     api.flowSegmentsRejectedSlope = 0; api.surfaceCellsRejectedAtShoreline = 0;
@@ -1378,7 +1428,7 @@ function sceneLevelAt(scene, lng, lat) { return absoluteWaterLevelAt(scene, lng,
     api.sourceWaterwayFeatures = flowFeatures.length;
     api.geometryBuilds++;
     api.lastSourceRefreshAt = Date.now();
-    window.__BP_WATER_FIELD_V6122__ = {
+    window.__BP_WATER_FIELD_V6123__ = {
       version: VERSION, map, buffers: api.buffers,
       get state() { return api.state; },
       get weatherScene() { return currentScene(); },
@@ -1434,8 +1484,8 @@ function sceneLevelAt(scene, lng, lat) { return absoluteWaterLevelAt(scene, lng,
   });
   scheduleBuild(250);
   for (const delay of [700, 1700, 3400]) window.setTimeout(() => { ensureInstalled(); scheduleBuild(0); }, delay);
-  window.__BP_WATER_ENGINE_V6122__ = api;
-  window.__BP_WATER_FIELD_V6122__ = {
+  window.__BP_WATER_ENGINE_V6123__ = api;
+  window.__BP_WATER_FIELD_V6123__ = {
     version: VERSION, map, get buffers() { return api.buffers; },
     get state() { return api.state; },
     get weatherScene() { return currentScene(); },
