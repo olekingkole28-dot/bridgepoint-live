@@ -38,6 +38,20 @@ function weatherCenter(o) {
     if (g?.type === 'Feature') g = g.geometry;
     if (g?.type === 'Point' && Array.isArray(g.coordinates)) {
       lng = safeNum(g.coordinates[0]); lat = safeNum(g.coordinates[1]);
+    } else if (g?.coordinates) {
+      const coordinates = [];
+      const walk = value => {
+        if (!Array.isArray(value)) return;
+        if (value.length >= 2 && typeof value[0] === 'number' && typeof value[1] === 'number') { coordinates.push([value[0], value[1]]); return; }
+        for (const child of value) walk(child);
+      };
+      walk(g.coordinates);
+      if (coordinates.length) {
+        const lonX = coordinates.reduce((sum, p) => sum + Math.cos(p[0] * RAD), 0);
+        const lonY = coordinates.reduce((sum, p) => sum + Math.sin(p[0] * RAD), 0);
+        lng = Math.atan2(lonY, lonX) / RAD;
+        lat = coordinates.reduce((sum, p) => sum + p[1], 0) / coordinates.length;
+      }
     }
   }
   return Number.isFinite(lng) && Number.isFinite(lat) && Math.abs(lat) < 85
@@ -344,13 +358,29 @@ export function initRainLayer(map, getScene = () => ({})) {
     const z = safeNum(map.getZoom?.(), 0), canvas = map.getCanvas?.(), center = map.getCenter?.();
     const w = canvas?.clientWidth || 900, h = canvas?.clientHeight || 700;
     const raw = Array.isArray(nextScene?.observations) ? nextScene.observations : [];
-    const candidates = raw.filter(isRainObservation).map(o => {
+    const reportCandidates = raw.filter(isRainObservation);
+    // Source-backed convective warnings and storm centers extend rain beyond sparse METAR stations.
+    for (const alert of (Array.isArray(nextScene?.alerts) ? nextScene.alerts : []).slice(0, 100)) {
+      const p = alert?.properties || alert || {};
+      const label = text([p.event, p.name, p.type, p.phenom, p.phenomenon, p.product, p.headline, p.description].filter(Boolean).join(' '));
+      if (!/prob.?severe|severe thunderstorm|thunderstorm|tornado|squall|\bsv\b|\bto\b/.test(label)) continue;
+      const c = weatherCenter(alert); if (!c) continue;
+      reportCandidates.push({ ...p, lng: c.lng, lat: c.lat, weather: 'thunderstorm rain', rain_radius_mi: safeNum(p.rain_radius_mi ?? p.precipitation_radius_mi, /tornado|\bto\b/.test(label) ? 24 : 36), source_anchor_kind: 'warning' });
+    }
+    for (const storm of (Array.isArray(nextScene?.storms) ? nextScene.storms : []).slice(0, 40)) {
+      const p = storm?.properties || storm || {};
+      const label = text([p.event, p.name, p.type, p.classification, p.official_classification, p.system_type].filter(Boolean).join(' '));
+      if (!/hurricane|tropical storm|tropical cyclone|post.?tropical cyclone|cyclone|severe thunderstorm|convective/.test(label)) continue;
+      const c = weatherCenter(storm); if (!c) continue;
+      reportCandidates.push({ ...p, lng: c.lng, lat: c.lat, weather: 'thunderstorm rain', rain_radius_mi: safeNum(p.rain_radius_mi ?? p.precipitation_radius_mi, /hurricane|tropical|cyclone/.test(label) ? 60 : 28), source_anchor_kind: 'storm' });
+    }
+    const candidates = reportCandidates.map(o => {
       const c = weatherCenter(o); if (!c) return null;
       const supplied = safeNum(o.precipitation_radius_mi ?? o.rain_radius_mi, NaN);
       const thunder = /thunderstorm|\bts\b|squall/.test(rawWeather(o));
       let radiusM;
-      if (Number.isFinite(supplied) && supplied > 0) radiusM = clamp(supplied * 1609.34, 2200, 26000);
-      else radiusM = thunder ? 9000 : 5000;
+      if (Number.isFinite(supplied) && supplied > 0) radiusM = clamp(supplied * 1609.34, 2200, 90000);
+      else radiusM = thunder ? 28000 : 16000;
       let p = null;
       try { p = map.project([c.lng, c.lat]); } catch (_) {}
       const margin = radiusM / Math.max(0.4, metersPerPixel(c.lat, z));
