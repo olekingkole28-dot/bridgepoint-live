@@ -1,0 +1,45 @@
+name: Validate measured cloud-height feed
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tools/satellite/refresh_cloud_height_observations.py'
+      - 'tools/satellite/test_refresh_cloud_height_observations.py'
+      - '.github/workflows/refresh-cloud-height-observations.yml'
+      - '.github/workflows/validate-cloud-height-observations.yml'
+      - 'release-v2300/world-v2300-clouds.js'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install satellite numeric readers
+        run: python -m pip install --disable-pip-version-check numpy requests xarray netCDF4 pyproj
+
+      - name: Run cloud-height grid, unit, quality and size tests
+        run: python -m unittest tools.satellite.test_refresh_cloud_height_observations -v
+
+      - name: Parse production cloud renderer as an ES module
+        run: node --input-type=module --check < release-v2300/world-v2300-clouds.js
+
+      - name: Verify source provenance and bounded fallback remain explicit
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq 'NASA SatCORPS GCC Global V2' tools/satellite/refresh_cloud_height_observations.py
+          grep -Fq 'NOAA GOES-19 ABI-L2-ACHAF' tools/satellite/refresh_cloud_height_observations.py
+          grep -Fq 'NOAA GOES-18 ABI-L2-ACHAF' tools/satellite/refresh_cloud_height_observations.py
+          grep -Fq 'No raster-colour-derived heights' tools/satellite/refresh_cloud_height_observations.py
+          grep -Fq 'window.__BP_CLOUD_HEIGHT_FEED_V6162__' release-v2300/world-v2300-clouds.js
