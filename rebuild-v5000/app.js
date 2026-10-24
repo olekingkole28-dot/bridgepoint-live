@@ -918,7 +918,17 @@ function ensureGroundRadarDrapeV6132(map){
   return true
  }catch(error){window.__BP_GROUND_RADAR_DRAPE_V6132_ERROR__=String(error?.message||error);return false}
 }
-function weatherColorExpr(){return['match',['get','type'],'WILDFIRE','#ff4b28','FIRE_WEATHER','#ff8a38','PROBSEVERE','#ff3fd1','PROBSEVERE_STORM','#ff3fd1','PROB_SEVERE','#ff3fd1','SEVERE_THUNDERSTORM','#ff663d','THUNDERSTORM','#ffb638','CONVECTIVE_STORM','#ff48b8','TORNADO','#d596ff','STORM','#ff5bd6','HAIL','#c9efff','LIGHTNING','#ffe16d','FLOOD','#4ca7ff','HURRICANE','#65e6ff','HURRICANE_CONE','#65e6ff','HURRICANE_TRACK','#65e6ff','WIND','#9ad7ff','RAIN','#68b9ff','SNOW','#dff7ff','ICE','#b8efff','VOLCANO','#ff615c','EARTHQUAKE','#ffc45b','DROUGHT','#d9a25f','DUST','#c9a978','LANDSLIDE','#b88963','HEAT','#ff795f','GLOBAL_HAZARD','#5ce0ff','WMO_CAP_WARNING',['match',['get','severity'],'Extreme','#ff3b30','Severe','#ff8a3d','Moderate','#ffd34d','Minor','#59e4ff','#8fb2c2'],'WEATHER_REPORT','#b9d6df','#9ab8c5']}
+function weatherColorExpr(){
+ // WMO_CAP_WARNING shapes inherit a phenomenon-specific icon_key when classified; unknown warnings use severity colors.
+ return['match',['get','icon_key'],
+ 'probsevere','#ff18df','wildfire','#ff3e18','fire','#ff7922','tornado','#bd5cff',
+ 'hurricane','#20eaff','thunderstorm','#ff562f','lightning','#ffe529','hail','#6deaff',
+ 'flood','#168cff','wind','#8bdcff','rain','#35baff','snow','#eafaff','ice','#98efff',
+ 'earthquake','#ffc247','volcano','#ff5147','dust','#d2b18a','heat','#ff8058',
+ 'drought','#ffd052','landslide','#c89470',
+ 'alert',['match',['get','severity'],'Extreme','#ff3b30','Severe','#ff8a3d','Moderate','#ffd34d','Minor','#59e4ff','#ffbd3f'],
+ '#ffbd3f']
+}
 function liveLayerIds(){return['bp-v5004-weather-shape-fill','bp-v5004-weather-shape-line','bp-v5004-weather-point-glow','bp-v5004-weather-points','bp-v6132-weather-icons','bp-v5004-weather-hit']}
 function hideLegacyLiveContextLayers(map=world?.map){
  if(!map)return;
@@ -934,7 +944,9 @@ function weatherCollections(items){
  const points=[],shapes=[];
  for(const item of items||[]){
   const rawType=String(item.type||'WEATHER_REPORT').trim().toUpperCase().replace(/[\s-]+/g,'_');
-  const rawSeverity=String(item.severity||''),severityKey=rawSeverity.trim().toUpperCase(),icon_key=weatherIconKey(rawType);
+  const rawSeverity=String(item.severity||''),severityKey=rawSeverity.trim().toUpperCase(),rawPhen=String(item.phenom||item.phenomenon||'').trim().toUpperCase();
+  let icon_key=weatherIconKey([rawType,item.phenom,item.phenomenon,item.event,item.name].filter(Boolean).join(' '));
+  if(icon_key==='alert'){const phenomIcon={TO:'tornado',SV:'thunderstorm',FF:'flood',FA:'flood',HU:'hurricane',TR:'hurricane',TS:'hurricane',FL:'flood',CF:'flood',HY:'flood',WS:'snow',WW:'snow',BZ:'snow',EC:'ice',WC:'wind',HW:'wind',WI:'wind',HT:'heat',EH:'heat',LE:'snow'};icon_key=phenomIcon[rawPhen]||'alert'}
   const iconSpec=BP_WEATHER_ICON_CATALOG_V6132.find(x=>x.key===icon_key)||BP_WEATHER_ICON_CATALOG_V6132[BP_WEATHER_ICON_CATALOG_V6132.length-1];
   const props={type:rawType==='PROBSEVERE_STORM'?'PROBSEVERE_STORM':rawType,name:item.name||item.type||'Weather event',severity:({EXTREME:'Extreme',SEVERE:'Severe',MODERATE:'Moderate',MINOR:'Minor'}[severityKey]||rawSeverity),severity_rank:weatherSeverityRank(severityKey),icon_key,icon_color:iconSpec.color,certainty:item.certainty||'',urgency:item.urgency||'',observed:item.observed===true,source:item.source||'',observed_at:item.observed_at||'',ends_at:item.ends_at||''};
   const gt=item.geometry?.type||'';
