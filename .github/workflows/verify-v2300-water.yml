@@ -96,7 +96,7 @@ jobs:
           grep -Fq "const MAX_CUSTOM_INLAND_WATER_SURFACE_ELEVATION_M = 250;" release-v2300/world-v2300-water.js
           grep -Fq "api.waterLevelsRejectedByShoreline++;" release-v2300/world-v2300-water.js
           grep -Fq "api.surfaceCellsRejectedElevation++;" release-v2300/world-v2300-water.js
-          grep -Fq "dFdx(v_wave)" release-v2300/world-v2300-water.js
+          grep -Fq "dFdx(opticalSurface)" release-v2300/world-v2300-water.js
           grep -Fq "float glancingGlint = pow(" release-v2300/world-v2300-water.js
           grep -Fq "sourceLevel !== null && sourceLevel >= -MAX_VALID_MARINE_SURFACE_OFFSET_M" release-v2300/world-v2300-water.js
           grep -Fq "clamp(0.22 + shimmer * 0.20, 0.22, 0.50)" release-v2300/world-v2300-water.js
