@@ -1903,7 +1903,7 @@ export function initSkyClouds(target) {
       satelliteCandidateCount, satelliteCloudAnchors, satelliteCloudAnchorCount: satelliteCloudAnchors.length,
       sourceHeightSampleCount: sourceHeightSamples.length, sourceHeightSignature, sourceHeightMatchRadiusM,
       sourceHeightMatchedCount, sourceHeightModelledCount,
-      satelliteCloudHeightsMeasured: false,
+      satelliteCloudHeightsMeasured: sourceHeightMatchedCount > 0,
       macroRadiusMinKm: 400, macroRadiusMaxKm: 900, thinLayerSlices: 9, thinLayerStacks: 2, singleLayerSlices: 8, singleLayerStacks: 2,
       heightResolvedWindPuffs, modelledWindPuffs, windSampleSignature: windSampleSignature === 'uninitialized' ? 'no-height-resolved-wind-grid' : windSampleSignature,
       macroFormationCount: macro.length,
