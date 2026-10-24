@@ -475,7 +475,7 @@ function mergeCycloneCenters(primary=[],supplemental=[]){
  function startRadarMotion(){stopRadarMotion();if(!radar||document.hidden)return;try{if(map.getLayer('wx-radar')){map.setPaintProperty('wx-radar','raster-opacity',LOW?.54:.70);map.setPaintProperty('wx-radar','raster-brightness-max',1)}if(map.getLayer('wx-radar-haze'))map.setPaintProperty('wx-radar-haze','raster-opacity',LOW?.14:.18);keepWeatherReferenceLinesOnTop();window.__BP_RADAR_RENDER_V5822__={version:5822,stableGroundDrape:true,below3D:true,sourceMaxZoom:14,animatedPaint:false,maxDisplayZoom:24,updatedAt:Date.now()}}catch(_){}}
  function setRadar(v){radar=CLOUDS_ONLY_PHASE()?false:!!v;for(const id of ['wx-radar-haze','wx-radar'])try{map.setLayoutProperty(id,'visibility',radar?'visible':'none')}catch(_){}if(radar)startRadarMotion();else stopRadarMotion();keepWeatherReferenceLinesOnTop();document.querySelector('[data-layer="radar"]')?.classList.toggle('active',radar)}
  function setActive(v){
-  active=CLOUDS_ONLY_PHASE()?true:!!v;
+  active=!!v;
   hideLegacyNativeWeatherLayers(map);
   // Keep the legacy particle bundle disabled. New rain and cloud-to-ground lightning are separate renderers.
   fx.setEnabled(false);
