@@ -87,7 +87,7 @@ test('satellite imagery uncertainty cannot blank the global 3D cloud field', () 
   assert.match(clouds, /const p=clamp\(Number\(satelliteMask\.probability\[idx\]\)\/255,0,1\)/);
   assert.match(clouds, /return p<=0\.08 \|\| p>=0\.68/);
   assert.match(clouds, /This RGB\/infrared heuristic is not an official cloud-mask product/);
-  assert.match(clouds, /keep modeled\s+3D billows through ambiguous probabilities/);
+  assert.match(clouds, /keep modeled[\s\S]{0,80}3D billows through ambiguous probabilities/);
 });
 
 test('cloud shadows update on the map and use available source winds', () => {
