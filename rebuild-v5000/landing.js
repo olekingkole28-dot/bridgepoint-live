@@ -294,7 +294,7 @@ function setLandingWeatherEnabled(world,on){
  if(!m)return Promise.resolve(false);
  const enable=async()=>{
   if(!landingWeatherModules){
-   const [wm,pm]=await Promise.all([import('./world-v2300-weather.js?v=6134-first-frame-weather'),import('./world-v2300-present-weather.js?v=6070-clouds-only-phase')]);
+   const [wm,pm]=await Promise.all([import('./world-v2300-weather.js?v=6134-first-frame-weather'),import('./world-v2300-present-weather.js?v=6134-legacy-fx-disabled')]);
    landingWeatherModules={weather:wm.initWeather(world.map),present:pm.initPresentWeather(world.map)}
   }
   if(!landingWeatherEnabled)return false;
@@ -431,7 +431,7 @@ async function initMap(){
   // Keep source weather feeds live so global-zoom storm-cloud geometry is source-backed; non-cloud visuals stay locked off.
   void Promise.all([
    import('./world-v2300-weather.js?v=6134-first-frame-weather'),
-   import('./world-v2300-present-weather.js?v=6070-clouds-only-phase')
+   import('./world-v2300-present-weather.js?v=6134-legacy-fx-disabled')
   ]).then(([wm,pm])=>{
    if(!world?.map)return;
    landingWeatherModules={weather:wm.initWeather(world.map),present:pm.initPresentWeather(world.map)};
@@ -439,9 +439,9 @@ async function initMap(){
    landingWeatherModules.weather?.setRadar?.(false);
    landingWeatherModules.present?.setActive?.(false);
    hideLegacyLandingWeather(world.map);
-   window.__BP_LANDING_VISUAL_WEATHER__={version:6070,enabled:true,cloudsOnlyPhase:true,visualWeatherEffectsEnabled:false,renderer:'isolated-webgl-particle-layer',...landingWeatherModules,mapShared:true,legacyOverlaysHidden:true,radarVisible:false,nationalWeather:true,sourceWeatherFeedActive:true,updatedAt:Date.now()};
-   if($('landingWeatherCount'))$('landingWeatherCount').textContent='CLOUDS ONLY · DATA LIVE';
-   if($('landingWeatherTime'))$('landingWeatherTime').textContent='Global clouds are the only weather visuals in this phase. Source weather reports remain live for storm-cloud positioning.';
+   window.__BP_LANDING_VISUAL_WEATHER__={version:6134,renderer:'source-weather-data-plus-dedicated-rain-lightning',...landingWeatherModules,enabled:true,cinematicFx:false,cloudsOnlyPhase:false,visualWeatherEffectsEnabled:true,legacyCinematicFxDisabled:true,sourceWeatherVisible:true,sourceWeatherOverlaysPreserved:true,mapShared:true,nationalWeather:true,networkActivationDeferred:false,legacyOverlaysHidden:true,radarVisible:!!world.map.getLayer('bp-landing-v6132-ground-radar')&&(world.map.getLayoutProperty('bp-landing-v6132-ground-radar','visibility')||'visible')!=='none',radarOwnedByGroundDrape:true,radarAnimatedAtCloseZoom:false,radarGroundDrape:true,asyncAttach:true,sourceWeatherFeedActive:true,updatedAt:Date.now()};
+   if($('landingWeatherCount'))$('landingWeatherCount').textContent='SOURCE WEATHER · LIVE';
+   if($('landingWeatherTime'))$('landingWeatherTime').textContent='Live source-backed hazard dots, warning/ProbSevere boundaries and the NOAA ground-radar drape are active. Dedicated rain and cloud-to-ground lightning are source-anchored; legacy generic weather FX remain disabled.';
   }).catch(e=>console.warn('BridgePoint cloud-phase weather feeds unavailable',e));
    void import('./world-v2300-lod-controls.js?v=6038-world-lod-range-apply').then(m=>{window.__BP_LOD_CONTROL_LANDING_V6016__=m.initWorldLodControls(world,{surface:'landing'})}).catch(e=>console.warn('BridgePoint homepage LOD controls unavailable',e));
   // Explicitly connect the landmark module to the newly created homepage map.
