@@ -8,6 +8,7 @@ on:
       - 'release-v2300/world-v2300-weather.js'
       - 'release-v2300/world-v2300-rain.js'
       - 'release-v2300/world-v2300-lightning.js'
+      - 'release-v2300/world-v2300-clouds.js'
       - 'release-v2300/world-v2300-map.js'
       - 'release-v2300/world-v2300-config.js'
       - '.github/workflows/verify-v2300-weather-fx-v3.yml'
@@ -18,6 +19,7 @@ on:
       - 'release-v2300/world-v2300-weather.js'
       - 'release-v2300/world-v2300-rain.js'
       - 'release-v2300/world-v2300-lightning.js'
+      - 'release-v2300/world-v2300-clouds.js'
       - 'release-v2300/world-v2300-map.js'
       - 'release-v2300/world-v2300-config.js'
       - '.github/workflows/verify-v2300-weather-fx-v3.yml'
@@ -46,6 +48,7 @@ jobs:
           cp release-v2300/world-v2300-weather.js /tmp/bpwx3/world-v2300-weather.js
           cp release-v2300/world-v2300-rain.js /tmp/bpwx3/world-v2300-rain.js
           cp release-v2300/world-v2300-lightning.js /tmp/bpwx3/world-v2300-lightning.js
+          cp release-v2300/world-v2300-clouds.js /tmp/bpwx3/world-v2300-lightning.js
           curl --retry 4 --retry-all-errors --retry-delay 1 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.js -o /tmp/bpwx3/vendor/maplibre-gl.js
           curl --retry 4 --retry-all-errors --retry-delay 1 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.css -o /tmp/bpwx3/vendor/maplibre-gl.css
 
@@ -58,6 +61,7 @@ jobs:
           <script type="module">
             import {initWorld} from './world-v2300-map.js';
             import {initWeather} from './world-v2300-weather.js';
+            import {initSkyClouds} from './world-v2300-clouds.js';
             // Keep this isolated weather fixture deterministic; the production-map gate tests live feed behavior separately.
             window.__BP_TEST_DISABLE_ARCHIVED_JOSEPHINE_FALLBACK__=true;
             const world=initWorld();
@@ -72,6 +76,7 @@ jobs:
                 const style=world?.map?.getStyle?.();
                 if(!style||!Array.isArray(style.layers)||!style.layers.length)return;
                 window.__bpWeatherV2300=initWeather(world.map);
+                window.__bpRainCloudAnchorTest=initSkyClouds(world);
                 window.__BP_WX_TEST_READY__=true;
               }catch(e){window.__BP_WX_TEST_ERROR__=String(e?.stack||e)}
             };
@@ -126,6 +131,7 @@ jobs:
               await p.evaluate(()=>window.__bpWorldV2300.map.jumpTo({center:[-87.3425,41.538],zoom:10.5,pitch:58,bearing:-12}));
               await p.evaluate(()=>window.__bpWeatherV2300.refresh(true));
               await p.waitForFunction(()=>window.__bpWeatherV2300?.state?.counts?.alerts===3,{timeout:15000});
+              await p.waitForFunction(()=>Number(window.__BP_LIGHTNING_CLOUD_ANCHORS_V6135__?.count||0)>0,{timeout:15000});
               await p.waitForFunction(()=>window.__bpWeatherV2300?.fx?.state?.shaderReady===true,{timeout:15000});
               console.log('WX_PARTICLE_DIAG',JSON.stringify(await p.evaluate(()=>{const m=window.__bpWorldV2300?.map,w=window.__bpWeatherV2300,fx=w?.fx?.state,c=m?.getCanvas?.(),sc=m?.getContainer?.()?.closest?.('[data-surface]'),obs=w?.fx?.scene?.observations?.[0],sch=window.__BP_WEATHER_RENDER_SCHEDULER_V6040__;return{activeParticles:fx?.activeParticles,quality:fx?.qualityScale,shaderReady:fx?.shaderReady,enabled:fx?.enabled,moving:fx?.moving,zoom:m?.getZoom?.(),center:m?.getCenter?.().toArray?.(),canvas:c?{clientWidth:c.clientWidth,clientHeight:c.clientHeight,width:c.width,height:c.height}:null,counts:w?.state?.counts,layerPresent:!!m?.getLayer?.('bp2300-weather-fx-gpu'),renderer:window.__BP_WEATHER_FX_DIAGNOSTIC_V6050__||null,scheduler:sch?{mode:sch.mode,visibleAnimatedEffects:sch.visibleAnimatedEffects,enabled:sch.enabled,moving:sch.moving,counts:sch.counts}:null,surface:sc?{className:sc.className,hidden:sc.hidden,active:sc.classList.contains('active')}:null,obs:obs?{lng:obs.lng,lat:obs.lat,weather:obs.weather,present_weather:obs.present_weather,rawdata:obs.rawdata,visibility_mi:obs.visibility_mi}:null,scene:fx?{observations:w?.fx?.scene?.observations?.length,fires:w?.fx?.scene?.fires?.length,storms:w?.fx?.scene?.storms?.length,alerts:w?.fx?.scene?.alerts?.length,earthquakes:w?.fx?.scene?.earthquakes?.length,lightning:w?.fx?.scene?.lightning?.length}:null,documentHidden:document.hidden}})));
               await p.waitForFunction(()=>{const r=window.__BP_RAIN_RENDERER_V6068__?.state,l=window.__BP_LIGHTNING_RENDERER_V6130__?.state;return r?.worldAnchored===true&&r?.overlayAttached===true&&r?.renderedStreaks>0&&l?.enabled===true&&l?.overlayConnected===true&&l?.anchors>0;},{timeout:15000});
