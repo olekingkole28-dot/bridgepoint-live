@@ -410,6 +410,34 @@ function makeFunnelGeometry(MC, vertices, indices, lng, lat, altitudeTop, tint, 
 
 const GOES_CLOUD_SOURCE_ID_V6134='bp6133-noaa-geocolor-source';
 const GOES_CLOUD_LAYER_ID_V6134='bp6133-noaa-geocolor-cloud-context';
+
+const SATELLITE_CLOUD_MASK_V6140 = Object.freeze({
+  width: 256, height: 128,
+  minX: -20037508.342789244, maxX: 20037508.342789244,
+  minY: -13606546.0, maxY: 13591602.0,
+  earthRadiusM: 6378137
+});
+function satelliteMaskIndexV6140(mask,lng,lat){
+  if(!mask||!Number.isFinite(lng)||!Number.isFinite(lat))return -1;
+  const width=Number(mask.width)||0,height=Number(mask.height)||0;
+  if(width<1||height<1||!mask.coverage)return -1;
+  const r=Number(mask.earthRadiusM)||6378137;
+  const clampedLat=clamp(lat,-76.49,76.46)*Math.PI/180;
+  const x=clamp((lng+180)/360,0,.999999999)*width;
+  const yProjected=r*Math.log(Math.tan(Math.PI/4+clampedLat/2));
+  const y=clamp((Number(mask.maxY)-yProjected)/Math.max(1,Number(mask.maxY)-Number(mask.minY)),0,.999999999)*height;
+  const col=Math.floor(x),row=Math.floor(y);
+  return row*width+col;
+}
+function satelliteMaskCellCenterV6140(mask,col,row){
+  const x=Number(mask.minX)+(col+.5)/Number(mask.width)*(Number(mask.maxX)-Number(mask.minX));
+  const y=Number(mask.maxY)-(row+.5)/Number(mask.height)*(Number(mask.maxY)-Number(mask.minY));
+  return {
+    lng:x/(Number(mask.earthRadiusM)||6378137)*180/Math.PI,
+    lat:(2*Math.atan(Math.exp(y/(Number(mask.earthRadiusM)||6378137)))-Math.PI/2)*180/Math.PI
+  };
+}
+
 function goesGeoColorTileUrlV6134(epoch){
  const endpoint='https://satellitemaps.nesdis.noaa.gov/arcgis/rest/services/MERGEDGC_current/ImageServer/exportImage';
  return endpoint+'?bbox={bbox-epsg-3857}&bboxSR=3857&imageSR=3857&size=256,256&format=png32&transparent=true&frame='+encodeURIComponent(String(epoch))+'&f=image';
@@ -425,6 +453,105 @@ function ensureLiveSatelliteCloudContextV6134(map){
   return false;
  }
  const frame=()=>Math.floor(Date.now()/600000)*600000;
+
+ const refreshSatelliteCloudMaskV6140=async(maskState,force=false)=>{
+  if(document.hidden)return false;
+  const now=Date.now();
+  if(maskState.maskRefreshPromise)return maskState.maskRefreshPromise;
+  if(!force&&now-Number(maskState.maskLastAttemptAt||0)<480000)return false;
+  maskState.maskLastAttemptAt=now;
+  maskState.maskStatus='fetching';
+  maskState.maskLastError=null;
+  maskState.maskRefreshPromise=(async()=>{
+   const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),22000);
+   let bitmap=null,objectUrl=null;
+   try{
+    const epoch=frame(),bbox=[SATELLITE_CLOUD_MASK_V6140.minX,SATELLITE_CLOUD_MASK_V6140.minY,SATELLITE_CLOUD_MASK_V6140.maxX,SATELLITE_CLOUD_MASK_V6140.maxY].join(',');
+    const url='https://satellitemaps.nesdis.noaa.gov/arcgis/rest/services/MERGEDGC_current/ImageServer/exportImage'
+      +'?bbox='+bbox+'&bboxSR=3857&imageSR=3857&size=512,256&format=png32&transparent=true&frame='+encodeURIComponent(String(epoch))+'&f=image';
+    const response=await fetch(url,{mode:'cors',cache:'no-store',signal:controller.signal});
+    if(!response.ok)throw new Error('NOAA cloud image HTTP '+response.status);
+    const blob=await response.blob();
+    if(!/^image\//i.test(String(blob.type||'')))throw new Error('NOAA cloud image did not return an image MIME type');
+    if(typeof createImageBitmap==='function')bitmap=await createImageBitmap(blob);
+    else{
+     objectUrl=URL.createObjectURL(blob);
+     bitmap=await new Promise((resolve,reject)=>{
+      const img=new Image();
+      img.onload=()=>resolve(img);
+      img.onerror=()=>reject(new Error('NOAA cloud image decode failed'));
+      img.src=objectUrl;
+     });
+    }
+    if(!bitmap?.width||!bitmap?.height)throw new Error('NOAA cloud image has empty dimensions');
+    const width=SATELLITE_CLOUD_MASK_V6140.width,height=SATELLITE_CLOUD_MASK_V6140.height;
+    const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;
+    const ctx=canvas.getContext('2d',{willReadFrequently:true});
+    if(!ctx)throw new Error('Canvas pixel sampling unavailable');
+    ctx.clearRect(0,0,width,height);
+    ctx.imageSmoothingEnabled=true;
+    ctx.drawImage(bitmap,0,0,width,height);
+    const rgba=ctx.getImageData(0,0,width,height).data;
+    const coverage=new Uint8Array(width*height),probability=new Uint8Array(width*height);
+    let coverageCells=0,cloudCells=0,validSamples=0;
+    const cloudScore=(r,g,b)=>{
+     const hi=Math.max(r,g,b),lo=Math.min(r,g,b),sat=hi-lo,lum=.2126*r+.7152*g+.0722*b;
+     const neutral=clamp((lum-96)/130,0,1)*(1-.74*clamp((sat-42)/125,0,1));
+     const warm=clamp((r-92)/145,0,1)*clamp((g-42)/155,0,1)*clamp((r-b-8)/105,0,1)*.84;
+     const ice=clamp((b-82)/165,0,1)*clamp((g-66)/160,0,1)*.62;
+     return clamp(Math.max(neutral,warm,ice),0,1);
+    };
+    for(let i=0;i<width*height;i++){
+     const a=rgba[i*4+3];
+     if(a<16)continue;
+     validSamples++;
+     coverage[i]=255;
+     const score=cloudScore(rgba[i*4],rgba[i*4+1],rgba[i*4+2]);
+     probability[i]=Math.round(score*255);
+     if(score>=.43)cloudCells++;
+    }
+    for(let i=0;i<coverage.length;i++)if(coverage[i])coverageCells++;
+    if(coverageCells<600)throw new Error('NOAA cloud image did not provide a useful observed footprint ('+coverageCells+' valid grid cells)');
+    if(cloudCells<20)throw new Error('NOAA cloud image cloud classifier was unexpectedly empty ('+cloudCells+' cloudy samples)');
+    const prior=window.__BP_SATELLITE_CLOUD_MASK_V6140__;
+    const mask={
+     version:6140,map,width,height,
+     minX:SATELLITE_CLOUD_MASK_V6140.minX,maxX:SATELLITE_CLOUD_MASK_V6140.maxX,
+     minY:SATELLITE_CLOUD_MASK_V6140.minY,maxY:SATELLITE_CLOUD_MASK_V6140.maxY,
+     earthRadiusM:SATELLITE_CLOUD_MASK_V6140.earthRadiusM,
+     source:'NOAA NESDIS MERGEDGC_current GOES East/West GeoColor · pixel-derived cloud likelihood',
+     sourceUrl:'https://satellitemaps.nesdis.noaa.gov/arcgis/rest/services/MERGEDGC_current/ImageServer/exportImage',
+     sourceEpoch:epoch,updatedAt:Date.now(),generation:Number(prior?.generation||0)+1,
+     widthPixels:bitmap.width,heightPixels:bitmap.height,coverage,probability,
+     coverageCells,cloudCells,validSamples,
+     cloudProbabilityMethod:'GeoColor RGB brightness/colour heuristic; not NOAA official Cloud Mask',
+     cloudHeightSource:'modeled visualization prior; cloud top/base heights are not measured in this GeoColor product',
+     observedFootprintOnly:true,lastError:null
+    };
+    window.__BP_SATELLITE_CLOUD_MASK_V6140__=mask;
+    maskState.maskStatus='fresh';maskState.maskLastSuccessAt=mask.updatedAt;maskState.maskLastError=null;
+    maskState.maskGeneration=mask.generation;maskState.maskCoverageCells=coverageCells;maskState.maskCloudCells=cloudCells;
+    maskState.maskSourceEpoch=epoch;maskState.maskImageWidth=bitmap.width;maskState.maskImageHeight=bitmap.height;
+    try{window.dispatchEvent(new CustomEvent('bp2300:satellite-cloud-mask-updated',{detail:{map,generation:mask.generation,coverageCells,cloudCells,updatedAt:mask.updatedAt}}))}catch(_){}
+    map.triggerRepaint?.();
+    return true;
+   }catch(error){
+    const message=String(error?.message||error).slice(0,220);
+    maskState.maskStatus=window.__BP_SATELLITE_CLOUD_MASK_V6140__?.map===map?'stale':'unavailable';
+    maskState.maskLastError=message;
+    const current=window.__BP_SATELLITE_CLOUD_MASK_V6140__;
+    if(current?.map===map)current.lastError=message;
+    return false;
+   }finally{
+    clearTimeout(timeout);
+    try{bitmap?.close?.()}catch(_){}
+    if(objectUrl)try{URL.revokeObjectURL(objectUrl)}catch(_){}
+    maskState.maskRefreshPromise=null;
+   }
+  })();
+  return maskState.maskRefreshPromise;
+ };
+
  const beforeGround=()=>{
   const layers=map.getStyle?.()?.layers||[];
   return ['bp-v6132-ground-radar','bp-landing-v6132-ground-radar','gta-context-building-shadow','gta-context-buildings','gta-landmark3d-base','gta-bridge3d-pier','gta-place-label'].find(id=>map.getLayer(id))||
@@ -481,6 +608,21 @@ function ensureLiveSatelliteCloudContextV6134(map){
    map.on?.('moveend',()=>state.refresh(false));
    document.addEventListener('visibilitychange',()=>{if(!document.hidden)state.refresh(false)});
    window.__BP_GOES_CLOUD_CONTEXT_V6134__=state;
+  }
+
+  state.refreshMask=(force=false)=>refreshSatelliteCloudMaskV6140(state,force);
+  state.maskStatus=state.maskStatus||'pending';
+  if(state.maskTimer)clearInterval(state.maskTimer);
+  state.maskTimer=setInterval(()=>{
+   state.refresh(false);
+   void state.refreshMask(false);
+  },state.refreshIntervalMs||600000);
+  if(state.maskVisibilityHandler)document.removeEventListener('visibilitychange',state.maskVisibilityHandler);
+  state.maskVisibilityHandler=()=>{if(!document.hidden){state.refresh(true);void state.refreshMask(true)}};
+  document.addEventListener('visibilitychange',state.maskVisibilityHandler);
+  if(!state.maskInitialFetchStarted){
+   state.maskInitialFetchStarted=true;
+   void state.refreshMask(true);
   }
   return true;
  }catch(error){window.__BP_GOES_CLOUD_CONTEXT_V6134_ERROR__=String(error?.message||error).slice(0,200);return false}
