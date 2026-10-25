@@ -73,6 +73,12 @@ jobs:
           grep -Fq "zoom<3?{p_west:-180,p_south:-85,p_east:180,p_north:85}" rebuild-v5000/landing.js
           grep -Fq "'icon-allow-overlap':['step',['zoom'],true,6.5,false]" release-v2300/world-v2300-map.js
           grep -Fq "const VERSION = 6123;" release-v2300/world-v2300-water.js
+          grep -Fq "const SURFACE_RENDER_REVISION = 6194;" release-v2300/world-v2300-water.js
+          grep -Fq "const maxCells = worldView" release-v2300/world-v2300-water.js
+          grep -Fq "MIN_BACKGROUND_BUILD_INTERVAL_MS = 4200" release-v2300/world-v2300-water.js
+          grep -Fq "sourceGapGeometryPreserved++" release-v2300/world-v2300-water.js
+          grep -Fq "world-v2300-water.js?v=6194-stable-water-low-cost" rebuild-v5000/app.js
+          grep -Fq "world-v2300-water.js?v=6194-stable-water-low-cost" rebuild-v5000/landing.js
           grep -Fq "resolvePitchDisplacementPolicy" release-v2300/world-v2300-water.js
           grep -Fq "uniform float u_pitchWaveScale;" release-v2300/world-v2300-water.js
           grep -Fq "float offsetM = clamp(dynamicOffsetM, -u_waveOffsetLimit, u_waveOffsetLimit) + a_flood;" release-v2300/world-v2300-water.js
