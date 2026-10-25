@@ -74,6 +74,8 @@ jobs:
           grep -Fq "const maxCells = worldView" release-v2300/world-v2300-water.js
           grep -Fq "MIN_BACKGROUND_BUILD_INTERVAL_MS = 4200" release-v2300/world-v2300-water.js
           grep -Fq "sourceGapGeometryPreserved++" release-v2300/world-v2300-water.js
+          grep -Fq "const scanLimit = Math.max(limit, Math.min(limit * 4, 2200))" release-v2300/world-v2300-water.js
+          grep -Fq "replacement-water-geometry-empty" release-v2300/world-v2300-water.js
           grep -Fq "map.on('idle', ensureInstalled)" release-v2300/world-v2300-water.js
           ! grep -Fq "map.on('idle', () => scheduleBuild(160))" release-v2300/world-v2300-water.js
           grep -Fq "resolvePitchDisplacementPolicy" release-v2300/world-v2300-water.js
