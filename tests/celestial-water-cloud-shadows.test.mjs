@@ -171,6 +171,12 @@ test('global opportunity markers render category glyphs and merge source-backed 
   assert.match(landing, /function bpGlobalOpportunityIsUSCoordsV6187/);
   assert.match(app, /function bpGlobalOpportunityGlobeGeoV6187/);
   assert.match(landing, /function bpGlobalOpportunityGlobeGeoV6187/);
+  assert.match(app, /p_west:-125,p_south:24,p_east:-66,p_north:50/);
+  assert.match(landing, /p_west:-125,p_south:24,p_east:-66,p_north:50/);
+  assert.match(app, /p_limit:mobile\?45:90/);
+  assert.match(landing, /p_limit:mobile\?45:90/);
+  assert.match(app, /features\.length\?300000:15000/);
+  assert.match(landing, /features\.length\?300000:15000/);
   assert.doesNotMatch(app, /function bpGlobalOpportunityMarkerIsFrontV6186/);
   assert.doesNotMatch(landing, /function bpGlobalOpportunityMarkerIsFrontV6186/);
   assert.match(app, /__bpGlobalRiskFeedCacheV6186/);
@@ -181,10 +187,10 @@ test('global opportunity markers render category glyphs and merge source-backed 
   assert.match(landing, /nativeGlobeAnchored:active/);
   assert.match(app, /nativeLayerVisible:active&&dotsVisible/);
   assert.match(landing, /nativeLayerVisible:active&&dotsVisible/);
-  assert.match(app, /initialRegions=BP_GLOBAL_US_OPPORTUNITY_WINDOWS_V6186\.slice\(0,8\)/);
-  assert.match(landing, /initialRegions=BP_GLOBAL_US_OPPORTUNITY_WINDOWS_V6186\.slice\(0,8\)/);
-  assert.match(app, /offset<remaining\.length;offset\+=4/);
-  assert.match(landing, /offset<remaining\.length;offset\+=4/);
+  assert.match(app, /initialRegions=BP_GLOBAL_US_OPPORTUNITY_WINDOWS_V6186\.slice\(0,1\)/);
+  assert.match(landing, /initialRegions=BP_GLOBAL_US_OPPORTUNITY_WINDOWS_V6186\.slice\(0,1\)/);
+  assert.match(app, /offset<remaining\.length;offset\+=1/);
+  assert.match(landing, /offset<remaining\.length;offset\+=1/);
   assert.match(app, /d=await mainFeedRequest;risk=globalRiskCache\?\.data\|\|null/);
   assert.match(landing, /d=await mainFeedRequest;risk=globalRiskCache\?\.data\|\|null/);
   assert.match(app, /if\(!risk\)void loadRiskFeed\(\)\.then/);
