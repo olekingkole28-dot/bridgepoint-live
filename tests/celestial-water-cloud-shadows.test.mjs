@@ -129,10 +129,10 @@ test('entrypoints use fresh cache keys for updated map, water, clouds, weather a
   assert.match(map, /world-v2300-space\.js\?v=6125-manual-globe-camera/);
   assert.match(timeSlider, /world-v2300-clouds\.js\?v=6167-cloud-startup-performance/);
   assert.match(bootstrap, /world-v2300-weather\.js\?v=6138-cloud-linked-lightning/);
-  assert.match(appHtml, /app\.js\?v=6167-cloud-startup-performance/);
-  assert.match(landingHtml, /landing\.js\?v=6167-cloud-startup-performance/);
-  assert.match(appHtml, /intelligence-global-v5507\.js\?v=6134-global-precip-lod/);
-  assert.match(landingHtml, /intelligence-global-v5507\.js\?v=6134-global-precip-lod/);
+  assert.match(appHtml, /app\.js\?v=6170-ground-radar-motion/);
+  assert.match(landingHtml, /landing\.js\?v=6170-ground-radar-motion/);
+  assert.match(appHtml, /intelligence-global-v5507\.js\?v=6170-imerg-nrt-timeline/);
+  assert.match(landingHtml, /intelligence-global-v5507\.js\?v=6170-imerg-nrt-timeline/);
 });
 
 test('both entrypoints perform a real 6167 service-worker cutover before stale startup survives', () => {
@@ -191,9 +191,9 @@ test('new rain/lightning and global source markers stay separate from legacy eff
   assert.match(landing, /BP_SOURCE_WEATHER_CACHE_KEY_V6134/);
   assert.match(landing, /restoreLandingWeatherFirstFrameV6134/);
   assert.match(landing, /void startLandingNationalWeather\(world\)/);
-  assert.match(app, /'raster-opacity':\['interpolate',\['linear'\],\['zoom'\],0,\.50,1\.5,\.50,3,\.53,5,\.59,8,\.63,12,\.66,18,\.66/);
-  assert.match(landing, /'raster-opacity':\['interpolate',\['linear'\],\['zoom'\],0,\.50,1\.5,\.50,3,\.53,5,\.59,8,\.63,12,\.66,18,\.66/);
-  assert.match(globalWeather, /'raster-opacity':\['interpolate',\['linear'\],\['zoom'\],0,\.50,1\.5,\.48,3,\.40,4\.5,\.25,6,\.15,7,\.09,8,\.035,8\.5,0/);
+  assert.match(app, /'raster-opacity':\['interpolate',\['linear'\],\['zoom'\],0,\.76,1\.5,\.80,3,\.86,5,\.91,8,\.94,12,\.95,18,\.95/);
+  assert.match(landing, /'raster-opacity':\['interpolate',\['linear'\],\['zoom'\],0,\.76,1\.5,\.80,3,\.86,5,\.91,8,\.94,12,\.95,18,\.95/);
+  assert.match(globalWeather, /'raster-opacity':\['interpolate',\['linear'\],\['zoom'\],0,\.78,1\.5,\.80,3,\.76,4\.5,\.65,6,\.44,6\.3,\.24,6\.8,0/);
   assert.match(lightning, /export function initLightningLayer/);
   assert.match(lightning, /durationMs:3200/);
   assert.match(rain, /if \(!enabled \|\| !cells\.length \|\| zoom < RAIN_START_ZOOM \|\| document\.hidden\)/);
@@ -232,6 +232,28 @@ test('new rain/lightning and global source markers stay separate from legacy eff
   assert.match(listingView, /listingOverlayOn=true/);
 });
 
+test('NOAA radar is bright, source-detailed, pinned below 3D structures and animated at every zoom', () => {
+  assert.ok(app.includes("maxzoom:18,attribution:'NOAA/NWS radar reflectivity'"));
+  assert.ok(app.includes("'raster-opacity':['interpolate',['linear'],['zoom'],0,.76"));
+  assert.ok(app.includes("'raster-saturation':.95,'raster-contrast':.48"));
+  assert.ok(app.includes("window.__BP_RADAR_TIMELINE_V6170__"));
+  assert.ok(app.includes("animationAllZoom:true"));
+  assert.ok(app.includes("radarRefreshTimer=setInterval"));
+  assert.ok(landing.includes("window.__BP_LANDING_GROUND_RADAR_DRAPE_V6170__"));
+  assert.ok(landing.includes("animationAllZoom:true"));
+  assert.ok(landing.includes("maxzoom:18,attribution:'NOAA/NWS radar reflectivity'"));
+});
+
+test('NASA IMERG uses time-stamped half-hourly NRT data and stays within native global-scale detail', () => {
+  assert.ok(globalWeather.includes("IMERG_Precipitation_Rate_30min_v7_NRT"));
+  assert.ok(globalWeather.includes("NRT_HALF_HOURLY_6H_LATENCY_GUARD"));
+  assert.ok(globalWeather.includes("imergAnimationTimer"));
+  assert.ok(globalWeather.includes("imergRefreshTimer"));
+  assert.ok(globalWeather.includes("30*60*1000"));
+  assert.ok(globalWeather.includes("'raster-opacity':['interpolate',['linear'],['zoom'],0,.78"));
+  assert.ok(globalWeather.includes("animationZoomMax:6.3"));
+});
+
 test('sky-view restoration returns to street with bounded cleanup waits', () => {
   assert.match(timeSlider, /async function restoreSkyStreetView\(restore\)/);
   assert.match(timeSlider, /waitSkyMapState\(\(\)=>map\.getPitch\(\)<90,1800,'safe pitch before projection restore'\)/);
@@ -249,9 +271,11 @@ test('public cyclone fallback is fetched concurrently with edge weather', () => 
 });
 
 
-test('website and app start on the same globe-first weather build', () => {
+test('website and app start on the same cache-busted globe-first weather build', () => {
   assert.match(landingHtml, /bp-globe-only-first-frame-v6137/);
   assert.match(appHtml, /bp-app-globe-only-first-frame-v6137/);
-  assert.ok(landingHtml.includes('landing.js?v=6167-cloud-startup-performance'));
-  assert.ok(appHtml.includes('app.js?v=6167-cloud-startup-performance'));
+  assert.ok(landingHtml.includes('landing.js?v=6170-ground-radar-motion'));
+  assert.ok(appHtml.includes('app.js?v=6170-ground-radar-motion'));
+  assert.ok(landingHtml.includes('intelligence-global-v5507.js?v=6170-imerg-nrt-timeline'));
+  assert.ok(appHtml.includes('intelligence-global-v5507.js?v=6170-imerg-nrt-timeline'));
 });

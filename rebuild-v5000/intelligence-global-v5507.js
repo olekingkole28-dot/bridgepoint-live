@@ -1,4 +1,4 @@
-const C={supa:'https://xdfsjztwgsbmabshzsjw.supabase.co',key:'sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25',map:null,world:null,surface:null,signals:null,last:0,bootAt:Date.now(),mobileRefStage:0,mobileRefTurn:0,imergDate:null,styleTimer:0,bgTimer:0,bgRunning:false,mobile:matchMedia('(max-width:760px)').matches||/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)};
+const C={supa:'https://xdfsjztwgsbmabshzsjw.supabase.co',key:'sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25',map:null,world:null,surface:null,signals:null,last:0,bootAt:Date.now(),mobileRefStage:0,mobileRefTurn:0,imergDate:null,imergFrames:[],imergFrameIndex:0,imergTimelineEnd:null,imergAnimationTimer:0,imergRefreshTimer:0,styleTimer:0,bgTimer:0,bgRunning:false,mobile:matchMedia('(max-width:760px)').matches||/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)};
 const $=id=>document.getElementById(id);const fc=()=>({type:'FeatureCollection',features:[]});
 function authHeaders(){let a='';try{const s=JSON.parse(localStorage.getItem('bp_auth_v5045')||'null');if(s&&s.access_token)a='Bearer '+s.access_token}catch(_){}return{apikey:C.key,'Content-Type':'application/json',Accept:'application/json',...(a?{Authorization:a}:{})}}
 export async function rpc(name,args={},timeout=12000){const c=new AbortController(),t=setTimeout(()=>c.abort(),timeout);try{const r=await fetch(C.supa+'/rest/v1/rpc/'+name,{method:'POST',headers:authHeaders(),body:JSON.stringify(args),signal:c.signal,cache:'no-store'});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.message||d.error||('HTTP '+r.status));return d}finally{clearTimeout(t)}}
@@ -7,10 +7,34 @@ function shell(){return C.surface==='app'?document.querySelector('[data-surface=
 function waitWorld(){return new Promise((resolve,reject)=>{const started=Date.now();(function tick(){const a=window.__BP_V5000_WORLD,l=window.__BP_LANDING_WORLD__||window.__bpLandingWorldV5420,w=a&&a.map?a:l&&l.map?l:null;if(w){C.world=w;C.map=w.map;C.surface=a&&a.map?'app':'landing';return resolve(w)}if(Date.now()-started>30000)return reject(new Error('BridgePoint map readiness timeout'));setTimeout(tick,120)})()})}
 function before(){for(const id of ['gta-place-label','gta-road-label-major','gta-context-buildings','gta-bp-buildings'])try{if(C.map.getLayer(id))return id}catch(_){}return undefined}
 function weatherBefore(){for(const id of ['bp-radar-a','bp-radar-b','bp-landing-radar-a','bp-landing-radar-b','bp-v5004-weather-shape-fill','bp-landing-weather-fill','bp-v5004-weather-points','bp-landing-weather-points'])try{if(C.map.getLayer(id))return id}catch(_){}return before()}
-function imergTile(date,z='{z}',y='{y}',x='{x}'){return 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/IMERG_Precipitation_Rate_30min/default/'+date+'/GoogleMapsCompatible_Level6/'+z+'/'+y+'/'+x+'.png'}
+function imergTile(timestamp,z='{z}',y='{y}',x='{x}'){return 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/all/IMERG_Precipitation_Rate_30min_v7_NRT/default/'+timestamp+'/GoogleMapsCompatible_Level6/'+z+'/'+y+'/'+x+'.png'}
+function latestImergTimestamp(now=Date.now()){
+ const cadence=30*60*1000,safeNow=now-6*60*60*1000;
+ return new Date(Math.floor(safeNow/cadence)*cadence).toISOString().replace('.000Z','Z')
+}
 async function resolveImergDate(){
- const date=new Date(Date.now()-12*3600000).toISOString().slice(0,10);
- return{date,requested:date,mode:'NONBLOCKING_GIBS_DATE'};
+ const date=latestImergTimestamp();
+ return{date,requested:date,mode:'NRT_HALF_HOURLY_6H_LATENCY_GUARD'}
+}
+function startImergTimeline(timestamp){
+ const end=Date.parse(timestamp);if(!Number.isFinite(end))return;
+ if(C.imergTimelineEnd!==timestamp){
+  const cadence=30*60*1000;
+  C.imergFrames=Array.from({length:7},(_,i)=>new Date(end-(6-i)*cadence).toISOString().replace('.000Z','Z'));
+  C.imergTimelineEnd=timestamp;C.imergFrameIndex=0;
+  try{C.map?.getSource('bp5510-global-imerg')?.setTiles?.([imergTile(C.imergFrames[0])])}catch(_){}
+ }
+ if(!C.imergAnimationTimer)C.imergAnimationTimer=setInterval(()=>{
+  if(document.hidden||!C.map||C.map.isMoving?.()||(C.map.getZoom?.()||0)>6.3||!C.imergFrames.length)return;
+  C.imergFrameIndex=(C.imergFrameIndex+1)%C.imergFrames.length;
+  const stamp=C.imergFrames[C.imergFrameIndex];
+  try{
+   C.map.getSource('bp5510-global-imerg')?.setTiles?.([imergTile(stamp)]);C.map.triggerRepaint?.();
+   window.__BP_GLOBAL_WEATHER_V5822__={...(window.__BP_GLOBAL_WEATHER_V5822__||{}),imerg:true,imergFrame:stamp,imergAnimated:true,imergFrameCadenceMs:4500,imergUpdateCadenceMs:30*60*1000,imergMaxNativeZoom:6,groundDrape:true,below3D:true,updatedAt:Date.now()};
+  }catch(_){}
+ },4500);
+ if(!C.imergRefreshTimer)C.imergRefreshTimer=setInterval(()=>{if(!document.hidden&&!C.map?.isMoving?.())void installGlobalWeather()},30*60*1000);
+ window.__BP_GLOBAL_WEATHER_V6170__={provider:'NASA GPM IMERG v7 near-real-time',layer:'IMERG_Precipitation_Rate_30min_v7_NRT',timestampDimension:true,frameCount:C.imergFrames.length,frameCadenceMs:30*60*1000,animationCadenceMs:4500,animationZoomMax:6.3,sourceMaxZoom:6,refreshMs:30*60*1000,updatedAt:Date.now()};
 }
 async function installGlobalWeather(){
  if(!C.map)return null;
@@ -18,11 +42,14 @@ async function installGlobalWeather(){
  const id='bp5510-global-imerg',layer='bp5510-global-imerg',dateChanged=C.imergDate!==resolved.date;
  try{
   if(dateChanged){if(C.map.getLayer(layer))C.map.removeLayer(layer);if(C.map.getSource(id))C.map.removeSource(id)}
-  if(!C.map.getSource(id))C.map.addSource(id,{type:'raster',tiles:[imergTile(resolved.date)],tileSize:256,minzoom:0,maxzoom:6,attribution:'NASA GPM IMERG via Earthdata GIBS'});
-  if(!C.map.getLayer(layer))C.map.addLayer({id:layer,type:'raster',source:id,minzoom:0,maxzoom:24,paint:{'raster-opacity':['interpolate',['linear'],['zoom'],0,.50,1.5,.48,3,.40,4.5,.25,6,.15,7,.09,8,.035,8.5,0,24,0],'raster-fade-duration':0,'raster-resampling':'linear'}},weatherBefore());try{const b=weatherBefore();if(b&&C.map.getLayer(layer))C.map.moveLayer(layer,b)}catch(_){};
+  if(!C.map.getSource(id))C.map.addSource(id,{type:'raster',tiles:[imergTile(resolved.date)],tileSize:256,minzoom:0,maxzoom:6,attribution:'NASA GPM IMERG v7 near-real-time precipitation rate via Earthdata GIBS'});
+  const paint={'raster-opacity':['interpolate',['linear'],['zoom'],0,.78,1.5,.80,3,.76,4.5,.65,6,.44,6.3,.24,6.8,0,7.5,0,24,0],'raster-saturation':.58,'raster-contrast':.28,'raster-fade-duration':0,'raster-resampling':'linear'};
+  if(!C.map.getLayer(layer))C.map.addLayer({id:layer,type:'raster',source:id,minzoom:0,maxzoom:24,paint},weatherBefore());
+  try{const b=weatherBefore();if(b&&C.map.getLayer(layer))C.map.moveLayer(layer,b)}catch(_){}
   C.imergDate=resolved.date;
  }catch(e){console.warn('BP global precipitation attach',e)}
- window.__BP_GLOBAL_WEATHER_V5822__={version:5822,projection:'globe',imerg:true,imergDate:C.imergDate,truth:'NASA_GPM_IMERG_NEAR_REALTIME_NOT_ZERO_LATENCY',groundDrape:true,below3D:true,visibleThroughZoom:24,updatedAt:Date.now()};
+ startImergTimeline(resolved.date);
+ window.__BP_GLOBAL_WEATHER_V5822__={...(window.__BP_GLOBAL_WEATHER_V5822__||{}),version:6170,projection:'globe',imerg:true,imergDate:C.imergDate,truth:'NASA_GPM_IMERG_30_MIN_NEAR_REAL_TIME_ABOUT_6H_DELAY',groundDrape:true,below3D:true,visibleThroughZoom:7.5,imergMaxNativeZoom:6,imergAnimated:true,imergFrameCadenceMs:4500,imergUpdateCadenceMs:30*60*1000,updatedAt:Date.now()};
  return window.__BP_GLOBAL_WEATHER_V5510__
 }
 function source(id,data){let s=C.map.getSource(id);if(!s){C.map.addSource(id,{type:'geojson',data});s=C.map.getSource(id)}else s.setData&&s.setData(data);return s}

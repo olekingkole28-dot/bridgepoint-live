@@ -720,7 +720,7 @@ jobs:
           grep -Fq 'BP_SOURCE_WEATHER_CACHE_KEY_V6134' site/app.js
           grep -Fq 'restoreCachedLiveWeatherFirstFrameV6134' site/app.js
           ! grep -Fq 'if(window.__BP_CLOUDS_ONLY_PHASE_V6070__===true && m)' site/landing.js
-          grep -Fq 'landing.js?v=6167-cloud-startup-performance' site/index.html
+          grep -Fq 'landing.js?v=6170-ground-radar-motion' site/index.html
           grep -Fq 'async function toggleNasaNightlights()' site/world-v2300-time-slider.js
           grep -Fq 'async function toggleSkyClouds()' site/world-v2300-time-slider.js
           grep -Fq 'data-skyview' site/world-v2300-time-slider.js
@@ -852,9 +852,9 @@ jobs:
           ! grep -Fq '/walkthrough-v5537.css' site/app/index.html
           grep -Fq 'bp5507-live-hit' site/intelligence-global-v5507.js
           ! grep -Fq 'MAP KEY · WEATHER + WORLD' site/intelligence-global-v5507.js
-          grep -Fq 'intelligence-global-v5507.js?v=6134-global-precip-lod' site/index.html
-          grep -Fq 'intelligence-global-v5507.js?v=6134-global-precip-lod' site/app/index.html
-          grep -Fq "from'/intelligence-global-v5507.js?v=6134-global-precip-lod'" site/intelligence-tools-v5507.js
+          grep -Fq 'intelligence-global-v5507.js?v=6170-imerg-nrt-timeline' site/index.html
+          grep -Fq 'intelligence-global-v5507.js?v=6170-imerg-nrt-timeline' site/app/index.html
+          grep -Fq "from'/intelligence-global-v5507.js?v=6170-imerg-nrt-timeline'" site/intelligence-tools-v5507.js
           ! grep -Fq "source('bp5507-live',fc())" site/intelligence-global-v5507.js
           ! grep -Fq '3D HOUSE QR' site/intelligence-tools-v5507.js
           grep -Fq 'Use two fingers and swipe / scroll up' site/intelligence-global-v5507.js
@@ -922,7 +922,7 @@ jobs:
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/app.js
           grep -Fq 'activateLiveWeather();' site/app.js
           grep -Fq 'enabled:true,serializedWeather:true' site/app.js
-          grep -Fq 'app.js?v=6167-cloud-startup-performance' site/app/index.html
+          grep -Fq 'app.js?v=6170-ground-radar-motion' site/app/index.html
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/landing.js
           grep -Fq 'WMO_CAP_WARNING' site/app.js
           grep -Fq 'WMO_CAP_WARNING' site/landing.js
@@ -1150,8 +1150,8 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=6167-cloud-startup-performance' site/app/index.html
-          grep -Fq 'landing.js?v=6167-cloud-startup-performance' site/index.html
+          grep -Fq 'app.js?v=6170-ground-radar-motion' site/app/index.html
+          grep -Fq 'landing.js?v=6170-ground-radar-motion' site/index.html
            grep -Fq 'world-v2300-map.js?v=6137-globe-first-weather-lockstep' site/app.js
            grep -Fq 'world-v2300-map.js?v=6137-globe-first-weather-lockstep' site/landing.js
            grep -Fq 'world-v2300-map.js?v=6137-globe-first-weather-lockstep' site/index.html
@@ -1184,8 +1184,8 @@ jobs:
           grep -Fq '__BP_OPEN_MAP_KEY_V5920__=openMapKey' site/bridgepoint-map-key-v5920.js
           grep -Fq 'focusCoverageForOverlay' site/bridgepoint-nyc-lidar-v7000.js
           grep -Fq "window.__BP_LOD_RENDERING_V6016__?.tier||'GOLD'" site/world-v2300-map.js
-          grep -Fq 'intelligence-tools-v5507.js?v=6134-global-precip-lod' site/index.html
-           grep -Fq 'intelligence-tools-v5507.js?v=6134-global-precip-lod' site/app/index.html
+          grep -Fq 'intelligence-tools-v5507.js?v=6170-imerg-nrt-timeline' site/index.html
+           grep -Fq 'intelligence-tools-v5507.js?v=6170-imerg-nrt-timeline' site/app/index.html
            grep -Fq 'bridgepoint-global-motion-v5926.js?v=5945-motion-controls' site/index.html
            grep -Fq 'bridgepoint-global-motion-v5926.js?v=5945-motion-controls' site/app/index.html
            grep -Fq 'bridgepoint-landmarks-v5940.js?v=6001-style-persistence' site/index.html
