@@ -183,6 +183,10 @@ test('global opportunity markers render category glyphs and merge source-backed 
   assert.match(landing, /key:'PANAMA_FOCUSED',p_west:-80,p_south:7,p_east:-77,p_north:10\.5/);
   assert.match(app, /p_limit:mobile\?4:8/);
   assert.match(landing, /p_limit:mobile\?4:8/);
+  assert.match(app, /p_limit:mobile\?4:8\},9000/);
+  assert.match(landing, /p_limit:mobile\?4:8\},9000/);
+  assert.match(app, /p_limit:mobile\?12:24\},9000/);
+  assert.match(landing, /p_limit:mobile\?12:24\},9000/);
   assert.match(app, /features\.length\?300000:15000/);
   assert.match(landing, /features\.length\?300000:15000/);
   assert.doesNotMatch(app, /function bpGlobalOpportunityMarkerIsFrontV6186/);
