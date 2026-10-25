@@ -681,7 +681,7 @@ async function initMap(){
   startLandingOpportunities(world);
   void startLandingNationalWeather(world);
   // Add the GPU water/hydrology surface to this same globe canvas before other visual modules.
-  void import('./world-v2300-water.js?v=6124-solar-ocean-swell')
+  void import('./world-v2300-water.js?v=6194-stable-water-low-cost')
    .then(m=>{if(world?.map)window.__BP_WATER_ENGINE_LANDING_V6123__=m.initWaterEngine(world,{surface:'landing'})})
    .catch(e=>console.warn('BridgePoint GPU water layer unavailable; native water remains enabled',e));
   // Start persistent global 3D clouds immediately on the homepage globe, before other visual modules.
