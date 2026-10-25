@@ -366,6 +366,8 @@ async function refreshLandingOpportunities(world){
   try{
    if(m.getLayer('gta-opportunity-buildings')){m.setLayoutProperty('gta-opportunity-buildings','visibility','visible');m.setPaintProperty('gta-opportunity-buildings','fill-extrusion-color',['coalesce',['get','color'],'#ff1744']);m.setPaintProperty('gta-opportunity-buildings','fill-extrusion-opacity',1)}
    if(m.getLayer('gta-opportunity-label')){m.setLayoutProperty('gta-opportunity-label','visibility','visible');m.setPaintProperty('gta-opportunity-label','text-color',['coalesce',['get','color'],'#7adcf0']);m.setPaintProperty('gta-opportunity-label','icon-opacity',1)}
+   for(const id of ['gta-opportunity-dot-fallback','gta-opportunity-dots','gta-opportunity-label']){if(m.getLayer(id))m.setLayoutProperty(id,'visibility','visible')}
+   for(const id of ['gta-opportunity-dot-fallback','gta-opportunity-dots','gta-opportunity-label']){if(m.getLayer(id))m.moveLayer(id)}
   }catch(_){}
   const riskFeatures=geo.features.filter(f=>f?.properties?.global_risk_review).length;
   window.__BP_PUBLIC_OPPORTUNITY_STYLE_V6175__={version:6175,mode:'PUBLIC_GLOBAL_CLASSIFIED_PLUS_RISK_REVIEW',wholeBuilding:true,icons:true,categorizedColors:true,iconGlyphsAtGlobalZoom:true,features:geo.features.length,riskReviewFeatures:riskFeatures,zoomBand:zoom<3?'globe':zoom<6?'regional':zoom<10?'city':'local',limit,mainFeedAvailable:!!d?.geojson?.features?.length,mainFeedFailed:!!d?.__unavailable,riskFeedAvailable:!!risk?.geojson?.features?.length,updatedAt:Date.now()};
