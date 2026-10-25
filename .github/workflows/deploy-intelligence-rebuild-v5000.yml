@@ -1178,7 +1178,7 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=6193-global-weather-fx' site/app/index.html
+          grep -Fq 'app.js?v=6194-stable-water-low-cost' site/app/index.html
           grep -Fq 'landing.js?v=6193-global-weather-fx' site/index.html
            grep -Fq 'world-v2300-map.js?v=6186-us-opportunities-globe-clipped' site/app.js
            grep -Fq 'world-v2300-map.js?v=6186-us-opportunities-globe-clipped' site/landing.js
