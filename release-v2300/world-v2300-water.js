@@ -153,11 +153,16 @@ function sourceFeatures(map, sourceLayer, limit, bounds) {
     if (!map.getSource('ofm')) return [];
     const raw = map.querySourceFeatures('ofm', { sourceLayer });
     const prepared = [];
+    // Tile queries can include stale/offscreen vector features. Bound both accepted
+    // geometry and the number of polygons examined so a source burst cannot monopolize
+    // the browser while we search for a viewport match.
+    const scanLimit = Math.max(limit, Math.min(limit * 4, 2200));
+    let scanned = 0;
     for (const row of raw || []) {
+      if (scanned++ >= scanLimit || prepared.length >= limit) break;
       if (!row || typeof row !== 'object') continue;
       const item = prepareFeature(row);
       if (!item || !featureIntersectsBounds(item, bounds)) continue;
-      if (prepared.length >= limit) break;
       prepared.push(item);
     }
     return prepared;
@@ -1506,6 +1511,15 @@ function sceneLevelAt(scene, lng, lat) { return absoluteWaterLevelAt(scene, lng,
     }
     const maxSegs = api.low ? 28 : api.mobile ? 48 : 90;
     const flowCount = makeRibbon(flowFeatures, waterFeatures, bounds, flow, scene, terrainCache, maxSegs);
+    if (!surface.length && !flow.length && layer &&
+        (layer.surfaceVertexCount > 0 || layer.flowVertexCount > 0)) {
+      // A transient partial vector-tile set may yield no safe replacement cells. Keep
+      // the prior geographic mesh rather than flashing the whole animated water layer off.
+      api.sourceGapCount++;
+      api.sourceGapGeometryPreserved++;
+      api.lastBuildSkippedReason = 'replacement-water-geometry-empty';
+      return;
+    }
     if (layer) layer.setGeometry(surface, flow);
     api.waterPolygonCells = polygonCells;
     api.oceanFallbackCells = fallbackCells;
