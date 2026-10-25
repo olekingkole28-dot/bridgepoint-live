@@ -350,8 +350,8 @@ function mergeLandingOpportunityGeojson(mainData,riskData){
  const features=[...main.features,...risk.features.map((f,i)=>({...f,id:'global-risk:'+String(f.id??i),properties:{...f.properties,global_risk_review:true,public_teaser:true}}))];
  return{type:'FeatureCollection',features}
 }
-const BP_GLOBAL_OPP_GLYPHS_V6183={ROOF:'🏠',CLAIMS:'📋',RESTORATION:'🛠',CONSTRUCTION:'🏗',STORM:'🌪',FIRE:'🔥',WATER:'💧',RAIN:'🌧',WIND:'💨',EXPOSURE:'⚠',SOLAR:'☀',DEVELOPMENT:'🏗',INVESTMENT:'$',COMPLIANCE:'✓',GENERAL:'•'};
-const BP_GLOBAL_US_OPPORTUNITY_WINDOWS_V6183=[
+const BP_GLOBAL_OPP_GLYPHS_V6184={ROOF:'🏠',CLAIMS:'📋',RESTORATION:'🛠',CONSTRUCTION:'🏗',STORM:'🌪',FIRE:'🔥',WATER:'💧',RAIN:'🌧',WIND:'💨',EXPOSURE:'⚠',SOLAR:'☀',DEVELOPMENT:'🏗',INVESTMENT:'$',COMPLIANCE:'✓',GENERAL:'•'};
+const BP_GLOBAL_US_OPPORTUNITY_WINDOWS_V6184=[
  {key:'NE_CT_MA',p_west:-74.5,p_south:40.3,p_east:-71.5,p_north:42.5},
  {key:'CHICAGO_IL',p_west:-89.5,p_south:40.2,p_east:-86.5,p_north:43.2},
  {key:'OHIO',p_west:-84.2,p_south:39,p_east:-81.2,p_north:42},
@@ -359,45 +359,41 @@ const BP_GLOBAL_US_OPPORTUNITY_WINDOWS_V6183=[
  {key:'ARKANSAS',p_west:-94.5,p_south:33,p_east:-91.5,p_north:36},
  {key:'COLORADO',p_west:-106.5,p_south:37.3,p_east:-103.5,p_north:40.3}
 ];
-async function loadGlobalUsOpportunitySampleV6183(map,mobile){
- if(!map)return{source_key:'GLOBAL_US_REGIONAL_SAMPLE_V6183',geojson:{type:'FeatureCollection',features:[]},returned:0,__unavailable:true};
- const now=Date.now(),cache=map.__bpGlobalUsOpportunityCacheV6183;
- if(cache?.features?.length&&now<(cache.expiresAt||0))return{source_key:'GLOBAL_US_REGIONAL_SAMPLE_V6183',geojson:{type:'FeatureCollection',features:cache.features},returned:cache.features.length,__globalUsSample:true,__globalUsCacheHit:true,__globalUsRegionCount:cache.regionCount||0};
- if(map.__bpGlobalUsOpportunityPendingV6183)return map.__bpGlobalUsOpportunityPendingV6183;
+async function loadGlobalUsOpportunitySampleV6184(map,mobile){
+ if(!map)return{source_key:'GLOBAL_US_REGIONAL_SAMPLE_V6184',geojson:{type:'FeatureCollection',features:[]},returned:0,__unavailable:true};
+ const now=Date.now(),cache=map.__bpGlobalUsOpportunityCacheV6184;
+ if(cache?.features?.length&&now<(cache.expiresAt||0))return{source_key:'GLOBAL_US_REGIONAL_SAMPLE_V6184',geojson:{type:'FeatureCollection',features:cache.features},returned:cache.features.length,__globalUsSample:true,__globalUsCacheHit:true,__globalUsRegionCount:cache.regionCount||0};
+ if(map.__bpGlobalUsOpportunityPendingV6184)return map.__bpGlobalUsOpportunityPendingV6184;
  const task=(async()=>{
-  const previous=map.__bpGlobalUsOpportunityCacheV6183,errors=[],loaded=[];
-  let next=0;
-  const worker=async()=>{
-   while(true){
-    const index=next++;if(index>=BP_GLOBAL_US_OPPORTUNITY_WINDOWS_V6183.length)return;
-    const region=BP_GLOBAL_US_OPPORTUNITY_WINDOWS_V6183[index];
-    try{
-     const data=await rpc('bridgepoint_public_opportunity_viewport_v5907',{p_west:region.p_west,p_south:region.p_south,p_east:region.p_east,p_north:region.p_north,p_limit:mobile?3:5},4200);
-     const features=data?.geojson?.features||(data?.type==='FeatureCollection'?data.features:[])||[];
-     for(let i=0;i<features.length;i++){
-      const f=features[i];if(!f?.geometry)continue;
-      loaded.push({...f,id:'global-us:'+region.key+':'+String(f.id??i),properties:{...(f.properties||{}),global_us_opportunity:true,global_source_region:region.key,globe_overview_sample:true}});
-     }
-    }catch(e){errors.push(region.key);console.warn('Global U.S. opportunity sample region unavailable',region.key,e)}
-   }
-  };
-  await Promise.all([worker(),worker(),worker(),worker()]);
+  const previous=map.__bpGlobalUsOpportunityCacheV6184,errors=[],loaded=[];
+  // Serialize regional reads: the source RPC can hit its 3.5s server timeout when globe requests run concurrently.
+  // This cache is retained for five minutes even if a later region fails.
+  for(const region of BP_GLOBAL_US_OPPORTUNITY_WINDOWS_V6184){
+   try{
+    const data=await rpc('bridgepoint_public_opportunity_viewport_v5907',{p_west:region.p_west,p_south:region.p_south,p_east:region.p_east,p_north:region.p_north,p_limit:mobile?3:5},4200);
+    const features=data?.geojson?.features||(data?.type==='FeatureCollection'?data.features:[])||[];
+    for(let i=0;i<features.length;i++){
+     const f=features[i];if(!f?.geometry)continue;
+     loaded.push({...f,id:'global-us:'+region.key+':'+String(f.id??i),properties:{...(f.properties||{}),global_us_opportunity:true,global_source_region:region.key,globe_overview_sample:true}});
+    }
+   }catch(e){errors.push(region.key);console.warn('Global U.S. opportunity sample region unavailable',region.key,e)}
+  }
   const byId=new Map();
   for(const f of previous?.features||[])byId.set(String(f.id),f);
   for(const f of loaded)byId.set(String(f.id),f);
   const features=[...byId.values()];
   if(features.length){
    const regionCount=new Set(features.map(f=>f?.properties?.global_source_region).filter(Boolean)).size;
-   map.__bpGlobalUsOpportunityCacheV6183={features,regionCount,errors,expiresAt:Date.now()+300000};
-   return{source_key:'GLOBAL_US_REGIONAL_SAMPLE_V6183',geojson:{type:'FeatureCollection',features},returned:features.length,__globalUsSample:true,__globalUsRegionCount:regionCount,__globalUsRegionErrors:errors};
+   map.__bpGlobalUsOpportunityCacheV6184={features,regionCount,errors,expiresAt:Date.now()+300000};
+   return{source_key:'GLOBAL_US_REGIONAL_SAMPLE_V6184',geojson:{type:'FeatureCollection',features},returned:features.length,__globalUsSample:true,__globalUsRegionCount:regionCount,__globalUsRegionErrors:errors};
   }
-  if(previous?.features?.length)return{source_key:'GLOBAL_US_REGIONAL_SAMPLE_V6183_CACHE',geojson:{type:'FeatureCollection',features:previous.features},returned:previous.features.length,__globalUsSample:true,__globalUsCacheHit:true,__globalUsRegionCount:previous.regionCount||0,__globalUsRegionErrors:errors};
-  return{source_key:'GLOBAL_US_REGIONAL_SAMPLE_V6183',geojson:{type:'FeatureCollection',features:[]},returned:0,__globalUsSample:true,__unavailable:true,__globalUsRegionErrors:errors};
+  if(previous?.features?.length)return{source_key:'GLOBAL_US_REGIONAL_SAMPLE_V6184_CACHE',geojson:{type:'FeatureCollection',features:previous.features},returned:previous.features.length,__globalUsSample:true,__globalUsCacheHit:true,__globalUsRegionCount:previous.regionCount||0,__globalUsRegionErrors:errors};
+  return{source_key:'GLOBAL_US_REGIONAL_SAMPLE_V6184',geojson:{type:'FeatureCollection',features:[]},returned:0,__globalUsSample:true,__unavailable:true,__globalUsRegionErrors:errors};
  })();
- map.__bpGlobalUsOpportunityPendingV6183=task;
- try{return await task}finally{if(map.__bpGlobalUsOpportunityPendingV6183===task)map.__bpGlobalUsOpportunityPendingV6183=null}
+ map.__bpGlobalUsOpportunityPendingV6184=task;
+ try{return await task}finally{if(map.__bpGlobalUsOpportunityPendingV6184===task)map.__bpGlobalUsOpportunityPendingV6184=null}
 }
-function bpGlobalOpportunityPointFeatureV6183(f){
+function bpGlobalOpportunityPointFeatureV6184(f){
  if(!f?.geometry)return null;
  const g=f.geometry;
  if(g.type==='Point'&&Array.isArray(g.coordinates)&&g.coordinates.length>=2&&g.coordinates.every(v=>Number.isFinite(Number(v))))return{...f,geometry:{type:'Point',coordinates:g.coordinates.map(Number)}};
@@ -414,7 +410,7 @@ function bpGlobalOpportunityPointFeatureV6183(f){
  if(!Number.isFinite(lon)||!Number.isFinite(lat))return null;
  return{...f,geometry:{type:'Point',coordinates:[lon,lat]}};
 }
-function bpGlobalOpportunityMarkerIsFrontV6183(map,coords){
+function bpGlobalOpportunityMarkerIsFrontV6184(map,coords){
  if(!map||!Array.isArray(coords)||coords.length<2)return false;
  const center=map.getCenter?.();if(!center)return true;
  let point,canvas,w,h;
@@ -434,24 +430,24 @@ function bpGlobalOpportunityMarkerIsFrontV6183(map,coords){
  }
  return point.x>=-12&&point.y>=-12&&point.x<=w+12&&point.y<=h+12;
 }
-function syncGlobalOpportunityDomMarkersV6183(map,features,zoom){
+function syncGlobalOpportunityDomMarkersV6184(map,features,zoom){
  if(!map)return;
- let state=map.__bpGlobalOpportunityDomMarkersV6183;
- if(!state){state={markers:[]};map.__bpGlobalOpportunityDomMarkersV6183=state}
+ let state=map.__bpGlobalOpportunityDomMarkersV6184;
+ if(!state){state={markers:[]};map.__bpGlobalOpportunityDomMarkersV6184=state}
  const active=Number(zoom)<3;
- const rows=active?(features||[]).map(bpGlobalOpportunityPointFeatureV6183).filter(Boolean):[];
+ const rows=active?(features||[]).map(bpGlobalOpportunityPointFeatureV6184).filter(Boolean):[];
  const signature=rows.map(f=>[String(f.id??''),String(f.properties?.icon_key??''),String(f.properties?.color??''),f.geometry.coordinates.join(',')].join('@')).sort().join('|');
  if(active&&state.signature===signature&&state.markers.length){
   try{state.visibilityUpdate?.()}catch(_){}
-  const diag={version:6183,active,markerCount:state.markers.length,featureCount:rows.length,groups:state.groups||0,usFeatureCount:rows.filter(f=>f.properties?.global_us_opportunity).length,usGroupCount:state.usGroups||0,zoom:Number(zoom)||0,updatedAt:Date.now()};
-  window.__BP_GLOBAL_OPPORTUNITY_DOM_MARKERS_V6183__=diag;return diag;
+  const diag={version:6184,active,markerCount:state.markers.length,featureCount:rows.length,groups:state.groups||0,usFeatureCount:rows.filter(f=>f.properties?.global_us_opportunity).length,usGroupCount:state.usGroups||0,zoom:Number(zoom)||0,updatedAt:Date.now()};
+  window.__BP_GLOBAL_OPPORTUNITY_DOM_MARKERS_V6184__=diag;return diag;
  }
  for(const item of state.markers||[]){try{(item.marker||item).remove()}catch(_){}}
  state.markers=[];state.signature=signature;
  if(!active){
   for(const id of ['gta-opportunity-dot-fallback','gta-opportunity-dots']){try{if(map.getLayer(id))map.setLayoutProperty(id,'visibility','visible')}catch(_){}}
-  const diag={version:6183,active,markerCount:0,featureCount:0,groups:0,usFeatureCount:0,usGroupCount:0,zoom:Number(zoom)||0,updatedAt:Date.now()};
-  window.__BP_GLOBAL_OPPORTUNITY_DOM_MARKERS_V6183__=diag;return diag;
+  const diag={version:6184,active,markerCount:0,featureCount:0,groups:0,usFeatureCount:0,usGroupCount:0,zoom:Number(zoom)||0,updatedAt:Date.now()};
+  window.__BP_GLOBAL_OPPORTUNITY_DOM_MARKERS_V6184__=diag;return diag;
  }
  const groups=new Map(),cellSize=(map.getCanvas?.()?.clientWidth||1000)<620?31:36;
  for(const f of rows){
@@ -465,21 +461,21 @@ function syncGlobalOpportunityDomMarkersV6183(map,features,zoom){
  const colorFor=k=>({ROOF:'#fff200',CLAIMS:'#a98cff',RESTORATION:'#ff4ea3',CONSTRUCTION:'#ffb34a',STORM:'#b026ff',FIRE:'#ff3b19',WATER:'#00a8ff',RAIN:'#4aa3ff',WIND:'#8b86ff',EXPOSURE:'#ff8a00',SOLAR:'#ffe600',DEVELOPMENT:'#00f0ff',INVESTMENT:'#39ff88',COMPLIANCE:'#ff8a00'}[k]||'#ff2bd6');
  for(const [key,g] of groups){
   const kind=Object.entries(g.counts).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]))[0]?.[0]||'GENERAL';
-  const count=g.features.length,coords=[g.sumLon/count,g.sumLat/count],glyph=BP_GLOBAL_OPP_GLYPHS_V6183[kind]||'•',color=g.colors[kind]||colorFor(kind);
+  const count=g.features.length,coords=[g.sumLon/count,g.sumLat/count],glyph=BP_GLOBAL_OPP_GLYPHS_V6184[kind]||'•',color=g.colors[kind]||colorFor(kind);
   const isUS=g.features.some(f=>f?.properties?.global_us_opportunity);
-  const el=document.createElement('button');el.type='button';el.className='bp-global-opportunity-marker-v6183';
+  const el=document.createElement('button');el.type='button';el.className='bp-global-opportunity-marker-v6184';
   el.style.cssText='position:relative;display:flex;align-items:center;justify-content:center;width:'+(cellSize-3)+'px;height:'+(cellSize-3)+'px;padding:0;border:2px solid #ffffff;border-radius:50%;background:'+color+';color:#071017;font:900 15px/1 system-ui,sans-serif;box-shadow:0 0 0 2px rgba(4,12,18,.92),0 0 14px '+color+';cursor:pointer;pointer-events:auto;z-index:10000;touch-action:manipulation;visibility:hidden';
   el.textContent=glyph;el.setAttribute('aria-label',count+' source-backed '+(isUS?'U.S. opportunity':'global risk/opportunity')+' records, '+(g.labels[kind]||kind));el.title=count+' source-backed records · '+(g.labels[kind]||kind);
   const badge=document.createElement('span');badge.textContent=count>99?'99+':String(count);badge.style.cssText='position:absolute;right:-7px;bottom:-6px;min-width:16px;height:16px;padding:0 2px;display:flex;align-items:center;justify-content:center;border:1px solid #071017;border-radius:10px;background:#ffffff;color:#071017;font:900 9px/1 system-ui,sans-serif;box-shadow:0 1px 3px rgba(0,0,0,.6)';el.appendChild(badge);
-  el.addEventListener('click',ev=>{ev.preventDefault();ev.stopPropagation();try{if(!window.maplibregl?.Popup)return;const root=document.createElement('div');root.style.cssText='min-width:185px;max-width:270px;font:12px/1.45 system-ui,sans-serif;color:#10232c';const title=document.createElement('strong');title.textContent=count+' mapped '+(isUS?'U.S. opportunity records':'risk/opportunity records')+' in this globe cluster';title.style.display='block';const detail=document.createElement('p');detail.style.margin='7px 0';detail.textContent=Object.entries(g.counts).sort((a,b)=>b[1]-a[1]).map(([k,n])=>(BP_GLOBAL_OPP_GLYPHS_V6183[k]||'•')+' '+(g.labels[k]||k)+': '+n).join(' · ');const note=document.createElement('small');note.textContent=isUS?'Source-qualified U.S. opportunity sample. These signals are not proof of damage, sale intent, or guaranteed commercial work. Zoom in to inspect specific property records.':'Source-backed exposure/resilience reviews are not current weather warnings or proof of property damage.';root.append(title,detail,note);new window.maplibregl.Popup({closeButton:true,closeOnClick:true,maxWidth:'300px'}).setLngLat(coords).setDOMContent(root).addTo(map)}catch(err){console.warn('Global opportunity cluster popup',err)}});
+  el.addEventListener('click',ev=>{ev.preventDefault();ev.stopPropagation();try{if(!window.maplibregl?.Popup)return;const root=document.createElement('div');root.style.cssText='min-width:185px;max-width:270px;font:12px/1.45 system-ui,sans-serif;color:#10232c';const title=document.createElement('strong');title.textContent=count+' mapped '+(isUS?'U.S. opportunity records':'risk/opportunity records')+' in this globe cluster';title.style.display='block';const detail=document.createElement('p');detail.style.margin='7px 0';detail.textContent=Object.entries(g.counts).sort((a,b)=>b[1]-a[1]).map(([k,n])=>(BP_GLOBAL_OPP_GLYPHS_V6184[k]||'•')+' '+(g.labels[k]||k)+': '+n).join(' · ');const note=document.createElement('small');note.textContent=isUS?'Source-qualified U.S. opportunity sample. These signals are not proof of damage, sale intent, or guaranteed commercial work. Zoom in to inspect specific property records.':'Source-backed exposure/resilience reviews are not current weather warnings or proof of property damage.';root.append(title,detail,note);new window.maplibregl.Popup({closeButton:true,closeOnClick:true,maxWidth:'300px'}).setLngLat(coords).setDOMContent(root).addTo(map)}catch(err){console.warn('Global opportunity cluster popup',err)}});
   try{const marker=new window.maplibregl.Marker({element:el,anchor:'center',pitchAlignment:'viewport',rotationAlignment:'viewport'}).setLngLat(coords).addTo(map);state.markers.push({marker,coords,element:el})}catch(err){console.warn('Global opportunity DOM marker',err)}
  }
  state.groups=groups.size;state.usGroups=[...groups.values()].filter(g=>g.features.some(f=>f?.properties?.global_us_opportunity)).length;
- if(!state.visibilityUpdate){state.visibilityUpdate=()=>{for(const item of state.markers||[]){const visible=bpGlobalOpportunityMarkerIsFrontV6183(map,item.coords);if(item.element){item.element.style.visibility=visible?'visible':'hidden';item.element.style.pointerEvents=visible?'auto':'none'}}};try{map.on('move',state.visibilityUpdate);map.on('resize',state.visibilityUpdate)}catch(_){}}
+ if(!state.visibilityUpdate){state.visibilityUpdate=()=>{for(const item of state.markers||[]){const visible=bpGlobalOpportunityMarkerIsFrontV6184(map,item.coords);if(item.element){item.element.style.visibility=visible?'visible':'hidden';item.element.style.pointerEvents=visible?'auto':'none'}}};try{map.on('move',state.visibilityUpdate);map.on('resize',state.visibilityUpdate)}catch(_){}}
  state.visibilityUpdate();
  for(const id of ['gta-opportunity-dot-fallback','gta-opportunity-dots']){try{if(map.getLayer(id))map.setLayoutProperty(id,'visibility','none')}catch(_){}}
- const diag={version:6183,active,markerCount:state.markers.length,featureCount:rows.length,groups:groups.size,usFeatureCount:rows.filter(f=>f.properties?.global_us_opportunity).length,usGroupCount:state.usGroups||0,zoom:Number(zoom)||0,updatedAt:Date.now()};
- window.__BP_GLOBAL_OPPORTUNITY_DOM_MARKERS_V6183__=diag;return diag;
+ const diag={version:6184,active,markerCount:state.markers.length,featureCount:rows.length,groups:groups.size,usFeatureCount:rows.filter(f=>f.properties?.global_us_opportunity).length,usGroupCount:state.usGroups||0,zoom:Number(zoom)||0,updatedAt:Date.now()};
+ window.__BP_GLOBAL_OPPORTUNITY_DOM_MARKERS_V6184__=diag;return diag;
 }
 async function refreshLandingOpportunities(world){
  const m=world?.map,src=m?.getSource?.('bpOpportunities');if(!m||!src?.setData||m.isMoving?.())return false;
@@ -491,13 +487,14 @@ async function refreshLandingOpportunities(world){
   // Avoid the expensive full-world main opportunity query at globe zoom; it hits its 3.5s server timeout.
   // Load source-backed global risk markers on their own, then enable the full opportunity feed when zoomed in.
   const mainFeedRequest=zoom<3
-   ?loadGlobalUsOpportunitySampleV6183(m,mobile)
+   ?loadGlobalUsOpportunitySampleV6184(m,mobile)
    :rpc('bridgepoint_public_opportunity_viewport_v5907',{...params,p_limit:limit},7000).catch(e=>{console.warn('main opportunity feed unavailable; preserving global risk markers',e);return {__unavailable:true,error:String(e?.message||e)}});
-  const globalRiskCache=zoom<3?m.__bpGlobalRiskFeedCacheV6183:null;
-  const riskFeedRequest=zoom<3&&globalRiskCache?.data&&Date.now()-globalRiskCache.savedAt<300000?Promise.resolve(globalRiskCache.data):(async()=>{let last=null;const attempts=zoom<3?3:1;for(let attempt=0;attempt<attempts;attempt++){try{const value=await rpc('bridgepoint_public_global_risk_viewport_v6174',{...params,p_limit:Math.min(riskLimit,zoom<3?(mobile?35:45):riskLimit)},7000);const count=Number(value?.geojson?.features?.length||(value?.type==='FeatureCollection'?value.features?.length:0));if(count>0){if(zoom<3)m.__bpGlobalRiskFeedCacheV6183={data:value,savedAt:Date.now()};return value}last=value}catch(e){console.warn('Landing global risk-review overlay attempt',attempt+1,e)}if(attempt+1<attempts)await new Promise(resolve=>setTimeout(resolve,350*(attempt+1)))}return zoom<3&&globalRiskCache?.data?globalRiskCache.data:last})();
-  const [d,risk]=await Promise.all([mainFeedRequest,riskFeedRequest]);
+  const globalRiskCache=zoom<3?m.__bpGlobalRiskFeedCacheV6184:null;
+  const loadRiskFeed=()=>zoom<3&&globalRiskCache?.data&&Date.now()-globalRiskCache.savedAt<300000?Promise.resolve(globalRiskCache.data):(async()=>{let last=null;const attempts=zoom<3?3:1;for(let attempt=0;attempt<attempts;attempt++){try{const value=await rpc('bridgepoint_public_global_risk_viewport_v6174',{...params,p_limit:Math.min(riskLimit,zoom<3?(mobile?35:45):riskLimit)},7000);const count=Number(value?.geojson?.features?.length||(value?.type==='FeatureCollection'?value.features?.length:0));if(count>0){if(zoom<3)m.__bpGlobalRiskFeedCacheV6184={data:value,savedAt:Date.now()};return value}last=value}catch(e){console.warn('Landing global risk-review overlay attempt',attempt+1,e)}if(attempt+1<attempts)await new Promise(resolve=>setTimeout(resolve,350*(attempt+1)))}return zoom<3&&globalRiskCache?.data?globalRiskCache.data:last})();
+  let d,risk;
+  if(zoom<3){d=await mainFeedRequest;risk=await loadRiskFeed()}else{[d,risk]=await Promise.all([mainFeedRequest,loadRiskFeed()])}
   if(seq!==landingOpportunitySeq||m.isMoving?.())return false;
-  const geo=mergeLandingOpportunityGeojson(d,risk);src.setData(geo);syncGlobalOpportunityDomMarkersV6183(m,geo.features,zoom);
+  const geo=mergeLandingOpportunityGeojson(d,risk);src.setData(geo);syncGlobalOpportunityDomMarkersV6184(m,geo.features,zoom);
   try{
    if(m.getLayer('gta-opportunity-buildings')){m.setLayoutProperty('gta-opportunity-buildings','visibility',zoom<3?'none':'visible');m.setPaintProperty('gta-opportunity-buildings','fill-extrusion-color',['coalesce',['get','color'],'#ff1744']);m.setPaintProperty('gta-opportunity-buildings','fill-extrusion-opacity',1)}
    if(m.getLayer('gta-opportunity-label')){m.setLayoutProperty('gta-opportunity-label','visibility',zoom<3?'none':'visible');m.setPaintProperty('gta-opportunity-label','text-color',['coalesce',['get','color'],'#7adcf0']);m.setPaintProperty('gta-opportunity-label','icon-opacity',1)}
@@ -505,7 +502,7 @@ async function refreshLandingOpportunities(world){
    for(const id of ['gta-opportunity-dot-fallback','gta-opportunity-dots','gta-opportunity-label']){if(m.getLayer(id))m.moveLayer(id)}
   }catch(_){}
   const riskFeatures=geo.features.filter(f=>f?.properties?.global_risk_review).length;
-  window.__BP_PUBLIC_OPPORTUNITY_STYLE_V6183__={version:6183,mode:'PUBLIC_GLOBAL_CLASSIFIED_PLUS_RISK_REVIEW',wholeBuilding:true,icons:true,categorizedColors:true,iconGlyphsAtGlobalZoom:true,features:geo.features.length,riskReviewFeatures:riskFeatures,zoomBand:zoom<3?'globe':zoom<6?'regional':zoom<10?'city':'local',limit,mainFeedAvailable:!!d?.geojson?.features?.length,mainFeedFailed:!!d?.__unavailable,mainFeedSkippedAtGlobe:!!d?.__skippedAtGlobe,globalUsOpportunityFeatures:geo.features.filter(f=>f?.properties?.global_us_opportunity).length,globalUsRegionCount:new Set(geo.features.map(f=>f?.properties?.global_source_region).filter(Boolean)).size,domMarkerCount:window.__BP_GLOBAL_OPPORTUNITY_DOM_MARKERS_V6183__?.markerCount||0,riskFeedAvailable:!!risk?.geojson?.features?.length,updatedAt:Date.now()};
+  window.__BP_PUBLIC_OPPORTUNITY_STYLE_V6184__={version:6184,mode:'PUBLIC_GLOBAL_CLASSIFIED_PLUS_RISK_REVIEW',wholeBuilding:true,icons:true,categorizedColors:true,iconGlyphsAtGlobalZoom:true,features:geo.features.length,riskReviewFeatures:riskFeatures,zoomBand:zoom<3?'globe':zoom<6?'regional':zoom<10?'city':'local',limit,mainFeedAvailable:!!d?.geojson?.features?.length,mainFeedFailed:!!d?.__unavailable,mainFeedSkippedAtGlobe:!!d?.__skippedAtGlobe,globalUsOpportunityFeatures:geo.features.filter(f=>f?.properties?.global_us_opportunity).length,globalUsRegionCount:new Set(geo.features.map(f=>f?.properties?.global_source_region).filter(Boolean)).size,domMarkerCount:window.__BP_GLOBAL_OPPORTUNITY_DOM_MARKERS_V6184__?.markerCount||0,riskFeedAvailable:!!risk?.geojson?.features?.length,updatedAt:Date.now()};
   return true
  }catch(e){console.warn('Landing opportunity overlay',e);return false}
 }
@@ -577,7 +574,7 @@ async function initMap(){
  if(!window.maplibregl){window.__BP_LANDING_MAP_BOOT__={stage:'error',error:'MAPLIBRE_UNAVAILABLE',maplibre:false,at:Date.now()};return}
  try{
   window.__BP_LANDING_MAP_BOOT__={stage:'importing-world',maplibre:true,at:Date.now()};
-  const mod=await import('./world-v2300-map.js?v=6183-us-opportunities-globe-clipped');
+  const mod=await import('./world-v2300-map.js?v=6184-us-opportunities-globe-clipped');
   window.__BP_LANDING_MAP_BOOT__={stage:'initializing-world',maplibre:true,module:true,at:Date.now()};
   const world=mod.initWorld({
    containerId:'previewMap',
