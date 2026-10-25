@@ -274,7 +274,7 @@ test('public cyclone fallback is fetched concurrently with edge weather', () => 
 test('homepage opportunities load on first globe view and use the deployed public RPC', () => {
   assert.match(landing, /rpc\('bridgepoint_public_opportunity_viewport_v5907'/);
   assert.doesNotMatch(landing, /bridgepoint_public_opportunity_viewport_v5906/);
-  assert.match(landing, /window\.__BP_LANDING_WORLD__=world;\\n  startLandingOpportunities\(world\);/);
+  assert.match(landing, /window\.__BP_LANDING_WORLD__=world;\s*startLandingOpportunities\(world\);/);
   assert.match(map, /id:'gta-opportunity-dots',type:'symbol',source:'bpOpportunities',minzoom:0,maxzoom:4\.5/);
 });
 
