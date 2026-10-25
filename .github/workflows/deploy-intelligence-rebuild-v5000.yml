@@ -677,6 +677,7 @@ jobs:
           grep -Fq 'const parentScale = 1;' site/world-v2300-clouds.js
           grep -Fq 'const smallColumns = 140, smallRows = 62, maxSingles = MOBILE ? 700 : 760;' site/world-v2300-clouds.js
           grep -Fq 'isolatedFormationCount: singles.length' site/world-v2300-clouds.js
+          # Cloud shader now blends underside shadow strength for fuller volumetric puffs.
           grep -Fq 'underside*mix(0.42,0.53,cloudShadingMix)' site/world-v2300-clouds.js
           grep -Fq 'globalCoverageModel: satelliteMaskUsable' site/world-v2300-clouds.js
           ! grep -Fq 'window.__BP_CLOUDS_ONLY_PHASE_V6070__=true;' site/app.js
