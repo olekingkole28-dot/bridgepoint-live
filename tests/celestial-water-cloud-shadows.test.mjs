@@ -151,6 +151,10 @@ test('global opportunity markers render category glyphs and merge source-backed 
   assert.match(landing, /main opportunity feed unavailable; preserving global risk markers/);
   assert.match(map, /id:'gta-opportunity-dot-fallback',type:'circle',source:'bpOpportunities',minzoom:0,maxzoom:4\.5/);
   assert.match(map, /0,1\.05,1,1\.18,2,1\.30,3\.5,1\.42,4\.5,1\.48/);
+  assert.match(app, /mainFeedRequest=zoom<3/);
+  assert.match(landing, /mainFeedRequest=zoom<3/);
+  assert.match(app, /riskFeedRequest=rpc\('bridgepoint_public_global_risk_viewport_v6174'.*?7000\)/);
+  assert.match(landing, /riskFeedRequest=rpc\('bridgepoint_public_global_risk_viewport_v6174'.*?7000\)/);
 });
 
 test('both entrypoints perform a real 6167 service-worker cutover before stale startup survives', () => {
