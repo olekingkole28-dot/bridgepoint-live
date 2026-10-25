@@ -129,8 +129,8 @@ test('entrypoints use fresh cache keys for updated map, water, clouds, weather a
   assert.match(map, /world-v2300-space\.js\?v=6125-manual-globe-camera/);
   assert.match(timeSlider, /world-v2300-clouds\.js\?v=6167-cloud-startup-performance/);
   assert.match(bootstrap, /world-v2300-weather\.js\?v=6138-cloud-linked-lightning/);
-  assert.match(appHtml, /app\.js\?v=6190-global-opportunity-worldwide/);
-  assert.match(landingHtml, /landing\.js\?v=6190-global-opportunity-worldwide/);
+  assert.match(appHtml, /app\.js\?v=6191-global-opportunity-worldwide-panama/);
+  assert.match(landingHtml, /landing\.js\?v=6191-global-opportunity-worldwide-panama/);
   assert.match(appHtml, /intelligence-global-v5507\.js\?v=6170-imerg-nrt-timeline/);
   assert.match(landingHtml, /intelligence-global-v5507\.js\?v=6170-imerg-nrt-timeline/);
 });
@@ -179,8 +179,14 @@ test('global opportunity markers render category glyphs and merge source-backed 
   assert.doesNotMatch(landing, /const rows=\(base\.features\|\|\[\]\)\.map\(bpGlobalOpportunityPointFeatureV6186\)\.filter\(f=>f&&bpGlobalOpportunityIsUSCoordsV6187/);
   assert.match(app, /key:'NE_CT',p_west:-73\.5,p_south:41,p_east:-71\.5,p_north:42/);
   assert.match(landing, /key:'NE_CT',p_west:-73\.5,p_south:41,p_east:-71\.5,p_north:42/);
+  assert.match(app, /key:'PANAMA_FOCUSED',p_west:-80,p_south:7,p_east:-77,p_north:10\.5/);
+  assert.match(landing, /key:'PANAMA_FOCUSED',p_west:-80,p_south:7,p_east:-77,p_north:10\.5/);
   assert.match(app, /p_limit:mobile\?4:8/);
   assert.match(landing, /p_limit:mobile\?4:8/);
+  assert.match(app, /p_limit:mobile\?4:8\},9000/);
+  assert.match(landing, /p_limit:mobile\?4:8\},9000/);
+  assert.match(app, /p_limit:mobile\?12:24\},9000/);
+  assert.match(landing, /p_limit:mobile\?12:24\},9000/);
   assert.match(app, /features\.length\?300000:15000/);
   assert.match(landing, /features\.length\?300000:15000/);
   assert.doesNotMatch(app, /function bpGlobalOpportunityMarkerIsFrontV6186/);
@@ -349,8 +355,8 @@ test('homepage opportunities load on first globe view and use the deployed publi
 test('website and app start on the same cache-busted globe-first weather build', () => {
   assert.match(landingHtml, /bp-globe-only-first-frame-v6137/);
   assert.match(appHtml, /bp-app-globe-only-first-frame-v6137/);
-  assert.ok(landingHtml.includes('landing.js?v=6190-global-opportunity-worldwide'));
-  assert.ok(appHtml.includes('app.js?v=6190-global-opportunity-worldwide'));
+  assert.ok(landingHtml.includes('landing.js?v=6191-global-opportunity-worldwide-panama'));
+  assert.ok(appHtml.includes('app.js?v=6191-global-opportunity-worldwide-panama'));
   assert.ok(landingHtml.includes('intelligence-global-v5507.js?v=6170-imerg-nrt-timeline'));
   assert.ok(appHtml.includes('intelligence-global-v5507.js?v=6170-imerg-nrt-timeline'));
 });
