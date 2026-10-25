@@ -35,7 +35,7 @@ function test(name, fn) {
 
 test('water keeps protected close-zoom height and shoreline safety', () => {
   assert.match(water, /const VERSION = 6123;/);
-  assert.match(water, /const SURFACE_RENDER_REVISION = 6124;/);
+  assert.match(water, /const SURFACE_RENDER_REVISION = 6194;/);
   assert.match(water, /if \(z >= 12\) \{\s*return \{ scale: 0, maxOffsetM: 0, guarded: true \};\s*\}/);
   assert.match(water, /surfaceMaskValidationAllZooms: true/);
   assert.match(water, /surfaceCellsRejectedInvalidTerrain/);
@@ -122,7 +122,7 @@ test('cloud shadows update on the map and use available source winds', () => {
 test('entrypoints use fresh cache keys for updated map, water, clouds, weather and space', () => {
   for (const source of [app, landing]) {
     assert.match(source, /world-v2300-map\.js\?v=6186-us-opportunities-globe-clipped/);
-    assert.match(source, /world-v2300-water\.js\?v=6124-solar-ocean-swell/);
+    assert.match(source, /world-v2300-water\.js\?v=6194-stable-water-low-cost/);
     assert.match(source, /world-v2300-clouds\.js\?v=6167-cloud-startup-performance/);
     assert.match(source, /world-v2300-weather\.js\?v=6193-geographic-rain-lightning/);
     assert.match(source, /world-v2300-time-slider\.js\?v=6167-cloud-startup-performance/);
