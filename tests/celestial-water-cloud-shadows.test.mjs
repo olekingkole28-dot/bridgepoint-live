@@ -40,6 +40,8 @@ test('water keeps shoreline safety while using a bounded stable render budget', 
   assert.match(water, /MIN_BACKGROUND_BUILD_INTERVAL_MS = 4200/);
   assert.match(water, /MIN_CAMERA_BUILD_INTERVAL_MS = 900/);
   assert.match(water, /sourceGapGeometryPreserved\+\+/);
+  assert.match(water, /const scanLimit = Math.max\(limit, Math.min\(limit \* 4, 2200\)\)/);
+  assert.match(water, /replacement-water-geometry-empty/);
   assert.match(water, /map\.on\('idle', ensureInstalled\)/);
   assert.doesNotMatch(water, /map\.on\('idle', \(\) => scheduleBuild\(160\)\)/);
   assert.match(water, /if \(low\) return z < 3\.5 \? 260 : z >= 12 \? 180 : 220;/);
