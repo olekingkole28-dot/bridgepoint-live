@@ -120,7 +120,7 @@ test('cloud shadows update on the map and use available source winds', () => {
 
 test('entrypoints use fresh cache keys for updated map, water, clouds, weather and space', () => {
   for (const source of [app, landing]) {
-    assert.match(source, /world-v2300-map\.js\?v=6177-global-opportunity-markers/);
+    assert.match(source, /world-v2300-map\.js\?v=6178-global-opportunity-dom-markers/);
     assert.match(source, /world-v2300-water\.js\?v=6124-solar-ocean-swell/);
     assert.match(source, /world-v2300-clouds\.js\?v=6167-cloud-startup-performance/);
     assert.match(source, /world-v2300-weather\.js\?v=6138-cloud-linked-lightning/);
@@ -129,8 +129,8 @@ test('entrypoints use fresh cache keys for updated map, water, clouds, weather a
   assert.match(map, /world-v2300-space\.js\?v=6125-manual-globe-camera/);
   assert.match(timeSlider, /world-v2300-clouds\.js\?v=6167-cloud-startup-performance/);
   assert.match(bootstrap, /world-v2300-weather\.js\?v=6138-cloud-linked-lightning/);
-  assert.match(appHtml, /app\.js\?v=6177-global-opportunity-markers/);
-  assert.match(landingHtml, /landing\.js\?v=6177-global-opportunity-markers/);
+  assert.match(appHtml, /app\.js\?v=6178-global-opportunity-dom-markers/);
+  assert.match(landingHtml, /landing\.js\?v=6178-global-opportunity-dom-markers/);
   assert.match(appHtml, /intelligence-global-v5507\.js\?v=6170-imerg-nrt-timeline/);
   assert.match(landingHtml, /intelligence-global-v5507\.js\?v=6170-imerg-nrt-timeline/);
 });
@@ -303,8 +303,8 @@ test('homepage opportunities load on first globe view and use the deployed publi
 test('website and app start on the same cache-busted globe-first weather build', () => {
   assert.match(landingHtml, /bp-globe-only-first-frame-v6137/);
   assert.match(appHtml, /bp-app-globe-only-first-frame-v6137/);
-  assert.ok(landingHtml.includes('landing.js?v=6177-global-opportunity-markers'));
-  assert.ok(appHtml.includes('app.js?v=6177-global-opportunity-markers'));
+  assert.ok(landingHtml.includes('landing.js?v=6178-global-opportunity-dom-markers'));
+  assert.ok(appHtml.includes('app.js?v=6178-global-opportunity-dom-markers'));
   assert.ok(landingHtml.includes('intelligence-global-v5507.js?v=6170-imerg-nrt-timeline'));
   assert.ok(appHtml.includes('intelligence-global-v5507.js?v=6170-imerg-nrt-timeline'));
 });
