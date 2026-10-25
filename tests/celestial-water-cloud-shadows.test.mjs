@@ -177,8 +177,10 @@ test('global opportunity markers render category glyphs and merge source-backed 
   assert.match(landing, /map\.on\('move',state\.visibilityUpdate\)/);
   assert.match(app, /for\(const region of BP_GLOBAL_US_OPPORTUNITY_WINDOWS_V6186\)/);
   assert.match(landing, /for\(const region of BP_GLOBAL_US_OPPORTUNITY_WINDOWS_V6186\)/);
-  assert.match(app, /if\(zoom<3\)\{d=await mainFeedRequest;risk=await loadRiskFeed\(\)\}/);
-  assert.match(landing, /if\(zoom<3\)\{d=await mainFeedRequest;risk=await loadRiskFeed\(\)\}/);
+  assert.match(app, /if\(zoom<3\)\{d=await mainFeedRequest;risk=globalRiskCache\?\.data\|\|null/);
+  assert.match(landing, /if\(zoom<3\)\{d=await mainFeedRequest;risk=globalRiskCache\?\.data\|\|null/);
+  assert.match(app, /if\(!risk\)void loadRiskFeed\(\)\.then/);
+  assert.match(landing, /if\(!risk\)void loadRiskFeed\(\)\.then/);
 });
 
 test('both entrypoints perform a real 6167 service-worker cutover before stale startup survives', () => {
