@@ -1292,48 +1292,23 @@ function mergeAppOpportunityGeojson(mainData,riskData){
 }
 const BP_GLOBAL_OPP_GLYPHS_V6186={ROOF:'🏠',CLAIMS:'📋',RESTORATION:'🛠',CONSTRUCTION:'🏗',STORM:'🌪',FIRE:'🔥',WATER:'💧',RAIN:'🌧',WIND:'💨',EXPOSURE:'⚠',SOLAR:'☀',DEVELOPMENT:'🏗',INVESTMENT:'$',COMPLIANCE:'✓',GENERAL:'•'};
 const BP_GLOBAL_US_OPPORTUNITY_WINDOWS_V6186=[
- {key:'NE_CT_MA',p_west:-74.5,p_south:40.3,p_east:-71.5,p_north:42.5},
- {key:'LOS_ANGELES_CA',p_west:-120.5,p_south:32.5,p_east:-117.5,p_north:35.5},
- {key:'DFW_TX',p_west:-100.5,p_south:31,p_east:-97.5,p_north:34},
- {key:'CHICAGO_IL',p_west:-89.5,p_south:40.2,p_east:-86.5,p_north:43.2},
- {key:'FLORIDA_NORTH',p_west:-84.5,p_south:28,p_east:-81.5,p_north:31},
- {key:'COLORADO',p_west:-106.5,p_south:37.3,p_east:-103.5,p_north:40.3},
- {key:'PACIFIC_NW',p_west:-124,p_south:45,p_east:-121,p_north:48},
- {key:'ATLANTA_GA',p_west:-85.5,p_south:32,p_east:-82.5,p_north:35},
- {key:'BAY_AREA_CA',p_west:-123.5,p_south:36.5,p_east:-120.5,p_north:39.5},
- {key:'HOUSTON_TX',p_west:-97.5,p_south:28,p_east:-94.5,p_north:31},
- {key:'PHOENIX_AZ',p_west:-113,p_south:32,p_east:-110,p_north:35},
- {key:'OHIO',p_west:-84.2,p_south:39,p_east:-81.2,p_north:42},
- {key:'WISCONSIN',p_west:-91.2,p_south:43,p_east:-88.2,p_north:46},
- {key:'MICHIGAN',p_west:-86.5,p_south:42,p_east:-83.5,p_north:45},
- {key:'MID_ATLANTIC',p_west:-78.5,p_south:37.5,p_east:-75.5,p_north:40.5},
- {key:'CAROLINAS',p_west:-82.5,p_south:33,p_east:-79.5,p_north:36},
- {key:'LOUISIANA_MS',p_west:-93,p_south:29.5,p_east:-90,p_north:32.5},
- {key:'TENNESSEE_KY',p_west:-88,p_south:35,p_east:-85,p_north:38},
- {key:'MISSOURI_KANSAS',p_west:-97,p_south:37,p_east:-94,p_north:40},
- {key:'NEBRASKA_IA',p_west:-98,p_south:40.5,p_east:-95,p_north:43.5},
- {key:'UTAH_NV',p_west:-117,p_south:37,p_east:-114,p_north:40},
- {key:'OREGON',p_west:-124,p_south:42,p_east:-121,p_north:45},
- {key:'NORTHERN_CA',p_west:-123,p_south:39,p_east:-120,p_north:42},
- {key:'FLORIDA_SOUTH',p_west:-82.5,p_south:25,p_east:-79.5,p_north:28},
- {key:'MAINE_NH_VT',p_west:-72,p_south:43,p_east:-69,p_north:46},
- {key:'ALASKA_ANC',p_west:-151,p_south:59,p_east:-148,p_north:62},
- {key:'HAWAII_OAHU',p_west:-159,p_south:19,p_east:-156,p_north:22},
- {key:'NYC_NJ',p_west:-76,p_south:39,p_east:-73,p_north:42}
+ {key:'CONTIGUOUS_US',p_west:-125,p_south:24,p_east:-66,p_north:50},
+ {key:'ALASKA',p_west:-180,p_south:50,p_east:-129,p_north:72}
 ];
 async function loadGlobalUsOpportunitySampleV6186(map,mobile){
  if(!map)return{source_key:'GLOBAL_US_REGIONAL_SAMPLE_V6186',geojson:{type:'FeatureCollection',features:[]},returned:0,__unavailable:true};
  const now=Date.now(),cache=map.__bpGlobalUsOpportunityCacheV6186;
- if(cache&&now<(cache.expiresAt||0))return{source_key:'GLOBAL_US_REGIONAL_SAMPLE_V6186',geojson:{type:'FeatureCollection',features:cache.features||[]},returned:(cache.features||[]).length,__globalUsSample:true,__globalUsCacheHit:true,__globalUsRegionCount:cache.regionCount||0,__globalUsRegionErrors:cache.errors||[]};
+ if(cache?.features?.length&&now<(cache.expiresAt||0))return{source_key:'GLOBAL_US_REGIONAL_SAMPLE_V6186',geojson:{type:'FeatureCollection',features:cache.features},returned:cache.features.length,__globalUsSample:true,__globalUsCacheHit:true,__globalUsRegionCount:cache.regionCount||0};
  if(map.__bpGlobalUsOpportunityPendingV6186)return map.__bpGlobalUsOpportunityPendingV6186;
  const task=(async()=>{
   const previous=map.__bpGlobalUsOpportunityCacheV6186,errors=[],loaded=[],successful=[];
-  const initialRegions=BP_GLOBAL_US_OPPORTUNITY_WINDOWS_V6186.slice(0,8);
-  // Query eight separated U.S. regions together so the first globe view cannot be dominated by New England.
+  // The public RPC has a fast, geographically balanced query when the requested viewport covers >10 square degrees.
+  // Use one continental-U.S. envelope for first paint; tiny metropolitan windows hit the slower local-geometry path.
+  const initialRegions=BP_GLOBAL_US_OPPORTUNITY_WINDOWS_V6186.slice(0,1);
   const results=await Promise.all(initialRegions.map(async region=>{
    try{
-    const data=await rpc('bridgepoint_public_opportunity_viewport_v5907',{p_west:region.p_west,p_south:region.p_south,p_east:region.p_east,p_north:region.p_north,p_limit:mobile?3:5},4200);
-    return{region,ok:true,features:data?.geojson?.features||(data?.type==='FeatureCollection'?data.features:[])||[]};
+    const data=await rpc('bridgepoint_public_opportunity_viewport_v5907',{p_west:region.p_west,p_south:region.p_south,p_east:region.p_east,p_north:region.p_north,p_limit:mobile?45:90},7000);
+    return{region,ok:true,features:data?.geojson?.features||(data?.type==='FeatureCollection'?data.features:[])||[],error:data?.error||null};
    }catch(e){
     console.warn('Global U.S. opportunity sample region unavailable',region.key,e);
     return{region,ok:false,features:[],error:String(e?.message||e)};
@@ -1341,11 +1316,15 @@ async function loadGlobalUsOpportunitySampleV6186(map,mobile){
   }));
   for(const result of results){
    const region=result.region;
-   if(result.ok)successful.push(region.key);else errors.push(region.key);
+   if(result.ok)successful.push(region.key);else errors.push(region.key+':'+String(result.error||'unavailable'));
    const features=result.features||[];
    for(let i=0;i<features.length;i++){
-    const f=features[i];if(!f?.geometry)continue;
-    loaded.push({...f,id:'global-us:'+region.key+':'+String(f.id??i),properties:{...(f.properties||{}),global_us_opportunity:true,global_source_region:region.key,globe_overview_sample:true}});
+    const point=bpGlobalOpportunityPointFeatureV6186(features[i]);
+    if(!point)continue;
+    const coords=point.geometry.coordinates.map(Number);
+    if(!bpGlobalOpportunityIsUSCoordsV6187(coords))continue;
+    const cell='US_CELL_'+Math.floor((coords[0]+180)/5)+'_'+Math.floor((coords[1]+90)/5);
+    loaded.push({...point,id:'global-us:'+region.key+':'+String(point.id??i),properties:{...(point.properties||{}),global_us_opportunity:true,global_source_region:cell,globe_overview_sample:true}});
    }
   }
   const byId=new Map((previous?.features||[]).map(f=>[String(f.id),f]));
@@ -1354,7 +1333,7 @@ async function loadGlobalUsOpportunitySampleV6186(map,mobile){
   const attemptedRegions=[...new Set([...(previous?.attemptedRegions||[]),...successful])];
   const allErrors=[...new Set([...(previous?.errors||[]),...errors])];
   const regionCount=new Set(features.map(f=>f?.properties?.global_source_region).filter(Boolean)).size;
-  map.__bpGlobalUsOpportunityCacheV6186={features,regionCount,errors:allErrors,attemptedRegions,expiresAt:Date.now()+300000};
+  map.__bpGlobalUsOpportunityCacheV6186={features,regionCount,errors:allErrors,attemptedRegions,expiresAt:Date.now()+(features.length?300000:15000)};
   return{source_key:'GLOBAL_US_REGIONAL_SAMPLE_V6186',geojson:{type:'FeatureCollection',features},returned:features.length,__globalUsSample:true,__globalUsRegionCount:regionCount,__globalUsRegionErrors:allErrors,__unavailable:features.length===0};
  })();
  map.__bpGlobalUsOpportunityPendingV6186=task;
@@ -1367,36 +1346,31 @@ async function expandGlobalUsOpportunitySampleV6186(map,mobile,refresh){
   if(!initial)return;
   const attempted=new Set(initial.attemptedRegions||[]),errors=new Set(initial.errors||[]);
   const remaining=BP_GLOBAL_US_OPPORTUNITY_WINDOWS_V6186.filter(region=>!attempted.has(region.key));
-  // Expand four regions at a time; publish each batch instead of waiting for every query to finish.
-  for(let offset=0;offset<remaining.length;offset+=4){
-   const batch=remaining.slice(offset,offset+4);
-   const results=await Promise.all(batch.map(async region=>{
-    try{
-     const data=await rpc('bridgepoint_public_opportunity_viewport_v5907',{p_west:region.p_west,p_south:region.p_south,p_east:region.p_east,p_north:region.p_north,p_limit:mobile?3:5},4200);
-     return{region,ok:true,features:data?.geojson?.features||(data?.type==='FeatureCollection'?data.features:[])||[]};
-    }catch(e){
-     console.warn('Background U.S. opportunity region unavailable',region.key,e);
-     return{region,ok:false,features:[]};
-    }
-   }));
-   const current=map.__bpGlobalUsOpportunityCacheV6186||initial;
-   const byId=new Map((current.features||[]).map(f=>[String(f.id),f]));
-   for(const result of results){
-    const region=result.region;attempted.add(region.key);
-    if(!result.ok){errors.add(region.key);continue}
-    errors.delete(region.key);
-    const incoming=result.features||[];
+  // Only query Alaska in the background. This avoids dozens of tiny, slower local-geometry RPCs at globe zoom.
+  for(let offset=0;offset<remaining.length;offset+=1){
+   const region=remaining[offset];
+   try{
+    const data=await rpc('bridgepoint_public_opportunity_viewport_v5907',{p_west:region.p_west,p_south:region.p_south,p_east:region.p_east,p_north:region.p_north,p_limit:mobile?8:15},7000);
+    const incoming=data?.geojson?.features||(data?.type==='FeatureCollection'?data.features:[])||[];
+    attempted.add(region.key);errors.delete(region.key);
+    const current=map.__bpGlobalUsOpportunityCacheV6186||initial,byId=new Map((current.features||[]).map(f=>[String(f.id),f]));
     for(let i=0;i<incoming.length;i++){
-     const f=incoming[i];if(!f?.geometry)continue;
-     const feature={...f,id:'global-us:'+region.key+':'+String(f.id??i),properties:{...(f.properties||{}),global_us_opportunity:true,global_source_region:region.key,globe_overview_sample:true}};
+     const point=bpGlobalOpportunityPointFeatureV6186(incoming[i]);if(!point)continue;
+     const coords=point.geometry.coordinates.map(Number);if(!bpGlobalOpportunityIsUSCoordsV6187(coords))continue;
+     const cell='US_CELL_'+Math.floor((coords[0]+180)/5)+'_'+Math.floor((coords[1]+90)/5);
+     const feature={...point,id:'global-us:'+region.key+':'+String(point.id??i),properties:{...(point.properties||{}),global_us_opportunity:true,global_source_region:cell,globe_overview_sample:true}};
      byId.set(String(feature.id),feature);
     }
+    const features=[...byId.values()];
+    map.__bpGlobalUsOpportunityCacheV6186={...current,features,regionCount:new Set(features.map(f=>f?.properties?.global_source_region).filter(Boolean)).size,errors:[...errors],attemptedRegions:[...attempted],expiresAt:Date.now()+(features.length?300000:15000)};
+   }catch(e){
+    attempted.add(region.key);errors.add(region.key+':'+String(e?.message||e));
+    const current=map.__bpGlobalUsOpportunityCacheV6186||initial;
+    map.__bpGlobalUsOpportunityCacheV6186={...current,errors:[...errors],attemptedRegions:[...attempted],expiresAt:Date.now()+(current.features?.length?300000:15000)};
+    console.warn('Background U.S. opportunity region unavailable',region.key,e);
    }
-   const features=[...byId.values()];
-   map.__bpGlobalUsOpportunityCacheV6186={...current,features,regionCount:new Set(features.map(f=>f?.properties?.global_source_region).filter(Boolean)).size,errors:[...errors],attemptedRegions:[...attempted],expiresAt:Date.now()+300000};
    try{if(map.getZoom?.()<3&&!map.isMoving?.())await refresh?.()}catch(_){}
   }
-  try{if(map.getZoom?.()<3&&!map.isMoving?.())await refresh?.()}catch(_){}
  })();
  map.__bpGlobalUsOpportunityExpansionPendingV6186=task;
  try{await task}finally{if(map.__bpGlobalUsOpportunityExpansionPendingV6186===task)map.__bpGlobalUsOpportunityExpansionPendingV6186=null}
