@@ -79,10 +79,10 @@ test('clouds render as bright 3D volumes, not as a false-colour raster sheet', (
   assert.match(clouds, /setLayoutProperty\(SATELLITE_CLOUD_LAYER_ID_V6150,'visibility','none'\)/);
   assert.match(clouds, /setLayoutProperty\(EUMETSAT_CLOUD_LAYER_ID_V6150,'visibility','none'\)/);
   assert.match(clouds, /vec3\(0\.70,0\.76,0\.84\)/);
-  assert.match(clouds, /version: 6166, map, overlay/);
-  assert.match(clouds, /coverageVersion: 6166/);
+  assert.match(clouds, /version: 6167, map, overlay/);
+  assert.match(clouds, /coverageVersion: 6167/);
   assert.match(clouds, /Number\(satelliteMask\.probability\[idx\]\)<=32/);
-  assert.match(clouds, /const satelliteMaxClouds = index32Supported \? \(MOBILE \? 3000 : 4000\) : \(MOBILE \? 700 : 980\)/);
+  assert.match(clouds, /const satelliteMaxClouds = index32Supported \? \(MOBILE \? 1600 : 2800\) : \(MOBILE \? 480 : 760\)/);
   assert.match(clouds, /const CLOUD_VERTEX_LIMIT = MOBILE \? 145000 : 220000/);
   assert.match(clouds, /const CLOUD_STORM_VERTEX_RESERVE = MOBILE \? 24000 : 32000/);
   assert.match(clouds, /new Uint32Array\(indices\)/);
@@ -90,7 +90,7 @@ test('clouds render as bright 3D volumes, not as a false-colour raster sheet', (
   assert.match(clouds, /SATELLITE_CLOUD_MASK_CACHE_KEY_V6150/);
   assert.match(clouds, /restoreCachedSatelliteCloudMaskV6150\(map\)/);
   assert.match(clouds, /persistSatelliteCloudMaskV6150\(mask\)/);
-  assert.match(clouds, /const satellitePuffSlices = cloudLodBand === 'global' \? \(MOBILE \? 6 : 7\)/);
+  assert.match(clouds, /const satellitePuffSlices = cloudLodBand === 'global' \? \(MOBILE \? 5 : 6\)/);
   assert.match(clouds, /lobeD = Math\.cos\(theta \* 7\.0/);
   assert.match(clouds, /cloudCavity=clamp/);
 });
@@ -99,7 +99,10 @@ test('the 28k source height feed seeds rounded 3D cloud puffs and blends nearby 
   assert.match(clouds, /CLOUD_HEIGHT_FEED_URL_V6162/);
   assert.match(clouds, /const heightCandidates = \[\]/);
   assert.match(clouds, /NOAA GOES cloud-top-height sample colocated with current satellite cloud footprint/);
-  assert.match(clouds, /sourceHeightAnchorBudget=Math\.floor\(satelliteMaxClouds\*0\.32\)/);
+  assert.match(clouds, /sourceHeightAnchorBudget=Math\.floor\(satelliteMaxClouds\*0\.25\)/);
+  assert.match(clouds, /maxDirectHeightCandidates = MOBILE \\? 5200 : 9000/);
+  assert.match(clouds, /sourceHeightIndexCache\\?\\.key === heightIndexKey/);
+  assert.match(clouds, /sourceHeightIndexCache = null/);
   assert.match(clouds, /weighted nearby observations/);
   assert.match(clouds, /cloudTopHeightNeighborCount/);
   assert.match(clouds, /satelliteCloudsWithDirectSourceHeight/);
@@ -119,29 +122,29 @@ test('entrypoints use fresh cache keys for updated map, water, clouds, weather a
   for (const source of [app, landing]) {
     assert.match(source, /world-v2300-map\.js\?v=6137-globe-first-weather-lockstep/);
     assert.match(source, /world-v2300-water\.js\?v=6124-solar-ocean-swell/);
-    assert.match(source, /world-v2300-clouds\.js\?v=6166-height-sculpted-cloud-volumes/);
+    assert.match(source, /world-v2300-clouds\.js\?v=6167-cloud-startup-performance/);
     assert.match(source, /world-v2300-weather\.js\?v=6138-cloud-linked-lightning/);
-    assert.match(source, /world-v2300-time-slider\.js\?v=6166-height-sculpted-cloud-volumes/);
+    assert.match(source, /world-v2300-time-slider\.js\?v=6167-cloud-startup-performance/);
   }
   assert.match(map, /world-v2300-space\.js\?v=6125-manual-globe-camera/);
-  assert.match(timeSlider, /world-v2300-clouds\.js\?v=6166-height-sculpted-cloud-volumes/);
+  assert.match(timeSlider, /world-v2300-clouds\.js\?v=6167-cloud-startup-performance/);
   assert.match(bootstrap, /world-v2300-weather\.js\?v=6138-cloud-linked-lightning/);
-  assert.match(appHtml, /app\.js\?v=6166-height-sculpted-cloud-volumes/);
-  assert.match(landingHtml, /landing\.js\?v=6166-height-sculpted-cloud-volumes/);
+  assert.match(appHtml, /app\.js\?v=6167-cloud-startup-performance/);
+  assert.match(landingHtml, /landing\.js\?v=6167-cloud-startup-performance/);
   assert.match(appHtml, /intelligence-global-v5507\.js\?v=6134-global-precip-lod/);
   assert.match(landingHtml, /intelligence-global-v5507\.js\?v=6134-global-precip-lod/);
 });
 
-test('both entrypoints perform a real 6166 service-worker cutover before stale startup survives', () => {
-  assert.match(landingHtml, /app-update-v5820\.js\?v=6166-height-sculpted-cloud-volumes/);
-  assert.match(appHtml, /app-update-v5820\.js\?v=6166-height-sculpted-cloud-volumes/);
-  assert.match(appUpdate, /const BUILD=6166/);
-  assert.match(appUpdate, /CURRENT_CACHE='bp-intelligence-v6166-height-sculpted-cloud-volumes'/);
+test('both entrypoints perform a real 6167 service-worker cutover before stale startup survives', () => {
+  assert.match(landingHtml, /app-update-v5820\.js\?v=6167-cloud-startup-performance/);
+  assert.match(appHtml, /app-update-v5820\.js\?v=6167-cloud-startup-performance/);
+  assert.match(appUpdate, /const BUILD=6167/);
+  assert.match(appUpdate, /CURRENT_CACHE='bp-intelligence-v6167-cloud-startup-performance'/);
   assert.match(appUpdate, /function reloadOnce\(reason\)/);
   assert.match(appUpdate, /location\.replace\(u\.href\)/);
   assert.match(appUpdate, /navigator\.serviceWorker\?\.addEventListener\('controllerchange'/);
-  assert.match(serviceWorker, /const V='bp-intelligence-v6166-height-sculpted-cloud-volumes'/);
-  assert.match(clouds, /Number\(existingCloudController\.version\) >= 6166[\s\S]{0,180}Number\(existingState\?\.coverageVersion \|\| existingState\?\.version\) >= 6166/);
+  assert.match(serviceWorker, /const V='bp-intelligence-v6167-cloud-startup-performance'/);
+  assert.match(clouds, /Number\(existingCloudController\.version\) >= 6167[\s\S]{0,180}Number\(existingState\?\.coverageVersion \|\| existingState\?\.version\) >= 6167/);
 });
 
 test('new rain/lightning and global source markers stay separate from legacy effects', () => {
@@ -158,11 +161,11 @@ test('new rain/lightning and global source markers stay separate from legacy eff
   assert.match(rain, /source_anchor_kind: 'warning'/);
   assert.match(rain, /windFields\(p, c, true\)/);
   assert.match(clouds, /sourceRainAnchors/);
-  assert.match(clouds, /coverageVersion: 6166/);
+  assert.match(clouds, /coverageVersion: 6167/);
   assert.match(clouds, /sourceHeightMatchedCount/);
   assert.match(clouds, /satelliteCloudHeightFeedStatus/);
   assert.match(clouds, /alphaBase\*0\.82/);
-  assert.match(clouds, /version: 6166, map, overlay/);
+  assert.match(clouds, /version: 6167, map, overlay/);
   assert.match(clouds, /bp6150-nasa-geostationary-cloud-context/);
   assert.match(clouds, /bp6150-nasa-geostationary-cloud-source/);
   assert.match(clouds, /GOES-East_ABI_Band13_Clean_Infrared/);
@@ -249,6 +252,6 @@ test('public cyclone fallback is fetched concurrently with edge weather', () => 
 test('website and app start on the same globe-first weather build', () => {
   assert.match(landingHtml, /bp-globe-only-first-frame-v6137/);
   assert.match(appHtml, /bp-app-globe-only-first-frame-v6137/);
-  assert.ok(landingHtml.includes('landing.js?v=6166-height-sculpted-cloud-volumes'));
-  assert.ok(appHtml.includes('app.js?v=6166-height-sculpted-cloud-volumes'));
+  assert.ok(landingHtml.includes('landing.js?v=6167-cloud-startup-performance'));
+  assert.ok(appHtml.includes('app.js?v=6167-cloud-startup-performance'));
 });
