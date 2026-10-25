@@ -143,7 +143,7 @@ test('global opportunity markers render category glyphs and merge source-backed 
   assert.match(map, /'EXPOSURE','bp-opp-exposure-dot'/);
   assert.match(app, /bridgepoint_public_global_risk_viewport_v6174/);
   assert.match(landing, /bridgepoint_public_global_risk_viewport_v6174/);
-  assert.match(app, /globalRiskReview/);
+  assert.match(app, /global_risk_review:true/);
   assert.match(landing, /not a current weather watch/);
 });
 
