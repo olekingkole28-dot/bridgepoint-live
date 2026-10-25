@@ -1506,23 +1506,24 @@ jobs:
                 };
               });
               console.log('BRIDGEPOINT_GLOBAL_OPPORTUNITY_MARKERS_DIAGNOSTIC',JSON.stringify({...state,consoleErrors:errors.slice(-8)}));
-              if(!(state.zoom<3&&state.features>0&&state.riskFeedAvailable&&state.globalUsOpportunityFeatures>0&&state.globalUsRegionCount>=1&&state.domMarkers.active===true&&state.domMarkers.markerCount>0&&state.domMarkers.usFeatureCount>0&&state.domMarkerCount>0))
+              if(!(state.zoom<3&&state.features>0&&state.riskFeedAvailable&&state.globalUsOpportunityFeatures>0&&state.globalUsRegionCount>=1&&state.domMarkers.active===true&&state.domMarkers.markerCount>0&&state.domMarkers.usFeatureCount>0&&state.domMarkers.nativeGlobeAnchored===true&&state.domMarkers.nativeLayerVisible===true&&state.domMarkerCount===0&&state.layers['gta-opportunity-dots'].visible))
                 throw new Error('GLOBAL_OPPORTUNITY_MARKERS_NOT_RENDERED '+JSON.stringify({...state,consoleErrors:errors.slice(-8)}));
               console.log('BRIDGEPOINT_GLOBAL_OPPORTUNITY_MARKERS_PASS');
               const beforeSpin=await p.evaluate(()=>Number(window.__BP_GLOBAL_OPPORTUNITY_DOM_MARKERS_V6186__?.updatedAt||0));
               await p.evaluate(()=>{const m=window.__BP_LANDING_WORLD__?.map;m?.stop?.();m?.jumpTo({center:[-76.5239,3.4084],zoom:1.5,pitch:0,bearing:0})});
               await p.waitForFunction(t=>{const m=window.__BP_LANDING_WORLD__?.map;return !!m&&Math.abs(m.getCenter().lng-(-76.5239))<3&&Number(window.__BP_GLOBAL_OPPORTUNITY_DOM_MARKERS_V6186__?.updatedAt||0)>t},{timeout:15000},beforeSpin);
-              await new Promise(r=>setTimeout(r,120));
+              await new Promise(r=>setTimeout(r,650));
               const spinState=await p.evaluate(()=>{
-                const m=window.__BP_LANDING_WORLD__?.map,items=m?.__bpGlobalOpportunityDomMarkersV6186?.markers||[],diag=window.__BP_GLOBAL_OPPORTUNITY_DOM_MARKERS_V6186__||{};
-                const visible=items.filter(i=>i.element&&getComputedStyle(i.element).visibility!=='hidden');
-                const offGlobe=visible.filter(i=>!window.bpGlobalOpportunityMarkerIsFrontV6186?.(m,i.coords));
-                return{diag,domCount:document.querySelectorAll('.bp-global-opportunity-marker-v6186').length,visibleCount:visible.length,offGlobeCount:offGlobe.length,center:m?.getCenter?.().toArray?.(),cacheAvailable:!!m?.__bpGlobalRiskFeedCacheV6186?.data,usCacheAvailable:!!m?.__bpGlobalUsOpportunityCacheV6186?.features?.length};
+                const m=window.__BP_LANDING_WORLD__?.map,diag=window.__BP_GLOBAL_OPPORTUNITY_DOM_MARKERS_V6186__||{};
+                const ids=['gta-opportunity-dots','gta-opportunity-dot-fallback'].filter(id=>!!m?.getLayer?.(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none');
+                let rendered=[];try{if(ids.length)rendered=m.queryRenderedFeatures({layers:ids})||[]}catch(_){}
+                const nonUsRendered=rendered.filter(f=>!window.bpGlobalOpportunityIsUSCoordsV6187?.(f.geometry?.coordinates)).length;
+                return{diag,domCount:document.querySelectorAll('.bp-global-opportunity-marker-v6186').length,visibleCount:rendered.length,offGlobeCount:document.querySelectorAll('.bp-global-opportunity-marker-v6186').length,nonUsRenderedCount:nonUsRendered,nativeLayerVisible:diag.nativeLayerVisible===true,center:m?.getCenter?.().toArray?.(),cacheAvailable:!!m?.__bpGlobalRiskFeedCacheV6186?.data,usCacheAvailable:!!m?.__bpGlobalUsOpportunityCacheV6186?.features?.length};
               });
               console.log('BRIDGEPOINT_GLOBE_MARKER_HEMISPHERE_DIAGNOSTIC',JSON.stringify(spinState));
-              if(!(spinState.diag.markerCount>0&&spinState.domCount>0&&spinState.visibleCount>0&&spinState.offGlobeCount===0&&spinState.cacheAvailable&&spinState.usCacheAvailable&&spinState.diag.usFeatureCount>0))
-                throw new Error('GLOBAL_OPPORTUNITY_MARKERS_FLOAT_OR_DISAPPEAR_DURING_SPIN '+JSON.stringify(spinState));
-              console.log('BRIDGEPOINT_GLOBE_MARKER_HEMISPHERE_CLIP_PASS');
+              if(!(spinState.diag.markerCount>0&&spinState.domCount===0&&spinState.visibleCount>0&&spinState.offGlobeCount===0&&spinState.nonUsRenderedCount===0&&spinState.nativeLayerVisible&&spinState.cacheAvailable&&spinState.usCacheAvailable&&spinState.diag.usFeatureCount>0))
+                throw new Error('GLOBAL_OPPORTUNITY_NATIVE_GLOBE_CLIP_FAILED '+JSON.stringify(spinState));
+              console.log('BRIDGEPOINT_GLOBE_NATIVE_OPPORTUNITY_CLIP_PASS');
             }finally{await browser.close()}
           })().catch(e=>{console.error(e);process.exit(1)});
           NODE
