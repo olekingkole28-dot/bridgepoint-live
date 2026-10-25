@@ -49,7 +49,7 @@ async function installGlobalWeather(){
   C.imergDate=resolved.date;
  }catch(e){console.warn('BP global precipitation attach',e)}
  startImergTimeline(resolved.date);
- window.__BP_GLOBAL_WEATHER_V5822__={...(window.__BP_GLOBAL_WEATHER_V5822__||{}),version:6170,projection:'globe',imerg:true,imergDate:C.imergDate,truth:'NASA_GPM_IMERG_30_MIN_NEAR_REAL_TIME_ABOUT_6H_DELAY',groundDrape:true,below3D:true,visibleThroughZoom:7.5,imergMaxNativeZoom:6,imergAnimated:true,imergFrameCadenceMs:4500,imergUpdateCadenceMs:30*60*1000,updatedAt:Date.now()};
+ window.__BP_GLOBAL_WEATHER_V5822__={...(window.__BP_GLOBAL_WEATHER_V5822__||{}),version:6170,projection:'globe',imerg:true,imergDate:C.imergDate,truth:'NASA_GPM_IMERG_NEAR_REALTIME_30_MIN_ABOUT_6H_DELAY',groundDrape:true,below3D:true,visibleThroughZoom:7.5,imergMaxNativeZoom:6,imergAnimated:true,imergFrameCadenceMs:4500,imergUpdateCadenceMs:30*60*1000,updatedAt:Date.now()};
  return window.__BP_GLOBAL_WEATHER_V5510__
 }
 function source(id,data){let s=C.map.getSource(id);if(!s){C.map.addSource(id,{type:'geojson',data});s=C.map.getSource(id)}else s.setData&&s.setData(data);return s}
