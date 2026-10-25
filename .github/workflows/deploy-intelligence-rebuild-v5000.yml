@@ -732,7 +732,7 @@ jobs:
           grep -Fq 'BP_SOURCE_WEATHER_CACHE_KEY_V6134' site/app.js
           grep -Fq 'restoreCachedLiveWeatherFirstFrameV6134' site/app.js
           ! grep -Fq 'if(window.__BP_CLOUDS_ONLY_PHASE_V6070__===true && m)' site/landing.js
-          grep -Fq 'landing.js?v=6187-us-opportunities-native-globe' site/index.html
+          grep -Fq 'landing.js?v=6188-us-opportunities-wide-us-globe' site/index.html
           grep -Fq 'async function toggleNasaNightlights()' site/world-v2300-time-slider.js
           grep -Fq 'async function toggleSkyClouds()' site/world-v2300-time-slider.js
           grep -Fq 'data-skyview' site/world-v2300-time-slider.js
@@ -934,7 +934,7 @@ jobs:
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/app.js
           grep -Fq 'activateLiveWeather();' site/app.js
           grep -Fq 'enabled:true,serializedWeather:true' site/app.js
-          grep -Fq 'app.js?v=6187-us-opportunities-native-globe' site/app/index.html
+          grep -Fq 'app.js?v=6188-us-opportunities-wide-us-globe' site/app/index.html
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/landing.js
           grep -Fq 'WMO_CAP_WARNING' site/app.js
           grep -Fq 'WMO_CAP_WARNING' site/landing.js
@@ -1165,8 +1165,8 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=6187-us-opportunities-native-globe' site/app/index.html
-          grep -Fq 'landing.js?v=6187-us-opportunities-native-globe' site/index.html
+          grep -Fq 'app.js?v=6188-us-opportunities-wide-us-globe' site/app/index.html
+          grep -Fq 'landing.js?v=6188-us-opportunities-wide-us-globe' site/index.html
            grep -Fq 'world-v2300-map.js?v=6186-us-opportunities-globe-clipped' site/app.js
            grep -Fq 'world-v2300-map.js?v=6186-us-opportunities-globe-clipped' site/landing.js
            grep -Fq 'world-v2300-map.js?v=6186-us-opportunities-globe-clipped' site/index.html
