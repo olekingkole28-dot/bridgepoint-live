@@ -1498,6 +1498,7 @@ jobs:
                   features:d.features||0,mainFeedAvailable:d.mainFeedAvailable??null,mainFeedFailed:d.mainFeedFailed??null,mainFeedSkippedAtGlobe:d.mainFeedSkippedAtGlobe??null,
                   globalUsOpportunityFeatures:d.globalUsOpportunityFeatures||0,globalUsRegionCount:d.globalUsRegionCount||0,
                   riskFeedAvailable:d.riskFeedAvailable??null,riskReviewFeatures:d.riskReviewFeatures||0,
+                  panamaRiskFeatureCount:(m?.__bpGlobalRiskFeedCacheV6186?.data?.geojson?.features||[]).filter(f=>String(f.properties?.country_code||'').toUpperCase()==='PA').length,
                   sourceCount,sourceReady:!!src,
                   layers:Object.fromEntries(['gta-opportunity-dot-fallback','gta-opportunity-dots','gta-opportunity-label','gta-opportunity-buildings'].map(id=>[id,{present:!!m?.getLayer(id),visible:visible(id),rendered:rendered(id)}])),
                   sprites:Object.fromEntries(['bp-opp-rain-dot','bp-opp-claims-dot','bp-opp-general-dot'].map(id=>[id,!!m?.hasImage?.(id)])),
@@ -1506,12 +1507,12 @@ jobs:
                 };
               });
               console.log('BRIDGEPOINT_GLOBAL_OPPORTUNITY_MARKERS_DIAGNOSTIC',JSON.stringify({...state,consoleErrors:errors.slice(-8)}));
-              if(!(state.zoom<3&&state.features>0&&state.riskFeedAvailable&&state.globalUsOpportunityFeatures>0&&state.globalUsRegionCount>=1&&state.domMarkers.active===true&&state.domMarkers.markerCount>0&&state.domMarkers.usFeatureCount>0&&state.domMarkers.nativeGlobeAnchored===true&&state.domMarkers.nativeLayerVisible===true&&state.domMarkerCount===0&&state.layers['gta-opportunity-dots'].visible))
+              if(!(state.zoom<3&&state.features>0&&state.riskFeedAvailable&&state.panamaRiskFeatureCount>0&&state.globalUsOpportunityFeatures>0&&state.globalUsRegionCount>=1&&state.domMarkers.active===true&&state.domMarkers.markerCount>0&&state.domMarkers.usFeatureCount>0&&state.domMarkers.nativeGlobeAnchored===true&&state.domMarkers.nativeLayerVisible===true&&state.domMarkerCount===0&&state.layers['gta-opportunity-dots'].visible))
                 throw new Error('GLOBAL_OPPORTUNITY_MARKERS_NOT_RENDERED '+JSON.stringify({...state,consoleErrors:errors.slice(-8)}));
               console.log('BRIDGEPOINT_GLOBAL_OPPORTUNITY_MARKERS_PASS');
               const beforeSpin=await p.evaluate(()=>Number(window.__BP_GLOBAL_OPPORTUNITY_DOM_MARKERS_V6186__?.updatedAt||0));
-              await p.evaluate(()=>{const m=window.__BP_LANDING_WORLD__?.map;m?.stop?.();m?.jumpTo({center:[-76.5239,3.4084],zoom:1.5,pitch:0,bearing:0})});
-              await p.waitForFunction(t=>{const m=window.__BP_LANDING_WORLD__?.map;return !!m&&Math.abs(m.getCenter().lng-(-76.5239))<3&&Number(window.__BP_GLOBAL_OPPORTUNITY_DOM_MARKERS_V6186__?.updatedAt||0)>t},{timeout:15000},beforeSpin);
+              await p.evaluate(()=>{const m=window.__BP_LANDING_WORLD__?.map;m?.stop?.();m?.jumpTo({center:[-79.4832,9.0591],zoom:1.5,pitch:0,bearing:0})});
+              await p.waitForFunction(t=>{const m=window.__BP_LANDING_WORLD__?.map;return !!m&&Math.abs(m.getCenter().lng-(-79.4832))<3&&Math.abs(m.getCenter().lat-9.0591)<3&&Number(window.__BP_GLOBAL_OPPORTUNITY_DOM_MARKERS_V6186__?.updatedAt||0)>t},{timeout:15000},beforeSpin);
               await new Promise(r=>setTimeout(r,650));
               const spinState=await p.evaluate(()=>{
                 const m=window.__BP_LANDING_WORLD__?.map,diag=window.__BP_GLOBAL_OPPORTUNITY_DOM_MARKERS_V6186__||{};
@@ -1519,10 +1520,12 @@ jobs:
                 let rendered=[];try{if(ids.length)rendered=m.queryRenderedFeatures({layers:ids})||[]}catch(_){}
                 const invalidCoordinateCount=rendered.filter(f=>{const c=f.geometry?.coordinates;return !Array.isArray(c)||c.length<2||!Number.isFinite(Number(c[0]))||!Number.isFinite(Number(c[1]))||Number(c[0])< -180||Number(c[0])>180||Number(c[1])< -90||Number(c[1])>90}).length;
                 const riskSourceCount=Number(m?.__bpGlobalRiskFeedCacheV6186?.data?.geojson?.features?.length||0);
-                return{diag,domCount:document.querySelectorAll('.bp-global-opportunity-marker-v6186').length,visibleCount:rendered.length,offGlobeCount:document.querySelectorAll('.bp-global-opportunity-marker-v6186').length,invalidCoordinateCount,riskSourceCount,nativeLayerVisible:diag.nativeLayerVisible===true,center:m?.getCenter?.().toArray?.(),cacheAvailable:!!m?.__bpGlobalRiskFeedCacheV6186?.data,usCacheAvailable:!!m?.__bpGlobalUsOpportunityCacheV6186?.features?.length};
+                const panamaCacheCount=(m?.__bpGlobalRiskFeedCacheV6186?.data?.geojson?.features||[]).filter(f=>String(f.properties?.country_code||'').toUpperCase()==='PA').length;
+                const panamaRenderedCount=rendered.filter(f=>{const c=f.geometry?.coordinates||[];return Number(c[0])>=-82&&Number(c[0])<=-77&&Number(c[1])>=6&&Number(c[1])<=12&&f.properties?.global_risk_review===true}).length;
+                return{diag,panamaCacheCount,panamaRenderedCount,domCount:document.querySelectorAll('.bp-global-opportunity-marker-v6186').length,visibleCount:rendered.length,offGlobeCount:document.querySelectorAll('.bp-global-opportunity-marker-v6186').length,invalidCoordinateCount,riskSourceCount,nativeLayerVisible:diag.nativeLayerVisible===true,center:m?.getCenter?.().toArray?.(),cacheAvailable:!!m?.__bpGlobalRiskFeedCacheV6186?.data,usCacheAvailable:!!m?.__bpGlobalUsOpportunityCacheV6186?.features?.length};
               });
               console.log('BRIDGEPOINT_GLOBE_MARKER_HEMISPHERE_DIAGNOSTIC',JSON.stringify(spinState));
-              if(!(spinState.diag.markerCount>0&&spinState.domCount===0&&spinState.visibleCount>0&&spinState.offGlobeCount===0&&spinState.invalidCoordinateCount===0&&spinState.riskSourceCount>0&&spinState.nativeLayerVisible&&spinState.cacheAvailable&&spinState.usCacheAvailable&&spinState.diag.usFeatureCount>0))
+              if(!(spinState.diag.markerCount>0&&spinState.domCount===0&&spinState.visibleCount>0&&spinState.offGlobeCount===0&&spinState.invalidCoordinateCount===0&&spinState.riskSourceCount>0&&spinState.panamaCacheCount>0&&spinState.panamaRenderedCount>0&&spinState.nativeLayerVisible&&spinState.cacheAvailable&&spinState.usCacheAvailable&&spinState.diag.usFeatureCount>0))
                 throw new Error('GLOBAL_OPPORTUNITY_NATIVE_GLOBE_CLIP_FAILED '+JSON.stringify(spinState));
               console.log('BRIDGEPOINT_GLOBE_WORLDWIDE_OPPORTUNITY_CLIP_PASS');
             }finally{await browser.close()}
