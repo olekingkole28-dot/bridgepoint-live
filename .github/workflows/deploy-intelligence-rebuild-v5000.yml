@@ -747,7 +747,7 @@ jobs:
           grep -Fq 'BP_SOURCE_WEATHER_CACHE_KEY_V6134' site/app.js
           grep -Fq 'restoreCachedLiveWeatherFirstFrameV6134' site/app.js
           ! grep -Fq 'if(window.__BP_CLOUDS_ONLY_PHASE_V6070__===true && m)' site/landing.js
-          grep -Fq 'landing.js?v=6195-desktop-globe-flash-stability' site/index.html
+          grep -Fq 'landing.js?v=6196-desktop-cloud-motion-autoupdate' site/index.html
           grep -Fq 'async function toggleNasaNightlights()' site/world-v2300-time-slider.js
           grep -Fq 'async function toggleSkyClouds()' site/world-v2300-time-slider.js
           grep -Fq 'data-skyview' site/world-v2300-time-slider.js
@@ -856,10 +856,10 @@ jobs:
           grep -Fq '__BP_FULL_REFRESH_V5535__' site/refresh-v5535.js
           grep -Fq '__BP_FULL_REFRESH_V5548__' site/refresh-v5535.js
           grep -Fq 'deferred-active-use' site/refresh-v5535.js
-          grep -Fq 'bp-intelligence-v6195-desktop-globe-flash-stability' site/sw.js
+          grep -Fq 'bp-intelligence-v6196-desktop-cloud-motion-autoupdate' site/sw.js
           node --check site/app-update-v5820.js
-          grep -Fq '/app-update-v5820.js?v=6195-desktop-globe-flash-stability' site/index.html
-          grep -Fq '/app-update-v5820.js?v=6195-desktop-globe-flash-stability' site/app/index.html
+          grep -Fq '/app-update-v5820.js?v=6196-desktop-cloud-motion-autoupdate' site/index.html
+          grep -Fq '/app-update-v5820.js?v=6196-desktop-cloud-motion-autoupdate' site/app/index.html
           grep -Fq 'bridgepoint-intelligence-legacy-retire-v5820' site/app/flutter_service_worker.js
           grep -Fq 'migrated=legacy-intelligence-v5820' site/app/intelligence-launch/index.html
           grep -Fq "bridgepoint-horizon-v5820" site/app/horizon/sw.js
@@ -949,7 +949,7 @@ jobs:
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/app.js
           grep -Fq 'activateLiveWeather();' site/app.js
           grep -Fq 'enabled:true,serializedWeather:true' site/app.js
-          grep -Fq 'app.js?v=6195-desktop-globe-flash-stability' site/app/index.html
+          grep -Fq 'app.js?v=6196-desktop-cloud-motion-autoupdate' site/app/index.html
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/landing.js
           grep -Fq 'WMO_CAP_WARNING' site/app.js
           grep -Fq 'WMO_CAP_WARNING' site/landing.js
@@ -1180,8 +1180,8 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=6195-desktop-globe-flash-stability' site/app/index.html
-          grep -Fq 'landing.js?v=6195-desktop-globe-flash-stability' site/index.html
+          grep -Fq 'app.js?v=6196-desktop-cloud-motion-autoupdate' site/app/index.html
+          grep -Fq 'landing.js?v=6196-desktop-cloud-motion-autoupdate' site/index.html
            grep -Fq 'world-v2300-map.js?v=6186-us-opportunities-globe-clipped' site/app.js
            grep -Fq 'world-v2300-map.js?v=6186-us-opportunities-globe-clipped' site/landing.js
            grep -Fq 'world-v2300-map.js?v=6186-us-opportunities-globe-clipped' site/index.html
@@ -1375,8 +1375,8 @@ jobs:
               && grep -Fq 'bridgepoint_public_weather_bootstrap_v5512' /tmp/app.js \
               && grep -Fq 'const VERSION=1068' /tmp/language-selector-v5200.js \
               && grep -Fq 'BridgePointLanguage' /tmp/language-selector-v5200.js \
-              && grep -Fq "const V='bp-intelligence-v6195-desktop-globe-flash-stability'" /tmp/sw.js \
-              && grep -Fq 'BUILD=6195' /tmp/app-update-v5820.js \
+              && grep -Fq "const V='bp-intelligence-v6196-desktop-cloud-motion-autoupdate'" /tmp/sw.js \
+              && grep -Fq 'BUILD=6196' /tmp/app-update-v5820.js \
               && grep -Fq 'bridgepoint-intelligence-legacy-retire-v5820' /tmp/flutter-service-worker-retire.js \
               && grep -Fq 'migrated=legacy-intelligence-v5820' /tmp/legacy-intelligence-launch.html \
               && grep -Fq "bridgepoint-horizon-v5820" /tmp/horizon-sw.js \
