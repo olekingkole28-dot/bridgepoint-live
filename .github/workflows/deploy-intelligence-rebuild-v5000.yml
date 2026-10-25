@@ -1453,6 +1453,64 @@ jobs:
           grep -Fq 'current-map-entry.js' /tmp/discover.html
           echo BRIDGEPOINT_V5100_COMBINED_SURFACES_PASS
 
+      - name: Global opportunity marker rendering smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp
+          npm init -y >/dev/null 2>&1 || true
+          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core');
+          (async()=>{
+            const browser=await puppeteer.launch({
+              headless:true,executablePath:process.env.CHROME_PATH,protocolTimeout:90000,
+              args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader']
+            });
+            try{
+              const p=await browser.newPage();
+              p.setDefaultTimeout(20000);
+              await p.setViewport({width:1440,height:960,deviceScaleFactor:1});
+              const errors=[];
+              p.on('pageerror',e=>errors.push(String(e?.message||e)));
+              p.on('console',m=>{if(m.type()==='error'&&/opportunit|global risk|maplibre|image/i.test(m.text()))errors.push(m.text().slice(0,360))});
+              await p.goto('https://bridgepointintelligence.online/?opportunity-global-smoke='+Date.now(),{waitUntil:'domcontentloaded',timeout:45000});
+              await p.waitForFunction(()=>!!window.__BP_LANDING_WORLD__?.map,{timeout:75000});
+              const before=await p.evaluate(()=>Number(window.__BP_PUBLIC_OPPORTUNITY_STYLE_V6175__?.updatedAt||0));
+              await p.evaluate(()=>{
+                const m=window.__BP_LANDING_WORLD__?.map;
+                if(!m)throw new Error('LANDING_MAP_MISSING');
+                m.stop?.();m.jumpTo({center:[-98.5,39.5],zoom:1.5,pitch:0,bearing:0});
+              });
+              await p.waitForFunction(t=>{
+                const m=window.__BP_LANDING_WORLD__?.map,s=window.__BP_PUBLIC_OPPORTUNITY_STYLE_V6175__;
+                return !!m&&m.getZoom()<3&&Number(s?.updatedAt||0)>t;
+              },{timeout:35000},before);
+              await new Promise(r=>setTimeout(r,650));
+              const state=await p.evaluate(()=>{
+                const m=window.__BP_LANDING_WORLD__?.map,src=m?.getSource?.('bpOpportunities'),d=window.__BP_PUBLIC_OPPORTUNITY_STYLE_V6175__||{};
+                const visible=id=>!!m?.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none';
+                const rendered=id=>{try{return visible(id)?m.queryRenderedFeatures({layers:[id]}).length:0}catch{return -1}};
+                let sourceCount=0;try{sourceCount=m?.querySourceFeatures('bpOpportunities')?.length||0}catch(_){}
+                return{
+                  version:d.version||null,zoom:m?.getZoom?.(),center:m?.getCenter?.()?.toArray?.()||null,
+                  features:d.features||0,mainFeedAvailable:d.mainFeedAvailable??null,mainFeedFailed:d.mainFeedFailed??null,
+                  riskFeedAvailable:d.riskFeedAvailable??null,riskReviewFeatures:d.riskReviewFeatures||0,
+                  sourceCount,sourceReady:!!src,
+                  layers:Object.fromEntries(['gta-opportunity-dot-fallback','gta-opportunity-dots','gta-opportunity-label','gta-opportunity-buildings'].map(id=>[id,{present:!!m?.getLayer(id),visible:visible(id),rendered:rendered(id)}])),
+                  sprites:Object.fromEntries(['bp-opp-rain-dot','bp-opp-claims-dot','bp-opp-general-dot'].map(id=>[id,!!m?.hasImage?.(id)])),
+                  updatedAt:d.updatedAt||null
+                };
+              });
+              console.log('BRIDGEPOINT_GLOBAL_OPPORTUNITY_MARKERS_DIAGNOSTIC',JSON.stringify({...state,consoleErrors:errors.slice(-8)}));
+              if(!(state.zoom<3&&state.features>0&&state.layers['gta-opportunity-dot-fallback'].present&&state.layers['gta-opportunity-dot-fallback'].visible&&state.layers['gta-opportunity-dot-fallback'].rendered>0))
+                throw new Error('GLOBAL_OPPORTUNITY_MARKERS_NOT_RENDERED '+JSON.stringify({...state,consoleErrors:errors.slice(-8)}));
+              console.log('BRIDGEPOINT_GLOBAL_OPPORTUNITY_MARKERS_PASS');
+            }finally{await browser.close()}
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
+
       - name: Eiffel Tower anchor and duplicate-block smoke
         shell: bash
         run: |
