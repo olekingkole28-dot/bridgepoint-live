@@ -1,4 +1,4 @@
-(()=>{const BUILD=6165,CACHE_VERSION='6165-cloud-mask-visible-volume',CURRENT_SW='/sw.js?v='+CACHE_VERSION,CURRENT_CACHE='bp-intelligence-v6165-cloud-mask-visible-volume',RELOAD_KEY='bp-update-reload-'+BUILD;
+(()=>{const BUILD=6165,CACHE_VERSION='6165-satellite-volume-dense-cache',CURRENT_SW='/sw.js?v='+CACHE_VERSION,CURRENT_CACHE='bp-intelligence-v6165-satellite-volume-dense-cache',RELOAD_KEY='bp-update-reload-'+BUILD;
 let busy=false;
 const sameOrigin=u=>{try{return new URL(u,location.href).origin===location.origin}catch{return false}};
 const scopePath=s=>{try{return new URL(s).pathname}catch{return''}};
