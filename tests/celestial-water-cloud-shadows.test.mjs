@@ -191,9 +191,9 @@ test('new rain/lightning and global source markers stay separate from legacy eff
   assert.match(landing, /BP_SOURCE_WEATHER_CACHE_KEY_V6134/);
   assert.match(landing, /restoreLandingWeatherFirstFrameV6134/);
   assert.match(landing, /void startLandingNationalWeather\(world\)/);
-  assert.match(app, /'raster-opacity':\['interpolate',\['linear'\],\['zoom'\],0,\.50,1\.5,\.50,3,\.53,5,\.59,8,\.63,12,\.66,18,\.66/);
-  assert.match(landing, /'raster-opacity':\['interpolate',\['linear'\],\['zoom'\],0,\.50,1\.5,\.50,3,\.53,5,\.59,8,\.63,12,\.66,18,\.66/);
-  assert.match(globalWeather, /'raster-opacity':\['interpolate',\['linear'\],\['zoom'\],0,\.50,1\.5,\.48,3,\.40,4\.5,\.25,6,\.15,7,\.09,8,\.035,8\.5,0/);
+  assert.match(app, /'raster-opacity':\['interpolate',\['linear'\],\['zoom'\],0,\.76,1\.5,\.80,3,\.86,5,\.91,8,\.94,12,\.95,18,\.95/);
+  assert.match(landing, /'raster-opacity':\['interpolate',\['linear'\],\['zoom'\],0,\.76,1\.5,\.80,3,\.86,5,\.91,8,\.94,12,\.95,18,\.95/);
+  assert.match(globalWeather, /'raster-opacity':\['interpolate',\['linear'\],\['zoom'\],0,\.78,1\.5,\.80,3,\.76,4\.5,\.65,6,\.44,6\.3,\.24,6\.8,0/);
   assert.match(lightning, /export function initLightningLayer/);
   assert.match(lightning, /durationMs:3200/);
   assert.match(rain, /if \(!enabled \|\| !cells\.length \|\| zoom < RAIN_START_ZOOM \|\| document\.hidden\)/);
