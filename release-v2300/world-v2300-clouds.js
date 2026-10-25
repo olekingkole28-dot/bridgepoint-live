@@ -925,7 +925,7 @@ export function initSkyClouds(target) {
   let index32Supported = false;
   const CLOUD_VERTEX_LIMIT = MOBILE ? 145000 : 220000;
   const CLOUD_STORM_VERTEX_RESERVE = MOBILE ? 24000 : 32000;
-  let globalCloudGeometryCache = null;
+  let globalCloudGeometryCache = null, sourceHeightIndexCache = null;
   let geometryDirty = true, formationCount = 0, measuredCount = 0, funnelCount = 0, stormCount = 0;
   let heightSource = 'not connected', rendererError = null, vbo = null, ibo = null, glRef = null;
   let cloudHeightFeedPromise = null, cloudHeightFeedTimer = 0, cloudHeightFeedLastAttemptAt = 0;
@@ -1638,37 +1638,53 @@ export function initSkyClouds(target) {
     const satelliteMask = window.__BP_SATELLITE_CLOUD_MASK_V6150__ || window.__BP_SATELLITE_CLOUD_MASK_V6140__;
     // Measured values arrive from the separately refreshed NASA SatCORPS / NOAA GOES feed and any scene-native observations.
     // Image brightness is never decoded into a claimed physical altitude.
-    const sourceHeightSamples = collectHeightFeatures(windScene).map(sample => {
-      const lng = number(sample.lng, NaN), lat = number(sample.lat, NaN);
-      const topM = firstFinite(sample.cloud_top_height_m, sample.cloudTopHeightM);
-      const rawBaseM = firstFinite(sample.cloud_base_height_m, sample.cloudBaseHeightM);
-      if (![lng, lat, topM].every(Number.isFinite) || Math.abs(lat) > 85 || topM < 200 || topM > 23000) return null;
-      const heightReference = String(sample.height_reference || sample.heightReference || 'AGL').toUpperCase().includes('MSL') ? 'MSL' : 'AGL';
-      return {
-        lng: wrapLongitude(lng), lat, topM, heightReference,
-        baseM: Number.isFinite(rawBaseM) && rawBaseM >= 0 && rawBaseM < topM - 150 ? rawBaseM : null,
-        source: String(sample.source || sample.provenance || sample.provider || 'source cloud-top-height sample').slice(0, 180),
-        timestamp: String(sample.timestamp || sample.observation_time || sample.time || '')
-      };
-    }).filter(Boolean);
-    // A lightweight geographic index keeps height matching inexpensive on phones.
-    const heightBuckets = new Map(), heightLatCell = 0.75, heightLonCell = 1;
+    // Reuse the expensive spatial index during ordinary map redraws. Feed refreshes are
+    // keyed by their published signature; native scene samples are invalidated on weather events.
+    const heightFeedState = window.__BP_CLOUD_HEIGHT_FEED_V6162__;
+    const nativeHeightRows = windScene?.cloud_top_height_samples || windScene?.cloud_top_heights || windScene?.cloudHeightSamples || [];
+    const nativeHeightCount = Array.isArray(nativeHeightRows) ? nativeHeightRows.length :
+      Array.isArray(nativeHeightRows?.features) ? nativeHeightRows.features.length : 0;
+    const nativeHeightStamp = String(windScene?.generated_at || windScene?.updated_at || windScene?.updatedAt || windScene?.timestamp || '');
+    const heightIndexKey = [heightFeedState?.signature || '', heightFeedState?.samples?.length || 0, nativeHeightStamp, nativeHeightCount].join('|');
+    const heightLatCell = 0.75, heightLonCell = 1;
     const heightBucketXY = (lng, lat) => ({
       x: ((Math.floor((wrapLongitude(lng) + 180) / heightLonCell) % 360) + 360) % 360,
       y: Math.floor((clamp(lat, -89.999, 89.999) + 90) / heightLatCell)
     });
-    let sourceHeightHash = 2166136261;
-    for (const sample of sourceHeightSamples) {
-      const cell = heightBucketXY(sample.lng, sample.lat), key = cell.y + ':' + cell.x;
-      if (!heightBuckets.has(key)) heightBuckets.set(key, []);
-      heightBuckets.get(key).push(sample);
-      sourceHeightHash = Math.imul(sourceHeightHash ^ Math.round((sample.lng + 180) * 10000), 16777619);
-      sourceHeightHash = Math.imul(sourceHeightHash ^ Math.round((sample.lat + 90) * 10000), 16777619);
-      sourceHeightHash = Math.imul(sourceHeightHash ^ Math.round(sample.topM), 16777619);
-      sourceHeightHash = Math.imul(sourceHeightHash ^ Math.round(sample.baseM || 0), 16777619);
-      sourceHeightHash = Math.imul(sourceHeightHash ^ (sample.heightReference === 'MSL' ? 1 : 0), 16777619);
+    let sourceHeightSamples, heightBuckets, sourceHeightSignature;
+    if (sourceHeightIndexCache?.key === heightIndexKey) {
+      sourceHeightSamples = sourceHeightIndexCache.samples;
+      heightBuckets = sourceHeightIndexCache.buckets;
+      sourceHeightSignature = sourceHeightIndexCache.signature;
+    } else {
+      sourceHeightSamples = collectHeightFeatures(windScene).map(sample => {
+        const lng = number(sample.lng, NaN), lat = number(sample.lat, NaN);
+        const topM = firstFinite(sample.cloud_top_height_m, sample.cloudTopHeightM);
+        const rawBaseM = firstFinite(sample.cloud_base_height_m, sample.cloudBaseHeightM);
+        if (![lng, lat, topM].every(Number.isFinite) || Math.abs(lat) > 85 || topM < 200 || topM > 23000) return null;
+        const heightReference = String(sample.height_reference || sample.heightReference || 'AGL').toUpperCase().includes('MSL') ? 'MSL' : 'AGL';
+        return {
+          lng: wrapLongitude(lng), lat, topM, heightReference,
+          baseM: Number.isFinite(rawBaseM) && rawBaseM >= 0 && rawBaseM < topM - 150 ? rawBaseM : null,
+          source: String(sample.source || sample.provenance || sample.provider || 'source cloud-top-height sample').slice(0, 180),
+          timestamp: String(sample.timestamp || sample.observation_time || sample.time || '')
+        };
+      }).filter(Boolean);
+      heightBuckets = new Map();
+      let sourceHeightHash = 2166136261;
+      for (const sample of sourceHeightSamples) {
+        const cell = heightBucketXY(sample.lng, sample.lat), key = cell.y + ':' + cell.x;
+        if (!heightBuckets.has(key)) heightBuckets.set(key, []);
+        heightBuckets.get(key).push(sample);
+        sourceHeightHash = Math.imul(sourceHeightHash ^ Math.round((sample.lng + 180) * 10000), 16777619);
+        sourceHeightHash = Math.imul(sourceHeightHash ^ Math.round((sample.lat + 90) * 10000), 16777619);
+        sourceHeightHash = Math.imul(sourceHeightHash ^ Math.round(sample.topM), 16777619);
+        sourceHeightHash = Math.imul(sourceHeightHash ^ Math.round(sample.baseM || 0), 16777619);
+        sourceHeightHash = Math.imul(sourceHeightHash ^ (sample.heightReference === 'MSL' ? 1 : 0), 16777619);
+      }
+      sourceHeightSignature = sourceHeightSamples.length + ':' + (sourceHeightHash >>> 0);
+      sourceHeightIndexCache = {key:heightIndexKey,samples:sourceHeightSamples,buckets:heightBuckets,signature:sourceHeightSignature};
     }
-    const sourceHeightSignature = sourceHeightSamples.length + ':' + (sourceHeightHash >>> 0);
     const sourceHeightMatchRadiusM = MOBILE ? 90000 : 65000;
     const nearestSourceHeight = (lng, lat) => {
       if (!sourceHeightSamples.length) return null;
@@ -2621,6 +2637,7 @@ function scheduleGeometry(delay = 180) {
     // Refresh only the optional upper-air sample field when a new weather scene arrives.
     // Rebuild the global cloud buffers only when the height-resolved wind grid changes.
     if (!enabled || disposed) return;
+    sourceHeightIndexCache = null;
     windSampleScene = null; windSampleCache = [];
     const samples = collectHeightResolvedWindSamples(scene);
     const nextSignature = samples.length + ':' + samples.slice(0,8).map(x=>`${x.lng.toFixed(2)},${x.lat.toFixed(2)},${Math.round(x.altitude)},${Math.round(x.east*10)},${Math.round(x.north*10)},${x.timestamp||''}`).join('|');
