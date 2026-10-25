@@ -405,8 +405,8 @@ jobs:
           grep -Fq 'bridgepoint-rail-mesh-v5973.js?v=5980-visible-detail-rails' site/app/index.html
           grep -Fq 'MAPPED_GROUND_ROAD_ENDPOINT' site/world-v2300-map.js
           grep -Fq 'groundConnectedRamps' site/world-v2300-map.js
-          grep -Fq '6175-global-opportunity-markers' site/app.js
-          grep -Fq '6175-global-opportunity-markers' site/landing.js
+          grep -Fq '6176-global-opportunity-markers' site/app.js
+          grep -Fq '6176-global-opportunity-markers' site/landing.js
           grep -Fq 'OpenStreetMap feature centroid' site/bridgepoint-pyramids-v5945.js
           grep -Fq 'currentHeightM: 138.5' site/bridgepoint-pyramids-v5945.js
           grep -Fq 'currentHeightM: 136.4' site/bridgepoint-pyramids-v5945.js
@@ -732,7 +732,7 @@ jobs:
           grep -Fq 'BP_SOURCE_WEATHER_CACHE_KEY_V6134' site/app.js
           grep -Fq 'restoreCachedLiveWeatherFirstFrameV6134' site/app.js
           ! grep -Fq 'if(window.__BP_CLOUDS_ONLY_PHASE_V6070__===true && m)' site/landing.js
-          grep -Fq 'landing.js?v=6175-global-opportunity-markers' site/index.html
+          grep -Fq 'landing.js?v=6176-global-opportunity-markers' site/index.html
           grep -Fq 'async function toggleNasaNightlights()' site/world-v2300-time-slider.js
           grep -Fq 'async function toggleSkyClouds()' site/world-v2300-time-slider.js
           grep -Fq 'data-skyview' site/world-v2300-time-slider.js
@@ -893,8 +893,8 @@ jobs:
           grep -Fq 'app.js' site/app/index.html
           grep -Fq "world-v2300-map.js" site/app.js
           grep -Fq "world-v2300-map.js" site/landing.js
-          grep -Fq '__BP_APP_OPPORTUNITY_STYLE_V6175__' site/app.js
-          grep -Fq '__BP_PUBLIC_OPPORTUNITY_STYLE_V6175__' site/landing.js
+          grep -Fq '__BP_APP_OPPORTUNITY_STYLE_V6176__' site/app.js
+          grep -Fq '__BP_PUBLIC_OPPORTUNITY_STYLE_V6176__' site/landing.js
           grep -Fq 'bridgepoint_public_opportunity_summary_v5626' site/landing.js
           grep -Fq 'landingOpportunityStates' site/index.html
           grep -Fq 'ownerOpportunitySummary' site/app/index.html
@@ -934,7 +934,7 @@ jobs:
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/app.js
           grep -Fq 'activateLiveWeather();' site/app.js
           grep -Fq 'enabled:true,serializedWeather:true' site/app.js
-          grep -Fq 'app.js?v=6175-global-opportunity-markers' site/app/index.html
+          grep -Fq 'app.js?v=6176-global-opportunity-markers' site/app/index.html
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/landing.js
           grep -Fq 'WMO_CAP_WARNING' site/app.js
           grep -Fq 'WMO_CAP_WARNING' site/landing.js
@@ -1165,12 +1165,12 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=6175-global-opportunity-markers' site/app/index.html
-          grep -Fq 'landing.js?v=6175-global-opportunity-markers' site/index.html
-           grep -Fq 'world-v2300-map.js?v=6175-global-opportunity-markers' site/app.js
-           grep -Fq 'world-v2300-map.js?v=6175-global-opportunity-markers' site/landing.js
-           grep -Fq 'world-v2300-map.js?v=6175-global-opportunity-markers' site/index.html
-           grep -Fq 'world-v2300-map.js?v=6175-global-opportunity-markers' site/app/index.html
+          grep -Fq 'app.js?v=6176-global-opportunity-markers' site/app/index.html
+          grep -Fq 'landing.js?v=6176-global-opportunity-markers' site/index.html
+           grep -Fq 'world-v2300-map.js?v=6176-global-opportunity-markers' site/app.js
+           grep -Fq 'world-v2300-map.js?v=6176-global-opportunity-markers' site/landing.js
+           grep -Fq 'world-v2300-map.js?v=6176-global-opportunity-markers' site/index.html
+           grep -Fq 'world-v2300-map.js?v=6176-global-opportunity-markers' site/app/index.html
            grep -Fq 'world-v2300-lod-controls.js?v=6038-world-lod-range-apply' site/app.js
            grep -Fq 'world-v2300-lod-controls.js?v=6038-world-lod-range-apply' site/landing.js
            grep -Fq 'function activeWorldLodProfile()' site/world-v2300-map.js
@@ -1477,19 +1477,19 @@ jobs:
               p.on('console',m=>{if(m.type()==='error'&&/opportunit|global risk|maplibre|image/i.test(m.text()))errors.push(m.text().slice(0,360))});
               await p.goto('https://bridgepointintelligence.online/?opportunity-global-smoke='+Date.now(),{waitUntil:'domcontentloaded',timeout:45000});
               await p.waitForFunction(()=>!!window.__BP_LANDING_WORLD__?.map,{timeout:75000});
-              const before=await p.evaluate(()=>Number(window.__BP_PUBLIC_OPPORTUNITY_STYLE_V6175__?.updatedAt||0));
+              const before=await p.evaluate(()=>Number(window.__BP_PUBLIC_OPPORTUNITY_STYLE_V6176__?.updatedAt||0));
               await p.evaluate(()=>{
                 const m=window.__BP_LANDING_WORLD__?.map;
                 if(!m)throw new Error('LANDING_MAP_MISSING');
                 m.stop?.();m.jumpTo({center:[-98.5,39.5],zoom:1.5,pitch:0,bearing:0});
               });
               await p.waitForFunction(t=>{
-                const m=window.__BP_LANDING_WORLD__?.map,s=window.__BP_PUBLIC_OPPORTUNITY_STYLE_V6175__;
+                const m=window.__BP_LANDING_WORLD__?.map,s=window.__BP_PUBLIC_OPPORTUNITY_STYLE_V6176__;
                 return !!m&&m.getZoom()<3&&Number(s?.updatedAt||0)>t;
               },{timeout:35000},before);
               await new Promise(r=>setTimeout(r,650));
               const state=await p.evaluate(()=>{
-                const m=window.__BP_LANDING_WORLD__?.map,src=m?.getSource?.('bpOpportunities'),d=window.__BP_PUBLIC_OPPORTUNITY_STYLE_V6175__||{};
+                const m=window.__BP_LANDING_WORLD__?.map,src=m?.getSource?.('bpOpportunities'),d=window.__BP_PUBLIC_OPPORTUNITY_STYLE_V6176__||{};
                 const visible=id=>!!m?.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none';
                 const rendered=id=>{try{return visible(id)?m.queryRenderedFeatures({layers:[id]}).length:0}catch{return -1}};
                 let sourceCount=0;try{sourceCount=m?.querySourceFeatures('bpOpportunities')?.length||0}catch(_){}
