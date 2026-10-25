@@ -311,7 +311,7 @@ function bpIconImage(id){
 function installBridgePointIcons(map){
  if(!map)return;
  const keys=['roof','storm','fire','water','solar','development','investment','compliance','claims','restoration','construction','exposure','rain','wind','general'];
- const add=id=>{try{if(!map.hasImage(id))map.addImage(id,bpIconImage(id),{pixelRatio:2)}catch(e){console.warn('BridgePoint icon',id,e)}};
+ const add=id=>{try{if(!map.hasImage(id))map.addImage(id,bpIconImage(id),{pixelRatio:2})}catch(e){console.warn('BridgePoint icon',id,e)}};
  const ensure=()=>{
   try{if(map.isStyleLoaded?.()===false)return}catch(_){}
   let registered=0;
