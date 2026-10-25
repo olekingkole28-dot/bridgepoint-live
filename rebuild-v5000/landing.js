@@ -409,7 +409,7 @@ async function refreshLandingListings(world){
  try{
   const d=await rpc('bridgepoint_public_listings_viewport_v5906',{p_west:b.getWest(),p_south:b.getSouth(),p_east:b.getEast(),p_north:b.getNorth(),p_limit:limit},2600);
   if(seq!==landingListingSeq||m.isMoving?.())return false;
-  const geo=landingListingGeojson(d?.geojson);src.setData(geo);syncGlobalOpportunityDomMarkersV6178(m,geo.features,zoom);
+  const geo=landingListingGeojson(d?.geojson);src.setData(geo);
   window.__BP_LANDING_PUBLIC_LISTINGS_V5906__={source:d?.source_key||'UNKNOWN',status:d?.source_status||'UNKNOWN',features:geo.features.length,totalInLastSync:Number(d?.source_total_last_sync||0),sourceSnapshotLastEdit:d?.source_layer_last_edit||null,lastSync:d?.source_last_synced_at||null,zoomBand:z<2.5?'globe':z<5?'regional':z<9?'city':'local',updatedAt:Date.now()};
   return true
  }catch(e){console.warn('Landing public listing overlay',e);return false}
@@ -1076,7 +1076,7 @@ async function refreshLandingListings(world){
  try{
   const d=await rpc('bridgepoint_public_listings_viewport_v5906',{p_west:b.getWest(),p_south:b.getSouth(),p_east:b.getEast(),p_north:b.getNorth(),p_limit:limit},2600);
   if(seq!==landingListingSeq||m.isMoving?.())return false;
-  const geo=landingListingGeojson(d?.geojson);src.setData(geo);syncGlobalOpportunityDomMarkersV6178(m,geo.features,zoom);
+  const geo=landingListingGeojson(d?.geojson);src.setData(geo);
   window.__BP_LANDING_PUBLIC_LISTINGS_V5906__={source:d?.source_key||'UNKNOWN',status:d?.source_status||'UNKNOWN',features:geo.features.length,totalInLastSync:Number(d?.source_total_last_sync||0),sourceSnapshotLastEdit:d?.source_layer_last_edit||null,lastSync:d?.source_last_synced_at||null,zoomBand:z<2.5?'globe':z<5?'regional':z<9?'city':'local',updatedAt:Date.now()};
   return true
  }catch(e){console.warn('Landing public listing overlay',e);return false}
