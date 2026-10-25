@@ -318,7 +318,7 @@ function setLandingWeatherEnabled(world,on){
  if(!m)return Promise.resolve(false);
  const enable=async()=>{
   if(!landingWeatherModules){
-   const [wm,pm]=await Promise.all([import('./world-v2300-weather.js?v=6138-cloud-linked-lightning'),import('./world-v2300-present-weather.js?v=6134-legacy-fx-disabled')]);
+   const [wm,pm]=await Promise.all([import('./world-v2300-weather.js?v=6193-geographic-rain-lightning'),import('./world-v2300-present-weather.js?v=6134-legacy-fx-disabled')]);
    landingWeatherModules={weather:wm.initWeather(world.map),present:pm.initPresentWeather(world.map)}
   }
   if(!landingWeatherEnabled)return false;
@@ -1200,5 +1200,5 @@ function bind(){document.querySelectorAll('.auth-open').forEach(b=>b.onclick=()=
  try{window.__BP_LANDING_WORLD__?.map?.triggerRepaint?.()}catch(_){}
  window.__BP_LANDING_SOFT_REFRESH__={hardReload:false,lastAt:Date.now()}
 });
-if(!hashSession()){bind();bindMetricNavigation();bindWorldBackdrop();bindConversionPreview();watchCriticalCopy();hydrateLiveMetricSnapshot();headline();warmLandingWeatherFirstFrameV6134();initMap();setInterval(headline,60000);liveCountryCounters();setInterval(liveCountryCounters,30000);window.__BP_LIVE_COUNTER_LOOP_V5906__={intervalMs:30000,source:'bridgepoint_public_live_counters_v5902',updatedAt:Date.now()};globalCoverage();setInterval(globalCoverage,300000);opportunitySummary();setInterval(opportunitySummary,300000);packages();if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=6167-cloud-startup-performance',{updateViaCache:'none'}).catch(()=>{})}
+if(!hashSession()){bind();bindMetricNavigation();bindWorldBackdrop();bindConversionPreview();watchCriticalCopy();hydrateLiveMetricSnapshot();headline();warmLandingWeatherFirstFrameV6134();initMap();setInterval(headline,60000);liveCountryCounters();setInterval(liveCountryCounters,30000);window.__BP_LIVE_COUNTER_LOOP_V5906__={intervalMs:30000,source:'bridgepoint_public_live_counters_v5902',updatedAt:Date.now()};globalCoverage();setInterval(globalCoverage,300000);opportunitySummary();setInterval(opportunitySummary,300000);packages();if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=6193-global-weather-fx',{updateViaCache:'none'}).catch(()=>{})}
 // BP_V5441_DEPLOY_SYNC: compact national hazard dots; radar and boundaries unchanged.
