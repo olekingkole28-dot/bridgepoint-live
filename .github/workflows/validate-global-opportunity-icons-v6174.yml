@@ -48,6 +48,6 @@ jobs:
           grep -Fq "zoom<3?{p_west:-180,p_south:-85,p_east:180,p_north:85}" rebuild-v5000/landing.js
           grep -Fq "bridgepoint_public_global_risk_viewport_v6174" rebuild-v5000/app.js
           grep -Fq "bridgepoint_public_global_risk_viewport_v6174" rebuild-v5000/landing.js
-          grep -Fq "6190-global-opportunity-worldwide" rebuild-v5000/app-index.html
-          grep -Fq "6190-global-opportunity-worldwide" rebuild-v5000/index.html
+          grep -Fq "6191-global-opportunity-worldwide-panama" rebuild-v5000/app-index.html
+          grep -Fq "6191-global-opportunity-worldwide-panama" rebuild-v5000/index.html
           test -s supabase/migrations/20261025021507_global_risk_opportunity_viewport_v6174.sql
