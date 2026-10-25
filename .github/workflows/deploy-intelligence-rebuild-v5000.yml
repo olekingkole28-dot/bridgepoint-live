@@ -60,6 +60,9 @@ jobs:
           node --input-type=module --check < release-v2300/world-v2300-time-slider.js
           node --input-type=module --check < release-v2300/world-v2300-bootstrap.js
           node tests/celestial-water-cloud-shadows.test.mjs
+          grep -Fq "const dot=key.endsWith('-dot')" release-v2300/world-v2300-map.js
+          grep -Fq "id:'gta-opportunity-dots',type:'symbol',source:'bpOpportunities',minzoom:0,maxzoom:4.5" release-v2300/world-v2300-map.js
+          grep -Fq "'icon-allow-overlap':['step',['zoom'],true,6.5,false]" release-v2300/world-v2300-map.js
           grep -Fq "const VERSION = 6123;" release-v2300/world-v2300-water.js
           grep -Fq "resolvePitchDisplacementPolicy" release-v2300/world-v2300-water.js
           grep -Fq "uniform float u_pitchWaveScale;" release-v2300/world-v2300-water.js
