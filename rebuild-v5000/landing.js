@@ -353,6 +353,7 @@ function mergeLandingOpportunityGeojson(mainData,riskData){
 const BP_GLOBAL_OPP_GLYPHS_V6186={ROOF:'🏠',CLAIMS:'📋',RESTORATION:'🛠',CONSTRUCTION:'🏗',STORM:'🌪',FIRE:'🔥',WATER:'💧',RAIN:'🌧',WIND:'💨',EXPOSURE:'⚠',SOLAR:'☀',DEVELOPMENT:'🏗',INVESTMENT:'$',COMPLIANCE:'✓',GENERAL:'•'};
 const BP_GLOBAL_RISK_REGIONS_V6188=[
  {key:'PACIFIC_ALASKA',p_west:-180,p_south:45,p_east:-125,p_north:75},
+ {key:'PANAMA_FOCUSED',p_west:-80,p_south:7,p_east:-77,p_north:10.5},
  {key:'NORTH_AMERICA',p_west:-130,p_south:5,p_east:-50,p_north:60},
  {key:'CENTRAL_AMERICA',p_west:-120,p_south:-5,p_east:-55,p_north:35},
  {key:'SOUTH_AMERICA',p_west:-85,p_south:-60,p_east:-30,p_north:15},
