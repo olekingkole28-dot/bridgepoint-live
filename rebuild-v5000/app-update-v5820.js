@@ -1,4 +1,4 @@
-(()=>{const BUILD=6166,CACHE_VERSION='6166-height-sculpted-cloud-volumes',CURRENT_SW='/sw.js?v='+CACHE_VERSION,CURRENT_CACHE='bp-intelligence-v6166-height-sculpted-cloud-volumes',RELOAD_KEY='bp-update-reload-'+BUILD;
+(()=>{const BUILD=6167,CACHE_VERSION='6167-cloud-startup-performance',CURRENT_SW='/sw.js?v='+CACHE_VERSION,CURRENT_CACHE='bp-intelligence-v6167-cloud-startup-performance',RELOAD_KEY='bp-update-reload-'+BUILD;
 let busy=false;
 const sameOrigin=u=>{try{return new URL(u,location.href).origin===location.origin}catch{return false}};
 const scopePath=s=>{try{return new URL(s).pathname}catch{return''}};

@@ -882,8 +882,8 @@ export function initSkyClouds(target) {
       existingCloudController.state || null;
     // Cache-busted modules still share this global controller slot. Never silently
     // return a legacy controller whose geometry predates the requested cloud field.
-    if (Number(existingCloudController.version) >= 6166 &&
-        Number(existingState?.coverageVersion || existingState?.version) >= 6166) {
+    if (Number(existingCloudController.version) >= 6167 &&
+        Number(existingState?.coverageVersion || existingState?.version) >= 6167) {
       return existingCloudController;
     }
     try { existingCloudController.destroy?.(); } catch (error) {
@@ -925,7 +925,7 @@ export function initSkyClouds(target) {
   let index32Supported = false;
   const CLOUD_VERTEX_LIMIT = MOBILE ? 145000 : 220000;
   const CLOUD_STORM_VERTEX_RESERVE = MOBILE ? 24000 : 32000;
-  let globalCloudGeometryCache = null;
+  let globalCloudGeometryCache = null, sourceHeightIndexCache = null;
   let geometryDirty = true, formationCount = 0, measuredCount = 0, funnelCount = 0, stormCount = 0;
   let heightSource = 'not connected', rendererError = null, vbo = null, ibo = null, glRef = null;
   let cloudHeightFeedPromise = null, cloudHeightFeedTimer = 0, cloudHeightFeedLastAttemptAt = 0;
@@ -1330,7 +1330,7 @@ export function initSkyClouds(target) {
     const satelliteMaskUsable = Number(satelliteMask?.version)>=6150 && satelliteMask?.map===map && satelliteMaskAgeMs!=null && satelliteMaskAgeMs<3600000;
     const satelliteMaskStatus = satelliteMaskUsable ? 'fresh-observation-derived' : (window.__BP_GOES_CLOUD_CONTEXT_V6134__?.maskStatus || 'procedural-fallback');
     const state = {
-      version: 6166, map, enabled, visible: enabled && !document.hidden,
+      version: 6167, map, enabled, visible: enabled && !document.hidden,
       cloudShadowLayerAttached: !!map.getLayer?.(SHADOW_LAYER_ID), cloudShadowFeatureCount: shadowFeatureCount,
       cloudShadowUpdatedAt: shadowLastUpdateAt, cloudShadowHeightResolvedWindCount: shadowWindSourceCount,
       cloudShadowLayerError: shadowLayerError, weatherSceneGeneratedAt: getScene()?.generated_at || getScene()?.updated_at || null,
@@ -1338,7 +1338,7 @@ export function initSkyClouds(target) {
       renderer: 'shared MapLibre WebGL context; storms use world-anchored raymarched volume proxies',
       stormRenderingArchitecture: 'Earth-coordinate storm geometry in fixed metres, source-centre anchored, with shader-interpolated source-motion vectors and no zoom-driven storm-size boosts',
       stormVolumeProxyVertices, hurricaneVolumeProxyVertices, tornadoVolumeProxyVertices, hurricaneSurfaceCloudVertices, tornadoSurfaceMeshVertices, tornadoSurfaceVerticesSubmitted, postTropicalSurfaceCloudVertices, postTropicalStormCount, postTropicalCloudShieldRadiusKm, josephineHurricaneGeometryCount, josephineVisualEyeRadiusKm, josephineVisualShieldRadiusKm, sourceHurricaneVisualEyeRadiusKm, josephineSourceClassification: (()=>{const j=(Array.isArray(getScene()?.storms)?getScene().storms:[]).find(isJosephineCyclone);const p=j?.properties||j||{};return String(p.official_classification||p.classification||p.classificationCode||p.type||'unknown');})(), stormRaymarchStepBudget,
-      cloudFormations: formationCount, globalCloudFormations: globalCloudGeometryCache?.formationCount || 0, coverageVersion: 6166, globalStormMaskCount: globalCloudGeometryCache?.stormEyeMaskCount || 0, globalCloudLodBand: globalCloudGeometryCache?.cloudLodBand || 'unbuilt', globalStormLod, sourceStormCount, sourceTornadoAlertCount, modeledHurricaneVisualCount, modeledTornadoVisualCount, hurricaneSpiralRibbonVertices, stormVisualProvenance: (modeledHurricaneVisualCount || modeledTornadoVisualCount) ? 'modeled fallback cloud structures are visual examples, not source-backed live weather or alerts' : (sourceStormCount ? 'source-anchored storm bodies; tropical cyclones use eye/spiral geometry, post-tropical lows use asymmetric cloud shields except the Josephine-specific visual-compatibility override; official classification is preserved, no synthetic storm centres' : 'no source-backed storm record; synthetic storm fallbacks disabled'), globalMacroRadiusMinKm: globalCloudGeometryCache?.macroRadiusMinKm || 0, globalMacroRadiusMaxKm: globalCloudGeometryCache?.macroRadiusMaxKm || 0, globalThinLayerSlices: globalCloudGeometryCache?.thinLayerSlices || 0, globalThinLayerStacks: globalCloudGeometryCache?.thinLayerStacks || 0, globalSingleLayerSlices: globalCloudGeometryCache?.singleLayerSlices || 0, globalSingleLayerStacks: globalCloudGeometryCache?.singleLayerStacks || 0, hurricaneSpiralCloudCenters, hurricaneEyeWallCloudCenters, hurricaneEyeRadiusKm, hurricaneEyeRadiusSource, hurricaneCloudShieldRadiusKm, hurricaneVisualEyeRadiusKm, hurricaneVisualShieldRadiusKm, tornadoVisualHeightKm, tornadoVisualTopRadiusKm, tornadoVisualBoost, globalHeightResolvedWindPuffs: globalCloudGeometryCache?.heightResolvedWindPuffs || 0, globalModelledWindPuffs: globalCloudGeometryCache?.modelledWindPuffs || 0, localWindSourcePuffs, localWindModelledPuffs, globalMacroFormations: globalCloudGeometryCache?.macroFormationCount || 0, globalFineFormations: globalCloudGeometryCache?.fineFormationCount || 0, globalIsolatedFormations: globalCloudGeometryCache?.isolatedFormationCount || 0, globalThinLayerFormations: globalCloudGeometryCache?.thinLayerFormationCount || 0, globalCloudPuffs: globalCloudGeometryCache?.puffCount || 0, globalTerrainQuerySamples: terrainHeightKnownSamples, terrainRelativeCloudBases: terrainQueryAvailable, cloudMotion: (globalCloudGeometryCache?.heightResolvedWindPuffs || 0) > 0 ? 'Height-resolved source wind advects matched cloud puffs; modelled atmospheric flow fills unmatched locations' : 'Height/latitude-aware modelled atmospheric flow; no source-backed global upper-air wind grid is connected',
+      cloudFormations: formationCount, globalCloudFormations: globalCloudGeometryCache?.formationCount || 0, coverageVersion: 6167, globalStormMaskCount: globalCloudGeometryCache?.stormEyeMaskCount || 0, globalCloudLodBand: globalCloudGeometryCache?.cloudLodBand || 'unbuilt', globalStormLod, sourceStormCount, sourceTornadoAlertCount, modeledHurricaneVisualCount, modeledTornadoVisualCount, hurricaneSpiralRibbonVertices, stormVisualProvenance: (modeledHurricaneVisualCount || modeledTornadoVisualCount) ? 'modeled fallback cloud structures are visual examples, not source-backed live weather or alerts' : (sourceStormCount ? 'source-anchored storm bodies; tropical cyclones use eye/spiral geometry, post-tropical lows use asymmetric cloud shields except the Josephine-specific visual-compatibility override; official classification is preserved, no synthetic storm centres' : 'no source-backed storm record; synthetic storm fallbacks disabled'), globalMacroRadiusMinKm: globalCloudGeometryCache?.macroRadiusMinKm || 0, globalMacroRadiusMaxKm: globalCloudGeometryCache?.macroRadiusMaxKm || 0, globalThinLayerSlices: globalCloudGeometryCache?.thinLayerSlices || 0, globalThinLayerStacks: globalCloudGeometryCache?.thinLayerStacks || 0, globalSingleLayerSlices: globalCloudGeometryCache?.singleLayerSlices || 0, globalSingleLayerStacks: globalCloudGeometryCache?.singleLayerStacks || 0, hurricaneSpiralCloudCenters, hurricaneEyeWallCloudCenters, hurricaneEyeRadiusKm, hurricaneEyeRadiusSource, hurricaneCloudShieldRadiusKm, hurricaneVisualEyeRadiusKm, hurricaneVisualShieldRadiusKm, tornadoVisualHeightKm, tornadoVisualTopRadiusKm, tornadoVisualBoost, globalHeightResolvedWindPuffs: globalCloudGeometryCache?.heightResolvedWindPuffs || 0, globalModelledWindPuffs: globalCloudGeometryCache?.modelledWindPuffs || 0, localWindSourcePuffs, localWindModelledPuffs, globalMacroFormations: globalCloudGeometryCache?.macroFormationCount || 0, globalFineFormations: globalCloudGeometryCache?.fineFormationCount || 0, globalIsolatedFormations: globalCloudGeometryCache?.isolatedFormationCount || 0, globalThinLayerFormations: globalCloudGeometryCache?.thinLayerFormationCount || 0, globalCloudPuffs: globalCloudGeometryCache?.puffCount || 0, globalTerrainQuerySamples: terrainHeightKnownSamples, terrainRelativeCloudBases: terrainQueryAvailable, cloudMotion: (globalCloudGeometryCache?.heightResolvedWindPuffs || 0) > 0 ? 'Height-resolved source wind advects matched cloud puffs; modelled atmospheric flow fills unmatched locations' : 'Height/latitude-aware modelled atmospheric flow; no source-backed global upper-air wind grid is connected',
       stormMotionModel: 'Uses feed-provided motion where present; otherwise derives speed and heading from consecutive source fixes. No position interpolation is invented without track history.',
       projectionMode: 'MapLibre shaderData projectTileFor3D', projectionShaderVariants: programCache.size,
       projectionShaderVariantNames: Array.from(programCache.keys()),
@@ -1638,37 +1638,53 @@ export function initSkyClouds(target) {
     const satelliteMask = window.__BP_SATELLITE_CLOUD_MASK_V6150__ || window.__BP_SATELLITE_CLOUD_MASK_V6140__;
     // Measured values arrive from the separately refreshed NASA SatCORPS / NOAA GOES feed and any scene-native observations.
     // Image brightness is never decoded into a claimed physical altitude.
-    const sourceHeightSamples = collectHeightFeatures(windScene).map(sample => {
-      const lng = number(sample.lng, NaN), lat = number(sample.lat, NaN);
-      const topM = firstFinite(sample.cloud_top_height_m, sample.cloudTopHeightM);
-      const rawBaseM = firstFinite(sample.cloud_base_height_m, sample.cloudBaseHeightM);
-      if (![lng, lat, topM].every(Number.isFinite) || Math.abs(lat) > 85 || topM < 200 || topM > 23000) return null;
-      const heightReference = String(sample.height_reference || sample.heightReference || 'AGL').toUpperCase().includes('MSL') ? 'MSL' : 'AGL';
-      return {
-        lng: wrapLongitude(lng), lat, topM, heightReference,
-        baseM: Number.isFinite(rawBaseM) && rawBaseM >= 0 && rawBaseM < topM - 150 ? rawBaseM : null,
-        source: String(sample.source || sample.provenance || sample.provider || 'source cloud-top-height sample').slice(0, 180),
-        timestamp: String(sample.timestamp || sample.observation_time || sample.time || '')
-      };
-    }).filter(Boolean);
-    // A lightweight geographic index keeps height matching inexpensive on phones.
-    const heightBuckets = new Map(), heightLatCell = 0.75, heightLonCell = 1;
+    // Reuse the expensive spatial index during ordinary map redraws. Feed refreshes are
+    // keyed by their published signature; native scene samples are invalidated on weather events.
+    const heightFeedState = window.__BP_CLOUD_HEIGHT_FEED_V6162__;
+    const nativeHeightRows = windScene?.cloud_top_height_samples || windScene?.cloud_top_heights || windScene?.cloudHeightSamples || [];
+    const nativeHeightCount = Array.isArray(nativeHeightRows) ? nativeHeightRows.length :
+      Array.isArray(nativeHeightRows?.features) ? nativeHeightRows.features.length : 0;
+    const nativeHeightStamp = String(windScene?.generated_at || windScene?.updated_at || windScene?.updatedAt || windScene?.timestamp || '');
+    const heightIndexKey = [heightFeedState?.signature || '', heightFeedState?.samples?.length || 0, nativeHeightStamp, nativeHeightCount].join('|');
+    const heightLatCell = 0.75, heightLonCell = 1;
     const heightBucketXY = (lng, lat) => ({
       x: ((Math.floor((wrapLongitude(lng) + 180) / heightLonCell) % 360) + 360) % 360,
       y: Math.floor((clamp(lat, -89.999, 89.999) + 90) / heightLatCell)
     });
-    let sourceHeightHash = 2166136261;
-    for (const sample of sourceHeightSamples) {
-      const cell = heightBucketXY(sample.lng, sample.lat), key = cell.y + ':' + cell.x;
-      if (!heightBuckets.has(key)) heightBuckets.set(key, []);
-      heightBuckets.get(key).push(sample);
-      sourceHeightHash = Math.imul(sourceHeightHash ^ Math.round((sample.lng + 180) * 10000), 16777619);
-      sourceHeightHash = Math.imul(sourceHeightHash ^ Math.round((sample.lat + 90) * 10000), 16777619);
-      sourceHeightHash = Math.imul(sourceHeightHash ^ Math.round(sample.topM), 16777619);
-      sourceHeightHash = Math.imul(sourceHeightHash ^ Math.round(sample.baseM || 0), 16777619);
-      sourceHeightHash = Math.imul(sourceHeightHash ^ (sample.heightReference === 'MSL' ? 1 : 0), 16777619);
+    let sourceHeightSamples, heightBuckets, sourceHeightSignature;
+    if (sourceHeightIndexCache?.key === heightIndexKey) {
+      sourceHeightSamples = sourceHeightIndexCache.samples;
+      heightBuckets = sourceHeightIndexCache.buckets;
+      sourceHeightSignature = sourceHeightIndexCache.signature;
+    } else {
+      sourceHeightSamples = collectHeightFeatures(windScene).map(sample => {
+        const lng = number(sample.lng, NaN), lat = number(sample.lat, NaN);
+        const topM = firstFinite(sample.cloud_top_height_m, sample.cloudTopHeightM);
+        const rawBaseM = firstFinite(sample.cloud_base_height_m, sample.cloudBaseHeightM);
+        if (![lng, lat, topM].every(Number.isFinite) || Math.abs(lat) > 85 || topM < 200 || topM > 23000) return null;
+        const heightReference = String(sample.height_reference || sample.heightReference || 'AGL').toUpperCase().includes('MSL') ? 'MSL' : 'AGL';
+        return {
+          lng: wrapLongitude(lng), lat, topM, heightReference,
+          baseM: Number.isFinite(rawBaseM) && rawBaseM >= 0 && rawBaseM < topM - 150 ? rawBaseM : null,
+          source: String(sample.source || sample.provenance || sample.provider || 'source cloud-top-height sample').slice(0, 180),
+          timestamp: String(sample.timestamp || sample.observation_time || sample.time || '')
+        };
+      }).filter(Boolean);
+      heightBuckets = new Map();
+      let sourceHeightHash = 2166136261;
+      for (const sample of sourceHeightSamples) {
+        const cell = heightBucketXY(sample.lng, sample.lat), key = cell.y + ':' + cell.x;
+        if (!heightBuckets.has(key)) heightBuckets.set(key, []);
+        heightBuckets.get(key).push(sample);
+        sourceHeightHash = Math.imul(sourceHeightHash ^ Math.round((sample.lng + 180) * 10000), 16777619);
+        sourceHeightHash = Math.imul(sourceHeightHash ^ Math.round((sample.lat + 90) * 10000), 16777619);
+        sourceHeightHash = Math.imul(sourceHeightHash ^ Math.round(sample.topM), 16777619);
+        sourceHeightHash = Math.imul(sourceHeightHash ^ Math.round(sample.baseM || 0), 16777619);
+        sourceHeightHash = Math.imul(sourceHeightHash ^ (sample.heightReference === 'MSL' ? 1 : 0), 16777619);
+      }
+      sourceHeightSignature = sourceHeightSamples.length + ':' + (sourceHeightHash >>> 0);
+      sourceHeightIndexCache = {key:heightIndexKey,samples:sourceHeightSamples,buckets:heightBuckets,signature:sourceHeightSignature};
     }
-    const sourceHeightSignature = sourceHeightSamples.length + ':' + (sourceHeightHash >>> 0);
     const sourceHeightMatchRadiusM = MOBILE ? 90000 : 65000;
     const nearestSourceHeight = (lng, lat) => {
       if (!sourceHeightSamples.length) return null;
@@ -1750,11 +1766,11 @@ export function initSkyClouds(target) {
     const satelliteCloudAnchors = [];
     let sourceHeightMatchedCount = 0, sourceHeightModelledCount = 0;
     const maxGlobalCloudVertices = index32Supported ? CLOUD_VERTEX_LIMIT - CLOUD_STORM_VERTEX_RESERVE : 65400;
-    const satelliteMaxClouds = index32Supported ? (MOBILE ? 3000 : 4000) : (MOBILE ? 700 : 980);
+    const satelliteMaxClouds = index32Supported ? (MOBILE ? 1600 : 2800) : (MOBILE ? 480 : 760);
     // Modestly denser rounded meshes improve the silhouette without adding draw calls.
     // Keep part of the vertex budget for the persistent procedural field on lower-power GPUs.
-    const satellitePuffSlices = cloudLodBand === 'global' ? (MOBILE ? 6 : 7) : (MOBILE ? 6 : 8);
-    const satellitePuffStacks = cloudLodBand === 'global' ? 4 : (MOBILE ? 5 : 6);
+    const satellitePuffSlices = cloudLodBand === 'global' ? (MOBILE ? 5 : 6) : (MOBILE ? 5 : 7);
+    const satellitePuffStacks = cloudLodBand === 'global' ? (MOBILE ? 3 : 4) : (MOBILE ? 4 : 5);
     const satellitePuffVertexCount = (satellitePuffSlices + 1) * (satellitePuffStacks + 1);
     const satelliteVertexReserve = satelliteMaskReady ? Math.floor(satelliteMaxClouds * satellitePuffVertexCount * 0.72) : 0;
     let heightResolvedWindPuffs = 0, modelledWindPuffs = 0, globalPuffCount = 0;
@@ -1950,7 +1966,11 @@ export function initSkyClouds(target) {
       // This makes the measured field drive puff positions as well as their vertical size.
       const heightCandidates = [];
       if (sourceHeightSamples.length) {
-        for (let sampleIndex = 0; sampleIndex < sourceHeightSamples.length; sampleIndex++) {
+        // Keep all measurements in the spatial height index, but seed visible meshes from
+        // a bounded, even subset so startup never allocates/sorts 28k puff objects.
+        const maxDirectHeightCandidates = MOBILE ? 5200 : 9000;
+        const heightCandidateStride = Math.max(1, Math.ceil(sourceHeightSamples.length / maxDirectHeightCandidates));
+        for (let sampleIndex = 0; sampleIndex < sourceHeightSamples.length; sampleIndex += heightCandidateStride) {
           const sample = sourceHeightSamples[sampleIndex];
           if (Math.abs(sample.lat) > 84.5) continue;
           const idx = satelliteMaskIndexV6150(satelliteMask, sample.lng, sample.lat);
@@ -2016,11 +2036,11 @@ export function initSkyClouds(target) {
         if(!addGlobalPuff(q.lng,q.lat,altitude,rx,ry,vertical,tint,satellitePuffSlices,satellitePuffStacks,hash(q.col,q.row,1301),true,angle))return false;
         if(heightMatch)sourceHeightMatchedCount++;else sourceHeightModelledCount++;
         const record={lng:q.lng,lat:q.lat,p:q.p,radius,base,top};chosen.push(record);reserve(record);
-        satelliteCloudAnchors.push({lng:q.lng,lat:q.lat,radiusM:clamp(Math.max(rx,ry)*.82,25000,155000),cloudBaseAglM:base,cloudTopAglM:top,cloudBaseM:ground+base,cloudTopM:ground+top,probability:q.p,cloudType,source:q.heightSample ? 'NOAA GOES cloud-top-height sample colocated with current satellite cloud footprint' : 'NASA GIBS GOES/Himawari + EUMETSAT Meteosat satellite image-derived cloud location',cloudHeightSource:heightSourceLabel,cloudTopHeightSampleSource,cloudTopHeightSampleDistanceM:heightMatch?.distanceM ?? null,cloudTopHeightNeighborCount:heightMatch?.neighborCount || 0,geometryVersion:6166,cloudMaskGeneration:satelliteMaskGeneration});
+        satelliteCloudAnchors.push({lng:q.lng,lat:q.lat,radiusM:clamp(Math.max(rx,ry)*.82,25000,155000),cloudBaseAglM:base,cloudTopAglM:top,cloudBaseM:ground+base,cloudTopM:ground+top,probability:q.p,cloudType,source:q.heightSample ? 'NOAA GOES cloud-top-height sample colocated with current satellite cloud footprint' : 'NASA GIBS GOES/Himawari + EUMETSAT Meteosat satellite image-derived cloud location',cloudHeightSource:heightSourceLabel,cloudTopHeightSampleSource,cloudTopHeightSampleDistanceM:heightMatch?.distanceM ?? null,cloudTopHeightNeighborCount:heightMatch?.neighborCount || 0,geometryVersion:6167,cloudMaskGeneration:satelliteMaskGeneration});
         if(satelliteCloudAnchors.length%7===0&&shadowAnchors.length<(MOBILE?70:112)){const sh=makeGroundShadowAnchor(q.lng,q.lat,altitude,Math.max(rx,ry)*.72,'satellite-cloud',windScene);if(sh)shadowAnchors.push(sh)}
         return true;
       };
-      const sourceHeightAnchorBudget=Math.floor(satelliteMaxClouds*0.32);
+      const sourceHeightAnchorBudget=Math.floor(satelliteMaxClouds*0.25);
       for(const q of heightCandidates){
         if(chosen.length>=satelliteMaxClouds||sourceHeightDirectAnchorCount>=sourceHeightAnchorBudget)break;
         if(addSatellite(q))sourceHeightDirectAnchorCount++;
@@ -2617,6 +2637,7 @@ function scheduleGeometry(delay = 180) {
     // Refresh only the optional upper-air sample field when a new weather scene arrives.
     // Rebuild the global cloud buffers only when the height-resolved wind grid changes.
     if (!enabled || disposed) return;
+    sourceHeightIndexCache = null;
     windSampleScene = null; windSampleCache = [];
     const samples = collectHeightResolvedWindSamples(scene);
     const nextSignature = samples.length + ':' + samples.slice(0,8).map(x=>`${x.lng.toFixed(2)},${x.lat.toFixed(2)},${Math.round(x.altitude)},${Math.round(x.east*10)},${Math.round(x.north*10)},${x.timestamp||''}`).join('|');
@@ -2648,7 +2669,7 @@ function scheduleGeometry(delay = 180) {
   else map.once?.('load', addLayerIfReady);
 
   const api = {
-    version: 6166, map, overlay,
+    version: 6167, map, overlay,
     get enabled() { return enabled; },
     setEnabled, toggle,
     get state() { return window.__BP_SKY_CLOUDS_STATE_V6150__ || window.__BP_SKY_CLOUDS_STATE_V6140__ || window.__BP_SKY_CLOUDS_STATE_V6077__ || window.__BP_SKY_CLOUDS_STATE_V6076__ || window.__BP_SKY_CLOUDS_STATE_V6074__ || window.__BP_SKY_CLOUDS_STATE_V6073__ || window.__BP_SKY_CLOUDS_STATE_V6047__ || window.__BP_SKY_CLOUDS_STATE_V6046__ || window.__BP_SKY_CLOUDS_STATE_V6045__ || window.__BP_SKY_CLOUDS_STATE_V6031__ || window.__BP_SKY_CLOUDS_STATE_V6029__ || window.__BP_SKY_CLOUDS_STATE_V5908__ || null; },
