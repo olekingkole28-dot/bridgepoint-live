@@ -125,7 +125,7 @@ jobs:
           grep -Fq "sourceLevel !== null && sourceLevel >= -MAX_VALID_MARINE_SURFACE_OFFSET_M" release-v2300/world-v2300-water.js
           grep -Fq "clamp(0.22 + shimmer * 0.20, 0.22, 0.50)" release-v2300/world-v2300-water.js
           grep -Fq "world-v2300-water.js?v=6194-stable-water-low-cost" rebuild-v5000/app.js
-          grep -Fq "world-v2300-water.js?v=6124-solar-ocean-swell" rebuild-v5000/landing.js
+          grep -Fq "world-v2300-water.js?v=6194-stable-water-low-cost" rebuild-v5000/landing.js
           grep -Fq "paint(map,'gta-water','fill-opacity',sat?1:.97)" release-v2300/world-v2300-map.js
           grep -Fq "setBase('satellite')" release-v2300/world-v2300-map.js
           grep -Fq "gta-esri" release-v2300/world-v2300-map.js
