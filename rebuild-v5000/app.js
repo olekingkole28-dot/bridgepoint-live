@@ -143,7 +143,7 @@ async function bootMap(){
  while(!world?.map&&performance.now()-started<10000)await new Promise(r=>setTimeout(r,40));
  if(!world?.map)throw new Error('Map object readiness timeout');
   // The water engine shares this map's WebGL context and uses the live hydrology/weather scene.
-  void import('./world-v2300-water.js?v=6124-solar-ocean-swell').then(m=>{if(world?.map)window.__BP_WATER_ENGINE_APP_V6123__=m.initWaterEngine(world,{surface:'app'})}).catch(e=>console.warn('BridgePoint GPU water layer unavailable; native water remains enabled',e));
+  void import('./world-v2300-water.js?v=6194-stable-water-low-cost').then(m=>{if(world?.map)window.__BP_WATER_ENGINE_APP_V6123__=m.initWaterEngine(world,{surface:'app'})}).catch(e=>console.warn('BridgePoint GPU water layer unavailable; native water remains enabled',e));
   void import('./world-v2300-lod-controls.js?v=6038-world-lod-range-apply').then(m=>{window.__BP_LOD_CONTROL_APP_V6016__=m.initWorldLodControls(world,{surface:'app'})}).catch(e=>console.warn('BridgePoint LOD controls unavailable',e));
  window.__BP_PENDING_LANDMARK_MAP_V5940__=world.map;
  try{window.dispatchEvent(new CustomEvent('bp:world-map-ready-v5940',{detail:{map:world.map,source:'app'}}))}catch(_){}
@@ -1734,7 +1734,7 @@ async function start(){
  statusTimer=setInterval(()=>queueAfterMap('status-pulse',loadStatus),15000);
  tileTimer=setInterval(()=>queueAfterMap('tile-pulse',refreshTiles),BP_MOBILE?600000:300000);
  setTimeout(()=>queueAfterMap('tile-pulse',refreshTiles),BP_MOBILE?300000:120000);
- if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=6193-global-weather-fx',{updateViaCache:'none'}).catch(()=>{})
+ if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=6194-stable-water-low-cost',{updateViaCache:'none'}).catch(()=>{})
 }
 window.addEventListener('bridgepoint:softrefresh',()=>{
  try{queueAfterMap('status-pulse',loadStatus)}catch(_){}
