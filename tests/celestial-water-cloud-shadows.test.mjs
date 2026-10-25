@@ -179,6 +179,8 @@ test('global opportunity markers render category glyphs and merge source-backed 
   assert.doesNotMatch(landing, /const rows=\(base\.features\|\|\[\]\)\.map\(bpGlobalOpportunityPointFeatureV6186\)\.filter\(f=>f&&bpGlobalOpportunityIsUSCoordsV6187/);
   assert.match(app, /key:'NE_CT',p_west:-73\.5,p_south:41,p_east:-71\.5,p_north:42/);
   assert.match(landing, /key:'NE_CT',p_west:-73\.5,p_south:41,p_east:-71\.5,p_north:42/);
+  assert.match(app, /key:'PANAMA_FOCUSED',p_west:-80,p_south:7,p_east:-77,p_north:10\.5/);
+  assert.match(landing, /key:'PANAMA_FOCUSED',p_west:-80,p_south:7,p_east:-77,p_north:10\.5/);
   assert.match(app, /p_limit:mobile\?4:8/);
   assert.match(landing, /p_limit:mobile\?4:8/);
   assert.match(app, /features\.length\?300000:15000/);
