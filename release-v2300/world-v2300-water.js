@@ -2,7 +2,7 @@
 // Additive MapLibre custom layer: one shared map canvas/context, bounded source geometry,
 // GPU wave displacement, source-gated flood elevations, and view-aware mesh LOD.
 const VERSION = 6123;
-const SURFACE_RENDER_REVISION = 6124;
+const SURFACE_RENDER_REVISION = 6194;
 const LAYER_ID = 'bp-water-surface-gpu-v6123';
 const EARTH_CIRCUMFERENCE_M = 40075016.68557849;
 const RAD = Math.PI / 180;
@@ -747,6 +747,9 @@ export function initWaterEngine(mapOrWorld, options = {}) {
     flowSegmentsWithSourceVelocity: 0, flowSegmentsUsingVisualFallback: 0, maxSourceStreamVelocityMps: 0,
     flowVelocityDataPolicy: 'Explicit unit-labelled velocity fields are consumed as source speed; absent measurements use clearly marked visual-only class fallback.',
     geometryBuilds: 0, sourceWaterFeatures: 0, sourceLandFeatures: 0, sourceWaterwayFeatures: 0,
+    sourceGapCount: 0, sourceGapGeometryPreserved: 0, lastBuildDurationMs: 0, lastBuildStartedAt: 0,
+    lastBuildCompletedAt: 0, lastBuildReason: null, lastBuildSkippedReason: null,
+    buildDeferredDuringMotion: false,
     sourceFloodPolygonCount: 0, sourceWaterLevelCount: 0, absoluteWaterLevelCount: 0,
     sourceStormCount: 0, floodedLandCells: 0, rejectedWaterLevelSamples: 0,
     terrainSamples: 0, terrainMissing: 0, terrainRejectedSamples: 0,
@@ -769,11 +772,12 @@ export function initWaterEngine(mapOrWorld, options = {}) {
     surfaceDataBytes: 0, flowDataBytes: 0, lastSourceRefreshAt: 0,
     frameDelay() {
       const z = map.getZoom();
-      // Keep the moving water perceptible at orbit scale without forcing every device
-      // to render a desktop-rate loop.
-      if (low) return z < 3 ? 90 : 65;
-      if (mobile) return z < 3 ? 50 : 45;
-      return 33;
+      // Water repainting redraws the shared MapLibre canvas, not just this layer.
+      // Use a deliberately low cadence so a large globe/water surface cannot starve
+      // buildings, labels, clouds, and the browser's input/render pipeline.
+      if (low) return z < 3.5 ? 260 : z >= 12 ? 180 : 220;
+      if (mobile) return z < 3.5 ? 200 : z >= 12 ? 120 : 160;
+      return z < 3.5 ? 150 : z >= 12 ? 85 : 110;
     },
     syncScene(scene, mapRef) {
       const safeScene = scene && typeof scene === 'object' ? scene : {};
@@ -820,7 +824,8 @@ export function initWaterEngine(mapOrWorld, options = {}) {
     },
     get state() {
       return {
-        version: VERSION, installed: !!map.getLayer(LAYER_ID), enabled: this.enabled, active: this.active,
+        version: VERSION, surfaceRenderRevision: SURFACE_RENDER_REVISION,
+        installed: !!map.getLayer(LAYER_ID), enabled: this.enabled, active: this.active,
         contextReady: this.contextReady, sharedMapLibreCanvas: true, secondaryCanvases: 0,
         styleLoaded: (()=>{try{return !!map.isStyleLoaded?.()}catch(_){return false}})(),
         nativeWaterLayerPresent: (()=>{try{return !!map.getLayer('gta-water')}catch(_){return false}})(),
@@ -836,6 +841,11 @@ export function initWaterEngine(mapOrWorld, options = {}) {
         floodSurfaceTerrainPolicy: 'Require valid DEM terrain; reject missing or discontinuous flood-cell heights instead of falling back to zero.',
         inlandVertexCachePolicy: 'per-water-feature level; no shared kind-only grid-vertex height reuse',
         sourceWaterFeatures: this.sourceWaterFeatures, sourceLandFeatures: this.sourceLandFeatures,
+        sourceGapCount: this.sourceGapCount, sourceGapGeometryPreserved: this.sourceGapGeometryPreserved,
+        lastBuildDurationMs: this.lastBuildDurationMs, lastBuildStartedAt: this.lastBuildStartedAt,
+        lastBuildCompletedAt: this.lastBuildCompletedAt, lastBuildReason: this.lastBuildReason,
+        lastBuildSkippedReason: this.lastBuildSkippedReason,
+        buildDeferredDuringMotion: this.buildDeferredDuringMotion,
         sourceWaterwayFeatures: this.sourceWaterwayFeatures, waterPolygonCells: this.waterPolygonCells,
         oceanFallbackCells: this.oceanFallbackCells, flowSegments: this.flowSegments,
          flowSegmentsWithSourceVelocity: this.flowSegmentsWithSourceVelocity,
@@ -880,7 +890,7 @@ export function initWaterEngine(mapOrWorld, options = {}) {
       };
     }
   };
-  let buildTimer = 0, moving = false, layer = null, destroyed = false;
+  let buildTimer = 0, buildTimerReason = '', moving = false, layer = null, destroyed = false;
 
   function terrainHeight(lng, lat, cache, key) {
   if (cache && cache.has(key)) return cache.get(key);
@@ -1146,19 +1156,56 @@ function sceneLevelAt(scene, lng, lat) { return absoluteWaterLevelAt(scene, lng,
     }
     return count;
   }
-  function scheduleBuild(delay = 220) {
+  const MIN_BACKGROUND_BUILD_INTERVAL_MS = 4200;
+  const MIN_CAMERA_BUILD_INTERVAL_MS = 900;
+  function scheduleBuild(delay = 220, reason = 'background') {
     if (!api.active || destroyed) return;
-    if (buildTimer) clearTimeout(buildTimer);
+    if (moving) {
+      api.buildDeferredDuringMotion = true;
+      return;
+    }
+    const cameraPriority = reason === 'camera' || reason === 'resume' || reason === 'install-recovery';
+    // Keep the first pending build in a source-data burst. Repeated vector-tile events
+    // must not reset the timer or make the full terrain/mask pass run indefinitely.
+    if (buildTimer) {
+      if (cameraPriority && buildTimerReason !== 'camera' && buildTimerReason !== 'resume' &&
+          buildTimerReason !== 'install-recovery') {
+        clearTimeout(buildTimer);
+        buildTimer = 0;
+      } else return;
+    }
+    const interval = cameraPriority ? MIN_CAMERA_BUILD_INTERVAL_MS : MIN_BACKGROUND_BUILD_INTERVAL_MS;
+    const elapsed = api.lastBuildStartedAt ? Date.now() - api.lastBuildStartedAt : Infinity;
+    const wait = Math.max(0, Number(delay) || 0, Number.isFinite(elapsed) ? interval - elapsed : 0);
+    buildTimerReason = reason;
     buildTimer = window.setTimeout(() => {
       buildTimer = 0;
-      if (!moving && api.active && !destroyed) {
-        try { buildGeometry(); api.buildError = null; }
-        catch (error) {
-          api.buildError = String(error && error.message || error).slice(0, 220);
-          console.warn('BridgePoint GPU water geometry build deferred; native water remains enabled', error);
+      const buildReason = buildTimerReason || reason;
+      buildTimerReason = '';
+      if (!api.active || destroyed) return;
+      if (moving || map.isMoving?.()) {
+        api.buildDeferredDuringMotion = true;
+        return;
+      }
+      const previousBuildCount = api.geometryBuilds;
+      const startedAt = Date.now(), started = performance.now();
+      api.lastBuildStartedAt = startedAt;
+      api.buildDeferredDuringMotion = false;
+      try {
+        buildGeometry();
+        api.buildError = null;
+      } catch (error) {
+        api.buildError = String(error && error.message || error).slice(0, 220);
+        console.warn('BridgePoint GPU water geometry build deferred; native water remains enabled', error);
+      } finally {
+        api.lastBuildDurationMs = Math.round((performance.now() - started) * 10) / 10;
+        if (api.geometryBuilds > previousBuildCount) {
+          api.lastBuildCompletedAt = Date.now();
+          api.lastBuildReason = buildReason;
+          api.lastBuildSkippedReason = null;
         }
       }
-    }, delay);
+    }, wait);
   }
   function buildGeometry() {
     if (!api.enabled || !mapCanHostWater()) return;
@@ -1188,11 +1235,17 @@ function sceneLevelAt(scene, lng, lat) { return absoluteWaterLevelAt(scene, lng,
     const z = map.getZoom(), canvas = map.getCanvas();
     const width = Math.max(240, canvas.clientWidth || canvas.width || 800);
     const height = Math.max(240, canvas.clientHeight || canvas.height || 600);
-    let targetPx = api.low ? 28 : api.mobile ? 20 : 15;
-    if (z < 2.5) targetPx = Math.max(targetPx, 22);
-    if (z >= 12) targetPx = api.low ? 30 : api.mobile ? 21 : 12;
-    if (z > 15) targetPx = api.low ? 32 : api.mobile ? 24 : 10;
-    const maxCells = api.low ? 1050 : api.mobile ? 1800 : 5800;
+    const worldView = z < 3.5;
+    let targetPx = api.low ? 38 : api.mobile ? 32 : 27;
+    if (worldView) targetPx = Math.max(targetPx, 48);
+    if (z >= 12) targetPx = api.low ? 42 : api.mobile ? 36 : 30;
+    if (z > 15) targetPx = api.low ? 44 : api.mobile ? 38 : 32;
+    // The native vector water layer remains the full-detail fallback. The animated GPU
+    // overlay gets a much smaller mesh: ~90% fewer cells at globe zoom, ~75-80% fewer
+    // for a typical desktop viewport, and a hard cap on lower-powered computers.
+    const maxCells = worldView
+      ? (api.low ? 220 : api.mobile ? 320 : 520)
+      : (api.low ? 320 : api.mobile ? 560 : 1200);
     let nx = clamp(Math.ceil(width / targetPx), 16, 106);
     let ny = clamp(Math.ceil(height / targetPx), 12, 84);
     if (nx * ny > maxCells) {
@@ -1205,9 +1258,11 @@ function sceneLevelAt(scene, lng, lat) { return absoluteWaterLevelAt(scene, lng,
     api.waterGridStepWorld = Math.max(dx, dy);
     api.waterGridColumns = nx;
     api.waterGridRows = ny;
-    const waterFeatures = sourceFeatures(map, 'water', 850, bounds);
-    const landCoverFeatures = sourceFeatures(map, 'landcover', 900, bounds);
-    const landUseFeatures = sourceFeatures(map, 'landuse', 900, bounds);
+    const waterFeatureLimit = worldView ? 120 : z < 7.5 ? 260 : api.low ? 220 : api.mobile ? 340 : 560;
+    const landFeatureLimit = worldView ? 90 : api.low ? 150 : api.mobile ? 220 : 360;
+    const waterFeatures = sourceFeatures(map, 'water', waterFeatureLimit, bounds);
+    const landCoverFeatures = sourceFeatures(map, 'landcover', landFeatureLimit, bounds);
+    const landUseFeatures = sourceFeatures(map, 'landuse', landFeatureLimit, bounds);
     const hasLandMask = landCoverFeatures.length + landUseFeatures.length > 0;
     api.sourceWaterFeatures = waterFeatures.length;
     api.sourceLandFeatures = landCoverFeatures.length + landUseFeatures.length;
@@ -1216,24 +1271,39 @@ function sceneLevelAt(scene, lng, lat) { return absoluteWaterLevelAt(scene, lng,
     // The zero-alpha source-anchor layers below keep these vector layers requested even
     // when the selected basemap is satellite and native GTA fills are not visible.
     if (!waterFeatures.length && !hasLandMask) {
-      api.sourceWaterwayFeatures = 0;
-      api.waterPolygonCells = 0;
-      api.oceanFallbackCells = 0;
-      api.floodedLandCells = 0;
-      api.flowSegments = 0;
-      api.surfaceVertexCount = 0;
-      api.flowVertexCount = 0;
-      api.surfaceDataBytes = 0;
-      api.flowDataBytes = 0;
-      if (layer) layer.setGeometry([], []);
+      // Vector tiles can briefly report no rendered water/land features while the globe
+      // is streaming. Clearing the GPU buffers here made the entire water surface blink
+      // off and back on every time that happened. Preserve the last valid mesh until a
+      // replacement is actually buildable; the native map water remains underneath.
+      api.sourceGapCount++;
+      api.lastBuildSkippedReason = 'source-vector-tiles-temporarily-unavailable';
+      if (api.geometryBuilds > 0 && layer &&
+          (layer.surfaceVertexCount > 0 || layer.flowVertexCount > 0)) {
+        api.sourceGapGeometryPreserved++;
+      } else {
+        api.sourceWaterwayFeatures = 0;
+        api.waterPolygonCells = 0;
+        api.oceanFallbackCells = 0;
+        api.floodedLandCells = 0;
+        api.flowSegments = 0;
+        api.surfaceVertexCount = 0;
+        api.flowVertexCount = 0;
+        api.surfaceDataBytes = 0;
+        api.flowDataBytes = 0;
+        if (layer) layer.setGeometry([], []);
+      }
       return;
     }
+    api.lastBuildSkippedReason = null;
     const flowRaw = [];
-    if (z >= 5.5) {
+    // River ribbons add another terrain-mask and terrain-height pass; native waterways
+    // are enough until the camera is close enough for the animated ribbon to matter.
+    if (z >= 7.5) {
       try {
         const rows = map.querySourceFeatures('ofm', { sourceLayer: 'waterway' }) || [];
+        const flowLimit = worldView ? 0 : api.low ? 70 : api.mobile ? 120 : 220;
         for (const row of rows) {
-          if (flowRaw.length >= (api.low ? 120 : api.mobile ? 280 : 600)) break;
+          if (flowRaw.length >= flowLimit) break;
           if (lineParts(geometryOf(row)).some(line => line && line.length > 1)) flowRaw.push(row);
         }
       } catch (_) {}
@@ -1434,7 +1504,7 @@ function sceneLevelAt(scene, lng, lat) { return absoluteWaterLevelAt(scene, lng,
         else if (kind === 0) fallbackCells++;
       }
     }
-    const maxSegs = api.low ? 110 : api.mobile ? 240 : 580;
+    const maxSegs = api.low ? 28 : api.mobile ? 48 : 90;
     const flowCount = makeRibbon(flowFeatures, waterFeatures, bounds, flow, scene, terrainCache, maxSegs);
     if (layer) layer.setGeometry(surface, flow);
     api.waterPolygonCells = polygonCells;
@@ -1450,6 +1520,7 @@ function sceneLevelAt(scene, lng, lat) { return absoluteWaterLevelAt(scene, lng,
     api.sourceWaterwayFeatures = flowFeatures.length;
     api.geometryBuilds++;
     api.lastSourceRefreshAt = Date.now();
+    api.lastBuildSkippedReason = null;
     window.__BP_WATER_FIELD_V6123__ = {
       version: VERSION, map, buffers: api.buffers,
       get state() { return api.state; },
@@ -1486,7 +1557,7 @@ function sceneLevelAt(scene, lng, lat) { return absoluteWaterLevelAt(scene, lng,
   const onWeatherUpdated = () => {
     if (!api.active || destroyed) return;
     try { api.syncScene(currentScene(), map); } catch (_) {}
-    scheduleBuild(140);
+    scheduleBuild(800, 'weather');
     try { map.triggerRepaint(); } catch (_) {}
   };
   try { api.syncScene(currentScene(), map); } catch (_) {}
@@ -1494,18 +1565,26 @@ function sceneLevelAt(scene, lng, lat) { return absoluteWaterLevelAt(scene, lng,
   map.on('load', ensureInstalled);
   map.on('styledata', ensureInstalled);
   map.on('movestart', () => { moving = true; });
-  map.on('moveend', () => { moving = false; scheduleBuild(120); });
-  map.on('zoomend', () => scheduleBuild(120));
+  map.on('moveend', () => { moving = false; scheduleBuild(650, 'camera'); });
+  map.on('zoomend', () => scheduleBuild(650, 'camera'));
   map.on('sourcedata', event => {
-    if (event && event.sourceId === 'ofm' && event.sourceDataType === 'content') scheduleBuild(260);
+    if (event && event.sourceId === 'ofm' && event.sourceDataType === 'content') scheduleBuild(1000, 'source');
   });
-  map.on('idle', () => scheduleBuild(160));
+  // "idle" fires after batches of tiles settle. It is not a signal that water geometry
+  // needs rebuilding; installation recovery is cheap and mesh rebuilding is rate-limited.
+  map.on('idle', ensureInstalled);
   document.addEventListener('visibilitychange', () => {
     if (document.hidden && layer && layer.frameTimer) { clearTimeout(layer.frameTimer); layer.frameTimer = 0; }
-    else if (!document.hidden && api.enabled) { scheduleBuild(80); map.triggerRepaint(); }
+    else if (!document.hidden && api.enabled) { scheduleBuild(350, 'resume'); map.triggerRepaint(); }
   });
-  scheduleBuild(250);
-  for (const delay of [700, 1700, 3400]) window.setTimeout(() => { ensureInstalled(); scheduleBuild(0); }, delay);
+  scheduleBuild(500, 'initial');
+  // Retry installation if the style has not attached the custom layer; do not rerun the
+  // full terrain mesh at fixed 0.7s/1.7s/3.4s intervals once a valid mesh already exists.
+  for (const delay of [700, 1700, 3400]) window.setTimeout(() => {
+    ensureInstalled();
+    if (!map.getLayer(LAYER_ID) || !layer.gl) scheduleBuild(350, 'install-recovery');
+    else if (!api.geometryBuilds && api.waitingForVectorFeatures) scheduleBuild(650, 'source');
+  }, delay);
   window.__BP_WATER_ENGINE_V6123__ = api;
   window.__BP_WATER_FIELD_V6123__ = {
     version: VERSION, map, get buffers() { return api.buffers; },
