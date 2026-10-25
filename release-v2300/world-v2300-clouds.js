@@ -669,6 +669,57 @@ function satelliteMaskIndexV6150(mask,lng,lat){
  const y=clamp((Number(mask.maxLat)-lat)/Math.max(1,Number(mask.maxLat)-Number(mask.minLat)),0,.999999999)*h;
  return Math.floor(y)*w+Math.floor(x);
 }
+const SATELLITE_CLOUD_MASK_CACHE_KEY_V6150='bp-satellite-cloud-mask-v6150';
+function satelliteBytesToBase64V6150(bytes){
+ let binary='';
+ for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,i+0x8000));
+ return btoa(binary);
+}
+function satelliteBase64ToBytesV6150(value){
+ const binary=atob(String(value||'')),bytes=new Uint8Array(binary.length);
+ for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+ return bytes;
+}
+function restoreCachedSatelliteCloudMaskV6150(map){
+ if(!map)return false;
+ const active=window.__BP_SATELLITE_CLOUD_MASK_V6150__;
+ if(Number(active?.version)>=6150&&active.map===map)return true;
+ try{
+  const raw=window.localStorage?.getItem(SATELLITE_CLOUD_MASK_CACHE_KEY_V6150);
+  if(!raw)return false;
+  const cached=JSON.parse(raw),width=SATELLITE_CLOUD_MASK_V6150.width,height=SATELLITE_CLOUD_MASK_V6150.height,now=Date.now();
+  if(Number(cached?.version)!==6150||Number(cached.width)!==width||Number(cached.height)!==height||
+     !Number.isFinite(Number(cached.updatedAt))||now-Number(cached.updatedAt)>3600000||now<Number(cached.updatedAt)-60000)return false;
+  const coverage=satelliteBase64ToBytesV6150(cached.coverage),probability=satelliteBase64ToBytesV6150(cached.probability);
+  if(coverage.length!==width*height||probability.length!==width*height||
+     Number(cached.coverageCells)<600||Number(cached.cloudCells)<20)return false;
+  const mask={...cached,map,width,height,minLng:-180,maxLng:180,minLat:-85,maxLat:85,coverage,probability,
+   coverageFraction:Number(cached.coverageFraction)||Number(cached.coverageCells)/(width*height),cacheRestored:true};
+  window.__BP_SATELLITE_CLOUD_MASK_V6150__=mask;window.__BP_SATELLITE_CLOUD_MASK_V6140__=mask;
+  window.__BP_SATELLITE_CLOUD_MASK_CACHE_V6150__={restored:true,updatedAt:mask.updatedAt,ageMs:now-mask.updatedAt,width,height};
+  return true;
+ }catch(error){
+  window.__BP_SATELLITE_CLOUD_MASK_CACHE_V6150__={restored:false,error:String(error?.message||error).slice(0,160)};
+  return false;
+ }
+}
+function persistSatelliteCloudMaskV6150(mask){
+ try{
+  if(!mask?.coverage||!mask?.probability)return false;
+  const record={version:6150,width:mask.width,height:mask.height,minLng:mask.minLng,maxLng:mask.maxLng,minLat:mask.minLat,maxLat:mask.maxLat,
+   coverageCells:mask.coverageCells,cloudCells:mask.cloudCells,coverageFraction:mask.coverageFraction,updatedAt:mask.updatedAt,
+   sourceEpoch:mask.sourceEpoch,generation:mask.generation,source:mask.source,sourceUrl:mask.sourceUrl,
+   sourceLayers:mask.sourceLayers,providerCount:mask.providerCount,sourceDiagnostics:mask.sourceDiagnostics,
+   cloudProbabilityMethod:mask.cloudProbabilityMethod,cloudHeightSource:mask.cloudHeightSource,
+   coverage:satelliteBytesToBase64V6150(mask.coverage),probability:satelliteBytesToBase64V6150(mask.probability)};
+  window.localStorage?.setItem(SATELLITE_CLOUD_MASK_CACHE_KEY_V6150,JSON.stringify(record));
+  window.__BP_SATELLITE_CLOUD_MASK_CACHE_V6150__={restored:false,saved:true,updatedAt:mask.updatedAt,width:mask.width,height:mask.height};
+  return true;
+ }catch(error){
+  window.__BP_SATELLITE_CLOUD_MASK_CACHE_V6150__={restored:false,saved:false,error:String(error?.message||error).slice(0,160)};
+  return false;
+ }
+}
 function satelliteMaskCellCenterV6150(mask,col,row){
  return {lng:Number(mask.minLng)+(col+.5)/Number(mask.width)*(Number(mask.maxLng)-Number(mask.minLng)),
   lat:Number(mask.maxLat)-(row+.5)/Number(mask.height)*(Number(mask.maxLat)-Number(mask.minLat))};
@@ -716,6 +767,7 @@ function eumetsatGeoColorTilesV6150(){
 }
 function ensureLiveSatelliteCloudContextV6150(map){
  if(!map?.addSource||!map?.getLayer)return false;
+ if(!map.__bpSatelliteMaskCacheHydratedV6150){map.__bpSatelliteMaskCacheHydratedV6150=true;restoreCachedSatelliteCloudMaskV6150(map);}
  const ready=map.isStyleLoaded?.()!==false;
  if(!ready&&!map.__bpSatelliteCloudStyleWaiterV6150){
   map.__bpSatelliteCloudStyleWaiterV6150=true;
@@ -761,6 +813,7 @@ function ensureLiveSatelliteCloudContextV6150(map){
      cloudProbabilityMethod:'Satellite RGB/infrared-derived likelihood; not an official scientific cloud-mask product',
      cloudHeightSource:'Cloud bases, tops and morphology are modeled estimates; imagery does not provide measured per-cloud heights',lastError:null};
     window.__BP_SATELLITE_CLOUD_MASK_V6150__=mask;window.__BP_SATELLITE_CLOUD_MASK_V6140__=mask;
+    persistSatelliteCloudMaskV6150(mask);
     state.maskStatus='fresh';state.maskLastSuccessAt=mask.updatedAt;state.maskGeneration=mask.generation;state.maskCoverageCells=coverageCells;
     state.maskCloudCells=cloudCells;state.maskCoverageFraction=mask.coverageFraction;state.maskSourceEpoch=mask.sourceEpoch;state.maskSourceUpdatedAt=mask.updatedAt;state.maskGeneration=mask.generation;state.maskSourceDiagnostics=sourceDiagnostics;state.maskProviderCount=mask.providerCount;state.maskWarnings=failures;
     try{window.dispatchEvent(new CustomEvent('bp2300:satellite-cloud-mask-updated',{detail:{map,generation:mask.generation,coverageCells,cloudCells,coverageFraction:mask.coverageFraction,providers:mask.providerCount,updatedAt:mask.updatedAt}}))}catch(_){}
@@ -868,6 +921,9 @@ export function initSkyClouds(target) {
   let sourceHurricaneEyeRadiusValueFound = false;
   let localWindSourcePuffs = 0, localWindModelledPuffs = 0;
   let vertexData = new Float32Array(0), indexData = new Uint16Array(0);
+  let index32Supported = false;
+  const CLOUD_VERTEX_LIMIT = MOBILE ? 145000 : 220000;
+  const CLOUD_STORM_VERTEX_RESERVE = MOBILE ? 24000 : 32000;
   let globalCloudGeometryCache = null;
   let geometryDirty = true, formationCount = 0, measuredCount = 0, funnelCount = 0, stormCount = 0;
   let heightSource = 'not connected', rendererError = null, vbo = null, ibo = null, glRef = null;
@@ -1286,6 +1342,9 @@ export function initSkyClouds(target) {
       projectionMode: 'MapLibre shaderData projectTileFor3D', projectionShaderVariants: programCache.size,
       projectionShaderVariantNames: Array.from(programCache.keys()),
       persistentGlobalCloudField: true,
+      cloudIndexFormat: index32Supported ? 'uint32' : 'uint16',
+      cloudVertexBudget: index32Supported ? CLOUD_VERTEX_LIMIT - CLOUD_STORM_VERTEX_RESERVE : 65400,
+      satelliteCloudFormationBudget: globalCloudGeometryCache?.satelliteCloudAnchorCount || 0,
       globalCoverageModel: satelliteMaskUsable
         ? 'NASA/EUMETSAT satellite image-derived cloud positions inside observed footprints; image-derived likelihood is not an official cloud-mask product. Source-reported vertical samples are used only where they spatially match; remaining cloud volumes use explicitly modeled height and thickness estimates'
         : 'Procedural fallback remains active until a usable NOAA GOES East/West image-derived cloud mask is available; last successful mask is retained for diagnosis',
@@ -1426,6 +1485,9 @@ export function initSkyClouds(target) {
     id: LAYER_ID, type: 'custom', renderingMode: '3d',
     onAdd(_map, gl) {
       glRef = gl;
+      const priorIndex32Support=index32Supported;
+      index32Supported=typeof gl.createVertexArray==='function'||!!gl.getExtension?.('OES_element_index_uint');
+      if(index32Supported&&!priorIndex32Support)globalCloudGeometryCache=null;
       try {
         // The correct GPU program is compiled lazily for each MapLibre projection variant.
         vbo = gl.createBuffer(); ibo = gl.createBuffer();
@@ -1449,6 +1511,7 @@ export function initSkyClouds(target) {
         rendererError = String(error?.message || error).slice(0, 180); cleanupGpu(gl);
       }
       publishState();
+      if(index32Supported&&!priorIndex32Support&&enabled)scheduleGeometry(80);
     },
     render(gl, args) {
       if (!enabled || document.hidden || disposed || !vbo || !ibo || indexData.length < 3) return;
@@ -1505,11 +1568,13 @@ export function initSkyClouds(target) {
         gl.enable(gl.DEPTH_TEST); gl.enable(gl.BLEND);
         gl.blendEquationSeparate(gl.FUNC_ADD, gl.FUNC_ADD); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
         gl.disable(gl.CULL_FACE); gl.depthMask(false);
+        const indexType=indexData instanceof Uint32Array?gl.UNSIGNED_INT:gl.UNSIGNED_SHORT;
+        const indexBytes=indexData.BYTES_PER_ELEMENT||Uint16Array.BYTES_PER_ELEMENT;
         if(stormVolumeIndexCount>0&&stormVolumeIndexOffset>0){
-          gl.drawElements(gl.TRIANGLES,stormVolumeIndexOffset,gl.UNSIGNED_SHORT,0);
+          gl.drawElements(gl.TRIANGLES,stormVolumeIndexOffset,indexType,0);
           gl.depthMask(false);
-          gl.drawElements(gl.TRIANGLES,stormVolumeIndexCount,gl.UNSIGNED_SHORT,stormVolumeIndexOffset*Uint16Array.BYTES_PER_ELEMENT);
-        }else gl.drawElements(gl.TRIANGLES,indexData.length,gl.UNSIGNED_SHORT,0);
+          gl.drawElements(gl.TRIANGLES,stormVolumeIndexCount,indexType,stormVolumeIndexOffset*indexBytes);
+        }else gl.drawElements(gl.TRIANGLES,indexData.length,indexType,0);
         rendererError = null;
       } catch (error) {
         rendererError = String(error?.message || error).slice(0, 180); publishState();
@@ -1626,13 +1691,14 @@ export function initSkyClouds(target) {
       satelliteMask.coverage?.length===Number(satelliteMask.width)*Number(satelliteMask.height) &&
       satelliteMask.probability?.length===Number(satelliteMask.width)*Number(satelliteMask.height);
     const satelliteMaskGeneration = satelliteMaskReady ? Number(satelliteMask.generation)||0 : 0;
-    // Suppress fallback puffs only where the image-derived mask actually classifies cloud.
-    // Imagery coverage alone means "observed", not "cloudy"; treating every observed pixel as
-    // a cloud would delete the persistent large-scale 3D cloud field as soon as the mask arrives.
+    // Keep the procedural 3D field where satellite pixels indicate cloud until a selected
+    // satellite-derived volume actually represents that region. Suppress fallback only in
+    // high-confidence clear-sky pixels; otherwise a small capped anchor set would erase far
+    // more cloud geometry than it replaces when the mask refreshes.
     const satelliteCoverageAt = (lng,lat) => {
       if(!satelliteMaskReady)return false;
       const idx=satelliteMaskIndexV6150(satelliteMask,lng,lat);
-      return idx>=0 && Number(satelliteMask.coverage[idx])>=192 && Number(satelliteMask.probability[idx])>=72;
+      return idx>=0 && Number(satelliteMask.coverage[idx])>=192 && Number(satelliteMask.probability[idx])<=32;
     };
     const zoom = number(map.getZoom?.(), 10);
     const cloudLodBand = zoom <= 5.5 ? 'global' : zoom <= 8.5 ? 'regional' : 'local';
@@ -1656,15 +1722,18 @@ export function initSkyClouds(target) {
     const vertices = [], indices = [], macroCandidates = [], shadowAnchors = [];
     const satelliteCloudAnchors = [];
     let sourceHeightMatchedCount = 0, sourceHeightModelledCount = 0;
-    const satelliteMaxClouds = MOBILE ? 700 : 980;
-    const satellitePuffVertexCount = (MOBILE ? 7 : 9) * (MOBILE ? 5 : 6);
+    const maxGlobalCloudVertices = index32Supported ? CLOUD_VERTEX_LIMIT - CLOUD_STORM_VERTEX_RESERVE : 65400;
+    const satelliteMaxClouds = index32Supported ? (MOBILE ? 3000 : 4000) : (MOBILE ? 700 : 980);
+    const satellitePuffSlices = cloudLodBand === 'global' ? (MOBILE ? 4 : 5) : (MOBILE ? 5 : 6);
+    const satellitePuffStacks = cloudLodBand === 'global' ? (MOBILE ? 3 : 4) : (MOBILE ? 4 : 5);
+    const satellitePuffVertexCount = (satellitePuffSlices + 1) * (satellitePuffStacks + 1);
     const satelliteVertexReserve = satelliteMaskReady ? satelliteMaxClouds * satellitePuffVertexCount : 0;
     let heightResolvedWindPuffs = 0, modelledWindPuffs = 0, globalPuffCount = 0;
     const eyeMaskRadius=st=>cloudLodBand==='global'?Math.max(st.eyeRadiusM,90000):cloudLodBand==='regional'?Math.max(st.eyeRadiusM,45000):st.eyeRadiusM;
     const addGlobalPuff = (lng,lat,altitude,rx,ry,rz,tint,slices,stacks,seed,sourceDriven=false,shapeAngle=0) => {
       if(!sourceDriven && satelliteCoverageAt(lng,lat))return false;
       const requiredVertices=(slices+1)*(stacks+1);
-      const vertexLimit=sourceDriven?65400:Math.max(0,65400-satelliteVertexReserve);
+      const vertexLimit=sourceDriven?maxGlobalCloudVertices:Math.max(0,maxGlobalCloudVertices-satelliteVertexReserve);
       if(vertices.length/13+requiredVertices>vertexLimit)return false;
       let safeRx=rx,safeRy=ry;
       for(const storm of sourceCyclones){
@@ -1881,7 +1950,7 @@ export function initSkyClouds(target) {
           cloudTopHeightSampleSource = heightMatch.sample.source;
         }
         const angle=Math.atan2(q.below-q.above,q.right-q.left)+Math.PI/2+(h2-.5)*.65,altitude=ground+(base+top)*.5;
-        if(!addGlobalPuff(q.lng,q.lat,altitude,rx,ry,vertical,tint,MOBILE?6:8,MOBILE?4:5,hash(q.col,q.row,1301),true,angle))return false;
+        if(!addGlobalPuff(q.lng,q.lat,altitude,rx,ry,vertical,tint,satellitePuffSlices,satellitePuffStacks,hash(q.col,q.row,1301),true,angle))return false;
         if(heightMatch)sourceHeightMatchedCount++;else sourceHeightModelledCount++;
         const record={lng:q.lng,lat:q.lat,p:q.p,radius,base,top};chosen.push(record);reserve(record);
         satelliteCloudAnchors.push({lng:q.lng,lat:q.lat,radiusM:clamp(Math.max(rx,ry)*.82,25000,155000),cloudBaseAglM:base,cloudTopAglM:top,cloudBaseM:ground+base,cloudTopM:ground+top,probability:q.p,cloudType,source:'NASA GIBS GOES/Himawari + EUMETSAT Meteosat satellite image-derived cloud location',cloudHeightSource:heightSourceLabel,cloudTopHeightSampleSource,cloudTopHeightSampleDistanceM:heightMatch?.distanceM ?? null,geometryVersion:6160,cloudMaskGeneration:satelliteMaskGeneration});
@@ -1895,7 +1964,7 @@ export function initSkyClouds(target) {
     }
     globalCloudGeometryCache = {
       vertices: new Float32Array(vertices),
-      indices: new Uint16Array(indices),
+      indices: index32Supported ? new Uint32Array(indices) : new Uint16Array(indices),
       shadowAnchors,
       formationCount: globalPuffCount, stormSignature, stormEyeMaskCount: sourceCyclones.length, cloudLodBand,
       satelliteMaskGeneration, satelliteMaskUpdatedAt: satelliteMaskReady ? satelliteMask.updatedAt : null,
@@ -2351,22 +2420,23 @@ function generateGeometry() {
     };
     const globalVertexCount = Math.floor(global.vertices.length / 13);
     const requestedStormVertexCount = Math.floor(stormVolumeVertices.length/13);
-    const localVertexCount = Math.min(Math.floor(vertices.length / 13), Math.max(0,65530-globalVertexCount-requestedStormVertexCount));
+    const combinedVertexLimit = index32Supported ? CLOUD_VERTEX_LIMIT : 65530;
+    const localVertexCount = Math.min(Math.floor(vertices.length / 13), Math.max(0,combinedVertexLimit-globalVertexCount-requestedStormVertexCount));
     tornadoSurfaceVerticesSubmitted = tornadoSurfaceVertexRanges.reduce((total,r)=>total + Math.max(0,Math.min(r.end,localVertexCount)-r.start),0);
-    const stormVertexCount = Math.min(requestedStormVertexCount,Math.max(0,65530-globalVertexCount-localVertexCount));
+    const stormVertexCount = Math.min(requestedStormVertexCount,Math.max(0,combinedVertexLimit-globalVertexCount-localVertexCount));
     vertexData = new Float32Array(global.vertices.length + localVertexCount * 13 + stormVertexCount * 13);
     vertexData.set(global.vertices, 0);
     vertexData.set(vertices.slice(0, localVertexCount * 13), global.vertices.length);
     vertexData.set(stormVolumeVertices.slice(0,stormVertexCount*13),(globalVertexCount+localVertexCount)*13);
-    const mergedIndices = new Uint16Array(global.indices.length + indices.length + stormVolumeIndices.length);
+    const mergedIndices = index32Supported ? new Uint32Array(global.indices.length + indices.length + stormVolumeIndices.length) : new Uint16Array(global.indices.length + indices.length + stormVolumeIndices.length);
     mergedIndices.set(global.indices, 0);
     let mergedCount = global.indices.length;
     for (const index of indices) {
-      if (index < localVertexCount && globalVertexCount + index < 65530) mergedIndices[mergedCount++] = globalVertexCount + index;
+      if (index < localVertexCount && globalVertexCount + index < combinedVertexLimit) mergedIndices[mergedCount++] = globalVertexCount + index;
     }
     stormVolumeIndexOffset=mergedCount;
     const stormVertexOffset=globalVertexCount+localVertexCount;
-    for(const index of stormVolumeIndices){if(index<stormVertexCount&&stormVertexOffset+index<65530)mergedIndices[mergedCount++]=stormVertexOffset+index;}
+    for(const index of stormVolumeIndices){if(index<stormVertexCount&&stormVertexOffset+index<combinedVertexLimit)mergedIndices[mergedCount++]=stormVertexOffset+index;}
     stormVolumeIndexCount=mergedCount-stormVolumeIndexOffset;
     indexData = mergedIndices.slice(0,mergedCount);
     formationCount = global.formationCount + formations.length;
