@@ -232,6 +232,28 @@ test('new rain/lightning and global source markers stay separate from legacy eff
   assert.match(listingView, /listingOverlayOn=true/);
 });
 
+test('NOAA radar is bright, source-detailed, pinned below 3D structures and animated at every zoom', () => {
+  assert.match(app, /maxzoom:18,attribution:'NOAA\\/NWS radar reflectivity'/);
+  assert.match(app, /'raster-opacity':\\['interpolate',\\['linear'\\],\\['zoom'\\],0,\\.76/);
+  assert.match(app, /'raster-saturation':\\.95,'raster-contrast':\\.48/);
+  assert.match(app, /window\\.__BP_RADAR_TIMELINE_V6170__/);
+  assert.match(app, /animationAllZoom:true/);
+  assert.match(app, /radarRefreshTimer=setInterval/);
+  assert.match(landing, /window\\.__BP_LANDING_GROUND_RADAR_DRAPE_V6170__/);
+  assert.match(landing, /animationAllZoom:true/);
+  assert.match(landing, /maxzoom:18,attribution:'NOAA\\/NWS radar reflectivity'/);
+});
+
+test('NASA IMERG uses time-stamped half-hourly NRT data and stays within native global-scale detail', () => {
+  assert.match(globalWeather, /IMERG_Precipitation_Rate_30min_v7_NRT/);
+  assert.match(globalWeather, /NRT_HALF_HOURLY_6H_LATENCY_GUARD/);
+  assert.match(globalWeather, /imergAnimationTimer/);
+  assert.match(globalWeather, /imergRefreshTimer/);
+  assert.match(globalWeather, /30\\s*\\*\\s*60\\s*\\*\\s*1000/);
+  assert.match(globalWeather, /'raster-opacity':\\['interpolate',\\['linear'\\],\\['zoom'\\],0,\\.78/);
+  assert.match(globalWeather, /animationZoomMax:6\\.3/);
+});
+
 test('sky-view restoration returns to street with bounded cleanup waits', () => {
   assert.match(timeSlider, /async function restoreSkyStreetView\(restore\)/);
   assert.match(timeSlider, /waitSkyMapState\(\(\)=>map\.getPitch\(\)<90,1800,'safe pitch before projection restore'\)/);
@@ -249,9 +271,11 @@ test('public cyclone fallback is fetched concurrently with edge weather', () => 
 });
 
 
-test('website and app start on the same globe-first weather build', () => {
+test('website and app start on the same cache-busted globe-first weather build', () => {
   assert.match(landingHtml, /bp-globe-only-first-frame-v6137/);
   assert.match(appHtml, /bp-app-globe-only-first-frame-v6137/);
-  assert.ok(landingHtml.includes('landing.js?v=6167-cloud-startup-performance'));
-  assert.ok(appHtml.includes('app.js?v=6167-cloud-startup-performance'));
+  assert.ok(landingHtml.includes('landing.js?v=6170-ground-radar-motion'));
+  assert.ok(appHtml.includes('app.js?v=6170-ground-radar-motion'));
+  assert.ok(landingHtml.includes('intelligence-global-v5507.js?v=6170-imerg-nrt-timeline'));
+  assert.ok(appHtml.includes('intelligence-global-v5507.js?v=6170-imerg-nrt-timeline'));
 });
