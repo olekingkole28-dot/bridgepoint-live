@@ -141,12 +141,12 @@ test('entrypoints use fresh cache keys for updated map, water, clouds, weather a
   for (const source of [app, landing]) {
     assert.match(source, /world-v2300-map\.js\?v=6186-us-opportunities-globe-clipped/);
     assert.match(source, /world-v2300-water\.js\?v=6194-stable-water-low-cost/);
-    assert.match(source, /world-v2300-clouds\.js\?v=6167-cloud-startup-performance/);
+    assert.match(source, /world-v2300-clouds\.js\?v=6168-desktop-global-cloud-motion-stop/);
     assert.match(source, /world-v2300-weather\.js\?v=6195-desktop-globe-flash-stability/);
     assert.match(source, /world-v2300-time-slider\.js\?v=6167-cloud-startup-performance/);
   }
   assert.match(map, /world-v2300-space\.js\?v=6125-manual-globe-camera/);
-  assert.match(timeSlider, /world-v2300-clouds\.js\?v=6167-cloud-startup-performance/);
+  assert.match(timeSlider, /world-v2300-clouds\.js\?v=6168-desktop-global-cloud-motion-stop/);
   assert.match(bootstrap, /world-v2300-weather\.js\?v=6195-desktop-globe-flash-stability/);
   assert.match(appHtml, /app\.js\?v=6195-desktop-globe-flash-stability/);
   assert.match(landingHtml, /landing\.js\?v=6195-desktop-globe-flash-stability/);
