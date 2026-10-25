@@ -100,8 +100,8 @@ test('the 28k source height feed seeds rounded 3D cloud puffs and blends nearby 
   assert.match(clouds, /const heightCandidates = \[\]/);
   assert.match(clouds, /NOAA GOES cloud-top-height sample colocated with current satellite cloud footprint/);
   assert.match(clouds, /sourceHeightAnchorBudget=Math\.floor\(satelliteMaxClouds\*0\.25\)/);
-  assert.match(clouds, /maxDirectHeightCandidates = MOBILE \\? 5200 : 9000/);
-  assert.match(clouds, /sourceHeightIndexCache\\?\\.key === heightIndexKey/);
+  assert.match(clouds, /maxDirectHeightCandidates = MOBILE \? 5200 : 9000/);
+  assert.match(clouds, /sourceHeightIndexCache\?\.key === heightIndexKey/);
   assert.match(clouds, /sourceHeightIndexCache = null/);
   assert.match(clouds, /weighted nearby observations/);
   assert.match(clouds, /cloudTopHeightNeighborCount/);
