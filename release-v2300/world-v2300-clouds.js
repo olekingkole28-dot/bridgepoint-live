@@ -1931,7 +1931,7 @@ export function initSkyClouds(target) {
     // the procedural fallback above; only pixels classified as cloud produce 3D cloud volumes.
     // GeoColor provides location texture, not measured cloud-top height: vertical dimensions
     // below are explicit visualization estimates. New imagery replaces this field automatically.
-    let satelliteCandidateCount = 0;
+    let satelliteCandidateCount = 0, sourceHeightDirectAnchorCount = 0;
     if(satelliteMaskReady){
       const coverage=satelliteMask.coverage,probability=satelliteMask.probability,width=Number(satelliteMask.width),height=Number(satelliteMask.height);
       const pAt=(x,y)=>x<0||x>=width||y<0||y>=height?0:probability[y*width+x]/255,candidates=[];
@@ -2020,7 +2020,6 @@ export function initSkyClouds(target) {
         if(satelliteCloudAnchors.length%7===0&&shadowAnchors.length<(MOBILE?70:112)){const sh=makeGroundShadowAnchor(q.lng,q.lat,altitude,Math.max(rx,ry)*.72,'satellite-cloud',windScene);if(sh)shadowAnchors.push(sh)}
         return true;
       };
-      let sourceHeightDirectAnchorCount=0;
       const sourceHeightAnchorBudget=Math.floor(satelliteMaxClouds*0.32);
       for(const q of heightCandidates){
         if(chosen.length>=satelliteMaxClouds||sourceHeightDirectAnchorCount>=sourceHeightAnchorBudget)break;
