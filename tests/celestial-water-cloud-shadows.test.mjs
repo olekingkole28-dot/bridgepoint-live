@@ -91,6 +91,14 @@ test('clouds render as bright 3D volumes, not as a false-colour raster sheet', (
   assert.match(clouds, /setLayoutProperty\(EUMETSAT_CLOUD_LAYER_ID_V6150,'visibility','none'\)/);
   assert.match(clouds, /vec3\(0\.70,0\.76,0\.84\)/);
   assert.match(clouds, /version: 6167, map, overlay/);
+  assert.ok(clouds.includes('const desktopGlobalStatic = !MOBILE && number(map.getZoom?.(),0) <= 3.5;'), 'desktop global cloud shader must freeze across-globe motion');
+  assert.ok(clouds.includes('const cloudTime = desktopGlobalStatic ? 0 :'), 'desktop global cloud texture must not continuously morph');
+  assert.ok(clouds.includes('const motionTime = desktopGlobalStatic ? 0 :'), 'desktop global cloud puffs must not advect pole-to-pole');
+  assert.ok(clouds.includes('const stormMotionTime = desktopGlobalStatic ? 0 : getStormMotionTime();'), 'desktop global storm proxies must not drift');
+  assert.ok(clouds.includes('if (!desktopGlobalStatic && layerInstalled && !map.isMoving?.()) map.triggerRepaint?.();'), 'desktop global cloud layer must not force a shared-map repaint loop');
+  assert.ok(app.includes('world-v2300-clouds.js?v=6168-desktop-global-cloud-motion-stop'), 'app must use the cache-busted desktop-stability cloud module');
+  assert.ok(landing.includes('world-v2300-clouds.js?v=6168-desktop-global-cloud-motion-stop'), 'landing must use the cache-busted desktop-stability cloud module');
+  assert.ok(timeSlider.includes('world-v2300-clouds.js?v=6168-desktop-global-cloud-motion-stop'), 'time-slider cloud fallback must not import stale moving renderer');
   assert.match(clouds, /coverageVersion: 6167/);
   assert.match(clouds, /Number\(satelliteMask\.probability\[idx\]\)<=32/);
   assert.match(clouds, /const satelliteMaxClouds = index32Supported \? \(MOBILE \? 1600 : 2800\) : \(MOBILE \? 480 : 760\)/);
@@ -133,12 +141,13 @@ test('entrypoints use fresh cache keys for updated map, water, clouds, weather a
   for (const source of [app, landing]) {
     assert.match(source, /world-v2300-map\.js\?v=6186-us-opportunities-globe-clipped/);
     assert.match(source, /world-v2300-water\.js\?v=6194-stable-water-low-cost/);
-    assert.match(source, /world-v2300-clouds\.js\?v=6167-cloud-startup-performance/);
+    assert.match(source, /world-v2300-clouds\.js\?v=6168-desktop-global-cloud-motion-stop/);
     assert.match(source, /world-v2300-weather\.js\?v=6195-desktop-globe-flash-stability/);
     assert.match(source, /world-v2300-time-slider\.js\?v=6167-cloud-startup-performance/);
   }
+  assert.ok(appHtml.includes('world-v2300-clouds.js?v=6168-desktop-global-cloud-motion-stop'), 'app shell preload must not warm the stale moving cloud module');
   assert.match(map, /world-v2300-space\.js\?v=6125-manual-globe-camera/);
-  assert.match(timeSlider, /world-v2300-clouds\.js\?v=6167-cloud-startup-performance/);
+  assert.match(timeSlider, /world-v2300-clouds\.js\?v=6168-desktop-global-cloud-motion-stop/);
   assert.match(bootstrap, /world-v2300-weather\.js\?v=6195-desktop-globe-flash-stability/);
   assert.match(appHtml, /app\.js\?v=6195-desktop-globe-flash-stability/);
   assert.match(landingHtml, /landing\.js\?v=6195-desktop-globe-flash-stability/);

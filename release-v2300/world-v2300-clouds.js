@@ -1343,6 +1343,8 @@ export function initSkyClouds(target) {
       projectionMode: 'MapLibre shaderData projectTileFor3D', projectionShaderVariants: programCache.size,
       projectionShaderVariantNames: Array.from(programCache.keys()),
       persistentGlobalCloudField: true,
+      desktopGlobalCloudMotionPaused: !MOBILE && number(map.getZoom?.(),0) <= 3.5,
+      desktopGlobalCloudRepaintThrottled: !MOBILE && number(map.getZoom?.(),0) <= 3.5,
       cloudIndexFormat: index32Supported ? 'uint32' : 'uint16',
       cloudVertexBudget: index32Supported ? CLOUD_VERTEX_LIMIT - CLOUD_STORM_VERTEX_RESERVE : 65400,
       satelliteCloudFormationBudget: globalCloudGeometryCache?.satelliteCloudAnchorCount || 0,
@@ -1552,9 +1554,13 @@ export function initSkyClouds(target) {
         } else {
           gl.uniformMatrix4fv(info.uniforms.matrix, false, matrix);
         }
-        const cloudTime = (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000;
-        const motionTime = Math.max(0, (monotonicNow() - motionEpoch) / 1000);
-        const stormMotionTime = getStormMotionTime();
+        // The high-load global desktop globe was visibly streaking/flashing as world-space
+        // cloud advection and shader noise advanced. Keep all 3D formations, but freeze only
+        // their animation at globe LOD on desktop; mobile and closer zoom stay animated.
+        const desktopGlobalStatic = !MOBILE && number(map.getZoom?.(),0) <= 3.5;
+        const cloudTime = desktopGlobalStatic ? 0 : (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000;
+        const motionTime = desktopGlobalStatic ? 0 : Math.max(0, (monotonicNow() - motionEpoch) / 1000);
+        const stormMotionTime = desktopGlobalStatic ? 0 : getStormMotionTime();
         const cameraCenter=MC.fromLngLat(map.getCenter?.()||{lng:0,lat:0},0);
         const zoomNow=number(map.getZoom?.(),0),pitchRad=number(map.getPitch?.(),0)*Math.PI/180;
         const metresPerPixel=40075016.68557849/(512*Math.pow(2,zoomNow));
@@ -2551,14 +2557,15 @@ function scheduleGeometry(delay = 180) {
       // If another map subsystem replaces the style/layers, restore our custom cloud renderer.
       // This check is intentionally sparse so the always-on cloud field stays light on phones.
       const now = Date.now();
-      if (now - shadowLastUpdateAt >= 12000) refreshGroundShadows(true);
+      const desktopGlobalStatic = !MOBILE && number(map.getZoom?.(),0) <= 3.5;
+      if (!desktopGlobalStatic && now - shadowLastUpdateAt >= 12000) refreshGroundShadows(true);
       if (!map.getLayer?.(LAYER_ID) && now - lastLayerHealthCheckAt >= 1800) {
         lastLayerHealthCheckAt = now;
         layerRetryAttempts = 0;
         addLayerIfReady();
       }
       // Map gestures already drive frames. Avoid stacking extra cloud repaint requests while moving.
-      if (layerInstalled && !map.isMoving?.()) map.triggerRepaint?.();
+      if (!desktopGlobalStatic && layerInstalled && !map.isMoving?.()) map.triggerRepaint?.();
     }, MOBILE ? 450 : 300);
   }
   function stopAnimation() {
