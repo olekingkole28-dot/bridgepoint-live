@@ -130,7 +130,7 @@ test('entrypoints use fresh cache keys for updated map, water, clouds, weather a
   assert.match(timeSlider, /world-v2300-clouds\.js\?v=6167-cloud-startup-performance/);
   assert.match(bootstrap, /world-v2300-weather\.js\?v=6138-cloud-linked-lightning/);
   assert.match(appHtml, /app\.js\?v=6171-global-opportunity-markers/);
-  assert.match(landingHtml, /landing\.js\?v=6171-global-opportunity-markers/);
+  assert.match(landingHtml, /landing\.js\?v=6172-opportunities-first-load/);
   assert.match(appHtml, /intelligence-global-v5507\.js\?v=6170-imerg-nrt-timeline/);
   assert.match(landingHtml, /intelligence-global-v5507\.js\?v=6170-imerg-nrt-timeline/);
 });
