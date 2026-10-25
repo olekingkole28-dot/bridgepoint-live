@@ -1,0 +1,48 @@
+name: Validate global opportunity icons and risk feed
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'rebuild-v5000/**'
+      - 'release-v2300/**'
+      - 'supabase/migrations/**'
+      - 'tests/celestial-water-cloud-shadows.test.mjs'
+      - '.github/workflows/deploy-intelligence-rebuild-v5000.yml'
+      - '.github/workflows/validate-global-opportunity-icons-v6174.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-global-opportunity-icons-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Validate map renderer syntax
+        run: node --input-type=module --check < release-v2300/world-v2300-map.js
+      - name: Validate both map entrypoints
+        run: |
+          node --check rebuild-v5000/app.js
+          node --check rebuild-v5000/landing.js
+      - name: Run globe regression suite
+        run: node tests/celestial-water-cloud-shadows.test.mjs
+      - name: Require global icon and risk-feed wiring
+        run: |
+          grep -Fq "dot=rawKey.endsWith('-dot'),key=dot?rawKey.replace(/-dot$/,''):rawKey" release-v2300/world-v2300-map.js
+          grep -Fq "eagerOpportunityIcons:keys.length*2" release-v2300/world-v2300-map.js
+          grep -Fq "bridgepoint_public_global_risk_viewport_v6174" rebuild-v5000/app.js
+          grep -Fq "bridgepoint_public_global_risk_viewport_v6174" rebuild-v5000/landing.js
+          grep -Fq "6174-opportunity-icons-global-risk" rebuild-v5000/app-index.html
+          grep -Fq "6174-opportunity-icons-global-risk" rebuild-v5000/index.html
+          test -s supabase/migrations/20261025021507_global_risk_opportunity_viewport_v6174.sql
