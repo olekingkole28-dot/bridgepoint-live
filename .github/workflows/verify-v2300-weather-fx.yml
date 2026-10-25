@@ -269,6 +269,7 @@ jobs:
               assert(globalRainOut.glow&&globalRainOut.core,'geographic rain-cell LOD layers must be attached at globe zoom');
               assert(globalRainOut.glowVisibility==='visible'&&globalRainOut.coreVisibility==='visible','geographic rain-cell LOD layers must remain visible at globe zoom');
               assert(globalRainOut.state?.rainContextSourceAttached===true&&globalRainOut.state?.rainContextCount>0,'source-backed rain cells must populate the geographically anchored globe LOD');
+              assert(globalRainOut.state?.renderedStreaks>0&&globalRainOut.state?.globalLodDropsRendered>0,'falling geographic rain streaks must be visible at globe zoom, not only rain-cell dots');
               console.log('BRIDGEPOINT_GLOBAL_RAIN_LOD_PASS',JSON.stringify({zoom:globalRainOut.zoom,cells:globalRainOut.state?.rainContextCount,glow:globalRainOut.glow,core:globalRainOut.core}));
               assert.equal(modeledGlobalStorms.modeledHurricaneVisualCount,0,'empty live feed must not show a fabricated hurricane');
               assert.equal(modeledGlobalStorms.modeledTornadoVisualCount,0,'empty live feed must not show a fabricated tornado');
