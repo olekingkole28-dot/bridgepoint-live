@@ -120,7 +120,7 @@ test('cloud shadows update on the map and use available source winds', () => {
 
 test('entrypoints use fresh cache keys for updated map, water, clouds, weather and space', () => {
   for (const source of [app, landing]) {
-    assert.match(source, /world-v2300-map\.js\?v=6171-global-opportunity-markers/);
+    assert.match(source, /world-v2300-map\.js\?v=6174-opportunity-icons-global-risk/);
     assert.match(source, /world-v2300-water\.js\?v=6124-solar-ocean-swell/);
     assert.match(source, /world-v2300-clouds\.js\?v=6167-cloud-startup-performance/);
     assert.match(source, /world-v2300-weather\.js\?v=6138-cloud-linked-lightning/);
@@ -129,10 +129,22 @@ test('entrypoints use fresh cache keys for updated map, water, clouds, weather a
   assert.match(map, /world-v2300-space\.js\?v=6125-manual-globe-camera/);
   assert.match(timeSlider, /world-v2300-clouds\.js\?v=6167-cloud-startup-performance/);
   assert.match(bootstrap, /world-v2300-weather\.js\?v=6138-cloud-linked-lightning/);
-  assert.match(appHtml, /app\.js\?v=6171-global-opportunity-markers/);
-  assert.match(landingHtml, /landing\.js\?v=6172-opportunities-first-load/);
+  assert.match(appHtml, /app\.js\?v=6174-opportunity-icons-global-risk/);
+  assert.match(landingHtml, /landing\.js\?v=6174-opportunity-icons-global-risk/);
   assert.match(appHtml, /intelligence-global-v5507\.js\?v=6170-imerg-nrt-timeline/);
   assert.match(landingHtml, /intelligence-global-v5507\.js\?v=6170-imerg-nrt-timeline/);
+});
+
+test('global opportunity markers render category glyphs and merge source-backed risk reviews', () => {
+  assert.match(map, /rawKey=id\.replace\(\/\^bp-\(\?:opp\|poi\|listing\)-\//);
+  assert.match(map, /if\(dot\)x\.restore\(\)/);
+  assert.match(map, /eagerOpportunityIcons:keys\.length\*2/);
+  assert.match(map, /id:'gta-opportunity-dots',type:'symbol',source:'bpOpportunities',minzoom:0,maxzoom:4\.5/);
+  assert.match(map, /'EXPOSURE','bp-opp-exposure-dot'/);
+  assert.match(app, /bridgepoint_public_global_risk_viewport_v6174/);
+  assert.match(landing, /bridgepoint_public_global_risk_viewport_v6174/);
+  assert.match(app, /globalRiskReview/);
+  assert.match(landing, /not a current weather watch/);
 });
 
 test('both entrypoints perform a real 6167 service-worker cutover before stale startup survives', () => {
@@ -281,8 +293,8 @@ test('homepage opportunities load on first globe view and use the deployed publi
 test('website and app start on the same cache-busted globe-first weather build', () => {
   assert.match(landingHtml, /bp-globe-only-first-frame-v6137/);
   assert.match(appHtml, /bp-app-globe-only-first-frame-v6137/);
-  assert.ok(landingHtml.includes('landing.js?v=6172-opportunities-first-load'));
-  assert.ok(appHtml.includes('app.js?v=6171-global-opportunity-markers'));
+  assert.ok(landingHtml.includes('landing.js?v=6174-opportunity-icons-global-risk'));
+  assert.ok(appHtml.includes('app.js?v=6174-opportunity-icons-global-risk'));
   assert.ok(landingHtml.includes('intelligence-global-v5507.js?v=6170-imerg-nrt-timeline'));
   assert.ok(appHtml.includes('intelligence-global-v5507.js?v=6170-imerg-nrt-timeline'));
 });
