@@ -60,7 +60,11 @@ jobs:
           node --input-type=module --check < release-v2300/world-v2300-time-slider.js
           node --input-type=module --check < release-v2300/world-v2300-bootstrap.js
           node tests/celestial-water-cloud-shadows.test.mjs
-          grep -Fq "const dot=key.endsWith('-dot')" release-v2300/world-v2300-map.js
+          grep -Fq "dot=rawKey.endsWith('-dot'),key=dot?rawKey.replace(/-dot$/,''):rawKey" release-v2300/world-v2300-map.js
+          grep -Fq "eagerOpportunityIcons:keys.length*2" release-v2300/world-v2300-map.js
+          grep -Fq "bridgepoint_public_global_risk_viewport_v6174" rebuild-v5000/app.js
+          grep -Fq "bridgepoint_public_global_risk_viewport_v6174" rebuild-v5000/landing.js
+          test -s supabase/migrations/20261025021507_global_risk_opportunity_viewport_v6174.sql
           grep -Fq "id:'gta-opportunity-dots',type:'symbol',source:'bpOpportunities',minzoom:0,maxzoom:4.5" release-v2300/world-v2300-map.js
           grep -Fq "'icon-allow-overlap':['step',['zoom'],true,6.5,false]" release-v2300/world-v2300-map.js
           grep -Fq "const VERSION = 6123;" release-v2300/world-v2300-water.js
