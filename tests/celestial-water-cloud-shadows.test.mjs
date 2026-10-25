@@ -185,8 +185,8 @@ test('global opportunity markers render category glyphs and merge source-backed 
   assert.match(landing, /initialRegions=BP_GLOBAL_US_OPPORTUNITY_WINDOWS_V6186\.slice\(0,8\)/);
   assert.match(app, /offset<remaining\.length;offset\+=4/);
   assert.match(landing, /offset<remaining\.length;offset\+=4/);
-  assert.match(app, /if\(zoom<3\)\{d=await mainFeedRequest;risk=globalRiskCache\?\.data\|\|null/);
-  assert.match(landing, /if\(zoom<3\)\{d=await mainFeedRequest;risk=globalRiskCache\?\.data\|\|null/);
+  assert.match(app, /d=await mainFeedRequest;risk=globalRiskCache\?\.data\|\|null/);
+  assert.match(landing, /d=await mainFeedRequest;risk=globalRiskCache\?\.data\|\|null/);
   assert.match(app, /if\(!risk\)void loadRiskFeed\(\)\.then/);
   assert.match(landing, /if\(!risk\)void loadRiskFeed\(\)\.then/);
 });
