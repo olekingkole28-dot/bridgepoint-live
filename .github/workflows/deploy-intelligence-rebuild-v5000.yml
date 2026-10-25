@@ -1059,6 +1059,9 @@ jobs:
           grep -Fq 'bridgepoint_public_building_parts_v5000' site/app.js
           grep -Fq 'bridgepoint_public_foundation_sample_v5011' site/app.js
           grep -Fq 'bridgepoint_public_opportunity_viewport_v5907' site/app.js
+          grep -Fq "rpc('bridgepoint_public_opportunity_viewport_v5907'" site/landing.js
+          grep -Fq 'startLandingOpportunities(world)' site/landing.js
+          ! grep -Fq 'bridgepoint_public_opportunity_viewport_v5906' site/landing.js
           grep -Fq 'gta-place-label' site/world-v2300-map.js
           grep -Fq 'gta-road-label-major' site/world-v2300-map.js
           grep -Fq 'gta-poi-probe' site/world-v2300-map.js
