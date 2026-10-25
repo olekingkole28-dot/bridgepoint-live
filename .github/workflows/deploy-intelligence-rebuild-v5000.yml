@@ -1518,7 +1518,7 @@ jobs:
                 const ids=['gta-opportunity-dots','gta-opportunity-dot-fallback'].filter(id=>!!m?.getLayer?.(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none');
                 let rendered=[];try{if(ids.length)rendered=m.queryRenderedFeatures({layers:ids})||[]}catch(_){}
                 const invalidCoordinateCount=rendered.filter(f=>{const c=f.geometry?.coordinates;return !Array.isArray(c)||c.length<2||!Number.isFinite(Number(c[0]))||!Number.isFinite(Number(c[1]))||Number(c[0])< -180||Number(c[0])>180||Number(c[1])< -90||Number(c[1])>90}).length;
-                let riskSourceCount=0;try{riskSourceCount=(m?.querySourceFeatures('bpOpportunities')||[]).filter(f=>f.properties?.global_risk_review===true).length}catch(_){}
+                const riskSourceCount=Number(m?.__bpGlobalRiskFeedCacheV6186?.data?.geojson?.features?.length||0);
                 return{diag,domCount:document.querySelectorAll('.bp-global-opportunity-marker-v6186').length,visibleCount:rendered.length,offGlobeCount:document.querySelectorAll('.bp-global-opportunity-marker-v6186').length,invalidCoordinateCount,riskSourceCount,nativeLayerVisible:diag.nativeLayerVisible===true,center:m?.getCenter?.().toArray?.(),cacheAvailable:!!m?.__bpGlobalRiskFeedCacheV6186?.data,usCacheAvailable:!!m?.__bpGlobalUsOpportunityCacheV6186?.features?.length};
               });
               console.log('BRIDGEPOINT_GLOBE_MARKER_HEMISPHERE_DIAGNOSTIC',JSON.stringify(spinState));
