@@ -138,7 +138,7 @@ async function initSharedVisualWeather(targetWorld,{activate=true}={}){
  }catch(e){console.warn('BridgePoint shared visual weather',e);return null}
 }
 async function bootMap(){
- const mod=await import('./world-v2300-map.js?v=6175-global-opportunity-markers');world=mod.initWorld();window.__BP_V5000_WORLD=world;
+ const mod=await import('./world-v2300-map.js?v=6176-global-opportunity-markers');world=mod.initWorld();window.__BP_V5000_WORLD=world;
  const started=performance.now();
  while(!world?.map&&performance.now()-started<10000)await new Promise(r=>setTimeout(r,40));
  if(!world?.map)throw new Error('Map object readiness timeout');
@@ -1313,7 +1313,7 @@ async function refreshOpportunityBuildings(){
     for(const id of ['gta-opportunity-dot-fallback','gta-opportunity-dots','gta-opportunity-label']){if(map.getLayer(id))map.moveLayer(id)}
    }catch(_){}
    const riskFeatures=geo.features.filter(f=>f?.properties?.global_risk_review).length;
-   window.__BP_APP_OPPORTUNITY_STYLE_V6175__={version:6175,mode:'APP_NEON_CLASSIFIED_PLUS_GLOBAL_RISK_REVIEW',wholeBuilding:true,icons:true,labels:true,iconGlyphsAtGlobalZoom:true,features:geo.features.length,riskReviewFeatures:riskFeatures,mainFeedAvailable:!!d?.geojson?.features?.length,mainFeedFailed:!!d?.__unavailable,riskFeedAvailable:!!risk?.geojson?.features?.length,colors:APP_OPPORTUNITY_NEON,updatedAt:Date.now()}
+   window.__BP_APP_OPPORTUNITY_STYLE_V6176__={version:6176,mode:'APP_NEON_CLASSIFIED_PLUS_GLOBAL_RISK_REVIEW',wholeBuilding:true,icons:true,labels:true,iconGlyphsAtGlobalZoom:true,features:geo.features.length,riskReviewFeatures:riskFeatures,mainFeedAvailable:!!d?.geojson?.features?.length,mainFeedFailed:!!d?.__unavailable,riskFeedAvailable:!!risk?.geojson?.features?.length,colors:APP_OPPORTUNITY_NEON,updatedAt:Date.now()}
   })
  }catch(e){if(seq===opportunitySeq)console.warn('opportunity overlay',e)}
 }
