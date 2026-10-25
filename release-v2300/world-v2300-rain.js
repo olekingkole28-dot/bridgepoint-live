@@ -1,4 +1,4 @@
-const VERSION = 6135;
+const VERSION = 6193;
 const CLOUDS_ONLY_PHASE = () => window.__BP_CLOUDS_ONLY_PHASE_V6070__ === true;
 const LAYER_ID = 'bp2300-rain-world-volume-v6068';
 const GROUND_SOURCE = 'bp2300-rain-ground-source-v6068';
@@ -14,7 +14,7 @@ const RAD = Math.PI / 180;
 const MOBILE = (typeof innerWidth === 'number' && innerWidth <= 760) ||
   /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent || '');
 const MAX_DROPS = MOBILE ? 900 : 3600;
-const RAIN_START_ZOOM = MOBILE ? 8 : 7;
+const RAIN_START_ZOOM = 0;
 const FLOATS_PER_VERTEX = 5;
 const vertexData = new Float32Array(MAX_DROPS * 6 * FLOATS_PER_VERTEX);
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -127,6 +127,7 @@ export function initRainLayer(map, getScene = () => ({})) {
   let rendererError = null, droppedFrames = 0, lastRenderAt = 0, lastGroundUpdate = 0, puddleCount = 0;
   let lastProjectionMode = 'not-rendered', projectionUniformsBound = false;
   let rainSvg = null, rainPaths = [], renderedStreaks = 0, svgHost = null, rainContextCount = 0;
+  let globalLodDropsRendered = 0, lastRenderBudget = 0;
   const timeOrigin = performance.now();
 
   function ensureGroundLayers() {
@@ -249,11 +250,18 @@ export function initRainLayer(map, getScene = () => ({})) {
     if (!rainSvg || rainPaths.length < 3) ensureRainLayer();
     if (!rainSvg || rainPaths.length < 3) return;
     const zoom = safeNum(map.getZoom?.(), 0);
+    const globalLod = zoom < 3.5;
+    const renderBudget = globalLod ? (MOBILE ? 170 : 420)
+      : zoom < 7 ? (MOBILE ? 300 : 760) : MAX_DROPS;
+    const stride = Math.max(1, Math.ceil(drops.length / renderBudget));
     if (!enabled || !cells.length || zoom < RAIN_START_ZOOM || document.hidden) {
       for (const path of rainPaths) path.setAttribute('d', '');
       renderedStreaks = 0;
+      globalLodDropsRendered = 0;
+      lastRenderBudget = renderBudget;
       return;
     }
+    lastRenderBudget = renderBudget;
     const canvas = map.getCanvas?.();
     const width = canvas?.clientWidth || svgHost?.clientWidth || 390;
     const height = canvas?.clientHeight || svgHost?.clientHeight || 844;
@@ -263,8 +271,10 @@ export function initRainLayer(map, getScene = () => ({})) {
     const seconds = (now - timeOrigin) / 1000;
     const pitchFactor = Math.max(0.35, Math.sin(safeNum(map.getPitch?.(), 0) * RAD) * 1.5);
     const paths = [[], [], []];
-    let count = 0;
+    let count = 0, dropIndex = 0;
     for (const d of drops) {
+      const i = dropIndex++;
+      if (i % stride !== 0) continue;
       let ground;
       try { ground = map.project([d.lng, d.lat]); } catch (_) { continue; }
       if (!ground || !Number.isFinite(ground.x) || !Number.isFinite(ground.y)) continue;
@@ -287,6 +297,7 @@ export function initRainLayer(map, getScene = () => ({})) {
     }
     for (let i = 0; i < rainPaths.length; i++) rainPaths[i].setAttribute('d', paths[i].join(''));
     renderedStreaks = count;
+    globalLodDropsRendered = globalLod ? count : 0;
     vertexCount = count * 2;
     lastRenderAt = Date.now();
     rendererError = null;
@@ -463,8 +474,51 @@ export function initRainLayer(map, getScene = () => ({})) {
     }).filter(Boolean);
     const view = center ? { lng: center.lng, lat: center.lat } : { lng: 0, lat: 0 };
     candidates.sort((a, b) => distanceMeters(a, view) - distanceMeters(b, view));
-    const limit = z < 3.5 ? (MOBILE ? 16 : 36) : z >= 13 ? (MOBILE ? 4 : 8) : (MOBILE ? 5 : 10);
-    return candidates.slice(0, limit);
+    const limit = z < 3.5 ? (MOBILE ? 28 : 56) : z >= 13 ? (MOBILE ? 4 : 8) : (MOBILE ? 5 : 10);
+    if (z >= 3.5) {
+      candidates.sort((a, b) => distanceMeters(a, view) - distanceMeters(b, view));
+      return candidates.slice(0, limit);
+    }
+    // Globe LOD: use only the front hemisphere and round-robin projected screen buckets.
+    // This keeps weather visible across the globe instead of spending the entire budget
+    // on the stations closest to the map's geographic center.
+    let globeProjection = false;
+    try {
+      const projection = map.getProjection?.();
+      globeProjection = String(projection?.name ?? projection?.type ?? '').toLowerCase().includes('globe');
+    } catch (_) {}
+    const centerLat = view.lat * RAD, centerLng = view.lng * RAD;
+    const cols = MOBILE ? 4 : 7, rows = MOBILE ? 3 : 5, buckets = new Map();
+    candidates.sort((a, b) => Number(b.thunderstorm) - Number(a.thunderstorm) || distanceMeters(a, view) - distanceMeters(b, view));
+    for (const c of candidates) {
+      let p = null;
+      try { p = map.project([c.lng, c.lat]); } catch (_) {}
+      if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.y) ||
+          p.x < -14 || p.x > w + 14 || p.y < -14 || p.y > h + 14) continue;
+      if (globeProjection) {
+        const lat = c.lat * RAD, lng = c.lng * RAD;
+        const visibleHemisphere = Math.sin(centerLat) * Math.sin(lat) +
+          Math.cos(centerLat) * Math.cos(lat) * Math.cos(lng - centerLng);
+        if (visibleHemisphere < -0.025) continue;
+      }
+      const gx = Math.max(0, Math.min(cols - 1, Math.floor(clamp(p.x / Math.max(1, w), 0, 0.999999) * cols)));
+      const gy = Math.max(0, Math.min(rows - 1, Math.floor(clamp(p.y / Math.max(1, h), 0, 0.999999) * rows)));
+      const key = gx + ':' + gy;
+      if (!buckets.has(key)) buckets.set(key, []);
+      buckets.get(key).push(c);
+    }
+    const queues = Array.from(buckets.values()), selected = [];
+    let progressed = true;
+    while (selected.length < limit && progressed) {
+      progressed = false;
+      for (const bucket of queues) {
+        if (!bucket.length) continue;
+        selected.push(bucket.shift());
+        progressed = true;
+        if (selected.length >= limit) break;
+      }
+    }
+    return selected;
   }
 
   function makeDropSeeds(nextCells) {
@@ -688,7 +742,9 @@ export function initRainLayer(map, getScene = () => ({})) {
       animationRaf = 0;
       if (!enabled || !cells.length || document.hidden) return;
       if (safeNum(map.getZoom?.(), 0) < RAIN_START_ZOOM) { animationRaf = 0; return; }
-      if (t - lastRepaint >= 33) {
+      const zoom = safeNum(map.getZoom?.(), 0);
+      const frameInterval = zoom < 3.5 ? (MOBILE ? 66 : 50) : zoom < 7 ? 66 : 33;
+      if (t - lastRepaint >= frameInterval) {
         lastRepaint = t;
         try { drawProjectedRain(t); } catch (e) { rendererError = String(e?.message || e).slice(0, 200); publishDiagnostic(); }
       }
@@ -707,7 +763,7 @@ export function initRainLayer(map, getScene = () => ({})) {
     Object.assign(d, { version: VERSION, renderer: 'geographic-map-projected-short-streaks', enabled,
       worldAnchored: true, layerAttached: !!rainSvg, overlayAttached: !!rainSvg, shaderVariants: 0,
       projectionAware: true, projectionMode: 'geographic-map-project', projectionUniformsBound: false,
-      rainCellCount: cells.length, particleSeeds: drops.length, renderedStreaks, activeVertices: vertexCount, puddleCount,
+      rainCellCount: cells.length, particleSeeds: drops.length, renderedStreaks, globalLodDropsRendered, lastRenderBudget, activeVertices: vertexCount, puddleCount,
       groundSourceAttached: !!map.getSource?.(GROUND_SOURCE), rainContextSourceAttached: !!map.getSource?.(RAIN_CELL_CONTEXT_SOURCE), rainContextLayerAttached: !!map.getLayer?.(RAIN_CELL_CONTEXT_CORE), rainContextCount, globalLodRainCells: rainContextCount, rendererError, droppedFrames, lastRenderAt,
       lastGroundUpdate, updatedAt: Date.now(), zoom: safeNum(map.getZoom?.(), 0) });
   }
@@ -740,7 +796,7 @@ export function initRainLayer(map, getScene = () => ({})) {
     get state() { return { version: VERSION, enabled, layerAttached: !!rainSvg, overlayAttached: !!rainSvg,
       renderer: 'geographic-map-projected-short-streaks', shaderVariants: 0, projectionAware: true,
       projectionMode: 'geographic-map-project', projectionUniformsBound: false, rainCellCount: cells.length,
-      particleSeeds: drops.length, renderedStreaks, activeVertices: vertexCount,
+      particleSeeds: drops.length, renderedStreaks, globalLodDropsRendered, lastRenderBudget, activeVertices: vertexCount,
       anchorFingerprint: drops.slice(0, 8).map(d => `${d.lng.toFixed(5)},${d.lat.toFixed(5)},${d.baseAglM.toFixed(0)}`).join('|'),
       puddleCount, rainContextCount, rainContextSourceAttached: !!map.getSource?.(RAIN_CELL_CONTEXT_SOURCE), rainContextLayerAttached: !!map.getLayer?.(RAIN_CELL_CONTEXT_CORE), rendererError, droppedFrames, lastRenderAt, lastGroundUpdate, worldAnchored: true, globalRainLod: true }; } };
   map.__bpRainRendererV6068 = api;

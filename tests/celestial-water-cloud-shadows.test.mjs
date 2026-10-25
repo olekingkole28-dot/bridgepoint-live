@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const read = path => readFile(new URL(path, import.meta.url), 'utf8');
-const [water, map, space, clouds, weather, rain, lightning, app, landing, listingView, timeSlider, bootstrap, appHtml, landingHtml, globalWeather, appUpdate, serviceWorker] = await Promise.all([
+const [water, map, space, clouds, weather, rain, lightning, app, landing, listingView, timeSlider, bootstrap, appHtml, landingHtml, globalWeather, appUpdate, serviceWorker, legacyLoader] = await Promise.all([
   read('../release-v2300/world-v2300-water.js'),
   read('../release-v2300/world-v2300-map.js'),
   read('../release-v2300/world-v2300-space.js'),
@@ -19,7 +19,8 @@ const [water, map, space, clouds, weather, rain, lightning, app, landing, listin
   read('../rebuild-v5000/index.html'),
   read('../rebuild-v5000/intelligence-global-v5507.js'),
   read('../rebuild-v5000/app-update-v5820.js'),
-  read('../rebuild-v5000/sw.js')
+  read('../rebuild-v5000/sw.js'),
+  read('../release-v1997/map-v1997-weather-hotfix.js')
 ]);
 
 function test(name, fn) {
@@ -123,14 +124,14 @@ test('entrypoints use fresh cache keys for updated map, water, clouds, weather a
     assert.match(source, /world-v2300-map\.js\?v=6186-us-opportunities-globe-clipped/);
     assert.match(source, /world-v2300-water\.js\?v=6124-solar-ocean-swell/);
     assert.match(source, /world-v2300-clouds\.js\?v=6167-cloud-startup-performance/);
-    assert.match(source, /world-v2300-weather\.js\?v=6138-cloud-linked-lightning/);
+    assert.match(source, /world-v2300-weather\.js\?v=6193-geographic-rain-lightning/);
     assert.match(source, /world-v2300-time-slider\.js\?v=6167-cloud-startup-performance/);
   }
   assert.match(map, /world-v2300-space\.js\?v=6125-manual-globe-camera/);
   assert.match(timeSlider, /world-v2300-clouds\.js\?v=6167-cloud-startup-performance/);
-  assert.match(bootstrap, /world-v2300-weather\.js\?v=6138-cloud-linked-lightning/);
-  assert.match(appHtml, /app\.js\?v=6191-global-opportunity-worldwide-panama/);
-  assert.match(landingHtml, /landing\.js\?v=6191-global-opportunity-worldwide-panama/);
+  assert.match(bootstrap, /world-v2300-weather\.js\?v=6193-geographic-rain-lightning/);
+  assert.match(appHtml, /app\.js\?v=6193-global-weather-fx/);
+  assert.match(landingHtml, /landing\.js\?v=6193-global-weather-fx/);
   assert.match(appHtml, /intelligence-global-v5507\.js\?v=6170-imerg-nrt-timeline/);
   assert.match(landingHtml, /intelligence-global-v5507\.js\?v=6170-imerg-nrt-timeline/);
 });
@@ -209,15 +210,15 @@ test('global opportunity markers render category glyphs and merge source-backed 
   assert.match(landing, /if\(!risk\)void loadRiskFeed\(\)\.then/);
 });
 
-test('both entrypoints perform a real 6167 service-worker cutover before stale startup survives', () => {
-  assert.match(landingHtml, /app-update-v5820\.js\?v=6167-cloud-startup-performance/);
-  assert.match(appHtml, /app-update-v5820\.js\?v=6167-cloud-startup-performance/);
-  assert.match(appUpdate, /const BUILD=6167/);
-  assert.match(appUpdate, /CURRENT_CACHE='bp-intelligence-v6167-cloud-startup-performance'/);
+test('both entrypoints perform a real 6193 service-worker cutover before stale startup survives', () => {
+  assert.match(landingHtml, /app-update-v5820\.js\?v=6193-global-weather-fx/);
+  assert.match(appHtml, /app-update-v5820\.js\?v=6193-global-weather-fx/);
+  assert.match(appUpdate, /const BUILD=6193/);
+  assert.match(appUpdate, /CURRENT_CACHE='bp-intelligence-v6193-global-weather-fx'/);
   assert.match(appUpdate, /function reloadOnce\(reason\)/);
   assert.match(appUpdate, /location\.replace\(u\.href\)/);
   assert.match(appUpdate, /navigator\.serviceWorker\?\.addEventListener\('controllerchange'/);
-  assert.match(serviceWorker, /const V='bp-intelligence-v6167-cloud-startup-performance'/);
+  assert.match(serviceWorker, /const V='bp-intelligence-v6193-global-weather-fx'/);
   assert.match(clouds, /Number\(existingCloudController\.version\) >= 6167[\s\S]{0,180}Number\(existingState\?\.coverageVersion \|\| existingState\?\.version\) >= 6167/);
 });
 
@@ -231,7 +232,7 @@ test('new rain/lightning and global source markers stay separate from legacy eff
   assert.doesNotMatch(weather, /active=CLOUDS_ONLY_PHASE\(\)\?true:!!v/);
   assert.match(weather, /initLightningLayer/);
   assert.doesNotMatch(weather, /'bp2300-rain-wet-ground-v6068','bp2300-rain-puddle-fill-v6068/);
-  assert.match(rain, /const RAIN_START_ZOOM = MOBILE \? 8 : 7;/);
+  assert.match(rain, /const RAIN_START_ZOOM = 0;/);
   assert.match(rain, /source_anchor_kind: 'warning'/);
   assert.match(rain, /windFields\(p, c, true\)/);
   assert.match(clouds, /sourceRainAnchors/);
@@ -270,10 +271,21 @@ test('new rain/lightning and global source markers stay separate from legacy eff
   assert.match(globalWeather, /'raster-opacity':\['interpolate',\['linear'\],\['zoom'\],0,\.78,1\.5,\.80,3,\.76,4\.5,\.65,6,\.44,6\.3,\.24,6\.8,0/);
   assert.match(lightning, /export function initLightningLayer/);
   assert.match(lightning, /durationMs:3200/);
+  assert.match(lightning, /const max=innerWidth<=760\?\(globalLod\?4:1\):\(globalLod\?8:2\)/);
+  assert.match(lightning, /const height=lowLod\?clamp\(26\+z\*3\.0,26,38\)/);
+  assert.match(lightning, /const branchCount=lowLod\?1:2\+/);
+  assert.ok(lightning.includes('const controller={version:6193'), 'singleton lightning controller must report the consolidated FX version');
+  assert.match(weather, /legacyCinematicCanvasRemoved/);
+  assert.match(weather, /bp2080WeatherCanvas/);
+  assert.doesNotMatch(legacyLoader, /map-v2080-cinematic-weather\.js/);
+  assert.doesNotMatch(legacyLoader, /map-v2081-gpu-weather-runtime\.js/);
+  assert.match(rain, /const renderBudget = globalLod \? \(MOBILE \? 170 : 420\)/);
+  assert.match(rain, /globalLodDropsRendered/);
+  assert.match(rain, /visibleHemisphere/);
   assert.match(rain, /if \(!enabled \|\| !cells\.length \|\| zoom < RAIN_START_ZOOM \|\| document\.hidden\)/);
   assert.match(rain, /RAIN_CELL_CONTEXT_GLOW/);
   assert.match(rain, /RAIN_CELL_CONTEXT_CORE/);
-  assert.match(rain, /const limit = z < 3\.5 \? \(MOBILE \? 16 : 36\)/);
+  assert.match(rain, /const limit = z < 3\.5 \? \(MOBILE \? 28 : 56\)/);
   assert.match(rain, /rainContextLayerAttached/);
   assert.match(rain, /globalRainLod: true/);
   assert.doesNotMatch(rain, /zoom < 10 \|\| document\.hidden/);
@@ -355,8 +367,8 @@ test('homepage opportunities load on first globe view and use the deployed publi
 test('website and app start on the same cache-busted globe-first weather build', () => {
   assert.match(landingHtml, /bp-globe-only-first-frame-v6137/);
   assert.match(appHtml, /bp-app-globe-only-first-frame-v6137/);
-  assert.ok(landingHtml.includes('landing.js?v=6191-global-opportunity-worldwide-panama'));
-  assert.ok(appHtml.includes('app.js?v=6191-global-opportunity-worldwide-panama'));
+  assert.ok(landingHtml.includes('landing.js?v=6193-global-weather-fx'));
+  assert.ok(appHtml.includes('app.js?v=6193-global-weather-fx'));
   assert.ok(landingHtml.includes('intelligence-global-v5507.js?v=6170-imerg-nrt-timeline'));
   assert.ok(appHtml.includes('intelligence-global-v5507.js?v=6170-imerg-nrt-timeline'));
 });

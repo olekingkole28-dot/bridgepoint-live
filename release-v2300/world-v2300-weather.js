@@ -1,26 +1,36 @@
 import{VERSION,EMPTY,MOBILE,LOW,TIER,edge,publicRpc,bbox,fc,clamp}from'./world-v2300-config.js?v=6091-public-weather-rpc';
-import{initRainLayer}from'./world-v2300-rain.js?v=6137-globe-first-weather-lockstep';
-import{initLightningLayer}from'./world-v2300-lightning.js?v=6138-cloud-linked-lightning';
+import{initRainLayer}from'./world-v2300-rain.js?v=6193-geographic-rain-lightning';
+import{initLightningLayer}from'./world-v2300-lightning.js?v=6193-geographic-rain-lightning';
 
-function retireLegacyScreenSpaceRain() {
-  // V1997/V2081 draws source events into a viewport-sized canvas. That old layer
-  // is the screen-locked precipitation users can still see sliding during camera moves.
-  // Block its loader before it executes, then remove any canvas already attached.
+function retireLegacyScreenSpaceRain(map) {
+  // Retire both pre-V2300 viewport-sized FX runtimes. Dedicated geographic rain
+  // and cloud-linked lightning below are the only physical precipitation visuals.
   try { window.__bridgepointGpuWeatherRuntimeV2081 = true; } catch (_) {}
-  let removed = false;
-  try {
-    const canvas = document.getElementById('bp2081WeatherCanvas');
-    if (canvas) {
-      try { canvas.style.display = 'none'; canvas.style.visibility = 'hidden'; } catch (_) {}
-      try { canvas.remove(); removed = true; } catch (_) {}
-    }
-  } catch (_) {}
+  try { window.__bridgepointCinematicWeatherV2080 = true; } catch (_) {}
+  const removed = [];
+  for (const id of ['bp2080WeatherCanvas', 'bp2081WeatherCanvas']) {
+    try {
+      const canvas = document.getElementById(id);
+      if (canvas) {
+        try { canvas.style.display = 'none'; canvas.style.visibility = 'hidden'; } catch (_) {}
+        try { canvas.remove(); removed.push(id); } catch (_) {}
+      }
+    } catch (_) {}
+  }
+  // Remove duplicate V2080 map geometry as well as its screen-space canvas.
+  for (const id of ['bp2080-area-line', 'bp2080-area-fill']) {
+    try { if (map?.getLayer?.(id)) map.removeLayer(id); } catch (_) {}
+  }
+  try { if (map?.getSource?.('bp2080-weather')) map.removeSource('bp2080-weather'); } catch (_) {}
   const prior = window.__BP_SCREEN_SPACE_RAIN_RETIRE_V6063__;
   window.__BP_SCREEN_SPACE_RAIN_RETIRE_V6063__ = {
-    version: 6063,
+    version: 6193,
     legacyRuntimeBlocked: true,
-    legacyRainCanvasRemoved: removed || !!prior?.legacyRainCanvasRemoved,
-    renderer: 'geographically-anchored-v2300',
+    legacyRainCanvasRemoved: removed.includes('bp2081WeatherCanvas') || !!prior?.legacyRainCanvasRemoved,
+    legacyCinematicCanvasRemoved: removed.includes('bp2080WeatherCanvas') || !!prior?.legacyCinematicCanvasRemoved,
+    removedLegacyCanvases: removed,
+    legacyAreaLayersRemoved: true,
+    renderer: 'single-geographic-v2300-rain-and-cloud-linked-lightning',
     updatedAt: Date.now()
   };
   return window.__BP_SCREEN_SPACE_RAIN_RETIRE_V6063__;
@@ -309,7 +319,7 @@ function createFx(map){
  const api={version:VERSION,map,setScene,setEnabled,refreshNative:native,localConditions,get scene(){return scene},get state(){return{enabled,moving,tier:TIER,mobile:MOBILE,low:LOW,qualityScale:+quality.toFixed(2),fps:+fps.toFixed(1),shaderReady,activeParticles,secondaryCanvases:0,sharedMapLibreWebGLContext:true,budgets:{...BUDGET,maxPoints:MAX_POINTS},capabilities:{atmosphereFogClouds:true,rainSnowHail:true,precipitationParticlesSmall:true,precipitationWeatherCellAnchored:true,noaaSnowDepthAnalysis:true,snowDepthVolumeSourceGated:true,radarEchoHaze:true,radarCrispTopLayer:true,tornadoCone:true,rotatingTornadoVortex:true,hurricaneSpiralEye:true,hemisphereAwareStormRotation:true,lightning:true,lightningCloudFlash:true,forkedLightningBolts:true,earthquakeLayer:true,seismicRippleRings:true,floodIce:true,floodDepthVolumeSourceGated:true,wildfireFlameParticles:true,firePerimeterAnchored:true,smoke:true,ash:true,authoritativeBurnScarOnly:true,thermalContainment:true,dynamicWater:true,wetGroundAccumulationSourceGated:true,volcanicLavaFlowSourceGated:true,geyserJetsSourceGated:true,localizedFogSourceGated:true,adaptiveLOD:true,viewportCulling:true},generatedAt}}};window.__bpWeatherFXV2300=api;return api
 }
 
-export function initWeather(map,opts={}){retireLegacyScreenSpaceRain();
+export function initWeather(map,opts={}){retireLegacyScreenSpaceRain(map);
  if(window.__bpWeatherV2300&&window.__bpWeatherV2300.map===map)return window.__bpWeatherV2300;baseLayers(map);hideLegacyNativeWeatherLayers(map);const fx=createFx(map);fx.setEnabled(false);let active=opts?.deferActivation!==true,radar=false,last=0,seq=0,timer=0,radarMotionTimer=0,radarPhase=0,scene={...EMPTY_SCENE},publicCycloneCacheAt=0,publicCycloneCache=[],publicCycloneSnapshot=null;const rain=initRainLayer(map,()=>scene);const lightning=initLightningLayer(map,()=>scene);if(!active){fx.setEnabled(false);rain.setEnabled(false);lightning?.setEnabled?.(false);}
  function nearest(a){if(!a.length)return null;const c=map.getCenter();let b=null,d0=Infinity;for(const o of a){if(!Number.isFinite(+o.lng)||!Number.isFinite(+o.lat))continue;const d=(+o.lng-c.lng)**2+(+o.lat-c.lat)**2;if(d<d0){d0=d;b=o}}return b}
  function atmosphere(a){const o=nearest(a);if(!o)return;const visibility=clamp(Number(o.visibility_mi??10),.05,50),cond=text([o.weather,o.rawdata].filter(Boolean).join(' ')),storm=/\bts\b|thunder|storm|squall|tornado|hurricane/.test(cond),fog=visibility<1;try{map.setSky({'sky-color':storm?'#26313b':fog?'#68777c':'#102d3e','horizon-color':storm?'#53606a':fog?'#849196':'#31515e','fog-color':storm?'#69747d':fog?'#9aa4a6':'#718a92','sky-horizon-blend':fog?.035:.18,'horizon-fog-blend':fog?.25:.04,'fog-ground-blend':fog?.08:0,'atmosphere-blend':['interpolate',['linear'],['zoom'],0,.5,6,.22,10,fog?.08:0]});map.setLight({anchor:'map',color:storm?'#9faab2':fog?'#c4cccd':'#e5f7ff',intensity:storm?.27:fog?.34:.48,position:[1.2,205,38]})}catch(_){}}
