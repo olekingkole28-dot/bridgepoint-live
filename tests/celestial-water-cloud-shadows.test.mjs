@@ -153,6 +153,10 @@ test('global opportunity markers render category glyphs and merge source-backed 
   assert.match(map, /0,1\.05,1,1\.18,2,1\.30,3\.5,1\.42,4\.5,1\.48/);
   assert.match(app, /mainFeedRequest=zoom<3/);
   assert.match(landing, /mainFeedRequest=zoom<3/);
+  assert.match(app, /function syncGlobalOpportunityDomMarkersV6178/);
+  assert.match(landing, /function syncGlobalOpportunityDomMarkersV6178/);
+  assert.match(app, /window\.__BP_GLOBAL_OPPORTUNITY_DOM_MARKERS_V6178__/);
+  assert.match(landing, /window\.__BP_GLOBAL_OPPORTUNITY_DOM_MARKERS_V6178__/);
   assert.match(app, /riskFeedRequest=rpc\('bridgepoint_public_global_risk_viewport_v6174'.*?7000\)/);
   assert.match(landing, /riskFeedRequest=rpc\('bridgepoint_public_global_risk_viewport_v6174'.*?7000\)/);
 });
