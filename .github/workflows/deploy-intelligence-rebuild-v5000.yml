@@ -621,6 +621,12 @@ jobs:
           grep -Fq 'josephineHurricaneGeometryCount' site/world-v2300-clouds.js
           grep -Fq 'const billow = 1.0 +' site/world-v2300-clouds.js
           grep -Fq 'activeMacroCells' site/world-v2300-clouds.js
+          grep -Fq 'const heightCandidates = []' site/world-v2300-clouds.js
+          grep -Fq 'sourceHeightAnchorBudget=Math.floor(satelliteMaxClouds*0.32)' site/world-v2300-clouds.js
+          grep -Fq 'weighted nearby observations' site/world-v2300-clouds.js
+          grep -Fq 'cloudTopHeightNeighborCount' site/world-v2300-clouds.js
+          grep -Fq 'cloudCavity=clamp' site/world-v2300-clouds.js
+          grep -Fq 'MOBILE ? 6 : 7' site/world-v2300-clouds.js
           grep -Fq 'MOBILE?8:9,3,hash(q.gx,q.gy,i+973)' site/world-v2300-clouds.js
           grep -Fq 'Height/latitude-aware modelled atmospheric flow; no source-backed global upper-air wind grid is connected' site/world-v2300-clouds.js
           grep -Fq 'coverageVersion: 6166' site/world-v2300-clouds.js
