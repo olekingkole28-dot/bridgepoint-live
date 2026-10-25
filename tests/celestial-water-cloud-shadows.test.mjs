@@ -149,8 +149,8 @@ test('entrypoints use fresh cache keys for updated map, water, clouds, weather a
   assert.match(map, /world-v2300-space\.js\?v=6125-manual-globe-camera/);
   assert.match(timeSlider, /world-v2300-clouds\.js\?v=6168-desktop-global-cloud-motion-stop/);
   assert.match(bootstrap, /world-v2300-weather\.js\?v=6195-desktop-globe-flash-stability/);
-  assert.match(appHtml, /app\.js\?v=6195-desktop-globe-flash-stability/);
-  assert.match(landingHtml, /landing\.js\?v=6195-desktop-globe-flash-stability/);
+  assert.match(appHtml, /app\.js\?v=6196-desktop-cloud-motion-autoupdate/);
+  assert.match(landingHtml, /landing\.js\?v=6196-desktop-cloud-motion-autoupdate/);
   assert.match(appHtml, /intelligence-global-v5507\.js\?v=6170-imerg-nrt-timeline/);
   assert.match(landingHtml, /intelligence-global-v5507\.js\?v=6170-imerg-nrt-timeline/);
 });
@@ -230,14 +230,14 @@ test('global opportunity markers render category glyphs and merge source-backed 
 });
 
 test('both entrypoints perform a real 6195 service-worker cutover before stale startup survives', () => {
-  assert.match(landingHtml, /app-update-v5820\.js\?v=6195-desktop-globe-flash-stability/);
-  assert.match(appHtml, /app-update-v5820\.js\?v=6195-desktop-globe-flash-stability/);
-  assert.match(appUpdate, /const BUILD=6195/);
-  assert.match(appUpdate, /CURRENT_CACHE='bp-intelligence-v6195-desktop-globe-flash-stability'/);
+  assert.match(landingHtml, /app-update-v5820\.js\?v=6196-desktop-cloud-motion-autoupdate/);
+  assert.match(appHtml, /app-update-v5820\.js\?v=6196-desktop-cloud-motion-autoupdate/);
+  assert.match(appUpdate, /const BUILD=6196/);
+  assert.match(appUpdate, /CURRENT_CACHE='bp-intelligence-v6196-desktop-cloud-motion-autoupdate'/);
   assert.match(appUpdate, /function reloadOnce\(reason\)/);
   assert.match(appUpdate, /location\.replace\(u\.href\)/);
   assert.match(appUpdate, /navigator\.serviceWorker\?\.addEventListener\('controllerchange'/);
-  assert.match(serviceWorker, /const V='bp-intelligence-v6195-desktop-globe-flash-stability'/);
+  assert.match(serviceWorker, /const V='bp-intelligence-v6196-desktop-cloud-motion-autoupdate'/);
   assert.match(clouds, /Number\(existingCloudController\.version\) >= 6167[\s\S]{0,180}Number\(existingState\?\.coverageVersion \|\| existingState\?\.version\) >= 6167/);
 });
 
@@ -395,8 +395,8 @@ test('homepage opportunities load on first globe view and use the deployed publi
 test('website and app start on the same cache-busted globe-first weather build', () => {
   assert.match(landingHtml, /bp-globe-only-first-frame-v6137/);
   assert.match(appHtml, /bp-app-globe-only-first-frame-v6137/);
-  assert.ok(landingHtml.includes('landing.js?v=6195-desktop-globe-flash-stability'));
-  assert.ok(appHtml.includes('app.js?v=6195-desktop-globe-flash-stability'));
+  assert.ok(landingHtml.includes('landing.js?v=6196-desktop-cloud-motion-autoupdate'));
+  assert.ok(appHtml.includes('app.js?v=6196-desktop-cloud-motion-autoupdate'));
   assert.ok(landingHtml.includes('intelligence-global-v5507.js?v=6170-imerg-nrt-timeline'));
   assert.ok(appHtml.includes('intelligence-global-v5507.js?v=6170-imerg-nrt-timeline'));
 });
