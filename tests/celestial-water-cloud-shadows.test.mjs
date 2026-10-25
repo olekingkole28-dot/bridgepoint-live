@@ -33,9 +33,17 @@ function test(name, fn) {
   }
 }
 
-test('water keeps protected close-zoom height and shoreline safety', () => {
+test('water keeps shoreline safety while using a bounded stable render budget', () => {
   assert.match(water, /const VERSION = 6123;/);
   assert.match(water, /const SURFACE_RENDER_REVISION = 6194;/);
+  assert.match(water, /const maxCells = worldView/);
+  assert.match(water, /MIN_BACKGROUND_BUILD_INTERVAL_MS = 4200/);
+  assert.match(water, /MIN_CAMERA_BUILD_INTERVAL_MS = 900/);
+  assert.match(water, /sourceGapGeometryPreserved\+\+/);
+  assert.match(water, /map\.on\('idle', ensureInstalled\)/);
+  assert.doesNotMatch(water, /map\.on\('idle', \(\) => scheduleBuild\(160\)\)/);
+  assert.match(water, /if \(low\) return z < 3\.5 \? 260 : z >= 12 \? 180 : 220;/);
+  assert.match(water, /return z < 3\.5 \? 150 : z >= 12 \? 85 : 110;/);
   assert.match(water, /if \(z >= 12\) \{\s*return \{ scale: 0, maxOffsetM: 0, guarded: true \};\s*\}/);
   assert.match(water, /surfaceMaskValidationAllZooms: true/);
   assert.match(water, /surfaceCellsRejectedInvalidTerrain/);
