@@ -120,7 +120,7 @@ test('cloud shadows update on the map and use available source winds', () => {
 
 test('entrypoints use fresh cache keys for updated map, water, clouds, weather and space', () => {
   for (const source of [app, landing]) {
-    assert.match(source, /world-v2300-map\.js\?v=6178-global-opportunity-dom-markers/);
+    assert.match(source, /world-v2300-map\.js\?v=6179-globe-stable-risk-markers/);
     assert.match(source, /world-v2300-water\.js\?v=6124-solar-ocean-swell/);
     assert.match(source, /world-v2300-clouds\.js\?v=6167-cloud-startup-performance/);
     assert.match(source, /world-v2300-weather\.js\?v=6138-cloud-linked-lightning/);
@@ -129,8 +129,8 @@ test('entrypoints use fresh cache keys for updated map, water, clouds, weather a
   assert.match(map, /world-v2300-space\.js\?v=6125-manual-globe-camera/);
   assert.match(timeSlider, /world-v2300-clouds\.js\?v=6167-cloud-startup-performance/);
   assert.match(bootstrap, /world-v2300-weather\.js\?v=6138-cloud-linked-lightning/);
-  assert.match(appHtml, /app\.js\?v=6178-global-opportunity-dom-markers/);
-  assert.match(landingHtml, /landing\.js\?v=6178-global-opportunity-dom-markers/);
+  assert.match(appHtml, /app\.js\?v=6179-globe-stable-risk-markers/);
+  assert.match(landingHtml, /landing\.js\?v=6179-globe-stable-risk-markers/);
   assert.match(appHtml, /intelligence-global-v5507\.js\?v=6170-imerg-nrt-timeline/);
   assert.match(landingHtml, /intelligence-global-v5507\.js\?v=6170-imerg-nrt-timeline/);
 });
@@ -153,10 +153,16 @@ test('global opportunity markers render category glyphs and merge source-backed 
   assert.match(map, /0,1\.05,1,1\.18,2,1\.30,3\.5,1\.42,4\.5,1\.48/);
   assert.match(app, /mainFeedRequest=zoom<3/);
   assert.match(landing, /mainFeedRequest=zoom<3/);
-  assert.match(app, /function syncGlobalOpportunityDomMarkersV6178/);
-  assert.match(landing, /function syncGlobalOpportunityDomMarkersV6178/);
-  assert.match(app, /window\.__BP_GLOBAL_OPPORTUNITY_DOM_MARKERS_V6178__/);
-  assert.match(landing, /window\.__BP_GLOBAL_OPPORTUNITY_DOM_MARKERS_V6178__/);
+  assert.match(app, /function syncGlobalOpportunityDomMarkersV6179/);
+  assert.match(landing, /function syncGlobalOpportunityDomMarkersV6179/);
+  assert.match(app, /window\.__BP_GLOBAL_OPPORTUNITY_DOM_MARKERS_V6179__/);
+  assert.match(landing, /window\.__BP_GLOBAL_OPPORTUNITY_DOM_MARKERS_V6179__/);
+  assert.match(app, /function bpGlobalOpportunityMarkerIsFrontV6179/);
+  assert.match(landing, /function bpGlobalOpportunityMarkerIsFrontV6179/);
+  assert.match(app, /__bpGlobalRiskFeedCacheV6179/);
+  assert.match(landing, /__bpGlobalRiskFeedCacheV6179/);
+  assert.match(app, /map\.on\('move',state\.visibilityUpdate\)/);
+  assert.match(landing, /map\.on\('move',state\.visibilityUpdate\)/);
   assert.match(app, /riskFeedRequest=rpc\('bridgepoint_public_global_risk_viewport_v6174'.*?7000\)/);
   assert.match(landing, /riskFeedRequest=rpc\('bridgepoint_public_global_risk_viewport_v6174'.*?7000\)/);
 });
@@ -307,8 +313,8 @@ test('homepage opportunities load on first globe view and use the deployed publi
 test('website and app start on the same cache-busted globe-first weather build', () => {
   assert.match(landingHtml, /bp-globe-only-first-frame-v6137/);
   assert.match(appHtml, /bp-app-globe-only-first-frame-v6137/);
-  assert.ok(landingHtml.includes('landing.js?v=6178-global-opportunity-dom-markers'));
-  assert.ok(appHtml.includes('app.js?v=6178-global-opportunity-dom-markers'));
+  assert.ok(landingHtml.includes('landing.js?v=6179-globe-stable-risk-markers'));
+  assert.ok(appHtml.includes('app.js?v=6179-globe-stable-risk-markers'));
   assert.ok(landingHtml.includes('intelligence-global-v5507.js?v=6170-imerg-nrt-timeline'));
   assert.ok(appHtml.includes('intelligence-global-v5507.js?v=6170-imerg-nrt-timeline'));
 });

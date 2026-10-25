@@ -350,7 +350,7 @@ function mergeLandingOpportunityGeojson(mainData,riskData){
  const features=[...main.features,...risk.features.map((f,i)=>({...f,id:'global-risk:'+String(f.id??i),properties:{...f.properties,global_risk_review:true,public_teaser:true}}))];
  return{type:'FeatureCollection',features}
 }
-const BP_GLOBAL_OPP_GLYPHS_V6178={ROOF:'🏠',CLAIMS:'📋',RESTORATION:'🛠',CONSTRUCTION:'🏗',STORM:'🌪',FIRE:'🔥',WATER:'💧',RAIN:'🌧',WIND:'💨',EXPOSURE:'⚠',SOLAR:'☀',DEVELOPMENT:'🏗',INVESTMENT:'$',COMPLIANCE:'✓',GENERAL:'•'};
+const BP_GLOBAL_OPP_GLYPHS_V6179={ROOF:'🏠',CLAIMS:'📋',RESTORATION:'🛠',CONSTRUCTION:'🏗',STORM:'🌪',FIRE:'🔥',WATER:'💧',RAIN:'🌧',WIND:'💨',EXPOSURE:'⚠',SOLAR:'☀',DEVELOPMENT:'🏗',INVESTMENT:'$',COMPLIANCE:'✓',GENERAL:'•'};
 function bpGlobalOpportunityMarkerIsFrontV6179(map,coords){
  if(!map||!Array.isArray(coords)||coords.length<2)return false;
  const c=map.getCenter?.();if(!c)return true;
@@ -365,10 +365,10 @@ function bpGlobalOpportunityMarkerIsFrontV6179(map,coords){
   return !!p&&Number.isFinite(p.x)&&Number.isFinite(p.y)&&p.x>=-18&&p.y>=-18&&p.x<=w+18&&p.y<=h+18;
  }catch(_){return false}
 }
-function syncGlobalOpportunityDomMarkersV6178(map,features,zoom){
+function syncGlobalOpportunityDomMarkersV6179(map,features,zoom){
  if(!map)return;
- let state=map.__bpGlobalOpportunityDomMarkersV6178;
- if(!state){state={markers:[]};map.__bpGlobalOpportunityDomMarkersV6178=state}
+ let state=map.__bpGlobalOpportunityDomMarkersV6179;
+ if(!state){state={markers:[]};map.__bpGlobalOpportunityDomMarkersV6179=state}
  for(const item of state.markers||[]){try{(item.marker||item).remove()}catch(_){}}
  state.markers=[];
  const active=Number(zoom)<3;
@@ -384,12 +384,12 @@ function syncGlobalOpportunityDomMarkersV6178(map,features,zoom){
  }
  const colorFor=k=>({ROOF:'#fff200',CLAIMS:'#a98cff',RESTORATION:'#ff4ea3',CONSTRUCTION:'#ffb34a',STORM:'#b026ff',FIRE:'#ff3b19',WATER:'#00a8ff',RAIN:'#4aa3ff',WIND:'#8b86ff',EXPOSURE:'#ff8a00',SOLAR:'#ffe600',DEVELOPMENT:'#00f0ff',INVESTMENT:'#39ff88',COMPLIANCE:'#ff8a00'}[k]||'#ff2bd6');
  for(const g of groups.values()){
-  const kind=Object.entries(g.counts).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]))[0]?.[0]||'GENERAL',count=g.features.length,coords=[g.sumLon/count,g.sumLat/count],glyph=BP_GLOBAL_OPP_GLYPHS_V6178[kind]||'•';
-  const el=document.createElement('button');el.type='button';el.className='bp-global-opportunity-marker-v6178';
+  const kind=Object.entries(g.counts).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]))[0]?.[0]||'GENERAL',count=g.features.length,coords=[g.sumLon/count,g.sumLat/count],glyph=BP_GLOBAL_OPP_GLYPHS_V6179[kind]||'•';
+  const el=document.createElement('button');el.type='button';el.className='bp-global-opportunity-marker-v6179';
   el.style.cssText='position:relative;display:flex;align-items:center;justify-content:center;width:'+(cellSize-2)+'px;height:'+(cellSize-2)+'px;padding:0;border:2px solid #ffffff;border-radius:50%;background:'+(g.colors[kind]||colorFor(kind))+';color:#071017;font:900 15px/1 system-ui,sans-serif;box-shadow:0 0 0 2px rgba(4,12,18,.92),0 0 14px '+(g.colors[kind]||colorFor(kind))+';cursor:pointer;pointer-events:auto;z-index:10000;touch-action:manipulation';
   el.textContent=glyph;el.setAttribute('aria-label',count+' source-backed global risk opportunity markers, '+(g.labels[kind]||kind));el.title=count+' source-backed risk/resilience records · '+(g.labels[kind]||kind);
   const badge=document.createElement('span');badge.textContent=count>99?'99+':String(count);badge.style.cssText='position:absolute;right:-7px;bottom:-6px;min-width:16px;height:16px;padding:0 2px;display:flex;align-items:center;justify-content:center;border:1px solid #071017;border-radius:10px;background:#ffffff;color:#071017;font:900 9px/1 system-ui,sans-serif;box-shadow:0 1px 3px rgba(0,0,0,.6)';el.appendChild(badge);
-  el.addEventListener('click',ev=>{ev.preventDefault();ev.stopPropagation();try{if(!window.maplibregl?.Popup)return;const root=document.createElement('div');root.style.cssText='min-width:185px;max-width:270px;font:12px/1.45 system-ui,sans-serif;color:#10232c';const title=document.createElement('strong');title.textContent=count+' mapped risk/opportunity records in this globe cluster';title.style.display='block';const detail=document.createElement('p');detail.style.margin='7px 0';detail.textContent=Object.entries(g.counts).sort((a,b)=>b[1]-a[1]).map(([k,n])=>(BP_GLOBAL_OPP_GLYPHS_V6178[k]||'•')+' '+(g.labels[k]||k)+': '+n).join(' · ');const note=document.createElement('small');note.textContent='Source-backed exposure/resilience reviews are not current weather warnings, proof of property damage, or guaranteed commercial work. Zoom in to inspect individual mapped records.';root.append(title,detail,note);new window.maplibregl.Popup({closeButton:true,closeOnClick:true,maxWidth:'300px'}).setLngLat(coords).setDOMContent(root).addTo(map)}catch(err){console.warn('Global opportunity cluster popup',err)}});
+  el.addEventListener('click',ev=>{ev.preventDefault();ev.stopPropagation();try{if(!window.maplibregl?.Popup)return;const root=document.createElement('div');root.style.cssText='min-width:185px;max-width:270px;font:12px/1.45 system-ui,sans-serif;color:#10232c';const title=document.createElement('strong');title.textContent=count+' mapped risk/opportunity records in this globe cluster';title.style.display='block';const detail=document.createElement('p');detail.style.margin='7px 0';detail.textContent=Object.entries(g.counts).sort((a,b)=>b[1]-a[1]).map(([k,n])=>(BP_GLOBAL_OPP_GLYPHS_V6179[k]||'•')+' '+(g.labels[k]||k)+': '+n).join(' · ');const note=document.createElement('small');note.textContent='Source-backed exposure/resilience reviews are not current weather warnings, proof of property damage, or guaranteed commercial work. Zoom in to inspect individual mapped records.';root.append(title,detail,note);new window.maplibregl.Popup({closeButton:true,closeOnClick:true,maxWidth:'300px'}).setLngLat(coords).setDOMContent(root).addTo(map)}catch(err){console.warn('Global opportunity cluster popup',err)}});
   try{const marker=new window.maplibregl.Marker({element:el,anchor:'center',pitchAlignment:'viewport',rotationAlignment:'viewport'}).setLngLat(coords).addTo(map);state.markers.push({marker,coords,element:el})}catch(err){console.warn('Global opportunity DOM marker',err)}
  }
  if(!state.visibilityUpdate){state.visibilityUpdate=()=>{for(const item of state.markers||[]){const visible=bpGlobalOpportunityMarkerIsFrontV6179(map,item.coords);if(item.element){item.element.style.visibility=visible?'visible':'hidden';item.element.style.pointerEvents=visible?'auto':'none'}}};try{map.on('move',state.visibilityUpdate);map.on('resize',state.visibilityUpdate)}catch(_){}}
@@ -416,7 +416,7 @@ async function refreshLandingOpportunities(world){
   const riskFeedRequest=zoom<3&&globalRiskCache?.data&&Date.now()-globalRiskCache.savedAt<300000?Promise.resolve(globalRiskCache.data):rpc('bridgepoint_public_global_risk_viewport_v6174',{...params,p_limit:Math.min(riskLimit,zoom<3?(mobile?35:45):riskLimit)},7000).then(value=>{if(zoom<3&&(value?.geojson?.features?.length||0)>0){m.__bpGlobalRiskFeedCacheV6179={data:value,savedAt:Date.now()};return value}return zoom<3&&globalRiskCache?.data?globalRiskCache.data:value}).catch(e=>{console.warn('Landing global risk-review overlay',e);return zoom<3&&globalRiskCache?.data?globalRiskCache.data:null});
   const [d,risk]=await Promise.all([mainFeedRequest,riskFeedRequest]);
   if(seq!==landingOpportunitySeq||m.isMoving?.())return false;
-  const geo=mergeLandingOpportunityGeojson(d,risk);src.setData(geo);syncGlobalOpportunityDomMarkersV6178(m,geo.features,zoom);
+  const geo=mergeLandingOpportunityGeojson(d,risk);src.setData(geo);syncGlobalOpportunityDomMarkersV6179(m,geo.features,zoom);
   try{
    if(m.getLayer('gta-opportunity-buildings')){m.setLayoutProperty('gta-opportunity-buildings','visibility','visible');m.setPaintProperty('gta-opportunity-buildings','fill-extrusion-color',['coalesce',['get','color'],'#ff1744']);m.setPaintProperty('gta-opportunity-buildings','fill-extrusion-opacity',1)}
    if(m.getLayer('gta-opportunity-label')){m.setLayoutProperty('gta-opportunity-label','visibility','visible');m.setPaintProperty('gta-opportunity-label','text-color',['coalesce',['get','color'],'#7adcf0']);m.setPaintProperty('gta-opportunity-label','icon-opacity',1)}
