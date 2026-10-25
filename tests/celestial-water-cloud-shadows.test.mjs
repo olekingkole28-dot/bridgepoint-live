@@ -187,8 +187,8 @@ test('global opportunity markers render category glyphs and merge source-backed 
   assert.doesNotMatch(landing, /function bpGlobalOpportunityMarkerIsFrontV6186/);
   assert.match(app, /__bpGlobalRiskFeedCacheV6186/);
   assert.match(landing, /__bpGlobalRiskFeedCacheV6186/);
-  assert.match(app, /attempts=zoom<3\?3:1/);
-  assert.match(landing, /attempts=zoom<3\?3:1/);
+  assert.match(app, /BP_GLOBAL_RISK_REGIONS_V6188\.map/);
+  assert.match(landing, /BP_GLOBAL_RISK_REGIONS_V6188\.map/);
   assert.match(app, /nativeGlobeAnchored:active/);
   assert.match(landing, /nativeGlobeAnchored:active/);
   assert.match(app, /nativeLayerVisible:active&&dotsVisible/);
