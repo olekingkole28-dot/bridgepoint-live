@@ -1,6 +1,6 @@
 import{VERSION,EMPTY,MOBILE,LOW,TIER,edge,publicRpc,bbox,fc,clamp}from'./world-v2300-config.js?v=6091-public-weather-rpc';
 import{initRainLayer}from'./world-v2300-rain.js?v=6193-geographic-rain-lightning';
-import{initLightningLayer}from'./world-v2300-lightning.js?v=6193-geographic-rain-lightning';
+import{initLightningLayer}from'./world-v2300-lightning.js?v=6195-desktop-globe-flash-stability';
 
 function retireLegacyScreenSpaceRain(map) {
   // Retire both pre-V2300 viewport-sized FX runtimes. Dedicated geographic rain
