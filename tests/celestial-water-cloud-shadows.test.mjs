@@ -220,7 +220,7 @@ test('global opportunity markers render category glyphs and merge source-backed 
 
 test('both entrypoints perform a real 6193 service-worker cutover before stale startup survives', () => {
   assert.match(landingHtml, /app-update-v5820\.js\?v=6194-stable-water-low-cost/);
-  assert.match(appHtml, /app-update-v5820\.js\?v=6193-global-weather-fx/);
+  assert.match(appHtml, /app-update-v5820\.js\?v=6194-stable-water-low-cost/);
   assert.match(appUpdate, /const BUILD=6194/);
   assert.match(appUpdate, /CURRENT_CACHE='bp-intelligence-v6194-stable-water-low-cost'/);
   assert.match(appUpdate, /function reloadOnce\(reason\)/);
