@@ -145,6 +145,7 @@ test('entrypoints use fresh cache keys for updated map, water, clouds, weather a
     assert.match(source, /world-v2300-weather\.js\?v=6195-desktop-globe-flash-stability/);
     assert.match(source, /world-v2300-time-slider\.js\?v=6167-cloud-startup-performance/);
   }
+  assert.ok(appHtml.includes('world-v2300-clouds.js?v=6168-desktop-global-cloud-motion-stop'), 'app shell preload must not warm the stale moving cloud module');
   assert.match(map, /world-v2300-space\.js\?v=6125-manual-globe-camera/);
   assert.match(timeSlider, /world-v2300-clouds\.js\?v=6168-desktop-global-cloud-motion-stop/);
   assert.match(bootstrap, /world-v2300-weather\.js\?v=6195-desktop-globe-flash-stability/);
