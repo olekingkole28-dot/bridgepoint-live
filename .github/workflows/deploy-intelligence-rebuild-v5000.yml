@@ -1489,7 +1489,7 @@ jobs:
               },{timeout:35000},before);
               await new Promise(r=>setTimeout(r,650));
               const state=await p.evaluate(()=>{
-                const m=window.__BP_LANDING_WORLD__?.map,src=m?.getSource?.('bpOpportunities'),d=window.__BP_PUBLIC_OPPORTUNITY_STYLE_V6178__||{};
+                const m=window.__BP_LANDING_WORLD__?.map,src=m?.getSource?.('bpOpportunities'),d=window.__BP_PUBLIC_OPPORTUNITY_STYLE_V6178__||{},dom=window.__BP_GLOBAL_OPPORTUNITY_DOM_MARKERS_V6178__||{};
                 const visible=id=>!!m?.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none';
                 const rendered=id=>{try{return visible(id)?m.queryRenderedFeatures({layers:[id]}).length:0}catch{return -1}};
                 let sourceCount=0;try{sourceCount=m?.querySourceFeatures('bpOpportunities')?.length||0}catch(_){}
@@ -1500,11 +1500,12 @@ jobs:
                   sourceCount,sourceReady:!!src,
                   layers:Object.fromEntries(['gta-opportunity-dot-fallback','gta-opportunity-dots','gta-opportunity-label','gta-opportunity-buildings'].map(id=>[id,{present:!!m?.getLayer(id),visible:visible(id),rendered:rendered(id)}])),
                   sprites:Object.fromEntries(['bp-opp-rain-dot','bp-opp-claims-dot','bp-opp-general-dot'].map(id=>[id,!!m?.hasImage?.(id)])),
+                  domMarkers:dom,domMarkerCount:document.querySelectorAll('.bp-global-opportunity-marker-v6178').length,
                   updatedAt:d.updatedAt||null
                 };
               });
               console.log('BRIDGEPOINT_GLOBAL_OPPORTUNITY_MARKERS_DIAGNOSTIC',JSON.stringify({...state,consoleErrors:errors.slice(-8)}));
-              if(!(state.zoom<3&&state.features>0&&state.layers['gta-opportunity-dot-fallback'].present&&state.layers['gta-opportunity-dot-fallback'].visible&&state.layers['gta-opportunity-dot-fallback'].rendered>0))
+              if(!(state.zoom<3&&state.features>0&&state.riskFeedAvailable&&state.domMarkers.active===true&&state.domMarkers.markerCount>0&&state.domMarkerCount>0))
                 throw new Error('GLOBAL_OPPORTUNITY_MARKERS_NOT_RENDERED '+JSON.stringify({...state,consoleErrors:errors.slice(-8)}));
               console.log('BRIDGEPOINT_GLOBAL_OPPORTUNITY_MARKERS_PASS');
             }finally{await browser.close()}
