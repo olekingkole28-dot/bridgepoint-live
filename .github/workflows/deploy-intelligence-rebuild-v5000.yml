@@ -396,8 +396,8 @@ jobs:
           grep -Fq 'bridgepoint-rail-mesh-v5973.js?v=5980-visible-detail-rails' site/app/index.html
           grep -Fq 'MAPPED_GROUND_ROAD_ENDPOINT' site/world-v2300-map.js
           grep -Fq 'groundConnectedRamps' site/world-v2300-map.js
-          grep -Fq '6137-globe-first-weather-lockstep' site/app.js
-          grep -Fq '6137-globe-first-weather-lockstep' site/landing.js
+          grep -Fq '6171-global-opportunity-markers' site/app.js
+          grep -Fq '6171-global-opportunity-markers' site/landing.js
           grep -Fq 'OpenStreetMap feature centroid' site/bridgepoint-pyramids-v5945.js
           grep -Fq 'currentHeightM: 138.5' site/bridgepoint-pyramids-v5945.js
           grep -Fq 'currentHeightM: 136.4' site/bridgepoint-pyramids-v5945.js
@@ -723,7 +723,7 @@ jobs:
           grep -Fq 'BP_SOURCE_WEATHER_CACHE_KEY_V6134' site/app.js
           grep -Fq 'restoreCachedLiveWeatherFirstFrameV6134' site/app.js
           ! grep -Fq 'if(window.__BP_CLOUDS_ONLY_PHASE_V6070__===true && m)' site/landing.js
-          grep -Fq 'landing.js?v=6170-ground-radar-motion' site/index.html
+          grep -Fq 'landing.js?v=6171-global-opportunity-markers' site/index.html
           grep -Fq 'async function toggleNasaNightlights()' site/world-v2300-time-slider.js
           grep -Fq 'async function toggleSkyClouds()' site/world-v2300-time-slider.js
           grep -Fq 'data-skyview' site/world-v2300-time-slider.js
@@ -925,7 +925,7 @@ jobs:
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/app.js
           grep -Fq 'activateLiveWeather();' site/app.js
           grep -Fq 'enabled:true,serializedWeather:true' site/app.js
-          grep -Fq 'app.js?v=6170-ground-radar-motion' site/app/index.html
+          grep -Fq 'app.js?v=6171-global-opportunity-markers' site/app/index.html
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/landing.js
           grep -Fq 'WMO_CAP_WARNING' site/app.js
           grep -Fq 'WMO_CAP_WARNING' site/landing.js
@@ -1153,12 +1153,12 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=6170-ground-radar-motion' site/app/index.html
-          grep -Fq 'landing.js?v=6170-ground-radar-motion' site/index.html
-           grep -Fq 'world-v2300-map.js?v=6137-globe-first-weather-lockstep' site/app.js
-           grep -Fq 'world-v2300-map.js?v=6137-globe-first-weather-lockstep' site/landing.js
-           grep -Fq 'world-v2300-map.js?v=6137-globe-first-weather-lockstep' site/index.html
-           grep -Fq 'world-v2300-map.js?v=6137-globe-first-weather-lockstep' site/app/index.html
+          grep -Fq 'app.js?v=6171-global-opportunity-markers' site/app/index.html
+          grep -Fq 'landing.js?v=6171-global-opportunity-markers' site/index.html
+           grep -Fq 'world-v2300-map.js?v=6171-global-opportunity-markers' site/app.js
+           grep -Fq 'world-v2300-map.js?v=6171-global-opportunity-markers' site/landing.js
+           grep -Fq 'world-v2300-map.js?v=6171-global-opportunity-markers' site/index.html
+           grep -Fq 'world-v2300-map.js?v=6171-global-opportunity-markers' site/app/index.html
            grep -Fq 'world-v2300-lod-controls.js?v=6038-world-lod-range-apply' site/app.js
            grep -Fq 'world-v2300-lod-controls.js?v=6038-world-lod-range-apply' site/landing.js
            grep -Fq 'function activeWorldLodProfile()' site/world-v2300-map.js
