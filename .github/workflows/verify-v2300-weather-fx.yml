@@ -302,7 +302,7 @@ jobs:
               console.log('BRIDGEPOINT_RAIN_CLOUD_DIAG',JSON.stringify(rainOut.cloudDiag));
               await p.screenshot({path:'/tmp/bp2300wx/world-anchored-rain-zoom14-5.png',fullPage:false});
               assert(rainOut.zoom>=10,'rain renderer test must verify active geographically projected rain at close zoom');
-              assert.equal(rainOut.version,6135,'v6193 global-LOD world-anchored rain renderer must be loaded');
+              assert.equal(rainOut.version,6193,'v6193 global-LOD world-anchored rain renderer must be loaded');
               assert.equal(rainOut.overlayAttached,true,'geographic rain SVG overlay must be attached');
               assert.equal(rainOut.state.worldAnchored,true,'rain layer must report its geographic 3D renderer');
               assert.equal(rainOut.state.projectionAware,true,'rain must use MapLibre 3D projection like the cloud renderer');
