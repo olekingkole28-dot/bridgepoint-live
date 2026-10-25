@@ -304,7 +304,6 @@ function bpIconImage(id){
  else if(key==='development'){x.strokeRect(13,21,10,15);x.strokeRect(25,13,10,23);line(16,26,20,26);line(28,19,32,19);line(28,25,32,25)}
  else if(key==='investment'){line(13,34,35,12);line(26,12,35,12);line(35,12,35,21);line(13,34,20,34)}
  else if(key==='sale'||key==='rent'){x.beginPath();x.moveTo(15,18);x.quadraticCurveTo(13,28,18,35);x.quadraticCurveTo(24,41,30,35);x.quadraticCurveTo(35,28,33,18);x.closePath();x.stroke();line(19,14,29,14);line(20,11,28,11);x.font='bold 17px sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillText('$',24,26);if(key==='rent')line(17,36,31,36)}
- else if(key==='general'){x.beginPath();x.moveTo(24,10);x.lineTo(38,24);x.lineTo(24,38);x.lineTo(10,24);x.closePath();x.stroke();if(opp){x.beginPath();x.arc(24,24,4,0,Math.PI*2);x.fill()}}
  else{x.beginPath();x.moveTo(24,10);x.lineTo(38,24);x.lineTo(24,38);x.lineTo(10,24);x.closePath();x.stroke();if(opp){x.beginPath();x.arc(24,24,4,0,Math.PI*2);x.fill()}}
  if(dot)x.restore();
  return x.getImageData(0,0,size,size)
@@ -312,7 +311,7 @@ function bpIconImage(id){
 function installBridgePointIcons(map){
  if(!map)return;
  const keys=['roof','storm','fire','water','solar','development','investment','compliance','claims','restoration','construction','exposure','rain','wind','general'];
- const add=id=>{try{if(!map.hasImage(id))map.addImage(id,bpIconImage(id),{pixelRatio:2})}catch(e){console.warn('BridgePoint icon',id,e)}};
+ const add=id=>{try{if(!map.hasImage(id))map.addImage(id,bpIconImage(id),{pixelRatio:2)}catch(e){console.warn('BridgePoint icon',id,e)}};
  const ensure=()=>{
   try{if(map.isStyleLoaded?.()===false)return}catch(_){}
   let registered=0;
@@ -325,6 +324,93 @@ function installBridgePointIcons(map){
  map.on('style.load',ensure);
  ensure()
 }
+function facadePatternImage(id){
+ const size=96,cv=document.createElement('canvas');cv.width=size;cv.height=size;const x=cv.getContext('2d');
+ const solid=id.includes('bpfacade-solid-'),raw=id.replace('bpfacade-solid-','').replace('bpfacade-',''),vm=raw.match(/-v(\d+)$/),variant=vm?Number(vm[1])%128:0,kind=raw.replace(/-v\d+$/,'');
+ const specs={
+  'res-cream':['#b3a48d','#5f5145','#ded0b5','#8d7d68','res'],
+  'res-sage':['#87937a','#445548','#c4cbb2','#697760','res'],
+  'res-blue':['#758897','#3e5260','#bdc9cf','#596d7b','res'],
+  'res-tan':['#9b8569','#584b3e','#d7c4a2','#796a55','res'],
+  'res-rose':['#956f67','#58433f','#d7b5aa','#74554f','res'],
+  'res-white':['#aaa99f','#585d5c','#e5e2d7','#85857d','res'],
+  'res-charcoal':['#626765','#343b3e','#9ba09b','#4b504f','res'],
+  'row-cream':['#a48f75','#5c5148','#dec9a5','#806e59','row'],
+  'row-red':['#86564b','#40353a','#c69a83','#68433c','row'],
+  'row-brown':['#6f5448','#37363a','#ad8d75','#554237','row'],
+  'brick-red':['#824f45','#3a3335','#bd8871','#653c35','brick'],
+  'brick-brown':['#695047','#33363a','#a58470','#523d36','brick'],
+  'brick-tan':['#93745d','#47413c','#c6aa86','#745a48','brick'],
+  'brick-dark':['#544948','#2b3033','#8a7169','#413a3a','brick'],
+  'brick-orange':['#9a6048','#493735','#cc8d68','#774937','brick'],
+  'brick-cream':['#a18c70','#554c43','#d8c3a0','#7c6c56','brick'],
+  'glass-blue':['#416b80','#1f3542','#94b8c6','#31586a','glass'],
+  'glass-teal':['#3f7072','#223c40','#8eada8','#31595b','glass'],
+  'glass-smoke':['#56646d','#29363e','#9ba8ad','#43515a','glass'],
+  'glass-silver':['#77858a','#35454d','#c1c9c7','#5e6d72','glass'],
+  'glass-green':['#55766f','#2a403d','#9fb1a8','#405e58','glass'],
+  'glass-bronze':['#6f665a','#373939','#b7a98e','#554e46','glass'],
+  'glass-ice':['#718c99','#354c57','#c1d8df','#58717d','glass'],
+  'office-stone':['#817d71','#3e4344','#bdb7a4','#666258','office'],
+  'office-beige':['#95856e','#484744','#cfbea0','#766954','office'],
+  'office-white':['#999d99','#424b50','#d6d9d3','#767b78','office'],
+  'office-charcoal':['#555d60','#242e34','#90999a','#41494c','office'],
+  'office-sand':['#8d816d','#474642','#c6b79a','#706653','office'],
+  'office-gray':['#707674','#343d40','#a9afaa','#575d5b','office'],
+  'industrial-gray':['#676c6b','#343b3e','#9da2a0','#505554','industrial'],
+  'industrial-blue':['#61747c','#32444c','#91a4a9','#4c5d64','industrial'],
+  'industrial-tan':['#7d7363','#453f38','#aaa08d','#635b4e','industrial'],
+  'industrial-white':['#8d918c','#4a4f4e','#c2c5bd','#6e716d','industrial'],
+  'industrial-green':['#677361','#37433a','#9ca68f','#505b4b','industrial'],
+  'industrial-rust':['#805f4e','#443936','#aa8068','#654a3d','industrial'],
+  'barn-red':['#813a34','#482e2c','#c18b78','#672e2a','barn'],
+  'barn-wood':['#765b42','#3f342b','#b99d76','#5d4835','barn'],
+  'barn-white':['#aaa69a','#565650','#e2ddd0','#858177','barn'],
+  'civic-limestone':['#9a9078','#504b43','#cec3a8','#7d735f','civic'],
+  'civic-stone':['#7c7b73','#464948','#b5b2a7','#64645e','civic'],
+  'civic-brick':['#7f594e','#41383a','#b88b76','#62443d','civic'],
+  'civic-granite':['#73716b','#404445','#a8a49a','#5a5955','civic'],
+  'medical-white':['#c7c9c3','#526269','#edf0ed','#9ba6a7','office'],
+  'medical-brick':['#8b665a','#4d4240','#d0a99b','#705247','brick'],
+  'medical-glass':['#71919b','#334b55','#c5d9de','#58737d','glass'],
+  'fire-red':['#8b4036','#3d3230','#cc7861','#6b302a','industrial'],
+  'fire-brick':['#7a5046','#393234','#b37b69','#604039','brick'],
+  'fire-modern':['#777b78','#343d40','#b4b8b1','#5e625f','industrial'],
+  'school-brick':['#876152','#41383a','#c39a84','#694a40','brick'],
+  'school-stone':['#858178','#454746','#c1bbb0','#68645e','civic'],
+  'school-modern':['#7b8583','#374448','#bbc5c0','#5f6a68','office'],
+  'police-stone':['#727873','#3d4546','#afb2a9','#585e5a','civic'],
+  'police-modern':['#68777d','#304149','#a7bac0','#506168','office'],
+  'neutral-warm':['#75695d','#393a3a','#aaa08f','#5a5148','office'],
+  'neutral-cool':['#637077','#303b41','#98a5a8','#4d5b61','office'],
+  'neutral-dark':['#4f5555','#242c30','#858b88','#3d4343','office']
+ };
+ const p=specs[kind]||specs['neutral-cool'],mode=p[4];x.fillStyle=p[0];x.fillRect(0,0,size,size);
+ if(solid)return x.getImageData(0,0,size,size);
+ const win=(xx,yy,w,h,lit=false)=>{const dx=((variant*5+yy)%7)-3,dw=(variant%3)-1,dh=((variant>>1)%3)-1;xx=Math.max(1,Math.min(size-7,xx+dx));w=Math.max(6,Math.min(size-xx-1,w+dw));h=Math.max(7,h+dh);x.fillStyle=p[1];x.fillRect(xx,yy,w,h);x.fillStyle=p[2];x.globalAlpha=lit?.42:.24;x.fillRect(xx+1,yy+1,Math.max(1,w-2),Math.min(3,h-2));x.globalAlpha=1};
+ if(mode==='brick'||mode==='row'){
+  x.strokeStyle=p[3];x.lineWidth=1;x.globalAlpha=.55;
+  for(let y=0;y<=size;y+=7){x.beginPath();x.moveTo(0,y+.5);x.lineTo(size,y+.5);x.stroke()}
+  for(let y=0;y<size;y+=7)for(let xx=(Math.floor(y/7)%2)*6;xx<size;xx+=12){x.beginPath();x.moveTo(xx+.5,y);x.lineTo(xx+.5,y+7);x.stroke()}
+  x.globalAlpha=1;
+  const gap=mode==='row'?20:24;for(let y=11;y<size;y+=24)for(let xx=6;xx<size;xx+=gap)win(xx,y,mode==='row'?8:11,13,(xx+y)%3===0);
+ } else if(mode==='glass'){
+  x.strokeStyle=p[3];x.lineWidth=1;
+  for(let y=0;y<size;y+=16)for(let xx=0;xx<size;xx+=16){x.fillStyle=((xx+y)/16)%4===0?p[2]:p[0];x.globalAlpha=.42;x.fillRect(xx+1,y+1,14,14);x.globalAlpha=1;x.strokeRect(xx+.5,y+.5,16,16)}
+ } else if(mode==='industrial'){
+  x.strokeStyle=p[3];x.globalAlpha=.55;for(let xx=0;xx<size;xx+=6+(variant%3)){x.beginPath();x.moveTo(xx+.5,0);x.lineTo(xx+.5,size);x.stroke()}x.globalAlpha=1;
+  for(let xx=8+(variant%5);xx<size;xx+=24+(variant%4)){win(xx,15+(variant%4),13+(variant%3),8+(variant%3));win(xx,47-(variant%3),14,9)}x.fillStyle=p[3];const bay=18+(variant%5)*2;x.fillRect(6+(variant%4)*3,72,bay,24);x.fillRect(52-(variant%3)*2,69,24+(variant%4),27);
+ } else if(mode==='barn'){
+  x.strokeStyle=p[3];x.globalAlpha=.58;for(let xx=0;xx<size;xx+=5+(variant%3)){x.beginPath();x.moveTo(xx+.5,0);x.lineTo(xx+.5,size);x.stroke()}x.globalAlpha=1;
+  const doorW=30+(variant%4)*4,doorX=Math.round((size-doorW)/2);x.fillStyle=p[1];x.fillRect(doorX,48,doorW,47);x.strokeStyle=p[2];x.lineWidth=2;x.strokeRect(doorX+1,49,doorW-2,45);x.beginPath();x.moveTo(doorX+2,50);x.lineTo(doorX+doorW-2,92);x.moveTo(doorX+doorW-2,50);x.lineTo(doorX+2,92);x.stroke();win(10+(variant%5),18,13,15);win(68-(variant%5),18,13,15);
+ } else if(mode==='civic'){
+  x.strokeStyle=p[3];x.globalAlpha=.5;for(let y=0;y<size;y+=20){x.beginPath();x.moveTo(0,y+.5);x.lineTo(size,y+.5);x.stroke()}for(let xx=0;xx<size;xx+=24){x.beginPath();x.moveTo(xx+.5,0);x.lineTo(xx+.5,size);x.stroke()}x.globalAlpha=1;
+  for(let y=12;y<size;y+=30)for(let xx=8;xx<size;xx+=24)win(xx,y,10,16,true);
+ } else {
+  x.strokeStyle=p[3];x.globalAlpha=.35;for(let y=0;y<size;y+=12){x.beginPath();x.moveTo(0,y+.5);x.lineTo(size,y+.5);x.stroke()}x.globalAlpha=1;
+  const rowShift=(variant%3)*2,rows=mode==='res'?[10+rowShift,37+rowShift,64+rowShift]:[10+rowShift,32+rowShift,54+rowShift,76+rowShift];for(const y of rows)for(let xx=5+(variant%4)*2;xx<size;xx+=18+(variant%5))win(xx,y,9+(variant%3),9+((variant>>1)%3),(xx+y+variant)%4===0);
+  if(mode==='res'){x.strokeStyle=p[2];x.globalAlpha=.25;for(let y=24+(variant%3);y<size;y+=27+(variant%3)){x.beginPath();x.moveTo(0,y);x.lineTo(size,y);x.stroke()}x.globalAlpha=1}
+ }
  if(mode==='res'||mode==='row'){const dw=10+(variant%4)*2,dx=6+((variant*17)%Math.max(8,size-dw-12));x.fillStyle=p[1];x.fillRect(dx,size-23,dw,22);x.fillStyle=p[2];x.globalAlpha=.32;x.fillRect(dx+2,size-21,Math.max(2,dw-4),4);x.globalAlpha=1}
  else if(mode==='office'){const ew=20+(variant%5)*3,ex=Math.max(3,Math.round((size-ew)/2)+((variant%3)-1)*8);x.fillStyle=p[1];x.fillRect(ex,size-19,Math.min(ew,size-ex-3),18);x.fillStyle=p[2];x.globalAlpha=.3;x.fillRect(ex+2,size-17,Math.max(4,Math.min(ew,size-ex-3)-4),5);x.globalAlpha=1}
  x.strokeStyle=p[3];x.globalAlpha=.62;x.strokeRect(.5,.5,size-1,size-1);x.globalAlpha=1;
