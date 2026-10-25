@@ -743,7 +743,7 @@ export function initRainLayer(map, getScene = () => ({})) {
       if (!enabled || !cells.length || document.hidden) return;
       if (safeNum(map.getZoom?.(), 0) < RAIN_START_ZOOM) { animationRaf = 0; return; }
       const zoom = safeNum(map.getZoom?.(), 0);
-      const frameInterval = zoom < 3.5 ? (MOBILE ? 120 : 80) : zoom < 7 ? 66 : 33;
+      const frameInterval = zoom < 3.5 ? (MOBILE ? 66 : 50) : zoom < 7 ? 66 : 33;
       if (t - lastRepaint >= frameInterval) {
         lastRepaint = t;
         try { drawProjectedRain(t); } catch (e) { rendererError = String(e?.message || e).slice(0, 200); publishDiagnostic(); }
