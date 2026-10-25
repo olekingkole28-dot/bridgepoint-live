@@ -405,8 +405,8 @@ jobs:
           grep -Fq 'bridgepoint-rail-mesh-v5973.js?v=5980-visible-detail-rails' site/app/index.html
           grep -Fq 'MAPPED_GROUND_ROAD_ENDPOINT' site/world-v2300-map.js
           grep -Fq 'groundConnectedRamps' site/world-v2300-map.js
-          grep -Fq '6184-us-opportunities-globe-clipped' site/app.js
-          grep -Fq '6184-us-opportunities-globe-clipped' site/landing.js
+          grep -Fq '6185-us-opportunities-globe-clipped' site/app.js
+          grep -Fq '6185-us-opportunities-globe-clipped' site/landing.js
           grep -Fq 'OpenStreetMap feature centroid' site/bridgepoint-pyramids-v5945.js
           grep -Fq 'currentHeightM: 138.5' site/bridgepoint-pyramids-v5945.js
           grep -Fq 'currentHeightM: 136.4' site/bridgepoint-pyramids-v5945.js
@@ -732,7 +732,7 @@ jobs:
           grep -Fq 'BP_SOURCE_WEATHER_CACHE_KEY_V6134' site/app.js
           grep -Fq 'restoreCachedLiveWeatherFirstFrameV6134' site/app.js
           ! grep -Fq 'if(window.__BP_CLOUDS_ONLY_PHASE_V6070__===true && m)' site/landing.js
-          grep -Fq 'landing.js?v=6184-us-opportunities-globe-clipped' site/index.html
+          grep -Fq 'landing.js?v=6185-us-opportunities-globe-clipped' site/index.html
           grep -Fq 'async function toggleNasaNightlights()' site/world-v2300-time-slider.js
           grep -Fq 'async function toggleSkyClouds()' site/world-v2300-time-slider.js
           grep -Fq 'data-skyview' site/world-v2300-time-slider.js
@@ -893,8 +893,8 @@ jobs:
           grep -Fq 'app.js' site/app/index.html
           grep -Fq "world-v2300-map.js" site/app.js
           grep -Fq "world-v2300-map.js" site/landing.js
-          grep -Fq '__BP_APP_OPPORTUNITY_STYLE_V6184__' site/app.js
-          grep -Fq '__BP_PUBLIC_OPPORTUNITY_STYLE_V6184__' site/landing.js
+          grep -Fq '__BP_APP_OPPORTUNITY_STYLE_V6185__' site/app.js
+          grep -Fq '__BP_PUBLIC_OPPORTUNITY_STYLE_V6185__' site/landing.js
           grep -Fq 'bridgepoint_public_opportunity_summary_v5626' site/landing.js
           grep -Fq 'landingOpportunityStates' site/index.html
           grep -Fq 'ownerOpportunitySummary' site/app/index.html
@@ -934,7 +934,7 @@ jobs:
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/app.js
           grep -Fq 'activateLiveWeather();' site/app.js
           grep -Fq 'enabled:true,serializedWeather:true' site/app.js
-          grep -Fq 'app.js?v=6184-us-opportunities-globe-clipped' site/app/index.html
+          grep -Fq 'app.js?v=6185-us-opportunities-globe-clipped' site/app/index.html
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/landing.js
           grep -Fq 'WMO_CAP_WARNING' site/app.js
           grep -Fq 'WMO_CAP_WARNING' site/landing.js
@@ -1165,12 +1165,12 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=6184-us-opportunities-globe-clipped' site/app/index.html
-          grep -Fq 'landing.js?v=6184-us-opportunities-globe-clipped' site/index.html
-           grep -Fq 'world-v2300-map.js?v=6184-us-opportunities-globe-clipped' site/app.js
-           grep -Fq 'world-v2300-map.js?v=6184-us-opportunities-globe-clipped' site/landing.js
-           grep -Fq 'world-v2300-map.js?v=6184-us-opportunities-globe-clipped' site/index.html
-           grep -Fq 'world-v2300-map.js?v=6184-us-opportunities-globe-clipped' site/app/index.html
+          grep -Fq 'app.js?v=6185-us-opportunities-globe-clipped' site/app/index.html
+          grep -Fq 'landing.js?v=6185-us-opportunities-globe-clipped' site/index.html
+           grep -Fq 'world-v2300-map.js?v=6185-us-opportunities-globe-clipped' site/app.js
+           grep -Fq 'world-v2300-map.js?v=6185-us-opportunities-globe-clipped' site/landing.js
+           grep -Fq 'world-v2300-map.js?v=6185-us-opportunities-globe-clipped' site/index.html
+           grep -Fq 'world-v2300-map.js?v=6185-us-opportunities-globe-clipped' site/app/index.html
            grep -Fq 'world-v2300-lod-controls.js?v=6038-world-lod-range-apply' site/app.js
            grep -Fq 'world-v2300-lod-controls.js?v=6038-world-lod-range-apply' site/landing.js
            grep -Fq 'function activeWorldLodProfile()' site/world-v2300-map.js
@@ -1477,19 +1477,19 @@ jobs:
               p.on('console',m=>{if(m.type()==='error'&&/opportunit|global risk|maplibre|image/i.test(m.text()))errors.push(m.text().slice(0,360))});
               await p.goto('https://bridgepointintelligence.online/?opportunity-global-smoke='+Date.now(),{waitUntil:'domcontentloaded',timeout:45000});
               await p.waitForFunction(()=>!!window.__BP_LANDING_WORLD__?.map,{timeout:75000});
-              const before=await p.evaluate(()=>Number(window.__BP_PUBLIC_OPPORTUNITY_STYLE_V6184__?.updatedAt||0));
+              const before=await p.evaluate(()=>Number(window.__BP_PUBLIC_OPPORTUNITY_STYLE_V6185__?.updatedAt||0));
               await p.evaluate(()=>{
                 const m=window.__BP_LANDING_WORLD__?.map;
                 if(!m)throw new Error('LANDING_MAP_MISSING');
                 m.stop?.();m.jumpTo({center:[-98.5,39.5],zoom:1.5,pitch:0,bearing:0});
               });
               await p.waitForFunction(t=>{
-                const m=window.__BP_LANDING_WORLD__?.map,s=window.__BP_PUBLIC_OPPORTUNITY_STYLE_V6184__;
+                const m=window.__BP_LANDING_WORLD__?.map,s=window.__BP_PUBLIC_OPPORTUNITY_STYLE_V6185__;
                 return !!m&&m.getZoom()<3&&Number(s?.updatedAt||0)>t;
               },{timeout:35000},before);
               await new Promise(r=>setTimeout(r,650));
               const state=await p.evaluate(()=>{
-                const m=window.__BP_LANDING_WORLD__?.map,src=m?.getSource?.('bpOpportunities'),d=window.__BP_PUBLIC_OPPORTUNITY_STYLE_V6184__||{},dom=window.__BP_GLOBAL_OPPORTUNITY_DOM_MARKERS_V6184__||{};
+                const m=window.__BP_LANDING_WORLD__?.map,src=m?.getSource?.('bpOpportunities'),d=window.__BP_PUBLIC_OPPORTUNITY_STYLE_V6185__||{},dom=window.__BP_GLOBAL_OPPORTUNITY_DOM_MARKERS_V6185__||{};
                 const visible=id=>!!m?.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none';
                 const rendered=id=>{try{return visible(id)?m.queryRenderedFeatures({layers:[id]}).length:0}catch{return -1}};
                 let sourceCount=0;try{sourceCount=m?.querySourceFeatures('bpOpportunities')?.length||0}catch(_){}
@@ -1501,26 +1501,26 @@ jobs:
                   sourceCount,sourceReady:!!src,
                   layers:Object.fromEntries(['gta-opportunity-dot-fallback','gta-opportunity-dots','gta-opportunity-label','gta-opportunity-buildings'].map(id=>[id,{present:!!m?.getLayer(id),visible:visible(id),rendered:rendered(id)}])),
                   sprites:Object.fromEntries(['bp-opp-rain-dot','bp-opp-claims-dot','bp-opp-general-dot'].map(id=>[id,!!m?.hasImage?.(id)])),
-                  domMarkers:dom,domMarkerCount:document.querySelectorAll('.bp-global-opportunity-marker-v6184').length,
+                  domMarkers:dom,domMarkerCount:document.querySelectorAll('.bp-global-opportunity-marker-v6185').length,
                   updatedAt:d.updatedAt||null
                 };
               });
               console.log('BRIDGEPOINT_GLOBAL_OPPORTUNITY_MARKERS_DIAGNOSTIC',JSON.stringify({...state,consoleErrors:errors.slice(-8)}));
-              if(!(state.zoom<3&&state.features>0&&state.riskFeedAvailable&&state.globalUsOpportunityFeatures>0&&state.globalUsRegionCount>=2&&state.domMarkers.active===true&&state.domMarkers.markerCount>0&&state.domMarkers.usFeatureCount>0&&state.domMarkerCount>0))
+              if(!(state.zoom<3&&state.features>0&&state.riskFeedAvailable&&state.globalUsOpportunityFeatures>0&&state.globalUsRegionCount>=1&&state.domMarkers.active===true&&state.domMarkers.markerCount>0&&state.domMarkers.usFeatureCount>0&&state.domMarkerCount>0))
                 throw new Error('GLOBAL_OPPORTUNITY_MARKERS_NOT_RENDERED '+JSON.stringify({...state,consoleErrors:errors.slice(-8)}));
               console.log('BRIDGEPOINT_GLOBAL_OPPORTUNITY_MARKERS_PASS');
-              const beforeSpin=await p.evaluate(()=>Number(window.__BP_GLOBAL_OPPORTUNITY_DOM_MARKERS_V6184__?.updatedAt||0));
+              const beforeSpin=await p.evaluate(()=>Number(window.__BP_GLOBAL_OPPORTUNITY_DOM_MARKERS_V6185__?.updatedAt||0));
               await p.evaluate(()=>{const m=window.__BP_LANDING_WORLD__?.map;m?.stop?.();m?.jumpTo({center:[-76.5239,3.4084],zoom:1.5,pitch:0,bearing:0})});
-              await p.waitForFunction(t=>{const m=window.__BP_LANDING_WORLD__?.map;return !!m&&Math.abs(m.getCenter().lng-(-76.5239))<3&&Number(window.__BP_GLOBAL_OPPORTUNITY_DOM_MARKERS_V6184__?.updatedAt||0)>t},{timeout:15000},beforeSpin);
+              await p.waitForFunction(t=>{const m=window.__BP_LANDING_WORLD__?.map;return !!m&&Math.abs(m.getCenter().lng-(-76.5239))<3&&Number(window.__BP_GLOBAL_OPPORTUNITY_DOM_MARKERS_V6185__?.updatedAt||0)>t},{timeout:15000},beforeSpin);
               await new Promise(r=>setTimeout(r,120));
               const spinState=await p.evaluate(()=>{
-                const m=window.__BP_LANDING_WORLD__?.map,items=m?.__bpGlobalOpportunityDomMarkersV6184?.markers||[],diag=window.__BP_GLOBAL_OPPORTUNITY_DOM_MARKERS_V6184__||{};
+                const m=window.__BP_LANDING_WORLD__?.map,items=m?.__bpGlobalOpportunityDomMarkersV6185?.markers||[],diag=window.__BP_GLOBAL_OPPORTUNITY_DOM_MARKERS_V6185__||{};
                 const visible=items.filter(i=>i.element&&getComputedStyle(i.element).visibility!=='hidden');
-                const offGlobe=visible.filter(i=>!window.bpGlobalOpportunityMarkerIsFrontV6184?.(m,i.coords));
-                return{diag,domCount:document.querySelectorAll('.bp-global-opportunity-marker-v6184').length,visibleCount:visible.length,offGlobeCount:offGlobe.length,center:m?.getCenter?.().toArray?.(),cacheAvailable:!!m?.__bpGlobalRiskFeedCacheV6184?.data,usCacheAvailable:!!m?.__bpGlobalUsOpportunityCacheV6184?.features?.length};
+                const offGlobe=visible.filter(i=>!window.bpGlobalOpportunityMarkerIsFrontV6185?.(m,i.coords));
+                return{diag,domCount:document.querySelectorAll('.bp-global-opportunity-marker-v6185').length,visibleCount:visible.length,offGlobeCount:offGlobe.length,center:m?.getCenter?.().toArray?.(),cacheAvailable:!!m?.__bpGlobalRiskFeedCacheV6185?.data,usCacheAvailable:!!m?.__bpGlobalUsOpportunityCacheV6185?.features?.length};
               });
               console.log('BRIDGEPOINT_GLOBE_MARKER_HEMISPHERE_DIAGNOSTIC',JSON.stringify(spinState));
-              if(!(spinState.diag.markerCount>0&&spinState.domCount>0&&spinState.visibleCount>0&&spinState.offGlobeCount===0&&spinState.cacheAvailable&&spinState.usCacheAvailable))
+              if(!(spinState.diag.markerCount>0&&spinState.domCount>0&&spinState.visibleCount>0&&spinState.offGlobeCount===0&&spinState.cacheAvailable&&spinState.usCacheAvailable&&spinState.diag.usFeatureCount>0))
                 throw new Error('GLOBAL_OPPORTUNITY_MARKERS_FLOAT_OR_DISAPPEAR_DURING_SPIN '+JSON.stringify(spinState));
               console.log('BRIDGEPOINT_GLOBE_MARKER_HEMISPHERE_CLIP_PASS');
             }finally{await browser.close()}
