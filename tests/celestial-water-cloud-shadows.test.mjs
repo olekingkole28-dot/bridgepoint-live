@@ -274,6 +274,7 @@ test('new rain/lightning and global source markers stay separate from legacy eff
   assert.match(lightning, /const max=innerWidth<=760\?\(globalLod\?4:1\):\(globalLod\?8:2\)/);
   assert.match(lightning, /const height=lowLod\?clamp\(26\+z\*3\.0,26,38\)/);
   assert.match(lightning, /const branchCount=lowLod\?1:2\+/);
+  assert.match(lightning, /const controller=\\{version:6193/);
   assert.match(weather, /legacyCinematicCanvasRemoved/);
   assert.match(weather, /bp2080WeatherCanvas/);
   assert.doesNotMatch(legacyLoader, /map-v2080-cinematic-weather\.js/);
