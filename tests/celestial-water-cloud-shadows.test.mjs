@@ -81,8 +81,15 @@ test('clouds render as bright 3D volumes, not as a false-colour raster sheet', (
   assert.match(clouds, /vec3\(0\.70,0\.76,0\.84\)/);
   assert.match(clouds, /version: 6164, map, overlay/);
   assert.match(clouds, /coverageVersion: 6164/);
-  assert.match(clouds, /Number\(satelliteMask\.probability\[idx\]\)>=72/);
-  assert.match(clouds, /const satelliteMaxClouds = MOBILE \? 700 : 980/);
+  assert.match(clouds, /Number\(satelliteMask\.probability\[idx\]\)<=32/);
+  assert.match(clouds, /const satelliteMaxClouds = index32Supported \? \(MOBILE \? 3000 : 4000\) : \(MOBILE \? 700 : 980\)/);
+  assert.match(clouds, /const CLOUD_VERTEX_LIMIT = MOBILE \? 145000 : 220000/);
+  assert.match(clouds, /const CLOUD_STORM_VERTEX_RESERVE = MOBILE \? 24000 : 32000/);
+  assert.match(clouds, /new Uint32Array\(indices\)/);
+  assert.match(clouds, /indexData instanceof Uint32Array\?gl\.UNSIGNED_INT:gl\.UNSIGNED_SHORT/);
+  assert.match(clouds, /SATELLITE_CLOUD_MASK_CACHE_KEY_V6150/);
+  assert.match(clouds, /restoreCachedSatelliteCloudMaskV6150\(map\)/);
+  assert.match(clouds, /persistSatelliteCloudMaskV6150\(mask\)/);
 });
 
 test('cloud shadows update on the map and use available source winds', () => {
