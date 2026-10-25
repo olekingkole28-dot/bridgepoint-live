@@ -270,6 +270,7 @@ function style(projectionType='globe'){
 }};
 
 
+// V6174: eagerly register opportunity glyph sprites so globe-scale icons do not depend on lazy fallback.
 function bpIconImage(id){
  const size=48,c=document.createElement('canvas');c.width=size;c.height=size;const x=c.getContext('2d');
  const opp=id.startsWith('bp-opp-'),rawKey=id.replace(/^bp-(?:opp|poi|listing)-/,''),dot=rawKey.endsWith('-dot'),key=dot?rawKey.replace(/-dot$/,''):rawKey;
