@@ -723,7 +723,7 @@ jobs:
           grep -Fq 'BP_SOURCE_WEATHER_CACHE_KEY_V6134' site/app.js
           grep -Fq 'restoreCachedLiveWeatherFirstFrameV6134' site/app.js
           ! grep -Fq 'if(window.__BP_CLOUDS_ONLY_PHASE_V6070__===true && m)' site/landing.js
-          grep -Fq 'landing.js?v=6172-opportunities-first-load' site/index.html
+          grep -Fq 'landing.js?v=6174-opportunity-icons-global-risk' site/index.html
           grep -Fq 'async function toggleNasaNightlights()' site/world-v2300-time-slider.js
           grep -Fq 'async function toggleSkyClouds()' site/world-v2300-time-slider.js
           grep -Fq 'data-skyview' site/world-v2300-time-slider.js
@@ -1157,7 +1157,7 @@ jobs:
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
           grep -Fq 'app.js?v=6174-opportunity-icons-global-risk' site/app/index.html
-          grep -Fq 'landing.js?v=6172-opportunities-first-load' site/index.html
+          grep -Fq 'landing.js?v=6174-opportunity-icons-global-risk' site/index.html
            grep -Fq 'world-v2300-map.js?v=6174-opportunity-icons-global-risk' site/app.js
            grep -Fq 'world-v2300-map.js?v=6174-opportunity-icons-global-risk' site/landing.js
            grep -Fq 'world-v2300-map.js?v=6174-opportunity-icons-global-risk' site/index.html
