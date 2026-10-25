@@ -368,7 +368,7 @@ async function loadGlobalRiskRegionsV6188(map,mobile){
  const task=(async()=>{
   const results=await Promise.all(BP_GLOBAL_RISK_REGIONS_V6188.map(async region=>{
    try{
-    const data=await rpc('bridgepoint_public_global_risk_viewport_v6174',{p_west:region.p_west,p_south:region.p_south,p_east:region.p_east,p_north:region.p_north,p_limit:mobile?12:24},5200);
+    const data=await rpc('bridgepoint_public_global_risk_viewport_v6174',{p_west:region.p_west,p_south:region.p_south,p_east:region.p_east,p_north:region.p_north,p_limit:mobile?12:24},9000);
     return{region,ok:true,features:data?.geojson?.features||(data?.type==='FeatureCollection'?data.features:[])||[]};
    }catch(error){
     console.warn('Global opportunity risk region unavailable',region.key,error);
@@ -421,7 +421,7 @@ async function loadGlobalUsOpportunitySampleV6186(map,mobile){
   // Small spatial windows avoid the full-U.S. query timeout and sample states with qualified live opportunities.
   const results=await Promise.all(initialRegions.map(async region=>{
    try{
-    const data=await rpc('bridgepoint_public_opportunity_viewport_v5907',{p_west:region.p_west,p_south:region.p_south,p_east:region.p_east,p_north:region.p_north,p_limit:mobile?4:8},4800);
+    const data=await rpc('bridgepoint_public_opportunity_viewport_v5907',{p_west:region.p_west,p_south:region.p_south,p_east:region.p_east,p_north:region.p_north,p_limit:mobile?4:8},9000);
     return{region,ok:true,features:data?.geojson?.features||(data?.type==='FeatureCollection'?data.features:[])||[]};
    }catch(e){
     console.warn('Global U.S. opportunity sample region unavailable',region.key,e);
@@ -462,7 +462,7 @@ async function expandGlobalUsOpportunitySampleV6186(map,mobile,refresh){
    const batch=remaining.slice(offset,offset+4);
    const results=await Promise.all(batch.map(async region=>{
     try{
-     const data=await rpc('bridgepoint_public_opportunity_viewport_v5907',{p_west:region.p_west,p_south:region.p_south,p_east:region.p_east,p_north:region.p_north,p_limit:mobile?4:8},4800);
+     const data=await rpc('bridgepoint_public_opportunity_viewport_v5907',{p_west:region.p_west,p_south:region.p_south,p_east:region.p_east,p_north:region.p_north,p_limit:mobile?4:8},9000);
      return{region,ok:true,features:data?.geojson?.features||(data?.type==='FeatureCollection'?data.features:[])||[]};
     }catch(e){console.warn('Background U.S. opportunity region unavailable',region.key,e);return{region,ok:false,features:[]}}
    }));
