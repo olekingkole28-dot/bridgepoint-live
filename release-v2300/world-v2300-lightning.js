@@ -303,7 +303,7 @@ export function initLightningLayer(map,getScene=()=>({})){
   }
   for(const event of ['move','moveend','zoom','resize'])try{map.on?.(event,onMove)}catch(_){}
   document.addEventListener('visibilitychange',onVisibility);
-  const controller={version:6135,map,get state(){return {...state,enabled,activeBolts:activeFlashes.length,overlayConnected:overlay.isConnected}},setScene,setEnabled,destroy};
+  const controller={version:6193,map,get state(){return {...state,enabled,activeBolts:activeFlashes.length,overlayConnected:overlay.isConnected}},setScene,setEnabled,destroy};
   window.__BP_LIGHTNING_RENDERER_V6136__=controller;window.__BP_LIGHTNING_RENDERER_V6135__=controller;
   window.__BP_LIGHTNING_RENDERER_V6130__=controller;
   setScene(typeof getScene==='function'?getScene():{});
