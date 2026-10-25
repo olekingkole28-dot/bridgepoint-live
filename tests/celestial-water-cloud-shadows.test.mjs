@@ -163,8 +163,8 @@ test('global opportunity markers render category glyphs and merge source-backed 
   assert.match(landing, /__bpGlobalRiskFeedCacheV6179/);
   assert.match(app, /map\.on\('move',state\.visibilityUpdate\)/);
   assert.match(landing, /map\.on\('move',state\.visibilityUpdate\)/);
-  assert.match(app, /riskFeedRequest=rpc\('bridgepoint_public_global_risk_viewport_v6174'.*?7000\)/);
-  assert.match(landing, /riskFeedRequest=rpc\('bridgepoint_public_global_risk_viewport_v6174'.*?7000\)/);
+  assert.match(app, /riskFeedRequest=zoom<3.*?bridgepoint_public_global_risk_viewport_v6174.*?7000/);
+  assert.match(landing, /riskFeedRequest=zoom<3.*?bridgepoint_public_global_risk_viewport_v6174.*?7000/);
 });
 
 test('both entrypoints perform a real 6167 service-worker cutover before stale startup survives', () => {
