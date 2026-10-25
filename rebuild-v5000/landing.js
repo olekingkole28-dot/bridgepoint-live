@@ -349,7 +349,7 @@ async function refreshLandingOpportunities(world){
  const limit=mobile?(zoom<3?25:zoom<6?35:zoom<10?50:70):(zoom<3?25:zoom<6?45:zoom<10?100:160);
  const b=m.getBounds();
  try{
-  const d=await rpc('bridgepoint_public_opportunity_viewport_v5906',{p_west:b.getWest(),p_south:b.getSouth(),p_east:b.getEast(),p_north:b.getNorth(),p_limit:limit},3600);
+  const d=await rpc('bridgepoint_public_opportunity_viewport_v5907',{p_west:b.getWest(),p_south:b.getSouth(),p_east:b.getEast(),p_north:b.getNorth(),p_limit:limit},3600);
   if(seq!==landingOpportunitySeq||m.isMoving?.())return false;
   const geo=publicOpportunityGeojson(d?.geojson);src.setData(geo);
   try{
@@ -443,6 +443,7 @@ async function initMap(){
   if(!world?.map)throw new Error('Shared BridgePoint world renderer unavailable');
   map=world.map;
   window.__BP_LANDING_WORLD__=world;
+  startLandingOpportunities(world);
   void startLandingNationalWeather(world);
   // Add the GPU water/hydrology surface to this same globe canvas before other visual modules.
   void import('./world-v2300-water.js?v=6124-solar-ocean-swell')
