@@ -131,7 +131,7 @@ export function initLightningLayer(map,getScene=()=>({})){
   style.textContent='@keyframes bp6130-long-flash{0%{opacity:0}2%{opacity:1}8%{opacity:.76}15%{opacity:1}25%{opacity:.54}36%{opacity:.94}48%{opacity:.38}60%{opacity:.82}76%{opacity:.32}88%{opacity:.58}100%{opacity:0}} .bp6130-long-bolt{animation:bp6130-long-flash 3.2s ease-out forwards} @keyframes bp6130-cloud-expansion{0%{opacity:0;transform:scale(.34)}5%{opacity:.76;transform:scale(.68)}13%{opacity:1;transform:scale(1)}22%{opacity:.34;transform:scale(1.15)}31%{opacity:.9;transform:scale(1.25)}42%{opacity:.2;transform:scale(1.38)}56%{opacity:.78;transform:scale(1.5)}74%{opacity:.22;transform:scale(1.68)}100%{opacity:0;transform:scale(1.9)}} .bp6130-cloud-flash{transform-box:fill-box;transform-origin:center;animation:bp6130-cloud-expansion 3.2s ease-out forwards} @keyframes bp6135-ground-illumination{0%{opacity:0;transform:scale(.35)}5%{opacity:.74;transform:scale(.58)}12%{opacity:1;transform:scale(1)}20%{opacity:.34;transform:scale(1.14)}31%{opacity:.88;transform:scale(1.26)}43%{opacity:.24;transform:scale(1.42)}57%{opacity:.72;transform:scale(1.6)}74%{opacity:.16;transform:scale(1.78)}100%{opacity:0;transform:scale(2.05)}} .bp6130-ground-flash{transform-box:fill-box;transform-origin:center;animation:bp6135-ground-illumination 3.2s ease-out forwards}';
   overlay.appendChild(style);container.appendChild(overlay);
   let enabled=true,disposed=false,scene={},timeout=0,seq=0,activeFlashes=[];
-  const state={version:6193,enabled:true,renderer:'shared-geographic-rain-cloud-to-ground-lightning',durationMs:3200,anchors:0,visibleAnchors:0,cloudAnchorsAvailable:0,cloudAnchorsUsed:0,cloudAnchorRejectedCount:0,globalLodMarkers:0,activeBolts:0,lastFlashAt:null,updatedAt:Date.now()};
+  const state={version:6195,enabled:true,renderer:'shared-geographic-rain-cloud-to-ground-lightning',durationMs:3200,anchors:0,visibleAnchors:0,cloudAnchorsAvailable:0,cloudAnchorsUsed:0,cloudAnchorRejectedCount:0,globalLodMarkers:0,activeBolts:0,lastFlashAt:null,updatedAt:Date.now()};
   function dimensions(){
     const rect=container.getBoundingClientRect();
     const w=Math.max(1,rect.width||container.clientWidth||1),h=Math.max(1,rect.height||container.clientHeight||1);
@@ -155,6 +155,10 @@ export function initLightningLayer(map,getScene=()=>({})){
         if(!cloud){cloudAnchorRejectedCount++;continue;}
         const cp=map.project([cloud.lng,cloud.lat]);
         if(!cp||!Number.isFinite(cp.x)||!Number.isFinite(cp.y))continue;
+        // Avoid a malformed/wrapped projection drawing one giant bolt across the globe.
+        const projectedCloudGap=Math.hypot(cp.x-p.x,cp.y-p.y);
+        const maxProjectedCloudGap=z<3.5?90:clamp((clamp(Number(cloud.radiusM)||22000,2500,90000)/Math.max(0.1,metersPerPixel(cloud.lat,z)))*2.2+90,160,900);
+        if(projectedCloudGap>maxProjectedCloudGap){cloudAnchorRejectedCount++;continue;}
         const dist=center?Math.hypot((a.lng-center.lng)*Math.cos((a.lat+center.lat)*Math.PI/360),a.lat-center.lat):0;
         candidates.push({...a,x:p.x,y:p.y,cloudLng:Number(cloud.lng),cloudLat:Number(cloud.lat),
           cloudX:cp.x,cloudY:cp.y,cloudTopAglM:clamp(Number(cloud.cloudTopAglM),700,16000),
@@ -264,11 +268,11 @@ export function initLightningLayer(map,getScene=()=>({})){
     // Start a source-anchored flash promptly after the real storm/lightning feed arrives.
     // Do not emit anything unless projected source-backed convective anchors exist.
     const globalLod=(finite(map.getZoom?.())||0)<3.5;
-    const gap=globalLod?(innerWidth<=760?1200+Math.random()*850:900+Math.random()*1450):hasObservedLightning?(innerWidth<=760?850+Math.random()*1550:900+Math.random()*1800):hasSevereAnchor?(innerWidth<=760?1500+Math.random()*2200:1800+Math.random()*2500):(innerWidth<=760?2600+Math.random()*2200:3000+Math.random()*2600);
+    const gap=globalLod?(innerWidth<=760?1200+Math.random()*850:3600+Math.random()*1800):hasObservedLightning?(innerWidth<=760?850+Math.random()*1550:900+Math.random()*1800):hasSevereAnchor?(innerWidth<=760?1500+Math.random()*2200:1800+Math.random()*2500):(innerWidth<=760?2600+Math.random()*2200:3000+Math.random()*2600);
     timeout=setTimeout(()=>{
       if(!enabled||disposed||document.hidden){schedule();return}
       const current=projectedAnchors();
-      if(current.length){const index=seq%Math.min(current.length,innerWidth<=760?1:2);buildBolt(current[index]);if(innerWidth>760&&current.length>1&&Math.random()>.48)setTimeout(()=>{if(enabled&&!disposed&&!document.hidden){const latest=projectedAnchors();if(latest.length>1)buildBolt(latest[(seq+1)%latest.length])}},480+Math.random()*500)}
+      if(current.length){const index=globalLod?0:seq%Math.min(current.length,innerWidth<=760?1:2);buildBolt(current[index]);if(!globalLod&&innerWidth>760&&current.length>1&&Math.random()>.48)setTimeout(()=>{if(enabled&&!disposed&&!document.hidden){const latest=projectedAnchors();if(latest.length>1)buildBolt(latest[(seq+1)%latest.length])}},480+Math.random()*500)}
       schedule();
     },gap);
   }
@@ -303,7 +307,7 @@ export function initLightningLayer(map,getScene=()=>({})){
   }
   for(const event of ['move','moveend','zoom','resize'])try{map.on?.(event,onMove)}catch(_){}
   document.addEventListener('visibilitychange',onVisibility);
-  const controller={version:6193,map,get state(){return {...state,enabled,activeBolts:activeFlashes.length,overlayConnected:overlay.isConnected}},setScene,setEnabled,destroy};
+  const controller={version:6195,map,get state(){return {...state,enabled,activeBolts:activeFlashes.length,overlayConnected:overlay.isConnected}},setScene,setEnabled,destroy};
   window.__BP_LIGHTNING_RENDERER_V6136__=controller;window.__BP_LIGHTNING_RENDERER_V6135__=controller;
   window.__BP_LIGHTNING_RENDERER_V6130__=controller;
   setScene(typeof getScene==='function'?getScene():{});

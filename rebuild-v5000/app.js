@@ -123,7 +123,7 @@ async function initSharedVisualWeather(targetWorld,{activate=true}={}){
  const styleReady=()=>{try{return map.isStyleLoaded?.()===true||!!map.getSource?.('ofm')}catch{return false}};
  if(!styleReady())await new Promise(resolve=>{let done=false;const finish=()=>{if(done)return;done=true;resolve()};map.once?.('load',finish);setTimeout(finish,5000)});
  try{
-  const wm=await import('./world-v2300-weather.js?v=6193-geographic-rain-lightning');
+  const wm=await import('./world-v2300-weather.js?v=6195-desktop-globe-flash-stability');
   const weather=wm.initWeather(map,{deferActivation:!activate});
   let present=window.__bpPresentWeatherV2301||null;
   if(activate){
@@ -834,8 +834,8 @@ function ensureRadarTimelineV6170(){
   if(document.hidden||mapBackgroundBlocked()||!liveContextVisible||!radarFrames.length||mapInteracting)return;
   const frame=radarFrames[radarIndex%radarFrames.length];radarIndex=(radarIndex+1)%radarFrames.length;
   swapRaster('Radar',radarTileUrl(frame),.93);
- },BP_MOBILE?5200:3200);
- window.__BP_RADAR_TIMELINE_V6170__={enabled:true,provider:'NOAA/NWS MRMS radar reflectivity',layerId:'bp-v6132-ground-radar',animationAllZoom:true,sourceMaxZoom:18,displayMaxZoom:24,frameCount:radarFrames.length,cadenceMs:BP_MOBILE?5200:3200,refreshMs:120000,updatedAt:Date.now()};
+ },5200);
+ window.__BP_RADAR_TIMELINE_V6170__={enabled:true,provider:'NOAA/NWS MRMS radar reflectivity',layerId:'bp-v6132-ground-radar',animationAllZoom:true,sourceMaxZoom:18,displayMaxZoom:24,frameCount:radarFrames.length,cadenceMs:5200,refreshMs:120000,updatedAt:Date.now()};
 }
 async function refreshRadarFrames(){
  ensureRadarTimelineV6170();

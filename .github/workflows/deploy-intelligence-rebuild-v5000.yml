@@ -311,13 +311,13 @@ jobs:
           sed -i 's#world-v2300-clouds.js?v=6088-fuller-local-tornado#world-v2300-clouds.js?v=6094-josephine-spiral-unified#g' site/app.js site/landing.js
           sed -i 's#world-v2300-clouds.js?v=6092-posttropical-global-clouds#world-v2300-clouds.js?v=6094-josephine-spiral-unified#g' site/app.js site/landing.js
           sed -i 's#world-v2300-clouds.js?v=6093-josephine-global-track#world-v2300-clouds.js?v=6094-josephine-spiral-unified#g' site/app.js site/landing.js
-          sed -i 's#world-v2300-weather.js?v=6070-clouds-only-phase#world-v2300-weather.js?v=6193-geographic-rain-lightning#g' site/app.js site/landing.js site/index.html site/app/index.html
-          sed -i 's#world-v2300-weather.js?v=6091-global-storm-centers#world-v2300-weather.js?v=6193-geographic-rain-lightning#g' site/app.js site/landing.js site/index.html site/app/index.html
+          sed -i 's#world-v2300-weather.js?v=6070-clouds-only-phase#world-v2300-weather.js?v=6195-desktop-globe-flash-stability#g' site/app.js site/landing.js site/index.html site/app/index.html
+          sed -i 's#world-v2300-weather.js?v=6091-global-storm-centers#world-v2300-weather.js?v=6195-desktop-globe-flash-stability#g' site/app.js site/landing.js site/index.html site/app/index.html
           sed -i 's#world-v2300-time-slider.js?v=6076-rounded-cloud-banks#world-v2300-time-slider.js?v=6094-josephine-spiral-unified#g' site/app.js site/landing.js
           sed -i 's#world-v2300-time-slider.js?v=6077-cloud-base-restore#world-v2300-time-slider.js?v=6094-josephine-spiral-unified#g' site/app.js site/landing.js
           sed -i 's#world-v2300-time-slider.js?v=6092-posttropical-global-clouds#world-v2300-time-slider.js?v=6094-josephine-spiral-unified#g' site/app.js site/landing.js
           sed -i 's#world-v2300-clouds.js?v=6094-josephine-spiral-unified#world-v2300-clouds.js?v=6124-live-cloud-shadow-advection#g' site/app.js site/landing.js
-          sed -i 's#world-v2300-weather.js?v=6093-josephine-global-track#world-v2300-weather.js?v=6193-geographic-rain-lightning#g' site/app.js site/landing.js site/index.html site/app/index.html
+          sed -i 's#world-v2300-weather.js?v=6093-josephine-global-track#world-v2300-weather.js?v=6195-desktop-globe-flash-stability#g' site/app.js site/landing.js site/index.html site/app/index.html
           sed -i 's#world-v2300-time-slider.js?v=6094-josephine-spiral-unified#world-v6134-time-slider-first-frame-weather#g' site/app.js site/landing.js
           sed -i 's#app.js?v=6077-cloud-base-restore#app.js?v=6077-sky-restore-safe-pitch#g' site/app/index.html
           sed -i 's#landing.js?v=6077-cloud-base-restore#landing.js?v=6077-sky-restore-safe-pitch#g' site/index.html
@@ -348,9 +348,9 @@ jobs:
           cp release-v2300/gis-core-orchestrator-v5910.js site/app/gis-core-orchestrator-v5910.js
           cp release-v2300/world-v2300-inspector.js site/app/world-v2300-inspector.js
           cp release-v2300/world-v2300-bootstrap.js site/app/world-v2300-bootstrap.js
-          sed -i 's#world-v2300-weather.js?v=6070-clouds-only-phase#world-v2300-weather.js?v=6193-geographic-rain-lightning#g' site/app/world-v2300-bootstrap.js
-          sed -i 's#world-v2300-weather.js?v=6091-global-storm-centers#world-v2300-weather.js?v=6193-geographic-rain-lightning#g' site/app/world-v2300-bootstrap.js
-          sed -i 's#world-v2300-weather.js?v=6093-josephine-global-track#world-v2300-weather.js?v=6193-geographic-rain-lightning#g' site/app/world-v2300-bootstrap.js
+          sed -i 's#world-v2300-weather.js?v=6070-clouds-only-phase#world-v2300-weather.js?v=6195-desktop-globe-flash-stability#g' site/app/world-v2300-bootstrap.js
+          sed -i 's#world-v2300-weather.js?v=6091-global-storm-centers#world-v2300-weather.js?v=6195-desktop-globe-flash-stability#g' site/app/world-v2300-bootstrap.js
+          sed -i 's#world-v2300-weather.js?v=6093-josephine-global-track#world-v2300-weather.js?v=6195-desktop-globe-flash-stability#g' site/app/world-v2300-bootstrap.js
           cp release-v2300/world-v2300.css site/app/world-v2300.css
           sed -i 's#world-v2300-clouds.js?v=6137-globe-first-weather-lockstep#world-v2300-clouds.js?v=6167-cloud-startup-performance#g; s#world-v2300-clouds.js?v=6150-global-satellite-cloud-mosaic#world-v2300-clouds.js?v=6167-cloud-startup-performance#g' site/app.js site/landing.js site/index.html site/app/index.html site/world-v2300-time-slider.js site/app/world-v2300-time-slider.js
 
@@ -532,7 +532,7 @@ jobs:
           grep -Fq 'Real satellite bands. No AI-drawn pixels.' site/world-v2300-spectral-imagery.js
           grep -Fq 'world-v2300-clouds.js?v=6167-cloud-startup-performance' site/app.js
           grep -Fq 'world-v2300-clouds.js?v=6167-cloud-startup-performance' site/landing.js
-          grep -Fq 'world-v2300-weather.js?v=6193-geographic-rain-lightning' site/app.js
+          grep -Fq 'world-v2300-weather.js?v=6195-desktop-globe-flash-stability' site/app.js
           grep -Fq 'function isPostTropicalCyclone(st={})' site/world-v2300-clouds.js
           grep -Fq 'postTropicalSurfaceCloudVertices+=makeCycloneRibbon' site/world-v2300-clouds.js
           grep -Fq 'post-tropical lows use asymmetric cloud shields' site/world-v2300-clouds.js
@@ -549,7 +549,7 @@ jobs:
           grep -Fq 'const renderBudget = globalLod ? (MOBILE ? 170 : 420)' site/world-v2300-rain.js
           grep -Fq 'visibleHemisphere' site/world-v2300-rain.js
           grep -Fq 'const branchCount=lowLod?1:' site/world-v2300-lightning.js
-          grep -Fq 'world-v2300-lightning.js?v=6193-geographic-rain-lightning' site/world-v2300-weather.js
+          grep -Fq 'world-v2300-lightning.js?v=6195-desktop-globe-flash-stability' site/world-v2300-weather.js
           grep -Fq 'export function initLightningLayer' site/world-v2300-lightning.js
           grep -Fq 'bp6130-long-flash' site/world-v2300-lightning.js
           grep -Fq 'BP_LISTINGS_MONEY_V6130' site/bridgepoint-view-v5917.js
@@ -605,7 +605,7 @@ jobs:
           grep -Fq 'baseAglM: clamp(safeNum(o.cloud_base_height_m ?? o.cloudBaseHeightM, thunder ? 450 : 350), 180, 4200)' site/world-v2300-rain.js
           grep -Fq "if(pr==='rain')return;" site/world-v2300-weather.js
           grep -Fq "'rain-cell'" site/world-v2300-clouds.js
-          grep -Fq 'world-v2300-weather.js?v=6193-geographic-rain-lightning' site/landing.js
+          grep -Fq 'world-v2300-weather.js?v=6195-desktop-globe-flash-stability' site/landing.js
           grep -Fq 'bindWeatherVertexArray(gl,weatherVao,weatherVaoMode,weatherVaoExt)' site/world-v2300-weather.js
           grep -Fq 'isolatedVao' site/world-v2300-weather.js
           grep -Fq 'window.__BP_WEATHER_GL_HEALTH_V6057__' site/world-v2300-weather.js
@@ -618,9 +618,9 @@ jobs:
           grep -Fq 'sourceWeatherOverlaysPreserved:true' site/landing.js
           grep -Fq 'sourceWeatherOverlaysPreserved:true' site/app.js
           grep -Fq 'legacyCinematicFxDisabled:true' site/landing.js
-          grep -Fq 'world-v2300-weather.js?v=6193-geographic-rain-lightning' site/index.html
-          grep -Fq 'world-v2300-weather.js?v=6193-geographic-rain-lightning' site/app/index.html
-          grep -Fq 'world-v2300-weather.js?v=6193-geographic-rain-lightning' site/app/world-v2300-bootstrap.js
+          grep -Fq 'world-v2300-weather.js?v=6195-desktop-globe-flash-stability' site/index.html
+          grep -Fq 'world-v2300-weather.js?v=6195-desktop-globe-flash-stability' site/app/index.html
+          grep -Fq 'world-v2300-weather.js?v=6195-desktop-globe-flash-stability' site/app/world-v2300-bootstrap.js
           grep -Fq 'world-v2300-time-slider.js?v=6167-cloud-startup-performance' site/app.js
           grep -Fq 'world-v2300-time-slider.js?v=6167-cloud-startup-performance' site/landing.js
           grep -Fq 'world-v2300-spectral-imagery.js?v=5934-world-controls' site/app.js
@@ -732,8 +732,8 @@ jobs:
           grep -Fq 'function archivedJosephineForecast' site/world-v2300-weather.js
           grep -Fq 'bp2300-storm-track-source-v6093' site/world-v2300-weather.js
           grep -Fq 'bp2300-storm-track-forecast-v6093' site/world-v2300-weather.js
-          grep -Fq 'world-v2300-weather.js?v=6193-geographic-rain-lightning' site/landing.js
-          grep -Fq 'world-v2300-weather.js?v=6193-geographic-rain-lightning' site/app.js
+          grep -Fq 'world-v2300-weather.js?v=6195-desktop-globe-flash-stability' site/landing.js
+          grep -Fq 'world-v2300-weather.js?v=6195-desktop-globe-flash-stability' site/app.js
           grep -Fq 'BP_WEATHER_ICON_CATALOG_V6132' site/app.js
           grep -Fq 'bp-v6132-weather-icons' site/app.js
           grep -Fq 'bp-v6132-ground-radar' site/app.js
@@ -747,7 +747,7 @@ jobs:
           grep -Fq 'BP_SOURCE_WEATHER_CACHE_KEY_V6134' site/app.js
           grep -Fq 'restoreCachedLiveWeatherFirstFrameV6134' site/app.js
           ! grep -Fq 'if(window.__BP_CLOUDS_ONLY_PHASE_V6070__===true && m)' site/landing.js
-          grep -Fq 'landing.js?v=6194-stable-water-low-cost' site/index.html
+          grep -Fq 'landing.js?v=6195-desktop-globe-flash-stability' site/index.html
           grep -Fq 'async function toggleNasaNightlights()' site/world-v2300-time-slider.js
           grep -Fq 'async function toggleSkyClouds()' site/world-v2300-time-slider.js
           grep -Fq 'data-skyview' site/world-v2300-time-slider.js
@@ -856,10 +856,10 @@ jobs:
           grep -Fq '__BP_FULL_REFRESH_V5535__' site/refresh-v5535.js
           grep -Fq '__BP_FULL_REFRESH_V5548__' site/refresh-v5535.js
           grep -Fq 'deferred-active-use' site/refresh-v5535.js
-          grep -Fq 'bp-intelligence-v6194-stable-water-low-cost' site/sw.js
+          grep -Fq 'bp-intelligence-v6195-desktop-globe-flash-stability' site/sw.js
           node --check site/app-update-v5820.js
-          grep -Fq '/app-update-v5820.js?v=6194-stable-water-low-cost' site/index.html
-          grep -Fq '/app-update-v5820.js?v=6194-stable-water-low-cost' site/app/index.html
+          grep -Fq '/app-update-v5820.js?v=6195-desktop-globe-flash-stability' site/index.html
+          grep -Fq '/app-update-v5820.js?v=6195-desktop-globe-flash-stability' site/app/index.html
           grep -Fq 'bridgepoint-intelligence-legacy-retire-v5820' site/app/flutter_service_worker.js
           grep -Fq 'migrated=legacy-intelligence-v5820' site/app/intelligence-launch/index.html
           grep -Fq "bridgepoint-horizon-v5820" site/app/horizon/sw.js
@@ -949,7 +949,7 @@ jobs:
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/app.js
           grep -Fq 'activateLiveWeather();' site/app.js
           grep -Fq 'enabled:true,serializedWeather:true' site/app.js
-          grep -Fq 'app.js?v=6194-stable-water-low-cost' site/app/index.html
+          grep -Fq 'app.js?v=6195-desktop-globe-flash-stability' site/app/index.html
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/landing.js
           grep -Fq 'WMO_CAP_WARNING' site/app.js
           grep -Fq 'WMO_CAP_WARNING' site/landing.js
@@ -1180,8 +1180,8 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=6194-stable-water-low-cost' site/app/index.html
-          grep -Fq 'landing.js?v=6194-stable-water-low-cost' site/index.html
+          grep -Fq 'app.js?v=6195-desktop-globe-flash-stability' site/app/index.html
+          grep -Fq 'landing.js?v=6195-desktop-globe-flash-stability' site/index.html
            grep -Fq 'world-v2300-map.js?v=6186-us-opportunities-globe-clipped' site/app.js
            grep -Fq 'world-v2300-map.js?v=6186-us-opportunities-globe-clipped' site/landing.js
            grep -Fq 'world-v2300-map.js?v=6186-us-opportunities-globe-clipped' site/index.html
@@ -1375,7 +1375,7 @@ jobs:
               && grep -Fq 'bridgepoint_public_weather_bootstrap_v5512' /tmp/app.js \
               && grep -Fq 'const VERSION=1068' /tmp/language-selector-v5200.js \
               && grep -Fq 'BridgePointLanguage' /tmp/language-selector-v5200.js \
-              && grep -Fq "const V='bp-intelligence-v6194-stable-water-low-cost'" /tmp/sw.js \
+              && grep -Fq "const V='bp-intelligence-v6195-desktop-globe-flash-stability'" /tmp/sw.js \
               && grep -Fq 'BUILD=6194' /tmp/app-update-v5820.js \
               && grep -Fq 'bridgepoint-intelligence-legacy-retire-v5820' /tmp/flutter-service-worker-retire.js \
               && grep -Fq 'migrated=legacy-intelligence-v5820' /tmp/legacy-intelligence-launch.html \

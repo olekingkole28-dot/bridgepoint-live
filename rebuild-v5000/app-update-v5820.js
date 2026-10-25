@@ -1,4 +1,4 @@
-(()=>{const BUILD=6194,CACHE_VERSION='6194-stable-water-low-cost',CURRENT_SW='/sw.js?v='+CACHE_VERSION,CURRENT_CACHE='bp-intelligence-v6194-stable-water-low-cost',RELOAD_KEY='bp-update-reload-'+BUILD;
+(()=>{const BUILD=6195,CACHE_VERSION='6195-desktop-globe-flash-stability',CURRENT_SW='/sw.js?v='+CACHE_VERSION,CURRENT_CACHE='bp-intelligence-v6195-desktop-globe-flash-stability',RELOAD_KEY='bp-update-reload-'+BUILD;
 let busy=false;
 const sameOrigin=u=>{try{return new URL(u,location.href).origin===location.origin}catch{return false}};
 const scopePath=s=>{try{return new URL(s).pathname}catch{return''}};
