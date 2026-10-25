@@ -66,6 +66,11 @@ jobs:
           grep -Fq "bridgepoint_public_global_risk_viewport_v6174" rebuild-v5000/landing.js
           test -s supabase/migrations/20261025021507_global_risk_opportunity_viewport_v6174.sql
           grep -Fq "id:'gta-opportunity-dots',type:'symbol',source:'bpOpportunities',minzoom:0,maxzoom:4.5" release-v2300/world-v2300-map.js
+          grep -Fq "id:'gta-opportunity-dot-fallback',type:'circle',source:'bpOpportunities',minzoom:0,maxzoom:4.5" release-v2300/world-v2300-map.js
+          grep -Fq "main opportunity feed unavailable; preserving global risk markers" rebuild-v5000/app.js
+          grep -Fq "main opportunity feed unavailable; preserving global risk markers" rebuild-v5000/landing.js
+          grep -Fq "zoom<3?{p_west:-180,p_south:-85,p_east:180,p_north:85}" rebuild-v5000/app.js
+          grep -Fq "zoom<3?{p_west:-180,p_south:-85,p_east:180,p_north:85}" rebuild-v5000/landing.js
           grep -Fq "'icon-allow-overlap':['step',['zoom'],true,6.5,false]" release-v2300/world-v2300-map.js
           grep -Fq "const VERSION = 6123;" release-v2300/world-v2300-water.js
           grep -Fq "resolvePitchDisplacementPolicy" release-v2300/world-v2300-water.js
@@ -400,8 +405,8 @@ jobs:
           grep -Fq 'bridgepoint-rail-mesh-v5973.js?v=5980-visible-detail-rails' site/app/index.html
           grep -Fq 'MAPPED_GROUND_ROAD_ENDPOINT' site/world-v2300-map.js
           grep -Fq 'groundConnectedRamps' site/world-v2300-map.js
-          grep -Fq '6174-opportunity-icons-global-risk' site/app.js
-          grep -Fq '6174-opportunity-icons-global-risk' site/landing.js
+          grep -Fq '6175-global-opportunity-markers' site/app.js
+          grep -Fq '6175-global-opportunity-markers' site/landing.js
           grep -Fq 'OpenStreetMap feature centroid' site/bridgepoint-pyramids-v5945.js
           grep -Fq 'currentHeightM: 138.5' site/bridgepoint-pyramids-v5945.js
           grep -Fq 'currentHeightM: 136.4' site/bridgepoint-pyramids-v5945.js
@@ -727,7 +732,7 @@ jobs:
           grep -Fq 'BP_SOURCE_WEATHER_CACHE_KEY_V6134' site/app.js
           grep -Fq 'restoreCachedLiveWeatherFirstFrameV6134' site/app.js
           ! grep -Fq 'if(window.__BP_CLOUDS_ONLY_PHASE_V6070__===true && m)' site/landing.js
-          grep -Fq 'landing.js?v=6174-opportunity-icons-global-risk' site/index.html
+          grep -Fq 'landing.js?v=6175-global-opportunity-markers' site/index.html
           grep -Fq 'async function toggleNasaNightlights()' site/world-v2300-time-slider.js
           grep -Fq 'async function toggleSkyClouds()' site/world-v2300-time-slider.js
           grep -Fq 'data-skyview' site/world-v2300-time-slider.js
@@ -888,8 +893,8 @@ jobs:
           grep -Fq 'app.js' site/app/index.html
           grep -Fq "world-v2300-map.js" site/app.js
           grep -Fq "world-v2300-map.js" site/landing.js
-          grep -Fq '__BP_APP_OPPORTUNITY_STYLE_V6174__' site/app.js
-          grep -Fq '__BP_PUBLIC_OPPORTUNITY_STYLE_V6174__' site/landing.js
+          grep -Fq '__BP_APP_OPPORTUNITY_STYLE_V6175__' site/app.js
+          grep -Fq '__BP_PUBLIC_OPPORTUNITY_STYLE_V6175__' site/landing.js
           grep -Fq 'bridgepoint_public_opportunity_summary_v5626' site/landing.js
           grep -Fq 'landingOpportunityStates' site/index.html
           grep -Fq 'ownerOpportunitySummary' site/app/index.html
@@ -929,7 +934,7 @@ jobs:
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/app.js
           grep -Fq 'activateLiveWeather();' site/app.js
           grep -Fq 'enabled:true,serializedWeather:true' site/app.js
-          grep -Fq 'app.js?v=6174-opportunity-icons-global-risk' site/app/index.html
+          grep -Fq 'app.js?v=6175-global-opportunity-markers' site/app/index.html
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/landing.js
           grep -Fq 'WMO_CAP_WARNING' site/app.js
           grep -Fq 'WMO_CAP_WARNING' site/landing.js
@@ -1160,12 +1165,12 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=6174-opportunity-icons-global-risk' site/app/index.html
-          grep -Fq 'landing.js?v=6174-opportunity-icons-global-risk' site/index.html
-           grep -Fq 'world-v2300-map.js?v=6174-opportunity-icons-global-risk' site/app.js
-           grep -Fq 'world-v2300-map.js?v=6174-opportunity-icons-global-risk' site/landing.js
-           grep -Fq 'world-v2300-map.js?v=6174-opportunity-icons-global-risk' site/index.html
-           grep -Fq 'world-v2300-map.js?v=6174-opportunity-icons-global-risk' site/app/index.html
+          grep -Fq 'app.js?v=6175-global-opportunity-markers' site/app/index.html
+          grep -Fq 'landing.js?v=6175-global-opportunity-markers' site/index.html
+           grep -Fq 'world-v2300-map.js?v=6175-global-opportunity-markers' site/app.js
+           grep -Fq 'world-v2300-map.js?v=6175-global-opportunity-markers' site/landing.js
+           grep -Fq 'world-v2300-map.js?v=6175-global-opportunity-markers' site/index.html
+           grep -Fq 'world-v2300-map.js?v=6175-global-opportunity-markers' site/app/index.html
            grep -Fq 'world-v2300-lod-controls.js?v=6038-world-lod-range-apply' site/app.js
            grep -Fq 'world-v2300-lod-controls.js?v=6038-world-lod-range-apply' site/landing.js
            grep -Fq 'function activeWorldLodProfile()' site/world-v2300-map.js
