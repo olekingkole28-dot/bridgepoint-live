@@ -20,10 +20,10 @@
     {
       "id": "global-basemap-z6-v1",
       "title": "Global Basemap",
-      "description": "One planet-wide vector archive at zoom levels 0–6, with generalized roads, water, landcover, transport and place context at supported scales.",
+      "description": "A whole-planet vector map archive at zoom levels 0–6, including generalized roads, water, landcover, transport and place context at supported scales.",
       "manifestUrl": "/offline-packs/global-basemap-z6-v1.json",
-      "estimatedBytes": 63200000,
-      "sizeLabel": "About 60–64 MB",
+      "estimatedBytes": 45500000,
+      "sizeLabel": "About 45–50 MB · exact size recorded per build",
       "includes": [
         "Worldwide roads and transport context at overview scale",
         "Water, rivers and land context",
@@ -36,10 +36,10 @@
     {
       "id": "global-max-v1",
       "title": "GLOBAL MAX — Open Data",
-      "description": "The largest bundled worldwide package: a richer zoom 0–7 global vector archive plus detailed Natural Earth country/land boundaries and local labels/symbols. Target size is a few hundred megabytes, not multiple gigabytes; the exact archive size and source date are recorded in the build metadata.",
+      "description": "The largest bundled worldwide package: an expanded zoom 0–7 global vector archive plus detailed Natural Earth country/land boundaries and local labels/symbols. Target total is about 190–220 MB, not multiple gigabytes; exact archive size/date are shown from build metadata.",
       "manifestUrl": "/offline-packs/global-max-v1.json",
-      "estimatedBytes": 350000000,
-      "sizeLabel": "About 250–400 MB · exact size recorded per build",
+      "estimatedBytes": 200000000,
+      "sizeLabel": "About 190–220 MB · exact size recorded per build",
       "includes": [
         "Everything in Global Basemap, plus an expanded zoom-7 world archive",
         "Country and land geometry at Natural Earth 1:10m / 1:50m / 1:110m scales",
