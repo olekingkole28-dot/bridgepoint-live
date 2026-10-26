@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "global-max-v1",
   "title": "GLOBAL MAX — Open Data",
-  "version": "protomaps-v4-z6+world-atlas-2.0.2",
+  "version": "protomaps-v4-z7+world-atlas-2.0.2",
   "source": "Protomaps basemap + Natural Earth via world-atlas",
   "sourceUrl": "https://docs.protomaps.com/basemaps/downloads",
   "licence": "OpenStreetMap-derived Produced Work under ODbL; Natural Earth public-domain data; included fonts/sprites use their own licences",
@@ -12,12 +12,12 @@
   ],
   "resources": [
     {
-      "url": "/assets/offline/protomaps-world-z6.pmtiles",
-      "bytes": 62914560
+      "url": "/assets/offline/protomaps-world-z7.pmtiles",
+      "bytes": 320000000
     },
     {
-      "url": "/assets/offline/protomaps-world-z6.meta.json",
-      "bytes": 512
+      "url": "/assets/offline/protomaps-world-z7.meta.json",
+      "bytes": 700
     },
     {
       "url": "/assets/offline/fonts/Noto%20Sans%20Regular/0-255.pbf",
