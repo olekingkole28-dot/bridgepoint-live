@@ -36,15 +36,15 @@
     {
       "id": "global-max-v1",
       "title": "GLOBAL MAX — Open Data",
-      "description": "The largest worldwide package: Global Basemap plus high-detail Natural Earth country/land boundaries and local font/sprite assets. Designed to stay around 68–72 MB, not gigabytes.",
+      "description": "The largest bundled worldwide package: a richer zoom 0–7 global vector archive plus detailed Natural Earth country/land boundaries and local labels/symbols. Target size is a few hundred megabytes, not multiple gigabytes; the exact archive size and source date are recorded in the build metadata.",
       "manifestUrl": "/offline-packs/global-max-v1.json",
-      "estimatedBytes": 71000000,
-      "sizeLabel": "About 68–72 MB",
+      "estimatedBytes": 350000000,
+      "sizeLabel": "About 250–400 MB · exact size recorded per build",
       "includes": [
-        "Everything in Global Basemap",
-        "Country and land shapes at 1:10m / 1:50m / 1:110m",
-        "Local labels and symbols",
-        "Data source, build date and licence notice"
+        "Everything in Global Basemap, plus an expanded zoom-7 world archive",
+        "Country and land geometry at Natural Earth 1:10m / 1:50m / 1:110m scales",
+        "Global roads, waterways, transport and place context at available zooms",
+        "Local fonts, symbols, source date and licence notices"
       ],
       "bestFor": "Maximum globally redistributable map detail in one reasonable download",
       "status": "recommended"
