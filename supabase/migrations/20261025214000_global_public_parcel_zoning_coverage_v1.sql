@@ -119,280 +119,122 @@ on conflict (source_key) do update set
  attribution_required=excluded.attribution_required,us_scope=excluded.us_scope,
  status=excluded.status,metadata=excluded.metadata,updated_at=now();
 
-CREATE OR REPLACE FUNCTION public.bridgepoint_public_zoning_coverage_v1(p_lng double precision, p_lat double precision)
+CREATE OR REPLACE FUNCTION public.bridgepoint_public_global_parcels_bbox_v957(p_min_lng double precision, p_min_lat double precision, p_max_lng double precision, p_max_lat double precision, p_zoom double precision DEFAULT 12, p_limit integer DEFAULT 1200)
  RETURNS jsonb
  LANGUAGE plpgsql
  STABLE SECURITY DEFINER
- SET search_path TO 'pg_catalog', 'automation', 'analytics', 'public'
- SET statement_timeout TO '4500ms'
+ SET search_path TO 'pg_catalog', 'automation', 'public'
+ SET statement_timeout TO '2200ms'
 AS $function$
-DECLARE
-  v_pt geometry;
-  v_parcel record;
-  v_parcel_geom geometry;
-  v_parcel_area_m2 numeric;
-  v_building_rows integer:=0;
-  v_building_limit_hit boolean:=false;
-  v_footprint_area_m2 numeric;
-  v_coverage_pct numeric;
-  v_source_keys text[]:=array[]::text[];
-  v_building_sources jsonb:='[]'::jsonb;
-  v_zone record;
-  v_rule record;
-  v_compliance text:='REVIEW_REQUIRED';
-BEGIN
-  -- Initialize RECORD structures so missing district/rule matches return null fields,
-  -- rather than triggering "record is not assigned yet".
-  SELECT NULL::text AS zone_code,NULL::text AS zone_name,NULL::text AS jurisdiction_key,
-         NULL::text AS municipality,NULL::text AS source_name,NULL::text AS source_url,
-         NULL::uuid AS source_id
-    INTO v_zone;
-  SELECT NULL::numeric AS max_lot_coverage_pct,NULL::text AS code_section,
-         NULL::text AS code_title,NULL::text AS rule_source_url,
-         NULL::date AS effective_from,NULL::date AS effective_to,
-         NULL::text AS verification_status
-    INTO v_rule;
+declare
+  env geometry;
+  lim int:=least(greatest(coalesce(p_limit,1200),50),1800);
+  tol double precision;
+  features jsonb;
+  n int;
+begin
+  if p_min_lng is null or p_min_lat is null or p_max_lng is null or p_max_lat is null
+     or p_min_lng>=p_max_lng or p_min_lat>=p_max_lat
+     or p_min_lng not between -180 and 180 or p_max_lng not between -180 and 180
+     or p_min_lat not between -90 and 90 or p_max_lat not between -90 and 90 then
+    return jsonb_build_object('version',957,'type','FeatureCollection','features','[]'::jsonb,'error','INVALID_BBOX');
+  end if;
+  if coalesce(p_zoom,0)<7.0 then
+    return jsonb_build_object('version',957,'type','FeatureCollection','features','[]'::jsonb,'count',0,'min_zoom',7);
+  end if;
 
-  IF p_lng IS NULL OR p_lat IS NULL
-     OR p_lng NOT BETWEEN -180 AND 180 OR p_lat NOT BETWEEN -90 AND 90 THEN
-    RETURN jsonb_build_object(
-      'version',1,'complete',true,'status','INVALID_COORDINATES',
-      'error','VALID_LONGITUDE_LATITUDE_REQUIRED'
-    );
-  END IF;
-  v_pt:=st_setsrid(st_makepoint(p_lng,p_lat),4326);
+  env:=st_makeenvelope(p_min_lng,p_min_lat,p_max_lng,p_max_lat,4326);
+  tol:=case when p_zoom>=15 then 0 when p_zoom>=12 then .000004 when p_zoom>=10 then .000015 else .00006 end;
 
-  -- U.S. parcel geometry is eligible only when the existing allowlist, compliance
-  -- validation, and explicit public-display/raw-redistribution metadata all pass.
-  SELECT
-    pb.source_record_id::text AS source_record_id,
-    'US'::text AS country_code,
-    upper(pb.state_code)::text AS region_code,
-    ('US-'||upper(pb.state_code))::text AS jurisdiction_key,
-    pb.geom AS geom,
-    NULL::numeric AS area_m2,
-    coalesce(c.metadata->>'source_name',c.metadata->>'provider','Approved public parcel source')::text AS source_name,
-    pb.source_url::text AS source_url,
-    pb.allowed_use_scope::text AS allowed_use_scope,
-    'U.S. rights allowlist + source-compliance public-display gate'::text AS source_scope_note
-  INTO v_parcel
-  FROM automation.parcel_boundary_provenance_v1831 pb
-  JOIN automation.parcel_boundary_rights_allowlist_v1831 a
-    ON a.candidate_id=pb.candidate_id AND a.active
-  JOIN automation.geographic_source_candidates_v86 c
-    ON c.candidate_id=pb.candidate_id
-  JOIN automation.source_compliance_validation_v720 v
-    ON v.candidate_id=pb.candidate_id
-  WHERE pb.geom IS NOT NULL
-    AND pb.geom && st_expand(v_pt,0.003)
-    AND st_covers(pb.geom,v_pt)
-    AND c.decision_status='ACCEPTED'
-    AND v.activation_status='APPROVED'
-    AND v.rights_status='PASS'
-    AND v.authority_status='PASS'
-    AND v.provenance_status='PASS'
-    AND v.local_law_status='PASS'
-    AND (
-      c.metadata @> '{"raw_redistribution_allowed":true}'::jsonb
-      OR c.metadata @> '{"public_boundary_display_allowed":true}'::jsonb
-    )
-  ORDER BY st_area(pb.geom::geography) ASC
-  LIMIT 1;
+  with c as materialized (
+    select *
+    from (
+      -- U.S. parcel source records are included only when the source registry,
+      -- active allowlist, and every current compliance check explicitly pass.
+      select
+        ('US:'||pb.candidate_id::text||':'||pb.source_record_id)::text as boundary_id,
+        pb.source_record_id,
+        nullif(btrim(pb.source_record_id),'') as parcel_number,
+        'US'::text as country_code,
+        upper(pb.state_code)::text as region_code,
+        ('US-'||upper(pb.state_code))::text as jurisdiction_key,
+        pb.geom as geometry,
+        c.candidate_name::text as source_name,
+        c.provider::text as provider,
+        pb.allowed_use_scope::text as allowed_use_scope,
+        coalesce(c.metadata->>'license','See official source terms')::text as license_text,
+        pb.source_url::text as source_url
+      from automation.parcel_boundary_provenance_v1831 pb
+      join automation.parcel_boundary_rights_allowlist_v1831 a
+        on a.candidate_id=pb.candidate_id and a.active
+      join automation.geographic_source_candidates_v86 c
+        on c.candidate_id=pb.candidate_id
+      join automation.source_compliance_validation_v720 v
+        on v.candidate_id=pb.candidate_id
+      where pb.geom is not null
+        and pb.geom && env
+        and st_intersects(pb.geom,env)
+        and c.state_code=pb.state_code
+        and c.decision_status='ACCEPTED'
+        and v.activation_status='APPROVED'
+        and v.rights_status='PASS'
+        and v.authority_status='PASS'
+        and v.provenance_status='PASS'
+        and v.local_law_status='PASS'
+        and (
+          c.metadata @> '{"raw_redistribution_allowed":true}'::jsonb
+          or c.metadata @> '{"public_boundary_display_allowed":true}'::jsonb
+        )
 
-  IF NOT FOUND THEN
-    -- Global geometry is independently gated to an active, verified-open source with
-    -- explicit PUBLIC publication scope; OWNER_ONLY and conditional rows never enter.
-    SELECT
-      b.source_record_id::text AS source_record_id,
-      upper(b.country_code)::text AS country_code,
-      b.region_code::text AS region_code,
-      b.jurisdiction_key::text AS jurisdiction_key,
-      b.geometry AS geom,
-      b.area_m2::numeric AS area_m2,
-      s.source_name::text AS source_name,
-      coalesce(s.provenance_url,s.source_url)::text AS source_url,
-      s.allowed_use_scope::text AS allowed_use_scope,
-      'Global source rights VERIFIED_OPEN + publication_scope PUBLIC'::text AS source_scope_note
-    INTO v_parcel
-    FROM automation.global_parcel_boundary_provenance_v953 b
-    JOIN automation.global_boundary_sources_v953 s USING(source_id)
-    WHERE s.active
-      AND s.rights_status='VERIFIED_OPEN'
-      AND s.publication_scope='PUBLIC'
-      AND b.geometry && st_expand(v_pt,0.003)
-      AND st_covers(b.geometry,v_pt)
-    ORDER BY st_area(b.geometry::geography) ASC
-    LIMIT 1;
-  END IF;
+      union all
 
-  IF NOT FOUND OR v_parcel.geom IS NULL THEN
-    RETURN jsonb_build_object(
-      'version',1,'complete',true,'status','PUBLIC_PARCEL_GEOMETRY_UNAVAILABLE',
-      'measured_lot_coverage_pct',NULL,'allowed_max_coverage_pct',NULL,
-      'compliance_status','NOT_EVALUATED',
-      'message','No parcel geometry cleared for public analysis was found at this location. This is not evidence that a parcel or zoning rule does not exist.'
-    );
-  END IF;
-
-  v_parcel_geom:=st_force2d(v_parcel.geom);
-  v_parcel_area_m2:=round(coalesce(nullif(v_parcel.area_m2,0),st_area(v_parcel_geom::geography))::numeric,2);
-  IF v_parcel_area_m2 IS NULL OR v_parcel_area_m2<=0 THEN
-    RETURN jsonb_build_object(
-      'version',1,'complete',true,'status','PARCEL_AREA_UNAVAILABLE',
-      'parcel_source',v_parcel.source_name,'parcel_source_url',v_parcel.source_url,
-      'allowed_use_scope',v_parcel.allowed_use_scope,
-      'measured_lot_coverage_pct',NULL,'allowed_max_coverage_pct',NULL,
-      'compliance_status','NOT_EVALUATED'
-    );
-  END IF;
-
-  -- Use only stored source footprints whose catalog explicitly permits ingestion,
-  -- derived geometry, caching, and rendering. Union clipped polygons to avoid counting
-  -- overlap/duplicate building sources twice. Cap very large lots for public RPC safety.
-  WITH eligible AS MATERIALIZED (
-    SELECT g.source_key,sc.provider,sc.license,
-           st_collectionextract(
-             st_intersection(st_makevalid(st_force2d(g.geometry)),v_parcel_geom),3
-           ) AS footprint
-    FROM analytics.universal_building_geometry_v918 g
-    JOIN automation.building_3d_source_catalog_v1890 sc ON sc.source_key=g.source_key
-    WHERE sc.ingest_allowed
-      AND sc.derive_geometry_allowed
-      AND sc.cache_allowed
-      AND sc.render_allowed
-      AND sc.status='APPROVED'
-      AND g.geometry && v_parcel_geom
-      AND st_intersects(g.geometry,v_parcel_geom)
-      AND st_dimension(st_force2d(g.geometry))=2
-    LIMIT 1500
+      -- International/global sources must remain active, verified-open, and
+      -- explicitly published for public use.
+      select
+        b.boundary_id::text as boundary_id,
+        b.source_record_id,
+        b.parcel_number,
+        upper(b.country_code)::text as country_code,
+        b.region_code::text as region_code,
+        b.jurisdiction_key::text as jurisdiction_key,
+        b.geometry,
+        s.source_name::text as source_name,
+        s.provider::text as provider,
+        s.allowed_use_scope::text as allowed_use_scope,
+        s.license_text::text as license_text,
+        coalesce(s.provenance_url,s.source_url)::text as source_url
+      from automation.global_parcel_boundary_provenance_v953 b
+      join automation.global_boundary_sources_v953 s using(source_id)
+      where s.active
+        and s.rights_status='VERIFIED_OPEN'
+        and s.publication_scope='PUBLIC'
+        and b.geometry && env
+        and st_intersects(b.geometry,env)
+    ) eligible
+    order by geometry <-> st_centroid(env)
+    limit lim  ), f as (
+    select jsonb_build_object(
+      'type','Feature',
+      'id',boundary_id,
+      'geometry',st_asgeojson(case when tol=0 then st_force2d(geometry) else st_simplifypreservetopology(st_force2d(geometry),tol) end,7,0)::jsonb,
+      'properties',jsonb_build_object(
+        'boundary_id',boundary_id,'source_record_id',source_record_id,'parcel_number',parcel_number,
+        'country_code',country_code,'region_code',region_code,'jurisdiction_key',jurisdiction_key,
+        'source_name',source_name,'provider',provider,'allowed_use_scope',allowed_use_scope,'license_text',license_text,'source_url',source_url
+      )
+    ) feature
+    from c
   )
-  SELECT count(*)::integer,
-         count(*)>=1500,
-         CASE WHEN count(*)=0 OR count(*)>=1500 THEN NULL
-              ELSE round(st_area(st_unaryunion(st_collect(footprint))::geography)::numeric,2)
-         END,
-         coalesce(array_agg(DISTINCT source_key),'{}'::text[]),
-         coalesce(jsonb_agg(DISTINCT jsonb_build_object(
-           'source_key',source_key,'provider',provider,'license',license
-         )),'[]'::jsonb)
-    INTO v_building_rows,v_building_limit_hit,v_footprint_area_m2,v_source_keys,v_building_sources
-  FROM eligible
-  WHERE footprint IS NOT NULL AND NOT st_isempty(footprint);
+  select coalesce(jsonb_agg(feature),'[]'::jsonb),count(*)::int into features,n from f;
 
-  IF v_building_rows>0 AND NOT v_building_limit_hit AND v_footprint_area_m2 IS NOT NULL THEN
-    v_coverage_pct:=round((v_footprint_area_m2/v_parcel_area_m2*100)::numeric,2);
-  END IF;
+  return jsonb_build_object('version',957,'type','FeatureCollection','features',features,'count',n,
+    'limit',lim,'possibly_truncated',n>=lim,
+    'truth_notice','Public-safe source-backed global parcel geometry. Mexico RAN geometry is social/agrarian scope only.');
+end $function$
 
-  -- A code maximum appears only after point-in-polygon district match and an official,
-  -- currently effective, rights-cleared rule match.
-  SELECT d.zone_code,d.zone_name,d.jurisdiction_key,d.municipality,d.source_name,
-         coalesce(d.ordinance_url,d.source_url) AS source_url,d.source_id
-    INTO v_zone
-  FROM automation.municipal_zoning_districts_v1 d
-  WHERE d.geom && v_parcel_geom
-    AND st_covers(d.geom,st_pointonsurface(v_parcel_geom))
-    AND d.official_source
-    AND d.publication_scope='PUBLIC'
-    AND d.rights_status='VERIFIED_OPEN'
-    AND (d.effective_from IS NULL OR d.effective_from<=current_date)
-    AND (d.effective_to IS NULL OR d.effective_to>=current_date)
-    AND upper(d.country_code)=upper(v_parcel.country_code)
-  ORDER BY st_area(d.geom::geography) ASC
-  LIMIT 1;
 
-  IF FOUND THEN
-    SELECT r.max_lot_coverage_pct,r.code_section,r.code_title,
-           coalesce(r.rule_source_url,s.source_url) AS rule_source_url,
-           r.effective_from,r.effective_to,r.verification_status
-      INTO v_rule
-    FROM automation.municipal_zoning_rules_v1 r
-    JOIN automation.municipal_zoning_sources_v1 s ON s.source_id=r.source_id
-    WHERE r.jurisdiction_key=v_zone.jurisdiction_key
-      AND upper(r.zone_code)=upper(v_zone.zone_code)
-      AND r.rule_type='LOT_COVERAGE_MAX'
-      AND r.max_lot_coverage_pct IS NOT NULL
-      AND r.official_source
-      AND r.verification_status='VERIFIED_OFFICIAL'
-      AND r.publication_scope='PUBLIC'
-      AND r.rights_status='VERIFIED_OPEN'
-      AND s.official_source
-      AND s.status='READY'
-      AND s.publication_scope='PUBLIC'
-      AND s.rights_status='VERIFIED_OPEN'
-      AND (r.effective_from IS NULL OR r.effective_from<=current_date)
-      AND (r.effective_to IS NULL OR r.effective_to>=current_date)
-    ORDER BY r.effective_from DESC NULLS LAST,r.verified_at DESC NULLS LAST
-    LIMIT 1;
-  END IF;
-
-  IF v_building_limit_hit THEN
-    v_compliance:='REVIEW_REQUIRED_BUILDING_FEATURE_CAP';
-  ELSIF v_coverage_pct IS NULL THEN
-    v_compliance:='REVIEW_REQUIRED_FOOTPRINT_COVERAGE_UNAVAILABLE';
-  ELSIF v_rule.max_lot_coverage_pct IS NULL THEN
-    v_compliance:='RULE_NOT_VERIFIED';
-  ELSE
-    v_compliance:='REVIEW_REQUIRED_SOURCE_COVERAGE_AND_LOCAL_EXCEPTIONS';
-  END IF;
-
-  RETURN jsonb_build_object(
-    'version',1,
-    'complete',true,
-    'status',CASE
-      WHEN v_building_limit_hit THEN 'BUILDING_FEATURE_CAP_REACHED'
-      WHEN v_coverage_pct IS NOT NULL THEN 'MEASURED_SOURCE_COVERED_FOOTPRINTS'
-      ELSE 'BUILDING_FOOTPRINT_COVERAGE_UNAVAILABLE'
-    END,
-    'parcel',jsonb_build_object(
-      'source_record_id',v_parcel.source_record_id,
-      'country_code',v_parcel.country_code,
-      'region_code',v_parcel.region_code,
-      'jurisdiction_key',v_parcel.jurisdiction_key,
-      'area_m2',v_parcel_area_m2,
-      'source_name',v_parcel.source_name,
-      'source_url',v_parcel.source_url,
-      'allowed_use_scope',v_parcel.allowed_use_scope,
-      'source_scope_note',v_parcel.source_scope_note
-    ),
-    'building_footprints',jsonb_build_object(
-      'source_feature_count',v_building_rows,
-      'limit_reached',v_building_limit_hit,
-      'union_footprint_area_m2',v_footprint_area_m2,
-      'measured_lot_coverage_pct',v_coverage_pct,
-      'source_keys',to_jsonb(v_source_keys),
-      'sources',v_building_sources,
-      'completeness','SOURCE_COVERAGE_NOT_PROVEN_COMPLETE'
-    ),
-    'zoning',jsonb_build_object(
-      'zone_code',v_zone.zone_code,
-      'zone_name',v_zone.zone_name,
-      'jurisdiction_key',v_zone.jurisdiction_key,
-      'municipality',v_zone.municipality,
-      'source_name',v_zone.source_name,
-      'district_source_url',v_zone.source_url,
-      'allowed_max_coverage_pct',v_rule.max_lot_coverage_pct,
-      'code_section',v_rule.code_section,
-      'code_title',v_rule.code_title,
-      'rule_source_url',v_rule.rule_source_url,
-      'rule_verification_status',v_rule.verification_status,
-      'effective_from',v_rule.effective_from,
-      'effective_to',v_rule.effective_to,
-      'status',CASE
-        WHEN v_zone.zone_code IS NULL THEN 'OFFICIAL_DISTRICT_NOT_MATERIALIZED'
-        WHEN v_rule.max_lot_coverage_pct IS NULL THEN 'OFFICIAL_MAXIMUM_NOT_VERIFIED'
-        ELSE 'VERIFIED_OFFICIAL_RULE_MATCH'
-      END
-    ),
-    'compliance_status',v_compliance,
-    'truth_notice','Coverage is a geometry-derived indicator from current source-covered footprints; source completeness and local-code exceptions are not presumed. A compliance status is not a legal determination.',
-    'source_attribution',jsonb_build_object(
-      'parcel_source_name',v_parcel.source_name,
-      'parcel_source_url',v_parcel.source_url,
-      'building_sources',v_building_sources
-    )
-  );
-END
-$function$
+revoke all on function public.bridgepoint_public_global_parcels_bbox_v957(double precision,double precision,double precision,double precision,double precision,integer) from public;
+grant execute on function public.bridgepoint_public_global_parcels_bbox_v957(double precision,double precision,double precision,double precision,double precision,integer) to anon,authenticated,service_role;
 
 
 revoke all on function public.bridgepoint_public_zoning_coverage_v1(double precision,double precision) from public;
