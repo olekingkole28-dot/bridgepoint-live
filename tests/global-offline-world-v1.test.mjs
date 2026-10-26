@@ -50,7 +50,8 @@ test('catalog exposes three truthful packages and separates global vs regional-o
     assert.match(pack.sizeLabel, /MB/);
     assert.ok(pack.includes.length > 0);
   }
-  assert.ok(catalog.packages.find(p=>p.id==='global-max-v1').estimatedBytes < 700000000);
+  assert.ok(catalog.packages.find(p=>p.id==='global-max-v1').estimatedBytes < 250000000);
+  assert.match(catalog.packages.find(p=>p.id==='global-max-v1').manifestUrl,/global-max-v1/);
   assert.ok(catalog.layerAvailability.some(p=>p.id==='parcels'&&p.status==='regional'));
   assert.ok(catalog.layerAvailability.some(p=>p.id==='mesh'&&p.status==='planned'));
 });
