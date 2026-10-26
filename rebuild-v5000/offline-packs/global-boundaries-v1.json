@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "global-boundaries-v1",
+  "title": "Global country boundaries — 110m, 50m and 10m",
+  "version": "world-atlas-2.0.2",
+  "source": "world-atlas 2.0.2 / Natural Earth",
+  "sourceUrl": "https://github.com/topojson/world-atlas",
+  "licence": "world-atlas package: ISC; underlying Natural Earth geographic data: public domain",
+  "attribution": "Natural Earth · world-atlas",
+  "allowedOrigins": [
+    "https://cdn.jsdelivr.net"
+  ],
+  "resources": [
+    {
+      "url": "https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-110m.json",
+      "bytes": 105240
+    },
+    {
+      "url": "https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-50m.json",
+      "bytes": 738690
+    },
+    {
+      "url": "https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-10m.json",
+      "bytes": 3490000
+    }
+  ]
+}
