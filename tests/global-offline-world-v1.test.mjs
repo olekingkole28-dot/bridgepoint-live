@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
+if (typeof globalThis.location === 'undefined') globalThis.location = { href: 'https://bridgepointintelligence.online/', origin: 'https://bridgepointintelligence.online' };
 const offline = require('../rebuild-v5000/offline-world-v1.js');
 
 test('accepts a valid same-origin style manifest in a browser-like environment', () => {
