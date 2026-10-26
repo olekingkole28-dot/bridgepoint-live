@@ -187,6 +187,5 @@ async function start(){
  // then preserves the page shell; geographic bytes are stored by the pack manager.
  if('serviceWorker' in navigator){try{await navigator.serviceWorker.register('/sw.js?v=offline-world-v1',{scope:'/',updateViaCache:'none'});await navigator.serviceWorker.ready}catch(e){console.warn('Offline shell worker registration failed',e)}}
 }
-async function storageStats(){return $('bpStorageText')?.textContent||''}
 start().catch(e=>{status('Offline World could not initialize: '+e.message);mapStatus('Initialization failed. Open this page while connected, then retry.');console.error(e)});
 })();
