@@ -10,6 +10,62 @@
   "allowedOrigins": [],
   "resources": [
     {
+      "url": "/offline/",
+      "bytes": 6000
+    },
+    {
+      "url": "/offline/offline-world.css?v=1",
+      "bytes": 16000
+    },
+    {
+      "url": "/offline/offline-world.js?v=1",
+      "bytes": 17000
+    },
+    {
+      "url": "/offline-world-v1.js",
+      "bytes": 8500
+    },
+    {
+      "url": "/offline-world-ui.js?v=1",
+      "bytes": 650
+    },
+    {
+      "url": "/offline-world-ui.css?v=1",
+      "bytes": 1800
+    },
+    {
+      "url": "/vendor/maplibre-gl.css?v=524-v5945",
+      "bytes": 50000
+    },
+    {
+      "url": "/vendor/maplibre-gl.js?v=524-v5945",
+      "bytes": 1200000
+    },
+    {
+      "url": "/vendor/pmtiles.js",
+      "bytes": 100000
+    },
+    {
+      "url": "/assets/offline/basemaps.js",
+      "bytes": 300000
+    },
+    {
+      "url": "/offline-packs/catalog.json",
+      "bytes": 5000
+    },
+    {
+      "url": "/offline-packs/global-boundaries-v1.json",
+      "bytes": 3000
+    },
+    {
+      "url": "/offline-packs/global-basemap-z6-v1.json",
+      "bytes": 3000
+    },
+    {
+      "url": "/offline-packs/global-max-v1.json",
+      "bytes": 3000
+    },
+    {
       "url": "/assets/offline/protomaps-world-z6.pmtiles",
       "bytes": 45100000
     },
