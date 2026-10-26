@@ -9,8 +9,8 @@ const GLOW='bp-global-parcel-glow-v957';
 const LINE='bp-global-parcel-line-v957';
 const HIT='bp-global-parcel-hit-v957';
 const EMPTY={type:'FeatureCollection',features:[]};
-const PUBLIC_PARCEL_GEOMETRY=false;
-window.__BP_PUBLIC_MAP_PRIVACY_V1116__={version:1116,parcelGeometry:false,parcelCounts:true,parcelSearch:true,ownerViewerUnaffected:true,updatedAt:Date.now()};
+const PUBLIC_PARCEL_GEOMETRY=true;
+window.__BP_PUBLIC_MAP_PRIVACY_V1123__={version:1123,parcelGeometry:true,parcelCounts:true,parcelSearch:true,ownerViewerUnaffected:true,geometryPolicy:'VERIFIED_OPEN_AND_PUBLIC_SCOPE_ONLY',updatedAt:Date.now()};
 const state={map:null,timer:0,statusTimer:0,liveTimer:0,seq:0,lastKey:'',lastStatus:null,lastLive:null,lastData:EMPTY};
 const fmt=n=>Number(n||0).toLocaleString();
 async function rpc(name,args={},timeout=7000){
@@ -176,6 +176,6 @@ async function boot(){
   await new Promise(r=>setTimeout(r,120));
  }
 }
-window.__BP_GLOBAL_PROPERTY_V957__={version:1122,rpc,status,liveCounters,search,detail,refresh,publicParcelGeometry:false,get statusData(){return state.lastStatus},get liveData(){return state.lastLive},get viewport(){return state.lastData}};
+window.__BP_GLOBAL_PROPERTY_V957__={version:1123,rpc,status,liveCounters,search,detail,refresh,publicParcelGeometry:true,publicGeometryScope:'VERIFIED_OPEN_AND_PUBLIC',get statusData(){return state.lastStatus},get liveData(){return state.lastLive},get viewport(){return state.lastData}};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>void boot(),{once:true});else void boot();
 })();
