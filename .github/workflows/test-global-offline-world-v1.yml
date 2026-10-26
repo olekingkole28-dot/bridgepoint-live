@@ -54,7 +54,7 @@ jobs:
           python3 -m json.tool rebuild-v5000/offline-packs/global-boundaries-v1.json >/dev/null
           python3 -m json.tool rebuild-v5000/offline-packs/global-basemap-z6-v1.json >/dev/null
           python3 -m json.tool rebuild-v5000/offline-packs/global-max-v1.json >/dev/null
-      - name: Build and validate the real global zoom-six archive
+      - name: Build and validate the global zoom-six baseline
         shell: bash
         run: |
           set -euo pipefail
@@ -68,5 +68,21 @@ jobs:
           assert meta['minZoom']==0 and meta['maxZoom']==6
           assert 20000000 <= meta['sizeBytes'] <= 200000000
           assert len(meta['sha256'])==64
-          print(f"VALID_OFFLINE_ARCHIVE bytes={meta['sizeBytes']} sourceDate={meta['sourceDate']} sha256={meta['sha256']}")
+          print(f"VALID_OFFLINE_BASE bytes={meta['sizeBytes']} sourceDate={meta['sourceDate']} sha256={meta['sha256']}")
+          PY
+      - name: Build and validate Global Max zoom seven
+        shell: bash
+        run: |
+          set -euo pipefail
+          MAX_ZOOM=7 PACK_ID=global-max-v1 MIN_BYTES=80000000 MAX_BYTES=700000000 bash scripts/build-global-offline-pack.sh /tmp/protomaps-world-z7.pmtiles
+          test -s /tmp/protomaps-world-z7.pmtiles
+          test -s /tmp/protomaps-world-z7.meta.json
+          python3 - <<'PY'
+          import json, pathlib
+          meta=json.loads(pathlib.Path('/tmp/protomaps-world-z7.meta.json').read_text())
+          assert meta['id']=='global-max-v1'
+          assert meta['minZoom']==0 and meta['maxZoom']==7
+          assert 80000000 <= meta['sizeBytes'] <= 700000000
+          assert len(meta['sha256'])==64
+          print(f"VALID_GLOBAL_MAX bytes={meta['sizeBytes']} sourceDate={meta['sourceDate']} sha256={meta['sha256']}")
           PY
