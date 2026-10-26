@@ -235,6 +235,7 @@ jobs:
           cp rebuild-v5000/intelligence-v5507.css site/intelligence-v5507.css
           cp rebuild-v5000/intelligence-global-v5507.js site/intelligence-global-v5507.js
           cp rebuild-v5000/global-property-v957.js site/global-property-v957.js
+          cp rebuild-v5000/zoning-coverage-v1.js site/zoning-coverage-v1.js
           cp rebuild-v5000/intelligence-tools-v5507.js site/intelligence-tools-v5507.js
           cp rebuild-v5000/road-drive-v5527.js site/road-drive-v5527.js
           cp rebuild-v5000/road-drive-v5527.css site/road-drive-v5527.css
@@ -815,6 +816,12 @@ jobs:
           grep -Fq 'parcel-boundary-viewer-v5403.js' site/app/index.html
           node --check site/intelligence-global-v5507.js
           node --check site/global-property-v957.js
+          grep -Fq 'PUBLIC_PARCEL_GEOMETRY=true' site/global-property-v957.js
+          grep -Fq "publicGeometryScope:'VERIFIED_OPEN_AND_PUBLIC'" site/global-property-v957.js
+          node --check site/zoning-coverage-v1.js
+          grep -Fq 'bridgepoint_public_zoning_coverage_v1' site/zoning-coverage-v1.js
+          grep -Fq 'zoning-coverage-v1.js?v=1123-lot-coverage-zoning' site/index.html
+          grep -Fq 'zoning-coverage-v1.js?v=1123-lot-coverage-zoning' site/app/index.html
           grep -Fq 'bridgepoint_public_global_status_v957' site/global-property-v957.js
           grep -Fq '/global-property-v957.js' site/index.html
           grep -Fq '/global-property-v957.js' site/app/index.html
