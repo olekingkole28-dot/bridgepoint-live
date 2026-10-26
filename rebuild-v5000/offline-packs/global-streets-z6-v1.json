@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "global-streets-z6-v1",
+  "title": "Global streets, water and map context (zoom 0–6)",
+  "version": "protomaps-basemap-v4-z6",
+  "source": "Protomaps Basemap built from OpenStreetMap and Natural Earth",
+  "sourceUrl": "https://docs.protomaps.com/basemaps/downloads",
+  "licence": "Open Database License Produced Work; OpenStreetMap attribution required",
+  "attribution": "© OpenStreetMap contributors · Protomaps",
+  "generatedAt": null,
+  "resources": [
+    {
+      "url": "/assets/offline/protomaps-world-z6.pmtiles",
+      "bytes": 62914560
+    },
+    {
+      "url": "/assets/offline/protomaps-world-z6.meta.json",
+      "bytes": 512
+    }
+  ]
+}
