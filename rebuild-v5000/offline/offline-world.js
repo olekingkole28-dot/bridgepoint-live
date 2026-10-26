@@ -152,9 +152,9 @@ async function loadBasemap(){
  const installedPacks=await installed();
  const useMax=installedPacks.some(p=>p.id==='global-max-v1');
  const archiveUrl=useMax?'/assets/offline/protomaps-world-z7.pmtiles':BASE_URL;
- const archiveName=useMax?'bridgepoint-world-z7':'bridgepoint-world-z6';
+ const localProtocolKey='bridgepoint-world-z6';
  const blob=await blobFromPack(archiveUrl);
- let file;try{file=new File([blob],archiveName)}catch(_){file=blob;try{Object.defineProperty(file,'name',{value:archiveName})}catch(_){}}
+ let file;try{file=new File([blob],localProtocolKey)}catch(_){file=blob;try{Object.defineProperty(file,'name',{value:localProtocolKey})}catch(_){}}
  protocol.add(new pmtiles.PMTiles(new pmtiles.FileSource(file)));
  const style={version:8,name:'BridgePoint Offline Global Basemap',
   glyphs:location.origin+'/assets/offline/fonts/{fontstack}/{range}.pbf',
@@ -205,7 +205,7 @@ async function start(){
  await renderPackages();await storageStats();
  // This page is visited before the user starts downloading. The same-origin worker
  // then preserves the page shell; geographic bytes are stored by the pack manager.
- if('serviceWorker' in navigator){try{await navigator.serviceWorker.register('/sw.js?v=offline-world-v1',{scope:'/',updateViaCache:'none'});await navigator.serviceWorker.ready}catch(e){console.warn('Offline shell worker registration failed',e)}}
+ if('serviceWorker' in navigator){try{await navigator.serviceWorker.register('/sw.js?v=6196-desktop-cloud-motion-autoupdate',{scope:'/',updateViaCache:'none'});await navigator.serviceWorker.ready}catch(e){console.warn('Offline shell worker registration failed',e)}}
 }
 start().catch(e=>{status('Offline World could not initialize: '+e.message);mapStatus('Initialization failed. Open this page while connected, then retry.');console.error(e)});
 })();
