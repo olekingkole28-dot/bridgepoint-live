@@ -13,7 +13,7 @@
   "resources": [
     {
       "url": "/assets/offline/protomaps-world-z7.pmtiles",
-      "bytes": 320000000
+      "bytes": 190000000
     },
     {
       "url": "/assets/offline/protomaps-world-z7.meta.json",
