@@ -5,7 +5,7 @@ const LOCAL_RUNTIME=location.hostname==='127.0.0.1'||location.hostname==='localh
 const FN=LOCAL_RUNTIME?location.origin+'/functions/v1/bridgepoint-parcel-boundary-tile-v5403':'https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-parcel-boundary-tile-v5403';
 const SEARCH_FN=LOCAL_RUNTIME?location.origin+'/functions/v1/bridgepoint-boundary-search-v1091':'https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-boundary-search-v1091';
 const PUBLIC_BUILDINGS='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-building-tile-v5019?z={z}&x={x}&y={y}&limit=7000';
-const VERSION=5638;
+const VERSION=5639;
 const SOURCE='bp-boundary-viewer-v5403';
 const GLOW='bp-boundary-glow-v5403';
 const LINE='bp-boundary-line-v5403';
@@ -329,6 +329,25 @@ function publicAutoBoundaryTileUrl(bucket){
   // Public mode is fixed for the always-on overlay; never inherit owner viewer state or credentials.
   return FN+'?mode=public&z={z}&x={x}&y={y}&v='+encodeURIComponent(bucket);
 }
+function bindPublicAutoBoundaryInfo(map){
+  if(!map||map.__bpPublicAutoBoundaryInfoV5639)return;
+  map.__bpPublicAutoBoundaryInfoV5639=true;
+  const Popup=window.maplibregl?.Popup||window.maplibreGl?.Popup||window.maplibre?.Popup;
+  if(!Popup)return;
+  map.on('mouseenter',PUBLIC_AUTO_LINE,()=>{try{map.getCanvas().style.cursor='pointer'}catch(_){}});
+  map.on('mouseleave',PUBLIC_AUTO_LINE,()=>{try{map.getCanvas().style.cursor=''}catch(_){}});
+  map.on('click',PUBLIC_AUTO_LINE,e=>{
+    const f=e?.features?.[0],p=f?.properties||{};
+    if(!p.source_name&&!p.license_text&&!p.source_url)return;
+    const box=document.createElement('div');
+    box.style.cssText='max-width:300px;font:12px/1.45 system-ui,sans-serif;color:#16242b';
+    const title=document.createElement('strong');title.textContent=p.source_name||'Public parcel boundary';box.appendChild(title);
+    if(p.license_text){const license=document.createElement('p');license.style.margin='6px 0';license.textContent='License / terms: '+p.license_text;box.appendChild(license)}
+    if(p.source_url){try{const u=new URL(String(p.source_url));if(u.protocol==='https:'||u.protocol==='http:'){const a=document.createElement('a');a.href=u.href;a.target='_blank';a.rel='noopener noreferrer';a.textContent='Open official source';a.style.color='#087b68';box.appendChild(a)}}catch(_){}}
+    const note=document.createElement('p');note.style.cssText='margin:6px 0 0;color:#56656c;font-size:10px';note.textContent='Mapped source footprint; not a legal survey or guarantee of complete local coverage.';box.appendChild(note);
+    try{new Popup({closeButton:true,closeOnClick:true,maxWidth:'320px'}).setLngLat(e.lngLat).setDOMContent(box).addTo(map)}catch(err){console.warn('parcel source credit popup unavailable',String(err?.message||err))}
+  });
+}
 function ensurePublicAutoBoundaryLayers(map){
   if(!map||typeof map.addSource!=='function')return false;
   try{
@@ -342,7 +361,7 @@ function ensurePublicAutoBoundaryLayers(map){
         tiles:[publicAutoBoundaryTileUrl(bucket)],
         minzoom:PUBLIC_AUTO_MIN_ZOOM,
         maxzoom:PUBLIC_AUTO_MAX_ZOOM,
-        attribution:'BridgePoint publicly enabled parcel boundaries · approved source-rights only'
+        attribution:'BridgePoint public parcel boundaries; click a line for source credit, license and source link'
       });
     }
     const before=['gta-place-label','gta-poi-label','gta-opportunity-label'].find(id=>map.getLayer(id));
@@ -363,6 +382,7 @@ function ensurePublicAutoBoundaryLayers(map){
       }};
       if(before)map.addLayer(layer,before);else map.addLayer(layer);
     }
+    bindPublicAutoBoundaryInfo(map);
     return true;
   }catch(e){
     console.warn('BridgePoint public auto parcel boundaries will retry',String(e?.message||e));
@@ -574,9 +594,9 @@ async function openViewer(nextMode='public'){
   document.getElementById('bpBoundaryTitle5403').textContent=mode==='owner'?'Owner Exact Parcel Boundary Viewer':'Public Parcel Boundary Viewer';
   document.getElementById('bpBoundaryCopy5403').textContent=mode==='owner'
     ? 'Private full spatial atlas: global roads and labels, 3D owner-approved buildings with white roof caps, country/state parcel counters, high-altitude coverage, and exact approved parcel lines from regional zoom.'
-    : 'Public-safe spatial atlas: global roads and labels, uniform 3D buildings with white roofs, red country coverage, and exact parcel detail only for the four public-enabled U.S. jurisdictions.';
+    : 'Public-safe spatial atlas: global roads and labels, uniform 3D buildings with white roofs, red country coverage, and exact parcel detail from all enabled source-cleared regions worldwide.';
   const legend=document.getElementById('bpBoundaryLegend1091');
-  if(legend)legend.innerHTML=mode==='owner'?'<span class="public"><i></i>GREEN · OWNER DATA AVAILABLE</span><span class="private"><i></i>RED · STILL ACQUIRING</span>':'<span class="public"><i></i>GREEN · CT / MD / MI / NE PUBLIC</span><span class="private"><i></i>RED · RESTRICTED / ACQUIRING</span>';
+  if(legend)legend.innerHTML=mode==='owner'?'<span class="public"><i></i>GREEN · OWNER DATA AVAILABLE</span><span class="private"><i></i>RED · STILL ACQUIRING</span>':'<span class="public"><i></i>GREEN · PUBLIC SOURCE-CLEARED PARCELS</span><span class="private"><i></i>RESTRICTED / NOT PUBLICLY CLEARED</span>';
 
   if(!window.maplibregl){
     document.getElementById('bpBoundaryCounts5403').innerHTML='<span>Map engine failed to load. Refresh the app and retry.</span>';
@@ -651,7 +671,7 @@ async function openViewer(nextMode='public'){
         const min=6;
         z.textContent=viewer.getZoom()<min
           ? 'High-altitude coverage · live country/state counters · exact parcel lines begin at z6'
-          : (mode==='owner'?'Owner global parcel atlas · exact lines + owner buildings refine through street level':'Public parcel detail · CT / MD / MI / NE only · zoom capped for anti-scraping protection');
+          : (mode==='owner'?'Owner global parcel atlas · exact lines + owner buildings refine through street level':'Public parcel detail · all enabled source-cleared regions · precise lines refine as you zoom');
       };
       update();viewer.on('zoom',update);
       if(lastStateRows.length){try{await syncStateOverlay(viewer,lastStateRows)}catch(e){console.warn('boundary state overlay retry',e)}}
