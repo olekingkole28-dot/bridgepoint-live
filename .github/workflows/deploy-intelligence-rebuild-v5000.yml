@@ -816,8 +816,13 @@ jobs:
           grep -Fq 'parcel-boundary-viewer-v5403.js' site/app/index.html
           node --check site/intelligence-global-v5507.js
           node --check site/global-property-v957.js
-          grep -Fq 'PUBLIC_PARCEL_GEOMETRY=true' site/global-property-v957.js
-          grep -Fq "publicGeometryScope:'VERIFIED_OPEN_AND_PUBLIC'" site/global-property-v957.js
+          grep -Fq 'PUBLIC_PARCEL_GEOMETRY=false' site/global-property-v957.js
+          grep -Fq "publicGeometryScope:'VERIFIED_OPEN_AND_PUBLIC_VECTOR_TILES'" site/global-property-v957.js
+          grep -Fq "const PUBLIC_AUTO_SOURCE='bp-public-auto-parcel-source-v5933'" site/parcel-boundary-viewer-v5403.js
+          grep -Fq 'wirePublicAutoBoundaries();' site/parcel-boundary-viewer-v5403.js
+          grep -Fq 'bridgepoint-parcel-boundary-tile-v5403' site/parcel-boundary-viewer-v5403.js
+          grep -Fq 'parcel-boundary-viewer-v5403.js?v=1130-global-public-source-credits' site/index.html
+          grep -Fq 'parcel-boundary-viewer-v5403.js?v=1130-global-public-source-credits' site/app/index.html
           node --check site/zoning-coverage-v1.js
           grep -Fq 'bridgepoint_public_zoning_coverage_v1' site/zoning-coverage-v1.js
           grep -Fq 'zoning-coverage-v1.js?v=1123-lot-coverage-zoning' site/index.html
@@ -1066,8 +1071,13 @@ jobs:
           grep -Fq '__BP_TREE_STATIONARY_RECOVERY_V1123__' site/world-v2300-map.js
           grep -Fq "id:'gta-bp-floor-lines'" site/world-v2300-map.js
           grep -Fq "setBase('satellite')" site/world-v2300-map.js
-          grep -Fq 'PUBLIC_PARCEL_GEOMETRY=true' site/global-property-v957.js
-          grep -Fq "publicGeometryScope:'VERIFIED_OPEN_AND_PUBLIC'" site/global-property-v957.js
+          grep -Fq 'PUBLIC_PARCEL_GEOMETRY=false' site/global-property-v957.js
+          grep -Fq "publicGeometryScope:'VERIFIED_OPEN_AND_PUBLIC_VECTOR_TILES'" site/global-property-v957.js
+          grep -Fq "const PUBLIC_AUTO_SOURCE='bp-public-auto-parcel-source-v5933'" site/parcel-boundary-viewer-v5403.js
+          grep -Fq 'wirePublicAutoBoundaries();' site/parcel-boundary-viewer-v5403.js
+          grep -Fq 'bridgepoint-parcel-boundary-tile-v5403' site/parcel-boundary-viewer-v5403.js
+          grep -Fq 'parcel-boundary-viewer-v5403.js?v=1130-global-public-source-credits' site/index.html
+          grep -Fq 'parcel-boundary-viewer-v5403.js?v=1130-global-public-source-credits' site/app/index.html
           grep -Fq '__BP_MATERIAL_LAZYLOAD_V5587__' site/world-v2300-map.js
           grep -Fq '__BP_GEOMETRY_TRUTH_V5590__' site/world-v2300-map.js
           grep -Fq '__BP_GEOMETRY_TRUTH_V5592__' site/world-v2300-map.js
