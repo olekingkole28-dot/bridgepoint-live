@@ -8,8 +8,8 @@
       "title": "Global Borders",
       "description": "Worldwide land shapes and country borders at three Natural Earth scales, including detailed 1:10m boundaries for offline use.",
       "manifestUrl": "/offline-packs/global-boundaries-v1.json",
-      "estimatedBytes": 7862390,
-      "sizeLabel": "About 7.9 MB",
+      "estimatedBytes": 10200000,
+      "sizeLabel": "About 10 MB · exact size recorded per build",
       "includes": [
         "Country outlines at 110m / 50m / 10m",
         "Land polygons at 110m / 50m / 10m"
@@ -22,8 +22,8 @@
       "title": "Global Basemap",
       "description": "A whole-planet vector map archive at zoom levels 0–6, including generalized roads, water, landcover, transport and place context at supported scales.",
       "manifestUrl": "/offline-packs/global-basemap-z6-v1.json",
-      "estimatedBytes": 45500000,
-      "sizeLabel": "About 45–50 MB · exact size recorded per build",
+      "estimatedBytes": 47200000,
+      "sizeLabel": "About 47 MB · exact size recorded per build",
       "includes": [
         "Worldwide roads and transport context at overview scale",
         "Water, rivers and land context",
