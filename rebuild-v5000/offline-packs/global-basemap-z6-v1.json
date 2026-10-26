@@ -11,7 +11,7 @@
   "resources": [
     {
       "url": "/assets/offline/protomaps-world-z6.pmtiles",
-      "bytes": 62914560
+      "bytes": 45100000
     },
     {
       "url": "/assets/offline/protomaps-world-z6.meta.json",
