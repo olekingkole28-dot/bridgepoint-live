@@ -100,6 +100,25 @@ grant all on automation.municipal_zoning_districts_v1 to service_role;
 grant all on automation.municipal_zoning_rules_v1 to service_role;
 grant usage, select on all sequences in schema automation to service_role;
 
+-- The installed Microsoft Global ML footprint table has a legacy normalized source key.
+-- Its rows record the source and CDLA-Permissive-2.0 in per-feature metadata.
+insert into automation.building_3d_source_catalog_v1890
+(source_key,provider,source_url,license,ingest_allowed,derive_geometry_allowed,cache_allowed,render_allowed,
+ source_role,legal_notes,attribution_required,us_scope,status,metadata)
+values
+('MICROSOFT_GLOBALML_BUILDINGS','Microsoft','https://github.com/microsoft/GlobalMLBuildingFootprints',
+ 'CDLA-Permissive-2.0',true,true,true,true,'FOUNDATION_3D',
+ 'Legacy normalized BridgePoint source key for Microsoft Global ML Building Footprints; retain attribution and distinguish estimated heights from measured heights.',
+ true,true,'APPROVED',
+ '{"canonical_source_key":"MICROSOFT_GLOBAL_ML_BUILDINGS_20260724","source_metadata_verification":"per-row metadata sample checked 2026-10-25","geometry_analysis_allowed":true}'::jsonb)
+on conflict (source_key) do update set
+ provider=excluded.provider,source_url=excluded.source_url,license=excluded.license,
+ ingest_allowed=excluded.ingest_allowed,derive_geometry_allowed=excluded.derive_geometry_allowed,
+ cache_allowed=excluded.cache_allowed,render_allowed=excluded.render_allowed,
+ source_role=excluded.source_role,legal_notes=excluded.legal_notes,
+ attribution_required=excluded.attribution_required,us_scope=excluded.us_scope,
+ status=excluded.status,metadata=excluded.metadata,updated_at=now();
+
 CREATE OR REPLACE FUNCTION public.bridgepoint_public_zoning_coverage_v1(p_lng double precision, p_lat double precision)
  RETURNS jsonb
  LANGUAGE plpgsql
