@@ -1,0 +1,88 @@
+name: Global Offline World v1 tests
+on:
+  pull_request:
+    paths:
+      - 'rebuild-v5000/offline-world-v1.js'
+      - 'rebuild-v5000/offline-world-ui.js'
+      - 'rebuild-v5000/offline-world-ui.css'
+      - 'rebuild-v5000/offline/**'
+      - 'rebuild-v5000/offline-packs/**'
+      - 'scripts/build-global-offline-pack.sh'
+      - 'tests/global-offline-world-v1.test.mjs'
+      - '.github/workflows/test-global-offline-world-v1.yml'
+      - '.github/workflows/deploy-intelligence-rebuild-v5000.yml'
+  push:
+    branches: [feature/global-offline-world-v1]
+    paths:
+      - 'rebuild-v5000/offline-world-v1.js'
+      - 'rebuild-v5000/offline-world-ui.js'
+      - 'rebuild-v5000/offline-world-ui.css'
+      - 'rebuild-v5000/offline/**'
+      - 'rebuild-v5000/offline-packs/**'
+      - 'scripts/build-global-offline-pack.sh'
+      - 'tests/global-offline-world-v1.test.mjs'
+      - '.github/workflows/test-global-offline-world-v1.yml'
+      - '.github/workflows/deploy-intelligence-rebuild-v5000.yml'
+jobs:
+  manifest-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.x'
+      - name: Install PMTiles CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          go install github.com/protomaps/go-pmtiles@v1.31.2
+          BIN="$(go env GOPATH)/bin"
+          if [ -x "$BIN/go-pmtiles" ]; then ln -sf "$BIN/go-pmtiles" "$BIN/pmtiles"; fi
+          echo "$BIN" >> "$GITHUB_PATH"
+          test -x "$BIN/pmtiles"
+      - name: Validate runtime JavaScript and package contracts
+        run: |
+          node --check rebuild-v5000/offline-world-v1.js
+          node --check rebuild-v5000/offline-world-ui.js
+          node --check rebuild-v5000/offline/offline-world.js
+          node --test tests/global-offline-world-v1.test.mjs
+          python3 -m json.tool rebuild-v5000/offline-packs/catalog.json >/dev/null
+          python3 -m json.tool rebuild-v5000/offline-packs/global-boundaries-v1.json >/dev/null
+          python3 -m json.tool rebuild-v5000/offline-packs/global-basemap-z6-v1.json >/dev/null
+          python3 -m json.tool rebuild-v5000/offline-packs/global-max-v1.json >/dev/null
+      - name: Build and validate the global zoom-six baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/build-global-offline-pack.sh /tmp/protomaps-world-z6.pmtiles
+          test -s /tmp/protomaps-world-z6.pmtiles
+          test -s /tmp/protomaps-world-z6.meta.json
+          python3 - <<'PY'
+          import json, pathlib
+          meta=json.loads(pathlib.Path('/tmp/protomaps-world-z6.meta.json').read_text())
+          assert meta['id']=='global-basemap-z6-v1'
+          assert meta['minZoom']==0 and meta['maxZoom']==6
+          assert 20000000 <= meta['sizeBytes'] <= 200000000
+          assert len(meta['sha256'])==64
+          print(f"VALID_OFFLINE_BASE bytes={meta['sizeBytes']} sourceDate={meta['sourceDate']} sha256={meta['sha256']}")
+          PY
+      - name: Build and validate Global Max zoom seven
+        shell: bash
+        run: |
+          set -euo pipefail
+          MAX_ZOOM=7 PACK_ID=global-max-v1 MIN_BYTES=80000000 MAX_BYTES=700000000 bash scripts/build-global-offline-pack.sh /tmp/protomaps-world-z7.pmtiles
+          test -s /tmp/protomaps-world-z7.pmtiles
+          test -s /tmp/protomaps-world-z7.meta.json
+          python3 - <<'PY'
+          import json, pathlib
+          meta=json.loads(pathlib.Path('/tmp/protomaps-world-z7.meta.json').read_text())
+          assert meta['id']=='global-max-v1'
+          assert meta['minZoom']==0 and meta['maxZoom']==7
+          assert 80000000 <= meta['sizeBytes'] <= 700000000
+          assert len(meta['sha256'])==64
+          print(f"VALID_GLOBAL_MAX bytes={meta['sizeBytes']} sourceDate={meta['sourceDate']} sha256={meta['sha256']}")
+          PY

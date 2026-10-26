@@ -1,0 +1,23 @@
+BRIDGEPOINT GLOBAL OFFLINE WORLD — DATA AND LICENCE NOTICE
+
+GLOBAL BASEMAP
+The global vector basemap is extracted from a dated Protomaps Basemap daily build derived from OpenStreetMap. OpenStreetMap data is licensed under the Open Database License (ODbL). Attribution is required. The included global archive is generalized to zoom levels 0–6; it is not a street-level or property-level global dataset.
+Source: https://docs.protomaps.com/basemaps/downloads
+
+ATTRIBUTION
+© OpenStreetMap contributors. Data available under the Open Database License (ODbL).
+© Protomaps — https://protomaps.com/
+
+GLOBAL BOUNDARIES
+Country and land geometries come from the world-atlas 2.0.2 package, derived from Natural Earth. The world-atlas package is ISC-licensed; underlying Natural Earth data is public domain.
+Sources: https://github.com/topojson/world-atlas
+https://www.naturalearthdata.com/
+
+FONTS AND SPRITES
+Noto Sans glyph files: SIL Open Font License (OFL). See /assets/offline/fonts/OFL.txt.
+Protomaps sprites are derived from MIT-licensed Tangram icons:
+https://github.com/tangrams/icons/blob/master/LICENSE.md
+Asset source: https://github.com/protomaps/basemaps-assets
+
+LIMITS
+This package does NOT contain global detailed parcel boundaries, universally complete high-resolution building footprints, detailed 3D buildings, global high-resolution LiDAR, universally redistributable aerial/satellite imagery, or live weather/flight/emergency feeds. Such datasets have different coverage, data-quality, freshness and licensing conditions. Cached information is not live information.

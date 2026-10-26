@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "id": "global-basemap-z6-v1",
+  "title": "Global Basemap — zoom 0–6",
+  "version": "protomaps-v4-z6",
+  "source": "Protomaps daily basemap built from OpenStreetMap",
+  "sourceUrl": "https://docs.protomaps.com/guide/getting-started",
+  "licence": "OpenStreetMap-derived Produced Work under ODbL; attribution required",
+  "attribution": "© OpenStreetMap contributors · Protomaps",
+  "allowedOrigins": [],
+  "resources": [
+    {
+      "url": "/offline/",
+      "bytes": 6000
+    },
+    {
+      "url": "/offline/offline-world.css?v=1",
+      "bytes": 16000
+    },
+    {
+      "url": "/offline/offline-world.js?v=1",
+      "bytes": 17000
+    },
+    {
+      "url": "/offline-world-v1.js",
+      "bytes": 8500
+    },
+    {
+      "url": "/offline-world-ui.js?v=1",
+      "bytes": 650
+    },
+    {
+      "url": "/offline-world-ui.css?v=1",
+      "bytes": 1800
+    },
+    {
+      "url": "/vendor/maplibre-gl.css?v=524-v5945",
+      "bytes": 50000
+    },
+    {
+      "url": "/vendor/maplibre-gl.js?v=524-v5945",
+      "bytes": 1200000
+    },
+    {
+      "url": "/vendor/pmtiles.js",
+      "bytes": 100000
+    },
+    {
+      "url": "/assets/offline/basemaps.js",
+      "bytes": 300000
+    },
+    {
+      "url": "/offline-packs/catalog.json",
+      "bytes": 5000
+    },
+    {
+      "url": "/offline-packs/global-boundaries-v1.json",
+      "bytes": 3000
+    },
+    {
+      "url": "/offline-packs/global-basemap-z6-v1.json",
+      "bytes": 3000
+    },
+    {
+      "url": "/offline-packs/global-max-v1.json",
+      "bytes": 3000
+    },
+    {
+      "url": "/assets/offline/protomaps-world-z6.pmtiles",
+      "bytes": 45100000
+    },
+    {
+      "url": "/assets/offline/protomaps-world-z6.meta.json",
+      "bytes": 512
+    },
+    {
+      "url": "/assets/offline/fonts/Noto%20Sans%20Regular/0-255.pbf",
+      "bytes": 76044
+    },
+    {
+      "url": "/assets/offline/fonts/Noto%20Sans%20Medium/0-255.pbf",
+      "bytes": 77628
+    },
+    {
+      "url": "/assets/offline/sprites/v4/dark.json",
+      "bytes": 3549
+    },
+    {
+      "url": "/assets/offline/sprites/v4/dark.png",
+      "bytes": 16054
+    },
+    {
+      "url": "/assets/offline/sprites/v4/dark%402x.json",
+      "bytes": 3579
+    },
+    {
+      "url": "/assets/offline/sprites/v4/dark%402x.png",
+      "bytes": 28407
+    },
+    {
+      "url": "/assets/offline/fonts/OFL.txt",
+      "bytes": 4374
+    },
+    {
+      "url": "/assets/offline/NOTICE.txt",
+      "bytes": 1800
+    },
+    {
+      "url": "/assets/offline/sprites/LICENSE.md",
+      "bytes": 1200
+    }
+  ]
+}

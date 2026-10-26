@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#061019">
+<meta name="description" content="Download BridgePoint global map and open-data packs for offline use.">
+<title>BridgePoint Offline World</title>
+<link rel="stylesheet" href="/vendor/maplibre-gl.css?v=524-v5945">
+<link rel="stylesheet" href="/offline-world-ui.css?v=1">
+<link rel="stylesheet" href="/offline/offline-world.css?v=1">
+</head>
+<body>
+<div id="bpOfflineMap" aria-label="BridgePoint global offline map"></div>
+<header class="bp-offline-top">
+ <a href="/" class="bp-offline-brand" aria-label="Return to BridgePoint"><b>BRIDGEPOINT</b><span>OFFLINE WORLD</span></a>
+ <div class="bp-offline-actions"><span id="bpConnection" class="bp-connection">CHECKING CONNECTION</span><a href="/" class="bp-small-link">RETURN TO LIVE WORLD</a></div>
+</header>
+<aside id="bpOfflinePanel" class="bp-offline-panel" aria-label="Offline package options">
+ <div class="bp-offline-panel-head"><div><span class="bp-kicker">DISCONNECTED-READY GEOGRAPHY</span><h1>Offline World</h1><p>Download once. Explore the saved world without a live map connection.</p></div><button id="bpPanelCollapse" type="button" aria-label="Collapse options">−</button></div>
+ <section class="bp-offline-section">
+  <h2>Download packages</h2>
+  <p class="bp-muted">Size estimates appear before download. Completed downloads record the actual resource bytes reported by the server.</p>
+  <div id="bpPackList" class="bp-pack-list"><div class="bp-loading">Loading pack catalogue…</div></div>
+  <div id="bpDownloadStatus" class="bp-download-status" role="status" aria-live="polite">Choose a package to prepare this device for offline use.</div>
+ </section>
+ <section class="bp-offline-section">
+  <h2>Saved layers</h2>
+  <div id="bpLayerToggles" class="bp-layer-toggles"><p class="bp-muted">Install a package to see available offline layers.</p></div>
+ </section>
+ <section class="bp-offline-section">
+  <h2>Device storage</h2>
+  <div class="bp-storage-meter"><span id="bpStorageFill"></span></div>
+  <div id="bpStorageText" class="bp-storage-text">Checking browser storage…</div>
+  <button id="bpRefreshPacks" class="bp-secondary-button" type="button">REFRESH PACKS / STORAGE</button>
+ </section>
+ <section class="bp-offline-section bp-data-boundary">
+  <h2>Global layer availability</h2>
+  <div id="bpLayerAvailability" class="bp-availability-list"></div>
+ </section>
+ <section class="bp-offline-section bp-attribution">
+  <h2>Source and data limits</h2>
+  <p>The global base package is generalized to zoom 0–6. Detailed country boundaries add outline fidelity, but they do not create building or parcel geometry where no suitable source exists.</p>
+  <p>Cached hazards and emergency information can become stale. BridgePoint never treats an old snapshot as live, nor treats general hazard exposure as confirmed property damage.</p>
+  <p><a href="/assets/offline/NOTICE.txt" target="_blank" rel="noopener">Read data attribution and licences</a></p>
+ </section>
+</aside>
+<button id="bpOfflinePanelOpen" class="bp-panel-open" type="button" hidden>OFFLINE OPTIONS</button>
+<div id="bpOfflineMapStatus" class="bp-map-status" role="status">Install a package to render the saved global basemap.</div>
+<div class="bp-offline-attribution-bar">© OpenStreetMap contributors · Protomaps · Natural Earth · Offline data has source and build metadata.</div>
+<script src="/vendor/maplibre-gl.js?v=524-v5945"></script>
+<script src="/vendor/pmtiles.js"></script>
+<script src="/assets/offline/basemaps.js"></script>
+<script src="/offline-world-v1.js"></script>
+<script src="/offline/offline-world.js?v=1"></script>
+</body>
+</html>

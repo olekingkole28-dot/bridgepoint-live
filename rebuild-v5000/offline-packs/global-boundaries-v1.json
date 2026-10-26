@@ -1,0 +1,131 @@
+{
+  "schemaVersion": 1,
+  "id": "global-boundaries-v1",
+  "title": "Global Borders — Natural Earth 110m / 50m / 10m",
+  "version": "world-atlas-2.0.2",
+  "source": "world-atlas 2.0.2 / Natural Earth",
+  "sourceUrl": "https://github.com/topojson/world-atlas",
+  "licence": "world-atlas package: ISC; underlying Natural Earth geographic data: public domain",
+  "attribution": "Natural Earth · world-atlas",
+  "allowedOrigins": [
+    "https://cdn.jsdelivr.net"
+  ],
+  "resources": [
+    {
+      "url": "/offline/",
+      "bytes": 6000
+    },
+    {
+      "url": "/offline/offline-world.css?v=1",
+      "bytes": 16000
+    },
+    {
+      "url": "/offline/offline-world.js?v=1",
+      "bytes": 17000
+    },
+    {
+      "url": "/offline-world-v1.js",
+      "bytes": 8500
+    },
+    {
+      "url": "/offline-world-ui.js?v=1",
+      "bytes": 650
+    },
+    {
+      "url": "/offline-world-ui.css?v=1",
+      "bytes": 1800
+    },
+    {
+      "url": "/vendor/maplibre-gl.css?v=524-v5945",
+      "bytes": 50000
+    },
+    {
+      "url": "/vendor/maplibre-gl.js?v=524-v5945",
+      "bytes": 1200000
+    },
+    {
+      "url": "/vendor/pmtiles.js",
+      "bytes": 100000
+    },
+    {
+      "url": "/assets/offline/basemaps.js",
+      "bytes": 300000
+    },
+    {
+      "url": "/offline-packs/catalog.json",
+      "bytes": 5000
+    },
+    {
+      "url": "/offline-packs/global-boundaries-v1.json",
+      "bytes": 3000
+    },
+    {
+      "url": "/offline-packs/global-basemap-z6-v1.json",
+      "bytes": 3000
+    },
+    {
+      "url": "/offline-packs/global-max-v1.json",
+      "bytes": 3000
+    },
+    {
+      "url": "/assets/offline/fonts/Noto%20Sans%20Regular/0-255.pbf",
+      "bytes": 76044
+    },
+    {
+      "url": "/assets/offline/fonts/Noto%20Sans%20Medium/0-255.pbf",
+      "bytes": 77628
+    },
+    {
+      "url": "/assets/offline/sprites/v4/dark.json",
+      "bytes": 3549
+    },
+    {
+      "url": "/assets/offline/sprites/v4/dark.png",
+      "bytes": 16054
+    },
+    {
+      "url": "/assets/offline/sprites/v4/dark%402x.json",
+      "bytes": 3579
+    },
+    {
+      "url": "/assets/offline/sprites/v4/dark%402x.png",
+      "bytes": 28407
+    },
+    {
+      "url": "/assets/offline/fonts/OFL.txt",
+      "bytes": 4374
+    },
+    {
+      "url": "/assets/offline/NOTICE.txt",
+      "bytes": 1800
+    },
+    {
+      "url": "/assets/offline/sprites/LICENSE.md",
+      "bytes": 1200
+    },
+    {
+      "url": "https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-110m.json",
+      "bytes": 105240
+    },
+    {
+      "url": "https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-50m.json",
+      "bytes": 738690
+    },
+    {
+      "url": "https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-10m.json",
+      "bytes": 3490000
+    },
+    {
+      "url": "https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/land-110m.json",
+      "bytes": 53910
+    },
+    {
+      "url": "https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/land-50m.json",
+      "bytes": 532750
+    },
+    {
+      "url": "https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/land-10m.json",
+      "bytes": 2940000
+    }
+  ]
+}

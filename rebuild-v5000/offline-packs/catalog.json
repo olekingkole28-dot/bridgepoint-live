@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 1,
+  "title": "BridgePoint Global Offline World",
+  "description": "Download worldwide geographic foundations. Regional detail and live information are clearly separated from static global data.",
+  "packages": [
+    {
+      "id": "global-boundaries-v1",
+      "title": "Global Borders",
+      "description": "Worldwide land shapes and country borders at three Natural Earth scales, including detailed 1:10m boundaries for offline use.",
+      "manifestUrl": "/offline-packs/global-boundaries-v1.json",
+      "estimatedBytes": 10200000,
+      "sizeLabel": "About 10 MB · exact size recorded per build",
+      "includes": [
+        "Country outlines at 110m / 50m / 10m",
+        "Land polygons at 110m / 50m / 10m"
+      ],
+      "bestFor": "Low-storage devices and global outline navigation",
+      "status": "available"
+    },
+    {
+      "id": "global-basemap-z6-v1",
+      "title": "Global Basemap",
+      "description": "A whole-planet vector map archive at zoom levels 0–6, including generalized roads, water, landcover, transport and place context at supported scales.",
+      "manifestUrl": "/offline-packs/global-basemap-z6-v1.json",
+      "estimatedBytes": 47200000,
+      "sizeLabel": "About 47 MB · exact size recorded per build",
+      "includes": [
+        "Worldwide roads and transport context at overview scale",
+        "Water, rivers and land context",
+        "Supported place/POI layers",
+        "Local label fonts and symbols"
+      ],
+      "bestFor": "A navigable global offline basemap",
+      "status": "available"
+    },
+    {
+      "id": "global-max-v1",
+      "title": "GLOBAL MAX — Open Data",
+      "description": "The largest bundled worldwide package: an expanded zoom 0–7 global vector archive plus detailed Natural Earth country/land boundaries and local labels/symbols. Target total is about 190–220 MB, not multiple gigabytes; exact archive size/date are shown from build metadata.",
+      "manifestUrl": "/offline-packs/global-max-v1.json",
+      "estimatedBytes": 200000000,
+      "sizeLabel": "About 190–220 MB · exact size recorded per build",
+      "includes": [
+        "Everything in Global Basemap, plus an expanded zoom-7 world archive",
+        "Country and land geometry at Natural Earth 1:10m / 1:50m / 1:110m scales",
+        "Global roads, waterways, transport and place context at available zooms",
+        "Local fonts, symbols, source date and licence notices"
+      ],
+      "bestFor": "Maximum globally redistributable map detail in one reasonable download",
+      "status": "recommended"
+    }
+  ],
+  "layerAvailability": [
+    {
+      "id": "buildings",
+      "title": "Detailed buildings and 3D structures",
+      "status": "regional",
+      "note": "High-detail building geometry is not universally available worldwide under one common licence. Zoom-0–6 global map data is not a replacement for detailed footprints."
+    },
+    {
+      "id": "parcels",
+      "title": "Parcel boundaries and cadastral records",
+      "status": "regional",
+      "note": "Coverage and redistribution rights vary by jurisdiction. Regional packages must pass source and licence checks before being offered."
+    },
+    {
+      "id": "terrain",
+      "title": "High-resolution terrain and LiDAR",
+      "status": "regional",
+      "note": "Detailed global elevation/LiDAR is not in the compact global package. Higher-resolution terrain requires separate regional packages."
+    },
+    {
+      "id": "imagery",
+      "title": "Aerial and satellite imagery",
+      "status": "regional",
+      "note": "Imagery is large and often provider/licence restricted; it cannot honestly be included without suitable redistribution rights."
+    },
+    {
+      "id": "weather",
+      "title": "Weather, radar and emergency alerts",
+      "status": "snapshot",
+      "note": "Only dated snapshots can be used offline. Live radar and new alerts need connectivity or a separate radio/data source."
+    },
+    {
+      "id": "mesh",
+      "title": "Device-to-device emergency mesh",
+      "status": "planned",
+      "note": "Not shipped in this release. Offline maps do not themselves create Bluetooth/Wi-Fi multi-hop communication."
+    }
+  ],
+  "attribution": "Basemap: © OpenStreetMap contributors, ODbL Produced Work; Protomaps. Country/land data: Natural Earth public-domain data distributed in the ISC-licensed world-atlas package. Fonts and sprites have their own licences; see NOTICE.txt."
+}
