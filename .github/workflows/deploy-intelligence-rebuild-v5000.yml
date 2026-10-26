@@ -270,10 +270,12 @@ jobs:
           mkdir -p site/assets
           cp -a rebuild-v5000/assets/. site/assets/
 
-          # Prepare the genuinely downloadable world package; the source planet file is range-extracted
-          # to a zoom 0–6 archive so the global package remains roughly 60 MB, not 120 GB.
+          # Prepare two reproducible worldwide packages from the open Protomaps daily build.
+          # The base pack is zoom 0–6 (~60 MB); Global Max is zoom 0–7 with extra global detail,
+          # capped below 700 MB rather than downloading the ~120 GB full-zoom source archive.
           mkdir -p site/assets/offline/fonts/"Noto Sans Regular" site/assets/offline/fonts/"Noto Sans Medium" site/assets/offline/sprites/v4
           bash scripts/build-global-offline-pack.sh site/assets/offline/protomaps-world-z6.pmtiles
+          MAX_ZOOM=7 PACK_ID=global-max-v1 MIN_BYTES=80000000 MAX_BYTES=700000000 bash scripts/build-global-offline-pack.sh site/assets/offline/protomaps-world-z7.pmtiles
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/@protomaps/basemaps@5/dist/basemaps.js -o site/assets/offline/basemaps.js
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL 'https://raw.githubusercontent.com/protomaps/basemaps-assets/main/fonts/Noto%20Sans%20Regular/0-255.pbf' -o 'site/assets/offline/fonts/Noto Sans Regular/0-255.pbf'
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL 'https://raw.githubusercontent.com/protomaps/basemaps-assets/main/fonts/Noto%20Sans%20Medium/0-255.pbf' -o 'site/assets/offline/fonts/Noto Sans Medium/0-255.pbf'
@@ -286,6 +288,8 @@ jobs:
           cp rebuild-v5000/offline-packs/NOTICE.txt site/assets/offline/NOTICE.txt
           test -s site/assets/offline/protomaps-world-z6.pmtiles
           test -s site/assets/offline/protomaps-world-z6.meta.json
+          test -s site/assets/offline/protomaps-world-z7.pmtiles
+          test -s site/assets/offline/protomaps-world-z7.meta.json
           test -s site/assets/offline/basemaps.js
           test -s site/assets/offline/fonts/"Noto Sans Regular"/0-255.pbf
           test -s site/assets/offline/sprites/v4/dark.json
