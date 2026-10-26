@@ -74,6 +74,10 @@
     {
       "url": "https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/land-10m.json",
       "bytes": 2940000
+    },
+    {
+      "url": "/assets/offline/sprites/LICENSE.md",
+      "bytes": 1200
     }
   ]
 }
