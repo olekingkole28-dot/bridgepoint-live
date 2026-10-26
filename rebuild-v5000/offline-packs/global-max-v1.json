@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "id": "global-max-v1",
+  "title": "GLOBAL MAX — Open Data",
+  "version": "protomaps-v4-z6+world-atlas-2.0.2",
+  "source": "Protomaps basemap + Natural Earth via world-atlas",
+  "sourceUrl": "https://docs.protomaps.com/basemaps/downloads",
+  "licence": "OpenStreetMap-derived Produced Work under ODbL; Natural Earth public-domain data; included fonts/sprites use their own licences",
+  "attribution": "© OpenStreetMap contributors · Protomaps · Natural Earth",
+  "allowedOrigins": [
+    "https://cdn.jsdelivr.net"
+  ],
+  "resources": [
+    {
+      "url": "/assets/offline/protomaps-world-z6.pmtiles",
+      "bytes": 62914560
+    },
+    {
+      "url": "/assets/offline/protomaps-world-z6.meta.json",
+      "bytes": 512
+    },
+    {
+      "url": "/assets/offline/fonts/Noto%20Sans%20Regular/0-255.pbf",
+      "bytes": 76044
+    },
+    {
+      "url": "/assets/offline/fonts/Noto%20Sans%20Medium/0-255.pbf",
+      "bytes": 77628
+    },
+    {
+      "url": "/assets/offline/sprites/v4/dark.json",
+      "bytes": 3549
+    },
+    {
+      "url": "/assets/offline/sprites/v4/dark.png",
+      "bytes": 16054
+    },
+    {
+      "url": "/assets/offline/sprites/v4/dark%402x.json",
+      "bytes": 3579
+    },
+    {
+      "url": "/assets/offline/sprites/v4/dark%402x.png",
+      "bytes": 28407
+    },
+    {
+      "url": "/assets/offline/fonts/OFL.txt",
+      "bytes": 4374
+    },
+    {
+      "url": "/assets/offline/NOTICE.txt",
+      "bytes": 1800
+    },
+    {
+      "url": "https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-110m.json",
+      "bytes": 105240
+    },
+    {
+      "url": "https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-50m.json",
+      "bytes": 738690
+    },
+    {
+      "url": "https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-10m.json",
+      "bytes": 3490000
+    },
+    {
+      "url": "https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/land-110m.json",
+      "bytes": 53910
+    },
+    {
+      "url": "https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/land-50m.json",
+      "bytes": 532750
+    },
+    {
+      "url": "https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/land-10m.json",
+      "bytes": 2940000
+    }
+  ]
+}
