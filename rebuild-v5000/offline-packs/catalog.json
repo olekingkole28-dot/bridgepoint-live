@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "title": "BridgePoint Global Offline World",
+  "description": "Download global geographic foundations before connectivity fails. Dynamic feeds and region-specific intelligence are not mislabeled as globally available.",
+  "packs": [
+    {
+      "id": "global-streets-z6-v1",
+      "title": "Global streets, water and map context",
+      "description": "Worldwide vector basemap from OpenStreetMap and Natural Earth, clipped to zoom levels 0–6. Designed for a fast global view and broad geographic context; it does not contain high-zoom building or parcel detail.",
+      "manifestUrl": "/offline-packs/global-streets-z6-v1.json",
+      "estimatedBytes": 62914560,
+      "sizeLabel": "About 60 MB",
+      "availableWhen": "global-basemap-asset",
+      "layers": [
+        "land",
+        "water",
+        "roads",
+        "rail",
+        "boundaries",
+        "parks"
+      ],
+      "status": "available"
+    },
+    {
+      "id": "global-boundaries-v1",
+      "title": "Global country boundaries — three detail levels",
+      "description": "Download Natural Earth country outlines at 110m, 50m and 10m resolutions. Select the preferred boundary detail while offline.",
+      "manifestUrl": "/offline-packs/global-boundaries-v1.json",
+      "estimatedBytes": 4333930,
+      "sizeLabel": "About 4.3 MB",
+      "availableWhen": "always",
+      "layers": [
+        "land",
+        "boundaries"
+      ],
+      "status": "available"
+    }
+  ],
+  "layerAvailability": [
+    {
+      "id": "buildings",
+      "title": "Detailed buildings and 3D structures",
+      "status": "regional",
+      "note": "Not included in the global zoom 0–6 basemap. Requires separately built regional geometry packages."
+    },
+    {
+      "id": "parcels",
+      "title": "Parcel boundaries and cadastral records",
+      "status": "regional",
+      "note": "Coverage and redistribution rights vary by jurisdiction; only generated, rights-checked regional packs can be offered."
+    },
+    {
+      "id": "terrain",
+      "title": "High-resolution terrain and LiDAR",
+      "status": "regional",
+      "note": "Global detailed elevation and LiDAR are too large for one practical phone pack; use source-backed region packages."
+    },
+    {
+      "id": "imagery",
+      "title": "Aerial and satellite imagery",
+      "status": "regional",
+      "note": "Imagery is subject to provider licensing and can require very large regional downloads."
+    },
+    {
+      "id": "weather",
+      "title": "Weather, radar and emergency alerts",
+      "status": "snapshot",
+      "note": "Only an explicitly dated snapshot can work offline. Live radar and new alerts require connectivity or a separate data feed."
+    },
+    {
+      "id": "property",
+      "title": "Saved property intelligence and opportunities",
+      "status": "private",
+      "note": "User-specific records must be exported only with authorization and stored separately from public geographic packs."
+    }
+  ],
+  "attribution": "Global vector basemap: © OpenStreetMap contributors (ODbL) and Protomaps. Country boundaries: Natural Earth data distributed by world-atlas (ISC package licence)."
+}
