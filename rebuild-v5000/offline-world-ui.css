@@ -3,3 +3,6 @@
 #bpOfflineWorldEntry:before{content:"◉";font-size:15px!important;color:#62e6ff!important}
 #bpOfflineWorldEntry:hover,#bpOfflineWorldEntry:focus-visible{background:#07303c!important;color:#fff!important;outline:2px solid #62e6ff!important;outline-offset:2px!important}
 @media(max-width:620px){#bpOfflineWorldEntry{top:max(10px,env(safe-area-inset-top))!important;right:max(10px,env(safe-area-inset-right))!important;padding:10px 11px!important;font-size:9px!important;letter-spacing:.08em!important}}
+
+#bpOfflineWorldEntry.bp-offline-entry--app{top:auto!important;bottom:max(84px,calc(env(safe-area-inset-bottom) + 84px))!important;right:max(12px,env(safe-area-inset-right))!important}
+@media(max-width:620px){#bpOfflineWorldEntry.bp-offline-entry--app{bottom:max(80px,calc(env(safe-area-inset-bottom) + 80px))!important}}
