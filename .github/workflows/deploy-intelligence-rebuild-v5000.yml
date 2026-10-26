@@ -45,6 +45,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.x'
+
+      - name: Install PMTiles archive builder
+        shell: bash
+        run: |
+          set -euo pipefail
+          go install github.com/protomaps/go-pmtiles@v1.31.2
+          BIN="$(go env GOPATH)/bin"
+          if [ -x "$BIN/go-pmtiles" ]; then ln -sf "$BIN/go-pmtiles" "$BIN/pmtiles"; fi
+          echo "$BIN" >> "$GITHUB_PATH"
+          test -x "$BIN/pmtiles"
+
       - name: Build clean Intelligence-only artifact
         shell: bash
         run: |
@@ -99,6 +113,10 @@ jobs:
           grep -Fq "quad.every((point, index) => featureContains(w, quadLons[index], quadLats[index]))" release-v2300/world-v2300-water.js
           grep -Fq "surfaceMaskValidationAllZooms: true" release-v2300/world-v2300-water.js
           grep -Fq "if (kind !== 1 && terrainCache.has(key)) return terrainCache.get(key);" release-v2300/world-v2300-water.js
+          node --check rebuild-v5000/offline-world-v1.js
+          node --check rebuild-v5000/offline-world-ui.js
+          node --check rebuild-v5000/offline/offline-world.js
+          node tests/global-offline-world-v1.test.mjs
           node --check rebuild-v5000/app.js
           node --check rebuild-v5000/landing.js
           node --check rebuild-v5000/bridgepoint-view-v5917.js
@@ -251,6 +269,36 @@ jobs:
           rm -f site/walkthrough-v5537.js site/walkthrough-v5537.css
           mkdir -p site/assets
           cp -a rebuild-v5000/assets/. site/assets/
+
+          # Prepare the genuinely downloadable world package; the source planet file is range-extracted
+          # to a zoom 0–6 archive so the global package remains roughly 60 MB, not 120 GB.
+          mkdir -p site/assets/offline/fonts/"Noto Sans Regular" site/assets/offline/fonts/"Noto Sans Medium" site/assets/offline/sprites/v4
+          bash scripts/build-global-offline-pack.sh site/assets/offline/protomaps-world-z6.pmtiles
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/@protomaps/basemaps@5/dist/basemaps.js -o site/assets/offline/basemaps.js
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL 'https://raw.githubusercontent.com/protomaps/basemaps-assets/main/fonts/Noto%20Sans%20Regular/0-255.pbf' -o 'site/assets/offline/fonts/Noto Sans Regular/0-255.pbf'
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL 'https://raw.githubusercontent.com/protomaps/basemaps-assets/main/fonts/Noto%20Sans%20Medium/0-255.pbf' -o 'site/assets/offline/fonts/Noto Sans Medium/0-255.pbf'
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://raw.githubusercontent.com/protomaps/basemaps-assets/main/fonts/OFL.txt -o site/assets/offline/fonts/OFL.txt
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://raw.githubusercontent.com/protomaps/basemaps-assets/main/sprites/v4/dark.json -o site/assets/offline/sprites/v4/dark.json
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://raw.githubusercontent.com/protomaps/basemaps-assets/main/sprites/v4/dark.png -o site/assets/offline/sprites/v4/dark.png
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL 'https://raw.githubusercontent.com/protomaps/basemaps-assets/main/sprites/v4/dark%402x.json' -o 'site/assets/offline/sprites/v4/dark@2x.json'
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL 'https://raw.githubusercontent.com/protomaps/basemaps-assets/main/sprites/v4/dark%402x.png' -o 'site/assets/offline/sprites/v4/dark@2x.png'
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://raw.githubusercontent.com/tangrams/icons/master/LICENSE.md -o site/assets/offline/sprites/LICENSE.md
+          cp rebuild-v5000/offline-packs/NOTICE.txt site/assets/offline/NOTICE.txt
+          test -s site/assets/offline/protomaps-world-z6.pmtiles
+          test -s site/assets/offline/protomaps-world-z6.meta.json
+          test -s site/assets/offline/basemaps.js
+          test -s site/assets/offline/fonts/"Noto Sans Regular"/0-255.pbf
+          test -s site/assets/offline/sprites/v4/dark.json
+
+          # Publish offline option and packages as part of the same verified site artifact.
+          mkdir -p site/offline site/offline-packs
+          cp rebuild-v5000/offline-world-v1.js site/offline-world-v1.js
+          cp rebuild-v5000/offline-world-ui.js site/offline-world-ui.js
+          cp rebuild-v5000/offline-world-ui.css site/offline-world-ui.css
+          cp rebuild-v5000/offline/index.html site/offline/index.html
+          cp rebuild-v5000/offline/offline-world.js site/offline/offline-world.js
+          cp rebuild-v5000/offline/offline-world.css site/offline/offline-world.css
+          cp -a rebuild-v5000/offline-packs/. site/offline-packs/
           rm -rf site/terms site/privacy
           cp -a rebuild-v5000/terms site/terms
           cp -a rebuild-v5000/privacy site/privacy
@@ -392,6 +440,18 @@ jobs:
           test ! -e site/walkthrough-v5537.css
           test -s site/world-v2300-space.js
           test -s site/app/world-v2300-space.js
+          test -s site/offline/index.html
+          test -s site/offline/offline-world.js
+          test -s site/offline-world-v1.js
+          test -s site/offline-packs/global-max-v1.json
+          test -s site/assets/offline/protomaps-world-z6.pmtiles
+          test -s site/assets/offline/protomaps-world-z6.meta.json
+          grep -Fq 'OFFLINE WORLD' site/index.html
+          grep -Fq 'OFFLINE WORLD' site/app/index.html
+          grep -Fq 'global-max-v1' site/offline-packs/catalog.json
+          node --check site/offline-world-ui.js
+          node --check site/offline-world-v1.js
+          node --check site/offline/offline-world.js
           grep -Fq 'bridgepoint-view-v5917.css' site/index.html
           grep -Fq 'bridgepoint-view-v5917.css' site/app/index.html
           grep -Fq 'bridgepoint-view-v5917.js' site/index.html
