@@ -48,7 +48,9 @@ function addStyles(){
  document.head.appendChild(s);
 }
 function slot(){
- return document.querySelector('.bpv-slot-card[data-bpv-slot="zoning"]');
+ return document.querySelector('#bpv-side-property-slots [data-bpv-slot="zoning"]')
+  || document.querySelector('#bpv-property-card-slot [data-bpv-slot="zoning"]')
+  || document.querySelector('.bpv-slot-card[data-bpv-slot="zoning"]');
 }
 function ensureResult(){
  addStyles();const card=slot();if(!card)return null;
@@ -103,7 +105,7 @@ function renderResult(panel,d){
  line(zg,'Code section',zone.code_section||null);
  line(zg,'Rule verification',zone.status==='VERIFIED_OFFICIAL_RULE_MATCH'?'Verified official rule':zone.status==='OFFICIAL_DISTRICT_NOT_MATERIALIZED'?'Official zoning district not yet mapped':'Official maximum not yet verified');
  zblock.appendChild(zg);
- if(!zone.allowed_max_coverage_pct){
+ if(zone.allowed_max_coverage_pct==null){
   zblock.appendChild(textEl('p','bpzr-note','BridgePoint will not guess the legal maximum. An official zoning district and a current, verified ordinance rule must both be available for this location.'));
  }
  const links=document.createElement('div');links.className='bpzr-links';
