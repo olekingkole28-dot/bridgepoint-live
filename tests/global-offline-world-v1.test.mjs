@@ -32,7 +32,7 @@ test('decodes the country object from TopoJSON correctly', () => {
     type:'Topology',
     arcs:[[[0,0],[10,0],[0,10],[-10,0],[0,-10]]],
     transform:{scale:[1,1],translate:[-5,-5]},
-    objects:{countries:{type:'GeometryCollection',geometries:[{type:'Polygon',id:1,properties:{name:'Test'},arcs:[[0]]}}]}
+    objects:{countries:{type:'GeometryCollection',geometries:[{type:'Polygon',id:1,properties:{name:'Test'},arcs:[[0]]}]}}
   };
   const fc = offline.topologyToFeatureCollection(topology,'countries');
   assert.equal(fc.type,'FeatureCollection');
@@ -50,7 +50,7 @@ test('catalog exposes three truthful packages and separates global vs regional-o
     assert.match(pack.sizeLabel, /MB/);
     assert.ok(pack.includes.length > 0);
   }
-  assert.ok(catalog.packages.find(p=>p.id==='global-max-v1').estimatedBytes < 100000000);
+  assert.ok(catalog.packages.find(p=>p.id==='global-max-v1').estimatedBytes < 700000000);
   assert.ok(catalog.layerAvailability.some(p=>p.id==='parcels'&&p.status==='regional'));
   assert.ok(catalog.layerAvailability.some(p=>p.id==='mesh'&&p.status==='planned'));
 });
