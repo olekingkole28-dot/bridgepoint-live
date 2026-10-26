@@ -8,7 +8,7 @@ const $=s=>document.querySelector(s),$$=s=>Array.from(document.querySelectorAll(
 const home=!!$('#previewMap')&&!$('#liveMap');
 const mapHost=home?$('.preview'):document.querySelector('.map-surface.active')||$('.map-surface');
 const appMap=$('#liveMap');
-let map=null,idleTimer=0,moveUntil=0,selected={id:null,label:'',feature:null},activePanel='ai',metricsLoading=null,asking=false,searchVisible=true;
+let map=null,idleTimer=0,moveUntil=0,selected={id:null,label:'',feature:null,coordinates:null},activePanel='ai',metricsLoading=null,asking=false,searchVisible=true;
 let listingLoading=null,listingSummaryCache=null,listingSummaryAt=0,listingFeaturesCache=[],listingOverlayOn=true,listingMapTimer=0,listingLastViewportAt=0,listingQueryValue='',listingSelectedId=null,listingRefreshTimer=0;
 const SLOT_INFO={
  ai:['BRIDGEPOINT AI','Ask a question about this selected property.'],
@@ -21,7 +21,8 @@ const SLOT_INFO={
  heartbeat:['PROPERTY HEARTBEAT','Latest evidence, change signals and source freshness when records exist.'],
  timeline:['PROPERTY TIMELINE','Property-linked weather, permits, imagery and change events when verified.'],
  roof:['ROOF + BUILDING PARTS','Roof and component geometry with source/confidence labels.'],
- provenance:['SOURCES + PROVENANCE','Source, observation time, rights scope and confidence for every exposed fact.']
+ provenance:['SOURCES + PROVENANCE','Source, observation time, rights scope and confidence for every exposed fact.'],
+ zoning:['LOT COVERAGE + ZONING','Compute the union of source-backed building footprints against the matched parcel; show a legal maximum only when an official current zoning rule is verified.']
 };
 function node(tag,cls,html){const n=document.createElement(tag);if(cls)n.className=cls;if(html!==undefined)n.innerHTML=html;return n}
 function addClass(el,cls){if(el)el.classList.add(cls)}
@@ -266,7 +267,7 @@ function makeSlots(container,kind){
   card.dataset.bpvSlot=key;
   const btn=node('button','bpv-slot-title');
   btn.type='button';btn.dataset.bpvSlotAction=key;
-  btn.innerHTML='<span class="bpv-slot-icon">'+({ai:'AI',xray:'X·RAY',underground:'SUB',street:'ST',aerial:'AIR',livecam:'LIVE',eye:'EYE',heartbeat:'♥',timeline:'T+',roof:'ROOF',provenance:'SRC'}[key]||'BP')+'</span><span>'+info[0]+'</span><span class="bpv-slot-arrow">↗</span>';
+  btn.innerHTML='<span class="bpv-slot-icon">'+({ai:'AI',xray:'X·RAY',underground:'SUB',street:'ST',aerial:'AIR',livecam:'LIVE',eye:'EYE',heartbeat:'♥',timeline:'T+',roof:'ROOF',provenance:'SRC',zoning:'LOT'}[key]||'BP')+'</span><span>'+info[0]+'</span><span class="bpv-slot-arrow">↗</span>';
   const status=node('small','bpv-slot-status');
   status.dataset.bpvSlotStatus=key;
   status.textContent=key==='ai'?'Ready':key==='xray'?'Checks source-backed parts and plans':key==='underground'?'Not yet verified for this property':key==='street'?'Coverage varies by property':key==='aerial'?'Source-backed imagery only':key==='livecam'?'Checking authorized live-camera coverage':key==='eye'?'BridgePoint World view ready; property coverage varies':key==='heartbeat'?'Waiting for property evidence':key==='timeline'?'Waiting for linked history':'Source availability checked by property';
@@ -275,8 +276,16 @@ function makeSlots(container,kind){
   btn.addEventListener('click',()=>activateSlot(key,kind));
  }
 }
-function selectProperty(id,label,feature){
- selected={id:id||null,label:label||'Selected building',feature:feature||null};
+function selectProperty(id,label,feature,coordinates=null){
+ const nextId=id||null,props=feature?.properties||{};
+ const raw=coordinates||{lng:props.longitude??props.lon??props.center_lon??props.lng,lat:props.latitude??props.center_lat};
+ let lng=Number(raw?.lng??raw?.longitude??raw?.[0]),lat=Number(raw?.lat??raw?.latitude??raw?.[1]);
+ const point=Number.isFinite(lng)&&Number.isFinite(lat)&&lng>=-180&&lng<=180&&lat>=-90&&lat<=90?{lng,lat}:null;
+ const retained=selected.id===nextId?selected.coordinates:null;
+ selected={id:nextId,label:label||'Selected building',feature:feature||null,coordinates:point||retained||null};
+ const snapshot={id:selected.id,label:selected.label,feature:selected.feature,coordinates:selected.coordinates,updatedAt:Date.now()};
+ window.__BP_SELECTED_PROPERTY_V1__=snapshot;
+ try{window.dispatchEvent(new CustomEvent('bp:property-selection-v1',{detail:snapshot}))}catch(_){}
  const sTitle=$('#bpv-property-title'),sKey=$('#bpv-property-key'),titleText=selected.label||'Selected property',keyText=selected.id?'BridgePoint building ID · '+selected.id:'Selected BridgePoint structure · source ID pending';
  if(sTitle&&sTitle.textContent!==titleText)sTitle.textContent=titleText;
  if(sKey&&sKey.textContent!==keyText)sKey.textContent=keyText;
@@ -307,10 +316,17 @@ function refreshSlotLabels(){
  slotStatus('timeline','Property-linked event history may be available after source matching');
  slotStatus('roof',hasRoof?'Roof evidence indicated in mapped feature · verify source in property inspector':height?'Height present · roof geometry not confirmed':'Roof evidence not yet confirmed for this property');
  slotStatus('provenance',props.source?'Mapped geometry source · '+String(props.source):'Source and timestamp are checked in the property inspector');
+  slotStatus('zoning','Measured coverage is source-dependent; official maximum awaits a verified municipal rule');
  $$('[data-bpv-slot]').forEach(el=>{el.dataset.buildingId=String(id);el.dataset.buildingLabel=label});
 }
 function activateSlot(key,kind){
  refreshSlotLabels();
+ if(key==='zoning'){
+  openPanel('property');
+  const run=()=>window.__BP_ZONING_COVERAGE_V1__?.open?.(window.__BP_SELECTED_PROPERTY_V1__||selected);
+  if(window.__BP_ZONING_COVERAGE_V1__)run();else{let tries=0;const retry=()=>{if(window.__BP_ZONING_COVERAGE_V1__){run();return}if(++tries<20)setTimeout(retry,100);else showSlotMessage('zoning','Zoning calculation module is still loading. Close and reopen the slot to retry.');};setTimeout(retry,50)}
+  return;
+ }
  if(key==='ai'){
   openPanel('ai');
   const id=selected.id?' Building ID '+selected.id+'.':'';
@@ -717,7 +733,7 @@ function buildPropertyPanel(){
  const p=$('#bpv-side-property-slots');if(p&&!p.children.length)makeSlots(p,'panel');
 }
 
-window.addEventListener('bp:building-selected',e=>{const f=e.detail?.feature||null,p=f?.properties||{},id=p.building_id||f?.id||e.detail?.buildingId||window.__BP_XRAY_STATE__?.buildingId||null,label=p.full_address||p.address||p.display_name||p.name||(id?'Building #'+id:'Selected building');selectProperty(id,label,f)});
+window.addEventListener('bp:building-selected',e=>{const f=e.detail?.feature||null,p=f?.properties||{},id=p.building_id||f?.id||e.detail?.buildingId||window.__BP_XRAY_STATE__?.buildingId||null,label=p.full_address||p.address||p.display_name||p.name||(id?'Building #'+id:'Selected building'),raw=e.detail?.lngLat||e.detail?.coordinates||null,coordinates=raw?{lng:raw.lng??raw.longitude??raw[0],lat:raw.lat??raw.latitude??raw[1]}:null;selectProperty(id,label,f,coordinates)});
 function buildUI(){
  if(!mapHost||$('#bpv-dock'))return;
  document.body.classList.add(home?'bpv-home':'bpv-app');
