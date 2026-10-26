@@ -117,7 +117,7 @@ function renderLayers(packs){
  const host=$('bpLayerToggles');if(!host)return;
  const hasMap=packs.some(p=>p.id==='global-basemap-z6-v1'||p.id==='global-max-v1');
  const hasBorders=packs.some(p=>p.id==='global-boundaries-v1'||p.id==='global-max-v1');
- if(!hasMap&&!hasBorders){host.innerHTML='<p class="bp-muted">No geography installed. Choose Global Borders (~7.9 MB), Global Basemap (~60–64 MB), or Global Max (~68–72 MB).</p>';return}
+ if(!hasMap&&!hasBorders){host.innerHTML='<p class="bp-muted">No geography installed. Choose Global Borders (~10 MB), Global Basemap (~47 MB total), or Global Max (~198 MB total).</p>';return}
  const groups=[['Land / landcover','land',hasMap],['Water / waterways','water',hasMap],['Roads / rail / transport','transport',hasMap],['Buildings (only if present at these zooms)','buildings',hasMap],['Places / labels','places',hasMap],['Country boundaries','borders',hasBorders]];
  host.innerHTML=groups.map(([title,id,enabled])=>'<label class="bp-layer-toggle"><input type="checkbox" data-layer-toggle="'+id+'" '+(enabled?'checked':'')+' '+(enabled?'':'disabled')+'><span>'+esc(title)+'</span></label>').join('');
  host.querySelectorAll('[data-layer-toggle]').forEach(el=>el.addEventListener('change',()=>toggleGroup(el.dataset.layerToggle,el.checked)));
