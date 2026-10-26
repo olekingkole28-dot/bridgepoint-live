@@ -1,0 +1,23 @@
+name: Global Offline World v1 tests
+on:
+  pull_request:
+    paths:
+      - 'rebuild-v5000/offline-world-v1.js'
+      - 'tests/global-offline-world-v1.test.mjs'
+      - '.github/workflows/test-global-offline-world-v1.yml'
+  push:
+    branches: [feature/global-offline-world-v1]
+    paths:
+      - 'rebuild-v5000/offline-world-v1.js'
+      - 'tests/global-offline-world-v1.test.mjs'
+      - '.github/workflows/test-global-offline-world-v1.yml'
+jobs:
+  manifest-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --check rebuild-v5000/offline-world-v1.js
+      - run: node --test tests/global-offline-world-v1.test.mjs
