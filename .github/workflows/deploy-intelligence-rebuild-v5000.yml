@@ -450,8 +450,8 @@ jobs:
           test -s site/offline-packs/global-max-v1.json
           test -s site/assets/offline/protomaps-world-z6.pmtiles
           test -s site/assets/offline/protomaps-world-z6.meta.json
-          grep -Fq 'OFFLINE WORLD' site/index.html
-          grep -Fq 'OFFLINE WORLD' site/app/index.html
+          grep -Fq '/offline-world-ui.js' site/index.html
+          grep -Fq '/offline-world-ui.js' site/app/index.html
           grep -Fq 'global-max-v1' site/offline-packs/catalog.json
           node --check site/offline-world-ui.js
           node --check site/offline-world-v1.js
