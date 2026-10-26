@@ -14,7 +14,7 @@ self.addEventListener('fetch',e=>{
   e.respondWith((async()=>{
    try{
     const response=await fetch(e.request,{cache:'no-store'});
-    if(response&&response.ok&&/\.(?:js|css|json|svg|webmanifest|txt)$/.test(u.pathname)){
+    if(response&&response.ok&&(e.request.mode==='navigate'||/\.(?:js|css|json|svg|webmanifest|txt)$/.test(u.pathname))){
      const copy=response.clone();caches.open(V).then(cache=>cache.put(e.request,copy)).catch(()=>{});
     }
     return response;
