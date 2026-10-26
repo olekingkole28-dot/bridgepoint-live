@@ -48,6 +48,10 @@
     {
       "url": "/assets/offline/NOTICE.txt",
       "bytes": 1800
+    },
+    {
+      "url": "/assets/offline/sprites/LICENSE.md",
+      "bytes": 1200
     }
   ]
 }
