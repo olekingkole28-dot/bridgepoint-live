@@ -8,17 +8,33 @@ const mapStatus=t=>{if($('bpOfflineMapStatus'))$('bpOfflineMapStatus').textConte
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function connection(){const e=$('bpConnection');if(!e)return;e.textContent=navigator.onLine?'ONLINE · READY TO DOWNLOAD':'OFFLINE · LOCAL DATA ONLY';e.style.color=navigator.onLine?'#56e2b0':'#f3cb72'}
 async function installed(){lastInstalled=await API.listPacks();return lastInstalled}
+async function readBuildMeta(path){
+ const cached=await API.matchResource(path);
+ if(cached)return await cached.json();
+ const response=await fetch(path,{cache:'no-store'});
+ if(!response.ok)throw new Error('Build metadata unavailable: '+path);
+ return await response.json();
+}
 async function updateRuntimeSizeEstimates(){
-  try{
-   const response=await API.matchResource('/assets/offline/protomaps-world-z6.meta.json');
-   const meta=response?await response.json():await (await fetch('/assets/offline/protomaps-world-z6.meta.json',{cache:'no-store'})).json();
-   const basemap=catalog.packages.find(p=>p.id==='global-basemap-z6-v1'),max=catalog.packages.find(p=>p.id==='global-max-v1');
-   if(meta?.sizeBytes&&basemap&&max){
-    const fixed=basemap.estimatedBytes-62914560;
-    basemap.estimatedBytes=meta.sizeBytes+fixed;basemap.sizeLabel='About '+size(basemap.estimatedBytes);
-    max.estimatedBytes=basemap.estimatedBytes+7860590;max.sizeLabel='About '+size(max.estimatedBytes);
-   }
-  }catch(_){/* Static estimate remains visible if metadata cannot be read. */}
+ try{
+  const [z6,z7]=await Promise.all([
+   readBuildMeta('/assets/offline/protomaps-world-z6.meta.json'),
+   readBuildMeta('/assets/offline/protomaps-world-z7.meta.json')
+  ]);
+  const basemap=catalog.packages.find(p=>p.id==='global-basemap-z6-v1');
+  const max=catalog.packages.find(p=>p.id==='global-max-v1');
+  const basemapSupport=350000;
+  const maxSupport=8300000;
+  if(z6?.sizeBytes&&basemap){
+   basemap.estimatedBytes=z6.sizeBytes+basemapSupport;
+   basemap.sizeLabel='About '+size(basemap.estimatedBytes)+' total · archive '+size(z6.sizeBytes);
+  }
+  if(z7?.sizeBytes&&max){
+   max.estimatedBytes=z7.sizeBytes+maxSupport;
+   max.sizeLabel='About '+size(max.estimatedBytes)+' total · zoom-7 archive '+size(z7.sizeBytes);
+   max.buildDate=z7.sourceDate||null;
+  }
+ }catch(_){/* Static estimates remain if build metadata was not installed or is not reachable. */}
 }
 function packageIsCovered(id,installedPacks){
  return id!=='global-max-v1'&&installedPacks.some(p=>p.id==='global-max-v1');
@@ -133,8 +149,12 @@ async function loadBasemap(){
  if(!window.maplibregl||!window.pmtiles||!window.basemaps?.layers||!window.basemaps?.namedFlavor)throw new Error('Offline rendering libraries are missing. Load Offline World while connected once, then retry.');
  try{maplibregl.removeProtocol('pmtiles')}catch(_){}
  protocol=new pmtiles.Protocol();maplibregl.addProtocol('pmtiles',protocol.tile);
- const blob=await blobFromPack(BASE_URL);
- let file;try{file=new File([blob],'bridgepoint-world-z6')}catch(_){file=blob;try{Object.defineProperty(file,'name',{value:'bridgepoint-world-z6'})}catch(_){}}
+ const installedPacks=await installed();
+ const useMax=installedPacks.some(p=>p.id==='global-max-v1');
+ const archiveUrl=useMax?'/assets/offline/protomaps-world-z7.pmtiles':BASE_URL;
+ const archiveName=useMax?'bridgepoint-world-z7':'bridgepoint-world-z6';
+ const blob=await blobFromPack(archiveUrl);
+ let file;try{file=new File([blob],archiveName)}catch(_){file=blob;try{Object.defineProperty(file,'name',{value:archiveName})}catch(_){}}
  protocol.add(new pmtiles.PMTiles(new pmtiles.FileSource(file)));
  const style={version:8,name:'BridgePoint Offline Global Basemap',
   glyphs:location.origin+'/assets/offline/fonts/{fontstack}/{range}.pbf',
@@ -149,7 +169,7 @@ async function loadBasemap(){
   map.setStyle(style);
  });
  await addCountryBoundaryDetail();
- activeMode='basemap';mapStatus('GLOBAL OFFLINE BASEMAP READY · local archive · zoom levels 0–6.');
+ activeMode=useMax?'global-max':'basemap';mapStatus(useMax?'GLOBAL MAX READY · local zoom-0–7 archive + detailed country boundaries.':'GLOBAL OFFLINE BASEMAP READY · local archive · zoom levels 0–6.');
 }
 async function loadBorders(){
  const geo=await readTopology('countries-110m.json');if(!geo)throw new Error('Saved border data is missing.');
