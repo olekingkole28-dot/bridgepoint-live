@@ -129,5 +129,7 @@ jobs:
           grep -Fq "world-v2300-water.js?v=6194-stable-water-low-cost" rebuild-v5000/app.js
           grep -Fq "world-v2300-water.js?v=6194-stable-water-low-cost" rebuild-v5000/landing.js
           grep -Fq "paint(map,'gta-water','fill-opacity',sat?1:.97)" release-v2300/world-v2300-map.js
-          grep -Fq "setBase('satellite')" release-v2300/world-v2300-map.js
+          grep -Fq "setBase('gta')" release-v2300/world-v2300-map.js
+          grep -Fq "defaultBase:'gta'" release-v2300/world-v2300-map.js
+          grep -Fq 'satelliteManualOnly:true' release-v2300/world-v2300-map.js
           grep -Fq "gta-esri" release-v2300/world-v2300-map.js
