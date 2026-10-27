@@ -128,7 +128,7 @@ function makePanel(){
   '<section data-bpv-pane="account" hidden><div class="bpv-pane-title"><b>Account, payments & subscriptions</b><small>Your current plan, subscription dates, package choices, invoices and cancellation controls.</small></div>'+
   '<div class="bpv-account-header"><div><span class="bpv-account-eyebrow">SIGNED-IN ACCOUNT</span><b id="bpv-account-email">Checking account…</b><small id="bpv-account-state">Secure account details load only after sign-in.</small></div><a class="bpv-account-pricing-link" href="/pricing.html">PUBLIC PRICING ↗</a></div>'+
   '<div class="bpv-account-actions"><button type="button" id="bpv-account-open-portal" class="bpv-account-primary">MANAGE PAYMENTS / CHANGE OR CANCEL</button><button type="button" id="bpv-account-refresh" class="bpv-account-secondary">REFRESH ACCOUNT</button></div>'+
-  '<div id="bpv-account-feedback" class="bpv-account-feedback" role="status" aria-live="polite"></div>'+
+  '<div id="bpv-account-feedback" class="bpv-account-feedback" role="status" aria-live="polite" hidden></div>'+
   '<div id="bpv-account-summary" class="bpv-account-subscriptions"></div>'+
   '<div class="bpv-account-catalog-head"><b>AVAILABLE PACKAGES</b><small>Choose a package using BridgePoint’s live catalog. Checkout and payment changes are handled securely by Stripe.</small></div>'+
   '<div id="bpv-account-packages" class="bpv-account-packages"><p class="bpv-data-note">Sign in to load package options.</p></div>'+
