@@ -29,7 +29,7 @@ assert.ok(moduleSource.includes('if(button&&pane){try{observer.disconnect()}catc
 assert.ok(moduleSource.includes('function isManagedOptionalOverlay(id)'), 'only recognized optional overlays are managed by the clean-start guard');
 assert.ok(moduleSource.includes('if(!isManagedOptionalOverlay(layer.id)||layerAllowed(layer.id))continue;'), 'unknown/core basemap layers are never blanket-hidden');
 assert.ok(moduleSource.includes('let parcelLayerEnabled=false;'), 'parcel outlines are off at startup until the parcel control is pressed');
-assert.ok(moduleSource.includes('/landmark|poi|tree|streetlight|transit|infra-points|fire/i'), 'optional landmark, vegetation, transit, infrastructure, and fire overlays are off at startup');
+assert.ok(moduleSource.includes('/landmark|poi|tree|streetlight|transit|infra-points|fire|bridge3d/i'), 'optional landmark, vegetation, transit, infrastructure, and fire overlays are off at startup');
 assert.ok(moduleSource.includes("for(const event of ['style.load','idle','moveend','zoomend','rotateend','pitchend'])m.on(event,hideDefaultOverlays)"), 'clean-start guard runs on settled styles/camera events');
 assert.ok(!moduleSource.includes("m.on('styledata',hideDefaultOverlays)"), 'avoid styledata feedback loops while hiding optional layers');
 assert.ok(landingHtml.includes('bridgepoint-drone-awareness-v1.js'), 'homepage loads the module');
