@@ -125,8 +125,9 @@ function addMapKey(panel){
   {label:'Streetlights / lamps',color:'#ffe8a8',desc:'Warm gold glow and 3D poles at materialized OpenStreetMap lamp coordinates. Coverage is only what BridgePoint has ingested; pole heights may use display defaults.'},
   {label:'Landmarks / masonry',color:'#817a6d',desc:'Stone-gray / earth-toned physical shaders, not opportunities.'}
  ]);
- section('DRONE AWARENESS · PUBLIC AIRSPACE','The bottom-card Drone Awareness control samples 13 public ADS-B regions up to 250 nautical miles around each sample center. It groups UAV-class reports into 2° grid cells; this is broad sampled coverage, not a complete worldwide drone census.',[
-  {label:'Aggregated UAV-class activity',cls:'bpv-mapkey-swatch-drone',desc:'Cell colors match the live layer: cyan #58CFFF → aqua #35E8F4 → mint #62EFAD → yellow #FFD166 → orange #FF9F68 as report counts rise. No aircraft IDs, pilot locations, or per-drone tracks are shown.'}
+ section('DRONE FLEET + PUBLIC AIRSPACE','Press Drone Awareness to show a simulated 156-icon fleet preview alongside source-backed public UAV coverage. The illustrated fleet is not a live track layer.',[
+  {label:'Simulated drone fleet preview · 156 icons',color:'#74F0FF',desc:'#74F0FF cyan/white drone glyphs are illustrative demo positions arranged around 13 regions. They are not confirmed aircraft, telemetry, or live flight paths.'},
+  {label:'Aggregated UAV-class activity',cls:'bpv-mapkey-swatch-drone',desc:'Public ADS-B reports are aggregated into coarse 2° cells: cyan #58CFFF → aqua #35E8F4 → mint #62EFAD → yellow #FFD166 → orange #FF9F68 as report counts rise. No aircraft IDs, pilot locations, or per-drone tracks are shown.'}
  ]);
  section('IMAGERY, RADAR + WEATHER / HAZARDS','Colors below match the currently wired source-weather palette. Weather markers, warning shapes, radar and 3D clouds are separate opt-in layers.',[
   {label:'Satellite / aerial imagery',cls:'bpv-mapkey-swatch-imagery',desc:'NASA Blue Marble globe imagery; USGS orthophoto in supported U.S. coverage; OpenAerialMap close-zoom imagery where available.'},
