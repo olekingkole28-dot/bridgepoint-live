@@ -119,6 +119,9 @@ function addMapKey(panel){
   {label:'Streetlights / lamps',color:'#ffe8a8',desc:'Warm gold glow and 3D poles at materialized OpenStreetMap lamp coordinates. Coverage is only what BridgePoint has ingested; pole heights may use display defaults.'},
   {label:'Landmarks / masonry',color:'#817a6d',desc:'Stone-gray / earth-toned physical shaders, not opportunities.'}
  ]);
+ section('DRONE AWARENESS · PUBLIC AIRSPACE','Opt-in aggregate display only. ADS-B UAV-class reports are grouped into approximately 1° cells; a cell appears only when at least three reports qualify. This is not a complete drone census and does not display individual aircraft or operator locations.',[
+  {label:'Aggregated UAV-class activity',color:'#58cfff',desc:'Cyan-to-mint cells show coarse public ADS-B aggregates only. No individual aircraft positions, identifiers, control-station locations or Remote ID interception.'}
+ ]);
  section('IMAGERY, RADAR + WEATHER / HAZARDS','',[
   {label:'Satellite / aerial imagery',cls:'bpv-mapkey-swatch-imagery',desc:'NASA Blue Marble globe imagery; USGS orthophoto in supported U.S. coverage; OpenAerialMap close-zoom imagery where available.'},
   {label:'NOAA radar reflectivity',color:'#2c7cff',desc:'Blue #2C7CFF family when radar is enabled.'},
