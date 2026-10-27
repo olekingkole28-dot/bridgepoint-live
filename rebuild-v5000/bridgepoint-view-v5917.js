@@ -36,14 +36,45 @@ function showActionNotice(message){
  n.textContent=String(message||'BridgePoint could not complete that action.');n.hidden=false;
 }
 window.__BP_SHOW_ACTION_NOTICE__=showActionNotice;
+function ensurePanelPane(name){
+ const p=$('#bpv-sidecar');if(!p||!name)return null;
+ let pane=Array.from(p.querySelectorAll('[data-bpv-pane]')).find(s=>s.dataset.bpvPane===name);
+ if(pane)return pane;
+ const labels={
+  mapkey:['BRIDGEPOINT MAP KEY','The map and weather legend opens from the live map key control.'],
+  boundaryviewer:['PUBLIC PARCEL VIEWER','Open the public parcel-boundary viewer. Availability depends on the parcel viewer module finishing initialization.'],
+  worldchanges:['30-DAY WORLD HISTORY','The timeline shows only changes supported by source observations. Current imagery and geometry are not a complete rewind.'],
+  volumetric:['WIND / RF FIELDS','Open source-backed wind and radio-frequency field controls. The globe remains interactive.'],
+  motion:['ORBIT & MOTION','Open the globe motion controls for orbit, bearing, pitch and navigation.'],
+  satellite:['SATELLITE IMAGERY','Open available imagery, spectral and color-layer controls. Coverage depends on source availability.'],
+  premium:['FREE PREMIUM TOOLS','Available tools and package access are shown only when the relevant BridgePoint control is available.'],
+  search:['PROPERTY SEARCH','Search for a property by address or place using the search field on the globe.']
+ };
+ const fallback=labels[name]||[String(name).replace(/[-_]/g,' ').replace(/\b\w/g,c=>c.toUpperCase())+' · BRIDGEPOINT TOOL','This tool was requested. Its controls or source status should appear here rather than leaving an empty panel.'];
+ pane=node('section','bpv-generic-pane');pane.dataset.bpvPane=name;pane.hidden=true;
+ const head=node('div','bpv-pane-title');const strong=node('b');strong.textContent=fallback[0];const small=node('small');small.textContent=fallback[1];head.append(strong,small);
+ const detail=node('p','bpv-data-note');detail.textContent='BridgePoint is checking the active control module. If a source or module is unavailable, the status will be shown here.';
+ pane.append(head,detail);
+ if(name==='mapkey'){
+  const b=node('button','bpv-wide-action','OPEN LIVE MAP KEY');b.type='button';b.addEventListener('click',()=>{let opened=false;try{opened=window.__BP_OPEN_MAP_KEY_V5920__?.()===true}catch(e){detail.textContent='Map key failed to open: '+String(e?.message||e)}if(!opened)detail.textContent='The live map key is still initializing. Close this panel and press MAP KEY again after the globe finishes loading.'});pane.appendChild(b);
+ }
+ if(name==='boundaryviewer'){
+  const b=node('button','bpv-wide-action','OPEN PUBLIC PARCEL VIEWER');b.type='button';b.addEventListener('click',()=>{const api=window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5405__;if(api&&typeof api.open==='function')void Promise.resolve(api.open('public')).catch(e=>{detail.textContent='Public Parcel Viewer failed: '+String(e?.message||e)});else detail.textContent='Public Parcel Viewer is still initializing. Reload after the globe has finished loading, then retry.'});pane.appendChild(b);
+ }
+ p.appendChild(pane);return pane;
+}
 function closePanel(){const p=$('#bpv-sidecar');if(p){p.hidden=true;p.removeAttribute('data-panel')}document.body.classList.remove('bpv-panel-open');const rail=$('#bpv-mapkey-rail');if(rail)rail.setAttribute('aria-expanded','false');setDockMaximized(false)}
 function openPanel(name){
  const p=$('#bpv-sidecar');if(!p)return;
+ const openedPane=ensurePanelPane(name);
  if(home){const card=$('#previewCard');if(card&&!card.hidden&&name!=='mapkey')card.hidden=true}else if(name!=='mapkey'){const sys=$('#systemPanel'),building=$('#buildingPanel');if(sys)sys.hidden=true;if(building)building.hidden=true}
  activePanel=name;
- p.hidden=false;p.dataset.panel=name;document.body.classList.add('bpv-panel-open');setDockMaximized(name!=='mapkey');
+ p.hidden=false;p.dataset.panel=name;document.body.classList.add('bpv-panel-open');
+ // The control deck is a fixed viewport panel, not part of the bottom card's flow.
+ // Never maximize or scroll the card just to reveal a panel.
+ setDockMaximized(false);
  const rail=$('#bpv-mapkey-rail');if(rail)rail.setAttribute('aria-expanded',String(name==='mapkey'));
- const titles={ai:'BRIDGEPOINT AI',opportunities:'BRIDGEPOINT OPPORTUNITIES',listings:'BRIDGEPOINT LISTINGS',mapkey:'BRIDGEPOINT MAP KEY',metrics:'BRIDGEPOINT METRICS',property:'BRIDGEPOINT PROPERTY',controls:'BRIDGEPOINT CONTROLS',account:'ACCOUNT & BILLING',explore:'EXPLORE BRIDGEPOINT'};const title=$('#bpv-sidecar-title');if(title)title.textContent=titles[name]||'BRIDGEPOINT WORLD';
+ const titles={ai:'BRIDGEPOINT AI',opportunities:'BRIDGEPOINT OPPORTUNITIES',listings:'BRIDGEPOINT LISTINGS',mapkey:'BRIDGEPOINT MAP KEY',metrics:'BRIDGEPOINT METRICS',property:'BRIDGEPOINT PROPERTY',controls:'BRIDGEPOINT CONTROLS',account:'ACCOUNT & BILLING',explore:'EXPLORE BRIDGEPOINT',boundaryviewer:'PUBLIC PARCEL VIEWER',worldchanges:'30-DAY WORLD HISTORY',volumetric:'WIND / RF FIELDS',motion:'ORBIT & MOTION',satellite:'SATELLITE IMAGERY',premium:'FREE PREMIUM TOOLS',search:'PROPERTY SEARCH'};const title=$('#bpv-sidecar-title');if(title)title.textContent=titles[name]||'BRIDGEPOINT WORLD';
  p.querySelectorAll('[data-bpv-panel]').forEach(b=>{const on=b.dataset.bpvPanel===name;b.classList.toggle('active',on);b.setAttribute('aria-pressed',on?'true':'false')});
  p.querySelectorAll('[data-bpv-pane]').forEach(s=>{s.hidden=s.dataset.bpvPane!==name});
  if(name==='metrics')void loadMetrics();
@@ -53,16 +84,7 @@ function openPanel(name){
  if(name==='mapkey')void window.__BP_MAP_KEY_REFRESH_V5920__?.(true);
  if(name==='property')refreshSlotLabels();
  if(name==='ai')setTimeout(()=>$('#bpv-ai-question')?.focus({preventScroll:true}),60);
- if(name!=='mapkey')requestAnimationFrame(()=>{
-  const dock=$('#bpv-dock');
-  // The dock itself scrolls on mobile/desktop; explicitly reveal the panel there.
-  // scrollIntoView alone could move the document while leaving the card scrolled at its buttons.
-  if(dock&&p.parentElement===dock){
-   const dockRect=dock.getBoundingClientRect(),panelRect=p.getBoundingClientRect();
-   const delta=panelRect.top-dockRect.top-8;
-   if(Math.abs(delta)>8)dock.scrollTo({top:Math.max(0,dock.scrollTop+delta),behavior:'smooth'});
-  }else{try{p.scrollIntoView({block:'nearest',behavior:'smooth'})}catch(_){}}
- });
+ requestAnimationFrame(()=>{if(p.hidden)return;p.scrollTop=0;if(openedPane)openedPane.scrollTop=0});
 }
 function setMoving(){
  moveUntil=Date.now()+850;
@@ -907,10 +929,9 @@ function buildUI(){
  if(!mapHost||$('#bpv-dock'))return;
  document.body.classList.add(home?'bpv-home':'bpv-app');
  const panel=makePanel(),ui=makeTopBarAndDock();
- // Keep the active panel above the action buttons inside the scrollable bottom card.
- // Appending it after the buttons made newly opened panels land below the visible fold.
- const dockActions=$('#bpv-dock-actions');
- if(dockActions&&dockActions.parentElement===ui.dock)ui.dock.insertBefore(panel,dockActions);else ui.dock.appendChild(panel);
+ // makePanel appends the control deck to <body>. Keep it there as a fixed viewport
+ // panel; nesting it in the bottom card made mobile clicks scroll the card instead
+ // of reliably presenting the panel's actual content.
  const moreInfo=$('#bpv-more-info');if(moreInfo)ui.dock.appendChild(moreInfo);
  if(home){
   const nav=$('.site-nav'),actions=nav?.querySelector('.actions'),copy=$('.hero .copy'),main=$('main');
