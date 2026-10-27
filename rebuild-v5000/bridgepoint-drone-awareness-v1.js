@@ -212,7 +212,7 @@ function createPane(panel){
  source.append(document.createTextNode('Source: '));
  const link=element('a','bp-drone-source','ADSB.lol API documentation');link.href='https://www.adsb.lol/docs/open-data/api/';link.target='_blank';link.rel='noopener noreferrer';source.append(link);
  source.append(document.createTextNode(' · ODbL 1.0. Public transponder feeds can be incomplete. No Remote ID radio interception, controller/pilot location, target-level history, or offline RF scanning is performed.'));
- p.append(source);panel.append(p);
+ p.append(source);panel.append(p);writeSummary(0,0);
  return p;
 }
 function addButton(){
@@ -256,7 +256,13 @@ function bindStartMode(){
  document.addEventListener('click',e=>{
   if(!emptyModeActive)return;
   const target=e.target?.closest?.('.bpv-dock [data-bpv-action], .bpv-dock [data-bpv-panel], .bpv-dock [data-bpv-slot-action], #bpv-mapkey-rail, .map-tools button, .bpv-contained-control button');
-  if(target)stopEmptyMode();
+  if(!target)return;
+  const action=String(target.dataset?.bpvAction||'');
+  const shouldEnable=target.matches('.map-tools button, .bpv-contained-control button')
+   ||['parcels','boundaryviewer','worldchanges','weatherfx','windfx','volumetric','motion','satellite','opportunities'].includes(action);
+  // Browsing/search/property tabs keep the map empty. A real layer/tool command
+  // releases the initial-visibility gate so that command can activate its layer.
+  if(shouldEnable)stopEmptyMode();
  },true);
 }
 function tryBoot(){
