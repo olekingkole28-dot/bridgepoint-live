@@ -34,7 +34,20 @@ assert.ok(moduleSource.includes("for(const event of ['style.load','idle','moveen
 assert.ok(!moduleSource.includes("m.on('styledata',hideDefaultOverlays)"), 'avoid styledata feedback loops while hiding optional layers');
 assert.ok(landingHtml.includes('bridgepoint-drone-awareness-v1.js'), 'homepage loads the module');
 assert.ok(appHtml.includes('bridgepoint-drone-awareness-v1.js'), 'app loads the module');
+assert.ok(landingHtml.includes('bridgepoint-drone-awareness-v1.js?v=1.1.3-global-fleet-safe'), 'homepage uses the cache-busted global-fleet runtime');
+assert.ok(appHtml.includes('bridgepoint-drone-awareness-v1.js?v=1.1.3-global-fleet-safe'), 'app uses the same cache-busted global-fleet runtime');
 assert.ok(view.includes('data-bpv-command-grid="environment"'), 'environment command group exists');
+for (const action of ['weatherfx','windfx','volumetric','ai','listings','opportunities','metrics','property','explore','parcels','boundaryviewer','worldchanges','controls','motion','whole']) {
+  assert.ok(view.includes('data-bpv-action="'+action+'"'), 'the dock exposes the '+action+' action');
+}
+assert.ok(view.includes("if(a==='boundaryviewer')"), 'parcel viewer action has an explicit handler');
+assert.ok(view.includes("if(a==='opportunities')"), 'opportunity action has an explicit handler');
+assert.ok(view.includes("if(a==='weatherfx')"), 'weather action has an explicit handler');
+assert.ok(view.includes("if(a==='windfx')"), 'wind action has an explicit handler');
+assert.ok(view.includes("if(a==='motion')"), 'motion action has an explicit handler');
+assert.ok(workflow.includes('Whole-Earth drone fleet and map responsiveness smoke'), 'deployment runs a global drone responsiveness smoke test');
+assert.ok(workflow.includes('GLOBAL_DRONE_FLEET_NOT_RENDERED'), 'deployment fails if the drone fleet does not render on the globe');
+assert.ok(workflow.includes('|\\brf\\b|drone|bridge3d'), 'startup overlay smoke uses word-boundary RF matching and recognizes bridge geometry');
 assert.ok(mapKey.includes('DRONE AWARENESS') || mapKey.includes('DRONE FLEET + PUBLIC AIRSPACE'), 'map key documents the opt-in drone layer');
 assert.ok(workflow.includes('cp rebuild-v5000/bridgepoint-drone-awareness-v1.js site/bridgepoint-drone-awareness-v1.js'), 'deployment copies the public runtime');
 assert.ok(workflow.includes('node --check rebuild-v5000/bridgepoint-drone-awareness-v1.js'), 'deployment syntax-checks the module');
