@@ -23,6 +23,9 @@ assert.ok(moduleSource.includes('rawRfScanning:false'), 'no raw RF scanner is re
 assert.ok(moduleSource.includes('pilotOrControlStationLocations:false'), 'no operator/control-station location is exposed');
 assert.ok(moduleSource.includes("https://api.adsb.lol/docs/open-data/api/"), 'upstream source is attributed');
 assert.ok(moduleSource.includes('hideDefaultOverlays'), 'startup enters a clean globe state');
+assert.ok(moduleSource.includes('function setLabelTextIfChanged(node,value)'), 'startup label updates do not rewrite unchanged text nodes');
+assert.ok(moduleSource.includes('if(node.textContent!==next)node.textContent=next;'), 'unchanged UI labels do not retrigger the subtree mutation observer');
+assert.ok(moduleSource.includes('if(button&&pane){try{observer.disconnect()}catch(_){}}'), 'the broad DOM observer disconnects after dock controls exist while map readiness polling continues');
 assert.ok(moduleSource.includes('function isManagedOptionalOverlay(id)'), 'only recognized optional overlays are managed by the clean-start guard');
 assert.ok(moduleSource.includes('if(!isManagedOptionalOverlay(layer.id)||layerAllowed(layer.id))continue;'), 'unknown/core basemap layers are never blanket-hidden');
 assert.ok(moduleSource.includes('let parcelLayerEnabled=false;'), 'parcel outlines are off at startup until the parcel control is pressed');
