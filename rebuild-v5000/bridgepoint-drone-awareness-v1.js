@@ -332,14 +332,17 @@ function toggle(){
  if(enabled){
   if(!installLayer()){showStatus('The map layer is not ready yet. Try again once the globe finishes loading.','error');enabled=false;updateButton();return}
   setLayerVisibility(false);
+  const fleetReady=setSimFleetVisibility(true);
   window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('drones',true);
-  showStatus('Sampling public UAV-class ADS-B detections across 13 regional sensor windows. Coarse cells only; this cannot show every drone worldwide and does not include Remote ID-only broadcasts.');
+  showStatus(fleetReady
+   ? 'SIMULATED FLEET PREVIEW ON · '+SIM_FLEET_COUNT+' demonstration drone icons are shown around 13 world regions. They are not live flights. The separate colored cells below come from public UAV-class ADS-B reports.'
+   : 'Simulated fleet preview unavailable in this renderer. Sampling the 13 public ADS-B regions; only source-reported activity will appear.',fleetReady?'info':'error');
   clearInterval(refreshTimer);refreshTimer=setInterval(()=>{if(enabled&&!document.hidden)void refresh(false)},REFRESH_MS);
   void refresh(false);
  }else{
   clearInterval(refreshTimer);clearTimeout(moveTimer);aborter?.abort();
   for(const controller of requestControllers)try{controller.abort()}catch(_){}
-  requestControllers.clear();setLayerVisibility(false);
+  requestControllers.clear();setLayerVisibility(false);setSimFleetVisibility(false);
   try{map.getSource(SOURCE)?.setData(emptyFeatureCollection())}catch(_){}
   renderCells([]);writeSummary(0,0);window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('drones',false);showStatus('Drone Awareness is off. No background regional requests are running.');
  }
@@ -348,8 +351,9 @@ function createPane(panel){
  if(!panel)return null;
  let existing=panel.querySelector('[data-bpv-pane="drones"]');if(existing)return existing;
  const p=element('section','bp-drone-pane');p.dataset.bpvPane='drones';p.hidden=true;
- p.append(element('div','bp-drone-headline','OPT-IN · PUBLIC CIVIL AIRSPACE DATA'));
- p.append(element('div','bp-drone-feed-note','Samples 13 public ADS-B regions and combines reported UAV-class records into coarse 2° cells. The map never displays individual aircraft points, callsigns, identifiers or operator locations. These are sensor-fed sample regions, not exhaustive worldwide coverage; most consumer drones do not broadcast ADS-B.'));
+ p.append(element('div','bp-drone-headline','OPT-IN · DRONE FLEET + PUBLIC CIVIL AIRSPACE DATA'));
+ p.append(element('div','bp-drone-feed-note','SIMULATED FLEET PREVIEW · '+SIM_FLEET_COUNT+' demonstration drone icons appear across 13 world regions when this control is on. Their positions are illustrative and are not live aircraft tracks.'));
+ p.append(element('div','bp-drone-feed-note','SOURCE-BACKED COVERAGE · Separately, public ADS-B reports classified as UAV are sampled from 13 regions and aggregated into coarse 2° cells. No individual aircraft points, callsigns, identifiers or operator/control-station locations are shown. Coverage is incomplete; most consumer drones do not broadcast ADS-B.'));
  p.append(element('div','bp-drone-feed-note','For broader Remote ID detections from community Wi-Fi/Bluetooth receivers, DroneAware maintains a separate live map. Its terms reserve API access for approved third parties under a written agreement, so BridgePoint links to that network instead of scraping its private feed.'));
  const remoteLink=element('a','bp-drone-source','Open DroneAware Remote ID live map ↗');remoteLink.href='https://droneaware.io/';remoteLink.target='_blank';remoteLink.rel='noopener noreferrer';p.append(remoteLink);
  const summary=element('div','bp-drone-summary');summary.id='bp-drone-summary-v1';summary.append(element('div','bp-drone-metric'));summary.append(element('div','bp-drone-metric'));p.append(summary);summaryNode=summary;
