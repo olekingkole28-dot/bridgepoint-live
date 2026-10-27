@@ -343,7 +343,7 @@ test('new rain/lightning and global source markers stay separate from legacy eff
   assert.match(app, /sourceWeatherOverlaysPreserved:true/);
   assert.match(landing, /legacyCinematicFxDisabled:true/);
   assert.match(listingView, /BP_LISTINGS_MONEY_V6130/);
-  assert.match(listingView, /listingOverlayOn=true/);
+  assert.match(listingView, /listingOverlayOn=false/);
 });
 
 test('NOAA radar is bright, source-detailed, pinned below 3D structures and animated at every zoom', () => {
