@@ -15,6 +15,43 @@ let map=null,enabled=false,inFlight=false,refreshTimer=0,moveTimer=0,lastFetchAt
 let button=null,pane=null,statusNode=null,summaryNode=null,cellsNode=null,refreshButton=null;
 let emptyModeActive=true,emptyModeMap=null,emptyModeHandler=null,sweepFrame=0;
 const baseLayers=new Set(['gta-bg','gta-water','gta-coast-shadow','gta-coast-edge','gta-coast-foam','gta-landcover','gta-landuse','gta-hillshade']);
+const allowedCategories=new Set();
+const categoryPatterns={
+ parcels:/parcel|cadastral|boundary-viewer/i,
+ buildings:/gta-(context-building|context-buildings|context-roofs|context-floor|bp-buildings|bp-roofs|bp-floor|bp-facade|city-build|city-roof|exact-building|exact-roof|exact-floor|building-outline)|\bbuilding\b|\broof\b/i,
+ imagery:/gta-(nasa|esri|usgs|oam)|satellite|spectral-imagery|aerial-imagery/i,
+ weather:/weather|\bwx\b|wx-|radar|cloud|rain|lightning|storm|cyclone|tornado|hurricane|wildfire|fire-perimeter|precipitation|present-weather/i,
+ wind:/wind|volumetric|\brf\b|signal-field|rf-field/i,
+ history:/history|world-change|timeline|time-slider/i,
+ opportunities:/opportunity/i,
+ transport:/road-|bridge-|rail|transportation|transport-mesh/i
+};
+function layerAllowed(id){
+ if(baseLayers.has(id)||String(id).startsWith('bp-drone-awareness'))return true;
+ for(const category of allowedCategories)if(categoryPatterns[category]?.test(String(id)))return true;
+ return false;
+}
+function categoryForTarget(target){
+ if(!target)return null;
+ const action=String(target.dataset?.bpvAction||'');
+ const actionMap={parcels:'parcels',boundaryviewer:'parcels',worldchanges:'history',weatherfx:'weather',windfx:'wind',volumetric:'wind',satellite:'imagery',opportunities:'opportunities'};
+ if(actionMap[action])return actionMap[action];
+ if(target.dataset?.layer==='parcels')return'parcels';
+ if(target.dataset?.layer==='buildings')return'buildings';
+ if(target.dataset?.base==='satellite')return'imagery';
+ if(target.id==='toggleLiveContext')return'weather';
+ if(target.id==='toggleTransport')return'transport';
+ const label=[target.textContent,target.title,target.getAttribute?.('aria-label')].filter(Boolean).join(' ').toLowerCase();
+ if(/parcel|boundary|cadastral|lot line/.test(label))return'parcels';
+ if(/satellite|aerial|imagery|land color/.test(label))return'imagery';
+ if(/building|roof|\b3d\b/.test(label))return'buildings';
+ if(/weather|cloud|rain|lightning|storm|radar|hurricane|tornado|wildfire|\bwx\b/.test(label))return'weather';
+ if(/wind|\brf\b|signal|volumetric/.test(label))return'wind';
+ if(/history|changes|timeline/.test(label))return'history';
+ if(/opportunit/.test(label))return'opportunities';
+ if(/road|rail|bridge|transport/.test(label))return'transport';
+ return null;
+}
 function worldMap(){
  return window.__BP_LANDING_WORLD__?.map
   ||window.__bpLandingWorldV5420?.map
@@ -234,7 +271,7 @@ function hideDefaultOverlays(){
   try{
    const layers=emptyModeMap.getStyle?.()?.layers||[];
    for(const layer of layers){
-    if(baseLayers.has(layer.id)||layer.id.startsWith('bp-drone-awareness'))continue;
+    if(layerAllowed(layer.id))continue;
     if((emptyModeMap.getLayoutProperty(layer.id,'visibility')||'visible')!=='none')emptyModeMap.setLayoutProperty(layer.id,'visibility','none');
    }
   }catch(_){}
@@ -257,12 +294,16 @@ function bindStartMode(){
   if(!emptyModeActive)return;
   const target=e.target?.closest?.('.bpv-dock [data-bpv-action], .bpv-dock [data-bpv-panel], .bpv-dock [data-bpv-slot-action], #bpv-mapkey-rail, .map-tools button, .bpv-contained-control button');
   if(!target)return;
-  const action=String(target.dataset?.bpvAction||'');
-  const shouldEnable=target.matches('.map-tools button, .bpv-contained-control button')
-   ||['parcels','boundaryviewer','worldchanges','weatherfx','windfx','volumetric','motion','satellite','opportunities'].includes(action);
-  // Browsing/search/property tabs keep the map empty. A real layer/tool command
-  // releases the initial-visibility gate so that command can activate its layer.
-  if(shouldEnable)stopEmptyMode();
+  const category=categoryForTarget(target);
+  if(!category)return;
+  allowedCategories.add(category);
+  hideDefaultOverlays();
+  // The existing toggle owns on/off state. If it ended off, remove just that
+  // category from the opt-in allowlist; unrelated layers stay hidden.
+  setTimeout(()=>{
+   if((category==='parcels'||category==='buildings')&&!target.classList.contains('active')&&target.getAttribute('aria-pressed')!=='true')allowedCategories.delete(category);
+   hideDefaultOverlays();
+  },0);
  },true);
 }
 function tryBoot(){
