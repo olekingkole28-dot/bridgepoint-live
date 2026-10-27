@@ -101,7 +101,8 @@ function setLayerVisibility(on){
  try{
   const layers=map.getStyle?.()?.layers||[];
   if(!layers.some(x=>x.id===LAYER))return false;
-  map.setLayoutProperty(LAYER,'visibility',on?'visible':'none');map.triggerRepaint?.();return true;
+  const setLayoutProperty=(layer,visibility)=>map.setLayoutProperty(layer,'visibility',visibility);
+  setLayoutProperty(LAYER,on?'visible':'none');map.triggerRepaint?.();return true;
  }catch(e){return false}
 }
 function installLayer(){
