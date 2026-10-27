@@ -287,7 +287,13 @@ function makeTopBarAndDock(){
    void activate().then(on=>{b.classList.toggle('active',!!on);b.setAttribute('aria-pressed',String(!!on));showActionNotice(on?'Weather data and effects are enabled. Press Weather FX again to turn weather data off.':'Weather data is off.')})
     .catch(e=>{console.warn('BridgePoint Weather FX unavailable',e);showActionNotice('Weather FX could not open: '+String(e?.message||e))});return;
   }
-  if(a==='windfx'){setDockMaximized(true);void openVolumetricFields(true).catch(e=>{console.warn('BridgePoint 3D wind unavailable',e);showActionNotice('Wind + Drone fields could not open: '+String(e?.message||e))});return}
+  if(a==='windfx'){
+   setDockMaximized(true);
+   void toggleWindAndDroneField().then(on=>{
+    b.classList.toggle('active',!!on);b.setAttribute('aria-pressed',String(!!on));
+    showActionNotice(on?'Wind flow is on. Drone controls remain in the Wind + Drone panel.':'Wind flow is off.');
+   }).catch(e=>{console.warn('BridgePoint 3D wind unavailable',e);showActionNotice('Wind + Drone fields could not open: '+String(e?.message||e))});return;
+  }
   if(a==='volumetric'){setDockMaximized(true);void openVolumetricFields().catch(e=>{console.warn('BridgePoint volumetric fields unavailable',e);showActionNotice('Wind / RF Fields could not open: '+String(e?.message||e))});return}
   if(a==='motion'){openPanel('controls');try{const motion=window.__BP_GLOBAL_MOTION_V5926__;if(typeof motion?.open==='function')motion.open();else showActionNotice('Orbit & Motion controls are not ready. Reload the world after the map has finished loading.')}catch(e){showActionNotice('Orbit & Motion failed: '+String(e?.message||e))}return}
   if(a==='satellite'){
@@ -767,6 +773,18 @@ async function openVolumetricFields(initialWind=false){
  const mod=await import('./bridgepoint-volumetric-fields-v5978.js?v=5992-expanded-field-panel');
  const api=mod.initBridgePointVolumetricFields(world);if(typeof api?.open!=='function')throw new Error('Volumetric field panel did not initialize');api.open();
  if(initialWind){if(typeof api?.setWind!=='function')throw new Error('Wind controls did not initialize');await api.setWind(true)}
+}
+async function toggleWindAndDroneField(){
+ const world=home?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
+ if(!world?.map)throw new Error('BridgePoint globe not ready');
+ const mod=await import('./bridgepoint-volumetric-fields-v5978.js?v=5992-expanded-field-panel');
+ let api=window.__BP_VOLUMETRIC_FIELDS_V5992__;
+ if(!api||api.map!==world.map)api=mod.initBridgePointVolumetricFields(world);
+ if(typeof api?.setWind!=='function')throw new Error('Wind controls did not initialize');
+ if(typeof api?.open==='function')api.open();
+ const on=!Boolean(api.state?.windOn);
+ await api.setWind(on);
+ return on;
 }
 function toggleSearch(){
  const input=home?$('#landingPropertySearchInput'):$('#publicSearchInput'),form=home?$('#landingPropertySearch'):$('#publicSearchForm');
