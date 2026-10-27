@@ -1671,9 +1671,10 @@ function bindPublicListingPopup(){
  });
 }
 function startPublicListings(){
- const map=world?.map;if(!map||map.__bpPublicListingsBound)return;map.__bpPublicListingsBound=true;
- bindPublicListingPopup();map.on('moveend',schedulePublicListings);
- setTimeout(()=>void refreshPublicListings(),BP_MOBILE?3900:1100);
+ const map=world?.map;if(!map)throw new Error('BridgePoint globe is not ready');
+ publicListingsOverlayEnabled=true;window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('listings',true);
+ if(!map.__bpPublicListingsBound){map.__bpPublicListingsBound=true;bindPublicListingPopup();map.on('moveend',schedulePublicListings)}
+ schedulePublicListings();
 }
 
 
