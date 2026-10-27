@@ -1701,6 +1701,9 @@ jobs:
                 if(!/Navigation timeout/i.test(String(e?.message||e)))throw e;
               });
               await p.waitForFunction(()=>!!window.__BP_LANDING_WORLD__?.map&&!!document.querySelector('#bpv-dock [data-bp-drone-awareness-button="1"]'),{timeout:75000});
+              // Wait for the initial globe camera/style boot to settle before the smoke test moves it.
+              await p.waitForFunction(()=>{const m=window.__BP_LANDING_WORLD__?.map;return !!m&&m.isStyleLoaded?.()&&!!m.getCanvas?.()?.width},{timeout:45000});
+              await new Promise(r=>setTimeout(r,1000));
               await p.evaluate(()=>{
                 const dock=document.querySelector('#bpv-dock');
                 if(dock?.hidden)document.querySelector('#bpv-dock-reopen')?.click();
@@ -1710,7 +1713,10 @@ jobs:
               await p.waitForFunction(()=>{
                 const m=window.__BP_LANDING_WORLD__?.map,c=m?.getCenter?.();
                 return !!m&&m.getZoom()<=2&&!!c&&Math.abs(c.lng+98.5)<3&&Math.abs(c.lat-39.5)<3;
-              },{timeout:12000});
+              },{timeout:12000}).catch(async error=>{
+                const camera=await p.evaluate(()=>{const m=window.__BP_LANDING_WORLD__?.map,c=m?.getCenter?.();return{zoom:m?.getZoom?.(),center:c?.toArray?.(),projection:m?.getProjection?.()?.type,styleLoaded:m?.isStyleLoaded?.()};});
+                throw new Error('GLOBAL_DRONE_SMOKE_CAMERA_NOT_SET '+JSON.stringify(camera)+' '+String(error?.message||error));
+              });
               await p.evaluate(()=>document.querySelector('#bpv-dock [data-bp-drone-awareness-button="1"]')?.click());
               await p.waitForFunction(()=>{
                 const m=window.__BP_LANDING_WORLD__?.map,s=window.__BP_DRONE_AWARENESS_V1__?.state,id='bp-drone-sim-fleet-symbol-v1';
