@@ -993,7 +993,10 @@ jobs:
           grep -Fq 'bridgepoint_public_opportunity_summary_v5626' site/landing.js
           grep -Fq 'landingOpportunityStates' site/index.html
           grep -Fq 'ownerOpportunitySummary' site/app/index.html
-          grep -Fq "vis(map,'gta-opportunity-buildings',z>=11.8)" site/world-v2300-map.js
+          grep -Fq 'const opportunitiesOn=window.__BP_OPPORTUNITY_OVERLAY_ENABLED__===true' site/world-v2300-map.js
+          grep -Fq "vis(map,'gta-opportunity-buildings',opportunitiesOn&&z>=11.8)" site/world-v2300-map.js
+          grep -Fq "vis(map,'gta-opportunity-dots',opportunitiesOn)" site/world-v2300-map.js
+          grep -Fq "gta-property-listings',type:'symbol',source:'bpListings',minzoom:0,layout:{visibility:'none'" site/world-v2300-map.js
           grep -Fq 'window.__BP_LANDING_WORLD__=world' site/landing.js
           grep -Fq '__BP_WORLD_CORE_READY__' site/world-v2300-map.js
           grep -Fq "world-v2300-space.js" site/world-v2300-map.js
