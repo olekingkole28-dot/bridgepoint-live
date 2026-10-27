@@ -1117,7 +1117,7 @@ function stopLiveWeather(){
  clearInterval(radarAnimTimer);radarAnimTimer=null;clearInterval(cloudRefreshTimer);cloudRefreshTimer=null;
  clearInterval(cloudAnimTimer);cloudAnimTimer=null;radarFrames=[];cloudFrames=[];
  try{window.__BP_SHARED_VISUAL_WEATHER__?.weather?.setRadar?.(false);window.__BP_SHARED_VISUAL_WEATHER__?.weather?.setActive?.(false);window.__BP_SHARED_VISUAL_WEATHER__?.present?.setActive?.(false)}catch(_){}
- const b=$('toggleLiveContext');if(b){b.textContent='WEATHER DATA · OFF';b.title='Source-backed weather dots and warning boundaries are hidden. Legacy rain/snow/fire FX remain disabled';b.classList.remove('active')}
+ const b=$('toggleLiveContext');if(b){b.textContent='WEATHER DATA · OFF';b.title='Source-backed weather dots and warning boundaries are hidden. Legacy rain/snow/fire FX remain disabled';b.classList.remove('active');b.setAttribute('aria-pressed','false')}
  window.__BP_STARTUP_SCHEDULER_V5939__={version:5939,enabled:false,weatherNetworkIdle:true,radarRefreshIdle:true,renderer:'v2300-cinematic-fx',updatedAt:Date.now()};
 }
 function activateLiveWeather(){
