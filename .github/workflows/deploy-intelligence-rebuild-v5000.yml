@@ -1576,7 +1576,7 @@ jobs:
               const errors=[];
               p.on('pageerror',e=>errors.push(String(e?.message||e)));
               p.on('console',m=>{if((m.type()==='error'||m.type()==='warning')&&/opportunit|global risk|maplibre|image/i.test(m.text()))errors.push(m.type()+':'+m.text().slice(0,360))});
-              await p.goto('https://bridgepointintelligence.online/?opportunity-global-smoke='+Date.now(),{waitUntil:'domcontentloaded',timeout:45000});
+              await p.goto('https://bridgepointintelligence.online/?opportunity-global-smoke='+Date.now(),{waitUntil:'commit',timeout:45000});
               await p.waitForFunction(()=>!!window.__BP_LANDING_WORLD__?.map,{timeout:75000});
               await new Promise(r=>setTimeout(r,900));
               const startup=await p.evaluate(()=>{
