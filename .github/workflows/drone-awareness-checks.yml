@@ -1,0 +1,39 @@
+name: BridgePoint Opt-in Layer Checks
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'rebuild-v5000/app.js'
+      - 'rebuild-v5000/landing.js'
+      - 'rebuild-v5000/bridgepoint-view-v5917.js'
+      - 'rebuild-v5000/bridgepoint-drone-awareness-v1.js'
+      - 'rebuild-v5000/index.html'
+      - 'rebuild-v5000/app-index.html'
+      - 'rebuild-v5000/bridgepoint-map-key-v5920.js'
+      - 'tests/drone-awareness.test.mjs'
+      - 'tests/celestial-water-cloud-shadows.test.mjs'
+      - '.github/workflows/drone-awareness-checks.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax-check modified runtime files
+        run: |
+          node --check rebuild-v5000/app.js
+          node --check rebuild-v5000/landing.js
+          node --check rebuild-v5000/bridgepoint-view-v5917.js
+          node --check rebuild-v5000/bridgepoint-drone-awareness-v1.js
+      - name: Run drone awareness contract checks
+        run: node tests/drone-awareness.test.mjs
+      - name: Run shared rendering regressions
+        run: node tests/celestial-water-cloud-shadows.test.mjs
