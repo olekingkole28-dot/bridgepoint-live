@@ -389,7 +389,7 @@ test('homepage opportunities stay off at startup and the button enables the publ
   assert.match(landing, /rpc\('bridgepoint_public_opportunity_viewport_v5907'/);
   assert.doesNotMatch(landing, /bridgepoint_public_opportunity_viewport_v5906/);
   assert.match(landing, /window\.__BP_LANDING_ENABLE_OPPORTUNITIES__=async\(\)=>setLandingOpportunitiesEnabled\(world,true\);/);
-  assert.match(landing, /window\.__BP_OPPORTUNITY_OVERLAY_ENABLED__===true/);
+  assert.match(landing, /window\.__BP_OPPORTUNITY_OVERLAY_ENABLED__=!!on/);
   assert.match(landing, /setLandingOpportunityLayerVisibility\(m,landingOpportunityEnabled\)/);
   assert.match(map, /const opportunitiesOn=window\.__BP_OPPORTUNITY_OVERLAY_ENABLED__===true/);
   assert.match(map, /gta-property-listings',type:'symbol',source:'bpListings',minzoom:0,layout:\{visibility:'none'/);
