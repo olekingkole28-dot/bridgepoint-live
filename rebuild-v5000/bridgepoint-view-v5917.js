@@ -53,7 +53,16 @@ function openPanel(name){
  if(name==='mapkey')void window.__BP_MAP_KEY_REFRESH_V5920__?.(true);
  if(name==='property')refreshSlotLabels();
  if(name==='ai')setTimeout(()=>$('#bpv-ai-question')?.focus({preventScroll:true}),60);
- if(name!=='mapkey')requestAnimationFrame(()=>{try{p.scrollIntoView({block:'start',behavior:'smooth'})}catch(_){}});
+ if(name!=='mapkey')requestAnimationFrame(()=>{
+  const dock=$('#bpv-dock');
+  // The dock itself scrolls on mobile/desktop; explicitly reveal the panel there.
+  // scrollIntoView alone could move the document while leaving the card scrolled at its buttons.
+  if(dock&&p.parentElement===dock){
+   const dockRect=dock.getBoundingClientRect(),panelRect=p.getBoundingClientRect();
+   const delta=panelRect.top-dockRect.top-8;
+   if(Math.abs(delta)>8)dock.scrollTo({top:Math.max(0,dock.scrollTop+delta),behavior:'smooth'});
+  }else{try{p.scrollIntoView({block:'nearest',behavior:'smooth'})}catch(_){}}
+ });
 }
 function setMoving(){
  moveUntil=Date.now()+850;
@@ -898,7 +907,10 @@ function buildUI(){
  if(!mapHost||$('#bpv-dock'))return;
  document.body.classList.add(home?'bpv-home':'bpv-app');
  const panel=makePanel(),ui=makeTopBarAndDock();
- ui.dock.appendChild(panel);
+ // Keep the active panel above the action buttons inside the scrollable bottom card.
+ // Appending it after the buttons made newly opened panels land below the visible fold.
+ const dockActions=$('#bpv-dock-actions');
+ if(dockActions&&dockActions.parentElement===ui.dock)ui.dock.insertBefore(panel,dockActions);else ui.dock.appendChild(panel);
  const moreInfo=$('#bpv-more-info');if(moreInfo)ui.dock.appendChild(moreInfo);
  if(home){
   const nav=$('.site-nav'),actions=nav?.querySelector('.actions'),copy=$('.hero .copy'),main=$('main');
