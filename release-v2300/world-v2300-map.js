@@ -955,7 +955,7 @@ export function initWorld(options={}){
  function scheduleLivingWorld(delay=MOBILE?1200:120){clearTimeout(map.__bpLivingTimer);if(map.getZoom()<activeWorldLodProfile().treeMin)return;map.__bpLivingTimer=setTimeout(()=>{if(!moving)livingWorld()},delay)}
  function lights(delay=MOBILE?1450:120){clearTimeout(lightTimer);lightTimer=setTimeout(()=>{if(moving)return;map.getSource('streetlights')?.setData(roadLights(map));updateWorldLight()},delay)}
  function scheduleExact(delay=MOBILE?420:70){clearTimeout(detailTimer);if(PUBLIC_TECH_FAST){window.__BP_EXACT_DETAIL_STATE__={status:'interaction-only-tech-fast',visible:false,worldOverlay:false,updatedAt:Date.now()};return}detailTimer=setTimeout(()=>{if(!moving)exact()},delay)}
- function startParcelFlow(){clearInterval(parcelPulseTimer);parcelPulseTimer=0;layerState.parcels=true;for(const id of ['gta-parcel-glow','gta-parcel-halo','gta-parcel'])vis(map,id,true)}
+ function startParcelFlow(){clearInterval(parcelPulseTimer);parcelPulseTimer=0;layerState.parcels=true;for(const id of ['gta-parcel-glow','gta-parcel-halo','gta-parcel','bp-public-auto-parcel-glow-v5933','bp-public-auto-parcel-line-v5933'])vis(map,id,true)}
  function bridgePointDomesticCenter(){
   const p=map.getCenter(),x=p.lng,y=p.lat;
   return (x>=-125&&x<=-66&&y>=24&&y<=50)||(x>=-170&&x<=-129&&y>=51&&y<=72)||(x>=-161&&x<=-154&&y>=18&&y<=23)||(x>=-68.2&&x<=-64.3&&y>=17.5&&y<=19)||(x>=144&&x<=146&&y>=13&&y<=21)||(x>=-171&&x<=-168&&y>=-15&&y<=-10);
@@ -993,7 +993,7 @@ export function initWorld(options={}){
    return ready
   }catch(_){return false}
  }
- function syncParcelShells(){const visible=!!layerState.parcels;for(const id of ['gta-parcel-glow','gta-parcel-halo','gta-parcel'])vis(map,id,visible);return visible}
+ function syncParcelShells(){const visible=!!layerState.parcels;for(const id of ['gta-parcel-glow','gta-parcel-halo','gta-parcel','bp-public-auto-parcel-glow-v5933','bp-public-auto-parcel-line-v5933'])vis(map,id,visible);return visible}
  function syncWorldLodLayerRanges(lod=activeWorldLodProfile()){
    const styleLayers=map.getStyle?.()?.layers;
    if(!Array.isArray(styleLayers)||!styleLayers.length)return false;
