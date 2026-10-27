@@ -138,26 +138,28 @@ function installLayer(){
  }catch(e){console.warn('BridgePoint drone awareness layer setup failed',e);return false}
 }
 function gridKey(lat,lon){
- let y=Math.max(-89,Math.min(89,Math.round(lat)));
- let x=((Math.round(lon)+540)%360)-180;
- return String(y)+','+String(x);
+ const y=Math.max(-90,Math.min(90,Math.floor((lat+90)/GRID_DEGREES)*GRID_DEGREES-90+GRID_DEGREES/2));
+ const raw=Math.floor((lon+180)/GRID_DEGREES)*GRID_DEGREES-180+GRID_DEGREES/2;
+ const x=Math.max(-179,Math.min(179,raw));
+ return String(y.toFixed(1))+','+String(x.toFixed(1));
 }
 function cellLabel(lat,lon){
  const ns=lat>=0?'N':'S',ew=lon>=0?'E':'W';
- return String(Math.abs(lat)).padStart(2,'0')+'°'+ns+' · '+String(Math.abs(lon)).padStart(3,'0')+'°'+ew+' cell';
+ return String(Math.abs(lat)).padStart(2,'0')+'°'+ns+' · '+String(Math.abs(lon)).padStart(3,'0')+'°'+ew+' · '+GRID_DEGREES+'° cell';
 }
 function isUavRecord(a){
- const category=String(a?.category||'').trim().toUpperCase();
- if(category==='B6')return true;
- const text=[a?.desc,a?.description,a?.typeDescription,a?.t].filter(Boolean).join(' ');
- return /\b(?:UAV|UAS|UNMANNED AERIAL|UNMANNED AIRCRAFT|DRONE)\b/i.test(text);
+ const category=String(a?.category||a?.emitter_category||'').trim().toUpperCase();
+ if(category==='B6'||category==='14'||category==='UAV')return true;
+ const description=[a?.desc,a?.description,a?.typeDescription,a?.type,a?.t].filter(Boolean).join(' ');
+ return /\b(?:UAV|UAS|UNMANNED AERIAL|UNMANNED AIRCRAFT|DRONE)\b/i.test(description);
 }
 function aggregate(records){
- const groups=new Map();let screened=0;
+ const groups=new Map(),seen=new Set();let screened=0,duplicates=0;
  for(const a of Array.isArray(records)?records:[]){
   const lat=Number(a?.lat),lon=Number(a?.lon);
   if(!isUavRecord(a)||!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180)continue;
-  screened++;
+  const identity=String(a?.hex||a?.icao24||a?.id||([a?.t,a?.lat,a?.lon,a?.seen].join('|')));
+  if(seen.has(identity)){duplicates++;continue}seen.add(identity);screened++;
   const key=gridKey(lat,lon);let g=groups.get(key);
   if(!g){g={key,lat:Number(key.split(',')[0]),lon:Number(key.split(',')[1]),count:0};groups.set(key,g)}
   g.count++;
@@ -165,9 +167,9 @@ function aggregate(records){
  const features=[];
  for(const g of groups.values()){
   if(g.count<MIN_GROUP)continue;
-  features.push({type:'Feature',geometry:{type:'Point',coordinates:[g.lon,g.lat]},properties:{cell:g.key,count:g.count,label:cellLabel(g.lat,g.lon),source:'adsb.lol · ODbL 1.0',aggregation_degrees:1,threshold:MIN_GROUP}});
+  features.push({type:'Feature',geometry:{type:'Point',coordinates:[g.lon,g.lat]},properties:{cell:g.key,count:g.count,label:cellLabel(g.lat,g.lon),source:'adsb.lol · ODbL 1.0',aggregation_degrees:GRID_DEGREES,threshold:MIN_GROUP}});
  }
- return{features,screened};
+ return{features,screened,duplicates};
 }
 function renderCells(features){
  if(!cellsNode)return;
@@ -188,46 +190,83 @@ function centerAndZoom(){
  const c=map.getCenter?.();if(!c)return null;
  return{lat:Number(c.lat),lon:Number(c.lng),zoom:Number(map.getZoom?.()||0)};
 }
+const GLOBAL_SAMPLES=[
+ {id:'North America · East',lat:40.7,lon:-74.0},
+ {id:'North America · Central',lat:39.1,lon:-96.8},
+ {id:'North America · West',lat:34.1,lon:-118.2},
+ {id:'Central America · Panama',lat:9.0,lon:-79.5},
+ {id:'South America · Southeast',lat:-23.6,lon:-46.6},
+ {id:'Europe · West',lat:51.5,lon:-0.1},
+ {id:'Europe · Central',lat:52.2,lon:21.0},
+ {id:'Middle East · Gulf',lat:25.2,lon:55.3},
+ {id:'South Asia · West',lat:19.1,lon:72.9},
+ {id:'East Asia · Japan',lat:35.7,lon:139.7},
+ {id:'Southeast Asia · Singapore',lat:1.35,lon:103.8},
+ {id:'Africa · South',lat:-26.2,lon:28.0},
+ {id:'Australia · East',lat:-33.9,lon:151.2}
+];
+async function getSample(sample){
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),REQUEST_TIMEOUT_MS);
+ try{
+  const url=SUPPORTED_SOURCE+'lat/'+encodeURIComponent(sample.lat.toFixed(4))+'/lon/'+encodeURIComponent(sample.lon.toFixed(4))+'/dist/'+REGION_RADIUS_NM;
+  const response=await fetch(url,{method:'GET',cache:'no-store',signal:controller.signal,headers:{'Accept':'application/json'}});
+  if(!response.ok)throw new Error('HTTP '+response.status);
+  const data=await response.json();
+  return{sample,ok:true,records:Array.isArray(data?.ac)?data.ac:[],receivedAt:Date.now()};
+ }catch(error){
+  return{sample,ok:false,records:[],error:error?.name==='AbortError'?'timed out':String(error?.message||error)};
+ }finally{clearTimeout(timer)}
+}
+async function fetchGlobalSamples(){
+ const results=[];
+ // Small batches avoid bursts against a public community service with dynamic rate limits.
+ for(let i=0;i<GLOBAL_SAMPLES.length;i+=3){
+  const batch=await Promise.all(GLOBAL_SAMPLES.slice(i,i+3).map(getSample));
+  results.push(...batch);
+  const complete=results.length;
+  showStatus('Sampling public ADS-B coverage hubs: '+complete+'/'+GLOBAL_SAMPLES.length+' regional windows checked…');
+ }
+ return results;
+}
 async function refresh(force=false){
  if(!enabled||!map||inFlight)return;
- const c=centerAndZoom();
- if(!c||!Number.isFinite(c.lat)||!Number.isFinite(c.lon)){showStatus('Map center is not ready yet. Try again after the globe finishes loading.');return}
- if(c.zoom<4.7){
-  try{map.getSource(SOURCE)?.setData(emptyFeatureCollection())}catch(_){}
-  setLayerVisibility(false);
-  showStatus('Zoom into the part of the world you want to inspect. The public feed queried here supports a regional radius of up to 250 nautical miles, not a complete worldwide drone feed.');
-  if(cellsNode)renderCells([]);if(summaryNode)writeSummary(0,0);return;
- }
  const remaining=15000-(Date.now()-lastFetchAt);
- if(!force&&remaining>0){setLayerVisibility(false);showStatus('Regional source refresh is rate-limited briefly to avoid stalling the map. Next refresh is available in '+Math.ceil(remaining/1000)+' seconds.');return}
- if(force&&remaining>0){setLayerVisibility(false);showStatus('Please wait '+Math.ceil(remaining/1000)+' seconds before the next live source request.');return}
+ if(!force&&remaining>0){showStatus('Public source refresh is briefly rate-limited. Next refresh is available in '+Math.ceil(remaining/1000)+' seconds.');return}
+ if(force&&remaining>0){showStatus('Please wait '+Math.ceil(remaining/1000)+' seconds before refreshing public coverage.');return}
  inFlight=true;lastFetchAt=Date.now();
  if(refreshButton)refreshButton.disabled=true;
- showStatus('Requesting the selected region from the community ADS-B feed…');
- aborter=new AbortController();const timer=setTimeout(()=>aborter?.abort(),10000);
+ setLayerVisibility(false);
+ showStatus('Starting global sample of public UAV-class ADS-B reports…');
  try{
-  const url=SUPPORTED_SOURCE+'lat/'+encodeURIComponent(c.lat.toFixed(4))+'/lon/'+encodeURIComponent(c.lon.toFixed(4))+'/dist/'+REGION_RADIUS_NM;
-  const response=await fetch(url,{method:'GET',cache:'no-store',signal:aborter.signal,headers:{'Accept':'application/json'}});
-  if(!response.ok)throw new Error('Source returned HTTP '+response.status);
-  const data=await response.json();
-  const records=Array.isArray(data?.ac)?data.ac:[];
+  const samples=await fetchGlobalSamples();
+  const good=samples.filter(s=>s.ok);
+  const records=good.flatMap(s=>s.records);
+  const c=centerAndZoom();
+  // Add one explicitly regional request when zoomed close enough to be useful; never show that
+  // request as world coverage or as an exact per-aircraft track.
+  let localResult=null;
+  if(c&&c.zoom>=6){
+   localResult=await getSample({id:'Current map view',lat:c.lat,lon:c.lon});
+   if(localResult.ok)records.push(...localResult.records);
+  }
   const grouped=aggregate(records);
   const fc={type:'FeatureCollection',features:grouped.features};
   map.getSource(SOURCE)?.setData(fc);
-  setLayerVisibility(true);
+  setLayerVisibility(grouped.features.length>0);
   renderCells(grouped.features);writeSummary(grouped.features.length,grouped.screened);
+  const goodCount=good.length,total=GLOBAL_SAMPLES.length;
   const now=new Date();
-  const coverage=grouped.features.length
-   ? 'Updated '+now.toLocaleTimeString()+' · '+grouped.features.length+' coarse grid cell(s) shown. Exact aircraft positions and identifiers are not displayed.'
-   : 'Updated '+now.toLocaleTimeString()+' · no grid cell met the minimum display threshold. A blank result does not prove absence.';
-  showStatus(coverage,'ok');
+  const coverage=goodCount
+   ? 'Updated '+now.toLocaleTimeString()+' · '+grouped.screened.toLocaleString()+' deduplicated UAV-class reports across '+grouped.features.length+' coarse cells · '+goodCount+'/'+total+' regional sample windows responded.'
+   : 'No public sample windows responded. No live locations are displayed; this is a feed failure, not evidence that drones are absent.';
+  showStatus(coverage,goodCount?'ok':'error');
   const feedMeta=$('#bp-drone-feed-meta');
-  if(feedMeta)feedMeta.textContent='Query center '+c.lat.toFixed(2)+', '+c.lon.toFixed(2)+' · radius '+REGION_RADIUS_NM+' NM · selected region only';
- }catch(e){
-  const message=e?.name==='AbortError'?'The public source timed out. The map remains responsive; try another refresh later.':String(e?.message||e);
-  showStatus('Live regional data unavailable: '+message+'. No cached positions are being presented as live.', 'error');
+  if(feedMeta)feedMeta.textContent='Global sample centers: '+goodCount+'/'+total+' responded · each request radius '+REGION_RADIUS_NM+' nautical miles · '+GRID_DEGREES+'° grid · refreshed '+now.toLocaleString()+'. This is sampled sensor coverage, not a complete global inventory.';
+ }catch(error){
+  const message=String(error?.message||error);
+  showStatus('Live public ADS-B data unavailable: '+message+'. The map remains usable; no historical or invented locations are shown.','error');
  }finally{
-  clearTimeout(timer);aborter=null;inFlight=false;if(refreshButton)refreshButton.disabled=false;
+  inFlight=false;if(refreshButton)refreshButton.disabled=false;
  }
 }
 function openDronePanel(){
