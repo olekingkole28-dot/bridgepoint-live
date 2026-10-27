@@ -60,8 +60,10 @@ test('water gets long visible swell and a moving solar specular vector', () => {
   assert.match(water, /u_flowCycles \* 0\.14/);
 });
 
-test('satellite land imagery remains default and coast foam works at global zoom', () => {
-  assert.match(map, /defaultBase:'satellite'/);
+test('standard basemap remains default, satellite imagery is opt-in, and coast foam works at global zoom', () => {
+  assert.match(map, /defaultBase:'gta'/);
+  assert.match(map, /satelliteManualOnly:true/);
+  assert.match(map, /setBase\('gta'\)/);
   assert.match(map, /setBase\('satellite'\)/);
   assert.match(map, /gta-esri/);
   assert.match(map, /id:'gta-coast-foam'.{0,260}minzoom:2\.2/s);
