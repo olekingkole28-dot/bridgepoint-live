@@ -9,7 +9,7 @@ const home=!!$('#previewMap')&&!$('#liveMap');
 const mapHost=home?$('.preview'):document.querySelector('.map-surface.active')||$('.map-surface');
 const appMap=$('#liveMap');
 let map=null,idleTimer=0,moveUntil=0,selected={id:null,label:'',feature:null,coordinates:null},activePanel='ai',metricsLoading=null,asking=false,searchVisible=true;
-let listingLoading=null,listingSummaryCache=null,listingSummaryAt=0,listingFeaturesCache=[],listingOverlayOn=true,listingMapTimer=0,listingLastViewportAt=0,listingQueryValue='',listingSelectedId=null,listingRefreshTimer=0;
+let listingLoading=null,listingSummaryCache=null,listingSummaryAt=0,listingFeaturesCache=[],listingOverlayOn=false,listingMapTimer=0,listingLastViewportAt=0,listingQueryValue='',listingSelectedId=null,listingRefreshTimer=0;
 const SLOT_INFO={
  ai:['BRIDGEPOINT AI','Ask a question about this selected property.'],
  xray:['X-RAY + INTERIOR','Source-backed parts, floors and plans only. No fabricated rooms.'],
@@ -130,7 +130,14 @@ function makePanel(){
  p.querySelectorAll('[data-bpv-prompt]').forEach(b=>b.addEventListener('click',()=>{$('#bpv-ai-question').value=b.dataset.bpvPrompt;openPanel('ai')}));
  $('#bpv-ai-form').addEventListener('submit',e=>{e.preventDefault();void askBridgePoint()});
  $('#bpv-listings-search')?.addEventListener('submit',e=>{e.preventDefault();listingQueryValue=$('#bpv-listings-search input')?.value?.trim()||'';void loadListings(true,listingQueryValue)});
- $('#bpv-listings-overlay-toggle')?.addEventListener('click',()=>{listingOverlayOn=!listingOverlayOn;setListingOverlay(listingOverlayOn);const b=$('#bpv-listings-overlay-toggle');if(b){b.textContent='LISTING MAP OVERLAY · '+(listingOverlayOn?'ON':'OFF');b.setAttribute('aria-pressed',String(listingOverlayOn))}if(listingOverlayOn)void loadListings(true,listingQueryValue)});
+ $('#bpv-listings-overlay-toggle')?.addEventListener('click',()=>{
+  listingOverlayOn=!listingOverlayOn;
+  window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('listings',listingOverlayOn);
+  setListingOverlay(listingOverlayOn);
+  const b=$('#bpv-listings-overlay-toggle');
+  if(b){b.textContent='LISTING MAP OVERLAY · '+(listingOverlayOn?'ON':'OFF');b.setAttribute('aria-pressed',String(listingOverlayOn))}
+  if(listingOverlayOn)void loadListings(true,listingQueryValue);
+ });
  $('#bpv-whole-earth').addEventListener('click',wholeEarth);
  return p;
 }
@@ -259,22 +266,7 @@ function makeTopBarAndDock(){
    }).catch(e=>{console.warn('BridgePoint opportunity overlay',e);showActionNotice('Opportunity overlay failed: '+String(e?.message||e))}).finally(()=>{b.disabled=false});
    return;
   }
-  if(a==='listings'){
-   openPanel('listings');
-   const activate=async()=>{
-    if(home){
-     // The homepage listing card is opened first; its source-backed map overlay remains behind an explicit overlay toggle.
-     return true;
-    }
-    const fn=window.__BP_TOGGLE_PUBLIC_LISTINGS__;
-    if(typeof fn==='function'){
-     const on=await fn();b.classList.toggle('active',!!on);b.setAttribute('aria-pressed',String(!!on));
-    }
-    return true;
-   };
-   void activate().catch(e=>{console.warn('BridgePoint map listings unavailable',e);showActionNotice('Listings could not open: '+String(e?.message||e))});
-   return;
-  }
+  if(a==='listings'){openPanel('listings');return}
   if(a==='worldchanges'){setDockMaximized(true);void openWorldChanges().catch(e=>{console.warn('BridgePoint world history unavailable',e);showActionNotice('30-Day History could not open: '+String(e?.message||e))});return}
   if(a==='weatherfx'){
    setDockMaximized(true);
