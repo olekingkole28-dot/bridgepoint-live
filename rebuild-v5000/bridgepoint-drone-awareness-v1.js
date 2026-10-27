@@ -112,6 +112,7 @@ function writeSummary(cellCount, rawCount){
   cellsNode.replaceChildren();
   cellsNode.append(element('div','bp-drone-feed-note','No UAV-class ADS-B records were returned in the sampled public coverage windows. This is not a full drone census; most drones do not continuously broadcast ADS-B.'));
  }
+}
 function setLayerVisibility(on){
  if(!map)return false;
  try{
@@ -329,10 +330,12 @@ async function toggleWater(){
  if(!map)throw new Error('BridgePoint globe is not ready');
  if(typeof window.__BP_TOGGLE_WATER__==='function'){
   const result=await window.__BP_TOGGLE_WATER__();
-  waterEnabled=result===true;updateWaterButton();return waterEnabled;
+  waterEnabled=result===true;
+  window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('water',waterEnabled);
+  updateWaterButton();hideDefaultOverlays();return waterEnabled;
  }
  if(waterEnabled){
-  waterEnabled=false;
+  waterEnabled=false;window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('water',false);
   if(waterApi){waterApi.active=false;waterApi.setEnabled?.(false)}
   try{if(map.getLayer('bp-water-surface-gpu-v6123'))map.setLayoutProperty('bp-water-surface-gpu-v6123','visibility','none')}catch(_){}
   updateWaterButton();return false;
@@ -354,6 +357,7 @@ async function toggleWater(){
  }
  if(!waterApi)throw new Error('Water surface engine unavailable');
  waterEnabled=true;waterApi.active=true;
+ window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('water',true);
  if(typeof waterApi.setEnabled==='function')waterApi.setEnabled(true);
  try{if(map.getLayer('bp-water-surface-gpu-v6123'))map.setLayoutProperty('bp-water-surface-gpu-v6123','visibility','visible')}catch(_){}
  updateWaterButton();return true;
@@ -368,10 +372,12 @@ function updateCloudButton(){
 async function toggleClouds(){
  if(!map)throw new Error('BridgePoint globe is not ready');
  if(typeof window.__BP_TOGGLE_CLOUDS__==='function'){
-  const result=await window.__BP_TOGGLE_CLOUDS__();cloudEnabled=result===true;updateCloudButton();return cloudEnabled;
+  const result=await window.__BP_TOGGLE_CLOUDS__();cloudEnabled=result===true;
+  window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('clouds',cloudEnabled);
+  updateCloudButton();hideDefaultOverlays();return cloudEnabled;
  }
  if(cloudEnabled){
-  cloudEnabled=false;cloudApi?.setEnabled?.(false);
+  cloudEnabled=false;window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('clouds',false);cloudApi?.setEnabled?.(false);
   try{if(map.getLayer('bp-sky-cloud-volume-v6029'))map.setLayoutProperty('bp-sky-cloud-volume-v6029','visibility','none')}catch(_){}
   updateCloudButton();return false;
  }
@@ -382,7 +388,7 @@ async function toggleClouds(){
   await cloudPromise;
  }
  if(!cloudApi)throw new Error('3D cloud engine unavailable');
- cloudEnabled=true;cloudApi.setEnabled?.(true);
+ cloudEnabled=true;window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('clouds',true);cloudApi.setEnabled?.(true);
  try{if(map.getLayer('bp-sky-cloud-volume-v6029'))map.setLayoutProperty('bp-sky-cloud-volume-v6029','visibility','visible')}catch(_){}
  updateCloudButton();return true;
 }
@@ -430,6 +436,7 @@ function hideDefaultOverlays(){
  if(!emptyModeActive||!emptyModeMap||sweepFrame)return;
  sweepFrame=requestAnimationFrame(()=>{
   sweepFrame=0;if(!emptyModeActive||!emptyModeMap)return;
+  ensureInitialBaseLayers();
   let layers=[];
   try{layers=emptyModeMap.getStyle?.()?.layers||[]}catch(_){return}
   for(const layer of layers){
