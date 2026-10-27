@@ -1290,10 +1290,10 @@ jobs:
           test -s site/vendor/maplibre-gl.js
           test -s site/vendor/maplibre-gl.css
           grep -Fq 'landing.css?v=5941-mobile-grid' site/index.html
-          grep -Fq 'bridgepoint-view-v5917.css?v=6201-panel-reveal' site/index.html
-          grep -Fq 'bridgepoint-view-v5917.css?v=6201-panel-reveal' site/app/index.html
-          grep -Fq 'bridgepoint-view-v5917.js?v=6201-panel-reveal' site/app/index.html
-          grep -Fq 'bridgepoint-view-v5917.js?v=6201-panel-reveal' site/index.html
+          grep -Fq 'bridgepoint-view-v5917.css?v=6202-live-panels' site/index.html
+          grep -Fq 'bridgepoint-view-v5917.css?v=6202-live-panels' site/app/index.html
+          grep -Fq 'bridgepoint-view-v5917.js?v=6202-live-panels' site/app/index.html
+          grep -Fq 'bridgepoint-view-v5917.js?v=6202-live-panels' site/index.html
           grep -Fq 'function setDockMaximized(on)' site/bridgepoint-view-v5917.js
           grep -Fq 'document.body.appendChild(keyRail)' site/bridgepoint-view-v5917.js
           grep -Fq 'p.removeAttribute('"'"'data-panel'"'"')' site/bridgepoint-view-v5917.js
@@ -1677,7 +1677,7 @@ jobs:
           })().catch(e=>{console.error(e);process.exit(1)});
           NODE
 
-      - name: Bottom-card panel visibility smoke
+      - name: Desktop and mobile panel-content visibility smoke
         shell: bash
         run: |
           set -euo pipefail
@@ -1690,16 +1690,47 @@ jobs:
             const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,protocolTimeout:90000,args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader']});
             try{
               const page=await browser.newPage();
+              page.setDefaultTimeout(12000);
+              page.on('pageerror',e=>console.error('PANEL_SMOKE_PAGE_ERROR',String(e?.message||e)));
               await page.setViewport({width:1440,height:960,deviceScaleFactor:1});
-              await page.goto('https://bridgepointintelligence.online/?panel-visibility-smoke='+Date.now(),{waitUntil:'domcontentloaded',timeout:12000}).catch(e=>{if(!/Navigation timeout/i.test(String(e?.message||e)))throw e});
+              await page.goto('https://bridgepointintelligence.online/?panel-content-smoke='+Date.now(),{waitUntil:'domcontentloaded',timeout:12000}).catch(e=>{if(!/Navigation timeout/i.test(String(e?.message||e)))throw e});
               await page.waitForFunction(()=>!!window.__BP_LANDING_WORLD__?.map&&!!document.querySelector('#bpv-dock [data-bpv-action="account"]'),{timeout:75000});
-              await page.evaluate(()=>{const dock=document.querySelector('#bpv-dock');if(dock?.hidden)document.querySelector('#bpv-dock-reopen')?.click()});
-              await page.evaluate(()=>document.querySelector('#bpv-dock [data-bpv-action="account"]')?.click());
-              await page.waitForFunction(()=>{const p=document.querySelector('#bpv-sidecar'),pane=p?.querySelector('[data-bpv-pane="account"]');return !!p&&!p.hidden&&p.dataset.panel==='account'&&!!pane&&!pane.hidden},{timeout:8000});
-              await page.waitForFunction(()=>{const dock=document.querySelector('#bpv-dock'),p=document.querySelector('#bpv-sidecar');if(!dock||!p)return false;const d=dock.getBoundingClientRect(),r=p.getBoundingClientRect();return r.top>=d.top-2&&r.top<d.bottom&&r.bottom>d.top},{timeout:8000});
-              const result=await page.evaluate(()=>{const dock=document.querySelector('#bpv-dock'),p=document.querySelector('#bpv-sidecar'),pane=p?.querySelector('[data-bpv-pane="account"]');const d=dock?.getBoundingClientRect(),r=p?.getBoundingClientRect();return{dockVisible:!!d&&d.height>0,panelVisible:!!p&&!p.hidden,panelName:p?.dataset.panel,paneVisible:!!pane&&!pane.hidden,panelTop:r?.top,dockTop:d?.top,dockBottom:d?.bottom,buttonFound:!!document.querySelector('#bpv-dock [data-bpv-action="account"]')};});
-              console.log('BRIDGEPOINT_BOTTOM_CARD_PANEL_VISIBILITY_PASS',JSON.stringify(result));
-              if(!(result.dockVisible&&result.panelVisible&&result.panelName==='account'&&result.paneVisible&&result.panelTop>=result.dockTop-2&&result.panelTop<result.dockBottom&&result.buttonFound))throw new Error('BOTTOM_CARD_ACCOUNT_PANEL_NOT_REVEALED '+JSON.stringify(result));
+              const cases=[
+                {name:'account',target:'#bpv-account-open-portal'},
+                {name:'ai',target:'#bpv-ai-question'},
+                {name:'opportunities',target:'#bpv-opportunity-summary'},
+                {name:'listings',target:'#bpv-listings-search'},
+                {name:'metrics',target:'#bpv-metric-grid'},
+                {name:'property',target:'#bpv-side-property-slots'},
+                {name:'controls',target:'#bpv-whole-earth'},
+                {name:'explore',target:'#bpv-explore-mount'}
+              ];
+              for(const viewport of [{name:'desktop',width:1440,height:960},{name:'mobile',width:390,height:844}]){
+                await page.setViewport({width:viewport.width,height:viewport.height,deviceScaleFactor:1});
+                await page.evaluate(()=>{const d=document.querySelector('#bpv-dock');if(d?.hidden)document.querySelector('#bpv-dock-reopen')?.click()});
+                for(const item of cases){
+                  await page.evaluate(()=>{const p=document.querySelector('#bpv-sidecar');if(p&&!p.hidden)document.querySelector('#bpv-panel-close')?.click();const d=document.querySelector('#bpv-dock');if(d?.hidden)document.querySelector('#bpv-dock-reopen')?.click()});
+                  const selector='#bpv-dock [data-bpv-action="'+item.name+'"]';
+                  await page.waitForFunction(sel=>!!document.querySelector(sel),{timeout:6000},selector);
+                  await page.evaluate(sel=>document.querySelector(sel)?.click(),selector);
+                  await page.waitForFunction(({name,target})=>{
+                    const p=document.querySelector('#bpv-sidecar'),pane=p?.querySelector('[data-bpv-pane="'+name+'"]'),el=p?.querySelector(target);
+                    if(!p||p.hidden||p.dataset.panel!==name||p.parentElement!==document.body||!pane||pane.hidden||!el)return false;
+                    const ps=getComputedStyle(p),es=getComputedStyle(el),r=p.getBoundingClientRect(),er=el.getBoundingClientRect();
+                    return ps.position==='fixed'&&ps.display!=='none'&&r.width>0&&r.height>0&&r.top>=0&&r.bottom<=innerHeight+1&&er.width>0&&er.height>0&&es.display!=='none'&&es.visibility!=='hidden'&&!el.closest('[hidden]');
+                  },{timeout:8000},{name:item.name,target:item.target});
+                  const result=await page.evaluate(({name,target})=>{
+                    const p=document.querySelector('#bpv-sidecar'),pane=p?.querySelector('[data-bpv-pane="'+name+'"]'),el=p?.querySelector(target),r=p?.getBoundingClientRect(),er=el?.getBoundingClientRect();
+                    return{name,panelName:p?.dataset.panel,parent:p?.parentElement?.tagName,position:p?getComputedStyle(p).position:'missing',panelBox:r?{top:r.top,bottom:r.bottom,width:r.width,height:r.height}:null,targetVisible:!!er&&er.width>0&&er.height>0,targetText:el?.innerText?.trim()?.slice(0,70)||el?.getAttribute('aria-label')||target};
+                  },{name:item.name,target:item.target});
+                  console.log('BRIDGEPOINT_PANEL_CONTENT_VISIBLE',viewport.name,JSON.stringify(result));
+                }
+                await page.evaluate(()=>{const p=document.querySelector('#bpv-sidecar');if(p&&!p.hidden)document.querySelector('#bpv-panel-close')?.click()});
+                await page.evaluate(()=>document.querySelector('#bpv-mapkey-rail')?.click());
+                await page.waitForFunction(()=>{const p=document.querySelector('#bpv-sidecar');const pane=p?.querySelector('[data-bpv-pane="mapkey"]');return !!p&&!p.hidden&&p.dataset.panel==='mapkey'&&!!pane&&!pane.hidden&&pane.querySelector('button')},{timeout:8000});
+                await page.evaluate(()=>document.querySelector('#bpv-panel-close')?.click());
+              }
+              console.log('BRIDGEPOINT_DESKTOP_MOBILE_PANEL_CONTENT_PASS');
             }finally{await browser.close()}
           })().catch(e=>{console.error(e);process.exit(1)});
           NODE
