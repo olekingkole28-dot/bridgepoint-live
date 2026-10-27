@@ -48,9 +48,6 @@ function openPanel(name){
  p.querySelectorAll('[data-bpv-pane]').forEach(s=>{s.hidden=s.dataset.bpvPane!==name});
  if(name==='metrics')void loadMetrics();
  if(name==='listings')void loadListings(true);
- if(name==='opportunities'&&home&&typeof window.__BP_LANDING_ENABLE_OPPORTUNITIES__==='function'){
-  void Promise.resolve(window.__BP_LANDING_ENABLE_OPPORTUNITIES__()).catch(e=>{console.warn('BridgePoint opportunities unavailable',e);showActionNotice('Opportunities could not load: '+String(e?.message||e))});
- }
  if(name==='opportunities'){void window.__BP_MAP_KEY_REFRESH_V5920__?.(true);void loadOpportunityBreakdown()}
  if(name==='mapkey')void window.__BP_MAP_KEY_REFRESH_V5920__?.(true);
  if(name==='property')refreshSlotLabels();
@@ -251,15 +248,45 @@ function makeTopBarAndDock(){
    return;
   }
   if(a==='parcels'){toggleParcelBoundaries();return}
-  if(a==='listings'){openPanel('listings');return}
+  if(a==='opportunities'){
+   openPanel('opportunities');
+   const fn=home?window.__BP_LANDING_TOGGLE_OPPORTUNITIES__:window.__BP_TOGGLE_OPPORTUNITIES__;
+   if(typeof fn!=='function'){showActionNotice('Opportunity overlay control is still initializing. Press the button again after the globe finishes loading.');return}
+   b.disabled=true;
+   void Promise.resolve().then(()=>fn()).then(on=>{
+    b.classList.toggle('active',!!on);b.setAttribute('aria-pressed',String(!!on));
+    showActionNotice(on?'Opportunity markers are on. Press Opportunities again to turn them off.':'Opportunity markers are off.');
+   }).catch(e=>{console.warn('BridgePoint opportunity overlay',e);showActionNotice('Opportunity overlay failed: '+String(e?.message||e))}).finally(()=>{b.disabled=false});
+   return;
+  }
+  if(a==='listings'){
+   openPanel('listings');
+   const activate=async()=>{
+    if(home){
+     // The homepage listing card is opened first; its source-backed map overlay remains behind an explicit overlay toggle.
+     return true;
+    }
+    const fn=window.__BP_TOGGLE_PUBLIC_LISTINGS__;
+    if(typeof fn==='function'){
+     const on=await fn();b.classList.toggle('active',!!on);b.setAttribute('aria-pressed',String(!!on));
+    }
+    return true;
+   };
+   void activate().catch(e=>{console.warn('BridgePoint map listings unavailable',e);showActionNotice('Listings could not open: '+String(e?.message||e))});
+   return;
+  }
   if(a==='worldchanges'){setDockMaximized(true);void openWorldChanges().catch(e=>{console.warn('BridgePoint world history unavailable',e);showActionNotice('30-Day History could not open: '+String(e?.message||e))});return}
   if(a==='weatherfx'){
    setDockMaximized(true);
    const activate=async()=>{
     if(home){
-     window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('weather');
-     if(typeof window.__BP_LANDING_ENABLE_WEATHER__==='function')await window.__BP_LANDING_ENABLE_WEATHER__();
-    }else if(typeof window.__BP_ENABLE_LIVE_WEATHER__==='function')await window.__BP_ENABLE_LIVE_WEATHER__();
+     const toggler=window.__BP_LANDING_TOGGLE_WEATHER__;
+     if(typeof toggler==='function')await toggler();
+     else if(typeof window.__BP_LANDING_ENABLE_WEATHER__==='function')await window.__BP_LANDING_ENABLE_WEATHER__();
+    }else{
+     if(window.__BP_APP_WEATHER_STATE__?.enabled&&typeof window.__BP_STOP_LIVE_WEATHER__==='function')await window.__BP_STOP_LIVE_WEATHER__();
+     else if(typeof window.__BP_ENABLE_LIVE_WEATHER__==='function')await window.__BP_ENABLE_LIVE_WEATHER__();
+    }
     await openRealWorldEffects(false);
    };
    void activate().catch(e=>{console.warn('BridgePoint Weather FX unavailable',e);showActionNotice('Weather FX could not open: '+String(e?.message||e))});return;
