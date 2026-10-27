@@ -608,8 +608,16 @@ function bindLandingOpportunityInfo(world){
   try{new maplibregl.Popup({closeButton:true,closeOnClick:true,maxWidth:'310px'}).setLngLat(e.lngLat).setDOMContent(root).addTo(m)}catch(_){ }
  });
 }
+function setLandingOpportunityLayerVisibility(m,on){
+ window.__BP_OPPORTUNITY_OVERLAY_ENABLED__=!!on;
+ const zoom=Number(m?.getZoom?.()||0);
+ for(const id of ['gta-opportunity-buildings','gta-opportunity-roofs','gta-opportunity-dot-fallback','gta-opportunity-dots','gta-opportunity-label']){
+  try{if(m?.getLayer(id))m.setLayoutProperty(id,'visibility',!!on&&(!['gta-opportunity-buildings','gta-opportunity-roofs'].includes(id)||zoom>=11.8)?'visible':'none')}catch(_){}
+ }
+}
 function startLandingOpportunities(world){
  const m=world?.map;if(!m)return;
+ setLandingOpportunityLayerVisibility(m,true);
  landingOpportunityEnabled=true;
  const run=()=>{if(!landingOpportunityEnabled)return;clearTimeout(landingOpportunityTimer);landingOpportunityTimer=setTimeout(()=>{if(landingOpportunityEnabled)void refreshLandingOpportunities(world)},window.innerWidth<=620?1000:650)};
  if(!m.__bpLandingOpportunityBound){
@@ -621,6 +629,7 @@ function startLandingOpportunities(world){
 function setLandingOpportunitiesEnabled(world,on){
  const m=world?.map;if(!m)throw new Error('BridgePoint globe is not ready');
  landingOpportunityEnabled=!!on;
+ setLandingOpportunityLayerVisibility(m,landingOpportunityEnabled);
  window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('opportunities',landingOpportunityEnabled);
  if(landingOpportunityEnabled){startLandingOpportunities(world);return true}
  clearTimeout(landingOpportunityTimer);landingOpportunityTimer=0;landingOpportunitySeq++;

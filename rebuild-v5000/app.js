@@ -1597,15 +1597,23 @@ async function refreshOpportunityBuildings(){
  }catch(e){if(seq===opportunitySeq)console.warn('opportunity overlay',e)}
 }
 function scheduleOpportunityBuildings(){if(!opportunityOverlayEnabled)return;clearTimeout(opportunityTimer);opportunityTimer=setTimeout(()=>{if(opportunityOverlayEnabled)void refreshOpportunityBuildings()},BP_MOBILE?1100:650)}
+function setAppOpportunityLayerVisibility(map,on){
+ window.__BP_OPPORTUNITY_OVERLAY_ENABLED__=!!on;
+ const zoom=Number(map?.getZoom?.()||0);
+ for(const id of ['gta-opportunity-buildings','gta-opportunity-roofs','gta-opportunity-dot-fallback','gta-opportunity-dots','gta-opportunity-label']){
+  try{if(map?.getLayer(id))map.setLayoutProperty(id,'visibility',!!on&&(!['gta-opportunity-buildings','gta-opportunity-roofs'].includes(id)||zoom>=11.8)?'visible':'none')}catch(_){}
+ }
+}
 function startOpportunityBuildings(){
  const map=world?.map;if(!map)return;
+ setAppOpportunityLayerVisibility(map,true);
  opportunityOverlayEnabled=true;window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('opportunities',true);
  if(!map.__bpOpportunityBound){map.__bpOpportunityBound=true;map.on('moveend',scheduleOpportunityBuildings)}
  scheduleOpportunityBuildings();
 }
 function setOpportunityOverlayEnabled(on){
  const map=world?.map;if(!map)throw new Error('BridgePoint globe is not ready');
- opportunityOverlayEnabled=!!on;window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('opportunities',opportunityOverlayEnabled);
+ opportunityOverlayEnabled=!!on;setAppOpportunityLayerVisibility(map,opportunityOverlayEnabled);window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('opportunities',opportunityOverlayEnabled);
  if(opportunityOverlayEnabled){startOpportunityBuildings();return true}
  clearTimeout(opportunityTimer);opportunityTimer=0;opportunitySeq++;deferredWork.delete('opportunities');
  try{map.getSource('bpOpportunities')?.setData({type:'FeatureCollection',features:[]})}catch(_){}
