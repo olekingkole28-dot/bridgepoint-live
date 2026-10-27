@@ -21,9 +21,9 @@ const baseLayers=new Set([
  'gta-context-building-footprints','gta-context-building-shadow','gta-context-buildings','gta-context-floor-lines','gta-context-roofs','gta-context-facade-detail','gta-context-building-parts',
  'gta-bp-building-shadow','gta-bp-buildings','gta-bp-floor-lines','gta-bp-roofs','gta-bp-facade-detail','gta-bp-building-edge',
  'gta-city-buildings','gta-city-floor-lines','gta-city-building-roof-caps','gta-city-roofs','gta-exact-building','gta-exact-roof','gta-exact-floor-lines',
- 'gta-parcel','gta-parcel-glow','gta-parcel-halo',
- 'bp-public-auto-parcel-glow-v5933','bp-public-auto-parcel-line-v5933'
 ]);
+const parcelLayers=new Set(['gta-parcel','gta-parcel-glow','gta-parcel-halo','bp-public-auto-parcel-glow-v5933','bp-public-auto-parcel-line-v5933']);
+let parcelLayerEnabled=true;
 const allowedCategories=new Set();
 const categoryPatterns={
  parcels:/parcel|cadastral|boundary-viewer/i,
@@ -39,6 +39,7 @@ const categoryPatterns={
  clouds:/cloud-volume|sky-cloud|satellite-cloud|eumetsat-cloud/i
 };
 function layerAllowed(id){
+ if(parcelLayers.has(String(id)))return parcelLayerEnabled;
  if(baseLayers.has(id)||String(id).startsWith('bp-drone-awareness'))return true;
  for(const category of allowedCategories)if(categoryPatterns[category]?.test(String(id)))return true;
  return false;
@@ -467,12 +468,13 @@ function bindStartMode(){
   if(!target)return;
   const category=categoryForTarget(target);
   if(!category)return;
-  allowedCategories.add(category);
+  if(category!=='parcels')allowedCategories.add(category);
   hideDefaultOverlays();
   // The existing toggle owns on/off state. If it ended off, remove just that
   // category from the opt-in allowlist; unrelated layers stay hidden.
   setTimeout(()=>{
-   if((category==='parcels'||category==='buildings')&&!target.classList.contains('active')&&target.getAttribute('aria-pressed')!=='true')allowedCategories.delete(category);
+   if(category==='parcels')parcelLayerEnabled=target.classList.contains('active')||target.getAttribute('aria-pressed')==='true';
+   if(category==='buildings'&&!target.classList.contains('active')&&target.getAttribute('aria-pressed')!=='true')allowedCategories.delete(category);
    hideDefaultOverlays();
   },0);
  },true);
@@ -510,6 +512,7 @@ function boot(){
   allowLayerCategory(category,on=true){
    const key=String(category||'').trim().toLowerCase();
    if(key==='drones')return true;
+   if(key==='parcels'){parcelLayerEnabled=!!on;hideDefaultOverlays();return true}
    if(!categoryPatterns[key])return false;
    if(on)allowedCategories.add(key);else allowedCategories.delete(key);
    hideDefaultOverlays();return true;
