@@ -692,6 +692,7 @@ async function initMap(){
   };
   window.__BP_LANDING_TOGGLE_WEATHER__=async()=>{
    if(landingWeatherEnabled){await setLandingWeatherEnabled(world,false);return false}
+   window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('weather');
    await window.__BP_LANDING_ENABLE_WEATHER__();return true;
   };
   window.__BP_TOGGLE_WATER__=async()=>{
@@ -714,15 +715,33 @@ async function initMap(){
    try{if(world.map.getLayer('bp-water-surface-gpu-v6123'))world.map.setLayoutProperty('bp-water-surface-gpu-v6123','visibility','visible')}catch(_){}
    return true;
   };
-  let landingCloudPromise=null;
-  window.__BP_ACTIVATE_CLOUDS__=()=>{
-   if(!world?.map)return Promise.reject(new Error('BridgePoint globe is not ready'));
-   const existing=window.__BP_SKY_CLOUDS_V5908__;
-   if(existing?.map===world.map){existing.setEnabled?.(true);return Promise.resolve(existing)}
-   if(!landingCloudPromise)landingCloudPromise=import('./world-v2300-clouds.js?v=6168-desktop-global-cloud-motion-stop')
-    .then(m=>{const api=m.initSkyClouds(world);if(!api)throw new Error('3D cloud engine did not initialize');window.__BP_SKY_CLOUDS_V5908__=api;return api})
-    .finally(()=>{landingCloudPromise=null});
-   return landingCloudPromise;
+  let landingCloudPromise=null,landingCloudApi=null,landingCloudEnabled=false;
+  window.__BP_TOGGLE_CLOUDS__=async()=>{
+   if(!world?.map)throw new Error('BridgePoint globe is not ready');
+   if(landingCloudEnabled){
+    landingCloudEnabled=false;landingCloudApi?.setEnabled?.(false);
+    try{if(world.map.getLayer('bp-sky-cloud-volume-v6029'))world.map.setLayoutProperty('bp-sky-cloud-volume-v6029','visibility','none')}catch(_){}
+    return false;
+   }
+   if(!landingCloudApi){
+    const existing=window.__BP_SKY_CLOUDS_V5908__;
+    if(existing?.map===world.map)landingCloudApi=existing;
+    else{
+     if(!landingCloudPromise)landingCloudPromise=import('./world-v2300-clouds.js?v=6168-desktop-global-cloud-motion-stop')
+      .then(m=>{const api=m.initSkyClouds(world);if(!api)throw new Error('3D cloud engine did not initialize');window.__BP_SKY_CLOUDS_V5908__=api;return api})
+      .finally(()=>{landingCloudPromise=null});
+     landingCloudApi=await landingCloudPromise;
+    }
+   }
+   if(!landingCloudApi)throw new Error('3D cloud engine unavailable');
+   landingCloudEnabled=true;landingCloudApi.setEnabled?.(true);
+   try{if(world.map.getLayer('bp-sky-cloud-volume-v6029'))world.map.setLayoutProperty('bp-sky-cloud-volume-v6029','visibility','visible')}catch(_){}
+   return true;
+  };
+  window.__BP_ACTIVATE_CLOUDS__=async()=>{
+   if(!landingCloudEnabled)await window.__BP_TOGGLE_CLOUDS__();
+   else landingCloudApi?.setEnabled?.(true);
+   return landingCloudApi;
   };
   if($('landingWeatherCount'))$('landingWeatherCount').textContent='SOURCE WEATHER · OFF';
   if($('landingWeatherTime'))$('landingWeatherTime').textContent='Weather, radar and 3D cloud overlays remain off until selected from the BridgePoint controls.';
@@ -774,7 +793,7 @@ async function initMap(){
    weatherButton.textContent='SOURCE WEATHER · OFF';weatherButton.title='Turn on source-backed weather, hazards and radar';weatherButton.setAttribute('aria-pressed','false');
    if(!weatherButton.dataset.bpBound){weatherButton.dataset.bpBound='1';weatherButton.addEventListener('click',async()=>{
     weatherButton.disabled=true;
-    try{if(landingWeatherEnabled)await setLandingWeatherEnabled(world,false);else await window.__BP_LANDING_ENABLE_WEATHER__();weatherButton.setAttribute('aria-pressed',String(landingWeatherEnabled));}
+    try{if(landingWeatherEnabled)await setLandingWeatherEnabled(world,false);else {window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('weather');await window.__BP_LANDING_ENABLE_WEATHER__()}weatherButton.setAttribute('aria-pressed',String(landingWeatherEnabled));}
     catch(e){console.warn('BridgePoint source weather activation failed',e);weatherButton.title='Activation failed: '+String(e?.message||e);}
     finally{weatherButton.disabled=false;weatherButton.textContent='SOURCE WEATHER · '+(landingWeatherEnabled?'ON':'OFF')}
    })}
