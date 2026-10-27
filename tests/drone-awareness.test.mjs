@@ -40,6 +40,13 @@ assert.ok(workflow.includes('cp rebuild-v5000/bridgepoint-drone-awareness-v1.js 
 assert.ok(workflow.includes('node --check rebuild-v5000/bridgepoint-drone-awareness-v1.js'), 'deployment syntax-checks the module');
 assert.ok(moduleSource.includes('GLOBAL_SAMPLES=['), 'drone view samples multiple regions globally');
 assert.ok(moduleSource.includes('const SIM_FLEET_COUNT=156'), 'drone button provides a sizable simulated demo fleet');
+assert.ok(moduleSource.includes("const offsets=[[-9,-5],[-3,-5],[3,-5],[9,-5],[-9,0],[-3,0],[3,0],[9,0],[-9,5],[-3,5],[3,5],[9,5]];"), 'simulated drone icons are spread far enough apart to read on the whole-Earth globe');
+assert.ok(moduleSource.includes("0,.34,1,.42,2,.52,5,.72,10,.82,16,.92"), 'global drone icon sizes remain lightweight and visible at whole-Earth zoom');
+assert.ok(moduleSource.includes('fleetFeatureCount:SIM_FLEET_COUNT'), 'runtime diagnostics expose the expected fleet size for smoke tests');
+assert.ok(moduleSource.includes('fleetLayerVisible:!!map?.getLayer?.(SIM_LAYER)'), 'runtime diagnostics expose actual simulated layer visibility');
+assert.ok(moduleSource.includes("if(!fleetReady){enabled=false;updateButton();setLayerVisibility(false);"), 'a failed drone-layer setup fails closed without launching background requests');
+assert.ok(moduleSource.includes('bridge(?:3d|-)'), '3D bridge geometry is recognized as a transport overlay controlled by Transport');
+assert.ok(moduleSource.includes('|bridge3d/i'), 'startup overlay guard can hide 3D bridge geometry without touching the basemap');
 assert.ok(moduleSource.includes("label:'SIMULATED FLEET PREVIEW · NOT A LIVE FLIGHT'"), 'simulated positions are marked so they cannot be mistaken for live aircraft');
 assert.ok(moduleSource.includes("layout:{visibility:'none','icon-image':SIM_ICON"), 'simulated drone icons remain hidden at startup');
 assert.ok(moduleSource.includes('setSimFleetVisibility(true)'), 'drone button enables the simulated fleet preview');
