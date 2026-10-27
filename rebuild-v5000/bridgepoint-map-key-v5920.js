@@ -88,6 +88,7 @@ function addMapKey(panel){
  const pane=el('section','');pane.dataset.bpvPane='mapkey';pane.hidden=true;
  const head=el('div','bpv-pane-title');head.append(el('b','','BRIDGEPOINT MAP KEY'),el('small','','Opportunity colors, 3D materials, terrain, weather and transport shaders used on this map.'));
  const content=el('div','bpv-map-key-content');
+ content.append(el('p','bpv-mapkey-note','STARTUP VISIBILITY: Earth/globe, terrain, 3D building geometry and permitted public parcel boundaries. Weather, drones, clouds, water effects, wind/RF, listings, opportunities, transport, landmarks, night lights and other markers remain off until their control is enabled.'));
  function section(title,description,rows){
   const sec=el('section','bpv-mapkey-section');sec.append(el('h3','',title));if(description)sec.append(el('p','',description));
   for(const r of rows){const row=el('div','bpv-mapkey-row'),sw=el('i','bpv-mapkey-swatch'+(r.cls?' '+r.cls:'')),copy=el('div','');
@@ -134,12 +135,12 @@ function addMapKey(panel){
   {label:'Wildfire',color:'#FF3E18',desc:'#FF3E18 · wildfire marker / perimeter category.'},
   {label:'Fire',color:'#FF7922',desc:'#FF7922 · fire-related observation or alert.'},
   {label:'Tornado',color:'#BD5CFF',desc:'#BD5CFF · tornado warning / track.'},
-  {label:'Hurricane / cyclone',color:'#20Eaff',desc:'#20EAFF · hurricane / cyclone category.'},
+  {label:'Hurricane / cyclone',color:'#20EAFF',desc:'#20EAFF · hurricane / cyclone category.'},
   {label:'Thunderstorm',color:'#FF562F',desc:'#FF562F · thunderstorm / convective hazard.'},
   {label:'Lightning',color:'#FFE529',desc:'#FFE529 · lightning activity.'},
   {label:'Hail',color:'#6DEAFF',desc:'#6DEAFF · hail observations / alerts.'},
   {label:'Flood hazard',color:'#168CFF',desc:'#168CFF · flood / inundation / surge; separate from WATER opportunity buildings.'},
-  {label:'Wind hazard',color:'#8BDcff',desc:'#8BDCFF · source-backed wind reports / warnings.'},
+  {label:'Wind hazard',color:'#8BDCFF',desc:'#8BDCFF · source-backed wind reports / warnings.'},
   {label:'Rain',color:'#35BAFF',desc:'#35BAFF · rain / precipitation.'},
   {label:'Snow',color:'#EAFAFF',desc:'#EAFAFF · snow / blizzard.'},
   {label:'Ice',color:'#98EFFF',desc:'#98EFFF · ice / freezing hazard.'},
