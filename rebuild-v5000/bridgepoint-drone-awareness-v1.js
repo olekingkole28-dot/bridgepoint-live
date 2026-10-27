@@ -510,11 +510,11 @@ function stopEmptyMode(){
 }
 function installEmptyMode(m){
  if(!m||emptyModeMap===m)return;
- if(emptyModeMap&&emptyModeHandler){try{for(const event of ['styledata','idle','moveend','zoomend','rotateend','pitchend'])emptyModeMap.off(event,emptyModeHandler)}catch(_){}}
+ if(emptyModeMap&&emptyModeHandler){try{for(const event of ['styledata','style.load','idle','moveend','zoomend','rotateend','pitchend'])emptyModeMap.off(event,emptyModeHandler)}catch(_){}}
  emptyModeMap=m;emptyModeHandler=hideDefaultOverlays;
  // Map LOD + weather modules may reset visibility when a camera settles. Reapply
  // the opt-in allowlist after each settled camera/style event, not continuously.
- try{for(const event of ['styledata','idle','moveend','zoomend','rotateend','pitchend'])m.on(event,hideDefaultOverlays)}catch(_){}
+ try{for(const event of ['style.load','idle','moveend','zoomend','rotateend','pitchend'])m.on(event,hideDefaultOverlays)}catch(_){}
  hideDefaultOverlays();
 }
 function bindStartMode(){
