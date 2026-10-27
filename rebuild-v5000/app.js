@@ -162,16 +162,34 @@ async function bootMap(){
    try{if(world.map.getLayer('bp-water-surface-gpu-v6123'))world.map.setLayoutProperty('bp-water-surface-gpu-v6123','visibility','visible')}catch(_){}
    return true;
   };
-  // The high-vertex cloud field is also opt-in; opening Weather FX initializes it once.
-  let appCloudPromise=null;
-  window.__BP_ACTIVATE_CLOUDS__=()=>{
-   if(!world?.map)return Promise.reject(new Error('BridgePoint globe is not ready'));
-   const existing=window.__BP_SKY_CLOUDS_V5908__;
-   if(existing?.map===world.map){existing.setEnabled?.(true);return Promise.resolve(existing)}
-   if(!appCloudPromise)appCloudPromise=import('./world-v2300-clouds.js?v=6168-desktop-global-cloud-motion-stop')
-    .then(m=>{const api=m.initSkyClouds(world);if(!api)throw new Error('3D cloud engine did not initialize');window.__BP_SKY_CLOUDS_V5908__=api;return api})
-    .finally(()=>{appCloudPromise=null});
-   return appCloudPromise;
+  // The high-vertex cloud field is opt-in and can be cleanly turned back off.
+  let appCloudPromise=null,appCloudApi=null,appCloudEnabled=false;
+  window.__BP_TOGGLE_CLOUDS__=async()=>{
+   if(!world?.map)throw new Error('BridgePoint globe is not ready');
+   if(appCloudEnabled){
+    appCloudEnabled=false;appCloudApi?.setEnabled?.(false);
+    try{if(world.map.getLayer('bp-sky-cloud-volume-v6029'))world.map.setLayoutProperty('bp-sky-cloud-volume-v6029','visibility','none')}catch(_){}
+    return false;
+   }
+   if(!appCloudApi){
+    const existing=window.__BP_SKY_CLOUDS_V5908__;
+    if(existing?.map===world.map)appCloudApi=existing;
+    else{
+     if(!appCloudPromise)appCloudPromise=import('./world-v2300-clouds.js?v=6168-desktop-global-cloud-motion-stop')
+      .then(m=>{const api=m.initSkyClouds(world);if(!api)throw new Error('3D cloud engine did not initialize');window.__BP_SKY_CLOUDS_V5908__=api;return api})
+      .finally(()=>{appCloudPromise=null});
+     appCloudApi=await appCloudPromise;
+    }
+   }
+   if(!appCloudApi)throw new Error('3D cloud engine unavailable');
+   appCloudEnabled=true;appCloudApi.setEnabled?.(true);
+   try{if(world.map.getLayer('bp-sky-cloud-volume-v6029'))world.map.setLayoutProperty('bp-sky-cloud-volume-v6029','visibility','visible')}catch(_){}
+   return true;
+  };
+  window.__BP_ACTIVATE_CLOUDS__=async()=>{
+   if(!appCloudEnabled)await window.__BP_TOGGLE_CLOUDS__();
+   else appCloudApi?.setEnabled?.(true);
+   return appCloudApi;
   };
   void import('./world-v2300-lod-controls.js?v=6038-world-lod-range-apply').then(m=>{window.__BP_LOD_CONTROL_APP_V6016__=m.initWorldLodControls(world,{surface:'app'})}).catch(e=>console.warn('BridgePoint LOD controls unavailable',e));
  window.__BP_PENDING_LANDMARK_MAP_V5940__=world.map;
@@ -1105,7 +1123,7 @@ function stopLiveWeather(){
 function activateLiveWeather(){
  if(liveContextVisible)return;
  liveContextVisible=true;const map=world?.map;hideLegacyLiveContextLayers(map);
- const b=$('toggleLiveContext');if(b){b.textContent='WEATHER DATA · ON';b.title='Source-backed weather dots and warning boundaries are active. Legacy rain/snow/fire FX remain disabled';b.classList.add('active')}
+ const b=$('toggleLiveContext');if(b){b.textContent='WEATHER DATA · ON';b.title='Source-backed weather dots and warning boundaries are active. Legacy rain/snow/fire FX remain disabled';b.classList.add('active');b.setAttribute('aria-pressed','true')}
  try{
   if(map){
    ensureGroundRadarDrapeV6132(map);
