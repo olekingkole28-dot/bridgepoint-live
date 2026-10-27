@@ -1583,7 +1583,26 @@ jobs:
                 if(!/Navigation timeout/i.test(String(e?.message||e)))throw e;
                 console.warn('NAVIGATION_LIFECYCLE_WAIT_TIMEOUT_CONTINUING_TO_MAP_READINESS',String(e?.message||e));
               });
+              try{
               await p.waitForFunction(()=>!!window.__BP_LANDING_WORLD__?.map,{timeout:75000});
+            }catch(mapBootError){
+              let bootDiagnostic=null;
+              try{bootDiagnostic=await p.evaluate(()=>({
+                readyState:document.readyState,
+                title:document.title,
+                href:location.href,
+                maplibreLoaded:!!window.maplibregl,
+                boot:window.__BP_LANDING_MAP_BOOT__||null,
+                worldAlias:!!window.__bpLandingWorldV5420,
+                landingWorld:!!window.__BP_LANDING_WORLD__,
+                mapContainer:!!document.getElementById('previewMap'),
+                relevantScripts:[...document.scripts].map(s=>s.src||'inline').filter(s=>/landing\.js|world-v2300-map|maplibre-gl|drone-awareness/i.test(s)),
+                resources:performance.getEntriesByType('resource').filter(r=>/landing\.js|world-v2300-map|world-v2300-config|world-v2300-space|maplibre-gl|drone-awareness/i.test(r.name)).map(r=>({url:r.name.split('?')[0],durationMs:Math.round(r.duration),transferSize:r.transferSize||0})),
+                bodySample:String(document.body?.innerText||'').slice(0,240)
+              }))}catch(diagError){bootDiagnostic={diagnosticEvaluationError:String(diagError?.message||diagError)}}
+              console.error('BRIDGEPOINT_LANDING_MAP_BOOT_FAILURE',JSON.stringify({error:String(mapBootError?.message||mapBootError),diagnostic:bootDiagnostic,consoleErrors:errors.slice(-20)}));
+              throw new Error('LANDING_MAP_INITIALIZATION_FAILED '+JSON.stringify({error:String(mapBootError?.message||mapBootError),diagnostic:bootDiagnostic,consoleErrors:errors.slice(-20)}));
+            }
               await new Promise(r=>setTimeout(r,900));
               const startup=await p.evaluate(()=>{
                 const m=window.__BP_LANDING_WORLD__?.map;
