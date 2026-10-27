@@ -34,12 +34,32 @@ assert.ok(moduleSource.includes("for(const event of ['style.load','idle','moveen
 assert.ok(!moduleSource.includes("m.on('styledata',hideDefaultOverlays)"), 'avoid styledata feedback loops while hiding optional layers');
 assert.ok(landingHtml.includes('bridgepoint-drone-awareness-v1.js'), 'homepage loads the module');
 assert.ok(appHtml.includes('bridgepoint-drone-awareness-v1.js'), 'app loads the module');
+assert.ok(landingHtml.includes('bridgepoint-drone-awareness-v1.js?v=1.1.3-global-fleet-safe'), 'homepage uses the cache-busted global-fleet runtime');
+assert.ok(appHtml.includes('bridgepoint-drone-awareness-v1.js?v=1.1.3-global-fleet-safe'), 'app uses the same cache-busted global-fleet runtime');
 assert.ok(view.includes('data-bpv-command-grid="environment"'), 'environment command group exists');
+for (const action of ['weatherfx','windfx','volumetric','ai','listings','opportunities','metrics','property','explore','parcels','boundaryviewer','worldchanges','controls','motion','whole']) {
+  assert.ok(view.includes('data-bpv-action="'+action+'"'), 'the dock exposes the '+action+' action');
+}
+assert.ok(view.includes("if(a==='boundaryviewer')"), 'parcel viewer action has an explicit handler');
+assert.ok(view.includes("if(a==='opportunities')"), 'opportunity action has an explicit handler');
+assert.ok(view.includes("if(a==='weatherfx')"), 'weather action has an explicit handler');
+assert.ok(view.includes("if(a==='windfx')"), 'wind action has an explicit handler');
+assert.ok(view.includes("if(a==='motion')"), 'motion action has an explicit handler');
+assert.ok(workflow.includes('Whole-Earth drone fleet and map responsiveness smoke'), 'deployment runs a global drone responsiveness smoke test');
+assert.ok(workflow.includes('GLOBAL_DRONE_FLEET_NOT_RENDERED'), 'deployment fails if the drone fleet does not render on the globe');
+assert.ok(workflow.includes('|\\brf\\b|drone|bridge3d'), 'startup overlay smoke uses word-boundary RF matching and recognizes bridge geometry');
 assert.ok(mapKey.includes('DRONE AWARENESS') || mapKey.includes('DRONE FLEET + PUBLIC AIRSPACE'), 'map key documents the opt-in drone layer');
 assert.ok(workflow.includes('cp rebuild-v5000/bridgepoint-drone-awareness-v1.js site/bridgepoint-drone-awareness-v1.js'), 'deployment copies the public runtime');
 assert.ok(workflow.includes('node --check rebuild-v5000/bridgepoint-drone-awareness-v1.js'), 'deployment syntax-checks the module');
 assert.ok(moduleSource.includes('GLOBAL_SAMPLES=['), 'drone view samples multiple regions globally');
 assert.ok(moduleSource.includes('const SIM_FLEET_COUNT=156'), 'drone button provides a sizable simulated demo fleet');
+assert.ok(moduleSource.includes("const offsets=[[-9,-5],[-3,-5],[3,-5],[9,-5],[-9,0],[-3,0],[3,0],[9,0],[-9,5],[-3,5],[3,5],[9,5]];"), 'simulated drone icons are spread far enough apart to read on the whole-Earth globe');
+assert.ok(moduleSource.includes("0,.34,1,.42,2,.52,5,.72,10,.82,16,.92"), 'global drone icon sizes remain lightweight and visible at whole-Earth zoom');
+assert.ok(moduleSource.includes('fleetFeatureCount:SIM_FLEET_COUNT'), 'runtime diagnostics expose the expected fleet size for smoke tests');
+assert.ok(moduleSource.includes('fleetLayerVisible:!!map?.getLayer?.(SIM_LAYER)'), 'runtime diagnostics expose actual simulated layer visibility');
+assert.ok(moduleSource.includes("if(!fleetReady){enabled=false;updateButton();setLayerVisibility(false);"), 'a failed drone-layer setup fails closed without launching background requests');
+assert.ok(moduleSource.includes('bridge(?:3d|-)'), '3D bridge geometry is recognized as a transport overlay controlled by Transport');
+assert.ok(moduleSource.includes('|bridge3d/i'), 'startup overlay guard can hide 3D bridge geometry without touching the basemap');
 assert.ok(moduleSource.includes("label:'SIMULATED FLEET PREVIEW · NOT A LIVE FLIGHT'"), 'simulated positions are marked so they cannot be mistaken for live aircraft');
 assert.ok(moduleSource.includes("layout:{visibility:'none','icon-image':SIM_ICON"), 'simulated drone icons remain hidden at startup');
 assert.ok(moduleSource.includes('setSimFleetVisibility(true)'), 'drone button enables the simulated fleet preview');

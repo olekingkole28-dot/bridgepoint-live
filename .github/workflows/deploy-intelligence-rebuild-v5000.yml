@@ -1610,7 +1610,7 @@ jobs:
                 const m=window.__BP_LANDING_WORLD__?.map;
                 const ids=['gta-opportunity-dot-fallback','gta-opportunity-dots','gta-opportunity-label','gta-opportunity-buildings','gta-opportunity-roofs','gta-property-listings','bp-drone-awareness-cells-v1','bp-v5004-weather-points'];
                 const visible=id=>!!m?.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none';
-                const visibleOverlays=(m?.getStyle?.()?.layers||[]).map(x=>x.id).filter(id=>/(opportun|listing|weather|radar|storm|hazard|wildfire|lightning|hurricane|tornado|rain|cloud|wind|rf|drone|landmark|poi|tree|transit|infra-points|fire)/i.test(id)&&visible(id));
+                const visibleOverlays=(m?.getStyle?.()?.layers||[]).map(x=>x.id).filter(id=>/(opportun|listing|weather|radar|storm|hazard|wildfire|lightning|hurricane|tornado|rain|cloud|wind|\brf\b|drone|bridge3d|landmark|poi|tree|transit|infra-points|fire)/i.test(id)&&visible(id));
                 return{layers:Object.fromEntries(ids.map(id=>[id,visible(id)])),visibleOverlays,domMarkers:document.querySelectorAll('.bp-global-opportunity-marker-v6186').length,opportunityEnabled:window.__BP_OPPORTUNITY_OVERLAY_ENABLED__===true};
               });
               console.log('BRIDGEPOINT_EMPTY_STARTUP_DIAGNOSTIC',JSON.stringify(startup));
@@ -1673,6 +1673,112 @@ jobs:
               if(!(spinState.diag.markerCount>0&&spinState.domCount===0&&spinState.visibleCount>0&&spinState.offGlobeCount===0&&spinState.invalidCoordinateCount===0&&spinState.riskSourceCount>0&&spinState.panamaCacheCount>0&&spinState.panamaRenderedCount>0&&spinState.nativeLayerVisible&&spinState.cacheAvailable&&spinState.usCacheAvailable&&spinState.diag.usFeatureCount>0))
                 throw new Error('GLOBAL_OPPORTUNITY_NATIVE_GLOBE_CLIP_FAILED '+JSON.stringify(spinState));
               console.log('BRIDGEPOINT_GLOBE_WORLDWIDE_OPPORTUNITY_CLIP_PASS');
+            }finally{await browser.close()}
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
+
+      - name: Whole-Earth drone fleet and map responsiveness smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp
+          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core');
+          (async()=>{
+            const browser=await puppeteer.launch({
+              headless:true,executablePath:process.env.CHROME_PATH,protocolTimeout:90000,
+              args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader']
+            });
+            try{
+              const p=await browser.newPage();
+              p.setDefaultTimeout(20000);
+              await p.setViewport({width:1440,height:960,deviceScaleFactor:1});
+              const pageErrors=[];
+              p.on('pageerror',e=>pageErrors.push(String(e?.message||e)));
+              await p.goto('https://bridgepointintelligence.online/?drone-global-smoke='+Date.now(),{waitUntil:'domcontentloaded',timeout:12000}).catch(e=>{
+                if(!/Navigation timeout/i.test(String(e?.message||e)))throw e;
+              });
+              await p.waitForFunction(()=>!!window.__BP_LANDING_WORLD__?.map&&!!document.querySelector('#bpv-dock [data-bp-drone-awareness-button="1"]'),{timeout:75000});
+              await p.evaluate(()=>{
+                const dock=document.querySelector('#bpv-dock');
+                if(dock?.hidden)document.querySelector('#bpv-dock-reopen')?.click();
+                const m=window.__BP_LANDING_WORLD__?.map;
+                m?.stop?.();m?.jumpTo({center:[-98.5,39.5],zoom:1.5,pitch:0,bearing:0});
+              });
+              await p.waitForFunction(()=>{
+                const m=window.__BP_LANDING_WORLD__?.map,c=m?.getCenter?.();
+                return !!m&&m.getZoom()<=2&&!!c&&Math.abs(c.lng+98.5)<3&&Math.abs(c.lat-39.5)<3;
+              },{timeout:12000});
+              await p.evaluate(()=>document.querySelector('#bpv-dock [data-bp-drone-awareness-button="1"]')?.click());
+              await p.waitForFunction(()=>{
+                const m=window.__BP_LANDING_WORLD__?.map,s=window.__BP_DRONE_AWARENESS_V1__?.state,id='bp-drone-sim-fleet-symbol-v1';
+                if(!m||!s?.enabled||s.fleetFeatureCount!==156||!s.fleetVisible||!s.fleetLayerVisible||!s.simulatedFleetSourceReady||m.getZoom()>2.2)return false;
+                try{return m.queryRenderedFeatures({layers:[id]}).length>0}catch(_){return false}
+              },{timeout:15000});
+              const droneOn=await p.evaluate(()=>{
+                const m=window.__BP_LANDING_WORLD__?.map,s=window.__BP_DRONE_AWARENESS_V1__?.state,id='bp-drone-sim-fleet-symbol-v1';
+                let rendered=0;try{rendered=m.queryRenderedFeatures({layers:[id]}).length}catch(_){}
+                return{zoom:m?.getZoom?.(),center:m?.getCenter?.()?.toArray?.(),fleetFeatureCount:s?.fleetFeatureCount,fleetLayerVisible:s?.fleetLayerVisible,sourceReady:s?.simulatedFleetSourceReady,rendered,canvas:!!m?.getCanvas?.()&&m.getCanvas().width>0&&m.getCanvas().height>0};
+              });
+              if(!(droneOn.fleetFeatureCount===156&&droneOn.fleetLayerVisible&&droneOn.sourceReady&&droneOn.rendered>0&&droneOn.zoom<=2.2&&droneOn.canvas))
+                throw new Error('GLOBAL_DRONE_FLEET_NOT_RENDERED '+JSON.stringify(droneOn));
+              await p.evaluate(()=>{
+                const m=window.__BP_LANDING_WORLD__?.map;
+                m?.stop?.();m?.jumpTo({center:[-79.4832,9.0591],zoom:1.5,pitch:0,bearing:0});
+              });
+              await p.waitForFunction(()=>{
+                const m=window.__BP_LANDING_WORLD__?.map,c=m?.getCenter?.(),s=window.__BP_DRONE_AWARENESS_V1__?.state;
+                return !!m&&s?.fleetLayerVisible&&m.getZoom()<=2.2&&!!c&&Math.abs(c.lng+79.4832)<3&&Math.abs(c.lat-9.0591)<3;
+              },{timeout:12000});
+              await p.evaluate(()=>document.querySelector('#bpv-dock [data-bp-drone-awareness-button="1"]')?.click());
+              await p.waitForFunction(()=>{
+                const s=window.__BP_DRONE_AWARENESS_V1__?.state;
+                return !!s&&!s.enabled&&!s.fleetVisible&&!s.fleetLayerVisible;
+              },{timeout:8000});
+              await p.evaluate(()=>{
+                const m=window.__BP_LANDING_WORLD__?.map;
+                m?.stop?.();m?.jumpTo({center:[-73.9857,40.7484],zoom:15,pitch:0,bearing:0});
+              });
+              await p.waitForFunction(()=>window.__BP_LANDING_WORLD__?.map?.getZoom()>12,{timeout:10000});
+              await p.evaluate(()=>document.querySelector('#bpv-dock [data-bpv-action="whole"]')?.click());
+              await p.waitForFunction(()=>{
+                const m=window.__BP_LANDING_WORLD__?.map,c=m?.getCenter?.();
+                return !!m&&m.getZoom()<2&&!!c&&Math.abs(c.lng)<10&&Math.abs(c.lat-20)<12;
+              },{timeout:10000});
+              // Walk the core panel actions at whole-Earth scale and prove that they open the intended panel
+              // without detaching the map canvas or blocking the page event loop.
+              for(const action of ['ai','metrics','property','explore','controls','listings']){
+                const present=await p.evaluate(name=>!!document.querySelector('#bpv-dock [data-bpv-action="'+name+'"]'),action);
+                if(!present)throw new Error('DOCK_ACTION_BUTTON_MISSING '+action);
+                await p.evaluate(name=>document.querySelector('#bpv-dock [data-bpv-action="'+name+'"]')?.click(),action);
+                await p.waitForFunction(name=>{
+                  const panel=document.querySelector('#bpv-sidecar'),m=window.__BP_LANDING_WORLD__?.map;
+                  return !!m&&!!m.getCanvas?.()&&!panel?.hidden&&panel?.dataset.panel===name;
+                },{timeout:6000},action);
+                const panelState=await p.evaluate(()=>({zoom:window.__BP_LANDING_WORLD__?.map?.getZoom?.(),canvas:!!window.__BP_LANDING_WORLD__?.map?.getCanvas?.()&&window.__BP_LANDING_WORLD__.map.getCanvas().width>0}));
+                if(!panelState.canvas||panelState.zoom>=2)throw new Error('DOCK_PANEL_ACTION_DISTURBED_GLOBE '+action+' '+JSON.stringify(panelState));
+              }
+              await p.evaluate(()=>{
+                const m=window.__BP_LANDING_WORLD__?.map;
+                m?.stop?.();m?.jumpTo({center:[0,20],zoom:1.25,pitch:0,bearing:0});
+              });
+              await p.waitForFunction(()=>window.__BP_LANDING_WORLD__?.map?.getZoom()<2,{timeout:7000});
+              const mapKeyButton=await p.$('#bpv-mapkey-rail');
+              if(!mapKeyButton)throw new Error('MAP_KEY_BUTTON_MISSING');
+              await mapKeyButton.click();
+              await p.waitForFunction(()=>{
+                const panel=document.querySelector('#bpv-sidecar');
+                return !!panel&&!panel.hidden&&panel.dataset.panel==='mapkey';
+              },{timeout:5000});
+              const final=await p.evaluate(()=>{
+                const m=window.__BP_LANDING_WORLD__?.map;
+                return{mapReady:!!m,zoom:m?.getZoom?.(),canvas:!!m?.getCanvas?.()&&m.getCanvas().width>0,droneState:window.__BP_DRONE_AWARENESS_V1__?.state||null,mapKeyOpen:document.querySelector('#bpv-sidecar')?.dataset.panel==='mapkey'};
+              });
+              if(!final.mapReady||!final.canvas||!final.mapKeyOpen||final.zoom>=2)throw new Error('GLOBAL_GLOBE_BUTTONS_UNRESPONSIVE '+JSON.stringify(final));
+              if(pageErrors.length)console.log('GLOBAL_DRONE_SMOKE_NONFATAL_PAGE_ERRORS',JSON.stringify(pageErrors.slice(-8)));
+              console.log('BRIDGEPOINT_GLOBAL_DRONE_FLEET_AND_BUTTONS_PASS',JSON.stringify({droneOn,final}));
             }finally{await browser.close()}
           })().catch(e=>{console.error(e);process.exit(1)});
           NODE

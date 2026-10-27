@@ -39,7 +39,7 @@ const categoryPatterns={
  history:/history|world-change|timeline|time-slider/i,
  opportunities:/opportunity/i,
  listings:/listing/i,
- transport:/road-|bridge-|rail|transportation|transport-mesh/i,
+ transport:/road-|bridge(?:3d|-)|rail|transportation|transport-mesh/i,
  water:/bp-water-surface|water-surface|waterway-flow|hydrology/i,
  clouds:/cloud-volume|sky-cloud|satellite-cloud|eumetsat-cloud/i
 };
@@ -48,7 +48,7 @@ const categoryPatterns={
 const OPTIONAL_OVERLAY_PATTERNS=[
  ...Object.values(categoryPatterns),
  /\b(?:dot|dots|marker|markers|cluster|clusters|heatmap|hotspot|hotspots)\b/i,
- /landmark|poi|tree|streetlight|transit|infra-points|fire/i
+ /landmark|poi|tree|streetlight|transit|infra-points|fire|bridge3d/i
 ];
 function isManagedOptionalOverlay(id){
  const value=String(id||'');
@@ -145,7 +145,7 @@ function setLayerVisibility(on){
  }catch(e){return false}
 }
 function simulatedFleetFeatureCollection(){
- const offsets=[[-3.6,-2.4],[-1.2,-2.4],[1.2,-2.4],[3.6,-2.4],[-3.6,0],[-1.2,0],[1.2,0],[3.6,0],[-3.6,2.4],[-1.2,2.4],[1.2,2.4],[3.6,2.4]];
+ const offsets=[[-9,-5],[-3,-5],[3,-5],[9,-5],[-9,0],[-3,0],[3,0],[9,0],[-9,5],[-3,5],[3,5],[9,5]];
  const features=[];
  GLOBAL_SAMPLES.forEach((sample,regionIndex)=>offsets.forEach((offset,slot)=>{
   let lon=sample.lon+offset[0];lon=((lon+540)%360)-180;
@@ -176,7 +176,7 @@ function installSimFleetLayer(){
  try{
   if(!ensureSimDroneIcon())return false;
   if(!map.getSource(SIM_SOURCE))map.addSource(SIM_SOURCE,{type:'geojson',data:simulatedFleetFeatureCollection()});
-  if(!map.getLayer(SIM_LAYER))map.addLayer({id:SIM_LAYER,type:'symbol',source:SIM_SOURCE,minzoom:0,layout:{visibility:'none','icon-image':SIM_ICON,'icon-size':['interpolate',['linear'],['zoom'],0,.36,1,.48,2,.6,5,.72,10,.82,16,.92],'icon-anchor':'center','icon-allow-overlap':true,'icon-ignore-placement':true,'symbol-sort-key':['get','fleet_id']},paint:{'icon-opacity':.96}});
+  if(!map.getLayer(SIM_LAYER))map.addLayer({id:SIM_LAYER,type:'symbol',source:SIM_SOURCE,minzoom:0,layout:{visibility:'none','icon-image':SIM_ICON,'icon-size':['interpolate',['linear'],['zoom'],0,.34,1,.42,2,.52,5,.72,10,.82,16,.92],'icon-anchor':'center','icon-allow-overlap':true,'icon-ignore-placement':true,'symbol-sort-key':['get','fleet_id']},paint:{'icon-opacity':.96}});
   return true;
  }catch(e){console.warn('BridgePoint simulated drone fleet setup failed',e);return false}
 }
@@ -239,7 +239,7 @@ function renderCells(features){
  if(!cellsNode)return;
  cellsNode.replaceChildren();
  if(!features.length){
-  cellsNode.append(element('div','bp-drone-feed-note','No 1° grid cell contained three or more UAV-class ADS-B reports. Sparse cells are intentionally not displayed.'));
+  cellsNode.append(element('div','bp-drone-feed-note','No qualifying UAV-class ADS-B reports were returned from the sampled regions. A blank map is not proof of zero drone activity.'));
   return;
  }
  for(const f of features.slice(0,50)){
@@ -354,6 +354,7 @@ function toggle(){
   if(!installLayer()){showStatus('The map layer is not ready yet. Try again once the globe finishes loading.','error');enabled=false;updateButton();return}
   setLayerVisibility(false);
   const fleetReady=setSimFleetVisibility(true);
+  if(!fleetReady){enabled=false;updateButton();setLayerVisibility(false);window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('drones',false);showStatus('The simulated fleet layer could not be installed. The globe is unchanged; try again after the map finishes loading.','error');return}
   window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('drones',true);
   showStatus(fleetReady
    ? 'SIMULATED FLEET PREVIEW ON · '+SIM_FLEET_COUNT+' demonstration drone icons are shown around 13 world regions. They are not live flights. The separate colored cells below come from public UAV-class ADS-B reports.'
@@ -598,7 +599,7 @@ function boot(){
   },
   toggle,
   refresh:()=>refresh(true),
-  get state(){return{enabled,mapReady:!!map,zoom:map?.getZoom?.()??null,layerReady:!!map?.getLayer?.(LAYER),emptyModeActive,updatedAt:Date.now()}}
+  get state(){return{enabled,mapReady:!!map,zoom:map?.getZoom?.()??null,layerReady:!!map?.getLayer?.(LAYER),fleetFeatureCount:SIM_FLEET_COUNT,fleetVisible:simFleetVisible,fleetLayerVisible:!!map?.getLayer?.(SIM_LAYER)&&(map.getLayoutProperty(SIM_LAYER,'visibility')||'visible')!=='none',simulatedFleetSourceReady:!!map?.getSource?.(SIM_SOURCE),emptyModeActive,updatedAt:Date.now()}}
  };
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
