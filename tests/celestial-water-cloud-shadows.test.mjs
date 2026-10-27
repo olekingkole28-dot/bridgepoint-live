@@ -64,7 +64,7 @@ test('standard basemap remains default, satellite imagery is opt-in, and coast f
   assert.match(map, /defaultBase:'gta'/);
   assert.match(map, /satelliteManualOnly:true/);
   assert.match(map, /setBase\('gta'\)/);
-  assert.match(map, /setBase\('satellite'\)/);
+  assert.match(map, /base=next==='satellite'\?'satellite':'gta'/);
   assert.match(map, /gta-esri/);
   assert.match(map, /id:'gta-coast-foam'.{0,260}minzoom:2\.2/s);
   assert.match(map, /__BP_COAST_FOAM_TIMER__/);
