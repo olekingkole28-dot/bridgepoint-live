@@ -74,7 +74,7 @@ function bindAuthUI(){$('accountButton')?.addEventListener('click',()=>openAuth(
 const BP_TRUTH_VALUE_ID=/^(authUserEmail|pAddress|pLocation|pParcel|bRecord|bSource|bProvSource|bProvDataset|bProvLicense|bProvOriginal|bProvOriginalUpdated|bProvParcelSource)$/;
 function setText(id,v){const e=$(id);if(e){e.textContent=v;if(BP_TRUTH_VALUE_ID.test(id)){e.classList.add('notranslate');e.setAttribute('translate','no')}}}
 function setBar(id,v){const e=$(id);if(e)e.style.width=pct(v)+'%'}
-let statusLast=null,world=null,statusTimer=null,tileTimer=null,selectedTimer=null,liveContextTimer=null,radarRefreshTimer=null,radarAnimTimer=null,cloudRefreshTimer=null,cloudAnimTimer=null,transportTimer=null,opportunityTimer=null,opportunitySeq=0,semanticTimer=null,semanticBuildTimer=null,semanticSeq=0,measureActive=false,measurePoints=[],xrayRestore=null,mapInteracting=false,performanceDrainTimer=null,performanceRestoreTimer=null,performanceHardReleaseTimer=null,deferredDrainTimer=null,deferredWork=new Map(),transportRuntimeLastAt=0,transportVisible=true,transportSourceUrl=null,liveContextVisible=false,radarFrames=[],radarIndex=0,radarActive='A',cloudFrames=[],cloudIndex=0,cloudActive='A',selectedPoint=null,selectedFeature=null,selectedPropertyId=null,selectedMode='building',buildingRequestSeq=0,propertyHeartbeatTimer=null,propertyHeartbeatInFlight=false;
+let statusLast=null,world=null,statusTimer=null,tileTimer=null,selectedTimer=null,liveContextTimer=null,radarRefreshTimer=null,radarAnimTimer=null,cloudRefreshTimer=null,cloudAnimTimer=null,transportTimer=null,opportunityTimer=null,opportunitySeq=0,opportunityOverlayEnabled=false,publicListingsOverlayEnabled=false,semanticTimer=null,semanticBuildTimer=null,semanticSeq=0,measureActive=false,measurePoints=[],xrayRestore=null,mapInteracting=false,performanceDrainTimer=null,performanceRestoreTimer=null,performanceHardReleaseTimer=null,deferredDrainTimer=null,deferredWork=new Map(),transportRuntimeLastAt=0,transportVisible=true,transportSourceUrl=null,liveContextVisible=false,radarFrames=[],radarIndex=0,radarActive='A',cloudFrames=[],cloudIndex=0,cloudActive='A',selectedPoint=null,selectedFeature=null,selectedPropertyId=null,selectedMode='building',buildingRequestSeq=0,propertyHeartbeatTimer=null,propertyHeartbeatInFlight=false;
 
 function bpLocaleCode(){try{return window.BridgePointLanguage?.getLocale?.()||localStorage.getItem('bp-language')||document.documentElement.lang||'en'}catch(_){return'en'}}
 function bpMapCode(){const c=bpLocaleCode();if(window.BridgePointLanguage?.mapCode)return window.BridgePointLanguage.mapCode();if(c==='pt-BR')return'pt';if(c==='zh-Hans'||c==='zh-Hant')return'zh';if(c==='tl')return'fil';return String(c).split('-')[0]}
@@ -142,8 +142,55 @@ async function bootMap(){
  const started=performance.now();
  while(!world?.map&&performance.now()-started<10000)await new Promise(r=>setTimeout(r,40));
  if(!world?.map)throw new Error('Map object readiness timeout');
-  // The water engine shares this map's WebGL context and uses the live hydrology/weather scene.
-  void import('./world-v2300-water.js?v=6194-stable-water-low-cost').then(m=>{if(world?.map)window.__BP_WATER_ENGINE_APP_V6123__=m.initWaterEngine(world,{surface:'app'})}).catch(e=>console.warn('BridgePoint GPU water layer unavailable; native water remains enabled',e));
+  // Heavy GPU water geometry is lazy-loaded only after the Water + Flow command is pressed.
+  let appWaterApi=null,appWaterPromise=null,appWaterEnabled=false;
+  window.__BP_TOGGLE_WATER__=async()=>{
+   if(!world?.map)throw new Error('BridgePoint globe is not ready');
+   if(appWaterEnabled){
+    appWaterEnabled=false;if(appWaterApi){appWaterApi.active=false;appWaterApi.setEnabled?.(false)}
+    try{if(world.map.getLayer('bp-water-surface-gpu-v6123'))world.map.setLayoutProperty('bp-water-surface-gpu-v6123','visibility','none')}catch(_){}
+    return false;
+   }
+   if(!appWaterApi){
+    if(!appWaterPromise)appWaterPromise=import('./world-v2300-water.js?v=6194-stable-water-low-cost')
+     .then(m=>{const api=m.initWaterEngine(world,{surface:'app'});if(!api)throw new Error('GPU water surface did not initialize');appWaterApi=api;window.__BP_WATER_ENGINE_APP_V6123__=api;return api})
+     .finally(()=>{appWaterPromise=null});
+    await appWaterPromise;
+   }
+   if(!appWaterApi)throw new Error('GPU water surface unavailable');
+   appWaterEnabled=true;appWaterApi.active=true;appWaterApi.setEnabled?.(true);
+   try{if(world.map.getLayer('bp-water-surface-gpu-v6123'))world.map.setLayoutProperty('bp-water-surface-gpu-v6123','visibility','visible')}catch(_){}
+   return true;
+  };
+  // The high-vertex cloud field is opt-in and can be cleanly turned back off.
+  let appCloudPromise=null,appCloudApi=null,appCloudEnabled=false;
+  window.__BP_TOGGLE_CLOUDS__=async()=>{
+   if(!world?.map)throw new Error('BridgePoint globe is not ready');
+   if(appCloudEnabled){
+    appCloudEnabled=false;appCloudApi?.setEnabled?.(false);
+    try{if(world.map.getLayer('bp-sky-cloud-volume-v6029'))world.map.setLayoutProperty('bp-sky-cloud-volume-v6029','visibility','none')}catch(_){}
+    return false;
+   }
+   if(!appCloudApi){
+    const existing=window.__BP_SKY_CLOUDS_V5908__;
+    if(existing?.map===world.map)appCloudApi=existing;
+    else{
+     if(!appCloudPromise)appCloudPromise=import('./world-v2300-clouds.js?v=6168-desktop-global-cloud-motion-stop')
+      .then(m=>{const api=m.initSkyClouds(world);if(!api)throw new Error('3D cloud engine did not initialize');window.__BP_SKY_CLOUDS_V5908__=api;return api})
+      .finally(()=>{appCloudPromise=null});
+     appCloudApi=await appCloudPromise;
+    }
+   }
+   if(!appCloudApi)throw new Error('3D cloud engine unavailable');
+   appCloudEnabled=true;appCloudApi.setEnabled?.(true);
+   try{if(world.map.getLayer('bp-sky-cloud-volume-v6029'))world.map.setLayoutProperty('bp-sky-cloud-volume-v6029','visibility','visible')}catch(_){}
+   return true;
+  };
+  window.__BP_ACTIVATE_CLOUDS__=async()=>{
+   if(!appCloudEnabled)await window.__BP_TOGGLE_CLOUDS__();
+   else appCloudApi?.setEnabled?.(true);
+   return appCloudApi;
+  };
   void import('./world-v2300-lod-controls.js?v=6038-world-lod-range-apply').then(m=>{window.__BP_LOD_CONTROL_APP_V6016__=m.initWorldLodControls(world,{surface:'app'})}).catch(e=>console.warn('BridgePoint LOD controls unavailable',e));
  window.__BP_PENDING_LANDMARK_MAP_V5940__=world.map;
  try{window.dispatchEvent(new CustomEvent('bp:world-map-ready-v5940',{detail:{map:world.map,source:'app'}}))}catch(_){}
@@ -154,11 +201,7 @@ async function bootMap(){
 
  // Initialize optional map overlays only after the first core map load. Serializing their
  // initialization avoids a burst of source/layer changes during the first Gold LOD render.
- // Initialize the persistent global 3D cloud field as soon as the core map exists;
- // do not make the globe wait behind the idle-only optional module queue.
- void import('./world-v2300-clouds.js?v=6168-desktop-global-cloud-motion-stop')
-  .then(m=>{if(world?.map)window.__BP_SKY_CLOUDS_V5908__=m.initSkyClouds(world)})
-  .catch(e=>console.warn('BridgePoint global 3D cloud field unavailable',e));
+ // Optional global clouds are loaded by the Weather FX command, not during globe startup.
  const optionalWorldJobs=[
   ['time-slider',async()=>{const m=await import('./world-v2300-time-slider.js?v=6167-cloud-startup-performance');window.__BP_WORLD_TIME_SLIDER_V5908__=m.initWorldTimeSlider(world,rpc)}],
   ['time-slider',async()=>{const m=await import('./world-v2300-time-slider.js?v=6167-cloud-startup-performance');window.__BP_WORLD_TIME_SLIDER_V5908__=m.initWorldTimeSlider(world,rpc)}],
@@ -1069,33 +1112,47 @@ function restoreCachedLiveWeatherFirstFrameV6134(){
 }
 async function loadLiveWeather(critical=false){if(!liveContextVisible)return;if((mapInteracting||document.hidden||!appMapSurfaceActive())||(!critical&&mapBackgroundBlocked())){deferredWork.set('live-weather',()=>loadLiveWeather(false));return}const b=$('toggleLiveContext');try{const d=await takeLiveWeatherBootstrapV6134();const map=world?.map;if(!map||!liveContextVisible)return;if(d?.fresh!==true){if(Array.isArray(d?.items)&&d.items.length){const cached=applyLiveWeatherItemsV6134(d.items);if(cached)window.__BP_LIVE_WEATHER_STALE_V6134__={usedCachedItems:true,items:d.items.length,points:cached.points.features.length,shapes:cached.shapes.features.length,generated_at:d.generated_at,updatedAt:Date.now()}}if(b){b.textContent='LIVE';b.title='Showing cached source weather while the latest observations refresh'}setText('liveLegendCount',window.__BP_LIVE_WEATHER_STALE_V6134__?.items?window.__BP_LIVE_WEATHER_STALE_V6134__.items+' EVENTS · REFRESHING':'REFRESHING');setText('liveLegendTime','Keeping the last available source snapshot visible while the newest observations load');setTimeout(()=>{if(liveContextVisible)queueAfterMap('live-weather-retry',loadLiveWeather)},2500);return}window.__BP_LIVE_WEATHER_STALE_V6134__=null;saveLiveWeatherCacheV6134(d.items||[],d.generated_at);const c=applyLiveWeatherItemsV6134(d.items||[]);if(!c)throw new Error('Live weather layers not ready');window.__BP_LIVE_WEATHER_STATE_V5806__={fresh:true,items:d.items?.length||0,points:c.points.features.length,shapes:c.shapes.features.length,generated_at:d.generated_at,updatedAt:Date.now()};if(b){b.textContent='LIVE';b.title=(d.items?.length||0)+' fresh source-labelled weather/hazard events · refreshed '+new Date(d.generated_at).toLocaleTimeString()}setText('liveLegendCount',(d.items?.length||0)+' EVENTS');setText('liveLegendTime','Fresh '+new Date(d.generated_at).toLocaleTimeString()+' · solid = observed/source event · faded = alert or forecast')}catch(e){window.__BP_LIVE_WEATHER_STATE_V5806__={fresh:false,error:String(e?.message||e),updatedAt:Date.now()};if(b)b.title='Live context refresh retry · '+String(e.message||e);setTimeout(()=>{if(liveContextVisible)queueAfterMap('live-weather-retry',loadLiveWeather)},5000)}}
 function stopLiveWeather(){
- liveContextVisible=false;setLiveContextVisibility(false);hideLegacyLiveContextLayers();
+ liveContextVisible=false;window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('weather',false);setLiveContextVisibility(false);hideLegacyLiveContextLayers();
  clearInterval(liveContextTimer);liveContextTimer=null;clearInterval(radarRefreshTimer);radarRefreshTimer=null;
  clearInterval(radarAnimTimer);radarAnimTimer=null;clearInterval(cloudRefreshTimer);cloudRefreshTimer=null;
  clearInterval(cloudAnimTimer);cloudAnimTimer=null;radarFrames=[];cloudFrames=[];
  try{window.__BP_SHARED_VISUAL_WEATHER__?.weather?.setRadar?.(false);window.__BP_SHARED_VISUAL_WEATHER__?.weather?.setActive?.(false);window.__BP_SHARED_VISUAL_WEATHER__?.present?.setActive?.(false)}catch(_){}
- const b=$('toggleLiveContext');if(b){b.textContent='WEATHER DATA · OFF';b.title='Source-backed weather dots and warning boundaries are hidden. Legacy rain/snow/fire FX remain disabled';b.classList.remove('active')}
+ const b=$('toggleLiveContext');if(b){b.textContent='WEATHER DATA · OFF';b.title='Source-backed weather dots and warning boundaries are hidden. Legacy rain/snow/fire FX remain disabled';b.classList.remove('active');b.setAttribute('aria-pressed','false')}
  window.__BP_STARTUP_SCHEDULER_V5939__={version:5939,enabled:false,weatherNetworkIdle:true,radarRefreshIdle:true,renderer:'v2300-cinematic-fx',updatedAt:Date.now()};
 }
 function activateLiveWeather(){
  if(liveContextVisible)return;
- liveContextVisible=true;hideLegacyLiveContextLayers();
- const b=$('toggleLiveContext');if(b){b.textContent='WEATHER DATA · ON';b.title='Source-backed weather dots and warning boundaries are active. Legacy rain/snow/fire FX remain disabled';b.classList.add('active')}
+ liveContextVisible=true;window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('weather',true);const map=world?.map;hideLegacyLiveContextLayers(map);
+ const b=$('toggleLiveContext');if(b){b.textContent='WEATHER DATA · ON';b.title='Source-backed weather dots and warning boundaries are active. Legacy rain/snow/fire FX remain disabled';b.classList.add('active');b.setAttribute('aria-pressed','true')}
+ try{
+  if(map){
+   ensureGroundRadarDrapeV6132(map);
+   if(!map.__bpCinematicWeatherLegacyGuard6057){map.__bpCinematicWeatherLegacyGuard6057=true;map.on('styledata',()=>hideLegacyLiveContextLayers(map));[120,450,1100].forEach(ms=>setTimeout(()=>hideLegacyLiveContextLayers(map),ms))}
+  }
+ }catch(e){console.warn('BridgePoint weather setup deferred',e)}
  window.__BP_ACTIVATE_SHARED_WEATHER__?.();
  try{const shared=window.__BP_SHARED_VISUAL_WEATHER__;shared?.weather?.setRadar?.(false);shared?.weather?.setActive?.(true);shared?.present?.setActive?.(false)}catch(_){}
- window.__BP_STARTUP_SCHEDULER_V5939__={version:6134,enabled:true,serializedWeather:true,renderer:'source-weather-data-plus-dedicated-rain-lightning',radarRefreshMs:300000,groundDrapedRadar:true,sourceWeatherVisible:true,updatedAt:Date.now()};
-}
-function startLiveWeather(){
- const map=world?.map;ensureGroundRadarDrapeV6132(map);hideLegacyLiveContextLayers(map);
- if(map&&!map.__bpCinematicWeatherLegacyGuard6057){map.__bpCinematicWeatherLegacyGuard6057=true;map.on('styledata',()=>hideLegacyLiveContextLayers(map));[120,450,1100].forEach(ms=>setTimeout(()=>hideLegacyLiveContextLayers(map),ms))}
- const b=$('toggleLiveContext');if(b)b.onclick=()=>{if(liveContextVisible)stopLiveWeather();else activateLiveWeather()};
- activateLiveWeather();
- installLiveContextLayers();restoreCachedLiveWeatherFirstFrameV6134();
- ensureRadarTimelineV6170();void refreshRadarFrames();
+ installLiveContextLayers();restoreCachedLiveWeatherFirstFrameV6134();ensureRadarTimelineV6170();void refreshRadarFrames();
  clearInterval(radarRefreshTimer);radarRefreshTimer=setInterval(()=>{if(liveContextVisible)void refreshRadarFrames()},120000);
  void loadLiveWeather(true);
  clearInterval(liveContextTimer);liveContextTimer=setInterval(()=>{if(liveContextVisible)void loadLiveWeather(false)},60000);
  window.__BP_LIVE_WEATHER_REFRESH_V6132__={enabled:true,initialFetchRequested:true,refreshMs:60000,icons:true,sourcePolygons:true,groundRadar:true,radarAnimationAllZoom:true,radarRefreshMs:120000,updatedAt:Date.now()};
+ window.__BP_STARTUP_SCHEDULER_V5939__={version:6134,enabled:true,serializedWeather:true,renderer:'source-weather-data-plus-dedicated-rain-lightning',radarRefreshMs:300000,groundDrapedRadar:true,sourceWeatherVisible:true,updatedAt:Date.now()};
+}
+function startLiveWeather(){
+ // Bind the control but do not create radar layers, start timers, or request feeds on boot.
+ const map=world?.map,b=$('toggleLiveContext');
+ liveContextVisible=false;
+ try{setLiveContextVisibility(false);hideLegacyLiveContextLayers(map)}catch(_){}
+ if(b){
+  b.onclick=()=>{if(liveContextVisible)stopLiveWeather();else activateLiveWeather()};
+  b.textContent='WEATHER DATA · OFF';b.title='Turn on source-backed weather and radar layers';b.classList.remove('active');b.setAttribute('aria-pressed','false');
+ }
+ window.__BP_ENABLE_LIVE_WEATHER__=()=>{activateLiveWeather();return Promise.resolve(true)};
+ window.__BP_TOGGLE_LIVE_WEATHER__=()=>{if(liveContextVisible){stopLiveWeather();return Promise.resolve(false)}activateLiveWeather();return Promise.resolve(true)};
+ window.__BP_APP_WEATHER_STATE__=()=>({enabled:liveContextVisible});
+ window.__BP_STARTUP_SCHEDULER_V5939__={version:6134,enabled:false,weatherNetworkIdle:true,radarRefreshIdle:true,renderer:'source-weather-data-plus-dedicated-rain-lightning',updatedAt:Date.now()};
+ window.__BP_LIVE_WEATHER_REFRESH_V6132__={enabled:false,initialFetchRequested:false,refreshMs:60000,icons:true,sourcePolygons:true,groundRadar:false,radarAnimationAllZoom:false,radarRefreshMs:120000,updatedAt:Date.now()};
 }
 let surfaceNavigationUntil=0;
 function setActiveSurface(name,{showNav=false}={}){
@@ -1502,8 +1559,9 @@ function syncGlobalOpportunityDomMarkersV6186(map,features,zoom){
  window.__BP_GLOBAL_OPPORTUNITY_DOM_MARKERS_V6186__=diag;return diag;
 }
 async function refreshOpportunityBuildings(){
+ if(!opportunityOverlayEnabled)return;
  if(mapBackgroundBlocked()){deferredWork.set('opportunities',refreshOpportunityBuildings);return}
- const map=world?.map,src=map?.getSource('bpOpportunities');if(!map||!src?.setData||map.isMoving?.())return;
+ const map=world?.map,src=map?.getSource('bpOpportunities');if(!opportunityOverlayEnabled||!map||!src?.setData||map.isMoving?.())return;
  const seq=++opportunitySeq,zoom=map.getZoom(),bounds=map.getBounds();
  const limit=BP_MOBILE?(zoom<3?45:zoom<6?35:zoom<10?55:90):(zoom<3?90:zoom<6?70:zoom<10?120:220);
  const params=zoom<3?{p_west:-180,p_south:-85,p_east:180,p_north:85}:{p_west:bounds.getWest(),p_south:bounds.getSouth(),p_east:bounds.getEast(),p_north:bounds.getNorth()};
@@ -1522,9 +1580,9 @@ async function refreshOpportunityBuildings(){
    d=await mainFeedRequest;risk=globalRiskCache?.data||null;
    if(!risk)void loadRiskFeed().then(value=>{if(value?.geojson?.features?.length&&map.getZoom()<3&&!map.isMoving?.())scheduleOpportunityBuildings()}).catch(e=>console.warn('background global risk overlay',e));
   }else{[d,risk]=await Promise.all([mainFeedRequest,loadRiskFeed()])}
-  if(seq!==opportunitySeq||mapInteracting)return;
+  if(!opportunityOverlayEnabled||seq!==opportunitySeq||mapInteracting)return;
   queueAfterMap('opportunity-commit-'+seq,()=>{
-   if(seq!==opportunitySeq||mapInteracting)return;
+   if(!opportunityOverlayEnabled||seq!==opportunitySeq||mapInteracting)return;
    const merged=mergeAppOpportunityGeojson(d,risk);const geo=zoom<3?bpGlobalOpportunityGlobeGeoV6187(merged):merged;src.setData(geo);syncGlobalOpportunityDomMarkersV6186(map,geo.features,zoom);
    try{
     if(map.getLayer('gta-opportunity-buildings'))map.setLayoutProperty('gta-opportunity-buildings','visibility',zoom<3?'none':'visible');
@@ -1538,8 +1596,27 @@ async function refreshOpportunityBuildings(){
   })
  }catch(e){if(seq===opportunitySeq)console.warn('opportunity overlay',e)}
 }
-function scheduleOpportunityBuildings(){clearTimeout(opportunityTimer);opportunityTimer=setTimeout(refreshOpportunityBuildings,BP_MOBILE?1100:650)}
-function startOpportunityBuildings(){const map=world?.map;if(!map||map.__bpOpportunityBound)return;map.__bpOpportunityBound=true;map.on('moveend',scheduleOpportunityBuildings);setTimeout(()=>queueAfterMap('opportunities',refreshOpportunityBuildings),BP_MOBILE?4200:520)}
+function scheduleOpportunityBuildings(){if(!opportunityOverlayEnabled)return;clearTimeout(opportunityTimer);opportunityTimer=setTimeout(()=>{if(opportunityOverlayEnabled)void refreshOpportunityBuildings()},BP_MOBILE?1100:650)}
+function startOpportunityBuildings(){
+ const map=world?.map;if(!map)return;
+ opportunityOverlayEnabled=true;window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('opportunities',true);
+ if(!map.__bpOpportunityBound){map.__bpOpportunityBound=true;map.on('moveend',scheduleOpportunityBuildings)}
+ scheduleOpportunityBuildings();
+}
+function setOpportunityOverlayEnabled(on){
+ const map=world?.map;if(!map)throw new Error('BridgePoint globe is not ready');
+ opportunityOverlayEnabled=!!on;window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('opportunities',opportunityOverlayEnabled);
+ if(opportunityOverlayEnabled){startOpportunityBuildings();return true}
+ clearTimeout(opportunityTimer);opportunityTimer=0;opportunitySeq++;deferredWork.delete('opportunities');
+ try{map.getSource('bpOpportunities')?.setData({type:'FeatureCollection',features:[]})}catch(_){}
+ const markers=map.__bpGlobalOpportunityDomMarkersV6186;for(const item of markers?.markers||[])try{(item.marker||item).remove()}catch(_){}
+ if(markers)markers.markers=[];
+ for(const id of ['gta-opportunity-buildings','gta-opportunity-label','gta-opportunity-dot-fallback','gta-opportunity-dots'])try{if(map.getLayer(id))map.setLayoutProperty(id,'visibility','none')}catch(_){}
+ window.__BP_APP_OPPORTUNITY_STYLE_V6186__={version:6186,enabled:false,features:0,domMarkerCount:0,updatedAt:Date.now()};
+ return false;
+}
+window.__BP_TOGGLE_OPPORTUNITIES__=async()=>setOpportunityOverlayEnabled(!opportunityOverlayEnabled);
+window.__BP_ENABLE_OPPORTUNITIES__=async()=>setOpportunityOverlayEnabled(true);
 
 const APP_LISTING_COLORS={FOR_SALE:'#7dff63',FOR_RENT:'#24ffc8'};
 let opportunityListingTimer=0,opportunityListingSeq=0;
@@ -1548,18 +1625,36 @@ function appListingGeojson(geo){
  return{...base,features:(base.features||[]).map(f=>{const p={...(f.properties||{})},kind=String(p.listing_type||'FOR_SALE').toUpperCase();return{...f,properties:{...p,listing_type:kind,color:APP_LISTING_COLORS[kind]||APP_LISTING_COLORS.FOR_SALE}}})}
 }
 async function refreshPublicListings(){
+ if(!publicListingsOverlayEnabled)return;
  if(mapBackgroundBlocked()||mapInteracting||document.hidden||!appMapSurfaceActive()){deferredWork.set('public-listings',refreshPublicListings);return}
- const map=world?.map,src=map?.getSource('bpListings');if(!map||!src?.setData||map.isMoving?.())return;
+ const map=world?.map,src=map?.getSource('bpListings');if(!publicListingsOverlayEnabled||!map||!src?.setData||map.isMoving?.())return;
  const seq=++opportunityListingSeq,z=map.getZoom(),b=map.getBounds();
  const limit=BP_MOBILE?(z<2.5?18:z<5?35:z<9?60:120):(z<2.5?30:z<5?55:z<9?100:200);
  try{
   const d=await rpc('bridgepoint_public_listings_viewport_v5906',{p_west:b.getWest(),p_south:b.getSouth(),p_east:b.getEast(),p_north:b.getNorth(),p_limit:limit},2600);
-  if(seq!==opportunityListingSeq||map.isMoving?.()||mapInteracting)return;
+  if(!publicListingsOverlayEnabled||seq!==opportunityListingSeq||map.isMoving?.()||mapInteracting)return;
   const geo=appListingGeojson(d?.geojson);src.setData(geo);
   window.__BP_PUBLIC_LISTINGS_V5906__={source:d?.source_key||'UNKNOWN',status:d?.source_status||'UNKNOWN',features:geo.features.length,totalInLastSync:Number(d?.source_total_last_sync||0),sourceSnapshotLastEdit:d?.source_layer_last_edit||null,lastSync:d?.source_last_synced_at||null,returned:d?.returned||0,zoomBand:z<2.5?'globe':z<5?'regional':z<9?'city':'local',updatedAt:Date.now()};
  }catch(e){if(seq===opportunityListingSeq)console.warn('public listing overlay',e)}
 }
-function schedulePublicListings(){clearTimeout(opportunityListingTimer);opportunityListingTimer=setTimeout(()=>void refreshPublicListings(),BP_MOBILE?1450:950)}
+function schedulePublicListings(){if(!publicListingsOverlayEnabled)return;clearTimeout(opportunityListingTimer);opportunityListingTimer=setTimeout(()=>{if(publicListingsOverlayEnabled)void refreshPublicListings()},BP_MOBILE?1450:950)}
+function startPublicListings(){
+ const map=world?.map;if(!map)return;
+ publicListingsOverlayEnabled=true;window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('listings',true);
+ if(!map.__bpPublicListingsBound){map.__bpPublicListingsBound=true;bindPublicListingPopup();map.on('moveend',schedulePublicListings)}
+ schedulePublicListings();
+}
+function setPublicListingsOverlayEnabled(on){
+ const map=world?.map;if(!map)throw new Error('BridgePoint globe is not ready');
+ publicListingsOverlayEnabled=!!on;window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('listings',publicListingsOverlayEnabled);
+ if(publicListingsOverlayEnabled){startPublicListings();return true}
+ clearTimeout(opportunityListingTimer);opportunityListingTimer=0;opportunityListingSeq++;deferredWork.delete('public-listings');
+ try{map.getSource('bpListings')?.setData({type:'FeatureCollection',features:[]})}catch(_){}
+ try{if(map.getLayer('gta-property-listings'))map.setLayoutProperty('gta-property-listings','visibility','none')}catch(_){}
+ window.__BP_PUBLIC_LISTINGS_V5906__={enabled:false,features:0,updatedAt:Date.now()};return false;
+}
+window.__BP_TOGGLE_PUBLIC_LISTINGS__=async()=>setPublicListingsOverlayEnabled(!publicListingsOverlayEnabled);
+window.__BP_ENABLE_PUBLIC_LISTINGS__=async()=>setPublicListingsOverlayEnabled(true);
 function bindPublicListingPopup(){
  const map=world?.map;if(!map||map.__bpPublicListingPopupBound)return;map.__bpPublicListingPopupBound=true;
  map.on('click',e=>{
@@ -1578,9 +1673,10 @@ function bindPublicListingPopup(){
  });
 }
 function startPublicListings(){
- const map=world?.map;if(!map||map.__bpPublicListingsBound)return;map.__bpPublicListingsBound=true;
- bindPublicListingPopup();map.on('moveend',schedulePublicListings);
- setTimeout(()=>void refreshPublicListings(),BP_MOBILE?3900:1100);
+ const map=world?.map;if(!map)throw new Error('BridgePoint globe is not ready');
+ publicListingsOverlayEnabled=true;window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('listings',true);
+ if(!map.__bpPublicListingsBound){map.__bpPublicListingsBound=true;bindPublicListingPopup();map.on('moveend',schedulePublicListings)}
+ schedulePublicListings();
 }
 
 
@@ -1704,7 +1800,7 @@ async function start(){
   .then(()=>requireAuthenticatedAppSession())
   .catch(error=>{console.warn('background app auth verification',error);renderAuthState();return null});
  window.__BP_APP_BOOT_PRIORITY_V5906__={version:5906,stage:'starting-public-map',authVerificationBackground:true,startedAt:Date.now()};
- warmLiveWeatherFirstFrameV6134(); const mapReady=bootMap();
+ const mapReady=bootMap();
  const landingPackage=localStorage.getItem('bp_landing_package');
  if(landingPackage){pendingPackageKey=landingPackage;localStorage.removeItem('bp_landing_package')}
  renderWorkspaceSignedOut();bindAppNavigation();bindMapGestureIsolation();
@@ -1715,7 +1811,7 @@ async function start(){
   startupInteractiveUntil=Math.max(startupInteractiveUntil,performance.now()+(BP_MOBILE?3200:1000));
   window.__BP_INTERACTION_PRIORITY_UNTIL__=startupInteractiveUntil;
   bindPerformanceGovernor();bindParcelClicks();bindMapEngagement();bindMeasureTool();
-  startRuntimeTransport();startOpportunityBuildings();startPublicListings();
+  startRuntimeTransport();
   void authReady.then(()=>{if(authSession?.access_token)void loadWorkspace()}).catch(()=>{});
   setTimeout(()=>void loadPackageCatalog(),BP_MOBILE?1800:260);
   setTimeout(()=>void loadStatus(),BP_MOBILE?2200:380);

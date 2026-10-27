@@ -9,7 +9,7 @@ const home=!!$('#previewMap')&&!$('#liveMap');
 const mapHost=home?$('.preview'):document.querySelector('.map-surface.active')||$('.map-surface');
 const appMap=$('#liveMap');
 let map=null,idleTimer=0,moveUntil=0,selected={id:null,label:'',feature:null,coordinates:null},activePanel='ai',metricsLoading=null,asking=false,searchVisible=true;
-let listingLoading=null,listingSummaryCache=null,listingSummaryAt=0,listingFeaturesCache=[],listingOverlayOn=true,listingMapTimer=0,listingLastViewportAt=0,listingQueryValue='',listingSelectedId=null,listingRefreshTimer=0;
+let listingLoading=null,listingSummaryCache=null,listingSummaryAt=0,listingFeaturesCache=[],listingOverlayOn=false,listingMapTimer=0,listingLastViewportAt=0,listingQueryValue='',listingSelectedId=null,listingRefreshTimer=0;
 const SLOT_INFO={
  ai:['BRIDGEPOINT AI','Ask a question about this selected property.'],
  xray:['X-RAY + INTERIOR','Source-backed parts, floors and plans only. No fabricated rooms.'],
@@ -27,6 +27,15 @@ const SLOT_INFO={
 function node(tag,cls,html){const n=document.createElement(tag);if(cls)n.className=cls;if(html!==undefined)n.innerHTML=html;return n}
 function addClass(el,cls){if(el)el.classList.add(cls)}
 function setDockMaximized(on){const d=$('#bpv-dock'),b=$('[data-bpv-dock-expand]');if(!d)return;d.classList.toggle('bpv-dock-maximized',!!on);if(b){b.textContent=on?'RESTORE ↘':'MAXIMIZE ↗';b.setAttribute('aria-pressed',String(!!on))}}
+function showActionNotice(message){
+ const info=$('#bpv-more-info');if(info)info.open=true;
+ const slot=$('#bpv-status-panel-slot')||$('#bpv-external-tools-slot')||$('#bpv-dock-actions');
+ if(!slot)return;
+ let n=$('#bpv-action-feedback');
+ if(!n){n=node('div','bpv-action-feedback');n.id='bpv-action-feedback';n.setAttribute('role','status');n.style.cssText='padding:10px 12px;margin:6px 0;border:1px solid rgba(255,174,112,.42);border-radius:10px;background:rgba(45,23,13,.82);color:#ffe2cc;font:600 11px/1.45 system-ui,sans-serif;overflow-wrap:anywhere';slot.prepend(n)}
+ n.textContent=String(message||'BridgePoint could not complete that action.');n.hidden=false;
+}
+window.__BP_SHOW_ACTION_NOTICE__=showActionNotice;
 function closePanel(){const p=$('#bpv-sidecar');if(p){p.hidden=true;p.removeAttribute('data-panel')}document.body.classList.remove('bpv-panel-open');const rail=$('#bpv-mapkey-rail');if(rail)rail.setAttribute('aria-expanded','false');setDockMaximized(false)}
 function openPanel(name){
  const p=$('#bpv-sidecar');if(!p)return;
@@ -121,7 +130,14 @@ function makePanel(){
  p.querySelectorAll('[data-bpv-prompt]').forEach(b=>b.addEventListener('click',()=>{$('#bpv-ai-question').value=b.dataset.bpvPrompt;openPanel('ai')}));
  $('#bpv-ai-form').addEventListener('submit',e=>{e.preventDefault();void askBridgePoint()});
  $('#bpv-listings-search')?.addEventListener('submit',e=>{e.preventDefault();listingQueryValue=$('#bpv-listings-search input')?.value?.trim()||'';void loadListings(true,listingQueryValue)});
- $('#bpv-listings-overlay-toggle')?.addEventListener('click',()=>{listingOverlayOn=!listingOverlayOn;setListingOverlay(listingOverlayOn);const b=$('#bpv-listings-overlay-toggle');if(b){b.textContent='LISTING MAP OVERLAY · '+(listingOverlayOn?'ON':'OFF');b.setAttribute('aria-pressed',String(listingOverlayOn))}if(listingOverlayOn)void loadListings(true,listingQueryValue)});
+ $('#bpv-listings-overlay-toggle')?.addEventListener('click',()=>{
+  listingOverlayOn=!listingOverlayOn;
+  window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('listings',listingOverlayOn);
+  setListingOverlay(listingOverlayOn);
+  const b=$('#bpv-listings-overlay-toggle');
+  if(b){b.textContent='LISTING MAP OVERLAY · '+(listingOverlayOn?'ON':'OFF');b.setAttribute('aria-pressed',String(listingOverlayOn))}
+  if(listingOverlayOn)void loadListings(true,listingQueryValue);
+ });
  $('#bpv-whole-earth').addEventListener('click',wholeEarth);
  return p;
 }
@@ -234,24 +250,59 @@ function makeTopBarAndDock(){
   if(a==='premium'){document.querySelector('#landingFreePremiumTools,#appFreePremiumTools')?.click();return}
   if(a==='boundaryviewer'){
    const api=window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5405__;
-   if(api&&typeof api.open==='function')void api.open('public').catch(e=>console.warn('BridgePoint public parcel viewer unavailable',e));
-   else console.warn('BridgePoint public parcel viewer is not ready yet');
+   if(api&&typeof api.open==='function')void Promise.resolve(api.open('public')).catch(e=>{console.warn('BridgePoint public parcel viewer unavailable',e);showActionNotice('Public Parcel Viewer failed to open: '+String(e?.message||e))});
+   else showActionNotice('Public Parcel Viewer is still initializing. Wait for the map layers to load, then press the button again.');
    return;
   }
   if(a==='parcels'){toggleParcelBoundaries();return}
+  if(a==='opportunities'){
+   openPanel('opportunities');
+   const fn=home?window.__BP_LANDING_TOGGLE_OPPORTUNITIES__:window.__BP_TOGGLE_OPPORTUNITIES__;
+   if(typeof fn!=='function'){showActionNotice('Opportunity overlay control is still initializing. Press the button again after the globe finishes loading.');return}
+   b.disabled=true;
+   void Promise.resolve().then(()=>fn()).then(on=>{
+    b.classList.toggle('active',!!on);b.setAttribute('aria-pressed',String(!!on));
+    showActionNotice(on?'Opportunity markers are on. Press Opportunities again to turn them off.':'Opportunity markers are off.');
+   }).catch(e=>{console.warn('BridgePoint opportunity overlay',e);showActionNotice('Opportunity overlay failed: '+String(e?.message||e))}).finally(()=>{b.disabled=false});
+   return;
+  }
   if(a==='listings'){openPanel('listings');return}
-  if(a==='worldchanges'){setDockMaximized(true);void openWorldChanges();return}
-  if(a==='weatherfx'){setDockMaximized(true);void openRealWorldEffects(false);return}
-  if(a==='windfx'){setDockMaximized(true);void openVolumetricFields(true).catch(e=>console.warn('BridgePoint 3D wind unavailable',e));return}
-  if(a==='volumetric'){setDockMaximized(true);void openVolumetricFields().catch(e=>console.warn('BridgePoint volumetric fields unavailable',e));return}
-  if(a==='motion'){openPanel('controls');window.__BP_GLOBAL_MOTION_V5926__?.open?.();return}
+  if(a==='worldchanges'){setDockMaximized(true);void openWorldChanges().catch(e=>{console.warn('BridgePoint world history unavailable',e);showActionNotice('30-Day History could not open: '+String(e?.message||e))});return}
+  if(a==='weatherfx'){
+   setDockMaximized(true);
+   const activate=async()=>{
+    let on=false;
+    if(home){
+     const toggler=window.__BP_LANDING_TOGGLE_WEATHER__;
+     if(typeof toggler==='function')on=await toggler();
+     else if(typeof window.__BP_LANDING_ENABLE_WEATHER__==='function'){await window.__BP_LANDING_ENABLE_WEATHER__();on=true}
+    }else{
+     const toggler=window.__BP_TOGGLE_LIVE_WEATHER__;
+     if(typeof toggler==='function')on=await toggler();
+     else if(typeof window.__BP_ENABLE_LIVE_WEATHER__==='function'){await window.__BP_ENABLE_LIVE_WEATHER__();on=true}
+    }
+    if(on)await openRealWorldEffects(false);
+    return on;
+   };
+   void activate().then(on=>{b.classList.toggle('active',!!on);b.setAttribute('aria-pressed',String(!!on));showActionNotice(on?'Weather data and effects are enabled. Press Weather FX again to turn weather data off.':'Weather data is off.')})
+    .catch(e=>{console.warn('BridgePoint Weather FX unavailable',e);showActionNotice('Weather FX could not open: '+String(e?.message||e))});return;
+  }
+  if(a==='windfx'){
+   setDockMaximized(true);
+   void toggleWindAndDroneField().then(on=>{
+    b.classList.toggle('active',!!on);b.setAttribute('aria-pressed',String(!!on));
+    showActionNotice(on?'Wind flow is on. Drone controls remain in the Wind + Drone panel.':'Wind flow is off.');
+   }).catch(e=>{console.warn('BridgePoint 3D wind unavailable',e);showActionNotice('Wind + Drone fields could not open: '+String(e?.message||e))});return;
+  }
+  if(a==='volumetric'){setDockMaximized(true);void openVolumetricFields().catch(e=>{console.warn('BridgePoint volumetric fields unavailable',e);showActionNotice('Wind / RF Fields could not open: '+String(e?.message||e))});return}
+  if(a==='motion'){openPanel('controls');try{const motion=window.__BP_GLOBAL_MOTION_V5926__;if(typeof motion?.open==='function')motion.open();else showActionNotice('Orbit & Motion controls are not ready. Reload the world after the map has finished loading.')}catch(e){showActionNotice('Orbit & Motion failed: '+String(e?.message||e))}return}
   if(a==='satellite'){
    const current=window.__BP_SPECTRAL_IMAGERY_V5931__;
-   if(current?.open){current.open();return}
+   if(current?.open){try{current.open();}catch(e){showActionNotice('Satellite imagery controls failed: '+String(e?.message||e))}return}
    const surfaceWorld=home?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
    void import('./world-v2300-spectral-imagery.js?v=5934-world-controls')
-    .then(m=>{const api=window.__BP_SPECTRAL_IMAGERY_V5931__||m.initSpectralImagery(surfaceWorld);api?.open?.()})
-    .catch(e=>console.warn('BridgePoint satellite filters unavailable',e));
+    .then(m=>{const api=window.__BP_SPECTRAL_IMAGERY_V5931__||m.initSpectralImagery(surfaceWorld);if(typeof api?.open!=='function')throw new Error('Satellite imagery controls are not ready');api.open()})
+    .catch(e=>{console.warn('BridgePoint satellite filters unavailable',e);showActionNotice('Satellite imagery controls could not open: '+String(e?.message||e))});
    return;
   }
   openPanel(a)
@@ -689,43 +740,51 @@ async function loadListings(force=false,queryOverride,selectedId=null){
  return listingLoading;
 }
 function toggleParcelBoundaries(){
- const native=document.querySelector('.map-tools [data-layer="parcels"]');
- if(native&&!home){native.click();const on=native.classList.contains('active');$$('[data-bpv-action="parcels"]').forEach(b=>{b.classList.toggle('active',on);b.setAttribute('aria-pressed',String(on))});return}
- const m=map||findMap(),ids=['gta-parcel','gta-parcel-glow','gta-parcel-halo'].filter(id=>m?.getLayer?.(id));
+ const m=map||findMap(),ids=['gta-parcel','gta-parcel-glow','gta-parcel-halo','bp-public-auto-parcel-line-v5933','bp-public-auto-parcel-glow-v5933'].filter(id=>m?.getLayer?.(id));
  if(ids.length){
   const currentlyOn=ids.some(id=>(m.getLayoutProperty(id,'visibility')||'visible')!=='none'),next=!currentlyOn;
   ids.forEach(id=>{try{m.setLayoutProperty(id,'visibility',next?'visible':'none')}catch(_){}});
+  window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('parcels',next);
   window.__BP_PARCEL_LAYER_STATE_V5927__={enabled:next,layerIds:ids,updatedAt:Date.now()};
   $$('[data-bpv-action="parcels"]').forEach(b=>{b.classList.toggle('active',next);b.setAttribute('aria-pressed',String(next))});
   return;
  }
- const api=window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5577__;
- if(api?.open){api.open('public');return}
- const button=document.querySelector('#bpLandingBoundaryOpen5403,#bpAppBoundaryOpen5403');
- if(button){button.click();return}
+ showActionNotice('Public parcel lines are still initializing. Wait for parcel tiles to load, then press Parcel Lines again. Use Public Parcel Viewer for the full-screen boundary atlas.');
 }
 async function openWorldChanges(){
  const m=map||findMap(),world=home?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
  let api=window.__BP_WORLD_TIME_SLIDER_V5908__;
  if(!api||api.map!==m){const mod=await import('./world-v2300-time-slider.js?v=5981-bottom-dock-fix');api=mod.initWorldTimeSlider(world||{map:m},rpc);if(api)window.__BP_WORLD_TIME_SLIDER_V5908__=api}
- if(api?.open)api.open();else openPanel('listings');
+ if(api?.open)api.open();else throw new Error('The 30-day timeline component did not initialize.');
 }
 async function openRealWorldEffects(initialWind=false){
  const world=home?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
  if(!world?.map)throw new Error('BridgePoint globe not ready');
  const mod=await import('./bridgepoint-realworld-effects-v5927.js?v=5981-weather-interactions');
- const api=mod.initBridgePointRealWorldEffects(world,rpc);await api?.open?.({initialWind});
+ const api=mod.initBridgePointRealWorldEffects(world,rpc);if(typeof api?.open!=='function')throw new Error('Weather FX panel did not initialize');await api.open({initialWind});
 }
 async function openVolumetricFields(initialWind=false){
  const world=home?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
  if(!world?.map)throw new Error('BridgePoint globe not ready');
  const mod=await import('./bridgepoint-volumetric-fields-v5978.js?v=5992-expanded-field-panel');
- const api=mod.initBridgePointVolumetricFields(world);api?.open?.();
- if(initialWind)await api?.setWind?.(true);
+ const api=mod.initBridgePointVolumetricFields(world);if(typeof api?.open!=='function')throw new Error('Volumetric field panel did not initialize');api.open();
+ if(initialWind){if(typeof api?.setWind!=='function')throw new Error('Wind controls did not initialize');await api.setWind(true)}
+}
+async function toggleWindAndDroneField(){
+ const world=home?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
+ if(!world?.map)throw new Error('BridgePoint globe not ready');
+ const mod=await import('./bridgepoint-volumetric-fields-v5978.js?v=5992-expanded-field-panel');
+ let api=window.__BP_VOLUMETRIC_FIELDS_V5992__;
+ if(!api||api.map!==world.map)api=mod.initBridgePointVolumetricFields(world);
+ if(typeof api?.setWind!=='function')throw new Error('Wind controls did not initialize');
+ if(typeof api?.open==='function')api.open();
+ const on=!Boolean(api.state?.windOn);
+ await api.setWind(on);
+ return on;
 }
 function toggleSearch(){
  const input=home?$('#landingPropertySearchInput'):$('#publicSearchInput'),form=home?$('#landingPropertySearch'):$('#publicSearchForm');
- if(!form||!input)return;
+ if(!form||!input){showActionNotice('Property search is not available in this view. Reload BridgePoint and try again.');return}
  form.hidden=false;searchVisible=true;
  try{input.focus({preventScroll:true})}catch(_){}
 }

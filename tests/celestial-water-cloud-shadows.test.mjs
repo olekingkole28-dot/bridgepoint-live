@@ -343,7 +343,7 @@ test('new rain/lightning and global source markers stay separate from legacy eff
   assert.match(app, /sourceWeatherOverlaysPreserved:true/);
   assert.match(landing, /legacyCinematicFxDisabled:true/);
   assert.match(listingView, /BP_LISTINGS_MONEY_V6130/);
-  assert.match(listingView, /listingOverlayOn=true/);
+  assert.match(listingView, /listingOverlayOn=false/);
 });
 
 test('NOAA radar is bright, source-detailed, pinned below 3D structures and animated at every zoom', () => {
@@ -388,7 +388,7 @@ test('public cyclone fallback is fetched concurrently with edge weather', () => 
 test('homepage opportunities load on first globe view and use the deployed public RPC', () => {
   assert.match(landing, /rpc\('bridgepoint_public_opportunity_viewport_v5907'/);
   assert.doesNotMatch(landing, /bridgepoint_public_opportunity_viewport_v5906/);
-  assert.match(landing, /window\.__BP_LANDING_WORLD__=world;\s*startLandingOpportunities\(world\);/);
+  assert.match(landing, /window\.__BP_LANDING_ENABLE_OPPORTUNITIES__=async\(\)=>setLandingOpportunitiesEnabled\(world,true\);/);
   assert.match(map, /id:'gta-opportunity-dots',type:'symbol',source:'bpOpportunities',minzoom:0,maxzoom:4\.5/);
 });
 

@@ -955,7 +955,7 @@ export function initWorld(options={}){
  function scheduleLivingWorld(delay=MOBILE?1200:120){clearTimeout(map.__bpLivingTimer);if(map.getZoom()<activeWorldLodProfile().treeMin)return;map.__bpLivingTimer=setTimeout(()=>{if(!moving)livingWorld()},delay)}
  function lights(delay=MOBILE?1450:120){clearTimeout(lightTimer);lightTimer=setTimeout(()=>{if(moving)return;map.getSource('streetlights')?.setData(roadLights(map));updateWorldLight()},delay)}
  function scheduleExact(delay=MOBILE?420:70){clearTimeout(detailTimer);if(PUBLIC_TECH_FAST){window.__BP_EXACT_DETAIL_STATE__={status:'interaction-only-tech-fast',visible:false,worldOverlay:false,updatedAt:Date.now()};return}detailTimer=setTimeout(()=>{if(!moving)exact()},delay)}
- function startParcelFlow(){clearInterval(parcelPulseTimer);parcelPulseTimer=0;layerState.parcels=false;for(const id of ['gta-parcel-glow','gta-parcel-halo','gta-parcel'])vis(map,id,false)}
+ function startParcelFlow(){clearInterval(parcelPulseTimer);parcelPulseTimer=0;layerState.parcels=true;for(const id of ['gta-parcel-glow','gta-parcel-halo','gta-parcel','bp-public-auto-parcel-glow-v5933','bp-public-auto-parcel-line-v5933'])vis(map,id,true)}
  function bridgePointDomesticCenter(){
   const p=map.getCenter(),x=p.lng,y=p.lat;
   return (x>=-125&&x<=-66&&y>=24&&y<=50)||(x>=-170&&x<=-129&&y>=51&&y<=72)||(x>=-161&&x<=-154&&y>=18&&y<=23)||(x>=-68.2&&x<=-64.3&&y>=17.5&&y<=19)||(x>=144&&x<=146&&y>=13&&y<=21)||(x>=-171&&x<=-168&&y>=-15&&y<=-10);
@@ -993,7 +993,7 @@ export function initWorld(options={}){
    return ready
   }catch(_){return false}
  }
- function syncParcelShells(){layerState.parcels=false;for(const id of ['gta-parcel-glow','gta-parcel-halo','gta-parcel'])vis(map,id,false);return false}
+ function syncParcelShells(){const visible=!!layerState.parcels;for(const id of ['gta-parcel-glow','gta-parcel-halo','gta-parcel','bp-public-auto-parcel-glow-v5933','bp-public-auto-parcel-line-v5933'])vis(map,id,visible);return visible}
  function syncWorldLodLayerRanges(lod=activeWorldLodProfile()){
    const styleLayers=map.getStyle?.()?.layers;
    if(!Array.isArray(styleLayers)||!styleLayers.length)return false;
@@ -1099,7 +1099,6 @@ export function initWorld(options={}){
    window.__BP_REALISM_RENDER_STATE_V5910__={enabled:true,source:realismSource,closeMaterials:closeRealism,shadows:detailSettled&&z>=11.2,roofMaterials:true,floorBands:false,nightWindows:!!window.__BP_WORLD_LIGHT__?.night&&z>=(MOBILE?17.6:17.1),updatedAt:Date.now()};
   }
   vis(map,'gta-opportunity-buildings',z>=11.8); vis(map,'gta-opportunity-dots',true); vis(map,'gta-opportunity-label',true);
-  syncParcelShells();
   window.__BP_BUILDING_SHELL_MODE__={
    authoritative:bpReady?'BRIDGEPOINT_PUBLIC_BUILDINGS_V5019':(cityReady?'BRIDGEPOINT_CITY_STRUCTURES_V5371':'GLOBAL_CONTEXT_FALLBACK'),
    cityScale3D:wantCity,
@@ -1274,7 +1273,7 @@ export function initWorld(options={}){
   const z=map.getZoom(),keepTreeLod=z>=12.6&&!!map.getSource('bpTreeLod');vis(map,'gta-bp-tree-crowns',keepTreeLod);vis(map,'gta-bp-tree-trunks',keepTreeLod&&z>=13.6);
   window.__BP_FINE_DETAIL_MODE__={enabled:false,reason:'performance-first buildings-weather-boundaries',treeLodRetained:keepTreeLod,treeLodSource:'bpTreeLod',updatedAt:Date.now()}
  }
- function toggleLayer(name,on){if(name==='parcels'){layerState.parcels=false;syncParcelShells();return}if(name==='buildings'){layerState.buildings=!!on;if(!on){for(const id of ['gta-context-building-footprints','gta-context-building-shadow','gta-context-buildings','gta-context-facade-detail','gta-context-building-parts','gta-context-roofs','gta-context-night-windows','gta-bp-building-shadow','gta-bp-buildings','gta-bp-facade-detail','gta-bp-roofs','gta-bp-building-edge','gta-bp-night-windows','gta-exact-building-shadow','gta-exact-building','gta-exact-facade-detail','gta-exact-roof','gta-exact-night-windows','gta-building-outline'])vis(map,id,false)}else syncBuildingShells()}}
+ function toggleLayer(name,on){if(name==='parcels'){layerState.parcels=!!on;syncParcelShells();return}if(name==='buildings'){layerState.buildings=!!on;if(!on){for(const id of ['gta-context-building-footprints','gta-context-building-shadow','gta-context-buildings','gta-context-facade-detail','gta-context-building-parts','gta-context-roofs','gta-context-night-windows','gta-bp-building-shadow','gta-bp-buildings','gta-bp-facade-detail','gta-bp-roofs','gta-bp-building-edge','gta-bp-night-windows','gta-exact-building-shadow','gta-exact-building','gta-exact-facade-detail','gta-exact-roof','gta-exact-night-windows','gta-building-outline'])vis(map,id,false)}else syncBuildingShells()}}
  function resultRows(rows){const root=document.getElementById('mapResults');if(!root)return;root.innerHTML='';for(const r of rows||[]){const b=document.createElement('button');b.type='button';b.className='data-card';b.innerHTML=`<b>${String(r.full_address||'Property').replace(/[<>&]/g,'')}</b><small>${[r.municipality,r.state_code,r.parcel_number].filter(Boolean).join(' · ')}</small>`;b.onclick=()=>{root.innerHTML='';if(Number.isFinite(+r.longitude)&&Number.isFinite(+r.latitude))map.easeTo({center:[+r.longitude,+r.latitude],zoom:17,pitch:62,bearing:-18,duration:LOW?320:620})};root.appendChild(b)}}
 
  function walkAngleDiff(a,b){let d=((a-b+540)%360)-180;return d}
