@@ -749,11 +749,7 @@ function toggleParcelBoundaries(){
   $$('[data-bpv-action="parcels"]').forEach(b=>{b.classList.toggle('active',next);b.setAttribute('aria-pressed',String(next))});
   return;
  }
- const api=window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5577__;
- if(api?.open){api.open('public');return}
- const button=document.querySelector('#bpLandingBoundaryOpen5403,#bpAppBoundaryOpen5403');
- if(button){button.click();return}
- showActionNotice('Parcel-boundary tools are not ready and no compatible parcel layer is loaded yet. Try again after the map finishes loading.');
+ showActionNotice('Public parcel lines are still initializing. Wait for parcel tiles to load, then press Parcel Lines again. Use Public Parcel Viewer for the full-screen boundary atlas.');
 }
 async function openWorldChanges(){
  const m=map||findMap(),world=home?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
