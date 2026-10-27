@@ -4,21 +4,29 @@ if(window.__BP_DRONE_AWARENESS_V1__)return;
 const VERSION=1;
 const SOURCE='bp-drone-awareness-source-v1';
 const LAYER='bp-drone-awareness-cells-v1';
-const MIN_GROUP=3;
+const MIN_GROUP=1;
+const GRID_DEGREES=2;
 const REGION_RADIUS_NM=250;
-const REFRESH_MS=60000;
+const REFRESH_MS=180000;
+const REQUEST_TIMEOUT_MS=9000;
 const SUPPORTED_SOURCE='https://api.adsb.lol/v2/';
 const $=s=>document.querySelector(s);
-const safeNumber=(v, fallback=0)=>Number.isFinite(Number(v))?Number(v):fallback;
 const emptyFeatureCollection=()=>({type:'FeatureCollection',features:[]});
 let map=null,enabled=false,inFlight=false,refreshTimer=0,moveTimer=0,lastFetchAt=0,aborter=null;
 let button=null,waterButton=null,waterApi=null,waterPromise=null,waterEnabled=false,cloudButton=null,cloudApi=null,cloudPromise=null,cloudEnabled=false,pane=null,statusNode=null,summaryNode=null,cellsNode=null,refreshButton=null;
 let emptyModeActive=true,emptyModeMap=null,emptyModeHandler=null,sweepFrame=0;
-const baseLayers=new Set(['gta-bg','gta-water','gta-coast-shadow','gta-coast-edge','gta-coast-foam','gta-landcover','gta-landuse','gta-hillshade']);
+const baseLayers=new Set([
+ 'gta-bg','gta-water','gta-coast-shadow','gta-coast-edge','gta-coast-foam','gta-landcover','gta-landuse','gta-hillshade',
+ 'gta-context-building-footprints','gta-context-building-shadow','gta-context-buildings','gta-context-floor-lines','gta-context-roofs','gta-context-facade-detail','gta-context-building-parts',
+ 'gta-bp-building-shadow','gta-bp-buildings','gta-bp-floor-lines','gta-bp-roofs','gta-bp-facade-detail','gta-bp-building-edge',
+ 'gta-city-buildings','gta-city-floor-lines','gta-city-building-roof-caps','gta-city-roofs','gta-exact-building','gta-exact-roof','gta-exact-floor-lines',
+ 'gta-parcel','gta-parcel-glow','gta-parcel-halo'
+]);
 const allowedCategories=new Set();
+const initialVisibilitySet=new WeakMap();
 const categoryPatterns={
  parcels:/parcel|cadastral|boundary-viewer/i,
- buildings:/gta-(context-building|context-buildings|context-roofs|context-floor|bp-buildings|bp-roofs|bp-floor|bp-facade|city-build|city-roof|exact-building|exact-roof|exact-floor|building-outline)|\bbuilding\b|\broof\b/i,
+ buildings:/^gta-(?:context-building-footprints|context-building-shadow|context-buildings|context-floor-lines|context-roofs|context-facade-detail|context-building-parts|bp-building-shadow|bp-buildings|bp-floor-lines|bp-roofs|bp-facade-detail|bp-building-edge|city-buildings|city-floor-lines|city-building-roof-caps|city-roofs|exact-building|exact-roof|exact-floor-lines)$/i,
  imagery:/gta-(nasa|esri|usgs|oam)|satellite|spectral-imagery|aerial-imagery/i,
  weather:/weather|\bwx\b|wx-|radar|cloud|rain|lightning|storm|cyclone|tornado|hurricane|wildfire|fire-perimeter|precipitation|present-weather/i,
  wind:/wind|volumetric|\brf\b|signal-field|rf-field/i,
@@ -32,6 +40,16 @@ function layerAllowed(id){
  if(baseLayers.has(id)||String(id).startsWith('bp-drone-awareness'))return true;
  for(const category of allowedCategories)if(categoryPatterns[category]?.test(String(id)))return true;
  return false;
+}
+function ensureInitialBaseLayers(){
+ if(!emptyModeMap)return;
+ let seen=initialVisibilitySet.get(emptyModeMap);
+ if(!seen){seen=new Set();initialVisibilitySet.set(emptyModeMap,seen)}
+ let layers=[];try{layers=emptyModeMap.getStyle?.()?.layers||[]}catch(_){return}
+ for(const layer of layers){
+  if(!baseLayers.has(layer.id)||seen.has(layer.id))continue;
+  try{emptyModeMap.setLayoutProperty(layer.id,'visibility','visible');seen.add(layer.id)}catch(_){}
+ }
 }
 function categoryForTarget(target){
  if(!target)return null;
