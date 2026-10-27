@@ -1290,10 +1290,10 @@ jobs:
           test -s site/vendor/maplibre-gl.js
           test -s site/vendor/maplibre-gl.css
           grep -Fq 'landing.css?v=5941-mobile-grid' site/index.html
-          grep -Fq 'bridgepoint-view-v5917.css?v=6200-account-billing' site/index.html
-          grep -Fq 'bridgepoint-view-v5917.css?v=6200-account-billing' site/app/index.html
-          grep -Fq 'bridgepoint-view-v5917.js?v=6200-account-billing' site/app/index.html
-          grep -Fq 'bridgepoint-view-v5917.js?v=6200-account-billing' site/index.html
+          grep -Fq 'bridgepoint-view-v5917.css?v=6201-panel-reveal' site/index.html
+          grep -Fq 'bridgepoint-view-v5917.css?v=6201-panel-reveal' site/app/index.html
+          grep -Fq 'bridgepoint-view-v5917.js?v=6201-panel-reveal' site/app/index.html
+          grep -Fq 'bridgepoint-view-v5917.js?v=6201-panel-reveal' site/index.html
           grep -Fq 'function setDockMaximized(on)' site/bridgepoint-view-v5917.js
           grep -Fq 'document.body.appendChild(keyRail)' site/bridgepoint-view-v5917.js
           grep -Fq 'p.removeAttribute('"'"'data-panel'"'"')' site/bridgepoint-view-v5917.js
