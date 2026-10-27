@@ -33,6 +33,7 @@ const categoryPatterns={
  wind:/wind|volumetric|\brf\b|signal-field|rf-field/i,
  history:/history|world-change|timeline|time-slider/i,
  opportunities:/opportunity/i,
+ listings:/listing/i,
  transport:/road-|bridge-|rail|transportation|transport-mesh/i,
  water:/bp-water-surface|water-surface|waterway-flow|hydrology/i,
  clouds:/cloud-volume|sky-cloud|satellite-cloud|eumetsat-cloud/i
@@ -55,7 +56,7 @@ function ensureInitialBaseLayers(){
 function categoryForTarget(target){
  if(!target)return null;
  const action=String(target.dataset?.bpvAction||'');
- const actionMap={parcels:'parcels',boundaryviewer:'parcels',worldchanges:'history',weatherfx:'weather',windfx:'wind',volumetric:'wind',satellite:'imagery',opportunities:'opportunities',water:'water',clouds:'clouds'};
+ const actionMap={parcels:'parcels',boundaryviewer:'parcels',worldchanges:'history',weatherfx:'weather',windfx:'wind',volumetric:'wind',satellite:'imagery',opportunities:'opportunities',listings:'listings',water:'water',clouds:'clouds'};
  if(actionMap[action])return actionMap[action];
  if(target.dataset?.layer==='parcels')return'parcels';
  if(target.dataset?.layer==='buildings')return'buildings';
