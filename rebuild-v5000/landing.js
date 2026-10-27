@@ -687,7 +687,7 @@ async function initMap(){
   window.__BP_LANDING_ENABLE_WEATHER__=async()=>{
    if(!world?.map)throw new Error('BridgePoint globe is not ready');
    await setLandingWeatherEnabled(world,true);
-   await startLandingNationalWeather(world);
+   void startLandingNationalWeather(world);
    return true;
   };
   window.__BP_LANDING_TOGGLE_WEATHER__=async()=>{
