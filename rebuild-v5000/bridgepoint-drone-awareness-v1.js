@@ -435,6 +435,11 @@ function boot(){
   offlineReceiver:false,
   waterToggle:toggleWater,
   cloudToggle:toggleClouds,
+  allowLayerCategory(category){
+   const key=String(category||'').trim().toLowerCase();
+   if(!categoryPatterns[key])return false;
+   allowedCategories.add(key);hideDefaultOverlays();return true;
+  },
   toggle,
   refresh:()=>refresh(true),
   get state(){return{enabled,mapReady:!!map,zoom:map?.getZoom?.()??null,layerReady:!!map?.getLayer?.(LAYER),emptyModeActive,updatedAt:Date.now()}}
