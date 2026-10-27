@@ -23,6 +23,8 @@ assert.ok(moduleSource.includes('rawRfScanning:false'), 'no raw RF scanner is re
 assert.ok(moduleSource.includes('pilotOrControlStationLocations:false'), 'no operator/control-station location is exposed');
 assert.ok(moduleSource.includes("https://api.adsb.lol/docs/open-data/api/"), 'upstream source is attributed');
 assert.ok(moduleSource.includes('hideDefaultOverlays'), 'startup enters a clean globe state');
+assert.ok(moduleSource.includes("for(const event of ['style.load','idle','moveend','zoomend','rotateend','pitchend'])m.on(event,hideDefaultOverlays)"), 'clean-start guard runs on settled styles/camera events');
+assert.ok(!moduleSource.includes("m.on('styledata',hideDefaultOverlays)"), 'avoid styledata feedback loops while hiding optional layers');
 assert.ok(landingHtml.includes('bridgepoint-drone-awareness-v1.js'), 'homepage loads the module');
 assert.ok(appHtml.includes('bridgepoint-drone-awareness-v1.js'), 'app loads the module');
 assert.ok(view.includes('data-bpv-command-grid="environment"'), 'environment command group exists');
