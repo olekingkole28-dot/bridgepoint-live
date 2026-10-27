@@ -11,7 +11,8 @@ assert.ok(mapSource.includes("paint(map,'gta-water','fill-opacity',sat?1:.97)"),
   'satellite mode must fully mask raster imagery beneath source-water polygons');
 assert.ok(mapSource.includes("map.moveLayer(id,'gta-water')"),
   'satellite rasters must render below water instead of painting across ocean');
-assert.ok(mapSource.includes("setBase('satellite')"), 'land imagery drape must be enabled by default');
+assert.ok(mapSource.includes("setBase('gta')"), 'standard basemap must remain enabled by default');
+assert.ok(mapSource.includes("defaultBase:'gta'") && mapSource.includes('satelliteManualOnly:true'), 'satellite imagery must remain opt-in');
 const mapLines = mapSource.split('\n');
 const waterLine = mapLines.findIndex(line => line.includes("{id:'gta-water'"));
 const esriLine = mapLines.findIndex(line => line.includes("{id:'gta-esri'"));
