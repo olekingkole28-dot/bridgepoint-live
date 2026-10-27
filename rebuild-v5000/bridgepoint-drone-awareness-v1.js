@@ -12,7 +12,7 @@ const $=s=>document.querySelector(s);
 const safeNumber=(v, fallback=0)=>Number.isFinite(Number(v))?Number(v):fallback;
 const emptyFeatureCollection=()=>({type:'FeatureCollection',features:[]});
 let map=null,enabled=false,inFlight=false,refreshTimer=0,moveTimer=0,lastFetchAt=0,aborter=null;
-let button=null,pane=null,statusNode=null,summaryNode=null,cellsNode=null,refreshButton=null;
+let button=null,waterButton=null,waterApi=null,waterPromise=null,waterEnabled=false,pane=null,statusNode=null,summaryNode=null,cellsNode=null,refreshButton=null;
 let emptyModeActive=true,emptyModeMap=null,emptyModeHandler=null,sweepFrame=0;
 const baseLayers=new Set(['gta-bg','gta-water','gta-coast-shadow','gta-coast-edge','gta-coast-foam','gta-landcover','gta-landuse','gta-hillshade']);
 const allowedCategories=new Set();
@@ -24,7 +24,8 @@ const categoryPatterns={
  wind:/wind|volumetric|\brf\b|signal-field|rf-field/i,
  history:/history|world-change|timeline|time-slider/i,
  opportunities:/opportunity/i,
- transport:/road-|bridge-|rail|transportation|transport-mesh/i
+ transport:/road-|bridge-|rail|transportation|transport-mesh/i,
+ water:/bp-water-surface|water-surface|waterway-flow|hydrology/i
 };
 function layerAllowed(id){
  if(baseLayers.has(id)||String(id).startsWith('bp-drone-awareness'))return true;
@@ -34,7 +35,7 @@ function layerAllowed(id){
 function categoryForTarget(target){
  if(!target)return null;
  const action=String(target.dataset?.bpvAction||'');
- const actionMap={parcels:'parcels',boundaryviewer:'parcels',worldchanges:'history',weatherfx:'weather',windfx:'wind',volumetric:'wind',satellite:'imagery',opportunities:'opportunities'};
+ const actionMap={parcels:'parcels',boundaryviewer:'parcels',worldchanges:'history',weatherfx:'weather',windfx:'wind',volumetric:'wind',satellite:'imagery',opportunities:'opportunities',water:'water'};
  if(actionMap[action])return actionMap[action];
  if(target.dataset?.layer==='parcels')return'parcels';
  if(target.dataset?.layer==='buildings')return'buildings';
@@ -252,6 +253,42 @@ function createPane(panel){
  p.append(source);panel.append(p);writeSummary(0,0);
  return p;
 }
+function updateWaterButton(){
+ if(!waterButton)return;
+ waterButton.classList.toggle('active',waterEnabled);
+ waterButton.setAttribute('aria-pressed',String(waterEnabled));
+ const label=waterButton.querySelector('.bpv-command-label');if(label)label.textContent=waterEnabled?'Water + Flow · ON':'Water + Flow';
+ waterButton.title=waterEnabled?'Turn off the animated water/hydrology surface':'Load the optional water/hydrology surface';
+}
+async function toggleWater(){
+ if(!map)throw new Error('BridgePoint globe is not ready');
+ if(waterEnabled){
+  waterEnabled=false;
+  if(waterApi){waterApi.active=false;waterApi.setEnabled?.(false)}
+  try{if(map.getLayer('bp-water-surface-gpu-v6123'))map.setLayoutProperty('bp-water-surface-gpu-v6123','visibility','none')}catch(_){}
+  updateWaterButton();return false;
+ }
+ if(!waterApi){
+  if(!waterPromise){
+   const world={map};
+   waterPromise=import('./world-v2300-water.js?v=6194-stable-water-low-cost')
+    .then(m=>{
+     const api=m.initWaterEngine(world,{surface:location.pathname.startsWith('/app/')?'app':'landing'});
+     if(!api)throw new Error('Water surface engine did not initialize');
+     waterApi=api;
+     if(location.pathname.startsWith('/app/'))window.__BP_WATER_ENGINE_APP_V6123__=api;
+     else window.__BP_WATER_ENGINE_LANDING_V6123__=api;
+     return api;
+    }).finally(()=>{waterPromise=null});
+  }
+  await waterPromise;
+ }
+ if(!waterApi)throw new Error('Water surface engine unavailable');
+ waterEnabled=true;waterApi.active=true;
+ if(typeof waterApi.setEnabled==='function')waterApi.setEnabled(true);
+ try{if(map.getLayer('bp-water-surface-gpu-v6123'))map.setLayoutProperty('bp-water-surface-gpu-v6123','visibility','visible')}catch(_){}
+ updateWaterButton();return true;
+}
 function addButton(){
  const grid=$('[data-bpv-command-grid="environment"]');if(!grid)return false;
  let b=grid.querySelector('[data-bp-drone-awareness-button="1"]');
@@ -262,19 +299,34 @@ function addButton(){
   b.innerHTML='<span class="bpv-command-icon" aria-hidden="true">⌁</span><span class="bpv-command-label">Drone Awareness</span>';
   b.addEventListener('click',toggle);grid.append(b);
  }
- button=b;updateButton();return true;
+ button=b;updateButton();
+ let wb=grid.querySelector('[data-bp-water-flow-button="1"]');
+ if(!wb){
+  wb=element('button','bpv-command-btn','');wb.type='button';wb.dataset.bpWaterFlowButton='1';wb.dataset.bpvAction='water';
+  wb.title='Load or hide the optional water/hydrology surface';
+  wb.innerHTML='<span class="bpv-command-icon" aria-hidden="true">≈</span><span class="bpv-command-label">Water + Flow</span>';
+  wb.addEventListener('click',async()=>{
+   wb.disabled=true;
+   try{await toggleWater();window.__BP_SHOW_ACTION_NOTICE__?.(waterEnabled?'Water + Flow is enabled.':'Water + Flow is off.')}
+   catch(e){window.__BP_SHOW_ACTION_NOTICE__?.('Water + Flow failed: '+String(e?.message||e));console.warn('BridgePoint Water + Flow',e)}
+   finally{wb.disabled=false;updateWaterButton()}
+  });
+  grid.append(wb);
+ }
+ waterButton=wb;updateWaterButton();return true;
 }
 function hideDefaultOverlays(){
  if(!emptyModeActive||!emptyModeMap||sweepFrame)return;
  sweepFrame=requestAnimationFrame(()=>{
   sweepFrame=0;if(!emptyModeActive||!emptyModeMap)return;
-  try{
-   const layers=emptyModeMap.getStyle?.()?.layers||[];
-   for(const layer of layers){
-    if(layerAllowed(layer.id))continue;
+  let layers=[];
+  try{layers=emptyModeMap.getStyle?.()?.layers||[]}catch(_){return}
+  for(const layer of layers){
+   if(layerAllowed(layer.id))continue;
+   try{
     if((emptyModeMap.getLayoutProperty(layer.id,'visibility')||'visible')!=='none')emptyModeMap.setLayoutProperty(layer.id,'visibility','none');
-   }
-  }catch(_){}
+   }catch(_){}
+  }
  });
 }
 function stopEmptyMode(){
@@ -334,6 +386,7 @@ function boot(){
   pilotOrControlStationLocations:false,
   rawRfScanning:false,
   offlineReceiver:false,
+  waterToggle:toggleWater,
   toggle,
   refresh:()=>refresh(true),
   get state(){return{enabled,mapReady:!!map,zoom:map?.getZoom?.()??null,layerReady:!!map?.getLayer?.(LAYER),emptyModeActive,updatedAt:Date.now()}}
