@@ -43,10 +43,11 @@ function openPanel(name){
  activePanel=name;
  p.hidden=false;p.dataset.panel=name;document.body.classList.add('bpv-panel-open');setDockMaximized(name!=='mapkey');
  const rail=$('#bpv-mapkey-rail');if(rail)rail.setAttribute('aria-expanded',String(name==='mapkey'));
- const titles={ai:'BRIDGEPOINT AI',opportunities:'BRIDGEPOINT OPPORTUNITIES',listings:'BRIDGEPOINT LISTINGS',mapkey:'BRIDGEPOINT MAP KEY',metrics:'BRIDGEPOINT METRICS',property:'BRIDGEPOINT PROPERTY',controls:'BRIDGEPOINT CONTROLS',explore:'EXPLORE BRIDGEPOINT'};const title=$('#bpv-sidecar-title');if(title)title.textContent=titles[name]||'BRIDGEPOINT WORLD';
+ const titles={ai:'BRIDGEPOINT AI',opportunities:'BRIDGEPOINT OPPORTUNITIES',listings:'BRIDGEPOINT LISTINGS',mapkey:'BRIDGEPOINT MAP KEY',metrics:'BRIDGEPOINT METRICS',property:'BRIDGEPOINT PROPERTY',controls:'BRIDGEPOINT CONTROLS',account:'ACCOUNT & BILLING',explore:'EXPLORE BRIDGEPOINT'};const title=$('#bpv-sidecar-title');if(title)title.textContent=titles[name]||'BRIDGEPOINT WORLD';
  p.querySelectorAll('[data-bpv-panel]').forEach(b=>{const on=b.dataset.bpvPanel===name;b.classList.toggle('active',on);b.setAttribute('aria-pressed',on?'true':'false')});
  p.querySelectorAll('[data-bpv-pane]').forEach(s=>{s.hidden=s.dataset.bpvPane!==name});
  if(name==='metrics')void loadMetrics();
+ if(name==='account')void loadAccountBilling();
  if(name==='listings')void loadListings(true);
  if(name==='opportunities'){void window.__BP_MAP_KEY_REFRESH_V5920__?.(true);void loadOpportunityBreakdown()}
  if(name==='mapkey')void window.__BP_MAP_KEY_REFRESH_V5920__?.(true);
@@ -92,7 +93,8 @@ function makePanel(){
   '<button type="button" data-bpv-panel="metrics">LIVE METRICS</button>'+
   '<button type="button" data-bpv-panel="property">PROPERTY</button>'+
   (home?'<button type="button" data-bpv-panel="explore">EXPLORE</button>':'')+
-  '<button type="button" data-bpv-panel="controls">CONTROLS</button></nav>'+
+  '<button type="button" data-bpv-panel="controls">CONTROLS</button>'+
+  '<button type="button" data-bpv-panel="account">ACCOUNT & BILLING</button></nav>'+
   '<section data-bpv-pane="ai" hidden><div class="bpv-ai-intro"><span class="bpv-live-dot"></span><div><b>Ask BridgePoint AI</b><small>Answers use BridgePoint facts and authorized property intelligence. Unknown information is labeled—not guessed.</small></div></div>'+
   '<div class="bpv-ai-shortcuts"><button type="button" data-bpv-prompt="What is BridgePoint and what can it do?">ABOUT BRIDGEPOINT</button><button type="button" data-bpv-prompt="What global property coverage is live right now?">GLOBAL COVERAGE</button><button type="button" data-bpv-prompt="What intelligence is available for the selected property?">THIS PROPERTY</button></div>'+
   '<form id="bpv-ai-form"><label for="bpv-ai-question">YOUR QUESTION</label><textarea id="bpv-ai-question" maxlength="500" rows="3" placeholder="Ask BridgePoint anything about this property, coverage, data, tools or the platform…"></textarea><div class="bpv-ai-form-foot"><small>BridgePoint answers · source-aware</small><button type="submit" id="bpv-ai-submit">ASK BRIDGEPOINT</button></div></form>'+
@@ -123,6 +125,14 @@ function makePanel(){
   '<p id="bpv-listings-note" class="bpv-data-note">Only records currently materialized into BridgePoint are shown. Source freshness, photo provenance, and address accuracy stay visible.</p></section>'+
   '<section data-bpv-pane="controls" hidden><div class="bpv-pane-title"><b>BridgePoint Controls</b><small>Layers and map actions live here so the globe remains unobstructed.</small></div><div id="bpv-controls-mount"></div>'+
   '<button type="button" class="bpv-wide-action" id="bpv-whole-earth">RETURN TO WHOLE EARTH</button></section>'+
+  '<section data-bpv-pane="account" hidden><div class="bpv-pane-title"><b>Account, payments & subscriptions</b><small>Your current plan, subscription dates, package choices, invoices and cancellation controls.</small></div>'+
+  '<div class="bpv-account-header"><div><span class="bpv-account-eyebrow">SIGNED-IN ACCOUNT</span><b id="bpv-account-email">Checking account…</b><small id="bpv-account-state">Secure account details load only after sign-in.</small></div><a class="bpv-account-pricing-link" href="/pricing.html">PUBLIC PRICING ↗</a></div>'+
+  '<div class="bpv-account-actions"><button type="button" id="bpv-account-open-portal" class="bpv-account-primary">MANAGE PAYMENTS / CHANGE OR CANCEL</button><button type="button" id="bpv-account-refresh" class="bpv-account-secondary">REFRESH ACCOUNT</button></div>'+
+  '<div id="bpv-account-feedback" class="bpv-account-feedback" role="status" aria-live="polite" hidden></div>'+
+  '<div id="bpv-account-summary" class="bpv-account-subscriptions"></div>'+
+  '<div class="bpv-account-catalog-head"><b>AVAILABLE PACKAGES</b><small>Choose a package using BridgePoint’s live catalog. Checkout and payment changes are handled securely by Stripe.</small></div>'+
+  '<div id="bpv-account-packages" class="bpv-account-packages"><p class="bpv-data-note">Sign in to load package options.</p></div>'+
+  '</section>'+
   (home?'<section data-bpv-pane="explore" hidden><div class="bpv-pane-title"><b>Explore BridgePoint</b><small>Supporting information, access, updates and platform details—behind the globe, not over it.</small></div><div id="bpv-explore-mount"></div></section>':'');
  document.body.appendChild(p);
  $('#bpv-panel-close').addEventListener('click',closePanel);
@@ -139,6 +149,8 @@ function makePanel(){
   if(listingOverlayOn)void loadListings(true,listingQueryValue);
  });
  $('#bpv-whole-earth').addEventListener('click',wholeEarth);
+ $('#bpv-account-open-portal')?.addEventListener('click',()=>void openAccountBillingPortal());
+ $('#bpv-account-refresh')?.addEventListener('click',()=>void loadAccountBilling());
  return p;
 }
 function makeTopBarAndDock(){
@@ -184,6 +196,10 @@ function makeTopBarAndDock(){
    '</div>'+
    '<div class="bpv-command-inline-slot" id="bpv-underground-slot" aria-label="Underground and infrastructure controls"></div>'+
    '<div class="bpv-command-inline-slot" id="bpv-satellite-slot" aria-label="Satellite imagery and color controls"></div>'+
+  '</section>'+
+  '<section class="bpv-command-group bpv-account-command-group" data-bpv-command-section="account" aria-label="Account and billing controls">'+
+   '<div class="bpv-command-heading"><span class="bpv-command-heading-icon" aria-hidden="true">¤</span><span><b>ACCOUNT & BILLING</b><small>View your plan, renewal schedule, payments or cancel</small></span></div>'+
+   '<div class="bpv-command-grid" data-bpv-command-grid="account"><button type="button" class="bpv-command-btn bpv-account-billing-btn" data-bpv-action="account" title="View packages, account and subscription billing"><span class="bpv-command-icon" aria-hidden="true">▣</span><span class="bpv-command-label">Account & Billing</span></button></div>'+
   '</section>'+
  '</div>'+
  '<div id="bpv-property-card-slot" class="bpv-property-card-slot" aria-label="Selected property card"></div>'+
@@ -447,6 +463,91 @@ async function rpc(name,args={},timeout=11000,token=null){
  }finally{clearTimeout(timer)}
 }
 function sessionToken(){try{return JSON.parse(localStorage.getItem('bp_auth_v5045')||'null')?.access_token||null}catch(_){return null}}
+function billingDate(value){if(!value)return 'not reported';const d=new Date(value);if(Number.isNaN(d.getTime()))return 'not reported';return new Intl.DateTimeFormat(undefined,{year:'numeric',month:'short',day:'numeric'}).format(d)}
+function billingMoney(value){if(value===null||value===undefined||value==='')return 'Price on request';const n=Number(value);return Number.isFinite(n)?'$'+n.toLocaleString(undefined,{maximumFractionDigits:2}):String(value)}
+function billingBool(value){return value===true||String(value??'').toLowerCase()==='true'}
+function billingMessage(message,error=false){const el=$('#bpv-account-feedback');if(!el)return;el.textContent=String(message||'');el.classList.toggle('is-error',!!error);el.hidden=!message}
+function billingLink(text,href,kind='bpv-account-secondary'){const a=node('a',kind,text);a.href=href;return a}
+function renderAccountSignedOut(){
+ const summary=$('#bpv-account-summary'),packages=$('#bpv-account-packages'),email=$('#bpv-account-email'),state=$('#bpv-account-state');
+ if(email)email.textContent='Sign in to view your account';if(state)state.textContent='Subscription and payment records are private to the signed-in account.';
+ if(summary){summary.replaceChildren();const card=node('article','bpv-account-empty');card.append(node('b','','Your account is not signed in'),node('p','','Sign in to check your subscription, trial end date, next renewal period and payment-management options.'));const actions=node('div','bpv-account-actions');actions.append(billingLink('SIGN IN','/?auth=signin'),billingLink('CREATE ACCOUNT','/?auth=signup'));card.append(actions);summary.append(card)}
+ if(packages){packages.replaceChildren();const note=node('p','bpv-data-note','The live package catalog loads after sign-in. Browse the public pricing overview now.');packages.append(note,billingLink('VIEW PRICING','/pricing.html'))}
+}
+async function accountBillingFetchUser(token){const r=await fetch(SUPA+'/auth/v1/user',{method:'GET',headers:{apikey:KEY,Authorization:'Bearer '+token,Accept:'application/json'},cache:'no-store'});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d?.message||'Could not verify the signed-in account.');return d}
+function renderAccountSubscriptions(user,payload){
+ const summary=$('#bpv-account-summary'),email=$('#bpv-account-email'),state=$('#bpv-account-state');if(!summary)return;
+ if(email)email.textContent=user?.email||'Verified BridgePoint account';if(state)state.textContent='Subscription records are shown for this signed-in account and eligible shared workspaces.';
+ summary.replaceChildren();const rows=Array.isArray(payload?.purchases)?payload.purchases:[];
+ const head=node('div','bpv-billing-section-title');head.append(node('b','','CURRENT SUBSCRIPTIONS & PURCHASES'),node('small','','Status and access are refreshed from BridgePoint billing records.'));summary.append(head);
+ if(!rows.length){const empty=node('article','bpv-account-empty');empty.append(node('b','','No subscription is recorded yet'),node('p','','No paid package purchase was returned for this account. You can still explore available packages below.'));summary.append(empty);return}
+ rows.forEach(row=>{
+  const card=node('article','bpv-billing-subscription');const title=node('div','bpv-billing-subscription-title');const name=node('b','',row.package_name||row.package_key||'BridgePoint package');
+  const status=node('span','bpv-billing-status',String(row.status||'status unavailable').replace(/_/g,' '));status.classList.toggle('is-active',billingBool(row.has_access));title.append(name,status);card.append(title);
+  const meta=node('p','bpv-billing-subscription-meta',String(row.purchase_mode||'IMMEDIATE').replace(/_/g,' ')+' · '+(billingBool(row.has_access)?'access on':'access pending / off'));card.append(meta);
+  const trialDate=billingDate(row.trial_ends_at),periodDate=billingDate(row.current_period_end),cancels=billingBool(row.cancel_at_period_end),statusText=String(row.status||'').toLowerCase();
+  let schedule='Billing schedule: open the secure Stripe portal for invoice amount and payment status.';
+  if(cancels)schedule='Cancellation scheduled'+(periodDate!=='not reported'?' · access expected through '+periodDate:' · period end not reported')+'. No further renewal is expected after cancellation takes effect.';
+  else if((statusText.includes('trial')||row.trial_ends_at)&&trialDate!=='not reported')schedule='Trial ends: '+trialDate+'. The live checkout terms determine the first charge and billing interval.';
+  else if(periodDate!=='not reported')schedule='Current period ends / next renewal date: '+periodDate+'. Confirm exact charge and invoice in Stripe.';
+  card.append(node('p','bpv-billing-schedule',schedule));
+  if(row.delivery_disclosure)card.append(node('p','bpv-billing-disclosure',String(row.delivery_disclosure)));
+  summary.append(card);
+ });
+ const note=node('p','bpv-data-note','The secure Stripe portal shows exact invoice amounts, payment methods and receipts, and is where customers change or cancel a subscription.');summary.append(note)
+}
+function renderAccountPackageCatalog(payload){
+ const root=$('#bpv-account-packages');if(!root)return;root.replaceChildren();
+ const rows=Array.isArray(payload?.packages)?payload.packages:[];const live=rows.filter(p=>p&&p.package_key&&p.active!==false);
+ if(!live.length){root.append(node('p','bpv-data-note','The live package catalog is temporarily unavailable. Refresh to try again.'),billingLink('VIEW PUBLIC PRICING','/pricing.html'));return}
+ live.forEach(p=>{
+  const config=p.configuration&&typeof p.configuration==='object'?p.configuration:{};const mode=String(config.purchase_mode||'IMMEDIATE').toUpperCase();const delivery=String(config.delivery_status||p.delivery_status||'').toUpperCase();
+  const requestOnly=billingBool(config.owner_approval_required)||mode.includes('APPROVAL')||mode.includes('MANAGED');
+  const selfCheckout=billingBool(config.available_for_self_checkout)||(billingBool(config.checkout_ready)&&mode==='IMMEDIATE');
+  const canBuy=selfCheckout&&!requestOnly&&delivery!=='BUILDING'&&delivery!=='ROADMAP';
+  const card=node('article','bpv-account-package');const head=node('div','bpv-account-package-head');head.append(node('b','',p.package_name||p.package_key));
+  if(p.featured===true)head.append(node('span','bpv-account-featured','FEATURED'));card.append(head);
+  if(p.description)card.append(node('p','bpv-account-package-description',String(p.description)));
+  const price=node('div','bpv-account-package-prices');const month=p.monthly_price??p.price_monthly,year=p.yearly_price??p.annual_price??p.price_annual;
+  price.append(node('span','',billingMoney(month)+' / month'),node('span','',billingMoney(year)+' / year'));card.append(price);
+  const details=String(config.pricing_note||config.delivery_summary||config.delivery_note||config.customer_delivery_disclosure||'').trim();if(details)card.append(node('p','bpv-account-package-note',details));
+  const actions=node('div','bpv-account-package-actions');
+  if(canBuy){
+   if(month!==null&&month!==undefined&&month!==''){const b=node('button','bpv-account-package-cta','CHOOSE MONTHLY');b.addEventListener('click',()=>void beginAccountCheckout(p,'month',b));actions.append(b)}
+   if(year!==null&&year!==undefined&&year!==''){const b=node('button','bpv-account-package-cta bpv-account-package-cta-secondary','CHOOSE ANNUAL');b.addEventListener('click',()=>void beginAccountCheckout(p,'year',b));actions.append(b)}
+  }else if(requestOnly){const b=node('button','bpv-account-package-cta','REQUEST ACCESS');b.addEventListener('click',()=>void requestAccountPackage(p,b));actions.append(b)}
+  else {const b=billingLink(delivery==='BUILDING'?'IN DEVELOPMENT':delivery==='ROADMAP'?'ROADMAP / INTEREST':'PACKAGE DETAILS','/pricing.html','bpv-account-package-cta bpv-account-package-cta-secondary');actions.append(b)}
+  card.append(actions);root.append(card)
+ });
+}
+async function loadAccountBilling(){
+ const summary=$('#bpv-account-summary'),packages=$('#bpv-account-packages');if(!summary||!packages)return;if(window.__BP_ACCOUNT_BILLING_LOADING__)return;
+ const token=sessionToken();if(!token){renderAccountSignedOut();return}
+ window.__BP_ACCOUNT_BILLING_LOADING__=true;billingMessage('Loading secure account, subscription and package records…');summary.replaceChildren(node('p','bpv-data-note','Loading subscriptions and billing schedule…'));packages.replaceChildren(node('p','bpv-data-note','Loading the live package catalog…'));
+ try{
+  const results=await Promise.allSettled([accountBillingFetchUser(token),rpc('bridgepoint_my_purchases_v223',{},12000,token),rpc('bridgepoint_flutter_packages',{},16000,token)]);
+  const user=results[0].status==='fulfilled'?results[0].value:null;const purchases=results[1].status==='fulfilled'?results[1].value:null;const catalog=results[2].status==='fulfilled'?results[2].value:null;
+  if(results[0].status==='rejected'){renderAccountSignedOut();billingMessage('Your sign-in session could not be verified. Sign in again to manage account billing.',true);return}
+  renderAccountSubscriptions(user,purchases);renderAccountPackageCatalog(catalog);
+  if(results[1].status==='rejected')billingMessage('Subscription records could not be loaded: '+String(results[1].reason?.message||results[1].reason),true);
+  else if(results[2].status==='rejected')billingMessage('Your subscriptions loaded, but the live package catalog did not. Refresh to retry package options.',true);
+  else billingMessage('Account billing refreshed. Use the secure Stripe portal for invoices, payment methods, plan changes and cancellation.');
+ }catch(e){billingMessage('Could not load account billing: '+String(e?.message||e),true)}
+ finally{window.__BP_ACCOUNT_BILLING_LOADING__=false}
+}
+async function openAccountBillingPortal(){
+ const token=sessionToken();if(!token){location.assign('/?auth=signin');return}const button=$('#bpv-account-open-portal');if(button){button.disabled=true;button.textContent='OPENING SECURE STRIPE PORTAL…'}billingMessage('Opening your secure Stripe billing portal…');
+ try{const r=await fetch(SUPA+'/functions/v1/bridgepoint-billing-portal-v66',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+token,'Content-Type':'application/json',Accept:'application/json'},body:'{}',cache:'no-store'});const d=await r.json().catch(()=>({}));if(!r.ok||d.complete!==true||!d.url){const raw=String(d.error||'Billing portal unavailable');if(/no stripe customer|no active billing profile/i.test(raw)){billingMessage('No Stripe billing profile is linked to this account yet. Choose an available package below to start a subscription.',true);return}throw new Error(raw)}const target=new URL(d.url);if(target.protocol!=='https:')throw new Error('The billing portal returned an unexpected secure URL.');location.assign(target.href)}catch(e){billingMessage('Could not open Stripe billing management: '+String(e?.message||e),true)}finally{if(button){button.disabled=false;button.textContent='MANAGE PAYMENTS / CHANGE OR CANCEL'}}
+}
+async function beginAccountCheckout(pkg,interval,button){
+ const token=sessionToken();if(!token){location.assign('/?auth=signin');return}if(!pkg?.package_key||!['month','year'].includes(interval))return;
+ const original=button.textContent;button.disabled=true;button.textContent='OPENING SECURE CHECKOUT…';billingMessage('Preparing Stripe checkout for '+String(pkg.package_name||pkg.package_key)+'…');
+ try{const r=await fetch(SUPA+'/functions/v1/bridgepoint-checkout-v67',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+token,'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify({package_key:pkg.package_key,interval}),cache:'no-store'});const d=await r.json().catch(()=>({}));if(!r.ok||d.complete!==true||!d.url)throw new Error(String(d.error||'Checkout is not ready for this package.'));const target=new URL(d.url);if(target.protocol!=='https:')throw new Error('Checkout returned an unexpected URL.');location.assign(target.href)}catch(e){billingMessage('Checkout could not be opened: '+String(e?.message||e),true);button.disabled=false;button.textContent=original}
+}
+async function requestAccountPackage(pkg,button){
+ const token=sessionToken();if(!token){location.assign('/?auth=signin');return}const original=button.textContent;button.disabled=true;button.textContent='SENDING REQUEST…';billingMessage('Submitting package request…');
+ try{const result=await rpc('bridgepoint_request_owner_approved_package_v323',{p_package_key:pkg.package_key,p_note:'Requested from the Account & Billing panel on BridgePoint.'},12000,token);billingMessage(String(result?.message||'Your package request was submitted. BridgePoint will review the activation requirements.'));button.textContent='REQUEST SENT'}catch(e){billingMessage('Could not submit package request: '+String(e?.message||e),true);button.disabled=false;button.textContent=original}
+}
 function drawAnswer(d,mode,err){
  const root=$('#bpv-ai-response'),facts=$('#bpv-ai-facts'),submit=$('#bpv-ai-submit');
  if(submit){submit.disabled=false;submit.textContent='ASK BRIDGEPOINT'}
