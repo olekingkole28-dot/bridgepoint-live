@@ -45,7 +45,7 @@ const categoryPatterns={
 };
 function layerAllowed(id){
  if(parcelLayers.has(String(id)))return parcelLayerEnabled;
- if(baseLayers.has(id)||String(id).startsWith('bp-drone-awareness'))return true;
+ if(baseLayers.has(id)||String(id).startsWith('bp-drone-awareness')||String(id).startsWith('bp-drone-sim-fleet'))return true;
  for(const category of allowedCategories)if(categoryPatterns[category]?.test(String(id)))return true;
  return false;
 }
