@@ -236,7 +236,6 @@ async function refresh(force=false){
  if(force&&remaining>0){showStatus('Please wait '+Math.ceil(remaining/1000)+' seconds before refreshing public coverage.');return}
  inFlight=true;lastFetchAt=Date.now();
  if(refreshButton)refreshButton.disabled=true;
- setLayerVisibility(false);
  showStatus('Starting global sample of public UAV-class ADS-B reports…');
  try{
   const samples=await fetchGlobalSamples();
@@ -266,8 +265,10 @@ async function refresh(force=false){
   const feedMeta=$('#bp-drone-feed-meta');
   if(feedMeta)feedMeta.textContent='Global sample centers: '+goodCount+'/'+total+' responded · each request radius '+REGION_RADIUS_NM+' nautical miles · '+GRID_DEGREES+'° grid · refreshed '+now.toLocaleString()+'. This is sampled sensor coverage, not a complete global inventory.';
  }catch(error){
-  const message=String(error?.message||error);
-  showStatus('Live public ADS-B data unavailable: '+message+'. The map remains usable; no historical or invented locations are shown.','error');
+  if(enabled){
+   const message=String(error?.message||error);
+   showStatus('Live public ADS-B data unavailable: '+message+'. The map remains usable; no historical or invented locations are shown.','error');
+  }
  }finally{
   inFlight=false;if(refreshButton)refreshButton.disabled=false;
  }
@@ -306,6 +307,8 @@ function createPane(panel){
  const p=element('section','bp-drone-pane');p.dataset.bpvPane='drones';p.hidden=true;
  p.append(element('div','bp-drone-headline','OPT-IN · PUBLIC CIVIL AIRSPACE DATA'));
  p.append(element('div','bp-drone-feed-note','Samples 13 public ADS-B regions and combines reported UAV-class records into coarse 2° cells. The map never displays individual aircraft points, callsigns, identifiers or operator locations. These are sensor-fed sample regions, not exhaustive worldwide coverage; most consumer drones do not broadcast ADS-B.'));
+ p.append(element('div','bp-drone-feed-note','For broader Remote ID detections from community Wi-Fi/Bluetooth receivers, DroneAware maintains a separate live map. Its terms reserve API access for approved third parties under a written agreement, so BridgePoint links to that network instead of scraping its private feed.'));
+ const remoteLink=element('a','bp-drone-source','Open DroneAware Remote ID live map ↗');remoteLink.href='https://droneaware.io/';remoteLink.target='_blank';remoteLink.rel='noopener noreferrer';p.append(remoteLink);
  const summary=element('div','bp-drone-summary');summary.id='bp-drone-summary-v1';summary.append(element('div','bp-drone-metric'));summary.append(element('div','bp-drone-metric'));p.append(summary);summaryNode=summary;
  const status=element('div','bp-drone-status','Drone Awareness is off. Press the button to activate a regional refresh.');status.id='bp-drone-status-v1';status.dataset.kind='info';p.append(status);statusNode=status;
  const actions=element('div','bp-drone-actions');
