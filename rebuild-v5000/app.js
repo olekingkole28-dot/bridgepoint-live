@@ -1112,7 +1112,7 @@ function restoreCachedLiveWeatherFirstFrameV6134(){
 }
 async function loadLiveWeather(critical=false){if(!liveContextVisible)return;if((mapInteracting||document.hidden||!appMapSurfaceActive())||(!critical&&mapBackgroundBlocked())){deferredWork.set('live-weather',()=>loadLiveWeather(false));return}const b=$('toggleLiveContext');try{const d=await takeLiveWeatherBootstrapV6134();const map=world?.map;if(!map||!liveContextVisible)return;if(d?.fresh!==true){if(Array.isArray(d?.items)&&d.items.length){const cached=applyLiveWeatherItemsV6134(d.items);if(cached)window.__BP_LIVE_WEATHER_STALE_V6134__={usedCachedItems:true,items:d.items.length,points:cached.points.features.length,shapes:cached.shapes.features.length,generated_at:d.generated_at,updatedAt:Date.now()}}if(b){b.textContent='LIVE';b.title='Showing cached source weather while the latest observations refresh'}setText('liveLegendCount',window.__BP_LIVE_WEATHER_STALE_V6134__?.items?window.__BP_LIVE_WEATHER_STALE_V6134__.items+' EVENTS · REFRESHING':'REFRESHING');setText('liveLegendTime','Keeping the last available source snapshot visible while the newest observations load');setTimeout(()=>{if(liveContextVisible)queueAfterMap('live-weather-retry',loadLiveWeather)},2500);return}window.__BP_LIVE_WEATHER_STALE_V6134__=null;saveLiveWeatherCacheV6134(d.items||[],d.generated_at);const c=applyLiveWeatherItemsV6134(d.items||[]);if(!c)throw new Error('Live weather layers not ready');window.__BP_LIVE_WEATHER_STATE_V5806__={fresh:true,items:d.items?.length||0,points:c.points.features.length,shapes:c.shapes.features.length,generated_at:d.generated_at,updatedAt:Date.now()};if(b){b.textContent='LIVE';b.title=(d.items?.length||0)+' fresh source-labelled weather/hazard events · refreshed '+new Date(d.generated_at).toLocaleTimeString()}setText('liveLegendCount',(d.items?.length||0)+' EVENTS');setText('liveLegendTime','Fresh '+new Date(d.generated_at).toLocaleTimeString()+' · solid = observed/source event · faded = alert or forecast')}catch(e){window.__BP_LIVE_WEATHER_STATE_V5806__={fresh:false,error:String(e?.message||e),updatedAt:Date.now()};if(b)b.title='Live context refresh retry · '+String(e.message||e);setTimeout(()=>{if(liveContextVisible)queueAfterMap('live-weather-retry',loadLiveWeather)},5000)}}
 function stopLiveWeather(){
- liveContextVisible=false;setLiveContextVisibility(false);hideLegacyLiveContextLayers();
+ liveContextVisible=false;window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('weather',false);setLiveContextVisibility(false);hideLegacyLiveContextLayers();
  clearInterval(liveContextTimer);liveContextTimer=null;clearInterval(radarRefreshTimer);radarRefreshTimer=null;
  clearInterval(radarAnimTimer);radarAnimTimer=null;clearInterval(cloudRefreshTimer);cloudRefreshTimer=null;
  clearInterval(cloudAnimTimer);cloudAnimTimer=null;radarFrames=[];cloudFrames=[];
@@ -1122,7 +1122,7 @@ function stopLiveWeather(){
 }
 function activateLiveWeather(){
  if(liveContextVisible)return;
- liveContextVisible=true;const map=world?.map;hideLegacyLiveContextLayers(map);
+ liveContextVisible=true;window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('weather',true);const map=world?.map;hideLegacyLiveContextLayers(map);
  const b=$('toggleLiveContext');if(b){b.textContent='WEATHER DATA · ON';b.title='Source-backed weather dots and warning boundaries are active. Legacy rain/snow/fire FX remain disabled';b.classList.add('active');b.setAttribute('aria-pressed','true')}
  try{
   if(map){
