@@ -52,6 +52,7 @@ function ensureInitialBaseLayers(){
 function categoryForTarget(target){
  if(!target)return null;
  const action=String(target.dataset?.bpvAction||'');
+ if(action==='boundaryviewer')return null;
  // Opening the fields panel is not itself a layer activation; the panel's own
  // Wind / RF / Drone controls opt their category in only when pressed.
  if(action==='volumetric')return null;
