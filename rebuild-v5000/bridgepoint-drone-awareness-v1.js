@@ -52,6 +52,9 @@ function ensureInitialBaseLayers(){
 function categoryForTarget(target){
  if(!target)return null;
  const action=String(target.dataset?.bpvAction||'');
+ // Opening the fields panel is not itself a layer activation; the panel's own
+ // Wind / RF / Drone controls opt their category in only when pressed.
+ if(action==='volumetric')return null;
  const actionMap={parcels:'parcels',boundaryviewer:'parcels',worldchanges:'history',weatherfx:'weather',windfx:'wind',volumetric:'wind',satellite:'imagery',opportunities:'opportunities',listings:'listings',water:'water',clouds:'clouds'};
  if(actionMap[action])return actionMap[action];
  if(target.dataset?.layer==='parcels')return'parcels';
