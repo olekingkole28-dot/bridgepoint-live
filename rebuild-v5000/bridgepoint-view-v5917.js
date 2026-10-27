@@ -734,9 +734,7 @@ async function loadListings(force=false,queryOverride,selectedId=null){
  return listingLoading;
 }
 function toggleParcelBoundaries(){
- const native=document.querySelector('.map-tools [data-layer="parcels"]');
- if(native&&!home){native.click();const on=native.classList.contains('active');$$('[data-bpv-action="parcels"]').forEach(b=>{b.classList.toggle('active',on);b.setAttribute('aria-pressed',String(on))});return}
- const m=map||findMap(),ids=['gta-parcel','gta-parcel-glow','gta-parcel-halo'].filter(id=>m?.getLayer?.(id));
+ const m=map||findMap(),ids=['gta-parcel','gta-parcel-glow','gta-parcel-halo','bp-public-auto-parcel-line-v5933','bp-public-auto-parcel-glow-v5933'].filter(id=>m?.getLayer?.(id));
  if(ids.length){
   const currentlyOn=ids.some(id=>(m.getLayoutProperty(id,'visibility')||'visible')!=='none'),next=!currentlyOn;
   ids.forEach(id=>{try{m.setLayoutProperty(id,'visibility',next?'visible':'none')}catch(_){}});
