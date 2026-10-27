@@ -1578,9 +1578,9 @@ jobs:
               const p=await browser.newPage();
               p.setDefaultTimeout(20000);
               await p.setViewport({width:1440,height:960,deviceScaleFactor:1});
-              const errors=[];
+              const errors=[],startupTrace=[];
               p.on('pageerror',e=>errors.push(String(e?.message||e)));
-              p.on('console',m=>{if((m.type()==='error'||m.type()==='warning')&&/opportunit|global risk|maplibre|image/i.test(m.text()))errors.push(m.type()+':'+m.text().slice(0,360))});
+              p.on('console',m=>{const text=m.text();if(text.includes('BP_STARTUP_TRACE'))startupTrace.push(text.slice(0,600));if((m.type()==='error'||m.type()==='warning')&&/opportunit|global risk|maplibre|image/i.test(text))errors.push(m.type()+':'+text.slice(0,360))});
               await p.goto('https://bridgepointintelligence.online/?opportunity-global-smoke='+Date.now(),{waitUntil:'domcontentloaded',timeout:12000}).catch(e=>{
                 if(!/Navigation timeout/i.test(String(e?.message||e)))throw e;
                 console.warn('NAVIGATION_LIFECYCLE_WAIT_TIMEOUT_CONTINUING_TO_MAP_READINESS',String(e?.message||e));
@@ -1602,7 +1602,7 @@ jobs:
                 resources:performance.getEntriesByType('resource').filter(r=>/landing\.js|world-v2300-map|world-v2300-config|world-v2300-space|maplibre-gl|drone-awareness/i.test(r.name)).map(r=>({url:r.name.split('?')[0],durationMs:Math.round(r.duration),transferSize:r.transferSize||0})),
                 bodySample:String(document.body?.innerText||'').slice(0,240)
               }))}catch(diagError){bootDiagnostic={diagnosticEvaluationError:String(diagError?.message||diagError)}}
-              console.error('BRIDGEPOINT_LANDING_MAP_BOOT_FAILURE',JSON.stringify({error:String(mapBootError?.message||mapBootError),diagnostic:bootDiagnostic,consoleErrors:errors.slice(-20)}));
+              console.error('BRIDGEPOINT_LANDING_MAP_BOOT_FAILURE',JSON.stringify({error:String(mapBootError?.message||mapBootError),diagnostic:bootDiagnostic,consoleErrors:errors.slice(-20),startupTrace:startupTrace.slice(-40)}));
               throw new Error('LANDING_MAP_INITIALIZATION_FAILED '+JSON.stringify({error:String(mapBootError?.message||mapBootError),diagnostic:bootDiagnostic,consoleErrors:errors.slice(-20)}));
             }
               await new Promise(r=>setTimeout(r,900));
