@@ -4,6 +4,10 @@ if(window.__BP_DRONE_AWARENESS_V1__)return;
 const VERSION=1;
 const SOURCE='bp-drone-awareness-source-v1';
 const LAYER='bp-drone-awareness-cells-v1';
+const SIM_FLEET_COUNT=156;
+const SIM_ICON='bp-drone-sim-glyph-v1';
+const SIM_SOURCE='bp-drone-sim-fleet-v1';
+const SIM_LAYER='bp-drone-sim-fleet-symbol-v1';
 const MIN_GROUP=1;
 const GRID_DEGREES=2;
 const REGION_RADIUS_NM=250;
@@ -13,6 +17,7 @@ const SUPPORTED_SOURCE='https://api.adsb.lol/v2/';
 const $=s=>document.querySelector(s);
 const emptyFeatureCollection=()=>({type:'FeatureCollection',features:[]});
 let map=null,enabled=false,inFlight=false,refreshTimer=0,moveTimer=0,lastFetchAt=0,aborter=null;
+let simFleetVisible=false;
 let button=null,waterButton=null,waterApi=null,waterPromise=null,waterEnabled=false,cloudButton=null,cloudApi=null,cloudPromise=null,cloudEnabled=false,pane=null,statusNode=null,summaryNode=null,cellsNode=null,refreshButton=null;
 let emptyModeActive=true,emptyModeMap=null,emptyModeHandler=null,sweepFrame=0;
 const requestControllers=new Set();
@@ -100,7 +105,7 @@ function updateButton(){
  button.classList.toggle('active',enabled);
  button.setAttribute('aria-pressed',String(enabled));
  const label=button.querySelector('.bpv-command-label');if(label)label.textContent=enabled?'Drone Awareness · ON':'Drone Awareness';
- button.title=enabled?'Turn off aggregated public UAV awareness':'Show an opt-in, coarse regional UAV awareness layer';
+ button.title=enabled?'Turn off the simulated drone fleet and source-backed UAV coverage':'Show '+SIM_FLEET_COUNT+' simulated drone icons plus source-backed UAV activity';
 }
 function writeSummary(cellCount, rawCount){
  if(summaryNode){
@@ -123,6 +128,47 @@ function setLayerVisibility(on){
   setLayoutProperty(LAYER,on?'visible':'none');map.triggerRepaint?.();return true;
  }catch(e){return false}
 }
+function simulatedFleetFeatureCollection(){
+ const offsets=[[-3.6,-2.4],[-1.2,-2.4],[1.2,-2.4],[3.6,-2.4],[-3.6,0],[-1.2,0],[1.2,0],[3.6,0],[-3.6,2.4],[-1.2,2.4],[1.2,2.4],[3.6,2.4]];
+ const features=[];
+ GLOBAL_SAMPLES.forEach((sample,regionIndex)=>offsets.forEach((offset,slot)=>{
+  let lon=sample.lon+offset[0];lon=((lon+540)%360)-180;
+  const lat=Math.max(-78,Math.min(78,sample.lat+offset[1]));
+  const index=regionIndex*offsets.length+slot;
+  features.push({type:'Feature',id:'SIM-'+String(index+1).padStart(3,'0'),geometry:{type:'Point',coordinates:[lon,lat]},properties:{simulated:true,fleet_id:'SIM-'+String(index+1).padStart(3,'0'),sample_region:sample.id,label:'SIMULATED FLEET PREVIEW · NOT A LIVE FLIGHT'}});
+ }));
+ return{type:'FeatureCollection',features};
+}
+function ensureSimDroneIcon(){
+ if(!map||map.hasImage?.(SIM_ICON))return true;
+ const canvas=document.createElement('canvas');canvas.width=48;canvas.height=48;
+ const ctx=canvas.getContext('2d');if(!ctx)return false;
+ ctx.clearRect(0,0,48,48);ctx.lineCap='round';ctx.lineJoin='round';
+ ctx.shadowColor='#53e7ff';ctx.shadowBlur=7;ctx.strokeStyle='#74f0ff';ctx.lineWidth=3;
+ ctx.beginPath();ctx.moveTo(15,15);ctx.lineTo(33,33);ctx.moveTo(33,15);ctx.lineTo(15,33);ctx.stroke();
+ for(const [x,y] of [[14,14],[34,14],[14,34],[34,34]]){
+  ctx.beginPath();ctx.arc(x,y,5.4,0,Math.PI*2);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(x-3,y);ctx.lineTo(x+3,y);ctx.stroke();
+ }
+ ctx.shadowBlur=3;ctx.fillStyle='#e9fdff';ctx.strokeStyle='#123b4c';ctx.lineWidth=1.5;
+ ctx.beginPath();ctx.moveTo(19,19);ctx.lineTo(29,19);ctx.lineTo(31,24);ctx.lineTo(29,29);ctx.lineTo(19,29);ctx.lineTo(17,24);ctx.closePath();ctx.fill();ctx.stroke();
+ ctx.shadowBlur=0;ctx.fillStyle='#ff4fcf';ctx.beginPath();ctx.arc(24,24,2.2,0,Math.PI*2);ctx.fill();
+ try{map.addImage(SIM_ICON,canvas,{pixelRatio:2});return true}catch(e){return !!map.hasImage?.(SIM_ICON)}
+}
+function installSimFleetLayer(){
+ if(!map||!map.getStyle?.())return false;
+ try{
+  if(!ensureSimDroneIcon())return false;
+  if(!map.getSource(SIM_SOURCE))map.addSource(SIM_SOURCE,{type:'geojson',data:simulatedFleetFeatureCollection()});
+  if(!map.getLayer(SIM_LAYER))map.addLayer({id:SIM_LAYER,type:'symbol',source:SIM_SOURCE,minzoom:0,layout:{visibility:'none','icon-image':SIM_ICON,'icon-size':['interpolate',['linear'],['zoom'],0,.36,1,.48,2,.6,5,.72,10,.82,16,.92],'icon-anchor':'center','icon-allow-overlap':true,'icon-ignore-placement':true,'symbol-sort-key':['get','fleet_id']},paint:{'icon-opacity':.96}});
+  return true;
+ }catch(e){console.warn('BridgePoint simulated drone fleet setup failed',e);return false}
+}
+function setSimFleetVisibility(on){
+ if(!map)return false;
+ if(on&&!installSimFleetLayer())return false;
+ try{if(map.getLayer(SIM_LAYER))map.setLayoutProperty(SIM_LAYER,'visibility',on?'visible':'none');simFleetVisible=!!on;map.triggerRepaint?.();return true}catch(e){console.warn('BridgePoint simulated drone fleet visibility',e);return false}
+}
 function installLayer(){
  if(!map||!map.getStyle?.())return false;
  try{
@@ -134,6 +180,8 @@ function installLayer(){
     'circle-opacity':.82,'circle-stroke-color':'#06131c','circle-stroke-width':1.5,'circle-blur':0.02
    }});
   }
+  // The decorative fleet is clearly labeled as simulated and remains hidden until this control is enabled.
+  installSimFleetLayer();
   return true;
  }catch(e){console.warn('BridgePoint drone awareness layer setup failed',e);return false}
 }
@@ -289,14 +337,17 @@ function toggle(){
  if(enabled){
   if(!installLayer()){showStatus('The map layer is not ready yet. Try again once the globe finishes loading.','error');enabled=false;updateButton();return}
   setLayerVisibility(false);
+  const fleetReady=setSimFleetVisibility(true);
   window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('drones',true);
-  showStatus('Sampling public UAV-class ADS-B detections across 13 regional sensor windows. Coarse cells only; this cannot show every drone worldwide and does not include Remote ID-only broadcasts.');
+  showStatus(fleetReady
+   ? 'SIMULATED FLEET PREVIEW ON · '+SIM_FLEET_COUNT+' demonstration drone icons are shown around 13 world regions. They are not live flights. The separate colored cells below come from public UAV-class ADS-B reports.'
+   : 'Simulated fleet preview unavailable in this renderer. Sampling the 13 public ADS-B regions; only source-reported activity will appear.',fleetReady?'info':'error');
   clearInterval(refreshTimer);refreshTimer=setInterval(()=>{if(enabled&&!document.hidden)void refresh(false)},REFRESH_MS);
   void refresh(false);
  }else{
   clearInterval(refreshTimer);clearTimeout(moveTimer);aborter?.abort();
   for(const controller of requestControllers)try{controller.abort()}catch(_){}
-  requestControllers.clear();setLayerVisibility(false);
+  requestControllers.clear();setLayerVisibility(false);setSimFleetVisibility(false);
   try{map.getSource(SOURCE)?.setData(emptyFeatureCollection())}catch(_){}
   renderCells([]);writeSummary(0,0);window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('drones',false);showStatus('Drone Awareness is off. No background regional requests are running.');
  }
@@ -305,8 +356,9 @@ function createPane(panel){
  if(!panel)return null;
  let existing=panel.querySelector('[data-bpv-pane="drones"]');if(existing)return existing;
  const p=element('section','bp-drone-pane');p.dataset.bpvPane='drones';p.hidden=true;
- p.append(element('div','bp-drone-headline','OPT-IN · PUBLIC CIVIL AIRSPACE DATA'));
- p.append(element('div','bp-drone-feed-note','Samples 13 public ADS-B regions and combines reported UAV-class records into coarse 2° cells. The map never displays individual aircraft points, callsigns, identifiers or operator locations. These are sensor-fed sample regions, not exhaustive worldwide coverage; most consumer drones do not broadcast ADS-B.'));
+ p.append(element('div','bp-drone-headline','OPT-IN · DRONE FLEET + PUBLIC CIVIL AIRSPACE DATA'));
+ p.append(element('div','bp-drone-feed-note','SIMULATED FLEET PREVIEW · '+SIM_FLEET_COUNT+' demonstration drone icons appear across 13 world regions when this control is on. Their positions are illustrative and are not live aircraft tracks.'));
+ p.append(element('div','bp-drone-feed-note','SOURCE-BACKED COVERAGE · Separately, public ADS-B reports classified as UAV are sampled from 13 regions and aggregated into coarse 2° cells. No individual aircraft points, callsigns, identifiers or operator/control-station locations are shown. Coverage is incomplete; most consumer drones do not broadcast ADS-B.'));
  p.append(element('div','bp-drone-feed-note','For broader Remote ID detections from community Wi-Fi/Bluetooth receivers, DroneAware maintains a separate live map. Its terms reserve API access for approved third parties under a written agreement, so BridgePoint links to that network instead of scraping its private feed.'));
  const remoteLink=element('a','bp-drone-source','Open DroneAware Remote ID live map ↗');remoteLink.href='https://droneaware.io/';remoteLink.target='_blank';remoteLink.rel='noopener noreferrer';p.append(remoteLink);
  const summary=element('div','bp-drone-summary');summary.id='bp-drone-summary-v1';summary.append(element('div','bp-drone-metric'));summary.append(element('div','bp-drone-metric'));p.append(summary);summaryNode=summary;
