@@ -738,6 +738,7 @@ function toggleParcelBoundaries(){
  if(ids.length){
   const currentlyOn=ids.some(id=>(m.getLayoutProperty(id,'visibility')||'visible')!=='none'),next=!currentlyOn;
   ids.forEach(id=>{try{m.setLayoutProperty(id,'visibility',next?'visible':'none')}catch(_){}});
+  window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('parcels',next);
   window.__BP_PARCEL_LAYER_STATE_V5927__={enabled:next,layerIds:ids,updatedAt:Date.now()};
   $$('[data-bpv-action="parcels"]').forEach(b=>{b.classList.toggle('active',next);b.setAttribute('aria-pressed',String(next))});
   return;
