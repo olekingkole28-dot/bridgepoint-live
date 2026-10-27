@@ -19,6 +19,9 @@ const mapColors=[
  {key:'DEVELOPMENT',name:'Development / permits / construction',color:'#00f0ff',desc:'Development, permits, construction or redevelopment match.'},
  {key:'INVESTMENT',name:'Investment / acquisition / ownership',color:'#39ff88',desc:'Investment, sale, commercial, transfer or ownership match.'},
  {key:'COMPLIANCE',name:'Code / violations / blight',color:'#ff8a00',desc:'Compliance-related opportunity match.'},
+ {key:'RAIN',name:'Rain-related opportunity',color:'#4aa3ff',desc:'RAIN opportunity category · #4AA3FF, distinct from live radar and weather symbols.'},
+ {key:'WIND',name:'Wind-related opportunity',color:'#8b86ff',desc:'WIND opportunity category · #8B86FF, distinct from live wind-field visualization.'},
+ {key:'EXPOSURE',name:'Exposure / resilience review',color:'#ff8a00',desc:'Exposure opportunity category · #FF8A00, not a live weather warning.'},
  {key:'GENERAL',name:'General property intelligence',color:'#ff2bd6',desc:'Qualified record with no more-specific color match.'}
 ];
 function el(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=String(text);return n}
@@ -103,7 +106,9 @@ function addMapKey(panel){
   {label:'Building outline / geometry edge',cls:'bpv-mapkey-swatch-outline',desc:'Pale cyan #88AEB7 to #D5E5E7 at close zoom.'},
   {label:'Floor-band shader',cls:'bpv-mapkey-swatch-floor',desc:'Optional bands derived from height/level attributes; not a verified interior plan.'},
   {label:'Night-window shader',cls:'bpv-mapkey-swatch-night',desc:'Warm/cool/mixed textures at supported night/high zoom; not live occupancy.'},
-  {label:'3D terrain / hill relief',cls:'bpv-mapkey-swatch-terrain',desc:'DEM elevation with light/shadow shading describes landform, not parcel value or hazard level.'}
+  {label:'3D terrain / hill relief',cls:'bpv-mapkey-swatch-terrain',desc:'DEM elevation with light/shadow shading describes landform, not parcel value or hazard level.'},
+  {label:'3D cloud volumes',cls:'bpv-mapkey-swatch-clouds',desc:'Near-white translucent 3D cloud geometry. It is off at startup and loads only when the 3D Clouds control is pressed.'},
+  {label:'Animated water + flow surface',color:'#2BC5FF',desc:'Cyan-blue GPU water surface and source-backed waterways. It is off at startup and loads only when Water + Flow is pressed.'}
  ]);
  section('PARCELS, ROADS + BRIDGES','',[
   {label:'Public parcel boundaries',color:'#73ffff',desc:'Automatic cyan #73FFFF parcel lines with royal-blue glow #004CFF, only where approved public source rights permit. Owner-only parcel detail remains private.'},
@@ -119,19 +124,32 @@ function addMapKey(panel){
   {label:'Streetlights / lamps',color:'#ffe8a8',desc:'Warm gold glow and 3D poles at materialized OpenStreetMap lamp coordinates. Coverage is only what BridgePoint has ingested; pole heights may use display defaults.'},
   {label:'Landmarks / masonry',color:'#817a6d',desc:'Stone-gray / earth-toned physical shaders, not opportunities.'}
  ]);
- section('DRONE AWARENESS · PUBLIC AIRSPACE','Opt-in aggregate display only. ADS-B UAV-class reports are grouped into approximately 1° cells; a cell appears only when at least three reports qualify. This is not a complete drone census and does not display individual aircraft or operator locations.',[
-  {label:'Aggregated UAV-class activity',color:'#58cfff',desc:'Cyan-to-mint cells show coarse public ADS-B aggregates only. No individual aircraft positions, identifiers, control-station locations or Remote ID interception.'}
+ section('DRONE AWARENESS · PUBLIC AIRSPACE','The bottom-card Drone Awareness control samples 13 public ADS-B regions up to 250 nautical miles around each sample center. It groups UAV-class reports into 2° grid cells; this is broad sampled coverage, not a complete worldwide drone census.',[
+  {label:'Aggregated UAV-class activity',cls:'bpv-mapkey-swatch-drone',desc:'Cell colors match the live layer: cyan #58CFFF → aqua #35E8F4 → mint #62EFAD → yellow #FFD166 → orange #FF9F68 as report counts rise. No aircraft IDs, pilot locations, or per-drone tracks are shown.'}
  ]);
- section('IMAGERY, RADAR + WEATHER / HAZARDS','',[
+ section('IMAGERY, RADAR + WEATHER / HAZARDS','Colors below match the currently wired source-weather palette. Weather markers, warning shapes, radar and 3D clouds are separate opt-in layers.',[
   {label:'Satellite / aerial imagery',cls:'bpv-mapkey-swatch-imagery',desc:'NASA Blue Marble globe imagery; USGS orthophoto in supported U.S. coverage; OpenAerialMap close-zoom imagery where available.'},
-  {label:'NOAA radar reflectivity',color:'#2c7cff',desc:'Blue #2C7CFF family when radar is enabled.'},
-  {label:'Wildfire',color:'#ff744f',desc:'#FF744F · fire point / boundary.'},
-  {label:'Storm / severe weather',color:'#7b8cff',desc:'#7B8CFF · reports and warnings.'},
-  {label:'Flood hazard',color:'#4ca7ff',desc:'#4CA7FF · separate from blue WATER opportunity markers.'},
-  {label:'Tornado',color:'#d596ff',desc:'#D596FF · warning / track.'},
-  {label:'Lightning',color:'#ffe16d',desc:'#FFE16D · lightning activity.'},
-  {label:'Hurricane / cyclone',color:'#65e6ff',desc:'#65E6FF · track / cone.'},
-  {label:'Earthquake',color:'#ffc45b',desc:'#FFC45B · event symbols.'}
+  {label:'NOAA radar reflectivity',color:'#2C7CFF',desc:'#2C7CFF · radar reflectivity when Weather Data is enabled.'},
+  {label:'ProbSevere',color:'#FF18DF',desc:'#FF18DF · ProbSevere storm object.'},
+  {label:'Wildfire',color:'#FF3E18',desc:'#FF3E18 · wildfire marker / perimeter category.'},
+  {label:'Fire',color:'#FF7922',desc:'#FF7922 · fire-related observation or alert.'},
+  {label:'Tornado',color:'#BD5CFF',desc:'#BD5CFF · tornado warning / track.'},
+  {label:'Hurricane / cyclone',color:'#20Eaff',desc:'#20EAFF · hurricane / cyclone category.'},
+  {label:'Thunderstorm',color:'#FF562F',desc:'#FF562F · thunderstorm / convective hazard.'},
+  {label:'Lightning',color:'#FFE529',desc:'#FFE529 · lightning activity.'},
+  {label:'Hail',color:'#6DEAFF',desc:'#6DEAFF · hail observations / alerts.'},
+  {label:'Flood hazard',color:'#168CFF',desc:'#168CFF · flood / inundation / surge; separate from WATER opportunity buildings.'},
+  {label:'Wind hazard',color:'#8BDcff',desc:'#8BDCFF · source-backed wind reports / warnings.'},
+  {label:'Rain',color:'#35BAFF',desc:'#35BAFF · rain / precipitation.'},
+  {label:'Snow',color:'#EAFAFF',desc:'#EAFAFF · snow / blizzard.'},
+  {label:'Ice',color:'#98EFFF',desc:'#98EFFF · ice / freezing hazard.'},
+  {label:'Earthquake',color:'#FFC247',desc:'#FFC247 · seismic event.'},
+  {label:'Volcano',color:'#FF5147',desc:'#FF5147 · volcano / volcanic activity.'},
+  {label:'Dust',color:'#D2B18A',desc:'#D2B18A · dust / ash category.'},
+  {label:'Heat',color:'#FF8058',desc:'#FF8058 · heat / temperature hazard.'},
+  {label:'Drought',color:'#FFD052',desc:'#FFD052 · drought category.'},
+  {label:'Landslide',color:'#C89470',desc:'#C89470 · landslide category.'},
+  {label:'Other source warning',color:'#FFBD3F',desc:'#FFBD3F · fallback when the source provides severity but no phenomenon match.'}
  ]);
  content.lastElementChild.append(el('p','bpv-mapkey-note','Layers render where source coverage, zoom and toggles support them. Geometry, opportunities, listings, imagery and hazard events are separate inventories.'));
  pane.append(head,content);panel.append(pane);
@@ -139,9 +157,13 @@ function addMapKey(panel){
  panel.querySelectorAll('.bpv-sidecar-tabs [data-bpv-panel="mapkey"]').forEach(b=>b.remove());
 }
 function openMapKey(){
- if(!mount())return false;
- const panel=document.getElementById('bpv-sidecar'),pane=panel?.querySelector('[data-bpv-pane="mapkey"]');
- if(!panel||!pane)return false;
+ const panel=document.getElementById('bpv-sidecar');
+ if(!panel)return false;
+ const nav=panel.querySelector('.bpv-sidecar-tabs'),opp=panel.querySelector('[data-bpv-pane="opportunities"]');
+ if(!nav||!opp)return false;
+ addInventory();addMapKey(panel);
+ const pane=panel.querySelector('[data-bpv-pane="mapkey"]');
+ if(!pane)return false;
  panel.hidden=false;panel.dataset.panel='mapkey';pane.hidden=false;document.body.classList.add('bpv-panel-open');
  const title=panel.querySelector('#bpv-sidecar-title');if(title)title.textContent='BRIDGEPOINT MAP KEY';
  panel.querySelectorAll('[data-bpv-panel]').forEach(b=>{b.classList.remove('active');b.setAttribute('aria-pressed','false')});
