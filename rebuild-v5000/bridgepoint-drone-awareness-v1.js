@@ -12,7 +12,7 @@ const $=s=>document.querySelector(s);
 const safeNumber=(v, fallback=0)=>Number.isFinite(Number(v))?Number(v):fallback;
 const emptyFeatureCollection=()=>({type:'FeatureCollection',features:[]});
 let map=null,enabled=false,inFlight=false,refreshTimer=0,moveTimer=0,lastFetchAt=0,aborter=null;
-let button=null,waterButton=null,waterApi=null,waterPromise=null,waterEnabled=false,pane=null,statusNode=null,summaryNode=null,cellsNode=null,refreshButton=null;
+let button=null,waterButton=null,waterApi=null,waterPromise=null,waterEnabled=false,cloudButton=null,cloudApi=null,cloudPromise=null,cloudEnabled=false,pane=null,statusNode=null,summaryNode=null,cellsNode=null,refreshButton=null;
 let emptyModeActive=true,emptyModeMap=null,emptyModeHandler=null,sweepFrame=0;
 const baseLayers=new Set(['gta-bg','gta-water','gta-coast-shadow','gta-coast-edge','gta-coast-foam','gta-landcover','gta-landuse','gta-hillshade']);
 const allowedCategories=new Set();
@@ -25,7 +25,8 @@ const categoryPatterns={
  history:/history|world-change|timeline|time-slider/i,
  opportunities:/opportunity/i,
  transport:/road-|bridge-|rail|transportation|transport-mesh/i,
- water:/bp-water-surface|water-surface|waterway-flow|hydrology/i
+ water:/bp-water-surface|water-surface|waterway-flow|hydrology/i,
+ clouds:/cloud-volume|sky-cloud|satellite-cloud|eumetsat-cloud/i
 };
 function layerAllowed(id){
  if(baseLayers.has(id)||String(id).startsWith('bp-drone-awareness'))return true;
@@ -35,7 +36,7 @@ function layerAllowed(id){
 function categoryForTarget(target){
  if(!target)return null;
  const action=String(target.dataset?.bpvAction||'');
- const actionMap={parcels:'parcels',boundaryviewer:'parcels',worldchanges:'history',weatherfx:'weather',windfx:'wind',volumetric:'wind',satellite:'imagery',opportunities:'opportunities',water:'water'};
+ const actionMap={parcels:'parcels',boundaryviewer:'parcels',worldchanges:'history',weatherfx:'weather',windfx:'wind',volumetric:'wind',satellite:'imagery',opportunities:'opportunities',water:'water',clouds:'clouds'};
  if(actionMap[action])return actionMap[action];
  if(target.dataset?.layer==='parcels')return'parcels';
  if(target.dataset?.layer==='buildings')return'buildings';
@@ -293,6 +294,34 @@ async function toggleWater(){
  try{if(map.getLayer('bp-water-surface-gpu-v6123'))map.setLayoutProperty('bp-water-surface-gpu-v6123','visibility','visible')}catch(_){}
  updateWaterButton();return true;
 }
+function updateCloudButton(){
+ if(!cloudButton)return;
+ cloudButton.classList.toggle('active',cloudEnabled);
+ cloudButton.setAttribute('aria-pressed',String(cloudEnabled));
+ const label=cloudButton.querySelector('.bpv-command-label');if(label)label.textContent=cloudEnabled?'3D Clouds · ON':'3D Clouds';
+ cloudButton.title=cloudEnabled?'Turn off the 3D cloud renderer':'Load the optional 3D cloud renderer';
+}
+async function toggleClouds(){
+ if(!map)throw new Error('BridgePoint globe is not ready');
+ if(typeof window.__BP_TOGGLE_CLOUDS__==='function'){
+  const result=await window.__BP_TOGGLE_CLOUDS__();cloudEnabled=result===true;updateCloudButton();return cloudEnabled;
+ }
+ if(cloudEnabled){
+  cloudEnabled=false;cloudApi?.setEnabled?.(false);
+  try{if(map.getLayer('bp-sky-cloud-volume-v6029'))map.setLayoutProperty('bp-sky-cloud-volume-v6029','visibility','none')}catch(_){}
+  updateCloudButton();return false;
+ }
+ if(!cloudApi){
+  if(!cloudPromise)cloudPromise=import('./world-v2300-clouds.js?v=6168-desktop-global-cloud-motion-stop')
+   .then(m=>{const api=m.initSkyClouds({map});if(!api)throw new Error('3D cloud engine did not initialize');cloudApi=api;window.__BP_SKY_CLOUDS_V5908__=api;return api})
+   .finally(()=>{cloudPromise=null});
+  await cloudPromise;
+ }
+ if(!cloudApi)throw new Error('3D cloud engine unavailable');
+ cloudEnabled=true;cloudApi.setEnabled?.(true);
+ try{if(map.getLayer('bp-sky-cloud-volume-v6029'))map.setLayoutProperty('bp-sky-cloud-volume-v6029','visibility','visible')}catch(_){}
+ updateCloudButton();return true;
+}
 function addButton(){
  const grid=$('[data-bpv-command-grid="environment"]');if(!grid)return false;
  let b=grid.querySelector('[data-bp-drone-awareness-button="1"]');
@@ -317,7 +346,21 @@ function addButton(){
   });
   grid.append(wb);
  }
- waterButton=wb;updateWaterButton();return true;
+ waterButton=wb;updateWaterButton();
+ let cb=grid.querySelector('[data-bp-cloud-toggle-button="1"]');
+ if(!cb){
+  cb=element('button','bpv-command-btn','');cb.type='button';cb.dataset.bpCloudToggleButton='1';cb.dataset.bpvAction='clouds';
+  cb.title='Load or hide the optional 3D cloud renderer';
+  cb.innerHTML='<span class="bpv-command-icon" aria-hidden="true">☁</span><span class="bpv-command-label">3D Clouds</span>';
+  cb.addEventListener('click',async()=>{
+   cb.disabled=true;
+   try{await toggleClouds();window.__BP_SHOW_ACTION_NOTICE__?.(cloudEnabled?'3D Clouds are enabled.':'3D Clouds are off.')}
+   catch(e){window.__BP_SHOW_ACTION_NOTICE__?.('3D Clouds failed: '+String(e?.message||e));console.warn('BridgePoint 3D Clouds',e)}
+   finally{cb.disabled=false;updateCloudButton()}
+  });
+  grid.append(cb);
+ }
+ cloudButton=cb;updateCloudButton();return true;
 }
 function hideDefaultOverlays(){
  if(!emptyModeActive||!emptyModeMap||sweepFrame)return;
@@ -391,6 +434,7 @@ function boot(){
   rawRfScanning:false,
   offlineReceiver:false,
   waterToggle:toggleWater,
+  cloudToggle:toggleClouds,
   toggle,
   refresh:()=>refresh(true),
   get state(){return{enabled,mapReady:!!map,zoom:map?.getZoom?.()??null,layerReady:!!map?.getLayer?.(LAYER),emptyModeActive,updatedAt:Date.now()}}
