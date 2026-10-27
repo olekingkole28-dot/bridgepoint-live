@@ -302,6 +302,7 @@ async function startLandingNationalWeather(world){const m=world?.map;if(!m||!lan
 }
 function setLandingWeatherEnabled(world,on){
  landingWeatherEnabled=!!on;
+ window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('weather',landingWeatherEnabled);
  const button=$('landingWeatherActivation');
  if(button){button.setAttribute('aria-pressed',String(landingWeatherEnabled));button.textContent='SOURCE WEATHER · '+(landingWeatherEnabled?'ON':'OFF');button.title=landingWeatherEnabled?'Live source-backed weather/hazard dots and warning boundaries are enabled; legacy rain/snow/hail/fire effects remain disabled':'Hide source-backed weather/hazard dots and warning boundaries'}
  const m=world?.map;ensureLandingWeatherLegend();hideLegacyLandingWeather(m);
