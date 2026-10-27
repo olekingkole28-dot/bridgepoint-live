@@ -24,7 +24,6 @@ const baseLayers=new Set([
  'gta-parcel','gta-parcel-glow','gta-parcel-halo'
 ]);
 const allowedCategories=new Set();
-const initialVisibilitySet=new WeakMap();
 const categoryPatterns={
  parcels:/parcel|cadastral|boundary-viewer/i,
  buildings:/^gta-(?:context-building-footprints|context-building-shadow|context-buildings|context-floor-lines|context-roofs|context-facade-detail|context-building-parts|bp-building-shadow|bp-buildings|bp-floor-lines|bp-roofs|bp-facade-detail|bp-building-edge|city-buildings|city-floor-lines|city-building-roof-caps|city-roofs|exact-building|exact-roof|exact-floor-lines)$/i,
@@ -44,14 +43,9 @@ function layerAllowed(id){
  return false;
 }
 function ensureInitialBaseLayers(){
- if(!emptyModeMap)return;
- let seen=initialVisibilitySet.get(emptyModeMap);
- if(!seen){seen=new Set();initialVisibilitySet.set(emptyModeMap,seen)}
- let layers=[];try{layers=emptyModeMap.getStyle?.()?.layers||[]}catch(_){return}
- for(const layer of layers){
-  if(!baseLayers.has(layer.id)||seen.has(layer.id))continue;
-  try{emptyModeMap.setLayoutProperty(layer.id,'visibility','visible');seen.add(layer.id)}catch(_){}
- }
+ // Do not force every whitelisted building sub-layer on: the shared renderer owns
+ // building LOD visibility. This gate only hides optional overlays outside the
+ // allowlist and leaves the renderer's intended base-layer state untouched.
 }
 function categoryForTarget(target){
  if(!target)return null;
