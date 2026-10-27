@@ -1149,6 +1149,8 @@ function startLiveWeather(){
   b.textContent='WEATHER DATA · OFF';b.title='Turn on source-backed weather and radar layers';b.classList.remove('active');b.setAttribute('aria-pressed','false');
  }
  window.__BP_ENABLE_LIVE_WEATHER__=()=>{activateLiveWeather();return Promise.resolve(true)};
+ window.__BP_TOGGLE_LIVE_WEATHER__=()=>{if(liveContextVisible){stopLiveWeather();return Promise.resolve(false)}activateLiveWeather();return Promise.resolve(true)};
+ window.__BP_APP_WEATHER_STATE__=()=>({enabled:liveContextVisible});
  window.__BP_STARTUP_SCHEDULER_V5939__={version:6134,enabled:false,weatherNetworkIdle:true,radarRefreshIdle:true,renderer:'source-weather-data-plus-dedicated-rain-lightning',updatedAt:Date.now()};
  window.__BP_LIVE_WEATHER_REFRESH_V6132__={enabled:false,initialFetchRequested:false,refreshMs:60000,icons:true,sourcePolygons:true,groundRadar:false,radarAnimationAllZoom:false,radarRefreshMs:120000,updatedAt:Date.now()};
 }
