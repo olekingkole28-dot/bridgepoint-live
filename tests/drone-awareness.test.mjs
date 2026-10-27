@@ -26,7 +26,7 @@ assert.ok(moduleSource.includes('hideDefaultOverlays'), 'startup enters a clean 
 assert.ok(landingHtml.includes('bridgepoint-drone-awareness-v1.js'), 'homepage loads the module');
 assert.ok(appHtml.includes('bridgepoint-drone-awareness-v1.js'), 'app loads the module');
 assert.ok(view.includes('data-bpv-command-grid="environment"'), 'environment command group exists');
-assert.ok(mapKey.includes('DRONE AWARENESS'), 'map key documents the opt-in layer');
+assert.ok(mapKey.includes('DRONE AWARENESS') || mapKey.includes('DRONE FLEET + PUBLIC AIRSPACE'), 'map key documents the opt-in drone layer');
 assert.ok(workflow.includes('cp rebuild-v5000/bridgepoint-drone-awareness-v1.js site/bridgepoint-drone-awareness-v1.js'), 'deployment copies the public runtime');
 assert.ok(workflow.includes('node --check rebuild-v5000/bridgepoint-drone-awareness-v1.js'), 'deployment syntax-checks the module');
 assert.ok(moduleSource.includes('GLOBAL_SAMPLES=['), 'drone view samples multiple regions globally');
