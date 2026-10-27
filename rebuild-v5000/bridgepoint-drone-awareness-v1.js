@@ -174,12 +174,14 @@ async function refresh(force=false){
  const c=centerAndZoom();
  if(!c||!Number.isFinite(c.lat)||!Number.isFinite(c.lon)){showStatus('Map center is not ready yet. Try again after the globe finishes loading.');return}
  if(c.zoom<4.7){
+  try{map.getSource(SOURCE)?.setData(emptyFeatureCollection())}catch(_){}
+  setLayerVisibility(false);
   showStatus('Zoom into the part of the world you want to inspect. The public feed queried here supports a regional radius of up to 250 nautical miles, not a complete worldwide drone feed.');
   if(cellsNode)renderCells([]);if(summaryNode)writeSummary(0,0);return;
  }
  const remaining=15000-(Date.now()-lastFetchAt);
- if(!force&&remaining>0){showStatus('Regional source refresh is rate-limited briefly to avoid stalling the map. Next refresh is available in '+Math.ceil(remaining/1000)+' seconds.');return}
- if(force&&remaining>0){showStatus('Please wait '+Math.ceil(remaining/1000)+' seconds before the next live source request.');return}
+ if(!force&&remaining>0){setLayerVisibility(false);showStatus('Regional source refresh is rate-limited briefly to avoid stalling the map. Next refresh is available in '+Math.ceil(remaining/1000)+' seconds.');return}
+ if(force&&remaining>0){setLayerVisibility(false);showStatus('Please wait '+Math.ceil(remaining/1000)+' seconds before the next live source request.');return}
  inFlight=true;lastFetchAt=Date.now();
  if(refreshButton)refreshButton.disabled=true;
  showStatus('Requesting the selected region from the community ADS-B feed…');
