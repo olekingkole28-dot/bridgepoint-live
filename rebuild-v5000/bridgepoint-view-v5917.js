@@ -257,9 +257,9 @@ function makeTopBarAndDock(){
    setDockMaximized(true);
    const activate=async()=>{
     if(home){
+     window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('weather');
      if(typeof window.__BP_LANDING_ENABLE_WEATHER__==='function')await window.__BP_LANDING_ENABLE_WEATHER__();
     }else if(typeof window.__BP_ENABLE_LIVE_WEATHER__==='function')await window.__BP_ENABLE_LIVE_WEATHER__();
-    if(typeof window.__BP_ACTIVATE_CLOUDS__==='function')await window.__BP_ACTIVATE_CLOUDS__();
     await openRealWorldEffects(false);
    };
    void activate().catch(e=>{console.warn('BridgePoint Weather FX unavailable',e);showActionNotice('Weather FX could not open: '+String(e?.message||e))});return;
