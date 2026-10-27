@@ -43,6 +43,15 @@ for (const action of ['weatherfx','windfx','volumetric','ai','listings','opportu
 assert.ok(view.includes("if(a==='boundaryviewer')"), 'parcel viewer action has an explicit handler');
 assert.ok(view.includes("if(a==='opportunities')"), 'opportunity action has an explicit handler');
 assert.ok(view.includes("if(a==='weatherfx')"), 'weather action has an explicit handler');
+const weatherActionStart = view.indexOf("  if(a==='weatherfx'){");
+const weatherActionEnd = view.indexOf("  if(a==='windfx'){", weatherActionStart);
+assert.ok(weatherActionStart >= 0 && weatherActionEnd > weatherActionStart, 'Weather FX click handler is independently discoverable');
+const weatherAction = view.slice(weatherActionStart, weatherActionEnd);
+assert.ok(weatherAction.includes('openRealWorldEffects(false)'), 'Weather FX opens its real effects control panel directly');
+assert.ok(!weatherAction.includes('setDockMaximized(true)'), 'opening Weather FX does not only maximize/scroll the bottom dock');
+assert.ok(!weatherAction.includes('__BP_LANDING_TOGGLE_WEATHER__') && !weatherAction.includes('__BP_TOGGLE_LIVE_WEATHER__'), 'opening Weather FX is not gated by a separate weather on/off toggle');
+assert.ok(landingHtml.includes('bridgepoint-view-v5917.js?v=6203-weather-fx-panel-open'), 'homepage uses the Weather FX panel cache-buster');
+assert.ok(appHtml.includes('bridgepoint-view-v5917.js?v=6203-weather-fx-panel-open'), 'app uses the Weather FX panel cache-buster');
 assert.ok(view.includes("if(a==='windfx')"), 'wind action has an explicit handler');
 assert.ok(view.includes("if(a==='motion')"), 'motion action has an explicit handler');
 assert.ok(workflow.includes('Whole-Earth drone fleet and map responsiveness smoke'), 'deployment runs a global drone responsiveness smoke test');
