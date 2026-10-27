@@ -316,23 +316,13 @@ function makeTopBarAndDock(){
   if(a==='listings'){openPanel('listings');return}
   if(a==='worldchanges'){setDockMaximized(true);void openWorldChanges().catch(e=>{console.warn('BridgePoint world history unavailable',e);showActionNotice('30-Day History could not open: '+String(e?.message||e))});return}
   if(a==='weatherfx'){
-   setDockMaximized(true);
-   const activate=async()=>{
-    let on=false;
-    if(home){
-     const toggler=window.__BP_LANDING_TOGGLE_WEATHER__;
-     if(typeof toggler==='function')on=await toggler();
-     else if(typeof window.__BP_LANDING_ENABLE_WEATHER__==='function'){await window.__BP_LANDING_ENABLE_WEATHER__();on=true}
-    }else{
-     const toggler=window.__BP_TOGGLE_LIVE_WEATHER__;
-     if(typeof toggler==='function')on=await toggler();
-     else if(typeof window.__BP_ENABLE_LIVE_WEATHER__==='function'){await window.__BP_ENABLE_LIVE_WEATHER__();on=true}
-    }
-    if(on)await openRealWorldEffects(false);
-    return on;
-   };
-   void activate().then(on=>{b.classList.toggle('active',!!on);b.setAttribute('aria-pressed',String(!!on));showActionNotice(on?'Weather data and effects are enabled. Press Weather FX again to turn weather data off.':'Weather data is off.')})
-    .catch(e=>{console.warn('BridgePoint Weather FX unavailable',e);showActionNotice('Weather FX could not open: '+String(e?.message||e))});return;
+   // Weather FX is a panel opener, not a dock toggle. Open its controls directly;
+   // do not maximize/scroll the bottom card or gate the panel on a separate layer toggle.
+   void openRealWorldEffects(false).catch(e=>{
+    console.warn('BridgePoint Weather FX unavailable',e);
+    showActionNotice('Weather FX controls could not open: '+String(e?.message||e));
+   });
+   return;
   }
   if(a==='windfx'){
    setDockMaximized(true);
