@@ -100,7 +100,7 @@ function updateButton(){
  button.classList.toggle('active',enabled);
  button.setAttribute('aria-pressed',String(enabled));
  const label=button.querySelector('.bpv-command-label');if(label)label.textContent=enabled?'Drone Awareness · ON':'Drone Awareness';
- button.title=enabled?'Turn off aggregated public UAV awareness':'Show an opt-in, coarse regional UAV awareness layer';
+ button.title=enabled?'Turn off the simulated drone fleet and source-backed UAV coverage':'Show '+SIM_FLEET_COUNT+' simulated drone icons plus source-backed UAV activity';
 }
 function writeSummary(cellCount, rawCount){
  if(summaryNode){
@@ -123,6 +123,47 @@ function setLayerVisibility(on){
   setLayoutProperty(LAYER,on?'visible':'none');map.triggerRepaint?.();return true;
  }catch(e){return false}
 }
+function simulatedFleetFeatureCollection(){
+ const offsets=[[-3.6,-2.4],[-1.2,-2.4],[1.2,-2.4],[3.6,-2.4],[-3.6,0],[-1.2,0],[1.2,0],[3.6,0],[-3.6,2.4],[-1.2,2.4],[1.2,2.4],[3.6,2.4]];
+ const features=[];
+ GLOBAL_SAMPLES.forEach((sample,regionIndex)=>offsets.forEach((offset,slot)=>{
+  let lon=sample.lon+offset[0];lon=((lon+540)%360)-180;
+  const lat=Math.max(-78,Math.min(78,sample.lat+offset[1]));
+  const index=regionIndex*offsets.length+slot;
+  features.push({type:'Feature',id:'SIM-'+String(index+1).padStart(3,'0'),geometry:{type:'Point',coordinates:[lon,lat]},properties:{simulated:true,fleet_id:'SIM-'+String(index+1).padStart(3,'0'),sample_region:sample.id,label:'SIMULATED FLEET PREVIEW · NOT A LIVE FLIGHT'}});
+ }));
+ return{type:'FeatureCollection',features};
+}
+function ensureSimDroneIcon(){
+ if(!map||map.hasImage?.(SIM_ICON))return true;
+ const canvas=document.createElement('canvas');canvas.width=48;canvas.height=48;
+ const ctx=canvas.getContext('2d');if(!ctx)return false;
+ ctx.clearRect(0,0,48,48);ctx.lineCap='round';ctx.lineJoin='round';
+ ctx.shadowColor='#53e7ff';ctx.shadowBlur=7;ctx.strokeStyle='#74f0ff';ctx.lineWidth=3;
+ ctx.beginPath();ctx.moveTo(15,15);ctx.lineTo(33,33);ctx.moveTo(33,15);ctx.lineTo(15,33);ctx.stroke();
+ for(const [x,y] of [[14,14],[34,14],[14,34],[34,34]]){
+  ctx.beginPath();ctx.arc(x,y,5.4,0,Math.PI*2);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(x-3,y);ctx.lineTo(x+3,y);ctx.stroke();
+ }
+ ctx.shadowBlur=3;ctx.fillStyle='#e9fdff';ctx.strokeStyle='#123b4c';ctx.lineWidth=1.5;
+ ctx.beginPath();ctx.moveTo(19,19);ctx.lineTo(29,19);ctx.lineTo(31,24);ctx.lineTo(29,29);ctx.lineTo(19,29);ctx.lineTo(17,24);ctx.closePath();ctx.fill();ctx.stroke();
+ ctx.shadowBlur=0;ctx.fillStyle='#ff4fcf';ctx.beginPath();ctx.arc(24,24,2.2,0,Math.PI*2);ctx.fill();
+ try{map.addImage(SIM_ICON,canvas,{pixelRatio:2});return true}catch(e){return !!map.hasImage?.(SIM_ICON)}
+}
+function installSimFleetLayer(){
+ if(!map||!map.getStyle?.())return false;
+ try{
+  if(!ensureSimDroneIcon())return false;
+  if(!map.getSource(SIM_SOURCE))map.addSource(SIM_SOURCE,{type:'geojson',data:simulatedFleetFeatureCollection()});
+  if(!map.getLayer(SIM_LAYER))map.addLayer({id:SIM_LAYER,type:'symbol',source:SIM_SOURCE,minzoom:0,layout:{visibility:'none','icon-image':SIM_ICON,'icon-size':['interpolate',['linear'],['zoom'],0,.36,1,.48,2,.6,5,.72,10,.82,16,.92],'icon-anchor':'center','icon-allow-overlap':true,'icon-ignore-placement':true,'symbol-sort-key':['get','fleet_id']},paint:{'icon-opacity':.96}});
+  return true;
+ }catch(e){console.warn('BridgePoint simulated drone fleet setup failed',e);return false}
+}
+function setSimFleetVisibility(on){
+ if(!map)return false;
+ if(on&&!installSimFleetLayer())return false;
+ try{if(map.getLayer(SIM_LAYER))map.setLayoutProperty(SIM_LAYER,'visibility',on?'visible':'none');simFleetVisible=!!on;map.triggerRepaint?.();return true}catch(e){console.warn('BridgePoint simulated drone fleet visibility',e);return false}
+}
 function installLayer(){
  if(!map||!map.getStyle?.())return false;
  try{
@@ -134,6 +175,8 @@ function installLayer(){
     'circle-opacity':.82,'circle-stroke-color':'#06131c','circle-stroke-width':1.5,'circle-blur':0.02
    }});
   }
+  // The decorative fleet is clearly labeled as simulated and remains hidden until this control is enabled.
+  installSimFleetLayer();
   return true;
  }catch(e){console.warn('BridgePoint drone awareness layer setup failed',e);return false}
 }
