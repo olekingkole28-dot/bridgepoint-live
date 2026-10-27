@@ -279,17 +279,21 @@ function makeTopBarAndDock(){
   if(a==='weatherfx'){
    setDockMaximized(true);
    const activate=async()=>{
+    let on=false;
     if(home){
      const toggler=window.__BP_LANDING_TOGGLE_WEATHER__;
-     if(typeof toggler==='function')await toggler();
-     else if(typeof window.__BP_LANDING_ENABLE_WEATHER__==='function')await window.__BP_LANDING_ENABLE_WEATHER__();
+     if(typeof toggler==='function')on=await toggler();
+     else if(typeof window.__BP_LANDING_ENABLE_WEATHER__==='function'){await window.__BP_LANDING_ENABLE_WEATHER__();on=true}
     }else{
-     if(window.__BP_APP_WEATHER_STATE__?.enabled&&typeof window.__BP_STOP_LIVE_WEATHER__==='function')await window.__BP_STOP_LIVE_WEATHER__();
-     else if(typeof window.__BP_ENABLE_LIVE_WEATHER__==='function')await window.__BP_ENABLE_LIVE_WEATHER__();
+     const toggler=window.__BP_TOGGLE_LIVE_WEATHER__;
+     if(typeof toggler==='function')on=await toggler();
+     else if(typeof window.__BP_ENABLE_LIVE_WEATHER__==='function'){await window.__BP_ENABLE_LIVE_WEATHER__();on=true}
     }
-    await openRealWorldEffects(false);
+    if(on)await openRealWorldEffects(false);
+    return on;
    };
-   void activate().catch(e=>{console.warn('BridgePoint Weather FX unavailable',e);showActionNotice('Weather FX could not open: '+String(e?.message||e))});return;
+   void activate().then(on=>{b.classList.toggle('active',!!on);b.setAttribute('aria-pressed',String(!!on));showActionNotice(on?'Weather data and effects are enabled. Press Weather FX again to turn weather data off.':'Weather data is off.')})
+    .catch(e=>{console.warn('BridgePoint Weather FX unavailable',e);showActionNotice('Weather FX could not open: '+String(e?.message||e))});return;
   }
   if(a==='windfx'){setDockMaximized(true);void openVolumetricFields(true).catch(e=>{console.warn('BridgePoint 3D wind unavailable',e);showActionNotice('Wind + Drone fields could not open: '+String(e?.message||e))});return}
   if(a==='volumetric'){setDockMaximized(true);void openVolumetricFields().catch(e=>{console.warn('BridgePoint volumetric fields unavailable',e);showActionNotice('Wind / RF Fields could not open: '+String(e?.message||e))});return}
