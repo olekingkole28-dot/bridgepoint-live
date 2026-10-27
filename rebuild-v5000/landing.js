@@ -1,5 +1,5 @@
 window.__BP_LIVE_COUNTRY_COUNTERS_VERSION__=5902;
-const LOCAL_RUNTIME=location.hostname==='127.0.0.1'||location.hostname==='localhost';const SUPA='https://xdfsjztwgsbmabshzsjw.supabase.co',KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25',RPC=SUPA+'/rest/v1/rpc/',AUTH_STORE='bp_auth_v5045';const H={'apikey':KEY,'Content-Type':'application/json','Accept':'application/json'};let mode='signup',installPrompt=null,map=null,landingWeatherTimer=0,landingWeatherRetryTimer=0,landingWeatherEnabled=true,landingWeatherActivationPromise=null,landingWeatherModules=null,landingOpportunityTimer=0,landingOpportunitySeq=0,landingListingTimer=0,landingListingSeq=0,backdropFrame=0;const $=id=>document.getElementById(id),fmt=n=>Number(n||0).toLocaleString();async function rpc(n,a={},ms=5000){const c=new AbortController(),t=setTimeout(()=>c.abort(),ms),localNames=['bridgepoint_frontend_status_v5000','bridgepoint_data_sprint_status_v5106','bridgepoint_public_global_status_v957','bridgepoint_public_global_coverage_v5601','bridgepoint_public_global_coverage_v5597','bridgepoint_public_live_counters_v5902'],base=LOCAL_RUNTIME&&localNames.includes(n)?location.origin+'/rest/v1/rpc/':RPC;try{const r=await fetch(base+n,{method:'POST',headers:H,body:JSON.stringify(a),signal:c.signal,cache:'no-store'}),d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.message||d.error||('HTTP '+r.status));return d}finally{clearTimeout(t)}}function saveSession(d){if(!d?.access_token)return false;if(!d.expires_at&&d.expires_in)d.expires_at=Math.floor(Date.now()/1000)+Number(d.expires_in);localStorage.setItem(AUTH_STORE,JSON.stringify(d));return true}function hashSession(){const h=new URLSearchParams(location.hash.replace(/^#/,''));if(!h.get('access_token'))return false;saveSession({access_token:h.get('access_token'),refresh_token:h.get('refresh_token'),expires_in:h.get('expires_in')});history.replaceState(null,'',location.pathname+location.search);location.replace('/app/');return true}function setMode(v){mode=v==='signin'?'signin':'signup';const s=mode==='signup';$('nameField').hidden=!s;$('authTitle').textContent=s?'Start using BridgePoint':'Welcome back';$('authEyebrow').textContent=s?'CREATE YOUR BRIDGEPOINT ACCOUNT':'SIGN IN TO BRIDGEPOINT';$('authIntro').textContent=s?'Your account connects Saved, package access, Claims and Workflow to the same BridgePoint identity.':'Sign in to continue into your BridgePoint workspace.';$('authSubmit').textContent=s?'CREATE ACCOUNT':'SIGN IN';$('authSwitch').textContent=s?'Already have an account? Sign in':'Need an account? Create one';$('authPassword').autocomplete=s?'new-password':'current-password';$('authMessage').textContent=''}function openAuth(v){setMode(v||'signup');$('authModal').hidden=false;setTimeout(()=>$('authEmail').focus(),50)}async function submit(e){e.preventDefault();const email=$('authEmail').value.trim(),password=$('authPassword').value,name=$('authName').value.trim(),m=$('authMessage'),b=$('authSubmit');b.disabled=true;m.textContent=mode==='signup'?'Creating your BridgePoint account…':'Signing in…';try{const path=mode==='signup'?'signup':'token?grant_type=password',body=mode==='signup'?{email,password,data:{display_name:name||email.split('@')[0],signup_source:'bridgepoint_landing'}}:{email,password};const r=await fetch(SUPA+'/auth/v1/'+path,{method:'POST',headers:H,body:JSON.stringify(body),cache:'no-store'}),d=await r.json().catch(()=>({}));if(!r.ok){window.BridgePointAcquisition?.send?.(mode==='signup'?'SIGNUP_ERROR':'SIGNIN_ERROR',{auth_surface:'landing',http_status:r.status});throw new Error(d.msg||d.message||d.error_description||d.error||('HTTP '+r.status))}const hasSession=saveSession(d);if(mode==='signup'){window.BridgePointAcquisition?.send?.('SIGNUP_SUCCESS',{auth_surface:'landing',session_returned:hasSession,confirmation_required:!hasSession});if(d?.user?.id)window.BridgePointAcquisition?.identify?.(d.user.id,{auth_surface:'landing',signup_source:'bridgepoint_landing'});if(hasSession){m.textContent='Account ready. Opening BridgePoint…';const target=localStorage.getItem('bp_landing_package')?'/app/?page=packages':'/app/';setTimeout(()=>location.assign(target),250)}else m.textContent='Account created. Check your email if confirmation is required, then sign in.'}else{if(!hasSession)throw new Error('No session returned. Please retry.');window.BridgePointAcquisition?.send?.('SIGNIN_SUCCESS',{auth_surface:'landing'});if(d?.user?.id)window.BridgePointAcquisition?.identify?.(d.user.id,{auth_surface:'landing'});m.textContent='Account ready. Opening BridgePoint…';const target=localStorage.getItem('bp_landing_package')?'/app/?page=packages':'/app/';setTimeout(()=>location.assign(target),250)}}catch(err){m.textContent=String(err.message||err)}finally{b.disabled=false}}
+const LOCAL_RUNTIME=location.hostname==='127.0.0.1'||location.hostname==='localhost';const SUPA='https://xdfsjztwgsbmabshzsjw.supabase.co',KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25',RPC=SUPA+'/rest/v1/rpc/',AUTH_STORE='bp_auth_v5045';const H={'apikey':KEY,'Content-Type':'application/json','Accept':'application/json'};let mode='signup',installPrompt=null,map=null,landingWeatherTimer=0,landingWeatherRetryTimer=0,landingWeatherEnabled=false,landingWeatherActivationPromise=null,landingWeatherModules=null,landingOpportunityTimer=0,landingOpportunitySeq=0,landingListingTimer=0,landingListingSeq=0,backdropFrame=0;const $=id=>document.getElementById(id),fmt=n=>Number(n||0).toLocaleString();async function rpc(n,a={},ms=5000){const c=new AbortController(),t=setTimeout(()=>c.abort(),ms),localNames=['bridgepoint_frontend_status_v5000','bridgepoint_data_sprint_status_v5106','bridgepoint_public_global_status_v957','bridgepoint_public_global_coverage_v5601','bridgepoint_public_global_coverage_v5597','bridgepoint_public_live_counters_v5902'],base=LOCAL_RUNTIME&&localNames.includes(n)?location.origin+'/rest/v1/rpc/':RPC;try{const r=await fetch(base+n,{method:'POST',headers:H,body:JSON.stringify(a),signal:c.signal,cache:'no-store'}),d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.message||d.error||('HTTP '+r.status));return d}finally{clearTimeout(t)}}function saveSession(d){if(!d?.access_token)return false;if(!d.expires_at&&d.expires_in)d.expires_at=Math.floor(Date.now()/1000)+Number(d.expires_in);localStorage.setItem(AUTH_STORE,JSON.stringify(d));return true}function hashSession(){const h=new URLSearchParams(location.hash.replace(/^#/,''));if(!h.get('access_token'))return false;saveSession({access_token:h.get('access_token'),refresh_token:h.get('refresh_token'),expires_in:h.get('expires_in')});history.replaceState(null,'',location.pathname+location.search);location.replace('/app/');return true}function setMode(v){mode=v==='signin'?'signin':'signup';const s=mode==='signup';$('nameField').hidden=!s;$('authTitle').textContent=s?'Start using BridgePoint':'Welcome back';$('authEyebrow').textContent=s?'CREATE YOUR BRIDGEPOINT ACCOUNT':'SIGN IN TO BRIDGEPOINT';$('authIntro').textContent=s?'Your account connects Saved, package access, Claims and Workflow to the same BridgePoint identity.':'Sign in to continue into your BridgePoint workspace.';$('authSubmit').textContent=s?'CREATE ACCOUNT':'SIGN IN';$('authSwitch').textContent=s?'Already have an account? Sign in':'Need an account? Create one';$('authPassword').autocomplete=s?'new-password':'current-password';$('authMessage').textContent=''}function openAuth(v){setMode(v||'signup');$('authModal').hidden=false;setTimeout(()=>$('authEmail').focus(),50)}async function submit(e){e.preventDefault();const email=$('authEmail').value.trim(),password=$('authPassword').value,name=$('authName').value.trim(),m=$('authMessage'),b=$('authSubmit');b.disabled=true;m.textContent=mode==='signup'?'Creating your BridgePoint account…':'Signing in…';try{const path=mode==='signup'?'signup':'token?grant_type=password',body=mode==='signup'?{email,password,data:{display_name:name||email.split('@')[0],signup_source:'bridgepoint_landing'}}:{email,password};const r=await fetch(SUPA+'/auth/v1/'+path,{method:'POST',headers:H,body:JSON.stringify(body),cache:'no-store'}),d=await r.json().catch(()=>({}));if(!r.ok){window.BridgePointAcquisition?.send?.(mode==='signup'?'SIGNUP_ERROR':'SIGNIN_ERROR',{auth_surface:'landing',http_status:r.status});throw new Error(d.msg||d.message||d.error_description||d.error||('HTTP '+r.status))}const hasSession=saveSession(d);if(mode==='signup'){window.BridgePointAcquisition?.send?.('SIGNUP_SUCCESS',{auth_surface:'landing',session_returned:hasSession,confirmation_required:!hasSession});if(d?.user?.id)window.BridgePointAcquisition?.identify?.(d.user.id,{auth_surface:'landing',signup_source:'bridgepoint_landing'});if(hasSession){m.textContent='Account ready. Opening BridgePoint…';const target=localStorage.getItem('bp_landing_package')?'/app/?page=packages':'/app/';setTimeout(()=>location.assign(target),250)}else m.textContent='Account created. Check your email if confirmation is required, then sign in.'}else{if(!hasSession)throw new Error('No session returned. Please retry.');window.BridgePointAcquisition?.send?.('SIGNIN_SUCCESS',{auth_surface:'landing'});if(d?.user?.id)window.BridgePointAcquisition?.identify?.(d.user.id,{auth_surface:'landing'});m.textContent='Account ready. Opening BridgePoint…';const target=localStorage.getItem('bp_landing_package')?'/app/?page=packages':'/app/';setTimeout(()=>location.assign(target),250)}}catch(err){m.textContent=String(err.message||err)}finally{b.disabled=false}}
 function landingWeatherColorExpr(){
  // WMO_CAP_WARNING shapes inherit a phenomenon-specific icon_key when classified; unknown warnings use severity colors.
  return['match',['get','icon_key'],
@@ -678,31 +678,54 @@ async function initMap(){
   if(!world?.map)throw new Error('Shared BridgePoint world renderer unavailable');
   map=world.map;
   window.__BP_LANDING_WORLD__=world;
-  startLandingOpportunities(world);
-  void startLandingNationalWeather(world);
-  // Add the GPU water/hydrology surface to this same globe canvas before other visual modules.
-  void import('./world-v2300-water.js?v=6194-stable-water-low-cost')
-   .then(m=>{if(world?.map)window.__BP_WATER_ENGINE_LANDING_V6123__=m.initWaterEngine(world,{surface:'landing'})})
-   .catch(e=>console.warn('BridgePoint GPU water layer unavailable; native water remains enabled',e));
-  // Start persistent global 3D clouds immediately on the homepage globe, before other visual modules.
-  void import('./world-v2300-clouds.js?v=6168-desktop-global-cloud-motion-stop')
-   .then(m=>{window.__BP_SKY_CLOUDS_V5908__=m.initSkyClouds(world)})
-   .catch(e=>console.warn('BridgePoint global 3D cloud field unavailable',e));
-  // Keep source weather feeds live so global-zoom storm-cloud geometry is source-backed; non-cloud visuals stay locked off.
-  void Promise.all([
-   import('./world-v2300-weather.js?v=6138-cloud-linked-lightning'),
-   import('./world-v2300-present-weather.js?v=6134-legacy-fx-disabled')
-  ]).then(([wm,pm])=>{
-   if(!world?.map)return;
-   landingWeatherModules={weather:wm.initWeather(world.map),present:pm.initPresentWeather(world.map)};
-   landingWeatherModules.weather?.setActive?.(true);
-   landingWeatherModules.weather?.setRadar?.(false);
-   landingWeatherModules.present?.setActive?.(false);
-   hideLegacyLandingWeather(world.map);
-   window.__BP_LANDING_VISUAL_WEATHER__={version:6134,renderer:'source-weather-data-plus-dedicated-rain-lightning',...landingWeatherModules,enabled:true,cinematicFx:false,cloudsOnlyPhase:false,visualWeatherEffectsEnabled:true,legacyCinematicFxDisabled:true,sourceWeatherVisible:true,sourceWeatherOverlaysPreserved:true,mapShared:true,nationalWeather:true,networkActivationDeferred:false,legacyOverlaysHidden:true,radarVisible:!!world.map.getLayer('bp-landing-v6132-ground-radar')&&(world.map.getLayoutProperty('bp-landing-v6132-ground-radar','visibility')||'visible')!=='none',radarOwnedByGroundDrape:true,radarAnimatedAtCloseZoom:false,radarGroundDrape:true,asyncAttach:true,sourceWeatherFeedActive:true,updatedAt:Date.now()};
-   if($('landingWeatherCount'))$('landingWeatherCount').textContent='SOURCE WEATHER · LIVE';
-   if($('landingWeatherTime'))$('landingWeatherTime').textContent='Live source-backed hazard dots, warning/ProbSevere boundaries and the NOAA ground-radar drape are active. Dedicated rain and cloud-to-ground lightning are source-anchored; legacy generic weather FX remain disabled.';
-  }).catch(e=>console.warn('BridgePoint cloud-phase weather feeds unavailable',e));
+  // The public globe starts clean. Data-heavy feeds and GPU engines are lazy-loaded by their dock commands.
+  window.__BP_LANDING_ENABLE_OPPORTUNITIES__=()=>{
+   if(window.__BP_LANDING_OPPORTUNITIES_STARTED_V1__)return Promise.resolve(true);
+   window.__BP_LANDING_OPPORTUNITIES_STARTED_V1__=true;
+   startLandingOpportunities(world);return Promise.resolve(true);
+  };
+  window.__BP_LANDING_ENABLE_WEATHER__=async()=>{
+   if(!world?.map)throw new Error('BridgePoint globe is not ready');
+   await setLandingWeatherEnabled(world,true);
+   await startLandingNationalWeather(world);
+   return true;
+  };
+  window.__BP_LANDING_TOGGLE_WEATHER__=async()=>{
+   if(landingWeatherEnabled){await setLandingWeatherEnabled(world,false);return false}
+   await window.__BP_LANDING_ENABLE_WEATHER__();return true;
+  };
+  window.__BP_TOGGLE_WATER__=async()=>{
+   if(!world?.map)throw new Error('BridgePoint globe is not ready');
+   if(window.__BP_WATER_ENGINE_LANDING_V6123_ENABLED__){
+    window.__BP_WATER_ENGINE_LANDING_V6123_ENABLED__=false;
+    const api=window.__BP_WATER_ENGINE_LANDING_V6123__;
+    if(api){api.active=false;api.setEnabled?.(false)}
+    try{if(world.map.getLayer('bp-water-surface-gpu-v6123'))world.map.setLayoutProperty('bp-water-surface-gpu-v6123','visibility','none')}catch(_){}
+    return false;
+   }
+   if(!window.__BP_WATER_ENGINE_LANDING_V6123__){
+    const mod=await import('./world-v2300-water.js?v=6194-stable-water-low-cost');
+    const api=mod.initWaterEngine(world,{surface:'landing'});
+    if(!api)throw new Error('GPU water surface did not initialize');
+    window.__BP_WATER_ENGINE_LANDING_V6123__=api;
+   }
+   window.__BP_WATER_ENGINE_LANDING_V6123_ENABLED__=true;
+   const api=window.__BP_WATER_ENGINE_LANDING_V6123__;api.active=true;api.setEnabled?.(true);
+   try{if(world.map.getLayer('bp-water-surface-gpu-v6123'))world.map.setLayoutProperty('bp-water-surface-gpu-v6123','visibility','visible')}catch(_){}
+   return true;
+  };
+  let landingCloudPromise=null;
+  window.__BP_ACTIVATE_CLOUDS__=()=>{
+   if(!world?.map)return Promise.reject(new Error('BridgePoint globe is not ready'));
+   const existing=window.__BP_SKY_CLOUDS_V5908__;
+   if(existing?.map===world.map){existing.setEnabled?.(true);return Promise.resolve(existing)}
+   if(!landingCloudPromise)landingCloudPromise=import('./world-v2300-clouds.js?v=6168-desktop-global-cloud-motion-stop')
+    .then(m=>{const api=m.initSkyClouds(world);if(!api)throw new Error('3D cloud engine did not initialize');window.__BP_SKY_CLOUDS_V5908__=api;return api})
+    .finally(()=>{landingCloudPromise=null});
+   return landingCloudPromise;
+  };
+  if($('landingWeatherCount'))$('landingWeatherCount').textContent='SOURCE WEATHER · OFF';
+  if($('landingWeatherTime'))$('landingWeatherTime').textContent='Weather, radar and 3D cloud overlays remain off until selected from the BridgePoint controls.';
    void import('./world-v2300-lod-controls.js?v=6038-world-lod-range-apply').then(m=>{window.__BP_LOD_CONTROL_LANDING_V6016__=m.initWorldLodControls(world,{surface:'landing'})}).catch(e=>console.warn('BridgePoint homepage LOD controls unavailable',e));
   // Explicitly connect the landmark module to the newly created homepage map.
   // Do not depend on its polling loop winning a race with slow mobile/globe startup.
@@ -747,8 +770,15 @@ async function initMap(){
   });
   let bpUserMapGesture=false;const previewEl=$('previewMap');for(const ev of ['pointerdown','touchstart','wheel'])previewEl?.addEventListener(ev,()=>{bpUserMapGesture=true},{passive:true});const hidePreviewSample=()=>{const sample=document.querySelector('.preview-sample');if(!sample)return;sample.style.setProperty('opacity','0','important');sample.style.setProperty('pointer-events','none','important');sample.style.setProperty('transform','translateY(6px)','important');sample.setAttribute('aria-hidden','true')};map.on('move',()=>{$('previewCard').hidden=true;if(bpUserMapGesture)hidePreviewSample()});map.on('moveend',()=>{if(bpUserMapGesture)hidePreviewSample()});
   const weatherButton=$('landingWeatherActivation');
-  if(weatherButton&&!weatherButton.dataset.bpBound){weatherButton.dataset.bpBound='1';weatherButton.addEventListener('click',()=>{void setLandingWeatherEnabled(world,!landingWeatherEnabled)})}
-  void setLandingWeatherEnabled(world,true);
+  if(weatherButton){
+   weatherButton.textContent='SOURCE WEATHER · OFF';weatherButton.title='Turn on source-backed weather, hazards and radar';weatherButton.setAttribute('aria-pressed','false');
+   if(!weatherButton.dataset.bpBound){weatherButton.dataset.bpBound='1';weatherButton.addEventListener('click',async()=>{
+    weatherButton.disabled=true;
+    try{if(landingWeatherEnabled)await setLandingWeatherEnabled(world,false);else await window.__BP_LANDING_ENABLE_WEATHER__();weatherButton.setAttribute('aria-pressed',String(landingWeatherEnabled));}
+    catch(e){console.warn('BridgePoint source weather activation failed',e);weatherButton.title='Activation failed: '+String(e?.message||e);}
+    finally{weatherButton.disabled=false;weatherButton.textContent='SOURCE WEATHER · '+(landingWeatherEnabled?'ON':'OFF')}
+   })}
+  }
 
  }catch(e){
   const msg=String(e?.stack||e?.message||e||'UNKNOWN_MAP_BOOT_ERROR');
