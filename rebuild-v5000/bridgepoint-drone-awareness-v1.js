@@ -15,6 +15,7 @@ const emptyFeatureCollection=()=>({type:'FeatureCollection',features:[]});
 let map=null,enabled=false,inFlight=false,refreshTimer=0,moveTimer=0,lastFetchAt=0,aborter=null;
 let button=null,waterButton=null,waterApi=null,waterPromise=null,waterEnabled=false,cloudButton=null,cloudApi=null,cloudPromise=null,cloudEnabled=false,pane=null,statusNode=null,summaryNode=null,cellsNode=null,refreshButton=null;
 let emptyModeActive=true,emptyModeMap=null,emptyModeHandler=null,sweepFrame=0;
+const requestControllers=new Set();
 const baseLayers=new Set([
  'gta-bg','gta-water','gta-coast-shadow','gta-coast-edge','gta-coast-foam','gta-landcover','gta-landuse','gta-hillshade',
  'gta-context-building-footprints','gta-context-building-shadow','gta-context-buildings','gta-context-floor-lines','gta-context-roofs','gta-context-facade-detail','gta-context-building-parts',
@@ -103,17 +104,14 @@ function updateButton(){
 function writeSummary(cellCount, rawCount){
  if(summaryNode){
   summaryNode.replaceChildren();
-  const a=element('div','bp-drone-metric');a.append(element('b','',String(cellCount)),element('span','','Aggregate cells shown'));
-  const b=element('div','bp-drone-metric');b.append(element('b','',String(MIN_GROUP)+'+'),element('span','','Reports required in each displayed cell'));
+  const a=element('div','bp-drone-metric');a.append(element('b','',Number(rawCount||0).toLocaleString()),element('span','','Deduplicated UAV-class ADS-B reports'));
+  const b=element('div','bp-drone-metric');b.append(element('b','',String(cellCount)),element('span','','Coarse '+GRID_DEGREES+'° cells shown'));
   summaryNode.append(a,b);
  }
- if(cellsNode){
+ if(cellsNode&&!cellCount){
   cellsNode.replaceChildren();
-  if(!cellCount){
-   cellsNode.append(element('div','bp-drone-feed-note','No aggregate cells met the display threshold in this region at the last refresh. That does not establish that no drones are present.'));
-  }
+  cellsNode.append(element('div','bp-drone-feed-note','No UAV-class ADS-B records were returned in the sampled public coverage windows. This is not a full drone census; most drones do not continuously broadcast ADS-B.'));
  }
-}
 function setLayerVisibility(on){
  if(!map)return false;
  try{
@@ -128,9 +126,9 @@ function installLayer(){
  try{
   if(!map.getSource(SOURCE))map.addSource(SOURCE,{type:'geojson',data:emptyFeatureCollection()});
   if(!map.getLayer(LAYER)){
-   map.addLayer({id:LAYER,type:'circle',source:SOURCE,minzoom:3,layout:{visibility:'none'},paint:{
-    'circle-radius':['interpolate',['linear'],['get','count'],3,5,6,7,12,10,24,14,48,18],
-    'circle-color':['interpolate',['linear'],['get','count'],3,'#58cfff',6,'#35e8f4',12,'#62efad',24,'#ffd166',48,'#ff9f68'],
+   map.addLayer({id:LAYER,type:'circle',source:SOURCE,minzoom:0,layout:{visibility:'none'},paint:{
+    'circle-radius':['+', ['interpolate',['linear'],['zoom'],0,2,2,3.5,5,5,9,7], ['interpolate',['linear'],['get','count'],1,0,4,1.5,12,3,32,5]],
+    'circle-color':['interpolate',['linear'],['get','count'],1,'#58cfff',4,'#35e8f4',10,'#62efad',24,'#ffd166',48,'#ff9f68'],
     'circle-opacity':.82,'circle-stroke-color':'#06131c','circle-stroke-width':1.5,'circle-blur':0.02
    }});
   }
@@ -207,6 +205,7 @@ const GLOBAL_SAMPLES=[
 ];
 async function getSample(sample){
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),REQUEST_TIMEOUT_MS);
+ requestControllers.add(controller);
  try{
   const url=SUPPORTED_SOURCE+'lat/'+encodeURIComponent(sample.lat.toFixed(4))+'/lon/'+encodeURIComponent(sample.lon.toFixed(4))+'/dist/'+REGION_RADIUS_NM;
   const response=await fetch(url,{method:'GET',cache:'no-store',signal:controller.signal,headers:{'Accept':'application/json'}});
@@ -215,16 +214,16 @@ async function getSample(sample){
   return{sample,ok:true,records:Array.isArray(data?.ac)?data.ac:[],receivedAt:Date.now()};
  }catch(error){
   return{sample,ok:false,records:[],error:error?.name==='AbortError'?'timed out':String(error?.message||error)};
- }finally{clearTimeout(timer)}
+ }finally{clearTimeout(timer);requestControllers.delete(controller)}
 }
 async function fetchGlobalSamples(){
  const results=[];
  // Small batches avoid bursts against a public community service with dynamic rate limits.
  for(let i=0;i<GLOBAL_SAMPLES.length;i+=3){
+  if(!enabled)throw new Error('Drone Awareness was turned off');
   const batch=await Promise.all(GLOBAL_SAMPLES.slice(i,i+3).map(getSample));
   results.push(...batch);
-  const complete=results.length;
-  showStatus('Sampling public ADS-B coverage hubs: '+complete+'/'+GLOBAL_SAMPLES.length+' regional windows checked…');
+  showStatus('Sampling public ADS-B coverage hubs: '+results.length+'/'+GLOBAL_SAMPLES.length+' regional windows checked…');
  }
  return results;
 }
@@ -239,6 +238,7 @@ async function refresh(force=false){
  showStatus('Starting global sample of public UAV-class ADS-B reports…');
  try{
   const samples=await fetchGlobalSamples();
+  if(!enabled)return;
   const good=samples.filter(s=>s.ok);
   const records=good.flatMap(s=>s.records);
   const c=centerAndZoom();
@@ -249,6 +249,7 @@ async function refresh(force=false){
    localResult=await getSample({id:'Current map view',lat:c.lat,lon:c.lon});
    if(localResult.ok)records.push(...localResult.records);
   }
+  if(!enabled)return;
   const grouped=aggregate(records);
   const fc={type:'FeatureCollection',features:grouped.features};
   map.getSource(SOURCE)?.setData(fc);
@@ -285,13 +286,16 @@ function toggle(){
  if(enabled){
   if(!installLayer()){showStatus('The map layer is not ready yet. Try again once the globe finishes loading.','error');enabled=false;updateButton();return}
   setLayerVisibility(false);
-  showStatus('Opt-in only. Zoom into a region, then refresh. This uses public ADS-B aircraft records classified as UAV (B6) where provided; it is not a universal drone registry and does not include local Remote ID-only broadcasts.');
+  window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('drones',true);
+  showStatus('Sampling public UAV-class ADS-B detections across 13 regional sensor windows. Coarse cells only; this cannot show every drone worldwide and does not include Remote ID-only broadcasts.');
   clearInterval(refreshTimer);refreshTimer=setInterval(()=>{if(enabled&&!document.hidden)void refresh(false)},REFRESH_MS);
-  if(Number(map.getZoom?.()||0)>=4.7)void refresh(false);
+  void refresh(false);
  }else{
-  clearInterval(refreshTimer);clearTimeout(moveTimer);aborter?.abort();setLayerVisibility(false);
+  clearInterval(refreshTimer);clearTimeout(moveTimer);aborter?.abort();
+  for(const controller of requestControllers)try{controller.abort()}catch(_){}
+  requestControllers.clear();setLayerVisibility(false);
   try{map.getSource(SOURCE)?.setData(emptyFeatureCollection())}catch(_){}
-  renderCells([]);writeSummary(0,0);showStatus('Drone Awareness is off. No background regional requests are running.');
+  renderCells([]);writeSummary(0,0);window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('drones',false);showStatus('Drone Awareness is off. No background regional requests are running.');
  }
 }
 function createPane(panel){
@@ -299,17 +303,17 @@ function createPane(panel){
  let existing=panel.querySelector('[data-bpv-pane="drones"]');if(existing)return existing;
  const p=element('section','bp-drone-pane');p.dataset.bpvPane='drones';p.hidden=true;
  p.append(element('div','bp-drone-headline','OPT-IN · PUBLIC CIVIL AIRSPACE DATA'));
- p.append(element('div','bp-drone-feed-note','This view aggregates UAV-class ADS-B reports into approximately 1° cells and only draws cells containing at least three reports. Exact aircraft points, callsigns, identifiers and control-station locations are deliberately not shown.'));
+ p.append(element('div','bp-drone-feed-note','Samples 13 public ADS-B regions and combines reported UAV-class records into coarse 2° cells. The map never displays individual aircraft points, callsigns, identifiers or operator locations. These are sensor-fed sample regions, not exhaustive worldwide coverage; most consumer drones do not broadcast ADS-B.'));
  const summary=element('div','bp-drone-summary');summary.id='bp-drone-summary-v1';summary.append(element('div','bp-drone-metric'));summary.append(element('div','bp-drone-metric'));p.append(summary);summaryNode=summary;
  const status=element('div','bp-drone-status','Drone Awareness is off. Press the button to activate a regional refresh.');status.id='bp-drone-status-v1';status.dataset.kind='info';p.append(status);statusNode=status;
  const actions=element('div','bp-drone-actions');
- const refreshBtn=element('button','bpv-wide-action','REFRESH SELECTED REGION');refreshBtn.type='button';refreshBtn.addEventListener('click',()=>void refresh(true));actions.append(refreshBtn);refreshButton=refreshBtn;
+ const refreshBtn=element('button','bpv-wide-action','REFRESH GLOBAL SAMPLE');refreshBtn.type='button';refreshBtn.addEventListener('click',()=>void refresh(true));actions.append(refreshBtn);refreshButton=refreshBtn;
  const off=element('button','bpv-wide-action','TURN DRONE AWARENESS OFF');off.type='button';off.addEventListener('click',()=>{if(enabled)toggle();else{updateButton();showStatus('Drone Awareness is already off.')}});actions.append(off);p.append(actions);
- const meta=element('div','bp-drone-feed-note','Source window: latest records available from the regional feed. Request center and timestamps are shown; the source itself is not a guarantee of complete airspace coverage.');meta.id='bp-drone-feed-meta';p.append(meta);
+ const meta=element('div','bp-drone-feed-note','Coverage refreshes every 3 minutes while enabled. A blank cell means no eligible report was received from the sampled windows; it does not prove an area is drone-free.');meta.id='bp-drone-feed-meta';p.append(meta);
  const cells=element('div','bp-drone-cells');cells.id='bp-drone-cells-v1';cellsNode=cells;p.append(cells);
  const source=element('div','bp-drone-footnote');
  source.append(document.createTextNode('Source: '));
- const link=element('a','bp-drone-source','ADSB.lol API documentation');link.href='https://www.adsb.lol/docs/open-data/api/';link.target='_blank';link.rel='noopener noreferrer';source.append(link);
+ const link=element('a','bp-drone-source','ADSB.lol API documentation');link.href='https://api.adsb.lol/docs/open-data/api/';link.target='_blank';link.rel='noopener noreferrer';source.append(link);
  source.append(document.createTextNode(' · ODbL 1.0. Public transponder feeds can be incomplete. No Remote ID radio interception, controller/pilot location, target-level history, or offline RF scanning is performed.'));
  p.append(source);panel.append(p);writeSummary(0,0);
  return p;
@@ -487,18 +491,20 @@ function boot(){
  },250);
  window.__BP_DRONE_AWARENESS_V1__={
   version:VERSION,
-  source:'adsb.lol public community ADS-B regional API',
-  aggregation:'1-degree grid; minimum 3 UAV-class reports per displayed cell',
+  source:'adsb.lol public community ADS-B feed',
+  aggregation:'13 global sample regions; 2-degree grid; min 1 classified UAV-class report per cell',
   targetLevelDetails:false,
   pilotOrControlStationLocations:false,
   rawRfScanning:false,
   offlineReceiver:false,
   waterToggle:toggleWater,
   cloudToggle:toggleClouds,
-  allowLayerCategory(category){
+  allowLayerCategory(category,on=true){
    const key=String(category||'').trim().toLowerCase();
+   if(key==='drones')return true;
    if(!categoryPatterns[key])return false;
-   allowedCategories.add(key);hideDefaultOverlays();return true;
+   if(on)allowedCategories.add(key);else allowedCategories.delete(key);
+   hideDefaultOverlays();return true;
   },
   toggle,
   refresh:()=>refresh(true),
