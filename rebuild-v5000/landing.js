@@ -690,8 +690,11 @@ async function initMap(){
  if(!window.maplibregl){window.__BP_LANDING_MAP_BOOT__={stage:'error',error:'MAPLIBRE_UNAVAILABLE',maplibre:false,at:Date.now()};return}
  try{
   window.__BP_LANDING_MAP_BOOT__={stage:'importing-world',maplibre:true,at:Date.now()};
+  console.log('BP_STARTUP_TRACE','landing:before-world-import');
   const mod=await import('./world-v2300-map.js?v=6186-us-opportunities-globe-clipped');
+  console.log('BP_STARTUP_TRACE','landing:after-world-import');
   window.__BP_LANDING_MAP_BOOT__={stage:'initializing-world',maplibre:true,module:true,at:Date.now()};
+  console.log('BP_STARTUP_TRACE','landing:before-initWorld');
   const world=mod.initWorld({
    containerId:'previewMap',
    globalKey:'__bpLandingWorldV5420',
@@ -702,6 +705,7 @@ async function initMap(){
    projection:'globe',
    preview:true
   });
+  console.log('BP_STARTUP_TRACE','landing:after-initWorld',{hasWorld:!!world,hasMap:!!world?.map});
   if(!world?.map)throw new Error('Shared BridgePoint world renderer unavailable');
   map=world.map;
   window.__BP_LANDING_WORLD__=world;
