@@ -36,6 +36,7 @@ assert.ok(moduleSource.includes('const SIM_FLEET_COUNT=156'), 'drone button prov
 assert.ok(moduleSource.includes("label:'SIMULATED FLEET PREVIEW · NOT A LIVE FLIGHT'"), 'simulated positions are marked so they cannot be mistaken for live aircraft');
 assert.ok(moduleSource.includes("layout:{visibility:'none','icon-image':SIM_ICON"), 'simulated drone icons remain hidden at startup');
 assert.ok(moduleSource.includes('setSimFleetVisibility(true)'), 'drone button enables the simulated fleet preview');
+assert.ok(moduleSource.includes("String(id).startsWith('bp-drone-sim-fleet')"), 'the clean-start guard preserves the explicitly enabled simulated fleet layer');
 assert.ok(mapKey.includes('Simulated drone fleet preview · 156 icons'), 'map key labels simulated and source-backed drone layers separately');
 assert.ok(moduleSource.includes('GRID_DEGREES=2'), 'drone display uses coarse 2-degree cells');
 assert.ok(moduleSource.includes('data-bp-water-flow-button'), 'water control is created inside the bottom card');
