@@ -23,6 +23,10 @@ assert.ok(moduleSource.includes('rawRfScanning:false'), 'no raw RF scanner is re
 assert.ok(moduleSource.includes('pilotOrControlStationLocations:false'), 'no operator/control-station location is exposed');
 assert.ok(moduleSource.includes("https://api.adsb.lol/docs/open-data/api/"), 'upstream source is attributed');
 assert.ok(moduleSource.includes('hideDefaultOverlays'), 'startup enters a clean globe state');
+assert.ok(moduleSource.includes('function isManagedOptionalOverlay(id)'), 'only recognized optional overlays are managed by the clean-start guard');
+assert.ok(moduleSource.includes('if(!isManagedOptionalOverlay(layer.id)||layerAllowed(layer.id))continue;'), 'unknown/core basemap layers are never blanket-hidden');
+assert.ok(moduleSource.includes('let parcelLayerEnabled=false;'), 'parcel outlines are off at startup until the parcel control is pressed');
+assert.ok(moduleSource.includes('/landmark|poi|tree|streetlight|transit|infra-points|fire/i'), 'optional landmark, vegetation, transit, infrastructure, and fire overlays are off at startup');
 assert.ok(moduleSource.includes("for(const event of ['style.load','idle','moveend','zoomend','rotateend','pitchend'])m.on(event,hideDefaultOverlays)"), 'clean-start guard runs on settled styles/camera events');
 assert.ok(!moduleSource.includes("m.on('styledata',hideDefaultOverlays)"), 'avoid styledata feedback loops while hiding optional layers');
 assert.ok(landingHtml.includes('bridgepoint-drone-awareness-v1.js'), 'homepage loads the module');
@@ -41,7 +45,7 @@ assert.ok(mapKey.includes('Simulated drone fleet preview · 156 icons'), 'map ke
 assert.ok(moduleSource.includes('GRID_DEGREES=2'), 'drone display uses coarse 2-degree cells');
 assert.ok(moduleSource.includes('data-bp-water-flow-button'), 'water control is created inside the bottom card');
 assert.ok(moduleSource.includes('data-bp-cloud-toggle-button'), 'cloud control is created inside the bottom card');
-assert.ok(moduleSource.includes("'gta-parcel','gta-parcel-glow','gta-parcel-halo'"), 'parcel boundaries remain in the base layer set');
+assert.ok(moduleSource.includes("'gta-parcel','gta-parcel-glow','gta-parcel-halo'"), 'parcel boundaries have explicit visibility gating');
 assert.ok(landingHtml.includes('offline-world-ui.js'), 'homepage contains the offline dock UI loader');
 assert.ok(appHtml.includes('offline-world-ui.js'), 'app contains the offline dock UI loader');
 assert.ok(view.includes('bpv-mapkey-rail'), 'the map key is available from the side rail');
