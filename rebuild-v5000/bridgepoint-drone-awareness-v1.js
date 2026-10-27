@@ -262,6 +262,10 @@ function updateWaterButton(){
 }
 async function toggleWater(){
  if(!map)throw new Error('BridgePoint globe is not ready');
+ if(typeof window.__BP_TOGGLE_WATER__==='function'){
+  const result=await window.__BP_TOGGLE_WATER__();
+  waterEnabled=result===true;updateWaterButton();return waterEnabled;
+ }
  if(waterEnabled){
   waterEnabled=false;
   if(waterApi){waterApi.active=false;waterApi.setEnabled?.(false)}
