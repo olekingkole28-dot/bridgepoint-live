@@ -21,7 +21,8 @@ const baseLayers=new Set([
  'gta-context-building-footprints','gta-context-building-shadow','gta-context-buildings','gta-context-floor-lines','gta-context-roofs','gta-context-facade-detail','gta-context-building-parts',
  'gta-bp-building-shadow','gta-bp-buildings','gta-bp-floor-lines','gta-bp-roofs','gta-bp-facade-detail','gta-bp-building-edge',
  'gta-city-buildings','gta-city-floor-lines','gta-city-building-roof-caps','gta-city-roofs','gta-exact-building','gta-exact-roof','gta-exact-floor-lines',
- 'gta-parcel','gta-parcel-glow','gta-parcel-halo'
+ 'gta-parcel','gta-parcel-glow','gta-parcel-halo',
+ 'bp-public-auto-parcel-glow-v5933','bp-public-auto-parcel-line-v5933'
 ]);
 const allowedCategories=new Set();
 const categoryPatterns={
