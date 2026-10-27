@@ -11,6 +11,7 @@ on:
       - '.github/workflows/validate-reality-assets-v5968.yml'
       - 'release-v2300/**'
       - 'tests/celestial-water-cloud-shadows.test.mjs'
+      - 'tests/drone-awareness.test.mjs'
       - 'pricing/**'
       - 'newsroom/**'
       - 'terminal/**'
@@ -120,6 +121,8 @@ jobs:
           node --check rebuild-v5000/app.js
           node --check rebuild-v5000/landing.js
           node --check rebuild-v5000/bridgepoint-view-v5917.js
+          node --check rebuild-v5000/bridgepoint-drone-awareness-v1.js
+          node tests/drone-awareness.test.mjs
           node --check rebuild-v5000/bridgepoint-live-rail-v5969.js
           node tools/reality_assets/test_live_rail.mjs
           node --check rebuild-v5000/bridgepoint-rail-mesh-v5973.js
@@ -227,6 +230,7 @@ jobs:
           curl --retry 4 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 120 'https://potree.norm3d.com/build/potree/workers/laz-perf.wasm' -o site/assets/bp-potree-lincoln-runtime/workers/laz-perf.wasm
           test -s site/assets/bp-potree-lincoln-runtime/workers/laz-perf.wasm
           cp rebuild-v5000/bridgepoint-view-v5917.js site/bridgepoint-view-v5917.js
+          cp rebuild-v5000/bridgepoint-drone-awareness-v1.js site/bridgepoint-drone-awareness-v1.js
           cp rebuild-v5000/bridgepoint-map-key-v5920.js site/bridgepoint-map-key-v5920.js
           cp rebuild-v5000/bridgepoint-map-state-counts-v5923.js site/bridgepoint-map-state-counts-v5923.js
           cp rebuild-v5000/bridgepoint-map-physical-assets-v5924.js site/bridgepoint-map-physical-assets-v5924.js
