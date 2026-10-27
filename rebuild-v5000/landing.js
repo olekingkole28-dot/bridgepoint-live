@@ -1,5 +1,5 @@
 window.__BP_LIVE_COUNTRY_COUNTERS_VERSION__=5902;
-const LOCAL_RUNTIME=location.hostname==='127.0.0.1'||location.hostname==='localhost';const SUPA='https://xdfsjztwgsbmabshzsjw.supabase.co',KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25',RPC=SUPA+'/rest/v1/rpc/',AUTH_STORE='bp_auth_v5045';const H={'apikey':KEY,'Content-Type':'application/json','Accept':'application/json'};let mode='signup',installPrompt=null,map=null,landingWeatherTimer=0,landingWeatherRetryTimer=0,landingWeatherEnabled=false,landingWeatherActivationPromise=null,landingWeatherModules=null,landingOpportunityTimer=0,landingOpportunitySeq=0,landingListingTimer=0,landingListingSeq=0,backdropFrame=0;const $=id=>document.getElementById(id),fmt=n=>Number(n||0).toLocaleString();async function rpc(n,a={},ms=5000){const c=new AbortController(),t=setTimeout(()=>c.abort(),ms),localNames=['bridgepoint_frontend_status_v5000','bridgepoint_data_sprint_status_v5106','bridgepoint_public_global_status_v957','bridgepoint_public_global_coverage_v5601','bridgepoint_public_global_coverage_v5597','bridgepoint_public_live_counters_v5902'],base=LOCAL_RUNTIME&&localNames.includes(n)?location.origin+'/rest/v1/rpc/':RPC;try{const r=await fetch(base+n,{method:'POST',headers:H,body:JSON.stringify(a),signal:c.signal,cache:'no-store'}),d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.message||d.error||('HTTP '+r.status));return d}finally{clearTimeout(t)}}function saveSession(d){if(!d?.access_token)return false;if(!d.expires_at&&d.expires_in)d.expires_at=Math.floor(Date.now()/1000)+Number(d.expires_in);localStorage.setItem(AUTH_STORE,JSON.stringify(d));return true}function hashSession(){const h=new URLSearchParams(location.hash.replace(/^#/,''));if(!h.get('access_token'))return false;saveSession({access_token:h.get('access_token'),refresh_token:h.get('refresh_token'),expires_in:h.get('expires_in')});history.replaceState(null,'',location.pathname+location.search);location.replace('/app/');return true}function setMode(v){mode=v==='signin'?'signin':'signup';const s=mode==='signup';$('nameField').hidden=!s;$('authTitle').textContent=s?'Start using BridgePoint':'Welcome back';$('authEyebrow').textContent=s?'CREATE YOUR BRIDGEPOINT ACCOUNT':'SIGN IN TO BRIDGEPOINT';$('authIntro').textContent=s?'Your account connects Saved, package access, Claims and Workflow to the same BridgePoint identity.':'Sign in to continue into your BridgePoint workspace.';$('authSubmit').textContent=s?'CREATE ACCOUNT':'SIGN IN';$('authSwitch').textContent=s?'Already have an account? Sign in':'Need an account? Create one';$('authPassword').autocomplete=s?'new-password':'current-password';$('authMessage').textContent=''}function openAuth(v){setMode(v||'signup');$('authModal').hidden=false;setTimeout(()=>$('authEmail').focus(),50)}async function submit(e){e.preventDefault();const email=$('authEmail').value.trim(),password=$('authPassword').value,name=$('authName').value.trim(),m=$('authMessage'),b=$('authSubmit');b.disabled=true;m.textContent=mode==='signup'?'Creating your BridgePoint account…':'Signing in…';try{const path=mode==='signup'?'signup':'token?grant_type=password',body=mode==='signup'?{email,password,data:{display_name:name||email.split('@')[0],signup_source:'bridgepoint_landing'}}:{email,password};const r=await fetch(SUPA+'/auth/v1/'+path,{method:'POST',headers:H,body:JSON.stringify(body),cache:'no-store'}),d=await r.json().catch(()=>({}));if(!r.ok){window.BridgePointAcquisition?.send?.(mode==='signup'?'SIGNUP_ERROR':'SIGNIN_ERROR',{auth_surface:'landing',http_status:r.status});throw new Error(d.msg||d.message||d.error_description||d.error||('HTTP '+r.status))}const hasSession=saveSession(d);if(mode==='signup'){window.BridgePointAcquisition?.send?.('SIGNUP_SUCCESS',{auth_surface:'landing',session_returned:hasSession,confirmation_required:!hasSession});if(d?.user?.id)window.BridgePointAcquisition?.identify?.(d.user.id,{auth_surface:'landing',signup_source:'bridgepoint_landing'});if(hasSession){m.textContent='Account ready. Opening BridgePoint…';const target=localStorage.getItem('bp_landing_package')?'/app/?page=packages':'/app/';setTimeout(()=>location.assign(target),250)}else m.textContent='Account created. Check your email if confirmation is required, then sign in.'}else{if(!hasSession)throw new Error('No session returned. Please retry.');window.BridgePointAcquisition?.send?.('SIGNIN_SUCCESS',{auth_surface:'landing'});if(d?.user?.id)window.BridgePointAcquisition?.identify?.(d.user.id,{auth_surface:'landing'});m.textContent='Account ready. Opening BridgePoint…';const target=localStorage.getItem('bp_landing_package')?'/app/?page=packages':'/app/';setTimeout(()=>location.assign(target),250)}}catch(err){m.textContent=String(err.message||err)}finally{b.disabled=false}}
+const LOCAL_RUNTIME=location.hostname==='127.0.0.1'||location.hostname==='localhost';const SUPA='https://xdfsjztwgsbmabshzsjw.supabase.co',KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25',RPC=SUPA+'/rest/v1/rpc/',AUTH_STORE='bp_auth_v5045';const H={'apikey':KEY,'Content-Type':'application/json','Accept':'application/json'};let mode='signup',installPrompt=null,map=null,landingWeatherTimer=0,landingWeatherRetryTimer=0,landingWeatherEnabled=false,landingWeatherActivationPromise=null,landingWeatherModules=null,landingOpportunityTimer=0,landingOpportunitySeq=0,landingOpportunityEnabled=false,landingListingTimer=0,landingListingSeq=0,backdropFrame=0;const $=id=>document.getElementById(id),fmt=n=>Number(n||0).toLocaleString();async function rpc(n,a={},ms=5000){const c=new AbortController(),t=setTimeout(()=>c.abort(),ms),localNames=['bridgepoint_frontend_status_v5000','bridgepoint_data_sprint_status_v5106','bridgepoint_public_global_status_v957','bridgepoint_public_global_coverage_v5601','bridgepoint_public_global_coverage_v5597','bridgepoint_public_live_counters_v5902'],base=LOCAL_RUNTIME&&localNames.includes(n)?location.origin+'/rest/v1/rpc/':RPC;try{const r=await fetch(base+n,{method:'POST',headers:H,body:JSON.stringify(a),signal:c.signal,cache:'no-store'}),d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.message||d.error||('HTTP '+r.status));return d}finally{clearTimeout(t)}}function saveSession(d){if(!d?.access_token)return false;if(!d.expires_at&&d.expires_in)d.expires_at=Math.floor(Date.now()/1000)+Number(d.expires_in);localStorage.setItem(AUTH_STORE,JSON.stringify(d));return true}function hashSession(){const h=new URLSearchParams(location.hash.replace(/^#/,''));if(!h.get('access_token'))return false;saveSession({access_token:h.get('access_token'),refresh_token:h.get('refresh_token'),expires_in:h.get('expires_in')});history.replaceState(null,'',location.pathname+location.search);location.replace('/app/');return true}function setMode(v){mode=v==='signin'?'signin':'signup';const s=mode==='signup';$('nameField').hidden=!s;$('authTitle').textContent=s?'Start using BridgePoint':'Welcome back';$('authEyebrow').textContent=s?'CREATE YOUR BRIDGEPOINT ACCOUNT':'SIGN IN TO BRIDGEPOINT';$('authIntro').textContent=s?'Your account connects Saved, package access, Claims and Workflow to the same BridgePoint identity.':'Sign in to continue into your BridgePoint workspace.';$('authSubmit').textContent=s?'CREATE ACCOUNT':'SIGN IN';$('authSwitch').textContent=s?'Already have an account? Sign in':'Need an account? Create one';$('authPassword').autocomplete=s?'new-password':'current-password';$('authMessage').textContent=''}function openAuth(v){setMode(v||'signup');$('authModal').hidden=false;setTimeout(()=>$('authEmail').focus(),50)}async function submit(e){e.preventDefault();const email=$('authEmail').value.trim(),password=$('authPassword').value,name=$('authName').value.trim(),m=$('authMessage'),b=$('authSubmit');b.disabled=true;m.textContent=mode==='signup'?'Creating your BridgePoint account…':'Signing in…';try{const path=mode==='signup'?'signup':'token?grant_type=password',body=mode==='signup'?{email,password,data:{display_name:name||email.split('@')[0],signup_source:'bridgepoint_landing'}}:{email,password};const r=await fetch(SUPA+'/auth/v1/'+path,{method:'POST',headers:H,body:JSON.stringify(body),cache:'no-store'}),d=await r.json().catch(()=>({}));if(!r.ok){window.BridgePointAcquisition?.send?.(mode==='signup'?'SIGNUP_ERROR':'SIGNIN_ERROR',{auth_surface:'landing',http_status:r.status});throw new Error(d.msg||d.message||d.error_description||d.error||('HTTP '+r.status))}const hasSession=saveSession(d);if(mode==='signup'){window.BridgePointAcquisition?.send?.('SIGNUP_SUCCESS',{auth_surface:'landing',session_returned:hasSession,confirmation_required:!hasSession});if(d?.user?.id)window.BridgePointAcquisition?.identify?.(d.user.id,{auth_surface:'landing',signup_source:'bridgepoint_landing'});if(hasSession){m.textContent='Account ready. Opening BridgePoint…';const target=localStorage.getItem('bp_landing_package')?'/app/?page=packages':'/app/';setTimeout(()=>location.assign(target),250)}else m.textContent='Account created. Check your email if confirmation is required, then sign in.'}else{if(!hasSession)throw new Error('No session returned. Please retry.');window.BridgePointAcquisition?.send?.('SIGNIN_SUCCESS',{auth_surface:'landing'});if(d?.user?.id)window.BridgePointAcquisition?.identify?.(d.user.id,{auth_surface:'landing'});m.textContent='Account ready. Opening BridgePoint…';const target=localStorage.getItem('bp_landing_package')?'/app/?page=packages':'/app/';setTimeout(()=>location.assign(target),250)}}catch(err){m.textContent=String(err.message||err)}finally{b.disabled=false}}
 function landingWeatherColorExpr(){
  // WMO_CAP_WARNING shapes inherit a phenomenon-specific icon_key when classified; unknown warnings use severity colors.
  return['match',['get','icon_key'],
@@ -563,7 +563,7 @@ function syncGlobalOpportunityDomMarkersV6186(map,features,zoom){
  window.__BP_GLOBAL_OPPORTUNITY_DOM_MARKERS_V6186__=diag;return diag;
 }
 async function refreshLandingOpportunities(world){
- const m=world?.map,src=m?.getSource?.('bpOpportunities');if(!m||!src?.setData||m.isMoving?.())return false;
+ const m=world?.map,src=m?.getSource?.('bpOpportunities');if(!landingOpportunityEnabled||!m||!src?.setData||m.isMoving?.())return false;
  const seq=++landingOpportunitySeq,zoom=m.getZoom(),mobile=window.innerWidth<=620,b=m.getBounds();
  const limit=mobile?(zoom<3?45:zoom<6?35:zoom<10?50:70):(zoom<3?90:zoom<6?70:zoom<10?100:160);
  const params=zoom<3?{p_west:-180,p_south:-85,p_east:180,p_north:85}:{p_west:b.getWest(),p_south:b.getSouth(),p_east:b.getEast(),p_north:b.getNorth()};
@@ -582,7 +582,7 @@ async function refreshLandingOpportunities(world){
    d=await mainFeedRequest;risk=globalRiskCache?.data||null;
    if(!risk)void loadRiskFeed().then(value=>{if(value?.geojson?.features?.length&&m.getZoom()<3&&!m.isMoving?.())void refreshLandingOpportunities(world)}).catch(e=>console.warn('background Landing risk overlay',e));
   }else{[d,risk]=await Promise.all([mainFeedRequest,loadRiskFeed()])}
-  if(seq!==landingOpportunitySeq||m.isMoving?.())return false;
+  if(!landingOpportunityEnabled||seq!==landingOpportunitySeq||m.isMoving?.())return false;
   const merged=mergeLandingOpportunityGeojson(d,risk);const geo=zoom<3?bpGlobalOpportunityGlobeGeoV6187(merged):merged;src.setData(geo);syncGlobalOpportunityDomMarkersV6186(m,geo.features,zoom);
   try{
    if(m.getLayer('gta-opportunity-buildings')){m.setLayoutProperty('gta-opportunity-buildings','visibility',zoom<3?'none':'visible');m.setPaintProperty('gta-opportunity-buildings','fill-extrusion-color',['coalesce',['get','color'],'#ff1744']);m.setPaintProperty('gta-opportunity-buildings','fill-extrusion-opacity',1)}
@@ -609,11 +609,28 @@ function bindLandingOpportunityInfo(world){
  });
 }
 function startLandingOpportunities(world){
- const m=world?.map;if(!m||m.__bpLandingOpportunityBound)return;
- m.__bpLandingOpportunityBound=true;bindLandingOpportunityInfo(world);
- const run=()=>{clearTimeout(landingOpportunityTimer);landingOpportunityTimer=setTimeout(()=>void refreshLandingOpportunities(world),window.innerWidth<=620?1000:650)};
- m.on('moveend',run);try{m.once('load',run)}catch(_){}
- setTimeout(run,850)
+ const m=world?.map;if(!m)return;
+ landingOpportunityEnabled=true;
+ const run=()=>{if(!landingOpportunityEnabled)return;clearTimeout(landingOpportunityTimer);landingOpportunityTimer=setTimeout(()=>{if(landingOpportunityEnabled)void refreshLandingOpportunities(world)},window.innerWidth<=620?1000:650)};
+ if(!m.__bpLandingOpportunityBound){
+  m.__bpLandingOpportunityBound=true;bindLandingOpportunityInfo(world);
+  m.on('moveend',run);try{m.once('load',run)}catch(_){}
+ }
+ run();
+}
+function setLandingOpportunitiesEnabled(world,on){
+ const m=world?.map;if(!m)throw new Error('BridgePoint globe is not ready');
+ landingOpportunityEnabled=!!on;
+ window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('opportunities',landingOpportunityEnabled);
+ if(landingOpportunityEnabled){startLandingOpportunities(world);return true}
+ clearTimeout(landingOpportunityTimer);landingOpportunityTimer=0;landingOpportunitySeq++;
+ try{m.getSource('bpOpportunities')?.setData({type:'FeatureCollection',features:[]})}catch(_){}
+ const markers=m.__bpGlobalOpportunityDomMarkersV6186;
+ for(const item of markers?.markers||[])try{(item.marker||item).remove()}catch(_){}
+ if(markers)markers.markers=[];
+ for(const id of ['gta-opportunity-buildings','gta-opportunity-label','gta-opportunity-dot-fallback','gta-opportunity-dots'])try{if(m.getLayer(id))m.setLayoutProperty(id,'visibility','none')}catch(_){}
+ window.__BP_PUBLIC_OPPORTUNITY_STYLE_V6186__={version:6186,enabled:false,features:0,domMarkerCount:0,updatedAt:Date.now()};
+ return false;
 }
 
 const LANDING_LISTING_COLORS={FOR_SALE:'#7dff63',FOR_RENT:'#24ffc8'};
@@ -680,11 +697,9 @@ async function initMap(){
   map=world.map;
   window.__BP_LANDING_WORLD__=world;
   // The public globe starts clean. Data-heavy feeds and GPU engines are lazy-loaded by their dock commands.
-  window.__BP_LANDING_ENABLE_OPPORTUNITIES__=()=>{
-   if(window.__BP_LANDING_OPPORTUNITIES_STARTED_V1__)return Promise.resolve(true);
-   window.__BP_LANDING_OPPORTUNITIES_STARTED_V1__=true;
-   startLandingOpportunities(world);return Promise.resolve(true);
-  };
+  window.__BP_LANDING_ENABLE_OPPORTUNITIES__=async()=>setLandingOpportunitiesEnabled(world,true);
+  window.__BP_LANDING_TOGGLE_OPPORTUNITIES__=async()=>setLandingOpportunitiesEnabled(world,!landingOpportunityEnabled);
+  window.__BP_LANDING_OPPORTUNITY_STATE__=()=>({enabled:landingOpportunityEnabled,updatedAt:Date.now()});
   window.__BP_LANDING_ENABLE_WEATHER__=async()=>{
    if(!world?.map)throw new Error('BridgePoint globe is not ready');
    await setLandingWeatherEnabled(world,true);
