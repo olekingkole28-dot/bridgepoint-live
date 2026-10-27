@@ -111,11 +111,16 @@ function element(tag,cls,text){
 function showStatus(message,kind='info'){
  if(!statusNode)return;statusNode.textContent=String(message);statusNode.dataset.kind=kind;
 }
+function setLabelTextIfChanged(node,value){
+ if(!node)return;
+ const next=String(value??'');
+ if(node.textContent!==next)node.textContent=next;
+}
 function updateButton(){
  if(!button)return;
  button.classList.toggle('active',enabled);
  button.setAttribute('aria-pressed',String(enabled));
- const label=button.querySelector('.bpv-command-label');if(label)label.textContent=enabled?'Drone Awareness · ON':'Drone Awareness';
+ const label=button.querySelector('.bpv-command-label');setLabelTextIfChanged(label,enabled?'Drone Awareness · ON':'Drone Awareness');
  button.title=enabled?'Turn off the simulated drone fleet and source-backed UAV coverage':'Show '+SIM_FLEET_COUNT+' simulated drone icons plus source-backed UAV activity';
 }
 function writeSummary(cellCount, rawCount){
@@ -390,7 +395,7 @@ function updateWaterButton(){
  if(!waterButton)return;
  waterButton.classList.toggle('active',waterEnabled);
  waterButton.setAttribute('aria-pressed',String(waterEnabled));
- const label=waterButton.querySelector('.bpv-command-label');if(label)label.textContent=waterEnabled?'Water + Flow · ON':'Water + Flow';
+ const label=waterButton.querySelector('.bpv-command-label');setLabelTextIfChanged(label,waterEnabled?'Water + Flow · ON':'Water + Flow');
  waterButton.title=waterEnabled?'Turn off the animated water/hydrology surface':'Load the optional water/hydrology surface';
 }
 async function toggleWater(){
@@ -433,7 +438,7 @@ function updateCloudButton(){
  if(!cloudButton)return;
  cloudButton.classList.toggle('active',cloudEnabled);
  cloudButton.setAttribute('aria-pressed',String(cloudEnabled));
- const label=cloudButton.querySelector('.bpv-command-label');if(label)label.textContent=cloudEnabled?'3D Clouds · ON':'3D Clouds';
+ const label=cloudButton.querySelector('.bpv-command-label');setLabelTextIfChanged(label,cloudEnabled?'3D Clouds · ON':'3D Clouds');
  cloudButton.title=cloudEnabled?'Turn off the 3D cloud renderer':'Load the optional 3D cloud renderer';
 }
 async function toggleClouds(){
@@ -560,8 +565,15 @@ function boot(){
  bindStartMode();
  tryBoot();
  let attempts=0;
- const observer=new MutationObserver(()=>{tryBoot()});
+ const observer=new MutationObserver(()=>{
+  tryBoot();
+  // Once the late-loading dock controls exist, polling alone is sufficient to
+  // discover the map. Disconnect the document-wide observer to avoid UI updates
+  // retriggering startup work while the map module is importing.
+  if(button&&pane){try{observer.disconnect()}catch(_){}}
+ });
  try{observer.observe(document.body,{childList:true,subtree:true})}catch(_){}
+ if(button&&pane){try{observer.disconnect()}catch(_){}}
  const timer=setInterval(()=>{
   tryBoot();attempts++;
   if((button&&pane&&map)||attempts>240){clearInterval(timer);try{observer.disconnect()}catch(_){}}
