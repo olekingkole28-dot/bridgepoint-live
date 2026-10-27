@@ -28,7 +28,7 @@ const baseLayers=new Set([
  'gta-city-buildings','gta-city-floor-lines','gta-city-building-roof-caps','gta-city-roofs','gta-exact-building','gta-exact-roof','gta-exact-floor-lines',
 ]);
 const parcelLayers=new Set(['gta-parcel','gta-parcel-glow','gta-parcel-halo','bp-public-auto-parcel-glow-v5933','bp-public-auto-parcel-line-v5933']);
-let parcelLayerEnabled=true;
+let parcelLayerEnabled=false;
 const allowedCategories=new Set();
 const categoryPatterns={
  parcels:/parcel|cadastral|boundary-viewer/i,
@@ -43,6 +43,17 @@ const categoryPatterns={
  water:/bp-water-surface|water-surface|waterway-flow|hydrology/i,
  clouds:/cloud-volume|sky-cloud|satellite-cloud|eumetsat-cloud/i
 };
+// Only manage explicitly recognized optional overlays. Unknown style layers may be
+// essential basemap/background/terrain layers, so they must not be blanket-hidden.
+const OPTIONAL_OVERLAY_PATTERNS=[
+ ...Object.values(categoryPatterns),
+ /\b(?:dot|dots|marker|markers|cluster|clusters|heatmap|hotspot|hotspots)\b/i,
+ /landmark|poi|tree|streetlight|transit|infra-points|fire/i
+];
+function isManagedOptionalOverlay(id){
+ const value=String(id||'');
+ return parcelLayers.has(value)||OPTIONAL_OVERLAY_PATTERNS.some(pattern=>pattern.test(value));
+}
 function layerAllowed(id){
  if(parcelLayers.has(String(id)))return parcelLayerEnabled;
  if(baseLayers.has(id)||String(id).startsWith('bp-drone-awareness')||String(id).startsWith('bp-drone-sim-fleet'))return true;
@@ -496,7 +507,7 @@ function hideDefaultOverlays(){
   let layers=[];
   try{layers=emptyModeMap.getStyle?.()?.layers||[]}catch(_){return}
   for(const layer of layers){
-   if(layerAllowed(layer.id))continue;
+   if(!isManagedOptionalOverlay(layer.id)||layerAllowed(layer.id))continue;
    try{
     if((emptyModeMap.getLayoutProperty(layer.id,'visibility')||'visible')!=='none')emptyModeMap.setLayoutProperty(layer.id,'visibility','none');
    }catch(_){}
