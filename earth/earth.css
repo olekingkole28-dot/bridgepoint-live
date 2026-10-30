@@ -92,3 +92,5 @@ body{background:#030a12}
 .embed.app-mode .earth-controls button{pointer-events:auto}
 .embed.app-mode .feature-card{right:70px;bottom:18px}
 @media(max-width:760px){.embed.app-mode .earth-controls{right:8px;bottom:14px;top:auto}.embed.app-mode .feature-card{right:54px;bottom:12px}}
+
+.earth-debug{position:absolute;z-index:25;top:72px;right:10px;max-width:min(360px,72vw);max-height:40vh;overflow:auto;margin:0;padding:9px 11px;border:1px solid rgba(126,241,200,.45);border-radius:8px;background:rgba(1,10,18,.88);color:#b9f4e4;font:9px/1.45 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere;pointer-events:none;backdrop-filter:blur(10px);box-shadow:0 8px 26px rgba(0,0,0,.4)}

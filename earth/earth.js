@@ -316,6 +316,7 @@ blueMarble.errorEvent.addEventListener(error=>{
     fallbackImageryLayer=viewer.imageryLayers.addImageryProvider(fallbackProvider,0);
   }
   const e=$('imagery-state');if(e)e.textContent='NASA GLOBAL BASE ACTIVE';
+  renderEarthDiagnostics();
 });
 $('imagery-state').textContent='NASA / POLE-TO-POLE';
 
@@ -450,7 +451,7 @@ async function refreshSurface() {
     state.surfaceTiles.clear();
     landSource.entities.removeAll();waterSource.entities.removeAll();placeSource.entities.removeAll();
     for(const primitive of waterPrimitives.splice(0))try{scene.primitives.remove(primitive)}catch(_){}
-    state.vectorReady=false;state.placeCount=0;scene.requestRender();return;
+    state.vectorReady=false;state.placeCount=0;renderEarthDiagnostics();scene.requestRender();return;
   }
   const center=pointInView(),z=tileZoomForHeight(height),t=geoTileCoordinates(center.lon,center.lat,z);
   const offsets=[[0,0],[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]];
@@ -540,7 +541,7 @@ async function refreshSurface() {
     state.vectorState='TILE ERROR';
     $('terrain-state').textContent='VECTOR TILES FAILED';
     status('OPEN MAP VECTOR TILES FAILED','warn');
-    scene.requestRender();
+    renderEarthDiagnostics();scene.requestRender();
     return;
   }
   // Keep the currently rendered geography visible while the next view's tiles load.
@@ -566,7 +567,7 @@ async function refreshSurface() {
   state.vectorReady=true;
   state.vectorState=failedTiles?'PARTIAL '+loadedTiles+'/'+(loadedTiles+failedTiles):'LOADED '+loadedTiles;
   $('terrain-state').textContent=failedTiles?'MAP DATA PARTIAL':'TERRAIN · RIVERS · LABELS';
-  scene.requestRender();
+  renderEarthDiagnostics();scene.requestRender();
 }
 
 function addBuilding(feature) {
@@ -792,6 +793,33 @@ async function loadWeather(bounds,height,seq) {
     return count;
   }catch(error){console.warn('BridgePoint live weather stream unavailable.',error);return 0}
 }
+const debugEarth=earthParams.get('debug')==='1';
+function renderEarthDiagnostics() {
+  if(!debugEarth)return;
+  let panel=$('earth-debug-state');
+  if(!panel){
+    panel=document.createElement('pre');
+    panel.id='earth-debug-state';
+    panel.className='earth-debug';
+    panel.setAttribute('aria-live','polite');
+    $('earth-viewport').append(panel);
+  }
+  const c=pointInView(),b=currentBounds();
+  const fmt=v=>Number.isFinite(v)?Number(v).toFixed(5):'—';
+  panel.textContent=[
+    'BRIDGEPOINT EARTH DEBUG',
+    'CAMERA '+Math.round(cameraHeight())+' m',
+    'GROUND '+fmt(c.lon)+', '+fmt(c.lat),
+    'BOUNDS '+(b?[fmt(b.west)+','+fmt(b.south)+' → '+fmt(b.east)+','+fmt(b.north)]:'—'),
+    'BUILDINGS '+state.buildingState+' / '+buildingSource.entities.values.length,
+    'PARCELS '+state.parcelCount,
+    'VECTOR '+state.vectorState,
+    'PLACE / ROAD / RIVER LABELS '+placeSource.entities.values.length,
+    'WEATHER '+state.weatherCount,
+    'IMAGERY '+(fallbackImageryLayer?'EPSG3857 BACKSTOP ACTIVE':'EPSG4326 PRIMARY')
+  ].join('\n');
+}
+
 function displayCounts() {
   const count=state.buildingCount+state.parcelCount+state.livingCount+state.weatherCount+state.placeCount;
   $('data-state').textContent=count?count.toLocaleString()+' FEATURES':(state.buildingState==='ZOOM CLOSER'?'ZOOM TO PROPERTY DETAIL':state.buildingState);
@@ -799,6 +827,7 @@ function displayCounts() {
   else if(state.vectorReady)$('terrain-state').textContent='TERRAIN · RIVERS · LABELS';
   else $('terrain-state').textContent='OPEN ELEVATION';
   $('imagery-state').textContent='NASA / POLE-TO-POLE';
+  renderEarthDiagnostics();
 }
 async function refreshIntelligence(force=false) {
   const bounds=currentBounds();if(!bounds)return;
@@ -870,8 +899,6 @@ viewer.screenSpaceEventHandler.setInputAction(movement=>{
   if(entity?.bridgepoint)showFeature(entity);
 },Cesium.ScreenSpaceEventType.LEFT_CLICK);
 $('feature-close').addEventListener('click',()=>$('feature-card').hidden=true);
-$('zoom-in').addEventListener('click',()=>viewer.camera.zoomIn(Math.max(120,cameraHeight()*.28)));
-$('zoom-out').addEventListener('click',()=>viewer.camera.zoomOut(Math.max(120,cameraHeight()*.32)));
 function moveToZoomLevel(inward) {
   const center=pointInView();
   const current=cameraHeight();
