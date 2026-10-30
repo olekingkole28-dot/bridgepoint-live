@@ -17,7 +17,8 @@ const deviceLow = Boolean(LOW);
 const state = {
   ready:false, dataSeq:0, surfaceSeq:0, lastKey:'', buildingCount:0, parcelCount:0,
   weatherCount:0, livingCount:0, placeCount:0, catalog:null, waterPrimitive:null, surfaceTiles:new Set(),
-  vectorReady:false, vectorState:'WAITING', buildingState:'WAITING', lastWeather:0, lastLiving:0
+  vectorReady:false, vectorState:'WAITING', buildingState:'WAITING', contextBuildingCount:0,
+  usgsImageryError:false, aerialImageryError:false, lastWeather:0, lastLiving:0
 };
 let VectorTile = null, Pbf = null;
 try {
@@ -114,8 +115,55 @@ function tileXY(lon,lat,z) {
   const y = Math.floor((1-Math.asinh(Math.tan(r))/Math.PI)/2*n);
   return {x:clamp(x,0,n-1),y:clamp(y,0,n-1)};
 }
+// Select tiles across the visible camera rectangle, not just a fixed 3x3
+// cluster around the camera. Pad the view so labels and rivers do not vanish
+// at screen edges; cap the request count on phones and lower-memory devices.
+function tilesForView(bounds,requestedZoom,maxTiles) {
+  if(!bounds)return [];
+  const rangeFor=level=>{
+    const n=2**level;
+    const xAt=lon=>Math.floor((lon+180)/360*n);
+    const yAt=lat=>tileXY(0,lat,level).y;
+    let minX=xAt(bounds.west),maxX=xAt(bounds.east);
+    if(maxX<minX)maxX+=n;
+    minX-=1;maxX+=1;
+    const minY=Math.max(0,yAt(bounds.north)-1);
+    const maxY=Math.min(n-1,yAt(bounds.south)+1);
+    const width=Math.max(1,Math.min(n,maxX-minX+1));
+    const height=Math.max(1,maxY-minY+1);
+    return {n,level,minX,minY,width,height,maxX:minX+width-1,maxY,count:width*height};
+  };
+  // Preserve contiguous screen coverage: lower the selected level rather than
+  // leaving empty strips between sampled tiles when the view is wide.
+  let range=rangeFor(requestedZoom);
+  while(range.count>maxTiles&&range.level>4)range=rangeFor(range.level-1);
+  const sample=(start,end,count)=>{
+    const length=end-start+1;
+    if(length<=count)return Array.from({length},(_,i)=>start+i);
+    if(count<=1)return [Math.floor((start+end)/2)];
+    return Array.from({length:count},(_,i)=>Math.round(start+(length-1)*i/(count-1)));
+  };
+  let xs,ys;
+  if(range.count<=maxTiles){
+    xs=Array.from({length:range.width},(_,i)=>range.minX+i);
+    ys=Array.from({length:range.height},(_,i)=>range.minY+i);
+  }else{
+    const cols=Math.min(range.width,Math.max(1,Math.floor(Math.sqrt(maxTiles))));
+    const rows=Math.min(range.height,Math.max(1,Math.floor(maxTiles/cols)));
+    xs=sample(range.minX,range.maxX,cols);
+    ys=sample(range.minY,range.maxY,rows);
+  }
+  const unique=new Map();
+  for(const y of ys)for(const x of xs){
+    const wrappedX=((x%range.n)+range.n)%range.n;
+    unique.set(range.level+'/'+wrappedX+'/'+y,{x:wrappedX,y,z:range.level});
+  }
+  return [...unique.values()];
+}
 function tileZoomForHeight(height) {
-  return clamp(Math.floor(13 - Math.log2(Math.max(1,height)/10000)),4,12);
+  // OpenFreeMap publishes useful surface detail through z14. The old z12 cap
+  // made street-level rivers, roads and place labels stop getting sharper.
+  return clamp(Math.floor(14 - Math.log2(Math.max(1,height)/10000)),4,14);
 }
 function buildingZoomForHeight(height) {
   return clamp(Math.round(19 - Math.log2(Math.max(1000,height)/1000)),10,16);
@@ -318,17 +366,53 @@ blueMarble.errorEvent.addEventListener(error=>{
   const e=$('imagery-state');if(e)e.textContent='NASA GLOBAL BASE ACTIVE';
   renderEarthDiagnostics();
 });
-$('imagery-state').textContent='NASA / POLE-TO-POLE';
+const usgsImageryProvider=new Cesium.UrlTemplateImageryProvider({
+  url:'https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}',
+  tilingScheme:new Cesium.WebMercatorTilingScheme(),
+  rectangle:Cesium.Rectangle.fromDegrees(-125,24,-66,50),
+  minimumLevel:4,maximumLevel:17,
+  credit:'USGS National Geospatial Program · Orthoimagery'
+});
+const usgsImageryLayer=viewer.imageryLayers.addImageryProvider(usgsImageryProvider);
+usgsImageryLayer.alpha=1;
+usgsImageryProvider.errorEvent.addEventListener(error=>{
+  if(!state.usgsImageryError){state.usgsImageryError=true;console.warn('USGS aerial imagery tile unavailable.',error);renderEarthDiagnostics()}
+});
+const openAerialProvider=new Cesium.UrlTemplateImageryProvider({
+  // OpenAerialMap's current global XYZ service shows coverage density at z0-13
+  // and real contributed imagery from z14 onward. Keep it above the USGS/NASA
+  // base so transparent/no-coverage areas retain the underlying world.
+  url:'https://global.imagery.hotosm.org/{z}/{x}/{y}.png',
+  tilingScheme:new Cesium.WebMercatorTilingScheme(),
+  rectangle:Cesium.Rectangle.fromDegrees(-180,-85.05112878,180,85.05112878),
+  minimumLevel:14,maximumLevel:21,
+  credit:'OpenAerialMap / Open Imagery Network contributors · item licensing applies'
+});
+const openAerialLayer=viewer.imageryLayers.addImageryProvider(openAerialProvider);
+openAerialLayer.alpha=1;
+openAerialLayer.show=false;
+openAerialProvider.errorEvent.addEventListener(error=>{
+  if(!state.aerialImageryError){state.aerialImageryError=true;console.warn('OpenAerialMap imagery tile unavailable.',error);renderEarthDiagnostics()}
+});
+function syncImageryLod() {
+  const height=cameraHeight();
+  const aerialThreshold=mobile?12000:26000;
+  openAerialLayer.show=height<=aerialThreshold;
+  const label=height<=aerialThreshold?'NASA GLOBAL · USGS + OAM DETAIL':
+    (height<=8000000?'NASA GLOBAL · USGS ORTHO WHERE AVAILABLE':'NASA BLUE MARBLE · GLOBAL');
+  const el=$('imagery-state');if(el)el.textContent=label;
+}
 
 
 const landSource=new Cesium.CustomDataSource('earth-open-landcover');
 const waterSource=new Cesium.CustomDataSource('earth-open-waterways-and-roads');
 const placeSource=new Cesium.CustomDataSource('earth-open-place-labels');
+const contextBuildingSource=new Cesium.CustomDataSource('open-map-context-buildings');
 const buildingSource=new Cesium.CustomDataSource('bridgepoint-source-backed-buildings');
 const parcelSource=new Cesium.CustomDataSource('bridgepoint-source-backed-parcels');
 const livingSource=new Cesium.CustomDataSource('bridgepoint-living-world');
 const weatherSource=new Cesium.CustomDataSource('bridgepoint-live-weather');
-for (const ds of [landSource,waterSource,placeSource,buildingSource,parcelSource,livingSource,weatherSource]) viewer.dataSources.add(ds);
+for (const ds of [landSource,waterSource,placeSource,contextBuildingSource,buildingSource,parcelSource,livingSource,weatherSource]) viewer.dataSources.add(ds);
 const waterPrimitives=[];
 const fallbackColor=Cesium.Color.fromCssColorString('#254d39').withAlpha(.34);
 function landcoverStyle(props={}) {
@@ -444,21 +528,21 @@ function addWaterwayLabel(geometry,props={}) {
   return 1;
 }
 async function refreshSurface() {
-  if(!VectorTile||!Pbf){state.vectorReady=false;return}
+  if(!VectorTile||!Pbf){state.vectorReady=false;state.vectorState='VECTOR DECODER UNAVAILABLE';renderEarthDiagnostics();return}
   const height=cameraHeight(),seq=++state.surfaceSeq;
-  if(height>6500000){
-    state.vectorState='ZOOM CLOSER';
+  if(height>35000000){
+    state.vectorState='GLOBAL BASE ONLY';
     state.surfaceTiles.clear();
-    landSource.entities.removeAll();waterSource.entities.removeAll();placeSource.entities.removeAll();
+    landSource.entities.removeAll();waterSource.entities.removeAll();placeSource.entities.removeAll();contextBuildingSource.entities.removeAll();
     for(const primitive of waterPrimitives.splice(0))try{scene.primitives.remove(primitive)}catch(_){}
-    state.vectorReady=false;state.placeCount=0;renderEarthDiagnostics();scene.requestRender();return;
+    state.vectorReady=false;state.placeCount=0;state.contextBuildingCount=0;contextBuildingSource.show=false;
+    renderEarthDiagnostics();scene.requestRender();return;
   }
-  const center=pointInView(),z=tileZoomForHeight(height),t=geoTileCoordinates(center.lon,center.lat,z);
-  const offsets=[[0,0],[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]];
-  const selected=offsets.slice(0,9).map(([dx,dy])=>{
-    const n=2**z;return{x:(t.x+dx+n)%n,y:clamp(t.y+dy,0,n-1),z}
-  });
-  const landFeatures=[],waterwayFeatures=[],roadFeatures=[],placeLabels=[],waterwayLabels=[];
+  const center=pointInView(),z=tileZoomForHeight(height);
+  const bounds=currentBounds()||{west:center.lon-1.5,east:center.lon+1.5,south:center.lat-1.2,north:center.lat+1.2};
+  const selected=tilesForView(bounds,z,mobile?12:20);
+  state.surfaceTiles.clear();for(const tile of selected)state.surfaceTiles.add(tile.z+'/'+tile.x+'/'+tile.y);
+  const landFeatures=[],waterwayFeatures=[],roadFeatures=[],placeLabels=[],waterwayLabels=[],contextBuildingRows=[];
   const waterPolygons=[],seenLabels=new Set();
   let loadedTiles=0,failedTiles=0,waterPointCount=0;
   for(let i=0;i<selected.length;i+=3){
@@ -469,27 +553,39 @@ async function refreshSurface() {
       loadedTiles++;
       const item=result.value,layers=item.tile.layers||{};
       const lc=layers.landcover;
-      if(height<750000&&lc){
-        for(let k=0;k<Math.min(lc.length,5);k++){
+      if(height<4500000&&lc){
+        const landLimit=mobile?90:190;
+        for(let k=0;k<Math.min(lc.length,mobile?16:30)&&landFeatures.length<landLimit;k++){
           const feature=lc.feature(k),geometry=tileFeatureGeometry(feature,item.x,item.y,item.z);
           if(!geometry)continue;
           const props=feature.properties||{};
           landFeatures.push({geometry,props,material:landcoverStyle(props)});
         }
       }
+      const buildings=layers.building;
+      if(height<220000&&buildings&&contextBuildingRows.length<(mobile?180:360)){
+        const contextLimit=mobile?180:360;
+        for(let k=0;k<Math.min(buildings.length,mobile?45:75)&&contextBuildingRows.length<contextLimit;k++){
+          const feature=buildings.feature(k),geometry=tileFeatureGeometry(feature,item.x,item.y,item.z);
+          if(!geometry||(geometry.type!=='Polygon'&&geometry.type!=='MultiPolygon'))continue;
+          contextBuildingRows.push({geometry,props:feature.properties||{}});
+        }
+      }
       const water=layers.water;
       if(water){
-        for(let k=0;k<Math.min(water.length,12)&&waterPolygons.length<30;k++){
+        for(let k=0;k<Math.min(water.length,mobile?14:24)&&waterPolygons.length<(mobile?48:84);k++){
           const feature=water.feature(k),geometry=tileFeatureGeometry(feature,item.x,item.y,item.z);
           for(const poly of ringsOf(geometry)){
             const points=poly.reduce((sum,ring)=>sum+(ring?.length||0),0);
-            if(poly.length&&points<1800&&waterPointCount+points<18000){waterPolygons.push(poly);waterPointCount+=points}
+            if(poly.length&&points<1800&&waterPointCount+points<(mobile?18000:30000)){
+              waterPolygons.push(poly);waterPointCount+=points;
+            }
           }
         }
       }
       const waterways=layers.waterway;
       if(waterways){
-        for(let k=0;k<Math.min(waterways.length,mobile?14:22);k++){
+        for(let k=0;k<Math.min(waterways.length,mobile?18:30);k++){
           const feature=waterways.feature(k),geometry=tileFeatureGeometry(feature,item.x,item.y,item.z),props=feature.properties||{};
           if(!geometry)continue;
           waterwayFeatures.push({geometry,props});
@@ -563,6 +659,24 @@ async function refreshSurface() {
   for(const row of placeLabels)addPlaceLabel(row.geometry,row.props);
   for(const row of waterwayLabels)addWaterwayLabel(row.geometry,row.props);
   addWaterPrimitive(waterPolygons);
+  contextBuildingSource.entities.removeAll();
+  let contextCount=0;
+  for(const row of contextBuildingRows){
+    const p=row.props||{};
+    const rawHeight=Number.parseFloat(p.render_height??p.height??p['building:height']??'');
+    const levels=Number.parseFloat(p.render_levels??p.levels??p['building:levels']??'');
+    const buildingHeight=clamp(Number.isFinite(rawHeight)?rawHeight:(Number.isFinite(levels)?levels*3:8.5),3,240);
+    const baseHeight=clamp(Number.parseFloat(p.render_min_height??p.min_height??p['building:min_height']??0)||0,0,120);
+    contextCount+=addPolygonEntities(contextBuildingSource,row.geometry,{
+      height:baseHeight,extrudedHeight:baseHeight+buildingHeight,
+      heightReference:Cesium.HeightReference.CLAMP_TO_GROUND,
+      extrudedHeightReference:Cesium.HeightReference.RELATIVE_TO_GROUND,
+      material:Cesium.Color.fromCssColorString(colorForMaterial(p.facade_material||p.building_material||p.material)).withAlpha(.9),
+      outline:true,outlineColor:Cesium.Color.fromCssColorString('#d8edf2').withAlpha(.17)
+    },{...p,source:'OpenFreeMap / OpenStreetMap',truth_class:'OPEN_MAP_CONTEXT_BUILDING'},'CONTEXT_BUILDING');
+  }
+  state.contextBuildingCount=contextCount;
+  contextBuildingSource.show=height<220000&&state.buildingCount===0;
   state.placeCount=placeSource.entities.values.length;
   state.vectorReady=true;
   state.vectorState=failedTiles?'PARTIAL '+loadedTiles+'/'+(loadedTiles+failedTiles):'LOADED '+loadedTiles;
@@ -673,7 +787,7 @@ async function loadBuildings(bounds,height,seq) {
 }
 async function loadParcels(bounds,height,seq) {
   parcelSource.entities.removeAll();
-  if(height>90000)return 0;
+  if(height>220000)return 0;
   try{
     const zoom=clamp(19-Math.log2(Math.max(1000,height)/1000),7,19);
     const data=await rpc('bridgepoint_public_global_parcels_bbox_v957',{
@@ -813,20 +927,27 @@ function renderEarthDiagnostics() {
     'BOUNDS '+(b?[fmt(b.west)+','+fmt(b.south)+' → '+fmt(b.east)+','+fmt(b.north)]:'—'),
     'BUILDINGS '+state.buildingState+' / '+buildingSource.entities.values.length,
     'PARCELS '+state.parcelCount,
+    'OSM CONTEXT BUILDINGS '+state.contextBuildingCount+' / '+contextBuildingSource.entities.values.length,
     'VECTOR '+state.vectorState,
     'PLACE / ROAD / RIVER LABELS '+placeSource.entities.values.length,
     'WEATHER '+state.weatherCount,
-    'IMAGERY '+(fallbackImageryLayer?'EPSG3857 BACKSTOP ACTIVE':'EPSG4326 PRIMARY')
+    'IMAGERY NASA '+(fallbackImageryLayer?'3857 BACKSTOP':'4326 PRIMARY'),
+    'USGS IMAGERY '+(state.usgsImageryError?'TILE ERROR':'CONNECTED'),
+    'OPEN AERIAL IMAGERY '+(state.aerialImageryError?'TILE ERROR':'CONNECTED')
   ].join('\n');
 }
 
 function displayCounts() {
-  const count=state.buildingCount+state.parcelCount+state.livingCount+state.weatherCount+state.placeCount;
-  $('data-state').textContent=count?count.toLocaleString()+' FEATURES':(state.buildingState==='ZOOM CLOSER'?'ZOOM TO PROPERTY DETAIL':state.buildingState);
+  // Keep the BridgePoint counter honest: place labels and public OSM context
+  // buildings are useful geography, but they are not BridgePoint records.
+  const bridgePointCount=state.buildingCount+state.parcelCount+state.livingCount+state.weatherCount;
+  $('data-state').textContent=bridgePointCount?bridgePointCount.toLocaleString()+' BRIDGEPOINT FEATURES':
+    (state.contextBuildingCount?state.contextBuildingCount.toLocaleString()+' OPEN BUILDINGS / CONTEXT':
+    (state.buildingState==='ZOOM CLOSER'?'ZOOM TO PROPERTY DETAIL':'NO BRIDGEPOINT FEATURES IN VIEW'));
   if(state.vectorState==='TILE ERROR')$('terrain-state').textContent='VECTOR TILES FAILED';
   else if(state.vectorReady)$('terrain-state').textContent='TERRAIN · RIVERS · LABELS';
   else $('terrain-state').textContent='OPEN ELEVATION';
-  $('imagery-state').textContent='NASA / POLE-TO-POLE';
+  syncImageryLod();
   renderEarthDiagnostics();
 }
 async function refreshIntelligence(force=false) {
@@ -843,10 +964,11 @@ async function refreshIntelligence(force=false) {
     ]);
     if(seq!==state.dataSeq)return;
     state.buildingCount=buildings;state.parcelCount=parcels;state.livingCount=living;
+    contextBuildingSource.show=height<220000&&buildings===0;
   }else{
     buildingSource.entities.removeAll();parcelSource.entities.removeAll();livingSource.entities.removeAll();
     state.buildingCount=0;state.parcelCount=0;state.livingCount=0;
-    state.buildingState='ZOOM CLOSER';
+    state.buildingState='ZOOM CLOSER';contextBuildingSource.show=false;
   }
   if(height<=6500000){
     const wx=await loadWeather(bounds,height,seq);
@@ -924,7 +1046,7 @@ $('my-location').addEventListener('click',()=>{
       orientation:{heading:0,pitch:Cesium.Math.toRadians(-72),roll:0},duration:1.2});
   },()=>status('LOCATION PERMISSION NOT GRANTED','warn'),{enableHighAccuracy:true,timeout:9000,maximumAge:60000});
 });
-const cameraChanged=()=>{clearTimeout(dataTimer);clearTimeout(surfaceTimer);dataTimer=setTimeout(()=>void refreshIntelligence(false),420);surfaceTimer=setTimeout(()=>void refreshSurface(),650)};
+const cameraChanged=()=>{syncImageryLod();clearTimeout(dataTimer);clearTimeout(surfaceTimer);dataTimer=setTimeout(()=>void refreshIntelligence(false),420);surfaceTimer=setTimeout(()=>void refreshSurface(),650)};
 let dataTimer=0,surfaceTimer=0;
 viewer.camera.moveEnd.addEventListener(cameraChanged);
 viewer.scene.globe.tileLoadProgressEvent.addEventListener(remaining=>{
