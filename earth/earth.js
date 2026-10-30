@@ -1,5 +1,14 @@
 import { rpc, edge, headers, EDGE, LOW, MOBILE, TIER, clamp } from '../world-v2300-config.js';
 
+async function waitForCesium() {
+  const started=Date.now();
+  while(!window.Cesium && Date.now()-started<15000) await new Promise(resolve=>setTimeout(resolve,50));
+  if(!window.Cesium) throw new Error('The Earth renderer library did not load.');
+}
+await waitForCesium();
+const Cesium=window.Cesium;
+if(new URLSearchParams(location.search).has('embed')) document.body.classList.add('embed');
+
 const $ = id => document.getElementById(id);
 const mobile = Boolean(MOBILE || /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent));
 const deviceLow = Boolean(LOW);
