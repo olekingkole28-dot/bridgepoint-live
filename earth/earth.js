@@ -118,32 +118,45 @@ function tileXY(lon,lat,z) {
 // Select tiles across the visible camera rectangle, not just a fixed 3x3
 // cluster around the camera. Pad the view so labels and rivers do not vanish
 // at screen edges; cap the request count on phones and lower-memory devices.
-function tilesForView(bounds,z,maxTiles) {
+function tilesForView(bounds,requestedZoom,maxTiles) {
   if(!bounds)return [];
-  const n=2**z;
-  const xAt=lon=>Math.floor((lon+180)/360*n);
-  const yAt=lat=>tileXY(0,lat,z).y;
-  let minX=xAt(bounds.west),maxX=xAt(bounds.east);
-  if(maxX<minX)maxX+=n;
-  minX-=1;maxX+=1;
-  const minY=Math.max(0,yAt(bounds.north)-1);
-  const maxY=Math.min(n-1,yAt(bounds.south)+1);
+  const rangeFor=level=>{
+    const n=2**level;
+    const xAt=lon=>Math.floor((lon+180)/360*n);
+    const yAt=lat=>tileXY(0,lat,level).y;
+    let minX=xAt(bounds.west),maxX=xAt(bounds.east);
+    if(maxX<minX)maxX+=n;
+    minX-=1;maxX+=1;
+    const minY=Math.max(0,yAt(bounds.north)-1);
+    const maxY=Math.min(n-1,yAt(bounds.south)+1);
+    const width=Math.max(1,Math.min(n,maxX-minX+1));
+    const height=Math.max(1,maxY-minY+1);
+    return {n,level,minX,minY,width,height,maxX:minX+width-1,maxY,count:width*height};
+  };
+  // Preserve contiguous screen coverage: lower the selected level rather than
+  // leaving empty strips between sampled tiles when the view is wide.
+  let range=rangeFor(requestedZoom);
+  while(range.count>maxTiles&&range.level>4)range=rangeFor(range.level-1);
   const sample=(start,end,count)=>{
     const length=end-start+1;
     if(length<=count)return Array.from({length},(_,i)=>start+i);
     if(count<=1)return [Math.floor((start+end)/2)];
     return Array.from({length:count},(_,i)=>Math.round(start+(length-1)*i/(count-1)));
   };
-  const width=Math.max(1,Math.min(n,maxX-minX+1));
-  const height=Math.max(1,maxY-minY+1);
-  const cols=Math.min(width,Math.max(1,Math.floor(Math.sqrt(maxTiles))));
-  const rows=Math.min(height,Math.max(1,Math.floor(maxTiles/cols)));
-  const xs=sample(minX,minX+width-1,cols);
-  const ys=sample(minY,maxY,rows);
+  let xs,ys;
+  if(range.count<=maxTiles){
+    xs=Array.from({length:range.width},(_,i)=>range.minX+i);
+    ys=Array.from({length:range.height},(_,i)=>range.minY+i);
+  }else{
+    const cols=Math.min(range.width,Math.max(1,Math.floor(Math.sqrt(maxTiles))));
+    const rows=Math.min(range.height,Math.max(1,Math.floor(maxTiles/cols)));
+    xs=sample(range.minX,range.maxX,cols);
+    ys=sample(range.minY,range.maxY,rows);
+  }
   const unique=new Map();
   for(const y of ys)for(const x of xs){
-    const wrappedX=((x%n)+n)%n;
-    unique.set(z+'/'+wrappedX+'/'+y,{x:wrappedX,y,z});
+    const wrappedX=((x%range.n)+range.n)%range.n;
+    unique.set(range.level+'/'+wrappedX+'/'+y,{x:wrappedX,y,z:range.level});
   }
   return [...unique.values()];
 }
@@ -377,10 +390,18 @@ const openAerialProvider=new Cesium.UrlTemplateImageryProvider({
 });
 const openAerialLayer=viewer.imageryLayers.addImageryProvider(openAerialProvider);
 openAerialLayer.alpha=1;
+openAerialLayer.show=false;
 openAerialProvider.errorEvent.addEventListener(error=>{
   if(!state.aerialImageryError){state.aerialImageryError=true;console.warn('OpenAerialMap imagery tile unavailable.',error);renderEarthDiagnostics()}
 });
-$('imagery-state').textContent='NASA GLOBAL · USGS + OAM DETAIL';
+function syncImageryLod() {
+  const height=cameraHeight();
+  const aerialThreshold=mobile?12000:26000;
+  openAerialLayer.show=height<=aerialThreshold;
+  const label=height<=aerialThreshold?'NASA GLOBAL · USGS + OAM DETAIL':
+    (height<=8000000?'NASA GLOBAL · USGS ORTHO WHERE AVAILABLE':'NASA BLUE MARBLE · GLOBAL');
+  const el=$('imagery-state');if(el)el.textContent=label;
+}
 
 
 const landSource=new Cesium.CustomDataSource('earth-open-landcover');
@@ -520,7 +541,7 @@ async function refreshSurface() {
   const center=pointInView(),z=tileZoomForHeight(height);
   const bounds=currentBounds()||{west:center.lon-1.5,east:center.lon+1.5,south:center.lat-1.2,north:center.lat+1.2};
   const selected=tilesForView(bounds,z,mobile?12:20);
-  state.surfaceTiles.clear();for(const tile of selected)state.surfaceTiles.add(z+'/'+tile.x+'/'+tile.y);
+  state.surfaceTiles.clear();for(const tile of selected)state.surfaceTiles.add(tile.z+'/'+tile.x+'/'+tile.y);
   const landFeatures=[],waterwayFeatures=[],roadFeatures=[],placeLabels=[],waterwayLabels=[],contextBuildingRows=[];
   const waterPolygons=[],seenLabels=new Set();
   let loadedTiles=0,failedTiles=0,waterPointCount=0;
@@ -926,7 +947,7 @@ function displayCounts() {
   if(state.vectorState==='TILE ERROR')$('terrain-state').textContent='VECTOR TILES FAILED';
   else if(state.vectorReady)$('terrain-state').textContent='TERRAIN · RIVERS · LABELS';
   else $('terrain-state').textContent='OPEN ELEVATION';
-  $('imagery-state').textContent='NASA GLOBAL · USGS + OAM DETAIL';
+  syncImageryLod();
   renderEarthDiagnostics();
 }
 async function refreshIntelligence(force=false) {
@@ -1025,7 +1046,7 @@ $('my-location').addEventListener('click',()=>{
       orientation:{heading:0,pitch:Cesium.Math.toRadians(-72),roll:0},duration:1.2});
   },()=>status('LOCATION PERMISSION NOT GRANTED','warn'),{enableHighAccuracy:true,timeout:9000,maximumAge:60000});
 });
-const cameraChanged=()=>{clearTimeout(dataTimer);clearTimeout(surfaceTimer);dataTimer=setTimeout(()=>void refreshIntelligence(false),420);surfaceTimer=setTimeout(()=>void refreshSurface(),650)};
+const cameraChanged=()=>{syncImageryLod();clearTimeout(dataTimer);clearTimeout(surfaceTimer);dataTimer=setTimeout(()=>void refreshIntelligence(false),420);surfaceTimer=setTimeout(()=>void refreshSurface(),650)};
 let dataTimer=0,surfaceTimer=0;
 viewer.camera.moveEnd.addEventListener(cameraChanged);
 viewer.scene.globe.tileLoadProgressEvent.addEventListener(remaining=>{
