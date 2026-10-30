@@ -287,11 +287,13 @@ scene.screenSpaceCameraController.minimumZoomDistance=45;
 scene.screenSpaceCameraController.maximumZoomDistance=50000000;
 try{scene.postProcessStages.fxaa.enabled=true}catch(_){}
 try{scene.light=new Cesium.SunLight({intensity:1.35})}catch(_){}
+const startLon=clamp(Number(earthParams.get('lon')??-73.9857),-180,180);
+const startLat=clamp(Number(earthParams.get('lat')??40.7484),-89.5,89.5);
+const startHeight=clamp(Number(earthParams.get('height')??17800000),70,50000000);
+const startPitch=clamp(Number(earthParams.get('pitch')??-90),-90,-15);
 viewer.camera.setView({
-  // Start over a populated land region so the first zoom demonstrates the
-  // actual property, place, road and water data streams instead of open ocean.
-  destination:Cesium.Cartesian3.fromDegrees(-73.9857,40.7484,17800000),
-  orientation:{heading:0,pitch:Cesium.Math.toRadians(-90),roll:0}
+  destination:Cesium.Cartesian3.fromDegrees(startLon,startLat,startHeight),
+  orientation:{heading:0,pitch:Cesium.Math.toRadians(startPitch),roll:0}
 });
 
 const blueMarble=new Cesium.UrlTemplateImageryProvider({
@@ -301,10 +303,19 @@ const blueMarble=new Cesium.UrlTemplateImageryProvider({
   tilingScheme:new Cesium.GeographicTilingScheme(),minimumLevel:0,maximumLevel:7,
   credit:'NASA EOSDIS GIBS · Blue Marble Next Generation'
 });
-viewer.imageryLayers.addImageryProvider(blueMarble);
+const blueMarbleLayer=viewer.imageryLayers.addImageryProvider(blueMarble);
+let fallbackImageryLayer=null;
 blueMarble.errorEvent.addEventListener(error=>{
-  console.warn('NASA global Blue Marble tile unavailable.',error);
-  const e=$('imagery-state');if(e)e.textContent='NASA GLOBAL · RETRYING';
+  console.warn('NASA geographic Blue Marble tile unavailable; enabling the known global base as a gap backstop.',error);
+  if(!fallbackImageryLayer){
+    const fallbackProvider=new Cesium.UrlTemplateImageryProvider({
+      url:'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_NextGeneration/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpeg',
+      tilingScheme:new Cesium.WebMercatorTilingScheme(),minimumLevel:0,maximumLevel:8,
+      credit:'NASA EOSDIS GIBS · Blue Marble global fallback'
+    });
+    fallbackImageryLayer=viewer.imageryLayers.addImageryProvider(fallbackProvider,0);
+  }
+  const e=$('imagery-state');if(e)e.textContent='NASA GLOBAL BASE ACTIVE';
 });
 $('imagery-state').textContent='NASA / POLE-TO-POLE';
 
@@ -864,7 +875,9 @@ $('zoom-out').addEventListener('click',()=>viewer.camera.zoomOut(Math.max(120,ca
 function moveToZoomLevel(inward) {
   const center=pointInView();
   const current=cameraHeight();
-  const next=inward?Math.max(70,current*0.52):Math.min(50000000,current*1.9);
+  // Cover orbital-to-city altitude quickly, then slow the final approach.
+  const step=inward?(current>800000?0.2:0.5):1.9;
+  const next=inward?Math.max(70,current*step):Math.min(50000000,current*step);
   viewer.camera.flyTo({
     destination:Cesium.Cartesian3.fromDegrees(center.lon,center.lat,next),
     orientation:{heading:0,pitch:Cesium.Math.toRadians(-90),roll:0},
@@ -899,9 +912,9 @@ setInterval(()=>{if(!document.hidden){state.lastKey='';void refreshIntelligence(
 window.addEventListener('resize',()=>{try{viewer.resize()}catch(_){}});
 window.__BP_EARTH_READY__=true;
 window.__BP_EARTH_WORLD__={
-  version:3,viewer,terrain:'OPEN_TERRARIUM_HEIGHTMAP',imagery:'NASA_GIBS_BLUE_MARBLE_EPSG4326',
+  version:4,viewer,terrain:'OPEN_TERRARIUM_HEIGHTMAP',imagery:'NASA_GIBS_BLUE_MARBLE_EPSG4326+3857_GAP_BACKSTOP',
   dataSources:{buildings:buildingSource,parcels:parcelSource,living:livingSource,weather:weatherSource,places:placeSource,waterways:waterSource},
-  diagnostics:()=>({cameraHeight:cameraHeight(),center:pointInView(),bounds:currentBounds(),buildingState:state.buildingState,vectorState:state.vectorState,buildingCount:buildingSource.entities.values.length,placeCount:placeSource.entities.values.length}),
+  diagnostics:()=>({cameraHeight:cameraHeight(),center:pointInView(),bounds:currentBounds(),buildingState:state.buildingState,vectorState:state.vectorState,buildingCount:buildingSource.entities.values.length,placeCount:placeSource.entities.values.length,imageryFallback:Boolean(fallbackImageryLayer)}),
   refresh:()=>refreshIntelligence(true),refreshSurface
 };
 state.ready=true;
