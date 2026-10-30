@@ -11,4 +11,16 @@
   style.textContent='#bp-earth-rebuild-notice .bp-ern-dot{width:7px;height:7px;flex:0 0 auto;border-radius:50%;background:#7ef1c8;box-shadow:0 0 12px #7ef1c8}#bp-earth-rebuild-notice .bp-ern-copy{display:flex;flex-direction:column;gap:3px}#bp-earth-rebuild-notice b{font-size:8px;letter-spacing:.12em;color:#96efd4}#bp-earth-rebuild-notice small{font-size:9px;color:#b3cbd0}#bp-earth-rebuild-notice .bp-ern-arrow{margin-left:auto;color:#8aebce;font-size:16px}';
   document.head.appendChild(style);
   document.body.appendChild(note);
+  const preview=document.getElementById('previewMap');
+  if(preview && !preview.querySelector('.bp-earth-preview-frame')){
+    preview.style.position='relative';
+    const frame=document.createElement('iframe');
+    frame.className='bp-earth-preview-frame';
+    frame.src='/earth/?embed=1&surface=preview';
+    frame.title='BridgePoint new Earth renderer preview';
+    frame.loading='eager';
+    frame.referrerPolicy='strict-origin-when-cross-origin';
+    frame.style.cssText='position:absolute;inset:0;width:100%;height:100%;border:0;border-radius:inherit;z-index:8;background:#020812';
+    preview.appendChild(frame);
+  }
 })();
