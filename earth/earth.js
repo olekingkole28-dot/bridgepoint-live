@@ -385,48 +385,6 @@ function addWaterwayLabel(geometry,props={}) {
   entityFeature(entity,{...props,name,source:'OpenFreeMap / OpenStreetMap',truth_class:'OPEN_MAP_WATERWAY_LABEL'},'RIVER_LABEL');
   return 1;
 }
-function addPlaceLabel(geometry,props={},kind='PLACE_LABEL') {
-  if(geometry?.type!=='Point'||!Array.isArray(geometry.coordinates))return 0;
-  const name=String(props.name_en||props.name||props.name_int||'').trim();
-  if(!name)return 0;
-  const cls=String(props.class||props.place||'').toLowerCase();
-  if(!/city|town|village|hamlet|suburb|island|state|country|neighbourhood/.test(cls))return 0;
-  const priority=/city|state|country/.test(cls),pos=geometry.coordinates;
-  const entity=placeSource.entities.add({
-    position:Cesium.Cartesian3.fromDegrees(Number(pos[0]),Number(pos[1]),priority?420:180),
-    label:{
-      text:name,font:priority?'600 13px system-ui':'500 10px system-ui',
-      fillColor:Cesium.Color.fromCssColorString('#e5f5f5'),
-      outlineColor:Cesium.Color.fromCssColorString('#06121a').withAlpha(.96),
-      outlineWidth:3,style:Cesium.LabelStyle.FILL_AND_OUTLINE,
-      pixelOffset:new Cesium.Cartesian2(0,-3),
-      distanceDisplayCondition:new Cesium.DistanceDisplayCondition(0,priority?6500000:1800000),
-      scaleByDistance:new Cesium.NearFarScalar(50000,1,2500000,.34)
-    }
-  });
-  entityFeature(entity,{...props,name,source:'OpenFreeMap / OpenStreetMap',truth_class:'OPEN_MAP_LABEL'},kind);
-  return 1;
-}
-function addWaterwayLabel(geometry,props={}) {
-  const name=String(props.name_en||props.name||'').trim();
-  if(!name)return 0;
-  const line=lineArrays(geometry).sort((a,b)=>b.length-a.length)[0];
-  if(!line||line.length<6)return 0;
-  const p=line[Math.floor(line.length/2)];
-  const entity=placeSource.entities.add({
-    position:Cesium.Cartesian3.fromDegrees(Number(p[0]),Number(p[1]),260),
-    label:{
-      text:name,font:'italic 10px system-ui',
-      fillColor:Cesium.Color.fromCssColorString('#8fd4ed'),
-      outlineColor:Cesium.Color.fromCssColorString('#06121a').withAlpha(.96),
-      outlineWidth:3,style:Cesium.LabelStyle.FILL_AND_OUTLINE,
-      distanceDisplayCondition:new Cesium.DistanceDisplayCondition(0,850000),
-      scaleByDistance:new Cesium.NearFarScalar(20000,1,600000,.35)
-    }
-  });
-  entityFeature(entity,{...props,name,source:'OpenFreeMap / OpenStreetMap',truth_class:'OPEN_MAP_WATERWAY_LABEL'},'RIVER_LABEL');
-  return 1;
-}
 async function refreshSurface() {
   if(!VectorTile||!Pbf){state.vectorReady=false;return}
   const height=cameraHeight(),seq=++state.surfaceSeq;
