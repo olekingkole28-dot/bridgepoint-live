@@ -65,7 +65,7 @@ jobs:
           grep -Fq 'fromDegrees(-73.9857,40.7484,17800000)' earth/earth.js
           grep -Fq 'function moveToZoomLevel' earth/earth.js
           grep -Fq "earthParams.get('height')" earth/earth.js
-          grep -Fq 'NASA global fallback' earth/earth.js
+          grep -Fq 'Blue Marble global fallback' earth/earth.js
           grep -Fq 'const startHeight=clamp' earth/earth.js
           ! grep -Fq 'MODIS_Terra_CorrectedReflectance_TrueColor' earth/earth.js
           grep -Fq 'bridgepoint_building_viewport_v2300' earth/earth.js
@@ -127,6 +127,6 @@ jobs:
           grep -Fq 'layers.transportation_name' /tmp/earth.js
           grep -Fq 'function moveToZoomLevel' /tmp/earth.js
           grep -Fq "earthParams.get('height')" /tmp/earth.js
-          grep -Fq 'NASA global fallback' /tmp/earth.js
+          grep -Fq 'Blue Marble global fallback' /tmp/earth.js
           grep -Fq 'BRIDGEPOINT EARTH IS BEING REBUILT' /tmp/notice.js
           echo "BRIDGEPOINT_EARTH_PUBLIC_ROUTE_OK ${PAGE_URL}earth/"
