@@ -11,6 +11,23 @@
   style.textContent='#bp-earth-rebuild-notice .bp-ern-dot{width:7px;height:7px;flex:0 0 auto;border-radius:50%;background:#7ef1c8;box-shadow:0 0 12px #7ef1c8}#bp-earth-rebuild-notice .bp-ern-copy{display:flex;flex-direction:column;gap:3px}#bp-earth-rebuild-notice b{font-size:8px;letter-spacing:.12em;color:#96efd4}#bp-earth-rebuild-notice small{font-size:9px;color:#b3cbd0}#bp-earth-rebuild-notice .bp-ern-arrow{margin-left:auto;color:#8aebce;font-size:16px}';
   document.head.appendChild(style);
   document.body.appendChild(note);
+  const appMap=document.getElementById('liveMap');
+  if(location.pathname.startsWith('/app/') && appMap && !appMap.querySelector('.bp-earth-app-frame')){
+    const frame=document.createElement('iframe');
+    frame.className='bp-earth-app-frame';
+    frame.src='/earth/?embed=1&app=1';
+    frame.title='BridgePoint Earth intelligence world';
+    frame.loading='eager';
+    frame.referrerPolicy='strict-origin-when-cross-origin';
+    frame.allow='geolocation';
+    frame.style.cssText='position:absolute;inset:0;width:100%;height:100%;border:0;z-index:40;background:#020812';
+    appMap.style.position='relative';
+    appMap.appendChild(frame);
+    const legacy=document.createElement('style');
+    legacy.textContent='.map-brand-card,.map-tools,.search-box,.map-status,.measure-readout,#mapResults{display:none!important}';
+    document.head.appendChild(legacy);
+  }
+
   const preview=document.getElementById('previewMap');
   if(preview && !preview.querySelector('.bp-earth-preview-frame')){
     preview.style.position='relative';
