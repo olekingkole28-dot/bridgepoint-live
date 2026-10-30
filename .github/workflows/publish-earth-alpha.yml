@@ -59,6 +59,11 @@ jobs:
           grep -Fq 'CustomHeightmapTerrainProvider' earth/earth.js
           grep -Fq 'GeographicTilingScheme' earth/earth.js
           grep -Fq 'function addPlaceLabel' earth/earth.js
+          grep -Fq 'USGSImageryOnly/MapServer/tile/{z}/{y}/{x}' earth/earth.js
+          grep -Fq 'global.imagery.hotosm.org/{z}/{x}/{y}.png' earth/earth.js
+          grep -Fq 'function tilesForView' earth/earth.js
+          grep -Fq 'function syncImageryLod' earth/earth.js
+          grep -Fq 'OPEN_MAP_CONTEXT_BUILDING' earth/earth.js
           ! grep -Fq 'MODIS_Terra_CorrectedReflectance_TrueColor' earth/earth.js
           grep -Fq 'bridgepoint_building_viewport_v2300' earth/earth.js
           grep -Fq 'bridgepoint_public_global_parcels_bbox_v957' earth/earth.js
@@ -109,11 +114,15 @@ jobs:
         run: |
           set -euo pipefail
           curl --fail --silent --show-error --retry 6 --retry-all-errors --retry-delay 3 "${PAGE_URL}earth/" -o /tmp/earth.html
-          curl --fail --silent --show-error --retry 6 --retry-all-errors --retry-delay 3 "${PAGE_URL}earth/earth.js?v=2" -o /tmp/earth.js
+          curl --fail --silent --show-error --retry 6 --retry-all-errors --retry-delay 3 "${PAGE_URL}earth/earth.js?v=6" -o /tmp/earth.js
           curl --fail --silent --show-error --retry 6 --retry-all-errors --retry-delay 3 "${PAGE_URL}earth-upgrade-notice.js?v=1" -o /tmp/notice.js
           grep -Fq 'BUILDING THE NEW EARTH' /tmp/earth.html
           grep -Fq 'bridgepoint_building_viewport_v2300' /tmp/earth.js
           grep -Fq 'GeographicTilingScheme' /tmp/earth.js
           grep -Fq 'function addPlaceLabel' /tmp/earth.js
+          grep -Fq 'USGSImageryOnly/MapServer/tile/{z}/{y}/{x}' /tmp/earth.js
+          grep -Fq 'global.imagery.hotosm.org/{z}/{x}/{y}.png' /tmp/earth.js
+          grep -Fq 'function tilesForView' /tmp/earth.js
+          grep -Fq 'function syncImageryLod' /tmp/earth.js
           grep -Fq 'BRIDGEPOINT EARTH IS BEING REBUILT' /tmp/notice.js
           echo "BRIDGEPOINT_EARTH_PUBLIC_ROUTE_OK ${PAGE_URL}earth/"
