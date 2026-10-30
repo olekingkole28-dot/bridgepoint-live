@@ -17,7 +17,7 @@ const deviceLow = Boolean(LOW);
 const state = {
   ready:false, dataSeq:0, surfaceSeq:0, lastKey:'', buildingCount:0, parcelCount:0,
   weatherCount:0, livingCount:0, placeCount:0, catalog:null, waterPrimitive:null, surfaceTiles:new Set(),
-  vectorReady:false, lastWeather:0, lastLiving:0
+  vectorReady:false, vectorState:'WAITING', buildingState:'WAITING', lastWeather:0, lastLiving:0
 };
 let VectorTile = null, Pbf = null;
 try {
@@ -52,21 +52,60 @@ function status(message, mode='normal') {
 function cameraHeight() {
   return viewer.camera.positionCartographic?.height || 1e9;
 }
+// Resolve the geographic point under the middle of the screen. Camera position
+// and the point being looked at diverge as the camera pitches; using camera
+// position for tile selection sent street-level requests into the wrong area.
+function viewCenterCartographic() {
+  try {
+    const canvas=scene.canvas;
+    const pixel=new Cesium.Cartesian2(canvas.clientWidth*0.5,canvas.clientHeight*0.5);
+    const ray=viewer.camera.getPickRay(pixel);
+    let hit=ray?globe.pick(ray,scene):null;
+    if(!hit)hit=viewer.camera.pickEllipsoid(pixel,globe.ellipsoid);
+    if(hit)return Cesium.Cartographic.fromCartesian(hit,globe.ellipsoid);
+  } catch(error) {
+    console.debug('Earth center-ray fallback',error?.message||error);
+  }
+  return viewer.camera.positionCartographic;
+}
 function currentBounds() {
   try {
-    const r = viewer.camera.computeViewRectangle(viewer.scene.globe.ellipsoid);
-    if (!r) return null;
-    let west = Cesium.Math.toDegrees(r.west), east = Cesium.Math.toDegrees(r.east);
-    let south = Cesium.Math.toDegrees(r.south), north = Cesium.Math.toDegrees(r.north);
-    if (east < west) east += 360;
-    south = clamp(south,-84.9,84.9); north = clamp(north,-84.9,84.9);
-    if (![west,east,south,north].every(Number.isFinite) || east-west < 0.0001 || north-south < 0.0001) return null;
-    return {west,south,east,north};
-  } catch (_) { return null; }
+    const r=viewer.camera.computeViewRectangle(globe.ellipsoid);
+    if(r) {
+      let west=Cesium.Math.toDegrees(r.west),east=Cesium.Math.toDegrees(r.east);
+      let south=Cesium.Math.toDegrees(r.south),north=Cesium.Math.toDegrees(r.north);
+      if(east<west)east+=360;
+      south=clamp(south,-89.5,89.5);north=clamp(north,-89.5,89.5);
+      if([west,east,south,north].every(Number.isFinite)&&east-west>=0.0002&&north-south>=0.0002&&east-west<=360) {
+        return {west,south,east,north};
+      }
+    }
+  } catch(error) {
+    console.debug('Earth view rectangle fallback',error?.message||error);
+  }
+  // At very low altitude Cesium can return no full viewport rectangle (for
+  // example when screen corners look above the local horizon). Query a safe
+  // ground-centred window instead of silently skipping every data stream.
+  const p=viewCenterCartographic();
+  if(!p)return null;
+  const lat=Cesium.Math.toDegrees(p.latitude),lon=Cesium.Math.toDegrees(p.longitude);
+  const altitude=Math.max(65,Math.min(cameraHeight(),1500000));
+  const halfLat=clamp((altitude*1.15)/111320,0.002,8);
+  const halfLon=clamp((altitude*1.15)/(111320*Math.max(0.15,Math.cos(Cesium.Math.toRadians(lat)))),0.002,18);
+  return {
+    west:clamp(lon-halfLon,-180,180),
+    south:clamp(lat-halfLat,-89.5,89.5),
+    east:clamp(lon+halfLon,-180,180),
+    north:clamp(lat+halfLat,-89.5,89.5)
+  };
 }
 function pointInView() {
-  const p = viewer.camera.positionCartographic;
-  return {lon:Cesium.Math.toDegrees(p.longitude),lat:Cesium.Math.toDegrees(p.latitude),height:p.height};
+  const p=viewCenterCartographic();
+  return {
+    lon:Cesium.Math.toDegrees(p.longitude),
+    lat:Cesium.Math.toDegrees(p.latitude),
+    height:cameraHeight()
+  };
 }
 function tileXY(lon,lat,z) {
   const n = 2 ** z;
@@ -249,8 +288,10 @@ scene.screenSpaceCameraController.maximumZoomDistance=50000000;
 try{scene.postProcessStages.fxaa.enabled=true}catch(_){}
 try{scene.light=new Cesium.SunLight({intensity:1.35})}catch(_){}
 viewer.camera.setView({
-  destination:Cesium.Cartesian3.fromDegrees(-18,27,17800000),
-  orientation:{heading:0,pitch:Cesium.Math.toRadians(-72),roll:0}
+  // Start over a populated land region so the first zoom demonstrates the
+  // actual property, place, road and water data streams instead of open ocean.
+  destination:Cesium.Cartesian3.fromDegrees(-73.9857,40.7484,17800000),
+  orientation:{heading:0,pitch:Cesium.Math.toRadians(-90),roll:0}
 });
 
 const blueMarble=new Cesium.UrlTemplateImageryProvider({
@@ -348,7 +389,7 @@ function addPlaceLabel(geometry,props={},kind='PLACE_LABEL') {
   const name=String(props.name_en||props.name||props.name_int||'').trim();
   if(!name)return 0;
   const cls=String(props.class||props.place||'').toLowerCase();
-  if(!/city|town|village|hamlet|suburb|island|state|country|neighbourhood/.test(cls))return 0;
+  if(!/city|town|village|hamlet|suburb|island|state|country|neighbourhood|quarter|district/.test(cls))return 0;
   const priority=/city|state|country/.test(cls),pos=geometry.coordinates;
   const entity=placeSource.entities.add({
     position:Cesium.Cartesian3.fromDegrees(Number(pos[0]),Number(pos[1]),priority?420:180),
@@ -358,7 +399,7 @@ function addPlaceLabel(geometry,props={},kind='PLACE_LABEL') {
       outlineColor:Cesium.Color.fromCssColorString('#06121a').withAlpha(.96),
       outlineWidth:3,style:Cesium.LabelStyle.FILL_AND_OUTLINE,
       pixelOffset:new Cesium.Cartesian2(0,-3),
-      distanceDisplayCondition:new Cesium.DistanceDisplayCondition(0,priority?6500000:1800000),
+      distanceDisplayCondition:new Cesium.DistanceDisplayCondition(0,priority?8500000:3200000),
       scaleByDistance:new Cesium.NearFarScalar(50000,1,2500000,.34)
     }
   });
@@ -378,7 +419,7 @@ function addWaterwayLabel(geometry,props={}) {
       fillColor:Cesium.Color.fromCssColorString('#8fd4ed'),
       outlineColor:Cesium.Color.fromCssColorString('#06121a').withAlpha(.96),
       outlineWidth:3,style:Cesium.LabelStyle.FILL_AND_OUTLINE,
-      distanceDisplayCondition:new Cesium.DistanceDisplayCondition(0,850000),
+      distanceDisplayCondition:new Cesium.DistanceDisplayCondition(0,2200000),
       scaleByDistance:new Cesium.NearFarScalar(20000,1,600000,.35)
     }
   });
@@ -401,12 +442,12 @@ async function refreshSurface() {
   });
   const landFeatures=[],waterwayFeatures=[],roadFeatures=[],placeLabels=[],waterwayLabels=[];
   const waterPolygons=[],seenLabels=new Set();
-  let loadedTiles=0,waterPointCount=0;
+  let loadedTiles=0,failedTiles=0,waterPointCount=0;
   for(let i=0;i<selected.length;i+=3){
     const batch=await Promise.allSettled(selected.slice(i,i+3).map(ti=>fetchVectorTile(ti.z,ti.x,ti.y)));
     if(seq!==state.surfaceSeq)return;
     for(const result of batch){
-      if(result.status!=='fulfilled'||!result.value)continue;
+      if(result.status!=='fulfilled'||!result.value){failedTiles++;continue}
       loadedTiles++;
       const item=result.value,layers=item.tile.layers||{};
       const lc=layers.landcover;
@@ -430,11 +471,25 @@ async function refreshSurface() {
       }
       const waterways=layers.waterway;
       if(waterways){
-        for(let k=0;k<Math.min(waterways.length,mobile?12:18);k++){
+        for(let k=0;k<Math.min(waterways.length,mobile?14:22);k++){
           const feature=waterways.feature(k),geometry=tileFeatureGeometry(feature,item.x,item.y,item.z),props=feature.properties||{};
           if(!geometry)continue;
           waterwayFeatures.push({geometry,props});
-          if(waterwayLabels.length<(mobile?5:9)&&props.name)waterwayLabels.push({geometry,props});
+        }
+      }
+      const waterNames=layers.water_name;
+      if(waterNames){
+        for(let k=0;k<Math.min(waterNames.length,mobile?12:20);k++){
+          const feature=waterNames.feature(k),geometry=tileFeatureGeometry(feature,item.x,item.y,item.z),props=feature.properties||{};
+          if(geometry&&props.name&&waterwayLabels.length<(mobile?10:16))waterwayLabels.push({geometry,props});
+        }
+      }
+      const roadNames=layers.transportation_name;
+      if(roadNames&&height<1200000){
+        for(let k=0;k<Math.min(roadNames.length,mobile?24:40);k++){
+          const feature=roadNames.feature(k),geometry=tileFeatureGeometry(feature,item.x,item.y,item.z),props=feature.properties||{};
+          const name=String(props.name_en||props.name||'').trim();
+          if(geometry&&name&&waterwayLabels.length<(mobile?24:42))waterwayLabels.push({geometry,props:{...props,name},road:true});
         }
       }
       const places=layers.place;
@@ -463,7 +518,14 @@ async function refreshSurface() {
     }
   }
   if(seq!==state.surfaceSeq)return;
-  if(!loadedTiles)return;
+  if(!loadedTiles){
+    state.vectorReady=false;
+    state.vectorState='TILE ERROR';
+    $('terrain-state').textContent='VECTOR TILES FAILED';
+    status('OPEN MAP VECTOR TILES FAILED','warn');
+    scene.requestRender();
+    return;
+  }
   // Keep the currently rendered geography visible while the next view's tiles load.
   landSource.entities.removeAll();waterSource.entities.removeAll();placeSource.entities.removeAll();
   for(const primitive of waterPrimitives.splice(0))try{scene.primitives.remove(primitive)}catch(_){}
@@ -485,7 +547,8 @@ async function refreshSurface() {
   addWaterPrimitive(waterPolygons);
   state.placeCount=placeSource.entities.values.length;
   state.vectorReady=true;
-  $('terrain-state').textContent='TERRAIN · RIVERS · LABELS';
+  state.vectorState=failedTiles?'PARTIAL '+loadedTiles+'/'+(loadedTiles+failedTiles):'LOADED '+loadedTiles;
+  $('terrain-state').textContent=failedTiles?'MAP DATA PARTIAL':'TERRAIN · RIVERS · LABELS';
   scene.requestRender();
 }
 
@@ -561,8 +624,8 @@ async function loadPublicBuildings(bounds,height) {
   return total;
 }
 async function loadBuildings(bounds,height,seq) {
-  if(height>1200000){buildingSource.entities.removeAll();return 0}
-  let features=[];
+  if(height>1200000){buildingSource.entities.removeAll();state.buildingState='ZOOM CLOSER';return 0}
+  let features=[],rpcFailed=false;
   try{
     const data=await requestEarthRpc('bridgepoint_building_viewport_v2300',{
       p_min_lat:bounds.south,p_max_lat:bounds.north,
@@ -571,13 +634,24 @@ async function loadBuildings(bounds,height,seq) {
     },4800);
     if(seq!==state.dataSeq)return 0;
     features=Array.isArray(data?.features)?data.features:[];
-  }catch(error){console.info('BridgePoint viewport request timed out or unavailable; switching to public building tiles.',error?.message||error)}
+  }catch(error){
+    rpcFailed=true;
+    console.info('BridgePoint building viewport request unavailable; switching to public building tiles.',error?.message||error);
+  }
   if(seq!==state.dataSeq)return 0;
   buildingSource.entities.removeAll();
   let count=0;
   for(const feature of features.slice(0,mobile?420:850))count+=addBuilding(feature);
-  if(count)return count;
-  try{return await loadPublicBuildings(bounds,height)}catch(error){console.warn('BridgePoint public building stream unavailable.',error);return 0}
+  if(count){state.buildingState='RPC '+count;return count}
+  try{
+    const tileCount=await loadPublicBuildings(bounds,height);
+    state.buildingState=tileCount?'TILES '+tileCount:(rpcFailed?'RPC/TILE EMPTY':'NO BUILDINGS IN VIEW');
+    return tileCount;
+  }catch(error){
+    state.buildingState='TILE ERROR';
+    console.warn('BridgePoint public building stream unavailable.',error);
+    return 0;
+  }
 }
 async function loadParcels(bounds,height,seq) {
   parcelSource.entities.removeAll();
@@ -703,8 +777,10 @@ async function loadWeather(bounds,height,seq) {
 }
 function displayCounts() {
   const count=state.buildingCount+state.parcelCount+state.livingCount+state.weatherCount;
-  $('data-state').textContent=count?count.toLocaleString()+' FEATURES':'LIVE / ZOOM TO DETAIL';
-  $('terrain-state').textContent=state.vectorReady?'TERRAIN · RIVERS · LABELS':'OPEN ELEVATION';
+  $('data-state').textContent=count?count.toLocaleString()+' FEATURES':(state.buildingState==='ZOOM CLOSER'?'ZOOM TO PROPERTY DETAIL':state.buildingState);
+  if(state.vectorState==='TILE ERROR')$('terrain-state').textContent='VECTOR TILES FAILED';
+  else if(state.vectorReady)$('terrain-state').textContent='TERRAIN · RIVERS · LABELS';
+  else $('terrain-state').textContent='OPEN ELEVATION';
   $('imagery-state').textContent='NASA / POLE-TO-POLE';
 }
 async function refreshIntelligence(force=false) {
@@ -778,15 +854,27 @@ viewer.screenSpaceEventHandler.setInputAction(movement=>{
 $('feature-close').addEventListener('click',()=>$('feature-card').hidden=true);
 $('zoom-in').addEventListener('click',()=>viewer.camera.zoomIn(Math.max(120,cameraHeight()*.28)));
 $('zoom-out').addEventListener('click',()=>viewer.camera.zoomOut(Math.max(120,cameraHeight()*.32)));
+function moveToZoomLevel(inward) {
+  const center=pointInView();
+  const current=cameraHeight();
+  const next=inward?Math.max(70,current*0.52):Math.min(50000000,current*1.9);
+  viewer.camera.flyTo({
+    destination:Cesium.Cartesian3.fromDegrees(center.lon,center.lat,next),
+    orientation:{heading:0,pitch:Cesium.Math.toRadians(-90),roll:0},
+    duration:0.38
+  });
+}
+$('zoom-in').addEventListener('click',()=>moveToZoomLevel(true));
+$('zoom-out').addEventListener('click',()=>moveToZoomLevel(false));
 $('home-view').addEventListener('click',()=>viewer.camera.flyTo({
-  destination:Cesium.Cartesian3.fromDegrees(-18,27,17800000),
-  orientation:{heading:0,pitch:Cesium.Math.toRadians(-72),roll:0},duration:1.1
+  destination:Cesium.Cartesian3.fromDegrees(-73.9857,40.7484,17800000),
+  orientation:{heading:0,pitch:Cesium.Math.toRadians(-90),roll:0},duration:1.1
 }));
 $('my-location').addEventListener('click',()=>{
   if(!navigator.geolocation){status('LOCATION NOT AVAILABLE','warn');return}
   navigator.geolocation.getCurrentPosition(position=>{
     viewer.camera.flyTo({destination:Cesium.Cartesian3.fromDegrees(position.coords.longitude,position.coords.latitude,18000),
-      orientation:{heading:0,pitch:Cesium.Math.toRadians(-58),roll:0},duration:1.2});
+      orientation:{heading:0,pitch:Cesium.Math.toRadians(-72),roll:0},duration:1.2});
   },()=>status('LOCATION PERMISSION NOT GRANTED','warn'),{enableHighAccuracy:true,timeout:9000,maximumAge:60000});
 });
 const cameraChanged=()=>{clearTimeout(dataTimer);clearTimeout(surfaceTimer);dataTimer=setTimeout(()=>void refreshIntelligence(false),420);surfaceTimer=setTimeout(()=>void refreshSurface(),650)};
@@ -804,8 +892,9 @@ setInterval(()=>{if(!document.hidden){state.lastKey='';void refreshIntelligence(
 window.addEventListener('resize',()=>{try{viewer.resize()}catch(_){}});
 window.__BP_EARTH_READY__=true;
 window.__BP_EARTH_WORLD__={
-  version:2,viewer,terrain:'OPEN_TERRARIUM_HEIGHTMAP',imagery:'NASA_GIBS_BLUE_MARBLE_EPSG4326',
+  version:3,viewer,terrain:'OPEN_TERRARIUM_HEIGHTMAP',imagery:'NASA_GIBS_BLUE_MARBLE_EPSG4326',
   dataSources:{buildings:buildingSource,parcels:parcelSource,living:livingSource,weather:weatherSource,places:placeSource,waterways:waterSource},
+  diagnostics:()=>({cameraHeight:cameraHeight(),center:pointInView(),bounds:currentBounds(),buildingState:state.buildingState,vectorState:state.vectorState,buildingCount:buildingSource.entities.values.length,placeCount:placeSource.entities.values.length}),
   refresh:()=>refreshIntelligence(true),refreshSurface
 };
 state.ready=true;
