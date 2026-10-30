@@ -87,3 +87,8 @@ body{background:#030a12}
 .embed .earth-topbar,.embed .intro,.embed .world-stats,.embed .earth-controls,.embed .source-rail,.embed .earth-footer,.embed .feature-card{display:none!important}
 .embed .earth-vignette{background:radial-gradient(ellipse at 50% 50%,transparent 48%,rgba(1,7,13,.2) 100%)}
 .embed .loading-screen{background:radial-gradient(ellipse at 50% 46%,#0b2638,#020911 68%)}
+
+.embed.app-mode .earth-controls{display:flex!important}
+.embed.app-mode .earth-controls button{pointer-events:auto}
+.embed.app-mode .feature-card{right:70px;bottom:18px}
+@media(max-width:760px){.embed.app-mode .earth-controls{right:8px;bottom:14px;top:auto}.embed.app-mode .feature-card{right:54px;bottom:12px}}
