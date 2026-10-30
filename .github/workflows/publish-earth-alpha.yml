@@ -62,6 +62,8 @@ jobs:
           grep -Fq 'function viewCenterCartographic' earth/earth.js
           grep -Fq 'layers.transportation_name' earth/earth.js
           grep -Fq 'state.buildingState' earth/earth.js
+          grep -Fq 'fromDegrees(-73.9857,40.7484,17800000)' earth/earth.js
+          grep -Fq 'function moveToZoomLevel' earth/earth.js
           ! grep -Fq 'MODIS_Terra_CorrectedReflectance_TrueColor' earth/earth.js
           grep -Fq 'bridgepoint_building_viewport_v2300' earth/earth.js
           grep -Fq 'bridgepoint_public_global_parcels_bbox_v957' earth/earth.js
@@ -120,5 +122,6 @@ jobs:
           grep -Fq 'function addPlaceLabel' /tmp/earth.js
           grep -Fq 'function viewCenterCartographic' /tmp/earth.js
           grep -Fq 'layers.transportation_name' /tmp/earth.js
+          grep -Fq 'function moveToZoomLevel' /tmp/earth.js
           grep -Fq 'BRIDGEPOINT EARTH IS BEING REBUILT' /tmp/notice.js
           echo "BRIDGEPOINT_EARTH_PUBLIC_ROUTE_OK ${PAGE_URL}earth/"
