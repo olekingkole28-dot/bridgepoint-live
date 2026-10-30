@@ -323,10 +323,17 @@ function addWaterPrimitive(polygons) {
 async function refreshSurface() {
   if(!VectorTile||!Pbf){state.vectorReady=false;return}
   const height=cameraHeight();
-  if(height>2600000)return;
+  const seq=++state.surfaceSeq;
+  if(height>2600000){
+    state.surfaceTiles.clear();
+    landSource.entities.removeAll();waterSource.entities.removeAll();
+    for(const primitive of waterPrimitives.splice(0))try{scene.primitives.remove(primitive)}catch(_){}
+    state.vectorReady=false;
+    return;
+  }
   const center=pointInView(),z=tileZoomForHeight(height),t=geoTileCoordinates(center.lon,center.lat,z);
   const offsets=[[0,0],[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]];
-  const seq=++state.surfaceSeq;
+  state.surfaceTiles.clear();
   landSource.entities.removeAll();waterSource.entities.removeAll();
   for(const primitive of waterPrimitives.splice(0))try{scene.primitives.remove(primitive)}catch(_){}
   const waterPolygons=[];
