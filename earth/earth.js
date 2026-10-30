@@ -316,6 +316,7 @@ blueMarble.errorEvent.addEventListener(error=>{
     fallbackImageryLayer=viewer.imageryLayers.addImageryProvider(fallbackProvider,0);
   }
   const e=$('imagery-state');if(e)e.textContent='NASA GLOBAL BASE ACTIVE';
+  renderEarthDiagnostics();
 });
 $('imagery-state').textContent='NASA / POLE-TO-POLE';
 
@@ -450,7 +451,7 @@ async function refreshSurface() {
     state.surfaceTiles.clear();
     landSource.entities.removeAll();waterSource.entities.removeAll();placeSource.entities.removeAll();
     for(const primitive of waterPrimitives.splice(0))try{scene.primitives.remove(primitive)}catch(_){}
-    state.vectorReady=false;state.placeCount=0;scene.requestRender();return;
+    state.vectorReady=false;state.placeCount=0;renderEarthDiagnostics();scene.requestRender();return;
   }
   const center=pointInView(),z=tileZoomForHeight(height),t=geoTileCoordinates(center.lon,center.lat,z);
   const offsets=[[0,0],[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]];
@@ -540,7 +541,7 @@ async function refreshSurface() {
     state.vectorState='TILE ERROR';
     $('terrain-state').textContent='VECTOR TILES FAILED';
     status('OPEN MAP VECTOR TILES FAILED','warn');
-    scene.requestRender();
+    renderEarthDiagnostics();scene.requestRender();
     return;
   }
   // Keep the currently rendered geography visible while the next view's tiles load.
@@ -566,7 +567,7 @@ async function refreshSurface() {
   state.vectorReady=true;
   state.vectorState=failedTiles?'PARTIAL '+loadedTiles+'/'+(loadedTiles+failedTiles):'LOADED '+loadedTiles;
   $('terrain-state').textContent=failedTiles?'MAP DATA PARTIAL':'TERRAIN · RIVERS · LABELS';
-  scene.requestRender();
+  renderEarthDiagnostics();scene.requestRender();
 }
 
 function addBuilding(feature) {
