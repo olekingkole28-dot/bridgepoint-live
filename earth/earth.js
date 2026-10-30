@@ -408,28 +408,34 @@ function addPlaceLabel(geometry,props={},kind='PLACE_LABEL') {
 }
 function addWaterwayLabel(geometry,props={}) {
   const name=String(props.name_en||props.name||'').trim();
-  if(!name)return 0;
-  const line=lineArrays(geometry).sort((a,b)=>b.length-a.length)[0];
-  if(!line||line.length<6)return 0;
-  const p=line[Math.floor(line.length/2)];
+  if(!name||!geometry)return 0;
+  let p=null;
+  if(geometry.type==='Point'&&Array.isArray(geometry.coordinates))p=geometry.coordinates;
+  else {
+    const line=lineArrays(geometry).sort((a,b)=>b.length-a.length)[0];
+    if(line&&line.length>=2)p=line[Math.floor(line.length/2)];
+  }
+  if(!p)return 0;
+  const road=/road|street|motorway|trunk|primary|secondary/.test(String(props.class||'').toLowerCase());
   const entity=placeSource.entities.add({
-    position:Cesium.Cartesian3.fromDegrees(Number(p[0]),Number(p[1]),260),
+    position:Cesium.Cartesian3.fromDegrees(Number(p[0]),Number(p[1]),road?90:260),
     label:{
-      text:name,font:'italic 10px system-ui',
-      fillColor:Cesium.Color.fromCssColorString('#8fd4ed'),
+      text:name,font:road?'500 10px system-ui':'italic 10px system-ui',
+      fillColor:Cesium.Color.fromCssColorString(road?'#e1d7b8':'#8fd4ed'),
       outlineColor:Cesium.Color.fromCssColorString('#06121a').withAlpha(.96),
       outlineWidth:3,style:Cesium.LabelStyle.FILL_AND_OUTLINE,
-      distanceDisplayCondition:new Cesium.DistanceDisplayCondition(0,2200000),
-      scaleByDistance:new Cesium.NearFarScalar(20000,1,600000,.35)
+      distanceDisplayCondition:new Cesium.DistanceDisplayCondition(0,road?900000:2200000),
+      scaleByDistance:new Cesium.NearFarScalar(12000,1,650000,.32)
     }
   });
-  entityFeature(entity,{...props,name,source:'OpenFreeMap / OpenStreetMap',truth_class:'OPEN_MAP_WATERWAY_LABEL'},'RIVER_LABEL');
+  entityFeature(entity,{...props,name,source:'OpenFreeMap / OpenStreetMap',truth_class:road?'OPEN_MAP_STREET_LABEL':'OPEN_MAP_WATERWAY_LABEL'},road?'STREET_LABEL':'RIVER_LABEL');
   return 1;
 }
 async function refreshSurface() {
   if(!VectorTile||!Pbf){state.vectorReady=false;return}
   const height=cameraHeight(),seq=++state.surfaceSeq;
   if(height>6500000){
+    state.vectorState='ZOOM CLOSER';
     state.surfaceTiles.clear();
     landSource.entities.removeAll();waterSource.entities.removeAll();placeSource.entities.removeAll();
     for(const primitive of waterPrimitives.splice(0))try{scene.primitives.remove(primitive)}catch(_){}
@@ -776,7 +782,7 @@ async function loadWeather(bounds,height,seq) {
   }catch(error){console.warn('BridgePoint live weather stream unavailable.',error);return 0}
 }
 function displayCounts() {
-  const count=state.buildingCount+state.parcelCount+state.livingCount+state.weatherCount;
+  const count=state.buildingCount+state.parcelCount+state.livingCount+state.weatherCount+state.placeCount;
   $('data-state').textContent=count?count.toLocaleString()+' FEATURES':(state.buildingState==='ZOOM CLOSER'?'ZOOM TO PROPERTY DETAIL':state.buildingState);
   if(state.vectorState==='TILE ERROR')$('terrain-state').textContent='VECTOR TILES FAILED';
   else if(state.vectorReady)$('terrain-state').textContent='TERRAIN · RIVERS · LABELS';
@@ -800,6 +806,7 @@ async function refreshIntelligence(force=false) {
   }else{
     buildingSource.entities.removeAll();parcelSource.entities.removeAll();livingSource.entities.removeAll();
     state.buildingCount=0;state.parcelCount=0;state.livingCount=0;
+    state.buildingState='ZOOM CLOSER';
   }
   if(height<=6500000){
     const wx=await loadWeather(bounds,height,seq);
