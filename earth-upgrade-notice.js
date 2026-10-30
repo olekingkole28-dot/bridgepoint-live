@@ -15,7 +15,7 @@
   if(location.pathname.startsWith('/app/') && appMap && !appMap.querySelector('.bp-earth-app-frame')){
     const frame=document.createElement('iframe');
     frame.className='bp-earth-app-frame';
-    frame.src='/earth/?embed=1&app=1';
+    frame.src='/earth/?embed=1&app=1&bpbuild=earth-v7-20261030';
     frame.title='BridgePoint Earth intelligence world';
     frame.loading='eager';
     frame.referrerPolicy='strict-origin-when-cross-origin';
@@ -33,7 +33,7 @@
     preview.style.position='relative';
     const frame=document.createElement('iframe');
     frame.className='bp-earth-preview-frame';
-    frame.src='/earth/?embed=1&surface=preview';
+    frame.src='/earth/?embed=1&surface=preview&bpbuild=earth-v7-20261030';
     frame.title='BridgePoint new Earth renderer preview';
     frame.loading='eager';
     frame.referrerPolicy='strict-origin-when-cross-origin';
