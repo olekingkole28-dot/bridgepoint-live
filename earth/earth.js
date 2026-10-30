@@ -792,6 +792,33 @@ async function loadWeather(bounds,height,seq) {
     return count;
   }catch(error){console.warn('BridgePoint live weather stream unavailable.',error);return 0}
 }
+const debugEarth=earthParams.get('debug')==='1';
+function renderEarthDiagnostics() {
+  if(!debugEarth)return;
+  let panel=$('earth-debug-state');
+  if(!panel){
+    panel=document.createElement('pre');
+    panel.id='earth-debug-state';
+    panel.className='earth-debug';
+    panel.setAttribute('aria-live','polite');
+    $('earth-viewport').append(panel);
+  }
+  const c=pointInView(),b=currentBounds();
+  const fmt=v=>Number.isFinite(v)?Number(v).toFixed(5):'—';
+  panel.textContent=[
+    'BRIDGEPOINT EARTH DEBUG',
+    'CAMERA '+Math.round(cameraHeight())+' m',
+    'GROUND '+fmt(c.lon)+', '+fmt(c.lat),
+    'BOUNDS '+(b?[fmt(b.west)+','+fmt(b.south)+' → '+fmt(b.east)+','+fmt(b.north)]:'—'),
+    'BUILDINGS '+state.buildingState+' / '+buildingSource.entities.values.length,
+    'PARCELS '+state.parcelCount,
+    'VECTOR '+state.vectorState,
+    'PLACE / ROAD / RIVER LABELS '+placeSource.entities.values.length,
+    'WEATHER '+state.weatherCount,
+    'IMAGERY '+(fallbackImageryLayer?'EPSG3857 BACKSTOP ACTIVE':'EPSG4326 PRIMARY')
+  ].join('\n');
+}
+
 function displayCounts() {
   const count=state.buildingCount+state.parcelCount+state.livingCount+state.weatherCount+state.placeCount;
   $('data-state').textContent=count?count.toLocaleString()+' FEATURES':(state.buildingState==='ZOOM CLOSER'?'ZOOM TO PROPERTY DETAIL':state.buildingState);
@@ -799,6 +826,7 @@ function displayCounts() {
   else if(state.vectorReady)$('terrain-state').textContent='TERRAIN · RIVERS · LABELS';
   else $('terrain-state').textContent='OPEN ELEVATION';
   $('imagery-state').textContent='NASA / POLE-TO-POLE';
+  renderEarthDiagnostics();
 }
 async function refreshIntelligence(force=false) {
   const bounds=currentBounds();if(!bounds)return;
@@ -870,8 +898,6 @@ viewer.screenSpaceEventHandler.setInputAction(movement=>{
   if(entity?.bridgepoint)showFeature(entity);
 },Cesium.ScreenSpaceEventType.LEFT_CLICK);
 $('feature-close').addEventListener('click',()=>$('feature-card').hidden=true);
-$('zoom-in').addEventListener('click',()=>viewer.camera.zoomIn(Math.max(120,cameraHeight()*.28)));
-$('zoom-out').addEventListener('click',()=>viewer.camera.zoomOut(Math.max(120,cameraHeight()*.32)));
 function moveToZoomLevel(inward) {
   const center=pointInView();
   const current=cameraHeight();
