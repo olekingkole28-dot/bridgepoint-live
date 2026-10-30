@@ -7,7 +7,9 @@ async function waitForCesium() {
 }
 await waitForCesium();
 const Cesium=window.Cesium;
-if(new URLSearchParams(location.search).has('embed')) document.body.classList.add('embed');
+const earthParams=new URLSearchParams(location.search);
+if(earthParams.has('embed')) document.body.classList.add('embed');
+if(earthParams.has('app')) document.body.classList.add('app-mode');
 
 const $ = id => document.getElementById(id);
 const mobile = Boolean(MOBILE || /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent));
