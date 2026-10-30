@@ -30,8 +30,8 @@ body{background:#030a12}
 .world-stats>div{display:flex;flex-direction:column;gap:5px;min-width:85px}
 .stat-label{font-size:8px;letter-spacing:.18em;color:#7895a1;font-weight:900}
 .world-stats b{font-size:9px;letter-spacing:.08em;color:#d7e8eb}
-.earth-controls{position:absolute;z-index:6;right:18px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:7px;padding:7px;border:1px solid rgba(149,203,214,.22);border-radius:12px;background:rgba(3,15,24,.63);backdrop-filter:blur(16px)}
-.earth-controls button{width:38px;height:36px;border:1px solid rgba(143,200,211,.17);border-radius:8px;background:rgba(14,39,51,.72);color:#dff8f1;font-size:19px;cursor:pointer}
+.earth-controls{position:absolute;z-index:30;pointer-events:auto;touch-action:manipulation;right:18px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:7px;padding:7px;border:1px solid rgba(149,203,214,.22);border-radius:12px;background:rgba(3,15,24,.63);backdrop-filter:blur(16px)}
+.earth-controls button{pointer-events:auto;touch-action:manipulation;width:38px;height:36px;border:1px solid rgba(143,200,211,.17);border-radius:8px;background:rgba(14,39,51,.72);color:#dff8f1;font-size:19px;cursor:pointer}
 .earth-controls button:hover{border-color:#83edce;background:rgba(17,75,67,.75)}
 .earth-controls span{height:1px;background:rgba(158,199,208,.18);margin:2px 4px}
 .source-rail{position:absolute;z-index:4;left:clamp(18px,4.4vw,72px);bottom:68px;width:min(315px,calc(100vw - 36px));padding:13px 14px;border:1px solid rgba(130,184,199,.2);border-radius:12px;background:rgba(3,15,24,.68);backdrop-filter:blur(14px);box-shadow:0 16px 40px rgba(0,0,0,.22)}
@@ -73,7 +73,7 @@ body{background:#030a12}
  .world-stats{top:clamp(265px,43vh,340px);left:16px;gap:11px}
  .world-stats>div{min-width:68px}.stat-label{font-size:6px}.world-stats b{font-size:7px}
  .earth-controls{right:10px;top:auto;bottom:108px;transform:none;padding:5px;gap:5px}
- .earth-controls button{width:34px;height:32px;font-size:17px}
+ .earth-controls button{pointer-events:auto;touch-action:manipulation;width:38px;height:36px;font-size:18px}
  .source-rail{left:12px;bottom:58px;width:min(270px,calc(100vw - 76px));padding:10px 11px}
  .source-line{font-size:8px;margin:6px 0}.source-rail small{font-size:7px;margin-top:8px;padding-top:7px}
  .rail-heading{margin-bottom:8px;font-size:7px}
