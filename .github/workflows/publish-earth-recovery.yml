@@ -1,0 +1,111 @@
+name: Publish BridgePoint Earth — runner recovery
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/publish-earth-recovery.yml"
+  workflow_run:
+    workflows:
+      - "Publish BridgePoint Earth Alpha"
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-earth-pages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'failure') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout the live website artifact
+        uses: actions/checkout@v4
+        with:
+          ref: live-artifact
+          fetch-depth: 1
+
+      - name: Validate the exact Earth renderer and preserve the app
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s index.html
+          test -s app/index.html
+          test -s landing.js
+          test -s app.js
+          test -s world-v2300-map.js
+          test -s world-v2300-config.js
+          test -s earth/index.html
+          test -s earth/earth.css
+          test -s earth/earth.js
+          test -s earth-upgrade-notice.js
+
+          cp earth/earth.js /tmp/bridgepoint-earth.mjs
+          node --check /tmp/bridgepoint-earth.mjs
+          node --check earth-upgrade-notice.js
+          node --check app.js
+          node --check landing.js
+
+          grep -Fq 'earth.js?v=7' earth/index.html
+          grep -Fq 'USGSImageryOnly/MapServer/tile/{z}/{y}/{x}' earth/earth.js
+          grep -Fq 'global.imagery.hotosm.org/{z}/{x}/{y}.png' earth/earth.js
+          grep -Fq 'minimumLevel:0,maximumLevel:21' earth/earth.js
+          grep -Fq 'function tilesForView' earth/earth.js
+          grep -Fq 'function syncImageryLod' earth/earth.js
+          grep -Fq 'OPEN_MAP_CONTEXT_BUILDING' earth/earth.js
+          grep -Fq '/earth/?embed=1' earth-upgrade-notice.js
+          echo "BRIDGEPOINT_EARTH_RECOVERY_VALIDATION_OK"
+
+      - name: Assemble the full live website artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf _site
+          mkdir -p _site
+          tar --exclude=.git --exclude=.github --exclude=_site -cf - . | tar -xf - -C _site
+          touch _site/.nojekyll
+          test -s _site/earth/index.html
+          test -s _site/earth/earth.js
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Upload the recovered Earth artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-earth-recovery
+          path: _site
+
+      - name: Publish the live website
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: bridgepoint-earth-recovery
+
+      - name: Verify the deployed Earth iframe route and renderer
+        shell: bash
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 6 --retry-all-errors --retry-delay 3 "${PAGE_URL}earth/" -o /tmp/earth.html
+          curl --fail --silent --show-error --retry 6 --retry-all-errors --retry-delay 3 "${PAGE_URL}earth/earth.js?v=7" -o /tmp/earth.js
+          curl --fail --silent --show-error --retry 6 --retry-all-errors --retry-delay 3 "${PAGE_URL}app/" -o /tmp/app.html
+          grep -Fq 'earth.js?v=7' /tmp/earth.html
+          grep -Fq 'USGSImageryOnly/MapServer/tile/{z}/{y}/{x}' /tmp/earth.js
+          grep -Fq 'global.imagery.hotosm.org/{z}/{x}/{y}.png' /tmp/earth.js
+          grep -Fq 'minimumLevel:0,maximumLevel:21' /tmp/earth.js
+          grep -Fq 'liveMap' /tmp/app.html
+          echo "BRIDGEPOINT_EARTH_LIVE_OK ${PAGE_URL}earth/"
