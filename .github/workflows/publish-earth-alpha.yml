@@ -22,7 +22,7 @@ jobs:
     timeout-minutes: 20
     environment:
       name: github-pages
-      url: \${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout the live website artifact
         uses: actions/checkout@v4
@@ -98,13 +98,13 @@ jobs:
       - name: Verify public Earth route and rebuild notice
         shell: bash
         env:
-          PAGE_URL: \${{ steps.deployment.outputs.page_url }}
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error --retry 6 --retry-all-errors --retry-delay 3 "\${PAGE_URL}earth/" -o /tmp/earth.html
-          curl --fail --silent --show-error --retry 6 --retry-all-errors --retry-delay 3 "\${PAGE_URL}earth/earth.js?v=1" -o /tmp/earth.js
-          curl --fail --silent --show-error --retry 6 --retry-all-errors --retry-delay 3 "\${PAGE_URL}earth-upgrade-notice.js?v=1" -o /tmp/notice.js
+          curl --fail --silent --show-error --retry 6 --retry-all-errors --retry-delay 3 "${PAGE_URL}earth/" -o /tmp/earth.html
+          curl --fail --silent --show-error --retry 6 --retry-all-errors --retry-delay 3 "${PAGE_URL}earth/earth.js?v=1" -o /tmp/earth.js
+          curl --fail --silent --show-error --retry 6 --retry-all-errors --retry-delay 3 "${PAGE_URL}earth-upgrade-notice.js?v=1" -o /tmp/notice.js
           grep -Fq 'BUILDING THE NEW EARTH' /tmp/earth.html
           grep -Fq 'bridgepoint_building_viewport_v2300' /tmp/earth.js
           grep -Fq 'BRIDGEPOINT EARTH IS BEING REBUILT' /tmp/notice.js
-          echo "BRIDGEPOINT_EARTH_PUBLIC_ROUTE_OK \${PAGE_URL}earth/"
+          echo "BRIDGEPOINT_EARTH_PUBLIC_ROUTE_OK ${PAGE_URL}earth/"
