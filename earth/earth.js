@@ -532,7 +532,7 @@ async function refreshSurface() {
       loadedTiles++;
       const item=result.value,layers=item.tile.layers||{};
       const lc=layers.landcover;
-      if(height<1200000&&lc){
+      if(height<4500000&&lc){
         const landLimit=mobile?90:190;
         for(let k=0;k<Math.min(lc.length,mobile?16:30)&&landFeatures.length<landLimit;k++){
           const feature=lc.feature(k),geometry=tileFeatureGeometry(feature,item.x,item.y,item.z);
