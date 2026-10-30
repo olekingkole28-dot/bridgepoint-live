@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#030a12">
+  <title>BridgePoint Earth — New World Renderer</title>
+  <link rel="icon" href="/bridgepoint-mark.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Widgets/widgets.css">
+  <link rel="stylesheet" href="./earth.css?v=1">
+  <script>window.CESIUM_BASE_URL="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/";</script>
+  <script defer src="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Cesium.js"></script>
+</head>
+<body>
+  <main id="earth-viewport" aria-label="Interactive BridgePoint Earth">
+    <div id="earth-canvas"></div>
+    <div class="earth-vignette" aria-hidden="true"></div>
+    <header class="earth-topbar">
+      <a class="brand" href="/" aria-label="BridgePoint home">
+        <span class="brand-mark">B</span>
+        <span><b>BRIDGEPOINT</b><small>EARTH INTELLIGENCE</small></span>
+      </a>
+      <div class="phase">
+        <span class="phase-dot"></span>
+        <span>WORLD RENDERER REBUILD</span>
+        <b>ALPHA 01</b>
+      </div>
+      <a class="top-link" href="/app/">OPEN INTELLIGENCE APP <span>↗</span></a>
+    </header>
+
+    <section class="intro" aria-live="polite">
+      <div class="eyebrow">ONE EARTH FOUNDATION</div>
+      <h1>A living world.<br><em>Source-connected.</em></h1>
+      <p>New terrain, atmosphere and rendering foundation. BridgePoint intelligence resolves as you explore.</p>
+      <div class="intro-status"><span class="status-pulse"></span><span id="world-status">INITIALIZING EARTH RENDERER</span></div>
+    </section>
+
+    <section class="world-stats" aria-label="World data status">
+      <div><span class="stat-label">TERRAIN</span><b id="terrain-state">OPEN ELEVATION</b></div>
+      <div><span class="stat-label">IMAGERY</span><b id="imagery-state">NASA GLOBAL</b></div>
+      <div><span class="stat-label">BRIDGEPOINT DATA</span><b id="data-state">CONNECTING</b></div>
+    </section>
+
+    <nav class="earth-controls" aria-label="Globe controls">
+      <button id="zoom-in" type="button" aria-label="Zoom in">+</button>
+      <button id="zoom-out" type="button" aria-label="Zoom out">−</button>
+      <span></span>
+      <button id="home-view" type="button" aria-label="Return to global view">◎</button>
+      <button id="my-location" type="button" aria-label="Go to my location">⌖</button>
+    </nav>
+
+    <aside class="source-rail">
+      <div class="rail-heading"><span></span> WORLD STREAMS</div>
+      <div class="source-line"><i class="source-swatch terrain"></i><span>Elevation / terrain</span><b>OPEN</b></div>
+      <div class="source-line"><i class="source-swatch imagery"></i><span>Satellite / surface</span><b>NASA</b></div>
+      <div class="source-line"><i class="source-swatch vegetation"></i><span>Landcover / water</span><b>OPEN DATA</b></div>
+      <div class="source-line"><i class="source-swatch intelligence"></i><span>Property / parcels</span><b>BRIDGEPOINT</b></div>
+      <div class="source-line"><i class="source-swatch weather"></i><span>Weather / hazards</span><b>LIVE SOURCES</b></div>
+      <small>Exact coverage and freshness vary by source and location. Source lineage is retained on selectable features.</small>
+    </aside>
+
+    <section id="feature-card" class="feature-card" hidden aria-live="polite">
+      <button id="feature-close" class="feature-close" type="button" aria-label="Close details">×</button>
+      <div class="eyebrow" id="feature-type">BRIDGEPOINT FEATURE</div>
+      <h2 id="feature-title">Selected feature</h2>
+      <p id="feature-summary"></p>
+      <dl id="feature-meta"></dl>
+    </section>
+
+    <footer class="earth-footer">
+      <div><span class="footer-mark"></span><b>EARTH REBUILD IN PROGRESS</b><span>New rendering foundation · data-connected · no paid map subscription</span></div>
+      <div class="footer-attribution">NASA GIBS · OpenFreeMap / OpenStreetMap · AWS Open Data · BridgePoint</div>
+    </footer>
+
+    <div id="earth-loading" class="loading-screen">
+      <div class="loading-mark">B</div>
+      <div class="loading-title">BUILDING THE NEW EARTH</div>
+      <div class="loading-copy">Connecting global terrain, imagery and BridgePoint sources</div>
+      <div class="loading-track"><i></i></div>
+    </div>
+  </main>
+  <script type="module" src="./earth.js?v=1"></script>
+</body>
+</html>
