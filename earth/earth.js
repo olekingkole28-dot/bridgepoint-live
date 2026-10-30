@@ -385,7 +385,7 @@ const openAerialProvider=new Cesium.UrlTemplateImageryProvider({
   url:'https://global.imagery.hotosm.org/{z}/{x}/{y}.png',
   tilingScheme:new Cesium.WebMercatorTilingScheme(),
   rectangle:Cesium.Rectangle.fromDegrees(-180,-85.05112878,180,85.05112878),
-  minimumLevel:14,maximumLevel:21,
+  minimumLevel:0,maximumLevel:21,
   credit:'OpenAerialMap / Open Imagery Network contributors · item licensing applies'
 });
 const openAerialLayer=viewer.imageryLayers.addImageryProvider(openAerialProvider);
