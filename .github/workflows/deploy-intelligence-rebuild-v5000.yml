@@ -1279,7 +1279,7 @@ jobs:
            grep -Fq 'world-v2300-map.js?v=6201-auto-hybrid-imagery-gold' site/index.html
            grep -Fq 'world-v2300-map.js?v=6201-auto-hybrid-imagery-gold' site/app/index.html
            grep -Fq 'world-v2300-lod-controls.js?v=6201-gold-always-on' site/app.js
-           grep -Fq 'world-v2300-lod-controls.js?v=6201-gold-always-on' site/landing.js
+           grep -Fq "const tier='GOLD';" site/world-v2300-map.js
            grep -Fq 'function activeWorldLodProfile()' site/world-v2300-map.js
            grep -Fq 'syncWorldLodLayerRanges' site/world-v2300-map.js
            grep -Fq 'data-bp-lod-tier' site/world-v2300-lod-controls.js
