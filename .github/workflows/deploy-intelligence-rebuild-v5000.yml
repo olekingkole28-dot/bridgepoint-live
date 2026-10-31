@@ -486,8 +486,8 @@ jobs:
           grep -Fq 'bridgepoint-rail-mesh-v5973.js?v=5980-visible-detail-rails' site/app/index.html
           grep -Fq 'MAPPED_GROUND_ROAD_ENDPOINT' site/world-v2300-map.js
           grep -Fq 'groundConnectedRamps' site/world-v2300-map.js
-          grep -Fq '6186-us-opportunities-globe-clipped' site/app.js
-          grep -Fq '6186-us-opportunities-globe-clipped' site/landing.js
+          grep -Fq '6201-auto-hybrid-imagery-gold' site/app.js
+          grep -Fq '6201-auto-hybrid-imagery-gold' site/landing.js
           grep -Fq 'OpenStreetMap feature centroid' site/bridgepoint-pyramids-v5945.js
           grep -Fq 'currentHeightM: 138.5' site/bridgepoint-pyramids-v5945.js
           grep -Fq 'currentHeightM: 136.4' site/bridgepoint-pyramids-v5945.js
@@ -1274,10 +1274,10 @@ jobs:
           grep -Fq 'toggleLiveContext' site/app/index.html
           grep -Fq 'app.js?v=6196-desktop-cloud-motion-autoupdate' site/app/index.html
           grep -Fq 'landing.js?v=6196-desktop-cloud-motion-autoupdate' site/index.html
-           grep -Fq 'world-v2300-map.js?v=6186-us-opportunities-globe-clipped' site/app.js
-           grep -Fq 'world-v2300-map.js?v=6186-us-opportunities-globe-clipped' site/landing.js
-           grep -Fq 'world-v2300-map.js?v=6186-us-opportunities-globe-clipped' site/index.html
-           grep -Fq 'world-v2300-map.js?v=6186-us-opportunities-globe-clipped' site/app/index.html
+           grep -Fq 'world-v2300-map.js?v=6201-auto-hybrid-imagery-gold' site/app.js
+           grep -Fq 'world-v2300-map.js?v=6201-auto-hybrid-imagery-gold' site/landing.js
+           grep -Fq 'world-v2300-map.js?v=6201-auto-hybrid-imagery-gold' site/index.html
+           grep -Fq 'world-v2300-map.js?v=6201-auto-hybrid-imagery-gold' site/app/index.html
            grep -Fq 'world-v2300-lod-controls.js?v=6038-world-lod-range-apply' site/app.js
            grep -Fq 'world-v2300-lod-controls.js?v=6038-world-lod-range-apply' site/landing.js
            grep -Fq 'function activeWorldLodProfile()' site/world-v2300-map.js
