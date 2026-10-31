@@ -102,7 +102,8 @@ test('clouds render as bright 3D volumes, not as a false-colour raster sheet', (
   assert.ok(clouds.includes('const motionTime = desktopGlobalStatic ? 0 :'), 'desktop global cloud puffs must not advect pole-to-pole');
   assert.ok(clouds.includes('const stormMotionTime = desktopGlobalStatic ? 0 : getStormMotionTime();'), 'desktop global storm proxies must not drift');
   assert.ok(clouds.includes('if (!desktopGlobalStatic && layerInstalled && !map.isMoving?.()) map.triggerRepaint?.();'), 'desktop global cloud layer must not force a shared-map repaint loop');
-  assert.ok(app.includes('world-v2300-lod-controls.js?v=6201-gold-always-on'), 'app must use Gold-always-on LOD controls');\n  assert.ok(app.includes('world-v2300-clouds.js?v=6168-desktop-global-cloud-motion-stop'), 'app must use the cache-busted desktop-stability cloud module');
+  assert.ok(app.includes('world-v2300-lod-controls.js?v=6201-gold-always-on'), 'app must use Gold-always-on LOD controls');
+  assert.ok(app.includes('world-v2300-clouds.js?v=6168-desktop-global-cloud-motion-stop'), 'app must use the cache-busted desktop-stability cloud module');
   assert.ok(landing.includes('world-v2300-clouds.js?v=6168-desktop-global-cloud-motion-stop'), 'landing must use the cache-busted desktop-stability cloud module');
   assert.ok(timeSlider.includes('world-v2300-clouds.js?v=6168-desktop-global-cloud-motion-stop'), 'time-slider cloud fallback must not import stale moving renderer');
   assert.match(clouds, /coverageVersion: 6167/);
