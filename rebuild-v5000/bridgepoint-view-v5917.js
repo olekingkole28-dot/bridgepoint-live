@@ -224,6 +224,7 @@ function makeTopBarAndDock(){
     '<button type="button" class="bpv-command-btn" data-bpv-action="controls" title="Open map layers and additional tools"><span class="bpv-command-icon" aria-hidden="true">☷</span><span class="bpv-command-label">Layers + Tools</span></button>'+
     '<button type="button" class="bpv-command-btn" data-bpv-action="motion" title="Open orbit and motion controls"><span class="bpv-command-icon" aria-hidden="true">⟳</span><span class="bpv-command-label">Orbit & Motion</span></button>'+
     '<button type="button" class="bpv-command-btn bpv-whole-earth-short" data-bpv-action="whole" title="Return to the whole Earth view"><span class="bpv-command-icon" aria-hidden="true">◎</span><span class="bpv-command-label">Whole Earth</span></button>'+
+    '<a class="bpv-command-btn bpv-new-world-entry" href="/earth/" title="Open the separate new BridgePoint Earth renderer" aria-label="Open the new BridgePoint Earth renderer preview" style="text-decoration:none"><span class="bpv-command-icon" aria-hidden="true">✦</span><span class="bpv-command-label">New World</span></a>'+
    '</div>'+
    '<div class="bpv-command-inline-slot" id="bpv-underground-slot" aria-label="Underground and infrastructure controls"></div>'+
    '<div class="bpv-command-inline-slot" id="bpv-satellite-slot" aria-label="Satellite imagery and color controls"></div>'+
