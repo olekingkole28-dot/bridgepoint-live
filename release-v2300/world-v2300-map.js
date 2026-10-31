@@ -1518,9 +1518,9 @@ export function initWorld(options={}){
    },{enableHighAccuracy:false,timeout:Number.isFinite(opts.timeout)?Number(opts.timeout):7000,maximumAge:120000})
   })
  }
- const api={version:VERSION,map,state,space,setBase,setLodTier:tier=>{
-  const selected=String(tier||'GOLD').toUpperCase()==='GOLD'?'GOLD':String(tier||'GOLD').toUpperCase()==='SILVER'?'SILVER':'BRONZE';
-  window.__BP_LOD_RENDERING_V6016__={...(window.__BP_LOD_RENDERING_V6016__||{}),version:6016,tier:selected,updatedAt:Date.now()};
+ const api={version:VERSION,map,state,space,setBase,setLodTier:()=>{
+  const selected='GOLD';
+  window.__BP_LOD_RENDERING_V6016__={...(window.__BP_LOD_RENDERING_V6016__||{}),version:6201,tier:selected,locked:true,updatedAt:Date.now()};
   map.__bpLodRangeProfile=null;
   const apply=()=>{
    const lod=activeWorldLodProfile();

@@ -1305,7 +1305,7 @@ jobs:
           grep -Fq 'WEATHER & ENVIRONMENT' site/bridgepoint-view-v5917.js
           grep -Fq '__BP_OPEN_MAP_KEY_V5920__=openMapKey' site/bridgepoint-map-key-v5920.js
           grep -Fq 'focusCoverageForOverlay' site/bridgepoint-nyc-lidar-v7000.js
-          grep -Fq "window.__BP_LOD_RENDERING_V6016__?.tier||'GOLD'" site/world-v2300-map.js
+          grep -Fq "const tier='GOLD';" site/world-v2300-map.js
           grep -Fq 'intelligence-tools-v5507.js?v=6170-imerg-nrt-timeline' site/index.html
            grep -Fq 'intelligence-tools-v5507.js?v=6170-imerg-nrt-timeline' site/app/index.html
            grep -Fq 'bridgepoint-global-motion-v5926.js?v=5945-motion-controls' site/index.html
@@ -2230,33 +2230,23 @@ jobs:
                 const m=window.__BP_V5000_WORLD.map;
                 m.stop?.();m.jumpTo({center:[-73.9857,40.7484],zoom:16.8,pitch:52,bearing:0});
               });
-              const tiers=[];
-              for(const tier of ['GOLD','SILVER','BRONZE']){
-                await p.evaluate(t=>{
-                  const b=document.querySelector('#bpv-dock #bpv-map-controls-slot [data-bp-lod-tier="'+t+'"]');
-                  if(!b)throw new Error('LOD_BUTTON_NOT_IN_DECK '+t);
-                  b.click();
-                },tier);
-                await p.waitForFunction(t=>{
-                  const m=window.__BP_V5000_WORLD?.map,c=window.__BP_LOD_CONTROL_V6016__;
-                  const runtime=window.__BP_WORLD_LOD_RUNTIME_V6016__;
-                  const buttons=[...(document.querySelectorAll('#bpv-dock #bpv-map-controls-slot [data-bp-lod-tier]')||[])];
-                  return !!m&&c?.tier===t&&runtime?.tier===t&&
-                    buttons.filter(b=>b.getAttribute('aria-pressed')==='true').length===1&&
-                    buttons.find(b=>b.getAttribute('aria-pressed')==='true')?.dataset.bpLodTier===t&&
-                    !!m.getStyle?.().layers?.find(x=>x.id==='gta-bp-facade-detail');
-                },{timeout:12000},tier);
-                tiers.push(await p.evaluate(t=>{
-                  const m=window.__BP_V5000_WORLD.map,layer=m.getStyle().layers.find(x=>x.id==='gta-bp-facade-detail');
-                  return{tier:t,controller:window.__BP_LOD_CONTROL_V6016__?.tier,
-                    renderer:window.__BP_WORLD_LOD_RUNTIME_V6016__?.tier,
-                    facadeMinZoom:Number(layer?.minzoom),
-                    active:[...document.querySelectorAll('#bpv-dock #bpv-map-controls-slot [data-bp-lod-tier]')].filter(b=>b.getAttribute('aria-pressed')==='true').map(b=>b.dataset.bpLodTier)};
-                },tier));
-              }
-              if(!(tiers[0].facadeMinZoom<tiers[1].facadeMinZoom&&tiers[1].facadeMinZoom<tiers[2].facadeMinZoom))
-                throw new Error('LOD_TIERS_DID_NOT_CHANGE_FACADE_DETAIL_RANGE '+JSON.stringify(tiers));
-              console.log('BRIDGEPOINT_LOD_TIER_BUTTON_RENDERING_PASS',JSON.stringify(tiers));
+              const goldLock=await p.evaluate(()=>{
+                const m=window.__BP_V5000_WORLD?.map,c=window.__BP_LOD_CONTROL_V6016__;
+                const buttons=[...document.querySelectorAll('#bpv-dock #bpv-map-controls-slot [data-bp-lod-tier]')];
+                const gold=buttons.find(b=>b.dataset.bpLodTier==='GOLD');
+                const lower=buttons.filter(b=>b.dataset.bpLodTier!=='GOLD');
+                const layer=m?.getStyle?.().layers?.find(x=>x.id==='gta-bp-facade-detail');
+                return{controller:c?.tier,renderer:window.__BP_LOD_RENDERING_V6016__?.tier,
+                  active:buttons.filter(b=>b.getAttribute('aria-pressed')==='true').map(b=>b.dataset.bpLodTier),
+                  goldEnabled:!!gold&&!gold.disabled,lowerDisabled:lower.length===2&&lower.every(b=>b.disabled),
+                  facadeMinZoom:Number(layer?.minzoom),facadeVisible:!!layer&&(m.getLayoutProperty(layer.id,'visibility')||'visible')==='visible'};
+              });
+              if(goldLock.controller!=='GOLD'||goldLock.renderer!=='GOLD'||
+                 goldLock.active.length!==1||goldLock.active[0]!=='GOLD'||
+                 !goldLock.goldEnabled||!goldLock.lowerDisabled||
+                 !(goldLock.facadeMinZoom<=14.9)||!goldLock.facadeVisible)
+                throw new Error('GOLD_LOD_NOT_LOCKED_ON '+JSON.stringify(goldLock));
+              console.log('BRIDGEPOINT_GOLD_LOD_ALWAYS_ON_PASS',JSON.stringify(goldLock));
 
               await p.evaluate(()=>{
                 const m=window.__BP_V5000_WORLD.map;
@@ -2847,28 +2837,38 @@ jobs:
               // Deployment smoke stops at the rendered-building click contract.
               // The dedicated Android Building Inspector workflow is the deep panel/marker gate.
               console.log('BRIDGEPOINT_BUILDING_CLICK_PASS',JSON.stringify(clicked));
-              await p.waitForFunction(()=>window.__BP_LOD_CONTROL_V6016__?.version===6016&&document.querySelector('[data-bp-lod-tier="GOLD"]')&&document.querySelector('[data-bp-lod-tier="SILVER"]')&&document.querySelector('[data-bp-lod-tier="BRONZE"]'),{timeout:20000});
+              await p.waitForFunction(()=>window.__BP_LOD_CONTROL_V6016__?.version===6201&&document.querySelector('[data-bp-lod-tier="GOLD"]')&&document.querySelector('[data-bp-lod-tier="SILVER"]')&&document.querySelector('[data-bp-lod-tier="BRONZE"]'),{timeout:20000});
               await p.waitForFunction(()=>document.querySelector('#bpv-map-controls-slot [data-bp-lod-tier="GOLD"]'),{timeout:15000});
               const cameraRetention=await p.evaluate(()=>({maxPitch:window.__BP_V5000_WORLD?.map?.getMaxPitch?.()??null,groundGuard:window.__BP_CAMERA_GROUND_GUARD_V6017__?.enabled===true,tileCache:window.__BP_TILE_RETENTION_V6017__||null,inDock:!!document.querySelector('#bpv-map-controls-slot [data-bp-lod-tier="GOLD"]')}));
               if(!(cameraRetention.maxPitch>=100)||!cameraRetention.groundGuard||cameraRetention.tileCache?.cancelPendingTileRequestsWhileZooming!==false||!cameraRetention.inDock)throw new Error('BRIDGEPOINT_GROUND_CAMERA_TILE_RETENTION_OR_CARD_FAILED '+JSON.stringify(cameraRetention));
               console.log('BRIDGEPOINT_GROUND_CAMERA_TILE_RETENTION_CARD_PASS',JSON.stringify(cameraRetention));
               await p.evaluate(()=>{const m=window.__BP_V5000_WORLD?.map;if(!m)throw new Error('LOD_SMOKE_MAP_UNAVAILABLE');m.stop?.();m.jumpTo({center:[-73.9857,40.7484],zoom:16.6,pitch:52,bearing:0})});
               await new Promise(resolve=>setTimeout(resolve,1800));
-              await p.evaluate(()=>document.querySelector('[data-bp-lod-tier="GOLD"]').click());
-              await p.waitForFunction(()=>{const c=window.__BP_LOD_CONTROL_V6016__,m=window.__BP_V5000_WORLD?.map,l=m?.getStyle?.().layers?.find(x=>x.id==='gta-bp-facade-detail');return c?.tier==='GOLD'&&l&&Number(l.minzoom)<=14.9},{timeout:15000});
-              await p.waitForFunction(()=>{const m=window.__BP_V5000_WORLD?.map;return !!m&&['gta-bp-facade-detail','gta-context-facade-detail'].some(id=>m.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')==='visible')},{timeout:15000});
-              const goldLod=await p.evaluate(()=>{const m=window.__BP_V5000_WORLD?.map;return{tier:window.__BP_LOD_CONTROL_V6016__?.tier,layerMinZoom:m?.getStyle?.().layers?.find(x=>x.id==='gta-bp-facade-detail')?.minzoom,facadeVisibility:['gta-bp-facade-detail','gta-context-facade-detail'].filter(id=>m?.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')==='visible'),button:document.querySelector('[data-bp-lod-tier="GOLD"]')?.getAttribute('aria-pressed'),runtime:window.__BP_WORLD_LOD_RUNTIME_V6016__||null}});
-              if(goldLod.tier!=='GOLD'||!(goldLod.layerMinZoom<=14.9)||!goldLod.facadeVisibility.length||goldLod.button!=='true')throw new Error('GOLD_LOD_DID_NOT_CHANGE_RENDERER '+JSON.stringify(goldLod));
-              await p.evaluate(()=>document.querySelector('[data-bp-lod-tier="SILVER"]').click());
-              await p.waitForFunction(()=>{const c=window.__BP_LOD_CONTROL_V6016__,m=window.__BP_V5000_WORLD?.map,l=m?.getStyle?.().layers?.find(x=>x.id==='gta-bp-facade-detail');return c?.tier==='SILVER'&&l&&Number(l.minzoom)>14.9&&Number(l.minzoom)<=15.8},{timeout:15000});
-              const silverLod=await p.evaluate(()=>({tier:window.__BP_LOD_CONTROL_V6016__?.tier,layerMinZoom:window.__BP_V5000_WORLD?.map?.getStyle?.().layers?.find(x=>x.id==='gta-bp-facade-detail')?.minzoom,button:document.querySelector('[data-bp-lod-tier="SILVER"]')?.getAttribute('aria-pressed')}));
-              if(silverLod.tier!=='SILVER'||!(silverLod.layerMinZoom>goldLod.layerMinZoom&&silverLod.layerMinZoom<=15.8)||silverLod.button!=='true')throw new Error('SILVER_LOD_DID_NOT_CHANGE_RENDERER '+JSON.stringify({goldLod,silverLod}));
-              await p.evaluate(()=>document.querySelector('[data-bp-lod-tier="BRONZE"]').click());
-              await p.waitForFunction(()=>{const c=window.__BP_LOD_CONTROL_V6016__,m=window.__BP_V5000_WORLD?.map,l=m?.getStyle?.().layers?.find(x=>x.id==='gta-bp-facade-detail'),expected=matchMedia('(max-width: 620px)').matches?17.25:16.15;return c?.tier==='BRONZE'&&l&&Number(l.minzoom)===expected&&m.getLayoutProperty('gta-bp-facade-detail','visibility')==='none'&&m.getLayoutProperty('gta-context-facade-detail','visibility')==='none'},{timeout:15000});
-              const bronzeLod=await p.evaluate(()=>({tier:window.__BP_LOD_CONTROL_V6016__?.tier,layerMinZoom:window.__BP_V5000_WORLD?.map?.getStyle?.().layers?.find(x=>x.id==='gta-bp-facade-detail')?.minzoom,button:document.querySelector('[data-bp-lod-tier="BRONZE"]')?.getAttribute('aria-pressed')}));
-              if(bronzeLod.tier!=='BRONZE'||bronzeLod.button!=='true')throw new Error('BRONZE_LOD_DID_NOT_RESTORE_LIGHT_RENDERING '+JSON.stringify(bronzeLod));
-              console.log('BRIDGEPOINT_WORLD_LOD_TIERED_RENDERING_PASS',JSON.stringify({goldLod,silverLod,bronzeLod}));
               await p.evaluate(()=>{
+                const gold=document.querySelector('[data-bp-lod-tier="GOLD"]');
+                const silver=document.querySelector('[data-bp-lod-tier="SILVER"]');
+                const bronze=document.querySelector('[data-bp-lod-tier="BRONZE"]');
+                if(!gold||!silver||!bronze||silver.disabled!==true||bronze.disabled!==true)throw new Error('GOLD_LOCK_UI_INVALID');
+                gold.click();
+              });
+              await p.waitForFunction(()=>window.__BP_LOD_CONTROL_V6016__?.tier==='GOLD'&&
+                window.__BP_LOD_RENDERING_V6016__?.tier==='GOLD'&&
+                [...document.querySelectorAll('[data-bp-lod-tier]')].filter(b=>b.getAttribute('aria-pressed')==='true').map(b=>b.dataset.bpLodTier).join(',')==='GOLD',
+                {timeout:15000});
+              const goldLod=await p.evaluate(()=>{
+                const m=window.__BP_V5000_WORLD?.map,buttons=[...document.querySelectorAll('[data-bp-lod-tier]')];
+                const layer=m?.getStyle?.().layers?.find(x=>x.id==='gta-bp-facade-detail');
+                return{tier:window.__BP_LOD_CONTROL_V6016__?.tier,renderer:window.__BP_LOD_RENDERING_V6016__?.tier,
+                  layerMinZoom:Number(layer?.minzoom),
+                  facadeVisibility:['gta-bp-facade-detail','gta-context-facade-detail'].filter(id=>m?.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')==='visible'),
+                  goldEnabled:buttons.some(b=>b.dataset.bpLodTier==='GOLD'&&!b.disabled),
+                  lowerDisabled:buttons.filter(b=>b.dataset.bpLodTier!=='GOLD').length===2&&buttons.filter(b=>b.dataset.bpLodTier!=='GOLD').every(b=>b.disabled),
+                  button:buttons.find(b=>b.dataset.bpLodTier==='GOLD')?.getAttribute('aria-pressed')};
+              });
+              if(goldLod.tier!=='GOLD'||goldLod.renderer!=='GOLD'||!(goldLod.layerMinZoom<=14.9)||
+                 !goldLod.facadeVisibility.length||!goldLod.goldEnabled||!goldLod.lowerDisabled||goldLod.button!=='true')
+                throw new Error('GOLD_LOD_DID_NOT_REMAIN_ON '+JSON.stringify(goldLod));
+              console.log('BRIDGEPOINT_WORLD_GOLD_LOCKED_RENDERING_PASS',JSON.stringify(goldLod));              await p.evaluate(()=>{
                 const m=window.__BP_V5000_WORLD?.map;
                 if(!m)throw new Error('PYRAMID_SMOKE_MAP_UNAVAILABLE');
                 m.jumpTo({center:[31.1322,29.9763],zoom:14.2,pitch:40,bearing:0});

@@ -774,7 +774,7 @@ async function initMap(){
   };
   if($('landingWeatherCount'))$('landingWeatherCount').textContent='SOURCE WEATHER · OFF';
   if($('landingWeatherTime'))$('landingWeatherTime').textContent='Weather, radar and 3D cloud overlays remain off until selected from the BridgePoint controls.';
-   void import('./world-v2300-lod-controls.js?v=6038-world-lod-range-apply').then(m=>{window.__BP_LOD_CONTROL_LANDING_V6016__=m.initWorldLodControls(world,{surface:'landing'})}).catch(e=>console.warn('BridgePoint homepage LOD controls unavailable',e));
+   void import('./world-v2300-lod-controls.js?v=6201-gold-always-on').then(m=>{window.__BP_LOD_CONTROL_LANDING_V6016__=m.initWorldLodControls(world,{surface:'landing'})}).catch(e=>console.warn('BridgePoint homepage LOD controls unavailable',e));
   // Explicitly connect the landmark module to the newly created homepage map.
   // Do not depend on its polling loop winning a race with slow mobile/globe startup.
   window.__BP_PENDING_LANDMARK_MAP_V5940__=world.map;

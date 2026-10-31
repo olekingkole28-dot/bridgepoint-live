@@ -19,6 +19,9 @@ assert.ok(mapSource.includes("layerState={parcels:false,buildings:true}"), 'buil
 assert.ok(mapSource.includes("const tier='GOLD';"), 'world renderer must pin Gold LOD');
 assert.ok(lodSource.includes("function validTier(){return'GOLD'}"), 'LOD selector must not downgrade buildings below Gold');
 assert.ok(lodSource.includes("function readSavedTier(){return'GOLD'}"), 'Gold must override stale saved Bronze/Silver preferences');
+assert.ok(lodSource.includes("button.disabled=tier!=='GOLD'"), 'Silver and Bronze controls must be disabled while Gold is always on');
+assert.ok(lodSource.includes("const next='GOLD';selectedTier=next"), 'all LOD controller requests must resolve to Gold');
+assert.ok(lodSource.includes('GOLD · ALWAYS ON · MAX AVAILABLE'), 'the LOD control must communicate the locked Gold default');
 assert.ok(lodSource.includes('const VERSION=6201;'), 'Gold-default LOD controller version must be updated');
 const mapLines = mapSource.split('\n');
 const waterLine = mapLines.findIndex(line => line.includes("{id:'gta-water'"));
