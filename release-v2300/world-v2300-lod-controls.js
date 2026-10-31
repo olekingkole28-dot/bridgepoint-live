@@ -1,8 +1,8 @@
-const VERSION=6016;
+const VERSION=6201;
 const STORAGE_KEY='bridgepoint-world-lod-v6038';
 const TIERS={BRONZE:{name:'Bronze',sub:'LIGHT 3D',hint:'Lightweight 3D buildings and terrain.'},SILVER:{name:'Silver',sub:'ENHANCED DETAIL',hint:'More roof, floor, facade and structural detail.'},GOLD:{name:'Gold',sub:'MAX AVAILABLE',hint:'Richest available source-backed and derived rendering detail.'}};
-function validTier(value){const t=String(value||'').toUpperCase();return Object.prototype.hasOwnProperty.call(TIERS,t)?t:'GOLD'}
-function readSavedTier(){try{const saved=localStorage.getItem(STORAGE_KEY);return saved?validTier(saved):'GOLD'}catch(_){return'GOLD'}}
+function validTier(){return'GOLD'}
+function readSavedTier(){return'GOLD'}
 function ensureStyle(){
  if(document.getElementById('bp-lod-controls-style-v6017'))return;
  const style=document.createElement('style');style.id='bp-lod-controls-style-v6017';

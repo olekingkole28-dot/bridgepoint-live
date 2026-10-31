@@ -60,11 +60,11 @@ test('water gets long visible swell and a moving solar specular vector', () => {
   assert.match(water, /u_flowCycles \* 0\.14/);
 });
 
-test('standard basemap remains default, satellite imagery is opt-in, and coast foam works at global zoom', () => {
-  assert.match(map, /defaultBase:'gta'/);
-  assert.match(map, /satelliteManualOnly:true/);
-  assert.match(map, /setBase\('gta'\)/);
-  assert.match(map, /base=next==='satellite'\?'satellite':'gta'/);
+test('hybrid satellite imagery and Gold LOD remain default, with coast foam at global zoom', () => {
+  assert.match(map, /defaultBase:'satellite'/);
+  assert.match(map, /satelliteManualOnly:false/);
+  assert.match(map, /setBase\('satellite'\)/);
+  assert.match(map, /base='satellite',moving=false/);\n  assert.match(map, /id:'gta-nasa',type:'raster',source:'nasa',minzoom:0,maxzoom:4/);\n  assert.match(map, /id:'gta-esri',type:'raster',source:'esri',minzoom:4,maxzoom:19/);\n  assert.match(map, /id:'gta-usgs',type:'raster',source:'usgs',minzoom:11,maxzoom:17/);\n  assert.match(map, /id:'gta-oam',type:'raster',source:'oam',minzoom:14,maxzoom:21/);
   assert.match(map, /gta-esri/);
   assert.match(map, /id:'gta-coast-foam'.{0,260}minzoom:2\.2/s);
   assert.match(map, /__BP_COAST_FOAM_TIMER__/);
@@ -98,7 +98,7 @@ test('clouds render as bright 3D volumes, not as a false-colour raster sheet', (
   assert.ok(clouds.includes('const motionTime = desktopGlobalStatic ? 0 :'), 'desktop global cloud puffs must not advect pole-to-pole');
   assert.ok(clouds.includes('const stormMotionTime = desktopGlobalStatic ? 0 : getStormMotionTime();'), 'desktop global storm proxies must not drift');
   assert.ok(clouds.includes('if (!desktopGlobalStatic && layerInstalled && !map.isMoving?.()) map.triggerRepaint?.();'), 'desktop global cloud layer must not force a shared-map repaint loop');
-  assert.ok(app.includes('world-v2300-clouds.js?v=6168-desktop-global-cloud-motion-stop'), 'app must use the cache-busted desktop-stability cloud module');
+  assert.ok(app.includes('world-v2300-lod-controls.js?v=6201-gold-always-on'), 'app must use Gold-always-on LOD controls');\n  assert.ok(app.includes('world-v2300-clouds.js?v=6168-desktop-global-cloud-motion-stop'), 'app must use the cache-busted desktop-stability cloud module');
   assert.ok(landing.includes('world-v2300-clouds.js?v=6168-desktop-global-cloud-motion-stop'), 'landing must use the cache-busted desktop-stability cloud module');
   assert.ok(timeSlider.includes('world-v2300-clouds.js?v=6168-desktop-global-cloud-motion-stop'), 'time-slider cloud fallback must not import stale moving renderer');
   assert.match(clouds, /coverageVersion: 6167/);
@@ -141,7 +141,7 @@ test('cloud shadows update on the map and use available source winds', () => {
 
 test('entrypoints use fresh cache keys for updated map, water, clouds, weather and space', () => {
   for (const source of [app, landing]) {
-    assert.match(source, /world-v2300-map\.js\?v=6186-us-opportunities-globe-clipped/);
+    assert.match(source, /world-v2300-map\.js\?v=6201-auto-hybrid-imagery-gold/);
     assert.match(source, /world-v2300-water\.js\?v=6194-stable-water-low-cost/);
     assert.match(source, /world-v2300-clouds\.js\?v=6168-desktop-global-cloud-motion-stop/);
     assert.match(source, /world-v2300-weather\.js\?v=6195-desktop-globe-flash-stability/);

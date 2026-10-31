@@ -1,26 +1,32 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-
 const mapSource = await readFile(new URL('../release-v2300/world-v2300-map.js', import.meta.url), 'utf8');
 const waterSource = await readFile(new URL('../release-v2300/world-v2300-water.js', import.meta.url), 'utf8');
-
+const lodSource = await readFile(new URL('../release-v2300/world-v2300-lod-controls.js', import.meta.url), 'utf8');
 assert.ok(mapSource.includes("esri:{type:'raster'"), 'global imagery source must be wired');
-assert.ok(mapSource.includes("attribution:'Esri World Imagery · Sources: Esri, Vantor, Earthstar Geographics, and the GIS User Community'"),
-  'world imagery attribution must be retained');
-assert.ok(mapSource.includes("paint(map,'gta-water','fill-opacity',sat?1:.97)"),
-  'satellite mode must fully mask raster imagery beneath source-water polygons');
-assert.ok(mapSource.includes("map.moveLayer(id,'gta-water')"),
-  'satellite rasters must render below water instead of painting across ocean');
-assert.ok(mapSource.includes("setBase('gta')"), 'standard basemap must remain enabled by default');
-assert.ok(mapSource.includes("defaultBase:'gta'") && mapSource.includes('satelliteManualOnly:true'), 'satellite imagery must remain opt-in');
+assert.ok(mapSource.includes("attribution:'Esri World Imagery · Sources: Esri, Vantor, Earthstar Geographics, and the GIS User Community'"), 'imagery attribution must be retained');
+assert.ok(mapSource.includes("paint(map,'gta-water','fill-opacity',sat?1:.97)"), 'satellite mode must keep source-water polygons legible');
+assert.ok(mapSource.includes("map.moveLayer(id,'gta-water')"), 'satellite rasters must render below water');
+assert.ok(mapSource.includes("setBase('satellite')"), 'satellite imagery must be enabled by default');
+assert.ok(mapSource.includes("defaultBase:'satellite'") && mapSource.includes('satelliteManualOnly:false'), 'zoom-aware satellite imagery must be default');
+assert.ok(mapSource.includes("id:'gta-nasa',type:'raster',source:'nasa',minzoom:0,maxzoom:4"), 'NASA Blue Marble must cover global zoom');
+assert.ok(mapSource.includes("id:'gta-esri',type:'raster',source:'esri',minzoom:4,maxzoom:19"), 'Esri imagery must provide worldwide mid/high-zoom coverage without raster overzoom');
+assert.ok(mapSource.includes("id:'gta-usgs',type:'raster',source:'usgs',minzoom:11,maxzoom:17"), 'USGS imagery must overlay Esri where U.S. tiles exist');
+assert.ok(mapSource.includes("id:'gta-oam',type:'raster',source:'oam',minzoom:14,maxzoom:21"), 'OpenAerialMap imagery must overlay where local aerial tiles exist');
+assert.ok(mapSource.includes("window.__BP_GLOBAL_IMAGERY_LOD_V6201__"), 'runtime must expose the active imagery stack');
+assert.ok(mapSource.includes("minzoom:7,maxzoom:11.25"), 'generalized building footprints must start at regional zoom');
+assert.ok(mapSource.includes("layerState={parcels:false,buildings:true}"), 'building layer must initialize enabled');
+assert.ok(mapSource.includes("const tier='GOLD';"), 'world renderer must pin Gold LOD');
+assert.ok(lodSource.includes("function validTier(){return'GOLD'}"), 'LOD selector must not downgrade buildings below Gold');
+assert.ok(lodSource.includes("function readSavedTier(){return'GOLD'}"), 'Gold must override stale saved Bronze/Silver preferences');
+assert.ok(lodSource.includes('const VERSION=6201;'), 'Gold-default LOD controller version must be updated');
 const mapLines = mapSource.split('\n');
 const waterLine = mapLines.findIndex(line => line.includes("{id:'gta-water'"));
-const esriLine = mapLines.findIndex(line => line.includes("{id:'gta-esri'"));
-assert.ok(esriLine >= 0 && waterLine > esriLine, 'water fill must be declared after satellite imagery');
-assert.ok(waterSource.includes('microPhaseA') && waterSource.includes('microPhaseB') && waterSource.includes('microPhaseC'),
-  'GPU shader must include multiple fine-scale wave bands');
+const rasterLines = ['gta-nasa','gta-esri','gta-usgs','gta-oam'].map(id => mapLines.findIndex(line => line.includes(`{id:'${id}'`)));
+assert.ok(rasterLines.every(i => i >= 0 && i < waterLine), 'imagery rasters must remain beneath source-water');
+assert.ok(rasterLines.every(i => mapLines[i].includes("visibility:'visible'")), 'imagery layers must start visible');
+assert.ok(waterSource.includes('microPhaseA') && waterSource.includes('microPhaseB') && waterSource.includes('microPhaseC'), 'GPU shader must include multiple fine-scale wave bands');
 assert.ok(waterSource.includes('fwidth(microPhaseC)'), 'finest wave band must fade at screen-sampling limit');
 assert.ok(waterSource.includes('surfaceMaskValidationAllZooms: true'), 'source-water masks must remain enabled at every zoom');
-assert.ok(waterSource.includes("if (z >= 12) {\n    return { scale: 0, maxOffsetM: 0, guarded: true };"),
-  'close-zoom vertex displacement guard must remain intact');
+assert.ok(waterSource.includes("if (z >= 12) {\n    return { scale: 0, maxOffsetM: 0, guarded: true };"), 'close-zoom vertex displacement guard must remain intact');
 console.log('BRIDGEPOINT_WATER_LOD_AND_LAND_IMAGERY_TEST_PASS');

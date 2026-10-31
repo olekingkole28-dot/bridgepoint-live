@@ -138,7 +138,7 @@ async function initSharedVisualWeather(targetWorld,{activate=true}={}){
  }catch(e){console.warn('BridgePoint shared visual weather',e);return null}
 }
 async function bootMap(){
- const mod=await import('./world-v2300-map.js?v=6186-us-opportunities-globe-clipped');world=mod.initWorld();window.__BP_V5000_WORLD=world;
+ const mod=await import('./world-v2300-map.js?v=6201-auto-hybrid-imagery-gold');world=mod.initWorld();window.__BP_V5000_WORLD=world;
  const started=performance.now();
  while(!world?.map&&performance.now()-started<10000)await new Promise(r=>setTimeout(r,40));
  if(!world?.map)throw new Error('Map object readiness timeout');
@@ -191,7 +191,7 @@ async function bootMap(){
    else appCloudApi?.setEnabled?.(true);
    return appCloudApi;
   };
-  void import('./world-v2300-lod-controls.js?v=6038-world-lod-range-apply').then(m=>{window.__BP_LOD_CONTROL_APP_V6016__=m.initWorldLodControls(world,{surface:'app'})}).catch(e=>console.warn('BridgePoint LOD controls unavailable',e));
+  void import('./world-v2300-lod-controls.js?v=6201-gold-always-on').then(m=>{window.__BP_LOD_CONTROL_APP_V6016__=m.initWorldLodControls(world,{surface:'app'})}).catch(e=>console.warn('BridgePoint LOD controls unavailable',e));
  window.__BP_PENDING_LANDMARK_MAP_V5940__=world.map;
  try{window.dispatchEvent(new CustomEvent('bp:world-map-ready-v5940',{detail:{map:world.map,source:'app'}}))}catch(_){}
  // The shell already includes a static landmark loader. Signal it instead of evaluating
