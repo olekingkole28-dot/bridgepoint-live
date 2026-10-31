@@ -64,7 +64,11 @@ test('hybrid satellite imagery and Gold LOD remain default, with coast foam at g
   assert.match(map, /defaultBase:'satellite'/);
   assert.match(map, /satelliteManualOnly:false/);
   assert.match(map, /setBase\('satellite'\)/);
-  assert.match(map, /base='satellite',moving=false/);\n  assert.match(map, /id:'gta-nasa',type:'raster',source:'nasa',minzoom:0,maxzoom:4/);\n  assert.match(map, /id:'gta-esri',type:'raster',source:'esri',minzoom:4,maxzoom:19/);\n  assert.match(map, /id:'gta-usgs',type:'raster',source:'usgs',minzoom:11,maxzoom:17/);\n  assert.match(map, /id:'gta-oam',type:'raster',source:'oam',minzoom:14,maxzoom:21/);
+  assert.match(map, /base='satellite',moving=false/);
+  assert.match(map, /id:'gta-nasa',type:'raster',source:'nasa',minzoom:0,maxzoom:4/);
+  assert.match(map, /id:'gta-esri',type:'raster',source:'esri',minzoom:4,maxzoom:19/);
+  assert.match(map, /id:'gta-usgs',type:'raster',source:'usgs',minzoom:11,maxzoom:17/);
+  assert.match(map, /id:'gta-oam',type:'raster',source:'oam',minzoom:14,maxzoom:21/);
   assert.match(map, /gta-esri/);
   assert.match(map, /id:'gta-coast-foam'.{0,260}minzoom:2\.2/s);
   assert.match(map, /__BP_COAST_FOAM_TIMER__/);

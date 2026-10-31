@@ -74,7 +74,8 @@ jobs:
           node --input-type=module --check < release-v2300/world-v2300-lightning.js
           node --input-type=module --check < release-v2300/world-v2300-time-slider.js
           node --input-type=module --check < release-v2300/world-v2300-bootstrap.js
-          node tests/celestial-water-cloud-shadows.test.mjs\n          node tests/water-lod-and-imagery.test.mjs
+          node tests/celestial-water-cloud-shadows.test.mjs
+          node tests/water-lod-and-imagery.test.mjs
           grep -Fq "dot=rawKey.endsWith('-dot'),key=dot?rawKey.replace(/-dot$/,''):rawKey" release-v2300/world-v2300-map.js
           grep -Fq "eagerOpportunityIcons:keys.length*2" release-v2300/world-v2300-map.js
           grep -Fq "bridgepoint_public_global_risk_viewport_v6174" rebuild-v5000/app.js
