@@ -205,7 +205,7 @@ async function start(){
  await renderPackages();await storageStats();
  // This page is visited before the user starts downloading. The same-origin worker
  // then preserves the page shell; geographic bytes are stored by the pack manager.
- if('serviceWorker' in navigator){try{await navigator.serviceWorker.register('/sw.js?v=6196-desktop-cloud-motion-autoupdate',{scope:'/',updateViaCache:'none'});await navigator.serviceWorker.ready}catch(e){console.warn('Offline shell worker registration failed',e)}}
+ if('serviceWorker' in navigator){try{await navigator.serviceWorker.register('/sw.js?v=6206-natural-imagery-globe-parity',{scope:'/',updateViaCache:'none'});await navigator.serviceWorker.ready}catch(e){console.warn('Offline shell worker registration failed',e)}}
 }
 start().catch(e=>{status('Offline World could not initialize: '+e.message);mapStatus('Initialization failed. Open this page while connected, then retry.');console.error(e)});
 })();

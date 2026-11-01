@@ -487,8 +487,12 @@ jobs:
           grep -Fq 'bridgepoint-rail-mesh-v5973.js?v=5980-visible-detail-rails' site/app/index.html
           grep -Fq 'MAPPED_GROUND_ROAD_ENDPOINT' site/world-v2300-map.js
           grep -Fq 'groundConnectedRamps' site/world-v2300-map.js
-          grep -Fq '6205-natural-imagery-globe-parity' site/app.js
-          grep -Fq '6205-natural-imagery-globe-parity' site/landing.js
+          grep -Fq '6206-natural-imagery-globe-parity' site/app.js
+          grep -Fq '6206-natural-imagery-globe-parity' site/landing.js
+          grep -Fq 'bp-global-map-mode-v6206' site/world-v2300-spectral-imagery.js
+          grep -Fq 'bp-intelligence-v6206-natural-imagery-globe-parity' site/sw.js
+          grep -Fq "navigator.serviceWorker.register('/sw.js?v=6206-natural-imagery-globe-parity')" site/landing.js
+          grep -Fq "navigator.serviceWorker.register('/sw.js?v=6206-natural-imagery-globe-parity')" site/app.js
           grep -Fq 'OpenStreetMap feature centroid' site/bridgepoint-pyramids-v5945.js
           grep -Fq 'currentHeightM: 138.5' site/bridgepoint-pyramids-v5945.js
           grep -Fq 'currentHeightM: 136.4' site/bridgepoint-pyramids-v5945.js
@@ -694,9 +698,9 @@ jobs:
           grep -Fq 'world-v2300-weather.js?v=6195-desktop-globe-flash-stability' site/app/world-v2300-bootstrap.js
           grep -Fq 'world-v2300-time-slider.js?v=6167-cloud-startup-performance' site/app.js
           grep -Fq 'world-v2300-time-slider.js?v=6167-cloud-startup-performance' site/landing.js
-          grep -Fq 'world-v2300-spectral-imagery.js?v=6205-natural-imagery-globe-parity' site/app.js
-          grep -Fq 'world-v2300-spectral-imagery.js?v=6205-natural-imagery-globe-parity' site/landing.js
-          grep -Fq 'world-v2300-spectral-imagery.js?v=6205-natural-imagery-globe-parity' site/bridgepoint-view-v5917.js
+          grep -Fq 'world-v2300-spectral-imagery.js?v=6206-natural-imagery-globe-parity' site/app.js
+          grep -Fq 'world-v2300-spectral-imagery.js?v=6206-natural-imagery-globe-parity' site/landing.js
+          grep -Fq 'world-v2300-spectral-imagery.js?v=6206-natural-imagery-globe-parity' site/bridgepoint-view-v5917.js
           grep -Fq 'world-v2300-underground-xray.js?v=5965-landmarks-and-effects' site/app.js
           grep -Fq 'world-v2300-underground-xray.js?v=5965-landmarks-and-effects' site/landing.js
           grep -Fq 'world-v2300-infrastructure-volume-v5962.js?v=5962-power-grid-fcc-towers' site/app.js
@@ -820,7 +824,7 @@ jobs:
           grep -Fq 'BP_SOURCE_WEATHER_CACHE_KEY_V6134' site/app.js
           grep -Fq 'restoreCachedLiveWeatherFirstFrameV6134' site/app.js
           ! grep -Fq 'if(window.__BP_CLOUDS_ONLY_PHASE_V6070__===true && m)' site/landing.js
-          grep -Fq 'landing.js?v=6205-natural-imagery-globe-parity' site/index.html
+          grep -Fq 'landing.js?v=6206-natural-imagery-globe-parity' site/index.html
           grep -Fq 'async function toggleNasaNightlights()' site/world-v2300-time-slider.js
           grep -Fq 'async function toggleSkyClouds()' site/world-v2300-time-slider.js
           grep -Fq 'data-skyview' site/world-v2300-time-slider.js
@@ -940,10 +944,10 @@ jobs:
           grep -Fq '__BP_FULL_REFRESH_V5535__' site/refresh-v5535.js
           grep -Fq '__BP_FULL_REFRESH_V5548__' site/refresh-v5535.js
           grep -Fq 'deferred-active-use' site/refresh-v5535.js
-          grep -Fq 'bp-intelligence-v6196-desktop-cloud-motion-autoupdate' site/sw.js
+          grep -Fq 'bp-intelligence-v6206-natural-imagery-globe-parity' site/sw.js
           node --check site/app-update-v5820.js
-          grep -Fq '/app-update-v5820.js?v=6196-desktop-cloud-motion-autoupdate' site/index.html
-          grep -Fq '/app-update-v5820.js?v=6196-desktop-cloud-motion-autoupdate' site/app/index.html
+          grep -Fq '/app-update-v5820.js?v=6206-natural-imagery-globe-parity' site/index.html
+          grep -Fq '/app-update-v5820.js?v=6206-natural-imagery-globe-parity' site/app/index.html
           grep -Fq 'bridgepoint-intelligence-legacy-retire-v5820' site/app/flutter_service_worker.js
           grep -Fq 'migrated=legacy-intelligence-v5820' site/app/intelligence-launch/index.html
           grep -Fq "bridgepoint-horizon-v5820" site/app/horizon/sw.js
@@ -1036,7 +1040,7 @@ jobs:
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/app.js
           grep -Fq 'activateLiveWeather();' site/app.js
           grep -Fq 'enabled:true,serializedWeather:true' site/app.js
-          grep -Fq 'app.js?v=6205-natural-imagery-globe-parity' site/app/index.html
+          grep -Fq 'app.js?v=6206-natural-imagery-globe-parity' site/app/index.html
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/landing.js
           grep -Fq 'WMO_CAP_WARNING' site/app.js
           grep -Fq 'WMO_CAP_WARNING' site/landing.js
@@ -1280,12 +1284,12 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=6205-natural-imagery-globe-parity' site/app/index.html
-          grep -Fq 'landing.js?v=6205-natural-imagery-globe-parity' site/index.html
-           grep -Fq 'world-v2300-map.js?v=6205-natural-imagery-globe-parity' site/app.js
-           grep -Fq 'world-v2300-map.js?v=6205-natural-imagery-globe-parity' site/landing.js
-           grep -Fq 'world-v2300-map.js?v=6205-natural-imagery-globe-parity' site/index.html
-           grep -Fq 'world-v2300-map.js?v=6205-natural-imagery-globe-parity' site/app/index.html
+          grep -Fq 'app.js?v=6206-natural-imagery-globe-parity' site/app/index.html
+          grep -Fq 'landing.js?v=6206-natural-imagery-globe-parity' site/index.html
+           grep -Fq 'world-v2300-map.js?v=6206-natural-imagery-globe-parity' site/app.js
+           grep -Fq 'world-v2300-map.js?v=6206-natural-imagery-globe-parity' site/landing.js
+           grep -Fq 'world-v2300-map.js?v=6206-natural-imagery-globe-parity' site/index.html
+           grep -Fq 'world-v2300-map.js?v=6206-natural-imagery-globe-parity' site/app/index.html
            grep -Fq 'world-v2300-lod-controls.js?v=6201-gold-always-on' site/app.js
            grep -Fq "const tier='GOLD';" site/world-v2300-map.js
            grep -Fq 'function activeWorldLodProfile()' site/world-v2300-map.js
@@ -1301,8 +1305,8 @@ jobs:
           grep -Fq 'landing.css?v=5941-mobile-grid' site/index.html
           grep -Fq 'bridgepoint-view-v5917.css?v=6202-live-panels' site/index.html
           grep -Fq 'bridgepoint-view-v5917.css?v=6202-live-panels' site/app/index.html
-          grep -Fq 'bridgepoint-view-v5917.js?v=6205-natural-imagery-globe-parity' site/app/index.html
-          grep -Fq 'bridgepoint-view-v5917.js?v=6205-natural-imagery-globe-parity' site/index.html
+          grep -Fq 'bridgepoint-view-v5917.js?v=6206-natural-imagery-globe-parity' site/app/index.html
+          grep -Fq 'bridgepoint-view-v5917.js?v=6206-natural-imagery-globe-parity' site/index.html
           grep -Fq 'function setDockMaximized(on)' site/bridgepoint-view-v5917.js
           grep -Fq 'document.body.appendChild(keyRail)' site/bridgepoint-view-v5917.js
           grep -Fq 'p.removeAttribute('"'"'data-panel'"'"')' site/bridgepoint-view-v5917.js
@@ -1475,7 +1479,7 @@ jobs:
               && grep -Fq 'bridgepoint_public_weather_bootstrap_v5512' /tmp/app.js \
               && grep -Fq 'const VERSION=1068' /tmp/language-selector-v5200.js \
               && grep -Fq 'BridgePointLanguage' /tmp/language-selector-v5200.js \
-              && grep -Fq "const V='bp-intelligence-v6196-desktop-cloud-motion-autoupdate'" /tmp/sw.js \
+              && grep -Fq "const V='bp-intelligence-v6206-natural-imagery-globe-parity'" /tmp/sw.js \
               && grep -Fq 'BUILD=6196' /tmp/app-update-v5820.js \
               && grep -Fq 'bridgepoint-intelligence-legacy-retire-v5820' /tmp/flutter-service-worker-retire.js \
               && grep -Fq 'migrated=legacy-intelligence-v5820' /tmp/legacy-intelligence-launch.html \
@@ -1584,14 +1588,34 @@ jobs:
             try{
               const page=await browser.newPage();
               page.setDefaultTimeout(90000);
-              const pageErrors=[];
+              const pageErrors=[],consoleErrors=[],requestFailures=[];
               page.on('pageerror',e=>pageErrors.push(String(e?.message||e)));
+              page.on('console',m=>{if(m.type()==='error'&&consoleErrors.length<30)consoleErrors.push(m.text())});
+              page.on('requestfailed',r=>{if(requestFailures.length<30)requestFailures.push(r.url()+' '+(r.failure()?.errorText||''))});
               const readStableMap=async(kind)=>{
-                await page.waitForFunction(kind=>{
-                  const world=kind==='home'?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
-                  const spectral=window.__BP_SPECTRAL_IMAGERY_V5931__;
-                  return !!world?.map&&window.__BP_WORLD_CORE_READY__?.ready===true&&spectral?.map===world.map&&typeof spectral.setBasemapMode==='function';
-                },{timeout:90000},kind);
+                try{
+                  await page.waitForFunction(kind=>{
+                    const world=kind==='home'?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
+                    const spectral=window.__BP_SPECTRAL_IMAGERY_V5931__;
+                    return !!world?.map&&window.__BP_WORLD_CORE_READY__?.ready===true&&spectral?.map===world.map&&typeof spectral.setBasemapMode==='function';
+                  },{timeout:90000},kind);
+                }catch(error){
+                  const diagnostics=await page.evaluate(kind=>{
+                    const world=kind==='home'?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
+                    const map=world?.map,container=document.getElementById(kind==='home'?'previewMap':'liveMap');
+                    const spectral=window.__BP_SPECTRAL_IMAGERY_V5931__,rect=container?.getBoundingClientRect();
+                    return {
+                      path:location.pathname,readyState:document.readyState,maplibreAvailable:!!window.maplibregl,
+                      worldPresent:!!world,mapPresent:!!map,styleLoaded:map?.isStyleLoaded?.()??null,mapLoaded:map?.loaded?.()??null,
+                      projection:map?.getProjection?.()?.type||null,canvasWidth:map?.getCanvas?.()?.clientWidth||0,canvasHeight:map?.getCanvas?.()?.clientHeight||0,
+                      containerWidth:rect?.width||0,containerHeight:rect?.height||0,coreReady:window.__BP_WORLD_CORE_READY__||null,
+                      spectralPresent:!!spectral,spectralMapMatches:!!spectral&&spectral.map===map,spectralMode:spectral?.basemapMode||null,
+                      landingBoot:window.__BP_LANDING_MAP_BOOT__||null,appBoot:window.__BP_APP_GLOBE_BOOT__||null,
+                      scripts:[...document.scripts].map(s=>s.src).filter(Boolean).slice(-25)
+                    };
+                  },kind).catch(e=>({diagnosticError:String(e?.message||e)}));
+                  throw new Error('BridgePoint '+kind+' map bootstrap timed out: '+JSON.stringify(diagnostics)+'; pageErrors='+JSON.stringify(pageErrors)+'; consoleErrors='+JSON.stringify(consoleErrors)+'; requestFailures='+JSON.stringify(requestFailures)+'; original='+String(error?.message||error));
+                }
                 await page.waitForFunction(kind=>{
                   const world=kind==='home'?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
                   const map=world?.map;
@@ -1610,6 +1634,7 @@ jobs:
                     zoom:map?.getZoom?.()??null,
                     base:window.__BP_TECH_BASEMAP_V1116__?.activeBase||null,
                     mode:spectral?.basemapMode||null,
+                    legacyStoredMode:localStorage.getItem('bp-global-map-mode-v6204')||null,
                     background:map?.getPaintProperty('gta-bg','background-color')??null,
                     waterOpacity:map?.getPaintProperty('gta-water','fill-opacity')??null,
                     imagery:{nasa:visible('gta-nasa'),esri:visible('gta-esri'),usgs:visible('gta-usgs'),oam:visible('gta-oam')},
@@ -1623,11 +1648,13 @@ jobs:
                 },kind);
               };
               await page.setViewport({width:1440,height:960,deviceScaleFactor:1});
+              await page.evaluateOnNewDocument(()=>{try{localStorage.setItem('bp-global-map-mode-v6204','dark')}catch(_){}});
               await page.goto('https://bridgepointintelligence.online/?natural-persistence-smoke='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
               const home=await readStableMap('home');
               const validate=(state)=>{
                 assert.equal(state.projection,'globe',state.kind+' must render globe projection');
                 assert.equal(state.mode,'natural',state.kind+' must stay in Natural Satellite mode after idle');
+                assert.equal(state.legacyStoredMode,'dark',state.kind+' must ignore the legacy v6204 Dark preference and start Natural');
                 assert.equal(state.background,'#06120f',state.kind+' must retain Natural background after idle');
                 assert.equal(Number(state.waterOpacity),0.42,state.kind+' must retain Natural water opacity after idle');
                 assert.equal(state.base,'satellite',state.kind+' must retain satellite imagery base');
