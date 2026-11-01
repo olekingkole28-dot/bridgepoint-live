@@ -1566,6 +1566,87 @@ jobs:
           grep -Fq 'current-map-entry.js' /tmp/discover.html
           echo BRIDGEPOINT_V5100_COMBINED_SURFACES_PASS
 
+      - name: Natural imagery persistence and app globe parity smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp
+          npm init -y >/dev/null 2>&1 || true
+          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core');
+          const assert=require('node:assert/strict');
+          (async()=>{
+            const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,protocolTimeout:90000,args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader']});
+            try{
+              const page=await browser.newPage();
+              page.setDefaultTimeout(90000);
+              const pageErrors=[];
+              page.on('pageerror',e=>pageErrors.push(String(e?.message||e)));
+              const readStableMap=async(kind)=>{
+                await page.waitForFunction(kind=>{
+                  const world=kind==='home'?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
+                  const spectral=window.__BP_SPECTRAL_IMAGERY_V5931__;
+                  return !!world?.map&&window.__BP_WORLD_CORE_READY__?.ready===true&&spectral?.map===world.map&&typeof spectral.setBasemapMode==='function';
+                },{timeout:90000},kind);
+                await page.waitForFunction(kind=>{
+                  const world=kind==='home'?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
+                  const map=world?.map;
+                  return !!map&&map.isStyleLoaded?.()===true&&!map.isMoving?.();
+                },{timeout:60000},kind);
+                await new Promise(resolve=>setTimeout(resolve,1400));
+                return page.evaluate(kind=>{
+                  const world=kind==='home'?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
+                  const map=world?.map,spectral=window.__BP_SPECTRAL_IMAGERY_V5931__;
+                  const visible=id=>!!map?.getLayer(id)&&(map.getLayoutProperty(id,'visibility')||'visible')==='visible';
+                  const container=document.getElementById(kind==='home'?'previewMap':'liveMap');
+                  const rect=container?.getBoundingClientRect();
+                  return {
+                    kind,
+                    projection:map?.getProjection?.()?.type||null,
+                    zoom:map?.getZoom?.()??null,
+                    base:window.__BP_TECH_BASEMAP_V1116__?.activeBase||null,
+                    mode:spectral?.basemapMode||null,
+                    background:map?.getPaintProperty('gta-bg','background-color')??null,
+                    waterOpacity:map?.getPaintProperty('gta-water','fill-opacity')??null,
+                    imagery:{nasa:visible('gta-nasa'),esri:visible('gta-esri'),usgs:visible('gta-usgs'),oam:visible('gta-oam')},
+                    canvasCount:container?.querySelectorAll('canvas').length||0,
+                    canvasWidth:map?.getCanvas?.()?.clientWidth||0,
+                    canvasHeight:map?.getCanvas?.()?.clientHeight||0,
+                    containerWidth:rect?.width||0,
+                    containerHeight:rect?.height||0,
+                    coreReady:window.__BP_WORLD_CORE_READY__?.ready===true
+                  };
+                },kind);
+              };
+              await page.setViewport({width:1440,height:960,deviceScaleFactor:1});
+              await page.goto('https://bridgepointintelligence.online/?natural-persistence-smoke='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+              const home=await readStableMap('home');
+              const validate=(state)=>{
+                assert.equal(state.projection,'globe',state.kind+' must render globe projection');
+                assert.equal(state.mode,'natural',state.kind+' must stay in Natural Satellite mode after idle');
+                assert.equal(state.background,'#06120f',state.kind+' must retain Natural background after idle');
+                assert.equal(Number(state.waterOpacity),0.42,state.kind+' must retain Natural water opacity after idle');
+                assert.equal(state.base,'satellite',state.kind+' must retain satellite imagery base');
+                assert.equal(state.imagery.esri,true,state.kind+' must retain global Esri imagery');
+                assert.equal(state.imagery.nasa,true,state.kind+' must retain global NASA imagery');
+                assert.ok(state.canvasCount>=1&&state.canvasWidth>0&&state.canvasHeight>0,state.kind+' must render a non-zero globe canvas');
+                assert.ok(state.containerWidth>0&&state.containerHeight>0,state.kind+' map container must be visible');
+              };
+              validate(home);
+              await page.evaluate(()=>localStorage.setItem('bp_auth_v5045',JSON.stringify({access_token:'bridgepoint-smoke-invalid-token'})));
+              await page.goto('https://bridgepointintelligence.online/app/?natural-globe-parity-smoke='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+              await page.waitForFunction(()=>window.__BP_APP_GLOBE_BOOT__?.containerId==='liveMap'&&window.__BP_APP_GLOBE_BOOT__?.projection==='globe',{timeout:90000});
+              const app=await readStableMap('app');
+              validate(app);
+              assert.equal(app.canvasCount,1,'app must render exactly one main-world map canvas');
+              assert.ok(pageErrors.length===0,'app/page JavaScript errors: '+pageErrors.slice(-12).join(' | '));
+              console.log('BRIDGEPOINT_NATURAL_IMAGERY_PERSISTENCE_AND_APP_GLOBE_PARITY_PASS',JSON.stringify({home,app,pageErrors}));
+            }finally{await browser.close()}
+          })().catch(error=>{console.error(error);process.exitCode=1});
+          NODE
+
       - name: Global opportunity marker rendering smoke
         shell: bash
         run: |
