@@ -1637,13 +1637,22 @@ jobs:
                 assert.ok(state.containerWidth>0&&state.containerHeight>0,state.kind+' map container must be visible');
               };
               validate(home);
+              const verifyZoomStops=async(kind)=>{
+                await page.evaluate(kind=>{const world=kind==='home'?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;world.map.jumpTo({zoom:6,pitch:0});},kind);
+                const zoomIn=await readStableMap(kind);validate(zoomIn);
+                await page.evaluate(kind=>{const world=kind==='home'?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;world.map.jumpTo({zoom:1.25,pitch:0});},kind);
+                const zoomOut=await readStableMap(kind);validate(zoomOut);
+                return {zoomIn,zoomOut};
+              };
+              const homeZoomStops=await verifyZoomStops('home');
               await page.evaluate(()=>localStorage.setItem('bp_auth_v5045',JSON.stringify({access_token:'bridgepoint-smoke-invalid-token'})));
               await page.goto('https://bridgepointintelligence.online/app/?natural-globe-parity-smoke='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
               await page.waitForFunction(()=>window.__BP_APP_GLOBE_BOOT__?.containerId==='liveMap'&&window.__BP_APP_GLOBE_BOOT__?.projection==='globe',{timeout:90000});
               const app=await readStableMap('app');
               validate(app);
+              const appZoomStops=await verifyZoomStops('app');
               assert.equal(app.canvasCount,1,'app must render exactly one main-world map canvas');
-              console.log('BRIDGEPOINT_NATURAL_IMAGERY_PERSISTENCE_AND_APP_GLOBE_PARITY_PASS',JSON.stringify({home,app,pageErrors:pageErrors.slice(-12)}));
+              console.log('BRIDGEPOINT_NATURAL_IMAGERY_PERSISTENCE_AND_APP_GLOBE_PARITY_PASS',JSON.stringify({home,homeZoomStops,app,appZoomStops,pageErrors:pageErrors.slice(-12)}));
             }finally{await browser.close()}
           })().catch(error=>{console.error(error);process.exitCode=1});
           NODE
