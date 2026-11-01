@@ -46,10 +46,10 @@ assert.ok(spectralSource.includes('<option value="natural">Natural Satellite · 
 assert.ok(spectralSource.includes("safeSetVisibility('gta-usgs','visible');") && spectralSource.includes("safeSetVisibility('gta-oam','visible');"), 'higher-detail regional aerial sources must remain enabled in imagery mode');
 assert.ok(spectralSource.includes("safeSetVisibility('gta-nasa',map.getZoom()<=8.15?'visible':'none');"), 'global NASA imagery must hand off at regional zoom instead of being overzoomed');
 assert.ok(homepageHtml.includes('landing.js?v=6205-natural-imagery-globe-parity'), 'homepage must load the new imagery-default loader instead of a cached old version');
-assert.ok(homepageHtml.includes('bridgepoint-view-v5917.js?v=6204-imagery-default'), 'homepage must load the current satellite control loader');
+assert.ok(homepageHtml.includes('bridgepoint-view-v5917.js?v=6205-natural-imagery-globe-parity'), 'homepage must load the current satellite control loader');
 assert.ok(appHtml.includes('app.js?v=6205-natural-imagery-globe-parity'), 'app shell must load the updated imagery loader');
-assert.ok(appHtml.includes('bridgepoint-view-v5917.js?v=6204-imagery-default'), 'app must load the current satellite control loader');
-assert.ok(appLoader.includes("world-v2300-spectral-imagery.js?v=6204-imagery-default"), 'app must request the new satellite imagery module');
+assert.ok(appHtml.includes('bridgepoint-view-v5917.js?v=6205-natural-imagery-globe-parity'), 'app must load the current satellite control loader');
+assert.ok(appLoader.includes("world-v2300-spectral-imagery.js?v=6205-natural-imagery-globe-parity"), 'app must request the new satellite imagery module');
 assert.ok(mapSource.includes("const spectral=window.__BP_SPECTRAL_IMAGERY_V5931__;if(spectral?.map===map&&typeof spectral.setBasemapMode==='function')"), 'satellite base selection must preserve the active Natural/Dark global palette');
 assert.ok(spectralSource.includes("map.on('style.load',reapplySelectedBasemapAfterStyleReload)"), 'selected global palette must be restored after MapLibre style reloads');
 assert.ok(spectralSource.includes('defaultsCaptured=false;originalPaint.clear();originalVisibility.clear();styleWaitPending=false;'), 'style reload must recapture the new native paint baseline before applying the selected palette');
