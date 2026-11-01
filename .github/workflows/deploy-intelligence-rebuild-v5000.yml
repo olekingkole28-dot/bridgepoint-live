@@ -491,8 +491,8 @@ jobs:
           grep -Fq '6206-natural-imagery-globe-parity' site/landing.js
           grep -Fq 'bp-global-map-mode-v6206' site/world-v2300-spectral-imagery.js
           grep -Fq 'bp-intelligence-v6206-natural-imagery-globe-parity' site/sw.js
-          grep -Fq "navigator.serviceWorker.register('/sw.js?v=6206-natural-imagery-globe-parity')" site/landing.js
-          grep -Fq "navigator.serviceWorker.register('/sw.js?v=6206-natural-imagery-globe-parity')" site/app.js
+          grep -Fq "navigator.serviceWorker.register('/sw.js?v=6206-natural-imagery-globe-parity'," site/landing.js
+          grep -Fq "navigator.serviceWorker.register('/sw.js?v=6206-natural-imagery-globe-parity'," site/app.js
           grep -Fq 'OpenStreetMap feature centroid' site/bridgepoint-pyramids-v5945.js
           grep -Fq 'currentHeightM: 138.5' site/bridgepoint-pyramids-v5945.js
           grep -Fq 'currentHeightM: 136.4' site/bridgepoint-pyramids-v5945.js
