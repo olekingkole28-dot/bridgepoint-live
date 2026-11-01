@@ -156,8 +156,8 @@ test('entrypoints use fresh cache keys for updated map, water, clouds, weather a
   assert.match(map, /world-v2300-space\.js\?v=6125-manual-globe-camera/);
   assert.match(timeSlider, /world-v2300-clouds\.js\?v=6168-desktop-global-cloud-motion-stop/);
   assert.match(bootstrap, /world-v2300-weather\.js\?v=6195-desktop-globe-flash-stability/);
-  assert.match(appHtml, /app\.js\?v=6201-auto-hybrid-imagery-gold/);
-  assert.match(landingHtml, /landing\.js\?v=6201-auto-hybrid-imagery-gold/);
+  assert.match(appHtml, /app\.js\?v=6204-imagery-default/);
+  assert.match(landingHtml, /landing\.js\?v=6204-imagery-default/);
   assert.match(appHtml, /intelligence-global-v5507\.js\?v=6170-imerg-nrt-timeline/);
   assert.match(landingHtml, /intelligence-global-v5507\.js\?v=6170-imerg-nrt-timeline/);
 });
@@ -406,8 +406,8 @@ test('homepage opportunities stay off at startup and the button enables the publ
 test('website and app start on the same cache-busted globe-first weather build', () => {
   assert.match(landingHtml, /bp-globe-only-first-frame-v6137/);
   assert.match(appHtml, /bp-app-globe-only-first-frame-v6137/);
-  assert.ok(landingHtml.includes('landing.js?v=6201-auto-hybrid-imagery-gold'));
-  assert.ok(appHtml.includes('app.js?v=6201-auto-hybrid-imagery-gold'));
+  assert.ok(landingHtml.includes('landing.js?v=6204-imagery-default'));
+  assert.ok(appHtml.includes('app.js?v=6204-imagery-default'));
   assert.ok(landingHtml.includes('intelligence-global-v5507.js?v=6170-imerg-nrt-timeline'));
   assert.ok(appHtml.includes('intelligence-global-v5507.js?v=6170-imerg-nrt-timeline'));
 });
