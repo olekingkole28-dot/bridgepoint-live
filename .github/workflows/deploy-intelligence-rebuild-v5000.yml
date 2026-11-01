@@ -73,6 +73,7 @@ jobs:
           node --input-type=module --check < release-v2300/world-v2300-weather.js
           node --input-type=module --check < release-v2300/world-v2300-lightning.js
           node --input-type=module --check < release-v2300/world-v2300-time-slider.js
+          node --input-type=module --check < release-v2300/world-v2300-spectral-imagery.js
           node --input-type=module --check < release-v2300/world-v2300-bootstrap.js
           node tests/celestial-water-cloud-shadows.test.mjs
           node tests/water-lod-and-imagery.test.mjs
