@@ -378,7 +378,16 @@ export function initSpectralImagery(target){
  const moveHandler=()=>{if(enabled&&scene){const text='Scene stays fixed while you pan. Refresh to fetch imagery for the new view.';setMeta(text+' '+scene.id+' · '+formatDate(scene.properties?.datetime));}};
  map.on('moveend',moveHandler);
  map.on('zoom',updateBasemapZoomCoverage);
- state.destroy=()=>{disposed=true;clearTimeout(mountHandle);if(controller)controller.abort();map.off('moveend',moveHandler);map.off('zoom',updateBasemapZoomCoverage);clearOldLayer();root.remove();state.available=false};
+ function reapplySelectedBasemapAfterStyleReload(){
+  if(disposed)return;
+  // MapLibre style replacement resets paint/layout properties. Recapture the new
+  // style baseline, then reapply the saved Natural/Dark/analysis palette after it loads.
+  defaultsCaptured=false;originalPaint.clear();originalVisibility.clear();styleWaitPending=false;
+  const apply=()=>{if(!disposed)applyGlobalBasemapMode(currentBasemapMode,false)};
+  if(typeof requestAnimationFrame==='function')requestAnimationFrame(apply);else setTimeout(apply,0);
+ }
+ map.on('style.load',reapplySelectedBasemapAfterStyleReload);
+ state.destroy=()=>{disposed=true;clearTimeout(mountHandle);if(controller)controller.abort();map.off('moveend',moveHandler);map.off('zoom',updateBasemapZoomCoverage);map.off('style.load',reapplySelectedBasemapAfterStyleReload);clearOldLayer();root.remove();state.available=false};
  setStatus('Ready · choose a global color mode or load real Landsat source bands.');
  applyGlobalBasemapMode(readSavedBasemapMode(),false);
  return state;
