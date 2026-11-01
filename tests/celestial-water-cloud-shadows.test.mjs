@@ -407,7 +407,7 @@ test('website and app start on the same cache-busted globe-first weather build',
   assert.match(landingHtml, /bp-globe-only-first-frame-v6137/);
   assert.match(appHtml, /bp-app-globe-only-first-frame-v6137/);
   assert.ok(landingHtml.includes('landing.js?v=6204-imagery-default'));
-  assert.ok(appHtml.includes('app.js?v=6201-auto-hybrid-imagery-gold'));
+  assert.ok(appHtml.includes('app.js?v=6204-imagery-default'));
   assert.ok(landingHtml.includes('intelligence-global-v5507.js?v=6170-imerg-nrt-timeline'));
   assert.ok(appHtml.includes('intelligence-global-v5507.js?v=6170-imerg-nrt-timeline'));
 });
