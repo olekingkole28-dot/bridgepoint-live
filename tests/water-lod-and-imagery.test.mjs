@@ -8,6 +8,7 @@ const homepageHtml = await readFile(new URL('../rebuild-v5000/index.html', impor
 const appHtml = await readFile(new URL('../rebuild-v5000/app-index.html', import.meta.url), 'utf8');
 const appLoader = await readFile(new URL('../rebuild-v5000/app.js', import.meta.url), 'utf8');
 const landingLoader = await readFile(new URL('../rebuild-v5000/landing.js', import.meta.url), 'utf8');
+const viewLoader = await readFile(new URL('../rebuild-v5000/bridgepoint-view-v5917.js', import.meta.url), 'utf8');
 assert.ok(mapSource.includes("esri:{type:'raster'"), 'global imagery source must be wired');
 assert.ok(mapSource.includes("attribution:'Esri World Imagery · Sources: Esri, Vantor, Earthstar Geographics, and the GIS User Community'"), 'imagery attribution must be retained');
 assert.ok(mapSource.includes("paint(map,'gta-water','fill-opacity',sat?1:.97)"), 'satellite mode must keep source-water polygons legible');
@@ -57,6 +58,8 @@ assert.ok(appLoader.includes("world=mod.initWorld({containerId:'liveMap',globalK
 assert.ok(appLoader.includes('window.__BP_V5000_WORLD__=world;'), 'app must publish the world alias used by its map controls');
 assert.ok(appLoader.includes('window.__BP_APP_GLOBE_BOOT__'), 'app startup must expose a globe projection/canvas diagnostic');
 assert.ok(landingLoader.includes("world-v2300-map.js?v=6205-natural-imagery-globe-parity"), 'homepage must load the renderer with the natural palette persistence fix');
+assert.ok(landingLoader.includes("world-v2300-spectral-imagery.js?v=6205-natural-imagery-globe-parity"), 'homepage must load the palette controller with style-reload persistence');
+assert.ok(viewLoader.includes("world-v2300-spectral-imagery.js?v=6205-natural-imagery-globe-parity"), 'satellite card actions must use the same persistent imagery controller');
 assert.ok(appLoader.includes("world-v2300-map.js?v=6205-natural-imagery-globe-parity"), 'app must load the renderer with the natural palette persistence fix');
 assert.ok(homepageHtml.includes('landing.js?v=6205-natural-imagery-globe-parity'), 'homepage must load the fresh shared globe loader');
 assert.ok(appHtml.includes('app.js?v=6205-natural-imagery-globe-parity'), 'app must load the fresh shared globe loader');
