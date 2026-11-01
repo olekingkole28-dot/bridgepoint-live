@@ -138,10 +138,19 @@ async function initSharedVisualWeather(targetWorld,{activate=true}={}){
  }catch(e){console.warn('BridgePoint shared visual weather',e);return null}
 }
 async function bootMap(){
- const mod=await import('./world-v2300-map.js?v=6201-auto-hybrid-imagery-gold');world=mod.initWorld();window.__BP_V5000_WORLD=world;
+ const mod=await import('./world-v2300-map.js?v=6205-natural-imagery-globe-parity');world=mod.initWorld({containerId:'liveMap',globalKey:'__bpWorldV2300',center:[0,20],zoom:window.innerWidth<=620?1.05:1.25,pitch:0,bearing:0,projection:'globe'});window.__BP_V5000_WORLD=world;window.__BP_V5000_WORLD__=world;
  const started=performance.now();
  while(!world?.map&&performance.now()-started<10000)await new Promise(r=>setTimeout(r,40));
  if(!world?.map)throw new Error('Map object readiness timeout');
+ const appMap=world.map;
+ const ensureAppStartupGlobe=()=>{
+  let projection='unknown';try{projection=String(appMap.getProjection?.()?.type||'unknown')}catch(_){}
+  if(projection!=='globe'&&appMap.getZoom()<7.5){try{appMap.setProjection?.({type:'globe'});projection=String(appMap.getProjection?.()?.type||'globe')}catch(e){console.warn('BridgePoint app globe projection restore',e)}}
+  window.__BP_APP_GLOBE_BOOT__={version:6205,containerId:'liveMap',projection,zoom:appMap.getZoom(),center:appMap.getCenter()?.toArray?.()||null,canvasWidth:appMap.getCanvas?.()?.clientWidth||0,canvasHeight:appMap.getCanvas?.()?.clientHeight||0,sharedRenderer:true,updatedAt:Date.now()};
+ };
+ ensureAppStartupGlobe();
+ appMap.once('load',ensureAppStartupGlobe);
+ appMap.once('idle',ensureAppStartupGlobe);
   // Heavy GPU water geometry is lazy-loaded only after the Water + Flow command is pressed.
   let appWaterApi=null,appWaterPromise=null,appWaterEnabled=false;
   window.__BP_TOGGLE_WATER__=async()=>{
@@ -205,7 +214,7 @@ async function bootMap(){
  const optionalWorldJobs=[
   ['time-slider',async()=>{const m=await import('./world-v2300-time-slider.js?v=6167-cloud-startup-performance');window.__BP_WORLD_TIME_SLIDER_V5908__=m.initWorldTimeSlider(world,rpc)}],
   ['time-slider',async()=>{const m=await import('./world-v2300-time-slider.js?v=6167-cloud-startup-performance');window.__BP_WORLD_TIME_SLIDER_V5908__=m.initWorldTimeSlider(world,rpc)}],
-  ['spectral-imagery',async()=>{const m=await import('./world-v2300-spectral-imagery.js?v=6204-imagery-default');window.__BP_SPECTRAL_IMAGERY_V5931__=m.initSpectralImagery(world)}],
+  ['spectral-imagery',async()=>{const m=await import('./world-v2300-spectral-imagery.js?v=6205-natural-imagery-globe-parity');window.__BP_SPECTRAL_IMAGERY_V5931__=m.initSpectralImagery(world)}],
   ['underground',async()=>{const m=await import('./world-v2300-underground-xray.js?v=5965-landmarks-and-effects');window.__BP_UNDERGROUND_XRAY_V5935__=m.initUndergroundXray(world)}],
   ['infrastructure',async()=>{const m=await import('./world-v2300-infrastructure-volume-v5962.js?v=5962-power-grid-fcc-towers');window.__BP_INFRASTRUCTURE_VOLUME_V5962__=m.initInfrastructureVolume(world)}],
   ['sensors',async()=>{const m=await import('./world-v2300-sensor-layers.js?v=6015-nasa-light-toggle');window.__BP_SENSOR_LAYERS_V5945__=m.initSensorLayers(world)}],

@@ -691,7 +691,7 @@ async function initMap(){
  try{
   window.__BP_LANDING_MAP_BOOT__={stage:'importing-world',maplibre:true,at:Date.now()};
   console.log('BP_STARTUP_TRACE','landing:before-world-import');
-  const mod=await import('./world-v2300-map.js?v=6201-auto-hybrid-imagery-gold');
+  const mod=await import('./world-v2300-map.js?v=6205-natural-imagery-globe-parity');
   console.log('BP_STARTUP_TRACE','landing:after-world-import');
   window.__BP_LANDING_MAP_BOOT__={stage:'initializing-world',maplibre:true,module:true,at:Date.now()};
   console.log('BP_STARTUP_TRACE','landing:before-initWorld');
@@ -787,7 +787,7 @@ async function initMap(){
     .then(m=>{window.__BP_WORLD_TIME_SLIDER_V5908__=window.__BP_WORLD_TIME_SLIDER_V5908__?.map===map?window.__BP_WORLD_TIME_SLIDER_V5908__:m.initWorldTimeSlider(world,rpc)})
     .catch(e=>console.warn('BridgePoint 30-day world change scrub unavailable',e));
    // BridgePoint satellite filters, daylight materials and sky layers also run on the homepage globe.
-   void import('./world-v2300-spectral-imagery.js?v=6204-imagery-default')
+   void import('./world-v2300-spectral-imagery.js?v=6205-natural-imagery-globe-parity')
     .then(m=>{window.__BP_SPECTRAL_IMAGERY_V5931__=m.initSpectralImagery(world)})
     .catch(e=>console.warn('BridgePoint satellite filters unavailable',e));
    void import('./world-v2300-underground-xray.js?v=5965-landmarks-and-effects')

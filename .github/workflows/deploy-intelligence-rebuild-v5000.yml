@@ -487,8 +487,8 @@ jobs:
           grep -Fq 'bridgepoint-rail-mesh-v5973.js?v=5980-visible-detail-rails' site/app/index.html
           grep -Fq 'MAPPED_GROUND_ROAD_ENDPOINT' site/world-v2300-map.js
           grep -Fq 'groundConnectedRamps' site/world-v2300-map.js
-          grep -Fq '6201-auto-hybrid-imagery-gold' site/app.js
-          grep -Fq '6201-auto-hybrid-imagery-gold' site/landing.js
+          grep -Fq '6205-natural-imagery-globe-parity' site/app.js
+          grep -Fq '6205-natural-imagery-globe-parity' site/landing.js
           grep -Fq 'OpenStreetMap feature centroid' site/bridgepoint-pyramids-v5945.js
           grep -Fq 'currentHeightM: 138.5' site/bridgepoint-pyramids-v5945.js
           grep -Fq 'currentHeightM: 136.4' site/bridgepoint-pyramids-v5945.js
@@ -694,7 +694,9 @@ jobs:
           grep -Fq 'world-v2300-weather.js?v=6195-desktop-globe-flash-stability' site/app/world-v2300-bootstrap.js
           grep -Fq 'world-v2300-time-slider.js?v=6167-cloud-startup-performance' site/app.js
           grep -Fq 'world-v2300-time-slider.js?v=6167-cloud-startup-performance' site/landing.js
-          grep -Fq 'world-v2300-spectral-imagery.js?v=6204-imagery-default' site/app.js
+          grep -Fq 'world-v2300-spectral-imagery.js?v=6205-natural-imagery-globe-parity' site/app.js
+          grep -Fq 'world-v2300-spectral-imagery.js?v=6205-natural-imagery-globe-parity' site/landing.js
+          grep -Fq 'world-v2300-spectral-imagery.js?v=6205-natural-imagery-globe-parity' site/bridgepoint-view-v5917.js
           grep -Fq 'world-v2300-underground-xray.js?v=5965-landmarks-and-effects' site/app.js
           grep -Fq 'world-v2300-underground-xray.js?v=5965-landmarks-and-effects' site/landing.js
           grep -Fq 'world-v2300-infrastructure-volume-v5962.js?v=5962-power-grid-fcc-towers' site/app.js
@@ -818,7 +820,7 @@ jobs:
           grep -Fq 'BP_SOURCE_WEATHER_CACHE_KEY_V6134' site/app.js
           grep -Fq 'restoreCachedLiveWeatherFirstFrameV6134' site/app.js
           ! grep -Fq 'if(window.__BP_CLOUDS_ONLY_PHASE_V6070__===true && m)' site/landing.js
-          grep -Fq 'landing.js?v=6204-imagery-default' site/index.html
+          grep -Fq 'landing.js?v=6205-natural-imagery-globe-parity' site/index.html
           grep -Fq 'async function toggleNasaNightlights()' site/world-v2300-time-slider.js
           grep -Fq 'async function toggleSkyClouds()' site/world-v2300-time-slider.js
           grep -Fq 'data-skyview' site/world-v2300-time-slider.js
@@ -1034,7 +1036,7 @@ jobs:
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/app.js
           grep -Fq 'activateLiveWeather();' site/app.js
           grep -Fq 'enabled:true,serializedWeather:true' site/app.js
-          grep -Fq 'app.js?v=6204-imagery-default' site/app/index.html
+          grep -Fq 'app.js?v=6205-natural-imagery-globe-parity' site/app/index.html
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/landing.js
           grep -Fq 'WMO_CAP_WARNING' site/app.js
           grep -Fq 'WMO_CAP_WARNING' site/landing.js
@@ -1143,6 +1145,11 @@ jobs:
           grep -Fq "pressureTreeOnly:true" site/world-v2300-map.js
           grep -Fq '__BP_TREE_STATIONARY_RECOVERY_V1123__' site/world-v2300-map.js
           grep -Fq "id:'gta-bp-floor-lines'" site/world-v2300-map.js
+          grep -Fq "spectral.setBasemapMode(spectral.basemapMode||'natural')" site/world-v2300-map.js
+          grep -Fq "world=mod.initWorld({containerId:'liveMap',globalKey:'__bpWorldV2300'" site/app.js
+          grep -Fq "window.__BP_V5000_WORLD__=world" site/app.js
+          grep -Fq "window.__BP_APP_GLOBE_BOOT__" site/app.js
+          grep -Fq "map.on('style.load',reapplySelectedBasemapAfterStyleReload)" site/world-v2300-spectral-imagery.js
           grep -Fq "setBase('satellite')" site/world-v2300-map.js
           grep -Fq "defaultBase:'satellite'" site/world-v2300-map.js
           grep -Fq 'satelliteManualOnly:false' site/world-v2300-map.js
@@ -1273,12 +1280,12 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=6204-imagery-default' site/app/index.html
-          grep -Fq 'landing.js?v=6204-imagery-default' site/index.html
-           grep -Fq 'world-v2300-map.js?v=6201-auto-hybrid-imagery-gold' site/app.js
-           grep -Fq 'world-v2300-map.js?v=6201-auto-hybrid-imagery-gold' site/landing.js
-           grep -Fq 'world-v2300-map.js?v=6201-auto-hybrid-imagery-gold' site/index.html
-           grep -Fq 'world-v2300-map.js?v=6201-auto-hybrid-imagery-gold' site/app/index.html
+          grep -Fq 'app.js?v=6205-natural-imagery-globe-parity' site/app/index.html
+          grep -Fq 'landing.js?v=6205-natural-imagery-globe-parity' site/index.html
+           grep -Fq 'world-v2300-map.js?v=6205-natural-imagery-globe-parity' site/app.js
+           grep -Fq 'world-v2300-map.js?v=6205-natural-imagery-globe-parity' site/landing.js
+           grep -Fq 'world-v2300-map.js?v=6205-natural-imagery-globe-parity' site/index.html
+           grep -Fq 'world-v2300-map.js?v=6205-natural-imagery-globe-parity' site/app/index.html
            grep -Fq 'world-v2300-lod-controls.js?v=6201-gold-always-on' site/app.js
            grep -Fq "const tier='GOLD';" site/world-v2300-map.js
            grep -Fq 'function activeWorldLodProfile()' site/world-v2300-map.js
@@ -1294,8 +1301,8 @@ jobs:
           grep -Fq 'landing.css?v=5941-mobile-grid' site/index.html
           grep -Fq 'bridgepoint-view-v5917.css?v=6202-live-panels' site/index.html
           grep -Fq 'bridgepoint-view-v5917.css?v=6202-live-panels' site/app/index.html
-          grep -Fq 'bridgepoint-view-v5917.js?v=6204-imagery-default' site/app/index.html
-          grep -Fq 'bridgepoint-view-v5917.js?v=6204-imagery-default' site/index.html
+          grep -Fq 'bridgepoint-view-v5917.js?v=6205-natural-imagery-globe-parity' site/app/index.html
+          grep -Fq 'bridgepoint-view-v5917.js?v=6205-natural-imagery-globe-parity' site/index.html
           grep -Fq 'function setDockMaximized(on)' site/bridgepoint-view-v5917.js
           grep -Fq 'document.body.appendChild(keyRail)' site/bridgepoint-view-v5917.js
           grep -Fq 'p.removeAttribute('"'"'data-panel'"'"')' site/bridgepoint-view-v5917.js
@@ -1560,6 +1567,95 @@ jobs:
           grep -Fq 'BRIDGEPOINT' /tmp/horizon.html
           grep -Fq 'current-map-entry.js' /tmp/discover.html
           echo BRIDGEPOINT_V5100_COMBINED_SURFACES_PASS
+
+      - name: Natural imagery persistence and app globe parity smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp
+          npm init -y >/dev/null 2>&1 || true
+          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core');
+          const assert=require('node:assert/strict');
+          (async()=>{
+            const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,protocolTimeout:90000,args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader']});
+            try{
+              const page=await browser.newPage();
+              page.setDefaultTimeout(90000);
+              const pageErrors=[];
+              page.on('pageerror',e=>pageErrors.push(String(e?.message||e)));
+              const readStableMap=async(kind)=>{
+                await page.waitForFunction(kind=>{
+                  const world=kind==='home'?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
+                  const spectral=window.__BP_SPECTRAL_IMAGERY_V5931__;
+                  return !!world?.map&&window.__BP_WORLD_CORE_READY__?.ready===true&&spectral?.map===world.map&&typeof spectral.setBasemapMode==='function';
+                },{timeout:90000},kind);
+                await page.waitForFunction(kind=>{
+                  const world=kind==='home'?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
+                  const map=world?.map;
+                  return !!map&&map.isStyleLoaded?.()===true&&!map.isMoving?.();
+                },{timeout:60000},kind);
+                await new Promise(resolve=>setTimeout(resolve,1400));
+                return page.evaluate(kind=>{
+                  const world=kind==='home'?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
+                  const map=world?.map,spectral=window.__BP_SPECTRAL_IMAGERY_V5931__;
+                  const visible=id=>!!map?.getLayer(id)&&(map.getLayoutProperty(id,'visibility')||'visible')==='visible';
+                  const container=document.getElementById(kind==='home'?'previewMap':'liveMap');
+                  const rect=container?.getBoundingClientRect();
+                  return {
+                    kind,
+                    projection:map?.getProjection?.()?.type||null,
+                    zoom:map?.getZoom?.()??null,
+                    base:window.__BP_TECH_BASEMAP_V1116__?.activeBase||null,
+                    mode:spectral?.basemapMode||null,
+                    background:map?.getPaintProperty('gta-bg','background-color')??null,
+                    waterOpacity:map?.getPaintProperty('gta-water','fill-opacity')??null,
+                    imagery:{nasa:visible('gta-nasa'),esri:visible('gta-esri'),usgs:visible('gta-usgs'),oam:visible('gta-oam')},
+                    canvasCount:container?.querySelectorAll('canvas').length||0,
+                    canvasWidth:map?.getCanvas?.()?.clientWidth||0,
+                    canvasHeight:map?.getCanvas?.()?.clientHeight||0,
+                    containerWidth:rect?.width||0,
+                    containerHeight:rect?.height||0,
+                    coreReady:window.__BP_WORLD_CORE_READY__?.ready===true
+                  };
+                },kind);
+              };
+              await page.setViewport({width:1440,height:960,deviceScaleFactor:1});
+              await page.goto('https://bridgepointintelligence.online/?natural-persistence-smoke='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+              const home=await readStableMap('home');
+              const validate=(state)=>{
+                assert.equal(state.projection,'globe',state.kind+' must render globe projection');
+                assert.equal(state.mode,'natural',state.kind+' must stay in Natural Satellite mode after idle');
+                assert.equal(state.background,'#06120f',state.kind+' must retain Natural background after idle');
+                assert.equal(Number(state.waterOpacity),0.42,state.kind+' must retain Natural water opacity after idle');
+                assert.equal(state.base,'satellite',state.kind+' must retain satellite imagery base');
+                assert.equal(state.imagery.esri,true,state.kind+' must retain global Esri imagery');
+                assert.equal(state.imagery.nasa,true,state.kind+' must retain global NASA imagery');
+                assert.ok(state.canvasCount>=1&&state.canvasWidth>0&&state.canvasHeight>0,state.kind+' must render a non-zero globe canvas');
+                assert.ok(state.containerWidth>0&&state.containerHeight>0,state.kind+' map container must be visible');
+              };
+              validate(home);
+              const verifyZoomStops=async(kind)=>{
+                await page.evaluate(kind=>{const world=kind==='home'?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;world.map.jumpTo({zoom:6,pitch:0});},kind);
+                const zoomIn=await readStableMap(kind);validate(zoomIn);
+                await page.evaluate(kind=>{const world=kind==='home'?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;world.map.jumpTo({zoom:1.25,pitch:0});},kind);
+                const zoomOut=await readStableMap(kind);validate(zoomOut);
+                return {zoomIn,zoomOut};
+              };
+              const homeZoomStops=await verifyZoomStops('home');
+              await page.evaluate(()=>localStorage.setItem('bp_auth_v5045',JSON.stringify({access_token:'bridgepoint-smoke-invalid-token'})));
+              await page.goto('https://bridgepointintelligence.online/app/?natural-globe-parity-smoke='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+              await page.waitForFunction(()=>window.__BP_APP_GLOBE_BOOT__?.containerId==='liveMap'&&window.__BP_APP_GLOBE_BOOT__?.projection==='globe',{timeout:90000});
+              const app=await readStableMap('app');
+              validate(app);
+              const appZoomStops=await verifyZoomStops('app');
+              assert.equal(app.canvasCount,1,'app must render exactly one main-world map canvas');
+              console.log('BRIDGEPOINT_NATURAL_IMAGERY_PERSISTENCE_AND_APP_GLOBE_PARITY_PASS',JSON.stringify({home,homeZoomStops,app,appZoomStops,pageErrors:pageErrors.slice(-12)}));
+            }finally{await browser.close()}
+          })().catch(error=>{console.error(error);process.exitCode=1});
+          NODE
 
       - name: Global opportunity marker rendering smoke
         shell: bash
