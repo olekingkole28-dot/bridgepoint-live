@@ -4,6 +4,8 @@ const mapSource = await readFile(new URL('../release-v2300/world-v2300-map.js', 
 const waterSource = await readFile(new URL('../release-v2300/world-v2300-water.js', import.meta.url), 'utf8');
 const lodSource = await readFile(new URL('../release-v2300/world-v2300-lod-controls.js', import.meta.url), 'utf8');
 const spectralSource = await readFile(new URL('../release-v2300/world-v2300-spectral-imagery.js', import.meta.url), 'utf8');
+const homepageHtml = await readFile(new URL('../rebuild-v5000/index.html', import.meta.url), 'utf8');
+const appHtml = await readFile(new URL('../rebuild-v5000/app-index.html', import.meta.url), 'utf8');
 assert.ok(mapSource.includes("esri:{type:'raster'"), 'global imagery source must be wired');
 assert.ok(mapSource.includes("attribution:'Esri World Imagery · Sources: Esri, Vantor, Earthstar Geographics, and the GIS User Community'"), 'imagery attribution must be retained');
 assert.ok(mapSource.includes("paint(map,'gta-water','fill-opacity',sat?1:.97)"), 'satellite mode must keep source-water polygons legible');
@@ -41,4 +43,7 @@ assert.ok(spectralSource.includes("?rawMode:'natural'"), 'invalid basemap select
 assert.ok(spectralSource.includes('<option value="natural">Natural Satellite · Default / Reset</option><option value="dark">Dark Intelligence · Optional</option>'), 'Dark Intelligence must remain available only as an optional mode');
 assert.ok(spectralSource.includes("safeSetVisibility('gta-usgs','visible');") && spectralSource.includes("safeSetVisibility('gta-oam','visible');"), 'higher-detail regional aerial sources must remain enabled in imagery mode');
 assert.ok(spectralSource.includes("safeSetVisibility('gta-nasa',map.getZoom()<=8.15?'visible':'none');"), 'global NASA imagery must hand off at regional zoom instead of being overzoomed');
+assert.ok(homepageHtml.includes('landing.js?v=6204-imagery-default'), 'homepage must load the new imagery-default loader instead of a cached old version');
+assert.ok(homepageHtml.includes('bridgepoint-view-v5917.js?v=6204-imagery-default'), 'homepage must load the current satellite control loader');
+assert.ok(appHtml.includes('bridgepoint-view-v5917.js?v=6204-imagery-default'), 'app must load the current satellite control loader');
 console.log('BRIDGEPOINT_WATER_LOD_AND_LAND_IMAGERY_TEST_PASS');
