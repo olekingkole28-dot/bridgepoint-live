@@ -2095,6 +2095,7 @@ export function initSkyClouds(target) {
           if (Math.abs(sample.lat) > 84.5) continue;
           const idx = satelliteMaskReady ? satelliteMaskIndexV6150(satelliteMask, sample.lng, sample.lat) : -1;
           const observedPixel = idx >= 0 && Number(coverage[idx]) >= 192;
+          // Outside the imagery footprint, valid numeric height samples can seed their own georeferenced 3D formations; an official GOES clear-sky pixel still takes precedence.
           const officialMask = nearestSourceCloudMask(sample.lng, sample.lat);
           if (officialMask && officialMask.sample.probability < 0.16) continue;
           if (!officialMask && satelliteMaskReady && observedPixel && Number(probability[idx]) / 255 < 0.16) continue;
