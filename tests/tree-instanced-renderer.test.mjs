@@ -255,6 +255,12 @@ const source = await readFile(
   'utf8'
 );
 assert.ok(source.includes('THREE.InstancedMesh'), 'the detailed renderer must use GPU instancing');
+assert.match(source, /function refreshInstances\(\{ authoritative = false \} = \{\}\)/,
+  'the renderer distinguishes transient movement from a completed viewport response');
+assert.match(source, /retaining-solid-tree-scene-until-terrain-ready/,
+  'solid instances stay visible while the next terrain tile is loading');
+assert.match(source, /retaining-solid-tree-scene-until-viewport-ready/,
+  'an early empty map event cannot clear the last completed tree scene');
 assert.ok(source.includes('bpWindWeight'), 'the renderer must consume per-vertex wind weights');
 assert.ok(source.includes('bpTreeMorph'), 'the renderer must apply per-instance canopy morphology');
 assert.ok(source.includes('bpTreeFoliage'), 'the renderer must apply per-instance foliage variations');
