@@ -30,6 +30,7 @@ TIMEOUT = (8, 20)
 MAX_NETCDF_BYTES = 120 * 1024 * 1024
 MAX_SAMPLES_PER_SOURCE = 65000
 MAX_NOAA_SAMPLES = 24000
+MAX_NOAA_MASK_SAMPLES = 65000
 NOAA_BUCKETS = (("19", "NOAA GOES-19 ABI-L2-ACHAF Cloud Top Height"), ("18", "NOAA GOES-18 ABI-L2-ACHAF Cloud Top Height"))
 SATCORPS_CANDIDATES = (
     ("NASA SatCORPS GCC Global V2", "https://satcorps.larc.nasa.gov/prod/GCC-GEO-LEO/visst-pixel-gif-v2/"),
@@ -162,6 +163,49 @@ def compact_grid_samples(
     return output
 
 
+def compact_cloud_mask_samples(
+    lat_grid: np.ndarray,
+    lon_grid: np.ndarray,
+    probability: np.ndarray,
+    quality: np.ndarray | None,
+    source_index: int,
+    max_samples: int = MAX_NOAA_MASK_SAMPLES,
+) -> list[list[Any]]:
+    """Return [longitude, latitude, cloud_probability_0_to_255, sourceIndex].
+
+    Clear pixels are retained as well as cloudy pixels so the renderer can remove
+    stale/procedural clouds where the official GOES mask reports clear sky.
+    """
+    prob = reduce_to_2d(probability)
+    lat = np.asarray(lat_grid, dtype=np.float64)
+    lon = np.asarray(lon_grid, dtype=np.float64)
+    if lat.shape != prob.shape or lon.shape != prob.shape:
+        raise ValueError(f"Lat/lon grids {lat.shape}/{lon.shape} do not match cloud mask {prob.shape}")
+    qual = None if quality is None else reduce_to_2d(quality)
+    if qual is not None and qual.shape != prob.shape:
+        qual = None
+    row_idx, col_idx = sampling_indices(*prob.shape, max_samples=max_samples)
+    p_s = prob[np.ix_(row_idx, col_idx)]
+    lat_s = lat[np.ix_(row_idx, col_idx)]
+    lon_s = lon[np.ix_(row_idx, col_idx)]
+    q_s = None if qual is None else qual[np.ix_(row_idx, col_idx)]
+    output: list[list[Any]] = []
+    for r in range(p_s.shape[0]):
+        for col in range(p_s.shape[1]):
+            p = safe_float(p_s[r, col])
+            lat_value = safe_float(lat_s[r, col])
+            lon_value = safe_float(lon_s[r, col])
+            if not (math.isfinite(p) and 0.0 <= p <= 1.0 and -85.0 <= lat_value <= 85.0 and -180.0 <= lon_value <= 180.0):
+                continue
+            # ECM DQF=0 is good. Reject degraded, bad, and space-view pixels.
+            if q_s is not None:
+                q = safe_float(q_s[r, col])
+                if not math.isfinite(q) or q != 0:
+                    continue
+            output.append([round(lon_value, 4), round(lat_value, 4), round(p * 255.0), source_index])
+    return output
+
+
 def compact_point_samples(
     latitudes: np.ndarray,
     longitudes: np.ndarray,
@@ -215,6 +259,20 @@ class LinkParser(html.parser.HTMLParser):
             href = dict(attrs).get("href")
             if href:
                 self.hrefs.append(href)
+
+
+def goes_start_time(url: str) -> dt.datetime | None:
+    """Extract the observation start from NOAA's sYYYYJJJHHMMSSd filename token."""
+    match = re.search(r"_s(\\d{4})(\\d{3})(\\d{2})(\\d{2})(\\d{2})(\\d)", urllib.parse.urlparse(url).path)
+    if not match:
+        return None
+    year, day, hour, minute, second, tenth = map(int, match.groups())
+    try:
+        return dt.datetime(year, 1, 1, tzinfo=dt.timezone.utc) + dt.timedelta(
+            days=day - 1, hours=hour, minutes=minute, seconds=second, microseconds=tenth * 100000
+        )
+    except ValueError:
+        return None
 
 
 def is_netcdf_url(url: str) -> bool:
@@ -347,18 +405,18 @@ def extract_satcorps(path: Path, source_index: int) -> tuple[list[list[Any]], di
         return samples, metadata
 
 
-def date_prefixes(now: dt.datetime) -> list[str]:
+def date_prefixes(now: dt.datetime, product: str = "ABI-L2-ACHAF") -> list[str]:
     values = []
     for day in (now.date(), (now - dt.timedelta(days=1)).date()):
         day_of_year = day.timetuple().tm_yday
-        values.append(f"ABI-L2-ACHAF/{day.year}/{day_of_year:03d}/")
+        values.append(f"{product}/{day.year}/{day_of_year:03d}/")
     return values
 
 
-def list_noaa_files(session: requests.Session, satellite: str, now: dt.datetime) -> list[tuple[str, str]]:
+def list_noaa_files(session: requests.Session, satellite: str, now: dt.datetime, product: str = "ABI-L2-ACHAF") -> list[tuple[str, str]]:
     bucket = f"https://noaa-goes{satellite}.s3.amazonaws.com/"
     found: list[tuple[str, str]] = []
-    for prefix in date_prefixes(now):
+    for prefix in date_prefixes(now, product):
         try:
             response = session.get(bucket, params={"list-type": "2", "prefix": prefix, "max-keys": "1000"}, timeout=TIMEOUT)
             response.raise_for_status()
@@ -371,6 +429,81 @@ def list_noaa_files(session: requests.Session, satellite: str, now: dt.datetime)
         except Exception as exc:
             print(f"NOAA_LIST_FAILED GOES-{satellite} {prefix}: {exc}")
     return sorted(set(found), key=lambda x: (x[1], x[0]), reverse=True)
+
+
+def extract_noaa_cloud_mask(path: Path, source_index: int, metadata: dict[str, Any]) -> tuple[list[list[Any]], dict[str, Any]]:
+    """Extract the official GOES Enterprise Clear Sky Mask with geolocated probability.
+
+    CloudMaskProbability/Cloud_Probabilities is preferred; the official 4-level
+    ACM classification is a safe fallback when a probability layer is absent.
+    """
+    import xarray as xr
+    from pyproj import CRS, Transformer
+
+    with xr.open_dataset(path, decode_cf=True, mask_and_scale=True) as ds:
+        probability_name = find_variable(ds, (
+            "CloudProbability", "Cloud_Probabilities", "CloudProbabilityPercent",
+            "Cloud_Probability", "CloudProbabilities"
+        ))
+        class_name = find_variable(ds, ("ACM", "CloudMask", "Cloud_Mask", "CloudMaskFourLevel"))
+        quality_name = find_variable(ds, ("DQF", "CloudMaskQualFlag", "CloudMaskQualityFlag"))
+        x_name, y_name = find_variable(ds, ("x",)), find_variable(ds, ("y",))
+        projection_name = find_variable(ds, ("goes_imager_projection",))
+        if x_name is None or y_name is None or projection_name is None or (probability_name is None and class_name is None):
+            raise ValueError(f"GOES ECM file lacks probability/class/x/y/projection variables: {list(ds.variables)[:45]}")
+        source_da = ds[probability_name].squeeze(drop=True) if probability_name else ds[class_name].squeeze(drop=True)
+        raw = reduce_to_2d(source_da.values)
+        if probability_name:
+            finite = raw[np.isfinite(raw)]
+            if finite.size and float(np.nanmax(finite)) > 1.5:
+                scale = 100.0 if float(np.nanmax(finite)) <= 100.0 else 255.0
+                probability = raw / scale
+            else:
+                probability = raw
+        else:
+            # NOAA's documented ACM levels: clear, probably clear, probably cloudy, cloudy.
+            lookup = np.array([0.02, 0.18, 0.82, 0.98], dtype=np.float64)
+            classes = np.rint(raw).astype(np.int16, copy=False)
+            probability = np.full(raw.shape, np.nan, dtype=np.float64)
+            valid = np.isfinite(raw) & (classes >= 0) & (classes <= 3)
+            probability[valid] = lookup[classes[valid]]
+        probability = np.clip(probability, 0.0, 1.0)
+        x = np.asarray(ds[x_name].values, dtype=np.float64).squeeze()
+        y = np.asarray(ds[y_name].values, dtype=np.float64).squeeze()
+        projection = ds[projection_name].attrs
+        perspective_height = float(projection.get("perspective_point_height", 35786023.0))
+        lon0 = float(projection.get("longitude_of_projection_origin", -75.2))
+        semi_major = float(projection.get("semi_major_axis", 6378137.0))
+        semi_minor = float(projection.get("semi_minor_axis", 6356752.31414))
+        sweep = str(projection.get("sweep_angle_axis", "x"))
+        if str(ds[x_name].attrs.get("units", "rad")).lower() in {"rad", "radian", "radians"}:
+            x = x * perspective_height
+        if str(ds[y_name].attrs.get("units", "rad")).lower() in {"rad", "radian", "radians"}:
+            y = y * perspective_height
+        if x.ndim != 1 or y.ndim != 1 or len(y) != probability.shape[0] or len(x) != probability.shape[1]:
+            raise ValueError(f"GOES ECM x/y axes do not match mask grid: {probability.shape}, {x.shape}, {y.shape}")
+        quality = None
+        if quality_name:
+            quality = reduce_to_2d(ds[quality_name].values)
+            if quality.shape != probability.shape:
+                quality = None
+        row_idx, col_idx = sampling_indices(*probability.shape, max_samples=MAX_NOAA_MASK_SAMPLES)
+        xx, yy = np.meshgrid(x[col_idx], y[row_idx])
+        crs = CRS.from_proj4(
+            f"+proj=geos +h={perspective_height} +lon_0={lon0} +sweep={sweep} +a={semi_major} +b={semi_minor} +units=m +no_defs"
+        )
+        transformer = Transformer.from_crs(crs, CRS.from_epsg(4326), always_xy=True)
+        lon_grid, lat_grid = transformer.transform(xx, yy)
+        samples = compact_cloud_mask_samples(
+            lat_grid, lon_grid, probability, quality, source_index, max_samples=MAX_NOAA_MASK_SAMPLES
+        )
+        info = {
+            **metadata, "status": "available", "sample_count": len(samples),
+            "probability_variable": probability_name, "class_variable": class_name,
+            "quality_variable": quality_name, "height_reference": "not-applicable",
+            "resolution_m": 2000, "mask_policy": "NOAA GOES Enterprise Cloud Mask probability; DQF=0 only",
+        }
+        return samples, info
 
 
 def extract_noaa(path: Path, source_index: int, metadata: dict[str, Any]) -> tuple[list[list[Any]], dict[str, Any]]:
@@ -440,6 +573,8 @@ def refresh_feed(output_path: Path) -> dict[str, Any]:
     session.headers.update({"User-Agent": USER_AGENT, "Accept": "text/html,application/xhtml+xml,application/netcdf,application/octet-stream,*/*"})
     samples: list[list[Any]] = []
     sources: list[dict[str, Any]] = []
+    cloud_mask_samples: list[list[Any]] = []
+    cloud_mask_sources: list[dict[str, Any]] = []
     warnings: list[str] = []
     now = utc_now()
 
@@ -496,7 +631,9 @@ def refresh_feed(output_path: Path) -> dict[str, Any]:
         url, modified = picked
         with tempfile.TemporaryDirectory(prefix=f"bp-goes{satellite}-") as temp_dir:
             file_path = Path(temp_dir) / f"goes{satellite}-acha.nc"
-            temp_source = {"source": label, "satellite": f"GOES-{satellite}", "endpoint": url, "observed_at": modified}
+            observed = goes_start_time(url)
+            observed_at = observed.isoformat().replace("+00:00", "Z") if observed else modified
+            temp_source = {"source": label, "satellite": f"GOES-{satellite}", "endpoint": url, "observed_at": observed_at, "published_at": modified}
             try:
                 response = session.get(url, timeout=(15, 60), stream=True)
                 response.raise_for_status()
@@ -516,6 +653,67 @@ def refresh_feed(output_path: Path) -> dict[str, Any]:
                 if extracted:
                     samples.extend(extracted)
                     sources.append(metadata)
+                    # Match the cloud mask to this same GOES full-disk scan, not merely
+                    # the latest file from a different ten-minute observation.
+                    expected_time = goes_start_time(url)
+                    mask_files = list_noaa_files(session, satellite, now, product="ABI-L2-ACMF")
+                    matching_mask = None
+                    best_delta = float("inf")
+                    for candidate_url, candidate_modified in mask_files:
+                        candidate_time = goes_start_time(candidate_url)
+                        if expected_time and candidate_time:
+                            delta = abs((candidate_time - expected_time).total_seconds())
+                        else:
+                            try:
+                                candidate_stamp = dt.datetime.fromisoformat(candidate_modified.replace("Z", "+00:00"))
+                                expected_stamp = dt.datetime.fromisoformat(modified.replace("Z", "+00:00"))
+                                delta = abs((candidate_stamp - expected_stamp).total_seconds())
+                            except (ValueError, AttributeError):
+                                continue
+                        if delta <= 15 * 60 and delta < best_delta:
+                            best_delta = delta
+                            matching_mask = (candidate_url, candidate_modified, candidate_time)
+                    mask_source_index = len(cloud_mask_sources)
+                    if matching_mask:
+                        mask_url, mask_modified, mask_observed = matching_mask
+                        mask_observed_at = mask_observed.isoformat().replace("+00:00", "Z") if mask_observed else mask_modified
+                        mask_source = {
+                            "source": f"NOAA GOES-{satellite} ABI-L2-ACMF Enterprise Cloud Mask",
+                            "product": "ABI-L2-ACMF", "satellite": f"GOES-{satellite}",
+                            "endpoint": mask_url, "observed_at": mask_observed_at, "published_at": mask_modified,
+                        }
+                        with tempfile.TemporaryDirectory(prefix=f"bp-goes{satellite}-mask-") as mask_temp:
+                            mask_path = Path(mask_temp) / f"goes{satellite}-acmf.nc"
+                            try:
+                                mask_response = session.get(mask_url, timeout=(15, 60), stream=True)
+                                mask_response.raise_for_status()
+                                mask_size = int(mask_response.headers.get("Content-Length", "0") or "0")
+                                if mask_size and mask_size > MAX_NETCDF_BYTES:
+                                    raise ValueError(f"Refusing oversized GOES mask file ({mask_size} bytes)")
+                                total_mask_bytes = 0
+                                with mask_path.open("wb") as mask_out:
+                                    for mask_chunk in mask_response.iter_content(1024 * 1024):
+                                        if not mask_chunk:
+                                            continue
+                                        total_mask_bytes += len(mask_chunk)
+                                        if total_mask_bytes > MAX_NETCDF_BYTES:
+                                            raise ValueError("GOES cloud mask NetCDF exceeds the configured download limit")
+                                        mask_out.write(mask_chunk)
+                                mask_rows, mask_info = extract_noaa_cloud_mask(mask_path, mask_source_index, mask_source)
+                                if not mask_rows:
+                                    raise ValueError("No quality-valid cloud-mask samples remained")
+                                cloud_mask_samples.extend(mask_rows)
+                                cloud_mask_sources.append(mask_info)
+                            except Exception as mask_exc:
+                                warnings.append(f"{mask_source['source']}: {type(mask_exc).__name__}: {mask_exc}")
+                                cloud_mask_sources.append({**mask_source, "status": "unavailable", "sample_count": 0})
+                    else:
+                        warnings.append(f"NOAA GOES-{satellite} ABI-L2-ACMF: no same-scan mask file within 15 minutes of the cloud-height observation.")
+                        cloud_mask_sources.append({
+                            "source": f"NOAA GOES-{satellite} ABI-L2-ACMF Enterprise Cloud Mask",
+                            "product": "ABI-L2-ACMF", "satellite": f"GOES-{satellite}",
+                            "status": "unavailable", "sample_count": 0, "height_reference": "not-applicable",
+                        })
                 else:
                     raise ValueError("No valid cloud-top-height samples remained after quality filtering")
             except Exception as exc:
@@ -527,13 +725,18 @@ def refresh_feed(output_path: Path) -> dict[str, Any]:
     payload = {
         "schema_version": 1,
         "generated_at": now.isoformat(),
-        "refresh_interval_seconds": 900,
+        "refresh_interval_seconds": 600,
         "height_reference": "MSL",
         "source_policy": "Measured numeric cloud-top/base values only; NOAA cloud base is omitted when not supplied. No raster-colour-derived heights.",
+        "cloud_mask_policy": "Same-scan NOAA ABI-L2-ACMF probability/classification samples with DQF=0; satellite imagery RGB classification remains fallback outside this GOES coverage.",
         "sample_columns": ["longitude", "latitude", "cloud_top_height_m", "cloud_base_height_m_or_null", "source_index"],
         "sources": sources,
         "samples": samples,
         "sample_count": len(samples),
+        "cloud_mask_schema_version": 1,
+        "cloud_mask_sources": cloud_mask_sources,
+        "cloud_mask_samples": cloud_mask_samples,
+        "cloud_mask_sample_count": len(cloud_mask_samples),
         "warnings": warnings,
     }
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -543,6 +746,8 @@ def refresh_feed(output_path: Path) -> dict[str, Any]:
         "sample_count": len(samples),
         "sources": [{"source": x.get("source"), "status": x.get("status"), "sample_count": x.get("sample_count"), "observed_at": x.get("observed_at")} for x in sources],
         "warnings": warnings[:8],
+        "cloud_mask_sample_count": len(cloud_mask_samples),
+        "cloud_mask_sources": [{"source": x.get("source"), "status": x.get("status"), "sample_count": x.get("sample_count"), "observed_at": x.get("observed_at")} for x in cloud_mask_sources],
         "output_bytes": output_path.stat().st_size,
     }, separators=(",", ":")))
     return payload
