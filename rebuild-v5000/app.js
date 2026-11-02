@@ -138,7 +138,7 @@ async function initSharedVisualWeather(targetWorld,{activate=true}={}){
  }catch(e){console.warn('BridgePoint shared visual weather',e);return null}
 }
 async function bootMap(){
- const mod=await import('./world-v2300-map.js?v=6215-satellite-persistent-render-guard');world=mod.initWorld({containerId:'liveMap',globalKey:'__bpWorldV2300',center:[0,20],zoom:window.innerWidth<=620?1.05:1.25,pitch:0,bearing:0,projection:'globe'});window.__BP_V5000_WORLD=world;window.__BP_V5000_WORLD__=world;
+ const mod=await import('./world-v2300-map.js?v=6216-satellite-raster-crossfade');world=mod.initWorld({containerId:'liveMap',globalKey:'__bpWorldV2300',center:[0,20],zoom:window.innerWidth<=620?1.05:1.25,pitch:0,bearing:0,projection:'globe'});window.__BP_V5000_WORLD=world;window.__BP_V5000_WORLD__=world;
  const started=performance.now();
  while(!world?.map&&performance.now()-started<10000)await new Promise(r=>setTimeout(r,40));
  if(!world?.map)throw new Error('Map object readiness timeout');
