@@ -171,35 +171,26 @@ async function bootMap(){
    try{if(world.map.getLayer('bp-water-surface-gpu-v6123'))world.map.setLayoutProperty('bp-water-surface-gpu-v6123','visibility','visible')}catch(_){}
    return true;
   };
-  // The high-vertex cloud field is opt-in and can be cleanly turned back off.
-  let appCloudPromise=null,appCloudApi=null,appCloudEnabled=false;
-  window.__BP_TOGGLE_CLOUDS__=async()=>{
+  // The cloud-volume renderer starts automatically and does not alter the chosen basemap.
+  let appCloudPromise=null,appCloudApi=null;
+  window.__BP_ACTIVATE_CLOUDS__=async()=>{
    if(!world?.map)throw new Error('BridgePoint globe is not ready');
-   if(appCloudEnabled){
-    appCloudEnabled=false;appCloudApi?.setEnabled?.(false);
-    try{if(world.map.getLayer('bp-sky-cloud-volume-v6029'))world.map.setLayoutProperty('bp-sky-cloud-volume-v6029','visibility','none')}catch(_){}
-    return false;
-   }
-   if(!appCloudApi){
+   if(!appCloudApi||appCloudApi.map!==world.map){
     const existing=window.__BP_SKY_CLOUDS_V5908__;
     if(existing?.map===world.map)appCloudApi=existing;
     else{
-     if(!appCloudPromise)appCloudPromise=import('./world-v2300-clouds.js?v=6168-desktop-global-cloud-motion-stop')
+     if(!appCloudPromise)appCloudPromise=import('./world-v2300-clouds.js?v=6170-always-on-3d-cloud-volumes')
       .then(m=>{const api=m.initSkyClouds(world);if(!api)throw new Error('3D cloud engine did not initialize');window.__BP_SKY_CLOUDS_V5908__=api;return api})
       .finally(()=>{appCloudPromise=null});
      appCloudApi=await appCloudPromise;
     }
    }
    if(!appCloudApi)throw new Error('3D cloud engine unavailable');
-   appCloudEnabled=true;appCloudApi.setEnabled?.(true);
-   try{if(world.map.getLayer('bp-sky-cloud-volume-v6029'))world.map.setLayoutProperty('bp-sky-cloud-volume-v6029','visibility','visible')}catch(_){}
-   return true;
-  };
-  window.__BP_ACTIVATE_CLOUDS__=async()=>{
-   if(!appCloudEnabled)await window.__BP_TOGGLE_CLOUDS__();
-   else appCloudApi?.setEnabled?.(true);
+   appCloudApi.setEnabled?.(true);
+   window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('clouds',true);
    return appCloudApi;
   };
+  void window.__BP_ACTIVATE_CLOUDS__().catch(e=>console.warn('BridgePoint always-on 3D clouds unavailable',e));
   void import('./world-v2300-lod-controls.js?v=6201-gold-always-on').then(m=>{window.__BP_LOD_CONTROL_APP_V6016__=m.initWorldLodControls(world,{surface:'app'})}).catch(e=>console.warn('BridgePoint LOD controls unavailable',e));
  window.__BP_PENDING_LANDMARK_MAP_V5940__=world.map;
  try{window.dispatchEvent(new CustomEvent('bp:world-map-ready-v5940',{detail:{map:world.map,source:'app'}}))}catch(_){}
@@ -210,10 +201,10 @@ async function bootMap(){
 
  // Initialize optional map overlays only after the first core map load. Serializing their
  // initialization avoids a burst of source/layer changes during the first Gold LOD render.
- // Optional global clouds are loaded by the Weather FX command, not during globe startup.
+ // Cloud volumes initialize automatically above and do not use an optional layer control.
  const optionalWorldJobs=[
-  ['time-slider',async()=>{const m=await import('./world-v2300-time-slider.js?v=6167-cloud-startup-performance');window.__BP_WORLD_TIME_SLIDER_V5908__=m.initWorldTimeSlider(world,rpc)}],
-  ['time-slider',async()=>{const m=await import('./world-v2300-time-slider.js?v=6167-cloud-startup-performance');window.__BP_WORLD_TIME_SLIDER_V5908__=m.initWorldTimeSlider(world,rpc)}],
+  ['time-slider',async()=>{const m=await import('./world-v2300-time-slider.js?v=6170-no-cloud-toggle-always-on');window.__BP_WORLD_TIME_SLIDER_V5908__=m.initWorldTimeSlider(world,rpc)}],
+  ['time-slider',async()=>{const m=await import('./world-v2300-time-slider.js?v=6170-no-cloud-toggle-always-on');window.__BP_WORLD_TIME_SLIDER_V5908__=m.initWorldTimeSlider(world,rpc)}],
   ['spectral-imagery',async()=>{const m=await import('./world-v2300-spectral-imagery.js?v=6215-satellite-persistent-render-guard');window.__BP_SPECTRAL_IMAGERY_V5931__=m.initSpectralImagery(world)}],
   ['underground',async()=>{const m=await import('./world-v2300-underground-xray.js?v=5965-landmarks-and-effects');window.__BP_UNDERGROUND_XRAY_V5935__=m.initUndergroundXray(world)}],
   ['infrastructure',async()=>{const m=await import('./world-v2300-infrastructure-volume-v5962.js?v=5962-power-grid-fcc-towers');window.__BP_INFRASTRUCTURE_VOLUME_V5962__=m.initInfrastructureVolume(world)}],
@@ -1847,7 +1838,7 @@ async function start(){
  statusTimer=setInterval(()=>queueAfterMap('status-pulse',loadStatus),15000);
  tileTimer=setInterval(()=>queueAfterMap('tile-pulse',refreshTiles),BP_MOBILE?600000:300000);
  setTimeout(()=>queueAfterMap('tile-pulse',refreshTiles),BP_MOBILE?300000:120000);
- if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=6220-tree-canopy-coverage-solid-retention',{updateViaCache:'none'}).catch(()=>{})
+ if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=6221-clouds-always-on',{updateViaCache:'none'}).catch(()=>{})
 }
 window.addEventListener('bridgepoint:softrefresh',()=>{
  try{queueAfterMap('status-pulse',loadStatus)}catch(_){}
