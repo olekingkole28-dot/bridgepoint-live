@@ -18,7 +18,7 @@ const $=s=>document.querySelector(s);
 const emptyFeatureCollection=()=>({type:'FeatureCollection',features:[]});
 let map=null,enabled=false,inFlight=false,refreshTimer=0,moveTimer=0,lastFetchAt=0,aborter=null;
 let simFleetVisible=false;
-let button=null,waterButton=null,waterApi=null,waterPromise=null,waterEnabled=false,cloudButton=null,cloudApi=null,cloudPromise=null,cloudEnabled=false,pane=null,statusNode=null,summaryNode=null,cellsNode=null,refreshButton=null;
+let button=null,waterButton=null,waterApi=null,waterPromise=null,waterEnabled=false,pane=null,statusNode=null,summaryNode=null,cellsNode=null,refreshButton=null;
 let emptyModeActive=true,emptyModeMap=null,emptyModeHandler=null,sweepFrame=0;
 const requestControllers=new Set();
 const baseLayers=new Set([
@@ -29,7 +29,7 @@ const baseLayers=new Set([
 ]);
 const parcelLayers=new Set(['gta-parcel','gta-parcel-glow','gta-parcel-halo','bp-public-auto-parcel-glow-v5933','bp-public-auto-parcel-line-v5933']);
 let parcelLayerEnabled=false;
-const allowedCategories=new Set();
+const allowedCategories=new Set(['clouds']);
 const categoryPatterns={
  parcels:/parcel|cadastral|boundary-viewer/i,
  buildings:/^gta-(?:context-building-footprints|context-building-shadow|context-buildings|context-floor-lines|context-roofs|context-facade-detail|context-building-parts|bp-building-shadow|bp-buildings|bp-floor-lines|bp-roofs|bp-facade-detail|bp-building-edge|city-buildings|city-floor-lines|city-building-roof-caps|city-roofs|exact-building|exact-roof|exact-floor-lines)$/i,
@@ -72,7 +72,7 @@ function categoryForTarget(target){
  // Opening the fields panel is not itself a layer activation; the panel's own
  // Wind / RF / Drone controls opt their category in only when pressed.
  if(action==='volumetric')return null;
- const actionMap={parcels:'parcels',boundaryviewer:'parcels',worldchanges:'history',weatherfx:'weather',windfx:'wind',volumetric:'wind',satellite:'imagery',opportunities:'opportunities',listings:'listings',water:'water',clouds:'clouds'};
+ const actionMap={parcels:'parcels',boundaryviewer:'parcels',worldchanges:'history',weatherfx:'weather',windfx:'wind',volumetric:'wind',satellite:'imagery',opportunities:'opportunities',listings:'listings',water:'water'};
  if(actionMap[action])return actionMap[action];
  if(target.dataset?.layer==='parcels')return'parcels';
  if(target.dataset?.layer==='buildings')return'buildings';
@@ -435,36 +435,6 @@ async function toggleWater(){
  try{if(map.getLayer('bp-water-surface-gpu-v6123'))map.setLayoutProperty('bp-water-surface-gpu-v6123','visibility','visible')}catch(_){}
  updateWaterButton();return true;
 }
-function updateCloudButton(){
- if(!cloudButton)return;
- cloudButton.classList.toggle('active',cloudEnabled);
- cloudButton.setAttribute('aria-pressed',String(cloudEnabled));
- const label=cloudButton.querySelector('.bpv-command-label');setLabelTextIfChanged(label,cloudEnabled?'3D Clouds · ON':'3D Clouds');
- cloudButton.title=cloudEnabled?'Turn off the 3D cloud renderer':'Load the optional 3D cloud renderer';
-}
-async function toggleClouds(){
- if(!map)throw new Error('BridgePoint globe is not ready');
- if(typeof window.__BP_TOGGLE_CLOUDS__==='function'){
-  const result=await window.__BP_TOGGLE_CLOUDS__();cloudEnabled=result===true;
-  window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('clouds',cloudEnabled);
-  updateCloudButton();hideDefaultOverlays();return cloudEnabled;
- }
- if(cloudEnabled){
-  cloudEnabled=false;window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('clouds',false);cloudApi?.setEnabled?.(false);
-  try{if(map.getLayer('bp-sky-cloud-volume-v6029'))map.setLayoutProperty('bp-sky-cloud-volume-v6029','visibility','none')}catch(_){}
-  updateCloudButton();return false;
- }
- if(!cloudApi){
-  if(!cloudPromise)cloudPromise=import('./world-v2300-clouds.js?v=6168-desktop-global-cloud-motion-stop')
-   .then(m=>{const api=m.initSkyClouds({map});if(!api)throw new Error('3D cloud engine did not initialize');cloudApi=api;window.__BP_SKY_CLOUDS_V5908__=api;return api})
-   .finally(()=>{cloudPromise=null});
-  await cloudPromise;
- }
- if(!cloudApi)throw new Error('3D cloud engine unavailable');
- cloudEnabled=true;window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('clouds',true);cloudApi.setEnabled?.(true);
- try{if(map.getLayer('bp-sky-cloud-volume-v6029'))map.setLayoutProperty('bp-sky-cloud-volume-v6029','visibility','visible')}catch(_){}
- updateCloudButton();return true;
-}
 function addButton(){
  const grid=$('[data-bpv-command-grid="environment"]');if(!grid)return false;
  let b=grid.querySelector('[data-bp-drone-awareness-button="1"]');
@@ -490,21 +460,9 @@ function addButton(){
   grid.append(wb);
  }
  waterButton=wb;updateWaterButton();
- let cb=grid.querySelector('[data-bp-cloud-toggle-button="1"]');
- if(!cb){
-  cb=element('button','bpv-command-btn','');cb.type='button';cb.dataset.bpCloudToggleButton='1';cb.dataset.bpvAction='clouds';
-  cb.title='Load or hide the optional 3D cloud renderer';
-  cb.innerHTML='<span class="bpv-command-icon" aria-hidden="true">☁</span><span class="bpv-command-label">3D Clouds</span>';
-  cb.addEventListener('click',async()=>{
-   cb.disabled=true;
-   try{await toggleClouds();window.__BP_SHOW_ACTION_NOTICE__?.(cloudEnabled?'3D Clouds are enabled.':'3D Clouds are off.')}
-   catch(e){window.__BP_SHOW_ACTION_NOTICE__?.('3D Clouds failed: '+String(e?.message||e));console.warn('BridgePoint 3D Clouds',e)}
-   finally{cb.disabled=false;updateCloudButton()}
-  });
-  grid.append(cb);
- }
- cloudButton=cb;updateCloudButton();return true;
+ return true;
 }
+
 function hideDefaultOverlays(){
  if(!emptyModeActive||!emptyModeMap||sweepFrame)return;
  sweepFrame=requestAnimationFrame(()=>{
@@ -588,10 +546,10 @@ function boot(){
   rawRfScanning:false,
   offlineReceiver:false,
   waterToggle:toggleWater,
-  cloudToggle:toggleClouds,
   allowLayerCategory(category,on=true){
    const key=String(category||'').trim().toLowerCase();
    if(key==='drones')return true;
+   if(key==='clouds'){allowedCategories.add('clouds');hideDefaultOverlays();return true}
    if(key==='parcels'){parcelLayerEnabled=!!on;hideDefaultOverlays();return true}
    if(!categoryPatterns[key])return false;
    if(on)allowedCategories.add(key);else allowedCategories.delete(key);
