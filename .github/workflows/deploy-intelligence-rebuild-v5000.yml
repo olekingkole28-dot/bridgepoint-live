@@ -1149,7 +1149,7 @@ jobs:
           grep -Fq "pressureTreeOnly:true" site/world-v2300-map.js
           grep -Fq '__BP_TREE_STATIONARY_RECOVERY_V1123__' site/world-v2300-map.js
           grep -Fq "id:'gta-bp-floor-lines'" site/world-v2300-map.js
-          grep -Fq "spectral.setBasemapMode(spectral.basemapMode||'natural')" site/world-v2300-map.js
+          ! grep -Fq "spectral.setBasemapMode(spectral.basemapMode||'natural')" site/world-v2300-map.js
           grep -Fq "world=mod.initWorld({containerId:'liveMap',globalKey:'__bpWorldV2300'" site/app.js
           grep -Fq "window.__BP_V5000_WORLD__=world" site/app.js
           grep -Fq "window.__BP_APP_GLOBE_BOOT__" site/app.js
