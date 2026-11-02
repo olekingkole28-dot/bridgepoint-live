@@ -36,7 +36,7 @@ assert.match(edgeSource, /if\(e-w>\.75\|\|n-s>\.75\)/,
   'the zoom guard must accept the larger early detail viewport');
 assert.match(edgeSource, /detectCanopyPeaks\(rr,outW,outH/,
   'the edge function must derive tree centres from local canopy-height peaks');
-assert.match(edgeSource, /sampleStride=Math\.max\(1,Math\.ceil\(Math\.max\(W,H\)\/2048\)\)/,
+assert.match(edgeSource, /sampleStride=Math\.max\(1,Math\.ceil\(Math\.max\(W,H\)\/4096\)\)/,
   'the source raster sampling stride must remain fixed for every zoom into the same raster tile');
 assert.match(edgeSource, /Math\.floor\(Math\.max\(0,x0-pad\)\/sampleStride\)\*sampleStride/,
   'raster windows must align to the same global pixel lattice so canopy peak IDs do not shift while zooming');
@@ -94,6 +94,8 @@ assert.match(rendererSource, /if \(z >= 16\.0/,
   'the full-resolution 3D tree LOD should begin earlier on close zoom');
 assert.match(rendererSource, /if \(z >= 13\.3/,
   'medium 3D tree detail should appear at neighborhood zoom');
+assert.match(rendererSource, /TREE_GROUND_ELEVATION_UNAVAILABLE/,
+  'the instanced renderer must never place solid tree meshes at sea level when terrain elevation is missing');
 assert.match(rendererSource, /partialInstanceBudget/,
   'tree caps should keep the renderable instances instead of dropping the whole scene');
 
