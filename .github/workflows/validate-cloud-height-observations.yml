@@ -41,5 +41,9 @@ jobs:
           grep -Fq 'NASA SatCORPS GCC Global V2' tools/satellite/refresh_cloud_height_observations.py
           grep -Fq 'NOAA GOES-19 ABI-L2-ACHAF' tools/satellite/refresh_cloud_height_observations.py
           grep -Fq 'NOAA GOES-18 ABI-L2-ACHAF' tools/satellite/refresh_cloud_height_observations.py
+          grep -Fq 'ABI-L2-ACMF' tools/satellite/refresh_cloud_height_observations.py
+          grep -Fq 'def extract_noaa_cloud_mask' tools/satellite/refresh_cloud_height_observations.py
+          grep -Fq 'sourceCloudMaskSamples' release-v2300/world-v2300-clouds.js
+          grep -Fq 'NOAA GOES Enterprise Cloud Mask probability and clear-sky observations' release-v2300/world-v2300-clouds.js
           grep -Fq 'No raster-colour-derived heights' tools/satellite/refresh_cloud_height_observations.py
           grep -Fq 'window.__BP_CLOUD_HEIGHT_FEED_V6162__' release-v2300/world-v2300-clouds.js
