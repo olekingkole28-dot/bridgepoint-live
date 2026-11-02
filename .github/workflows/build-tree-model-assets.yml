@@ -1,0 +1,68 @@
+name: Build BridgePoint CC0 Tree Asset Proof
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/tree-asset-upgrade-v1
+    paths:
+      - 'assets/trees/tree-model-catalog-v1.json'
+      - 'tools/trees/**'
+      - 'tests/tree-model-catalog.test.py'
+      - '.github/workflows/build-tree-model-assets.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-tree-models:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/tree-asset-upgrade-v1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Validate catalog and pipeline syntax
+        run: python tests/tree-model-catalog.test.py
+
+      - name: Install Blender headless
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y blender
+          blender --background --factory-startup --python-expr "import bpy; print('BRIDGEPOINT_BLENDER_READY', bpy.app.version_string)"
+
+      - name: Download the reviewed CC0 tree models
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tools/trees/fetch_polyhaven_tree_models.py \
+            --catalog assets/trees/tree-model-catalog-v1.json \
+            --output /tmp/bridgepoint-tree-source
+
+      - name: Prepare optimized GLB LODs and wind weights
+        shell: bash
+        run: |
+          set -euo pipefail
+          blender --background --factory-startup \
+            --python tools/trees/prepare_tree_models_blender.py -- \
+            --source-root /tmp/bridgepoint-tree-source \
+            --output-root /tmp/bridgepoint-tree-assets \
+            --catalog assets/trees/tree-model-catalog-v1.json
+
+      - name: Verify GLB contents, LOD budgets and wind attributes
+        run: python tests/tree-model-catalog.test.py --built-assets /tmp/bridgepoint-tree-assets
+
+      - name: Publish reviewable tree asset build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bridgepoint-tree-models-cc0-poc-v1
+          path: /tmp/bridgepoint-tree-assets/
+          if-no-files-found: error
+          retention-days: 7
