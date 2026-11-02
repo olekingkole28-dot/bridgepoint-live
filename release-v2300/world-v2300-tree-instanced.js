@@ -757,7 +757,7 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
     });
   }
 
-  function refreshInstances() {
+  function refreshInstances({ authoritative = false } = {}) {
     if (destroyed || !manifest || !THREE || !scene) return;
     const all = getSourceTrees(map).filter(feature => {
       const coordinate = feature?.geometry?.coordinates;
@@ -803,7 +803,33 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
     state.sourceCount = normalized.sourceCount;
     state.unsupported = normalized.unsupported;
     state.truncated = normalized.truncated;
+    // Terrain is streamed independently from tree points. Hold the previous
+    // solid scene until the new viewport has valid ground samples for all trees.
+    const terrainPending = nextTrees.length !== normalized.trees.length;
+    if (activeMeshes.length && terrainPending) {
+      publish('retaining-solid-tree-scene-until-terrain-ready', {
+        instanceCount: activeTrees.length,
+        requestedSourceCount: normalized.sourceCount,
+        groundElevationSampledCount,
+        groundElevationFallbackCount,
+        authoritativeViewport: authoritative,
+        legacyRetained: false,
+        legacyLayersHidden: true
+      });
+      return;
+    }
     if (!nextTrees.length) {
+      // moveend/idle can run before the matching asynchronous viewport response.
+      // Only that completed response may authoritatively clear existing meshes.
+      if (activeMeshes.length && !authoritative) {
+        publish('retaining-solid-tree-scene-until-viewport-ready', {
+          instanceCount: activeTrees.length,
+          requestedSourceCount: normalized.sourceCount,
+          legacyRetained: false,
+          legacyLayersHidden: true
+        });
+        return;
+      }
       activeTrees = [];
       activeSignature = '';
       for (const old of activeMeshes) scene.remove(old);
