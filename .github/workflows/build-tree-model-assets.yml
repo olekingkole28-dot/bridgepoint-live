@@ -14,6 +14,7 @@ on:
       - 'tests/tree-model-catalog.test.py'
       - 'tests/tree-instanced-renderer-browser.mjs'
       - 'release-v2300/world-v2300-tree-instanced.js'
+      - 'release-v2300/world-v2300-tree-canopy-lod.js'
       - 'release-v2300/world-v2300-tree-catalog.js'
       - '.github/workflows/build-tree-model-assets.yml'
 
@@ -109,6 +110,7 @@ jobs:
           cp release-v2300/world-v2300-tree-instanced.js "$TEST_ROOT/release-v2300/"
           # The browser entry point imports the renderer from the root URL.
           cp release-v2300/world-v2300-tree-catalog.js "$TEST_ROOT/"
+          cp release-v2300/world-v2300-tree-canopy-lod.js "$TEST_ROOT/"
           cp release-v2300/world-v2300-tree-instanced.js "$TEST_ROOT/"
           cp -a /tmp/bridgepoint-tree-assets/. "$TEST_ROOT/assets/trees/"
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL \
