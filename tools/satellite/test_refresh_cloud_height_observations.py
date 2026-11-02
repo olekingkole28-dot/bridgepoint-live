@@ -7,6 +7,8 @@ from tools.satellite.refresh_cloud_height_observations import (
     compact_point_samples,
     compact_cloud_mask_samples,
     goes_start_time,
+    compact_cloud_mask_samples,
+    goes_start_time,
     is_netcdf_url,
     meters,
     sampling_indices,
@@ -63,6 +65,25 @@ class CloudHeightFeedTests(unittest.TestCase):
 
     def test_goes_filename_observation_time_is_not_the_download_time(self):
         stamp = goes_start_time("https://noaa-goes19.s3.amazonaws.com/ABI-L2-ACMF/2026/306/21/OR_ABI-L2-ACMF-M6_G19_s20263062140210_e20263062149518_c20263062152182.nc")
+        self.assertEqual(stamp.isoformat(), "2026-11-02T21:40:21+00:00")
+        self.assertIsNone(goes_start_time("https://example.test/not-a-goes-file.nc"))
+
+    def test_official_cloud_mask_keeps_clear_and_cloudy_pixels_and_rejects_bad_quality(self):
+        lat = np.array([[10.0, 10.0], [11.0, 11.0]])
+        lon = np.array([[-75.0, -74.0], [-75.0, -74.0]])
+        probability = np.array([[0.02, 0.98], [0.78, 0.50]])
+        quality = np.array([[0, 0], [1, 2]])
+        samples = compact_cloud_mask_samples(lat, lon, probability, quality, source_index=3)
+        self.assertEqual(samples, [
+            [-75.0, 10.0, 5, 3],
+            [-74.0, 10.0, 250, 3],
+        ])
+
+    def test_goes_filename_observation_time_is_not_download_time(self):
+        stamp = goes_start_time(
+            "https://noaa-goes19.s3.amazonaws.com/ABI-L2-ACMF/2026/306/21/"
+            "OR_ABI-L2-ACMF-M6_G19_s20263062140210_e20263062149518_c20263062152182.nc"
+        )
         self.assertEqual(stamp.isoformat(), "2026-11-02T21:40:21+00:00")
         self.assertIsNone(goes_start_time("https://example.test/not-a-goes-file.nc"))
 
