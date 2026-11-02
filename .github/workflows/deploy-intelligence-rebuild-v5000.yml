@@ -2372,7 +2372,7 @@ jobs:
                }));
                console.log('BRIDGEPOINT_ALWAYS_ON_3D_CLOUD_MODE_PASS',JSON.stringify(cloudOn));
 
-await p.evaluate(()=>{
+              await p.evaluate(()=>{
                   const m=window.__BP_LANDING_WORLD__?.map;
                   m?.stop?.();m?.jumpTo({center:[0,20],zoom:1.05,pitch:0,bearing:0});
                 });
@@ -3062,7 +3062,7 @@ await p.evaluate(()=>{
               if(!clouds.state?.enabled||!clouds.state?.visible||!clouds.layer||!clouds.slider||!clouds.label||clouds.cloudControl)
                 throw new Error('ALWAYS_ON_CLOUDS_OR_WORLD_ACTIVITY_SLIDER_REGRESSION '+JSON.stringify(clouds));
               console.log('BRIDGEPOINT_CLOUDS_ALWAYS_ON_STREET_VIEW_NO_TOGGLE_PASS',JSON.stringify(clouds));
-await p.evaluate(()=>window.__BP_WORLD_REALISM_V5910__?.setEnabled(true));
+              await p.evaluate(()=>window.__BP_WORLD_REALISM_V5910__?.setEnabled(true));
               await p.waitForFunction(()=>window.__BP_REAL_WORLD_MODE_V5910__?.enabled===true&&window.__BP_TECH_BASEMAP_V1116__?.activeBase==='satellite',{timeout:10000});
               const realism=await p.evaluate(()=>({state:window.__BP_REAL_WORLD_MODE_V5910__||null,roofPattern:!!window.__BP_REALISM_ROOF_PATTERN_EXPR_V5910__,dock:!!document.querySelector('#liveMap #bp-world-realism-v5910'),gis:!!window.__BP_GIS_CORE_V5910__?.route}));
               if(!realism.state?.enabled||!realism.roofPattern||!realism.dock||!realism.gis)throw new Error('REALISM_OR_GIS_CORE_REGRESSION '+JSON.stringify(realism));
