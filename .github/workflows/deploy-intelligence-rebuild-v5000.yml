@@ -1663,7 +1663,7 @@ jobs:
                 assert.equal(state.mode,'natural',state.kind+' must stay in Natural Satellite mode after idle');
                 assert.equal(state.legacyStoredMode,'dark',state.kind+' must ignore the legacy v6204 Dark preference and start Natural');
                 assert.equal(state.savedFalseColorMode,'geology',state.kind+' test must carry a stale false-colour preference into startup');
-                assert.equal(state.background,'#06120f',state.kind+' must retain Natural background after idle');
+                assert.equal(state.background,'#040b12',state.kind+' must retain the exact first-frame background after idle');
                 assert.equal(Number(state.waterOpacity),0,state.kind+' must leave satellite imagery unobscured by vector ocean fill');
                 assert.equal(state.base,'satellite',state.kind+' must retain satellite imagery base');
                 assert.equal(state.warpedImageSourceAbsent,true,state.kind+' must not install the single-image EPSG:4326 overlay that stretches across the globe projection');
