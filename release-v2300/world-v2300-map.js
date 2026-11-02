@@ -573,8 +573,32 @@ export function initWorld(options={}){
  function sky(){updateWorldLight();clearInterval(solarTimer);solarTimer=setInterval(updateWorldLight,30000);map.off?.('moveend',updateWorldLight);map.on?.('moveend',updateWorldLight);clearInterval(window.__BP_COAST_FOAM_TIMER__);window.__BP_COAST_FOAM_TIMER__=setInterval(()=>{if(document.hidden||!map.getLayer?.('gta-coast-foam'))return;const phase=Date.now()/1900,pulse=.5+.5*Math.sin(phase);paint(map,'gta-coast-foam','line-opacity',.10+.20*pulse);paint(map,'gta-coast-foam','line-dasharray',pulse>.5?[2.15,3.05]:[1.55,3.8])},1100)}
  function terrain(){const z=map.getZoom(),should=z>=2,ex=LOW?.82:TIER==='HIGH'?1.08:1,src=String(window.__BP_TERRAIN_SOURCE_OVERRIDE__||'dem'),terrainEx=src==='dem'?ex:1,signature=src+':'+terrainEx;try{if(should){if(!terrainOn||window.__BP_TERRAIN_APPLIED_MAP__!==map||window.__BP_TERRAIN_APPLIED_SIGNATURE__!==signature){map.setTerrain({source:src,exaggeration:terrainEx});terrainOn=true;window.__BP_TERRAIN_APPLIED_MAP__=map;window.__BP_TERRAIN_APPLIED_SIGNATURE__=signature}}else if(terrainOn){map.setTerrain(null);terrainOn=false;window.__BP_TERRAIN_APPLIED_MAP__=map;window.__BP_TERRAIN_APPLIED_SIGNATURE__=''}vis(map,'gta-hillshade',z>=4&&z<19.5);vis(map,'gta-landcover-texture',base!=='satellite'&&z<19.5);window.__BP_TERRAIN_VISUAL_STATE__={zoom:z,enabled:terrainOn,exaggeration:terrainOn?ex:0,streetLevelClamped:false,persistentThroughStreetLevel:true,coastRoadCliffProtection:true,demOverzoomToStreet:true,updatedAt:Date.now()}}catch(_){terrainOn=false;window.__BP_TERRAIN_APPLIED_MAP__=map;window.__BP_TERRAIN_APPLIED_SIGNATURE__=''}}
  function applyAutoCamera(){window.__BP_AUTO_CAMERA__={enabled:false,singleView:true,mode:'FREE_FLY',maxPitch:110,zoom:map.getZoom(),pitch:map.getPitch(),updatedAt:Date.now()};return false}
-  function setBase(next){base='satellite';const rasterLayers=['gta-global-earth','gta-nasa','gta-esri','gta-usgs','gta-oam'];for(const id of rasterLayers){vis(map,id,true);if(map.getLayer(id)&&map.getLayer('gta-coast-shadow'))try{map.moveLayer(id,'gta-coast-shadow')}catch(_){}}paint(map,'gta-water','fill-opacity',0);vis(map,'gta-landcover-texture',false);paint(map,'gta-landcover','fill-opacity',0);paint(map,'gta-landuse','fill-opacity',0);paint(map,'gta-hillshade','hillshade-exaggeration',0);document.querySelectorAll('[data-base]').forEach(b=>b.classList.toggle('active',b.dataset.base==='satellite'));window.__BP_TECH_BASEMAP_V1116__={...(window.__BP_TECH_BASEMAP_V1116__||{}),activeBase:'satellite',defaultBase:'satellite',satelliteManualOnly:false,satelliteAlwaysOn:true,continuousGlobalUnderlay:true,zoomVisibilityChanges:false,tileExpiryRefresh:true,updatedAt:Date.now()};const spectral=window.__BP_SPECTRAL_IMAGERY_V5931__;if(spectral?.map===map&&typeof spectral.setBasemapMode==='function'){try{spectral.setBasemapMode(spectral.basemapMode||'natural')}catch(e){console.warn('BridgePoint retained global imagery mode after base selection',e)}}map.triggerRepaint()}
-  map.on('style.load',()=>{try{setBase('satellite')}catch(e){console.warn('BridgePoint satellite underlay restore',e)}});
+  function setBase(next){base='satellite';const rasterLayers=['gta-global-earth','gta-nasa','gta-esri','gta-usgs','gta-oam'];for(const id of rasterLayers){vis(map,id,true);if(map.getLayer(id)&&map.getLayer('gta-coast-shadow'))try{map.moveLayer(id,'gta-coast-shadow')}catch(_){}}paint(map,'gta-water','fill-opacity',0);vis(map,'gta-landcover-texture',false);paint(map,'gta-landcover','fill-opacity',0);paint(map,'gta-landuse','fill-opacity',0);paint(map,'gta-hillshade','hillshade-exaggeration',0);document.querySelectorAll('[data-base]').forEach(b=>b.classList.toggle('active',b.dataset.base==='satellite'));window.__BP_TECH_BASEMAP_V1116__={...(window.__BP_TECH_BASEMAP_V1116__||{}),activeBase:'satellite',defaultBase:'satellite',satelliteManualOnly:false,satelliteAlwaysOn:true,continuousGlobalUnderlay:true,zoomVisibilityChanges:false,tileExpiryRefresh:true,updatedAt:Date.now()};const spectral=window.__BP_SPECTRAL_IMAGERY_V5931__;if(spectral?.map===map&&typeof spectral.setBasemapMode==='function'){try{spectral.setBasemapMode(spectral.basemapMode||'natural')}catch(e){console.warn('BridgePoint retained global imagery mode after base selection',e)}}keepSatelliteRasterLayersVisible('setBase');map.triggerRepaint()}
+  function keepSatelliteRasterLayersVisible(reason='settled'){
+   const ids=['gta-global-earth','gta-nasa','gta-esri','gta-usgs','gta-oam'],layers={},restored=[];
+   for(const id of ids){
+    try{
+     const layer=map.getLayer(id);
+     if(!layer){layers[id]={present:false,visibility:'missing'};continue}
+     const before=map.getLayoutProperty(id,'visibility')||'visible';
+     if(before!=='visible'){map.setLayoutProperty(id,'visibility','visible');restored.push(id)}
+     layers[id]={present:true,visibility:map.getLayoutProperty(id,'visibility')||'visible',source:layer.source,minzoom:layer.minzoom??0,maxzoom:layer.maxzoom??22};
+    }catch(error){layers[id]={present:false,error:String(error?.message||error)}}
+   }
+   window.__BP_SATELLITE_RASTER_VISIBILITY_GUARD_V6209__={version:6209,reason,restored,layers,updatedAt:Date.now()};
+   try{map.triggerRepaint()}catch(_){}
+   return layers;
+  }
+  function restoreSatelliteRasterStack(){
+   try{setBase('satellite')}catch(e){console.warn('BridgePoint satellite underlay restore',e)}
+   keepSatelliteRasterLayersVisible('style.load');
+  }
+  keepSatelliteRasterLayersVisible('initial');
+  map.on('style.load',restoreSatelliteRasterStack);
+  map.on('idle',()=>keepSatelliteRasterLayersVisible('idle'));
+  map.on('moveend',()=>keepSatelliteRasterLayersVisible('moveend'));
+  map.on('zoomend',()=>keepSatelliteRasterLayersVisible('zoomend'));
+  map.on('pitchend',()=>keepSatelliteRasterLayersVisible('pitchend'));
  function metersLon(lat){return 111320*Math.max(.12,Math.cos(lat*Math.PI/180))}
  function circlePoly(coord,r,n=10){const out=[];for(let i=0;i<n;i++){const a=i/n*Math.PI*2;out.push([coord[0]+Math.cos(a)*r/metersLon(coord[1]),coord[1]+Math.sin(a)*r/110540])}out.push(out[0]);return[out]}
  function treeHash(v){let h=2166136261>>>0;for(const ch of String(v||'tree')){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)>>>0}return h>>>0}
