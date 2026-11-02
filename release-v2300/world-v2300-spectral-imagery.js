@@ -26,7 +26,6 @@ const GLOBAL_BASEMAP_MODES={
 };
 const BASEMAP_PAINT_PROPERTIES={
  'gta-bg':['background-color'],'gta-water':['fill-color','fill-opacity'],
- 'gta-global-earth':['raster-opacity','raster-hue-rotate','raster-saturation','raster-contrast'],
  'gta-landcover':['fill-opacity'],'gta-landuse':['fill-opacity'],
  'gta-road-major':['line-color'],'gta-road-local':['line-color'],
  'gta-city-building-roof-caps':['fill-extrusion-color'],'gta-city-roofs':['fill-extrusion-color'],
@@ -36,8 +35,8 @@ const BASEMAP_PAINT_PROPERTIES={
  'gta-usgs':['raster-hue-rotate','raster-saturation','raster-contrast','raster-opacity'],
  'gta-oam':['raster-hue-rotate','raster-saturation','raster-contrast','raster-opacity']
 };
-const BASEMAP_RASTER_LAYERS=['gta-global-earth','gta-nasa','gta-esri','gta-usgs','gta-oam'];
-const BASEMAP_STORAGE_KEY='bp-global-map-mode-v6209';
+const BASEMAP_RASTER_LAYERS=['gta-nasa','gta-esri','gta-usgs','gta-oam'];
+const BASEMAP_STORAGE_KEY='bp-global-map-mode-v6210';
 const CSS=[
 '#liveMap #'+ROOT_ID+'{position:absolute;z-index:22;left:12px;top:12px;width:min(350px,calc(100% - 24px));box-sizing:border-box;color:#eaf8ff;font:12px/1.4 system-ui,-apple-system,Segoe UI,sans-serif;pointer-events:none}',
 '#liveMap #'+ROOT_ID+' *{box-sizing:border-box}',
@@ -127,7 +126,7 @@ function layerBefore(map){
  const first3d=layers.find(l=>l.type==='fill-extrusion');
  return first3d?.id;
 }
-function hasBaseMapStyle(map){try{const layers=map.getStyle?.()?.layers||[],ids=new Set(layers.map(layer=>layer.id));return ['gta-bg','gta-water','gta-global-earth','gta-esri'].every(id=>ids.has(id)&&!!map.getLayer(id))}catch(_){return false}}
+function hasBaseMapStyle(map){try{const layers=map.getStyle?.()?.layers||[],ids=new Set(layers.map(layer=>layer.id));return ['gta-bg','gta-water','gta-nasa','gta-esri'].every(id=>ids.has(id)&&!!map.getLayer(id))}catch(_){return false}}
 function waitForStyle(map){
  if(hasBaseMapStyle(map))return Promise.resolve();
  return new Promise(resolve=>{
@@ -269,7 +268,6 @@ export function initSpectralImagery(target){
     safeSetPaint(id,'raster-saturation',cfg.rasterSaturation);
     safeSetPaint(id,'raster-contrast',cfg.rasterContrast);
    }
-   safeSetPaint('gta-global-earth','raster-opacity',cfg.rasterOpacity);
    safeSetPaint('gta-nasa','raster-opacity',cfg.rasterOpacity);
    safeSetPaint('gta-esri','raster-opacity',cfg.esriOpacity??1);
    safeSetPaint('gta-usgs','raster-opacity',cfg.usgsOpacity);
