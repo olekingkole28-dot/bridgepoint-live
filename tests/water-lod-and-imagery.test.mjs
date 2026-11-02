@@ -63,6 +63,9 @@ assert.ok(spectralSource.includes("for(const id of BASEMAP_RASTER_LAYERS)safeSet
 assert.ok(spectralSource.includes("if(current!==value)map.setLayoutProperty(id,'visibility',value)"), 'satellite visibility updates must be idempotent');
 assert.ok(!spectralSource.includes("map.on('zoom',updateBasemapZoomCoverage)"), 'the zoom gesture must not rewrite satellite layout visibility');
 assert.ok(mapSource.includes('hasWorldBaseStyle()') && !mapSource.includes('const usable=map.isStyleLoaded?.()===true'), 'globe readiness must not wait for every remote imagery tile');
+assert.ok(mapSource.includes("function keepSatelliteRasterLayersVisible(reason='settled')"), 'all satellite rasters must have a persistent, idempotent visibility guard');
+assert.ok(mapSource.includes("map.on('idle',()=>keepSatelliteRasterLayersVisible('idle'))") && mapSource.includes("map.on('zoomend',()=>keepSatelliteRasterLayersVisible('zoomend'))"), 'the visibility guard must repair hidden satellite layers after settled map transitions');
+assert.ok(mapSource.includes("window.__BP_SATELLITE_RASTER_VISIBILITY_GUARD_V6209__"), 'runtime must expose satellite layer visibility diagnostics');
 assert.ok(mapSource.includes("'fill-opacity',0"), 'landcover and landuse fills must not obscure the satellite underlay');
 assert.ok(homepageHtml.includes('landing.js?v=6208-continuous-ground-imagery'), 'homepage must load the new imagery-default loader instead of a cached old version');
 assert.ok(homepageHtml.includes('bridgepoint-view-v5917.js?v=6208-continuous-ground-imagery'), 'homepage must load the current satellite control loader');
