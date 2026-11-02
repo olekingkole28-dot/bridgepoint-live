@@ -17,7 +17,7 @@ const COMBOS={
 
 const GLOBAL_BASEMAP_MODES={
  dark:{label:'Dark Intelligence · Optional',background:'#040b12',water:'#0c3d56',waterOpacity:0,landcoverOpacity:0,landuseOpacity:0,majorRoad:'#53717c',localRoad:'#45616b',roof:'#ffffff',rasterHue:0,rasterSaturation:0,rasterContrast:0,rasterOpacity:.95,esriOpacity:1,usgsOpacity:.95,oamOpacity:.95},
- natural:{label:'Natural Satellite · Default',background:'#06120f',water:'#1b5c70',waterOpacity:0,landcoverOpacity:0,landuseOpacity:0,majorRoad:'#b2c9c1',localRoad:'#5d8b83',roof:'#c2b9a4',rasterHue:0,rasterSaturation:.12,rasterContrast:.12,rasterOpacity:.94,esriOpacity:1,usgsOpacity:.9,oamOpacity:.96},
+ natural:{label:'Natural Satellite · Default',background:'#06120f',water:'#1b5c70',waterOpacity:0,landcoverOpacity:0,landuseOpacity:0,majorRoad:'#b2c9c1',localRoad:'#5d8b83',roof:'#c2b9a4',rasterHue:0,rasterSaturation:0,rasterContrast:0,rasterOpacity:.95,esriOpacity:1,usgsOpacity:.9,oamOpacity:.96},
  earth:{label:'Earth-as-Art',background:'#15190c',water:'#68742e',waterOpacity:0,landcoverOpacity:0,landuseOpacity:0,majorRoad:'#d3cc79',localRoad:'#89934b',roof:'#b2a35e',rasterHue:38,rasterSaturation:.32,rasterContrast:.16,rasterOpacity:.96,esriOpacity:1,usgsOpacity:.92,oamOpacity:.97},
  water:{label:'Water & Soil',background:'#041522',water:'#087ba7',waterOpacity:0,landcoverOpacity:0,landuseOpacity:0,majorRoad:'#76d0e5',localRoad:'#398ca2',roof:'#81aab8',rasterHue:148,rasterSaturation:.3,rasterContrast:.16,rasterOpacity:.96,esriOpacity:1,usgsOpacity:.92,oamOpacity:.97},
  vegetation:{label:'Vegetation',background:'#061b13',water:'#14584c',waterOpacity:0,landcoverOpacity:0,landuseOpacity:0,majorRoad:'#9bcbaa',localRoad:'#548b72',roof:'#91a978',rasterHue:68,rasterSaturation:.3,rasterContrast:.15,rasterOpacity:.96,esriOpacity:1,usgsOpacity:.92,oamOpacity:.97},
@@ -36,7 +36,7 @@ const BASEMAP_PAINT_PROPERTIES={
  'gta-oam':['raster-hue-rotate','raster-saturation','raster-contrast','raster-opacity']
 };
 const BASEMAP_RASTER_LAYERS=['gta-nasa','gta-esri','gta-usgs','gta-oam'];
-const BASEMAP_STORAGE_KEY='bp-global-map-mode-v6210';
+
 const CSS=[
 '#liveMap #'+ROOT_ID+'{position:absolute;z-index:22;left:12px;top:12px;width:min(350px,calc(100% - 24px));box-sizing:border-box;color:#eaf8ff;font:12px/1.4 system-ui,-apple-system,Segoe UI,sans-serif;pointer-events:none}',
 '#liveMap #'+ROOT_ID+' *{box-sizing:border-box}',
@@ -218,20 +218,16 @@ export function initSpectralImagery(target){
  }
  function safeSetPaint(id,property,value){try{if(map.getLayer(id))map.setPaintProperty(id,property,value)}catch(_){}}
  function safeSetVisibility(id,value){try{if(!map.getLayer(id))return;const current=map.getLayoutProperty(id,'visibility')||'visible';if(current!==value)map.setLayoutProperty(id,'visibility',value)}catch(_){}}
- function readSavedBasemapMode(){
-  try{const saved=window.localStorage?.getItem(BASEMAP_STORAGE_KEY);return Object.prototype.hasOwnProperty.call(GLOBAL_BASEMAP_MODES,saved)?saved:'natural'}catch(_){return 'natural'}
- }
  function updateBasemapZoomCoverage(){
   // The tile sources own zoom handoff; never hide the persistent satellite foundation.
   for(const id of BASEMAP_RASTER_LAYERS)safeSetVisibility(id,'visible');
  }
- function applyGlobalBasemapMode(rawMode,persist=true){
+ function applyGlobalBasemapMode(rawMode){
   const mode=Object.prototype.hasOwnProperty.call(GLOBAL_BASEMAP_MODES,rawMode)?rawMode:'natural';
   const previousMode=currentBasemapMode;
   currentBasemapMode=mode;
   state.basemapMode=mode;
   if(modeSel)modeSel.value=mode;
-  if(persist){try{window.localStorage?.setItem(BASEMAP_STORAGE_KEY,mode)}catch(_){}}
   if(!captureBasemapDefaults()){
    if(!styleWaitPending){
     styleWaitPending=true;
@@ -384,12 +380,13 @@ export function initSpectralImagery(target){
   // MapLibre style replacement resets paint/layout properties. Recapture the new
   // style baseline, then reapply the saved Natural/Dark/analysis palette after it loads.
   defaultsCaptured=false;originalPaint.clear();originalVisibility.clear();styleWaitPending=false;
-  const apply=()=>{if(!disposed)applyGlobalBasemapMode(currentBasemapMode,false)};
+  const apply=()=>{if(!disposed)applyGlobalBasemapMode(currentBasemapMode)};
   if(typeof requestAnimationFrame==='function')requestAnimationFrame(apply);else setTimeout(apply,0);
  }
  map.on('style.load',reapplySelectedBasemapAfterStyleReload);
  state.destroy=()=>{disposed=true;clearTimeout(mountHandle);if(controller)controller.abort();map.off('moveend',moveHandler);map.off('style.load',reapplySelectedBasemapAfterStyleReload);clearOldLayer();root.remove();state.available=false};
  setStatus('Ready · choose a global color mode or load real Landsat source bands.');
- applyGlobalBasemapMode(readSavedBasemapMode(),false);
+ // Every page load begins in Natural Satellite. Saved false-colour modes are never restored automatically.
+ applyGlobalBasemapMode('natural');
  return state;
 }
