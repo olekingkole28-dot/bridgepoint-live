@@ -66,8 +66,8 @@ test('hybrid satellite imagery and Gold LOD remain default, with coast foam at g
   assert.match(map, /setBase\('satellite'\)/);
   assert.match(map, /base='satellite',moving=false/);
   assert.doesNotMatch(map, /GLOBAL_EARTH|globalEarth|gta-global-earth/, 'the pole-to-pole image overlay must not be installed on a globe projection');
-  assert.match(map, /id:'gta-nasa',type:'raster',source:'nasa',minzoom:0,maxzoom:22/);
-  assert.match(map, /id:'gta-esri',type:'raster',source:'esri',minzoom:0,maxzoom:22/);
+  assert.match(map, /id:'gta-nasa',type:'raster',source:'nasa',minzoom:0,maxzoom:8/);
+  assert.match(map, /id:'gta-esri',type:'raster',source:'esri',minzoom:8,maxzoom:22/);
   assert.match(map, /id:'gta-usgs',type:'raster',source:'usgs',minzoom:11,maxzoom:17/);
   assert.match(map, /id:'gta-oam',type:'raster',source:'oam',minzoom:14,maxzoom:21/);
   assert.match(map, /gta-esri/);
@@ -240,7 +240,7 @@ test('global opportunity markers render category glyphs and merge source-backed 
 test('both entrypoints perform a real 6210 service-worker cutover before stale startup survives', () => {
   assert.match(landingHtml, /app-update-v5820\.js\?v=6211-nasa-globe-esri-handoff/);
   assert.match(appHtml, /app-update-v5820\.js\?v=6211-nasa-globe-esri-handoff/);
-  assert.match(appUpdate, /const BUILD=6210/);
+  assert.match(appUpdate, /const BUILD=6211/);
   assert.match(appUpdate, /CURRENT_CACHE='bp-intelligence-v6211-nasa-globe-esri-handoff'/);
   assert.match(appUpdate, /function reloadOnce\(reason\)/);
   assert.match(appUpdate, /location\.replace\(u\.href\)/);
