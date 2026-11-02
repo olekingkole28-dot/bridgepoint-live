@@ -148,6 +148,14 @@ assert.equal(chooseTreeLod(18), 'lod0');
 assert.equal(chooseTreeLod(15), 'lod1');
 assert.equal(chooseTreeLod(11.9), 'lod2');
 assert.equal(chooseTreeLod(Number.NaN), 'lod2');
+assert.equal(chooseTreeLod(18, 500, false), 'lod0',
+  'street-level detail should be used when the viewport has a manageable tree count');
+assert.equal(chooseTreeLod(18, 500, true), 'lod1',
+  'mobile devices should use the medium mesh with hundreds of close trees');
+assert.equal(chooseTreeLod(18, 5000, false), 'lod2',
+  'regional geometry should keep dense thousands-tree scenes inside the triangle budget');
+assert.equal(chooseTreeLod(15, 5000, false), 'lod2',
+  'the visible tree count must override a zoom-only high-detail choice');
 
 assert.equal(chooseTreeModel(
   { morphology: { form: 'conifer' }, identity: { genus: 'Picea', scientificName: 'Picea abies' } },
