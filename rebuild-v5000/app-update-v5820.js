@@ -1,4 +1,4 @@
-(()=>{const BUILD=6217,CACHE_VERSION='6217-satellite-idle-render-guard',CURRENT_SW='/sw.js?v='+CACHE_VERSION,CURRENT_CACHE='bp-intelligence-v6217-satellite-idle-render-guard',RELOAD_KEY='bp-update-reload-'+BUILD;
+(()=>{const BUILD=6218,CACHE_VERSION='6218-tree-viewport-renderer-refresh',CURRENT_SW='/sw.js?v='+CACHE_VERSION,CURRENT_CACHE='bp-intelligence-v6218-tree-viewport-renderer-refresh',RELOAD_KEY='bp-update-reload-'+BUILD;
 let busy=false;
 const sameOrigin=u=>{try{return new URL(u,location.href).origin===location.origin}catch{return false}};
 const scopePath=s=>{try{return new URL(s).pathname}catch{return''}};
