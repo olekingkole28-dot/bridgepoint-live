@@ -111,6 +111,7 @@ const html = [
   "const map=new maplibregl.Map({container:'map',style:style,center:[-72.6502,41.56],zoom:10.4,pitch:56,bearing:12,projection:'globe',attributionControl:false,antialias:false,maxPitch:85});",
   "window.__BP_TREE_BROWSER_MAP__=map;",
   "map.once('load',async()=>{",
+  "map.queryTerrainElevation=()=>24.5;",
   "map.__BP_LIVING_TILE_CACHE_V6017__={trees:" + JSON.stringify(sampleTrees) + "};",
   "try{await attachTreeInstancedRenderer(map,{manifestUrl:'/assets/trees/manifest.json',maxInstances:3000,mobile:matchMedia('(max-width: 760px)').matches,lowMemory:false,highTier:true});window.__BP_TREE_BROWSER_ATTACH__='resolved';}",
   "catch(error){window.__BP_TREE_BROWSER_ATTACH__=String(error&&error.stack||error);}",
@@ -230,6 +231,7 @@ try {
           'gta-bp-tree-crowns'
         ].map(id => ({ id, visibility: map.getLayoutProperty(id, 'visibility') || 'visible' })),
         geographicMatrixAvailable: typeof map.transform.getMatrixForModel === 'function',
+        rendererLayerPresent: !!map.getLayer('bp-v2300-instanced-trees-v2'),
         canopyLayerPresent: !!map.getLayer('bp-tree-cover-regional-v1'),
         canopyMaxZoom: map.getLayer('bp-tree-cover-regional-v1')?.maxzoom ?? null,
         canopyOpacityExpression: map.getPaintProperty('bp-tree-cover-regional-v1','fill-opacity') || null
@@ -258,6 +260,12 @@ try {
       viewport.name + ': regional canopy cover should use a zoom fade expression');
     assert.equal(diagnostics.state.instanceCount, 3,
       viewport.name + ': all source tree locations should become instances');
+    assert.equal(diagnostics.state.groundElevationSampledCount, 3,
+      viewport.name + ': each tree root should sample terrain elevation before drawing');
+    assert.equal(diagnostics.state.groundElevationFallbackCount, 0,
+      viewport.name + ': no tree should use the sea-level ground fallback in this test');
+    assert.ok(diagnostics.rendererLayerPresent,
+      viewport.name + ': the solid instanced-tree structure should stay attached to the map');
     assert.ok(diagnostics.state.gpuDrawCalls > 0,
       viewport.name + ': renderer must issue real GPU draw calls; state=' +
       JSON.stringify(diagnostics.state) + '; console=' + browserConsole.join(' | '));
@@ -300,8 +308,9 @@ try {
     // point trees (LOD1), then close-up street models (LOD0).
     const transitions = [
       { zoom: 10.4, lod: 'lod2' },
-      { zoom: 15.1, lod: 'lod1' },
-      { zoom: 18, lod: 'lod0' }
+      { zoom: 14.2, lod: 'lod1' },
+      { zoom: 16.2, lod: 'lod0' },
+      { zoom: 20.2, lod: 'lod0' }
     ];
     for (const transition of transitions) {
       await page.evaluate(zoom => {
@@ -310,7 +319,10 @@ try {
       await page.waitForFunction(
         lod => window.__BP_TREE_INSTANCE_RENDERER_V1__?.status === 'render-ready' &&
           window.__BP_TREE_INSTANCE_RENDERER_V1__?.lod === lod &&
+          window.__BP_TREE_INSTANCE_RENDERER_V1__?.instanceCount === 3 &&
+          window.__BP_TREE_INSTANCE_RENDERER_V1__?.groundElevationFallbackCount === 0 &&
           window.__BP_TREE_INSTANCE_RENDERER_V1__?.firstFrameAt &&
+          window.__BP_TREE_BROWSER_MAP__?.getLayer('bp-v2300-instanced-trees-v2') &&
           window.__BP_TREE_INSTANCE_RENDERER_V1__?.gpuDrawCalls > 0 &&
           window.__BP_TREE_INSTANCE_RENDERER_V1__?.gpuTriangles > 0,
         { timeout: 30000 },
@@ -321,7 +333,7 @@ try {
     // Stress the same instanced renderer with 2,000 additional test-only source
     // records. These are explicitly CI fixtures, not live geographic observations.
     const denseExpectedCount = 3 + denseTrees.length;
-    const denseLod = viewport.mobile ? 'lod2' : 'lod1';
+    const denseLod = 'lod1';
     await page.evaluate(dense => {
       const map = window.__BP_TREE_BROWSER_MAP__;
       map.__BP_LIVING_TILE_CACHE_V6017__.trees = [
@@ -358,6 +370,8 @@ try {
         gpuTriangles: state.gpuTriangles,
         truncated: state.truncated,
         unsupported: state.unsupported,
+        groundElevationSampledCount: state.groundElevationSampledCount,
+        groundElevationFallbackCount: state.groundElevationFallbackCount,
         legacyHidden: state.legacyLayersHidden,
         canvases: window.__BP_TREE_BROWSER_MAP__.getContainer().querySelectorAll('canvas').length
       };
@@ -370,6 +384,10 @@ try {
       viewport.name + ': the tree bank should use a small number of GPU-instanced batches');
     assert.ok(denseDiagnostics.gpuTriangles > 0,
       viewport.name + ': dense scene must draw real model triangles');
+    assert.equal(denseDiagnostics.groundElevationSampledCount, 2003,
+      viewport.name + ': every dense tree base must receive a terrain-elevation sample');
+    assert.equal(denseDiagnostics.groundElevationFallbackCount, 0,
+      viewport.name + ': no dense tree base may detach to an unverified zero-altitude fallback');
     assert.equal(denseDiagnostics.canvases, 1,
       viewport.name + ': dense rendering must keep the single existing map canvas');
     console.log('BRIDGEPOINT_TREE_DENSE_INSTANCE_BROWSER_PASS_' + viewport.name.toUpperCase(),
