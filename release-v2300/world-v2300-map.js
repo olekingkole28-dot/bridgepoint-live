@@ -19,7 +19,6 @@ window.__BP_WORLD_PERFORMANCE_V5904__={version:5904,pixelRatioDesktopCap:1.5,ant
 
 const OFM='https://tiles.openfreemap.org/planet/latest/{z}/{x}/{y}.pbf';
 const NASA='https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_NextGeneration/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpeg';
-const GLOBAL_EARTH='https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?service=WMS&version=1.3.0&request=GetMap&format=image/jpeg&styles=default&bbox=-90,-180,90,180&crs=EPSG:4326&height=2048&width=4096&layers=BlueMarble_NextGeneration';
 const USGS='https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}';
 const OAM='https://global.imagery.hotosm.org/{z}/{x}/{y}.png';
 const DEM='https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
@@ -146,7 +145,6 @@ function style(projectionType='globe'){
  glyphs:'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
  sources:{
   ofm:{type:'vector',tiles:[OFM],minzoom:0,maxzoom:14,attribution:'OpenFreeMap © OpenMapTiles · © OpenStreetMap contributors'},
-  globalEarth:{type:'image',url:GLOBAL_EARTH,coordinates:[[-179.999,89.999],[179.999,89.999],[179.999,-89.999],[-179.999,-89.999]],attribution:'NASA EOSDIS GIBS · Blue Marble EPSG:4326 global underlay'},
    nasa:{type:'raster',tiles:[NASA],tileSize:256,maxzoom:8,attribution:'NASA EOSDIS GIBS · Blue Marble'},
    esri:{type:'raster',tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],tileSize:256,minzoom:0,maxzoom:19,attribution:'Esri World Imagery · Sources: Esri, Vantor, Earthstar Geographics, and the GIS User Community'},
   usgs:{type:'raster',tiles:[USGS],tileSize:256,minzoom:4,maxzoom:17,bounds:US_BOUNDS,attribution:'USDA · USGS The National Map orthoimagery'},
@@ -158,7 +156,6 @@ function style(projectionType='globe'){
  layers:[
   {id:'gta-bg',type:'background',paint:{'background-color':'#040b12'}},
   {id:'gta-water',type:'fill',source:'ofm','source-layer':'water',paint:{'fill-color':'#0c3d56','fill-opacity':0}},
-  {id:'gta-global-earth',type:'raster',source:'globalEarth',minzoom:0,maxzoom:22,layout:{visibility:'visible'},paint:{'raster-opacity':1,'raster-resampling':'linear','raster-fade-duration':0}},
    {id:'gta-nasa',type:'raster',source:'nasa',minzoom:0,maxzoom:22,layout:{visibility:'visible'},paint:{'raster-opacity':.95,'raster-saturation':.18,'raster-contrast':.18,'raster-resampling':'linear','raster-fade-duration':0}},
    {id:'gta-esri',type:'raster',source:'esri',minzoom:0,maxzoom:22,layout:{visibility:'visible'},paint:{'raster-opacity':1,'raster-saturation':.15,'raster-contrast':.12,'raster-resampling':'linear','raster-fade-duration':0}},
   {id:'gta-usgs',type:'raster',source:'usgs',minzoom:11,maxzoom:17,layout:{visibility:'visible'},paint:{'raster-opacity':['interpolate',['linear'],['zoom'],5,.45,9,.82,13,.96,17,.99],'raster-saturation':.14,'raster-contrast':.16,'raster-resampling':'linear','raster-fade-duration':0}},
@@ -318,7 +315,7 @@ function installBridgePointIcons(map){
  const keys=['roof','storm','fire','water','solar','development','investment','compliance','claims','restoration','construction','exposure','rain','wind','general'];
  const add=id=>{try{if(!map.hasImage(id))map.addImage(id,bpIconImage(id),{pixelRatio:2})}catch(e){console.warn('BridgePoint icon',id,e)}};
  const ensure=()=>{
-  try{if(!map.getLayer('gta-bg')||!map.getLayer('gta-global-earth'))return}catch(_){return}
+  try{if(!map.getLayer('gta-bg')||!map.getLayer('gta-nasa')||!map.getLayer('gta-esri'))return}catch(_){return}
   let registered=0;
   for(const k of keys)for(const id of ['bp-opp-'+k,'bp-opp-'+k+'-dot']){const exists=(()=>{try{return map.hasImage(id)}catch(_){return false}})();add(id);if(!exists&&(()=>{try{return map.hasImage(id)}catch(_){return false}})())registered++}
   window.__BP_ICON_LAZYLOAD_V5587__={version:6174,onDemand:true,eagerOpportunityIcons:keys.length*2,eagerRegistered:registered,updatedAt:Date.now()}
@@ -573,9 +570,9 @@ export function initWorld(options={}){
  function sky(){updateWorldLight();clearInterval(solarTimer);solarTimer=setInterval(updateWorldLight,30000);map.off?.('moveend',updateWorldLight);map.on?.('moveend',updateWorldLight);clearInterval(window.__BP_COAST_FOAM_TIMER__);window.__BP_COAST_FOAM_TIMER__=setInterval(()=>{if(document.hidden||!map.getLayer?.('gta-coast-foam'))return;const phase=Date.now()/1900,pulse=.5+.5*Math.sin(phase);paint(map,'gta-coast-foam','line-opacity',.10+.20*pulse);paint(map,'gta-coast-foam','line-dasharray',pulse>.5?[2.15,3.05]:[1.55,3.8])},1100)}
  function terrain(){const z=map.getZoom(),should=z>=2,ex=LOW?.82:TIER==='HIGH'?1.08:1,src=String(window.__BP_TERRAIN_SOURCE_OVERRIDE__||'dem'),terrainEx=src==='dem'?ex:1,signature=src+':'+terrainEx;try{if(should){if(!terrainOn||window.__BP_TERRAIN_APPLIED_MAP__!==map||window.__BP_TERRAIN_APPLIED_SIGNATURE__!==signature){map.setTerrain({source:src,exaggeration:terrainEx});terrainOn=true;window.__BP_TERRAIN_APPLIED_MAP__=map;window.__BP_TERRAIN_APPLIED_SIGNATURE__=signature}}else if(terrainOn){map.setTerrain(null);terrainOn=false;window.__BP_TERRAIN_APPLIED_MAP__=map;window.__BP_TERRAIN_APPLIED_SIGNATURE__=''}vis(map,'gta-hillshade',z>=4&&z<19.5);vis(map,'gta-landcover-texture',base!=='satellite'&&z<19.5);window.__BP_TERRAIN_VISUAL_STATE__={zoom:z,enabled:terrainOn,exaggeration:terrainOn?ex:0,streetLevelClamped:false,persistentThroughStreetLevel:true,coastRoadCliffProtection:true,demOverzoomToStreet:true,updatedAt:Date.now()}}catch(_){terrainOn=false;window.__BP_TERRAIN_APPLIED_MAP__=map;window.__BP_TERRAIN_APPLIED_SIGNATURE__=''}}
  function applyAutoCamera(){window.__BP_AUTO_CAMERA__={enabled:false,singleView:true,mode:'FREE_FLY',maxPitch:110,zoom:map.getZoom(),pitch:map.getPitch(),updatedAt:Date.now()};return false}
-  function setBase(next){base='satellite';const rasterLayers=['gta-global-earth','gta-nasa','gta-esri','gta-usgs','gta-oam'];for(const id of rasterLayers){vis(map,id,true);if(map.getLayer(id)&&map.getLayer('gta-coast-shadow'))try{map.moveLayer(id,'gta-coast-shadow')}catch(_){}}paint(map,'gta-water','fill-opacity',0);vis(map,'gta-landcover-texture',false);paint(map,'gta-landcover','fill-opacity',0);paint(map,'gta-landuse','fill-opacity',0);paint(map,'gta-hillshade','hillshade-exaggeration',0);document.querySelectorAll('[data-base]').forEach(b=>b.classList.toggle('active',b.dataset.base==='satellite'));window.__BP_TECH_BASEMAP_V1116__={...(window.__BP_TECH_BASEMAP_V1116__||{}),activeBase:'satellite',defaultBase:'satellite',satelliteManualOnly:false,satelliteAlwaysOn:true,continuousGlobalUnderlay:true,zoomVisibilityChanges:false,tileExpiryRefresh:true,updatedAt:Date.now()};const spectral=window.__BP_SPECTRAL_IMAGERY_V5931__;if(spectral?.map===map&&typeof spectral.setBasemapMode==='function'){try{spectral.setBasemapMode(spectral.basemapMode||'natural')}catch(e){console.warn('BridgePoint retained global imagery mode after base selection',e)}}keepSatelliteRasterLayersVisible('setBase');map.triggerRepaint()}
+  function setBase(next){base='satellite';const rasterLayers=['gta-nasa','gta-esri','gta-usgs','gta-oam'];for(const id of rasterLayers){vis(map,id,true);if(map.getLayer(id)&&map.getLayer('gta-coast-shadow'))try{map.moveLayer(id,'gta-coast-shadow')}catch(_){}}paint(map,'gta-water','fill-opacity',0);vis(map,'gta-landcover-texture',false);paint(map,'gta-landcover','fill-opacity',0);paint(map,'gta-landuse','fill-opacity',0);paint(map,'gta-hillshade','hillshade-exaggeration',0);document.querySelectorAll('[data-base]').forEach(b=>b.classList.toggle('active',b.dataset.base==='satellite'));window.__BP_TECH_BASEMAP_V1116__={...(window.__BP_TECH_BASEMAP_V1116__||{}),activeBase:'satellite',defaultBase:'satellite',satelliteManualOnly:false,satelliteAlwaysOn:true,continuousGlobalUnderlay:false,zoomVisibilityChanges:false,tileExpiryRefresh:true,updatedAt:Date.now()};keepSatelliteRasterLayersVisible('setBase');map.triggerRepaint()}
   function keepSatelliteRasterLayersVisible(reason='settled'){
-   const ids=['gta-global-earth','gta-nasa','gta-esri','gta-usgs','gta-oam'],layers={},restored=[];
+   const ids=['gta-nasa','gta-esri','gta-usgs','gta-oam'],layers={},restored=[];
    for(const id of ids){
     try{
      const layer=map.getLayer(id);
@@ -585,7 +582,7 @@ export function initWorld(options={}){
      layers[id]={present:true,visibility:map.getLayoutProperty(id,'visibility')||'visible',source:layer.source,minzoom:layer.minzoom??0,maxzoom:layer.maxzoom??22};
     }catch(error){layers[id]={present:false,error:String(error?.message||error)}}
    }
-   window.__BP_SATELLITE_RASTER_VISIBILITY_GUARD_V6209__={version:6209,reason,restored,layers,updatedAt:Date.now()};
+   window.__BP_SATELLITE_RASTER_VISIBILITY_GUARD_V6210__={version:6210,reason,restored,layers,updatedAt:Date.now()};
    return layers;
   }
   function restoreSatelliteRasterStack(){
@@ -1458,7 +1455,7 @@ export function initWorld(options={}){
  }
   function bindBuildingHitLayers(){for(const id of ['gta-exact-building','gta-bp-buildings','gta-city-buildings','gta-context-buildings']){if(!map.getLayer(id))continue;map.on('mouseenter',id,()=>{map.getCanvas().style.cursor='pointer'});map.on('mouseleave',id,()=>{map.getCanvas().style.cursor=''})}}
  let worldCoreReady=false,worldCoreFinalizing=false;
- const hasWorldBaseStyle=()=>{try{const layers=map.getStyle?.()?.layers||[],ids=new Set(layers.map(layer=>layer.id));return ['gta-bg','gta-water','gta-global-earth','gta-esri'].every(id=>ids.has(id)&&!!map.getLayer(id))}catch(_){return false}};
+ const hasWorldBaseStyle=()=>{try{const layers=map.getStyle?.()?.layers||[],ids=new Set(layers.map(layer=>layer.id));return ['gta-bg','gta-water','gta-nasa','gta-esri'].every(id=>ids.has(id)&&!!map.getLayer(id))}catch(_){return false}};
  const finalizeWorldCore=()=>{
   __bpTrace('finalize-world-core-enter',{styleLayersReady:hasWorldBaseStyle(),allTilesLoaded:!!map.isStyleLoaded?.()});
   if(worldCoreReady)return true;
