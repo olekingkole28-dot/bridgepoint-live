@@ -35,8 +35,24 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y blender python3-numpy
-          blender --background --factory-startup --python-expr "import bpy; print('BRIDGEPOINT_BLENDER_READY', bpy.app.version_string)"
+          sudo apt-get install -y blender
+          blender --background --factory-startup --python-expr "import bpy,sys; print('BRIDGEPOINT_BLENDER_READY', bpy.app.version_string); print('BRIDGEPOINT_BLENDER_PYTHON_VERSION', sys.version); print('BRIDGEPOINT_BLENDER_PYTHON_EXECUTABLE', getattr(bpy.app, 'binary_path_python', sys.executable))"
+
+      - name: Install NumPy in Blender's Python runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          BLENDER_PY=$(blender --background --factory-startup --python-expr "import bpy; print('BP_BLENDER_PYTHON=' + getattr(bpy.app, 'binary_path_python', ''))" 2>&1 | sed -n 's/^BP_BLENDER_PYTHON=//p' | tail -1)
+          if [ -z "$BLENDER_PY" ] || [ ! -x "$BLENDER_PY" ]; then
+            echo "Could not resolve Blender's Python executable: '$BLENDER_PY'"
+            exit 1
+          fi
+          echo "Using Blender Python: $BLENDER_PY"
+          "$BLENDER_PY" -m ensurepip --upgrade || true
+          "$BLENDER_PY" -m pip install --upgrade pip
+          "$BLENDER_PY" -m pip install "numpy==1.26.4"
+          "$BLENDER_PY" -c "import numpy; print('BRIDGEPOINT_BLENDER_NUMPY_READY', numpy.__version__)"
+          blender --background --factory-startup --python-expr "import numpy; print('BRIDGEPOINT_BLENDER_IMPORT_NUMPY_PASS', numpy.__version__)"
 
       - name: Download the reviewed CC0 tree models
         shell: bash
