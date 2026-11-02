@@ -202,7 +202,7 @@ try {
           'gta-bp-tree-crowns'
         ].map(id => ({ id, visibility: map.getLayoutProperty(id, 'visibility') || 'visible' })),
         geographicMatrixAvailable: typeof map.transform.getMatrixForModel === 'function',
-        canopyLayer: map.getLayer('bp-tree-cover-regional-v1') || null,
+        canopyLayerPresent: !!map.getLayer('bp-tree-cover-regional-v1'),
         canopyMaxZoom: map.getLayer('bp-tree-cover-regional-v1')?.maxzoom ?? null,
         canopyOpacityExpression: map.getPaintProperty('bp-tree-cover-regional-v1','fill-opacity') || null
       };
@@ -222,7 +222,7 @@ try {
       viewport.name + ': the visible source trees should use distinct procedural variants');
     assert.equal(diagnostics.state.regionalCanopyStatus, 'active',
       viewport.name + ': regional forest canopy handoff should be installed');
-    assert.ok(diagnostics.canopyLayer,
+    assert.ok(diagnostics.canopyLayerPresent,
       viewport.name + ': source-backed forest polygon layer should be present');
     assert.equal(diagnostics.canopyMaxZoom, 12.35,
       viewport.name + ': the regional canopy proxy should fade out before individual point trees');
