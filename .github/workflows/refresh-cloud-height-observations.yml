@@ -46,7 +46,15 @@ jobs:
           assert d.get("schema_version") == 1
           assert d.get("samples") and len(d["samples"]) == d.get("sample_count")
           assert all(len(row) == 5 and isinstance(row[0], (int, float)) and isinstance(row[1], (int, float)) for row in d["samples"])
-          print("CLOUD_HEIGHT_FEED_SCHEMA_PASS", d["sample_count"], "samples")
+          mask = d.get("cloud_mask_samples", [])
+          mask_sources = d.get("cloud_mask_sources", [])
+          assert d.get("cloud_mask_schema_version") == 1
+          assert isinstance(mask, list) and len(mask) == d.get("cloud_mask_sample_count")
+          assert isinstance(mask_sources, list)
+          assert all(len(row) == 4 and isinstance(row[0], (int, float)) and isinstance(row[1], (int, float)) and 0 <= row[2] <= 255 and 0 <= row[3] < len(mask_sources) for row in mask)
+          print("CLOUD_HEIGHT_FEED_SCHEMA_PASS", d["sample_count"], "height samples;",
+                d["cloud_mask_sample_count"], "cloud-mask samples;",
+                sum(source.get("status") == "available" for source in mask_sources), "mask sources")
           PY
 
       - name: Publish compact data-only feed without rebuilding the website
