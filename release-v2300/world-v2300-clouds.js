@@ -545,7 +545,7 @@ function ensureLiveSatelliteCloudContextV6134(map){
     window.__BP_SATELLITE_CLOUD_MASK_V6140__=mask;
     maskState.maskStatus='fresh';maskState.maskLastSuccessAt=mask.updatedAt;maskState.maskLastError=null;
     maskState.maskGeneration=mask.generation;maskState.maskCoverageCells=coverageCells;maskState.maskCloudCells=cloudCells;
-    maskState.maskSourceEpoch=epoch;maskState.maskImageWidth=bitmap.width;maskState.maskImageHeight=bitmap.height;
+    maskState.maskSourceEpoch=epoch;maskState.maskRequestedAt=new Date(satelliteFrameEpochV6150()).toISOString();maskState.maskTimeDimension='NASA GIBS TIME parameter; nearest available subdaily scan';maskState.maskImageWidth=bitmap.width;maskState.maskImageHeight=bitmap.height;
     try{window.dispatchEvent(new CustomEvent('bp2300:satellite-cloud-mask-updated',{detail:{map,generation:mask.generation,coverageCells,cloudCells,updatedAt:mask.updatedAt}}))}catch(_){}
     map.triggerRepaint?.();
     return true;
@@ -728,9 +728,12 @@ function satelliteMaskCellCenterV6150(mask,col,row){
 function satelliteFrameEpochV6150(){return Math.floor(Date.now()/600000)*600000}
 function satelliteWmsUrlV6150(endpoint,layers,width,height,crs='EPSG:4326'){
  const bbox=crs==='EPSG:4326'?'-180,-85,180,85':'{bbox-epsg-3857}';
+ const frameEpoch=satelliteFrameEpochV6150();
+ const frameTime=new Date(frameEpoch).toISOString().replace(/\\.\\d{3}Z$/,'Z');
+ const timeDimension=String(endpoint).includes('gibs.earthdata.nasa.gov')?'&TIME='+encodeURIComponent(frameTime):'';
  return endpoint+'?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&LAYERS='+encodeURIComponent(layers)+
   '&STYLES=&SRS='+encodeURIComponent(crs)+'&BBOX='+bbox+'&WIDTH='+width+'&HEIGHT='+height+
-  '&FORMAT=image/png&TRANSPARENT=TRUE&bp_refresh='+satelliteFrameEpochV6150();
+  '&FORMAT=image/png&TRANSPARENT=TRUE'+timeDimension+'&bp_refresh='+frameEpoch;
 }
 function satelliteWrapLongitudeV6150(v){return ((v+540)%360)-180}
 function geostationaryFootprintVisibleV6150(lng,lat,centralLongitude){
