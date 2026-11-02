@@ -1558,11 +1558,8 @@ export function initSkyClouds(target) {
         } else {
           gl.uniformMatrix4fv(info.uniforms.matrix, false, matrix);
         }
-        // The high-load global desktop globe was visibly streaking/flashing as world-space
-        // cloud advection and shader noise advanced. Keep all 3D formations, but freeze only
-        // their animation at globe LOD on desktop; mobile and closer zoom stay animated.
-        // Globe-scale advection is intentionally slower on desktop to keep shared-map
-        // animation calm and stable; it is never frozen. Close views use real-time wind drift.
+        // Globe-scale advection is intentionally slower on desktop to keep the shared-map
+        // renderer light and stable; it is never frozen. Close views use real-time wind drift.
         const desktopGlobalSlowMotion = !MOBILE && number(map.getZoom?.(),0) <= 3.5;
         const globalMotionScale = desktopGlobalSlowMotion ? 0.32 : 1;
         const cloudTime = ((typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000) * globalMotionScale;
