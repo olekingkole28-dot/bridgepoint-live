@@ -12,6 +12,10 @@ const viewLoader = await readFile(new URL('../rebuild-v5000/bridgepoint-view-v59
 assert.ok(mapSource.includes("esri:{type:'raster'"), 'global imagery source must be wired');
 assert.ok(mapSource.includes("attribution:'Esri World Imagery · Sources: Esri, Vantor, Earthstar Geographics, and the GIS User Community'"), 'imagery attribution must be retained');
 assert.ok(mapSource.includes("paint(map,'gta-water','fill-opacity',0)"), 'the satellite layer must remain visible through ocean polygons');
+assert.ok(mapSource.includes("{id:'gta-water',type:'fill',source:'ofm','source-layer':'water',paint:{'fill-color':'#0c3d56','fill-opacity':0}}"), 'the first-render ocean fill must be transparent before any controller initializes');
+assert.ok(mapSource.includes("'source-layer':'landcover',minzoom:2,paint:{'fill-color'") && mapSource.includes("'fill-opacity':0"), 'landcover fills must not cover imagery on first render');
+assert.ok(mapSource.includes("'source-layer':'landuse',minzoom:7.5,paint:{'fill-color'") && mapSource.includes("'fill-opacity':0"), 'landuse fills must not cover imagery on first render');
+assert.ok(mapSource.includes("'hillshade-exaggeration':0"), 'hillshade must not veil the satellite pixels');
 assert.ok(mapSource.includes("map.moveLayer(id,'gta-coast-shadow')"), 'satellite rasters must render above water and below coastline overlays');
 assert.ok(mapSource.includes("setBase('satellite')"), 'satellite imagery must be enabled by default');
 assert.ok(mapSource.includes("defaultBase:'satellite'") && mapSource.includes('satelliteManualOnly:false'), 'zoom-aware satellite imagery must be default');
