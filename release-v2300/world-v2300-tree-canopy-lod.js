@@ -81,7 +81,8 @@ export function installRegionalTreeCoverLayer(map) {
       const before = map.getLayer?.('gta-landuse')
         ? 'gta-landuse'
         : (map.getLayer?.('gta-hillshade') ? 'gta-hillshade' : undefined);
-      const sourceType = map.getSource?.(SOURCE_ID)?._options?.type;
+      const source = map.getSource?.(SOURCE_ID);
+      const sourceType = source?.type || source?._options?.type;
       map.addLayer(treeCoverLayerSpec({ geojson: sourceType === 'geojson' }), before);
     }
     state.status = map.getLayer?.(TREE_COVER_LAYER_ID) ? 'active' : 'install-failed';
