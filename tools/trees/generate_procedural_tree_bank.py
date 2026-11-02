@@ -30,7 +30,7 @@ from mathutils import Vector
 
 
 LOD_QUALITY = {
-    "lod0": {"branch": 1.0, "leaves": 0.86, "twig_depth": 0},
+    "lod0": {"branch": 0.90, "leaves": 0.68, "twig_depth": 0},
     "lod1": {"branch": 0.64, "leaves": 0.48, "twig_depth": 1},
     "lod2": {"branch": 0.30, "leaves": 0.16, "twig_depth": 2},
 }
