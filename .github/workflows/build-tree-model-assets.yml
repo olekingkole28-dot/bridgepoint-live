@@ -42,7 +42,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          BLENDER_PY=$(blender --background --factory-startup --python-expr "import bpy; print('BP_BLENDER_PYTHON=' + getattr(bpy.app, 'binary_path_python', ''))" 2>&1 | sed -n 's/^BP_BLENDER_PYTHON=//p' | tail -1)
+          BLENDER_PY=$(blender --background --factory-startup --python-expr "import bpy; print('BP_BLENDER_PYTHON=' + getattr(bpy.app, 'binary_path_python', sys.executable))" 2>&1 | sed -n 's/^BP_BLENDER_PYTHON=//p' | tail -1)
           if [ -z "$BLENDER_PY" ] || [ ! -x "$BLENDER_PY" ]; then
             echo "Could not resolve Blender's Python executable: '$BLENDER_PY'"
             exit 1
