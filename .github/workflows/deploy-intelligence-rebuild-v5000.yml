@@ -1481,7 +1481,7 @@ jobs:
               && grep -Fq 'bridgepoint_public_weather_bootstrap_v5512' /tmp/app.js \
               && grep -Fq 'const VERSION=1068' /tmp/language-selector-v5200.js \
               && grep -Fq 'BridgePointLanguage' /tmp/language-selector-v5200.js \
-              && grep -Fq "const V='bp-intelligence-v6215-satellite-persistent-render-guard'" /tmp/sw.js \
+              && grep -Fq "const V='bp-intelligence-v6217-satellite-idle-render-guard'" /tmp/sw.js \
               && grep -Fq 'BUILD=6215' /tmp/app-update-v5820.js \
               && grep -Fq 'bridgepoint-intelligence-legacy-retire-v5820' /tmp/flutter-service-worker-retire.js \
               && grep -Fq 'migrated=legacy-intelligence-v5820' /tmp/legacy-intelligence-launch.html \

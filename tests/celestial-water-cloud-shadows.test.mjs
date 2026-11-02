@@ -238,17 +238,17 @@ test('global opportunity markers render category glyphs and merge source-backed 
   assert.match(landing, /if\(!risk\)void loadRiskFeed\(\)\.then/);
 });
 
-test('both entrypoints perform a real 6215 service-worker cutover before stale startup survives', () => {
-  assert.match(landingHtml, /app-update-v5820\.js\?v=6215-satellite-persistent-render-guard/);
-  assert.match(appHtml, /app-update-v5820\.js\?v=6215-satellite-persistent-render-guard/);
-  assert.match(appUpdate, /const BUILD=6215/);
-  assert.match(appUpdate, /CURRENT_CACHE='bp-intelligence-v6215-satellite-persistent-render-guard'/);
+test('both entrypoints perform a real 6217 service-worker cutover before stale startup survives', () => {
+  assert.match(landingHtml, /app-update-v5820\.js\?v=6217-satellite-idle-render-guard/);
+  assert.match(appHtml, /app-update-v5820\.js\?v=6217-satellite-idle-render-guard/);
+  assert.match(appUpdate, /const BUILD=6217/);
+  assert.match(appUpdate, /CURRENT_CACHE='bp-intelligence-v6217-satellite-idle-render-guard'/);
   assert.match(appUpdate, /function reloadOnce\(reason\)/);
   assert.match(appUpdate, /location\.replace\(u\.href\)/);
   assert.match(appUpdate, /navigator\.serviceWorker\?\.addEventListener\('controllerchange'/);
-  assert.match(serviceWorker, /const V='bp-intelligence-v6215-satellite-persistent-render-guard'/);
-  assert.match(landing, /navigator\.serviceWorker\.register\('\/sw\.js\?v=6215-satellite-persistent-render-guard'/);
-  assert.match(app, /navigator\.serviceWorker\.register\('\/sw\.js\?v=6215-satellite-persistent-render-guard'/);
+  assert.match(serviceWorker, /const V='bp-intelligence-v6217-satellite-idle-render-guard'/);
+  assert.match(landing, /navigator\.serviceWorker\.register\('\/sw\.js\?v=6217-satellite-idle-render-guard'/);
+  assert.match(app, /navigator\.serviceWorker\.register\('\/sw\.js\?v=6217-satellite-idle-render-guard'/);
   assert.match(clouds, /Number\(existingCloudController\.version\) >= 6167[\s\S]{0,180}Number\(existingState\?\.coverageVersion \|\| existingState\?\.version\) >= 6167/);
 });
 
