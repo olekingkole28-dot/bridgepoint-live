@@ -66,8 +66,8 @@ test('hybrid satellite imagery and Gold LOD remain default, with coast foam at g
   assert.match(map, /setBase\('satellite'\)/);
   assert.match(map, /base='satellite',moving=false/);
   assert.doesNotMatch(map, /GLOBAL_EARTH|globalEarth|gta-global-earth/, 'the pole-to-pole image overlay must not be installed on a globe projection');
-  assert.match(map, /id:'gta-nasa',type:'raster',source:'nasa',minzoom:0,maxzoom:22/);
-  assert.match(map, /id:'gta-esri',type:'raster',source:'esri',minzoom:3,maxzoom:22/);
+  assert.match(map, /id:'gta-nasa',type:'raster',source:'nasa',minzoom:0,maxzoom:8/);
+  assert.match(map, /id:'gta-esri',type:'raster',source:'esri',minzoom:8,maxzoom:22/);
   assert.match(map, /id:'gta-usgs',type:'raster',source:'usgs',minzoom:11,maxzoom:17/);
   assert.match(map, /id:'gta-oam',type:'raster',source:'oam',minzoom:14,maxzoom:21/);
   assert.match(map, /gta-esri/);
@@ -147,7 +147,7 @@ test('cloud shadows update on the map and use available source winds', () => {
 
 test('entrypoints use fresh cache keys for updated map, water, clouds, weather and space', () => {
   for (const source of [app, landing]) {
-    assert.match(source, /world-v2300-map\.js\?v=6211-nasa-global-esri-regional/);
+    assert.match(source, /world-v2300-map\.js\?v=6212-neutral-satellite-startup/);
     assert.match(source, /world-v2300-water\.js\?v=6194-stable-water-low-cost/);
     assert.match(source, /world-v2300-clouds\.js\?v=6168-desktop-global-cloud-motion-stop/);
     assert.match(source, /world-v2300-weather\.js\?v=6195-desktop-globe-flash-stability/);
@@ -157,8 +157,8 @@ test('entrypoints use fresh cache keys for updated map, water, clouds, weather a
   assert.match(map, /world-v2300-space\.js\?v=6125-manual-globe-camera/);
   assert.match(timeSlider, /world-v2300-clouds\.js\?v=6168-desktop-global-cloud-motion-stop/);
   assert.match(bootstrap, /world-v2300-weather\.js\?v=6195-desktop-globe-flash-stability/);
-  assert.match(appHtml, /app\.js\?v=6211-nasa-global-esri-regional/);
-  assert.match(landingHtml, /landing\.js\?v=6211-nasa-global-esri-regional/);
+  assert.match(appHtml, /app\.js\?v=6212-neutral-satellite-startup/);
+  assert.match(landingHtml, /landing\.js\?v=6212-neutral-satellite-startup/);
   assert.match(appHtml, /intelligence-global-v5507\.js\?v=6170-imerg-nrt-timeline/);
   assert.match(landingHtml, /intelligence-global-v5507\.js\?v=6170-imerg-nrt-timeline/);
 });
@@ -238,16 +238,16 @@ test('global opportunity markers render category glyphs and merge source-backed 
 });
 
 test('both entrypoints perform a real 6211 service-worker cutover before stale startup survives', () => {
-  assert.match(landingHtml, /app-update-v5820\.js\?v=6211-nasa-global-esri-regional/);
-  assert.match(appHtml, /app-update-v5820\.js\?v=6211-nasa-global-esri-regional/);
-  assert.match(appUpdate, /const BUILD=6211/);
-  assert.match(appUpdate, /CURRENT_CACHE='bp-intelligence-v6211-nasa-global-esri-regional'/);
+  assert.match(landingHtml, /app-update-v5820\.js\?v=6212-neutral-satellite-startup/);
+  assert.match(appHtml, /app-update-v5820\.js\?v=6212-neutral-satellite-startup/);
+  assert.match(appUpdate, /const BUILD=6212/);
+  assert.match(appUpdate, /CURRENT_CACHE='bp-intelligence-v6212-neutral-satellite-startup'/);
   assert.match(appUpdate, /function reloadOnce\(reason\)/);
   assert.match(appUpdate, /location\.replace\(u\.href\)/);
   assert.match(appUpdate, /navigator\.serviceWorker\?\.addEventListener\('controllerchange'/);
-  assert.match(serviceWorker, /const V='bp-intelligence-v6211-nasa-global-esri-regional'/);
-  assert.match(landing, /navigator\.serviceWorker\.register\('\/sw\.js\?v=6211-nasa-global-esri-regional'/);
-  assert.match(app, /navigator\.serviceWorker\.register\('\/sw\.js\?v=6211-nasa-global-esri-regional'/);
+  assert.match(serviceWorker, /const V='bp-intelligence-v6212-neutral-satellite-startup'/);
+  assert.match(landing, /navigator\.serviceWorker\.register\('\/sw\.js\?v=6212-neutral-satellite-startup'/);
+  assert.match(app, /navigator\.serviceWorker\.register\('\/sw\.js\?v=6212-neutral-satellite-startup'/);
   assert.match(clouds, /Number\(existingCloudController\.version\) >= 6167[\s\S]{0,180}Number\(existingState\?\.coverageVersion \|\| existingState\?\.version\) >= 6167/);
 });
 
@@ -409,8 +409,8 @@ test('homepage opportunities stay off at startup and the button enables the publ
 test('website and app start on the same cache-busted globe-first weather build', () => {
   assert.match(landingHtml, /bp-globe-only-first-frame-v6137/);
   assert.match(appHtml, /bp-app-globe-only-first-frame-v6137/);
-  assert.ok(landingHtml.includes('landing.js?v=6211-nasa-global-esri-regional'));
-  assert.ok(appHtml.includes('app.js?v=6211-nasa-global-esri-regional'));
+  assert.ok(landingHtml.includes('landing.js?v=6212-neutral-satellite-startup'));
+  assert.ok(appHtml.includes('app.js?v=6212-neutral-satellite-startup'));
   assert.ok(landingHtml.includes('intelligence-global-v5507.js?v=6170-imerg-nrt-timeline'));
   assert.ok(appHtml.includes('intelligence-global-v5507.js?v=6170-imerg-nrt-timeline'));
 });
