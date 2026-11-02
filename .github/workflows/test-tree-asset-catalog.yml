@@ -10,6 +10,7 @@ on:
       - 'release-v2300/world-v2300-tree-instanced.js'
       - 'tests/tree-asset-catalog.test.mjs'
       - 'tests/tree-instanced-renderer.test.mjs'
+      - 'tests/tree-instanced-renderer-browser.mjs'
       - '.github/workflows/test-tree-asset-catalog.yml'
 
 permissions:
@@ -34,3 +35,5 @@ jobs:
         run: node tests/tree-instanced-renderer.test.mjs
       - name: Check the additive globe renderer module
         run: node --check release-v2300/world-v2300-tree-instanced.js
+      - name: Check desktop and phone browser test syntax
+        run: node --check tests/tree-instanced-renderer-browser.mjs
