@@ -752,7 +752,7 @@ async function initMap(){
     const existing=window.__BP_SKY_CLOUDS_V5908__;
     if(existing?.map===world.map)landingCloudApi=existing;
     else{
-     if(!landingCloudPromise)landingCloudPromise=import('./world-v2300-clouds.js?v=6170-always-on-3d-cloud-volumes')
+     if(!landingCloudPromise)landingCloudPromise=import('./world-v2300-clouds.js?v=6180-goes-mask-volumetric-clouds')
       .then(m=>{const api=m.initSkyClouds(world);if(!api)throw new Error('3D cloud engine did not initialize');window.__BP_SKY_CLOUDS_V5908__=api;return api})
       .finally(()=>{landingCloudPromise=null});
      landingCloudApi=await landingCloudPromise;
