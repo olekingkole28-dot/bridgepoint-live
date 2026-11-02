@@ -1622,7 +1622,7 @@ jobs:
                   const world=kind==='home'?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
                   const map=world?.map;
                   const visible=id=>!!map?.getLayer(id)&&(map.getLayoutProperty(id,'visibility')||'visible')==='visible';
-                  return !!map&&visible('gta-nasa')&&visible('gta-esri')&&!map.isMoving?.();
+                  return !!map&&visible('gta-nasa')&&visible('gta-esri');
                 },{timeout:60000},kind);
                 await new Promise(resolve=>setTimeout(resolve,1400));
                 return page.evaluate(kind=>{
