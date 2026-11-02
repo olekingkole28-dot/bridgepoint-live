@@ -1,0 +1,6 @@
+# The shared global tree viewport is public map data. Its handler enforces
+# request bounds and allowed browser origins, and reads/writes the shared tree
+# cache with its server-side service-role client. Browser calls use the publishable
+# API key and do not have a user JWT when signed out.
+[functions.bridgepoint-global-tree-viewport-v1101]
+verify_jwt = false
