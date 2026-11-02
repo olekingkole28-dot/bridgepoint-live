@@ -88,7 +88,7 @@ function addMapKey(panel){
  const pane=el('section','');pane.dataset.bpvPane='mapkey';pane.hidden=true;
  const head=el('div','bpv-pane-title');head.append(el('b','','BRIDGEPOINT MAP KEY'),el('small','','Opportunity colors, 3D materials, terrain, weather and transport shaders used on this map.'));
  const content=el('div','bpv-map-key-content');
- content.append(el('p','bpv-mapkey-note','STARTUP VISIBILITY: Earth/globe, terrain, 3D building geometry and permitted public parcel boundaries. Weather, drones, clouds, water effects, wind/RF, listings, opportunities, transport, landmarks, night lights and other markers remain off until their control is enabled.'));
+ content.append(el('p','bpv-mapkey-note','STARTUP VISIBILITY: Earth/globe, terrain, 3D building geometry, permitted public parcel boundaries and 3D cloud volumes. Radar/weather markers, drones, water effects, wind/RF, listings, opportunities, transport, landmarks, night lights and other markers remain off until their control is enabled.'));
  function section(title,description,rows){
   const sec=el('section','bpv-mapkey-section');sec.append(el('h3','',title));if(description)sec.append(el('p','',description));
   for(const r of rows){const row=el('div','bpv-mapkey-row'),sw=el('i','bpv-mapkey-swatch'+(r.cls?' '+r.cls:'')),copy=el('div','');
@@ -108,7 +108,7 @@ function addMapKey(panel){
   {label:'Floor-band shader',cls:'bpv-mapkey-swatch-floor',desc:'Optional bands derived from height/level attributes; not a verified interior plan.'},
   {label:'Night-window shader',cls:'bpv-mapkey-swatch-night',desc:'Warm/cool/mixed textures at supported night/high zoom; not live occupancy.'},
   {label:'3D terrain / hill relief',cls:'bpv-mapkey-swatch-terrain',desc:'DEM elevation with light/shadow shading describes landform, not parcel value or hazard level.'},
-  {label:'3D cloud volumes',cls:'bpv-mapkey-swatch-clouds',desc:'Near-white translucent 3D cloud geometry. It is off at startup and loads only when the 3D Clouds control is pressed.'},
+  {label:'3D cloud volumes',cls:'bpv-mapkey-swatch-clouds',desc:'Near-white translucent 3D cloud volumes remain on from globe to street-level views, drift with atmospheric wind and refresh source imagery and measured height observations every 10 minutes. Source-reported heights are used where available; modeled geometry fills data gaps.'},
   {label:'Animated water + flow surface',color:'#2BC5FF',desc:'Cyan-blue GPU water surface and source-backed waterways. It is off at startup and loads only when Water + Flow is pressed.'}
  ]);
  section('PARCELS, ROADS + BRIDGES','',[
