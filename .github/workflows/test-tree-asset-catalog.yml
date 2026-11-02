@@ -28,3 +28,7 @@ jobs:
         run: node --check release-v2300/world-v2300-tree-catalog.js
       - name: Verify source-truth and species normalization
         run: node tests/tree-asset-catalog.test.mjs
+      - name: Verify GPU instancing, source placement and safe fallback contracts
+        run: node tests/tree-instanced-renderer.test.mjs
+      - name: Check the additive globe renderer module
+        run: node --check release-v2300/world-v2300-tree-instanced.js
