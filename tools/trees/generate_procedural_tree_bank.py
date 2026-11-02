@@ -30,9 +30,9 @@ from mathutils import Vector
 
 
 LOD_QUALITY = {
-    "lod0": {"branch": 1.0, "leaves": 1.0, "twig_depth": 0},
-    "lod1": {"branch": 0.72, "leaves": 0.62, "twig_depth": 1},
-    "lod2": {"branch": 0.38, "leaves": 0.30, "twig_depth": 2},
+    "lod0": {"branch": 1.0, "leaves": 0.86, "twig_depth": 0},
+    "lod1": {"branch": 0.64, "leaves": 0.48, "twig_depth": 1},
+    "lod2": {"branch": 0.30, "leaves": 0.16, "twig_depth": 2},
 }
 
 
@@ -196,7 +196,7 @@ def leaf_cluster(geometry, anchor, direction, entry, rng, quality, index):
             )
         return
 
-    count = max(2, int(rng.randint(3, 7) * scale))
+    count = max(1, int(rng.randint(3, 7) * scale))
     base_direction = Vector(direction).normalized()
     for i in range(count):
         angle = (i * 2.399963) + rng.uniform(-0.35, 0.35)
@@ -272,7 +272,7 @@ def grow_branch(geometry, start, direction, length, radius, depth, entry, rng, q
                 depth - 1, entry, rng, quality, branch_index * 3 + child + 1,
             )
     else:
-        cluster_count = max(2, int(3 * quality["leaves"]))
+        cluster_count = max(1, int(4 * quality["leaves"]))
         for cluster in range(cluster_count):
             t = 0.65 + 0.35 * (cluster / max(1, cluster_count - 1))
             anchor = start.lerp(end, t)
