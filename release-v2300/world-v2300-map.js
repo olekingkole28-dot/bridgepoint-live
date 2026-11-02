@@ -543,17 +543,18 @@ export function initWorld(options={}){
    });
  };
  const bpAttachTreeRendererFromViewport=()=>{
-  if(bpTreeRendererAttachStarted||map.getZoom()<12.6)return;
+  const treeStartZoom=activeWorldLodProfile().treeMin;
+  if(bpTreeRendererAttachStarted||map.getZoom()<treeStartZoom)return;
   const treeCache=map.__BP_LIVING_TILE_CACHE_V6017__?.trees;
   if(!Array.isArray(treeCache)||treeCache.length===0)return;
   bpTreeRendererAttachStarted=true;
   window.__BP_TREE_RENDERER_AUTO_ATTACH_V1__={
    version:1,status:'loading-renderer',
    sourceCount:treeCache.length,
-   lazyStartZoom:12.6,
+   lazyStartZoom:treeStartZoom,
    updatedAt:Date.now()
   };
-  import('./world-v2300-tree-instanced.js?v=20261102-instanced-tree-renderer-v2')
+  import('./world-v2300-tree-instanced.js?v=20261102-tree-placement-v3')
    .then(mod=>mod.attachTreeInstancedRenderer(map))
    .then(state=>{
     const current=window.__BP_TREE_INSTANCE_RENDERER_V1__||state||{};
@@ -561,7 +562,7 @@ export function initWorld(options={}){
      version:1,status:current.status||'attached',
      sourceCount:current.sourceCount||treeCache.length,
      instanceCount:current.instanceCount||0,
-     lazyStartZoom:12.6,
+     lazyStartZoom:treeStartZoom,
      legacyLayersHidden:current.legacyLayersHidden===true,
      updatedAt:Date.now()
     };
@@ -1024,14 +1025,14 @@ export function initWorld(options={}){
   const lod=activeWorldLodProfile();
   if(map.getZoom()<lod.treeMin||moving)return;
   if(worldMapSurfaceInactive())return;
-  const z=map.getZoom(),clientPressure=Number(window.__BP_INTERACTION_PRIORITY_UNTIL__||0)>performance.now(),seq=++livingSeq,b=bbox(map,MOBILE?.12:(TIER==='HIGH'?.24:.18)),tb=bbox(map,MOBILE?(z<14?.3:.21):(z<14?.34:.24)),detailBoost=lod.tier==='GOLD'?1.55:lod.tier==='SILVER'?1.25:1,baseLimit=Math.round((MOBILE?(z>=16.5?260:180):(TIER==='HIGH'?(z>=16.5?1450:1000):(z>=16.5?1050:760)))*detailBoost),normalTreeLimit=Math.round((MOBILE?(z>=17?1450:z>=16?1200:z>=14.25?900:z>=13.4?600:350):(TIER==='HIGH'?(z>=17?3000:z>=16?2800:z>=14.25?2400:z>=13.4?1800:1100):(z>=17?2800:z>=16?2400:z>=14.25?2000:z>=13.4?1450:900)))*detailBoost),treeLimit=clientPressure?Math.min(normalTreeLimit,MOBILE?260:650):Math.min(MOBILE?1800:3000,normalTreeLimit);lastLivingFetchAt=performance.now();
+  const z=map.getZoom(),clientPressure=Number(window.__BP_INTERACTION_PRIORITY_UNTIL__||0)>performance.now(),seq=++livingSeq,b=bbox(map,MOBILE?.12:(TIER==='HIGH'?.24:.18)),tb=bbox(map,.10),detailBoost=lod.tier==='GOLD'?1.55:lod.tier==='SILVER'?1.25:1,baseLimit=Math.round((MOBILE?(z>=16.5?260:180):(TIER==='HIGH'?(z>=16.5?1450:1000):(z>=16.5?1050:760)))*detailBoost),normalTreeLimit=Math.round((MOBILE?(z>=17?1800:z>=16?1650:z>=14.25?1400:z>=13.4?1100:900):(TIER==='HIGH'?(z>=17?3000:z>=16?2800:z>=14.25?2600:z>=13.4?2200:1500):(z>=17?2800:z>=16?2600:z>=14.25?2400:z>=13.4?2000:1350)))*detailBoost),treeLimit=clientPressure?Math.min(normalTreeLimit,MOBILE?350:650):Math.min(MOBILE?1800:3000,normalTreeLimit);lastLivingFetchAt=performance.now();
   try{
    const settled=await Promise.allSettled([
     z>=14.2&&!clientPressure?edge('bridgepoint-living-world-viewport-v5319',{west:b.west,south:b.south,east:b.east,north:b.north,limit:baseLimit},8500):Promise.resolve(EMPTY),
     edge('bridgepoint-global-tree-viewport-v1101',{west:tb.west,south:tb.south,east:tb.east,north:tb.north,limit:treeLimit},12000)
    ]);
    if(seq!==livingSeq||moving)return;
-   const base=settled[0].status==='fulfilled'&&settled[0].value?.type==='FeatureCollection'?settled[0].value:EMPTY,trees=settled[1].status==='fulfilled'&&settled[1].value?.type==='FeatureCollection'?settled[1].value:EMPTY,center=map.getCenter(),viewHalf=lodViewHalfDiagonalMeters(map.getBounds()),retentionRadiusMeters=clamp(viewHalf*1.6,MOBILE?180:260,z>=18?2400:z>=16?4500:8000),priorCache=map.__BP_LIVING_TILE_CACHE_V6017__||{},baseCap=MOBILE?(lod.tier==='GOLD'?2400:lod.tier==='SILVER'?1800:1200):(lod.tier==='GOLD'?9000:lod.tier==='SILVER'?7500:6000),treeCap=MOBILE?(lod.tier==='GOLD'?3200:lod.tier==='SILVER'?2400:1600):(lod.tier==='GOLD'?14000:lod.tier==='SILVER'?10500:8000),retainedBase=mergeLodFeatureCache(priorCache.base||[],base.features||[],center,retentionRadiusMeters,baseCap),retainedTrees=mergeLodFeatureCache(priorCache.trees||[],trees.features||[],center,retentionRadiusMeters,treeCap),features=[],seen=new Set();map.__BP_LIVING_TILE_CACHE_V6017__={base:retainedBase,trees:retainedTrees,center:[center.lng,center.lat],radiusMeters:retentionRadiusMeters,updatedAt:Date.now()};for(const f of [...retainedBase,...retainedTrees]){const key=lodFeatureKey(f);if(seen.has(key))continue;seen.add(key);features.push(f)}    const data={type:'FeatureCollection',features};if(features.length){     map.getSource('bpLivingWorld')?.setData(data);     map.getSource('bpTreeLod')?.setData({type:'FeatureCollection',features:[...retainedTrees]});     const physicalData={type:'FeatureCollection',features:[...retainedTrees,...retainedBase]};
+   const base=settled[0].status==='fulfilled'&&settled[0].value?.type==='FeatureCollection'?settled[0].value:EMPTY,trees=settled[1].status==='fulfilled'&&settled[1].value?.type==='FeatureCollection'?settled[1].value:EMPTY,center=map.getCenter(),viewHalf=lodViewHalfDiagonalMeters(map.getBounds()),retentionRadiusMeters=clamp(viewHalf*1.6,MOBILE?180:260,z>=18?2400:z>=16?4500:8000),priorCache=map.__BP_LIVING_TILE_CACHE_V6017__||{},baseCap=MOBILE?(lod.tier==='GOLD'?2400:lod.tier==='SILVER'?1800:1200):(lod.tier==='GOLD'?9000:lod.tier==='SILVER'?7500:6000),treeCap=MOBILE?(lod.tier==='GOLD'?3200:lod.tier==='SILVER'?2400:1600):(lod.tier==='GOLD'?14000:lod.tier==='SILVER'?10500:8000),retainedBase=mergeLodFeatureCache(priorCache.base||[],base.features||[],center,retentionRadiusMeters,baseCap),retainedTrees=mergeLodFeatureCache((priorCache.trees||[]).filter(f=>String(f?.properties?.source_key||'')==='META_WRI_CHMV2_LOCAL_MAXIMA_V1109'&&String(f?.properties?.tile_key||'')===String(trees.active_tile||'')),trees.features||[],center,retentionRadiusMeters,treeCap),features=[],seen=new Set();map.__BP_LIVING_TILE_CACHE_V6017__={base:retainedBase,trees:retainedTrees,center:[center.lng,center.lat],radiusMeters:retentionRadiusMeters,updatedAt:Date.now()};for(const f of [...retainedBase,...retainedTrees]){const key=lodFeatureKey(f);if(seen.has(key))continue;seen.add(key);features.push(f)}    const data={type:'FeatureCollection',features};map.getSource('bpLivingWorld')?.setData(data);map.getSource('bpTreeLod')?.setData({type:'FeatureCollection',features:[...retainedTrees]});if(features.length){     const physicalData={type:'FeatureCollection',features:[...retainedTrees,...retainedBase]};
      let denseMobileScene=false,denseRenderedBuildings=0;
     if(MOBILE&&z<17.2){
      try{const ls=['gta-bp-buildings','gta-context-buildings','gta-city-buildings'].filter(id=>map.getLayer(id)&&(map.getLayoutProperty(id,'visibility')||'visible')!=='none');denseRenderedBuildings=ls.length?(map.queryRenderedFeatures({layers:ls})||[]).length:0;denseMobileScene=denseRenderedBuildings>45}catch(_){}
@@ -1043,7 +1044,7 @@ export function initWorld(options={}){
     vis(map,'gta-bp-tree-trunks',treeLod&&z>=lod.treeTrunkMin);
     vis(map,'gta-bp-tree-crowns',treeLod);
     livingCount=features.length;
-    window.__BP_TREE_RENDER_STATE__={version:1124,requested:(trees.features||[]).length,physicalFeatures:(physical.features||[]).length,visible3D:treeOn,visibleLod:treeLod,lodSource:'bpTreeLod',lodMinZoom:lod.treeMin,detailed3DMinZoom:lod.treeDetailedMin,geometry:'TAPERED_TRUNK_MULTI_TIER_IRREGULAR_CROWN',pressureTreeOnly:clientPressure,treeLimit,denseMobileScene,denseRenderedBuildings,trunkLayer:(map.getLayoutProperty('gta-bp-tree3d-trunk','visibility')||'visible'),canopyLayer:(map.getLayoutProperty('gta-bp-tree3d-canopy','visibility')||'visible'),zoom:z,updatedAt:Date.now()}
+    window.__BP_TREE_RENDER_STATE__={version:1125,requested:(trees.features||[]).length,physicalFeatures:(physical.features||[]).length,visible3D:treeOn,visibleLod:treeLod,lodSource:'bpTreeLod',lodMinZoom:lod.treeMin,detailed3DMinZoom:lod.treeDetailedMin,geometry:'TAPERED_TRUNK_MULTI_TIER_IRREGULAR_CROWN',positionTruth:'CHMV2_LOCAL_CANOPY_PEAK_ESTIMATE_V1109',singleActiveSourceTile:true,buildingFootprintExcluded:true,pressureTreeOnly:clientPressure,treeLimit,denseMobileScene,denseRenderedBuildings,trunkLayer:(map.getLayoutProperty('gta-bp-tree3d-trunk','visibility')||'visible'),canopyLayer:(map.getLayoutProperty('gta-bp-tree3d-canopy','visibility')||'visible'),zoom:z,updatedAt:Date.now()}
    }
    const baseError=settled[0].status==='rejected'?String(settled[0].reason?.message||settled[0].reason):null,treeError=settled[1].status==='rejected'?String(settled[1].reason?.message||settled[1].reason):null;
    window.__BP_LIVING_WORLD_STATE__={status:features.length?'ready':(baseError&&treeError?'error':'empty'),count:livingCount,baseCount:retainedBase.length,treeCount:retainedTrees.length,queriedBaseCount:(base.features||[]).length,queriedTreeCount:(trees.features||[]).length,retainedRadiusMeters,retainedTileCache:true,treeHeightBackedCount:Number(trees.height_backed_count||0),treeModeledHeightCount:Number(trees.modeled_height_count||0),treeMeasuredHeightCount:Number(trees.measured_height_count||0),baseError,treeError,viewport:{west:b.west,south:b.south,east:b.east,north:b.north},updatedAt:Date.now()}

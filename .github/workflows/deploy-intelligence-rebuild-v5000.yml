@@ -70,6 +70,8 @@ jobs:
           node tests/tree-asset-catalog.test.mjs
           node tests/tree-instanced-renderer.test.mjs
           node tests/tree-viewport-capacity.test.mjs
+          node tests/tree-placement.test.mjs
+          node --check supabase/functions/bridgepoint-global-tree-viewport-v1101/tree-canopy-peaks.mjs
           node --check release-v2300/world-v2300-tree-catalog.js
           node --check release-v2300/world-v2300-tree-instanced.js
           node --check release-v2300/world-v2300-tree-canopy-lod.js

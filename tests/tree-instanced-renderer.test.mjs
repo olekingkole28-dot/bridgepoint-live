@@ -150,11 +150,11 @@ assert.equal(chooseTreeLod(11.9), 'lod2');
 assert.equal(chooseTreeLod(Number.NaN), 'lod2');
 assert.equal(chooseTreeLod(18, 500, false), 'lod0',
   'street-level detail should be used when the viewport has a manageable tree count');
-assert.equal(chooseTreeLod(18, 500, true), 'lod1',
+assert.equal(chooseTreeLod(18, 500, true), 'lod0',
   'mobile devices should use the medium mesh with hundreds of close trees');
-assert.equal(chooseTreeLod(18, 5000, false), 'lod2',
+assert.equal(chooseTreeLod(18, 5000, false), 'lod1',
   'regional geometry should keep dense thousands-tree scenes inside the triangle budget');
-assert.equal(chooseTreeLod(15, 5000, false), 'lod2',
+assert.equal(chooseTreeLod(15, 5000, false), 'lod1',
   'the visible tree count must override a zoom-only high-detail choice');
 
 assert.equal(chooseTreeModel(
@@ -245,7 +245,7 @@ assert.equal(truncated.sourceCount, 3);
 assert.equal(truncated.truncated, 2,
   'the old renderer must remain available whenever the new renderer hit its safety cap');
 
-assert.equal(treeInstanceBudget({ mobile: true, lowMemory: true }), 1600);
+assert.equal(treeInstanceBudget({ mobile: true, lowMemory: true }), 1900);
 assert.equal(treeInstanceBudget({ mobile: true, lowMemory: false }), 4200);
 assert.equal(treeInstanceBudget({ mobile: false, highTier: true }), 16000);
 assert.equal(treeInstanceBudget({ mobile: false, highTier: false }), 10000);
@@ -264,7 +264,14 @@ assert.ok(source.includes('procedural-variants.json'), 'the renderer must load t
 assert.ok(source.includes('map.queryTerrainElevation'), 'instances must anchor to terrain elevation');
 assert.ok(source.includes('getMatrixForModel'), 'instances must use the existing MapLibre geographic transform');
 assert.ok(source.includes('bpTreeLod'), 'the renderer must reuse the existing source-backed tree point cache');
-assert.ok(source.includes("state.truncated === 0"), 'the legacy fallback must not be hidden after an instance-budget truncation');
+assert.ok(source.includes("state.unsupported === 0"), 'the renderer should preserve the legacy fallback when model types are unsupported');
+assert.ok(!source.includes("state.truncated === 0"), 'a truncated source set must still render all instances that fit the GPU budget');
+assert.ok(source.includes("partialInstanceBudget"), 'the renderer should expose a partial-capacity diagnostic');
+assert.ok(source.includes("bpRootPin = smoothstep"), 'the wind shader must pin the tree root so trunks remain attached to the ground');
+assert.ok(source.includes("groundElevationMeters"), 'each tree must retain its sampled terrain elevation in the stable render signature');
+assert.ok(source.includes("groundElevationSampledCount"), 'the renderer should report how many tree roots have sampled terrain elevation');
+assert.equal(chooseTreeLod(13.3, 1500, false), 'lod1', 'neighborhood-quality 3D models should begin at the earlier visibility zoom');
+assert.equal(chooseTreeLod(16.0, 500, true), 'lod0', 'phone trees should reach full close-up model detail at the close zoom');
 assert.ok(source.includes('restoreLegacyVisibility()'), 'the original fallback visibility must be restored on an asset failure');
 assert.ok(source.includes("renderer: 'THREE_INSTANCEDMESH_SHARED_MAPLIBRE_GL_CONTEXT'"),
   'the new renderer must share the existing map WebGL canvas/context');
