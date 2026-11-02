@@ -586,7 +586,6 @@ export function initWorld(options={}){
     }catch(error){layers[id]={present:false,error:String(error?.message||error)}}
    }
    window.__BP_SATELLITE_RASTER_VISIBILITY_GUARD_V6209__={version:6209,reason,restored,layers,updatedAt:Date.now()};
-   try{map.triggerRepaint()}catch(_){}
    return layers;
   }
   function restoreSatelliteRasterStack(){
