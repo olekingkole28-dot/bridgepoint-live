@@ -4,12 +4,13 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - feature/tree-asset-upgrade-v1
+      - feature/tree-assets-live-v2
     paths:
       - 'assets/trees/procedural-tree-archetypes-v1.json'
       - 'release-v2300/world-v2300-tree-catalog.js'
       - 'release-v2300/world-v2300-tree-instanced.js'
       - 'release-v2300/world-v2300-tree-canopy-lod.js'
+      - 'release-v2300/world-v2300-map.js'
       - 'release-v2300/world-v2300-map.js'
       - 'supabase/functions/bridgepoint-global-tree-viewport-v1101/index.ts'
       - 'tests/tree-viewport-capacity.test.mjs'
@@ -30,7 +31,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: feature/tree-asset-upgrade-v1
+          ref: feature/tree-assets-live-v2
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -44,6 +45,8 @@ jobs:
         run: node --check release-v2300/world-v2300-tree-instanced.js
       - name: Check the regional canopy LOD module
         run: node --check release-v2300/world-v2300-tree-canopy-lod.js
+      - name: Check the shared globe module
+        run: node --input-type=module --check < release-v2300/world-v2300-map.js
       - name: Check desktop and phone browser test syntax
         run: node --check tests/tree-instanced-renderer-browser.mjs
       - name: Verify tree viewport capacity and derived-position truth
