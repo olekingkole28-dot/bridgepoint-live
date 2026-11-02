@@ -43,18 +43,26 @@ async function deriveMetaTile(t:any,w:number,s:number,e:number,n:number,limit:nu
  let y0=Math.floor((bb[3]-inn)/(bb[3]-bb[1])*H),y1=Math.ceil((bb[3]-is)/(bb[3]-bb[1])*H);
  x0=clamp(x0,0,W-1);x1=clamp(x1,x0+1,W);y0=clamp(y0,0,H-1);y1=clamp(y1,y0+1,H);
  const midLat=(s+n)/2,groundScale=Math.max(.12,Math.cos(midLat*Math.PI/180));
- const targetSpacing=limit<=400?5.5:limit<=900?4.2:limit<=1800?3.0:2.2;
- const outW=Math.round(clamp((ie-iw)*groundScale/targetSpacing,32,2048));
- const outH=Math.round(clamp((inn-is)*groundScale/targetSpacing,32,2048));
- const rr:any=await img.readRasters({window:[x0,y0,x1,y1],width:outW,height:outH,resampleMethod:"nearest",interleave:true});
- const spacingX=((ie-iw)*groundScale)/outW,spacingY=((inn-is)*groundScale)/outH;
+ // One globally aligned sample lattice per source raster. Zooming/panning only changes
+ // the crop bounds, never the pixel phase, so the same canopy peak keeps the same ID.
+ const sampleStride=Math.max(1,Math.ceil(Math.max(W,H)/2048));
+ const pad=8*sampleStride;
+ const gx0=Math.max(0,Math.floor(Math.max(0,x0-pad)/sampleStride)*sampleStride);
+ const gy0=Math.max(0,Math.floor(Math.max(0,y0-pad)/sampleStride)*sampleStride);
+ const gx1=Math.min(W,Math.ceil(Math.min(W,x1+pad)/sampleStride)*sampleStride);
+ const gy1=Math.min(H,Math.ceil(Math.min(H,y1+pad)/sampleStride)*sampleStride);
+ const outW=Math.max(1,Math.ceil((gx1-gx0)/sampleStride));
+ const outH=Math.max(1,Math.ceil((gy1-gy0)/sampleStride));
+ const rr:any=await img.readRasters({window:[gx0,gy0,gx1,gy1],width:outW,height:outH,resampleMethod:"nearest",interleave:true});
+ const pixelMetersX=(bb[2]-bb[0])/W,pixelMetersY=(bb[3]-bb[1])/H;
+ const spacingX=pixelMetersX*sampleStride*groundScale,spacingY=pixelMetersY*sampleStride*groundScale;
  const peaks=detectCanopyPeaks(rr,outW,outH,{
   spacingMetersX:spacingX,spacingMetersY:spacingY,minHeightMeters:2.5,
   maxInstances:Math.min(6000,limit*2),seed:t.quadkey
  });
  const truth=treeCandidateSourceTruth();
  return peaks.map(peak=>{
-  const ox=x0+(peak.x+.5)*(x1-x0)/outW,oy=y0+(peak.y+.5)*(y1-y0)/outH;
+  const ox=gx0+(peak.x+.5)*(gx1-gx0)/outW,oy=gy0+(peak.y+.5)*(gy1-gy0)/outH;
   const px=Math.max(0,Math.min(W-1,Math.round(ox))),py=Math.max(0,Math.min(H-1,Math.round(oy)));
   const mx=bb[0]+(ox/W)*(bb[2]-bb[0]),my=bb[3]-(oy/H)*(bb[3]-bb[1]),ll=invMerc(mx,my),lon=ll[0],lat=ll[1];
   if(lon<w||lon>e||lat<s||lat>n)return null;
