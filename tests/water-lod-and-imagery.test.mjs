@@ -16,6 +16,7 @@ assert.ok(mapSource.includes("map.moveLayer(id,'gta-coast-shadow')"), 'satellite
 assert.ok(mapSource.includes("setBase('satellite')"), 'satellite imagery must be enabled by default');
 assert.ok(mapSource.includes("defaultBase:'satellite'") && mapSource.includes('satelliteManualOnly:false'), 'zoom-aware satellite imagery must be default');
 assert.ok(mapSource.includes("id:'gta-global-earth',type:'raster',source:'globalEarth',minzoom:0,maxzoom:22"), 'the EPSG:4326 Blue Marble image must provide a continuous whole-earth underlay');
+assert.ok(mapSource.includes("globalEarth:{type:'image',url:GLOBAL_EARTH,coordinates:[[-179.999,89.999],[179.999,89.999],[179.999,-89.999],[-179.999,-89.999]]"), 'the global satellite underlay must use a whole-earth image source with polar-edge coordinates');
 assert.ok(mapSource.includes("id:'gta-nasa',type:'raster',source:'nasa',minzoom:0,maxzoom:22"), 'NASA tile imagery remains available at every zoom as a fallback');
 assert.ok(mapSource.includes("id:'gta-esri',type:'raster',source:'esri',minzoom:0,maxzoom:22"), 'Esri imagery must start at globe zoom with no minzoom handoff gap');
 assert.ok(mapSource.includes("id:'gta-usgs',type:'raster',source:'usgs',minzoom:11,maxzoom:17"), 'USGS imagery must overlay Esri where U.S. tiles exist');
