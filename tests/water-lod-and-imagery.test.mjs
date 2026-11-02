@@ -21,12 +21,12 @@ assert.ok(mapSource.includes("setBase('satellite')"), 'satellite imagery must be
 assert.ok(mapSource.includes("defaultBase:'satellite'") && mapSource.includes('satelliteManualOnly:false'), 'zoom-aware satellite imagery must be default');
 assert.ok(!mapSource.includes('GLOBAL_EARTH')&&!mapSource.includes('globalEarth')&&!mapSource.includes('gta-global-earth'), 'the single EPSG:4326 image overlay must stay removed because it warps across the globe projection');
 assert.ok(mapSource.includes("id:'gta-nasa',type:'raster',source:'nasa',minzoom:0,maxzoom:22")&&mapSource.includes("id:'gta-esri',type:'raster',source:'esri',minzoom:0,maxzoom:22"), 'the persistent base must use native tile-backed NASA and Esri raster sources only');
-assert.ok(mapSource.includes('styles=default&bbox=-90,-180,90,180'), 'the global NASA WMS must request its published default layer style');
+assert.ok(!mapSource.includes('service=WMS')&&!mapSource.includes('crs=EPSG:4326'), 'the globe must not add a stretched whole-world WMS image overlay');
 assert.ok(mapSource.includes("id:'gta-nasa',type:'raster',source:'nasa',minzoom:0,maxzoom:22"), 'NASA tile imagery remains available at every zoom as a fallback');
 assert.ok(mapSource.includes("id:'gta-esri',type:'raster',source:'esri',minzoom:0,maxzoom:22"), 'Esri imagery must start at globe zoom with no minzoom handoff gap');
 assert.ok(mapSource.includes("id:'gta-usgs',type:'raster',source:'usgs',minzoom:11,maxzoom:17"), 'USGS imagery must overlay Esri where U.S. tiles exist');
 assert.ok(mapSource.includes("id:'gta-oam',type:'raster',source:'oam',minzoom:14,maxzoom:21"), 'OpenAerialMap imagery must overlay where local aerial tiles exist');
-assert.ok(mapSource.includes("window.__BP_GLOBAL_IMAGERY_LOD_V6201__"), 'runtime must expose the active imagery stack');
+assert.ok(mapSource.includes("window.__BP_GLOBAL_IMAGERY_LOD_V6210__"), 'runtime must expose the active imagery stack');
 assert.ok(mapSource.includes("minzoom:7,maxzoom:11.25"), 'generalized building footprints must start at regional zoom');
 assert.ok(mapSource.includes("layerState={parcels:false,buildings:true}"), 'building layer must initialize enabled');
 assert.ok(mapSource.includes("const tier='GOLD';"), 'world renderer must pin Gold LOD');
