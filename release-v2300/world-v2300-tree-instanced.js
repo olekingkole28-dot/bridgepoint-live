@@ -4,6 +4,7 @@ const VERSION = 1;
 const LAYER_ID = 'bp-v2300-instanced-trees-v1';
 const MANIFEST_URL = '/assets/trees/manifest.json';
 const VARIANTS_URL = '/assets/trees/procedural-variants.json';
+const TAXONOMY_INDEX_URL = '/assets/trees/taxonomy-index.json';
 const THREE_URL = 'https://esm.sh/three@0.169.0';
 const GLTF_URL = 'https://esm.sh/three@0.169.0/examples/jsm/loaders/GLTFLoader.js';
 const LEGACY_LAYER_IDS = [
@@ -18,6 +19,54 @@ const FALLBACK_CONIFER_MODEL = 'fir_sapling_medium';
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const finite = value => Number.isFinite(Number(value));
 const asArray = value => Array.isArray(value) ? value : [];
+const CONIFER_FAMILIES = new Set([
+  'pinaceae', 'cupressaceae', 'taxaceae', 'araucariaceae',
+  'podocarpaceae', 'cephalotaxaceae', 'sciadopityaceae'
+]);
+const PALM_FAMILIES = new Set(['arecaceae']);
+const normalizeTaxonName = value => String(value || '')
+  .normalize('NFKD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .replace(/×/g, ' ')
+  .toLowerCase()
+  .replace(/\s+/g, ' ')
+  .trim();
+
+function morphologyFromTaxonomy(functionalType, family) {
+  const type = String(functionalType || '').toLowerCase();
+  const familyKey = String(family || '').toLowerCase();
+  if (PALM_FAMILIES.has(familyKey)) return 'palm';
+  if (CONIFER_FAMILIES.has(familyKey) || type.includes('needleleaf') || type.includes('needle leaf')) {
+    return 'conifer';
+  }
+  if (type.includes('deciduous') && type.includes('broadleaf')) return 'broadleaf_deciduous';
+  if (type.includes('evergreen') && type.includes('broadleaf')) return 'broadleaf_evergreen';
+  return null;
+}
+
+export function enrichTreeWithTaxonomy(tree, taxonomyIndex) {
+  if (!tree || !taxonomyIndex) return tree;
+  const key = normalizeTaxonName(tree.identity?.scientificName);
+  if (!key) return tree;
+  const taxon = taxonomyIndex[key];
+  if (!taxon) return tree;
+  const form = morphologyFromTaxonomy(taxon.functionalType, taxon.family);
+  return {
+    ...tree,
+    identity: {
+      ...tree.identity,
+      genus: taxon.genus || tree.identity?.genus || null,
+      family: taxon.family || tree.identity?.family || null,
+      taxonomyCatalogMatch: true,
+      taxonomyCatalogKey: taxon.key || null
+    },
+    morphology: {
+      ...tree.morphology,
+      form: form || tree.morphology?.form || 'unclassified_tree',
+      taxonomyFunctionalType: taxon.functionalType || null
+    }
+  };
+}
 
 export function chooseTreeLod(zoom) {
   const z = Number(zoom);
@@ -113,7 +162,13 @@ function variantForTree(tree, modelId, variantsByArchetype) {
   return candidates[index] || null;
 }
 
-export function normalizeViewportTrees(features, models, maxInstances, variantsByArchetype = null) {
+export function normalizeViewportTrees(
+  features,
+  models,
+  maxInstances,
+  variantsByArchetype = null,
+  taxonomyIndex = null
+) {
   const output = [];
   const seen = new Set();
   const supported = new Set(asArray(models).map(model => model.id));
@@ -123,10 +178,11 @@ export function normalizeViewportTrees(features, models, maxInstances, variantsB
   const modelById = new Map(asArray(models).map(model => [model.id, model]));
 
   for (const feature of asArray(features)) {
-    const tree = normalizeTreeFeature(feature);
-    if (!tree || seen.has(tree.id)) continue;
-    seen.add(tree.id);
+    const rawTree = normalizeTreeFeature(feature);
+    if (!rawTree || seen.has(rawTree.id)) continue;
+    seen.add(rawTree.id);
     sourceCount++;
+    const tree = enrichTreeWithTaxonomy(rawTree, taxonomyIndex);
     const modelId = chooseTreeModel(tree, models);
     if (!modelId || !supported.has(modelId)) {
       unsupported++;
@@ -268,13 +324,16 @@ function installWindShader(material, uniforms) {
       float bpTreeHeight = clamp(position.y, 0.0, 1.0);
       float bpCrownMask = smoothstep(0.24, 0.82, bpTreeHeight);
       float bpCrownRadial = 1.0 + bpTreeMorph.x * bpCrownMask;
-      transformed.x *= bpCrownRadial;
-      transformed.z *= (1.0 + bpTreeMorph.z * bpCrownMask);
+      float bpLeafMask = smoothstep(0.58, 0.92, bpWindWeight);
+      float bpLeafScale = 1.0 + bpTreeFoliage.x * bpLeafMask;
+      transformed.x *= bpCrownRadial * bpLeafScale;
+      transformed.z *= (1.0 + bpTreeMorph.z * bpCrownMask) * bpLeafScale;
       transformed.x += bpTreeMorph.y * bpCrownMask;
       transformed.z += bpTreeMorph.w * bpCrownMask * (0.22 + bpTreeHeight * 0.35);
-      float bpGustA = sin(bpWindTime * 1.15 + position.y * 7.0 + position.x * 2.3 + bpTreeMorph.w * 5.0);
+      float bpDensity = clamp(1.0 + bpTreeFoliage.y * 1.1, 0.75, 1.25);
+      float bpGustA = sin(bpWindTime * 1.15 + position.y * 7.0 + position.x * 2.3 + bpTreeFoliage.z * 6.28318);
       float bpGustB = sin(bpWindTime * 0.57 + position.y * 3.2 + position.z * 4.1 + bpTreeMorph.y * 8.0);
-      float bpFlex = bpWindWeight * bpWindStrength * (0.72 * bpGustA + 0.28 * bpGustB) * 0.075;
+      float bpFlex = bpWindWeight * bpWindStrength * bpDensity * (0.72 * bpGustA + 0.28 * bpGustB) * 0.075;
       vec3 bpWindLocal = normalize(vec3(bpWindDirection.x, 0.0, bpWindDirection.y));
       #ifdef USE_INSTANCING
         bpWindLocal = normalize(transpose(mat3(instanceMatrix)) * bpWindLocal);
@@ -378,6 +437,8 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
     modelCount: 0,
     proceduralModelCount: 0,
     proceduralVariantCount: 0,
+    taxonomySpeciesCount: 0,
+    taxonomyMatches: 0,
     variantCountUsed: 0,
     instanceCount: 0,
     gpuDrawCalls: 0,
@@ -395,6 +456,7 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
 
   let manifest = null;
   let variantsByArchetype = new Map();
+  let taxonomyIndex = null;
   let THREE = null;
   let loader = null;
   let layer = null;
@@ -468,10 +530,31 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
       }
       state.proceduralVariantCount = variantCatalog.variantCount;
     }
+
+    if (proceduralModels.length) {
+      const taxonomyResponse = await fetch(options.taxonomyIndexUrl || TAXONOMY_INDEX_URL, {
+        cache: 'force-cache',
+        credentials: 'omit',
+        headers: { Accept: 'application/json' }
+      });
+      if (!taxonomyResponse.ok) {
+        throw new Error('TREE_TAXONOMY_INDEX_HTTP_' + taxonomyResponse.status);
+      }
+      const taxonomyCatalog = await taxonomyResponse.json();
+      if (taxonomyCatalog.schemaVersion !== 1 ||
+          taxonomyCatalog.license !== 'CC-BY-4.0' ||
+          !taxonomyCatalog.species ||
+          Object.keys(taxonomyCatalog.species).length < 20000) {
+        throw new Error('TREE_TAXONOMY_INDEX_INVALID');
+      }
+      taxonomyIndex = taxonomyCatalog.species;
+      state.taxonomySpeciesCount = Object.keys(taxonomyIndex).length;
+    }
     publish('manifest-ready', {
       modelCount: manifest.models.length,
       proceduralModelCount: proceduralModels.length,
-      proceduralVariantCount: state.proceduralVariantCount
+      proceduralVariantCount: state.proceduralVariantCount,
+      taxonomySpeciesCount: state.taxonomySpeciesCount
     });
   }
 
@@ -557,6 +640,7 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
         for (const part of loaded.meshes) {
           const instanceGeometry = part.geometry.clone();
           const morphData = new Float32Array(treeModels.length * 4);
+          const foliageData = new Float32Array(treeModels.length * 3);
           const foliageColors = new Float32Array(treeModels.length * 3);
           for (let i = 0; i < treeModels.length; i++) {
             const params = treeModels[i].variantParameters || {};
@@ -564,9 +648,14 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
             morphData[i * 4 + 1] = clamp(Number(params.crownOffset || 0), -0.08, 0.08);
             morphData[i * 4 + 2] = clamp(Number(params.crownDepth ?? 1) - 1, -0.25, 0.25);
             morphData[i * 4 + 3] = clamp(Number(params.branchAsymmetry || 0), -0.25, 0.25);
-            const phase = Number(params.windPhase || stableNumber(treeModels[i].id) * Math.PI * 2);
+            foliageData[i * 3 + 0] = clamp(Number(params.leafScale ?? 1) - 1, -0.2, 0.2);
+            foliageData[i * 3 + 1] = clamp(Number(params.foliageDensity ?? 1) - 1, -0.2, 0.2);
+            foliageData[i * 3 + 2] = clamp(Number(params.windPhase || 0) / (Math.PI * 2), 0, 1);
+            const density = clamp(Number(params.foliageDensity ?? 1), 0.82, 1.18);
             const hue = 0.285 + (stableNumber(treeModels[i].id + '|hue') - 0.5) * 0.035;
-            const color = new THREE.Color().setHSL(hue, 0.28 + stableNumber(treeModels[i].id + '|sat') * 0.12, 0.86 + phase * 0.0001);
+            const saturation = clamp(0.30 + (density - 1) * 0.55, 0.18, 0.42);
+            const lightness = clamp(0.55 - (density - 1) * 0.24, 0.48, 0.62);
+            const color = new THREE.Color().setHSL(hue, saturation, lightness);
             foliageColors[i * 3 + 0] = color.r;
             foliageColors[i * 3 + 1] = color.g;
             foliageColors[i * 3 + 2] = color.b;
@@ -575,6 +664,10 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
           instanceGeometry.setAttribute(
             'bpTreeMorph',
             new THREE.InstancedBufferAttribute(morphData, 4)
+          );
+          instanceGeometry.setAttribute(
+            'bpTreeFoliage',
+            new THREE.InstancedBufferAttribute(foliageData, 3)
           );
           const mesh = new THREE.InstancedMesh(instanceGeometry, part.material, treeModels.length);
           mesh.count = treeModels.length;
@@ -614,6 +707,7 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
           mesh.instanceMatrix.needsUpdate = true;
           if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
           mesh.geometry.getAttribute('bpTreeMorph').needsUpdate = true;
+          mesh.geometry.getAttribute('bpTreeFoliage').needsUpdate = true;
           mesh.computeBoundingSphere?.();
           nextMeshes.push(mesh);
         }
@@ -659,7 +753,12 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
       const provisional = { coordinates: coordinate };
       return pointInsideBounds(map, provisional);
     });
-    const normalized = normalizeViewportTrees(all, manifest.models, maxInstances, variantsByArchetype);
+    const normalized = normalizeViewportTrees(
+      all, manifest.models, maxInstances, variantsByArchetype, taxonomyIndex
+    );
+    state.taxonomyMatches = normalized.trees.filter(tree =>
+      tree.identity?.taxonomyCatalogMatch === true
+    ).length;
     const nextTrees = normalized.trees;
     const nextLod = chooseTreeLod(map.getZoom());
     const signature = nextTrees.map(tree =>
