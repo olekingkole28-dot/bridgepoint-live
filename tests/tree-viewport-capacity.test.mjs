@@ -87,8 +87,10 @@ assert.match(mapSource, /Math\.min\(MOBILE\?1800:3000,normalTreeLimit\)/,
   'tree requests must keep explicit mobile and desktop response caps');
 assert.match(mapSource, /map\.getSource\('bpTreeLod'\)\?\.setData\(\{type:'FeatureCollection',features:\[\.\.\.retainedTrees\]\}\)/,
   'the active tree source must clear stale features when the current tile is empty');
+assert.match(mapSource, /properties\\?\.tile_key\\|\\|''\)===String\(trees\.active_tile/,
+  'only points from the currently active source tile may stay in the tree retention cache');
 assert.match(mapSource, /retainedTrees=mergeLodFeatureCache/,
-  'trees already loaded in the current nearby navigation region must remain cached');
+  'tree records from the current tile should stay cached across zoom-only changes');
 
 assert.match(rendererSource, /if \(z >= 16\.0/,
   'the full-resolution 3D tree LOD should begin earlier on close zoom');
