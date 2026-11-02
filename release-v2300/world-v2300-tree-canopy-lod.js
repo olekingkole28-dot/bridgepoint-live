@@ -4,12 +4,12 @@ const SOURCE_ID = 'ofm';
 const SOURCE_LAYER = 'landcover';
 const INDIVIDUAL_TREE_HANDOFF_ZOOM = 11.7;
 
-export function treeCoverLayerSpec() {
-  return {
+export function treeCoverLayerSpec({ geojson = false } = {}) {
+  const spec = {
     id: TREE_COVER_LAYER_ID,
     type: 'fill',
     source: SOURCE_ID,
-    'source-layer': SOURCE_LAYER,
+    ...(geojson ? {} : { 'source-layer': SOURCE_LAYER }),
     minzoom: 2,
     maxzoom: 12.35,
     filter: [
@@ -45,6 +45,7 @@ export function treeCoverLayerSpec() {
       ]
     }
   };
+  return spec;
 }
 
 export function installRegionalTreeCoverLayer(map) {
@@ -80,7 +81,8 @@ export function installRegionalTreeCoverLayer(map) {
       const before = map.getLayer?.('gta-landuse')
         ? 'gta-landuse'
         : (map.getLayer?.('gta-hillshade') ? 'gta-hillshade' : undefined);
-      map.addLayer(treeCoverLayerSpec(), before);
+      const sourceType = map.getSource?.(SOURCE_ID)?._options?.type;
+      map.addLayer(treeCoverLayerSpec({ geojson: sourceType === 'geojson' }), before);
     }
     state.status = map.getLayer?.(TREE_COVER_LAYER_ID) ? 'active' : 'install-failed';
     state.updatedAt = Date.now();
