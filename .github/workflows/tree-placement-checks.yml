@@ -11,6 +11,16 @@ on:
       - 'tests/tree-*.mjs'
       - 'tests/tree-placement.test.mjs'
       - '.github/workflows/tree-placement-checks.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'release-v2300/world-v2300-tree-instanced.js'
+      - 'release-v2300/world-v2300-map.js'
+      - 'supabase/functions/bridgepoint-global-tree-viewport-v1101/**'
+      - 'supabase/migrations/*tree_canopy_local_maxima*'
+      - 'tests/tree-*.mjs'
+      - 'tests/tree-placement.test.mjs'
+      - '.github/workflows/tree-placement-checks.yml'
   workflow_dispatch:
 
 permissions:
