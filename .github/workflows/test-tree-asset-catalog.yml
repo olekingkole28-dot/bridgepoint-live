@@ -1,0 +1,52 @@
+name: Verify BridgePoint Tree Asset Catalog
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/tree-assets-live-v2
+    paths:
+      - 'assets/trees/procedural-tree-archetypes-v1.json'
+      - 'release-v2300/world-v2300-tree-catalog.js'
+      - 'release-v2300/world-v2300-tree-instanced.js'
+      - 'release-v2300/world-v2300-tree-canopy-lod.js'
+      - 'release-v2300/world-v2300-map.js'
+      - 'supabase/functions/bridgepoint-global-tree-viewport-v1101/index.ts'
+      - 'tests/tree-viewport-capacity.test.mjs'
+      - 'tools/trees/**'
+      - 'tests/tree-model-catalog.test.py'
+      - 'tests/tree-asset-catalog.test.mjs'
+      - 'tests/tree-instanced-renderer.test.mjs'
+      - 'tests/tree-instanced-renderer-browser.mjs'
+      - '.github/workflows/test-tree-asset-catalog.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  tree-asset-catalog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/tree-assets-live-v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check module syntax
+        run: node --check release-v2300/world-v2300-tree-catalog.js
+      - name: Verify source-truth and species normalization
+        run: node tests/tree-asset-catalog.test.mjs
+      - name: Verify GPU instancing, source placement and safe fallback contracts
+        run: node tests/tree-instanced-renderer.test.mjs
+      - name: Check the additive globe renderer module
+        run: node --check release-v2300/world-v2300-tree-instanced.js
+      - name: Check the regional canopy LOD module
+        run: node --check release-v2300/world-v2300-tree-canopy-lod.js
+      - name: Check the shared globe module
+        run: node --input-type=module --check < release-v2300/world-v2300-map.js
+      - name: Check desktop and phone browser test syntax
+        run: node --check tests/tree-instanced-renderer-browser.mjs
+      - name: Verify tree viewport capacity and derived-position truth
+        run: node tests/tree-viewport-capacity.test.mjs

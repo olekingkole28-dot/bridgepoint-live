@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "catalogId": "bridgepoint-cc0-tree-models-poc-v1",
+  "generatedAt": "2026-11-02",
+  "sourceProvider": "Poly Haven",
+  "sourceApi": "https://api.polyhaven.com",
+  "sourceApiUserAgent": "BridgePoint-Tree-Asset-Pipeline/1.0",
+  "license": "CC0-1.0",
+  "credit": "Tree model assets: Poly Haven (CC0). Model authors are retained in the generated asset manifest.",
+  "notes": [
+    "This is a reviewed starter library, not a complete global botanical catalogue.",
+    "A model family or genus match is a visual proxy unless an exact species match is explicitly recorded.",
+    "Tree coordinates and real-world heights always come from BridgePoint source records, never from these model assets."
+  ],
+  "lodTargets": {
+    "lod0": {
+      "maxTriangles": 120000,
+      "description": "close inspection"
+    },
+    "lod1": {
+      "maxTriangles": 25000,
+      "description": "street and neighborhood"
+    },
+    "lod2": {
+      "maxTriangles": 4500,
+      "description": "regional and distant"
+    }
+  },
+  "models": [
+    {
+      "id": "fir_sapling_medium",
+      "displayName": "Fir Sapling Medium",
+      "modelFamily": "conifer",
+      "botanicalMatch": {
+        "level": "genus",
+        "scientificName": "Abies",
+        "confidence": "fir-model-genus-proxy"
+      },
+      "leafType": "needle",
+      "leafCycle": "evergreen",
+      "sourceUrl": "https://polyhaven.com/a/fir_sapling_medium",
+      "thumbnailUrl": "https://cdn.polyhaven.com/asset_img/thumbs/fir_sapling_medium.png",
+      "purpose": "Branch-rich fir silhouette with dense needle foliage; source tree height controls BridgePoint world scale."
+    },
+    {
+      "id": "jacaranda_tree",
+      "displayName": "Jacaranda Tree",
+      "modelFamily": "broadleaf",
+      "botanicalMatch": {
+        "level": "genus",
+        "scientificName": "Jacaranda",
+        "confidence": "asset-name-genus"
+      },
+      "leafType": "broadleaf",
+      "leafCycle": "seasonal_or_unknown",
+      "sourceUrl": "https://polyhaven.com/a/jacaranda_tree",
+      "thumbnailUrl": "https://cdn.polyhaven.com/asset_img/thumbs/jacaranda_tree.png",
+      "purpose": "Wide, leafy broadleaf canopy and multi-trunk silhouette."
+    },
+    {
+      "id": "tree_small_02",
+      "displayName": "Tree Small 02",
+      "modelFamily": "broadleaf",
+      "botanicalMatch": {
+        "level": "species-tag",
+        "scientificName": "Burkea africana",
+        "confidence": "poly-haven-tags-not-field-identification"
+      },
+      "leafType": "broadleaf",
+      "leafCycle": "seasonal_or_unknown",
+      "sourceUrl": "https://polyhaven.com/a/tree_small_02",
+      "thumbnailUrl": "https://cdn.polyhaven.com/asset_img/thumbs/tree_small_02.png",
+      "purpose": "Airy savanna broadleaf canopy; asset tags include Burkea africana / Wild Syringa."
+    }
+  ]
+}

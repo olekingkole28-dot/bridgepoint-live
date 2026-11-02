@@ -1,0 +1,1004 @@
+{
+  "schemaVersion": 1,
+  "catalogId": "bridgepoint-procedural-tree-archetypes-v1",
+  "modelBaseCount": 48,
+  "variantsPerArchetype": 64,
+  "proceduralVariantCount": 3072,
+  "variantMethod": "DETERMINISTIC_INSTANCE_MORPH_PARAMETERS_OVER_SHARED_BAKED_ARCHETYPE_GEOMETRY",
+  "axis": "Y",
+  "lodTargets": {
+    "lod0": {
+      "maxTriangles": 16000,
+      "description": "street close-up: detailed branch forks, finer twig tips and dense foliage"
+    },
+    "lod1": {
+      "maxTriangles": 4200,
+      "description": "neighborhood: primary branches and distinct foliage clusters"
+    },
+    "lod2": {
+      "maxTriangles": 900,
+      "description": "regional: silhouette trunk, primary branches and canopy mass"
+    }
+  },
+  "provenance": {
+    "generator": "BridgePoint original procedural branch/foliage builder",
+    "externalGeneratorCode": false,
+    "license": "Apache-2.0",
+    "note": "The generator is original BridgePoint code. Model shapes are parametric morphotypes; do not label them as species-exact unless a separately verified asset is used."
+  },
+  "entries": [
+    {
+      "id": "oak_spreading",
+      "displayName": "Oak — broad spreading crown",
+      "modelFamily": "broadleaf_deciduous",
+      "leafCycle": "deciduous",
+      "leafType": "broadleaf",
+      "crownShape": "spreading",
+      "knownGenera": [
+        "Quercus"
+      ],
+      "foliageStyle": "broad",
+      "trunkStyle": "single",
+      "crownWidthRatio": 0.72,
+      "crownHeightRatio": 0.58,
+      "branchLevels": 3,
+      "primaryBranches": 7,
+      "foliageDensity": 3.2,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "maple_round",
+      "displayName": "Maple — rounded crown",
+      "modelFamily": "broadleaf_deciduous",
+      "leafCycle": "deciduous",
+      "leafType": "broadleaf",
+      "crownShape": "rounded",
+      "knownGenera": [
+        "Acer"
+      ],
+      "foliageStyle": "broad",
+      "trunkStyle": "single",
+      "crownWidthRatio": 0.68,
+      "crownHeightRatio": 0.62,
+      "branchLevels": 3,
+      "primaryBranches": 8,
+      "foliageDensity": 3.5,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "maple_vase",
+      "displayName": "Maple — vase crown",
+      "modelFamily": "broadleaf_deciduous",
+      "leafCycle": "deciduous",
+      "leafType": "broadleaf",
+      "crownShape": "vase",
+      "knownGenera": [
+        "Acer"
+      ],
+      "foliageStyle": "broad",
+      "trunkStyle": "single",
+      "crownWidthRatio": 0.66,
+      "crownHeightRatio": 0.62,
+      "branchLevels": 3,
+      "primaryBranches": 8,
+      "foliageDensity": 3.2,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "birch_columnar",
+      "displayName": "Birch — columnar crown",
+      "modelFamily": "broadleaf_deciduous",
+      "leafCycle": "deciduous",
+      "leafType": "broadleaf",
+      "crownShape": "columnar",
+      "knownGenera": [
+        "Betula"
+      ],
+      "foliageStyle": "airy",
+      "trunkStyle": "single",
+      "crownWidthRatio": 0.42,
+      "crownHeightRatio": 0.7,
+      "branchLevels": 3,
+      "primaryBranches": 7,
+      "foliageDensity": 2.8,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "birch_airy",
+      "displayName": "Birch — airy crown",
+      "modelFamily": "broadleaf_deciduous",
+      "leafCycle": "deciduous",
+      "leafType": "broadleaf",
+      "crownShape": "airy",
+      "knownGenera": [
+        "Betula"
+      ],
+      "foliageStyle": "airy",
+      "trunkStyle": "multi",
+      "crownWidthRatio": 0.66,
+      "crownHeightRatio": 0.52,
+      "branchLevels": 3,
+      "primaryBranches": 7,
+      "foliageDensity": 3.2,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "beech_dense",
+      "displayName": "Beech — dense oval crown",
+      "modelFamily": "broadleaf_deciduous",
+      "leafCycle": "deciduous",
+      "leafType": "broadleaf",
+      "crownShape": "oval",
+      "knownGenera": [
+        "Fagus"
+      ],
+      "foliageStyle": "dense",
+      "trunkStyle": "single",
+      "crownWidthRatio": 0.66,
+      "crownHeightRatio": 0.62,
+      "branchLevels": 3,
+      "primaryBranches": 8,
+      "foliageDensity": 3.5,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "elm_vase",
+      "displayName": "Elm — vase crown",
+      "modelFamily": "broadleaf_deciduous",
+      "leafCycle": "deciduous",
+      "leafType": "broadleaf",
+      "crownShape": "vase",
+      "knownGenera": [
+        "Ulmus"
+      ],
+      "foliageStyle": "broad",
+      "trunkStyle": "single",
+      "crownWidthRatio": 0.7,
+      "crownHeightRatio": 0.61,
+      "branchLevels": 3,
+      "primaryBranches": 8,
+      "foliageDensity": 3.6,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "ash_open",
+      "displayName": "Ash — open crown",
+      "modelFamily": "broadleaf_deciduous",
+      "leafCycle": "deciduous",
+      "leafType": "compound",
+      "crownShape": "open",
+      "knownGenera": [
+        "Fraxinus"
+      ],
+      "foliageStyle": "airy",
+      "trunkStyle": "single",
+      "crownWidthRatio": 0.64,
+      "crownHeightRatio": 0.62,
+      "branchLevels": 3,
+      "primaryBranches": 8,
+      "foliageDensity": 3.2,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "linden_oval",
+      "displayName": "Linden — oval crown",
+      "modelFamily": "broadleaf_deciduous",
+      "leafCycle": "deciduous",
+      "leafType": "broadleaf",
+      "crownShape": "oval",
+      "knownGenera": [
+        "Tilia"
+      ],
+      "foliageStyle": "dense",
+      "trunkStyle": "single",
+      "crownWidthRatio": 0.62,
+      "crownHeightRatio": 0.62,
+      "branchLevels": 3,
+      "primaryBranches": 8,
+      "foliageDensity": 3.4,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "plane_spread",
+      "displayName": "Plane tree — broad crown",
+      "modelFamily": "broadleaf_deciduous",
+      "leafCycle": "deciduous",
+      "leafType": "broadleaf",
+      "crownShape": "spreading",
+      "knownGenera": [
+        "Platanus"
+      ],
+      "foliageStyle": "broad",
+      "trunkStyle": "single",
+      "crownWidthRatio": 0.78,
+      "crownHeightRatio": 0.55,
+      "branchLevels": 3,
+      "primaryBranches": 9,
+      "foliageDensity": 3.7,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "poplar_columnar",
+      "displayName": "Poplar — narrow column",
+      "modelFamily": "broadleaf_deciduous",
+      "leafCycle": "deciduous",
+      "leafType": "broadleaf",
+      "crownShape": "columnar",
+      "knownGenera": [
+        "Populus"
+      ],
+      "foliageStyle": "airy",
+      "trunkStyle": "single",
+      "crownWidthRatio": 0.34,
+      "crownHeightRatio": 0.72,
+      "branchLevels": 3,
+      "primaryBranches": 7,
+      "foliageDensity": 2.6,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "willow_weeping",
+      "displayName": "Willow — drooping crown",
+      "modelFamily": "broadleaf_deciduous",
+      "leafCycle": "deciduous",
+      "leafType": "broadleaf",
+      "crownShape": "weeping",
+      "knownGenera": [
+        "Salix"
+      ],
+      "foliageStyle": "drooping",
+      "trunkStyle": "single",
+      "crownWidthRatio": 0.82,
+      "crownHeightRatio": 0.56,
+      "branchLevels": 3,
+      "primaryBranches": 8,
+      "foliageDensity": 3.6,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "cherry_flowering",
+      "displayName": "Flowering cherry — vase crown",
+      "modelFamily": "broadleaf_deciduous",
+      "leafCycle": "deciduous",
+      "leafType": "broadleaf",
+      "crownShape": "flowering",
+      "knownGenera": [
+        "Prunus"
+      ],
+      "foliageStyle": "flowering",
+      "trunkStyle": "single",
+      "crownWidthRatio": 0.66,
+      "crownHeightRatio": 0.58,
+      "branchLevels": 3,
+      "primaryBranches": 8,
+      "foliageDensity": 3.1,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "magnolia_deciduous",
+      "displayName": "Magnolia — layered crown",
+      "modelFamily": "broadleaf_deciduous",
+      "leafCycle": "deciduous",
+      "leafType": "broadleaf",
+      "crownShape": "layered",
+      "knownGenera": [
+        "Magnolia"
+      ],
+      "foliageStyle": "broad",
+      "trunkStyle": "multi",
+      "crownWidthRatio": 0.64,
+      "crownHeightRatio": 0.6,
+      "branchLevels": 3,
+      "primaryBranches": 7,
+      "foliageDensity": 3,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "ginkgo_pyramidal",
+      "displayName": "Ginkgo — pyramidal crown",
+      "modelFamily": "broadleaf_deciduous",
+      "leafCycle": "deciduous",
+      "leafType": "broadleaf",
+      "crownShape": "pyramidal",
+      "knownGenera": [
+        "Ginkgo"
+      ],
+      "foliageStyle": "fan",
+      "trunkStyle": "single",
+      "crownWidthRatio": 0.52,
+      "crownHeightRatio": 0.68,
+      "branchLevels": 3,
+      "primaryBranches": 7,
+      "foliageDensity": 2.9,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "chestnut_broad",
+      "displayName": "Chestnut — broad crown",
+      "modelFamily": "broadleaf_deciduous",
+      "leafCycle": "deciduous",
+      "leafType": "broadleaf",
+      "crownShape": "broad",
+      "knownGenera": [
+        "Castanea"
+      ],
+      "foliageStyle": "broad",
+      "trunkStyle": "single",
+      "crownWidthRatio": 0.78,
+      "crownHeightRatio": 0.55,
+      "branchLevels": 3,
+      "primaryBranches": 9,
+      "foliageDensity": 3.6,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "walnut_broad",
+      "displayName": "Walnut — irregular broad crown",
+      "modelFamily": "broadleaf_deciduous",
+      "leafCycle": "deciduous",
+      "leafType": "compound",
+      "crownShape": "irregular",
+      "knownGenera": [
+        "Juglans"
+      ],
+      "foliageStyle": "compound",
+      "trunkStyle": "single",
+      "crownWidthRatio": 0.78,
+      "crownHeightRatio": 0.55,
+      "branchLevels": 3,
+      "primaryBranches": 8,
+      "foliageDensity": 3.4,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "fruit_orchard_round",
+      "displayName": "Orchard fruit tree — compact crown",
+      "modelFamily": "broadleaf_deciduous",
+      "leafCycle": "deciduous",
+      "leafType": "broadleaf",
+      "crownShape": "compact",
+      "knownGenera": [
+        "Malus",
+        "Pyrus",
+        "Prunus",
+        "Citrus"
+      ],
+      "foliageStyle": "compact",
+      "trunkStyle": "single",
+      "crownWidthRatio": 0.56,
+      "crownHeightRatio": 0.53,
+      "branchLevels": 3,
+      "primaryBranches": 6,
+      "foliageDensity": 2.8,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "live_oak_spread",
+      "displayName": "Live oak — evergreen spreading crown",
+      "modelFamily": "broadleaf_evergreen",
+      "leafCycle": "evergreen",
+      "leafType": "broadleaf",
+      "crownShape": "spreading",
+      "knownGenera": [
+        "Quercus"
+      ],
+      "foliageStyle": "leathery",
+      "trunkStyle": "single",
+      "crownWidthRatio": 0.82,
+      "crownHeightRatio": 0.58,
+      "branchLevels": 3,
+      "primaryBranches": 9,
+      "foliageDensity": 3.7,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "magnolia_evergreen",
+      "displayName": "Southern magnolia — evergreen oval",
+      "modelFamily": "broadleaf_evergreen",
+      "leafCycle": "evergreen",
+      "leafType": "broadleaf",
+      "crownShape": "oval",
+      "knownGenera": [
+        "Magnolia"
+      ],
+      "foliageStyle": "leathery",
+      "trunkStyle": "single",
+      "crownWidthRatio": 0.66,
+      "crownHeightRatio": 0.65,
+      "branchLevels": 3,
+      "primaryBranches": 8,
+      "foliageDensity": 3.3,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "eucalyptus_tall",
+      "displayName": "Eucalyptus — tall open crown",
+      "modelFamily": "broadleaf_evergreen",
+      "leafCycle": "evergreen",
+      "leafType": "lanceolate",
+      "crownShape": "open_column",
+      "knownGenera": [
+        "Eucalyptus"
+      ],
+      "foliageStyle": "airy",
+      "trunkStyle": "single",
+      "crownWidthRatio": 0.42,
+      "crownHeightRatio": 0.72,
+      "branchLevels": 3,
+      "primaryBranches": 8,
+      "foliageDensity": 2.8,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "ficus_tropical",
+      "displayName": "Ficus — dense tropical crown",
+      "modelFamily": "broadleaf_evergreen",
+      "leafCycle": "evergreen",
+      "leafType": "broadleaf",
+      "crownShape": "dense_round",
+      "knownGenera": [
+        "Ficus"
+      ],
+      "foliageStyle": "dense",
+      "trunkStyle": "multi",
+      "crownWidthRatio": 0.8,
+      "crownHeightRatio": 0.62,
+      "branchLevels": 3,
+      "primaryBranches": 9,
+      "foliageDensity": 3.8,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "olive_twisted",
+      "displayName": "Olive — twisted open crown",
+      "modelFamily": "broadleaf_evergreen",
+      "leafCycle": "evergreen",
+      "leafType": "lanceolate",
+      "crownShape": "irregular",
+      "knownGenera": [
+        "Olea"
+      ],
+      "foliageStyle": "silvery",
+      "trunkStyle": "multi",
+      "crownWidthRatio": 0.57,
+      "crownHeightRatio": 0.5,
+      "branchLevels": 3,
+      "primaryBranches": 7,
+      "foliageDensity": 2.7,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "acacia_umbrella",
+      "displayName": "Acacia — umbrella canopy",
+      "modelFamily": "broadleaf_evergreen",
+      "leafCycle": "semi_evergreen",
+      "leafType": "compound",
+      "crownShape": "umbrella",
+      "knownGenera": [
+        "Acacia"
+      ],
+      "foliageStyle": "compound",
+      "trunkStyle": "single",
+      "crownWidthRatio": 0.78,
+      "crownHeightRatio": 0.42,
+      "branchLevels": 3,
+      "primaryBranches": 8,
+      "foliageDensity": 3.5,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "albizia_flat",
+      "displayName": "Albizia — flat umbrella crown",
+      "modelFamily": "broadleaf_deciduous",
+      "leafCycle": "deciduous",
+      "leafType": "compound",
+      "crownShape": "flat_umbrella",
+      "knownGenera": [
+        "Albizia"
+      ],
+      "foliageStyle": "compound",
+      "trunkStyle": "single",
+      "crownWidthRatio": 0.82,
+      "crownHeightRatio": 0.42,
+      "branchLevels": 3,
+      "primaryBranches": 8,
+      "foliageDensity": 3.6,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "baobab_bottle",
+      "displayName": "Baobab — bottle trunk",
+      "modelFamily": "broadleaf_deciduous",
+      "leafCycle": "deciduous",
+      "leafType": "broadleaf",
+      "crownShape": "bottle",
+      "knownGenera": [
+        "Adansonia"
+      ],
+      "foliageStyle": "sparse",
+      "trunkStyle": "single",
+      "crownWidthRatio": 0.7,
+      "crownHeightRatio": 0.48,
+      "branchLevels": 2,
+      "primaryBranches": 6,
+      "foliageDensity": 2.9,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "mangrove_multistem",
+      "displayName": "Mangrove — multi-stem aerial roots",
+      "modelFamily": "broadleaf_evergreen",
+      "leafCycle": "evergreen",
+      "leafType": "broadleaf",
+      "crownShape": "multistem",
+      "knownGenera": [
+        "Rhizophora",
+        "Avicennia",
+        "Bruguiera"
+      ],
+      "foliageStyle": "dense",
+      "trunkStyle": "multi",
+      "crownWidthRatio": 0.68,
+      "crownHeightRatio": 0.56,
+      "branchLevels": 3,
+      "primaryBranches": 8,
+      "foliageDensity": 3,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "mesquite_desert",
+      "displayName": "Mesquite — sparse desert crown",
+      "modelFamily": "broadleaf_deciduous",
+      "leafCycle": "deciduous",
+      "leafType": "compound",
+      "crownShape": "sparse",
+      "knownGenera": [
+        "Prosopis"
+      ],
+      "foliageStyle": "sparse",
+      "trunkStyle": "multi",
+      "crownWidthRatio": 0.52,
+      "crownHeightRatio": 0.48,
+      "branchLevels": 2,
+      "primaryBranches": 7,
+      "foliageDensity": 2.7,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "arbutus_multistem",
+      "displayName": "Arbutus — sculptural multi-stem",
+      "modelFamily": "broadleaf_evergreen",
+      "leafCycle": "evergreen",
+      "leafType": "broadleaf",
+      "crownShape": "multistem",
+      "knownGenera": [
+        "Arbutus"
+      ],
+      "foliageStyle": "broad",
+      "trunkStyle": "multi",
+      "crownWidthRatio": 0.55,
+      "crownHeightRatio": 0.56,
+      "branchLevels": 3,
+      "primaryBranches": 7,
+      "foliageDensity": 2.7,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "dragon_blood_tree",
+      "displayName": "Dragon tree — candelabra crown",
+      "modelFamily": "broadleaf_evergreen",
+      "leafCycle": "evergreen",
+      "leafType": "succulent",
+      "crownShape": "candelabra",
+      "knownGenera": [
+        "Dracaena",
+        "Dracaena draco"
+      ],
+      "foliageStyle": "succulent",
+      "trunkStyle": "single",
+      "crownWidthRatio": 0.52,
+      "crownHeightRatio": 0.48,
+      "branchLevels": 2,
+      "primaryBranches": 5,
+      "foliageDensity": 2.4,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "pine_open",
+      "displayName": "Pine — open irregular crown",
+      "modelFamily": "conifer",
+      "leafCycle": "evergreen",
+      "leafType": "needle",
+      "crownShape": "open_conical",
+      "knownGenera": [
+        "Pinus"
+      ],
+      "foliageStyle": "needle",
+      "trunkStyle": "single",
+      "crownWidthRatio": 0.56,
+      "crownHeightRatio": 0.72,
+      "branchLevels": 3,
+      "primaryBranches": 8,
+      "foliageDensity": 2.9,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "pine_dense",
+      "displayName": "Pine — dense crown",
+      "modelFamily": "conifer",
+      "leafCycle": "evergreen",
+      "leafType": "needle",
+      "crownShape": "dense_conical",
+      "knownGenera": [
+        "Pinus"
+      ],
+      "foliageStyle": "needle",
+      "trunkStyle": "single",
+      "crownWidthRatio": 0.58,
+      "crownHeightRatio": 0.75,
+      "branchLevels": 3,
+      "primaryBranches": 9,
+      "foliageDensity": 3,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "spruce_conical",
+      "displayName": "Spruce — conical tiered crown",
+      "modelFamily": "conifer",
+      "leafCycle": "evergreen",
+      "leafType": "needle",
+      "crownShape": "conical",
+      "knownGenera": [
+        "Picea"
+      ],
+      "foliageStyle": "needle",
+      "trunkStyle": "single",
+      "crownWidthRatio": 0.55,
+      "crownHeightRatio": 0.8,
+      "branchLevels": 3,
+      "primaryBranches": 9,
+      "foliageDensity": 3,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "fir_tiered",
+      "displayName": "Fir — layered crown",
+      "modelFamily": "conifer",
+      "leafCycle": "evergreen",
+      "leafType": "needle",
+      "crownShape": "tiered",
+      "knownGenera": [
+        "Abies"
+      ],
+      "foliageStyle": "needle",
+      "trunkStyle": "single",
+      "crownWidthRatio": 0.58,
+      "crownHeightRatio": 0.78,
+      "branchLevels": 3,
+      "primaryBranches": 9,
+      "foliageDensity": 3,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "cedar_spread",
+      "displayName": "Cedar — layered spreading crown",
+      "modelFamily": "conifer",
+      "leafCycle": "evergreen",
+      "leafType": "scale",
+      "crownShape": "layered",
+      "knownGenera": [
+        "Cedrus"
+      ],
+      "foliageStyle": "scale",
+      "trunkStyle": "single",
+      "crownWidthRatio": 0.72,
+      "crownHeightRatio": 0.66,
+      "branchLevels": 3,
+      "primaryBranches": 8,
+      "foliageDensity": 3.2,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "cypress_columnar",
+      "displayName": "Cypress — narrow column",
+      "modelFamily": "conifer",
+      "leafCycle": "evergreen",
+      "leafType": "scale",
+      "crownShape": "columnar",
+      "knownGenera": [
+        "Cupressus"
+      ],
+      "foliageStyle": "scale",
+      "trunkStyle": "single",
+      "crownWidthRatio": 0.32,
+      "crownHeightRatio": 0.8,
+      "branchLevels": 3,
+      "primaryBranches": 7,
+      "foliageDensity": 2.7,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "juniper_irregular",
+      "displayName": "Juniper — irregular sculptural form",
+      "modelFamily": "conifer",
+      "leafCycle": "evergreen",
+      "leafType": "scale",
+      "crownShape": "irregular",
+      "knownGenera": [
+        "Juniperus"
+      ],
+      "foliageStyle": "scale",
+      "trunkStyle": "multi",
+      "crownWidthRatio": 0.55,
+      "crownHeightRatio": 0.62,
+      "branchLevels": 3,
+      "primaryBranches": 7,
+      "foliageDensity": 2.8,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "redwood_tall",
+      "displayName": "Redwood — tall conical form",
+      "modelFamily": "conifer",
+      "leafCycle": "evergreen",
+      "leafType": "needle",
+      "crownShape": "tall_conical",
+      "knownGenera": [
+        "Sequoia",
+        "Sequoiadendron"
+      ],
+      "foliageStyle": "needle",
+      "trunkStyle": "single",
+      "crownWidthRatio": 0.45,
+      "crownHeightRatio": 0.84,
+      "branchLevels": 3,
+      "primaryBranches": 8,
+      "foliageDensity": 2.8,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "larch_deciduous",
+      "displayName": "Larch — open deciduous conifer",
+      "modelFamily": "conifer",
+      "leafCycle": "deciduous",
+      "leafType": "needle",
+      "crownShape": "open_conical",
+      "knownGenera": [
+        "Larix"
+      ],
+      "foliageStyle": "needle",
+      "trunkStyle": "single",
+      "crownWidthRatio": 0.48,
+      "crownHeightRatio": 0.74,
+      "branchLevels": 3,
+      "primaryBranches": 7,
+      "foliageDensity": 2.7,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "hemlock_droop",
+      "displayName": "Hemlock — drooping conifer crown",
+      "modelFamily": "conifer",
+      "leafCycle": "evergreen",
+      "leafType": "needle",
+      "crownShape": "drooping_conical",
+      "knownGenera": [
+        "Tsuga"
+      ],
+      "foliageStyle": "needle",
+      "trunkStyle": "single",
+      "crownWidthRatio": 0.6,
+      "crownHeightRatio": 0.74,
+      "branchLevels": 3,
+      "primaryBranches": 8,
+      "foliageDensity": 2.8,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "yew_dense",
+      "displayName": "Yew — dense rounded conifer",
+      "modelFamily": "conifer",
+      "leafCycle": "evergreen",
+      "leafType": "needle",
+      "crownShape": "dense_rounded",
+      "knownGenera": [
+        "Taxus"
+      ],
+      "foliageStyle": "needle",
+      "trunkStyle": "multi",
+      "crownWidthRatio": 0.64,
+      "crownHeightRatio": 0.58,
+      "branchLevels": 3,
+      "primaryBranches": 8,
+      "foliageDensity": 2.8,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "swamp_cypress",
+      "displayName": "Bald cypress — tapering wetland form",
+      "modelFamily": "conifer",
+      "leafCycle": "deciduous",
+      "leafType": "needle",
+      "crownShape": "tapered_conical",
+      "knownGenera": [
+        "Taxodium"
+      ],
+      "foliageStyle": "needle",
+      "trunkStyle": "single",
+      "crownWidthRatio": 0.48,
+      "crownHeightRatio": 0.78,
+      "branchLevels": 3,
+      "primaryBranches": 8,
+      "foliageDensity": 2.8,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "coconut_palm",
+      "displayName": "Coconut palm — feather fronds",
+      "modelFamily": "palm",
+      "leafCycle": "evergreen",
+      "leafType": "frond",
+      "crownShape": "feather",
+      "knownGenera": [
+        "Cocos"
+      ],
+      "foliageStyle": "frond",
+      "trunkStyle": "single",
+      "crownWidthRatio": 0.68,
+      "crownHeightRatio": 0.78,
+      "branchLevels": 2,
+      "primaryBranches": 18,
+      "foliageDensity": 2.7,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "date_palm",
+      "displayName": "Date palm — compact feather crown",
+      "modelFamily": "palm",
+      "leafCycle": "evergreen",
+      "leafType": "frond",
+      "crownShape": "upright_feather",
+      "knownGenera": [
+        "Phoenix"
+      ],
+      "foliageStyle": "frond",
+      "trunkStyle": "single",
+      "crownWidthRatio": 0.58,
+      "crownHeightRatio": 0.78,
+      "branchLevels": 2,
+      "primaryBranches": 18,
+      "foliageDensity": 2.6,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "fan_palm",
+      "displayName": "Fan palm — radiating fan leaves",
+      "modelFamily": "palm",
+      "leafCycle": "evergreen",
+      "leafType": "fan",
+      "crownShape": "fan",
+      "knownGenera": [
+        "Washingtonia",
+        "Sabal",
+        "Trachycarpus"
+      ],
+      "foliageStyle": "fan",
+      "trunkStyle": "single",
+      "crownWidthRatio": 0.72,
+      "crownHeightRatio": 0.78,
+      "branchLevels": 2,
+      "primaryBranches": 20,
+      "foliageDensity": 2.7,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "sago_cycad",
+      "displayName": "Cycad — stiff radial fronds",
+      "modelFamily": "palm",
+      "leafCycle": "evergreen",
+      "leafType": "pinnate",
+      "crownShape": "radial",
+      "knownGenera": [
+        "Cycas",
+        "Zamia"
+      ],
+      "foliageStyle": "pinnate",
+      "trunkStyle": "single",
+      "crownWidthRatio": 0.76,
+      "crownHeightRatio": 0.42,
+      "branchLevels": 1,
+      "primaryBranches": 16,
+      "foliageDensity": 2.3,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "tree_fern",
+      "displayName": "Tree fern — arching fronds",
+      "modelFamily": "other",
+      "leafCycle": "evergreen",
+      "leafType": "frond",
+      "crownShape": "fern",
+      "knownGenera": [
+        "Cyathea",
+        "Dicksonia"
+      ],
+      "foliageStyle": "frond",
+      "trunkStyle": "single",
+      "crownWidthRatio": 0.72,
+      "crownHeightRatio": 0.72,
+      "branchLevels": 1,
+      "primaryBranches": 18,
+      "foliageDensity": 2.4,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    },
+    {
+      "id": "bamboo_grove",
+      "displayName": "Bamboo — clustered culms",
+      "modelFamily": "other",
+      "leafCycle": "evergreen",
+      "leafType": "lanceolate",
+      "crownShape": "clump",
+      "knownGenera": [
+        "Bambusa",
+        "Phyllostachys",
+        "Dendrocalamus"
+      ],
+      "foliageStyle": "lanceolate",
+      "trunkStyle": "multi",
+      "crownWidthRatio": 0.42,
+      "crownHeightRatio": 0.78,
+      "branchLevels": 2,
+      "primaryBranches": 16,
+      "foliageDensity": 2.2,
+      "modelTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
+      "note": "Distinct procedural silhouette family; not a verified species-specific botanical mesh."
+    }
+  ]
+}

@@ -515,6 +515,74 @@ export function initWorld(options={}){
  try{map.setMaxPitch?.(110)}catch(_){};window.__BP_TILE_RETENTION_V6017__={version:6017,maxTileCacheSize:tileCacheCap,maxTileCacheZoomLevels:9,cancelPendingTileRequestsWhileZooming:false,bufferedViewportFetches:true,updatedAt:Date.now()};window.__BP_CAMERA_GROUND_GUARD_V6017__={version:6017,enabled:true,terrainAware:true,minimumClearanceMeters:1.4,maxPitch:110,updatedAt:Date.now()};
  const runtimeMapErrors=[];map.on('error',e=>{const raw=e?.error||e,msg=String(raw?.message||raw||'MapLibre runtime error');runtimeMapErrors.push({message:msg,at:Date.now()});if(runtimeMapErrors.length>30)runtimeMapErrors.shift();window.__BP_MAP_RUNTIME_ERRORS__=runtimeMapErrors;console.warn('BridgePoint MapLibre',msg)});
  const ensureMapGestures=()=>{try{map.touchZoomRotate?.enable();map.touchZoomRotate?.enableRotation?.();map.touchPitch?.enable?.();map.dragPan?.enable();map.dragRotate?.enable?.();map.scrollZoom?.enable();map.doubleClickZoom?.enable();map.keyboard?.enable();map.boxZoom?.enable()}catch(_){}};ensureMapGestures();map.once('load',ensureMapGestures);
+
+ // Regional canopy is a lightweight landcover cue. The GLB instancer remains
+ // lazy until the current viewport has source tree records at tree-detail zoom.
+ let bpTreeCanopyInstallStarted=false,bpTreeRendererAttachStarted=false;
+ const bpInstallRegionalTreeCanopy=()=>{
+  if(bpTreeCanopyInstallStarted)return;
+  bpTreeCanopyInstallStarted=true;
+  import('./world-v2300-tree-canopy-lod.js?v=20261102-regional-canopy-v2')
+   .then(mod=>mod.installRegionalTreeCoverLayer(map))
+   .then(state=>{
+    window.__BP_TREE_CANOPY_AUTO_ATTACH_V1__={
+     version:1,status:state?.status||'unknown',
+     layerId:state?.layerId||'bp-tree-cover-regional-v1',
+     sourceTruth:'OPENFREEMAP_LANDCOVER_FOREST_WOOD_POLYGONS',
+     representation:'REGIONAL_CANOPY_PROXY_NOT_INDIVIDUAL_TREE_LOCATIONS',
+     updatedAt:Date.now()
+    };
+   })
+   .catch(error=>{
+    bpTreeCanopyInstallStarted=false;
+    window.__BP_TREE_CANOPY_AUTO_ATTACH_V1__={
+     version:1,status:'unavailable',
+     error:String(error?.message||error).slice(0,220),
+     updatedAt:Date.now()
+    };
+   });
+ };
+ const bpAttachTreeRendererFromViewport=()=>{
+  if(bpTreeRendererAttachStarted||map.getZoom()<12.6)return;
+  const treeCache=map.__BP_LIVING_TILE_CACHE_V6017__?.trees;
+  if(!Array.isArray(treeCache)||treeCache.length===0)return;
+  bpTreeRendererAttachStarted=true;
+  window.__BP_TREE_RENDERER_AUTO_ATTACH_V1__={
+   version:1,status:'loading-renderer',
+   sourceCount:treeCache.length,
+   lazyStartZoom:12.6,
+   updatedAt:Date.now()
+  };
+  import('./world-v2300-tree-instanced.js?v=20261102-instanced-tree-renderer-v2')
+   .then(mod=>mod.attachTreeInstancedRenderer(map))
+   .then(state=>{
+    const current=window.__BP_TREE_INSTANCE_RENDERER_V1__||state||{};
+    window.__BP_TREE_RENDERER_AUTO_ATTACH_V1__={
+     version:1,status:current.status||'attached',
+     sourceCount:current.sourceCount||treeCache.length,
+     instanceCount:current.instanceCount||0,
+     lazyStartZoom:12.6,
+     legacyLayersHidden:current.legacyLayersHidden===true,
+     updatedAt:Date.now()
+    };
+    if(current.status==='unavailable-fallback'){
+     bpTreeRendererAttachStarted=false;
+    }
+   })
+   .catch(error=>{
+    bpTreeRendererAttachStarted=false;
+    window.__BP_TREE_RENDERER_AUTO_ATTACH_V1__={
+     version:1,status:'fallback',
+     sourceCount:treeCache.length,
+     error:String(error?.message||error).slice(0,240),
+     updatedAt:Date.now()
+    };
+   });
+ };
+ map.once('load',bpInstallRegionalTreeCanopy);
+ map.on('idle',bpAttachTreeRendererFromViewport);
+ map.on('moveend',bpAttachTreeRendererFromViewport);
+ map.on('zoomend',bpAttachTreeRendererFromViewport);
  map.addControl(new maplibregl.NavigationControl({visualizePitch:true,showCompass:true}),'top-right');
  const attributionControl=new maplibregl.AttributionControl({compact:true});map.addControl(attributionControl,'bottom-right');
  if(!document.getElementById('bpMapAttributionGuardCss')){const s=document.createElement('style');s.id='bpMapAttributionGuardCss';s.textContent='.maplibregl-ctrl-attrib.maplibregl-compact-show{max-width:min(320px,calc(100vw - 18px))!important;max-height:min(180px,28dvh)!important;overflow:auto!important;overscroll-behavior:contain!important}.maplibregl-ctrl-attrib.maplibregl-compact-show .maplibregl-ctrl-attrib-inner{max-height:inherit!important;overflow:auto!important}@media(max-width:900px){.maplibregl-ctrl-attrib.maplibregl-compact-show{max-width:min(286px,calc(100vw - 16px))!important;max-height:min(150px,24dvh)!important;font-size:9px!important;line-height:1.25!important}}';document.head.appendChild(s)}
@@ -956,7 +1024,7 @@ export function initWorld(options={}){
   const lod=activeWorldLodProfile();
   if(map.getZoom()<lod.treeMin||moving)return;
   if(worldMapSurfaceInactive())return;
-  const z=map.getZoom(),clientPressure=Number(window.__BP_INTERACTION_PRIORITY_UNTIL__||0)>performance.now(),seq=++livingSeq,b=bbox(map,MOBILE?.12:(TIER==='HIGH'?.24:.18)),tb=bbox(map,MOBILE?(z<14?.3:.21):(z<14?.34:.24)),detailBoost=lod.tier==='GOLD'?1.55:lod.tier==='SILVER'?1.25:1,baseLimit=Math.round((MOBILE?(z>=16.5?260:180):(TIER==='HIGH'?(z>=16.5?1450:1000):(z>=16.5?1050:760)))*detailBoost),normalTreeLimit=Math.round((MOBILE?(z>=17?240:z>=16?160:z>=14.25?100:z>=13.4?80:55):(TIER==='HIGH'?(z>=17?1150:z>=16?820:z>=14.25?420:z>=13.4?240:150):(z>=17?800:z>=16?560:z>=14.25?320:z>=13.4?190:120)))*detailBoost),treeLimit=clientPressure?Math.min(normalTreeLimit,MOBILE?70:180):normalTreeLimit;lastLivingFetchAt=performance.now();
+  const z=map.getZoom(),clientPressure=Number(window.__BP_INTERACTION_PRIORITY_UNTIL__||0)>performance.now(),seq=++livingSeq,b=bbox(map,MOBILE?.12:(TIER==='HIGH'?.24:.18)),tb=bbox(map,MOBILE?(z<14?.3:.21):(z<14?.34:.24)),detailBoost=lod.tier==='GOLD'?1.55:lod.tier==='SILVER'?1.25:1,baseLimit=Math.round((MOBILE?(z>=16.5?260:180):(TIER==='HIGH'?(z>=16.5?1450:1000):(z>=16.5?1050:760)))*detailBoost),normalTreeLimit=Math.round((MOBILE?(z>=17?1450:z>=16?1200:z>=14.25?900:z>=13.4?600:350):(TIER==='HIGH'?(z>=17?3000:z>=16?2800:z>=14.25?2400:z>=13.4?1800:1100):(z>=17?2800:z>=16?2400:z>=14.25?2000:z>=13.4?1450:900)))*detailBoost),treeLimit=clientPressure?Math.min(normalTreeLimit,MOBILE?260:650):Math.min(MOBILE?1800:3000,normalTreeLimit);lastLivingFetchAt=performance.now();
   try{
    const settled=await Promise.allSettled([
     z>=14.2&&!clientPressure?edge('bridgepoint-living-world-viewport-v5319',{west:b.west,south:b.south,east:b.east,north:b.north,limit:baseLimit},8500):Promise.resolve(EMPTY),
