@@ -489,7 +489,7 @@ jobs:
           grep -Fq 'groundConnectedRamps' site/world-v2300-map.js
           grep -Fq '6208-continuous-ground-imagery' site/app.js
           grep -Fq '6208-continuous-ground-imagery' site/landing.js
-          grep -Fq 'bp-global-map-mode-v6206' site/world-v2300-spectral-imagery.js
+          grep -Fq 'bp-global-map-mode-v6208' site/world-v2300-spectral-imagery.js
           grep -Fq 'bp-intelligence-v6208-continuous-ground-imagery' site/sw.js
           grep -Fq "navigator.serviceWorker.register('/sw.js?v=6208-continuous-ground-imagery'," site/landing.js
           grep -Fq "navigator.serviceWorker.register('/sw.js?v=6208-continuous-ground-imagery'," site/app.js
@@ -2824,6 +2824,7 @@ jobs:
                 select.value='vegetation';select.dispatchEvent(new Event('change',{bubbles:true}));
                 const globeBackground=m.getPaintProperty('gta-bg','background-color');
                 const globeSatellite=m.getLayoutProperty('gta-nasa','visibility');
+                 const globalEarth=m.getLayoutProperty('gta-global-earth','visibility');
                 m.jumpTo({zoom:16});
                 const streetBackground=m.getPaintProperty('gta-bg','background-color');
                 const activeMode=api.basemapMode;
@@ -2831,7 +2832,7 @@ jobs:
                 const restoredBackground=m.getPaintProperty('gta-bg','background-color');
                 if(combo&&originalCombo)combo.value=originalCombo;
                 m.jumpTo({center:[originalCenter.lng,originalCenter.lat],zoom:originalZoom});
-                return {ok:activeMode==='vegetation'&&globeBackground==='#061b13'&&streetBackground===globeBackground&&globeSatellite==='visible'&&restoredBackground==='#040b12',activeMode,globeBackground,streetBackground,globeSatellite,restoredBackground};
+                return {ok:activeMode==='vegetation'&&globeBackground==='#061b13'&&streetBackground===globeBackground&&globeSatellite==='visible'&&globalEarth==='visible'&&restoredBackground==='#040b12',activeMode,globeBackground,streetBackground,globeSatellite,globalEarth,restoredBackground};
               });
               if(!basemapModeSmoke.ok)throw new Error('GLOBAL_BASEMAP_MODE_SMOKE_FAILED '+JSON.stringify(basemapModeSmoke));
               console.log('BRIDGEPOINT_GLOBAL_BASEMAP_MODES_PASS',JSON.stringify(basemapModeSmoke));
