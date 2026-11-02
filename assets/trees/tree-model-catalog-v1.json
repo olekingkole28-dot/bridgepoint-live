@@ -14,33 +14,33 @@
   ],
   "lodTargets": {
     "lod0": {
-      "maxTriangles": 45000,
-      "description": "close view"
+      "maxTriangles": 120000,
+      "description": "close inspection"
     },
     "lod1": {
-      "maxTriangles": 10000,
-      "description": "street / neighborhood view"
+      "maxTriangles": 25000,
+      "description": "street and neighborhood"
     },
     "lod2": {
-      "maxTriangles": 2500,
-      "description": "regional / distant view"
+      "maxTriangles": 4500,
+      "description": "regional and distant"
     }
   },
   "models": [
     {
-      "id": "fir_tree_01",
-      "displayName": "Fir Tree 01",
+      "id": "fir_sapling_medium",
+      "displayName": "Fir Sapling Medium",
       "modelFamily": "conifer",
       "botanicalMatch": {
         "level": "genus",
         "scientificName": "Abies",
-        "confidence": "family-model-proxy"
+        "confidence": "fir-model-genus-proxy"
       },
       "leafType": "needle",
       "leafCycle": "evergreen",
-      "sourceUrl": "https://polyhaven.com/a/fir_tree_01",
-      "thumbnailUrl": "https://cdn.polyhaven.com/asset_img/thumbs/fir_tree_01.png",
-      "purpose": "Tall fir silhouette with branch and needle detail."
+      "sourceUrl": "https://polyhaven.com/a/fir_sapling_medium",
+      "thumbnailUrl": "https://cdn.polyhaven.com/asset_img/thumbs/fir_sapling_medium.png",
+      "purpose": "Branch-rich fir silhouette with dense needle foliage; source tree height controls BridgePoint world scale."
     },
     {
       "id": "jacaranda_tree",
