@@ -64,10 +64,11 @@ def main() -> None:
     for row in reader:
         scientific_name = pick(
             row,
-            ("scientific_name", "species", "species_name", "accepted_name", "taxon_name"),
+            ("level3_species", "scientific_name", "species", "species_name", "accepted_name", "taxon_name"),
         )
-        genus = pick(row, ("genus", "genus_name"))
-        family = pick(row, ("family", "family_name"))
+        genus = pick(row, ("level2_genus", "genus", "genus_name"))
+        family = pick(row, ("level1_family", "family", "family_name"))
+        functional_type = pick(row, ("level0", "functional_type", "functional_group", "tree_type"))
         key = pick(row, ("species_key", "species_id", "gbif_species_key", "taxon_key", "key"))
         if not scientific_name and genus and family:
             continue
@@ -80,6 +81,7 @@ def main() -> None:
             "scientificName": scientific_name,
             "genus": genus,
             "family": family,
+            "functionalType": functional_type,
         }
 
     if len(species) < args.minimum_species:
@@ -103,6 +105,12 @@ def main() -> None:
             "species": len(records),
             "genera": len(genera),
             "families": len(families),
+        },
+        "fields": {
+            "species": "level3_species",
+            "genus": "level2_genus",
+            "family": "level1_family",
+            "functionalType": "level0",
         },
         "scopeNote": (
             "Taxonomic identity reference only. This catalogue does not prove "
