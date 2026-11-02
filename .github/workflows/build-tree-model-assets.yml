@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - feature/tree-asset-upgrade-v1
+      - feature/tree-assets-live-v2
     paths:
       - 'assets/trees/procedural-tree-archetypes-v1.json'
       - 'assets/trees/tree-model-catalog-v1.json'
@@ -16,6 +16,7 @@ on:
       - 'release-v2300/world-v2300-tree-instanced.js'
       - 'release-v2300/world-v2300-tree-canopy-lod.js'
       - 'release-v2300/world-v2300-tree-catalog.js'
+      - 'release-v2300/world-v2300-map.js'
       - '.github/workflows/build-tree-model-assets.yml'
 
 permissions:
@@ -28,7 +29,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: feature/tree-asset-upgrade-v1
+          ref: feature/tree-assets-live-v2
 
       - uses: actions/setup-python@v5
         with:
