@@ -67,7 +67,7 @@ test('hybrid satellite imagery and Gold LOD remain default, with coast foam at g
   assert.match(map, /base='satellite',moving=false/);
   assert.doesNotMatch(map, /GLOBAL_EARTH|globalEarth|gta-global-earth/, 'the pole-to-pole image overlay must not be installed on a globe projection');
   assert.match(map, /id:'gta-nasa',type:'raster',source:'nasa',minzoom:0,maxzoom:22/);
-  assert.match(map, /id:'gta-esri',type:'raster',source:'esri',minzoom:3,maxzoom:22/);
+  assert.match(map, /id:'gta-esri',type:'raster',source:'esri',minzoom:0,maxzoom:22/);
   assert.match(map, /id:'gta-usgs',type:'raster',source:'usgs',minzoom:11,maxzoom:17/);
   assert.match(map, /id:'gta-oam',type:'raster',source:'oam',minzoom:14,maxzoom:21/);
   assert.match(map, /gta-esri/);
