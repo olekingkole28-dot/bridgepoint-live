@@ -7,11 +7,17 @@ import argparse
 import hashlib
 import json
 import random
+import unicodedata
 from pathlib import Path
 
 
 def stable_int(value: str) -> int:
     return int(hashlib.sha256(value.encode("utf-8")).hexdigest()[:16], 16)
+
+
+def normalize_taxon_name(value: str) -> str:
+    value = unicodedata.normalize("NFKD", str(value or "")).encode("ascii", "ignore").decode("ascii")
+    return " ".join(value.casefold().replace("×", " ").split())
 
 
 def build_variants(archetypes: dict, count_per_archetype: int) -> list[dict]:
@@ -56,6 +62,36 @@ def main() -> None:
     if args.taxonomy and args.taxonomy.is_file():
         taxonomy = json.loads(args.taxonomy.read_text(encoding="utf-8"))
 
+    taxonomy_index = None
+    if taxonomy:
+        species_index = {}
+        for item in taxonomy.get("species", []):
+            name = item.get("scientificName")
+            if not name:
+                continue
+            species_index[normalize_taxon_name(name)] = {
+                "key": item.get("key"),
+                "scientificName": name,
+                "genus": item.get("genus"),
+                "family": item.get("family"),
+                "functionalType": item.get("functionalType"),
+            }
+        taxonomy_index = {
+            "schemaVersion": 1,
+            "catalogId": "bridgepoint-global-tree-taxonomy-index-v1",
+            "sourceCatalogId": taxonomy.get("catalogId"),
+            "sourceUrl": taxonomy.get("sourceUrl"),
+            "license": taxonomy.get("license"),
+            "attribution": taxonomy.get("attribution"),
+            "counts": taxonomy.get("counts"),
+            "scopeNote": "Taxonomic identity lookup only; it does not verify a tree observation or supply a 3D mesh.",
+            "species": species_index,
+        }
+        taxonomy_index_path = args.output.with_name("taxonomy-index.json")
+        taxonomy_index_path.write_text(
+            json.dumps(taxonomy_index, separators=(",", ":")) + "\n", encoding="utf-8"
+        )
+
     result = {
         "schemaVersion": 1,
         "catalogId": "bridgepoint-procedural-tree-variants-v1",
@@ -68,6 +104,7 @@ def main() -> None:
             "license": taxonomy.get("license"),
             "counts": taxonomy.get("counts"),
             "attribution": taxonomy.get("attribution"),
+            "lookupUrl": "/assets/trees/taxonomy-index.json" if taxonomy_index else None,
         } if taxonomy else None,
         "variantSelection": (
             "SHA256(source_tree_identity|archetype_id) modulo variants_per_archetype; "
