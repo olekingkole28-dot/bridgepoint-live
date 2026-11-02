@@ -75,21 +75,27 @@ export function normalizeViewportTrees(features, models, maxInstances) {
   const seen = new Set();
   const supported = new Set(asArray(models).map(model => model.id));
   let unsupported = 0;
+  let truncated = 0;
+  let sourceCount = 0;
 
   for (const feature of asArray(features)) {
     const tree = normalizeTreeFeature(feature);
     if (!tree || seen.has(tree.id)) continue;
     seen.add(tree.id);
+    sourceCount++;
     const modelId = chooseTreeModel(tree, models);
     if (!modelId || !supported.has(modelId)) {
       unsupported++;
       continue;
     }
+    if (output.length >= maxInstances) {
+      truncated++;
+      continue;
+    }
     output.push({ ...tree, modelId });
-    if (output.length >= maxInstances) break;
   }
 
-  return { trees: output, unsupported, sourceCount: seen.size };
+  return { trees: output, unsupported, sourceCount, truncated };
 }
 
 function stableNumber(seed) {
@@ -332,6 +338,7 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
   let activeMeshes = [];
   let activeTrees = [];
   let currentLod = null;
+  let activeSignature = '';
   let loadSequence = 0;
   let repaintTimer = 0;
   let windUpdatedAt = 0;
@@ -393,6 +400,7 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
   function rebuildMeshInstances() {
     if (!THREE || !scene || !manifest || destroyed) return;
     const lodKey = chooseTreeLod(map.getZoom());
+    currentLod = lodKey;
     const groups = new Map();
     for (const tree of activeTrees) {
       if (!groups.has(tree.modelId)) groups.set(tree.modelId, []);
@@ -421,8 +429,9 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
           for (let i = 0; i < treeModels.length; i++) {
             const tree = treeModels[i];
             const lng = tree.coordinates[0], lat = tree.coordinates[1];
-            const altitude = map.queryTerrainElevation?.([lng, lat], { exaggerated: false });
-            const ground = Number.isFinite(Number(altitude)) ? Number(altitude) : 0;
+                const altitude = map.queryTerrainElevation?.([lng, lat], { exaggerated: false });
+            const ground = altitude === null || altitude === undefined || !Number.isFinite(Number(altitude))
+              ? 0 : Number(altitude);
             const modelArray = map.transform?.getMatrixForModel?.([lng, lat], ground);
             if (!modelArray) throw new Error('TREE_GEOGRAPHIC_MODEL_MATRIX_UNAVAILABLE');
             matrix.fromArray(modelArray);
@@ -446,13 +455,16 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
       activeMeshes = nextMeshes;
       for (const mesh of activeMeshes) scene.add(mesh);
 
-      const everyTreeHasModel = activeTrees.length > 0 && activeTrees.length + state.unsupported === state.sourceCount;
+      const everyTreeHasModel = activeTrees.length > 0 &&
+        state.unsupported === 0 &&
+        state.truncated === 0 &&
+        activeTrees.length === state.sourceCount;
       if (everyTreeHasModel) {
         setLegacyVisibility(map, 'none');
         state.legacyLayersHidden = true;
         state.legacyRetained = false;
       } else {
-        setLegacyVisibility(map, 'visible');
+        restoreLegacyVisibility();
         state.legacyLayersHidden = false;
         state.legacyRetained = true;
       }
@@ -460,6 +472,8 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
         lod: lodKey,
         instanceCount: activeTrees.length,
         batches: activeMeshes.length,
+        unsupported: state.unsupported,
+        truncated: state.truncated,
         legacyRetained: state.legacyRetained,
         legacyLayersHidden: state.legacyLayersHidden
       });
@@ -470,7 +484,7 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
         legacyRetained: true,
         legacyLayersHidden: false
       });
-      setLegacyVisibility(map, 'visible');
+      restoreLegacyVisibility();
     });
   }
 
@@ -483,18 +497,29 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
       return pointInsideBounds(map, provisional);
     });
     const normalized = normalizeViewportTrees(all, manifest.models, maxInstances);
-    activeTrees = normalized.trees;
+    const nextTrees = normalized.trees;
+    const nextLod = chooseTreeLod(map.getZoom());
+    const signature = nextTrees.map(tree =>
+      tree.id + ':' + tree.modelId + ':' + tree.height.meters
+    ).join('|') + ':' + normalized.unsupported + ':' + normalized.truncated + ':' + nextLod;
+
     state.sourceCount = normalized.sourceCount;
     state.unsupported = normalized.unsupported;
-    if (!activeTrees.length) {
+    state.truncated = normalized.truncated;
+    if (!nextTrees.length) {
+      activeTrees = [];
+      activeSignature = '';
       for (const old of activeMeshes) scene.remove(old);
       activeMeshes = [];
-      setLegacyVisibility(map, 'visible');
+      restoreLegacyVisibility();
       publish('waiting-for-source-trees', {
         instanceCount: 0, legacyRetained: true, legacyLayersHidden: false
       });
       return;
     }
+    if (signature === activeSignature) return;
+    activeTrees = nextTrees;
+    activeSignature = signature;
     rebuildMeshInstances();
   }
 
@@ -573,13 +598,7 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
         }
         try { renderer?.dispose?.(); } catch (_) {}
         renderer = null;
-        if (legacyVisibility) {
-          for (const [id, visibility] of Object.entries(legacyVisibility)) {
-            if (map.getLayer?.(id)) {
-              try { map.setLayoutProperty(id, 'visibility', visibility); } catch (_) {}
-            }
-          }
-        }
+        restoreLegacyVisibility();
         publish('removed', { legacyLayersHidden: false, legacyRetained: true });
       }
     };
