@@ -1,0 +1,614 @@
+import { normalizeTreeFeature } from './world-v2300-tree-catalog.js';
+
+const VERSION = 1;
+const LAYER_ID = 'bp-v2300-instanced-trees-v1';
+const MANIFEST_URL = '/assets/trees/manifest.json';
+const THREE_URL = 'https://esm.sh/three@0.169.0';
+const GLTF_URL = 'https://esm.sh/three@0.169.0/examples/jsm/loaders/GLTFLoader.js';
+const LEGACY_LAYER_IDS = [
+  'gta-bp-tree3d-trunk',
+  'gta-bp-tree3d-canopy',
+  'gta-bp-tree-trunks',
+  'gta-bp-tree-crowns'
+];
+const FALLBACK_BROADLEAF_MODEL = 'tree_small_02';
+const FALLBACK_CONIFER_MODEL = 'fir_sapling_medium';
+
+const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+const finite = value => Number.isFinite(Number(value));
+const asArray = value => Array.isArray(value) ? value : [];
+
+export function chooseTreeLod(zoom) {
+  const z = Number(zoom);
+  if (!Number.isFinite(z)) return 'lod2';
+  if (z >= 17.15) return 'lod0';
+  if (z >= 14.25) return 'lod1';
+  return 'lod2';
+}
+
+export function treeInstanceBudget({ mobile = false, lowMemory = false, highTier = false } = {}) {
+  if (lowMemory) return 1600;
+  if (mobile) return 4200;
+  return highTier ? 16000 : 10000;
+}
+
+export function treeDisplayHeightMeters(tree) {
+  const source = Number(tree?.height?.meters);
+  if (Number.isFinite(source) && source > 0) return clamp(source, 2, 80);
+  return 8;
+}
+
+export function chooseTreeModel(tree, models) {
+  const form = tree?.morphology?.form || 'unclassified_tree';
+  const scientificName = String(tree?.identity?.scientificName || '').toLowerCase();
+  const genus = String(tree?.identity?.genus || '').toLowerCase();
+  const byId = new Map(asArray(models).map(model => [model.id, model]));
+
+  // Exact genus-labelled assets take precedence. This is still an asset catalogue
+  // match, not proof that the geographic source observation was botanically verified.
+  const exact = asArray(models).find(model => {
+    const match = model?.botanicalMatch;
+    return match?.level === 'genus' &&
+      String(match.scientificName || '').toLowerCase() === genus;
+  });
+  if (exact) return exact.id;
+
+  if (form === 'palm') return null;
+  if (form === 'conifer') {
+    return byId.has(FALLBACK_CONIFER_MODEL) ? FALLBACK_CONIFER_MODEL : null;
+  }
+  if (form === 'broadleaf_deciduous' || form === 'broadleaf_evergreen' ||
+      form === 'unclassified_tree') {
+    // Only broadleaf assets are used for the broadleaf family fallback. The
+    // manifest carries a proxy confidence marker; no exact species is invented.
+    return byId.has(FALLBACK_BROADLEAF_MODEL) ? FALLBACK_BROADLEAF_MODEL : null;
+  }
+
+  // A source record without botanical form data is not silently converted to a
+  // palm, conifer, or exact species. Use a visibly generic broadleaf proxy only.
+  if (!scientificName && byId.has(FALLBACK_BROADLEAF_MODEL)) return FALLBACK_BROADLEAF_MODEL;
+  return null;
+}
+
+export function normalizeViewportTrees(features, models, maxInstances) {
+  const output = [];
+  const seen = new Set();
+  const supported = new Set(asArray(models).map(model => model.id));
+  let unsupported = 0;
+
+  for (const feature of asArray(features)) {
+    const tree = normalizeTreeFeature(feature);
+    if (!tree || seen.has(tree.id)) continue;
+    seen.add(tree.id);
+    const modelId = chooseTreeModel(tree, models);
+    if (!modelId || !supported.has(modelId)) {
+      unsupported++;
+      continue;
+    }
+    output.push({ ...tree, modelId });
+    if (output.length >= maxInstances) break;
+  }
+
+  return { trees: output, unsupported, sourceCount: seen.size };
+}
+
+function stableNumber(seed) {
+  let hash = 2166136261;
+  for (const char of String(seed)) {
+    hash ^= char.charCodeAt(0);
+    hash = Math.imul(hash, 16777619) >>> 0;
+  }
+  return hash / 4294967296;
+}
+
+function pickManifestModel(manifest, id) {
+  return asArray(manifest?.models).find(model => model?.id === id) || null;
+}
+
+function pickLod(model, lod) {
+  return asArray(model?.lods).find(entry => entry?.level === lod && typeof entry?.url === 'string') ||
+    asArray(model?.lods).find(entry => entry?.level === 'lod2' && typeof entry?.url === 'string') ||
+    null;
+}
+
+function validateManifest(raw) {
+  if (!raw || raw.schemaVersion !== 1 || raw.license !== 'CC0-1.0' ||
+      !Array.isArray(raw.models) || raw.models.length < 1) {
+    throw new Error('TREE_ASSET_MANIFEST_INVALID');
+  }
+  const seen = new Set();
+  for (const model of raw.models) {
+    if (!/^[a-z0-9][a-z0-9_]{0,63}$/.test(String(model?.id || '')) ||
+        seen.has(model.id) || !Array.isArray(model.lods) ||
+        model.license !== 'CC0-1.0') {
+      throw new Error('TREE_ASSET_MODEL_ENTRY_INVALID');
+    }
+    seen.add(model.id);
+    for (const lod of model.lods) {
+      const url = String(lod?.url || '');
+      if (!url.startsWith('/assets/trees/') || !url.endsWith('.glb') || url.includes('..')) {
+        throw new Error('TREE_ASSET_MODEL_URL_INVALID');
+      }
+    }
+  }
+  return raw;
+}
+
+async function importModules() {
+  const [THREE, loaderModule] = await Promise.all([import(THREE_URL), import(GLTF_URL)]);
+  if (!THREE?.WebGLRenderer || !loaderModule?.GLTFLoader) {
+    throw new Error('TREE_THREE_OR_GLTFLOADER_UNAVAILABLE');
+  }
+  return { THREE, GLTFLoader: loaderModule.GLTFLoader };
+}
+
+function deriveWind(observations, center) {
+  let best = null;
+  let bestDistance = Infinity;
+  for (const observation of asArray(observations)) {
+    const lng = Number(observation?.lng ?? observation?.longitude);
+    const lat = Number(observation?.lat ?? observation?.latitude);
+    if (!Number.isFinite(lng) || !Number.isFinite(lat)) continue;
+    const dx = (lng - center.lng) * Math.cos(center.lat * Math.PI / 180);
+    const dy = lat - center.lat;
+    const distance = dx * dx + dy * dy;
+    if (distance < bestDistance) {
+      best = observation;
+      bestDistance = distance;
+    }
+  }
+
+  const speedMph = Number(best?.wind_speed_mph ??
+    (finite(best?.wind_speed_kt) ? Number(best.wind_speed_kt) * 1.15078 : 0));
+  const fromDegrees = Number(best?.wind_dir_deg ?? best?.wind_direction_deg ?? 0);
+  const travelRadians = (fromDegrees + 180) * Math.PI / 180;
+  const strength = clamp(0.08 + (Number.isFinite(speedMph) ? speedMph : 0) / 95, 0.08, 0.6);
+  return {
+    x: Math.sin(travelRadians),
+    z: Math.cos(travelRadians),
+    strength,
+    source: best ? 'NEAREST_AVAILABLE_WEATHER_OBSERVATION' : 'SUBTLE_VISUAL_BREEZE'
+  };
+}
+
+function addWindAttribute(THREE, geometry) {
+  const position = geometry.getAttribute('position');
+  if (!position) throw new Error('TREE_MODEL_POSITION_ATTRIBUTE_MISSING');
+
+  const uv1 = geometry.getAttribute('uv1') || geometry.getAttribute('uv2');
+  let minY = Infinity, maxY = -Infinity;
+  for (let i = 0; i < position.count; i++) {
+    const y = position.getY(i);
+    minY = Math.min(minY, y);
+    maxY = Math.max(maxY, y);
+  }
+  const range = Math.max(0.001, maxY - minY);
+  const weights = new Float32Array(position.count);
+  for (let i = 0; i < position.count; i++) {
+    const normalizedHeight = clamp((position.getY(i) - minY) / range, 0, 1);
+    const sourceWeight = uv1 ? clamp(uv1.getX(i), 0, 1) : Math.pow(normalizedHeight, 1.65);
+    weights[i] = sourceWeight;
+  }
+  geometry.setAttribute('bpWindWeight', new THREE.BufferAttribute(weights, 1));
+  geometry.computeBoundingSphere();
+  return geometry;
+}
+
+function installWindShader(material, uniforms) {
+  material.onBeforeCompile = shader => {
+    shader.uniforms.bpWindTime = uniforms.time;
+    shader.uniforms.bpWindStrength = uniforms.strength;
+    shader.uniforms.bpWindDirection = uniforms.direction;
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <common>',
+      '#include <common>\nattribute float bpWindWeight;\nuniform float bpWindTime;\nuniform float bpWindStrength;\nuniform vec2 bpWindDirection;'
+    );
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <begin_vertex>',
+      \`#include <begin_vertex>
+      float bpGustA = sin(bpWindTime * 1.15 + position.y * 7.0 + position.x * 2.3);
+      float bpGustB = sin(bpWindTime * 0.57 + position.y * 3.2 + position.z * 4.1);
+      float bpFlex = bpWindWeight * bpWindStrength * (0.72 * bpGustA + 0.28 * bpGustB) * 0.075;
+      vec3 bpWindLocal = normalize(vec3(bpWindDirection.x, 0.0, bpWindDirection.y));
+      #ifdef USE_INSTANCING
+        bpWindLocal = normalize(transpose(mat3(instanceMatrix)) * bpWindLocal);
+      #endif
+      transformed.x += bpWindLocal.x * bpFlex;
+      transformed.z += bpWindLocal.z * bpFlex;
+      transformed.y += abs(bpFlex) * 0.08;
+      \`
+    );
+  };
+  material.customProgramCacheKey = () => 'bp-tree-wind-weight-v1';
+  material.needsUpdate = true;
+}
+
+function disposeTreeGroup(group) {
+  if (!group) return;
+  group.traverse(object => {
+    if (object.geometry) object.geometry.dispose();
+    const materials = Array.isArray(object.material) ? object.material : (object.material ? [object.material] : []);
+    for (const material of materials) {
+      for (const value of Object.values(material || {})) {
+        if (value?.isTexture) value.dispose();
+      }
+      material?.dispose?.();
+    }
+  });
+}
+
+function pointInsideBounds(map, tree) {
+  try {
+    const bounds = map.getBounds();
+    return bounds.contains([tree.coordinates[0], tree.coordinates[1]]);
+  } catch (_) {
+    return true;
+  }
+}
+
+function getSourceTrees(map) {
+  const cache = map.__BP_LIVING_TILE_CACHE_V6017__;
+  const cached = asArray(cache?.trees);
+  if (cached.length) return cached;
+
+  try {
+    const sourceFeatures = map.querySourceFeatures?.('bpTreeLod') || [];
+    if (sourceFeatures.length) return sourceFeatures;
+  } catch (_) {}
+
+  try {
+    return map.queryRenderedFeatures?.({ layers: ['gta-bp-tree-crowns'] }) || [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function discoverWindObservations() {
+  try {
+    return window.BridgePointWorldEffects?.getState?.()?.data?.observations || [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function captureLegacyVisibility(map) {
+  const result = {};
+  for (const id of LEGACY_LAYER_IDS) {
+    if (!map.getLayer?.(id)) continue;
+    try {
+      result[id] = map.getLayoutProperty(id, 'visibility') || 'visible';
+    } catch (_) {
+      result[id] = 'visible';
+    }
+  }
+  return result;
+}
+
+function setLegacyVisibility(map, visibility) {
+  for (const id of LEGACY_LAYER_IDS) {
+    if (!map.getLayer?.(id)) continue;
+    try {
+      map.setLayoutProperty(id, 'visibility', visibility);
+    } catch (_) {}
+  }
+}
+
+export async function attachTreeInstancedRenderer(map, options = {}) {
+  if (!map || typeof map.addLayer !== 'function') {
+    throw new TypeError('A live MapLibre map is required.');
+  }
+  if (map.getLayer?.(LAYER_ID)) return window.__BP_TREE_INSTANCE_RENDERER_V1__ || null;
+
+  const mobile = options.mobile ?? (innerWidth <= 900);
+  const memory = Number(navigator.deviceMemory || 4);
+  const lowMemory = options.lowMemory ?? (memory <= 3);
+  const highTier = options.highTier ?? (memory >= 8 && Number(navigator.hardwareConcurrency || 4) >= 8);
+  const maxInstances = options.maxInstances ?? treeInstanceBudget({ mobile, lowMemory, highTier });
+
+  const state = {
+    version: VERSION,
+    status: 'loading-manifest',
+    manifestUrl: MANIFEST_URL,
+    modelCount: 0,
+    instanceCount: 0,
+    sourceCount: 0,
+    unsupported: 0,
+    lod: null,
+    legacyRetained: true,
+    legacyLayersHidden: false,
+    windSource: 'SUBTLE_VISUAL_BREEZE',
+    updatedAt: Date.now()
+  };
+  window.__BP_TREE_INSTANCE_RENDERER_V1__ = state;
+
+  let manifest = null;
+  let THREE = null;
+  let loader = null;
+  let layer = null;
+  let renderer = null;
+  let camera = null;
+  let scene = null;
+  let uniforms = null;
+  let activeMeshes = [];
+  let activeTrees = [];
+  let currentLod = null;
+  let loadSequence = 0;
+  let repaintTimer = 0;
+  let windUpdatedAt = 0;
+  let legacyVisibility = null;
+  let destroyed = false;
+
+  const publish = (status, extra = {}) => {
+    Object.assign(state, { status, ...extra, updatedAt: Date.now() });
+  };
+
+  async function loadManifest() {
+    const response = await fetch(options.manifestUrl || MANIFEST_URL, {
+      cache: 'no-cache',
+      credentials: 'omit',
+      headers: { Accept: 'application/json' }
+    });
+    if (!response.ok) throw new Error('TREE_ASSET_MANIFEST_HTTP_' + response.status);
+    manifest = validateManifest(await response.json());
+    publish('manifest-ready', { modelCount: manifest.models.length });
+  }
+
+  async function loadModel(modelId, lodKey) {
+    const model = pickManifestModel(manifest, modelId);
+    const file = pickLod(model, lodKey);
+    if (!file) throw new Error('TREE_MODEL_LOD_MISSING_' + modelId + '_' + lodKey);
+    const cacheKey = modelId + '|' + file.level + '|' + file.url;
+    if (loadModel.cache.has(cacheKey)) return loadModel.cache.get(cacheKey);
+
+    const promise = loader.loadAsync(file.url).then(gltf => {
+      const root = gltf.scene || gltf.scenes?.[0];
+      if (!root) throw new Error('TREE_MODEL_SCENE_MISSING_' + modelId);
+      root.updateMatrixWorld(true);
+      const meshes = [];
+      root.traverse(object => {
+        if (!object.isMesh || !object.geometry) return;
+        const geometry = object.geometry.clone();
+        geometry.applyMatrix4(object.matrixWorld);
+        addWindAttribute(THREE, geometry);
+        const rawMaterials = Array.isArray(object.material) ? object.material : [object.material];
+        const materials = rawMaterials.filter(Boolean).map(raw => {
+          const material = raw.clone();
+          installWindShader(material, uniforms);
+          return material;
+        });
+        if (!materials.length) return;
+        meshes.push({ geometry, material: materials.length === 1 ? materials[0] : materials });
+      });
+      if (!meshes.length) throw new Error('TREE_MODEL_HAS_NO_MESHES_' + modelId);
+      return { id: modelId, lod: file.level, meshes, file, model };
+    }).catch(error => {
+      loadModel.cache.delete(cacheKey);
+      throw error;
+    });
+    loadModel.cache.set(cacheKey, promise);
+    return promise;
+  }
+  loadModel.cache = new Map();
+
+  function rebuildMeshInstances() {
+    if (!THREE || !scene || !manifest || destroyed) return;
+    const lodKey = chooseTreeLod(map.getZoom());
+    const groups = new Map();
+    for (const tree of activeTrees) {
+      if (!groups.has(tree.modelId)) groups.set(tree.modelId, []);
+      groups.get(tree.modelId).push(tree);
+    }
+    const sequence = ++loadSequence;
+    publish('loading-model-lod', { lod: lodKey, instanceCount: activeTrees.length });
+
+    Promise.all([...groups.entries()].map(([modelId, trees]) =>
+      loadModel(modelId, lodKey).then(loaded => ({ loaded, trees }))
+    )).then(results => {
+      if (destroyed || sequence !== loadSequence) return;
+      const nextMeshes = [];
+      for (const result of results) {
+        const treeModels = result.trees;
+        const loaded = result.loaded;
+        for (const part of loaded.meshes) {
+          const mesh = new THREE.InstancedMesh(part.geometry, part.material, treeModels.length);
+          mesh.count = treeModels.length;
+          mesh.frustumCulled = false;
+          mesh.instanceMatrix.setUsage(THREE.StaticDrawUsage);
+          const matrix = new THREE.Matrix4();
+          const yaw = new THREE.Matrix4();
+          const scale = new THREE.Matrix4();
+          const rotation = new THREE.Matrix4();
+          for (let i = 0; i < treeModels.length; i++) {
+            const tree = treeModels[i];
+            const lng = tree.coordinates[0], lat = tree.coordinates[1];
+            const altitude = map.queryTerrainElevation?.([lng, lat], { exaggerated: false });
+            const ground = Number.isFinite(Number(altitude)) ? Number(altitude) : 0;
+            const modelArray = map.transform?.getMatrixForModel?.([lng, lat], ground);
+            if (!modelArray) throw new Error('TREE_GEOGRAPHIC_MODEL_MATRIX_UNAVAILABLE');
+            matrix.fromArray(modelArray);
+            yaw.makeRotationY(stableNumber(tree.id) * Math.PI * 2);
+            const height = treeDisplayHeightMeters(tree);
+            scale.makeScale(height, height, height);
+            rotation.copy(yaw).multiply(scale);
+            matrix.multiply(rotation);
+            mesh.setMatrixAt(i, matrix);
+          }
+          mesh.instanceMatrix.needsUpdate = true;
+          mesh.computeBoundingSphere?.();
+          nextMeshes.push(mesh);
+        }
+      }
+
+      for (const old of activeMeshes) {
+        scene.remove(old);
+        old.dispose?.();
+      }
+      activeMeshes = nextMeshes;
+      for (const mesh of activeMeshes) scene.add(mesh);
+
+      const everyTreeHasModel = activeTrees.length > 0 && activeTrees.length + state.unsupported === state.sourceCount;
+      if (everyTreeHasModel) {
+        setLegacyVisibility(map, 'none');
+        state.legacyLayersHidden = true;
+        state.legacyRetained = false;
+      } else {
+        setLegacyVisibility(map, 'visible');
+        state.legacyLayersHidden = false;
+        state.legacyRetained = true;
+      }
+      publish('render-ready', {
+        lod: lodKey,
+        instanceCount: activeTrees.length,
+        batches: activeMeshes.length,
+        legacyRetained: state.legacyRetained,
+        legacyLayersHidden: state.legacyLayersHidden
+      });
+      map.triggerRepaint?.();
+    }).catch(error => {
+      publish('model-load-fallback', {
+        error: String(error?.message || error),
+        legacyRetained: true,
+        legacyLayersHidden: false
+      });
+      setLegacyVisibility(map, 'visible');
+    });
+  }
+
+  function refreshInstances() {
+    if (destroyed || !manifest || !THREE || !scene) return;
+    const all = getSourceTrees(map).filter(feature => {
+      const coordinate = feature?.geometry?.coordinates;
+      if (feature?.geometry?.type !== 'Point' || !Array.isArray(coordinate)) return false;
+      const provisional = { coordinates: coordinate };
+      return pointInsideBounds(map, provisional);
+    });
+    const normalized = normalizeViewportTrees(all, manifest.models, maxInstances);
+    activeTrees = normalized.trees;
+    state.sourceCount = normalized.sourceCount;
+    state.unsupported = normalized.unsupported;
+    if (!activeTrees.length) {
+      for (const old of activeMeshes) scene.remove(old);
+      activeMeshes = [];
+      setLegacyVisibility(map, 'visible');
+      publish('waiting-for-source-trees', {
+        instanceCount: 0, legacyRetained: true, legacyLayersHidden: false
+      });
+      return;
+    }
+    rebuildMeshInstances();
+  }
+
+  function updateWind() {
+    const now = performance.now();
+    if (now - windUpdatedAt < 4500) return;
+    windUpdatedAt = now;
+    const center = map.getCenter();
+    const wind = deriveWind(discoverWindObservations(), center);
+    uniforms.direction.value.set(wind.x, wind.z);
+    uniforms.strength.value = wind.strength;
+    publish(state.status, { windSource: wind.source, windStrength: wind.strength });
+  }
+
+  function scheduleAnimation() {
+    if (repaintTimer || destroyed || document.hidden || !state.instanceCount) return;
+    repaintTimer = setTimeout(() => {
+      repaintTimer = 0;
+      if (!destroyed && !document.hidden) map.triggerRepaint?.();
+    }, mobile ? 70 : 45);
+  }
+
+  function installLayer() {
+    layer = {
+      id: LAYER_ID,
+      type: 'custom',
+      renderingMode: '3d',
+      onAdd(mapRef, gl) {
+        this.map = mapRef;
+        renderer = new THREE.WebGLRenderer({
+          canvas: mapRef.getCanvas(),
+          context: gl,
+          antialias: false,
+          alpha: true,
+          powerPreference: lowMemory ? 'low-power' : 'high-performance'
+        });
+        renderer.autoClear = false;
+        renderer.setPixelRatio?.(1);
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+        renderer.toneMapping = THREE.NoToneMapping;
+        camera = new THREE.Camera();
+        scene = new THREE.Scene();
+        scene.add(new THREE.HemisphereLight(0xe4f4ff, 0x263720, 1.3));
+        const sun = new THREE.DirectionalLight(0xfff4dc, 1.65);
+        sun.position.set(-35, 65, 55);
+        scene.add(sun);
+        uniforms = {
+          time: { value: 0 },
+          strength: { value: 0.2 },
+          direction: { value: new THREE.Vector2(0, 1) }
+        };
+        loadModel.cache.clear();
+        publish('renderer-attached', { renderer: 'THREE_INSTANCEDMESH_SHARED_MAPLIBRE_GL_CONTEXT' });
+        refreshInstances();
+      },
+      render(gl, args) {
+        if (!renderer || !camera || !scene || destroyed) return;
+        if (document.hidden) return;
+        camera.projectionMatrix.fromArray(args.defaultProjectionData.mainMatrix);
+        uniforms.time.value = performance.now() / 1000;
+        updateWind();
+        renderer.resetState();
+        renderer.render(scene, camera);
+        if (state.instanceCount > 0) scheduleAnimation();
+        if (state.legacyLayersHidden) setLegacyVisibility(map, 'none');
+      },
+      onRemove() {
+        destroyed = true;
+        clearTimeout(repaintTimer);
+        for (const mesh of activeMeshes) scene?.remove(mesh);
+        activeMeshes = [];
+        for (const cached of loadModel.cache.values()) {
+          // Cache promises may settle after the map is destroyed; no dispose is
+          // attempted here because a promise can still be in flight.
+          void cached.catch(() => {});
+        }
+        try { renderer?.dispose?.(); } catch (_) {}
+        renderer = null;
+        if (legacyVisibility) {
+          for (const [id, visibility] of Object.entries(legacyVisibility)) {
+            if (map.getLayer?.(id)) {
+              try { map.setLayoutProperty(id, 'visibility', visibility); } catch (_) {}
+            }
+          }
+        }
+        publish('removed', { legacyLayersHidden: false, legacyRetained: true });
+      }
+    };
+    if (!map.getLayer?.(LAYER_ID)) map.addLayer(layer);
+  }
+
+  try {
+    await loadManifest();
+    const modules = await importModules();
+    THREE = modules.THREE;
+    loader = new modules.GLTFLoader();
+    legacyVisibility = captureLegacyVisibility(map);
+    installLayer();
+    map.on('moveend', refreshInstances);
+    map.on('zoomend', refreshInstances);
+    map.on('idle', refreshInstances);
+    map.on('remove', () => {
+      try { if (map.getLayer?.(LAYER_ID)) map.removeLayer(LAYER_ID); } catch (_) {}
+    });
+    publish('active', { maxInstances, legacyRetained: true });
+    refreshInstances();
+    return state;
+  } catch (error) {
+    publish('unavailable-fallback', {
+      error: String(error?.message || error),
+      legacyRetained: true,
+      legacyLayersHidden: false
+    });
+    return state;
+  }
+}
+
