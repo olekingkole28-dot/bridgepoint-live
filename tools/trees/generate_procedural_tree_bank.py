@@ -591,6 +591,7 @@ def main():
             "morphologyTruth": "PROCEDURAL_MORPHOTYPE_PROXY",
             "license": "Apache-2.0",
             "sourceUrl": "https://github.com/olekingkole28-dot/bridgepoint-live",
+            "normalizedHeightUnits": 1.0,
             "upAxis": "Y",
             "windAttribute": "TEXCOORD_1.x",
             "lods": model_lods,
