@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import {
   chooseTreeLod,
   chooseTreeModel,
+  enrichTreeWithTaxonomy,
   normalizeViewportTrees,
   treeDisplayHeightMeters,
   treeInstanceBudget
@@ -54,6 +55,90 @@ const palm = sourceTree('palm-4', [151.21, -33.81], {
   leaf_cycle: 'evergreen',
   height_m: 12
 });
+
+const proceduralModels = [
+  {
+    id: 'proc_fir_tiered',
+    modelType: 'PROCEDURAL_ARCHETYPE',
+    modelFamily: 'conifer',
+    leafCycle: 'evergreen',
+    knownGenera: ['Abies', 'Picea']
+  },
+  {
+    id: 'proc_oak_spreading',
+    modelType: 'PROCEDURAL_ARCHETYPE',
+    modelFamily: 'broadleaf_deciduous',
+    leafCycle: 'deciduous',
+    knownGenera: ['Quercus']
+  },
+  {
+    id: 'proc_cherry_flowering',
+    modelType: 'PROCEDURAL_ARCHETYPE',
+    modelFamily: 'broadleaf_deciduous',
+    leafCycle: 'deciduous',
+    knownGenera: ['Prunus']
+  },
+  {
+    id: 'proc_coconut_palm',
+    modelType: 'PROCEDURAL_ARCHETYPE',
+    modelFamily: 'palm',
+    leafCycle: 'evergreen',
+    knownGenera: ['Cocos']
+  }
+];
+const taxonomyIndex = {
+  'quercus robur': {
+    key: 'oak-taxonomy-key',
+    scientificName: 'Quercus robur',
+    genus: 'Quercus',
+    family: 'Fagaceae',
+    functionalType: 'Deciduous Broadleaf'
+  },
+  'abies alba': {
+    key: 'fir-taxonomy-key',
+    scientificName: 'Abies alba',
+    genus: 'Abies',
+    family: 'Pinaceae',
+    functionalType: 'Evergreen Needleleaf'
+  }
+};
+const variantsByArchetype = new Map([
+  ['oak_spreading', Array.from({ length: 64 }, (_, index) => ({
+    id: 'oak_spreading-v' + String(index).padStart(3, '0'),
+    archetypeId: 'oak_spreading',
+    variantIndex: index,
+    seed: index + 1,
+    parameters: {
+      crownSpread: 0.82 + index * 0.006,
+      crownDepth: 1,
+      crownOffset: 0,
+      trunkLeanX: 0,
+      trunkLeanZ: 0,
+      branchAsymmetry: 0,
+      leafScale: 1,
+      foliageDensity: 1,
+      windPhase: index / 10
+    }
+  }))],
+  ['fir_tiered', Array.from({ length: 64 }, (_, index) => ({
+    id: 'fir_tiered-v' + String(index).padStart(3, '0'),
+    archetypeId: 'fir_tiered',
+    variantIndex: index,
+    seed: index + 101,
+    parameters: {
+      crownSpread: 1,
+      crownDepth: 1,
+      crownOffset: 0,
+      trunkLeanX: 0,
+      trunkLeanZ: 0,
+      branchAsymmetry: 0,
+      leafScale: 1,
+      foliageDensity: 1,
+      windPhase: index / 10
+    }
+  }))]
+]);
+
 const unknownHeight = sourceTree('unknown-5', [10, 20], {
   common_name: 'Unknown street tree',
   render_height_m: 11
@@ -76,6 +161,48 @@ assert.equal(chooseTreeModel(
   { morphology: { form: 'palm' }, identity: { genus: 'Cocos', scientificName: 'Cocos nucifera' } },
   models
 ), null, 'unsupported palms must keep the old fallback rather than use a false broadleaf model');
+
+assert.equal(chooseTreeModel(
+  { morphology: { form: 'conifer', leafCycle: 'evergreen' }, identity: { genus: 'Abies' } },
+  proceduralModels
+), 'proc_fir_tiered', 'procedural library must pick a matching conifer genus');
+assert.equal(chooseTreeModel(
+  { morphology: { form: 'broadleaf_deciduous', leafCycle: 'deciduous' }, identity: { genus: 'Quercus' } },
+  proceduralModels
+), 'proc_oak_spreading', 'procedural library must select the matching broadleaf genus');
+assert.equal(chooseTreeModel(
+  { morphology: { form: 'palm', leafCycle: 'evergreen' }, identity: { genus: 'Cocos' } },
+  proceduralModels
+), 'proc_coconut_palm', 'procedural library must render a supported palm archetype');
+
+const enrichedOak = enrichTreeWithTaxonomy(
+  normalizeViewportTrees([oak], models, 10).trees[0],
+  taxonomyIndex
+);
+assert.equal(enrichedOak.identity.genus, 'Quercus');
+assert.equal(enrichedOak.identity.family, 'Fagaceae');
+assert.equal(enrichedOak.identity.taxonomyCatalogMatch, true);
+assert.equal(enrichedOak.morphology.form, 'broadleaf_deciduous');
+assert.equal(enrichedOak.placement.truth, 'SOURCE_POSITION',
+  'taxonomy enrichment must not alter source placement truth');
+const catalogMatch = normalizeViewportTrees(
+  [oak], proceduralModels, 10, variantsByArchetype, taxonomyIndex
+).trees[0];
+assert.equal(catalogMatch.modelId, 'proc_oak_spreading');
+assert.equal(catalogMatch.variantId.startsWith('oak_spreading-v'), true);
+assert.equal(catalogMatch.variantParameters.crownSpread !== 1, true);
+assert.deepEqual(catalogMatch.coordinates, [-72.65022345, 41.56108765]);
+const repeatedCatalogMatch = normalizeViewportTrees(
+  [oak], proceduralModels, 10, variantsByArchetype, taxonomyIndex
+).trees[0];
+assert.equal(repeatedCatalogMatch.variantId, catalogMatch.variantId,
+  'the same source tree must always receive the same model variant');
+const pineMatch = normalizeViewportTrees(
+  [pine], proceduralModels, 10, variantsByArchetype, taxonomyIndex
+).trees[0];
+assert.equal(pineMatch.modelId, 'proc_fir_tiered');
+assert.equal(pineMatch.identity.taxonomyCatalogMatch, true);
+
 
 const normalizedPine = normalizeViewportTrees([pine], models, 10).trees[0];
 assert.deepEqual(normalizedPine.coordinates, [-72.65012345, 41.56098765],
@@ -121,6 +248,11 @@ const source = await readFile(
 );
 assert.ok(source.includes('THREE.InstancedMesh'), 'the detailed renderer must use GPU instancing');
 assert.ok(source.includes('bpWindWeight'), 'the renderer must consume per-vertex wind weights');
+assert.ok(source.includes('bpTreeMorph'), 'the renderer must apply per-instance canopy morphology');
+assert.ok(source.includes('bpTreeFoliage'), 'the renderer must apply per-instance foliage variations');
+assert.ok(source.includes('TAXONOMY_INDEX_URL'), 'the renderer must load the GlobalGeoTree species lookup');
+assert.ok(source.includes('taxonomyCatalogMatch'), 'taxonomy matches must be visibly distinguished from source truth');
+assert.ok(source.includes('procedural-variants.json'), 'the renderer must load the thousands-variant catalog');
 assert.ok(source.includes('map.queryTerrainElevation'), 'instances must anchor to terrain elevation');
 assert.ok(source.includes('getMatrixForModel'), 'instances must use the existing MapLibre geographic transform');
 assert.ok(source.includes('bpTreeLod'), 'the renderer must reuse the existing source-backed tree point cache');
