@@ -263,7 +263,7 @@ class LinkParser(html.parser.HTMLParser):
 
 def goes_start_time(url: str) -> dt.datetime | None:
     """Extract the observation start from NOAA's sYYYYJJJHHMMSSd filename token."""
-    match = re.search(r"_s(\\d{4})(\\d{3})(\\d{2})(\\d{2})(\\d{2})(\\d)", urllib.parse.urlparse(url).path)
+    match = re.search(r"_s(\d{4})(\d{3})(\d{2})(\d{2})(\d{2})(\d)", urllib.parse.urlparse(url).path)
     if not match:
         return None
     year, day, hour, minute, second, tenth = map(int, match.groups())
@@ -442,7 +442,7 @@ def extract_noaa_cloud_mask(path: Path, source_index: int, metadata: dict[str, A
 
     with xr.open_dataset(path, decode_cf=True, mask_and_scale=True) as ds:
         probability_name = find_variable(ds, (
-            "CloudProbability", "Cloud_Probabilities", "CloudProbabilityPercent",
+            "CloudProbability", "Cloud_Probabilities", "Cloud_robabilities", "CloudProbabilityPercent",
             "Cloud_Probability", "CloudProbabilities"
         ))
         class_name = find_variable(ds, ("ACM", "CloudMask", "Cloud_Mask", "CloudMaskFourLevel"))
