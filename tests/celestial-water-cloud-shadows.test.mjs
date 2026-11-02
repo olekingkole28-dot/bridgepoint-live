@@ -277,7 +277,7 @@ test('new rain/lightning and global source markers stay separate from legacy eff
   assert.match(clouds, /coverageVersion: 6180/);
   assert.match(clouds, /sourceHeightMatchedCount/);
   assert.match(clouds, /satelliteCloudHeightFeedStatus/);
-  assert.match(clouds, /alphaBase\*0\.82/);
+  assert.match(clouds, /alphaBase\*\(0\.68\+erosionMask\*0\.22\)/);
   assert.match(clouds, /version: 6180, map, overlay/);
   assert.match(clouds, /bp6150-nasa-geostationary-cloud-context/);
   assert.match(clouds, /bp6150-nasa-geostationary-cloud-source/);
