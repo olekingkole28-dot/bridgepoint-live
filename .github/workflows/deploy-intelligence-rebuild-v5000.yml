@@ -488,6 +488,9 @@ jobs:
           grep -Fq 'MAPPED_GROUND_ROAD_ENDPOINT' site/world-v2300-map.js
           grep -Fq 'groundConnectedRamps' site/world-v2300-map.js
           grep -Fq '6212-neutral-satellite-startup' site/app.js
+          grep -Fq "window.__BP_GLOBAL_IMAGERY_LOD_V6212__" site/world-v2300-map.js
+          grep -Fq "id:'gta-nasa',type:'raster',source:'nasa',minzoom:0,maxzoom:8" site/world-v2300-map.js
+          grep -Fq "id:'gta-esri',type:'raster',source:'esri',minzoom:8,maxzoom:22" site/world-v2300-map.js
           grep -Fq '6212-neutral-satellite-startup' site/landing.js
           ! grep -Fq 'BASEMAP_STORAGE_KEY' site/world-v2300-spectral-imagery.js
           grep -Fq 'bp-intelligence-v6212-neutral-satellite-startup' site/sw.js
@@ -1628,19 +1631,20 @@ jobs:
                   const map=world?.map,spectral=window.__BP_SPECTRAL_IMAGERY_V5931__;
                   const visible=id=>!!map?.getLayer(id)&&(map.getLayoutProperty(id,'visibility')||'visible')==='visible';
                   const container=document.getElementById(kind==='home'?'previewMap':'liveMap');
-                  const rect=container?.getBoundingClientRect();
+                  const rect=container?.getBoundingClientRect(),currentZoom=map?.getZoom?.()??0,styleLayers=map?.getStyle?.()?.layers||[];
                   return {
                     kind,
                     projection:map?.getProjection?.()?.type||null,
-                    zoom:map?.getZoom?.()??null,
+                    zoom:currentZoom,
                     base:window.__BP_TECH_BASEMAP_V1116__?.activeBase||null,
                     mode:spectral?.basemapMode||null,
                     legacyStoredMode:localStorage.getItem('bp-global-map-mode-v6204')||null,
+                     savedFalseColorMode:localStorage.getItem('bp-global-map-mode-v6211')||null,
                     background:map?.getPaintProperty('gta-bg','background-color')??null,
                     waterOpacity:map?.getPaintProperty('gta-water','fill-opacity')??null,
                     imagery:{nasa:visible('gta-nasa'),esri:visible('gta-esri'),usgs:visible('gta-usgs'),oam:visible('gta-oam')},
-                     imageryLayers:Object.fromEntries(['gta-nasa','gta-esri','gta-usgs','gta-oam'].map(id=>{const layer=map?.getLayer(id);return[id,{present:!!layer,visibility:layer?(map.getLayoutProperty(id,'visibility')||'visible'):'missing',source:layer?.source||null,sourceLoaded:layer?map.isSourceLoaded?.(layer.source)===true:false}]})),
-                     visibilityGuard:window.__BP_SATELLITE_RASTER_VISIBILITY_GUARD_V6211__||null,
+                     imageryLayers:Object.fromEntries(['gta-nasa','gta-esri','gta-usgs','gta-oam'].map(id=>{const layer=map?.getLayer(id),spec=styleLayers.find(x=>x.id===id),minzoom=Number(spec?.minzoom??0),maxzoom=Number(spec?.maxzoom??24);return[id,{present:!!layer,visibility:layer?(map.getLayoutProperty(id,'visibility')||'visible'):'missing',source:layer?.source||null,sourceLoaded:layer?map.isSourceLoaded?.(layer.source)===true:false,minzoom,maxzoom,activeAtCurrentZoom:!!layer&&currentZoom>=minzoom&&currentZoom<maxzoom}]})),
+                     visibilityGuard:window.__BP_SATELLITE_RASTER_VISIBILITY_GUARD_V6212__||null,
                      warpedImageSourceAbsent:!map?.getSource('globalEarth')&&!map?.getLayer('gta-global-earth'),
                      streets:{major:visible('gta-road-major'),local:visible('gta-road-local')},
                      sidewalks:{line:visible('gta-bp-sidewalk'),casing:visible('gta-bp-sidewalk-casing'),raised:visible('gta-bp-sidewalk3d')},
@@ -1654,19 +1658,26 @@ jobs:
                 },kind);
               };
               await page.setViewport({width:1440,height:960,deviceScaleFactor:1});
-              await page.evaluateOnNewDocument(()=>{try{localStorage.setItem('bp-global-map-mode-v6204','dark')}catch(_){}});
+              await page.evaluateOnNewDocument(()=>{try{localStorage.setItem('bp-global-map-mode-v6204','dark');localStorage.setItem('bp-global-map-mode-v6211','geology')}catch(_){}});
               await page.goto('https://bridgepointintelligence.online/?natural-persistence-smoke='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
               const home=await readStableMap('home');
               const validate=(state)=>{
                 assert.equal(state.projection,'globe',state.kind+' must render globe projection');
                 assert.equal(state.mode,'natural',state.kind+' must stay in Natural Satellite mode after idle');
                 assert.equal(state.legacyStoredMode,'dark',state.kind+' must ignore the legacy v6204 Dark preference and start Natural');
-                assert.equal(state.background,'#06120f',state.kind+' must retain Natural background after idle');
+                assert.equal(state.savedFalseColorMode,'geology',state.kind+' test must carry a stale saved false-colour preset into startup');
+                assert.equal(state.background,'#040b12',state.kind+' must keep the exact first-frame background after delayed controller startup');
                 assert.equal(Number(state.waterOpacity),0,state.kind+' must leave satellite imagery unobscured by vector ocean fill');
                 assert.equal(state.base,'satellite',state.kind+' must retain satellite imagery base');
                 assert.equal(state.warpedImageSourceAbsent,true,state.kind+' must not install the single-image EPSG:4326 overlay that stretches across the globe projection');
                  assert.equal(state.imagery.esri,true,state.kind+' must retain global Esri imagery; layer diagnostics='+JSON.stringify(state.imageryLayers)+'; visibility guard='+JSON.stringify(state.visibilityGuard));
                 assert.equal(state.imagery.nasa,true,state.kind+' must retain global NASA imagery');
+                assert.equal(state.imageryLayers?.['gta-nasa']?.minzoom,0,state.kind+' NASA base starts at zoom 0');
+                assert.equal(state.imageryLayers?.['gta-nasa']?.maxzoom,8,state.kind+' NASA base ends at zoom 8');
+                assert.equal(state.imageryLayers?.['gta-esri']?.minzoom,8,state.kind+' Esri must wait until zoom 8');
+                assert.equal(state.imageryLayers?.['gta-nasa']?.activeAtCurrentZoom,state.zoom<8,state.kind+' NASA must be the only active imagery provider below zoom 8');
+                assert.equal(state.imageryLayers?.['gta-esri']?.activeAtCurrentZoom,state.zoom>=8,state.kind+' Esri must only activate at zoom 8 and above');
+                assert.equal(!!state.imageryLayers?.['gta-nasa']?.activeAtCurrentZoom&&!!state.imageryLayers?.['gta-esri']?.activeAtCurrentZoom,false,state.kind+' NASA and Esri may never paint together at one zoom');
                  assert.equal(state.visibilityGuard?.layers?.['gta-esri']?.visibility,'visible',state.kind+' visibility guard must report Esri visible after settle');
                  assert.equal(state.visibilityGuard?.layers?.['gta-nasa']?.visibility,'visible',state.kind+' visibility guard must report NASA fallback visible after settle');
                  assert.equal(state.streets.major,true,state.kind+' must preserve major street overlays above satellite imagery');
