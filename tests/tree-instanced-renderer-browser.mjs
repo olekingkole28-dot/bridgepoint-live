@@ -252,7 +252,7 @@ try {
       viewport.name + ': regional forest canopy handoff should be installed');
     assert.ok(diagnostics.canopyLayerPresent,
       viewport.name + ': source-backed forest polygon layer should be present');
-    assert.equal(diagnostics.canopyMaxZoom, 12.35,
+    assert.equal(diagnostics.canopyMaxZoom, 13.15,
       viewport.name + ': the regional canopy proxy should fade out before individual point trees');
     assert.ok(Array.isArray(diagnostics.canopyOpacityExpression),
       viewport.name + ': regional canopy cover should use a zoom fade expression');
