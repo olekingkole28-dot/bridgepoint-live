@@ -38,6 +38,10 @@ assert.ok(waterLine >= 0 && rasterLines.every(i => i > waterLine), 'satellite ra
 assert.ok(coastLine > 0 && rasterLines.every(i => i < coastLine), 'satellite rasters must remain below coastline and map-detail overlays');
 assert.ok(mapSource.includes('refreshExpiredTiles:true'), 'expired imagery tiles must refresh according to provider cache headers');
 assert.ok(rasterLines.every(i => mapLines[i].includes("visibility:'visible'")), 'imagery layers must start visible');
+const fineDetailOff = mapSource.slice(mapSource.indexOf('function disableFineDetail(){'), mapSource.indexOf('function toggleLayer('));
+assert.ok(!fineDetailOff.includes("'gta-bp-sidewalk3d'") && !fineDetailOff.includes("'gta-bp-sidewalk-casing'") && !fineDetailOff.includes("'gta-bp-sidewalk'"), 'source-backed sidewalk and footway layers must remain enabled at close zoom');
+assert.ok(mapSource.includes("id:'gta-bp-sidewalk',type:'line',source:'bpLivingWorld',minzoom:14.5"), 'sidewalk and footway vectors must render above the satellite imagery at close zoom');
+assert.ok(mapSource.includes("id:'gta-bp-sidewalk3d',type:'fill-extrusion',source:'bpLivingWorld3D',minzoom:15.7"), 'source-backed raised sidewalk surfaces must be available at street-level zoom');
 assert.ok(waterSource.includes('microPhaseA') && waterSource.includes('microPhaseB') && waterSource.includes('microPhaseC'), 'GPU shader must include multiple fine-scale wave bands');
 assert.ok(waterSource.includes('fwidth(microPhaseC)'), 'finest wave band must fade at screen-sampling limit');
 assert.ok(waterSource.includes('surfaceMaskValidationAllZooms: true'), 'source-water masks must remain enabled at every zoom');
