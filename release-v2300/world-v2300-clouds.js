@@ -1415,26 +1415,14 @@ export function initSkyClouds(target) {
     return state;
   }
   function setWorldGrade(on) {
+    // Clouds are an additive 3D layer. Preserve the active basemap's fog,
+    // atmosphere, raster tone and canvas filters exactly as selected elsewhere.
     if (canvas?.style) {
-      // Do not post-process the entire map canvas; this keeps phone rendering responsive.
       canvas.style.transition = originalTransition;
       canvas.style.willChange = originalWillChange;
       canvas.style.filter = originalFilter;
     }
-    try {
-      if (!fogCaptured) {
-        const f = map.getStyle?.()?.fog;
-        originalFog = f ? JSON.parse(JSON.stringify(f)) : null;
-        fogCaptured = true;
-      }
-      if (typeof map.setFog === 'function') {
-        map.setFog(on ? {
-          color: '#92a3af', 'high-color': '#29475b', 'space-color': '#07131f',
-          'horizon-blend': 0.12, 'star-intensity': 0, range: [0.55, 9.5]
-        } : originalFog);
-      }
-    } catch (_) {}
-    overlay.dataset.grade = on ? 'cinematic-atmosphere' : 'normal';
+    overlay.dataset.grade = 'normal';
   }
   function getProgramInfo(gl, shaderData) {
     const webgl2 = String(gl.getParameter(gl.VERSION) || '').includes('WebGL 2');
