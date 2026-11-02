@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { detectCanopyPeaks, treeCandidateSourceTruth } from '../tools/trees/tree-canopy-peaks.mjs';
+import { detectCanopyPeaks, treeCandidateSourceTruth } from '../supabase/functions/bridgepoint-global-tree-viewport-v1101/tree-canopy-peaks.mjs';
 
 const values = new Float32Array(17 * 17);
 values[2 * 17 + 2] = 10;
