@@ -1045,6 +1045,13 @@ export function initWorld(options={}){
     vis(map,'gta-bp-tree-crowns',treeLod);
     livingCount=features.length;
     window.__BP_TREE_RENDER_STATE__={version:1125,requested:(trees.features||[]).length,physicalFeatures:(physical.features||[]).length,visible3D:treeOn,visibleLod:treeLod,lodSource:'bpTreeLod',lodMinZoom:lod.treeMin,detailed3DMinZoom:lod.treeDetailedMin,geometry:'TAPERED_TRUNK_MULTI_TIER_IRREGULAR_CROWN',positionTruth:'CHMV2_LOCAL_CANOPY_PEAK_ESTIMATE_V1109',singleActiveSourceTile:true,buildingFootprintExcluded:true,pressureTreeOnly:clientPressure,treeLimit,denseMobileScene,denseRenderedBuildings,trunkLayer:(map.getLayoutProperty('gta-bp-tree3d-trunk','visibility')||'visible'),canopyLayer:(map.getLayoutProperty('gta-bp-tree3d-canopy','visibility')||'visible'),zoom:z,updatedAt:Date.now()}
+   }else{
+    // Do not leave the previous tile's extruded tree geometry underneath the
+    // instanced renderer when the newly active tile has no tree candidates.
+    map.getSource('bpLivingWorld3D')?.setData(EMPTY);
+    vis(map,'gta-bp-tree3d-trunk',false);vis(map,'gta-bp-tree3d-canopy',false);
+    vis(map,'gta-bp-tree-trunks',false);vis(map,'gta-bp-tree-crowns',false);
+    window.__BP_TREE_RENDER_STATE__={version:1125,requested:(trees.features||[]).length,physicalFeatures:0,visible3D:false,visibleLod:false,lodSource:'bpTreeLod',lodMinZoom:lod.treeMin,detailed3DMinZoom:lod.treeDetailedMin,positionTruth:'CHMV2_LOCAL_CANOPY_PEAK_ESTIMATE_V1109',singleActiveSourceTile:true,buildingFootprintExcluded:true,pressureTreeOnly:clientPressure,treeLimit,zoom:z,emptyActiveTile:true,updatedAt:Date.now()};
    }
    const baseError=settled[0].status==='rejected'?String(settled[0].reason?.message||settled[0].reason):null,treeError=settled[1].status==='rejected'?String(settled[1].reason?.message||settled[1].reason):null;
    window.__BP_LIVING_WORLD_STATE__={status:features.length?'ready':(baseError&&treeError?'error':'empty'),count:livingCount,baseCount:retainedBase.length,treeCount:retainedTrees.length,queriedBaseCount:(base.features||[]).length,queriedTreeCount:(trees.features||[]).length,retainedRadiusMeters,retainedTileCache:true,treeHeightBackedCount:Number(trees.height_backed_count||0),treeModeledHeightCount:Number(trees.modeled_height_count||0),treeMeasuredHeightCount:Number(trees.measured_height_count||0),baseError,treeError,viewport:{west:b.west,south:b.south,east:b.east,north:b.north},updatedAt:Date.now()}
