@@ -378,8 +378,10 @@ function pointInsideBounds(map, tree) {
 
 function getSourceTrees(map) {
   const cache = map.__BP_LIVING_TILE_CACHE_V6017__;
-  const cached = asArray(cache?.trees);
-  if (cached.length) return cached;
+  const cached = cache?.trees;
+  // An initialized viewport cache is authoritative, including an empty tile.
+  // Do not resurrect stale records from the last source or rendered layer.
+  if (Array.isArray(cached)) return cached;
 
   try {
     const sourceFeatures = map.querySourceFeatures?.('bpTreeLod') || [];
@@ -818,6 +820,14 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
     rebuildMeshInstances();
   }
 
+  // The live viewport fetch is asynchronous and may finish after MapLibre's
+  // idle/moveend events. Expose a map-scoped refresh hook so new tile records
+  // become visible immediately without forcing another camera gesture.
+  window.__BP_TREE_INSTANCE_RENDERER_API_V1__ = {
+    map,
+    refreshInstances
+  };
+
   function updateWind() {
     const now = performance.now();
     if (now - windUpdatedAt < 4500) return;
@@ -936,6 +946,9 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
     map.on('zoomend', refreshInstances);
     map.on('idle', refreshInstances);
     map.on('remove', () => {
+      if (window.__BP_TREE_INSTANCE_RENDERER_API_V1__?.map === map) {
+        window.__BP_TREE_INSTANCE_RENDERER_API_V1__ = null;
+      }
       try { if (map.getLayer?.(LAYER_ID)) map.removeLayer(LAYER_ID); } catch (_) {}
     });
     publish('active', { maxInstances, legacyRetained: true });

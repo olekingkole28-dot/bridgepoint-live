@@ -218,6 +218,36 @@ try {
       );
     });
 
+    const refreshApiAvailable = await page.evaluate(() => {
+      const map = window.__BP_TREE_BROWSER_MAP__;
+      const api = window.__BP_TREE_INSTANCE_RENDERER_API_V1__;
+      if (!api || api.map !== map || typeof api.refreshInstances !== 'function') return false;
+      // Simulate a viewport response arriving after the map has gone idle.
+      // No synthetic map event is fired: the explicit refresh hook must clear
+      // and then repopulate the existing 3D scene by itself.
+      map.__BP_LIVING_TILE_CACHE_V6017__.trees = [];
+      api.refreshInstances();
+      return true;
+    });
+    assert.equal(refreshApiAvailable, true,
+      viewport.name + ': live renderer refresh API should be registered for this map');
+    await page.waitForFunction(() =>
+      window.__BP_TREE_INSTANCE_RENDERER_V1__?.status === 'waiting-for-source-trees' &&
+      window.__BP_TREE_INSTANCE_RENDERER_V1__?.instanceCount === 0,
+      { timeout: 15000 }
+    );
+    await page.evaluate(trees => {
+      const map = window.__BP_TREE_BROWSER_MAP__;
+      map.__BP_LIVING_TILE_CACHE_V6017__.trees = trees;
+      window.__BP_TREE_INSTANCE_RENDERER_API_V1__.refreshInstances();
+    }, sampleTrees);
+    await page.waitForFunction(() =>
+      window.__BP_TREE_INSTANCE_RENDERER_V1__?.status === 'render-ready' &&
+      window.__BP_TREE_INSTANCE_RENDERER_V1__?.instanceCount === 3 &&
+      window.__BP_TREE_INSTANCE_RENDERER_V1__?.gpuDrawCalls > 0,
+      { timeout: 30000 }
+    );
+
     const diagnostics = await page.evaluate(() => {
       const map = window.__BP_TREE_BROWSER_MAP__;
       const state = window.__BP_TREE_INSTANCE_RENDERER_V1__;
