@@ -108,6 +108,8 @@ assert.match(mapSource, /retainedTrees=mergeLodFeatureCache/,
   'tree records from the current tile should stay cached across zoom-only changes');
 assert.match(mapSource, /else\{[\s\S]*?map\.getSource\('bpLivingWorld3D'\)\?\.setData\(EMPTY\);[\s\S]*?vis\(map,'gta-bp-tree3d-trunk',false\)/,
   'an empty active tile must clear stale extruded trees as well as cached tree points');
+assert.match(mapSource, /else\{\s*livingCount=0;/,
+  'an empty active tile must reset the live object count to zero');
 
 assert.match(rendererSource, /if \(z >= 16\.0/,
   'the full-resolution 3D tree LOD should begin earlier on close zoom');
