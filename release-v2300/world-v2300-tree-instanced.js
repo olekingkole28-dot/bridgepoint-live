@@ -822,6 +822,9 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
           powerPreference: lowMemory ? 'low-power' : 'high-performance'
         });
         renderer.autoClear = false;
+        // Three.js auto-resets renderer.info at the end of render(); keep the
+        // counters readable and reset them explicitly before the next frame.
+        renderer.info.autoReset = false;
         renderer.setPixelRatio?.(1);
         renderer.outputColorSpace = THREE.SRGBColorSpace;
         renderer.toneMapping = THREE.NoToneMapping;
@@ -847,11 +850,15 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
         uniforms.time.value = performance.now() / 1000;
         updateWind();
         renderer.resetState();
+        renderer.info.reset();
         renderer.render(scene, camera);
-        if (!state.firstFrameAt && state.instanceCount > 0) {
-          state.firstFrameAt = Date.now();
-          state.gpuDrawCalls = Number(renderer.info?.render?.calls || 0);
-          state.gpuTriangles = Number(renderer.info?.render?.triangles || 0);
+        const drawCalls = Number(renderer.info?.render?.calls || 0);
+        const triangles = Number(renderer.info?.render?.triangles || 0);
+        state.gpuDrawCalls = drawCalls;
+        state.gpuTriangles = triangles;
+        state.lastRenderFrameAt = Date.now();
+        if (!state.firstFrameAt && state.instanceCount > 0 && drawCalls > 0 && triangles > 0) {
+          state.firstFrameAt = state.lastRenderFrameAt;
           state.updatedAt = state.firstFrameAt;
         }
         if (state.instanceCount > 0) scheduleAnimation();
