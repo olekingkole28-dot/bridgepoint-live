@@ -179,7 +179,7 @@ async function bootMap(){
     const existing=window.__BP_SKY_CLOUDS_V5908__;
     if(existing?.map===world.map)appCloudApi=existing;
     else{
-     if(!appCloudPromise)appCloudPromise=import('./world-v2300-clouds.js?v=6170-always-on-3d-cloud-volumes')
+     if(!appCloudPromise)appCloudPromise=import('./world-v2300-clouds.js?v=6180-goes-mask-volumetric-clouds')
       .then(m=>{const api=m.initSkyClouds(world);if(!api)throw new Error('3D cloud engine did not initialize');window.__BP_SKY_CLOUDS_V5908__=api;return api})
       .finally(()=>{appCloudPromise=null});
      appCloudApi=await appCloudPromise;
@@ -1838,7 +1838,7 @@ async function start(){
  statusTimer=setInterval(()=>queueAfterMap('status-pulse',loadStatus),15000);
  tileTimer=setInterval(()=>queueAfterMap('tile-pulse',refreshTiles),BP_MOBILE?600000:300000);
  setTimeout(()=>queueAfterMap('tile-pulse',refreshTiles),BP_MOBILE?300000:120000);
- if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=6221-clouds-always-on',{updateViaCache:'none'}).catch(()=>{})
+ if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=6222-goes-cloud-mask-volumetric',{updateViaCache:'none'}).catch(()=>{})
 }
 window.addEventListener('bridgepoint:softrefresh',()=>{
  try{queueAfterMap('status-pulse',loadStatus)}catch(_){}

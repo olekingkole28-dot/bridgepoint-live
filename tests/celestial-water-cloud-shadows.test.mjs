@@ -97,8 +97,8 @@ test('clouds render as bright 3D volumes, not as a false-colour raster sheet', (
   assert.match(clouds, /layout:\{visibility:'none'\}/);
   assert.match(clouds, /setLayoutProperty\(SATELLITE_CLOUD_LAYER_ID_V6150,'visibility','none'\)/);
   assert.match(clouds, /setLayoutProperty\(EUMETSAT_CLOUD_LAYER_ID_V6150,'visibility','none'\)/);
-  assert.match(clouds, /vec3\(0\.70,0\.76,0\.84\)/);
-  assert.match(clouds, /version: 6170, map, overlay/);
+  assert.match(clouds, /vec3\(0\.44,0\.53,0\.66\)/);
+  assert.match(clouds, /version: 6180, map, overlay/);
   assert.doesNotMatch(clouds.slice(clouds.indexOf('function setWorldGrade(on)'), clouds.indexOf('function getProgramInfo(gl, shaderData)')), /map\\.setFog/);
   assert.match(clouds, /const desktopGlobalSlowMotion = !MOBILE && number\(map\.getZoom\?\.\(\),0\) <= 3\.5/);
   assert.match(clouds, /const globalMotionScale = desktopGlobalSlowMotion \? 0\.32 : 1/);
@@ -107,10 +107,10 @@ test('clouds render as bright 3D volumes, not as a false-colour raster sheet', (
   assert.match(clouds, /desktopGlobalCloudMotionPaused: false/);
   assert.match(clouds, /lastCloudRepaintAt/);
   assert.ok(app.includes('world-v2300-lod-controls.js?v=6201-gold-always-on'), 'app must use Gold-always-on LOD controls');
-  assert.ok(app.includes('world-v2300-clouds.js?v=6170-always-on-3d-cloud-volumes'), 'app must use the cache-busted desktop-stability cloud module');
-  assert.ok(landing.includes('world-v2300-clouds.js?v=6170-always-on-3d-cloud-volumes'), 'landing must use the cache-busted desktop-stability cloud module');
+  assert.ok(app.includes('world-v2300-clouds.js?v=6180-goes-mask-volumetric-clouds'), 'app must use the cache-busted desktop-stability cloud module');
+  assert.ok(landing.includes('world-v2300-clouds.js?v=6180-goes-mask-volumetric-clouds'), 'landing must use the cache-busted desktop-stability cloud module');
   assert.doesNotMatch(timeSlider, /data-clouds|toggleSkyClouds|world-v2300-clouds/, 'timeline must not expose or load the cloud toggle');
-  assert.match(clouds, /coverageVersion: 6170/);
+  assert.match(clouds, /coverageVersion: 6180/);
   assert.match(clouds, /Number\(satelliteMask\.probability\[idx\]\)<=32/);
   assert.match(clouds, /const satelliteMaxClouds = index32Supported \? \(MOBILE \? 1600 : 2800\) : \(MOBILE \? 480 : 760\)/);
   assert.match(clouds, /const CLOUD_VERTEX_LIMIT = MOBILE \? 145000 : 220000/);
@@ -120,7 +120,16 @@ test('clouds render as bright 3D volumes, not as a false-colour raster sheet', (
   assert.match(clouds, /SATELLITE_CLOUD_MASK_CACHE_KEY_V6150/);
   assert.match(clouds, /restoreCachedSatelliteCloudMaskV6150\(map\)/);
   assert.match(clouds, /persistSatelliteCloudMaskV6150\(mask\)/);
-  assert.match(clouds, /const satellitePuffSlices = MOBILE \? 6 : 8/);
+  assert.match(clouds, /const satellitePuffSlices = MOBILE \? 8 : 9/);
+  assert.match(clouds, /sourceCloudMaskSamples/);
+  assert.match(clouds, /sourceCloudMaskDirectAnchorBudget/);
+  assert.match(clouds, /viewFar=smoothstep\(85000\.0,18000000\.0,u_camera_altitude_m\)/);
+  assert.match(clouds, /erosionMask=smoothstep/);
+  assert.match(clouds, /billow=noise3\(coarseP\*1\.65/);
+  assert.match(clouds, /erosion=noise3\(coarseP\*7\.4/);
+  assert.match(clouds, /spiralBands=smoothstep\(0\.26,0\.72,spiralSignal\)/);
+  assert.match(clouds, /microExtinction=0\.72\+0\.42\*fine\+0\.22\*erosion/);
+  assert.match(clouds, /NOAA GOES Enterprise Cloud Mask probability and clear-sky observations/);
   assert.match(clouds, /lobeD = Math\.cos\(theta \* 7\.0/);
   assert.match(clouds, /cloudCavity=clamp/);
 });
@@ -128,7 +137,7 @@ test('clouds render as bright 3D volumes, not as a false-colour raster sheet', (
 test('the 28k source height feed seeds rounded 3D cloud puffs and blends nearby heights', () => {
   assert.match(clouds, /CLOUD_HEIGHT_FEED_URL_V6162/);
   assert.match(clouds, /const heightCandidates = \[\]/);
-  assert.match(clouds, /if\(satelliteMaskReady \|\| sourceHeightSamples\.length\)/);
+  assert.match(clouds, /if\(satelliteMaskReady \|\| sourceHeightSamples\.length \|\| sourceCloudMaskSamples\.length\)/);
   assert.match(clouds, /sourceHeightAnchorBudget=Math\.floor\(satelliteMaxClouds\*0\.25\)/);
   assert.match(clouds, /maxDirectHeightCandidates = MOBILE \? 5200 : 9000/);
   assert.match(clouds, /sourceHeightIndexCache\?\.key === heightIndexKey/);
@@ -153,16 +162,16 @@ test('entrypoints use fresh cache keys and keep the celestial canvas off the sat
   for (const source of [app, landing]) {
     assert.match(source, /world-v2300-map\.js\?v=6220-tree-canopy-coverage-solid-retention/);
     assert.match(source, /world-v2300-water\.js\?v=6194-stable-water-low-cost/);
-    assert.match(source, /world-v2300-clouds\.js\?v=6170-always-on-3d-cloud-volumes/);
+    assert.match(source, /world-v2300-clouds\.js\?v=6180-goes-mask-volumetric-clouds/);
     assert.match(source, /world-v2300-weather\.js\?v=6195-desktop-globe-flash-stability/);
     assert.match(source, /world-v2300-time-slider\.js\?v=6170-no-cloud-toggle-always-on/);
   }
-  assert.ok(appHtml.includes('world-v2300-clouds.js?v=6170-always-on-3d-cloud-volumes'), 'app shell preloads the always-on cloud renderer');
+  assert.match(appHtml, /app\.js\?v=6222-goes-cloud-mask-volumetric/, 'app shell loads the updated app entrypoint');
   assert.doesNotMatch(map, /world-v2300-space\.js\?v=6125-manual-globe-camera/, 'the retired celestial overlay must not be imported by the live globe');
   assert.doesNotMatch(timeSlider, /data-clouds|toggleSkyClouds|world-v2300-clouds/);
   assert.match(bootstrap, /world-v2300-weather\.js\?v=6195-desktop-globe-flash-stability/);
-  assert.match(appHtml, /app\.js\?v=6221-clouds-always-on/);
-  assert.match(landingHtml, /landing\.js\?v=6221-clouds-always-on/);
+  assert.match(appHtml, /app\.js\?v=6222-goes-cloud-mask-volumetric/);
+  assert.match(landingHtml, /landing\.js\?v=6222-goes-cloud-mask-volumetric/);
   assert.match(appHtml, /intelligence-global-v5507\.js\?v=6170-imerg-nrt-timeline/);
   assert.match(landingHtml, /intelligence-global-v5507\.js\?v=6170-imerg-nrt-timeline/);
 });
@@ -241,18 +250,18 @@ test('global opportunity markers render category glyphs and merge source-backed 
   assert.match(landing, /if\(!risk\)void loadRiskFeed\(\)\.then/);
 });
 
-test('both entrypoints perform a real 6221 service-worker cutover before stale startup survives', () => {
-  assert.match(landingHtml, /app-update-v5820\.js\?v=6221-clouds-always-on/);
-  assert.match(appHtml, /app-update-v5820\.js\?v=6221-clouds-always-on/);
-  assert.match(appUpdate, /const BUILD=6221/);
-  assert.match(appUpdate, /CURRENT_CACHE='bp-intelligence-v6221-clouds-always-on'/);
+test('both entrypoints perform a real 6222 service-worker cutover before stale startup survives', () => {
+  assert.match(landingHtml, /app-update-v5820\.js\?v=6222-goes-cloud-mask-volumetric/);
+  assert.match(appHtml, /app-update-v5820\.js\?v=6222-goes-cloud-mask-volumetric/);
+  assert.match(appUpdate, /const BUILD=6222/);
+  assert.match(appUpdate, /CURRENT_CACHE='bp-intelligence-v6222-goes-cloud-mask-volumetric'/);
   assert.match(appUpdate, /function reloadOnce\(reason\)/);
   assert.match(appUpdate, /location\.replace\(u\.href\)/);
   assert.match(appUpdate, /navigator\.serviceWorker\?\.addEventListener\('controllerchange'/);
-  assert.match(serviceWorker, /const V='bp-intelligence-v6221-clouds-always-on'/);
-  assert.match(landing, /navigator\.serviceWorker\.register\('\/sw\.js\?v=6221-clouds-always-on'/);
-  assert.match(app, /navigator\.serviceWorker\.register\('\/sw\.js\?v=6221-clouds-always-on'/);
-  assert.match(clouds, /Number\(existingCloudController\.version\) >= 6170[\s\S]{0,180}Number\(existingState\?\.coverageVersion \|\| existingState\?\.version\) >= 6170/);
+  assert.match(serviceWorker, /const V='bp-intelligence-v6222-goes-cloud-mask-volumetric'/);
+  assert.match(landing, /navigator\.serviceWorker\.register\('\/sw\.js\?v=6222-goes-cloud-mask-volumetric'/);
+  assert.match(app, /navigator\.serviceWorker\.register\('\/sw\.js\?v=6222-goes-cloud-mask-volumetric'/);
+  assert.match(clouds, /Number\(existingCloudController\.version\) >= 6180[\s\S]{0,180}Number\(existingState\?\.coverageVersion \|\| existingState\?\.version\) >= 6180/);
 });
 
 test('new rain/lightning and global source markers stay separate from legacy effects', () => {
@@ -269,11 +278,11 @@ test('new rain/lightning and global source markers stay separate from legacy eff
   assert.match(rain, /source_anchor_kind: 'warning'/);
   assert.match(rain, /windFields\(p, c, true\)/);
   assert.match(clouds, /sourceRainAnchors/);
-  assert.match(clouds, /coverageVersion: 6170/);
+  assert.match(clouds, /coverageVersion: 6180/);
   assert.match(clouds, /sourceHeightMatchedCount/);
   assert.match(clouds, /satelliteCloudHeightFeedStatus/);
-  assert.match(clouds, /alphaBase\*0\.82/);
-  assert.match(clouds, /version: 6170, map, overlay/);
+  assert.match(clouds, /alphaBase\*\(0\.68\+erosionMask\*0\.22\)/);
+  assert.match(clouds, /version: 6180, map, overlay/);
   assert.match(clouds, /bp6150-nasa-geostationary-cloud-context/);
   assert.match(clouds, /bp6150-nasa-geostationary-cloud-source/);
   assert.match(clouds, /GOES-East_ABI_Band13_Clean_Infrared/);
@@ -413,8 +422,8 @@ test('homepage opportunities stay off at startup and the button enables the publ
 test('website and app start on the same cache-busted globe-first weather build', () => {
   assert.match(landingHtml, /bp-globe-only-first-frame-v6137/);
   assert.match(appHtml, /bp-app-globe-only-first-frame-v6137/);
-  assert.ok(landingHtml.includes('landing.js?v=6221-clouds-always-on'));
-  assert.ok(appHtml.includes('app.js?v=6221-clouds-always-on'));
+  assert.ok(landingHtml.includes('landing.js?v=6222-goes-cloud-mask-volumetric'));
+  assert.ok(appHtml.includes('app.js?v=6222-goes-cloud-mask-volumetric'));
   assert.ok(landingHtml.includes('intelligence-global-v5507.js?v=6170-imerg-nrt-timeline'));
   assert.ok(appHtml.includes('intelligence-global-v5507.js?v=6170-imerg-nrt-timeline'));
 });

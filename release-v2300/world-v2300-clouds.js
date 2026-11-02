@@ -132,18 +132,20 @@ float bpStormDensity(vec3 p,float tint,float time,float radius,float height,floa
   float rho=length(p.xy)/max(radius,1.0),z=clamp(p.z/max(height,1.0),0.0,1.0);
   vec3 coarseP=vec3(p.xy/52000.0,p.z/4300.0)+vec3(time*0.018,-time*0.012,time*0.009);
   float broad=noise3(coarseP),fine=noise3(coarseP*2.7+vec3(time*0.10,-time*0.06,time*0.08)),micro=noise3(coarseP*5.1+vec3(-time*0.15,time*0.11,time*0.07));
+  float billow=noise3(coarseP*1.65+vec3(-time*0.035,time*0.026,time*0.021)),erosion=noise3(coarseP*7.4+vec3(time*0.18,-time*0.13,time*0.11));
   if(tint<1.481){
     float funnelLod=clamp((height-15500.0)/484500.0,0.0,1.0),topSpread=mix(0.105,0.70,funnelLod),taper=mix(0.0045,topSpread,pow(z,0.78)),rough=(broad-0.5)*0.020+(fine-0.5)*0.010+(micro-0.5)*0.006,radial=length(p.xy)/max(radius,18000.0);
-    float edge=1.0-smoothstep(taper*0.74,taper*1.20,radial+rough),twist=atan(p.y,p.x)-time*1.55+z*5.4+(fine-0.5)*1.4;
-    float striation=0.54+0.46*(0.5+0.5*cos(twist*3.1)),broken=smoothstep(0.18,0.40,broad*0.52+fine*0.32+micro*0.16);
+    rough+=(billow-0.5)*0.008+(erosion-0.5)*0.004;
+    float edge=1.0-smoothstep(taper*0.70,taper*1.22,radial+rough),twist=atan(p.y,p.x)-time*1.55+z*5.4+(fine-0.5)*1.4+(billow-0.5)*0.55;
+    float striation=0.50+0.50*(0.5+0.5*cos(twist*3.1)),broken=smoothstep(0.20,0.52,broad*0.38+fine*0.23+micro*0.16+billow*0.15+erosion*0.08);
     float vertical=smoothstep(0.006,0.075,z)*(1.0-smoothstep(0.91,1.0,z)),inside=1.0-smoothstep(taper*0.10,taper*0.46,radial);
     return clamp((edge*(0.52+0.48*broken)*striation*vertical*1.38)+(inside*vertical*broken*0.08),0.0,1.0);
   }
   float safeEye=clamp(eyeRatio,0.008,0.095),vertical=smoothstep(0.065,0.18,z)*(1.0-smoothstep(0.84,0.99,z));
   float eyeClear=smoothstep(safeEye*0.98,safeEye*1.28,rho),outerFade=1.0-smoothstep(0.82,0.995,rho);
-  float phase=atan(p.y,p.x)-log(max(rho,safeEye*1.32))*1.82-time*0.22,spiralSignal=0.5+0.5*cos(phase*5.0+(broad-0.5)*1.7+(fine-0.5)*0.9);
-  float spiralBands=smoothstep(0.26,0.72,spiralSignal),cloudTexture=smoothstep(0.24,0.48,broad*0.54+fine*0.30+micro*0.16);
-  float brokenBands=mix(0.10,1.0,spiralBands)*(0.36+0.64*cloudTexture),eyeWallRadius=safeEye*1.50,eyeWallWidth=max(0.012,safeEye*0.43);
+  float phase=atan(p.y,p.x)-log(max(rho,safeEye*1.32))*1.82-time*0.22,spiralSignal=0.5+0.5*cos(phase*5.0+(broad-0.5)*1.7+(fine-0.5)*0.9+(billow-0.5)*0.72+(erosion-0.5)*0.32);
+  float spiralBands=smoothstep(0.26,0.72,spiralSignal),cloudTexture=smoothstep(0.22,0.54,broad*0.36+fine*0.22+micro*0.16+billow*0.17+erosion*0.09);
+  float brokenBands=mix(0.055,1.0,spiralBands)*(0.28+0.72*cloudTexture),eyeWallRadius=safeEye*1.50,eyeWallWidth=max(0.012,safeEye*0.43);
   float eyeWall=exp(-pow((rho-eyeWallRadius)/eyeWallWidth,2.0))*(0.70+0.30*broad),outerBands=eyeClear*outerFade*vertical*brokenBands;
   return clamp(max(outerBands*1.36,eyeWall*vertical*1.28),0.0,1.0);
 }
@@ -170,10 +172,13 @@ vec4 bpRaymarchStorm(vec3 entry,vec2 cameraXY,float tint,float time,float camera
     float density=bpStormDensity(samplePos,tint,time,radius,height,eyeRatio);
     if(density>0.012){
       float broad=noise3(vec3(samplePos.xy/21000.0,samplePos.z/2900.0)+vec3(time*0.02,-time*0.01,time*0.015));
+      float fine=noise3(vec3(samplePos.xy/7600.0,samplePos.z/1350.0)+vec3(-time*0.045,time*0.035,time*0.028));
+      float erosion=noise3(vec3(samplePos.xy/3100.0,samplePos.z/760.0)+vec3(time*0.09,-time*0.065,time*0.05));
       float heightShade=clamp(samplePos.z/height,0.0,1.0),radialShade=clamp(length(samplePos.xy)/radius,0.0,1.0);
-      float silver=clamp(0.45+0.26*broad+0.20*heightShade-0.16*radialShade,0.16,1.0);
-      vec3 cloudColor=mix(vec3(0.20,0.25,0.32),vec3(0.93,0.96,1.0),silver);
-      float extinction=funnel?mix(0.000105,0.000012,funnelLod):0.000060,sampleAlpha=clamp(1.0-exp(-density*stepLength*extinction),0.0,0.50);
+      float silver=clamp(0.37+0.22*broad+0.17*fine+0.12*erosion+0.20*heightShade-0.16*radialShade,0.14,1.0);
+      vec3 cloudColor=mix(vec3(0.13,0.19,0.28),vec3(0.96,0.98,1.0),silver);
+      float microExtinction=0.72+0.42*fine+0.22*erosion;
+      float extinction=funnel?mix(0.000105,0.000012,funnelLod):0.000060,sampleAlpha=clamp(1.0-exp(-density*stepLength*extinction*microExtinction),0.0,0.50);
       accumulatedColor+=cloudColor*((1.0-accumulatedAlpha)*sampleAlpha);accumulatedAlpha+=(1.0-accumulatedAlpha)*sampleAlpha;
     }
   }
@@ -203,7 +208,7 @@ function makeShaders(webgl2, shaderData = null) {
     'uniform highp float u_time;\nuniform highp float u_camera_altitude_m;\nuniform highp float u_ray_steps;\n' +
     'float noise3(vec3 p){vec3 q=floor(p);vec3 f=fract(p);f=f*f*(3.0-2.0*f);float n=q.x+q.y*57.0+q.z*113.0;float a=fract(sin(n)*43758.5453);float b=fract(sin(n+1.0)*43758.5453);float c=fract(sin(n+57.0)*43758.5453);float d=fract(sin(n+58.0)*43758.5453);float e=fract(sin(n+113.0)*43758.5453);float f1=fract(sin(n+114.0)*43758.5453);float g=fract(sin(n+170.0)*43758.5453);float h=fract(sin(n+171.0)*43758.5453);return mix(mix(mix(a,b,f.x),mix(c,d,f.x),f.y),mix(mix(e,f1,f.x),mix(g,h,f.x),f.y),f.z);}\n' +
     STORM_VOLUME_FRAGMENT + '\n' +
-    'void main(){if(v_tint>1.47){vec4 stormColor=bpRaymarchStorm(v_local,v_camera_local,v_tint,u_time,u_camera_altitude_m,u_ray_steps);if(stormColor.a<=0.0)discard;' + (webgl2 ? 'bpColor=stormColor;' : 'gl_FragColor=stormColor;') + 'return;}if(v_tint>1.438&&v_tint<1.47){float z=clamp(v_local.z,0.0,1.0),phi=atan(v_local.y,v_local.x);float noiseA=noise3(vec3(v_local.xy*11.0,z*6.0+u_time*0.04)),noiseB=noise3(vec3(v_local.xy*23.0,phi*0.6-u_time*0.08));float spiral=0.5+0.5*cos(phi*8.0-z*32.0+u_time*3.6+(noiseA-0.5)*2.0);float wisps=smoothstep(0.18,0.78,spiral*0.52+noiseA*0.28+noiseB*0.20);vec3 tornadoColor=mix(vec3(0.12,0.16,0.23),vec3(0.78,0.86,0.93),wisps);float tornadoAlpha=mix(0.55,0.96,wisps);' + (webgl2 ? 'bpColor=vec4(tornadoColor,tornadoAlpha);' : 'gl_FragColor=vec4(tornadoColor,tornadoAlpha);') + 'return;}vec3 n=normalize(v_local);float cloudShadingMix=1.0-smoothstep(0.84,0.96,v_tint);vec3 sculptedNormal=normalize(vec3(v_local.x*0.86,v_local.y*0.90,v_local.z*1.55));n=normalize(mix(n,sculptedNormal,cloudShadingMix));float edge=clamp(0.58+abs(v_local.z)*0.18,0.0,1.0);float broad=noise3(v_local*3.0+vec3(u_time*0.004,v_tint*1.7,0.0));float detail=noise3(v_local*7.0+vec3(u_time*0.018,v_tint*4.0,0.0));float billow=noise3(v_local*15.0+vec3(0.0,u_time*0.012,v_tint*8.0));float fine=noise3(v_local*27.0+vec3(u_time*0.008,v_tint*11.0,0.0));float diffuse=max(0.0,dot(n,normalize(vec3(-0.42,0.55,0.72))));float density=broad*0.37+detail*0.34+billow*0.29;float sculpt=smoothstep(0.20,0.68,density);float silver=clamp(0.30+diffuse*0.72+broad*0.07+detail*0.06+billow*0.05,0.0,1.0);vec3 lit=mix(vec3(0.70,0.76,0.84),vec3(1.0),smoothstep(0.05,0.65,silver));float underside=pow(max(0.0,-n.z),mix(1.35,1.18,cloudShadingMix));lit=mix(lit,vec3(0.25,0.31,0.40),underside*mix(0.42,0.53,cloudShadingMix));float cloudCavity=clamp((0.52-broad)*0.16+(0.50-detail)*0.10+(0.48-billow)*0.08,0.0,0.18);lit*=1.0-cloudCavity*cloudShadingMix;lit=mix(lit,vec3(0.84,0.89,0.96),pow(max(0.0,1.0-abs(dot(n,normalize(vec3(0.2,0.0,1.0))))),2.0)*mix(0.19,0.27,cloudShadingMix));float tornadoCell=smoothstep(1.40,1.44,v_tint);float rainCell=smoothstep(1.30,1.34,v_tint)*(1.0-tornadoCell);float stormCell=smoothstep(0.89,0.95,v_tint)*(1.0-rainCell)*(1.0-tornadoCell);float hurricaneCell=smoothstep(1.20,1.23,v_tint)*(1.0-smoothstep(1.28,1.30,v_tint));float hurricaneRibbonCell=smoothstep(1.286,1.290,v_tint)*(1.0-smoothstep(1.294,1.298,v_tint));float tornadoStriation=0.5+0.5*sin(atan(v_local.y,v_local.x)*6.0-u_time*4.8+v_local.z*17.0+detail*2.1);lit=mix(lit,vec3(0.27,0.33,0.42),rainCell*0.68);lit=mix(lit,vec3(0.19,0.23,0.30),stormCell*0.46+hurricaneCell*0.62+tornadoCell*0.78);lit=mix(lit,vec3(0.83,0.88,0.93),tornadoCell*tornadoStriation*0.62);lit=mix(lit,mix(vec3(0.46,0.58,0.72),vec3(0.97,0.985,1.0),detail),hurricaneRibbonCell*0.48);float alphaBase=edge*(0.28+sculpt*0.53+diffuse*0.19+fine*0.08)*(1.0+rainCell*1.8+stormCell*0.14+hurricaneCell*0.3+hurricaneRibbonCell*0.95+tornadoCell*(0.55+tornadoStriation*0.50));float thinCell=1.0-smoothstep(0.19,0.26,v_tint);float alpha=clamp(mix(alphaBase,alphaBase*0.82,thinCell),0.035,0.96);' +
+    'void main(){if(v_tint>1.47){vec4 stormColor=bpRaymarchStorm(v_local,v_camera_local,v_tint,u_time,u_camera_altitude_m,u_ray_steps);if(stormColor.a<=0.0)discard;' + (webgl2 ? 'bpColor=stormColor;' : 'gl_FragColor=stormColor;') + 'return;}if(v_tint>1.438&&v_tint<1.47){float z=clamp(v_local.z,0.0,1.0),phi=atan(v_local.y,v_local.x);float noiseA=noise3(vec3(v_local.xy*9.0,z*7.0+u_time*0.035));float noiseB=noise3(vec3(v_local.xy*19.0,phi*0.6-u_time*0.07));float billow=noise3(vec3(v_local.xy*31.0,z*18.0+u_time*0.12));float spiral=0.5+0.5*cos(phi*8.0-z*32.0+u_time*3.6+(noiseA-0.5)*2.0+(billow-0.5)*1.25);float ragged=smoothstep(0.14,0.78,noiseA*0.43+noiseB*0.34+billow*0.23);float wisps=smoothstep(0.17,0.76,spiral*0.47+noiseA*0.22+noiseB*0.17+billow*0.14)*ragged;vec3 tornadoColor=mix(vec3(0.075,0.105,0.16),vec3(0.88,0.92,0.97),wisps);tornadoColor=mix(tornadoColor,vec3(0.32,0.40,0.51),pow(1.0-z,1.8)*0.34);float tornadoAlpha=clamp(mix(0.30,0.94,wisps)*(0.78+billow*0.22),0.18,0.96);' + (webgl2 ? 'bpColor=vec4(tornadoColor,tornadoAlpha);' : 'gl_FragColor=vec4(tornadoColor,tornadoAlpha);') + 'return;}vec3 n=normalize(v_local);float cloudShadingMix=1.0-smoothstep(0.84,0.96,v_tint);vec3 sculptedNormal=normalize(vec3(v_local.x*0.86,v_local.y*0.90,v_local.z*1.55));n=normalize(mix(n,sculptedNormal,cloudShadingMix));float viewFar=smoothstep(85000.0,18000000.0,u_camera_altitude_m);float detailScale=mix(22.0,5.2,viewFar);float broad=noise3(v_local*(detailScale*0.20)+vec3(u_time*0.002,v_tint*1.7,0.0));float detail=noise3(v_local*(detailScale*0.50)+vec3(u_time*0.006,v_tint*4.0,0.0));float billow=noise3(v_local*(detailScale*1.0)+vec3(0.0,u_time*0.010,v_tint*8.0));float fine=noise3(v_local*(detailScale*1.95)+vec3(u_time*0.006,v_tint*11.0,0.0));float warp=noise3(v_local*(detailScale*0.34)+vec3(-u_time*0.001,v_tint*2.3,u_time*0.001));float erosion=noise3(v_local*(detailScale*3.6)+vec3(u_time*0.012,v_tint*15.0,0.0));vec3 bump=vec3((detail-broad)*0.22,(billow-detail)*0.18,(fine-warp)*0.16);vec3 cloudNormal=normalize(n+bump*mix(0.28,0.46,1.0-viewFar));float diffuse=max(0.0,dot(cloudNormal,normalize(vec3(-0.42,0.55,0.72))));float density=broad*0.30+detail*0.26+billow*0.21+fine*0.10+warp*0.05+erosion*0.08;float sculpt=smoothstep(0.22,0.70,density);float erosionMask=smoothstep(0.18,0.68,billow*0.39+fine*0.31+erosion*0.30);float edge=clamp(0.54+abs(v_local.z)*0.20,0.0,1.0);float silver=clamp(0.23+diffuse*0.75+broad*0.08+detail*0.07+billow*0.05,0.0,1.0);vec3 lit=mix(vec3(0.44,0.53,0.66),vec3(0.99,0.997,1.0),smoothstep(0.08,0.72,silver));float underside=pow(max(0.0,-cloudNormal.z),mix(1.26,1.08,cloudShadingMix));lit=mix(lit,vec3(0.15,0.22,0.33),underside*mix(0.40,0.59,cloudShadingMix));float cloudCavity=clamp((0.52-broad)*0.18+(0.50-detail)*0.12+(0.48-billow)*0.10+(0.5-warp)*0.07+(0.5-erosion)*0.04,0.0,0.22);lit*=1.0-cloudCavity*cloudShadingMix;float silverRim=pow(max(0.0,1.0-abs(dot(cloudNormal,normalize(vec3(0.2,-0.1,1.0))))),2.35);lit=mix(lit,vec3(0.93,0.97,1.0),silverRim*mix(0.20,0.35,cloudShadingMix));float tornadoCell=smoothstep(1.40,1.44,v_tint);float rainCell=smoothstep(1.30,1.34,v_tint)*(1.0-tornadoCell);float stormCell=smoothstep(0.89,0.95,v_tint)*(1.0-rainCell)*(1.0-tornadoCell);float hurricaneCell=smoothstep(1.20,1.23,v_tint)*(1.0-smoothstep(1.28,1.30,v_tint));float hurricaneRibbonCell=smoothstep(1.286,1.290,v_tint)*(1.0-smoothstep(1.294,1.298,v_tint));float tornadoStriation=0.5+0.5*sin(atan(v_local.y,v_local.x)*6.0-u_time*4.8+v_local.z*17.0+detail*2.1);lit=mix(lit,vec3(0.27,0.33,0.42),rainCell*0.68);lit=mix(lit,vec3(0.19,0.23,0.30),stormCell*0.46+hurricaneCell*0.62+tornadoCell*0.78);lit=mix(lit,vec3(0.83,0.88,0.93),tornadoCell*tornadoStriation*0.62);lit=mix(lit,mix(vec3(0.46,0.58,0.72),vec3(0.97,0.985,1.0),detail),hurricaneRibbonCell*0.48);float alphaBase=edge*(0.18+sculpt*0.49+diffuse*0.18+fine*0.08+erosionMask*0.16)*(1.0+rainCell*1.8+stormCell*0.14+hurricaneCell*0.3+hurricaneRibbonCell*0.95+tornadoCell*(0.55+tornadoStriation*0.50));float thinCell=1.0-smoothstep(0.19,0.26,v_tint);float alpha=clamp(mix(alphaBase,alphaBase*(0.68+erosionMask*0.22),thinCell),0.025,0.96);' +
     (webgl2 ? 'bpColor=vec4(lit,alpha);' : 'gl_FragColor=vec4(lit,alpha);') +
     '}';
   return { vertex, fragment, projectionAware };
@@ -545,7 +550,7 @@ function ensureLiveSatelliteCloudContextV6134(map){
     window.__BP_SATELLITE_CLOUD_MASK_V6140__=mask;
     maskState.maskStatus='fresh';maskState.maskLastSuccessAt=mask.updatedAt;maskState.maskLastError=null;
     maskState.maskGeneration=mask.generation;maskState.maskCoverageCells=coverageCells;maskState.maskCloudCells=cloudCells;
-    maskState.maskSourceEpoch=epoch;maskState.maskImageWidth=bitmap.width;maskState.maskImageHeight=bitmap.height;
+    maskState.maskSourceEpoch=epoch;maskState.maskRequestedAt=new Date(satelliteFrameEpochV6150()).toISOString();maskState.maskTimeDimension='NASA GIBS TIME parameter; nearest available subdaily scan';maskState.maskImageWidth=bitmap.width;maskState.maskImageHeight=bitmap.height;
     try{window.dispatchEvent(new CustomEvent('bp2300:satellite-cloud-mask-updated',{detail:{map,generation:mask.generation,coverageCells,cloudCells,updatedAt:mask.updatedAt}}))}catch(_){}
     map.triggerRepaint?.();
     return true;
@@ -728,9 +733,12 @@ function satelliteMaskCellCenterV6150(mask,col,row){
 function satelliteFrameEpochV6150(){return Math.floor(Date.now()/600000)*600000}
 function satelliteWmsUrlV6150(endpoint,layers,width,height,crs='EPSG:4326'){
  const bbox=crs==='EPSG:4326'?'-180,-85,180,85':'{bbox-epsg-3857}';
+ const frameEpoch=satelliteFrameEpochV6150();
+ const frameTime=new Date(frameEpoch).toISOString().slice(0,19)+'Z';
+ const timeDimension=String(endpoint).includes('gibs.earthdata.nasa.gov')?'&TIME='+encodeURIComponent(frameTime):'';
  return endpoint+'?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&LAYERS='+encodeURIComponent(layers)+
   '&STYLES=&SRS='+encodeURIComponent(crs)+'&BBOX='+bbox+'&WIDTH='+width+'&HEIGHT='+height+
-  '&FORMAT=image/png&TRANSPARENT=TRUE&bp_refresh='+satelliteFrameEpochV6150();
+  '&FORMAT=image/png&TRANSPARENT=TRUE'+timeDimension+'&bp_refresh='+frameEpoch;
 }
 function satelliteWrapLongitudeV6150(v){return ((v+540)%360)-180}
 function geostationaryFootprintVisibleV6150(lng,lat,centralLongitude){
@@ -874,7 +882,7 @@ export function initSkyClouds(target) {
   ensureLiveSatelliteCloudContextV6150(map);
   const existingCloudController = window.__BP_SKY_CLOUDS_V5908__;
   if (existingCloudController?.map === map) {
-    const existingState = window.__BP_SKY_CLOUDS_STATE_V6150__ || window.__BP_SKY_CLOUDS_STATE_V6079__ || window.__BP_SKY_CLOUDS_STATE_V6077__ || window.__BP_SKY_CLOUDS_STATE_V6076__ ||
+    const existingState = window.__BP_SKY_CLOUDS_STATE_V6180__ || window.__BP_SKY_CLOUDS_STATE_V6150__ || window.__BP_SKY_CLOUDS_STATE_V6079__ || window.__BP_SKY_CLOUDS_STATE_V6077__ || window.__BP_SKY_CLOUDS_STATE_V6076__ ||
       window.__BP_SKY_CLOUDS_STATE_V6075__ ||
       window.__BP_SKY_CLOUDS_STATE_V6074__ ||
       window.__BP_SKY_CLOUDS_STATE_V6073__ ||
@@ -882,8 +890,8 @@ export function initSkyClouds(target) {
       existingCloudController.state || null;
     // Cache-busted modules still share this global controller slot. Never silently
     // return a legacy controller whose geometry predates the requested cloud field.
-    if (Number(existingCloudController.version) >= 6170 &&
-        Number(existingState?.coverageVersion || existingState?.version) >= 6170) {
+    if (Number(existingCloudController.version) >= 6180 &&
+        Number(existingState?.coverageVersion || existingState?.version) >= 6180) {
       return existingCloudController;
     }
     try { existingCloudController.destroy?.(); } catch (error) {
@@ -1010,23 +1018,70 @@ export function initSkyClouds(target) {
           }
           samples.push(sample);
         }
-        const signature = String(payload.generated_at || '') + '|' + samples.length + '|' +
-          sources.map(x => [x.source || x.label, x.status, x.observed_at, x.sample_count].join(':')).join('|');
+        const maskSourceRows = Array.isArray(payload.cloud_mask_sources) ? payload.cloud_mask_sources.slice(0, 8) : [];
+        const maskRows = Array.isArray(payload.cloud_mask_samples) ? payload.cloud_mask_samples.slice(0, 160000) : [];
+        const cloudMaskSources = [], cloudMaskSourceMap = new Map();
+        for (let i = 0; i < maskSourceRows.length; i++) {
+          const source = maskSourceRows[i];
+          if (!source || source.status !== 'available') continue;
+          const observedAt = String(source.observed_at || '');
+          const observedMs = Date.parse(observedAt);
+          if (!Number.isFinite(observedMs) || observedMs > now + 120000 || now - observedMs > 45 * 60 * 1000) continue;
+          const index = cloudMaskSources.length;
+          cloudMaskSources.push({
+            source: String(source.source || 'NOAA GOES Enterprise Cloud Mask').slice(0, 180),
+            satellite: String(source.satellite || ''), product: String(source.product || 'ABI-L2-ACMF'),
+            observedAt, publishedAt: source.published_at || null, sampleCount: Number(source.sample_count) || 0
+          });
+          cloudMaskSourceMap.set(i, index);
+        }
+        const cloudMaskSamples = [];
+        for (const row of maskRows) {
+          if (!Array.isArray(row) || row.length < 4) continue;
+          const lng = number(row[0], NaN), lat = number(row[1], NaN);
+          const probability = number(row[2], NaN) / 255;
+          const mappedSourceIndex = cloudMaskSourceMap.get(Math.trunc(number(row[3], -1)));
+          const source = mappedSourceIndex == null ? null : cloudMaskSources[mappedSourceIndex];
+          if (![lng, lat, probability].every(Number.isFinite) || Math.abs(lat) > 85 || Math.abs(lng) > 180 ||
+              probability < 0 || probability > 1 || !source) continue;
+          cloudMaskSamples.push({ lng, lat, probability, sourceIndex: mappedSourceIndex, source: source.source, timestamp: source.observedAt });
+        }
         const prior = window.__BP_CLOUD_HEIGHT_FEED_V6162__;
+        let effectiveCloudMaskSamples = cloudMaskSamples;
+        let effectiveCloudMaskSources = cloudMaskSources;
+        let cloudMaskUpdatedAt = cloudMaskSamples.length ? now : 0;
+        let cloudMaskSignature = cloudMaskSamples.length
+          ? cloudMaskSamples.length + '|' + cloudMaskSources.map(x => [x.satellite, x.observedAt, x.sampleCount].join(':')).join('|')
+          : 'unavailable';
+        // Keep the last quality-valid official mask briefly during upstream outages.
+        // It must expire so cloud motion/decay never becomes a permanent stale picture.
+        if (!cloudMaskSamples.length && Array.isArray(prior?.cloudMaskSamples) && prior.cloudMaskSamples.length &&
+            now - Number(prior.cloudMaskUpdatedAt || 0) < 30 * 60 * 1000) {
+          effectiveCloudMaskSamples = prior.cloudMaskSamples;
+          effectiveCloudMaskSources = prior.cloudMaskSources || [];
+          cloudMaskUpdatedAt = prior.cloudMaskUpdatedAt;
+          cloudMaskSignature = prior.cloudMaskSignature || 'retained-recent-observation';
+        }
+        const signature = String(payload.generated_at || '') + '|' + samples.length + '|' + cloudMaskSignature + '|' +
+          sources.map(x => [x.source || x.label, x.status, x.observed_at, x.sample_count].join(':')).join('|');
         cloudHeightFeedLastAttemptAt = Date.now();
-        if (!prior || prior.signature !== signature || prior.samples?.length !== samples.length) {
+        if (!prior || prior.signature !== signature || prior.samples?.length !== samples.length ||
+            prior.cloudMaskSignature !== cloudMaskSignature) {
           window.__BP_CLOUD_HEIGHT_FEED_V6162__ = {
-            version: 1, signature, samples, sources, generatedAt: payload.generated_at || null,
+            version: 2, signature, samples, sources, generatedAt: payload.generated_at || null,
             publishedSampleCount: Number(payload.sample_count) || rows.length,
+            cloudMaskSamples: effectiveCloudMaskSamples, cloudMaskSources: effectiveCloudMaskSources,
+            cloudMaskSampleCount: effectiveCloudMaskSamples.length, cloudMaskSignature, cloudMaskUpdatedAt,
+            cloudMaskGeneratedAt: payload.generated_at || null,
             warnings: Array.isArray(payload.warnings) ? payload.warnings.slice(0, 8) : [],
-            updatedAt: Date.now(), heightReference: String(payload.height_reference || 'MSL')
+            updatedAt: now, heightReference: String(payload.height_reference || 'MSL')
           };
-          if (samples.length && enabled && !disposed) {
+          if ((samples.length || effectiveCloudMaskSamples.length) && enabled && !disposed) {
             globalCloudGeometryCache = null;
             scheduleGeometry(0);
           }
         } else {
-          prior.updatedAt = Date.now();
+          prior.updatedAt = now;
         }
         window.__BP_CLOUD_HEIGHT_FEED_V6162_ERROR__ = null;
         publishState();
@@ -1330,7 +1385,7 @@ export function initSkyClouds(target) {
     const satelliteMaskUsable = Number(satelliteMask?.version)>=6150 && satelliteMask?.map===map && satelliteMaskAgeMs!=null && satelliteMaskAgeMs<3600000;
     const satelliteMaskStatus = satelliteMaskUsable ? 'fresh-observation-derived' : (window.__BP_GOES_CLOUD_CONTEXT_V6134__?.maskStatus || 'procedural-fallback');
     const state = {
-      version: 6170, map, enabled, visible: enabled && !document.hidden,
+      version: 6180, map, enabled, visible: enabled && !document.hidden,
       cloudShadowLayerAttached: !!map.getLayer?.(SHADOW_LAYER_ID), cloudShadowFeatureCount: shadowFeatureCount,
       cloudShadowUpdatedAt: shadowLastUpdateAt, cloudShadowHeightResolvedWindCount: shadowWindSourceCount,
       cloudShadowLayerError: shadowLayerError, weatherSceneGeneratedAt: getScene()?.generated_at || getScene()?.updated_at || null,
@@ -1338,7 +1393,7 @@ export function initSkyClouds(target) {
       renderer: 'shared MapLibre WebGL context; storms use world-anchored raymarched volume proxies',
       stormRenderingArchitecture: 'Earth-coordinate storm geometry in fixed metres, source-centre anchored, with shader-interpolated source-motion vectors and no zoom-driven storm-size boosts',
       stormVolumeProxyVertices, hurricaneVolumeProxyVertices, tornadoVolumeProxyVertices, hurricaneSurfaceCloudVertices, tornadoSurfaceMeshVertices, tornadoSurfaceVerticesSubmitted, postTropicalSurfaceCloudVertices, postTropicalStormCount, postTropicalCloudShieldRadiusKm, josephineHurricaneGeometryCount, josephineVisualEyeRadiusKm, josephineVisualShieldRadiusKm, sourceHurricaneVisualEyeRadiusKm, josephineSourceClassification: (()=>{const j=(Array.isArray(getScene()?.storms)?getScene().storms:[]).find(isJosephineCyclone);const p=j?.properties||j||{};return String(p.official_classification||p.classification||p.classificationCode||p.type||'unknown');})(), stormRaymarchStepBudget,
-      cloudFormations: formationCount, globalCloudFormations: globalCloudGeometryCache?.formationCount || 0, coverageVersion: 6170, globalStormMaskCount: globalCloudGeometryCache?.stormEyeMaskCount || 0, globalCloudLodBand: globalCloudGeometryCache?.cloudLodBand || 'unbuilt', globalStormLod, sourceStormCount, sourceTornadoAlertCount, modeledHurricaneVisualCount, modeledTornadoVisualCount, hurricaneSpiralRibbonVertices, stormVisualProvenance: (modeledHurricaneVisualCount || modeledTornadoVisualCount) ? 'modeled fallback cloud structures are visual examples, not source-backed live weather or alerts' : (sourceStormCount ? 'source-anchored storm bodies; tropical cyclones use eye/spiral geometry, post-tropical lows use asymmetric cloud shields except the Josephine-specific visual-compatibility override; official classification is preserved, no synthetic storm centres' : 'no source-backed storm record; synthetic storm fallbacks disabled'), globalMacroRadiusMinKm: globalCloudGeometryCache?.macroRadiusMinKm || 0, globalMacroRadiusMaxKm: globalCloudGeometryCache?.macroRadiusMaxKm || 0, globalThinLayerSlices: globalCloudGeometryCache?.thinLayerSlices || 0, globalThinLayerStacks: globalCloudGeometryCache?.thinLayerStacks || 0, globalSingleLayerSlices: globalCloudGeometryCache?.singleLayerSlices || 0, globalSingleLayerStacks: globalCloudGeometryCache?.singleLayerStacks || 0, hurricaneSpiralCloudCenters, hurricaneEyeWallCloudCenters, hurricaneEyeRadiusKm, hurricaneEyeRadiusSource, hurricaneCloudShieldRadiusKm, hurricaneVisualEyeRadiusKm, hurricaneVisualShieldRadiusKm, tornadoVisualHeightKm, tornadoVisualTopRadiusKm, tornadoVisualBoost, globalHeightResolvedWindPuffs: globalCloudGeometryCache?.heightResolvedWindPuffs || 0, globalModelledWindPuffs: globalCloudGeometryCache?.modelledWindPuffs || 0, localWindSourcePuffs, localWindModelledPuffs, globalMacroFormations: globalCloudGeometryCache?.macroFormationCount || 0, globalFineFormations: globalCloudGeometryCache?.fineFormationCount || 0, globalIsolatedFormations: globalCloudGeometryCache?.isolatedFormationCount || 0, globalThinLayerFormations: globalCloudGeometryCache?.thinLayerFormationCount || 0, globalCloudPuffs: globalCloudGeometryCache?.puffCount || 0, globalTerrainQuerySamples: terrainHeightKnownSamples, terrainRelativeCloudBases: terrainQueryAvailable, cloudMotion: (globalCloudGeometryCache?.heightResolvedWindPuffs || 0) > 0 ? 'Height-resolved source wind advects matched cloud puffs; modelled atmospheric flow fills unmatched locations' : 'Height/latitude-aware modelled atmospheric flow; no source-backed global upper-air wind grid is connected',
+      cloudFormations: formationCount, globalCloudFormations: globalCloudGeometryCache?.formationCount || 0, coverageVersion: 6180, globalStormMaskCount: globalCloudGeometryCache?.stormEyeMaskCount || 0, globalCloudLodBand: globalCloudGeometryCache?.cloudLodBand || 'unbuilt', globalStormLod, sourceStormCount, sourceTornadoAlertCount, modeledHurricaneVisualCount, modeledTornadoVisualCount, hurricaneSpiralRibbonVertices, stormVisualProvenance: (modeledHurricaneVisualCount || modeledTornadoVisualCount) ? 'modeled fallback cloud structures are visual examples, not source-backed live weather or alerts' : (sourceStormCount ? 'source-anchored storm bodies; tropical cyclones use eye/spiral geometry, post-tropical lows use asymmetric cloud shields except the Josephine-specific visual-compatibility override; official classification is preserved, no synthetic storm centres' : 'no source-backed storm record; synthetic storm fallbacks disabled'), globalMacroRadiusMinKm: globalCloudGeometryCache?.macroRadiusMinKm || 0, globalMacroRadiusMaxKm: globalCloudGeometryCache?.macroRadiusMaxKm || 0, globalThinLayerSlices: globalCloudGeometryCache?.thinLayerSlices || 0, globalThinLayerStacks: globalCloudGeometryCache?.thinLayerStacks || 0, globalSingleLayerSlices: globalCloudGeometryCache?.singleLayerSlices || 0, globalSingleLayerStacks: globalCloudGeometryCache?.singleLayerStacks || 0, hurricaneSpiralCloudCenters, hurricaneEyeWallCloudCenters, hurricaneEyeRadiusKm, hurricaneEyeRadiusSource, hurricaneCloudShieldRadiusKm, hurricaneVisualEyeRadiusKm, hurricaneVisualShieldRadiusKm, tornadoVisualHeightKm, tornadoVisualTopRadiusKm, tornadoVisualBoost, globalHeightResolvedWindPuffs: globalCloudGeometryCache?.heightResolvedWindPuffs || 0, globalModelledWindPuffs: globalCloudGeometryCache?.modelledWindPuffs || 0, localWindSourcePuffs, localWindModelledPuffs, globalMacroFormations: globalCloudGeometryCache?.macroFormationCount || 0, globalFineFormations: globalCloudGeometryCache?.fineFormationCount || 0, globalIsolatedFormations: globalCloudGeometryCache?.isolatedFormationCount || 0, globalThinLayerFormations: globalCloudGeometryCache?.thinLayerFormationCount || 0, globalCloudPuffs: globalCloudGeometryCache?.puffCount || 0, globalTerrainQuerySamples: terrainHeightKnownSamples, terrainRelativeCloudBases: terrainQueryAvailable, cloudMotion: (globalCloudGeometryCache?.heightResolvedWindPuffs || 0) > 0 ? 'Height-resolved source wind advects matched cloud puffs; modelled atmospheric flow fills unmatched locations' : 'Height/latitude-aware modelled atmospheric flow; no source-backed global upper-air wind grid is connected',
       stormMotionModel: 'Uses feed-provided motion where present; otherwise derives speed and heading from consecutive source fixes. No position interpolation is invented without track history.',
       projectionMode: 'MapLibre shaderData projectTileFor3D', projectionShaderVariants: programCache.size,
       projectionShaderVariantNames: Array.from(programCache.keys()),
@@ -1350,11 +1405,18 @@ export function initSkyClouds(target) {
       cloudVertexBudget: index32Supported ? CLOUD_VERTEX_LIMIT - CLOUD_STORM_VERTEX_RESERVE : 65400,
       satelliteCloudFormationBudget: globalCloudGeometryCache?.satelliteCloudAnchorCount || 0,
       satelliteCloudsWithDirectSourceHeight: globalCloudGeometryCache?.sourceHeightDirectAnchorCount || 0,
-      globalCoverageModel: satelliteMaskUsable
-        ? 'NASA/EUMETSAT satellite image-derived cloud positions inside observed footprints; image-derived likelihood is not an official cloud-mask product. Source-reported vertical samples seed measured-height volumes where they spatially match; modeled 3D formations fill gaps'
-        : (globalCloudGeometryCache?.sourceHeightSampleCount > 0
-          ? 'NASA SatCORPS / NOAA GOES source-reported cloud-top observations seed georeferenced 3D volumes where available; explicitly modeled cloud forms fill the rest. This is not a complete official global cloud mask'
-          : 'Procedural 3D cloud field remains active until source observations arrive; the last successful satellite image mask is retained for diagnosis'),
+       satelliteCloudMaskScienceSamples: globalCloudGeometryCache?.sourceCloudMaskSampleCount || 0,
+       satelliteCloudMaskScienceSources: globalCloudGeometryCache?.sourceCloudMaskSourceCount || 0,
+       satelliteCloudMaskScienceDirectAnchors: globalCloudGeometryCache?.sourceCloudMaskDirectAnchorCount || 0,
+       satelliteCloudMaskScienceUpdatedAt: window.__BP_CLOUD_HEIGHT_FEED_V6162__?.cloudMaskUpdatedAt || null,
+       satelliteCloudMaskScienceSourcesDetail: (window.__BP_CLOUD_HEIGHT_FEED_V6162__?.cloudMaskSources || []).map(x => ({source:x.source,satellite:x.satellite,product:x.product,observedAt:x.observedAt,sampleCount:x.sampleCount})),
+      globalCoverageModel: (globalCloudGeometryCache?.sourceCloudMaskSampleCount || 0) > 0
+        ? 'NOAA GOES Enterprise Cloud Mask probability and clear-sky observations drive placement inside valid GOES footprints; satellite-image classification remains fallback outside that coverage. Measured GOES cloud tops size matched volumes; cloud bases remain estimated when not supplied'
+        : (satelliteMaskUsable
+          ? 'NASA/EUMETSAT satellite image-derived cloud positions inside observed footprints; image-derived likelihood is not an official cloud-mask product. Source-reported vertical samples seed measured-height volumes where they spatially match; modeled 3D formations fill gaps'
+          : (globalCloudGeometryCache?.sourceHeightSampleCount > 0
+            ? 'NASA SatCORPS / NOAA GOES source-reported cloud-top observations seed georeferenced 3D volumes where available; explicitly modeled cloud forms fill the rest. This is not a complete official global cloud mask'
+            : 'Procedural 3D cloud field remains active until source observations arrive; the last successful satellite image mask is retained for diagnosis')),
       satelliteCloudMaskVersion: satelliteMask?.version || null,
       satelliteCloudMaskStatus: satelliteMaskStatus,
       satelliteCloudMaskSource: satelliteMask?.source || 'NASA GIBS GOES/Himawari + EUMETSAT Meteosat satellite mosaic (not yet sampled)',
@@ -1381,6 +1443,9 @@ export function initSkyClouds(target) {
       cloudHeightFeedStatus: (() => { const f=window.__BP_CLOUD_HEIGHT_FEED_V6162__; return f?.samples?.length ? 'measured global cloud heights loaded; base measured only where supplied' : window.__BP_CLOUD_HEIGHT_FEED_V6162_ERROR__ ? 'measured height feed unavailable; modeled vertical fallback active' : 'waiting for measured height feed; modeled vertical fallback active'; })(),
       cloudHeightFeedUpdatedAt: window.__BP_CLOUD_HEIGHT_FEED_V6162__?.generatedAt || null,
       cloudHeightFeedSampleCount: window.__BP_CLOUD_HEIGHT_FEED_V6162__?.samples?.length || 0,
+      cloudMaskFeedSampleCount: window.__BP_CLOUD_HEIGHT_FEED_V6162__?.cloudMaskSampleCount || 0,
+      cloudMaskFeedSources: window.__BP_CLOUD_HEIGHT_FEED_V6162__?.cloudMaskSources || [],
+      cloudMaskFeedUpdatedAt: window.__BP_CLOUD_HEIGHT_FEED_V6162__?.cloudMaskUpdatedAt || null,
       cloudHeightFeedPublishedSampleCount: window.__BP_CLOUD_HEIGHT_FEED_V6162__?.publishedSampleCount || 0,
       cloudHeightFeedSources: (window.__BP_CLOUD_HEIGHT_FEED_V6162__?.sources || []).map(x => ({source:x.source||x.label||'cloud-height source',status:x.status||'unknown',sampleCount:Number(x.sample_count)||0,observedAt:x.observed_at||null})),
       cloudHeightFeedError: window.__BP_CLOUD_HEIGHT_FEED_V6162_ERROR__ || null,
@@ -1394,6 +1459,7 @@ export function initSkyClouds(target) {
       rendererError, zoom: number(map.getZoom?.()), pitch: number(map.getPitch?.()), updatedAt: Date.now()
     };
     window.__BP_SKY_CLOUDS_STATE_V5908__ = state;
+    window.__BP_SKY_CLOUDS_STATE_V6180__ = state;
     window.__BP_SKY_CLOUDS_STATE_V6170__ = state;
     window.__BP_SKY_CLOUDS_STATE_V6150__ = state;
     window.__BP_SKY_CLOUDS_STATE_V6140__ = state;
@@ -1644,6 +1710,38 @@ export function initSkyClouds(target) {
       Array.isArray(nativeHeightRows?.features) ? nativeHeightRows.features.length : 0;
     const nativeHeightStamp = String(windScene?.generated_at || windScene?.updated_at || windScene?.updatedAt || windScene?.timestamp || '');
     const heightIndexKey = [heightFeedState?.signature || '', heightFeedState?.samples?.length || 0, nativeHeightStamp, nativeHeightCount].join('|');
+    const sourceCloudMaskSamples = Array.isArray(heightFeedState?.cloudMaskSamples) ? heightFeedState.cloudMaskSamples : [];
+    const sourceCloudMaskSignature = String(heightFeedState?.cloudMaskSignature || 'no-official-mask');
+    const sourceCloudMaskMatchRadiusM = MOBILE ? 95000 : 75000;
+    const sourceCloudMaskBuckets = new Map();
+    const sourceCloudMaskCell = (lng, lat) => ({
+      x: ((Math.floor((wrapLongitude(lng) + 180) % 360) + 360) % 360),
+      y: Math.floor((clamp(lat, -89.999, 89.999) + 90) / 0.75)
+    });
+    for (const sample of sourceCloudMaskSamples) {
+      const lng = number(sample?.lng, NaN), lat = number(sample?.lat, NaN), probability = number(sample?.probability, NaN);
+      if (![lng, lat, probability].every(Number.isFinite) || Math.abs(lat) > 85 || probability < 0 || probability > 1) continue;
+      const cell = sourceCloudMaskCell(lng, lat), key = cell.y + ':' + cell.x;
+      if (!sourceCloudMaskBuckets.has(key)) sourceCloudMaskBuckets.set(key, []);
+      sourceCloudMaskBuckets.get(key).push(sample);
+    }
+    const nearestSourceCloudMask = (lng, lat) => {
+      if (!sourceCloudMaskSamples.length) return null;
+      const cell = sourceCloudMaskCell(lng, lat), cosLat = Math.max(0.08, Math.cos(lat * Math.PI / 180));
+      const xRadius = Math.min(18, Math.max(2, Math.ceil(sourceCloudMaskMatchRadiusM / (111320 * cosLat)) + 1));
+      let nearest = null, nearestDistance = sourceCloudMaskMatchRadiusM;
+      for (let dy = -1; dy <= 1; dy++) {
+        const y = cell.y + dy;
+        for (let dx = -xRadius; dx <= xRadius; dx++) {
+          const x = (cell.x + dx + 360) % 360;
+          for (const sample of sourceCloudMaskBuckets.get(y + ':' + x) || []) {
+            const distance = cloudDistanceMeters(lng, lat, sample.lng, sample.lat);
+            if (distance < nearestDistance) { nearest = sample; nearestDistance = distance; }
+          }
+        }
+      }
+      return nearest ? { sample: nearest, distanceM: nearestDistance } : null;
+    };
     const heightLatCell = 0.75, heightLonCell = 1;
     const heightBucketXY = (lng, lat) => ({
       x: ((Math.floor((wrapLongitude(lng) + 180) / heightLonCell) % 360) + 360) % 360,
@@ -1736,7 +1834,13 @@ export function initSkyClouds(target) {
     // satellite-derived volume actually represents that region. Suppress fallback only in
     // high-confidence clear-sky pixels; otherwise a small capped anchor set would erase far
     // more cloud geometry than it replaces when the mask refreshes.
+    let sourceCloudMaskClearSuppressedCount = 0, sourceCloudMaskCloudMatchedCount = 0;
     const satelliteCoverageAt = (lng,lat) => {
+      const officialMask = nearestSourceCloudMask(lng,lat);
+      if (officialMask && officialMask.sample.probability <= 0.18) {
+        sourceCloudMaskClearSuppressedCount++;
+        return true;
+      }
       if(!satelliteMaskReady)return false;
       const idx=satelliteMaskIndexV6150(satelliteMask,lng,lat);
       return idx>=0 && Number(satelliteMask.coverage[idx])>=192 && Number(satelliteMask.probability[idx])<=32;
@@ -1757,7 +1861,8 @@ export function initSkyClouds(target) {
     const isInFrontHemisphere=st=>{if(!maskViewCenter)return true;const r=Math.PI/180,a=number(maskViewCenter.lat,0)*r,b=number(st.lat,0)*r,d=(number(st.lng,0)-number(maskViewCenter.lng,0))*r;return Math.sin(a)*Math.sin(b)+Math.cos(a)*Math.cos(b)*Math.cos(d)>-0.08;};
     // Do not inject a model-only cyclone into the live global cloud mask when the source has no storm.
     const stormSignature=cloudLodBand+'|'+sourceCyclones.map(s=>s.key+':'+s.lng.toFixed(3)+','+s.lat.toFixed(3)+':'+Math.round(s.eyeRadiusM)).sort().join('|')+
-      '|sat-mask:'+satelliteMaskGeneration+':'+(satelliteMaskReady?'active':'fallback')+'|source-height:'+sourceHeightSignature;
+      '|sat-mask:'+satelliteMaskGeneration+':'+(satelliteMaskReady?'active':'fallback')+'|source-height:'+sourceHeightSignature+
+      '|official-cloud-mask:'+sourceCloudMaskSignature;
     if (globalCloudGeometryCache && globalCloudGeometryCache.stormSignature === stormSignature) return globalCloudGeometryCache;
     globalCloudGeometryCache = null;
     const vertices = [], indices = [], macroCandidates = [], shadowAnchors = [];
@@ -1767,12 +1872,13 @@ export function initSkyClouds(target) {
     const satelliteMaxClouds = index32Supported ? (MOBILE ? 1600 : 2800) : (MOBILE ? 480 : 760);
     // Modestly denser rounded meshes improve the silhouette without adding draw calls.
     // Keep part of the vertex budget for the persistent procedural field on lower-power GPUs.
-    const satellitePuffSlices = MOBILE ? 6 : 8;
-    const satellitePuffStacks = MOBILE ? 4 : 5;
+    const satellitePuffSlices = MOBILE ? 8 : 9;
+    const satellitePuffStacks = MOBILE ? 5 : 6;
     const satellitePuffVertexCount = (satellitePuffSlices + 1) * (satellitePuffStacks + 1);
     const satelliteVertexReserve = satelliteMaskReady
       ? Math.floor(satelliteMaxClouds * satellitePuffVertexCount * 0.72)
-      : (sourceHeightSamples.length ? Math.floor(satelliteMaxClouds * 0.25 * satellitePuffVertexCount * 0.9) : 0);
+      : ((sourceHeightSamples.length || sourceCloudMaskSamples.length)
+        ? Math.floor(satelliteMaxClouds * 0.25 * satellitePuffVertexCount * 0.9) : 0);
     let heightResolvedWindPuffs = 0, modelledWindPuffs = 0, globalPuffCount = 0;
     const eyeMaskRadius=st=>cloudLodBand==='global'?Math.max(st.eyeRadiusM,90000):cloudLodBand==='regional'?Math.max(st.eyeRadiusM,45000):st.eyeRadiusM;
     const addGlobalPuff = (lng,lat,altitude,rx,ry,rz,tint,slices,stacks,seed,sourceDriven=false,shapeAngle=0) => {
@@ -1947,19 +2053,38 @@ export function initSkyClouds(target) {
     // the procedural fallback above; only pixels classified as cloud produce 3D cloud volumes.
     // GeoColor provides location texture, not measured cloud-top height: vertical dimensions
     // below are explicit visualization estimates. New imagery replaces this field automatically.
-    let satelliteCandidateCount = 0, sourceHeightDirectAnchorCount = 0;
-    if(satelliteMaskReady || sourceHeightSamples.length){
+    let satelliteCandidateCount = 0, sourceHeightDirectAnchorCount = 0, sourceCloudMaskDirectAnchorCount = 0;
+    if(satelliteMaskReady || sourceHeightSamples.length || sourceCloudMaskSamples.length){
       const coverage=satelliteMaskReady?satelliteMask.coverage:[],probability=satelliteMaskReady?satelliteMask.probability:[],width=satelliteMaskReady?Number(satelliteMask.width):0,height=satelliteMaskReady?Number(satelliteMask.height):0;
       const pAt=(x,y)=>!satelliteMaskReady||x<0||x>=width||y<0||y>=height?0:probability[y*width+x]/255,candidates=[];
-      for(let row=1;row<height-1;row++)for(let col=1;col<width-1;col++){
-        const i=row*width+col;if(Number(coverage[i])<192)continue;const raw=Number(probability[i])/255;if(raw<.24)continue;
+      if (satelliteMaskReady) for(let row=1;row<height-1;row++)for(let col=1;col<width-1;col++){
+        const i=row*width+col;if(Number(coverage[i])<192)continue;
+        const point=satelliteMaskCellCenterV6150(satelliteMask,col,row);
+        if(!Number.isFinite(point.lng)||!Number.isFinite(point.lat)||Math.abs(point.lat)>84.5)continue;
+        const officialMask=nearestSourceCloudMask(point.lng,point.lat);
+        const raw=officialMask ? officialMask.sample.probability : Number(probability[i])/255;
+        if(raw<.24)continue;
         const left=pAt(col-1,row),right=pAt(col+1,row),above=pAt(col,row-1),below=pAt(col,row+1);
         let sum=0,n=0;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){sum+=pAt(col+dx,row+dy);n++}
-        const mean=sum/n,gradient=clamp((Math.abs(right-left)+Math.abs(below-above))*1.6,0,1),p=clamp(raw*.72+mean*.28,0,1);
-        if(p<.275&&gradient<.06)continue;const point=satelliteMaskCellCenterV6150(satelliteMask,col,row);
-        if(!Number.isFinite(point.lng)||!Number.isFinite(point.lat)||Math.abs(point.lat)>84.5)continue;
+        const mean=sum/n,gradient=clamp((Math.abs(right-left)+Math.abs(below-above))*1.6,0,1),p=officialMask?raw:clamp(raw*.72+mean*.28,0,1);
+        if(p<.275&&gradient<.06&&!officialMask)continue;
         const seed=hash(col,row,Number(satelliteMask.generation)||0),thin=p<.47||(p<.66&&gradient>.56);
-        candidates.push({...point,p,gradient,col,row,left,right,above,below,thin,tall:p>=.78,rank:p*.68+mean*.16+gradient*.11+seed*.05});
+        if(officialMask)sourceCloudMaskCloudMatchedCount++;
+        candidates.push({...point,p,gradient,col,row,left,right,above,below,thin,tall:p>=.78,
+          rank:p*.68+mean*.16+gradient*.11+seed*.05,sourceCloudMaskSample:officialMask?.sample||null});
+      }
+      // Direct NOAA mask observations capture clouds missed by the coarser imagery classifier.
+      if (sourceCloudMaskSamples.length) {
+        const maxDirectMaskCandidates=MOBILE?5200:9000;
+        const stride=Math.max(1,Math.ceil(sourceCloudMaskSamples.length/maxDirectMaskCandidates));
+        for(let sampleIndex=0;sampleIndex<sourceCloudMaskSamples.length;sampleIndex+=stride){
+          const sample=sourceCloudMaskSamples[sampleIndex],p=number(sample?.probability,NaN);
+          if(!Number.isFinite(p)||p<.24||!Number.isFinite(sample.lng)||!Number.isFinite(sample.lat)||Math.abs(sample.lat)>84.5)continue;
+          const col=Math.floor((wrapLongitude(sample.lng)+180)*4),row=Math.floor((sample.lat+85)*4);
+          const seed=hash(col,row,sampleIndex+6180);
+          candidates.push({lng:sample.lng,lat:sample.lat,p,gradient:.10,col,row,left:p,right:p,above:p,below:p,
+            thin:p<.47,tall:p>=.78,rank:1.05+p*.80+seed*.05,sourceCloudMaskSample:sample});
+        }
       }
       // The published NOAA GOES cloud-top-height samples (about 28k points) are
       // direct volume seeds where the current satellite image also indicates cloud.
@@ -1975,25 +2100,25 @@ export function initSkyClouds(target) {
           if (Math.abs(sample.lat) > 84.5) continue;
           const idx = satelliteMaskReady ? satelliteMaskIndexV6150(satelliteMask, sample.lng, sample.lat) : -1;
           const observedPixel = idx >= 0 && Number(coverage[idx]) >= 192;
-          // An observed clear-sky pixel still suppresses a conflicting height sample.
-          // Outside the imagery footprint, valid numeric height samples can seed their
-          // own georeferenced 3D formations instead of waiting for a separate image mask.
-          if (satelliteMaskReady && observedPixel && Number(probability[idx]) / 255 < 0.16) continue;
+          // Outside the imagery footprint, valid numeric height samples can seed their own georeferenced 3D formations; an official GOES clear-sky pixel still takes precedence.
+          const officialMask = nearestSourceCloudMask(sample.lng, sample.lat);
+          if (officialMask && officialMask.sample.probability < 0.16) continue;
+          if (!officialMask && satelliteMaskReady && observedPixel && Number(probability[idx]) / 255 < 0.16) continue;
           const col = observedPixel ? idx % width : Math.floor((((sample.lng + 180) % 360 + 360) % 360) * 8);
           const row = observedPixel ? Math.floor(idx / width) : Math.floor((sample.lat + 85) * 6);
-          const raw = observedPixel ? Number(probability[idx]) / 255 : 0.72;
+          const raw = officialMask ? officialMask.sample.probability : (observedPixel ? Number(probability[idx]) / 255 : 0.72);
           const left = observedPixel ? pAt(col - 1, row) : raw, right = observedPixel ? pAt(col + 1, row) : raw;
           const above = observedPixel ? pAt(col, row - 1) : raw, below = observedPixel ? pAt(col, row + 1) : raw;
           const seed = hash(Math.round(sample.lng * 100), Math.round(sample.lat * 100), sampleIndex + 1809);
-          const p = observedPixel
+          const p = officialMask ? raw : (observedPixel
             ? Math.max(0.28, clamp(raw * 0.72 + (left + right + above + below) * 0.07, 0, 1))
-            : clamp(0.52 + sample.topM / 50000, 0.52, 0.92);
+            : clamp(0.52 + sample.topM / 50000, 0.52, 0.92));
           heightCandidates.push({
             lng: sample.lng, lat: sample.lat, p,
             gradient: clamp((Math.abs(right-left)+Math.abs(below-above))*1.6,0,1),
             col, row, left, right, above, below, thin: false, tall: sample.topM >= 10000,
             rank: p * 0.66 + clamp(sample.topM / 23000, 0, 1) * 0.22 + seed * 0.12,
-            heightSample: sample
+            heightSample: sample, sourceCloudMaskSample: officialMask?.sample || null
           });
         }
       }
@@ -2006,6 +2131,7 @@ export function initSkyClouds(target) {
       const reserve=q=>{const b=bucket(q.lng,q.lat),k=b.y+':'+b.x;if(!buckets.has(k))buckets.set(k,[]);buckets.get(k).push(q)};
       const addSatellite=q=>{
         if(chosen.length>=satelliteMaxClouds||crowded(q))return false;
+        if(q.sourceCloudMaskSample&&!q.heightSample&&sourceCloudMaskDirectAnchorCount>=sourceCloudMaskDirectAnchorBudget)return false;
         let heightMatch = q.heightSample ? {sample:q.heightSample,distanceM:0,neighborCount:1,topSpreadM:0} : nearestSourceHeight(q.lng,q.lat);
         const ground=terrainElevationAt(q.lng,q.lat),h0=hash(q.col,q.row,1201),h1=hash(q.col,q.row,1202),h2=hash(q.col,q.row,1203);
         // Official GOES/SatCORPS height fields are referenced to mean sea level; reject a purported top below sampled terrain.
@@ -2041,12 +2167,14 @@ export function initSkyClouds(target) {
         const angle=Math.atan2(q.below-q.above,q.right-q.left)+Math.PI/2+(h2-.5)*.65,altitude=ground+(base+top)*.5;
         if(!addGlobalPuff(q.lng,q.lat,altitude,rx,ry,vertical,tint,satellitePuffSlices,satellitePuffStacks,hash(q.col,q.row,1301),true,angle))return false;
         if(heightMatch)sourceHeightMatchedCount++;else sourceHeightModelledCount++;
+        if(q.sourceCloudMaskSample&&!q.heightSample)sourceCloudMaskDirectAnchorCount++;
         const record={lng:q.lng,lat:q.lat,p:q.p,radius,base,top};chosen.push(record);reserve(record);
-        satelliteCloudAnchors.push({lng:q.lng,lat:q.lat,radiusM:clamp(Math.max(rx,ry)*.82,25000,155000),cloudBaseAglM:base,cloudTopAglM:top,cloudBaseM:ground+base,cloudTopM:ground+top,probability:q.p,cloudType,source:q.heightSample ? String(q.heightSample.source || 'NASA SatCORPS / NOAA GOES source-reported cloud-height sample') : 'NASA GIBS GOES/Himawari + EUMETSAT Meteosat satellite image-derived cloud location',cloudHeightSource:heightSourceLabel,cloudTopHeightSampleSource,cloudTopHeightSampleDistanceM:heightMatch?.distanceM ?? null,cloudTopHeightNeighborCount:heightMatch?.neighborCount || 0,geometryVersion:6170,cloudMaskGeneration:satelliteMaskGeneration});
+        satelliteCloudAnchors.push({lng:q.lng,lat:q.lat,radiusM:clamp(Math.max(rx,ry)*.82,25000,155000),cloudBaseAglM:base,cloudTopAglM:top,cloudBaseM:ground+base,cloudTopM:ground+top,probability:q.p,cloudType,source:q.heightSample ? String(q.heightSample.source || 'NOAA GOES measured cloud-top height') : (q.sourceCloudMaskSample?.source || 'Satellite-image-derived cloud location'),cloudMaskSource:q.sourceCloudMaskSample?.source || null,cloudMaskObservedAt:q.sourceCloudMaskSample?.timestamp || null,cloudHeightSource:heightSourceLabel,cloudTopHeightSampleSource,cloudTopHeightSampleDistanceM:heightMatch?.distanceM ?? null,cloudTopHeightNeighborCount:heightMatch?.neighborCount || 0,geometryVersion:6180,cloudMaskGeneration:satelliteMaskGeneration});
         if(satelliteCloudAnchors.length%7===0&&shadowAnchors.length<(MOBILE?70:112)){const sh=makeGroundShadowAnchor(q.lng,q.lat,altitude,Math.max(rx,ry)*.72,'satellite-cloud',windScene);if(sh)shadowAnchors.push(sh)}
         return true;
       };
       const sourceHeightAnchorBudget=Math.floor(satelliteMaxClouds*0.25);
+      const sourceCloudMaskDirectAnchorBudget=Math.floor(satelliteMaxClouds*0.38);
       for(const q of heightCandidates){
         if(chosen.length>=satelliteMaxClouds||sourceHeightDirectAnchorCount>=sourceHeightAnchorBudget)break;
         if(addSatellite(q))sourceHeightDirectAnchorCount++;
@@ -2066,6 +2194,10 @@ export function initSkyClouds(target) {
       satelliteMaskCoverageCells: satelliteMaskReady ? satelliteMask.coverageCells : 0,
       satelliteMaskCloudCells: satelliteMaskReady ? satelliteMask.cloudCells : 0,
       satelliteMaskObservedFootprintOnly: true,
+      sourceCloudMaskSampleCount: sourceCloudMaskSamples.length,
+      sourceCloudMaskSourceCount: heightFeedState?.cloudMaskSources?.length || 0,
+      sourceCloudMaskSignature, sourceCloudMaskMatchRadiusM,
+      sourceCloudMaskClearSuppressedCount, sourceCloudMaskCloudMatchedCount, sourceCloudMaskDirectAnchorCount,
       satelliteCandidateCount, satelliteCloudAnchors, satelliteCloudAnchorCount: satelliteCloudAnchors.length,
       sourceHeightSampleCount: sourceHeightSamples.length, sourceHeightSignature, sourceHeightMatchRadiusM,
       sourceHeightMatchedCount, sourceHeightModelledCount, sourceHeightDirectAnchorCount,
@@ -2681,10 +2813,10 @@ function scheduleGeometry(delay = 180) {
   else map.once?.('load', addLayerIfReady);
 
   const api = {
-    version: 6170, map, overlay,
+    version: 6180, map, overlay,
     get enabled() { return enabled; },
     setEnabled, toggle,
-    get state() { return window.__BP_SKY_CLOUDS_STATE_V6170__ || window.__BP_SKY_CLOUDS_STATE_V6150__ || window.__BP_SKY_CLOUDS_STATE_V6140__ || window.__BP_SKY_CLOUDS_STATE_V6077__ || window.__BP_SKY_CLOUDS_STATE_V6076__ || window.__BP_SKY_CLOUDS_STATE_V6074__ || window.__BP_SKY_CLOUDS_STATE_V6073__ || window.__BP_SKY_CLOUDS_STATE_V6047__ || window.__BP_SKY_CLOUDS_STATE_V6046__ || window.__BP_SKY_CLOUDS_STATE_V6045__ || window.__BP_SKY_CLOUDS_STATE_V6031__ || window.__BP_SKY_CLOUDS_STATE_V6029__ || window.__BP_SKY_CLOUDS_STATE_V5908__ || null; },
+    get state() { return window.__BP_SKY_CLOUDS_STATE_V6180__ || window.__BP_SKY_CLOUDS_STATE_V6170__ || window.__BP_SKY_CLOUDS_STATE_V6150__ || window.__BP_SKY_CLOUDS_STATE_V6140__ || window.__BP_SKY_CLOUDS_STATE_V6077__ || window.__BP_SKY_CLOUDS_STATE_V6076__ || window.__BP_SKY_CLOUDS_STATE_V6074__ || window.__BP_SKY_CLOUDS_STATE_V6073__ || window.__BP_SKY_CLOUDS_STATE_V6047__ || window.__BP_SKY_CLOUDS_STATE_V6046__ || window.__BP_SKY_CLOUDS_STATE_V6045__ || window.__BP_SKY_CLOUDS_STATE_V6031__ || window.__BP_SKY_CLOUDS_STATE_V6029__ || window.__BP_SKY_CLOUDS_STATE_V5908__ || null; },
     destroy() {
       if (disposed) return; disposed = true;
       stopAnimation(); clearTimeout(rebuildTimer); clearTimeout(refreshHandle); clearLayerRetry();
