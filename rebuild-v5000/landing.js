@@ -744,37 +744,29 @@ async function initMap(){
    try{if(world.map.getLayer('bp-water-surface-gpu-v6123'))world.map.setLayoutProperty('bp-water-surface-gpu-v6123','visibility','visible')}catch(_){}
    return true;
   };
-  let landingCloudPromise=null,landingCloudApi=null,landingCloudEnabled=false;
-  window.__BP_TOGGLE_CLOUDS__=async()=>{
+  // Cloud volumes are always active and do not select or replace the basemap.
+  let landingCloudPromise=null,landingCloudApi=null;
+  window.__BP_ACTIVATE_CLOUDS__=async()=>{
    if(!world?.map)throw new Error('BridgePoint globe is not ready');
-   if(landingCloudEnabled){
-    landingCloudEnabled=false;landingCloudApi?.setEnabled?.(false);
-    try{if(world.map.getLayer('bp-sky-cloud-volume-v6029'))world.map.setLayoutProperty('bp-sky-cloud-volume-v6029','visibility','none')}catch(_){}
-    return false;
-   }
-   if(!landingCloudApi){
+   if(!landingCloudApi||landingCloudApi.map!==world.map){
     const existing=window.__BP_SKY_CLOUDS_V5908__;
     if(existing?.map===world.map)landingCloudApi=existing;
     else{
-     if(!landingCloudPromise)landingCloudPromise=import('./world-v2300-clouds.js?v=6168-desktop-global-cloud-motion-stop')
+     if(!landingCloudPromise)landingCloudPromise=import('./world-v2300-clouds.js?v=6170-always-on-3d-cloud-volumes')
       .then(m=>{const api=m.initSkyClouds(world);if(!api)throw new Error('3D cloud engine did not initialize');window.__BP_SKY_CLOUDS_V5908__=api;return api})
       .finally(()=>{landingCloudPromise=null});
      landingCloudApi=await landingCloudPromise;
     }
    }
    if(!landingCloudApi)throw new Error('3D cloud engine unavailable');
-   landingCloudEnabled=true;landingCloudApi.setEnabled?.(true);
-   try{if(world.map.getLayer('bp-sky-cloud-volume-v6029'))world.map.setLayoutProperty('bp-sky-cloud-volume-v6029','visibility','visible')}catch(_){}
-   return true;
-  };
-  window.__BP_ACTIVATE_CLOUDS__=async()=>{
-   if(!landingCloudEnabled)await window.__BP_TOGGLE_CLOUDS__();
-   else landingCloudApi?.setEnabled?.(true);
+   landingCloudApi.setEnabled?.(true);
+   window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('clouds',true);
    return landingCloudApi;
   };
-  if($('landingWeatherCount'))$('landingWeatherCount').textContent='SOURCE WEATHER · OFF';
-  if($('landingWeatherTime'))$('landingWeatherTime').textContent='Weather, radar and 3D cloud overlays remain off until selected from the BridgePoint controls.';
-   void import('./world-v2300-lod-controls.js?v=6201-gold-always-on').then(m=>{window.__BP_LOD_CONTROL_LANDING_V6016__=m.initWorldLodControls(world,{surface:'landing'})}).catch(e=>console.warn('BridgePoint homepage LOD controls unavailable',e));
+  void window.__BP_ACTIVATE_CLOUDS__().catch(e=>console.warn('BridgePoint always-on 3D clouds unavailable',e));
+  if($('landingWeatherCount'))$('landingWeatherCount').textContent='SOURCE WEATHER · OFF · CLOUD VOLUMES LIVE';
+  if($('landingWeatherTime'))$('landingWeatherTime').textContent='3D cloud volumes stay on and refresh every 10 minutes; radar and other weather markers remain off until selected from the controls.';
+  void import('./world-v2300-lod-controls.js?v=6201-gold-always-on').then(m=>{window.__BP_LOD_CONTROL_LANDING_V6016__=m.initWorldLodControls(world,{surface:'landing'})}).catch(e=>console.warn('BridgePoint homepage LOD controls unavailable',e));
   // Explicitly connect the landmark module to the newly created homepage map.
   // Do not depend on its polling loop winning a race with slow mobile/globe startup.
   window.__BP_PENDING_LANDMARK_MAP_V5940__=world.map;
@@ -783,7 +775,7 @@ async function initMap(){
    .then(()=>{try{window.dispatchEvent(new CustomEvent('bp:world-map-ready-v5940',{detail:{map:world.map,source:'landing-module-ready'}}))}catch(_){};if(window.__BP_LANDMARKS_V5940__)window.__BP_LANDMARKS_V5940__.attachedMaps=Math.max(1,Number(window.__BP_LANDMARKS_V5940__.attachedMaps||0))})
    .catch(e=>console.warn('BridgePoint homepage landmarks loader unavailable',e));
    // BridgePoint exposes the same 30-day source-event timeline on the website globe.
-   void import('./world-v2300-time-slider.js?v=6167-cloud-startup-performance')
+   void import('./world-v2300-time-slider.js?v=6170-no-cloud-toggle-always-on')
     .then(m=>{window.__BP_WORLD_TIME_SLIDER_V5908__=window.__BP_WORLD_TIME_SLIDER_V5908__?.map===map?window.__BP_WORLD_TIME_SLIDER_V5908__:m.initWorldTimeSlider(world,rpc)})
     .catch(e=>console.warn('BridgePoint 30-day world change scrub unavailable',e));
    // BridgePoint satellite filters, daylight materials and sky layers also run on the homepage globe.
@@ -1278,5 +1270,5 @@ function bind(){document.querySelectorAll('.auth-open').forEach(b=>b.onclick=()=
  try{window.__BP_LANDING_WORLD__?.map?.triggerRepaint?.()}catch(_){}
  window.__BP_LANDING_SOFT_REFRESH__={hardReload:false,lastAt:Date.now()}
 });
-if(!hashSession()){bind();bindMetricNavigation();bindWorldBackdrop();bindConversionPreview();watchCriticalCopy();hydrateLiveMetricSnapshot();headline();warmLandingWeatherFirstFrameV6134();initMap();setInterval(headline,60000);liveCountryCounters();setInterval(liveCountryCounters,30000);window.__BP_LIVE_COUNTER_LOOP_V5906__={intervalMs:30000,source:'bridgepoint_public_live_counters_v5902',updatedAt:Date.now()};globalCoverage();setInterval(globalCoverage,300000);opportunitySummary();setInterval(opportunitySummary,300000);packages();if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=6220-tree-canopy-coverage-solid-retention',{updateViaCache:'none'}).catch(()=>{})}
+if(!hashSession()){bind();bindMetricNavigation();bindWorldBackdrop();bindConversionPreview();watchCriticalCopy();hydrateLiveMetricSnapshot();headline();warmLandingWeatherFirstFrameV6134();initMap();setInterval(headline,60000);liveCountryCounters();setInterval(liveCountryCounters,30000);window.__BP_LIVE_COUNTER_LOOP_V5906__={intervalMs:30000,source:'bridgepoint_public_live_counters_v5902',updatedAt:Date.now()};globalCoverage();setInterval(globalCoverage,300000);opportunitySummary();setInterval(opportunitySummary,300000);packages();if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=6221-clouds-always-on',{updateViaCache:'none'}).catch(()=>{})}
 // BP_V5441_DEPLOY_SYNC: compact national hazard dots; radar and boundaries unchanged.

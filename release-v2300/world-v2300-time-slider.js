@@ -137,7 +137,6 @@ export function initWorldTimeSlider(target,rpc){
   <div class="bpwt-controls">
    <button type="button" data-live aria-pressed="true">● LIVE</button>
    <button type="button" data-play aria-pressed="false">▶ PLAY</button>
-   <button type="button" data-clouds aria-pressed="true" title="NASA Earth imagery with persistent 3D cloud volumes and local storm effects">☁ NASA EARTH + 3D CLOUDS · ON</button>
    <button type="button" data-skyview aria-pressed="false" title="Look above the street-level horizon into the height-aware sky and cloud volumes">⬆ LOOK UP · SKY VIEW</button>
    <button type="button" data-nightlights aria-pressed="false">✦ NASA LIGHTS · OFF</button>
    <button type="button" data-refresh>↻ REFRESH</button>
@@ -164,7 +163,7 @@ export function initWorldTimeSlider(target,rpc){
   const retryMount=()=>{if(disposed)return;if(mountInCard())return;mountTurns++;mountHandle=setTimeout(retryMount,mountTurns<100?150:800)};
   mountHandle=setTimeout(retryMount,100);
  }
- const $=s=>dock.querySelector(s),slider=$('[data-slider]'),status=$('[data-status]'),date=$('[data-date]'),windowLabel=$('[data-window]'),stats=$('[data-stats]'),list=$('[data-list]'),liveBtn=$('[data-live]'),playBtn=$('[data-play]'),cloudBtn=$('[data-clouds]'),skyViewBtn=$('[data-skyview]');
+ const $=s=>dock.querySelector(s),slider=$('[data-slider]'),status=$('[data-status]'),date=$('[data-date]'),windowLabel=$('[data-window]'),stats=$('[data-stats]'),list=$('[data-list]'),liveBtn=$('[data-live]'),playBtn=$('[data-play]'),skyViewBtn=$('[data-skyview]');
  const collapseBtn=$('[data-collapse]'),standaloneBtn=$('[data-standalone]'),categoryFilter=$('[data-filter-category]'),domainFilter=$('[data-filter-domain]'),hoursSelect=$('[data-window-hours]'),nightlightsBtn=$('[data-nightlights]');
  function setStandalone(on){
   const expanded=!!on;
@@ -266,47 +265,6 @@ export function initWorldTimeSlider(target,rpc){
   schedule(true,0);
  });
  categoryFilter.addEventListener('change',renderFiltered);domainFilter.addEventListener('change',renderFiltered);hoursSelect.addEventListener('change',()=>schedule(true,0));const syncNightlightsButton=enabled=>{nightlightsBtn.setAttribute('aria-pressed',String(!!enabled));nightlightsBtn.textContent=enabled?'✦ NASA LIGHTS · ON':'✦ NASA LIGHTS · OFF'};const onNightlightsState=e=>{if(e?.detail?.map&&e.detail.map!==map)return;syncNightlightsButton(!!e?.detail?.enabled)};window.addEventListener('bp:nightlights-state',onNightlightsState);let nightlightsToggleBusy=false;async function toggleNasaNightlights(){if(nightlightsToggleBusy)return;nightlightsToggleBusy=true;nightlightsBtn.disabled=true;try{let sensor=window.__BP_SENSOR_LAYERS_V5945__;if(!sensor||sensor.map!==map||typeof sensor.toggleLights!=='function'){const mod=await import('./world-v2300-sensor-layers.js?v=6027-nasa-nightlight-corrected-radiance');sensor=window.__BP_SENSOR_LAYERS_V5945__;if(!sensor||sensor.map!==map)sensor=mod.initSensorLayers(map)}if(!sensor||sensor.map!==map||typeof sensor.toggleLights!=='function')throw new Error('night-light controller did not attach to this map');const enabled=!!sensor.toggleLights();syncNightlightsButton(enabled);setStatus(enabled?'NASA NIGHT LIGHTS ON · requesting VIIRS tiles':'NASA NIGHT LIGHTS OFF · optional imagery removed')}catch(error){setStatus('NASA NIGHT LIGHTS UNAVAILABLE · '+String(error?.message||error).slice(0,90),true);console.warn('BridgePoint NASA night-lights toggle failed',error)}finally{nightlightsToggleBusy=false;nightlightsBtn.disabled=false}}nightlightsBtn.addEventListener('click',()=>{void toggleNasaNightlights()});$('[data-refresh]').addEventListener('click',()=>schedule(true,0));
- let cloudToggleBusy=false,cloudSavedBase=null,defaultCloudModeSynced=false;
- function cloudBaseRestoreSlot(){let slot=window.__BP_SKY_CLOUD_BASE_RESTORE_V6077__;if(!slot||slot.map!==map){slot={map,base:null};window.__BP_SKY_CLOUD_BASE_RESTORE_V6077__=slot}return slot}
- function saveCloudBase(mode){const base=mode==='satellite'?'satellite':'gta';cloudSavedBase=base;cloudBaseRestoreSlot().base=base;return base}
- function takeCloudRestoreBase(){const slot=cloudBaseRestoreSlot(),saved=cloudSavedBase||slot.base;const base=saved==='satellite'?'satellite':'gta';cloudSavedBase=null;slot.base=null;return base}
- function cloudWorldApi(){return [window.__BP_V5000_WORLD,window.__BP_LANDING_WORLD__,window.__BP_OWNER_WORLD__].find(w=>w?.map===map&&typeof w.setBase==='function')||null}
- function cloudCurrentBase(){const w=cloudWorldApi(),active=w?.base??w?.state?.base;if(w)return active==='satellite'?'satellite':'gta';return window.__BP_TECH_BASEMAP_V1116__?.activeBase==='satellite'?'satellite':'gta'}
- function setCloudEarthBase(mode){const w=cloudWorldApi();if(w){w.setBase(mode);return}try{const sat=mode==='satellite';for(const id of ['gta-nasa','gta-usgs','gta-oam'])if(map.getLayer(id))map.setLayoutProperty(id,'visibility',sat?'visible':'none');map.triggerRepaint?.()}catch(_){}}
- function syncCloudButton(enabled){cloudBtn.setAttribute('aria-pressed',String(!!enabled));cloudBtn.textContent=enabled?'☁ NASA EARTH + 3D CLOUDS · ON':'☁ NASA EARTH + 3D CLOUDS · OFF'}
- function adoptDefaultCloudMode(){if(defaultCloudModeSynced)return;const cloud=window.__BP_SKY_CLOUDS_V5908__;if(!cloud||cloud.map!==map||typeof cloud.setEnabled!=='function'||!cloud.enabled)return;const slot=cloudBaseRestoreSlot();if(!cloudSavedBase&&!slot.base)saveCloudBase(cloudCurrentBase());else cloudSavedBase=cloudSavedBase||slot.base;setCloudEarthBase('satellite');defaultCloudModeSynced=true;syncCloudButton(true)}
- window.addEventListener('bp:sky-cloud-state',e=>{if(e?.detail?.map&&e.detail.map!==map)return;const enabled=!!e?.detail?.enabled;syncCloudButton(enabled);if(enabled&&!cloudToggleBusy)adoptDefaultCloudMode()});
- setTimeout(adoptDefaultCloudMode,0);
- async function toggleSkyClouds(){
-  if(cloudToggleBusy)return;cloudToggleBusy=true;cloudBtn.disabled=true;
-  try{
-   let cloud=window.__BP_SKY_CLOUDS_V5908__;
-   if(!cloud||cloud.map!==map||typeof cloud.setEnabled!=='function'){
-    const mod=await import('./world-v2300-clouds.js?v=6168-desktop-global-cloud-motion-stop');
-    cloud=window.__BP_SKY_CLOUDS_V5908__;if(!cloud||cloud.map!==map)cloud=mod.initSkyClouds(map)
-   }
-   if(!cloud||cloud.map!==map||typeof cloud.setEnabled!=='function')throw new Error('3D cloud controller did not attach to this map');
-   const enabling=!cloud.enabled;
-   if(enabling){
-    const slot=cloudBaseRestoreSlot();if(!cloudSavedBase&&!slot.base)saveCloudBase(cloudCurrentBase());else cloudSavedBase=cloudSavedBase||slot.base;
-    setCloudEarthBase('satellite');
-    defaultCloudModeSynced=true;
-    cloud.setEnabled(true);
-   }else{
-    cloud.setEnabled(false);
-    const restore=takeCloudRestoreBase();
-    setCloudEarthBase(restore);
-   }
-   const enabled=!!cloud.enabled;
-   cloudBtn.setAttribute('aria-pressed',String(enabled));
-   cloudBtn.textContent=enabled?'☁ NASA EARTH + 3D CLOUDS · ON':'☁ NASA EARTH + 3D CLOUDS · OFF';
-   setStatus(enabled?'NASA BLUE MARBLE / SATELLITE IMAGERY + 3D CLOUD VOLUMES ON':'EARTH CLOUD MODE OFF · prior map imagery restored');
-  }catch(error){
-   setStatus('EARTH / CLOUD MODE UNAVAILABLE · '+String(error?.message||error).slice(0,90),true);
-   console.warn('BridgePoint NASA Earth + cloud toggle failed',error)
-  }finally{cloudToggleBusy=false;cloudBtn.disabled=false}
- }
- 
  let skyViewBusy=false,skyViewRestore=null;const skyViewDiag=window.__BP_SKY_VIEW_CONTROLLER_V6077__={version:6077,map,listenerBound:false,clickCount:0,busy:false,phase:'initialized',lastError:null,initial:null,updatedAt:Date.now()};
  function skyProjectionType(){return String(map.getProjection?.()?.type||'mercator')}
  function syncSkyViewButton(active){skyViewBtn?.setAttribute('aria-pressed',String(!!active));if(skyViewBtn)skyViewBtn.textContent=active?'⬇ RETURN TO STREET':'⬆ LOOK UP · SKY VIEW'}
@@ -398,7 +356,6 @@ export function initWorldTimeSlider(target,rpc){
  }
 
  skyViewBtn?.addEventListener('click',()=>{void toggleSkyView()});skyViewDiag.listenerBound=true;skyViewDiag.phase='ready';skyViewDiag.updatedAt=Date.now();
- cloudBtn.addEventListener('click',()=>{void toggleSkyClouds()});
  const onBounds=()=>schedule(false,360),onStyle=()=>{ensureLayers();if(!map.getSource(SOURCE_ID))setTimeout(ensureLayers,250)};
  map.on('moveend',onBounds);map.on('zoomend',onBounds);map.on('styledata',onStyle);
  if(document.hidden)dock.dataset.suspended='true';
@@ -406,7 +363,7 @@ export function initWorldTimeSlider(target,rpc){
  document.addEventListener('visibilitychange',onVisibility);
  ensureLayers();[80,350,1000,2200].forEach(ms=>setTimeout(()=>{if(!disposed)ensureLayers()},ms));schedule(true,300);
  const poll=setInterval(()=>{if(disposed)return clearInterval(poll);if(!document.hidden&&Number(slider.value)>=30&&Date.now()-lastRequestAt>110000)schedule(false,0)},15000);
- const api={version:5937,map,dock,refresh:()=>refresh(true),open(){setStandalone(true);return dock},close(){setStandalone(false);return dock},toggle(){setStandalone(dock.classList.contains('bpwt-collapsed'));return dock},setTimeOffsetDays(days){slider.value=String(Math.max(0,Math.min(30,30-Number(days||0))));live=Number(slider.value)>=30;updateDate();schedule(true,0)},toggleClouds:()=>cloudBtn.click(),get state(){return window.__BP_WORLD_ACTIVITY_SLIDER_STATE_V5908__||null},destroy(){disposed=true;stopPlay();clearTimeout(timer);clearTimeout(mountHandle);clearInterval(poll);map.off('moveend',onBounds);map.off('zoomend',onBounds);map.off('styledata',onStyle);document.removeEventListener('visibilitychange',onVisibility);window.removeEventListener('bp:nightlights-state',onNightlightsState);categoryFilter.removeEventListener('change',renderFiltered);domainFilter.removeEventListener('change',renderFiltered);dock.remove();try{map.getSource(SOURCE_ID)?.setData(EMPTY);if(map.getLayer(LAYER_LABEL))map.removeLayer(LAYER_LABEL);if(map.getLayer(LAYER_POINT))map.removeLayer(LAYER_POINT);if(map.getLayer(LAYER_LINE))map.removeLayer(LAYER_LINE);if(map.getLayer(LAYER_FILL))map.removeLayer(LAYER_FILL);if(map.getSource(SOURCE_ID))map.removeSource(SOURCE_ID)}catch(_){} }};
+ const api={version:5937,map,dock,refresh:()=>refresh(true),open(){setStandalone(true);return dock},close(){setStandalone(false);return dock},toggle(){setStandalone(dock.classList.contains('bpwt-collapsed'));return dock},setTimeOffsetDays(days){slider.value=String(Math.max(0,Math.min(30,30-Number(days||0))));live=Number(slider.value)>=30;updateDate();schedule(true,0)},get state(){return window.__BP_WORLD_ACTIVITY_SLIDER_STATE_V5908__||null},destroy(){disposed=true;stopPlay();clearTimeout(timer);clearTimeout(mountHandle);clearInterval(poll);map.off('moveend',onBounds);map.off('zoomend',onBounds);map.off('styledata',onStyle);document.removeEventListener('visibilitychange',onVisibility);window.removeEventListener('bp:nightlights-state',onNightlightsState);categoryFilter.removeEventListener('change',renderFiltered);domainFilter.removeEventListener('change',renderFiltered);dock.remove();try{map.getSource(SOURCE_ID)?.setData(EMPTY);if(map.getLayer(LAYER_LABEL))map.removeLayer(LAYER_LABEL);if(map.getLayer(LAYER_POINT))map.removeLayer(LAYER_POINT);if(map.getLayer(LAYER_LINE))map.removeLayer(LAYER_LINE);if(map.getLayer(LAYER_FILL))map.removeLayer(LAYER_FILL);if(map.getSource(SOURCE_ID))map.removeSource(SOURCE_ID)}catch(_){} }};
  window.__BP_WORLD_TIME_SLIDER_V5908__=api;
  return api;
 }
