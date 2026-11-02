@@ -8,16 +8,16 @@
   "axis": "Y",
   "lodTargets": {
     "lod0": {
-      "maxTriangles": 45000,
-      "description": "street close-up: branch forks, twig networks, leaf/frond clusters"
+      "maxTriangles": 16000,
+      "description": "street close-up: detailed branch forks, finer twig tips and dense foliage"
     },
     "lod1": {
-      "maxTriangles": 14000,
-      "description": "neighborhood: primary and secondary branches with foliage clusters"
+      "maxTriangles": 4200,
+      "description": "neighborhood: primary branches and distinct foliage clusters"
     },
     "lod2": {
-      "maxTriangles": 3600,
-      "description": "regional: simplified trunk, primary branches and canopy mass"
+      "maxTriangles": 900,
+      "description": "regional: silhouette trunk, primary branches and canopy mass"
     }
   },
   "provenance": {
