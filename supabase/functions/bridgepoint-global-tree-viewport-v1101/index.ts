@@ -45,7 +45,7 @@ async function deriveMetaTile(t:any,w:number,s:number,e:number,n:number,limit:nu
  const midLat=(s+n)/2,groundScale=Math.max(.12,Math.cos(midLat*Math.PI/180));
  // One globally aligned sample lattice per source raster. Zooming/panning only changes
  // the crop bounds, never the pixel phase, so the same canopy peak keeps the same ID.
- const sampleStride=Math.max(1,Math.ceil(Math.max(W,H)/2048));
+ const sampleStride=Math.max(1,Math.ceil(Math.max(W,H)/4096));
  const pad=8*sampleStride;
  const gx0=Math.max(0,Math.floor(Math.max(0,x0-pad)/sampleStride)*sampleStride);
  const gy0=Math.max(0,Math.floor(Math.max(0,y0-pad)/sampleStride)*sampleStride);
@@ -104,19 +104,21 @@ Deno.serve(async(req)=>{
   if(w==null||s==null||e==null||n==null||w>=e||s>=n||w< -180||e>180||s< -90||n>90)return new Response(JSON.stringify({complete:false,error:"VALID_VIEWPORT_REQUIRED"}),{status:400,headers:H});
   if(e-w>.75||n-s>.75)return new Response(JSON.stringify({complete:true,version:VERSION,type:"FeatureCollection",features:[],reason:"ZOOM_IN_FOR_3D_TREES"}),{headers:H});
   const limit=Math.min(Math.max(Number(b.limit||1200),80),3000);
+  const tile=activeMetaTile(w,s,e,n);
   const hit=await cached(w,s,e,n,limit),cachedFeatures=hit?.features||[];
   const goodCached=cachedFeatures.filter((f:any)=>
    f?.properties?.source_key==="META_WRI_CHMV2_LOCAL_MAXIMA_V1109"&&
    f?.properties?.height_m!=null&&
    f?.properties?.position_truth==="CHMV2_LOCAL_CANOPY_PEAK_ESTIMATE_V1109"
   );
-  if(goodCached.length>=Math.min(80,Math.floor(limit*.2))){
+  if(goodCached.length>0){
    const heightBacked=cachedFeatures.filter((f:any)=>f?.properties?.height_m!=null).length;
    return new Response(JSON.stringify({...hit,complete:true,version:VERSION,tree_count:cachedFeatures.length,
     height_backed_count:heightBacked,modeled_height_count:heightBacked,measured_height_count:0,
-    source:"META_WRI_CHMV2_LOCAL_CANOPY_PEAKS",active_tile_only:true,building_footprint_exclusion:true}),{headers:H});
+    source:"META_WRI_CHMV2_LOCAL_PEAKS",active_tile_only:true,active_tile:tile?.quadkey||null,
+    building_footprint_exclusion:true}),{headers:H});
   }
-  const tile=activeMetaTile(w,s,e,n),rows:any[]=[];
+  const rows:any[]=[];
   if(tile){
    try{rows.push(...await deriveMetaTile(tile,w,s,e,n,limit))}
    catch(error){console.warn("meta_chmv2_local_maxima",tile.quadkey,String((error as any)?.message||error))}
