@@ -211,7 +211,7 @@ function installWindShader(material, uniforms) {
     );
     shader.vertexShader = shader.vertexShader.replace(
       '#include <begin_vertex>',
-      \`#include <begin_vertex>
+      `#include <begin_vertex>
       float bpGustA = sin(bpWindTime * 1.15 + position.y * 7.0 + position.x * 2.3);
       float bpGustB = sin(bpWindTime * 0.57 + position.y * 3.2 + position.z * 4.1);
       float bpFlex = bpWindWeight * bpWindStrength * (0.72 * bpGustA + 0.28 * bpGustB) * 0.075;
@@ -222,7 +222,7 @@ function installWindShader(material, uniforms) {
       transformed.x += bpWindLocal.x * bpFlex;
       transformed.z += bpWindLocal.z * bpFlex;
       transformed.y += abs(bpFlex) * 0.08;
-      \`
+      `
     );
   };
   material.customProgramCacheKey = () => 'bp-tree-wind-weight-v1';
