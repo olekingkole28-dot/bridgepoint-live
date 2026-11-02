@@ -34,8 +34,8 @@ assert.ok(moduleSource.includes("for(const event of ['style.load','idle','moveen
 assert.ok(!moduleSource.includes("m.on('styledata',hideDefaultOverlays)"), 'avoid styledata feedback loops while hiding optional layers');
 assert.ok(landingHtml.includes('bridgepoint-drone-awareness-v1.js'), 'homepage loads the module');
 assert.ok(appHtml.includes('bridgepoint-drone-awareness-v1.js'), 'app loads the module');
-assert.ok(landingHtml.includes('bridgepoint-drone-awareness-v1.js?v=1.1.3-global-fleet-safe'), 'homepage uses the cache-busted global-fleet runtime');
-assert.ok(appHtml.includes('bridgepoint-drone-awareness-v1.js?v=1.1.3-global-fleet-safe'), 'app uses the same cache-busted global-fleet runtime');
+assert.ok(landingHtml.includes('bridgepoint-drone-awareness-v1.js?v=1.1.4-always-on-clouds'), 'homepage uses the cache-busted global-fleet runtime');
+assert.ok(appHtml.includes('bridgepoint-drone-awareness-v1.js?v=1.1.4-always-on-clouds'), 'app uses the same cache-busted global-fleet runtime');
 assert.ok(view.includes('data-bpv-command-grid="environment"'), 'environment command group exists');
 for (const action of ['weatherfx','windfx','volumetric','ai','listings','opportunities','metrics','property','explore','parcels','boundaryviewer','worldchanges','controls','motion','whole']) {
   assert.ok(view.includes('data-bpv-action="'+action+'"'), 'the dock exposes the '+action+' action');
@@ -76,7 +76,9 @@ assert.ok(moduleSource.includes("String(id).startsWith('bp-drone-sim-fleet')"), 
 assert.ok(mapKey.includes('Simulated drone fleet preview · 156 icons'), 'map key labels simulated and source-backed drone layers separately');
 assert.ok(moduleSource.includes('GRID_DEGREES=2'), 'drone display uses coarse 2-degree cells');
 assert.ok(moduleSource.includes('data-bp-water-flow-button'), 'water control is created inside the bottom card');
-assert.ok(moduleSource.includes('data-bp-cloud-toggle-button'), 'cloud control is created inside the bottom card');
+assert.ok(!moduleSource.includes('data-bp-cloud-toggle-button'), 'always-on cloud volumes do not expose a toggle button');
+assert.ok(moduleSource.includes("const allowedCategories=new Set(['clouds'])"), 'cloud volumes are exempt from clean-start overlay hiding');
+assert.ok(!moduleSource.includes('cloudToggle:toggleClouds'), 'cloud volumes are not exposed as a toggle action');
 assert.ok(moduleSource.includes("'gta-parcel','gta-parcel-glow','gta-parcel-halo'"), 'parcel boundaries have explicit visibility gating');
 assert.ok(landingHtml.includes('offline-world-ui.js'), 'homepage contains the offline dock UI loader');
 assert.ok(appHtml.includes('offline-world-ui.js'), 'app contains the offline dock UI loader');
