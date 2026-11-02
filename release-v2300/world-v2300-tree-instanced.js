@@ -316,7 +316,7 @@ function installWindShader(material, uniforms) {
     shader.uniforms.bpWindDirection = uniforms.direction;
     shader.vertexShader = shader.vertexShader.replace(
       '#include <common>',
-      '#include <common>\nattribute float bpWindWeight;\nattribute vec4 bpTreeMorph;\nuniform float bpWindTime;\nuniform float bpWindStrength;\nuniform vec2 bpWindDirection;'
+      '#include <common>\nattribute float bpWindWeight;\nattribute vec4 bpTreeMorph;\nattribute vec3 bpTreeFoliage;\nuniform float bpWindTime;\nuniform float bpWindStrength;\nuniform vec2 bpWindDirection;'
     );
     shader.vertexShader = shader.vertexShader.replace(
       '#include <begin_vertex>',
