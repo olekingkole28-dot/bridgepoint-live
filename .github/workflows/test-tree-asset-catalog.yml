@@ -10,6 +10,9 @@ on:
       - 'release-v2300/world-v2300-tree-catalog.js'
       - 'release-v2300/world-v2300-tree-instanced.js'
       - 'release-v2300/world-v2300-tree-canopy-lod.js'
+      - 'release-v2300/world-v2300-map.js'
+      - 'supabase/functions/bridgepoint-global-tree-viewport-v1101/index.ts'
+      - 'tests/tree-viewport-capacity.test.mjs'
       - 'tools/trees/**'
       - 'tests/tree-model-catalog.test.py'
       - 'tests/tree-asset-catalog.test.mjs'
@@ -43,3 +46,5 @@ jobs:
         run: node --check release-v2300/world-v2300-tree-canopy-lod.js
       - name: Check desktop and phone browser test syntax
         run: node --check tests/tree-instanced-renderer-browser.mjs
+      - name: Verify tree viewport capacity and derived-position truth
+        run: node tests/tree-viewport-capacity.test.mjs
