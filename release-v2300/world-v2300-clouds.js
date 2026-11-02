@@ -1691,6 +1691,38 @@ export function initSkyClouds(target) {
       Array.isArray(nativeHeightRows?.features) ? nativeHeightRows.features.length : 0;
     const nativeHeightStamp = String(windScene?.generated_at || windScene?.updated_at || windScene?.updatedAt || windScene?.timestamp || '');
     const heightIndexKey = [heightFeedState?.signature || '', heightFeedState?.samples?.length || 0, nativeHeightStamp, nativeHeightCount].join('|');
+    const sourceCloudMaskSamples = Array.isArray(heightFeedState?.cloudMaskSamples) ? heightFeedState.cloudMaskSamples : [];
+    const sourceCloudMaskSignature = String(heightFeedState?.cloudMaskSignature || 'no-official-mask');
+    const sourceCloudMaskMatchRadiusM = MOBILE ? 95000 : 75000;
+    const sourceCloudMaskBuckets = new Map();
+    const sourceCloudMaskCell = (lng, lat) => ({
+      x: ((Math.floor((wrapLongitude(lng) + 180) % 360) + 360) % 360),
+      y: Math.floor((clamp(lat, -89.999, 89.999) + 90) / 0.75)
+    });
+    for (const sample of sourceCloudMaskSamples) {
+      const lng = number(sample?.lng, NaN), lat = number(sample?.lat, NaN), probability = number(sample?.probability, NaN);
+      if (![lng, lat, probability].every(Number.isFinite) || Math.abs(lat) > 85 || probability < 0 || probability > 1) continue;
+      const cell = sourceCloudMaskCell(lng, lat), key = cell.y + ':' + cell.x;
+      if (!sourceCloudMaskBuckets.has(key)) sourceCloudMaskBuckets.set(key, []);
+      sourceCloudMaskBuckets.get(key).push(sample);
+    }
+    const nearestSourceCloudMask = (lng, lat) => {
+      if (!sourceCloudMaskSamples.length) return null;
+      const cell = sourceCloudMaskCell(lng, lat), cosLat = Math.max(0.08, Math.cos(lat * Math.PI / 180));
+      const xRadius = Math.min(18, Math.max(2, Math.ceil(sourceCloudMaskMatchRadiusM / (111320 * cosLat)) + 1));
+      let nearest = null, nearestDistance = sourceCloudMaskMatchRadiusM;
+      for (let dy = -1; dy <= 1; dy++) {
+        const y = cell.y + dy;
+        for (let dx = -xRadius; dx <= xRadius; dx++) {
+          const x = (cell.x + dx + 360) % 360;
+          for (const sample of sourceCloudMaskBuckets.get(y + ':' + x) || []) {
+            const distance = cloudDistanceMeters(lng, lat, sample.lng, sample.lat);
+            if (distance < nearestDistance) { nearest = sample; nearestDistance = distance; }
+          }
+        }
+      }
+      return nearest ? { sample: nearest, distanceM: nearestDistance } : null;
+    };
     const heightLatCell = 0.75, heightLonCell = 1;
     const heightBucketXY = (lng, lat) => ({
       x: ((Math.floor((wrapLongitude(lng) + 180) / heightLonCell) % 360) + 360) % 360,
@@ -1783,7 +1815,13 @@ export function initSkyClouds(target) {
     // satellite-derived volume actually represents that region. Suppress fallback only in
     // high-confidence clear-sky pixels; otherwise a small capped anchor set would erase far
     // more cloud geometry than it replaces when the mask refreshes.
+    let sourceCloudMaskClearSuppressedCount = 0, sourceCloudMaskCloudMatchedCount = 0;
     const satelliteCoverageAt = (lng,lat) => {
+      const officialMask = nearestSourceCloudMask(lng,lat);
+      if (officialMask && officialMask.sample.probability <= 0.18) {
+        sourceCloudMaskClearSuppressedCount++;
+        return true;
+      }
       if(!satelliteMaskReady)return false;
       const idx=satelliteMaskIndexV6150(satelliteMask,lng,lat);
       return idx>=0 && Number(satelliteMask.coverage[idx])>=192 && Number(satelliteMask.probability[idx])<=32;
@@ -1804,7 +1842,8 @@ export function initSkyClouds(target) {
     const isInFrontHemisphere=st=>{if(!maskViewCenter)return true;const r=Math.PI/180,a=number(maskViewCenter.lat,0)*r,b=number(st.lat,0)*r,d=(number(st.lng,0)-number(maskViewCenter.lng,0))*r;return Math.sin(a)*Math.sin(b)+Math.cos(a)*Math.cos(b)*Math.cos(d)>-0.08;};
     // Do not inject a model-only cyclone into the live global cloud mask when the source has no storm.
     const stormSignature=cloudLodBand+'|'+sourceCyclones.map(s=>s.key+':'+s.lng.toFixed(3)+','+s.lat.toFixed(3)+':'+Math.round(s.eyeRadiusM)).sort().join('|')+
-      '|sat-mask:'+satelliteMaskGeneration+':'+(satelliteMaskReady?'active':'fallback')+'|source-height:'+sourceHeightSignature;
+      '|sat-mask:'+satelliteMaskGeneration+':'+(satelliteMaskReady?'active':'fallback')+'|source-height:'+sourceHeightSignature+
+      '|official-cloud-mask:'+sourceCloudMaskSignature;
     if (globalCloudGeometryCache && globalCloudGeometryCache.stormSignature === stormSignature) return globalCloudGeometryCache;
     globalCloudGeometryCache = null;
     const vertices = [], indices = [], macroCandidates = [], shadowAnchors = [];
