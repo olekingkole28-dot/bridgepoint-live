@@ -249,8 +249,8 @@ test('both entrypoints perform a real 6221 service-worker cutover before stale s
   assert.match(appUpdate, /location\.replace\(u\.href\)/);
   assert.match(appUpdate, /navigator\.serviceWorker\?\.addEventListener\('controllerchange'/);
   assert.match(serviceWorker, /const V='bp-intelligence-v6221-clouds-always-on'/);
-  assert.match(landing, /navigator\.serviceWorker\.register\('\/sw\.js\?v=6220-tree-canopy-coverage-solid-retention'/);
-  assert.match(app, /navigator\.serviceWorker\.register\('\/sw\.js\?v=6220-tree-canopy-coverage-solid-retention'/);
+  assert.match(landing, /navigator\.serviceWorker\.register\('\/sw\.js\?v=6221-clouds-always-on'/);
+  assert.match(app, /navigator\.serviceWorker\.register\('\/sw\.js\?v=6221-clouds-always-on'/);
   assert.match(clouds, /Number\(existingCloudController\.version\) >= 6170[\s\S]{0,180}Number\(existingState\?\.coverageVersion \|\| existingState\?\.version\) >= 6170/);
 });
 
