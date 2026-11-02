@@ -861,6 +861,9 @@ jobs:
           grep -Fq 'sourceCloudMaskSamples.length' site/world-v2300-clouds.js
           grep -Fq 'viewFar=smoothstep(85000.0,18000000.0,u_camera_altitude_m)' site/world-v2300-clouds.js
           grep -Fq 'erosionMask=smoothstep' site/world-v2300-clouds.js
+          grep -Fq 'billow=noise3(coarseP*1.65' site/world-v2300-clouds.js
+          grep -Fq 'erosion=noise3(coarseP*7.4' site/world-v2300-clouds.js
+          grep -Fq 'microExtinction=0.72+0.42*fine+0.22*erosion' site/world-v2300-clouds.js
           grep -Fq 'NOAA GOES Enterprise Cloud Mask probability and clear-sky observations' site/world-v2300-clouds.js
           grep -Fq 'const satellitePuffSlices = MOBILE ? 8 : 9' site/world-v2300-clouds.js
           grep -Fq 'MOBILE?8:9,3,hash(q.gx,q.gy,i+973)' site/world-v2300-clouds.js
