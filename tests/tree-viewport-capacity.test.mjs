@@ -77,7 +77,7 @@ assert.match(mapSource, /tb=bbox\(map,\.10\)/,
   'tree requests must stay tightly scoped to the current map tile');
 assert.match(mapSource, /META_WRI_CHMV2_LOCAL_MAXIMA_V1109/,
   'the client cache must ignore older synthetic tree positions');
-assert.match(mapSource, /treeCap=MOBILE\?1800:3000/,
+assert.match(mapSource, /Math\.min\(MOBILE\?1800:3000,normalTreeLimit\)/,
   'tree requests must keep explicit mobile and desktop response caps');
 assert.match(mapSource, /map\.getSource\('bpTreeLod'\)\?\.setData\(\{type:'FeatureCollection',features:\[\.\.\.retainedTrees\]\}\)/,
   'the active tree source must clear stale features when the current tile is empty');
