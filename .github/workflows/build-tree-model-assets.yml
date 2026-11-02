@@ -1,0 +1,144 @@
+name: Build BridgePoint Procedural Tree Bank
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/tree-asset-upgrade-v1
+    paths:
+      - 'assets/trees/procedural-tree-archetypes-v1.json'
+      - 'assets/trees/tree-model-catalog-v1.json'
+      - 'tools/trees/build_procedural_tree_variants.py'
+      - 'tools/trees/fetch_globalgeotree_taxonomy.py'
+      - 'tools/trees/generate_procedural_tree_bank.py'
+      - 'tests/tree-model-catalog.test.py'
+      - 'tests/tree-instanced-renderer-browser.mjs'
+      - 'release-v2300/world-v2300-tree-instanced.js'
+      - 'release-v2300/world-v2300-tree-canopy-lod.js'
+      - 'release-v2300/world-v2300-tree-catalog.js'
+      - '.github/workflows/build-tree-model-assets.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-procedural-tree-bank:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/tree-asset-upgrade-v1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Validate source catalogs and pipeline syntax
+        run: python tests/tree-model-catalog.test.py
+
+      - name: Install Blender headless
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y blender
+          blender --background --factory-startup --python-expr "import bpy,sys; print('BRIDGEPOINT_BLENDER_READY', bpy.app.version_string); print('BRIDGEPOINT_BLENDER_PYTHON_VERSION', sys.version); print('BRIDGEPOINT_BLENDER_PYTHON_EXECUTABLE', getattr(bpy.app, 'binary_path_python', sys.executable))"
+
+      - name: Install NumPy in Blender's Python runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          BLENDER_PY=$(blender --background --factory-startup --python-expr "import bpy,sys; print('BP_BLENDER_PYTHON=' + getattr(bpy.app, 'binary_path_python', sys.executable))" 2>&1 | sed -n 's/^BP_BLENDER_PYTHON=//p' | tail -1)
+          if [ -z "$BLENDER_PY" ] || [ ! -x "$BLENDER_PY" ]; then
+            echo "Could not resolve Blender's Python executable: '$BLENDER_PY'"
+            exit 1
+          fi
+          echo "Using Blender Python: $BLENDER_PY"
+          "$BLENDER_PY" -m ensurepip --upgrade || true
+          "$BLENDER_PY" -m pip install --upgrade pip
+          "$BLENDER_PY" -m pip install "numpy==1.26.4"
+          "$BLENDER_PY" -c "import numpy; print('BRIDGEPOINT_BLENDER_NUMPY_READY', numpy.__version__)"
+          blender --background --factory-startup --python-expr "import numpy; print('BRIDGEPOINT_BLENDER_IMPORT_NUMPY_PASS', numpy.__version__)"
+
+      - name: Download the 21,001-species taxonomy reference
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/bridgepoint-tree-assets
+          python tools/trees/fetch_globalgeotree_taxonomy.py \
+            --output /tmp/bridgepoint-tree-assets/global-tree-taxonomy.json \
+            --minimum-species 20000
+
+      - name: Build 3,072 deterministic model variations
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tools/trees/build_procedural_tree_variants.py \
+            --archetypes assets/trees/procedural-tree-archetypes-v1.json \
+            --taxonomy /tmp/bridgepoint-tree-assets/global-tree-taxonomy.json \
+            --output /tmp/bridgepoint-tree-assets/procedural-variants.json \
+            --variants-per-archetype 64
+          test -s /tmp/bridgepoint-tree-assets/procedural-variants.json
+          test -s /tmp/bridgepoint-tree-assets/taxonomy-index.json
+
+      - name: Generate the 48 procedural tree morphotypes and three LOD meshes
+        shell: bash
+        run: |
+          set -euo pipefail
+          blender --background --factory-startup \
+            --python tools/trees/generate_procedural_tree_bank.py -- \
+            --archetypes assets/trees/procedural-tree-archetypes-v1.json \
+            --variants /tmp/bridgepoint-tree-assets/procedural-variants.json \
+            --output-root /tmp/bridgepoint-tree-assets
+
+      - name: Verify all procedural GLBs, taxonomy rows and 3,072 variants
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tests/tree-model-catalog.test.py --built-assets /tmp/bridgepoint-tree-assets
+          test "$(find /tmp/bridgepoint-tree-assets/procedural -name '*.glb' | wc -l)" -eq 144
+
+      - name: Verify real GLB rendering in desktop and phone MapLibre browsers
+        shell: bash
+        run: |
+          set -euo pipefail
+          TEST_ROOT=/tmp/bridgepoint-tree-browser
+          PUPPETE_ROOT=/tmp/bp-puppeteer
+          mkdir -p "$TEST_ROOT/vendor" "$TEST_ROOT/release-v2300" "$TEST_ROOT/assets/trees"
+          cp release-v2300/world-v2300-tree-catalog.js "$TEST_ROOT/release-v2300/"
+          cp release-v2300/world-v2300-tree-instanced.js "$TEST_ROOT/release-v2300/"
+          # The browser entry point imports the renderer from the root URL.
+          cp release-v2300/world-v2300-tree-catalog.js "$TEST_ROOT/"
+          cp release-v2300/world-v2300-tree-canopy-lod.js "$TEST_ROOT/"
+          cp release-v2300/world-v2300-tree-instanced.js "$TEST_ROOT/"
+          cp -a /tmp/bridgepoint-tree-assets/. "$TEST_ROOT/assets/trees/"
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL \
+            https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.js \
+            -o "$TEST_ROOT/vendor/maplibre-gl.js"
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL \
+            https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.css \
+            -o "$TEST_ROOT/vendor/maplibre-gl.css"
+          test -s "$TEST_ROOT/assets/trees/manifest.json"
+          test -s "$TEST_ROOT/assets/trees/procedural-variants.json"
+          test -s "$TEST_ROOT/assets/trees/taxonomy-index.json"
+          npm install --prefix "$PUPPETE_ROOT" puppeteer-core@24 --no-audit --no-fund
+          CHROME=$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)
+          if [ -z "$CHROME" ]; then
+            sudo apt-get update
+            sudo apt-get install -y chromium
+            CHROME=$(command -v chromium)
+          fi
+          test -n "$CHROME"
+          BP_TREE_BROWSER_ROOT="$TEST_ROOT" \
+          PUPPETE_ROOT="$PUPPETE_ROOT" \
+          CHROME_PATH="$CHROME" \
+          node tests/tree-instanced-renderer-browser.mjs
+
+      - name: Publish reviewable procedural tree bank
+        uses: actions/upload-artifact@v4
+        with:
+          name: bridgepoint-procedural-tree-bank-v1
+          path: /tmp/bridgepoint-tree-assets/
+          if-no-files-found: error
+          retention-days: 7
