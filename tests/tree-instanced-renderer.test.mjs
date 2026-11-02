@@ -35,7 +35,7 @@ const sourceTree = (id, coordinates, properties = {}) => ({
 });
 
 const pine = sourceTree('pine-1', [-72.65012345, 41.56098765], {
-  species: 'Picea abies',
+  species: 'Abies alba',
   leaf_cycle: 'evergreen',
   height_m: 18.75,
   render_height_m: 8
