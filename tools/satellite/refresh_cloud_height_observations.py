@@ -456,8 +456,14 @@ def extract_noaa_cloud_mask(path: Path, source_index: int, metadata: dict[str, A
         if probability_name:
             finite = raw[np.isfinite(raw)]
             if finite.size and float(np.nanmax(finite)) > 1.5:
-                scale = 100.0 if float(np.nanmax(finite)) <= 100.0 else 255.0
-                probability = raw / scale
+                encoded_scale = source_da.encoding.get("scale_factor", source_da.attrs.get("scale_factor"))
+                encoded_offset = source_da.encoding.get("add_offset", source_da.attrs.get("add_offset", 0.0))
+                if encoded_scale is not None and 0 < float(encoded_scale) <= 0.1:
+                    probability = raw * float(encoded_scale) + float(encoded_offset or 0.0)
+                elif float(np.nanmax(finite)) <= 100.0:
+                    probability = raw / 100.0
+                else:
+                    raise ValueError("Cloud probability is still encoded but its scale_factor is missing")
             else:
                 probability = raw
         else:
@@ -494,8 +500,11 @@ def extract_noaa_cloud_mask(path: Path, source_index: int, metadata: dict[str, A
         )
         transformer = Transformer.from_crs(crs, CRS.from_epsg(4326), always_xy=True)
         lon_grid, lat_grid = transformer.transform(xx, yy)
+        sampled_probability = probability[np.ix_(row_idx, col_idx)]
+        sampled_quality = None if quality is None else quality[np.ix_(row_idx, col_idx)]
         samples = compact_cloud_mask_samples(
-            lat_grid, lon_grid, probability, quality, source_index, max_samples=MAX_NOAA_MASK_SAMPLES
+            lat_grid, lon_grid, sampled_probability, sampled_quality, source_index,
+            max_samples=MAX_NOAA_MASK_SAMPLES
         )
         info = {
             **metadata, "status": "available", "sample_count": len(samples),
