@@ -487,12 +487,12 @@ jobs:
           grep -Fq 'bridgepoint-rail-mesh-v5973.js?v=5980-visible-detail-rails' site/app/index.html
           grep -Fq 'MAPPED_GROUND_ROAD_ENDPOINT' site/world-v2300-map.js
           grep -Fq 'groundConnectedRamps' site/world-v2300-map.js
-          grep -Fq '6209-esri-raster-visibility-guard' site/app.js
-          grep -Fq '6209-esri-raster-visibility-guard' site/landing.js
-          grep -Fq 'bp-global-map-mode-v6209' site/world-v2300-spectral-imagery.js
-          grep -Fq 'bp-intelligence-v6209-esri-raster-visibility-guard' site/sw.js
-          grep -Fq "navigator.serviceWorker.register('/sw.js?v=6209-esri-raster-visibility-guard'," site/landing.js
-          grep -Fq "navigator.serviceWorker.register('/sw.js?v=6209-esri-raster-visibility-guard'," site/app.js
+          grep -Fq '6210-tile-only-satellite-base' site/app.js
+          grep -Fq '6210-tile-only-satellite-base' site/landing.js
+          grep -Fq 'bp-global-map-mode-v6210' site/world-v2300-spectral-imagery.js
+          grep -Fq 'bp-intelligence-v6210-tile-only-satellite-base' site/sw.js
+          grep -Fq "navigator.serviceWorker.register('/sw.js?v=6210-tile-only-satellite-base'," site/landing.js
+          grep -Fq "navigator.serviceWorker.register('/sw.js?v=6210-tile-only-satellite-base'," site/app.js
           grep -Fq 'OpenStreetMap feature centroid' site/bridgepoint-pyramids-v5945.js
           grep -Fq 'currentHeightM: 138.5' site/bridgepoint-pyramids-v5945.js
           grep -Fq 'currentHeightM: 136.4' site/bridgepoint-pyramids-v5945.js
@@ -698,9 +698,9 @@ jobs:
           grep -Fq 'world-v2300-weather.js?v=6195-desktop-globe-flash-stability' site/app/world-v2300-bootstrap.js
           grep -Fq 'world-v2300-time-slider.js?v=6167-cloud-startup-performance' site/app.js
           grep -Fq 'world-v2300-time-slider.js?v=6167-cloud-startup-performance' site/landing.js
-          grep -Fq 'world-v2300-spectral-imagery.js?v=6209-esri-raster-visibility-guard' site/app.js
-          grep -Fq 'world-v2300-spectral-imagery.js?v=6209-esri-raster-visibility-guard' site/landing.js
-          grep -Fq 'world-v2300-spectral-imagery.js?v=6209-esri-raster-visibility-guard' site/bridgepoint-view-v5917.js
+          grep -Fq 'world-v2300-spectral-imagery.js?v=6210-tile-only-satellite-base' site/app.js
+          grep -Fq 'world-v2300-spectral-imagery.js?v=6210-tile-only-satellite-base' site/landing.js
+          grep -Fq 'world-v2300-spectral-imagery.js?v=6210-tile-only-satellite-base' site/bridgepoint-view-v5917.js
           grep -Fq 'world-v2300-underground-xray.js?v=5965-landmarks-and-effects' site/app.js
           grep -Fq 'world-v2300-underground-xray.js?v=5965-landmarks-and-effects' site/landing.js
           grep -Fq 'world-v2300-infrastructure-volume-v5962.js?v=5962-power-grid-fcc-towers' site/app.js
@@ -824,7 +824,7 @@ jobs:
           grep -Fq 'BP_SOURCE_WEATHER_CACHE_KEY_V6134' site/app.js
           grep -Fq 'restoreCachedLiveWeatherFirstFrameV6134' site/app.js
           ! grep -Fq 'if(window.__BP_CLOUDS_ONLY_PHASE_V6070__===true && m)' site/landing.js
-          grep -Fq 'landing.js?v=6209-esri-raster-visibility-guard' site/index.html
+          grep -Fq 'landing.js?v=6210-tile-only-satellite-base' site/index.html
           grep -Fq 'async function toggleNasaNightlights()' site/world-v2300-time-slider.js
           grep -Fq 'async function toggleSkyClouds()' site/world-v2300-time-slider.js
           grep -Fq 'data-skyview' site/world-v2300-time-slider.js
@@ -944,10 +944,10 @@ jobs:
           grep -Fq '__BP_FULL_REFRESH_V5535__' site/refresh-v5535.js
           grep -Fq '__BP_FULL_REFRESH_V5548__' site/refresh-v5535.js
           grep -Fq 'deferred-active-use' site/refresh-v5535.js
-          grep -Fq 'bp-intelligence-v6209-esri-raster-visibility-guard' site/sw.js
+          grep -Fq 'bp-intelligence-v6210-tile-only-satellite-base' site/sw.js
           node --check site/app-update-v5820.js
-          grep -Fq '/app-update-v5820.js?v=6209-esri-raster-visibility-guard' site/index.html
-          grep -Fq '/app-update-v5820.js?v=6209-esri-raster-visibility-guard' site/app/index.html
+          grep -Fq '/app-update-v5820.js?v=6210-tile-only-satellite-base' site/index.html
+          grep -Fq '/app-update-v5820.js?v=6210-tile-only-satellite-base' site/app/index.html
           grep -Fq 'bridgepoint-intelligence-legacy-retire-v5820' site/app/flutter_service_worker.js
           grep -Fq 'migrated=legacy-intelligence-v5820' site/app/intelligence-launch/index.html
           grep -Fq "bridgepoint-horizon-v5820" site/app/horizon/sw.js
@@ -1040,7 +1040,7 @@ jobs:
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/app.js
           grep -Fq 'activateLiveWeather();' site/app.js
           grep -Fq 'enabled:true,serializedWeather:true' site/app.js
-          grep -Fq 'app.js?v=6209-esri-raster-visibility-guard' site/app/index.html
+          grep -Fq 'app.js?v=6210-tile-only-satellite-base' site/app/index.html
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/landing.js
           grep -Fq 'WMO_CAP_WARNING' site/app.js
           grep -Fq 'WMO_CAP_WARNING' site/landing.js
@@ -1284,12 +1284,12 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=6209-esri-raster-visibility-guard' site/app/index.html
-          grep -Fq 'landing.js?v=6209-esri-raster-visibility-guard' site/index.html
-           grep -Fq 'world-v2300-map.js?v=6209-esri-raster-visibility-guard' site/app.js
-           grep -Fq 'world-v2300-map.js?v=6209-esri-raster-visibility-guard' site/landing.js
-           grep -Fq 'world-v2300-map.js?v=6209-esri-raster-visibility-guard' site/index.html
-           grep -Fq 'world-v2300-map.js?v=6209-esri-raster-visibility-guard' site/app/index.html
+          grep -Fq 'app.js?v=6210-tile-only-satellite-base' site/app/index.html
+          grep -Fq 'landing.js?v=6210-tile-only-satellite-base' site/index.html
+           grep -Fq 'world-v2300-map.js?v=6210-tile-only-satellite-base' site/app.js
+           grep -Fq 'world-v2300-map.js?v=6210-tile-only-satellite-base' site/landing.js
+           grep -Fq 'world-v2300-map.js?v=6210-tile-only-satellite-base' site/index.html
+           grep -Fq 'world-v2300-map.js?v=6210-tile-only-satellite-base' site/app/index.html
            grep -Fq 'world-v2300-lod-controls.js?v=6201-gold-always-on' site/app.js
            grep -Fq "const tier='GOLD';" site/world-v2300-map.js
            grep -Fq 'function activeWorldLodProfile()' site/world-v2300-map.js
@@ -1305,8 +1305,8 @@ jobs:
           grep -Fq 'landing.css?v=5941-mobile-grid' site/index.html
           grep -Fq 'bridgepoint-view-v5917.css?v=6202-live-panels' site/index.html
           grep -Fq 'bridgepoint-view-v5917.css?v=6202-live-panels' site/app/index.html
-          grep -Fq 'bridgepoint-view-v5917.js?v=6209-esri-raster-visibility-guard' site/app/index.html
-          grep -Fq 'bridgepoint-view-v5917.js?v=6209-esri-raster-visibility-guard' site/index.html
+          grep -Fq 'bridgepoint-view-v5917.js?v=6210-tile-only-satellite-base' site/app/index.html
+          grep -Fq 'bridgepoint-view-v5917.js?v=6210-tile-only-satellite-base' site/index.html
           grep -Fq 'function setDockMaximized(on)' site/bridgepoint-view-v5917.js
           grep -Fq 'document.body.appendChild(keyRail)' site/bridgepoint-view-v5917.js
           grep -Fq 'p.removeAttribute('"'"'data-panel'"'"')' site/bridgepoint-view-v5917.js
@@ -1479,8 +1479,8 @@ jobs:
               && grep -Fq 'bridgepoint_public_weather_bootstrap_v5512' /tmp/app.js \
               && grep -Fq 'const VERSION=1068' /tmp/language-selector-v5200.js \
               && grep -Fq 'BridgePointLanguage' /tmp/language-selector-v5200.js \
-              && grep -Fq "const V='bp-intelligence-v6209-esri-raster-visibility-guard'" /tmp/sw.js \
-              && grep -Fq 'BUILD=6209' /tmp/app-update-v5820.js \
+              && grep -Fq "const V='bp-intelligence-v6210-tile-only-satellite-base'" /tmp/sw.js \
+              && grep -Fq 'BUILD=6210' /tmp/app-update-v5820.js \
               && grep -Fq 'bridgepoint-intelligence-legacy-retire-v5820' /tmp/flutter-service-worker-retire.js \
               && grep -Fq 'migrated=legacy-intelligence-v5820' /tmp/legacy-intelligence-launch.html \
               && grep -Fq "bridgepoint-horizon-v5820" /tmp/horizon-sw.js \
@@ -1619,7 +1619,8 @@ jobs:
                 await page.waitForFunction(kind=>{
                   const world=kind==='home'?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
                   const map=world?.map;
-                  return !!map&&!!map.getLayer('gta-global-earth')&&!!map.getLayer('gta-esri')&&map.isSourceLoaded?.('globalEarth')===true&&!map.isMoving?.();
+                  const visible=id=>!!map?.getLayer(id)&&(map.getLayoutProperty(id,'visibility')||'visible')==='visible';
+                  return !!map&&visible('gta-nasa')&&visible('gta-esri')&&!map.isMoving?.();
                 },{timeout:60000},kind);
                 await new Promise(resolve=>setTimeout(resolve,1400));
                 return page.evaluate(kind=>{
@@ -1637,11 +1638,10 @@ jobs:
                     legacyStoredMode:localStorage.getItem('bp-global-map-mode-v6204')||null,
                     background:map?.getPaintProperty('gta-bg','background-color')??null,
                     waterOpacity:map?.getPaintProperty('gta-water','fill-opacity')??null,
-                    imagery:{globalEarth:visible('gta-global-earth'),nasa:visible('gta-nasa'),esri:visible('gta-esri'),usgs:visible('gta-usgs'),oam:visible('gta-oam')},
-                     imageryLayers:Object.fromEntries(['gta-global-earth','gta-nasa','gta-esri','gta-usgs','gta-oam'].map(id=>{const layer=map?.getLayer(id);return[id,{present:!!layer,visibility:layer?(map.getLayoutProperty(id,'visibility')||'visible'):'missing',source:layer?.source||null,sourceLoaded:layer?map.isSourceLoaded?.(layer.source)===true:false}]})),
-                     visibilityGuard:window.__BP_SATELLITE_RASTER_VISIBILITY_GUARD_V6209__||null,
-                     globalEarthSourcePresent:!!map?.getSource('globalEarth'),
-                     globalEarthSourceLoaded:map?.isSourceLoaded?.('globalEarth')===true,
+                    imagery:{nasa:visible('gta-nasa'),esri:visible('gta-esri'),usgs:visible('gta-usgs'),oam:visible('gta-oam')},
+                     imageryLayers:Object.fromEntries(['gta-nasa','gta-esri','gta-usgs','gta-oam'].map(id=>{const layer=map?.getLayer(id);return[id,{present:!!layer,visibility:layer?(map.getLayoutProperty(id,'visibility')||'visible'):'missing',source:layer?.source||null,sourceLoaded:layer?map.isSourceLoaded?.(layer.source)===true:false}]})),
+                     visibilityGuard:window.__BP_SATELLITE_RASTER_VISIBILITY_GUARD_V6210__||null,
+                     warpedImageSourceAbsent:!map?.getSource('globalEarth')&&!map?.getLayer('gta-global-earth'),
                      streets:{major:visible('gta-road-major'),local:visible('gta-road-local')},
                      sidewalks:{line:visible('gta-bp-sidewalk'),casing:visible('gta-bp-sidewalk-casing'),raised:visible('gta-bp-sidewalk3d')},
                     canvasCount:container?.querySelectorAll('canvas').length||0,
@@ -1664,12 +1664,11 @@ jobs:
                 assert.equal(state.background,'#06120f',state.kind+' must retain Natural background after idle');
                 assert.equal(Number(state.waterOpacity),0,state.kind+' must leave satellite imagery unobscured by vector ocean fill');
                 assert.equal(state.base,'satellite',state.kind+' must retain satellite imagery base');
-                assert.equal(state.imagery.globalEarth,true,state.kind+' must retain the full-world EPSG:4326 satellite underlay');
-                 assert.equal(state.globalEarthSourcePresent,true,state.kind+' must register the global satellite image source');
-                 assert.equal(state.globalEarthSourceLoaded,true,state.kind+' must load the global satellite image source');
+                assert.equal(state.warpedImageSourceAbsent,true,state.kind+' must not install the single-image EPSG:4326 overlay that stretches across the globe projection');
                  assert.equal(state.imagery.esri,true,state.kind+' must retain global Esri imagery; layer diagnostics='+JSON.stringify(state.imageryLayers)+'; visibility guard='+JSON.stringify(state.visibilityGuard));
                 assert.equal(state.imagery.nasa,true,state.kind+' must retain global NASA imagery');
                  assert.equal(state.visibilityGuard?.layers?.['gta-esri']?.visibility,'visible',state.kind+' visibility guard must report Esri visible after settle');
+                 assert.equal(state.visibilityGuard?.layers?.['gta-nasa']?.visibility,'visible',state.kind+' visibility guard must report NASA fallback visible after settle');
                  assert.equal(state.streets.major,true,state.kind+' must preserve major street overlays above satellite imagery');
                  assert.equal(state.streets.local,true,state.kind+' must preserve local street overlays above satellite imagery');
                 assert.ok(state.canvasCount>=1&&state.canvasWidth>0&&state.canvasHeight>0,state.kind+' must render a non-zero globe canvas');
@@ -1692,8 +1691,8 @@ jobs:
                 assert.ok(street.zoom>=16.4,kind+' must reach street-level zoom');
                 assert.equal(street.sidewalks.line,true,kind+' must retain sidewalk/footway lines at street level');
                 assert.equal(street.sidewalks.casing,true,kind+' must retain sidewalk casings at street level');
-                assert.equal(street.imagery.globalEarth,true,kind+' must keep the global imagery underlay at street level');
-                assert.equal(street.imagery.esri,true,kind+' must keep the satellite tile fallback at street level');
+                assert.equal(street.imagery.nasa,true,kind+' must keep the NASA raster fallback at street level');
+                assert.equal(street.imagery.esri,true,kind+' must keep the satellite tile base at street level');
                 return street;
               };
               const homeStreetStop=await verifyStreetZoom('home');
@@ -2827,7 +2826,7 @@ jobs:
                 select.value='vegetation';select.dispatchEvent(new Event('change',{bubbles:true}));
                 const globeBackground=m.getPaintProperty('gta-bg','background-color');
                 const globeSatellite=m.getLayoutProperty('gta-nasa','visibility');
-                 const globalEarth=m.getLayoutProperty('gta-global-earth','visibility');
+                 const tileOnlyBase=!m.getSource('globalEarth')&&!m.getLayer('gta-global-earth');
                 m.jumpTo({zoom:16});
                 const streetBackground=m.getPaintProperty('gta-bg','background-color');
                 const activeMode=api.basemapMode;
@@ -2835,7 +2834,7 @@ jobs:
                 const restoredBackground=m.getPaintProperty('gta-bg','background-color');
                 if(combo&&originalCombo)combo.value=originalCombo;
                 m.jumpTo({center:[originalCenter.lng,originalCenter.lat],zoom:originalZoom});
-                return {ok:activeMode==='vegetation'&&globeBackground==='#061b13'&&streetBackground===globeBackground&&globeSatellite==='visible'&&globalEarth==='visible'&&restoredBackground==='#040b12',activeMode,globeBackground,streetBackground,globeSatellite,globalEarth,restoredBackground};
+                return {ok:activeMode==='vegetation'&&globeBackground==='#061b13'&&streetBackground===globeBackground&&globeSatellite==='visible'&&tileOnlyBase&&restoredBackground==='#040b12',activeMode,globeBackground,streetBackground,globeSatellite,tileOnlyBase,restoredBackground};
               });
               if(!basemapModeSmoke.ok)throw new Error('GLOBAL_BASEMAP_MODE_SMOKE_FAILED '+JSON.stringify(basemapModeSmoke));
               console.log('BRIDGEPOINT_GLOBAL_BASEMAP_MODES_PASS',JSON.stringify(basemapModeSmoke));
