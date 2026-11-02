@@ -349,6 +349,17 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
     Object.assign(state, { status, ...extra, updatedAt: Date.now() });
   };
 
+  function restoreLegacyVisibility() {
+    if (legacyVisibility) {
+      for (const [id, visibility] of Object.entries(legacyVisibility)) {
+        if (!map.getLayer?.(id)) continue;
+        try { map.setLayoutProperty(id, 'visibility', visibility); } catch (_) {}
+      }
+    } else {
+      setLegacyVisibility(map, 'visible');
+    }
+  }
+
   async function loadManifest() {
     const response = await fetch(options.manifestUrl || MANIFEST_URL, {
       cache: 'no-cache',
@@ -407,6 +418,27 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
       groups.get(tree.modelId).push(tree);
     }
     const sequence = ++loadSequence;
+    const everyTreeHasModel = activeTrees.length > 0 &&
+      state.unsupported === 0 &&
+      state.truncated === 0 &&
+      activeTrees.length === state.sourceCount;
+    if (!everyTreeHasModel) {
+      for (const old of activeMeshes) scene.remove(old);
+      activeMeshes = [];
+      state.instanceCount = 0;
+      restoreLegacyVisibility();
+      state.legacyLayersHidden = false;
+      state.legacyRetained = true;
+      publish('fallback-incomplete-viewport-coverage', {
+        lod: lodKey,
+        instanceCount: 0,
+        unsupported: state.unsupported,
+        truncated: state.truncated,
+        legacyRetained: true,
+        legacyLayersHidden: false
+      });
+      return;
+    }
     publish('loading-model-lod', { lod: lodKey, instanceCount: activeTrees.length });
 
     Promise.all([...groups.entries()].map(([modelId, trees]) =>
@@ -455,19 +487,9 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
       activeMeshes = nextMeshes;
       for (const mesh of activeMeshes) scene.add(mesh);
 
-      const everyTreeHasModel = activeTrees.length > 0 &&
-        state.unsupported === 0 &&
-        state.truncated === 0 &&
-        activeTrees.length === state.sourceCount;
-      if (everyTreeHasModel) {
-        setLegacyVisibility(map, 'none');
-        state.legacyLayersHidden = true;
-        state.legacyRetained = false;
-      } else {
-        restoreLegacyVisibility();
-        state.legacyLayersHidden = false;
-        state.legacyRetained = true;
-      }
+      setLegacyVisibility(map, 'none');
+      state.legacyLayersHidden = true;
+      state.legacyRetained = false;
       publish('render-ready', {
         lod: lodKey,
         instanceCount: activeTrees.length,
