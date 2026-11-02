@@ -240,7 +240,7 @@ export function initSpectralImagery(target){
    return true;
   }
   const cfg=GLOBAL_BASEMAP_MODES[mode];
-  if(mode==='dark'){
+  if(mode==='dark'||mode==='natural'){
    // On initial load the baseline is already active; avoid needlessly recompiling every map layer.
    // Restore snapshots only when leaving a non-dark color mode.
    if(previousMode!=='dark'){
@@ -249,7 +249,7 @@ export function initSpectralImagery(target){
     if(enabled||scene)hideLayer();
    }
    safeSetPaint('gta-landcover','fill-opacity',0);safeSetPaint('gta-landuse','fill-opacity',0);
-   setStatus('DARK INTELLIGENCE ACTIVE · optional alternate map styling selected.');
+   setStatus(mode==='natural'?'NATURAL SATELLITE ACTIVE · original globe imagery style preserved.':'DARK INTELLIGENCE ACTIVE · original globe imagery style preserved.');
   }else{
    safeSetPaint('gta-bg','background-color',cfg.background);
    safeSetPaint('gta-water','fill-color',cfg.water);
@@ -386,7 +386,9 @@ export function initSpectralImagery(target){
  map.on('style.load',reapplySelectedBasemapAfterStyleReload);
  state.destroy=()=>{disposed=true;clearTimeout(mountHandle);if(controller)controller.abort();map.off('moveend',moveHandler);map.off('style.load',reapplySelectedBasemapAfterStyleReload);clearOldLayer();root.remove();state.available=false};
  setStatus('Ready · choose a global color mode or load real Landsat source bands.');
- // Every page load begins in Natural Satellite. Saved false-colour modes are never restored automatically.
- applyGlobalBasemapMode('natural');
+ // The map is already initialized in its intended Natural Satellite style. Do not repaint it when this delayed UI module mounts.
+ // Alternate palettes apply only after a user changes the global-mode selector.
+ state.basemapMode='natural';
+ if(modeSel)modeSel.value='natural';
  return state;
 }
