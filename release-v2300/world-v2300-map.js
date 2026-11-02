@@ -1046,6 +1046,7 @@ export function initWorld(options={}){
     livingCount=features.length;
     window.__BP_TREE_RENDER_STATE__={version:1125,requested:(trees.features||[]).length,physicalFeatures:(physical.features||[]).length,visible3D:treeOn,visibleLod:treeLod,lodSource:'bpTreeLod',lodMinZoom:lod.treeMin,detailed3DMinZoom:lod.treeDetailedMin,geometry:'TAPERED_TRUNK_MULTI_TIER_IRREGULAR_CROWN',positionTruth:'CHMV2_LOCAL_CANOPY_PEAK_ESTIMATE_V1109',singleActiveSourceTile:true,buildingFootprintExcluded:true,pressureTreeOnly:clientPressure,treeLimit,denseMobileScene,denseRenderedBuildings,trunkLayer:(map.getLayoutProperty('gta-bp-tree3d-trunk','visibility')||'visible'),canopyLayer:(map.getLayoutProperty('gta-bp-tree3d-canopy','visibility')||'visible'),zoom:z,updatedAt:Date.now()}
    }else{
+    livingCount=0;
     // Do not leave the previous tile's extruded tree geometry underneath the
     // instanced renderer when the newly active tile has no tree candidates.
     map.getSource('bpLivingWorld3D')?.setData(EMPTY);
