@@ -31,7 +31,7 @@ const positiveNumber = (...values) => {
 const normalize = value => String(value || '')
   .normalize('NFKD')
   .toLowerCase()
-  .replace(/[\\u0300-\\u036f]/g, '')
+  .replace(/[\u0300-\u036f]/g, '')
   .replace(/[^a-z0-9]+/g, ' ')
   .trim();
 
@@ -48,7 +48,7 @@ const PALM_GENERA = new Set([
 
 const parseGenus = scientificName => {
   if (!scientificName) return null;
-  const parts = scientificName.replace(/^×\\s*/, '').trim().split(/\\s+/);
+  const parts = scientificName.replace(/^×\s*/, '').trim().split(/\s+/);
   return parts.length ? parts[0].replace(/[^A-Za-zÀ-ÿ-]/g, '') || null : null;
 };
 
@@ -69,19 +69,19 @@ const classifyForm = ({ scientificName, genus, family, leafType, leafCycle, tags
   ].filter(Boolean).join(' '));
 
   const genusKey = normalize(genus || '').split(' ')[0];
-  if (PALM_GENERA.has(genusKey) || /\\b(palm|palmate frond)\\b/.test(text)) return 'palm';
-  if (CONIFER_GENERA.has(genusKey) || /\\b(conifer|needle|needleleaved|pine|spruce|fir|cedar|cypress|juniper|hemlock|yew)\\b/.test(text)) return 'conifer';
-  if (/\\b(broadleaf|broad leaved|deciduous)\\b/.test(text) || leafCycle === 'deciduous') return 'broadleaf_deciduous';
-  if (/\\b(evergreen|laurel|holly|magnolia|olive)\\b/.test(text) || leafCycle === 'evergreen') return 'broadleaf_evergreen';
+  if (PALM_GENERA.has(genusKey) || /\b(palm|palmate frond)\b/.test(text)) return 'palm';
+  if (CONIFER_GENERA.has(genusKey) || /\b(conifer|needle|needleleaved|pine|spruce|fir|cedar|cypress|juniper|hemlock|yew)\b/.test(text)) return 'conifer';
+  if (/\b(broadleaf|broad leaved|deciduous)\b/.test(text) || leafCycle === 'deciduous') return 'broadleaf_deciduous';
+  if (/\b(evergreen|laurel|holly|magnolia|olive)\b/.test(text) || leafCycle === 'evergreen') return 'broadleaf_evergreen';
   return 'unclassified_tree';
 };
 
 const normalizeLeafCycle = value => {
   const text = normalize(value);
-  if (/\\b(evergreen|perennial)\\b/.test(text)) return 'evergreen';
-  if (/\\b(deciduous|broadleaf deciduous)\\b/.test(text)) return 'deciduous';
-  if (/\\b(semi evergreen|semi evergreen)\\b/.test(text)) return 'semi_evergreen';
-  if (/\\b(mixed)\\b/.test(text)) return 'mixed';
+  if (/\b(evergreen|perennial)\b/.test(text)) return 'evergreen';
+  if (/\b(deciduous|broadleaf deciduous)\b/.test(text)) return 'deciduous';
+  if (/\b(semi evergreen)\b/.test(text)) return 'semi_evergreen';
+  if (/\b(mixed)\b/.test(text)) return 'mixed';
   return 'unknown';
 };
 
@@ -113,11 +113,11 @@ export function normalizeTreeFeature(feature) {
   const sourceHeight = positiveNumber(raw.height_m, tags.height_m, tags.height);
   const renderHeight = positiveNumber(raw.render_height_m);
   const heightMeters = sourceHeight ?? renderHeight;
-  const heightTruth = firstText(
+  const heightTruth = (firstText(
     raw.height_truth,
     sourceHeight !== null ? 'SOURCE_MEASURED_OR_DECLARED' :
       renderHeight !== null ? 'DERIVED_RENDER_HEIGHT' : 'HEIGHT_UNAVAILABLE'
-  ).toUpperCase();
+  ) || 'HEIGHT_UNAVAILABLE').toUpperCase();
 
   const sourceKey = firstText(raw.source_key, raw.source, 'tree');
   const sourceRecordId = firstText(raw.source_record_id, raw.tree_id, raw.id, feature?.id);
