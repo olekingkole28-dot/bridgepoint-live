@@ -818,6 +818,14 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
     rebuildMeshInstances();
   }
 
+  // The live viewport fetch is asynchronous and may finish after MapLibre's
+  // idle/moveend events. Expose a map-scoped refresh hook so new tile records
+  // become visible immediately without forcing another camera gesture.
+  window.__BP_TREE_INSTANCE_RENDERER_API_V1__ = {
+    map,
+    refreshInstances
+  };
+
   function updateWind() {
     const now = performance.now();
     if (now - windUpdatedAt < 4500) return;
@@ -936,6 +944,9 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
     map.on('zoomend', refreshInstances);
     map.on('idle', refreshInstances);
     map.on('remove', () => {
+      if (window.__BP_TREE_INSTANCE_RENDERER_API_V1__?.map === map) {
+        window.__BP_TREE_INSTANCE_RENDERER_API_V1__ = null;
+      }
       try { if (map.getLayer?.(LAYER_ID)) map.removeLayer(LAYER_ID); } catch (_) {}
     });
     publish('active', { maxInstances, legacyRetained: true });
