@@ -58,7 +58,6 @@ export function detectCanopyPeaks(
         if (yy < 0 || yy >= h) continue;
         for (let dx = -rx; dx <= rx; dx++) {
           if (dx === 0 && dy === 0) continue;
-          if ((dx * sx) ** 2 + (dy * sy) ** 2 > radiusMeters ** 2) continue;
           const xx = x + dx;
           if (xx < 0 || xx >= w) continue;
           const neighborIndex = yy * w + xx;
