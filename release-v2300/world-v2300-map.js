@@ -1,6 +1,6 @@
 import{VERSION,EDGE,EMPTY,MOBILE,LOW,TIER,rpc,edge,tileTransform,bbox,fc,clamp}from'./world-v2300-config.js';
-import{initSpace}from'./world-v2300-space.js?v=6125-manual-globe-camera';
-window.__BP_WORLD_RENDER_VERSION__=5630;window.__BP_STYLE_READY_GATE_V6212__={version:6212,waitsForStyleLayers:true,requiresAllRasterTiles:false,updatedAt:Date.now()};
+// The separate celestial canvas is intentionally not mounted over the satellite globe.
+window.__BP_WORLD_RENDER_VERSION__=5630;window.__BP_STYLE_READY_GATE_V6213__={version:6213,waitsForStyleLayers:true,requiresAllRasterTiles:false,updatedAt:Date.now()};
 const PUBLIC_TECH_FAST=true;
 window.__BP_PUBLIC_TECH_FAST_V1117__={version:1117,enabled:true,autoDenseCityHandoff:false,autoExactViewport:false,context3D:true,whiteRoofs:true,floorLines:true,labels:true,trees:true,roads:true,weather:true,updatedAt:Date.now()};
 window.__BP_OWNER_ROAD_STYLE_V1118__={version:1118,major:'#53717c',local:'#45616b',heavyGlow:false,heavyCasing:false,labelsPreserved:true,updatedAt:Date.now()};
@@ -22,7 +22,7 @@ const NASA='https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_NextGe
 const USGS='https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}';
 const OAM='https://global.imagery.hotosm.org/{z}/{x}/{y}.png';
 const DEM='https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
-window.__BP_GLOBAL_IMAGERY_LOD_V6212__={version:6212,defaultBase:'satellite',automaticZoomStack:true,global:'Esri World Imagery EPSG:3857 raster tiles z0-19',fallback:'NASA Blue Marble EPSG:3857 raster tiles z0-8',world:'Esri World Imagery raster tiles z0-19, overzoomed through z22',usHighResolution:'USGS National Map imagery z11-17 where U.S. tiles exist',localAerial:'OpenAerialMap z14-21 where imagery tiles exist',imageryAlwaysOn:true,tileExpiryRefresh:true,projection:'tile-backed Web Mercator imagery only; no whole-world EPSG:4326 image overlay is draped on the globe',polarCoverage:'Native tile providers stop near 85.051 degrees north/south; no stretched pole-to-pole image overlay is used',sourceResolutionBounded:true,buildingLod:'generalized OpenFreeMap footprints z7+; BridgePoint source-backed structures z11.4+; Gold roof/floor/facade detail below street zoom',updatedAt:Date.now()};
+window.__BP_GLOBAL_IMAGERY_LOD_V6213__={version:6213,defaultBase:'satellite',automaticZoomStack:true,global:'Esri World Imagery EPSG:3857 raster tiles z0-19',fallback:'NASA Blue Marble EPSG:3857 raster tiles z0-8',world:'Esri World Imagery raster tiles z0-19, overzoomed through z22',usHighResolution:'USGS National Map imagery z11-17 where U.S. tiles exist',localAerial:'OpenAerialMap z14-21 where imagery tiles exist',imageryAlwaysOn:true,tileExpiryRefresh:true,projection:'tile-backed Web Mercator imagery only; no whole-world EPSG:4326 image overlay is draped on the globe',polarCoverage:'Native tile providers stop near 85.051 degrees north/south; no stretched pole-to-pole image overlay is used',sourceResolutionBounded:true,buildingLod:'generalized OpenFreeMap footprints z7+; BridgePoint source-backed structures z11.4+; Gold roof/floor/facade detail below street zoom',updatedAt:Date.now()};
 const BUILDINGS=`${EDGE}bridgepoint-public-building-tile-v5019?z={z}&x={x}&y={y}&limit=${MOBILE?2400:5000}`;const CITY_STRUCTURES=`${EDGE}bridgepoint-public-city-structures-v5375?z={z}&x={x}&y={y}&limit=${MOBILE?500:650}&v=5380`;const CITY_ROOFS=`${EDGE}bridgepoint-public-city-roofs-v5376?z={z}&x={x}&y={y}&limit=${MOBILE?500:650}&v=5380`;
 const MAX_EXACT=MOBILE?320:(TIER==='LOW'?450:TIER==='HIGH'?900:650);
 const DETAIL_MIN=MOBILE?16.8:(TIER==='LOW'?16.7:TIER==='HIGH'?16.1:16.35);
@@ -510,9 +510,7 @@ export function initWorld(options={}){
  __bpTrace('before-map-constructor',{projectionType,containerId});
  const map=new maplibregl.Map({container,style:style(projectionType),center:initialCenter,zoom:initialZoom,pitch:initialPitch,bearing:initialBearing,minZoom:.65,maxZoom:22,maxPitch:110,pixelRatio:MOBILE?1:Math.min(window.devicePixelRatio||1,1.5),antialias:false,fadeDuration:0,renderWorldCopies:false,transformRequest:tileTransform,maxTileCacheSize:tileCacheCap,maxTileCacheZoomLevels:9,refreshExpiredTiles:true,cancelPendingTileRequestsWhileZooming:false,crossSourceCollisions:!MOBILE,validateStyle:false,attributionControl:false});
  __bpTrace('after-map-constructor',{zoom:initialZoom});
- __bpTrace('before-space-overlay');
- const space=initSpace(map,container,{solarPosition});
- __bpTrace('after-space-overlay',{spaceReady:!!space});
+ __bpTrace('space-overlay-disabled',{reason:'keep-satellite-imagery-uncovered'});
  try{map.setMaxPitch?.(110)}catch(_){};window.__BP_TILE_RETENTION_V6017__={version:6017,maxTileCacheSize:tileCacheCap,maxTileCacheZoomLevels:9,cancelPendingTileRequestsWhileZooming:false,bufferedViewportFetches:true,updatedAt:Date.now()};window.__BP_CAMERA_GROUND_GUARD_V6017__={version:6017,enabled:true,terrainAware:true,minimumClearanceMeters:1.4,maxPitch:110,updatedAt:Date.now()};
  const runtimeMapErrors=[];map.on('error',e=>{const raw=e?.error||e,msg=String(raw?.message||raw||'MapLibre runtime error');runtimeMapErrors.push({message:msg,at:Date.now()});if(runtimeMapErrors.length>30)runtimeMapErrors.shift();window.__BP_MAP_RUNTIME_ERRORS__=runtimeMapErrors;console.warn('BridgePoint MapLibre',msg)});
  const ensureMapGestures=()=>{try{map.touchZoomRotate?.enable();map.touchZoomRotate?.enableRotation?.();map.touchPitch?.enable?.();map.dragPan?.enable();map.dragRotate?.enable?.();map.scrollZoom?.enable();map.doubleClickZoom?.enable();map.keyboard?.enable();map.boxZoom?.enable()}catch(_){}};ensureMapGestures();map.once('load',ensureMapGestures);
@@ -582,7 +580,7 @@ export function initWorld(options={}){
      layers[id]={present:true,visibility:map.getLayoutProperty(id,'visibility')||'visible',source:layer.source,minzoom:layer.minzoom??0,maxzoom:layer.maxzoom??22};
     }catch(error){layers[id]={present:false,error:String(error?.message||error)}}
    }
-   window.__BP_SATELLITE_RASTER_VISIBILITY_GUARD_V6212__={version:6212,reason,restored,layers,updatedAt:Date.now()};
+   window.__BP_SATELLITE_RASTER_VISIBILITY_GUARD_V6213__={version:6213,reason,restored,layers,updatedAt:Date.now()};
    return layers;
   }
   function restoreSatelliteRasterStack(){
