@@ -487,12 +487,15 @@ jobs:
           grep -Fq 'bridgepoint-rail-mesh-v5973.js?v=5980-visible-detail-rails' site/app/index.html
           grep -Fq 'MAPPED_GROUND_ROAD_ENDPOINT' site/world-v2300-map.js
           grep -Fq 'groundConnectedRamps' site/world-v2300-map.js
-          grep -Fq '6211-nasa-global-esri-regional' site/app.js
-          grep -Fq '6211-nasa-global-esri-regional' site/landing.js
-          grep -Fq 'bp-global-map-mode-v6211' site/world-v2300-spectral-imagery.js
-          grep -Fq 'bp-intelligence-v6211-nasa-global-esri-regional' site/sw.js
-          grep -Fq "navigator.serviceWorker.register('/sw.js?v=6211-nasa-global-esri-regional'," site/landing.js
-          grep -Fq "navigator.serviceWorker.register('/sw.js?v=6211-nasa-global-esri-regional'," site/app.js
+          grep -Fq '6212-neutral-satellite-startup' site/app.js
+          grep -Fq "window.__BP_GLOBAL_IMAGERY_LOD_V6212__" site/world-v2300-map.js
+          grep -Fq "id:'gta-nasa',type:'raster',source:'nasa',minzoom:0,maxzoom:8" site/world-v2300-map.js
+          grep -Fq "id:'gta-esri',type:'raster',source:'esri',minzoom:8,maxzoom:22" site/world-v2300-map.js
+          grep -Fq '6212-neutral-satellite-startup' site/landing.js
+          ! grep -Fq 'BASEMAP_STORAGE_KEY' site/world-v2300-spectral-imagery.js
+          grep -Fq 'bp-intelligence-v6212-neutral-satellite-startup' site/sw.js
+          grep -Fq "navigator.serviceWorker.register('/sw.js?v=6212-neutral-satellite-startup'," site/landing.js
+          grep -Fq "navigator.serviceWorker.register('/sw.js?v=6212-neutral-satellite-startup'," site/app.js
           grep -Fq 'OpenStreetMap feature centroid' site/bridgepoint-pyramids-v5945.js
           grep -Fq 'currentHeightM: 138.5' site/bridgepoint-pyramids-v5945.js
           grep -Fq 'currentHeightM: 136.4' site/bridgepoint-pyramids-v5945.js
@@ -698,9 +701,9 @@ jobs:
           grep -Fq 'world-v2300-weather.js?v=6195-desktop-globe-flash-stability' site/app/world-v2300-bootstrap.js
           grep -Fq 'world-v2300-time-slider.js?v=6167-cloud-startup-performance' site/app.js
           grep -Fq 'world-v2300-time-slider.js?v=6167-cloud-startup-performance' site/landing.js
-          grep -Fq 'world-v2300-spectral-imagery.js?v=6211-nasa-global-esri-regional' site/app.js
-          grep -Fq 'world-v2300-spectral-imagery.js?v=6211-nasa-global-esri-regional' site/landing.js
-          grep -Fq 'world-v2300-spectral-imagery.js?v=6211-nasa-global-esri-regional' site/bridgepoint-view-v5917.js
+          grep -Fq 'world-v2300-spectral-imagery.js?v=6212-neutral-satellite-startup' site/app.js
+          grep -Fq 'world-v2300-spectral-imagery.js?v=6212-neutral-satellite-startup' site/landing.js
+          grep -Fq 'world-v2300-spectral-imagery.js?v=6212-neutral-satellite-startup' site/bridgepoint-view-v5917.js
           grep -Fq 'world-v2300-underground-xray.js?v=5965-landmarks-and-effects' site/app.js
           grep -Fq 'world-v2300-underground-xray.js?v=5965-landmarks-and-effects' site/landing.js
           grep -Fq 'world-v2300-infrastructure-volume-v5962.js?v=5962-power-grid-fcc-towers' site/app.js
@@ -824,7 +827,7 @@ jobs:
           grep -Fq 'BP_SOURCE_WEATHER_CACHE_KEY_V6134' site/app.js
           grep -Fq 'restoreCachedLiveWeatherFirstFrameV6134' site/app.js
           ! grep -Fq 'if(window.__BP_CLOUDS_ONLY_PHASE_V6070__===true && m)' site/landing.js
-          grep -Fq 'landing.js?v=6211-nasa-global-esri-regional' site/index.html
+          grep -Fq 'landing.js?v=6212-neutral-satellite-startup' site/index.html
           grep -Fq 'async function toggleNasaNightlights()' site/world-v2300-time-slider.js
           grep -Fq 'async function toggleSkyClouds()' site/world-v2300-time-slider.js
           grep -Fq 'data-skyview' site/world-v2300-time-slider.js
@@ -944,10 +947,10 @@ jobs:
           grep -Fq '__BP_FULL_REFRESH_V5535__' site/refresh-v5535.js
           grep -Fq '__BP_FULL_REFRESH_V5548__' site/refresh-v5535.js
           grep -Fq 'deferred-active-use' site/refresh-v5535.js
-          grep -Fq 'bp-intelligence-v6211-nasa-global-esri-regional' site/sw.js
+          grep -Fq 'bp-intelligence-v6212-neutral-satellite-startup' site/sw.js
           node --check site/app-update-v5820.js
-          grep -Fq '/app-update-v5820.js?v=6211-nasa-global-esri-regional' site/index.html
-          grep -Fq '/app-update-v5820.js?v=6211-nasa-global-esri-regional' site/app/index.html
+          grep -Fq '/app-update-v5820.js?v=6212-neutral-satellite-startup' site/index.html
+          grep -Fq '/app-update-v5820.js?v=6212-neutral-satellite-startup' site/app/index.html
           grep -Fq 'bridgepoint-intelligence-legacy-retire-v5820' site/app/flutter_service_worker.js
           grep -Fq 'migrated=legacy-intelligence-v5820' site/app/intelligence-launch/index.html
           grep -Fq "bridgepoint-horizon-v5820" site/app/horizon/sw.js
@@ -1040,7 +1043,7 @@ jobs:
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/app.js
           grep -Fq 'activateLiveWeather();' site/app.js
           grep -Fq 'enabled:true,serializedWeather:true' site/app.js
-          grep -Fq 'app.js?v=6211-nasa-global-esri-regional' site/app/index.html
+          grep -Fq 'app.js?v=6212-neutral-satellite-startup' site/app/index.html
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/landing.js
           grep -Fq 'WMO_CAP_WARNING' site/app.js
           grep -Fq 'WMO_CAP_WARNING' site/landing.js
@@ -1284,12 +1287,12 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=6211-nasa-global-esri-regional' site/app/index.html
-          grep -Fq 'landing.js?v=6211-nasa-global-esri-regional' site/index.html
-           grep -Fq 'world-v2300-map.js?v=6211-nasa-global-esri-regional' site/app.js
-           grep -Fq 'world-v2300-map.js?v=6211-nasa-global-esri-regional' site/landing.js
-           grep -Fq 'world-v2300-map.js?v=6211-nasa-global-esri-regional' site/index.html
-           grep -Fq 'world-v2300-map.js?v=6211-nasa-global-esri-regional' site/app/index.html
+          grep -Fq 'app.js?v=6212-neutral-satellite-startup' site/app/index.html
+          grep -Fq 'landing.js?v=6212-neutral-satellite-startup' site/index.html
+           grep -Fq 'world-v2300-map.js?v=6212-neutral-satellite-startup' site/app.js
+           grep -Fq 'world-v2300-map.js?v=6212-neutral-satellite-startup' site/landing.js
+           grep -Fq 'world-v2300-map.js?v=6212-neutral-satellite-startup' site/index.html
+           grep -Fq 'world-v2300-map.js?v=6212-neutral-satellite-startup' site/app/index.html
            grep -Fq 'world-v2300-lod-controls.js?v=6201-gold-always-on' site/app.js
            grep -Fq "const tier='GOLD';" site/world-v2300-map.js
            grep -Fq 'function activeWorldLodProfile()' site/world-v2300-map.js
@@ -1305,8 +1308,8 @@ jobs:
           grep -Fq 'landing.css?v=5941-mobile-grid' site/index.html
           grep -Fq 'bridgepoint-view-v5917.css?v=6202-live-panels' site/index.html
           grep -Fq 'bridgepoint-view-v5917.css?v=6202-live-panels' site/app/index.html
-          grep -Fq 'bridgepoint-view-v5917.js?v=6211-nasa-global-esri-regional' site/app/index.html
-          grep -Fq 'bridgepoint-view-v5917.js?v=6211-nasa-global-esri-regional' site/index.html
+          grep -Fq 'bridgepoint-view-v5917.js?v=6212-neutral-satellite-startup' site/app/index.html
+          grep -Fq 'bridgepoint-view-v5917.js?v=6212-neutral-satellite-startup' site/index.html
           grep -Fq 'function setDockMaximized(on)' site/bridgepoint-view-v5917.js
           grep -Fq 'document.body.appendChild(keyRail)' site/bridgepoint-view-v5917.js
           grep -Fq 'p.removeAttribute('"'"'data-panel'"'"')' site/bridgepoint-view-v5917.js
@@ -1479,8 +1482,8 @@ jobs:
               && grep -Fq 'bridgepoint_public_weather_bootstrap_v5512' /tmp/app.js \
               && grep -Fq 'const VERSION=1068' /tmp/language-selector-v5200.js \
               && grep -Fq 'BridgePointLanguage' /tmp/language-selector-v5200.js \
-              && grep -Fq "const V='bp-intelligence-v6211-nasa-global-esri-regional'" /tmp/sw.js \
-              && grep -Fq 'BUILD=6211' /tmp/app-update-v5820.js \
+              && grep -Fq "const V='bp-intelligence-v6212-neutral-satellite-startup'" /tmp/sw.js \
+              && grep -Fq 'BUILD=6212' /tmp/app-update-v5820.js \
               && grep -Fq 'bridgepoint-intelligence-legacy-retire-v5820' /tmp/flutter-service-worker-retire.js \
               && grep -Fq 'migrated=legacy-intelligence-v5820' /tmp/legacy-intelligence-launch.html \
               && grep -Fq "bridgepoint-horizon-v5820" /tmp/horizon-sw.js \
@@ -1628,19 +1631,20 @@ jobs:
                   const map=world?.map,spectral=window.__BP_SPECTRAL_IMAGERY_V5931__;
                   const visible=id=>!!map?.getLayer(id)&&(map.getLayoutProperty(id,'visibility')||'visible')==='visible';
                   const container=document.getElementById(kind==='home'?'previewMap':'liveMap');
-                  const rect=container?.getBoundingClientRect();
+                  const rect=container?.getBoundingClientRect(),currentZoom=map?.getZoom?.()??0,styleLayers=map?.getStyle?.()?.layers||[];
                   return {
                     kind,
                     projection:map?.getProjection?.()?.type||null,
-                    zoom:map?.getZoom?.()??null,
+                    zoom:currentZoom,
                     base:window.__BP_TECH_BASEMAP_V1116__?.activeBase||null,
                     mode:spectral?.basemapMode||null,
                     legacyStoredMode:localStorage.getItem('bp-global-map-mode-v6204')||null,
+                     savedFalseColorMode:localStorage.getItem('bp-global-map-mode-v6211')||null,
                     background:map?.getPaintProperty('gta-bg','background-color')??null,
                     waterOpacity:map?.getPaintProperty('gta-water','fill-opacity')??null,
                     imagery:{nasa:visible('gta-nasa'),esri:visible('gta-esri'),usgs:visible('gta-usgs'),oam:visible('gta-oam')},
-                     imageryLayers:Object.fromEntries(['gta-nasa','gta-esri','gta-usgs','gta-oam'].map(id=>{const layer=map?.getLayer(id);return[id,{present:!!layer,visibility:layer?(map.getLayoutProperty(id,'visibility')||'visible'):'missing',source:layer?.source||null,sourceLoaded:layer?map.isSourceLoaded?.(layer.source)===true:false}]})),
-                     visibilityGuard:window.__BP_SATELLITE_RASTER_VISIBILITY_GUARD_V6211__||null,
+                     imageryLayers:Object.fromEntries(['gta-nasa','gta-esri','gta-usgs','gta-oam'].map(id=>{const layer=map?.getLayer(id),spec=styleLayers.find(x=>x.id===id),minzoom=Number(spec?.minzoom??0),maxzoom=Number(spec?.maxzoom??24);return[id,{present:!!layer,visibility:layer?(map.getLayoutProperty(id,'visibility')||'visible'):'missing',source:layer?.source||null,sourceLoaded:layer?map.isSourceLoaded?.(layer.source)===true:false,minzoom,maxzoom,activeAtCurrentZoom:!!layer&&currentZoom>=minzoom&&currentZoom<maxzoom}]})),
+                     visibilityGuard:window.__BP_SATELLITE_RASTER_VISIBILITY_GUARD_V6212__||null,
                      warpedImageSourceAbsent:!map?.getSource('globalEarth')&&!map?.getLayer('gta-global-earth'),
                      streets:{major:visible('gta-road-major'),local:visible('gta-road-local')},
                      sidewalks:{line:visible('gta-bp-sidewalk'),casing:visible('gta-bp-sidewalk-casing'),raised:visible('gta-bp-sidewalk3d')},
@@ -1654,19 +1658,26 @@ jobs:
                 },kind);
               };
               await page.setViewport({width:1440,height:960,deviceScaleFactor:1});
-              await page.evaluateOnNewDocument(()=>{try{localStorage.setItem('bp-global-map-mode-v6204','dark')}catch(_){}});
+              await page.evaluateOnNewDocument(()=>{try{localStorage.setItem('bp-global-map-mode-v6204','dark');localStorage.setItem('bp-global-map-mode-v6211','geology')}catch(_){}});
               await page.goto('https://bridgepointintelligence.online/?natural-persistence-smoke='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
               const home=await readStableMap('home');
               const validate=(state)=>{
                 assert.equal(state.projection,'globe',state.kind+' must render globe projection');
                 assert.equal(state.mode,'natural',state.kind+' must stay in Natural Satellite mode after idle');
                 assert.equal(state.legacyStoredMode,'dark',state.kind+' must ignore the legacy v6204 Dark preference and start Natural');
-                assert.equal(state.background,'#06120f',state.kind+' must retain Natural background after idle');
+                assert.equal(state.savedFalseColorMode,'geology',state.kind+' test must carry a stale saved false-colour preset into startup');
+                assert.equal(state.background,'#040b12',state.kind+' must keep the exact first-frame background after delayed controller startup');
                 assert.equal(Number(state.waterOpacity),0,state.kind+' must leave satellite imagery unobscured by vector ocean fill');
                 assert.equal(state.base,'satellite',state.kind+' must retain satellite imagery base');
                 assert.equal(state.warpedImageSourceAbsent,true,state.kind+' must not install the single-image EPSG:4326 overlay that stretches across the globe projection');
                  assert.equal(state.imagery.esri,true,state.kind+' must retain global Esri imagery; layer diagnostics='+JSON.stringify(state.imageryLayers)+'; visibility guard='+JSON.stringify(state.visibilityGuard));
                 assert.equal(state.imagery.nasa,true,state.kind+' must retain global NASA imagery');
+                assert.equal(state.imageryLayers?.['gta-nasa']?.minzoom,0,state.kind+' NASA base starts at zoom 0');
+                assert.equal(state.imageryLayers?.['gta-nasa']?.maxzoom,8,state.kind+' NASA base ends at zoom 8');
+                assert.equal(state.imageryLayers?.['gta-esri']?.minzoom,8,state.kind+' Esri must wait until zoom 8');
+                assert.equal(state.imageryLayers?.['gta-nasa']?.activeAtCurrentZoom,state.zoom<8,state.kind+' NASA must be the only active imagery provider below zoom 8');
+                assert.equal(state.imageryLayers?.['gta-esri']?.activeAtCurrentZoom,state.zoom>=8,state.kind+' Esri must only activate at zoom 8 and above');
+                assert.equal(!!state.imageryLayers?.['gta-nasa']?.activeAtCurrentZoom&&!!state.imageryLayers?.['gta-esri']?.activeAtCurrentZoom,false,state.kind+' NASA and Esri may never paint together at one zoom');
                  assert.equal(state.visibilityGuard?.layers?.['gta-esri']?.visibility,'visible',state.kind+' visibility guard must report Esri visible after settle');
                  assert.equal(state.visibilityGuard?.layers?.['gta-nasa']?.visibility,'visible',state.kind+' visibility guard must report NASA fallback visible after settle');
                  assert.equal(state.streets.major,true,state.kind+' must preserve major street overlays above satellite imagery');
