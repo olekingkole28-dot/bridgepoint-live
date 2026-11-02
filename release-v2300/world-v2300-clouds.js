@@ -1010,23 +1010,70 @@ export function initSkyClouds(target) {
           }
           samples.push(sample);
         }
-        const signature = String(payload.generated_at || '') + '|' + samples.length + '|' +
-          sources.map(x => [x.source || x.label, x.status, x.observed_at, x.sample_count].join(':')).join('|');
+        const maskSourceRows = Array.isArray(payload.cloud_mask_sources) ? payload.cloud_mask_sources.slice(0, 8) : [];
+        const maskRows = Array.isArray(payload.cloud_mask_samples) ? payload.cloud_mask_samples.slice(0, 160000) : [];
+        const cloudMaskSources = [], cloudMaskSourceMap = new Map();
+        for (let i = 0; i < maskSourceRows.length; i++) {
+          const source = maskSourceRows[i];
+          if (!source || source.status !== 'available') continue;
+          const observedAt = String(source.observed_at || '');
+          const observedMs = Date.parse(observedAt);
+          if (!Number.isFinite(observedMs) || observedMs > now + 120000 || now - observedMs > 45 * 60 * 1000) continue;
+          const index = cloudMaskSources.length;
+          cloudMaskSources.push({
+            source: String(source.source || 'NOAA GOES Enterprise Cloud Mask').slice(0, 180),
+            satellite: String(source.satellite || ''), product: String(source.product || 'ABI-L2-ACMF'),
+            observedAt, publishedAt: source.published_at || null, sampleCount: Number(source.sample_count) || 0
+          });
+          cloudMaskSourceMap.set(i, index);
+        }
+        const cloudMaskSamples = [];
+        for (const row of maskRows) {
+          if (!Array.isArray(row) || row.length < 4) continue;
+          const lng = number(row[0], NaN), lat = number(row[1], NaN);
+          const probability = number(row[2], NaN) / 255;
+          const mappedSourceIndex = cloudMaskSourceMap.get(Math.trunc(number(row[3], -1)));
+          const source = mappedSourceIndex == null ? null : cloudMaskSources[mappedSourceIndex];
+          if (![lng, lat, probability].every(Number.isFinite) || Math.abs(lat) > 85 || Math.abs(lng) > 180 ||
+              probability < 0 || probability > 1 || !source) continue;
+          cloudMaskSamples.push({ lng, lat, probability, sourceIndex: mappedSourceIndex, source: source.source, timestamp: source.observedAt });
+        }
         const prior = window.__BP_CLOUD_HEIGHT_FEED_V6162__;
+        let effectiveCloudMaskSamples = cloudMaskSamples;
+        let effectiveCloudMaskSources = cloudMaskSources;
+        let cloudMaskUpdatedAt = cloudMaskSamples.length ? now : 0;
+        let cloudMaskSignature = cloudMaskSamples.length
+          ? cloudMaskSamples.length + '|' + cloudMaskSources.map(x => [x.satellite, x.observedAt, x.sampleCount].join(':')).join('|')
+          : 'unavailable';
+        // Keep the last quality-valid official mask briefly during upstream outages.
+        // It must expire so cloud motion/decay never becomes a permanent stale picture.
+        if (!cloudMaskSamples.length && Array.isArray(prior?.cloudMaskSamples) && prior.cloudMaskSamples.length &&
+            now - Number(prior.cloudMaskUpdatedAt || 0) < 30 * 60 * 1000) {
+          effectiveCloudMaskSamples = prior.cloudMaskSamples;
+          effectiveCloudMaskSources = prior.cloudMaskSources || [];
+          cloudMaskUpdatedAt = prior.cloudMaskUpdatedAt;
+          cloudMaskSignature = prior.cloudMaskSignature || 'retained-recent-observation';
+        }
+        const signature = String(payload.generated_at || '') + '|' + samples.length + '|' + cloudMaskSignature + '|' +
+          sources.map(x => [x.source || x.label, x.status, x.observed_at, x.sample_count].join(':')).join('|');
         cloudHeightFeedLastAttemptAt = Date.now();
-        if (!prior || prior.signature !== signature || prior.samples?.length !== samples.length) {
+        if (!prior || prior.signature !== signature || prior.samples?.length !== samples.length ||
+            prior.cloudMaskSignature !== cloudMaskSignature) {
           window.__BP_CLOUD_HEIGHT_FEED_V6162__ = {
-            version: 1, signature, samples, sources, generatedAt: payload.generated_at || null,
+            version: 2, signature, samples, sources, generatedAt: payload.generated_at || null,
             publishedSampleCount: Number(payload.sample_count) || rows.length,
+            cloudMaskSamples: effectiveCloudMaskSamples, cloudMaskSources: effectiveCloudMaskSources,
+            cloudMaskSampleCount: effectiveCloudMaskSamples.length, cloudMaskSignature, cloudMaskUpdatedAt,
+            cloudMaskGeneratedAt: payload.generated_at || null,
             warnings: Array.isArray(payload.warnings) ? payload.warnings.slice(0, 8) : [],
-            updatedAt: Date.now(), heightReference: String(payload.height_reference || 'MSL')
+            updatedAt: now, heightReference: String(payload.height_reference || 'MSL')
           };
-          if (samples.length && enabled && !disposed) {
+          if ((samples.length || effectiveCloudMaskSamples.length) && enabled && !disposed) {
             globalCloudGeometryCache = null;
             scheduleGeometry(0);
           }
         } else {
-          prior.updatedAt = Date.now();
+          prior.updatedAt = now;
         }
         window.__BP_CLOUD_HEIGHT_FEED_V6162_ERROR__ = null;
         publishState();
