@@ -139,7 +139,15 @@ try {
   ]) {
     const page = await browser.newPage();
     const pageErrors = [];
+    const browserConsole = [];
+    const requestFailures = [];
     page.on('pageerror', error => pageErrors.push(String(error && error.stack || error)));
+    page.on('console', message => {
+      browserConsole.push('[' + message.type() + '] ' + message.text());
+    });
+    page.on('requestfailed', request => {
+      requestFailures.push(request.url() + ' :: ' + String(request.failure()?.errorText || 'request failed'));
+    });
     await page.setUserAgent(viewport.mobile
       ? 'Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36 Chrome/130 Mobile Safari/537.36'
       : 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/130 Safari/537.36');
@@ -158,7 +166,27 @@ try {
         window.__BP_TREE_INSTANCE_RENDERER_V1__.instanceCount === 3 &&
         window.__BP_TREE_INSTANCE_RENDERER_V1__.firstFrameAt,
       { timeout: 90000 }
-    );
+    ).catch(async error => {
+      const diagnostics = await page.evaluate(() => ({
+        attach: window.__BP_TREE_BROWSER_ATTACH__,
+        state: window.__BP_TREE_INSTANCE_RENDERER_V1__ ? { ...window.__BP_TREE_INSTANCE_RENDERER_V1__ } : null,
+        layers: window.__BP_TREE_BROWSER_MAP__ ? [
+          'gta-bp-tree3d-trunk',
+          'gta-bp-tree3d-canopy',
+          'gta-bp-tree-trunks',
+          'gta-bp-tree-crowns'
+        ].map(id => ({
+          id,
+          visibility: window.__BP_TREE_BROWSER_MAP__.getLayoutProperty(id, 'visibility') || 'visible'
+        })) : []
+      }));
+      throw new Error(
+        viewport.name + ': wait for real first-frame draw failed: ' + error.message +
+        '\nDIAGNOSTICS=' + JSON.stringify(diagnostics) +
+        '\nCONSOLE=' + browserConsole.join('\n') +
+        '\nREQUEST_FAILURES=' + requestFailures.join('\n')
+      );
+    });
 
     const diagnostics = await page.evaluate(() => {
       const map = window.__BP_TREE_BROWSER_MAP__;
@@ -191,7 +219,8 @@ try {
     assert.equal(diagnostics.state.instanceCount, 3,
       viewport.name + ': all source tree locations should become instances');
     assert.ok(diagnostics.state.gpuDrawCalls > 0,
-      viewport.name + ': renderer must issue real GPU draw calls');
+      viewport.name + ': renderer must issue real GPU draw calls; state=' +
+      JSON.stringify(diagnostics.state) + '; console=' + browserConsole.join(' | '));
     assert.ok(diagnostics.state.gpuTriangles > 0,
       viewport.name + ': renderer must draw actual model geometry');
     assert.ok(diagnostics.state.legacyLayersHidden,
@@ -204,6 +233,13 @@ try {
       viewport.name + ': tree layer must share the existing map canvas');
     assert.deepEqual(pageErrors, [],
       viewport.name + ': browser JavaScript errors: ' + pageErrors.join('\n'));
+    assert.deepEqual(requestFailures, [],
+      viewport.name + ': failed browser requests: ' + requestFailures.join('\n'));
+    const glWarnings = browserConsole.filter(line =>
+      /shader|webgl|GL_INVALID|THREE\.WebGLProgram|failed to compile/i.test(line)
+    );
+    assert.deepEqual(glWarnings, [],
+      viewport.name + ': WebGL / shader warnings: ' + glWarnings.join('\n'));
 
     console.log('BRIDGEPOINT_TREE_WEBGL_BROWSER_PASS_' + viewport.name.toUpperCase(),
       JSON.stringify({
