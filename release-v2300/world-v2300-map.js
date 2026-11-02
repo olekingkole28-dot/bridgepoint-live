@@ -1,6 +1,6 @@
 import{VERSION,EDGE,EMPTY,MOBILE,LOW,TIER,rpc,edge,tileTransform,bbox,fc,clamp}from'./world-v2300-config.js';
 // The separate celestial canvas is intentionally not mounted over the satellite globe.
-window.__BP_WORLD_RENDER_VERSION__=5630;window.__BP_STYLE_READY_GATE_V6214__={version:6214,waitsForStyleLayers:true,requiresAllRasterTiles:false,updatedAt:Date.now()};
+window.__BP_WORLD_RENDER_VERSION__=5630;window.__BP_STYLE_READY_GATE_V6215__={version:6215,waitsForStyleLayers:true,requiresAllRasterTiles:false,updatedAt:Date.now()};
 const PUBLIC_TECH_FAST=true;
 window.__BP_PUBLIC_TECH_FAST_V1117__={version:1117,enabled:true,autoDenseCityHandoff:false,autoExactViewport:false,context3D:true,whiteRoofs:true,floorLines:true,labels:true,trees:true,roads:true,weather:true,updatedAt:Date.now()};
 window.__BP_OWNER_ROAD_STYLE_V1118__={version:1118,major:'#53717c',local:'#45616b',heavyGlow:false,heavyCasing:false,labelsPreserved:true,updatedAt:Date.now()};
@@ -22,7 +22,7 @@ const NASA='https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_NextGe
 const USGS='https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}';
 const OAM='https://global.imagery.hotosm.org/{z}/{x}/{y}.png';
 const DEM='https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
-window.__BP_GLOBAL_IMAGERY_LOD_V6214__={version:6214,defaultBase:'satellite',automaticZoomStack:true,global:'Esri World Imagery EPSG:3857 raster tiles z0-19',fallback:'NASA Blue Marble EPSG:3857 raster tiles z0-8',world:'Esri World Imagery raster tiles z0-19, overzoomed through z22',usHighResolution:'USGS National Map imagery z11-17 where U.S. tiles exist',localAerial:'OpenAerialMap z14-21 where imagery tiles exist',imageryAlwaysOn:true,tileExpiryRefresh:true,projection:'tile-backed Web Mercator imagery only; no whole-world EPSG:4326 image overlay is draped on the globe',polarCoverage:'Native tile providers stop near 85.051 degrees north/south; no stretched pole-to-pole image overlay is used',sourceResolutionBounded:true,buildingLod:'generalized OpenFreeMap footprints z7+; BridgePoint source-backed structures z11.4+; Gold roof/floor/facade detail below street zoom',updatedAt:Date.now()};
+window.__BP_GLOBAL_IMAGERY_LOD_V6215__={version:6215,defaultBase:'satellite',automaticZoomStack:true,global:'Esri World Imagery EPSG:3857 raster tiles z0-19',fallback:'NASA Blue Marble EPSG:3857 raster tiles z0-8',world:'Esri World Imagery raster tiles z0-19, overzoomed through z22',usHighResolution:'USGS National Map imagery z11-17 where U.S. tiles exist',localAerial:'OpenAerialMap z14-21 where imagery tiles exist',imageryAlwaysOn:true,tileExpiryRefresh:true,projection:'tile-backed Web Mercator imagery only; no whole-world EPSG:4326 image overlay is draped on the globe',polarCoverage:'Native tile providers stop near 85.051 degrees north/south; no stretched pole-to-pole image overlay is used',sourceResolutionBounded:true,buildingLod:'generalized OpenFreeMap footprints z7+; BridgePoint source-backed structures z11.4+; Gold roof/floor/facade detail below street zoom',updatedAt:Date.now()};
 const BUILDINGS=`${EDGE}bridgepoint-public-building-tile-v5019?z={z}&x={x}&y={y}&limit=${MOBILE?2400:5000}`;const CITY_STRUCTURES=`${EDGE}bridgepoint-public-city-structures-v5375?z={z}&x={x}&y={y}&limit=${MOBILE?500:650}&v=5380`;const CITY_ROOFS=`${EDGE}bridgepoint-public-city-roofs-v5376?z={z}&x={x}&y={y}&limit=${MOBILE?500:650}&v=5380`;
 const MAX_EXACT=MOBILE?320:(TIER==='LOW'?450:TIER==='HIGH'?900:650);
 const DETAIL_MIN=MOBILE?16.8:(TIER==='LOW'?16.7:TIER==='HIGH'?16.1:16.35);
@@ -581,7 +581,7 @@ export function initWorld(options={}){
      layers[id]={present:true,visibility:map.getLayoutProperty(id,'visibility')||'visible',source:layer.source,minzoom:layer.minzoom??0,maxzoom:layer.maxzoom??22};
     }catch(error){layers[id]={present:false,error:String(error?.message||error)}}
    }
-   window.__BP_SATELLITE_RASTER_VISIBILITY_GUARD_V6214__={version:6214,reason,restored,layers,updatedAt:Date.now()};
+   window.__BP_SATELLITE_RASTER_VISIBILITY_GUARD_V6215__={version:6215,reason,restored,layers,updatedAt:Date.now()};
    return layers;
   }
   function restoreSatelliteRasterStack(){
@@ -594,6 +594,9 @@ export function initWorld(options={}){
   map.on('moveend',()=>keepSatelliteRasterLayersVisible('moveend'));
   map.on('zoomend',()=>keepSatelliteRasterLayersVisible('zoomend'));
   map.on('pitchend',()=>keepSatelliteRasterLayersVisible('pitchend'));
+  // Keep the satellite underlay authoritative if a late startup controller hides it.
+  let satelliteRasterRenderGuardAt=0;
+  map.on('render',()=>{const now=Date.now();if(now-satelliteRasterRenderGuardAt<280)return;satelliteRasterRenderGuardAt=now;keepSatelliteRasterLayersVisible('render')});
  function metersLon(lat){return 111320*Math.max(.12,Math.cos(lat*Math.PI/180))}
  function circlePoly(coord,r,n=10){const out=[];for(let i=0;i<n;i++){const a=i/n*Math.PI*2;out.push([coord[0]+Math.cos(a)*r/metersLon(coord[1]),coord[1]+Math.sin(a)*r/110540])}out.push(out[0]);return[out]}
  function treeHash(v){let h=2166136261>>>0;for(const ch of String(v||'tree')){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)>>>0}return h>>>0}

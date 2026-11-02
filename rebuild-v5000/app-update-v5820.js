@@ -1,4 +1,4 @@
-(()=>{const BUILD=6214,CACHE_VERSION='6214-satellite-no-space-overlay-boot-fix',CURRENT_SW='/sw.js?v='+CACHE_VERSION,CURRENT_CACHE='bp-intelligence-v6214-satellite-no-space-overlay-boot-fix',RELOAD_KEY='bp-update-reload-'+BUILD;
+(()=>{const BUILD=6215,CACHE_VERSION='6215-satellite-persistent-render-guard',CURRENT_SW='/sw.js?v='+CACHE_VERSION,CURRENT_CACHE='bp-intelligence-v6215-satellite-persistent-render-guard',RELOAD_KEY='bp-update-reload-'+BUILD;
 let busy=false;
 const sameOrigin=u=>{try{return new URL(u,location.href).origin===location.origin}catch{return false}};
 const scopePath=s=>{try{return new URL(s).pathname}catch{return''}};
