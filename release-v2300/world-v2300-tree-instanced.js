@@ -3,6 +3,7 @@ import { normalizeTreeFeature } from './world-v2300-tree-catalog.js';
 const VERSION = 1;
 const LAYER_ID = 'bp-v2300-instanced-trees-v1';
 const MANIFEST_URL = '/assets/trees/manifest.json';
+const VARIANTS_URL = '/assets/trees/procedural-variants.json';
 const THREE_URL = 'https://esm.sh/three@0.169.0';
 const GLTF_URL = 'https://esm.sh/three@0.169.0/examples/jsm/loaders/GLTFLoader.js';
 const LEGACY_LAYER_IDS = [
@@ -40,43 +41,86 @@ export function treeDisplayHeightMeters(tree) {
 
 export function chooseTreeModel(tree, models) {
   const form = tree?.morphology?.form || 'unclassified_tree';
-  const scientificName = String(tree?.identity?.scientificName || '').toLowerCase();
-  const genus = String(tree?.identity?.genus || '').toLowerCase();
-  const byId = new Map(asArray(models).map(model => [model.id, model]));
+  const genus = String(tree?.identity?.genus || '').trim().toLowerCase();
+  const leafCycle = String(tree?.morphology?.leafCycle || 'unknown').toLowerCase();
+  const procedural = asArray(models).filter(model =>
+    model?.modelType === 'PROCEDURAL_ARCHETYPE'
+  );
 
-  // Exact genus-labelled assets take precedence. This is still an asset catalogue
-  // match, not proof that the geographic source observation was botanically verified.
+  if (procedural.length) {
+    const genusMatches = procedural.filter(model =>
+      asArray(model.knownGenera).some(value => String(value).toLowerCase() === genus)
+    );
+    if (genusMatches.length) {
+      // When the same genus has deciduous and evergreen archetypes, source
+      // phenology selects the appropriate silhouette without asserting species.
+      const phenologyMatches = genusMatches.filter(model =>
+        !leafCycle || leafCycle === 'unknown' ||
+        String(model.leafCycle || '').toLowerCase() === leafCycle
+      );
+      const candidates = phenologyMatches.length ? phenologyMatches : genusMatches;
+      const chosen = candidates[Math.floor(stableNumber(tree.id + '|genus-archetype') * candidates.length)];
+      return chosen.id;
+    }
+
+    let family = form;
+    if (family === 'unclassified_tree') {
+      family = leafCycle === 'evergreen' || leafCycle === 'semi_evergreen'
+        ? 'broadleaf_evergreen' : 'broadleaf_deciduous';
+    }
+    let candidates = procedural.filter(model => model.modelFamily === family);
+    if (!candidates.length && family === 'broadleaf_deciduous') {
+      candidates = procedural.filter(model => model.modelFamily === 'broadleaf_evergreen');
+    }
+    if (!candidates.length && family === 'broadleaf_evergreen') {
+      candidates = procedural.filter(model => model.modelFamily === 'broadleaf_deciduous');
+    }
+    if (!candidates.length) candidates = procedural.filter(model =>
+      model.modelFamily === 'broadleaf_deciduous' || model.modelFamily === 'broadleaf_evergreen'
+    );
+    if (!candidates.length) return null;
+    candidates.sort((a, b) => a.id.localeCompare(b.id));
+    return candidates[Math.floor(stableNumber(tree.id + '|morphotype') * candidates.length)].id;
+  }
+
+  // Backward-compatible starter-model path used only when the procedural bank is
+  // not present. Poly Haven's three CC0 files remain non-exact proxies by default.
   const exact = asArray(models).find(model => {
     const match = model?.botanicalMatch;
     return match?.level === 'genus' &&
       String(match.scientificName || '').toLowerCase() === genus;
   });
   if (exact) return exact.id;
-
   if (form === 'palm') return null;
   if (form === 'conifer') {
-    return byId.has(FALLBACK_CONIFER_MODEL) ? FALLBACK_CONIFER_MODEL : null;
+    return asArray(models).some(model => model.id === FALLBACK_CONIFER_MODEL)
+      ? FALLBACK_CONIFER_MODEL : null;
   }
   if (form === 'broadleaf_deciduous' || form === 'broadleaf_evergreen' ||
       form === 'unclassified_tree') {
-    // Only broadleaf assets are used for the broadleaf family fallback. The
-    // manifest carries a proxy confidence marker; no exact species is invented.
-    return byId.has(FALLBACK_BROADLEAF_MODEL) ? FALLBACK_BROADLEAF_MODEL : null;
+    return asArray(models).some(model => model.id === FALLBACK_BROADLEAF_MODEL)
+      ? FALLBACK_BROADLEAF_MODEL : null;
   }
-
-  // A source record without botanical form data is not silently converted to a
-  // palm, conifer, or exact species. Use a visibly generic broadleaf proxy only.
-  if (!scientificName && byId.has(FALLBACK_BROADLEAF_MODEL)) return FALLBACK_BROADLEAF_MODEL;
   return null;
 }
 
-export function normalizeViewportTrees(features, models, maxInstances) {
+function variantForTree(tree, modelId, variantsByArchetype) {
+  if (!String(modelId).startsWith('proc_')) return null;
+  const archetypeId = String(modelId).slice(5);
+  const candidates = variantsByArchetype?.get(archetypeId) || [];
+  if (!candidates.length) return null;
+  const index = Math.floor(stableNumber(tree.id + '|' + modelId + '|variant') * candidates.length);
+  return candidates[index] || null;
+}
+
+export function normalizeViewportTrees(features, models, maxInstances, variantsByArchetype = null) {
   const output = [];
   const seen = new Set();
   const supported = new Set(asArray(models).map(model => model.id));
   let unsupported = 0;
   let truncated = 0;
   let sourceCount = 0;
+  const modelById = new Map(asArray(models).map(model => [model.id, model]));
 
   for (const feature of asArray(features)) {
     const tree = normalizeTreeFeature(feature);
@@ -92,7 +136,15 @@ export function normalizeViewportTrees(features, models, maxInstances) {
       truncated++;
       continue;
     }
-    output.push({ ...tree, modelId });
+    const variant = variantForTree(tree, modelId, variantsByArchetype);
+    output.push({
+      ...tree,
+      modelId,
+      modelType: modelById.get(modelId)?.modelType || 'CC0_SOURCE_MODEL',
+      variantId: variant?.id || null,
+      variantSeed: variant?.seed ?? Math.floor(stableNumber(tree.id + '|seed') * 4294967295),
+      variantParameters: variant?.parameters || null
+    });
   }
 
   return { trees: output, unsupported, sourceCount, truncated };
@@ -118,7 +170,8 @@ function pickLod(model, lod) {
 }
 
 function validateManifest(raw) {
-  if (!raw || raw.schemaVersion !== 1 || raw.license !== 'CC0-1.0' ||
+  if (!raw || raw.schemaVersion !== 1 ||
+      !['CC0-1.0', 'MIXED_PER_ASSET'].includes(raw.license) ||
       !Array.isArray(raw.models) || raw.models.length < 1) {
     throw new Error('TREE_ASSET_MANIFEST_INVALID');
   }
@@ -126,7 +179,7 @@ function validateManifest(raw) {
   for (const model of raw.models) {
     if (!/^[a-z0-9][a-z0-9_]{0,63}$/.test(String(model?.id || '')) ||
         seen.has(model.id) || !Array.isArray(model.lods) ||
-        model.license !== 'CC0-1.0') {
+        !['CC0-1.0', 'Apache-2.0'].includes(model.license)) {
       throw new Error('TREE_ASSET_MODEL_ENTRY_INVALID');
     }
     seen.add(model.id);
@@ -207,13 +260,20 @@ function installWindShader(material, uniforms) {
     shader.uniforms.bpWindDirection = uniforms.direction;
     shader.vertexShader = shader.vertexShader.replace(
       '#include <common>',
-      '#include <common>\nattribute float bpWindWeight;\nuniform float bpWindTime;\nuniform float bpWindStrength;\nuniform vec2 bpWindDirection;'
+      '#include <common>\nattribute float bpWindWeight;\nattribute vec4 bpTreeMorph;\nuniform float bpWindTime;\nuniform float bpWindStrength;\nuniform vec2 bpWindDirection;'
     );
     shader.vertexShader = shader.vertexShader.replace(
       '#include <begin_vertex>',
       `#include <begin_vertex>
-      float bpGustA = sin(bpWindTime * 1.15 + position.y * 7.0 + position.x * 2.3);
-      float bpGustB = sin(bpWindTime * 0.57 + position.y * 3.2 + position.z * 4.1);
+      float bpTreeHeight = clamp(position.y, 0.0, 1.0);
+      float bpCrownMask = smoothstep(0.24, 0.82, bpTreeHeight);
+      float bpCrownRadial = 1.0 + bpTreeMorph.x * bpCrownMask;
+      transformed.x *= bpCrownRadial;
+      transformed.z *= (1.0 + bpTreeMorph.z * bpCrownMask);
+      transformed.x += bpTreeMorph.y * bpCrownMask;
+      transformed.z += bpTreeMorph.w * bpCrownMask * (0.22 + bpTreeHeight * 0.35);
+      float bpGustA = sin(bpWindTime * 1.15 + position.y * 7.0 + position.x * 2.3 + bpTreeMorph.w * 5.0);
+      float bpGustB = sin(bpWindTime * 0.57 + position.y * 3.2 + position.z * 4.1 + bpTreeMorph.y * 8.0);
       float bpFlex = bpWindWeight * bpWindStrength * (0.72 * bpGustA + 0.28 * bpGustB) * 0.075;
       vec3 bpWindLocal = normalize(vec3(bpWindDirection.x, 0.0, bpWindDirection.y));
       #ifdef USE_INSTANCING
@@ -316,6 +376,9 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
     status: 'loading-manifest',
     manifestUrl: MANIFEST_URL,
     modelCount: 0,
+    proceduralModelCount: 0,
+    proceduralVariantCount: 0,
+    variantCountUsed: 0,
     instanceCount: 0,
     gpuDrawCalls: 0,
     gpuTriangles: 0,
@@ -331,6 +394,7 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
   window.__BP_TREE_INSTANCE_RENDERER_V1__ = state;
 
   let manifest = null;
+  let variantsByArchetype = new Map();
   let THREE = null;
   let loader = null;
   let layer = null;
@@ -371,7 +435,44 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
     });
     if (!response.ok) throw new Error('TREE_ASSET_MANIFEST_HTTP_' + response.status);
     manifest = validateManifest(await response.json());
-    publish('manifest-ready', { modelCount: manifest.models.length });
+    const proceduralModels = manifest.models.filter(model =>
+      model.modelType === 'PROCEDURAL_ARCHETYPE'
+    );
+    const variantResponse = await fetch(options.variantsUrl || VARIANTS_URL, {
+      cache: 'no-cache',
+      credentials: 'omit',
+      headers: { Accept: 'application/json' }
+    });
+    if (proceduralModels.length && !variantResponse.ok) {
+      throw new Error('TREE_PROCEDURAL_VARIANT_CATALOG_HTTP_' + variantResponse.status);
+    }
+    if (variantResponse.ok) {
+      const variantCatalog = await variantResponse.json();
+      if (variantCatalog.schemaVersion !== 1 ||
+          !Array.isArray(variantCatalog.variants) ||
+          Number(variantCatalog.variantCount) !== variantCatalog.variants.length ||
+          variantCatalog.variantCount < 2000) {
+        throw new Error('TREE_PROCEDURAL_VARIANT_CATALOG_INVALID');
+      }
+      variantsByArchetype = new Map();
+      for (const variant of variantCatalog.variants) {
+        if (!variant?.archetypeId || !variant?.id || !variant?.parameters) continue;
+        if (!variantsByArchetype.has(variant.archetypeId)) {
+          variantsByArchetype.set(variant.archetypeId, []);
+        }
+        variantsByArchetype.get(variant.archetypeId).push(variant);
+      }
+      for (const [key, list] of variantsByArchetype) {
+        list.sort((a, b) => a.variantIndex - b.variantIndex);
+        if (list.length !== 64) throw new Error('TREE_VARIANT_ARCHEtype_COUNT_INVALID_' + key);
+      }
+      state.proceduralVariantCount = variantCatalog.variantCount;
+    }
+    publish('manifest-ready', {
+      modelCount: manifest.models.length,
+      proceduralModelCount: proceduralModels.length,
+      proceduralVariantCount: state.proceduralVariantCount
+    });
   }
 
   async function loadModel(modelId, lodKey) {
@@ -449,11 +550,33 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
     )).then(results => {
       if (destroyed || sequence !== loadSequence) return;
       const nextMeshes = [];
+      const usedVariants = new Set();
       for (const result of results) {
         const treeModels = result.trees;
         const loaded = result.loaded;
         for (const part of loaded.meshes) {
-          const mesh = new THREE.InstancedMesh(part.geometry, part.material, treeModels.length);
+          const instanceGeometry = part.geometry.clone();
+          const morphData = new Float32Array(treeModels.length * 4);
+          const foliageColors = new Float32Array(treeModels.length * 3);
+          for (let i = 0; i < treeModels.length; i++) {
+            const params = treeModels[i].variantParameters || {};
+            morphData[i * 4 + 0] = clamp(Number(params.crownSpread ?? 1) - 1, -0.25, 0.25);
+            morphData[i * 4 + 1] = clamp(Number(params.crownOffset || 0), -0.08, 0.08);
+            morphData[i * 4 + 2] = clamp(Number(params.crownDepth ?? 1) - 1, -0.25, 0.25);
+            morphData[i * 4 + 3] = clamp(Number(params.branchAsymmetry || 0), -0.25, 0.25);
+            const phase = Number(params.windPhase || stableNumber(treeModels[i].id) * Math.PI * 2);
+            const hue = 0.285 + (stableNumber(treeModels[i].id + '|hue') - 0.5) * 0.035;
+            const color = new THREE.Color().setHSL(hue, 0.28 + stableNumber(treeModels[i].id + '|sat') * 0.12, 0.86 + phase * 0.0001);
+            foliageColors[i * 3 + 0] = color.r;
+            foliageColors[i * 3 + 1] = color.g;
+            foliageColors[i * 3 + 2] = color.b;
+            if (treeModels[i].variantId) usedVariants.add(treeModels[i].variantId);
+          }
+          instanceGeometry.setAttribute(
+            'bpTreeMorph',
+            new THREE.InstancedBufferAttribute(morphData, 4)
+          );
+          const mesh = new THREE.InstancedMesh(instanceGeometry, part.material, treeModels.length);
           mesh.count = treeModels.length;
           mesh.frustumCulled = false;
           mesh.instanceMatrix.setUsage(THREE.StaticDrawUsage);
@@ -474,10 +597,23 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
             const height = treeDisplayHeightMeters(tree);
             scale.makeScale(height, height, height);
             rotation.copy(yaw).multiply(scale);
+            const params = tree.variantParameters || {};
+            const lean = new THREE.Matrix4().makeRotationZ(clamp(Number(params.trunkLeanX || 0), -0.06, 0.06));
+            rotation.multiply(lean);
             matrix.multiply(rotation);
             mesh.setMatrixAt(i, matrix);
+            if (mesh.setColorAt) {
+              const tint = new THREE.Color(
+                foliageColors[i * 3 + 0],
+                foliageColors[i * 3 + 1],
+                foliageColors[i * 3 + 2]
+              );
+              mesh.setColorAt(i, tint);
+            }
           }
           mesh.instanceMatrix.needsUpdate = true;
+          if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+          mesh.geometry.getAttribute('bpTreeMorph').needsUpdate = true;
           mesh.computeBoundingSphere?.();
           nextMeshes.push(mesh);
         }
@@ -497,6 +633,8 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
         lod: lodKey,
         instanceCount: activeTrees.length,
         batches: activeMeshes.length,
+        variantCountUsed: usedVariants.size,
+        proceduralInstanceCount: activeTrees.filter(tree => tree.modelType === 'PROCEDURAL_ARCHETYPE').length,
         unsupported: state.unsupported,
         truncated: state.truncated,
         legacyRetained: state.legacyRetained,
@@ -521,11 +659,11 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
       const provisional = { coordinates: coordinate };
       return pointInsideBounds(map, provisional);
     });
-    const normalized = normalizeViewportTrees(all, manifest.models, maxInstances);
+    const normalized = normalizeViewportTrees(all, manifest.models, maxInstances, variantsByArchetype);
     const nextTrees = normalized.trees;
     const nextLod = chooseTreeLod(map.getZoom());
     const signature = nextTrees.map(tree =>
-      tree.id + ':' + tree.modelId + ':' + tree.height.meters
+      tree.id + ':' + tree.modelId + ':' + tree.variantId + ':' + tree.height.meters
     ).join('|') + ':' + normalized.unsupported + ':' + normalized.truncated + ':' + nextLod;
 
     state.sourceCount = normalized.sourceCount;
