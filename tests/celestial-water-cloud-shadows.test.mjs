@@ -123,7 +123,7 @@ test('clouds render as bright 3D volumes, not as a false-colour raster sheet', (
   assert.match(clouds, /const satellitePuffSlices = MOBILE \? 8 : 9/);
   assert.match(clouds, /sourceCloudMaskSamples/);
   assert.match(clouds, /sourceCloudMaskDirectAnchorBudget/);
-  assert.match(clouds, /viewFar=smoothstep\\(85000\\.0,18000000\\.0,u_camera_altitude_m\\)/);
+  assert.match(clouds, /viewFar=smoothstep\(85000\.0,18000000\.0,u_camera_altitude_m\)/);
   assert.match(clouds, /erosionMask=smoothstep/);
   assert.match(clouds, /NOAA GOES Enterprise Cloud Mask probability and clear-sky observations/);
   assert.match(clouds, /lobeD = Math\.cos\(theta \* 7\.0/);
