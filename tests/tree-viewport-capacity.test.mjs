@@ -27,8 +27,8 @@ assert.match(edgeSource, /ESA_WORLDCOVER_10M_TREE_COVER_DERIVED_POINT/,
 
 assert.match(mapSource, /Math\.min\(MOBILE\?1800:3000,normalTreeLimit\)/,
   'desktop and mobile requests should use the new bounded response caps');
-assert.match(mapSource, /treeCap=MOBILE\?\(lod\.tier==='GOLD'\?4000/,
-  'the mobile retained cache must fit inside the 4,200-instance renderer budget');
+assert.match(mapSource, /treeCap=MOBILE\?\(lod\.tier==='GOLD'\?3200/,
+  'the mobile retained cache must remain below the 4,200-instance renderer budget');
 assert.match(mapSource, /bpAttachTreeRendererFromViewport/,
   'the shared map should attach the instanced renderer only after tree records arrive');
 assert.match(mapSource, /bpInstallRegionalTreeCanopy/,
