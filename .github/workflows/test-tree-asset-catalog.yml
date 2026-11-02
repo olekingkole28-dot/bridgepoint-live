@@ -9,6 +9,7 @@ on:
       - 'assets/trees/procedural-tree-archetypes-v1.json'
       - 'release-v2300/world-v2300-tree-catalog.js'
       - 'release-v2300/world-v2300-tree-instanced.js'
+      - 'release-v2300/world-v2300-tree-canopy-lod.js'
       - 'tools/trees/**'
       - 'tests/tree-model-catalog.test.py'
       - 'tests/tree-asset-catalog.test.mjs'
@@ -38,5 +39,7 @@ jobs:
         run: node tests/tree-instanced-renderer.test.mjs
       - name: Check the additive globe renderer module
         run: node --check release-v2300/world-v2300-tree-instanced.js
+      - name: Check the regional canopy LOD module
+        run: node --check release-v2300/world-v2300-tree-canopy-lod.js
       - name: Check desktop and phone browser test syntax
         run: node --check tests/tree-instanced-renderer-browser.mjs
