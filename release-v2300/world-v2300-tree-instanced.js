@@ -337,7 +337,8 @@ function installWindShader(material, uniforms) {
       float bpDensity = clamp(1.0 + bpTreeFoliage.y * 1.1, 0.75, 1.25);
       float bpGustA = sin(bpWindTime * 1.15 + position.y * 7.0 + position.x * 2.3 + bpTreeFoliage.z * 6.28318);
       float bpGustB = sin(bpWindTime * 0.57 + position.y * 3.2 + position.z * 4.1 + bpTreeMorph.y * 8.0);
-      float bpRootPin = smoothstep(0.025, 0.17, position.y);\n      float bpFlex = bpWindWeight * bpWindStrength * bpDensity * bpRootPin * (0.72 * bpGustA + 0.28 * bpGustB) * 0.075;
+      float bpRootPin = smoothstep(0.025, 0.17, position.y);
+      float bpFlex = bpWindWeight * bpWindStrength * bpDensity * bpRootPin * (0.72 * bpGustA + 0.28 * bpGustB) * 0.075;
       vec3 bpWindLocal = normalize(vec3(bpWindDirection.x, 0.0, bpWindDirection.y));
       #ifdef USE_INSTANCING
         bpWindLocal = normalize(transpose(mat3(instanceMatrix)) * bpWindLocal);
@@ -638,8 +639,6 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
       if (destroyed || sequence !== loadSequence) return;
       const nextMeshes = [];
       const usedVariants = new Set();
-      let groundSampledCount = 0;
-      let groundFallbackCount = 0;
       for (const result of results) {
         const treeModels = result.trees;
         const loaded = result.loaded;
@@ -686,20 +685,11 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
           for (let i = 0; i < treeModels.length; i++) {
             const tree = treeModels[i];
             const lng = tree.coordinates[0], lat = tree.coordinates[1];
-            let ground = tree.groundElevationMeters;
-            if (ground === null || ground === undefined || !Number.isFinite(Number(ground))) {
-              const altitude = map.queryTerrainElevation?.([lng, lat], { exaggerated: false });
-              if (altitude !== null && altitude !== undefined && Number.isFinite(Number(altitude))) {
-                ground = Number(altitude);
-                groundSampledCount++;
-              } else {
-                ground = 0;
-                groundFallbackCount++;
-              }
-            } else {
-              groundSampledCount++;
-            }
-            const modelArray = map.transform?.getMatrixForModel?.([lng, lat], Number(ground));
+            const ground = tree.groundElevationMeters !== null &&
+              tree.groundElevationMeters !== undefined &&
+              Number.isFinite(Number(tree.groundElevationMeters))
+              ? Number(tree.groundElevationMeters) : 0;
+            const modelArray = map.transform?.getMatrixForModel?.([lng, lat], ground);
             if (!modelArray) throw new Error('TREE_GEOGRAPHIC_MODEL_MATRIX_UNAVAILABLE');
             matrix.fromArray(modelArray);
             yaw.makeRotationY(stableNumber(tree.id) * Math.PI * 2);
@@ -744,8 +734,8 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
         instanceCount: activeTrees.length,
         batches: activeMeshes.length,
         variantCountUsed: usedVariants.size,
-        groundElevationSampledCount: groundSampledCount,
-        groundElevationFallbackCount: groundFallbackCount,
+        groundElevationSampledCount: state.groundElevationSampledCount,
+        groundElevationFallbackCount: state.groundElevationFallbackCount,
         proceduralInstanceCount: activeTrees.filter(tree => tree.modelType === 'PROCEDURAL_ARCHETYPE').length,
         unsupported: state.unsupported,
         truncated: state.truncated,
@@ -777,16 +767,25 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
     state.taxonomyMatches = normalized.trees.filter(tree =>
       tree.identity?.taxonomyCatalogMatch === true
     ).length;
+    let groundElevationSampledCount = 0;
+    let groundElevationFallbackCount = 0;
     const nextTrees = normalized.trees.map(tree => {
       let groundElevationMeters = null;
       try {
         const altitude = map.queryTerrainElevation?.(tree.coordinates, { exaggerated: false });
         if (altitude !== null && altitude !== undefined && Number.isFinite(Number(altitude))) {
           groundElevationMeters = Number(altitude);
+          groundElevationSampledCount++;
+        } else {
+          groundElevationFallbackCount++;
         }
-      } catch (_) {}
+      } catch (_) {
+        groundElevationFallbackCount++;
+      }
       return { ...tree, groundElevationMeters };
     });
+    state.groundElevationSampledCount = groundElevationSampledCount;
+    state.groundElevationFallbackCount = groundElevationFallbackCount;
     const nextLod = chooseTreeLod(map.getZoom(), nextTrees.length, mobile);
     const signature = nextTrees.map(tree =>
       tree.id + ':' + tree.modelId + ':' + tree.variantId + ':' + tree.height.meters + ':' +
