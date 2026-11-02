@@ -3187,6 +3187,40 @@ jobs:
           })().catch(e=>{console.error(e);process.exit(1)});
           NODE
 
+      - name: Verify live procedural tree assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          O='https://bridgepointintelligence.online'
+          q="${GITHUB_SHA}-tree-assets-$(date +%s)"
+          curl --retry 5 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/trees/manifest.json?v=${q}" -o /tmp/live-tree-manifest.json
+          curl --retry 5 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/trees/procedural-variants.json?v=${q}" -o /tmp/live-tree-variants.json
+          curl --retry 5 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "${O}/world-v2300-map.js?v=${q}" -o /tmp/live-world-v2300-map.js
+          curl --retry 5 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "${O}/world-v2300-tree-instanced.js?v=${q}" -o /tmp/live-tree-renderer.js
+          curl --retry 5 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "${O}/app/world-v2300-tree-instanced.js?v=${q}" -o /tmp/live-app-tree-renderer.js
+          curl --retry 5 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/trees/procedural/oak_spreading/oak_spreading.lod0.glb?v=${q}" -o /tmp/live-oak-tree-lod0.glb
+          python3 - <<'PY'
+          import json, pathlib, struct
+          manifest=json.loads(pathlib.Path('/tmp/live-tree-manifest.json').read_text())
+          variants=json.loads(pathlib.Path('/tmp/live-tree-variants.json').read_text())
+          assert manifest.get('proceduralModelCount')==48, manifest.get('proceduralModelCount')
+          assert manifest.get('proceduralVariantCount')==3072, manifest.get('proceduralVariantCount')
+          assert len(manifest.get('models',[]))==48
+          assert variants.get('variantCount')==3072 and len(variants.get('variants',[]))==3072
+          raw=pathlib.Path('/tmp/live-oak-tree-lod0.glb').read_bytes()
+          assert raw[:4]==b'glTF' and struct.unpack_from('<I',raw,4)[0]==2
+          assert b'bpAttachTreeRendererFromViewport' in pathlib.Path('/tmp/live-world-v2300-map.js').read_bytes()
+          assert pathlib.Path('/tmp/live-tree-renderer.js').read_bytes()==pathlib.Path('/tmp/live-app-tree-renderer.js').read_bytes()
+          print('BRIDGEPOINT_LIVE_TREE_ASSETS_PASS',json.dumps({
+            'archetypes':manifest['proceduralModelCount'],
+            'variants':variants['variantCount'],
+            'modelBytes':len(raw),
+            'rendererCopiedToHomepageAndApp':True
+          }))
+          PY
+          grep -Fq 'bpInstallRegionalTreeCanopy' /tmp/live-world-v2300-map.js
+          grep -Fq 'legacyLayersHidden' /tmp/live-tree-renderer.js
+
       - name: Persist only fully verified V5000 production as durable live baseline
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
