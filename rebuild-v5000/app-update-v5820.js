@@ -1,4 +1,4 @@
-(()=>{const BUILD=6209,CACHE_VERSION='6209-esri-raster-visibility-guard',CURRENT_SW='/sw.js?v='+CACHE_VERSION,CURRENT_CACHE='bp-intelligence-v6209-esri-raster-visibility-guard',RELOAD_KEY='bp-update-reload-'+BUILD;
+(()=>{const BUILD=6210,CACHE_VERSION='6210-tile-only-satellite-base',CURRENT_SW='/sw.js?v='+CACHE_VERSION,CURRENT_CACHE='bp-intelligence-v6210-tile-only-satellite-base',RELOAD_KEY='bp-update-reload-'+BUILD;
 let busy=false;
 const sameOrigin=u=>{try{return new URL(u,location.href).origin===location.origin}catch{return false}};
 const scopePath=s=>{try{return new URL(s).pathname}catch{return''}};
