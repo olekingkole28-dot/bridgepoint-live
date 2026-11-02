@@ -87,6 +87,19 @@ assert.match(mapSource, /Math\.min\(MOBILE\?1800:3000,normalTreeLimit\)/,
   'tree requests must keep explicit mobile and desktop response caps');
 assert.match(mapSource, /map\.getSource\('bpTreeLod'\)\?\.setData\(\{type:'FeatureCollection',features:\[\.\.\.retainedTrees\]\}\)/,
   'the active tree source must clear stale features when the current tile is empty');
+
+const treeSourceUpdateIndex = mapSource.indexOf(
+  "map.getSource('bpTreeLod')?.setData({type:'FeatureCollection',features:[...retainedTrees]})"
+);
+const treeRendererRefreshIndex = mapSource.indexOf(
+  'const treeRendererApi=window.__BP_TREE_INSTANCE_RENDERER_API_V1__'
+);
+assert.ok(treeSourceUpdateIndex >= 0 && treeRendererRefreshIndex > treeSourceUpdateIndex,
+  'the active renderer must be refreshed only after the completed viewport tile is committed');
+assert.match(mapSource, /bpAttachTreeRendererFromViewport\(\);const treeRendererApi=window\.__BP_TREE_INSTANCE_RENDERER_API_V1__/,
+  'the completed viewport fetch must attach the 3D renderer as soon as active tile data exists');
+assert.match(mapSource, /if\(treeRendererApi\?\.map===map\)treeRendererApi\.refreshInstances\?\.\(\)/,
+  'an already-attached 3D renderer must receive new tile data without requiring a camera event');
 assert.match(mapSource, /properties\\?\.tile_key\\|\\|''\)===String\(trees\.active_tile/,
   'only points from the currently active source tile may stay in the tree retention cache');
 assert.match(mapSource, /retainedTrees=mergeLodFeatureCache/,
@@ -100,5 +113,7 @@ assert.match(rendererSource, /TREE_GROUND_ELEVATION_UNAVAILABLE/,
   'the instanced renderer must never place solid tree meshes at sea level when terrain elevation is missing');
 assert.match(rendererSource, /partialInstanceBudget/,
   'tree caps should keep the renderable instances instead of dropping the whole scene');
+assert.match(rendererSource, /window\.__BP_TREE_INSTANCE_RENDERER_API_V1__ = \{\s*map,\s*refreshInstances\s*\}/,
+  'the installed 3D renderer must expose a map-scoped refresh hook for asynchronous tile results');
 
 console.log('BRIDGEPOINT_TREE_VIEWPORT_PLACEMENT_CONTRACT_PASS single_tile=true building_filter=true');
