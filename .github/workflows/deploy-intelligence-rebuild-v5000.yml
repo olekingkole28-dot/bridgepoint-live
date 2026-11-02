@@ -10,6 +10,13 @@ on:
       - 'tools/reality_assets/**'
       - '.github/workflows/validate-reality-assets-v5968.yml'
       - 'release-v2300/**'
+      - 'assets/trees/**'
+      - 'tools/trees/**'
+      - 'supabase/functions/bridgepoint-global-tree-viewport-v1101/**'
+      - 'tests/tree-*.mjs'
+      - 'tests/tree-model-catalog.test.py'
+      - '.github/workflows/build-tree-model-assets.yml'
+      - '.github/workflows/test-tree-asset-catalog.yml'
       - 'tests/celestial-water-cloud-shadows.test.mjs'
       - 'tests/drone-awareness.test.mjs'
       - 'pricing/**'
@@ -39,7 +46,7 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 55
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -60,6 +67,75 @@ jobs:
           echo "$BIN" >> "$GITHUB_PATH"
           test -x "$BIN/pmtiles"
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Build and browser-verify the procedural tree bank
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y blender
+          BLENDER_PY=$(blender --background --factory-startup --python-expr "import bpy,sys; print('BP_BLENDER_PYTHON=' + getattr(bpy.app, 'binary_path_python', sys.executable))" 2>&1 | sed -n 's/^BP_BLENDER_PYTHON=//p' | tail -1)
+          test -n "$BLENDER_PY"
+          "$BLENDER_PY" -m ensurepip --upgrade || true
+          "$BLENDER_PY" -m pip install --upgrade pip
+          "$BLENDER_PY" -m pip install "numpy==1.26.4"
+          blender --background --factory-startup --python-expr "import numpy; print('BRIDGEPOINT_BLENDER_IMPORT_NUMPY_PASS', numpy.__version__)"
+
+          python tests/tree-model-catalog.test.py
+          node tests/tree-asset-catalog.test.mjs
+          node tests/tree-instanced-renderer.test.mjs
+          node tests/tree-viewport-capacity.test.mjs
+          node --check release-v2300/world-v2300-tree-catalog.js
+          node --check release-v2300/world-v2300-tree-instanced.js
+          node --check release-v2300/world-v2300-tree-canopy-lod.js
+          node --input-type=module --check < release-v2300/world-v2300-map.js
+          node --check tests/tree-instanced-renderer-browser.mjs
+
+          mkdir -p /tmp/bridgepoint-tree-assets
+          python tools/trees/fetch_globalgeotree_taxonomy.py \
+            --output /tmp/bridgepoint-tree-assets/global-tree-taxonomy.json \
+            --minimum-species 20000
+          python tools/trees/build_procedural_tree_variants.py \
+            --archetypes assets/trees/procedural-tree-archetypes-v1.json \
+            --taxonomy /tmp/bridgepoint-tree-assets/global-tree-taxonomy.json \
+            --output /tmp/bridgepoint-tree-assets/procedural-variants.json \
+            --variants-per-archetype 64
+          blender --background --factory-startup \
+            --python tools/trees/generate_procedural_tree_bank.py -- \
+            --archetypes assets/trees/procedural-tree-archetypes-v1.json \
+            --variants /tmp/bridgepoint-tree-assets/procedural-variants.json \
+            --output-root /tmp/bridgepoint-tree-assets
+          python tests/tree-model-catalog.test.py --built-assets /tmp/bridgepoint-tree-assets
+          test "$(find /tmp/bridgepoint-tree-assets/procedural -name '*.glb' | wc -l)" -eq 144
+
+          TEST_ROOT=/tmp/bridgepoint-tree-browser
+          PUPPETE_ROOT=/tmp/bp-puppeteer
+          mkdir -p "$TEST_ROOT/vendor" "$TEST_ROOT/release-v2300" "$TEST_ROOT/assets/trees"
+          cp release-v2300/world-v2300-tree-catalog.js "$TEST_ROOT/"
+          cp release-v2300/world-v2300-tree-canopy-lod.js "$TEST_ROOT/"
+          cp release-v2300/world-v2300-tree-instanced.js "$TEST_ROOT/"
+          cp -a /tmp/bridgepoint-tree-assets/. "$TEST_ROOT/assets/trees/"
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL \
+            https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.js \
+            -o "$TEST_ROOT/vendor/maplibre-gl.js"
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL \
+            https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.css \
+            -o "$TEST_ROOT/vendor/maplibre-gl.css"
+          npm install --prefix "$PUPPETE_ROOT" puppeteer-core@24 --no-audit --no-fund
+          CHROME=$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)
+          if [ -z "$CHROME" ]; then
+            sudo apt-get install -y chromium
+            CHROME=$(command -v chromium)
+          fi
+          test -n "$CHROME"
+          BP_TREE_BROWSER_ROOT="$TEST_ROOT" \
+          PUPPETE_ROOT="$PUPPETE_ROOT" \
+          CHROME_PATH="$CHROME" \
+          node tests/tree-instanced-renderer-browser.mjs
+
       - name: Build clean Intelligence-only artifact
         shell: bash
         run: |
@@ -75,6 +151,14 @@ jobs:
           node --input-type=module --check < release-v2300/world-v2300-time-slider.js
           node --input-type=module --check < release-v2300/world-v2300-spectral-imagery.js
           node --input-type=module --check < release-v2300/world-v2300-bootstrap.js
+          node --check release-v2300/world-v2300-tree-catalog.js
+          node --check release-v2300/world-v2300-tree-instanced.js
+          node --check release-v2300/world-v2300-tree-canopy-lod.js
+          node --input-type=module --check < release-v2300/world-v2300-map.js
+          node tests/tree-asset-catalog.test.mjs
+          node tests/tree-instanced-renderer.test.mjs
+          node tests/tree-viewport-capacity.test.mjs
+          python tests/tree-model-catalog.test.py
           node tests/celestial-water-cloud-shadows.test.mjs
           node tests/water-lod-and-imagery.test.mjs
           grep -Fq "dot=rawKey.endsWith('-dot'),key=dot?rawKey.replace(/-dot$/,''):rawKey" release-v2300/world-v2300-map.js
@@ -139,6 +223,17 @@ jobs:
           mkdir -p site
           git fetch origin live-artifact:refs/remotes/origin/live-artifact --depth=1
           git archive refs/remotes/origin/live-artifact | tar -xf - -C site
+          mkdir -p site/assets/trees
+          cp /tmp/bridgepoint-tree-assets/manifest.json site/assets/trees/manifest.json
+          cp /tmp/bridgepoint-tree-assets/procedural-variants.json site/assets/trees/procedural-variants.json
+          cp /tmp/bridgepoint-tree-assets/taxonomy-index.json site/assets/trees/taxonomy-index.json
+          cp -a /tmp/bridgepoint-tree-assets/procedural site/assets/trees/procedural
+          cat > site/assets/trees/ATTRIBUTION.txt <<'TREE_ATTRIBUTION'
+          BridgePoint procedural tree geometry: original BridgePoint code, Apache-2.0.
+          Taxonomy reference: GlobalGeoTree (Mu et al., 2026), CC BY 4.0.
+          The taxonomy index is an identity reference; it does not verify the species of a geographic tree record.
+          Raster-derived canopy locations are visualization samples, not surveyed individual-trunk positions.
+          TREE_ATTRIBUTION
           mkdir -p site/vendor
 
           # Keep only the current Intelligence workspace plus the current Horizon lobby and playable runtime.
@@ -346,6 +441,9 @@ jobs:
           # Carry forward only the proven map engine pieces used by the new shell.
           cp release-v2300/world-v2300-config.js site/world-v2300-config.js
           cp release-v2300/world-v2300-map.js site/world-v2300-map.js
+          cp release-v2300/world-v2300-tree-catalog.js site/world-v2300-tree-catalog.js
+          cp release-v2300/world-v2300-tree-canopy-lod.js site/world-v2300-tree-canopy-lod.js
+          cp release-v2300/world-v2300-tree-instanced.js site/world-v2300-tree-instanced.js
           cp release-v2300/world-v2300-water.js site/world-v2300-water.js
           test -s site/world-v2300-water.js
           cp release-v2300/world-v2300-lod-controls.js site/world-v2300-lod-controls.js
@@ -388,6 +486,9 @@ jobs:
           cp release-v2300/gis-core-orchestrator-v5910.js site/gis-core-orchestrator-v5910.js
           cp release-v2300/world-v2300-config.js site/app/world-v2300-config.js
           cp release-v2300/world-v2300-map.js site/app/world-v2300-map.js
+          cp release-v2300/world-v2300-tree-catalog.js site/app/world-v2300-tree-catalog.js
+          cp release-v2300/world-v2300-tree-canopy-lod.js site/app/world-v2300-tree-canopy-lod.js
+          cp release-v2300/world-v2300-tree-instanced.js site/app/world-v2300-tree-instanced.js
           cp release-v2300/world-v2300-water.js site/app/world-v2300-water.js
           test -s site/app/world-v2300-water.js
           cp release-v2300/world-v2300-lod-controls.js site/app/world-v2300-lod-controls.js
