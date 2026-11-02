@@ -226,7 +226,7 @@ try {
       // No synthetic map event is fired: the explicit refresh hook must clear
       // and then repopulate the existing 3D scene by itself.
       map.__BP_LIVING_TILE_CACHE_V6017__.trees = [];
-      api.refreshInstances();
+      api.refreshInstances({ authoritative: true });
       return true;
     });
     assert.equal(refreshApiAvailable, true,
@@ -239,7 +239,7 @@ try {
     await page.evaluate(trees => {
       const map = window.__BP_TREE_BROWSER_MAP__;
       map.__BP_LIVING_TILE_CACHE_V6017__.trees = trees;
-      window.__BP_TREE_INSTANCE_RENDERER_API_V1__.refreshInstances();
+      window.__BP_TREE_INSTANCE_RENDERER_API_V1__.refreshInstances({ authoritative: true });
     }, sampleTrees);
     await page.waitForFunction(() =>
       window.__BP_TREE_INSTANCE_RENDERER_V1__?.status === 'render-ready' &&
