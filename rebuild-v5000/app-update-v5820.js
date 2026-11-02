@@ -1,4 +1,4 @@
-(()=>{const BUILD=6210,CACHE_VERSION='6211-nasa-globe-esri-handoff',CURRENT_SW='/sw.js?v='+CACHE_VERSION,CURRENT_CACHE='bp-intelligence-v6211-nasa-globe-esri-handoff',RELOAD_KEY='bp-update-reload-'+BUILD;
+(()=>{const BUILD=6211,CACHE_VERSION='6211-nasa-globe-esri-handoff',CURRENT_SW='/sw.js?v='+CACHE_VERSION,CURRENT_CACHE='bp-intelligence-v6211-nasa-globe-esri-handoff',RELOAD_KEY='bp-update-reload-'+BUILD;
 let busy=false;
 const sameOrigin=u=>{try{return new URL(u,location.href).origin===location.origin}catch{return false}};
 const scopePath=s=>{try{return new URL(s).pathname}catch{return''}};
