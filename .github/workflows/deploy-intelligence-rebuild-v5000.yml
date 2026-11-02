@@ -1619,7 +1619,7 @@ jobs:
                 await page.waitForFunction(kind=>{
                   const world=kind==='home'?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
                   const map=world?.map;
-                  return !!map&&map.isStyleLoaded?.()===true&&!map.isMoving?.();
+                  return !!map&&!!map.getLayer('gta-global-earth')&&!!map.getLayer('gta-esri')&&map.isSourceLoaded?.('globalEarth')===true&&!map.isMoving?.();
                 },{timeout:60000},kind);
                 await new Promise(resolve=>setTimeout(resolve,1400));
                 return page.evaluate(kind=>{
@@ -1637,7 +1637,11 @@ jobs:
                     legacyStoredMode:localStorage.getItem('bp-global-map-mode-v6204')||null,
                     background:map?.getPaintProperty('gta-bg','background-color')??null,
                     waterOpacity:map?.getPaintProperty('gta-water','fill-opacity')??null,
-                    imagery:{nasa:visible('gta-nasa'),esri:visible('gta-esri'),usgs:visible('gta-usgs'),oam:visible('gta-oam')},
+                    imagery:{globalEarth:visible('gta-global-earth'),nasa:visible('gta-nasa'),esri:visible('gta-esri'),usgs:visible('gta-usgs'),oam:visible('gta-oam')},
+                     globalEarthSourcePresent:!!map?.getSource('globalEarth'),
+                     globalEarthSourceLoaded:map?.isSourceLoaded?.('globalEarth')===true,
+                     streets:{major:visible('gta-road-major'),local:visible('gta-road-local')},
+                     sidewalks:{line:visible('gta-bp-sidewalk'),casing:visible('gta-bp-sidewalk-casing'),raised:visible('gta-bp-sidewalk3d')},
                     canvasCount:container?.querySelectorAll('canvas').length||0,
                     canvasWidth:map?.getCanvas?.()?.clientWidth||0,
                     canvasHeight:map?.getCanvas?.()?.clientHeight||0,
@@ -1656,12 +1660,20 @@ jobs:
                 assert.equal(state.mode,'natural',state.kind+' must stay in Natural Satellite mode after idle');
                 assert.equal(state.legacyStoredMode,'dark',state.kind+' must ignore the legacy v6204 Dark preference and start Natural');
                 assert.equal(state.background,'#06120f',state.kind+' must retain Natural background after idle');
-                assert.equal(Number(state.waterOpacity),0.42,state.kind+' must retain Natural water opacity after idle');
+                assert.equal(Number(state.waterOpacity),0,state.kind+' must leave satellite imagery unobscured by vector ocean fill');
                 assert.equal(state.base,'satellite',state.kind+' must retain satellite imagery base');
-                assert.equal(state.imagery.esri,true,state.kind+' must retain global Esri imagery');
+                assert.equal(state.imagery.globalEarth,true,state.kind+' must retain the full-world EPSG:4326 satellite underlay');
+                 assert.equal(state.globalEarthSourcePresent,true,state.kind+' must register the global satellite image source');
+                 assert.equal(state.globalEarthSourceLoaded,true,state.kind+' must load the global satellite image source');
+                 assert.equal(state.imagery.esri,true,state.kind+' must retain global Esri imagery');
                 assert.equal(state.imagery.nasa,true,state.kind+' must retain global NASA imagery');
+                 assert.equal(state.streets.major,true,state.kind+' must preserve major street overlays above satellite imagery');
+                 assert.equal(state.streets.local,true,state.kind+' must preserve local street overlays above satellite imagery');
                 assert.ok(state.canvasCount>=1&&state.canvasWidth>0&&state.canvasHeight>0,state.kind+' must render a non-zero globe canvas');
                 assert.ok(state.containerWidth>0&&state.containerHeight>0,state.kind+' map container must be visible');
+                 assert.equal(state.sidewalks.line,true,state.kind+' must keep source-backed sidewalk/footway lines enabled');
+                 assert.equal(state.sidewalks.casing,true,state.kind+' must keep sidewalk casings enabled');
+                 assert.equal(state.sidewalks.raised,true,state.kind+' must keep raised sidewalk detail enabled');
               };
               validate(home);
               const verifyZoomStops=async(kind)=>{
