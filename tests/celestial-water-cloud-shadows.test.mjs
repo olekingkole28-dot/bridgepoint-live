@@ -145,7 +145,7 @@ test('cloud shadows update on the map and use available source winds', () => {
   assert.match(weather, /refresh\(false\),60000\)/);
 });
 
-test('entrypoints use fresh cache keys for updated map, water, clouds, weather and space', () => {
+test('entrypoints use fresh cache keys and keep the celestial canvas off the satellite globe', () => {
   for (const source of [app, landing]) {
     assert.match(source, /world-v2300-map\.js\?v=6213-satellite-no-space-overlay/);
     assert.match(source, /world-v2300-water\.js\?v=6194-stable-water-low-cost/);
@@ -154,7 +154,7 @@ test('entrypoints use fresh cache keys for updated map, water, clouds, weather a
     assert.match(source, /world-v2300-time-slider\.js\?v=6167-cloud-startup-performance/);
   }
   assert.ok(appHtml.includes('world-v2300-clouds.js?v=6168-desktop-global-cloud-motion-stop'), 'app shell preload must not warm the stale moving cloud module');
-  assert.match(map, /world-v2300-space\.js\?v=6125-manual-globe-camera/);
+  assert.doesNotMatch(map, /world-v2300-space\.js\?v=6125-manual-globe-camera/, 'the retired celestial overlay must not be imported by the live globe');
   assert.match(timeSlider, /world-v2300-clouds\.js\?v=6168-desktop-global-cloud-motion-stop/);
   assert.match(bootstrap, /world-v2300-weather\.js\?v=6195-desktop-globe-flash-stability/);
   assert.match(appHtml, /app\.js\?v=6213-satellite-no-space-overlay/);
