@@ -119,7 +119,7 @@ test('clouds render as bright 3D volumes, not as a false-colour raster sheet', (
   assert.match(clouds, /SATELLITE_CLOUD_MASK_CACHE_KEY_V6150/);
   assert.match(clouds, /restoreCachedSatelliteCloudMaskV6150\(map\)/);
   assert.match(clouds, /persistSatelliteCloudMaskV6150\(mask\)/);
-  assert.match(clouds, /const satellitePuffSlices = cloudLodBand === 'global' \? \(MOBILE \? 5 : 6\)/);
+  assert.match(clouds, /const satellitePuffSlices = MOBILE \? 6 : 8/);
   assert.match(clouds, /lobeD = Math\.cos\(theta \* 7\.0/);
   assert.match(clouds, /cloudCavity=clamp/);
 });
@@ -240,7 +240,7 @@ test('global opportunity markers render category glyphs and merge source-backed 
   assert.match(landing, /if\(!risk\)void loadRiskFeed\(\)\.then/);
 });
 
-test('both entrypoints perform a real 6220 service-worker cutover before stale startup survives', () => {
+test('both entrypoints perform a real 6221 service-worker cutover before stale startup survives', () => {
   assert.match(landingHtml, /app-update-v5820\.js\?v=6221-clouds-always-on/);
   assert.match(appHtml, /app-update-v5820\.js\?v=6221-clouds-always-on/);
   assert.match(appUpdate, /const BUILD=6221/);
