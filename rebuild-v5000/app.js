@@ -138,7 +138,7 @@ async function initSharedVisualWeather(targetWorld,{activate=true}={}){
  }catch(e){console.warn('BridgePoint shared visual weather',e);return null}
 }
 async function bootMap(){
- const mod=await import('./world-v2300-map.js?v=6211-nasa-global-esri-regional');world=mod.initWorld({containerId:'liveMap',globalKey:'__bpWorldV2300',center:[0,20],zoom:window.innerWidth<=620?1.05:1.25,pitch:0,bearing:0,projection:'globe'});window.__BP_V5000_WORLD=world;window.__BP_V5000_WORLD__=world;
+ const mod=await import('./world-v2300-map.js?v=6212-nasa-global-esri-regional');world=mod.initWorld({containerId:'liveMap',globalKey:'__bpWorldV2300',center:[0,20],zoom:window.innerWidth<=620?1.05:1.25,pitch:0,bearing:0,projection:'globe'});window.__BP_V5000_WORLD=world;window.__BP_V5000_WORLD__=world;
  const started=performance.now();
  while(!world?.map&&performance.now()-started<10000)await new Promise(r=>setTimeout(r,40));
  if(!world?.map)throw new Error('Map object readiness timeout');
@@ -214,7 +214,7 @@ async function bootMap(){
  const optionalWorldJobs=[
   ['time-slider',async()=>{const m=await import('./world-v2300-time-slider.js?v=6167-cloud-startup-performance');window.__BP_WORLD_TIME_SLIDER_V5908__=m.initWorldTimeSlider(world,rpc)}],
   ['time-slider',async()=>{const m=await import('./world-v2300-time-slider.js?v=6167-cloud-startup-performance');window.__BP_WORLD_TIME_SLIDER_V5908__=m.initWorldTimeSlider(world,rpc)}],
-  ['spectral-imagery',async()=>{const m=await import('./world-v2300-spectral-imagery.js?v=6211-nasa-global-esri-regional');window.__BP_SPECTRAL_IMAGERY_V5931__=m.initSpectralImagery(world)}],
+  ['spectral-imagery',async()=>{const m=await import('./world-v2300-spectral-imagery.js?v=6212-nasa-global-esri-regional');window.__BP_SPECTRAL_IMAGERY_V5931__=m.initSpectralImagery(world)}],
   ['underground',async()=>{const m=await import('./world-v2300-underground-xray.js?v=5965-landmarks-and-effects');window.__BP_UNDERGROUND_XRAY_V5935__=m.initUndergroundXray(world)}],
   ['infrastructure',async()=>{const m=await import('./world-v2300-infrastructure-volume-v5962.js?v=5962-power-grid-fcc-towers');window.__BP_INFRASTRUCTURE_VOLUME_V5962__=m.initInfrastructureVolume(world)}],
   ['sensors',async()=>{const m=await import('./world-v2300-sensor-layers.js?v=6015-nasa-light-toggle');window.__BP_SENSOR_LAYERS_V5945__=m.initSensorLayers(world)}],
@@ -1847,7 +1847,7 @@ async function start(){
  statusTimer=setInterval(()=>queueAfterMap('status-pulse',loadStatus),15000);
  tileTimer=setInterval(()=>queueAfterMap('tile-pulse',refreshTiles),BP_MOBILE?600000:300000);
  setTimeout(()=>queueAfterMap('tile-pulse',refreshTiles),BP_MOBILE?300000:120000);
- if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=6211-nasa-global-esri-regional',{updateViaCache:'none'}).catch(()=>{})
+ if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=6212-nasa-global-esri-regional',{updateViaCache:'none'}).catch(()=>{})
 }
 window.addEventListener('bridgepoint:softrefresh',()=>{
  try{queueAfterMap('status-pulse',loadStatus)}catch(_){}
