@@ -22,7 +22,7 @@ const NASA='https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_NextGe
 const USGS='https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}';
 const OAM='https://global.imagery.hotosm.org/{z}/{x}/{y}.png';
 const DEM='https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
-window.__BP_GLOBAL_IMAGERY_LOD_V6212__={version:6212,defaultBase:'satellite',automaticZoomStack:true,global:'Esri World Imagery EPSG:3857 raster tiles z0-19',fallback:'NASA Blue Marble EPSG:3857 raster tiles z0-8',world:'Esri World Imagery raster tiles z0-19, overzoomed through z22',usHighResolution:'USGS National Map imagery z11-17 where U.S. tiles exist',localAerial:'OpenAerialMap z14-21 where imagery tiles exist',imageryAlwaysOn:true,tileExpiryRefresh:true,projection:'tile-backed Web Mercator imagery only; no whole-world EPSG:4326 image overlay is draped on the globe',polarCoverage:'Native tile providers stop near 85.051 degrees north/south; no stretched pole-to-pole image overlay is used',sourceResolutionBounded:true,buildingLod:'generalized OpenFreeMap footprints z7+; BridgePoint source-backed structures z11.4+; Gold roof/floor/facade detail below street zoom',updatedAt:Date.now()};
+window.__BP_GLOBAL_IMAGERY_LOD_V6213__={version:6213,defaultBase:'satellite',automaticZoomStack:true,global:'NASA Blue Marble EPSG:3857 raster tiles, exclusive globe layer at zoom 0-8',world:'Esri World Imagery EPSG:3857 raster tiles begin at zoom 8 and provide regional/street detail through z22',handoff:'NASA is the only active provider below zoom 8; Esri cannot replace the globe after a delayed tile load',usHighResolution:'USGS National Map imagery z11-17 where U.S. tiles exist',localAerial:'OpenAerialMap z14-21 where imagery tiles exist',imageryAlwaysOn:true,tileExpiryRefresh:true,projection:'tile-backed Web Mercator imagery only; no whole-world EPSG:4326 image overlay is draped on the globe',polarCoverage:'Native tile providers stop near 85.051 degrees north/south; no stretched pole-to-pole image overlay is used',sourceResolutionBounded:true,buildingLod:'generalized OpenFreeMap footprints z7+; BridgePoint source-backed structures z11.4+; Gold roof/floor/facade detail below street zoom',updatedAt:Date.now()};
 const BUILDINGS=`${EDGE}bridgepoint-public-building-tile-v5019?z={z}&x={x}&y={y}&limit=${MOBILE?2400:5000}`;const CITY_STRUCTURES=`${EDGE}bridgepoint-public-city-structures-v5375?z={z}&x={x}&y={y}&limit=${MOBILE?500:650}&v=5380`;const CITY_ROOFS=`${EDGE}bridgepoint-public-city-roofs-v5376?z={z}&x={x}&y={y}&limit=${MOBILE?500:650}&v=5380`;
 const MAX_EXACT=MOBILE?320:(TIER==='LOW'?450:TIER==='HIGH'?900:650);
 const DETAIL_MIN=MOBILE?16.8:(TIER==='LOW'?16.7:TIER==='HIGH'?16.1:16.35);
@@ -156,8 +156,8 @@ function style(projectionType='globe'){
  layers:[
   {id:'gta-bg',type:'background',paint:{'background-color':'#040b12'}},
   {id:'gta-water',type:'fill',source:'ofm','source-layer':'water',paint:{'fill-color':'#0c3d56','fill-opacity':0}},
-   {id:'gta-nasa',type:'raster',source:'nasa',minzoom:0,maxzoom:22,layout:{visibility:'visible'},paint:{'raster-opacity':.95,'raster-saturation':.18,'raster-contrast':.18,'raster-resampling':'linear','raster-fade-duration':0}},
-   {id:'gta-esri',type:'raster',source:'esri',minzoom:0,maxzoom:22,layout:{visibility:'visible'},paint:{'raster-opacity':1,'raster-saturation':.15,'raster-contrast':.12,'raster-resampling':'linear','raster-fade-duration':0}},
+   {id:'gta-nasa',type:'raster',source:'nasa',minzoom:0,maxzoom:8,layout:{visibility:'visible'},paint:{'raster-opacity':.95,'raster-saturation':.18,'raster-contrast':.18,'raster-resampling':'linear','raster-fade-duration':0}},
+   {id:'gta-esri',type:'raster',source:'esri',minzoom:8,maxzoom:22,layout:{visibility:'visible'},paint:{'raster-opacity':1,'raster-saturation':.15,'raster-contrast':.12,'raster-resampling':'linear','raster-fade-duration':0}},
   {id:'gta-usgs',type:'raster',source:'usgs',minzoom:11,maxzoom:17,layout:{visibility:'visible'},paint:{'raster-opacity':['interpolate',['linear'],['zoom'],5,.45,9,.82,13,.96,17,.99],'raster-saturation':.14,'raster-contrast':.16,'raster-resampling':'linear','raster-fade-duration':0}},
   {id:'gta-oam',type:'raster',source:'oam',minzoom:14,maxzoom:21,layout:{visibility:'visible'},paint:{'raster-opacity':['interpolate',['linear'],['zoom'],14,0,14.25,.72,15,.9,17,.96,20,.985],'raster-saturation':.12,'raster-contrast':.13,'raster-resampling':'linear','raster-fade-duration':0}},
   {id:'gta-coast-shadow',type:'line',source:'ofm','source-layer':'water',minzoom:2.2,paint:{'line-color':'#071721','line-width':['interpolate',['linear'],['zoom'],2.2,1.4,4,1.15,10,1.4,16,3.1,20,5.5],'line-opacity':.9,'line-blur':1.1}},
@@ -582,7 +582,7 @@ export function initWorld(options={}){
      layers[id]={present:true,visibility:map.getLayoutProperty(id,'visibility')||'visible',source:layer.source,minzoom:layer.minzoom??0,maxzoom:layer.maxzoom??22};
     }catch(error){layers[id]={present:false,error:String(error?.message||error)}}
    }
-   window.__BP_SATELLITE_RASTER_VISIBILITY_GUARD_V6212__={version:6212,reason,restored,layers,updatedAt:Date.now()};
+   window.__BP_SATELLITE_RASTER_VISIBILITY_GUARD_V6213__={version:6213,reason,restored,layers,updatedAt:Date.now()};
    return layers;
   }
   function restoreSatelliteRasterStack(){
