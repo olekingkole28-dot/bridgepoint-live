@@ -35,7 +35,7 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y blender
+          sudo apt-get install -y blender python3-numpy
           blender --background --factory-startup --python-expr "import bpy; print('BRIDGEPOINT_BLENDER_READY', bpy.app.version_string)"
 
       - name: Download the reviewed CC0 tree models
