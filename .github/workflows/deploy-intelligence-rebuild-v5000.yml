@@ -1683,15 +1683,26 @@ jobs:
                 const zoomOut=await readStableMap(kind);validate(zoomOut);
                 return {zoomIn,zoomOut};
               };
-              const homeZoomStops=await verifyZoomStops('home');
+              const verifyStreetZoom=async(kind)=>{
+                await page.evaluate(kind=>{const world=kind==='home'?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;world.map.jumpTo({center:[-73.9857,40.7484],zoom:16.5,pitch:0,bearing:0});},kind);
+                const street=await readStableMap(kind);validate(street);
+                assert.ok(street.zoom>=16.4,kind+' must reach street-level zoom');
+                assert.equal(street.sidewalks.line,true,kind+' must retain sidewalk/footway lines at street level');
+                assert.equal(street.sidewalks.casing,true,kind+' must retain sidewalk casings at street level');
+                assert.equal(street.imagery.globalEarth,true,kind+' must keep the global imagery underlay at street level');
+                assert.equal(street.imagery.esri,true,kind+' must keep the satellite tile fallback at street level');
+                return street;
+              };
+              const homeStreetStop=await verifyStreetZoom('home');
               await page.evaluate(()=>localStorage.setItem('bp_auth_v5045',JSON.stringify({access_token:'bridgepoint-smoke-invalid-token'})));
               await page.goto('https://bridgepointintelligence.online/app/?natural-globe-parity-smoke='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
               await page.waitForFunction(()=>window.__BP_APP_GLOBE_BOOT__?.containerId==='liveMap'&&window.__BP_APP_GLOBE_BOOT__?.projection==='globe',{timeout:90000});
               const app=await readStableMap('app');
               validate(app);
               const appZoomStops=await verifyZoomStops('app');
+              const appStreetStop=await verifyStreetZoom('app');
               assert.equal(app.canvasCount,1,'app must render exactly one main-world map canvas');
-              console.log('BRIDGEPOINT_NATURAL_IMAGERY_PERSISTENCE_AND_APP_GLOBE_PARITY_PASS',JSON.stringify({home,homeZoomStops,app,appZoomStops,pageErrors:pageErrors.slice(-12)}));
+              console.log('BRIDGEPOINT_NATURAL_IMAGERY_PERSISTENCE_AND_APP_GLOBE_PARITY_PASS',JSON.stringify({home,homeZoomStops,homeStreetStop,app,appZoomStops,appStreetStop,pageErrors:pageErrors.slice(-12)}));
             }finally{await browser.close()}
           })().catch(error=>{console.error(error);process.exitCode=1});
           NODE
