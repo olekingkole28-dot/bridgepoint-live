@@ -554,7 +554,7 @@ export function initWorld(options={}){
    lazyStartZoom:treeStartZoom,
    updatedAt:Date.now()
   };
-  import('./world-v2300-tree-instanced.js?v=20261102-tree-placement-v3')
+  import('./world-v2300-tree-instanced.js?v=20261102-tree-viewport-refresh-v4')
    .then(mod=>mod.attachTreeInstancedRenderer(map))
    .then(state=>{
     const current=window.__BP_TREE_INSTANCE_RENDERER_V1__||state||{};
