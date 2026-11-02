@@ -16,16 +16,17 @@ const COMBOS={
 };
 
 const GLOBAL_BASEMAP_MODES={
- dark:{label:'Dark Intelligence · Optional',background:'#040b12',water:'#0c3d56',waterOpacity:.97,landcoverOpacity:null,landuseOpacity:null,majorRoad:'#53717c',localRoad:'#45616b',roof:'#ffffff',rasterHue:0,rasterSaturation:0,rasterContrast:0,rasterOpacity:.95,esriOpacity:1,usgsOpacity:.95,oamOpacity:.95},
- natural:{label:'Natural Satellite · Default',background:'#06120f',water:'#1b5c70',waterOpacity:.42,landcoverOpacity:.09,landuseOpacity:.08,majorRoad:'#b2c9c1',localRoad:'#5d8b83',roof:'#c2b9a4',rasterHue:0,rasterSaturation:.12,rasterContrast:.12,rasterOpacity:.94,esriOpacity:1,usgsOpacity:.9,oamOpacity:.96},
- earth:{label:'Earth-as-Art',background:'#15190c',water:'#68742e',waterOpacity:.36,landcoverOpacity:.06,landuseOpacity:.06,majorRoad:'#d3cc79',localRoad:'#89934b',roof:'#b2a35e',rasterHue:38,rasterSaturation:.32,rasterContrast:.16,rasterOpacity:.96,esriOpacity:1,usgsOpacity:.92,oamOpacity:.97},
- water:{label:'Water & Soil',background:'#041522',water:'#087ba7',waterOpacity:.36,landcoverOpacity:.055,landuseOpacity:.045,majorRoad:'#76d0e5',localRoad:'#398ca2',roof:'#81aab8',rasterHue:148,rasterSaturation:.3,rasterContrast:.16,rasterOpacity:.96,esriOpacity:1,usgsOpacity:.92,oamOpacity:.97},
- vegetation:{label:'Vegetation',background:'#061b13',water:'#14584c',waterOpacity:.38,landcoverOpacity:.075,landuseOpacity:.055,majorRoad:'#9bcbaa',localRoad:'#548b72',roof:'#91a978',rasterHue:68,rasterSaturation:.3,rasterContrast:.15,rasterOpacity:.96,esriOpacity:1,usgsOpacity:.92,oamOpacity:.97},
- geology:{label:'Geology / Burn Scars',background:'#1a100e',water:'#684239',waterOpacity:.34,landcoverOpacity:.055,landuseOpacity:.05,majorRoad:'#d5a17e',localRoad:'#976952',roof:'#a57961',rasterHue:315,rasterSaturation:.34,rasterContrast:.2,rasterOpacity:.96,esriOpacity:1,usgsOpacity:.92,oamOpacity:.97},
- agriculture:{label:'Agriculture',background:'#1b1608',water:'#3b6878',waterOpacity:.38,landcoverOpacity:.07,landuseOpacity:.055,majorRoad:'#d4c17e',localRoad:'#99854b',roof:'#b8a878',rasterHue:74,rasterSaturation:.28,rasterContrast:.14,rasterOpacity:.96,esriOpacity:1,usgsOpacity:.92,oamOpacity:.97}
+ dark:{label:'Dark Intelligence · Optional',background:'#040b12',water:'#0c3d56',waterOpacity:.97,landcoverOpacity:0,landuseOpacity:0,majorRoad:'#53717c',localRoad:'#45616b',roof:'#ffffff',rasterHue:0,rasterSaturation:0,rasterContrast:0,rasterOpacity:.95,esriOpacity:1,usgsOpacity:.95,oamOpacity:.95},
+ natural:{label:'Natural Satellite · Default',background:'#06120f',water:'#1b5c70',waterOpacity:.42,landcoverOpacity:0,landuseOpacity:0,majorRoad:'#b2c9c1',localRoad:'#5d8b83',roof:'#c2b9a4',rasterHue:0,rasterSaturation:.12,rasterContrast:.12,rasterOpacity:.94,esriOpacity:1,usgsOpacity:.9,oamOpacity:.96},
+ earth:{label:'Earth-as-Art',background:'#15190c',water:'#68742e',waterOpacity:.36,landcoverOpacity:0,landuseOpacity:0,majorRoad:'#d3cc79',localRoad:'#89934b',roof:'#b2a35e',rasterHue:38,rasterSaturation:.32,rasterContrast:.16,rasterOpacity:.96,esriOpacity:1,usgsOpacity:.92,oamOpacity:.97},
+ water:{label:'Water & Soil',background:'#041522',water:'#087ba7',waterOpacity:.36,landcoverOpacity:0,landuseOpacity:0,majorRoad:'#76d0e5',localRoad:'#398ca2',roof:'#81aab8',rasterHue:148,rasterSaturation:.3,rasterContrast:.16,rasterOpacity:.96,esriOpacity:1,usgsOpacity:.92,oamOpacity:.97},
+ vegetation:{label:'Vegetation',background:'#061b13',water:'#14584c',waterOpacity:.38,landcoverOpacity:0,landuseOpacity:0,majorRoad:'#9bcbaa',localRoad:'#548b72',roof:'#91a978',rasterHue:68,rasterSaturation:.3,rasterContrast:.15,rasterOpacity:.96,esriOpacity:1,usgsOpacity:.92,oamOpacity:.97},
+ geology:{label:'Geology / Burn Scars',background:'#1a100e',water:'#684239',waterOpacity:.34,landcoverOpacity:0,landuseOpacity:0,majorRoad:'#d5a17e',localRoad:'#976952',roof:'#a57961',rasterHue:315,rasterSaturation:.34,rasterContrast:.2,rasterOpacity:.96,esriOpacity:1,usgsOpacity:.92,oamOpacity:.97},
+ agriculture:{label:'Agriculture',background:'#1b1608',water:'#3b6878',waterOpacity:.38,landcoverOpacity:0,landuseOpacity:0,majorRoad:'#d4c17e',localRoad:'#99854b',roof:'#b8a878',rasterHue:74,rasterSaturation:.28,rasterContrast:.14,rasterOpacity:.96,esriOpacity:1,usgsOpacity:.92,oamOpacity:.97}
 };
 const BASEMAP_PAINT_PROPERTIES={
  'gta-bg':['background-color'],'gta-water':['fill-color','fill-opacity'],
+ 'gta-global-earth':['raster-opacity','raster-hue-rotate','raster-saturation','raster-contrast'],
  'gta-landcover':['fill-opacity'],'gta-landuse':['fill-opacity'],
  'gta-road-major':['line-color'],'gta-road-local':['line-color'],
  'gta-city-building-roof-caps':['fill-extrusion-color'],'gta-city-roofs':['fill-extrusion-color'],
@@ -35,8 +36,8 @@ const BASEMAP_PAINT_PROPERTIES={
  'gta-usgs':['raster-hue-rotate','raster-saturation','raster-contrast','raster-opacity'],
  'gta-oam':['raster-hue-rotate','raster-saturation','raster-contrast','raster-opacity']
 };
-const BASEMAP_RASTER_LAYERS=['gta-nasa','gta-esri','gta-usgs','gta-oam'];
-const BASEMAP_STORAGE_KEY='bp-global-map-mode-v6206';
+const BASEMAP_RASTER_LAYERS=['gta-global-earth','gta-nasa','gta-esri','gta-usgs','gta-oam'];
+const BASEMAP_STORAGE_KEY='bp-global-map-mode-v6208';
 const CSS=[
 '#liveMap #'+ROOT_ID+'{position:absolute;z-index:22;left:12px;top:12px;width:min(350px,calc(100% - 24px));box-sizing:border-box;color:#eaf8ff;font:12px/1.4 system-ui,-apple-system,Segoe UI,sans-serif;pointer-events:none}',
 '#liveMap #'+ROOT_ID+' *{box-sizing:border-box}',
@@ -126,12 +127,13 @@ function layerBefore(map){
  const first3d=layers.find(l=>l.type==='fill-extrusion');
  return first3d?.id;
 }
+function hasBaseMapStyle(map){try{const layers=map.getStyle?.()?.layers||[],ids=new Set(layers.map(layer=>layer.id));return ['gta-bg','gta-water','gta-global-earth','gta-esri'].every(id=>ids.has(id)&&!!map.getLayer(id))}catch(_){return false}}
 function waitForStyle(map){
- if(map.isStyleLoaded?.())return Promise.resolve();
+ if(hasBaseMapStyle(map))return Promise.resolve();
  return new Promise(resolve=>{
-  const done=()=>{map.off('idle',done);resolve()};
-  map.once('idle',done);
-  setTimeout(done,8000);
+  let done=false;const finish=()=>{if(done||!hasBaseMapStyle(map))return;done=true;clearTimeout(timer);map.off('styledata',finish);map.off('idle',finish);resolve()};
+  const timer=setTimeout(()=>{if(done)return;done=true;map.off('styledata',finish);map.off('idle',finish);resolve()},15000);
+  map.on('styledata',finish);map.on('idle',finish);
  });
 }
 export function initSpectralImagery(target){
@@ -201,7 +203,7 @@ export function initSpectralImagery(target){
  const setMeta=txt=>{meta.textContent=txt};
  function captureBasemapDefaults(){
   if(defaultsCaptured)return true;
-  try{if(!map.isStyleLoaded?.())return false}catch(_){return false}
+  if(!hasBaseMapStyle(map))return false
   for(const [id,props] of Object.entries(BASEMAP_PAINT_PROPERTIES)){
    if(!map.getLayer(id))continue;
    const values={};
@@ -216,7 +218,7 @@ export function initSpectralImagery(target){
   return true;
  }
  function safeSetPaint(id,property,value){try{if(map.getLayer(id))map.setPaintProperty(id,property,value)}catch(_){}}
- function safeSetVisibility(id,value){try{if(map.getLayer(id))map.setLayoutProperty(id,'visibility',value)}catch(_){}}
+ function safeSetVisibility(id,value){try{if(!map.getLayer(id))return;const current=map.getLayoutProperty(id,'visibility')||'visible';if(current!==value)map.setLayoutProperty(id,'visibility',value)}catch(_){}}
  function readSavedBasemapMode(){
   try{const saved=window.localStorage?.getItem(BASEMAP_STORAGE_KEY);return Object.prototype.hasOwnProperty.call(GLOBAL_BASEMAP_MODES,saved)?saved:'natural'}catch(_){return 'natural'}
  }
@@ -251,6 +253,7 @@ export function initSpectralImagery(target){
     for(const [id,visibility] of originalVisibility.entries())safeSetVisibility(id,visibility);
     if(enabled||scene)hideLayer();
    }
+   safeSetPaint('gta-landcover','fill-opacity',0);safeSetPaint('gta-landuse','fill-opacity',0);
    setStatus('DARK INTELLIGENCE ACTIVE · optional alternate map styling selected.');
   }else{
    safeSetPaint('gta-bg','background-color',cfg.background);
@@ -266,6 +269,7 @@ export function initSpectralImagery(target){
     safeSetPaint(id,'raster-saturation',cfg.rasterSaturation);
     safeSetPaint(id,'raster-contrast',cfg.rasterContrast);
    }
+   safeSetPaint('gta-global-earth','raster-opacity',cfg.rasterOpacity);
    safeSetPaint('gta-nasa','raster-opacity',cfg.rasterOpacity);
    safeSetPaint('gta-esri','raster-opacity',cfg.esriOpacity??1);
    safeSetPaint('gta-usgs','raster-opacity',cfg.usgsOpacity);
@@ -376,7 +380,7 @@ export function initSpectralImagery(target){
  }
  const moveHandler=()=>{if(enabled&&scene){const text='Scene stays fixed while you pan. Refresh to fetch imagery for the new view.';setMeta(text+' '+scene.id+' · '+formatDate(scene.properties?.datetime));}};
  map.on('moveend',moveHandler);
- map.on('zoom',updateBasemapZoomCoverage);
+ // Raster coverage is source-driven; do not mutate layout on every zoom frame.
  function reapplySelectedBasemapAfterStyleReload(){
   if(disposed)return;
   // MapLibre style replacement resets paint/layout properties. Recapture the new
@@ -386,7 +390,7 @@ export function initSpectralImagery(target){
   if(typeof requestAnimationFrame==='function')requestAnimationFrame(apply);else setTimeout(apply,0);
  }
  map.on('style.load',reapplySelectedBasemapAfterStyleReload);
- state.destroy=()=>{disposed=true;clearTimeout(mountHandle);if(controller)controller.abort();map.off('moveend',moveHandler);map.off('zoom',updateBasemapZoomCoverage);map.off('style.load',reapplySelectedBasemapAfterStyleReload);clearOldLayer();root.remove();state.available=false};
+ state.destroy=()=>{disposed=true;clearTimeout(mountHandle);if(controller)controller.abort();map.off('moveend',moveHandler);map.off('style.load',reapplySelectedBasemapAfterStyleReload);clearOldLayer();root.remove();state.available=false};
  setStatus('Ready · choose a global color mode or load real Landsat source bands.');
  applyGlobalBasemapMode(readSavedBasemapMode(),false);
  return state;
