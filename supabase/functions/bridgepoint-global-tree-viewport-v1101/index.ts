@@ -36,8 +36,8 @@ function activeMetaTile(w:number,s:number,e:number,n:number){
  const lon=(w+e)/2,lat=(s+n)/2,epsilon=1e-8;
  return metaTilesFor(lon-epsilon,lat-epsilon,lon+epsilon,lat+epsilon)[0]||null;
 }
-async function deriveMetaTile(t:any,w:number,s:number,e:number,n:number,limit:number){
- const tif=await fromUrl(t.url);const img=await tif.getImage();const bb=img.getBoundingBox(),W=img.getWidth(),H=img.getHeight();
+async function deriveMetaTile(t:any,w:number,s:number,e:number,n:number,limit:number,imgOverride:any=null){
+ const img=imgOverride||await (await fromUrl(t.url)).getImage();const bb=img.getBoundingBox(),W=img.getWidth(),H=img.getHeight();
  const vw=mercX(w),ve=mercX(e),vs=mercY(s),vn=mercY(n),iw=Math.max(vw,bb[0]),ie=Math.min(ve,bb[2]),is=Math.max(vs,bb[1]),inn=Math.min(vn,bb[3]);if(iw>=ie||is>=inn)return [];
  let x0=Math.floor((iw-bb[0])/(bb[2]-bb[0])*W),x1=Math.ceil((ie-bb[0])/(bb[2]-bb[0])*W);
  let y0=Math.floor((bb[3]-inn)/(bb[3]-bb[1])*H),y1=Math.ceil((bb[3]-is)/(bb[3]-bb[1])*H);
@@ -77,6 +77,38 @@ async function deriveMetaTile(t:any,w:number,s:number,e:number,n:number,limit:nu
     structure_truth:"DERIVED_FROM_MODELED_CANOPY_HEIGHT"}};
  }).filter(Boolean);
 }
+
+const TREE_COVERAGE_CELL_DEG=0.05;
+function viewportCoverageCells(w:number,s:number,e:number,n:number){
+ const size=TREE_COVERAGE_CELL_DEG;
+ const x0=Math.floor((w+180)/size),x1=Math.floor((e-1e-10+180)/size);
+ const y0=Math.floor((Math.max(-85.05112878,s)+90)/size),y1=Math.floor((Math.min(85.05112878,n)-1e-10+90)/size);
+ const out:any[]=[];
+ for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){
+  const cw=Math.max(-180,-180+x*size),ce=Math.min(180,cw+size);
+  const cs=Math.max(-85.05112878,-90+y*size),cn=Math.min(85.05112878,cs+size);
+  for(const tile of metaTilesFor(cw,cs,ce,cn)){
+   out.push({...tile,west:cw,south:cs,east:ce,north:cn,
+    coverage_key:`${tile.quadkey}:${x}:${y}`,
+    centerLon:(cw+ce)*.5,centerLat:(cs+cn)*.5});
+  }
+ }
+ const cx=(w+e)*.5,cy=(s+n)*.5;
+ out.sort((a,b)=>Math.hypot(a.centerLon-cx,(a.centerLat-cy)*Math.cos(cy*Math.PI/180))-
+  Math.hypot(b.centerLon-cx,(b.centerLat-cy)*Math.cos(cy*Math.PI/180)));
+ return out;
+}
+async function completedCoverage(keys:string[]){
+ if(!keys.length)return new Set<string>();
+ const {data,error}=await sb.rpc("bridgepoint_tree_canopy_coverage_get_v1110",{p_keys:keys});
+ if(error)throw error;
+ return new Set<string>(Array.isArray(data)?data:[]);
+}
+async function markCoverage(keys:string[]){
+ if(!keys.length)return;
+ const {error}=await sb.rpc("bridgepoint_tree_canopy_coverage_mark_v1110",{p_keys:keys});
+ if(error)throw error;
+}
 async function persist(rows:any[]){
  if(!rows.length)return 0;
  let total=0;
@@ -105,32 +137,41 @@ Deno.serve(async(req)=>{
   if(e-w>.75||n-s>.75)return new Response(JSON.stringify({complete:true,version:VERSION,type:"FeatureCollection",features:[],reason:"ZOOM_IN_FOR_3D_TREES"}),{headers:H});
   const limit=Math.min(Math.max(Number(b.limit||1200),80),3000);
   const tile=activeMetaTile(w,s,e,n);
-  const hit=await cached(w,s,e,n,limit),cachedFeatures=hit?.features||[];
-  const goodCached=cachedFeatures.filter((f:any)=>
-   f?.properties?.source_key==="META_WRI_CHMV2_LOCAL_MAXIMA_V1109"&&
-   f?.properties?.height_m!=null&&
-   f?.properties?.position_truth==="CHMV2_LOCAL_CANOPY_PEAK_ESTIMATE_V1109"
-  );
-  if(goodCached.length>0){
-   const heightBacked=cachedFeatures.filter((f:any)=>f?.properties?.height_m!=null).length;
-   return new Response(JSON.stringify({...hit,complete:true,version:VERSION,tree_count:cachedFeatures.length,
-    height_backed_count:heightBacked,modeled_height_count:heightBacked,measured_height_count:0,
-    source:"META_WRI_CHMV2_LOCAL_PEAKS",active_tile_only:true,active_tile:tile?.quadkey||null,
-    building_footprint_exclusion:true}),{headers:H});
+  // Record completeness by geographic sub-cell: a few cached tree points no
+  // longer suppress generation for the unprocessed part of a source raster.
+  const cells=viewportCoverageCells(w,s,e,n);
+  const done=await completedCoverage(cells.map((c:any)=>c.coverage_key));
+  const pending=cells.filter((c:any)=>!done.has(c.coverage_key));
+  const maxCellsPerRequest=Math.min(12,Math.max(4,Math.ceil(limit/250)));
+  const work=pending.slice(0,maxCellsPerRequest);
+  const imageCache=new Map<string,Promise<any>>();
+  let generated=0,processed=0,failed=0;
+  for(const cell of work){
+   try{
+    let imagePromise=imageCache.get(cell.quadkey);
+    if(!imagePromise){
+     imagePromise=(async()=>await (await fromUrl(cell.url)).getImage())();
+     imageCache.set(cell.quadkey,imagePromise);
+    }
+    const img=await imagePromise;
+    const candidates=await deriveMetaTile(cell,cell.west,cell.south,cell.east,cell.north,
+      Math.min(6000,Math.max(1200,limit*2)),img);
+    if(candidates.length)generated+=await persist(candidates);
+    await markCoverage([cell.coverage_key]);
+    processed++;
+   }catch(error){
+    failed++;
+    console.warn("meta_chmv2_local_maxima",cell.quadkey,cell.coverage_key,String((error as any)?.message||error));
+   }
   }
-  const rows:any[]=[];
-  if(tile){
-   try{rows.push(...await deriveMetaTile(tile,w,s,e,n,limit))}
-   catch(error){console.warn("meta_chmv2_local_maxima",tile.quadkey,String((error as any)?.message||error))}
-  }
-  const picked=rows.slice(0,limit);
-  if(picked.length)await persist(picked);
   const fresh=await cached(w,s,e,n,limit),features=fresh?.features||[];
   const heightBacked=features.filter((f:any)=>f?.properties?.height_m!=null).length;
   return new Response(JSON.stringify({...fresh,complete:true,version:VERSION,tree_count:features.length,
    height_backed_count:heightBacked,modeled_height_count:heightBacked,measured_height_count:0,
-   source:"META_WRI_CHMV2_LOCAL_CANOPY_PEAKS",active_tile_only:true,active_tile:tile?.quadkey||null,
-   candidates_generated:picked.length,cache_rows_written:picked.length?true:false,
-   building_footprint_exclusion:true}),{headers:H});
+   source:"META_WRI_CHMV2_LOCAL_CANOPY_PEAKS",active_tile:tile?.quadkey||null,
+   viewport_cells_total:cells.length,viewport_cells_processed:processed,
+   viewport_cells_pending:Math.max(0,pending.length-processed),viewport_cells_failed:failed,
+   candidates_generated:generated,cache_rows_written:generated>0,
+   active_viewport_only:true,building_footprint_exclusion:true}),{headers:H});
  }catch(e){return new Response(JSON.stringify({complete:false,version:VERSION,error:"GLOBAL_TREE_VIEWPORT_UNAVAILABLE",detail:String((e as any)?.message||e).slice(0,500)}),{status:500,headers:H})}
 });
