@@ -2033,19 +2033,38 @@ export function initSkyClouds(target) {
     // the procedural fallback above; only pixels classified as cloud produce 3D cloud volumes.
     // GeoColor provides location texture, not measured cloud-top height: vertical dimensions
     // below are explicit visualization estimates. New imagery replaces this field automatically.
-    let satelliteCandidateCount = 0, sourceHeightDirectAnchorCount = 0;
-    if(satelliteMaskReady || sourceHeightSamples.length){
+    let satelliteCandidateCount = 0, sourceHeightDirectAnchorCount = 0, sourceCloudMaskDirectAnchorCount = 0;
+    if(satelliteMaskReady || sourceHeightSamples.length || sourceCloudMaskSamples.length){
       const coverage=satelliteMaskReady?satelliteMask.coverage:[],probability=satelliteMaskReady?satelliteMask.probability:[],width=satelliteMaskReady?Number(satelliteMask.width):0,height=satelliteMaskReady?Number(satelliteMask.height):0;
       const pAt=(x,y)=>!satelliteMaskReady||x<0||x>=width||y<0||y>=height?0:probability[y*width+x]/255,candidates=[];
-      for(let row=1;row<height-1;row++)for(let col=1;col<width-1;col++){
-        const i=row*width+col;if(Number(coverage[i])<192)continue;const raw=Number(probability[i])/255;if(raw<.24)continue;
+      if (satelliteMaskReady) for(let row=1;row<height-1;row++)for(let col=1;col<width-1;col++){
+        const i=row*width+col;if(Number(coverage[i])<192)continue;
+        const point=satelliteMaskCellCenterV6150(satelliteMask,col,row);
+        if(!Number.isFinite(point.lng)||!Number.isFinite(point.lat)||Math.abs(point.lat)>84.5)continue;
+        const officialMask=nearestSourceCloudMask(point.lng,point.lat);
+        const raw=officialMask ? officialMask.sample.probability : Number(probability[i])/255;
+        if(raw<.24)continue;
         const left=pAt(col-1,row),right=pAt(col+1,row),above=pAt(col,row-1),below=pAt(col,row+1);
         let sum=0,n=0;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){sum+=pAt(col+dx,row+dy);n++}
-        const mean=sum/n,gradient=clamp((Math.abs(right-left)+Math.abs(below-above))*1.6,0,1),p=clamp(raw*.72+mean*.28,0,1);
-        if(p<.275&&gradient<.06)continue;const point=satelliteMaskCellCenterV6150(satelliteMask,col,row);
-        if(!Number.isFinite(point.lng)||!Number.isFinite(point.lat)||Math.abs(point.lat)>84.5)continue;
+        const mean=sum/n,gradient=clamp((Math.abs(right-left)+Math.abs(below-above))*1.6,0,1),p=officialMask?raw:clamp(raw*.72+mean*.28,0,1);
+        if(p<.275&&gradient<.06&&!officialMask)continue;
         const seed=hash(col,row,Number(satelliteMask.generation)||0),thin=p<.47||(p<.66&&gradient>.56);
-        candidates.push({...point,p,gradient,col,row,left,right,above,below,thin,tall:p>=.78,rank:p*.68+mean*.16+gradient*.11+seed*.05});
+        if(officialMask)sourceCloudMaskCloudMatchedCount++;
+        candidates.push({...point,p,gradient,col,row,left,right,above,below,thin,tall:p>=.78,
+          rank:p*.68+mean*.16+gradient*.11+seed*.05,sourceCloudMaskSample:officialMask?.sample||null});
+      }
+      // Direct NOAA mask observations capture clouds missed by the coarser imagery classifier.
+      if (sourceCloudMaskSamples.length) {
+        const maxDirectMaskCandidates=MOBILE?5200:9000;
+        const stride=Math.max(1,Math.ceil(sourceCloudMaskSamples.length/maxDirectMaskCandidates));
+        for(let sampleIndex=0;sampleIndex<sourceCloudMaskSamples.length;sampleIndex+=stride){
+          const sample=sourceCloudMaskSamples[sampleIndex],p=number(sample?.probability,NaN);
+          if(!Number.isFinite(p)||p<.24||!Number.isFinite(sample.lng)||!Number.isFinite(sample.lat)||Math.abs(sample.lat)>84.5)continue;
+          const col=Math.floor((wrapLongitude(sample.lng)+180)*4),row=Math.floor((sample.lat+85)*4);
+          const seed=hash(col,row,sampleIndex+6180);
+          candidates.push({lng:sample.lng,lat:sample.lat,p,gradient:.10,col,row,left:p,right:p,above:p,below:p,
+            thin:p<.47,tall:p>=.78,rank:1.05+p*.80+seed*.05,sourceCloudMaskSample:sample});
+        }
       }
       // The published NOAA GOES cloud-top-height samples (about 28k points) are
       // direct volume seeds where the current satellite image also indicates cloud.
@@ -2061,25 +2080,24 @@ export function initSkyClouds(target) {
           if (Math.abs(sample.lat) > 84.5) continue;
           const idx = satelliteMaskReady ? satelliteMaskIndexV6150(satelliteMask, sample.lng, sample.lat) : -1;
           const observedPixel = idx >= 0 && Number(coverage[idx]) >= 192;
-          // An observed clear-sky pixel still suppresses a conflicting height sample.
-          // Outside the imagery footprint, valid numeric height samples can seed their
-          // own georeferenced 3D formations instead of waiting for a separate image mask.
-          if (satelliteMaskReady && observedPixel && Number(probability[idx]) / 255 < 0.16) continue;
+          const officialMask = nearestSourceCloudMask(sample.lng, sample.lat);
+          if (officialMask && officialMask.sample.probability < 0.16) continue;
+          if (!officialMask && satelliteMaskReady && observedPixel && Number(probability[idx]) / 255 < 0.16) continue;
           const col = observedPixel ? idx % width : Math.floor((((sample.lng + 180) % 360 + 360) % 360) * 8);
           const row = observedPixel ? Math.floor(idx / width) : Math.floor((sample.lat + 85) * 6);
-          const raw = observedPixel ? Number(probability[idx]) / 255 : 0.72;
+          const raw = officialMask ? officialMask.sample.probability : (observedPixel ? Number(probability[idx]) / 255 : 0.72);
           const left = observedPixel ? pAt(col - 1, row) : raw, right = observedPixel ? pAt(col + 1, row) : raw;
           const above = observedPixel ? pAt(col, row - 1) : raw, below = observedPixel ? pAt(col, row + 1) : raw;
           const seed = hash(Math.round(sample.lng * 100), Math.round(sample.lat * 100), sampleIndex + 1809);
-          const p = observedPixel
+          const p = officialMask ? raw : (observedPixel
             ? Math.max(0.28, clamp(raw * 0.72 + (left + right + above + below) * 0.07, 0, 1))
-            : clamp(0.52 + sample.topM / 50000, 0.52, 0.92);
+            : clamp(0.52 + sample.topM / 50000, 0.52, 0.92));
           heightCandidates.push({
             lng: sample.lng, lat: sample.lat, p,
             gradient: clamp((Math.abs(right-left)+Math.abs(below-above))*1.6,0,1),
             col, row, left, right, above, below, thin: false, tall: sample.topM >= 10000,
             rank: p * 0.66 + clamp(sample.topM / 23000, 0, 1) * 0.22 + seed * 0.12,
-            heightSample: sample
+            heightSample: sample, sourceCloudMaskSample: officialMask?.sample || null
           });
         }
       }
@@ -2127,8 +2145,9 @@ export function initSkyClouds(target) {
         const angle=Math.atan2(q.below-q.above,q.right-q.left)+Math.PI/2+(h2-.5)*.65,altitude=ground+(base+top)*.5;
         if(!addGlobalPuff(q.lng,q.lat,altitude,rx,ry,vertical,tint,satellitePuffSlices,satellitePuffStacks,hash(q.col,q.row,1301),true,angle))return false;
         if(heightMatch)sourceHeightMatchedCount++;else sourceHeightModelledCount++;
+        if(q.sourceCloudMaskSample)sourceCloudMaskDirectAnchorCount++;
         const record={lng:q.lng,lat:q.lat,p:q.p,radius,base,top};chosen.push(record);reserve(record);
-        satelliteCloudAnchors.push({lng:q.lng,lat:q.lat,radiusM:clamp(Math.max(rx,ry)*.82,25000,155000),cloudBaseAglM:base,cloudTopAglM:top,cloudBaseM:ground+base,cloudTopM:ground+top,probability:q.p,cloudType,source:q.heightSample ? String(q.heightSample.source || 'NASA SatCORPS / NOAA GOES source-reported cloud-height sample') : 'NASA GIBS GOES/Himawari + EUMETSAT Meteosat satellite image-derived cloud location',cloudHeightSource:heightSourceLabel,cloudTopHeightSampleSource,cloudTopHeightSampleDistanceM:heightMatch?.distanceM ?? null,cloudTopHeightNeighborCount:heightMatch?.neighborCount || 0,geometryVersion:6170,cloudMaskGeneration:satelliteMaskGeneration});
+        satelliteCloudAnchors.push({lng:q.lng,lat:q.lat,radiusM:clamp(Math.max(rx,ry)*.82,25000,155000),cloudBaseAglM:base,cloudTopAglM:top,cloudBaseM:ground+base,cloudTopM:ground+top,probability:q.p,cloudType,source:q.heightSample ? String(q.heightSample.source || 'NOAA GOES measured cloud-top height') : (q.sourceCloudMaskSample?.source || 'Satellite-image-derived cloud location'),cloudMaskSource:q.sourceCloudMaskSample?.source || null,cloudMaskObservedAt:q.sourceCloudMaskSample?.timestamp || null,cloudHeightSource:heightSourceLabel,cloudTopHeightSampleSource,cloudTopHeightSampleDistanceM:heightMatch?.distanceM ?? null,cloudTopHeightNeighborCount:heightMatch?.neighborCount || 0,geometryVersion:6180,cloudMaskGeneration:satelliteMaskGeneration});
         if(satelliteCloudAnchors.length%7===0&&shadowAnchors.length<(MOBILE?70:112)){const sh=makeGroundShadowAnchor(q.lng,q.lat,altitude,Math.max(rx,ry)*.72,'satellite-cloud',windScene);if(sh)shadowAnchors.push(sh)}
         return true;
       };
