@@ -1638,6 +1638,8 @@ jobs:
                     background:map?.getPaintProperty('gta-bg','background-color')??null,
                     waterOpacity:map?.getPaintProperty('gta-water','fill-opacity')??null,
                     imagery:{globalEarth:visible('gta-global-earth'),nasa:visible('gta-nasa'),esri:visible('gta-esri'),usgs:visible('gta-usgs'),oam:visible('gta-oam')},
+                     imageryLayers:Object.fromEntries(['gta-global-earth','gta-nasa','gta-esri','gta-usgs','gta-oam'].map(id=>{const layer=map?.getLayer(id);return[id,{present:!!layer,visibility:layer?(map.getLayoutProperty(id,'visibility')||'visible'):'missing',source:layer?.source||null,sourceLoaded:layer?map.isSourceLoaded?.(layer.source)===true:false}]})),
+                     visibilityGuard:window.__BP_SATELLITE_RASTER_VISIBILITY_GUARD_V6209__||null,
                      globalEarthSourcePresent:!!map?.getSource('globalEarth'),
                      globalEarthSourceLoaded:map?.isSourceLoaded?.('globalEarth')===true,
                      streets:{major:visible('gta-road-major'),local:visible('gta-road-local')},
@@ -1665,8 +1667,9 @@ jobs:
                 assert.equal(state.imagery.globalEarth,true,state.kind+' must retain the full-world EPSG:4326 satellite underlay');
                  assert.equal(state.globalEarthSourcePresent,true,state.kind+' must register the global satellite image source');
                  assert.equal(state.globalEarthSourceLoaded,true,state.kind+' must load the global satellite image source');
-                 assert.equal(state.imagery.esri,true,state.kind+' must retain global Esri imagery');
+                 assert.equal(state.imagery.esri,true,state.kind+' must retain global Esri imagery; layer diagnostics='+JSON.stringify(state.imageryLayers)+'; visibility guard='+JSON.stringify(state.visibilityGuard));
                 assert.equal(state.imagery.nasa,true,state.kind+' must retain global NASA imagery');
+                 assert.equal(state.visibilityGuard?.layers?.['gta-esri']?.visibility,'visible',state.kind+' visibility guard must report Esri visible after settle');
                  assert.equal(state.streets.major,true,state.kind+' must preserve major street overlays above satellite imagery');
                  assert.equal(state.streets.local,true,state.kind+' must preserve local street overlays above satellite imagery');
                 assert.ok(state.canvasCount>=1&&state.canvasWidth>0&&state.canvasHeight>0,state.kind+' must render a non-zero globe canvas');
