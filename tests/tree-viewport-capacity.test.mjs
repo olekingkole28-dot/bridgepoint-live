@@ -31,7 +31,17 @@ assert.match(edgeSource, /bridgepoint_global_tree_cache_viewport_v1102/,
 assert.match(edgeSource, /bridgepoint_global_tree_cache_upsert_v1104/,
   'generated trees must enter the building-filtered cache function');
 assert.match(edgeSource, /const tile=activeMetaTile\(w,s,e,n\)/,
-  'each viewport request must load only the canopy source tile containing its centre');
+  'the centre source tile remains available for diagnostics');
+assert.match(edgeSource, /TREE_COVERAGE_CELL_DEG=0\.05/,
+  'coverage is tracked in geographic sub-cells rather than one raster-tile boolean');
+assert.match(edgeSource, /viewportCoverageCells\(w,s,e,n\)/,
+  'all current viewport sub-cells should be considered');
+assert.match(edgeSource, /bridgepoint_tree_canopy_coverage_get_v1110/,
+  'previously processed cells should be skipped without re-reading their raster data');
+assert.match(edgeSource, /bridgepoint_tree_canopy_coverage_mark_v1110/,
+  'successfully processed empty and populated sub-cells should be persisted');
+assert.doesNotMatch(edgeSource, /if\(goodCached\.length>0\)/,
+  'a non-empty partial cache must never short-circuit the rest of the viewport');
 assert.match(edgeSource, /if\(e-w>\.75\|\|n-s>\.75\)/,
   'the zoom guard must accept the larger early detail viewport');
 assert.match(edgeSource, /detectCanopyPeaks\(rr,outW,outH/,
