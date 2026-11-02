@@ -68,11 +68,14 @@ export function enrichTreeWithTaxonomy(tree, taxonomyIndex) {
   };
 }
 
-export function chooseTreeLod(zoom) {
+export function chooseTreeLod(zoom, visibleTreeCount = null, mobile = false) {
   const z = Number(zoom);
   if (!Number.isFinite(z)) return 'lod2';
-  if (z >= 17.15) return 'lod0';
-  if (z >= 14.25) return 'lod1';
+  const count = visibleTreeCount == null ? null : Math.max(0, Number(visibleTreeCount) || 0);
+  const closeDetailBudget = mobile ? 250 : 750;
+  const mediumDetailBudget = mobile ? 1800 : 4500;
+  if (z >= 17.15 && (count === null || count <= closeDetailBudget)) return 'lod0';
+  if (z >= 14.25 && (count === null || count <= mediumDetailBudget)) return 'lod1';
   return 'lod2';
 }
 
@@ -597,7 +600,7 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
 
   function rebuildMeshInstances() {
     if (!THREE || !scene || !manifest || destroyed) return;
-    const lodKey = chooseTreeLod(map.getZoom());
+    const lodKey = chooseTreeLod(map.getZoom(), activeTrees.length, mobile);
     currentLod = lodKey;
     const groups = new Map();
     for (const tree of activeTrees) {
@@ -760,7 +763,7 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
       tree.identity?.taxonomyCatalogMatch === true
     ).length;
     const nextTrees = normalized.trees;
-    const nextLod = chooseTreeLod(map.getZoom());
+    const nextLod = chooseTreeLod(map.getZoom(), nextTrees.length, mobile);
     const signature = nextTrees.map(tree =>
       tree.id + ':' + tree.modelId + ':' + tree.variantId + ':' + tree.height.meters
     ).join('|') + ':' + normalized.unsupported + ':' + normalized.truncated + ':' + nextLod;
