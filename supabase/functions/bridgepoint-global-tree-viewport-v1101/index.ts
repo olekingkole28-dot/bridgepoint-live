@@ -4,6 +4,7 @@ import { fromUrl } from "npm:geotiff@2.1.3";
 import { detectCanopyPeaks, treeCandidateSourceTruth } from "./tree-canopy-peaks.mjs";
 
 const VERSION=1109;
+const TREE_POSITION_TRUTH = "CHMV2_LOCAL_CANOPY_PEAK_ESTIMATE_V1109";
 const U=Deno.env.get("SUPABASE_URL")!, S=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const sb=createClient(U,S,{auth:{persistSession:false,autoRefreshToken:false}});
 const ALLOWED=new Set(["https://bridgepointintelligence.online","https://www.bridgepointintelligence.online","https://olekingkole28-dot.github.io"]);
@@ -61,6 +62,7 @@ async function deriveMetaTile(t:any,w:number,s:number,e:number,n:number,limit:nu
   maxInstances:Math.min(6000,limit*2),seed:t.quadkey
  });
  const truth=treeCandidateSourceTruth();
+ if(truth.positionTruth!==TREE_POSITION_TRUTH)throw new Error("TREE_POSITION_TRUTH_CONTRACT_MISMATCH");
  return peaks.map(peak=>{
   const ox=gx0+(peak.x+.5)*(gx1-gx0)/outW,oy=gy0+(peak.y+.5)*(gy1-gy0)/outH;
   const px=Math.max(0,Math.min(W-1,Math.round(ox))),py=Math.max(0,Math.min(H-1,Math.round(oy)));
