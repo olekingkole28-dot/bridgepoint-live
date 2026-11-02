@@ -1,0 +1,30 @@
+name: Verify BridgePoint Tree Asset Catalog
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/tree-asset-upgrade-v1
+    paths:
+      - 'release-v2300/world-v2300-tree-catalog.js'
+      - 'tests/tree-asset-catalog.test.mjs'
+      - '.github/workflows/test-tree-asset-catalog.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  tree-asset-catalog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/tree-asset-upgrade-v1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check module syntax
+        run: node --check release-v2300/world-v2300-tree-catalog.js
+      - name: Verify source-truth and species normalization
+        run: node tests/tree-asset-catalog.test.mjs
