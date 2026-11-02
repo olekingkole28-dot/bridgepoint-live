@@ -431,6 +431,25 @@ def generate_tree(entry, quality, seed):
 
 def create_mesh_object(entry, geometry):
     verts, faces, face_materials, wind = geometry
+    if not verts:
+        raise RuntimeError(f"Procedural tree has no vertices: {entry['id']}")
+    min_x = min(point[0] for point in verts)
+    max_x = max(point[0] for point in verts)
+    min_y = min(point[1] for point in verts)
+    max_y = max(point[1] for point in verts)
+    min_z = min(point[2] for point in verts)
+    max_z = max(point[2] for point in verts)
+    source_height = max_z - min_z
+    if not math.isfinite(source_height) or source_height <= 0.05:
+        raise RuntimeError(f"Invalid procedural tree height: {entry['id']} {source_height}")
+    center_x = (min_x + max_x) * 0.5
+    center_y = (min_y + max_y) * 0.5
+    verts = [
+        ((x - center_x) / source_height,
+         (y - center_y) / source_height,
+         (z - min_z) / source_height)
+        for x, y, z in verts
+    ]
     mesh = bpy.data.meshes.new(entry["id"] + "_mesh")
     mesh.from_pydata(verts, [], faces)
     mesh.update()
@@ -515,7 +534,18 @@ def main():
 
     args.output_root.mkdir(parents=True, exist_ok=True)
     manifest_path = args.output_root / "manifest.json"
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if manifest_path.is_file():
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    else:
+        manifest = {
+            "schemaVersion": 1,
+            "catalogId": "bridgepoint-procedural-tree-bank-v1",
+            "sourceProvider": "BridgePoint procedural geometry",
+            "license": "MIXED_PER_ASSET",
+            "credit": "Original BridgePoint procedural tree geometry; GlobalGeoTree taxonomy reference is CC BY 4.0.",
+            "wind": {"attribute": "TEXCOORD_1.x", "windShaderAttached": False},
+            "models": [],
+        }
     procedural_models = []
 
     for entry in archetype_doc.get("entries", []):
@@ -551,6 +581,10 @@ def main():
             "modelFamily": entry["modelFamily"],
             "modelType": "PROCEDURAL_ARCHETYPE",
             "crownShape": entry["crownShape"],
+            "crownWidthRatio": entry.get("crownWidthRatio"),
+            "crownHeightRatio": entry.get("crownHeightRatio"),
+            "foliageStyle": entry.get("foliageStyle"),
+            "trunkStyle": entry.get("trunkStyle"),
             "leafType": entry["leafType"],
             "leafCycle": entry["leafCycle"],
             "knownGenera": entry.get("knownGenera", []),
@@ -566,10 +600,12 @@ def main():
     for model in procedural_models:
         current[model["id"]] = model
     manifest["models"] = list(current.values())
+    manifest["license"] = "MIXED_PER_ASSET"
     manifest["proceduralModelCount"] = len(procedural_models)
     manifest["proceduralVariantCount"] = variant_count
     manifest["proceduralVariantCatalog"] = "/assets/trees/procedural-variants.json"
     manifest["treeModelCount"] = len(manifest["models"])
+    manifest["lodTargets"] = archetype_doc.get("lodTargets", {})
     manifest["assetBankTruth"] = (
         "GLB entries are archetype geometry. Procedural variant IDs are distinct "
         "instance morph profiles applied by the renderer; neither is an exact "
