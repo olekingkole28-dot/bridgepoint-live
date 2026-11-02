@@ -36,7 +36,6 @@ const BASEMAP_PAINT_PROPERTIES={
  'gta-oam':['raster-hue-rotate','raster-saturation','raster-contrast','raster-opacity']
 };
 const BASEMAP_RASTER_LAYERS=['gta-nasa','gta-esri','gta-usgs','gta-oam'];
-const BASEMAP_STORAGE_KEY='bp-global-map-mode-v6212';
 const CSS=[
 '#liveMap #'+ROOT_ID+'{position:absolute;z-index:22;left:12px;top:12px;width:min(350px,calc(100% - 24px));box-sizing:border-box;color:#eaf8ff;font:12px/1.4 system-ui,-apple-system,Segoe UI,sans-serif;pointer-events:none}',
 '#liveMap #'+ROOT_ID+' *{box-sizing:border-box}',
@@ -218,33 +217,29 @@ export function initSpectralImagery(target){
  }
  function safeSetPaint(id,property,value){try{if(map.getLayer(id))map.setPaintProperty(id,property,value)}catch(_){}}
  function safeSetVisibility(id,value){try{if(!map.getLayer(id))return;const current=map.getLayoutProperty(id,'visibility')||'visible';if(current!==value)map.setLayoutProperty(id,'visibility',value)}catch(_){}}
- function readSavedBasemapMode(){
-  try{const saved=window.localStorage?.getItem(BASEMAP_STORAGE_KEY);return Object.prototype.hasOwnProperty.call(GLOBAL_BASEMAP_MODES,saved)?saved:'natural'}catch(_){return 'natural'}
- }
  function updateBasemapZoomCoverage(){
   // The tile sources own zoom handoff; never hide the persistent satellite foundation.
   for(const id of BASEMAP_RASTER_LAYERS)safeSetVisibility(id,'visible');
  }
- function applyGlobalBasemapMode(rawMode,persist=true){
+ function applyGlobalBasemapMode(rawMode){
   const mode=Object.prototype.hasOwnProperty.call(GLOBAL_BASEMAP_MODES,rawMode)?rawMode:'natural';
   const previousMode=currentBasemapMode;
   currentBasemapMode=mode;
   state.basemapMode=mode;
   if(modeSel)modeSel.value=mode;
-  if(persist){try{window.localStorage?.setItem(BASEMAP_STORAGE_KEY,mode)}catch(_){}}
   if(!captureBasemapDefaults()){
    if(!styleWaitPending){
     styleWaitPending=true;
     void waitForStyle(map).then(()=>{
      styleWaitPending=false;
      if(disposed)return;
-     if(captureBasemapDefaults())applyGlobalBasemapMode(currentBasemapMode,false);
+     if(captureBasemapDefaults())applyGlobalBasemapMode(currentBasemapMode);
     }).catch(()=>{styleWaitPending=false});
    }
    return true;
   }
   const cfg=GLOBAL_BASEMAP_MODES[mode];
-  if(mode==='dark'){
+  if(mode==='dark'||mode==='natural'){
    // On initial load the baseline is already active; avoid needlessly recompiling every map layer.
    // Restore snapshots only when leaving a non-dark color mode.
    if(previousMode!=='dark'){
@@ -253,7 +248,7 @@ export function initSpectralImagery(target){
     if(enabled||scene)hideLayer();
    }
    safeSetPaint('gta-landcover','fill-opacity',0);safeSetPaint('gta-landuse','fill-opacity',0);
-   setStatus('DARK INTELLIGENCE ACTIVE · optional alternate map styling selected.');
+   setStatus(mode==='natural'?'NATURAL SATELLITE ACTIVE · original globe imagery style restored.':'DARK INTELLIGENCE ACTIVE · original globe imagery style preserved.');
   }else{
    safeSetPaint('gta-bg','background-color',cfg.background);
    safeSetPaint('gta-water','fill-color',cfg.water);
@@ -384,12 +379,15 @@ export function initSpectralImagery(target){
   // MapLibre style replacement resets paint/layout properties. Recapture the new
   // style baseline, then reapply the saved Natural/Dark/analysis palette after it loads.
   defaultsCaptured=false;originalPaint.clear();originalVisibility.clear();styleWaitPending=false;
-  const apply=()=>{if(!disposed)applyGlobalBasemapMode(currentBasemapMode,false)};
+  const apply=()=>{if(!disposed)applyGlobalBasemapMode(currentBasemapMode)};
   if(typeof requestAnimationFrame==='function')requestAnimationFrame(apply);else setTimeout(apply,0);
  }
  map.on('style.load',reapplySelectedBasemapAfterStyleReload);
  state.destroy=()=>{disposed=true;clearTimeout(mountHandle);if(controller)controller.abort();map.off('moveend',moveHandler);map.off('style.load',reapplySelectedBasemapAfterStyleReload);clearOldLayer();root.remove();state.available=false};
  setStatus('Ready · choose a global color mode or load real Landsat source bands.');
- applyGlobalBasemapMode(readSavedBasemapMode(),false);
+ // Do not apply any palette when this delayed controls module mounts; the map's first-render Natural Satellite style is already correct.
+ // Alternate color modes only apply after an explicit user selection during this session.
+ state.basemapMode='natural';
+ if(modeSel)modeSel.value='natural';
  return state;
 }
