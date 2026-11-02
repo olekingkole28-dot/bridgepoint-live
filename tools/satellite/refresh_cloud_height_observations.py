@@ -424,7 +424,7 @@ def list_noaa_files(session: requests.Session, satellite: str, now: dt.datetime,
             for item in root.findall(".//{*}Contents"):
                 key = item.findtext("{*}Key") or ""
                 modified = item.findtext("{*}LastModified") or ""
-                if key.lower().endswith(".nc") and "ABI-L2-ACHAF" in key:
+                if key.lower().endswith(".nc") and product in key:
                     found.append((urllib.parse.urljoin(bucket, urllib.parse.quote(key, safe="/")), modified))
         except Exception as exc:
             print(f"NOAA_LIST_FAILED GOES-{satellite} {prefix}: {exc}")
@@ -679,7 +679,7 @@ def refresh_feed(output_path: Path) -> dict[str, Any]:
                                 delta = abs((candidate_stamp - expected_stamp).total_seconds())
                             except (ValueError, AttributeError):
                                 continue
-                        if delta <= 15 * 60 and delta < best_delta:
+                        if delta <= 120 and delta < best_delta:
                             best_delta = delta
                             matching_mask = (candidate_url, candidate_modified, candidate_time)
                     mask_source_index = len(cloud_mask_sources)
@@ -717,7 +717,7 @@ def refresh_feed(output_path: Path) -> dict[str, Any]:
                                 warnings.append(f"{mask_source['source']}: {type(mask_exc).__name__}: {mask_exc}")
                                 cloud_mask_sources.append({**mask_source, "status": "unavailable", "sample_count": 0})
                     else:
-                        warnings.append(f"NOAA GOES-{satellite} ABI-L2-ACMF: no same-scan mask file within 15 minutes of the cloud-height observation.")
+                        warnings.append(f"NOAA GOES-{satellite} ABI-L2-ACMF: no same-scan mask file within 120 seconds of the cloud-height observation.")
                         cloud_mask_sources.append({
                             "source": f"NOAA GOES-{satellite} ABI-L2-ACMF Enterprise Cloud Mask",
                             "product": "ABI-L2-ACMF", "satellite": f"GOES-{satellite}",
