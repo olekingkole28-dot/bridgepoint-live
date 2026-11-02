@@ -158,7 +158,7 @@ test('entrypoints use fresh cache keys and keep the celestial canvas off the sat
   for (const source of [app, landing]) {
     assert.match(source, /world-v2300-map\.js\?v=6220-tree-canopy-coverage-solid-retention/);
     assert.match(source, /world-v2300-water\.js\?v=6194-stable-water-low-cost/);
-    assert.match(source, /world-v2300-clouds\.js\?v=6170-always-on-3d-cloud-volumes/);
+    assert.match(source, /world-v2300-clouds\.js\?v=6180-goes-mask-volumetric-clouds/);
     assert.match(source, /world-v2300-weather\.js\?v=6195-desktop-globe-flash-stability/);
     assert.match(source, /world-v2300-time-slider\.js\?v=6170-no-cloud-toggle-always-on/);
   }
@@ -246,7 +246,7 @@ test('global opportunity markers render category glyphs and merge source-backed 
   assert.match(landing, /if\(!risk\)void loadRiskFeed\(\)\.then/);
 });
 
-test('both entrypoints perform a real 6221 service-worker cutover before stale startup survives', () => {
+test('both entrypoints perform a real 6222 service-worker cutover before stale startup survives', () => {
   assert.match(landingHtml, /app-update-v5820\.js\?v=6222-goes-cloud-mask-volumetric/);
   assert.match(appHtml, /app-update-v5820\.js\?v=6222-goes-cloud-mask-volumetric/);
   assert.match(appUpdate, /const BUILD=6222/);
