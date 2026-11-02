@@ -36,6 +36,12 @@ assert.match(edgeSource, /if\(e-w>\.75\|\|n-s>\.75\)/,
   'the zoom guard must accept the larger early detail viewport');
 assert.match(edgeSource, /detectCanopyPeaks\(rr,outW,outH/,
   'the edge function must derive tree centres from local canopy-height peaks');
+assert.match(edgeSource, /sampleStride=Math\.max\(1,Math\.ceil\(Math\.max\(W,H\)\/2048\)\)/,
+  'the source raster sampling stride must remain fixed for every zoom into the same raster tile');
+assert.match(edgeSource, /Math\.floor\(Math\.max\(0,x0-pad\)\/sampleStride\)\*sampleStride/,
+  'raster windows must align to the same global pixel lattice so canopy peak IDs do not shift while zooming');
+assert.match(edgeSource, /rid=\u0060\$\{t\.quadkey\}:\$\{px\}:\$\{py\}\u0060/,
+  'source identity must be derived from stable native raster pixels');
 assert.match(edgeSource, /META_WRI_CHMV2_LOCAL_MAXIMA_V1109/,
   'new generated features must use the new cache source identity');
 assert.match(edgeSource, /CHMV2_LOCAL_CANOPY_PEAK_ESTIMATE_V1109/,
