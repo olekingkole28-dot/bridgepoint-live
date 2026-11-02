@@ -133,7 +133,7 @@ test('clouds render as bright 3D volumes, not as a false-colour raster sheet', (
 test('the 28k source height feed seeds rounded 3D cloud puffs and blends nearby heights', () => {
   assert.match(clouds, /CLOUD_HEIGHT_FEED_URL_V6162/);
   assert.match(clouds, /const heightCandidates = \[\]/);
-  assert.match(clouds, /if\(satelliteMaskReady \|\| sourceHeightSamples\.length\)/);
+  assert.match(clouds, /if\(satelliteMaskReady \|\| sourceHeightSamples\.length \|\| sourceCloudMaskSamples\.length\)/);
   assert.match(clouds, /sourceHeightAnchorBudget=Math\.floor\(satelliteMaxClouds\*0\.25\)/);
   assert.match(clouds, /maxDirectHeightCandidates = MOBILE \? 5200 : 9000/);
   assert.match(clouds, /sourceHeightIndexCache\?\.key === heightIndexKey/);
@@ -418,8 +418,8 @@ test('homepage opportunities stay off at startup and the button enables the publ
 test('website and app start on the same cache-busted globe-first weather build', () => {
   assert.match(landingHtml, /bp-globe-only-first-frame-v6137/);
   assert.match(appHtml, /bp-app-globe-only-first-frame-v6137/);
-  assert.ok(landingHtml.includes('landing.js?v=6221-clouds-always-on'));
-  assert.ok(appHtml.includes('app.js?v=6221-clouds-always-on'));
+  assert.ok(landingHtml.includes('landing.js?v=6222-goes-cloud-mask-volumetric'));
+  assert.ok(appHtml.includes('app.js?v=6222-goes-cloud-mask-volumetric'));
   assert.ok(landingHtml.includes('intelligence-global-v5507.js?v=6170-imerg-nrt-timeline'));
   assert.ok(appHtml.includes('intelligence-global-v5507.js?v=6170-imerg-nrt-timeline'));
 });
