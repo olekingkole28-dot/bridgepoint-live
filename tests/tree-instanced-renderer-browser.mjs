@@ -73,13 +73,14 @@ const html = [
   '<script type="module">',
   "import { attachTreeInstancedRenderer } from '/world-v2300-tree-instanced.js';",
   "const empty={type:'FeatureCollection',features:[]};",
-  "const style={version:8,sources:{fallback:{type:'geojson',data:empty}},layers:[",
+  "const forestData={type:'FeatureCollection',features:[{type:'Feature',id:'forest-test-polygon',geometry:{type:'Polygon',coordinates:[[[-72.652,41.558],[-72.648,41.558],[-72.648,41.562],[-72.652,41.562],[-72.652,41.558]]]},properties:{class:'wood'}}]};",
+  "const style={version:8,sources:{fallback:{type:'geojson',data:empty},ofm:{type:'geojson',data:forestData}},layers:[",
   "{id:'bp-background',type:'background',paint:{'background-color':'#16301f'}},",
   "{id:'gta-bp-tree3d-trunk',type:'circle',source:'fallback',paint:{'circle-radius':2,'circle-color':'#6b4b32'}},",
   "{id:'gta-bp-tree3d-canopy',type:'circle',source:'fallback',paint:{'circle-radius':3,'circle-color':'#2f7140'}},",
   "{id:'gta-bp-tree-trunks',type:'circle',source:'fallback',paint:{'circle-radius':2,'circle-color':'#6b4b32'}},",
   "{id:'gta-bp-tree-crowns',type:'circle',source:'fallback',paint:{'circle-radius':3,'circle-color':'#2f7140'}}]};",
-  "const map=new maplibregl.Map({container:'map',style:style,center:[-72.6502,41.56],zoom:15.1,pitch:56,bearing:12,projection:'globe',attributionControl:false,antialias:false,maxPitch:85});",
+  "const map=new maplibregl.Map({container:'map',style:style,center:[-72.6502,41.56],zoom:10.4,pitch:56,bearing:12,projection:'globe',attributionControl:false,antialias:false,maxPitch:85});",
   "window.__BP_TREE_BROWSER_MAP__=map;",
   "map.once('load',async()=>{",
   "map.__BP_LIVING_TILE_CACHE_V6017__={trees:" + JSON.stringify(sampleTrees) + "};",
@@ -200,7 +201,10 @@ try {
           'gta-bp-tree-trunks',
           'gta-bp-tree-crowns'
         ].map(id => ({ id, visibility: map.getLayoutProperty(id, 'visibility') || 'visible' })),
-        geographicMatrixAvailable: typeof map.transform.getMatrixForModel === 'function'
+        geographicMatrixAvailable: typeof map.transform.getMatrixForModel === 'function',
+        canopyLayer: map.getLayer('bp-tree-cover-regional-v1') || null,
+        canopyMaxZoom: map.getLayer('bp-tree-cover-regional-v1')?.maxzoom ?? null,
+        canopyOpacityExpression: map.getPaintProperty('bp-tree-cover-regional-v1','fill-opacity') || null
       };
     });
 
@@ -216,6 +220,14 @@ try {
       viewport.name + ': source species names should match the taxonomic catalogue');
     assert.ok(diagnostics.state.variantCountUsed >= 2,
       viewport.name + ': the visible source trees should use distinct procedural variants');
+    assert.equal(diagnostics.state.regionalCanopyStatus, 'active',
+      viewport.name + ': regional forest canopy handoff should be installed');
+    assert.ok(diagnostics.canopyLayer,
+      viewport.name + ': source-backed forest polygon layer should be present');
+    assert.equal(diagnostics.canopyMaxZoom, 12.35,
+      viewport.name + ': the regional canopy proxy should fade out before individual point trees');
+    assert.ok(Array.isArray(diagnostics.canopyOpacityExpression),
+      viewport.name + ': regional canopy cover should use a zoom fade expression');
     assert.equal(diagnostics.state.instanceCount, 3,
       viewport.name + ': all source tree locations should become instances');
     assert.ok(diagnostics.state.gpuDrawCalls > 0,
@@ -256,6 +268,27 @@ try {
         canvases: diagnostics.canvasCount
       })
     );
+    // Exercise the full zoom transition: regional canopy (LOD2), neighborhood
+    // point trees (LOD1), then close-up street models (LOD0).
+    const transitions = [
+      { zoom: 10.4, lod: 'lod2' },
+      { zoom: 15.1, lod: 'lod1' },
+      { zoom: 18, lod: 'lod0' }
+    ];
+    for (const transition of transitions) {
+      await page.evaluate(zoom => {
+        window.__BP_TREE_BROWSER_MAP__.jumpTo({ zoom });
+      }, transition.zoom);
+      await page.waitForFunction(
+        lod => window.__BP_TREE_INSTANCE_RENDERER_V1__?.status === 'render-ready' &&
+          window.__BP_TREE_INSTANCE_RENDERER_V1__?.lod === lod &&
+          window.__BP_TREE_INSTANCE_RENDERER_V1__?.firstFrameAt &&
+          window.__BP_TREE_INSTANCE_RENDERER_V1__?.gpuDrawCalls > 0 &&
+          window.__BP_TREE_INSTANCE_RENDERER_V1__?.gpuTriangles > 0,
+        { timeout: 30000 },
+        transition.lod
+      );
+    }
     await page.close();
   }
 } finally {
