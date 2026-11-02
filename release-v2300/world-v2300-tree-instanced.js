@@ -317,6 +317,9 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
     manifestUrl: MANIFEST_URL,
     modelCount: 0,
     instanceCount: 0,
+    gpuDrawCalls: 0,
+    gpuTriangles: 0,
+    firstFrameAt: null,
     sourceCount: 0,
     unsupported: 0,
     lod: null,
@@ -605,6 +608,12 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
         updateWind();
         renderer.resetState();
         renderer.render(scene, camera);
+        if (!state.firstFrameAt && state.instanceCount > 0) {
+          state.firstFrameAt = Date.now();
+          state.gpuDrawCalls = Number(renderer.info?.render?.calls || 0);
+          state.gpuTriangles = Number(renderer.info?.render?.triangles || 0);
+          state.updatedAt = state.firstFrameAt;
+        }
         if (state.instanceCount > 0) scheduleAnimation();
         if (state.legacyLayersHidden) setLegacyVisibility(map, 'none');
       },
