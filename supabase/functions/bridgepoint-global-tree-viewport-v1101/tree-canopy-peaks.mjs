@@ -39,6 +39,7 @@ export function detectCanopyPeaks(
   const tileSeed = String(seed || "bridgepoint-canopy");
   const candidates = [];
   const candidateCap = Math.min(w * h, Math.max(cap * 48, 24000));
+  let candidateSeen = 0;
 
   for (let y = 1; y < h - 1; y++) {
     for (let x = 1; x < w - 1; x++) {
@@ -46,10 +47,10 @@ export function detectCanopyPeaks(
       const value = Number(values[index]);
       if (!Number.isFinite(value) || value < minimum || value > 100) continue;
 
-      // Taller crowns receive a slightly wider exclusion window.
-      const radiusMeters = clamp(1.8 + value * 0.16, 2.5, 5.4);
-      const rx = Math.min(6, Math.max(1, Math.ceil(radiusMeters / sx)));
-      const ry = Math.min(6, Math.max(1, Math.ceil(radiusMeters / sy)));
+      // Use a compact 8-neighbour peak pass here; the metre-based NMS below
+      // handles the wider crown spacing without a quadratic wide-window scan.
+      const rx = 1;
+      const ry = 1;
       let isPeak = true;
 
       for (let dy = -ry; dy <= ry && isPeak; dy++) {
@@ -58,7 +59,9 @@ export function detectCanopyPeaks(
         for (let dx = -rx; dx <= rx; dx++) {
           if (dx === 0 && dy === 0) continue;
           if ((dx * sx) ** 2 + (dy * sy) ** 2 > radiusMeters ** 2) continue;
-          const neighborIndex = yy * w + x + dx;
+          const xx = x + dx;
+          if (xx < 0 || xx >= w) continue;
+          const neighborIndex = yy * w + xx;
           const neighbor = Number(values[neighborIndex]);
           if (!Number.isFinite(neighbor)) continue;
           // Stable tie-breaking turns a flat raster plateau into one peak.
@@ -71,16 +74,23 @@ export function detectCanopyPeaks(
       }
 
       if (!isPeak) continue;
-      candidates.push({
+      const candidate = {
         x,
         y,
         index,
         height: value,
         rank: hash32(tileSeed + "|" + index)
-      });
-      if (candidates.length >= candidateCap) break;
+      };
+      candidateSeen++;
+      if (candidates.length < candidateCap) {
+        candidates.push(candidate);
+      } else {
+        // Deterministic reservoir sampling avoids bias toward the upper-left
+        // of a dense raster when the candidate safety cap is reached.
+        const slot = hash32(tileSeed + "|reservoir|" + candidateSeen) % candidateSeen;
+        if (slot < candidateCap) candidates[slot] = candidate;
+      }
     }
-    if (candidates.length >= candidateCap) break;
   }
 
   // A second, height-prioritised spacing pass prevents neighboring raster bumps
