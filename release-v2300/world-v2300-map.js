@@ -19,7 +19,7 @@ window.__BP_WORLD_PERFORMANCE_V5904__={version:5904,pixelRatioDesktopCap:1.5,ant
 
 const OFM='https://tiles.openfreemap.org/planet/latest/{z}/{x}/{y}.pbf';
 const NASA='https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_NextGeneration/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpeg';
-const GLOBAL_EARTH='https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?service=WMS&version=1.3.0&request=GetMap&format=image/jpeg&styles=&bbox=-90,-180,90,180&crs=EPSG:4326&height=2048&width=4096&layers=BlueMarble_NextGeneration';
+const GLOBAL_EARTH='https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?service=WMS&version=1.3.0&request=GetMap&format=image/jpeg&styles=default&bbox=-90,-180,90,180&crs=EPSG:4326&height=2048&width=4096&layers=BlueMarble_NextGeneration';
 const USGS='https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}';
 const OAM='https://global.imagery.hotosm.org/{z}/{x}/{y}.png';
 const DEM='https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
