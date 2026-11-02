@@ -1434,19 +1434,21 @@ export function initWorld(options={}){
   return true
  }
   function bindBuildingHitLayers(){for(const id of ['gta-exact-building','gta-bp-buildings','gta-city-buildings','gta-context-buildings']){if(!map.getLayer(id))continue;map.on('mouseenter',id,()=>{map.getCanvas().style.cursor='pointer'});map.on('mouseleave',id,()=>{map.getCanvas().style.cursor=''})}}
- let worldCoreReady=false;
+ let worldCoreReady=false,worldCoreFinalizing=false;
  const hasWorldBaseStyle=()=>{try{const layers=map.getStyle?.()?.layers||[],ids=new Set(layers.map(layer=>layer.id));return ['gta-bg','gta-water','gta-global-earth','gta-esri'].every(id=>ids.has(id)&&!!map.getLayer(id))}catch(_){return false}};
  const finalizeWorldCore=()=>{
   __bpTrace('finalize-world-core-enter',{styleLayersReady:hasWorldBaseStyle(),allTilesLoaded:!!map.isStyleLoaded?.()});
   if(worldCoreReady)return true;
+  if(worldCoreFinalizing)return false;
   try{
    const usable=hasWorldBaseStyle();
    if(!usable)return false;
+   worldCoreFinalizing=true;
    installBridgePointIcons(map);installBuildingMaterials(map);installWorldMaterials(map);sky();terrain();bindUI();bindBuildingHitLayers();setBase('satellite');disableFineDetail();try{const before=map.getLayer('gta-road-label-major')?'gta-road-label-major':null;for(const id of ['gta-bridge3d-pier','gta-bridge3d-deck','gta-bridge3d-ramp','gta-bridge3d-surface','gta-bridge3d-center','gta-bridge3d-rail'])if(map.getLayer(id)){if(before)map.moveLayer(id,before);else map.moveLayer(id)}}catch(_){};rebuildLandmark3D(0);rebuildBridge3D(0);startParcelFlow();syncBuildingShells();
    window.__BP_CAMERA_MODE__={mode:'FREE_FLY_SINGLE_VIEW',singleView:true,autoViewSwitching:false,streetWalkMode:false,maxPitch:110,minZoom:2.2,maxZoom:22,manualPitch:true,manualRotation:true,buildingClickOverlook:true,updatedAt:Date.now()};
    window.__BP_WORLD_CORE_READY__={version:5519,ready:true,styleUsable:true,styleLoaded:!!map.isStyleLoaded?.(),materials:!!window.__BP_BUILDING_MATERIALS__,camera:!!window.__BP_CAMERA_MODE__,updatedAt:Date.now()};
-   worldCoreReady=true;__bpTrace('finalize-world-core-ready',{styleLoaded:!!map.isStyleLoaded?.()});setTimeout(scheduleExact,MOBILE?350:220);if(map.getZoom()>=activeWorldLodProfile().treeMin)setTimeout(()=>scheduleLivingWorld(0),MOBILE?700:180);setStatus('BridgePoint World v5628 · owner-style fast tech map · white roofs · labels · realistic tree LOD');return true
-  }catch(e){window.__BP_WORLD_CORE_READY__={version:5519,ready:false,error:String(e?.message||e),updatedAt:Date.now()};console.warn('BridgePoint world core init',e);return false}
+   worldCoreReady=true;worldCoreFinalizing=false;__bpTrace('finalize-world-core-ready',{styleLoaded:!!map.isStyleLoaded?.()});setTimeout(scheduleExact,MOBILE?350:220);if(map.getZoom()>=activeWorldLodProfile().treeMin)setTimeout(()=>scheduleLivingWorld(0),MOBILE?700:180);setStatus('BridgePoint World v5628 · owner-style fast tech map · white roofs · labels · realistic tree LOD');return true
+  }catch(e){worldCoreFinalizing=false;window.__BP_WORLD_CORE_READY__={version:5519,ready:false,error:String(e?.message||e),updatedAt:Date.now()};console.warn('BridgePoint world core init',e);return false}
  };
  const tryFinalizeWorldCore=()=>{if(!worldCoreReady&&hasWorldBaseStyle())finalizeWorldCore()};
  map.once('style.load',tryFinalizeWorldCore);
