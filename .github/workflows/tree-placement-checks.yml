@@ -1,0 +1,42 @@
+name: Validate BridgePoint tree placement and rendering
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'release-v2300/world-v2300-tree-instanced.js'
+      - 'release-v2300/world-v2300-map.js'
+      - 'supabase/functions/bridgepoint-global-tree-viewport-v1101/**'
+      - 'supabase/migrations/*tree_canopy_local_maxima*'
+      - 'tests/tree-*.mjs'
+      - 'tests/tree-placement.test.mjs'
+      - '.github/workflows/tree-placement-checks.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tree-contracts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate canopy peak detector and placement tests
+        run: |
+          node --check supabase/functions/bridgepoint-global-tree-viewport-v1101/tree-canopy-peaks.mjs
+          node tests/tree-placement.test.mjs
+          node tests/tree-instanced-renderer.test.mjs
+          node tests/tree-viewport-capacity.test.mjs
+          node --check release-v2300/world-v2300-tree-catalog.js
+          node --check release-v2300/world-v2300-tree-instanced.js
+          node --check release-v2300/world-v2300-tree-canopy-lod.js
+          node --input-type=module --check < release-v2300/world-v2300-map.js
+      - name: Validate edge endpoint TypeScript syntax
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - run: deno check --no-lock supabase/functions/bridgepoint-global-tree-viewport-v1101/index.ts
