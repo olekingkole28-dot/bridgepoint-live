@@ -378,8 +378,10 @@ function pointInsideBounds(map, tree) {
 
 function getSourceTrees(map) {
   const cache = map.__BP_LIVING_TILE_CACHE_V6017__;
-  const cached = asArray(cache?.trees);
-  if (cached.length) return cached;
+  const cached = cache?.trees;
+  // An initialized viewport cache is authoritative, including an empty tile.
+  // Do not resurrect stale records from the last source or rendered layer.
+  if (Array.isArray(cached)) return cached;
 
   try {
     const sourceFeatures = map.querySourceFeatures?.('bpTreeLod') || [];
