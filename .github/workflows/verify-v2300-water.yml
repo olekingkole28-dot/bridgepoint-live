@@ -133,6 +133,6 @@ jobs:
           grep -Fq "defaultBase:'satellite'" release-v2300/world-v2300-map.js
           grep -Fq 'satelliteManualOnly:false' release-v2300/world-v2300-map.js
           grep -Fq "id:'gta-nasa',type:'raster',source:'nasa',minzoom:0,maxzoom:4" release-v2300/world-v2300-map.js
-          grep -Fq "id:'gta-esri',type:'raster',source:'esri',minzoom:4,maxzoom:19" release-v2300/world-v2300-map.js
+          grep -Fq "id:'gta-esri',type:'raster',source:'esri',minzoom:4,maxzoom:22" release-v2300/world-v2300-map.js
           grep -Fq "id:'gta-usgs',type:'raster',source:'usgs',minzoom:11,maxzoom:17" release-v2300/world-v2300-map.js
           grep -Fq "id:'gta-oam',type:'raster',source:'oam',minzoom:14,maxzoom:21" release-v2300/world-v2300-map.js

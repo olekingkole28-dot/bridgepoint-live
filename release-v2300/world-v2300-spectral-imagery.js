@@ -16,13 +16,13 @@ const COMBOS={
 };
 
 const GLOBAL_BASEMAP_MODES={
- dark:{label:'Dark Intelligence · Optional',background:'#040b12',water:'#0c3d56',waterOpacity:.97,landcoverOpacity:null,landuseOpacity:null,majorRoad:'#53717c',localRoad:'#45616b',roof:'#ffffff',rasterHue:0,rasterSaturation:0,rasterContrast:0,rasterOpacity:.95,usgsOpacity:.95,oamOpacity:.95},
- natural:{label:'Natural Satellite · Default',background:'#06120f',water:'#1b5c70',waterOpacity:.42,landcoverOpacity:.09,landuseOpacity:.08,majorRoad:'#b2c9c1',localRoad:'#5d8b83',roof:'#c2b9a4',rasterHue:0,rasterSaturation:.12,rasterContrast:.12,rasterOpacity:.94,usgsOpacity:.9,oamOpacity:.96},
- earth:{label:'Earth-as-Art',background:'#15190c',water:'#68742e',waterOpacity:.36,landcoverOpacity:.06,landuseOpacity:.06,majorRoad:'#d3cc79',localRoad:'#89934b',roof:'#b2a35e',rasterHue:38,rasterSaturation:.32,rasterContrast:.16,rasterOpacity:.96,usgsOpacity:.92,oamOpacity:.97},
- water:{label:'Water & Soil',background:'#041522',water:'#087ba7',waterOpacity:.36,landcoverOpacity:.055,landuseOpacity:.045,majorRoad:'#76d0e5',localRoad:'#398ca2',roof:'#81aab8',rasterHue:148,rasterSaturation:.3,rasterContrast:.16,rasterOpacity:.96,usgsOpacity:.92,oamOpacity:.97},
- vegetation:{label:'Vegetation',background:'#061b13',water:'#14584c',waterOpacity:.38,landcoverOpacity:.075,landuseOpacity:.055,majorRoad:'#9bcbaa',localRoad:'#548b72',roof:'#91a978',rasterHue:68,rasterSaturation:.3,rasterContrast:.15,rasterOpacity:.96,usgsOpacity:.92,oamOpacity:.97},
- geology:{label:'Geology / Burn Scars',background:'#1a100e',water:'#684239',waterOpacity:.34,landcoverOpacity:.055,landuseOpacity:.05,majorRoad:'#d5a17e',localRoad:'#976952',roof:'#a57961',rasterHue:315,rasterSaturation:.34,rasterContrast:.2,rasterOpacity:.96,usgsOpacity:.92,oamOpacity:.97},
- agriculture:{label:'Agriculture',background:'#1b1608',water:'#3b6878',waterOpacity:.38,landcoverOpacity:.07,landuseOpacity:.055,majorRoad:'#d4c17e',localRoad:'#99854b',roof:'#b8a878',rasterHue:74,rasterSaturation:.28,rasterContrast:.14,rasterOpacity:.96,usgsOpacity:.92,oamOpacity:.97}
+ dark:{label:'Dark Intelligence · Optional',background:'#040b12',water:'#0c3d56',waterOpacity:.97,landcoverOpacity:null,landuseOpacity:null,majorRoad:'#53717c',localRoad:'#45616b',roof:'#ffffff',rasterHue:0,rasterSaturation:0,rasterContrast:0,rasterOpacity:.95,esriOpacity:1,usgsOpacity:.95,oamOpacity:.95},
+ natural:{label:'Natural Satellite · Default',background:'#06120f',water:'#1b5c70',waterOpacity:.42,landcoverOpacity:.09,landuseOpacity:.08,majorRoad:'#b2c9c1',localRoad:'#5d8b83',roof:'#c2b9a4',rasterHue:0,rasterSaturation:.12,rasterContrast:.12,rasterOpacity:.94,esriOpacity:1,usgsOpacity:.9,oamOpacity:.96},
+ earth:{label:'Earth-as-Art',background:'#15190c',water:'#68742e',waterOpacity:.36,landcoverOpacity:.06,landuseOpacity:.06,majorRoad:'#d3cc79',localRoad:'#89934b',roof:'#b2a35e',rasterHue:38,rasterSaturation:.32,rasterContrast:.16,rasterOpacity:.96,esriOpacity:1,usgsOpacity:.92,oamOpacity:.97},
+ water:{label:'Water & Soil',background:'#041522',water:'#087ba7',waterOpacity:.36,landcoverOpacity:.055,landuseOpacity:.045,majorRoad:'#76d0e5',localRoad:'#398ca2',roof:'#81aab8',rasterHue:148,rasterSaturation:.3,rasterContrast:.16,rasterOpacity:.96,esriOpacity:1,usgsOpacity:.92,oamOpacity:.97},
+ vegetation:{label:'Vegetation',background:'#061b13',water:'#14584c',waterOpacity:.38,landcoverOpacity:.075,landuseOpacity:.055,majorRoad:'#9bcbaa',localRoad:'#548b72',roof:'#91a978',rasterHue:68,rasterSaturation:.3,rasterContrast:.15,rasterOpacity:.96,esriOpacity:1,usgsOpacity:.92,oamOpacity:.97},
+ geology:{label:'Geology / Burn Scars',background:'#1a100e',water:'#684239',waterOpacity:.34,landcoverOpacity:.055,landuseOpacity:.05,majorRoad:'#d5a17e',localRoad:'#976952',roof:'#a57961',rasterHue:315,rasterSaturation:.34,rasterContrast:.2,rasterOpacity:.96,esriOpacity:1,usgsOpacity:.92,oamOpacity:.97},
+ agriculture:{label:'Agriculture',background:'#1b1608',water:'#3b6878',waterOpacity:.38,landcoverOpacity:.07,landuseOpacity:.055,majorRoad:'#d4c17e',localRoad:'#99854b',roof:'#b8a878',rasterHue:74,rasterSaturation:.28,rasterContrast:.14,rasterOpacity:.96,esriOpacity:1,usgsOpacity:.92,oamOpacity:.97}
 };
 const BASEMAP_PAINT_PROPERTIES={
  'gta-bg':['background-color'],'gta-water':['fill-color','fill-opacity'],
@@ -31,10 +31,11 @@ const BASEMAP_PAINT_PROPERTIES={
  'gta-city-building-roof-caps':['fill-extrusion-color'],'gta-city-roofs':['fill-extrusion-color'],
  'gta-context-roofs':['fill-extrusion-color'],'gta-bp-roofs':['fill-extrusion-color'],'gta-exact-roof':['fill-extrusion-color'],
  'gta-nasa':['raster-hue-rotate','raster-saturation','raster-contrast','raster-opacity'],
+ 'gta-esri':['raster-hue-rotate','raster-saturation','raster-contrast','raster-opacity'],
  'gta-usgs':['raster-hue-rotate','raster-saturation','raster-contrast','raster-opacity'],
  'gta-oam':['raster-hue-rotate','raster-saturation','raster-contrast','raster-opacity']
 };
-const BASEMAP_RASTER_LAYERS=['gta-nasa','gta-usgs','gta-oam'];
+const BASEMAP_RASTER_LAYERS=['gta-nasa','gta-esri','gta-usgs','gta-oam'];
 const BASEMAP_STORAGE_KEY='bp-global-map-mode-v6206';
 const CSS=[
 '#liveMap #'+ROOT_ID+'{position:absolute;z-index:22;left:12px;top:12px;width:min(350px,calc(100% - 24px));box-sizing:border-box;color:#eaf8ff;font:12px/1.4 system-ui,-apple-system,Segoe UI,sans-serif;pointer-events:none}',
@@ -220,12 +221,8 @@ export function initSpectralImagery(target){
   try{const saved=window.localStorage?.getItem(BASEMAP_STORAGE_KEY);return Object.prototype.hasOwnProperty.call(GLOBAL_BASEMAP_MODES,saved)?saved:'natural'}catch(_){return 'natural'}
  }
  function updateBasemapZoomCoverage(){
-  if(currentBasemapMode==='dark'||!map.getLayer('gta-nasa'))return;
-  // Blue Marble is a global low-zoom backdrop. Avoid blurry over-zoom at street level;
-  // permitted local USGS and OpenAerialMap imagery remain enabled where their tiles exist.
-  safeSetVisibility('gta-nasa',map.getZoom()<=8.15?'visible':'none');
-  safeSetVisibility('gta-usgs','visible');
-  safeSetVisibility('gta-oam','visible');
+  // The tile sources own zoom handoff; never hide the persistent satellite foundation.
+  for(const id of BASEMAP_RASTER_LAYERS)safeSetVisibility(id,'visible');
  }
  function applyGlobalBasemapMode(rawMode,persist=true){
   const mode=Object.prototype.hasOwnProperty.call(GLOBAL_BASEMAP_MODES,rawMode)?rawMode:'natural';
@@ -270,11 +267,13 @@ export function initSpectralImagery(target){
     safeSetPaint(id,'raster-contrast',cfg.rasterContrast);
    }
    safeSetPaint('gta-nasa','raster-opacity',cfg.rasterOpacity);
+   safeSetPaint('gta-esri','raster-opacity',cfg.esriOpacity??1);
    safeSetPaint('gta-usgs','raster-opacity',cfg.usgsOpacity);
    safeSetPaint('gta-oam','raster-opacity',cfg.oamOpacity);
    updateBasemapZoomCoverage();
    setStatus(cfg.label.toUpperCase()+' ACTIVE · global color mode changed immediately; imagery detail depends on source coverage.');
   }
+  updateBasemapZoomCoverage();
   try{map.triggerRepaint?.()}catch(_){}
   return true;
  }
