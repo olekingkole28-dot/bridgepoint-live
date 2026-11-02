@@ -729,7 +729,7 @@ function satelliteFrameEpochV6150(){return Math.floor(Date.now()/600000)*600000}
 function satelliteWmsUrlV6150(endpoint,layers,width,height,crs='EPSG:4326'){
  const bbox=crs==='EPSG:4326'?'-180,-85,180,85':'{bbox-epsg-3857}';
  const frameEpoch=satelliteFrameEpochV6150();
- const frameTime=new Date(frameEpoch).toISOString().replace(/\\.\\d{3}Z$/,'Z');
+ const frameTime=new Date(frameEpoch).toISOString().slice(0,19)+'Z';
  const timeDimension=String(endpoint).includes('gibs.earthdata.nasa.gov')?'&TIME='+encodeURIComponent(frameTime):'';
  return endpoint+'?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&LAYERS='+encodeURIComponent(layers)+
   '&STYLES=&SRS='+encodeURIComponent(crs)+'&BBOX='+bbox+'&WIDTH='+width+'&HEIGHT='+height+
