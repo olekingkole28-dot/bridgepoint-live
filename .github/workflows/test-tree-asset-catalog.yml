@@ -6,8 +6,11 @@ on:
     branches:
       - feature/tree-asset-upgrade-v1
     paths:
+      - 'assets/trees/procedural-tree-archetypes-v1.json'
       - 'release-v2300/world-v2300-tree-catalog.js'
       - 'release-v2300/world-v2300-tree-instanced.js'
+      - 'tools/trees/**'
+      - 'tests/tree-model-catalog.test.py'
       - 'tests/tree-asset-catalog.test.mjs'
       - 'tests/tree-instanced-renderer.test.mjs'
       - 'tests/tree-instanced-renderer-browser.mjs'
