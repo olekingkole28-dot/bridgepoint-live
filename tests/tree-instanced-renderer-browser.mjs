@@ -62,6 +62,34 @@ const sampleTrees = [
   }
 ];
 
+const denseTreeCount = 2000;
+const denseTrees = Array.from({ length: denseTreeCount }, (_, index) => {
+  const angle = index * 2.399963229728653;
+  const radius = 0.00012 * Math.sqrt((index + 1) / denseTreeCount);
+  return {
+    type: 'Feature',
+    id: 'dense-oak-fixture-' + index,
+    geometry: {
+      type: 'Point',
+      coordinates: [
+        -72.6502 + Math.cos(angle) * radius,
+        41.56 + Math.sin(angle) * radius
+      ]
+    },
+    properties: {
+      source_key: 'bridgepoint-tree-dense-browser-fixture',
+      source_record_id: 'dense-oak-fixture-' + index,
+      species: 'Quercus robur',
+      common_name: 'English oak',
+      leaf_cycle: 'deciduous',
+      leaf_type: 'broadleaf',
+      height_m: 8 + (index % 21) * 0.42,
+      height_truth: 'SOURCE_DECLARED_TEST_FIXTURE',
+      position_truth: 'SOURCE_POSITION_TEST_FIXTURE'
+    }
+  };
+});
+
 const html = [
   '<!doctype html>',
   '<html lang="en"><head><meta charset="utf-8">',
@@ -84,7 +112,7 @@ const html = [
   "window.__BP_TREE_BROWSER_MAP__=map;",
   "map.once('load',async()=>{",
   "map.__BP_LIVING_TILE_CACHE_V6017__={trees:" + JSON.stringify(sampleTrees) + "};",
-  "try{await attachTreeInstancedRenderer(map,{manifestUrl:'/assets/trees/manifest.json',maxInstances:100,mobile:matchMedia('(max-width: 760px)').matches,lowMemory:false,highTier:true});window.__BP_TREE_BROWSER_ATTACH__='resolved';}",
+  "try{await attachTreeInstancedRenderer(map,{manifestUrl:'/assets/trees/manifest.json',maxInstances:3000,mobile:matchMedia('(max-width: 760px)').matches,lowMemory:false,highTier:true});window.__BP_TREE_BROWSER_ATTACH__='resolved';}",
   "catch(error){window.__BP_TREE_BROWSER_ATTACH__=String(error&&error.stack||error);}",
   "});",
   '</script></body></html>'
@@ -289,6 +317,63 @@ try {
         transition.lod
       );
     }
+
+    // Stress the same instanced renderer with 2,000 additional test-only source
+    // records. These are explicitly CI fixtures, not live geographic observations.
+    const denseExpectedCount = 3 + denseTrees.length;
+    const denseLod = viewport.mobile ? 'lod2' : 'lod1';
+    await page.evaluate(dense => {
+      const map = window.__BP_TREE_BROWSER_MAP__;
+      map.__BP_LIVING_TILE_CACHE_V6017__.trees = [
+        ...map.__BP_LIVING_TILE_CACHE_V6017__.trees,
+        ...dense
+      ];
+      map.fire('moveend');
+    }, denseTrees);
+    await page.waitForFunction(
+      args => {
+        const state = window.__BP_TREE_INSTANCE_RENDERER_V1__;
+        return state?.status === 'render-ready' &&
+          state.instanceCount === args.expectedCount &&
+          state.sourceCount === args.expectedCount &&
+          state.lod === args.lod &&
+          state.truncated === 0 &&
+          state.unsupported === 0 &&
+          state.legacyLayersHidden === true &&
+          state.gpuDrawCalls > 0 &&
+          state.gpuTriangles > 0;
+      },
+      { timeout: 90000 },
+      { expectedCount: denseExpectedCount, lod: denseLod }
+    );
+    const denseDiagnostics = await page.evaluate(() => {
+      const state = window.__BP_TREE_INSTANCE_RENDERER_V1__;
+      return {
+        instanceCount: state.instanceCount,
+        sourceCount: state.sourceCount,
+        lod: state.lod,
+        batches: state.batches,
+        variantsUsed: state.variantCountUsed,
+        gpuDrawCalls: state.gpuDrawCalls,
+        gpuTriangles: state.gpuTriangles,
+        truncated: state.truncated,
+        unsupported: state.unsupported,
+        legacyHidden: state.legacyLayersHidden,
+        canvases: window.__BP_TREE_BROWSER_MAP__.getContainer().querySelectorAll('canvas').length
+      };
+    });
+    assert.equal(denseDiagnostics.instanceCount, 2003,
+      viewport.name + ': renderer should draw 2,003 source fixtures in one shared scene');
+    assert.ok(denseDiagnostics.variantsUsed >= 30,
+      viewport.name + ': a dense scene should use many deterministic tree model variants');
+    assert.ok(denseDiagnostics.batches > 0 && denseDiagnostics.batches <= 12,
+      viewport.name + ': the tree bank should use a small number of GPU-instanced batches');
+    assert.ok(denseDiagnostics.gpuTriangles > 0,
+      viewport.name + ': dense scene must draw real model triangles');
+    assert.equal(denseDiagnostics.canvases, 1,
+      viewport.name + ': dense rendering must keep the single existing map canvas');
+    console.log('BRIDGEPOINT_TREE_DENSE_INSTANCE_BROWSER_PASS_' + viewport.name.toUpperCase(),
+      JSON.stringify(denseDiagnostics));
     await page.close();
   }
 } finally {
