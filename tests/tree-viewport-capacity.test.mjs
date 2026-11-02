@@ -110,8 +110,8 @@ assert.match(mapSource, /bpAttachTreeRendererFromViewport\(\);const treeRenderer
   'the completed viewport fetch must attach the 3D renderer as soon as active tile data exists');
 assert.match(mapSource, /world-v2300-tree-instanced\.js\?v=20261102-tree-canopy-coverage-v5/,
   'the updated renderer module must use a fresh URL so the browser cannot reuse its old module cache');
-assert.match(mapSource, /if\(treeRendererApi\?\.map===map\)treeRendererApi\.refreshInstances\?\.\(\)/,
-  'an already-attached 3D renderer must receive new tile data without requiring a camera event');
+assert.match(mapSource, /if\(treeRendererApi\?\.map===map\)treeRendererApi\.refreshInstances\?\.\(\{authoritative:settled\[1\]\.status==='fulfilled'/,
+  'an already-attached 3D renderer must receive authoritative viewport results without requiring a camera event');
 assert.match(mapSource, /properties\\?\.tile_key\\|\\|''\)===String\(trees\.active_tile/,
   'only points from the currently active source tile may stay in the tree retention cache');
 assert.match(mapSource, /retainedTrees=mergeLodFeatureCache/,
