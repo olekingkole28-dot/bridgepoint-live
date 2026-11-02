@@ -337,7 +337,7 @@ function makeTopBarAndDock(){
    const current=window.__BP_SPECTRAL_IMAGERY_V5931__;
    if(current?.open){try{current.open();}catch(e){showActionNotice('Satellite imagery controls failed: '+String(e?.message||e))}return}
    const surfaceWorld=home?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
-   void import('./world-v2300-spectral-imagery.js?v=6208-continuous-ground-imagery')
+   void import('./world-v2300-spectral-imagery.js?v=6209-esri-raster-visibility-guard')
     .then(m=>{const api=window.__BP_SPECTRAL_IMAGERY_V5931__||m.initSpectralImagery(surfaceWorld);if(typeof api?.open!=='function')throw new Error('Satellite imagery controls are not ready');api.open()})
     .catch(e=>{console.warn('BridgePoint satellite filters unavailable',e);showActionNotice('Satellite imagery controls could not open: '+String(e?.message||e))});
    return;
@@ -1001,7 +1001,7 @@ if(a==='satellite'){
  const current=window.__BP_SPECTRAL_IMAGERY_V5931__;
  if(current?.open){current.open();return}
  const surfaceWorld=home?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
- void import('./world-v2300-spectral-imagery.js?v=6208-continuous-ground-imagery')
+ void import('./world-v2300-spectral-imagery.js?v=6209-esri-raster-visibility-guard')
   .then(m=>{const api=window.__BP_SPECTRAL_IMAGERY_V5931__||m.initSpectralImagery(surfaceWorld);api?.open?.()})
   .catch(e=>console.warn('BridgePoint satellite filters unavailable',e));
  return;
