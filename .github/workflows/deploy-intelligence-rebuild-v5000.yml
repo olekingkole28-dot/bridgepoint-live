@@ -918,7 +918,7 @@ jobs:
           grep -Fq 'isolatedFormationCount: singles.length' site/world-v2300-clouds.js
           # Cloud shader now blends underside shadow strength for fuller volumetric puffs.
           grep -Fq 'underside*mix(0.40,0.59,cloudShadingMix)' site/world-v2300-clouds.js
-          grep -Fq 'globalCoverageModel: satelliteMaskUsable' site/world-v2300-clouds.js
+          grep -Fq 'globalCoverageModel: (globalCloudGeometryCache?.sourceCloudMaskSampleCount || 0) > 0' site/world-v2300-clouds.js
           ! grep -Fq 'window.__BP_CLOUDS_ONLY_PHASE_V6070__=true;' site/app.js
           ! grep -Fq 'window.__BP_CLOUDS_ONLY_PHASE_V6070__=true;' site/landing.js
           grep -Fq 'enabled = !!value;' site/world-v2300-rain.js
