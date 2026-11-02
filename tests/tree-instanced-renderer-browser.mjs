@@ -19,7 +19,7 @@ const mime = {
 const sampleTrees = [
   {
     type: 'Feature', id: 'browser-fir-1',
-    geometry: { type: 'Point', coordinates: [-72.6500, 41.5600] },
+    geometry: { type: 'Point', coordinates: [-72.65020, 41.56000] },
     properties: {
       source_key: 'bridgepoint-tree-browser-test',
       source_record_id: 'browser-fir-1',
@@ -34,7 +34,7 @@ const sampleTrees = [
   },
   {
     type: 'Feature', id: 'browser-oak-2',
-    geometry: { type: 'Point', coordinates: [-72.65025, 41.56025] },
+    geometry: { type: 'Point', coordinates: [-72.65022, 41.56002] },
     properties: {
       source_key: 'bridgepoint-tree-browser-test',
       source_record_id: 'browser-oak-2',
@@ -48,7 +48,7 @@ const sampleTrees = [
   },
   {
     type: 'Feature', id: 'browser-jacaranda-3',
-    geometry: { type: 'Point', coordinates: [-72.65045, 41.5598] },
+    geometry: { type: 'Point', coordinates: [-72.65018, 41.55998] },
     properties: {
       source_key: 'bridgepoint-tree-browser-test',
       source_record_id: 'browser-jacaranda-3',
@@ -327,7 +327,16 @@ try {
           window.__BP_TREE_INSTANCE_RENDERER_V1__?.gpuTriangles > 0,
         { timeout: 30000 },
         transition.lod
-      );
+      ).catch(async error => {
+        const diagnostics = await page.evaluate(() => ({
+          zoom: window.__BP_TREE_BROWSER_MAP__?.getZoom(),
+          bounds: window.__BP_TREE_BROWSER_MAP__?.getBounds()?.toArray?.(),
+          state: window.__BP_TREE_INSTANCE_RENDERER_V1__ ? { ...window.__BP_TREE_INSTANCE_RENDERER_V1__ } : null
+        }));
+        throw new Error('Tree LOD transition failed at zoom ' + transition.zoom +
+          ' target=' + transition.lod + ' ' + error.message +
+          ' diagnostics=' + JSON.stringify(diagnostics));
+      });
     }
 
     // Stress the same instanced renderer with 2,000 additional test-only source
