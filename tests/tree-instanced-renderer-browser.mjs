@@ -176,8 +176,18 @@ try {
       };
     });
 
-    assert.equal(diagnostics.state.modelCount, 3,
-      viewport.name + ': all three source model families should load');
+    assert.equal(diagnostics.state.modelCount, 48,
+      viewport.name + ': the complete procedural archetype bank should load');
+    assert.equal(diagnostics.state.proceduralModelCount, 48,
+      viewport.name + ': all 48 procedural base meshes should be catalogued');
+    assert.equal(diagnostics.state.proceduralVariantCount, 3072,
+      viewport.name + ': all 3,072 deterministic model variants should be available');
+    assert.ok(diagnostics.state.taxonomySpeciesCount >= 20000,
+      viewport.name + ': the 21,001-species taxonomy index should be loaded');
+    assert.ok(diagnostics.state.taxonomyMatches >= 2,
+      viewport.name + ': source species names should match the taxonomic catalogue');
+    assert.ok(diagnostics.state.variantCountUsed >= 2,
+      viewport.name + ': the visible source trees should use distinct procedural variants');
     assert.equal(diagnostics.state.instanceCount, 3,
       viewport.name + ': all source tree locations should become instances');
     assert.ok(diagnostics.state.gpuDrawCalls > 0,
@@ -198,6 +208,10 @@ try {
     console.log('BRIDGEPOINT_TREE_WEBGL_BROWSER_PASS_' + viewport.name.toUpperCase(),
       JSON.stringify({
         models: diagnostics.state.modelCount,
+        modelVariantsAvailable: diagnostics.state.proceduralVariantCount,
+        taxonomySpecies: diagnostics.state.taxonomySpeciesCount,
+        taxonomyMatches: diagnostics.state.taxonomyMatches,
+        variantsUsed: diagnostics.state.variantCountUsed,
         instances: diagnostics.state.instanceCount,
         lod: diagnostics.state.lod,
         gpuDrawCalls: diagnostics.state.gpuDrawCalls,
