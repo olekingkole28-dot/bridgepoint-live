@@ -52,7 +52,9 @@ assert.ok(waterSource.includes('microPhaseA') && waterSource.includes('microPhas
 assert.ok(waterSource.includes('fwidth(microPhaseC)'), 'finest wave band must fade at screen-sampling limit');
 assert.ok(waterSource.includes('surfaceMaskValidationAllZooms: true'), 'source-water masks must remain enabled at every zoom');
 assert.ok(waterSource.includes("if (z >= 12) {\n    return { scale: 0, maxOffsetM: 0, guarded: true };"), 'close-zoom vertex displacement guard must remain intact');
-assert.ok(spectralSource.includes("applyGlobalBasemapMode('natural');"), 'Natural Satellite must reset stale saved map preferences');
+assert.ok(!spectralSource.includes("applyGlobalBasemapMode('natural');"), 'the delayed satellite controller must not repaint the first Natural Satellite frame');
+assert.ok(spectralSource.includes("state.basemapMode='natural';"), 'the delayed satellite controller must initialize its UI state without changing the map');
+assert.ok(spectralSource.includes("if(mode==='dark'||mode==='natural')"), 'manual return to Natural Satellite must restore the original style snapshot');
 assert.ok(spectralSource.includes("let currentBasemapMode='natural',defaultsCaptured=false,styleWaitPending=false;"), 'Natural Satellite must be the startup color mode');
 assert.ok(spectralSource.includes("basemapMode:'natural'"), 'the exposed basemap state must report the imagery default');
 assert.ok(!spectralSource.includes('readSavedBasemapMode')&&!spectralSource.includes('BASEMAP_STORAGE_KEY'), 'a fresh visit must never restore a saved false-colour map mode');
