@@ -492,9 +492,9 @@ jobs:
           grep -Fq '6215-satellite-persistent-render-guard' site/app.js
           grep -Fq '6215-satellite-persistent-render-guard' site/landing.js
           grep -Fq 'bp-global-map-mode-v6215' site/world-v2300-spectral-imagery.js
-          grep -Fq 'bp-intelligence-v6215-satellite-persistent-render-guard' site/sw.js
-          grep -Fq "navigator.serviceWorker.register('/sw.js?v=6215-satellite-persistent-render-guard'," site/landing.js
-          grep -Fq "navigator.serviceWorker.register('/sw.js?v=6215-satellite-persistent-render-guard'," site/app.js
+          grep -Fq 'bp-intelligence-v6217-satellite-idle-render-guard' site/sw.js
+          grep -Fq "navigator.serviceWorker.register('/sw.js?v=6217-satellite-idle-render-guard'," site/landing.js
+          grep -Fq "navigator.serviceWorker.register('/sw.js?v=6217-satellite-idle-render-guard'," site/app.js
           grep -Fq 'OpenStreetMap feature centroid' site/bridgepoint-pyramids-v5945.js
           grep -Fq 'currentHeightM: 138.5' site/bridgepoint-pyramids-v5945.js
           grep -Fq 'currentHeightM: 136.4' site/bridgepoint-pyramids-v5945.js
@@ -946,10 +946,10 @@ jobs:
           grep -Fq '__BP_FULL_REFRESH_V5535__' site/refresh-v5535.js
           grep -Fq '__BP_FULL_REFRESH_V5548__' site/refresh-v5535.js
           grep -Fq 'deferred-active-use' site/refresh-v5535.js
-          grep -Fq 'bp-intelligence-v6215-satellite-persistent-render-guard' site/sw.js
+          grep -Fq 'bp-intelligence-v6217-satellite-idle-render-guard' site/sw.js
           node --check site/app-update-v5820.js
-          grep -Fq '/app-update-v5820.js?v=6215-satellite-persistent-render-guard' site/index.html
-          grep -Fq '/app-update-v5820.js?v=6215-satellite-persistent-render-guard' site/app/index.html
+          grep -Fq '/app-update-v5820.js?v=6217-satellite-idle-render-guard' site/index.html
+          grep -Fq '/app-update-v5820.js?v=6217-satellite-idle-render-guard' site/app/index.html
           grep -Fq 'bridgepoint-intelligence-legacy-retire-v5820' site/app/flutter_service_worker.js
           grep -Fq 'migrated=legacy-intelligence-v5820' site/app/intelligence-launch/index.html
           grep -Fq "bridgepoint-horizon-v5820" site/app/horizon/sw.js
@@ -1482,7 +1482,7 @@ jobs:
               && grep -Fq 'const VERSION=1068' /tmp/language-selector-v5200.js \
               && grep -Fq 'BridgePointLanguage' /tmp/language-selector-v5200.js \
               && grep -Fq "const V='bp-intelligence-v6217-satellite-idle-render-guard'" /tmp/sw.js \
-              && grep -Fq 'BUILD=6215' /tmp/app-update-v5820.js \
+              && grep -Fq 'BUILD=6217' /tmp/app-update-v5820.js \
               && grep -Fq 'bridgepoint-intelligence-legacy-retire-v5820' /tmp/flutter-service-worker-retire.js \
               && grep -Fq 'migrated=legacy-intelligence-v5820' /tmp/legacy-intelligence-launch.html \
               && grep -Fq "bridgepoint-horizon-v5820" /tmp/horizon-sw.js \
