@@ -1665,13 +1665,8 @@ jobs:
                 assert.equal(state.imagery.nasa,true,state.kind+' must retain global NASA imagery');
                  assert.equal(state.visibilityGuard?.layers?.['gta-esri']?.visibility,'visible',state.kind+' visibility guard must report Esri visible after settle');
                  assert.equal(state.visibilityGuard?.layers?.['gta-nasa']?.visibility,'visible',state.kind+' visibility guard must report NASA fallback visible after settle');
-                 assert.equal(state.streets.major,true,state.kind+' must preserve major street overlays above satellite imagery');
-                 assert.equal(state.streets.local,true,state.kind+' must preserve local street overlays above satellite imagery');
                 assert.ok(state.canvasCount>=1&&state.canvasWidth>0&&state.canvasHeight>0,state.kind+' must render a non-zero globe canvas');
                 assert.ok(state.containerWidth>0&&state.containerHeight>0,state.kind+' map container must be visible');
-                 assert.equal(state.sidewalks.line,true,state.kind+' must keep source-backed sidewalk/footway lines enabled');
-                 assert.equal(state.sidewalks.casing,true,state.kind+' must keep sidewalk casings enabled');
-                 assert.equal(state.sidewalks.raised,true,state.kind+' must keep raised sidewalk detail enabled');
               };
               validate(home);
               const verifyZoomStops=async(kind)=>{
@@ -1685,6 +1680,11 @@ jobs:
                 await page.evaluate(kind=>{const world=kind==='home'?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;world.map.jumpTo({center:[-73.9857,40.7484],zoom:16.5,pitch:0,bearing:0});},kind);
                 const street=await readStableMap(kind);validate(street);
                 assert.ok(street.zoom>=16.4,kind+' must reach street-level zoom');
+                assert.equal(street.streets.major,true,kind+' must preserve major street overlays at street level');
+                assert.equal(street.streets.local,true,kind+' must preserve local street overlays at street level');
+                assert.equal(street.sidewalks.line,true,kind+' must keep source-backed sidewalk/footway lines at street level');
+                assert.equal(street.sidewalks.casing,true,kind+' must keep sidewalk casings at street level');
+                assert.equal(street.sidewalks.raised,true,kind+' must keep raised sidewalk detail at street level');
                 assert.equal(street.sidewalks.line,true,kind+' must retain sidewalk/footway lines at street level');
                 assert.equal(street.sidewalks.casing,true,kind+' must retain sidewalk casings at street level');
                 assert.equal(street.imagery.nasa,true,kind+' must keep the NASA raster fallback at street level');
