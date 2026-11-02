@@ -16,7 +16,7 @@ assert.ok(mapSource.includes("map.moveLayer(id,'gta-coast-shadow')"), 'satellite
 assert.ok(mapSource.includes("setBase('satellite')"), 'satellite imagery must be enabled by default');
 assert.ok(mapSource.includes("defaultBase:'satellite'") && mapSource.includes('satelliteManualOnly:false'), 'zoom-aware satellite imagery must be default');
 assert.ok(mapSource.includes("id:'gta-nasa',type:'raster',source:'nasa',minzoom:0,maxzoom:4"), 'NASA Blue Marble must cover global zoom');
-assert.ok(mapSource.includes("id:'gta-esri',type:'raster',source:'esri',minzoom:4,maxzoom:19"), 'Esri imagery must provide worldwide mid/high-zoom coverage without raster overzoom');
+assert.ok(mapSource.includes("id:'gta-esri',type:'raster',source:'esri',minzoom:4,maxzoom:22"), 'Esri imagery must remain as a worldwide fallback through street-level zoom');
 assert.ok(mapSource.includes("id:'gta-usgs',type:'raster',source:'usgs',minzoom:11,maxzoom:17"), 'USGS imagery must overlay Esri where U.S. tiles exist');
 assert.ok(mapSource.includes("id:'gta-oam',type:'raster',source:'oam',minzoom:14,maxzoom:21"), 'OpenAerialMap imagery must overlay where local aerial tiles exist');
 assert.ok(mapSource.includes("window.__BP_GLOBAL_IMAGERY_LOD_V6201__"), 'runtime must expose the active imagery stack');
