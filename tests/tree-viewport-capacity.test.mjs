@@ -29,6 +29,12 @@ assert.match(mapSource, /Math\.min\(MOBILE\?1800:3000,normalTreeLimit\)/,
   'desktop and mobile requests should use the new bounded response caps');
 assert.match(mapSource, /treeCap=MOBILE\?\(lod\.tier==='GOLD'\?4000/,
   'the mobile retained cache must fit inside the 4,200-instance renderer budget');
+assert.match(mapSource, /bpAttachTreeRendererFromViewport/,
+  'the shared map should attach the instanced renderer only after tree records arrive');
+assert.match(mapSource, /bpInstallRegionalTreeCanopy/,
+  'the shared map should install a light forest-cover layer at startup');
+assert.match(mapSource, /lazyStartZoom:12\.6/,
+  'heavy 3D tree assets should remain unloaded until tree-detail zoom');
 assert.match(mapSource, /lod\.tier==='GOLD'\?14000/,
   'the desktop retained tree cache should remain higher than the viewport response batch');
 
