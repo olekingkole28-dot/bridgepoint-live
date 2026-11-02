@@ -874,7 +874,7 @@ export function initSkyClouds(target) {
   ensureLiveSatelliteCloudContextV6150(map);
   const existingCloudController = window.__BP_SKY_CLOUDS_V5908__;
   if (existingCloudController?.map === map) {
-    const existingState = window.__BP_SKY_CLOUDS_STATE_V6150__ || window.__BP_SKY_CLOUDS_STATE_V6079__ || window.__BP_SKY_CLOUDS_STATE_V6077__ || window.__BP_SKY_CLOUDS_STATE_V6076__ ||
+    const existingState = window.__BP_SKY_CLOUDS_STATE_V6180__ || window.__BP_SKY_CLOUDS_STATE_V6150__ || window.__BP_SKY_CLOUDS_STATE_V6079__ || window.__BP_SKY_CLOUDS_STATE_V6077__ || window.__BP_SKY_CLOUDS_STATE_V6076__ ||
       window.__BP_SKY_CLOUDS_STATE_V6075__ ||
       window.__BP_SKY_CLOUDS_STATE_V6074__ ||
       window.__BP_SKY_CLOUDS_STATE_V6073__ ||
@@ -882,8 +882,8 @@ export function initSkyClouds(target) {
       existingCloudController.state || null;
     // Cache-busted modules still share this global controller slot. Never silently
     // return a legacy controller whose geometry predates the requested cloud field.
-    if (Number(existingCloudController.version) >= 6170 &&
-        Number(existingState?.coverageVersion || existingState?.version) >= 6170) {
+    if (Number(existingCloudController.version) >= 6180 &&
+        Number(existingState?.coverageVersion || existingState?.version) >= 6180) {
       return existingCloudController;
     }
     try { existingCloudController.destroy?.(); } catch (error) {
@@ -1377,7 +1377,7 @@ export function initSkyClouds(target) {
     const satelliteMaskUsable = Number(satelliteMask?.version)>=6150 && satelliteMask?.map===map && satelliteMaskAgeMs!=null && satelliteMaskAgeMs<3600000;
     const satelliteMaskStatus = satelliteMaskUsable ? 'fresh-observation-derived' : (window.__BP_GOES_CLOUD_CONTEXT_V6134__?.maskStatus || 'procedural-fallback');
     const state = {
-      version: 6170, map, enabled, visible: enabled && !document.hidden,
+      version: 6180, map, enabled, visible: enabled && !document.hidden,
       cloudShadowLayerAttached: !!map.getLayer?.(SHADOW_LAYER_ID), cloudShadowFeatureCount: shadowFeatureCount,
       cloudShadowUpdatedAt: shadowLastUpdateAt, cloudShadowHeightResolvedWindCount: shadowWindSourceCount,
       cloudShadowLayerError: shadowLayerError, weatherSceneGeneratedAt: getScene()?.generated_at || getScene()?.updated_at || null,
@@ -1385,7 +1385,7 @@ export function initSkyClouds(target) {
       renderer: 'shared MapLibre WebGL context; storms use world-anchored raymarched volume proxies',
       stormRenderingArchitecture: 'Earth-coordinate storm geometry in fixed metres, source-centre anchored, with shader-interpolated source-motion vectors and no zoom-driven storm-size boosts',
       stormVolumeProxyVertices, hurricaneVolumeProxyVertices, tornadoVolumeProxyVertices, hurricaneSurfaceCloudVertices, tornadoSurfaceMeshVertices, tornadoSurfaceVerticesSubmitted, postTropicalSurfaceCloudVertices, postTropicalStormCount, postTropicalCloudShieldRadiusKm, josephineHurricaneGeometryCount, josephineVisualEyeRadiusKm, josephineVisualShieldRadiusKm, sourceHurricaneVisualEyeRadiusKm, josephineSourceClassification: (()=>{const j=(Array.isArray(getScene()?.storms)?getScene().storms:[]).find(isJosephineCyclone);const p=j?.properties||j||{};return String(p.official_classification||p.classification||p.classificationCode||p.type||'unknown');})(), stormRaymarchStepBudget,
-      cloudFormations: formationCount, globalCloudFormations: globalCloudGeometryCache?.formationCount || 0, coverageVersion: 6170, globalStormMaskCount: globalCloudGeometryCache?.stormEyeMaskCount || 0, globalCloudLodBand: globalCloudGeometryCache?.cloudLodBand || 'unbuilt', globalStormLod, sourceStormCount, sourceTornadoAlertCount, modeledHurricaneVisualCount, modeledTornadoVisualCount, hurricaneSpiralRibbonVertices, stormVisualProvenance: (modeledHurricaneVisualCount || modeledTornadoVisualCount) ? 'modeled fallback cloud structures are visual examples, not source-backed live weather or alerts' : (sourceStormCount ? 'source-anchored storm bodies; tropical cyclones use eye/spiral geometry, post-tropical lows use asymmetric cloud shields except the Josephine-specific visual-compatibility override; official classification is preserved, no synthetic storm centres' : 'no source-backed storm record; synthetic storm fallbacks disabled'), globalMacroRadiusMinKm: globalCloudGeometryCache?.macroRadiusMinKm || 0, globalMacroRadiusMaxKm: globalCloudGeometryCache?.macroRadiusMaxKm || 0, globalThinLayerSlices: globalCloudGeometryCache?.thinLayerSlices || 0, globalThinLayerStacks: globalCloudGeometryCache?.thinLayerStacks || 0, globalSingleLayerSlices: globalCloudGeometryCache?.singleLayerSlices || 0, globalSingleLayerStacks: globalCloudGeometryCache?.singleLayerStacks || 0, hurricaneSpiralCloudCenters, hurricaneEyeWallCloudCenters, hurricaneEyeRadiusKm, hurricaneEyeRadiusSource, hurricaneCloudShieldRadiusKm, hurricaneVisualEyeRadiusKm, hurricaneVisualShieldRadiusKm, tornadoVisualHeightKm, tornadoVisualTopRadiusKm, tornadoVisualBoost, globalHeightResolvedWindPuffs: globalCloudGeometryCache?.heightResolvedWindPuffs || 0, globalModelledWindPuffs: globalCloudGeometryCache?.modelledWindPuffs || 0, localWindSourcePuffs, localWindModelledPuffs, globalMacroFormations: globalCloudGeometryCache?.macroFormationCount || 0, globalFineFormations: globalCloudGeometryCache?.fineFormationCount || 0, globalIsolatedFormations: globalCloudGeometryCache?.isolatedFormationCount || 0, globalThinLayerFormations: globalCloudGeometryCache?.thinLayerFormationCount || 0, globalCloudPuffs: globalCloudGeometryCache?.puffCount || 0, globalTerrainQuerySamples: terrainHeightKnownSamples, terrainRelativeCloudBases: terrainQueryAvailable, cloudMotion: (globalCloudGeometryCache?.heightResolvedWindPuffs || 0) > 0 ? 'Height-resolved source wind advects matched cloud puffs; modelled atmospheric flow fills unmatched locations' : 'Height/latitude-aware modelled atmospheric flow; no source-backed global upper-air wind grid is connected',
+      cloudFormations: formationCount, globalCloudFormations: globalCloudGeometryCache?.formationCount || 0, coverageVersion: 6180, globalStormMaskCount: globalCloudGeometryCache?.stormEyeMaskCount || 0, globalCloudLodBand: globalCloudGeometryCache?.cloudLodBand || 'unbuilt', globalStormLod, sourceStormCount, sourceTornadoAlertCount, modeledHurricaneVisualCount, modeledTornadoVisualCount, hurricaneSpiralRibbonVertices, stormVisualProvenance: (modeledHurricaneVisualCount || modeledTornadoVisualCount) ? 'modeled fallback cloud structures are visual examples, not source-backed live weather or alerts' : (sourceStormCount ? 'source-anchored storm bodies; tropical cyclones use eye/spiral geometry, post-tropical lows use asymmetric cloud shields except the Josephine-specific visual-compatibility override; official classification is preserved, no synthetic storm centres' : 'no source-backed storm record; synthetic storm fallbacks disabled'), globalMacroRadiusMinKm: globalCloudGeometryCache?.macroRadiusMinKm || 0, globalMacroRadiusMaxKm: globalCloudGeometryCache?.macroRadiusMaxKm || 0, globalThinLayerSlices: globalCloudGeometryCache?.thinLayerSlices || 0, globalThinLayerStacks: globalCloudGeometryCache?.thinLayerStacks || 0, globalSingleLayerSlices: globalCloudGeometryCache?.singleLayerSlices || 0, globalSingleLayerStacks: globalCloudGeometryCache?.singleLayerStacks || 0, hurricaneSpiralCloudCenters, hurricaneEyeWallCloudCenters, hurricaneEyeRadiusKm, hurricaneEyeRadiusSource, hurricaneCloudShieldRadiusKm, hurricaneVisualEyeRadiusKm, hurricaneVisualShieldRadiusKm, tornadoVisualHeightKm, tornadoVisualTopRadiusKm, tornadoVisualBoost, globalHeightResolvedWindPuffs: globalCloudGeometryCache?.heightResolvedWindPuffs || 0, globalModelledWindPuffs: globalCloudGeometryCache?.modelledWindPuffs || 0, localWindSourcePuffs, localWindModelledPuffs, globalMacroFormations: globalCloudGeometryCache?.macroFormationCount || 0, globalFineFormations: globalCloudGeometryCache?.fineFormationCount || 0, globalIsolatedFormations: globalCloudGeometryCache?.isolatedFormationCount || 0, globalThinLayerFormations: globalCloudGeometryCache?.thinLayerFormationCount || 0, globalCloudPuffs: globalCloudGeometryCache?.puffCount || 0, globalTerrainQuerySamples: terrainHeightKnownSamples, terrainRelativeCloudBases: terrainQueryAvailable, cloudMotion: (globalCloudGeometryCache?.heightResolvedWindPuffs || 0) > 0 ? 'Height-resolved source wind advects matched cloud puffs; modelled atmospheric flow fills unmatched locations' : 'Height/latitude-aware modelled atmospheric flow; no source-backed global upper-air wind grid is connected',
       stormMotionModel: 'Uses feed-provided motion where present; otherwise derives speed and heading from consecutive source fixes. No position interpolation is invented without track history.',
       projectionMode: 'MapLibre shaderData projectTileFor3D', projectionShaderVariants: programCache.size,
       projectionShaderVariantNames: Array.from(programCache.keys()),
@@ -1397,11 +1397,18 @@ export function initSkyClouds(target) {
       cloudVertexBudget: index32Supported ? CLOUD_VERTEX_LIMIT - CLOUD_STORM_VERTEX_RESERVE : 65400,
       satelliteCloudFormationBudget: globalCloudGeometryCache?.satelliteCloudAnchorCount || 0,
       satelliteCloudsWithDirectSourceHeight: globalCloudGeometryCache?.sourceHeightDirectAnchorCount || 0,
-      globalCoverageModel: satelliteMaskUsable
-        ? 'NASA/EUMETSAT satellite image-derived cloud positions inside observed footprints; image-derived likelihood is not an official cloud-mask product. Source-reported vertical samples seed measured-height volumes where they spatially match; modeled 3D formations fill gaps'
-        : (globalCloudGeometryCache?.sourceHeightSampleCount > 0
-          ? 'NASA SatCORPS / NOAA GOES source-reported cloud-top observations seed georeferenced 3D volumes where available; explicitly modeled cloud forms fill the rest. This is not a complete official global cloud mask'
-          : 'Procedural 3D cloud field remains active until source observations arrive; the last successful satellite image mask is retained for diagnosis'),
+       satelliteCloudMaskScienceSamples: globalCloudGeometryCache?.sourceCloudMaskSampleCount || 0,
+       satelliteCloudMaskScienceSources: globalCloudGeometryCache?.sourceCloudMaskSourceCount || 0,
+       satelliteCloudMaskScienceDirectAnchors: globalCloudGeometryCache?.sourceCloudMaskDirectAnchorCount || 0,
+       satelliteCloudMaskScienceUpdatedAt: window.__BP_CLOUD_HEIGHT_FEED_V6162__?.cloudMaskUpdatedAt || null,
+       satelliteCloudMaskScienceSourcesDetail: (window.__BP_CLOUD_HEIGHT_FEED_V6162__?.cloudMaskSources || []).map(x => ({source:x.source,satellite:x.satellite,product:x.product,observedAt:x.observedAt,sampleCount:x.sampleCount})),
+      globalCoverageModel: (globalCloudGeometryCache?.sourceCloudMaskSampleCount || 0) > 0
+        ? 'NOAA GOES Enterprise Cloud Mask probability and clear-sky observations drive placement inside valid GOES footprints; satellite-image classification remains fallback outside that coverage. Measured GOES cloud tops size matched volumes; cloud bases remain estimated when not supplied'
+        : (satelliteMaskUsable
+          ? 'NASA/EUMETSAT satellite image-derived cloud positions inside observed footprints; image-derived likelihood is not an official cloud-mask product. Source-reported vertical samples seed measured-height volumes where they spatially match; modeled 3D formations fill gaps'
+          : (globalCloudGeometryCache?.sourceHeightSampleCount > 0
+            ? 'NASA SatCORPS / NOAA GOES source-reported cloud-top observations seed georeferenced 3D volumes where available; explicitly modeled cloud forms fill the rest. This is not a complete official global cloud mask'
+            : 'Procedural 3D cloud field remains active until source observations arrive; the last successful satellite image mask is retained for diagnosis')),
       satelliteCloudMaskVersion: satelliteMask?.version || null,
       satelliteCloudMaskStatus: satelliteMaskStatus,
       satelliteCloudMaskSource: satelliteMask?.source || 'NASA GIBS GOES/Himawari + EUMETSAT Meteosat satellite mosaic (not yet sampled)',
@@ -1428,6 +1435,9 @@ export function initSkyClouds(target) {
       cloudHeightFeedStatus: (() => { const f=window.__BP_CLOUD_HEIGHT_FEED_V6162__; return f?.samples?.length ? 'measured global cloud heights loaded; base measured only where supplied' : window.__BP_CLOUD_HEIGHT_FEED_V6162_ERROR__ ? 'measured height feed unavailable; modeled vertical fallback active' : 'waiting for measured height feed; modeled vertical fallback active'; })(),
       cloudHeightFeedUpdatedAt: window.__BP_CLOUD_HEIGHT_FEED_V6162__?.generatedAt || null,
       cloudHeightFeedSampleCount: window.__BP_CLOUD_HEIGHT_FEED_V6162__?.samples?.length || 0,
+      cloudMaskFeedSampleCount: window.__BP_CLOUD_HEIGHT_FEED_V6162__?.cloudMaskSampleCount || 0,
+      cloudMaskFeedSources: window.__BP_CLOUD_HEIGHT_FEED_V6162__?.cloudMaskSources || [],
+      cloudMaskFeedUpdatedAt: window.__BP_CLOUD_HEIGHT_FEED_V6162__?.cloudMaskUpdatedAt || null,
       cloudHeightFeedPublishedSampleCount: window.__BP_CLOUD_HEIGHT_FEED_V6162__?.publishedSampleCount || 0,
       cloudHeightFeedSources: (window.__BP_CLOUD_HEIGHT_FEED_V6162__?.sources || []).map(x => ({source:x.source||x.label||'cloud-height source',status:x.status||'unknown',sampleCount:Number(x.sample_count)||0,observedAt:x.observed_at||null})),
       cloudHeightFeedError: window.__BP_CLOUD_HEIGHT_FEED_V6162_ERROR__ || null,
@@ -1441,6 +1451,7 @@ export function initSkyClouds(target) {
       rendererError, zoom: number(map.getZoom?.()), pitch: number(map.getPitch?.()), updatedAt: Date.now()
     };
     window.__BP_SKY_CLOUDS_STATE_V5908__ = state;
+    window.__BP_SKY_CLOUDS_STATE_V6180__ = state;
     window.__BP_SKY_CLOUDS_STATE_V6170__ = state;
     window.__BP_SKY_CLOUDS_STATE_V6150__ = state;
     window.__BP_SKY_CLOUDS_STATE_V6140__ = state;
@@ -2171,6 +2182,10 @@ export function initSkyClouds(target) {
       satelliteMaskCoverageCells: satelliteMaskReady ? satelliteMask.coverageCells : 0,
       satelliteMaskCloudCells: satelliteMaskReady ? satelliteMask.cloudCells : 0,
       satelliteMaskObservedFootprintOnly: true,
+      sourceCloudMaskSampleCount: sourceCloudMaskSamples.length,
+      sourceCloudMaskSourceCount: heightFeedState?.cloudMaskSources?.length || 0,
+      sourceCloudMaskSignature, sourceCloudMaskMatchRadiusM,
+      sourceCloudMaskClearSuppressedCount, sourceCloudMaskCloudMatchedCount, sourceCloudMaskDirectAnchorCount,
       satelliteCandidateCount, satelliteCloudAnchors, satelliteCloudAnchorCount: satelliteCloudAnchors.length,
       sourceHeightSampleCount: sourceHeightSamples.length, sourceHeightSignature, sourceHeightMatchRadiusM,
       sourceHeightMatchedCount, sourceHeightModelledCount, sourceHeightDirectAnchorCount,
@@ -2786,10 +2801,10 @@ function scheduleGeometry(delay = 180) {
   else map.once?.('load', addLayerIfReady);
 
   const api = {
-    version: 6170, map, overlay,
+    version: 6180, map, overlay,
     get enabled() { return enabled; },
     setEnabled, toggle,
-    get state() { return window.__BP_SKY_CLOUDS_STATE_V6170__ || window.__BP_SKY_CLOUDS_STATE_V6150__ || window.__BP_SKY_CLOUDS_STATE_V6140__ || window.__BP_SKY_CLOUDS_STATE_V6077__ || window.__BP_SKY_CLOUDS_STATE_V6076__ || window.__BP_SKY_CLOUDS_STATE_V6074__ || window.__BP_SKY_CLOUDS_STATE_V6073__ || window.__BP_SKY_CLOUDS_STATE_V6047__ || window.__BP_SKY_CLOUDS_STATE_V6046__ || window.__BP_SKY_CLOUDS_STATE_V6045__ || window.__BP_SKY_CLOUDS_STATE_V6031__ || window.__BP_SKY_CLOUDS_STATE_V6029__ || window.__BP_SKY_CLOUDS_STATE_V5908__ || null; },
+    get state() { return window.__BP_SKY_CLOUDS_STATE_V6180__ || window.__BP_SKY_CLOUDS_STATE_V6170__ || window.__BP_SKY_CLOUDS_STATE_V6150__ || window.__BP_SKY_CLOUDS_STATE_V6140__ || window.__BP_SKY_CLOUDS_STATE_V6077__ || window.__BP_SKY_CLOUDS_STATE_V6076__ || window.__BP_SKY_CLOUDS_STATE_V6074__ || window.__BP_SKY_CLOUDS_STATE_V6073__ || window.__BP_SKY_CLOUDS_STATE_V6047__ || window.__BP_SKY_CLOUDS_STATE_V6046__ || window.__BP_SKY_CLOUDS_STATE_V6045__ || window.__BP_SKY_CLOUDS_STATE_V6031__ || window.__BP_SKY_CLOUDS_STATE_V6029__ || window.__BP_SKY_CLOUDS_STATE_V5908__ || null; },
     destroy() {
       if (disposed) return; disposed = true;
       stopAnimation(); clearTimeout(rebuildTimer); clearTimeout(refreshHandle); clearLayerRetry();
