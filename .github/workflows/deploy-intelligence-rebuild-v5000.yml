@@ -44,29 +44,14 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy:
-    runs-on: ubuntu-latest
+  build-tree-assets:
+    runs-on: ubuntu-24.04
     timeout-minutes: 55
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-python@v5
         with:
-          go-version: '1.25.x'
-
-      - name: Install PMTiles archive builder
-        shell: bash
-        run: |
-          set -euo pipefail
-          go install github.com/protomaps/go-pmtiles@v1.31.2
-          BIN="$(go env GOPATH)/bin"
-          if [ -x "$BIN/go-pmtiles" ]; then ln -sf "$BIN/go-pmtiles" "$BIN/pmtiles"; fi
-          echo "$BIN" >> "$GITHUB_PATH"
-          test -x "$BIN/pmtiles"
-
+          python-version: '3.12'
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -135,6 +120,44 @@ jobs:
           PUPPETE_ROOT="$PUPPETE_ROOT" \
           CHROME_PATH="$CHROME" \
           node tests/tree-instanced-renderer-browser.mjs
+
+      - name: Upload verified procedural tree bank
+        uses: actions/upload-artifact@v4
+        with:
+          name: bridgepoint-procedural-tree-bank-v1
+          path: /tmp/bridgepoint-tree-assets/
+          if-no-files-found: error
+          retention-days: 1
+
+  deploy:
+    needs: build-tree-assets
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.x'
+
+      - name: Install PMTiles archive builder
+        shell: bash
+        run: |
+          set -euo pipefail
+          go install github.com/protomaps/go-pmtiles@v1.31.2
+          BIN="$(go env GOPATH)/bin"
+          if [ -x "$BIN/go-pmtiles" ]; then ln -sf "$BIN/go-pmtiles" "$BIN/pmtiles"; fi
+          echo "$BIN" >> "$GITHUB_PATH"
+          test -x "$BIN/pmtiles"
+
+      - uses: actions/download-artifact@v4
+        name: Download verified procedural tree bank
+        with:
+          name: bridgepoint-procedural-tree-bank-v1
+          path: /tmp/bridgepoint-tree-assets
 
       - name: Build clean Intelligence-only artifact
         shell: bash
