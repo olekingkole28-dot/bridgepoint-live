@@ -9,8 +9,7 @@ import sys
 from pathlib import Path
 from urllib.parse import urlparse
 
-ROOT = Path(__file__).resolve().parents[1]
-REPO = ROOT.parent
+REPO = Path(__file__).resolve().parents[1]
 CATALOG_PATH = REPO / "assets" / "trees" / "tree-model-catalog-v1.json"
 
 
