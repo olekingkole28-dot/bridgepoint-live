@@ -115,5 +115,7 @@ assert.match(rendererSource, /partialInstanceBudget/,
   'tree caps should keep the renderable instances instead of dropping the whole scene');
 assert.match(rendererSource, /window\.__BP_TREE_INSTANCE_RENDERER_API_V1__ = \{\s*map,\s*refreshInstances\s*\}/,
   'the installed 3D renderer must expose a map-scoped refresh hook for asynchronous tile results');
+assert.match(rendererSource, /const cached = cache\?\.trees;[\s\S]*?if \(Array\.isArray\(cached\)\) return cached;/,
+  'an initialized empty active-tile cache must not fall back to stale source features');
 
 console.log('BRIDGEPOINT_TREE_VIEWPORT_PLACEMENT_CONTRACT_PASS single_tile=true building_filter=true');
