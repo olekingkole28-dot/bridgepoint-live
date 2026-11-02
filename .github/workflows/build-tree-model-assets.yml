@@ -9,6 +9,9 @@ on:
       - 'assets/trees/tree-model-catalog-v1.json'
       - 'tools/trees/**'
       - 'tests/tree-model-catalog.test.py'
+      - 'tests/tree-instanced-renderer-browser.mjs'
+      - 'release-v2300/world-v2300-tree-instanced.js'
+      - 'release-v2300/world-v2300-tree-catalog.js'
       - '.github/workflows/build-tree-model-assets.yml'
 
 permissions:
@@ -74,6 +77,28 @@ jobs:
 
       - name: Verify GLB contents, LOD budgets and wind attributes
         run: python tests/tree-model-catalog.test.py --built-assets /tmp/bridgepoint-tree-assets
+
+
+      - name: Verify real GLB rendering in desktop and phone MapLibre browsers
+        shell: bash
+        run: |
+          set -euo pipefail
+          TEST_ROOT=/tmp/bridgepoint-tree-browser
+          PUPPETE_ROOT=/tmp/bp-puppeteer
+          mkdir -p "$TEST_ROOT/vendor" "$TEST_ROOT/release-v2300" "$TEST_ROOT/assets/trees"
+          cp release-v2300/world-v2300-tree-catalog.js "$TEST_ROOT/release-v2300/"
+          cp release-v2300/world-v2300-tree-instanced.js "$TEST_ROOT/release-v2300/"
+          cp -a /tmp/bridgepoint-tree-assets/. "$TEST_ROOT/assets/trees/"
+          # Test module imports are rooted at /; mirror the two release modules there too.
+          cp release-v2300/world-v2300-tree-catalog.js "$TEST_ROOT/"
+          cp release-v2300/world-v2300-tree-instanced.js "$TEST_ROOT/"
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.js -o "$TEST_ROOT/vendor/maplibre-gl.js"
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.css -o "$TEST_ROOT/vendor/maplibre-gl.css"
+          test -s "$TEST_ROOT/assets/trees/manifest.json"
+          npm install --prefix "$PUPPETE_ROOT" puppeteer-core@24 --no-audit --no-fund
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          test -n "$CHROME"
+          BP_TREE_BROWSER_ROOT="$TEST_ROOT" PUPPETE_ROOT="$PUPPETE_ROOT" CHROME_PATH="$CHROME" node tests/tree-instanced-renderer-browser.mjs
 
       - name: Publish reviewable tree asset build artifact
         uses: actions/upload-artifact@v4
