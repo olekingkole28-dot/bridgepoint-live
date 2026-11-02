@@ -147,7 +147,7 @@ test('cloud shadows update on the map and use available source winds', () => {
 
 test('entrypoints use fresh cache keys for updated map, water, clouds, weather and space', () => {
   for (const source of [app, landing]) {
-    assert.match(source, /world-v2300-map\.js\?v=6208-continuous-ground-imagery/);
+    assert.match(source, /world-v2300-map\.js\?v=6209-esri-raster-visibility-guard/);
     assert.match(source, /world-v2300-water\.js\?v=6194-stable-water-low-cost/);
     assert.match(source, /world-v2300-clouds\.js\?v=6168-desktop-global-cloud-motion-stop/);
     assert.match(source, /world-v2300-weather\.js\?v=6195-desktop-globe-flash-stability/);
@@ -157,8 +157,8 @@ test('entrypoints use fresh cache keys for updated map, water, clouds, weather a
   assert.match(map, /world-v2300-space\.js\?v=6125-manual-globe-camera/);
   assert.match(timeSlider, /world-v2300-clouds\.js\?v=6168-desktop-global-cloud-motion-stop/);
   assert.match(bootstrap, /world-v2300-weather\.js\?v=6195-desktop-globe-flash-stability/);
-  assert.match(appHtml, /app\.js\?v=6208-continuous-ground-imagery/);
-  assert.match(landingHtml, /landing\.js\?v=6208-continuous-ground-imagery/);
+  assert.match(appHtml, /app\.js\?v=6209-esri-raster-visibility-guard/);
+  assert.match(landingHtml, /landing\.js\?v=6209-esri-raster-visibility-guard/);
   assert.match(appHtml, /intelligence-global-v5507\.js\?v=6170-imerg-nrt-timeline/);
   assert.match(landingHtml, /intelligence-global-v5507\.js\?v=6170-imerg-nrt-timeline/);
 });
@@ -237,17 +237,17 @@ test('global opportunity markers render category glyphs and merge source-backed 
   assert.match(landing, /if\(!risk\)void loadRiskFeed\(\)\.then/);
 });
 
-test('both entrypoints perform a real 6208 service-worker cutover before stale startup survives', () => {
-  assert.match(landingHtml, /app-update-v5820\.js\?v=6208-continuous-ground-imagery/);
-  assert.match(appHtml, /app-update-v5820\.js\?v=6208-continuous-ground-imagery/);
-  assert.match(appUpdate, /const BUILD=6208/);
-  assert.match(appUpdate, /CURRENT_CACHE='bp-intelligence-v6208-continuous-ground-imagery'/);
+test('both entrypoints perform a real 6209 service-worker cutover before stale startup survives', () => {
+  assert.match(landingHtml, /app-update-v5820\.js\?v=6209-esri-raster-visibility-guard/);
+  assert.match(appHtml, /app-update-v5820\.js\?v=6209-esri-raster-visibility-guard/);
+  assert.match(appUpdate, /const BUILD=6209/);
+  assert.match(appUpdate, /CURRENT_CACHE='bp-intelligence-v6209-esri-raster-visibility-guard'/);
   assert.match(appUpdate, /function reloadOnce\(reason\)/);
   assert.match(appUpdate, /location\.replace\(u\.href\)/);
   assert.match(appUpdate, /navigator\.serviceWorker\?\.addEventListener\('controllerchange'/);
-  assert.match(serviceWorker, /const V='bp-intelligence-v6208-continuous-ground-imagery'/);
-  assert.match(landing, /navigator\.serviceWorker\.register\('\/sw\.js\?v=6208-continuous-ground-imagery'/);
-  assert.match(app, /navigator\.serviceWorker\.register\('\/sw\.js\?v=6208-continuous-ground-imagery'/);
+  assert.match(serviceWorker, /const V='bp-intelligence-v6209-esri-raster-visibility-guard'/);
+  assert.match(landing, /navigator\.serviceWorker\.register\('\/sw\.js\?v=6209-esri-raster-visibility-guard'/);
+  assert.match(app, /navigator\.serviceWorker\.register\('\/sw\.js\?v=6209-esri-raster-visibility-guard'/);
   assert.match(clouds, /Number\(existingCloudController\.version\) >= 6167[\s\S]{0,180}Number\(existingState\?\.coverageVersion \|\| existingState\?\.version\) >= 6167/);
 });
 
@@ -409,8 +409,8 @@ test('homepage opportunities stay off at startup and the button enables the publ
 test('website and app start on the same cache-busted globe-first weather build', () => {
   assert.match(landingHtml, /bp-globe-only-first-frame-v6137/);
   assert.match(appHtml, /bp-app-globe-only-first-frame-v6137/);
-  assert.ok(landingHtml.includes('landing.js?v=6208-continuous-ground-imagery'));
-  assert.ok(appHtml.includes('app.js?v=6208-continuous-ground-imagery'));
+  assert.ok(landingHtml.includes('landing.js?v=6209-esri-raster-visibility-guard'));
+  assert.ok(appHtml.includes('app.js?v=6209-esri-raster-visibility-guard'));
   assert.ok(landingHtml.includes('intelligence-global-v5507.js?v=6170-imerg-nrt-timeline'));
   assert.ok(appHtml.includes('intelligence-global-v5507.js?v=6170-imerg-nrt-timeline'));
 });
