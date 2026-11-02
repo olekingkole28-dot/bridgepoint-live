@@ -1,4 +1,5 @@
 import { normalizeTreeFeature } from './world-v2300-tree-catalog.js';
+import { installRegionalTreeCoverLayer } from './world-v2300-tree-canopy-lod.js';
 
 const VERSION = 1;
 const LAYER_ID = 'bp-v2300-instanced-trees-v1';
@@ -884,6 +885,18 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
   }
 
   try {
+    let canopyState = null;
+    try {
+      canopyState = installRegionalTreeCoverLayer(map);
+    } catch (canopyError) {
+      publish('regional-canopy-unavailable', {
+        canopyError: String(canopyError?.message || canopyError)
+      });
+    }
+    if (canopyState) {
+      state.regionalCanopyStatus = canopyState.status;
+      state.regionalCanopyLayerId = canopyState.layerId;
+    }
     await loadManifest();
     const modules = await importModules();
     THREE = modules.THREE;
