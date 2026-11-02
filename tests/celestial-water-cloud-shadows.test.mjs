@@ -161,8 +161,8 @@ test('entrypoints use fresh cache keys and keep the celestial canvas off the sat
   assert.doesNotMatch(map, /world-v2300-space\.js\?v=6125-manual-globe-camera/, 'the retired celestial overlay must not be imported by the live globe');
   assert.doesNotMatch(timeSlider, /data-clouds|toggleSkyClouds|world-v2300-clouds/);
   assert.match(bootstrap, /world-v2300-weather\.js\?v=6195-desktop-globe-flash-stability/);
-  assert.match(appHtml, /app\.js\?v=6220-tree-canopy-coverage-solid-retention/);
-  assert.match(landingHtml, /landing\.js\?v=6220-tree-canopy-coverage-solid-retention/);
+  assert.match(appHtml, /app\.js\?v=6221-clouds-always-on/);
+  assert.match(landingHtml, /landing\.js\?v=6221-clouds-always-on/);
   assert.match(appHtml, /intelligence-global-v5507\.js\?v=6170-imerg-nrt-timeline/);
   assert.match(landingHtml, /intelligence-global-v5507\.js\?v=6170-imerg-nrt-timeline/);
 });
