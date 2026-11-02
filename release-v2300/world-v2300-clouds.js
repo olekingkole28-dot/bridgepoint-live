@@ -132,18 +132,20 @@ float bpStormDensity(vec3 p,float tint,float time,float radius,float height,floa
   float rho=length(p.xy)/max(radius,1.0),z=clamp(p.z/max(height,1.0),0.0,1.0);
   vec3 coarseP=vec3(p.xy/52000.0,p.z/4300.0)+vec3(time*0.018,-time*0.012,time*0.009);
   float broad=noise3(coarseP),fine=noise3(coarseP*2.7+vec3(time*0.10,-time*0.06,time*0.08)),micro=noise3(coarseP*5.1+vec3(-time*0.15,time*0.11,time*0.07));
+  float billow=noise3(coarseP*1.65+vec3(-time*0.035,time*0.026,time*0.021)),erosion=noise3(coarseP*7.4+vec3(time*0.18,-time*0.13,time*0.11));
   if(tint<1.481){
     float funnelLod=clamp((height-15500.0)/484500.0,0.0,1.0),topSpread=mix(0.105,0.70,funnelLod),taper=mix(0.0045,topSpread,pow(z,0.78)),rough=(broad-0.5)*0.020+(fine-0.5)*0.010+(micro-0.5)*0.006,radial=length(p.xy)/max(radius,18000.0);
-    float edge=1.0-smoothstep(taper*0.74,taper*1.20,radial+rough),twist=atan(p.y,p.x)-time*1.55+z*5.4+(fine-0.5)*1.4;
-    float striation=0.54+0.46*(0.5+0.5*cos(twist*3.1)),broken=smoothstep(0.18,0.40,broad*0.52+fine*0.32+micro*0.16);
+    rough+=(billow-0.5)*0.008+(erosion-0.5)*0.004;
+    float edge=1.0-smoothstep(taper*0.70,taper*1.22,radial+rough),twist=atan(p.y,p.x)-time*1.55+z*5.4+(fine-0.5)*1.4+(billow-0.5)*0.55;
+    float striation=0.50+0.50*(0.5+0.5*cos(twist*3.1)),broken=smoothstep(0.20,0.52,broad*0.38+fine*0.23+micro*0.16+billow*0.15+erosion*0.08);
     float vertical=smoothstep(0.006,0.075,z)*(1.0-smoothstep(0.91,1.0,z)),inside=1.0-smoothstep(taper*0.10,taper*0.46,radial);
     return clamp((edge*(0.52+0.48*broken)*striation*vertical*1.38)+(inside*vertical*broken*0.08),0.0,1.0);
   }
   float safeEye=clamp(eyeRatio,0.008,0.095),vertical=smoothstep(0.065,0.18,z)*(1.0-smoothstep(0.84,0.99,z));
   float eyeClear=smoothstep(safeEye*0.98,safeEye*1.28,rho),outerFade=1.0-smoothstep(0.82,0.995,rho);
-  float phase=atan(p.y,p.x)-log(max(rho,safeEye*1.32))*1.82-time*0.22,spiralSignal=0.5+0.5*cos(phase*5.0+(broad-0.5)*1.7+(fine-0.5)*0.9);
-  float spiralBands=smoothstep(0.26,0.72,spiralSignal),cloudTexture=smoothstep(0.24,0.48,broad*0.54+fine*0.30+micro*0.16);
-  float brokenBands=mix(0.10,1.0,spiralBands)*(0.36+0.64*cloudTexture),eyeWallRadius=safeEye*1.50,eyeWallWidth=max(0.012,safeEye*0.43);
+  float phase=atan(p.y,p.x)-log(max(rho,safeEye*1.32))*1.82-time*0.22,spiralSignal=0.5+0.5*cos(phase*5.0+(broad-0.5)*1.7+(fine-0.5)*0.9+(billow-0.5)*0.72+(erosion-0.5)*0.32);
+  float spiralBands=smoothstep(0.26,0.72,spiralSignal),cloudTexture=smoothstep(0.22,0.54,broad*0.36+fine*0.22+micro*0.16+billow*0.17+erosion*0.09);
+  float brokenBands=mix(0.055,1.0,spiralBands)*(0.28+0.72*cloudTexture),eyeWallRadius=safeEye*1.50,eyeWallWidth=max(0.012,safeEye*0.43);
   float eyeWall=exp(-pow((rho-eyeWallRadius)/eyeWallWidth,2.0))*(0.70+0.30*broad),outerBands=eyeClear*outerFade*vertical*brokenBands;
   return clamp(max(outerBands*1.36,eyeWall*vertical*1.28),0.0,1.0);
 }
@@ -170,10 +172,13 @@ vec4 bpRaymarchStorm(vec3 entry,vec2 cameraXY,float tint,float time,float camera
     float density=bpStormDensity(samplePos,tint,time,radius,height,eyeRatio);
     if(density>0.012){
       float broad=noise3(vec3(samplePos.xy/21000.0,samplePos.z/2900.0)+vec3(time*0.02,-time*0.01,time*0.015));
+      float fine=noise3(vec3(samplePos.xy/7600.0,samplePos.z/1350.0)+vec3(-time*0.045,time*0.035,time*0.028));
+      float erosion=noise3(vec3(samplePos.xy/3100.0,samplePos.z/760.0)+vec3(time*0.09,-time*0.065,time*0.05));
       float heightShade=clamp(samplePos.z/height,0.0,1.0),radialShade=clamp(length(samplePos.xy)/radius,0.0,1.0);
-      float silver=clamp(0.45+0.26*broad+0.20*heightShade-0.16*radialShade,0.16,1.0);
-      vec3 cloudColor=mix(vec3(0.20,0.25,0.32),vec3(0.93,0.96,1.0),silver);
-      float extinction=funnel?mix(0.000105,0.000012,funnelLod):0.000060,sampleAlpha=clamp(1.0-exp(-density*stepLength*extinction),0.0,0.50);
+      float silver=clamp(0.37+0.22*broad+0.17*fine+0.12*erosion+0.20*heightShade-0.16*radialShade,0.14,1.0);
+      vec3 cloudColor=mix(vec3(0.13,0.19,0.28),vec3(0.96,0.98,1.0),silver);
+      float microExtinction=0.72+0.42*fine+0.22*erosion;
+      float extinction=funnel?mix(0.000105,0.000012,funnelLod):0.000060,sampleAlpha=clamp(1.0-exp(-density*stepLength*extinction*microExtinction),0.0,0.50);
       accumulatedColor+=cloudColor*((1.0-accumulatedAlpha)*sampleAlpha);accumulatedAlpha+=(1.0-accumulatedAlpha)*sampleAlpha;
     }
   }
