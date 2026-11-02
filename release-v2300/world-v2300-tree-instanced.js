@@ -685,10 +685,12 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
           for (let i = 0; i < treeModels.length; i++) {
             const tree = treeModels[i];
             const lng = tree.coordinates[0], lat = tree.coordinates[1];
-            const ground = tree.groundElevationMeters !== null &&
-              tree.groundElevationMeters !== undefined &&
-              Number.isFinite(Number(tree.groundElevationMeters))
-              ? Number(tree.groundElevationMeters) : 0;
+            if (tree.groundElevationMeters === null ||
+                tree.groundElevationMeters === undefined ||
+                !Number.isFinite(Number(tree.groundElevationMeters))) {
+              throw new Error('TREE_GROUND_ELEVATION_UNAVAILABLE');
+            }
+            const ground = Number(tree.groundElevationMeters);
             const modelArray = map.transform?.getMatrixForModel?.([lng, lat], ground);
             if (!modelArray) throw new Error('TREE_GEOGRAPHIC_MODEL_MATRIX_UNAVAILABLE');
             matrix.fromArray(modelArray);
@@ -769,7 +771,7 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
     ).length;
     let groundElevationSampledCount = 0;
     let groundElevationFallbackCount = 0;
-    const nextTrees = normalized.trees.map(tree => {
+    const nextTrees = normalized.trees.flatMap(tree => {
       let groundElevationMeters = null;
       try {
         const altitude = map.queryTerrainElevation?.(tree.coordinates, { exaggerated: false });
@@ -782,7 +784,11 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
       } catch (_) {
         groundElevationFallbackCount++;
       }
-      return { ...tree, groundElevationMeters };
+      // Do not place a solid model at sea level while its ground elevation is
+      // unknown. Keep the legacy fallback visible and retry on later map events.
+      return groundElevationMeters === null
+        ? []
+        : [{ ...tree, groundElevationMeters }];
     });
     state.groundElevationSampledCount = groundElevationSampledCount;
     state.groundElevationFallbackCount = groundElevationFallbackCount;
