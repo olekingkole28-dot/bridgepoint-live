@@ -18,6 +18,7 @@ on:
       - 'rebuild-v5000/landing.js'
       - 'rebuild-v5000/index.html'
       - 'rebuild-v5000/app-index.html'
+      - 'rebuild-v5000/bridgepoint-blender-world-v1.js'
       - '.github/workflows/deploy-intelligence-rebuild-v5000.yml'
       - '.github/workflows/verify-v2300-water.yml'
   push:
@@ -37,6 +38,7 @@ on:
       - 'rebuild-v5000/landing.js'
       - 'rebuild-v5000/index.html'
       - 'rebuild-v5000/app-index.html'
+      - 'rebuild-v5000/bridgepoint-blender-world-v1.js'
       - '.github/workflows/deploy-intelligence-rebuild-v5000.yml'
       - '.github/workflows/verify-v2300-water.yml'
 
@@ -64,6 +66,7 @@ jobs:
           node tests/water-lod-and-imagery.test.mjs
           node --check rebuild-v5000/app.js
           node --check rebuild-v5000/landing.js
+          node --check rebuild-v5000/bridgepoint-blender-world-v1.js
       - name: Verify runtime wiring and deployment copies
         shell: bash
         run: |
