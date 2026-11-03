@@ -87,3 +87,87 @@ assert.ok(landingHtml.includes('offline-world-ui.js'), 'homepage contains the of
 assert.ok(appHtml.includes('offline-world-ui.js'), 'app contains the offline dock UI loader');
 assert.ok(view.includes('bpv-mapkey-rail'), 'the map key is available from the side rail');
 console.log('Drone awareness module checks passed.');
+
+
+// Regressions for the live ADS-B request, B6 filter, altitude preservation and 3D trail projection.
+// The saved JSON is a test fixture only; it is never imported by the production browser bundle.
+{
+  const { readFileSync: bpReadDroneFile } = await import('node:fs');
+  const bpDroneSourceText = bpReadDroneFile(new URL('../rebuild-v5000/bridgepoint-drone-awareness-v1.js', import.meta.url), 'utf8');
+  const bpDroneFixture = JSON.parse(bpReadDroneFile(new URL('./fixtures/adsb-lol-response-b6.json', import.meta.url), 'utf8'));
+  const bpDroneHelperStart = bpDroneSourceText.indexOf('const DroneCore=(()=>{');
+  const bpDroneHelperEnd = bpDroneSourceText.indexOf('})();', bpDroneHelperStart) + 4;
+  assert.ok(bpDroneHelperStart >= 0 && bpDroneHelperEnd > bpDroneHelperStart, 'runtime exposes the pure DroneCore functions for tests');
+  const bpDroneHelperSource = bpDroneSourceText.slice(bpDroneHelperStart, bpDroneHelperEnd);
+  const bpDroneCore = new Function(
+    "const SUPPORTED_SOURCE='https://api.adsb.lol/v2/'; const REGION_RADIUS_NM=250;\n" +
+    bpDroneHelperSource + "\nreturn DroneCore;"
+  )();
+
+  assert.equal(bpDroneCore.radiusNm, 250, 'supported request radius is explicitly defined at 250 NM');
+  assert.equal(
+    bpDroneCore.buildRequestUrl({lat:40.7, lon:-74}),
+    'https://api.adsb.lol/v2/lat/40.7000/lon/-74.0000/dist/250',
+    'request URL follows the supported ADSB.lol v2 lat/lon/dist endpoint'
+  );
+
+  const bpParsed = bpDroneCore.parseResponse(bpDroneFixture);
+  assert.equal(bpParsed.records.length, 4, 'parser consumes the actual ac array');
+  assert.equal(bpDroneCore.isUavRecord(bpParsed.records[0]), true, 'B6 is explicitly accepted as UAV');
+  assert.equal(bpDroneCore.isUavRecord(bpParsed.records[1]), false, 'ordinary A3 aircraft is not called a drone');
+  assert.throws(() => bpDroneCore.parseResponse({total: 1}), /ac aircraft array/, 'missing ac is a visible schema error');
+
+  const bpGeomAltitude = bpDroneCore.altitudeForRecord(bpParsed.records[0]);
+  assert.equal(bpGeomAltitude.known, true);
+  assert.equal(bpGeomAltitude.datum, 'geometric');
+  assert.equal(bpGeomAltitude.sourceField, 'alt_geom');
+  assert.equal(bpGeomAltitude.sourceUnits, 'ft');
+  assert.ok(Math.abs(bpGeomAltitude.meters - 365.76) < 1e-8, 'geometric feet convert to metres exactly');
+
+  const bpBaroAltitude = bpDroneCore.altitudeForRecord({alt_baro: 900});
+  assert.equal(bpBaroAltitude.known, true);
+  assert.equal(bpBaroAltitude.datum, 'barometric');
+  assert.equal(bpBaroAltitude.sourceField, 'alt_baro');
+  assert.ok(Math.abs(bpBaroAltitude.meters - 274.32) < 1e-8, 'barometric feet retain their distinct datum');
+  assert.equal(bpDroneCore.altitudeForRecord({}).known, false, 'missing altitude stays unknown');
+  assert.equal(bpDroneCore.altitudeForRecord({alt_geom:'ground'}).known, false, 'ground is not converted into a fabricated height');
+
+  const bpRejectedStale = bpDroneCore.invalidPositionReason(bpParsed.records[2]);
+  const bpRejectedCoordinates = bpDroneCore.invalidPositionReason(bpParsed.records[3]);
+  assert.match(bpRejectedStale, /stale position/);
+  assert.match(bpRejectedCoordinates, /invalid coordinates/);
+
+  const bpSampledAt = 1700000000000;
+  const bpTrailPoint = bpDroneCore.createTrailPoint(bpParsed.records[0], bpSampledAt, 'ADSB.lol');
+  assert.equal(bpTrailPoint.trackKey, 'abc123');
+  assert.equal(bpTrailPoint.longitude, -74.006);
+  assert.equal(bpTrailPoint.latitude, 40.713);
+  assert.equal(bpTrailPoint.altitudeField, 'alt_geom');
+  assert.equal(bpTrailPoint.altitudeDatum, 'geometric');
+  assert.equal(bpTrailPoint.heading, 92);
+  assert.equal(bpTrailPoint.sourceName, 'ADSB.lol');
+  assert.equal(bpTrailPoint.observationTimestamp, bpSampledAt - 1000, 'seen_pos age becomes a timestamp');
+
+  let bpProjectedArguments = null;
+  const bpMercatorStub = {fromLngLat: (lngLat, altitude) => { bpProjectedArguments = {lngLat, altitude}; return {x:1,y:2,z:3}; }};
+  const bpProjected = bpDroneCore.project3DPoint(bpTrailPoint, bpMercatorStub);
+  assert.deepEqual(bpProjected, {x:1,y:2,z:3});
+  assert.deepEqual(bpProjectedArguments, {lngLat:{lng:-74.006,lat:40.713},altitude:365.76}, '3D coordinates receive the source altitude converted to metres');
+  const bpUnknownPoint = bpDroneCore.createTrailPoint({hex:'abc999',lat:1,lon:2}, bpSampledAt, 'ADSB.lol');
+  assert.equal(bpUnknownPoint.altitudeKnown, false);
+  assert.equal(bpDroneCore.project3DPoint(bpUnknownPoint, bpMercatorStub), null, 'unknown altitude cannot be projected as an invented 3D height');
+
+  assert.match(bpDroneSourceText, /REGION_RADIUS_NM=250/);
+  assert.match(bpDroneSourceText, /Request timed out after/);
+  assert.match(bpDroneSourceText, /HTTP '\+response\.status/);
+  assert.match(bpDroneSourceText, /Invalid JSON response/);
+  assert.match(bpDroneSourceText, /activationQueued/);
+  assert.match(bpDroneSourceText, /function activateWhenStyleReady/);
+  assert.match(bpDroneSourceText, /style\.load/);
+  assert.doesNotMatch(bpDroneSourceText, /Press Drone Awareness again/);
+  assert.match(bpDroneSourceText, /new droneThree\.LineBasicMaterial/);
+  assert.doesNotMatch(bpDroneSourceText, /meters:24,known:false/);
+  assert.doesNotMatch(bpDroneSourceText, /Math\.max\(altitude\.meters/);
+  assert.doesNotMatch(bpDroneSourceText, /coordinates:points\.map\(p=>p\.coord\)/);
+  assert.doesNotMatch(bpDroneSourceText, /adsb-lol-response-b6/);
+}
