@@ -2286,8 +2286,8 @@ function generateGeometry() {
         baseM: clamp(baseM, 450, 14000), topM: clamp(topM, baseM + 180, 18500), seed, kind, windContext, stormMotion, rainIntensity: clamp(Number(rainIntensity)||0, 0, 2) });
     }
     function sourceRainColorLevel(sample) {
-      const p = sample?.properties || sample || {};
-      const read = keys => { for (const key of keys) { const value = Number(p[key]); if (Number.isFinite(value)) return value; } return NaN; };
+      const p = { ...(sample?.properties || {}), ...(sample || {}) };
+      const read = keys => { for (const key of keys) { const raw = p[key]; if (raw === null || raw === undefined || raw === '') continue; const value = Number(raw); if (Number.isFinite(value)) return value; } return NaN; };
       const dbz = read(['reflectivity_dbz','radar_reflectivity_dbz','dbz','dBZ']);
       if (Number.isFinite(dbz)) return dbz >= 45 ? 2 : dbz >= 35 ? 1 : 0;
       const mmRate = read(['precipitation_rate_mm_hr','precipitation_rate_mmh','rain_rate_mm_hr','rainfall_rate_mm_hr','precipitation_mm_hr','precip_rate_mm_hr']);
