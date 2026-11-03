@@ -1,14 +1,12 @@
 name: Deploy Orbit & Motion v6203 from verified production artifact
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
-      - '.github/workflows/deploy-orbit-hotfix-v6203.yml'
       - 'rebuild-v5000/bridgepoint-global-motion-v5926.js'
       - 'rebuild-v5000/bridgepoint-orbit-renderer-v6201.js'
-      - 'rebuild-v5000/index.html'
-      - 'rebuild-v5000/app-index.html'
       - 'tests/orbit-renderer-v6201.test.mjs'
 
 permissions:
