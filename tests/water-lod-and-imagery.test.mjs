@@ -75,7 +75,7 @@ assert.ok(!satelliteGuard.includes('triggerRepaint'), 'idempotent satellite visi
 assert.ok(satelliteGuard.includes("const blenderWorldEnabled=window.__BP_BLENDER_WORLD_MODE__?.enabled===true"), 'the persistent satellite guard must respect the separate Blender World mode');
 assert.ok(satelliteGuard.includes("const targetVisibility=blenderWorldEnabled?'none':'visible'"), 'the normal globe keeps all imagery visible, while Blender World hides each raster source');
 assert.ok(satelliteGuard.includes("map.setPaintProperty('gta-water','fill-opacity',0)"), 'the persistent satellite underlay guard must keep native ocean polygons transparent');
-assert.ok(satelliteGuard.includes("depth.surface===true"), 'the optional GEBCO depth overlay must retain its explicit opt-in water treatment');
+assert.ok(satelliteGuard.includes('optional') && !satelliteGuard.includes('depth.surface===true'), 'optional GEBCO bathymetry remains a separate raster while native ocean fill stays transparent');
 assert.ok(blenderSource.includes("^gta-(?:nasa|esri|usgs|oam)(?:$|-)"), 'Blender World must hide all native satellite raster providers in its separate mode');
 assert.ok(blenderSource.includes("map.setLayoutProperty(layer.id, 'visibility', 'none')") && blenderSource.includes('restoreLegacyLayers()'), 'Blender World raster suppression must restore original layer visibility when the mode closes');
 assert.ok(mapSource.includes("map.on('render',()=>keepSatelliteRasterLayersVisible('render'))"), 'satellite visibility must be repaired on every rendered frame, including after the map becomes idle');
