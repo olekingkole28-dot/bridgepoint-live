@@ -20,6 +20,7 @@ on:
       - 'tests/celestial-water-cloud-shadows.test.mjs'
       - 'tests/drone-awareness.test.mjs'
       - 'tests/vessel-awareness.test.mjs'
+      - 'tests/transportation-simulation-v1.test.mjs'
       - 'pricing/**'
       - 'newsroom/**'
       - 'terminal/**'
