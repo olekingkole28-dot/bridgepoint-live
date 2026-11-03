@@ -275,7 +275,7 @@ function distanceMeters(a,b){
 }
 function updateTrackedUavs(records){
  const now=Date.now(),fresh=new Map();let identified=0,rejected=0;
- for(const a of Array.isArray(records)?records:[]){if(!isUavRecord(a))continue;identified++;if(DroneCore.invalidPositionReason(a)){rejected++;continue}
+ for(const a of Array.isArray(records)?records:[]){if(!DroneCore.isUavRecord(a))continue;identified++;if(DroneCore.invalidPositionReason(a)){rejected++;continue}
   const key=String(a.hex||a.icao24||'').trim().toLowerCase(),lat=Number(a.lat),lon=Number(a.lon),ageRaw=a.seen_pos??a.seen,age=ageRaw===null||ageRaw===undefined||ageRaw===''?999999:Number(ageRaw),prev=fresh.get(key);
   if(prev&&prev._seenAge<=age)continue;fresh.set(key,{...a,lat,lon,_trackKey:key,_seenAge:age});
  }
@@ -317,11 +317,12 @@ const DroneCore=(()=>{
  const FEET_TO_METERS=0.3048;
  function buildRequestUrl(sample){if(!sample||!Number.isFinite(Number(sample.lat))||!Number.isFinite(Number(sample.lon)))throw new Error('Invalid regional sample coordinates');return SUPPORTED_SOURCE+'lat/'+encodeURIComponent(Number(sample.lat).toFixed(4))+'/lon/'+encodeURIComponent(Number(sample.lon).toFixed(4))+'/dist/'+REGION_RADIUS_NM}
  function parseResponse(payload){if(!payload||typeof payload!=='object'||Array.isArray(payload))throw new Error('Invalid ADSB.lol response: expected a JSON object');if(!Array.isArray(payload.ac))throw new Error('Invalid ADSB.lol response: expected the ac aircraft array');return{records:payload.ac,total:Number.isFinite(Number(payload.total))?Number(payload.total):payload.ac.length,message:String(payload.msg||'')}}
+ function isUavRecord(a){const category=String(a?.category||a?.emitter_category||'').trim().toUpperCase();if(category==='B6'||category==='14'||category==='UAV')return true;const description=[a?.desc,a?.description,a?.typeDescription,a?.type,a?.t].filter(Boolean).join(' ');return /\b(?:UAV|UAS|UNMANNED AERIAL|UNMANNED AIRCRAFT|DRONE)\b/i.test(description)}
  function invalidPositionReason(a){const lat=Number(a?.lat),lon=Number(a?.lon);if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180)return'invalid coordinates';if(!String(a?.hex||a?.icao24||'').trim())return'missing tracking key';const ageRaw=a?.seen_pos??a?.seen;if(ageRaw!==null&&ageRaw!==undefined&&ageRaw!==''){const age=Number(ageRaw);if(!Number.isFinite(age)||age<0)return'invalid position age';if(age>240)return'stale position ('+Math.round(age)+'s old)'}return null}
  function altitudeForRecord(a){for(const c of [{field:'alt_geom',datum:'geometric'},{field:'alt_baro',datum:'barometric'}]){const raw=a?.[c.field];if(raw===null||raw===undefined||raw==='')continue;if(typeof raw==='string'&&raw.trim().toLowerCase()==='ground')continue;const value=Number(raw);if(!Number.isFinite(value)||value< -2000||value>60000)continue;return{known:true,value,meters:value*FEET_TO_METERS,sourceValue:raw,sourceField:c.field,sourceUnits:'ft',mapUnits:'m',datum:c.datum}}return{known:false,value:null,meters:null,sourceValue:null,sourceField:null,sourceUnits:'ft',mapUnits:'m',datum:'unknown'}}
  function createTrailPoint(a,observedAt=Date.now(),sourceName='ADSB.lol'){const alt=altitudeForRecord(a),ageRaw=a?.seen_pos??a?.seen,age=ageRaw===null||ageRaw===undefined||ageRaw===''?null:Number(ageRaw),headingRaw=a?.track??a?.true_heading??a?.mag_heading,heading=headingRaw===null||headingRaw===undefined||headingRaw===''?null:Number(headingRaw);return{trackKey:String(a?.hex||a?.icao24||'').trim().toLowerCase(),longitude:Number(a?.lon),latitude:Number(a?.lat),altitudeValue:alt.sourceValue,altitudeField:alt.sourceField,altitudeUnits:alt.sourceUnits,altitudeMeters:alt.known?alt.meters:null,altitudeDatum:alt.datum,altitudeKnown:alt.known,heading:Number.isFinite(heading)?heading:null,observationTimestamp:Number.isFinite(age)&&age>=0?observedAt-age*1000:observedAt,sampledAt:observedAt,sourceName,sourceAgeSeconds:Number.isFinite(age)&&age>=0?age:null,gapBefore:false,gapReason:null}}
  function project3DPoint(point,MC){if(!point?.altitudeKnown||!Number.isFinite(Number(point.altitudeMeters))||!MC?.fromLngLat)return null;return MC.fromLngLat({lng:Number(point.longitude),lat:Number(point.latitude)},Number(point.altitudeMeters))}
- return Object.freeze({buildRequestUrl,parseResponse,invalidPositionReason,altitudeForRecord,createTrailPoint,project3DPoint,feetToMeters:FEET_TO_METERS,radiusNm:REGION_RADIUS_NM});
+ return Object.freeze({buildRequestUrl,parseResponse,isUavRecord,invalidPositionReason,altitudeForRecord,createTrailPoint,project3DPoint,feetToMeters:FEET_TO_METERS,radiusNm:REGION_RADIUS_NM});
 })();
 function centerAndZoom(){
  if(!map)return null;
@@ -412,7 +413,7 @@ function createPane(panel){
  const summary=element('div','bp-drone-summary');summary.id='bp-drone-summary-v3';p.append(summary);summaryNode=summary;
  const status=element('div','bp-drone-status','Drone Awareness is off.');status.id='bp-drone-status-v3';status.dataset.kind='info';p.append(status);statusNode=status;
  const regions=element('div','bp-drone-cells');regions.id='bp-drone-regional-status-v3';p.append(regions);regionalStatusNode=regions;
- const actions=element('div','bp-drone-actions'),refresh=element('button','bpv-wide-action','REFRESH REGIONAL UAV SAMPLE');refresh.type='button';refresh.addEventListener('click',()=>void refresh(true));actions.append(refresh);refreshButton=refresh;
+ const actions=element('div','bp-drone-actions'),refreshBtn=element('button','bpv-wide-action','REFRESH REGIONAL UAV SAMPLE');refreshBtn.type='button';refreshBtn.addEventListener('click',()=>void refresh(true));actions.append(refreshBtn);refreshButton=refreshBtn;
  const off=element('button','bpv-wide-action','TURN DRONE AWARENESS OFF');off.type='button';off.addEventListener('click',()=>{if(enabled)void toggle()});actions.append(off);p.append(actions);
  const meta=element('div','bp-drone-feed-note','Live positions refresh every 3 minutes. Requests are grouped in batches of three and successful responses are cached briefly.');meta.id='bp-drone-feed-meta';p.append(meta);
  trailNoteNode=element('div','bp-drone-feed-note','Altitude-aware 3D history is limited to '+MAX_TRAIL_POINTS+' observations per aircraft; gaps split the line. Unknown altitude is not fabricated.');p.append(trailNoteNode);
