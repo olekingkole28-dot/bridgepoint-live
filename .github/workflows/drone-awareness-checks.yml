@@ -5,9 +5,11 @@ on:
     branches: [main]
     paths:
       - 'rebuild-v5000/bridgepoint-drone-awareness-v1.js'
+      - 'rebuild-v5000/bridgepoint-vessel-awareness-v1.js'
       - 'rebuild-v5000/index.html'
       - 'rebuild-v5000/app-index.html'
       - 'tests/drone-awareness.test.mjs'
+      - 'tests/vessel-awareness.test.mjs'
       - 'supabase/functions/bridgepoint-drone-feed-v1/**'
       - '.github/workflows/drone-awareness-checks.yml'
   pull_request:
@@ -43,8 +45,11 @@ jobs:
           node --check rebuild-v5000/landing.js
           node --check rebuild-v5000/bridgepoint-view-v5917.js
           node --check rebuild-v5000/bridgepoint-drone-awareness-v1.js
+          node --check rebuild-v5000/bridgepoint-vessel-awareness-v1.js
       - name: Run drone awareness contract checks
-        run: node tests/drone-awareness.test.mjs
+        run: |
+          node tests/drone-awareness.test.mjs
+          node tests/vessel-awareness.test.mjs
       - name: Run shared rendering regressions
         run: node tests/celestial-water-cloud-shadows.test.mjs
       - name: Verify live Drone Awareness proxy and production CORS

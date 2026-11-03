@@ -19,6 +19,7 @@ on:
       - '.github/workflows/test-tree-asset-catalog.yml'
       - 'tests/celestial-water-cloud-shadows.test.mjs'
       - 'tests/drone-awareness.test.mjs'
+      - 'tests/vessel-awareness.test.mjs'
       - 'pricing/**'
       - 'newsroom/**'
       - 'terminal/**'
@@ -230,7 +231,9 @@ jobs:
           node --check rebuild-v5000/landing.js
           node --check rebuild-v5000/bridgepoint-view-v5917.js
           node --check rebuild-v5000/bridgepoint-drone-awareness-v1.js
+          node --check rebuild-v5000/bridgepoint-vessel-awareness-v1.js
           node tests/drone-awareness.test.mjs
+          node tests/vessel-awareness.test.mjs
           node --check rebuild-v5000/bridgepoint-live-rail-v5969.js
           node tools/reality_assets/test_live_rail.mjs
           node --check rebuild-v5000/bridgepoint-rail-mesh-v5973.js
@@ -350,6 +353,7 @@ jobs:
           test -s site/assets/bp-potree-lincoln-runtime/workers/laz-perf.wasm
           cp rebuild-v5000/bridgepoint-view-v5917.js site/bridgepoint-view-v5917.js
           cp rebuild-v5000/bridgepoint-drone-awareness-v1.js site/bridgepoint-drone-awareness-v1.js
+          cp rebuild-v5000/bridgepoint-vessel-awareness-v1.js site/bridgepoint-vessel-awareness-v1.js
           cp rebuild-v5000/bridgepoint-map-key-v5920.js site/bridgepoint-map-key-v5920.js
           cp rebuild-v5000/bridgepoint-map-state-counts-v5923.js site/bridgepoint-map-state-counts-v5923.js
           cp rebuild-v5000/bridgepoint-map-physical-assets-v5924.js site/bridgepoint-map-physical-assets-v5924.js
@@ -560,6 +564,9 @@ jobs:
           grep -Fq 'BridgePoint Intelligence pricing' site/pricing.html
           node --check site/app.js
           node --check site/bridgepoint-view-v5917.js
+          node --check site/bridgepoint-vessel-awareness-v1.js
+          test -s site/bridgepoint-vessel-awareness-v1.js
+          grep -Fq 'Open Waters AIS vector tiles' site/bridgepoint-vessel-awareness-v1.js
           node --check site/bridgepoint-landmarks-v5940.js
           node --check site/bridgepoint-map-key-v5920.js
           node --check site/bridgepoint-map-state-counts-v5923.js
