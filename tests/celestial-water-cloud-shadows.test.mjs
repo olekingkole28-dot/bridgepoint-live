@@ -98,7 +98,7 @@ test('clouds render as bright 3D volumes, not as a false-colour raster sheet', (
   assert.match(clouds, /setLayoutProperty\(SATELLITE_CLOUD_LAYER_ID_V6150,'visibility','none'\)/);
   assert.match(clouds, /setLayoutProperty\(EUMETSAT_CLOUD_LAYER_ID_V6150,'visibility','none'\)/);
   assert.match(clouds, /vec3\(0\.44,0\.53,0\.66\)/);
-  assert.match(clouds, /version: 6180, map, overlay/);
+  assert.match(clouds, /version: 6200, map, overlay/);
   assert.doesNotMatch(clouds.slice(clouds.indexOf('function setWorldGrade(on)'), clouds.indexOf('function getProgramInfo(gl, shaderData)')), /map\\.setFog/);
   assert.match(clouds, /const desktopGlobalSlowMotion = !MOBILE && number\(map\.getZoom\?\.\(\),0\) <= 3\.5/);
   assert.match(clouds, /const globalMotionScale = desktopGlobalSlowMotion \? 0\.32 : 1/);
@@ -107,8 +107,8 @@ test('clouds render as bright 3D volumes, not as a false-colour raster sheet', (
   assert.match(clouds, /desktopGlobalCloudMotionPaused: false/);
   assert.match(clouds, /lastCloudRepaintAt/);
   assert.ok(app.includes('world-v2300-lod-controls.js?v=6201-gold-always-on'), 'app must use Gold-always-on LOD controls');
-  assert.ok(app.includes('world-v2300-clouds.js?v=6180-goes-mask-volumetric-clouds'), 'app must use the cache-busted desktop-stability cloud module');
-  assert.ok(landing.includes('world-v2300-clouds.js?v=6180-goes-mask-volumetric-clouds'), 'landing must use the cache-busted desktop-stability cloud module');
+  assert.ok(app.includes('world-v2300-clouds.js?v=6200-radar-colored-rain-clouds'), 'app must use the cache-busted desktop-stability cloud module');
+  assert.ok(landing.includes('world-v2300-clouds.js?v=6200-radar-colored-rain-clouds'), 'landing must use the cache-busted desktop-stability cloud module');
   assert.doesNotMatch(timeSlider, /data-clouds|toggleSkyClouds|world-v2300-clouds/, 'timeline must not expose or load the cloud toggle');
   assert.match(clouds, /coverageVersion: 6180/);
   assert.match(clouds, /Number\(satelliteMask\.probability\[idx\]\)<=32/);
@@ -282,7 +282,7 @@ test('new rain/lightning and global source markers stay separate from legacy eff
   assert.match(clouds, /sourceHeightMatchedCount/);
   assert.match(clouds, /satelliteCloudHeightFeedStatus/);
   assert.match(clouds, /alphaBase\*\(0\.68\+erosionMask\*0\.22\)/);
-  assert.match(clouds, /version: 6180, map, overlay/);
+  assert.match(clouds, /version: 6200, map, overlay/);
   assert.match(clouds, /bp6150-nasa-geostationary-cloud-context/);
   assert.match(clouds, /bp6150-nasa-geostationary-cloud-source/);
   assert.match(clouds, /GOES-East_ABI_Band13_Clean_Infrared/);
@@ -426,4 +426,24 @@ test('website and app start on the same cache-busted globe-first weather build',
   assert.ok(appHtml.includes('app.js?v=6222-goes-cloud-mask-volumetric'));
   assert.ok(landingHtml.includes('intelligence-global-v5507.js?v=6170-imerg-nrt-timeline'));
   assert.ok(appHtml.includes('intelligence-global-v5507.js?v=6170-imerg-nrt-timeline'));
+});
+
+
+test('3D storm clouds stay live while rain particles and weather markers stay off', () => {
+  assert.ok(weather.includes('rainParticlesEnabled=opts?.rainParticles!==false'));
+  assert.ok(weather.includes('function setCloudsOnly(value)'));
+  assert.ok(weather.includes('rain.setEnabled(active&&rainParticlesEnabled)'));
+  assert.ok(weather.includes('function applySourceWeatherVisibility()'));
+  assert.ok(app.includes('initSharedVisualWeather(world,{activate:true,cloudsOnly:true})'));
+  assert.ok(app.includes('rainParticles:false'));
+  assert.ok(landing.includes('ensureLandingStormCloudWeather(world)'));
+  assert.ok(landing.includes('rainParticles:false'));
+  assert.ok(clouds.includes('sourceRainColorLevel'));
+  assert.ok(clouds.includes('reflectivity_dbz'));
+  assert.ok(clouds.includes('rainCloudLevel=clamp((v_tint-1.35)*1000.0,0.0,2.0)'));
+  assert.ok(clouds.includes('vec3(0.10,0.72,0.28)'));
+  assert.ok(clouds.includes('vec3(0.98,0.82,0.08)'));
+  assert.ok(clouds.includes('vec3(0.90,0.10,0.12)'));
+  assert.ok(clouds.includes('makeCycloneRibbon'));
+  assert.ok(clouds.includes('makeTornadoSurfaceCone'));
 });
