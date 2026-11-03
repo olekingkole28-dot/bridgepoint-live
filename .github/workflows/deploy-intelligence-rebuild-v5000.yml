@@ -525,6 +525,7 @@ jobs:
           cp rebuild-v5000/bridgepoint-realworld-effects-v5927.js site/bridgepoint-realworld-effects-v5927.js
           cp rebuild-v5000/bridgepoint-realworld-effects-v5927.js site/app/bridgepoint-realworld-effects-v5927.js
           cp rebuild-v5000/bridgepoint-volumetric-fields-v5978.js site/bridgepoint-volumetric-fields-v5978.js
+          cp rebuild-v5000/bridgepoint-emrf-spectrogram-v1.js site/bridgepoint-emrf-spectrogram-v1.js
           cp rebuild-v5000/bridgepoint-volumetric-fields-v5978.js site/app/bridgepoint-volumetric-fields-v5978.js
           cp rebuild-v5000/bridgepoint-celestial-sky-v5928.js site/bridgepoint-celestial-sky-v5928.js
           cp rebuild-v5000/bridgepoint-celestial-sky-v5928.js site/app/bridgepoint-celestial-sky-v5928.js
@@ -738,6 +739,7 @@ jobs:
           node --check site/bridgepoint-global-motion-v5926.js
           node --input-type=module --check < site/bridgepoint-orbit-renderer-v6201.js
           node --input-type=module --check < site/bridgepoint-realworld-effects-v5927.js
+          node --input-type=module --check < site/bridgepoint-emrf-spectrogram-v1.js
           node --input-type=module --check < site/app/bridgepoint-realworld-effects-v5927.js
           node --input-type=module --check < site/bridgepoint-celestial-sky-v5928.js
           node --input-type=module --check < site/app/bridgepoint-celestial-sky-v5928.js
