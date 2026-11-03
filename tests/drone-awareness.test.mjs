@@ -11,21 +11,21 @@ const [moduleSource, landingHtml, appHtml, mapKey, view, workflow] = await Promi
   read('../.github/workflows/deploy-intelligence-rebuild-v5000.yml')
 ]);
 
-assert.ok(moduleSource.includes('bp-drone-awareness-live-dots-v2'), 'the live UAV point layer is present');
+assert.ok(moduleSource.includes('bp-drone-awareness-live-dots-v4'), 'the live UAV point layer is present');
 assert.ok(moduleSource.includes("category==='B6'"), 'UAV filter uses the explicit ADS-B emitter category');
 assert.ok(moduleSource.includes('function updateTrackedUavs(records)'), 'public reports are tracked across successive refreshes');
 assert.ok(moduleSource.includes('const MAX_TRAIL_POINTS=24'), 'observed flight paths retain a bounded history');
-assert.ok(moduleSource.includes('bp-drone-awareness-trail-lines-v2'), 'sampled positions are rendered as map trails');
+assert.ok(moduleSource.includes('bp-drone-awareness-trail-lines-v4'), 'sampled positions are rendered as map trails');
 assert.ok(moduleSource.includes("type:'custom',renderingMode:'3d'"), 'drone models render through a 3D custom layer');
 assert.ok(moduleSource.includes('function makeDroneModel(THREE)'), 'the 3D quadcopter model is built from actual mesh geometry');
 assert.ok(moduleSource.includes("const THREE=await loadDroneThree()"), '3D rendering is initialized on activation');
 assert.ok(moduleSource.includes('modelSpanMeters(lat,zoom)'), '3D models are screen-enlarged for visibility at global zoom');
-assert.ok(moduleSource.includes('setDroneModels(allCurrent)'), 'source-reported UAV positions place the 3D models');
-assert.ok(moduleSource.includes('MAX_TRACKED_DRONES=180'), 'the live renderer caps aircraft for globe performance');
+assert.ok(moduleSource.includes('setDroneModels(accepted)'), 'source-reported UAV positions place the 3D models');
+assert.ok(moduleSource.includes('MAX_TRACKED_DRONES=1200'), 'the live renderer caps aircraft for globe performance');
 assert.ok(moduleSource.includes('simulatedFleet:false'), 'runtime diagnostics explicitly state no simulated aircraft are displayed');
 assert.ok(!moduleSource.includes('SIM_FLEET_COUNT'), 'the fabricated demonstration fleet has been removed');
 assert.ok(!moduleSource.includes('simulatedFleetFeatureCollection'), 'no invented global fleet coordinates remain');
-assert.ok(moduleSource.includes('Public ADS-B source sample'), 'the live-source coverage limitations are surfaced');
+assert.ok(moduleSource.includes('ADSB.lol public community ADS-B'), 'the live-source coverage limitations are surfaced');
 assert.ok(moduleSource.includes('const TRACK_RETENTION_MS=45*60*1000'), 'stale history is bounded');
 assert.ok(moduleSource.includes('pilotOrControlStationLocations:false'), 'pilot/control-station locations are not exposed');
 assert.ok(moduleSource.includes('rawRfScanning:false'), 'no raw RF scanner is represented');
@@ -43,8 +43,8 @@ assert.ok(moduleSource.includes("for(const event of ['style.load','idle','moveen
 assert.ok(!moduleSource.includes("m.on('styledata',hideDefaultOverlays)"), 'avoid styledata feedback loops while hiding optional layers');
 assert.ok(landingHtml.includes('bridgepoint-drone-awareness-v1.js'), 'homepage loads the module');
 assert.ok(appHtml.includes('bridgepoint-drone-awareness-v1.js'), 'app loads the module');
-assert.ok(landingHtml.includes('bridgepoint-drone-awareness-v1.js?v=2-live-3d-trails'), 'homepage uses the live 3D drone runtime cache key');
-assert.ok(appHtml.includes('bridgepoint-drone-awareness-v1.js?v=2-live-3d-trails'), 'app uses the same live 3D drone runtime cache key');
+assert.ok(landingHtml.includes('bridgepoint-drone-awareness-v1.js?v=4-geometric-adsb-clusters'), 'homepage uses the live 3D drone runtime cache key');
+assert.ok(appHtml.includes('bridgepoint-drone-awareness-v1.js?v=4-geometric-adsb-clusters'), 'app uses the same live 3D drone runtime cache key');
 assert.ok(view.includes('data-bpv-command-grid="environment"'), 'environment command group exists');
 for (const action of ['weatherfx','windfx','volumetric','ai','listings','opportunities','metrics','property','explore','parcels','boundaryviewer','worldchanges','controls','motion','whole']) {
   assert.ok(view.includes('data-bpv-action="'+action+'"'), 'the dock exposes the '+action+' action');
@@ -76,7 +76,7 @@ assert.ok(moduleSource.includes('function modelSpanMeters(lat,zoom)'), '3D symbo
 assert.ok(moduleSource.includes("model.rotation.set(0,0,(Number.isFinite(heading)?heading:0)*Math.PI/180-Math.PI/2)"), 'model orientation follows source heading');
 assert.ok(moduleSource.includes('function animateDroneModels(now)'), '3D propellers animate while aircraft are visible');
 assert.ok(moduleSource.includes('TRACK_RETENTION_MS'), 'track history retention is bounded');
-assert.ok(moduleSource.includes('Trails connect positions BridgePoint has sampled while this button is on'), 'trail history is described as sampled, not continuous');
+assert.ok(moduleSource.includes('Each observation preserves track key, source longitude/latitude, reported altitude'), 'trail history is described as sampled, not continuous');
 assert.ok(/no simulated drones are substituted/i.test(moduleSource), 'missing live data is not replaced with invented aircraft');
 assert.ok(moduleSource.includes('data-bp-water-flow-button'), 'water control is created inside the bottom card');
 assert.ok(!moduleSource.includes('data-bp-cloud-toggle-button'), 'always-on cloud volumes do not expose a toggle button');
@@ -170,4 +170,85 @@ console.log('Drone awareness module checks passed.');
   assert.doesNotMatch(bpDroneSourceText, /Math\.max\(altitude\.meters/);
   assert.doesNotMatch(bpDroneSourceText, /coordinates:points\.map\(p=>p\.coord\)/);
   assert.doesNotMatch(bpDroneSourceText, /adsb-lol-response-b6/);
+}
+
+
+// Live request, MapLibre retry, source-status, clustering and datum-specific 3D regressions.
+{
+  const {readFileSync:readDroneV4}=await import('node:fs');
+  const sourceV4=readDroneV4(new URL('../rebuild-v5000/bridgepoint-drone-awareness-v1.js',import.meta.url),'utf8');
+  const fixtureV4=JSON.parse(readDroneV4(new URL('./fixtures/adsb-lol-response-b6.json',import.meta.url),'utf8'));
+  const helperStartV4=sourceV4.indexOf('const DroneCore=(()=>{');
+  const helperEndV4=sourceV4.indexOf('})();',helperStartV4)+4;
+  const helperV4=sourceV4.slice(helperStartV4,helperEndV4);
+  const coreV4=new Function("const SUPPORTED_SOURCE='https://api.adsb.lol/v2/';const REGION_RADIUS_NM=250;\n"+helperV4+"\nreturn DroneCore;")();
+
+  let requestedUrlV4=null,requestOptionsV4=null;
+  const responseV4=await coreV4.requestSample({id:'Fixture hub',lat:40.7,lon:-74},async(url,options)=>{
+    requestedUrlV4=url;requestOptionsV4=options;
+    return{ok:true,status:200,statusText:'OK',text:async()=>JSON.stringify(fixtureV4)};
+  },undefined);
+  assert.equal(requestedUrlV4,'https://api.adsb.lol/v2/lat/40.7000/lon/-74.0000/dist/250','live request helper sends the exact documented URL');
+  assert.equal(requestOptionsV4.method,'GET');
+  assert.equal(requestOptionsV4.headers.Accept,'application/json');
+  assert.equal(responseV4.records.length,4,'HTTP response body is parsed from the real ac fixture');
+  assert.equal(responseV4.records[0].category,'B6');
+  await assert.rejects(
+    coreV4.requestSample({lat:40.7,lon:-74},async()=>({ok:false,status:429,statusText:'Too Many Requests',text:async()=>'slow down'})),
+    /HTTP 429 Too Many Requests/,
+    'HTTP failures are surfaced and not converted to an empty aircraft array'
+  );
+  await assert.rejects(
+    coreV4.requestSample({lat:40.7,lon:-74},async()=>({ok:true,status:200,statusText:'OK',text:async()=>'not-json'})),
+    /Invalid JSON response/,
+    'malformed JSON remains an explicit parser error'
+  );
+
+  const geometricV4=coreV4.altitudeForRecord({alt_geom:1200,alt_baro:1100});
+  assert.equal(geometricV4.projectable,true);
+  assert.equal(geometricV4.datum,'geometric');
+  const barometricV4=coreV4.altitudeForRecord({alt_baro:900});
+  assert.equal(barometricV4.known,true,'a reported barometric altitude remains available as source data');
+  assert.equal(barometricV4.projectable,false,'barometric feet are not misrepresented as geometric height');
+  assert.equal(barometricV4.datum,'barometric');
+  assert.equal(barometricV4.sourceField,'alt_baro');
+  assert.equal(coreV4.project3DPoint(coreV4.createTrailPoint({hex:'baro1',lat:1,lon:2,alt_baro:900}),{fromLngLat:()=>({x:0,y:0,z:1})}),null);
+  assert.equal(coreV4.project3DPoint(coreV4.createTrailPoint({hex:'ground1',lat:1,lon:2,alt_geom:'ground',alt_baro:800}),{fromLngLat:()=>({x:0,y:0,z:1})}),null,'ground/unknown geometric height is not raised to an invented 3D altitude');
+
+  const retryStartV4=sourceV4.indexOf('function bindMapStyleRetry(');
+  const retryEndV4=sourceV4.indexOf('\nfunction installLayer()',retryStartV4);
+  assert.ok(retryStartV4>=0&&retryEndV4>retryStartV4,'MapLibre readiness retry helper exists');
+  const retryHelperV4=sourceV4.slice(retryStartV4,retryEndV4);
+  const bindRetryV4=new Function(retryHelperV4+'\nreturn bindMapStyleRetry;')();
+  const listenersV4=new Map();let readyV4=false,activationsV4=0;
+  const fakeMapV4={on:(name,fn)=>{const bucket=listenersV4.get(name)||[];bucket.push(fn);listenersV4.set(name,bucket)},off:(name,fn)=>listenersV4.set(name,(listenersV4.get(name)||[]).filter(x=>x!==fn))};
+  const disposeRetryV4=bindRetryV4(fakeMapV4,()=>readyV4,()=>{activationsV4++});
+  for(const fn of listenersV4.get('load')||[])fn();
+  assert.equal(activationsV4,0,'first button/map event before style readiness does not try to install layers');
+  readyV4=true;
+  for(const fn of listenersV4.get('style.load')||[])fn();
+  assert.equal(activationsV4,1,'style.load automatically retries the queued activation');
+  for(const fn of listenersV4.get('idle')||[])fn();
+  assert.equal(activationsV4,2,'later idle checks are safe; activation itself is idempotent');
+  disposeRetryV4();
+  assert.ok([...(listenersV4.values())].every(list=>list.length===0),'style readiness listeners can be removed');
+
+  assert.match(sourceV4,/sourceStatus:'idle'/);
+  assert.match(sourceV4,/liveReady\?diagnosticState\.currentPositionsAccepted:'—'/);
+  assert.match(sourceV4,/No UAV count is available; 0 would be misleading/);
+  assert.match(sourceV4,/cluster:true/);
+  assert.match(sourceV4,/point_count_abbreviated/);
+  assert.match(sourceV4,/MAX_TRACKED_DRONES=1200/);
+  assert.match(sourceV4,/MAX_CLOSE_ZOOM_MODELS=120/);
+  assert.match(sourceV4,/scheduleViewportRefresh\(\)/);
+  assert.match(sourceV4,/trailLayerReady:!!droneTrailGroup/);
+  assert.match(sourceV4,/drone3DRendererReady:!!droneRenderer&&!!droneScene/);
+  assert.match(sourceV4,/diagnosticState\.invalidOrStaleRecords=rejected/);
+  assert.match(sourceV4,/altitudeProjectable/);
+  assert.doesNotMatch(sourceV4,/Press Drone Awareness again/);
+  assert.doesNotMatch(sourceV4,/meters:24,known:false/);
+  assert.doesNotMatch(sourceV4,/Math\.max\(altitude\.meters/);
+  assert.doesNotMatch(sourceV4,/return\{meters:3,known:true\}/);
+  assert.doesNotMatch(sourceV4,/SIM_FLEET_COUNT|simulatedFleetFeatureCollection/);
+  assert.doesNotMatch(sourceV4,/Remote ID.*CONNECTED[^—]/i);
 }
