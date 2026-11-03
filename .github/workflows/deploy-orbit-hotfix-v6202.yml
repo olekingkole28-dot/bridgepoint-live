@@ -1,0 +1,118 @@
+name: Deploy Orbit & Motion v6202 from verified production artifact
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-orbit-hotfix-v6202.yml'
+      - 'rebuild-v5000/bridgepoint-global-motion-v5926.js'
+      - 'rebuild-v5000/bridgepoint-orbit-renderer-v6201.js'
+      - 'tests/orbit-renderer-v6201.test.mjs'
+
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+
+# Serialize against the full-site publisher so a delayed full build cannot overwrite this hotfix.
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: true
+
+jobs:
+  deploy-orbit-hotfix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download last verified full production artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: bridgepoint-v5000-1
+          run-id: 41596811488
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          path: /tmp/bridgepoint-pages-bundle
+
+      - name: Apply only the Orbit & Motion hotfix to the verified site snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p site
+          ARTIFACT_TAR="$(find /tmp/bridgepoint-pages-bundle -type f -name 'artifact.tar' -print -quit)"
+          test -n "$ARTIFACT_TAR"
+          tar -xf "$ARTIFACT_TAR" -C site
+
+          test -s site/index.html
+          test -s site/app/index.html
+          test -s site/bridgepoint-global-motion-v5926.js
+          test -s site/bridgepoint-orbit-renderer-v6201.js
+
+          cp rebuild-v5000/bridgepoint-global-motion-v5926.js site/bridgepoint-global-motion-v5926.js
+          cp rebuild-v5000/bridgepoint-orbit-renderer-v6201.js site/bridgepoint-orbit-renderer-v6201.js
+
+          python3 - <<'PY'
+          from pathlib import Path
+          old = "bridgepoint-global-motion-v5926.js?v=6201-orbit-3d-models"
+          new = "bridgepoint-global-motion-v5926.js?v=6202-globe-anchored-orbits"
+          for name in ("site/index.html", "site/app/index.html"):
+              path = Path(name)
+              data = path.read_text()
+              if old not in data:
+                  raise SystemExit(f"Expected old Orbit & Motion cache key not found in {name}")
+              path.write_text(data.replace(old, new))
+          PY
+
+          node --check site/bridgepoint-global-motion-v5926.js
+          node --input-type=module --check < site/bridgepoint-orbit-renderer-v6201.js
+          node tests/orbit-renderer-v6201.test.mjs
+          grep -Fq 'bridgepoint-global-motion-v5926.js?v=6202-globe-anchored-orbits' site/index.html
+          grep -Fq 'bridgepoint-global-motion-v5926.js?v=6202-globe-anchored-orbits' site/app/index.html
+          grep -Fq 'getMatrixForModel' site/bridgepoint-orbit-renderer-v6201.js
+          ! grep -Eq 'MercatorCoordinate|fromLngLat' site/bridgepoint-orbit-renderer-v6201.js
+
+          echo "Verified production snapshot preserved; only Orbit & Motion files and two script cache keys changed."
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          name: bridgepoint-orbit-hotfix-v6202
+          path: site
+          include-hidden-files: true
+
+      - name: Deploy Orbit & Motion hotfix
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: bridgepoint-orbit-hotfix-v6202
+
+      - name: Verify corrected Orbit & Motion files are live
+        shell: bash
+        run: |
+          set -euo pipefail
+          O='https://bridgepointintelligence.online'
+          ok=0
+          for i in $(seq 1 30); do
+            q="${GITHUB_SHA}-${i}-$(date +%s)"
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/bridgepoint-orbit-renderer-v6201.js?v=6202=${q}" -o /tmp/orbit-renderer.js || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/bridgepoint-global-motion-v5926.js?v=6202=${q}" -o /tmp/orbit-controller.js || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/?orbit-hotfix=${q}" -o /tmp/root.html || true
+            if grep -Fq 'getMatrixForModel' /tmp/orbit-renderer.js 2>/dev/null &&
+               grep -Fq 'PATH_SAMPLES=96' /tmp/orbit-renderer.js 2>/dev/null &&
+               grep -Fq '6202-globe-anchored-orbits' /tmp/orbit-controller.js 2>/dev/null &&
+               grep -Fq '6202-globe-anchored-orbits' /tmp/root.html 2>/dev/null; then
+              ok=1
+              break
+            fi
+            sleep 4
+          done
+          test "$ok" -eq 1
+          echo "Production is serving the v6202 globe-anchored Orbit & Motion renderer."
