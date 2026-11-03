@@ -9,7 +9,9 @@ const EMPTY={type:'FeatureCollection',features:[]};
 const state={map:null,satApi:null,satelliteEnabled:false,aircraftEnabled:false,followSatellite:false,followAircraft:false,
  catalog:[],catalogAfter:null,catalogHasMore:false,catalogKnown:0,plottedSatellites:0,aircraft:[],selectedSatellite:null,selectedAircraft:null,
  lastSatelliteAt:null,lastFlightAt:null,lastError:null,satellitePageLoading:false,flightLoading:false,styleTimer:null,flightTimer:null,summaryTimer:null,
- summaries:{physical:null,motion:null,satellite:null},refreshing:false,bootAttempts:0};
+ summaries:{physical:null,motion:null,satellite:null},refreshing:false,bootAttempts:0,
+ orbitPositions:[],orbitModelsRendered:0,orbitPathsBuilt:0,orbitPathBuilding:false,orbitAutoEnabledOnce:false};
+let orbitRendererApi=null,orbitRendererPromise=null,orbitAnimationTimer=null;
 const $=id=>document.getElementById(id);
 const fmt=n=>Number(n||0).toLocaleString();
 const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=String(text);return n};
@@ -63,7 +65,7 @@ function addPanel(){
    const copy=el('span');copy.append(el('b','',label),el('small','',note));row.append(input,copy);controls.append(row);
    input.addEventListener('change',()=>fn(input.checked));
   };
-  addToggle('bpm-sat-enable','Show satellite ground tracks','Estimated positions propagated from public GP orbital elements; not live spacecraft telemetry.',false,async on=>{await setSatellitesEnabled(on)});
+  addToggle('bpm-sat-enable','Show 3D satellite models + orbital paths','Thousands of public orbital records · moving 3D models and full orbital paths. Positions are propagated TLE estimates, not onboard telemetry.',false,async on=>{await setSatellitesEnabled(on)});
   addToggle('bpm-flight-enable','Show nearby public aircraft','ADSB.lol open feed · current map center ±250 nautical miles · refreshed about every 45 seconds.',false,async on=>{await setAircraftEnabled(on)});
   const actions=el('div','bpm-buttons');
   const satPage=el('button','bpm-btn','Load next satellite page');satPage.type='button';satPage.id='bpm-load-sat-page';satPage.addEventListener('click',()=>loadSatellitePage(false));
@@ -74,7 +76,7 @@ function addPanel(){
   const selected=el('div','bpm-selected','Click a satellite or aircraft point on the map to inspect it.');selected.id='bpm-selected-v5926';
   const satStatus=el('div','bpm-status','Loading BridgePoint source status…');satStatus.id='bpm-sat-status-v5926';
   const flightStatus=el('div','bpm-status','Live aircraft feed is off.');flightStatus.id='bpm-flight-status-v5926';
-  const foot=el('p','bpm-note','SOURCE COVERAGE: satellite positions are propagated orbital estimates, not onboard telemetry; aircraft are ADSB.lol positions within 250 nautical miles of the map center. Transit/rail features are static public geometry, not live train positions. No authorized global AIS vessel feed or licensed global camera catalog is connected yet, so ships and cameras remain unavailable rather than using invented tracks.');
+  const foot=el('p','bpm-note','ORBITAL DATA: real public TLE records are propagated into moving 3D spacecraft models and 3D orbital paths. Positions and paths are calculated estimates, not onboard telemetry. Model visibility is boosted at whole-Earth zoom while orbital position and altitude remain source-derived. Aircraft remain a nearby ADSB.lol feed; static transport layers are unchanged.');
   const feed=el('div','bpm-feed');feed.append(el('b','', 'FEED COVERAGE'),foot,selected,satStatus,flightStatus);
   box.append(head,grid,controls,actions,feed);
  }
@@ -98,14 +100,16 @@ function renderSummaries(){
   [m.fhwa_bridge_geometry_records,'Bridge geometries materialized'],
   [m.approved_subsurface_source_cohorts,'Approved subsurface source cohorts'],
   [p.public_subsurface_records,'Public subsurface rows materialized'],
-  [m.world_feature_rows_persisted,'World feature rows persisted']
+  [m.world_feature_rows_persisted,'World feature rows persisted'],
+  [state.orbitModelsRendered,'3D orbital models rendered'],
+  [state.orbitPathsBuilt,'3D orbital paths built']
  ];
  grid.replaceChildren();for(const [n,label] of tiles){const card=el('div','bpm-stat');card.append(el('strong','',fmt(n)),el('small','',label));grid.append(card)}
  const badge=$('bpm-badge-v5926');if(badge)badge.textContent='COUNTERS '+(m.refreshed_at?new Date(m.refreshed_at).toLocaleTimeString():'WAITING');
  const sat=$('bpm-sat-status-v5926');
  if(sat){
   if(s.operator_review_required)sat.textContent='SATELLITE SOURCE PAUSED · HTTP 403 from CelesTrak. Automated fetch stopped for human review; no satellite records are materialized yet.';
-  else if(s.total_known_objects>0)sat.textContent='Orbital elements: '+fmt(s.total_known_objects)+' cached records · '+fmt(state.plottedSatellites)+' plotted · refreshed '+(s.source_fetched_at?new Date(s.source_fetched_at).toLocaleString():'time unavailable')+'. Positions are propagated estimates, not telemetry.';
+  else if(s.total_known_objects>0)sat.textContent='Orbital catalogue: '+fmt(s.total_known_objects)+' cached records · '+fmt(state.plottedSatellites)+' current positions · '+fmt(state.orbitModelsRendered)+' 3D models · '+fmt(state.orbitPathsBuilt)+' orbital paths'+(state.orbitPathBuilding?' · building paths':'')+' · source refreshed '+(s.source_fetched_at?new Date(s.source_fetched_at).toLocaleString():'time unavailable')+'. Positions and paths are propagated TLE estimates, not telemetry.';
   else sat.textContent='Satellite catalogue has 0 materialized records. Source refresh status: '+(s.last_refresh_status||'WAITING')+'. The catalog will stay honest until a permitted TLE source returns records.';
  }
  const flight=$('bpm-flight-status-v5926');
@@ -188,7 +192,7 @@ function attachMap(){
  const m=window.__BP_V5000_WORLD__?.map||window.__BP_V5000_WORLD?.map||window.__BP_LANDING_WORLD__?.map||window.__BP_WORLD?.map;
  if(!m||typeof m.getCenter!=='function'){if(state.bootAttempts++<180)setTimeout(attachMap,500);return false}
  if(state.map===m)return true;state.map=m;
- const setup=()=>{buildLayers();if(state.catalog.length)propagateCatalog();if(state.aircraft.length)setAircraftData(state.aircraft)};
+ const setup=()=>{buildLayers();if(state.catalog.length)propagateCatalog();if(state.aircraft.length)setAircraftData(state.aircraft);if(state.satelliteEnabled)void ensureOrbitRenderer().then(api=>{api.setVisible(true);updateOrbitRenderPositions();if(!state.orbitPathsBuilt)void buildOrbitPaths()}).catch(e=>setStatus('3D orbital renderer unavailable: '+safeText(e.message||e,140)))};
  if(m.isStyleLoaded?.())setup();else m.once('style.load',setup);
  m.on('style.load',setup);
  m.on('moveend',()=>{if(state.aircraftEnabled){clearTimeout(state.flightTimer);state.flightTimer=setTimeout(()=>refreshFlights(false),900)}});
@@ -200,6 +204,37 @@ async function loadSatLib(){
  const lib=await import('https://esm.sh/satellite.js@6.0.2');
  if(typeof lib.json2satrec!=='function'||typeof lib.propagate!=='function')throw new Error('SATELLITE_LIBRARY_API_UNAVAILABLE');
  state.satApi=lib;return lib;
+}
+async function ensureOrbitRenderer(){
+ if(orbitRendererApi&&orbitRendererApi.stats?.layerReady)return orbitRendererApi;
+ if(!orbitRendererPromise){
+  orbitRendererPromise=import('./bridgepoint-orbit-renderer-v6201.js?v=6201-orbit-paths')
+   .then(mod=>mod.createOrbitRenderer(state.map))
+   .then(api=>{orbitRendererApi=api;return api})
+   .catch(error=>{orbitRendererPromise=null;orbitRendererApi=null;throw error});
+ }
+ return orbitRendererPromise;
+}
+function updateOrbitRenderPositions(){
+ if(!state.satelliteEnabled||!orbitRendererApi)return;
+ const models=orbitRendererApi.updatePositions(state.orbitPositions);
+ state.orbitModelsRendered=Number(models)||0;renderSummaries();
+}
+async function buildOrbitPaths(){
+ if(!state.satelliteEnabled)return;
+ const api=await ensureOrbitRenderer();
+ state.orbitPathBuilding=true;renderSummaries();
+ try{const result=await api.buildPaths(state.catalog,state.satApi);state.orbitPathsBuilt=Number(result?.paths)||0}
+ finally{state.orbitPathBuilding=false;renderSummaries()}
+}
+function startOrbitAnimation(){
+ clearInterval(orbitAnimationTimer);
+ orbitAnimationTimer=setInterval(()=>{if(!state.satelliteEnabled||document.hidden)return;try{propagateCatalog()}catch(e){console.warn('BridgePoint orbital propagation refresh failed',e)}},8000);
+}
+async function loadAllSatellitePages(reset=true){
+ await loadSatellitePage(reset);let pages=1;
+ while(state.catalogHasMore&&pages<12){const before=state.catalog.length;await loadSatellitePage(false);pages++;if(state.catalog.length===before)break}
+ return state.catalog.length;
 }
 async function loadSatellitePage(reset){
  const status=$('bpm-sat-status-v5926');const summary=state.summaries.satellite||{};
@@ -238,7 +273,15 @@ function propagateOne(item,lib,date){
   const gmst=lib.gstime(date),geo=lib.eciToGeodetic(p.position,gmst);
   const lat=lib.degreesLat(geo.latitude),lon=lib.degreesLong(geo.longitude),alt=geo.height;
   if(!Number.isFinite(lat)||!Number.isFinite(lon)||!Number.isFinite(alt)||lat < -90||lat>90||lon < -180||lon>180)return null;
-  return {lat,lon,alt};
+  let heading=0;
+  try{
+   const ecf=typeof lib.eciToEcf==='function'?lib.eciToEcf(p.velocity,gmst):p.velocity;
+   const lr=geo.longitude,br=geo.latitude,vx=Number(ecf?.x),vy=Number(ecf?.y),vz=Number(ecf?.z);
+   const east=-Math.sin(lr)*vx+Math.cos(lr)*vy;
+   const north=-Math.sin(br)*Math.cos(lr)*vx-Math.sin(br)*Math.sin(lr)*vy+Math.cos(br)*vz;
+   if(Number.isFinite(east)&&Number.isFinite(north))heading=Math.atan2(-north,east);
+  }catch(_){}
+  return {lat,lon,alt,heading};
  }catch(_){return null}
 }
 function propagateCatalog(){
@@ -250,7 +293,7 @@ function propagateCatalog(){
   const g=propagateOne(item,state.satApi,now);if(!g)continue;
   features.push({type:'Feature',geometry:{type:'Point',coordinates:[g.lon,g.lat]},properties:{
    norad_cat_id:item.norad_cat_id,object_name:item.object_name,object_type:String(item.object_type||item.omm?.OBJECT_TYPE||'UNKNOWN').toUpperCase(),
-   latitude:g.lat,longitude:g.lon,altitude_km:g.alt,epoch:item.epoch||item.omm?.EPOCH||null,
+   latitude:g.lat,longitude:g.lon,altitude_km:g.alt,orbit_heading:g.heading,epoch:item.epoch||item.omm?.EPOCH||null,
    source_key:'CELESTRAK_GP_ACTIVE_OMM',truth_class:'PROPAGATED_ORBIT_ESTIMATE'
   }});
   if(state.selectedSatellite&&String(state.selectedSatellite.id)===String(item.norad_cat_id)){
@@ -259,7 +302,9 @@ function propagateCatalog(){
   }
  }
  state.plottedSatellites=features.length;
+ state.orbitPositions=features.map(f=>({item:state.catalog.find(x=>String(x.norad_cat_id)===String(f.properties.norad_cat_id)),lat:f.properties.latitude,lon:f.properties.longitude,alt:f.properties.altitude_km,heading:f.properties.orbit_heading})).filter(x=>x.item);
  buildLayers();setData('bpV5926Satellites',{type:'FeatureCollection',features});
+ if(state.satelliteEnabled)updateOrbitRenderPositions();
  void drawSelectedSatelliteTrail();renderSummaries();
 }
 async function drawSelectedSatelliteTrail(){
@@ -320,8 +365,27 @@ async function refreshFlights(force){
   if(state.aircraftEnabled){clearTimeout(state.flightTimer);state.flightTimer=setTimeout(()=>refreshFlights(false),45000)}
  }
 }
-function syncLayerVisibility(){const m=state.map;if(!m)return;for(const [id,on] of [['bp-v5926-satellite-trail',state.satelliteEnabled],['bp-v5926-satellite-points',state.satelliteEnabled],['bp-v5926-aircraft-points',state.aircraftEnabled]]){try{if(m.getLayer(id))m.setLayoutProperty(id,'visibility',on?'visible':'none')}catch(_){}}}
-async function setSatellitesEnabled(on){state.satelliteEnabled=!!on;if(!state.map)attachMap();if(state.map){buildLayers();syncLayerVisibility()}const t=$('bpm-sat-enable');if(t)t.checked=state.satelliteEnabled;if(state.satelliteEnabled)await loadSatellitePage(true);else{state.selectedSatellite=null;state.followSatellite=false;setData('bpV5926Satellites',EMPTY);setData('bpV5926SatelliteTrail',EMPTY)}syncLayerVisibility();renderSummaries();return state.satelliteEnabled}
+function syncLayerVisibility(){const m=state.map;if(!m)return;for(const [id,on] of [['bp-v5926-satellite-trail',state.satelliteEnabled],['bp-v5926-satellite-points',state.satelliteEnabled],['bp-v5926-aircraft-points',state.aircraftEnabled]]){try{if(m.getLayer(id))m.setLayoutProperty(id,'visibility',on?'visible':'none')}catch(_){}}orbitRendererApi?.setVisible(state.satelliteEnabled);m.triggerRepaint?.()}
+async function setSatellitesEnabled(on){
+ state.satelliteEnabled=!!on;if(!state.map)attachMap();
+ if(state.map){buildLayers();syncLayerVisibility()}
+ const t=$('bpm-sat-enable');if(t)t.checked=state.satelliteEnabled;
+ if(state.satelliteEnabled){
+  try{
+   await loadAllSatellitePages(true);
+   if(!state.catalog.length)throw new Error('No source orbital records were returned by the existing BridgePoint catalogue.');
+   const api=await ensureOrbitRenderer();api.setVisible(true);
+   propagateCatalog();updateOrbitRenderPositions();
+   await buildOrbitPaths();startOrbitAnimation();
+   setStatus('Orbit & Motion active · '+fmt(state.orbitModelsRendered)+' 3D satellite/station models · '+fmt(state.orbitPathsBuilt)+' calculated orbital paths. All available catalogue pages were loaded.');
+  }catch(e){setStatus('Satellite 3D layer could not start: '+safeText(e.message||e,180));console.warn('BridgePoint orbital renderer failed',e)}
+ }else{
+  clearInterval(orbitAnimationTimer);orbitAnimationTimer=null;state.orbitPathBuilding=false;
+  state.selectedSatellite=null;state.followSatellite=false;orbitRendererApi?.setVisible(false);
+  setData('bpV5926Satellites',EMPTY);setData('bpV5926SatelliteTrail',EMPTY);
+ }
+ syncLayerVisibility();renderSummaries();return state.satelliteEnabled;
+}
 async function setAircraftEnabled(on){state.aircraftEnabled=!!on;if(!state.map)attachMap();if(state.map){buildLayers();syncLayerVisibility()}const t=$('bpm-flight-enable');if(t)t.checked=state.aircraftEnabled;if(state.aircraftEnabled)await refreshFlights(true);else{state.followAircraft=false;state.selectedAircraft=null;state.aircraft=[];setData('bpV5926Aircraft',EMPTY);clearTimeout(state.flightTimer)}syncLayerVisibility();renderSummaries();return state.aircraftEnabled}
 
 function setStatus(message){const n=$('bpm-sat-status-v5926');if(n)n.textContent=message}
@@ -330,6 +394,7 @@ function open(){
  const panel=document.querySelector('[data-bpv-pane="controls"]');
  if(panel){panel.hidden=false;panel.removeAttribute('hidden')}
  if(state.map){buildLayers()}
+ if(!state.orbitAutoEnabledOnce){state.orbitAutoEnabledOnce=true;void setSatellitesEnabled(true)}
  return true;
 }
 function boot(){
@@ -337,7 +402,7 @@ function boot(){
  if(state.satelliteEnabled&&state.summaries.satellite?.total_known_objects>0&&!state.summaries.satellite.operator_review_required)void loadSatellitePage(true);
  if(state.summaryTimer===null)state.summaryTimer=setInterval(()=>{if(!document.hidden){addPanel();void refreshSummaries()}},5*60*1000);
 }
-window.__BP_GLOBAL_MOTION_V5926__={version:5926,open,refreshSummaries,loadSatellitePage,refreshFlights,followSat,followPlane,setSatellitesEnabled,setAircraftEnabled,state};
+window.__BP_GLOBAL_MOTION_V5926__={version:6201,open,refreshSummaries,loadSatellitePage,loadAllSatellitePages,refreshFlights,followSat,followPlane,setSatellitesEnabled,setAircraftEnabled,buildOrbitPaths,state};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 const observer=new MutationObserver(()=>{if(!$('bp-global-motion-v5926'))addPanel();if(!state.map)attachMap()});
 if(document.documentElement)observer.observe(document.documentElement,{childList:true,subtree:true});
