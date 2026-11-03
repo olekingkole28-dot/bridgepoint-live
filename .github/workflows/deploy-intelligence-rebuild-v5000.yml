@@ -130,8 +130,115 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+  build-manhattan-world:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 110
+    outputs:
+      package_needed: \${{ steps.existing.outputs.package_needed }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check durable live artifact for the current Manhattan package
+        id: existing
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact --depth=1
+          if git show refs/remotes/origin/live-artifact:assets/blender-world/manhattan/manifest.json 2>/dev/null | grep -Fq '"buildRevision": "manhattan-v1"'; then
+            echo 'package_needed=false' >> "$GITHUB_OUTPUT"
+          else
+            echo 'package_needed=true' >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-python@v5
+        if: steps.existing.outputs.package_needed == 'true'
+        with:
+          python-version: '3.11'
+      - name: Install Blender and geospatial dependencies
+        if: steps.existing.outputs.package_needed == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y blender gzip
+          python -m pip install --upgrade pip
+          python -m pip install -r tools/reality_assets/requirements-manhattan-city.txt
+          BLENDER_PY="$(blender --background --factory-startup --python-expr "import bpy,sys; print('BP_BLENDER_PYTHON=' + getattr(bpy.app, 'binary_path_python', sys.executable))" 2>&1 | sed -n 's/^BP_BLENDER_PYTHON=//p' | tail -1)"
+          test -n "$BLENDER_PY"
+          "$BLENDER_PY" -m ensurepip --upgrade || true
+          "$BLENDER_PY" -m pip install --upgrade pip
+          "$BLENDER_PY" -m pip install "numpy==1.26.4" "pyproj==3.6.1"
+          blender --background --factory-startup --python-expr "import bpy,numpy,pyproj; print('BRIDGEPOINT_BLENDER_WORLD_DEPS_PASS', bpy.app.version_string, numpy.__version__, pyproj.__version__)"
+      - name: Download current NYC datasets and existing Midtown LiDAR
+        if: steps.existing.outputs.package_needed == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tools/reality_assets/download_manhattan_city_sources.py \
+            --output-dir "$RUNNER_TEMP/bp-manhattan-source" \
+            --page-size 20000 \
+            --building-page-size 750
+          test -s "$RUNNER_TEMP/bp-manhattan-source/source-manifest.json"
+      - name: Build editable Manhattan Blender city scene
+        if: steps.existing.outputs.package_needed == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/bp-manhattan-output"
+          blender --background --factory-startup --python tools/reality_assets/build_manhattan_blender_city.py -- \
+            --source-dir "$RUNNER_TEMP/bp-manhattan-source" \
+            --output-dir "$RUNNER_TEMP/bp-manhattan-output" \
+            --max-trees 50000 \
+            --max-windows 900000 \
+            --skip-glb-export
+          test -s "$RUNNER_TEMP/bp-manhattan-output/bridgepoint-manhattan-city.blend"
+      - name: Export geographically anchored browser GLB tiles
+        if: steps.existing.outputs.package_needed == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/bp-manhattan-web-tiles"
+          blender --background "$RUNNER_TEMP/bp-manhattan-output/bridgepoint-manhattan-city.blend" \
+            --python tools/reality_assets/package_manhattan_city_tiles.py -- \
+            --source-manifest "$RUNNER_TEMP/bp-manhattan-source/source-manifest.json" \
+            --output-dir "$RUNNER_TEMP/bp-manhattan-web-tiles" \
+            --tile-size-m 2500 --min-zoom 7.5
+          cp "$RUNNER_TEMP/bp-manhattan-source/source-manifest.json" "$RUNNER_TEMP/bp-manhattan-web-tiles/source-manifest.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root=Path(os.environ['RUNNER_TEMP'])/'bp-manhattan-web-tiles'
+          m=json.loads((root/'manifest.json').read_text())
+          assert m.get('buildRevision')=='manhattan-v1' and m.get('tileCount',0)>=5, m
+          assert len(m.get('tiles',[]))==m['tileCount']
+          total=0
+          for tile in m['tiles']:
+              p=root/tile['url']
+              assert p.is_file() and p.stat().st_size>100 and p.stat().st_size==tile['bytes'], tile
+              assert len(tile['boundsWgs84'])==4 and tile['cityId']=='manhattan'
+              total += p.stat().st_size
+          assert total==m['totalBytes']
+          print('BRIDGEPOINT_BLENDER_WORLD_TILE_PACKAGE_PASS',json.dumps({'tiles':m['tileCount'],'bytes':total}))
+          PY
+      - name: Upload web-ready Manhattan tile package
+        if: steps.existing.outputs.package_needed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: bridgepoint-manhattan-blender-world-tiles
+          path: \${{ runner.temp }}/bp-manhattan-web-tiles/
+          if-no-files-found: error
+          retention-days: 30
+      - name: Upload editable Blender scene for owner
+        if: steps.existing.outputs.package_needed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: bridgepoint-manhattan-editable-blend
+          path: |
+            \${{ runner.temp }}/bp-manhattan-output/bridgepoint-manhattan-city.blend
+            \${{ runner.temp }}/bp-manhattan-output/manhattan-build-report.json
+          if-no-files-found: error
+          retention-days: 30
+
   deploy:
-    needs: build-tree-assets
+    needs: [build-tree-assets, build-manhattan-world]
     runs-on: ubuntu-latest
     timeout-minutes: 55
     environment:
@@ -165,6 +272,8 @@ jobs:
         run: |
           set -euxo pipefail
           node --check rebuild-v5000/bridgepoint-reality-assets-v5968.js
+          node --check rebuild-v5000/bridgepoint-blender-world-v1.js
+          python -m py_compile tools/reality_assets/package_manhattan_city_tiles.py
           node --check rebuild-v5000/bridgepoint-volumetric-fields-v5978.js
           node --check rebuild-v5000/bridgepoint-realworld-effects-v5927.js
           node --input-type=module --check < release-v2300/world-v2300-water.js
@@ -366,6 +475,7 @@ jobs:
           curl --retry 4 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 120 'https://potree.norm3d.com/build/potree/workers/laz-perf.wasm' -o site/assets/bp-potree-lincoln-runtime/workers/laz-perf.wasm
           test -s site/assets/bp-potree-lincoln-runtime/workers/laz-perf.wasm
           cp rebuild-v5000/bridgepoint-view-v5917.js site/bridgepoint-view-v5917.js
+          cp rebuild-v5000/bridgepoint-blender-world-v1.js site/bridgepoint-blender-world-v1.js
           cp rebuild-v5000/bridgepoint-drone-awareness-v1.js site/bridgepoint-drone-awareness-v1.js
           cp rebuild-v5000/bridgepoint-vessel-awareness-v1.js site/bridgepoint-vessel-awareness-v1.js
           cp rebuild-v5000/bridgepoint-transportation-v1.js site/bridgepoint-transportation-v1.js
@@ -1578,6 +1688,25 @@ jobs:
           test -s site/app/horizon-playable/assets/characters/mesh2motion/models/swat_male.glb
           echo "V5000 CLEAN INTELLIGENCE ARTIFACT READY"
 
+      - name: Download the first Manhattan web tile package
+        if: needs.build-manhattan-world.outputs.package_needed == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: bridgepoint-manhattan-blender-world-tiles
+          path: \${{ runner.temp }}/bp-manhattan-web-tiles
+
+      - name: Include Manhattan Blender World assets in public site
+        shell: bash
+        run: |
+          set -euo pipefail
+          TARGET='site/assets/blender-world/manhattan'
+          mkdir -p "$TARGET"
+          if [ -s "$RUNNER_TEMP/bp-manhattan-web-tiles/manifest.json" ]; then
+            cp -a "$RUNNER_TEMP/bp-manhattan-web-tiles/." "$TARGET/"
+          fi
+          test -s "$TARGET/manifest.json"
+          grep -Fq '"buildRevision": "manhattan-v1"' "$TARGET/manifest.json"
+
       - uses: actions/configure-pages@v5
         with:
           enablement: true
@@ -1621,6 +1750,8 @@ jobs:
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/language-selector-v5200.js?v1068=${q}" -o /tmp/language-selector-v5200.js || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/sw.js?v6135=${q}" -o /tmp/sw.js || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app-update-v5820.js?v5910=${q}" -o /tmp/app-update-v5820.js || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/bridgepoint-blender-world-v1.js?v1=${q}" -o /tmp/bridgepoint-blender-world-v1.js || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/blender-world/manhattan/manifest.json?v1=${q}" -o /tmp/manhattan-blender-world-manifest.json || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/flutter_service_worker.js?v5820=${q}" -o /tmp/flutter-service-worker-retire.js || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/intelligence-launch/?v5820=${q}" -o /tmp/legacy-intelligence-launch.html || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/horizon/sw.js?v5822=${q}" -o /tmp/horizon-sw.js || true
@@ -1664,6 +1795,9 @@ jobs:
             sleep 4
           done
           test "$ok" = 1
+          test -s /tmp/bridgepoint-blender-world-v1.js
+          grep -Fq 'Open the separate Blender World globe' /tmp/bridgepoint-blender-world-v1.js
+          grep -Fq '"buildRevision": "manhattan-v1"' /tmp/manhattan-blender-world-manifest.json
           grep -Fq 'BRIDGEPOINT' /tmp/root.html
           ! grep -Eiq 'HORIZON|battle pass|zombie|game mode' /tmp/root.html
           q="${GITHUB_SHA}-surface-check-$(date +%s)"
