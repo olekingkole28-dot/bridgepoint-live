@@ -63,24 +63,31 @@
       script.async = true;
       script.src = MODULE_SRC;
       script.onload = () => {
-        control.loading = false;
-        const api = window.__BP_TRANSPORTATION_V1__;
-        if (!api || typeof api.enable !== 'function') {
-          button.disabled = false;
-          label.textContent = 'Transportation · Retry';
-          button.title = 'The simulation did not initialize. Press to retry.';
-          return;
-        }
-        group.remove();
-        control.loaded = true;
-        try {
-          if (!api.enable()) {
+        const startSimulation = () => {
+          control.loading = false;
+          const api = window.__BP_TRANSPORTATION_V1__;
+          if (!api || typeof api.enable !== 'function') {
+            button.disabled = false;
+            label.textContent = 'Transportation · Retry';
+            button.title = 'The simulation did not initialize. Press to retry.';
+            return;
+          }
+          group.remove();
+          control.loaded = true;
+          try {
+            if (!api.enable()) {
+              const status = document.querySelector('.bp-transportation-v1-group .bp-t-status');
+              if (status) status.textContent = 'The simulation loaded but could not start. Press Transportation again to retry.';
+            }
+          } catch (_) {
             const status = document.querySelector('.bp-transportation-v1-group .bp-t-status');
             if (status) status.textContent = 'The simulation loaded but could not start. Press Transportation again to retry.';
           }
-        } catch (_) {
-          const status = document.querySelector('.bp-transportation-v1-group .bp-t-status');
-          if (status) status.textContent = 'The simulation loaded but could not start. Press Transportation again to retry.';
+        };
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', startSimulation, { once: true });
+        } else {
+          startSimulation();
         }
       };
       script.onerror = () => {
