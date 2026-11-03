@@ -205,7 +205,7 @@ async function bootMap(){
   ['time-slider',async()=>{const m=await import('./world-v2300-time-slider.js?v=6170-no-cloud-toggle-always-on');window.__BP_WORLD_TIME_SLIDER_V5908__=m.initWorldTimeSlider(world,rpc)}],
   ['spectral-imagery',async()=>{const m=await import('./world-v2300-spectral-imagery.js?v=6215-satellite-persistent-render-guard');window.__BP_SPECTRAL_IMAGERY_V5931__=m.initSpectralImagery(world)}],
   ['underground',async()=>{const m=await import('./world-v2300-underground-xray.js?v=5965-landmarks-and-effects');window.__BP_UNDERGROUND_XRAY_V5935__=m.initUndergroundXray(world)}],
-  ['infrastructure',async()=>{const m=await import('./world-v2300-infrastructure-volume-v5962.js?v=5968-solid-grounded-grid');window.__BP_INFRASTRUCTURE_VOLUME_V5962__=m.initInfrastructureVolume(world)}],
+  ['infrastructure',async()=>{const m=await import('./world-v2300-infrastructure-volume-v5962.js?v=5969-fcc-towers-zoom-true-scale');window.__BP_INFRASTRUCTURE_VOLUME_V5962__=m.initInfrastructureVolume(world)}],
   ['sensors',async()=>{const m=await import('./world-v2300-sensor-layers.js?v=6015-nasa-light-toggle');window.__BP_SENSOR_LAYERS_V5945__=m.initSensorLayers(world)}],
   ['realism',async()=>{const m=await import('./world-v2300-realism.js?v=5910-world-materials');window.__BP_WORLD_REALISM_V5910__=m.initRealismMode(world)}],
   ['gis-core',async()=>{const m=await import('./gis-core-orchestrator-v5910.js?v=5910-gis-router');window.__BP_GIS_CORE_V5910__=m.initGisCore(world,rpc)}]
