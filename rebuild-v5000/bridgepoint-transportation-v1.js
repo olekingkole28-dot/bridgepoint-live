@@ -806,7 +806,7 @@
       chosen.push({
         kind, category: 'civilian', path, distance: start,
         direction: random() > .5 ? 1 : -1,
-        speed: roadSpeed(path.roadClass, random()) * (.78 + random() * .42),
+        speed: roadSpeed(path.roadClass, random) * (.78 + random() * .42),
         id: 'SIM-C-' + String(i + 1).padStart(3, '0')
       });
     }
@@ -819,7 +819,7 @@
         chosen.push({
           kind, category, path, distance: random() * path.length,
           direction: random() > .5 ? 1 : -1,
-          speed: Math.min(roadSpeed(path.roadClass, random()) * 1.18, 30),
+          speed: Math.min(roadSpeed(path.roadClass, random) * 1.18, 30),
           id: 'SIM-' + category.toUpperCase() + '-' + String(i + 1).padStart(2, '0')
         });
       }
