@@ -135,6 +135,8 @@ def main():
     if args.tile_size_m < 500 or args.tile_size_m > 10000:
         raise SystemExit("Tile size must be between 500 m and 10,000 m.")
     args.output_dir.mkdir(parents=True, exist_ok=True)
+    city_output_dir = args.output_dir / "manhattan"
+    city_output_dir.mkdir(parents=True, exist_ok=True)
 
     source_manifest = json.loads(args.source_manifest.read_text(encoding="utf-8"))
     origin = source_manifest["localOrigin"]
@@ -197,7 +199,7 @@ def main():
                 continue
 
             filename = tile_id + ".glb"
-            filepath = args.output_dir / filename
+            filepath = city_output_dir / filename
             bpy.ops.object.select_all(action="DESELECT")
             for obj in tile_collection.objects:
                 obj.select_set(True)
@@ -215,7 +217,7 @@ def main():
             tiles.append({
                 "id": tile_id,
                 "cityId": "manhattan",
-                "url": filename,
+                "url": "manhattan/" + filename,
                 "bytes": size_bytes,
                 "longitude": lon,
                 "latitude": lat,
@@ -237,9 +239,9 @@ def main():
         raise SystemExit("No non-empty Manhattan tiles were exported.")
     manifest = {
         "schemaVersion": 1,
-        "buildRevision": "manhattan-v1",
+        "buildRevision": "blender-world-v1",
         "id": "bridgepoint-blender-world-v1",
-        "cities": [{"id": "manhattan", "title": "Manhattan, New York City", "tileCount": len(tiles)}],
+        "cities": [{"id": "manhattan", "title": "Manhattan, New York City", "tileCount": len(tiles), "boundsWgs84": [source_manifest["bboxWgs84"]["west"], source_manifest["bboxWgs84"]["south"], source_manifest["bboxWgs84"]["east"], source_manifest["bboxWgs84"]["north"]]}],
         "name": "BridgePoint Blender World — Manhattan",
         "generatedAtUtc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "source": "NYC Open Data / NYC OTI / NYC Parks ForMS 2.0 plus existing BridgePoint NYC OTI LiDAR assets",
