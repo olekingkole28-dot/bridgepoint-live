@@ -134,7 +134,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 110
     outputs:
-      package_needed: \${{ steps.existing.outputs.package_needed }}
+      package_needed: ${{ steps.existing.outputs.package_needed }}
     steps:
       - uses: actions/checkout@v4
       - name: Check durable live artifact for the current Manhattan package
@@ -143,7 +143,7 @@ jobs:
         run: |
           set -euo pipefail
           git fetch origin live-artifact:refs/remotes/origin/live-artifact --depth=1
-          if git show refs/remotes/origin/live-artifact:assets/blender-world/manifest.json 2>/dev/null | grep -Fq '"buildRevision": "manhattan-v1"'; then
+          if git show refs/remotes/origin/live-artifact:assets/blender-world/manifest.json 2>/dev/null | grep -Fq '"buildRevision": "blender-world-v1"'; then
             echo 'package_needed=false' >> "$GITHUB_OUTPUT"
           else
             echo 'package_needed=true' >> "$GITHUB_OUTPUT"
@@ -223,7 +223,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: bridgepoint-manhattan-blender-world-tiles
-          path: \${{ runner.temp }}/bp-manhattan-web-tiles/
+          path: ${{ runner.temp }}/bp-manhattan-web-tiles/
           if-no-files-found: error
           retention-days: 30
       - name: Upload editable Blender scene for owner
@@ -232,8 +232,8 @@ jobs:
         with:
           name: bridgepoint-manhattan-editable-blend
           path: |
-            \${{ runner.temp }}/bp-manhattan-output/bridgepoint-manhattan-city.blend
-            \${{ runner.temp }}/bp-manhattan-output/manhattan-build-report.json
+            ${{ runner.temp }}/bp-manhattan-output/bridgepoint-manhattan-city.blend
+            ${{ runner.temp }}/bp-manhattan-output/manhattan-build-report.json
           if-no-files-found: error
           retention-days: 30
 
@@ -1693,7 +1693,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: bridgepoint-manhattan-blender-world-tiles
-          path: \${{ runner.temp }}/bp-manhattan-web-tiles
+          path: ${{ runner.temp }}/bp-manhattan-web-tiles
 
       - name: Include Manhattan Blender World assets in public site
         shell: bash
@@ -1705,7 +1705,7 @@ jobs:
             cp -a "$RUNNER_TEMP/bp-manhattan-web-tiles/." "$TARGET/"
           fi
           test -s "$TARGET/manifest.json"
-          grep -Fq '"buildRevision": "manhattan-v1"' "$TARGET/manifest.json"
+          grep -Fq '"buildRevision": "blender-world-v1"' "$TARGET/manifest.json"
 
       - uses: actions/configure-pages@v5
         with:
@@ -1797,7 +1797,7 @@ jobs:
           test "$ok" = 1
           test -s /tmp/bridgepoint-blender-world-v1.js
           grep -Fq 'Open the separate Blender World globe' /tmp/bridgepoint-blender-world-v1.js
-          grep -Fq '"buildRevision": "manhattan-v1"' /tmp/manhattan-blender-world-manifest.json
+          grep -Fq '"buildRevision": "blender-world-v1"' /tmp/manhattan-blender-world-manifest.json
           grep -Fq 'BRIDGEPOINT' /tmp/root.html
           ! grep -Eiq 'HORIZON|battle pass|zombie|game mode' /tmp/root.html
           q="${GITHUB_SHA}-surface-check-$(date +%s)"
