@@ -104,8 +104,8 @@ jobs:
           grep -Fq 'map.project([anchor.cloudLng??anchor.lng,anchor.cloudLat??anchor.lat])' release-v2300/world-v2300-lightning.js
           grep -Fq 'const top={x:clamp(cloudScreen.x+jitter,0,bounds.w),y:Math.max(-12,cloudScreen.y-height)}' release-v2300/world-v2300-lightning.js
           grep -Fq 'bp6135-ground-flash-gradient' release-v2300/world-v2300-lightning.js
-          grep -Fq 'world-v2300-weather.js?v=6195-desktop-globe-flash-stability' rebuild-v5000/app.js
-          grep -Fq 'world-v2300-weather.js?v=6195-desktop-globe-flash-stability' rebuild-v5000/landing.js
+          grep -Fq 'world-v2300-weather.js?v=6200-storm-clouds-no-rain' rebuild-v5000/app.js
+          grep -Fq 'world-v2300-weather.js?v=6200-storm-clouds-no-rain' rebuild-v5000/landing.js
           grep -Fq 'world-v2300-lightning.js?v=6195-desktop-globe-flash-stability' release-v2300/world-v2300-weather.js
           grep -Fq "const RAIN_CELL_CONTEXT_GLOW = 'bp2300-rain-cell-lod-glow-v6135';" release-v2300/world-v2300-rain.js
           grep -Fq "const RAIN_CELL_CONTEXT_CORE = 'bp2300-rain-cell-lod-core-v6135';" release-v2300/world-v2300-rain.js
@@ -123,6 +123,6 @@ jobs:
           grep -Fq 'BP_LISTINGS_MONEY_V6130' rebuild-v5000/bridgepoint-view-v5917.js
           grep -Fq 'sourceWeatherOverlaysPreserved:true' rebuild-v5000/app.js
           grep -Fq 'sourceWeatherOverlaysPreserved:true' rebuild-v5000/landing.js
-          grep -Fq 'world-v2300-clouds.js?v=6180-goes-mask-volumetric-clouds' rebuild-v5000/app.js
-          grep -Fq 'world-v2300-clouds.js?v=6180-goes-mask-volumetric-clouds' rebuild-v5000/landing.js
+          grep -Fq 'world-v2300-clouds.js?v=6200-radar-colored-rain-clouds' rebuild-v5000/app.js
+          grep -Fq 'world-v2300-clouds.js?v=6200-radar-colored-rain-clouds' rebuild-v5000/landing.js
           ! grep -Eq 'data-clouds|toggleSkyClouds|world-v2300-clouds' release-v2300/world-v2300-time-slider.js
