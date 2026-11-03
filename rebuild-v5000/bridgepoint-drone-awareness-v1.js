@@ -609,7 +609,7 @@ function boot(){
  window.__BP_DRONE_AWARENESS_V1__={
   version:VERSION,
   source:'adsb.lol public community ADS-B feed',
-  aggregation:'13 global sample regions; 2-degree grid; min 1 classified UAV-class report per cell',
+  aggregation:'13 regional public ADS-B sample windows; individual UAV-class positions; bounded session-sampled trails',
   targetLevelDetails:false,
   pilotOrControlStationLocations:false,
   rawRfScanning:false,
@@ -626,7 +626,7 @@ function boot(){
   },
   toggle,
   refresh:()=>refresh(true),
-  get state(){return{enabled,mapReady:!!map,zoom:map?.getZoom?.()??null,layerReady:!!map?.getLayer?.(LAYER),trailLayerReady:!!map?.getLayer?.(TRAIL_LAYER),drone3DLayerReady:!!map?.getLayer?.(DRONE_3D_LAYER),currentPositions:lastCurrentRecords.length,observedTrails:[...trackedUavs.values()].filter(t=>t.points.length>1).length,simulatedFleet:false,emptyModeActive,updatedAt:Date.now()}}
+  get state(){return{enabled,mapReady:!!map,zoom:map?.getZoom?.()??null,layerReady:!!map?.getLayer?.(LAYER),layerVisible:!!map?.getLayer?.(LAYER)&&(map.getLayoutProperty(LAYER,'visibility')||'visible')!=='none',trailLayerReady:!!map?.getLayer?.(TRAIL_LAYER),trailLayerVisible:!!map?.getLayer?.(TRAIL_LAYER)&&(map.getLayoutProperty(TRAIL_LAYER,'visibility')||'visible')!=='none',trailDotsVisible:!!map?.getLayer?.(TRAIL_DOT_LAYER)&&(map.getLayoutProperty(TRAIL_DOT_LAYER,'visibility')||'visible')!=='none',drone3DLayerReady:!!map?.getLayer?.(DRONE_3D_LAYER),drone3DRendererReady:!!droneRenderer&&!!droneScene,currentPositions:lastCurrentRecords.length,observedTrails:[...trackedUavs.values()].filter(t=>t.points.length>1).length,simulatedFleet:false,emptyModeActive,updatedAt:Date.now()}}
  };
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
