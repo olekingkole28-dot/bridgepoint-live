@@ -5,7 +5,7 @@
   'use strict';
   if (window.__BP_TRANSPORTATION_LOADER_V1__) return;
 
-  const MODULE_SRC = '/bridgepoint-transportation-v1.js?v=1-3d-road-traffic-simulation';
+  const MODULE_SRC = '/bridgepoint-transportation-v1.js?v=2-dots-first-adaptive-lod';
   const control = window.__BP_TRANSPORTATION_LOADER_V1__ = {
     version: 1, loading: false, loaded: false
   };
@@ -64,25 +64,25 @@
       script.src = MODULE_SRC;
       script.onload = () => {
         const startSimulation = () => {
-          control.loading = false;
           const api = window.__BP_TRANSPORTATION_V1__;
           if (!api || typeof api.enable !== 'function') {
+            control.loading = false;
             button.disabled = false;
             label.textContent = 'Transportation · Retry';
             button.title = 'The simulation did not initialize. Press to retry.';
             return;
           }
+          let started = false;
+          try { started = api.enable() !== false; } catch (_) { started = false; }
+          control.loading = false;
+          if (!started) {
+            button.disabled = false;
+            label.textContent = 'Transportation · Retry';
+            button.title = 'The simulation could not start. Press to retry.';
+            return;
+          }
           group.remove();
           control.loaded = true;
-          try {
-            if (!api.enable()) {
-              const status = document.querySelector('.bp-transportation-v1-group .bp-t-status');
-              if (status) status.textContent = 'The simulation loaded but could not start. Press Transportation again to retry.';
-            }
-          } catch (_) {
-            const status = document.querySelector('.bp-transportation-v1-group .bp-t-status');
-            if (status) status.textContent = 'The simulation loaded but could not start. Press Transportation again to retry.';
-          }
         };
         if (document.readyState === 'loading') {
           document.addEventListener('DOMContentLoaded', startSimulation, { once: true });
