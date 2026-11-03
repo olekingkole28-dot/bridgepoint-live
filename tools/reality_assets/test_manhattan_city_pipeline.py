@@ -1,7 +1,18 @@
 import unittest
+from io import BytesIO
+from unittest.mock import patch
+
 from pyproj import Transformer
 from shapely.geometry import LineString, Polygon, mapping, shape
-from tools.reality_assets.download_manhattan_city_sources import (ORIGIN_LON_LAT, SODA_DATASETS, clip_feature_collection, project_geometry)
+
+from tools.reality_assets import download_manhattan_city_sources as source
+from tools.reality_assets.download_manhattan_city_sources import (
+    ORIGIN_LON_LAT,
+    SODA_DATASETS,
+    clip_feature_collection,
+    project_geometry,
+)
+
 
 class ManhattanSourcePipelineTests(unittest.TestCase):
     def setUp(self):
@@ -28,12 +39,32 @@ class ManhattanSourcePipelineTests(unittest.TestCase):
             self.assertIn(key, SODA_DATASETS)
             self.assertTrue(SODA_DATASETS[key]["id"])
 
+    def test_arcgis_batch_query_uses_form_post(self):
+        with patch.object(source, "urlopen", return_value=BytesIO(b'{"features":[]}')) as mock_open:
+            result = source.get_json(
+                "https://example.test/FeatureServer/0/query",
+                data={"objectIds": "1,2,3", "outFields": "OBJECTID", "f": "json"},
+            )
+        request = mock_open.call_args.args[0]
+        self.assertEqual(request.get_method(), "POST")
+        self.assertEqual(
+            request.get_header("Content-type"),
+            "application/x-www-form-urlencoded",
+        )
+        self.assertIn(b"objectIds=1%2C2%2C3", request.data)
+        self.assertEqual(result, {"features": []})
+
     def test_clip_keeps_manhattan_roads_and_removes_outside_geometry(self):
         boundary = Polygon([(0, 0), (100, 0), (100, 100), (0, 100)])
-        payload = {"name": "roads", "features": [
-            {"type": "Feature", "properties": {"id": "inside"}, "geometry": mapping(LineString([(-10, 50), (110, 50)]))},
-            {"type": "Feature", "properties": {"id": "outside"}, "geometry": mapping(LineString([(120, 120), (150, 150)]))},
-        ]}
+        payload = {
+            "name": "roads",
+            "features": [
+                {"type": "Feature", "properties": {"id": "inside"},
+                 "geometry": mapping(LineString([(-10, 50), (110, 50)]))},
+                {"type": "Feature", "properties": {"id": "outside"},
+                 "geometry": mapping(LineString([(120, 120), (150, 150)]))},
+            ],
+        }
         result = clip_feature_collection(payload, boundary)
         self.assertEqual(len(result["features"]), 1)
         clipped = shape(result["features"][0]["geometry"])
@@ -42,13 +73,21 @@ class ManhattanSourcePipelineTests(unittest.TestCase):
 
     def test_water_clip_keeps_adjacent_water_buffer(self):
         boundary = Polygon([(0, 0), (100, 0), (100, 100), (0, 100)])
-        payload = {"name": "water", "features": [
-            {"type": "Feature", "properties": {"id": "river"}, "geometry": mapping(Polygon([(-200, 30), (-50, 30), (-50, 70), (-200, 70), (-200, 30)]))},
-            {"type": "Feature", "properties": {"id": "far"}, "geometry": mapping(Polygon([(-1000, 30), (-900, 30), (-900, 70), (-1000, 70), (-1000, 30)]))},
-        ]}
+        payload = {
+            "name": "water",
+            "features": [
+                {"type": "Feature", "properties": {"id": "river"},
+                 "geometry": mapping(Polygon([(-200, 30), (-50, 30), (-50, 70),
+                                              (-200, 70), (-200, 30)]))},
+                {"type": "Feature", "properties": {"id": "far"},
+                 "geometry": mapping(Polygon([(-1000, 30), (-900, 30), (-900, 70),
+                                              (-1000, 70), (-1000, 30)]))},
+            ],
+        }
         result = clip_feature_collection(payload, boundary, 100.0)
         self.assertEqual(len(result["features"]), 1)
         self.assertGreater(shape(result["features"][0]["geometry"]).area, 0)
+
 
 if __name__ == "__main__":
     unittest.main()
