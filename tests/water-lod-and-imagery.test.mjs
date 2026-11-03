@@ -4,6 +4,7 @@ const mapSource = await readFile(new URL('../release-v2300/world-v2300-map.js', 
 const waterSource = await readFile(new URL('../release-v2300/world-v2300-water.js', import.meta.url), 'utf8');
 const lodSource = await readFile(new URL('../release-v2300/world-v2300-lod-controls.js', import.meta.url), 'utf8');
 const spectralSource = await readFile(new URL('../release-v2300/world-v2300-spectral-imagery.js', import.meta.url), 'utf8');
+const blenderSource = await readFile(new URL('../rebuild-v5000/bridgepoint-blender-world-v1.js', import.meta.url), 'utf8');
 const homepageHtml = await readFile(new URL('../rebuild-v5000/index.html', import.meta.url), 'utf8');
 const appHtml = await readFile(new URL('../rebuild-v5000/app-index.html', import.meta.url), 'utf8');
 const appLoader = await readFile(new URL('../rebuild-v5000/app.js', import.meta.url), 'utf8');
@@ -71,6 +72,12 @@ assert.ok(mapSource.includes("map.on('idle',()=>keepSatelliteRasterLayersVisible
 assert.ok(mapSource.includes("window.__BP_SATELLITE_RASTER_VISIBILITY_GUARD_V6217__"), 'runtime must expose satellite layer visibility diagnostics');
 const satelliteGuard=mapSource.slice(mapSource.indexOf("function keepSatelliteRasterLayersVisible(reason='settled')"),mapSource.indexOf('function restoreSatelliteRasterStack()'));
 assert.ok(!satelliteGuard.includes('triggerRepaint'), 'idempotent satellite visibility checks must not create a perpetual repaint loop');
+assert.ok(satelliteGuard.includes("const blenderWorldEnabled=window.__BP_BLENDER_WORLD_MODE__?.enabled===true"), 'the persistent satellite guard must respect the separate Blender World mode');
+assert.ok(satelliteGuard.includes("const targetVisibility=blenderWorldEnabled?'none':'visible'"), 'the normal globe keeps all imagery visible, while Blender World hides each raster source');
+assert.ok(satelliteGuard.includes("map.setPaintProperty('gta-water','fill-opacity',0)"), 'the persistent satellite underlay guard must keep native ocean polygons transparent');
+assert.ok(satelliteGuard.includes("depth.surface===true"), 'the optional GEBCO depth overlay must retain its explicit opt-in water treatment');
+assert.ok(blenderSource.includes("^gta-(?:nasa|esri|usgs|oam)(?:$|-)"), 'Blender World must hide all native satellite raster providers in its separate mode');
+assert.ok(blenderSource.includes("map.setLayoutProperty(layer.id, 'visibility', 'none')") && blenderSource.includes('restoreLegacyLayers()'), 'Blender World raster suppression must restore original layer visibility when the mode closes');
 assert.ok(mapSource.includes("map.on('render',()=>keepSatelliteRasterLayersVisible('render'))"), 'satellite visibility must be repaired on every rendered frame, including after the map becomes idle');
 assert.ok(!mapSource.includes('satelliteRasterRenderGuardAt'), 'the render-time visibility repair must not be throttled while imagery is flashing at rest');
 assert.ok(mapSource.includes("map.on('style.load',restoreSatelliteRasterStack)") && mapSource.includes("map.on('moveend',()=>keepSatelliteRasterLayersVisible('moveend'))") && mapSource.includes("map.on('pitchend',()=>keepSatelliteRasterLayersVisible('pitchend'))"), 'satellite visibility must recover after style, pan and pitch transitions');
