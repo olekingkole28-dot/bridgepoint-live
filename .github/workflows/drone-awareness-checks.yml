@@ -68,6 +68,7 @@ jobs:
           assert.ok(Array.isArray(body.ac), 'proxy must return actual provider records');
           assert.ok(body.providers?.adsb_lol, 'ADSB.lol status must be exposed');
           assert.ok(body.providers?.layer400_remote_id, 'Layer400 Remote ID readiness must be exposed');
+          assert.ok(body.providers?.flyitaly_adsb, 'FlyItalyADSB/OGN readiness must be exposed');
           assert.ok(body.providers.adsb_lol.status === 'ok' || ['ok', 'partial'].includes(body.providers.layer400_remote_id.status), 'at least one live provider must be reachable');
           assert.equal(body.simulatedFleet, false, 'no simulated/fabricated fleet can enter the response');
           console.log('BRIDGEPOINT_DRONE_PROXY_LIVE_PASS', JSON.stringify({ records: body.ac.length, providers: body.providers, servedAt: body.servedAt }));
