@@ -238,7 +238,7 @@ function makeShipGeometry(T,kind){
   cabin(.02,.06,.82,.25,.20,0xe9f0f2);
   add(box(.40,.25,.04),[.02,.25,.20],[0,0,0],[1,1,1],accent);
   mast(-.5,0,.25,.25,.007);
- }else{
+ }else if(kind==='other'){
   cabin(-.24,.055,.42,.25,.22,0xe1e9ec);
   cabin(-.25,.25,.25,.20,.14,0xd7e3e7);
   mast(-.5,0,.37,.36,.008);
