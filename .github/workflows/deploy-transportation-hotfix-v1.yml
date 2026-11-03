@@ -1,14 +1,7 @@
-name: Restore stable BridgePoint globe without experimental transportation loader
+name: Emergency BridgePoint transportation rollback (manual only)
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'rebuild-v5000/bridgepoint-transportation-v1.js'
-      - 'rebuild-v5000/index.html'
-      - 'rebuild-v5000/app-index.html'
-      - 'tests/transportation-simulation-v1.test.mjs'
-      - '.github/workflows/deploy-transportation-hotfix-v1.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read
