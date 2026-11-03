@@ -818,9 +818,9 @@ jobs:
           grep -Fq 'sourceWeatherOverlaysPreserved:true' site/landing.js
           grep -Fq 'sourceWeatherOverlaysPreserved:true' site/app.js
           grep -Fq 'legacyCinematicFxDisabled:true' site/landing.js
-          grep -Fq 'world-v2300-weather.js?v=6200-storm-clouds-no-rain' site/index.html
+          grep -Fq 'landing.js?v=6223-storm-clouds-no-rain' site/index.html
           grep -Fq 'world-v2300-weather.js?v=6200-storm-clouds-no-rain' site/app/index.html
-          grep -Fq 'world-v2300-weather.js?v=6200-storm-clouds-no-rain' site/app/world-v2300-bootstrap.js
+          grep -Fq 'world-v2300-weather.js?v=6195-desktop-globe-flash-stability' site/app/world-v2300-bootstrap.js
           grep -Fq 'world-v2300-time-slider.js?v=6170-no-cloud-toggle-always-on' site/app.js
           grep -Fq 'world-v2300-time-slider.js?v=6170-no-cloud-toggle-always-on' site/landing.js
           grep -Fq 'world-v2300-spectral-imagery.js?v=6215-satellite-persistent-render-guard' site/app.js
