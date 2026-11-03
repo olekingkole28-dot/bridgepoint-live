@@ -39,6 +39,7 @@ on:
 
 permissions:
   contents: write
+  actions: read
   pages: write
   id-token: write
 
@@ -136,25 +137,62 @@ jobs:
     timeout-minutes: 110
     outputs:
       package_needed: ${{ steps.existing.outputs.package_needed }}
+      rebuild_needed: ${{ steps.existing.outputs.rebuild_needed }}
     steps:
       - uses: actions/checkout@v4
-      - name: Check durable live artifact for the current Manhattan package
+      - name: Reuse the verified Manhattan package from the completed build
+        id: reuse-manhattan
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: bridgepoint-manhattan-blender-world-tiles
+          run-id: 41705337101
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          path: ${{ runner.temp }}/bp-manhattan-web-tiles
+      - name: Verify the restored package or check the durable live artifact
         id: existing
         shell: bash
         run: |
           set -euo pipefail
-          git fetch origin live-artifact:refs/remotes/origin/live-artifact --depth=1
-          if git show refs/remotes/origin/live-artifact:assets/blender-world/manifest.json 2>/dev/null | grep -Fq '"buildRevision": "blender-world-v1"'; then
-            echo 'package_needed=false' >> "$GITHUB_OUTPUT"
-          else
+          PACKAGE="$RUNNER_TEMP/bp-manhattan-web-tiles"
+          if [ -s "$PACKAGE/manifest.json" ]; then
+            python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          root=Path(os.environ['RUNNER_TEMP'])/'bp-manhattan-web-tiles'
+          manifest=json.loads((root/'manifest.json').read_text())
+          assert manifest.get('buildRevision')=='blender-world-v1'
+          assert manifest.get('tileCount',0)>=5
+          assert len(manifest.get('tiles',[]))==manifest['tileCount']
+          total=0
+          for tile in manifest['tiles']:
+              path=root/tile['url']
+              assert path.is_file() and path.stat().st_size==tile['bytes'] and path.stat().st_size>100
+              assert tile.get('cityId')=='manhattan' and len(tile.get('boundsWgs84',[]))==4
+              total += path.stat().st_size
+          assert total==manifest['totalBytes']
+          assert (root/'source-manifest.json').is_file()
+          print('REUSED_VERIFIED_MANHATTAN_PACKAGE',manifest['tileCount'],total)
+          PY
             echo 'package_needed=true' >> "$GITHUB_OUTPUT"
+            echo 'rebuild_needed=false' >> "$GITHUB_OUTPUT"
+          else
+            git fetch origin live-artifact:refs/remotes/origin/live-artifact --depth=1
+            if git show refs/remotes/origin/live-artifact:assets/blender-world/manifest.json 2>/dev/null | grep -Fq '"buildRevision": "blender-world-v1"'; then
+              echo 'package_needed=false' >> "$GITHUB_OUTPUT"
+              echo 'rebuild_needed=false' >> "$GITHUB_OUTPUT"
+            else
+              echo 'package_needed=true' >> "$GITHUB_OUTPUT"
+              echo 'rebuild_needed=true' >> "$GITHUB_OUTPUT"
+            fi
           fi
       - uses: actions/setup-python@v5
-        if: steps.existing.outputs.package_needed == 'true'
+        if: steps.existing.outputs.rebuild_needed == 'true'
         with:
           python-version: '3.11'
       - name: Install Blender and geospatial dependencies
-        if: steps.existing.outputs.package_needed == 'true'
+        if: steps.existing.outputs.rebuild_needed == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -164,7 +202,7 @@ jobs:
           python -m pip install -r tools/reality_assets/requirements-manhattan-city.txt
           PYTHONPATH="/usr/lib/python3/dist-packages" blender --background --factory-startup --python-expr "import bpy,numpy; print('BRIDGEPOINT_BLENDER_WORLD_DEPS_PASS', bpy.app.version_string, numpy.__version__)"
       - name: Download current NYC datasets and existing Midtown LiDAR
-        if: steps.existing.outputs.package_needed == 'true'
+        if: steps.existing.outputs.rebuild_needed == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -174,7 +212,7 @@ jobs:
             --building-page-size 750
           test -s "$RUNNER_TEMP/bp-manhattan-source/source-manifest.json"
       - name: Build editable Manhattan Blender city scene
-        if: steps.existing.outputs.package_needed == 'true'
+        if: steps.existing.outputs.rebuild_needed == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -186,7 +224,7 @@ jobs:
             --max-windows 900000
           test -s "$RUNNER_TEMP/bp-manhattan-output/bridgepoint-manhattan-city.blend"
       - name: Export geographically anchored browser GLB tiles
-        if: steps.existing.outputs.package_needed == 'true'
+        if: steps.existing.outputs.rebuild_needed == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -225,7 +263,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
       - name: Upload editable Blender scene for owner
-        if: steps.existing.outputs.package_needed == 'true'
+        if: steps.existing.outputs.rebuild_needed == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: bridgepoint-manhattan-editable-blend
@@ -3385,6 +3423,76 @@ jobs:
               console.log('BRIDGEPOINT_V5410_ANDROID_SMOKE_PASS');
             }finally{await browser.close()}
           })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
+
+      - name: Android Blender World button, tile-load and responsiveness smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp
+          npm init -y >/dev/null 2>&1 || true
+          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core');
+          (async()=>{
+            const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,protocolTimeout:90000,args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader']});
+            try{
+              const page=await browser.newPage();
+              const pageErrors=[],assetFailures=[];
+              page.on('pageerror',e=>pageErrors.push(String(e?.message||e)));
+              page.on('response',r=>{if(r.url().includes('/assets/blender-world/')&&r.status()>=400)assetFailures.push({status:r.status(),url:r.url()})});
+              await page.setUserAgent('Mozilla/5.0 (Linux; Android 16; Pixel 9a) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');
+              await page.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+              await page.goto('https://bridgepointintelligence.online/app/?bp-blender-mobile='+Date.now(),{waitUntil:'domcontentloaded',timeout:60000});
+              await page.waitForFunction(()=>!!window.__BP_V5000_WORLD?.map&&!!document.querySelector('#liveMap canvas'),{timeout:60000});
+              await page.waitForFunction(()=>!!window.__BP_BLENDER_WORLD_V1__&&!!document.getElementById('bpv-dock-reopen'),{timeout:45000});
+              const base=await page.evaluate(()=>({canvasCount:window.__BP_V5000_WORLD?.map?.getContainer?.().querySelectorAll('canvas').length||0,projection:window.__BP_V5000_WORLD?.map?.getProjection?.()?.type||null}));
+              if(base.canvasCount!==1||base.projection!=='globe')throw new Error('ANDROID_BLENDER_BASE_GLOBE_NOT_READY '+JSON.stringify(base));
+              await page.click('#bpv-dock-reopen');
+              await page.waitForFunction(()=>{const b=document.querySelector('[data-bp-blender-world-button="1"]');if(!b)return false;const r=b.getBoundingClientRect();return r.width>0&&r.height>0&&getComputedStyle(b).display!=='none'&&getComputedStyle(b).visibility!=='hidden'},{timeout:20000});
+              await page.evaluate(()=>{
+                const probe={active:true,last:0,maxGap:0,frames:0};window.__BP_BLENDER_MOBILE_FRAME_PROBE__=probe;
+                const tick=t=>{if(!probe.active)return;if(probe.last)probe.maxGap=Math.max(probe.maxGap,t-probe.last);probe.last=t;probe.frames++;requestAnimationFrame(tick)};requestAnimationFrame(tick);
+              });
+              await page.click('[data-bp-blender-world-button="1"]');
+              await page.waitForFunction(()=>window.__BP_BLENDER_WORLD_V1__?.enabled===true&&window.__BP_BLENDER_WORLD_V1__?.manifestLoaded===true&&Number(window.__BP_BLENDER_WORLD_V1__?.tileCount)>=5,{timeout:45000});
+              await page.waitForFunction(()=>Number(window.__BP_BLENDER_WORLD_V1__?.loadedTiles)>=1&&Number(window.__BP_BLENDER_WORLD_V1__?.renderedTiles)>=1,{timeout:90000});
+              await new Promise(r=>setTimeout(r,1200));
+              const active=await page.evaluate(()=>{
+                const state=window.__BP_BLENDER_WORLD_V1__,map=window.__BP_V5000_WORLD?.map,probe=window.__BP_BLENDER_MOBILE_FRAME_PROBE__;
+                const ids=['gta-nasa','gta-esri','gta-usgs','gta-oam'];
+                return{
+                  enabled:state?.enabled===true,manifestLoaded:state?.manifestLoaded===true,tileCount:state?.tileCount||0,loadedTiles:state?.loadedTiles||0,visibleTiles:state?.visibleTiles||0,renderedTiles:state?.renderedTiles||0,
+                  failedTiles:state?.failedTiles||[],mobileProfile:state?.mobileProfile===true,maxConcurrentTileLoads:state?.maxConcurrentTileLoads??null,tilePrefetchPad:state?.tilePrefetchPad??null,
+                  canvasCount:map?.getContainer?.().querySelectorAll('canvas').length??0,projection:map?.getProjection?.()?.type||null,zoom:map?.getZoom?.()??null,
+                  rasters:Object.fromEntries(ids.map(id=>[id,map?.getLayer(id)?(map.getLayoutProperty(id,'visibility')||'visible'):'missing'])),
+                  oceanOpacity:map?.getPaintProperty('gta-water','fill-opacity')??null,
+                  maxFrameGapMs:probe?.maxGap??null,frameCount:probe?.frames??0,
+                  heapMB:performance.memory?.usedJSHeapSize?Math.round(performance.memory.usedJSHeapSize/1048576):null,
+                  loadedTileRequests:performance.getEntriesByType('resource').filter(x=>x.name.includes('/assets/blender-world/')&&x.name.endsWith('.glb')).length
+                };
+              });
+              if(!active.enabled||!active.manifestLoaded||active.tileCount<5||active.loadedTiles<1||active.renderedTiles<1||active.failedTiles.length)throw new Error('ANDROID_BLENDER_TILE_LOAD_FAILED '+JSON.stringify(active));
+              if(!active.mobileProfile||active.maxConcurrentTileLoads!==1||active.tilePrefetchPad>0.06)throw new Error('ANDROID_BLENDER_MOBILE_BUDGET_NOT_APPLIED '+JSON.stringify(active));
+              if(active.canvasCount!==1||active.projection!=='globe')throw new Error('ANDROID_BLENDER_EXTRA_CANVAS_OR_PROJECTION_REGRESSION '+JSON.stringify(active));
+              if(Object.values(active.rasters).some(v=>v!=='none')||active.oceanOpacity!==0)throw new Error('ANDROID_BLENDER_IMAGERY_MASK_FAILED '+JSON.stringify(active));
+              if(active.frameCount<30||active.maxFrameGapMs>1800)throw new Error('ANDROID_BLENDER_MAIN_THREAD_STALL '+JSON.stringify(active));
+              await page.evaluate(()=>{const map=window.__BP_V5000_WORLD?.map;if(!map)throw new Error('MAP_LOST_AFTER_BLENDER_LOAD');const c=map.getCenter();map.easeTo({center:[c.lng+0.003,c.lat+0.001],duration:320,essential:true})});
+              await page.waitForFunction(()=>!window.__BP_V5000_WORLD?.map?.isMoving?.(),{timeout:10000});
+              const afterPan=await page.evaluate(()=>({canvasCount:window.__BP_V5000_WORLD?.map?.getContainer?.().querySelectorAll('canvas').length??0,enabled:window.__BP_BLENDER_WORLD_V1__?.enabled===true}));
+              if(afterPan.canvasCount!==1||!afterPan.enabled)throw new Error('ANDROID_BLENDER_MAP_UNRESPONSIVE_AFTER_TILE_LOAD '+JSON.stringify(afterPan));
+              await page.click('[data-bp-blender-world-button="1"]');
+              await page.waitForFunction(()=>window.__BP_BLENDER_WORLD_V1__?.enabled===false&&window.__BP_BLENDER_WORLD_MODE__?.enabled===false,{timeout:20000});
+              const restored=await page.evaluate(()=>{const m=window.__BP_V5000_WORLD?.map;return{canvasCount:m?.getContainer?.().querySelectorAll('canvas').length??0,rasters:Object.fromEntries(['gta-nasa','gta-esri','gta-usgs','gta-oam'].map(id=>[id,m?.getLayer(id)?(m.getLayoutProperty(id,'visibility')||'visible'):'missing'])),oceanOpacity:m?.getPaintProperty('gta-water','fill-opacity')??null,projection:m?.getProjection?.()?.type||null}});
+              if(restored.canvasCount!==1||restored.projection!=='globe'||Object.values(restored.rasters).some(v=>v!=='visible')||restored.oceanOpacity!==0)throw new Error('ANDROID_BLENDER_EXIT_DID_NOT_RESTORE_BASE_GLOBE '+JSON.stringify(restored));
+              const newErrors=pageErrors.filter(x=>!/ResizeObserver loop/i.test(x));
+              if(newErrors.length)throw new Error('ANDROID_BLENDER_PAGEERROR '+JSON.stringify(newErrors.slice(-5)));
+              if(assetFailures.length)throw new Error('ANDROID_BLENDER_ASSET_HTTP_FAILURE '+JSON.stringify(assetFailures.slice(-5)));
+              await page.evaluate(()=>{if(window.__BP_BLENDER_MOBILE_FRAME_PROBE__)window.__BP_BLENDER_MOBILE_FRAME_PROBE__.active=false});
+              console.log('BRIDGEPOINT_ANDROID_BLENDER_WORLD_PASS',JSON.stringify({base,active,afterPan,restored}));
+            }finally{await browser.close()}
+          })().catch(e=>{console.error(e.stack||e);process.exit(1)});
           NODE
 
       - name: Persist only fully verified V5000 production as durable live baseline
