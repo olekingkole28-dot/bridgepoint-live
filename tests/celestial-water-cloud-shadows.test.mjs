@@ -162,8 +162,8 @@ test('entrypoints use fresh cache keys and keep the celestial canvas off the sat
   for (const source of [app, landing]) {
     assert.match(source, /world-v2300-map\.js\?v=6220-tree-canopy-coverage-solid-retention/);
     assert.match(source, /world-v2300-water\.js\?v=6194-stable-water-low-cost/);
-    assert.match(source, /world-v2300-clouds\.js\?v=6180-goes-mask-volumetric-clouds/);
-    assert.match(source, /world-v2300-weather\.js\?v=6195-desktop-globe-flash-stability/);
+    assert.match(source, /world-v2300-clouds\.js\?v=6200-radar-colored-rain-clouds/);
+    assert.match(source, /world-v2300-weather\.js\?v=6200-storm-clouds-no-rain/);
     assert.match(source, /world-v2300-time-slider\.js\?v=6170-no-cloud-toggle-always-on/);
   }
   assert.match(appHtml, /app\.js\?v=6222-goes-cloud-mask-volumetric/, 'app shell loads the updated app entrypoint');
@@ -267,7 +267,8 @@ test('both entrypoints perform a real 6222 service-worker cutover before stale s
 test('new rain/lightning and global source markers stay separate from legacy effects', () => {
   assert.match(weather, /active=!!v;/);
   assert.match(weather, /const LEGACY_NATIVE_WEATHER_LAYERS=\['wx-snow-depth','wx-alert-fill','wx-fire-fill','wx-thermal','wx-quake-glow','wx-storm-glow'\]/);
-  assert.match(weather, /const WEATHER_SOURCE_OVERLAY_LAYERS=\['wx-alert-line','wx-fire-line','wx-quake','wx-storm','wx-obs','wx-water'/);\n  assert.match(weather, /function applySourceWeatherVisibility\(\)/);
+  assert.match(weather, /const WEATHER_SOURCE_OVERLAY_LAYERS=\['wx-alert-line','wx-fire-line','wx-quake','wx-storm','wx-obs','wx-water'/);
+  assert.match(weather, /function applySourceWeatherVisibility\(\)/);
   assert.match(app, /id:'bp-v5004-weather-shape-fill'.{0,500}layout:\{visibility:'visible'\}/);
   assert.match(landing, /bp-landing-weather-fill/);
   assert.match(landing, /id:'bp-landing-weather-fill'.{0,400}layout:\{visibility:'visible'\},paint:\{'fill-color':landingWeatherColorExpr\(\),'fill-opacity':\['interpolate'/);
@@ -422,8 +423,8 @@ test('homepage opportunities stay off at startup and the button enables the publ
 test('website and app start on the same cache-busted globe-first weather build', () => {
   assert.match(landingHtml, /bp-globe-only-first-frame-v6137/);
   assert.match(appHtml, /bp-app-globe-only-first-frame-v6137/);
-  assert.ok(landingHtml.includes('landing.js?v=6222-goes-cloud-mask-volumetric'));
-  assert.ok(appHtml.includes('app.js?v=6222-goes-cloud-mask-volumetric'));
+  assert.ok(landingHtml.includes('landing.js?v=6223-storm-clouds-no-rain'));
+  assert.ok(appHtml.includes('app.js?v=6223-storm-clouds-no-rain'));
   assert.ok(landingHtml.includes('intelligence-global-v5507.js?v=6170-imerg-nrt-timeline'));
   assert.ok(appHtml.includes('intelligence-global-v5507.js?v=6170-imerg-nrt-timeline'));
 });
