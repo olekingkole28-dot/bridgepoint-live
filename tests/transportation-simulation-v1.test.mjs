@@ -102,6 +102,31 @@ assert.equal(enabledAfterLoad, true, 'the first button press starts the simulati
 assert.equal(fakeDock.querySelector('.bp-transportation-v1-launcher'), null, 'the loader placeholder is replaced by the simulation controls');
 assert.equal(loaderContext.window.__BP_TRANSPORTATION_LOADER_V1__.loaded, true);
 
+assert.ok(loaderSource.includes("document.readyState === 'loading'"), 'the first click waits for DOMContentLoaded when the page is still initializing');
+const lateDock = new FakeElement('div');
+const lateScripts = [];
+let onDomReady = null;
+const lateContext = {
+  window: {},
+  document: {
+    readyState: 'loading',
+    addEventListener(type, callback) { if (type === 'DOMContentLoaded') onDomReady = callback; },
+    querySelector(selector) { return selector === '#bpv-dock-actions' ? lateDock : lateDock.querySelector(selector); },
+    createElement(tag) { return new FakeElement(tag); },
+    head: { appendChild(script) { lateScripts.push(script); script.parentElement = this; } }
+  }
+};
+bootModule.runInNewContext(loaderSource, lateContext, { filename: 'bridgepoint-transportation-loader-ready-guard-v1.js' });
+lateDock.querySelector('.bp-transportation-v1-toggle').listeners.click[0]();
+let lateStarted = false;
+lateContext.window.__BP_TRANSPORTATION_V1__ = { enable() { lateStarted = true; return true; } };
+lateScripts[0].onload();
+assert.equal(lateStarted, false, 'the simulation does not race the map card DOM during startup');
+assert.equal(typeof onDomReady, 'function', 'activation is queued for DOMContentLoaded');
+onDomReady();
+assert.equal(lateStarted, true, 'the original button press activates transportation once the card is ready');
+
+
 
 assert.ok(api, 'transportation simulation exposes diagnostics and helper methods');
 assert.equal(api.version, 1);
