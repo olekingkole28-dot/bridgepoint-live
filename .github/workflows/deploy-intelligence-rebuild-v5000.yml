@@ -1,4 +1,5 @@
 name: Deploy BridgePoint Intelligence V5000 Rebuild
+# Explicit republish after the Blender World imagery-mask regression fix.
 # combined surface republish: distribution-network-v5202 · projection-aware 3D clouds v6047 · persistent global field · stable NASA satellite basemap
 
 on:
