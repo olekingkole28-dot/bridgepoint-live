@@ -835,8 +835,8 @@ jobs:
           grep -Fq 'world-v2300-spectral-imagery.js?v=6215-satellite-persistent-render-guard' site/bridgepoint-view-v5917.js
           grep -Fq 'world-v2300-underground-xray.js?v=5965-landmarks-and-effects' site/app.js
           grep -Fq 'world-v2300-underground-xray.js?v=5965-landmarks-and-effects' site/landing.js
-          grep -Fq 'world-v2300-infrastructure-volume-v5962.js?v=5962-power-grid-fcc-towers' site/app.js
-          grep -Fq 'world-v2300-infrastructure-volume-v5962.js?v=5962-power-grid-fcc-towers' site/landing.js
+          grep -Fq 'world-v2300-infrastructure-volume-v5962.js?v=5968-solid-grounded-grid' site/app.js
+          grep -Fq 'world-v2300-infrastructure-volume-v5962.js?v=5968-solid-grounded-grid' site/landing.js
           grep -Fq 'bp:world-map-ready-v5940' site/app.js
           grep -Fq 'bridgepoint-landmarks-v5940.js?v=5966-statue-pedestal-aligned' site/landing.js
           grep -Fq 'window.__BP_PENDING_LANDMARK_MAP_V5940__=world.map' site/app.js
@@ -848,6 +848,13 @@ jobs:
           grep -Fq 'US_Electric_Power_Transmission_Lines' site/world-v2300-infrastructure-volume-v5962.js
           grep -Fq 'STRUCHT' site/world-v2300-infrastructure-volume-v5962.js
           grep -Fq 'catenary' site/world-v2300-infrastructure-volume-v5962.js
+          grep -Fq 'pushSolidBeam' site/world-v2300-infrastructure-volume-v5962.js
+          grep -Fq 'new THREE.MeshStandardMaterial' site/world-v2300-infrastructure-volume-v5962.js
+          grep -Fq 'queryTerrainElevation' site/world-v2300-infrastructure-volume-v5962.js
+          grep -Fq 'enabled:true' site/world-v2300-infrastructure-volume-v5962.js
+          ! grep -Fq 'data-toggle' site/world-v2300-infrastructure-volume-v5962.js
+          grep -Fq '6224-solid-grounded-power-grid' site/index.html
+          grep -Fq '6224-solid-grounded-power-grid' site/app/index.html
           grep -Fq 'world-v2300-sensor-layers.js?v=6027-nasa-nightlight-corrected-radiance' site/app.js
           grep -Fq 'world-v2300-sensor-layers.js?v=6027-nasa-nightlight-corrected-radiance' site/landing.js
           grep -Fq 'bridgepoint-gebco-depth-image-v5937' site/world-v2300-sensor-layers.js
