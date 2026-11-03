@@ -143,12 +143,12 @@ function updateButton(){
 }
 function writeSummary(){
  const liveReady=diagnosticState.hasSuccessfulSource;
- const metrics=[['Regional requests attempted',diagnosticState.regionalRequestsAttempted],['Requests successfully completed',diagnosticState.regionalRequestsCompleted],['Cached regional responses',diagnosticState.regionalCacheHits],['ADSB.lol feed',diagnosticState.providers?.adsb_lol?.status||'not checked'],['Layer400 Remote ID',diagnosticState.providers?.layer400_remote_id?.status||'key not configured / not checked'],['Aircraft records received',liveReady?diagnosticState.aircraftRecordsReceived:'—'],['Records identified as UAVs',liveReady?diagnosticState.uavRecordsIdentified:'—'],['Invalid or stale records rejected',liveReady?diagnosticState.invalidOrStaleRecords:'—'],['Current UAV positions accepted',liveReady?diagnosticState.currentPositionsAccepted:'—'],['3D quadcopter models rendered',liveReady?diagnosticState.modelsRendered:'—'],['Historical trail points retained',liveReady?diagnosticState.historicalTrailPoints:'—'],['3D trail segments rendered',liveReady?diagnosticState.trailsRendered:'—']];
+ const metrics=[['Regional requests attempted',diagnosticState.regionalRequestsAttempted],['Requests successfully completed',diagnosticState.regionalRequestsCompleted],['Cached regional responses',diagnosticState.regionalCacheHits],['ADSB.lol feed',diagnosticState.providers?.adsb_lol?.status||'not checked'],['FlyItalyADSB ADS-B/MLAT/OGN',diagnosticState.providers?.flyitaly_adsb?.status||'free API key not configured'],['Layer400 Remote ID',diagnosticState.providers?.layer400_remote_id?.status||'key not configured / not checked'],['Aircraft records received',liveReady?diagnosticState.aircraftRecordsReceived:'—'],['Records identified as UAVs',liveReady?diagnosticState.uavRecordsIdentified:'—'],['Invalid or stale records rejected',liveReady?diagnosticState.invalidOrStaleRecords:'—'],['Current UAV positions accepted',liveReady?diagnosticState.currentPositionsAccepted:'—'],['3D quadcopter models rendered',liveReady?diagnosticState.modelsRendered:'—'],['Historical trail points retained',liveReady?diagnosticState.historicalTrailPoints:'—'],['3D trail segments rendered',liveReady?diagnosticState.trailsRendered:'—']];
  if(summaryNode){summaryNode.replaceChildren();for(const [label,value] of metrics){const item=element('div','bp-drone-metric');item.append(element('b','',typeof value==='number'?value.toLocaleString():value),element('span','',label));summaryNode.append(item)}}
  if(regionalStatusNode){
   regionalStatusNode.replaceChildren();
-  for(const result of diagnosticState.regionalResults){const row=element('div','bp-drone-cell-row');row.append(element('b','',result.sample.id));const providerNote=result.providers?' · ADS-B '+(result.providers.adsb_lol?.status||'—')+' · Remote ID '+(result.providers.layer400_remote_id?.status||'—'):'';const detail=result.status==='pending'?'PENDING':result.cached?'CACHED · '+result.records.length+' reports'+providerNote:result.ok?'OK · '+result.records.length+' reports'+providerNote:'FAILED · '+String(result.error||'Unknown request error');const value=element('span','',detail);value.title=result.error||result.requestUrl||'';row.append(value);regionalStatusNode.append(row)}
-  if(diagnosticState.localSample){const result=diagnosticState.localSample,row=element('div','bp-drone-cell-row');row.append(element('b','','Local map-view sample'));const providerNote=result.providers?' · ADS-B '+(result.providers.adsb_lol?.status||'—')+' · Remote ID '+(result.providers.layer400_remote_id?.status||'—'):'';const detail=result.status==='pending'?'PENDING':result.cached?'CACHED · '+result.records.length+' reports'+providerNote:result.ok?'OK · '+result.records.length+' reports'+providerNote:'FAILED · '+String(result.error||'Unknown request error');const value=element('span','',detail);value.title=result.error||result.requestUrl||'';row.append(value);regionalStatusNode.append(row)}
+  for(const result of diagnosticState.regionalResults){const row=element('div','bp-drone-cell-row');row.append(element('b','',result.sample.id));const providerNote=result.providers?' · ADS-B '+(result.providers.adsb_lol?.status||'—')+' · FlyItaly '+(result.providers.flyitaly_adsb?.status||'—')+' · Remote ID '+(result.providers.layer400_remote_id?.status||'—'):'';const detail=result.status==='pending'?'PENDING':result.cached?'CACHED · '+result.records.length+' reports'+providerNote:result.ok?'OK · '+result.records.length+' reports'+providerNote:'FAILED · '+String(result.error||'Unknown request error');const value=element('span','',detail);value.title=result.error||result.requestUrl||'';row.append(value);regionalStatusNode.append(row)}
+  if(diagnosticState.localSample){const result=diagnosticState.localSample,row=element('div','bp-drone-cell-row');row.append(element('b','','Local map-view sample'));const providerNote=result.providers?' · ADS-B '+(result.providers.adsb_lol?.status||'—')+' · FlyItaly '+(result.providers.flyitaly_adsb?.status||'—')+' · Remote ID '+(result.providers.layer400_remote_id?.status||'—'):'';const detail=result.status==='pending'?'PENDING':result.cached?'CACHED · '+result.records.length+' reports'+providerNote:result.ok?'OK · '+result.records.length+' reports'+providerNote:'FAILED · '+String(result.error||'Unknown request error');const value=element('span','',detail);value.title=result.error||result.requestUrl||'';row.append(value);regionalStatusNode.append(row)}
  }
 }
 function setLayerVisibility(on){
@@ -336,7 +336,9 @@ function removeDrone3DLayer(){
 function isUavRecord(a){
  const category=String(a?.category||a?.emitter_category||'').trim().toUpperCase();
  if(category==='B6'||category==='14'||category==='UAV')return true;
- const description=[a?.desc,a?.description,a?.typeDescription,a?.type,a?.t].filter(Boolean).join(' ');
+ const flarmType=Number(a?.ecat??a?.flarm_ecat);
+ if(Number.isFinite(flarmType)&&flarmType===13)return true;
+ const description=[a?.desc,a?.description,a?.typeDescription,a?.type,a?.t,a?.flight].filter(Boolean).join(' ');
  return /\b(?:UAV|UAS|UNMANNED AERIAL|UNMANNED AIRCRAFT|DRONE)\b/i.test(description);
 }
 const DroneCore=(()=>{
@@ -367,8 +369,10 @@ const DroneCore=(()=>{
  function isUavRecord(a){
   const category=String(a?.category||a?.emitter_category||'').trim().toUpperCase();
   if(category==='B6'||category==='14'||category==='UAV')return true;
-  const description=[a?.desc,a?.description,a?.typeDescription,a?.type,a?.t].filter(Boolean).join(' ');
-  return /\b(?:UAV|UAS|UNMANNED AERIAL|UNMANNED AIRCRAFT|DRONE|REMOTE ID)\b/i.test(description);
+  const flarmType=Number(a?.ecat??a?.flarm_ecat);
+  if(Number.isFinite(flarmType)&&flarmType===13)return true;
+  const description=[a?.desc,a?.description,a?.typeDescription,a?.type,a?.t,a?.flight].filter(Boolean).join(' ');
+  return /\b(?:UAV|UAS|UNMANNED AERIAL|UNMANNED AIRCRAFT|DRONE)\b/i.test(description);
  }
  function invalidPositionReason(a){
   const rawLat=a?.lat,rawLon=a?.lon,lat=Number(rawLat),lon=Number(rawLon);
@@ -485,7 +489,7 @@ async function refresh(force=false){
   if(failed.length)message+=' '+failed.length+' regional requests failed: '+err+(failed.length>3?' · Remaining errors are listed by region below.':'');
   if(drone3DError)message+=' 3D renderer error: '+drone3DError;
   showStatus(message,failed.length||!diagnosticState.hasSuccessfulSource||drone3DError?'error':'info');
-  const meta=$('#bp-drone-feed-meta');if(meta)meta.textContent='Source: ADSB.lol public community ADS-B plus optional Layer400 network Remote ID · '+good.length+'/'+samples.length+' regional sample windows succeeded · '+REGION_RADIUS_NM+' NM maximum radius each. '+(diagnosticState.providers?.layer400_remote_id?.status==='not_configured'?'Layer400 awaiting approved rid.live API key. ':'')+(diagnosticState.localSample?.ok?'A separate close-zoom local sample also succeeded. ':'')+'Partial geographic sampling only; not a worldwide registry.';
+  const meta=$('#bp-drone-feed-meta');if(meta)meta.textContent='Sources: ADSB.lol public community ADS-B; optional FlyItalyADSB ADS-B/MLAT/OGN; optional Layer400 network Remote ID · '+good.length+'/'+samples.length+' regional sample windows succeeded · '+REGION_RADIUS_NM+' NM maximum radius each. '+(diagnosticState.providers?.flyitaly_adsb?.status==='not_configured'?'FlyItalyADSB waiting for the free server-side API key. ':'')+(diagnosticState.providers?.layer400_remote_id?.status==='not_configured'?'Layer400 waiting for approved rid.live API key. ':'')+'FlyItalyADSB attribution: Flight data: FlyItalyADSB (flyitalyadsb.com), CC BY-SA 4.0. Only explicitly classified UAV records are rendered as drones. Partial geographic sampling only; not a worldwide registry.';
   writeSummary();
  }catch(error){
   diagnosticState.sourceStatus='failed';writeSummary();
