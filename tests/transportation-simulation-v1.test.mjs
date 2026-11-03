@@ -363,7 +363,7 @@ assert.ok(!moduleSource.includes('setInterval('), 'Transportation does not keep 
 assert.ok(moduleSource.includes('function buildFlatRoadPaths'), 'global dot routes are built without waiting for terrain samples');
 assert.ok(moduleSource.includes('function makeVehicleLowLod'), 'medium zoom has a lightweight 3D vehicle model kit');
 assert.ok(moduleSource.includes('makeVehicle(T,item):makeVehicleLowLod(T,item)'), 'close zoom upgrades the low-detail model kit to detailed vehicle geometry');
-assert.ok(moduleSource.includes('Attach all replacement meshes first'), 'LOD upgrades stage replacement vehicles before retiring old models');
+assert.ok(moduleSource.includes('Attach every replacement before retiring old meshes'), 'LOD upgrades stage replacement vehicles before retiring old models');
 assert.ok(!moduleSource.includes('setTimeout(addBatch, 12)'), '3D vehicles are not added in flashing one-by-one batches');
 assert.ok(moduleSource.includes('hasVehiclesInViewport'), 'ordinary pans keep the existing road-following fleet instead of regenerating it');
 assert.ok(moduleSource.includes('MAX_DOT_VEHICLES = MOBILE ? 64 : 120'), 'global mode shows a bounded set of moving dots on desktop and phone');
