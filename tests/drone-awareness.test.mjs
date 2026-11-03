@@ -250,5 +250,5 @@ console.log('Drone awareness module checks passed.');
   assert.doesNotMatch(sourceV4,/Math\.max\(altitude\.meters/);
   assert.doesNotMatch(sourceV4,/return\{meters:3,known:true\}/);
   assert.doesNotMatch(sourceV4,/SIM_FLEET_COUNT|simulatedFleetFeatureCollection/);
-  assert.doesNotMatch(sourceV4,/Remote ID.*CONNECTED[^—]/i);
+  assert.match(sourceV4,/Remote ID: NOT CONNECTED/);
 }
