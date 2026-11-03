@@ -835,8 +835,8 @@ jobs:
           grep -Fq 'world-v2300-spectral-imagery.js?v=6215-satellite-persistent-render-guard' site/bridgepoint-view-v5917.js
           grep -Fq 'world-v2300-underground-xray.js?v=5965-landmarks-and-effects' site/app.js
           grep -Fq 'world-v2300-underground-xray.js?v=5965-landmarks-and-effects' site/landing.js
-          grep -Fq 'world-v2300-infrastructure-volume-v5962.js?v=5968-solid-grounded-grid' site/app.js
-          grep -Fq 'world-v2300-infrastructure-volume-v5962.js?v=5968-solid-grounded-grid' site/landing.js
+          grep -Fq 'world-v2300-infrastructure-volume-v5962.js?v=5970-globe-model-matrices' site/app.js
+          grep -Fq 'world-v2300-infrastructure-volume-v5962.js?v=5970-globe-model-matrices' site/landing.js
           grep -Fq 'bp:world-map-ready-v5940' site/app.js
           grep -Fq 'bridgepoint-landmarks-v5940.js?v=5966-statue-pedestal-aligned' site/landing.js
           grep -Fq 'window.__BP_PENDING_LANDMARK_MAP_V5940__=world.map' site/app.js
@@ -851,10 +851,15 @@ jobs:
           grep -Fq 'pushSolidBeam' site/world-v2300-infrastructure-volume-v5962.js
           grep -Fq 'new THREE.MeshStandardMaterial' site/world-v2300-infrastructure-volume-v5962.js
           grep -Fq 'queryTerrainElevation' site/world-v2300-infrastructure-volume-v5962.js
+          grep -Fq 'map.transform?.getMatrixForModel' site/world-v2300-infrastructure-volume-v5962.js
+          grep -Fq 'new THREE.InstancedMesh' site/world-v2300-infrastructure-volume-v5962.js
+          grep -Fq 'globeAnchored:true' site/world-v2300-infrastructure-volume-v5962.js
+          ! grep -Fq 'setProjection' site/world-v2300-infrastructure-volume-v5962.js
+          ! grep -Fq 'MercatorCoordinate' site/world-v2300-infrastructure-volume-v5962.js
           grep -Fq 'enabled:true' site/world-v2300-infrastructure-volume-v5962.js
           ! grep -Fq 'data-toggle' site/world-v2300-infrastructure-volume-v5962.js
-          grep -Fq 'landing.js?v=6223-storm-clouds-no-rain&bp=5968-solid-grounded-grid' site/index.html
-          grep -Fq 'app.js?v=6223-storm-clouds-no-rain&bp=5968-solid-grounded-grid' site/app/index.html
+          grep -Fq 'landing.js?v=6223-storm-clouds-no-rain&bp=5970-globe-model-matrices' site/index.html
+          grep -Fq 'app.js?v=6223-storm-clouds-no-rain&bp=5970-globe-model-matrices' site/app/index.html
           grep -Fq 'world-v2300-sensor-layers.js?v=6027-nasa-nightlight-corrected-radiance' site/app.js
           grep -Fq 'world-v2300-sensor-layers.js?v=6027-nasa-nightlight-corrected-radiance' site/landing.js
           grep -Fq 'bridgepoint-gebco-depth-image-v5937' site/world-v2300-sensor-layers.js
