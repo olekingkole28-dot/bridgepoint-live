@@ -39,10 +39,10 @@ jobs:
       - name: Install free Blender and geospatial dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y blender gzip
+          sudo apt-get install -y blender gzip python3-numpy
           python -m pip install --upgrade pip
           python -m pip install -r tools/reality_assets/requirements-manhattan-city.txt
-          blender --background --python-expr "import bpy; print('BLENDER_VERSION', bpy.app.version_string)"
+          blender --background --python-expr "import bpy, sys, numpy; print('BLENDER_VERSION', bpy.app.version_string); print('BLENDER_PYTHON', sys.version); print('NUMPY', numpy.__version__, numpy.__file__)"
 
       - name: Syntax-check the packed Python implementations
         run: |
@@ -68,6 +68,12 @@ jobs:
             --output-dir "$RUNNER_TEMP/bp-manhattan-output" \
             --max-trees 50000 \
             --max-windows 900000
+
+      - name: Require the editable scene and browser-ready GLB
+        run: |
+          test -s "$RUNNER_TEMP/bp-manhattan-output/bridgepoint-manhattan-city.blend"
+          test -s "$RUNNER_TEMP/bp-manhattan-output/bridgepoint-manhattan-city.glb"
+          ls -lh "$RUNNER_TEMP/bp-manhattan-output/bridgepoint-manhattan-city.blend" "$RUNNER_TEMP/bp-manhattan-output/bridgepoint-manhattan-city.glb"
 
       - name: Preserve source code, provenance and build report
         run: |
