@@ -85,8 +85,8 @@ assert.ok(!/tomtom|here\.com|911|cad feed|avl endpoint/i.test(moduleSource), 'th
 assert.ok(!/fetch\s*\(/.test(moduleSource), 'no unconfigured remote vehicle telemetry endpoint is queried');
 
 const expectedScript = 'bridgepoint-transportation-v1.js?v=1-3d-road-traffic-simulation';
-assert.ok(landingHtml.includes(expectedScript), 'homepage loads the opt-in transportation simulation');
-assert.ok(appHtml.includes(expectedScript), 'app loads the same opt-in transportation simulation');
+assert.ok(!landingHtml.includes(expectedScript), 'homepage does not auto-load the experimental transportation module during startup');
+assert.ok(!appHtml.includes(expectedScript), 'app does not auto-load the experimental transportation module during startup');
 assert.ok(fullDeploy.includes('node --check rebuild-v5000/bridgepoint-transportation-v1.js'), 'full deploy syntax-checks the transportation module');
 assert.ok(fullDeploy.includes('node tests/transportation-simulation-v1.test.mjs'), 'full deploy runs the transportation regression tests');
 assert.ok(fullDeploy.includes('cp rebuild-v5000/bridgepoint-transportation-v1.js site/bridgepoint-transportation-v1.js'), 'full deploy publishes the new transportation module');
