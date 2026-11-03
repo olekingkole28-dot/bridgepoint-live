@@ -1,0 +1,92 @@
+name: Build isolated Manhattan Blender city preview
+
+on:
+  push:
+    branches:
+      - agent/manhattan-blender-city-v1-20261103
+    paths:
+      - tools/reality_assets/download_manhattan_city_sources.py
+      - tools/reality_assets/download_manhattan_city_sources.py.gz
+      - tools/reality_assets/build_manhattan_blender_city.py
+      - tools/reality_assets/build_manhattan_blender_city.py.gz
+      - tools/reality_assets/test_manhattan_city_pipeline.py
+      - tools/reality_assets/requirements-manhattan-city.txt
+      - .github/workflows/build-manhattan-blender-preview.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bridgepoint-manhattan-blender-preview
+  cancel-in-progress: false
+
+jobs:
+  build-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout isolated preview branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/manhattan-blender-city-v1-20261103
+          fetch-depth: 1
+
+      - name: Set up source preparation Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install free Blender and geospatial dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y blender gzip
+          python -m pip install --upgrade pip
+          python -m pip install -r tools/reality_assets/requirements-manhattan-city.txt
+          blender --background --python-expr "import bpy; print('BLENDER_VERSION', bpy.app.version_string)"
+
+      - name: Syntax-check the packed Python implementations
+        run: |
+          gzip -dc tools/reality_assets/download_manhattan_city_sources.py.gz > "$RUNNER_TEMP/download_manhattan_city_sources.py"
+          gzip -dc tools/reality_assets/build_manhattan_blender_city.py.gz > "$RUNNER_TEMP/build_manhattan_blender_city.py"
+          python -m py_compile "$RUNNER_TEMP/download_manhattan_city_sources.py" "$RUNNER_TEMP/build_manhattan_blender_city.py"
+
+      - name: Test coordinate conversion and Manhattan clipping
+        run: python -m unittest tools.reality_assets.test_manhattan_city_pipeline -v
+
+      - name: Download current NYC datasets and existing Midtown LiDAR tiles
+        run: |
+          python tools/reality_assets/download_manhattan_city_sources.py \
+            --output-dir "$RUNNER_TEMP/bp-manhattan-source" \
+            --page-size 20000 \
+            --building-page-size 750
+
+      - name: Build the standalone Blender city scene and GLB
+        run: |
+          mkdir -p "$RUNNER_TEMP/bp-manhattan-output"
+          blender --background --factory-startup --python tools/reality_assets/build_manhattan_blender_city.py -- \
+            --source-dir "$RUNNER_TEMP/bp-manhattan-source" \
+            --output-dir "$RUNNER_TEMP/bp-manhattan-output" \
+            --max-trees 50000 \
+            --max-windows 900000
+
+      - name: Preserve source code, provenance and build report
+        run: |
+          cp "$RUNNER_TEMP/bp-manhattan-source/source-manifest.json" "$RUNNER_TEMP/bp-manhattan-output/source-manifest.json"
+          mkdir -p "$RUNNER_TEMP/bp-manhattan-output/source-code"
+          gzip -dc tools/reality_assets/download_manhattan_city_sources.py.gz > "$RUNNER_TEMP/bp-manhattan-output/source-code/download_manhattan_city_sources.py"
+          gzip -dc tools/reality_assets/build_manhattan_blender_city.py.gz > "$RUNNER_TEMP/bp-manhattan-output/source-code/build_manhattan_blender_city.py"
+          cp tools/reality_assets/test_manhattan_city_pipeline.py "$RUNNER_TEMP/bp-manhattan-output/source-code/"
+          cp tools/reality_assets/MANHATTAN_BLENDER_CITY.md "$RUNNER_TEMP/bp-manhattan-output/source-code/"
+
+      - name: Upload editable Blender preview artifacts (no deployment)
+        uses: actions/upload-artifact@v4
+        with:
+          name: bridgepoint-manhattan-blender-preview
+          path: |
+            ${{ runner.temp }}/bp-manhattan-output/bridgepoint-manhattan-city.blend
+            ${{ runner.temp }}/bp-manhattan-output/bridgepoint-manhattan-city.glb
+            ${{ runner.temp }}/bp-manhattan-output/manhattan-build-report.json
+            ${{ runner.temp }}/bp-manhattan-output/source-manifest.json
+            ${{ runner.temp }}/bp-manhattan-output/source-code/
+          if-no-files-found: error
+          retention-days: 30
