@@ -152,7 +152,8 @@ function writeSummary(){
 function setLayerVisibility(on){
  if(!map)return false;try{const ids=[CLUSTER_LAYER,CLUSTER_COUNT_LAYER,LAYER,TRAIL_DOT_LAYER];for(const id of ids)if(map.getLayer(id))map.setLayoutProperty(id,'visibility',on?'visible':'none');map.triggerRepaint?.();return!!map.getLayer(LAYER)}catch(error){showStatus('Drone Awareness visibility error: '+String(error?.message||error),'error');return false}
 }
-function mapStyleReady(){if(!map)return false;try{return!!map.getStyle?.()&&(typeof map.isStyleLoaded!=='function'||map.isStyleLoaded()===true)}catch(_){return false}}
+function isMapStyleUsable(mapRef){try{const style=mapRef?.getStyle?.(),canvas=mapRef?.getCanvas?.();return!!canvas&&Number(canvas.width)>0&&Array.isArray(style?.layers)&&style.layers.length>0&&typeof mapRef.addSource==='function'&&typeof mapRef.addLayer==='function'}catch(_){return false}}
+function mapStyleReady(){return isMapStyleUsable(map)}
 function bindMapStyleRetry(mapRef,isReady,onReady){
  if(!mapRef||typeof mapRef.on!=='function')return()=>{};
  const check=()=>{let ready=false;try{ready=!!isReady()}catch(_){}if(ready)onReady()};
