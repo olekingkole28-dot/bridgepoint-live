@@ -175,7 +175,7 @@ function makeShipGeometry(T,kind){
   add(box(.92,.31,.10),[.02,0,.10]);
   add(new T.ConeGeometry(.09,.34,5),[.58,0,.13],[0,0,-Math.PI/2],[1,1,.45]);
   add(box(.25,.24,.12),[-.36,0,.20]);
- }else{
+ }else if(kind==='other'){
   add(box(.48,.29,.18),[-.34,0,.17]);
   add(box(.15,.22,.15),[-.36,0,.33]);
  }
