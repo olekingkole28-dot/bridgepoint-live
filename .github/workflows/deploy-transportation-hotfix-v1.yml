@@ -1,4 +1,4 @@
-name: Publish Transportation Simulation v1 from verified production artifact
+name: Restore stable BridgePoint globe without experimental transportation loader
 
 on:
   push:
@@ -39,7 +39,7 @@ jobs:
           repository: ${{ github.repository }}
           path: /tmp/bridgepoint-pages-bundle
 
-      - name: Apply only Orbit v6203 and Transportation Simulation v1
+      - name: Restore only the verified Orbit v6203 globe and remove the experimental transportation loader
         shell: bash
         run: |
           set -euo pipefail
@@ -55,12 +55,9 @@ jobs:
 
           cp rebuild-v5000/bridgepoint-global-motion-v5926.js site/bridgepoint-global-motion-v5926.js
           cp rebuild-v5000/bridgepoint-orbit-renderer-v6201.js site/bridgepoint-orbit-renderer-v6201.js
-          cp rebuild-v5000/bridgepoint-transportation-v1.js site/bridgepoint-transportation-v1.js
 
-          node --check site/bridgepoint-transportation-v1.js
           node --check site/bridgepoint-global-motion-v5926.js
           node --input-type=module --check < site/bridgepoint-orbit-renderer-v6201.js
-          node tests/transportation-simulation-v1.test.mjs
           node tests/orbit-renderer-v6201.test.mjs
 
           python3 - <<'PY'
@@ -69,7 +66,6 @@ jobs:
 
           old = "bridgepoint-global-motion-v5926.js?v=6202-globe-anchored-orbits"
           new = "bridgepoint-global-motion-v5926.js?v=6203-3d-orbit-markers-popup-global-zoom"
-          transport = '<script defer src="/bridgepoint-transportation-v1.js?v=1-3d-road-traffic-simulation"></script>'
 
           for name in ("site/index.html", "site/app/index.html"):
               path = Path(name)
@@ -79,21 +75,16 @@ jobs:
               elif new not in data:
                   raise SystemExit(f"Expected Orbit v6202/v6203 reference was not found in {name}")
 
-              if transport not in data:
-                  pattern = r'(<script defer src="/bridgepoint-vessel-awareness-v1\.js\?v=[^"]+"></script>)'
-                  if not re.search(pattern, data):
-                      raise SystemExit(f"Could not find the vessel script insertion point in {name}")
-                  data = re.sub(pattern, r'\1' + transport, data, count=1)
+              data = re.sub(r'<script defer src="/bridgepoint-transportation-v1\.js\?v=[^"]+"></script>', '', data)
 
               path.write_text(data)
           PY
 
           grep -Fq 'bridgepoint-global-motion-v5926.js?v=6203-3d-orbit-markers-popup-global-zoom' site/index.html
           grep -Fq 'bridgepoint-global-motion-v5926.js?v=6203-3d-orbit-markers-popup-global-zoom' site/app/index.html
-          grep -Fq 'bridgepoint-transportation-v1.js?v=1-3d-road-traffic-simulation' site/index.html
-          grep -Fq 'bridgepoint-transportation-v1.js?v=1-3d-road-traffic-simulation' site/app/index.html
-          grep -Fq 'SIMULATED · ' site/bridgepoint-transportation-v1.js
-          echo "Verified the existing production artifact plus only the current Orbit renderer/controller and Transportation Simulation v1."
+          ! grep -Fq 'bridgepoint-transportation-v1.js' site/index.html
+          ! grep -Fq 'bridgepoint-transportation-v1.js' site/app/index.html
+          echo "Verified the existing production artifact and Orbit v6203, with the experimental transportation loader removed from both entry points."
 
       - uses: actions/configure-pages@v5
         with:
@@ -123,14 +114,13 @@ jobs:
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/bridgepoint-global-motion-v5926.js?v=transport=${q}" -o /tmp/orbit-controller.js || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/?transport=${q}" -o /tmp/root.html || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/?transport=${q}" -o /tmp/app.html || true
-            if grep -Fq 'BridgePoint Transportation Simulation v1' /tmp/transportation.js 2>/dev/null &&
-               grep -Fq '6203-3d-orbit-markers-popup-global-zoom' /tmp/orbit-controller.js 2>/dev/null &&
-               grep -Fq 'bridgepoint-transportation-v1.js?v=1-3d-road-traffic-simulation' /tmp/root.html 2>/dev/null &&
-               grep -Fq 'bridgepoint-transportation-v1.js?v=1-3d-road-traffic-simulation' /tmp/app.html 2>/dev/null; then
+                if grep -Fq '6203-3d-orbit-markers-popup-global-zoom' /tmp/orbit-controller.js 2>/dev/null &&
+               ! grep -Fq 'bridgepoint-transportation-v1.js' /tmp/root.html 2>/dev/null &&
+               ! grep -Fq 'bridgepoint-transportation-v1.js' /tmp/app.html 2>/dev/null; then
               ok=1
               break
             fi
             sleep 4
           done
           test "$ok" -eq 1
-          echo "Production is serving Transportation Simulation v1 in both globe entry points with Orbit & Motion v6203 preserved."
+          echo "Production has restored the stable globe entry points and Orbit & Motion v6203 without the experimental transportation loader."
