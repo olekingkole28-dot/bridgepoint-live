@@ -115,7 +115,10 @@ function remoteIdRows(records: any[]) {
 async function fetchAdsb(lat: number, lon: number, radius: number) {
   const url = ADSB_ROOT + "lat/" + lat.toFixed(4) + "/lon/" + lon.toFixed(4) + "/dist/" + radius;
   const response = await fetch(url, {
-    headers: { accept: "application/json" },
+    headers: {
+      accept: "application/json",
+      "user-agent": "BridgePoint-Intelligence/1.0 (+https://bridgepointintelligence.online)",
+    },
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
   if (!response.ok) throw new Error("ADSB.lol HTTP " + response.status);
