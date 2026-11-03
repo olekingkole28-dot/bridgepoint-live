@@ -347,23 +347,36 @@
     let totalLength = 0, skippedTerrain = 0;
     for (const road of source) {
       if (paths.length >= MAX_ROAD_FEATURES) break;
-      const points = [];
-      let distance = 0;
+      let chunk = [];
+      const flushChunk = () => {
+        if (chunk.length < 2) { chunk = []; return; }
+        let distance = 0;
+        const points = [];
+        for (const point of chunk) {
+          if (points.length) {
+            const previous = points[points.length - 1];
+            const length = Math.hypot(point.local.x - previous.local.x, point.local.z - previous.local.z);
+            if (length < 2) continue;
+            distance += length;
+          }
+          points.push({ ...point, distance });
+        }
+        chunk = [];
+        if (points.length < 2 || distance < 75 || paths.length >= MAX_ROAD_FEATURES) return;
+        paths.push({ points, length: distance, roadClass: road.roadClass, key: road.key + ':' + paths.length });
+        totalLength += distance;
+      };
       for (const coordinate of road.coordinates) {
         const elevation = terrainElevation(map, coordinate);
-        if (elevation === null) { skippedTerrain++; continue; }
-        const local = localPoint(coordinate, anchor, elevation, anchorElevation);
-        if (points.length) {
-          const previous = points[points.length - 1];
-          const length = Math.hypot(local.x - previous.local.x, local.z - previous.local.z);
-          if (length < 2) continue;
-          distance += length;
+        if (elevation === null) {
+          skippedTerrain++;
+          flushChunk();
+          continue;
         }
-        points.push({ coordinate, local, distance });
+        const local = localPoint(coordinate, anchor, elevation, anchorElevation);
+        chunk.push({ coordinate, local });
       }
-      if (points.length < 2 || distance < 75) continue;
-      paths.push({ points, length: distance, roadClass: road.roadClass, key: road.key });
-      totalLength += distance;
+      flushChunk();
     }
     return { paths, totalLength, sourceFeatures: source.length, skippedTerrain };
   }
