@@ -135,7 +135,7 @@ function buildOverpassQuery(bounds) {
   const box = '(' + s.toFixed(4) + ',' + w.toFixed(4) + ',' + n.toFixed(4) + ',' + e.toFixed(4) + ')';
   return '[out:json][timeout:22];(' +
     'nwr["telecom"="cell_site"]' + box + ';' +
-    'nwr["communication:mobile_phone"]' + box + ';' +
+    'nwr["communication:mobile_phone"="yes"]' + box + ';' +
     'nwr["tower:type"="communication"]' + box + ';' +
     'nwr["man_made"="communications_tower"]' + box + ';' +
     ');out center 900;';
@@ -209,7 +209,7 @@ export function initBridgePointEmrfSpectrogram(target) {
     '<div data-stats><div data-stat><b data-beams>0</b><small>Starlink beam cones · modeled</small></div><div data-stat><b data-sites>0</b><small>Mapped telecom structures</small></div><div data-stat><b data-drap>—</b><small>NOAA D-RAP valid time (UTC)</small></div></div>' +
     '<div data-status aria-live="polite">Preparing the global RF field…</div>' +
     '<div data-legend><span><i style="background:#58e6ff"></i>4G nominal range</span><span><i class="five"></i>5G nominal range</span><span><i class="iono"></i>HF absorption</span><span><i style="background:#ffda85"></i>Starlink modeled beam</span></div>' +
-    '<p data-note>Starlink positions are propagated public orbital estimates; cones use an illustrative 8° half-angle, not SpaceX live beam telemetry. Mobile-site envelopes are nominal planning radii, not measured carrier coverage or live signal strength. NOAA D-RAP describes HF ionospheric absorption, not 4G/5G or Starlink-band attenuation. Data coverage varies by source and region.</p>';
+    '<p data-note>Starlink positions are propagated public orbital estimates; cones use an illustrative 8° half-angle, not SpaceX live beam telemetry. Mobile-site envelopes are nominal planning radii, not measured carrier coverage or live signal strength. FCC antenna registrations may include broadcast and other non-cellular structures, and are not proof of an active mobile radio. OpenStreetMap tower tags are incomplete. NOAA D-RAP describes HF ionospheric absorption, not 4G/5G or Starlink-band attenuation. Data coverage varies by source and region.</p>';
   if (dock) dock.insertBefore(root,dock.querySelector('#bpv-dock-actions'));
   else map.getContainer().appendChild(root);
   const $ = selector => root.querySelector(selector);
