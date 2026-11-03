@@ -22,6 +22,7 @@ on:
       - 'rebuild-v5000/bridgepoint-map-key-v5920.js'
       - 'tests/drone-awareness.test.mjs'
       - 'tests/celestial-water-cloud-shadows.test.mjs'
+      - 'supabase/functions/bridgepoint-drone-feed-v1/**'
       - '.github/workflows/drone-awareness-checks.yml'
 
 permissions:
