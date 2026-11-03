@@ -671,16 +671,27 @@
     const totalLength = paths.reduce((sum, path) => sum + path.length, 0);
     const max = MOBILE ? MAX_VEHICLES_MOBILE : MAX_VEHICLES_DESKTOP;
     const spacing = zoom >= 15 ? 95 : zoom >= 13 ? 150 : 280;
-    const civilianCount = state.categories.civilian ? clamp(Math.floor(totalLength / spacing), Math.min(6, max), max) : 0;
-    let seed = Math.floor((paths[0]?.length || 1) * 1000) + paths.length * 97;
-    const random = seedRandom(seed);
+    const capacities = new Map(paths.map(path => [path, Math.max(1, Math.floor(path.length / Math.max(90, spacing * .9)))]));
+    const capacityTotal = [...capacities.values()].reduce((sum, value) => sum + value, 0);
+    const civilianCount = state.categories.civilian
+      ? Math.min(max, capacityTotal, Math.max(1, Math.floor(totalLength / spacing)))
+      : 0;
+    const random = seedRandom(Math.floor((paths[0]?.length || 1) * 1000) + paths.length * 97);
     const used = new Map();
+    const selectPathAndPosition = () => {
+      const available = paths.filter(path => (used.get(path) || 0) < (capacities.get(path) || 0));
+      if (!available.length) return null;
+      const path = available[Math.floor(random() * available.length)];
+      const slot = used.get(path) || 0;
+      used.set(path, slot + 1);
+      const slots = capacities.get(path) || 1;
+      return { path, start: ((slot + .25 + random() * .5) / slots) * path.length };
+    };
     for (let i = 0; i < civilianCount; i++) {
-      const path = paths[Math.floor(random() * paths.length)];
-      const ordinal = used.get(path) || 0;
-      used.set(path, ordinal + 1);
+      const assignment = selectPathAndPosition();
+      if (!assignment) break;
+      const { path, start } = assignment;
       const kind = vehicleKindForRoad(path.roadClass, random() * 100);
-      const start = random() * Math.max(5, path.length);
       chosen.push({
         kind, category: 'civilian', path, distance: start,
         direction: random() > .5 ? 1 : -1,
@@ -819,7 +830,9 @@
       render(gl, args) {
         if (!state.enabled || !state.renderer || !state.scene || !state.anchor || !Number.isFinite(state.anchorElevation)) return;
         try {
-          const projection = new THREE.Matrix4().fromArray(args.defaultProjectionData.mainMatrix);
+          const rawProjection = args?.defaultProjectionData?.mainMatrix || args?.modelViewProjectionMatrix || args;
+          if (!rawProjection || typeof rawProjection.length !== 'number' || rawProjection.length < 16) return;
+          const projection = new THREE.Matrix4().fromArray(rawProjection);
           const modelArray = map.transform.getMatrixForModel(state.anchor, state.anchorElevation);
           const model = new THREE.Matrix4().fromArray(modelArray);
           state.camera.projectionMatrix = projection.multiply(model);
