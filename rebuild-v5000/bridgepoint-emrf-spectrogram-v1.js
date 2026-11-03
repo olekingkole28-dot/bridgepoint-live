@@ -446,21 +446,32 @@ export function initBridgePointEmrfSpectrogram(target) {
       map.once?.('style.load',end);map.once?.('idle',end);setTimeout(end,8000);
     });
     if (map.getLayer(IDS.beamLayer)) throw new Error('Starlink beam layer handle was lost during a style replacement');
-    const geometry=new THREE.CylinderGeometry(0,1,1,22,1,true);
-    const material=new THREE.ShaderMaterial({
-      uniforms:{u_time:{value:0},u_phase:{value:0},u_color:{value:new THREE.Color('#ffd77a')},u_opacity:{value:.28}},
+
+    // Instanced meshes keep the global view to three WebGL draws per frame,
+    // rather than issuing one render pass for every satellite and tower site.
+    const beamGeometry=new THREE.CylinderGeometry(0,1,1,18,1,true);
+    const beamMaterial=new THREE.ShaderMaterial({
+      uniforms:{u_time:{value:0},u_opacity:{value:.28}},
       vertexShader:
-        'varying float v_height; varying vec3 v_local; void main(){v_height=position.y+0.5;v_local=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
+        '#include <common>\nvarying float v_height; void main(){v_height=position.y+0.5;vec4 localPosition=vec4(position,1.0);\n#ifdef USE_INSTANCING\nlocalPosition=instanceMatrix*localPosition;\n#endif\ngl_Position=projectionMatrix*modelViewMatrix*localPosition;}',
       fragmentShader:
-        'uniform float u_time; uniform float u_phase; uniform vec3 u_color; uniform float u_opacity; varying float v_height; varying vec3 v_local; void main(){float edge=smoothstep(0.0,0.13,v_height)*(1.0-smoothstep(0.87,1.0,v_height));float pulse=0.68+0.32*sin(u_time*2.2+u_phase+v_height*21.0);float ribs=0.74+0.26*cos(v_height*72.0-u_time*4.2+u_phase);float a=u_opacity*edge*pulse*ribs;gl_FragColor=vec4(u_color*(0.82+0.18*pulse),a);}',
+        'uniform float u_time; uniform float u_opacity; varying float v_height; void main(){float edge=smoothstep(0.0,0.13,v_height)*(1.0-smoothstep(0.87,1.0,v_height));float pulse=0.68+0.32*sin(u_time*2.2+v_height*21.0);float ribs=0.74+0.26*cos(v_height*72.0-u_time*4.2);float a=u_opacity*edge*pulse*ribs;gl_FragColor=vec4(vec3(1.0,0.83,0.49)*(0.82+0.18*pulse),a);}',
       transparent:true,depthWrite:false,depthTest:true,side:THREE.DoubleSide,blending:THREE.AdditiveBlending
     });
-    const mesh=new THREE.Mesh(geometry,material);mesh.frustumCulled=false;
-    const sphereGeometry=new THREE.SphereGeometry(1,14,10);
-    const sphere4Material=new THREE.MeshBasicMaterial({color:'#4edfff',transparent:true,opacity:.15,wireframe:true,depthWrite:false,depthTest:true,side:THREE.DoubleSide,blending:THREE.AdditiveBlending});
-    const sphere5Material=new THREE.MeshBasicMaterial({color:'#b982ff',transparent:true,opacity:.22,wireframe:true,depthWrite:false,depthTest:true,side:THREE.DoubleSide,blending:THREE.AdditiveBlending});
-    const sphere4Mesh=new THREE.Mesh(sphereGeometry,sphere4Material);sphere4Mesh.frustumCulled=false;
-    const sphere5Mesh=new THREE.Mesh(sphereGeometry,sphere5Material);sphere5Mesh.frustumCulled=false;
+    const mesh=new THREE.InstancedMesh(beamGeometry,beamMaterial,64);
+    mesh.count=0;mesh.frustumCulled=false;
+
+    const sphereGeometry=new THREE.SphereGeometry(1,12,8);
+    const sphere4Material=new THREE.MeshBasicMaterial({color:'#4edfff',transparent:true,opacity:.14,wireframe:true,depthWrite:false,depthTest:true,side:THREE.DoubleSide,blending:THREE.AdditiveBlending});
+    const sphere5Material=new THREE.MeshBasicMaterial({color:'#b982ff',transparent:true,opacity:.20,wireframe:true,depthWrite:false,depthTest:true,side:THREE.DoubleSide,blending:THREE.AdditiveBlending});
+    const sphere4Mesh=new THREE.InstancedMesh(sphereGeometry,sphere4Material,96);
+    const sphere5Mesh=new THREE.InstancedMesh(sphereGeometry,sphere5Material,96);
+    sphere4Mesh.count=0;sphere5Mesh.count=0;
+    sphere4Mesh.frustumCulled=false;sphere5Mesh.frustumCulled=false;
+
+    const localMatrix=(y,sx,sy,sz)=>new THREE.Matrix4().compose(
+      new THREE.Vector3(0,y,0),new THREE.Quaternion(),new THREE.Vector3(sx,sy,sz)
+    );
     const layer={
       id:IDS.beamLayer,type:'custom',renderingMode:'3d',visible:false,map,
       onAdd:(m,gl)=>{
@@ -479,51 +490,49 @@ export function initBridgePointEmrfSpectrogram(target) {
         if (!matrix || typeof matrix.length!=='number' || matrix.length<16) return;
         const projection=new THREE.Matrix4().fromArray(matrix);
         const now=Date.now()*.001;
+        layer.camera.projectionMatrix.copy(projection);
         layer.mesh.material.uniforms.u_time.value=now;
-        layer.mesh.visible=true;
-        layer.sphere4Mesh.visible=false;
-        layer.sphere5Mesh.visible=false;
-        for (let i=0;i<st.beams.length;i++) {
+
+        const beamCount=Math.min(64,st.beams.length);
+        const colorMatrix=new THREE.Matrix4();
+        for(let i=0;i<beamCount;i++){
           const beam=st.beams[i];
           let modelMatrix;
           try { modelMatrix=map.transform.getMatrixForModel([beam.lon,beam.lat],0); } catch (_) { continue; }
-          if (!modelMatrix) continue;
-          const model=new THREE.Matrix4().fromArray(modelMatrix);
-          layer.camera.projectionMatrix.copy(projection).multiply(model);
-          layer.mesh.position.set(0,beam.altitudeM*.5,0);
-          layer.mesh.scale.set(beam.radiusM,beam.altitudeM,beam.radiusM);
-          layer.mesh.material.uniforms.u_phase.value=i*.83;
-          layer.mesh.material.uniforms.u_color.value.set(i%3===0?'#ffd77a':i%3===1?'#61e8ff':'#bd8cff');
-          try { layer.renderer.resetState?.();layer.renderer.render(layer.scene,layer.camera); } catch (error) {
-            if (!layer.warned) { layer.warned=true;console.warn('BridgePoint RF beam rendering',error); }
-            break;
-          }
+          if(!modelMatrix)continue;
+          colorMatrix.fromArray(modelMatrix).multiply(localMatrix(beam.altitudeM*.5,beam.radiusM,beam.altitudeM,beam.radiusM));
+          layer.mesh.setMatrixAt(i,colorMatrix);
         }
-        // Reuse the same globe-anchored 3D layer for the 4G/5G planning bubbles.
-        // These use the same nominal envelopes as the existing Wind / RF panel and remain estimates.
-        layer.mesh.visible=false;
+        layer.mesh.count=beamCount;
+        layer.mesh.instanceMatrix.needsUpdate=true;
+
+        // Reuse the globe-anchored instanced meshes for 4G/5G nominal RF bubbles.
+        // The envelopes are modeled planning radii, not carrier-measured service cells.
         const zoom=Number(map.getZoom?.()||0);
         const maxSpheres=zoom<3?28:zoom<6?56:96;
         const sites=st.sites;
         const count=Math.min(maxSpheres,sites.length);
+        const matrix4=new THREE.Matrix4(),matrix5=new THREE.Matrix4();
         for(let i=0;i<count;i++){
           const site=sites[Math.floor(i*sites.length/count)];
           let modelMatrix;
           try { modelMatrix=map.transform.getMatrixForModel([site.lon,site.lat],0); } catch (_) { continue; }
           if(!modelMatrix)continue;
-          const model=new THREE.Matrix4().fromArray(modelMatrix);
-          layer.camera.projectionMatrix.copy(projection).multiply(model);
-          layer.sphere4Mesh.visible=true;layer.sphere5Mesh.visible=false;
-          layer.sphere4Mesh.position.set(0,1100,0);
-          layer.sphere4Mesh.scale.set(2200,1100,2200);
-          try { layer.renderer.resetState?.();layer.renderer.render(layer.scene,layer.camera); } catch (_) { break; }
-          layer.camera.projectionMatrix.copy(projection).multiply(model);
-          layer.sphere4Mesh.visible=false;layer.sphere5Mesh.visible=true;
-          layer.sphere5Mesh.position.set(0,425,0);
-          layer.sphere5Mesh.scale.set(850,425,850);
-          try { layer.renderer.resetState?.();layer.renderer.render(layer.scene,layer.camera); } catch (_) { break; }
+          matrix4.fromArray(modelMatrix).multiply(localMatrix(1100,2200,1100,2200));
+          matrix5.fromArray(modelMatrix).multiply(localMatrix(425,850,425,850));
+          layer.sphere4Mesh.setMatrixAt(i,matrix4);
+          layer.sphere5Mesh.setMatrixAt(i,matrix5);
         }
-        layer.sphere4Mesh.visible=false;layer.sphere5Mesh.visible=false;layer.mesh.visible=true;
+        layer.sphere4Mesh.count=count;
+        layer.sphere5Mesh.count=count;
+        layer.sphere4Mesh.instanceMatrix.needsUpdate=true;
+        layer.sphere5Mesh.instanceMatrix.needsUpdate=true;
+        try {
+          layer.renderer.resetState?.();
+          layer.renderer.render(layer.scene,layer.camera);
+        } catch(error) {
+          if(!layer.warned){layer.warned=true;console.warn('BridgePoint EM/RF instanced rendering',error);}
+        }
       },
       onRemove:()=>{
         try { layer.renderer?.dispose?.(); } catch (_) {}
@@ -531,7 +540,7 @@ export function initBridgePointEmrfSpectrogram(target) {
       }
     };
     try { map.addLayer(layer);st.beamLayer=layer;return layer; }
-    catch (error) { geometry.dispose();material.dispose();throw error; }
+    catch (error) { beamGeometry.dispose();beamMaterial.dispose();sphereGeometry.dispose();sphere4Material.dispose();sphere5Material.dispose();throw error; }
   }
 
   async function loadThree() {
