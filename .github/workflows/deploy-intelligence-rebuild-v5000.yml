@@ -336,15 +336,23 @@ jobs:
           cp rebuild-v5000/bridgepoint-lincoln-pointcloud-v5986.js site/bridgepoint-lincoln-pointcloud-v5986.js
           cp rebuild-v5000/bridgepoint-nyc-lidar-v7000.js site/bridgepoint-nyc-lidar-v7000.js
           # Mirror the licensed 3D scan into the same-origin static artifact; avoid browser CORS failures.
-          curl --retry 4 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 240 'https://zenodo.org/records/10355435/files/8e808365b5a6453497826b114b02f155.glb' -o /tmp/statue-of-liberty-scan-source.glb
-          test "$(stat -c%s /tmp/statue-of-liberty-scan-source.glb)" -gt 20000000
-          # Build a phone-friendly LOD while retaining the licensed source scan and attribution.
-          npx --yes @gltf-transform/cli@4.5.1 simplify /tmp/statue-of-liberty-scan-source.glb site/assets/statue-of-liberty-scan-v5940.glb --ratio 0.3 --error 0.001
-          test -s site/assets/statue-of-liberty-scan-v5940.glb
+          if curl --retry 4 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 240 'https://zenodo.org/records/10355435/files/8e808365b5a6453497826b114b02f155.glb' -o /tmp/statue-of-liberty-scan-source.glb; then
+            test "$(stat -c%s /tmp/statue-of-liberty-scan-source.glb)" -gt 20000000
+            # Build the usual phone-friendly LOD from the licensed original scan.
+            npx --yes @gltf-transform/cli@4.5.1 simplify /tmp/statue-of-liberty-scan-source.glb site/assets/statue-of-liberty-scan-v5940.glb --ratio 0.3 --error 0.001
+          else
+            # Zenodo outage fallback: reuse the exact optimized GLB already served by production.
+            curl --retry 4 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 180 'https://bridgepointintelligence.online/assets/statue-of-liberty-scan-v5940.glb' -o site/assets/statue-of-liberty-scan-v5940.glb
+          fi
+          test "$(stat -c%s site/assets/statue-of-liberty-scan-v5940.glb)" -gt 1000000
+          test "$(head -c 4 site/assets/statue-of-liberty-scan-v5940.glb)" = 'glTF'
           # Mirror a public CC BY 4.0 Eiffel Tower source mesh from the Zenodo record indexed from Sketchfab/Objaverse.
-          curl --retry 4 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 240 'https://zenodo.org/records/10353458/files/0efc103a12ad4c34b09a37e5050f8b23.glb' -o site/assets/eiffel-tower-koterstudios-v5983.glb
+          if ! curl --retry 4 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 240 'https://zenodo.org/records/10353458/files/0efc103a12ad4c34b09a37e5050f8b23.glb' -o site/assets/eiffel-tower-koterstudios-v5983.glb; then
+            # Zenodo outage fallback: reuse the exact original GLB already served by production.
+            curl --retry 4 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 180 'https://bridgepointintelligence.online/assets/eiffel-tower-koterstudios-v5983.glb' -o site/assets/eiffel-tower-koterstudios-v5983.glb
+          fi
           test "$(stat -c%s site/assets/eiffel-tower-koterstudios-v5983.glb)" -gt 15000000
-          test -s site/assets/eiffel-tower-koterstudios-v5983.glb
+          test "$(head -c 4 site/assets/eiffel-tower-koterstudios-v5983.glb)" = 'glTF'
           # Same-origin Potree Brotli worker for the original Lincoln Memorial point-cloud LOD stream.
           mkdir -p site/assets/bp-potree-lincoln-runtime/workers/2.0 site/assets/bp-potree-lincoln-runtime/workers
           curl --retry 4 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 180 'https://potree.norm3d.com/build/potree/workers/2.0/DecoderWorker_brotli.js' -o site/assets/bp-potree-lincoln-runtime/workers/2.0/DecoderWorker_brotli.js
