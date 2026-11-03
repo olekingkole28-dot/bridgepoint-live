@@ -134,7 +134,7 @@ assert.equal(lateStarted, true, 'the original button press activates transportat
 
 
 assert.ok(api, 'transportation simulation exposes diagnostics and helper methods');
-assert.equal(api.version, 2);
+assert.equal(api.version, 3);
 assert.equal(api.enabledByDefault, false, 'transportation stays off until the user presses the new button');
 assert.equal(api.simulationOnly, true, 'generated traffic must never be described as real vehicle GPS');
 
@@ -148,10 +148,18 @@ const globalRoads = [{
   roadClass: 'primary',
   coordinates: [[-71.06, 42.36], [-71.05, 42.36], [-71.04, 42.36]]
 }];
-const globalPaths = helpers.buildFlatRoadPaths(globalRoads, [-71.06, 42.36]);
+const globalPaths = helpers.buildFlatRoadPaths(globalRoads, [-71.06, 42.36], 1.2);
 assert.equal(globalPaths.paths.length, 1, 'global dot paths are built from mapped road coordinates without a terrain query');
 assert.equal(globalPaths.paths[0].points[0].local.y, 0, 'global dot paths do not need a terrain-elevation lookup');
 assert.ok(globalPaths.paths[0].length > 1000, 'global vehicle positions preserve road-scale distances');
+const curvedRoad = [
+  [-71.0600, 42.3600], [-71.0595, 42.3600],
+  [-71.0595, 42.3605], [-71.0590, 42.3605]
+];
+const curvedRoadKept = helpers.simplifyRoadCoordinates(curvedRoad, 5, 32);
+assert.equal(curvedRoadKept.length, 4, 'road simplification retains meaningful turns instead of replacing them with straight chords');
+const detailedRows = helpers.sampleRoadRows([{ key: 'curve', roadClass: 'residential', coordinates: curvedRoad }], 15);
+assert.deepEqual(detailedRows[0].coordinates, curvedRoad, 'close-zoom vehicle paths preserve the full road centerline when under the detail cap');
 const largeRoadPath = {
   roadClass: 'motorway',
   length: 2000000,
@@ -179,14 +187,6 @@ const activeSources = { ofm: {} };
 const activeLayers = {};
 const activeEvents = {};
 const activeRoads = [];
-for (let i = 0; i < 20; i++) {
-  const lon = -120 + i * .1;
-  activeRoads.push({
-    id: i,
-    geometry: { type: 'LineString', coordinates: [[lon, 35], [lon + .01, 35.005], [lon + .02, 35.01]] },
-    properties: { class: 'primary', subclass: 'road' }
-  });
-}
 const activeMap = {
   on(name, ...args) { (activeEvents[name] ||= []).push(args); },
   getStyle() { return { layers: [{ source: 'ofm', 'source-layer': 'transportation' }] }; },
@@ -224,12 +224,24 @@ bootModule.runInNewContext(moduleSource, activeContext, { filename: 'bridgepoint
 const activeApi = activeContext.window.__BP_TRANSPORTATION_V1__;
 assert.ok(activeDock.querySelector('.bp-transportation-v1-toggle'), 'the module creates a real Transportation toggle inside the card');
 assert.equal(activeApi.enable(), true, 'the first press turns the simulation on directly');
+assert.equal(activeApi.diagnostics().enabled, true);
+assert.equal(activeApi.diagnostics().vehicles, 0, 'an initially empty tile cache does not fabricate off-road positions');
+for (let i = 0; i < 20; i++) {
+  const lon = -120 + i * .1;
+  activeRoads.push({
+    id: i,
+    geometry: { type: 'LineString', coordinates: [[lon, 35], [lon + .01, 35.005], [lon + .02, 35.01]] },
+    properties: { class: 'primary', subclass: 'road' }
+  });
+}
+assert.ok(typeof activeEvents.idle?.[0]?.[0] === 'function', 'the simulation retries when the map reaches idle after road tiles load');
+activeEvents.idle[0][0]();
 const activeState = activeApi.diagnostics();
 assert.equal(activeState.enabled, true);
 assert.equal(activeState.modelLod, 'dots', 'global zoom remains in lightweight dot mode');
-assert.ok(activeState.vehicles > 0, 'global zoom produces a simulated vehicle fleet');
+assert.ok(activeState.vehicles > 0, 'global zoom builds a simulated vehicle fleet after real road tiles arrive');
 assert.equal(activeState.dots, activeState.vehicles, 'every global simulated vehicle has a visible dot');
-assert.ok(activeSources['bp-transportation-v1-dot-source']?.data?.features?.length > 0, 'the global dot layer is populated on the first press');
+assert.ok(activeSources['bp-transportation-v1-dot-source']?.data?.features?.length > 0, 'the global dot layer is populated as soon as road tiles are ready');
 
 const validKinds = new Set([
   'sedan', 'suv', 'pickup', 'sports-car', 'electric-sedan', 'jeep',
@@ -278,8 +290,8 @@ assert.ok(moduleSource.includes('function makeVehicleLowLod'), 'medium zoom has 
 assert.ok(moduleSource.includes('makeVehicle(T, item) : makeVehicleLowLod(T, item)'), 'close zoom upgrades the low-detail model kit to detailed vehicle geometry');
 assert.ok(moduleSource.includes('MAX_DOT_VEHICLES = MOBILE ? 64 : 120'), 'global mode shows a bounded set of moving dots on desktop and phone');
 
-const expectedScript = 'bridgepoint-transportation-v1.js?v=2-dots-first-adaptive-lod';
-const expectedLoader = '<script defer src="/bridgepoint-transportation-loader-v1.js?v=2-dots-first-adaptive-lod"></script>';
+const expectedScript = 'bridgepoint-transportation-v1.js?v=3-road-centerline-global-dots';
+const expectedLoader = '<script defer src="/bridgepoint-transportation-loader-v1.js?v=3-road-centerline-global-dots"></script>';
 assert.ok(!landingHtml.includes(expectedScript), 'homepage never downloads the 3D transportation module during startup');
 assert.ok(!appHtml.includes(expectedScript), 'app never downloads the 3D transportation module during startup');
 assert.ok(landingHtml.includes(expectedLoader), 'homepage loads only the lightweight card-button launcher');
@@ -294,4 +306,4 @@ assert.ok(fullDeploy.includes('cp rebuild-v5000/bridgepoint-transportation-v1.js
 assert.ok(fullDeploy.includes('cp rebuild-v5000/bridgepoint-transportation-loader-v1.js site/bridgepoint-transportation-loader-v1.js'), 'full deploy publishes the lightweight launcher');
 assert.ok(!/^\s*push:/m.test(rollbackWorkflow), 'the old experimental rollback deployment can no longer auto-publish over this release');
 
-console.log('BridgePoint Transportation Simulation v2 dot-first adaptive-LOD contract checks passed.');
+console.log('BridgePoint Transportation Simulation v3 road-centerline/global-dot contract checks passed.');

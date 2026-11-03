@@ -1,6 +1,6 @@
-/* BridgePoint Transportation Simulation v2 · DOT-FIRST ADAPTIVE LOD.
+/* BridgePoint Transportation Simulation v3 · ROAD-CENTERLINE + TILE-READY LOD.
  * Uses the existing OpenFreeMap road geometries and BridgePoint's existing 3D map.
- * Global vehicle dots appear first; low/high-detail 3D models upgrade as the user zooms in.
+ * Global moving dots stay active; curve-preserving road paths drive progressively detailed 3D vehicles.
  * All moving civilian and emergency vehicles in this module are simulated.
  * No actual vehicle GPS, dispatch, patient, officer, home or private-property data is used.
  * No private-car GPS, police AVL, EMS AVL, fire dispatch or incident feed is used.
@@ -9,7 +9,7 @@
   'use strict';
   if (window.__BP_TRANSPORTATION_V1__) return;
 
-  const VERSION = 2;
+  const VERSION = 3;
   const THREE_URL = '/vendor/three.module.js?v=169-local';
   const ROAD_SOURCE = 'ofm';
   const ROAD_SOURCE_LAYER = 'transportation';
@@ -21,12 +21,12 @@
   const MAX_ROAD_FEATURES = 220;
   const MAX_GLOBAL_ROADS = 180;
   const MAX_MODEL_ROADS = (() => { try { return matchMedia('(max-width: 760px), (pointer: coarse)').matches ? 14 : 26; } catch (_) { return 18; } })();
-  const MAX_MODEL_POINTS = 16;
-  const MAX_DOT_POINTS_PER_ROAD = 36;
-  const DOT_UPDATE_MS = 380;
-  const REBUILD_DEBOUNCE_MS = 520;
-  const EMPTY = { type: 'FeatureCollection', features: [] };
   const MOBILE = (() => { try { return matchMedia('(max-width: 760px), (pointer: coarse)').matches; } catch (_) { return false; } })();
+  const MAX_MODEL_POINTS = MOBILE ? 96 : 160;
+  const MAX_DOT_POINTS_PER_ROAD = MOBILE ? 64 : 112;
+  const DOT_UPDATE_MS = 380;
+  const REBUILD_DEBOUNCE_MS = 280;
+  const EMPTY = { type: 'FeatureCollection', features: [] };
   const MAX_DOT_VEHICLES = MOBILE ? 64 : 120;
   const MAX_LOW_DETAIL_MODELS = MOBILE ? 7 : 18;
   const MAX_HIGH_DETAIL_MODELS = MOBILE ? 4 : 10;
@@ -39,6 +39,7 @@
     rebuildTimer: 0, rebuilding: false, pendingRebuild: false, statusNode: null,
     modelLod: 'dots', button: null, options: null, checkboxes: {}, lastError: null,
     popup: null, lastRebuildAt: null, waitAttempts: 0,
+    roadRetryTimer: 0, roadRetryAttempts: 0, pendingRoadRefresh: false,
     diagnostics: { roads: 0, roadLengthM: 0, vehicles: 0, dots: 0, skippedTerrain: 0, zoom: 0 }
   };
 
@@ -342,17 +343,82 @@
     return found;
   }
 
-  function buildFlatRoadPaths(source, anchor) {
+  function simplifyRoadCoordinates(coordinates, toleranceM = 4, maxPoints = 160) {
+    const line = Array.isArray(coordinates) ? coordinates : [];
+    if (line.length <= 2) return line.slice();
+    const limit = Math.max(2, Math.floor(Number(maxPoints) || 160));
+    if (line.length <= limit) return line.slice();
+
+    const originLon = Number(line[0][0]) || 0;
+    const originLat = (Number(line[0][1]) + Number(line[line.length - 1][1])) * .5;
+    const longitudeScale = 111320 * Math.max(.02, Math.cos(originLat * Math.PI / 180));
+    const xy = line.map(point => {
+      let deltaLon = Number(point[0]) - originLon;
+      if (deltaLon > 180) deltaLon -= 360;
+      if (deltaLon < -180) deltaLon += 360;
+      return [deltaLon * longitudeScale, (Number(point[1]) - originLat) * 111132];
+    });
+
+    const reduce = tolerance => {
+      const keep = new Uint8Array(line.length);
+      keep[0] = 1;
+      keep[line.length - 1] = 1;
+      const stack = [[0, line.length - 1]];
+      const toleranceSquared = tolerance * tolerance;
+      while (stack.length) {
+        const [first, last] = stack.pop();
+        const a = xy[first], b = xy[last];
+        const dx = b[0] - a[0], dy = b[1] - a[1];
+        const lengthSquared = dx * dx + dy * dy;
+        let farthest = toleranceSquared, farthestIndex = -1;
+        for (let i = first + 1; i < last; i++) {
+          const point = xy[i];
+          const t = lengthSquared > .000001
+            ? clamp(((point[0] - a[0]) * dx + (point[1] - a[1]) * dy) / lengthSquared, 0, 1)
+            : 0;
+          const px = a[0] + t * dx, py = a[1] + t * dy;
+          const ex = point[0] - px, ey = point[1] - py;
+          const distanceSquared = ex * ex + ey * ey;
+          if (distanceSquared > farthest) {
+            farthest = distanceSquared;
+            farthestIndex = i;
+          }
+        }
+        if (farthestIndex >= 0) {
+          keep[farthestIndex] = 1;
+          stack.push([first, farthestIndex], [farthestIndex, last]);
+        }
+      }
+      const result = [];
+      for (let i = 0; i < line.length; i++) if (keep[i]) result.push(line[i]);
+      return result;
+    };
+
+    let tolerance = Math.max(.5, Number(toleranceM) || 4);
+    let result = reduce(tolerance);
+    for (let attempt = 0; result.length > limit && attempt < 7; attempt++) {
+      tolerance *= 1.6;
+      result = reduce(tolerance);
+    }
+    if (result.length > limit) {
+      const capped = [];
+      for (let i = 0; i < limit; i++) {
+        capped.push(result[Math.round(i * (result.length - 1) / (limit - 1))]);
+      }
+      result = capped;
+    }
+    return result;
+  }
+
+  function buildFlatRoadPaths(source, anchor, zoom = 0) {
     const paths = [];
     let totalLength = 0;
     const rows = (Array.isArray(source) ? source : []).slice(0, MAX_GLOBAL_ROADS);
+    const tolerance = zoom >= 10 ? 3 : zoom >= 5 ? 18 : 80;
     for (const road of rows) {
       const coordinates = road.coordinates || [];
       if (coordinates.length < 2) continue;
-      const stride = Math.max(1, Math.ceil(coordinates.length / MAX_DOT_POINTS_PER_ROAD));
-      const sampled = coordinates.filter((point, index) =>
-        index === 0 || index === coordinates.length - 1 || index % stride === 0
-      );
+      const sampled = simplifyRoadCoordinates(coordinates, tolerance, MAX_DOT_POINTS_PER_ROAD);
       const points = [];
       let distance = 0;
       for (const coordinate of sampled) {
@@ -365,23 +431,20 @@
         points.push({ coordinate, local: localPoint(coordinate, anchor, 0, 0), distance });
       }
       if (points.length < 2 || distance < 65) continue;
-      paths.push({ points, length: distance, roadClass: road.roadClass, key: road.key + ':dot:' + paths.length });
+      paths.push({ points, length: distance, roadClass: road.roadClass, key: road.key + ':chunk:0' });
       totalLength += distance;
     }
     return { paths, totalLength, sourceFeatures: rows.length, skippedTerrain: 0 };
   }
 
-  function sampleRoadRows(source) {
-    return (Array.isArray(source) ? source : []).slice(0, MAX_MODEL_ROADS).map(road => {
-      const coordinates = road.coordinates || [];
-      const stride = Math.max(1, Math.ceil(coordinates.length / MAX_MODEL_POINTS));
-      return {
-        ...road,
-        coordinates: coordinates.filter((point, index) =>
-          index === 0 || index === coordinates.length - 1 || index % stride === 0
-        )
-      };
-    }).filter(road => road.coordinates.length >= 2);
+  function sampleRoadRows(source, zoom = 12) {
+    const highDetail = zoom >= HIGH_DETAIL_ZOOM;
+    const maxPoints = highDetail ? (MOBILE ? 128 : 192) : MAX_MODEL_POINTS;
+    const tolerance = highDetail ? 1.75 : 4;
+    return (Array.isArray(source) ? source : []).slice(0, MAX_MODEL_ROADS).map(road => ({
+      ...road,
+      coordinates: simplifyRoadCoordinates(road.coordinates || [], tolerance, maxPoints)
+    })).filter(road => road.coordinates.length >= 2);
   }
 
   function buildRoadPaths(map, anchor, anchorElevation, sourceOverride) {
@@ -871,9 +934,9 @@
         const layer = {
           id: DOT_LAYER, type: 'circle', source: DOT_SOURCE, minzoom: 0,
           paint: {
-            'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 2.2, 5, 3.2, 10, 3.8, 15, 4.8, 20, 5.8],
-            'circle-color': ['match', ['get', 'category'], 'police', '#58aaff', 'ambulance', '#ffd56a', 'fire', '#ff5a4e', '#2ec2df'],
-            'circle-stroke-color': '#061824', 'circle-stroke-width': 1.15, 'circle-opacity': .98,
+            'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 3.5, 5, 4.1, 10, 4.4, 15, 5, 20, 5.8],
+            'circle-color': ['match', ['get', 'category'], 'police', '#58aaff', 'ambulance', '#ffd56a', 'fire', '#ff5a4e', '#36eaff'],
+            'circle-stroke-color': '#effcff', 'circle-stroke-width': 1.35, 'circle-opacity': 1,
             'circle-pitch-alignment': 'map'
           }
         };
@@ -1131,6 +1194,21 @@
     state.lastFrameAt = 0;
   }
 
+  function scheduleRoadRetry(map) {
+    if (!state.enabled || state.roadRetryTimer ||
+        (state.diagnostics.dots > 0 && !state.pendingRoadRefresh) ||
+        state.roadRetryAttempts >= 8) return;
+    const delays = [140, 250, 420, 700, 1050, 1500, 2100, 2100];
+    state.roadRetryTimer = setTimeout(() => {
+      state.roadRetryTimer = 0;
+      if (!state.enabled || state.map !== map) return;
+      state.roadRetryAttempts++;
+      void rebuildFleet('road tile retry');
+      if (state.diagnostics.dots > 0 && !state.pendingRoadRefresh) state.roadRetryAttempts = 0;
+      else scheduleRoadRetry(map);
+    }, delays[state.roadRetryAttempts] || 2100);
+  }
+
   async function rebuildFleet(reason = 'viewport') {
     if (!state.enabled) return false;
     if (state.rebuilding) { state.pendingRebuild = true; return false; }
@@ -1143,11 +1221,15 @@
       }
       if (state.map !== map) attachMap(map);
       if (!map.getStyle?.() || !map.getSource?.(ROAD_SOURCE)) {
-        setStatus('Transportation is on. Waiting for loaded road-vector tiles…');
+        state.pendingRoadRefresh = true;
+        setStatus('Transportation is on. Waiting for loaded road-vector tiles; existing vehicles remain visible.');
+        scheduleRoadRetry(map);
         return false;
       }
       if (!ensureLayers(map)) {
+        state.pendingRoadRefresh = true;
         setStatus('Transportation is on. Preparing the lightweight vehicle-dot layer…');
+        scheduleRoadRetry(map);
         return false;
       }
       const zoom = Number(map.getZoom()) || 0;
@@ -1159,15 +1241,22 @@
       }
       const anchor = [center.lng, center.lat];
       const roads = sourceRoadFeatures(map);
-      const flat = buildFlatRoadPaths(roads, anchor);
+      const flat = buildFlatRoadPaths(roads, anchor, zoom);
       if (!flat.paths.length) {
-        clearVehicleScene();
-        state.paths = [];
-        state.diagnostics.roads = 0;
-        state.diagnostics.vehicles = 0;
-        state.diagnostics.dots = 0;
-        try { map.getSource(DOT_SOURCE)?.setData(EMPTY); } catch (_) {}
-        setStatus('Transportation is on. Waiting for road tiles in this view; the dot layer is ready and will populate as roads load.');
+        state.pendingRoadRefresh = true;
+        if (!state.vehicles.length) {
+          state.paths = [];
+          state.diagnostics.roads = 0;
+          state.diagnostics.vehicles = 0;
+          state.diagnostics.dots = 0;
+          try { map.getSource(DOT_SOURCE)?.setData(EMPTY); } catch (_) {}
+        }
+        setStatus(
+          'Transportation is on. Waiting for road tiles in this view; ' +
+          (state.vehicles.length ? 'the last valid road-following fleet stays visible until new roads load.' :
+            'global moving dots will appear as soon as road tiles finish loading.')
+        );
+        scheduleRoadRetry(map);
         return false;
       }
 
@@ -1177,7 +1266,7 @@
       if (targetLod !== 'dots') {
         elevation = terrainElevation(map, anchor);
         if (elevation !== null) {
-          const modelRows = sampleRoadRows(roads);
+          const modelRows = sampleRoadRows(roads, zoom);
           const terrainBuilt = buildRoadPaths(map, anchor, elevation, modelRows);
           if (terrainBuilt.paths.length) chosen = terrainBuilt;
         }
@@ -1187,6 +1276,10 @@
       state.anchorElevation = elevation;
       state.paths = chosen.paths;
       state.vehicles = buildFleet(chosen.paths, zoom, MAX_DOT_VEHICLES);
+      state.pendingRoadRefresh = false;
+      if (state.roadRetryTimer) clearTimeout(state.roadRetryTimer);
+      state.roadRetryTimer = 0;
+      state.roadRetryAttempts = 0;
       state.diagnostics.roads = chosen.paths.length;
       state.diagnostics.roadLengthM = Math.round(chosen.totalLength);
       state.diagnostics.skippedTerrain = chosen.skippedTerrain;
@@ -1260,8 +1353,12 @@
     state.enabled = false;
     clearTimeout(state.rebuildTimer);
     clearTimeout(state.waitTimer);
+    clearTimeout(state.roadRetryTimer);
     state.rebuildTimer = 0;
     state.waitTimer = 0;
+    state.roadRetryTimer = 0;
+    state.roadRetryAttempts = 0;
+    state.pendingRoadRefresh = false;
     stopAnimation();
     clearVehicleScene();
     try {
@@ -1282,9 +1379,16 @@
     map.on?.('moveend', onMove);
     map.on?.('zoomend', onZoom);
     map.on?.('sourcedata', event => {
-      if (event?.sourceId === ROAD_SOURCE && event.isSourceLoaded && state.diagnostics.dots === 0) {
+      if (event?.sourceId === ROAD_SOURCE && event.isSourceLoaded &&
+          (state.diagnostics.dots === 0 || state.pendingRoadRefresh)) {
+        state.roadRetryAttempts = 0;
         scheduleRebuild('road tiles');
       }
+    });
+    map.on?.('idle', () => {
+      if (!state.enabled || (state.diagnostics.dots > 0 && !state.pendingRoadRefresh)) return;
+      state.roadRetryAttempts = 0;
+      void rebuildFleet('map idle road check');
     });
     map.on?.('style.load', () => {
       if (!state.enabled) return;
@@ -1304,6 +1408,7 @@
       if (map) {
         attachMap(map);
         void rebuildFleet('map ready');
+        scheduleRoadRetry(map);
         return;
       }
       state.waitAttempts++;
@@ -1331,6 +1436,7 @@
     }
     attachMap(map);
     void rebuildFleet('enable');
+    scheduleRoadRetry(map);
     startDotAnimation();
     return true;
   }
@@ -1362,7 +1468,7 @@
     }),
     helpers: {
       isRoadFeature, vehicleKindForRoad, localPoint, interpolatePath, cleanLine,
-      buildFlatRoadPaths, sampleRoadRows, buildFleet, selectModelLod
+      buildFlatRoadPaths, sampleRoadRows, simplifyRoadCoordinates, buildFleet, selectModelLod
     }
   };
 
