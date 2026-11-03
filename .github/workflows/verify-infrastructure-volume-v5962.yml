@@ -1,4 +1,4 @@
-name: Verify BridgePoint Infrastructure Volume V5962
+name: Verify BridgePoint Infrastructure Volume V5969
 
 on:
   pull_request:
@@ -43,10 +43,17 @@ jobs:
           grep -Fq 'pushSolidBeam' release-v2300/world-v2300-infrastructure-volume-v5962.js
           grep -Fq 'new THREE.MeshStandardMaterial' release-v2300/world-v2300-infrastructure-volume-v5962.js
           grep -Fq 'queryTerrainElevation' release-v2300/world-v2300-infrastructure-volume-v5962.js
+          grep -Fq 'FCC_TOWER_DOTS_MIN_ZOOM=11.5' release-v2300/world-v2300-infrastructure-volume-v5962.js
+          grep -Fq 'FCC_TOWER_3D_MIN_ZOOM=13.0' release-v2300/world-v2300-infrastructure-volume-v5962.js
+          grep -Fq 'fccTowerHeightMeters' release-v2300/world-v2300-infrastructure-volume-v5962.js
+          grep -Fq 'raw<=FCC_TOWER_MAX_HEIGHT_M' release-v2300/world-v2300-infrastructure-volume-v5962.js
+          grep -Fq 'footprintWidth=Math.max(4,Math.min(42,height*.10))' release-v2300/world-v2300-infrastructure-volume-v5962.js
+          grep -Fq "'circle-radius':1.55" release-v2300/world-v2300-infrastructure-volume-v5962.js
+          grep -Fq 'fccTowerModels:fccTowerN' release-v2300/world-v2300-infrastructure-volume-v5962.js
           grep -Fq 'enabled:true' release-v2300/world-v2300-infrastructure-volume-v5962.js
           ! grep -Fq 'data-toggle' release-v2300/world-v2300-infrastructure-volume-v5962.js
           grep -Fq 'initInfrastructureVolume(world)' rebuild-v5000/app.js
           grep -Fq 'initInfrastructureVolume(world)' rebuild-v5000/landing.js
-          grep -Fq 'world-v2300-infrastructure-volume-v5962.js?v=5968-solid-grounded-grid' rebuild-v5000/app.js
+          grep -Fq 'world-v2300-infrastructure-volume-v5962.js?v=5969-fcc-towers-zoom-true-scale' rebuild-v5000/app.js
           grep -Fq 'world-v2300-infrastructure-volume-v5962.js?v=5968-solid-grounded-grid' rebuild-v5000/landing.js
           echo 'Infrastructure-volume syntax and source-contract checks passed.'
