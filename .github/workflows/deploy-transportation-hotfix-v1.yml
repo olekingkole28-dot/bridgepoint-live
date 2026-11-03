@@ -26,7 +26,7 @@ jobs:
     timeout-minutes: 25
     environment:
       name: github-pages
-      url: \${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -35,8 +35,8 @@ jobs:
         with:
           name: bridgepoint-orbit-hotfix-v6202
           run-id: 41601656749
-          github-token: \${{ secrets.GITHUB_TOKEN }}
-          repository: \${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
           path: /tmp/bridgepoint-pages-bundle
 
       - name: Apply only Orbit v6203 and Transportation Simulation v1
@@ -118,11 +118,11 @@ jobs:
           O='https://bridgepointintelligence.online'
           ok=0
           for i in $(seq 1 30); do
-            q="\${GITHUB_SHA}-\${i}-$(date +%s)"
-            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "\${O}/bridgepoint-transportation-v1.js?v=transport=\${q}" -o /tmp/transportation.js || true
-            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "\${O}/bridgepoint-global-motion-v5926.js?v=transport=\${q}" -o /tmp/orbit-controller.js || true
-            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "\${O}/?transport=\${q}" -o /tmp/root.html || true
-            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "\${O}/app/?transport=\${q}" -o /tmp/app.html || true
+            q="${GITHUB_SHA}-${i}-$(date +%s)"
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/bridgepoint-transportation-v1.js?v=transport=${q}" -o /tmp/transportation.js || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/bridgepoint-global-motion-v5926.js?v=transport=${q}" -o /tmp/orbit-controller.js || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/?transport=${q}" -o /tmp/root.html || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/?transport=${q}" -o /tmp/app.html || true
             if grep -Fq 'BridgePoint Transportation Simulation v1' /tmp/transportation.js 2>/dev/null &&
                grep -Fq '6203-3d-orbit-markers-popup-global-zoom' /tmp/orbit-controller.js 2>/dev/null &&
                grep -Fq 'bridgepoint-transportation-v1.js?v=1-3d-road-traffic-simulation' /tmp/root.html 2>/dev/null &&
