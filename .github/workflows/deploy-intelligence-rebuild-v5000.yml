@@ -182,8 +182,7 @@ jobs:
             --source-dir "$RUNNER_TEMP/bp-manhattan-source" \
             --output-dir "$RUNNER_TEMP/bp-manhattan-output" \
             --max-trees 50000 \
-            --max-windows 900000 \
-            --skip-glb-export
+            --max-windows 900000
           test -s "$RUNNER_TEMP/bp-manhattan-output/bridgepoint-manhattan-city.blend"
       - name: Export geographically anchored browser GLB tiles
         if: steps.existing.outputs.package_needed == 'true'
