@@ -261,13 +261,13 @@ test('both entrypoints perform a real 6222 service-worker cutover before stale s
   assert.match(serviceWorker, /const V='bp-intelligence-v6222-goes-cloud-mask-volumetric'/);
   assert.match(landing, /navigator\.serviceWorker\.register\('\/sw\.js\?v=6222-goes-cloud-mask-volumetric'/);
   assert.match(app, /navigator\.serviceWorker\.register\('\/sw\.js\?v=6222-goes-cloud-mask-volumetric'/);
-  assert.match(clouds, /Number\(existingCloudController\.version\) >= 6180[\s\S]{0,180}Number\(existingState\?\.coverageVersion \|\| existingState\?\.version\) >= 6180/);
+  assert.match(clouds, /Number\(existingCloudController\.version\) >= 6200[\s\S]{0,180}Number\(existingState\?\.version\) >= 6200/);
 });
 
 test('new rain/lightning and global source markers stay separate from legacy effects', () => {
   assert.match(weather, /active=!!v;/);
   assert.match(weather, /const LEGACY_NATIVE_WEATHER_LAYERS=\['wx-snow-depth','wx-alert-fill','wx-fire-fill','wx-thermal','wx-quake-glow','wx-storm-glow'\]/);
-  assert.match(weather, /for\(const id of \['wx-alert-line','wx-fire-line','wx-quake','wx-storm','wx-obs','wx-water'\]\)/);
+  assert.match(weather, /const WEATHER_SOURCE_OVERLAY_LAYERS=\['wx-alert-line','wx-fire-line','wx-quake','wx-storm','wx-obs','wx-water'/);\n  assert.match(weather, /function applySourceWeatherVisibility\(\)/);
   assert.match(app, /id:'bp-v5004-weather-shape-fill'.{0,500}layout:\{visibility:'visible'\}/);
   assert.match(landing, /bp-landing-weather-fill/);
   assert.match(landing, /id:'bp-landing-weather-fill'.{0,400}layout:\{visibility:'visible'\},paint:\{'fill-color':landingWeatherColorExpr\(\),'fill-opacity':\['interpolate'/);
