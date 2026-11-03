@@ -1,0 +1,57 @@
+{
+  "now": 1793650000,
+  "total": 4,
+  "ac": [
+    {
+      "hex": "abc123",
+      "type": "M3",
+      "t": "UAV",
+      "category": "B6",
+      "lat": 40.713,
+      "lon": -74.006,
+      "alt_geom": 1200,
+      "alt_baro": 1150,
+      "track": 92,
+      "seen": 1,
+      "seen_pos": 1,
+      "rssi": -15
+    },
+    {
+      "hex": "def456",
+      "type": "B738",
+      "t": "B738",
+      "category": "A3",
+      "lat": 40.721,
+      "lon": -74.01,
+      "alt_baro": 32000,
+      "track": 180,
+      "seen": 2,
+      "seen_pos": 2,
+      "rssi": -20
+    },
+    {
+      "hex": "abc124",
+      "type": "UAV",
+      "category": "B6",
+      "lat": 41.01,
+      "lon": -73.5,
+      "alt_geom": 1000,
+      "track": 181,
+      "seen": 301,
+      "seen_pos": 301,
+      "rssi": -18
+    },
+    {
+      "hex": "abc125",
+      "type": "UAV",
+      "category": "B6",
+      "lat": 95,
+      "lon": -74,
+      "alt_geom": 500,
+      "track": 270,
+      "seen": 1,
+      "seen_pos": 1,
+      "rssi": -10
+    }
+  ]
+}
