@@ -18,7 +18,7 @@ const MAX_CLOSE_ZOOM_MODELS=120;
 const MAX_TRAIL_POINTS=24;
 const TRACK_RETENTION_MS=45*60*1000;
 const REFRESH_MS=180000;
-const REQUEST_TIMEOUT_MS=16000;
+const REQUEST_TIMEOUT_MS=12000;
 const SUPPORTED_SOURCE='https://api.adsb.lol/v2/';
 const DRONE_PROXY_URL='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-drone-feed-v1';
 const DRONE_PROXY_KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
@@ -148,7 +148,7 @@ function writeSummary(){
  if(regionalStatusNode){
   regionalStatusNode.replaceChildren();
   for(const result of diagnosticState.regionalResults){const row=element('div','bp-drone-cell-row');row.append(element('b','',result.sample.id));const providerNote=result.providers?' · ADS-B '+(result.providers.adsb_lol?.status||'—')+' · Remote ID '+(result.providers.layer400_remote_id?.status||'—'):'';const detail=result.status==='pending'?'PENDING':result.cached?'CACHED · '+result.records.length+' reports'+providerNote:result.ok?'OK · '+result.records.length+' reports'+providerNote:'FAILED · '+String(result.error||'Unknown request error');const value=element('span','',detail);value.title=result.error||result.requestUrl||'';row.append(value);regionalStatusNode.append(row)}
-  if(diagnosticState.localSample){const result=diagnosticState.localSample,row=element('div','bp-drone-cell-row');row.append(element('b','','Local map-view sample'));const detail=result.status==='pending'?'PENDING':result.cached?'CACHED · '+result.records.length+' aircraft':result.ok?'OK · '+result.records.length+' aircraft':'FAILED · '+String(result.error||'Unknown request error');const value=element('span','',detail);value.title=result.error||result.requestUrl||'';row.append(value);regionalStatusNode.append(row)}
+  if(diagnosticState.localSample){const result=diagnosticState.localSample,row=element('div','bp-drone-cell-row');row.append(element('b','','Local map-view sample'));const providerNote=result.providers?' · ADS-B '+(result.providers.adsb_lol?.status||'—')+' · Remote ID '+(result.providers.layer400_remote_id?.status||'—'):'';const detail=result.status==='pending'?'PENDING':result.cached?'CACHED · '+result.records.length+' reports'+providerNote:result.ok?'OK · '+result.records.length+' reports'+providerNote:'FAILED · '+String(result.error||'Unknown request error');const value=element('span','',detail);value.title=result.error||result.requestUrl||'';row.append(value);regionalStatusNode.append(row)}
  }
 }
 function setLayerVisibility(on){
@@ -450,7 +450,7 @@ async function fetchGlobalSamples(){
   if(!enabled)throw new Error('Drone Awareness was turned off');
   const batch=await Promise.all(GLOBAL_SAMPLES.slice(i,i+3).map(getSample));results.push(...batch);
   diagnosticState.regionalRequestsAttempted+=batch.filter(x=>!x.cached).length;diagnosticState.regionalRequestsCompleted+=batch.filter(x=>!x.cached&&x.ok).length;diagnosticState.regionalCacheHits+=batch.filter(x=>x.cached).length;
-  for(const result of batch){if(result.ok&&result.providers)diagnosticState.providers={...(diagnosticState.providers||{}),...result.providers};const row=diagnosticState.regionalResults.find(x=>x.sample.id===result.sample.id);if(row)Object.assign(row,{status:result.ok?'complete':'failed',ok:result.ok,cached:!!result.cached,records:result.records,error:result.error||null,requestUrl:result.requestUrl||''})}
+  for(const result of batch){if(result.ok&&result.providers)diagnosticState.providers={...(diagnosticState.providers||{}),...result.providers};const row=diagnosticState.regionalResults.find(x=>x.sample.id===result.sample.id);if(row)Object.assign(row,{status:result.ok?'complete':'failed',ok:result.ok,cached:!!result.cached,records:result.records,providers:result.providers||null,error:result.error||null,requestUrl:result.requestUrl||''})}
   writeSummary();showStatus('Regional live-source requests: '+diagnosticState.regionalRequestsAttempted+' attempted · '+diagnosticState.regionalRequestsCompleted+' completed · '+diagnosticState.regionalCacheHits+' cached.',batch.some(x=>!x.ok)?'error':'info');
  }
  return results;
