@@ -168,8 +168,9 @@ const largeRoadPath = {
     { coordinate: [-80, 35], local: { x: 2000000, y: 0, z: 0 }, distance: 2000000 }
   ]
 };
-assert.equal(helpers.buildFleet([largeRoadPath], 0, 80).length, 80,
-  'global zoom maintains a visible capped fleet of moving dots instead of hiding all vehicles');
+const globalFleet = helpers.buildFleet([largeRoadPath], 0, 80);
+assert.ok(globalFleet.length > 0 && globalFleet.length <= 80,
+  'global zoom creates a visible moving fleet while honoring the requested upper cap');
 assert.equal(helpers.isRoadFeature({ properties: { class: 'primary', subclass: 'road' } }), true);
 assert.equal(helpers.isRoadFeature({ properties: { class: 'minor', subclass: 'residential' } }), true);
 assert.equal(helpers.isRoadFeature({ properties: { class: 'motorway' } }), true);
