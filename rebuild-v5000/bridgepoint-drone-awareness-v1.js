@@ -338,15 +338,15 @@ function disposeAircraftTemplates(){
 }
 function aircraftKindLabel(kind){return({helicopter:'Helicopter',glider:'Glider / sailplane',balloon:'Balloon / airship',propeller:'Propeller aircraft',jet:'Jet aircraft',airplane:'Fixed-wing aircraft',drone:'Unmanned aircraft / drone'})[String(kind||'').toLowerCase()]||'Aircraft'}
 function aircraftFeatureProperties(a,kind){
- const altitude=altitudeForRecord(a),headingRaw=a?.track??a?.true_heading??a?.mag_heading,heading=headingRaw===null||headingRaw===undefined||headingRaw===''?null:Number(headingRaw),speedRaw=a?.gs,speed=speedRaw===null||speedRaw===undefined||speedRaw===''?null:Number(speedRaw),rateRaw=a?.geom_rate??a?.baro_rate,rate=rateRaw===null||rateRaw===undefined||rateRaw===''?null:Number(rateRaw),ageRaw=a?.seen_pos??a?.seen,age=ageRaw===null||ageRaw===undefined||ageRaw===''?null:Number(ageRaw);
- return{track_key:String(a?.hex||a?.icao24||'').trim().toLowerCase(),icao:String(a?.hex||a?.icao24||''),is_drone:kind==='drone',aircraft_kind:String(kind||'airplane'),callsign:String(a?.flight||'').trim(),registration:String(a?.r||a?.registration||''),type_code:String(a?.t||a?.type||''),type_description:String(a?.desc||a?.description||a?.typeDescription||''),emitter_category:String(a?.category||a?.emitter_category||''),altitude_value:altitude.sourceValue===null?'':String(altitude.sourceValue),altitude_field:String(altitude.sourceField||''),altitude_units:String(altitude.sourceUnits||''),altitude_datum:String(altitude.datum||'unknown'),altitude_meters:altitude.known?altitude.meters:null,altitude_known:!!altitude.known,altitude_projectable:!!altitude.projectable,heading_degrees:Number.isFinite(heading)?heading:null,ground_speed_knots:Number.isFinite(speed)?speed:null,vertical_rate_fpm:Number.isFinite(rate)?rate:null,squawk:String(a?.squawk||''),emergency:String(a?.emergency||''),last_report_age_seconds:Number.isFinite(age)?age:null,source:String(a?._bpSourceName||'ADSB.lol')};
+ const altitude=aircraftAltitudeForRecord(a),headingRaw=a?.track??a?.true_heading??a?.mag_heading,heading=headingRaw===null||headingRaw===undefined||headingRaw===''?null:Number(headingRaw),speedRaw=a?.gs,speed=speedRaw===null||speedRaw===undefined||speedRaw===''?null:Number(speedRaw),rateRaw=a?.geom_rate??a?.baro_rate,rate=rateRaw===null||rateRaw===undefined||rateRaw===''?null:Number(rateRaw),ageRaw=a?.seen_pos??a?.seen,age=ageRaw===null||ageRaw===undefined||ageRaw===''?null:Number(ageRaw);
+ return{track_key:String(a?.hex||a?.icao24||'').trim().toLowerCase(),icao:String(a?.hex||a?.icao24||''),is_drone:kind==='drone',aircraft_kind:String(kind||'airplane'),callsign:String(a?.flight||'').trim(),registration:String(a?.r||a?.registration||''),type_code:String(a?.t||a?.type||''),type_description:String(a?.desc||a?.description||a?.typeDescription||''),emitter_category:String(a?.category||a?.emitter_category||''),altitude_value:altitude.sourceValue===null?'':String(altitude.sourceValue),altitude_field:String(altitude.sourceField||''),altitude_units:String(altitude.sourceUnits||''),altitude_datum:String(altitude.datum||'unknown'),altitude_meters:altitude.known?altitude.meters:null,altitude_known:!!altitude.known,altitude_projectable:!!altitude.projectable,altitude_placement_reference:altitude.datum==='barometric'?'pressure altitude (not geometric)':altitude.projectable?altitude.datum:'not projectable',heading_degrees:Number.isFinite(heading)?heading:null,ground_speed_knots:Number.isFinite(speed)?speed:null,vertical_rate_fpm:Number.isFinite(rate)?rate:null,squawk:String(a?.squawk||''),emergency:String(a?.emergency||''),last_report_age_seconds:Number.isFinite(age)?age:null,source:String(a?._bpSourceName||'ADSB.lol')};
 }
 function showAircraftDetails(event){
  const properties=event?.features?.[0]?.properties;if(!properties)return;
  const kind=properties.is_drone===true||properties.is_drone==='true'?'drone':String(properties.aircraft_kind||'airplane');
  const title=String(properties.callsign||properties.registration||properties.icao||'Unknown aircraft');
  const root=element('div','bp-aircraft-popup');root.append(element('div','bp-aircraft-popup-title',title));root.append(element('div','bp-aircraft-popup-kind',aircraftKindLabel(kind)+' · live public position report'));
- const altitude=properties.altitude_known?(String(properties.altitude_value)+' '+String(properties.altitude_units||'')+' · '+String(properties.altitude_datum||'unknown')+(properties.altitude_projectable?' · usable for 3D':' · reported only')):'Not reported';
+ const altitude=properties.altitude_known?(String(properties.altitude_value)+' '+String(properties.altitude_units||'')+' · '+String(properties.altitude_datum||'unknown')+(properties.altitude_datum==='barometric'?' · 3D uses reported pressure altitude, not geometric':properties.altitude_projectable?' · usable for 3D':' · reported only')):'Not reported';
  const rate=properties.vertical_rate_fpm===null||properties.vertical_rate_fpm===undefined?'Not reported':String(properties.vertical_rate_fpm)+' ft/min';
  const speed=properties.ground_speed_knots===null||properties.ground_speed_knots===undefined?'Not reported':String(properties.ground_speed_knots)+' kt';
  const heading=properties.heading_degrees===null||properties.heading_degrees===undefined?'Not reported':String(properties.heading_degrees)+'°';
@@ -372,11 +372,12 @@ function setAircraftModels(records){
  const MC=window.maplibregl?.MercatorCoordinate||window.MapLibreGL?.MercatorCoordinate;if(!MC?.fromLngLat)return 0;
  const grouped=new Map(),nextModels=new Map(),zoom=Number(map.getZoom?.()||0),now=Date.now();
  for(const aircraft of Array.isArray(records)?records:[]){
-  const key=aircraft._trackKey,lat=Number(aircraft.lat),lon=Number(aircraft.lon),altitude=altitudeForRecord(aircraft);
+  const key=aircraft._trackKey,lat=Number(aircraft.lat),lon=Number(aircraft.lon),altitude=aircraftAltitudeForRecord(aircraft);
   if(!key||!Number.isFinite(lat)||!Number.isFinite(lon)||!altitude.projectable)continue;
   const storedTrack=trackedAircraft.get(key),storedPoint=storedTrack?.points?.[storedTrack.points.length-1],point=storedPoint&&storedPoint.longitude===lon&&storedPoint.latitude===lat?storedPoint:DroneCore.createTrailPoint(aircraft,now,aircraft._bpSourceName||'ADSB.lol');
   let groundElevation=point.terrainElevationMeters??null;if(point.altitudeDatum==='agl'&&groundElevation===null&&typeof map.queryTerrainElevation==='function'){try{const value=map.queryTerrainElevation([lon,lat],{exaggerated:false});if(value!==null&&value!==undefined&&Number.isFinite(Number(value)))groundElevation=Number(value)}catch(_){}}
-  const position=DroneCore.project3DPoint(point,MC,groundElevation),meterUnit=MC.fromLngLat({lng:lon,lat},0).meterInMercatorCoordinateUnits?.()||0;
+  if(altitude.datum==='barometric'&&altitude.projectable){point.altitudeDatum='barometric';point.altitudeMeters=altitude.meters;point.altitudeProjectable=true;}
+  const position=projectAircraft3DPoint(point,MC,groundElevation),meterUnit=MC.fromLngLat({lng:lon,lat},0).meterInMercatorCoordinateUnits?.()||0;
   if(!position||!Number.isFinite(meterUnit)||meterUnit<=0)continue;
   const kind=DroneCore.aircraftKindForRecord(aircraft),bucket=grouped.get(kind)||[],span=aircraftModelSpanMeters(lat,zoom),scale=(span/1.36)*meterUnit,angle=(Number.isFinite(point.heading)?point.heading:0)*Math.PI/180-Math.PI/2;
   const matrix=new droneThree.Matrix4().compose(new droneThree.Vector3(position.x,position.y,position.z),new droneThree.Quaternion().setFromEuler(new droneThree.Euler(0,0,angle)),new droneThree.Vector3(scale,scale,scale));
@@ -396,7 +397,7 @@ function rebuildAircraftTrails(){
   const flushXY=()=>{if(xySegment.length>1)trackSegments.push({type:'Feature',geometry:{type:'LineString',coordinates:xySegment},properties:{track_key:trackKey}});xySegment=[]};
   for(const point of track.points){
    if(point.gapBefore){previous=null;flushXY()}
-   const projected=DroneCore.project3DPoint(point,MC,point.terrainElevationMeters??null);
+   const projected=projectAircraft3DPoint(point,MC,point.terrainElevationMeters??null);
    xySegment.push([point.longitude,point.latitude]);if(!projected)hasUnprojected=true;
    if(!projected)previous=null;
    else{const vector=[projected.x,projected.y,projected.z];dots.push(...vector);if(previous){positions.push(...previous,...vector);segments++}previous=vector}
@@ -411,6 +412,15 @@ function rebuildAircraftTrails(){
  diagnosticState.aircraftTrailsRendered=segments;writeSummary();map.triggerRepaint?.();return{trails:segments,knownPoints:dots.length/3};
 }
 function altitudeForRecord(a){return DroneCore.altitudeForRecord(a)}
+function aircraftAltitudeForRecord(a){
+ const altitude=altitudeForRecord(a);
+ if(!altitude.projectable&&altitude.datum==='barometric'&&Number.isFinite(Number(altitude.meters)))return{...altitude,projectable:true,placementDatum:'barometric'};
+ return altitude;
+}
+function projectAircraft3DPoint(point,MC,groundElevationMeters=null){
+ if(point?.altitudeDatum==='barometric'&&Number.isFinite(Number(point.altitudeMeters))&&MC?.fromLngLat)return MC.fromLngLat({lng:Number(point.longitude),lat:Number(point.latitude)},Number(point.altitudeMeters));
+ return DroneCore.project3DPoint(point,MC,groundElevationMeters);
+}
 function setDroneModels(records){
  if(!droneScene||!droneTemplate||!droneThree||!map){diagnosticState.modelsRendered=0;writeSummary();return 0}
  const MC=window.maplibregl?.MercatorCoordinate||window.MapLibreGL?.MercatorCoordinate;if(!MC?.fromLngLat)return 0;
@@ -500,7 +510,8 @@ function updateTrackedAircraft(records){
  }
  const active=new Set();
  for(const a of fresh.values()){
-  const key=a._trackKey,track=trackedAircraft.get(key)||{points:[],lastSeen:0,current:null},point=DroneCore.createTrailPoint(a,now,a._bpSourceName||'ADSB.lol'),last=track.points[track.points.length-1];
+  const key=a._trackKey,track=trackedAircraft.get(key)||{points:[],lastSeen:0,current:null},point=DroneCore.createTrailPoint(a,now,a._bpSourceName||'ADSB.lol'),last=track.points[track.points.length-1],sourceAltitude=aircraftAltitudeForRecord(a);
+  if(sourceAltitude.datum==='barometric'&&sourceAltitude.projectable){point.altitudeDatum='barometric';point.altitudeMeters=sourceAltitude.meters;point.altitudeProjectable=true;point.altitudeReportedMeters=sourceAltitude.meters;}
   if(point.altitudeDatum==='agl'&&typeof map.queryTerrainElevation==='function'){try{const value=map.queryTerrainElevation([a.lon,a.lat],{exaggerated:false});if(value!==null&&value!==undefined&&Number.isFinite(Number(value)))point.terrainElevationMeters=Number(value)}catch(_){}}
   if(last){const ageGap=point.observationTimestamp-last.observationTimestamp,dist=distanceMeters([last.longitude,last.latitude],[point.longitude,point.latitude]);if(ageGap>REFRESH_MS*1.5){point.gapBefore=true;point.gapReason='No observation for '+Math.round(ageGap/1000)+' seconds'}if(!Number.isFinite(dist)||dist>45000){point.gapBefore=true;point.gapReason='Position discontinuity; segment restarted'}}
   if(!last||now-last.sampledAt>=REFRESH_MS*.8){track.points.push(point);if(track.points.length>MAX_TRAIL_POINTS)track.points.splice(0,track.points.length-MAX_TRAIL_POINTS)}
@@ -751,7 +762,7 @@ function createPane(panel){
  if(!panel)return null;let existing=panel.querySelector('[data-bpv-pane="drones"]');if(existing)return existing;
  const p=element('section','bp-drone-pane');p.dataset.bpvPane='drones';p.hidden=true;
  p.append(element('div','bp-drone-headline','OPT-IN · PUBLIC ADS-B AIRCRAFT + UAV POSITIONS · SOURCE-ALTITUDE 3D TRACKS'));
- p.append(element('div','bp-drone-feed-note','Public aircraft other than UAVs render as type-family 3D models alongside the existing quadcopters, with position dots and observed flight paths. Model families are inferred from broadcast type/category fields; they are not claims of an exact airframe mesh. 3D height is used only when geometric altitude or terrain-referenced AGL is available. Barometric-only or unknown-datum reports remain clickable dots instead of receiving a fabricated height.'));
+ p.append(element('div','bp-drone-feed-note','Public aircraft other than UAVs render as type-family 3D models alongside the existing quadcopters, with position dots and observed flight paths. Model families are inferred from broadcast type/category fields; they are not claims of an exact airframe mesh. 3D placement uses geometric altitude or terrain-referenced AGL when available. Otherwise a source-reported barometric pressure altitude is used as an explicitly labeled vertical reference, not described as geometric altitude. Records without any usable source height remain clickable dots and horizontal routes; no altitude is invented.'));
  p.append(element('div','bp-drone-feed-note','DATA LIMIT · '+GLOBAL_SAMPLES.length+' regional sample hubs, each up to '+REGION_RADIUS_NM+' NM, plus a supplemental local sample at close zoom. This is partial coverage, not a worldwide registry. Most consumer drones do not broadcast ADS-B. Remote ID network: Layer400 live RID is supported through a server-side API adapter and activates only when an approved LAYER400_API_KEY with rid.live scope is configured. ADSB.lol only contributes aircraft explicitly broadcasting a UAV/DRONE category; ordinary aircraft are never relabeled. Simulated/test broadcasts and pilot/control-station locations are excluded. No simulated drones are substituted for missing live reports.'));
  const summary=element('div','bp-drone-summary');summary.id='bp-drone-summary-v3';p.append(summary);summaryNode=summary;
  const status=element('div','bp-drone-status','Drone Awareness is off.');status.id='bp-drone-status-v3';status.dataset.kind='info';p.append(status);statusNode=status;
@@ -759,7 +770,7 @@ function createPane(panel){
  const actions=element('div','bp-drone-actions'),refreshBtn=element('button','bpv-wide-action','REFRESH REGIONAL AIRCRAFT + UAV SAMPLE');refreshBtn.type='button';refreshBtn.addEventListener('click',()=>void refresh(true));actions.append(refreshBtn);refreshButton=refreshBtn;
  const off=element('button','bpv-wide-action','TURN DRONE AWARENESS OFF');off.type='button';off.addEventListener('click',()=>{if(enabled)void toggle()});actions.append(off);p.append(actions);
  const meta=element('div','bp-drone-feed-note','Live positions refresh every 3 minutes. Requests are grouped in batches of three and successful responses are cached briefly.');meta.id='bp-drone-feed-meta';p.append(meta);
- trailNoteNode=element('div','bp-drone-feed-note','Aircraft and UAV paths use observed positions sampled every 3 minutes, with gaps split instead of guessed. 3D tracks include source geometric altitude or terrain-referenced AGL; unknown/barometric-only height stays a 2D path. History is bounded to '+MAX_TRAIL_POINTS+' observations per aircraft.');p.append(trailNoteNode);
+ trailNoteNode=element('div','bp-drone-feed-note','Aircraft and UAV paths use observed positions sampled every 3 minutes, with gaps split instead of guessed. 3D tracks use source geometric altitude / terrain-referenced AGL first, then the source-reported pressure altitude with its barometric datum preserved; records with no usable altitude retain a 2D route. History is bounded to '+MAX_TRAIL_POINTS+' observations per aircraft.');p.append(trailNoteNode);
  const attribution=element('div','bp-drone-footnote');attribution.append(document.createTextNode('Source: '));const link=element('a','bp-drone-source','ADSB.lol public API documentation');link.href='https://api.adsb.lol/docs/open-data/api/';link.target='_blank';link.rel='noopener noreferrer';attribution.append(link);attribution.append(document.createTextNode(' · ODbL 1.0 · Layer400 RID access requires an approved rid.live API credential'));p.append(attribution);panel.append(p);writeSummary();return p;
 }
 function updateWaterButton(){
