@@ -566,7 +566,7 @@ jobs:
           node --check site/bridgepoint-view-v5917.js
           node --check site/bridgepoint-vessel-awareness-v1.js
           test -s site/bridgepoint-vessel-awareness-v1.js
-          grep -Fq 'Open Waters AIS public vector tiles' site/bridgepoint-vessel-awareness-v1.js
+          grep -Fq 'Open Waters AIS vector tiles' site/bridgepoint-vessel-awareness-v1.js
           node --check site/bridgepoint-landmarks-v5940.js
           node --check site/bridgepoint-map-key-v5920.js
           node --check site/bridgepoint-map-state-counts-v5923.js
