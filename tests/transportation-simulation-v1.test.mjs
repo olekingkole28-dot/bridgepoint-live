@@ -2,11 +2,13 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const read = path => readFile(new URL(path, import.meta.url), 'utf8');
-const [moduleSource, landingHtml, appHtml, fullDeploy] = await Promise.all([
+const [moduleSource, loaderSource, landingHtml, appHtml, fullDeploy, rollbackWorkflow] = await Promise.all([
   read('../rebuild-v5000/bridgepoint-transportation-v1.js'),
+  read('../rebuild-v5000/bridgepoint-transportation-loader-v1.js'),
   read('../rebuild-v5000/index.html'),
   read('../rebuild-v5000/app-index.html'),
-  read('../.github/workflows/deploy-intelligence-rebuild-v5000.yml')
+  read('../.github/workflows/deploy-intelligence-rebuild-v5000.yml'),
+  read('../.github/workflows/deploy-transportation-hotfix-v1.yml')
 ]);
 
 const context = {
@@ -28,6 +30,78 @@ const document = context.document;
 const bootModule = await import('node:vm');
 bootModule.runInNewContext(moduleSource, context, { filename: 'bridgepoint-transportation-v1.js' });
 const api = window.__BP_TRANSPORTATION_V1__;
+
+class FakeElement {
+  constructor(tag) {
+    this.tagName = tag;
+    this.className = '';
+    this.children = [];
+    this.dataset = {};
+    this.attributes = {};
+    this.listeners = {};
+    this.parentElement = null;
+    this.textContent = '';
+    this.disabled = false;
+  }
+  append(...nodes) { for (const node of nodes) this.appendChild(node); }
+  appendChild(node) { node.parentElement = this; this.children.push(node); return node; }
+  insertBefore(node, reference) {
+    node.parentElement = this;
+    const index = reference ? this.children.indexOf(reference) : -1;
+    if (index < 0) this.children.push(node);
+    else this.children.splice(index, 0, node);
+    return node;
+  }
+  setAttribute(key, value) { this.attributes[key] = String(value); }
+  addEventListener(type, callback) { (this.listeners[type] ||= []).push(callback); }
+  remove() {
+    if (!this.parentElement) return;
+    const siblings = this.parentElement.children;
+    const index = siblings.indexOf(this);
+    if (index >= 0) siblings.splice(index, 1);
+    this.parentElement = null;
+  }
+  matches(selector) {
+    if (selector.startsWith('.')) return this.className.split(/\s+/).includes(selector.slice(1));
+    if (selector === '[data-bpv-command-section="map"]') return this.dataset.bpvCommandSection === 'map';
+    return false;
+  }
+  querySelector(selector) {
+    for (const child of this.children) {
+      if (child.matches(selector)) return child;
+      const nested = child.querySelector(selector);
+      if (nested) return nested;
+    }
+    return null;
+  }
+}
+const fakeDock = new FakeElement('div');
+const requestedScripts = [];
+const loaderContext = {
+  window: {},
+  document: {
+    querySelector(selector) { return selector === '#bpv-dock-actions' ? fakeDock : fakeDock.querySelector(selector); },
+    createElement(tag) { return new FakeElement(tag); },
+    head: { appendChild(script) { requestedScripts.push(script); script.parentElement = this; } }
+  }
+};
+bootModule.runInNewContext(loaderSource, loaderContext, { filename: 'bridgepoint-transportation-loader-v1.js' });
+assert.equal(requestedScripts.length, 0, 'page startup does not request the 3D transportation module');
+const launcher = fakeDock.querySelector('.bp-transportation-v1-launcher');
+assert.ok(launcher, 'the lightweight Transportation button appears in the BridgePoint card');
+const launchButton = launcher.querySelector('.bp-transportation-v1-toggle');
+assert.ok(launchButton, 'Transportation is presented as a card button');
+launchButton.listeners.click[0]();
+assert.equal(requestedScripts.length, 1, 'pressing Transportation dynamically requests the 3D module');
+assert.equal(requestedScripts[0].src, '/bridgepoint-transportation-v1.js?v=1-3d-road-traffic-simulation');
+assert.equal(requestedScripts[0].async, true, 'the simulation bundle loads asynchronously after the click');
+let enabledAfterLoad = false;
+loaderContext.window.__BP_TRANSPORTATION_V1__ = { enable() { enabledAfterLoad = true; return true; } };
+requestedScripts[0].onload();
+assert.equal(enabledAfterLoad, true, 'the first button press starts the simulation after the module loads');
+assert.equal(fakeDock.querySelector('.bp-transportation-v1-launcher'), null, 'the loader placeholder is replaced by the simulation controls');
+assert.equal(loaderContext.window.__BP_TRANSPORTATION_LOADER_V1__.loaded, true);
+
 
 assert.ok(api, 'transportation simulation exposes diagnostics and helper methods');
 assert.equal(api.version, 1);
@@ -85,10 +159,19 @@ assert.ok(!/tomtom|here\.com|911|cad feed|avl endpoint/i.test(moduleSource), 'th
 assert.ok(!/fetch\s*\(/.test(moduleSource), 'no unconfigured remote vehicle telemetry endpoint is queried');
 
 const expectedScript = 'bridgepoint-transportation-v1.js?v=1-3d-road-traffic-simulation';
-assert.ok(!landingHtml.includes(expectedScript), 'homepage does not auto-load the experimental transportation module during startup');
-assert.ok(!appHtml.includes(expectedScript), 'app does not auto-load the experimental transportation module during startup');
+const expectedLoader = '<script defer src="/bridgepoint-transportation-loader-v1.js?v=1-button-only"></script>';
+assert.ok(!landingHtml.includes(expectedScript), 'homepage never downloads the 3D transportation module during startup');
+assert.ok(!appHtml.includes(expectedScript), 'app never downloads the 3D transportation module during startup');
+assert.ok(landingHtml.includes(expectedLoader), 'homepage loads only the lightweight card-button launcher');
+assert.ok(appHtml.includes(expectedLoader), 'app loads only the lightweight card-button launcher');
+assert.ok(loaderSource.includes("button.addEventListener('click'"), 'the simulation loader is attached to a user button press');
+assert.ok(loaderSource.includes('script.async = true'), 'the simulation bundle loads asynchronously');
+assert.ok(loaderSource.includes('script.src = MODULE_SRC'), 'the heavy simulation module is requested dynamically');
 assert.ok(fullDeploy.includes('node --check rebuild-v5000/bridgepoint-transportation-v1.js'), 'full deploy syntax-checks the transportation module');
+assert.ok(fullDeploy.includes('node --check rebuild-v5000/bridgepoint-transportation-loader-v1.js'), 'full deploy syntax-checks the lightweight launcher');
 assert.ok(fullDeploy.includes('node tests/transportation-simulation-v1.test.mjs'), 'full deploy runs the transportation regression tests');
-assert.ok(fullDeploy.includes('cp rebuild-v5000/bridgepoint-transportation-v1.js site/bridgepoint-transportation-v1.js'), 'full deploy publishes the new transportation module');
+assert.ok(fullDeploy.includes('cp rebuild-v5000/bridgepoint-transportation-v1.js site/bridgepoint-transportation-v1.js'), 'full deploy publishes the transportation module for on-demand loading');
+assert.ok(fullDeploy.includes('cp rebuild-v5000/bridgepoint-transportation-loader-v1.js site/bridgepoint-transportation-loader-v1.js'), 'full deploy publishes the lightweight launcher');
+assert.ok(!/^\s*push:/m.test(rollbackWorkflow), 'the old experimental rollback deployment can no longer auto-publish over this release');
 
-console.log('BridgePoint Transportation Simulation v1 contract checks passed.');
+console.log('BridgePoint Transportation Simulation v1 lazy-load contract checks passed.');
