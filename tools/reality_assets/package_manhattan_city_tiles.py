@@ -214,6 +214,7 @@ def main():
             total_bytes += size_bytes
             tiles.append({
                 "id": tile_id,
+                "cityId": "manhattan",
                 "url": filename,
                 "bytes": size_bytes,
                 "longitude": lon,
@@ -236,7 +237,9 @@ def main():
         raise SystemExit("No non-empty Manhattan tiles were exported.")
     manifest = {
         "schemaVersion": 1,
-        "id": "bridgepoint-manhattan-blender-world-v1",
+        "buildRevision": "manhattan-v1",
+        "id": "bridgepoint-blender-world-v1",
+        "cities": [{"id": "manhattan", "title": "Manhattan, New York City", "tileCount": len(tiles)}],
         "name": "BridgePoint Blender World — Manhattan",
         "generatedAtUtc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "source": "NYC Open Data / NYC OTI / NYC Parks ForMS 2.0 plus existing BridgePoint NYC OTI LiDAR assets",
