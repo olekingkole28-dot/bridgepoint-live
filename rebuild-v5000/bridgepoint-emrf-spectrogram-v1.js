@@ -456,6 +456,11 @@ export function initBridgePointEmrfSpectrogram(target) {
       transparent:true,depthWrite:false,depthTest:true,side:THREE.DoubleSide,blending:THREE.AdditiveBlending
     });
     const mesh=new THREE.Mesh(geometry,material);mesh.frustumCulled=false;
+    const sphereGeometry=new THREE.SphereGeometry(1,14,10);
+    const sphere4Material=new THREE.MeshBasicMaterial({color:'#4edfff',transparent:true,opacity:.15,wireframe:true,depthWrite:false,depthTest:true,side:THREE.DoubleSide,blending:THREE.AdditiveBlending});
+    const sphere5Material=new THREE.MeshBasicMaterial({color:'#b982ff',transparent:true,opacity:.22,wireframe:true,depthWrite:false,depthTest:true,side:THREE.DoubleSide,blending:THREE.AdditiveBlending});
+    const sphere4Mesh=new THREE.Mesh(sphereGeometry,sphere4Material);sphere4Mesh.frustumCulled=false;
+    const sphere5Mesh=new THREE.Mesh(sphereGeometry,sphere5Material);sphere5Mesh.frustumCulled=false;
     const layer={
       id:IDS.beamLayer,type:'custom',renderingMode:'3d',visible:false,map,
       onAdd:(m,gl)=>{
@@ -464,7 +469,9 @@ export function initBridgePointEmrfSpectrogram(target) {
         layer.camera=new THREE.Camera();
         layer.scene=new THREE.Scene();
         layer.mesh=mesh;
-        layer.scene.add(mesh);
+        layer.sphere4Mesh=sphere4Mesh;
+        layer.sphere5Mesh=sphere5Mesh;
+        layer.scene.add(mesh,sphere4Mesh,sphere5Mesh);
       },
       render:(gl,args)=>{
         if (!layer.visible || !layer.renderer || !layer.mesh || !st.active || !st.beams.length) return;
@@ -488,6 +495,27 @@ export function initBridgePointEmrfSpectrogram(target) {
             if (!layer.warned) { layer.warned=true;console.warn('BridgePoint RF beam rendering',error); }
             break;
           }
+        }
+        // Reuse the same globe-anchored 3D layer for the 4G/5G planning bubbles.
+        // These use the same nominal envelopes as the existing Wind / RF panel and remain estimates.
+        const zoom=Number(map.getZoom?.()||0);
+        const maxSpheres=zoom<3?28:zoom<6?56:96;
+        const sites=st.sites;
+        const count=Math.min(maxSpheres,sites.length);
+        for(let i=0;i<count;i++){
+          const site=sites[Math.floor(i*sites.length/count)];
+          let modelMatrix;
+          try { modelMatrix=map.transform.getMatrixForModel([site.lon,site.lat],0); } catch (_) { continue; }
+          if(!modelMatrix)continue;
+          const model=new THREE.Matrix4().fromArray(modelMatrix);
+          layer.camera.projectionMatrix.copy(projection).multiply(model);
+          layer.sphere4Mesh.position.set(0,1100,0);
+          layer.sphere4Mesh.scale.set(2200,1100,2200);
+          try { layer.renderer.resetState?.();layer.renderer.render(layer.scene,layer.camera); } catch (_) { break; }
+          layer.camera.projectionMatrix.copy(projection).multiply(model);
+          layer.sphere5Mesh.position.set(0,425,0);
+          layer.sphere5Mesh.scale.set(850,425,850);
+          try { layer.renderer.resetState?.();layer.renderer.render(layer.scene,layer.camera); } catch (_) { break; }
         }
       },
       onRemove:()=>{
