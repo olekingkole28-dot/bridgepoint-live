@@ -100,15 +100,20 @@ console.log('Drone awareness module checks passed.');
   assert.ok(bpDroneHelperStart >= 0 && bpDroneHelperEnd > bpDroneHelperStart, 'runtime exposes the pure DroneCore functions for tests');
   const bpDroneHelperSource = bpDroneSourceText.slice(bpDroneHelperStart, bpDroneHelperEnd);
   const bpDroneCore = new Function(
-    "const SUPPORTED_SOURCE='https://api.adsb.lol/v2/'; const REGION_RADIUS_NM=250;\n" +
+    "const SUPPORTED_SOURCE='https://api.adsb.lol/v2/'; const DRONE_PROXY_URL='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-drone-feed-v1'; const DRONE_PROXY_KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25'; const REGION_RADIUS_NM=250;\n" +
     bpDroneHelperSource + "\nreturn DroneCore;"
   )();
 
   assert.equal(bpDroneCore.radiusNm, 250, 'supported request radius is explicitly defined at 250 NM');
   assert.equal(
     bpDroneCore.buildRequestUrl({lat:40.7, lon:-74}),
-    'https://api.adsb.lol/v2/lat/40.7000/lon/-74.0000/dist/250',
-    'request URL follows the supported ADSB.lol v2 lat/lon/dist endpoint'
+    'https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-drone-feed-v1?lat=40.7000&lon=-74.0000&radius=250',
+    'browser requests use the production BridgePoint server-side feed proxy'
+  );
+  assert.equal(bpDroneCore.buildUpstreamRequestUrl({lat:40.7,lon:-74}), 'https://api.adsb.lol/v2/lat/40.7000/lon/-74.0000/dist/250', 'proxy preserves the documented ADSB.lol upstream endpoint');
+  assert.equal(bpDroneCore.isUavRecord({category:'A3',description:'Unmanned aerial vehicle Remote ID'}), true, 'UAV descriptions are recognized with actual word boundaries');
+  assert.equal(bpDroneCore.isUavRecord({category:'A3',description:'Large UAV'}), true, 'description fallback can identify UAV without B6');
+  assert.equal(bpDroneCore.isUavRecord({category:'A3',description:'Commercial passenger aircraft'}), false, 'ordinary aircraft are never classified as drones');
   );
 
   const bpParsed = bpDroneCore.parseResponse(bpDroneFixture);
@@ -131,6 +136,13 @@ console.log('Drone awareness module checks passed.');
   assert.ok(Math.abs(bpBaroAltitude.meters - 274.32) < 1e-8, 'barometric feet retain their distinct datum');
   assert.equal(bpDroneCore.altitudeForRecord({}).known, false, 'missing altitude stays unknown');
   assert.equal(bpDroneCore.altitudeForRecord({alt_geom:'ground'}).known, false, 'ground is not converted into a fabricated height');
+  const bpRemoteAgl = bpDroneCore.altitudeForRecord({height_agl_m:120});
+  assert.equal(bpRemoteAgl.known, true);
+  assert.equal(bpRemoteAgl.projectable, true);
+  assert.equal(bpRemoteAgl.datum, 'agl');
+  const bpRemoteUnknownDatum = bpDroneCore.altitudeForRecord({remote_id_altitude_m:120});
+  assert.equal(bpRemoteUnknownDatum.known, true);
+  assert.equal(bpRemoteUnknownDatum.projectable, false, 'Remote ID altitude without a vertical datum cannot be guessed as height above sea level');
 
   const bpRejectedStale = bpDroneCore.invalidPositionReason(bpParsed.records[2]);
   const bpRejectedCoordinates = bpDroneCore.invalidPositionReason(bpParsed.records[3]);
@@ -181,17 +193,22 @@ console.log('Drone awareness module checks passed.');
   const helperStartV4=sourceV4.indexOf('const DroneCore=(()=>{');
   const helperEndV4=sourceV4.indexOf('})();',helperStartV4)+4;
   const helperV4=sourceV4.slice(helperStartV4,helperEndV4);
-  const coreV4=new Function("const SUPPORTED_SOURCE='https://api.adsb.lol/v2/';const REGION_RADIUS_NM=250;\n"+helperV4+"\nreturn DroneCore;")();
+  const coreV4=new Function("const SUPPORTED_SOURCE='https://api.adsb.lol/v2/';const DRONE_PROXY_URL='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-drone-feed-v1';const DRONE_PROXY_KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';const REGION_RADIUS_NM=250;\n"+helperV4+"\nreturn DroneCore;")();
 
   let requestedUrlV4=null,requestOptionsV4=null;
+  const proxyPayloadV4={...fixtureV4,upstreamUrl:'https://api.adsb.lol/v2/lat/40.7000/lon/-74.0000/dist/250',providers:{adsb_lol:{status:'ok'},layer400_remote_id:{status:'not_configured'}}};
   const responseV4=await coreV4.requestSample({id:'Fixture hub',lat:40.7,lon:-74},async(url,options)=>{
     requestedUrlV4=url;requestOptionsV4=options;
-    return{ok:true,status:200,statusText:'OK',text:async()=>JSON.stringify(fixtureV4)};
+    return{ok:true,status:200,statusText:'OK',text:async()=>JSON.stringify(proxyPayloadV4)};
   },undefined);
-  assert.equal(requestedUrlV4,'https://api.adsb.lol/v2/lat/40.7000/lon/-74.0000/dist/250','live request helper sends the exact documented URL');
+  assert.equal(requestedUrlV4,'https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-drone-feed-v1?lat=40.7000&lon=-74.0000&radius=250','live request helper calls the regional BridgePoint proxy');
   assert.equal(requestOptionsV4.method,'GET');
   assert.equal(requestOptionsV4.headers.Accept,'application/json');
-  assert.equal(responseV4.records.length,4,'HTTP response body is parsed from the real ac fixture');
+  assert.equal(requestOptionsV4.headers.apikey,'sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25','only the public Supabase key is sent to the browser proxy');
+  assert.equal(responseV4.transportUrl,requestedUrlV4);
+  assert.equal(responseV4.requestUrl,proxyPayloadV4.upstreamUrl,'provider diagnostics retain the actual ADS-B upstream URL');
+  assert.equal(responseV4.providers.layer400_remote_id.status,'not_configured');
+  assert.equal(responseV4.records.length,4,'proxied HTTP response body is parsed from the real ac fixture');
   assert.equal(responseV4.records[0].category,'B6');
   await assert.rejects(
     coreV4.requestSample({lat:40.7,lon:-74},async()=>({ok:false,status:429,statusText:'Too Many Requests',text:async()=>'slow down'})),
@@ -203,6 +220,17 @@ console.log('Drone awareness module checks passed.');
     /Invalid JSON response/,
     'malformed JSON remains an explicit parser error'
   );
+
+  const ridAglV4=coreV4.altitudeForRecord({height_agl_m:120});
+  assert.equal(ridAglV4.known,true);
+  assert.equal(ridAglV4.projectable,true);
+  assert.equal(ridAglV4.datum,'agl');
+  const ridAglPointV4=coreV4.createTrailPoint({hex:'rid-live-1',lat:40.7,lon:-74,height_agl_m:120},1700000000000,'Layer400 Remote ID');
+  assert.equal(coreV4.project3DPoint(ridAglPointV4,{fromLngLat:(_coords,altitude)=>({altitude})}),null,'Remote ID AGL requires sampled terrain before it is placed in 3D');
+  assert.deepEqual(coreV4.project3DPoint(ridAglPointV4,{fromLngLat:(_coords,altitude)=>({altitude})},35),{altitude:155},'Remote ID AGL uses known terrain height when positioning its 3D model');
+  const ridAltitudeUnknownV4=coreV4.altitudeForRecord({remote_id_altitude_m:120});
+  assert.equal(ridAltitudeUnknownV4.known,true);
+  assert.equal(ridAltitudeUnknownV4.projectable,false,'Remote ID altitude without vertical datum stays 2D');
 
   const geometricV4=coreV4.altitudeForRecord({alt_geom:1200,alt_baro:1100});
   assert.equal(geometricV4.projectable,true);
@@ -259,5 +287,8 @@ console.log('Drone awareness module checks passed.');
   assert.doesNotMatch(sourceV4,/Math\.max\(altitude\.meters/);
   assert.doesNotMatch(sourceV4,/return\{meters:3,known:true\}/);
   assert.doesNotMatch(sourceV4,/SIM_FLEET_COUNT|simulatedFleetFeatureCollection/);
-  assert.match(sourceV4,/Remote ID: NOT CONNECTED/);
+  assert.match(sourceV4,/Remote ID network: Layer400 live RID is supported/);
+  assert.match(sourceV4,/DRONE_PROXY_URL/);
+  assert.match(sourceV4,/LAYER400_API_KEY/);
+  assert.match(sourceV4,/height_agl_m/);
 }
