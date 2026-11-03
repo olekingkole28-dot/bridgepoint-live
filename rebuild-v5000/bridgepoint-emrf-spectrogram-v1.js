@@ -175,14 +175,14 @@ function buildSiteData(sites) {
       properties:{id:site.id,source:site.source,label:site.label,known4:site.known4,known5:site.known5}
     };
     points.push(point);
-    // These are nominal planning radii around mapped radio structures, not measured service cells.
+    // Reuse existing Wind / RF Fields nominal 4G 900 m / 5G 450 m planning radii; not measured service cells.
     if (site.known4 || site.unknown) {
-      four.push({type:'Feature',geometry:{type:'Polygon',coordinates:[geodesicRing(site.lon,site.lat,2200)]},
-        properties:{id:site.id,source:site.source,nominal_radius_m:2200,radio_band:'4G planning envelope'}});
+      four.push({type:'Feature',geometry:{type:'Polygon',coordinates:[geodesicRing(site.lon,site.lat,900)]},
+        properties:{id:site.id,source:site.source,nominal_radius_m:900,radio_band:'4G planning envelope'}});
     }
     if (site.known5 || site.unknown) {
-      five.push({type:'Feature',geometry:{type:'Polygon',coordinates:[geodesicRing(site.lon,site.lat,850)]},
-        properties:{id:site.id,source:site.source,nominal_radius_m:850,radio_band:'5G planning envelope'}});
+      five.push({type:'Feature',geometry:{type:'Polygon',coordinates:[geodesicRing(site.lon,site.lat,450)]},
+        properties:{id:site.id,source:site.source,nominal_radius_m:450,radio_band:'5G planning envelope'}});
     }
     if (site.unknown) unknown.push(point);
   }
@@ -508,7 +508,7 @@ export function initBridgePointEmrfSpectrogram(target) {
         layer.mesh.instanceMatrix.needsUpdate=true;
 
         // Reuse the globe-anchored instanced meshes for 4G/5G nominal RF bubbles.
-        // The envelopes are modeled planning radii, not carrier-measured service cells.
+        // Reuse the existing Wind / RF Fields nominal 4G 900 m / 5G 450 m planning radii, not carrier-measured cells.
         const zoom=Number(map.getZoom?.()||0);
         const maxSpheres=zoom<3?28:zoom<6?56:96;
         const sites=st.sites;
@@ -520,8 +520,8 @@ export function initBridgePointEmrfSpectrogram(target) {
           let modelMatrix;
           try { modelMatrix=map.transform.getMatrixForModel([site.lon,site.lat],0); } catch (_) { continue; }
           if(!modelMatrix)continue;
-          matrix4.fromArray(modelMatrix).multiply(localMatrix(1100,2200,1100,2200));
-          matrix5.fromArray(modelMatrix).multiply(localMatrix(425,850,425,850));
+          matrix4.fromArray(modelMatrix).multiply(localMatrix(450,900,450,900));
+          matrix5.fromArray(modelMatrix).multiply(localMatrix(225,450,225,450));
           layer.sphere4Mesh.setMatrixAt(renderedSites,matrix4);
           layer.sphere5Mesh.setMatrixAt(renderedSites,matrix5);
           renderedSites++;
@@ -634,7 +634,7 @@ export function initBridgePointEmrfSpectrogram(target) {
     version:VERSION,map,root,enable,disable,open:openPanel,close:closePanel,
     refresh:()=>Promise.allSettled([loadDrap(true),loadSites(true),updateBeams()]),
     get active(){return st.active;},
-    get state(){return {version:VERSION,active:st.active,starlinkBeamCones:st.beams.length,mappedTelecomStructures:st.sites.length,drapValidAt:st.drap.validAt,drapGridCells:st.drap.gridCells,lastError:st.lastError,siteSources:['OpenStreetMap telecom tags','FCC Antenna Structure Registration (U.S.)'],atmosphereSource:'NOAA SWPC D-RAP HF absorption grid',beamMethod:'propagated public TLE/OMM positions + illustrative 8-degree nadir cone',cellMethod:'nominal 4G 2.2 km / 5G 0.85 km planning envelopes; not measured RF coverage'};},
+    get state(){return {version:VERSION,active:st.active,starlinkBeamCones:st.beams.length,mappedTelecomStructures:st.sites.length,drapValidAt:st.drap.validAt,drapGridCells:st.drap.gridCells,lastError:st.lastError,siteSources:['OpenStreetMap telecom tags','FCC Antenna Structure Registration (U.S.)'],atmosphereSource:'NOAA SWPC D-RAP HF absorption grid',beamMethod:'propagated public TLE/OMM positions + illustrative 8-degree nadir cone',cellMethod:'existing Wind / RF Fields nominal 4G 900 m / 5G 450 m planning envelopes; not measured RF coverage'};},
     destroy(){
       disable();map.off?.('moveend',onMove);map.off?.('zoomend',onMove);map.off?.('style.load',onStyle);
       document.removeEventListener('visibilitychange',onVisibility);
