@@ -98,7 +98,7 @@ const launchButton = launcher.querySelector('.bp-transportation-v1-toggle');
 assert.ok(launchButton, 'Transportation is presented as a card button');
 launchButton.listeners.click[0]();
 assert.equal(requestedScripts.length, 1, 'pressing Transportation dynamically requests the 3D module');
-assert.equal(requestedScripts[0].src, '/bridgepoint-transportation-v1.js?v=2-dots-first-adaptive-lod');
+assert.equal(requestedScripts[0].src, '/bridgepoint-transportation-v1.js?v=3-road-centerline-global-dots');
 assert.equal(requestedScripts[0].async, true, 'the simulation bundle loads asynchronously after the click');
 let enabledAfterLoad = false;
 loaderContext.window.__BP_TRANSPORTATION_V1__ = { enable() { enabledAfterLoad = true; return true; } };
