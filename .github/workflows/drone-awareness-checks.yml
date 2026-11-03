@@ -1,6 +1,15 @@
 name: BridgePoint Opt-in Layer Checks
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'rebuild-v5000/bridgepoint-drone-awareness-v1.js'
+      - 'rebuild-v5000/index.html'
+      - 'rebuild-v5000/app-index.html'
+      - 'tests/drone-awareness.test.mjs'
+      - 'supabase/functions/bridgepoint-drone-feed-v1/**'
+      - '.github/workflows/drone-awareness-checks.yml'
   pull_request:
     branches: [main]
     paths:
@@ -37,3 +46,28 @@ jobs:
         run: node tests/drone-awareness.test.mjs
       - name: Run shared rendering regressions
         run: node tests/celestial-water-cloud-shadows.test.mjs
+      - name: Verify live Drone Awareness proxy and production CORS
+        if: github.event_name == 'push'
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          const origin = 'https://bridgepointintelligence.online';
+          const url = 'https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-drone-feed-v1?lat=40.7&lon=-74&radius=250';
+          const apikey = 'sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
+          const preflight = await fetch(url, { method: 'OPTIONS', headers: { Origin: origin, 'Access-Control-Request-Method': 'GET', 'Access-Control-Request-Headers': 'apikey' } });
+          assert.equal(preflight.status, 204, 'production proxy must pass the site CORS preflight');
+          assert.equal(preflight.headers.get('access-control-allow-origin'), origin, 'proxy must allow the BridgePoint production origin');
+          assert.match(preflight.headers.get('access-control-allow-headers') || '', /apikey/i, 'proxy must allow the publishable-key header');
+          const response = await fetch(url, { headers: { Origin: origin, apikey, Accept: 'application/json' } });
+          const raw = await response.text();
+          assert.equal(response.status, 200, 'at least one real live source must return a valid response: ' + raw.slice(0, 500));
+          assert.equal(response.headers.get('access-control-allow-origin'), origin, 'live response must be readable from the production site');
+          const body = JSON.parse(raw);
+          assert.equal(body.ok, true);
+          assert.ok(Array.isArray(body.ac), 'proxy must return actual provider records');
+          assert.ok(body.providers?.adsb_lol, 'ADSB.lol status must be exposed');
+          assert.ok(body.providers?.layer400_remote_id, 'Layer400 Remote ID readiness must be exposed');
+          assert.ok(body.providers.adsb_lol.status === 'ok' || ['ok', 'partial'].includes(body.providers.layer400_remote_id.status), 'at least one live provider must be reachable');
+          assert.equal(body.simulatedFleet, false, 'no simulated/fabricated fleet can enter the response');
+          console.log('BRIDGEPOINT_DRONE_PROXY_LIVE_PASS', JSON.stringify({ records: body.ac.length, providers: body.providers, servedAt: body.servedAt }));
+          NODE
