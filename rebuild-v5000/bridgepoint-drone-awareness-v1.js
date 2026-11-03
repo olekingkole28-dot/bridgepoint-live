@@ -249,7 +249,7 @@ function ensureDrone3DLayer(THREE){
    droneModels.clear();
    if(droneTrailGroup&&layer.scene){try{layer.scene.remove(droneTrailGroup);droneTrailGroup.traverse(o=>{o.geometry?.dispose?.();if(Array.isArray(o.material))o.material.forEach(m=>m?.dispose?.());else o.material?.dispose?.()})}catch(_){}droneTrailGroup=null}
    if(aircraftTrailGroup&&layer.scene){try{layer.scene.remove(aircraftTrailGroup);aircraftTrailGroup.traverse(o=>{o.geometry?.dispose?.();o.material?.dispose?.()})}catch(_){}aircraftTrailGroup=null}
-   disposeAircraftTemplates();try{aircraftPopup?.remove?.()}catch(_){}aircraftPopup=null;aircraftInteractionsMap=null;
+   disposeAircraftTemplates();try{aircraftPopup?.remove?.()}catch(_){}aircraftPopup=null;
    disposeDroneTemplate();droneScene=null;droneRenderer=null;droneLayer=null;
   }
  };
@@ -277,7 +277,7 @@ function makeAircraftGeometry(THREE,kind){
   add(cylinder(.055,.032,.94,10),[-.78,0,.09],[0,0,-Math.PI/2]);
   add(box(.22,.055,.29),[-1.22,0,.20]);
   add(box(.07,.08,.52),[-1.2,0,.18],[0,.16,0]);
-  add(cylinder(.025,.025,.30,8),[0,0,.43]);
+  add(cylinder(.025,.025,.30,8),[0,0,.43],[Math.PI/2,0,0]);
   add(box(.10,1.62,.025),[0,0,.60]);
   add(box(1.62,.10,.025),[0,0,.60]);
   add(box(.045,.48,.035),[-1.13,0,.29],[Math.PI/2,0,0]);
@@ -374,8 +374,8 @@ function setAircraftModels(records){
  for(const aircraft of Array.isArray(records)?records:[]){
   const key=aircraft._trackKey,lat=Number(aircraft.lat),lon=Number(aircraft.lon),altitude=altitudeForRecord(aircraft);
   if(!key||!Number.isFinite(lat)||!Number.isFinite(lon)||!altitude.projectable)continue;
-  const point=DroneCore.createTrailPoint(aircraft,now,aircraft._bpSourceName||'ADSB.lol');
-  let groundElevation=null;if(point.altitudeDatum==='agl'&&typeof map.queryTerrainElevation==='function'){try{const value=map.queryTerrainElevation([lon,lat],{exaggerated:false});if(value!==null&&value!==undefined&&Number.isFinite(Number(value)))groundElevation=Number(value)}catch(_){}}
+  const storedTrack=trackedAircraft.get(key),storedPoint=storedTrack?.points?.[storedTrack.points.length-1],point=storedPoint&&storedPoint.longitude===lon&&storedPoint.latitude===lat?storedPoint:DroneCore.createTrailPoint(aircraft,now,aircraft._bpSourceName||'ADSB.lol');
+  let groundElevation=point.terrainElevationMeters??null;if(point.altitudeDatum==='agl'&&groundElevation===null&&typeof map.queryTerrainElevation==='function'){try{const value=map.queryTerrainElevation([lon,lat],{exaggerated:false});if(value!==null&&value!==undefined&&Number.isFinite(Number(value)))groundElevation=Number(value)}catch(_){}}
   const position=DroneCore.project3DPoint(point,MC,groundElevation),meterUnit=MC.fromLngLat({lng:lon,lat},0).meterInMercatorCoordinateUnits?.()||0;
   if(!position||!Number.isFinite(meterUnit)||meterUnit<=0)continue;
   const kind=DroneCore.aircraftKindForRecord(aircraft),bucket=grouped.get(kind)||[],span=aircraftModelSpanMeters(lat,zoom),scale=(span/1.36)*meterUnit,angle=(Number.isFinite(point.heading)?point.heading:0)*Math.PI/180-Math.PI/2;
@@ -701,7 +701,7 @@ async function refresh(force=false){
   if(failed.length)message+=' '+failed.length+' regional requests failed: '+err+(failed.length>3?' · Remaining errors are listed by region below.':'');
   if(drone3DError)message+=' 3D renderer error: '+drone3DError;
   showStatus(message,failed.length||!diagnosticState.hasSuccessfulSource||drone3DError?'error':'info');
-  const meta=$('#bp-drone-feed-meta');if(meta)meta.textContent='Sources: ADSB.lol public community ADS-B; optional FlyItalyADSB ADS-B/MLAT/OGN; optional Layer400 network Remote ID · '+good.length+'/'+samples.length+' regional sample windows succeeded · '+REGION_RADIUS_NM+' NM maximum radius each. '+(diagnosticState.providers?.flyitaly_adsb?.status==='not_configured'?'FlyItalyADSB waiting for the free server-side API key. ':'')+(diagnosticState.providers?.layer400_remote_id?.status==='not_configured'?'Layer400 waiting for approved rid.live API key. ':'')+'FlyItalyADSB attribution: Flight data: FlyItalyADSB (flyitalyadsb.com), CC BY-SA 4.0. Only explicitly classified UAV records are rendered as drones. Partial geographic sampling only; not a worldwide registry.';
+  const meta=$('#bp-drone-feed-meta');if(meta)meta.textContent='Sources: ADSB.lol public community ADS-B; optional FlyItalyADSB ADS-B/MLAT/OGN; optional Layer400 network Remote ID · '+good.length+'/'+samples.length+' regional sample windows succeeded · '+REGION_RADIUS_NM+' NM maximum radius each. '+(diagnosticState.providers?.flyitaly_adsb?.status==='not_configured'?'FlyItalyADSB waiting for the free server-side API key. ':'')+(diagnosticState.providers?.layer400_remote_id?.status==='not_configured'?'Layer400 waiting for approved rid.live API key. ':'')+'FlyItalyADSB attribution: Flight data: FlyItalyADSB (flyitalyadsb.com), CC BY-SA 4.0. Only explicitly classified UAV records use the drone layer; other aircraft are displayed separately by broadcast type family. Partial geographic sampling only; not a worldwide registry.';
   writeSummary();
  }catch(error){
   diagnosticState.sourceStatus='failed';writeSummary();
