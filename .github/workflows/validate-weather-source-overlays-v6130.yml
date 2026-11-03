@@ -64,7 +64,8 @@ jobs:
           set -euo pipefail
           grep -Fq 'active=!!v;' release-v2300/world-v2300-weather.js
           grep -Fq "const LEGACY_NATIVE_WEATHER_LAYERS=['wx-snow-depth','wx-alert-fill','wx-fire-fill','wx-thermal','wx-quake-glow','wx-storm-glow']" release-v2300/world-v2300-weather.js
-          grep -Fq "for(const id of ['wx-alert-line','wx-fire-line','wx-quake','wx-storm','wx-obs','wx-water'])" release-v2300/world-v2300-weather.js
+          grep -Fq 'const WEATHER_SOURCE_OVERLAY_LAYERS=' release-v2300/world-v2300-weather.js
+          grep -Fq 'function applySourceWeatherVisibility()' release-v2300/world-v2300-weather.js
           grep -Fq "bp-v5004-weather-shape-fill" rebuild-v5000/app.js
           grep -Fq "bp-landing-weather-fill" rebuild-v5000/landing.js
           grep -Fq 'BP_WEATHER_ICON_CATALOG_V6132' rebuild-v5000/app.js
