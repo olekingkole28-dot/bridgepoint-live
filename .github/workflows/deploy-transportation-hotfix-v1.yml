@@ -1,0 +1,136 @@
+name: Publish Transportation Simulation v1 from verified production artifact
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'rebuild-v5000/bridgepoint-transportation-v1.js'
+      - 'rebuild-v5000/index.html'
+      - 'rebuild-v5000/app-index.html'
+      - 'tests/transportation-simulation-v1.test.mjs'
+      - '.github/workflows/deploy-transportation-hotfix-v1.yml'
+
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-v5000-transportation-v1-publish
+  cancel-in-progress: false
+
+jobs:
+  deploy-transportation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment:
+      name: github-pages
+      url: \${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download the last verified full production artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: bridgepoint-orbit-hotfix-v6202
+          run-id: 41601656749
+          github-token: \${{ secrets.GITHUB_TOKEN }}
+          repository: \${{ github.repository }}
+          path: /tmp/bridgepoint-pages-bundle
+
+      - name: Apply only Orbit v6203 and Transportation Simulation v1
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p site
+          ARTIFACT_TAR="$(find /tmp/bridgepoint-pages-bundle -type f -name 'artifact.tar' -print -quit)"
+          test -n "$ARTIFACT_TAR"
+          tar -xf "$ARTIFACT_TAR" -C site
+
+          test -s site/index.html
+          test -s site/app/index.html
+          test -s site/bridgepoint-global-motion-v5926.js
+          test -s site/bridgepoint-orbit-renderer-v6201.js
+
+          cp rebuild-v5000/bridgepoint-global-motion-v5926.js site/bridgepoint-global-motion-v5926.js
+          cp rebuild-v5000/bridgepoint-orbit-renderer-v6201.js site/bridgepoint-orbit-renderer-v6201.js
+          cp rebuild-v5000/bridgepoint-transportation-v1.js site/bridgepoint-transportation-v1.js
+
+          node --check site/bridgepoint-transportation-v1.js
+          node --check site/bridgepoint-global-motion-v5926.js
+          node --input-type=module --check < site/bridgepoint-orbit-renderer-v6201.js
+          node tests/transportation-simulation-v1.test.mjs
+          node tests/orbit-renderer-v6201.test.mjs
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          old = "bridgepoint-global-motion-v5926.js?v=6202-globe-anchored-orbits"
+          new = "bridgepoint-global-motion-v5926.js?v=6203-3d-orbit-markers-popup-global-zoom"
+          transport = '<script defer src="/bridgepoint-transportation-v1.js?v=1-3d-road-traffic-simulation"></script>'
+
+          for name in ("site/index.html", "site/app/index.html"):
+              path = Path(name)
+              data = path.read_text()
+              if old in data:
+                  data = data.replace(old, new)
+              elif new not in data:
+                  raise SystemExit(f"Expected Orbit v6202/v6203 reference was not found in {name}")
+
+              if transport not in data:
+                  pattern = r'(<script defer src="/bridgepoint-vessel-awareness-v1\.js\?v=[^"]+"></script>)'
+                  if not re.search(pattern, data):
+                      raise SystemExit(f"Could not find the vessel script insertion point in {name}")
+                  data = re.sub(pattern, r'\1' + transport, data, count=1)
+
+              path.write_text(data)
+          PY
+
+          grep -Fq 'bridgepoint-global-motion-v5926.js?v=6203-3d-orbit-markers-popup-global-zoom' site/index.html
+          grep -Fq 'bridgepoint-global-motion-v5926.js?v=6203-3d-orbit-markers-popup-global-zoom' site/app/index.html
+          grep -Fq 'bridgepoint-transportation-v1.js?v=1-3d-road-traffic-simulation' site/index.html
+          grep -Fq 'bridgepoint-transportation-v1.js?v=1-3d-road-traffic-simulation' site/app/index.html
+          grep -Fq 'SIMULATED · ' site/bridgepoint-transportation-v1.js
+          echo "Verified the existing production artifact plus only the current Orbit renderer/controller and Transportation Simulation v1."
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          name: bridgepoint-transportation-v1
+          path: site
+          include-hidden-files: true
+
+      - name: Deploy Transportation Simulation v1
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: bridgepoint-transportation-v1
+
+      - name: Verify Transportation Simulation v1 and Orbit v6203 are live
+        shell: bash
+        run: |
+          set -euo pipefail
+          O='https://bridgepointintelligence.online'
+          ok=0
+          for i in $(seq 1 30); do
+            q="\${GITHUB_SHA}-\${i}-$(date +%s)"
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "\${O}/bridgepoint-transportation-v1.js?v=transport=\${q}" -o /tmp/transportation.js || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "\${O}/bridgepoint-global-motion-v5926.js?v=transport=\${q}" -o /tmp/orbit-controller.js || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "\${O}/?transport=\${q}" -o /tmp/root.html || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "\${O}/app/?transport=\${q}" -o /tmp/app.html || true
+            if grep -Fq 'BridgePoint Transportation Simulation v1' /tmp/transportation.js 2>/dev/null &&
+               grep -Fq '6203-3d-orbit-markers-popup-global-zoom' /tmp/orbit-controller.js 2>/dev/null &&
+               grep -Fq 'bridgepoint-transportation-v1.js?v=1-3d-road-traffic-simulation' /tmp/root.html 2>/dev/null &&
+               grep -Fq 'bridgepoint-transportation-v1.js?v=1-3d-road-traffic-simulation' /tmp/app.html 2>/dev/null; then
+              ok=1
+              break
+            fi
+            sleep 4
+          done
+          test "$ok" -eq 1
+          echo "Production is serving Transportation Simulation v1 in both globe entry points with Orbit & Motion v6203 preserved."
