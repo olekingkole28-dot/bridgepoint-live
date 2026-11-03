@@ -55,7 +55,7 @@ window.__BP_PHOTOREAL_WORLD_V5548__={version:5548,groundImagery:['USGS','OpenAer
 const US_BOUNDS=[-125,24,-66,50];
 
 const roadFilter=classes=>['all',['in',['get','class'],['literal',classes]],['!=',['downcase',['to-string',['coalesce',['get','brunnel'],'']]],'bridge'],['!=',['downcase',['to-string',['coalesce',['get','bridge'],'']]],'yes']];
-const BP_BLENDER_WORLD_LEGACY_LAYER=/(:?building|roof|floor|facade|structure|landmark|bridge|^gta-road-|^gta-rail|tree|vegetation|canopy|streetlight|hydrant|solar|pool|transport|ship|vessel|drone|flight|satellite|parcel|zoning|listing|opportunity|nyc-lidar|reality-capture)/i;
+const BP_BLENDER_WORLD_LEGACY_LAYER=/(:?building|roof|floor|facade|structure|landmark|bridge|^gta-road-|^gta-rail|tree|vegetation|canopy|streetlight|hydrant|solar|pool|transport|ship|vessel|drone|flight|parcel|zoning|listing|opportunity|nyc-lidar|reality-capture)/i;
 const vis=(map,id,on)=>{try{if(window.__BP_BLENDER_WORLD_MODE__?.enabled===true&&BP_BLENDER_WORLD_LEGACY_LAYER.test(String(id||'')))on=false;if(!map.getLayer(id))return false;const next=on?'visible':'none';if((map.getLayoutProperty(id,'visibility')||'visible')!==next){map.setLayoutProperty(id,'visibility',next);return true}return false}catch(_){return false}};
 const paint=(map,id,k,v)=>{try{if(map.getLayer(id))map.setPaintProperty(id,k,v)}catch(_){}};
 
