@@ -73,7 +73,7 @@ assert.ok(Math.abs(midpoint.coordinate[0] - -71.0595) < .00001);
 
 for (const phrase of [
   'Police cars', 'Ambulances', 'Fire trucks', 'Civilian vehicles',
-  'SIMULATED police', 'SIMULATED ambulance', 'SIMULATED fire truck',
+  'SIMULATED police', 'SIMULATED ambulance', 'SIMULATED fire engines', 'Simulated fire truck',
   'No actual vehicle GPS', 'No vehicle GPS, dispatch, patient, officer, home or private-property data',
   'queryTerrainElevation', 'sourceLayer: ROAD_SOURCE_LAYER',
   'new T.WebGLRenderer', 'map.transform.getMatrixForModel',
