@@ -202,6 +202,7 @@ function makeTopBarAndDock(){
     '<button type="button" class="bpv-command-btn bpv-weather-fx-btn" data-bpv-action="weatherfx" title="Open animated weather effects"><span class="bpv-command-icon" aria-hidden="true">☁</span><span class="bpv-command-label">Weather FX</span></button>'+
     '<button type="button" class="bpv-command-btn bpv-wind-voxels-btn" data-bpv-action="windfx" title="Explore wind flow and drone routes"><span class="bpv-command-icon" aria-hidden="true">≋</span><span class="bpv-command-label">Wind + Drone</span></button>'+
     '<button type="button" class="bpv-command-btn" data-bpv-action="volumetric" title="Open wind and RF field visualizations"><span class="bpv-command-icon" aria-hidden="true">⌁</span><span class="bpv-command-label">Wind / RF Fields</span></button>'+
+    '<button type="button" class="bpv-command-btn bpv-emrf-spectrogram-btn" data-bpv-action="emrf" aria-pressed="false" title="Toggle global electromagnetic spectrum, Starlink beam models, cellular RF and ionospheric propagation"><span class="bpv-command-icon" aria-hidden="true">◉</span><span class="bpv-command-label">Global EM / RF</span></button>'+
    '</div><div class="bpv-command-inline-slot" id="bpv-world-activity-slot" aria-label="Weather timeline and world activity"></div>'+
   '</section>'+
   '<section class="bpv-command-group" data-bpv-command-section="property" aria-label="Property intelligence tools">'+
@@ -332,6 +333,7 @@ function makeTopBarAndDock(){
    }).catch(e=>{console.warn('BridgePoint 3D wind unavailable',e);showActionNotice('Wind + Drone fields could not open: '+String(e?.message||e))});return;
   }
   if(a==='volumetric'){setDockMaximized(true);void openVolumetricFields().catch(e=>{console.warn('BridgePoint volumetric fields unavailable',e);showActionNotice('Wind / RF Fields could not open: '+String(e?.message||e))});return}
+  if(a==='emrf'){setDockMaximized(true);void toggleEmrfSpectrogram(b).catch(e=>{console.warn('BridgePoint global EM/RF spectrogram unavailable',e);showActionNotice('Global EM / RF could not open: '+String(e?.message||e))});return}
   if(a==='motion'){openPanel('controls');try{const motion=window.__BP_GLOBAL_MOTION_V5926__;if(typeof motion?.open==='function')motion.open();else showActionNotice('Orbit & Motion controls are not ready. Reload the world after the map has finished loading.')}catch(e){showActionNotice('Orbit & Motion failed: '+String(e?.message||e))}return}
   if(a==='satellite'){
    const current=window.__BP_SPECTRAL_IMAGERY_V5931__;
@@ -904,6 +906,20 @@ async function toggleWindAndDroneField(){
  await api.setWind(on);
  return on;
 }
+async function toggleEmrfSpectrogram(button){
+ const world=home?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
+ if(!world?.map)throw new Error('BridgePoint globe not ready');
+ const mod=await import('/bridgepoint-emrf-spectrogram-v1.js?v=1-global-spectrum-beams-noaa-drap');
+ let api=window.__BP_EMRF_SPECTROGRAM_V1__;
+ if(!api||api.map!==world.map)api=mod.initBridgePointEmrfSpectrogram(world);
+ if(typeof api?.enable!=='function'||typeof api?.disable!=='function')throw new Error('Global EM/RF renderer did not initialize');
+ const next=!api.active;
+ if(next)await api.enable();else api.disable();
+ const active=!!api.active;
+ if(button){button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));}
+ showActionNotice(active?'Global EM / RF spectrogram on · Starlink beams, mapped mobile-site envelopes and NOAA ionospheric HF propagation are loading.':'Global EM / RF spectrogram off. Existing globe, satellite paths and Wind / RF Fields are unchanged.');
+ return active;
+}
 function toggleSearch(){
  const input=home?$('#landingPropertySearchInput'):$('#publicSearchInput'),form=home?$('#landingPropertySearch'):$('#publicSearchForm');
  if(!form||!input){showActionNotice('Property search is not available in this view. Reload BridgePoint and try again.');return}
@@ -996,6 +1012,7 @@ if(a==='worldchanges'){void openWorldChanges();return}
 if(a==='weatherfx'){void openRealWorldEffects(false);return}
 if(a==='windfx'){void openVolumetricFields(true).catch(e=>console.warn('BridgePoint 3D wind unavailable',e));return}
   if(a==='volumetric'){void openVolumetricFields().catch(e=>console.warn('BridgePoint volumetric fields unavailable',e));return}
+  if(a==='emrf'){void toggleEmrfSpectrogram(b).catch(e=>console.warn('BridgePoint global EM/RF spectrogram unavailable',e));return}
 if(a==='motion'){openPanel('controls');window.__BP_GLOBAL_MOTION_V5926__?.open?.();return}
 if(a==='satellite'){
  const current=window.__BP_SPECTRAL_IMAGERY_V5931__;
