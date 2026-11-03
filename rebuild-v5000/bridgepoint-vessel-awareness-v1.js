@@ -22,6 +22,7 @@ const MAX_TRACKS=5000;
 const MAX_TRACK_POINTS=24;
 const TRACK_RETENTION_MS=45*60*1000;
 const WORLD_CIRCUMFERENCE_M=40075016.686;
+const WATERLINE_METERS=0;
 const EMPTY=()=>({type:'FeatureCollection',features:[]});
 const $=s=>document.querySelector(s);
 let map=null,enabled=false,coverageEnabled=true,button=null,pane=null,statusNode=null,summaryNode=null,coverageButton=null,refreshButton=null;
@@ -29,7 +30,7 @@ let refreshTimer=0,statusTimer=0,updateQueued=false,statsAt=0,sourceReady=false;
 let threePromise=null,THREE=null,renderer=null,scene=null,camera=null,customLayer=null;
 let templates=new Map(),lastRecords=[],tracks=new Map(),lastSummary={features:0,fresh:0,models:0,trailPoints:0};
 let mapListenersBound=false,styleListenerMap=null,sourceError='';
-const colors={cargo:0x31d48a,tanker:0xff6d5c,passenger:0x65a9ff,fishing:0xffb35c,sail:0xc5a0ff,tug:0xffde62,highspeed:0x4de3d2,other:0xb5c4cf};
+const colors={cargo:0x00f08b,tanker:0xff563f,passenger:0x35b9ff,fishing:0xffc247,sail:0xcb91ff,tug:0xfff052,highspeed:0x24f1de,other:0xf2f8ff};
 const $el=(tag,cls,txt)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(txt!==undefined)n.textContent=String(txt);return n};
 function worldMap(){return window.__BP_LANDING_WORLD__?.map||window.__bpLandingWorldV5420?.map||window.__BP_V5000_WORLD__?.map||window.__BP_V5000_WORLD?.map||window.__bpWorldV2300?.map||window.__BP_WORLD_V2300__?.map||null}
 function addStyle(){
@@ -102,11 +103,11 @@ function installSourcesAndLayers(){
   if(!map.getSource(COVERAGE_SOURCE))map.addSource(COVERAGE_SOURCE,{type:'vector',url:COVERAGE_TILEJSON_URL});
   if(!map.getSource(TRAIL_SOURCE))map.addSource(TRAIL_SOURCE,{type:'geojson',data:EMPTY()});
   if(!map.getSource(TRAIL_DOT_SOURCE))map.addSource(TRAIL_DOT_SOURCE,{type:'geojson',data:EMPTY()});
-  if(!map.getLayer(COVERAGE_LAYER))map.addLayer({id:COVERAGE_LAYER,type:'fill',source:COVERAGE_SOURCE,'source-layer':'coverage',minzoom:0,maxzoom:10,layout:{visibility:'none'},paint:{'fill-color':['step',['coalesce',['get','stations'],0],'#204b68',2,'#25859a',5,'#42b7a0',12,'#8bd7a5'],'fill-opacity':['*',['/', ['coalesce',['get','days'],0],7],.35],'fill-outline-color':'rgba(100,225,240,.25)'}});
-  if(!map.getLayer(TRAIL_LAYER))map.addLayer({id:TRAIL_LAYER,type:'line',source:TRAIL_SOURCE,layout:{visibility:'none','line-cap':'round','line-join':'round'},paint:{'line-color':'#f2cb72','line-width':['interpolate',['linear'],['zoom'],0,.7,6,1.4,13,2.5],'line-opacity':.8}});
-  if(!map.getLayer(TRAIL_DOT_LAYER))map.addLayer({id:TRAIL_DOT_LAYER,type:'circle',source:TRAIL_DOT_SOURCE,layout:{visibility:'none'},paint:{'circle-radius':['interpolate',['linear'],['zoom'],0,1.5,6,2.5,12,3.4],'circle-color':'#ffd982','circle-stroke-color':'#27303a','circle-stroke-width':.7,'circle-opacity':.82}});
-  if(!map.getLayer(STILL_LAYER))map.addLayer({id:STILL_LAYER,type:'circle',source:SOURCE,'source-layer':'vessels',filter:['all',['==',['get','kind'],'vessel'],['<',['coalesce',['get','sog'],0],.7]],minzoom:0,layout:{visibility:'none'},paint:{'circle-radius':['interpolate',['linear'],['zoom'],0,1.3,4,2.2,9,4.2,14,6.5],'circle-color':['match',['get','type'],70,'#31d48a',71,'#31d48a',72,'#31d48a',80,'#ff6d5c',81,'#ff6d5c',82,'#ff6d5c',60,'#65a9ff',61,'#65a9ff',30,'#ffb35c',36,'#c5a0ff',37,'#c5a0ff',50,'#ffde62','#b5c4cf'],'circle-opacity':['step',['coalesce',['get','age_s'],0],.96,600,.74,3600,.44,86400,.18],'circle-stroke-color':'#09202a','circle-stroke-width':1}});
-  if(!map.getLayer(MOVING_LAYER))map.addLayer({id:MOVING_LAYER,type:'symbol',source:SOURCE,'source-layer':'vessels',filter:['all',['==',['get','kind'],'vessel'],['>=',['coalesce',['get','sog'],0],.7]],minzoom:0,layout:{visibility:'none','icon-image':'bp-vessel-arrow-v1','icon-size':['interpolate',['linear'],['zoom'],0,.14,4,.22,9,.32,14,.45],'icon-rotate':['coalesce',['get','hdg'],['get','cog'],0],'icon-rotation-alignment':'map','icon-allow-overlap':true,'icon-ignore-placement':true},paint:{'icon-color':['match',['get','type'],70,'#31d48a',71,'#31d48a',72,'#31d48a',80,'#ff6d5c',81,'#ff6d5c',82,'#ff6d5c',60,'#65a9ff',61,'#65a9ff',30,'#ffb35c',36,'#c5a0ff',37,'#c5a0ff',50,'#ffde62','#b5c4cf'],'icon-opacity':['step',['coalesce',['get','age_s'],0],.98,600,.76,3600,.46,86400,.18]}});
+  if(!map.getLayer(COVERAGE_LAYER))map.addLayer({id:COVERAGE_LAYER,type:'fill',source:COVERAGE_SOURCE,'source-layer':'coverage',minzoom:0,maxzoom:10,layout:{visibility:'none'},paint:{'fill-color':['step',['coalesce',['get','stations'],0],'#135a86',2,'#00c8ff',5,'#21e5bd',12,'#ddff55'],'fill-opacity':['*',['/', ['coalesce',['get','days'],0],7],.48],'fill-outline-color':'rgba(100,225,240,.25)'}});
+  if(!map.getLayer(TRAIL_LAYER))map.addLayer({id:TRAIL_LAYER,type:'line',source:TRAIL_SOURCE,layout:{visibility:'none','line-cap':'round','line-join':'round'},paint:{'line-color':'#fff06a','line-width':['interpolate',['linear'],['zoom'],0,1.2,6,2,13,3.2],'line-opacity':.96}});
+  if(!map.getLayer(TRAIL_DOT_LAYER))map.addLayer({id:TRAIL_DOT_LAYER,type:'circle',source:TRAIL_DOT_SOURCE,layout:{visibility:'none'},paint:{'circle-radius':['interpolate',['linear'],['zoom'],0,2.2,6,3.1,12,4.5],'circle-color':'#fff37c','circle-stroke-color':'#142735','circle-stroke-width':1.1,'circle-opacity':.96}});
+  if(!map.getLayer(STILL_LAYER))map.addLayer({id:STILL_LAYER,type:'circle',source:SOURCE,'source-layer':'vessels',filter:['all',['==',['get','kind'],'vessel'],['<',['coalesce',['get','sog'],0],.7]],minzoom:0,layout:{visibility:'none'},paint:{'circle-radius':['interpolate',['linear'],['zoom'],0,3.2,4,4.4,9,5.6,14,7.2],'circle-color':['match',['get','type'],70,'#00f08b',71,'#00f08b',72,'#00f08b',80,'#ff563f',81,'#ff563f',82,'#ff563f',60,'#35b9ff',61,'#35b9ff',30,'#ffc247',36,'#cb91ff',37,'#cb91ff',50,'#fff052','#f2f8ff'],'circle-opacity':['step',['coalesce',['get','age_s'],0],.96,600,.74,3600,.44,86400,.18],'circle-stroke-color':'#f4fbff','circle-stroke-width':1.35}});
+  if(!map.getLayer(MOVING_LAYER))map.addLayer({id:MOVING_LAYER,type:'symbol',source:SOURCE,'source-layer':'vessels',filter:['all',['==',['get','kind'],'vessel'],['>=',['coalesce',['get','sog'],0],.7]],minzoom:0,layout:{visibility:'none','icon-image':'bp-vessel-arrow-v1','icon-size':['interpolate',['linear'],['zoom'],0,.25,4,.30,9,.37,14,.46],'icon-rotate':['coalesce',['get','hdg'],['get','cog'],0],'icon-rotation-alignment':'map','icon-allow-overlap':true,'icon-ignore-placement':true},paint:{'icon-color':['match',['get','type'],70,'#00f08b',71,'#00f08b',72,'#00f08b',80,'#ff563f',81,'#ff563f',82,'#ff563f',60,'#35b9ff',61,'#35b9ff',30,'#ffc247',36,'#cb91ff',37,'#cb91ff',50,'#fff052','#f2f8ff'],'icon-halo-color':'#061421','icon-halo-width':1.8,'icon-halo-blur':.25,'icon-opacity':['step',['coalesce',['get','age_s'],0],.98,600,.76,3600,.46,86400,.18]}});
   bindInteractions();applyVisibility();return true;
  }catch(error){sourceError=String(error?.message||error);showStatus('Vessel map layer initialization failed: '+sourceError,'error');console.warn('BridgePoint vessel layers failed',error);return false}
 }
@@ -140,63 +141,134 @@ function showVesselDetails(event){
 }
 function loadThree(){if(!threePromise)threePromise=import(THREE_URL).then(m=>m.default||m).catch(e=>{threePromise=null;throw e});return threePromise}
 function makeShipGeometry(T,kind){
- const parts=[],add=(g,p=[0,0,0],r=[0,0,0],s=[1,1,1])=>parts.push({g,p,r,s});
+ const parts=[],add=(g,p=[0,0,0],r=[0,0,0],s=[1,1,1],color=colors[kind]||colors.other)=>parts.push({g,p,r,s,color});
  const box=(x,y,z)=>new T.BoxGeometry(x,y,z);
- const cyl=(rt,rb,h,n=10)=>new T.CylinderGeometry(rt,rb,h,n);
- add(box(1.55,.40,.12),[-.06,0,0]);
- add(new T.ConeGeometry(.205,.58,5),[.88,0,-.005],[0,0,-Math.PI/2],[1,1,.58]);
- add(box(.20,.45,.10),[-.82,0,-.015]);
+ const cyl=(radius,height,segments=10)=>new T.CylinderGeometry(radius,radius,height,segments);
+ const hullShape=new T.Shape();
+ hullShape.moveTo(-.79,-.125);hullShape.lineTo(-.69,-.19);hullShape.lineTo(.48,-.195);
+ hullShape.lineTo(.79,0);hullShape.lineTo(.48,.195);hullShape.lineTo(-.69,.19);hullShape.lineTo(-.79,.125);hullShape.closePath();
+ const hull=new T.ExtrudeGeometry(hullShape,{depth:.17,steps:1,bevelEnabled:true,bevelThickness:.012,bevelSize:.012,bevelSegments:2});
+ hull.translate(0,0,-.17);
+ const hullColors={cargo:0x176d64,tanker:0x9f3436,passenger:0x285b83,fishing:0x9a6b35,sail:0x62528f,tug:0x9b8528,highspeed:0x226b7b,other:0x536c78};
+ const hullColor=hullColors[kind]||hullColors.other,accent=colors[kind]||colors.other;
+ add(hull,[0,0,0],[0,0,0],[1,1,1],hullColor);
+ add(box(1.34,.345,.022),[-.005,0,.009],[0,0,0],[1,1,1],0xb8c8ce);
+ add(box(1.28,.012,.025),[-.035,.174,.043],[0,0,0],[1,1,1],0xe1edf0);
+ add(box(1.28,.012,.025),[-.035,-.174,.043],[0,0,0],[1,1,1],0xe1edf0);
+ const mast=(x,y,z,height=.28,radius=.008,color=0xe7f1f4)=>{
+  add(cyl(radius,height,8),[x,y,z+height/2],[Math.PI/2,0,0],[1,1,1],color);
+  add(box(height*.56,.012,.012),[x,y,z+height*.66],[0,0,0],[1,1,1],accent);
+ };
+ const cabin=(x,z,length,width,height,color=0xe5edf0)=>{
+  add(box(length,width,height),[x,0,z+height/2],[0,0,0],[1,1,1],color);
+  for(const side of [-1,1]){
+   add(box(length*.84,.012,Math.max(.018,height*.16)),[x,side*(width/2+.006),z+height*.54],[0,0,0],[1,1,1],0x18374a);
+   add(box(length*.82,width*.92,.012),[x,0,z+height*.79],[0,0,0],[1,1,1],accent);
+  }
+ };
+ const pipe=(x,y,z,height=.10,radius=.018,color=0x718b96)=>{
+  add(cyl(radius,height,8),[x,y,z+height/2],[Math.PI/2,0,0],[1,1,1],color);
+ };
+ const triangle=(a,b,c,color)=>{
+  const g=new T.BufferGeometry();
+  g.setAttribute('position',new T.Float32BufferAttribute([...a,...b,...c],3));
+  g.setIndex([0,1,2]);g.computeVertexNormals();add(g,[0,0,0],[0,0,0],[1,1,1],color);
+ };
  if(kind==='cargo'){
-  add(box(.78,.32,.20),[-.12,0,.15]);
-  for(let i=0;i<3;i++)add(box(.36,.31,.22),[.16-i*.32,0,.34]);
-  add(box(.20,.34,.22),[-.76,0,.30]);
+  for(let row=0;row<2;row++)for(let i=0;i<5;i++)for(let level=0;level<4;level++){
+   const x=.47-i*.185,y=row===0?-.084:.084,z=.075+level*.112;
+   const palette=[0xd9573c,0xe0a93d,0x268fba,0x36a67b,0xb65c8f];
+   const cc=palette[(i+row*2+level)%palette.length];
+   add(box(.17,.155,.102),[x,y,z],[0,0,0],[1,1,1],cc);
+   add(box(.012,.145,.086),[x+.055,y,z],[0,0,0],[1,1,1],0x263f4e);
+   add(box(.012,.145,.086),[x-.055,y,z],[0,0,0],[1,1,1],0x263f4e);
+  }
+  cabin(-.61,.055,.24,.25,.29,0xe0e8eb);
+  add(box(.18,.265,.035),[-.61,0,.36],[0,0,0],[1,1,1],0x18384c);
+  pipe(-.61,0,.38,.22,.008,0xe8f2f4);
+  for(const x of [-.12,.23]){pipe(x,.145,.035,.25,.009,accent);pipe(x,-.145,.035,.25,.009,accent);add(box(.28,.018,.014),[x+.12,0,.28],[0,0,0],[1,1,1],0xc7d7dc)}
  }else if(kind==='tanker'){
-  add(box(1.18,.32,.10),[-.05,0,.11]);
-  for(let i=0;i<4;i++){add(cyl(.105,.105,.10,10),[.48-i*.31,0,.20]);}
-  add(box(.24,.29,.23),[-.69,0,.29]);
+  for(let i=0;i<5;i++){
+   const x=.47-i*.235;
+   add(cyl(.082,.16,14),[x,0,.085],[Math.PI/2,0,0],[1,1,1],0xd8e1e3);
+   add(cyl(.085,.012,14),[x,0,.17],[Math.PI/2,0,0],[1,1,1],accent);
+   add(box(.018,.25,.025),[x,0,.045],[0,0,0],[1,1,1],0x526c76);
+  }
+  for(const y of [-.145,.145]){add(box(1.08,.012,.018),[-.02,y,.075],[0,0,0],[1,1,1],0xf0c66d);add(box(.95,.018,.018),[.02,y,.105],[0,0,0],[1,1,1],0x718d94)}
+  cabin(-.62,.055,.23,.25,.28,0xe4ebed);pipe(-.59,0,.34,.18,.012,0xe5eced);mast(-.71,0,.34,.28,.007);
  }else if(kind==='passenger'){
-  add(box(1.03,.34,.20),[-.12,0,.18]);
-  add(box(.82,.29,.18),[-.16,0,.37]);
-  add(box(.58,.25,.13),[-.21,0,.52]);
-  add(box(.18,.28,.18),[-.72,0,.29]);
+  cabin(.03,.055,.88,.305,.17,0xe8eff1);
+  cabin(.02,.215,.75,.28,.145,0xd8e4e8);
+  cabin(.10,.35,.57,.245,.12,0xe7eef0);
+  add(box(.48,.22,.035),[.10,0,.49],[0,0,0],[1,1,1],0x1c465d);
+  for(const side of [-1,1]){
+   for(let i=0;i<7;i++){
+    const x=-.34+i*.115;
+    add(box(.058,.018,.035),[x,side*.158,.22],[0,0,0],[1,1,1],0x123c55);
+    add(box(.058,.018,.025),[x,side*.145,.37],[0,0,0],[1,1,1],0x123c55);
+    add(box(.072,.038,.032),[x,side*.18,.105],[0,0,0],[1,1,1],0xff8f38);
+   }
+  }
+  pipe(.27,0,.49,.16,.032,0xd95b36);pipe(.48,0,.49,.16,.032,0xe0a64b);
+  mast(-.56,0,.20,.32,.007);
  }else if(kind==='fishing'){
-  add(box(.48,.31,.16),[-.28,0,.15]);
-  add(box(.16,.19,.17),[-.29,0,.31]);
-  add(box(.05,.04,.34),[-.30,0,.48]);
+  cabin(-.22,.055,.34,.24,.23,0xe6edef);
+  add(box(.16,.19,.09),[-.2,0,.30],[0,0,0],[1,1,1],0x19435a);
+  add(box(.12,.02,.20),[.34,0,.21],[0,0,-.2],[1,1,1],accent);
+  add(box(.018,.34,.018),[.43,0,.34],[0,0,.1],[1,1,1],0xe8eff0);
+  mast(-.18,0,.30,.40,.007);
+  for(const y of [-.14,.14]){pipe(.36,y,.17,.22,.006,accent);add(box(.24,.012,.012),[.42,y,.36],[0,0,0],[1,1,1],0xf0d88a)}
  }else if(kind==='sail'){
-  add(box(.08,.07,.88),[-.18,0,.47]);
-  add(box(.62,.025,.38),[-.15,.13,.50],[0,0,-.2]);
-  add(box(.10,.18,.16),[-.52,0,.12]);
+  cabin(-.38,.05,.20,.18,.12,0xe7ecee);
+  mast(-.16,0,.035,1.12,.009,0xe5edf0);
+  triangle([-.145,0,.18],[-.12,0,1.10],[.22,0,.20],0xf3eee0);
+  triangle([-.10,-.006,.20],[-.08,-.006,.78],[.37,-.006,.20],accent);
+  add(box(.10,.035,.035),[-.5,0,.035],[0,0,0],[1,1,1],0x18394a);
  }else if(kind==='tug'){
-  add(box(.46,.32,.19),[-.42,0,.19]);
-  add(box(.30,.28,.15),[-.40,0,.35]);
-  add(cyl(.035,.035,.18,8),[-.2,0,.50]);
+  cabin(-.36,.055,.34,.26,.22,0xe5ecee);
+  cabin(-.37,.255,.22,.22,.16,0xd8e4e7);
+  pipe(-.16,0,.40,.17,.035,0xffb34e);
+  mast(-.52,0,.40,.30,.009);
+  for(const y of [-.16,.16])for(const x of [-.48,-.18,.18,.48])add(cyl(.027,.065,8),[x,y,.015],[0,0,0],[1,1,1],0x192d39);
+  add(box(.025,.30,.025),[.24,0,.19],[0,0,.15],[1,1,1],accent);
  }else if(kind==='highspeed'){
-  add(box(.92,.31,.10),[.02,0,.10]);
-  add(new T.ConeGeometry(.09,.34,5),[.58,0,.13],[0,0,-Math.PI/2],[1,1,.45]);
-  add(box(.25,.24,.12),[-.36,0,.20]);
- }else if(kind==='other'){
-  add(box(.48,.29,.18),[-.34,0,.17]);
-  add(box(.15,.22,.15),[-.36,0,.33]);
+  const portHull=hull.clone();const starboardHull=hull.clone();
+  add(portHull,[0,-.12,-.015],[0,0,0],[1,.27,.68],0x176c80);
+  add(starboardHull,[0,.12,-.015],[0,0,0],[1,.27,.68],0x176c80);
+  cabin(.02,.06,.82,.25,.20,0xe9f0f2);
+  add(box(.40,.25,.04),[.02,.25,.20],[0,0,0],[1,1,1],accent);
+  mast(-.5,0,.25,.25,.007);
+ }else{
+  cabin(-.24,.055,.42,.25,.22,0xe1e9ec);
+  cabin(-.25,.25,.25,.20,.14,0xd7e3e7);
+  mast(-.5,0,.37,.36,.008);
+  add(box(.035,.24,.035),[.33,0,.20],[0,0,.18],[1,1,1],accent);
+  add(box(.26,.025,.025),[.42,0,.38],[0,0,0],[1,1,1],0xe4edf0);
+  pipe(.37,0,.39,.18,.012,0xe4edf0);
  }
- const positions=[],normals=[],indices=[];let offset=0;
+ const positions=[],normals=[],vertexColors=[],indices=[];let offset=0;
  for(const part of parts){
   const g=part.g;g.computeVertexNormals?.();
   const pos=new T.Vector3(...part.p),quat=new T.Quaternion().setFromEuler(new T.Euler(...part.r)),scale=new T.Vector3(...part.s);
   g.applyMatrix4(new T.Matrix4().compose(pos,quat,scale));
-  const pa=g.getAttribute('position'),na=g.getAttribute('normal');
+  const pa=g.getAttribute('position'),na=g.getAttribute('normal'),color=new T.Color(part.color);
   for(let i=0;i<pa.array.length;i++)positions.push(pa.array[i]);
   if(na)for(let i=0;i<na.array.length;i++)normals.push(na.array[i]);
+  for(let i=0;i<pa.count;i++)vertexColors.push(color.r,color.g,color.b);
   const idx=g.index?.array;if(idx){for(let i=0;i<idx.length;i++)indices.push(offset+idx[i])}else for(let i=0;i<pa.count;i++)indices.push(offset+i);
   offset+=pa.count;g.dispose();
  }
- const merged=new T.BufferGeometry();merged.setAttribute('position',new T.Float32BufferAttribute(positions,3));merged.setAttribute('normal',new T.Float32BufferAttribute(normals,3));merged.setIndex(indices);merged.computeBoundingSphere();return merged;
+ const merged=new T.BufferGeometry();
+ merged.setAttribute('position',new T.Float32BufferAttribute(positions,3));
+ merged.setAttribute('normal',new T.Float32BufferAttribute(normals,3));
+ merged.setAttribute('color',new T.Float32BufferAttribute(vertexColors,3));
+ merged.setIndex(indices);merged.computeBoundingSphere();return merged;
 }
 function ensureMesh(kind,capacity){
  let entry=templates.get(kind);if(entry&&entry.capacity>=capacity)return entry;
  if(entry){try{scene?.remove(entry.mesh);entry.geometry.dispose();entry.material.dispose()}catch(_){}templates.delete(kind)}
- const geometry=makeShipGeometry(THREE,kind),color=colors[kind]||colors.other;
- const material=new THREE.MeshStandardMaterial({color,metalness:.52,roughness:.38,emissive:color,emissiveIntensity:.075});
+ const geometry=makeShipGeometry(THREE,kind);
+ const material=new THREE.MeshStandardMaterial({color:0xffffff,vertexColors:true,metalness:.28,roughness:.48,emissive:0x0c1b24,emissiveIntensity:.12,side:THREE.DoubleSide});
  const mesh=new THREE.InstancedMesh(geometry,material,Math.max(1,capacity));mesh.name='BridgePoint live AIS 3D '+kind+' vessels';mesh.count=0;mesh.frustumCulled=false;mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);scene.add(mesh);
  entry={kind,geometry,material,mesh,capacity:Math.max(1,capacity)};templates.set(kind,entry);return entry;
 }
@@ -211,8 +283,9 @@ function ensure3DLayer(){
  const layer={id:MODEL_LAYER,type:'custom',renderingMode:'3d',
   onAdd:(mapRef,gl)=>{
    const r=new THREE.WebGLRenderer({canvas:mapRef.getCanvas(),context:gl,antialias:false,alpha:true,powerPreference:'low-power'});r.autoClear=false;r.outputColorSpace=THREE.SRGBColorSpace;
-   const sc=new THREE.Scene();sc.add(new THREE.AmbientLight(0xffffff,1.25));
-   const key=new THREE.DirectionalLight(0xd8f0ff,1.5);key.position.set(-.4,-.5,1);sc.add(key);
+   const sc=new THREE.Scene();sc.add(new THREE.AmbientLight(0xffffff,1.35));
+   const key=new THREE.DirectionalLight(0xffffff,2.05);key.position.set(-.55,-.7,1.25);sc.add(key);
+   const fill=new THREE.DirectionalLight(0x75cfff,.72);fill.position.set(.65,.4,.72);sc.add(fill);
    renderer=r;scene=sc;camera=new THREE.Camera();customLayer=layer;
   },
   render:(gl,args)=>{
@@ -264,12 +337,13 @@ function updateModels(records){
  for(const v of records){
   if(placed>=MAX_MODELS)break;
   if(bounds){try{if(!bounds.contains([v.lon,v.lat]))continue}catch(_){}}
-  const pos=MC.fromLngLat({lng:v.lon,lat:v.lat},0),unit=pos.meterInMercatorCoordinateUnits?.()||0;if(!Number.isFinite(unit)||unit<=0)continue;
+  const pos=MC.fromLngLat({lng:v.lon,lat:v.lat},WATERLINE_METERS),unit=pos.meterInMercatorCoordinateUnits?.()||0;if(!Number.isFinite(unit)||unit<=0)continue;
   const kind=vesselClass(v.type),meterPerPixel=WORLD_CIRCUMFERENCE_M*Math.max(.12,Math.cos(v.lat*Math.PI/180))/(512*Math.pow(2,Math.max(0,zoom)));
-  const targetPixels=zoom<2?3.3:zoom<5?4.5:zoom<9?6.5:zoom<13?10:16;
+  const targetPixels=zoom<2?9:zoom<4?8:zoom<6?6:zoom<8?4.5:zoom<10?2.5:0;
   const trueLength=Math.max(18,Math.min(500,Number(v.length)||80)),displayLength=Math.max(trueLength,targetPixels*meterPerPixel);
-  const displayBeam=Math.max(Number(v.beam)||0,displayLength*.19,5);
-  const sx=displayLength/1.55*unit,sy=displayBeam/.40*unit,sz=Math.max(3,displayBeam*.14)*unit;
+  const displayBeam=Math.max(Number(v.beam)||0,displayLength*.19,5),kind=vesselClass(v.type);
+  const verticalFactor=kind==='sail'?.95:kind==='passenger'?.70:kind==='cargo'?.72:kind==='tanker'?.58:kind==='fishing'?.62:kind==='tug'?.65:kind==='highspeed'?.52:.62;
+  const sx=displayLength/1.55*unit,sy=displayBeam/.40*unit,sz=Math.max(4,displayBeam*verticalFactor)*unit;
   const heading=(Number.isFinite(v.heading)?v.heading:0)*Math.PI/180-Math.PI/2;
   const matrix=new THREE.Matrix4().compose(new THREE.Vector3(pos.x,pos.y,pos.z),new THREE.Quaternion().setFromEuler(new THREE.Euler(0,0,heading)),new THREE.Vector3(sx,sy,sz));
   const bucket=grouped.get(kind)||[];bucket.push(matrix);grouped.set(kind,bucket);placed++;
