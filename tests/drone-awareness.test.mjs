@@ -43,8 +43,8 @@ assert.ok(moduleSource.includes("for(const event of ['style.load','idle','moveen
 assert.ok(!moduleSource.includes("m.on('styledata',hideDefaultOverlays)"), 'avoid styledata feedback loops while hiding optional layers');
 assert.ok(landingHtml.includes('bridgepoint-drone-awareness-v1.js'), 'homepage loads the module');
 assert.ok(appHtml.includes('bridgepoint-drone-awareness-v1.js'), 'app loads the module');
-assert.ok(landingHtml.includes('bridgepoint-drone-awareness-v1.js?v=5-bridgepoint-proxy-layer400'), 'homepage uses the live 3D drone runtime cache key');
-assert.ok(appHtml.includes('bridgepoint-drone-awareness-v1.js?v=5-bridgepoint-proxy-layer400'), 'app uses the same live 3D drone runtime cache key');
+assert.ok(landingHtml.includes('bridgepoint-drone-awareness-v1.js?v=6-flyitaly-ogn-provider'), 'homepage uses the live 3D drone runtime cache key');
+assert.ok(appHtml.includes('bridgepoint-drone-awareness-v1.js?v=6-flyitaly-ogn-provider'), 'app uses the same live 3D drone runtime cache key');
 assert.ok(view.includes('data-bpv-command-grid="environment"'), 'environment command group exists');
 for (const action of ['weatherfx','windfx','volumetric','ai','listings','opportunities','metrics','property','explore','parcels','boundaryviewer','worldchanges','controls','motion','whole']) {
   assert.ok(view.includes('data-bpv-action="'+action+'"'), 'the dock exposes the '+action+' action');
@@ -114,6 +114,9 @@ console.log('Drone awareness module checks passed.');
   assert.equal(bpDroneCore.isUavRecord({category:'A3',description:'Unmanned aerial vehicle Remote ID'}), true, 'UAV descriptions are recognized with actual word boundaries');
   assert.equal(bpDroneCore.isUavRecord({category:'A3',description:'Large UAV'}), true, 'description fallback can identify UAV without B6');
   assert.equal(bpDroneCore.isUavRecord({category:'A3',description:'Commercial passenger aircraft'}), false, 'ordinary aircraft are never classified as drones');
+  assert.equal(bpDroneCore.isUavRecord({category:'A3',ecat:13}), true, 'explicit FLARM UAV emitter category 13 is accepted');
+  assert.equal(bpDroneCore.isUavRecord({category:'A3',flight:'DRONE-TEST'}), true, 'explicitly identified UAV callsigns are recognized');
+  assert.equal(bpDroneCore.isUavRecord({category:'A3',ecat:1,t:'GLIDER'}), false, 'ordinary OGN gliders are not mislabeled as drones');
 
   const bpParsed = bpDroneCore.parseResponse(bpDroneFixture);
   assert.equal(bpParsed.records.length, 4, 'parser consumes the actual ac array');
@@ -290,4 +293,12 @@ console.log('Drone awareness module checks passed.');
   assert.match(sourceV4,/DRONE_PROXY_URL/);
   assert.match(sourceV4,/LAYER400_API_KEY/);
   assert.match(sourceV4,/height_agl_m/);
+  assert.match(sourceV4,/FlyItalyADSB ADS-B\/MLAT\/OGN/);
+  assert.match(sourceV4,/Flight data: FlyItalyADSB \(flyitalyadsb\.com\), CC BY-SA 4\.0/);
+  const proxySourceV4=readDroneV4(new URL('../supabase/functions/bridgepoint-drone-feed-v1/index.ts',import.meta.url),'utf8');
+  assert.match(proxySourceV4,/FLYITALYADSB_API_KEY/);
+  assert.match(proxySourceV4,/X-Api-Key/);
+  assert.match(proxySourceV4,/radiusNm \* 1\.852/);
+  assert.match(proxySourceV4,/function flyItalyUavRecord/);
+  assert.match(proxySourceV4,/ecat === 13/);
 }
