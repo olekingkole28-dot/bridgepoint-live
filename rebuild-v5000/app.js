@@ -118,22 +118,20 @@ function ensureBuildingPanelOpen(){const p=$('buildingPanel');if(!p)return;p.hid
 function clearSelectedBuilding(){selectedPoint=null;selectedFeature=null;selectedPropertyId=null;selectedParcelGeometry=null;selectedBuildingGeometry=null;selectedBuildingRecord=null;pickedState.partFeatures=[];pickedState.plan=null;pickedState.measurePts=[];pickedState.topZoom=1;pickedState.topPanX=0;pickedState.topPanY=0;selectedMode='building';clearInterval(selectedTimer);selectedTimer=null;window.__BP_BUILDING_PANEL_OPEN__=false;const p=$('buildingPanel');if(p){p.hidden=true;p.style.removeProperty('display')}clearMapXray();clearSelectedGeometry()}
 $('closeBuilding').onclick=clearSelectedBuilding;window.__BP_V5000_CLEAR_BUILDING__=clearSelectedBuilding;
 (()=>{const p=$('buildingPanel');if(!p)return;new MutationObserver(()=>{if(window.__BP_BUILDING_PANEL_OPEN__&&selectedPoint&&selectedMode==='building'&&p.hidden)ensureBuildingPanelOpen()}).observe(p,{attributes:true,attributeFilter:['hidden','style']})})();
-async function initSharedVisualWeather(targetWorld,{activate=true}={}){
+async function initSharedVisualWeather(targetWorld,{activate=true,cloudsOnly=false}={}){
  const map=targetWorld?.map;if(!map)return null;
  const styleReady=()=>{try{return map.isStyleLoaded?.()===true||!!map.getSource?.('ofm')}catch{return false}};
  if(!styleReady())await new Promise(resolve=>{let done=false;const finish=()=>{if(done)return;done=true;resolve()};map.once?.('load',finish);setTimeout(finish,5000)});
  try{
-  const wm=await import('./world-v2300-weather.js?v=6195-desktop-globe-flash-stability');
-  const weather=wm.initWeather(map,{deferActivation:!activate});
+  const wm=await import('./world-v2300-weather.js?v=6200-storm-clouds-no-rain');
+  const weather=wm.initWeather(map,{deferActivation:!activate,rainParticles:false,cloudsOnly:!!cloudsOnly});weather?.setCloudsOnly?.(!!cloudsOnly);
   let present=window.__bpPresentWeatherV2301||null;
   if(activate){
    weather?.setActive?.(true);
-   const pm=await import('./world-v2300-present-weather.js?v=6134-legacy-fx-disabled');
-   present=pm.initPresentWeather(map);
-   present?.setActive?.(false)
+   if(!cloudsOnly){const pm=await import('./world-v2300-present-weather.js?v=6134-legacy-fx-disabled');present=pm.initPresentWeather(map);present?.setActive?.(false)}
   }
   weather?.setRadar?.(false);
-  window.__BP_SHARED_VISUAL_WEATHER__={version:6134,weather,present,mapShared:true,capabilitiesRegistered:true,networkActivationDeferred:!activate,streetWalkLiveSimulation:false,cinematicFx:false,cloudsOnlyPhase:false,visualWeatherEffectsEnabled:true,legacyCinematicFxDisabled:true,sourceWeatherOverlaysPreserved:true,legacyOverlaysHidden:true,renderer:'source-weather-data-plus-dedicated-rain-lightning',radarVisible:!!map.getLayer('bp-v6132-ground-radar')&&(map.getLayoutProperty('bp-v6132-ground-radar','visibility')||'visible')!=='none',radarOwnedByGroundDrape:true,radarAnimatedAtCloseZoom:false,radarGroundDrape:true,dedicatedRainLightning:true,legacyFxEnabled:false,updatedAt:Date.now()};
+  window.__BP_SHARED_VISUAL_WEATHER__={version:6200,weather,present,mapShared:true,capabilitiesRegistered:true,networkActivationDeferred:!activate,cloudsOnlyMode:!!cloudsOnly,rainParticlesEnabled:false,streetWalkLiveSimulation:false,cinematicFx:false,cloudsOnlyPhase:false,visualWeatherEffectsEnabled:true,legacyCinematicFxDisabled:true,sourceWeatherOverlaysPreserved:true,legacyOverlaysHidden:true,renderer:'source-weather-data-plus-dedicated-rain-lightning',radarVisible:!!map.getLayer('bp-v6132-ground-radar')&&(map.getLayoutProperty('bp-v6132-ground-radar','visibility')||'visible')!=='none',radarOwnedByGroundDrape:true,radarAnimatedAtCloseZoom:false,radarGroundDrape:true,dedicatedRainLightning:true,legacyFxEnabled:false,updatedAt:Date.now()};
   return window.__BP_SHARED_VISUAL_WEATHER__
  }catch(e){console.warn('BridgePoint shared visual weather',e);return null}
 }
@@ -179,7 +177,7 @@ async function bootMap(){
     const existing=window.__BP_SKY_CLOUDS_V5908__;
     if(existing?.map===world.map)appCloudApi=existing;
     else{
-     if(!appCloudPromise)appCloudPromise=import('./world-v2300-clouds.js?v=6180-goes-mask-volumetric-clouds')
+     if(!appCloudPromise)appCloudPromise=import('./world-v2300-clouds.js?v=6200-radar-colored-rain-clouds')
       .then(m=>{const api=m.initSkyClouds(world);if(!api)throw new Error('3D cloud engine did not initialize');window.__BP_SKY_CLOUDS_V5908__=api;return api})
       .finally(()=>{appCloudPromise=null});
      appCloudApi=await appCloudPromise;
@@ -242,7 +240,8 @@ async function bootMap(){
  bindPerformanceGovernor();
  // V5614: register the lightweight weather-FX capability contract immediately.
  // Network fetches and active particle rendering stay behind the interaction/pressure governor.
- window.__BP_ACTIVATE_SHARED_WEATHER__=()=>{if(!liveContextVisible)return;void initSharedVisualWeather(world,{activate:true})};
+ window.__BP_ACTIVATE_SHARED_WEATHER__=()=>{if(!liveContextVisible)return;void initSharedVisualWeather(world,{activate:true,cloudsOnly:false})};
+ await initSharedVisualWeather(world,{activate:true,cloudsOnly:true}).catch(e=>console.warn('BridgePoint always-on storm cloud feed unavailable',e));
  startLiveWeather();
  try{world.map.jumpTo({center:[0,20],zoom:BP_MOBILE?1.05:1.25,pitch:0,bearing:0});window.__BP_GLOBAL_START__={center:[0,20],projection:'globe',zoom:world.map.getZoom(),at:Date.now()}}catch(_){}
  window.__BP_INITIAL_WEATHER_PRIORITY__=false;
@@ -1116,7 +1115,7 @@ function stopLiveWeather(){
  clearInterval(liveContextTimer);liveContextTimer=null;clearInterval(radarRefreshTimer);radarRefreshTimer=null;
  clearInterval(radarAnimTimer);radarAnimTimer=null;clearInterval(cloudRefreshTimer);cloudRefreshTimer=null;
  clearInterval(cloudAnimTimer);cloudAnimTimer=null;radarFrames=[];cloudFrames=[];
- try{window.__BP_SHARED_VISUAL_WEATHER__?.weather?.setRadar?.(false);window.__BP_SHARED_VISUAL_WEATHER__?.weather?.setActive?.(false);window.__BP_SHARED_VISUAL_WEATHER__?.present?.setActive?.(false)}catch(_){}
+ try{const shared=window.__BP_SHARED_VISUAL_WEATHER__;shared?.weather?.setRadar?.(false);shared?.weather?.setCloudsOnly?.(true);shared?.weather?.setActive?.(true);shared?.present?.setActive?.(false)}catch(_){}
  const b=$('toggleLiveContext');if(b){b.textContent='WEATHER DATA · OFF';b.title='Source-backed weather dots and warning boundaries are hidden. Legacy rain/snow/fire FX remain disabled';b.classList.remove('active');b.setAttribute('aria-pressed','false')}
  window.__BP_STARTUP_SCHEDULER_V5939__={version:5939,enabled:false,weatherNetworkIdle:true,radarRefreshIdle:true,renderer:'v2300-cinematic-fx',updatedAt:Date.now()};
 }
@@ -1131,7 +1130,7 @@ function activateLiveWeather(){
   }
  }catch(e){console.warn('BridgePoint weather setup deferred',e)}
  window.__BP_ACTIVATE_SHARED_WEATHER__?.();
- try{const shared=window.__BP_SHARED_VISUAL_WEATHER__;shared?.weather?.setRadar?.(false);shared?.weather?.setActive?.(true);shared?.present?.setActive?.(false)}catch(_){}
+ try{const shared=window.__BP_SHARED_VISUAL_WEATHER__;shared?.weather?.setCloudsOnly?.(false);shared?.weather?.setRadar?.(false);shared?.weather?.setActive?.(true);shared?.present?.setActive?.(false)}catch(_){}
  installLiveContextLayers();restoreCachedLiveWeatherFirstFrameV6134();ensureRadarTimelineV6170();void refreshRadarFrames();
  clearInterval(radarRefreshTimer);radarRefreshTimer=setInterval(()=>{if(liveContextVisible)void refreshRadarFrames()},120000);
  void loadLiveWeather(true);

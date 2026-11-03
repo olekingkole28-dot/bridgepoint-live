@@ -730,9 +730,9 @@ jobs:
           node --input-type=module --check < site/world-v2300-realism.js
           node --input-type=module --check < site/gis-core-orchestrator-v5910.js
           grep -Fq 'Real satellite bands. No AI-drawn pixels.' site/world-v2300-spectral-imagery.js
-          grep -Fq 'world-v2300-clouds.js?v=6180-goes-mask-volumetric-clouds' site/app.js
-          grep -Fq 'world-v2300-clouds.js?v=6180-goes-mask-volumetric-clouds' site/landing.js
-          grep -Fq 'world-v2300-weather.js?v=6195-desktop-globe-flash-stability' site/app.js
+          grep -Fq 'world-v2300-clouds.js?v=6200-radar-colored-rain-clouds' site/app.js
+          grep -Fq 'world-v2300-clouds.js?v=6200-radar-colored-rain-clouds' site/landing.js
+          grep -Fq 'world-v2300-weather.js?v=6200-storm-clouds-no-rain' site/app.js
           grep -Fq 'function isPostTropicalCyclone(st={})' site/world-v2300-clouds.js
           grep -Fq 'postTropicalSurfaceCloudVertices+=makeCycloneRibbon' site/world-v2300-clouds.js
           grep -Fq 'post-tropical lows use asymmetric cloud shields' site/world-v2300-clouds.js
@@ -805,7 +805,7 @@ jobs:
           grep -Fq 'baseAglM: clamp(safeNum(o.cloud_base_height_m ?? o.cloudBaseHeightM, thunder ? 450 : 350), 180, 4200)' site/world-v2300-rain.js
           grep -Fq "if(pr==='rain')return;" site/world-v2300-weather.js
           grep -Fq "'rain-cell'" site/world-v2300-clouds.js
-          grep -Fq 'world-v2300-weather.js?v=6195-desktop-globe-flash-stability' site/landing.js
+          grep -Fq 'world-v2300-weather.js?v=6200-storm-clouds-no-rain' site/landing.js
           grep -Fq 'bindWeatherVertexArray(gl,weatherVao,weatherVaoMode,weatherVaoExt)' site/world-v2300-weather.js
           grep -Fq 'isolatedVao' site/world-v2300-weather.js
           grep -Fq 'window.__BP_WEATHER_GL_HEALTH_V6057__' site/world-v2300-weather.js
@@ -818,8 +818,8 @@ jobs:
           grep -Fq 'sourceWeatherOverlaysPreserved:true' site/landing.js
           grep -Fq 'sourceWeatherOverlaysPreserved:true' site/app.js
           grep -Fq 'legacyCinematicFxDisabled:true' site/landing.js
-          grep -Fq 'world-v2300-weather.js?v=6195-desktop-globe-flash-stability' site/index.html
-          grep -Fq 'world-v2300-weather.js?v=6195-desktop-globe-flash-stability' site/app/index.html
+          grep -Fq 'landing.js?v=6223-storm-clouds-no-rain' site/index.html
+          grep -Fq 'world-v2300-weather.js?v=6200-storm-clouds-no-rain' site/app/index.html
           grep -Fq 'world-v2300-weather.js?v=6195-desktop-globe-flash-stability' site/app/world-v2300-bootstrap.js
           grep -Fq 'world-v2300-time-slider.js?v=6170-no-cloud-toggle-always-on' site/app.js
           grep -Fq 'world-v2300-time-slider.js?v=6170-no-cloud-toggle-always-on' site/landing.js
@@ -942,8 +942,8 @@ jobs:
           grep -Fq 'function archivedJosephineForecast' site/world-v2300-weather.js
           grep -Fq 'bp2300-storm-track-source-v6093' site/world-v2300-weather.js
           grep -Fq 'bp2300-storm-track-forecast-v6093' site/world-v2300-weather.js
-          grep -Fq 'world-v2300-weather.js?v=6195-desktop-globe-flash-stability' site/landing.js
-          grep -Fq 'world-v2300-weather.js?v=6195-desktop-globe-flash-stability' site/app.js
+          grep -Fq 'world-v2300-weather.js?v=6200-storm-clouds-no-rain' site/landing.js
+          grep -Fq 'world-v2300-weather.js?v=6200-storm-clouds-no-rain' site/app.js
           grep -Fq 'BP_WEATHER_ICON_CATALOG_V6132' site/app.js
           grep -Fq 'bp-v6132-weather-icons' site/app.js
           grep -Fq 'bp-v6132-ground-radar' site/app.js

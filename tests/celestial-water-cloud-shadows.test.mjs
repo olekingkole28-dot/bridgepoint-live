@@ -98,7 +98,7 @@ test('clouds render as bright 3D volumes, not as a false-colour raster sheet', (
   assert.match(clouds, /setLayoutProperty\(SATELLITE_CLOUD_LAYER_ID_V6150,'visibility','none'\)/);
   assert.match(clouds, /setLayoutProperty\(EUMETSAT_CLOUD_LAYER_ID_V6150,'visibility','none'\)/);
   assert.match(clouds, /vec3\(0\.44,0\.53,0\.66\)/);
-  assert.match(clouds, /version: 6180, map, overlay/);
+  assert.match(clouds, /version: 6200, map, overlay/);
   assert.doesNotMatch(clouds.slice(clouds.indexOf('function setWorldGrade(on)'), clouds.indexOf('function getProgramInfo(gl, shaderData)')), /map\\.setFog/);
   assert.match(clouds, /const desktopGlobalSlowMotion = !MOBILE && number\(map\.getZoom\?\.\(\),0\) <= 3\.5/);
   assert.match(clouds, /const globalMotionScale = desktopGlobalSlowMotion \? 0\.32 : 1/);
@@ -107,8 +107,8 @@ test('clouds render as bright 3D volumes, not as a false-colour raster sheet', (
   assert.match(clouds, /desktopGlobalCloudMotionPaused: false/);
   assert.match(clouds, /lastCloudRepaintAt/);
   assert.ok(app.includes('world-v2300-lod-controls.js?v=6201-gold-always-on'), 'app must use Gold-always-on LOD controls');
-  assert.ok(app.includes('world-v2300-clouds.js?v=6180-goes-mask-volumetric-clouds'), 'app must use the cache-busted desktop-stability cloud module');
-  assert.ok(landing.includes('world-v2300-clouds.js?v=6180-goes-mask-volumetric-clouds'), 'landing must use the cache-busted desktop-stability cloud module');
+  assert.ok(app.includes('world-v2300-clouds.js?v=6200-radar-colored-rain-clouds'), 'app must use the cache-busted desktop-stability cloud module');
+  assert.ok(landing.includes('world-v2300-clouds.js?v=6200-radar-colored-rain-clouds'), 'landing must use the cache-busted desktop-stability cloud module');
   assert.doesNotMatch(timeSlider, /data-clouds|toggleSkyClouds|world-v2300-clouds/, 'timeline must not expose or load the cloud toggle');
   assert.match(clouds, /coverageVersion: 6180/);
   assert.match(clouds, /Number\(satelliteMask\.probability\[idx\]\)<=32/);
@@ -162,16 +162,16 @@ test('entrypoints use fresh cache keys and keep the celestial canvas off the sat
   for (const source of [app, landing]) {
     assert.match(source, /world-v2300-map\.js\?v=6220-tree-canopy-coverage-solid-retention/);
     assert.match(source, /world-v2300-water\.js\?v=6194-stable-water-low-cost/);
-    assert.match(source, /world-v2300-clouds\.js\?v=6180-goes-mask-volumetric-clouds/);
-    assert.match(source, /world-v2300-weather\.js\?v=6195-desktop-globe-flash-stability/);
+    assert.match(source, /world-v2300-clouds\.js\?v=6200-radar-colored-rain-clouds/);
+    assert.match(source, /world-v2300-weather\.js\?v=6200-storm-clouds-no-rain/);
     assert.match(source, /world-v2300-time-slider\.js\?v=6170-no-cloud-toggle-always-on/);
   }
-  assert.match(appHtml, /app\.js\?v=6222-goes-cloud-mask-volumetric/, 'app shell loads the updated app entrypoint');
+  assert.match(appHtml, /app\.js\?v=6223-storm-clouds-no-rain/, 'app shell loads the updated app entrypoint');
   assert.doesNotMatch(map, /world-v2300-space\.js\?v=6125-manual-globe-camera/, 'the retired celestial overlay must not be imported by the live globe');
   assert.doesNotMatch(timeSlider, /data-clouds|toggleSkyClouds|world-v2300-clouds/);
   assert.match(bootstrap, /world-v2300-weather\.js\?v=6195-desktop-globe-flash-stability/);
-  assert.match(appHtml, /app\.js\?v=6222-goes-cloud-mask-volumetric/);
-  assert.match(landingHtml, /landing\.js\?v=6222-goes-cloud-mask-volumetric/);
+  assert.match(appHtml, /app\.js\?v=6223-storm-clouds-no-rain/);
+  assert.match(landingHtml, /landing\.js\?v=6223-storm-clouds-no-rain/);
   assert.match(appHtml, /intelligence-global-v5507\.js\?v=6170-imerg-nrt-timeline/);
   assert.match(landingHtml, /intelligence-global-v5507\.js\?v=6170-imerg-nrt-timeline/);
 });
@@ -261,13 +261,14 @@ test('both entrypoints perform a real 6222 service-worker cutover before stale s
   assert.match(serviceWorker, /const V='bp-intelligence-v6222-goes-cloud-mask-volumetric'/);
   assert.match(landing, /navigator\.serviceWorker\.register\('\/sw\.js\?v=6222-goes-cloud-mask-volumetric'/);
   assert.match(app, /navigator\.serviceWorker\.register\('\/sw\.js\?v=6222-goes-cloud-mask-volumetric'/);
-  assert.match(clouds, /Number\(existingCloudController\.version\) >= 6180[\s\S]{0,180}Number\(existingState\?\.coverageVersion \|\| existingState\?\.version\) >= 6180/);
+  assert.match(clouds, /Number\(existingCloudController\.version\) >= 6200[\s\S]{0,180}Number\(existingState\?\.version\) >= 6200/);
 });
 
 test('new rain/lightning and global source markers stay separate from legacy effects', () => {
   assert.match(weather, /active=!!v;/);
   assert.match(weather, /const LEGACY_NATIVE_WEATHER_LAYERS=\['wx-snow-depth','wx-alert-fill','wx-fire-fill','wx-thermal','wx-quake-glow','wx-storm-glow'\]/);
-  assert.match(weather, /for\(const id of \['wx-alert-line','wx-fire-line','wx-quake','wx-storm','wx-obs','wx-water'\]\)/);
+  assert.match(weather, /const WEATHER_SOURCE_OVERLAY_LAYERS=\['wx-alert-line','wx-fire-line','wx-quake','wx-storm','wx-obs','wx-water'/);
+  assert.match(weather, /function applySourceWeatherVisibility\(\)/);
   assert.match(app, /id:'bp-v5004-weather-shape-fill'.{0,500}layout:\{visibility:'visible'\}/);
   assert.match(landing, /bp-landing-weather-fill/);
   assert.match(landing, /id:'bp-landing-weather-fill'.{0,400}layout:\{visibility:'visible'\},paint:\{'fill-color':landingWeatherColorExpr\(\),'fill-opacity':\['interpolate'/);
@@ -282,7 +283,7 @@ test('new rain/lightning and global source markers stay separate from legacy eff
   assert.match(clouds, /sourceHeightMatchedCount/);
   assert.match(clouds, /satelliteCloudHeightFeedStatus/);
   assert.match(clouds, /alphaBase\*\(0\.68\+erosionMask\*0\.22\)/);
-  assert.match(clouds, /version: 6180, map, overlay/);
+  assert.match(clouds, /version: 6200, map, overlay/);
   assert.match(clouds, /bp6150-nasa-geostationary-cloud-context/);
   assert.match(clouds, /bp6150-nasa-geostationary-cloud-source/);
   assert.match(clouds, /GOES-East_ABI_Band13_Clean_Infrared/);
@@ -422,8 +423,30 @@ test('homepage opportunities stay off at startup and the button enables the publ
 test('website and app start on the same cache-busted globe-first weather build', () => {
   assert.match(landingHtml, /bp-globe-only-first-frame-v6137/);
   assert.match(appHtml, /bp-app-globe-only-first-frame-v6137/);
-  assert.ok(landingHtml.includes('landing.js?v=6222-goes-cloud-mask-volumetric'));
-  assert.ok(appHtml.includes('app.js?v=6222-goes-cloud-mask-volumetric'));
+  assert.ok(landingHtml.includes('landing.js?v=6223-storm-clouds-no-rain'));
+  assert.ok(appHtml.includes('app.js?v=6223-storm-clouds-no-rain'));
   assert.ok(landingHtml.includes('intelligence-global-v5507.js?v=6170-imerg-nrt-timeline'));
   assert.ok(appHtml.includes('intelligence-global-v5507.js?v=6170-imerg-nrt-timeline'));
+});
+
+
+test('3D storm clouds stay live while rain particles and weather markers stay off', () => {
+  assert.ok(weather.includes('rainParticlesEnabled=opts?.rainParticles!==false'));
+  assert.ok(weather.includes('function setCloudsOnly(value)'));
+  assert.ok(weather.includes('rain.setEnabled(active&&rainParticlesEnabled)'));
+  assert.ok(weather.includes('function applySourceWeatherVisibility()'));
+  assert.ok(app.includes('initSharedVisualWeather(world,{activate:true,cloudsOnly:true})'));
+  assert.ok(app.includes('rainParticles:false'));
+  assert.ok(landing.includes('ensureLandingStormCloudWeather(world)'));
+  assert.ok(landing.includes('rainParticles:false'));
+  assert.ok(clouds.includes('sourceRainColorLevel'));
+  assert.ok(clouds.includes("raw === null || raw === undefined || raw === ''"));
+  assert.ok(clouds.includes('reflectivity_dbz'));
+  assert.ok(clouds.includes('rainCloudLevel=clamp((v_tint-1.35)*1000.0,0.0,2.0)'));
+  assert.ok(clouds.includes('vec3(0.10,0.72,0.28)'));
+  assert.ok(clouds.includes('vec3(0.98,0.82,0.08)'));
+  assert.ok(clouds.includes('vec3(0.90,0.10,0.12)'));
+  assert.ok(clouds.includes('makeCycloneRibbon'));
+  assert.ok(clouds.includes('makeTornadoSurfaceCone'));
+  assert.ok(clouds.indexOf('localRainCloudsReady: true, globalCloudBuildPending: true') < clouds.indexOf('const global = buildGlobalCloudGeometry();\n    const satelliteLightningCloudAnchors'));
 });

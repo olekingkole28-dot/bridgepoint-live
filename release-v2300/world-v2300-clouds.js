@@ -208,7 +208,7 @@ function makeShaders(webgl2, shaderData = null) {
     'uniform highp float u_time;\nuniform highp float u_camera_altitude_m;\nuniform highp float u_ray_steps;\n' +
     'float noise3(vec3 p){vec3 q=floor(p);vec3 f=fract(p);f=f*f*(3.0-2.0*f);float n=q.x+q.y*57.0+q.z*113.0;float a=fract(sin(n)*43758.5453);float b=fract(sin(n+1.0)*43758.5453);float c=fract(sin(n+57.0)*43758.5453);float d=fract(sin(n+58.0)*43758.5453);float e=fract(sin(n+113.0)*43758.5453);float f1=fract(sin(n+114.0)*43758.5453);float g=fract(sin(n+170.0)*43758.5453);float h=fract(sin(n+171.0)*43758.5453);return mix(mix(mix(a,b,f.x),mix(c,d,f.x),f.y),mix(mix(e,f1,f.x),mix(g,h,f.x),f.y),f.z);}\n' +
     STORM_VOLUME_FRAGMENT + '\n' +
-    'void main(){if(v_tint>1.47){vec4 stormColor=bpRaymarchStorm(v_local,v_camera_local,v_tint,u_time,u_camera_altitude_m,u_ray_steps);if(stormColor.a<=0.0)discard;' + (webgl2 ? 'bpColor=stormColor;' : 'gl_FragColor=stormColor;') + 'return;}if(v_tint>1.438&&v_tint<1.47){float z=clamp(v_local.z,0.0,1.0),phi=atan(v_local.y,v_local.x);float noiseA=noise3(vec3(v_local.xy*9.0,z*7.0+u_time*0.035));float noiseB=noise3(vec3(v_local.xy*19.0,phi*0.6-u_time*0.07));float billow=noise3(vec3(v_local.xy*31.0,z*18.0+u_time*0.12));float spiral=0.5+0.5*cos(phi*8.0-z*32.0+u_time*3.6+(noiseA-0.5)*2.0+(billow-0.5)*1.25);float ragged=smoothstep(0.14,0.78,noiseA*0.43+noiseB*0.34+billow*0.23);float wisps=smoothstep(0.17,0.76,spiral*0.47+noiseA*0.22+noiseB*0.17+billow*0.14)*ragged;vec3 tornadoColor=mix(vec3(0.075,0.105,0.16),vec3(0.88,0.92,0.97),wisps);tornadoColor=mix(tornadoColor,vec3(0.32,0.40,0.51),pow(1.0-z,1.8)*0.34);float tornadoAlpha=clamp(mix(0.30,0.94,wisps)*(0.78+billow*0.22),0.18,0.96);' + (webgl2 ? 'bpColor=vec4(tornadoColor,tornadoAlpha);' : 'gl_FragColor=vec4(tornadoColor,tornadoAlpha);') + 'return;}vec3 n=normalize(v_local);float cloudShadingMix=1.0-smoothstep(0.84,0.96,v_tint);vec3 sculptedNormal=normalize(vec3(v_local.x*0.86,v_local.y*0.90,v_local.z*1.55));n=normalize(mix(n,sculptedNormal,cloudShadingMix));float viewFar=smoothstep(85000.0,18000000.0,u_camera_altitude_m);float detailScale=mix(22.0,5.2,viewFar);float broad=noise3(v_local*(detailScale*0.20)+vec3(u_time*0.002,v_tint*1.7,0.0));float detail=noise3(v_local*(detailScale*0.50)+vec3(u_time*0.006,v_tint*4.0,0.0));float billow=noise3(v_local*(detailScale*1.0)+vec3(0.0,u_time*0.010,v_tint*8.0));float fine=noise3(v_local*(detailScale*1.95)+vec3(u_time*0.006,v_tint*11.0,0.0));float warp=noise3(v_local*(detailScale*0.34)+vec3(-u_time*0.001,v_tint*2.3,u_time*0.001));float erosion=noise3(v_local*(detailScale*3.6)+vec3(u_time*0.012,v_tint*15.0,0.0));vec3 bump=vec3((detail-broad)*0.22,(billow-detail)*0.18,(fine-warp)*0.16);vec3 cloudNormal=normalize(n+bump*mix(0.28,0.46,1.0-viewFar));float diffuse=max(0.0,dot(cloudNormal,normalize(vec3(-0.42,0.55,0.72))));float density=broad*0.30+detail*0.26+billow*0.21+fine*0.10+warp*0.05+erosion*0.08;float sculpt=smoothstep(0.22,0.70,density);float erosionMask=smoothstep(0.18,0.68,billow*0.39+fine*0.31+erosion*0.30);float edge=clamp(0.54+abs(v_local.z)*0.20,0.0,1.0);float silver=clamp(0.23+diffuse*0.75+broad*0.08+detail*0.07+billow*0.05,0.0,1.0);vec3 lit=mix(vec3(0.44,0.53,0.66),vec3(0.99,0.997,1.0),smoothstep(0.08,0.72,silver));float underside=pow(max(0.0,-cloudNormal.z),mix(1.26,1.08,cloudShadingMix));lit=mix(lit,vec3(0.15,0.22,0.33),underside*mix(0.40,0.59,cloudShadingMix));float cloudCavity=clamp((0.52-broad)*0.18+(0.50-detail)*0.12+(0.48-billow)*0.10+(0.5-warp)*0.07+(0.5-erosion)*0.04,0.0,0.22);lit*=1.0-cloudCavity*cloudShadingMix;float silverRim=pow(max(0.0,1.0-abs(dot(cloudNormal,normalize(vec3(0.2,-0.1,1.0))))),2.35);lit=mix(lit,vec3(0.93,0.97,1.0),silverRim*mix(0.20,0.35,cloudShadingMix));float tornadoCell=smoothstep(1.40,1.44,v_tint);float rainCell=smoothstep(1.30,1.34,v_tint)*(1.0-tornadoCell);float stormCell=smoothstep(0.89,0.95,v_tint)*(1.0-rainCell)*(1.0-tornadoCell);float hurricaneCell=smoothstep(1.20,1.23,v_tint)*(1.0-smoothstep(1.28,1.30,v_tint));float hurricaneRibbonCell=smoothstep(1.286,1.290,v_tint)*(1.0-smoothstep(1.294,1.298,v_tint));float tornadoStriation=0.5+0.5*sin(atan(v_local.y,v_local.x)*6.0-u_time*4.8+v_local.z*17.0+detail*2.1);lit=mix(lit,vec3(0.27,0.33,0.42),rainCell*0.68);lit=mix(lit,vec3(0.19,0.23,0.30),stormCell*0.46+hurricaneCell*0.62+tornadoCell*0.78);lit=mix(lit,vec3(0.83,0.88,0.93),tornadoCell*tornadoStriation*0.62);lit=mix(lit,mix(vec3(0.46,0.58,0.72),vec3(0.97,0.985,1.0),detail),hurricaneRibbonCell*0.48);float alphaBase=edge*(0.18+sculpt*0.49+diffuse*0.18+fine*0.08+erosionMask*0.16)*(1.0+rainCell*1.8+stormCell*0.14+hurricaneCell*0.3+hurricaneRibbonCell*0.95+tornadoCell*(0.55+tornadoStriation*0.50));float thinCell=1.0-smoothstep(0.19,0.26,v_tint);float alpha=clamp(mix(alphaBase,alphaBase*(0.68+erosionMask*0.22),thinCell),0.025,0.96);' +
+    'void main(){if(v_tint>1.47){vec4 stormColor=bpRaymarchStorm(v_local,v_camera_local,v_tint,u_time,u_camera_altitude_m,u_ray_steps);if(stormColor.a<=0.0)discard;' + (webgl2 ? 'bpColor=stormColor;' : 'gl_FragColor=stormColor;') + 'return;}if(v_tint>1.438&&v_tint<1.47){float z=clamp(v_local.z,0.0,1.0),phi=atan(v_local.y,v_local.x);float noiseA=noise3(vec3(v_local.xy*9.0,z*7.0+u_time*0.035));float noiseB=noise3(vec3(v_local.xy*19.0,phi*0.6-u_time*0.07));float billow=noise3(vec3(v_local.xy*31.0,z*18.0+u_time*0.12));float spiral=0.5+0.5*cos(phi*8.0-z*32.0+u_time*3.6+(noiseA-0.5)*2.0+(billow-0.5)*1.25);float ragged=smoothstep(0.14,0.78,noiseA*0.43+noiseB*0.34+billow*0.23);float wisps=smoothstep(0.17,0.76,spiral*0.47+noiseA*0.22+noiseB*0.17+billow*0.14)*ragged;vec3 tornadoColor=mix(vec3(0.075,0.105,0.16),vec3(0.88,0.92,0.97),wisps);tornadoColor=mix(tornadoColor,vec3(0.32,0.40,0.51),pow(1.0-z,1.8)*0.34);float tornadoAlpha=clamp(mix(0.30,0.94,wisps)*(0.78+billow*0.22),0.18,0.96);' + (webgl2 ? 'bpColor=vec4(tornadoColor,tornadoAlpha);' : 'gl_FragColor=vec4(tornadoColor,tornadoAlpha);') + 'return;}vec3 n=normalize(v_local);float cloudShadingMix=1.0-smoothstep(0.84,0.96,v_tint);vec3 sculptedNormal=normalize(vec3(v_local.x*0.86,v_local.y*0.90,v_local.z*1.55));n=normalize(mix(n,sculptedNormal,cloudShadingMix));float viewFar=smoothstep(85000.0,18000000.0,u_camera_altitude_m);float detailScale=mix(22.0,5.2,viewFar);float broad=noise3(v_local*(detailScale*0.20)+vec3(u_time*0.002,v_tint*1.7,0.0));float detail=noise3(v_local*(detailScale*0.50)+vec3(u_time*0.006,v_tint*4.0,0.0));float billow=noise3(v_local*(detailScale*1.0)+vec3(0.0,u_time*0.010,v_tint*8.0));float fine=noise3(v_local*(detailScale*1.95)+vec3(u_time*0.006,v_tint*11.0,0.0));float warp=noise3(v_local*(detailScale*0.34)+vec3(-u_time*0.001,v_tint*2.3,u_time*0.001));float erosion=noise3(v_local*(detailScale*3.6)+vec3(u_time*0.012,v_tint*15.0,0.0));vec3 bump=vec3((detail-broad)*0.22,(billow-detail)*0.18,(fine-warp)*0.16);vec3 cloudNormal=normalize(n+bump*mix(0.28,0.46,1.0-viewFar));float diffuse=max(0.0,dot(cloudNormal,normalize(vec3(-0.42,0.55,0.72))));float density=broad*0.30+detail*0.26+billow*0.21+fine*0.10+warp*0.05+erosion*0.08;float sculpt=smoothstep(0.22,0.70,density);float erosionMask=smoothstep(0.18,0.68,billow*0.39+fine*0.31+erosion*0.30);float edge=clamp(0.54+abs(v_local.z)*0.20,0.0,1.0);float silver=clamp(0.23+diffuse*0.75+broad*0.08+detail*0.07+billow*0.05,0.0,1.0);vec3 lit=mix(vec3(0.44,0.53,0.66),vec3(0.99,0.997,1.0),smoothstep(0.08,0.72,silver));float underside=pow(max(0.0,-cloudNormal.z),mix(1.26,1.08,cloudShadingMix));lit=mix(lit,vec3(0.15,0.22,0.33),underside*mix(0.40,0.59,cloudShadingMix));float cloudCavity=clamp((0.52-broad)*0.18+(0.50-detail)*0.12+(0.48-billow)*0.10+(0.5-warp)*0.07+(0.5-erosion)*0.04,0.0,0.22);lit*=1.0-cloudCavity*cloudShadingMix;float silverRim=pow(max(0.0,1.0-abs(dot(cloudNormal,normalize(vec3(0.2,-0.1,1.0))))),2.35);lit=mix(lit,vec3(0.93,0.97,1.0),silverRim*mix(0.20,0.35,cloudShadingMix));float tornadoCell=smoothstep(1.40,1.44,v_tint);float rainCell=smoothstep(1.30,1.34,v_tint)*(1.0-tornadoCell);float stormCell=smoothstep(0.89,0.95,v_tint)*(1.0-rainCell)*(1.0-tornadoCell);float hurricaneCell=smoothstep(1.20,1.23,v_tint)*(1.0-smoothstep(1.28,1.30,v_tint));float hurricaneRibbonCell=smoothstep(1.286,1.290,v_tint)*(1.0-smoothstep(1.294,1.298,v_tint));float tornadoStriation=0.5+0.5*sin(atan(v_local.y,v_local.x)*6.0-u_time*4.8+v_local.z*17.0+detail*2.1);float rainCloudLevel=clamp((v_tint-1.35)*1000.0,0.0,2.0);vec3 rainCloudTint=rainCloudLevel<1.0?mix(vec3(0.10,0.72,0.28),vec3(0.98,0.82,0.08),rainCloudLevel):mix(vec3(0.98,0.82,0.08),vec3(0.90,0.10,0.12),rainCloudLevel-1.0);lit=mix(lit,rainCloudTint,rainCell*0.78);lit=mix(lit,vec3(0.19,0.23,0.30),stormCell*0.46+hurricaneCell*0.62+tornadoCell*0.78);lit=mix(lit,vec3(0.83,0.88,0.93),tornadoCell*tornadoStriation*0.62);lit=mix(lit,mix(vec3(0.46,0.58,0.72),vec3(0.97,0.985,1.0),detail),hurricaneRibbonCell*0.48);float alphaBase=edge*(0.18+sculpt*0.49+diffuse*0.18+fine*0.08+erosionMask*0.16)*(1.0+rainCell*1.8+stormCell*0.14+hurricaneCell*0.3+hurricaneRibbonCell*0.95+tornadoCell*(0.55+tornadoStriation*0.50));float thinCell=1.0-smoothstep(0.19,0.26,v_tint);float alpha=clamp(mix(alphaBase,alphaBase*(0.68+erosionMask*0.22),thinCell),0.025,0.96);' +
     (webgl2 ? 'bpColor=vec4(lit,alpha);' : 'gl_FragColor=vec4(lit,alpha);') +
     '}';
   return { vertex, fragment, projectionAware };
@@ -882,7 +882,7 @@ export function initSkyClouds(target) {
   ensureLiveSatelliteCloudContextV6150(map);
   const existingCloudController = window.__BP_SKY_CLOUDS_V5908__;
   if (existingCloudController?.map === map) {
-    const existingState = window.__BP_SKY_CLOUDS_STATE_V6180__ || window.__BP_SKY_CLOUDS_STATE_V6150__ || window.__BP_SKY_CLOUDS_STATE_V6079__ || window.__BP_SKY_CLOUDS_STATE_V6077__ || window.__BP_SKY_CLOUDS_STATE_V6076__ ||
+    const existingState = window.__BP_SKY_CLOUDS_STATE_V6200__ || window.__BP_SKY_CLOUDS_STATE_V6180__ || window.__BP_SKY_CLOUDS_STATE_V6150__ || window.__BP_SKY_CLOUDS_STATE_V6079__ || window.__BP_SKY_CLOUDS_STATE_V6077__ || window.__BP_SKY_CLOUDS_STATE_V6076__ ||
       window.__BP_SKY_CLOUDS_STATE_V6075__ ||
       window.__BP_SKY_CLOUDS_STATE_V6074__ ||
       window.__BP_SKY_CLOUDS_STATE_V6073__ ||
@@ -890,8 +890,8 @@ export function initSkyClouds(target) {
       existingCloudController.state || null;
     // Cache-busted modules still share this global controller slot. Never silently
     // return a legacy controller whose geometry predates the requested cloud field.
-    if (Number(existingCloudController.version) >= 6180 &&
-        Number(existingState?.coverageVersion || existingState?.version) >= 6180) {
+    if (Number(existingCloudController.version) >= 6200 &&
+        Number(existingState?.version) >= 6200) {
       return existingCloudController;
     }
     try { existingCloudController.destroy?.(); } catch (error) {
@@ -1385,7 +1385,7 @@ export function initSkyClouds(target) {
     const satelliteMaskUsable = Number(satelliteMask?.version)>=6150 && satelliteMask?.map===map && satelliteMaskAgeMs!=null && satelliteMaskAgeMs<3600000;
     const satelliteMaskStatus = satelliteMaskUsable ? 'fresh-observation-derived' : (window.__BP_GOES_CLOUD_CONTEXT_V6134__?.maskStatus || 'procedural-fallback');
     const state = {
-      version: 6180, map, enabled, visible: enabled && !document.hidden,
+      version: 6200, map, enabled, visible: enabled && !document.hidden,
       cloudShadowLayerAttached: !!map.getLayer?.(SHADOW_LAYER_ID), cloudShadowFeatureCount: shadowFeatureCount,
       cloudShadowUpdatedAt: shadowLastUpdateAt, cloudShadowHeightResolvedWindCount: shadowWindSourceCount,
       cloudShadowLayerError: shadowLayerError, weatherSceneGeneratedAt: getScene()?.generated_at || getScene()?.updated_at || null,
@@ -1459,6 +1459,7 @@ export function initSkyClouds(target) {
       rendererError, zoom: number(map.getZoom?.()), pitch: number(map.getPitch?.()), updatedAt: Date.now()
     };
     window.__BP_SKY_CLOUDS_STATE_V5908__ = state;
+    window.__BP_SKY_CLOUDS_STATE_V6200__ = state;
     window.__BP_SKY_CLOUDS_STATE_V6180__ = state;
     window.__BP_SKY_CLOUDS_STATE_V6170__ = state;
     window.__BP_SKY_CLOUDS_STATE_V6150__ = state;
@@ -2279,10 +2280,24 @@ function generateGeometry() {
     const tornadoReserveCount = tornadoAlertCount + sourceTornadoCount;
     const stormFormLimit = Math.max(8, maxForm - Math.min(10, tornadoReserveCount));
     const getLon = lng => ((((lng + 180) % 360) + 360) % 360) - 180;
-    function addFormation(lng, lat, radiusM, baseM, topM, seed, kind = 'ordinary', windContext = null, stormMotion = null) {
+    function addFormation(lng, lat, radiusM, baseM, topM, seed, kind = 'ordinary', windContext = null, stormMotion = null, rainIntensity = 0) {
       if (!Number.isFinite(lng) || !Number.isFinite(lat) || Math.abs(lat) > 82 || formations.length >= maxForm) return;
       formations.push({ lng: getLon(lng), lat, radiusM: clamp(radiusM, 600, 520000),
-        baseM: clamp(baseM, 450, 14000), topM: clamp(topM, baseM + 180, 18500), seed, kind, windContext, stormMotion });
+        baseM: clamp(baseM, 450, 14000), topM: clamp(topM, baseM + 180, 18500), seed, kind, windContext, stormMotion, rainIntensity: clamp(Number(rainIntensity)||0, 0, 2) });
+    }
+    function sourceRainColorLevel(sample) {
+      const p = { ...(sample?.properties || {}), ...(sample || {}) };
+      const read = keys => { for (const key of keys) { const raw = p[key]; if (raw === null || raw === undefined || raw === '') continue; const value = Number(raw); if (Number.isFinite(value)) return value; } return NaN; };
+      const dbz = read(['reflectivity_dbz','radar_reflectivity_dbz','dbz','dBZ']);
+      if (Number.isFinite(dbz)) return dbz >= 45 ? 2 : dbz >= 35 ? 1 : 0;
+      const mmRate = read(['precipitation_rate_mm_hr','precipitation_rate_mmh','rain_rate_mm_hr','rainfall_rate_mm_hr','precipitation_mm_hr','precip_rate_mm_hr']);
+      if (Number.isFinite(mmRate)) return mmRate >= 7.5 ? 2 : mmRate >= 2.5 ? 1 : 0;
+      const inRate = read(['precipitation_rate_in_hr','rain_rate_in_hr','rainfall_rate_in_hr','precipitation_in_hr']);
+      if (Number.isFinite(inRate)) { const rate = inRate * 25.4; return rate >= 7.5 ? 2 : rate >= 2.5 ? 1 : 0; }
+      const description = String([p.severity,p.severity_level,p.alert_level,p.event,p.headline,p.description,sample?.weather,sample?.present_weather,sample?.weather_text,sample?.wx,sample?.condition,sample?.conditions,sample?.rawdata].filter(Boolean).join(' ')).toLowerCase();
+      if (/extreme|severe|torrential|heavy|violent|hurricane|typhoon/.test(description)) return 2;
+      if (/moderate|thunderstorm|squall|shower|waterspout/.test(description)) return 1;
+      return 0;
     }
     // A funnel is pinned only to a point-shaped source observation; warning polygons stay polygon warnings.
     const sourceTornadoCenters=[];
@@ -2381,8 +2396,27 @@ function generateGeometry() {
         ? clamp(suppliedRadius * 1609.34, 2200, 90000)
         : (thunderstorm ? 28000 : 16000);
       addFormation(lng, lat, radiusM, elevation + baseAgl, elevation + top,
-        hash(lng, lat, 6058), 'rain-cell');
+        hash(lng, lat, 6058), 'rain-cell', null, null, sourceRainColorLevel(sample));
     }
+
+    // Publish exact source rain-cell positions immediately after their geographic formations
+    // are selected. Those same formations are meshed later in this geometry pass; publishing
+    // here lets cloud-to-ground effects attach without waiting for cyclone meshes or global clouds.
+    const lightningCloudAnchors = formations.filter(f => f.kind === 'rain-cell').map(f => {
+      const groundM = terrainElevationAt(f.lng, f.lat);
+      return {
+        lng: f.lng, lat: f.lat, radiusM: f.radiusM,
+        cloudBaseAglM: clamp(f.baseM - groundM, 180, 4200),
+        cloudTopAglM: clamp(f.topM - groundM, 680, 16000),
+        cloudBaseM: f.baseM, cloudTopM: f.topM,
+        source: 'shared-rendered-rain-cell-cloud', geometryVersion: 6135
+      };
+    });
+    window.__BP_LIGHTNING_CLOUD_ANCHORS_V6135__ = {
+      map, anchors: lightningCloudAnchors, count: lightningCloudAnchors.length,
+      rainCellCount: lightningCloudAnchors.length, satelliteCellCount: 0,
+      cloudMaskGeneration: 0, localRainCloudsReady: true, globalCloudBuildPending: true, updatedAt: Date.now()
+    };
 
     // Existing source-measured cloud-height samples stay intact.
     for (const sample of measured.slice(0, overviewClouds ? 0 : (MOBILE ? 4 : 5))) {
@@ -2600,6 +2634,8 @@ function generateGeometry() {
         : (MOBILE ? 3 : 4);
       const funnelTopM = f.kind === 'funnel' ? f.topM + Math.max(0,260000-f.topM)*overviewBoost : f.topM;
       const funnelRadiusM = f.kind === 'funnel' ? f.radiusM + Math.max(0,95000-f.radiusM)*overviewBoost : f.radiusM;
+      const parentScale = 1;
+      const rainColorLevel = f.kind === 'rain-cell' ? clamp(Number(f.rainIntensity)||0,0,2) : 0;
       for (let i = 0; i < n; i++) {
         const a = i * 2.399 + f.seed * 5.3;
         const ring = i === 0 ? 0 : f.radiusM * (0.16 + hash(k, i, 1) * 0.24);
@@ -2610,8 +2646,7 @@ function generateGeometry() {
         const cloudRange = funnelTopM - f.baseM;
         const altitude = f.baseM + cloudRange * (f.kind === 'funnel' ? 0.86 : (i === 0 ? 0.50 : 0.48 + hash(k, i, 5) * 0.04));
         const vertical = f.kind === 'funnel' ? Math.max(3200, cloudRange * 0.48) : cloudRange * (i === 0 ? 0.43 : 0.40 + hash(k, i, 6) * 0.035);
-        const parentScale = 1;
-        const puffTint = f.kind === 'rain-cell' ? 1.35 : f.kind === 'hurricane' ? (f.windContext?.centerLat < 0 ? 1.28 : 1.27) : f.kind === 'hurricane-eyewall' ? (f.windContext?.centerLat < 0 ? 1.24 : 1.23) : f.kind === 'hurricane-spiral' ? (f.windContext?.centerLat < 0 ? 1.28 : 1.27) : f.kind === 'storm' || f.kind === 'funnel' ? 0.93 + hash(k, i, 7) * 0.035 : 0.22 + hash(k, i, 7) * 0.52;
+        const puffTint = f.kind === 'rain-cell' ? 1.35 + rainColorLevel * 0.001 : f.kind === 'hurricane' ? (f.windContext?.centerLat < 0 ? 1.28 : 1.27) : f.kind === 'hurricane-eyewall' ? (f.windContext?.centerLat < 0 ? 1.24 : 1.23) : f.kind === 'hurricane-spiral' ? (f.windContext?.centerLat < 0 ? 1.28 : 1.27) : f.kind === 'storm' || f.kind === 'funnel' ? 0.93 + hash(k, i, 7) * 0.035 : 0.22 + hash(k, i, 7) * 0.52;
         puff(lng, lat, altitude, funnelRadiusM * scaleX * parentScale, funnelRadiusM * scaleY * parentScale, vertical, f.seed,
           puffTint, globeScale, f.windContext, f.kind === 'funnel' ? {lng:f.lng,lat:f.lat} : null);
       }
@@ -2619,30 +2654,18 @@ function generateGeometry() {
         // Distinct low rain-cloud shelf: same world coordinates and cloud base as rain seeds.
         const shelfAltitude = f.baseM + clamp((f.topM - f.baseM) * 0.12, 160, 260);
         puff(f.lng, f.lat, shelfAltitude, f.radiusM * 0.38, f.radiusM * 0.30,
-          clamp((f.topM - f.baseM) * 0.18, 260, 520), 1.35, 1.35, globeScale, f.windContext);
+          clamp((f.topM - f.baseM) * 0.18, 260, 520), 1.35, 1.35 + rainColorLevel * 0.001, globeScale, f.windContext);
         rainCellShelfCount++;
       }
 
     }
-    // Publish the exact geographic rain-cloud formations already submitted to the 3D cloud mesh.
-    // Lightning consumes these same source-backed cloud centers, rather than inventing a screen-space cloud.
-    const lightningCloudAnchors = formations.filter(f => f.kind === 'rain-cell').map(f => {
-      const groundM = terrainElevationAt(f.lng, f.lat);
-      return {
-        lng: f.lng, lat: f.lat, radiusM: f.radiusM,
-        cloudBaseAglM: clamp(f.baseM - groundM, 180, 4200),
-        cloudTopAglM: clamp(f.topM - groundM, 680, 16000),
-        cloudBaseM: f.baseM, cloudTopM: f.topM,
-        source: 'shared-rendered-rain-cell-cloud', geometryVersion: 6135
-      };
-    });
-      const global = buildGlobalCloudGeometry();
+    const global = buildGlobalCloudGeometry();
     const satelliteLightningCloudAnchors = Array.isArray(global.satelliteCloudAnchors) ? global.satelliteCloudAnchors : [];
     const sharedLightningCloudAnchors = lightningCloudAnchors.concat(satelliteLightningCloudAnchors);
     window.__BP_LIGHTNING_CLOUD_ANCHORS_V6135__ = {
       map, anchors: sharedLightningCloudAnchors, count: sharedLightningCloudAnchors.length,
       rainCellCount: lightningCloudAnchors.length, satelliteCellCount: satelliteLightningCloudAnchors.length,
-      cloudMaskGeneration: global.satelliteMaskGeneration || 0, updatedAt: Date.now()
+      cloudMaskGeneration: global.satelliteMaskGeneration || 0, localRainCloudsReady: true, globalCloudBuildPending: false, updatedAt: Date.now()
     };
     const globalVertexCount = Math.floor(global.vertices.length / 13);
     const requestedStormVertexCount = Math.floor(stormVolumeVertices.length/13);
@@ -2813,10 +2836,10 @@ function scheduleGeometry(delay = 180) {
   else map.once?.('load', addLayerIfReady);
 
   const api = {
-    version: 6180, map, overlay,
+    version: 6200, map, overlay,
     get enabled() { return enabled; },
     setEnabled, toggle,
-    get state() { return window.__BP_SKY_CLOUDS_STATE_V6180__ || window.__BP_SKY_CLOUDS_STATE_V6170__ || window.__BP_SKY_CLOUDS_STATE_V6150__ || window.__BP_SKY_CLOUDS_STATE_V6140__ || window.__BP_SKY_CLOUDS_STATE_V6077__ || window.__BP_SKY_CLOUDS_STATE_V6076__ || window.__BP_SKY_CLOUDS_STATE_V6074__ || window.__BP_SKY_CLOUDS_STATE_V6073__ || window.__BP_SKY_CLOUDS_STATE_V6047__ || window.__BP_SKY_CLOUDS_STATE_V6046__ || window.__BP_SKY_CLOUDS_STATE_V6045__ || window.__BP_SKY_CLOUDS_STATE_V6031__ || window.__BP_SKY_CLOUDS_STATE_V6029__ || window.__BP_SKY_CLOUDS_STATE_V5908__ || null; },
+    get state() { return window.__BP_SKY_CLOUDS_STATE_V6200__ || window.__BP_SKY_CLOUDS_STATE_V6180__ || window.__BP_SKY_CLOUDS_STATE_V6170__ || window.__BP_SKY_CLOUDS_STATE_V6150__ || window.__BP_SKY_CLOUDS_STATE_V6140__ || window.__BP_SKY_CLOUDS_STATE_V6077__ || window.__BP_SKY_CLOUDS_STATE_V6076__ || window.__BP_SKY_CLOUDS_STATE_V6074__ || window.__BP_SKY_CLOUDS_STATE_V6073__ || window.__BP_SKY_CLOUDS_STATE_V6047__ || window.__BP_SKY_CLOUDS_STATE_V6046__ || window.__BP_SKY_CLOUDS_STATE_V6045__ || window.__BP_SKY_CLOUDS_STATE_V6031__ || window.__BP_SKY_CLOUDS_STATE_V6029__ || window.__BP_SKY_CLOUDS_STATE_V5908__ || null; },
     destroy() {
       if (disposed) return; disposed = true;
       stopAnimation(); clearTimeout(rebuildTimer); clearTimeout(refreshHandle); clearLayerRetry();
