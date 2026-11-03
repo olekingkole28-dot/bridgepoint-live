@@ -60,6 +60,7 @@
 
   function findMap() {
     const worlds = [
+      window.__bpWorldV2300,
       window.__BP_V5000_WORLD, window.__BP_V5000_WORLD__,
       window.__BP_LANDING_WORLD__, window.__bpLandingWorldV5420,
       window.__BP_WORLD__, window.__BP_MAP_WORLD__
