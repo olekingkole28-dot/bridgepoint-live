@@ -1,5 +1,6 @@
 const ADSB_ROOT = "https://api.adsb.lol/v2/";
 const LAYER400_ROOT = "https://layer400.com/business/api/v1/live/rid";
+const FLYITALY_ROOT = "https://api.flyitalyadsb.com/v2/";
 const PUBLISHABLE_KEY = "sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25";
 const ALLOWED_ORIGINS = new Set([
   "https://bridgepointintelligence.online",
@@ -130,6 +131,48 @@ async function fetchAdsb(lat: number, lon: number, radius: number) {
     url,
   };
 }
+function flyItalyUavRecord(row: any) {
+  if (!row || typeof row !== "object") return false;
+  const category = String(row.category || row.emitter_category || "").trim().toUpperCase();
+  if (category === "B6" || category === "14" || category === "UAV") return true;
+  const ecat = Number(row.ecat ?? row.flarm_ecat);
+  if (Number.isFinite(ecat) && ecat === 13) return true;
+  const description = [row.desc, row.description, row.typeDescription, row.type, row.t]
+    .filter(Boolean).join(" ");
+  return /\b(?:UAV|UAS|UNMANNED AERIAL|UNMANNED AIRCRAFT|DRONE)\b/i.test(description);
+}
+async function fetchFlyItaly(lat: number, lon: number, radiusNm: number, apiKey: string) {
+  const radiusKm = Math.min(500, Math.ceil(radiusNm * 1.852));
+  const url = FLYITALY_ROOT + "lat/" + lat.toFixed(4) + "/lon/" + lon.toFixed(4) + "/dist/" + radiusKm;
+  const response = await fetch(url, {
+    headers: {
+      accept: "application/json",
+      "X-Api-Key": apiKey,
+      "user-agent": "BridgePoint-Intelligence/1.0 (+https://bridgepointintelligence.online)",
+    },
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  });
+  if (!response.ok) throw new Error("FlyItalyADSB HTTP " + response.status);
+  const payload = await response.json();
+  if (!payload || !Array.isArray(payload.ac)) throw new Error("FlyItalyADSB returned an invalid aircraft response");
+  const accepted = payload.ac.filter(flyItalyUavRecord).map((row: any) => ({
+    ...row,
+    _bpSourceName: "FlyItalyADSB ADS-B/OGN",
+    _bpUavEvidence: String(row.category || row.emitter_category || row.ecat || row.flarm_ecat || row.type || row.t || "UAV record"),
+  }));
+  return {
+    records: accepted,
+    received: payload.ac.length,
+    total: Number.isFinite(Number(payload.total)) ? Number(payload.total) : payload.ac.length,
+    url,
+    radiusKm,
+    plan: response.headers.get("x-fia-plan"),
+    limitPerMinute: response.headers.get("x-fia-limit-per-min"),
+    remainingMonthlyQuota: response.headers.get("x-fia-quota-month") && response.headers.get("x-fia-used-month")
+      ? Math.max(0, Number(response.headers.get("x-fia-quota-month")) - Number(response.headers.get("x-fia-used-month")))
+      : null,
+  };
+}
 async function fetchLayer400(lat: number, lon: number, radius: number, apiKey: string) {
   const bbox = bboxForRadius(lat, lon, radius);
   const records: any[] = [];
@@ -184,10 +227,24 @@ async function loadRegion(lat: number, lon: number, radius: number) {
       error: null,
       quotaRemaining: null,
     },
+    flyitaly_adsb: {
+      name: "FlyItalyADSB ADS-B / MLAT / OGN",
+      status: Deno.env.get("FLYITALYADSB_API_KEY") ? "pending" : "not_configured",
+      configured: !!Deno.env.get("FLYITALYADSB_API_KEY"),
+      recordsReceived: 0,
+      recordsAccepted: 0,
+      radiusKm: null,
+      plan: null,
+      limitPerMinute: null,
+      remainingMonthlyQuota: null,
+      error: null,
+    },
   };
   let adsbRecords: any[] = [];
   let ridRecords: any[] = [];
+  let flyitalyRecords: any[] = [];
   let adsbTotal = 0;
+  let flyitalyTotal = 0;
   const tasks: Promise<void>[] = [];
   tasks.push((async () => {
     try {
@@ -199,6 +256,33 @@ async function loadRegion(lat: number, lon: number, radius: number) {
       providers.adsb_lol = { ...providers.adsb_lol, status: "error", error: String((error as any)?.message || error).slice(0, 180) };
     }
   })());
+  const flyItalyKey = Deno.env.get("FLYITALYADSB_API_KEY") || "";
+  if (flyItalyKey) {
+    tasks.push((async () => {
+      try {
+        const source = await fetchFlyItaly(lat, lon, radius, flyItalyKey);
+        flyitalyRecords = source.records;
+        flyitalyTotal = source.total;
+        providers.flyitaly_adsb = {
+          ...providers.flyitaly_adsb,
+          status: "ok",
+          recordsReceived: source.received,
+          recordsAccepted: source.records.length,
+          radiusKm: source.radiusKm,
+          plan: source.plan,
+          limitPerMinute: source.limitPerMinute,
+          remainingMonthlyQuota: source.remainingMonthlyQuota,
+          url: source.url,
+        };
+      } catch (error) {
+        providers.flyitaly_adsb = {
+          ...providers.flyitaly_adsb,
+          status: "error",
+          error: String((error as any)?.message || error).slice(0, 180),
+        };
+      }
+    })());
+  }
   const ridKey = Deno.env.get("LAYER400_API_KEY") || "";
   if (ridKey) {
     tasks.push((async () => {
@@ -225,8 +309,8 @@ async function loadRegion(lat: number, lon: number, radius: number) {
     })());
   }
   await Promise.all(tasks);
-  const successCount = Number(providers.adsb_lol.status === "ok") + Number(["ok", "partial"].includes(providers.layer400_remote_id.status));
-  const records = [...adsbRecords, ...ridRecords];
+  const successCount = Number(providers.adsb_lol.status === "ok") + Number(["ok", "partial"].includes(providers.layer400_remote_id.status)) + Number(providers.flyitaly_adsb.status === "ok");
+  const records = [...adsbRecords, ...flyitalyRecords, ...ridRecords];
   if (!successCount) {
     return {
       status: 502,
@@ -245,11 +329,11 @@ async function loadRegion(lat: number, lon: number, radius: number) {
     body: {
       ok: true,
       ac: records,
-      total: adsbTotal + ridRecords.length,
+      total: adsbTotal + flyitalyTotal + ridRecords.length,
       providers,
       upstreamUrl: ADSB_ROOT + "lat/" + lat.toFixed(4) + "/lon/" + lon.toFixed(4) + "/dist/" + radius,
       servedAt: new Date().toISOString(),
-      partial: providers.adsb_lol.status !== "ok" || providers.layer400_remote_id.status === "error" || providers.layer400_remote_id.status === "partial",
+      partial: providers.adsb_lol.status !== "ok" || providers.layer400_remote_id.status === "error" || providers.layer400_remote_id.status === "partial" || providers.flyitaly_adsb.status === "error",
       simulatedFleet: false,
     },
   };
