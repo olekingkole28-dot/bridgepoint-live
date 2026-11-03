@@ -474,12 +474,15 @@ export function initBridgePointEmrfSpectrogram(target) {
         layer.scene.add(mesh,sphere4Mesh,sphere5Mesh);
       },
       render:(gl,args)=>{
-        if (!layer.visible || !layer.renderer || !layer.mesh || !st.active || !st.beams.length) return;
+        if (!layer.visible || !layer.renderer || !layer.mesh || !st.active) return;
         const matrix=args?.defaultProjectionData?.mainMatrix || args?.modelViewProjectionMatrix;
         if (!matrix || typeof matrix.length!=='number' || matrix.length<16) return;
         const projection=new THREE.Matrix4().fromArray(matrix);
         const now=Date.now()*.001;
         layer.mesh.material.uniforms.u_time.value=now;
+        layer.mesh.visible=true;
+        layer.sphere4Mesh.visible=false;
+        layer.sphere5Mesh.visible=false;
         for (let i=0;i<st.beams.length;i++) {
           const beam=st.beams[i];
           let modelMatrix;
@@ -498,6 +501,7 @@ export function initBridgePointEmrfSpectrogram(target) {
         }
         // Reuse the same globe-anchored 3D layer for the 4G/5G planning bubbles.
         // These use the same nominal envelopes as the existing Wind / RF panel and remain estimates.
+        layer.mesh.visible=false;
         const zoom=Number(map.getZoom?.()||0);
         const maxSpheres=zoom<3?28:zoom<6?56:96;
         const sites=st.sites;
@@ -509,14 +513,17 @@ export function initBridgePointEmrfSpectrogram(target) {
           if(!modelMatrix)continue;
           const model=new THREE.Matrix4().fromArray(modelMatrix);
           layer.camera.projectionMatrix.copy(projection).multiply(model);
+          layer.sphere4Mesh.visible=true;layer.sphere5Mesh.visible=false;
           layer.sphere4Mesh.position.set(0,1100,0);
           layer.sphere4Mesh.scale.set(2200,1100,2200);
           try { layer.renderer.resetState?.();layer.renderer.render(layer.scene,layer.camera); } catch (_) { break; }
           layer.camera.projectionMatrix.copy(projection).multiply(model);
+          layer.sphere4Mesh.visible=false;layer.sphere5Mesh.visible=true;
           layer.sphere5Mesh.position.set(0,425,0);
           layer.sphere5Mesh.scale.set(850,425,850);
           try { layer.renderer.resetState?.();layer.renderer.render(layer.scene,layer.camera); } catch (_) { break; }
         }
+        layer.sphere4Mesh.visible=false;layer.sphere5Mesh.visible=false;layer.mesh.visible=true;
       },
       onRemove:()=>{
         try { layer.renderer?.dispose?.(); } catch (_) {}
@@ -541,16 +548,16 @@ export function initBridgePointEmrfSpectrogram(target) {
     if (!map.getSource(IDS.footprintSource)) ensureMapLayers();
     map.getSource(IDS.footprintSource)?.setData(makeFootprints(beams));
     $('[data-beams]').textContent=fmt(beams.length);
-    if (beams.length) {
+    if (beams.length || st.sites.length) {
       try {
         const layer=await ensureBeamLayer();
         layer.visible=true;
       } catch (error) {
         console.warn('BridgePoint Starlink 3D beams unavailable',error);
-        say('Starlink positions are available but the 3D beam shader did not initialize: '+String(error?.message||error));
+        say('3D EM/RF volume renderer did not initialize: '+String(error?.message||error));
       }
-    } else {
-      if (st.beamLayer) st.beamLayer.visible=false;
+    } else if (st.beamLayer) {
+      st.beamLayer.visible=false;
     }
     if (st.active) map.triggerRepaint?.();
   }
