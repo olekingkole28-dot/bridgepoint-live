@@ -853,8 +853,8 @@ jobs:
           grep -Fq 'queryTerrainElevation' site/world-v2300-infrastructure-volume-v5962.js
           grep -Fq 'enabled:true' site/world-v2300-infrastructure-volume-v5962.js
           ! grep -Fq 'data-toggle' site/world-v2300-infrastructure-volume-v5962.js
-          grep -Fq '6224-solid-grounded-power-grid' site/index.html
-          grep -Fq '6224-solid-grounded-power-grid' site/app/index.html
+          grep -Fq 'landing.js?v=6223-storm-clouds-no-rain&bp=5968-solid-grounded-grid' site/index.html
+          grep -Fq 'app.js?v=6223-storm-clouds-no-rain&bp=5968-solid-grounded-grid' site/app/index.html
           grep -Fq 'world-v2300-sensor-layers.js?v=6027-nasa-nightlight-corrected-radiance' site/app.js
           grep -Fq 'world-v2300-sensor-layers.js?v=6027-nasa-nightlight-corrected-radiance' site/landing.js
           grep -Fq 'bridgepoint-gebco-depth-image-v5937' site/world-v2300-sensor-layers.js
