@@ -148,7 +148,7 @@ function writeSummary(){
  if(regionalStatusNode){
   regionalStatusNode.replaceChildren();
   for(const result of diagnosticState.regionalResults){const row=element('div','bp-drone-cell-row');row.append(element('b','',result.sample.id));const providerNote=result.providers?' · ADS-B '+(result.providers.adsb_lol?.status||'—')+' · FlyItaly '+(result.providers.flyitaly_adsb?.status||'—')+' · Remote ID '+(result.providers.layer400_remote_id?.status||'—'):'';const detail=result.status==='pending'?'PENDING':result.cached?'CACHED · '+result.records.length+' reports'+providerNote:result.ok?'OK · '+result.records.length+' reports'+providerNote:'FAILED · '+String(result.error||'Unknown request error');const value=element('span','',detail);value.title=result.error||result.requestUrl||'';row.append(value);regionalStatusNode.append(row)}
-  if(diagnosticState.localSample){const result=diagnosticState.localSample,row=element('div','bp-drone-cell-row');row.append(element('b','','Local map-view sample'));const providerNote=result.providers?' · ADS-B '+(result.providers.adsb_lol?.status||'—')+' · Remote ID '+(result.providers.layer400_remote_id?.status||'—'):'';const detail=result.status==='pending'?'PENDING':result.cached?'CACHED · '+result.records.length+' reports'+providerNote:result.ok?'OK · '+result.records.length+' reports'+providerNote:'FAILED · '+String(result.error||'Unknown request error');const value=element('span','',detail);value.title=result.error||result.requestUrl||'';row.append(value);regionalStatusNode.append(row)}
+  if(diagnosticState.localSample){const result=diagnosticState.localSample,row=element('div','bp-drone-cell-row');row.append(element('b','','Local map-view sample'));const providerNote=result.providers?' · ADS-B '+(result.providers.adsb_lol?.status||'—')+' · FlyItaly '+(result.providers.flyitaly_adsb?.status||'—')+' · Remote ID '+(result.providers.layer400_remote_id?.status||'—'):'';const detail=result.status==='pending'?'PENDING':result.cached?'CACHED · '+result.records.length+' reports'+providerNote:result.ok?'OK · '+result.records.length+' reports'+providerNote:'FAILED · '+String(result.error||'Unknown request error');const value=element('span','',detail);value.title=result.error||result.requestUrl||'';row.append(value);regionalStatusNode.append(row)}
  }
 }
 function setLayerVisibility(on){
@@ -369,8 +369,10 @@ const DroneCore=(()=>{
  function isUavRecord(a){
   const category=String(a?.category||a?.emitter_category||'').trim().toUpperCase();
   if(category==='B6'||category==='14'||category==='UAV')return true;
-  const description=[a?.desc,a?.description,a?.typeDescription,a?.type,a?.t].filter(Boolean).join(' ');
-  return /\b(?:UAV|UAS|UNMANNED AERIAL|UNMANNED AIRCRAFT|DRONE|REMOTE ID)\b/i.test(description);
+  const flarmType=Number(a?.ecat??a?.flarm_ecat);
+  if(Number.isFinite(flarmType)&&flarmType===13)return true;
+  const description=[a?.desc,a?.description,a?.typeDescription,a?.type,a?.t,a?.flight].filter(Boolean).join(' ');
+  return /\b(?:UAV|UAS|UNMANNED AERIAL|UNMANNED AIRCRAFT|DRONE)\b/i.test(description);
  }
  function invalidPositionReason(a){
   const rawLat=a?.lat,rawLon=a?.lon,lat=Number(rawLat),lon=Number(rawLon);
