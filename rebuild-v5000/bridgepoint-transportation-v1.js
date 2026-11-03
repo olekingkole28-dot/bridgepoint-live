@@ -1,5 +1,6 @@
-/* BridgePoint Transportation Simulation v1.
+/* BridgePoint Transportation Simulation v2 · DOT-FIRST ADAPTIVE LOD.
  * Uses the existing OpenFreeMap road geometries and BridgePoint's existing 3D map.
+ * Global vehicle dots appear first; low/high-detail 3D models upgrade as the user zooms in.
  * All moving civilian and emergency vehicles in this module are simulated.
  * No private-car GPS, police AVL, EMS AVL, fire dispatch or incident feed is used.
  */
