@@ -73,7 +73,7 @@ assert.ok(workflow.includes('node --check rebuild-v5000/bridgepoint-drone-awaren
 assert.ok(moduleSource.includes('GLOBAL_SAMPLES=['), 'the public source is sampled across the global coverage hubs');
 assert.ok(moduleSource.includes("const REFRESH_MS=180000"), 'global positions refresh on a bounded three-minute cycle');
 assert.ok(moduleSource.includes('function modelSpanMeters(lat,zoom)'), '3D symbols remain visible from globe zoom');
-assert.ok(moduleSource.includes("model.rotation.set(0,0,(Number.isFinite(heading)?heading:0)*Math.PI/180-Math.PI/2)"), 'model orientation follows source heading');
+assert.ok(moduleSource.includes("model.rotation.set(0,0,(Number.isFinite(point.heading)?point.heading:0)*Math.PI/180-Math.PI/2)"), 'model orientation follows source heading');
 assert.ok(moduleSource.includes('function animateDroneModels(now)'), '3D propellers animate while aircraft are visible');
 assert.ok(moduleSource.includes('TRACK_RETENTION_MS'), 'track history retention is bounded');
 assert.ok(moduleSource.includes('Each observation preserves track key, source longitude/latitude, reported altitude'), 'trail history is described as sampled, not continuous');
