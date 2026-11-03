@@ -42,9 +42,14 @@ class FakeElement {
     this.parentElement = null;
     this.textContent = '';
     this.disabled = false;
+    this.style = {};
+    this.hidden = false;
+    this.classList = { toggle() {} };
   }
   append(...nodes) { for (const node of nodes) this.appendChild(node); }
+  prepend(node) { node.parentElement = this; this.children.unshift(node); }
   appendChild(node) { node.parentElement = this; this.children.push(node); return node; }
+  querySelectorAll() { return []; }
   insertBefore(node, reference) {
     node.parentElement = this;
     const index = reference ? this.children.indexOf(reference) : -1;
@@ -164,6 +169,67 @@ assert.equal(helpers.isRoadFeature({ properties: { class: 'rail', subclass: 'rai
 assert.equal(helpers.isRoadFeature({ properties: { class: 'transit' } }), false);
 assert.equal(helpers.isRoadFeature({ properties: { class: 'path', subclass: 'footway' } }), false);
 assert.equal(helpers.isRoadFeature({ properties: { class: 'pedestrian', subclass: 'pedestrian' } }), false);
+
+/* Exercise the real first-click global-zoom path with a mocked MapLibre road source.
+ * The test asserts that dots appear immediately and that Three.js is not requested at globe zoom.
+ */
+const activeDock = new FakeElement('div');
+const activeHead = new FakeElement('head');
+const activeSources = { ofm: {} };
+const activeLayers = {};
+const activeEvents = {};
+const activeRoads = [];
+for (let i = 0; i < 20; i++) {
+  const lon = -120 + i * .1;
+  activeRoads.push({
+    id: i,
+    geometry: { type: 'LineString', coordinates: [[lon, 35], [lon + .01, 35.005], [lon + .02, 35.01]] },
+    properties: { class: 'primary', subclass: 'road' }
+  });
+}
+const activeMap = {
+  on(name, ...args) { (activeEvents[name] ||= []).push(args); },
+  getStyle() { return { layers: [{ source: 'ofm', 'source-layer': 'transportation' }] }; },
+  getSource(id) { return activeSources[id] || null; },
+  addSource(id, config) { activeSources[id] = { data: config.data, setData(value) { this.data = value; } }; },
+  getLayer(id) { return activeLayers[id] || null; },
+  addLayer(layer) { activeLayers[layer.id] = layer; },
+  getCenter() { return { lng: -119, lat: 35 }; },
+  getZoom() { return 1.2; },
+  querySourceFeatures() { return activeRoads; }
+};
+const activeContext = {
+  window: { __BP_LANDING_WORLD__: { map: activeMap } },
+  document: {
+    readyState: 'complete',
+    visibilityState: 'visible',
+    head: activeHead,
+    addEventListener() {},
+    querySelector(selector) {
+      if (selector === '#bpv-dock-actions') return activeDock;
+      return activeDock.querySelector(selector);
+    },
+    createElement(tag) { return new FakeElement(tag); }
+  },
+  console: { warn() {}, log() {}, error() {} },
+  matchMedia: () => ({ matches: false }),
+  MutationObserver: class { observe() {} disconnect() {} },
+  setTimeout() { return 1; },
+  clearTimeout() {},
+  requestAnimationFrame() { throw new Error('global dot mode must not start a 3D animation frame loop'); },
+  cancelAnimationFrame() {},
+  performance: { now: () => 1000 }
+};
+bootModule.runInNewContext(moduleSource, activeContext, { filename: 'bridgepoint-transportation-global-dot-smoke.js' });
+const activeApi = activeContext.window.__BP_TRANSPORTATION_V1__;
+assert.ok(activeDock.querySelector('.bp-transportation-v1-toggle'), 'the module creates a real Transportation toggle inside the card');
+assert.equal(activeApi.enable(), true, 'the first press turns the simulation on directly');
+const activeState = activeApi.diagnostics();
+assert.equal(activeState.enabled, true);
+assert.equal(activeState.modelLod, 'dots', 'global zoom remains in lightweight dot mode');
+assert.ok(activeState.vehicles > 0, 'global zoom produces a simulated vehicle fleet');
+assert.equal(activeState.dots, activeState.vehicles, 'every global simulated vehicle has a visible dot');
+assert.ok(activeSources['bp-transportation-v1-dot-source']?.data?.features?.length > 0, 'the global dot layer is populated on the first press');
 
 const validKinds = new Set([
   'sedan', 'suv', 'pickup', 'sports-car', 'electric-sedan', 'jeep',
