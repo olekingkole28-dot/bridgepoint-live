@@ -339,7 +339,7 @@ function updateModels(records){
   if(bounds){try{if(!bounds.contains([v.lon,v.lat]))continue}catch(_){}}
   const pos=MC.fromLngLat({lng:v.lon,lat:v.lat},WATERLINE_METERS),unit=pos.meterInMercatorCoordinateUnits?.()||0;if(!Number.isFinite(unit)||unit<=0)continue;
   const kind=vesselClass(v.type),meterPerPixel=WORLD_CIRCUMFERENCE_M*Math.max(.12,Math.cos(v.lat*Math.PI/180))/(512*Math.pow(2,Math.max(0,zoom)));
-  const targetPixels=zoom<2?9:zoom<4?8:zoom<6?6:zoom<8?4.5:zoom<10?2.5:0;
+  const targetPixels=Math.max(0,9-zoom*.9);
   const trueLength=Math.max(18,Math.min(500,Number(v.length)||80)),displayLength=Math.max(trueLength,targetPixels*meterPerPixel);
   const displayBeam=Math.max(Number(v.beam)||0,displayLength*.19,5);
   const verticalFactor=kind==='sail'?.95:kind==='passenger'?.70:kind==='cargo'?.72:kind==='tanker'?.58:kind==='fishing'?.62:kind==='tug'?.65:kind==='highspeed'?.52:.62;
