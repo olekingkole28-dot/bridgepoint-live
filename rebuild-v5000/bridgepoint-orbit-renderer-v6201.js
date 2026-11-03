@@ -1,4 +1,4 @@
-// BridgePoint Orbit & Motion 3D renderer v6202.
+// BridgePoint Orbit & Motion 3D renderer v6203.
 // Satellite locations and orbital paths are propagated from stored public TLE/OMM records.
 // Every model and sampled orbit vertex is transformed with MapLibre's globe-aware model
 // matrix so objects remain above the spherical Earth through globe/mercator transitions.
@@ -156,6 +156,7 @@ export async function createOrbitRenderer(map){
  if(!map||!map.getStyle?.())throw new Error('The BridgePoint globe map is not style-ready.');
  const imported=await import(THREE_URL),T=imported.default||imported;
  let renderer=null,scene=null,camera=null,customLayer=null,pathLine=null;
+ let dotGeometry=null,dotHaloMaterial=null,dotCoreMaterial=null,dotHaloMesh=null,dotCoreMesh=null,dotCapacity=0;
  let templates=new Map(),lastPositions=[],lastCatalog=[],lastSatApi=null;
  let enabled=true,pathGeneration=0,modelsRendered=0,pathsBuilt=0,disposed=false;
  function modelMatrixFor(lon,lat,altMeters){
@@ -171,6 +172,9 @@ export async function createOrbitRenderer(map){
  }
  function disposeScene(){
   if(pathLine){try{scene?.remove(pathLine);pathLine.geometry?.dispose?.();pathLine.material?.dispose?.()}catch(_){}pathLine=null}
+  for(const mesh of [dotHaloMesh,dotCoreMesh]){try{if(mesh)scene?.remove(mesh)}catch(_){}}
+  try{dotGeometry?.dispose();dotHaloMaterial?.dispose();dotCoreMaterial?.dispose()}catch(_){}
+  dotGeometry=null;dotHaloMaterial=null;dotCoreMaterial=null;dotHaloMesh=null;dotCoreMesh=null;dotCapacity=0;
   for(const entry of templates.values()){try{scene?.remove(entry.mesh);entry.geometry.dispose();entry.material.dispose()}catch(_){}}
   templates.clear();
   if(renderer){try{renderer.dispose()}catch(_){}}
@@ -214,11 +218,26 @@ export async function createOrbitRenderer(map){
   mesh.name='BridgePoint source-derived 3D orbital '+kind+' objects';mesh.count=0;mesh.frustumCulled=false;mesh.instanceMatrix.setUsage(T.DynamicDrawUsage);scene.add(mesh);
   entry={kind,geometry,material,mesh,capacity:Math.max(1,capacity)};templates.set(kind,entry);return entry;
  }
+ function ensureDotMeshes(capacity){
+  if(dotHaloMesh&&dotCoreMesh&&dotCapacity>=capacity)return;
+  for(const mesh of [dotHaloMesh,dotCoreMesh]){try{if(mesh)scene?.remove(mesh)}catch(_){}}
+  try{dotGeometry?.dispose();dotHaloMaterial?.dispose();dotCoreMaterial?.dispose()}catch(_){}
+  dotGeometry=new T.SphereGeometry(1,12,8);
+  dotHaloMaterial=new T.MeshBasicMaterial({color:0x14dfff,transparent:true,opacity:.38,depthTest:true,depthWrite:false,toneMapped:false});
+  dotCoreMaterial=new T.MeshBasicMaterial({color:0xffed79,transparent:false,depthTest:true,depthWrite:false,toneMapped:false});
+  const size=Math.max(1,capacity);
+  dotHaloMesh=new T.InstancedMesh(dotGeometry,dotHaloMaterial,size);
+  dotCoreMesh=new T.InstancedMesh(dotGeometry,dotCoreMaterial,size);
+  for(const mesh of [dotHaloMesh,dotCoreMesh]){
+   mesh.count=0;mesh.frustumCulled=false;mesh.instanceMatrix.setUsage(T.DynamicDrawUsage);mesh.renderOrder=6;scene.add(mesh);
+  }
+  dotCapacity=size;
+ }
  function renderModels(records=lastPositions){
   lastPositions=Array.isArray(records)?records:[];
   if(!scene||!map)return 0;
   if(typeof map.transform?.getMatrixForModel!=='function')return 0;
-  const zoom=Number(map.getZoom?.()||0),groups=new Map();let placed=0;
+  const zoom=Number(map.getZoom?.()||0),groups=new Map(),dotHaloMatrices=[],dotCoreMatrices=[];let placed=0;
   for(const item of lastPositions){
    const kind=classify(item.item),meta=metadata(kind),lat=Number(item.lat),lon=Number(item.lon),alt=Number(item.alt);
    if(!Number.isFinite(lat)||!Number.isFinite(lon)||!Number.isFinite(alt))continue;
@@ -228,8 +247,14 @@ export async function createOrbitRenderer(map){
    const scale=displaySpan/meta.span;
    const heading=Number.isFinite(item.heading)?item.heading:0;
    // Align the spacecraft long axis to propagated velocity in the local tangent frame.
-   const matrix=anchor.multiply(new T.Matrix4().makeRotationY(-heading)).multiply(new T.Matrix4().makeScale(scale,scale,scale));
-   const bucket=groups.get(kind)||[];bucket.push(matrix);groups.set(kind,bucket);placed++;
+   const orientation=new T.Matrix4().makeRotationY(-heading);
+   const matrix=anchor.clone().multiply(orientation).multiply(new T.Matrix4().makeScale(scale,scale,scale));
+   const bucket=groups.get(kind)||[];bucket.push(matrix);groups.set(kind,bucket);
+   // A bright two-part 3D marker is anchored to the same spacecraft transform.
+   const dotBase=anchor.clone().multiply(orientation).multiply(new T.Matrix4().makeTranslation(0,0,displaySpan*.08));
+   dotHaloMatrices.push(dotBase.clone().multiply(new T.Matrix4().makeScale(metersPerPixel*2.05,metersPerPixel*2.05,metersPerPixel*2.05)));
+   dotCoreMatrices.push(dotBase.clone().multiply(new T.Matrix4().makeScale(metersPerPixel*1.05,metersPerPixel*1.05,metersPerPixel*1.05)));
+   placed++;
   }
   for(const [kind,matrices] of groups){
    const entry=ensureMesh(kind,matrices.length);
@@ -238,7 +263,49 @@ export async function createOrbitRenderer(map){
    try{entry.mesh.computeBoundingSphere()}catch(_){}
   }
   for(const [kind,entry] of templates)if(!groups.has(kind)){entry.mesh.count=0;entry.mesh.instanceMatrix.needsUpdate=true;entry.mesh.visible=enabled}
+  if(placed){
+   ensureDotMeshes(placed);
+   for(let i=0;i<placed;i++){dotHaloMesh.setMatrixAt(i,dotHaloMatrices[i]);dotCoreMesh.setMatrixAt(i,dotCoreMatrices[i])}
+   dotHaloMesh.count=placed;dotCoreMesh.count=placed;
+   dotHaloMesh.visible=enabled;dotCoreMesh.visible=enabled;
+   dotHaloMesh.instanceMatrix.needsUpdate=true;dotCoreMesh.instanceMatrix.needsUpdate=true;
+   try{dotHaloMesh.computeBoundingSphere();dotCoreMesh.computeBoundingSphere()}catch(_){}
+  }else if(dotHaloMesh&&dotCoreMesh){dotHaloMesh.count=0;dotCoreMesh.count=0}
   modelsRendered=placed;map.triggerRepaint?.();return placed;
+ }
+ function pickAtPoint(point,maxPixels=16){
+  if(!camera||!map||!point||!Number.isFinite(Number(point.x))||!Number.isFinite(Number(point.y)))return null;
+  const canvas=map.getCanvas?.();if(!canvas)return null;
+  const width=Number(canvas.clientWidth||canvas.width),height=Number(canvas.clientHeight||canvas.height);
+  if(!(width>0&&height>0))return null;
+  const zoom=Number(map.getZoom?.()||0),limit=Math.max(4,Number(maxPixels)||16),limitSq=limit*limit;
+  let best=null,bestDistance=limitSq,bestDepth=Infinity;
+  for(const record of lastPositions){
+   const item=record?.item,lat=Number(record?.lat),lon=Number(record?.lon),alt=Number(record?.alt);
+   if(!item||!Number.isFinite(lat)||!Number.isFinite(lon)||!Number.isFinite(alt))continue;
+   const meta=metadata(classify(item)),anchor=modelMatrixFor(lon,lat,alt*1000);if(!anchor)continue;
+   const mpp=WORLD_CIRCUMFERENCE_M*Math.max(.12,Math.cos(lat*Math.PI/180))/(512*Math.pow(2,Math.max(0,zoom)));
+   const displaySpan=Math.max(meta.span,mpp*meta.minPixels),heading=Number.isFinite(record.heading)?record.heading:0;
+   const orientation=new T.Matrix4().makeRotationY(-heading);
+   const centerClip=new T.Vector4(0,0,0,1).applyMatrix4(anchor).applyMatrix4(camera.projectionMatrix);
+   if(centerClip.w<=0)continue;
+   const surface=modelMatrixFor(lon,lat,0);
+   if(surface){
+    const groundClip=new T.Vector4(0,0,0,1).applyMatrix4(surface).applyMatrix4(camera.projectionMatrix);
+    if(groundClip.w>0&&centerClip.z/centerClip.w>=groundClip.z/groundClip.w-0.00002)continue;
+   }
+   const dotBase=anchor.clone().multiply(orientation).multiply(new T.Matrix4().makeTranslation(0,0,displaySpan*.08));
+   const clip=new T.Vector4(0,0,0,1).applyMatrix4(dotBase).applyMatrix4(camera.projectionMatrix);
+   if(clip.w<=0)continue;
+   const nx=clip.x/clip.w,ny=clip.y/clip.w,nz=clip.z/clip.w;
+   if(Math.abs(nx)>1.05||Math.abs(ny)>1.05||nz< -1||nz>1)continue;
+   const sx=(nx+1)*.5*width,sy=(1-ny)*.5*height,dx=sx-Number(point.x),dy=sy-Number(point.y),distance=dx*dx+dy*dy;
+   if(distance<=bestDistance&&(distance<bestDistance-1||nz<bestDepth)){
+    bestDistance=distance;bestDepth=nz;
+    best={item,lat,lon,alt,heading,screen:{x:sx,y:sy}};
+   }
+  }
+  return best;
  }
  function periodMinutes(item){
   const mean=Number(item?._bpSatrec?.no);
@@ -301,6 +368,7 @@ export async function createOrbitRenderer(map){
  function setVisible(value){
   enabled=!!value;if(pathLine)pathLine.visible=enabled;
   for(const entry of templates.values())entry.mesh.visible=enabled;
+  if(dotHaloMesh)dotHaloMesh.visible=enabled;if(dotCoreMesh)dotCoreMesh.visible=enabled;
   map.triggerRepaint?.();
  }
  function onZoom(){if(enabled)renderModels(lastPositions)}
@@ -315,6 +383,7 @@ export async function createOrbitRenderer(map){
  if(!addLayer())throw new Error('MapLibre did not accept the orbital 3D custom layer.');
  return{
   updatePositions,
+  pickAtPoint,
   buildPaths:rebuildPaths,
   setVisible,
   get stats(){return{models:modelsRendered,paths:pathsBuilt,layerReady:!!renderer&&!!scene}},
