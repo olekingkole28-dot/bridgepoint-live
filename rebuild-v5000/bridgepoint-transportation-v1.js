@@ -7,28 +7,36 @@
   'use strict';
   if (window.__BP_TRANSPORTATION_V1__) return;
 
-  const VERSION = 1;
+  const VERSION = 2;
   const THREE_URL = '/vendor/three.module.js?v=169-local';
   const ROAD_SOURCE = 'ofm';
   const ROAD_SOURCE_LAYER = 'transportation';
   const MODEL_LAYER = 'bp-transportation-v1-models';
   const DOT_SOURCE = 'bp-transportation-v1-dot-source';
   const DOT_LAYER = 'bp-transportation-v1-dots';
-  const MIN_ZOOM = 10.5;
-  const MAX_ROAD_FEATURES = 180;
-  const MAX_VEHICLES_DESKTOP = 64;
-  const MAX_VEHICLES_MOBILE = 26;
-  const DOT_UPDATE_MS = 200;
-  const REBUILD_DEBOUNCE_MS = 850;
+  const MODEL_MIN_ZOOM = 10.5;
+  const HIGH_DETAIL_ZOOM = 14.5;
+  const MAX_ROAD_FEATURES = 220;
+  const MAX_GLOBAL_ROADS = 180;
+  const MAX_MODEL_ROADS = (() => { try { return matchMedia('(max-width: 760px), (pointer: coarse)').matches ? 14 : 26; } catch (_) { return 18; } })();
+  const MAX_MODEL_POINTS = 16;
+  const MAX_DOT_POINTS_PER_ROAD = 36;
+  const DOT_UPDATE_MS = 380;
+  const REBUILD_DEBOUNCE_MS = 520;
   const EMPTY = { type: 'FeatureCollection', features: [] };
   const MOBILE = (() => { try { return matchMedia('(max-width: 760px), (pointer: coarse)').matches; } catch (_) { return false; } })();
+  const MAX_DOT_VEHICLES = MOBILE ? 64 : 120;
+  const MAX_LOW_DETAIL_MODELS = MOBILE ? 7 : 18;
+  const MAX_HIGH_DETAIL_MODELS = MOBILE ? 4 : 10;
 
   const state = {
     map: null, enabled: false, categories: { civilian: true, police: false, ambulance: false, fire: false },
     threePromise: null, THREE: null, renderer: null, scene: null, camera: null, customLayer: null,
     anchor: null, anchorElevation: null, paths: [], vehicles: [], lastDotAt: 0, lastFrameAt: 0,
-    raf: 0, rebuildTimer: 0, rebuilding: false, pendingRebuild: false, statusNode: null,
-    button: null, options: null, checkboxes: {}, lastError: null, popup: null, lastRebuildAt: null,
+    raf: 0, dotTimer: 0, waitTimer: 0, modelBuildTimer: 0, modelBuildToken: 0,
+    rebuildTimer: 0, rebuilding: false, pendingRebuild: false, statusNode: null,
+    modelLod: 'dots', button: null, options: null, checkboxes: {}, lastError: null,
+    popup: null, lastRebuildAt: null, waitAttempts: 0,
     diagnostics: { roads: 0, roadLengthM: 0, vehicles: 0, dots: 0, skippedTerrain: 0, zoom: 0 }
   };
 
@@ -182,7 +190,7 @@
     state.button.setAttribute('aria-pressed', String(state.enabled));
     const label = state.button.querySelector('.bpv-command-label');
     if (label) label.textContent = state.enabled ? 'Transportation · ON' : 'Transportation';
-    state.button.title = state.enabled ? 'Turn off the opt-in 3D transportation simulation' : 'Show simulated 3D vehicles moving on the existing road network';
+    state.button.title = state.enabled ? 'Turn off simulated road traffic' : 'Show simulated traffic; dots appear globally and 3D vehicles upgrade as you zoom in';
   }
 
   function addOptions() {
@@ -249,17 +257,8 @@
       button.innerHTML = '<span class="bpv-command-icon" aria-hidden="true">▰</span><span class="bpv-command-label">Transportation</span>';
       button.setAttribute('aria-pressed', 'false');
       button.addEventListener('click', () => {
-        if (state.enabled) {
-          disable();
-        } else {
-          state.enabled = true;
-          if (state.options) state.options.hidden = false;
-          setButtonState();
-          addOptions();
-          setStatus('Transportation simulation enabled. Sampling actual road geometries and terrain from the current map view…');
-          void rebuildFleet('enable');
-          startAnimation();
-        }
+        if (state.enabled) disable();
+        else enableSimulation();
       });
       state.button = button;
       grid.append(button);
@@ -341,12 +340,54 @@
     return found;
   }
 
-  function buildRoadPaths(map, anchor, anchorElevation) {
-    const source = sourceRoadFeatures(map);
+  function buildFlatRoadPaths(source, anchor) {
+    const paths = [];
+    let totalLength = 0;
+    const rows = (Array.isArray(source) ? source : []).slice(0, MAX_GLOBAL_ROADS);
+    for (const road of rows) {
+      const coordinates = road.coordinates || [];
+      if (coordinates.length < 2) continue;
+      const stride = Math.max(1, Math.ceil(coordinates.length / MAX_DOT_POINTS_PER_ROAD));
+      const sampled = coordinates.filter((point, index) =>
+        index === 0 || index === coordinates.length - 1 || index % stride === 0
+      );
+      const points = [];
+      let distance = 0;
+      for (const coordinate of sampled) {
+        if (points.length) {
+          const previous = points[points.length - 1];
+          const segment = metersApart(previous.coordinate, coordinate);
+          if (segment < 3) continue;
+          distance += segment;
+        }
+        points.push({ coordinate, local: localPoint(coordinate, anchor, 0, 0), distance });
+      }
+      if (points.length < 2 || distance < 65) continue;
+      paths.push({ points, length: distance, roadClass: road.roadClass, key: road.key + ':dot:' + paths.length });
+      totalLength += distance;
+    }
+    return { paths, totalLength, sourceFeatures: rows.length, skippedTerrain: 0 };
+  }
+
+  function sampleRoadRows(source) {
+    return (Array.isArray(source) ? source : []).slice(0, MAX_MODEL_ROADS).map(road => {
+      const coordinates = road.coordinates || [];
+      const stride = Math.max(1, Math.ceil(coordinates.length / MAX_MODEL_POINTS));
+      return {
+        ...road,
+        coordinates: coordinates.filter((point, index) =>
+          index === 0 || index === coordinates.length - 1 || index % stride === 0
+        )
+      };
+    }).filter(road => road.coordinates.length >= 2);
+  }
+
+  function buildRoadPaths(map, anchor, anchorElevation, sourceOverride) {
+    const source = Array.isArray(sourceOverride) ? sourceOverride : sourceRoadFeatures(map);
     const paths = [];
     let totalLength = 0, skippedTerrain = 0;
     for (const road of source) {
-      if (paths.length >= MAX_ROAD_FEATURES) break;
+      if (paths.length >= MAX_MODEL_ROADS) break;
       let chunk = [];
       const flushChunk = () => {
         if (chunk.length < 2) { chunk = []; return; }
@@ -362,7 +403,7 @@
           points.push({ ...point, distance });
         }
         chunk = [];
-        if (points.length < 2 || distance < 75 || paths.length >= MAX_ROAD_FEATURES) return;
+        if (points.length < 2 || distance < 75 || paths.length >= MAX_MODEL_ROADS) return;
         paths.push({ points, length: distance, roadClass: road.roadClass, key: road.key + ':' + paths.length });
         totalLength += distance;
       };
@@ -583,6 +624,70 @@
     return { bodyGeometry, glassGeometry, interiorGeometry, detailGeometry };
   }
 
+  function makeVehicleLowLod(T, item) {
+    const kind = item.kind;
+    const spec = SPECS[kind] || SPECS.sedan;
+    const group = new T.Group();
+    const wheelPivots = [];
+    const flashMeshes = [];
+    const materials = [];
+    let paint = 0x238eaf;
+    if (kind === 'police') paint = 0xf2f4f5;
+    if (kind === 'ambulance') paint = 0xf5f7f6;
+    if (kind === 'fire') paint = 0xb9252d;
+    const material = (color, roughness = .58, metalness = .16, emissive = 0x000000) => {
+      const m = new T.MeshStandardMaterial({ color, roughness, metalness, emissive, emissiveIntensity: emissive ? .75 : 0 });
+      materials.push(m);
+      return m;
+    };
+    const box = (w, h, l, x, y, z, color) => {
+      const mesh = new T.Mesh(new T.BoxGeometry(w, h, l), material(color));
+      mesh.position.set(x, y, z);
+      group.add(mesh);
+      return mesh;
+    };
+    const L = spec.length, W = spec.width, H = spec.height, R = spec.radius;
+    const heavy = ['semi-trailer', 'tractor-truck', 'box-truck', 'city-bus', 'fire'].includes(kind);
+    box(W * .96, Math.max(.35, H * .24), L * .9, 0, H * .3, 0, paint);
+    if (kind === 'semi-trailer') {
+      box(W * .94, H * .62, L * .56, 0, H * .62, -L * .18, paint);
+      box(W * .82, H * .52, L * .25, 0, H * .55, L * .32, paint);
+    } else if (heavy) {
+      box(W * .9, H * .58, L * .54, 0, H * .62, -L * .12, paint);
+      box(W * .82, H * .48, L * .27, 0, H * .55, L * .31, paint);
+    } else {
+      box(W * .75, H * .4, L * .44, 0, H * .66, -.02, kind === 'sports-car' ? 0x243d50 : paint);
+    }
+    box(W * .62, Math.max(.24, H * .15), .07, 0, H * .68, L * .46, 0x8bc9df);
+    box(W * .62, .07, .12, 0, H * .22, L * .47, 0xfff0c1);
+    box(W * .62, .07, .12, 0, H * .22, -L * .47, 0xc9313b);
+
+    const axlePositions = heavy ? [-L * .31, -L * .16, L * .3] : [-L * .3, L * .3];
+    for (const z of axlePositions) {
+      for (const x of [-W * .51, W * .51]) {
+        const pivot = new T.Group();
+        pivot.position.set(x, R, z);
+        const tire = new T.Mesh(new T.CylinderGeometry(R, R, .16, 8), material(0x171b1e, .9, .02));
+        tire.rotation.z = Math.PI / 2;
+        pivot.add(tire);
+        group.add(pivot);
+        wheelPivots.push(pivot);
+      }
+    }
+    if (['police', 'ambulance', 'fire'].includes(kind)) {
+      box(W * .58, .08, .2, 0, H + .06, .02, 0x172a38);
+      const colors = kind === 'fire' ? [0xff3a34, 0xffe5a3] : [0x2385ff, 0xff334b];
+      colors.forEach((color, phase) => {
+        const lampMaterial = material(color, .2, .12, color);
+        const lamp = new T.Mesh(new T.BoxGeometry(W * .2, .1, .12), lampMaterial);
+        lamp.position.set(phase ? W * .15 : -W * .15, H + .11, .02);
+        group.add(lamp);
+        flashMeshes.push({ mesh: lamp, material: lampMaterial, phase });
+      });
+    }
+    return { group, wheelPivots, flashMeshes, spec, materials };
+  }
+
   function makeVehicle(T, item) {
     const kind = item.kind;
     const spec = SPECS[kind] || SPECS.sedan;
@@ -665,12 +770,18 @@
     return clamp(base * (.65 + random() * .55), 4.5, 29);
   }
 
-  function buildFleet(paths, zoom) {
+  function selectModelLod(zoom) {
+    const z = Number(zoom) || 0;
+    if (z < MODEL_MIN_ZOOM) return 'dots';
+    return z < HIGH_DETAIL_ZOOM ? 'low' : 'high';
+  }
+
+  function buildFleet(paths, zoom, maxVehicles = MAX_DOT_VEHICLES) {
     const chosen = [];
     if (!paths.length) return chosen;
     const totalLength = paths.reduce((sum, path) => sum + path.length, 0);
-    const max = MOBILE ? MAX_VEHICLES_MOBILE : MAX_VEHICLES_DESKTOP;
-    const spacing = zoom >= 15 ? 95 : zoom >= 13 ? 150 : 280;
+    const max = Math.max(0, Number(maxVehicles) || 0);
+    const spacing = zoom >= 15 ? 90 : zoom >= 13 ? 180 : zoom >= 10 ? 340 : 1800;
     const capacities = new Map(paths.map(path => [path, Math.max(1, Math.floor(path.length / Math.max(90, spacing * .9)))]));
     const capacityTotal = [...capacities.values()].reduce((sum, value) => sum + value, 0);
     const civilianCount = state.categories.civilian
@@ -719,23 +830,34 @@
     return chosen;
   }
 
-  function clearVehicleScene() {
-    if (!state.scene) return;
-    for (const vehicle of state.vehicles) {
-      try { state.scene.remove(vehicle.visual.group); } catch (_) {}
-      for (const mesh of vehicle.visual.group.children || []) {
-        if (mesh.geometry) mesh.geometry.dispose?.();
-        if (mesh.material) {
-          const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-          materials.forEach(material => material.dispose?.());
-        }
-        if (mesh.children) mesh.children.forEach(child => {
-          child.geometry?.dispose?.();
-          if (child.material) (Array.isArray(child.material) ? child.material : [child.material]).forEach(material => material.dispose?.());
-        });
+  function disposeVehicleVisual(vehicle) {
+    const visual = vehicle?.visual;
+    if (!visual) return;
+    try { state.scene?.remove(visual.group); } catch (_) {}
+    const geometries = new Set(), materials = new Set();
+    visual.group.traverse?.(node => {
+      if (node.geometry) geometries.add(node.geometry);
+      if (node.material) {
+        const list = Array.isArray(node.material) ? node.material : [node.material];
+        list.forEach(item => materials.add(item));
       }
-      vehicle.visual.materials.forEach(material => material.dispose?.());
-    }
+    });
+    geometries.forEach(item => item.dispose?.());
+    materials.forEach(item => item.dispose?.());
+    (visual.materials || []).forEach(item => { if (!materials.has(item)) item.dispose?.(); });
+    delete vehicle.visual;
+  }
+
+  function clearVehicleModels() {
+    if (state.modelBuildTimer) clearTimeout(state.modelBuildTimer);
+    state.modelBuildTimer = 0;
+    state.modelBuildToken++;
+    for (const vehicle of state.vehicles) disposeVehicleVisual(vehicle);
+    state.modelLod = 'dots';
+  }
+
+  function clearVehicleScene() {
+    clearVehicleModels();
     state.vehicles = [];
   }
 
@@ -846,7 +968,7 @@
         }
       },
       onRemove() {
-        clearVehicleScene();
+        clearVehicleModels();
         try { state.renderer?.dispose(); } catch (_) {}
         state.renderer = null; state.scene = null; state.camera = null; state.customLayer = null;
       }
@@ -861,16 +983,35 @@
     }
   }
 
-  function makeVisualFleet(T, candidates) {
-    clearVehicleScene();
-    if (!state.scene) return;
-    for (const item of candidates) {
-      const visual = makeVehicle(T, item);
-      state.scene.add(visual.group);
-      item.visual = visual;
-      item.spin = 0;
-      state.vehicles.push(item);
-    }
+  function makeVisualFleet(T, candidates, lod) {
+    clearVehicleModels();
+    if (!state.scene || !state.enabled) return;
+    const limit = lod === 'high' ? MAX_HIGH_DETAIL_MODELS : MAX_LOW_DETAIL_MODELS;
+    const selected = candidates.slice(0, limit);
+    const token = ++state.modelBuildToken;
+    state.modelLod = lod;
+    let index = 0;
+    stopDotAnimation();
+    const addBatch = () => {
+      state.modelBuildTimer = 0;
+      if (!state.enabled || token !== state.modelBuildToken || !state.scene) return;
+      const end = Math.min(index + 2, selected.length);
+      for (; index < end; index++) {
+        const item = selected[index];
+        try {
+          const visual = lod === 'high' ? makeVehicle(T, item) : makeVehicleLowLod(T, item);
+          state.scene.add(visual.group);
+          item.visual = visual;
+          item.spin = 0;
+        } catch (error) {
+          console.warn('BridgePoint Transportation vehicle LOD', error);
+        }
+      }
+      try { state.map?.triggerRepaint?.(); } catch (_) {}
+      if (index < selected.length) state.modelBuildTimer = setTimeout(addBatch, 12);
+      else startAnimation();
+    };
+    addBatch();
   }
 
   function updateVehiclePose(vehicle, deltaSeconds, now) {
@@ -883,18 +1024,20 @@
     vehicle.distance = clamp(next, 0, path.length);
     const point = interpolatePath(path, vehicle.distance);
     if (!point) return null;
-    const direction = vehicle.direction;
-    const dx = point.dx * direction, dz = point.dz * direction;
-    const yaw = Math.atan2(dx, dz);
-    vehicle.visual.group.position.set(point.local.x, point.local.y + .035, point.local.z);
-    vehicle.visual.group.rotation.set(0, yaw, 0);
-    const spinDelta = (vehicle.speed * deltaSeconds / Math.max(.1, vehicle.visual.spec.radius));
-    vehicle.spin += spinDelta * direction;
-    for (const wheel of vehicle.visual.wheelPivots) wheel.rotation.x = vehicle.spin;
-    for (const flash of vehicle.visual.flashMeshes) {
-      const active = (Math.floor(now / 170) + flash.phase) % 2 === 0;
-      flash.material.emissiveIntensity = active ? 2.8 : .12;
-      flash.mesh.visible = true;
+    if (vehicle.visual) {
+      const direction = vehicle.direction;
+      const dx = point.dx * direction, dz = point.dz * direction;
+      const yaw = Math.atan2(dx, dz);
+      vehicle.visual.group.position.set(point.local.x, point.local.y + .035, point.local.z);
+      vehicle.visual.group.rotation.set(0, yaw, 0);
+      const spinDelta = (vehicle.speed * deltaSeconds / Math.max(.1, vehicle.visual.spec.radius));
+      vehicle.spin += spinDelta * direction;
+      for (const wheel of vehicle.visual.wheelPivots) wheel.rotation.x = vehicle.spin;
+      for (const flash of vehicle.visual.flashMeshes) {
+        const active = (Math.floor(now / 170) + flash.phase) % 2 === 0;
+        flash.material.emissiveIntensity = active ? 2.8 : .12;
+        flash.mesh.visible = true;
+      }
     }
     return {
       type: 'Feature',
@@ -911,8 +1054,8 @@
     };
   }
 
-  function updateDots(now) {
-    if (!state.map || now - state.lastDotAt < DOT_UPDATE_MS) return;
+  function updateDots(now, force = false) {
+    if (!state.map || (!force && now - state.lastDotAt < DOT_UPDATE_MS)) return;
     state.lastDotAt = now;
     const features = [];
     for (const vehicle of state.vehicles) {
@@ -936,9 +1079,27 @@
     state.diagnostics.dots = features.length;
   }
 
+  function dotAnimationTick() {
+    state.dotTimer = 0;
+    if (!state.enabled || document.visibilityState === 'hidden' || state.modelLod !== 'dots') return;
+    const now = performance.now();
+    for (const vehicle of state.vehicles) updateVehiclePose(vehicle, DOT_UPDATE_MS / 1000, now);
+    updateDots(now, true);
+    state.dotTimer = setTimeout(dotAnimationTick, DOT_UPDATE_MS);
+  }
+
+  function startDotAnimation() {
+    if (state.dotTimer || !state.enabled || state.modelLod !== 'dots') return;
+    state.dotTimer = setTimeout(dotAnimationTick, DOT_UPDATE_MS);
+  }
+
   function animationFrame(now) {
     state.raf = 0;
-    if (!state.enabled || document.visibilityState === 'hidden') return;
+    if (!state.enabled || document.visibilityState === 'hidden' || state.modelLod === 'dots') return;
+    if (state.lastFrameAt && now - state.lastFrameAt < 33) {
+      state.raf = requestAnimationFrame(animationFrame);
+      return;
+    }
     const elapsed = state.lastFrameAt ? Math.min(.08, Math.max(0, (now - state.lastFrameAt) / 1000)) : 0;
     state.lastFrameAt = now;
     for (const vehicle of state.vehicles) updateVehiclePose(vehicle, elapsed, now);
@@ -948,84 +1109,135 @@
   }
 
   function startAnimation() {
-    if (state.raf || !state.enabled) return;
+    if (!state.enabled) return;
+    if (state.modelLod === 'dots') { startDotAnimation(); return; }
+    if (state.raf) return;
+    if (state.dotTimer) { clearTimeout(state.dotTimer); state.dotTimer = 0; }
     state.lastFrameAt = 0;
     state.raf = requestAnimationFrame(animationFrame);
+  }
+
+  function stopDotAnimation() {
+    if (state.dotTimer) clearTimeout(state.dotTimer);
+    state.dotTimer = 0;
   }
 
   function stopAnimation() {
     if (state.raf) cancelAnimationFrame(state.raf);
     state.raf = 0;
+    stopDotAnimation();
     state.lastFrameAt = 0;
   }
 
   async function rebuildFleet(reason = 'viewport') {
-    if (!state.enabled || !state.map) return false;
+    if (!state.enabled) return false;
     if (state.rebuilding) { state.pendingRebuild = true; return false; }
     state.rebuilding = true;
     try {
-      const map = state.map;
+      const map = state.map || currentMap();
+      if (!map) {
+        setStatus('Waiting for the BridgePoint globe to finish starting…');
+        return false;
+      }
+      if (state.map !== map) attachMap(map);
       if (!map.getStyle?.() || !map.getSource?.(ROAD_SOURCE)) {
-        setStatus('Waiting for the existing OpenFreeMap road-vector source and globe style…');
+        setStatus('Transportation is on. Waiting for loaded road-vector tiles…');
+        return false;
+      }
+      if (!ensureLayers(map)) {
+        setStatus('Transportation is on. Preparing the lightweight vehicle-dot layer…');
         return false;
       }
       const zoom = Number(map.getZoom()) || 0;
       state.diagnostics.zoom = zoom;
-      if (zoom < MIN_ZOOM) {
-        clearVehicleScene();
-        try { map.getSource(DOT_SOURCE)?.setData(EMPTY); } catch (_) {}
-        state.diagnostics.vehicles = 0; state.diagnostics.dots = 0;
-        setStatus('Zoom to ' + MIN_ZOOM.toFixed(1) + '+ to load mapped road segments and true-scale 3D vehicles. The simulation stays enabled.');
-        return false;
-      }
-      if (!ensureLayers(map)) {
-        setStatus('Waiting for the map style to accept the transportation marker layer…');
-        return false;
-      }
-      const THREE = await loadThree();
-      if (!state.enabled || state.map !== map) return false;
-      if (!installModelLayer(map, THREE)) throw new Error('The shared MapLibre 3D vehicle layer could not be attached.');
       const center = map.getCenter?.();
-      if (!center || !Number.isFinite(center.lng) || !Number.isFinite(center.lat)) throw new Error('The map center is unavailable.');
+      if (!center || !Number.isFinite(center.lng) || !Number.isFinite(center.lat)) {
+        setStatus('Transportation is on. Waiting for the globe center…');
+        return false;
+      }
       const anchor = [center.lng, center.lat];
-      const anchorElevation = terrainElevation(map, anchor);
-      if (anchorElevation === null) {
+      const roads = sourceRoadFeatures(map);
+      const flat = buildFlatRoadPaths(roads, anchor);
+      if (!flat.paths.length) {
         clearVehicleScene();
+        state.paths = [];
+        state.diagnostics.roads = 0;
         state.diagnostics.vehicles = 0;
-        setStatus('Waiting for a real terrain elevation sample at the map center. No floating vehicles will be drawn.');
-        return false;
-      }
-      const built = buildRoadPaths(map, anchor, anchorElevation);
-      state.anchor = anchor;
-      state.anchorElevation = anchorElevation;
-      state.paths = built.paths;
-      state.diagnostics.roads = built.paths.length;
-      state.diagnostics.roadLengthM = Math.round(built.totalLength);
-      state.diagnostics.skippedTerrain = built.skippedTerrain;
-      if (!built.paths.length) {
-        clearVehicleScene();
+        state.diagnostics.dots = 0;
         try { map.getSource(DOT_SOURCE)?.setData(EMPTY); } catch (_) {}
-        state.diagnostics.vehicles = 0; state.diagnostics.dots = 0;
-        setStatus('No terrain-sampled motor-road segments are loaded in this view yet. Pan or zoom over an area with mapped roads; no roads or vehicle positions are invented.');
+        setStatus('Transportation is on. Waiting for road tiles in this view; the dot layer is ready and will populate as roads load.');
         return false;
       }
-      const candidates = buildFleet(built.paths, zoom);
-      makeVisualFleet(THREE, candidates);
+
+      const targetLod = selectModelLod(zoom);
+      let chosen = flat;
+      let elevation = null;
+      if (targetLod !== 'dots') {
+        elevation = terrainElevation(map, anchor);
+        if (elevation !== null) {
+          const modelRows = sampleRoadRows(roads);
+          const terrainBuilt = buildRoadPaths(map, anchor, elevation, modelRows);
+          if (terrainBuilt.paths.length) chosen = terrainBuilt;
+        }
+      }
+      if (state.modelLod !== 'dots') clearVehicleModels();
+      state.anchor = anchor;
+      state.anchorElevation = elevation;
+      state.paths = chosen.paths;
+      state.vehicles = buildFleet(chosen.paths, zoom, MAX_DOT_VEHICLES);
+      state.diagnostics.roads = chosen.paths.length;
+      state.diagnostics.roadLengthM = Math.round(chosen.totalLength);
+      state.diagnostics.skippedTerrain = chosen.skippedTerrain;
       state.diagnostics.vehicles = state.vehicles.length;
       state.lastRebuildAt = Date.now();
       state.lastError = null;
       state.lastDotAt = 0;
-      updateDots(performance.now());
+      updateDots(performance.now(), true);
+
+      if (targetLod === 'dots' || elevation === null || chosen === flat) {
+        if (map.getLayer(MODEL_LAYER)) {
+          try { map.removeLayer(MODEL_LAYER); } catch (_) {}
+        }
+        clearVehicleModels();
+        state.modelLod = 'dots';
+        startDotAnimation();
+        setStatus(
+          'SIMULATED · ' + state.vehicles.length.toLocaleString() +
+          ' moving vehicles. Global dots are active now; 3D vehicle detail upgrades automatically as you zoom in. Not live GPS.'
+        );
+        return true;
+      }
+
+      const token = ++state.modelBuildToken;
       setStatus(
-        'SIMULATED · ' + state.vehicles.length.toLocaleString() + ' true-scale 3D vehicles moving on ' +
-        built.paths.length.toLocaleString() + ' terrain-sampled road segments. Includes the selected vehicle filters. ' +
-        'No actual vehicle GPS or emergency dispatch positions are displayed.'
+        'SIMULATED · ' + state.vehicles.length.toLocaleString() +
+        ' moving vehicles. Dots are live; preparing ' + (targetLod === 'high' ? 'high-detail' : 'lightweight 3D') +
+        ' vehicle models in the background…'
       );
-      startAnimation();
+      try {
+        const THREE = await loadThree();
+        if (!state.enabled || state.map !== map || token !== state.modelBuildToken) return true;
+        if (!installModelLayer(map, THREE)) throw new Error('The shared 3D vehicle layer could not be attached.');
+        if (!state.enabled || token !== state.modelBuildToken) return true;
+        makeVisualFleet(THREE, state.vehicles, targetLod);
+        setStatus(
+          'SIMULATED · ' + state.vehicles.length.toLocaleString() +
+          ' moving vehicles on mapped roads. ' + targetLod.toUpperCase() +
+          ' 3D LOD · remaining vehicles stay visible as dots. Not live GPS.'
+        );
+      } catch (error) {
+        console.warn('BridgePoint Transportation 3D upgrade', error);
+        clearVehicleModels();
+        state.modelLod = 'dots';
+        startDotAnimation();
+        setStatus('SIMULATED · ' + state.vehicles.length.toLocaleString() +
+          ' moving road-vehicle dots remain active. 3D models will retry after the next zoom change. ' +
+          safe(error?.message || error, 120), true);
+      }
       return true;
     } catch (error) {
       console.warn('BridgePoint Transportation simulation', error);
-      setStatus('Transportation could not initialize: ' + safe(error?.message || error, 210), true);
+      setStatus('Transportation could not initialize: ' + safe(error?.message || error, 180), true);
       return false;
     } finally {
       state.rebuilding = false;
@@ -1045,9 +1257,14 @@
   function disable() {
     state.enabled = false;
     clearTimeout(state.rebuildTimer);
+    clearTimeout(state.waitTimer);
     state.rebuildTimer = 0;
+    state.waitTimer = 0;
     stopAnimation();
     clearVehicleScene();
+    try {
+      if (state.map?.getLayer(MODEL_LAYER)) state.map.removeLayer(MODEL_LAYER);
+    } catch (_) {}
     try { state.map?.getSource(DOT_SOURCE)?.setData(EMPTY); } catch (_) {}
     if (state.options) state.options.hidden = true;
     setButtonState();
@@ -1059,43 +1276,65 @@
     if (!map || state.map === map) return;
     state.map = map;
     const onMove = () => scheduleRebuild('camera');
+    const onZoom = () => scheduleRebuild('zoom');
     map.on?.('moveend', onMove);
-    map.on?.('zoomend', onMove);
+    map.on?.('zoomend', onZoom);
     map.on?.('sourcedata', event => {
-      if (event?.sourceId === ROAD_SOURCE && event.isSourceLoaded) scheduleRebuild('road tiles');
+      if (event?.sourceId === ROAD_SOURCE && event.isSourceLoaded && state.diagnostics.dots === 0) {
+        scheduleRebuild('road tiles');
+      }
     });
     map.on?.('style.load', () => {
       if (!state.enabled) return;
+      clearVehicleModels();
       state.scene = null; state.renderer = null; state.camera = null; state.customLayer = null;
-      scheduleRebuild('style refresh');
+      if (ensureLayers(map)) scheduleRebuild('style refresh');
     });
-    ensureLayers(map);
     window.__BP_TRANSPORTATION_V1__.mapReady = true;
-    if (state.enabled) scheduleRebuild('map attach');
+  }
+
+  function waitForMap() {
+    if (!state.enabled || state.waitTimer) return;
+    const attempt = () => {
+      state.waitTimer = 0;
+      if (!state.enabled) return;
+      const map = currentMap();
+      if (map) {
+        attachMap(map);
+        void rebuildFleet('map ready');
+        return;
+      }
+      state.waitAttempts++;
+      if (state.waitAttempts >= 36) {
+        setStatus('Transportation is on, but the BridgePoint map is still unavailable. Press refresh after the globe finishes loading.', true);
+        return;
+      }
+      state.waitTimer = setTimeout(attempt, 250);
+    };
+    state.waitTimer = setTimeout(attempt, 0);
+  }
+
+  function enableSimulation() {
+    if (state.enabled) return true;
+    state.enabled = true;
+    state.waitAttempts = 0;
+    if (state.options) state.options.hidden = false;
+    addOptions();
+    setButtonState();
+    setStatus('SIMULATED · Turning on global vehicle dots now. 3D models upgrade automatically as you zoom in…');
+    const map = currentMap();
+    if (!map) {
+      waitForMap();
+      return true;
+    }
+    attachMap(map);
+    void rebuildFleet('enable');
+    startDotAnimation();
+    return true;
   }
 
   function boot() {
     addUI();
-    const map = currentMap();
-    if (map) attachMap(map);
-    let attempts = 0;
-    const observer = new MutationObserver(() => {
-      addUI();
-      const candidate = currentMap();
-      if (candidate && candidate !== state.map) attachMap(candidate);
-      if (state.button && state.map) { try { observer.disconnect(); } catch (_) {} }
-    });
-    try { observer.observe(document.body, { childList: true, subtree: true }); } catch (_) {}
-    const timer = setInterval(() => {
-      addUI();
-      const candidate = currentMap();
-      if (candidate && candidate !== state.map) attachMap(candidate);
-      attempts++;
-      if ((state.button && state.map) || attempts >= 240) {
-        clearInterval(timer);
-        try { observer.disconnect(); } catch (_) {}
-      }
-    }, 250);
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') stopAnimation();
       else if (state.enabled) startAnimation();
@@ -1108,21 +1347,21 @@
     source: 'OpenFreeMap / OpenStreetMap road vector geometry',
     enabledByDefault: false,
     mapReady: false,
-    enable: () => {
-      if (!state.enabled) state.button?.click();
-      return state.enabled;
-    },
+    enable: enableSimulation,
     disable,
     refresh: () => rebuildFleet('manual'),
     diagnostics: () => ({
       enabled: state.enabled, simulationOnly: true, mapReady: !!state.map,
       roadSegments: state.diagnostics.roads, roadLengthM: state.diagnostics.roadLengthM,
       vehicles: state.diagnostics.vehicles, dots: state.diagnostics.dots,
-      skippedTerrainSamples: state.diagnostics.skippedTerrain, zoom: state.diagnostics.zoom,
-      categories: { ...state.categories }, lastRebuildAt: state.lastRebuildAt,
-      lastError: state.lastError
+      modelLod: state.modelLod, skippedTerrainSamples: state.diagnostics.skippedTerrain,
+      zoom: state.diagnostics.zoom, categories: { ...state.categories },
+      lastRebuildAt: state.lastRebuildAt, lastError: state.lastError
     }),
-    helpers: { isRoadFeature, vehicleKindForRoad, localPoint, interpolatePath, cleanLine }
+    helpers: {
+      isRoadFeature, vehicleKindForRoad, localPoint, interpolatePath, cleanLine,
+      buildFlatRoadPaths, sampleRoadRows, buildFleet, selectModelLod
+    }
   };
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true });
