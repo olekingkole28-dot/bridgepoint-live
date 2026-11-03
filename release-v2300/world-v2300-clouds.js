@@ -2652,13 +2652,21 @@ function generateGeometry() {
         source: 'shared-rendered-rain-cell-cloud', geometryVersion: 6135
       };
     });
-      const global = buildGlobalCloudGeometry();
+    // Publish local rain-cloud anchors as soon as their geographic meshes have been built.
+    // The global satellite-volume pass can be expensive on mobile; lightning should not wait
+    // for that separate pass before it can attach to the already-built local storm clouds.
+    window.__BP_LIGHTNING_CLOUD_ANCHORS_V6135__ = {
+      map, anchors: lightningCloudAnchors, count: lightningCloudAnchors.length,
+      rainCellCount: lightningCloudAnchors.length, satelliteCellCount: 0,
+      cloudMaskGeneration: 0, localRainCloudsReady: true, globalCloudBuildPending: true, updatedAt: Date.now()
+    };
+    const global = buildGlobalCloudGeometry();
     const satelliteLightningCloudAnchors = Array.isArray(global.satelliteCloudAnchors) ? global.satelliteCloudAnchors : [];
     const sharedLightningCloudAnchors = lightningCloudAnchors.concat(satelliteLightningCloudAnchors);
     window.__BP_LIGHTNING_CLOUD_ANCHORS_V6135__ = {
       map, anchors: sharedLightningCloudAnchors, count: sharedLightningCloudAnchors.length,
       rainCellCount: lightningCloudAnchors.length, satelliteCellCount: satelliteLightningCloudAnchors.length,
-      cloudMaskGeneration: global.satelliteMaskGeneration || 0, updatedAt: Date.now()
+      cloudMaskGeneration: global.satelliteMaskGeneration || 0, localRainCloudsReady: true, globalCloudBuildPending: false, updatedAt: Date.now()
     };
     const globalVertexCount = Math.floor(global.vertices.length / 13);
     const requestedStormVertexCount = Math.floor(stormVolumeVertices.length/13);
