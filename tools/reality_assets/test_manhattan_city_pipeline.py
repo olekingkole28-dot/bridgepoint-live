@@ -1,0 +1,113 @@
+import unittest
+from io import BytesIO
+from tempfile import TemporaryDirectory
+from pathlib import Path
+from unittest.mock import patch
+
+from pyproj import Transformer
+from shapely.geometry import LineString, Polygon, mapping, shape
+
+from tools.reality_assets import download_manhattan_city_sources as source
+from tools.reality_assets.download_manhattan_city_sources import (
+    ORIGIN_LON_LAT,
+    SODA_DATASETS,
+    clip_feature_collection,
+    project_geometry,
+)
+
+
+class ManhattanSourcePipelineTests(unittest.TestCase):
+    def setUp(self):
+        self.transformer = Transformer.from_crs("EPSG:4326", "EPSG:2263", always_xy=True)
+        self.origin = self.transformer.transform(*ORIGIN_LON_LAT)
+
+    def test_projection_places_origin_at_local_zero(self):
+        geom = {"type": "Point", "coordinates": [ORIGIN_LON_LAT[0], ORIGIN_LON_LAT[1]]}
+        local = project_geometry(geom, self.transformer, self.origin)
+        self.assertEqual(local["type"], "Point")
+        self.assertAlmostEqual(local["coordinates"][0], 0.0, places=3)
+        self.assertAlmostEqual(local["coordinates"][1], 0.0, places=3)
+
+    def test_projection_preserves_geojson_nesting(self):
+        geom = {"type": "MultiLineString", "coordinates": [[[-73.97, 40.78], [-73.96, 40.79]]]}
+        local = project_geometry(geom, self.transformer, self.origin)
+        self.assertEqual(local["type"], "MultiLineString")
+        self.assertEqual(len(local["coordinates"]), 1)
+        self.assertEqual(len(local["coordinates"][0]), 2)
+        self.assertNotEqual(local["coordinates"][0][0], [-73.97, 40.78])
+
+    def test_city_dataset_manifest_contains_required_layers(self):
+        for key in ("roads", "curbs", "sidewalks", "water", "trees", "hydrants", "boundary"):
+            self.assertIn(key, SODA_DATASETS)
+            self.assertTrue(SODA_DATASETS[key]["id"])
+
+    def test_arcgis_batch_query_uses_form_post(self):
+        with patch.object(source, "urlopen", return_value=BytesIO(b'{"features":[]}')) as mock_open:
+            result = source.get_json(
+                "https://example.test/FeatureServer/0/query",
+                data={"objectIds": "1,2,3", "outFields": "OBJECTID", "f": "json"},
+            )
+        request = mock_open.call_args.args[0]
+        self.assertEqual(request.get_method(), "POST")
+        self.assertEqual(request.get_header("Content-type"), "application/x-www-form-urlencoded")
+        self.assertIn(b"objectIds=1%2C2%2C3", request.data)
+        self.assertEqual(result, {"features": []})
+
+    def test_manhattan_boundary_query_skips_spatial_box_predicate(self):
+        fixture = {
+            "features": [{
+                "type": "Feature",
+                "properties": {"borocode": 1, "boroname": "Manhattan"},
+                "geometry": {"type": "Polygon", "coordinates": [[
+                    [-73.99, 40.70], [-73.98, 40.70], [-73.98, 40.71],
+                    [-73.99, 40.71], [-73.99, 40.70]
+                ]]},
+            }]
+        }
+        with TemporaryDirectory() as directory, patch.object(source, "get_json", return_value=fixture) as mock_get:
+            result = source.fetch_soda(
+                "boundary", SODA_DATASETS["boundary"], Path(directory),
+                self.transformer, self.origin, 20000,
+            )
+        request_url = mock_get.call_args.args[0]
+        self.assertIn("borocode+%3D+1", request_url)
+        self.assertNotIn("within_box", request_url)
+        self.assertEqual(result["featureCount"], 1)
+
+    def test_clip_keeps_manhattan_roads_and_removes_outside_geometry(self):
+        boundary = Polygon([(0, 0), (100, 0), (100, 100), (0, 100)])
+        payload = {
+            "name": "roads",
+            "features": [
+                {"type": "Feature", "properties": {"id": "inside"},
+                 "geometry": mapping(LineString([(-10, 50), (110, 50)]))},
+                {"type": "Feature", "properties": {"id": "outside"},
+                 "geometry": mapping(LineString([(120, 120), (150, 150)]))},
+            ],
+        }
+        result = clip_feature_collection(payload, boundary)
+        self.assertEqual(len(result["features"]), 1)
+        clipped = shape(result["features"][0]["geometry"])
+        self.assertAlmostEqual(clipped.length, 100.0)
+        self.assertEqual(result["clip"], "Manhattan borough polygon")
+
+    def test_water_clip_keeps_adjacent_water_buffer(self):
+        boundary = Polygon([(0, 0), (100, 0), (100, 100), (0, 100)])
+        payload = {
+            "name": "water",
+            "features": [
+                {"type": "Feature", "properties": {"id": "river"},
+                 "geometry": mapping(Polygon([(-200, 30), (-50, 30), (-50, 70),
+                                              (-200, 70), (-200, 30)]))},
+                {"type": "Feature", "properties": {"id": "far"},
+                 "geometry": mapping(Polygon([(-1000, 30), (-900, 30), (-900, 70),
+                                              (-1000, 70), (-1000, 30)]))},
+            ],
+        }
+        result = clip_feature_collection(payload, boundary, 100.0)
+        self.assertEqual(len(result["features"]), 1)
+        self.assertGreater(shape(result["features"][0]["geometry"]).area, 0)
+
+
+if __name__ == "__main__":
+    unittest.main()
