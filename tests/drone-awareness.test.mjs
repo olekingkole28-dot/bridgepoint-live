@@ -29,6 +29,7 @@ assert.ok(moduleSource.includes('Public ADS-B source sample'), 'the live-source 
 assert.ok(moduleSource.includes('const TRACK_RETENTION_MS=45*60*1000'), 'stale history is bounded');
 assert.ok(moduleSource.includes('pilotOrControlStationLocations:false'), 'pilot/control-station locations are not exposed');
 assert.ok(moduleSource.includes('rawRfScanning:false'), 'no raw RF scanner is represented');
+assert.ok(moduleSource.includes('drone3DRendererReady:!!droneRenderer&&!!droneScene'), 'runtime diagnostics expose real 3D renderer readiness');
 assert.ok(moduleSource.includes("https://api.adsb.lol/docs/open-data/api/"), 'upstream source is attributed');
 assert.ok(moduleSource.includes('hideDefaultOverlays'), 'startup enters a clean globe state');
 assert.ok(moduleSource.includes('function setLabelTextIfChanged(node,value)'), 'startup label updates do not rewrite unchanged text nodes');
@@ -62,11 +63,12 @@ assert.ok(landingHtml.includes('bridgepoint-view-v5917.js?v=6215-satellite-persi
 assert.ok(appHtml.includes('bridgepoint-view-v5917.js?v=6215-satellite-persistent-render-guard'), 'app uses the Weather FX panel cache-buster');
 assert.ok(view.includes("if(a==='windfx')"), 'wind action has an explicit handler');
 assert.ok(view.includes("if(a==='motion')"), 'motion action has an explicit handler');
-assert.ok(workflow.includes('Whole-Earth drone fleet and map responsiveness smoke'), 'deployment runs a global drone responsiveness smoke test');
-assert.ok(workflow.includes('GLOBAL_DRONE_FLEET_NOT_RENDERED'), 'deployment fails if the drone fleet does not render on the globe');
+assert.ok(workflow.includes('Whole-Earth drone 3D layer and map responsiveness smoke'), 'deployment runs a global 3D drone responsiveness smoke test');
+assert.ok(workflow.includes('GLOBAL_DRONE_3D_LAYER_NOT_READY'), 'deployment fails if the real 3D drone layer is not ready on the globe');
 assert.ok(workflow.includes('|\\brf\\b|drone|bridge3d'), 'startup overlay smoke uses word-boundary RF matching and recognizes bridge geometry');
 assert.ok(mapKey.includes('DRONE AWARENESS') || mapKey.includes('DRONE FLEET + PUBLIC AIRSPACE'), 'map key documents the opt-in drone layer');
 assert.ok(workflow.includes('cp rebuild-v5000/bridgepoint-drone-awareness-v1.js site/bridgepoint-drone-awareness-v1.js'), 'deployment copies the public runtime');
+assert.ok(workflow.includes('drone3DRendererReady'), 'whole-Earth smoke verifies the active 3D renderer rather than a fake demo fleet');
 assert.ok(workflow.includes('node --check rebuild-v5000/bridgepoint-drone-awareness-v1.js'), 'deployment syntax-checks the module');
 assert.ok(moduleSource.includes('GLOBAL_SAMPLES=['), 'the public source is sampled across the global coverage hubs');
 assert.ok(moduleSource.includes("const REFRESH_MS=180000"), 'global positions refresh on a bounded three-minute cycle');
