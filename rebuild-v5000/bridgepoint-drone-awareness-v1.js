@@ -18,8 +18,10 @@ const MAX_CLOSE_ZOOM_MODELS=120;
 const MAX_TRAIL_POINTS=24;
 const TRACK_RETENTION_MS=45*60*1000;
 const REFRESH_MS=180000;
-const REQUEST_TIMEOUT_MS=9000;
+const REQUEST_TIMEOUT_MS=16000;
 const SUPPORTED_SOURCE='https://api.adsb.lol/v2/';
+const DRONE_PROXY_URL='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-drone-feed-v1';
+const DRONE_PROXY_KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
 const REGION_RADIUS_NM=250;
 const SAMPLE_CACHE_MS=150000;
 const WORLD_CIRCUMFERENCE_M=40075016.686;const $=s=>document.querySelector(s);
@@ -32,7 +34,7 @@ let droneThreePromise=null,droneThree=null,droneScene=null,droneRenderer=null,dr
 let droneModels=new Map(),trackedUavs=new Map(),lastCurrentRecords=[];
 let droneTrailGroup=null;
 let droneAnimationFrame=0,lastDroneAnimationAt=0;
-let diagnosticState={sourceStatus:'idle',hasSuccessfulSource:false,regionalRequestsAttempted:0,regionalRequestsCompleted:0,regionalCacheHits:0,aircraftRecordsReceived:0,uavRecordsIdentified:0,invalidOrStaleRecords:0,currentPositionsAccepted:0,modelsRendered:0,historicalTrailPoints:0,trailsRendered:0,regionalResults:[],localSample:null};
+let diagnosticState={sourceStatus:'idle',hasSuccessfulSource:false,regionalRequestsAttempted:0,regionalRequestsCompleted:0,regionalCacheHits:0,aircraftRecordsReceived:0,uavRecordsIdentified:0,invalidOrStaleRecords:0,currentPositionsAccepted:0,modelsRendered:0,historicalTrailPoints:0,trailsRendered:0,regionalResults:[],localSample:null,providers:null};
 let regionalStatusNode=null;
 const sampleCache=new Map();
 let emptyModeActive=true,emptyModeMap=null,emptyModeHandler=null,sweepFrame=0;const requestControllers=new Set();
@@ -141,7 +143,7 @@ function updateButton(){
 }
 function writeSummary(){
  const liveReady=diagnosticState.hasSuccessfulSource;
- const metrics=[['Regional requests attempted',diagnosticState.regionalRequestsAttempted],['Requests successfully completed',diagnosticState.regionalRequestsCompleted],['Cached regional responses',diagnosticState.regionalCacheHits],['Aircraft records received',liveReady?diagnosticState.aircraftRecordsReceived:'—'],['Records identified as UAVs',liveReady?diagnosticState.uavRecordsIdentified:'—'],['Invalid or stale records rejected',liveReady?diagnosticState.invalidOrStaleRecords:'—'],['Current UAV positions accepted',liveReady?diagnosticState.currentPositionsAccepted:'—'],['3D quadcopter models rendered',liveReady?diagnosticState.modelsRendered:'—'],['Historical trail points retained',liveReady?diagnosticState.historicalTrailPoints:'—'],['3D trail segments rendered',liveReady?diagnosticState.trailsRendered:'—']];
+ const metrics=[['Regional requests attempted',diagnosticState.regionalRequestsAttempted],['Requests successfully completed',diagnosticState.regionalRequestsCompleted],['Cached regional responses',diagnosticState.regionalCacheHits],['ADSB.lol feed',diagnosticState.providers?.adsb_lol?.status||'not checked'],['Layer400 Remote ID',diagnosticState.providers?.layer400_remote_id?.status||'key not configured / not checked'],['Aircraft records received',liveReady?diagnosticState.aircraftRecordsReceived:'—'],['Records identified as UAVs',liveReady?diagnosticState.uavRecordsIdentified:'—'],['Invalid or stale records rejected',liveReady?diagnosticState.invalidOrStaleRecords:'—'],['Current UAV positions accepted',liveReady?diagnosticState.currentPositionsAccepted:'—'],['3D quadcopter models rendered',liveReady?diagnosticState.modelsRendered:'—'],['Historical trail points retained',liveReady?diagnosticState.historicalTrailPoints:'—'],['3D trail segments rendered',liveReady?diagnosticState.trailsRendered:'—']];
  if(summaryNode){summaryNode.replaceChildren();for(const [label,value] of metrics){const item=element('div','bp-drone-metric');item.append(element('b','',typeof value==='number'?value.toLocaleString():value),element('span','',label));summaryNode.append(item)}}
  if(regionalStatusNode){
   regionalStatusNode.replaceChildren();
@@ -341,28 +343,32 @@ const DroneCore=(()=>{
  const FEET_TO_METERS=0.3048;
  function buildRequestUrl(sample){
   if(!sample||!Number.isFinite(Number(sample.lat))||!Number.isFinite(Number(sample.lon))||Number(sample.lat)<-90||Number(sample.lat)>90||Number(sample.lon)<-180||Number(sample.lon)>180)throw new Error('Invalid regional sample coordinates');
+  return DRONE_PROXY_URL+'?lat='+encodeURIComponent(Number(sample.lat).toFixed(4))+'&lon='+encodeURIComponent(Number(sample.lon).toFixed(4))+'&radius='+REGION_RADIUS_NM;
+ }
+ function buildUpstreamRequestUrl(sample){
+  if(!sample||!Number.isFinite(Number(sample.lat))||!Number.isFinite(Number(sample.lon)))throw new Error('Invalid regional sample coordinates');
   return SUPPORTED_SOURCE+'lat/'+encodeURIComponent(Number(sample.lat).toFixed(4))+'/lon/'+encodeURIComponent(Number(sample.lon).toFixed(4))+'/dist/'+REGION_RADIUS_NM;
  }
  function parseResponse(payload){
   if(!payload||typeof payload!=='object'||Array.isArray(payload))throw new Error('Invalid ADSB.lol response: expected a JSON object');
   if(!Array.isArray(payload.ac))throw new Error('Invalid ADSB.lol response: expected the ac aircraft array');
-  return{records:payload.ac,total:Number.isFinite(Number(payload.total))?Number(payload.total):payload.ac.length,message:String(payload.msg||'')};
+  return{records:payload.ac,total:Number.isFinite(Number(payload.total))?Number(payload.total):payload.ac.length,message:String(payload.msg||''),providers:payload.providers&&typeof payload.providers==='object'?payload.providers:{},upstreamUrl:typeof payload.upstreamUrl==='string'?payload.upstreamUrl:''};
  }
  async function requestSample(sample,fetchImpl,signal){
   if(typeof fetchImpl!=='function')throw new Error('ADS-B request requires a fetch implementation');
-  const requestUrl=buildRequestUrl(sample);
-  const response=await fetchImpl(requestUrl,{method:'GET',cache:'no-store',signal,headers:{'Accept':'application/json'}});
+  const transportUrl=buildRequestUrl(sample);
+  const response=await fetchImpl(transportUrl,{method:'GET',cache:'no-store',signal,headers:{'Accept':'application/json','apikey':DRONE_PROXY_KEY}});
   const body=await response.text();
   if(!response.ok)throw new Error('HTTP '+response.status+(response.statusText?' '+response.statusText:'')+(body?' · '+body.replace(/\s+/g,' ').slice(0,220):''));
   let payload;try{payload=JSON.parse(body)}catch(error){throw new Error('Invalid JSON response: '+String(error?.message||error)+' · body: '+body.replace(/\s+/g,' ').slice(0,180))}
   const parsed=parseResponse(payload);
-  return{requestUrl,records:parsed.records,responseTotal:parsed.total,message:parsed.message};
+  return{requestUrl:parsed.upstreamUrl||buildUpstreamRequestUrl(sample),transportUrl,records:parsed.records,responseTotal:parsed.total,message:parsed.message,providers:parsed.providers};
  }
  function isUavRecord(a){
   const category=String(a?.category||a?.emitter_category||'').trim().toUpperCase();
   if(category==='B6'||category==='14'||category==='UAV')return true;
   const description=[a?.desc,a?.description,a?.typeDescription,a?.type,a?.t].filter(Boolean).join(' ');
-  return /\\b(?:UAV|UAS|UNMANNED AERIAL|UNMANNED AIRCRAFT|DRONE)\\b/i.test(description);
+  return /\b(?:UAV|UAS|UNMANNED AERIAL|UNMANNED AIRCRAFT|DRONE|REMOTE ID)\b/i.test(description);
  }
  function invalidPositionReason(a){
   const rawLat=a?.lat,rawLon=a?.lon,lat=Number(rawLat),lon=Number(rawLon);
@@ -379,6 +385,14 @@ const DroneCore=(()=>{
   if(geomRaw!==null&&geomRaw!==undefined&&geomRaw!==''){
    const value=Number(geomRaw);if(Number.isFinite(value)&&value>=-2000&&value<=60000)return{known:true,projectable:true,value,meters:value*FEET_TO_METERS,sourceValue:geomRaw,sourceField:'alt_geom',sourceUnits:'ft',mapUnits:'m',datum:'geometric'};
   }
+  const aglRaw=a?.height_agl_m;
+  if(aglRaw!==null&&aglRaw!==undefined&&aglRaw!==''){
+   const value=Number(aglRaw);if(Number.isFinite(value)&&value>=0&&value<=5000)return{known:true,projectable:true,value,meters:value,sourceValue:aglRaw,sourceField:'height_agl_m',sourceUnits:'m',mapUnits:'m',datum:'agl'};
+  }
+  const remoteRaw=a?.remote_id_altitude_m;
+  if(remoteRaw!==null&&remoteRaw!==undefined&&remoteRaw!==''){
+   const value=Number(remoteRaw);if(Number.isFinite(value)&&value>=-500&&value<=30000)return{known:true,projectable:false,value,meters:value,sourceValue:remoteRaw,sourceField:'remote_id_altitude_m',sourceUnits:'m',mapUnits:'m',datum:'unknown'};
+  }
   const baroRaw=a?.alt_baro;
   if(baroRaw!==null&&baroRaw!==undefined&&baroRaw!==''&&!(typeof baroRaw==='string'&&baroRaw.trim().toLowerCase()==='ground')){
    const value=Number(baroRaw);if(Number.isFinite(value)&&value>=-2000&&value<=60000)return{known:true,projectable:false,value,meters:value*FEET_TO_METERS,sourceValue:baroRaw,sourceField:'alt_baro',sourceUnits:'ft',mapUnits:'m',datum:'barometric'};
@@ -387,13 +401,18 @@ const DroneCore=(()=>{
  }
  function createTrailPoint(a,observedAt=Date.now(),sourceName='ADSB.lol'){
   const alt=altitudeForRecord(a),ageRaw=a?.seen_pos??a?.seen,age=ageRaw===null||ageRaw===undefined||ageRaw===''?null:Number(ageRaw),headingRaw=a?.track??a?.true_heading??a?.mag_heading,heading=headingRaw===null||headingRaw===undefined||headingRaw===''?null:Number(headingRaw);
-  return{trackKey:String(a?.hex||a?.icao24||'').trim().toLowerCase(),longitude:Number(a?.lon),latitude:Number(a?.lat),altitudeValue:alt.sourceValue,altitudeField:alt.sourceField,altitudeUnits:alt.sourceUnits,altitudeMeters:alt.projectable?alt.meters:null,altitudeReportedMeters:alt.known?alt.meters:null,altitudeDatum:alt.datum,altitudeKnown:alt.known,altitudeProjectable:alt.projectable,heading:Number.isFinite(heading)?heading:null,observationTimestamp:Number.isFinite(age)&&age>=0?observedAt-age*1000:observedAt,sampledAt:observedAt,sourceName,sourceAgeSeconds:Number.isFinite(age)&&age>=0?age:null,gapBefore:false,gapReason:null};
+  return{trackKey:String(a?.hex||a?.icao24||'').trim().toLowerCase(),longitude:Number(a?.lon),latitude:Number(a?.lat),altitudeValue:alt.sourceValue,altitudeField:alt.sourceField,altitudeUnits:alt.sourceUnits,altitudeMeters:alt.projectable?alt.meters:null,altitudeReportedMeters:alt.known?alt.meters:null,heightAGLMeters:alt.datum==='agl'?alt.meters:null,altitudeDatum:alt.datum,altitudeKnown:alt.known,altitudeProjectable:alt.projectable,heading:Number.isFinite(heading)?heading:null,observationTimestamp:Number.isFinite(age)&&age>=0?observedAt-age*1000:observedAt,sampledAt:observedAt,sourceName,sourceAgeSeconds:Number.isFinite(age)&&age>=0?age:null,gapBefore:false,gapReason:null};
  }
- function project3DPoint(point,MC){
-  if(!point?.altitudeProjectable||point.altitudeDatum!=='geometric'||!Number.isFinite(Number(point.altitudeMeters))||!MC?.fromLngLat)return null;
-  return MC.fromLngLat({lng:Number(point.longitude),lat:Number(point.latitude)},Number(point.altitudeMeters));
+ function project3DPoint(point,MC,groundElevationMeters=null){
+  if(!point?.altitudeProjectable||!Number.isFinite(Number(point.altitudeMeters))||!MC?.fromLngLat)return null;
+  let altitude=Number(point.altitudeMeters);
+  if(point.altitudeDatum==='agl'){
+   if(groundElevationMeters===null||groundElevationMeters===undefined||!Number.isFinite(Number(groundElevationMeters)))return null;
+   altitude+=Number(groundElevationMeters);
+  }else if(point.altitudeDatum!=='geometric')return null;
+  return MC.fromLngLat({lng:Number(point.longitude),lat:Number(point.latitude)},altitude);
  }
- return Object.freeze({buildRequestUrl,parseResponse,requestSample,isUavRecord,invalidPositionReason,altitudeForRecord,createTrailPoint,project3DPoint,feetToMeters:FEET_TO_METERS,radiusNm:REGION_RADIUS_NM});
+ return Object.freeze({buildRequestUrl,buildUpstreamRequestUrl,parseResponse,requestSample,isUavRecord,invalidPositionReason,altitudeForRecord,createTrailPoint,project3DPoint,feetToMeters:FEET_TO_METERS,radiusNm:REGION_RADIUS_NM});
 })();
 function centerAndZoom(){
  if(!map)return null;
