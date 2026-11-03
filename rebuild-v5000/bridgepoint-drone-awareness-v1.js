@@ -440,7 +440,7 @@ async function refresh(force=false){
  if(!mapStyleReady()){activationQueued=true;diagnosticState.sourceStatus='waiting';writeSummary();showStatus('Drone Awareness is ON and queued for the MapLibre style. It will sample automatically when the globe is ready; no second press is needed.','info');return}
  const wait=15000-(Date.now()-lastFetchAt);if(!force&&wait>0)return;if(force&&wait>0){showStatus('Public API refresh is briefly rate-limited. Try again in '+Math.ceil(wait/1000)+' seconds.');return}
  inFlight=true;lastFetchAt=Date.now();if(refreshButton)refreshButton.disabled=true;
- diagnosticState.sourceStatus='loading';diagnosticState.aircraftRecordsReceived=0;diagnosticState.uavRecordsIdentified=0;diagnosticState.invalidOrStaleRecords=0;diagnosticState.currentPositionsAccepted=0;diagnosticState.modelsRendered=0;diagnosticState.historicalTrailPoints=0;diagnosticState.trailsRendered=0;diagnosticState.localSample=null;writeSummary();
+ diagnosticState.sourceStatus='loading';diagnosticState.hasSuccessfulSource=false;diagnosticState.aircraftRecordsReceived=0;diagnosticState.uavRecordsIdentified=0;diagnosticState.invalidOrStaleRecords=0;diagnosticState.currentPositionsAccepted=0;diagnosticState.modelsRendered=0;diagnosticState.historicalTrailPoints=0;diagnosticState.trailsRendered=0;diagnosticState.localSample=null;writeSummary();
  showStatus('Requesting public ADS-B aircraft records from '+GLOBAL_SAMPLES.length+' regional sample areas…');
  try{
   const samples=await fetchGlobalSamples();if(!enabled)return;
