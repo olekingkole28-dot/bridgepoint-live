@@ -55,7 +55,7 @@ window.__BP_PHOTOREAL_WORLD_V5548__={version:5548,groundImagery:['USGS','OpenAer
 const US_BOUNDS=[-125,24,-66,50];
 
 const roadFilter=classes=>['all',['in',['get','class'],['literal',classes]],['!=',['downcase',['to-string',['coalesce',['get','brunnel'],'']]],'bridge'],['!=',['downcase',['to-string',['coalesce',['get','bridge'],'']]],'yes']];
-const BP_BLENDER_WORLD_LEGACY_LAYER=/(:?building|roof|floor|facade|structure|landmark|bridge|^gta-road-|^gta-rail|tree|vegetation|canopy|streetlight|hydrant|solar|pool|transport|ship|vessel|drone|flight|satellite|parcel|zoning|listing|opportunity|nyc-lidar|reality-capture)/i;
+const BP_BLENDER_WORLD_LEGACY_LAYER=/(:?building|roof|floor|facade|structure|landmark|bridge|^gta-road-|^gta-rail|^gta-(?:nasa|esri|usgs|oam)(?:$|-)|tree|vegetation|canopy|streetlight|hydrant|solar|pool|transport|ship|vessel|drone|flight|satellite|parcel|zoning|listing|opportunity|nyc-lidar|reality-capture)/i;
 const vis=(map,id,on)=>{try{if(window.__BP_BLENDER_WORLD_MODE__?.enabled===true&&BP_BLENDER_WORLD_LEGACY_LAYER.test(String(id||'')))on=false;if(!map.getLayer(id))return false;const next=on?'visible':'none';if((map.getLayoutProperty(id,'visibility')||'visible')!==next){map.setLayoutProperty(id,'visibility',next);return true}return false}catch(_){return false}};
 const paint=(map,id,k,v)=>{try{if(map.getLayer(id))map.setPaintProperty(id,k,v)}catch(_){}};
 
@@ -641,17 +641,32 @@ export function initWorld(options={}){
  function applyAutoCamera(){window.__BP_AUTO_CAMERA__={enabled:false,singleView:true,mode:'FREE_FLY',maxPitch:110,zoom:map.getZoom(),pitch:map.getPitch(),updatedAt:Date.now()};return false}
   function setBase(next){base='satellite';const rasterLayers=['gta-nasa','gta-esri','gta-usgs','gta-oam'];for(const id of rasterLayers){vis(map,id,true);if(map.getLayer(id)&&map.getLayer('gta-coast-shadow'))try{map.moveLayer(id,'gta-coast-shadow')}catch(_){}}paint(map,'gta-water','fill-opacity',0);vis(map,'gta-landcover-texture',false);paint(map,'gta-landcover','fill-opacity',0);paint(map,'gta-landuse','fill-opacity',0);paint(map,'gta-hillshade','hillshade-exaggeration',0);document.querySelectorAll('[data-base]').forEach(b=>b.classList.toggle('active',b.dataset.base==='satellite'));window.__BP_TECH_BASEMAP_V1116__={...(window.__BP_TECH_BASEMAP_V1116__||{}),activeBase:'satellite',defaultBase:'satellite',satelliteManualOnly:false,satelliteAlwaysOn:true,continuousGlobalUnderlay:false,zoomVisibilityChanges:false,tileExpiryRefresh:true,updatedAt:Date.now()};keepSatelliteRasterLayersVisible('setBase');map.triggerRepaint()}
   function keepSatelliteRasterLayersVisible(reason='settled'){
-   const ids=['gta-nasa','gta-esri','gta-usgs','gta-oam'],layers={},restored=[];
+   const ids=['gta-nasa','gta-esri','gta-usgs','gta-oam'],layers={},restored=[],suppressed=[];
+   const blenderWorldEnabled=window.__BP_BLENDER_WORLD_MODE__?.enabled===true;
    for(const id of ids){
     try{
      const layer=map.getLayer(id);
      if(!layer){layers[id]={present:false,visibility:'missing'};continue}
      const before=map.getLayoutProperty(id,'visibility')||'visible';
-     if(before!=='visible'){map.setLayoutProperty(id,'visibility','visible');restored.push(id)}
+     const targetVisibility=blenderWorldEnabled?'none':'visible';
+     if(before!==targetVisibility){
+      map.setLayoutProperty(id,'visibility',targetVisibility);
+      (blenderWorldEnabled?suppressed:restored).push(id);
+     }
      layers[id]={present:true,visibility:map.getLayoutProperty(id,'visibility')||'visible',source:layer.source,minzoom:layer.minzoom??0,maxzoom:layer.maxzoom??22};
     }catch(error){layers[id]={present:false,error:String(error?.message||error)}}
    }
-   window.__BP_SATELLITE_RASTER_VISIBILITY_GUARD_V6217__={version:6217,reason,restored,layers,updatedAt:Date.now()};
+   let oceanFill='unavailable';
+   try{
+    const depth=window.__BP_SENSOR_LAYERS_V5945__;
+    const depthEnabled=depth?.map===map&&depth.surface===true;
+    if(depthEnabled)oceanFill='depth-enabled';
+    else if(map.getLayer('gta-water')){
+     if(map.getPaintProperty('gta-water','fill-opacity')!==0)map.setPaintProperty('gta-water','fill-opacity',0);
+     oceanFill=0;
+    }
+   }catch(error){oceanFill='error: '+String(error?.message||error)}
+   window.__BP_SATELLITE_RASTER_VISIBILITY_GUARD_V6217__={version:6217,reason,restored,suppressed,layers,blenderWorldEnabled,oceanFill,updatedAt:Date.now()};
    return layers;
   }
   function restoreSatelliteRasterStack(){
