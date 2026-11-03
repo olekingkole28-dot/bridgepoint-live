@@ -98,7 +98,7 @@ const launchButton = launcher.querySelector('.bp-transportation-v1-toggle');
 assert.ok(launchButton, 'Transportation is presented as a card button');
 launchButton.listeners.click[0]();
 assert.equal(requestedScripts.length, 1, 'pressing Transportation dynamically requests the 3D module');
-assert.equal(requestedScripts[0].src, '/bridgepoint-transportation-v1.js?v=3-road-centerline-global-dots');
+assert.equal(requestedScripts[0].src, '/bridgepoint-transportation-v1.js?v=4-global-pmtiles-stable-models');
 assert.equal(requestedScripts[0].async, true, 'the simulation bundle loads asynchronously after the click');
 let enabledAfterLoad = false;
 loaderContext.window.__BP_TRANSPORTATION_V1__ = { enable() { enabledAfterLoad = true; return true; } };
@@ -134,7 +134,7 @@ assert.equal(lateStarted, true, 'the original button press activates transportat
 
 
 assert.ok(api, 'transportation simulation exposes diagnostics and helper methods');
-assert.equal(api.version, 3);
+assert.equal(api.version, 4);
 assert.equal(api.enabledByDefault, false, 'transportation stays off until the user presses the new button');
 assert.equal(api.simulationOnly, true, 'generated traffic must never be described as real vehicle GPS');
 
@@ -178,8 +178,8 @@ assert.equal(helpers.isRoadFeature({ properties: { class: 'transit' } }), false)
 assert.equal(helpers.isRoadFeature({ properties: { class: 'path', subclass: 'footway' } }), false);
 assert.equal(helpers.isRoadFeature({ properties: { class: 'pedestrian', subclass: 'pedestrian' } }), false);
 
-/* Exercise the real first-click global-zoom path with a mocked MapLibre road source.
- * The test asserts that dots appear immediately and that Three.js is not requested at globe zoom.
+/* Exercise the real first-click globe path against the whole-planet roads archive.
+ * The test specifically prevents a false pass caused by injecting close-zoom OSM tiles at zoom 1.2.
  */
 const activeDock = new FakeElement('div');
 const activeHead = new FakeElement('head');
@@ -187,23 +187,36 @@ const activeSources = { ofm: {} };
 const activeLayers = {};
 const activeEvents = {};
 const activeRoads = [];
+const activeGlobalRoads = [];
+let protocolAdds = 0, archiveAdds = 0;
+class FakePmtilesArchive { constructor(url) { this.url = url; } }
+class FakePmtilesProtocol {
+  constructor() { this.tile = () => {}; }
+  add(archive) { archiveAdds++; this.archive = archive; }
+}
 const activeMap = {
   on(name, ...args) { (activeEvents[name] ||= []).push(args); },
   getStyle() { return { layers: [{ source: 'ofm', 'source-layer': 'transportation' }] }; },
   getSource(id) { return activeSources[id] || null; },
-  addSource(id, config) { activeSources[id] = { data: config.data, setData(value) { this.data = value; } }; },
+  addSource(id, config) { activeSources[id] = { config, data: config.data, setData(value) { this.data = value; } }; },
   getLayer(id) { return activeLayers[id] || null; },
   addLayer(layer) { activeLayers[layer.id] = layer; },
   getCenter() { return { lng: -119, lat: 35 }; },
   getZoom() { return 1.2; },
-  querySourceFeatures() { return activeRoads; }
+  querySourceFeatures(sourceId, options) {
+    if (sourceId === 'bp-transportation-global-road-source' && options?.sourceLayer === 'roads') return activeGlobalRoads;
+    if (sourceId === 'ofm' && options?.sourceLayer === 'transportation') return activeRoads;
+    return [];
+  }
 };
 const activeContext = {
-  window: { __BP_LANDING_WORLD__: { map: activeMap } },
+  window: {
+    __BP_LANDING_WORLD__: { map: activeMap },
+    pmtiles: { Protocol: FakePmtilesProtocol, PMTiles: FakePmtilesArchive },
+    maplibregl: { addProtocol(name, handler) { assert.equal(name, 'pmtiles'); assert.equal(typeof handler, 'function'); protocolAdds++; } }
+  },
   document: {
-    readyState: 'complete',
-    visibilityState: 'visible',
-    head: activeHead,
+    readyState: 'complete', visibilityState: 'visible', head: activeHead,
     addEventListener() {},
     querySelector(selector) {
       if (selector === '#bpv-dock-actions') return activeDock;
@@ -214,34 +227,96 @@ const activeContext = {
   console: { warn() {}, log() {}, error() {} },
   matchMedia: () => ({ matches: false }),
   MutationObserver: class { observe() {} disconnect() {} },
-  setTimeout() { return 1; },
-  clearTimeout() {},
+  setTimeout() { return 1; }, clearTimeout() {},
   requestAnimationFrame() { throw new Error('global dot mode must not start a 3D animation frame loop'); },
-  cancelAnimationFrame() {},
-  performance: { now: () => 1000 }
+  cancelAnimationFrame() {}, performance: { now: () => 1000 }
 };
-bootModule.runInNewContext(moduleSource, activeContext, { filename: 'bridgepoint-transportation-global-dot-smoke.js' });
+bootModule.runInNewContext(moduleSource, activeContext, { filename: 'bridgepoint-transportation-global-pmtiles-smoke.js' });
 const activeApi = activeContext.window.__BP_TRANSPORTATION_V1__;
 assert.ok(activeDock.querySelector('.bp-transportation-v1-toggle'), 'the module creates a real Transportation toggle inside the card');
 assert.equal(activeApi.enable(), true, 'the first press turns the simulation on directly');
 assert.equal(activeApi.diagnostics().enabled, true);
-assert.equal(activeApi.diagnostics().vehicles, 0, 'an initially empty tile cache does not fabricate off-road positions');
-for (let i = 0; i < 20; i++) {
-  const lon = -120 + i * .1;
+assert.equal(activeApi.diagnostics().vehicles, 0, 'vehicles are not fabricated before global tile features are available');
+for (let i = 0; i < 36; i++) {
+  const lon = -160 + i * 1.7;
+  activeGlobalRoads.push({
+    id: 'global-' + i,
+    geometry: { type: 'LineString', coordinates: [[lon, 12], [lon + .18, 12.04], [lon + .36, 12.09]] },
+    properties: { kind: 'highway', kind_detail: i % 3 === 0 ? 'motorway' : 'primary' }
+  });
+}
+await new Promise(resolve => setTimeout(resolve, 0));
+const activeState = activeApi.diagnostics();
+assert.equal(protocolAdds, 1, 'the global PMTiles protocol is registered exactly once');
+assert.equal(archiveAdds, 1, 'the world road archive is attached to the PMTiles protocol exactly once');
+assert.equal(activeSources['bp-transportation-global-road-source']?.config?.url,
+  'pmtiles://https://bridgepointintelligence.online/assets/offline/protomaps-world-z6.pmtiles',
+  'globe-scale routes use the published whole-planet vector archive');
+assert.equal(activeLayers['bp-transportation-global-road-query-layer']?.['source-layer'], 'roads',
+  'a transparent source-layer requests whole-planet road tiles at zoom zero');
+assert.equal(activeState.enabled, true);
+assert.equal(activeState.modelLod, 'dots', 'globe zoom remains in lightweight dot mode');
+assert.ok(activeState.vehicles > 0, 'globe zoom creates moving vehicles from global road centerlines');
+assert.equal(activeState.dots, activeState.vehicles, 'every global vehicle has an active visible dot');
+assert.ok(activeSources['bp-transportation-v1-dot-source']?.data?.features?.length > 0,
+  'the global GeoJSON dot layer receives the generated fleet');
+assert.ok(activeApi.helpers.sourceRoadFeatures(activeMap, 1.2).length > 0,
+  'the global source query reads the PMTiles roads layer');
+assert.equal(activeApi.helpers.sourceRoadFeatures(activeMap, 1.2).some(row => row.key.startsWith('ofm:')), false,
+  'globe-scale dot availability does not depend on zoom-gated OpenFreeMap road tiles');
+activeMap.getZoom = () => 6;
+for (let i = 0; i < 24; i++) {
+  const lon = -71.06 + i * .001;
   activeRoads.push({
-    id: i,
-    geometry: { type: 'LineString', coordinates: [[lon, 35], [lon + .01, 35.005], [lon + .02, 35.01]] },
+    id: 'local-' + i,
+    geometry: { type: 'LineString', coordinates: [[lon, 42.36], [lon + .001, 42.3605], [lon + .002, 42.361]] },
     properties: { class: 'primary', subclass: 'road' }
   });
 }
-assert.ok(typeof activeEvents.idle?.[0]?.[0] === 'function', 'the simulation retries when the map reaches idle after road tiles load');
-activeEvents.idle[0][0]();
-const activeState = activeApi.diagnostics();
-assert.equal(activeState.enabled, true);
-assert.equal(activeState.modelLod, 'dots', 'global zoom remains in lightweight dot mode');
-assert.ok(activeState.vehicles > 0, 'global zoom builds a simulated vehicle fleet after real road tiles arrive');
-assert.equal(activeState.dots, activeState.vehicles, 'every global simulated vehicle has a visible dot');
-assert.ok(activeSources['bp-transportation-v1-dot-source']?.data?.features?.length > 0, 'the global dot layer is populated as soon as road tiles are ready');
+const localRows = activeApi.helpers.sourceRoadFeatures(activeMap, 6);
+assert.ok(localRows.length > 0 && localRows.every(row => row.key.startsWith('ofm:')),
+  'street zoom switches to detailed OpenFreeMap centerlines');
+
+const stablePathA = {
+  key: 'stable-road-a', roadClass: 'primary', length: 18000,
+  points: [
+    { coordinate: [-71.06, 42.36], local: { x: 0, y: 0, z: 0 }, distance: 0 },
+    { coordinate: [-71.04, 42.36], local: { x: 1600, y: 0, z: 0 }, distance: 18000 }
+  ]
+};
+const stablePathB = {
+  key: 'stable-road-b', roadClass: 'residential', length: 12000,
+  points: [
+    { coordinate: [-71.03, 42.36], local: { x: 0, y: 0, z: 0 }, distance: 0 },
+    { coordinate: [-71.02, 42.36], local: { x: 820, y: 0, z: 0 }, distance: 12000 }
+  ]
+};
+const stableFleetOne = helpers.buildFleet([stablePathA, stablePathB], 1.2)
+  .map(v => ({ id: v.id, kind: v.kind, distance: v.distance })).sort((a,b) => a.id.localeCompare(b.id));
+const stableFleetTwo = helpers.buildFleet([stablePathB, stablePathA], 1.2)
+  .map(v => ({ id: v.id, kind: v.kind, distance: v.distance })).sort((a,b) => a.id.localeCompare(b.id));
+assert.equal(JSON.stringify(stableFleetTwo), JSON.stringify(stableFleetOne),
+  'vehicle identities, model types and positions stay stable when vector-tile feature order changes');
+
+const elevationSamples = [
+  [-71.060, 42.360], [-71.055, 42.3605], [-71.050, 42.361],
+  [-71.045, 42.3615], [-71.040, 42.362]
+];
+const terrainPath = helpers.buildRoadPaths({
+  queryTerrainElevation(point) {
+    if (Math.abs(point.lng - elevationSamples[1][0]) < 0.000001 ||
+        Math.abs(point.lng - elevationSamples[3][0]) < 0.000001) return null;
+    return 12 + (point.lng - elevationSamples[0][0]) * 100;
+  }
+}, elevationSamples[0], 12, [{
+  key: 'terrain-gap-road', roadClass: 'residential', coordinates: elevationSamples
+}]);
+assert.equal(terrainPath.paths.length, 1, 'missing terrain samples do not split a road into disconnected chunks');
+assert.equal(terrainPath.paths[0].points.length, elevationSamples.length, 'every centerline vertex is retained through terrain tile gaps');
+assert.ok(terrainPath.paths[0].points.every(p => Number.isFinite(p.local.y)), 'road-relative model height stays finite when terrain tiles have gaps');
+assert.equal(helpers.isRoadFeature({ properties: { kind: 'highway', kind_detail: 'primary' } }), true);
+assert.equal(helpers.isRoadFeature({ properties: { kind: 'rail', kind_detail: 'rail' } }), false);
+assert.equal(helpers.roadClassForFeature({ properties: { kind: 'major_road', kind_detail: 'trunk' } }), 'trunk');
 
 const validKinds = new Set([
   'sedan', 'suv', 'pickup', 'sports-car', 'electric-sedan', 'jeep',
@@ -275,7 +350,7 @@ for (const phrase of [
   'Police cars', 'Ambulances', 'Fire trucks', 'Civilian vehicles',
   'SIMULATED police', 'SIMULATED ambulance', 'SIMULATED fire engines', 'Simulated fire truck',
   'No actual vehicle GPS', 'No vehicle GPS, dispatch, patient, officer, home or private-property data',
-  'queryTerrainElevation', 'sourceLayer: ROAD_SOURCE_LAYER',
+  'queryTerrainElevation', 'ROAD_SOURCE_LAYER', 'sourceRoadFeatures', 'GLOBAL_ROAD_ARCHIVE',
   'new THREE.WebGLRenderer', 'map.transform.getMatrixForModel',
   'wheelPivots', 'wheel.rotation.x', 'emissiveIntensity'
 ]) {
@@ -287,11 +362,14 @@ assert.ok(!moduleSource.includes('state.button?.click()'), 'the first button pre
 assert.ok(!moduleSource.includes('setInterval('), 'Transportation does not keep a page-startup polling loop alive');
 assert.ok(moduleSource.includes('function buildFlatRoadPaths'), 'global dot routes are built without waiting for terrain samples');
 assert.ok(moduleSource.includes('function makeVehicleLowLod'), 'medium zoom has a lightweight 3D vehicle model kit');
-assert.ok(moduleSource.includes('makeVehicle(T, item) : makeVehicleLowLod(T, item)'), 'close zoom upgrades the low-detail model kit to detailed vehicle geometry');
+assert.ok(moduleSource.includes('makeVehicle(T,item):makeVehicleLowLod(T,item)'), 'close zoom upgrades the low-detail model kit to detailed vehicle geometry');
+assert.ok(moduleSource.includes('Attach all replacement meshes first'), 'LOD upgrades stage replacement vehicles before retiring old models');
+assert.ok(!moduleSource.includes('setTimeout(addBatch, 12)'), '3D vehicles are not added in flashing one-by-one batches');
+assert.ok(moduleSource.includes('hasVehiclesInViewport'), 'ordinary pans keep the existing road-following fleet instead of regenerating it');
 assert.ok(moduleSource.includes('MAX_DOT_VEHICLES = MOBILE ? 64 : 120'), 'global mode shows a bounded set of moving dots on desktop and phone');
 
-const expectedScript = 'bridgepoint-transportation-v1.js?v=3-road-centerline-global-dots';
-const expectedLoader = '<script defer src="/bridgepoint-transportation-loader-v1.js?v=3-road-centerline-global-dots"></script>';
+const expectedScript = 'bridgepoint-transportation-v1.js?v=4-global-pmtiles-stable-models';
+const expectedLoader = '<script defer src="/bridgepoint-transportation-loader-v1.js?v=4-global-pmtiles-stable-models"></script>';
 assert.ok(!landingHtml.includes(expectedScript), 'homepage never downloads the 3D transportation module during startup');
 assert.ok(!appHtml.includes(expectedScript), 'app never downloads the 3D transportation module during startup');
 assert.ok(landingHtml.includes(expectedLoader), 'homepage loads only the lightweight card-button launcher');
@@ -306,4 +384,4 @@ assert.ok(fullDeploy.includes('cp rebuild-v5000/bridgepoint-transportation-v1.js
 assert.ok(fullDeploy.includes('cp rebuild-v5000/bridgepoint-transportation-loader-v1.js site/bridgepoint-transportation-loader-v1.js'), 'full deploy publishes the lightweight launcher');
 assert.ok(!/^\s*push:/m.test(rollbackWorkflow), 'the old experimental rollback deployment can no longer auto-publish over this release');
 
-console.log('BridgePoint Transportation Simulation v3 road-centerline/global-dot contract checks passed.');
+console.log('BridgePoint Transportation Simulation v4 global-PMTiles/stable-model contract checks passed.');

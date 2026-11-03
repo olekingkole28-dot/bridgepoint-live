@@ -1,4 +1,4 @@
-/* BridgePoint Transportation Simulation v3 · ROAD-CENTERLINE + TILE-READY LOD.
+/* BridgePoint Transportation Simulation v4 · GLOBAL ROADS + STABLE VEHICLE LOD.
  * Uses the existing OpenFreeMap road geometries and BridgePoint's existing 3D map.
  * Global moving dots stay active; curve-preserving road paths drive progressively detailed 3D vehicles.
  * All moving civilian and emergency vehicles in this module are simulated.
@@ -9,18 +9,24 @@
   'use strict';
   if (window.__BP_TRANSPORTATION_V1__) return;
 
-  const VERSION = 3;
+  const VERSION = 4;
   const THREE_URL = '/vendor/three.module.js?v=169-local';
   const ROAD_SOURCE = 'ofm';
   const ROAD_SOURCE_LAYER = 'transportation';
+  const GLOBAL_ROAD_SOURCE = 'bp-transportation-global-road-source';
+  const GLOBAL_ROAD_QUERY_LAYER = 'bp-transportation-global-road-query-layer';
+  const GLOBAL_ROAD_ARCHIVE = 'https://bridgepointintelligence.online/assets/offline/protomaps-world-z6.pmtiles';
+  const GLOBAL_ROAD_TILE_URL = 'pmtiles://' + GLOBAL_ROAD_ARCHIVE;
+  const GLOBAL_ROAD_MAX_ZOOM = 6;
+  const DETAIL_ROAD_MIN_ZOOM = 5.5;
   const MODEL_LAYER = 'bp-transportation-v1-models';
   const DOT_SOURCE = 'bp-transportation-v1-dot-source';
   const DOT_LAYER = 'bp-transportation-v1-dots';
   const MODEL_MIN_ZOOM = 10.5;
   const HIGH_DETAIL_ZOOM = 14.5;
-  const MAX_ROAD_FEATURES = 220;
-  const MAX_GLOBAL_ROADS = 180;
-  const MAX_MODEL_ROADS = (() => { try { return matchMedia('(max-width: 760px), (pointer: coarse)').matches ? 14 : 26; } catch (_) { return 18; } })();
+  const MAX_ROAD_FEATURES = 720;
+  const MAX_GLOBAL_ROADS = 520;
+  const MAX_MODEL_ROADS = (() => { try { return matchMedia('(max-width: 760px), (pointer: coarse)').matches ? 24 : 48; } catch (_) { return 32; } })();
   const MOBILE = (() => { try { return matchMedia('(max-width: 760px), (pointer: coarse)').matches; } catch (_) { return false; } })();
   const MAX_MODEL_POINTS = MOBILE ? 96 : 160;
   const MAX_DOT_POINTS_PER_ROAD = MOBILE ? 64 : 112;
@@ -28,8 +34,8 @@
   const REBUILD_DEBOUNCE_MS = 280;
   const EMPTY = { type: 'FeatureCollection', features: [] };
   const MAX_DOT_VEHICLES = MOBILE ? 64 : 120;
-  const MAX_LOW_DETAIL_MODELS = MOBILE ? 7 : 18;
-  const MAX_HIGH_DETAIL_MODELS = MOBILE ? 4 : 10;
+  const MAX_LOW_DETAIL_MODELS = MOBILE ? 16 : 32;
+  const MAX_HIGH_DETAIL_MODELS = MOBILE ? 10 : 20;
 
   const state = {
     map: null, enabled: false, categories: { civilian: true, police: false, ambulance: false, fire: false },
@@ -40,6 +46,8 @@
     modelLod: 'dots', button: null, options: null, checkboxes: {}, lastError: null,
     popup: null, lastRebuildAt: null, waitAttempts: 0,
     roadRetryTimer: 0, roadRetryAttempts: 0, pendingRoadRefresh: false,
+    pmtilesPromise: null, pmtilesProtocol: null, pmtilesArchiveAdded: false,
+    lastRoadSourceTier: null,
     diagnostics: { roads: 0, roadLengthM: 0, vehicles: 0, dots: 0, skippedTerrain: 0, zoom: 0 }
   };
 
@@ -66,19 +74,20 @@
     const p = feature?.properties || {};
     const cls = String(p.class || '').toLowerCase();
     const sub = String(p.subclass || '').toLowerCase();
+    const kind = String(p.kind || '').toLowerCase();
+    const detail = String(p.kind_detail || '').toLowerCase();
     const railway = String(p.railway || '').toLowerCase();
-    if (['rail', 'transit', 'ferry', 'aerialway'].includes(cls) ||
-        ['rail', 'subway', 'tram', 'light_rail', 'monorail', 'ferry', 'pedestrian', 'footway', 'path', 'cycleway', 'steps', 'bridleway'].includes(sub) ||
-        ['rail', 'subway', 'tram', 'light_rail', 'monorail'].includes(railway)) return false;
-    return [
-      'motorway', 'motorway_link', 'trunk', 'trunk_link', 'primary', 'primary_link',
-      'secondary', 'secondary_link', 'tertiary', 'tertiary_link', 'minor',
-      'residential', 'unclassified', 'service', 'living_street', 'road'
-    ].includes(cls) ||
-      ['motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'residential', 'service', 'road'].includes(sub);
+    if (['rail','transit','ferry','aerialway','pier','aeroway'].includes(cls) ||
+        ['rail','subway','tram','light_rail','monorail','ferry','pedestrian','footway','path','cycleway','steps','bridleway','track','crossing','sidewalk','corridor'].includes(sub) ||
+        ['rail','subway','tram','light_rail','monorail'].includes(railway) ||
+        ['rail','aerialway','ferry','pier','aeroway','path'].includes(kind) ||
+        ['rail','subway','tram','light_rail','monorail','pedestrian','footway','path','cycleway','steps','bridleway','track','crossing','sidewalk','corridor','runway','taxiway','pier','cable_car','slipway'].includes(detail)) return false;
+    const roadClasses = ['motorway','motorway_link','trunk','trunk_link','primary','primary_link','secondary','secondary_link','tertiary','tertiary_link','minor','residential','unclassified','service','living_street','road'];
+    return roadClasses.includes(cls) || roadClasses.includes(sub) || roadClasses.includes(detail) ||
+      ['highway','major_road','minor_road'].includes(kind);
   }
 
-  function vehicleKindForRoad(roadClass, seed) {
+    function vehicleKindForRoad(roadClass, seed) {
     const r = String(roadClass || '').toLowerCase();
     const n = Math.abs(Number(seed) || 0) % 100;
     if (r.includes('motorway') || r.includes('trunk')) {
@@ -310,40 +319,106 @@
     return [];
   }
 
-  function sourceRoadFeatures(map) {
+  function loadPmtilesLibrary() {
+    if (window.pmtiles?.Protocol && window.pmtiles?.PMTiles) return Promise.resolve(window.pmtiles);
+    if (state.pmtilesPromise) return state.pmtilesPromise;
+    state.pmtilesPromise = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.async = true;
+      script.src = '/vendor/pmtiles.js';
+      script.onload = () => window.pmtiles?.Protocol && window.pmtiles?.PMTiles
+        ? resolve(window.pmtiles)
+        : reject(new Error('PMTiles loaded without its Protocol / PMTiles runtime.'));
+      script.onerror = () => reject(new Error('Could not load the global road-tile reader.'));
+      document.head.appendChild(script);
+    }).catch(error => { state.pmtilesPromise = null; throw error; });
+    return state.pmtilesPromise;
+  }
+
+  async function ensureGlobalRoadSource(map) {
+    const PMTiles = await loadPmtilesLibrary();
+    const maplibre = window.maplibregl;
+    if (!maplibre?.addProtocol) throw new Error('The BridgePoint map protocol loader is unavailable.');
+    let protocol = window.__BP_TRANSPORTATION_PMTILES_PROTOCOL__;
+    if (!protocol) {
+      protocol = new PMTiles.Protocol();
+      maplibre.addProtocol('pmtiles', protocol.tile);
+      window.__BP_TRANSPORTATION_PMTILES_PROTOCOL__ = protocol;
+    }
+    state.pmtilesProtocol = protocol;
+    if (!state.pmtilesArchiveAdded) {
+      protocol.add(new PMTiles.PMTiles(GLOBAL_ROAD_ARCHIVE));
+      state.pmtilesArchiveAdded = true;
+    }
+    if (!map.getSource?.(GLOBAL_ROAD_SOURCE)) {
+      map.addSource(GLOBAL_ROAD_SOURCE, {
+        type: 'vector', url: GLOBAL_ROAD_TILE_URL, minzoom: 0, maxzoom: GLOBAL_ROAD_MAX_ZOOM,
+        attribution: '© OpenStreetMap contributors · Protomaps'
+      });
+    }
+    if (!map.getLayer?.(GLOBAL_ROAD_QUERY_LAYER)) {
+      map.addLayer({
+        id: GLOBAL_ROAD_QUERY_LAYER, type: 'line', source: GLOBAL_ROAD_SOURCE,
+        'source-layer': 'roads', minzoom: 0, maxzoom: GLOBAL_ROAD_MAX_ZOOM + 1,
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': 'rgba(255,255,255,0.01)', 'line-width': 0.5, 'line-opacity': 0.01 }
+      }, map.getLayer?.(DOT_LAYER) ? DOT_LAYER : undefined);
+    }
+    return true;
+  }
+
+  function roadClassForFeature(feature) {
+    const p = feature?.properties || {};
+    const kind = String(p.kind || '').toLowerCase();
+    const detail = String(p.class || p.subclass || p.kind_detail || '').toLowerCase();
+    if (detail) return safe(detail, 32);
+    if (kind === 'major_road' || kind === 'highway') return 'primary';
+    if (kind === 'minor_road') return 'residential';
+    return 'road';
+  }
+
+  function sourceRoadFeatures(map, zoom = 0) {
     const style = map.getStyle?.();
-    const sourceIds = [...new Set([
+    const localSourceIds = [...new Set([
       ROAD_SOURCE,
       ...(style?.layers || []).filter(layer => layer['source-layer'] === ROAD_SOURCE_LAYER && layer.source).map(layer => layer.source)
     ])];
-    const found = [];
-    const seen = new Set();
-    for (const sourceId of sourceIds) {
-      if (!map.getSource?.(sourceId)) continue;
+    const sourceSpecs = Number(zoom) < DETAIL_ROAD_MIN_ZOOM
+      ? [[GLOBAL_ROAD_SOURCE, 'roads']]
+      : localSourceIds.map(sourceId => [sourceId, ROAD_SOURCE_LAYER]);
+    const found = [], seen = new Set();
+    const collect = (sourceId, sourceLayer) => {
+      if (!map.getSource?.(sourceId)) return;
       let rows = [];
-      try { rows = map.querySourceFeatures(sourceId, { sourceLayer: ROAD_SOURCE_LAYER }) || []; } catch (_) {}
+      try { rows = map.querySourceFeatures(sourceId, { sourceLayer }) || []; } catch (_) {}
       for (const feature of rows) {
         if (!feature?.geometry || !isRoadFeature(feature)) continue;
         for (const line of featureLines(feature)) {
           const clean = cleanLine(line);
           if (clean.length < 2) continue;
           const first = clean[0], last = clean[clean.length - 1];
-          const key = [
-            feature.id ?? feature.properties?.id ?? '',
-            Math.round(first[0] * 100000), Math.round(first[1] * 100000),
-            Math.round(last[0] * 100000), Math.round(last[1] * 100000), clean.length
-          ].join(':');
+          const fwd = [Math.round(first[0]*100000),Math.round(first[1]*100000),Math.round(last[0]*100000),Math.round(last[1]*100000)];
+          const rev = [Math.round(last[0]*100000),Math.round(last[1]*100000),Math.round(first[0]*100000),Math.round(first[1]*100000)];
+          const endpoints = fwd.join(':') < rev.join(':') ? fwd : rev;
+          const key = [feature.id ?? feature.properties?.id ?? '', ...endpoints, clean.length].join(':');
           if (seen.has(key)) continue;
           seen.add(key);
-          found.push({ coordinates: clean, roadClass: safe(feature.properties?.class || feature.properties?.subclass || 'road', 32), key });
-          if (found.length >= MAX_ROAD_FEATURES) return found;
+          found.push({ coordinates: clean, roadClass: roadClassForFeature(feature), key: sourceId + ':' + key });
+          if (found.length >= MAX_ROAD_FEATURES) return;
         }
       }
+    };
+    for (const [sourceId, sourceLayer] of sourceSpecs) {
+      collect(sourceId, sourceLayer);
+      if (found.length >= MAX_ROAD_FEATURES) break;
+    }
+    if (!found.length && Number(zoom) >= DETAIL_ROAD_MIN_ZOOM && Number(zoom) <= GLOBAL_ROAD_MAX_ZOOM + 1) {
+      collect(GLOBAL_ROAD_SOURCE, 'roads');
     }
     return found;
   }
 
-  function simplifyRoadCoordinates(coordinates, toleranceM = 4, maxPoints = 160) {
+    function simplifyRoadCoordinates(coordinates, toleranceM = 4, maxPoints = 160) {
     const line = Array.isArray(coordinates) ? coordinates : [];
     if (line.length <= 2) return line.slice();
     const limit = Math.max(2, Math.floor(Number(maxPoints) || 160));
@@ -448,46 +523,51 @@
   }
 
   function buildRoadPaths(map, anchor, anchorElevation, sourceOverride) {
-    const source = Array.isArray(sourceOverride) ? sourceOverride : sourceRoadFeatures(map);
+    const source = Array.isArray(sourceOverride) ? sourceOverride : sourceRoadFeatures(map, map.getZoom?.() || 0);
     const paths = [];
-    let totalLength = 0, skippedTerrain = 0;
+    let totalLength = 0, missingElevation = 0;
     for (const road of source) {
       if (paths.length >= MAX_MODEL_ROADS) break;
-      let chunk = [];
-      const flushChunk = () => {
-        if (chunk.length < 2) { chunk = []; return; }
-        let distance = 0;
-        const points = [];
-        for (const point of chunk) {
-          if (points.length) {
-            const previous = points[points.length - 1];
-            const length = Math.hypot(point.local.x - previous.local.x, point.local.z - previous.local.z);
-            if (length < 2) continue;
-            distance += length;
-          }
-          points.push({ ...point, distance });
-        }
-        chunk = [];
-        if (points.length < 2 || distance < 75 || paths.length >= MAX_MODEL_ROADS) return;
-        paths.push({ points, length: distance, roadClass: road.roadClass, key: road.key + ':' + paths.length });
-        totalLength += distance;
-      };
-      for (const coordinate of road.coordinates) {
-        const elevation = terrainElevation(map, coordinate);
-        if (elevation === null) {
-          skippedTerrain++;
-          flushChunk();
-          continue;
-        }
-        const local = localPoint(coordinate, anchor, elevation, anchorElevation);
-        chunk.push({ coordinate, local });
+      const coordinates = road.coordinates || [];
+      if (coordinates.length < 2) continue;
+      const elevations = coordinates.map(coordinate => terrainElevation(map, coordinate));
+      const cumulative = [0];
+      for (let i=1;i<coordinates.length;i++) cumulative.push(cumulative[i-1]+metersApart(coordinates[i-1],coordinates[i]));
+      for (let i=0;i<elevations.length;i++) {
+        if (elevations[i] !== null) continue;
+        missingElevation++;
+        let before=i-1,after=i+1;
+        while(before>=0&&elevations[before]===null)before--;
+        while(after<elevations.length&&elevations[after]===null)after++;
+        if(before>=0&&after<elevations.length){
+          const span=Math.max(.001,cumulative[after]-cumulative[before]);
+          const t=clamp((cumulative[i]-cumulative[before])/span,0,1);
+          elevations[i]=elevations[before]+(elevations[after]-elevations[before])*t;
+        }else if(before>=0)elevations[i]=elevations[before];
+        else if(after<elevations.length)elevations[i]=elevations[after];
+        else elevations[i]=Number.isFinite(anchorElevation)?anchorElevation:0;
       }
-      flushChunk();
+      let distance=0;
+      const points=[];
+      for(let i=0;i<coordinates.length;i++){
+        const coordinate=coordinates[i];
+        const local=localPoint(coordinate,anchor,elevations[i],anchorElevation);
+        if(points.length){
+          const previous=points[points.length-1];
+          const length=Math.hypot(local.x-previous.local.x,local.z-previous.local.z);
+          if(length<2)continue;
+          distance+=length;
+        }
+        points.push({coordinate,local,distance});
+      }
+      if(points.length<2||distance<75)continue;
+      paths.push({points,length:distance,roadClass:road.roadClass,key:road.key+':terrain'});
+      totalLength+=distance;
     }
-    return { paths, totalLength, sourceFeatures: source.length, skippedTerrain };
+    return {paths,totalLength,sourceFeatures:source.length,skippedTerrain:missingElevation};
   }
 
-  function addPart(T, parts, geometry, position, rotation, color) {
+    function addPart(T, parts, geometry, position, rotation, color) {
     parts.push({ geometry, position, rotation, color });
   }
 
@@ -841,61 +921,101 @@
     return z < HIGH_DETAIL_ZOOM ? 'low' : 'high';
   }
 
+  function stableHash(value) {
+    let hash=2166136261;const s=String(value??'');
+    for(let i=0;i<s.length;i++){hash^=s.charCodeAt(i);hash=Math.imul(hash,16777619);}
+    return hash>>>0;
+  }
+
   function buildFleet(paths, zoom, maxVehicles = MAX_DOT_VEHICLES) {
-    const chosen = [];
-    if (!paths.length) return chosen;
-    const totalLength = paths.reduce((sum, path) => sum + path.length, 0);
-    const max = Math.max(0, Number(maxVehicles) || 0);
-    const spacing = zoom >= 15 ? 90 : zoom >= 13 ? 180 : zoom >= 10 ? 340 : 1800;
-    const capacities = new Map(paths.map(path => [path, Math.max(1, Math.floor(path.length / Math.max(90, spacing * .9)))]));
-    const capacityTotal = [...capacities.values()].reduce((sum, value) => sum + value, 0);
-    const civilianCount = state.categories.civilian
-      ? Math.min(max, capacityTotal, Math.max(1, Math.floor(totalLength / spacing)))
-      : 0;
-    const random = seedRandom(Math.floor((paths[0]?.length || 1) * 1000) + paths.length * 97);
-    const used = new Map();
-    const selectPathAndPosition = () => {
-      const available = paths.filter(path => (used.get(path) || 0) < (capacities.get(path) || 0));
-      if (!available.length) return null;
-      const path = available[Math.floor(random() * available.length)];
-      const slot = used.get(path) || 0;
-      used.set(path, slot + 1);
-      const slots = capacities.get(path) || 1;
-      return { path, start: ((slot + .25 + random() * .5) / slots) * path.length };
-    };
-    for (let i = 0; i < civilianCount; i++) {
-      const assignment = selectPathAndPosition();
-      if (!assignment) break;
-      const { path, start } = assignment;
-      const kind = vehicleKindForRoad(path.roadClass, random() * 100);
-      chosen.push({
-        kind, category: 'civilian', path, distance: start,
-        direction: random() > .5 ? 1 : -1,
-        speed: roadSpeed(path.roadClass, random) * (.78 + random() * .42),
-        id: 'SIM-C-' + String(i + 1).padStart(3, '0')
-      });
+    const chosen=[];
+    if(!paths.length)return chosen;
+    const max=Math.max(0,Number(maxVehicles)||0);
+    const spacing=zoom>=15?90:zoom>=13?180:zoom>=10?340:1800;
+    const sorted=paths.slice().sort((a,b)=>String(a.key).localeCompare(String(b.key)));
+    const ranked=[];
+    if(state.categories.civilian){
+      for(const path of sorted){
+        if(!path||!(path.length>0))continue;
+        const count=Math.max(1,Math.min(24,Math.floor(path.length/spacing)));
+        for(let slot=0;slot<count;slot++){
+          const seed=stableHash(String(path.key)+':'+slot),random=seedRandom(seed);
+          const fraction=clamp((slot+.22+random()*.56)/count,0,1);
+          ranked.push({
+            rank:seed,kind:vehicleKindForRoad(path.roadClass,random()*100),category:'civilian',path,
+            distance:fraction*path.length,direction:random()>.5?1:-1,
+            speed:roadSpeed(path.roadClass,random)*(.78+random()*.42),
+            id:'SIM-C-'+seed.toString(16).padStart(8,'0')
+          });
+        }
+      }
     }
-    const addEmergency = (enabled, kind, category, count) => {
-      if (!enabled) return;
-      const cap = MOBILE ? 1 : 3;
-      const number = Math.min(cap, Math.max(1, Math.floor(Math.max(1, civilianCount) * .035)));
-      for (let i = 0; i < number; i++) {
-        const path = paths[Math.floor(random() * paths.length)];
+    ranked.sort((a,b)=>a.rank-b.rank||a.id.localeCompare(b.id));
+    chosen.push(...ranked.slice(0,max).map(({rank,...vehicle})=>vehicle));
+    const addEmergency=(enabled,kind,category)=>{
+      if(!enabled||!sorted.length)return;
+      for(let i=0;i<(MOBILE?1:3);i++){
+        const path=sorted[stableHash(category+':'+i)%sorted.length];
+        const seed=stableHash(category+':'+path.key+':'+i),random=seedRandom(seed);
         chosen.push({
-          kind, category, path, distance: random() * path.length,
-          direction: random() > .5 ? 1 : -1,
-          speed: Math.min(roadSpeed(path.roadClass, random) * 1.18, 30),
-          id: 'SIM-' + category.toUpperCase() + '-' + String(i + 1).padStart(2, '0')
+          kind,category,path,distance:random()*path.length,direction:random()>.5?1:-1,
+          speed:Math.min(roadSpeed(path.roadClass,random)*1.18,30),
+          id:'SIM-'+category.toUpperCase()+'-'+seed.toString(16).padStart(8,'0')
         });
       }
     };
-    addEmergency(state.categories.police, 'police', 'police');
-    addEmergency(state.categories.ambulance, 'ambulance', 'ambulance');
-    addEmergency(state.categories.fire, 'fire', 'fire');
+    addEmergency(state.categories.police,'police','police');
+    addEmergency(state.categories.ambulance,'ambulance','ambulance');
+    addEmergency(state.categories.fire,'fire','fire');
     return chosen;
   }
 
-  function disposeVehicleVisual(vehicle) {
+  function projectCoordinateOntoPath(coordinate,path){
+    if(!path?.points||path.points.length<2)return null;
+    let best=null;const scale=111320*Math.max(.02,Math.cos((Number(coordinate[1])||0)*Math.PI/180));
+    for(let i=1;i<path.points.length;i++){
+      const a=path.points[i-1],b=path.points[i];
+      const ax=(a.coordinate[0]-coordinate[0])*scale,bx=(b.coordinate[0]-coordinate[0])*scale;
+      const ay=(a.coordinate[1]-coordinate[1])*111132,by=(b.coordinate[1]-coordinate[1])*111132;
+      const dx=bx-ax,dy=by-ay,len2=dx*dx+dy*dy;
+      const t=len2>.000001?clamp(-(ax*dx+ay*dy)/len2,0,1):0;
+      const distanceM=Math.hypot(ax+dx*t,ay+dy*t);
+      if(!best||distanceM<best.distanceM)best={distanceM,distance:a.distance+(b.distance-a.distance)*t};
+    }
+    return best;
+  }
+
+  function reconcileFleet(nextFleet,previousFleet){
+    const previous=Array.isArray(previousFleet)?previousFleet:[];
+    if(!previous.length)return nextFleet;
+    const byId=new Map(previous.map(v=>[v.id,v])),used=new Set();
+    for(const vehicle of nextFleet){
+      const old=byId.get(vehicle.id);
+      if(!old||!old.path?.length||!vehicle.path?.length)continue;
+      vehicle.distance=clamp(old.distance/old.path.length*vehicle.path.length,0,vehicle.path.length);
+      vehicle.kind=old.kind;vehicle.category=old.category;vehicle.speed=old.speed;vehicle.direction=old.direction;
+      vehicle.spin=old.spin||0;
+      if(old.visual){vehicle.visual=old.visual;vehicle.visualLod=old.visualLod;}
+      used.add(old);
+    }
+    const unmatched=previous.filter(v=>!used.has(v)&&v.path?.length>0);
+    for(const vehicle of nextFleet){
+      if(byId.has(vehicle.id)||!unmatched.length)continue;
+      const nearby=unmatched.map(old=>({old,pose:interpolatePath(old.path,old.distance)})).filter(x=>x.pose)
+        .map(x=>({...x,projection:projectCoordinateOntoPath(x.pose.coordinate,vehicle.path)}))
+        .filter(x=>x.projection&&x.projection.distanceM<=28)
+        .sort((a,b)=>a.projection.distanceM-b.projection.distanceM)[0];
+      if(!nearby)continue;
+      const old=nearby.old;
+      vehicle.id=old.id;vehicle.distance=nearby.projection.distance;vehicle.kind=old.kind;vehicle.category=old.category;
+      vehicle.speed=old.speed;vehicle.direction=old.direction;vehicle.spin=old.spin||0;
+      if(old.visual){vehicle.visual=old.visual;vehicle.visualLod=old.visualLod;}
+      unmatched.splice(unmatched.indexOf(old),1);
+    }
+    return nextFleet;
+  }
+
+    function disposeVehicleVisual(vehicle) {
     const visual = vehicle?.visual;
     if (!visual) return;
     try { state.scene?.remove(visual.group); } catch (_) {}
@@ -934,10 +1054,10 @@
         const layer = {
           id: DOT_LAYER, type: 'circle', source: DOT_SOURCE, minzoom: 0,
           paint: {
-            'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 3.5, 5, 4.1, 10, 4.4, 15, 5, 20, 5.8],
+            'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 5.2, 2, 5.4, 5, 5.8, 10, 5.2, 15, 5.5, 20, 6.2],
             'circle-color': ['match', ['get', 'category'], 'police', '#58aaff', 'ambulance', '#ffd56a', 'fire', '#ff5a4e', '#36eaff'],
-            'circle-stroke-color': '#effcff', 'circle-stroke-width': 1.35, 'circle-opacity': 1,
-            'circle-pitch-alignment': 'map'
+            'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2, 'circle-opacity': 1, 'circle-blur': 0,
+            'circle-pitch-alignment': 'viewport'
           }
         };
         const before = map.getLayer('gta-road-label-major') ? 'gta-road-label-major' : undefined;
@@ -1048,38 +1168,30 @@
     }
   }
 
-  function makeVisualFleet(T, candidates, lod) {
-    clearVehicleModels();
-    if (!state.scene || !state.enabled) return;
-    const limit = lod === 'high' ? MAX_HIGH_DETAIL_MODELS : MAX_LOW_DETAIL_MODELS;
-    const selected = candidates.slice(0, limit);
-    const token = ++state.modelBuildToken;
-    state.modelLod = lod;
-    let index = 0;
-    stopDotAnimation();
-    const addBatch = () => {
-      state.modelBuildTimer = 0;
-      if (!state.enabled || token !== state.modelBuildToken || !state.scene) return;
-      const end = Math.min(index + 2, selected.length);
-      for (; index < end; index++) {
-        const item = selected[index];
-        try {
-          const visual = lod === 'high' ? makeVehicle(T, item) : makeVehicleLowLod(T, item);
-          state.scene.add(visual.group);
-          item.visual = visual;
-          item.spin = 0;
-        } catch (error) {
-          console.warn('BridgePoint Transportation vehicle LOD', error);
-        }
-      }
-      try { state.map?.triggerRepaint?.(); } catch (_) {}
-      if (index < selected.length) state.modelBuildTimer = setTimeout(addBatch, 12);
-      else startAnimation();
-    };
-    addBatch();
+  function makeVisualFleet(T,candidates,lod,previousVehicles=[]){
+    if(!state.scene||!state.enabled)return;
+    const limit=lod==='high'?MAX_HIGH_DETAIL_MODELS:MAX_LOW_DETAIL_MODELS;
+    const selected=candidates.slice(0,limit),retained=new Set(),staged=[];
+    for(const item of selected){
+      if(item.visual&&item.visualLod===lod){retained.add(item.visual);continue;}
+      try{const visual=lod==='high'?makeVehicle(T,item):makeVehicleLowLod(T,item);staged.push({item,visual})}
+      catch(error){console.warn('BridgePoint Transportation vehicle LOD',error)}
+    }
+    // Attach every replacement before retiring old meshes to prevent flashing during LOD swaps.
+    for(const {item,visual} of staged){
+      state.scene.add(visual.group);item.visual=visual;item.visualLod=lod;
+      if(!Number.isFinite(item.spin))item.spin=0;
+      retained.add(visual);
+    }
+    const allVehicles=new Set([...previousVehicles,...candidates]);
+    for(const vehicle of allVehicles)if(vehicle.visual&&!retained.has(vehicle.visual))disposeVehicleVisual(vehicle);
+    state.modelLod=lod;
+    for(const vehicle of selected)updateVehiclePose(vehicle,0,performance.now());
+    try{state.map?.triggerRepaint?.()}catch(_){}
+    startAnimation();
   }
 
-  function updateVehiclePose(vehicle, deltaSeconds, now) {
+    function updateVehiclePose(vehicle, deltaSeconds, now) {
     const path = vehicle.path;
     if (!path || path.length <= 1) return null;
     const movement = vehicle.speed * deltaSeconds * vehicle.direction;
@@ -1194,156 +1306,110 @@
     state.lastFrameAt = 0;
   }
 
-  function scheduleRoadRetry(map) {
-    if (!state.enabled || state.roadRetryTimer ||
-        (state.diagnostics.dots > 0 && !state.pendingRoadRefresh) ||
-        state.roadRetryAttempts >= 8) return;
-    const delays = [140, 250, 420, 700, 1050, 1500, 2100, 2100];
-    state.roadRetryTimer = setTimeout(() => {
-      state.roadRetryTimer = 0;
-      if (!state.enabled || state.map !== map) return;
-      state.roadRetryAttempts++;
-      void rebuildFleet('road tile retry');
-      if (state.diagnostics.dots > 0 && !state.pendingRoadRefresh) state.roadRetryAttempts = 0;
-      else scheduleRoadRetry(map);
-    }, delays[state.roadRetryAttempts] || 2100);
+  function scheduleRoadRetry(map){
+    if(!state.enabled||state.roadRetryTimer||(state.diagnostics.dots>0&&!state.pendingRoadRefresh)||state.roadRetryAttempts>=11)return;
+    const delays=[140,250,420,700,1050,1500,2100,2800,3500,4200,5000];
+    state.roadRetryTimer=setTimeout(()=>{
+      state.roadRetryTimer=0;if(!state.enabled||state.map!==map)return;
+      state.roadRetryAttempts++;void rebuildFleet('road tile retry');
+      if(state.diagnostics.dots>0&&!state.pendingRoadRefresh)state.roadRetryAttempts=0;else scheduleRoadRetry(map);
+    },delays[state.roadRetryAttempts]||5000);
   }
 
-  async function rebuildFleet(reason = 'viewport') {
-    if (!state.enabled) return false;
-    if (state.rebuilding) { state.pendingRebuild = true; return false; }
-    state.rebuilding = true;
-    try {
-      const map = state.map || currentMap();
-      if (!map) {
-        setStatus('Waiting for the BridgePoint globe to finish starting…');
-        return false;
+    async function rebuildFleet(reason='viewport'){
+    if(!state.enabled)return false;
+    if(state.rebuilding){state.pendingRebuild=true;return false;}
+    state.rebuilding=true;
+    try{
+      const map=state.map||currentMap();
+      if(!map){setStatus('Waiting for the BridgePoint globe to finish starting…');return false;}
+      if(state.map!==map)attachMap(map);
+      if(!map.getStyle?.()){
+        state.pendingRoadRefresh=true;setStatus('Transportation is on. Waiting for the map style before loading road centerlines.');
+        scheduleRoadRetry(map);return false;
       }
-      if (state.map !== map) attachMap(map);
-      if (!map.getStyle?.() || !map.getSource?.(ROAD_SOURCE)) {
-        state.pendingRoadRefresh = true;
-        setStatus('Transportation is on. Waiting for loaded road-vector tiles; existing vehicles remain visible.');
-        scheduleRoadRetry(map);
-        return false;
+      if(!ensureLayers(map)){
+        state.pendingRoadRefresh=true;setStatus('Transportation is on. Preparing the vehicle-dot layer…');scheduleRoadRetry(map);return false;
       }
-      if (!ensureLayers(map)) {
-        state.pendingRoadRefresh = true;
-        setStatus('Transportation is on. Preparing the lightweight vehicle-dot layer…');
-        scheduleRoadRetry(map);
-        return false;
-      }
-      const zoom = Number(map.getZoom()) || 0;
-      state.diagnostics.zoom = zoom;
-      const center = map.getCenter?.();
-      if (!center || !Number.isFinite(center.lng) || !Number.isFinite(center.lat)) {
-        setStatus('Transportation is on. Waiting for the globe center…');
-        return false;
-      }
-      const anchor = [center.lng, center.lat];
-      const roads = sourceRoadFeatures(map);
-      const flat = buildFlatRoadPaths(roads, anchor, zoom);
-      if (!flat.paths.length) {
-        state.pendingRoadRefresh = true;
-        if (!state.vehicles.length) {
-          state.paths = [];
-          state.diagnostics.roads = 0;
-          state.diagnostics.vehicles = 0;
-          state.diagnostics.dots = 0;
-          try { map.getSource(DOT_SOURCE)?.setData(EMPTY); } catch (_) {}
-        }
-        setStatus(
-          'Transportation is on. Waiting for road tiles in this view; ' +
-          (state.vehicles.length ? 'the last valid road-following fleet stays visible until new roads load.' :
-            'global moving dots will appear as soon as road tiles finish loading.')
-        );
-        scheduleRoadRetry(map);
-        return false;
-      }
-
-      const targetLod = selectModelLod(zoom);
-      let chosen = flat;
-      let elevation = null;
-      if (targetLod !== 'dots') {
-        elevation = terrainElevation(map, anchor);
-        if (elevation !== null) {
-          const modelRows = sampleRoadRows(roads, zoom);
-          const terrainBuilt = buildRoadPaths(map, anchor, elevation, modelRows);
-          if (terrainBuilt.paths.length) chosen = terrainBuilt;
+      const zoom=Number(map.getZoom())||0;state.diagnostics.zoom=zoom;
+      const center=map.getCenter?.();
+      if(!center||!Number.isFinite(center.lng)||!Number.isFinite(center.lat)){setStatus('Transportation is on. Waiting for the globe center…');return false;}
+      const anchor=[center.lng,center.lat],roadTier=zoom<DETAIL_ROAD_MIN_ZOOM?'global':'detail';
+      if(roadTier==='global'){
+        try{await ensureGlobalRoadSource(map)}
+        catch(error){
+          state.pendingRoadRefresh=true;setStatus('Transportation is on. Preparing global road tiles… '+safe(error?.message||error,120),true);
+          scheduleRoadRetry(map);return false;
         }
       }
-      if (state.modelLod !== 'dots') clearVehicleModels();
-      state.anchor = anchor;
-      state.anchorElevation = elevation;
-      state.paths = chosen.paths;
-      state.vehicles = buildFleet(chosen.paths, zoom, MAX_DOT_VEHICLES);
-      state.pendingRoadRefresh = false;
-      if (state.roadRetryTimer) clearTimeout(state.roadRetryTimer);
-      state.roadRetryTimer = 0;
-      state.roadRetryAttempts = 0;
-      state.diagnostics.roads = chosen.paths.length;
-      state.diagnostics.roadLengthM = Math.round(chosen.totalLength);
-      state.diagnostics.skippedTerrain = chosen.skippedTerrain;
-      state.diagnostics.vehicles = state.vehicles.length;
-      state.lastRebuildAt = Date.now();
-      state.lastError = null;
-      state.lastDotAt = 0;
-      updateDots(performance.now(), true);
-
-      if (targetLod === 'dots' || elevation === null || chosen === flat) {
-        if (map.getLayer(MODEL_LAYER)) {
-          try { map.removeLayer(MODEL_LAYER); } catch (_) {}
+      const roads=sourceRoadFeatures(map,zoom),flat=buildFlatRoadPaths(roads,anchor,zoom);
+      if(!flat.paths.length){
+        state.pendingRoadRefresh=true;
+        if(!state.vehicles.length){
+          state.paths=[];state.diagnostics.roads=0;state.diagnostics.vehicles=0;state.diagnostics.dots=0;
+          try{map.getSource(DOT_SOURCE)?.setData(EMPTY)}catch(_){}
         }
-        clearVehicleModels();
-        state.modelLod = 'dots';
-        startDotAnimation();
-        setStatus(
-          'SIMULATED · ' + state.vehicles.length.toLocaleString() +
-          ' moving vehicles. Global dots are active now; 3D vehicle detail upgrades automatically as you zoom in. Not live GPS.'
-        );
+        setStatus('Transportation is on. Waiting for loaded '+(roadTier==='global'?'global PMTiles':'street-level')+
+          ' road centerlines; the last valid fleet remains on existing mapped roads.');
+        scheduleRoadRetry(map);return false;
+      }
+      const targetLod=selectModelLod(zoom);
+      let chosen=flat;
+      const sampledElevation=targetLod==='dots'?null:terrainElevation(map,anchor);
+      const elevation=targetLod==='dots'?null:(sampledElevation===null?0:sampledElevation);
+      if(targetLod!=='dots'){
+        const modelRows=sampleRoadRows(roads,zoom),terrainBuilt=buildRoadPaths(map,anchor,elevation,modelRows);
+        if(terrainBuilt.paths.length)chosen=terrainBuilt;
+      }
+      const previousVehicles=state.vehicles.slice();
+      state.vehicles=reconcileFleet(buildFleet(chosen.paths,zoom,MAX_DOT_VEHICLES),previousVehicles);
+      state.anchor=anchor;state.anchorElevation=elevation===null?0:elevation;state.paths=chosen.paths;
+      state.lastRoadSourceTier=roadTier;state.pendingRoadRefresh=false;
+      if(state.roadRetryTimer)clearTimeout(state.roadRetryTimer);
+      state.roadRetryTimer=0;state.roadRetryAttempts=0;
+      state.diagnostics.roads=chosen.paths.length;state.diagnostics.roadLengthM=Math.round(chosen.totalLength);
+      state.diagnostics.skippedTerrain=chosen.skippedTerrain;state.diagnostics.vehicles=state.vehicles.length;
+      state.lastRebuildAt=Date.now();state.lastError=null;state.lastDotAt=0;
+      updateDots(performance.now(),true);
+      if(targetLod==='dots'||chosen===flat){
+        if(map.getLayer(MODEL_LAYER)){try{map.removeLayer(MODEL_LAYER)}catch(_){}}
+        for(const old of previousVehicles)if(old.visual&&!state.vehicles.some(v=>v.visual===old.visual))disposeVehicleVisual(old);
+        clearVehicleModels();state.modelLod='dots';startDotAnimation();
+        setStatus('SIMULATED · '+state.vehicles.length.toLocaleString()+
+          ' moving road-following vehicles. Bright global dots are active; detailed 3D models upgrade automatically as you zoom in. Not live GPS.');
         return true;
       }
-
-      const token = ++state.modelBuildToken;
-      setStatus(
-        'SIMULATED · ' + state.vehicles.length.toLocaleString() +
-        ' moving vehicles. Dots are live; preparing ' + (targetLod === 'high' ? 'high-detail' : 'lightweight 3D') +
-        ' vehicle models in the background…'
-      );
-      try {
-        const THREE = await loadThree();
-        if (!state.enabled || state.map !== map || token !== state.modelBuildToken) return true;
-        if (!installModelLayer(map, THREE)) throw new Error('The shared 3D vehicle layer could not be attached.');
-        if (!state.enabled || token !== state.modelBuildToken) return true;
-        makeVisualFleet(THREE, state.vehicles, targetLod);
-        setStatus(
-          'SIMULATED · ' + state.vehicles.length.toLocaleString() +
-          ' moving vehicles on mapped roads. ' + targetLod.toUpperCase() +
-          ' 3D LOD · remaining vehicles stay visible as dots. Not live GPS.'
-        );
-      } catch (error) {
-        console.warn('BridgePoint Transportation 3D upgrade', error);
-        clearVehicleModels();
-        state.modelLod = 'dots';
-        startDotAnimation();
-        setStatus('SIMULATED · ' + state.vehicles.length.toLocaleString() +
-          ' moving road-vehicle dots remain active. 3D models will retry after the next zoom change. ' +
-          safe(error?.message || error, 120), true);
+      const token=++state.modelBuildToken;
+      setStatus('SIMULATED · '+state.vehicles.length.toLocaleString()+
+        ' vehicles on mapped road centerlines. Preparing stable '+(targetLod==='high'?'high-detail':'3D')+
+        ' models; remaining vehicles stay visible as moving dots…');
+      try{
+        const THREE=await loadThree();
+        if(!state.enabled||state.map!==map||token!==state.modelBuildToken)return true;
+        if(!installModelLayer(map,THREE))throw new Error('The shared 3D vehicle layer could not be attached.');
+        if(!state.enabled||token!==state.modelBuildToken)return true;
+        makeVisualFleet(THREE,state.vehicles,targetLod,previousVehicles);
+        setStatus('SIMULATED · '+state.vehicles.length.toLocaleString()+
+          ' moving vehicles continuously follow mapped roads. '+targetLod.toUpperCase()+
+          ' 3D models · remaining vehicles stay visible as dots. Not live GPS.');
+      }catch(error){
+        console.warn('BridgePoint Transportation 3D upgrade',error);
+        clearVehicleModels();state.modelLod='dots';startDotAnimation();
+        setStatus('SIMULATED · '+state.vehicles.length.toLocaleString()+
+          ' moving road-vehicle dots remain active. 3D model rendering will retry after the next LOD change. '+
+          safe(error?.message||error,120),true);
       }
       return true;
-    } catch (error) {
-      console.warn('BridgePoint Transportation simulation', error);
-      setStatus('Transportation could not initialize: ' + safe(error?.message || error, 180), true);
-      return false;
-    } finally {
-      state.rebuilding = false;
-      if (state.pendingRebuild && state.enabled) {
-        state.pendingRebuild = false;
-        scheduleRebuild('queued');
-      }
+    }catch(error){
+      console.warn('BridgePoint Transportation simulation',error);
+      setStatus('Transportation could not initialize: '+safe(error?.message||error,180),true);return false;
+    }finally{
+      state.rebuilding=false;
+      if(state.pendingRebuild&&state.enabled){state.pendingRebuild=false;scheduleRebuild('queued')}
     }
   }
 
-  function scheduleRebuild(reason = 'viewport') {
+    function scheduleRebuild(reason = 'viewport') {
     if (!state.enabled) return;
     clearTimeout(state.rebuildTimer);
     state.rebuildTimer = setTimeout(() => { void rebuildFleet(reason); }, REBUILD_DEBOUNCE_MS);
@@ -1368,38 +1434,50 @@
     if (state.options) state.options.hidden = true;
     setButtonState();
     state.diagnostics.vehicles = 0; state.diagnostics.dots = 0;
+    state.lastRoadSourceTier = null;
     setStatus('Transportation is off. The existing globe, roads, orbitals and all other layers remain unchanged.');
   }
 
-  function attachMap(map) {
-    if (!map || state.map === map) return;
-    state.map = map;
-    const onMove = () => scheduleRebuild('camera');
-    const onZoom = () => scheduleRebuild('zoom');
-    map.on?.('moveend', onMove);
-    map.on?.('zoomend', onZoom);
-    map.on?.('sourcedata', event => {
-      if (event?.sourceId === ROAD_SOURCE && event.isSourceLoaded &&
-          (state.diagnostics.dots === 0 || state.pendingRoadRefresh)) {
-        state.roadRetryAttempts = 0;
-        scheduleRebuild('road tiles');
-      }
-    });
-    map.on?.('idle', () => {
-      if (!state.enabled || (state.diagnostics.dots > 0 && !state.pendingRoadRefresh)) return;
-      state.roadRetryAttempts = 0;
-      void rebuildFleet('map idle road check');
-    });
-    map.on?.('style.load', () => {
-      if (!state.enabled) return;
-      clearVehicleModels();
-      state.scene = null; state.renderer = null; state.camera = null; state.customLayer = null;
-      if (ensureLayers(map)) scheduleRebuild('style refresh');
-    });
-    window.__BP_TRANSPORTATION_V1__.mapReady = true;
+  function hasVehiclesInViewport(map){
+    if(!state.vehicles.length||typeof map.getBounds!=='function')return state.vehicles.length>0;
+    let bounds;try{bounds=map.getBounds()}catch(_){return true}
+    if(!bounds?.contains)return true;
+    for(const vehicle of state.vehicles){
+      const pose=interpolatePath(vehicle.path,vehicle.distance);
+      if(pose&&bounds.contains({lng:pose.coordinate[0],lat:pose.coordinate[1]}))return true;
+    }
+    return false;
   }
 
-  function waitForMap() {
+  function attachMap(map){
+    if(!map||state.map===map)return;
+    state.map=map;
+    const onMove=()=>{if(!state.enabled||hasVehiclesInViewport(map))return;scheduleRebuild('camera moved beyond current road fleet')};
+    const onZoom=()=>{
+      if(!state.enabled)return;
+      const zoom=Number(map.getZoom())||0,tier=zoom<DETAIL_ROAD_MIN_ZOOM?'global':'detail';
+      if(selectModelLod(zoom)!==state.modelLod||tier!==state.lastRoadSourceTier||!state.vehicles.length)scheduleRebuild('zoom / road-data LOD');
+    };
+    map.on?.('moveend',onMove);map.on?.('zoomend',onZoom);
+    map.on?.('sourcedata',event=>{
+      const id=event?.sourceId;
+      if((id===ROAD_SOURCE||id===GLOBAL_ROAD_SOURCE)&&event.isSourceLoaded&&(state.diagnostics.dots===0||state.pendingRoadRefresh)){
+        state.roadRetryAttempts=0;scheduleRebuild('road tiles');
+      }
+    });
+    map.on?.('idle',()=>{
+      if(!state.enabled||(state.diagnostics.dots>0&&!state.pendingRoadRefresh))return;
+      state.roadRetryAttempts=0;void rebuildFleet('map idle road check');
+    });
+    map.on?.('style.load',()=>{
+      if(!state.enabled)return;
+      clearVehicleModels();state.scene=null;state.renderer=null;state.camera=null;state.customLayer=null;
+      if(ensureLayers(map))scheduleRebuild('style refresh');
+    });
+    window.__BP_TRANSPORTATION_V1__.mapReady=true;
+  }
+
+    function waitForMap() {
     if (!state.enabled || state.waitTimer) return;
     const attempt = () => {
       state.waitTimer = 0;
@@ -1452,7 +1530,7 @@
   window.__BP_TRANSPORTATION_V1__ = {
     version: VERSION,
     simulationOnly: true,
-    source: 'OpenFreeMap / OpenStreetMap road vector geometry',
+    source: 'Global Protomaps PMTiles road centerlines at globe zoom; OpenFreeMap / OpenStreetMap transportation vectors at street zoom',
     enabledByDefault: false,
     mapReady: false,
     enable: enableSimulation,
@@ -1468,7 +1546,8 @@
     }),
     helpers: {
       isRoadFeature, vehicleKindForRoad, localPoint, interpolatePath, cleanLine,
-      buildFlatRoadPaths, sampleRoadRows, simplifyRoadCoordinates, buildFleet, selectModelLod
+      sourceRoadFeatures, buildFlatRoadPaths, buildRoadPaths, sampleRoadRows, simplifyRoadCoordinates,
+      buildFleet, reconcileFleet, projectCoordinateOntoPath, selectModelLod, roadClassForFeature
     }
   };
 

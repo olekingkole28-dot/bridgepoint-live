@@ -5,7 +5,7 @@
   'use strict';
   if (window.__BP_TRANSPORTATION_LOADER_V1__) return;
 
-  const MODULE_SRC = '/bridgepoint-transportation-v1.js?v=3-road-centerline-global-dots';
+  const MODULE_SRC = '/bridgepoint-transportation-v1.js?v=4-global-pmtiles-stable-models';
   const control = window.__BP_TRANSPORTATION_LOADER_V1__ = {
     version: 1, loading: false, loaded: false
   };
