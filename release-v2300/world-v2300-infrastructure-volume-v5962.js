@@ -39,7 +39,7 @@ export function initInfrastructureVolume(target){
  const map=target?.map||target,container=map?.getContainer?.();
  if(!map||!container||typeof fetch!=='function'||typeof map.transform?.getMatrixForModel!=='function')return null;
  if(window.__BP_INFRASTRUCTURE_VOLUME_V5962__?.map===map)return window.__BP_INFRASTRUCTURE_VOLUME_V5962__;
- const state={version:VERSION,map,enabled:true,available:true,powerFeatures:0,towerFeatures:0,updatedAt:null,status:'Initializing automatic power-grid geometry with close-zoom FCC tower visibility…',volume:{towers:0,catenarySpans:0,meshes:0,solidTowerMeshes:0,solidCableMeshes:0,groundAnchored:true},sources:{power:'U.S. Electric Power Transmission Lines, HIFLD-derived ArcGIS FeatureServer',towers:'FCC Antenna Structure Registration extract, ArcGIS FeatureServer layer 45'},estimates:{towerPositions:'models sampled along source-mapped routes because the feed does not publish surveyed pylon coordinates',sag:'existing procedural catenary profile retained; conductor tension and attachment measurements are not supplied by the route feed',grounding:'tower bases and conductor height baselines use the active exaggerated DEM elevation when available',towerHeight:'FCC STRUCHT overall height is treated as source-reported meters above ground; missing or out-of-range heights are not replaced with invented tower heights'}};
+ const state={version:VERSION,map,enabled:true,available:true,powerFeatures:0,towerFeatures:0,updatedAt:null,status:'Initializing globe-anchored power-grid and close-zoom FCC tower geometry…',volume:{towers:0,catenarySpans:0,meshes:0,solidTowerMeshes:0,solidCableMeshes:0,groundAnchored:true},sources:{power:'U.S. Electric Power Transmission Lines, HIFLD-derived ArcGIS FeatureServer',towers:'FCC Antenna Structure Registration extract, ArcGIS FeatureServer layer 45'},estimates:{towerPositions:'models sampled along source-mapped routes because the feed does not publish surveyed pylon coordinates',sag:'existing procedural catenary profile retained; conductor tension and attachment measurements are not supplied by the route feed',grounding:'tower bases and conductor height baselines use the active exaggerated DEM elevation when available',towerHeight:'FCC STRUCHT overall height is treated as source-reported meters above ground; missing or out-of-range heights are not replaced with invented tower heights'}};
  window.__BP_INFRASTRUCTURE_VOLUME_V5962__=state;
  let dead=false,refreshTimer=null,requestSeq=0,abortCtl=null,threePromise=null,scene=null,renderer=null,layer3d=null;
  function say(msg){state.status=String(msg||'');state.statusUpdatedAt=Date.now()}
@@ -200,7 +200,7 @@ export function initInfrastructureVolume(target){
 
   if(powerTowerN>0){
    powerMesh.count=powerTowerN;powerMesh.instanceMatrix.needsUpdate=true;scene.add(powerMesh);
-  }else{unitTower.dispose();powerMat.dispose()}
+  }else powerMat.dispose();
   if(zoom>=FCC_TOWER_3D_MIN_ZOOM){
    for(const f of towers.features||[]){
     if(powerTowerN+fccTowerN>=300)break;
@@ -214,6 +214,7 @@ export function initInfrastructureVolume(target){
   if(fccTowerN>0){
    fccMesh.count=fccTowerN;fccMesh.instanceMatrix.needsUpdate=true;scene.add(fccMesh);
   }else fccMat.dispose();
+  if(powerTowerN+fccTowerN===0)unitTower.dispose();
   state.volume={
    towers:powerTowerN+fccTowerN,powerRouteTowerModels:powerTowerN,fccTowerModels:fccTowerN,
    fccTowerMinZoom:FCC_TOWER_3D_MIN_ZOOM,catenarySpans:spanN,
