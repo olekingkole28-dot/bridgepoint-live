@@ -1,7 +1,7 @@
 (()=>{
 'use strict';
 if(window.__BP_DRONE_AWARENESS_V1__)return;
-const VERSION=2;
+const VERSION=3;
 const SOURCE='bp-drone-awareness-live-source-v2';
 const LAYER='bp-drone-awareness-live-dots-v2';
 const TRAIL_SOURCE='bp-drone-awareness-trail-source-v2';
@@ -17,14 +17,21 @@ const TRACK_RETENTION_MS=45*60*1000;
 const REFRESH_MS=180000;
 const REQUEST_TIMEOUT_MS=9000;
 const SUPPORTED_SOURCE='https://api.adsb.lol/v2/';
+const REGION_RADIUS_NM=250;
+const SAMPLE_CACHE_MS=150000;
 const WORLD_CIRCUMFERENCE_M=40075016.686;const $=s=>document.querySelector(s);
 const emptyFeatureCollection=()=>({type:'FeatureCollection',features:[]});
 let map=null,enabled=false,inFlight=false,refreshTimer=0,moveTimer=0,lastFetchAt=0,aborter=null;
+let activationQueued=false,activationPromise=null,activationGeneration=0;
 let button=null,waterButton=null,waterApi=null,waterPromise=null,waterEnabled=false,pane=null,statusNode=null,summaryNode=null,refreshButton=null;
 let trailNoteNode=null,drone3DError=null;
 let droneThreePromise=null,droneThree=null,droneScene=null,droneRenderer=null,droneLayer=null,droneTemplate=null;
 let droneModels=new Map(),trackedUavs=new Map(),lastCurrentRecords=[];
+let droneTrailGroup=null;
 let droneAnimationFrame=0,lastDroneAnimationAt=0;
+let diagnosticState={regionalRequestsAttempted:0,regionalRequestsCompleted:0,aircraftRecordsReceived:0,uavRecordsIdentified:0,invalidOrStaleRecords:0,currentPositionsAccepted:0,modelsRendered:0,historicalTrailPoints:0,trailsRendered:0,regionalResults:[],localSample:null};
+let regionalStatusNode=null;
+const sampleCache=new Map();
 let emptyModeActive=true,emptyModeMap=null,emptyModeHandler=null,sweepFrame=0;const requestControllers=new Set();
 const baseLayers=new Set([
  'gta-bg','gta-water','gta-coast-shadow','gta-coast-edge','gta-coast-foam','gta-landcover','gta-landuse','gta-hillshade',
@@ -129,36 +136,22 @@ function updateButton(){
  setLabelTextIfChanged(label,enabled?'Drone Awareness · ON':'Drone Awareness');
  button.title=enabled?'Hide public UAV positions, 3D models and observed trails':'Show public UAV positions, 3D models and observed trails';
 }
-function writeSummary(positionCount,trackCount){
- if(!summaryNode)return;
- summaryNode.replaceChildren();
- const a=element('div','bp-drone-metric');
- a.append(element('b','',Number(positionCount||0).toLocaleString()),element('span','','Current public UAV positions'));
- const b=element('div','bp-drone-metric');
- b.append(element('b','',String(trackCount||0)),element('span','','Observed flight trails this session'));
- summaryNode.append(a,b);
+function writeSummary(){
+ const metrics=[['Regional requests attempted',diagnosticState.regionalRequestsAttempted],['Requests successfully completed',diagnosticState.regionalRequestsCompleted],['Aircraft records received',diagnosticState.aircraftRecordsReceived],['Records identified as UAVs',diagnosticState.uavRecordsIdentified],['Invalid or stale UAV records rejected',diagnosticState.invalidOrStaleRecords],['Current UAV positions accepted',diagnosticState.currentPositionsAccepted],['3D quadcopter models rendered',diagnosticState.modelsRendered],['Historical trail points retained',diagnosticState.historicalTrailPoints],['3D trail segments rendered',diagnosticState.trailsRendered]];
+ if(summaryNode){summaryNode.replaceChildren();for(const [label,value] of metrics){const item=element('div','bp-drone-metric');item.append(element('b','',Number(value||0).toLocaleString()),element('span','',label));summaryNode.append(item)}}
+ if(regionalStatusNode){regionalStatusNode.replaceChildren();for(const result of diagnosticState.regionalResults){const row=element('div','bp-drone-cell-row');row.append(element('b','',result.sample.id));const detail=result.status==='pending'?'PENDING':result.cached?'CACHED · '+result.records.length+' aircraft':result.ok?'OK · '+result.records.length+' aircraft':'FAILED · '+String(result.error||'Unknown request error');const value=element('span','',detail);value.title=result.error||result.requestUrl||'';row.append(value);regionalStatusNode.append(row)}if(diagnosticState.localSample){const result=diagnosticState.localSample,row=element('div','bp-drone-cell-row');row.append(element('b','','Local map-view sample'));const detail=result.status==='pending'?'PENDING':result.cached?'CACHED · '+result.records.length+' aircraft':result.ok?'OK · '+result.records.length+' aircraft':'FAILED · '+String(result.error||'Unknown request error');const value=element('span','',detail);value.title=result.error||result.requestUrl||'';row.append(value);regionalStatusNode.append(row)}}
 }
-function setLayerVisibility(on){
- if(!map)return false;
- try{
-  const ids=[LAYER,TRAIL_GLOW,TRAIL_LAYER,TRAIL_DOT_LAYER];
-  for(const id of ids)if(map.getLayer(id))map.setLayoutProperty(id,'visibility',on?'visible':'none');
-  map.triggerRepaint?.();return ids.some(id=>!!map.getLayer(id));
- }catch(e){return false}
-}
+function setLayerVisibility(on){if(!map)return false;try{for(const id of [LAYER,TRAIL_DOT_LAYER])if(map.getLayer(id))map.setLayoutProperty(id,'visibility',on?'visible':'none');map.triggerRepaint?.();return!!map.getLayer(LAYER)}catch(error){showStatus('Drone Awareness visibility error: '+String(error?.message||error),'error');return false}}
+function mapStyleReady(){if(!map)return false;try{return!!map.getStyle?.()&&(typeof map.isStyleLoaded!=='function'||map.isStyleLoaded()===true)}catch(_){return false}}
 function installLayer(){
- if(!map||!map.getStyle?.())return false;
- if(typeof map.isStyleLoaded==='function'&&!map.isStyleLoaded())return false;
+ if(!mapStyleReady())return false;
  try{
   if(!map.getSource(SOURCE))map.addSource(SOURCE,{type:'geojson',data:emptyFeatureCollection()});
-  if(!map.getSource(TRAIL_SOURCE))map.addSource(TRAIL_SOURCE,{type:'geojson',data:emptyFeatureCollection(),lineMetrics:true});
   if(!map.getSource(TRAIL_DOT_SOURCE))map.addSource(TRAIL_DOT_SOURCE,{type:'geojson',data:emptyFeatureCollection()});
-  if(!map.getLayer(TRAIL_GLOW))map.addLayer({id:TRAIL_GLOW,type:'line',source:TRAIL_SOURCE,minzoom:0,layout:{visibility:'none','line-cap':'round','line-join':'round'},paint:{'line-color':'#25dfff','line-opacity':.26,'line-width':['interpolate',['linear'],['zoom'],0,1.1,3,2.1,7,3.4,13,5.2],'line-blur':1.6}});
-  if(!map.getLayer(TRAIL_LAYER))map.addLayer({id:TRAIL_LAYER,type:'line',source:TRAIL_SOURCE,minzoom:0,layout:{visibility:'none','line-cap':'round','line-join':'round'},paint:{'line-color':'#9af8ff','line-opacity':.95,'line-width':['interpolate',['linear'],['zoom'],0,1.1,3,1.5,7,2.3,13,3.4]}});
   if(!map.getLayer(TRAIL_DOT_LAYER))map.addLayer({id:TRAIL_DOT_LAYER,type:'circle',source:TRAIL_DOT_SOURCE,minzoom:0,layout:{visibility:'none'},paint:{'circle-radius':['interpolate',['linear'],['zoom'],0,2.2,5,3.1,12,4.1],'circle-color':'#48dfff','circle-opacity':.86,'circle-stroke-color':'#07212c','circle-stroke-width':1.1}});
   if(!map.getLayer(LAYER))map.addLayer({id:LAYER,type:'circle',source:SOURCE,minzoom:0,layout:{visibility:'none'},paint:{'circle-radius':['interpolate',['linear'],['zoom'],0,4.1,3,5,8,6.3,14,8.2],'circle-color':'#f1ffff','circle-opacity':1,'circle-stroke-color':'#19dff5','circle-stroke-width':2.4,'circle-blur':0}});
   return true;
- }catch(e){console.warn('BridgePoint UAV position/trail layers could not attach',e);return false}
+ }catch(error){showStatus('Drone Awareness MapLibre layer initialization failed: '+String(error?.message||error),'error');console.error('Drone position layers failed',error);return false}
 }
 function loadDroneThree(){
  if(!droneThreePromise)droneThreePromise=import(THREE_URL).then(m=>m.default||m).catch(e=>{droneThreePromise=null;throw e});
@@ -217,7 +210,9 @@ function ensureDrone3DLayer(THREE){
   onRemove:()=>{
    try{layer.renderer?.dispose?.()}catch(_){}
    for(const model of droneModels.values())try{layer.scene?.remove(model)}catch(_){}
-   droneModels.clear();disposeDroneTemplate();droneScene=null;droneRenderer=null;droneLayer=null;
+   droneModels.clear();
+   if(droneTrailGroup&&layer.scene){try{layer.scene.remove(droneTrailGroup);droneTrailGroup.traverse(o=>{o.geometry?.dispose?.();if(Array.isArray(o.material))o.material.forEach(m=>m?.dispose?.());else o.material?.dispose?.()})}catch(_){}droneTrailGroup=null}
+   disposeDroneTemplate();droneScene=null;droneRenderer=null;droneLayer=null;
   }
  };
  try{map.addLayer(layer);droneThree=THREE;drone3DError=null;return!!droneScene}catch(e){console.warn('BridgePoint 3D UAV renderer could not attach',e);return false}
@@ -227,37 +222,41 @@ function modelSpanMeters(lat,zoom){
  const z=Math.max(0,Number(zoom)||0);
  return Math.max(2,Math.min(1800000,15*WORLD_CIRCUMFERENCE_M*latitudeScale/(512*Math.pow(2,z))));
 }
-function altitudeForRecord(a){
- for(const raw of [a?.alt_geom,a?.alt_baro]){
-  if(typeof raw==='string'&&raw.toLowerCase()==='ground')return{meters:3,known:true};
-  const n=Number(raw);
-  if(raw!==null&&raw!==undefined&&raw!==''&&Number.isFinite(n)&&n>0&&n<60000)return{meters:n*.3048,known:true};
- }
- return{meters:24,known:false};
-}
+function altitudeForRecord(a){return DroneCore.altitudeForRecord(a)}
 function setDroneModels(records){
- if(!droneScene||!droneTemplate||!droneThree||!map)return;
- const MC=window.maplibregl?.MercatorCoordinate||window.MapLibreGL?.MercatorCoordinate;
- if(!MC?.fromLngLat)return;
+ if(!droneScene||!droneTemplate||!droneThree||!map){diagnosticState.modelsRendered=0;writeSummary();return 0}
+ const MC=window.maplibregl?.MercatorCoordinate||window.MapLibreGL?.MercatorCoordinate;if(!MC?.fromLngLat)return 0;
  const active=new Set(),zoom=Number(map.getZoom?.()||0);
- for(const a of records.slice(0,MAX_TRACKED_DRONES)){
-  const key=a._trackKey,lat=Number(a.lat),lon=Number(a.lon);
-  if(!key||!Number.isFinite(lat)||!Number.isFinite(lon))continue;
-  const coord=MC.fromLngLat({lng:lon,lat},0),meterUnit=coord.meterInMercatorCoordinateUnits?.()||0;
-  if(!Number.isFinite(meterUnit)||meterUnit<=0)continue;
-  const altitude=altitudeForRecord(a),span=modelSpanMeters(lat,zoom);
-  const position=MC.fromLngLat({lng:lon,lat},Math.max(altitude.meters,span*.42));
-  let model=droneModels.get(key);
-  if(!model){model=droneTemplate.clone(true);model.name='Public UAV · 3D schematic';model.traverse(o=>{o.frustumCulled=false});droneScene.add(model);droneModels.set(key,model)}
+ if(zoom>=9)for(const a of records.slice(0,MAX_TRACKED_DRONES)){
+  const key=a._trackKey,lat=Number(a.lat),lon=Number(a.lon),altitude=altitudeForRecord(a);
+  if(!key||!Number.isFinite(lat)||!Number.isFinite(lon)||!altitude.known)continue;
+  const point=DroneCore.createTrailPoint(a,Date.now(),'ADSB.lol'),position=DroneCore.project3DPoint(point,MC);
+  const meterUnit=MC.fromLngLat({lng:lon,lat},0).meterInMercatorCoordinateUnits?.()||0;if(!position||!Number.isFinite(meterUnit)||meterUnit<=0)continue;
+  const span=modelSpanMeters(lat,zoom);let model=droneModels.get(key);
+  if(!model){model=droneTemplate.clone(true);model.name='Source-altitude public UAV model';model.traverse(o=>{o.frustumCulled=false});droneScene.add(model);droneModels.set(key,model)}
   model.position.set(position.x,position.y,position.z);model.scale.setScalar((span/1.36)*meterUnit);
-  const heading=Number(a.track??a.true_heading??a.mag_heading);
-  model.rotation.set(0,0,(Number.isFinite(heading)?heading:0)*Math.PI/180-Math.PI/2);
-  model.userData.lastAltitudeKnown=altitude.known;active.add(key);
+  model.rotation.set(0,0,(Number.isFinite(point.heading)?point.heading:0)*Math.PI/180-Math.PI/2);
+  model.userData.altitude={value:altitude.sourceValue,field:altitude.sourceField,units:altitude.sourceUnits,datum:altitude.datum,meters:altitude.meters};active.add(key);
  }
  for(const [key,model] of droneModels)if(!active.has(key)){droneScene.remove(model);droneModels.delete(key)}
- map.triggerRepaint?.();
+ diagnosticState.modelsRendered=droneModels.size;writeSummary();map.triggerRepaint?.();
  if(droneModels.size&&!droneAnimationFrame)droneAnimationFrame=requestAnimationFrame(animateDroneModels);
  if(!droneModels.size&&droneAnimationFrame){cancelAnimationFrame(droneAnimationFrame);droneAnimationFrame=0}
+ return droneModels.size;
+}
+function rebuildDroneTrails(){
+ if(!droneScene||!droneThree||!map)return{trails:0,knownPoints:0};
+ if(droneTrailGroup){droneScene.remove(droneTrailGroup);droneTrailGroup.traverse(o=>{try{o.geometry?.dispose?.();if(Array.isArray(o.material))o.material.forEach(m=>m?.dispose?.());else o.material?.dispose?.()}catch(_){}});droneTrailGroup=null}
+ const MC=window.maplibregl?.MercatorCoordinate||window.MapLibreGL?.MercatorCoordinate;if(!MC?.fromLngLat)return{trails:0,knownPoints:0};
+ const group=new droneThree.Group();group.name='Altitude-aware UAV history';const allDots=[];let segments=0;
+ for(const track of trackedUavs.values()){
+  let segment=[];
+  const flush=()=>{if(segment.length>1){const geometry=new droneThree.BufferGeometry().setFromPoints(segment),material=new droneThree.LineBasicMaterial({color:0x83efff,transparent:true,opacity:.9}),line=new droneThree.Line(geometry,material);line.name='3D source-altitude trail';group.add(line);segments++}segment=[]};
+  for(const point of track.points){if(point.gapBefore)flush();const projected=DroneCore.project3DPoint(point,MC);if(!projected){flush();continue}const vector=new droneThree.Vector3(projected.x,projected.y,projected.z);segment.push(vector);allDots.push(vector)}
+  flush();
+ }
+ if(allDots.length){const geometry=new droneThree.BufferGeometry().setFromPoints(allDots),material=new droneThree.PointsMaterial({color:0x48dfff,size:4,sizeAttenuation:false,transparent:true,opacity:.95}),dots=new droneThree.Points(geometry,material);dots.name='Individual 3D observation markers';group.add(dots)}
+ droneScene.add(group);droneTrailGroup=group;diagnosticState.trailsRendered=segments;writeSummary();map.triggerRepaint?.();return{trails:segments,knownPoints:allDots.length};
 }
 function animateDroneModels(now){
  droneAnimationFrame=0;if(!enabled||!droneScene||!droneModels.size)return;
@@ -275,52 +274,34 @@ function distanceMeters(a,b){
  return Math.hypot(dx,dy);
 }
 function updateTrackedUavs(records){
- const now=Date.now(),fresh=new Map();
- for(const a of Array.isArray(records)?records:[]){
-  if(!isUavRecord(a))continue;
-  const lat=Number(a?.lat),lon=Number(a?.lon);
-  if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180)continue;
-  const seenAge=Number(a?.seen_pos??a?.seen);if(Number.isFinite(seenAge)&&seenAge>240)continue;
-  const rawId=String(a?.hex||a?.icao24||'').trim().toLowerCase();if(!rawId)continue;
-  const prior=fresh.get(rawId),age=Number.isFinite(seenAge)?seenAge:999999;
-  if(prior&&prior._seenAge<=age)continue;
-  const heading=Number(a?.track??a?.true_heading??a?.mag_heading),speed=Number(a?.gs);
-  fresh.set(rawId,{...a,lat,lon,track:Number.isFinite(heading)?heading:null,gs:Number.isFinite(speed)?speed:null,_trackKey:rawId,_seenAge:age});
+ const now=Date.now(),fresh=new Map();let identified=0,rejected=0;
+ for(const a of Array.isArray(records)?records:[]){if(!DroneCore.isUavRecord(a))continue;identified++;if(DroneCore.invalidPositionReason(a)){rejected++;continue}
+  const key=String(a.hex||a.icao24||'').trim().toLowerCase(),lat=Number(a.lat),lon=Number(a.lon),ageRaw=a.seen_pos??a.seen,age=ageRaw===null||ageRaw===undefined||ageRaw===''?999999:Number(ageRaw),prev=fresh.get(key);
+  if(prev&&prev._seenAge<=age)continue;fresh.set(key,{...a,lat,lon,_trackKey:key,_seenAge:age});
  }
- const current=[...fresh.values()].slice(0,MAX_TRACKED_DRONES),activeKeys=new Set();
- for(const a of current){
-  const key=a._trackKey,track=trackedUavs.get(key)||{points:[],lastSeen:0,current:null},next=[a.lon,a.lat];
-  const last=track.points[track.points.length-1];
-  if(last){const jump=Math.abs(next[0]-last.coord[0])>180?Infinity:distanceMeters(last.coord,next);if(jump>45000)track.points=[]}
-  const previous=track.points[track.points.length-1];
-  if(!previous||distanceMeters(previous.coord,next)>12){
-   track.points.push({coord:next,at:now});
-   if(track.points.length>MAX_TRAIL_POINTS)track.points.splice(0,track.points.length-MAX_TRAIL_POINTS);
-  }
-  track.lastSeen=now;track.current=a;trackedUavs.set(key,track);activeKeys.add(key);
+ const active=new Set(),current=[...fresh.values()].slice(0,MAX_TRACKED_DRONES);
+ for(const a of current){const key=a._trackKey,track=trackedUavs.get(key)||{points:[],lastSeen:0,current:null},point=DroneCore.createTrailPoint(a,now,'ADSB.lol'),last=track.points[track.points.length-1];
+  if(last){const ageGap=point.observationTimestamp-last.observationTimestamp,dist=distanceMeters([last.longitude,last.latitude],[point.longitude,point.latitude]);if(ageGap>REFRESH_MS*1.5){point.gapBefore=true;point.gapReason='No observation for '+Math.round(ageGap/1000)+' seconds'}if(!Number.isFinite(dist)||dist>45000){point.gapBefore=true;point.gapReason='Position discontinuity; segment restarted'}}
+  if(!last||now-last.sampledAt>=REFRESH_MS*.8){track.points.push(point);if(track.points.length>MAX_TRAIL_POINTS)track.points.splice(0,track.points.length-MAX_TRAIL_POINTS)}
+  track.lastSeen=now;track.current=a;trackedUavs.set(key,track);active.add(key);
  }
  for(const [key,track] of trackedUavs)if(now-track.lastSeen>TRACK_RETENTION_MS)trackedUavs.delete(key);
- const allCurrent=[...trackedUavs.entries()].filter(([key,t])=>activeKeys.has(key)&&t.current).map(([,t])=>t.current);
- const currentFeatures=allCurrent.map(a=>({type:'Feature',geometry:{type:'Point',coordinates:[a.lon,a.lat]},properties:{altitude_known:altitudeForRecord(a).known}}));
- const trailFeatures=[],trailDots=[];
- for(const track of trackedUavs.values()){
-  const points=track.points;
-  if(points.length>1)trailFeatures.push({type:'Feature',geometry:{type:'LineString',coordinates:points.map(p=>p.coord)},properties:{}});
-  for(const p of points.slice(0,-1))trailDots.push({type:'Feature',geometry:{type:'Point',coordinates:p.coord},properties:{}});
- }
- const fc=features=>({type:'FeatureCollection',features});
- map.getSource(SOURCE)?.setData(fc(currentFeatures));map.getSource(TRAIL_SOURCE)?.setData(fc(trailFeatures));map.getSource(TRAIL_DOT_SOURCE)?.setData(fc(trailDots));
- lastCurrentRecords=allCurrent;setDroneModels(allCurrent);writeSummary(allCurrent.length,trailFeatures.length);
- if(trailNoteNode)trailNoteNode.textContent='Trails connect positions BridgePoint has sampled while this button is on (up to '+MAX_TRAIL_POINTS+' observations per aircraft). They are not a continuous replay of the complete flight.';
- map.triggerRepaint?.();return{positions:allCurrent.length,trails:trailFeatures.length,sampledReports:fresh.size};
+ const accepted=[...trackedUavs.entries()].filter(([key,track])=>active.has(key)&&track.current).map(([,track])=>track.current);
+ const positions=accepted.map(a=>({type:'Feature',geometry:{type:'Point',coordinates:[a.lon,a.lat]},properties:{altitude_known:altitudeForRecord(a).known,altitude_datum:altitudeForRecord(a).datum}}));
+ const historical=[];for(const track of trackedUavs.values())for(const point of track.points)historical.push({type:'Feature',geometry:{type:'Point',coordinates:[point.longitude,point.latitude]},properties:{altitude_known:point.altitudeKnown,altitude_datum:point.altitudeDatum,observed_at:point.observationTimestamp,source:point.sourceName,gap_before:point.gapBefore,gap_reason:point.gapReason||''}});
+ const collection=features=>({type:'FeatureCollection',features});map.getSource(SOURCE)?.setData(collection(positions));map.getSource(TRAIL_DOT_SOURCE)?.setData(collection(historical));lastCurrentRecords=accepted;
+ diagnosticState.uavRecordsIdentified=identified;diagnosticState.invalidOrStaleRecords=rejected;diagnosticState.currentPositionsAccepted=accepted.length;diagnosticState.historicalTrailPoints=historical.length;
+ const models=setDroneModels(accepted),trailState=rebuildDroneTrails();diagnosticState.modelsRendered=models;diagnosticState.trailsRendered=trailState.trails;writeSummary();
+ if(trailNoteNode)trailNoteNode.textContent='Each point retains UAV key, source longitude/latitude, altitude value, units/datum, heading, observation timestamp and source. 3D lines use altitude-known positions only and break at missing observations or discontinuities. No altitude is invented. History is bounded to '+MAX_TRAIL_POINTS+' points per aircraft.';
+ map.triggerRepaint?.();return{positions:accepted.length,trails:trailState.trails,identified,rejected,trailPoints:historical.length,models};
 }
 function clearTrackedUavs(){
  trackedUavs.clear();lastCurrentRecords=[];
  for(const id of [SOURCE,TRAIL_SOURCE,TRAIL_DOT_SOURCE])try{map?.getSource(id)?.setData(emptyFeatureCollection())}catch(_){}
- for(const model of droneModels.values())try{droneScene?.remove(model)}catch(_){}
- droneModels.clear();writeSummary(0,0);
- if(droneAnimationFrame){cancelAnimationFrame(droneAnimationFrame);droneAnimationFrame=0}
- map?.triggerRepaint?.();
+ for(const model of droneModels.values())try{droneScene?.remove(model)}catch(_){}droneModels.clear();
+ if(droneTrailGroup&&droneScene){droneScene.remove(droneTrailGroup);droneTrailGroup.traverse(o=>{try{o.geometry?.dispose?.();o.material?.dispose?.()}catch(_){}});droneTrailGroup=null}
+ diagnosticState.currentPositionsAccepted=0;diagnosticState.modelsRendered=0;diagnosticState.historicalTrailPoints=0;diagnosticState.trailsRendered=0;writeSummary();
+ if(droneAnimationFrame){cancelAnimationFrame(droneAnimationFrame);droneAnimationFrame=0}map?.triggerRepaint?.();
 }
 function removeDrone3DLayer(){
  if(droneAnimationFrame){cancelAnimationFrame(droneAnimationFrame);droneAnimationFrame=0}
@@ -332,6 +313,17 @@ function isUavRecord(a){
  const description=[a?.desc,a?.description,a?.typeDescription,a?.type,a?.t].filter(Boolean).join(' ');
  return /\b(?:UAV|UAS|UNMANNED AERIAL|UNMANNED AIRCRAFT|DRONE)\b/i.test(description);
 }
+const DroneCore=(()=>{
+ const FEET_TO_METERS=0.3048;
+ function buildRequestUrl(sample){if(!sample||!Number.isFinite(Number(sample.lat))||!Number.isFinite(Number(sample.lon)))throw new Error('Invalid regional sample coordinates');return SUPPORTED_SOURCE+'lat/'+encodeURIComponent(Number(sample.lat).toFixed(4))+'/lon/'+encodeURIComponent(Number(sample.lon).toFixed(4))+'/dist/'+REGION_RADIUS_NM}
+ function parseResponse(payload){if(!payload||typeof payload!=='object'||Array.isArray(payload))throw new Error('Invalid ADSB.lol response: expected a JSON object');if(!Array.isArray(payload.ac))throw new Error('Invalid ADSB.lol response: expected the ac aircraft array');return{records:payload.ac,total:Number.isFinite(Number(payload.total))?Number(payload.total):payload.ac.length,message:String(payload.msg||'')}}
+ function isUavRecord(a){const category=String(a?.category||a?.emitter_category||'').trim().toUpperCase();if(category==='B6'||category==='14'||category==='UAV')return true;const description=[a?.desc,a?.description,a?.typeDescription,a?.type,a?.t].filter(Boolean).join(' ');return /\b(?:UAV|UAS|UNMANNED AERIAL|UNMANNED AIRCRAFT|DRONE)\b/i.test(description)}
+ function invalidPositionReason(a){const lat=Number(a?.lat),lon=Number(a?.lon);if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180)return'invalid coordinates';if(!String(a?.hex||a?.icao24||'').trim())return'missing tracking key';const ageRaw=a?.seen_pos??a?.seen;if(ageRaw!==null&&ageRaw!==undefined&&ageRaw!==''){const age=Number(ageRaw);if(!Number.isFinite(age)||age<0)return'invalid position age';if(age>240)return'stale position ('+Math.round(age)+'s old)'}return null}
+ function altitudeForRecord(a){for(const c of [{field:'alt_geom',datum:'geometric'},{field:'alt_baro',datum:'barometric'}]){const raw=a?.[c.field];if(raw===null||raw===undefined||raw==='')continue;if(typeof raw==='string'&&raw.trim().toLowerCase()==='ground')continue;const value=Number(raw);if(!Number.isFinite(value)||value< -2000||value>60000)continue;return{known:true,value,meters:value*FEET_TO_METERS,sourceValue:raw,sourceField:c.field,sourceUnits:'ft',mapUnits:'m',datum:c.datum}}return{known:false,value:null,meters:null,sourceValue:null,sourceField:null,sourceUnits:'ft',mapUnits:'m',datum:'unknown'}}
+ function createTrailPoint(a,observedAt=Date.now(),sourceName='ADSB.lol'){const alt=altitudeForRecord(a),ageRaw=a?.seen_pos??a?.seen,age=ageRaw===null||ageRaw===undefined||ageRaw===''?null:Number(ageRaw),headingRaw=a?.track??a?.true_heading??a?.mag_heading,heading=headingRaw===null||headingRaw===undefined||headingRaw===''?null:Number(headingRaw);return{trackKey:String(a?.hex||a?.icao24||'').trim().toLowerCase(),longitude:Number(a?.lon),latitude:Number(a?.lat),altitudeValue:alt.sourceValue,altitudeField:alt.sourceField,altitudeUnits:alt.sourceUnits,altitudeMeters:alt.known?alt.meters:null,altitudeDatum:alt.datum,altitudeKnown:alt.known,heading:Number.isFinite(heading)?heading:null,observationTimestamp:Number.isFinite(age)&&age>=0?observedAt-age*1000:observedAt,sampledAt:observedAt,sourceName,sourceAgeSeconds:Number.isFinite(age)&&age>=0?age:null,gapBefore:false,gapReason:null}}
+ function project3DPoint(point,MC){if(!point?.altitudeKnown||!Number.isFinite(Number(point.altitudeMeters))||!MC?.fromLngLat)return null;return MC.fromLngLat({lng:Number(point.longitude),lat:Number(point.latitude)},Number(point.altitudeMeters))}
+ return Object.freeze({buildRequestUrl,parseResponse,isUavRecord,invalidPositionReason,altitudeForRecord,createTrailPoint,project3DPoint,feetToMeters:FEET_TO_METERS,radiusNm:REGION_RADIUS_NM});
+})();
 function centerAndZoom(){
  if(!map)return null;
  const c=map.getCenter?.();if(!c)return null;
@@ -353,48 +345,40 @@ const GLOBAL_SAMPLES=[
  {id:'Australia · East',lat:-33.9,lon:151.2}
 ];
 async function getSample(sample){
- const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),REQUEST_TIMEOUT_MS);
- requestControllers.add(controller);
- try{
-  const url=SUPPORTED_SOURCE+'lat/'+encodeURIComponent(sample.lat.toFixed(4))+'/lon/'+encodeURIComponent(sample.lon.toFixed(4))+'/dist/'+REGION_RADIUS_NM;
-  const response=await fetch(url,{method:'GET',cache:'no-store',signal:controller.signal,headers:{'Accept':'application/json'}});
-  if(!response.ok)throw new Error('HTTP '+response.status);
-  const data=await response.json();
-  return{sample,ok:true,records:Array.isArray(data?.ac)?data.ac:[],receivedAt:Date.now()};
- }catch(error){
-  return{sample,ok:false,records:[],error:error?.name==='AbortError'?'timed out':String(error?.message||error)};
- }finally{clearTimeout(timer);requestControllers.delete(controller)}
+ let url='';try{url=DroneCore.buildRequestUrl(sample);const cached=sampleCache.get(url);if(cached&&Date.now()-cached.at<SAMPLE_CACHE_MS)return{...cached.result,cached:true}}catch(error){return{sample,requestUrl:url,ok:false,records:[],error:String(error?.message||error),errorName:String(error?.name||'Error'),cached:false}}
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),REQUEST_TIMEOUT_MS);requestControllers.add(controller);
+ try{const response=await fetch(url,{method:'GET',cache:'no-store',signal:controller.signal,headers:{'Accept':'application/json'}}),body=await response.text();
+  if(!response.ok)throw new Error('HTTP '+response.status+(response.statusText?' '+response.statusText:'')+(body?' · '+body.replace(/\s+/g,' ').slice(0,220):''));
+  let payload;try{payload=JSON.parse(body)}catch(error){throw new Error('Invalid JSON response: '+String(error?.message||error)+' · body: '+body.replace(/\s+/g,' ').slice(0,180))}
+  const parsed=DroneCore.parseResponse(payload),result={sample,requestUrl:url,ok:true,records:parsed.records,responseTotal:parsed.total,message:parsed.message,receivedAt:Date.now(),error:null,cached:false};sampleCache.set(url,{at:Date.now(),result});return result;
+ }catch(error){return{sample,requestUrl:url,ok:false,records:[],error:error?.name==='AbortError'?'Request timed out after '+REQUEST_TIMEOUT_MS+' ms':String(error?.message||error),errorName:String(error?.name||'Error'),receivedAt:Date.now(),cached:false}}
+ finally{clearTimeout(timer);requestControllers.delete(controller)}
 }
 async function fetchGlobalSamples(){
- const results=[];
- // Small batches avoid bursts against a public community service with dynamic rate limits.
- for(let i=0;i<GLOBAL_SAMPLES.length;i+=3){
-  if(!enabled)throw new Error('Drone Awareness was turned off');
-  const batch=await Promise.all(GLOBAL_SAMPLES.slice(i,i+3).map(getSample));
-  results.push(...batch);
-  showStatus('Sampling public ADS-B coverage hubs: '+results.length+'/'+GLOBAL_SAMPLES.length+' regional windows checked…');
+ const results=[];diagnosticState.regionalRequestsAttempted=0;diagnosticState.regionalRequestsCompleted=0;
+ diagnosticState.regionalResults=GLOBAL_SAMPLES.map(sample=>({sample,status:'pending',ok:false,records:[],error:null}));writeSummary();
+ for(let i=0;i<GLOBAL_SAMPLES.length;i+=3){if(!enabled)throw new Error('Drone Awareness was turned off');const batch=await Promise.all(GLOBAL_SAMPLES.slice(i,i+3).map(getSample));results.push(...batch);diagnosticState.regionalRequestsAttempted+=batch.filter(x=>!x.cached).length;diagnosticState.regionalRequestsCompleted+=batch.filter(x=>!x.cached&&x.ok).length;
+  for(const result of batch){const row=diagnosticState.regionalResults.find(x=>x.sample.id===result.sample.id);if(row)Object.assign(row,{status:result.ok?'complete':'failed',ok:result.ok,cached:!!result.cached,records:result.records,error:result.error||null,requestUrl:result.requestUrl||''})}
+  writeSummary();showStatus('Regional requests: '+diagnosticState.regionalRequestsAttempted+' attempted · '+diagnosticState.regionalRequestsCompleted+' completed.',batch.some(x=>!x.ok)?'error':'info');
  }
  return results;
 }
 async function refresh(force=false){
- if(!enabled||!map||inFlight)return;
- const remaining=15000-(Date.now()-lastFetchAt);
- if(!force&&remaining>0){showStatus('Public source refresh is briefly rate-limited. Next refresh is available in '+Math.ceil(remaining/1000)+' seconds.');return}
- if(force&&remaining>0){showStatus('Please wait '+Math.ceil(remaining/1000)+' seconds before refreshing public coverage.');return}
- inFlight=true;lastFetchAt=Date.now();if(refreshButton)refreshButton.disabled=true;
- showStatus('Sampling public UAV-class ADS-B positions across the global coverage hubs…');
- try{
-  const samples=await fetchGlobalSamples();if(!enabled)return;
-  const good=samples.filter(s=>s.ok),records=good.flatMap(s=>s.records),c=centerAndZoom();
-  if(c&&c.zoom>=6){const localResult=await getSample({id:'Current map view',lat:c.lat,lon:c.lon});if(localResult.ok)records.push(...localResult.records)}
-  if(!enabled)return;
-  const result=updateTrackedUavs(records),now=new Date();
-  const coverage=good.length?'Updated '+now.toLocaleTimeString()+' · '+result.positions+' current UAV-class positions · '+result.trails+' observed trails · '+good.length+'/'+GLOBAL_SAMPLES.length+' regional sample windows responded.':'No public sample windows responded. No aircraft are drawn from invented or cached demonstration positions.';
-  if(drone3DError)showStatus(coverage+' 3D model renderer unavailable: '+drone3DError,'error');else showStatus(coverage,good.length?'ok':'error');
-  const feedMeta=$('#bp-drone-feed-meta');
-  if(feedMeta)feedMeta.textContent='Public ADS-B source sample: '+good.length+'/'+GLOBAL_SAMPLES.length+' regional windows responded; each hub request covers up to '+REGION_RADIUS_NM+' nautical miles. Coverage is incomplete and limited to UAV-class aircraft broadcasting ADS-B.';
-  if(result.positions===0&&good.length)showStatus('No current UAV-class ADS-B positions were returned from the responding sample regions. The map is ready; no simulated drones are substituted.','info');
- }catch(error){if(enabled)showStatus('Live public ADS-B data unavailable: '+String(error?.message||error)+'. The map remains usable; no fabricated positions or tracks are displayed.','error')}
+ if(!enabled||!map||inFlight)return;if(!mapStyleReady()){activationQueued=true;showStatus('Drone Awareness is active and waiting for the MapLibre style. Sampling resumes automatically when the globe is ready.','info');return}
+ const wait=15000-(Date.now()-lastFetchAt);if(!force&&wait>0)return;if(force&&wait>0){showStatus('Public API refresh is briefly rate-limited. Try again in '+Math.ceil(wait/1000)+' seconds.');return}
+ inFlight=true;lastFetchAt=Date.now();if(refreshButton)refreshButton.disabled=true;diagnosticState.aircraftRecordsReceived=0;diagnosticState.uavRecordsIdentified=0;diagnosticState.invalidOrStaleRecords=0;diagnosticState.currentPositionsAccepted=0;diagnosticState.modelsRendered=0;diagnosticState.localSample=null;writeSummary();
+ showStatus('Requesting public ADS-B records from '+GLOBAL_SAMPLES.length+' regional sample areas…');
+ try{const samples=await fetchGlobalSamples();if(!enabled)return;const good=samples.filter(x=>x.ok),records=good.flatMap(x=>x.records),center=centerAndZoom();
+  if(center&&center.zoom>=6){diagnosticState.localSample={status:'pending',ok:false,records:[],error:null};writeSummary();const local=await getSample({id:'Local map view',lat:center.lat,lon:center.lon});diagnosticState.localSample={status:local.ok?'complete':'failed',ok:local.ok,cached:!!local.cached,records:local.records,error:local.error||null,requestUrl:local.requestUrl||''};if(local.ok)records.push(...local.records);writeSummary()}
+  if(!enabled)return;diagnosticState.aircraftRecordsReceived=records.length;const result=updateTrackedUavs(records),failed=samples.filter(x=>!x.ok),err=failed.slice(0,3).map(x=>x.sample.id+': '+x.error).join(' · ');let message='';
+  if(good.length===0)message='All '+samples.length+' regional ADS-B requests failed. Zero UAVs cannot be concluded from a failed feed. '+err;
+  else if(records.length&&result.identified===0)message=good.length+'/'+samples.length+' requests succeeded with '+records.length+' ordinary aircraft records; none were identified as UAVs (no B6/UAV-class reports in this sample).';
+  else if(result.positions===0&&result.identified>0)message=result.identified+' UAV records were identified, but '+result.rejected+' invalid or stale reports were rejected.';
+  else if(records.length===0)message='The successful requests returned no aircraft records in the sampled areas. This is not worldwide coverage.';
+  else message='Updated '+new Date().toLocaleTimeString()+' · '+result.positions+' positions · '+result.models+' close-zoom 3D models · '+result.trailPoints+' historical points · '+result.trails+' 3D trail segments.';
+  if(failed.length)message+=' '+failed.length+' regional requests failed: '+err+(failed.length>3?' · See the rows below for the rest.':'');if(drone3DError)message+=' Renderer error: '+drone3DError;showStatus(message,failed.length||!good.length||drone3DError?'error':'info');
+  const meta=$('#bp-drone-feed-meta');if(meta)meta.textContent='ADSB.lol public community ADS-B · '+good.length+'/'+samples.length+' regional results successful · '+REGION_RADIUS_NM+' NM radius each. Partial coverage, not a worldwide registry; most consumer drones do not broadcast ADS-B.';
+ }catch(error){if(enabled)showStatus('ADS-B sampling failed: '+String(error?.message||error)+'. See regional request rows; no fake positions are displayed.','error')}
  finally{inFlight=false;if(refreshButton)refreshButton.disabled=false}
 }
 function openDronePanel(){
@@ -407,48 +391,33 @@ function openDronePanel(){
  const dock=$('#bpv-dock'),expand=dock?.querySelector('[data-bpv-dock-expand]');
  if(dock){dock.classList.add('bpv-dock-maximized');if(expand){expand.textContent='RESTORE ↘';expand.setAttribute('aria-pressed','true')}}
 }
+function scheduleDroneRefresh(){if(refreshTimer)clearInterval(refreshTimer);refreshTimer=setInterval(()=>{if(enabled&&!document.hidden)void refresh(false)},REFRESH_MS)}
+async function activateWhenStyleReady(){
+ if(!enabled)return false;if(!map||!mapStyleReady()){activationQueued=true;showStatus('Drone Awareness is ON and queued until the MapLibre style is ready. It will activate automatically; no second press is needed.','info');return false}
+ if(activationPromise)return activationPromise;const generation=activationGeneration;activationQueued=false;
+ activationPromise=(async()=>{if(!installLayer()){activationQueued=true;return false}setLayerVisibility(true);
+  try{const THREE=await loadDroneThree();if(!enabled||generation!==activationGeneration)return false;if(!ensureDrone3DLayer(THREE))throw new Error('3D layer attach failed');setDroneModels(lastCurrentRecords);rebuildDroneTrails();drone3DError=null}catch(error){drone3DError=String(error?.message||error);showStatus('Map markers can still operate; 3D renderer failed: '+drone3DError,'error')}
+  if(!enabled||generation!==activationGeneration)return false;window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('drones',true);scheduleDroneRefresh();void refresh(false);return true
+ })().finally(()=>{activationPromise=null;if(enabled&&activationQueued&&mapStyleReady())void activateWhenStyleReady()});return activationPromise
+}
 async function toggle(){
- if(!map){openDronePanel();showStatus('BridgePoint globe is still initializing. The control is ready; wait for the map to finish loading and press again.','error');return}
- enabled=!enabled;updateButton();openDronePanel();
- if(enabled){
-  if(!installLayer()){showStatus('The map style is still initializing. Press Drone Awareness again once the globe finishes loading.','error');enabled=false;updateButton();return}
-  setLayerVisibility(true);
-  try{
-   const THREE=await loadDroneThree();
-   if(!ensureDrone3DLayer(THREE))throw new Error('3D drone layer could not attach to the globe');
-   if(lastCurrentRecords.length)setDroneModels(lastCurrentRecords);
-  }catch(error){drone3DError=String(error?.message||error);showStatus('Public UAV position dots and trails are enabled, but the 3D model renderer could not initialize: '+drone3DError,'error')}
-  window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('drones',true);
-  if(!droneScene&&!drone3DError)showStatus('Drone Awareness is on. Public position dots and sampled trails are enabled; 3D model setup is being retried.','info');
-  else if(droneScene)showStatus('Drone Awareness is on. Live public UAV reports render as enlarged 3D quadcopters with observed position trails.','info');
-  clearInterval(refreshTimer);refreshTimer=setInterval(()=>{if(enabled&&!document.hidden)void refresh(false)},REFRESH_MS);
-  void refresh(false);
- }else{
-  clearInterval(refreshTimer);clearTimeout(moveTimer);aborter?.abort();
-  for(const controller of requestControllers)try{controller.abort()}catch(_){}
-  requestControllers.clear();setLayerVisibility(false);clearTrackedUavs();removeDrone3DLayer();
-  window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('drones',false);
-  showStatus('Drone Awareness is off. Sampled positions and trails from this session were cleared; no background regional requests are running.');
- }
+ openDronePanel();if(!enabled){enabled=true;activationGeneration++;activationQueued=true;updateButton();showStatus('Drone Awareness is ON. Waiting for the globe style if necessary; sampling will begin automatically.','info');void activateWhenStyleReady();return}
+ enabled=false;activationGeneration++;activationQueued=false;updateButton();if(refreshTimer)clearInterval(refreshTimer);refreshTimer=0;clearTimeout(moveTimer);aborter?.abort();for(const c of requestControllers)try{c.abort()}catch(_){}requestControllers.clear();setLayerVisibility(false);clearTrackedUavs();removeDrone3DLayer();window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('drones',false);showStatus('Drone Awareness is off.');
 }
 function createPane(panel){
- if(!panel)return null;
- let existing=panel.querySelector('[data-bpv-pane="drones"]');if(existing)return existing;
+ if(!panel)return null;let existing=panel.querySelector('[data-bpv-pane="drones"]');if(existing)return existing;
  const p=element('section','bp-drone-pane');p.dataset.bpvPane='drones';p.hidden=true;
- p.append(element('div','bp-drone-headline','OPT-IN · LIVE PUBLIC UAV POSITIONS + 3D TRACKS'));
- p.append(element('div','bp-drone-feed-note','3D quadcopter models are placed at source-reported UAV positions and headings. Model size is amplified at whole-Earth zoom so aircraft are visible; this is a display scale, not the aircraft’s physical size.'));
- p.append(element('div','bp-drone-feed-note','DATA LIMIT · Only public UAV-class ADS-B reports are represented. The public feed is sampled from 13 regional hubs (plus a local-area sample at close zoom); it is not a complete worldwide drone registry. Most consumer drones do not broadcast ADS-B. Remote ID receiver networks are not scraped or accessed without permission.'));
- const summary=element('div','bp-drone-summary');summary.id='bp-drone-summary-v2';summary.append(element('div','bp-drone-metric'));summary.append(element('div','bp-drone-metric'));p.append(summary);summaryNode=summary;
- const status=element('div','bp-drone-status','Drone Awareness is off. Press the button to load public UAV positions and observed trails.');status.id='bp-drone-status-v2';status.dataset.kind='info';p.append(status);statusNode=status;
- const actions=element('div','bp-drone-actions');
- const refreshBtn=element('button','bpv-wide-action','REFRESH GLOBAL UAV SAMPLE');refreshBtn.type='button';refreshBtn.addEventListener('click',()=>void refresh(true));actions.append(refreshBtn);refreshButton=refreshBtn;
- const off=element('button','bpv-wide-action','TURN DRONE AWARENESS OFF');off.type='button';off.addEventListener('click',()=>{if(enabled)void toggle();else{updateButton();showStatus('Drone Awareness is already off.')}});actions.append(off);p.append(actions);
- const meta=element('div','bp-drone-feed-note','Positions and tracks refresh every 3 minutes while enabled. Trails are built only from observations BridgePoint receives during this session; they are not a continuous or guaranteed complete flight history.');meta.id='bp-drone-feed-meta';p.append(meta);
- trailNoteNode=element('div','bp-drone-feed-note','Observed trail points accumulate after successive public feed updates.');p.append(trailNoteNode);
- const source=element('div','bp-drone-footnote');source.append(document.createTextNode('Source: '));
- const link=element('a','bp-drone-source','ADSB.lol API documentation');link.href='https://api.adsb.lol/docs/open-data/api/';link.target='_blank';link.rel='noopener noreferrer';source.append(link);
- source.append(document.createTextNode(' · ODbL 1.0. Position dots show public broadcast locations; aircraft identifiers and pilot/control-station locations are not displayed. No Remote ID radio interception or raw RF scanning.'));
- p.append(source);panel.append(p);writeSummary(0,0);return p;
+ p.append(element('div','bp-drone-headline','OPT-IN · PUBLIC ADS-B UAV POSITIONS + ALTITUDE-AWARE 3D TRACKS'));
+ p.append(element('div','bp-drone-feed-note','Whole-Earth markers stay anchored to the broadcast coordinates. Close-zoom quadcopter models require an actual source altitude. Model size is visual only; its position and altitude are not moved.'));
+ p.append(element('div','bp-drone-feed-note','DATA LIMIT · '+GLOBAL_SAMPLES.length+' regional sample hubs, each up to '+REGION_RADIUS_NM+' NM, plus a supplemental local sample at close zoom. This is partial coverage, not a worldwide registry. Most consumer drones do not broadcast ADS-B. Remote ID: NOT CONNECTED — no authorized receiver or network provider credentials are configured. Private networks, unauthorized radio interception and pilot/control-station locations are not accessed.'));
+ const summary=element('div','bp-drone-summary');summary.id='bp-drone-summary-v3';p.append(summary);summaryNode=summary;
+ const status=element('div','bp-drone-status','Drone Awareness is off.');status.id='bp-drone-status-v3';status.dataset.kind='info';p.append(status);statusNode=status;
+ const regions=element('div','bp-drone-cells');regions.id='bp-drone-regional-status-v3';p.append(regions);regionalStatusNode=regions;
+ const actions=element('div','bp-drone-actions'),refreshBtn=element('button','bpv-wide-action','REFRESH REGIONAL UAV SAMPLE');refreshBtn.type='button';refreshBtn.addEventListener('click',()=>void refresh(true));actions.append(refreshBtn);refreshButton=refreshBtn;
+ const off=element('button','bpv-wide-action','TURN DRONE AWARENESS OFF');off.type='button';off.addEventListener('click',()=>{if(enabled)void toggle()});actions.append(off);p.append(actions);
+ const meta=element('div','bp-drone-feed-note','Live positions refresh every 3 minutes. Requests are grouped in batches of three and successful responses are cached briefly.');meta.id='bp-drone-feed-meta';p.append(meta);
+ trailNoteNode=element('div','bp-drone-feed-note','Altitude-aware 3D history is limited to '+MAX_TRAIL_POINTS+' observations per aircraft; gaps split the line. Unknown altitude is not fabricated.');p.append(trailNoteNode);
+ const attribution=element('div','bp-drone-footnote');attribution.append(document.createTextNode('Source: '));const link=element('a','bp-drone-source','ADSB.lol public API documentation');link.href='https://api.adsb.lol/docs/open-data/api/';link.target='_blank';link.rel='noopener noreferrer';attribution.append(link);attribution.append(document.createTextNode(' · ODbL 1.0'));p.append(attribution);panel.append(p);writeSummary();return p;
 }
 function updateWaterButton(){
  if(!waterButton)return;
@@ -569,25 +538,8 @@ function bindStartMode(){
  },true);
 }
 function tryBoot(){
- addStyle();addButton();
- const panel=$('#bpv-sidecar');if(panel){pane=createPane(panel)}
- const current=worldMap();
- if(current){
-  if(map!==current){
-   map=current;installEmptyMode(map);
-   map.on?.('style.load',()=>{
-    installLayer();
-    if(enabled){
-     void loadDroneThree().then(THREE=>{if(ensureDrone3DLayer(THREE))setDroneModels(lastCurrentRecords)}).catch(e=>{drone3DError=String(e?.message||e);showStatus('3D drone renderer unavailable after map style reload: '+drone3DError,'error')});
-     void refresh(false);
-    }
-   });
-   map.on?.('moveend',()=>{if(!enabled)return;setDroneModels(lastCurrentRecords);clearTimeout(moveTimer);moveTimer=setTimeout(()=>void refresh(false),1800)});
-   map.on?.('zoomend',()=>{if(enabled)setDroneModels(lastCurrentRecords)});
-  }
-  installLayer();
-  if(enabled&&Number(map.getZoom?.()||0)>=4.7&&!inFlight)void refresh(false);
-}
+ addStyle();addButton();const panel=$('#bpv-sidecar');if(panel)pane=createPane(panel);const current=worldMap();
+ if(current){if(map!==current){map=current;installEmptyMode(map);map.on?.('style.load',()=>{if(enabled){activationQueued=true;void activateWhenStyleReady()}else installLayer()});map.on?.('idle',()=>{if(enabled&&activationQueued)void activateWhenStyleReady()});map.on?.('moveend',()=>{if(enabled){setDroneModels(lastCurrentRecords);rebuildDroneTrails()}});map.on?.('zoomend',()=>{if(enabled){setDroneModels(lastCurrentRecords);rebuildDroneTrails()}})}installLayer();if(enabled&&activationQueued)void activateWhenStyleReady()}
 }
 function boot(){
  bindStartMode();
@@ -609,7 +561,7 @@ function boot(){
  window.__BP_DRONE_AWARENESS_V1__={
   version:VERSION,
   source:'adsb.lol public community ADS-B feed',
-  aggregation:'13 regional public ADS-B sample windows; individual UAV-class positions; bounded session-sampled trails',
+  aggregation:GLOBAL_SAMPLES.length+' regional ADS-B sample windows, maximum '+REGION_RADIUS_NM+' NM radius; partial coverage only; 3D altitude-aware tracks',
   targetLevelDetails:false,
   pilotOrControlStationLocations:false,
   rawRfScanning:false,
@@ -626,6 +578,7 @@ function boot(){
   },
   toggle,
   refresh:()=>refresh(true),
+  diagnostics:()=>JSON.parse(JSON.stringify(diagnosticState)),
   get state(){return{enabled,mapReady:!!map,zoom:map?.getZoom?.()??null,layerReady:!!map?.getLayer?.(LAYER),layerVisible:!!map?.getLayer?.(LAYER)&&(map.getLayoutProperty(LAYER,'visibility')||'visible')!=='none',trailLayerReady:!!map?.getLayer?.(TRAIL_LAYER),trailLayerVisible:!!map?.getLayer?.(TRAIL_LAYER)&&(map.getLayoutProperty(TRAIL_LAYER,'visibility')||'visible')!=='none',trailDotsVisible:!!map?.getLayer?.(TRAIL_DOT_LAYER)&&(map.getLayoutProperty(TRAIL_DOT_LAYER,'visibility')||'visible')!=='none',drone3DLayerReady:!!map?.getLayer?.(DRONE_3D_LAYER),drone3DRendererReady:!!droneRenderer&&!!droneScene,currentPositions:lastCurrentRecords.length,observedTrails:[...trackedUavs.values()].filter(t=>t.points.length>1).length,simulatedFleet:false,emptyModeActive,updatedAt:Date.now()}}
  };
 }
