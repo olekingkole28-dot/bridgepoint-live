@@ -143,7 +143,7 @@ jobs:
         run: |
           set -euo pipefail
           git fetch origin live-artifact:refs/remotes/origin/live-artifact --depth=1
-          if git show refs/remotes/origin/live-artifact:assets/blender-world/manhattan/manifest.json 2>/dev/null | grep -Fq '"buildRevision": "manhattan-v1"'; then
+          if git show refs/remotes/origin/live-artifact:assets/blender-world/manifest.json 2>/dev/null | grep -Fq '"buildRevision": "manhattan-v1"'; then
             echo 'package_needed=false' >> "$GITHUB_OUTPUT"
           else
             echo 'package_needed=true' >> "$GITHUB_OUTPUT"
@@ -207,7 +207,7 @@ jobs:
           from pathlib import Path
           root=Path(os.environ['RUNNER_TEMP'])/'bp-manhattan-web-tiles'
           m=json.loads((root/'manifest.json').read_text())
-          assert m.get('buildRevision')=='manhattan-v1' and m.get('tileCount',0)>=5, m
+          assert m.get('buildRevision')=='blender-world-v1' and m.get('tileCount',0)>=5, m
           assert len(m.get('tiles',[]))==m['tileCount']
           total=0
           for tile in m['tiles']:
@@ -1699,7 +1699,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          TARGET='site/assets/blender-world/manhattan'
+          TARGET='site/assets/blender-world'
           mkdir -p "$TARGET"
           if [ -s "$RUNNER_TEMP/bp-manhattan-web-tiles/manifest.json" ]; then
             cp -a "$RUNNER_TEMP/bp-manhattan-web-tiles/." "$TARGET/"
@@ -1751,7 +1751,7 @@ jobs:
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/sw.js?v6135=${q}" -o /tmp/sw.js || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app-update-v5820.js?v5910=${q}" -o /tmp/app-update-v5820.js || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/bridgepoint-blender-world-v1.js?v1=${q}" -o /tmp/bridgepoint-blender-world-v1.js || true
-            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/blender-world/manhattan/manifest.json?v1=${q}" -o /tmp/manhattan-blender-world-manifest.json || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/blender-world/manifest.json?v1=${q}" -o /tmp/manhattan-blender-world-manifest.json || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/flutter_service_worker.js?v5820=${q}" -o /tmp/flutter-service-worker-retire.js || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/intelligence-launch/?v5820=${q}" -o /tmp/legacy-intelligence-launch.html || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/horizon/sw.js?v5822=${q}" -o /tmp/horizon-sw.js || true
