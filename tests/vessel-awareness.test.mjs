@@ -31,6 +31,8 @@ assert.ok(moduleSource.includes("'source-layer':'coverage'"), 'receiver coverage
 assert.ok(moduleSource.includes("get','days'"), 'coverage styling uses observed days in the seven-day coverage window');
 assert.ok(moduleSource.includes('noApiKey:true'), 'the selected anonymous tile route needs no browser API key');
 assert.ok(moduleSource.includes('noAccessToken:true'), 'the selected anonymous tile route needs no access token');
+assert.ok(moduleSource.includes("const THREE_URL='/vendor/three.module.js?v=169-local'"), 'both homepage and /app/ resolve the shared root Three.js runtime');
+assert.ok(!moduleSource.includes("const THREE_URL='./vendor/three.module.js?v=169-local'"), 'the vessel renderer must not request a missing /app/vendor Three.js file');
 assert.ok(moduleSource.includes('commercialUseApproved:false'), 'the UI does not claim commercial use has been approved');
 assert.ok(moduleSource.includes('NOT FOR NAVIGATION'), 'the vessel overlay carries a not-for-navigation safety notice');
 assert.ok(!/SIMULATED|syntheticFleet|fakeVessel/i.test(moduleSource), 'no synthetic or fabricated vessel fleet is included');
