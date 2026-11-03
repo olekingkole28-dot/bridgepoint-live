@@ -147,7 +147,7 @@ function writeSummary(){
  if(summaryNode){summaryNode.replaceChildren();for(const [label,value] of metrics){const item=element('div','bp-drone-metric');item.append(element('b','',typeof value==='number'?value.toLocaleString():value),element('span','',label));summaryNode.append(item)}}
  if(regionalStatusNode){
   regionalStatusNode.replaceChildren();
-  for(const result of diagnosticState.regionalResults){const row=element('div','bp-drone-cell-row');row.append(element('b','',result.sample.id));const detail=result.status==='pending'?'PENDING':result.cached?'CACHED · '+result.records.length+' aircraft':result.ok?'OK · '+result.records.length+' aircraft':'FAILED · '+String(result.error||'Unknown request error');const value=element('span','',detail);value.title=result.error||result.requestUrl||'';row.append(value);regionalStatusNode.append(row)}
+  for(const result of diagnosticState.regionalResults){const row=element('div','bp-drone-cell-row');row.append(element('b','',result.sample.id));const providerNote=result.providers?' · ADS-B '+(result.providers.adsb_lol?.status||'—')+' · Remote ID '+(result.providers.layer400_remote_id?.status||'—'):'';const detail=result.status==='pending'?'PENDING':result.cached?'CACHED · '+result.records.length+' reports'+providerNote:result.ok?'OK · '+result.records.length+' reports'+providerNote:'FAILED · '+String(result.error||'Unknown request error');const value=element('span','',detail);value.title=result.error||result.requestUrl||'';row.append(value);regionalStatusNode.append(row)}
   if(diagnosticState.localSample){const result=diagnosticState.localSample,row=element('div','bp-drone-cell-row');row.append(element('b','','Local map-view sample'));const detail=result.status==='pending'?'PENDING':result.cached?'CACHED · '+result.records.length+' aircraft':result.ok?'OK · '+result.records.length+' aircraft':'FAILED · '+String(result.error||'Unknown request error');const value=element('span','',detail);value.title=result.error||result.requestUrl||'';row.append(value);regionalStatusNode.append(row)}
  }
 }
@@ -253,7 +253,7 @@ function setDroneModels(records){
   for(const a of visibleRecords){
    const key=a._trackKey,lat=Number(a.lat),lon=Number(a.lon),altitude=altitudeForRecord(a);
    if(!key||!Number.isFinite(lat)||!Number.isFinite(lon)||!altitude.projectable)continue;
-   const point=DroneCore.createTrailPoint(a,Date.now(),'ADSB.lol'),position=DroneCore.project3DPoint(point,MC),meterUnit=MC.fromLngLat({lng:lon,lat},0).meterInMercatorCoordinateUnits?.()||0;
+   const point=DroneCore.createTrailPoint(a,Date.now(),a._bpSourceName||'ADSB.lol'),groundElevation=point.altitudeDatum==='agl'&&typeof map.queryTerrainElevation==='function'?map.queryTerrainElevation([lon,lat],{exaggerated:false}):null,position=DroneCore.project3DPoint(point,MC,groundElevation),meterUnit=MC.fromLngLat({lng:lon,lat},0).meterInMercatorCoordinateUnits?.()||0;
    if(!position||!Number.isFinite(meterUnit)||meterUnit<=0)continue;
    const span=modelSpanMeters(lat,zoom);let model=droneModels.get(key);
    if(!model){model=droneTemplate.clone(true);model.name='Source-geometric-altitude public UAV model';model.traverse(o=>{o.frustumCulled=false});droneScene.add(model);droneModels.set(key,model)}
@@ -307,7 +307,7 @@ function updateTrackedUavs(records){
  }
  const active=new Set(),current=[...fresh.values()].slice(0,MAX_TRACKED_DRONES);
  for(const a of current){
-  const key=a._trackKey,track=trackedUavs.get(key)||{points:[],lastSeen:0,current:null},point=DroneCore.createTrailPoint(a,now,'ADSB.lol'),last=track.points[track.points.length-1];
+  const key=a._trackKey,track=trackedUavs.get(key)||{points:[],lastSeen:0,current:null},point=DroneCore.createTrailPoint(a,now,a._bpSourceName||'ADSB.lol'),last=track.points[track.points.length-1];
   if(last){const ageGap=point.observationTimestamp-last.observationTimestamp,dist=distanceMeters([last.longitude,last.latitude],[point.longitude,point.latitude]);if(ageGap>REFRESH_MS*1.5){point.gapBefore=true;point.gapReason='No observation for '+Math.round(ageGap/1000)+' seconds'}if(!Number.isFinite(dist)||dist>45000){point.gapBefore=true;point.gapReason='Position discontinuity; segment restarted'}}
   if(!last||now-last.sampledAt>=REFRESH_MS*.8){track.points.push(point);if(track.points.length>MAX_TRAIL_POINTS)track.points.splice(0,track.points.length-MAX_TRAIL_POINTS)}
   track.lastSeen=now;track.current=a;trackedUavs.set(key,track);active.add(key);
@@ -438,7 +438,7 @@ async function getSample(sample){
  let url='';try{url=DroneCore.buildRequestUrl(sample);const cached=sampleCache.get(url);if(cached&&Date.now()-cached.at<SAMPLE_CACHE_MS)return{...cached.result,cached:true}}catch(error){return{sample,requestUrl:url,ok:false,records:[],error:String(error?.message||error),errorName:String(error?.name||'Error'),cached:false}}
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),REQUEST_TIMEOUT_MS);requestControllers.add(controller);
  try{
-  const response=await DroneCore.requestSample(sample,fetch,controller.signal),result={sample,requestUrl:response.requestUrl,ok:true,records:response.records,responseTotal:response.responseTotal,message:response.message,receivedAt:Date.now(),error:null,cached:false};
+  const response=await DroneCore.requestSample(sample,fetch,controller.signal),result={sample,requestUrl:response.requestUrl,transportUrl:response.transportUrl,providers:response.providers,ok:true,records:response.records,responseTotal:response.responseTotal,message:response.message,receivedAt:Date.now(),error:null,cached:false};
   sampleCache.set(url,{at:Date.now(),result});return result;
  }catch(error){return{sample,requestUrl:url,ok:false,records:[],error:error?.name==='AbortError'?'Request timed out after '+REQUEST_TIMEOUT_MS+' ms':String(error?.message||error),errorName:String(error?.name||'Error'),receivedAt:Date.now(),cached:false}}
  finally{clearTimeout(timer);requestControllers.delete(controller)}
@@ -450,8 +450,8 @@ async function fetchGlobalSamples(){
   if(!enabled)throw new Error('Drone Awareness was turned off');
   const batch=await Promise.all(GLOBAL_SAMPLES.slice(i,i+3).map(getSample));results.push(...batch);
   diagnosticState.regionalRequestsAttempted+=batch.filter(x=>!x.cached).length;diagnosticState.regionalRequestsCompleted+=batch.filter(x=>!x.cached&&x.ok).length;diagnosticState.regionalCacheHits+=batch.filter(x=>x.cached).length;
-  for(const result of batch){const row=diagnosticState.regionalResults.find(x=>x.sample.id===result.sample.id);if(row)Object.assign(row,{status:result.ok?'complete':'failed',ok:result.ok,cached:!!result.cached,records:result.records,error:result.error||null,requestUrl:result.requestUrl||''})}
-  writeSummary();showStatus('Regional ADS-B requests: '+diagnosticState.regionalRequestsAttempted+' attempted · '+diagnosticState.regionalRequestsCompleted+' completed · '+diagnosticState.regionalCacheHits+' cached.',batch.some(x=>!x.ok)?'error':'info');
+  for(const result of batch){if(result.ok&&result.providers)diagnosticState.providers={...(diagnosticState.providers||{}),...result.providers};const row=diagnosticState.regionalResults.find(x=>x.sample.id===result.sample.id);if(row)Object.assign(row,{status:result.ok?'complete':'failed',ok:result.ok,cached:!!result.cached,records:result.records,error:result.error||null,requestUrl:result.requestUrl||''})}
+  writeSummary();showStatus('Regional live-source requests: '+diagnosticState.regionalRequestsAttempted+' attempted · '+diagnosticState.regionalRequestsCompleted+' completed · '+diagnosticState.regionalCacheHits+' cached.',batch.some(x=>!x.ok)?'error':'info');
  }
  return results;
 }
@@ -485,11 +485,11 @@ async function refresh(force=false){
   if(failed.length)message+=' '+failed.length+' regional requests failed: '+err+(failed.length>3?' · Remaining errors are listed by region below.':'');
   if(drone3DError)message+=' 3D renderer error: '+drone3DError;
   showStatus(message,failed.length||!diagnosticState.hasSuccessfulSource||drone3DError?'error':'info');
-  const meta=$('#bp-drone-feed-meta');if(meta)meta.textContent='Source: ADSB.lol public community ADS-B · '+good.length+'/'+samples.length+' regional sample windows succeeded · '+REGION_RADIUS_NM+' NM maximum radius each. '+(diagnosticState.localSample?.ok?'A separate close-zoom local sample also succeeded. ':'')+'Partial geographic sampling only; not a worldwide registry. Most consumer drones do not broadcast ADS-B.';
+  const meta=$('#bp-drone-feed-meta');if(meta)meta.textContent='Source: ADSB.lol public community ADS-B plus optional Layer400 network Remote ID · '+good.length+'/'+samples.length+' regional sample windows succeeded · '+REGION_RADIUS_NM+' NM maximum radius each. '+(diagnosticState.providers?.layer400_remote_id?.status==='not_configured'?'Layer400 awaiting approved rid.live API key. ':'')+(diagnosticState.localSample?.ok?'A separate close-zoom local sample also succeeded. ':'')+'Partial geographic sampling only; not a worldwide registry.';
   writeSummary();
  }catch(error){
   diagnosticState.sourceStatus='failed';writeSummary();
-  if(enabled)showStatus('ADS-B sampling failed: '+String(error?.message||error)+'. Live UAV count is unavailable, not zero. See each regional row for its actual request result; no fabricated positions are used.','error');
+  if(enabled)showStatus('Drone-source sampling failed: '+String(error?.message||error)+'. Live UAV count is unavailable, not zero. See each regional row for its actual request result; no fabricated positions are used.','error');
  }finally{inFlight=false;if(refreshButton)refreshButton.disabled=false}
 }
 function openDronePanel(){
@@ -536,7 +536,7 @@ function createPane(panel){
  const p=element('section','bp-drone-pane');p.dataset.bpvPane='drones';p.hidden=true;
  p.append(element('div','bp-drone-headline','OPT-IN · PUBLIC ADS-B UAV POSITIONS + ALTITUDE-AWARE 3D TRACKS'));
  p.append(element('div','bp-drone-feed-note','Whole-Earth markers stay anchored to the broadcast coordinates. Close-zoom quadcopter models require an actual source altitude. Model size is visual only; its position and altitude are not moved.'));
- p.append(element('div','bp-drone-feed-note','DATA LIMIT · '+GLOBAL_SAMPLES.length+' regional sample hubs, each up to '+REGION_RADIUS_NM+' NM, plus a supplemental local sample at close zoom. This is partial coverage, not a worldwide registry. Most consumer drones do not broadcast ADS-B. Remote ID: NOT CONNECTED — no authorized receiver or network provider credentials are configured. Private networks, unauthorized radio interception and pilot/control-station locations are not accessed. No simulated drones are substituted for missing live reports.'));
+ p.append(element('div','bp-drone-feed-note','DATA LIMIT · '+GLOBAL_SAMPLES.length+' regional sample hubs, each up to '+REGION_RADIUS_NM+' NM, plus a supplemental local sample at close zoom. This is partial coverage, not a worldwide registry. Most consumer drones do not broadcast ADS-B. Remote ID network: Layer400 live RID is supported through a server-side API adapter and activates only when an approved LAYER400_API_KEY with rid.live scope is configured. ADSB.lol only contributes aircraft explicitly broadcasting a UAV/DRONE category; ordinary aircraft are never relabeled. Simulated/test broadcasts and pilot/control-station locations are excluded.'));
  const summary=element('div','bp-drone-summary');summary.id='bp-drone-summary-v3';p.append(summary);summaryNode=summary;
  const status=element('div','bp-drone-status','Drone Awareness is off.');status.id='bp-drone-status-v3';status.dataset.kind='info';p.append(status);statusNode=status;
  const regions=element('div','bp-drone-cells');regions.id='bp-drone-regional-status-v3';p.append(regions);regionalStatusNode=regions;
@@ -544,7 +544,7 @@ function createPane(panel){
  const off=element('button','bpv-wide-action','TURN DRONE AWARENESS OFF');off.type='button';off.addEventListener('click',()=>{if(enabled)void toggle()});actions.append(off);p.append(actions);
  const meta=element('div','bp-drone-feed-note','Live positions refresh every 3 minutes. Requests are grouped in batches of three and successful responses are cached briefly.');meta.id='bp-drone-feed-meta';p.append(meta);
  trailNoteNode=element('div','bp-drone-feed-note','Altitude-aware 3D history is limited to '+MAX_TRAIL_POINTS+' observations per aircraft; gaps split the line. Unknown altitude is not fabricated.');p.append(trailNoteNode);
- const attribution=element('div','bp-drone-footnote');attribution.append(document.createTextNode('Source: '));const link=element('a','bp-drone-source','ADSB.lol public API documentation');link.href='https://api.adsb.lol/docs/open-data/api/';link.target='_blank';link.rel='noopener noreferrer';attribution.append(link);attribution.append(document.createTextNode(' · ODbL 1.0'));p.append(attribution);panel.append(p);writeSummary();return p;
+ const attribution=element('div','bp-drone-footnote');attribution.append(document.createTextNode('Source: '));const link=element('a','bp-drone-source','ADSB.lol public API documentation');link.href='https://api.adsb.lol/docs/open-data/api/';link.target='_blank';link.rel='noopener noreferrer';attribution.append(link);attribution.append(document.createTextNode(' · ODbL 1.0 · Layer400 RID access requires an approved rid.live API credential'));p.append(attribution);panel.append(p);writeSummary();return p;
 }
 function updateWaterButton(){
  if(!waterButton)return;
