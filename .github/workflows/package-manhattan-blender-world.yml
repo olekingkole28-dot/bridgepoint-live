@@ -1,0 +1,103 @@
+name: Package BridgePoint Manhattan Blender World tiles
+
+on:
+  push:
+    branches:
+      - agent/manhattan-blender-city-v1-20261103
+    paths:
+      - tools/reality_assets/package_manhattan_city_tiles.py
+      - .github/workflows/package-manhattan-blender-world.yml
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: GitHub Actions run containing the editable Manhattan .blend artifact
+        required: true
+        default: "41692672450"
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: bridgepoint-manhattan-web-tiles
+  cancel-in-progress: true
+
+jobs:
+  package-web-tiles:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      SOURCE_RUN_ID: \${{ github.event.inputs.source_run_id || '41692672450' }}
+    steps:
+      - name: Checkout tile packager
+        uses: actions/checkout@v4
+        with:
+          ref: agent/manhattan-blender-city-v1-20261103
+
+      - name: Download the completed editable Manhattan scene
+        uses: actions/download-artifact@v4
+        with:
+          name: bridgepoint-manhattan-blender-preview
+          run-id: \${{ env.SOURCE_RUN_ID }}
+          github-token: \${{ secrets.GITHUB_TOKEN }}
+          repository: \${{ github.repository }}
+          path: \${{ runner.temp }}/bp-manhattan-input
+
+      - name: Install Blender and dependencies into Blender Python
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y blender
+          BLENDER_PY="$(blender --background --factory-startup --python-expr "import bpy,sys; print('BP_BLENDER_PYTHON=' + getattr(bpy.app, 'binary_path_python', sys.executable))" 2>&1 | sed -n 's/^BP_BLENDER_PYTHON=//p' | tail -1)"
+          test -n "$BLENDER_PY"
+          "$BLENDER_PY" -m ensurepip --upgrade || true
+          "$BLENDER_PY" -m pip install --upgrade pip
+          "$BLENDER_PY" -m pip install "numpy==1.26.4" "pyproj==3.6.1"
+          blender --background --factory-startup --python-expr "import bpy,numpy,pyproj; print('BP_BLENDER_TILE_DEPS_PASS', bpy.app.version_string, numpy.__version__, pyproj.__version__)"
+
+      - name: Validate and export geographically anchored GLB tiles
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s "$RUNNER_TEMP/bp-manhattan-input/bridgepoint-manhattan-city.blend"
+          test -s "$RUNNER_TEMP/bp-manhattan-input/source-manifest.json"
+          python -m py_compile tools/reality_assets/package_manhattan_city_tiles.py
+          mkdir -p "$RUNNER_TEMP/bp-manhattan-web-tiles"
+          blender --background "$RUNNER_TEMP/bp-manhattan-input/bridgepoint-manhattan-city.blend" \
+            --python tools/reality_assets/package_manhattan_city_tiles.py -- \
+            --source-manifest "$RUNNER_TEMP/bp-manhattan-input/source-manifest.json" \
+            --output-dir "$RUNNER_TEMP/bp-manhattan-web-tiles" \
+            --tile-size-m 2500 \
+            --min-zoom 7.5
+          cp "$RUNNER_TEMP/bp-manhattan-input/source-manifest.json" "$RUNNER_TEMP/bp-manhattan-web-tiles/source-manifest.json"
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path(__import__('os').environ['RUNNER_TEMP'])/'bp-manhattan-web-tiles'
+          m=json.loads((root/'manifest.json').read_text())
+          assert m['schemaVersion']==1 and m['tileCount']>=5, m
+          assert len(m['tiles'])==m['tileCount']
+          total=0
+          for tile in m['tiles']:
+              p=root/tile['url']
+              assert p.is_file() and p.stat().st_size>100, tile
+              assert p.stat().st_size==tile['bytes'], tile
+              assert len(tile['boundsWgs84'])==4 and tile['minZoom']>=6
+              total+=p.stat().st_size
+          assert total==m['totalBytes']
+          print('MANHATTAN_WEB_TILE_PACKAGE_PASS',json.dumps({
+              'tileCount':m['tileCount'],'totalBytes':total,
+              'maxTileBytes':max(t['bytes'] for t in m['tiles'])
+          }))
+          PY
+          du -sh "$RUNNER_TEMP/bp-manhattan-web-tiles"
+
+      - name: Upload production-ready Manhattan web tile package
+        uses: actions/upload-artifact@v4
+        with:
+          name: bridgepoint-manhattan-blender-world-tiles
+          path: \${{ runner.temp }}/bp-manhattan-web-tiles/
+          if-no-files-found: error
+          retention-days: 30
