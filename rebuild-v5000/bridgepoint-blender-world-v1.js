@@ -13,8 +13,10 @@
   const MODE_HIDE = /(?:building|roof|floor|facade|structure|landmark|bridge|^gta-road-|^gta-rail|^gta-(?:nasa|esri|usgs|oam)(?:$|-)|satellite|tree|vegetation|canopy|streetlight|hydrant|solar|pool|transport|ship|vessel|drone|flight|parcel|zoning|listing|opportunity|nyc-lidar|reality-capture)/i;
   const THREE_URL = 'https://esm.sh/three@0.169.0';
   const GLTF_URL = 'https://esm.sh/three@0.169.0/examples/jsm/loaders/GLTFLoader.js';
-  const MIN_DETAIL_ZOOM = 11.6;
-  const MAX_CONCURRENT_TILE_LOADS = 2;
+  const MOBILE_DEVICE = window.matchMedia?.('(max-width: 700px)').matches === true;
+  const MIN_DETAIL_ZOOM = MOBILE_DEVICE ? 11.9 : 11.6;
+  const MAX_CONCURRENT_TILE_LOADS = MOBILE_DEVICE ? 1 : 2;
+  const TILE_PREFETCH_PAD = MOBILE_DEVICE ? 0.06 : 0.18;
 
   let manifestPromise = null;
   let modulePromise = null;
@@ -30,7 +32,9 @@
   const state = {
     version: VERSION, status: 'waiting-for-map', enabled: false,
     manifestLoaded: false, tileCount: 0, loadedTiles: 0, visibleTiles: 0,
-    renderedTiles: 0, failedTiles: [], updatedAt: Date.now()
+    renderedTiles: 0, failedTiles: [], mobileProfile: MOBILE_DEVICE,
+    maxConcurrentTileLoads: MAX_CONCURRENT_TILE_LOADS, tilePrefetchPad: TILE_PREFETCH_PAD,
+    updatedAt: Date.now()
   };
   window.__BP_BLENDER_WORLD_V1__ = state;
 
@@ -302,18 +306,25 @@
       if (!layer.ready || !state.enabled) return;
       const zoom = Number(layer.map.getZoom());
       const bounds = layer.map.getBounds();
+      const center = layer.map.getCenter();
       const detailReady = zoom >= Math.max(MIN_DETAIL_ZOOM, Number(manifest.minZoom || 0));
-      let visible = 0;
+      const visibleTiles = [];
       for (const tile of tiles) {
-        const inView = detailReady && intersects(tile.boundsWgs84, bounds, 0.18);
+        const inView = detailReady && intersects(tile.boundsWgs84, bounds, TILE_PREFETCH_PAD);
         tile.visible = !!(inView && tile.anchor);
         if (inView) {
-          visible++;
-          enqueue(tile);
-        } else if (tile.anchor && !intersects(tile.boundsWgs84, bounds, 0.42)) {
+          visibleTiles.push(tile);
+        } else if (tile.anchor && !intersects(tile.boundsWgs84, bounds, TILE_PREFETCH_PAD * 2.5)) {
           unloadTile(tile);
         }
       }
+      // Prioritize the tile nearest the camera; mobile devices fetch one tile at a time.
+      visibleTiles.sort((a, b) =>
+        Math.hypot(a.longitude - center.lng, a.latitude - center.lat) -
+        Math.hypot(b.longitude - center.lng, b.latitude - center.lat)
+      );
+      for (const tile of visibleTiles) enqueue(tile);
+      const visible = visibleTiles.length;
       state.visibleTiles = visible;
       state.loadedTiles = tiles.filter(tile => tile.root).length;
       if (!detailReady) publish('waiting-for-zoom', { visibleTiles: 0 });
@@ -414,7 +425,7 @@
     customLayer = createCustomLayer(map, manifest);
     const firstSymbol = (map.getStyle()?.layers || []).find(item => item.type === 'symbol' && item.id !== LAYER_ID)?.id;
     map.addLayer(customLayer, firstSymbol);
-    const isMobile = innerWidth <= 700;
+    const isMobile = MOBILE_DEVICE || innerWidth <= 700;
     map.easeTo({
       center: [-73.9717, 40.7831],
       zoom: isMobile ? 12.35 : 12.65,
