@@ -1484,8 +1484,8 @@ jobs:
           grep -Fq "const tier='GOLD';" site/world-v2300-map.js
           grep -Fq 'intelligence-tools-v5507.js?v=6170-imerg-nrt-timeline' site/index.html
            grep -Fq 'intelligence-tools-v5507.js?v=6170-imerg-nrt-timeline' site/app/index.html
-           grep -Fq 'bridgepoint-global-motion-v5926.js?v=6202-globe-anchored-orbits' site/index.html
-           grep -Fq 'bridgepoint-global-motion-v5926.js?v=6202-globe-anchored-orbits' site/app/index.html
+           grep -Fq 'bridgepoint-global-motion-v5926.js?v=6203-3d-orbit-markers-popup-global-zoom' site/index.html
+           grep -Fq 'bridgepoint-global-motion-v5926.js?v=6203-3d-orbit-markers-popup-global-zoom' site/app/index.html
            grep -Fq 'bridgepoint-landmarks-v5940.js?v=6001-style-persistence' site/index.html
            grep -Fq 'bridgepoint-landmarks-v5940.js?v=6001-style-persistence' site/app/index.html
            grep -Fq 'bottomNav' site/app/index.html
