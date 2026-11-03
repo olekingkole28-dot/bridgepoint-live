@@ -76,7 +76,7 @@ for (const phrase of [
   'SIMULATED police', 'SIMULATED ambulance', 'SIMULATED fire engines', 'Simulated fire truck',
   'No actual vehicle GPS', 'No vehicle GPS, dispatch, patient, officer, home or private-property data',
   'queryTerrainElevation', 'sourceLayer: ROAD_SOURCE_LAYER',
-  'new T.WebGLRenderer', 'map.transform.getMatrixForModel',
+  'new THREE.WebGLRenderer', 'map.transform.getMatrixForModel',
   'wheelPivots', 'wheel.rotation.x', 'emissiveIntensity'
 ]) {
   assert.ok(moduleSource.includes(phrase), 'transportation source includes required safeguard or feature: ' + phrase);
