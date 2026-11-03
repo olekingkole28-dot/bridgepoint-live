@@ -234,6 +234,8 @@ jobs:
           node --check rebuild-v5000/bridgepoint-vessel-awareness-v1.js
           node tests/drone-awareness.test.mjs
           node tests/vessel-awareness.test.mjs
+          node --input-type=module --check < rebuild-v5000/bridgepoint-orbit-renderer-v6201.js
+          node tests/orbit-renderer-v6201.test.mjs
           node --check rebuild-v5000/bridgepoint-live-rail-v5969.js
           node tools/reality_assets/test_live_rail.mjs
           node --check rebuild-v5000/bridgepoint-rail-mesh-v5973.js
@@ -358,6 +360,7 @@ jobs:
           cp rebuild-v5000/bridgepoint-map-state-counts-v5923.js site/bridgepoint-map-state-counts-v5923.js
           cp rebuild-v5000/bridgepoint-map-physical-assets-v5924.js site/bridgepoint-map-physical-assets-v5924.js
           cp rebuild-v5000/bridgepoint-global-motion-v5926.js site/bridgepoint-global-motion-v5926.js
+          cp rebuild-v5000/bridgepoint-orbit-renderer-v6201.js site/bridgepoint-orbit-renderer-v6201.js
           cp rebuild-v5000/bridgepoint-realworld-effects-v5927.js site/bridgepoint-realworld-effects-v5927.js
           cp rebuild-v5000/bridgepoint-realworld-effects-v5927.js site/app/bridgepoint-realworld-effects-v5927.js
           cp rebuild-v5000/bridgepoint-volumetric-fields-v5978.js site/bridgepoint-volumetric-fields-v5978.js
@@ -572,6 +575,7 @@ jobs:
           node --check site/bridgepoint-map-state-counts-v5923.js
           node --check site/bridgepoint-map-physical-assets-v5924.js
           node --check site/bridgepoint-global-motion-v5926.js
+          node --input-type=module --check < site/bridgepoint-orbit-renderer-v6201.js
           node --input-type=module --check < site/bridgepoint-realworld-effects-v5927.js
           node --input-type=module --check < site/app/bridgepoint-realworld-effects-v5927.js
           node --input-type=module --check < site/bridgepoint-celestial-sky-v5928.js
@@ -1472,8 +1476,8 @@ jobs:
           grep -Fq "const tier='GOLD';" site/world-v2300-map.js
           grep -Fq 'intelligence-tools-v5507.js?v=6170-imerg-nrt-timeline' site/index.html
            grep -Fq 'intelligence-tools-v5507.js?v=6170-imerg-nrt-timeline' site/app/index.html
-           grep -Fq 'bridgepoint-global-motion-v5926.js?v=5945-motion-controls' site/index.html
-           grep -Fq 'bridgepoint-global-motion-v5926.js?v=5945-motion-controls' site/app/index.html
+           grep -Fq 'bridgepoint-global-motion-v5926.js?v=6201-orbit-3d-models' site/index.html
+           grep -Fq 'bridgepoint-global-motion-v5926.js?v=6201-orbit-3d-models' site/app/index.html
            grep -Fq 'bridgepoint-landmarks-v5940.js?v=6001-style-persistence' site/index.html
            grep -Fq 'bridgepoint-landmarks-v5940.js?v=6001-style-persistence' site/app/index.html
            grep -Fq 'bottomNav' site/app/index.html
