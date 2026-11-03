@@ -47,7 +47,7 @@ assert.ok(!moduleSource.includes('apiKey') && !moduleSource.includes('API_KEY') 
 assert.ok(moduleSource.includes('map.refreshTiles') && moduleSource.includes('refreshExpiredTiles=true'), 'tile refresh uses the provider tile cadence and normal MapLibre tile expiry');
 assert.ok(moduleSource.includes('window.__BP_VESSEL_AWARENESS_V1__'), 'the opt-in vessel diagnostics are exposed for visual QA');
 
-const expectedTag = 'bridgepoint-vessel-awareness-v1.js?v=20261103-openwaters-live-3d';
+const expectedTag = 'bridgepoint-vessel-awareness-v1.js?v=20261103-global-vessel-visibility-3d';
 assert.ok(landingHtml.includes(expectedTag), 'the main globe loads the vessel module');
 assert.ok(appHtml.includes(expectedTag), 'the app globe loads the vessel module');
 assert.ok(landingHtml.includes('bridgepoint-drone-awareness-v1.js?v=7-aircraft-models-tracks'), 'the existing drone module remains on the main globe');
