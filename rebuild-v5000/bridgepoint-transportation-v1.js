@@ -755,6 +755,9 @@
         };
         const before = map.getLayer('gta-road-label-major') ? 'gta-road-label-major' : undefined;
         map.addLayer(layer, before);
+      }
+      if (!map.__bpTransportationV1EventsBound) {
+        map.__bpTransportationV1EventsBound = true;
         map.on('click', DOT_LAYER, event => showVehiclePopup(map, event));
         map.on('mouseenter', DOT_LAYER, () => { try { map.getCanvas().style.cursor = 'pointer'; } catch (_) {} });
         map.on('mouseleave', DOT_LAYER, () => { try { map.getCanvas().style.cursor = ''; } catch (_) {} });
