@@ -2399,6 +2399,25 @@ function generateGeometry() {
         hash(lng, lat, 6058), 'rain-cell', null, null, sourceRainColorLevel(sample));
     }
 
+    // Publish exact source rain-cell positions immediately after their geographic formations
+    // are selected. Those same formations are meshed later in this geometry pass; publishing
+    // here lets cloud-to-ground effects attach without waiting for cyclone meshes or global clouds.
+    const lightningCloudAnchors = formations.filter(f => f.kind === 'rain-cell').map(f => {
+      const groundM = terrainElevationAt(f.lng, f.lat);
+      return {
+        lng: f.lng, lat: f.lat, radiusM: f.radiusM,
+        cloudBaseAglM: clamp(f.baseM - groundM, 180, 4200),
+        cloudTopAglM: clamp(f.topM - groundM, 680, 16000),
+        cloudBaseM: f.baseM, cloudTopM: f.topM,
+        source: 'shared-rendered-rain-cell-cloud', geometryVersion: 6135
+      };
+    });
+    window.__BP_LIGHTNING_CLOUD_ANCHORS_V6135__ = {
+      map, anchors: lightningCloudAnchors, count: lightningCloudAnchors.length,
+      rainCellCount: lightningCloudAnchors.length, satelliteCellCount: 0,
+      cloudMaskGeneration: 0, localRainCloudsReady: true, globalCloudBuildPending: true, updatedAt: Date.now()
+    };
+
     // Existing source-measured cloud-height samples stay intact.
     for (const sample of measured.slice(0, overviewClouds ? 0 : (MOBILE ? 4 : 5))) {
       const top = number(sample.cloud_top_height_m, number(sample.cloudTopHeightM));
@@ -2640,26 +2659,6 @@ function generateGeometry() {
       }
 
     }
-    // Publish the exact geographic rain-cloud formations already submitted to the 3D cloud mesh.
-    // Lightning consumes these same source-backed cloud centers, rather than inventing a screen-space cloud.
-    const lightningCloudAnchors = formations.filter(f => f.kind === 'rain-cell').map(f => {
-      const groundM = terrainElevationAt(f.lng, f.lat);
-      return {
-        lng: f.lng, lat: f.lat, radiusM: f.radiusM,
-        cloudBaseAglM: clamp(f.baseM - groundM, 180, 4200),
-        cloudTopAglM: clamp(f.topM - groundM, 680, 16000),
-        cloudBaseM: f.baseM, cloudTopM: f.topM,
-        source: 'shared-rendered-rain-cell-cloud', geometryVersion: 6135
-      };
-    });
-    // Publish local rain-cloud anchors as soon as their geographic meshes have been built.
-    // The global satellite-volume pass can be expensive on mobile; lightning should not wait
-    // for that separate pass before it can attach to the already-built local storm clouds.
-    window.__BP_LIGHTNING_CLOUD_ANCHORS_V6135__ = {
-      map, anchors: lightningCloudAnchors, count: lightningCloudAnchors.length,
-      rainCellCount: lightningCloudAnchors.length, satelliteCellCount: 0,
-      cloudMaskGeneration: 0, localRainCloudsReady: true, globalCloudBuildPending: true, updatedAt: Date.now()
-    };
     const global = buildGlobalCloudGeometry();
     const satelliteLightningCloudAnchors = Array.isArray(global.satelliteCloudAnchors) ? global.satelliteCloudAnchors : [];
     const sharedLightningCloudAnchors = lightningCloudAnchors.concat(satelliteLightningCloudAnchors);
