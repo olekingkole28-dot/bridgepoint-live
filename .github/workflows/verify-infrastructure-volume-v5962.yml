@@ -53,7 +53,7 @@ jobs:
           grep -Fq 'FCC_TOWER_3D_MIN_ZOOM=13.0' release-v2300/world-v2300-infrastructure-volume-v5962.js
           grep -Fq 'fccTowerHeightMeters' release-v2300/world-v2300-infrastructure-volume-v5962.js
           grep -Fq 'raw<=FCC_TOWER_MAX_HEIGHT_M' release-v2300/world-v2300-infrastructure-volume-v5962.js
-          grep -Fq 'footprintWidth=Math.max(4,Math.min(42,height*.10))' release-v2300/world-v2300-infrastructure-volume-v5962.js
+          grep -Fq 'const width=Math.max(4,Math.min(42,height*.10))' release-v2300/world-v2300-infrastructure-volume-v5962.js
           grep -Fq "'circle-radius':1.55" release-v2300/world-v2300-infrastructure-volume-v5962.js
           grep -Fq 'fccTowerModels:fccTowerN' release-v2300/world-v2300-infrastructure-volume-v5962.js
           grep -Fq 'enabled:true' release-v2300/world-v2300-infrastructure-volume-v5962.js
