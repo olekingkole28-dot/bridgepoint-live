@@ -24,6 +24,13 @@ for (const kind of ['cargo','tanker','passenger','fishing','sail','tug','highspe
 assert.ok(moduleSource.includes('new THREE.InstancedMesh'), 'many source-backed ship models are rendered with instanced geometry');
 assert.ok(moduleSource.includes("renderingMode:'3d'"), 'vessel models use a real MapLibre 3D custom layer');
 assert.ok(moduleSource.includes('MercatorCoordinate'), 'ship placement uses the map projection at sea level');
+assert.ok(moduleSource.includes('const WATERLINE_METERS=0;') && moduleSource.includes('},WATERLINE_METERS)'), 'the vessel mesh origin is anchored at the water surface');
+assert.ok(moduleSource.includes('new T.ExtrudeGeometry(hullShape'), 'ship families use a tapered three-dimensional hull rather than a flat marker body');
+assert.ok(moduleSource.includes('vertexColors:true') && moduleSource.includes("new T.Float32BufferAttribute(vertexColors,3)"), 'ship geometry has material-specific detail colors and shaded surfaces');
+assert.ok(moduleSource.includes('targetPixels=Math.max(0,9-zoom*.9)'), 'ships remain visibly enlarged at global zoom and smoothly return to source length as the camera closes in');
+assert.ok(moduleSource.includes("else if(kind==='other')"), 'the utility vessel family has its own explicit 3D model');
+assert.ok(moduleSource.includes("'circle-radius':['interpolate',['linear'],['zoom'],0,3.2,4,4.4,9,5.6,14,7.2]"), 'stationary AIS dots are legible at global zoom');
+assert.ok(moduleSource.includes("'icon-halo-color':'#061421','icon-halo-width':1.8"), 'moving AIS arrows have a dark contrast halo for bright global-view colors');
 assert.ok(moduleSource.includes('function updateTracks(records)'), 'successive observed AIS positions form retained vessel trails');
 assert.ok(moduleSource.includes('TRACK_RETENTION_MS=45*60*1000'), 'observed trail retention is bounded');
 assert.ok(moduleSource.includes('age_s'), 'reported AIS age drives freshness and fading');
