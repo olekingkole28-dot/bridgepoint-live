@@ -2634,6 +2634,8 @@ function generateGeometry() {
         : (MOBILE ? 3 : 4);
       const funnelTopM = f.kind === 'funnel' ? f.topM + Math.max(0,260000-f.topM)*overviewBoost : f.topM;
       const funnelRadiusM = f.kind === 'funnel' ? f.radiusM + Math.max(0,95000-f.radiusM)*overviewBoost : f.radiusM;
+      const parentScale = 1;
+      const rainColorLevel = f.kind === 'rain-cell' ? clamp(Number(f.rainIntensity)||0,0,2) : 0;
       for (let i = 0; i < n; i++) {
         const a = i * 2.399 + f.seed * 5.3;
         const ring = i === 0 ? 0 : f.radiusM * (0.16 + hash(k, i, 1) * 0.24);
@@ -2644,8 +2646,6 @@ function generateGeometry() {
         const cloudRange = funnelTopM - f.baseM;
         const altitude = f.baseM + cloudRange * (f.kind === 'funnel' ? 0.86 : (i === 0 ? 0.50 : 0.48 + hash(k, i, 5) * 0.04));
         const vertical = f.kind === 'funnel' ? Math.max(3200, cloudRange * 0.48) : cloudRange * (i === 0 ? 0.43 : 0.40 + hash(k, i, 6) * 0.035);
-        const parentScale = 1;
-        const rainColorLevel = f.kind === 'rain-cell' ? clamp(Number(f.rainIntensity)||0,0,2) : 0;
         const puffTint = f.kind === 'rain-cell' ? 1.35 + rainColorLevel * 0.001 : f.kind === 'hurricane' ? (f.windContext?.centerLat < 0 ? 1.28 : 1.27) : f.kind === 'hurricane-eyewall' ? (f.windContext?.centerLat < 0 ? 1.24 : 1.23) : f.kind === 'hurricane-spiral' ? (f.windContext?.centerLat < 0 ? 1.28 : 1.27) : f.kind === 'storm' || f.kind === 'funnel' ? 0.93 + hash(k, i, 7) * 0.035 : 0.22 + hash(k, i, 7) * 0.52;
         puff(lng, lat, altitude, funnelRadiusM * scaleX * parentScale, funnelRadiusM * scaleY * parentScale, vertical, f.seed,
           puffTint, globeScale, f.windContext, f.kind === 'funnel' ? {lng:f.lng,lat:f.lat} : null);
