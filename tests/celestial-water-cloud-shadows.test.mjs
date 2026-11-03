@@ -439,6 +439,7 @@ test('3D storm clouds stay live while rain particles and weather markers stay of
   assert.ok(landing.includes('ensureLandingStormCloudWeather(world)'));
   assert.ok(landing.includes('rainParticles:false'));
   assert.ok(clouds.includes('sourceRainColorLevel'));
+  assert.ok(clouds.includes("raw === null || raw === undefined || raw === ''"));
   assert.ok(clouds.includes('reflectivity_dbz'));
   assert.ok(clouds.includes('rainCloudLevel=clamp((v_tint-1.35)*1000.0,0.0,2.0)'));
   assert.ok(clouds.includes('vec3(0.10,0.72,0.28)'));
