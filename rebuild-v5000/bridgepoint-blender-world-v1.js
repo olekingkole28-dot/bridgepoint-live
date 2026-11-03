@@ -10,7 +10,7 @@
   const MANIFEST_URL = '/assets/blender-world/manifest.json';
   const ASSET_ROOT = '/assets/blender-world/';
   const LAYER_ID = 'bp-blender-world-v1';
-  const MODE_HIDE = /(?:building|roof|floor|facade|structure|landmark|bridge|^gta-road-|^gta-rail|tree|vegetation|canopy|streetlight|hydrant|solar|pool|transport|ship|vessel|drone|flight|satellite|parcel|zoning|listing|opportunity|nyc-lidar|reality-capture)/i;
+  const MODE_HIDE = /(?:building|roof|floor|facade|structure|landmark|bridge|^gta-road-|^gta-rail|tree|vegetation|canopy|streetlight|hydrant|solar|pool|transport|ship|vessel|drone|flight|parcel|zoning|listing|opportunity|nyc-lidar|reality-capture)/i;
   const THREE_URL = 'https://esm.sh/three@0.169.0';
   const GLTF_URL = 'https://esm.sh/three@0.169.0/examples/jsm/loaders/GLTFLoader.js';
   const MIN_DETAIL_ZOOM = 11.6;
