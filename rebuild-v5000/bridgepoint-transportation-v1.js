@@ -2,6 +2,7 @@
  * Uses the existing OpenFreeMap road geometries and BridgePoint's existing 3D map.
  * Global vehicle dots appear first; low/high-detail 3D models upgrade as the user zooms in.
  * All moving civilian and emergency vehicles in this module are simulated.
+ * No actual vehicle GPS, dispatch, patient, officer, home or private-property data is used.
  * No private-car GPS, police AVL, EMS AVL, fire dispatch or incident feed is used.
  */
 (() => {
