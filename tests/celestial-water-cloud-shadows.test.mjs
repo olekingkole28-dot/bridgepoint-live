@@ -448,5 +448,5 @@ test('3D storm clouds stay live while rain particles and weather markers stay of
   assert.ok(clouds.includes('vec3(0.90,0.10,0.12)'));
   assert.ok(clouds.includes('makeCycloneRibbon'));
   assert.ok(clouds.includes('makeTornadoSurfaceCone'));
-  assert.ok(clouds.indexOf('localRainCloudsReady: true, globalCloudBuildPending: true') < clouds.indexOf('const global = buildGlobalCloudGeometry()'));
+  assert.ok(clouds.indexOf('localRainCloudsReady: true, globalCloudBuildPending: true') < clouds.indexOf('const global=buildGlobalCloudGeometry()'));
 });
