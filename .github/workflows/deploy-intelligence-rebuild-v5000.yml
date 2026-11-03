@@ -158,16 +158,10 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y blender gzip
+          sudo apt-get install -y blender gzip python3-numpy
           python -m pip install --upgrade pip
           python -m pip install -r tools/reality_assets/requirements-manhattan-city.txt
-          BLENDER_PY="$(blender --background --factory-startup --python-expr "import bpy,sys; print('BP_BLENDER_PYTHON=' + getattr(bpy.app, 'binary_path_python', sys.executable))" 2>&1 | sed -n 's/^BP_BLENDER_PYTHON=//p' | tail -1)"
-          test -n "$BLENDER_PY"
-          BLENDER_PACKAGES="$RUNNER_TEMP/blender-python-packages"
-          mkdir -p "$BLENDER_PACKAGES"
-          "$BLENDER_PY" -m pip install --target "$BLENDER_PACKAGES" "numpy==1.26.4" "pyproj==3.6.1"
-          PYTHONPATH="$BLENDER_PACKAGES${PYTHONPATH:+:$PYTHONPATH}" "$BLENDER_PY" -c "import numpy,pyproj; print('BRIDGEPOINT_BLENDER_WORLD_DEPS_PASS', numpy.__version__, pyproj.__version__)"
-          blender --background --factory-startup --python-expr "import bpy; print('BRIDGEPOINT_BLENDER_READY', bpy.app.version_string)"
+          PYTHONPATH="/usr/lib/python3/dist-packages" blender --background --factory-startup --python-expr "import bpy,numpy; print('BRIDGEPOINT_BLENDER_WORLD_DEPS_PASS', bpy.app.version_string, numpy.__version__)"
       - name: Download current NYC datasets and existing Midtown LiDAR
         if: steps.existing.outputs.package_needed == 'true'
         shell: bash
@@ -197,12 +191,15 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/bp-manhattan-web-tiles"
-          PYTHONPATH="$RUNNER_TEMP/blender-python-packages${PYTHONPATH:+:$PYTHONPATH}" blender --background "$RUNNER_TEMP/bp-manhattan-output/bridgepoint-manhattan-city.blend" \
+          PYTHONPATH="/usr/lib/python3/dist-packages" blender --background "$RUNNER_TEMP/bp-manhattan-output/bridgepoint-manhattan-city.blend" \
             --python tools/reality_assets/package_manhattan_city_tiles.py -- \
             --source-manifest "$RUNNER_TEMP/bp-manhattan-source/source-manifest.json" \
             --output-dir "$RUNNER_TEMP/bp-manhattan-web-tiles" \
             --tile-size-m 2500 --min-zoom 7.5
           cp "$RUNNER_TEMP/bp-manhattan-source/source-manifest.json" "$RUNNER_TEMP/bp-manhattan-web-tiles/source-manifest.json"
+          python tools/reality_assets/georeference_manhattan_city_tiles.py \
+            --manifest "$RUNNER_TEMP/bp-manhattan-web-tiles/manifest.json" \
+            --source-manifest "$RUNNER_TEMP/bp-manhattan-source/source-manifest.json"
           python - <<'PY'
           import json, os
           from pathlib import Path
@@ -274,7 +271,7 @@ jobs:
           set -euxo pipefail
           node --check rebuild-v5000/bridgepoint-reality-assets-v5968.js
           node --check rebuild-v5000/bridgepoint-blender-world-v1.js
-          python -m py_compile tools/reality_assets/package_manhattan_city_tiles.py
+          python -m py_compile tools/reality_assets/package_manhattan_city_tiles.py tools/reality_assets/georeference_manhattan_city_tiles.py
           node --check rebuild-v5000/bridgepoint-volumetric-fields-v5978.js
           node --check rebuild-v5000/bridgepoint-realworld-effects-v5927.js
           node --input-type=module --check < release-v2300/world-v2300-water.js
