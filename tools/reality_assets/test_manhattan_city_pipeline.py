@@ -1,5 +1,7 @@
 import unittest
 from io import BytesIO
+from tempfile import TemporaryDirectory
+from pathlib import Path
 from unittest.mock import patch
 
 from pyproj import Transformer
@@ -47,12 +49,30 @@ class ManhattanSourcePipelineTests(unittest.TestCase):
             )
         request = mock_open.call_args.args[0]
         self.assertEqual(request.get_method(), "POST")
-        self.assertEqual(
-            request.get_header("Content-type"),
-            "application/x-www-form-urlencoded",
-        )
+        self.assertEqual(request.get_header("Content-type"), "application/x-www-form-urlencoded")
         self.assertIn(b"objectIds=1%2C2%2C3", request.data)
         self.assertEqual(result, {"features": []})
+
+    def test_manhattan_boundary_query_skips_spatial_box_predicate(self):
+        fixture = {
+            "features": [{
+                "type": "Feature",
+                "properties": {"borocode": 1, "boroname": "Manhattan"},
+                "geometry": {"type": "Polygon", "coordinates": [[
+                    [-73.99, 40.70], [-73.98, 40.70], [-73.98, 40.71],
+                    [-73.99, 40.71], [-73.99, 40.70]
+                ]]},
+            }]
+        }
+        with TemporaryDirectory() as directory, patch.object(source, "get_json", return_value=fixture) as mock_get:
+            result = source.fetch_soda(
+                "boundary", SODA_DATASETS["boundary"], Path(directory),
+                self.transformer, self.origin, 20000,
+            )
+        request_url = mock_get.call_args.args[0]
+        self.assertIn("borocode+%3D+1", request_url)
+        self.assertNotIn("within_box", request_url)
+        self.assertEqual(result["featureCount"], 1)
 
     def test_clip_keeps_manhattan_roads_and_removes_outside_geometry(self):
         boundary = Polygon([(0, 0), (100, 0), (100, 100), (0, 100)])
