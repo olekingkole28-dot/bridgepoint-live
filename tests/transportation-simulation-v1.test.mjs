@@ -93,7 +93,7 @@ const launchButton = launcher.querySelector('.bp-transportation-v1-toggle');
 assert.ok(launchButton, 'Transportation is presented as a card button');
 launchButton.listeners.click[0]();
 assert.equal(requestedScripts.length, 1, 'pressing Transportation dynamically requests the 3D module');
-assert.equal(requestedScripts[0].src, '/bridgepoint-transportation-v1.js?v=1-3d-road-traffic-simulation');
+assert.equal(requestedScripts[0].src, '/bridgepoint-transportation-v1.js?v=2-dots-first-adaptive-lod');
 assert.equal(requestedScripts[0].async, true, 'the simulation bundle loads asynchronously after the click');
 let enabledAfterLoad = false;
 loaderContext.window.__BP_TRANSPORTATION_V1__ = { enable() { enabledAfterLoad = true; return true; } };
@@ -129,11 +129,34 @@ assert.equal(lateStarted, true, 'the original button press activates transportat
 
 
 assert.ok(api, 'transportation simulation exposes diagnostics and helper methods');
-assert.equal(api.version, 1);
+assert.equal(api.version, 2);
 assert.equal(api.enabledByDefault, false, 'transportation stays off until the user presses the new button');
 assert.equal(api.simulationOnly, true, 'generated traffic must never be described as real vehicle GPS');
 
 const helpers = api.helpers;
+assert.equal(helpers.selectModelLod(0), 'dots', 'global and regional views use the lightweight dot renderer');
+assert.equal(helpers.selectModelLod(10.49), 'dots', '3D model loading stays off below the model zoom threshold');
+assert.equal(helpers.selectModelLod(10.5), 'low', 'medium zoom uses low-detail vehicle models');
+assert.equal(helpers.selectModelLod(14.5), 'high', 'close zoom upgrades to full-detail vehicles');
+const globalRoads = [{
+  key: 'global-test-road',
+  roadClass: 'primary',
+  coordinates: [[-71.06, 42.36], [-71.05, 42.36], [-71.04, 42.36]]
+}];
+const globalPaths = helpers.buildFlatRoadPaths(globalRoads, [-71.06, 42.36]);
+assert.equal(globalPaths.paths.length, 1, 'global dot paths are built from mapped road coordinates without a terrain query');
+assert.equal(globalPaths.paths[0].points[0].local.y, 0, 'global dot paths do not need a terrain-elevation lookup');
+assert.ok(globalPaths.paths[0].length > 1000, 'global vehicle positions preserve road-scale distances');
+const largeRoadPath = {
+  roadClass: 'motorway',
+  length: 2000000,
+  points: [
+    { coordinate: [-120, 35], local: { x: 0, y: 0, z: 0 }, distance: 0 },
+    { coordinate: [-80, 35], local: { x: 2000000, y: 0, z: 0 }, distance: 2000000 }
+  ]
+};
+assert.equal(helpers.buildFleet([largeRoadPath], 0, 80).length, 80,
+  'global zoom maintains a visible capped fleet of moving dots instead of hiding all vehicles');
 assert.equal(helpers.isRoadFeature({ properties: { class: 'primary', subclass: 'road' } }), true);
 assert.equal(helpers.isRoadFeature({ properties: { class: 'minor', subclass: 'residential' } }), true);
 assert.equal(helpers.isRoadFeature({ properties: { class: 'motorway' } }), true);
@@ -180,11 +203,17 @@ for (const phrase of [
 ]) {
   assert.ok(moduleSource.includes(phrase), 'transportation source includes required safeguard or feature: ' + phrase);
 }
-assert.ok(!/tomtom|here\.com|911|cad feed|avl endpoint/i.test(moduleSource), 'this first preview does not claim or query unconfigured traffic/dispatch services');
+assert.ok(!/tomtom|here\.com|911|cad feed|avl endpoint/i.test(moduleSource), 'this preview does not claim or query unconfigured traffic/dispatch services');
 assert.ok(!/fetch\s*\(/.test(moduleSource), 'no unconfigured remote vehicle telemetry endpoint is queried');
+assert.ok(!moduleSource.includes('state.button?.click()'), 'the first button press calls the public start method directly');
+assert.ok(!moduleSource.includes('setInterval('), 'Transportation does not keep a page-startup polling loop alive');
+assert.ok(moduleSource.includes('function buildFlatRoadPaths'), 'global dot routes are built without waiting for terrain samples');
+assert.ok(moduleSource.includes('function makeVehicleLowLod'), 'medium zoom has a lightweight 3D vehicle model kit');
+assert.ok(moduleSource.includes('makeVehicle(T, item) : makeVehicleLowLod(T, item)'), 'close zoom upgrades the low-detail model kit to detailed vehicle geometry');
+assert.ok(moduleSource.includes('MAX_DOT_VEHICLES = MOBILE ? 64 : 120'), 'global mode shows a bounded set of moving dots on desktop and phone');
 
-const expectedScript = 'bridgepoint-transportation-v1.js?v=1-3d-road-traffic-simulation';
-const expectedLoader = '<script defer src="/bridgepoint-transportation-loader-v1.js?v=1-button-only"></script>';
+const expectedScript = 'bridgepoint-transportation-v1.js?v=2-dots-first-adaptive-lod';
+const expectedLoader = '<script defer src="/bridgepoint-transportation-loader-v1.js?v=2-dots-first-adaptive-lod"></script>';
 assert.ok(!landingHtml.includes(expectedScript), 'homepage never downloads the 3D transportation module during startup');
 assert.ok(!appHtml.includes(expectedScript), 'app never downloads the 3D transportation module during startup');
 assert.ok(landingHtml.includes(expectedLoader), 'homepage loads only the lightweight card-button launcher');
@@ -199,4 +228,4 @@ assert.ok(fullDeploy.includes('cp rebuild-v5000/bridgepoint-transportation-v1.js
 assert.ok(fullDeploy.includes('cp rebuild-v5000/bridgepoint-transportation-loader-v1.js site/bridgepoint-transportation-loader-v1.js'), 'full deploy publishes the lightweight launcher');
 assert.ok(!/^\s*push:/m.test(rollbackWorkflow), 'the old experimental rollback deployment can no longer auto-publish over this release');
 
-console.log('BridgePoint Transportation Simulation v1 lazy-load contract checks passed.');
+console.log('BridgePoint Transportation Simulation v2 dot-first adaptive-LOD contract checks passed.');
