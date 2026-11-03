@@ -18,7 +18,6 @@ from pathlib import Path
 import bpy
 import numpy as np
 from mathutils import Vector
-from pyproj import Transformer
 
 FT_TO_M = 0.3048006096012192
 
@@ -142,7 +141,6 @@ def main():
     origin = source_manifest["localOrigin"]
     origin_x_m = float(origin["projectedXFeet"]) * FT_TO_M
     origin_y_m = float(origin["projectedYFeet"]) * FT_TO_M
-    transformer = Transformer.from_crs("EPSG:2263", "EPSG:4326", always_xy=True)
 
     sources = mesh_objects()
     if not sources:
@@ -175,16 +173,12 @@ def main():
                 continue
 
             cx, cy = x0 + tile_size * 0.5, y0 + tile_size * 0.5
-            projected_x = origin_x_m + cx
-            projected_y = origin_y_m + cy
-            lon, lat = transformer.transform(projected_x / FT_TO_M, projected_y / FT_TO_M)
-            corners = [
-                transformer.transform((origin_x_m + xx) / FT_TO_M, (origin_y_m + yy) / FT_TO_M)
-                for xx, yy in ((x0, y0), (x1, y0), (x1, y1), (x0, y1))
-            ]
-            bounds_wgs84 = [
-                min(p[0] for p in corners), min(p[1] for p in corners),
-                max(p[0] for p in corners), max(p[1] for p in corners)
+            # Keep georeferencing out of Blender's embedded Python. The release
+            # workflow converts these exact EPSG:2263 tile-local coordinates with
+            # the downloader's system-Python pyproj environment after GLB export.
+            projected_center_feet = [
+                float(origin["projectedXFeet"]) + cx / FT_TO_M,
+                float(origin["projectedYFeet"]) + cy / FT_TO_M
             ]
 
             tile_id = f"manhattan-{ix:02d}-{iy:02d}"
@@ -219,9 +213,10 @@ def main():
                 "cityId": "manhattan",
                 "url": "manhattan/" + filename,
                 "bytes": size_bytes,
-                "longitude": lon,
-                "latitude": lat,
-                "boundsWgs84": bounds_wgs84,
+                "longitude": None,
+                "latitude": None,
+                "boundsWgs84": None,
+                "projectedCenterFeet": projected_center_feet,
                 "localOriginMeters": [cx, cy],
                 "minZoom": args.min_zoom,
                 "faceCount": counters["faces"],
