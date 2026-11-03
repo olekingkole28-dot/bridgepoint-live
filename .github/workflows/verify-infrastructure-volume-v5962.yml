@@ -55,5 +55,5 @@ jobs:
           grep -Fq 'initInfrastructureVolume(world)' rebuild-v5000/app.js
           grep -Fq 'initInfrastructureVolume(world)' rebuild-v5000/landing.js
           grep -Fq 'world-v2300-infrastructure-volume-v5962.js?v=5969-fcc-towers-zoom-true-scale' rebuild-v5000/app.js
-          grep -Fq 'world-v2300-infrastructure-volume-v5962.js?v=5968-solid-grounded-grid' rebuild-v5000/landing.js
+          grep -Fq 'world-v2300-infrastructure-volume-v5962.js?v=5969-fcc-towers-zoom-true-scale' rebuild-v5000/landing.js
           echo 'Infrastructure-volume syntax and source-contract checks passed.'
