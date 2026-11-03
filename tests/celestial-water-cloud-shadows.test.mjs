@@ -166,12 +166,12 @@ test('entrypoints use fresh cache keys and keep the celestial canvas off the sat
     assert.match(source, /world-v2300-weather\.js\?v=6200-storm-clouds-no-rain/);
     assert.match(source, /world-v2300-time-slider\.js\?v=6170-no-cloud-toggle-always-on/);
   }
-  assert.match(appHtml, /app\.js\?v=6222-goes-cloud-mask-volumetric/, 'app shell loads the updated app entrypoint');
+  assert.match(appHtml, /app\.js\?v=6223-storm-clouds-no-rain/, 'app shell loads the updated app entrypoint');
   assert.doesNotMatch(map, /world-v2300-space\.js\?v=6125-manual-globe-camera/, 'the retired celestial overlay must not be imported by the live globe');
   assert.doesNotMatch(timeSlider, /data-clouds|toggleSkyClouds|world-v2300-clouds/);
   assert.match(bootstrap, /world-v2300-weather\.js\?v=6195-desktop-globe-flash-stability/);
-  assert.match(appHtml, /app\.js\?v=6222-goes-cloud-mask-volumetric/);
-  assert.match(landingHtml, /landing\.js\?v=6222-goes-cloud-mask-volumetric/);
+  assert.match(appHtml, /app\.js\?v=6223-storm-clouds-no-rain/);
+  assert.match(landingHtml, /landing\.js\?v=6223-storm-clouds-no-rain/);
   assert.match(appHtml, /intelligence-global-v5507\.js\?v=6170-imerg-nrt-timeline/);
   assert.match(landingHtml, /intelligence-global-v5507\.js\?v=6170-imerg-nrt-timeline/);
 });
