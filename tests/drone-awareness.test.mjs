@@ -77,7 +77,7 @@ assert.ok(moduleSource.includes("model.rotation.set(0,0,(Number.isFinite(heading
 assert.ok(moduleSource.includes('function animateDroneModels(now)'), '3D propellers animate while aircraft are visible');
 assert.ok(moduleSource.includes('TRACK_RETENTION_MS'), 'track history retention is bounded');
 assert.ok(moduleSource.includes('Trails connect positions BridgePoint has sampled while this button is on'), 'trail history is described as sampled, not continuous');
-assert.ok(moduleSource.includes('No simulated drones are substituted'), 'missing live data is not replaced with invented aircraft');
+assert.ok(/no simulated drones are substituted/i.test(moduleSource), 'missing live data is not replaced with invented aircraft');
 assert.ok(moduleSource.includes('data-bp-water-flow-button'), 'water control is created inside the bottom card');
 assert.ok(!moduleSource.includes('data-bp-cloud-toggle-button'), 'always-on cloud volumes do not expose a toggle button');
 assert.ok(moduleSource.includes("const allowedCategories=new Set(['clouds'])"), 'cloud volumes are exempt from clean-start overlay hiding');
