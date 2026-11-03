@@ -10,7 +10,7 @@ const state={map:null,satApi:null,satelliteEnabled:false,aircraftEnabled:false,f
  catalog:[],catalogAfter:null,catalogHasMore:false,catalogKnown:0,plottedSatellites:0,aircraft:[],selectedSatellite:null,selectedAircraft:null,
  lastSatelliteAt:null,lastFlightAt:null,lastError:null,satellitePageLoading:false,flightLoading:false,styleTimer:null,flightTimer:null,summaryTimer:null,
  summaries:{physical:null,motion:null,satellite:null},refreshing:false,bootAttempts:0,
- orbitPositions:[],orbitModelsRendered:0,orbitPathsBuilt:0,orbitPathBuilding:false,orbitAutoEnabledOnce:false};
+ orbitPositions:[],orbitModelsRendered:0,orbitPathsBuilt:0,orbitPathBuilding:false,orbitAutoEnabledOnce:false,orbitOriginalMinZoom:null};
 let orbitRendererApi=null,orbitRendererPromise=null,orbitAnimationTimer=null;
 const $=id=>document.getElementById(id);
 const fmt=n=>Number(n||0).toLocaleString();
@@ -145,17 +145,11 @@ function buildLayers(){
  const map=state.map;if(!map||!map.getStyle?.())return false;
  try{
   const sources=[
-   ['bpV5926Satellites',EMPTY],['bpV5926SatelliteTrail',EMPTY],['bpV5926Aircraft',EMPTY]
+   ['bpV5926SatelliteTrail',EMPTY],['bpV5926Aircraft',EMPTY]
   ];
   for(const [id,data] of sources)if(!map.getSource(id))map.addSource(id,{type:'geojson',data});
   const add=(id,layer)=>{if(!map.getLayer(id))map.addLayer(layer)};
   add('bp-v5926-satellite-trail',{id:'bp-v5926-satellite-trail',type:'line',source:'bpV5926SatelliteTrail',layout:{visibility:state.satelliteEnabled?'visible':'none'},paint:{'line-color':'#ffd86d','line-width':['interpolate',['linear'],['zoom'],1,1,7,2,14,3],'line-opacity':.78,'line-dasharray':[2,1]}});
-  add('bp-v5926-satellite-points',{id:'bp-v5926-satellite-points',type:'circle',source:'bpV5926Satellites',minzoom:1.1,layout:{visibility:state.satelliteEnabled?'visible':'none'},paint:{
-   'circle-radius':['interpolate',['linear'],['zoom'],1.1,1.7,3,2.5,7,4.2,12,6],
-   'circle-color':['match',['get','object_type'],'PAYLOAD','#ffde75','ROCKET BODY','#65c9ff','DEBRIS','#b4a3ff','UNKNOWN','#b9c8d0','#b9ff8a'],
-   'circle-stroke-color':'#f6fbff','circle-stroke-width':['interpolate',['linear'],['zoom'],1,.25,7,.8,13,1.2],
-   'circle-opacity':['interpolate',['linear'],['zoom'],1.1,.72,5,.96]
-  }});
   add('bp-v5926-aircraft-points',{id:'bp-v5926-aircraft-points',type:'circle',source:'bpV5926Aircraft',minzoom:2,layout:{visibility:state.aircraftEnabled?'visible':'none'},paint:{
    'circle-radius':['interpolate',['linear'],['zoom'],2,2,5,3.2,9,5.2],
    'circle-color':['case',['==',['get','selected'],true],'#ffffff','#36e7ff'],
@@ -168,30 +162,81 @@ function buildLayers(){
    'text-size':['interpolate',['linear'],['zoom'],6,9,12,12],
    'text-offset':[0,1.2],'text-anchor':'top','text-allow-overlap':false,'text-ignore-placement':false
   },paint:{'text-color':'#d6fbff','text-halo-color':'rgba(0,14,22,.94)','text-halo-width':1.5}});
-  for(const id of ['bp-v5926-satellite-trail','bp-v5926-satellite-points'])map.setLayoutProperty(id,'visibility',state.satelliteEnabled?'visible':'none');
+  for(const id of ['bp-v5926-satellite-trail'])map.setLayoutProperty(id,'visibility',state.satelliteEnabled?'visible':'none');
   for(const id of ['bp-v5926-aircraft-points','bp-v5926-aircraft-labels'])map.setLayoutProperty(id,'visibility',state.aircraftEnabled?'visible':'none');
   if(!map.__bpMotionClickBound5926){
    map.__bpMotionClickBound5926=true;
-   map.on('click','bp-v5926-satellite-points',e=>{
-    const p=e.features?.[0]?.properties;if(!p)return;
-    state.selectedSatellite={id:p.norad_cat_id,name:p.object_name,latitude:Number(p.latitude),longitude:Number(p.longitude),altitudeKm:Number(p.altitude_km),satrec:state.catalog.find(x=>String(x.NORAD_CAT_ID??x.NORAD_CATID)===String(p.norad_cat_id))?._bpSatrec||null};
-    state.followSatellite=false;state.followAircraft=false;renderSummaries();void drawSelectedSatelliteTrail();
-   });
    map.on('click','bp-v5926-aircraft-points',e=>{
     const p=e.features?.[0]?.properties;if(!p)return;
     state.selectedAircraft={hex:String(p.hex||''),callsign:String(p.callsign||''),lat:Number(p.lat),lon:Number(p.lon),altitude:String(p.altitude||'unknown'),track:Number(p.track||0)};
     state.followAircraft=false;state.followSatellite=false;renderSummaries();void refreshFlights(true);
    });
-   for(const id of ['bp-v5926-satellite-points','bp-v5926-aircraft-points'])map.on('mouseenter',id,()=>{try{map.getCanvas().style.cursor='pointer'}catch(_){}});
-   for(const id of ['bp-v5926-satellite-points','bp-v5926-aircraft-points'])map.on('mouseleave',id,()=>{try{map.getCanvas().style.cursor=''}catch(_){}});
+   for(const id of ['bp-v5926-aircraft-points'])map.on('mouseenter',id,()=>{try{map.getCanvas().style.cursor='pointer'}catch(_){}});
+   for(const id of ['bp-v5926-aircraft-points'])map.on('mouseleave',id,()=>{try{map.getCanvas().style.cursor=''}catch(_){}});
   }
   return true;
  }catch(e){console.warn('BridgePoint motion layer install',e);return false}
+}
+function setOrbitZoomRange(enabled){
+ const map=state.map;if(!map)return;
+ if(enabled){
+  if(state.orbitOriginalMinZoom===null){
+   let current=.65;try{const value=Number(map.getMinZoom?.());if(Number.isFinite(value))current=value}catch(_){}
+   state.orbitOriginalMinZoom=current;
+  }
+  try{map.setMinZoom(0)}catch(e){console.warn('BridgePoint orbital zoom range',e)}
+ }else if(state.orbitOriginalMinZoom!==null){
+  try{map.setMinZoom(state.orbitOriginalMinZoom)}catch(e){console.warn('BridgePoint orbital zoom restore',e)}
+  state.orbitOriginalMinZoom=null;
+ }
+}
+function showSatelliteInfoCard(hit,event){
+ const item=hit?.item;if(!item||!state.map)return;
+ const id=String(item.norad_cat_id||'UNKNOWN'),name=String(item.object_name||('NORAD '+id));
+ state.selectedSatellite={id,name,latitude:Number(hit.lat),longitude:Number(hit.lon),altitudeKm:Number(hit.alt),satrec:item._bpSatrec||null};
+ state.followSatellite=false;state.followAircraft=false;
+ renderSummaries();void drawSelectedSatelliteTrail();
+ const root=el('div','bpm-orbit-satellite-card');
+ root.style.cssText='min-width:220px;max-width:290px;color:#091824;font:12px/1.45 system-ui,sans-serif';
+ const title=el('strong','',safeText(name,120));
+ title.style.cssText='display:block;font-size:14px;line-height:1.25;color:#071b28';
+ const subtitle=el('div','',safeText(String(item.object_type||item.omm?.OBJECT_TYPE||'UNKNOWN').toUpperCase(),60)+' · PROPAGATED ORBIT');
+ subtitle.style.cssText='margin:4px 0 8px;color:#42606e;font-size:10px;font-weight:800;letter-spacing:.04em';
+ const rows=el('div');
+ const addRow=(label,value)=>{
+  const row=el('div');row.style.cssText='display:flex;justify-content:space-between;gap:14px;padding:4px 0;border-top:1px solid rgba(30,75,95,.13)';
+  const key=el('span','',label);key.style.cssText='color:#5a707b';
+  const val=el('b','',safeText(value,110));val.style.cssText='max-width:62%;text-align:right;overflow-wrap:anywhere;color:#102d3c';
+  row.append(key,val);rows.append(row);
+ };
+ addRow('NORAD catalog ID',id);
+ addRow('Altitude',Number.isFinite(Number(hit.alt))?Math.round(Number(hit.alt))+' km':'Not available');
+ addRow('Latitude',Number(hit.lat).toFixed(4)+'°');
+ addRow('Longitude',Number(hit.lon).toFixed(4)+'°');
+ addRow('Orbital epoch',String(item.epoch||item.omm?.EPOCH||'Not reported'));
+ const motion=Number(item.omm?.MEAN_MOTION||item.omm?.mean_motion);
+ addRow('Mean motion',Number.isFinite(motion)?motion.toFixed(5)+' rev/day':'Not reported');
+ const note=el('small','', 'Public orbital elements · propagated position estimate, not live onboard telemetry.');
+ note.style.cssText='display:block;margin-top:8px;color:#5b7480;font-size:10px;line-height:1.4';
+ root.append(title,subtitle,rows,note);
+ if(window.maplibregl?.Popup){
+  try{new window.maplibregl.Popup({closeButton:true,closeOnClick:true,maxWidth:'320px',className:'bp-orbit-satellite-popup-v6203'}).setLngLat(event?.lngLat||[hit.lon,hit.lat]).setDOMContent(root).addTo(state.map)}catch(e){console.warn('BridgePoint satellite info card',e)}
+ }
+}
+function bindOrbitPicking(map){
+ if(!map||map.__bpOrbitDotPicking6203)return;
+ map.__bpOrbitDotPicking6203=true;
+ map.on('click',event=>{
+  if(!state.satelliteEnabled||!orbitRendererApi?.pickAtPoint)return;
+  const hit=orbitRendererApi.pickAtPoint(event.point,18);
+  if(hit)showSatelliteInfoCard(hit,event);
+ });
 }
 function attachMap(){
  const m=window.__BP_V5000_WORLD__?.map||window.__BP_V5000_WORLD?.map||window.__BP_LANDING_WORLD__?.map||window.__BP_WORLD?.map;
  if(!m||typeof m.getCenter!=='function'){if(state.bootAttempts++<180)setTimeout(attachMap,500);return false}
  if(state.map===m)return true;state.map=m;
+ setOrbitZoomRange(state.satelliteEnabled);bindOrbitPicking(m);
  const setup=()=>{buildLayers();if(state.catalog.length)propagateCatalog();if(state.aircraft.length)setAircraftData(state.aircraft);if(state.satelliteEnabled)void ensureOrbitRenderer().then(api=>{api.setVisible(true);updateOrbitRenderPositions();if(!state.orbitPathsBuilt)void buildOrbitPaths()}).catch(e=>setStatus('3D orbital renderer unavailable: '+safeText(e.message||e,140)))};
  if(m.isStyleLoaded?.())setup();else m.once('style.load',setup);
  m.on('style.load',setup);
@@ -208,7 +253,7 @@ async function loadSatLib(){
 async function ensureOrbitRenderer(){
  if(orbitRendererApi&&orbitRendererApi.stats?.layerReady)return orbitRendererApi;
  if(!orbitRendererPromise){
-  orbitRendererPromise=import('./bridgepoint-orbit-renderer-v6201.js?v=6202-globe-anchored-orbits')
+  orbitRendererPromise=import('./bridgepoint-orbit-renderer-v6201.js?v=6203-3d-orbit-markers-popup-global-zoom')
    .then(mod=>mod.createOrbitRenderer(state.map))
    .then(api=>{orbitRendererApi=api;return api})
    .catch(error=>{orbitRendererPromise=null;orbitRendererApi=null;throw error});
@@ -303,7 +348,7 @@ function propagateCatalog(){
  }
  state.plottedSatellites=features.length;
  state.orbitPositions=features.map(f=>({item:state.catalog.find(x=>String(x.norad_cat_id)===String(f.properties.norad_cat_id)),lat:f.properties.latitude,lon:f.properties.longitude,alt:f.properties.altitude_km,heading:f.properties.orbit_heading})).filter(x=>x.item);
- buildLayers();setData('bpV5926Satellites',{type:'FeatureCollection',features});
+ buildLayers();
  if(state.satelliteEnabled)updateOrbitRenderPositions();
  void drawSelectedSatelliteTrail();renderSummaries();
 }
@@ -365,10 +410,10 @@ async function refreshFlights(force){
   if(state.aircraftEnabled){clearTimeout(state.flightTimer);state.flightTimer=setTimeout(()=>refreshFlights(false),45000)}
  }
 }
-function syncLayerVisibility(){const m=state.map;if(!m)return;for(const [id,on] of [['bp-v5926-satellite-trail',state.satelliteEnabled],['bp-v5926-satellite-points',state.satelliteEnabled],['bp-v5926-aircraft-points',state.aircraftEnabled]]){try{if(m.getLayer(id))m.setLayoutProperty(id,'visibility',on?'visible':'none')}catch(_){}}orbitRendererApi?.setVisible(state.satelliteEnabled);m.triggerRepaint?.()}
+function syncLayerVisibility(){const m=state.map;if(!m)return;for(const [id,on] of [['bp-v5926-satellite-trail',state.satelliteEnabled],['bp-v5926-aircraft-points',state.aircraftEnabled]]){try{if(m.getLayer(id))m.setLayoutProperty(id,'visibility',on?'visible':'none')}catch(_){}}orbitRendererApi?.setVisible(state.satelliteEnabled);m.triggerRepaint?.()}
 async function setSatellitesEnabled(on){
  state.satelliteEnabled=!!on;if(!state.map)attachMap();
- if(state.map){buildLayers();syncLayerVisibility()}
+ if(state.map){setOrbitZoomRange(state.satelliteEnabled);buildLayers();syncLayerVisibility()}
  const t=$('bpm-sat-enable');if(t)t.checked=state.satelliteEnabled;
  if(state.satelliteEnabled){
   try{
@@ -382,7 +427,7 @@ async function setSatellitesEnabled(on){
  }else{
   clearInterval(orbitAnimationTimer);orbitAnimationTimer=null;state.orbitPathBuilding=false;
   state.selectedSatellite=null;state.followSatellite=false;orbitRendererApi?.setVisible(false);
-  setData('bpV5926Satellites',EMPTY);setData('bpV5926SatelliteTrail',EMPTY);
+  setData('bpV5926SatelliteTrail',EMPTY);
  }
  syncLayerVisibility();renderSummaries();return state.satelliteEnabled;
 }
@@ -402,7 +447,7 @@ function boot(){
  if(state.satelliteEnabled&&state.summaries.satellite?.total_known_objects>0&&!state.summaries.satellite.operator_review_required)void loadSatellitePage(true);
  if(state.summaryTimer===null)state.summaryTimer=setInterval(()=>{if(!document.hidden){addPanel();void refreshSummaries()}},5*60*1000);
 }
-window.__BP_GLOBAL_MOTION_V5926__={version:6201,open,refreshSummaries,loadSatellitePage,loadAllSatellitePages,refreshFlights,followSat,followPlane,setSatellitesEnabled,setAircraftEnabled,buildOrbitPaths,state};
+window.__BP_GLOBAL_MOTION_V5926__={version:6203,open,refreshSummaries,loadSatellitePage,loadAllSatellitePages,refreshFlights,followSat,followPlane,setSatellitesEnabled,setAircraftEnabled,buildOrbitPaths,state};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 const observer=new MutationObserver(()=>{if(!$('bp-global-motion-v5926'))addPanel();if(!state.map)attachMap()});
 if(document.documentElement)observer.observe(document.documentElement,{childList:true,subtree:true});
