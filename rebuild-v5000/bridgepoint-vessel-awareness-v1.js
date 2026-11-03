@@ -14,7 +14,7 @@ const TRAIL_DOT_SOURCE='bp-vessel-observed-trail-dots-source-v1';
 const TRAIL_LAYER='bp-vessel-observed-trails-v1';
 const TRAIL_DOT_LAYER='bp-vessel-observed-trail-points-v1';
 const MODEL_LAYER='bp-vessel-3d-models-v1';
-const THREE_URL='./vendor/three.module.js?v=169-local';
+const THREE_URL='/vendor/three.module.js?v=169-local';
 const REFRESH_MS=15000;
 const STATUS_MS=60000;
 const MAX_MODELS=12000;
