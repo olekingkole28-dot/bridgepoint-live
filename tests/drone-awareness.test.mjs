@@ -306,7 +306,7 @@ console.log('Drone awareness module checks passed.');
 
   assert.match(sourceV4,/sourceStatus:'idle'/);
   assert.match(sourceV4,/liveReady\?diagnosticState\.currentPositionsAccepted:'—'/);
-  assert.match(sourceV4,/No UAV count is available; 0 would be misleading/);
+  assert.match(sourceV4,/Live aircraft counts are unavailable; 0 would be misleading/);
   assert.match(sourceV4,/cluster:true/);
   assert.match(sourceV4,/point_count_abbreviated/);
   assert.match(sourceV4,/MAX_TRACKED_DRONES=1200/);
