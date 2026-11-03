@@ -28,7 +28,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     env:
-      SOURCE_RUN_ID: \${{ github.event.inputs.source_run_id || '41692672450' }}
+      SOURCE_RUN_ID: ${{ github.event.inputs.source_run_id || '41692672450' }}
     steps:
       - name: Checkout tile packager
         uses: actions/checkout@v4
@@ -39,10 +39,10 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: bridgepoint-manhattan-blender-preview
-          run-id: \${{ env.SOURCE_RUN_ID }}
-          github-token: \${{ secrets.GITHUB_TOKEN }}
-          repository: \${{ github.repository }}
-          path: \${{ runner.temp }}/bp-manhattan-input
+          run-id: ${{ env.SOURCE_RUN_ID }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          path: ${{ runner.temp }}/bp-manhattan-input
 
       - name: Install Blender and dependencies into Blender Python
         shell: bash
@@ -98,6 +98,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: bridgepoint-manhattan-blender-world-tiles
-          path: \${{ runner.temp }}/bp-manhattan-web-tiles/
+          path: ${{ runner.temp }}/bp-manhattan-web-tiles/
           if-no-files-found: error
           retention-days: 30
