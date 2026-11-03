@@ -1,13 +1,8 @@
-name: Deploy Orbit & Motion v6202 from verified production artifact
+name: Deploy Orbit & Motion v6202 (retired)
 
+# Historical publisher retired; v6203 is the only Orbit & Motion production publisher.
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/deploy-orbit-hotfix-v6202.yml'
-      - 'rebuild-v5000/bridgepoint-global-motion-v5926.js'
-      - 'rebuild-v5000/bridgepoint-orbit-renderer-v6201.js'
-      - 'tests/orbit-renderer-v6201.test.mjs'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -22,6 +17,7 @@ concurrency:
 
 jobs:
   deploy-orbit-hotfix:
+    if: false
     runs-on: ubuntu-latest
     timeout-minutes: 25
     environment:
