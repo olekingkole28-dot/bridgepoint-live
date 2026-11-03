@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Split the standalone Manhattan Blender scene into geographically anchored GLB tiles.
 
+Package version: 1.0.0
+
 Run inside Blender with NumPy and pyproj available:
   blender -b scene.blend --python package_manhattan_city_tiles.py -- \
     --source-manifest source-manifest.json --output-dir web-tiles --tile-size-m 2500
