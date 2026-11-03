@@ -352,8 +352,8 @@ const DroneCore=(()=>{
   const requestUrl=buildRequestUrl(sample);
   const response=await fetchImpl(requestUrl,{method:'GET',cache:'no-store',signal,headers:{'Accept':'application/json'}});
   const body=await response.text();
-  if(!response.ok)throw new Error('HTTP '+response.status+(response.statusText?' '+response.statusText:'')+(body?' · '+body.replace(/\\s+/g,' ').slice(0,220):''));
-  let payload;try{payload=JSON.parse(body)}catch(error){throw new Error('Invalid JSON response: '+String(error?.message||error)+' · body: '+body.replace(/\\s+/g,' ').slice(0,180))}
+  if(!response.ok)throw new Error('HTTP '+response.status+(response.statusText?' '+response.statusText:'')+(body?' · '+body.replace(/\s+/g,' ').slice(0,220):''));
+  let payload;try{payload=JSON.parse(body)}catch(error){throw new Error('Invalid JSON response: '+String(error?.message||error)+' · body: '+body.replace(/\s+/g,' ').slice(0,180))}
   const parsed=parseResponse(payload);
   return{requestUrl,records:parsed.records,responseTotal:parsed.total,message:parsed.message};
  }
