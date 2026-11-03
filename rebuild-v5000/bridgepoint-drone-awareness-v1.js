@@ -30,7 +30,57 @@ const DroneCore=(()=>{
   if(!Array.isArray(payload.ac))throw new Error('Invalid ADSB.lol response: expected the ac aircraft array');
   return{records:payload.ac,total:Number.isFinite(Number(payload.total))?Number(payload.total):payload.ac.length,message:String(payload.msg||'')};
  }
- function isUavRecord(a){return DroneCore.isUavRecord(a)}
+ function isUavRecord(a){
+  const category=String(a?.category||a?.emitter_category||'').trim().toUpperCase();
+  if(category==='B6'||category==='14'||category==='UAV')return true;
+  const description=[a?.desc,a?.description,a?.typeDescription,a?.type,a?.t].filter(Boolean).join(' ');
+  return /\b(?:UAV|UAS|UNMANNED AERIAL|UNMANNED AIRCRAFT|DRONE)\b/i.test(description);
+ }
+ function invalidPositionReason(a){
+  const lat=Number(a?.lat),lon=Number(a?.lon);
+  if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180)return'invalid coordinates';
+  if(!String(a?.hex||a?.icao24||'').trim())return'missing tracking key';
+  const rawAge=a?.seen_pos??a?.seen;
+  if(rawAge!==null&&rawAge!==undefined&&rawAge!==''){
+   const age=Number(rawAge);
+   if(!Number.isFinite(age)||age<0)return'invalid position age';
+   if(age>240)return'stale position ('+Math.round(age)+'s old)';
+  }
+  return null;
+ }
+ function altitudeForRecord(a){
+  for(const candidate of [{field:'alt_geom',datum:'geometric'},{field:'alt_baro',datum:'barometric'}]){
+   const raw=a?.[candidate.field];
+   if(raw===null||raw===undefined||raw==='')continue;
+   if(typeof raw==='string'&&raw.trim().toLowerCase()==='ground')continue;
+   const value=Number(raw);
+   if(!Number.isFinite(value)||value< -2000||value>60000)continue;
+   return{known:true,value,meters:value*FEET_TO_METERS,sourceValue:raw,sourceField:candidate.field,sourceUnits:'ft',mapUnits:'m',datum:candidate.datum};
+  }
+  return{known:false,value:null,meters:null,sourceValue:null,sourceField:null,sourceUnits:'ft',mapUnits:'m',datum:'unknown'};
+ }
+ function createTrailPoint(a,observedAt=Date.now(),sourceName='ADSB.lol'){
+  const altitude=altitudeForRecord(a),rawAge=a?.seen_pos??a?.seen;
+  const age=rawAge===null||rawAge===undefined||rawAge===''?null:Number(rawAge);
+  const rawHeading=a?.track??a?.true_heading??a?.mag_heading;
+  const heading=rawHeading===null||rawHeading===undefined||rawHeading===''?null:Number(rawHeading);
+  return{
+   trackKey:String(a?.hex||a?.icao24||'').trim().toLowerCase(),
+   longitude:Number(a?.lon),latitude:Number(a?.lat),
+   altitudeValue:altitude.sourceValue,altitudeField:altitude.sourceField,altitudeUnits:altitude.sourceUnits,
+   altitudeMeters:altitude.known?altitude.meters:null,altitudeDatum:altitude.datum,altitudeKnown:altitude.known,
+   heading:Number.isFinite(heading)?heading:null,
+   observationTimestamp:Number.isFinite(age)&&age>=0?observedAt-age*1000:observedAt,
+   sampledAt:observedAt,sourceName,sourceAgeSeconds:Number.isFinite(age)&&age>=0?age:null,gapBefore:false,gapReason:null
+  };
+ }
+ function project3DPoint(point,MercatorCoordinate){
+  if(!point?.altitudeKnown||!Number.isFinite(Number(point.altitudeMeters))||!MercatorCoordinate?.fromLngLat)return null;
+  return MercatorCoordinate.fromLngLat({lng:Number(point.longitude),lat:Number(point.latitude)},Number(point.altitudeMeters));
+ }
+ return Object.freeze({buildRequestUrl,parseResponse,isUavRecord,invalidPositionReason,altitudeForRecord,createTrailPoint,project3DPoint,feetToMeters:FEET_TO_METERS,radiusNm:REGION_RADIUS_NM});
+})();
+function isUavRecord(a){return DroneCore.isUavRecord(a)}
 function centerAndZoom(){
  if(!map)return null;
  const c=map.getCenter?.();if(!c)return null;
