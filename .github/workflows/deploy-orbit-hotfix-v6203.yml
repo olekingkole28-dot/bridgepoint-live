@@ -1,0 +1,124 @@
+name: Deploy Orbit & Motion v6203 from verified production artifact
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-orbit-hotfix-v6203.yml'
+      - 'rebuild-v5000/bridgepoint-global-motion-v5926.js'
+      - 'rebuild-v5000/bridgepoint-orbit-renderer-v6201.js'
+      - 'rebuild-v5000/index.html'
+      - 'rebuild-v5000/app-index.html'
+      - 'tests/orbit-renderer-v6201.test.mjs'
+
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: true
+
+jobs:
+  deploy-orbit-hotfix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download the last verified full production artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: bridgepoint-orbit-hotfix-v6202
+          run-id: 41601656749
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          path: /tmp/bridgepoint-pages-bundle
+
+      - name: Apply only the two requested Orbit & Motion changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p site
+          ARTIFACT_TAR="$(find /tmp/bridgepoint-pages-bundle -type f -name 'artifact.tar' -print -quit)"
+          test -n "$ARTIFACT_TAR"
+          tar -xf "$ARTIFACT_TAR" -C site
+
+          test -s site/index.html
+          test -s site/app/index.html
+          test -s site/bridgepoint-global-motion-v5926.js
+          test -s site/bridgepoint-orbit-renderer-v6201.js
+
+          cp rebuild-v5000/bridgepoint-global-motion-v5926.js site/bridgepoint-global-motion-v5926.js
+          cp rebuild-v5000/bridgepoint-orbit-renderer-v6201.js site/bridgepoint-orbit-renderer-v6201.js
+
+          python3 - <<'PY'
+          from pathlib import Path
+          old = "bridgepoint-global-motion-v5926.js?v=6202-globe-anchored-orbits"
+          new = "bridgepoint-global-motion-v5926.js?v=6203-3d-orbit-markers-popup-global-zoom"
+          for name in ("site/index.html", "site/app/index.html"):
+              path = Path(name)
+              data = path.read_text()
+              if old not in data:
+                  raise SystemExit(f"Expected prior Orbit & Motion cache key not found in {name}")
+              path.write_text(data.replace(old, new))
+          PY
+
+          node --check site/bridgepoint-global-motion-v5926.js
+          node --input-type=module --check < site/bridgepoint-orbit-renderer-v6201.js
+          node tests/orbit-renderer-v6201.test.mjs
+          grep -Fq 'bridgepoint-global-motion-v5926.js?v=6203-3d-orbit-markers-popup-global-zoom' site/index.html
+          grep -Fq 'bridgepoint-global-motion-v5926.js?v=6203-3d-orbit-markers-popup-global-zoom' site/app/index.html
+          grep -Fq 'function ensureDotMeshes(capacity)' site/bridgepoint-orbit-renderer-v6201.js
+          grep -Fq 'function pickAtPoint(point,maxPixels=16)' site/bridgepoint-orbit-renderer-v6201.js
+          grep -Fq 'map.setMinZoom(0)' site/bridgepoint-global-motion-v5926.js
+          grep -Fq 'function showSatelliteInfoCard(hit,event)' site/bridgepoint-global-motion-v5926.js
+
+          echo "Verified the 6202 production snapshot is preserved; only Orbit & Motion markers, picking, zoom range and their cache references changed."
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          name: bridgepoint-orbit-hotfix-v6203
+          path: site
+          include-hidden-files: true
+
+      - name: Deploy Orbit & Motion v6203 hotfix
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: bridgepoint-orbit-hotfix-v6203
+
+      - name: Verify Orbit & Motion v6203 is live
+        shell: bash
+        run: |
+          set -euo pipefail
+          O='https://bridgepointintelligence.online'
+          ok=0
+          for i in $(seq 1 30); do
+            q="${GITHUB_SHA}-${i}-$(date +%s)"
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/bridgepoint-orbit-renderer-v6201.js?v=6203=${q}" -o /tmp/orbit-renderer.js || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/bridgepoint-global-motion-v5926.js?v=6203=${q}" -o /tmp/orbit-controller.js || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/?orbit-hotfix=${q}" -o /tmp/root.html || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/?orbit-hotfix=${q}" -o /tmp/app.html || true
+            if grep -Fq 'function ensureDotMeshes(capacity)' /tmp/orbit-renderer.js 2>/dev/null &&
+               grep -Fq 'function pickAtPoint(point,maxPixels=16)' /tmp/orbit-renderer.js 2>/dev/null &&
+               grep -Fq '6203-3d-orbit-markers-popup-global-zoom' /tmp/orbit-controller.js 2>/dev/null &&
+               grep -Fq 'map.setMinZoom(0)' /tmp/orbit-controller.js 2>/dev/null &&
+               grep -Fq '6203-3d-orbit-markers-popup-global-zoom' /tmp/root.html 2>/dev/null &&
+               grep -Fq '6203-3d-orbit-markers-popup-global-zoom' /tmp/app.html 2>/dev/null; then
+              ok=1
+              break
+            fi
+            sleep 4
+          done
+          test "$ok" -eq 1
+          echo "Production is serving the v6203 Orbit & Motion 3D markers, selectable detail card, and expanded globe zoom range."
