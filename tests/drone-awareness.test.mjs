@@ -114,7 +114,6 @@ console.log('Drone awareness module checks passed.');
   assert.equal(bpDroneCore.isUavRecord({category:'A3',description:'Unmanned aerial vehicle Remote ID'}), true, 'UAV descriptions are recognized with actual word boundaries');
   assert.equal(bpDroneCore.isUavRecord({category:'A3',description:'Large UAV'}), true, 'description fallback can identify UAV without B6');
   assert.equal(bpDroneCore.isUavRecord({category:'A3',description:'Commercial passenger aircraft'}), false, 'ordinary aircraft are never classified as drones');
-  );
 
   const bpParsed = bpDroneCore.parseResponse(bpDroneFixture);
   assert.equal(bpParsed.records.length, 4, 'parser consumes the actual ac array');
