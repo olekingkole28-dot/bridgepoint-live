@@ -208,7 +208,7 @@ async function loadSatLib(){
 async function ensureOrbitRenderer(){
  if(orbitRendererApi&&orbitRendererApi.stats?.layerReady)return orbitRendererApi;
  if(!orbitRendererPromise){
-  orbitRendererPromise=import('./bridgepoint-orbit-renderer-v6201.js?v=6201-orbit-paths')
+  orbitRendererPromise=import('./bridgepoint-orbit-renderer-v6201.js?v=6202-globe-anchored-orbits')
    .then(mod=>mod.createOrbitRenderer(state.map))
    .then(api=>{orbitRendererApi=api;return api})
    .catch(error=>{orbitRendererPromise=null;orbitRendererApi=null;throw error});
