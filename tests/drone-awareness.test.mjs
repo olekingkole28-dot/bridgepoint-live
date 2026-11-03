@@ -215,6 +215,15 @@ console.log('Drone awareness module checks passed.');
   assert.equal(coreV4.project3DPoint(coreV4.createTrailPoint({hex:'baro1',lat:1,lon:2,alt_baro:900}),{fromLngLat:()=>({x:0,y:0,z:1})}),null);
   assert.equal(coreV4.project3DPoint(coreV4.createTrailPoint({hex:'ground1',lat:1,lon:2,alt_geom:'ground',alt_baro:800}),{fromLngLat:()=>({x:0,y:0,z:1})}),null,'ground/unknown geometric height is not raised to an invented 3D altitude');
 
+  const usableMapStartV4=sourceV4.indexOf('function isMapStyleUsable(');
+  const usableMapEndV4=sourceV4.indexOf('\nfunction mapStyleReady()',usableMapStartV4);
+  assert.ok(usableMapStartV4>=0&&usableMapEndV4>usableMapStartV4,'stable MapLibre readiness predicate exists');
+  const isMapStyleUsableV4=new Function(sourceV4.slice(usableMapStartV4,usableMapEndV4)+'\nreturn isMapStyleUsable;')();
+  const canvasReadyV4={width:640};
+  const mapReadyDespitePendingSourcesV4={getStyle:()=>({layers:[{id:'background'}]}),getCanvas:()=>canvasReadyV4,addSource(){},addLayer(){},isStyleLoaded:()=>false};
+  assert.equal(isMapStyleUsableV4(mapReadyDespitePendingSourcesV4),true,'a live canvas and real loaded style layers permit activation even while isStyleLoaded is held false by pending sources');
+  assert.equal(isMapStyleUsableV4({getStyle:()=>({layers:[]}),getCanvas:()=>canvasReadyV4,addSource(){},addLayer(){}}),false,'an empty style does not trigger early activation');
+  assert.equal(isMapStyleUsableV4({getStyle:()=>({layers:[{id:'background'}]}),getCanvas:()=>({width:0}),addSource(){},addLayer(){}}),false,'a zero-size canvas remains queued until the globe is actually visible');
   const retryStartV4=sourceV4.indexOf('function bindMapStyleRetry(');
   const retryEndV4=sourceV4.indexOf('\nfunction installLayer()',retryStartV4);
   assert.ok(retryStartV4>=0&&retryEndV4>retryStartV4,'MapLibre readiness retry helper exists');
