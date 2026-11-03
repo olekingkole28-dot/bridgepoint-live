@@ -1,11 +1,11 @@
-// BridgePoint Orbit & Motion 3D renderer v6201.
+// BridgePoint Orbit & Motion 3D renderer v6202.
 // Satellite locations and orbital paths are propagated from stored public TLE/OMM records.
-// The map coordinate and altitude are source-derived. Models receive a zoom-aware
-// presentation boost so they remain identifiable at whole-Earth scale.
+// Every model and sampled orbit vertex is transformed with MapLibre's globe-aware model
+// matrix so objects remain above the spherical Earth through globe/mercator transitions.
 const ORBIT_LAYER='bp-v5926-orbit-3d-models';
 const THREE_URL='/vendor/three.module.js?v=169-local';
 const WORLD_CIRCUMFERENCE_M=40075016.686;
-const PATH_SAMPLES=22;
+const PATH_SAMPLES=96;
 const MAX_ORBIT_AGE_MS=45*86400000;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 
@@ -13,19 +13,29 @@ function classify(item){
  const n=String(item?.object_name||item?.omm?.OBJECT_NAME||item?.omm?.name||'').toUpperCase();
  const t=String(item?.object_type||item?.omm?.OBJECT_TYPE||'').toUpperCase();
  if(/\b(ISS|TIANGONG|MIR\b|SKYLAB|SPACE STATION|SPACE STATION MODULE)\b/.test(n))return'station';
+ if(/\b(DRAGON|SOYUZ|PROGRESS|CYGNUS|SHENZHOU|STARLINER|TIANZHOU|HTV|CREWED|CARGO VEHICLE)\b/.test(n))return'crew';
  if(/\b(ROCKET|R\/B|FREGAT|BREEZE|SL-?\d|ATLAS CENTAUR|ARIANE|SOYUZ R\/B|H-2A R\/B)\b/.test(n)||t.includes('ROCKET'))return'rocket';
  if(/\b(DEB|DEBRIS|FRAGMENT|FRAG)\b/.test(n)||t.includes('DEBRIS'))return'debris';
  if(/\b(CUBESAT|CUBE SAT|3U|6U|12U|LEMUR|DOVE|FLOCK)\b/.test(n))return'cubesat';
+ if(/\b(VOYAGER|PIONEER|NEW HORIZONS|CASSINI|JUNO|OSIRIS|INTERPLANETARY|DEEP SPACE|LUNAR RECONNAISSANCE|LRO\b|PROBE)\b/.test(n))return'probe';
+ if(/\b(NAVSTAR|GPS\b|GLONASS|GALILEO|BEIDOU|COMPASS NAV)\b/.test(n))return'navigation';
+ if(/\b(GOES|NOAA|METOP|LANDSAT|SENTINEL|TERRA|AQUA|SUOMI|JPSS|RADARSAT|COSMO|WORLDVIEW|SPOT\b|EARTH OBSERVATION)\b/.test(n))return'earth';
+ if(/\b(STARLINK|ONEWEB|IRIDIUM|GLOBALSTAR|O3B|INTELSAT|EUTELSAT|INMARSAT|SES\b|GALAXY)\b/.test(n))return'communications';
  return'satellite';
 }
 function metadata(kind){
  return({
-  station:{span:110,minPixels:10,color:0xffd77c},
-  rocket:{span:22,minPixels:6.2,color:0xff995f},
-  debris:{span:5,minPixels:3.8,color:0xb7a8ff},
-  cubesat:{span:4,minPixels:4.5,color:0x76e7ff},
-  satellite:{span:15,minPixels:5.5,color:0x93f4ff}
- })[kind]||{span:15,minPixels:5.5,color:0x93f4ff};
+  station:{span:110,minPixels:10.5,color:0xffd77c},
+  crew:{span:18,minPixels:7.2,color:0xffb77a},
+  rocket:{span:24,minPixels:6.8,color:0xff995f},
+  debris:{span:7,minPixels:5.2,color:0xb7a8ff},
+  cubesat:{span:5,minPixels:6.1,color:0x76e7ff},
+  probe:{span:28,minPixels:7.2,color:0xd9b8ff},
+  navigation:{span:18,minPixels:6.5,color:0x9effcb},
+  earth:{span:25,minPixels:7,color:0x80d7ff},
+  communications:{span:26,minPixels:7,color:0xffda85},
+  satellite:{span:18,minPixels:6.5,color:0x93f4ff}
+ })[kind]||{span:18,minPixels:6.5,color:0x93f4ff};
 }
 function mergeParts(T,parts){
  const positions=[],normals=[],colors=[],indices=[];let offset=0;
@@ -89,6 +99,46 @@ function makeGeometry(T,kind){
   for(let x=-2.55;x<=2.55;x+=.72)box(.035,1.32,.1,[x,0,.08],0x80c9ee);
   cylinder(.42,.65,[0,.82,0],0xd6e0e5,[Math.PI/2,0,0]);
   cylinder(.08,1.7,[0,1.35,0],0xf0e6b5,[0,0,0]);
+ }else if(kind==='crew'){
+  // Crew/cargo capsule: blunt heat-shield base, tapered re-entry body and docking ring.
+  cylinder(1.45,2.8,[0,0,0],0xe5e9e9);
+  cone(1.45,2.6,[2.55,0,0],0xf4f0e6);
+  cylinder(1.62,.45,[-1.55,0,0],0x343e48);
+  box(2.8,.18,.18,[-.3,0,0],0xc1cbd0);
+  for(const side of [-1,1])box(2.2,2.8,.08,[-.25,side*2,.15],0x1c5b91);
+ }else if(kind==='probe'){
+  // Deep-space probe with high-gain antenna, long science boom and compact bus.
+  box(2.8,2.5,2.2,[0,0,0],0xb7c4ca);
+  cone(1.9,1.1,[0,2.1,0],0xe8edf0,[Math.PI/2,0,0]);
+  cylinder(.12,12,[0,-6.6,0],0xc4d0d6);
+  cylinder(1.7,.25,[0,1.55,0],0xdde6eb,[Math.PI/2,0,0]);
+  box(5.2,2.6,.1,[-4,0,0],0x1c5c95);
+  box(5.2,2.6,.1,[4,0,0],0x1c5c95);
+ }else if(kind==='navigation'){
+  // Navigation satellite: compact octagonal bus, dual solar wings and antenna booms.
+  parts.push({geometry:new T.CylinderGeometry(1.25,1.25,2.3,8),position:[0,0,0],rotation:[0,0,0],color:0xb8c5cc});
+  box(4.4,2.3,.1,[-3.8,0,0],0x1c6198);
+  box(4.4,2.3,.1,[3.8,0,0],0x1c6198);
+  for(let x=-5.8;x<=5.8;x+=.8)box(.05,2.2,.11,[x,0,.08],0x80c9ee);
+  for(const y of [-1,1])cylinder(.1,1.8,[0,y*1.6,0],0xe4edf0,[Math.PI/2,0,0]);
+ }else if(kind==='earth'){
+  // Earth-observation spacecraft with nadir sensor, thermal radiators and broad arrays.
+  box(3.4,2.7,2.6,[0,0,0],0xb8c5cc);
+  cylinder(.75,2.7,[0,-2.1,0],0xe7edf0);
+  cylinder(.48,.55,[0,-3.55,0],0x263f54);
+  box(6.2,3.2,.12,[-5.7,0,0],0x1c6198);
+  box(6.2,3.2,.12,[5.7,0,0],0x1c6198);
+  for(const side of [-1,1])for(let i=0;i<6;i++)box(.06,3.05,.14,[side*(3.1+i*1.02),0,.1],0x80c9ee);
+  box(4.4,.28,.35,[0,1.65,0],0xc9d3d8);
+ }else if(kind==='communications'){
+  // Communications spacecraft with large solar wings, bus, feed horn and high-gain dish.
+  box(3.1,2.8,2.6,[0,0,0],0xb8c5cc);
+  box(6.2,3.2,.12,[-5.3,0,0],0x174f86);
+  box(6.2,3.2,.12,[5.3,0,0],0x174f86);
+  for(const side of [-1,1])for(let i=0;i<6;i++)box(.06,3.05,.14,[side*(2.35+i*.98),0,.1],0x78bce9);
+  cylinder(1.35,.34,[0,1.8,0],0xe5edf0,[Math.PI/2,0,0]);
+  cone(1.15,1.15,[0,2.55,0],0xd1dce1,[Math.PI/2,0,0]);
+  cylinder(.12,2.6,[0,3.3,0],0xf0e6b5);
  }else{
   // General spacecraft bus with photovoltaic wings, antenna dish, boom and panel cells.
   box(2.4,2,1.45,[0,0,0],0xb8c5cc);
@@ -108,7 +158,17 @@ export async function createOrbitRenderer(map){
  let renderer=null,scene=null,camera=null,customLayer=null,pathLine=null;
  let templates=new Map(),lastPositions=[],lastCatalog=[],lastSatApi=null;
  let enabled=true,pathGeneration=0,modelsRendered=0,pathsBuilt=0,disposed=false;
- const MC=()=>window.maplibregl?.MercatorCoordinate||window.MapLibreGL?.MercatorCoordinate;
+ function modelMatrixFor(lon,lat,altMeters){
+  try{
+   const raw=map.transform?.getMatrixForModel?.([Number(lon),clamp(Number(lat),-89.9999,89.9999)],Number(altMeters)||0);
+   if(!raw||raw.length<16)return null;
+   return new T.Matrix4().fromArray(raw);
+  }catch(_){return null}
+ }
+ function globePosition(point){
+  const anchor=modelMatrixFor(point.lon,point.lat,point.alt*1000);
+  return anchor?new T.Vector3(0,0,0).applyMatrix4(anchor):null;
+ }
  function disposeScene(){
   if(pathLine){try{scene?.remove(pathLine);pathLine.geometry?.dispose?.();pathLine.material?.dispose?.()}catch(_){}pathLine=null}
   for(const entry of templates.values()){try{scene?.remove(entry.mesh);entry.geometry.dispose();entry.material.dispose()}catch(_){}}
@@ -157,18 +217,18 @@ export async function createOrbitRenderer(map){
  function renderModels(records=lastPositions){
   lastPositions=Array.isArray(records)?records:[];
   if(!scene||!map)return 0;
-  const C=MC();if(!C?.fromLngLat)return 0;
+  if(typeof map.transform?.getMatrixForModel!=='function')return 0;
   const zoom=Number(map.getZoom?.()||0),groups=new Map();let placed=0;
   for(const item of lastPositions){
    const kind=classify(item.item),meta=metadata(kind),lat=Number(item.lat),lon=Number(item.lon),alt=Number(item.alt);
    if(!Number.isFinite(lat)||!Number.isFinite(lon)||!Number.isFinite(alt))continue;
-   const pos=C.fromLngLat({lng:lon,lat:clamp(lat,-85.05112,85.05112)},alt*1000);
-   const unit=pos.meterInMercatorCoordinateUnits?.()||0;if(!Number.isFinite(unit)||unit<=0)continue;
+   const anchor=modelMatrixFor(lon,lat,alt*1000);if(!anchor)continue;
    const metersPerPixel=WORLD_CIRCUMFERENCE_M*Math.max(.12,Math.cos(lat*Math.PI/180))/(512*Math.pow(2,Math.max(0,zoom)));
    const displaySpan=Math.max(meta.span,metersPerPixel*meta.minPixels);
-   const scale=(displaySpan/meta.span)*unit;
+   const scale=displaySpan/meta.span;
    const heading=Number.isFinite(item.heading)?item.heading:0;
-   const matrix=new T.Matrix4().compose(new T.Vector3(pos.x,pos.y,pos.z),new T.Quaternion().setFromEuler(new T.Euler(0,0,heading)),new T.Vector3(scale,scale,scale));
+   // Align the spacecraft long axis to propagated velocity in the local tangent frame.
+   const matrix=anchor.multiply(new T.Matrix4().makeRotationY(-heading)).multiply(new T.Matrix4().makeScale(scale,scale,scale));
    const bucket=groups.get(kind)||[];bucket.push(matrix);groups.set(kind,bucket);placed++;
   }
   for(const [kind,matrices] of groups){
@@ -204,7 +264,7 @@ export async function createOrbitRenderer(map){
  async function rebuildPaths(catalog=lastCatalog,lib=lastSatApi){
   lastCatalog=Array.isArray(catalog)?catalog:[];lastSatApi=lib;
   if(!enabled||!map||!lib||!scene)return{paths:0,vertices:0};
-  const C=MC();if(!C?.fromLngLat)return{paths:0,vertices:0};
+  if(typeof map.transform?.getMatrixForModel!=='function')return{paths:0,vertices:0};
   const generation=++pathGeneration,positions=[],colors=[];let count=0,processed=0;const now=Date.now();
   for(const item of lastCatalog){
    if(generation!==pathGeneration)return{paths:0,vertices:0};
@@ -214,9 +274,8 @@ export async function createOrbitRenderer(map){
    for(let i=0;i<=PATH_SAMPLES;i++){
     const point=propagate(item,lib,new Date(now+period*60000*i/PATH_SAMPLES));
     if(!point){previous=null;continue}
-    const mc=C.fromLngLat({lng:point.lon,lat:clamp(point.lat,-85.05112,85.05112)},point.alt*1000);
-    let x=mc.x;if(previous){if(x-previous.x>.5)x-=1;else if(x-previous.x<-.5)x+=1}
-    const current={x,y:mc.y,z:mc.z};
+    // Transform each propagated sample to globe space before connecting adjacent points.
+    const current=globePosition(point);if(!current){previous=null;continue}
     if(previous){
      positions.push(previous.x,previous.y,previous.z,current.x,current.y,current.z);
      for(let j=0;j<2;j++)colors.push(color.r,color.g,color.b);
