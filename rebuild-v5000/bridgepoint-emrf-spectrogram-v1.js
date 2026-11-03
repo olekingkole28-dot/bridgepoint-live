@@ -495,15 +495,16 @@ export function initBridgePointEmrfSpectrogram(target) {
 
         const beamCount=Math.min(64,st.beams.length);
         const colorMatrix=new THREE.Matrix4();
+        let renderedBeams=0;
         for(let i=0;i<beamCount;i++){
           const beam=st.beams[i];
           let modelMatrix;
           try { modelMatrix=map.transform.getMatrixForModel([beam.lon,beam.lat],0); } catch (_) { continue; }
           if(!modelMatrix)continue;
           colorMatrix.fromArray(modelMatrix).multiply(localMatrix(beam.altitudeM*.5,beam.radiusM,beam.altitudeM,beam.radiusM));
-          layer.mesh.setMatrixAt(i,colorMatrix);
+          layer.mesh.setMatrixAt(renderedBeams++,colorMatrix);
         }
-        layer.mesh.count=beamCount;
+        layer.mesh.count=renderedBeams;
         layer.mesh.instanceMatrix.needsUpdate=true;
 
         // Reuse the globe-anchored instanced meshes for 4G/5G nominal RF bubbles.
@@ -513,6 +514,7 @@ export function initBridgePointEmrfSpectrogram(target) {
         const sites=st.sites;
         const count=Math.min(maxSpheres,sites.length);
         const matrix4=new THREE.Matrix4(),matrix5=new THREE.Matrix4();
+        let renderedSites=0;
         for(let i=0;i<count;i++){
           const site=sites[Math.floor(i*sites.length/count)];
           let modelMatrix;
@@ -520,11 +522,12 @@ export function initBridgePointEmrfSpectrogram(target) {
           if(!modelMatrix)continue;
           matrix4.fromArray(modelMatrix).multiply(localMatrix(1100,2200,1100,2200));
           matrix5.fromArray(modelMatrix).multiply(localMatrix(425,850,425,850));
-          layer.sphere4Mesh.setMatrixAt(i,matrix4);
-          layer.sphere5Mesh.setMatrixAt(i,matrix5);
+          layer.sphere4Mesh.setMatrixAt(renderedSites,matrix4);
+          layer.sphere5Mesh.setMatrixAt(renderedSites,matrix5);
+          renderedSites++;
         }
-        layer.sphere4Mesh.count=count;
-        layer.sphere5Mesh.count=count;
+        layer.sphere4Mesh.count=renderedSites;
+        layer.sphere5Mesh.count=renderedSites;
         layer.sphere4Mesh.instanceMatrix.needsUpdate=true;
         layer.sphere5Mesh.instanceMatrix.needsUpdate=true;
         try {
