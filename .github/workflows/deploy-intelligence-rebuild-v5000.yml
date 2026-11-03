@@ -846,7 +846,7 @@ jobs:
           grep -Fq 'bridgepoint-gebco-depth-image-v5937' site/world-v2300-sensor-layers.js
           grep -Fq 'bridgepoint-nasa-nightlights-v5937' site/world-v2300-sensor-layers.js
           grep -Fq "kind: 'georeferenced 3D cloud-volume layer'" site/world-v2300-clouds.js
-          grep -Fq 'version: 6180, map, overlay' site/world-v2300-clouds.js
+          grep -Fq 'version: 6200, map, overlay' site/world-v2300-clouds.js
           grep -Fq 'josephineHurricaneGeometryCount' site/world-v2300-clouds.js
           grep -Fq 'const billow = 1.0 +' site/world-v2300-clouds.js
           grep -Fq 'activeMacroCells' site/world-v2300-clouds.js
@@ -903,7 +903,7 @@ jobs:
           grep -Fq '190000, 580000' site/world-v2300-clouds.js
           grep -Fq 'maxMacro = MOBILE ? 110 : 130' site/world-v2300-clouds.js
           grep -Fq 'globalThinLayerFormations: globalCloudGeometryCache?.thinLayerFormationCount || 0' site/world-v2300-clouds.js
-          grep -Fq 'if (Number(existingCloudController.version) >= 6180' site/world-v2300-clouds.js
+          grep -Fq 'if (Number(existingCloudController.version) >= 6200' site/world-v2300-clouds.js
           grep -Fq 'const columns = 40, rows = 18, maxMacro = MOBILE ? 110 : 130;' site/world-v2300-clouds.js
           grep -Fq '400000, 900000' site/world-v2300-clouds.js
           grep -Fq 'vertical,0.26+hash(q.gx,q.gy,987)*0.40,8,2,hash(q.gx,q.gy,988));' site/world-v2300-clouds.js
@@ -957,7 +957,7 @@ jobs:
           grep -Fq 'BP_SOURCE_WEATHER_CACHE_KEY_V6134' site/app.js
           grep -Fq 'restoreCachedLiveWeatherFirstFrameV6134' site/app.js
           ! grep -Fq 'if(window.__BP_CLOUDS_ONLY_PHASE_V6070__===true && m)' site/landing.js
-          grep -Fq 'landing.js?v=6222-goes-cloud-mask-volumetric' site/index.html
+          grep -Fq 'landing.js?v=6223-storm-clouds-no-rain' site/index.html
           grep -Fq 'async function toggleNasaNightlights()' site/world-v2300-time-slider.js
           ! grep -Fq 'async function toggleSkyClouds()' site/world-v2300-time-slider.js
           grep -Fq 'data-skyview' site/world-v2300-time-slider.js
@@ -1173,7 +1173,7 @@ jobs:
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/app.js
           grep -Fq 'activateLiveWeather();' site/app.js
           grep -Fq 'enabled:true,serializedWeather:true' site/app.js
-          grep -Fq 'app.js?v=6222-goes-cloud-mask-volumetric' site/app/index.html
+          grep -Fq 'app.js?v=6223-storm-clouds-no-rain' site/app/index.html
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/landing.js
           grep -Fq 'WMO_CAP_WARNING' site/app.js
           grep -Fq 'WMO_CAP_WARNING' site/landing.js
@@ -1417,8 +1417,8 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=6222-goes-cloud-mask-volumetric' site/app/index.html
-          grep -Fq 'landing.js?v=6222-goes-cloud-mask-volumetric' site/index.html
+          grep -Fq 'app.js?v=6223-storm-clouds-no-rain' site/app/index.html
+          grep -Fq 'landing.js?v=6223-storm-clouds-no-rain' site/index.html
            grep -Fq 'world-v2300-map.js?v=6220-tree-canopy-coverage-solid-retention' site/app.js
            grep -Fq 'world-v2300-map.js?v=6220-tree-canopy-coverage-solid-retention' site/landing.js
            grep -Fq 'world-v2300-map.js?v=6220-tree-canopy-coverage-solid-retention' site/index.html
@@ -2354,11 +2354,11 @@ jobs:
 
                await p.waitForFunction(()=>{
                  const w=window.__BP_LANDING_WORLD__,m=w?.map,c=window.__BP_SKY_CLOUDS_V5908__;
-                 return !!m&&c?.enabled===true&&c?.version===6180&&!!m.getLayer('bp-sky-cloud-volume-v6029');
+                 return !!m&&c?.enabled===true&&c?.version===6200&&!!m.getLayer('bp-sky-cloud-volume-v6029');
                },{timeout:25000});
                const cloudBaseline=await p.evaluate(()=>{
                  const w=window.__BP_LANDING_WORLD__,m=w?.map,c=window.__BP_SKY_CLOUDS_V5908__;
-                 const s=window.__BP_SKY_CLOUDS_STATE_V6180__||window.__BP_SKY_CLOUDS_STATE_V6150__||null;
+                 const s=window.__BP_SKY_CLOUDS_STATE_V6200__||window.__BP_SKY_CLOUDS_STATE_V6180__||window.__BP_SKY_CLOUDS_STATE_V6150__||null;
                  return{
                    cloudControls:!!document.querySelector('#bp-world-time-slider-v5908 [data-clouds], [data-bp-cloud-toggle-button="1"]'),
                    base:w?.state?.base||w?.base||'unknown',
@@ -2370,12 +2370,12 @@ jobs:
                    maskAutoRefresh:typeof window.__BP_GOES_CLOUD_CONTEXT_V6134__?.refreshMask==='function'&&Number(window.__BP_GOES_CLOUD_CONTEXT_V6134__?.refreshIntervalMs)===600000&&!!window.__BP_GOES_CLOUD_CONTEXT_V6134__?.maskTimer
                  };
                });
-               if(cloudBaseline.cloudControls||!cloudBaseline.enabled||cloudBaseline.controllerVersion!==6180||cloudBaseline.stateVersion!==6180||!cloudBaseline.layer||cloudBaseline.cloudFormations<=0||!cloudBaseline.maskAutoRefresh||cloudBaseline.base!=='satellite')
+               if(cloudBaseline.cloudControls||!cloudBaseline.enabled||cloudBaseline.controllerVersion!==6200||cloudBaseline.stateVersion!==6200||!cloudBaseline.layer||cloudBaseline.cloudFormations<=0||!cloudBaseline.maskAutoRefresh||cloudBaseline.base!=='satellite')
                  throw new Error('ALWAYS_ON_3D_CLOUDS_STARTUP_OR_BASEMAP_GUARD_FAILED '+JSON.stringify(cloudBaseline));
                console.log('BRIDGEPOINT_ALWAYS_ON_3D_CLOUDS_NO_TOGGLE_BASEMAP_PRESERVED_PASS',JSON.stringify(cloudBaseline));
                const cloudOn=await p.evaluate(()=>({
                  base:window.__BP_LANDING_WORLD__?.state?.base||window.__BP_LANDING_WORLD__?.base,
-                 state:window.__BP_SKY_CLOUDS_STATE_V6180__||window.__BP_SKY_CLOUDS_STATE_V6150__||null,
+                 state:window.__BP_SKY_CLOUDS_STATE_V6200__||window.__BP_SKY_CLOUDS_STATE_V6180__||window.__BP_SKY_CLOUDS_STATE_V6150__||null,
                  layer:!!window.__BP_LANDING_WORLD__?.map?.getLayer('bp-sky-cloud-volume-v6029')
                }));
                console.log('BRIDGEPOINT_ALWAYS_ON_3D_CLOUD_MODE_PASS',JSON.stringify(cloudOn));
@@ -2386,7 +2386,7 @@ jobs:
                 });
                 await p.waitForFunction(()=>{
                   const m=window.__BP_LANDING_WORLD__?.map,c=window.__BP_SKY_CLOUDS_V5908__,s=window.__BP_SKY_CLOUDS_STATE_V6150__ || window.__BP_SKY_CLOUDS_STATE_V6140__ || window.__BP_SKY_CLOUDS_STATE_V6077__ || window.__BP_SKY_CLOUDS_STATE_V6047__;
-                  return !!m&&m.getZoom()<=1.3&&c?.enabled===true&&c?.version===6180&&s?.version===6180&&s?.projectionMode==='MapLibre shaderData projectTileFor3D'&&s?.persistentGlobalCloudField===true&&
+                  return !!m&&m.getZoom()<=1.3&&c?.enabled===true&&c?.version===6200&&s?.version===6200&&s?.projectionMode==='MapLibre shaderData projectTileFor3D'&&s?.persistentGlobalCloudField===true&&
                     Number(s?.globalCloudFormations)>=1600&&Number(s?.globalThinLayerSlices)===9&&Number(s?.globalThinLayerStacks)===2&&Number(s?.globalSingleLayerSlices)===8&&Number(s?.globalSingleLayerStacks)===2&&Number(s?.globalMacroRadiusMaxKm)>=900&&Number(s?.projectionShaderVariants)>0&&!!m.getLayer('bp-sky-cloud-volume-v6029');
                 },{timeout:18000});
                 const globeClouds=await p.evaluate(()=>{const s=window.__BP_SKY_CLOUDS_STATE_V6150__ || window.__BP_SKY_CLOUDS_STATE_V6140__ || window.__BP_SKY_CLOUDS_STATE_V6077__ || window.__BP_SKY_CLOUDS_STATE_V6047__;const c=window.__BP_SKY_CLOUDS_V5908__,w=window.__BP_LANDING_WORLD__,m=w?.map,b=document.querySelector('#bp-world-time-slider-v5908 [data-clouds]');return s?{version:s.version,enabled:s.enabled,visible:s.visible,zoom:m?.getZoom?.(),controllerVersion:c?.version,controllerEnabled:c?.enabled,controllerMapMatchesWorld:c?.map===m,layerPresent:s.layerPresent,layerInstalled:s.layerInstalled,rendererError:s.rendererError,cloudFormations:s.cloudFormations,globalCloudFormations:s.globalCloudFormations,globalThinLayerSlices:s.globalThinLayerSlices,globalSingleLayerSlices:s.globalSingleLayerSlices,globalMacroRadiusMaxKm:s.globalMacroRadiusMaxKm,projectionShaderVariants:s.projectionShaderVariants}: {stateAvailable:false,controllerVersion:c?.version,controllerEnabled:c?.enabled,controllerMapMatchesWorld:c?.map===m,buttonPressed:b?.getAttribute('aria-pressed'),worldBase:w?.base,worldStateBase:w?.state?.base}});
@@ -2398,7 +2398,7 @@ jobs:
                 await new Promise(resolve=>setTimeout(resolve,500));
                 await p.waitForFunction(()=>{
                   const c=window.__BP_SKY_CLOUDS_V5908__,s=window.__BP_SKY_CLOUDS_STATE_V6150__ || window.__BP_SKY_CLOUDS_STATE_V6140__ || window.__BP_SKY_CLOUDS_STATE_V6077__ || window.__BP_SKY_CLOUDS_STATE_V6047__;
-                  return c?.enabled===true&&c?.version===6180&&s?.persistentGlobalCloudField===true&&Number(s?.globalCloudFormations)>=1600&&Number(s?.globalThinLayerSlices)===9&&Number(s?.globalThinLayerStacks)===2&&Number(s?.globalSingleLayerSlices)===8&&Number(s?.globalSingleLayerStacks)===2&&Number(s?.globalMacroRadiusMaxKm)>=900;
+                  return c?.enabled===true&&c?.version===6200&&s?.persistentGlobalCloudField===true&&Number(s?.globalCloudFormations)>=1600&&Number(s?.globalThinLayerSlices)===9&&Number(s?.globalThinLayerStacks)===2&&Number(s?.globalSingleLayerSlices)===8&&Number(s?.globalSingleLayerStacks)===2&&Number(s?.globalMacroRadiusMaxKm)>=900;
                 },{timeout:12000});
                 console.log('BRIDGEPOINT_GLOBAL_CLOUDS_STAY_ANCHORED_ON_GLOBE_MOVE_PASS',JSON.stringify(await p.evaluate(()=>{const s=window.__BP_SKY_CLOUDS_STATE_V6150__ || window.__BP_SKY_CLOUDS_STATE_V6140__ || window.__BP_SKY_CLOUDS_STATE_V6077__ || window.__BP_SKY_CLOUDS_STATE_V6047__;const c=window.__BP_SKY_CLOUDS_V5908__,w=window.__BP_LANDING_WORLD__,m=w?.map,b=document.querySelector('#bp-world-time-slider-v5908 [data-clouds]');return s?{version:s.version,enabled:s.enabled,visible:s.visible,zoom:m?.getZoom?.(),controllerVersion:c?.version,controllerEnabled:c?.enabled,controllerMapMatchesWorld:c?.map===m,layerPresent:s.layerPresent,layerInstalled:s.layerInstalled,rendererError:s.rendererError,cloudFormations:s.cloudFormations,globalCloudFormations:s.globalCloudFormations,globalThinLayerSlices:s.globalThinLayerSlices,globalSingleLayerSlices:s.globalSingleLayerSlices,globalMacroRadiusMaxKm:s.globalMacroRadiusMaxKm,projectionShaderVariants:s.projectionShaderVariants}: {stateAvailable:false,controllerVersion:c?.version,controllerEnabled:c?.enabled,controllerMapMatchesWorld:c?.map===m,buttonPressed:b?.getAttribute('aria-pressed'),worldBase:w?.base,worldStateBase:w?.state?.base}})));
                 await p.evaluate(()=>{
@@ -2438,7 +2438,7 @@ jobs:
                  base:window.__BP_LANDING_WORLD__?.state?.base||window.__BP_LANDING_WORLD__?.base,
                  layer:!!window.__BP_LANDING_WORLD__?.map?.getLayer('bp-sky-cloud-volume-v6029')
                }));
-               if(cloudAfterSky.cloudControls||!cloudAfterSky.enabled||cloudAfterSky.version!==6180||cloudAfterSky.base!==cloudBaseline.base||!cloudAfterSky.layer)
+               if(cloudAfterSky.cloudControls||!cloudAfterSky.enabled||cloudAfterSky.version!==6200||cloudAfterSky.base!==cloudBaseline.base||!cloudAfterSky.layer)
                  throw new Error('CLOUD_LAYER_OR_BASEMAP_CHANGED_AFTER_SKY_VIEW '+JSON.stringify({cloudBaseline,cloudAfterSky}));
                console.log('BRIDGEPOINT_CLOUDS_REMAIN_ON_AFTER_SKY_VIEW_WITH_BASEMAP_UNCHANGED_PASS',JSON.stringify(cloudAfterSky));
 
@@ -3055,13 +3055,13 @@ jobs:
                 m.jumpTo({center:[-73.9857,40.7484],zoom:16.8,pitch:64,bearing:-22});
               });
               await p.waitForFunction(()=>{
-                const s=window.__BP_SKY_CLOUDS_STATE_V6180__||window.__BP_SKY_CLOUDS_STATE_V5908__;
+                const s=window.__BP_SKY_CLOUDS_STATE_V6200__||window.__BP_SKY_CLOUDS_STATE_V6180__||window.__BP_SKY_CLOUDS_STATE_V5908__;
                 const m=window.__BP_V5000_WORLD?.map;
-                return s?.enabled===true&&s?.visible===true&&s?.version===6180&&!!m?.getLayer('bp-sky-cloud-volume-v6029')&&
+                return s?.enabled===true&&s?.visible===true&&s?.version===6200&&!!m?.getLayer('bp-sky-cloud-volume-v6029')&&
                   !document.querySelector('#bp-world-time-slider-v5908 [data-clouds], [data-bp-cloud-toggle-button="1"]');
               },{timeout:15000});
               const clouds=await p.evaluate(()=>({
-                state:window.__BP_SKY_CLOUDS_STATE_V6180__||window.__BP_SKY_CLOUDS_STATE_V5908__||null,
+                state:window.__BP_SKY_CLOUDS_STATE_V6200__||window.__BP_SKY_CLOUDS_STATE_V6180__||window.__BP_SKY_CLOUDS_STATE_V5908__||null,
                 layer:!!window.__BP_V5000_WORLD?.map?.getLayer('bp-sky-cloud-volume-v6029'),
                 slider:!!document.getElementById('bp-world-time-slider-v5908'),
                 label:document.getElementById('bp-world-time-slider-v5908')?.innerText.includes('WORLD ACTIVITY'),
