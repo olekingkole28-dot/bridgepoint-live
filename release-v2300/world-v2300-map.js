@@ -658,10 +658,9 @@ export function initWorld(options={}){
    }
    let oceanFill='unavailable';
    try{
-    const depth=window.__BP_SENSOR_LAYERS_V5945__;
-    const depthEnabled=depth?.map===map&&depth.surface===true;
-    if(depthEnabled)oceanFill='depth-enabled';
-    else if(map.getLayer('gta-water')){
+    // Keep the native vector ocean transparent at every zoom, even while optional
+    // GEBCO depth is active. The bathymetry raster is rendered as its own layer.
+    if(map.getLayer('gta-water')){
      if(map.getPaintProperty('gta-water','fill-opacity')!==0)map.setPaintProperty('gta-water','fill-opacity',0);
      oceanFill=0;
     }
