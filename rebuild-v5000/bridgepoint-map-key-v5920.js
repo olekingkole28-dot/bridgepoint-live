@@ -125,9 +125,9 @@ function addMapKey(panel){
   {label:'Streetlights / lamps',color:'#ffe8a8',desc:'Warm gold glow and 3D poles at materialized OpenStreetMap lamp coordinates. Coverage is only what BridgePoint has ingested; pole heights may use display defaults.'},
   {label:'Landmarks / masonry',color:'#817a6d',desc:'Stone-gray / earth-toned physical shaders, not opportunities.'}
  ]);
- section('DRONE FLEET + PUBLIC AIRSPACE','Press Drone Awareness to show a simulated 156-icon fleet preview alongside source-backed public UAV coverage. The illustrated fleet is not a live track layer.',[
-  {label:'Simulated drone fleet preview · 156 icons',color:'#74F0FF',desc:'#74F0FF cyan/white drone glyphs are illustrative demo positions arranged around 13 regions. They are not confirmed aircraft, telemetry, or live flight paths.'},
-  {label:'Aggregated UAV-class activity',cls:'bpv-mapkey-swatch-drone',desc:'Public ADS-B reports are aggregated into coarse 2° cells: cyan #58CFFF → aqua #35E8F4 → mint #62EFAD → yellow #FFD166 → orange #FF9F68 as report counts rise. No aircraft IDs, pilot locations, or per-drone tracks are shown.'}
+ section('DRONE AWARENESS + PUBLIC AIRSPACE','Press Drone Awareness to show 3D quadcopter models at public UAV-class ADS-B positions, bright current-position dots, and lines/dots connecting the positions BridgePoint samples during this session.',[
+  {label:'3D public UAV position models',color:'#74F0FF',desc:'Cyan/white 3D quadcopters use source-reported position and heading. Model size is amplified at global zoom for visibility; it is not the aircraft physical size.'},
+  {label:'Observed position trails',cls:'bpv-mapkey-swatch-drone',desc:'Bright lines and dots connect successive public ADS-B observations while Drone Awareness is on. The source is sampled across 13 regional hubs; coverage is incomplete, and most consumer drones do not broadcast ADS-B. No aircraft identifiers or pilot/control-station locations are displayed.'}
  ]);
  section('IMAGERY, RADAR + WEATHER / HAZARDS','Colors below match the currently wired source-weather palette. Weather markers, warning shapes, radar and 3D clouds are separate opt-in layers.',[
   {label:'Satellite / aerial imagery',cls:'bpv-mapkey-swatch-imagery',desc:'NASA Blue Marble globe imagery; USGS orthophoto in supported U.S. coverage; OpenAerialMap close-zoom imagery where available.'},
