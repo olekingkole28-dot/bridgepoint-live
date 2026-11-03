@@ -1,15 +1,6 @@
-name: Visual QA — Power Grid and FCC Towers V5962
+name: Manual Visual QA — Always-on Solid Power Grid V5968
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'release-v2300/world-v2300-infrastructure-volume-v5962.js'
-      - 'rebuild-v5000/app.js'
-      - 'rebuild-v5000/landing.js'
-      - 'rebuild-v5000/index.html'
-      - 'rebuild-v5000/app-index.html'
-      - '.github/workflows/verify-infrastructure-live-v5962.yml'
   workflow_dispatch:
 
 permissions:
@@ -59,21 +50,14 @@ jobs:
                 const m=window.__BP_LANDING_WORLD__?.map||window.__bpLandingWorldV5420?.map;
                 return !!m&&typeof m.getZoom==='function'&&!!m.getCanvas?.();
               },{timeout:90000});
-              await page.waitForFunction(()=>{
-                return !!document.querySelector('#bp-infrastructure-volume-v5962 [data-toggle]');
-              },{timeout:90000});
+              await page.waitForFunction(()=>{const s=window.__BP_INFRASTRUCTURE_VOLUME_V5962__;return s?.version===5968&&s.enabled===true;},{timeout:90000});
               await page.evaluate(()=>{
                 const m=window.__BP_LANDING_WORLD__?.map||window.__bpLandingWorldV5420?.map;
                 m?.jumpTo({center:[-74.05,40.73],zoom:9.5,pitch:50,bearing:0});
               });
               await new Promise(resolve=>setTimeout(resolve,4000));
               await page.screenshot({path:'/tmp/infrastructure-local-v5962-before.png',fullPage:false});
-              await page.evaluate(()=>document.querySelector('#bp-infrastructure-volume-v5962 [data-toggle]')?.click());
-              await page.waitForFunction(()=>{
-                const m=window.__BP_LANDING_WORLD__?.map||window.__bpLandingWorldV5420?.map;
-                const s=window.__BP_INFRASTRUCTURE_VOLUME_V5962__;
-                return !!m&&s?.enabled===true&&s.powerFeatures>0&&s.towerFeatures>0&&s.volume?.towers>0&&s.volume?.catenarySpans>0;
-              },{timeout:120000});
+              await page.waitForFunction(()=>{const m=window.__BP_LANDING_WORLD__?.map||window.__bpLandingWorldV5420?.map,s=window.__BP_INFRASTRUCTURE_VOLUME_V5962__;return !!m&&s?.version===5968&&s.enabled===true&&s.powerFeatures>0&&s.towerFeatures>0&&s.volume?.towers>0&&s.volume?.catenarySpans>0&&s.volume?.solidTowerMeshes>0&&s.volume?.solidCableMeshes>0;},{timeout:120000});
               const results=await page.evaluate(()=>{
                 const m=window.__BP_LANDING_WORLD__?.map||window.__bpLandingWorldV5420?.map,s=window.__BP_INFRASTRUCTURE_VOLUME_V5962__;
                 let routes=0,towers=0;
@@ -83,11 +67,11 @@ jobs:
                   enabled:s?.enabled,powerFeatures:s?.powerFeatures,towerFeatures:s?.towerFeatures,volume:s?.volume,
                   routeLayer:!!m?.getLayer('bp-infra-power-route-v5962'),towerLayer:!!m?.getLayer('bp-infra-fcc-tower-dots-v5962'),
                   volumeLayer:!!m?.getLayer('bp-infra-volume-custom-v5962'),renderedRouteFeatures:routes,renderedTowerFeatures:towers,
-                  sourceNotes:s?.estimates,status:document.querySelector('#bp-infrastructure-volume-v5962 [data-status]')?.textContent};
+                  sourceNotes:s?.estimates,status:s?.status};
               });
               await page.screenshot({path:'/tmp/infrastructure-local-v5962-after.png',fullPage:false});
               console.log('INFRA_VISUAL_AUDIT',JSON.stringify({results,errors:errors.slice(-20)}));
-              if(!results.routeLayer||!results.towerLayer||!results.volumeLayer||results.renderedRouteFeatures<1||results.renderedTowerFeatures<1||!results.volume?.meshes)throw new Error('INFRASTRUCTURE_LAYERS_NOT_RENDERED '+JSON.stringify(results));
+              if(!results.routeLayer||!results.towerLayer||!results.volumeLayer||results.renderedRouteFeatures<1||results.renderedTowerFeatures<1||!results.volume?.meshes||!results.volume?.solidTowerMeshes||!results.volume?.solidCableMeshes)+JSON.stringify(results));
               const fatal=errors.filter(e=>/infrastructure|power grid|three|webgl|custom layer|fcc/i.test(e)&&!/ResizeObserver loop/i.test(e));
               if(fatal.length)throw new Error('INFRASTRUCTURE_RENDER_ERRORS '+JSON.stringify(fatal));
               console.log('INFRA_VISUAL_AUDIT_PASS');

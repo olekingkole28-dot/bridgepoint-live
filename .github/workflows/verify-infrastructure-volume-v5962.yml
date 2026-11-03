@@ -40,9 +40,13 @@ jobs:
           grep -Fq 'Antenna Structure' release-v2300/world-v2300-infrastructure-volume-v5962.js
           grep -Fq 'STRUCHT' release-v2300/world-v2300-infrastructure-volume-v5962.js
           grep -Fq 'Math.cosh' release-v2300/world-v2300-infrastructure-volume-v5962.js
-          grep -Fq 'LineSegments' release-v2300/world-v2300-infrastructure-volume-v5962.js
+          grep -Fq 'pushSolidBeam' release-v2300/world-v2300-infrastructure-volume-v5962.js
+          grep -Fq 'new THREE.MeshStandardMaterial' release-v2300/world-v2300-infrastructure-volume-v5962.js
+          grep -Fq 'queryTerrainElevation' release-v2300/world-v2300-infrastructure-volume-v5962.js
+          grep -Fq 'enabled:true' release-v2300/world-v2300-infrastructure-volume-v5962.js
+          ! grep -Fq 'data-toggle' release-v2300/world-v2300-infrastructure-volume-v5962.js
           grep -Fq 'initInfrastructureVolume(world)' rebuild-v5000/app.js
           grep -Fq 'initInfrastructureVolume(world)' rebuild-v5000/landing.js
-          grep -Fq 'world-v2300-infrastructure-volume-v5962.js?v=5962-power-grid-fcc-towers' rebuild-v5000/app.js
-          grep -Fq 'world-v2300-infrastructure-volume-v5962.js?v=5962-power-grid-fcc-towers' rebuild-v5000/landing.js
+          grep -Fq 'world-v2300-infrastructure-volume-v5962.js?v=5968-solid-grounded-grid' rebuild-v5000/app.js
+          grep -Fq 'world-v2300-infrastructure-volume-v5962.js?v=5968-solid-grounded-grid' rebuild-v5000/landing.js
           echo 'Infrastructure-volume syntax and source-contract checks passed.'
