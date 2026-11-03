@@ -163,10 +163,11 @@ jobs:
           python -m pip install -r tools/reality_assets/requirements-manhattan-city.txt
           BLENDER_PY="$(blender --background --factory-startup --python-expr "import bpy,sys; print('BP_BLENDER_PYTHON=' + getattr(bpy.app, 'binary_path_python', sys.executable))" 2>&1 | sed -n 's/^BP_BLENDER_PYTHON=//p' | tail -1)"
           test -n "$BLENDER_PY"
-          "$BLENDER_PY" -m ensurepip --upgrade || true
-          "$BLENDER_PY" -m pip install --upgrade pip
-          "$BLENDER_PY" -m pip install "numpy==1.26.4" "pyproj==3.6.1"
-          blender --background --factory-startup --python-expr "import bpy,numpy,pyproj; print('BRIDGEPOINT_BLENDER_WORLD_DEPS_PASS', bpy.app.version_string, numpy.__version__, pyproj.__version__)"
+          BLENDER_PACKAGES="$RUNNER_TEMP/blender-python-packages"
+          mkdir -p "$BLENDER_PACKAGES"
+          "$BLENDER_PY" -m pip install --target "$BLENDER_PACKAGES" "numpy==1.26.4" "pyproj==3.6.1"
+          PYTHONPATH="$BLENDER_PACKAGES${PYTHONPATH:+:$PYTHONPATH}" "$BLENDER_PY" -c "import numpy,pyproj; print('BRIDGEPOINT_BLENDER_WORLD_DEPS_PASS', numpy.__version__, pyproj.__version__)"
+          blender --background --factory-startup --python-expr "import bpy; print('BRIDGEPOINT_BLENDER_READY', bpy.app.version_string)"
       - name: Download current NYC datasets and existing Midtown LiDAR
         if: steps.existing.outputs.package_needed == 'true'
         shell: bash
@@ -183,7 +184,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/bp-manhattan-output"
-          blender --background --factory-startup --python tools/reality_assets/build_manhattan_blender_city.py -- \
+          PYTHONPATH="$RUNNER_TEMP/blender-python-packages${PYTHONPATH:+:$PYTHONPATH}" blender --background --factory-startup --python tools/reality_assets/build_manhattan_blender_city.py -- \
             --source-dir "$RUNNER_TEMP/bp-manhattan-source" \
             --output-dir "$RUNNER_TEMP/bp-manhattan-output" \
             --max-trees 50000 \
@@ -196,7 +197,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/bp-manhattan-web-tiles"
-          blender --background "$RUNNER_TEMP/bp-manhattan-output/bridgepoint-manhattan-city.blend" \
+          PYTHONPATH="$RUNNER_TEMP/blender-python-packages${PYTHONPATH:+:$PYTHONPATH}" blender --background "$RUNNER_TEMP/bp-manhattan-output/bridgepoint-manhattan-city.blend" \
             --python tools/reality_assets/package_manhattan_city_tiles.py -- \
             --source-manifest "$RUNNER_TEMP/bp-manhattan-source/source-manifest.json" \
             --output-dir "$RUNNER_TEMP/bp-manhattan-web-tiles" \
