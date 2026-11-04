@@ -52,7 +52,7 @@ def replace_once(text: str, old: str, new: str, label: str) -> str:
 
 
 def patch_landing_js(source: str) -> str:
-    for marker in ("bpAuthRequestV6228", "world-v2300-map.js?v=6226-underwater-satellite-lock", "v=6224-underwater-dive-camera"):
+    for marker in ("bpAuthRequestV6228", "world-v2300-map.js?v=6226-underwater-satellite-lock", "v=6224-underwater-dive-camera", "world-v2300-clouds.js"):
         if marker not in source:
             raise AssertionError(f"V6228 production baseline missing {marker}")
     if "bp:welcome-gate-unlocked-v6229" in source:
@@ -80,7 +80,7 @@ def patch_landing_js(source: str) -> str:
         "  }"
     )
     result = source[:matches[0].start()] + deferred + source[matches[0].end():]
-    if not all(x in result for x in ("world-v2300-clouds.js", "world-v2300-sensor-layers.js", "bridgepoint-landmarks-v5940.js")):
+    if not all(x in result for x in ("world-v2300-sensor-layers.js", "bridgepoint-landmarks-v5940.js", "world-v2300-lod-controls.js")):
         raise AssertionError("One or more existing world enhancement loaders were not retained")
     return result
 
@@ -153,21 +153,18 @@ def patch_html(html: str, min_lazy_assets: int = 15) -> tuple[str, dict]:
         "already authenticated page visit",
     )
 
-    start_re = re.compile(
-        r"""const startSequence=\(\)=>\{\s*
-        if\(sequenceStarted\|\|gateSettled\)return;\s*
-        sequenceStarted=true;\s*
-        startGlobeSpin\(\);\s*
-        const lettersDuration=buildWordmark\(\);\s*
-        if\(status\)status\.textContent='BRIDGEPOINT WORLD INITIALIZED';\s*
-        setTimeout\(\(\)=>\{\s*
-        if\(isSignedIn\(\)\)\{restorePage\(\);return\}\s*
-        setTimeout\(settleGate,1250\);\s*
-        \},lettersDuration\+160\);\s*
-        \};""",
-        re.VERBOSE,
-    )
-    start_repl = """const startSequence=()=>{
+    start_old = """const startSequence=()=>{
+    if(sequenceStarted||gateSettled)return;
+    sequenceStarted=true;
+    startGlobeSpin();
+    const lettersDuration=buildWordmark();
+    if(status)status.textContent='BRIDGEPOINT WORLD INITIALIZED';
+    setTimeout(()=>{
+      if(isSignedIn()){restorePage();return}
+      setTimeout(settleGate,1250);
+    },lettersDuration+160);
+};"""
+    start_new = """const startSequence=()=>{
     if(sequenceStarted)return;
     sequenceStarted=true;
     if(activeMap)startGlobeSpin();
@@ -179,9 +176,7 @@ def patch_html(html: str, min_lazy_assets: int = 15) -> tuple[str, dict]:
       setTimeout(settleGate,1250);
     },lettersDuration+160);
   };"""
-    html, start_count = start_re.subn(start_repl, html, count=1)
-    if start_count != 1:
-        raise AssertionError("Could not replace the existing welcome animation sequence safely")
+    html = replace_once(html, start_old, start_new, "welcome animation sequence")
 
     html = replace_once(
         html,
