@@ -690,7 +690,7 @@ export function initWorld(options={}){
      oceanFill=0;
     }
    }catch(error){oceanFill='error: '+String(error?.message||error)}
-   window.__BP_SATELLITE_RASTER_VISIBILITY_GUARD_V6225__={version:6225,reason,restored,suppressed,layers,blenderWorldEnabled,underwaterDiveActive,oceanFill,updatedAt:Date.now()};
+   window.__BP_SATELLITE_RASTER_VISIBILITY_GUARD_V6217__={version:6217,reason,restored,suppressed,layers,blenderWorldEnabled,underwaterDiveActive,oceanFill,updatedAt:Date.now()};
    return layers;
   }
   function restoreSatelliteRasterStack(){
