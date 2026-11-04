@@ -331,6 +331,7 @@ jobs:
           python tests/tree-model-catalog.test.py
           node tests/celestial-water-cloud-shadows.test.mjs
           node tests/water-lod-and-imagery.test.mjs
+          node tests/underwater-dive-camera.test.mjs
           grep -Fq "dot=rawKey.endsWith('-dot'),key=dot?rawKey.replace(/-dot$/,''):rawKey" release-v2300/world-v2300-map.js
           grep -Fq "eagerOpportunityIcons:keys.length*2" release-v2300/world-v2300-map.js
           grep -Fq "bridgepoint_public_global_risk_viewport_v6174" rebuild-v5000/app.js
@@ -655,7 +656,7 @@ jobs:
           cp release-v2300/world-v2300-underground-xray.js site/world-v2300-underground-xray.js
           cp release-v2300/world-v2300-infrastructure-volume-v5962.js site/world-v2300-infrastructure-volume-v5962.js
           cp release-v2300/world-v2300-sensor-layers.js site/world-v2300-sensor-layers.js
-          sed -i 's#world-v2300-sensor-layers.js?v=6015-nasa-light-toggle#world-v2300-sensor-layers.js?v=6027-nasa-nightlight-corrected-radiance#g' site/app.js site/landing.js
+          sed -i 's#world-v2300-sensor-layers.js?v=6015-nasa-light-toggle#world-v2300-sensor-layers.js?v=6224-underwater-dive-camera#g' site/app.js site/landing.js
           sed -i 's#world-v2300-clouds.js?v=6075-global-coverage-fill#world-v2300-clouds.js?v=6094-josephine-spiral-unified#g' site/app.js site/landing.js
           sed -i 's#world-v2300-clouds.js?v=6076-rounded-cloud-banks#world-v2300-clouds.js?v=6094-josephine-spiral-unified#g' site/app.js site/landing.js
           sed -i 's#world-v2300-clouds.js?v=6088-fuller-local-tornado#world-v2300-clouds.js?v=6094-josephine-spiral-unified#g' site/app.js site/landing.js
@@ -1030,8 +1031,8 @@ jobs:
           ! grep -Fq 'data-toggle' site/world-v2300-infrastructure-volume-v5962.js
           grep -Fq 'landing.js?v=6223-storm-clouds-no-rain&bp=5970-globe-model-matrices' site/index.html
           grep -Fq 'app.js?v=6223-storm-clouds-no-rain&bp=5970-globe-model-matrices' site/app/index.html
-          grep -Fq 'world-v2300-sensor-layers.js?v=6027-nasa-nightlight-corrected-radiance' site/app.js
-          grep -Fq 'world-v2300-sensor-layers.js?v=6027-nasa-nightlight-corrected-radiance' site/landing.js
+          grep -Fq 'world-v2300-sensor-layers.js?v=6224-underwater-dive-camera' site/app.js
+          grep -Fq 'world-v2300-sensor-layers.js?v=6224-underwater-dive-camera' site/landing.js
           grep -Fq 'bridgepoint-gebco-depth-image-v5937' site/world-v2300-sensor-layers.js
           grep -Fq 'bridgepoint-nasa-nightlights-v5937' site/world-v2300-sensor-layers.js
           grep -Fq "kind: 'georeferenced 3D cloud-volume layer'" site/world-v2300-clouds.js
