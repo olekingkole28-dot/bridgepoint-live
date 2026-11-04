@@ -22,7 +22,7 @@ assert.ok(workflow.includes("world-v2300-sensor-layers.js?v=6224-underwater-dive
 assert.ok(workflow.includes("node tests/underwater-dive-camera.test.mjs"), 'the production build must run the underwater regression test');
 assert.ok(!sensor.includes("zoom:Math.max(3.5,Math.min(8.5"), 'the old fallback zoom-out behavior must stay removed');
 assert.ok(map.includes("const underwaterDiveActive=window.__BP_UNDERWATER_DIVE_ACTIVE__===true||window.__BP_UNDERWATER_DIVE_TRANSITION__===true"), 'the always-on satellite raster guard must recognize the underwater interval');
-assert.ok(map.includes("(blenderWorldEnabled||underwaterDiveActive)?'none':'visible'"), 'base satellite imagery must be suppressed only during the underwater interval');
+assert.ok(map.includes("const targetVisibility=blenderWorldEnabled?'none':'visible'") && map.includes("const effectiveVisibility=underwaterDiveActive?'none':targetVisibility"), 'base satellite imagery must keep its existing normal and Blender World policy, with an underwater-only suppression override');
 assert.ok(map.includes("BP_SATELLITE_RASTER_VISIBILITY_GUARD_V6217__") && map.includes("underwaterDiveActive"), 'existing satellite visibility diagnostics must remain API-compatible and expose underwater state');
 assert.ok(map.includes("bp-spectral-imagery-raster-v5931") && map.includes("BP_UNDERWATER_SPECTRAL_LAYER_VISIBILITY__"), 'a user-loaded Landsat overlay must be hidden temporarily and restored to its prior visibility');
 assert.ok(app.includes("const underwaterDiveActive=window.__BP_UNDERWATER_DIVE_ACTIVE__===true||window.__BP_UNDERWATER_DIVE_TRANSITION__===true"), 'the app startup globe callback must respect the underwater interval');
