@@ -240,8 +240,11 @@ function makeTopBarAndDock(){
    '<div id="bpv-external-tools-slot" class="bpv-external-tools-slot" aria-label="Active tool controls and visualizations"></div>'+
    '<div id="bpv-status-panel-slot" class="bpv-status-panel-slot" aria-label="System status panel"></div>'+
    '<div class="bpv-more-info-note"><b>DATA & COVERAGE NOTES</b><p>Available layers depend on source coverage, zoom level, data freshness, and permitted display rights. A missing layer does not prove that a feature or hazard is absent. Weather and hazard overlays provide context and are not a property-damage determination.</p></div>'+
-  '</div></details>'; mapHost.append(top,dock);
- // Keep account/refresh actions in the persistent top bar.
+  '</div></details>'; const accountRow=dock.querySelector('#bpv-dock-account-row');
+ const topRight=top.querySelector('.bpv-topbar-right');
+ if(accountRow&&topRight)accountRow.appendChild(topRight);
+ mapHost.append(dock);
+ // Account, language and refresh actions stay inside the BridgePoint card; no floating header is rendered above it.
  // MapLibre zoom and navigation controls remain on the map surface; the separate
  // WORLD DETAIL (GOLD/SILVER/BRONZE) control stays in #bpv-map-controls-slot.
 
