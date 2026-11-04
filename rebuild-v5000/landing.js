@@ -699,7 +699,7 @@ async function initMap(){
  try{
   window.__BP_LANDING_MAP_BOOT__={stage:'importing-world',maplibre:true,at:Date.now()};
   console.log('BP_STARTUP_TRACE','landing:before-world-import');
-  const mod=await import('./world-v2300-map.js?v=6220-tree-canopy-coverage-solid-retention');
+  const mod=await import('./world-v2300-map.js?v=6226-underwater-satellite-lock');
   console.log('BP_STARTUP_TRACE','landing:after-world-import');
   window.__BP_LANDING_MAP_BOOT__={stage:'initializing-world',maplibre:true,module:true,at:Date.now()};
   console.log('BP_STARTUP_TRACE','landing:before-initWorld');
