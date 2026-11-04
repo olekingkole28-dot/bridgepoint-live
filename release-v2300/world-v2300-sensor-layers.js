@@ -28,7 +28,7 @@ const DIVE_FX_CSS = [
 '@keyframes bp-dive-window-v6224{from{transform:translateY(0) scaleX(.96);opacity:.58}to{transform:translateY(8px) scaleX(1.04);opacity:.95}}',
 '@keyframes bp-dive-ripple-v6224{0%{transform:translate(-50%,-50%) scale(.25);opacity:.8}100%{transform:translate(-50%,-50%) scale(4.4);opacity:0}}',
 '@media(prefers-reduced-motion:reduce){#bp-underwater-fx-v6224 .caustics,#bp-underwater-fx-v6224 .surface-window{animation:none}}'
-].join('\\n');
+].join('\n');
 function getTime(){const v=window.__BP_WORLD_ACTIVITY_SLIDER_STATE_V5908__?.selectedAt,d=v?new Date(v):new Date();return Number.isNaN(d.getTime())?new Date():d}
 export function initSensorLayers(target){
  const map=target?.map||target,container=map?.getContainer?.();if(!map||!container||typeof fetch!=='function')return null;
