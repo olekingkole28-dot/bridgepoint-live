@@ -160,7 +160,6 @@ html.bp-instant-globe-start body>main>.hero>.preview>#previewMap{position:absolu
 <div id="authModal" class="modal" hidden><div class="modal-card"><button id="closeAuth" class="close" type="button">×</button><img src="./bridgepoint-mark.svg" alt=""><span class="eyebrow" id="authEyebrow">CREATE YOUR BRIDGEPOINT ACCOUNT</span><h2 id="authTitle">Start using BridgePoint</h2><p id="authIntro">Your account connects saved properties, package access and workflow to the same BridgePoint identity.</p><form id="authForm"><label id="nameField">NAME<input id="authName" autocomplete="name" placeholder="Your name"></label><label>EMAIL<input id="authEmail" type="email" autocomplete="email" required placeholder="you@company.com"></label><label>PASSWORD<div class="password-wrap"><input id="authPassword" type="password" minlength="6" autocomplete="new-password" required placeholder="At least 6 characters"><button id="authPasswordToggle" class="password-toggle" type="button" aria-label="Show password" aria-pressed="false">◉</button></div></label><label class="legal-accept"><input id="authLegalAccept" type="checkbox" required><span>I accept the <a href="/terms/" target="_blank" rel="noopener">Terms of Use</a> and <a href="/privacy/" target="_blank" rel="noopener">Privacy Notice</a> before signing in or creating an account.</span></label><button id="authSubmit" class="primary big" type="submit">CREATE ACCOUNT</button></form><div id="authMessage" class="auth-message"></div><button id="authSwitch" class="switch" type="button">Already have an account? Sign in</button></div></div>
 <script defer src="/qr-house-v5521.js?v=5521"></script><script defer src="/acquisition_tracker.js?v=5001"></script>\n<script src="./vendor/maplibre-gl.js?v=524-v5945"></script><script defer src="/bridgepoint-drone-awareness-v1.js?v=7-aircraft-models-tracks"></script><script defer src="/bridgepoint-vessel-awareness-v1.js?v=20261103-global-vessel-visibility-3d"></script><script src="./landing.js?v=6226-underwater-satellite-lock&bp=5970-globe-model-matrices" defer></script><script defer src="/language-selector-v5200.js?v=5927-topbar"></script><script type="module" src="/intelligence-tools-v5507.js?v=6170-imerg-nrt-timeline"></script><script defer src="/refresh-v5535.js?v=5549"></script><script defer src="/parcel-boundary-viewer-v5403.js?v=1130-global-public-source-credits"></script><script defer src="/global-property-v957.js?v=1124-global-public-parcel-tiles"></script><script defer src="/bridgepoint-view-v5917.js?v=6215-satellite-persistent-render-guard&emrf=1"></script><script defer src="/bridgepoint-blender-world-v1.js?v=2-raster-hide"></script><script defer src="/bridgepoint-transportation-loader-v1.js?v=4-global-pmtiles-stable-models"></script><script defer src="/zoning-coverage-v1.js?v=1123-lot-coverage-zoning"></script><script defer src="/bridgepoint-map-key-v5920.js?v=6037-mapkey-drawer-fix"></script><script defer src="/bridgepoint-map-state-counts-v5923.js?v=5923-state-counters"></script><script defer src="/bridgepoint-map-physical-assets-v5924.js?v=5924-physical-assets"></script><script defer src="/bridgepoint-global-motion-v5926.js?v=6203-3d-orbit-markers-popup-global-zoom"></script><script defer src="/bridgepoint-landmarks-v5940.js?v=6001-style-persistence"></script><script defer src="/bridgepoint-reality-assets-v5968.js?v=5968"></script><script defer src="/bridgepoint-live-rail-v5969.js?v=5980-global-train-dots"></script><script defer src="/bridgepoint-rail-mesh-v5973.js?v=5980-visible-detail-rails"></script><script defer src="/bridgepoint-pyramids-v5945.js?v=5945-giza-3d"></script><script defer src="/bridgepoint-eiffel-tower-v5983.js?v=6022-eiffel-filter-ready-layer"></script><script defer src="/bridgepoint-lincoln-memorial-v5984.js?v=6013-no-standalone-button"></script><script defer src="/bridgepoint-lincoln-pointcloud-v5986.js?v=6025-gold-lod-only-lincoln-scan"></script><script defer src="/bridgepoint-nyc-lidar-v7000.js?v=7010-lazy-lidar-mesh"></script><script defer src="/offline-world-ui.js?v=1"></script><script defer src="/bridgepoint-ai-commandbar-v1.js?v=20261103-card-voice"></script>
 <style id="bpWelcomeGateStylesV1">
-/* The globe stays on its true world view only while the unauthenticated intro is present. */
 html.bpw-entry-locked,html.bpw-entry-locked body{height:100%!important;min-height:100%!important;width:100%!important;overflow:hidden!important;margin:0!important;background:#020711!important;overscroll-behavior:none!important}
 html.bpw-entry-locked body>:not(main):not(#authModal):not(#bpWelcomeGateV1){display:none!important}
 html.bpw-entry-locked body>main{position:fixed!important;inset:0!important;z-index:1!important;display:block!important;width:100vw!important;height:100%!important;max-width:none!important;margin:0!important;padding:0!important;overflow:hidden!important;pointer-events:none!important}
@@ -171,33 +170,43 @@ html.bpw-entry-locked body>main>.hero>.preview>*:not(#previewMap){display:none!i
 html.bpw-entry-locked #previewMap{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:0!important;touch-action:none!important;pointer-events:none!important}
 html.bpw-entry-locked #previewMap .maplibregl-ctrl-container,html.bpw-entry-locked #previewMap .maplibregl-ctrl,html.bpw-entry-locked #previewMap .maplibregl-ctrl-attrib{display:none!important}
 html.bpw-entry-locked body>main>section:not(.hero){display:none!important;visibility:hidden!important;pointer-events:none!important}
-#bpWelcomeGateV1{position:fixed;inset:0;z-index:2147482000;display:block;overflow:hidden;color:#f8fbff;text-align:center;background:radial-gradient(ellipse at 50% 50%,rgba(5,18,34,0),rgba(1,5,13,.08) 68%,rgba(1,4,10,.24));font-family:Arial,Helvetica,sans-serif;isolation:isolate;pointer-events:none}
+#bpWelcomeGateV1{position:fixed;inset:0;z-index:2147482000;display:block;overflow:hidden;color:#f8fbff;text-align:center;background:radial-gradient(ellipse at 50% 50%,rgba(7,22,43,.025),rgba(1,5,13,.05) 68%,rgba(1,4,10,.18));font-family:Arial,Helvetica,sans-serif;isolation:isolate;pointer-events:none}
 #bpWelcomeGateV1[hidden]{display:none!important}
-#bpWelcomeGateV1:before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;background:radial-gradient(ellipse at 50% 50%,transparent 34%,rgba(1,7,17,.08) 72%,rgba(1,5,13,.27) 100%)}
-#bpWelcomeGateV1:after{content:"";position:absolute;inset:-40%;z-index:0;pointer-events:none;opacity:.14;background-image:radial-gradient(1px 1px at 14% 22%,#fff 98%,transparent),radial-gradient(1px 1px at 72% 14%,#a8e6ff 98%,transparent),radial-gradient(1px 1px at 34% 78%,#fff 98%,transparent),radial-gradient(1px 1px at 86% 62%,#d4c9ff 98%,transparent),radial-gradient(1px 1px at 55% 48%,#fff 98%,transparent);background-size:330px 260px;animation:bpw-star-drift-v3 48s linear infinite}
+#bpWelcomeGateV1:before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;background:radial-gradient(ellipse at 50% 50%,transparent 32%,rgba(1,7,17,.025) 65%,rgba(1,5,13,.18) 100%)}
+#bpWelcomeGateV1:after{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;background:radial-gradient(ellipse at 17% 26%,rgba(54,89,177,.10),transparent 28%),radial-gradient(ellipse at 82% 72%,rgba(43,114,180,.085),transparent 30%);mix-blend-mode:screen}
 #bpWelcomeGateV1[data-phase="intro"] .bpw-sound{pointer-events:auto}
 #bpWelcomeGateV1[data-phase="gate"]{pointer-events:auto}
 #bpWelcomeGateV1 .bpw-layout{position:relative;width:100%;height:100%;min-height:100dvh;display:block;padding:0;box-sizing:border-box;z-index:1}
-#bpWelcomeGateV1 .bpw-globe-aura{position:absolute;z-index:1;left:50%;top:50%;width:min(96vw,760px);aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;border:1px solid rgba(128,206,255,.19);background:radial-gradient(circle,transparent 57%,rgba(54,152,255,.035) 64%,rgba(77,181,255,.12) 68%,rgba(90,126,255,.04) 73%,transparent 79%);box-shadow:0 0 34px rgba(64,166,255,.30),0 0 86px rgba(70,139,255,.19),inset 0 0 38px rgba(79,167,255,.12);pointer-events:none}
-#bpWelcomeGateV1 .bpw-globe-aura:before,#bpWelcomeGateV1 .bpw-globe-aura:after{content:"";position:absolute;inset:-4%;border:1px solid rgba(145,215,255,.11);border-radius:50%;box-shadow:0 0 35px rgba(65,160,255,.12)}
-#bpWelcomeGateV1 .bpw-globe-aura:after{inset:-9%;border-color:rgba(134,157,255,.075);filter:blur(2px)}
-#bpWelcomeGateV1 .bpw-stage{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;perspective:1200px}
-#bpWelcomeGateV1 .bpw-wordmark-wrap{position:absolute;z-index:5;left:0;right:0;top:50%;display:flex;justify-content:center;align-items:center;transform:translateY(-50%);padding:0 5px;pointer-events:none}
-#bpWelcomeGateV1 .bpw-wordmark{display:flex;justify-content:center;align-items:center;white-space:nowrap;max-width:100%;font-size:clamp(12px,3.35vw,38px);font-weight:1000;letter-spacing:.018em;line-height:1;text-transform:uppercase;transform-style:preserve-3d;filter:drop-shadow(0 7px 13px rgba(0,0,0,.42)) drop-shadow(0 0 18px rgba(255,202,104,.36))}
-#bpWelcomeGateV1 .bpw-letter-frame{display:inline-block;flex:0 0 auto;position:relative;transform-style:preserve-3d;animation:bpw-letter-arrive-v3 1.24s cubic-bezier(.16,.86,.22,1) both;animation-delay:calc(var(--letter-index)*.058s)}
-#bpWelcomeGateV1 .bpw-letter-face{display:inline-block;position:relative;transform:translateY(var(--arc-y,0px)) rotateZ(var(--arc-rotate,0deg));padding:1px 0;background:linear-gradient(180deg,#fffef3 0%,#fff3c9 13%,#eec56d 27%,#fff9df 39%,#dba744 56%,#9f6a20 74%,#f9dc94 89%,#fff9e4 100%);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-stroke:.28px rgba(255,242,197,.82);text-shadow:0 1px 0 #fff8d9,0 2px 0 #d4a64d,0 3px 0 #a97525,0 4px 0 #7c511b,0 6px 8px rgba(0,0,0,.74),0 0 8px rgba(255,220,145,.92),0 0 20px rgba(255,183,73,.56);filter:drop-shadow(0 0 5px rgba(255,225,159,.45))}
-#bpWelcomeGateV1 .bpw-letter-face:after{content:attr(data-letter);position:absolute;inset:0;z-index:-1;color:#a16c22;transform:translate3d(1.4px,3px,-1px);text-shadow:0 2px 0 #754811,0 4px 0 #52330f,0 6px 8px rgba(0,0,0,.7);-webkit-text-fill-color:#a16c22}
-#bpWelcomeGateV1 .bpw-letter-space{width:.30em}
-#bpWelcomeGateV1 .bpw-status{position:absolute;z-index:6;left:16px;right:16px;bottom:clamp(132px,18vh,170px);color:#c0e5ff;font-size:clamp(9px,2.5vw,12px);font-weight:900;letter-spacing:.22em;text-transform:uppercase;text-shadow:0 0 13px rgba(39,159,255,.85);transition:opacity .5s ease}
+#bpWelcomeGateV1 .bpw-starfield{position:absolute;inset:-18%;z-index:0;overflow:hidden;pointer-events:none;mix-blend-mode:screen;-webkit-mask-image:radial-gradient(ellipse 43% 28% at 50% 50%,transparent 0 92%,rgba(0,0,0,.22) 101%,#000 116%);mask-image:radial-gradient(ellipse 43% 28% at 50% 50%,transparent 0 92%,rgba(0,0,0,.22) 101%,#000 116%)}
+#bpWelcomeGateV1 .bpw-stars-far{background:radial-gradient(ellipse at 18% 30%,rgba(39,87,178,.12),transparent 34%),radial-gradient(ellipse at 82% 68%,rgba(50,95,170,.10),transparent 36%);animation:bpw-starfield-turn 315s linear infinite}
+#bpWelcomeGateV1 .bpw-stars-near{opacity:.85;animation:bpw-starfield-turn-reverse 238s linear infinite}
+#bpWelcomeGateV1 .bpw-star{position:absolute;display:block;width:var(--star-size);height:var(--star-size);left:var(--star-x);top:var(--star-y);border-radius:50%;background:rgba(231,246,255,var(--star-alpha));box-shadow:0 0 calc(var(--star-size)*2.5) rgba(151,211,255,calc(var(--star-alpha)*.8));opacity:var(--star-alpha);animation:bpw-star-twinkle var(--star-period) ease-in-out infinite;animation-delay:var(--star-delay)}
+#bpWelcomeGateV1 .bpw-star-flare:before,#bpWelcomeGateV1 .bpw-star-flare:after{content:"";position:absolute;left:50%;top:50%;background:linear-gradient(transparent,rgba(238,249,255,.96),transparent);transform:translate(-50%,-50%);border-radius:50%;filter:drop-shadow(0 0 4px rgba(122,203,255,.9))}
+#bpWelcomeGateV1 .bpw-star-flare:before{width:1px;height:calc(var(--star-size)*9)}
+#bpWelcomeGateV1 .bpw-star-flare:after{width:calc(var(--star-size)*8);height:1px;background:linear-gradient(90deg,transparent,rgba(238,249,255,.92),transparent)}
+#bpWelcomeGateV1 .bpw-globe-aura{position:absolute;z-index:2;left:50%;top:50%;width:min(80vw,80vh,860px);aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;border:1px solid rgba(153,221,255,.48);background:radial-gradient(circle,transparent 53%,rgba(47,150,255,.025) 58%,rgba(83,188,255,.20) 63%,rgba(91,151,255,.14) 67%,rgba(61,126,255,.035) 73%,transparent 79%);box-shadow:0 0 28px 4px rgba(76,180,255,.30),0 0 68px 16px rgba(64,153,255,.28),0 0 142px 36px rgba(68,111,255,.17),inset 0 0 48px rgba(109,203,255,.18);pointer-events:none;animation:bpw-aura-breathe 8s ease-in-out infinite}
+#bpWelcomeGateV1 .bpw-globe-aura:before,#bpWelcomeGateV1 .bpw-globe-aura:after{content:"";position:absolute;inset:-5%;border:1px solid rgba(169,227,255,.20);border-radius:50%;box-shadow:0 0 38px rgba(72,170,255,.24),inset 0 0 28px rgba(83,171,255,.10)}
+#bpWelcomeGateV1 .bpw-globe-aura:after{inset:-12%;border-color:rgba(137,175,255,.12);filter:blur(5px);box-shadow:0 0 75px 10px rgba(56,122,255,.24)}
+#bpWelcomeGateV1 .bpw-stage{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;perspective:1400px}
+#bpWelcomeGateV1 .bpw-wordmark-wrap{position:absolute;z-index:5;left:0;right:0;top:50%;display:flex;justify-content:center;align-items:center;transform:translateY(-50%);padding:0 4px;pointer-events:none}
+#bpWelcomeGateV1 .bpw-wordmark{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:clamp(2px,.75vh,9px);max-width:100%;white-space:nowrap;font-family:"Arial Black","Eurostile","Bank Gothic",system-ui,sans-serif;font-weight:1000;letter-spacing:.045em;line-height:.96;text-transform:uppercase;transform-style:preserve-3d;filter:drop-shadow(0 9px 14px rgba(0,0,0,.66)) drop-shadow(0 0 22px rgba(255,199,96,.42))}
+#bpWelcomeGateV1 .bpw-title-line{display:flex;justify-content:center;align-items:center;white-space:nowrap;transform-style:preserve-3d}
+#bpWelcomeGateV1 .bpw-title-kicker{font-size:clamp(19px,6.2vw,45px);letter-spacing:.16em}
+#bpWelcomeGateV1 .bpw-title-main{font-size:clamp(27px,8.4vw,68px);letter-spacing:.035em}
+#bpWelcomeGateV1 .bpw-letter-frame{display:inline-block;flex:0 0 auto;position:relative;transform-style:preserve-3d;animation:bpw-letter-orbit-v4 2.75s cubic-bezier(.12,.78,.16,1) both;animation-delay:var(--letter-delay,0s);will-change:transform,opacity}
+#bpWelcomeGateV1 .bpw-letter-face{display:inline-block;position:relative;transform:translateY(var(--arc-y,0px)) rotateZ(var(--arc-rotate,0deg));padding:1px 0;background:linear-gradient(180deg,#fff 0%,#fff8e8 8%,#f6d988 18%,#fffef1 28%,#e4b451 42%,#fff1c5 52%,#bb842d 68%,#ffe3a0 83%,#fff 100%);background-size:100% 180%;background-position:0 0;-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-stroke:.42px rgba(255,247,217,.94);text-shadow:0 1px 0 #fff9df,0 2px 0 #d9aa4d,0 3px 0 #a87325,0 4px 0 #754715,0 6px 0 #4e2f12,0 8px 12px rgba(0,0,0,.84),0 0 8px rgba(255,234,179,.98),0 0 24px rgba(255,181,62,.74);filter:drop-shadow(0 0 6px rgba(255,225,159,.56));animation:bpw-metallic-shine 5.5s ease-in-out infinite}
+#bpWelcomeGateV1 .bpw-letter-face:after{content:attr(data-letter);position:absolute;inset:0;z-index:-1;color:#a16c22;transform:translate3d(1.9px,4px,-2px);text-shadow:0 2px 0 #754811,0 4px 0 #52330f,0 7px 0 #30200e,0 9px 12px rgba(0,0,0,.86);-webkit-text-fill-color:#a16c22}
+#bpWelcomeGateV1 .bpw-letter-space{width:.29em}
+#bpWelcomeGateV1 .bpw-status{position:absolute;z-index:6;left:16px;right:16px;bottom:clamp(132px,18vh,170px);color:#c7eaff;font-size:clamp(9px,2.5vw,12px);font-weight:900;letter-spacing:.22em;text-transform:uppercase;text-shadow:0 0 13px rgba(39,159,255,.95);transition:opacity .5s ease}
 #bpWelcomeGateV1 .bpw-status[hidden]{display:none!important}
-#bpWelcomeGateV1 .bpw-status:after{content:"";display:block;width:min(170px,38vw);height:2px;margin:11px auto 0;background:linear-gradient(90deg,transparent,#48baff,#e8f9ff,#48baff,transparent);box-shadow:0 0 14px #168fff;transform-origin:left;animation:bpw-loading-bar-v3 2.4s ease-in-out infinite}
+#bpWelcomeGateV1 .bpw-status:after{content:"";display:block;width:min(170px,38vw);height:2px;margin:11px auto 0;background:linear-gradient(90deg,transparent,#48baff,#e8f9ff,#48baff,transparent);box-shadow:0 0 14px #168fff;transform-origin:left;animation:bpw-loading-bar-v4 2.4s ease-in-out infinite}
 #bpWelcomeGateV1 .bpw-gate-panel{position:absolute;left:14px;right:14px;bottom:calc(env(safe-area-inset-bottom,0px) + clamp(24px,5vh,48px));z-index:7;display:flex;flex-direction:column;align-items:center;gap:12px;padding:16px 14px 14px;border:1px solid rgba(139,213,255,.25);border-radius:20px;background:linear-gradient(145deg,rgba(5,20,37,.78),rgba(4,12,25,.70));box-shadow:0 16px 46px rgba(0,0,0,.22),0 0 34px rgba(48,139,255,.10),inset 0 1px 0 rgba(255,255,255,.10);backdrop-filter:blur(12px);opacity:0;visibility:hidden;transform:translateY(16px);transition:opacity .8s ease,transform .8s ease,visibility .8s}
 #bpWelcomeGateV1[data-phase="gate"] .bpw-gate-panel{opacity:1;visibility:visible;transform:translateY(0);pointer-events:auto}
 #bpWelcomeGateV1[data-phase="gate"] .bpw-status{display:none}
 #bpWelcomeGateV1 .bpw-explainer{margin:0 auto;max-width:720px;color:#d7eafa;font-size:clamp(10px,2.65vw,14px);font-weight:650;line-height:1.48;letter-spacing:.025em;text-shadow:0 2px 12px rgba(0,0,0,.7)}
 #bpWelcomeGateV1 .bpw-explainer strong{color:#fff1ce;font-weight:900;letter-spacing:.08em;text-transform:uppercase}
 #bpWelcomeGateV1 .bpw-actions{display:flex;justify-content:center;align-items:center;gap:10px;flex-wrap:wrap;width:100%}
-#bpWelcomeGateV1 .bpw-actions button{min-width:min(250px,42vw);padding:15px 20px;border-radius:999px;border:1px solid rgba(199,232,255,.74);font:950 12px/1.1 Arial,sans-serif;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;transition:transform .2s ease,box-shadow .2s ease,background .2s ease;animation:bpw-cta-hover-v3 2.9s ease-in-out infinite}
+#bpWelcomeGateV1 .bpw-actions button{min-width:min(250px,42vw);padding:15px 20px;border-radius:999px;border:1px solid rgba(199,232,255,.74);font:950 12px/1.1 Arial,sans-serif;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;transition:transform .2s ease,box-shadow .2s ease,background .2s ease;animation:bpw-cta-hover-v4 2.9s ease-in-out infinite}
 #bpWelcomeGateV1 .bpw-actions button:nth-child(2){animation-delay:1.35s}
 #bpWelcomeGateV1 .bpw-actions button:hover{transform:translateY(-3px);box-shadow:0 0 32px rgba(64,178,255,.55)}
 #bpWelcomeGateV1 .bpw-create{color:#00101c;background:linear-gradient(110deg,#fff4d4,#e4b44c 42%,#fff1c3 72%,#c68e2c);box-shadow:0 0 24px rgba(255,194,91,.34),inset 0 1px 0 rgba(255,255,255,.78)}
@@ -205,21 +214,25 @@ html.bpw-entry-locked body>main>section:not(.hero){display:none!important;visibi
 #bpWelcomeGateV1 .bpw-sound{position:absolute;top:clamp(16px,3vh,30px);right:14px;z-index:9;border:1px solid rgba(169,216,255,.48);background:rgba(2,11,22,.76);color:#d5efff;border-radius:999px;padding:11px 14px;font:900 10px/1 Arial,sans-serif;letter-spacing:.13em;cursor:pointer;backdrop-filter:blur(8px);box-shadow:0 0 18px rgba(62,157,255,.18);pointer-events:auto}
 #bpWelcomeGateV1 .bpw-sound[hidden]{display:none!important}
 #authModal.modal{z-index:2147483646!important}
-@keyframes bpw-letter-arrive-v3{
-  0%{transform:translate3d(78vw,2vh,-380px) rotateY(-88deg) rotateZ(24deg) scale(.56);opacity:0;filter:blur(8px)}
-  58%{opacity:1;filter:blur(0)}
-  100%{transform:translate3d(0,0,0) rotateY(0deg) rotateZ(0deg) scale(1);opacity:1;filter:blur(0)}
+@keyframes bpw-letter-orbit-v4{
+  0%{transform:translate3d(106vw,7vh,-520px) rotateY(-118deg) rotateZ(38deg) scale(.38);opacity:0;filter:blur(11px)}
+  24%{transform:translate3d(70vw,-13vh,-330px) rotateY(-92deg) rotateZ(29deg) scale(.55);opacity:.42;filter:blur(4px)}
+  48%{transform:translate3d(36vw,-17vh,-105px) rotateY(-61deg) rotateZ(18deg) scale(.76);opacity:.88;filter:blur(1px)}
+  74%{transform:translate3d(10vw,-3vh,135px) rotateY(-19deg) rotateZ(6deg) scale(.96);opacity:1;filter:blur(0)}
+  100%{transform:translate3d(0,0,255px) rotateY(0deg) rotateZ(0deg) scale(1);opacity:1;filter:blur(0)}
 }
-@keyframes bpw-cta-hover-v3{
-  0%,100%{opacity:.67;filter:brightness(.88);transform:translateY(1px);box-shadow:0 5px 17px rgba(0,0,0,.20)}
-  50%{opacity:1;filter:brightness(1.14);transform:translateY(-2px);box-shadow:0 0 28px rgba(85,187,255,.30),0 10px 22px rgba(0,0,0,.22)}
-}
-@keyframes bpw-star-drift-v3{to{transform:translate3d(4%,2%,0)}}
-@keyframes bpw-loading-bar-v3{0%{transform:scaleX(.18);opacity:.35}50%{transform:scaleX(1);opacity:1}100%{transform:scaleX(.18);opacity:.35}}
+@keyframes bpw-metallic-shine{0%,18%,100%{background-position:0 0}42%,58%{background-position:0 100%}}
+@keyframes bpw-cta-hover-v4{0%,100%{opacity:.65;filter:brightness(.86);transform:translateY(1px);box-shadow:0 5px 17px rgba(0,0,0,.20)}50%{opacity:1;filter:brightness(1.15);transform:translateY(-2px);box-shadow:0 0 28px rgba(85,187,255,.32),0 10px 22px rgba(0,0,0,.22)}}
+@keyframes bpw-starfield-turn{to{transform:rotate(360deg)}}
+@keyframes bpw-starfield-turn-reverse{to{transform:rotate(-360deg)}}
+@keyframes bpw-star-twinkle{0%,100%{opacity:calc(var(--star-alpha)*.52);filter:brightness(.72)}50%{opacity:var(--star-alpha);filter:brightness(1.65)}}
+@keyframes bpw-aura-breathe{0%,100%{filter:brightness(.92);opacity:.82}50%{filter:brightness(1.28);opacity:1}}
+@keyframes bpw-loading-bar-v4{0%{transform:scaleX(.18);opacity:.35}50%{transform:scaleX(1);opacity:1}100%{transform:scaleX(.18);opacity:.35}}
 @media(max-width:640px){
- #bpWelcomeGateV1 .bpw-globe-aura{width:98vw;box-shadow:0 0 26px rgba(64,166,255,.30),0 0 72px rgba(70,139,255,.18),inset 0 0 30px rgba(79,167,255,.10)}
- #bpWelcomeGateV1 .bpw-wordmark{font-size:clamp(11px,3.05vw,14px);letter-spacing:.008em}
- #bpWelcomeGateV1 .bpw-letter-face{text-shadow:0 1px 0 #fff8d9,0 2px 0 #d4a64d,0 3px 0 #a97525,0 4px 0 #7c511b,0 6px 7px rgba(0,0,0,.76),0 0 7px rgba(255,220,145,.92),0 0 16px rgba(255,183,73,.56)}
+ #bpWelcomeGateV1 .bpw-globe-aura{width:min(80vw,80vh);box-shadow:0 0 26px 4px rgba(64,166,255,.35),0 0 72px 18px rgba(70,139,255,.25),0 0 122px 30px rgba(60,105,255,.16),inset 0 0 34px rgba(79,167,255,.15)}
+ #bpWelcomeGateV1 .bpw-title-kicker{font-size:clamp(18px,6vw,27px);letter-spacing:.13em}
+ #bpWelcomeGateV1 .bpw-title-main{font-size:clamp(25px,8.6vw,38px);letter-spacing:.025em}
+ #bpWelcomeGateV1 .bpw-letter-face{text-shadow:0 1px 0 #fff8d9,0 2px 0 #d4a64d,0 3px 0 #a97525,0 4px 0 #7c511b,0 6px 7px rgba(0,0,0,.82),0 0 8px rgba(255,220,145,.98),0 0 20px rgba(255,183,73,.72)}
  #bpWelcomeGateV1 .bpw-status{bottom:clamp(235px,32vh,285px);font-size:9px;letter-spacing:.15em}
  #bpWelcomeGateV1 .bpw-gate-panel{left:10px;right:10px;bottom:calc(env(safe-area-inset-bottom,0px) + 14px);gap:10px;padding:13px 11px 12px;border-radius:17px}
  #bpWelcomeGateV1 .bpw-explainer{font-size:11px;line-height:1.4}
@@ -228,13 +241,15 @@ html.bpw-entry-locked body>main>section:not(.hero){display:none!important;visibi
  #bpWelcomeGateV1 .bpw-sound{right:10px;top:clamp(12px,2vh,22px);padding:10px 12px;font-size:9px}
 }
 @media(prefers-reduced-motion:reduce){
- #bpWelcomeGateV1:after,#bpWelcomeGateV1 .bpw-status:after,#bpWelcomeGateV1 .bpw-actions button{animation-duration:1ms!important;animation-iteration-count:1!important}
+ #bpWelcomeGateV1 .bpw-starfield,#bpWelcomeGateV1 .bpw-globe-aura,#bpWelcomeGateV1 .bpw-letter-frame,#bpWelcomeGateV1 .bpw-actions button,#bpWelcomeGateV1 .bpw-status:after{animation-duration:1ms!important;animation-iteration-count:1!important}
 }
 </style>
 <div id="bpWelcomeGateV1" data-phase="intro" role="dialog" aria-modal="true" aria-label="Welcome to BridgePoint Intelligence">
   <div class="bpw-layout">
+    <div class="bpw-starfield bpw-stars-far" id="bpwStarsFarV4" aria-hidden="true"></div>
+    <div class="bpw-starfield bpw-stars-near" id="bpwStarsNearV4" aria-hidden="true"></div>
     <div class="bpw-globe-aura" aria-hidden="true"></div>
-    <div class="bpw-stage" id="bpwOrbitStageV3">
+    <div class="bpw-stage" id="bpwOrbitStageV4">
       <div class="bpw-wordmark-wrap">
         <div class="bpw-wordmark" id="bpwWordmarkV3" role="img" aria-label="Welcome to BridgePoint Intelligence" data-title="WELCOME TO BRIDGEPOINT INTELLIGENCE"></div>
       </div>
@@ -251,6 +266,7 @@ html.bpw-entry-locked body>main>section:not(.hero){display:none!important;visibi
   </div>
 </div>
 <script id="bpWelcomeGateScriptV1">
+
 (()=>{
   'use strict';
   const gate=document.getElementById('bpWelcomeGateV1');
@@ -259,10 +275,11 @@ html.bpw-entry-locked body>main>section:not(.hero){display:none!important;visibi
   const soundButton=document.getElementById('bpwSoundV1');
   const status=document.getElementById('bpwStatusV1');
   const wordmark=document.getElementById('bpwWordmarkV3');
-  const GLOBAL_ZOOM=-.15,GLOBAL_CENTER=[0,18],MIN_WELCOME_ZOOM=-.28;
+  const fitGlobalZoom=()=>Math.max(.75,Math.min(2.7,Math.log2((Math.min(window.innerWidth||390,window.innerHeight||780)*.80)/(512/Math.PI))));
+  let GLOBAL_ZOOM=fitGlobalZoom(),GLOBAL_CENTER=[0,18],MIN_WELCOME_ZOOM=GLOBAL_ZOOM-.12;
   let audioContext=null,audioMaster=null,audioStarted=false,audioMuted=false;
   let musicChordTimer=0,musicArpTimer=0,sessionWatch=0,resizeHandler=null,gateSettled=false,sequenceStarted=false,spinTimer=0,spinActive=false;
-  let activeMap=null,didInitialResize=false,originalMinZoom=null;
+  let activeMap=null,didInitialResize=false,originalMinZoom=null,cameraLockMap=null,cameraLockHandler=null,cameraOriginals=null,cameraLockBusy=false;
   const isSignedIn=()=>{
     try{
       const session=JSON.parse(localStorage.getItem(STORE)||'null');
@@ -273,6 +290,65 @@ html.bpw-entry-locked body>main>section:not(.hero){display:none!important;visibi
   };
   const resizeWorld=()=>{
     try{activeMap?.resize?.()}catch(_){}
+  };
+  const enforceWholeEarth=()=>{
+    if(gate.dataset.removed==='1'||cameraLockBusy||!cameraLockMap)return;
+    try{
+      const map=cameraLockMap,center=map.getCenter?.(),zoom=Number(map.getZoom?.()),pitch=Number(map.getPitch?.()||0),bearing=Number(map.getBearing?.()||0),projection=map.getProjection?.()?.type;
+      if(Math.abs(zoom-GLOBAL_ZOOM)<.025&&Math.abs(pitch)<.5&&Math.abs(bearing)<.5&&(!projection||projection==='globe'))return;
+      cameraLockBusy=true;
+      if(projection&&projection!=='globe'&&cameraOriginals?.setProjection)cameraOriginals.setProjection.call(map,{type:'globe'});
+      map.jumpTo({center:[Number(center?.lng??GLOBAL_CENTER[0]),GLOBAL_CENTER[1]],zoom:GLOBAL_ZOOM,pitch:0,bearing:0});
+      window.__BP_WELCOME_CAMERA_GUARD_V4__={active:true,zoom:map.getZoom?.(),projection:map.getProjection?.()?.type,at:Date.now()};
+    }catch(_){}
+    finally{cameraLockBusy=false}
+  };
+  const installCameraGuard=map=>{
+    if(!map||cameraLockMap===map)return;
+    cameraLockMap=map;
+    cameraOriginals={};
+    const names=['jumpTo','easeTo','flyTo','setZoom','setCenter','setPitch','setBearing','setMinZoom','setProjection'];
+    for(const name of names){
+      const original=map[name];
+      if(typeof original!=='function')continue;
+      cameraOriginals[name]=original;
+      map[name]=function(...args){
+        if(gate.dataset.removed!=='1'){
+          if(name==='setProjection')args[0]={...(args[0]||{}),type:'globe'};
+          else if(name==='setZoom')args[0]=GLOBAL_ZOOM;
+          else if(name==='setMinZoom')args[0]=MIN_WELCOME_ZOOM;
+          else if(name==='setPitch')args[0]=0;
+          else if(name==='setBearing')args[0]=0;
+          else if(name==='setCenter'){
+            const c=Array.isArray(args[0])?args[0]:[Number(args[0]?.lng??args[0]?.lon??map.getCenter()?.lng??0),GLOBAL_CENTER[1]];
+            args[0]=[Number(c[0]),GLOBAL_CENTER[1]];
+          }else if(name==='jumpTo'||name==='easeTo'||name==='flyTo'){
+            const opts={...(args[0]||{})},c=opts.center;
+            const lng=Array.isArray(c)?Number(c[0]):Number(c?.lng??c?.lon??map.getCenter()?.lng??GLOBAL_CENTER[0]);
+            args[0]={...opts,center:[Number.isFinite(lng)?lng:GLOBAL_CENTER[0],GLOBAL_CENTER[1]],zoom:GLOBAL_ZOOM,pitch:0,bearing:0};
+          }
+        }
+        return original.apply(this,args);
+      };
+    }
+    cameraLockHandler=enforceWholeEarth;
+    map.on?.('move',cameraLockHandler);
+    map.on?.('zoom',cameraLockHandler);
+    map.on?.('pitch',cameraLockHandler);
+    try{map.setMinZoom?.(MIN_WELCOME_ZOOM);map.setProjection?.({type:'globe'})}catch(_){}
+    window.__BP_WELCOME_CAMERA_GUARD_V4__={active:true,zoom:map.getZoom?.(),minZoom:map.getMinZoom?.(),projection:map.getProjection?.()?.type,at:Date.now()};
+  };
+  const removeCameraGuard=()=>{
+    if(!cameraLockMap)return;
+    try{
+      if(cameraLockHandler){
+        cameraLockMap.off?.('move',cameraLockHandler);
+        cameraLockMap.off?.('zoom',cameraLockHandler);
+        cameraLockMap.off?.('pitch',cameraLockHandler);
+      }
+      if(cameraOriginals)for(const [name,method] of Object.entries(cameraOriginals))cameraLockMap[name]=method;
+    }catch(_){}
+    cameraLockMap=null;cameraLockHandler=null;cameraOriginals=null;
   };
   const holdWholeEarth=(map,resetCenter)=>{
     if(!map)return false;
@@ -307,9 +383,9 @@ html.bpw-entry-locked body>main>section:not(.hero){display:none!important;visibi
         if(document.hidden){spinTimer=setTimeout(step,1000);return}
         const center=activeMap.getCenter();
         activeMap.easeTo({
-          center:[Number(center.lng)+42,GLOBAL_CENTER[1]],
+          center:[Number(center.lng)+30,GLOBAL_CENTER[1]],
           zoom:GLOBAL_ZOOM,pitch:0,bearing:0,
-          duration:18000,
+          duration:22000,
           easing:t=>t,
           essential:true
         });
@@ -319,7 +395,7 @@ html.bpw-entry-locked body>main>section:not(.hero){display:none!important;visibi
       }catch(_){spinTimer=setTimeout(step,1200)}
     };
     step();
-    window.__BP_WELCOME_GLOBE_SPIN_V3__={active:true,degreesPerStep:42,stepDurationMs:18000,at:Date.now()};
+    window.__BP_WELCOME_GLOBE_SPIN_V4__={active:true,degreesPerStep:30,stepDurationMs:22000,at:Date.now()};
   };
   const stopMusic=()=>{
     if(musicChordTimer)clearInterval(musicChordTimer);
@@ -343,34 +419,70 @@ html.bpw-entry-locked body>main>section:not(.hero){display:none!important;visibi
     if(resizeHandler)window.removeEventListener('resize',resizeHandler);
     clearInterval(sessionWatch);
     stopMusic();
+    removeCameraGuard();
     try{if(originalMinZoom!==null)activeMap?.setMinZoom?.(originalMinZoom)}catch(_){}
     requestAnimationFrame(resizeWorld);
   };
   if(isSignedIn()){gate.remove();return}
   document.documentElement.classList.add('bpw-entry-locked');
+  function buildSpaceStars(){
+    const make=(id,count,seed,near)=>{
+      const field=document.getElementById(id);if(!field||field.dataset.built==='1')return;
+      let state=seed>>>0;
+      const random=()=>{state=(state*1664525+1013904223)>>>0;return state/4294967296};
+      for(let i=0;i<count;i++){
+        const star=document.createElement('i');
+        const size=near?.7+random()*2.5:.45+random()*1.65;
+        const alpha=.24+random()*.72;
+        star.className='bpw-star'+(i%23===0?' bpw-star-flare':'');
+        star.style.setProperty('--star-x',(random()*100).toFixed(2)+'%');
+        star.style.setProperty('--star-y',(random()*100).toFixed(2)+'%');
+        star.style.setProperty('--star-size',size.toFixed(2)+'px');
+        star.style.setProperty('--star-alpha',alpha.toFixed(2));
+        star.style.setProperty('--star-period',(2.2+random()*6.8).toFixed(2)+'s');
+        star.style.setProperty('--star-delay',(-random()*8).toFixed(2)+'s');
+        field.appendChild(star);
+      }
+      field.dataset.built='1';
+    };
+    make('bpwStarsFarV4',152,90419,false);
+    make('bpwStarsNearV4',76,59173,true);
+  }
+  buildSpaceStars();
   function buildWordmark(){
     if(!wordmark||wordmark.dataset.built==='1')return 0;
-    const phrase=wordmark.dataset.title||'WELCOME TO BRIDGEPOINT INTELLIGENCE';
-    const chars=Array.from(phrase);
-    const total=Math.max(1,chars.length-1);
-    chars.forEach((character,index)=>{
-      const normalized=(index/total-.5)*2;
-      const arcY=(Math.pow(normalized,2)*15-5).toFixed(2)+'px';
-      const arcRotate=(normalized*6.5).toFixed(2)+'deg';
-      const frame=document.createElement('span');
-      frame.className='bpw-letter-frame'+(character===' '?' bpw-letter-space':'');
-      frame.style.setProperty('--letter-index',String(index));
-      const face=document.createElement('span');
-      face.className='bpw-letter-face';
-      face.style.setProperty('--arc-y',arcY);
-      face.style.setProperty('--arc-rotate',arcRotate);
-      face.textContent=character===' '?' ':character;
-      face.dataset.letter=character===' '?' ':character;
-      frame.appendChild(face);
-      wordmark.appendChild(frame);
+    const lines=[
+      {text:'WELCOME TO',className:'bpw-title-kicker'},
+      {text:'BRIDGEPOINT',className:'bpw-title-main'},
+      {text:'INTELLIGENCE',className:'bpw-title-main'}
+    ];
+    let letterIndex=0,lastDelay=0;
+    lines.forEach((line,lineIndex)=>{
+      const row=document.createElement('div');
+      row.className='bpw-title-line '+line.className;
+      row.setAttribute('aria-hidden','true');
+      const chars=Array.from(line.text),total=Math.max(1,chars.length-1);
+      chars.forEach((character,index)=>{
+        const normalized=(index/total-.5)*2;
+        const arcY=(Math.pow(normalized,2)*22-8).toFixed(2)+'px';
+        const arcRotate=(normalized*8).toFixed(2)+'deg';
+        const delay=letterIndex*.092;
+        lastDelay=delay;
+        const frame=document.createElement('span');
+        frame.className='bpw-letter-frame'+(character===' '?' bpw-letter-space':'');
+        frame.style.setProperty('--letter-delay',delay.toFixed(3)+'s');
+        const face=document.createElement('span');
+        face.className='bpw-letter-face';
+        face.style.setProperty('--arc-y',arcY);
+        face.style.setProperty('--arc-rotate',arcRotate);
+        face.textContent=character===' '?' ':character;
+        face.dataset.letter=character===' '?' ':character;
+        frame.appendChild(face);row.appendChild(frame);letterIndex++;
+      });
+      wordmark.appendChild(row);
     });
     wordmark.dataset.built='1';
-    return (chars.length-1)*58+1320;
+    return Math.round(lastDelay*1000+2920);
   }
   let padFilter=null,padVoices=[],padGain=null,masterCompressor=null,delayWet=null,arpStep=0,chordStep=0;
   const chords=[
@@ -496,11 +608,11 @@ html.bpw-entry-locked body>main>section:not(.hero){display:none!important;visibi
   const startSequence=()=>{
     if(sequenceStarted||gateSettled)return;
     sequenceStarted=true;
+    startGlobeSpin();
     const lettersDuration=buildWordmark();
     if(status)status.textContent='BRIDGEPOINT WORLD INITIALIZED';
     setTimeout(()=>{
       if(isSignedIn()){restorePage();return}
-      startGlobeSpin();
       setTimeout(settleGate,1250);
     },lettersDuration+160);
   };
@@ -511,6 +623,10 @@ html.bpw-entry-locked body>main>section:not(.hero){display:none!important;visibi
       if(isSignedIn()){restorePage();return}
       if(gateSettled)return;
       try{activeMap=window.__BP_LANDING_WORLD__?.map||window.__BP_V5000_WORLD__?.map||activeMap}catch(_){}
+      if(activeMap){
+        installCameraGuard(activeMap);
+        if(!didInitialResize){didInitialResize=true;resizeWorld();holdWholeEarth(activeMap,true)}
+      }
       if(activeMap&&mapIsReady(activeMap)){
         if(!didInitialResize){
           resizeWorld();didInitialResize=true;
@@ -535,6 +651,7 @@ html.bpw-entry-locked body>main>section:not(.hero){display:none!important;visibi
   };
   resizeHandler=()=>{
     if(!activeMap||gate.dataset.removed==='1')return;
+    GLOBAL_ZOOM=fitGlobalZoom();MIN_WELCOME_ZOOM=GLOBAL_ZOOM-.12;
     resizeWorld();
     requestAnimationFrame(()=>holdWholeEarth(activeMap,false));
   };
@@ -544,6 +661,7 @@ html.bpw-entry-locked body>main>section:not(.hero){display:none!important;visibi
   window.addEventListener('storage',event=>{if(event.key===STORE&&isSignedIn())restorePage()});
   window.addEventListener('pagehide',()=>{stopGlobeSpin();stopMusic()});
 })();
+
 </script>
 
 </body></html>

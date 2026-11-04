@@ -703,11 +703,13 @@ async function initMap(){
   console.log('BP_STARTUP_TRACE','landing:after-world-import');
   window.__BP_LANDING_MAP_BOOT__={stage:'initializing-world',maplibre:true,module:true,at:Date.now()};
   console.log('BP_STARTUP_TRACE','landing:before-initWorld');
+  const previewGlobeZoom=Math.log2((Math.min(window.innerWidth||390,window.innerHeight||780)*.80)/(512/Math.PI));
   const world=mod.initWorld({
    containerId:'previewMap',
    globalKey:'__bpLandingWorldV5420',
-   center:[0,20],
-   zoom:window.innerWidth<=620?1.05:1.25,
+   center:[0,18],
+   zoom:previewGlobeZoom,
+   minZoom:previewGlobeZoom-.12,
    pitch:0,
    bearing:0,
    projection:'globe',
@@ -808,7 +810,7 @@ async function initMap(){
   // Heavy opportunity and listing overlays stay idle until the BridgePoint panels are opened.
   window.__BP_LANDING_RENDERER_PARITY__={sharedModule:true,version:5513,container:'previewMap',sameWorldRendererAsApp:true,sameWeatherEngineAsApp:true,updatedAt:Date.now()};
   try{
-   map.jumpTo({center:[0,20],zoom:window.innerWidth<=620?1.05:1.25,pitch:0,bearing:0});
+   map.jumpTo({center:[0,18],zoom:previewGlobeZoom,pitch:0,bearing:0});
    window.__BP_LANDING_GLOBAL_START__={center:[0,20],projection:'globe',zoom:map.getZoom(),at:Date.now()}
   }catch(_){};
   world.onBuildingSelect?.(({feature})=>{
