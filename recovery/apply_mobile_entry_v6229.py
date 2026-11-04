@@ -163,7 +163,7 @@ def patch_html(html: str, min_lazy_assets: int = 15) -> tuple[str, dict]:
       if(isSignedIn()){restorePage();return}
       setTimeout(settleGate,1250);
     },lettersDuration+160);
-};"""
+  };"""
     start_new = """const startSequence=()=>{
     if(sequenceStarted)return;
     sequenceStarted=true;
