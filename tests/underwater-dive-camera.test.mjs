@@ -7,6 +7,7 @@ const [sensor, map, workflow] = await Promise.all([
   read('../.github/workflows/deploy-intelligence-rebuild-v5000.yml')
 ]);
 assert.ok(sensor.includes("function waitForBathymetry(point,timeout=6500)"), 'dive must wait for a source-backed bathymetry sample');
+assert.ok(sensor.includes("function waitForDepthSource(timeout=10000)"), 'dive must wait for the GEBCO raster and terrain sources to attach after a projection change');
 assert.ok(sensor.includes("calculateCameraOptionsFromCameraLngLatAltRotation?.(point,targetAltitude,saved.bearing,58)"), 'dive must calculate a MapLibre view from a real below-sea-level camera location');
 assert.ok(sensor.includes("map.easeTo(targetView)"), 'dive must apply the calculated camera position through supported map view options');
 assert.ok(sensor.includes("const targetView={center:[Number(cameraOptions.center.lng),Number(cameraOptions.center.lat)]"), 'calculated center coordinates must be normalized into MapLibre LngLatLike arrays');
