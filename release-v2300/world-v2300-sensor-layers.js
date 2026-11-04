@@ -57,6 +57,7 @@ export function initSensorLayers(target){
  const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
  async function waitForProjection(type,timeout=1800){if(map.getProjection?.()?.type===type)return true;return new Promise(resolve=>{let done=false;const finish=()=>{if(done)return;done=true;clearTimeout(timer);map.off?.('styledata',check);map.off?.('style.load',check);map.off?.('idle',check);resolve(map.getProjection?.()?.type===type)};const check=()=>{if(map.getProjection?.()?.type===type)finish()};const timer=setTimeout(finish,timeout);map.on?.('styledata',check);map.on?.('style.load',check);map.on?.('idle',check);check()})}
  async function waitForBathymetry(point,timeout=6500){const until=Date.now()+timeout;let last=null;while(Date.now()<until&&!dead){try{const v=map.queryTerrainElevation?.(point,{exaggerated:true});if(Number.isFinite(v)){last=v;if(v<=-4)return v}}catch(_){}await pause(110)}return last}
+ async function waitForDepthSource(timeout=10000){const until=Date.now()+timeout;while(Date.now()<until&&!dead){if(map.getSource(D)&&map.getSource(BS)&&map.getLayer(B))return true;if(map.isStyleLoaded?.()){try{addDepth()}catch(e){console.warn('BridgePoint GEBCO source retry',e)}}await pause(110)}return !!(map.getSource(D)&&map.getSource(BS)&&map.getLayer(B))}
  function waitForMapMove(timeout=2100){return new Promise(resolve=>{let done=false;const finish=()=>{if(done)return;done=true;clearTimeout(timer);map.off?.('moveend',finish);resolve()};const timer=setTimeout(finish,timeout);map.once?.('moveend',finish);if(!map.isMoving?.())setTimeout(finish,150)})}
 
  function nightUrl(){const bucket=Math.floor(selectedAt.getTime()/600000)*600000;return NIGHT+'?z={z}&x={x}&y={y}&at='+encodeURIComponent(new Date(bucket).toISOString())+'&v=6027'}
@@ -82,8 +83,8 @@ export function initSensorLayers(target){
    try{
     map.stop?.();try{map.setCenterClampedToGround?.(false)}catch(_){}try{map.setProjection?.({type:'mercator'})}catch(_){}
     await waitForProjection('mercator',1800);
-    if(!state.surface)setSurface(true);else if(!map.getSource(D))addDepth();
-    if(!map.getSource(D))throw new Error('GEBCO depth tiles did not attach to this map style.');
+    if(!state.surface){state.surface=true;sync()}
+    if(!await waitForDepthSource())throw new Error('GEBCO depth tiles did not attach to this map style.');
     map.triggerRepaint?.();
     const bed=await waitForBathymetry(point,6500);
     if(!Number.isFinite(bed))throw new Error('GEBCO bathymetry is not available at this location yet. Center the globe over open water and retry.');
