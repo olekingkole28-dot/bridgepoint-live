@@ -257,7 +257,7 @@ html.bpw-entry-locked body>main>section:not(.hero){display:none!important;visibi
   const status=document.getElementById('bpwStatusV1');
   let audioContext=null,audioMaster=null,audioStarted=false;
   let musicChordTimer=0,musicArpTimer=0,sessionWatch=0,resizeHandler=null,gateSettled=false,orbitTimer=0;
-  let activeMap=null;
+  let activeMap=null,didInitialResize=false;
   const isSignedIn=()=>{
     try{
       const session=JSON.parse(localStorage.getItem(STORE)||'null');
@@ -437,7 +437,7 @@ html.bpw-entry-locked body>main>section:not(.hero){display:none!important;visibi
       if(gateSettled)return;
       try{activeMap=window.__BP_LANDING_WORLD__?.map||window.__BP_V5000_WORLD__?.map||activeMap}catch(_){}
       if(activeMap){
-        resizeWorld();
+        if(!didInitialResize){resizeWorld();didInitialResize=true}
         if(mapIsReady(activeMap)){startIntroTimer();return}
       }
       if(Date.now()-startedAt>45000){startIntroTimer();return}
