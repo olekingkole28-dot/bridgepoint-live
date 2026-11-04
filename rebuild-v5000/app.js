@@ -143,8 +143,10 @@ async function bootMap(){
  const appMap=world.map;
  const ensureAppStartupGlobe=()=>{
   let projection='unknown';try{projection=String(appMap.getProjection?.()?.type||'unknown')}catch(_){}
-  if(projection!=='globe'&&appMap.getZoom()<7.5){try{appMap.setProjection?.({type:'globe'});projection=String(appMap.getProjection?.()?.type||'globe')}catch(e){console.warn('BridgePoint app globe projection restore',e)}}
-  window.__BP_APP_GLOBE_BOOT__={version:6206,containerId:'liveMap',projection,zoom:appMap.getZoom(),center:appMap.getCenter()?.toArray?.()||null,canvasWidth:appMap.getCanvas?.()?.clientWidth||0,canvasHeight:appMap.getCanvas?.()?.clientHeight||0,sharedRenderer:true,updatedAt:Date.now()};
+  const underwaterDiveActive=window.__BP_UNDERWATER_DIVE_ACTIVE__===true||window.__BP_UNDERWATER_DIVE_TRANSITION__===true;
+  // The startup idle callback must not undo the dive's temporary Mercator projection.
+  if(!underwaterDiveActive&&projection!=='globe'&&appMap.getZoom()<7.5){try{appMap.setProjection?.({type:'globe'});projection=String(appMap.getProjection?.()?.type||'globe')}catch(e){console.warn('BridgePoint app globe projection restore',e)}}
+  window.__BP_APP_GLOBE_BOOT__={version:6225,containerId:'liveMap',projection,underwaterDiveActive,zoom:appMap.getZoom(),center:appMap.getCenter()?.toArray?.()||null,canvasWidth:appMap.getCanvas?.()?.clientWidth||0,canvasHeight:appMap.getCanvas?.()?.clientHeight||0,sharedRenderer:true,updatedAt:Date.now()};
  };
  ensureAppStartupGlobe();
  appMap.once('load',ensureAppStartupGlobe);

@@ -643,19 +643,45 @@ export function initWorld(options={}){
   function keepSatelliteRasterLayersVisible(reason='settled'){
    const ids=['gta-nasa','gta-esri','gta-usgs','gta-oam'],layers={},restored=[],suppressed=[];
    const blenderWorldEnabled=window.__BP_BLENDER_WORLD_MODE__?.enabled===true;
+   const underwaterDiveActive=window.__BP_UNDERWATER_DIVE_ACTIVE__===true||window.__BP_UNDERWATER_DIVE_TRANSITION__===true;
    for(const id of ids){
     try{
      const layer=map.getLayer(id);
      if(!layer){layers[id]={present:false,visibility:'missing'};continue}
      const before=map.getLayoutProperty(id,'visibility')||'visible';
      const targetVisibility=blenderWorldEnabled?'none':'visible';
-     if(before!==targetVisibility){
-      map.setLayoutProperty(id,'visibility',targetVisibility);
-      (blenderWorldEnabled?suppressed:restored).push(id);
+     const effectiveVisibility=underwaterDiveActive?'none':targetVisibility;
+     if(before!==effectiveVisibility){
+      map.setLayoutProperty(id,'visibility',effectiveVisibility);
+      (effectiveVisibility==='none'?suppressed:restored).push(id);
      }
      layers[id]={present:true,visibility:map.getLayoutProperty(id,'visibility')||'visible',source:layer.source,minzoom:layer.minzoom??0,maxzoom:layer.maxzoom??22};
     }catch(error){layers[id]={present:false,error:String(error?.message||error)}}
    }
+   // A user-loaded Landsat scene is another raster overlay; suspend it only for the underwater interval.
+   // Preserve its exact pre-dive visibility so surfacing returns the user's imagery choice.
+   const spectralLayerId='bp-spectral-imagery-raster-v5931';
+   try{
+    const spectralLayer=map.getLayer(spectralLayerId);
+    if(underwaterDiveActive&&spectralLayer){
+     const saved=window.__BP_UNDERWATER_SPECTRAL_LAYER_VISIBILITY__||(window.__BP_UNDERWATER_SPECTRAL_LAYER_VISIBILITY__={});
+     if(!Object.prototype.hasOwnProperty.call(saved,spectralLayerId))saved[spectralLayerId]=map.getLayoutProperty(spectralLayerId,'visibility')||'visible';
+     if((map.getLayoutProperty(spectralLayerId,'visibility')||'visible')!=='none'){
+      map.setLayoutProperty(spectralLayerId,'visibility','none');
+      suppressed.push(spectralLayerId);
+     }
+    }else if(!underwaterDiveActive){
+     const saved=window.__BP_UNDERWATER_SPECTRAL_LAYER_VISIBILITY__;
+     if(saved&&Object.prototype.hasOwnProperty.call(saved,spectralLayerId)){
+      if(spectralLayer){
+       const prior=saved[spectralLayerId]||'visible',current=map.getLayoutProperty(spectralLayerId,'visibility')||'visible';
+       if(current!==prior){map.setLayoutProperty(spectralLayerId,'visibility',prior);(prior==='none'?suppressed:restored).push(spectralLayerId)}
+      }
+      delete saved[spectralLayerId];
+      if(!Object.keys(saved).length)delete window.__BP_UNDERWATER_SPECTRAL_LAYER_VISIBILITY__;
+     }
+    }
+   }catch(error){layers[spectralLayerId]={present:!!map.getLayer(spectralLayerId),error:String(error?.message||error)}}
    let oceanFill='unavailable';
    try{
     // Keep the native vector ocean transparent at every zoom, even while optional
@@ -665,7 +691,7 @@ export function initWorld(options={}){
      oceanFill=0;
     }
    }catch(error){oceanFill='error: '+String(error?.message||error)}
-   window.__BP_SATELLITE_RASTER_VISIBILITY_GUARD_V6217__={version:6217,reason,restored,suppressed,layers,blenderWorldEnabled,oceanFill,updatedAt:Date.now()};
+   window.__BP_SATELLITE_RASTER_VISIBILITY_GUARD_V6217__={version:6217,reason,restored,suppressed,layers,blenderWorldEnabled,underwaterDiveActive,oceanFill,updatedAt:Date.now()};
    return layers;
   }
   function restoreSatelliteRasterStack(){
