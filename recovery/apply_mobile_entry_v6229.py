@@ -174,7 +174,7 @@ def patch_html(html: str, min_lazy_assets: int = 15) -> tuple[str, dict]:
     const lettersDuration=wordmarkBuilt?0:buildWordmark();
     wordmarkBuilt=true;
     if(status&&!gateSettled)status.textContent='BRIDGEPOINT WORLD INITIALIZED';
-    if(!gateSettled)setTimeout(()=>{
+    if(!gateSettled&&!gateFallbackStarted)setTimeout(()=>{
       if(isSignedIn()){restorePage();return}
       setTimeout(settleGate,1250);
     },lettersDuration+160);
