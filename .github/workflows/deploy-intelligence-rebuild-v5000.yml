@@ -2029,7 +2029,7 @@ jobs:
                 },kind);
               };
               await page.setViewport({width:1440,height:960,deviceScaleFactor:1});
-              await page.evaluateOnNewDocument(()=>{try{localStorage.setItem('bp-global-map-mode-v6204','dark')}catch(_){}});
+              await page.evaluateOnNewDocument(()=>{try{localStorage.setItem('bp-global-map-mode-v6204','dark');localStorage.setItem('bp_auth_v5045',JSON.stringify({access_token:'bridgepoint-smoke-authenticated-session'}))}catch(_){}});
               await page.goto('https://bridgepointintelligence.online/?natural-persistence-smoke='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
               const home=await readStableMap('home');
               const validate=(state)=>{
@@ -2076,6 +2076,9 @@ jobs:
               await page.waitForFunction(()=>window.__BP_APP_GLOBE_BOOT__?.containerId==='liveMap'&&window.__BP_APP_GLOBE_BOOT__?.projection==='globe',{timeout:90000});
               const app=await readStableMap('app');
               validate(app);
+              const appShell=await page.evaluate(()=>({floatingTopBars:document.querySelectorAll('.bpv-topbar').length,accountControlsInCard:!!document.querySelector('#bpv-dock-account-row .bpv-topbar-right')}));
+              assert.equal(appShell.floatingTopBars,0,'app must not render a separate options bar above the BridgePoint card');
+              assert.equal(appShell.accountControlsInCard,true,'app account and language controls must remain inside the BridgePoint card');
               const appZoomStops=await verifyZoomStops('app');
               const appStreetStop=await verifyStreetZoom('app');
               assert.equal(app.canvasCount,1,'app must render exactly one main-world map canvas');
