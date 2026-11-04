@@ -649,10 +649,11 @@ export function initWorld(options={}){
      const layer=map.getLayer(id);
      if(!layer){layers[id]={present:false,visibility:'missing'};continue}
      const before=map.getLayoutProperty(id,'visibility')||'visible';
-     const targetVisibility=(blenderWorldEnabled||underwaterDiveActive)?'none':'visible';
-     if(before!==targetVisibility){
-      map.setLayoutProperty(id,'visibility',targetVisibility);
-      ((blenderWorldEnabled||underwaterDiveActive)?suppressed:restored).push(id);
+     const targetVisibility=blenderWorldEnabled?'none':'visible';
+     const effectiveVisibility=underwaterDiveActive?'none':targetVisibility;
+     if(before!==effectiveVisibility){
+      map.setLayoutProperty(id,'visibility',effectiveVisibility);
+      (effectiveVisibility==='none'?suppressed:restored).push(id);
      }
      layers[id]={present:true,visibility:map.getLayoutProperty(id,'visibility')||'visible',source:layer.source,minzoom:layer.minzoom??0,maxzoom:layer.maxzoom??22};
     }catch(error){layers[id]={present:false,error:String(error?.message||error)}}
