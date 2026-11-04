@@ -8,9 +8,9 @@ from apply_mobile_entry_v6229 import patch_html, patch_landing_js
 
 
 def index_fixture() -> str:
-    optional = "".join(
+    optional = '<script defer src="/bridgepoint-drone-awareness-v1.js"></script>' + "".join(
         f'<script defer src="/optional-{i}.js"></script>'
-        for i in range(16)
+        for i in range(15)
     )
     return """<!doctype html><html><head>
 <link rel="modulepreload" href="/world-v2300-map.js?v=6226-underwater-satellite-lock">
@@ -21,6 +21,7 @@ def index_fixture() -> str:
 </head><body>
 <div id="bpWelcomeGateV1" class="bpw-globe-aura"></div>
 <script src="./vendor/maplibre-gl.js?v=524-v5945"></script>
+<script defer src="/acquisition_tracker.js?v=5001"></script>
 <script defer src="./landing.js?v=6228-auth-retry&bp=5970-globe-model-matrices"></script>
 """ + optional + """
 <script id="bpWelcomeGateScriptV1">
@@ -79,8 +80,9 @@ class MobileEntryPatchTests(unittest.TestCase):
         self.assertIn('landing.js?v=6229-mobile-entry&bp=5970-globe-model-matrices', patched)
         self.assertIn('world-v2300-map.js?v=6226-underwater-satellite-lock', patched)
         self.assertIn('bpMobileLazyLoaderV6229', patched)
-        self.assertIn('data-bp-lazy-src="/optional-0.js"', patched)
-        self.assertNotIn('<script defer src="/optional-0.js"', patched)
+        self.assertIn('data-bp-lazy-src="/bridgepoint-drone-awareness-v1.js"', patched)
+        self.assertNotIn('<script defer src="/bridgepoint-drone-awareness-v1.js"', patched)
+        self.assertIn('<script defer src="/acquisition_tracker.js?v=5001"></script>', patched)
         self.assertIn('acquisition_tracker', patched) if 'acquisition_tracker' in index_fixture() else None
 
     def test_preserves_welcome_animation_and_releases_gate_after_bounded_wait(self):
