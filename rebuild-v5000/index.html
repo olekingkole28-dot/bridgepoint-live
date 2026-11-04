@@ -160,7 +160,7 @@ html.bp-instant-globe-start body>main>.hero>.preview>#previewMap{position:absolu
 <div id="authModal" class="modal" hidden><div class="modal-card"><button id="closeAuth" class="close" type="button">×</button><img src="./bridgepoint-mark.svg" alt=""><span class="eyebrow" id="authEyebrow">CREATE YOUR BRIDGEPOINT ACCOUNT</span><h2 id="authTitle">Start using BridgePoint</h2><p id="authIntro">Your account connects saved properties, package access and workflow to the same BridgePoint identity.</p><form id="authForm"><label id="nameField">NAME<input id="authName" autocomplete="name" placeholder="Your name"></label><label>EMAIL<input id="authEmail" type="email" autocomplete="email" required placeholder="you@company.com"></label><label>PASSWORD<div class="password-wrap"><input id="authPassword" type="password" minlength="6" autocomplete="new-password" required placeholder="At least 6 characters"><button id="authPasswordToggle" class="password-toggle" type="button" aria-label="Show password" aria-pressed="false">◉</button></div></label><label class="legal-accept"><input id="authLegalAccept" type="checkbox" required><span>I accept the <a href="/terms/" target="_blank" rel="noopener">Terms of Use</a> and <a href="/privacy/" target="_blank" rel="noopener">Privacy Notice</a> before signing in or creating an account.</span></label><button id="authSubmit" class="primary big" type="submit">CREATE ACCOUNT</button></form><div id="authMessage" class="auth-message"></div><button id="authSwitch" class="switch" type="button">Already have an account? Sign in</button></div></div>
 <script defer src="/qr-house-v5521.js?v=5521"></script><script defer src="/acquisition_tracker.js?v=5001"></script>\n<script src="./vendor/maplibre-gl.js?v=524-v5945"></script><script defer src="/bridgepoint-drone-awareness-v1.js?v=7-aircraft-models-tracks"></script><script defer src="/bridgepoint-vessel-awareness-v1.js?v=20261103-global-vessel-visibility-3d"></script><script src="./landing.js?v=6226-underwater-satellite-lock&bp=5970-globe-model-matrices" defer></script><script defer src="/language-selector-v5200.js?v=5927-topbar"></script><script type="module" src="/intelligence-tools-v5507.js?v=6170-imerg-nrt-timeline"></script><script defer src="/refresh-v5535.js?v=5549"></script><script defer src="/parcel-boundary-viewer-v5403.js?v=1130-global-public-source-credits"></script><script defer src="/global-property-v957.js?v=1124-global-public-parcel-tiles"></script><script defer src="/bridgepoint-view-v5917.js?v=6215-satellite-persistent-render-guard&emrf=1"></script><script defer src="/bridgepoint-blender-world-v1.js?v=2-raster-hide"></script><script defer src="/bridgepoint-transportation-loader-v1.js?v=4-global-pmtiles-stable-models"></script><script defer src="/zoning-coverage-v1.js?v=1123-lot-coverage-zoning"></script><script defer src="/bridgepoint-map-key-v5920.js?v=6037-mapkey-drawer-fix"></script><script defer src="/bridgepoint-map-state-counts-v5923.js?v=5923-state-counters"></script><script defer src="/bridgepoint-map-physical-assets-v5924.js?v=5924-physical-assets"></script><script defer src="/bridgepoint-global-motion-v5926.js?v=6203-3d-orbit-markers-popup-global-zoom"></script><script defer src="/bridgepoint-landmarks-v5940.js?v=6001-style-persistence"></script><script defer src="/bridgepoint-reality-assets-v5968.js?v=5968"></script><script defer src="/bridgepoint-live-rail-v5969.js?v=5980-global-train-dots"></script><script defer src="/bridgepoint-rail-mesh-v5973.js?v=5980-visible-detail-rails"></script><script defer src="/bridgepoint-pyramids-v5945.js?v=5945-giza-3d"></script><script defer src="/bridgepoint-eiffel-tower-v5983.js?v=6022-eiffel-filter-ready-layer"></script><script defer src="/bridgepoint-lincoln-memorial-v5984.js?v=6013-no-standalone-button"></script><script defer src="/bridgepoint-lincoln-pointcloud-v5986.js?v=6025-gold-lod-only-lincoln-scan"></script><script defer src="/bridgepoint-nyc-lidar-v7000.js?v=7010-lazy-lidar-mesh"></script><script defer src="/offline-world-ui.js?v=1"></script><script defer src="/bridgepoint-ai-commandbar-v1.js?v=20261103-card-voice"></script>
 <style id="bpWelcomeGateStylesV1">
-/* Keep the real BridgePoint globe full-screen and upright while the welcome gate is active. */
+/* The globe stays on its true world view only while the unauthenticated intro is present. */
 html.bpw-entry-locked,html.bpw-entry-locked body{height:100%!important;min-height:100%!important;width:100%!important;overflow:hidden!important;margin:0!important;background:#020711!important;overscroll-behavior:none!important}
 html.bpw-entry-locked body>:not(main):not(#authModal):not(#bpWelcomeGateV1){display:none!important}
 html.bpw-entry-locked body>main{position:fixed!important;inset:0!important;z-index:1!important;display:block!important;width:100vw!important;height:100%!important;max-width:none!important;margin:0!important;padding:0!important;overflow:hidden!important;pointer-events:none!important}
@@ -171,80 +171,83 @@ html.bpw-entry-locked body>main>.hero>.preview>*:not(#previewMap){display:none!i
 html.bpw-entry-locked #previewMap{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:0!important;touch-action:none!important;pointer-events:none!important}
 html.bpw-entry-locked #previewMap .maplibregl-ctrl-container,html.bpw-entry-locked #previewMap .maplibregl-ctrl,html.bpw-entry-locked #previewMap .maplibregl-ctrl-attrib{display:none!important}
 html.bpw-entry-locked body>main>section:not(.hero){display:none!important;visibility:hidden!important;pointer-events:none!important}
-#bpWelcomeGateV1{position:fixed;inset:0;z-index:2147482000;display:block;overflow:hidden;color:#f7fbff;text-align:center;background:radial-gradient(ellipse at 50% 49%,rgba(5,18,34,.02),rgba(1,5,13,.10) 68%,rgba(1,4,10,.34));font-family:Arial,Helvetica,sans-serif;isolation:isolate;pointer-events:none}
+#bpWelcomeGateV1{position:fixed;inset:0;z-index:2147482000;display:block;overflow:hidden;color:#f8fbff;text-align:center;background:radial-gradient(ellipse at 50% 50%,rgba(5,18,34,0),rgba(1,5,13,.08) 68%,rgba(1,4,10,.24));font-family:Arial,Helvetica,sans-serif;isolation:isolate;pointer-events:none}
 #bpWelcomeGateV1[hidden]{display:none!important}
-#bpWelcomeGateV1:before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;background:radial-gradient(ellipse at 50% 50%,transparent 0%,rgba(1,7,17,.06) 52%,rgba(1,5,13,.34) 100%)}
-#bpWelcomeGateV1:after{content:"";position:absolute;inset:-40%;z-index:0;pointer-events:none;opacity:.16;background-image:radial-gradient(1px 1px at 14% 22%,#fff 98%,transparent),radial-gradient(1px 1px at 72% 14%,#a8e6ff 98%,transparent),radial-gradient(1px 1px at 34% 78%,#fff 98%,transparent),radial-gradient(1px 1px at 86% 62%,#d4c9ff 98%,transparent),radial-gradient(1px 1px at 55% 48%,#fff 98%,transparent);background-size:330px 260px;animation:bpw-star-drift-v2 44s linear infinite}
+#bpWelcomeGateV1:before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;background:radial-gradient(ellipse at 50% 50%,transparent 34%,rgba(1,7,17,.08) 72%,rgba(1,5,13,.27) 100%)}
+#bpWelcomeGateV1:after{content:"";position:absolute;inset:-40%;z-index:0;pointer-events:none;opacity:.14;background-image:radial-gradient(1px 1px at 14% 22%,#fff 98%,transparent),radial-gradient(1px 1px at 72% 14%,#a8e6ff 98%,transparent),radial-gradient(1px 1px at 34% 78%,#fff 98%,transparent),radial-gradient(1px 1px at 86% 62%,#d4c9ff 98%,transparent),radial-gradient(1px 1px at 55% 48%,#fff 98%,transparent);background-size:330px 260px;animation:bpw-star-drift-v3 48s linear infinite}
 #bpWelcomeGateV1[data-phase="intro"] .bpw-sound{pointer-events:auto}
 #bpWelcomeGateV1[data-phase="gate"]{pointer-events:auto}
 #bpWelcomeGateV1 .bpw-layout{position:relative;width:100%;height:100%;min-height:100dvh;display:block;padding:0;box-sizing:border-box;z-index:1}
-#bpWelcomeGateV1 .bpw-stage{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
-#bpWelcomeGateV1 .bpw-equator{position:absolute;left:50%;top:50%;width:94vw;height:31vh;transform:translate(-50%,-50%);border:1px solid rgba(107,204,255,.23);border-radius:50%;box-shadow:0 0 18px rgba(48,160,255,.16),inset 0 0 16px rgba(60,169,255,.10);opacity:.84}
-#bpWelcomeGateV1 .bpw-equator:after{content:"";position:absolute;inset:8% 2%;border:1px dashed rgba(130,208,255,.24);border-radius:50%;filter:drop-shadow(0 0 5px rgba(72,177,255,.5))}
-#bpWelcomeGateV1 .bpw-word-layer{position:absolute;inset:0;pointer-events:none;overflow:hidden}
-#bpWelcomeGateV1 .bpw-word{position:absolute;left:50%;top:50%;width:max-content;max-width:none;white-space:nowrap;font-size:clamp(13px,3.2vw,22px);font-weight:950;letter-spacing:.12em;text-transform:uppercase;line-height:1;color:#effbff;text-shadow:0 0 5px #fff,0 0 13px rgba(66,184,255,.95),0 0 29px rgba(41,133,255,.8),0 0 48px rgba(74,91,255,.48);will-change:transform,opacity;animation:bpw-orbit-message-v2 23s cubic-bezier(.34,0,.22,1) infinite}
-#bpWelcomeGateV1 .bpw-word-back{z-index:1;opacity:.28;clip-path:inset(0 0 50% 0)}
-#bpWelcomeGateV1 .bpw-word-front{z-index:4;opacity:1;clip-path:inset(50% 0 0 0)}
-#bpWelcomeGateV1 .bpw-word-back .bpw-word{color:#a7dfff;text-shadow:0 0 7px rgba(57,163,255,.75),0 0 18px rgba(48,137,255,.4)}
-#bpWelcomeGateV1 .bpw-status{position:absolute;z-index:5;left:16px;right:16px;bottom:clamp(88px,12vh,128px);color:#b2d8f5;font-size:clamp(9px,2.5vw,12px);font-weight:850;letter-spacing:.24em;text-transform:uppercase;text-shadow:0 0 13px rgba(39,159,255,.7);transition:opacity .5s ease}
+#bpWelcomeGateV1 .bpw-globe-aura{position:absolute;z-index:1;left:50%;top:50%;width:min(96vw,760px);aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;border:1px solid rgba(128,206,255,.19);background:radial-gradient(circle,transparent 57%,rgba(54,152,255,.035) 64%,rgba(77,181,255,.12) 68%,rgba(90,126,255,.04) 73%,transparent 79%);box-shadow:0 0 34px rgba(64,166,255,.30),0 0 86px rgba(70,139,255,.19),inset 0 0 38px rgba(79,167,255,.12);pointer-events:none}
+#bpWelcomeGateV1 .bpw-globe-aura:before,#bpWelcomeGateV1 .bpw-globe-aura:after{content:"";position:absolute;inset:-4%;border:1px solid rgba(145,215,255,.11);border-radius:50%;box-shadow:0 0 35px rgba(65,160,255,.12)}
+#bpWelcomeGateV1 .bpw-globe-aura:after{inset:-9%;border-color:rgba(134,157,255,.075);filter:blur(2px)}
+#bpWelcomeGateV1 .bpw-stage{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;perspective:1200px}
+#bpWelcomeGateV1 .bpw-wordmark-wrap{position:absolute;z-index:5;left:0;right:0;top:50%;display:flex;justify-content:center;align-items:center;transform:translateY(-50%);padding:0 5px;pointer-events:none}
+#bpWelcomeGateV1 .bpw-wordmark{display:flex;justify-content:center;align-items:center;white-space:nowrap;max-width:100%;font-size:clamp(12px,3.35vw,38px);font-weight:1000;letter-spacing:.018em;line-height:1;text-transform:uppercase;transform-style:preserve-3d;filter:drop-shadow(0 7px 13px rgba(0,0,0,.42)) drop-shadow(0 0 18px rgba(255,202,104,.36))}
+#bpWelcomeGateV1 .bpw-letter-frame{display:inline-block;flex:0 0 auto;position:relative;transform-style:preserve-3d;animation:bpw-letter-arrive-v3 1.24s cubic-bezier(.16,.86,.22,1) both;animation-delay:calc(var(--letter-index)*.058s)}
+#bpWelcomeGateV1 .bpw-letter-face{display:inline-block;position:relative;transform:translateY(var(--arc-y,0px)) rotateZ(var(--arc-rotate,0deg));padding:1px 0;background:linear-gradient(180deg,#fffef3 0%,#fff3c9 13%,#eec56d 27%,#fff9df 39%,#dba744 56%,#9f6a20 74%,#f9dc94 89%,#fff9e4 100%);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-stroke:.28px rgba(255,242,197,.82);text-shadow:0 1px 0 #fff8d9,0 2px 0 #d4a64d,0 3px 0 #a97525,0 4px 0 #7c511b,0 6px 8px rgba(0,0,0,.74),0 0 8px rgba(255,220,145,.92),0 0 20px rgba(255,183,73,.56);filter:drop-shadow(0 0 5px rgba(255,225,159,.45))}
+#bpWelcomeGateV1 .bpw-letter-face:after{content:attr(data-letter);position:absolute;inset:0;z-index:-1;color:#a16c22;transform:translate3d(1.4px,3px,-1px);text-shadow:0 2px 0 #754811,0 4px 0 #52330f,0 6px 8px rgba(0,0,0,.7);-webkit-text-fill-color:#a16c22}
+#bpWelcomeGateV1 .bpw-letter-space{width:.30em}
+#bpWelcomeGateV1 .bpw-status{position:absolute;z-index:6;left:16px;right:16px;bottom:clamp(132px,18vh,170px);color:#c0e5ff;font-size:clamp(9px,2.5vw,12px);font-weight:900;letter-spacing:.22em;text-transform:uppercase;text-shadow:0 0 13px rgba(39,159,255,.85);transition:opacity .5s ease}
 #bpWelcomeGateV1 .bpw-status[hidden]{display:none!important}
-#bpWelcomeGateV1 .bpw-status:after{content:"";display:block;width:min(170px,38vw);height:2px;margin:11px auto 0;background:linear-gradient(90deg,transparent,#48baff,#e8f9ff,#48baff,transparent);box-shadow:0 0 14px #168fff;transform-origin:left;animation:bpw-loading-bar-v2 2.4s ease-in-out infinite}
-#bpWelcomeGateV1 .bpw-gate-panel{position:absolute;left:16px;right:16px;bottom:clamp(48px,7vh,76px);z-index:7;display:flex;flex-direction:column;align-items:center;gap:13px;opacity:0;visibility:hidden;transform:translateY(14px);transition:opacity .8s ease,transform .8s ease,visibility .8s}
+#bpWelcomeGateV1 .bpw-status:after{content:"";display:block;width:min(170px,38vw);height:2px;margin:11px auto 0;background:linear-gradient(90deg,transparent,#48baff,#e8f9ff,#48baff,transparent);box-shadow:0 0 14px #168fff;transform-origin:left;animation:bpw-loading-bar-v3 2.4s ease-in-out infinite}
+#bpWelcomeGateV1 .bpw-gate-panel{position:absolute;left:14px;right:14px;bottom:calc(env(safe-area-inset-bottom,0px) + clamp(24px,5vh,48px));z-index:7;display:flex;flex-direction:column;align-items:center;gap:12px;padding:16px 14px 14px;border:1px solid rgba(139,213,255,.25);border-radius:20px;background:linear-gradient(145deg,rgba(5,20,37,.78),rgba(4,12,25,.70));box-shadow:0 16px 46px rgba(0,0,0,.22),0 0 34px rgba(48,139,255,.10),inset 0 1px 0 rgba(255,255,255,.10);backdrop-filter:blur(12px);opacity:0;visibility:hidden;transform:translateY(16px);transition:opacity .8s ease,transform .8s ease,visibility .8s}
 #bpWelcomeGateV1[data-phase="gate"] .bpw-gate-panel{opacity:1;visibility:visible;transform:translateY(0);pointer-events:auto}
 #bpWelcomeGateV1[data-phase="gate"] .bpw-status{display:none}
-#bpWelcomeGateV1 .bpw-gate-panel p{margin:0;color:#d8ecfb;font-size:clamp(10px,2.8vw,14px);font-weight:800;letter-spacing:.10em;text-transform:uppercase;text-shadow:0 2px 16px #000;max-width:760px}
+#bpWelcomeGateV1 .bpw-explainer{margin:0 auto;max-width:720px;color:#d7eafa;font-size:clamp(10px,2.65vw,14px);font-weight:650;line-height:1.48;letter-spacing:.025em;text-shadow:0 2px 12px rgba(0,0,0,.7)}
+#bpWelcomeGateV1 .bpw-explainer strong{color:#fff1ce;font-weight:900;letter-spacing:.08em;text-transform:uppercase}
 #bpWelcomeGateV1 .bpw-actions{display:flex;justify-content:center;align-items:center;gap:10px;flex-wrap:wrap;width:100%}
-#bpWelcomeGateV1 .bpw-actions button{min-width:min(250px,42vw);padding:15px 20px;border-radius:999px;border:1px solid rgba(141,219,255,.7);font:900 12px/1.1 Arial,sans-serif;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;transition:transform .2s ease,box-shadow .2s ease,background .2s ease}
-#bpWelcomeGateV1 .bpw-actions button:hover{transform:translateY(-2px);box-shadow:0 0 28px rgba(64,178,255,.4)}
-#bpWelcomeGateV1 .bpw-create{color:#00101c;background:linear-gradient(110deg,#d5f5ff,#55c3ff 48%,#a9e7ff);box-shadow:0 0 24px rgba(53,161,255,.38)}
-#bpWelcomeGateV1 .bpw-signin{color:#e7f6ff;background:rgba(7,23,40,.88);box-shadow:inset 0 0 18px rgba(83,176,255,.08)}
-#bpWelcomeGateV1 .bpw-sound{position:absolute;top:clamp(16px,3vh,28px);right:16px;z-index:9;border:1px solid rgba(133,205,255,.42);background:rgba(2,11,22,.72);color:#c8eaff;border-radius:999px;padding:10px 13px;font:850 10px/1 Arial,sans-serif;letter-spacing:.12em;cursor:pointer;backdrop-filter:blur(8px);pointer-events:auto}
+#bpWelcomeGateV1 .bpw-actions button{min-width:min(250px,42vw);padding:15px 20px;border-radius:999px;border:1px solid rgba(199,232,255,.74);font:950 12px/1.1 Arial,sans-serif;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;transition:transform .2s ease,box-shadow .2s ease,background .2s ease;animation:bpw-cta-hover-v3 2.9s ease-in-out infinite}
+#bpWelcomeGateV1 .bpw-actions button:nth-child(2){animation-delay:1.35s}
+#bpWelcomeGateV1 .bpw-actions button:hover{transform:translateY(-3px);box-shadow:0 0 32px rgba(64,178,255,.55)}
+#bpWelcomeGateV1 .bpw-create{color:#00101c;background:linear-gradient(110deg,#fff4d4,#e4b44c 42%,#fff1c3 72%,#c68e2c);box-shadow:0 0 24px rgba(255,194,91,.34),inset 0 1px 0 rgba(255,255,255,.78)}
+#bpWelcomeGateV1 .bpw-signin{color:#f0f8ff;background:linear-gradient(110deg,rgba(17,54,84,.91),rgba(5,21,39,.94));box-shadow:0 0 22px rgba(91,188,255,.20),inset 0 1px 0 rgba(255,255,255,.12)}
+#bpWelcomeGateV1 .bpw-sound{position:absolute;top:clamp(16px,3vh,30px);right:14px;z-index:9;border:1px solid rgba(169,216,255,.48);background:rgba(2,11,22,.76);color:#d5efff;border-radius:999px;padding:11px 14px;font:900 10px/1 Arial,sans-serif;letter-spacing:.13em;cursor:pointer;backdrop-filter:blur(8px);box-shadow:0 0 18px rgba(62,157,255,.18);pointer-events:auto}
 #bpWelcomeGateV1 .bpw-sound[hidden]{display:none!important}
 #authModal.modal{z-index:2147483646!important}
-@keyframes bpw-orbit-message-v2{
-  0%{transform:translate(-50%,-50%) translate3d(43vw,0,0);opacity:0}
-  5%{transform:translate(-50%,-50%) translate3d(39vw,4vh,0);opacity:1}
-  13%{transform:translate(-50%,-50%) translate3d(27vw,11vh,0);opacity:1}
-  23%{transform:translate(-50%,-50%) translate3d(0,16vh,0);opacity:1}
-  29%{transform:translate(-50%,-50%) translate3d(0,16vh,0);opacity:1}
-  43%{transform:translate(-50%,-50%) translate3d(-27vw,11vh,0);opacity:1}
-  50%{transform:translate(-50%,-50%) translate3d(-43vw,0,0);opacity:.94}
-  63%{transform:translate(-50%,-50%) translate3d(-27vw,-11vh,0);opacity:.60}
-  76%{transform:translate(-50%,-50%) translate3d(0,-16vh,0);opacity:.48}
-  89%{transform:translate(-50%,-50%) translate3d(27vw,-11vh,0);opacity:.68}
-  100%{transform:translate(-50%,-50%) translate3d(43vw,0,0);opacity:0}
+@keyframes bpw-letter-arrive-v3{
+  0%{transform:translate3d(78vw,2vh,-380px) rotateY(-88deg) rotateZ(24deg) scale(.56);opacity:0;filter:blur(8px)}
+  58%{opacity:1;filter:blur(0)}
+  100%{transform:translate3d(0,0,0) rotateY(0deg) rotateZ(0deg) scale(1);opacity:1;filter:blur(0)}
 }
-@keyframes bpw-star-drift-v2{to{transform:translate3d(4%,2%,0)}}
-@keyframes bpw-loading-bar-v2{0%{transform:scaleX(.18);opacity:.35}50%{transform:scaleX(1);opacity:1}100%{transform:scaleX(.18);opacity:.35}}
+@keyframes bpw-cta-hover-v3{
+  0%,100%{opacity:.67;filter:brightness(.88);transform:translateY(1px);box-shadow:0 5px 17px rgba(0,0,0,.20)}
+  50%{opacity:1;filter:brightness(1.14);transform:translateY(-2px);box-shadow:0 0 28px rgba(85,187,255,.30),0 10px 22px rgba(0,0,0,.22)}
+}
+@keyframes bpw-star-drift-v3{to{transform:translate3d(4%,2%,0)}}
+@keyframes bpw-loading-bar-v3{0%{transform:scaleX(.18);opacity:.35}50%{transform:scaleX(1);opacity:1}100%{transform:scaleX(.18);opacity:.35}}
 @media(max-width:640px){
- #bpWelcomeGateV1 .bpw-equator{width:98vw;height:28vh}
- #bpWelcomeGateV1 .bpw-word{font-size:clamp(12px,3.35vw,15px);letter-spacing:.075em}
- #bpWelcomeGateV1 .bpw-status{bottom:clamp(110px,15vh,145px);letter-spacing:.17em}
- #bpWelcomeGateV1 .bpw-gate-panel{bottom:clamp(60px,9vh,96px);gap:10px}
- #bpWelcomeGateV1 .bpw-actions{flex-direction:column;gap:9px}
- #bpWelcomeGateV1 .bpw-actions button{width:min(100%,340px);min-width:0;padding:16px}
- #bpWelcomeGateV1 .bpw-sound{right:12px;padding:9px 11px}
+ #bpWelcomeGateV1 .bpw-globe-aura{width:98vw;box-shadow:0 0 26px rgba(64,166,255,.30),0 0 72px rgba(70,139,255,.18),inset 0 0 30px rgba(79,167,255,.10)}
+ #bpWelcomeGateV1 .bpw-wordmark{font-size:clamp(11px,3.05vw,14px);letter-spacing:.008em}
+ #bpWelcomeGateV1 .bpw-letter-face{text-shadow:0 1px 0 #fff8d9,0 2px 0 #d4a64d,0 3px 0 #a97525,0 4px 0 #7c511b,0 6px 7px rgba(0,0,0,.76),0 0 7px rgba(255,220,145,.92),0 0 16px rgba(255,183,73,.56)}
+ #bpWelcomeGateV1 .bpw-status{bottom:clamp(235px,32vh,285px);font-size:9px;letter-spacing:.15em}
+ #bpWelcomeGateV1 .bpw-gate-panel{left:10px;right:10px;bottom:calc(env(safe-area-inset-bottom,0px) + 14px);gap:10px;padding:13px 11px 12px;border-radius:17px}
+ #bpWelcomeGateV1 .bpw-explainer{font-size:11px;line-height:1.4}
+ #bpWelcomeGateV1 .bpw-actions{flex-direction:column;gap:8px}
+ #bpWelcomeGateV1 .bpw-actions button{width:min(100%,340px);min-width:0;padding:15px 16px}
+ #bpWelcomeGateV1 .bpw-sound{right:10px;top:clamp(12px,2vh,22px);padding:10px 12px;font-size:9px}
 }
 @media(prefers-reduced-motion:reduce){
- #bpWelcomeGateV1:after,#bpWelcomeGateV1 .bpw-word,#bpWelcomeGateV1 .bpw-status:after{animation-duration:1ms!important;animation-iteration-count:1!important}
+ #bpWelcomeGateV1:after,#bpWelcomeGateV1 .bpw-status:after,#bpWelcomeGateV1 .bpw-actions button{animation-duration:1ms!important;animation-iteration-count:1!important}
 }
 </style>
 <div id="bpWelcomeGateV1" data-phase="intro" role="dialog" aria-modal="true" aria-label="Welcome to BridgePoint Intelligence">
   <div class="bpw-layout">
-    <div class="bpw-stage" id="bpwOrbitStageV2" aria-hidden="true">
-      <div class="bpw-equator"></div>
-      <div class="bpw-word-layer bpw-word-back"><div class="bpw-word">WELCOME TO BRIDGEPOINT INTELLIGENCE</div></div>
-      <div class="bpw-word-layer bpw-word-front"><div class="bpw-word">WELCOME TO BRIDGEPOINT INTELLIGENCE</div></div>
+    <div class="bpw-globe-aura" aria-hidden="true"></div>
+    <div class="bpw-stage" id="bpwOrbitStageV3">
+      <div class="bpw-wordmark-wrap">
+        <div class="bpw-wordmark" id="bpwWordmarkV3" role="img" aria-label="Welcome to BridgePoint Intelligence" data-title="WELCOME TO BRIDGEPOINT INTELLIGENCE"></div>
+      </div>
     </div>
-    <div class="bpw-status" id="bpwStatusV1" aria-live="polite">INITIALIZING THE BRIDGEPOINT GLOBE</div>
+    <div class="bpw-status" id="bpwStatusV1" aria-live="polite">BRINGING THE WHOLE WORLD INTO VIEW</div>
     <div class="bpw-gate-panel" id="bpwGatePanelV1">
-      <p>Your live globe is ready. Create an account or sign in to enter.</p>
+      <p class="bpw-explainer"><strong>BridgePoint Intelligence</strong> brings properties, buildings, infrastructure, weather and real-world signals together in one live 3D globe.</p>
       <div class="bpw-actions">
         <button class="bpw-create auth-open" data-mode="signup" type="button">CREATE FREE ACCOUNT</button>
         <button class="bpw-signin auth-open" data-mode="signin" type="button">SIGN IN TO BRIDGEPOINT</button>
       </div>
     </div>
-    <button class="bpw-sound" id="bpwSoundV1" type="button">ENABLE SOUND</button>
+    <button class="bpw-sound" id="bpwSoundV1" type="button" aria-pressed="false">ENABLE SOUND</button>
   </div>
 </div>
 <script id="bpWelcomeGateScriptV1">
@@ -255,9 +258,11 @@ html.bpw-entry-locked body>main>section:not(.hero){display:none!important;visibi
   const STORE='bp_auth_v5045';
   const soundButton=document.getElementById('bpwSoundV1');
   const status=document.getElementById('bpwStatusV1');
-  let audioContext=null,audioMaster=null,audioStarted=false;
-  let musicChordTimer=0,musicArpTimer=0,sessionWatch=0,resizeHandler=null,gateSettled=false,orbitTimer=0;
-  let activeMap=null,didInitialResize=false;
+  const wordmark=document.getElementById('bpwWordmarkV3');
+  const GLOBAL_ZOOM=-.15,GLOBAL_CENTER=[0,18],MIN_WELCOME_ZOOM=-.28;
+  let audioContext=null,audioMaster=null,audioStarted=false,audioMuted=false;
+  let musicChordTimer=0,musicArpTimer=0,sessionWatch=0,resizeHandler=null,gateSettled=false,sequenceStarted=false,spinTimer=0,spinActive=false;
+  let activeMap=null,didInitialResize=false,originalMinZoom=null;
   const isSignedIn=()=>{
     try{
       const session=JSON.parse(localStorage.getItem(STORE)||'null');
@@ -268,6 +273,53 @@ html.bpw-entry-locked body>main>section:not(.hero){display:none!important;visibi
   };
   const resizeWorld=()=>{
     try{activeMap?.resize?.()}catch(_){}
+  };
+  const holdWholeEarth=(map,resetCenter)=>{
+    if(!map)return false;
+    try{
+      if(originalMinZoom===null)originalMinZoom=Number(map.getMinZoom?.()??.65);
+      map.setMinZoom?.(MIN_WELCOME_ZOOM);
+      const projection=map.getProjection?.();
+      if(projection?.type!=='globe')map.setProjection?.({type:'globe'});
+      const current=map.getCenter?.();
+      const center=resetCenter?GLOBAL_CENTER:[Number(current?.lng??GLOBAL_CENTER[0]),Number(current?.lat??GLOBAL_CENTER[1])];
+      map.stop?.();
+      map.jumpTo({center,zoom:GLOBAL_ZOOM,pitch:0,bearing:0});
+      window.__BP_WELCOME_GLOBAL_CAMERA_V3__={active:true,center,zoom:map.getZoom?.(),projection:map.getProjection?.()?.type||'globe',minZoom:map.getMinZoom?.(),at:Date.now()};
+      return Math.abs(Number(map.getZoom?.())-GLOBAL_ZOOM)<.03;
+    }catch(error){
+      window.__BP_WELCOME_GLOBAL_CAMERA_V3__={active:false,error:String(error?.message||error),at:Date.now()};
+      return false;
+    }
+  };
+  const stopGlobeSpin=()=>{
+    spinActive=false;
+    if(spinTimer)clearTimeout(spinTimer);
+    spinTimer=0;
+    try{activeMap?.stop?.()}catch(_){}
+  };
+  const startGlobeSpin=()=>{
+    if(spinActive||!activeMap||gate.dataset.removed==='1')return;
+    spinActive=true;
+    const step=()=>{
+      if(!spinActive||!activeMap||gate.dataset.removed==='1')return;
+      try{
+        if(document.hidden){spinTimer=setTimeout(step,1000);return}
+        const center=activeMap.getCenter();
+        activeMap.easeTo({
+          center:[Number(center.lng)+42,GLOBAL_CENTER[1]],
+          zoom:GLOBAL_ZOOM,pitch:0,bearing:0,
+          duration:18000,
+          easing:t=>t,
+          essential:true
+        });
+        activeMap.once('moveend',()=>{
+          if(spinActive)spinTimer=setTimeout(step,80);
+        });
+      }catch(_){spinTimer=setTimeout(step,1200)}
+    };
+    step();
+    window.__BP_WELCOME_GLOBE_SPIN_V3__={active:true,degreesPerStep:42,stepDurationMs:18000,at:Date.now()};
   };
   const stopMusic=()=>{
     if(musicChordTimer)clearInterval(musicChordTimer);
@@ -285,24 +337,41 @@ html.bpw-entry-locked body>main>section:not(.hero){display:none!important;visibi
   const restorePage=()=>{
     if(gate.dataset.removed==='1')return;
     gate.dataset.removed='1';
+    stopGlobeSpin();
     document.documentElement.classList.remove('bpw-entry-locked');
     gate.remove();
     if(resizeHandler)window.removeEventListener('resize',resizeHandler);
-    if(orbitTimer)clearTimeout(orbitTimer);
     clearInterval(sessionWatch);
     stopMusic();
+    try{if(originalMinZoom!==null)activeMap?.setMinZoom?.(originalMinZoom)}catch(_){}
     requestAnimationFrame(resizeWorld);
   };
   if(isSignedIn()){gate.remove();return}
   document.documentElement.classList.add('bpw-entry-locked');
-  const reduceMotion=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches===true;
-  const mobile=window.matchMedia?.('(max-width: 640px)')?.matches===true;
-  const resizeAndKeepWorld=()=>{
-    resizeWorld();
-  };
-  resizeHandler=resizeAndKeepWorld;
-  window.addEventListener('resize',resizeHandler,{passive:true});
-  requestAnimationFrame(resizeWorld);
+  function buildWordmark(){
+    if(!wordmark||wordmark.dataset.built==='1')return 0;
+    const phrase=wordmark.dataset.title||'WELCOME TO BRIDGEPOINT INTELLIGENCE';
+    const chars=Array.from(phrase);
+    const total=Math.max(1,chars.length-1);
+    chars.forEach((character,index)=>{
+      const normalized=(index/total-.5)*2;
+      const arcY=(Math.pow(normalized,2)*15-5).toFixed(2)+'px';
+      const arcRotate=(normalized*6.5).toFixed(2)+'deg';
+      const frame=document.createElement('span');
+      frame.className='bpw-letter-frame'+(character===' '?' bpw-letter-space':'');
+      frame.style.setProperty('--letter-index',String(index));
+      const face=document.createElement('span');
+      face.className='bpw-letter-face';
+      face.style.setProperty('--arc-y',arcY);
+      face.style.setProperty('--arc-rotate',arcRotate);
+      face.textContent=character===' '?' ':character;
+      face.dataset.letter=character===' '?' ':character;
+      frame.appendChild(face);
+      wordmark.appendChild(frame);
+    });
+    wordmark.dataset.built='1';
+    return (chars.length-1)*58+1320;
+  }
   let padFilter=null,padVoices=[],padGain=null,masterCompressor=null,delayWet=null,arpStep=0,chordStep=0;
   const chords=[
     [55,82.41,110,164.81],
@@ -353,7 +422,6 @@ html.bpw-entry-locked body>main>section:not(.hero){display:none!important;visibi
     lfo.frequency.value=.045;lfoGain.gain.value=260;
     lfo.connect(lfoGain);lfoGain.connect(padFilter.frequency);lfo.start();
 
-    const now=audioContext.currentTime;
     const bass=audioContext.createOscillator();
     const bassGain=audioContext.createGain();
     bass.type='sine';bass.frequency.value=55;bassGain.gain.value=.16;
@@ -383,36 +451,38 @@ html.bpw-entry-locked body>main>section:not(.hero){display:none!important;visibi
     makePluck();
     musicArpTimer=setInterval(makePluck,780);
   }
-  async function startAudio(){
+  async function toggleAudio(){
     try{
       if(!audioContext)createMusic();
       if(audioContext.state!=='running')await audioContext.resume();
-      audioStarted=audioContext.state==='running';
-      if(audioStarted){
-        const now=audioContext.currentTime;
-        audioMaster.gain.cancelScheduledValues(now);
-        audioMaster.gain.setValueAtTime(audioMaster.gain.value,now);
-        audioMaster.gain.linearRampToValueAtTime(.78,now+2.4);
-        soundButton.hidden=true;
+      if(audioContext.state!=='running')throw new Error('Audio could not start');
+      const now=audioContext.currentTime;
+      audioMaster.gain.cancelScheduledValues(now);
+      audioMaster.gain.setValueAtTime(audioMaster.gain.value,now);
+      if(!audioStarted||audioMuted){
+        audioMuted=false;audioStarted=true;
+        audioMaster.gain.linearRampToValueAtTime(.78,now+2.2);
+        soundButton.textContent='MUTE SOUND';
+        soundButton.setAttribute('aria-pressed','true');
         gate.dataset.sound='on';
-        return true;
+      }else{
+        audioMuted=true;
+        audioMaster.gain.setTargetAtTime(0,now,.16);
+        soundButton.textContent='ENABLE SOUND';
+        soundButton.setAttribute('aria-pressed','false');
+        gate.dataset.sound='muted';
       }
-    }catch(_){}
-    soundButton.textContent='TAP TO ENABLE SOUND';
-    soundButton.hidden=false;
-    return false;
+    }catch(_){
+      soundButton.textContent='TAP TO ENABLE SOUND';
+      soundButton.hidden=false;
+    }
   }
-  soundButton.addEventListener('click',()=>{void startAudio()});
-  gate.addEventListener('pointerdown',event=>{
-    if(event.target?.closest?.('.auth-open'))void startAudio();
-  },true);
-
+  soundButton.addEventListener('click',()=>{void toggleAudio()});
   const settleGate=()=>{
     if(gateSettled||isSignedIn())return;
     gateSettled=true;
     gate.dataset.phase='gate';
     if(status)status.hidden=true;
-    if(!audioStarted)soundButton.hidden=false;
   };
   const mapIsReady=map=>{
     try{
@@ -420,14 +490,19 @@ html.bpw-entry-locked body>main>section:not(.hero){display:none!important;visibi
       const sized=!!canvas&&canvas.width>80&&canvas.height>80;
       const styleReady=map?.isStyleLoaded?.()===true||map?.loaded?.()===true;
       const tilesReady=typeof map?.areTilesLoaded!=='function'||map.areTilesLoaded()===true;
-      const isGlobe=map?.getProjection?.()?.type==='globe';
-      return sized&&styleReady&&tilesReady&&isGlobe;
+      return sized&&styleReady&&tilesReady;
     }catch(_){return false}
   };
-  const startIntroTimer=()=>{
-    if(orbitTimer||gateSettled)return;
+  const startSequence=()=>{
+    if(sequenceStarted||gateSettled)return;
+    sequenceStarted=true;
+    const lettersDuration=buildWordmark();
     if(status)status.textContent='BRIDGEPOINT WORLD INITIALIZED';
-    orbitTimer=setTimeout(settleGate,14500);
+    setTimeout(()=>{
+      if(isSignedIn()){restorePage();return}
+      startGlobeSpin();
+      setTimeout(settleGate,1250);
+    },lettersDuration+160);
   };
   const begin=()=>{
     if(isSignedIn()){restorePage();return}
@@ -436,20 +511,38 @@ html.bpw-entry-locked body>main>section:not(.hero){display:none!important;visibi
       if(isSignedIn()){restorePage();return}
       if(gateSettled)return;
       try{activeMap=window.__BP_LANDING_WORLD__?.map||window.__BP_V5000_WORLD__?.map||activeMap}catch(_){}
-      if(activeMap){
-        if(!didInitialResize){resizeWorld();didInitialResize=true}
-        if(mapIsReady(activeMap)){startIntroTimer();return}
+      if(activeMap&&mapIsReady(activeMap)){
+        if(!didInitialResize){
+          resizeWorld();didInitialResize=true;
+          requestAnimationFrame(()=>requestAnimationFrame(()=>{
+            if(!activeMap||gate.dataset.removed==='1')return;
+            holdWholeEarth(activeMap,true);
+            startSequence();
+          }));
+        }else{
+          holdWholeEarth(activeMap,true);
+          startSequence();
+        }
+        return;
       }
-      if(Date.now()-startedAt>45000){startIntroTimer();return}
-      setTimeout(waitForGlobe,220);
+      if(Date.now()-startedAt>45000){
+        if(activeMap){holdWholeEarth(activeMap,true);startSequence()}
+        else{if(status)status.textContent='CONNECTING TO THE BRIDGEPOINT WORLD';setTimeout(waitForGlobe,1000);return}
+      }else{setTimeout(waitForGlobe,220);return}
     };
     waitForGlobe();
     sessionWatch=setInterval(()=>{if(isSignedIn())restorePage()},650);
   };
+  resizeHandler=()=>{
+    if(!activeMap||gate.dataset.removed==='1')return;
+    resizeWorld();
+    requestAnimationFrame(()=>holdWholeEarth(activeMap,false));
+  };
+  window.addEventListener('resize',resizeHandler,{passive:true});
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',begin,{once:true});
   else begin();
   window.addEventListener('storage',event=>{if(event.key===STORE&&isSignedIn())restorePage()});
-  window.addEventListener('pagehide',()=>stopMusic());
+  window.addEventListener('pagehide',()=>{stopGlobeSpin();stopMusic()});
 })();
 </script>
 
