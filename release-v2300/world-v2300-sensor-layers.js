@@ -15,6 +15,20 @@ const CSS=[
 '@media(max-width:520px){#'+ROOT+'{padding:8px;gap:6px}#'+ROOT+' button{font-size:8px;padding:7px;min-height:32px}}'
 ].join('\n');
 const H={Accept:'application/json'};
+const DIVE_FX_CSS = [
+'#bp-underwater-fx-v6224{position:absolute;inset:0;z-index:6;overflow:hidden;pointer-events:none;opacity:0;visibility:hidden;isolation:isolate;transition:opacity .42s ease,visibility .42s ease}',
+'#bp-underwater-fx-v6224.active{opacity:1;visibility:visible}',
+'#bp-underwater-fx-v6224 .haze{position:absolute;inset:0;background:linear-gradient(180deg,rgba(12,87,110,.24),rgba(4,76,100,.17) 38%,rgba(1,19,43,.42));mix-blend-mode:screen}',
+'#bp-underwater-fx-v6224 .caustics{position:absolute;inset:-18%;opacity:.28;mix-blend-mode:screen;filter:blur(5px);background:repeating-conic-gradient(from 8deg at 48% 34%,transparent 0deg,rgba(153,248,255,.13) 3deg,transparent 8deg,rgba(85,215,246,.10) 12deg,transparent 17deg),radial-gradient(ellipse at 50% 0%,rgba(161,249,255,.34),transparent 54%);animation:bp-dive-caustics-v6224 18s linear infinite}',
+'#bp-underwater-fx-v6224 .surface-window{position:absolute;left:18%;top:-27%;width:64%;height:47%;border-radius:50%;background:radial-gradient(ellipse at 50% 100%,rgba(212,255,255,.22),rgba(98,229,246,.12) 38%,rgba(19,126,166,.06) 62%,transparent 75%);filter:blur(5px);opacity:.85;animation:bp-dive-window-v6224 8s ease-in-out infinite alternate}',
+'#bp-underwater-fx-v6224 canvas{position:absolute;inset:0;width:100%;height:100%;opacity:.74}',
+'#bp-underwater-fx-v6224 .ripple{position:absolute;left:50%;top:36%;width:16vmin;height:16vmin;border:1px solid rgba(202,255,255,.68);border-radius:50%;transform:translate(-50%,-50%) scale(.25);opacity:0;box-shadow:0 0 22px rgba(77,220,246,.26),inset 0 0 18px rgba(120,236,255,.14)}',
+'#bp-underwater-fx-v6224.impact .ripple{animation:bp-dive-ripple-v6224 1.25s ease-out}',
+'@keyframes bp-dive-caustics-v6224{0%{transform:translate3d(-2%,0,0) rotate(0deg) scale(1)}50%{transform:translate3d(2%,1%,0) rotate(5deg) scale(1.05)}100%{transform:translate3d(-2%,0,0) rotate(10deg) scale(1)}}',
+'@keyframes bp-dive-window-v6224{from{transform:translateY(0) scaleX(.96);opacity:.58}to{transform:translateY(8px) scaleX(1.04);opacity:.95}}',
+'@keyframes bp-dive-ripple-v6224{0%{transform:translate(-50%,-50%) scale(.25);opacity:.8}100%{transform:translate(-50%,-50%) scale(4.4);opacity:0}}',
+'@media(prefers-reduced-motion:reduce){#bp-underwater-fx-v6224 .caustics,#bp-underwater-fx-v6224 .surface-window{animation:none}}'
+].join('\n');
 function getTime(){const v=window.__BP_WORLD_ACTIVITY_SLIDER_STATE_V5908__?.selectedAt,d=v?new Date(v):new Date();return Number.isNaN(d.getTime())?new Date():d}
 export function initSensorLayers(target){
  const map=target?.map||target,container=map?.getContainer?.();if(!map||!container||typeof fetch!=='function')return null;
@@ -25,11 +39,27 @@ export function initSensorLayers(target){
  const ui=document.createElement('section');ui.id=ROOT;
  ui.innerHTML='<div class="head"><span>◈ WORLD X-RAY LAYERS</span><small>LOAD ON DEMAND</small></div><div class="r"><button data-l aria-pressed="false">✦ NASA NIGHT LIGHTS · OFF</button><button data-d aria-pressed="false">◉ OCEAN DEPTH + SEE-THROUGH · OFF</button><button class="all" data-v aria-pressed="false">▽ DIVE BELOW SEA LEVEL · OFF</button><button class="all" data-g aria-pressed="false">⌖ STREETLIGHTS + PUBLIC TRANSIT · OFF</button></div><div class="s" data-status><strong>Fast map mode.</strong> These optional layers are unloaded until you switch them on. Night-light dimming is a visual signal, not proof of a power outage.</div>';
  const $=q=>ui.querySelector(q),bl=$('[data-l]'),bd=$('[data-d]'),bv=$('[data-v]'),bg=$('[data-g]'),status=$('[data-status]');
- let dead=false,mountTry=0,mountTimer=null,retryTimer=null,nightTimer=null,selectedAt=getTime(),groundReq=0,diveReturn=null;const paintOriginal=new Map();
+ let dead=false,mountTry=0,mountTimer=null,retryTimer=null,nightTimer=null,selectedAt=getTime(),groundReq=0,diveReturn=null,diveBusy=false,diveFx=null,diveCanvas=null,diveCtx=null,diveRaf=0,diveParticles=[],diveLastFrame=0,diveFxResizeHandler=null;const paintOriginal=new Map();
  function before(ids){return ids.find(id=>map.getLayer(id))}
  function addSrc(id,s){if(!map.getSource(id))map.addSource(id,s)}
  function paint(id,p,v,on){if(!map.getLayer(id))return;const k=id+'|'+p;if(!paintOriginal.has(k)){let value;try{value=map.getPaintProperty(id,p)}catch(_){}paintOriginal.set(k,{has:value!==undefined,value})}const o=paintOriginal.get(k);try{map.setPaintProperty(id,p,on?v:(o.has?o.value:null))}catch(_){}}
  function surfaceOpacity(on){for(const [id,p,v] of [['gta-water','fill-opacity',.055],['gta-landuse','fill-opacity',.11],['gta-landcover','fill-opacity',.085],['gta-landcover-texture','fill-opacity',.07],['gta-nasa','raster-opacity',.10],['gta-usgs','raster-opacity',.10],['gta-oam','raster-opacity',.10]])paint(id,p,v,on);const near=map.getZoom()>=10;for(const id of ['gta-context-buildings','gta-city-buildings','gta-exact-building','gta-bp-buildings'])paint(id,'fill-extrusion-opacity',near?.24:.42,on)}
+ function ensureDiveEffects(){
+  if(!document.getElementById('bp-underwater-fx-v6224-css')){const style=document.createElement('style');style.id='bp-underwater-fx-v6224-css';style.textContent=DIVE_FX_CSS;document.head.appendChild(style)}
+  if(!diveFx){diveFx=document.createElement('div');diveFx.id='bp-underwater-fx-v6224';diveFx.setAttribute('aria-hidden','true');diveFx.innerHTML='<div class="haze"></div><div class="caustics"></div><div class="surface-window"></div><canvas></canvas><div class="ripple"></div>';container.appendChild(diveFx);diveCanvas=diveFx.querySelector('canvas');try{diveCtx=diveCanvas?.getContext('2d',{alpha:true})||null}catch(_){diveCtx=null}diveFxResizeHandler=resizeDiveEffects;window.addEventListener('resize',diveFxResizeHandler,{passive:true});resizeDiveEffects()}
+  return !!diveFx
+ }
+ function resizeDiveEffects(){if(!diveCanvas||!diveCtx)return;const r=container.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,window.innerWidth<=700?1:1.25);diveCanvas.width=Math.max(1,Math.round(r.width*dpr));diveCanvas.height=Math.max(1,Math.round(r.height*dpr));diveCtx.setTransform(dpr,0,0,dpr,0,0)}
+ function seedDiveParticles(){const w=container.clientWidth||1,h=container.clientHeight||1,count=window.innerWidth<=700?32:64;diveParticles=Array.from({length:count},()=>({x:Math.random()*w,y:Math.random()*h,r:.45+Math.random()*1.35,speed:5+Math.random()*13,drift:2+Math.random()*6,phase:Math.random()*Math.PI*2,alpha:.12+Math.random()*.34}))}
+ function drawDiveParticles(time){if(!state.diving||!diveCtx||!diveCanvas){diveRaf=0;return}if(document.hidden){diveRaf=requestAnimationFrame(drawDiveParticles);return}const w=container.clientWidth||1,h=container.clientHeight||1,dt=diveLastFrame?Math.min(.05,(time-diveLastFrame)/1000):.016;diveLastFrame=time;if(!diveParticles.length)seedDiveParticles();diveCtx.clearRect(0,0,w,h);for(const p of diveParticles){p.y-=p.speed*dt;p.x+=Math.sin(time*.00022+p.phase)*p.drift*dt;if(p.y<-4){p.y=h+3;p.x=Math.random()*w}if(p.x<-4)p.x=w+3;if(p.x>w+4)p.x=-3;diveCtx.globalAlpha=p.alpha;diveCtx.fillStyle='#c9fbff';diveCtx.beginPath();diveCtx.arc(p.x,p.y,p.r,0,Math.PI*2);diveCtx.fill()}diveCtx.globalAlpha=1;diveRaf=requestAnimationFrame(drawDiveParticles)}
+ function startDiveEffects(impact=false){if(!ensureDiveEffects())return;diveFx.classList.add('active');if(impact){diveFx.classList.remove('impact');void diveFx.offsetWidth;diveFx.classList.add('impact');setTimeout(()=>diveFx?.classList.remove('impact'),1350)}if(diveCtx&&!diveRaf){seedDiveParticles();diveLastFrame=0;diveRaf=requestAnimationFrame(drawDiveParticles)}}
+ function stopDiveEffects(){if(diveRaf)cancelAnimationFrame(diveRaf);diveRaf=0;diveParticles=[];diveLastFrame=0;if(diveCtx){diveCtx.clearRect(0,0,container.clientWidth||1,container.clientHeight||1)}diveFx?.classList.remove('active','impact')}
+ const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+ async function waitForProjection(type,timeout=1800){if(map.getProjection?.()?.type===type)return true;return new Promise(resolve=>{let done=false;const finish=()=>{if(done)return;done=true;clearTimeout(timer);map.off?.('styledata',check);map.off?.('style.load',check);map.off?.('idle',check);resolve(map.getProjection?.()?.type===type)};const check=()=>{if(map.getProjection?.()?.type===type)finish()};const timer=setTimeout(finish,timeout);map.on?.('styledata',check);map.on?.('style.load',check);map.on?.('idle',check);check()})}
+ async function waitForBathymetry(point,timeout=6500){const until=Date.now()+timeout;let last=null;while(Date.now()<until&&!dead){try{const v=map.queryTerrainElevation?.(point,{exaggerated:true});if(Number.isFinite(v)){last=v;if(v<=-4)return v}}catch(_){}await pause(110)}return last}
+ async function waitForDepthSource(timeout=10000){const until=Date.now()+timeout;while(Date.now()<until&&!dead){if(map.getSource(D)&&map.getSource(BS)&&map.getLayer(B))return true;if(map.isStyleLoaded?.()){try{addDepth()}catch(e){console.warn('BridgePoint GEBCO source retry',e)}}await pause(110)}return !!(map.getSource(D)&&map.getSource(BS)&&map.getLayer(B))}
+ function waitForMapMove(timeout=2100){return new Promise(resolve=>{let done=false;const finish=()=>{if(done)return;done=true;clearTimeout(timer);map.off?.('moveend',finish);resolve()};const timer=setTimeout(finish,timeout);map.once?.('moveend',finish);if(!map.isMoving?.())setTimeout(finish,150)})}
+
  function nightUrl(){const bucket=Math.floor(selectedAt.getTime()/600000)*600000;return NIGHT+'?z={z}&x={x}&y={y}&at='+encodeURIComponent(new Date(bucket).toISOString())+'&v=6027'}
  function addNight(){if(!state.lights||dead||!map.isStyleLoaded?.())return false;addSrc(NS,{type:'raster',tiles:[nightUrl()],tileSize:256,minzoom:0,maxzoom:18,attribution:'NASA GIBS VIIRS Suomi-NPP gap-filled BRDF-corrected nighttime radiance; BridgePoint masks to the solar night side'});if(!map.getLayer(NL)){const b=before(['gta-context-buildings','gta-city-buildings','gta-bp-buildings','gta-water-label','gta-place-label']),l={id:NL,type:'raster',source:NS,minzoom:0,maxzoom:24,paint:{'raster-opacity':1,'raster-saturation':.18,'raster-contrast':.24,'raster-resampling':'linear','raster-fade-duration':0}};if(b)map.addLayer(l,b);else map.addLayer(l)}return true}
  function removeNight(){try{if(map.getLayer(NL))map.removeLayer(NL);if(map.getSource(NS))map.removeSource(NS)}catch(_){}}
@@ -43,30 +73,61 @@ export function initSensorLayers(target){
  function delayedRetry(){if(retryTimer||dead)return;retryTimer=setTimeout(()=>{retryTimer=null;if(state.lights)addNight();if(state.surface)addDepth();if(state.ground)addGround()},500)}
  function setLights(on){state.lights=!!on;sync();window.dispatchEvent(new CustomEvent('bp:nightlights-state',{detail:{enabled:state.lights,map}}));if(state.lights){if(addNight()){say('<strong>NASA night lights ON.</strong> Daily night-side tiles requested for this viewport; if imagery stays blank, check the tile status below. Brightness changes alone do not confirm outages.');try{map.triggerRepaint?.()}catch(_){}}else delayedRetry()}else{clearTimeout(nightTimer);removeNight();if(!state.surface&&!state.ground)say('<strong>NASA night lights OFF.</strong> Optional raster layer removed; other map layers are unchanged.')}}
  function setSurface(on){state.surface=!!on;sync();if(state.surface){if(addDepth())say('<strong>Ocean depth on.</strong> GEBCO bathymetry blends through the water surface at available source resolution.');else delayedRetry()}else{removeDepth();if(!state.lights&&!state.ground&&!state.diving)say('<strong>Fast map mode.</strong> Optional layers are off and unloaded.')}}
- function setDive(on){
- on=!!on;if(on===state.diving)return;
- if(on){
-  const c=map.getCenter();diveReturn={center:[c.lng,c.lat],zoom:map.getZoom(),pitch:map.getPitch(),bearing:map.getBearing(),projection:map.getProjection?.()?.type||'globe',clamped:typeof map.getCenterClampedToGround==='function'?map.getCenterClampedToGround():true,surfaceWasOn:state.surface};
-  if(!state.surface)setSurface(true);state.diving=true;sync();const point=[c.lng,c.lat],M=window.maplibregl||window.mapboxgl;let placed=false;
-  try{try{map.setProjection?.({type:'mercator'})}catch(_){}try{map.setCenterClampedToGround?.(false)}catch(_){}
-   const camera=map.getFreeCameraOptions?.();
-   if(camera&&M?.MercatorCoordinate?.fromLngLat&&map.setFreeCameraOptions){try{camera.position=M.MercatorCoordinate.fromLngLat(point,-120);camera.setPitchBearing?.(78,diveReturn.bearing);camera.lookAtPoint?.(point);map.setFreeCameraOptions(camera);placed=true}catch(_){}}
-   if(!placed)map.easeTo({center:point,zoom:Math.max(3.5,Math.min(8.5,diveReturn.zoom||4.8)),pitch:78,bearing:diveReturn.bearing,duration:1300});
-   say('<strong>Dive view enabled.</strong> GEBCO bathymetry stays source-derived. Floor relief and coastline detail vary by resolution; this is not a volumetric ocean simulation.');
-  }catch(e){state.diving=false;sync();say('<strong>Dive camera unavailable.</strong> Depth shading remains available. '+String(e?.message||e).slice(0,100))}
- }else{
-  const saved=diveReturn;diveReturn=null;state.diving=false;sync();if(saved&&!saved.surfaceWasOn)setSurface(false);
-  try{map.setCenterClampedToGround?.(saved?.clamped!==false)}catch(_){}try{if(saved?.projection)map.setProjection?.({type:saved.projection})}catch(_){}
-  if(saved)try{map.easeTo({center:saved.center,zoom:saved.zoom,pitch:saved.pitch,bearing:saved.bearing,duration:900})}catch(_){}
-  say('<strong>Surface view restored.</strong> Previous camera position restored.');
+ async function setDive(on){
+  on=!!on;if(on===state.diving||diveBusy)return;
+  diveBusy=true;bv.disabled=true;
+  if(on){
+   const c=map.getCenter(),M=window.maplibregl||window.mapboxgl;
+   diveReturn={center:[c.lng,c.lat],zoom:map.getZoom(),pitch:map.getPitch(),bearing:map.getBearing(),projection:map.getProjection?.()?.type||'globe',clamped:typeof map.getCenterClampedToGround==='function'?map.getCenterClampedToGround():true,maxPitch:typeof map.getMaxPitch==='function'?map.getMaxPitch():85,surfaceWasOn:state.surface};
+   const saved=diveReturn,point=saved.center;window.__BP_UNDERWATER_DIVE_TRANSITION__=true;window.__BP_UNDERWATER_DIVE_ACTIVE__=true;state.diving=true;sync();say('<strong>Preparing underwater view.</strong> Loading GEBCO depth at the map center…');
+   try{
+    map.stop?.();try{map.setCenterClampedToGround?.(false)}catch(_){}try{map.setProjection?.({type:'mercator'})}catch(_){}
+    await waitForProjection('mercator',1800);
+    if(!state.surface){state.surface=true;sync()}
+    if(!await waitForDepthSource())throw new Error('GEBCO depth tiles did not attach to this map style.');
+    map.triggerRepaint?.();
+    const bed=await waitForBathymetry(point,6500);
+    if(!Number.isFinite(bed))throw new Error('GEBCO bathymetry is not available at this location yet. Center the globe over open water and retry.');
+    if(bed>-4)throw new Error('This center point is land or too shallow for a safe underwater view. Move the map over deeper water and retry.');
+    const clearance=Math.min(35,Math.max(2,Math.abs(bed)*.08)),targetAltitude=Math.min(-3,Math.max(-95,bed+clearance));
+    const cameraOptions=map.calculateCameraOptionsFromCameraLngLatAltRotation?.(point,targetAltitude,saved.bearing,58);
+    if(!cameraOptions?.center||!Number.isFinite(Number(cameraOptions.center.lng))||!Number.isFinite(Number(cameraOptions.center.lat))||!Number.isFinite(Number(cameraOptions.zoom))||!Number.isFinite(Number(cameraOptions.elevation)))throw new Error('MapLibre could not calculate a safe underwater camera position.');
+    const targetView={center:[Number(cameraOptions.center.lng),Number(cameraOptions.center.lat)],zoom:Number(cameraOptions.zoom),pitch:Number(cameraOptions.pitch),bearing:Number(cameraOptions.bearing),elevation:Number(cameraOptions.elevation),duration:1550,essential:true};
+    map.easeTo(targetView);
+    await waitForMapMove(2400);
+    const actualCenter=map.getCenter?.(),actualPitch=Number(map.getPitch?.()),actualZoom=Number(map.getZoom?.()),actualBed=map.queryTerrainElevation?.(actualCenter,{exaggerated:true});
+    const centerMatches=actualCenter&&Math.abs(actualCenter.lng-targetView.center[0])<.03&&Math.abs(actualCenter.lat-targetView.center[1])<.03;
+    if(!centerMatches||!Number.isFinite(actualPitch)||Math.abs(actualPitch-targetView.pitch)>3||!Number.isFinite(actualZoom)||Math.abs(actualZoom-targetView.zoom)>.15||!Number.isFinite(actualBed)||actualBed>-4)throw new Error('The map did not settle into a verified GEBCO underwater view at this location.');
+    window.__BP_UNDERWATER_DIVE_STATE__={active:true,source:'GEBCO',bedMeters:bed,cameraAltitudeMeters:targetAltitude,cameraPlacement:'MapLibre camera-position conversion',viewPitch:actualPitch,viewZoom:actualZoom,verifiedBed:true,projection:map.getProjection?.()?.type||'mercator',updatedAt:Date.now()};
+    startDiveEffects(true);map.triggerRepaint?.();window.__BP_UNDERWATER_DIVE_TRANSITION__=false;
+    say('<strong>Underwater camera active.</strong> Camera is below sea level and above the GEBCO seabed sample. Bathymetry detail follows the available source resolution.');
+   }catch(e){
+    state.diving=false;window.__BP_UNDERWATER_DIVE_ACTIVE__=false;window.__BP_UNDERWATER_DIVE_TRANSITION__=true;stopDiveEffects();sync();
+    try{map.stop?.();if(Number.isFinite(Number(saved.maxPitch)))map.setMaxPitch?.(saved.maxPitch);map.setCenterClampedToGround?.(saved.clamped!==false);if(saved.projection)map.setProjection?.({type:saved.projection})}catch(_){}
+    await waitForProjection(saved.projection||'globe',1500);
+    try{map.easeTo({center:saved.center,zoom:saved.zoom,pitch:saved.pitch,bearing:saved.bearing,duration:700,essential:true})}catch(_){}
+    await waitForMapMove(1000);if(!saved.surfaceWasOn)setSurface(false);window.__BP_UNDERWATER_DIVE_TRANSITION__=false;diveReturn=null;
+    window.__BP_UNDERWATER_DIVE_STATE__={active:false,error:String(e?.message||e),updatedAt:Date.now()};
+    say('<strong>Underwater view unavailable.</strong> '+String(e?.message||e).slice(0,190));
+   }
+  }else{
+   const saved=diveReturn;diveReturn=null;state.diving=false;window.__BP_UNDERWATER_DIVE_ACTIVE__=false;window.__BP_UNDERWATER_DIVE_TRANSITION__=true;stopDiveEffects();sync();
+   try{map.stop?.();if(Number.isFinite(Number(saved?.maxPitch)))map.setMaxPitch?.(saved.maxPitch);if(saved)map.setCenterClampedToGround?.(saved.clamped!==false);if(saved?.projection)map.setProjection?.({type:saved.projection})}catch(_){}
+   await waitForProjection(saved?.projection||'globe',1800);
+   if(saved)try{map.easeTo({center:saved.center,zoom:saved.zoom,pitch:saved.pitch,bearing:saved.bearing,duration:1050,essential:true})}catch(_){}
+   await waitForMapMove(1500);
+   if(saved&&!saved.surfaceWasOn)setSurface(false);
+   window.__BP_UNDERWATER_DIVE_TRANSITION__=false;window.__BP_UNDERWATER_DIVE_STATE__={active:false,returned:true,updatedAt:Date.now()};
+   say('<strong>Surface view restored.</strong> Previous camera position and map projection restored.');
+  }
+  diveBusy=false;bv.disabled=false;sync();
  }
-}
  function setGround(on){state.ground=!!on;sync();if(state.ground){if(addGround()){say('<strong>Ground features on.</strong> Loading materialized lamp points and transit markers…');void groundStatus()}else delayedRetry()}else{groundReq++;removeGround();if(!state.lights&&!state.surface)say('<strong>Fast map mode.</strong> Optional layers are off and unloaded.')}}
  function mount(){if(dead)return;const slot=document.querySelector('#bpv-underground-slot')||document.querySelector('#bpv-world-activity-slot')||document.querySelector('#bpv-dock');if(slot){if(ui.parentElement!==slot)slot.appendChild(ui);ui.hidden=false;return}ui.hidden=true;mountTry++;mountTimer=setTimeout(mount,mountTry<80?200:800)}
  function onHistory(e){const d=new Date(e?.detail?.selectedAt||getTime());if(Number.isNaN(d.getTime())||d.toISOString()===selectedAt.toISOString())return;selectedAt=d;state.selectedAt=d.toISOString();if(!state.lights)return;clearTimeout(nightTimer);nightTimer=setTimeout(()=>{if(state.lights&&!dead){removeNight();addNight();map.triggerRepaint?.()}},450)}
  const onStyle=()=>{if(state.lights||state.surface||state.ground)delayedRetry()},onZoom=()=>{if(state.surface)surfaceOpacity(true)},onNight=()=>setLights(!state.lights),onMapError=e=>{const detail=String(e?.error?.message||e?.message||'');if(state.lights&&(e?.sourceId===NS||detail.includes('nightlights')))say('<strong>NASA night-light tile error.</strong> '+detail.slice(0,100)+' · other layers remain available.')};
- bl.addEventListener('click',()=>setLights(!state.lights));bd.addEventListener('click',()=>{if(state.diving){setDive(false);setSurface(false)}else setSurface(!state.surface)});bv.addEventListener('click',()=>setDive(!state.diving));bg.addEventListener('click',()=>setGround(!state.ground));window.addEventListener('bp:nightlights-toggle',onNight);window.addEventListener('bp:world-time-change',onHistory);map.on('styledata',onStyle);map.on('load',onStyle);map.on('zoomend',onZoom);map.on('error',onMapError);mount();sync();
- state.toggleLights=()=>{setLights(!state.lights);return state.lights};state.toggleSurface=()=>{if(state.diving){setDive(false);setSurface(false)}else setSurface(!state.surface);return state.surface};state.toggleDive=()=>{setDive(!state.diving);return state.diving};state.toggleGround=()=>{setGround(!state.ground);return state.ground};state.setTime=at=>{onHistory({detail:{selectedAt:at}});return state.selectedAt};state.snapshot=()=>({version:5945,lights:state.lights,surface:state.surface,diving:state.diving,ground:state.ground,selectedAt:state.selectedAt,streetlights:state.streetlights,coverage:state.coverage});
- state.destroy=()=>{if(state.diving)setDive(false);dead=true;clearTimeout(mountTimer);clearTimeout(retryTimer);clearTimeout(nightTimer);map.off('styledata',onStyle);map.off('load',onStyle);map.off('zoomend',onZoom);window.removeEventListener('bp:nightlights-toggle',onNight);window.removeEventListener('bp:world-time-change',onHistory);map.off('error',onMapError);if(state.lights)removeNight();if(state.surface)removeDepth();if(state.ground)removeGround();ui.remove()};
+ bl.addEventListener('click',()=>setLights(!state.lights));bd.addEventListener('click',()=>{if(state.diving){void setDive(false).then(()=>setSurface(false))}else setSurface(!state.surface)});bv.addEventListener('click',()=>setDive(!state.diving));bg.addEventListener('click',()=>setGround(!state.ground));window.addEventListener('bp:nightlights-toggle',onNight);window.addEventListener('bp:world-time-change',onHistory);map.on('styledata',onStyle);map.on('load',onStyle);map.on('zoomend',onZoom);map.on('error',onMapError);mount();sync();
+ state.toggleLights=()=>{setLights(!state.lights);return state.lights};state.toggleSurface=()=>{if(state.diving){void setDive(false).then(()=>setSurface(false));return false}else{setSurface(!state.surface);return state.surface}};state.toggleDive=()=>{setDive(!state.diving);return state.diving};state.toggleGround=()=>{setGround(!state.ground);return state.ground};state.setTime=at=>{onHistory({detail:{selectedAt:at}});return state.selectedAt};state.snapshot=()=>({version:5945,lights:state.lights,surface:state.surface,diving:state.diving,ground:state.ground,selectedAt:state.selectedAt,streetlights:state.streetlights,coverage:state.coverage});
+ state.destroy=()=>{if(state.diving)void setDive(false);dead=true;stopDiveEffects();if(diveFxResizeHandler)window.removeEventListener('resize',diveFxResizeHandler);diveFx?.remove();document.getElementById('bp-underwater-fx-v6224-css')?.remove();window.__BP_UNDERWATER_DIVE_ACTIVE__=false;window.__BP_UNDERWATER_DIVE_TRANSITION__=false;clearTimeout(mountTimer);clearTimeout(retryTimer);clearTimeout(nightTimer);map.off('styledata',onStyle);map.off('load',onStyle);map.off('zoomend',onZoom);window.removeEventListener('bp:nightlights-toggle',onNight);window.removeEventListener('bp:world-time-change',onHistory);map.off('error',onMapError);if(state.lights)removeNight();if(state.surface)removeDepth();if(state.ground)removeGround();ui.remove()};
  return state;
 }
