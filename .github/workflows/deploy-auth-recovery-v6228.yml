@@ -1,0 +1,193 @@
+name: Deploy BridgePoint Auth Resilience V6228
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-auth-recovery-v6228.yml'
+      - 'recovery/landing-auth-v6228.js'
+      - 'recovery/app-auth-v6228.js'
+      - 'recovery/landing-base-v6227.js'
+      - 'recovery/app-base-v6227.js'
+      - 'tests/auth-retry-v6228.test.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+
+jobs:
+  deploy-auth-resilience:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Test both production auth request paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check recovery/landing-auth-v6228.js
+          node --check recovery/app-auth-v6228.js
+          node --test tests/auth-retry-v6228.test.mjs
+
+      - name: Download the last verified full production Pages artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: bridgepoint-solar-night-shading-v6227
+          run-id: 41784623483
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          path: /tmp/bridgepoint-pages-bundle
+
+      - name: Verify the exact baseline and apply only the auth recovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p site
+          ARTIFACT_TAR="$(find /tmp/bridgepoint-pages-bundle -type f -name 'artifact.tar' -print -quit)"
+          test -n "$ARTIFACT_TAR"
+          tar -xf "$ARTIFACT_TAR" -C site
+
+          test -s site/index.html
+          test -s site/app/index.html
+          test -s site/landing.js
+          test -s site/app.js
+
+          # Refuse to overlay a stale source tree: both bases must match the exact deployed artifact.
+          cmp -s site/landing.js recovery/landing-base-v6227.js
+          cmp -s site/app.js recovery/app-base-v6227.js
+
+          grep -Fq 'bpWelcomeGateV1' site/index.html
+          grep -Fq 'bpw-globe-aura' site/index.html
+          grep -Fq 'landing.js?v=6226-underwater-satellite-lock' site/index.html
+          grep -Fq 'app.js?v=6226-underwater-satellite-lock' site/app/index.html
+          grep -Fq 'v=6224-underwater-dive-camera' site/landing.js
+          grep -Fq "const AUTH_STORE='bp_auth_v5045'" site/app.js
+
+          python3 - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          root = Path("site")
+          manifest = {
+              p.relative_to(root).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
+              for p in root.rglob("*") if p.is_file()
+          }
+          Path("/tmp/bp-auth-before.json").write_text(json.dumps(manifest, sort_keys=True))
+          Path("/tmp/bp-root-index-before").write_bytes((root / "index.html").read_bytes())
+          Path("/tmp/bp-app-index-before").write_bytes((root / "app/index.html").read_bytes())
+          PY
+
+          cp recovery/landing-auth-v6228.js site/landing.js
+          cp recovery/app-auth-v6228.js site/app.js
+
+          python3 - <<'PY'
+          from pathlib import Path
+          root = Path("site/index.html")
+          old = b"landing.js?v=6226-underwater-satellite-lock"
+          new = b"landing.js?v=6228-auth-retry"
+          original = Path("/tmp/bp-root-index-before").read_bytes()
+          assert original.count(old) == 1, "Expected exactly one current landing.js reference"
+          root.write_bytes(original.replace(old, new, 1))
+
+          app = Path("site/app/index.html")
+          old_app = b"app.js?v=6226-underwater-satellite-lock"
+          new_app = b"app.js?v=6228-auth-retry"
+          original_app = Path("/tmp/bp-app-index-before").read_bytes()
+          assert original_app.count(old_app) == 1, "Expected exactly one current app.js reference"
+          app.write_bytes(original_app.replace(old_app, new_app, 1))
+          PY
+
+          node --check site/landing.js
+          node --check site/app.js
+          node --test tests/auth-retry-v6228.test.mjs
+
+          grep -Fq 'bpWelcomeGateV1' site/index.html
+          grep -Fq 'bpw-globe-aura' site/index.html
+          grep -Fq 'landing.js?v=6228-auth-retry' site/index.html
+          grep -Fq 'app.js?v=6228-auth-retry' site/app/index.html
+          grep -Fq 'bpAuthRequestV6228' site/landing.js
+          grep -Fq 'bpAuthRequestV6228' site/app.js
+          grep -Fq 'v=6224-underwater-dive-camera' site/landing.js
+          grep -Fq "const AUTH_STORE='bp_auth_v5045'" site/app.js
+
+          python3 - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          root = Path("site")
+          before = json.loads(Path("/tmp/bp-auth-before.json").read_text())
+          after = {
+              p.relative_to(root).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
+              for p in root.rglob("*") if p.is_file()
+          }
+          assert before.keys() == after.keys(), "Pages file set changed"
+          changed = {p for p in before if before[p] != after[p]}
+          expected = {"index.html", "app/index.html", "landing.js", "app.js"}
+          assert changed == expected, f"Unexpected changed files: {sorted(changed)}"
+          old_root = Path("/tmp/bp-root-index-before").read_bytes()
+          new_root = (root / "index.html").read_bytes()
+          assert new_root == old_root.replace(
+              b"landing.js?v=6226-underwater-satellite-lock",
+              b"landing.js?v=6228-auth-retry", 1
+          ), "Root page changed beyond its landing.js cache key"
+          old_app = Path("/tmp/bp-app-index-before").read_bytes()
+          new_app = (root / "app/index.html").read_bytes()
+          assert new_app == old_app.replace(
+              b"app.js?v=6226-underwater-satellite-lock",
+              b"app.js?v=6228-auth-retry", 1
+          ), "App page changed beyond its app.js cache key"
+          print("Verified: exactly four changed files; root/app HTML only change their script cache keys.")
+          print("All globe, welcome animation, underwater and non-auth assets remain byte-identical.")
+          PY
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          name: bridgepoint-auth-resilience-v6228
+          path: site
+          include-hidden-files: true
+
+      - name: Publish the auth resilience patch
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: bridgepoint-auth-resilience-v6228
+
+      - name: Verify the live landing and app authentication scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          O='https://bridgepointintelligence.online'
+          ok=0
+          for i in $(seq 1 30); do
+            q="auth-v6228-${i}-$(date +%s)"
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/landing.js?verify=${q}" -o /tmp/live-landing.js || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app.js?verify=${q}" -o /tmp/live-app.js || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/?verify=${q}" -o /tmp/live-root.html || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/?verify=${q}" -o /tmp/live-app.html || true
+            if grep -Fq 'bpAuthRequestV6228' /tmp/live-landing.js 2>/dev/null &&
+               grep -Fq 'bpAuthRequestV6228' /tmp/live-app.js 2>/dev/null &&
+               grep -Fq 'v=6224-underwater-dive-camera' /tmp/live-landing.js 2>/dev/null &&
+               grep -Fq 'bpWelcomeGateV1' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'bpw-globe-aura' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'landing.js?v=6228-auth-retry' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'app.js?v=6228-auth-retry' /tmp/live-app.html 2>/dev/null; then
+              ok=1
+              break
+            fi
+            sleep 4
+          done
+          test "$ok" -eq 1
+          echo "Live verification passed: auth retry is active on landing and app; the current globe and welcome gate remain live."
