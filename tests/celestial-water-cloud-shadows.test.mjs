@@ -76,6 +76,20 @@ test('hybrid satellite imagery and Gold LOD remain default, with coast foam at g
   assert.match(map, /paint\(map,'gta-water','fill-opacity',0\)/);
 });
 
+test('global day/night shading follows the real Sun, not the camera, at globe and local zoom', () => {
+  assert.match(map, /function subsolarPoint\(date\)/);
+  assert.match(map, /function earthFixedSunLightPosition\(sun\)/);
+  assert.match(map, /anchor:'map',color,intensity,position:earthFixedSunLightPosition\(subsolar\)/);
+  assert.match(map, /function solarNightGeometry\(sun\)/);
+  assert.match(map, /id:'gta-solar-night-shade',type:'fill',source:'bpSolarNight'/);
+  assert.match(map, /fill-opacity':\.48/);
+  assert.match(map, /nightSource\.setData\(solarNightGeometry\(subsolar\)\)/);
+  assert.match(map, /solarBucket=Math\.floor\(date\.getTime\(\)\/300000\)/);
+  assert.match(map, /solarTimer=setInterval\(updateWorldLight,300000\)/);
+  assert.match(map, /map\.moveLayer\('gta-solar-night-shade','gta-coast-shadow'\)/);
+  assert.doesNotMatch(map, /position:\[1\.35,sun\.az,clamp\(90-alt,18,84\)\]/);
+});
+
 test('space layer keeps globe interactive while drawing stable stars, Sun and Moon', () => {
   assert.match(space, /stableStars: true/);
   assert.match(space, /mapCanvasHidden: false/);

@@ -152,7 +152,7 @@ function style(projectionType='globe'){
   oam:{type:'raster',tiles:[OAM],tileSize:256,minzoom:14,maxzoom:21,attribution:'OpenAerialMap · Open Imagery Network contributors · CC BY 4.0'},
   dem:{type:'raster-dem',tiles:[DEM],tileSize:256,maxzoom:15,encoding:'terrarium',attribution:'Mapzen Terrain Tiles · AWS Open Data'},
   bpBuildings:{type:'vector',tiles:[BUILDINGS],minzoom:10,maxzoom:22,attribution:'BridgePoint public-safe source-backed building geometry · V5019'},bpCityStructures:{type:'vector',tiles:[CITY_STRUCTURES],minzoom:11,maxzoom:22,attribution:'BridgePoint source-backed city structures · V5376'},bpCityRoofs:{type:'vector',tiles:[CITY_ROOFS],minzoom:15,maxzoom:22,attribution:'BridgePoint source-backed real roof geometry · V5376'},
-  exact:{type:'geojson',data:EMPTY},exactRoof:{type:'geojson',data:EMPTY},selected:{type:'geojson',data:EMPTY},streetlights:{type:'geojson',data:EMPTY},bpOpportunities:{type:'geojson',data:EMPTY},bpListings:{type:'geojson',data:EMPTY,attribution:'HUD FHA homes for sale · listing status must be verified with publisher'},bpSemanticLabels:{type:'geojson',data:EMPTY},bpTreeLod:{type:'geojson',data:EMPTY,attribution:'BridgePoint source-backed tree positions · high-altitude lightweight LOD'},bpLivingWorld:{type:'geojson',data:EMPTY,attribution:'BridgePoint source-backed living-world detail · public/open government and OSM sources'},bpLivingWorld3D:{type:'geojson',data:EMPTY,attribution:'BridgePoint source-backed positions · derived display geometry'},bpLandmark3D:{type:'geojson',data:EMPTY,attribution:'BridgePoint source-only landmark mesh lane · synthetic point-derived landmark geometry disabled'},bpBridge3D:{type:'geojson',data:EMPTY,attribution:'OpenStreetMap/OpenFreeMap bridge centerlines · BridgePoint derived 3D bridge display geometry'},bpRoad3D:{type:'geojson',data:EMPTY,attribution:'OpenStreetMap/OpenFreeMap centerlines · BridgePoint derived physical road deck'}
+  exact:{type:'geojson',data:EMPTY},exactRoof:{type:'geojson',data:EMPTY},selected:{type:'geojson',data:EMPTY},streetlights:{type:'geojson',data:EMPTY},bpSolarNight:{type:'geojson',data:EMPTY},bpOpportunities:{type:'geojson',data:EMPTY},bpListings:{type:'geojson',data:EMPTY,attribution:'HUD FHA homes for sale · listing status must be verified with publisher'},bpSemanticLabels:{type:'geojson',data:EMPTY},bpTreeLod:{type:'geojson',data:EMPTY,attribution:'BridgePoint source-backed tree positions · high-altitude lightweight LOD'},bpLivingWorld:{type:'geojson',data:EMPTY,attribution:'BridgePoint source-backed living-world detail · public/open government and OSM sources'},bpLivingWorld3D:{type:'geojson',data:EMPTY,attribution:'BridgePoint source-backed positions · derived display geometry'},bpLandmark3D:{type:'geojson',data:EMPTY,attribution:'BridgePoint source-only landmark mesh lane · synthetic point-derived landmark geometry disabled'},bpBridge3D:{type:'geojson',data:EMPTY,attribution:'OpenStreetMap/OpenFreeMap bridge centerlines · BridgePoint derived 3D bridge display geometry'},bpRoad3D:{type:'geojson',data:EMPTY,attribution:'OpenStreetMap/OpenFreeMap centerlines · BridgePoint derived physical road deck'}
  },
  layers:[
   {id:'gta-bg',type:'background',paint:{'background-color':'#040b12'}},
@@ -161,6 +161,7 @@ function style(projectionType='globe'){
    {id:'gta-esri',type:'raster',source:'esri',minzoom:0,maxzoom:22,layout:{visibility:'visible'},paint:{'raster-opacity':1,'raster-saturation':.15,'raster-contrast':.12,'raster-resampling':'linear','raster-fade-duration':0}},
   {id:'gta-usgs',type:'raster',source:'usgs',minzoom:11,maxzoom:17,layout:{visibility:'visible'},paint:{'raster-opacity':['interpolate',['linear'],['zoom'],5,.45,9,.82,13,.96,17,.99],'raster-saturation':.14,'raster-contrast':.16,'raster-resampling':'linear','raster-fade-duration':0}},
   {id:'gta-oam',type:'raster',source:'oam',minzoom:14,maxzoom:21,layout:{visibility:'visible'},paint:{'raster-opacity':['interpolate',['linear'],['zoom'],14,0,14.25,.72,15,.9,17,.96,20,.985],'raster-saturation':.12,'raster-contrast':.13,'raster-resampling':'linear','raster-fade-duration':0}},
+  {id:'gta-solar-night-shade',type:'fill',source:'bpSolarNight',paint:{'fill-color':'#030916','fill-opacity':.48,'fill-antialias':true}},
   {id:'gta-coast-shadow',type:'line',source:'ofm','source-layer':'water',minzoom:2.2,paint:{'line-color':'#071721','line-width':['interpolate',['linear'],['zoom'],2.2,1.4,4,1.15,10,1.4,16,3.1,20,5.5],'line-opacity':.9,'line-blur':1.1}},
   {id:'gta-coast-edge',type:'line',source:'ofm','source-layer':'water',minzoom:2.2,layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':['interpolate',['linear'],['zoom'],2.2,'#9bcbd6',5,'#7197a5',12,'#9fc4cb',18,'#d7ece9'],'line-width':['interpolate',['linear'],['zoom'],2.2,.9,5,.65,12,.95,18,1.9,20,2.6],'line-opacity':['interpolate',['linear'],['zoom'],2.2,.84,5,.72,12,.68,18,.78]}},
   {id:'gta-coast-foam',type:'line',source:'ofm','source-layer':'water',minzoom:2.2,layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#f0faf7','line-width':['interpolate',['linear'],['zoom'],2.2,.16,4,.24,7,.42,11,.85,15,1.7,20,3.4],'line-opacity':['interpolate',['linear'],['zoom'],2.2,.10,5,.15,9,.21,14,.28,20,.34],'line-blur':['interpolate',['linear'],['zoom'],2.2,.65,8,.5,15,.3,20,.2],'line-dasharray':[1.8,3.4]}},
@@ -617,12 +618,48 @@ export function initWorld(options={}){
   const alt=Math.asin(Math.sin(phi)*Math.sin(dec)+Math.cos(phi)*Math.cos(dec)*Math.cos(ha)),az=Math.atan2(-Math.sin(ha),Math.tan(dec)*Math.cos(phi)-Math.sin(phi)*Math.cos(ha));
   return{alt:alt/rad,az:(az/rad+360)%360}
  }
+ // Geographic subsolar point: the longitude/latitude where the Sun is directly overhead.
+ // This is independent of the camera center and remains fixed to the Earth as the globe rotates.
+ function subsolarPoint(date){
+  const rad=Math.PI/180,dayMs=86400000,jd=date.getTime()/dayMs+2440587.5,n=jd-2451545.0,L=(280.46+.9856474*n)%360,g=(357.528+.9856003*n)%360,lambda=(L+1.915*Math.sin(g*rad)+.02*Math.sin(2*g*rad))*rad,eps=(23.439-.0000004*n)*rad;
+  const ra=Math.atan2(Math.cos(eps)*Math.sin(lambda),Math.cos(lambda)),dec=Math.asin(Math.sin(eps)*Math.sin(lambda)),gmst=(280.46061837+360.98564736629*(jd-2451545.0))%360;
+  let lng=ra/rad-gmst;lng=((lng+540)%360+360)%360-180;
+  return{lng,lat:dec/rad};
+ }
+ // MapLibre's map-anchored light is expressed in an Earth-fixed frame. Its atmosphere
+ // shader looks toward the Sun opposite this vector, so negate the subsolar unit vector.
+ function earthFixedSunLightPosition(sun){
+  const rad=Math.PI/180,lat=sun.lat*rad,lng=sun.lng*rad,x=-Math.cos(lat)*Math.sin(lng),y=-Math.sin(lat),z=-Math.cos(lat)*Math.cos(lng);
+  return[1.5,Math.atan2(y,x)/rad-90,Math.acos(clamp(z,-1,1))/rad];
+ }
+ // Build a fine, Earth-fixed night hemisphere from the great-circle terminator.
+ // Narrow longitude strips avoid antimeridian-spanning polygons and stay smooth on the globe.
+ function solarNightGeometry(sun){
+  const rad=Math.PI/180,dec=sun.lat*rad,sinDec=Math.sin(dec),cosDec=Math.cos(dec),south=-85.05112878,north=85.05112878,segments=720,step=360/segments,polygons=[];
+  const boundaryAt=lng=>{
+   let lat=Math.atan2(-cosDec*Math.cos((lng-sun.lng)*rad),sinDec)/rad;
+   if(lat>90)lat-=180;else if(lat< -90)lat+=180;
+   return clamp(lat,south,north);
+  };
+  for(let i=0;i<segments;i++){
+   const lon0=-180+i*step,lon1=lon0+step,mid=(lon0+lon1)*.5,midTerm=cosDec*Math.cos((mid-sun.lng)*rad);
+   if(Math.abs(sinDec)<1e-9&&midTerm>=0)continue;
+   const a=boundaryAt(lon0),b=boundaryAt(lon1);
+   if(sun.lat>=0){
+    if(Math.max(a,b)<=south+.001)continue;
+    polygons.push([[[lon0,south],[lon1,south],[lon1,b],[lon0,a],[lon0,south]]]);
+   }else{
+    if(Math.min(a,b)>=north-.001)continue;
+    polygons.push([[[lon0,a],[lon1,b],[lon1,north],[lon0,north],[lon0,a]]]);
+   }
+  }
+  return{type:'FeatureCollection',features:polygons.length?[{type:'Feature',properties:{kind:'earth-fixed-night-hemisphere',subsolarLongitude:sun.lng,subsolarLatitude:sun.lat},geometry:{type:'MultiPolygon',coordinates:polygons}}]:[]};
+ }
  function updateWorldLight(){
-  if(moving)return;
   try{
-   const center=map.getCenter(),sun=solarPosition(new Date(),center.lat,center.lng),alt=sun.alt,day=clamp((alt+8)/28,0,1),night=1-day,twilight=alt<8&&alt>-12;
+   const date=new Date(),center=map.getCenter(),sun=solarPosition(date,center.lat,center.lng),subsolar=subsolarPoint(date),alt=sun.alt,day=clamp((alt+8)/28,0,1),night=1-day,twilight=alt<8&&alt>-12;
    const intensity=alt>18?.84:alt>2?.64:alt>-8?.38:.22,color=alt>10?'#fff7e6':alt>-6?'#f3b78c':'#a8bfdc',skyColor=alt>8?'#4f90ad':alt>-6?'#2b485f':'#081522',horizon=alt>8?'#b5cbc7':alt>-6?'#76514d':'#1b3046',fog=alt>8?'#8da5aa':alt>-6?'#58535a':'#2b3a49';
-   map.setLight({anchor:'map',color,intensity,position:[1.35,sun.az,clamp(90-alt,18,84)]});
+   map.setLight({anchor:'map',color,intensity,position:earthFixedSunLightPosition(subsolar)});const nightSource=map.getSource('bpSolarNight'),solarBucket=Math.floor(date.getTime()/300000);if(nightSource&&(nightSource!==map.__bpSolarNightSourceRef||solarBucket!==map.__bpSolarNightLastBucket)){nightSource.setData(solarNightGeometry(subsolar));map.__bpSolarNightSourceRef=nightSource;map.__bpSolarNightLastBucket=solarBucket;}
    map.setSky({'sky-color':skyColor,'horizon-color':horizon,'fog-color':fog,'sky-horizon-blend':.2,'horizon-fog-blend':.06,'fog-ground-blend':.025,'atmosphere-blend':['interpolate',['linear'],['zoom'],0,.62,5,.36,9,.09,12,0]});
    paint(map,'gta-streetlights-glow','circle-opacity',night?['interpolate',['linear'],['zoom'],LIGHT_MIN,.38,18,.68,21,.88]:['interpolate',['linear'],['zoom'],LIGHT_MIN,.02,18,.05,21,.08]);
    paint(map,'gta-streetlights','circle-opacity',night?['interpolate',['linear'],['zoom'],LIGHT_MIN,.58,18,.94,21,1]:['interpolate',['linear'],['zoom'],LIGHT_MIN,.03,18,.08,21,.12]);
@@ -633,14 +670,14 @@ export function initWorld(options={}){
    for(const id of ['gta-context-building-shadow','gta-bp-building-shadow','gta-exact-building-shadow']){paint(map,id,'fill-translate',shadowTranslate);paint(map,id,'fill-opacity',shadowOpacity)}
    for(const id of ['gta-context-buildings','gta-bp-buildings','gta-exact-building','gta-city-buildings'])paint(map,id,'fill-extrusion-opacity',1);
    const windowOpacity=alt>2?(map.getZoom()>=16.8?.12:0):clamp((-alt+2)/16,.08,.72);for(const id of ['gta-context-night-windows','gta-bp-night-windows','gta-exact-night-windows'])paint(map,id,'fill-extrusion-opacity',windowOpacity);
-   window.__BP_WORLD_LIGHT__={version:6124,sunAltitude:alt,sunAzimuth:sun.az,daylight:day,night:night>0.55,twilight,moonlight:night>0.45,updatedAt:Date.now()};
+   window.__BP_WORLD_LIGHT__={version:6227,sunAltitude:alt,sunAzimuth:sun.az,subsolarLongitude:subsolar.lng,subsolarLatitude:subsolar.lat,earthFixed:true,nightShadeVisible:true,daylight:day,night:night>0.55,twilight,moonlight:night>0.45,updatedAt:Date.now()};
   }catch(e){console.warn('BridgePoint world light',e)}
  }
- function sky(){updateWorldLight();clearInterval(solarTimer);solarTimer=setInterval(updateWorldLight,30000);map.off?.('moveend',updateWorldLight);map.on?.('moveend',updateWorldLight);clearInterval(window.__BP_COAST_FOAM_TIMER__);window.__BP_COAST_FOAM_TIMER__=setInterval(()=>{if(document.hidden||!map.getLayer?.('gta-coast-foam'))return;const phase=Date.now()/1900,pulse=.5+.5*Math.sin(phase);paint(map,'gta-coast-foam','line-opacity',.10+.20*pulse);paint(map,'gta-coast-foam','line-dasharray',pulse>.5?[2.15,3.05]:[1.55,3.8])},1100)}
+ function sky(){updateWorldLight();clearInterval(solarTimer);solarTimer=setInterval(updateWorldLight,300000);map.off?.('moveend',updateWorldLight);map.on?.('moveend',updateWorldLight);clearInterval(window.__BP_COAST_FOAM_TIMER__);window.__BP_COAST_FOAM_TIMER__=setInterval(()=>{if(document.hidden||!map.getLayer?.('gta-coast-foam'))return;const phase=Date.now()/1900,pulse=.5+.5*Math.sin(phase);paint(map,'gta-coast-foam','line-opacity',.10+.20*pulse);paint(map,'gta-coast-foam','line-dasharray',pulse>.5?[2.15,3.05]:[1.55,3.8])},1100)}
  function terrain(){const z=map.getZoom(),should=z>=2,ex=LOW?.82:TIER==='HIGH'?1.08:1,src=String(window.__BP_TERRAIN_SOURCE_OVERRIDE__||'dem'),terrainEx=src==='dem'?ex:1,signature=src+':'+terrainEx;try{if(should){if(!terrainOn||window.__BP_TERRAIN_APPLIED_MAP__!==map||window.__BP_TERRAIN_APPLIED_SIGNATURE__!==signature){map.setTerrain({source:src,exaggeration:terrainEx});terrainOn=true;window.__BP_TERRAIN_APPLIED_MAP__=map;window.__BP_TERRAIN_APPLIED_SIGNATURE__=signature}}else if(terrainOn){map.setTerrain(null);terrainOn=false;window.__BP_TERRAIN_APPLIED_MAP__=map;window.__BP_TERRAIN_APPLIED_SIGNATURE__=''}vis(map,'gta-hillshade',z>=4&&z<19.5);vis(map,'gta-landcover-texture',base!=='satellite'&&z<19.5);window.__BP_TERRAIN_VISUAL_STATE__={zoom:z,enabled:terrainOn,exaggeration:terrainOn?ex:0,streetLevelClamped:false,persistentThroughStreetLevel:true,coastRoadCliffProtection:true,demOverzoomToStreet:true,updatedAt:Date.now()}}catch(_){terrainOn=false;window.__BP_TERRAIN_APPLIED_MAP__=map;window.__BP_TERRAIN_APPLIED_SIGNATURE__=''}}
  function applyAutoCamera(){window.__BP_AUTO_CAMERA__={enabled:false,singleView:true,mode:'FREE_FLY',maxPitch:110,zoom:map.getZoom(),pitch:map.getPitch(),updatedAt:Date.now()};return false}
   function isUnderwaterDiveActive(){return window.__BP_UNDERWATER_DIVE_ACTIVE__===true||window.__BP_UNDERWATER_DIVE_TRANSITION__===true}
-  function setBase(next){if(isUnderwaterDiveActive()){keepSatelliteRasterLayersVisible('setBase-underwater-lock');return}base='satellite';const rasterLayers=['gta-nasa','gta-esri','gta-usgs','gta-oam'];for(const id of rasterLayers){vis(map,id,true);if(map.getLayer(id)&&map.getLayer('gta-coast-shadow'))try{map.moveLayer(id,'gta-coast-shadow')}catch(_){}}paint(map,'gta-water','fill-opacity',0);vis(map,'gta-landcover-texture',false);paint(map,'gta-landcover','fill-opacity',0);paint(map,'gta-landuse','fill-opacity',0);paint(map,'gta-hillshade','hillshade-exaggeration',0);document.querySelectorAll('[data-base]').forEach(b=>b.classList.toggle('active',b.dataset.base==='satellite'));window.__BP_TECH_BASEMAP_V1116__={...(window.__BP_TECH_BASEMAP_V1116__||{}),activeBase:'satellite',defaultBase:'satellite',satelliteManualOnly:false,satelliteAlwaysOn:true,continuousGlobalUnderlay:false,zoomVisibilityChanges:false,tileExpiryRefresh:true,updatedAt:Date.now()};keepSatelliteRasterLayersVisible('setBase');map.triggerRepaint()}
+  function setBase(next){if(isUnderwaterDiveActive()){keepSatelliteRasterLayersVisible('setBase-underwater-lock');return}base='satellite';const rasterLayers=['gta-nasa','gta-esri','gta-usgs','gta-oam'];for(const id of rasterLayers){vis(map,id,true);if(map.getLayer(id)&&map.getLayer('gta-coast-shadow'))try{map.moveLayer(id,'gta-coast-shadow')}catch(_){}}try{if(map.getLayer('gta-solar-night-shade')&&map.getLayer('gta-coast-shadow'))map.moveLayer('gta-solar-night-shade','gta-coast-shadow')}catch(_){}paint(map,'gta-water','fill-opacity',0);vis(map,'gta-landcover-texture',false);paint(map,'gta-landcover','fill-opacity',0);paint(map,'gta-landuse','fill-opacity',0);paint(map,'gta-hillshade','hillshade-exaggeration',0);document.querySelectorAll('[data-base]').forEach(b=>b.classList.toggle('active',b.dataset.base==='satellite'));window.__BP_TECH_BASEMAP_V1116__={...(window.__BP_TECH_BASEMAP_V1116__||{}),activeBase:'satellite',defaultBase:'satellite',satelliteManualOnly:false,satelliteAlwaysOn:true,continuousGlobalUnderlay:false,zoomVisibilityChanges:false,tileExpiryRefresh:true,updatedAt:Date.now()};keepSatelliteRasterLayersVisible('setBase');map.triggerRepaint()}
   function keepSatelliteRasterLayersVisible(reason='settled'){
    const ids=['gta-nasa','gta-esri','gta-usgs','gta-oam'],layers={},restored=[],suppressed=[];
    const blenderWorldEnabled=window.__BP_BLENDER_WORLD_MODE__?.enabled===true;
