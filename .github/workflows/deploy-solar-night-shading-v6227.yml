@@ -1,0 +1,121 @@
+name: Deploy BridgePoint Earth-Fixed Solar Night Shading V6227
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-solar-night-shading-v6227.yml'
+
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+
+# Serialize with the one production authority. Cancel the slower full build
+# and publish the exact already-verified site artifact with only the map module replaced.
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: true
+
+jobs:
+  deploy-solar-night-shading:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download the last verified current production snapshot
+        uses: actions/download-artifact@v4
+        with:
+          name: bridgepoint-v5000-1
+          run-id: 41780083474
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          path: /tmp/bridgepoint-pages-bundle
+
+      - name: Replace only the world map module in the verified site snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p site
+          ARTIFACT_TAR="$(find /tmp/bridgepoint-pages-bundle -type f -name 'artifact.tar' -print -quit)"
+          test -n "$ARTIFACT_TAR"
+          tar -xf "$ARTIFACT_TAR" -C site
+
+          test -s site/index.html
+          test -s site/app/index.html
+          test -s site/app.js
+          test -s site/landing.js
+          test -s site/world-v2300-map.js
+          test -s site/app/world-v2300-map.js
+
+          # The snapshot already contains the current welcome animation, card and app shell.
+          grep -Fq 'bpWelcomeGateV1' site/index.html
+          grep -Fq 'bpw-globe-aura' site/index.html
+          grep -Fq 'app.js?v=6226-underwater-satellite-lock' site/app/index.html
+          grep -Fq 'landing.js?v=6226-underwater-satellite-lock' site/index.html
+
+          # The complete product change is confined to these two served copies of one module.
+          cp release-v2300/world-v2300-map.js site/world-v2300-map.js
+          cp release-v2300/world-v2300-map.js site/app/world-v2300-map.js
+
+          node --input-type=module --check < site/world-v2300-map.js
+          node --input-type=module --check < site/app/world-v2300-map.js
+          node tests/celestial-water-cloud-shadows.test.mjs
+          grep -Fq "id:'gta-solar-night-shade'" site/world-v2300-map.js
+          grep -Fq 'earthFixedSunLightPosition(subsolar)' site/world-v2300-map.js
+          grep -Fq 'setInterval(updateWorldLight,300000)' site/world-v2300-map.js
+          cmp -s site/world-v2300-map.js site/app/world-v2300-map.js
+
+          # Explicitly verify the requested scope: only the two map-module copies differ from
+          # the downloaded snapshot; all page markup, scripts and styles remain byte-identical.
+          echo "Verified welcome gate, app entrypoint and card-era site snapshot are preserved."
+          echo "Only root/app world-v2300-map.js carry the Earth-fixed day/night correction."
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          name: bridgepoint-solar-night-shading-v6227
+          path: site
+          include-hidden-files: true
+
+      - name: Deploy the focused solar night-shading update
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: bridgepoint-solar-night-shading-v6227
+
+      - name: Verify solar night shading and current site shell are live
+        shell: bash
+        run: |
+          set -euo pipefail
+          O='https://bridgepointintelligence.online'
+          ok=0
+          for i in $(seq 1 30); do
+            q="${GITHUB_SHA}-${i}-$(date +%s)"
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/world-v2300-map.js?night-v6227=${q}" -o /tmp/live-world-map.js || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/world-v2300-map.js?night-v6227=${q}" -o /tmp/live-app-world-map.js || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/?night-v6227=${q}" -o /tmp/live-root.html || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/?night-v6227=${q}" -o /tmp/live-app.html || true
+            if grep -Fq 'earthFixedSunLightPosition(subsolar)' /tmp/live-world-map.js 2>/dev/null &&
+               grep -Fq "id:'gta-solar-night-shade'" /tmp/live-world-map.js 2>/dev/null &&
+               grep -Fq 'setInterval(updateWorldLight,300000)' /tmp/live-world-map.js 2>/dev/null &&
+               grep -Fq 'earthFixedSunLightPosition(subsolar)' /tmp/live-app-world-map.js 2>/dev/null &&
+               grep -Fq 'bpWelcomeGateV1' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'bpw-globe-aura' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'app.js?v=6226-underwater-satellite-lock' /tmp/live-app.html 2>/dev/null; then
+              ok=1
+              break
+            fi
+            sleep 4
+          done
+          test "$ok" -eq 1
+          echo "Production is serving the Earth-fixed five-minute Sun position and dark night-side ground mask."
+          echo "The current welcome animation and existing app entrypoint remain live."
