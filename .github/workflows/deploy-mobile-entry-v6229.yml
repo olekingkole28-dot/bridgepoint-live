@@ -1,0 +1,149 @@
+name: Deploy BridgePoint Mobile Entry V6229
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-mobile-entry-v6229.yml'
+      - 'recovery/apply_mobile_entry_v6229.py'
+      - 'tests/test_mobile_entry_v6229.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+
+jobs:
+  deploy-mobile-entry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Test bounded mobile gate and retained globe modules
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s tests -p 'test_mobile_entry_v6229.py' -v
+
+      - name: Download exact V6228 production Pages artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: bridgepoint-auth-resilience-v6228
+          run-id: 41801406213
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          path: /tmp/bridgepoint-pages-bundle
+
+      - name: Verify baseline and apply mobile-only startup changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p site
+          ARTIFACT_TAR="$(find /tmp/bridgepoint-pages-bundle -type f -name 'artifact.tar' -print -quit)"
+          test -n "$ARTIFACT_TAR"
+          tar -xf "$ARTIFACT_TAR" -C site
+
+          test -s site/index.html
+          test -s site/app/index.html
+          test -s site/landing.js
+          test -s site/app.js
+          cmp -s site/landing.js recovery/landing-auth-v6228.js
+          cmp -s site/app.js recovery/app-auth-v6228.js
+          grep -Fq 'bpAuthRequestV6228' site/landing.js
+          grep -Fq 'bpAuthRequestV6228' site/app.js
+          grep -Fq 'bpWelcomeGateV1' site/index.html
+          grep -Fq 'bpw-globe-aura' site/index.html
+          grep -Fq 'world-v2300-map.js?v=6226-underwater-satellite-lock' site/landing.js
+          grep -Fq 'v=6224-underwater-dive-camera' site/landing.js
+
+          python3 - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          root = Path("site")
+          manifest = {
+              p.relative_to(root).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
+              for p in root.rglob("*") if p.is_file()
+          }
+          Path("/tmp/bp-mobile-before.json").write_text(json.dumps(manifest, sort_keys=True))
+          PY
+
+          python3 recovery/apply_mobile_entry_v6229.py site/index.html site/landing.js
+          node --check site/landing.js
+
+          grep -Fq 'bpAuthRequestV6228' site/landing.js
+          grep -Fq 'bp:welcome-gate-unlocked-v6229' site/landing.js
+          grep -Fq 'world-v2300-map.js?v=6226-underwater-satellite-lock' site/landing.js
+          grep -Fq 'v=6224-underwater-dive-camera' site/landing.js
+          grep -Fq 'bpMobileLazyLoaderV6229' site/index.html
+          grep -Fq 'BRIDGEPOINT WORLD IS LOADING' site/index.html
+          grep -Fq 'data-bp-lazy-src' site/index.html
+          grep -Fq 'landing.js?v=6229-mobile-entry' site/index.html
+          grep -Fq 'bpw-globe-aura' site/index.html
+
+          python3 - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          root = Path("site")
+          before = json.loads(Path("/tmp/bp-mobile-before.json").read_text())
+          after = {
+              p.relative_to(root).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
+              for p in root.rglob("*") if p.is_file()
+          }
+          assert before.keys() == after.keys(), "Pages asset set changed"
+          changed = {p for p in before if before[p] != after[p]}
+          expected = {"index.html", "landing.js"}
+          assert changed == expected, f"Unexpected changed files: {sorted(changed)}"
+          print("Verified: only root index.html and landing.js changed.")
+          print("App route, app.js, globe/map modules, data, cards and every feature asset remain byte-identical.")
+          PY
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          name: bridgepoint-mobile-entry-v6229
+          path: site
+          include-hidden-files: true
+
+      - name: Publish mobile entry optimization
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: bridgepoint-mobile-entry-v6229
+
+      - name: Verify live mobile entry and preserved auth/globe
+        shell: bash
+        run: |
+          set -euo pipefail
+          O='https://bridgepointintelligence.online'
+          ok=0
+          for i in $(seq 1 30); do
+            q="mobile-v6229-${i}-$(date +%s)"
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/landing.js?verify=${q}" -o /tmp/live-landing.js || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/?verify=${q}" -o /tmp/live-root.html || true
+            if grep -Fq 'bpAuthRequestV6228' /tmp/live-landing.js 2>/dev/null &&
+               grep -Fq 'bp:welcome-gate-unlocked-v6229' /tmp/live-landing.js 2>/dev/null &&
+               grep -Fq 'v=6224-underwater-dive-camera' /tmp/live-landing.js 2>/dev/null &&
+               grep -Fq 'bpMobileLazyLoaderV6229' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'BRIDGEPOINT WORLD IS LOADING' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'landing.js?v=6229-mobile-entry' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'bpw-globe-aura' /tmp/live-root.html 2>/dev/null; then
+              ok=1
+              break
+            fi
+            sleep 4
+          done
+          test "$ok" -eq 1
+          echo "V6229 live verification passed: mobile gate and lazy entry are active; V6228 auth resilience, current globe and underwater camera remain."
