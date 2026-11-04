@@ -108,7 +108,11 @@ class MobileEntryPatchTests(unittest.TestCase):
         self.assertIn("window.__BP_LANDING_OPTIONAL_MODULES_STARTED_V6229__", patched)
         for feature in ("world-v2300-clouds.js", "world-v2300-lod-controls.js", "bridgepoint-landmarks-v5940.js", "world-v2300-sensor-layers.js", "world-v2300-realism.js"):
             self.assertIn(feature, patched)
-        self.assertNotIn("  void window.__BP_ACTIVATE_CLOUDS__().catch", patched)
+        optional_start = patched.index("const startLandingOptionalModulesV6229=")
+        optional_end = patched.index("window.__BP_LANDING_START_OPTIONAL_MODULES_V6229__", optional_start)
+        cloud_call = patched.index("void window.__BP_ACTIVATE_CLOUDS__().catch")
+        self.assertLess(optional_start, cloud_call)
+        self.assertLess(cloud_call, optional_end)
         with self.assertRaises(AssertionError):
             patch_landing_js(patched)
 
