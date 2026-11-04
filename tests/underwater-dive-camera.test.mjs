@@ -23,6 +23,7 @@ assert.ok(workflow.includes("node tests/underwater-dive-camera.test.mjs"), 'the 
 assert.ok(!sensor.includes("zoom:Math.max(3.5,Math.min(8.5"), 'the old fallback zoom-out behavior must stay removed');
 assert.ok(map.includes("const underwaterDiveActive=window.__BP_UNDERWATER_DIVE_ACTIVE__===true||window.__BP_UNDERWATER_DIVE_TRANSITION__===true"), 'the always-on satellite raster guard must recognize the underwater interval');
 assert.ok(map.includes("(blenderWorldEnabled||underwaterDiveActive)?'none':'visible'"), 'base satellite imagery must be suppressed only during the underwater interval');
+assert.ok(map.includes("BP_SATELLITE_RASTER_VISIBILITY_GUARD_V6217__") && map.includes("underwaterDiveActive"), 'existing satellite visibility diagnostics must remain API-compatible and expose underwater state');
 assert.ok(map.includes("bp-spectral-imagery-raster-v5931") && map.includes("BP_UNDERWATER_SPECTRAL_LAYER_VISIBILITY__"), 'a user-loaded Landsat overlay must be hidden temporarily and restored to its prior visibility');
 assert.ok(app.includes("const underwaterDiveActive=window.__BP_UNDERWATER_DIVE_ACTIVE__===true||window.__BP_UNDERWATER_DIVE_TRANSITION__===true"), 'the app startup globe callback must respect the underwater interval');
 assert.ok(app.includes("if(!underwaterDiveActive&&projection!=='globe'&&appMap.getZoom()<7.5)"), 'the app startup callback must not switch Mercator back to globe while diving');
