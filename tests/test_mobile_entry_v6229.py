@@ -57,6 +57,7 @@ const waitForGlobe=()=>{
 
 def landing_fixture() -> str:
     return """const AUTH='bpAuthRequestV6228';
+window.__BP_ACTIVATE_CLOUDS__=async()=>import('./world-v2300-clouds.js?v=6200-radar-colored-rain-clouds');
 async function initMap(){
   const mod=await import('./world-v2300-map.js?v=6226-underwater-satellite-lock');
   void window.__BP_ACTIVATE_CLOUDS__().catch(e=>console.warn('BridgePoint always-on 3D clouds unavailable',e));
