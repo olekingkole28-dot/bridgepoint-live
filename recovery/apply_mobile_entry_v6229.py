@@ -228,8 +228,8 @@ def patch_html(html: str, min_lazy_assets: int = 15) -> tuple[str, dict]:
     ):
         if required not in html:
             raise AssertionError(f"Missing required entry element: {required}")
-    if 'data-bp-lazy-src="/world-v2300' not in html:
-        raise AssertionError("World feature modules were removed instead of deferred")
+    if 'data-bp-lazy-src="/bridgepoint-' not in html:
+        raise AssertionError("Homepage feature scripts were removed instead of deferred")
     return html, {"lazy_scripts": lazy_count}
 
 
