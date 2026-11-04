@@ -21,7 +21,10 @@ assert.ok(sensor.includes("Previous camera position and map projection restored.
 assert.ok(workflow.includes("world-v2300-sensor-layers.js?v=6224-underwater-dive-camera"), 'both deployed entrypoints must load the new dive module cache version');
 assert.ok(workflow.includes("node tests/underwater-dive-camera.test.mjs"), 'the production build must run the underwater regression test');
 assert.ok(!sensor.includes("zoom:Math.max(3.5,Math.min(8.5"), 'the old fallback zoom-out behavior must stay removed');
-assert.ok(map.includes("const underwaterDiveActive=window.__BP_UNDERWATER_DIVE_ACTIVE__===true||window.__BP_UNDERWATER_DIVE_TRANSITION__===true"), 'the always-on satellite raster guard must recognize the underwater interval');
+assert.ok(map.includes("function isUnderwaterDiveActive(){return window.__BP_UNDERWATER_DIVE_ACTIVE__===true||window.__BP_UNDERWATER_DIVE_TRANSITION__===true}"), 'satellite recovery must share the underwater-state check');
+assert.ok(map.includes("function setBase(next){if(isUnderwaterDiveActive()){keepSatelliteRasterLayersVisible('setBase-underwater-lock');return}base='satellite';"), 'base-map recovery must not turn satellite rasters back on during a dive');
+assert.ok(map.includes("if(isUnderwaterDiveActive()){keepSatelliteRasterLayersVisible('style.load-underwater-lock');return}"), 'style reload recovery must preserve the underwater imagery lock');
+assert.ok(map.includes("const underwaterDiveActive=isUnderwaterDiveActive();"), 'the persistent raster guard must use the same underwater-state check');
 assert.ok(map.includes("const targetVisibility=blenderWorldEnabled?'none':'visible'") && map.includes("const effectiveVisibility=underwaterDiveActive?'none':targetVisibility"), 'base satellite imagery must keep its existing normal and Blender World policy, with an underwater-only suppression override');
 assert.ok(map.includes("BP_SATELLITE_RASTER_VISIBILITY_GUARD_V6217__") && map.includes("underwaterDiveActive"), 'existing satellite visibility diagnostics must remain API-compatible and expose underwater state');
 assert.ok(map.includes("bp-spectral-imagery-raster-v5931") && map.includes("BP_UNDERWATER_SPECTRAL_LAYER_VISIBILITY__"), 'a user-loaded Landsat overlay must be hidden temporarily and restored to its prior visibility');
