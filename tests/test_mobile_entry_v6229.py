@@ -41,7 +41,7 @@ const startSequence=()=>{
       if(isSignedIn()){restorePage();return}
       setTimeout(settleGate,1250);
     },lettersDuration+160);
-};
+  };
 const waitForGlobe=()=>{
       if(isSignedIn()){restorePage();return}
       if(gateSettled)return;
