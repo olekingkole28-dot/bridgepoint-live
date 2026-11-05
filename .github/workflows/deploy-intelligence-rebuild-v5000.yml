@@ -25,6 +25,7 @@ on:
       - 'tests/drone-awareness.test.mjs'
       - 'tests/vessel-awareness.test.mjs'
       - 'tests/transportation-simulation-v1.test.mjs'
+      - 'tests/global-bridges-v1.test.cjs'
       - 'pricing/**'
       - 'newsroom/**'
       - 'terminal/**'
@@ -310,6 +311,10 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
+          base64 --decode rebuild-v5000/bridgepoint-global-bridges-v1.js.gz.b64 | gzip -dc > rebuild-v5000/bridgepoint-global-bridges-v1.js
+          test -s rebuild-v5000/bridgepoint-global-bridges-v1.js
+          node --check rebuild-v5000/bridgepoint-global-bridges-v1.js
+          node tests/global-bridges-v1.test.cjs
           node --check rebuild-v5000/bridgepoint-reality-assets-v5968.js
           node --check rebuild-v5000/bridgepoint-blender-world-v1.js
           python -m py_compile tools/reality_assets/package_manhattan_city_tiles.py tools/reality_assets/georeference_manhattan_city_tiles.py
@@ -397,6 +402,7 @@ jobs:
           node --check rebuild-v5000/bridgepoint-live-rail-v5969.js
           node tools/reality_assets/test_live_rail.mjs
           node --check rebuild-v5000/bridgepoint-rail-mesh-v5973.js
+          node --check rebuild-v5000/bridgepoint-global-bridges-v1.js
           node --check rebuild-v5000/bridgepoint-eiffel-tower-v5983.js
           node --check rebuild-v5000/bridgepoint-lincoln-memorial-v5984.js
           node --check rebuild-v5000/bridgepoint-lincoln-pointcloud-v5986.js
@@ -488,6 +494,7 @@ jobs:
           cp rebuild-v5000/bridgepoint-reality-assets-v5968.js site/bridgepoint-reality-assets-v5968.js
           cp rebuild-v5000/bridgepoint-live-rail-v5969.js site/bridgepoint-live-rail-v5969.js
           cp rebuild-v5000/bridgepoint-rail-mesh-v5973.js site/bridgepoint-rail-mesh-v5973.js
+          cp rebuild-v5000/bridgepoint-global-bridges-v1.js site/bridgepoint-global-bridges-v1.js
           cp rebuild-v5000/bridgepoint-pyramids-v5945.js site/bridgepoint-pyramids-v5945.js
           cp rebuild-v5000/bridgepoint-eiffel-tower-v5983.js site/bridgepoint-eiffel-tower-v5983.js
           cp rebuild-v5000/bridgepoint-lincoln-memorial-v5984.js site/bridgepoint-lincoln-memorial-v5984.js
@@ -745,6 +752,7 @@ jobs:
           test -s site/bridgepoint-vessel-awareness-v1.js
           grep -Fq 'Open Waters AIS vector tiles' site/bridgepoint-vessel-awareness-v1.js
           node --check site/bridgepoint-landmarks-v5940.js
+          node --check site/bridgepoint-global-bridges-v1.js
           node --check site/bridgepoint-map-key-v5920.js
           node --check site/bridgepoint-map-state-counts-v5923.js
           node --check site/bridgepoint-map-physical-assets-v5924.js
