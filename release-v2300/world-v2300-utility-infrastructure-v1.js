@@ -760,8 +760,8 @@ export function initUtilityInfrastructure(target) {
   }
 
   async function refresh() {
-    // The production world can keep isStyleLoaded() false while unrelated globe tiles
-    // stream. Our own sources already report loaded, so only require the style object here.
+    // BridgePoint can report isStyleLoaded() false while unrelated globe/source tiles
+    // stream. A live style object is enough to install our own vector sources and 3D layer.
     if (dead || !map || typeof map.getStyle !== 'function' || !map.getStyle()) return;
     const zoom = Number(map.getZoom && map.getZoom() || 0);
     lastZoom = zoom;
@@ -796,7 +796,7 @@ export function initUtilityInfrastructure(target) {
   }
 
   function onStyleReady() {
-    if (dead || !map || !map.isStyleLoaded || !map.isStyleLoaded() || styleInitPromise) return;
+    if (dead || !map || typeof map.getStyle !== 'function' || !map.getStyle() || styleInitPromise) return;
     styleInitPromise = (async () => {
       try {
         if (!installSources()) throw new Error('Public utility vector sources unavailable');
@@ -841,7 +841,7 @@ export function initUtilityInfrastructure(target) {
       map.on('idle', onMapIdle);
       listenersBound = true;
     }
-    if (map.isStyleLoaded && map.isStyleLoaded()) onStyleReady();
+    if (typeof map.getStyle === 'function' && map.getStyle()) onStyleReady();
     return true;
   }
 
