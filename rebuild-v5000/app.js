@@ -1,4 +1,4 @@
-const SUPA='https://xdfsjztwgsbmabshzsjw.supabase.co';
+const SUPA='https://solaris-boat-upgrades-stocks.trycloudflare.com';
 window.__BP_APP_BUILD_VERSION__=5910;window.__BP_PUBLIC_MARKET_MAP_V5906__={publicMap:true,publicOpportunityLayers:true,updatedAt:Date.now()}
 const KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
 const RPC=SUPA+'/rest/v1/rpc/';
@@ -13,21 +13,31 @@ const AUTH_STORE='bp_auth_v5045';let authSession=null,workspaceLast=null,package
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function saveSession(s){authSession=s||null;if(s)localStorage.setItem(AUTH_STORE,JSON.stringify(s));else localStorage.removeItem(AUTH_STORE);renderAuthState()}
 function sessionExpiry(s){return Number(s?.expires_at||0)*1000}
-async function authExchange(path,body){const r=await fetch(SUPA+'/auth/v1/'+path,{method:'POST',headers:{apikey:KEY,'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify(body),cache:'no-store'}),d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d?.msg||d?.message||d?.error_description||d?.error||('HTTP '+r.status));if(d?.access_token){if(!d.expires_at&&d.expires_in)d.expires_at=Math.floor(Date.now()/1000)+Number(d.expires_in);saveSession(d)}return d}
-async function refreshAuth(){if(!authSession?.refresh_token)return null;try{return await authExchange('token?grant_type=refresh_token',{refresh_token:authSession.refresh_token})}catch(e){saveSession(null);throw e}}
-async function ensureAuth(){if(!authSession){try{authSession=JSON.parse(localStorage.getItem(AUTH_STORE)||'null')}catch(_){authSession=null}}if(authSession?.access_token&&sessionExpiry(authSession)-Date.now()<90000&&authSession.refresh_token)await refreshAuth();return authSession?.access_token?authSession:null}
-async function requireAuthenticatedAppSession(){
- const s=await ensureAuth();if(!s?.access_token)return null;
- try{
-  const r=await fetch(SUPA+'/auth/v1/user',{headers:{apikey:KEY,Authorization:'Bearer '+s.access_token,Accept:'application/json'},cache:'no-store'});
-  if(!r.ok){saveSession(null);return null}
-  const user=await r.json().catch(()=>null);if(!user?.id){saveSession(null);return null}
-  authSession={...s,user};try{localStorage.setItem(AUTH_STORE,JSON.stringify(authSession))}catch(_){}
-  renderAuthState();return authSession
- }catch(_){return null}
+async function bpAuthRequestV6237(url,options,allowRetry,onRetry){
+ const attempts=allowRetry?2:1;
+ for(let attempt=0;attempt<attempts;attempt++){
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);
+  let r=null,d=null,networkError=null;
+  try{r=await fetch(url,{...options,signal:controller.signal});d=await r.json().catch(()=>({}))}
+  catch(error){networkError=error}
+  finally{clearTimeout(timer)}
+  if(networkError){
+   if(allowRetry&&attempt===0){if(onRetry)onRetry('The connection was interrupted. Retrying securely once…');await new Promise(resolve=>setTimeout(resolve,750));continue}
+   if(networkError.name==='AbortError')throw new Error('BridgePoint sign-in timed out waiting for the account service. Please try again in a minute.');
+   throw new Error('The connection to BridgePoint sign-in was interrupted. Please try again.')
+  }
+  if(allowRetry&&attempt===0&&[502,503,504].includes(Number(r.status))){
+   if(onRetry)onRetry('The sign-in service is responding slowly. Retrying securely once…');await new Promise(resolve=>setTimeout(resolve,750));continue
+  }
+  return{r,d}
+ }
+ throw new Error('BridgePoint sign-in did not complete. Please try again.')
 }
 
-async function authRpc(name,args={},timeout=9000,retry=true){const s=await ensureAuth();if(!s)throw new Error('SIGN_IN_REQUIRED');const c=new AbortController(),t=setTimeout(()=>c.abort(),timeout);try{const r=await fetch(RPC+name,{method:'POST',headers:{...headers,Authorization:'Bearer '+s.access_token},body:JSON.stringify(args),signal:c.signal,cache:'no-store'}),d=await r.json().catch(()=>({}));if(r.status===401&&retry&&s.refresh_token){clearTimeout(t);await refreshAuth();return authRpc(name,args,timeout,false)}if(!r.ok)throw new Error(d?.message||d?.error||('HTTP '+r.status));return d}finally{clearTimeout(t)}}
+async function authExchange(path,body){const retryable=path==='token?grant_type=password'||path==='token?grant_type=refresh_token',result=await bpAuthRequestV6237(SUPA+'/auth/v1/'+path,{method:'POST',headers:{apikey:KEY,'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify(body),cache:'no-store'},retryable,()=>{if(path==='token?grant_type=password')setText('authMessage','The sign-in service is responding slowly. Retrying securely once…')});const r=result.r,d=result.d;if(!r.ok){const error=new Error([502,503,504].includes(Number(r.status))?'BridgePoint account service is temporarily unavailable after one safe retry. Please try again shortly.':(d?.msg||d?.message||d?.error_description||d?.error||('HTTP '+r.status)));error.status=r.status;throw error}if(d?.access_token){if(!d.expires_at&&d.expires_in)d.expires_at=Math.floor(Date.now()/1000)+Number(d.expires_in);saveSession(d)}return d}
+async function refreshAuth(){if(!authSession?.refresh_token)return null;try{return await authExchange('token?grant_type=refresh_token',{refresh_token:authSession.refresh_token})}catch(e){if([400,401].includes(Number(e?.status))||/invalid.*refresh|refresh token.*(?:expired|not found)/i.test(String(e?.message||'')))saveSession(null);throw e}}
+async function ensureAuth(){if(!authSession){try{authSession=JSON.parse(localStorage.getItem(AUTH_STORE)||'null')}catch(_){authSession=null}}if(authSession?.access_token&&sessionExpiry(authSession)-Date.now()<90000&&authSession.refresh_token)await refreshAuth();return authSession?.access_token?authSession:null}
+async function requireAuthenticatedAppSession(){const s=await ensureAuth();if(!s?.access_token)return null;try{const result=await bpAuthRequestV6237(SUPA+'/auth/v1/user',{headers:{apikey:KEY,Authorization:'Bearer '+s.access_token,Accept:'application/json'},cache:'no-store'},true),r=result.r,user=result.d;if(!r.ok){if([401,403].includes(Number(r.status)))saveSession(null);return null}if(!user?.id){saveSession(null);return null}authSession={...s,user};try{localStorage.setItem(AUTH_STORE,JSON.stringify(authSession))}catch(_){}renderAuthState();return authSession}catch(_){return null}} async function authRpc(name,args={},timeout=9000,retry=true){const s=await ensureAuth();if(!s)throw new Error('SIGN_IN_REQUIRED');const c=new AbortController(),t=setTimeout(()=>c.abort(),timeout);try{const r=await fetch(RPC+name,{method:'POST',headers:{...headers,Authorization:'Bearer '+s.access_token},body:JSON.stringify(args),signal:c.signal,cache:'no-store'}),d=await r.json().catch(()=>({}));if(r.status===401&&retry&&s.refresh_token){clearTimeout(t);await refreshAuth();return authRpc(name,args,timeout,false)}if(!r.ok)throw new Error(d?.message||d?.error||('HTTP '+r.status));return d}finally{clearTimeout(t)}}
 window.__BP_OWNER_AUTH_RPC__=authRpc;
 async function fetchOwnerLegalSourcesPdf(state=''){
  const s=await ensureAuth();if(!s)throw new Error('SIGN_IN_REQUIRED');
