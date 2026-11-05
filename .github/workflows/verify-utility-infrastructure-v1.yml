@@ -1,0 +1,47 @@
+name: Verify BridgePoint Global Utility Infrastructure V1
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'release-v2300/world-v2300-utility-infrastructure-v1.js'
+      - 'rebuild-v5000/app.js'
+      - 'rebuild-v5000/landing.js'
+      - '.github/workflows/verify-utility-infrastructure-v1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  syntax-and-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out proposed changes
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module --check < release-v2300/world-v2300-utility-infrastructure-v1.js
+          node --check rebuild-v5000/app.js
+          node --check rebuild-v5000/landing.js
+      - name: Verify public data, automatic zoom behavior and globe anchoring
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq 'https://openinframap.org/map/power/{z}/{x}/{y}.pbf' release-v2300/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'https://openinframap.org/map/telecoms/{z}/{x}/{y}.pbf' release-v2300/world-v2300-utility-infrastructure-v1.js
+          grep -Fq '© OpenStreetMap contributors · OpenInfraMap' release-v2300/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'map.transform.getMatrixForModel' release-v2300/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'queryTerrainElevation' release-v2300/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'featureCache' release-v2300/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'bp-utility-poles-3d-v1' release-v2300/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'MIN_ZOOM = 12' release-v2300/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'world-v2300-utility-infrastructure-v1.js?v=1-global-openinframap-poles' rebuild-v5000/app.js
+          grep -Fq 'world-v2300-utility-infrastructure-v1.js?v=1-global-openinframap-poles' rebuild-v5000/landing.js
+          ! grep -Fq 'setProjection' release-v2300/world-v2300-utility-infrastructure-v1.js
