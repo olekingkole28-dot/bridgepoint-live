@@ -464,3 +464,4 @@ test('3D storm clouds stay live while rain particles and weather markers stay of
   assert.ok(clouds.includes('makeTornadoSurfaceCone'));
   assert.ok(clouds.indexOf('localRainCloudsReady: true, globalCloudBuildPending: true') < clouds.indexOf('const global = buildGlobalCloudGeometry();\n    const satelliteLightningCloudAnchors'));
 });
+// V5000 republish trigger: verify website/app loader parity with distribution poles release v6235.
