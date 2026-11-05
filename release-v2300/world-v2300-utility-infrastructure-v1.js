@@ -1,9 +1,9 @@
-const VERSION = 4;
+const VERSION = 5;
 const POWER_SOURCE = 'bp-utility-power-v1';
 const TELECOM_SOURCE = 'bp-utility-telecom-v1';
 const THREE_URL = '/vendor/three.module.js?v=169-local';
 const MIN_ZOOM = 11.5;
-const MAX_GROUND_SAMPLES = 96;
+const MAX_GROUND_SAMPLES = 16;
 const MAX_SOURCE_ZOOM = 17;
 const MAX_SUPPORTS = 720;
 const MAX_SPANS = 560;
@@ -317,6 +317,7 @@ export function initUtilityInfrastructure(target) {
     cabinets: 0, telecomMasts: 0, measuredHeights: 0, estimatedHeights: 0,
     updatedAt: null, source: 'OpenInfraMap/OSM + Middletown municipal StreetLights GIS + USGS 3DEP ground elevations',
     municipalPoleCount: 0, telecomPoleCount: 0, guyWireCount: 0, groundSamples: 0,
+    groundUnresolved: 0,
     heightNote: 'Pole positions use source coordinates. USGS 3DEP/EPQS supplies ground elevation where available. Only OSM pole height tags count as measured pole-top height; Middletown MOUNT_HT is luminaire mounting height, not total pole height. Missing pole-top heights use an 11 m visual estimate.'
   };
   window.__BP_UTILITY_INFRASTRUCTURE_V1__ = state;
@@ -339,6 +340,11 @@ export function initUtilityInfrastructure(target) {
 
   function groundKey(coordinate) {
     return Number(coordinate[0]).toFixed(7) + ',' + Number(coordinate[1]).toFixed(7);
+  }
+
+  function hasGroundElevation(coordinate) {
+    const key = groundKey(coordinate);
+    return groundElevationCache.has(key) || Number.isFinite(terrainAt(map, coordinate));
   }
 
   function localTerrainAt(coordinate) {
@@ -1142,13 +1148,36 @@ export function initUtilityInfrastructure(target) {
 
   function buildSceneAssets(assets) {
     clearSceneData();
-    const supports = assets.supports;
+    const incoming = assets;
+    const supports = incoming.supports.filter(s => hasGroundElevation(s.coordinate));
+    const supportSet = new Set(supports);
+    const nearestSupport = coordinate => supports.reduce((best, support) => {
+      const distance = haversineMetres(support.coordinate, coordinate);
+      return !best || distance < best.distance ? { support, distance } : best;
+    }, null);
+    assets = {
+      ...incoming,
+      supports,
+      powerSpans: incoming.powerSpans.filter(span => supportSet.has(span.a) && supportSet.has(span.b)),
+      telecomSpans: incoming.telecomSpans.filter(span => supportSet.has(span.a) && supportSet.has(span.b)),
+      transformers: incoming.transformers.filter(item => hasGroundElevation(item.coordinate) ||
+        (nearestSupport(item.coordinate)?.distance ?? Infinity) <= 9),
+      switches: incoming.switches.filter(item => hasGroundElevation(item.coordinate) ||
+        (nearestSupport(item.coordinate)?.distance ?? Infinity) <= 8),
+      cabinets: incoming.cabinets.filter(item => item.mountOnPole
+        ? (nearestSupport(item.coordinate)?.distance ?? Infinity) <= 7
+        : hasGroundElevation(item.coordinate)),
+      masts: incoming.masts.filter(item => hasGroundElevation(item.coordinate))
+    };
+    state.groundUnresolved = incoming.supports.length - supports.length;
     if (!supports.length && !assets.transformers.length && !assets.cabinets.length && !assets.masts.length) {
       state.updatedAt = Date.now();
       state.ready = true;
       state.lineFeatures = assets.lineCount;
       state.poles = 0; state.towers = 0;
-      say('No mapped distribution poles or telecommunications assets in the loaded tiles for this view yet.');
+      say(incoming.supports.length
+        ? 'Mapped utility assets found; waiting for verified ground heights before placing ' + incoming.supports.length + ' poles. They will appear automatically as terrain samples resolve.'
+        : 'No mapped distribution poles or telecommunications assets in the loaded tiles for this view yet.');
       return;
     }
     // The custom renderer draws local distribution supports only. Transmission towers
@@ -1185,8 +1214,9 @@ export function initUtilityInfrastructure(target) {
       // to it: north/south wires get an east/west arm, east/west wires get a north/south arm.
       const yaw = ((Number.isFinite(Number(support.bearing)) ? Number(support.bearing) : 0) * RAD);
       const rotation = new THREE.Matrix4().makeRotationY(yaw);
-      const sourceHeight = Math.max(6, Number(support.height) || 11);
-      const height = support.measuredHeight ? Math.min(60, sourceHeight) : 11;
+      const sourceHeight = Number(support.height);
+      const height = support.measuredHeight && Number.isFinite(sourceHeight) && sourceHeight >= 3
+        ? sourceHeight : 11;
       const armLength = Math.max(1.2, Math.min(4.5, Number(support.armLengthMetres) || 2.0));
       const crossarmY = height * .84;
       poleMesh.setMatrixAt(index, model.clone().multiply(rotation)
@@ -1222,7 +1252,7 @@ export function initUtilityInfrastructure(target) {
       }
     }
 
-    state.groundUnresolved = groundUnresolved;
+    state.groundUnresolved = groundUnresolved + incoming.supports.length - supports.length;
     const transformerMesh = new THREE.InstancedMesh(transformerGeometry, metalMaterial, assets.transformers.length);
     let transformerCount = 0;
     for (const transformer of assets.transformers) {
@@ -1371,9 +1401,10 @@ export function initUtilityInfrastructure(target) {
       void loadOverpassInfrastructure();
       const assets = collectAssets();
       if (seq !== sequence || dead) return;
-      // Resolve missing DEM ground anchors before placing the complete structures.
-      // This prevents poles from being built at zero elevation and buried by terrain.
-      await loadUSGS3DEPGround(assets);
+      // Draw immediately from terrain samples already decoded by the globe.
+      // Missing points are resolved progressively from USGS EPQS in the background;
+      // ungrounded poles stay hidden instead of being buried at a zero-height fallback.
+      void loadUSGS3DEPGround(assets).catch(error => console.warn('BridgePoint USGS utility ground samples', error));
       if (seq !== sequence || dead) return;
       buildSceneAssets(assets);
       state.lineFeatures = assets.lineCount;
