@@ -140,6 +140,12 @@ jobs:
           grep -Fq 'const MAX_SOURCE_ZOOM = 17;' site/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'function ensureCustomLayerRenderer()' site/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'poleMesh.setColorAt(index, poleColor)' site/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'const VERSION = 3;' site/world-v2300-utility-infrastructure-v1.js
+          grep -Fq "type || '').toLowerCase() === 'pole'" site/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'function createGuyWireMesh' site/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'async function loadUSGS3DEPGround(assets)' site/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'ALONEVDIST' site/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'isDistributionPowerLine(feature, powerSupports)' site/world-v2300-utility-infrastructure-v1.js
           cmp -s site/world-v2300-utility-infrastructure-v1.js site/app/world-v2300-utility-infrastructure-v1.js
 
           python3 - <<'PY'
