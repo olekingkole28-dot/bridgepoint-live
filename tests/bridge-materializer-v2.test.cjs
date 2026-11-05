@@ -51,14 +51,14 @@ test('source-backed FHWA measurements are loaded only for Connecticut viewports 
 });
 
 test('standard railing display geometry is present but truth-labelled as an estimate', () => {
-  assert.match(world, /function addRailPair/);
+  assert.ok(/const addRailPair=/.test(world), 'rail profile builder exists');
   assert.match(world, /ESTIMATED_STANDARD_PROFILE/);
   assert.match(world, /STANDARD_PROFILE_ESTIMATE_NOT_ENGINEERING_SURVEY/);
   assert.match(world, /\['no','none','false','0'\]\.includes\(state\)/);
 });
 
 test('piers are generated from mapped polygon axes or bridge centerlines and are labelled as display geometry', () => {
-  assert.match(world, /function addPiers/);
+  assert.ok(/const addPiers=/.test(world), 'support builder exists');
   assert.match(world, /bridgePolygonAxis\(polygon\)/);
   assert.match(world, /CENTERLINE_DERIVED_VISUAL_SUPPORT_NOT_ENGINEERING_SURVEY/);
   assert.match(world, /FHWA_MAX_SPAN_SPACING_DISPLAY_ESTIMATE/);
