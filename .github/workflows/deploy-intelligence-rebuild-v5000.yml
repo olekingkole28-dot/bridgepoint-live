@@ -655,6 +655,7 @@ jobs:
           cp release-v2300/world-v2300-spectral-imagery.js site/world-v2300-spectral-imagery.js
           cp release-v2300/world-v2300-underground-xray.js site/world-v2300-underground-xray.js
           cp release-v2300/world-v2300-infrastructure-volume-v5962.js site/world-v2300-infrastructure-volume-v5962.js
+          cp release-v2300/world-v2300-utility-infrastructure-v1.js site/world-v2300-utility-infrastructure-v1.js
           cp release-v2300/world-v2300-sensor-layers.js site/world-v2300-sensor-layers.js
           sed -i 's#world-v2300-sensor-layers.js?v=6015-nasa-light-toggle#world-v2300-sensor-layers.js?v=6224-underwater-dive-camera#g' site/app.js site/landing.js
           sed -i 's#world-v2300-clouds.js?v=6075-global-coverage-fill#world-v2300-clouds.js?v=6094-josephine-spiral-unified#g' site/app.js site/landing.js
@@ -697,6 +698,7 @@ jobs:
           cp release-v2300/world-v2300-spectral-imagery.js site/app/world-v2300-spectral-imagery.js
           cp release-v2300/world-v2300-underground-xray.js site/app/world-v2300-underground-xray.js
           cp release-v2300/world-v2300-infrastructure-volume-v5962.js site/app/world-v2300-infrastructure-volume-v5962.js
+          cp release-v2300/world-v2300-utility-infrastructure-v1.js site/app/world-v2300-utility-infrastructure-v1.js
           cp release-v2300/world-v2300-sensor-layers.js site/app/world-v2300-sensor-layers.js
           cp release-v2300/world-v2300-realism.js site/app/world-v2300-realism.js
           cp release-v2300/gis-core-orchestrator-v5910.js site/app/gis-core-orchestrator-v5910.js
@@ -904,6 +906,8 @@ jobs:
           node --input-type=module --check < site/world-v2300-spectral-imagery.js
           node --input-type=module --check < site/world-v2300-underground-xray.js
           node --input-type=module --check < site/world-v2300-infrastructure-volume-v5962.js
+          node --input-type=module --check < site/world-v2300-utility-infrastructure-v1.js
+          node --input-type=module --check < site/app/world-v2300-utility-infrastructure-v1.js
           node --input-type=module --check < site/world-v2300-sensor-layers.js
           node --input-type=module --check < site/world-v2300-realism.js
           node --input-type=module --check < site/gis-core-orchestrator-v5910.js
@@ -1008,6 +1012,13 @@ jobs:
           grep -Fq 'world-v2300-underground-xray.js?v=5965-landmarks-and-effects' site/landing.js
           grep -Fq 'world-v2300-infrastructure-volume-v5962.js?v=5970-globe-model-matrices' site/app.js
           grep -Fq 'world-v2300-infrastructure-volume-v5962.js?v=5970-globe-model-matrices' site/landing.js
+          grep -Fq 'world-v2300-utility-infrastructure-v1.js?v=1-global-openinframap-poles' site/app.js
+          grep -Fq 'world-v2300-utility-infrastructure-v1.js?v=1-global-openinframap-poles' site/landing.js
+          grep -Fq 'OpenInfraMap vector tiles from OpenStreetMap contributors' site/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'map.transform.getMatrixForModel' site/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'featureCache' site/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'bp-utility-poles-3d-v1' site/world-v2300-utility-infrastructure-v1.js
+          ! grep -Fq 'setProjection' site/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'bp:world-map-ready-v5940' site/app.js
           grep -Fq 'bridgepoint-landmarks-v5940.js?v=5966-statue-pedestal-aligned' site/landing.js
           grep -Fq 'window.__BP_PENDING_LANDMARK_MAP_V5940__=world.map' site/app.js
