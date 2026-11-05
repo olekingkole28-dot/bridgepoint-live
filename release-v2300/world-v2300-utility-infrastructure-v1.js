@@ -698,6 +698,13 @@ export function initUtilityInfrastructure(target) {
         if (support.measuredHeight) measured++; else estimated++;
         byKey.set(support.key, support);
         if (support.type === 'pole') {
+          const materialTag = String(support.material || '').toLowerCase();
+          const poleHex = materialTag.includes('concrete') ? 0x9da8ad :
+            (materialTag.includes('steel') || materialTag.includes('metal') || materialTag.includes('iron') || materialTag.includes('alumin')) ? 0x98a5aa :
+            materialTag.includes('composite') ? 0x7d8990 : 0xb28a5d;
+          const poleColor = new THREE.Color(poleHex);
+          poleMesh.setColorAt(index, poleColor);
+          armMesh.setColorAt(index, poleColor);
           const model = modelMatrixFor(map, THREE, support.coordinate, ground);
           if (model) {
             const rotation = new THREE.Matrix4().makeRotationY(yaw);
@@ -716,7 +723,12 @@ export function initUtilityInfrastructure(target) {
       }
     });
     poleMesh.count = poleCount; towerMesh.count = towerCount;
-    if (poleCount) { poleMesh.instanceMatrix.needsUpdate = true; armMesh.instanceMatrix.needsUpdate = true; insulatorMesh.instanceMatrix.needsUpdate = true; dataGroup.add(poleMesh, armMesh, insulatorMesh); }
+    if (poleCount) {
+      poleMesh.instanceMatrix.needsUpdate = true; armMesh.instanceMatrix.needsUpdate = true; insulatorMesh.instanceMatrix.needsUpdate = true;
+      if (poleMesh.instanceColor) poleMesh.instanceColor.needsUpdate = true;
+      if (armMesh.instanceColor) armMesh.instanceColor.needsUpdate = true;
+      dataGroup.add(poleMesh, armMesh, insulatorMesh);
+    }
     if (towerCount) { towerMesh.instanceMatrix.needsUpdate = true; dataGroup.add(towerMesh); }
 
     const transformerMesh = new THREE.InstancedMesh(transformerGeometry, metalMaterial, assets.transformers.length);
