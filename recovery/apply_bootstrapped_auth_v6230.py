@@ -118,7 +118,7 @@ def patch_site(site: Path) -> None:
         "index.html": ["landing.js?v=6230-bootstrapped-auth", "bpMobileLazyLoaderV6229"],
         "app/index.html": ["/signin/?mode=signin", "bp-bootstrap-sw-refresh-v6230", "app.js?v=6230-bootstrapped-auth"],
         "sw.js": ["BOOTSTRAP_AUTH_BUILD='v6230'"],
-        "signin/index.html": ["bp_auth_v5045", "auth/v1/token?grant_type=password", API_ORIGIN],
+        "signin/index.html": ["bp_auth_v5045", "token?grant_type=password", API_ORIGIN],
     }
     for name, needles in checks.items():
         content = (site / name).read_text(encoding="utf-8")
