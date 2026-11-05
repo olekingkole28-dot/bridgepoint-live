@@ -72,20 +72,36 @@ jobs:
           Path("/tmp/v6231-before.json").write_text(json.dumps(before,sort_keys=True))
           PY
 
-          # Keep the exact V6231 landing/app auth logic. Change only the module URL
-          # inside these two bundles; do not copy repository versions over them.
+          # Keep the exact V6231 auth bundles and insert utility loading into their
+          # existing deferred queues; never replace the bundles with older source copies.
           python3 - <<'PY'
           from pathlib import Path
-          old="world-v2300-utility-infrastructure-v1.js?v=1-global-openinframap-poles"
-          new="world-v2300-utility-infrastructure-v1.js?v=3-style-bootstrap-auth-preserved"
-          for name in ("site/landing.js","site/app.js"):
-              p=Path(name)
-              data=p.read_text(encoding="utf-8")
-              count=data.count(old)
-              if count < 1:
-                  raise SystemExit(f"{name}: expected existing utility module import, found {count}")
-              p.write_text(data.replace(old,new),encoding="utf-8")
-              print(f"{name}: changed {count} utility import(s), preserved all other V6231 auth logic")
+          import re
+          version='world-v2300-utility-infrastructure-v1.js?v=3-style-bootstrap-auth-preserved'
+          landing=Path('site/landing.js')
+          data=landing.read_text(encoding='utf-8')
+          if '__BP_UTILITY_INFRASTRUCTURE_V1__' in data:
+              raise SystemExit('V6231 landing unexpectedly already contains a utility initializer')
+          pattern=re.compile(r"(?m)^(?P<indent>[ \t]*)void import\('\./world-v2300-sensor-layers\.js\?v=6224-underwater-dive-camera'\)")
+          match=pattern.search(data)
+          if not match:
+              raise SystemExit('Could not find the V6231 deferred landing world-module queue')
+          indent=match.group('indent')
+          utility=(
+              indent + "void import('./" + version + "')\n" +
+              indent + ".then(m=>{window.__BP_UTILITY_INFRASTRUCTURE_V1__=m.initUtilityInfrastructure(world)})\n" +
+              indent + ".catch(e=>console.warn('BridgePoint global mapped 3D utility infrastructure unavailable',e));\n"
+          )
+          data=data[:match.start()]+utility+data[match.start():]
+          landing.write_text(data,encoding='utf-8')
+          app=Path('site/app.js')
+          data=app.read_text(encoding='utf-8')
+          marker="  ['sensors',async()=>{const m=await import('./world-v2300-sensor-layers.js?v=6224-underwater-dive-camera');window.__BP_SENSOR_LAYERS_V5945__=m.initSensorLayers(world)}],"
+          if data.count(marker)!=1 or '__BP_UTILITY_INFRASTRUCTURE_V1__' in data:
+              raise SystemExit('Could not safely locate the V6231 serialized app world-module queue')
+          item="  ['utility-infrastructure',async()=>{const m=await import('./" + version + "');window.__BP_UTILITY_INFRASTRUCTURE_V1__=m.initUtilityInfrastructure(world)}],\n"
+          app.write_text(data.replace(marker,item+marker,1),encoding='utf-8')
+          print('Inserted utility loader into existing V6231 deferred landing and serialized app queues.')
           PY
 
           # Publish the same corrected 3D module for website and signed-in app URLs.
