@@ -1181,7 +1181,7 @@ function bridgeLineCoveredByPolygons(line,polygons){
       if(polygonDecks>=cap){truncated=true;break outerPolygons}
       const polygon=polygons[polyIndex];if(!Array.isArray(polygon?.[0])||polygon[0].length<4)continue;
       const axis=bridgePolygonAxis(polygon);if(!axis)continue;
-      const bridgeId=String(ft.id??p.osm_id??p.id??[p.ref||'',p.name||'bridge',polyIndex].join('|'));
+      const bridgeId=String(ft.id??p.osm_id??p.id??[p.ref||'',p.name||'bridge',polyIndex].join('|'));bridgeKeys.add(bridgeId);
       const inv=inventoryIndex?bridgeFindCtNbi(axis.center):null;
       const width=axis.widthM>=1.2&&axis.widthM<=120?axis.widthM:bridge3dWidth(p,inv),base=bridge3dBase(p,width,inv);
       const common=makeCommon(ft,p,bridgeId,String(p.class||'bridge').toLowerCase(),inv,'POLYGON_OUTLINE');
@@ -1224,7 +1224,7 @@ function bridgeLineCoveredByPolygons(line,polygons){
      for(const rawLine of lines){
       if(centerlineDecks>=cap){truncated=true;break outerLines}
       const line=(rawLine||[]).filter(q=>Array.isArray(q)&&Number.isFinite(+q[0])&&Number.isFinite(+q[1]));if(line.length<2)continue;
-      const lineLength=bridgeLineLength(line);if(lineLength<2)continue;
+      const lineLength=bridgeLineLength(line);if(lineLength<2)continue;bridgeKeys.add(bridgeId);
       const midpoint=bridgePointAlong(line,lineLength*.5),inv=inventoryIndex?bridgeFindCtNbi(midpoint):null,w=bridge3dWidth(p,inv),base=bridge3dBase(p,w,inv);
       const lineKey=[cls,Math.round(w*10),line.length,[line[0][0].toFixed(5),line[0][1].toFixed(5)].join(','),[line[line.length-1][0].toFixed(5),line[line.length-1][1].toFixed(5)].join(',')].sort().join('|');
       if(seenLines.has(lineKey))continue;seenLines.add(lineKey);
