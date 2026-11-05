@@ -294,8 +294,6 @@ function makeSpans(lines, supports, kind, snapLimit, maxSpan, maxCount) {
 }
 
 function disposeChildren(group) {
-
-function disposeChildren(group) {
   if (!group) return;
   for (const child of [...group.children]) {
     group.remove(child);
