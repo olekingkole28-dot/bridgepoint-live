@@ -261,7 +261,7 @@ jobs:
                grep -Fq 'v=6224-underwater-dive-camera' /tmp/live-landing.js 2>/dev/null &&
                grep -Fq 'bpMobileLazyLoaderV6229' /tmp/live-root.html 2>/dev/null &&
                grep -Fq 'BRIDGEPOINT WORLD IS LOADING' /tmp/live-root.html 2>/dev/null &&
-               grep -Fq 'landing.js?v=6230-bootstrapped-auth' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'landing.js?v=6231-globe-root' /tmp/live-root.html 2>/dev/null &&
                grep -Fq 'bpw-globe-aura' /tmp/live-root.html 2>/dev/null &&
                grep -Fq '/signin/?mode=signin' /tmp/live-app.html 2>/dev/null &&
                grep -Fq 'https://solaris-boat-upgrades-stocks.trycloudflare.com' /tmp/live-app.js 2>/dev/null &&
