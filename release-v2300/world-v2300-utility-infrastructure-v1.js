@@ -1056,7 +1056,14 @@ export function initUtilityInfrastructure(target) {
     const sag = Math.min(telecom ? 2.4 : 3.2, Math.max(telecom ? .30 : .42, distance * (telecom ? .012 : .018)));
     // Catenary parameter a = L² / (8s) gives the intended mid-span drop
     // while keeping both ends exactly on the support insulator/messenger height.
-    const catenaryA = distance * distance / Math.max(.1, 8 * sag);
+    let catenaryA = distance * distance / Math.max(.1, 8 * sag);
+    for (let iteration = 0; iteration < 6; iteration++) {
+      const ratio = distance / (2 * catenaryA);
+      const residual = catenaryA * (Math.cosh(ratio) - 1) - sag;
+      const derivative = Math.cosh(ratio) - 1 - ratio * Math.sinh(ratio);
+      if (!Number.isFinite(derivative) || Math.abs(derivative) < 1e-12) break;
+      catenaryA = Math.max(.05, catenaryA - residual / derivative);
+    }
     const catenaryEnd = Math.cosh(distance / (2 * catenaryA));
     const conductorCount = telecom ? 2 : Math.max(1, Math.min(4, Number(span.conductorCount) || 3));
     const spacing = telecom ? .13 : .34;
