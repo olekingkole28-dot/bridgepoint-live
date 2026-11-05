@@ -1,0 +1,186 @@
+name: Publish BridgePoint Global 3D Bridges V2
+
+on:
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+
+jobs:
+  publish-bridge-overlay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    environment:
+      name: github-pages
+      url: \${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download the last successfully deployed production artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: bridgepoint-v5000-1
+          run-id: 42102247275
+          repository: \${{ github.repository }}
+          github-token: \${{ secrets.GITHUB_TOKEN }}
+          path: \${{ runner.temp }}/bp-pages-baseline
+
+      - name: Restore the existing production site without rebuilding unrelated assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCHIVE="$(find "$RUNNER_TEMP/bp-pages-baseline" -type f -name artifact.tar -print -quit)"
+          test -n "$ARCHIVE"
+          mkdir -p "$RUNNER_TEMP/bp-site"
+          tar -xf "$ARCHIVE" -C "$RUNNER_TEMP/bp-site"
+          for f in index.html app/index.html landing.js app.js world-v2300-map.js app/world-v2300-map.js sw.js styles.css assets/trees/manifest.json assets/blender-world/manifest.json; do
+            test -s "$RUNNER_TEMP/bp-site/$f" || { echo "Missing production baseline file: $f"; exit 1; }
+          done
+          echo "Restored prior deployed site artifact; preserving its unrelated assets."
+
+      - name: Overlay only bridge renderer, bridge inventory and bridge loader references
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/bp-site"
+          cp release-v2300/world-v2300-map.js "$SITE/world-v2300-map.js"
+          cp release-v2300/world-v2300-map.js "$SITE/app/world-v2300-map.js"
+          cp rebuild-v5000/bridgepoint-ct-nbi-2026.json "$SITE/bridgepoint-ct-nbi-2026.json"
+          cp rebuild-v5000/index.html "$SITE/index.html"
+          cp rebuild-v5000/app-index.html "$SITE/app/index.html"
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib, json, os
+
+          site = Path(os.environ["RUNNER_TEMP"]) / "bp-site"
+          repo = Path.cwd()
+          protected = [
+              "sw.js", "styles.css", "app-update-v5820.js",
+              "bridgepoint-view-v5917.js",
+              "bridgepoint-drone-awareness-v1.js",
+              "bridgepoint-vessel-awareness-v1.js",
+              "bridgepoint-transportation-v1.js",
+              "bridgepoint-transportation-loader-v1.js",
+              "bridgepoint-live-rail-v5969.js",
+              "bridgepoint-rail-mesh-v5973.js",
+              "world-v2300-water.js", "world-v2300-weather.js",
+              "world-v2300-clouds.js",
+              "assets/trees/manifest.json",
+              "assets/trees/procedural-variants.json",
+              "assets/blender-world/manifest.json",
+          ]
+          before = {}
+          for rel in protected:
+              p = site / rel
+              if not p.is_file():
+                  raise SystemExit(f"Preservation guard: baseline file missing: {rel}")
+              before[rel] = hashlib.sha256(p.read_bytes()).hexdigest()
+
+          old_map = "world-v2300-map.js?v=6226-underwater-satellite-lock"
+          new_map = "world-v2300-map.js?v=6238-global-3d-bridges-v2"
+          for rel in ("landing.js", "app.js", "index.html", "app/index.html"):
+              p = site / rel
+              content = p.read_text(encoding="utf-8")
+              if content.count(old_map) != 1:
+                  raise SystemExit(f"{rel}: expected exactly one old map asset reference")
+              content = content.replace(old_map, new_map)
+              p.write_text(content, encoding="utf-8")
+
+          for rel, old, new in (
+              ("index.html", "landing.js?v=6237-pc-auth", "landing.js?v=6238-bridge-v2"),
+              ("app/index.html", "app.js?v=6237-pc-auth", "app.js?v=6238-bridge-v2"),
+          ):
+              p = site / rel
+              content = p.read_text(encoding="utf-8")
+              if content.count(old) != 1:
+                  raise SystemExit(f"{rel}: expected exactly one loader URL to cache-bust")
+              p.write_text(content.replace(old, new), encoding="utf-8")
+
+          for rel in ("index.html", "app/index.html"):
+              content = (site / rel).read_text(encoding="utf-8")
+              if "bridgepoint-global-bridges-v1.js" in content:
+                  raise SystemExit(f"{rel}: competing legacy bridge renderer is still loaded")
+
+          for rel in ("app.js", "landing.js"):
+              content = (site / rel).read_text(encoding="utf-8")
+              if content.count(new_map) != 1:
+                  raise SystemExit(f"{rel}: bridge map import was not updated")
+              if "bpAuthRequestV6237" not in content or "bp_auth_v5045" not in content:
+                  raise SystemExit(f"{rel}: auth route/session implementation unexpectedly changed")
+
+          rows = json.loads((site / "bridgepoint-ct-nbi-2026.json").read_text(encoding="utf-8"))
+          if len(rows) != 4352 or not all(isinstance(r, list) and len(r) == 8 for r in rows):
+              raise SystemExit("Connecticut NBI inventory failed its 4,352-record integrity check")
+
+          for rel, digest in before.items():
+              after = hashlib.sha256((site / rel).read_bytes()).hexdigest()
+              if after != digest:
+                  raise SystemExit(f"Preservation guard: unrelated file changed: {rel}")
+
+          print("BRIDGE_OVERLAY_SCOPE_PASS")
+          print("UNCHANGED_UNRELATED_ASSETS", len(before))
+          print("CONNECTICUT_FHWA_2026_RECORDS", len(rows))
+          PY
+
+          node --input-type=module --check < "$SITE/world-v2300-map.js"
+          node --input-type=module --check < "$SITE/app/world-v2300-map.js"
+          node --check "$SITE/landing.js"
+          node --check "$SITE/app.js"
+          node tests/bridge-materializer-v2.test.cjs
+          grep -Fq 'function bridgePolygonAxis(' "$SITE/world-v2300-map.js"
+          grep -Fq 'ESTIMATED_STANDARD_PROFILE' "$SITE/world-v2300-map.js"
+          grep -Fq 'CENTERLINE_DERIVED_VISUAL_SUPPORT_NOT_ENGINEERING_SURVEY' "$SITE/world-v2300-map.js"
+          grep -Fq 'FHWA_NBI_2026_CT' "$SITE/world-v2300-map.js"
+          echo "BRIDGE_MATERIALIZER_V2_BUILD_PASS"
+
+      - uses: actions/configure-pages@v5
+
+      - name: Upload the preserved site with bridge-only overlay
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: \${{ runner.temp }}/bp-site
+
+      - name: Publish bridge overlay to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify both production entrypoints and live bridge assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          O='https://bridgepointintelligence.online'
+          q="\${GITHUB_SHA}-bridge-v2"
+          curl --retry 6 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/?bridge-v2=$q" -o /tmp/bp-root.html
+          curl --retry 6 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app/?bridge-v2=$q" -o /tmp/bp-app.html
+          curl --retry 6 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/landing.js?v=6238-bridge-v2&$q" -o /tmp/bp-landing.js
+          curl --retry 6 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app.js?v=6238-bridge-v2&$q" -o /tmp/bp-app.js
+          curl --retry 6 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/world-v2300-map.js?v=6238-global-3d-bridges-v2&$q" -o /tmp/bp-world.js
+          curl --retry 6 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app/world-v2300-map.js?v=6238-global-3d-bridges-v2&$q" -o /tmp/bp-app-world.js
+          curl --retry 6 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/bridgepoint-ct-nbi-2026.json?v=2026&$q" -o /tmp/bp-ct-nbi.json
+
+          grep -Fq 'landing.js?v=6238-bridge-v2' /tmp/bp-root.html
+          grep -Fq 'app.js?v=6238-bridge-v2' /tmp/bp-app.html
+          grep -Fq 'world-v2300-map.js?v=6238-global-3d-bridges-v2' /tmp/bp-landing.js
+          grep -Fq 'world-v2300-map.js?v=6238-global-3d-bridges-v2' /tmp/bp-app.js
+          ! grep -Fq 'bridgepoint-global-bridges-v1.js' /tmp/bp-root.html
+          ! grep -Fq 'bridgepoint-global-bridges-v1.js' /tmp/bp-app.html
+          grep -Fq 'function bridgePolygonAxis(' /tmp/bp-world.js
+          grep -Fq 'ESTIMATED_STANDARD_PROFILE' /tmp/bp-world.js
+          grep -Fq 'CENTERLINE_DERIVED_VISUAL_SUPPORT_NOT_ENGINEERING_SURVEY' /tmp/bp-world.js
+          grep -Fq 'FHWA_NBI_2026_CT' /tmp/bp-world.js
+          cmp -s /tmp/bp-world.js /tmp/bp-app-world.js
+          python3 - <<'PY'
+          import json
+          rows=json.load(open('/tmp/bp-ct-nbi.json'))
+          assert len(rows)==4352 and all(isinstance(r,list) and len(r)==8 for r in rows)
+          print("LIVE_CT_FHWA_2026_RECORDS",len(rows))
+          PY
+          echo "BRIDGEPOINT_GLOBAL_3D_BRIDGES_V2_LIVE_PASS"
