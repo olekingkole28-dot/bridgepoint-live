@@ -1,4 +1,4 @@
-const VERSION = 2;
+const VERSION = 3;
 const POWER_SOURCE = 'bp-utility-power-v1';
 const TELECOM_SOURCE = 'bp-utility-telecom-v1';
 const THREE_URL = '/vendor/three.module.js?v=169-local';
@@ -120,7 +120,7 @@ function terrainAt(map, coordinate) {
       [Number(coordinate[0]), Number(coordinate[1])],
       { exaggerated: false }
     );
-    return Number.isFinite(Number(value)) ? Number(value) : 0;
+    return value !== null && value !== undefined && Number.isFinite(Number(value)) ? Number(value) : 0;
   } catch (_) {
     return 0;
   }
@@ -276,9 +276,13 @@ function makeSpans(lines, supports, kind, snapLimit, maxSpan, maxCount) {
         if (distance < 12 || distance > maxSpan) continue;
         const key = [a.key, b.key].sort().join('|') + '|' + kind;
         if (!pairs.has(key)) {
+          const rawCount = String(properties.wires ?? properties.cables ?? '').match(/\d+/);
+          const conductorCount = rawCount ? Number(rawCount[0]) : NaN;
           pairs.set(key, {
             a, b, kind,
             bearing: matches[i - 1].bearing || matches[i].bearing || 0,
+            conductorCount: kind === 'telecom' ? 1 :
+              (Number.isFinite(conductorCount) && conductorCount >= 1 && conductorCount <= 4 ? conductorCount : 3),
             distance
           });
         }
@@ -288,6 +292,8 @@ function makeSpans(lines, supports, kind, snapLimit, maxSpan, maxCount) {
   }
   return [...pairs.values()];
 }
+
+function disposeChildren(group) {
 
 function disposeChildren(group) {
   if (!group) return;
@@ -309,8 +315,9 @@ export function initUtilityInfrastructure(target) {
   const state = {
     version: VERSION, map, enabled: true, ready: false, status: 'Waiting for source-mapped utility infrastructure…',
     cabinets: 0, telecomMasts: 0, measuredHeights: 0, estimatedHeights: 0,
-    updatedAt: null, source: 'OpenInfraMap vector tiles from OpenStreetMap contributors',
-    heightNote: 'Mapped height attributes are used when present. Where the source has no height, the 10 m distribution-pole, 30 m tower and 18 m telecom-mast dimensions are visual estimates, not surveyed measurements.'
+    updatedAt: null, source: 'OpenInfraMap/OSM + Middletown municipal StreetLights GIS + USGS 3DEP ground elevations',
+    municipalPoleCount: 0, telecomPoleCount: 0, guyWireCount: 0, groundSamples: 0,
+    heightNote: 'Pole positions use source coordinates. USGS 3DEP/EPQS supplies ground elevation where available. Only OSM pole height tags count as measured pole-top height; Middletown MOUNT_HT is luminaire mounting height, not total pole height. Missing pole-top heights use an 11 m visual estimate.'
   };
   window.__BP_UTILITY_INFRASTRUCTURE_V1__ = state;
 
@@ -320,11 +327,86 @@ export function initUtilityInfrastructure(target) {
   let bodyGeometry = null, armGeometry = null, insulatorGeometry = null, towerGeometry = null;
   let transformerGeometry = null, switchGeometry = null, cabinetGeometry = null, mastGeometry = null, spliceBoxGeometry = null;
   let woodMaterial = null, towerMaterial = null, metalMaterial = null, cableMaterial = null, telecomMaterial = null;
-  let distributionCableMaterial = null, telecomCableMaterial = null;
+  let distributionCableMaterial = null, telecomCableMaterial = null, guyWireMaterial = null;
   let municipalStreetlightFeatures = [], municipalRequestKey = '', municipalFetchedAt = 0, municipalRequestPromise = null;
   let overpassFeatures = [], overpassRequestKey = '', overpassFetchedAt = 0, overpassRequestPromise = null;
+  const groundElevationCache = new Map(), groundElevationPending = new Set(), groundElevationRetryAt = new Map();
+  let groundLoadPromise = null;
   const powerSourceUrl = 'https://openinframap.org/map/power/{z}/{x}/{y}.pbf';
   const telecomSourceUrl = 'https://openinframap.org/map/telecoms/{z}/{x}/{y}.pbf';
+
+  function groundKey(coordinate) {
+    return Number(coordinate[0]).toFixed(7) + ',' + Number(coordinate[1]).toFixed(7);
+  }
+
+  function localTerrainAt(coordinate) {
+    const key = groundKey(coordinate);
+    if (groundElevationCache.has(key)) return groundElevationCache.get(key);
+    return terrainAt(map, coordinate);
+  }
+
+  async function loadUSGS3DEPGround(assets) {
+    if (groundLoadPromise) return groundLoadPromise;
+    groundLoadPromise = (async () => {
+      const candidates = [
+        ...(assets.supports || []).map(s => s.coordinate),
+        ...(assets.transformers || []).map(x => x.coordinate),
+        ...(assets.switches || []).map(x => x.coordinate),
+        ...(assets.cabinets || []).map(x => x.coordinate),
+        ...(assets.masts || []).map(x => x.coordinate)
+      ];
+      const unique = new Map();
+      for (const coordinate of candidates) {
+        if (!Array.isArray(coordinate) || !coordinate.every(Number.isFinite)) continue;
+        const [lon, lat] = coordinate;
+        if (lon < -180 || lon > -50 || lat < 5 || lat > 75) continue;
+        const key = groundKey(coordinate);
+        if (groundElevationCache.has(key) || groundElevationPending.has(key) ||
+            (groundElevationRetryAt.get(key) || 0) > Date.now()) continue;
+        unique.set(key, coordinate);
+      }
+      const items = [...unique.entries()].slice(0, 140);
+      if (!items.length) return false;
+      let changed = 0, cursor = 0;
+      const worker = async () => {
+        while (cursor < items.length && !dead) {
+          const [key, coordinate] = items[cursor++];
+          groundElevationPending.add(key);
+          try {
+            const url = 'https://epqs.nationalmap.gov/v1/json?x=' +
+              encodeURIComponent(coordinate[0]) + '&y=' + encodeURIComponent(coordinate[1]) +
+              '&units=Meters&wkid=4326&includeDate=false';
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 6500);
+            const response = await fetch(url, {
+              mode: 'cors', credentials: 'omit', headers: { Accept: 'application/json' }, signal: controller.signal
+            });
+            clearTimeout(timeout);
+            if (!response.ok) throw new Error('USGS EPQS HTTP ' + response.status);
+            const json = await response.json();
+            const value = Number(json && json.value);
+            if (Number.isFinite(value) && value > -500 && value < 9000) {
+              groundElevationCache.set(key, value);
+              changed++;
+            } else {
+              groundElevationRetryAt.set(key, Date.now() + 600000);
+            }
+          } catch (_) {
+            groundElevationRetryAt.set(key, Date.now() + 600000);
+          } finally {
+            groundElevationPending.delete(key);
+          }
+        }
+      };
+      await Promise.all(Array.from({ length: Math.min(6, items.length) }, worker));
+      if (changed) {
+        state.groundSamples = groundElevationCache.size;
+        if (!dead) scheduleRefresh();
+      }
+      return changed > 0;
+    })().finally(() => { groundLoadPromise = null; });
+    return groundLoadPromise;
+  }
 
   function say(message) {
     state.status = String(message || '');
@@ -357,6 +439,7 @@ export function initUtilityInfrastructure(target) {
     telecomMaterial = new THREE.MeshStandardMaterial({ color: 0x70838e, roughness: .62, metalness: .28 });
     distributionCableMaterial = new THREE.MeshStandardMaterial({ color: 0x34383a, roughness: .76, metalness: .12, emissive: 0x090b0c, emissiveIntensity: .06 });
     telecomCableMaterial = new THREE.MeshStandardMaterial({ color: 0x14191d, roughness: .86, metalness: .02, emissive: 0x050607, emissiveIntensity: .04 });
+    guyWireMaterial = new THREE.MeshStandardMaterial({ color: 0x555d63, roughness: .7, metalness: .25 });
   }
 
   function installSources() {
@@ -377,14 +460,21 @@ export function initUtilityInfrastructure(target) {
     // any extra 2D symbols or lines to the user's existing map.
     const queryLayers = [
       { id: 'bp-utility-query-power-v1', source: POWER_SOURCE, sourceLayer: 'power_line', type: 'line' },
-      { id: 'bp-utility-query-telecom-v1', source: TELECOM_SOURCE, sourceLayer: 'telecoms_communication_line', type: 'line' }
+      { id: 'bp-utility-query-power-support-v2', source: POWER_SOURCE, sourceLayer: 'power_tower', type: 'circle' },
+      { id: 'bp-utility-query-transformer-v2', source: POWER_SOURCE, sourceLayer: 'power_transformer', type: 'circle' },
+      { id: 'bp-utility-query-switch-v2', source: POWER_SOURCE, sourceLayer: 'power_switch', type: 'circle' },
+      { id: 'bp-utility-query-telecom-v1', source: TELECOM_SOURCE, sourceLayer: 'telecoms_communication_line', type: 'line' },
+      { id: 'bp-utility-query-telecom-mast-v2', source: TELECOM_SOURCE, sourceLayer: 'telecoms_mast', type: 'circle' },
+      { id: 'bp-utility-query-telecom-cabinet-v2', source: TELECOM_SOURCE, sourceLayer: 'telecoms_cabinet', type: 'circle' }
     ];
     for (const layer of queryLayers) {
       if (map.getLayer(layer.id)) continue;
       map.addLayer({
         id: layer.id, type: layer.type, source: layer.source, 'source-layer': layer.sourceLayer,
         minzoom: 8, maxzoom: 24,
-        paint: { 'line-color': '#ffffff', 'line-opacity': 0, 'line-width': 1 }
+        paint: layer.type === 'line'
+          ? { 'line-color': '#ffffff', 'line-opacity': 0, 'line-width': 1 }
+          : { 'circle-color': '#ffffff', 'circle-opacity': 0, 'circle-radius': 0.1 }
       });
     }
     return !!map.getSource(POWER_SOURCE) && !!map.getSource(TELECOM_SOURCE);
@@ -725,6 +815,9 @@ export function initUtilityInfrastructure(target) {
         'way["aerial_line"="telephone"](' + bbox + ');' +
         'way["phone"="line"](' + bbox + ');' +
         'way["telephone"="line"](' + bbox + ');' +
+        'way["telecom"~"^(line|cable)$"](' + bbox + ');' +
+        'way["communication"="cable"](' + bbox + ');' +
+        'way["man_made"="cable"](' + bbox + ');' +
         'way["man_made"="guy_wire"](' + bbox + ');' +
         ');out body geom;';
       const endpoints = ['https://overpass-api.de/api/interpreter?data=', 'https://overpass.kumi.systems/api/interpreter?data='];
@@ -766,14 +859,18 @@ export function initUtilityInfrastructure(target) {
   }
 
   function collectAssets() {
-    const tileSupports = cacheSourceFeatures(POWER_SOURCE, 'power_tower', 'support');
+    // OpenInfraMap's power_tower layer contains both poles and lattice towers.
+    // Only the single-pole type enters this renderer; transmission remains yellow elsewhere.
+    const tileSupports = cacheSourceFeatures(POWER_SOURCE, 'power_tower', 'support')
+      .filter(feature => String(feature.properties && feature.properties.type || '').toLowerCase() === 'pole');
     const overpassPoints = overpassFeatures.filter(feature => pointOf(feature));
     const municipalPoints = municipalStreetlightFeatures;
+    const overpassPoleFeatures = overpassPoints.filter(feature => {
+      const p = feature.properties || {};
+      return p.power === 'pole' || (p.man_made === 'utility_pole' && p.utility !== 'street_lighting');
+    });
     const supportFeatures = uniqueFeatures(
-      [...tileSupports, ...overpassPoints.filter(feature => {
-        const p = feature.properties || {};
-        return p.power === 'pole' || (p.man_made === 'utility_pole' && p.utility !== 'street_lighting');
-      }), ...municipalPoints],
+      [...tileSupports, ...overpassPoleFeatures, ...municipalPoints],
       feature => featureKey(feature, 'support')
     );
     const rawPowerLines = uniqueFeatures([
@@ -804,10 +901,13 @@ export function initUtilityInfrastructure(target) {
       ...cacheSourceFeatures(TELECOM_SOURCE, 'telecoms_communication_line', 'telecom-line'),
       ...overpassFeatures.filter(feature => pathsOf(feature).length && (
         feature.properties.communication === 'line' ||
+        feature.properties.communication === 'cable' ||
         feature.properties.aerial_line === 'telephone' ||
         feature.properties.phone === 'line' ||
         feature.properties.telephone === 'line' ||
-        feature.properties.telecom === 'line'
+        feature.properties.telecom === 'line' ||
+        feature.properties.telecom === 'cable' ||
+        feature.properties.man_made === 'cable'
       ))
     ], feature => pathFeatureKey(feature, 'telecom-line'));
 
@@ -820,42 +920,46 @@ export function initUtilityInfrastructure(target) {
       const telecomPole = String(properties.man_made || '').toLowerCase() === 'utility_pole';
       const municipalPole = String(properties.distribution_class || properties.ALONEVDIST || '').toLowerCase() === 'distribution';
       if (!osmPole && !telecomPole && !municipalPole) continue;
-      const height = measuredHeight(properties, 10);
-      const bearing = parseBearingDegrees(properties.angle ?? properties.arm_direction);
       const utility = String(properties.utility || '').toLowerCase();
-      supports.push({
+      const height = measuredHeight(properties, 11);
+      const bearing = parseBearingDegrees(properties.angle ?? properties.arm_direction);
+      const candidate = {
         key: featureKey(feature, 'support'), coordinate: point, type: 'pole',
-        network: utility === 'telecom' ? 'telecom' : 'power',
+        network: utility === 'telecom' || properties.telecom === 'pole' ? 'telecom' : 'power',
         height: height.metres, measuredHeight: height.measured,
         material: String(properties.material || ''), structure: String(properties.structure || ''),
         bearing, bearingDistance: bearing === null ? Infinity : 1e6,
         armLengthMetres: Number(properties.arm_length_metres) || parseArmLengthMetres(properties.arm_length),
         utilityPoleNumber: properties.utility_pole_number || properties.UTIL_PN || '',
+        fieldPoleNumber: properties.field_pole_number || properties.FIELD_PN || '',
         municipalAuditDate: properties.municipal_audit_date || properties.AUDIT_DATE || '',
+        fixtureMountHeight: properties.fixture_mount_height || '',
+        inventoryOwnership: properties.inventory_ownership || properties.OWNERSHIP || '',
+        streetlightFeed: properties.streetlight_feed || properties.FEED || '',
         municipal: !!properties.source
-      });
-    }
-
-    // Merge municipal streetlight distribution records onto nearby OSM utility poles,
-    // preserving the municipality's pole reference/material/arm metadata at its coordinate.
-    for (const feature of municipalPoints) {
-      const point = pointOf(feature), p = feature.properties || {};
-      if (!point) continue;
-      let nearest = null, nearestDistance = 4.5;
-      for (const support of supports) {
-        const distance = haversineMetres(support.coordinate, point);
-        if (distance < nearestDistance) { nearestDistance = distance; nearest = support; }
+      };
+      let near = null, nearDistance = 2.25;
+      for (const existing of supports) {
+        const distance = haversineMetres(existing.coordinate, point);
+        if (distance < nearDistance) { near = existing; nearDistance = distance; }
       }
-      if (nearest) {
-        if (!nearest.material && p.material) nearest.material = String(p.material);
-        nearest.armLengthMetres = Number(p.arm_length_metres) || nearest.armLengthMetres;
-        if (Number.isFinite(Number(p.angle))) {
-          nearest.bearing = Number(p.angle); nearest.bearingDistance = 0;
+      if (near) {
+        if (candidate.municipal) {
+          near.coordinate = point;
+          near.municipal = true;
+          near.material = candidate.material || near.material;
+          near.armLengthMetres = candidate.armLengthMetres || near.armLengthMetres;
+          near.bearing = candidate.bearing === null ? near.bearing : candidate.bearing;
+          near.utilityPoleNumber = candidate.utilityPoleNumber || near.utilityPoleNumber;
+          near.fieldPoleNumber = candidate.fieldPoleNumber || near.fieldPoleNumber;
+          near.municipalAuditDate = candidate.municipalAuditDate || near.municipalAuditDate;
+          near.fixtureMountHeight = candidate.fixtureMountHeight || near.fixtureMountHeight;
+          near.inventoryOwnership = candidate.inventoryOwnership || near.inventoryOwnership;
+          near.streetlightFeed = candidate.streetlightFeed || near.streetlightFeed;
         }
-        nearest.utilityPoleNumber = nearest.utilityPoleNumber || p.utility_pole_number || '';
-        nearest.municipalAuditDate = p.municipal_audit_date || nearest.municipalAuditDate;
-        nearest.municipal = true;
+        continue;
       }
+      supports.push(candidate);
     }
 
     const center = map.getCenter && map.getCenter();
@@ -866,7 +970,6 @@ export function initUtilityInfrastructure(target) {
     });
     supports.length = Math.min(supports.length, MAX_SUPPORTS);
     const powerSupports = supports.filter(s => s.network === 'power');
-
     const lineFeatures = rawPowerLines.filter(feature => isDistributionPowerLine(feature, powerSupports));
     const powerSpans = makeSpans(lineFeatures, powerSupports, 'power', POWER_SNAP_M, 240, MAX_SPANS);
     const telecomSpans = makeSpans(
@@ -900,32 +1003,32 @@ export function initUtilityInfrastructure(target) {
     }).filter(Boolean);
     const guyWires = overpassFeatures.filter(feature => pathsOf(feature).length &&
       String(feature.properties && feature.properties.man_made || '') === 'guy_wire');
-    const municipalPoleCount = supports.filter(s => s.municipal).length;
-    const telecomPoleCount = supports.filter(s => s.network === 'telecom').length;
     return {
       supports, powerSpans, telecomSpans, transformers, switches, cabinets, masts, guyWires,
-      lineCount: lineFeatures.length, municipalPoleCount, telecomPoleCount
+      lineCount: lineFeatures.length,
+      municipalPoleCount: supports.filter(s => s.municipal).length,
+      telecomPoleCount: supports.filter(s => s.network === 'telecom').length
     };
   }
 
   function createWireMesh(span, kind) {
-    const anchor = span.a.coordinate, anchorGround = terrainAt(map, anchor);
-    const nextGround = terrainAt(map, span.b.coordinate);
+    const anchor = span.a.coordinate, anchorGround = localTerrainAt(anchor);
+    const nextGround = localTerrainAt(span.b.coordinate);
     const offset = localEastNorth(anchor, span.b.coordinate);
     const distance = Math.hypot(offset[0], offset[1]);
     if (!Number.isFinite(distance) || distance < 10) return null;
     const bearing = Math.atan2(offset[0], offset[1]);
     const acrossEast = Math.cos(bearing), acrossNorth = -Math.sin(bearing);
-    const sag = Math.min(kind === 'telecom' ? 7 : 11, Math.max(.35, distance * (kind === 'telecom' ? .022 : .028)));
+    const sag = Math.min(kind === 'telecom' ? 6 : 10, Math.max(.35, distance * (kind === 'telecom' ? .018 : .026)));
     const conductorCount = kind === 'telecom' ? 1 : Math.max(1, Math.min(4, Number(span.conductorCount) || 3));
-    const spacing = kind === 'telecom' ? .06 : .42;
+    const spacing = kind === 'telecom' ? .045 : .34;
     const lanes = Array.from({ length: conductorCount }, (_, i) =>
       (i - (conductorCount - 1) * .5) * spacing
     );
     const vertices = [];
     for (const lane of lanes) {
       let previous = null;
-      const steps = Math.min(16, Math.max(6, Math.ceil(distance / 30)));
+      const steps = Math.min(18, Math.max(6, Math.ceil(distance / 28)));
       for (let i = 0; i <= steps; i++) {
         const t = i / steps;
         const east = offset[0] * t + acrossEast * lane;
@@ -935,7 +1038,7 @@ export function initUtilityInfrastructure(target) {
         const heightB = kind === 'telecom' ? span.b.height * .76 : span.b.height * .94;
         const height = base - anchorGround + heightA + (heightB - heightA) * t - 4 * sag * t * (1 - t);
         const current = new THREE.Vector3(east, height, -north);
-        if (previous) pushBeam(vertices, previous, current, kind === 'telecom' ? .012 : .022, THREE, 6);
+        if (previous) pushBeam(vertices, previous, current, kind === 'telecom' ? .010 : .018, THREE, 6);
         previous = current;
       }
     }
@@ -954,6 +1057,41 @@ export function initUtilityInfrastructure(target) {
     return mesh;
   }
 
+  function createGuyWireMesh(feature, supports) {
+    const paths = pathsOf(feature);
+    if (!paths.length) return [];
+    const meshes = [];
+    for (const path of paths) {
+      if (!path || path.length < 2) continue;
+      const first = path[0], last = path[path.length - 1];
+      let support = null, anchor = null, best = 8;
+      for (const candidate of supports) {
+        const da = haversineMetres(candidate.coordinate, first);
+        const db = haversineMetres(candidate.coordinate, last);
+        if (da < best) { support = candidate; anchor = last; best = da; }
+        if (db < best) { support = candidate; anchor = first; best = db; }
+      }
+      if (!support || !anchor) continue;
+      const base = localTerrainAt(support.coordinate);
+      const anchorGround = localTerrainAt(anchor);
+      const offset = localEastNorth(support.coordinate, anchor);
+      const vertices = [];
+      pushBeam(vertices, new THREE.Vector3(0, support.height * .78, 0),
+        new THREE.Vector3(offset[0], anchorGround - base + .22, -offset[1]), .010, THREE, 5);
+      if (!vertices.length) continue;
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+      geometry.computeVertexNormals();
+      const matrix = modelMatrixFor(map, THREE, support.coordinate, base);
+      if (!matrix) { geometry.dispose(); continue; }
+      const mesh = new THREE.Mesh(geometry, guyWireMaterial);
+      mesh.matrix.copy(matrix); mesh.matrixAutoUpdate = false; mesh.frustumCulled = false;
+      mesh.renderOrder = 920; mesh.userData.bpOwnedGeometry = true;
+      meshes.push(mesh);
+    }
+    return meshes;
+  }
+
   function buildSceneAssets(assets) {
     clearSceneData();
     const supports = assets.supports;
@@ -961,92 +1099,90 @@ export function initUtilityInfrastructure(target) {
       state.updatedAt = Date.now();
       state.ready = true;
       state.lineFeatures = assets.lineCount;
-      say('No mapped power or communications structures in the loaded tiles for this view yet.');
+      state.poles = 0; state.towers = 0;
+      say('No mapped distribution poles or telecommunications assets in the loaded tiles for this view yet.');
       return;
     }
-
+    // The custom renderer draws local distribution supports only. Transmission towers
+    // and high-voltage routes remain in the original yellow BridgePoint layer.
     const poleMesh = new THREE.InstancedMesh(bodyGeometry, woodMaterial, supports.length);
     const armMesh = new THREE.InstancedMesh(armGeometry, woodMaterial, supports.length);
     const insulatorMesh = new THREE.InstancedMesh(insulatorGeometry, metalMaterial, supports.length * 3);
-    const towerMesh = new THREE.InstancedMesh(towerGeometry, towerMaterial, Math.max(1, supports.length));
-    poleMesh.count = 0; armMesh.count = 0; insulatorMesh.count = 0; towerMesh.count = 0;
-    for (const mesh of [poleMesh, armMesh, insulatorMesh, towerMesh]) {
+    poleMesh.count = 0; armMesh.count = 0; insulatorMesh.count = 0;
+    for (const mesh of [poleMesh, armMesh, insulatorMesh]) {
       mesh.frustumCulled = false;
       mesh.renderOrder = 920;
     }
-
-    let poleCount = 0, towerCount = 0, measured = 0, estimated = 0;
-    const byKey = new Map();
-    supports.forEach(support => {
-      const ground = terrainAt(map, support.coordinate);
-      const yaw = (Number(support.bearing) || 0) * RAD;
-      const mesh = support.type === 'tower' ? towerMesh : poleMesh;
-      const index = support.type === 'tower' ? towerCount : poleCount;
-      const scale = support.height;
-      if (setInstance(mesh, index, map, THREE, support.coordinate, ground, yaw, [scale, scale, scale])) {
-        if (support.type === 'tower') towerCount++; else poleCount++;
-        if (support.measuredHeight) measured++; else estimated++;
-        byKey.set(support.key, support);
-        if (support.type === 'pole') {
-          const materialTag = String(support.material || '').toLowerCase();
-          const poleHex = materialTag.includes('concrete') ? 0x9da8ad :
-            (materialTag.includes('steel') || materialTag.includes('metal') || materialTag.includes('iron') || materialTag.includes('alumin')) ? 0x98a5aa :
-            materialTag.includes('composite') ? 0x7d8990 : 0xb28a5d;
-          const poleColor = new THREE.Color(poleHex);
-          poleMesh.setColorAt(index, poleColor);
-          armMesh.setColorAt(index, poleColor);
-          const model = modelMatrixFor(map, THREE, support.coordinate, ground);
-          if (model) {
-            const rotation = new THREE.Matrix4().makeRotationY(yaw);
-            const scaled = new THREE.Matrix4().makeScale(scale, scale, scale);
-            armMesh.setMatrixAt(index, model.clone().multiply(rotation).multiply(scaled));
-            for (let pin = 0; pin < 3; pin++) {
-              const across = (pin - 1) * .072;
-              const pinMatrix = model.clone().multiply(rotation).multiply(scaled)
-                .multiply(new THREE.Matrix4().makeTranslation(across, 0, 0));
-              insulatorMesh.setMatrixAt(index * 3 + pin, pinMatrix);
-            }
-            armMesh.count = poleCount;
-            insulatorMesh.count = poleCount * 3;
-          }
+    let poleCount = 0, measured = 0, estimated = 0;
+    for (const support of supports) {
+      const ground = localTerrainAt(support.coordinate);
+      const yaw = ((Number(support.bearing) || 0) + 90) * RAD;
+      const scale = support.height, index = poleCount;
+      if (!setInstance(poleMesh, index, map, THREE, support.coordinate, ground, yaw, [scale, scale, scale])) continue;
+      poleCount++;
+      if (support.measuredHeight) measured++; else estimated++;
+      const materialTag = String(support.material || '').toLowerCase();
+      const poleHex = materialTag.includes('concrete') ? 0x9da8ad :
+        (materialTag.includes('steel') || materialTag.includes('metal') || materialTag.includes('iron') || materialTag.includes('alumin')) ? 0x98a5aa :
+        materialTag.includes('composite') ? 0x7d8990 : 0x9a7953;
+      const poleColor = new THREE.Color(poleHex);
+      poleMesh.setColorAt(index, poleColor);
+      armMesh.setColorAt(index, poleColor);
+      const model = modelMatrixFor(map, THREE, support.coordinate, ground);
+      if (model) {
+        const rotation = new THREE.Matrix4().makeRotationY(yaw);
+        const scaled = new THREE.Matrix4().makeScale(scale, scale, scale);
+        const armLength = Math.max(.8, Math.min(4.5, Number(support.armLengthMetres) || 2.0));
+        const armScale = armLength / (.225 * scale);
+        armMesh.setMatrixAt(index, model.clone().multiply(rotation).multiply(scaled)
+          .multiply(new THREE.Matrix4().makeScale(armScale, 1, 1)));
+        for (let pin = 0; pin < 3; pin++) {
+          const across = (pin - 1) * (Math.min(.32, armLength * .4) / scale);
+          const pinMatrix = model.clone().multiply(rotation).multiply(scaled)
+            .multiply(new THREE.Matrix4().makeTranslation(across, 0, 0));
+          insulatorMesh.setMatrixAt(index * 3 + pin, pinMatrix);
         }
+        armMesh.count = poleCount;
+        insulatorMesh.count = poleCount * 3;
       }
-    });
-    poleMesh.count = poleCount; towerMesh.count = towerCount;
+    }
+    poleMesh.count = poleCount;
     if (poleCount) {
-      poleMesh.instanceMatrix.needsUpdate = true; armMesh.instanceMatrix.needsUpdate = true; insulatorMesh.instanceMatrix.needsUpdate = true;
+      poleMesh.instanceMatrix.needsUpdate = true;
+      armMesh.instanceMatrix.needsUpdate = true;
+      insulatorMesh.instanceMatrix.needsUpdate = true;
       if (poleMesh.instanceColor) poleMesh.instanceColor.needsUpdate = true;
       if (armMesh.instanceColor) armMesh.instanceColor.needsUpdate = true;
       dataGroup.add(poleMesh, armMesh, insulatorMesh);
     }
-    if (towerCount) { towerMesh.instanceMatrix.needsUpdate = true; dataGroup.add(towerMesh); }
 
     const transformerMesh = new THREE.InstancedMesh(transformerGeometry, metalMaterial, assets.transformers.length);
     let transformerCount = 0;
     for (const transformer of assets.transformers) {
-      const attached = supports
-        .map(s => ({ support: s, distance: haversineMetres(s.coordinate, transformer.coordinate) }))
+      const attached = supports.map(s => ({ support: s, distance: haversineMetres(s.coordinate, transformer.coordinate) }))
         .sort((a, b) => a.distance - b.distance)[0];
       const support = attached && attached.distance <= 9 ? attached.support : null;
-      const ground = terrainAt(map, transformer.coordinate);
-      const altitude = ground + (support ? support.height * .66 : .55);
-      let matrix = modelMatrixFor(map, THREE, transformer.coordinate, ground);
+      const ground = localTerrainAt(transformer.coordinate);
+      const matrix = modelMatrixFor(map, THREE, transformer.coordinate, ground);
       if (!matrix) continue;
       matrix.multiply(new THREE.Matrix4().makeTranslation(.34, support ? support.height * .66 : .55, 0));
       matrix.multiply(new THREE.Matrix4().makeScale(.72, support ? .9 : 1.1, .72));
       transformerMesh.setMatrixAt(transformerCount++, matrix);
     }
     transformerMesh.count = transformerCount;
-    if (transformerCount) { transformerMesh.instanceMatrix.needsUpdate = true; transformerMesh.frustumCulled = false; dataGroup.add(transformerMesh); }
+    if (transformerCount) {
+      transformerMesh.instanceMatrix.needsUpdate = true;
+      transformerMesh.frustumCulled = false;
+      dataGroup.add(transformerMesh);
+    }
 
     const switchMesh = new THREE.InstancedMesh(switchGeometry, metalMaterial, assets.switches.length);
     let switchCount = 0;
     for (const item of assets.switches) {
-      const attached = supports
-        .map(s => ({ support: s, distance: haversineMetres(s.coordinate, item.coordinate) }))
+      const attached = supports.map(s => ({ support: s, distance: haversineMetres(s.coordinate, item.coordinate) }))
         .sort((a, b) => a.distance - b.distance)[0];
       if (!attached || attached.distance > 8) continue;
-      const support = attached.support, ground = terrainAt(map, item.coordinate);
+      const support = attached.support, ground = localTerrainAt(item.coordinate);
       const matrix = modelMatrixFor(map, THREE, item.coordinate, ground);
       if (!matrix) continue;
       matrix.multiply(new THREE.Matrix4().makeRotationY(Number(item.angle) * RAD));
@@ -1054,24 +1190,50 @@ export function initUtilityInfrastructure(target) {
       switchMesh.setMatrixAt(switchCount++, matrix);
     }
     switchMesh.count = switchCount;
-    if (switchCount) { switchMesh.instanceMatrix.needsUpdate = true; switchMesh.frustumCulled = false; dataGroup.add(switchMesh); }
+    if (switchCount) {
+      switchMesh.instanceMatrix.needsUpdate = true;
+      switchMesh.frustumCulled = false;
+      dataGroup.add(switchMesh);
+    }
 
     const cabinetMesh = new THREE.InstancedMesh(cabinetGeometry, telecomMaterial, assets.cabinets.length);
-    let cabinetCount = 0;
+    const spliceMesh = new THREE.InstancedMesh(spliceBoxGeometry, telecomMaterial, assets.cabinets.length);
+    let cabinetCount = 0, spliceCount = 0;
     for (const cabinet of assets.cabinets) {
-      const ground = terrainAt(map, cabinet.coordinate);
-      const matrix = modelMatrixFor(map, THREE, cabinet.coordinate, ground);
-      if (!matrix) continue;
-      matrix.multiply(new THREE.Matrix4().makeTranslation(0, .42, 0));
-      cabinetMesh.setMatrixAt(cabinetCount++, matrix);
+      const attached = supports.map(s => ({ support: s, distance: haversineMetres(s.coordinate, cabinet.coordinate) }))
+        .sort((a, b) => a.distance - b.distance)[0];
+      if (cabinet.mountOnPole && attached && attached.distance <= 7) {
+        const support = attached.support, ground = localTerrainAt(support.coordinate);
+        const matrix = modelMatrixFor(map, THREE, support.coordinate, ground);
+        if (!matrix) continue;
+        matrix.multiply(new THREE.Matrix4().makeRotationY((Number(support.bearing) || 0) * RAD));
+        matrix.multiply(new THREE.Matrix4().makeTranslation(.18, support.height * .66, .04));
+        matrix.multiply(new THREE.Matrix4().makeScale(.9, .9, .9));
+        spliceMesh.setMatrixAt(spliceCount++, matrix);
+      } else {
+        const ground = localTerrainAt(cabinet.coordinate);
+        const matrix = modelMatrixFor(map, THREE, cabinet.coordinate, ground);
+        if (!matrix) continue;
+        matrix.multiply(new THREE.Matrix4().makeTranslation(0, .42, 0));
+        cabinetMesh.setMatrixAt(cabinetCount++, matrix);
+      }
     }
-    cabinetMesh.count = cabinetCount;
-    if (cabinetCount) { cabinetMesh.instanceMatrix.needsUpdate = true; cabinetMesh.frustumCulled = false; dataGroup.add(cabinetMesh); }
+    cabinetMesh.count = cabinetCount; spliceMesh.count = spliceCount;
+    if (cabinetCount) {
+      cabinetMesh.instanceMatrix.needsUpdate = true;
+      cabinetMesh.frustumCulled = false;
+      dataGroup.add(cabinetMesh);
+    }
+    if (spliceCount) {
+      spliceMesh.instanceMatrix.needsUpdate = true;
+      spliceMesh.frustumCulled = false;
+      dataGroup.add(spliceMesh);
+    }
 
     const mastMesh = new THREE.InstancedMesh(mastGeometry, telecomMaterial, assets.masts.length);
     let mastCount = 0;
     for (const mast of assets.masts) {
-      const ground = terrainAt(map, mast.coordinate);
+      const ground = localTerrainAt(mast.coordinate);
       const matrix = modelMatrixFor(map, THREE, mast.coordinate, ground);
       if (!matrix) continue;
       matrix.multiply(new THREE.Matrix4().makeScale(mast.height, mast.height, mast.height));
@@ -1079,9 +1241,13 @@ export function initUtilityInfrastructure(target) {
       if (mast.measuredHeight) measured++; else estimated++;
     }
     mastMesh.count = mastCount;
-    if (mastCount) { mastMesh.instanceMatrix.needsUpdate = true; mastMesh.frustumCulled = false; dataGroup.add(mastMesh); }
+    if (mastCount) {
+      mastMesh.instanceMatrix.needsUpdate = true;
+      mastMesh.frustumCulled = false;
+      dataGroup.add(mastMesh);
+    }
 
-    let powerSpanCount = 0, telecomSpanCount = 0;
+    let powerSpanCount = 0, telecomSpanCount = 0, guyWireCount = 0;
     for (const span of assets.powerSpans) {
       const mesh = createWireMesh(span, 'power');
       if (mesh) { dataGroup.add(mesh); powerSpanCount++; }
@@ -1090,17 +1256,28 @@ export function initUtilityInfrastructure(target) {
       const mesh = createWireMesh(span, 'telecom');
       if (mesh) { dataGroup.add(mesh); telecomSpanCount++; }
     }
+    for (const feature of assets.guyWires) {
+      for (const mesh of createGuyWireMesh(feature, supports)) {
+        dataGroup.add(mesh);
+        guyWireCount++;
+      }
+    }
 
-    state.poles = poleCount; state.towers = towerCount;
+    state.poles = poleCount; state.towers = 0;
     state.powerSpans = powerSpanCount; state.telecomSpans = telecomSpanCount;
     state.transformers = transformerCount; state.switches = switchCount;
-    state.cabinets = cabinetCount; state.telecomMasts = mastCount;
+    state.cabinets = cabinetCount + spliceCount; state.telecomMasts = mastCount;
     state.measuredHeights = measured; state.estimatedHeights = estimated;
+    state.municipalPoleCount = assets.municipalPoleCount || 0;
+    state.telecomPoleCount = assets.telecomPoleCount || 0;
+    state.guyWireCount = guyWireCount; state.lineFeatures = assets.lineCount;
     state.updatedAt = Date.now();
-    say('Mapped utility assets: ' + poleCount + ' poles, ' + towerCount + ' towers, ' +
-      powerSpanCount + ' power-wire spans, ' + transformerCount + ' transformers, ' +
-      switchCount + ' switches, ' + cabinetCount + ' cabinets, ' + mastCount +
-      ' communications masts. Heights measured: ' + measured + '; estimated by structure class: ' + estimated + '.');
+    say('Mapped local utility assets: ' + poleCount + ' single poles (including ' + state.municipalPoleCount +
+      ' municipal inventory records), ' + powerSpanCount + ' distribution-wire spans, ' +
+      telecomSpanCount + ' telecom-wire spans, ' + transformerCount + ' transformers, ' +
+      switchCount + ' switches, ' + (cabinetCount + spliceCount) + ' cabinets/splice boxes, ' +
+      guyWireCount + ' guy wires. Towers rendered by this layer: 0. Pole heights measured: ' +
+      measured + '; estimated: ' + estimated + '.');
     try { map.triggerRepaint && map.triggerRepaint(); } catch (_) {}
   }
 
@@ -1122,9 +1299,13 @@ export function initUtilityInfrastructure(target) {
     try {
       if (!installSources()) throw new Error('Public utility vector sources unavailable');
       if (!installCustomLayer()) throw new Error('3D utility renderer is not ready');
+      // Non-blocking: the first view renders from OSM while municipal/Overpass data loads.
+      void loadMiddletownStreetlights();
+      void loadOverpassInfrastructure();
       const assets = collectAssets();
       if (seq !== sequence || dead) return;
       buildSceneAssets(assets);
+      void loadUSGS3DEPGround(assets);
       state.lineFeatures = assets.lineCount;
       state.enabled = true;
       state.ready = true;
@@ -1202,6 +1383,8 @@ export function initUtilityInfrastructure(target) {
     poles: state.poles, towers: state.towers, powerSpans: state.powerSpans,
     telecomSpans: state.telecomSpans, transformers: state.transformers,
     switches: state.switches, cabinets: state.cabinets, telecomMasts: state.telecomMasts,
+    municipalPoleCount: state.municipalPoleCount, telecomPoleCount: state.telecomPoleCount,
+    guyWireCount: state.guyWireCount, groundSamples: groundElevationCache.size,
     measuredHeights: state.measuredHeights, estimatedHeights: state.estimatedHeights,
     lineFeatures: state.lineFeatures || 0, source: state.source, heightNote: state.heightNote,
     updatedAt: state.updatedAt
@@ -1219,9 +1402,11 @@ export function initUtilityInfrastructure(target) {
       map.off('idle', onMapIdle);
       clearSceneData();
       featureCache.clear();
+      municipalStreetlightFeatures = []; overpassFeatures = [];
+      groundElevationCache.clear(); groundElevationPending.clear(); groundElevationRetryAt.clear();
       if (map.getLayer('bp-utility-poles-3d-v1')) map.removeLayer('bp-utility-poles-3d-v1');
-      for (const id of ['bp-utility-query-power-v1', 'bp-utility-query-telecom-v1']) {
-        if (map.getLayer(id)) map.removeLayer(id);
+      for (const layer of map.getStyle().layers || []) {
+        if (String(layer.id || '').startsWith('bp-utility-query-') && map.getLayer(layer.id)) map.removeLayer(layer.id);
       }
       if (map.getSource(TELECOM_SOURCE)) map.removeSource(TELECOM_SOURCE);
       if (map.getSource(POWER_SOURCE)) map.removeSource(POWER_SOURCE);
