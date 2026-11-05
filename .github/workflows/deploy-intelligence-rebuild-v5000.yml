@@ -325,7 +325,8 @@ jobs:
           node --check release-v2300/world-v2300-tree-instanced.js
           node --check release-v2300/world-v2300-tree-canopy-lod.js
           node --input-type=module --check < release-v2300/world-v2300-map.js
-          node --input-type=module --check < release-v2300/world-v2300-utility-infrastructure-v1.js
+          cp release-v2300/world-v2300-utility-infrastructure-v1.js /tmp/world-v2300-utility-infrastructure-source.mjs
+          node --check /tmp/world-v2300-utility-infrastructure-source.mjs
           node tests/tree-asset-catalog.test.mjs
           node tests/tree-instanced-renderer.test.mjs
           node tests/tree-viewport-capacity.test.mjs
@@ -907,7 +908,8 @@ jobs:
           node --input-type=module --check < site/world-v2300-spectral-imagery.js
           node --input-type=module --check < site/world-v2300-underground-xray.js
           node --input-type=module --check < site/world-v2300-infrastructure-volume-v5962.js
-          node --input-type=module --check < site/world-v2300-utility-infrastructure-v1.js
+          cp site/world-v2300-utility-infrastructure-v1.js /tmp/world-v2300-utility-infrastructure-published.mjs
+          node --check /tmp/world-v2300-utility-infrastructure-published.mjs
           cmp -s site/world-v2300-utility-infrastructure-v1.js site/app/world-v2300-utility-infrastructure-v1.js
           node --input-type=module --check < site/world-v2300-sensor-layers.js
           node --input-type=module --check < site/world-v2300-realism.js
