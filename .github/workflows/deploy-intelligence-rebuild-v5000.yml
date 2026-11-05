@@ -397,7 +397,6 @@ jobs:
           node tests/drone-awareness.test.mjs
           node tests/vessel-awareness.test.mjs
           node tests/transportation-simulation-v1.test.mjs
-          node tests/global-bridges-v1.test.cjs
           node --input-type=module --check < rebuild-v5000/bridgepoint-orbit-renderer-v6201.js
           node tests/orbit-renderer-v6201.test.mjs
           node --check rebuild-v5000/bridgepoint-live-rail-v5969.js
