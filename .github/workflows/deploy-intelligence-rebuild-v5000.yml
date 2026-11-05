@@ -21,6 +21,7 @@ on:
       - '.github/workflows/test-tree-asset-catalog.yml'
       - 'tests/celestial-water-cloud-shadows.test.mjs'
       - 'tests/utility-infrastructure-renderer-v5.test.mjs'
+      - 'tests/auth-resilience-v6237.test.mjs'
       - 'tests/drone-awareness.test.mjs'
       - 'tests/vessel-awareness.test.mjs'
       - 'tests/transportation-simulation-v1.test.mjs'
@@ -335,6 +336,7 @@ jobs:
           node tests/celestial-water-cloud-shadows.test.mjs
           node tests/water-lod-and-imagery.test.mjs
           node tests/utility-infrastructure-renderer-v5.test.mjs
+          node tests/auth-resilience-v6237.test.mjs
           node tests/underwater-dive-camera.test.mjs
           grep -Fq "dot=rawKey.endsWith('-dot'),key=dot?rawKey.replace(/-dot$/,''):rawKey" release-v2300/world-v2300-map.js
           grep -Fq "eagerOpportunityIcons:keys.length*2" release-v2300/world-v2300-map.js
@@ -1005,7 +1007,7 @@ jobs:
           grep -Fq 'sourceWeatherOverlaysPreserved:true' site/landing.js
           grep -Fq 'sourceWeatherOverlaysPreserved:true' site/app.js
           grep -Fq 'legacyCinematicFxDisabled:true' site/landing.js
-          grep -Fq 'landing.js?v=6236-solid-utility-structures' site/index.html
+          grep -Fq 'landing.js?v=6237-pc-auth' site/index.html
           grep -Fq 'world-v2300-weather.js?v=6200-storm-clouds-no-rain' site/app/index.html
           grep -Fq 'world-v2300-weather.js?v=6195-desktop-globe-flash-stability' site/app/world-v2300-bootstrap.js
           grep -Fq 'world-v2300-time-slider.js?v=6170-no-cloud-toggle-always-on' site/app.js
@@ -1019,6 +1021,12 @@ jobs:
           grep -Fq 'world-v2300-infrastructure-volume-v5962.js?v=5970-globe-model-matrices' site/landing.js
           grep -Fq 'world-v2300-utility-infrastructure-v1.js?v=6-solid-utility' site/app.js
           grep -Fq 'world-v2300-utility-infrastructure-v1.js?v=6-solid-utility' site/landing.js
+          grep -Fq "const SUPA='https://solaris-boat-upgrades-stocks.trycloudflare.com'" site/landing.js
+          grep -Fq "const SUPA='https://solaris-boat-upgrades-stocks.trycloudflare.com'" site/app.js
+          grep -Fq 'bpAuthRequestV6237' site/landing.js
+          grep -Fq 'bpAuthRequestV6237' site/app.js
+          ! grep -Fq "const SUPA='https://xdfsjztwgsbmabshzsjw.supabase.co'" site/landing.js
+          ! grep -Fq "const SUPA='https://xdfsjztwgsbmabshzsjw.supabase.co'" site/app.js
           grep -Fq 'OpenInfraMap/OSM + Middletown municipal StreetLights GIS + USGS 3DEP ground elevations' site/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'const VERSION = 5;' site/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'ALONEVDIST' site/world-v2300-utility-infrastructure-v1.js
@@ -1057,8 +1065,8 @@ jobs:
           ! grep -Fq 'MercatorCoordinate' site/world-v2300-infrastructure-volume-v5962.js
           grep -Fq 'enabled:true' site/world-v2300-infrastructure-volume-v5962.js
           ! grep -Fq 'data-toggle' site/world-v2300-infrastructure-volume-v5962.js
-          grep -Fq 'landing.js?v=6236-solid-utility-structures&bp=5970-globe-model-matrices' site/index.html
-          grep -Fq 'app.js?v=6236-solid-utility-structures&bp=5970-globe-model-matrices' site/app/index.html
+          grep -Fq 'landing.js?v=6237-pc-auth&bp=5970-globe-model-matrices' site/index.html
+          grep -Fq 'app.js?v=6237-pc-auth&bp=5970-globe-model-matrices' site/app/index.html
           grep -Fq 'world-v2300-sensor-layers.js?v=6224-underwater-dive-camera' site/app.js
           grep -Fq 'world-v2300-sensor-layers.js?v=6224-underwater-dive-camera' site/landing.js
           grep -Fq 'bridgepoint-gebco-depth-image-v5937' site/world-v2300-sensor-layers.js
@@ -1175,7 +1183,7 @@ jobs:
           grep -Fq 'BP_SOURCE_WEATHER_CACHE_KEY_V6134' site/app.js
           grep -Fq 'restoreCachedLiveWeatherFirstFrameV6134' site/app.js
           ! grep -Fq 'if(window.__BP_CLOUDS_ONLY_PHASE_V6070__===true && m)' site/landing.js
-          grep -Fq 'landing.js?v=6236-solid-utility-structures' site/index.html
+          grep -Fq 'landing.js?v=6237-pc-auth' site/index.html
           grep -Fq 'async function toggleNasaNightlights()' site/world-v2300-time-slider.js
           ! grep -Fq 'async function toggleSkyClouds()' site/world-v2300-time-slider.js
           grep -Fq 'data-skyview' site/world-v2300-time-slider.js
@@ -1391,7 +1399,7 @@ jobs:
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/app.js
           grep -Fq 'activateLiveWeather();' site/app.js
           grep -Fq 'enabled:true,serializedWeather:true' site/app.js
-          grep -Fq 'app.js?v=6236-solid-utility-structures' site/app/index.html
+          grep -Fq 'app.js?v=6237-pc-auth' site/app/index.html
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/landing.js
           grep -Fq 'WMO_CAP_WARNING' site/app.js
           grep -Fq 'WMO_CAP_WARNING' site/landing.js
@@ -1635,8 +1643,8 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=6236-solid-utility-structures' site/app/index.html
-          grep -Fq 'landing.js?v=6236-solid-utility-structures' site/index.html
+          grep -Fq 'app.js?v=6237-pc-auth' site/app/index.html
+          grep -Fq 'landing.js?v=6237-pc-auth' site/index.html
            grep -Fq 'world-v2300-map.js?v=6226-underwater-satellite-lock' site/app.js
            grep -Fq 'world-v2300-map.js?v=6226-underwater-satellite-lock' site/landing.js
            grep -Fq 'world-v2300-map.js?v=6226-underwater-satellite-lock' site/index.html
@@ -1793,6 +1801,41 @@ jobs:
         uses: actions/deploy-pages@v4
         with:
           artifact_name: bridgepoint-v5000-${{ github.run_attempt }}
+
+      - name: Verify PC-backed auth route on website and app
+        shell: bash
+        run: |
+          set -euo pipefail
+          O='https://bridgepointintelligence.online'
+          API='https://solaris-boat-upgrades-stocks.trycloudflare.com'
+          q="auth-v6237-$(date +%s)"
+          curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL "$API/healthz" -o /tmp/bp-auth-health.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          data=json.loads(Path('/tmp/bp-auth-health.json').read_text())
+          assert data.get('service')=='bridgepoint-local-runtime', data
+          assert data.get('auth')=='ready', data
+          assert data.get('supabase_fallback') is False, data
+          assert int(data.get('auth_users_exported',0)) > 0, data
+          print('PC_AUTH_RUNTIME_HEALTH_PASS', data.get('auth_users_exported'), 'accounts preserved')
+          PY
+          HEADERS="$(curl --retry 2 --retry-all-errors --retry-delay 1 -sS -D - -o /dev/null -X OPTIONS "$API/auth/v1/token?grant_type=password" -H "Origin: $O" -H 'Access-Control-Request-Method: POST' -H 'Access-Control-Request-Headers: apikey,content-type')"
+          printf '%s\n' "$HEADERS" | tr -d '\r' | grep -Fqi "Access-Control-Allow-Origin: $O"
+          printf '%s\n' "$HEADERS" | tr -d '\r' | grep -Fqi 'Access-Control-Allow-Methods: GET,POST,OPTIONS'
+          curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/?verify=$q" -o /tmp/bp-auth-root.html
+          curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/app/?verify=$q" -o /tmp/bp-auth-app.html
+          curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/landing.js?verify=$q" -o /tmp/bp-auth-landing.js
+          curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/app.js?verify=$q" -o /tmp/bp-auth-app.js
+          grep -Fq 'landing.js?v=6237-pc-auth' /tmp/bp-auth-root.html
+          grep -Fq 'app.js?v=6237-pc-auth' /tmp/bp-auth-app.html
+          grep -Fq 'bpw-globe-aura' /tmp/bp-auth-root.html
+          grep -Fq 'bpAuthRequestV6237' /tmp/bp-auth-landing.js
+          grep -Fq 'bpAuthRequestV6237' /tmp/bp-auth-app.js
+          grep -Fq 'https://solaris-boat-upgrades-stocks.trycloudflare.com' /tmp/bp-auth-landing.js
+          grep -Fq 'https://solaris-boat-upgrades-stocks.trycloudflare.com' /tmp/bp-auth-app.js
+          grep -Fq "AUTH_STORE='bp_auth_v5045'" /tmp/bp-auth-app.js
+          echo 'PC_BACKED_AUTH_WEBSITE_APP_LIVE_PASS'
 
       - name: Verify production cutover
         shell: bash
