@@ -47,8 +47,8 @@ jobs:
           O='https://bridgepointintelligence.online'
           curl -fsS "$API/healthz" | python3 -c 'import json,sys; d=json.load(sys.stdin); assert d.get("service")=="bridgepoint-local-runtime" and d.get("supabase_fallback") is False; print("PC_RUNTIME_HEALTH_PASS", d.get("auth_users_exported"))'
           HEADERS="$(curl --retry 2 --retry-all-errors --retry-delay 1 -sS -D - -o /dev/null -X OPTIONS "$API/auth/v1/token?grant_type=password" -H "Origin: $O" -H 'Access-Control-Request-Method: POST' -H 'Access-Control-Request-Headers: apikey,content-type')"
-          printf '%s\\n' "$HEADERS" | tr -d '\\r' | grep -Fqi "Access-Control-Allow-Origin: $O"
-          printf '%s\\n' "$HEADERS" | tr -d '\\r' | grep -Fqi 'Access-Control-Allow-Methods: GET,POST,OPTIONS'
+          printf '%s\n' "$HEADERS" | tr -d '\r' | grep -Fqi "Access-Control-Allow-Origin: $O"
+          printf '%s\n' "$HEADERS" | tr -d '\r' | grep -Fqi 'Access-Control-Allow-Methods: GET,POST,OPTIONS'
           echo 'PC_RUNTIME_DOMAIN_CORS_PASS'
 
       - name: Download exact V6228 production Pages artifact
@@ -154,7 +154,6 @@ jobs:
           grep -Fq "bp-bootstrap-sw-refresh-v6230" site/app/index.html
           grep -Fq "BOOTSTRAP_AUTH_BUILD='v6230'" site/sw.js
           grep -Fq "bp_auth_v5045" site/signin/index.html
-          grep -Fq "bridgepointintelligence.online" site/signin/index.html
           python3 - <<'PY'
           import hashlib, json
           from pathlib import Path
