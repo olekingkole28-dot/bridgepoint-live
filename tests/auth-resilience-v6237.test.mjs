@@ -21,7 +21,7 @@ function loadRetryHelper(source, fetchImpl) {
   const sandbox = {
     fetch: fetchImpl,
     AbortController,
-    setTimeout: (fn, ms) => ({ fn, ms }),
+    setTimeout: (fn, ms) => { if (ms < 15000) queueMicrotask(fn); return { fn, ms }; },
     clearTimeout: () => {},
   };
   vm.createContext(sandbox);
