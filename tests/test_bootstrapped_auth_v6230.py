@@ -7,7 +7,7 @@ from apply_bootstrapped_auth_v6230 import (
 
 class BootstrapAuthV6230Tests(unittest.TestCase):
     def test_landing_uses_pc_runtime_and_routes_signin(self):
-        source = """const SUPA='https://xdfsjztwgsbmabshzsjw.supabase.co';function openAuth(v){setMode(v||'signup');$('authModal').hidden=false;setTimeout(()=>$('authEmail').focus(),50)}navigator.serviceWorker.register('/sw.js?v=6222-goes-cloud-mask-volumetric',{updateViaCache:'none'});window.addEventListener('bp:welcome-gate-unlocked-v6229',()=>{});"""
+        source = """const SUPA='https://xdfsjztwgsbmabshzsjw.supabase.co',AUTH_STORE='bp_auth_v5045';function openAuth(v){setMode(v||'signup');$('authModal').hidden=false;setTimeout(()=>$('authEmail').focus(),50)}navigator.serviceWorker.register('/sw.js?v=6222-goes-cloud-mask-volumetric',{updateViaCache:'none'});window.addEventListener('bp:welcome-gate-unlocked-v6229',()=>{});"""
         result = patch_landing(source)
         self.assertIn("https://solaris-boat-upgrades-stocks.trycloudflare.com", result)
         self.assertIn("location.assign('/signin/?mode='+next", result)
