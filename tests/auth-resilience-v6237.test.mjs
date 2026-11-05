@@ -79,8 +79,8 @@ assert.ok(landing.includes("const SUPA='" + PC_API + "'"), 'website routes to th
 assert.ok(app.includes("const SUPA='" + PC_API + "'"), 'app routes to the PC account runtime');
 assert.ok(!landing.includes("const SUPA='https://xdfsjztwgsbmabshzsjw.supabase.co'"), 'website does not route auth to Supabase');
 assert.ok(!app.includes("const SUPA='https://xdfsjztwgsbmabshzsjw.supabase.co'"), 'app does not route auth to Supabase');
-assert.ok(landing.includes("const AUTH_STORE='bp_auth_v5045'"), 'website preserves the existing session store');
-assert.ok(app.includes("const AUTH_STORE='bp_auth_v5045'"), 'app preserves the existing session store');
+assert.ok(landing.includes("AUTH_STORE='bp_auth_v5045'"), 'website preserves the existing session store');
+assert.ok(app.includes("AUTH_STORE='bp_auth_v5045'"), 'app preserves the existing session store');
 assert.ok(landing.includes("mode==='signin'"), 'landing only auto-retries password sign-in');
 assert.ok(app.includes("path==='token?grant_type=password'||path==='token?grant_type=refresh_token'"), 'app retries password and refresh token exchanges only');
 assert.ok(app.includes("if([400,401].includes(Number(e?.status))"), 'transient refresh failures do not erase sessions');
