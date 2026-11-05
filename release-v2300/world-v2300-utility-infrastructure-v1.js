@@ -3,7 +3,7 @@ const POWER_SOURCE = 'bp-utility-power-v1';
 const TELECOM_SOURCE = 'bp-utility-telecom-v1';
 const THREE_URL = '/vendor/three.module.js?v=169-local';
 const MIN_ZOOM = 12;
-const MAX_SOURCE_ZOOM = 14;
+const MAX_SOURCE_ZOOM = 17;
 const MAX_SUPPORTS = 720;
 const MAX_SPANS = 560;
 const POWER_SNAP_M = 13;
@@ -72,7 +72,7 @@ function parseHeightMetres(value) {
 }
 
 function measuredHeight(properties, fallback) {
-  for (const key of ['height_m', 'height', 'heightMeters', 'height_meters']) {
+  for (const key of ['height_m', 'height', 'heightMeters', 'height_meters', 'height:power', 'height:structure', 'height:utility', 'tower:height', 'pole:height']) {
     const value = parseHeightMetres(properties && properties[key]);
     if (Number.isFinite(value) && value >= 3 && value <= 180) {
       return { metres: value, measured: true };
@@ -346,10 +346,10 @@ export function initUtilityInfrastructure(target) {
     cabinetGeometry = new THREE.BoxGeometry(.72, .82, .48);
     mastGeometry = new THREE.CylinderGeometry(.012, .035, 1, 8).translate(0, .5, 0);
 
-    woodMaterial = new THREE.MeshStandardMaterial({ color: 0x9a7e5c, roughness: .82, metalness: .08, emissive: 0x251b10, emissiveIntensity: .18 });
+    woodMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .78, metalness: .04, emissive: 0x342316, emissiveIntensity: .22 });
     towerMaterial = new THREE.MeshStandardMaterial({ color: 0x65717a, roughness: .58, metalness: .62 });
     metalMaterial = new THREE.MeshStandardMaterial({ color: 0xb0bdc0, roughness: .4, metalness: .62, emissive: 0x1b2527, emissiveIntensity: .12 });
-    cableMaterial = new THREE.MeshStandardMaterial({ color: 0xe7d6b5, roughness: .42, metalness: .4, emissive: 0x4c3e27, emissiveIntensity: .3 });
+    cableMaterial = new THREE.MeshStandardMaterial({ color: 0xf3dfba, roughness: .38, metalness: .32, emissive: 0x6a573a, emissiveIntensity: .42 });
     telecomMaterial = new THREE.MeshStandardMaterial({ color: 0x70838e, roughness: .55, metalness: .5 });
   }
 
@@ -392,15 +392,51 @@ export function initUtilityInfrastructure(target) {
     try { map.triggerRepaint && map.triggerRepaint(); } catch (_) {}
   }
 
+  function ensureCustomLayerRenderer() {
+    if (renderer && scene && dataGroup) return true;
+    const registered = map.getLayer('bp-utility-poles-3d-v1');
+    const implementation = registered && (registered.implementation || registered);
+    const target = implementation || customLayer;
+    if (!target || typeof target.onAdd !== 'function' || !THREE) return false;
+
+    // MapLibre can register a custom layer before its style renderer calls onAdd.
+    // Attach to the map's existing WebGL context as a guarded fallback so mapped
+    // infrastructure does not remain stuck in a renderer-not-ready retry state.
+    let gl = null;
+    try {
+      gl = (map.painter && map.painter.context && map.painter.context.gl) ||
+        map.getCanvas().getContext('webgl2') ||
+        map.getCanvas().getContext('webgl');
+    } catch (_) {}
+    if (!gl) return false;
+    try {
+      target.onAdd(map, gl);
+      if (renderer && scene && dataGroup) {
+        try { map.triggerRepaint && map.triggerRepaint(); } catch (_) {}
+        return true;
+      }
+    } catch (error) {
+      console.warn('BridgePoint mapped utility renderer late-attach retry', error);
+    }
+    return false;
+  }
+
   function installCustomLayer() {
-    if (map.getLayer('bp-utility-poles-3d-v1')) return !!dataGroup;
-    if (customLayerInstalling) return false;
+    if (map.getLayer('bp-utility-poles-3d-v1')) return ensureCustomLayerRenderer();
+    if (customLayerInstalling) return ensureCustomLayerRenderer();
     customLayerInstalling = true;
     customLayer = {
       id: 'bp-utility-poles-3d-v1',
       type: 'custom',
       renderingMode: '3d',
       onAdd: (mapRef, gl) => {
+        // MapLibre and the guarded fallback may both reach onAdd; keep it idempotent.
+        if (renderer && scene && dataGroup) {
+          customLayer.renderer = renderer;
+          customLayer.scene = scene;
+          customLayer.camera = customLayer.camera || new THREE.Camera();
+          return;
+        }
         const webgl = new THREE.WebGLRenderer({
           canvas: mapRef.getCanvas(), context: gl, antialias: false, alpha: true, powerPreference: 'low-power'
         });
@@ -408,8 +444,8 @@ export function initUtilityInfrastructure(target) {
         webgl.outputColorSpace = THREE.SRGBColorSpace;
         renderer = webgl;
         scene = new THREE.Scene();
-        scene.add(new THREE.AmbientLight(0xffffff, 1.18));
-        const key = new THREE.DirectionalLight(0xfff3dc, 1.55);
+        scene.add(new THREE.AmbientLight(0xffffff, 1.35));
+        const key = new THREE.DirectionalLight(0xfff3dc, 1.7);
         key.position.set(-.65, -1, 1.8);
         scene.add(key);
         dataGroup = new THREE.Group();
@@ -434,12 +470,15 @@ export function initUtilityInfrastructure(target) {
       onRemove: () => {
         try { customLayer.renderer && customLayer.renderer.dispose(); } catch (_) {}
         renderer = null; scene = null; dataGroup = null;
+        if (customLayer) {
+          customLayer.renderer = null; customLayer.scene = null; customLayer.camera = null;
+        }
       }
     };
     try {
       map.addLayer(customLayer);
       customLayerInstalling = false;
-      return !!dataGroup;
+      return ensureCustomLayerRenderer();
     } catch (error) {
       customLayerInstalling = false;
       console.warn('BridgePoint mapped utility 3D layer could not attach', error);
@@ -540,9 +579,13 @@ export function initUtilityInfrastructure(target) {
       const type = String(properties.type || '').toLowerCase();
       if (type !== 'pole' && type !== 'tower') continue;
       const height = measuredHeight(properties, type === 'tower' ? 30 : 10);
+      const angle = Number(properties.angle);
+      const bearing = Number.isFinite(angle) ? (angle + 360) % 360 : null;
       supports.push({
         key: featureKey(feature, 'support'), coordinate: point, type,
-        height: height.metres, measuredHeight: height.measured, bearing: null, bearingDistance: Infinity
+        height: height.metres, measuredHeight: height.measured,
+        material: String(properties.material || ''), structure: String(properties.structure || ''),
+        bearing, bearingDistance: bearing === null ? Infinity : 1e6
       });
     }
     const center = map.getCenter && map.getCenter();
@@ -602,7 +645,7 @@ export function initUtilityInfrastructure(target) {
         const heightB = kind === 'telecom' ? span.b.height * .82 : span.b.height * .98;
         const height = base - anchorGround + heightA + (heightB - heightA) * t - 4 * sag * t * (1 - t);
         const current = new THREE.Vector3(east, height, -north);
-        if (previous) pushBeam(vertices, previous, current, kind === 'telecom' ? .012 : .018, THREE, 5);
+        if (previous) pushBeam(vertices, previous, current, kind === 'telecom' ? .026 : .038, THREE, 6);
         previous = current;
       }
     }
