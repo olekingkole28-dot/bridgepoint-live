@@ -45,7 +45,7 @@ jobs:
           grep -Fq 'const VERSION = 5;' release-v2300/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'new THREE.CylinderGeometry(.082, .145, 1, 14)' release-v2300/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'new THREE.BoxGeometry(1, .09, .14)' release-v2300/world-v2300-utility-infrastructure-v1.js
-          grep -Fq 'const catenaryA = distance * distance / Math.max(.1, 8 * sag)' release-v2300/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'let catenaryA = distance * distance / Math.max(.1, 8 * sag)' release-v2300/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'void loadUSGS3DEPGround(assets)' release-v2300/world-v2300-utility-infrastructure-v1.js
           node tests/utility-infrastructure-renderer-v5.test.mjs
           grep -Fq 'world-v2300-utility-infrastructure-v1.js?v=6-solid-utility' rebuild-v5000/app.js
