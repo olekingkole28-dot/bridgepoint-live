@@ -68,15 +68,15 @@ jobs:
           import re
 
           replacements = [
-              (Path("site/index.html"), "landing.js", "landing.js?v=6232-utility-3d"),
-              (Path("site/app/index.html"), "app.js", "app.js?v=6232-utility-3d"),
+              (Path("site/index.html"), "landing.js"),
+              (Path("site/app/index.html"), "app.js"),
           ]
-          for path, basename, replacement in replacements:
+          for path, basename in replacements:
               original = path.read_text(encoding="utf-8")
-              pattern = r'(?P<prefix>src=["'][^"']*/?' + re.escape(basename) + r')(?:\?[^"']*)?(?P<suffix>["'])'
+              pattern = r"""(?P<prefix>src=["'][^"']*/?""" + re.escape(basename) + r""")(?:\?[^"']*)?(?P<suffix>["'])"""
               updated, count = re.subn(
                   pattern,
-                  lambda m: m.group("prefix") + "?" + replacement + m.group("suffix"),
+                  lambda m: m.group("prefix") + "?v=6232-utility-3d" + m.group("suffix"),
                   original,
               )
               if count != 1:
