@@ -1,4 +1,4 @@
-name: Deploy BridgePoint Bootstrapped Auth V6230
+name: Deploy BridgePoint Canonical Globe Handoff V6231
 
 on:
   push:
@@ -10,6 +10,8 @@ on:
       - 'recovery/apply_bootstrapped_auth_v6230.py'
       - 'recovery/bootstrapped-signin-v6230.html'
       - 'tests/test_bootstrapped_auth_v6230.py'
+      - 'recovery/apply_globe_root_handoff_v6231.py'
+      - 'tests/test_globe_root_handoff_v6231.py'
   workflow_dispatch:
 
 permissions:
@@ -38,6 +40,7 @@ jobs:
           set -euo pipefail
           python3 -m unittest discover -s tests -p 'test_mobile_entry_v6229.py' -v
           python3 -m unittest discover -s tests -p 'test_bootstrapped_auth_v6230.py' -v
+          python3 -m unittest discover -s tests -p 'test_globe_root_handoff_v6231.py' -v
 
       - name: Verify PC runtime CORS is ready for the BridgePoint website
         shell: bash
@@ -169,13 +172,66 @@ jobs:
           print("Existing PWA cache name remains unchanged to preserve stored offline resources.")
           PY
 
+      - name: Canonicalize website, sign-in and installed-app launch to the globe
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          root=Path("site")
+          before={p.relative_to(root).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in root.rglob("*") if p.is_file()}
+          Path("/tmp/bp-v6231-before.json").write_text(json.dumps(before,sort_keys=True))
+          PY
+
+          python3 recovery/apply_globe_root_handoff_v6231.py site
+          node --check site/landing.js
+          node --check site/app.js
+          node --check site/sw.js
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+          html=Path("site/signin/index.html").read_text(encoding="utf-8")
+          scripts=re.findall(r"<script>(.*?)</script>",html,re.S)
+          assert len(scripts)==1, f"Expected one sign-in inline script, found {len(scripts)}"
+          Path("/tmp/bp-signin-v6231.js").write_text(scripts[0])
+          PY
+          node --check /tmp/bp-signin-v6231.js
+
+          grep -Fq "landing.js?v=6231-globe-root" site/index.html
+          grep -Fq "encodeURIComponent('/')" site/landing.js
+          grep -Fq "bp-canonical-globe-entry-v6231" site/app/index.html
+          grep -Fq "return=%2F" site/app/index.html
+          grep -Fq "app.js?v=6231-globe-root" site/app/index.html
+          grep -Fq "window.__BP_APP_BUILD_VERSION__=6231;" site/app.js
+          grep -Fq "manifest.webmanifest?v=6231-globe-root" site/index.html
+          grep -Fq "manifest.webmanifest?v=6231-globe-root" site/app/index.html
+          grep -Fq '"start_url":"/"' site/manifest.webmanifest
+          grep -Fq "params.get('return')||'/'" site/signin/index.html
+          grep -Fq "GLOBE_ROOT_BUILD='v6231'" site/sw.js
+
+          python3 - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          root=Path("site")
+          before=json.loads(Path("/tmp/bp-v6231-before.json").read_text())
+          after={p.relative_to(root).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in root.rglob("*") if p.is_file()}
+          assert before.keys()==after.keys(),"V6231 changed the Pages asset set"
+          changed={p for p in before if before[p]!=after[p]}
+          expected={"index.html","landing.js","app.js","app/index.html","sw.js","manifest.webmanifest","signin/index.html"}
+          assert changed==expected,f"Unexpected V6231 file changes: {sorted(changed)}"
+          print("Verified V6231: only website/app/auth route files and manifest changed.")
+          print("The existing globe, welcome animation, card, map, buildings, terrain, weather and feature assets remain byte-identical.")
+          print("PWA cache key remains preserved; plain /app/ launch routes to / while page-specific app routes remain available.")
+          PY
+
       - uses: actions/configure-pages@v5
         with:
           enablement: true
 
       - uses: actions/upload-pages-artifact@v5
         with:
-          name: bridgepoint-mobile-entry-v6230
+          name: bridgepoint-globe-root-v6231
           path: site
           include-hidden-files: true
 
@@ -183,7 +239,7 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
         with:
-          artifact_name: bridgepoint-mobile-entry-v6230
+          artifact_name: bridgepoint-globe-root-v6231
 
       - name: Verify live mobile entry and preserved auth/globe
         shell: bash
@@ -192,13 +248,14 @@ jobs:
           O='https://bridgepointintelligence.online'
           ok=0
           for i in $(seq 1 30); do
-            q="mobile-v6230-${i}-$(date +%s)"
+            q="globe-v6231-${i}-$(date +%s)"
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/landing.js?verify=${q}" -o /tmp/live-landing.js || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/?verify=${q}" -o /tmp/live-root.html || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/?verify=${q}" -o /tmp/live-app.html || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app.js?verify=${q}" -o /tmp/live-app.js || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/sw.js?verify=${q}" -o /tmp/live-sw.js || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/signin/?verify=${q}" -o /tmp/live-signin.html || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/manifest.webmanifest?verify=${q}" -o /tmp/live-manifest.json || true
             if grep -Fq 'bpAuthRequestV6228' /tmp/live-landing.js 2>/dev/null &&
                grep -Fq 'bp:welcome-gate-unlocked-v6229' /tmp/live-landing.js 2>/dev/null &&
                grep -Fq 'v=6224-underwater-dive-camera' /tmp/live-landing.js 2>/dev/null &&
@@ -209,11 +266,17 @@ jobs:
                grep -Fq '/signin/?mode=signin' /tmp/live-app.html 2>/dev/null &&
                grep -Fq 'https://solaris-boat-upgrades-stocks.trycloudflare.com' /tmp/live-app.js 2>/dev/null &&
                grep -Fq "BOOTSTRAP_AUTH_BUILD='v6230'" /tmp/live-sw.js 2>/dev/null &&
-               grep -Fq 'bp_auth_v5045' /tmp/live-signin.html 2>/dev/null; then
+               grep -Fq 'bp_auth_v5045' /tmp/live-signin.html 2>/dev/null &&
+               grep -Fq "encodeURIComponent('/')" /tmp/live-landing.js 2>/dev/null &&
+               grep -Fq 'bp-canonical-globe-entry-v6231' /tmp/live-app.html 2>/dev/null &&
+               grep -Fq 'app.js?v=6231-globe-root' /tmp/live-app.html 2>/dev/null &&
+               grep -Fq 'window.__BP_APP_BUILD_VERSION__=6231;' /tmp/live-app.js 2>/dev/null &&
+               grep -Fq "GLOBE_ROOT_BUILD='v6231'" /tmp/live-sw.js 2>/dev/null &&
+               grep -Fq '"start_url":"/"' /tmp/live-manifest.json 2>/dev/null; then
               ok=1
               break
             fi
             sleep 4
           done
           test "$ok" -eq 1
-          echo "V6230 live verification passed: website/app entry uses PC-backed auth on the BridgePoint origin; globe and underwater assets remain intact."
+          echo "V6231 live verification passed: website sign-in, installed app launch and authenticated return all land on the canonical globe at /."
