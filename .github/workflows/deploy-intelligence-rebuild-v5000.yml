@@ -1027,7 +1027,7 @@ jobs:
           grep -Fq 'Towers rendered by this layer: 0' site/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'new THREE.CylinderGeometry(.082, .145, 1, 14)' site/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'new THREE.BoxGeometry(1, .09, .14)' site/world-v2300-utility-infrastructure-v1.js
-          grep -Fq 'const catenaryA = distance * distance / Math.max(.1, 8 * sag)' site/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'let catenaryA = distance * distance / Math.max(.1, 8 * sag)' site/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'function hasGroundElevation(coordinate)' site/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'void loadUSGS3DEPGround(assets)' site/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'const height = support.measuredHeight && Number.isFinite(sourceHeight)' site/world-v2300-utility-infrastructure-v1.js
