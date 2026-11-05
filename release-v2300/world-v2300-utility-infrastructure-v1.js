@@ -314,6 +314,7 @@ export function initUtilityInfrastructure(target) {
 
   const state = {
     version: VERSION, map, enabled: true, ready: false, status: 'Waiting for source-mapped utility infrastructure…',
+    poles: 0, towers: 0, powerSpans: 0, telecomSpans: 0, transformers: 0, switches: 0,
     cabinets: 0, telecomMasts: 0, measuredHeights: 0, estimatedHeights: 0,
     updatedAt: null, source: 'OpenInfraMap/OSM + Middletown municipal StreetLights GIS + USGS 3DEP ground elevations',
     municipalPoleCount: 0, telecomPoleCount: 0, guyWireCount: 0, groundSamples: 0,
@@ -485,6 +486,8 @@ export function initUtilityInfrastructure(target) {
     state.poles = 0; state.towers = 0; state.powerSpans = 0; state.telecomSpans = 0;
     state.transformers = 0; state.switches = 0; state.cabinets = 0; state.telecomMasts = 0;
     state.measuredHeights = 0; state.estimatedHeights = 0;
+    state.municipalPoleCount = 0; state.telecomPoleCount = 0; state.guyWireCount = 0;
+    state.groundSamples = groundElevationCache.size;
     try { map.triggerRepaint && map.triggerRepaint(); } catch (_) {}
   }
 
@@ -1291,7 +1294,7 @@ export function initUtilityInfrastructure(target) {
       if (state.poles || state.towers || state.powerSpans || state.transformers || state.cabinets) {
         clearSceneData();
       }
-      say('Global utility infrastructure is ready. Mapped 3D poles, towers, wires and equipment appear automatically from zoom ' + MIN_ZOOM + '+.');
+      say('Global distribution poles, local power/telecom wires and equipment appear automatically from zoom ' + MIN_ZOOM + '+. Transmission towers remain in the existing yellow transmission layer.');
       return;
     }
     const seq = ++sequence;
