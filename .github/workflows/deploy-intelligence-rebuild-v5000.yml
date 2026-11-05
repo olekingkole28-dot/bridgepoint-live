@@ -20,6 +20,7 @@ on:
       - '.github/workflows/build-tree-model-assets.yml'
       - '.github/workflows/test-tree-asset-catalog.yml'
       - 'tests/celestial-water-cloud-shadows.test.mjs'
+      - 'tests/utility-infrastructure-renderer-v5.test.mjs'
       - 'tests/drone-awareness.test.mjs'
       - 'tests/vessel-awareness.test.mjs'
       - 'tests/transportation-simulation-v1.test.mjs'
@@ -333,6 +334,7 @@ jobs:
           python tests/tree-model-catalog.test.py
           node tests/celestial-water-cloud-shadows.test.mjs
           node tests/water-lod-and-imagery.test.mjs
+          node tests/utility-infrastructure-renderer-v5.test.mjs
           node tests/underwater-dive-camera.test.mjs
           grep -Fq "dot=rawKey.endsWith('-dot'),key=dot?rawKey.replace(/-dot$/,''):rawKey" release-v2300/world-v2300-map.js
           grep -Fq "eagerOpportunityIcons:keys.length*2" release-v2300/world-v2300-map.js
@@ -1003,7 +1005,7 @@ jobs:
           grep -Fq 'sourceWeatherOverlaysPreserved:true' site/landing.js
           grep -Fq 'sourceWeatherOverlaysPreserved:true' site/app.js
           grep -Fq 'legacyCinematicFxDisabled:true' site/landing.js
-          grep -Fq 'landing.js?v=6235-distribution-poles' site/index.html
+          grep -Fq 'landing.js?v=6236-solid-utility-structures' site/index.html
           grep -Fq 'world-v2300-weather.js?v=6200-storm-clouds-no-rain' site/app/index.html
           grep -Fq 'world-v2300-weather.js?v=6195-desktop-globe-flash-stability' site/app/world-v2300-bootstrap.js
           grep -Fq 'world-v2300-time-slider.js?v=6170-no-cloud-toggle-always-on' site/app.js
@@ -1015,14 +1017,21 @@ jobs:
           grep -Fq 'world-v2300-underground-xray.js?v=5965-landmarks-and-effects' site/landing.js
           grep -Fq 'world-v2300-infrastructure-volume-v5962.js?v=5970-globe-model-matrices' site/app.js
           grep -Fq 'world-v2300-infrastructure-volume-v5962.js?v=5970-globe-model-matrices' site/landing.js
-          grep -Fq 'world-v2300-utility-infrastructure-v1.js?v=5-distribution-telecom' site/app.js
-          grep -Fq 'world-v2300-utility-infrastructure-v1.js?v=5-distribution-telecom' site/landing.js
+          grep -Fq 'world-v2300-utility-infrastructure-v1.js?v=6-solid-utility' site/app.js
+          grep -Fq 'world-v2300-utility-infrastructure-v1.js?v=6-solid-utility' site/landing.js
           grep -Fq 'OpenInfraMap/OSM + Middletown municipal StreetLights GIS + USGS 3DEP ground elevations' site/world-v2300-utility-infrastructure-v1.js
-          grep -Fq 'const VERSION = 3;' site/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'const VERSION = 5;' site/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'ALONEVDIST' site/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'function createGuyWireMesh' site/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'isDistributionPowerLine(feature, powerSupports)' site/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'Towers rendered by this layer: 0' site/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'new THREE.CylinderGeometry(.082, .145, 1, 14)' site/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'new THREE.BoxGeometry(1, .09, .14)' site/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'let catenaryA = distance * distance / Math.max(.1, 8 * sag)' site/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'function hasGroundElevation(coordinate)' site/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'void loadUSGS3DEPGround(assets)' site/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'const height = support.measuredHeight && Number.isFinite(sourceHeight)' site/world-v2300-utility-infrastructure-v1.js
+          node tests/utility-infrastructure-renderer-v5.test.mjs
           grep -Fq 'map.transform.getMatrixForModel' site/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'featureCache' site/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'bp-utility-poles-3d-v1' site/world-v2300-utility-infrastructure-v1.js
@@ -1048,8 +1057,8 @@ jobs:
           ! grep -Fq 'MercatorCoordinate' site/world-v2300-infrastructure-volume-v5962.js
           grep -Fq 'enabled:true' site/world-v2300-infrastructure-volume-v5962.js
           ! grep -Fq 'data-toggle' site/world-v2300-infrastructure-volume-v5962.js
-          grep -Fq 'landing.js?v=6235-distribution-poles&bp=5970-globe-model-matrices' site/index.html
-          grep -Fq 'app.js?v=6235-distribution-poles&bp=5970-globe-model-matrices' site/app/index.html
+          grep -Fq 'landing.js?v=6236-solid-utility-structures&bp=5970-globe-model-matrices' site/index.html
+          grep -Fq 'app.js?v=6236-solid-utility-structures&bp=5970-globe-model-matrices' site/app/index.html
           grep -Fq 'world-v2300-sensor-layers.js?v=6224-underwater-dive-camera' site/app.js
           grep -Fq 'world-v2300-sensor-layers.js?v=6224-underwater-dive-camera' site/landing.js
           grep -Fq 'bridgepoint-gebco-depth-image-v5937' site/world-v2300-sensor-layers.js
@@ -1166,7 +1175,7 @@ jobs:
           grep -Fq 'BP_SOURCE_WEATHER_CACHE_KEY_V6134' site/app.js
           grep -Fq 'restoreCachedLiveWeatherFirstFrameV6134' site/app.js
           ! grep -Fq 'if(window.__BP_CLOUDS_ONLY_PHASE_V6070__===true && m)' site/landing.js
-          grep -Fq 'landing.js?v=6235-distribution-poles' site/index.html
+          grep -Fq 'landing.js?v=6236-solid-utility-structures' site/index.html
           grep -Fq 'async function toggleNasaNightlights()' site/world-v2300-time-slider.js
           ! grep -Fq 'async function toggleSkyClouds()' site/world-v2300-time-slider.js
           grep -Fq 'data-skyview' site/world-v2300-time-slider.js
@@ -1382,7 +1391,7 @@ jobs:
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/app.js
           grep -Fq 'activateLiveWeather();' site/app.js
           grep -Fq 'enabled:true,serializedWeather:true' site/app.js
-          grep -Fq 'app.js?v=6235-distribution-poles' site/app/index.html
+          grep -Fq 'app.js?v=6236-solid-utility-structures' site/app/index.html
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/landing.js
           grep -Fq 'WMO_CAP_WARNING' site/app.js
           grep -Fq 'WMO_CAP_WARNING' site/landing.js
@@ -1626,8 +1635,8 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=6235-distribution-poles' site/app/index.html
-          grep -Fq 'landing.js?v=6235-distribution-poles' site/index.html
+          grep -Fq 'app.js?v=6236-solid-utility-structures' site/app/index.html
+          grep -Fq 'landing.js?v=6236-solid-utility-structures' site/index.html
            grep -Fq 'world-v2300-map.js?v=6226-underwater-satellite-lock' site/app.js
            grep -Fq 'world-v2300-map.js?v=6226-underwater-satellite-lock' site/landing.js
            grep -Fq 'world-v2300-map.js?v=6226-underwater-satellite-lock' site/index.html
