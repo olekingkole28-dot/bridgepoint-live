@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#05090d">
+<meta name="robots" content="noindex,nofollow">
+<title>BridgePoint — Secure Sign In</title>
+<style>
+:root{color-scheme:dark;--bg:#05090d;--panel:#0b151d;--edge:rgba(116,213,232,.3);--text:#ecf7fa;--muted:#91aab5;--accent:#8be7f2}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:radial-gradient(ellipse at 50% -15%,#163344 0,#07121a 48%,var(--bg) 82%);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+body{min-height:100svh;display:grid;place-items:center;padding:22px 16px}
+main{width:min(100%,440px);border:1px solid var(--edge);border-radius:22px;background:linear-gradient(160deg,rgba(15,32,42,.98),rgba(5,13,19,.98));box-shadow:0 26px 90px #0009;padding:clamp(22px,6vw,34px)}
+.brand{display:flex;align-items:center;gap:12px;margin-bottom:28px}.mark{width:42px;height:42px;border:1px solid #84ddeb;border-radius:50%;display:grid;place-items:center;color:var(--accent);font-weight:800;letter-spacing:-.08em;box-shadow:0 0 26px #55bfd744}.brand b{display:block;letter-spacing:.16em;font-size:13px}.brand small{display:block;color:var(--muted);letter-spacing:.23em;font-size:9px;margin-top:3px}
+.eyebrow{color:var(--accent);font-size:10px;font-weight:800;letter-spacing:.2em}h1{font-size:clamp(27px,8vw,35px);line-height:1.08;margin:9px 0 9px;letter-spacing:-.035em}p.intro{color:var(--muted);font-size:14px;line-height:1.5;margin:0 0 24px}
+label{display:block;font-size:12px;font-weight:700;color:#c9dce2;margin:15px 0 7px}input[type=email],input[type=password],input[type=text]{width:100%;min-height:50px;border:1px solid rgba(148,196,211,.32);border-radius:12px;background:#07121a;color:white;padding:0 14px;font-size:16px;outline:none}input:focus{border-color:var(--accent);box-shadow:0 0 0 3px #8be7f21c}
+button{font:inherit;cursor:pointer}.submit{width:100%;min-height:52px;margin-top:20px;border:0;border-radius:12px;background:linear-gradient(115deg,#8be7f2,#c2f3f6);color:#07151c;font-weight:900;letter-spacing:.1em}.submit:disabled{opacity:.55;cursor:wait}
+.switch{width:100%;border:0;background:transparent;color:var(--accent);padding:17px 8px 2px;font-size:13px;font-weight:700}
+.consent{display:flex;align-items:flex-start;gap:10px;margin-top:16px;color:var(--muted);font-size:12px;line-height:1.5}.consent input{width:18px;height:18px;flex:0 0 18px;margin:0;accent-color:#8be7f2}.consent a,.back a{color:var(--accent)}
+.message{min-height:42px;margin-top:14px;border-radius:10px;padding:10px 12px;color:#cbe2e9;background:#10232d;font-size:12px;line-height:1.45;overflow-wrap:anywhere}.message:empty{display:none}.message[data-kind=error]{color:#ffd0c3;background:#321a19}.message[data-kind=success]{color:#c1f3dc;background:#10291f}
+.back{text-align:center;margin-top:19px;font-size:12px;color:var(--muted)}.back a{text-decoration:none}
+.note{border-top:1px solid #ffffff16;margin-top:22px;padding-top:16px;color:#718a95;font-size:11px;line-height:1.5;text-align:center}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main>
+ <div class="brand"><div class="mark">BP</div><div><b>BRIDGEPOINT</b><small>INTELLIGENCE</small></div></div>
+ <div class="eyebrow" id="eyebrow">SECURE ACCOUNT ACCESS</div>
+ <h1 id="heading">Welcome back.</h1>
+ <p class="intro" id="intro">Sign in to open your BridgePoint workspace on this device.</p>
+ <form id="form" novalidate>
+  <div id="name-wrap" hidden><label for="name">Name</label><input id="name" type="text" autocomplete="name" maxlength="100"></div>
+  <label for="email">Email address</label><input id="email" type="email" inputmode="email" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+  <label for="password">Password</label><input id="password" type="password" autocomplete="current-password" minlength="10" required>
+  <div id="consent-wrap" hidden><label class="consent"><input id="consent" type="checkbox"><span>I accept the <a href="/terms/" target="_blank" rel="noopener">Terms of Use</a> and <a href="/privacy/" target="_blank" rel="noopener">Privacy Notice</a>.</span></label></div>
+  <button class="submit" id="submit" type="submit">SIGN IN</button>
+ </form>
+ <button class="switch" id="switch" type="button">Need an account? Create one</button>
+ <div class="message" id="message" role="status" aria-live="polite"></div>
+ <div class="back"><a href="/">Return to BridgePoint home</a></div>
+ <div class="note">BridgePoint uses its PC-backed account runtime. The host computer must remain online while you use the local service.</div>
+</main>
+<script>
+(()=>{'use strict';
+const API_ORIGIN='https://solaris-boat-upgrades-stocks.trycloudflare.com';
+const API_KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
+const STORE='bp_auth_v5045';
+const params=new URLSearchParams(location.search);
+const requestedReturn=params.get('return')||'/app/';
+const RETURN_TO=requestedReturn.startsWith('/')&&!requestedReturn.startsWith('//')&&!requestedReturn.includes('\\')?requestedReturn:'/app/';
+let mode=params.get('mode')==='signup'?'signup':'signin',busy=false;
+const $=id=>document.getElementById(id);
+function setMessage(value,kind='info'){$('message').textContent=value;$('message').dataset.kind=kind}
+function setMode(next){
+ mode=next;
+ const signup=mode==='signup';
+ $('name-wrap').hidden=!signup;
+ $('consent-wrap').hidden=!signup;
+ $('heading').textContent=signup?'Create your account.':'Welcome back.';
+ $('eyebrow').textContent=signup?'CREATE A BRIDGEPOINT ACCOUNT':'SECURE ACCOUNT ACCESS';
+ $('intro').textContent=signup?'Create your account and open your BridgePoint workspace.':'Sign in to open your BridgePoint workspace on this device.';
+ $('submit').textContent=signup?'CREATE ACCOUNT':'SIGN IN';
+ $('switch').textContent=signup?'Already have an account? Sign in':'Need an account? Create one';
+ $('password').autocomplete=signup?'new-password':'current-password';
+ $('password').minLength=10;
+ setMessage('');
+}
+async function request(path,payload){
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),18000);
+ try{
+  const response=await fetch(API_ORIGIN+'/auth/v1/'+path,{method:'POST',mode:'cors',credentials:'omit',headers:{apikey:API_KEY,'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify(payload),cache:'no-store',redirect:'error',signal:controller.signal});
+  let data={};try{data=await response.json()}catch(_){}
+  return{response,data};
+ }finally{clearTimeout(timer)}
+}
+async function verifySession(session){
+ if(!session?.access_token)throw new Error('The account service returned no sign-in session.');
+ setMessage('Checking your account session…');
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
+ try{
+  const response=await fetch(API_ORIGIN+'/auth/v1/user',{method:'GET',mode:'cors',credentials:'omit',headers:{apikey:API_KEY,Authorization:'Bearer '+session.access_token,Accept:'application/json'},cache:'no-store',redirect:'error',signal:controller.signal});
+  let user={};try{user=await response.json()}catch(_){}
+  if(!response.ok||!user?.id)throw new Error('Your account session could not be verified. Please try again.');
+  session.user=user;
+  if(!session.expires_at&&session.expires_in)session.expires_at=Math.floor(Date.now()/1000)+Number(session.expires_in);
+  localStorage.setItem(STORE,JSON.stringify(session));
+ }finally{clearTimeout(timer)}
+}
+async function submit(event){
+ event.preventDefault();if(busy)return;
+ const email=$('email').value.trim().toLowerCase(),password=$('password').value;
+ if(!email||!$('email').validity.valid){setMessage('Enter a valid email address.','error');return}
+ if(password.length<10){setMessage('Use the password you created for BridgePoint (at least 10 characters).','error');return}
+ if(mode==='signup'&&!$('consent').checked){setMessage('Accept the Terms of Use and Privacy Notice to create an account.','error');return}
+ busy=true;$('submit').disabled=true;$('switch').disabled=true;
+ setMessage(mode==='signin'?'Connecting securely to your BridgePoint account…':'Creating your BridgePoint account…');
+ try{
+  let path,payload;
+  if(mode==='signup'){
+   const accepted=new Date().toISOString();
+   path='signup';
+   payload={email,password,data:{display_name:$('name').value.trim()||email.split('@')[0],signup_source:'bridgepoint_website',terms_version:'2026-11-04',terms_accepted_at:accepted,privacy_accepted_at:accepted}};
+  }else{path='token?grant_type=password';payload={email,password}}
+  const {response,data}=await request(path,payload);
+  if(!response.ok)throw new Error(data.msg||data.message||data.error_description||data.error||('Account service returned HTTP '+response.status));
+  await verifySession(data);
+  setMessage('Signed in. Opening BridgePoint…','success');
+  location.replace(RETURN_TO);
+ }catch(error){
+  const msg=error?.name==='AbortError'?'The BridgePoint account service timed out. Check that the host computer is online, then try again.':String(error?.message||error);
+  setMessage(msg,'error');
+  busy=false;$('submit').disabled=false;$('switch').disabled=false;
+ }
+}
+$('form').addEventListener('submit',submit);
+$('switch').addEventListener('click',()=>setMode(mode==='signup'?'signin':'signup'));
+setMode(mode);
+try{const stored=JSON.parse(localStorage.getItem(STORE)||'null');if(stored?.access_token)setMessage('A saved BridgePoint session is already on this device. Continue to sign in again if access needs refreshing.','info')}catch(_){}
+})();
+</script>
+</body></html>
