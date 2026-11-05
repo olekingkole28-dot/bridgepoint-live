@@ -1,4 +1,4 @@
-name: Deploy BridgePoint Mobile Entry V6229
+name: Deploy BridgePoint Bootstrapped Auth V6230
 
 on:
   push:
@@ -7,6 +7,9 @@ on:
       - '.github/workflows/deploy-mobile-entry-v6229.yml'
       - 'recovery/apply_mobile_entry_v6229.py'
       - 'tests/test_mobile_entry_v6229.py'
+      - 'recovery/apply_bootstrapped_auth_v6230.py'
+      - 'recovery/bootstrapped-signin-v6230.html'
+      - 'tests/test_bootstrapped_auth_v6230.py'
   workflow_dispatch:
 
 permissions:
@@ -34,6 +37,19 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m unittest discover -s tests -p 'test_mobile_entry_v6229.py' -v
+          python3 -m unittest discover -s tests -p 'test_bootstrapped_auth_v6230.py' -v
+
+      - name: Verify PC runtime CORS is ready for the BridgePoint website
+        shell: bash
+        run: |
+          set -euo pipefail
+          API='https://solaris-boat-upgrades-stocks.trycloudflare.com'
+          O='https://bridgepointintelligence.online'
+          curl -fsS "$API/healthz" | python3 -c 'import json,sys; d=json.load(sys.stdin); assert d.get("service")=="bridgepoint-local-runtime" and d.get("supabase_fallback") is False; print("PC_RUNTIME_HEALTH_PASS", d.get("auth_users_exported"))'
+          HEADERS="$(curl --retry 2 --retry-all-errors --retry-delay 1 -sS -D - -o /dev/null -X OPTIONS "$API/auth/v1/token?grant_type=password" -H "Origin: $O" -H 'Access-Control-Request-Method: POST' -H 'Access-Control-Request-Headers: apikey,content-type')"
+          printf '%s\\n' "$HEADERS" | tr -d '\\r' | grep -Fqi "Access-Control-Allow-Origin: $O"
+          printf '%s\\n' "$HEADERS" | tr -d '\\r' | grep -Fqi 'Access-Control-Allow-Methods: GET,POST,OPTIONS'
+          echo 'PC_RUNTIME_DOMAIN_CORS_PASS'
 
       - name: Download exact V6228 production Pages artifact
         uses: actions/download-artifact@v4
@@ -107,21 +123,68 @@ jobs:
           print("App route, app.js, globe/map modules, data, cards and every feature asset remain byte-identical.")
           PY
 
+          # Apply the PC-backed authentication handoff to the verified mobile-entry artifact.
+          # Only auth/entry files change; globe rendering modules, map data and feature assets stay intact.
+          python3 - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          root=Path("site")
+          before={p.relative_to(root).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in root.rglob("*") if p.is_file()}
+          Path("/tmp/bp-v6230-before.json").write_text(json.dumps(before,sort_keys=True))
+          PY
+
+          python3 recovery/apply_bootstrapped_auth_v6230.py site
+          node --check site/landing.js
+          node --check site/app.js
+          node --check site/sw.js
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+          html=Path("site/signin/index.html").read_text(encoding="utf-8")
+          scripts=re.findall(r"<script>(.*?)</script>",html,re.S)
+          assert len(scripts)==1, f"Expected one sign-in inline script, found {len(scripts)}"
+          Path("/tmp/bp-signin-v6230.js").write_text(scripts[0])
+          PY
+          node --check /tmp/bp-signin-v6230.js
+
+          grep -Fq "landing.js?v=6230-bootstrapped-auth" site/index.html
+          grep -Fq "https://solaris-boat-upgrades-stocks.trycloudflare.com" site/landing.js
+          grep -Fq "https://solaris-boat-upgrades-stocks.trycloudflare.com" site/app.js
+          grep -Fq "/signin/?mode=signin" site/app/index.html
+          grep -Fq "bp-bootstrap-sw-refresh-v6230" site/app/index.html
+          grep -Fq "BOOTSTRAP_AUTH_BUILD='v6230'" site/sw.js
+          grep -Fq "bp_auth_v5045" site/signin/index.html
+          grep -Fq "bridgepointintelligence.online" site/signin/index.html
+          python3 - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          root=Path("site")
+          before=json.loads(Path("/tmp/bp-v6230-before.json").read_text())
+          after={p.relative_to(root).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in root.rglob("*") if p.is_file()}
+          expected={"index.html","landing.js","app.js","app/index.html","sw.js","signin/index.html"}
+          assert set(after)-set(before)=={"signin/index.html"}, f"Unexpected new assets: {sorted(set(after)-set(before))}"
+          changed={p for p in before if before[p]!=after[p]}
+          assert changed==expected-{"signin/index.html"}, f"Unexpected changed files: {sorted(changed)}"
+          print("Verified V6230: only root/app entry, auth bundles, service worker and new same-domain sign-in changed.")
+          print("All globe, map, building, terrain, weather, card, data and feature assets are byte-identical.")
+          print("Existing PWA cache name remains unchanged to preserve stored offline resources.")
+          PY
+
       - uses: actions/configure-pages@v5
         with:
           enablement: true
 
       - uses: actions/upload-pages-artifact@v5
         with:
-          name: bridgepoint-mobile-entry-v6229
+          name: bridgepoint-mobile-entry-v6230
           path: site
           include-hidden-files: true
 
-      - name: Publish mobile entry optimization
+      - name: Publish same-domain bootstrapped sign-in and PWA handoff
         id: deployment
         uses: actions/deploy-pages@v4
         with:
-          artifact_name: bridgepoint-mobile-entry-v6229
+          artifact_name: bridgepoint-mobile-entry-v6230
 
       - name: Verify live mobile entry and preserved auth/globe
         shell: bash
@@ -130,20 +193,28 @@ jobs:
           O='https://bridgepointintelligence.online'
           ok=0
           for i in $(seq 1 30); do
-            q="mobile-v6229-${i}-$(date +%s)"
+            q="mobile-v6230-${i}-$(date +%s)"
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/landing.js?verify=${q}" -o /tmp/live-landing.js || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/?verify=${q}" -o /tmp/live-root.html || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/?verify=${q}" -o /tmp/live-app.html || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app.js?verify=${q}" -o /tmp/live-app.js || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/sw.js?verify=${q}" -o /tmp/live-sw.js || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/signin/?verify=${q}" -o /tmp/live-signin.html || true
             if grep -Fq 'bpAuthRequestV6228' /tmp/live-landing.js 2>/dev/null &&
                grep -Fq 'bp:welcome-gate-unlocked-v6229' /tmp/live-landing.js 2>/dev/null &&
                grep -Fq 'v=6224-underwater-dive-camera' /tmp/live-landing.js 2>/dev/null &&
                grep -Fq 'bpMobileLazyLoaderV6229' /tmp/live-root.html 2>/dev/null &&
                grep -Fq 'BRIDGEPOINT WORLD IS LOADING' /tmp/live-root.html 2>/dev/null &&
-               grep -Fq 'landing.js?v=6229-mobile-entry' /tmp/live-root.html 2>/dev/null &&
-               grep -Fq 'bpw-globe-aura' /tmp/live-root.html 2>/dev/null; then
+               grep -Fq 'landing.js?v=6230-bootstrapped-auth' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'bpw-globe-aura' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq '/signin/?mode=signin' /tmp/live-app.html 2>/dev/null &&
+               grep -Fq 'https://solaris-boat-upgrades-stocks.trycloudflare.com' /tmp/live-app.js 2>/dev/null &&
+               grep -Fq "BOOTSTRAP_AUTH_BUILD='v6230'" /tmp/live-sw.js 2>/dev/null &&
+               grep -Fq 'bp_auth_v5045' /tmp/live-signin.html 2>/dev/null; then
               ok=1
               break
             fi
             sleep 4
           done
           test "$ok" -eq 1
-          echo "V6229 live verification passed: mobile gate and lazy entry are active; V6228 auth resilience, current globe and underwater camera remain."
+          echo "V6230 live verification passed: website/app entry uses PC-backed auth on the BridgePoint origin; globe and underwater assets remain intact."
