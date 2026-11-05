@@ -1802,6 +1802,41 @@ jobs:
         with:
           artifact_name: bridgepoint-v5000-${{ github.run_attempt }}
 
+      - name: Verify PC-backed auth route on website and app
+        shell: bash
+        run: |
+          set -euo pipefail
+          O='https://bridgepointintelligence.online'
+          API='https://solaris-boat-upgrades-stocks.trycloudflare.com'
+          q="auth-v6237-$(date +%s)"
+          curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL "$API/healthz" -o /tmp/bp-auth-health.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          data=json.loads(Path('/tmp/bp-auth-health.json').read_text())
+          assert data.get('service')=='bridgepoint-local-runtime', data
+          assert data.get('auth')=='ready', data
+          assert data.get('supabase_fallback') is False, data
+          assert int(data.get('auth_users_exported',0)) > 0, data
+          print('PC_AUTH_RUNTIME_HEALTH_PASS', data.get('auth_users_exported'), 'accounts preserved')
+          PY
+          HEADERS="$(curl --retry 2 --retry-all-errors --retry-delay 1 -sS -D - -o /dev/null -X OPTIONS "$API/auth/v1/token?grant_type=password" -H "Origin: $O" -H 'Access-Control-Request-Method: POST' -H 'Access-Control-Request-Headers: apikey,content-type')"
+          printf '%s\n' "$HEADERS" | tr -d '\r' | grep -Fqi "Access-Control-Allow-Origin: $O"
+          printf '%s\n' "$HEADERS" | tr -d '\r' | grep -Fqi 'Access-Control-Allow-Methods: GET,POST,OPTIONS'
+          curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/?verify=$q" -o /tmp/bp-auth-root.html
+          curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/app/?verify=$q" -o /tmp/bp-auth-app.html
+          curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/landing.js?verify=$q" -o /tmp/bp-auth-landing.js
+          curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/app.js?verify=$q" -o /tmp/bp-auth-app.js
+          grep -Fq 'landing.js?v=6237-pc-auth' /tmp/bp-auth-root.html
+          grep -Fq 'app.js?v=6237-pc-auth' /tmp/bp-auth-app.html
+          grep -Fq 'bpw-globe-aura' /tmp/bp-auth-root.html
+          grep -Fq 'bpAuthRequestV6237' /tmp/bp-auth-landing.js
+          grep -Fq 'bpAuthRequestV6237' /tmp/bp-auth-app.js
+          grep -Fq 'https://solaris-boat-upgrades-stocks.trycloudflare.com' /tmp/bp-auth-landing.js
+          grep -Fq 'https://solaris-boat-upgrades-stocks.trycloudflare.com' /tmp/bp-auth-app.js
+          grep -Fq "AUTH_STORE='bp_auth_v5045'" /tmp/bp-auth-app.js
+          echo 'PC_BACKED_AUTH_WEBSITE_APP_LIVE_PASS'
+
       - name: Verify production cutover
         shell: bash
         run: |
