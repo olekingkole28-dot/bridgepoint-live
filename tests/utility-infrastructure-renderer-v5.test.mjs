@@ -13,7 +13,7 @@ assert.ok(source.includes('new THREE.CylinderGeometry(.145, .18, .26, 14)'), 'po
 assert.ok(source.includes('new THREE.BoxGeometry(1, .09, .14)'), 'crossarms are solid metre-scale timber or steel');
 assert.ok(source.includes('new THREE.CylinderGeometry(.038, .052, .20, 10)'), 'crossarms carry visible ceramic insulators');
 assert.ok(source.includes('const yaw = ((Number.isFinite(Number(support.bearing)) ? Number(support.bearing) : 0) * RAD)'), 'crossarms are aligned across the conductor route');
-assert.ok(source.includes('const catenaryA = distance * distance / Math.max(.1, 8 * sag)'), 'overhead conductors use a catenary rather than a straight/parabolic strip');
+assert.ok(source.includes('let catenaryA = distance * distance / Math.max(.1, 8 * sag)'), 'overhead conductors use a catenary rather than a straight/parabolic strip');
 assert.ok(source.includes('support.height * .84 + .245'), 'power conductors meet the top insulator attachment');
 assert.ok(source.includes('support.height * .68 + .07'), 'telecom conductors meet the lower communications bracket');
 assert.ok(source.includes('function hasGroundElevation(coordinate)'), 'unresolved ground points are detected before mesh placement');
