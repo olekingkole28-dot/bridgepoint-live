@@ -1,4 +1,4 @@
-const VERSION = 1;
+const VERSION = 2;
 const POWER_SOURCE = 'bp-utility-power-v1';
 const TELECOM_SOURCE = 'bp-utility-telecom-v1';
 const THREE_URL = '/vendor/three.module.js?v=169-local';
@@ -318,8 +318,11 @@ export function initUtilityInfrastructure(target) {
   let dead = false, refreshTimer = null, sequence = 0, bootTries = 0, lastZoom = -1, listenersBound = false;
   let styleInitPromise = null, customLayerInstalling = false;
   let bodyGeometry = null, armGeometry = null, insulatorGeometry = null, towerGeometry = null;
-  let transformerGeometry = null, switchGeometry = null, cabinetGeometry = null, mastGeometry = null;
+  let transformerGeometry = null, switchGeometry = null, cabinetGeometry = null, mastGeometry = null, spliceBoxGeometry = null;
   let woodMaterial = null, towerMaterial = null, metalMaterial = null, cableMaterial = null, telecomMaterial = null;
+  let distributionCableMaterial = null, telecomCableMaterial = null;
+  let municipalStreetlightFeatures = [], municipalRequestKey = '', municipalFetchedAt = 0, municipalRequestPromise = null;
+  let overpassFeatures = [], overpassRequestKey = '', overpassFetchedAt = 0, overpassRequestPromise = null;
   const powerSourceUrl = 'https://openinframap.org/map/power/{z}/{x}/{y}.pbf';
   const telecomSourceUrl = 'https://openinframap.org/map/telecoms/{z}/{x}/{y}.pbf';
 
@@ -345,12 +348,15 @@ export function initUtilityInfrastructure(target) {
     switchGeometry = new THREE.BoxGeometry(.42, .24, .3);
     cabinetGeometry = new THREE.BoxGeometry(.72, .82, .48);
     mastGeometry = new THREE.CylinderGeometry(.012, .035, 1, 8).translate(0, .5, 0);
+    spliceBoxGeometry = new THREE.BoxGeometry(.34, .22, .18);
 
     woodMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .78, metalness: .04, emissive: 0x342316, emissiveIntensity: .22 });
     towerMaterial = new THREE.MeshStandardMaterial({ color: 0x65717a, roughness: .58, metalness: .62 });
     metalMaterial = new THREE.MeshStandardMaterial({ color: 0xb0bdc0, roughness: .4, metalness: .62, emissive: 0x1b2527, emissiveIntensity: .12 });
-    cableMaterial = new THREE.MeshStandardMaterial({ color: 0xf3dfba, roughness: .38, metalness: .32, emissive: 0x6a573a, emissiveIntensity: .42 });
-    telecomMaterial = new THREE.MeshStandardMaterial({ color: 0x70838e, roughness: .55, metalness: .5 });
+    cableMaterial = new THREE.MeshStandardMaterial({ color: 0xf3dfba, roughness: .48, metalness: .16, emissive: 0x201c16, emissiveIntensity: .08 });
+    telecomMaterial = new THREE.MeshStandardMaterial({ color: 0x70838e, roughness: .62, metalness: .28 });
+    distributionCableMaterial = new THREE.MeshStandardMaterial({ color: 0x34383a, roughness: .76, metalness: .12, emissive: 0x090b0c, emissiveIntensity: .06 });
+    telecomCableMaterial = new THREE.MeshStandardMaterial({ color: 0x14191d, roughness: .86, metalness: .02, emissive: 0x050607, emissiveIntensity: .04 });
   }
 
   function installSources() {
@@ -542,52 +548,316 @@ export function initUtilityInfrastructure(target) {
     return kept;
   }
 
+  function parseArmLengthMetres(value) {
+    const numbers = String(value || '').match(/\d+(?:\.\d+)?/g) || [];
+    if (!numbers.length) return 1.8;
+    const feet = numbers.length > 1
+      ? (Number(numbers[0]) + Number(numbers[1])) * .5
+      : Number(numbers[0]);
+    return Number.isFinite(feet) ? Math.max(.45, Math.min(4.5, feet * .3048)) : 1.8;
+  }
+
+  function parseBearingDegrees(value) {
+    const match = String(value || '').match(/-?\d+(?:\.\d+)?/);
+    if (!match) return null;
+    const angle = Number(match[0]);
+    return Number.isFinite(angle) ? (angle + 360) % 360 : null;
+  }
+
+  function parseVoltageKilovolts(properties) {
+    const p = properties || {};
+    const raw = p.voltage ?? p['voltage:primary'] ?? p.voltage_primary ?? p.voltageKv;
+    if (raw === null || raw === undefined || raw === '') return null;
+    const match = String(raw).replace(/,/g, '').match(/\d+(?:\.\d+)?/);
+    if (!match) return null;
+    let value = Number(match[0]);
+    if (!Number.isFinite(value) || value <= 0) return null;
+    if (String(raw).toLowerCase().includes('kv')) return value;
+    if (value >= 1000) value /= 1000;
+    return value;
+  }
+
+  function isOverheadFeature(properties) {
+    const p = properties || {};
+    const location = String(p.location || p['location:line'] || '').toLowerCase();
+    return location !== 'underground' && location !== 'underwater' && p.tunnel !== true;
+  }
+
+  function isDistributionPowerLine(feature, supports) {
+    const p = feature && feature.properties || {};
+    if (!isOverheadFeature(p) || p.disused === true || p.construction === true) return false;
+    const kind = String(p.power || p.type || '').toLowerCase();
+    if (kind !== 'line' && kind !== 'minor_line') return false;
+    const voltage = parseVoltageKilovolts(p);
+    if (voltage !== null && voltage >= 50) return false;
+    if (kind === 'minor_line') return true;
+    if (voltage !== null) return voltage < 50;
+    // An un-volted "line" is only admitted when it is physically associated
+    // with at least two mapped local distribution poles in this view.
+    return supports.some(s => pathsOf(feature).some(path => {
+      const hit = projectSupportToPath(s.coordinate, path);
+      return hit && hit.distance <= POWER_SNAP_M;
+    })) && supports.some((s, i) => i > 0 && pathsOf(feature).some(path => {
+      const hit = projectSupportToPath(s.coordinate, path);
+      return hit && hit.distance <= POWER_SNAP_M;
+    }));
+  }
+
+  function overpassElementToFeature(element) {
+    if (!element || !element.tags) return null;
+    const tags = element.tags;
+    const properties = { ...tags, osm_id: element.id, osm_element_type: element.type };
+    if (element.type === 'node' && Number.isFinite(Number(element.lon)) && Number.isFinite(Number(element.lat))) {
+      return { type: 'Feature', id: 'osm-node-' + element.id, geometry: { type: 'Point', coordinates: [Number(element.lon), Number(element.lat)] }, properties };
+    }
+    if (element.type === 'way' && Array.isArray(element.geometry)) {
+      const coordinates = element.geometry
+        .filter(p => Number.isFinite(Number(p.lon)) && Number.isFinite(Number(p.lat)))
+        .map(p => [Number(p.lon), Number(p.lat)]);
+      if (coordinates.length >= 2) {
+        return { type: 'Feature', id: 'osm-way-' + element.id, geometry: { type: 'LineString', coordinates }, properties };
+      }
+    }
+    return null;
+  }
+
+  function currentQueryBounds(padFactor) {
+    const bounds = map.getBounds && map.getBounds();
+    if (!bounds) return null;
+    const west = bounds.getWest(), east = bounds.getEast();
+    const south = bounds.getSouth(), north = bounds.getNorth();
+    const padLon = Math.min(.05, Math.max(.0015, Math.abs(east - west) * padFactor));
+    const padLat = Math.min(.05, Math.max(.0015, Math.abs(north - south) * padFactor));
+    return {
+      west: Math.max(-180, west - padLon), south: Math.max(-85, south - padLat),
+      east: Math.min(180, east + padLon), north: Math.min(85, north + padLat)
+    };
+  }
+
+  function boundsKey(bounds) {
+    return [bounds.west, bounds.south, bounds.east, bounds.north].map(v => Number(v).toFixed(4)).join(',');
+  }
+
+  async function loadMiddletownStreetlights() {
+    if (dead || Number(map.getZoom()) < 14) return false;
+    const b = currentQueryBounds(.28);
+    if (!b || b.east < -72.705 || b.west > -72.60 || b.north < 41.54 || b.south > 41.60) return false;
+    const key = boundsKey(b);
+    if (key === municipalRequestKey && Date.now() - municipalFetchedAt < 90000) return false;
+    if (municipalRequestPromise) return municipalRequestPromise;
+    municipalRequestKey = key;
+    municipalRequestPromise = (async () => {
+      try {
+        const fields = 'OBJECTID,UTIL_PN,FIELD_PN,OWNERSHIP,ALONEVDIST,POLEMAT,ARM_LENGTH,ARM_DIR,MOUNT_HT,FEED,AUDIT_DATE,LATITUDE,LONGITUDE';
+        const params = new URLSearchParams({
+          where: '1=1', outFields: fields, returnGeometry: 'true', outSR: '4326',
+          geometry: [b.west, b.south, b.east, b.north].join(','),
+          geometryType: 'esriGeometryEnvelope', inSR: '4326',
+          spatialRel: 'esriSpatialRelIntersects', resultRecordCount: '1000', f: 'json'
+        });
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 8000);
+        const response = await fetch('https://gis.cityofmiddletown.com/arcgis/rest/services/Website/MiddletownStreetLights/MapServer/0/query?' + params.toString(), {
+          mode: 'cors', credentials: 'omit', headers: { Accept: 'application/json' }, signal: controller.signal
+        });
+        clearTimeout(timeout);
+        if (!response.ok) throw new Error('Middletown GIS HTTP ' + response.status);
+        const json = await response.json();
+        if (json.error) throw new Error(json.error.message || 'Middletown GIS query error');
+        const mapped = (json.features || []).map(feature => {
+          const a = feature.attributes || {}, g = feature.geometry || {};
+          const lon = Number(g.x ?? a.LONGITUDE), lat = Number(g.y ?? a.LATITUDE);
+          if (!Number.isFinite(lon) || !Number.isFinite(lat)) return null;
+          if (String(a.ALONEVDIST || '').toLowerCase() !== 'distribution') return null;
+          const utilityPoleNumber = String(a.UTIL_PN || '').trim();
+          const fieldPoleNumber = String(a.FIELD_PN || '').trim();
+          const identity = utilityPoleNumber && utilityPoleNumber.toLowerCase() !== 'n/a'
+            ? 'MIDDLETOWN-UTIL-' + utilityPoleNumber
+            : 'MIDDLETOWN-OBJECT-' + String(a.OBJECTID);
+          return {
+            type: 'Feature', id: identity,
+            geometry: { type: 'Point', coordinates: [lon, lat] },
+            properties: {
+              osm_id: identity, type: 'pole', power: 'pole', material: a.POLEMAT || '',
+              angle: parseBearingDegrees(a.ARM_DIR), arm_length: a.ARM_LENGTH || '',
+              arm_direction: a.ARM_DIR || '', arm_length_metres: parseArmLengthMetres(a.ARM_LENGTH),
+              utility_pole_number: utilityPoleNumber, field_pole_number: fieldPoleNumber,
+              inventory_ownership: a.OWNERSHIP || '', distribution_class: a.ALONEVDIST || '',
+              fixture_mount_height: a.MOUNT_HT || '', streetlight_feed: a.FEED || '',
+              municipal_audit_date: a.AUDIT_DATE || '', source: 'Middletown CT StreetLights GIS'
+            }
+          };
+        }).filter(Boolean);
+        municipalStreetlightFeatures = uniqueFeatures(mapped, feature => featureKey(feature, 'municipal-pole'));
+        municipalFetchedAt = Date.now();
+        say('Middletown municipal distribution-pole records loaded: ' + municipalStreetlightFeatures.length + ' in this view (streetlight inventory, audited 2019).');
+        return true;
+      } catch (error) {
+        console.warn('BridgePoint Middletown distribution-pole inventory unavailable', error);
+        municipalFetchedAt = Date.now();
+        return false;
+      } finally {
+        municipalRequestPromise = null;
+        if (!dead) scheduleRefresh();
+      }
+    })();
+    return municipalRequestPromise;
+  }
+
+  async function loadOverpassInfrastructure() {
+    if (dead || Number(map.getZoom()) < 15) return false;
+    const b = currentQueryBounds(.2);
+    if (!b || Math.abs(b.east - b.west) > .13 || Math.abs(b.north - b.south) > .13) return false;
+    const key = boundsKey(b);
+    if (key === overpassRequestKey && Date.now() - overpassFetchedAt < 180000) return false;
+    if (overpassRequestPromise) return overpassRequestPromise;
+    overpassRequestKey = key;
+    overpassRequestPromise = (async () => {
+      const bbox = [b.south, b.west, b.north, b.east].join(',');
+      const query = '[out:json][timeout:15];(' +
+        'node["power"="pole"](' + bbox + ');' +
+        'node["man_made"="utility_pole"](' + bbox + ');' +
+        'node["man_made"="street_cabinet"](' + bbox + ');' +
+        'node["telecom"~"^(connection_point|distribution_point|remote_terminal)$"](' + bbox + ');' +
+        'node["power"~"^(transformer|switch)$"](' + bbox + ');' +
+        'way["power"~"^(line|minor_line)$"](' + bbox + ');' +
+        'way["communication"="line"](' + bbox + ');' +
+        'way["aerial_line"="telephone"](' + bbox + ');' +
+        'way["phone"="line"](' + bbox + ');' +
+        'way["telephone"="line"](' + bbox + ');' +
+        'way["man_made"="guy_wire"](' + bbox + ');' +
+        ');out body geom;';
+      const endpoints = ['https://overpass-api.de/api/interpreter?data=', 'https://overpass.kumi.systems/api/interpreter?data='];
+      try {
+        let json = null;
+        for (const endpoint of endpoints) {
+          try {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 6500);
+            const response = await fetch(endpoint + encodeURIComponent(query), {
+              mode: 'cors', credentials: 'omit', headers: { Accept: 'application/json' }, signal: controller.signal
+            });
+            clearTimeout(timeout);
+            if (!response.ok) throw new Error('Overpass HTTP ' + response.status);
+            json = await response.json();
+            break;
+          } catch (error) {
+            console.warn('BridgePoint Overpass source retry', String(error && error.message || error));
+          }
+        }
+        if (!json || !Array.isArray(json.elements)) throw new Error('No Overpass endpoint returned a valid response');
+        overpassFeatures = uniqueFeatures(json.elements.map(overpassElementToFeature).filter(Boolean), feature =>
+          feature.geometry && feature.geometry.type === 'Point'
+            ? featureKey(feature, 'osm-point')
+            : pathFeatureKey(feature, 'osm-line')
+        );
+        overpassFetchedAt = Date.now();
+        return true;
+      } catch (error) {
+        console.warn('BridgePoint Overpass local utility data unavailable', error);
+        overpassFetchedAt = Date.now();
+        return false;
+      } finally {
+        overpassRequestPromise = null;
+        if (!dead) scheduleRefresh();
+      }
+    })();
+    return overpassRequestPromise;
+  }
+
   function collectAssets() {
-    const towerFeatures = uniqueFeatures(
-      cacheSourceFeatures(POWER_SOURCE, 'power_tower', 'support'),
+    const tileSupports = cacheSourceFeatures(POWER_SOURCE, 'power_tower', 'support');
+    const overpassPoints = overpassFeatures.filter(feature => pointOf(feature));
+    const municipalPoints = municipalStreetlightFeatures;
+    const supportFeatures = uniqueFeatures(
+      [...tileSupports, ...overpassPoints.filter(feature => {
+        const p = feature.properties || {};
+        return p.power === 'pole' || (p.man_made === 'utility_pole' && p.utility !== 'street_lighting');
+      }), ...municipalPoints],
       feature => featureKey(feature, 'support')
     );
-    const lineFeatures = uniqueFeatures(
-      cacheSourceFeatures(POWER_SOURCE, 'power_line', 'line'),
-      feature => pathFeatureKey(feature, 'line')
-    );
-    const transformerFeatures = uniqueFeatures(
-      cacheSourceFeatures(POWER_SOURCE, 'power_transformer', 'transformer'),
-      feature => featureKey(feature, 'transformer')
-    );
-    const switchFeatures = uniqueFeatures(
-      cacheSourceFeatures(POWER_SOURCE, 'power_switch', 'switch'),
-      feature => featureKey(feature, 'switch')
-    );
-    const mastFeatures = uniqueFeatures(
-      cacheSourceFeatures(TELECOM_SOURCE, 'telecoms_mast', 'mast'),
-      feature => featureKey(feature, 'mast')
-    );
-    const cabinetFeatures = uniqueFeatures(
-      cacheSourceFeatures(TELECOM_SOURCE, 'telecoms_cabinet', 'cabinet'),
-      feature => featureKey(feature, 'cabinet')
-    );
-    const telecomLineFeatures = uniqueFeatures(
-      cacheSourceFeatures(TELECOM_SOURCE, 'telecoms_communication_line', 'telecom-line'),
-      feature => pathFeatureKey(feature, 'telecom-line')
-    );
+    const rawPowerLines = uniqueFeatures([
+      ...cacheSourceFeatures(POWER_SOURCE, 'power_line', 'line'),
+      ...overpassFeatures.filter(feature => pathsOf(feature).length && (
+        feature.properties.power === 'line' || feature.properties.power === 'minor_line'
+      ))
+    ], feature => pathFeatureKey(feature, 'line'));
+    const transformerFeatures = uniqueFeatures([
+      ...cacheSourceFeatures(POWER_SOURCE, 'power_transformer', 'transformer'),
+      ...overpassPoints.filter(feature => feature.properties.power === 'transformer')
+    ], feature => featureKey(feature, 'transformer'));
+    const switchFeatures = uniqueFeatures([
+      ...cacheSourceFeatures(POWER_SOURCE, 'power_switch', 'switch'),
+      ...overpassPoints.filter(feature => feature.properties.power === 'switch')
+    ], feature => featureKey(feature, 'switch'));
+    const mastFeatures = uniqueFeatures([
+      ...cacheSourceFeatures(TELECOM_SOURCE, 'telecoms_mast', 'mast'),
+      ...overpassPoints.filter(feature => feature.properties.man_made === 'mast' &&
+        (feature.properties['tower:type'] === 'communication' || feature.properties['communication:mobile_phone'] === 'yes'))
+    ], feature => featureKey(feature, 'mast'));
+    const cabinetFeatures = uniqueFeatures([
+      ...cacheSourceFeatures(TELECOM_SOURCE, 'telecoms_cabinet', 'cabinet'),
+      ...overpassPoints.filter(feature => feature.properties.man_made === 'street_cabinet' ||
+        ['connection_point', 'distribution_point', 'remote_terminal'].includes(String(feature.properties.telecom || '')))
+    ], feature => featureKey(feature, 'cabinet'));
+    const telecomLineFeatures = uniqueFeatures([
+      ...cacheSourceFeatures(TELECOM_SOURCE, 'telecoms_communication_line', 'telecom-line'),
+      ...overpassFeatures.filter(feature => pathsOf(feature).length && (
+        feature.properties.communication === 'line' ||
+        feature.properties.aerial_line === 'telephone' ||
+        feature.properties.phone === 'line' ||
+        feature.properties.telephone === 'line' ||
+        feature.properties.telecom === 'line'
+      ))
+    ], feature => pathFeatureKey(feature, 'telecom-line'));
 
     const supports = [];
-    for (const feature of towerFeatures) {
+    for (const feature of supportFeatures) {
       const point = pointOf(feature), properties = feature.properties || {};
       if (!point || properties.disused === true || properties.construction === true) continue;
-      const type = String(properties.type || '').toLowerCase();
-      if (type !== 'pole' && type !== 'tower') continue;
-      const height = measuredHeight(properties, type === 'tower' ? 30 : 10);
-      const angle = Number(properties.angle);
-      const bearing = Number.isFinite(angle) ? (angle + 360) % 360 : null;
+      const osmPole = String(properties.power || '').toLowerCase() === 'pole' ||
+        String(properties.type || '').toLowerCase() === 'pole';
+      const telecomPole = String(properties.man_made || '').toLowerCase() === 'utility_pole';
+      const municipalPole = String(properties.distribution_class || properties.ALONEVDIST || '').toLowerCase() === 'distribution';
+      if (!osmPole && !telecomPole && !municipalPole) continue;
+      const height = measuredHeight(properties, 10);
+      const bearing = parseBearingDegrees(properties.angle ?? properties.arm_direction);
+      const utility = String(properties.utility || '').toLowerCase();
       supports.push({
-        key: featureKey(feature, 'support'), coordinate: point, type,
+        key: featureKey(feature, 'support'), coordinate: point, type: 'pole',
+        network: utility === 'telecom' ? 'telecom' : 'power',
         height: height.metres, measuredHeight: height.measured,
         material: String(properties.material || ''), structure: String(properties.structure || ''),
-        bearing, bearingDistance: bearing === null ? Infinity : 1e6
+        bearing, bearingDistance: bearing === null ? Infinity : 1e6,
+        armLengthMetres: Number(properties.arm_length_metres) || parseArmLengthMetres(properties.arm_length),
+        utilityPoleNumber: properties.utility_pole_number || properties.UTIL_PN || '',
+        municipalAuditDate: properties.municipal_audit_date || properties.AUDIT_DATE || '',
+        municipal: !!properties.source
       });
     }
+
+    // Merge municipal streetlight distribution records onto nearby OSM utility poles,
+    // preserving the municipality's pole reference/material/arm metadata at its coordinate.
+    for (const feature of municipalPoints) {
+      const point = pointOf(feature), p = feature.properties || {};
+      if (!point) continue;
+      let nearest = null, nearestDistance = 4.5;
+      for (const support of supports) {
+        const distance = haversineMetres(support.coordinate, point);
+        if (distance < nearestDistance) { nearestDistance = distance; nearest = support; }
+      }
+      if (nearest) {
+        if (!nearest.material && p.material) nearest.material = String(p.material);
+        nearest.armLengthMetres = Number(p.arm_length_metres) || nearest.armLengthMetres;
+        if (Number.isFinite(Number(p.angle))) {
+          nearest.bearing = Number(p.angle); nearest.bearingDistance = 0;
+        }
+        nearest.utilityPoleNumber = nearest.utilityPoleNumber || p.utility_pole_number || '';
+        nearest.municipalAuditDate = p.municipal_audit_date || nearest.municipalAuditDate;
+        nearest.municipal = true;
+      }
+    }
+
     const center = map.getCenter && map.getCenter();
     supports.sort((a, b) => {
       const da = center ? haversineMetres(a.coordinate, [center.lng, center.lat]) : 0;
@@ -595,20 +865,30 @@ export function initUtilityInfrastructure(target) {
       return da - db;
     });
     supports.length = Math.min(supports.length, MAX_SUPPORTS);
+    const powerSupports = supports.filter(s => s.network === 'power');
 
-    const powerSpans = makeSpans(lineFeatures, supports, 'power', POWER_SNAP_M, 480, MAX_SPANS);
-    const telecomSpans = makeSpans(telecomLineFeatures, supports, 'telecom', 12, 190, Math.max(30, MAX_SPANS - powerSpans.length));
+    const lineFeatures = rawPowerLines.filter(feature => isDistributionPowerLine(feature, powerSupports));
+    const powerSpans = makeSpans(lineFeatures, powerSupports, 'power', POWER_SNAP_M, 240, MAX_SPANS);
+    const telecomSpans = makeSpans(
+      telecomLineFeatures.filter(feature => isOverheadFeature(feature.properties || {})),
+      supports, 'telecom', 12, 150, MAX_SPANS
+    );
     const masts = mastFeatures.map(feature => {
       const coordinate = pointOf(feature);
       if (!coordinate) return null;
       const height = measuredHeight(feature.properties || {}, 18);
-      return {
-        key: featureKey(feature, 'mast'), coordinate, height: height.metres, measuredHeight: height.measured
-      };
+      return { key: featureKey(feature, 'mast'), coordinate, height: height.metres, measuredHeight: height.measured };
     }).filter(Boolean);
     const cabinets = cabinetFeatures.map(feature => {
       const coordinate = pointOf(feature);
-      return coordinate ? { key: featureKey(feature, 'cabinet'), coordinate } : null;
+      if (!coordinate) return null;
+      const p = feature.properties || {};
+      return {
+        key: featureKey(feature, 'cabinet'), coordinate,
+        mountOnPole: String(p.location || '').toLowerCase() === 'pole' ||
+          ['distribution_point', 'remote_terminal'].includes(String(p.telecom || '')),
+        sourceType: String(p.telecom || p.man_made || 'cabinet')
+      };
     }).filter(Boolean);
     const transformers = transformerFeatures.map(feature => {
       const coordinate = pointOf(feature);
@@ -618,8 +898,14 @@ export function initUtilityInfrastructure(target) {
       const coordinate = pointOf(feature);
       return coordinate ? { key: featureKey(feature, 'switch'), coordinate, angle: Number(feature.properties && feature.properties.angle) || 0 } : null;
     }).filter(Boolean);
-
-    return { supports, powerSpans, telecomSpans, transformers, switches, cabinets, masts, lineCount: lineFeatures.length };
+    const guyWires = overpassFeatures.filter(feature => pathsOf(feature).length &&
+      String(feature.properties && feature.properties.man_made || '') === 'guy_wire');
+    const municipalPoleCount = supports.filter(s => s.municipal).length;
+    const telecomPoleCount = supports.filter(s => s.network === 'telecom').length;
+    return {
+      supports, powerSpans, telecomSpans, transformers, switches, cabinets, masts, guyWires,
+      lineCount: lineFeatures.length, municipalPoleCount, telecomPoleCount
+    };
   }
 
   function createWireMesh(span, kind) {
@@ -630,22 +916,26 @@ export function initUtilityInfrastructure(target) {
     if (!Number.isFinite(distance) || distance < 10) return null;
     const bearing = Math.atan2(offset[0], offset[1]);
     const acrossEast = Math.cos(bearing), acrossNorth = -Math.sin(bearing);
-    const sag = Math.min(14, Math.max(.45, distance * .03));
-    const lanes = kind === 'telecom' ? [0] : [-.58, 0, .58];
+    const sag = Math.min(kind === 'telecom' ? 7 : 11, Math.max(.35, distance * (kind === 'telecom' ? .022 : .028)));
+    const conductorCount = kind === 'telecom' ? 1 : Math.max(1, Math.min(4, Number(span.conductorCount) || 3));
+    const spacing = kind === 'telecom' ? .06 : .42;
+    const lanes = Array.from({ length: conductorCount }, (_, i) =>
+      (i - (conductorCount - 1) * .5) * spacing
+    );
     const vertices = [];
     for (const lane of lanes) {
       let previous = null;
-      const steps = Math.min(12, Math.max(5, Math.ceil(distance / 38)));
+      const steps = Math.min(16, Math.max(6, Math.ceil(distance / 30)));
       for (let i = 0; i <= steps; i++) {
         const t = i / steps;
         const east = offset[0] * t + acrossEast * lane;
         const north = offset[1] * t + acrossNorth * lane;
         const base = anchorGround + (nextGround - anchorGround) * t;
-        const heightA = kind === 'telecom' ? span.a.height * .82 : span.a.height * .98;
-        const heightB = kind === 'telecom' ? span.b.height * .82 : span.b.height * .98;
+        const heightA = kind === 'telecom' ? span.a.height * .76 : span.a.height * .94;
+        const heightB = kind === 'telecom' ? span.b.height * .76 : span.b.height * .94;
         const height = base - anchorGround + heightA + (heightB - heightA) * t - 4 * sag * t * (1 - t);
         const current = new THREE.Vector3(east, height, -north);
-        if (previous) pushBeam(vertices, previous, current, kind === 'telecom' ? .026 : .038, THREE, 6);
+        if (previous) pushBeam(vertices, previous, current, kind === 'telecom' ? .012 : .022, THREE, 6);
         previous = current;
       }
     }
@@ -655,7 +945,7 @@ export function initUtilityInfrastructure(target) {
     geometry.computeVertexNormals();
     const matrix = modelMatrixFor(map, THREE, anchor, anchorGround);
     if (!matrix) { geometry.dispose(); return null; }
-    const mesh = new THREE.Mesh(geometry, kind === 'telecom' ? telecomMaterial : cableMaterial);
+    const mesh = new THREE.Mesh(geometry, kind === 'telecom' ? telecomCableMaterial : distributionCableMaterial);
     mesh.matrix.copy(matrix);
     mesh.matrixAutoUpdate = false;
     mesh.frustumCulled = false;
