@@ -23,7 +23,7 @@ jobs:
     timeout-minutes: 35
     environment:
       name: github-pages
-      url: \${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -32,9 +32,9 @@ jobs:
         with:
           name: bridgepoint-v5000-1
           run-id: 42102247275
-          repository: \${{ github.repository }}
-          github-token: \${{ secrets.GITHUB_TOKEN }}
-          path: \${{ runner.temp }}/bp-pages-baseline
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/bp-pages-baseline
 
       - name: Restore the existing production site without rebuilding unrelated assets
         shell: bash
@@ -150,7 +150,7 @@ jobs:
       - name: Upload the preserved site with bridge-only overlay
         uses: actions/upload-pages-artifact@v5
         with:
-          path: \${{ runner.temp }}/bp-site
+          path: ${{ runner.temp }}/bp-site
 
       - name: Publish bridge overlay to GitHub Pages
         id: deployment
@@ -161,7 +161,7 @@ jobs:
         run: |
           set -euo pipefail
           O='https://bridgepointintelligence.online'
-          q="\${GITHUB_SHA}-bridge-v2"
+          q="${GITHUB_SHA}-bridge-v2"
           curl --retry 6 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/?bridge-v2=$q" -o /tmp/bp-root.html
           curl --retry 6 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app/?bridge-v2=$q" -o /tmp/bp-app.html
           curl --retry 6 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/landing.js?v=6238-bridge-v2&$q" -o /tmp/bp-landing.js
