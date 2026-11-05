@@ -27,7 +27,14 @@ assert.ok(source.includes('state.towers = 0;'), 'transmission tower counter stay
 // intended downward sag at mid-span for representative local pole spacing.
 const length = 48;
 const sag = 0.95;
-const a = length * length / (8 * sag);
+let a = length * length / (8 * sag);
+for (let iteration = 0; iteration < 6; iteration++) {
+  const ratio = length / (2 * a);
+  const residual = a * (Math.cosh(ratio) - 1) - sag;
+  const derivative = Math.cosh(ratio) - 1 - ratio * Math.sinh(ratio);
+  if (Math.abs(derivative) < 1e-12) break;
+  a = Math.max(.05, a - residual / derivative);
+}
 const end = Math.cosh(length / (2 * a));
 const drop = t => a * (Math.cosh((t - 0.5) * length / a) - end);
 assert.ok(Math.abs(drop(0)) < 1e-9, 'catenary starts at the first insulator');
