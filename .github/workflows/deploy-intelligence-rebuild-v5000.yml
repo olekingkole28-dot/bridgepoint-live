@@ -1809,6 +1809,7 @@ jobs:
         uses: actions/deploy-pages@v4
         with:
           artifact_name: bridgepoint-v5000-${{ github.run_attempt }}
+          timeout: 1800000
 
       - name: Verify PC-backed auth route on website and app
         shell: bash
