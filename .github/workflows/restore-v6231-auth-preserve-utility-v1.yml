@@ -1,0 +1,188 @@
+name: Restore V6231 sign-in handoff and retain utility 3D renderer
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/restore-v6231-auth-preserve-utility-v1.yml'
+
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+
+# Use the one production authority and do not race the full V5000 publisher.
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: true
+
+jobs:
+  restore-auth-and-utility:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download exact last-known-good V6231 production artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: bridgepoint-globe-root-v6231
+          run-id: 41946741740
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          path: /tmp/bridgepoint-pages-bundle
+
+      - name: Restore the complete V6231 auth bundle and reapply only utility renderer
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p site
+          ARTIFACT_TAR="$(find /tmp/bridgepoint-pages-bundle -type f -name 'artifact.tar' -print -quit)"
+          test -n "$ARTIFACT_TAR"
+          tar -xf "$ARTIFACT_TAR" -C site
+
+          # Prove the baseline is the known-good V6231 sign-in + globe build.
+          test -s site/index.html
+          test -s site/app/index.html
+          test -s site/landing.js
+          test -s site/app.js
+          test -s site/sw.js
+          test -s site/signin/index.html
+          grep -Fq 'landing.js?v=6231-globe-root' site/index.html
+          grep -Fq 'app.js?v=6231-globe-root' site/app/index.html
+          grep -Fq 'bpAuthRequestV6228' site/landing.js
+          grep -Fq 'bp:welcome-gate-unlocked-v6229' site/landing.js
+          grep -Fq 'BOOTSTRAP_AUTH_BUILD='''v6230'''' site/sw.js
+          grep -Fq 'GLOBE_ROOT_BUILD='''v6231'''' site/sw.js
+          grep -Fq '/signin/?mode=signin' site/app/index.html
+          grep -Fq 'bp_auth_v5045' site/signin/index.html
+          grep -Fq 'https://solaris-boat-upgrades-stocks.trycloudflare.com' site/app.js
+
+          # Only these six existing files may differ from the verified V6231 artifact.
+          python3 - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          root=Path("site")
+          before={p.relative_to(root).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                  for p in root.rglob("*") if p.is_file()}
+          Path("/tmp/v6231-before.json").write_text(json.dumps(before,sort_keys=True))
+          PY
+
+          # Keep the exact V6231 landing/app auth logic. Change only the module URL
+          # inside these two bundles; do not copy repository versions over them.
+          python3 - <<'PY'
+          from pathlib import Path
+          old="world-v2300-utility-infrastructure-v1.js?v=1-global-openinframap-poles"
+          new="world-v2300-utility-infrastructure-v1.js?v=3-style-bootstrap-auth-preserved"
+          for name in ("site/landing.js","site/app.js"):
+              p=Path(name)
+              data=p.read_text(encoding="utf-8")
+              count=data.count(old)
+              if count < 1:
+                  raise SystemExit(f"{name}: expected existing utility module import, found {count}")
+              p.write_text(data.replace(old,new),encoding="utf-8")
+              print(f"{name}: changed {count} utility import(s), preserved all other V6231 auth logic")
+          PY
+
+          # Publish the same corrected 3D module for website and signed-in app URLs.
+          cp release-v2300/world-v2300-utility-infrastructure-v1.js site/world-v2300-utility-infrastructure-v1.js
+          cp release-v2300/world-v2300-utility-infrastructure-v1.js site/app/world-v2300-utility-infrastructure-v1.js
+
+          # Cache-bust only the two script tags while keeping V6231 auth + globe files.
+          python3 - <<'PY'
+          from pathlib import Path
+          files=[
+              ("site/index.html",'landing.js?v=6231-globe-root','landing.js?v=6232-utility-auth-preserved'),
+              ("site/app/index.html",'app.js?v=6231-globe-root','app.js?v=6232-utility-auth-preserved'),
+          ]
+          for name,old,new in files:
+              p=Path(name)
+              data=p.read_text(encoding="utf-8")
+              if data.count(old)!=1:
+                  raise SystemExit(f"{name}: expected exactly one {old} reference")
+              p.write_text(data.replace(old,new),encoding="utf-8")
+          PY
+
+          node --check site/landing.js
+          node --check site/app.js
+          node --input-type=module --check < site/world-v2300-utility-infrastructure-v1.js
+          node --input-type=module --check < site/app/world-v2300-utility-infrastructure-v1.js
+
+          grep -Fq 'bpAuthRequestV6228' site/landing.js
+          grep -Fq 'bp:welcome-gate-unlocked-v6229' site/landing.js
+          grep -Fq 'https://solaris-boat-upgrades-stocks.trycloudflare.com' site/app.js
+          grep -Fq 'world-v2300-utility-infrastructure-v1.js?v=3-style-bootstrap-auth-preserved' site/landing.js
+          grep -Fq 'world-v2300-utility-infrastructure-v1.js?v=3-style-bootstrap-auth-preserved' site/app.js
+          grep -Fq 'landing.js?v=6232-utility-auth-preserved' site/index.html
+          grep -Fq 'app.js?v=6232-utility-auth-preserved' site/app/index.html
+          grep -Fq "typeof map.getStyle !== 'function'" site/world-v2300-utility-infrastructure-v1.js
+          cmp -s site/world-v2300-utility-infrastructure-v1.js site/app/world-v2300-utility-infrastructure-v1.js
+
+          python3 - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          root=Path("site")
+          before=json.loads(Path("/tmp/v6231-before.json").read_text())
+          after={p.relative_to(root).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                 for p in root.rglob("*") if p.is_file()}
+          assert before.keys()==after.keys(),"Unexpected Pages asset set changes"
+          changed={p for p in before if before[p]!=after[p]}
+          expected={"index.html","landing.js","app.js","app/index.html",
+                    "world-v2300-utility-infrastructure-v1.js",
+                    "app/world-v2300-utility-infrastructure-v1.js"}
+          assert changed==expected,f"Unexpected changed assets: {sorted(changed)}"
+          print("PASS: V6231 sign-in/entry bundle restored; only two utility module copies, two loader bundles and their two script URLs changed.")
+          PY
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          name: bridgepoint-auth-preserved-utility-v6232
+          path: site
+          include-hidden-files: true
+
+      - name: Deploy restored authentication and utility renderer
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: bridgepoint-auth-preserved-utility-v6232
+
+      - name: Verify the live V6231 authentication logic and utility module
+        shell: bash
+        run: |
+          set -euo pipefail
+          O='https://bridgepointintelligence.online'
+          ok=0
+          for i in $(seq 1 30); do
+            q="${GITHUB_SHA}-${i}-$(date +%s)"
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/?verify-auth-utility=${q}" -o /tmp/live-root.html || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/?verify-auth-utility=${q}" -o /tmp/live-app.html || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/landing.js?verify-auth-utility=${q}" -o /tmp/live-landing.js || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app.js?verify-auth-utility=${q}" -o /tmp/live-app.js || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/sw.js?verify-auth-utility=${q}" -o /tmp/live-sw.js || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/signin/?verify-auth-utility=${q}" -o /tmp/live-signin.html || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/world-v2300-utility-infrastructure-v1.js?v=3-style-bootstrap-auth-preserved&verify=${q}" -o /tmp/live-utility.js || true
+            if grep -Fq 'landing.js?v=6232-utility-auth-preserved' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'app.js?v=6232-utility-auth-preserved' /tmp/live-app.html 2>/dev/null &&
+               grep -Fq 'bpAuthRequestV6228' /tmp/live-landing.js 2>/dev/null &&
+               grep -Fq 'bp:welcome-gate-unlocked-v6229' /tmp/live-landing.js 2>/dev/null &&
+               grep -Fq 'https://solaris-boat-upgrades-stocks.trycloudflare.com' /tmp/live-app.js 2>/dev/null &&
+               grep -Fq "BOOTSTRAP_AUTH_BUILD='v6230'" /tmp/live-sw.js 2>/dev/null &&
+               grep -Fq "GLOBE_ROOT_BUILD='v6231'" /tmp/live-sw.js 2>/dev/null &&
+               grep -Fq 'bp_auth_v5045' /tmp/live-signin.html 2>/dev/null &&
+               grep -Fq 'typeof map.getStyle !== '\''function'\''' /tmp/live-utility.js 2>/dev/null &&
+               grep -Fq 'bpw-globe-aura' /tmp/live-root.html 2>/dev/null; then
+              ok=1
+              break
+            fi
+            sleep 4
+          done
+          test "$ok" -eq 1
+          echo "Live V6231 mobile auth + sign-in handoff restored; 3D utility renderer retained."
