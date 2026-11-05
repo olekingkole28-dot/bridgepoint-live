@@ -145,13 +145,16 @@ jobs:
           before=json.loads(Path("/tmp/v6231-before.json").read_text())
           after={p.relative_to(root).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
                  for p in root.rglob("*") if p.is_file()}
-          assert before.keys()==after.keys(),"Unexpected Pages asset set changes"
-          changed={p for p in before if before[p]!=after[p]}
-          expected={"index.html","landing.js","app.js","app/index.html",
-                    "world-v2300-utility-infrastructure-v1.js",
-                    "app/world-v2300-utility-infrastructure-v1.js"}
-          assert changed==expected,f"Unexpected changed assets: {sorted(changed)}"
-          print("PASS: V6231 sign-in/entry bundle restored; only two utility module copies, two loader bundles and their two script URLs changed.")
+          removed=set(before)-set(after)
+          added=set(after)-set(before)
+          expected_added={"world-v2300-utility-infrastructure-v1.js",
+                          "app/world-v2300-utility-infrastructure-v1.js"}
+          assert not removed, f"Unexpected removed assets: {sorted(removed)}"
+          assert added==expected_added, f"Unexpected added assets: {sorted(added)}"
+          changed={p for p in before if p in after and before[p]!=after[p]}
+          expected_changed={"index.html","landing.js","app.js","app/index.html"}
+          assert changed==expected_changed, f"Unexpected modified existing assets: {sorted(changed)}"
+          print("PASS: V6231 auth bundle preserved; only four expected existing files changed and the two utility module copies were added.")
           PY
 
       - uses: actions/configure-pages@v5
