@@ -799,6 +799,9 @@ async function initMap(){
   void import('./world-v2300-infrastructure-volume-v5962.js?v=5970-globe-model-matrices')
    .then(m=>{window.__BP_INFRASTRUCTURE_VOLUME_V5962__=m.initInfrastructureVolume(world)})
    .catch(e=>console.warn('BridgePoint power grid and FCC tower volume unavailable',e));
+  void import('./world-v2300-utility-infrastructure-v1.js?v=1-global-openinframap-poles')
+   .then(m=>{window.__BP_UTILITY_INFRASTRUCTURE_V1__=m.initUtilityInfrastructure(world)})
+   .catch(e=>console.warn('BridgePoint global mapped 3D utility infrastructure unavailable',e));
   void import('./world-v2300-sensor-layers.js?v=6015-nasa-light-toggle')
    .then(m=>{window.__BP_SENSOR_LAYERS_V5945__=m.initSensorLayers(world)})
    .catch(e=>console.warn('BridgePoint NASA night lights, GEBCO depth and mapped streetlights unavailable',e));
