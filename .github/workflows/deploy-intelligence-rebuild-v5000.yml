@@ -315,6 +315,7 @@ jobs:
           test -s rebuild-v5000/bridgepoint-global-bridges-v1.js
           node --check rebuild-v5000/bridgepoint-global-bridges-v1.js
           node tests/global-bridges-v1.test.cjs
+          node tests/bridge-materializer-v2.test.cjs
           node --check rebuild-v5000/bridgepoint-reality-assets-v5968.js
           node --check rebuild-v5000/bridgepoint-blender-world-v1.js
           python -m py_compile tools/reality_assets/package_manhattan_city_tiles.py tools/reality_assets/georeference_manhattan_city_tiles.py
@@ -648,6 +649,10 @@ jobs:
           # Carry forward only the proven map engine pieces used by the new shell.
           cp release-v2300/world-v2300-config.js site/world-v2300-config.js
           cp release-v2300/world-v2300-map.js site/world-v2300-map.js
+          test -s rebuild-v5000/bridgepoint-ct-nbi-2026.json
+          node -e "const a=JSON.parse(require('fs').readFileSync('rebuild-v5000/bridgepoint-ct-nbi-2026.json','utf8'));if(a.length!==4352)throw Error('FHWA_CT_2026_RECORD_COUNT '+a.length);console.log('BRIDGEPOINT_FHWA_CT_2026_PASS',a.length)"
+          cp rebuild-v5000/bridgepoint-ct-nbi-2026.json site/bridgepoint-ct-nbi-2026.json
+          test -s site/bridgepoint-ct-nbi-2026.json
           cp release-v2300/world-v2300-tree-catalog.js site/world-v2300-tree-catalog.js
           cp release-v2300/world-v2300-tree-canopy-lod.js site/world-v2300-tree-canopy-lod.js
           cp release-v2300/world-v2300-tree-instanced.js site/world-v2300-tree-instanced.js
