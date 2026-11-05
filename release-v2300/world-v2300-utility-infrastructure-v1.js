@@ -1,8 +1,9 @@
-const VERSION = 3;
+const VERSION = 4;
 const POWER_SOURCE = 'bp-utility-power-v1';
 const TELECOM_SOURCE = 'bp-utility-telecom-v1';
 const THREE_URL = '/vendor/three.module.js?v=169-local';
-const MIN_ZOOM = 12;
+const MIN_ZOOM = 11.5;
+const MAX_GROUND_SAMPLES = 96;
 const MAX_SOURCE_ZOOM = 17;
 const MAX_SUPPORTS = 720;
 const MAX_SPANS = 560;
@@ -118,11 +119,11 @@ function terrainAt(map, coordinate) {
   try {
     const value = map.queryTerrainElevation && map.queryTerrainElevation(
       [Number(coordinate[0]), Number(coordinate[1])],
-      { exaggerated: false }
+      { exaggerated: true }
     );
-    return value !== null && value !== undefined && Number.isFinite(Number(value)) ? Number(value) : 0;
+    return value !== null && value !== undefined && Number.isFinite(Number(value)) ? Number(value) : null;
   } catch (_) {
-    return 0;
+    return null;
   }
 }
 
@@ -323,9 +324,11 @@ export function initUtilityInfrastructure(target) {
   let THREE = null, threePromise = null, renderer = null, scene = null, dataGroup = null, customLayer = null;
   let dead = false, refreshTimer = null, sequence = 0, bootTries = 0, lastZoom = -1, listenersBound = false;
   let styleInitPromise = null, customLayerInstalling = false;
-  let bodyGeometry = null, armGeometry = null, insulatorGeometry = null, towerGeometry = null;
+  let bodyGeometry = null, poleBaseGeometry = null, armGeometry = null, braceGeometry = null;
+  let insulatorGeometry = null, telecomBracketGeometry = null, towerGeometry = null;
   let transformerGeometry = null, switchGeometry = null, cabinetGeometry = null, mastGeometry = null, spliceBoxGeometry = null;
-  let woodMaterial = null, towerMaterial = null, metalMaterial = null, cableMaterial = null, telecomMaterial = null;
+  let woodMaterial = null, towerMaterial = null, metalMaterial = null, ceramicMaterial = null;
+  let cableMaterial = null, telecomMaterial = null;
   let distributionCableMaterial = null, telecomCableMaterial = null, guyWireMaterial = null;
   let municipalStreetlightFeatures = [], municipalRequestKey = '', municipalFetchedAt = 0, municipalRequestPromise = null;
   let overpassFeatures = [], overpassRequestKey = '', overpassFetchedAt = 0, overpassRequestPromise = null;
@@ -341,7 +344,8 @@ export function initUtilityInfrastructure(target) {
   function localTerrainAt(coordinate) {
     const key = groundKey(coordinate);
     if (groundElevationCache.has(key)) return groundElevationCache.get(key);
-    return terrainAt(map, coordinate);
+    const terrain = terrainAt(map, coordinate);
+    return Number.isFinite(terrain) ? terrain : 0;
   }
 
   async function loadUSGS3DEPGround(assets) {
@@ -360,27 +364,34 @@ export function initUtilityInfrastructure(target) {
         const [lon, lat] = coordinate;
         if (lon < -180 || lon > -50 || lat < 5 || lat > 75) continue;
         const key = groundKey(coordinate);
-        if (groundElevationCache.has(key) || groundElevationPending.has(key) ||
-            (groundElevationRetryAt.get(key) || 0) > Date.now()) continue;
+        // Prefer the same exaggerated DEM sample used by the visible globe.
+        // Only ask EPQS for points where the active map DEM has no decoded height.
+        if (groundElevationCache.has(key) || Number.isFinite(terrainAt(map, coordinate)) ||
+            groundElevationPending.has(key) || (groundElevationRetryAt.get(key) || 0) > Date.now()) continue;
         unique.set(key, coordinate);
       }
-      const items = [...unique.entries()].slice(0, 140);
+      const center = map.getCenter && map.getCenter();
+      const items = [...unique.entries()].sort((a, b) => {
+        if (!center) return 0;
+        const ca = a[1], cb = b[1];
+        return haversineMetres(ca, [center.lng, center.lat]) - haversineMetres(cb, [center.lng, center.lat]);
+      }).slice(0, MAX_GROUND_SAMPLES);
       if (!items.length) return false;
       let changed = 0, cursor = 0;
       const worker = async () => {
         while (cursor < items.length && !dead) {
           const [key, coordinate] = items[cursor++];
           groundElevationPending.add(key);
+          let timeout = null;
           try {
             const url = 'https://epqs.nationalmap.gov/v1/json?x=' +
               encodeURIComponent(coordinate[0]) + '&y=' + encodeURIComponent(coordinate[1]) +
               '&units=Meters&wkid=4326&includeDate=false';
             const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 6500);
+            timeout = setTimeout(() => controller.abort(), 4500);
             const response = await fetch(url, {
               mode: 'cors', credentials: 'omit', headers: { Accept: 'application/json' }, signal: controller.signal
             });
-            clearTimeout(timeout);
             if (!response.ok) throw new Error('USGS EPQS HTTP ' + response.status);
             const json = await response.json();
             const value = Number(json && json.value);
@@ -393,11 +404,12 @@ export function initUtilityInfrastructure(target) {
           } catch (_) {
             groundElevationRetryAt.set(key, Date.now() + 600000);
           } finally {
+            if (timeout) clearTimeout(timeout);
             groundElevationPending.delete(key);
           }
         }
       };
-      await Promise.all(Array.from({ length: Math.min(6, items.length) }, worker));
+      await Promise.all(Array.from({ length: Math.min(8, items.length) }, worker));
       if (changed) {
         state.groundSamples = groundElevationCache.size;
         if (!dead) scheduleRefresh();
@@ -421,24 +433,38 @@ export function initUtilityInfrastructure(target) {
   }
 
   function createGeometry() {
-    bodyGeometry = new THREE.CylinderGeometry(.0085, .014, 1, 10).translate(0, .5, 0);
-    armGeometry = new THREE.BoxGeometry(.225, .014, .018).translate(0, .84, 0);
-    insulatorGeometry = new THREE.CylinderGeometry(.005, .0075, .028, 8).translate(0, .98, 0);
+    // Geometry is authored in real metres. Only the vertical pole shaft scales by
+    // the source pole height; crossarms, insulators and braces keep physical size.
+    bodyGeometry = new THREE.CylinderGeometry(.082, .145, 1, 14).translate(0, .5, 0);
+    poleBaseGeometry = new THREE.CylinderGeometry(.145, .18, .26, 14).translate(0, .13, 0);
+    armGeometry = new THREE.BoxGeometry(1, .09, .14);
+    braceGeometry = (() => {
+      const vertices = [];
+      pushBeam(vertices, new THREE.Vector3(-.48, 0, 0), new THREE.Vector3(-.045, -.62, 0), .026, THREE, 7);
+      pushBeam(vertices, new THREE.Vector3(.48, 0, 0), new THREE.Vector3(.045, -.62, 0), .026, THREE, 7);
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+      geometry.computeVertexNormals();
+      return geometry;
+    })();
+    insulatorGeometry = new THREE.CylinderGeometry(.038, .052, .20, 10).translate(0, .10, 0);
+    telecomBracketGeometry = new THREE.BoxGeometry(.72, .06, .10);
     towerGeometry = makeTowerGeometry(THREE);
-    transformerGeometry = new THREE.CylinderGeometry(.34, .38, 1.0, 12);
+    transformerGeometry = new THREE.CylinderGeometry(.34, .38, 1.0, 16);
     switchGeometry = new THREE.BoxGeometry(.42, .24, .3);
     cabinetGeometry = new THREE.BoxGeometry(.72, .82, .48);
     mastGeometry = new THREE.CylinderGeometry(.012, .035, 1, 8).translate(0, .5, 0);
-    spliceBoxGeometry = new THREE.BoxGeometry(.34, .22, .18);
+    spliceBoxGeometry = new THREE.BoxGeometry(.44, .28, .22);
 
-    woodMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .78, metalness: .04, emissive: 0x342316, emissiveIntensity: .22 });
+    woodMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .86, metalness: .015, emissive: 0x1b140b, emissiveIntensity: .07 });
     towerMaterial = new THREE.MeshStandardMaterial({ color: 0x65717a, roughness: .58, metalness: .62 });
-    metalMaterial = new THREE.MeshStandardMaterial({ color: 0xb0bdc0, roughness: .4, metalness: .62, emissive: 0x1b2527, emissiveIntensity: .12 });
+    metalMaterial = new THREE.MeshStandardMaterial({ color: 0xaab4b9, roughness: .42, metalness: .58, emissive: 0x111719, emissiveIntensity: .08 });
+    ceramicMaterial = new THREE.MeshStandardMaterial({ color: 0xe4dfd1, roughness: .36, metalness: .03 });
     cableMaterial = new THREE.MeshStandardMaterial({ color: 0xf3dfba, roughness: .48, metalness: .16, emissive: 0x201c16, emissiveIntensity: .08 });
-    telecomMaterial = new THREE.MeshStandardMaterial({ color: 0x70838e, roughness: .62, metalness: .28 });
-    distributionCableMaterial = new THREE.MeshStandardMaterial({ color: 0x34383a, roughness: .76, metalness: .12, emissive: 0x090b0c, emissiveIntensity: .06 });
-    telecomCableMaterial = new THREE.MeshStandardMaterial({ color: 0x14191d, roughness: .86, metalness: .02, emissive: 0x050607, emissiveIntensity: .04 });
-    guyWireMaterial = new THREE.MeshStandardMaterial({ color: 0x555d63, roughness: .7, metalness: .25 });
+    telecomMaterial = new THREE.MeshStandardMaterial({ color: 0x526573, roughness: .72, metalness: .14 });
+    distributionCableMaterial = new THREE.MeshStandardMaterial({ color: 0x2c3135, roughness: .84, metalness: .16, emissive: 0x08090a, emissiveIntensity: .035 });
+    telecomCableMaterial = new THREE.MeshStandardMaterial({ color: 0x101519, roughness: .88, metalness: .02, emissive: 0x030405, emissiveIntensity: .025 });
+    guyWireMaterial = new THREE.MeshStandardMaterial({ color: 0x737d82, roughness: .66, metalness: .48 });
   }
 
   function installSources() {
@@ -1020,26 +1046,36 @@ export function initUtilityInfrastructure(target) {
     if (!Number.isFinite(distance) || distance < 10) return null;
     const bearing = Math.atan2(offset[0], offset[1]);
     const acrossEast = Math.cos(bearing), acrossNorth = -Math.sin(bearing);
-    const sag = Math.min(kind === 'telecom' ? 6 : 10, Math.max(.35, distance * (kind === 'telecom' ? .018 : .026)));
-    const conductorCount = kind === 'telecom' ? 1 : Math.max(1, Math.min(4, Number(span.conductorCount) || 3));
-    const spacing = kind === 'telecom' ? .045 : .34;
+    const telecom = kind === 'telecom';
+    const sag = Math.min(telecom ? 2.4 : 3.2, Math.max(telecom ? .30 : .42, distance * (telecom ? .012 : .018)));
+    // Catenary parameter a = L² / (8s) gives the intended mid-span drop
+    // while keeping both ends exactly on the support insulator/messenger height.
+    const catenaryA = distance * distance / Math.max(.1, 8 * sag);
+    const catenaryEnd = Math.cosh(distance / (2 * catenaryA));
+    const conductorCount = telecom ? 2 : Math.max(1, Math.min(4, Number(span.conductorCount) || 3));
+    const spacing = telecom ? .13 : .34;
     const lanes = Array.from({ length: conductorCount }, (_, i) =>
       (i - (conductorCount - 1) * .5) * spacing
     );
+    const attachmentHeight = support => telecom
+      ? support.height * .68 + .07
+      : support.height * .84 + .245;
+    const heightA = attachmentHeight(span.a);
+    const heightB = attachmentHeight(span.b);
     const vertices = [];
     for (const lane of lanes) {
       let previous = null;
-      const steps = Math.min(18, Math.max(6, Math.ceil(distance / 28)));
+      const steps = Math.min(48, Math.max(12, Math.ceil(distance / 7)));
       for (let i = 0; i <= steps; i++) {
         const t = i / steps;
         const east = offset[0] * t + acrossEast * lane;
         const north = offset[1] * t + acrossNorth * lane;
-        const base = anchorGround + (nextGround - anchorGround) * t;
-        const heightA = kind === 'telecom' ? span.a.height * .76 : span.a.height * .94;
-        const heightB = kind === 'telecom' ? span.b.height * .76 : span.b.height * .94;
-        const height = base - anchorGround + heightA + (heightB - heightA) * t - 4 * sag * t * (1 - t);
+        const terrainDelta = (nextGround - anchorGround) * t;
+        const linearHeight = heightA + (heightB - heightA) * t;
+        const sagDrop = catenaryA * (Math.cosh((t - .5) * distance / catenaryA) - catenaryEnd);
+        const height = terrainDelta + linearHeight + sagDrop;
         const current = new THREE.Vector3(east, height, -north);
-        if (previous) pushBeam(vertices, previous, current, kind === 'telecom' ? .010 : .018, THREE, 6);
+        if (previous) pushBeam(vertices, previous, current, telecom ? .014 : .019, THREE, 8);
         previous = current;
       }
     }
@@ -1049,7 +1085,7 @@ export function initUtilityInfrastructure(target) {
     geometry.computeVertexNormals();
     const matrix = modelMatrixFor(map, THREE, anchor, anchorGround);
     if (!matrix) { geometry.dispose(); return null; }
-    const mesh = new THREE.Mesh(geometry, kind === 'telecom' ? telecomCableMaterial : distributionCableMaterial);
+    const mesh = new THREE.Mesh(geometry, telecom ? telecomCableMaterial : distributionCableMaterial);
     mesh.matrix.copy(matrix);
     mesh.matrixAutoUpdate = false;
     mesh.frustumCulled = false;
@@ -1076,9 +1112,20 @@ export function initUtilityInfrastructure(target) {
       const base = localTerrainAt(support.coordinate);
       const anchorGround = localTerrainAt(anchor);
       const offset = localEastNorth(support.coordinate, anchor);
+      const length = Math.hypot(offset[0], offset[1]);
+      if (length < 1) continue;
       const vertices = [];
-      pushBeam(vertices, new THREE.Vector3(0, support.height * .78, 0),
-        new THREE.Vector3(offset[0], anchorGround - base + .22, -offset[1]), .010, THREE, 5);
+      let previous = null;
+      for (let i = 0; i <= 12; i++) {
+        const t = i / 12;
+        const point = new THREE.Vector3(
+          offset[0] * t,
+          support.height * .78 * (1 - t) + (anchorGround - base + .22) * t - .10 * 4 * t * (1 - t),
+          -offset[1] * t
+        );
+        if (previous) pushBeam(vertices, previous, point, .012, THREE, 6);
+        previous = point;
+      }
       if (!vertices.length) continue;
       const geometry = new THREE.BufferGeometry();
       geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
@@ -1107,56 +1154,75 @@ export function initUtilityInfrastructure(target) {
     // The custom renderer draws local distribution supports only. Transmission towers
     // and high-voltage routes remain in the original yellow BridgePoint layer.
     const poleMesh = new THREE.InstancedMesh(bodyGeometry, woodMaterial, supports.length);
+    const poleBaseMesh = new THREE.InstancedMesh(poleBaseGeometry, woodMaterial, supports.length);
     const armMesh = new THREE.InstancedMesh(armGeometry, woodMaterial, supports.length);
-    const insulatorMesh = new THREE.InstancedMesh(insulatorGeometry, metalMaterial, supports.length * 3);
-    poleMesh.count = 0; armMesh.count = 0; insulatorMesh.count = 0;
-    for (const mesh of [poleMesh, armMesh, insulatorMesh]) {
+    const braceMesh = new THREE.InstancedMesh(braceGeometry, woodMaterial, supports.length);
+    const insulatorMesh = new THREE.InstancedMesh(insulatorGeometry, ceramicMaterial, supports.length * 3);
+    const telecomBracketMesh = new THREE.InstancedMesh(telecomBracketGeometry, metalMaterial, supports.length);
+    const hardwareMeshes = [poleMesh, poleBaseMesh, armMesh, braceMesh, insulatorMesh, telecomBracketMesh];
+    for (const mesh of hardwareMeshes) {
+      mesh.count = 0;
       mesh.frustumCulled = false;
       mesh.renderOrder = 920;
     }
-    let poleCount = 0, measured = 0, estimated = 0;
+    let poleCount = 0, measured = 0, estimated = 0, groundUnresolved = 0;
     for (const support of supports) {
       const ground = localTerrainAt(support.coordinate);
-      const yaw = ((Number(support.bearing) || 0) + 90) * RAD;
-      const scale = support.height, index = poleCount;
-      if (!setInstance(poleMesh, index, map, THREE, support.coordinate, ground, yaw, [scale, scale, scale])) continue;
+      if (!groundElevationCache.has(groundKey(support.coordinate)) && !Number.isFinite(terrainAt(map, support.coordinate))) groundUnresolved++;
+      const index = poleCount;
+      const model = modelMatrixFor(map, THREE, support.coordinate, ground);
+      if (!model) continue;
       poleCount++;
       if (support.measuredHeight) measured++; else estimated++;
       const materialTag = String(support.material || '').toLowerCase();
       const poleHex = materialTag.includes('concrete') ? 0x9da8ad :
         (materialTag.includes('steel') || materialTag.includes('metal') || materialTag.includes('iron') || materialTag.includes('alumin')) ? 0x98a5aa :
-        materialTag.includes('composite') ? 0x7d8990 : 0x9a7953;
+        materialTag.includes('composite') ? 0x7d8990 : 0xb08a5b;
       const poleColor = new THREE.Color(poleHex);
-      poleMesh.setColorAt(index, poleColor);
-      armMesh.setColorAt(index, poleColor);
-      const model = modelMatrixFor(map, THREE, support.coordinate, ground);
-      if (model) {
-        const rotation = new THREE.Matrix4().makeRotationY(yaw);
-        const scaled = new THREE.Matrix4().makeScale(scale, scale, scale);
-        const armLength = Math.max(.8, Math.min(4.5, Number(support.armLengthMetres) || 2.0));
-        const armScale = armLength / (.225 * scale);
-        armMesh.setMatrixAt(index, model.clone().multiply(rotation).multiply(scaled)
-          .multiply(new THREE.Matrix4().makeScale(armScale, 1, 1)));
-        for (let pin = 0; pin < 3; pin++) {
-          const across = (pin - 1) * (Math.min(.32, armLength * .4) / scale);
-          const pinMatrix = model.clone().multiply(rotation).multiply(scaled)
-            .multiply(new THREE.Matrix4().makeTranslation(across, 0, 0));
-          insulatorMesh.setMatrixAt(index * 3 + pin, pinMatrix);
-        }
-        armMesh.count = poleCount;
-        insulatorMesh.count = poleCount * 3;
+      for (const mesh of [poleMesh, poleBaseMesh, armMesh, braceMesh]) mesh.setColorAt(index, poleColor);
+
+      // OSM bearing is the direction of the span. A crossarm runs perpendicular
+      // to it: north/south wires get an east/west arm, east/west wires get a north/south arm.
+      const yaw = ((Number.isFinite(Number(support.bearing)) ? Number(support.bearing) : 0) * RAD);
+      const rotation = new THREE.Matrix4().makeRotationY(yaw);
+      const sourceHeight = Math.max(6, Number(support.height) || 11);
+      const height = support.measuredHeight ? Math.min(60, sourceHeight) : 11;
+      const armLength = Math.max(1.2, Math.min(4.5, Number(support.armLengthMetres) || 2.0));
+      const crossarmY = height * .84;
+      poleMesh.setMatrixAt(index, model.clone().multiply(rotation)
+        .multiply(new THREE.Matrix4().makeScale(1, height, 1)));
+      poleBaseMesh.setMatrixAt(index, model.clone().multiply(rotation));
+      const armTransform = model.clone().multiply(rotation)
+        .multiply(new THREE.Matrix4().makeTranslation(0, crossarmY, 0))
+        .multiply(new THREE.Matrix4().makeScale(armLength, 1, 1));
+      armMesh.setMatrixAt(index, armTransform);
+      braceMesh.setMatrixAt(index, armTransform);
+      const pinOffset = Math.min(.34, armLength * .36);
+      for (let pin = 0; pin < 3; pin++) {
+        const across = (pin - 1) * pinOffset;
+        const pinMatrix = model.clone().multiply(rotation)
+          .multiply(new THREE.Matrix4().makeTranslation(across, crossarmY + .045, 0));
+        insulatorMesh.setMatrixAt(index * 3 + pin, pinMatrix);
       }
+      const telecomMatrix = model.clone().multiply(rotation)
+        .multiply(new THREE.Matrix4().makeTranslation(0, height * .68, 0));
+      telecomBracketMesh.setMatrixAt(index, telecomMatrix);
+      armMesh.count = poleCount;
+      braceMesh.count = poleCount;
+      poleBaseMesh.count = poleCount;
+      insulatorMesh.count = poleCount * 3;
+      telecomBracketMesh.count = poleCount;
     }
     poleMesh.count = poleCount;
     if (poleCount) {
-      poleMesh.instanceMatrix.needsUpdate = true;
-      armMesh.instanceMatrix.needsUpdate = true;
-      insulatorMesh.instanceMatrix.needsUpdate = true;
-      if (poleMesh.instanceColor) poleMesh.instanceColor.needsUpdate = true;
-      if (armMesh.instanceColor) armMesh.instanceColor.needsUpdate = true;
-      dataGroup.add(poleMesh, armMesh, insulatorMesh);
+      for (const mesh of hardwareMeshes) {
+        mesh.instanceMatrix.needsUpdate = true;
+        if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+        dataGroup.add(mesh);
+      }
     }
 
+    state.groundUnresolved = groundUnresolved;
     const transformerMesh = new THREE.InstancedMesh(transformerGeometry, metalMaterial, assets.transformers.length);
     let transformerCount = 0;
     for (const transformer of assets.transformers) {
@@ -1237,7 +1303,7 @@ export function initUtilityInfrastructure(target) {
       const ground = localTerrainAt(mast.coordinate);
       const matrix = modelMatrixFor(map, THREE, mast.coordinate, ground);
       if (!matrix) continue;
-      matrix.multiply(new THREE.Matrix4().makeScale(mast.height, mast.height, mast.height));
+      matrix.multiply(new THREE.Matrix4().makeScale(1, mast.height, 1));
       mastMesh.setMatrixAt(mastCount++, matrix);
       if (mast.measuredHeight) measured++; else estimated++;
     }
@@ -1305,8 +1371,11 @@ export function initUtilityInfrastructure(target) {
       void loadOverpassInfrastructure();
       const assets = collectAssets();
       if (seq !== sequence || dead) return;
+      // Resolve missing DEM ground anchors before placing the complete structures.
+      // This prevents poles from being built at zero elevation and buried by terrain.
+      await loadUSGS3DEPGround(assets);
+      if (seq !== sequence || dead) return;
       buildSceneAssets(assets);
-      void loadUSGS3DEPGround(assets);
       state.lineFeatures = assets.lineCount;
       state.enabled = true;
       state.ready = true;
@@ -1319,7 +1388,7 @@ export function initUtilityInfrastructure(target) {
   function scheduleRefresh() {
     if (dead) return;
     clearTimeout(refreshTimer);
-    refreshTimer = setTimeout(() => { void refresh(); }, 260);
+    refreshTimer = setTimeout(() => { void refresh(); }, 85);
   }
 
   function onStyleReady() {
@@ -1386,6 +1455,7 @@ export function initUtilityInfrastructure(target) {
     switches: state.switches, cabinets: state.cabinets, telecomMasts: state.telecomMasts,
     municipalPoleCount: state.municipalPoleCount, telecomPoleCount: state.telecomPoleCount,
     guyWireCount: state.guyWireCount, groundSamples: groundElevationCache.size,
+    groundUnresolved: state.groundUnresolved || 0,
     measuredHeights: state.measuredHeights, estimatedHeights: state.estimatedHeights,
     lineFeatures: state.lineFeatures || 0, source: state.source, heightNote: state.heightNote,
     updatedAt: state.updatedAt
