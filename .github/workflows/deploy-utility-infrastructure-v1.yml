@@ -1,0 +1,143 @@
+name: Deploy BridgePoint mapped 3D utility infrastructure v1
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-utility-infrastructure-v1.yml'
+
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+
+# Serialize with the production publisher; this is a narrow hotfix over the
+# last verified Pages artifact, not a fresh rebuild of the rest of BridgePoint.
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: true
+
+jobs:
+  deploy-utility-infrastructure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download the last verified current Pages artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: bridgepoint-auth-resilience-v6228
+          run-id: 41801406213
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          path: /tmp/bridgepoint-pages-bundle
+
+      - name: Patch only the utility renderer and its loader cache keys
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p site
+          ARTIFACT_TAR="$(find /tmp/bridgepoint-pages-bundle -type f -name 'artifact.tar' -print -quit)"
+          test -n "$ARTIFACT_TAR"
+          tar -xf "$ARTIFACT_TAR" -C site
+
+          # Confirm that this is the verified globe/card production surface.
+          test -s site/index.html
+          test -s site/app/index.html
+          test -s site/landing.js
+          test -s site/app.js
+          grep -Fq 'bpWelcomeGateV1' site/index.html
+          grep -Fq 'bpw-globe-aura' site/index.html
+
+          # Reuse current, reviewed source files. The utility module is served
+          # at the root and app paths because both globe entrypoints import it.
+          cp rebuild-v5000/landing.js site/landing.js
+          cp rebuild-v5000/app.js site/app.js
+          cp release-v2300/world-v2300-utility-infrastructure-v1.js site/world-v2300-utility-infrastructure-v1.js
+          cp release-v2300/world-v2300-utility-infrastructure-v1.js site/app/world-v2300-utility-infrastructure-v1.js
+
+          # Force fresh loader and module URLs without changing globe markup,
+          # startup behavior, account code, card layout, or other world layers.
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          replacements = [
+              (Path("site/index.html"), "landing.js", "landing.js?v=6232-utility-3d"),
+              (Path("site/app/index.html"), "app.js", "app.js?v=6232-utility-3d"),
+          ]
+          for path, basename, replacement in replacements:
+              original = path.read_text(encoding="utf-8")
+              pattern = r'(?P<prefix>src=["'][^"']*/?' + re.escape(basename) + r')(?:\?[^"']*)?(?P<suffix>["'])'
+              updated, count = re.subn(
+                  pattern,
+                  lambda m: m.group("prefix") + "?" + replacement + m.group("suffix"),
+                  original,
+              )
+              if count != 1:
+                  raise SystemExit(f"{path}: expected one {basename} script tag, found {count}")
+              path.write_text(updated, encoding="utf-8")
+          PY
+
+          node --check site/landing.js
+          node --check site/app.js
+          node --input-type=module --check < site/world-v2300-utility-infrastructure-v1.js
+          node --input-type=module --check < site/app/world-v2300-utility-infrastructure-v1.js
+
+          grep -Fq 'v=2-style-bootstrap' site/landing.js
+          grep -Fq 'v=2-style-bootstrap' site/app.js
+          grep -Fq "typeof map.getStyle !== 'function'" site/world-v2300-utility-infrastructure-v1.js
+          grep -Fq "typeof map.getStyle === 'function'" site/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'landing.js?v=6232-utility-3d' site/index.html
+          grep -Fq 'app.js?v=6232-utility-3d' site/app/index.html
+
+          echo "Verified: utility renderer + root/app loaders only; globe/card shell preserved."
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          name: bridgepoint-utility-infrastructure-v6232
+          path: site
+          include-hidden-files: true
+
+      - name: Deploy mapped 3D utility infrastructure
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: bridgepoint-utility-infrastructure-v6232
+
+      - name: Verify the repaired website and app assets are live
+        shell: bash
+        run: |
+          set -euo pipefail
+          O='https://bridgepointintelligence.online'
+          ok=0
+          for i in $(seq 1 30); do
+            q="${GITHUB_SHA}-${i}-$(date +%s)"
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/landing.js?verify=${q}" -o /tmp/live-landing.js || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app.js?verify=${q}" -o /tmp/live-app.js || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/world-v2300-utility-infrastructure-v1.js?verify=${q}" -o /tmp/live-utility.js || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/world-v2300-utility-infrastructure-v1.js?verify=${q}" -o /tmp/live-app-utility.js || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/?verify=${q}" -o /tmp/live-root.html || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/?verify=${q}" -o /tmp/live-app.html || true
+            if grep -Fq 'v=2-style-bootstrap' /tmp/live-landing.js 2>/dev/null &&
+               grep -Fq 'v=2-style-bootstrap' /tmp/live-app.js 2>/dev/null &&
+               grep -Fq "typeof map.getStyle !== 'function'" /tmp/live-utility.js 2>/dev/null &&
+               grep -Fq "typeof map.getStyle !== 'function'" /tmp/live-app-utility.js 2>/dev/null &&
+               grep -Fq 'landing.js?v=6232-utility-3d' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'app.js?v=6232-utility-3d' /tmp/live-app.html 2>/dev/null; then
+              ok=1
+              break
+            fi
+            sleep 4
+          done
+          test "$ok" -eq 1
+          echo "Production root and signed-in app are both serving the repaired 3D utility renderer."
