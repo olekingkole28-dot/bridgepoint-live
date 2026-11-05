@@ -55,7 +55,7 @@ window.__BP_APP_BUILD_VERSION__=6230;"""+API+" bp_auth_v5045"
         self.assertIn("GLOBE_ROOT_BUILD='v6231'",out)
 
     def test_signin_normalizes_legacy_app_return_target(self):
-        src="const requestedReturn=params.get('return')||'/app/';const RETURN_TO=requestedReturn.startsWith('/')?requestedReturn:'/app/';const API_ORIGIN='"+API+"';const STORE='bp_auth_v5045';"
+        src="const requestedReturn=params.get('return')||'/app/';\nconst RETURN_TO=requestedReturn.startsWith('/')?requestedReturn:'/app/';const API_ORIGIN='"+API+"';const STORE='bp_auth_v5045';"
         out=patch_signin_template(src)
         self.assertIn("params.get('return')||'/'",out)
         self.assertIn("const RETURN_TO=(requestedReturn==='/app/'||requestedReturn==='/app')?'/':",out)
