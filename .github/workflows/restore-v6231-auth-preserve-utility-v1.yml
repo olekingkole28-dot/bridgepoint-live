@@ -78,7 +78,7 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           import re
-          version='world-v2300-utility-infrastructure-v1.js?v=4-oim17-renderer-ready'
+          version='world-v2300-utility-infrastructure-v1.js?v=5-distribution-telecom'
           landing=Path('site/landing.js')
           data=landing.read_text(encoding='utf-8')
           if '__BP_UTILITY_INFRASTRUCTURE_V1__' in data:
@@ -113,8 +113,8 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           files=[
-              ("site/index.html",'landing.js?v=6231-globe-root','landing.js?v=6233-utility-3d-ready'),
-              ("site/app/index.html",'app.js?v=6231-globe-root','app.js?v=6233-utility-3d-ready'),
+              ("site/index.html",'landing.js?v=6231-globe-root','landing.js?v=6234-distribution-poles'),
+              ("site/app/index.html",'app.js?v=6231-globe-root','app.js?v=6234-distribution-poles'),
           ]
           for name,old,new in files:
               p=Path(name)
@@ -132,10 +132,10 @@ jobs:
           grep -Fq 'bpAuthRequestV6228' site/landing.js
           grep -Fq 'bp:welcome-gate-unlocked-v6229' site/landing.js
           grep -Fq 'https://solaris-boat-upgrades-stocks.trycloudflare.com' site/app.js
-          grep -Fq 'world-v2300-utility-infrastructure-v1.js?v=4-oim17-renderer-ready' site/landing.js
-          grep -Fq 'world-v2300-utility-infrastructure-v1.js?v=4-oim17-renderer-ready' site/app.js
-          grep -Fq 'landing.js?v=6233-utility-3d-ready' site/index.html
-          grep -Fq 'app.js?v=6233-utility-3d-ready' site/app/index.html
+          grep -Fq 'world-v2300-utility-infrastructure-v1.js?v=5-distribution-telecom' site/landing.js
+          grep -Fq 'world-v2300-utility-infrastructure-v1.js?v=5-distribution-telecom' site/app.js
+          grep -Fq 'landing.js?v=6234-distribution-poles' site/index.html
+          grep -Fq 'app.js?v=6234-distribution-poles' site/app/index.html
           grep -Fq "typeof map.getStyle !== 'function'" site/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'const MAX_SOURCE_ZOOM = 17;' site/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'function ensureCustomLayerRenderer()' site/world-v2300-utility-infrastructure-v1.js
@@ -167,7 +167,7 @@ jobs:
 
       - uses: actions/upload-pages-artifact@v5
         with:
-          name: bridgepoint-auth-preserved-utility-v6233
+          name: bridgepoint-auth-preserved-distribution-v6234
           path: site
           include-hidden-files: true
 
@@ -175,7 +175,7 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
         with:
-          artifact_name: bridgepoint-auth-preserved-utility-v6233
+          artifact_name: bridgepoint-auth-preserved-distribution-v6234
 
       - name: Verify the live V6231 authentication logic and utility module
         shell: bash
@@ -191,9 +191,9 @@ jobs:
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app.js?verify-auth-utility=${q}" -o /tmp/live-app.js || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/sw.js?verify-auth-utility=${q}" -o /tmp/live-sw.js || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/signin/?verify-auth-utility=${q}" -o /tmp/live-signin.html || true
-            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/world-v2300-utility-infrastructure-v1.js?v=4-oim17-renderer-ready&verify=${q}" -o /tmp/live-utility.js || true
-            if grep -Fq 'landing.js?v=6233-utility-3d-ready' /tmp/live-root.html 2>/dev/null &&
-               grep -Fq 'app.js?v=6233-utility-3d-ready' /tmp/live-app.html 2>/dev/null &&
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/world-v2300-utility-infrastructure-v1.js?v=5-distribution-telecom&verify=${q}" -o /tmp/live-utility.js || true
+            if grep -Fq 'landing.js?v=6234-distribution-poles' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'app.js?v=6234-distribution-poles' /tmp/live-app.html 2>/dev/null &&
                grep -Fq 'bpAuthRequestV6228' /tmp/live-landing.js 2>/dev/null &&
                grep -Fq 'bp:welcome-gate-unlocked-v6229' /tmp/live-landing.js 2>/dev/null &&
                grep -Fq 'https://solaris-boat-upgrades-stocks.trycloudflare.com' /tmp/live-app.js 2>/dev/null &&
