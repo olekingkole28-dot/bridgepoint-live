@@ -56,8 +56,8 @@ jobs:
           grep -Fq 'app.js?v=6231-globe-root' site/app/index.html
           grep -Fq 'bpAuthRequestV6228' site/landing.js
           grep -Fq 'bp:welcome-gate-unlocked-v6229' site/landing.js
-          grep -Fq 'BOOTSTRAP_AUTH_BUILD='''v6230'''' site/sw.js
-          grep -Fq 'GLOBE_ROOT_BUILD='''v6231'''' site/sw.js
+          grep -Fq "BOOTSTRAP_AUTH_BUILD='v6230'" site/sw.js
+          grep -Fq "GLOBE_ROOT_BUILD='v6231'" site/sw.js
           grep -Fq '/signin/?mode=signin' site/app/index.html
           grep -Fq 'bp_auth_v5045' site/signin/index.html
           grep -Fq 'https://solaris-boat-upgrades-stocks.trycloudflare.com' site/app.js
@@ -177,7 +177,7 @@ jobs:
                grep -Fq "BOOTSTRAP_AUTH_BUILD='v6230'" /tmp/live-sw.js 2>/dev/null &&
                grep -Fq "GLOBE_ROOT_BUILD='v6231'" /tmp/live-sw.js 2>/dev/null &&
                grep -Fq 'bp_auth_v5045' /tmp/live-signin.html 2>/dev/null &&
-               grep -Fq 'typeof map.getStyle !== '\''function'\''' /tmp/live-utility.js 2>/dev/null &&
+               grep -Fq "typeof map.getStyle !== 'function'" /tmp/live-utility.js 2>/dev/null &&
                grep -Fq 'bpw-globe-aura' /tmp/live-root.html 2>/dev/null; then
               ok=1
               break
