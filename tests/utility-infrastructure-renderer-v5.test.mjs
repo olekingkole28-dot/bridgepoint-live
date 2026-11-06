@@ -32,7 +32,7 @@ assert.ok(source.includes('wireTileAnchor(coordinate, 16)'), 'wire batches use t
 assert.ok(source.includes("map.querySourceFeatures('bpBuildings', { sourceLayer: 'buildings' })"), 'residential service leads use source-mapped global building footprints');
 assert.ok(source.includes('function collectResidentialServiceDrops(supports)'), 'nearby residential footprints are connected to mapped distribution poles');
 assert.ok(source.includes('function appendServiceDrop(batch, drop)'), 'service leads are solid sagging polygon geometry');
-assert.ok(source.includes('SERVICE_DROP_MAX_DISTANCE_M = 42'), 'service leads are restricted to nearby footprints');
+assert.ok(source.includes('SERVICE_DROP_MAX_DISTANCE_M = 75'), 'service leads are restricted to nearby footprints');
 assert.ok(source.includes('preciseWireGroups'), 'local utility conductors are duplicated into an anchored street-level render pass');
 assert.ok(source.includes('for (const mesh of standardWireMeshes) mesh.visible = !closeZoom;'), 'absolute-coordinate cable meshes are hidden when the precision-safe street-level wire pass is active');
 assert.ok(source.includes('for (const group of preciseWireGroups) drawAnchoredGroup(group);'), 'street-level cable meshes use the CPU-composed anchor projection just like poles');
