@@ -1,14 +1,10 @@
 name: Publish BridgePoint Solid Utility Wires V9
 
 on:
-  push:
+  workflow_run:
+    workflows: ["Deploy BridgePoint Intelligence V5000 Rebuild"]
+    types: [completed]
     branches: [main]
-    paths:
-      - 'release-v2300/world-v2300-utility-infrastructure-v1.js'
-      - 'tests/utility-infrastructure-renderer-v5.test.mjs'
-      - '.github/workflows/verify-utility-infrastructure-v1.yml'
-      - '.github/workflows/publish-utility-solid-wires-v9.yml'
-  workflow_dispatch:
 
 permissions:
   actions: read
@@ -30,7 +26,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download the exact verified V8 production baseline
+      - name: Download the successful V5000 production artifact
+        if: github.event.workflow_run.conclusion == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.event.workflow_run.run_attempt }}
+          run-id: ${{ github.event.workflow_run.id }}
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/bp-pages-baseline
+
+      - name: Fall back to the verified V8 site when the full rebuild fails
+        if: github.event.workflow_run.conclusion != 'success'
         uses: actions/download-artifact@v4
         with:
           name: bridgepoint-close-zoom-poles-v8
