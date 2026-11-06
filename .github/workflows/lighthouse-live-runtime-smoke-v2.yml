@@ -30,8 +30,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y chromium
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium || true)
+          if [ -z "$CHROME" ]; then
+            sudo apt-get update
+            sudo apt-get install -y chromium
+            CHROME=$(command -v chromium)
+          fi
+          test -n "$CHROME"
+          echo "CHROME_PATH=$CHROME" >> "$GITHUB_ENV"
           mkdir -p /tmp/bp-lighthouse-smoke-v2
           cd /tmp
           npm init -y >/dev/null 2>&1 || true
@@ -39,7 +45,6 @@ jobs:
 
       - name: Test live homepage lighthouse beacons and close-zoom 3D tower
         env:
-          CHROME_PATH: /usr/bin/chromium
           BP_SMOKE_OUTPUT: /tmp/bp-lighthouse-smoke-v2
           NODE_PATH: /tmp/node_modules
         shell: bash
