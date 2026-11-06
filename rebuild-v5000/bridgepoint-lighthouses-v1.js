@@ -568,15 +568,12 @@ function addMarkerLayer(map) {
     map.addImage(BEACON_IMAGE_ID, canvas, { pixelRatio: 2 });
   }
   if (!map.getLayer(BEACON_LAYER_ID)) {
-    const style = map.getStyle && map.getStyle();
-    const before = style && Array.isArray(style.layers)
-      ? (style.layers.find(layer => layer.type === 'symbol') || {}).id : undefined;
     map.addLayer({
       id: BEACON_LAYER_ID, type: 'symbol', source: SOURCE_ID,
       minzoom: MIN_BEACON_ZOOM, maxzoom: MAX_BEACON_ZOOM,
       layout: {
         'icon-image': BEACON_IMAGE_ID,
-        'icon-size': ['interpolate', ['linear'], ['zoom'], 3.8, 0.28, 5, 0.42, 7.5, 0.62, 10, 0.72, 13.5, 0.58],
+        'icon-size': ['interpolate', ['linear'], ['zoom'], 3.8, 0.36, 5, 0.52, 7.5, 0.7, 10, 0.78, 13.5, 0.65],
         'icon-rotate': 0,
         'icon-rotation-alignment': 'viewport',
         'icon-pitch-alignment': 'viewport',
@@ -586,7 +583,7 @@ function addMarkerLayer(map) {
         'icon-padding': 0
       },
       paint: { 'icon-opacity': 0.98 }
-    }, before);
+    });
   }
 }
 
