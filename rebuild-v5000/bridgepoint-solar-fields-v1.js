@@ -17,8 +17,8 @@ const SOLAR_META_URL = 'https://solarworldmap.com/data/solar-meta.json';
 const OSM_SOURCE = 'https://www.openstreetmap.org/copyright';
 const OSM_EDIT_URL = 'https://www.openstreetmap.org/';
 const OVERPASS_ENDPOINTS = [
+  'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
   'https://overpass-api.de/api/interpreter',
-  'https://overpass.kumi.systems/api/interpreter',
   'https://overpass.private.coffee/api/interpreter'
 ];
 const SOURCE_ID = 'bp-solar-fields-source-v1';
@@ -40,7 +40,7 @@ const MAX_MODEL_SITES = typeof window !== 'undefined' &&
    (typeof navigator !== 'undefined' && Number(navigator.maxTouchPoints) > 0)) ? 7 : 16;
 const MAX_PANEL_TABLES = typeof window !== 'undefined' &&
   ((Number(window.innerWidth) || 1024) <= 820 ||
-   (typeof navigator !== 'undefined' && Number(navigator.maxTouchPoints) > 0)) ? 68 : 120;
+   (typeof navigator !== 'undefined' && Number(navigator.maxTouchPoints) > 0)) ? 280 : 650;
 const RAD = Math.PI / 180;
 const EMPTY = { type:'FeatureCollection', features:[] };
 
@@ -607,6 +607,11 @@ function addSolarFieldModel(THREE,feature,map) {
       if(pointInRings(x,z,rings))n++;
     return n;
   };
+  const estimate=Math.max(1,Math.ceil((maxX-minX)/stepX)*Math.ceil((maxZ-minZ)/stepZ));
+  if(estimate>MAX_PANEL_TABLES*1.35) {
+    const factor=Math.sqrt(estimate/(MAX_PANEL_TABLES*1.15));
+    stepX*=factor;stepZ*=factor;
+  }
   let count=countCandidates(stepX,stepZ);
   if(!count)return null;
   if(count>MAX_PANEL_TABLES) {
@@ -614,9 +619,9 @@ function addSolarFieldModel(THREE,feature,map) {
     stepX*=factor;stepZ*=factor;count=countCandidates(stepX,stepZ);
   }
   const placements=[];
-  for(let z=minZ+stepZ*0.5;z<maxZ;z+=stepZ)for(let x=minX+stepX*0.5;x<maxX;x+=stepX) {
+  outer: for(let z=minZ+stepZ*0.5;z<maxZ;z+=stepZ)for(let x=minX+stepX*0.5;x<maxX;x+=stepX) {
     if(pointInRings(x,z,rings))placements.push([x,z]);
-    if(placements.length>=MAX_PANEL_TABLES)break;
+    if(placements.length>=MAX_PANEL_TABLES)break outer;
   }
   if(!placements.length)return null;
   const root=new THREE.Group();root.name='BridgePoint Solar Field '+String(p.name||p.recordId||feature.id);
@@ -687,8 +692,15 @@ function modelCandidates(state) {
   const rows=[];
   for(const f of state.featureCache.values()) {
     if(!f.properties?.modelGeometry)continue;
+    const rings=geometryRings(f.properties.modelGeometry);
+    if(!rings.length)continue;
+    let west=Infinity,east=-Infinity,south=Infinity,north=-Infinity;
+    for(const ring of rings)for(const point of ring){
+      west=Math.min(west,point[0]);east=Math.max(east,point[0]);
+      south=Math.min(south,point[1]);north=Math.max(north,point[1]);
+    }
+    if(east<bounds.getWest()||west>bounds.getEast()||north<bounds.getSouth()||south>bounds.getNorth())continue;
     const c=f.geometry.coordinates;
-    if(c[0]<bounds.getWest()||c[0]>bounds.getEast()||c[1]<bounds.getSouth()||c[1]>bounds.getNorth())continue;
     const dx=(c[0]-center.lng)*111320*Math.max(0.1,Math.cos(c[1]*RAD));
     const dy=(c[1]-center.lat)*110540;
     rows.push({feature:f,d:dx*dx+dy*dy});
@@ -767,7 +779,7 @@ function installLayers(state) {
   if(!map||!map.getStyle?.())return false;
   try {
     if(!map.getSource(SOURCE_ID))map.addSource(SOURCE_ID,{type:'geojson',data:state.collection,
-      cluster:true,clusterRadius:54,clusterMaxZoom:5.3,maxzoom:16,
+      cluster:true,clusterRadius:54,clusterMaxZoom:8,maxzoom:16,
       attribution:'USGS and Lawrence Berkeley National Laboratory · OpenStreetMap contributors'});
     if(!map.getSource(FOOTPRINT_SOURCE_ID))map.addSource(FOOTPRINT_SOURCE_ID,{
       type:'geojson',data:state.footprints,maxzoom:15,
@@ -775,16 +787,16 @@ function installLayers(state) {
     const add=(id,layer)=>{if(!map.getLayer(id))map.addLayer(layer);};
     if(!map.hasImage?.('bp-solar-field-icon-v1'))map.addImage('bp-solar-field-icon-v1',makeSolarIcon('field'),{pixelRatio:2});
     if(!map.hasImage?.('bp-solar-field-cluster-icon-v1'))map.addImage('bp-solar-field-cluster-icon-v1',makeSolarIcon('cluster'),{pixelRatio:2});
-    add(CLUSTER_ID,{id:CLUSTER_ID,type:'circle',source:SOURCE_ID,filter:['has','point_count'],minzoom:0,maxzoom:6,
+    add(CLUSTER_ID,{id:CLUSTER_ID,type:'circle',source:SOURCE_ID,filter:['has','point_count'],minzoom:0,maxzoom:8.6,
       paint:{'circle-color':['step',['get','point_count'],'#e8c76e',25,'#dba84c',120,'#c9823e',500,'#a95d37'],
         'circle-radius':['step',['get','point_count'],11,10,14,50,19,200,25,1000,31],
         'circle-stroke-color':'#fff0bc','circle-stroke-width':1.25,'circle-opacity':0.97}});
-    add(CLUSTER_ICON_ID,{id:CLUSTER_ICON_ID,type:'symbol',source:SOURCE_ID,filter:['has','point_count'],minzoom:0,maxzoom:5.5,
+    add(CLUSTER_ICON_ID,{id:CLUSTER_ICON_ID,type:'symbol',source:SOURCE_ID,filter:['has','point_count'],minzoom:0,maxzoom:8.3,
       layout:{'icon-image':'bp-solar-field-cluster-icon-v1',
         'icon-size':['interpolate',['linear'],['zoom'],0,0.3,2.5,0.42,5,0.52],
         'icon-anchor':'center','icon-allow-overlap':true,'icon-ignore-placement':true,'icon-padding':0},
       paint:{'icon-opacity':1}});
-    add(CLUSTER_COUNT_ID,{id:CLUSTER_COUNT_ID,type:'symbol',source:SOURCE_ID,filter:['has','point_count'],minzoom:0,maxzoom:6,
+    add(CLUSTER_COUNT_ID,{id:CLUSTER_COUNT_ID,type:'symbol',source:SOURCE_ID,filter:['has','point_count'],minzoom:0,maxzoom:8.6,
       layout:{'text-field':['get','point_count_abbreviated'],'text-font':['Open Sans Bold','Arial Unicode MS Bold'],
         'text-size':['interpolate',['linear'],['zoom'],0,8,5.5,12],
         'text-allow-overlap':true,'text-ignore-placement':true},
