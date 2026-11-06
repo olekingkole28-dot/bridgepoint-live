@@ -173,9 +173,9 @@ jobs:
         run: |
           set -euo pipefail
           O='https://bridgepointintelligence.online'
-          q="$GITHUB_SHA-solid-utility-wires-v9"
-          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/?solid-utility-wires-v9=$q" -o /tmp/bp-root.html
-          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app/?solid-utility-wires-v9=$q" -o /tmp/bp-app.html
+          q="$GITHUB_SHA-solid-utility-wires-v10"
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/?solid-utility-wires-v10=$q" -o /tmp/bp-root.html
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app/?solid-utility-wires-v10=$q" -o /tmp/bp-app.html
           curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/landing.js?v=6244-solid-utility-wires-v10&verify=$q" -o /tmp/bp-landing.js
           curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app.js?v=6244-solid-utility-wires-v10&verify=$q" -o /tmp/bp-app.js
           curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/world-v2300-utility-infrastructure-v1.js?v=11-solid-utility-wires-v10&verify=$q" -o /tmp/bp-utility.js
@@ -208,4 +208,4 @@ jobs:
           assert len(rows)==4352 and all(isinstance(row,list) and len(row)==8 for row in rows)
           print("LIVE_CT_FHWA_2026_RECORDS",len(rows))
           PY
-          echo "BRIDGEPOINT_SOLID_UTILITY_WIRES_V9_LIVE_PASS"
+          echo "BRIDGEPOINT_SOLID_UTILITY_WIRES_V10_LIVE_PASS"
