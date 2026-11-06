@@ -12,6 +12,11 @@ HEADER = "OAS,VERIFIED STATUS,COUNTRY,STATE,CITY,LATDEC,LONDEC,DMSLAT,DMSLON,TYP
 
 
 class FAAObstructionSnapshotTests(unittest.TestCase):
+    def test_faa_source_windows_1252_smart_quote_decodes(self):
+        raw = "TOWER’S".encode("cp1252")
+        with io.TextIOWrapper(io.BytesIO(raw), encoding="cp1252") as stream:
+            self.assertEqual(stream.read(), "TOWER’S")
+
     def test_compact_record_preserves_source_height_and_metadata(self):
         row = {
             "OAS": "01-123456", "COUNTRY": "US", "STATE": "CT", "CITY": "MIDDLETOWN",
