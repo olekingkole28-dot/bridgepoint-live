@@ -2,12 +2,19 @@
  * OSM-backed global lighthouse locations; meter-scale polygon towers at close zoom;
  * locally calculated twilight controls the rotating lantern beam.
  */
-const VERSION = 1;
+const VERSION = 2;
+const MAP_STATES = new WeakMap();
+let threePromise = null;
 const THREE_URL = '/vendor/three.module.js?v=169-local';
 const SOURCE_ID = 'bp-lighthouses-source-v1';
 const MARKER_LAYER_ID = 'bp-lighthouses-markers-v1';
+const BEACON_HALO_LAYER_ID = 'bp-lighthouses-beacon-halo-v2';
+const BEACON_LAYER_ID = 'bp-lighthouses-beacon-v2';
+const BEACON_IMAGE_ID = 'bp-lighthouse-rotating-beacon-v2';
 const MODEL_LAYER_ID = 'bp-lighthouses-3d-v1';
-const MIN_MODEL_ZOOM = 9.2;
+const MIN_BEACON_ZOOM = 3.8;
+const MAX_BEACON_ZOOM = 14.2;
+const MIN_MODEL_ZOOM = 14.0;
 const NIGHT_THRESHOLD_DEG = -6;
 const WORLD_BOUNDS = [-85, -180, 85, 180];
 const EMPTY = { type: 'FeatureCollection', features: [] };
@@ -180,6 +187,13 @@ export function solarElevationDegrees(latitude, longitude, date = new Date()) {
 
 export function isDarkAt(latitude, longitude, date = new Date()) {
   return solarElevationDegrees(latitude, longitude, date) <= NIGHT_THRESHOLD_DEG;
+}
+
+export function lighthouseRenderModeForZoom(value) {
+  const zoom = Number(value) || 0;
+  if (zoom < MIN_BEACON_ZOOM) return 'hidden';
+  if (zoom < MIN_MODEL_ZOOM) return 'rotating-beacon';
+  return '3d-tower';
 }
 
 function modelMatrixFor(map, THREE, coordinate, altitude) {
@@ -469,24 +483,130 @@ function mergeElements(state, elements) {
   state.stats.measuredHeights = features.filter(f => f.properties.measuredHeight).length;
   const source = state.map.getSource(SOURCE_ID);
   if (source) source.setData(state.collection);
+  if (features.length) scheduleBeaconRotation(state);
+}
+
+function createBeaconCanvas() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 96;
+  canvas.height = 96;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Lighthouse beacon canvas unavailable');
+  ctx.clearRect(0, 0, 96, 96);
+  ctx.save();
+  ctx.translate(48, 48);
+  for (const direction of [0, Math.PI]) {
+    ctx.save();
+    ctx.rotate(direction);
+    const beam = ctx.createLinearGradient(2, 0, 46, 0);
+    beam.addColorStop(0, 'rgba(255,255,226,0.98)');
+    beam.addColorStop(0.25, 'rgba(255,232,170,0.84)');
+    beam.addColorStop(0.72, 'rgba(255,213,126,0.26)');
+    beam.addColorStop(1, 'rgba(255,213,126,0)');
+    ctx.shadowColor = 'rgba(255,225,150,0.95)';
+    ctx.shadowBlur = 13;
+    ctx.fillStyle = beam;
+    ctx.beginPath();
+    ctx.moveTo(2, -5.5);
+    ctx.lineTo(47, -1.6);
+    ctx.lineTo(47, 1.6);
+    ctx.lineTo(2, 5.5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+  const glow = ctx.createRadialGradient(0, 0, 1, 0, 0, 18);
+  glow.addColorStop(0, 'rgba(255,255,245,1)');
+  glow.addColorStop(0.22, 'rgba(255,238,183,0.98)');
+  glow.addColorStop(0.5, 'rgba(255,195,91,0.48)');
+  glow.addColorStop(1, 'rgba(255,195,91,0)');
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(0, 0, 18, 0, TAU);
+  ctx.fill();
+  ctx.fillStyle = '#fff9d9';
+  ctx.strokeStyle = '#b46d28';
+  ctx.lineWidth = 2.2;
+  ctx.beginPath();
+  ctx.arc(0, 0, 5.2, 0, TAU);
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+  return canvas;
 }
 
 function addMarkerLayer(map) {
-  if (!map.getSource(SOURCE_ID)) map.addSource(SOURCE_ID, { type: 'geojson', data: EMPTY, tolerance: 0.35, attribution: '© OpenStreetMap contributors · Lighthouse locations (ODbL)' });
+  if (!map.getSource(SOURCE_ID)) {
+    map.addSource(SOURCE_ID, {
+      type: 'geojson', data: EMPTY, tolerance: 0.2,
+      attribution: '© OpenStreetMap contributors · Lighthouse locations (ODbL)'
+    });
+  }
+  if (!map.getLayer(BEACON_HALO_LAYER_ID)) {
+    map.addLayer({
+      id: BEACON_HALO_LAYER_ID, type: 'circle', source: SOURCE_ID,
+      minzoom: MIN_BEACON_ZOOM, maxzoom: MAX_BEACON_ZOOM,
+      paint: {
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 3.8, 5.5, 6, 7.5, 10, 8.5, 13.5, 7.5],
+        'circle-color': '#ffd37a', 'circle-blur': 0.9, 'circle-opacity': 0.62
+      }
+    });
+  }
   if (!map.getLayer(MARKER_LAYER_ID)) {
-    const style = map.getStyle && map.getStyle();
-    const before = style && Array.isArray(style.layers)
-      ? (style.layers.find(layer => layer.type === 'symbol') || {}).id : undefined;
     map.addLayer({
       id: MARKER_LAYER_ID, type: 'circle', source: SOURCE_ID,
-      minzoom: 0, maxzoom: MIN_MODEL_ZOOM + 0.55,
+      minzoom: MIN_BEACON_ZOOM, maxzoom: MAX_BEACON_ZOOM,
       paint: {
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 1.4, 5, 2.5, 9.5, 4.1],
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 3.8, 2.6, 7, 3.5, 13.5, 3.2],
         'circle-color': ['coalesce', ['get', 'markerColor'], '#b64436'],
-        'circle-stroke-color': '#f2ead9', 'circle-stroke-width': 0.75, 'circle-opacity': 0.94
+        'circle-stroke-color': '#fff4ce', 'circle-stroke-width': 1.1, 'circle-opacity': 1
       }
-    }, before);
+    });
   }
+  if (typeof map.hasImage === 'function' && !map.hasImage(BEACON_IMAGE_ID)) {
+    const canvas = createBeaconCanvas();
+    map.addImage(BEACON_IMAGE_ID, canvas, { pixelRatio: 2 });
+  }
+  if (!map.getLayer(BEACON_LAYER_ID)) {
+    map.addLayer({
+      id: BEACON_LAYER_ID, type: 'symbol', source: SOURCE_ID,
+      minzoom: MIN_BEACON_ZOOM, maxzoom: MAX_BEACON_ZOOM,
+      layout: {
+        'icon-image': BEACON_IMAGE_ID,
+        'icon-size': ['interpolate', ['linear'], ['zoom'], 3.8, 0.36, 5, 0.52, 7.5, 0.7, 10, 0.78, 13.5, 0.65],
+        'icon-rotate': 0,
+        'icon-rotation-alignment': 'viewport',
+        'icon-pitch-alignment': 'viewport',
+        'icon-anchor': 'center',
+        'icon-allow-overlap': true,
+        'icon-ignore-placement': true,
+        'icon-padding': 0
+      },
+      paint: { 'icon-opacity': 0.98 }
+    });
+  }
+}
+
+function scheduleBeaconRotation(state) {
+  if (state.dead || state.beaconTimer) return;
+  const tick = () => {
+    state.beaconTimer = 0;
+    if (state.dead) return;
+    const map = state.map;
+    const zoom = Number(map.getZoom && map.getZoom() || 0);
+    const visible = !document.hidden && zoom >= MIN_BEACON_ZOOM &&
+      zoom < MAX_BEACON_ZOOM && !!map.getLayer(BEACON_LAYER_ID);
+    if (visible) {
+      try {
+        const degrees = ((Date.now() / 34) % 360 + 360) % 360;
+        map.setLayoutProperty(BEACON_LAYER_ID, 'icon-rotate', degrees);
+      } catch (_) {}
+      state.beaconTimer = setTimeout(tick, 90);
+    } else {
+      state.beaconTimer = setTimeout(tick, 500);
+    }
+  };
+  state.beaconTimer = setTimeout(tick, 20);
 }
 
 function mapMatrix(map, THREE, coordinate, ground) {
@@ -676,8 +796,9 @@ async function loadGlobalData(state) {
 }
 
 async function loadViewportData(state) {
-  if (state.dead || state.globalLoaded || state.globalLoading || state.viewportLoading) return;
-  if (Number(state.map.getZoom()) < 4.5) return;
+  if (state.dead || state.globalLoaded) return;
+  if (Number(state.map.getZoom()) < MIN_BEACON_ZOOM) return;
+  if (state.viewportLoading) { state.viewportPending = true; return; }
   state.viewportLoading = true;
   try {
     const elements = await fetchOverpass(viewportOverpassQuery(state.map.getBounds()));
@@ -692,21 +813,33 @@ async function loadViewportData(state) {
     }
   } finally {
     state.viewportLoading = false;
+    if (state.viewportPending && !state.dead && !state.globalLoaded) {
+      state.viewportPending = false;
+      setTimeout(() => void loadViewportData(state), 240);
+    }
   }
 }
 
 function install(map, state) {
-  if (!map || state.installed || !map.getStyle || !map.getStyle()) return;
-  state.installed = true;
+  if (!map || !map.getStyle || !map.getStyle()) return;
   try {
     addMarkerLayer(map);
     state.stats.markerLayerReady = !!map.getLayer(MARKER_LAYER_ID);
+    state.stats.beaconLayerReady = !!map.getLayer(BEACON_LAYER_ID);
   } catch (error) {
-    state.installed = false;
     state.stats.lastError = String(error && error.message || error);
-    console.warn('BridgePoint lighthouse markers could not attach', error);
+    console.warn('BridgePoint lighthouse locator could not attach', error);
     return;
   }
+  if (state.installed) {
+    if (state.THREE) {
+      installModelLayer(state);
+      rebuildModels(state);
+    }
+    scheduleBeaconRotation(state);
+    return;
+  }
+  state.installed = true;
   loadThree().then(THREE => {
     if (state.dead) return;
     state.THREE = THREE;
@@ -719,14 +852,20 @@ function install(map, state) {
     console.warn('BridgePoint lighthouse Three.js module unavailable', error);
   });
   void loadGlobalData(state);
+  if (Number(map.getZoom && map.getZoom() || 0) >= MIN_BEACON_ZOOM) {
+    void loadViewportData(state);
+  }
   map.on('moveend', () => {
     scheduleRefresh(state);
     if (!state.globalLoaded) void loadViewportData(state);
+    scheduleBeaconRotation(state);
   });
-  map.on('zoomend', () => scheduleRefresh(state));
-  map.on('idle', () => {
-    if (!state.globalLoaded && !state.globalLoading) void loadViewportData(state);
+  map.on('zoomend', () => {
+    scheduleRefresh(state);
+    if (!state.globalLoaded) void loadViewportData(state);
+    scheduleBeaconRotation(state);
   });
+  scheduleBeaconRotation(state);
 }
 
 export function initLighthouseRenderer(target) {
@@ -737,7 +876,8 @@ export function initLighthouseRenderer(target) {
   const state = {
     map, installed: false, dead: false, layerInstalling: false,
     globalLoading: false, globalLoaded: false, viewportLoading: false,
-    refreshTimer: 0, animationTimer: 0, THREE: null, scene: null, camera: null, renderer: null,
+    refreshTimer: 0, animationTimer: 0, beaconTimer: 0, viewportPending: false,
+    THREE: null, scene: null, camera: null, renderer: null,
     featureCache: new Map(), collection: EMPTY, models: [], modelSignature: '',
     status: 'initializing',
     stats: { version: VERSION, sourceFeatures: 0, renderedModels: 0,
@@ -749,6 +889,7 @@ export function initLighthouseRenderer(target) {
     get status() { return state.status; },
     get stats() { return Object.assign({}, state.stats); },
     get features() { return state.collection.features.length; },
+    get displayMode() { return lighthouseRenderModeForZoom(state.map.getZoom()); },
     refresh() {
       state.globalLoaded = false;
       state.globalLoading = false;
@@ -758,6 +899,7 @@ export function initLighthouseRenderer(target) {
       state.dead = true;
       if (state.refreshTimer) clearTimeout(state.refreshTimer);
       if (state.animationTimer) clearTimeout(state.animationTimer);
+      if (state.beaconTimer) clearTimeout(state.beaconTimer);
       for (const item of state.models) {
         if (state.scene) state.scene.remove(item.root);
         disposeObject(item.root);
@@ -768,6 +910,7 @@ export function initLighthouseRenderer(target) {
   state.api = api;
   MAP_STATES.set(map, state);
   window.__BP_LIGHTHOUSES_V1__ = api;
+  window.__BP_LIGHTHOUSES_V2__ = api;
   const ready = () => install(map, state);
   map.on('style.load', ready);
   map.on('load', ready);
