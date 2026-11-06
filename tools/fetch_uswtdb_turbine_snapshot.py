@@ -33,7 +33,7 @@ def download_archive():
     for attempt in range(4):
         request = urllib.request.Request(
             ARCHIVE_URL,
-            headers={"User-Agent": "BridgePoint-Intelligence/1.0", "Accept": "application/zip"}
+            headers={"User-Agent": "BridgePoint-Intelligence/1.0"}
         )
         try:
             with urllib.request.urlopen(request, timeout=120) as response:
