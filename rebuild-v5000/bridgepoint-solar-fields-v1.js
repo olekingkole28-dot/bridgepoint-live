@@ -161,8 +161,8 @@ export function normalizeUspvdbFeature(feature) {
   if (system!=='ground') return null;
   if (!(technology==='pv'||technology==='photovoltaic'||technology==='photovoltaics')) return null;
   const geometry=featureGeometry(feature);
-  const center=geometryCentroid(geometry) ||
-    [finite(p.xlong),finite(p.ylat)];
+  const sourceCenter=[finite(p.xlong),finite(p.ylat)];
+  const center=sourceCenter.every(Number.isFinite)?sourceCenter:geometryCentroid(geometry);
   if (!center || center.length!==2 || !center.every(Number.isFinite) ||
       Math.abs(center[0])>180 || Math.abs(center[1])>85) return null;
   const id=textValue(p.case_id||p.objectid||feature.id,'');
@@ -177,7 +177,7 @@ export function normalizeUspvdbFeature(feature) {
       sourceUrl:USPVDB_SOURCE,recordId:id,name:textValue(p.p_name,'Unnamed ground-mounted PV facility'),
       operator:textValue(p.p_operator||p.operator,'Not reported'),
       method:'photovoltaic',methodLabel:'Photovoltaic (PV)',
-      systemType:'ground-mounted',status:'In service / source record',year:finite(p.p_year),
+      systemType:'ground-mounted',status:'USPVDB record; operating status not separately reported',year:finite(p.p_year),
       state:textValue(p.p_state,''),county:textValue(p.p_county,''),
       capacityAcMW:positive(p.p_cap_ac),capacityDcMW:positive(p.p_cap_dc),
       areaM2:areaM2,areaSource:positive(p.p_area)?'USPVDB reported area':'Calculated from mapped array boundary',
@@ -273,8 +273,12 @@ export function solarFieldPopupHtml(feature) {
   const area=positive(p.areaM2);
   const dims=p.modelDimensions||geometryDimensionsM(p.modelGeometry);
   const capacity=positive(p.capacityAcMW);
-  const confidence=p.digitizationConfidence!==null&&p.digitizationConfidence!==undefined
-    ?formatNumber(p.digitizationConfidence,0)+' / 4':'Not reported';
+  const confidenceCode=finite(p.digitizationConfidence);
+  const confidence=confidenceCode===4?'4 · High-confidence polygon':
+    confidenceCode===3?'3 · Partial boundary (poor imagery)':
+    confidenceCode===2?'2 · Multiple polygons; facility attributes uncertain':
+    confidenceCode===1?'1 · Multiple facilities represented by one polygon':
+    'Not reported';
   const position=formatNumber(c[1],6)+'°, '+formatNumber(c[0],6)+'°';
   const rows=[
     ['Facility',p.name||'Unnamed solar field'],
