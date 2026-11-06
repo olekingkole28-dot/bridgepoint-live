@@ -6,6 +6,10 @@ on:
     types: [completed]
     branches: [main]
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-utility-solid-wires-v9.yml'
 
 permissions:
   actions: read
@@ -32,8 +36,8 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@v4
         with:
-          name: bridgepoint-v5000-${{ github.event.workflow_run.run_attempt }}
-          run-id: ${{ github.event.workflow_run.id }}
+          name: ${{ github.event_name == 'workflow_run' && format('bridgepoint-v5000-{0}', github.event.workflow_run.run_attempt) || 'bridgepoint-v5000-2' }}
+          run-id: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || '42301787876' }}
           repository: ${{ github.repository }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ${{ runner.temp }}/bp-pages-baseline
