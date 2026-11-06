@@ -29,7 +29,7 @@ on:
       - 'tests/lighthouse-renderer-v1.test.mjs'
       - 'tests/offshore-energy-v1.test.mjs'
       - 'tests/wind-turbines-v1.test.mjs'
-      - 'tools/fetch_uswtdb_turbine_snapshot.mjs'
+      - 'tools/fetch_uswtdb_turbine_snapshot.py'
       - 'pricing/**'
       - 'newsroom/**'
       - 'terminal/**'
