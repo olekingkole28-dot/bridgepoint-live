@@ -59,6 +59,9 @@ jobs:
     timeout-minutes: 55
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - name: Reuse the last verified procedural tree bank from this production cycle
         id: reuse-tree
         continue-on-error: true
@@ -78,9 +81,6 @@ jobs:
           python tests/tree-model-catalog.test.py --built-assets /tmp/bridgepoint-tree-assets
           test "$(find /tmp/bridgepoint-tree-assets/procedural -name '*.glb' | wc -l)" -eq 144
           echo "REUSED_VERIFIED_PROCEDURAL_TREE_BANK_PASS"
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
 
       - name: Build and browser-verify the procedural tree bank
         if: steps.reuse-tree.outcome != 'success'
