@@ -5,6 +5,10 @@ on:
     workflows: ["Publish BridgePoint Solid Utility Wires V11"]
     types: [completed]
     branches: [main]
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-faa-obstruction-towers-v1.yml'
 
 permissions:
   actions: read
@@ -18,7 +22,7 @@ concurrency:
 
 jobs:
   publish-faa-obstructions:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name == 'push' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     environment:
@@ -27,7 +31,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
       - uses: actions/setup-python@v5
         with:
@@ -51,8 +55,8 @@ jobs:
       - name: Download the exact utility-wires production Pages artifact
         uses: actions/download-artifact@v4
         with:
-          name: bridgepoint-solid-utility-wires-v11-${{ github.event.workflow_run.run_attempt }}
-          run-id: ${{ github.event.workflow_run.id }}
+          name: ${{ github.event_name == 'workflow_run' && format('bridgepoint-solid-utility-wires-v11-{0}', github.event.workflow_run.run_attempt) || 'bridgepoint-solid-utility-wires-v11-1' }}
+          run-id: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || '42304722962' }}
           repository: ${{ github.repository }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ${{ runner.temp }}/bp-faa-pages-baseline
@@ -176,7 +180,7 @@ jobs:
       - name: Upload the FAA-only additive Pages artifact
         uses: actions/upload-pages-artifact@v5
         with:
-          name: bridgepoint-faa-obstruction-towers-v1
+          name: bridgepoint-faa-obstruction-towers-v1-${{ github.run_attempt }}
           path: ${{ runner.temp }}/bp-faa-site
           include-hidden-files: true
 
@@ -184,7 +188,7 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
         with:
-          artifact_name: bridgepoint-faa-obstruction-towers-v1
+          artifact_name: bridgepoint-faa-obstruction-towers-v1-${{ github.run_attempt }}
 
       - name: Verify live website, app, renderer and FAA data snapshot
         shell: bash
