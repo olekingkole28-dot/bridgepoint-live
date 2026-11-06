@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import {
   normalizeUspvdbFeature,
   normalizeSolarOsmElement,
+  normalizeSolarWorldSnapshot,
   solarFieldRenderModeForZoom,
   solarFieldPopupHtml
 } from '../rebuild-v5000/bridgepoint-solar-fields-v1.js';
@@ -57,6 +58,26 @@ assert.equal(osmNode.properties.capacityAcMW,15);
 assert.equal(osmNode.properties.year,2020);
 assert.equal(osmNode.properties.modelGeometry,null);
 assert.match(osmNode.properties.locationAccuracy,/point\/center/);
+
+const snapshotFeatures=normalizeSolarWorldSnapshot({
+  typeLegend:['node','way','relation'],
+  ids:[700,701],typeCodes:[1,2],
+  lngs:[-72.75,14.25],lats:[41.25,50.5],
+  tagNames:['plant:output:electricity','plant:method','name','operator','start_date'],
+  tagValueTable:['18 MW','photovoltaic','Snapshot PV','Snapshot Energy','2018-05-01','solar thermal','Thermal Site'],
+  tagIndexOffsets:[0,5,8],
+  tagNameCodes:[0,1,2,3,4,1,2,4],
+  tagValueCodes:[0,1,2,3,4,5,6,4]
+});
+assert.equal(snapshotFeatures.length,1);
+assert.equal(snapshotFeatures[0].id,'osm:way/700');
+assert.equal(snapshotFeatures[0].properties.name,'Snapshot PV');
+assert.equal(snapshotFeatures[0].properties.capacityAcMW,18);
+assert.equal(snapshotFeatures[0].properties.operator,'Snapshot Energy');
+assert.equal(snapshotFeatures[0].properties.year,2018);
+assert.equal(snapshotFeatures[0].geometry.coordinates[0],-72.75);
+assert.equal(snapshotFeatures[0].properties.modelGeometry,null);
+assert.throws(()=>normalizeSolarWorldSnapshot({ids:[1]}),/unsupported schema/);
 
 const osmWay=normalizeSolarOsmElement({
   type:'way',id:988,
