@@ -1,0 +1,199 @@
+name: Publish BridgePoint Automatic Global Streetlights 3D V1
+
+on:
+  workflow_run:
+    workflows: ["Publish BridgePoint FAA Obstruction & Towers V1"]
+    types: [completed]
+    branches: [main]
+  push:
+    branches: [main]
+    paths:
+      - 'streetlights-v1/world-v2300-streetlights-3d-v1.js'
+      - 'tests/streetlights-3d-renderer-v1.test.mjs'
+      - '.github/workflows/publish-global-streetlights-v1.yml'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+
+jobs:
+  publish-global-streetlights:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate the isolated renderer before touching the Pages artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module --check < streetlights-v1/world-v2300-streetlights-3d-v1.js
+          node tests/streetlights-3d-renderer-v1.test.mjs
+          echo "BRIDGEPOINT_GLOBAL_STREETLIGHTS_3D_V1_SOURCE_PASS"
+
+      - name: Download the exact latest verified FAA-towers production Pages artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ github.event_name == 'workflow_run' && format('bridgepoint-faa-obstruction-towers-v1-{0}', github.event.workflow_run.run_attempt) || 'bridgepoint-faa-obstruction-towers-v1-1' }}
+          run-id: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || '42305321550' }}
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/bp-streetlights-pages-baseline
+
+      - name: Restore and fingerprint the current production snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/bp-streetlights-site"
+          ARCHIVE="$(find "$RUNNER_TEMP/bp-streetlights-pages-baseline" -type f -name artifact.tar -print -quit)"
+          test -n "$ARCHIVE"
+          tar -xf "$ARCHIVE" -C "$RUNNER_TEMP/bp-streetlights-site"
+          SITE="$RUNNER_TEMP/bp-streetlights-site"
+
+          for f in index.html app/index.html landing.js app.js \
+            bridgepoint-faa-obstruction-towers-v1.js app/bridgepoint-faa-obstruction-towers-v1.js \
+            data/bridgepoint-faa-obstructions-v1.json.gz app/data/bridgepoint-faa-obstructions-v1.json.gz; do
+            test -s "$SITE/$f" || { echo "Missing current production file: $f"; exit 1; }
+          done
+          grep -Fq 'bpWelcomeGateV1' "$SITE/index.html"
+          grep -Fq 'bpw-globe-aura' "$SITE/index.html"
+          grep -Fq 'bpAuthRequestV6237' "$SITE/landing.js"
+          grep -Fq 'bpAuthRequestV6237' "$SITE/app.js"
+          grep -Fq './bridgepoint-faa-obstruction-towers-v1.js?v=1-faa-obstruction-towers' "$SITE/landing.js"
+          grep -Fq './bridgepoint-faa-obstruction-towers-v1.js?v=1-faa-obstruction-towers' "$SITE/app.js"
+          grep -Fq "BridgePoint FAA obstruction/tower renderer unavailable" "$SITE/landing.js"
+          grep -Fq "BridgePoint FAA obstruction/tower renderer unavailable" "$SITE/app.js"
+
+          python3 - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          site=Path(os.environ["RUNNER_TEMP"])/"bp-streetlights-site"
+          files={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                 for p in site.rglob("*") if p.is_file()}
+          (Path(os.environ["RUNNER_TEMP"])/"bp-streetlights-baseline-hashes.json").write_text(json.dumps(files,sort_keys=True))
+          print("STREETLIGHTS_BASELINE_FINGERPRINT_PASS",len(files),"production files")
+          PY
+
+      - name: Add only the automatic 3D streetlight module and two entrypoint imports
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/bp-streetlights-site"
+          MODULE="streetlights-v1/world-v2300-streetlights-3d-v1.js"
+          mkdir -p "$SITE/app"
+          cp "$MODULE" "$SITE/bridgepoint-streetlights-3d-v1.js"
+          cp "$MODULE" "$SITE/app/bridgepoint-streetlights-3d-v1.js"
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib, json, os, re
+
+          site=Path(os.environ["RUNNER_TEMP"])/"bp-streetlights-site"
+          anchor=".catch(e=>console.warn('BridgePoint FAA obstruction/tower renderer unavailable',e));"
+          addition=(
+              "\n  // Automatic global 3D streetlights. No button; all existing map controls remain independent.\n"
+              "  void import('./bridgepoint-streetlights-3d-v1.js?v=1-global-auto-streetlights')\n"
+              "   .then(m=>{window.__BP_STREETLIGHTS_3D_V1__=m.initStreetlightRenderer(world)})\n"
+              "   .catch(e=>console.warn('BridgePoint global 3D streetlights unavailable',e));\n"
+          )
+          for rel in ("landing.js","app.js"):
+              path=site/rel
+              data=path.read_text(encoding="utf-8")
+              count=data.count(anchor)
+              if count!=1:
+                  raise SystemExit(f"{rel}: expected one preserved FAA loader anchor, found {count}")
+              path.write_text(data.replace(anchor,anchor+addition,1),encoding="utf-8")
+
+          for rel,stem in (("index.html","landing.js"),("app/index.html","app.js")):
+              path=site/rel
+              data=path.read_text(encoding="utf-8")
+              pattern=r"("+re.escape(stem)+r"\?v=)[^&\"']+"
+              data,count=re.subn(pattern,r"\g<1>6247-global-auto-streetlights-v1",data,count=1)
+              if count!=1:
+                  raise SystemExit(f"{rel}: expected one {stem} cache-bust URL, replaced {count}")
+              path.write_text(data,encoding="utf-8")
+
+          baseline=json.loads((Path(os.environ["RUNNER_TEMP"])/"bp-streetlights-baseline-hashes.json").read_text())
+          after={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                 for p in site.rglob("*") if p.is_file()}
+          removed=set(baseline)-set(after)
+          added=set(after)-set(baseline)
+          changed={p for p in baseline if p in after and baseline[p]!=after[p]}
+          expected_changed={"index.html","app/index.html","landing.js","app.js"}
+          expected_added={"bridgepoint-streetlights-3d-v1.js","app/bridgepoint-streetlights-3d-v1.js"}
+          assert not removed, f"Production files removed: {sorted(removed)}"
+          assert changed==expected_changed, f"Unexpected existing production file changes: {sorted(changed)}"
+          assert added==expected_added, f"Unexpected production files added: {sorted(added)}"
+          assert (site/"bridgepoint-streetlights-3d-v1.js").read_bytes()==(site/"app/bridgepoint-streetlights-3d-v1.js").read_bytes()
+          for rel in ("landing.js","app.js"):
+              data=(site/rel).read_text(encoding="utf-8")
+              assert data.count("./bridgepoint-streetlights-3d-v1.js?v=1-global-auto-streetlights")==1
+              assert data.count("./bridgepoint-faa-obstruction-towers-v1.js?v=1-faa-obstruction-towers")==1
+              assert "bpAuthRequestV6237" in data
+          print("STREETLIGHTS_OVERLAY_SCOPE_PASS",len(baseline),"existing files preserved; only four loader files changed and two renderer copies added")
+          PY
+
+          node --input-type=module --check < "$SITE/bridgepoint-streetlights-3d-v1.js"
+          node --input-type=module --check < "$SITE/app/bridgepoint-streetlights-3d-v1.js"
+          cmp -s "$SITE/bridgepoint-streetlights-3d-v1.js" "$SITE/app/bridgepoint-streetlights-3d-v1.js"
+          echo "BRIDGEPOINT_GLOBAL_STREETLIGHTS_3D_V1_OVERLAY_PASS"
+
+      - uses: actions/configure-pages@v5
+
+      - name: Upload the streetlights-only Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          name: bridgepoint-global-streetlights-v1-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/bp-streetlights-site
+          include-hidden-files: true
+
+      - name: Publish automatic global 3D streetlights
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: bridgepoint-global-streetlights-v1-${{ github.run_attempt }}
+
+      - name: Verify the live root app, signed-in app, streetlight renderer, and previous FAA tower renderer
+        shell: bash
+        run: |
+          set -euo pipefail
+          O='https://bridgepointintelligence.online'
+          q="$GITHUB_SHA-global-streetlights-v1"
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/?streetlights=$q" -o /tmp/bp-streetlights-root.html
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app/?streetlights=$q" -o /tmp/bp-streetlights-app.html
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/landing.js?v=6247-global-auto-streetlights-v1&verify=$q" -o /tmp/bp-streetlights-landing.js
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app.js?v=6247-global-auto-streetlights-v1&verify=$q" -o /tmp/bp-streetlights-app.js
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/bridgepoint-streetlights-3d-v1.js?verify=$q" -o /tmp/bp-streetlights-module.js
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app/bridgepoint-streetlights-3d-v1.js?verify=$q" -o /tmp/bp-streetlights-app-module.js
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/bridgepoint-faa-obstruction-towers-v1.js?verify=$q" -o /tmp/bp-streetlights-faa-module.js
+
+          grep -Fq 'landing.js?v=6247-global-auto-streetlights-v1' /tmp/bp-streetlights-root.html
+          grep -Fq 'app.js?v=6247-global-auto-streetlights-v1' /tmp/bp-streetlights-app.html
+          grep -Fq 'bpWelcomeGateV1' /tmp/bp-streetlights-root.html
+          grep -Fq '__BP_STREETLIGHTS_3D_V1__' /tmp/bp-streetlights-landing.js
+          grep -Fq '__BP_STREETLIGHTS_3D_V1__' /tmp/bp-streetlights-app.js
+          grep -Fq 'bridgepoint-faa-obstruction-towers-v1.js?v=1-faa-obstruction-towers' /tmp/bp-streetlights-landing.js
+          grep -Fq 'bridgepoint-faa-obstruction-towers-v1.js?v=1-faa-obstruction-towers' /tmp/bp-streetlights-app.js
+          grep -Fq 'initFAAObstructionTowerRenderer' /tmp/bp-streetlights-faa-module.js
+          grep -Fq "const MIN_ZOOM = 13;" /tmp/bp-streetlights-module.js
+          grep -Fq "const PRECISE_MIN_ZOOM = 16;" /tmp/bp-streetlights-module.js
+          grep -Fq "solarAltitude(date, longitude, latitude)" /tmp/bp-streetlights-module.js
+          cmp -s /tmp/bp-streetlights-module.js /tmp/bp-streetlights-app-module.js
+          echo "BRIDGEPOINT_GLOBAL_STREETLIGHTS_3D_V1_LIVE_PASS"

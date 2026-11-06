@@ -1,0 +1,40 @@
+name: Verify BridgePoint Automatic Global Streetlights 3D V1
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'streetlights-v1/world-v2300-streetlights-3d-v1.js'
+      - 'tests/streetlights-3d-renderer-v1.test.mjs'
+      - '.github/workflows/verify-streetlights-3d-v1.yml'
+      - '.github/workflows/publish-global-streetlights-v1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  syntax-and-render-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check renderer syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module --check < streetlights-v1/world-v2300-streetlights-3d-v1.js
+          node tests/streetlights-3d-renderer-v1.test.mjs
+      - name: Verify automatic behavior and no map control
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq "const MIN_ZOOM = 13;" streetlights-v1/world-v2300-streetlights-3d-v1.js
+          grep -Fq "const PRECISE_MIN_ZOOM = 16;" streetlights-v1/world-v2300-streetlights-3d-v1.js
+          grep -Fq "initStreetlightRenderer(world)" .github/workflows/publish-global-streetlights-v1.yml
+          grep -Fq "NIGHT_ALTITUDE_DEGREES = -6" streetlights-v1/world-v2300-streetlights-3d-v1.js
+          grep -Fq "bp-global-streetlights-3d-v1" streetlights-v1/world-v2300-streetlights-3d-v1.js
+          echo "BRIDGEPOINT_GLOBAL_STREETLIGHTS_3D_V1_VERIFY_PASS"
