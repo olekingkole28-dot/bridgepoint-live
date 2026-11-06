@@ -64,7 +64,8 @@ const popup=subsurfacePopupHtml(usgs);
 assert.match(popup,/91.44 m/);assert.match(popup,/diameter is intentionally exaggerated/);
 assert.match(subsurfacePopupHtml(wpdx),/Not reported by this source/);
 
-const [landing,app,home,appHome,deploy,utility] = await Promise.all([
+const [moduleSource,landing,app,home,appHome,deploy,utility] = await Promise.all([
+  readFile(new URL('../rebuild-v5000/bridgepoint-subsurface-wells-v1.js',import.meta.url),'utf8'),
   readFile(new URL('../rebuild-v5000/landing.js',import.meta.url),'utf8'),
   readFile(new URL('../rebuild-v5000/app.js',import.meta.url),'utf8'),
   readFile(new URL('../rebuild-v5000/index.html',import.meta.url),'utf8'),
@@ -72,6 +73,9 @@ const [landing,app,home,appHome,deploy,utility] = await Promise.all([
   readFile(new URL('../.github/workflows/deploy-intelligence-rebuild-v5000.yml',import.meta.url),'utf8'),
   readFile(new URL('../.github/workflows/publish-utility-solid-wires-v9.yml',import.meta.url),'utf8')
 ]);
+assert.ok(moduleSource.includes('m.depthTest=false'));
+assert.ok(moduleSource.includes('maxzoom:24'));
+assert.ok(moduleSource.includes('const cap=50000'));
 assert.ok(landing.includes("import('./bridgepoint-subsurface-wells-v1.js?v=1-global-wells-depth-casing')"));
 assert.ok(app.includes("import('./bridgepoint-subsurface-wells-v1.js?v=1-global-wells-depth-casing')"));
 assert.ok(home.includes('landing.js?v=6246-subsurface-wells-v1'));
