@@ -27,8 +27,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download the successful V5000 production artifact
-        if: github.event.workflow_run.conclusion == 'success'
+      - name: Download the current V5000 artifact even when a later audit step fails
+        id: current-v5000
+        continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           name: bridgepoint-v5000-${{ github.event.workflow_run.run_attempt }}
@@ -37,8 +38,8 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ${{ runner.temp }}/bp-pages-baseline
 
-      - name: Fall back to the verified V10 site when the full rebuild fails
-        if: github.event.workflow_run.conclusion != 'success'
+      - name: Fall back to the verified V10 site only when no V5000 artifact exists
+        if: steps.current-v5000.outcome != 'success'
         uses: actions/download-artifact@v4
         with:
           name: bridgepoint-solid-utility-wires-v10
@@ -68,7 +69,7 @@ jobs:
           grep -Fq 'preciseWireGroups' "$RUNNER_TEMP/utility-v11-source/release-v2300/world-v2300-utility-infrastructure-v1.js"
           echo "UTILITY_SOLID_WIRES_V11_SOURCE_PASS"
 
-      - name: Restore and fingerprint the currently deployed V10 site
+      - name: Restore and fingerprint the selected production baseline
         shell: bash
         run: |
           set -euo pipefail
@@ -91,10 +92,12 @@ jobs:
           rows=json.loads((site/"bridgepoint-ct-nbi-2026.json").read_text())
           assert len(rows)==4352 and all(isinstance(row,list) and len(row)==8 for row in rows)
           (Path(os.environ["RUNNER_TEMP"])/"bp-v10-file-hashes.json").write_text(json.dumps(before,sort_keys=True))
-          print("V10_LIVE_GLOBE_AUTH_BRIDGE_BASELINE_PASS",len(before),"files",len(rows),"FHWA_CT_RECORDS")
+          print("V5000_OR_V10_LIVE_GLOBE_AUTH_BRIDGE_BASELINE_PASS",len(before),"files",len(rows),"FHWA_CT_RECORDS")
           PY
 
       - name: Overlay only the utility renderer and its root/app cache-busted loaders
+        env:
+          V5000_ARTIFACT_AVAILABLE: ${{ steps.current-v5000.outcome == 'success' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -134,6 +137,11 @@ jobs:
           expected={"index.html","app/index.html","landing.js","app.js",
                     "world-v2300-utility-infrastructure-v1.js",
                     "app/world-v2300-utility-infrastructure-v1.js"}
+          if os.environ.get("V5000_ARTIFACT_AVAILABLE") == "true":
+            for rel in ("bridgepoint-lighthouses-v1.js","app/bridgepoint-lighthouses-v1.js"):
+              assert (site/rel).is_file(), f"Current V5000 artifact missing lighthouse renderer: {rel}"
+            for rel in ("landing.js","app.js"):
+              assert "./bridgepoint-lighthouses-v1.js?v=2-visible-rotating-beacons" in (site/rel).read_text()
           assert not removed, f"Production files removed: {sorted(removed)}"
           assert not added, f"Unexpected production files added: {sorted(added)}"
           assert changed==expected, f"Unexpected file changes: {sorted(changed)}"
@@ -169,7 +177,9 @@ jobs:
         with:
           artifact_name: bridgepoint-solid-utility-wires-v11
 
-      - name: Verify live root, app, authentication, bridges and V11 utility wires
+      - name: Verify live root, app, authentication, bridges, lighthouses and V11 utility wires
+        env:
+          V5000_ARTIFACT_AVAILABLE: ${{ steps.current-v5000.outcome == 'success' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -202,6 +212,18 @@ jobs:
           grep -Fq "map.querySourceFeatures('bpBuildings', { sourceLayer: 'buildings' })" /tmp/bp-utility.js
           grep -Fq 'function bridgePolygonAxis(' /tmp/bp-world.js
           grep -Fq 'ESTIMATED_STANDARD_PROFILE' /tmp/bp-world.js
+          if [ "$V5000_ARTIFACT_AVAILABLE" = "true" ]; then
+            curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/bridgepoint-lighthouses-v1.js?verify=$q" -o /tmp/bp-lighthouses.js
+            curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app/bridgepoint-lighthouses-v1.js?verify=$q" -o /tmp/bp-app-lighthouses.js
+            grep -Fq 'const VERSION = 2;' /tmp/bp-lighthouses.js
+            grep -Fq 'const VERSION = 2;' /tmp/bp-app-lighthouses.js
+            grep -Fq 'const MIN_BEACON_ZOOM = 3.8;' /tmp/bp-lighthouses.js
+            grep -Fq "map.setLayoutProperty(BEACON_LAYER_ID, 'icon-rotate', degrees)" /tmp/bp-lighthouses.js
+            grep -Fq './bridgepoint-lighthouses-v1.js?v=2-visible-rotating-beacons' /tmp/bp-landing.js
+            grep -Fq './bridgepoint-lighthouses-v1.js?v=2-visible-rotating-beacons' /tmp/bp-app.js
+            cmp -s /tmp/bp-lighthouses.js /tmp/bp-app-lighthouses.js
+            echo 'BRIDGEPOINT_LIGHTHOUSE_BEACONS_V2_LIVE_PASS'
+          fi
           cmp -s /tmp/bp-utility.js /tmp/bp-app-utility.js
           python3 - <<'PY'
           import json
