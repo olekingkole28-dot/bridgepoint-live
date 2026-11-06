@@ -31,21 +31,27 @@ function signedDegrees(value) {
 }
 function centroidOfRing(ring) {
   if (!Array.isArray(ring) || ring.length < 3) return null;
+  const originX = finiteNumber(ring[0]?.[0]), originY = finiteNumber(ring[0]?.[1]);
+  if (originX === null || originY === null) return null;
   let area2 = 0, cx = 0, cy = 0, sx = 0, sy = 0, count = 0;
   for (let i = 0; i < ring.length; i++) {
     const a = ring[i], b = ring[(i + 1) % ring.length];
     if (!Array.isArray(a) || !Array.isArray(b)) continue;
-    const ax = finiteNumber(a[0]), ay = finiteNumber(a[1]);
-    const bx = finiteNumber(b[0]), by = finiteNumber(b[1]);
-    if (ax === null || ay === null || bx === null || by === null) continue;
+    const ax0 = finiteNumber(a[0]), ay0 = finiteNumber(a[1]);
+    const bx0 = finiteNumber(b[0]), by0 = finiteNumber(b[1]);
+    if (ax0 === null || ay0 === null || bx0 === null || by0 === null) continue;
+    // Center the shoelace calculation near the footprint to avoid catastrophic
+    // cancellation when tiny polygons use full-precision WGS84 coordinates.
+    const ax = ax0 - originX, ay = ay0 - originY;
+    const bx = bx0 - originX, by = by0 - originY;
     const cross = ax * by - bx * ay;
     area2 += cross;
     cx += (ax + bx) * cross;
     cy += (ay + by) * cross;
     sx += ax; sy += ay; count++;
   }
-  if (Math.abs(area2) > 1e-14) return [cx / (3 * area2), cy / (3 * area2)];
-  return count ? [sx / count, sy / count] : null;
+  if (Math.abs(area2) > 1e-20) return [originX + cx / (3 * area2), originY + cy / (3 * area2)];
+  return count ? [originX + sx / count, originY + sy / count] : null;
 }
 function geometryCenter(feature) {
   const geometry = feature && feature.geometry;
