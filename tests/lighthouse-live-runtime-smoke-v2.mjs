@@ -27,7 +27,7 @@ const browser = await puppeteer.launch({
 const summary = {
   origin,
   startedAt: new Date().toISOString(),
-  route: '/',
+  route: '/app/',
   cameraTarget: { name: 'Saybrook Breakwater Light', coordinates: [-72.3428, 41.2633] },
   network: [],
   consoleErrors: [],
@@ -62,15 +62,17 @@ try {
     }
   });
 
-  await page.goto(`${origin}/?bp-lighthouse-runtime-v2=${Date.now()}`, {
+  await page.goto(`${origin}/app/?bp-lighthouse-runtime-v2=${Date.now()}`, {
     waitUntil: 'domcontentloaded',
     timeout: 90000
   });
 
   await page.waitForFunction(() => {
-    const world = window.__BP_LANDING_WORLD__;
-    return !!world?.map && typeof world.map.getZoom === 'function' &&
-      typeof world.map.getStyle === 'function' && !!world.map.getStyle();
+    const world = window.__BP_V5000_WORLD__;
+    const spectral = window.__BP_SPECTRAL_IMAGERY_V5931__;
+    return !!world?.map && window.__BP_WORLD_CORE_READY__?.ready === true &&
+      spectral?.map === world.map && typeof spectral.setBasemapMode === 'function' &&
+      world.map.isStyleLoaded?.() === true;
   }, { timeout: 120000 });
 
   await page.waitForFunction(() => !!(
@@ -79,7 +81,7 @@ try {
 
   const target = [-72.3428, 41.2633];
   await page.evaluate((coordinates) => {
-    const map = window.__BP_LANDING_WORLD__?.map;
+    const map = window.__BP_V5000_WORLD__?.map;
     if (!map) throw new Error('HOMEPAGE_GLOBE_MAP_MISSING');
     map.stop?.();
     map.jumpTo({ center: coordinates, zoom: 6.2, pitch: 0, bearing: 0 });
@@ -90,7 +92,7 @@ try {
   await new Promise(resolve => setTimeout(resolve, 45000));
 
   summary.diagnostics.regional = await page.evaluate((coordinates) => {
-    const world = window.__BP_LANDING_WORLD__;
+    const world = window.__BP_V5000_WORLD__;
     const map = world?.map;
     const api = window.__BP_LIGHTHOUSES_V2__ || window.__BP_LIGHTHOUSES_V1__;
     const source = map?.getSource('bp-lighthouses-source-v1');
@@ -144,14 +146,14 @@ try {
   // Test close zoom separately: a source record plus a ready custom layer and a
   // selected model are required; a static circle by itself is not a passing 3D test.
   await page.evaluate((coordinates) => {
-    const map = window.__BP_LANDING_WORLD__?.map;
+    const map = window.__BP_V5000_WORLD__?.map;
     map?.stop?.();
     map?.jumpTo({ center: coordinates, zoom: 15.2, pitch: 38, bearing: 0 });
   }, target);
   await new Promise(resolve => setTimeout(resolve, 8000));
 
   summary.diagnostics.closeZoom = await page.evaluate(() => {
-    const world = window.__BP_LANDING_WORLD__;
+    const world = window.__BP_V5000_WORLD__;
     const map = world?.map;
     const api = window.__BP_LIGHTHOUSES_V2__ || window.__BP_LIGHTHOUSES_V1__;
     const sourceFeatures = map?.querySourceFeatures('bp-lighthouses-source-v1') || [];
