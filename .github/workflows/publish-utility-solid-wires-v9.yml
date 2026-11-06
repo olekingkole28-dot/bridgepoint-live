@@ -177,7 +177,7 @@ jobs:
 
       - uses: actions/configure-pages@v5
 
-      - name: Upload the bridge-preserved V11 site artifact
+      - name: Upload the bridge-preserved V11 attempt-specific site artifact
         uses: actions/upload-pages-artifact@v5
         with:
           name: bridgepoint-solid-utility-wires-v11-${{ github.run_attempt }}
