@@ -719,7 +719,7 @@ jobs:
           cp release-v2300/world-v2300-infrastructure-volume-v5962.js site/world-v2300-infrastructure-volume-v5962.js
           cp release-v2300/world-v2300-utility-infrastructure-v1.js site/world-v2300-utility-infrastructure-v1.js
           cp release-v2300/world-v2300-sensor-layers.js site/world-v2300-sensor-layers.js
-          sed -i 's#world-v2300-sensor-layers.js?v=6251-liquid-ocean#world-v2300-sensor-layers.js?v=6251-liquid-ocean#g' site/app.js site/landing.js
+          sed -i 's#world-v2300-sensor-layers.js?v=6256-gerstner-liquid-ocean#world-v2300-sensor-layers.js?v=6256-gerstner-liquid-ocean#g' site/app.js site/landing.js
           sed -i 's#world-v2300-clouds.js?v=6075-global-coverage-fill#world-v2300-clouds.js?v=6094-josephine-spiral-unified#g' site/app.js site/landing.js
           sed -i 's#world-v2300-clouds.js?v=6076-rounded-cloud-banks#world-v2300-clouds.js?v=6094-josephine-spiral-unified#g' site/app.js site/landing.js
           sed -i 's#world-v2300-clouds.js?v=6088-fuller-local-tornado#world-v2300-clouds.js?v=6094-josephine-spiral-unified#g' site/app.js site/landing.js
@@ -1124,8 +1124,8 @@ jobs:
           ! grep -Fq 'data-toggle' site/world-v2300-infrastructure-volume-v5962.js
           grep -Fq 'landing.js?v=6246-offshore-energy-v2&bp=5970-globe-model-matrices' site/index.html
           grep -Fq 'app.js?v=6246-offshore-energy-v2&bp=5970-globe-model-matrices' site/app/index.html
-          grep -Fq 'world-v2300-sensor-layers.js?v=6251-liquid-ocean' site/app.js
-          grep -Fq 'world-v2300-sensor-layers.js?v=6251-liquid-ocean' site/landing.js
+          grep -Fq 'world-v2300-sensor-layers.js?v=6256-gerstner-liquid-ocean' site/app.js
+          grep -Fq 'world-v2300-sensor-layers.js?v=6256-gerstner-liquid-ocean' site/landing.js
           grep -Fq 'bridgepoint-gebco-depth-image-v5937' site/world-v2300-sensor-layers.js
           grep -Fq 'bridgepoint-nasa-nightlights-v5937' site/world-v2300-sensor-layers.js
           grep -Fq "kind: 'georeferenced 3D cloud-volume layer'" site/world-v2300-clouds.js
@@ -1273,6 +1273,11 @@ jobs:
           grep -Fq 'bridgepoint-map-key-v5920.js?v=6037-mapkey-drawer-fix' site/index.html
           grep -Fq 'bridgepoint-map-key-v5920.js?v=6037-mapkey-drawer-fix' site/app/index.html
           grep -Fq 'Liquid ocean + underwater exploration' site/bridgepoint-map-key-v5920.js
+          grep -Fq 'Subsurface + Ocean-Depth X-Ray' site/bridgepoint-map-key-v5920.js
+          grep -Fq 'data-liquid' site/world-v2300-sensor-layers.js
+          ! grep -Fq 'data-d aria-pressed' site/world-v2300-sensor-layers.js
+          ! grep -Fq 'data-v aria-pressed' site/world-v2300-sensor-layers.js
+          grep -Fq 'gerstnerOffsetM' site/world-v2300-water.js
           grep -Fq 'world-v2300-realism.js?v=5910-world-materials' site/app.js
           grep -Fq 'gis-core-orchestrator-v5910.js?v=5910-gis-router' site/app.js
           grep -Fq 'PUBLIC_AUTO_MIN_ZOOM=4' site/parcel-boundary-viewer-v5403.js
