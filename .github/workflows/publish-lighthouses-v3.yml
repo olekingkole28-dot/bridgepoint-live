@@ -172,7 +172,7 @@ jobs:
 
           old_imports=(
             "./bridgepoint-lighthouses-v1.js?v=2-visible-rotating-beacons",
-            "./bridgepoint-lighthouses-v1.js?v=4-global-snapshot",
+            "./bridgepoint-lighthouses-v1.js?v=3-image-data-beacons",
           )
           new_import="./bridgepoint-lighthouses-v1.js?v=4-global-snapshot"
           for rel in ("landing.js","app.js"):
