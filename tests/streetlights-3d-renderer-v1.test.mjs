@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import {
   featureCoordinate,
+  hasLoadedStyle,
   isDarkAt,
   solarAltitude,
   streetlightHeight,
@@ -12,6 +13,21 @@ const source = await readFile(
   new URL('../streetlights-v1/world-v2300-streetlights-3d-v1.js', import.meta.url),
   'utf8'
 );
+
+const pendingOptionalSourcesMap = {
+  style: { _loaded: true },
+  isStyleLoaded: () => false,
+  getStyle: () => ({ version: 8, sources: {}, layers: [{ id: 'background', type: 'background' }] })
+};
+assert.equal(hasLoadedStyle(pendingOptionalSourcesMap), true,
+  'streetlight layers must attach once the style JSON is ready even when unrelated optional tiles keep isStyleLoaded false');
+assert.equal(hasLoadedStyle({
+  style: { _loaded: false },
+  isStyleLoaded: () => false,
+  getStyle: () => ({ version: 8, sources: {}, layers: [{ id: 'background', type: 'background' }] })
+}), false, 'a style still being parsed must not accept source/layer changes');
+assert.equal(hasLoadedStyle({ getStyle: () => null }), false,
+  'missing style JSON must defer streetlight installation');
 
 const solsticeNoon = new Date('2026-06-21T12:00:00.000Z');
 const solsticeMidnight = new Date('2026-06-21T00:00:00.000Z');
@@ -71,6 +87,8 @@ assert.ok(source.includes("customLayer.camera = new THREE.Camera();"),
   'custom layer must have a camera before rendering');
 assert.ok(source.includes("setInterval(() => updateNightAll(new Date()), 60000)"),
   'local day/night state must refresh automatically once per minute');
+assert.ok(source.includes('hasLoadedStyle(map)'), 'style readiness must not wait for unrelated optional source tiles');
+assert.ok(!source.includes("map.isStyleLoaded?.()"), 'the streetlight initializer must not block on unrelated tile loading');
 assert.ok(!source.includes("map.on('idle', onMapChange)"),
   'renderer must not create an idle-triggered repaint loop');
 
