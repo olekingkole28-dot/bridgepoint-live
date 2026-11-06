@@ -68,7 +68,7 @@ try {
   await page.waitForFunction(() => {
     const world = window.__BP_LANDING_WORLD__;
     return !!world?.map && typeof world.map.getZoom === 'function' &&
-      !!document.querySelector('#previewMap canvas, #landingMap canvas, #liveMap canvas');
+      typeof world.map.getStyle === 'function' && !!world.map.getStyle();
   }, { timeout: 120000 });
 
   await page.waitForFunction(() => !!(
