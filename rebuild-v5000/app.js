@@ -208,7 +208,7 @@ async function bootMap(){
  // a second copy of the same module under a different URL.
  try{window.dispatchEvent(new CustomEvent('bp:world-map-ready-v5940',{detail:{map:world.map,source:'app-module-ready'}}))}catch(_){}
  if(window.__BP_LANDMARKS_V5940__)window.__BP_LANDMARKS_V5940__.attachedMaps=Math.max(1,Number(window.__BP_LANDMARKS_V5940__.attachedMaps||0));
- void import('./bridgepoint-lighthouses-v1.js?v=1-global-osm-night-beam')
+ void import('./bridgepoint-lighthouses-v1.js?v=2-visible-rotating-beacons')
   .then(m=>{window.__BP_LIGHTHOUSES_V1__=m.initLighthouseRenderer(world)})
   .catch(e=>console.warn('BridgePoint global 3D lighthouse renderer unavailable',e));
 
