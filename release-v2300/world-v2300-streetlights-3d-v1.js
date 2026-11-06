@@ -292,6 +292,7 @@ function partTransform(entry, part, THREE) {
   const height = entry.height;
   let position = [0, 0, 0], scale = [1, 1, 1];
   if (part === 'base') position = [0, 0.09, 0];
+  if (part === 'photocell') position = [0.82, height + 0.025, 0];
   if (part === 'shaft') scale = [0.09, height, 0.09];
   if (part === 'arm') position = [0, height - 0.16, 0];
   if (part === 'brace') position = [0, height - 0.035, 0];
@@ -548,6 +549,7 @@ export function initStreetlightRenderer(target) {
         const fill = new THREE.HemisphereLight(0xbad8ee, 0x45413a, 0.34);
         scene.add(fill);
         dataGroup = new THREE.Group();
+        customLayer.camera = new THREE.Camera();
         dataGroup.name = 'BridgePoint global streetlight models';
         scene.add(dataGroup);
         state.ready = true;
@@ -637,7 +639,6 @@ export function initStreetlightRenderer(target) {
     map.on('sourcedata', onSourceData);
     map.on('moveend', onMapChange);
     map.on('zoomend', onMapChange);
-    map.on('idle', onMapChange);
     map.on('style.load', onStyleLoad);
     map.on('projectiontransition', onMapChange);
     map.on('remove', onMapRemove);
@@ -650,7 +651,7 @@ export function initStreetlightRenderer(target) {
     clearTimeout(bootTimer); clearTimeout(refreshTimer); clearInterval(nightTimer);
     document.removeEventListener('visibilitychange', onVisibility);
     for (const [event, handler] of [['sourcedata', onSourceData], ['moveend', onMapChange], ['zoomend', onMapChange],
-      ['idle', onMapChange], ['style.load', onStyleLoad], ['projectiontransition', onMapChange], ['remove', onMapRemove]]) {
+      ['style.load', onStyleLoad], ['projectiontransition', onMapChange], ['remove', onMapRemove]]) {
       try { map.off(event, handler); } catch (_) {}
     }
     clearSceneData();
