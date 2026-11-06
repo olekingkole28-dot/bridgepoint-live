@@ -13,7 +13,7 @@ const FIELDS = [
   't_retrofit','t_retro_yr','t_offshore','t_conf_atr','t_conf_loc',
   't_img_date','t_img_src','xlong','ylat'
 ].join(',');
-const REQUEST_LIMIT = 100000;
+const REQUEST_LIMIT = 2500;
 const MAX_ROWS = 150000;
 
 function outputPathFromArgs(args) {
