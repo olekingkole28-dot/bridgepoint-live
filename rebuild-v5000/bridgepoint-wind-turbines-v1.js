@@ -14,6 +14,7 @@ const PAGE_SIZE = 2500;
 const MAX_ROWS = 100000;
 const SOURCE_ID = 'bp-wind-turbines-source-v1';
 const CLUSTER_ID = 'bp-wind-turbines-clusters-v1';
+const CLUSTER_MARKER_ID = 'bp-wind-turbines-cluster-icons-v1';
 const CLUSTER_COUNT_ID = 'bp-wind-turbines-cluster-count-v1';
 const HALO_ID = 'bp-wind-turbines-halo-v1';
 const MARKER_ID = 'bp-wind-turbines-markers-v1';
@@ -330,7 +331,7 @@ function installLayers(state) {
   if (!map || !map.getStyle || !map.getStyle()) return false;
   try {
     if (!map.getSource(SOURCE_ID)) map.addSource(SOURCE_ID,{
-      type:'geojson',data:state.collection,cluster:true,clusterRadius:42,clusterMaxZoom:4,
+      type:'geojson',data:state.collection,cluster:true,clusterRadius:24,clusterMaxZoom:4,
       attribution:'U.S. Wind Turbine Database · USGS, Lawrence Berkeley National Laboratory and ACP'
     });
     if (!map.hasImage || !map.hasImage('bp-wind-turbine-icon-v1')) {
@@ -344,6 +345,19 @@ function installLayers(state) {
         'circle-radius':['step',['get','point_count'],11,10,14,50,19,200,25,1000,31],
         'circle-stroke-color':'#fff0bc','circle-stroke-width':1.25,'circle-opacity':0.96
       }
+    });
+    // A real turbine glyph marks each clustered region even at full-globe zoom.
+    // Cluster coordinates remain map-anchored and expand into individual records as the user zooms.
+    add(CLUSTER_MARKER_ID,{
+      id:CLUSTER_MARKER_ID,type:'symbol',source:SOURCE_ID,filter:['has','point_count'],
+      minzoom:0,maxzoom:5,
+      layout:{
+        'icon-image':'bp-wind-turbine-icon-v1',
+        'icon-size':['interpolate',['linear'],['zoom'],0,0.36,2,0.42,4.5,0.5],
+        'icon-anchor':'bottom','icon-pitch-alignment':'map','icon-rotation-alignment':'map',
+        'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-padding':0
+      },
+      paint:{'icon-opacity':1}
     });
     add(CLUSTER_COUNT_ID,{
       id:CLUSTER_COUNT_ID,type:'symbol',source:SOURCE_ID,filter:['has','point_count'],
@@ -396,7 +410,7 @@ function installLayers(state) {
   }
 }
 function setVisibility(state,on) {
-  for (const id of [CLUSTER_ID,CLUSTER_COUNT_ID,HALO_ID,MARKER_ID,LABEL_ID,HIT_ID,MODEL_ID]) {
+  for (const id of [CLUSTER_ID,CLUSTER_MARKER_ID,CLUSTER_COUNT_ID,HALO_ID,MARKER_ID,LABEL_ID,HIT_ID,MODEL_ID]) {
     try {if (state.map.getLayer(id)) state.map.setLayoutProperty(id,'visibility',on?'visible':'none');} catch (_) {}
   }
 }
@@ -638,7 +652,7 @@ function bindInteractions(state) {
   const map = state.map;
   map.on('click',e=>{
     if (!state.enabled) return;
-    const layers = [CLUSTER_ID,MARKER_ID,HALO_ID,LABEL_ID,HIT_ID].filter(id=>map.getLayer(id));
+    const layers = [CLUSTER_ID,CLUSTER_MARKER_ID,MARKER_ID,HALO_ID,LABEL_ID,HIT_ID].filter(id=>map.getLayer(id));
     const hits = map.queryRenderedFeatures ? map.queryRenderedFeatures(e.point,{layers:layers}) : [];
     const hit = hits && hits[0];
     if (!hit) return;
