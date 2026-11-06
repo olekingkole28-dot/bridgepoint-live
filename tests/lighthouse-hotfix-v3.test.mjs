@@ -12,6 +12,7 @@ assert.match(source, /return ctx\.getImageData\(0, 0, 96, 96\);/);
 assert.match(source, /map\.addImage\(BEACON_IMAGE_ID, imageData, \{ pixelRatio: 2 \}\);/);
 assert.doesNotMatch(source, /map\.addImage\(BEACON_IMAGE_ID, canvas,/);
 assert.match(source, /const VERSION = 4;/);
+assert.match(source, /const MAX_GLOBAL_FEATURES = 20000;/);
 assert.match(source, /LIGHTHOUSE_SNAPSHOT_URL = '\/data\/bridgepoint-lighthouses-global-v1\.json'/);
 assert.match(source, /fetch\(LIGHTHOUSE_SNAPSHOT_URL/);
 
