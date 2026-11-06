@@ -17,7 +17,7 @@ assert.ok(source.includes('const yaw = ((Number.isFinite(Number(support.bearing)
 assert.ok(source.includes('let catenaryA = distance * distance / Math.max(.1, 8 * sag)'), 'overhead conductors use a catenary rather than a straight/parabolic strip');
 assert.ok(source.includes('support.height * .84 + .245'), 'power conductors meet the top insulator attachment');
 assert.ok(source.includes('support.height * .68 + .07'), 'telecom conductors meet the lower communications bracket');
-assert.ok(source.includes('function hasGroundElevation(coordinate)'), 'unresolved ground points are detected before mesh placement');
+assert.ok(source.includes('function hasGroundElevation(coordinate)'), 'exact terrain availability is tracked for mapped utility points');
 assert.ok(source.includes('const supports = incoming.supports;'), 'mapped poles render immediately while missing ground samples resolve');
 assert.ok(source.includes('function localMetresPerPixel(coordinate)'), 'pole dimensions adapt to globe screen scale');
 assert.ok(source.includes('function wireRadiusFor(coordinate, baseRadius)'), 'thin conductors retain a visible screen-space floor');
@@ -47,4 +47,4 @@ assert.ok(Math.abs(drop(0)) < 1e-9, 'catenary starts at the first insulator');
 assert.ok(Math.abs(drop(1)) < 1e-9, 'catenary ends at the second insulator');
 assert.ok(Math.abs(drop(0.5) + sag) < 1e-6, 'catenary sag reaches the intended mid-span drop');
 
-console.log('BRIDGEPOINT_UTILITY_RENDERER_V5_PASS');
+console.log('BRIDGEPOINT_UTILITY_RENDERER_V6_PASS');
