@@ -142,6 +142,7 @@ export function windTurbinePopupHtml(feature) {
     ['Rotor swept area',p.sweptAreaM2 === null ? 'Not reported' : fmt(p.sweptAreaM2,1)+' m²'],
     ['Project year',p.projectYear === null ? 'Not reported' : fmt(p.projectYear,0)],
     ['Project turbine count',p.projectTurbineCount === null ? 'Not reported' : fmt(p.projectTurbineCount,0)],
+    ['Project capacity',p.projectCapacity === null ? 'Not reported' : fmt(p.projectCapacity,2)+' MW'],
     ['Location',[p.county,p.state].filter(Boolean).join(', ') || 'Not reported'],
     ['Installation',p.offshore?'Offshore':'Onshore'],
     ['Retrofit',p.retrofit ? ('Yes'+(p.retrofitYear?' · '+fmt(p.retrofitYear,0):'')) : 'Not reported / not flagged'],
@@ -583,7 +584,6 @@ async function loadInitialData(state) {
         offset += next.rows.length;
         if (Number.isFinite(next.total)) total = next.total;
         if (total !== null && offset >= total) break;
-        if (next.rows.length < PAGE_SIZE && total === null) break;
       }
     }
     if (state.dead) return;
