@@ -467,6 +467,40 @@ function disposeChildren(group) {
   }
 }
 
+export function isDistributionPowerLineFeature(feature, supports, sourceLayer = '') {
+  const p = feature && feature.properties || {};
+  const location = String(p.location || p['location:line'] || '').toLowerCase();
+  if (location === 'underground' || location === 'underwater' || p.tunnel === true ||
+      p.disused === true || p.construction === true) return false;
+  // OpenInfraMap imports power_line features under this source-layer; the
+  // original OSM power tag is not guaranteed to survive in the decoded properties.
+  const kind = String(p.power || p.type || (sourceLayer === 'power_line' ? 'line' : '')).toLowerCase();
+  if (kind !== 'line' && kind !== 'minor_line') return false;
+  const rawVoltage = p.voltage ?? p['voltage:primary'] ?? p.voltage_primary ?? p.voltageKv;
+  let voltage = null;
+  if (rawVoltage !== null && rawVoltage !== undefined && rawVoltage !== '') {
+    const match = String(rawVoltage).replace(/,/g, '').match(/\d+(?:\.\d+)?/);
+    if (match) {
+      let value = Number(match[0]);
+      if (Number.isFinite(value) && value > 0) {
+        if (String(rawVoltage).toLowerCase().includes('kv')) voltage = value;
+        else voltage = value >= 1000 ? value / 1000 : value;
+      }
+    }
+  }
+  if (voltage !== null && voltage >= 50) return false;
+  if (kind === 'minor_line' || voltage !== null) return true;
+  const matched = new Set();
+  for (const support of supports || []) {
+    if (pathsOf(feature).some(path => {
+      const hit = projectSupportToPath(support.coordinate, path);
+      return hit && hit.distance <= 13;
+    })) matched.add(support.key);
+    if (matched.size >= 2) return true;
+  }
+  return false;
+}
+
 export function initUtilityInfrastructure(target) {
   const map = target && (target.map || target);
   if (!map || typeof map.getBounds !== 'function' || typeof map.addSource !== 'function') return null;
@@ -967,7 +1001,7 @@ export function initUtilityInfrastructure(target) {
     return location !== 'underground' && location !== 'underwater' && p.tunnel !== true;
   }
 
-  export function isDistributionPowerLine(feature, supports, sourceLayer = '') {
+  function isDistributionPowerLine(feature, supports, sourceLayer = '') {
     const p = feature && feature.properties || {};
     if (!isOverheadFeature(p) || p.disused === true || p.construction === true) return false;
     // OpenInfraMap imports power_line ways into this source-layer. The original
