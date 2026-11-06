@@ -439,7 +439,8 @@ async function fetchUspvdb() {
     const data=await requestJson(url.toString(),40000);
     if (!Array.isArray(data.features)) throw new Error('USPVDB query did not return a GeoJSON feature list');
     rows.push(...data.features);
-    if (data.features.length<2000 || data.exceededTransferLimit!==true) break;
+    const hasMore=data.exceededTransferLimit===true || data.properties?.exceededTransferLimit===true;
+    if (data.features.length<2000 || !hasMore) break;
   }
   return rows;
 }
