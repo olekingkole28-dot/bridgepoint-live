@@ -144,7 +144,15 @@ jobs:
               assert "./bridgepoint-lighthouses-v1.js?v=2-visible-rotating-beacons" in (site/rel).read_text()
           assert not removed, f"Production files removed: {sorted(removed)}"
           assert not added, f"Unexpected production files added: {sorted(added)}"
-          assert changed==expected, f"Unexpected file changes: {sorted(changed)}"
+          unexpected=changed-expected
+          assert not unexpected, f"Unexpected file changes: {sorted(unexpected)}"
+          required_loaders={"index.html","app/index.html","landing.js","app.js"}
+          assert required_loaders.issubset(changed), f"Required loader updates missing: {sorted(required_loaders-changed)}"
+          utility_paths=("world-v2300-utility-infrastructure-v1.js","app/world-v2300-utility-infrastructure-v1.js")
+          source=Path(os.environ["RUNNER_TEMP"])/"utility-v11-source/release-v2300/world-v2300-utility-infrastructure-v1.js"
+          for rel in utility_paths:
+            assert (site/rel).read_bytes()==source.read_bytes()
+          print("V11_UTILITY_FILES_MAY_BE_BYTE_IDENTICAL", sorted(set(expected)-changed))
           assert "function bridgePolygonAxis(" in (site/"world-v2300-map.js").read_text()
           assert "bpAuthRequestV6237" in (site/"landing.js").read_text()
           assert "bpAuthRequestV6237" in (site/"app.js").read_text()
