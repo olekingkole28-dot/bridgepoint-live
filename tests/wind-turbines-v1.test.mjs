@@ -75,7 +75,7 @@ assert.ok(builder.includes('csv.DictReader'));
 assert.ok(builder.includes('EXPECTED_HEADER'));
 
 assert.ok(builder.includes('USWTDB_V9_1_20260928'));
-assert.ok(builder.includes('recordCount:records.length'));
+assert.ok(builder.includes('"recordCount": len(records)'));
 
 assert.ok(moduleSource.includes('t_hh'));
 assert.ok(moduleSource.includes('t_rd'));
