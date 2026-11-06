@@ -180,12 +180,12 @@ test('entrypoints use fresh cache keys and keep the celestial canvas off the sat
     assert.match(source, /world-v2300-weather\.js\?v=6200-storm-clouds-no-rain/);
     assert.match(source, /world-v2300-time-slider\.js\?v=6170-no-cloud-toggle-always-on/);
   }
-  assert.match(appHtml, /app\.js\?v=6237-pc-auth/, 'app shell loads the updated app entrypoint');
+  assert.match(appHtml, /app\.js\?v=6244-solid-utility-wires-v10/, 'app shell loads the updated app entrypoint');
   assert.doesNotMatch(map, /world-v2300-space\.js\?v=6125-manual-globe-camera/, 'the retired celestial overlay must not be imported by the live globe');
   assert.doesNotMatch(timeSlider, /data-clouds|toggleSkyClouds|world-v2300-clouds/);
   assert.match(bootstrap, /world-v2300-weather\.js\?v=6195-desktop-globe-flash-stability/);
-  assert.match(appHtml, /app\.js\?v=6237-pc-auth/);
-  assert.match(landingHtml, /landing\.js\?v=6237-pc-auth/);
+  assert.match(appHtml, /app\.js\?v=6244-solid-utility-wires-v10/);
+  assert.match(landingHtml, /landing\.js\?v=6244-solid-utility-wires-v10/);
   assert.match(appHtml, /intelligence-global-v5507\.js\?v=6170-imerg-nrt-timeline/);
   assert.match(landingHtml, /intelligence-global-v5507\.js\?v=6170-imerg-nrt-timeline/);
 });
@@ -437,8 +437,8 @@ test('homepage opportunities stay off at startup and the button enables the publ
 test('website and app start on the same cache-busted globe-first weather build', () => {
   assert.match(landingHtml, /bp-globe-only-first-frame-v6137/);
   assert.match(appHtml, /bp-app-globe-only-first-frame-v6137/);
-  assert.ok(landingHtml.includes('landing.js?v=6237-pc-auth'));
-  assert.ok(appHtml.includes('app.js?v=6237-pc-auth'));
+  assert.ok(landingHtml.includes('landing.js?v=6244-solid-utility-wires-v10'));
+  assert.ok(appHtml.includes('app.js?v=6244-solid-utility-wires-v10'));
   assert.ok(landingHtml.includes('intelligence-global-v5507.js?v=6170-imerg-nrt-timeline'));
   assert.ok(appHtml.includes('intelligence-global-v5507.js?v=6170-imerg-nrt-timeline'));
 });
