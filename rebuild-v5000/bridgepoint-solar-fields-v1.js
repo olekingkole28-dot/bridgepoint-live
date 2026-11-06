@@ -193,7 +193,7 @@ export function normalizeUspvdbFeature(feature) {
       modelAreaM2:areaM2,modelDimensions:dims,
       panelTiltSource:tilt!==null?'USPVDB reported':'Illustrative default',
       panelAzimuthSource:azimuth!==null?'USPVDB reported':'Illustrative default',
-      rackHeightM:null,markerColor:'#f3cf68'
+      rackHeightM:null,modelPhotovoltaic:true,markerColor:'#f3cf68'
     }
   };
 }
@@ -259,7 +259,7 @@ export function normalizeSolarOsmElement(element) {
       modelAreaM2:areaM2,modelDimensions:dims,
       panelTiltSource:finite(tags['plant:tilt'])!==null?'OSM tagged':'Illustrative default',
       panelAzimuthSource:finite(tags['plant:azimuth'])!==null?'OSM tagged':'Illustrative default',
-      rackHeightM:null,markerColor:'#f1c967'
+      rackHeightM:null,modelPhotovoltaic:method==='photovoltaic',markerColor:'#f1c967'
     }
   };
 }
@@ -362,6 +362,7 @@ export function solarFieldPopupHtml(feature) {
     ['3D table footprint','14 × 3.8 m · illustrative rack/table geometry, not individual module dimensions'],
     ['3D rack center height','2.05 m above modeled ground · illustrative visual dimension, not surveyed'],
 
+    ['3D panel-model eligibility',p.modelPhotovoltaic===false?'Not rendered · source method is not confirmed as photovoltaic':'Photovoltaic panel-table model'],
     ['Position',position],
     ['Location quality',p.locationAccuracy||'Not reported'],
     ['USPVDB digitization confidence',confidence],
@@ -379,6 +380,7 @@ export function solarFieldPopupHtml(feature) {
     '<h3>'+safe(p.name||'Solar field')+'</h3>'+
     '<div class="bp-solar-grid-v1">'+rows.map(r=>'<div><span>'+safe(r[0])+'</span><b>'+safe(r[1])+'</b></div>').join('')+'</div>'+
     '<p class="bp-solar-note-v1">'+safe(provenance)+'</p>'+
+    (p.modelPhotovoltaic===false?'<p class="bp-solar-note-v1">3D panel tables are intentionally not drawn because this source record does not identify the technology as photovoltaic.</p>':'')+
     '<p class="bp-solar-note-v1">The measured facility boundary, source coordinates, area, capacity and orientation are shown where the source reports them. Individual panel-module sizes and actual rack heights are not published in these records; the 3D table geometry is a consistently scaled visual representation anchored to the mapped ground boundary.</p>'+
     '<div class="bp-solar-source-v1">Source: '+source+'</div>'+
     '<div class="bp-solar-coords-v1">'+safe(p.sourceName||'')+' · '+safe(p.recordId||'')+'</div>'+
@@ -693,7 +695,7 @@ function modelCandidates(state) {
   if(!bounds||!center)return [];
   const rows=[];
   for(const f of state.featureCache.values()) {
-    if(!f.properties?.modelGeometry)continue;
+    if(!f.properties?.modelGeometry||f.properties.modelPhotovoltaic===false)continue;
     const rings=geometryRings(f.properties.modelGeometry);
     if(!rings.length)continue;
     let west=Infinity,east=-Infinity,south=Infinity,north=-Infinity;
