@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 const read = path => readFile(new URL(path, import.meta.url), 'utf8');
-const [sensor, map, app, workflow, water] = await Promise.all([
+const [sensor, map, app, workflow, water, key] = await Promise.all([
   read('../release-v2300/world-v2300-sensor-layers.js'),
   read('../release-v2300/world-v2300-map.js'),
   read('../rebuild-v5000/app.js'),
   read('../.github/workflows/deploy-intelligence-rebuild-v5000.yml'),
-  read('../release-v2300/world-v2300-water.js')
+  read('../release-v2300/world-v2300-water.js'),
+  read('../rebuild-v5000/bridgepoint-map-key-v5920.js')
 ]);
 assert.ok(sensor.includes("function waitForBathymetry(point,timeout=6500)"), 'dive must wait for a source-backed bathymetry sample');
 assert.ok(sensor.includes("function waitForDepthSource(timeout=10000)"), 'dive must wait for the GEBCO raster and terrain sources to attach after a projection change');
@@ -23,7 +24,7 @@ assert.ok(sensor.includes("await window.__BP_TOGGLE_WATER__()") && sensor.includ
 assert.ok(sensor.includes("map.setCenterClampedToGround?.(false)") && sensor.includes("map.setMaxPitch?.(110)"), 'liquid mode must unlock the underwater camera path');
 assert.ok(sensor.includes("var(--bp-dive-depth") && sensor.includes("function drawDiveParticles"), 'underwater mode must apply depth-dependent blue-green fog and rising bubbles');
 assert.ok(sensor.includes("Previous camera position and map projection restored."), 'surface return must restore the saved camera and projection');
-assert.ok(workflow.includes("world-v2300-sensor-layers.js?v=6251-liquid-ocean"), 'the production build must publish the unified liquid-ocean sensor module');
+assert.ok(workflow.includes("world-v2300-sensor-layers.js?v=6256-gerstner-liquid-ocean"), 'the production build must publish the unified liquid-ocean sensor module');
 assert.ok(workflow.includes("node tests/underwater-dive-camera.test.mjs"), 'the production build must run the underwater regression test');
 assert.ok(!sensor.includes("zoom:Math.max(3.5,Math.min(8.5"), 'the old fallback zoom-out behavior must stay removed');
 assert.ok(map.includes("function isUnderwaterDiveActive(){return window.__BP_UNDERWATER_DIVE_ACTIVE__===true||window.__BP_UNDERWATER_DIVE_TRANSITION__===true}"), 'satellite recovery must share the underwater-state check');
@@ -37,6 +38,8 @@ assert.ok(app.includes("const underwaterDiveActive=window.__BP_UNDERWATER_DIVE_A
 assert.ok(app.includes("if(!underwaterDiveActive&&projection!=='globe'&&appMap.getZoom()<7.5)"), 'the app startup callback must not switch Mercator back to globe while diving');
 console.log('BRIDGEPOINT_UNDERWATER_DIVE_CAMERA_TEST_PASS');
 
-assert.ok(water.includes("float globalSwell =") && water.includes("gl_Position = projectTileFor3D(a_pos, a_height + offsetM)"), 'the GPU water renderer must combine continuous wave animation with vertex displacement');
+assert.ok(water.includes("float globalSwell =") && water.includes("gl_Position = projectTileFor3D(displacedPosition, a_height + offsetM)"), 'the GPU water renderer must combine continuous wave animation with horizontal Gerstner vertex displacement');
 assert.ok(water.includes("function marineFeature(feature)") && water.includes("\\b(ocean|sea|bay|gulf|strait|sound|estuary|open water)\\b"), 'open-ocean polygons must be eligible for the global liquid surface');
+assert.ok(water.includes("waveModel: 'three-component-gerstner-vertex-displacement'"), 'the renderer diagnostic must identify the Gerstner surface model');
+assert.ok(key.includes("Subsurface + Ocean-Depth X-Ray") && key.includes("Liquid ocean + underwater exploration"), 'the map key must preserve the Subsurface X-Ray entry alongside Liquid Ocean');
 console.log('BRIDGEPOINT_LIQUID_OCEAN_MODE_PASS');
