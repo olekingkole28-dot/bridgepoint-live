@@ -70,6 +70,8 @@ const [moduleSource,landing,app,home,appHome,builder,deploy]=await Promise.all([
 assert.ok(moduleSource.includes("const SNAPSHOT_URL = '/data/bridgepoint-uswtdb-turbines-v9_1.json'"));
 assert.equal(moduleSource.includes('energy.usgs.gov/api/uswtdb/v1/turbines'),false);
 assert.ok(builder.includes('ARCHIVE_URL = "https://energy.usgs.gov/uswtdb/assets/data/uswtdbCSV.zip"'));
+assert.ok(builder.includes('"User-Agent": "BridgePoint-Intelligence/1.0"'));
+assert.equal(builder.includes('"Accept": "application/zip"'),false);
 assert.ok(builder.includes('uswtdb_V9_1_20260928.csv'));
 assert.ok(builder.includes('csv.DictReader'));
 assert.ok(builder.includes('EXPECTED_HEADER'));
