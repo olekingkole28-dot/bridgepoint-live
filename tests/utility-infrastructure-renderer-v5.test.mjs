@@ -6,7 +6,11 @@ const source = await readFile(
   'utf8'
 );
 
-assert.ok(source.includes('const VERSION = 7;'), 'utility renderer advances to v7');
+assert.ok(source.includes('const VERSION = 8;'), 'utility renderer advances to v8');
+assert.ok(source.includes('const PRECISE_POLE_MIN_ZOOM = 16;'), 'close-zoom precision renderer activates before GPU position precision becomes limiting');
+assert.ok(source.includes('function buildPrecisePoleGroups(supports)'), 'street-zoom pole geometry is batched in local ground-anchored frames');
+assert.ok(source.includes('camera.projectionMatrix.copy(projection).multiply(anchorMatrix)'), 'close-zoom draw composes projection and local geographic anchor before GPU submission');
+assert.ok(source.includes('for (const mesh of standardPoleMeshes) mesh.visible = !closeZoom;'), 'close-zoom pass replaces absolute-coordinate pole instances with precision-safe local batches');
 assert.ok(source.includes('const MIN_ZOOM = 13;'), 'utility 3D assets activate at close globe zoom');
 assert.ok(source.includes('const MAX_SUPPORTS = IS_SMALL_DEVICE ? 420 : 900;'), 'mobile and desktop have bounded support budgets');
 assert.ok(source.includes('const MAX_SPANS = IS_SMALL_DEVICE ? 160 : 420;'), 'mobile cable geometry has a frame-safe span budget');
@@ -49,4 +53,4 @@ assert.ok(Math.abs(drop(0)) < 1e-9, 'catenary starts at the first insulator');
 assert.ok(Math.abs(drop(1)) < 1e-9, 'catenary ends at the second insulator');
 assert.ok(Math.abs(drop(0.5) + sag) < 1e-6, 'catenary sag reaches the intended mid-span drop');
 
-console.log('BRIDGEPOINT_UTILITY_RENDERER_V7_PASS');
+console.log('BRIDGEPOINT_UTILITY_RENDERER_V8_PASS');

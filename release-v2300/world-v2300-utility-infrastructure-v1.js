@@ -1,4 +1,4 @@
-const VERSION = 7;
+const VERSION = 8;
 const POWER_SOURCE = 'bp-utility-power-v1';
 const TELECOM_SOURCE = 'bp-utility-telecom-v1';
 const THREE_URL = '/vendor/three.module.js?v=169-local';
@@ -6,6 +6,7 @@ const IS_SMALL_DEVICE = typeof window !== 'undefined' &&
   ((Number(window.innerWidth) || 1024) <= 820 ||
     (typeof navigator !== 'undefined' && Number(navigator.maxTouchPoints) > 0));
 const MIN_ZOOM = 13;
+const PRECISE_POLE_MIN_ZOOM = 16;
 const MAX_GROUND_SAMPLES = IS_SMALL_DEVICE ? 56 : 96;
 const MAX_SOURCE_ZOOM = 17;
 const MAX_SUPPORTS = IS_SMALL_DEVICE ? 420 : 900;
@@ -332,6 +333,7 @@ export function initUtilityInfrastructure(target) {
   let styleInitPromise = null, customLayerInstalling = false;
   let lastAssetSignature = '', groundCacheRevision = 0;
   let bodyGeometry = null, poleBaseGeometry = null, armGeometry = null, braceGeometry = null;
+  let precisePoleGroups = [], standardPoleMeshes = [];
   let insulatorGeometry = null, telecomBracketGeometry = null, towerGeometry = null;
   let transformerGeometry = null, switchGeometry = null, cabinetGeometry = null, mastGeometry = null, spliceBoxGeometry = null;
   let woodMaterial = null, towerMaterial = null, metalMaterial = null, ceramicMaterial = null;
@@ -568,6 +570,12 @@ export function initUtilityInfrastructure(target) {
 
   function clearSceneData() {
     disposeChildren(dataGroup);
+    standardPoleMeshes = [];
+    for (const group of precisePoleGroups) {
+      try { scene && scene.remove(group); } catch (_) {}
+      disposeChildren(group);
+    }
+    precisePoleGroups = [];
     state.poles = 0; state.towers = 0; state.powerSpans = 0; state.telecomSpans = 0;
     state.transformers = 0; state.switches = 0; state.cabinets = 0; state.telecomMasts = 0;
     state.measuredHeights = 0; state.estimatedHeights = 0;
@@ -644,15 +652,42 @@ export function initUtilityInfrastructure(target) {
         const matrix = args && (args.defaultProjectionData && args.defaultProjectionData.mainMatrix ||
           args.modelViewProjectionMatrix) || args;
         if (!matrix || typeof matrix.length !== 'number' || matrix.length < 16) return;
-        customLayer.camera.projectionMatrix.fromArray(matrix);
+        const projection = new THREE.Matrix4().fromArray(matrix);
+        const closeZoom = Number(map.getZoom && map.getZoom() || 0) >= PRECISE_POLE_MIN_ZOOM;
+        for (const mesh of standardPoleMeshes) mesh.visible = !closeZoom;
+        for (const group of precisePoleGroups) group.visible = false;
+        customLayer.camera.projectionMatrix.copy(projection);
         try {
           customLayer.renderer.resetState && customLayer.renderer.resetState();
           if (customLayer.renderer.state && customLayer.renderer.state.reset) customLayer.renderer.state.reset();
         } catch (_) {}
         customLayer.renderer.render(customLayer.scene, customLayer.camera);
+        if (closeZoom && precisePoleGroups.length) {
+          const restoreVisibility = dataGroup.visible;
+          dataGroup.visible = false;
+          try {
+            for (const group of precisePoleGroups) {
+              const anchorMatrix = group.userData && group.userData.bpAnchorMatrix;
+              if (!anchorMatrix) continue;
+              group.visible = true;
+              customLayer.camera.projectionMatrix.copy(projection).multiply(anchorMatrix);
+              try {
+                customLayer.renderer.resetState && customLayer.renderer.resetState();
+                if (customLayer.renderer.state && customLayer.renderer.state.reset) customLayer.renderer.state.reset();
+              } catch (_) {}
+              try { customLayer.renderer.render(customLayer.scene, customLayer.camera); }
+              finally { group.visible = false; }
+            }
+          } finally {
+            dataGroup.visible = restoreVisibility;
+            customLayer.camera.projectionMatrix.copy(projection);
+          }
+        }
       },
       onRemove: () => {
         try { customLayer.renderer && customLayer.renderer.dispose(); } catch (_) {}
+        precisePoleGroups = [];
+        standardPoleMeshes = [];
         renderer = null; scene = null; dataGroup = null;
         if (customLayer) {
           customLayer.renderer = null; customLayer.scene = null; customLayer.camera = null;
@@ -1116,6 +1151,111 @@ export function initUtilityInfrastructure(target) {
     return { key: zoom + '/' + x + '/' + y, coordinate: [centerLon, centerLat] };
   }
 
+  // Close-range pole meshes use tile-local metre coordinates. Storing absolute
+  // Mercator coordinates in InstancedMesh matrices loses sub-metre detail in
+  // Float32 at street zoom. The renderer composes projection * anchor on the CPU,
+  // then draws each small local batch with the same geographic ground anchor.
+  function buildPrecisePoleGroups(supports) {
+    const batches = new Map();
+    for (const support of supports || []) {
+      const tile = wireTileAnchor(support.coordinate, 16);
+      let batch = batches.get(tile.key);
+      if (!batch) {
+        batch = { anchor: tile.coordinate, supports: [] };
+        batches.set(tile.key, batch);
+      }
+      batch.supports.push(support);
+    }
+    for (const batch of batches.values()) {
+      const anchorGround = localTerrainAt(batch.anchor);
+      const anchorMatrix = modelMatrixFor(map, THREE, batch.anchor, anchorGround);
+      if (!anchorMatrix) continue;
+      const group = new THREE.Group();
+      group.name = 'BridgePoint close-zoom ground-anchored poles';
+      group.matrixAutoUpdate = false;
+      group.matrix.identity();
+      group.visible = false;
+      group.userData.bpAnchorMatrix = anchorMatrix;
+      const count = batch.supports.length;
+      const poleMesh = new THREE.InstancedMesh(bodyGeometry, woodMaterial, count);
+      const baseMesh = new THREE.InstancedMesh(poleBaseGeometry, woodMaterial, count);
+      const armMesh = new THREE.InstancedMesh(armGeometry, woodMaterial, count);
+      const braceMesh = new THREE.InstancedMesh(braceGeometry, woodMaterial, count);
+      const insulatorMesh = new THREE.InstancedMesh(insulatorGeometry, ceramicMaterial, count * 3);
+      const telecomMesh = new THREE.InstancedMesh(telecomBracketGeometry, metalMaterial, count);
+      const meshes = [poleMesh, baseMesh, armMesh, braceMesh, insulatorMesh, telecomMesh];
+      for (const mesh of meshes) {
+        mesh.count = 0;
+        mesh.frustumCulled = false;
+        mesh.renderOrder = 920;
+      }
+      let placed = 0;
+      for (const support of batch.supports) {
+        const ground = localTerrainAt(support.coordinate);
+        const offset = localEastNorth(batch.anchor, support.coordinate);
+        const origin = new THREE.Matrix4().makeTranslation(
+          offset[0], ground - anchorGround, -offset[1]
+        );
+        const yaw = Number.isFinite(Number(support.bearing)) ? Number(support.bearing) * RAD : 0;
+        const rotation = new THREE.Matrix4().makeRotationY(yaw);
+        const sourceHeight = Number(support.height);
+        const height = support.measuredHeight && Number.isFinite(sourceHeight) && sourceHeight >= 3
+          ? sourceHeight : 11;
+        const armLength = Math.max(1.2, Math.min(4.5, Number(support.armLengthMetres) || 2.0));
+        const crossarmY = height * .84;
+        const poleScale = minimumDisplayScale(support.coordinate, .34, 1.8, 14);
+        const hardwareScale = minimumDisplayScale(support.coordinate, .20, 1.3, 11);
+        const poleMatrix = origin.clone().multiply(rotation)
+          .multiply(new THREE.Matrix4().makeScale(poleScale, height, poleScale));
+        const baseMatrix = origin.clone().multiply(rotation)
+          .multiply(new THREE.Matrix4().makeScale(poleScale, 1, poleScale));
+        const armMatrix = origin.clone().multiply(rotation)
+          .multiply(new THREE.Matrix4().makeTranslation(0, crossarmY, 0))
+          .multiply(new THREE.Matrix4().makeScale(armLength, hardwareScale, hardwareScale));
+        const braceMatrix = origin.clone().multiply(rotation)
+          .multiply(new THREE.Matrix4().makeTranslation(0, crossarmY, 0))
+          .multiply(new THREE.Matrix4().makeScale(armLength, 1, hardwareScale));
+        const poleMeshHex = String(support.material || '').toLowerCase();
+        const poleColor = new THREE.Color(
+          poleMeshHex.includes('concrete') ? 0x9da8ad :
+            (poleMeshHex.includes('steel') || poleMeshHex.includes('metal') ||
+             poleMeshHex.includes('iron') || poleMeshHex.includes('alumin')) ? 0x98a5aa :
+              poleMeshHex.includes('composite') ? 0x7d8990 : 0xb08a5b
+        );
+        for (const mesh of [poleMesh, baseMesh, armMesh, braceMesh]) mesh.setColorAt(placed, poleColor);
+        poleMesh.setMatrixAt(placed, poleMatrix);
+        baseMesh.setMatrixAt(placed, baseMatrix);
+        armMesh.setMatrixAt(placed, armMatrix);
+        braceMesh.setMatrixAt(placed, braceMatrix);
+        const pinOffset = Math.min(.34, armLength * .36);
+        for (let pin = 0; pin < 3; pin++) {
+          const across = (pin - 1) * pinOffset;
+          const pinMatrix = origin.clone().multiply(rotation)
+            .multiply(new THREE.Matrix4().makeTranslation(across, crossarmY + .045, 0))
+            .multiply(new THREE.Matrix4().makeScale(hardwareScale, 1.2, hardwareScale));
+          insulatorMesh.setMatrixAt(placed * 3 + pin, pinMatrix);
+        }
+        const telecomScale = minimumDisplayScale(support.coordinate, .22, 1.2, 10);
+        const telecomMatrix = origin.clone().multiply(rotation)
+          .multiply(new THREE.Matrix4().makeTranslation(0, height * .68, 0))
+          .multiply(new THREE.Matrix4().makeScale(Math.sqrt(telecomScale), telecomScale, telecomScale));
+        telecomMesh.setMatrixAt(placed, telecomMatrix);
+        placed++;
+      }
+      poleMesh.count = baseMesh.count = armMesh.count = braceMesh.count = telecomMesh.count = placed;
+      insulatorMesh.count = placed * 3;
+      for (const mesh of meshes) {
+        if (mesh.instanceMatrix) mesh.instanceMatrix.needsUpdate = true;
+        if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+        if (mesh.count) group.add(mesh);
+      }
+      if (placed) {
+        scene.add(group);
+        precisePoleGroups.push(group);
+      }
+    }
+  }
+
   function getWireBatch(batches, coordinate) {
     const tile = wireTileAnchor(coordinate);
     let batch = batches.get(tile.key);
@@ -1308,6 +1448,7 @@ export function initUtilityInfrastructure(target) {
     const insulatorMesh = new THREE.InstancedMesh(insulatorGeometry, ceramicMaterial, supports.length * 3);
     const telecomBracketMesh = new THREE.InstancedMesh(telecomBracketGeometry, metalMaterial, supports.length);
     const hardwareMeshes = [poleMesh, poleBaseMesh, armMesh, braceMesh, insulatorMesh, telecomBracketMesh];
+    standardPoleMeshes = hardwareMeshes;
     for (const mesh of hardwareMeshes) {
       mesh.count = 0;
       mesh.frustumCulled = false;
@@ -1378,6 +1519,7 @@ export function initUtilityInfrastructure(target) {
         if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
         dataGroup.add(mesh);
       }
+      buildPrecisePoleGroups(supports);
     }
 
     state.groundUnresolved = groundUnresolved + incoming.supports.length - supports.length;
