@@ -73,7 +73,7 @@ jobs:
           set -euo pipefail
           grep -Fq "export function initWaterEngine" release-v2300/world-v2300-water.js
           grep -Fq "const VERSION = 6123;" release-v2300/world-v2300-water.js
-          grep -Fq "const SURFACE_RENDER_REVISION = 6194;" release-v2300/world-v2300-water.js
+          grep -Fq "const SURFACE_RENDER_REVISION = 6256;" release-v2300/world-v2300-water.js
           grep -Fq "const maxCells = worldView" release-v2300/world-v2300-water.js
           grep -Fq "MIN_BACKGROUND_BUILD_INTERVAL_MS = 4200" release-v2300/world-v2300-water.js
           grep -Fq "sourceGapGeometryPreserved++" release-v2300/world-v2300-water.js
@@ -87,11 +87,14 @@ jobs:
           grep -Fq "MIN_WAVE_SAMPLES_PER_PERIOD = 8" release-v2300/world-v2300-water.js
           grep -Fq "MAX_VERTEX_WAVE_HARMONIC = 1.91" release-v2300/world-v2300-water.js
           grep -Fq "resolveWaveFrequencyCyclesPerWorld" release-v2300/world-v2300-water.js
+          grep -Fq "vec2 rawGerstnerOffsetM" release-v2300/world-v2300-water.js
+          grep -Fq "projectTileFor3D(displacedPosition" release-v2300/world-v2300-water.js
+          grep -Fq "waveModel: 'three-component-gerstner-vertex-displacement'" release-v2300/world-v2300-water.js
           grep -Fq "api.waterGridStepWorld = Math.max(dx, dy);" release-v2300/world-v2300-water.js
           grep -Fq "const waveFrequencyZoom = clamp(z, 0.6, 15.0);" release-v2300/world-v2300-water.js
           grep -Fq "const detailFrequencyZoom = clamp(z, 0.6, 20.0);" release-v2300/world-v2300-water.js
           grep -Fq "const flowCycles = detailCyclesPerWorld * 2.4;" release-v2300/world-v2300-water.js
-          grep -Fq "projectTileFor3D(a_pos" release-v2300/world-v2300-water.js
+          grep -Fq "projectTileFor3D(displacedPosition" release-v2300/world-v2300-water.js
           grep -Fq "function mapCanHostWater()" release-v2300/world-v2300-water.js
           grep -Fq "float marineSurgeMask" release-v2300/world-v2300-water.js
           ! grep -Fq "if (!map.isStyleLoaded?.())" release-v2300/world-v2300-water.js
@@ -129,8 +132,8 @@ jobs:
           grep -Fq "float glancingGlint = pow(" release-v2300/world-v2300-water.js
           grep -Fq "sourceLevel !== null && sourceLevel >= -MAX_VALID_MARINE_SURFACE_OFFSET_M" release-v2300/world-v2300-water.js
           grep -Fq "clamp(0.22 + shimmer * 0.20, 0.22, 0.50)" release-v2300/world-v2300-water.js
-          grep -Fq "world-v2300-water.js?v=6194-stable-water-low-cost" rebuild-v5000/app.js
-          grep -Fq "world-v2300-water.js?v=6194-stable-water-low-cost" rebuild-v5000/landing.js
+          grep -Fq "world-v2300-water.js?v=6256-gerstner-ocean" rebuild-v5000/app.js
+          grep -Fq "world-v2300-water.js?v=6256-gerstner-ocean" rebuild-v5000/landing.js
           grep -Fq "paint(map,'gta-water','fill-opacity',0)" release-v2300/world-v2300-map.js
           grep -Fq "setBase('satellite')" release-v2300/world-v2300-map.js
           grep -Fq "defaultBase:'satellite'" release-v2300/world-v2300-map.js
