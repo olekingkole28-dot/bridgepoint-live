@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import puppeteer from 'puppeteer-core';
+import { createRequire } from 'node:module';
+const require = createRequire('/tmp/bp-lighthouse-runtime-smoke-v2.cjs');
+const puppeteer = require('puppeteer-core');
 
 const origin = process.env.BP_ORIGIN || 'https://bridgepointintelligence.online';
 const output = process.env.BP_SMOKE_OUTPUT || '/tmp/bp-lighthouse-smoke-v2';
