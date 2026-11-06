@@ -56,25 +56,35 @@ assert.match(windTurbinePopupHtml(incomplete),/dimensions are absent/);
 assert.match(windTurbinePopupHtml(incomplete),/Not reported/);
 assert.match(windTurbinePopupHtml(turbine),/United States inventory/);
 
-const [moduleSource,landing,app,home,appHome,deploy]=await Promise.all([
+const [moduleSource,landing,app,home,appHome,builder,deploy]=await Promise.all([
   readFile(new URL('../rebuild-v5000/bridgepoint-wind-turbines-v1.js',import.meta.url),'utf8'),
   readFile(new URL('../rebuild-v5000/landing.js',import.meta.url),'utf8'),
   readFile(new URL('../rebuild-v5000/app.js',import.meta.url),'utf8'),
   readFile(new URL('../rebuild-v5000/index.html',import.meta.url),'utf8'),
   readFile(new URL('../rebuild-v5000/app-index.html',import.meta.url),'utf8'),
+  readFile(new URL('../tools/fetch_uswtdb_turbine_snapshot.mjs',import.meta.url),'utf8'),
   readFile(new URL('../.github/workflows/deploy-intelligence-rebuild-v5000.yml',import.meta.url),'utf8')
 ]);
-assert.ok(moduleSource.includes("const API_URL = 'https://energy.usgs.gov/api/uswtdb/v1/turbines'"));
+assert.ok(moduleSource.includes("const SNAPSHOT_URL = '/data/bridgepoint-uswtdb-turbines-v9_1.json'"));
+assert.equal(moduleSource.includes('energy.usgs.gov/api/uswtdb/v1/turbines'),false);
+assert.ok(builder.includes("const API_URL = 'https://energy.usgs.gov/api/uswtdb/v1/turbines'"));
+assert.ok(builder.includes("'Prefer':'count=exact'"));
+assert.ok(builder.includes('USWTDB_V9_1_20260928'));
+assert.ok(builder.includes('recordCount:records.length'));
+
 assert.ok(moduleSource.includes('t_hh'));
 assert.ok(moduleSource.includes('t_rd'));
 assert.ok(moduleSource.includes('clusterMaxZoom:4'));
 assert.ok(moduleSource.includes('queryTerrainElevation'));
+assert.ok(moduleSource.includes('HIT_ID'));
 assert.ok(moduleSource.includes('renderer.render(state.scene,state.camera)'));
 assert.ok(landing.includes("import('./bridgepoint-wind-turbines-v1.js?v=1-uswtdb-3d-ground-anchored')"));
 assert.ok(app.includes("import('./bridgepoint-wind-turbines-v1.js?v=1-uswtdb-3d-ground-anchored')"));
 assert.ok(home.includes('landing.js?v=6247-uswtdb-wind-turbines'));
 assert.ok(appHome.includes('app.js?v=6247-uswtdb-wind-turbines'));
 assert.ok(deploy.includes('node --check rebuild-v5000/bridgepoint-wind-turbines-v1.js'));
+assert.ok(deploy.includes('node --check tools/fetch_uswtdb_turbine_snapshot.mjs'));
+assert.ok(deploy.includes('node tools/fetch_uswtdb_turbine_snapshot.mjs --output site/data/bridgepoint-uswtdb-turbines-v9_1.json'));
 assert.ok(deploy.includes('node tests/wind-turbines-v1.test.mjs'));
 assert.ok(deploy.includes('cp rebuild-v5000/bridgepoint-wind-turbines-v1.js site/bridgepoint-wind-turbines-v1.js'));
 assert.ok(deploy.includes('cp rebuild-v5000/bridgepoint-wind-turbines-v1.js site/app/bridgepoint-wind-turbines-v1.js'));
