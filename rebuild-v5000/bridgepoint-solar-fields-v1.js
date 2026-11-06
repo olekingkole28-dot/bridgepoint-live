@@ -283,14 +283,14 @@ export function solarFieldPopupHtml(feature) {
     ['Technology',p.methodLabel||'Photovoltaic / solar method not reported'],
     ['Status',p.status||'Not reported'],
     ['Commissioned',p.year?String(p.year):'Not reported'],
-    ['AC capacity',capacity?formatNumber(capacity,2)+' MW':'Not reported'],
-    ['DC capacity',positive(p.capacityDcMW)?formatNumber(p.capacityDcMW,2)+' MW':'Not reported'],
+    [p.source==='USPVDB'?'AC capacity':'Reported electrical output',capacity?formatNumber(capacity,2)+' MW':'Not reported'],
+    ...(p.source==='USPVDB'?[['DC capacity',positive(p.capacityDcMW)?formatNumber(p.capacityDcMW,2)+' MW':'Not reported']]:[]),
     ['Array area',area?formatNumber(area,0)+' m² ('+formatNumber(area/4046.856,2)+' acres)':'Not reported'],
     ['Boundary dimensions',dims?formatNumber(dims.lengthM,1)+' × '+formatNumber(dims.widthM,1)+' m (polygon bounds)':'No facility polygon available'],
     ['Panel tilt',finite(p.tiltDeg)!==null?formatNumber(p.tiltDeg,1)+'°':'Not reported'],
     ['Panel azimuth',finite(p.azimuthDeg)!==null?formatNumber(p.azimuthDeg,1)+'°':'Not reported'],
     ['Panel/rack height','Not source-reported'],
-    ['3D model rack height','Illustrative 1.8 m support height; not surveyed'],
+    ['3D model rack height','Illustrative geometry only; actual height not source-reported'],
     ['Position',position],
     ['Location quality',p.locationAccuracy||'Not reported'],
     ['USPVDB digitization confidence',confidence],
@@ -450,6 +450,7 @@ function installModelLayer(state) {
       const raw=args&&(args.defaultProjectionData?.mainMatrix||args.modelViewProjectionMatrix);
       if (!raw||raw.length<16||Number(map.getZoom()||0)<MIN_MODEL_ZOOM) return;
       const projection=new THREE.Matrix4().fromArray(raw);
+      for (const item of state.models) item.root.visible=false;
       for (const item of state.models) {
         item.root.visible=true;
         const matrix=modelMatrixFor(map,THREE,item.coordinate,item.groundElevationM);
@@ -498,7 +499,7 @@ function pointInRing(x,z,ring) {
 function pointInRings(x,z,rings) {
   return rings.some(r=>pointInRing(x,z,r));
 }
-function addSolarFieldModel(THREE,feature) {
+function addSolarFieldModel(THREE,feature,map) {
   const rings=localRingsFor(feature);
   if (!rings.length) return null;
   let minX=Infinity,maxX=-Infinity,minZ=Infinity,maxZ=-Infinity;
@@ -573,10 +574,15 @@ function addSolarFieldModel(THREE,feature) {
   gridGeometry.setAttribute('position',new THREE.Float32BufferAttribute(gridPositions,3));
   const grid=new THREE.LineSegments(gridGeometry,frameMaterial);grid.frustumCulled=false;root.add(grid);
   panels.frustumCulled=false;posts.frustumCulled=false;
-  return {root,coordinate:feature.geometry.coordinates,groundElevationM:groundElevationFor(feature),featureId:String(feature.id)};
+  return {root,coordinate:feature.geometry.coordinates,groundElevationM:groundElevationFor(map,feature),featureId:String(feature.id)};
 }
-function groundElevationFor(feature) {
-  return 0;
+function groundElevationFor(map,feature) {
+  try {
+    const coordinate=feature&&feature.geometry&&feature.geometry.coordinates;
+    const elevation=coordinate&&typeof map.queryTerrainElevation==='function'
+      ?map.queryTerrainElevation(coordinate,{exaggerated:false}):null;
+    return Number.isFinite(Number(elevation))?Number(elevation):0;
+  } catch(_) {return 0;}
 }
 function disposeObject(root) {
   if (!root) return;
@@ -610,8 +616,8 @@ function rebuildModels(state) {
   state.models=[];state.modelSignature=signature;
   for(const feature of rows) {
     try {
-      const item=addSolarFieldModel(state.THREE,feature);
-      if(item){state.scene.add(item.root);state.models.push(item);}
+      const item=addSolarFieldModel(state.THREE,feature,state.map);
+      if(item){item.root.visible=false;state.scene.add(item.root);state.models.push(item);}
     } catch(error){console.warn('BridgePoint solar field model skipped',feature.id,error);}
   }
   state.stats.models=state.models.length;
