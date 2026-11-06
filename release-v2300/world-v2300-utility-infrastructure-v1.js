@@ -1,4 +1,4 @@
-const VERSION = 10;
+const VERSION = 11;
 const POWER_SOURCE = 'bp-utility-power-v1';
 const TELECOM_SOURCE = 'bp-utility-telecom-v1';
 const THREE_URL = '/vendor/three.module.js?v=169-local';
@@ -1537,8 +1537,8 @@ export function initUtilityInfrastructure(target) {
     const tile = wireTileAnchor(coordinate, 16);
     let batch = batches.get(tile.key);
     if (!batch) {
-      batch = { anchor: tile.coordinate, ground: localTerrainAt(tile.coordinate),
-        power: [], telecom: [], service: [], ground: [], powerSpans: 0, telecomSpans: 0, serviceDrops: 0, groundLeads: 0 };
+      batch = { anchor: tile.coordinate, groundElevation: localTerrainAt(tile.coordinate),
+        power: [], telecom: [], service: [], groundVertices: [], powerSpans: 0, telecomSpans: 0, serviceDrops: 0, groundLeads: 0 };
       batches.set(tile.key, batch);
     }
     return batch;
@@ -1568,8 +1568,8 @@ export function initUtilityInfrastructure(target) {
     const spacing = telecom ? .16 : .34;
     const lanes = Array.from({ length: conductorCount }, (_, i) => (i - (conductorCount - 1) * .5) * spacing);
     const attachmentHeight = support => telecom ? support.height * .68 + .07 : support.height * .84 + .245;
-    const heightA = anchorGround - batch.ground + attachmentHeight(span.a);
-    const heightB = nextGround - batch.ground + attachmentHeight(span.b);
+    const heightA = anchorGround - batch.groundElevation + attachmentHeight(span.a);
+    const heightB = nextGround - batch.groundElevation + attachmentHeight(span.b);
     const vertices = telecom ? batch.telecom : batch.power;
     const radius = wireRadiusFor(span.a.coordinate, telecom ? .018 : .024);
     for (const lane of lanes) {
@@ -1594,7 +1594,7 @@ export function initUtilityInfrastructure(target) {
   function flushWireBatches(batches) {
     let powerCount = 0, telecomCount = 0, serviceDropCount = 0, groundLeadCount = 0, meshCount = 0;
     for (const batch of batches.values()) {
-      const matrix = modelMatrixFor(map, THREE, batch.anchor, batch.ground);
+      const matrix = modelMatrixFor(map, THREE, batch.anchor, batch.groundElevation);
       if (!matrix) continue;
       const preciseGroup = new THREE.Group();
       preciseGroup.name = 'BridgePoint close-zoom ground-anchored utility conductors';
@@ -1606,7 +1606,7 @@ export function initUtilityInfrastructure(target) {
         ['power', batch.power, distributionCableMaterial],
         ['telecom', batch.telecom, telecomCableMaterial],
         ['service', batch.service, distributionCableMaterial],
-        ['ground', batch.ground, groundWireMaterial]
+        ['ground', batch.groundVertices, groundWireMaterial]
       ]) {
         if (!vertices.length) continue;
         const geometry = new THREE.BufferGeometry();
@@ -1650,8 +1650,8 @@ export function initUtilityInfrastructure(target) {
     const sourceHeight = Number(support.height);
     const height = support.measuredHeight && Number.isFinite(sourceHeight) && sourceHeight >= 3
       ? sourceHeight : 11;
-    const startY = ground - batch.ground + Math.max(1.4, Math.min(8.4, height * .72));
-    const endY = ground - batch.ground + .06;
+    const startY = ground - batch.groundElevation + Math.max(1.4, Math.min(8.4, height * .72));
+    const endY = ground - batch.groundElevation + .06;
     const x = offset[0] + .23, z = -offset[1] - .20;
     let previous = null;
     for (let i = 0; i <= 8; i++) {
@@ -1661,7 +1661,7 @@ export function initUtilityInfrastructure(target) {
         startY + (endY - startY) * t,
         z + Math.sin(t * Math.PI) * .018
       );
-      if (previous) pushBeam(batch.ground, previous, current,
+      if (previous) pushBeam(batch.groundVertices, previous, current,
         wireRadiusFor(support.coordinate, .014), THREE, 6);
       previous = current;
     }
@@ -1688,8 +1688,8 @@ export function initUtilityInfrastructure(target) {
       catenaryA = Math.max(.05, catenaryA - residual / derivative);
     }
     const catenaryEnd = Math.cosh(distance / (2 * catenaryA));
-    const heightA = poleGround - batch.ground + Math.max(5.6, Math.min(8.6, support.height * .72));
-    const heightB = buildingGround - batch.ground + Math.max(3.4, Math.min(7.2, Number(drop.endHeight) || 4.6));
+    const heightA = poleGround - batch.groundElevation + Math.max(5.6, Math.min(8.6, support.height * .72));
+    const heightB = buildingGround - batch.groundElevation + Math.max(3.4, Math.min(7.2, Number(drop.endHeight) || 4.6));
     const bearing = Math.atan2(offset[0], offset[1]);
     const acrossEast = Math.cos(bearing), acrossNorth = -Math.sin(bearing);
     const radius = wireRadiusFor(support.coordinate, .018);

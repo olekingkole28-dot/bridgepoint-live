@@ -45,7 +45,7 @@ jobs:
           grep -Fq 'featureCache' release-v2300/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'bp-utility-poles-3d-v1' release-v2300/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'const MIN_ZOOM = 13;' release-v2300/world-v2300-utility-infrastructure-v1.js
-          grep -Fq 'const VERSION = 10;' release-v2300/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'const VERSION = 11;' release-v2300/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'const PRECISE_POLE_MIN_ZOOM = 16;' release-v2300/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'function buildPrecisePoleGroups(supports)' release-v2300/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'function collectResidentialServiceDrops(supports)' release-v2300/world-v2300-utility-infrastructure-v1.js
@@ -56,6 +56,14 @@ jobs:
           grep -Fq 'INFERRED_SPAN_MAX_DISTANCE_M = 95' release-v2300/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'SERVICE_DROP_MAX_DISTANCE_M = 75' release-v2300/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'wireTileAnchor(coordinate, 16)' release-v2300/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'groundElevation: localTerrainAt(tile.coordinate)' release-v2300/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'groundVertices: []' release-v2300/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'modelMatrixFor(map, THREE, batch.anchor, batch.groundElevation)' release-v2300/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'anchorGround - batch.groundElevation' release-v2300/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'ground - batch.groundElevation' release-v2300/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'buildingGround - batch.groundElevation' release-v2300/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'pushBeam(batch.groundVertices, previous, current' release-v2300/world-v2300-utility-infrastructure-v1.js
+          grep -Fq "['ground', batch.groundVertices, groundWireMaterial]" release-v2300/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'preciseWireGroups' release-v2300/world-v2300-utility-infrastructure-v1.js
           grep -Fq "map.querySourceFeatures('bpBuildings', { sourceLayer: 'buildings' })" release-v2300/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'for (const mesh of standardWireMeshes) mesh.visible = !closeZoom;' release-v2300/world-v2300-utility-infrastructure-v1.js
@@ -67,5 +75,5 @@ jobs:
           grep -Fq 'let catenaryA = distance * distance / Math.max(.1, 8 * sag)' release-v2300/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'void loadUSGS3DEPGround(assets)' release-v2300/world-v2300-utility-infrastructure-v1.js
           node tests/utility-infrastructure-renderer-v5.test.mjs
-          grep -Fq 'world-v2300-utility-infrastructure-v1.js?v=11-solid-utility-wires-v10' .github/workflows/publish-utility-solid-wires-v9.yml
+          grep -Fq 'world-v2300-utility-infrastructure-v1.js?v=12-solid-utility-wires-v11' .github/workflows/publish-utility-solid-wires-v9.yml
           ! grep -Fq 'setProjection' release-v2300/world-v2300-utility-infrastructure-v1.js
