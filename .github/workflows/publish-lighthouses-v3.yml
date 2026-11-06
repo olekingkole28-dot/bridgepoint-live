@@ -1,4 +1,4 @@
-name: Publish BridgePoint Lighthouse Hotfix V3
+name: Publish BridgePoint Lighthouse Global Snapshot V4
 
 on:
   push:
@@ -86,10 +86,10 @@ jobs:
           else
             {
               echo "publish=true"
-              echo "run_id=42165483535"
-              echo "artifact_name=bridgepoint-v5000-1"
+              echo "run_id=42174393595"
+              echo "artifact_name=bridgepoint-lighthouse-hotfix-v3"
             } >> "$GITHUB_OUTPUT"
-            echo "Using the last deployed V5000 baseline: 42165483535"
+            echo "Using the last deployed lighthouse baseline: 42174393595"
           fi
 
       - name: Download the exact deployed V5000 site artifact
@@ -102,7 +102,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ${{ runner.temp }}/bp-lighthouse-baseline
 
-      - name: Overlay only the lighthouse renderer and its four cache-busted entrypoints
+      - name: Overlay lighthouse renderer and global OSM snapshot only
         if: steps.baseline.outputs.publish == 'true'
         shell: bash
         run: |
@@ -115,6 +115,49 @@ jobs:
 
           python3 - <<'PY'
           from pathlib import Path
+          import hashlib, json, os
+          site=Path(os.environ["RUNNER_TEMP"])/"bp-lighthouse-site"
+          before={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob("*") if p.is_file()}
+          (Path(os.environ["RUNNER_TEMP"])/"bp-lighthouse-before.json").write_text(json.dumps(before,sort_keys=True),encoding="utf-8")
+          print("DEPLOYED_BASELINE_HASHED",len(before),"files before any lighthouse data additions")
+          PY
+          mkdir -p "$SITE/data"
+          DATAFILE="$SITE/data/bridgepoint-lighthouses-global-v1.json"
+          ATTRIBUTION="$SITE/data/bridgepoint-lighthouses-global-v1-ATTRIBUTION.md"
+          if [ ! -s "$DATAFILE" ]; then
+            curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL -A "BridgePoint Intelligence Lighthouse Snapshot/1.0 (https://bridgepointintelligence.online)" -H "Accept: application/json" "https://hulloships.com/atlas/data/lighthouses.json" -o "$DATAFILE"
+          fi
+          if [ ! -s "$ATTRIBUTION" ]; then
+            cat > "$ATTRIBUTION" <<'EOF'
+          # BridgePoint Global Lighthouse Snapshot
+
+          Source: HulloShips global lighthouse database (`https://hulloships.com/atlas/lighthouses/` and `https://hulloships.com/atlas/data/lighthouses.json`). The source page identifies these records as OpenStreetMap-derived, © OpenStreetMap contributors, licensed under the Open Database License (ODbL).
+
+          This extracted database is redistributed under ODbL with attribution to OpenStreetMap contributors. Snapshot retrieved 2026-11-06. Fields include name, country, region, mapped type, height where recorded, light character, coordinates and source OSM identifier. Community mapping coverage and recorded heights may be incomplete.
+
+          This is a location/rendering dataset, not an official aid-to-navigation register or navigational safety source. Verify operational status and characteristics with the relevant maritime authority before real-world navigation use.
+
+          ODbL: https://opendatacommons.org/licenses/odbl/1-0/
+          EOF
+          fi
+          python3 - "$DATAFILE" <<'PY'
+          import json, sys
+          from pathlib import Path
+          rows=json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+          valid=[]
+          for row in rows:
+              try:
+                  lat=float(row.get("lat")); lon=float(row.get("lon"))
+              except (TypeError, ValueError):
+                  continue
+              if -85 <= lat <= 85 and -180 <= lon <= 180:
+                  valid.append(row)
+          if len(rows) < 10000 or len(valid) < 10000:
+              raise SystemExit(f"Global lighthouse snapshot incomplete: {len(rows)} rows / {len(valid)} valid coordinates")
+          print("GLOBAL_LIGHTHOUSE_SNAPSHOT_SOURCE_PASS", len(rows), "records;", len(valid), "valid coordinates")
+          PY
+          python3 - <<'PY'
+          from pathlib import Path
           import hashlib, json, re, os
           site=Path(os.environ["RUNNER_TEMP"])/"bp-lighthouse-site"
           required=(
@@ -125,23 +168,24 @@ jobs:
             path=site/rel
             if not path.is_file() or path.stat().st_size==0:
               raise SystemExit(f"Deployed baseline is missing required file: {rel}")
-          before={
-            p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
-            for p in site.rglob("*") if p.is_file()
-          }
+          before=json.loads((Path(os.environ["RUNNER_TEMP"])/"bp-lighthouse-before.json").read_text(encoding="utf-8"))
 
-          old="./bridgepoint-lighthouses-v1.js?v=2-visible-rotating-beacons"
-          new="./bridgepoint-lighthouses-v1.js?v=3-image-data-beacons"
+          old_imports=(
+            "./bridgepoint-lighthouses-v1.js?v=2-visible-rotating-beacons",
+            "./bridgepoint-lighthouses-v1.js?v=4-global-snapshot",
+          )
+          new_import="./bridgepoint-lighthouses-v1.js?v=4-global-snapshot"
           for rel in ("landing.js","app.js"):
             path=site/rel
             data=path.read_text(encoding="utf-8")
-            if data.count(old)!=1:
-              raise SystemExit(f"{rel}: expected exactly one existing lighthouse import, found {data.count(old)}")
-            path.write_text(data.replace(old,new),encoding="utf-8")
+            matches=[old for old in old_imports if data.count(old)==1]
+            if len(matches)!=1:
+              raise SystemExit(f"{rel}: expected exactly one known lighthouse import, found {len(matches)}")
+            path.write_text(data.replace(matches[0],new_import),encoding="utf-8")
 
           for rel,filename,version in (
-            ("index.html","landing.js","6245-lighthouse-v3"),
-            ("app/index.html","app.js","6245-lighthouse-v3"),
+            ("index.html","landing.js","6246-lighthouse-v4"),
+            ("app/index.html","app.js","6246-lighthouse-v4"),
           ):
             path=site/rel
             data=path.read_text(encoding="utf-8")
@@ -163,14 +207,17 @@ jobs:
           changed={rel for rel in before if before[rel]!=after.get(rel)}
           removed=set(before)-set(after)
           added=set(after)-set(before)
-          expected=set(required)
-          if removed or added or changed!=expected:
+          snapshot_files={"data/bridgepoint-lighthouses-global-v1.json","data/bridgepoint-lighthouses-global-v1-ATTRIBUTION.md"}
+          expected_changed=set(required)
+          expected_added={rel for rel in snapshot_files if rel not in before}
+          if removed or added!=expected_added or changed!=expected_changed:
             raise SystemExit(
               "LIGHTHOUSE_ONLY_SCOPE_FAILURE "
               +json.dumps({"changed":sorted(changed),"removed":sorted(removed),
-                           "added":sorted(added),"expected":sorted(expected)})
+                           "added":sorted(added),"expected_changed":sorted(expected_changed),
+                           "expected_added":sorted(expected_added)})
             )
-          print("LIGHTHOUSE_ONLY_OVERLAY_SCOPE_PASS: exactly six approved files changed; all other site files preserved")
+          print("LIGHTHOUSE_SNAPSHOT_OVERLAY_SCOPE_PASS: six renderer/loader files plus expected ODbL snapshot files only; all other site files preserved")
           PY
 
           node --check "$SITE/landing.js"
@@ -178,12 +225,15 @@ jobs:
           node --input-type=module --check < "$SITE/bridgepoint-lighthouses-v1.js"
           node --input-type=module --check < "$SITE/app/bridgepoint-lighthouses-v1.js"
           cmp -s "$SITE/bridgepoint-lighthouses-v1.js" "$SITE/app/bridgepoint-lighthouses-v1.js"
-          grep -Fq 'landing.js?v=6245-lighthouse-v3' "$SITE/index.html"
-          grep -Fq 'app.js?v=6245-lighthouse-v3' "$SITE/app/index.html"
-          grep -Fq 'bridgepoint-lighthouses-v1.js?v=3-image-data-beacons' "$SITE/landing.js"
-          grep -Fq 'bridgepoint-lighthouses-v1.js?v=3-image-data-beacons' "$SITE/app.js"
+          grep -Fq 'landing.js?v=6246-lighthouse-v4' "$SITE/index.html"
+          grep -Fq 'app.js?v=6246-lighthouse-v4' "$SITE/app/index.html"
+          grep -Fq 'bridgepoint-lighthouses-v1.js?v=4-global-snapshot' "$SITE/landing.js"
+          grep -Fq 'bridgepoint-lighthouses-v1.js?v=4-global-snapshot' "$SITE/app.js"
           grep -Fq 'return ctx.getImageData(0, 0, 96, 96);' "$SITE/bridgepoint-lighthouses-v1.js"
-          echo "BRIDGEPOINT_LIGHTHOUSE_V3_BUNDLE_BUILD_PASS"
+          grep -Fq 'const VERSION = 4;' "$SITE/bridgepoint-lighthouses-v1.js"
+          grep -Fq 'fetch(LIGHTHOUSE_SNAPSHOT_URL' "$SITE/bridgepoint-lighthouses-v1.js"
+          grep -Fq 'lighthouseSnapshotRowToElement' "$SITE/bridgepoint-lighthouses-v1.js"
+          echo "BRIDGEPOINT_LIGHTHOUSE_V4_BUNDLE_BUILD_PASS"
 
       - name: Configure GitHub Pages
         if: steps.baseline.outputs.publish == 'true'
@@ -193,16 +243,16 @@ jobs:
         if: steps.baseline.outputs.publish == 'true'
         uses: actions/upload-pages-artifact@v5
         with:
-          name: bridgepoint-lighthouse-hotfix-v3
+          name: bridgepoint-lighthouse-global-snapshot-v4
           path: ${{ runner.temp }}/bp-lighthouse-site
           include-hidden-files: true
 
-      - name: Publish lighthouse hotfix V3
+      - name: Publish lighthouse global snapshot V4
         if: steps.baseline.outputs.publish == 'true'
         id: deployment
         uses: actions/deploy-pages@v4
         with:
-          artifact_name: bridgepoint-lighthouse-hotfix-v3
+          artifact_name: bridgepoint-lighthouse-global-snapshot-v4
 
       - name: Verify the live lighthouse assets on root and app routes
         if: steps.baseline.outputs.publish == 'true'
@@ -210,24 +260,39 @@ jobs:
         run: |
           set -euo pipefail
           O='https://bridgepointintelligence.online'
-          q="$GITHUB_SHA-lighthouse-v3"
+          q="$GITHUB_SHA-lighthouse-v4"
           for p in '/' '/app/'; do
-            curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O$p?lighthouse-v3=$q" -o "$RUNNER_TEMP/lighthouse-page.html"
+            curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O$p?lighthouse-v4=$q" -o "$RUNNER_TEMP/lighthouse-page.html"
             if [ "$p" = "/" ]; then
-              grep -Fq 'landing.js?v=6245-lighthouse-v3' "$RUNNER_TEMP/lighthouse-page.html"
+              grep -Fq 'landing.js?v=6246-lighthouse-v4' "$RUNNER_TEMP/lighthouse-page.html"
             else
-              grep -Fq 'app.js?v=6245-lighthouse-v3' "$RUNNER_TEMP/lighthouse-page.html"
+              grep -Fq 'app.js?v=6246-lighthouse-v4' "$RUNNER_TEMP/lighthouse-page.html"
             fi
           done
-          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/landing.js?v=6245-lighthouse-v3&verify=$q" -o "$RUNNER_TEMP/lighthouse-landing.js"
-          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app.js?v=6245-lighthouse-v3&verify=$q" -o "$RUNNER_TEMP/lighthouse-app.js"
-          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/bridgepoint-lighthouses-v1.js?v=3-image-data-beacons&verify=$q" -o "$RUNNER_TEMP/lighthouse-root.js"
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/landing.js?v=6246-lighthouse-v4&verify=$q" -o "$RUNNER_TEMP/lighthouse-landing.js"
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app.js?v=6246-lighthouse-v4&verify=$q" -o "$RUNNER_TEMP/lighthouse-app.js"
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/bridgepoint-lighthouses-v1.js?v=4-global-snapshot&verify=$q" -o "$RUNNER_TEMP/lighthouse-root.js"
           curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app/bridgepoint-lighthouses-v1.js?verify=$q" -o "$RUNNER_TEMP/lighthouse-app-module.js"
-          grep -Fq 'bridgepoint-lighthouses-v1.js?v=3-image-data-beacons' "$RUNNER_TEMP/lighthouse-landing.js"
-          grep -Fq 'bridgepoint-lighthouses-v1.js?v=3-image-data-beacons' "$RUNNER_TEMP/lighthouse-app.js"
-          grep -Fq 'const VERSION = 3;' "$RUNNER_TEMP/lighthouse-root.js"
+          grep -Fq 'bridgepoint-lighthouses-v1.js?v=4-global-snapshot' "$RUNNER_TEMP/lighthouse-landing.js"
+          grep -Fq 'bridgepoint-lighthouses-v1.js?v=4-global-snapshot' "$RUNNER_TEMP/lighthouse-app.js"
+          grep -Fq 'const VERSION = 4;' "$RUNNER_TEMP/lighthouse-root.js"
           grep -Fq 'return ctx.getImageData(0, 0, 96, 96);' "$RUNNER_TEMP/lighthouse-root.js"
           grep -Fq 'const MIN_BEACON_ZOOM = 3.8;' "$RUNNER_TEMP/lighthouse-root.js"
           grep -Fq 'const MIN_MODEL_ZOOM = 14.0;' "$RUNNER_TEMP/lighthouse-root.js"
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/data/bridgepoint-lighthouses-global-v1.json?verify=$q" -o "$RUNNER_TEMP/lighthouse-global-data.json"
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/data/bridgepoint-lighthouses-global-v1-ATTRIBUTION.md?verify=$q" -o "$RUNNER_TEMP/lighthouse-global-attribution.md"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          rows=json.loads((Path(os.environ["RUNNER_TEMP"])/"lighthouse-global-data.json").read_text(encoding="utf-8"))
+          assert len(rows)>=10000, f"global snapshot too small: {len(rows)}"
+          valid=sum(1 for r in rows if -85<=float(r.get("lat",999))<=85 and -180<=float(r.get("lon",999))<=180)
+          assert valid>=10000, f"global snapshot valid-coordinate count too small: {valid}"
+          print("LIVE_GLOBAL_LIGHTHOUSE_SNAPSHOT_PASS",len(rows),"records",valid,"valid coordinates")
+          PY
+          grep -Fq 'OpenStreetMap contributors' "$RUNNER_TEMP/lighthouse-global-attribution.md"
+          grep -Fq 'ODbL' "$RUNNER_TEMP/lighthouse-global-attribution.md"
+          grep -Fq 'LIGHTHOUSE_SNAPSHOT_URL' "$RUNNER_TEMP/lighthouse-root.js"
+          grep -Fq 'lighthouseSnapshotRowToElement' "$RUNNER_TEMP/lighthouse-root.js"
           cmp -s "$RUNNER_TEMP/lighthouse-root.js" "$RUNNER_TEMP/lighthouse-app-module.js"
           echo "BRIDGEPOINT_LIGHTHOUSE_V3_LIVE_ASSET_VERIFICATION_PASS"
