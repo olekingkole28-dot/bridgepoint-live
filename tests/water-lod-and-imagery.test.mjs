@@ -82,9 +82,9 @@ assert.ok(mapSource.includes("map.on('render',()=>keepSatelliteRasterLayersVisib
 assert.ok(!mapSource.includes('satelliteRasterRenderGuardAt'), 'the render-time visibility repair must not be throttled while imagery is flashing at rest');
 assert.ok(mapSource.includes("map.on('style.load',restoreSatelliteRasterStack)") && mapSource.includes("map.on('moveend',()=>keepSatelliteRasterLayersVisible('moveend'))") && mapSource.includes("map.on('pitchend',()=>keepSatelliteRasterLayersVisible('pitchend'))"), 'satellite visibility must recover after style, pan and pitch transitions');
 assert.ok(mapSource.includes("'fill-opacity',0"), 'landcover and landuse fills must not obscure the satellite underlay');
-assert.ok(homepageHtml.includes('landing.js?v=6237-pc-auth'), 'homepage must load the new imagery-default loader instead of a cached old version');
+assert.ok(homepageHtml.includes('landing.js?v=6244-solid-utility-wires-v10'), 'homepage must load the new imagery-default loader instead of a cached old version');
 assert.ok(homepageHtml.includes('bridgepoint-view-v5917.js?v=6215-satellite-persistent-render-guard'), 'homepage must load the current satellite control loader');
-assert.ok(appHtml.includes('app.js?v=6237-pc-auth'), 'app shell must load the updated imagery loader');
+assert.ok(appHtml.includes('app.js?v=6244-solid-utility-wires-v10'), 'app shell must load the updated imagery loader');
 assert.ok(appHtml.includes('bridgepoint-view-v5917.js?v=6215-satellite-persistent-render-guard'), 'app must load the current satellite control loader');
 assert.ok(homepageHtml.includes('bridgepoint-blender-world-v1.js?v=2-raster-hide'), 'homepage must load the mode-aware Blender World layer controller');
 assert.ok(appHtml.includes('bridgepoint-blender-world-v1.js?v=2-raster-hide'), 'the app shell must load the same mode-aware Blender World layer controller');
@@ -104,7 +104,7 @@ assert.ok(landingLoader.includes("world-v2300-map.js?v=6226-underwater-satellite
 assert.ok(landingLoader.includes("world-v2300-spectral-imagery.js?v=6215-satellite-persistent-render-guard"), 'homepage must load the palette controller with style-reload persistence');
 assert.ok(viewLoader.includes("world-v2300-spectral-imagery.js?v=6215-satellite-persistent-render-guard"), 'satellite card actions must use the same persistent imagery controller');
 assert.ok(appLoader.includes("world-v2300-map.js?v=6226-underwater-satellite-lock"), 'app must load the renderer with the natural palette persistence fix');
-assert.ok(homepageHtml.includes('landing.js?v=6237-pc-auth'), 'homepage must load the fresh shared globe loader');
-assert.ok(appHtml.includes('app.js?v=6237-pc-auth'), 'app must load the fresh shared globe loader');
+assert.ok(homepageHtml.includes('landing.js?v=6244-solid-utility-wires-v10'), 'homepage must load the fresh shared globe loader');
+assert.ok(appHtml.includes('app.js?v=6244-solid-utility-wires-v10'), 'app must load the fresh shared globe loader');
 assert.ok(homepageHtml.includes('world-v2300-map.js?v=6226-underwater-satellite-lock') && appHtml.includes('world-v2300-map.js?v=6226-underwater-satellite-lock'), 'both HTML shells must preload the same updated shared globe renderer');
 console.log('BRIDGEPOINT_WATER_LOD_AND_LAND_IMAGERY_TEST_PASS');
