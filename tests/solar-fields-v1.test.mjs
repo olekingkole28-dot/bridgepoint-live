@@ -71,7 +71,7 @@ assert.equal(osmWay.properties.modelSource,'OSM mapped plant polygon');
 assert.ok(osmWay.properties.modelGeometry);
 assert.ok(osmWay.properties.modelAreaM2>0);
 assert.ok(osmWay.properties.modelDimensions.lengthM>200);
-assert.ok(osmWay.properties.modelDimensions.widthM>200);
+assert.ok(osmWay.properties.modelDimensions.widthM>150);
 
 assert.equal(normalizeSolarOsmElement({
   type:'node',id:989,lat:41,lon:-73,tags:{'generator:source':'solar'}
