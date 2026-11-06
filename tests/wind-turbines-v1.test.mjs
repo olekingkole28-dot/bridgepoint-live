@@ -54,7 +54,7 @@ assert.match(popup,/178 m/);
 assert.match(popup,/USGS turbine map/);
 assert.match(windTurbinePopupHtml(incomplete),/dimensions are absent/);
 assert.match(windTurbinePopupHtml(incomplete),/Not reported/);
-assert.match(windTurbinePopupHtml(turbine),/United States only/);
+assert.match(windTurbinePopupHtml(turbine),/United States inventory/);
 
 const [moduleSource,landing,app,home,appHome,deploy]=await Promise.all([
   readFile(new URL('../rebuild-v5000/bridgepoint-wind-turbines-v1.js',import.meta.url),'utf8'),
