@@ -1997,7 +1997,7 @@ export function initUtilityInfrastructure(target) {
     say('Mapped local utility assets: ' + poleCount + ' single poles (including ' + state.municipalPoleCount +
       ' municipal inventory records), ' + powerSpanCount + ' distribution-wire spans, ' +
       telecomSpanCount + ' telecom-wire spans, ' + serviceDropCount + ' residential service drops, ' +
-      groundLeadCount + ' pole ground leads, ' + state.inferredPowerSpans + ' inferred pole-to-pole spans, ' + transformerCount + ' transformers, '
+      groundLeadCount + ' pole ground leads, ' + state.inferredPowerSpans + ' inferred pole-to-pole spans, ' + transformerCount + ' transformers, ' +
       switchCount + ' switches, ' + (cabinetCount + spliceCount) + ' cabinets/splice boxes, ' +
       guyWireCount + ' guy wires. Towers rendered by this layer: 0. Pole heights measured: ' +
       measured + '; estimated: ' + estimated + '.');
