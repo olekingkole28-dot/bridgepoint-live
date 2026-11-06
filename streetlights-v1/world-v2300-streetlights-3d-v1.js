@@ -17,6 +17,19 @@ const NIGHT_PARTS = ['nightLens', 'beam', 'groundPool'];
 const compass = { n: 0, north: 0, ne: 45, northeast: 45, e: 90, east: 90, se: 135, southeast: 135,
   s: 180, south: 180, sw: 225, southwest: 225, w: 270, west: 270, nw: 315, northwest: 315 };
 
+export function hasLoadedStyle(map) {
+  try {
+    const style = map?.getStyle?.();
+    // MapLibre's isStyleLoaded() also waits for every source tile to finish.
+    // BridgePoint has several optional live feeds which can keep that false
+    // indefinitely even after the style JSON itself is usable for addSource/addLayer.
+    return !!(style && Array.isArray(style.layers) && style.layers.length > 0 &&
+      map.style?._loaded !== false);
+  } catch (_) {
+    return false;
+  }
+}
+
 function finiteNumber(value) {
   if (value === null || value === undefined || value === '') return null;
   const n = Number(value);
@@ -349,7 +362,7 @@ export function initStreetlightRenderer(target) {
     return threePromise;
   }
   function installSourceAndQueryLayers() {
-    if (!map.isStyleLoaded?.()) return false;
+    if (!hasLoadedStyle(map)) return false;
     if (!map.getSource(SOURCE_ID)) {
       map.addSource(SOURCE_ID, {
         type: 'vector', tiles: [STREETLIGHT_TILE_URL + '?z={z}&x={x}&y={y}&v=5937'],
@@ -605,7 +618,7 @@ export function initStreetlightRenderer(target) {
     }
   }
   function install() {
-    if (dead || !map.isStyleLoaded?.()) return false;
+    if (dead || !hasLoadedStyle(map)) return false;
     try {
       if (!installSourceAndQueryLayers()) return false;
       if (!customLayer || !map.getLayer(LAYER_ID)) installCustomLayer();
