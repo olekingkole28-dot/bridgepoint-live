@@ -822,6 +822,10 @@ async function initMap(){
   void import('./bridgepoint-wind-turbines-v1.js?v=1-uswtdb-3d-ground-anchored')
    .then(m=>{window.__BP_WIND_TURBINES_V1__=m.initWindTurbinesRenderer(world)})
    .catch(e=>console.warn('BridgePoint USGS wind turbine renderer unavailable',e));
+  // Utility-scale solar farms are an independent opt-in layer; do not alter the base globe, ocean, or other assets.
+  void import('./bridgepoint-solar-fields-v1.js?v=1-global-solar-fields')
+   .then(m=>{window.__BP_SOLAR_FIELDS_V1__=m.initSolarFieldsRenderer(world)})
+   .catch(e=>console.warn('BridgePoint global solar fields renderer unavailable',e));
 
    // BridgePoint exposes the same 30-day source-event timeline on the website globe.
    void import('./world-v2300-time-slider.js?v=6170-no-cloud-toggle-always-on')
