@@ -12,6 +12,8 @@ const USPVDB_QUERY = 'https://energy.usgs.gov/arcgis/rest/services/Hosted/uspvdb
 const USPVDB_SOURCE = 'https://energy.usgs.gov/uspvdb/';
 const USPVDB_LAYER = 'https://energy.usgs.gov/arcgis/rest/services/Hosted/uspvdbDyn/FeatureServer/0';
 const USPVDB_SOURCE_NOTE = 'USGS and Lawrence Berkeley National Laboratory · USPVDB v4.0 (April 2026)';
+const SOLAR_SNAPSHOT_URL = 'https://solarworldmap.com/data/solar.json.gz';
+const SOLAR_META_URL = 'https://solarworldmap.com/data/solar-meta.json';
 const OSM_SOURCE = 'https://www.openstreetmap.org/copyright';
 const OSM_EDIT_URL = 'https://www.openstreetmap.org/';
 const OVERPASS_ENDPOINTS = [
@@ -261,6 +263,69 @@ export function normalizeSolarOsmElement(element) {
     }
   };
 }
+export function normalizeSolarWorldSnapshot(snapshot) {
+  if (!snapshot || !Array.isArray(snapshot.ids) ||
+      !Array.isArray(snapshot.typeCodes) || !Array.isArray(snapshot.lngs) ||
+      !Array.isArray(snapshot.lats) || !Array.isArray(snapshot.tagIndexOffsets) ||
+      !Array.isArray(snapshot.tagNameCodes) || !Array.isArray(snapshot.tagValueCodes) ||
+      !Array.isArray(snapshot.tagNames) || !Array.isArray(snapshot.tagValueTable) ||
+      !Array.isArray(snapshot.typeLegend)) {
+    throw new TypeError('Global solar snapshot has an unsupported schema');
+  }
+  const count=snapshot.ids.length;
+  if (snapshot.typeCodes.length!==count || snapshot.lngs.length!==count ||
+      snapshot.lats.length!==count || snapshot.tagIndexOffsets.length!==count+1 ||
+      snapshot.tagNameCodes.length!==snapshot.tagValueCodes.length ||
+      snapshot.tagIndexOffsets[count]!==snapshot.tagNameCodes.length) {
+    throw new TypeError('Global solar snapshot arrays have inconsistent lengths');
+  }
+  const features=[];
+  for(let i=0;i<count;i++) {
+    const tags={'plant:source':'solar'};
+    const start=Number(snapshot.tagIndexOffsets[i]),end=Number(snapshot.tagIndexOffsets[i+1]);
+    if(!Number.isInteger(start)||!Number.isInteger(end)||start<0||end<start||end>snapshot.tagNameCodes.length)continue;
+    for(let j=start;j<end;j++) {
+      const key=snapshot.tagNames[Number(snapshot.tagNameCodes[j])];
+      const value=snapshot.tagValueTable[Number(snapshot.tagValueCodes[j])];
+      if(typeof key==='string'&&key&&value!==undefined&&value!==null)tags[key]=value;
+    }
+    const type=snapshot.typeLegend[Number(snapshot.typeCodes[i])];
+    const feature=normalizeSolarOsmElement({
+      type:type,id:snapshot.ids[i],lon:snapshot.lngs[i],lat:snapshot.lats[i],tags
+    });
+    if(feature)features.push(feature);
+  }
+  return features;
+}
+
+async function fetchSolarSnapshot() {
+  if(typeof DecompressionStream!=='function')throw new Error('This browser does not support gzip snapshot decompression');
+  const response=await fetch(SOLAR_SNAPSHOT_URL,{
+    mode:'cors',credentials:'omit',cache:'default'
+  });
+  if(!response.ok)throw new Error('Global solar snapshot HTTP '+response.status);
+  if(!response.body)throw new Error('Global solar snapshot returned no response body');
+  const stream=response.body.pipeThrough(new DecompressionStream('gzip'));
+  const snapshot=await new Response(stream).json();
+  const features=normalizeSolarWorldSnapshot(snapshot);
+  let meta=null;
+  try {
+    const metaResponse=await fetch(SOLAR_META_URL,{mode:'cors',credentials:'omit',cache:'no-cache'});
+    if(metaResponse.ok)meta=await metaResponse.json();
+  } catch(_) {}
+  return {features,meta,source:'OpenStreetMap daily global snapshot'};
+}
+
+async function fetchGlobalSolarRecords() {
+  try {
+    return await fetchSolarSnapshot();
+  } catch(snapshotError) {
+    const rows=await fetchOverpass(globalSolarOverpassQuery());
+    const features=rows.map(normalizeSolarOsmElement).filter(Boolean);
+    return {features,meta:null,source:'Overpass API fallback',snapshotError:String(snapshotError&&snapshotError.message||snapshotError)};
+  }
+}
+
 export function solarFieldRenderModeForZoom(value) {
   const zoom=Number(value)||0;
   if (zoom<5.2) return 'global-farm-clusters';
@@ -765,25 +830,32 @@ function bindInteractions(state) {
 async function loadInitialData(state) {
   if(state.loading||state.dead||state.globalLoaded||!state.enabled)return;
   state.loading=true;state.stats.lastError=null;
-  updateStatus(state,'Loading USGS ground-mounted PV boundaries and global OSM solar-plant records…');
-  const tasks=await Promise.allSettled([fetchUspvdb(),fetchOverpass(globalSolarOverpassQuery())]);
+  updateStatus(state,'Loading USGS ground-mounted PV boundaries and the complete global OSM solar-plant snapshot…');
+  const tasks=await Promise.allSettled([fetchUspvdb(),fetchGlobalSolarRecords()]);
   if(state.dead){state.loading=false;return;}
-  let usgsRows=[],osmRows=[],errors=[];
+  let usgsRows=[],osmFeatures=[],errors=[],osmMeta=null,osmSource='OpenStreetMap';
   if(tasks[0].status==='fulfilled')usgsRows=tasks[0].value||[];
-  else errors.push('USGS source unavailable: '+String(tasks[0].reason&&tasks[0].reason.message||tasks[0].reason));
-  if(tasks[1].status==='fulfilled')osmRows=tasks[1].value||[];
-  else errors.push('global OSM source unavailable: '+String(tasks[1].reason&&tasks[1].reason.message||tasks[1].reason));
+  else errors.push('USPVDB source unavailable: '+String(tasks[0].reason&&tasks[0].reason.message||tasks[0].reason));
+  if(tasks[1].status==='fulfilled') {
+    const bundle=tasks[1].value||{};
+    osmFeatures=bundle.features||[];osmMeta=bundle.meta||null;osmSource=bundle.source||osmSource;
+    if(bundle.snapshotError)errors.push('Global snapshot fallback: '+bundle.snapshotError);
+  } else errors.push('Global OSM source unavailable: '+String(tasks[1].reason&&tasks[1].reason.message||tasks[1].reason));
   for(const row of usgsRows)mergeFeature(state,normalizeUspvdbFeature(row));
-  for(const row of osmRows)mergeFeature(state,normalizeSolarOsmElement(row));
+  for(const feature of osmFeatures)mergeFeature(state,feature);
   state.globalLoaded=state.featureCache.size>0;
   state.lastUpdated=Date.now();
-  state.stats.uspvdbSourceRows=usgsRows.length;state.stats.osmSourceRows=osmRows.length;
+  state.stats.uspvdbSourceRows=usgsRows.length;state.stats.osmSourceRows=osmFeatures.length;
+  state.stats.osmSnapshotCount=Number(osmMeta&&osmMeta.count)||osmFeatures.length;
+  state.stats.osmSnapshotUpdated=textValue(osmMeta&&osmMeta.generatedAt,'');
+  state.stats.globalOsmSource=osmSource;
   syncCollections(state);
   if(state.globalLoaded) {
     const details=[];
     if(state.stats.uspvdb)details.push(state.stats.uspvdb.toLocaleString()+' USPVDB ground PV sites');
     if(state.stats.osm)details.push(state.stats.osm.toLocaleString()+' global OSM plant-scale sites');
-    updateStatus(state,details.join(' · ')+(errors.length?' · partial source coverage: '+errors.join('; '):' · select a marker for facility details'));
+    const refreshed=state.stats.osmSnapshotUpdated?' · OSM snapshot '+state.stats.osmSnapshotUpdated.slice(0,10):'';
+    updateStatus(state,details.join(' · ')+refreshed+' · '+osmSource+(errors.length?' · partial source coverage: '+errors.join('; '):' · select a marker for facility details'));
   } else {
     state.stats.lastError=errors.join('; ')||'Both solar-field sources returned no usable records';
     updateStatus(state,'Solar field inventory unavailable · '+state.stats.lastError);
@@ -875,7 +947,7 @@ export function initSolarFieldsRenderer(target) {
     models:[],modelSignature:'',featureCache:new Map(),collection:EMPTY,footprints:EMPTY,popup:null,
     interactionsBound:false,queriedBoxes:new Set(),status:'Layer off',lastUpdated:null,renderWarned:false,
     stats:{version:VERSION,total:0,uspvdb:0,osm:0,withBoundaries:0,models:0,
-      uspvdbSourceRows:0,osmSourceRows:0,localGeometryRecords:0,localQueryErrors:0,
+      uspvdbSourceRows:0,osmSourceRows:0,osmSnapshotCount:0,osmSnapshotUpdated:'',globalOsmSource:'',localGeometryRecords:0,localQueryErrors:0,
       layerReady:false,lastError:null}
   };
   const api={
