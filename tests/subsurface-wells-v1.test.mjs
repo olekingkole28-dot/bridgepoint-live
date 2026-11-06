@@ -76,6 +76,7 @@ const [moduleSource,landing,app,home,appHome,deploy,utility] = await Promise.all
 assert.ok(moduleSource.includes('m.depthTest=false'));
 assert.ok(moduleSource.includes('maxzoom:24'));
 assert.ok(moduleSource.includes('const cap=50000'));
+assert.ok(moduleSource.includes('within_box(geocoded_column,'+[bbox[1],bbox[0],bbox[3],bbox[2]].join(',')), 'regional WPdx enrichment uses south/west/north/east bounds');
 assert.ok(landing.includes("import('./bridgepoint-subsurface-wells-v1.js?v=1-global-wells-depth-casing')"));
 assert.ok(app.includes("import('./bridgepoint-subsurface-wells-v1.js?v=1-global-wells-depth-casing')"));
 assert.ok(home.includes('landing.js?v=6246-offshore-energy-v2&bp=5970-globe-model-matrices&sw=1'));
