@@ -1026,7 +1026,7 @@ jobs:
           grep -Fq 'sourceWeatherOverlaysPreserved:true' site/landing.js
           grep -Fq 'sourceWeatherOverlaysPreserved:true' site/app.js
           grep -Fq 'legacyCinematicFxDisabled:true' site/landing.js
-          grep -Fq 'landing.js?v=6237-pc-auth' site/index.html
+          grep -Fq 'landing.js?v=6244-solid-utility-wires-v10' site/index.html
           grep -Fq 'world-v2300-weather.js?v=6200-storm-clouds-no-rain' site/app/index.html
           grep -Fq 'world-v2300-weather.js?v=6195-desktop-globe-flash-stability' site/app/world-v2300-bootstrap.js
           grep -Fq 'world-v2300-time-slider.js?v=6170-no-cloud-toggle-always-on' site/app.js
@@ -1038,8 +1038,8 @@ jobs:
           grep -Fq 'world-v2300-underground-xray.js?v=5965-landmarks-and-effects' site/landing.js
           grep -Fq 'world-v2300-infrastructure-volume-v5962.js?v=5970-globe-model-matrices' site/app.js
           grep -Fq 'world-v2300-infrastructure-volume-v5962.js?v=5970-globe-model-matrices' site/landing.js
-          grep -Fq 'world-v2300-utility-infrastructure-v1.js?v=6-solid-utility' site/app.js
-          grep -Fq 'world-v2300-utility-infrastructure-v1.js?v=6-solid-utility' site/landing.js
+          grep -Fq 'world-v2300-utility-infrastructure-v1.js?v=11-solid-utility-wires-v10' site/app.js
+          grep -Fq 'world-v2300-utility-infrastructure-v1.js?v=11-solid-utility-wires-v10' site/landing.js
           grep -Fq "const SUPA='https://solaris-boat-upgrades-stocks.trycloudflare.com'" site/landing.js
           grep -Fq "const SUPA='https://solaris-boat-upgrades-stocks.trycloudflare.com'" site/app.js
           grep -Fq 'bpAuthRequestV6237' site/landing.js
@@ -1047,13 +1047,13 @@ jobs:
           ! grep -Fq "const SUPA='https://xdfsjztwgsbmabshzsjw.supabase.co'" site/landing.js
           ! grep -Fq "const SUPA='https://xdfsjztwgsbmabshzsjw.supabase.co'" site/app.js
           grep -Fq 'OpenInfraMap/OSM + Middletown municipal StreetLights GIS + USGS 3DEP ground elevations' site/world-v2300-utility-infrastructure-v1.js
-          grep -Fq 'const VERSION = 5;' site/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'const VERSION = 11;' site/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'ALONEVDIST' site/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'function createGuyWireMesh' site/world-v2300-utility-infrastructure-v1.js
-          grep -Fq 'isDistributionPowerLine(feature, powerSupports)' site/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'export function isDistributionPowerLineFeature' site/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'Towers rendered by this layer: 0' site/world-v2300-utility-infrastructure-v1.js
-          grep -Fq 'new THREE.CylinderGeometry(.082, .145, 1, 14)' site/world-v2300-utility-infrastructure-v1.js
-          grep -Fq 'new THREE.BoxGeometry(1, .09, .14)' site/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'function createGeometry()' site/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'new THREE.BoxGeometry(1, .18, .24)' site/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'let catenaryA = distance * distance / Math.max(.1, 8 * sag)' site/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'function hasGroundElevation(coordinate)' site/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'void loadUSGS3DEPGround(assets)' site/world-v2300-utility-infrastructure-v1.js
@@ -1084,8 +1084,8 @@ jobs:
           ! grep -Fq 'MercatorCoordinate' site/world-v2300-infrastructure-volume-v5962.js
           grep -Fq 'enabled:true' site/world-v2300-infrastructure-volume-v5962.js
           ! grep -Fq 'data-toggle' site/world-v2300-infrastructure-volume-v5962.js
-          grep -Fq 'landing.js?v=6237-pc-auth&bp=5970-globe-model-matrices' site/index.html
-          grep -Fq 'app.js?v=6237-pc-auth&bp=5970-globe-model-matrices' site/app/index.html
+          grep -Fq 'landing.js?v=6244-solid-utility-wires-v10&bp=5970-globe-model-matrices' site/index.html
+          grep -Fq 'app.js?v=6244-solid-utility-wires-v10&bp=5970-globe-model-matrices' site/app/index.html
           grep -Fq 'world-v2300-sensor-layers.js?v=6224-underwater-dive-camera' site/app.js
           grep -Fq 'world-v2300-sensor-layers.js?v=6224-underwater-dive-camera' site/landing.js
           grep -Fq 'bridgepoint-gebco-depth-image-v5937' site/world-v2300-sensor-layers.js
@@ -1202,7 +1202,7 @@ jobs:
           grep -Fq 'BP_SOURCE_WEATHER_CACHE_KEY_V6134' site/app.js
           grep -Fq 'restoreCachedLiveWeatherFirstFrameV6134' site/app.js
           ! grep -Fq 'if(window.__BP_CLOUDS_ONLY_PHASE_V6070__===true && m)' site/landing.js
-          grep -Fq 'landing.js?v=6237-pc-auth' site/index.html
+          grep -Fq 'landing.js?v=6244-solid-utility-wires-v10' site/index.html
           grep -Fq 'async function toggleNasaNightlights()' site/world-v2300-time-slider.js
           ! grep -Fq 'async function toggleSkyClouds()' site/world-v2300-time-slider.js
           grep -Fq 'data-skyview' site/world-v2300-time-slider.js
@@ -1418,7 +1418,7 @@ jobs:
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/app.js
           grep -Fq 'activateLiveWeather();' site/app.js
           grep -Fq 'enabled:true,serializedWeather:true' site/app.js
-          grep -Fq 'app.js?v=6237-pc-auth' site/app/index.html
+          grep -Fq 'app.js?v=6244-solid-utility-wires-v10' site/app/index.html
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/landing.js
           grep -Fq 'WMO_CAP_WARNING' site/app.js
           grep -Fq 'WMO_CAP_WARNING' site/landing.js
@@ -1662,8 +1662,8 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=6237-pc-auth' site/app/index.html
-          grep -Fq 'landing.js?v=6237-pc-auth' site/index.html
+          grep -Fq 'app.js?v=6244-solid-utility-wires-v10' site/app/index.html
+          grep -Fq 'landing.js?v=6244-solid-utility-wires-v10' site/index.html
            grep -Fq 'world-v2300-map.js?v=6226-underwater-satellite-lock' site/app.js
            grep -Fq 'world-v2300-map.js?v=6226-underwater-satellite-lock' site/landing.js
            grep -Fq 'world-v2300-map.js?v=6226-underwater-satellite-lock' site/index.html
@@ -1847,8 +1847,8 @@ jobs:
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/app/?verify=$q" -o /tmp/bp-auth-app.html
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/landing.js?verify=$q" -o /tmp/bp-auth-landing.js
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/app.js?verify=$q" -o /tmp/bp-auth-app.js
-          grep -Fq 'landing.js?v=6237-pc-auth' /tmp/bp-auth-root.html
-          grep -Fq 'app.js?v=6237-pc-auth' /tmp/bp-auth-app.html
+          grep -Fq 'landing.js?v=6244-solid-utility-wires-v10' /tmp/bp-auth-root.html
+          grep -Fq 'app.js?v=6244-solid-utility-wires-v10' /tmp/bp-auth-app.html
           grep -Fq 'bpw-globe-aura' /tmp/bp-auth-root.html
           grep -Fq 'bpAuthRequestV6237' /tmp/bp-auth-landing.js
           grep -Fq 'bpAuthRequestV6237' /tmp/bp-auth-app.js
