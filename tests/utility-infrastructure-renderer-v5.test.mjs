@@ -27,6 +27,9 @@ assert.ok(source.includes('export function deriveNearestPoleSpans'), 'mapped pol
 assert.ok(source.includes('function appendGroundLead(batch, support)'), 'each power pole gets a visible ground downlead');
 assert.ok(source.includes('groundWireMaterial'), 'ground downleads use a distinct copper-toned solid material');
 assert.ok(source.includes('SERVICE_DROP_MAX_DISTANCE_M = 75'), 'service drops can reach nearby building footprints');
+assert.ok(source.includes("support.network === 'power' || support.network === 'telecom'"), 'house service drops consider power and telecom poles');
+assert.ok(source.includes('if (Number(map.getZoom && map.getZoom() || 0) < MIN_ZOOM'), 'house drops appear at the same zoom threshold as the poles');
+assert.ok(source.includes('if (!support) return false;'), 'every mapped utility pole receives a ground downlead');
 assert.ok(source.includes('function flushWireBatches(batches)'), 'wire batches emit one solid mesh per network and tile');
 assert.ok(source.includes('wireTileAnchor(coordinate, 16)'), 'wire batches use the same close-zoom local geographic tile frame as poles');
 assert.ok(source.includes("map.querySourceFeatures('bpBuildings', { sourceLayer: 'buildings' })"), 'residential service leads use source-mapped global building footprints');
