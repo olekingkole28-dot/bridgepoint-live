@@ -107,7 +107,8 @@ function buildFeature(id, coordinate, props) {
     geometry: { type: 'Point', coordinates: coordinate },
     properties: {
       key: String(id), name: String(props.name || (platform ? 'Offshore platform' : kind.toUpperCase() + ' well')).slice(0, 120),
-      kind, assetIcon: offshoreIconFor(kind),
+      kind, modelType:String(props.modelType || (props.isWell ? 'well' : 'platform')),
+      assetIcon: offshoreIconFor(kind),
       platformType: String(props.platformType || (platform ? 'Offshore fixed platform / type not specified' : kind.toUpperCase() + ' well')).slice(0, 90),
       operator: String(props.operator || '').slice(0, 100),
       jurisdiction: String(props.jurisdiction || '').slice(0, 60),
@@ -136,7 +137,7 @@ export function normalizeNoaaPlatform(feature) {
   const kind = /gas/.test(typeText + ' ' + recordText) ? 'gas' :
     /oil/.test(typeText + ' ' + recordText) ? 'oil' : 'platform';
   return buildFeature('noaa-platform/' + id, c, {
-    kind, name: p.platformname || 'Platform ' + id,
+    kind, modelType:'platform', name: p.platformname || 'Platform ' + id,
     platformType: p.platformtype, operator: p.operator, jurisdiction: p.jurisdiction,
     platformId: id, sourceRecord: p.sourcerecord, sourceName: 'NOAA Office for Coastal Management',
     sourceUrl: NOAA_PLATFORM_SOURCE
@@ -171,7 +172,7 @@ export function normalizeOffshoreOsmElement(element) {
     wellType ? 'water' : 'platform';
   const id = String(element.type || 'osm') + '/' + String(element.id ?? coordinate?.join('/') ?? '');
   const props = buildFeature('osm-offshore/' + id, coordinate, {
-    kind, name: tags.name || tags['seamark:name'] || tags.operator || null,
+    kind, modelType:wellType?'well':'platform', name: tags.name || tags['seamark:name'] || tags.operator || null,
     platformType: tags['offshore:structure'] || tags.structure || tags.platform_type || null,
     operator: tags.operator || tags['operator:name'] || '',
     status: tags.status || tags['offshore:status'] || '',
@@ -558,7 +559,7 @@ function rebuildModels(state) {
   state.models=[];state.modelSignature=signature;
   for(const f of rows) {
     try {
-      const item=f.properties.kind==='platform'?addPlatformModel(state.THREE,f):addWellModel(state.THREE,f);
+      const item=f.properties.modelType==='platform'?addPlatformModel(state.THREE,f):addWellModel(state.THREE,f);
       state.scene.add(item.root);state.models.push(item);
     } catch(e){console.warn('BridgePoint offshore model skipped',f.id,e)}
   }
