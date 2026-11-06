@@ -818,6 +818,10 @@ async function initMap(){
   void import('./bridgepoint-subsurface-wells-v1.js?v=1-global-wells-depth-casing')
    .then(m=>{window.__BP_SUBSURFACE_WELLS_V1__=m.initSubsurfaceWellsRenderer(world)})
    .catch(e=>console.warn('BridgePoint global subsurface wells renderer unavailable',e));
+  // Utility-scale wind turbines are an isolated, opt-in USWTDB layer.
+  void import('./bridgepoint-wind-turbines-v1.js?v=1-uswtdb-3d-ground-anchored')
+   .then(m=>{window.__BP_WIND_TURBINES_V1__=m.initWindTurbinesRenderer(world)})
+   .catch(e=>console.warn('BridgePoint USGS wind turbine renderer unavailable',e));
 
    // BridgePoint exposes the same 30-day source-event timeline on the website globe.
    void import('./world-v2300-time-slider.js?v=6170-no-cloud-toggle-always-on')
