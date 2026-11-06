@@ -633,7 +633,7 @@ export function initStreetlightRenderer(target) {
     if (dead) return;
     bootAttempts++;
     try {
-      if (!map.isStyleLoaded?.()) throw new Error('Map style is still loading');
+      if (!hasLoadedStyle(map)) throw new Error('Map style JSON is still loading');
       if (!install()) throw new Error('Streetlight layers are not attached yet');
       scheduleRefresh(350);
       state.status = 'Global mapped streetlight inventory connected; loading the visible area.';
