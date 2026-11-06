@@ -25,6 +25,7 @@ assert.ok(sensor.includes("map.setCenterClampedToGround?.(false)") && sensor.inc
 assert.ok(sensor.includes("var(--bp-dive-depth") && sensor.includes("function drawDiveParticles"), 'underwater mode must apply depth-dependent blue-green fog and rising bubbles');
 assert.ok(sensor.includes("Previous camera position and map projection restored."), 'surface return must restore the saved camera and projection');
 assert.ok(workflow.includes("world-v2300-sensor-layers.js?v=6256-gerstner-liquid-ocean"), 'the production build must publish the unified liquid-ocean sensor module');
+assert.ok(app.includes("world-v2300-sensor-layers.js?v=6256-gerstner-liquid-ocean"), 'the app shell must load the current liquid-ocean and Gerstner sensor module');
 assert.ok(workflow.includes("node tests/underwater-dive-camera.test.mjs"), 'the production build must run the underwater regression test');
 assert.ok(!sensor.includes("zoom:Math.max(3.5,Math.min(8.5"), 'the old fallback zoom-out behavior must stay removed');
 assert.ok(map.includes("function isUnderwaterDiveActive(){return window.__BP_UNDERWATER_DIVE_ACTIVE__===true||window.__BP_UNDERWATER_DIVE_TRANSITION__===true}"), 'satellite recovery must share the underwater-state check');
