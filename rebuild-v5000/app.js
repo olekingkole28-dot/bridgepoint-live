@@ -171,7 +171,7 @@ async function bootMap(){
     return false;
    }
    if(!appWaterApi){
-    if(!appWaterPromise)appWaterPromise=import('./world-v2300-water.js?v=6194-stable-water-low-cost')
+    if(!appWaterPromise)appWaterPromise=import('./world-v2300-water.js?v=6256-gerstner-ocean')
      .then(m=>{const api=m.initWaterEngine(world,{surface:'app'});if(!api)throw new Error('GPU water surface did not initialize');appWaterApi=api;window.__BP_WATER_ENGINE_APP_V6123__=api;return api})
      .finally(()=>{appWaterPromise=null});
     await appWaterPromise;
