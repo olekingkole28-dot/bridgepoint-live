@@ -1,0 +1,233 @@
+name: Publish BridgePoint Lighthouse Hotfix V3
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-lighthouses-v3.yml'
+      - 'patches/lighthouse-v3/**'
+      - 'tests/lighthouse-hotfix-v3.test.mjs'
+  workflow_run:
+    workflows: ["Deploy BridgePoint Intelligence V5000 Rebuild"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+
+jobs:
+  publish-lighthouse-hotfix:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Test the isolated lighthouse fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module --check < patches/lighthouse-v3/bridgepoint-lighthouses-v1.js
+          node tests/lighthouse-hotfix-v3.test.mjs
+
+      - name: Select only a Pages artifact that was actually deployed
+        id: baseline
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          UPSTREAM_RUN_ID: ${{ github.event.workflow_run.id }}
+          UPSTREAM_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "workflow_run" ]; then
+            python3 - <<'PY'
+          import json, os, urllib.request
+          repo=os.environ["REPOSITORY"]
+          run_id=os.environ["UPSTREAM_RUN_ID"]
+          token=os.environ["GH_TOKEN"]
+          url=f"https://api.github.com/repos/{repo}/actions/runs/{run_id}/jobs?per_page=100"
+          req=urllib.request.Request(url, headers={
+              "Accept":"application/vnd.github+json",
+              "Authorization":f"Bearer {token}",
+              "X-GitHub-Api-Version":"2022-11-28"
+          })
+          with urllib.request.urlopen(req, timeout=30) as response:
+              jobs=json.load(response).get("jobs",[])
+          deploy=next((job for job in jobs if job.get("name")=="deploy"),None)
+          step=next((item for item in (deploy or {}).get("steps",[])
+                     if item.get("name")=="Deploy clean V5000 surface"),None)
+          if not step or step.get("conclusion")!="success":
+              with open(os.environ["GITHUB_OUTPUT"],"a") as out:
+                  out.write("publish=false\n")
+              print("Skipping lighthouse overlay: upstream run did not successfully deploy Pages")
+          else:
+              attempt=os.environ["UPSTREAM_RUN_ATTEMPT"] or "1"
+              with open(os.environ["GITHUB_OUTPUT"],"a") as out:
+                  out.write("publish=true\n")
+                  out.write(f"run_id={run_id}\n")
+                  out.write(f"artifact_name=bridgepoint-v5000-{attempt}\n")
+              print("Using deployed V5000 artifact",run_id,"attempt",attempt)
+          PY
+          else
+            {
+              echo "publish=true"
+              echo "run_id=42165483535"
+              echo "artifact_name=bridgepoint-v5000-1"
+            } >> "$GITHUB_OUTPUT"
+            echo "Using the last deployed V5000 baseline: 42165483535"
+          fi
+
+      - name: Download the exact deployed V5000 site artifact
+        if: steps.baseline.outputs.publish == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ steps.baseline.outputs.artifact_name }}
+          run-id: ${{ steps.baseline.outputs.run_id }}
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/bp-lighthouse-baseline
+
+      - name: Overlay only the lighthouse renderer and its four cache-busted entrypoints
+        if: steps.baseline.outputs.publish == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCHIVE="$(find "$RUNNER_TEMP/bp-lighthouse-baseline" -type f -name artifact.tar -print -quit)"
+          test -n "$ARCHIVE"
+          SITE="$RUNNER_TEMP/bp-lighthouse-site"
+          mkdir -p "$SITE"
+          tar -xf "$ARCHIVE" -C "$SITE"
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib, json, re, os
+          site=Path(os.environ["RUNNER_TEMP"])/"bp-lighthouse-site"
+          required=(
+            "index.html","app/index.html","landing.js","app.js",
+            "bridgepoint-lighthouses-v1.js","app/bridgepoint-lighthouses-v1.js"
+          )
+          for rel in required:
+            path=site/rel
+            if not path.is_file() or path.stat().st_size==0:
+              raise SystemExit(f"Deployed baseline is missing required file: {rel}")
+          before={
+            p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+            for p in site.rglob("*") if p.is_file()
+          }
+
+          old="./bridgepoint-lighthouses-v1.js?v=2-visible-rotating-beacons"
+          new="./bridgepoint-lighthouses-v1.js?v=3-image-data-beacons"
+          for rel in ("landing.js","app.js"):
+            path=site/rel
+            data=path.read_text(encoding="utf-8")
+            if data.count(old)!=1:
+              raise SystemExit(f"{rel}: expected exactly one existing lighthouse import, found {data.count(old)}")
+            path.write_text(data.replace(old,new),encoding="utf-8")
+
+          for rel,filename,version in (
+            ("index.html","landing.js","6245-lighthouse-v3"),
+            ("app/index.html","app.js","6245-lighthouse-v3"),
+          ):
+            path=site/rel
+            data=path.read_text(encoding="utf-8")
+            pattern=re.compile(r'((?:\./|\.\./)?'+re.escape(filename)+r'\?v=)[^"\\'<>\\s]+')
+            data,count=pattern.subn(lambda match:match.group(1)+version,data)
+            if count!=1:
+              raise SystemExit(f"{rel}: expected exactly one {filename} loader URL, replaced {count}")
+            path.write_text(data,encoding="utf-8")
+
+          source=Path("patches/lighthouse-v3/bridgepoint-lighthouses-v1.js")
+          patched=source.read_bytes()
+          (site/"bridgepoint-lighthouses-v1.js").write_bytes(patched)
+          (site/"app/bridgepoint-lighthouses-v1.js").write_bytes(patched)
+
+          after={
+            p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+            for p in site.rglob("*") if p.is_file()
+          }
+          changed={rel for rel in before if before[rel]!=after.get(rel)}
+          removed=set(before)-set(after)
+          added=set(after)-set(before)
+          expected=set(required)
+          if removed or added or changed!=expected:
+            raise SystemExit(
+              "LIGHTHOUSE_ONLY_SCOPE_FAILURE "
+              +json.dumps({"changed":sorted(changed),"removed":sorted(removed),
+                           "added":sorted(added),"expected":sorted(expected)})
+            )
+          print("LIGHTHOUSE_ONLY_OVERLAY_SCOPE_PASS: exactly six approved files changed; all other site files preserved")
+          PY
+
+          node --check "$SITE/landing.js"
+          node --check "$SITE/app.js"
+          node --input-type=module --check < "$SITE/bridgepoint-lighthouses-v1.js"
+          node --input-type=module --check < "$SITE/app/bridgepoint-lighthouses-v1.js"
+          cmp -s "$SITE/bridgepoint-lighthouses-v1.js" "$SITE/app/bridgepoint-lighthouses-v1.js"
+          grep -Fq 'landing.js?v=6245-lighthouse-v3' "$SITE/index.html"
+          grep -Fq 'app.js?v=6245-lighthouse-v3' "$SITE/app/index.html"
+          grep -Fq 'bridgepoint-lighthouses-v1.js?v=3-image-data-beacons' "$SITE/landing.js"
+          grep -Fq 'bridgepoint-lighthouses-v1.js?v=3-image-data-beacons' "$SITE/app.js"
+          grep -Fq 'return ctx.getImageData(0, 0, 96, 96);' "$SITE/bridgepoint-lighthouses-v1.js"
+          echo "BRIDGEPOINT_LIGHTHOUSE_V3_BUNDLE_BUILD_PASS"
+
+      - name: Configure GitHub Pages
+        if: steps.baseline.outputs.publish == 'true'
+        uses: actions/configure-pages@v5
+
+      - name: Upload the lighthouse-only Pages artifact
+        if: steps.baseline.outputs.publish == 'true'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          name: bridgepoint-lighthouse-hotfix-v3
+          path: ${{ runner.temp }}/bp-lighthouse-site
+          include-hidden-files: true
+
+      - name: Publish lighthouse hotfix V3
+        if: steps.baseline.outputs.publish == 'true'
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: bridgepoint-lighthouse-hotfix-v3
+
+      - name: Verify the live lighthouse assets on root and app routes
+        if: steps.baseline.outputs.publish == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          O='https://bridgepointintelligence.online'
+          q="$GITHUB_SHA-lighthouse-v3"
+          for p in '/' '/app/'; do
+            curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O$p?lighthouse-v3=$q" -o "$RUNNER_TEMP/lighthouse-page.html"
+            if [ "$p" = "/" ]; then
+              grep -Fq 'landing.js?v=6245-lighthouse-v3' "$RUNNER_TEMP/lighthouse-page.html"
+            else
+              grep -Fq 'app.js?v=6245-lighthouse-v3' "$RUNNER_TEMP/lighthouse-page.html"
+            fi
+          done
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/landing.js?v=6245-lighthouse-v3&verify=$q" -o "$RUNNER_TEMP/lighthouse-landing.js"
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app.js?v=6245-lighthouse-v3&verify=$q" -o "$RUNNER_TEMP/lighthouse-app.js"
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/bridgepoint-lighthouses-v1.js?v=3-image-data-beacons&verify=$q" -o "$RUNNER_TEMP/lighthouse-root.js"
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app/bridgepoint-lighthouses-v1.js?verify=$q" -o "$RUNNER_TEMP/lighthouse-app-module.js"
+          grep -Fq 'bridgepoint-lighthouses-v1.js?v=3-image-data-beacons' "$RUNNER_TEMP/lighthouse-landing.js"
+          grep -Fq 'bridgepoint-lighthouses-v1.js?v=3-image-data-beacons' "$RUNNER_TEMP/lighthouse-app.js"
+          grep -Fq 'const VERSION = 3;' "$RUNNER_TEMP/lighthouse-root.js"
+          grep -Fq 'return ctx.getImageData(0, 0, 96, 96);' "$RUNNER_TEMP/lighthouse-root.js"
+          grep -Fq 'const MIN_BEACON_ZOOM = 3.8;' "$RUNNER_TEMP/lighthouse-root.js"
+          grep -Fq 'const MIN_MODEL_ZOOM = 14.0;' "$RUNNER_TEMP/lighthouse-root.js"
+          cmp -s "$RUNNER_TEMP/lighthouse-root.js" "$RUNNER_TEMP/lighthouse-app-module.js"
+          echo "BRIDGEPOINT_LIGHTHOUSE_V3_LIVE_ASSET_VERIFICATION_PASS"
