@@ -25,6 +25,7 @@ const CLUSTER_COUNT_ID = 'bp-wind-turbines-cluster-count-v1';
 const HALO_ID = 'bp-wind-turbines-halo-v1';
 const MARKER_ID = 'bp-wind-turbines-markers-v1';
 const LABEL_ID = 'bp-wind-turbines-labels-v1';
+const HIT_ID = 'bp-wind-turbines-hit-targets-v1';
 const MODEL_ID = 'bp-wind-turbines-models-v1';
 const MIN_MODEL_ZOOM = 11.6;
 const MAX_MODELS = typeof window !== 'undefined' &&
@@ -140,12 +141,12 @@ export function windTurbinePopupHtml(feature) {
     ['Rotor diameter',p.rotorDiameterM === null ? 'Not reported' : fmt(p.rotorDiameterM,2)+' m'],
     ['Total tip height',p.totalTipHeightM === null ? 'Not reported' : fmt(p.totalTipHeightM,2)+' m'],
     ['Rotor swept area',p.sweptAreaM2 === null ? 'Not reported' : fmt(p.sweptAreaM2,1)+' m²'],
-    ['Project year',p.projectYear === null ? 'Not reported' : fmt(p.projectYear,0)],
+    ['Project year',p.projectYear === null ? 'Not reported' : String(Math.round(p.projectYear))],
     ['Project turbine count',p.projectTurbineCount === null ? 'Not reported' : fmt(p.projectTurbineCount,0)],
     ['Project capacity',p.projectCapacity === null ? 'Not reported' : fmt(p.projectCapacity,2)+' MW'],
     ['Location',[p.county,p.state].filter(Boolean).join(', ') || 'Not reported'],
     ['Installation',p.offshore?'Offshore':'Onshore'],
-    ['Retrofit',p.retrofit ? ('Yes'+(p.retrofitYear?' · '+fmt(p.retrofitYear,0):'')) : 'Not reported / not flagged'],
+    ['Retrofit',p.retrofit ? ('Yes'+(p.retrofitYear?' · '+String(Math.round(p.retrofitYear)):'')) : 'Not reported / not flagged'],
     ['USGS attribute confidence',p.attributeConfidence || 'Not reported'],
     ['USGS location confidence',p.locationConfidence || 'Not reported'],
     ['Database case ID',p.caseId || p.key],
@@ -376,6 +377,13 @@ function installLayers(state) {
         'text-allow-overlap':false,'text-ignore-placement':false},
       paint:{'text-color':'#f7fbff','text-halo-color':'#071522','text-halo-width':1.5}
     });
+    // Near-transparent point target preserves click/tap popups while the visible icon
+    // transitions to the independently rendered 3D turbine model.
+    add(HIT_ID,{
+      id:HIT_ID,type:'circle',source:SOURCE_ID,filter:['!',['has','point_count']],
+      minzoom:11,maxzoom:24,
+      paint:{'circle-radius':18,'circle-color':'#ffffff','circle-opacity':0.001,'circle-stroke-width':0}
+    });
     if (state.THREE) installModelLayer(state);
     setVisibility(state,state.enabled);
     return true;
@@ -386,7 +394,7 @@ function installLayers(state) {
   }
 }
 function setVisibility(state,on) {
-  for (const id of [CLUSTER_ID,CLUSTER_COUNT_ID,HALO_ID,MARKER_ID,LABEL_ID,MODEL_ID]) {
+  for (const id of [CLUSTER_ID,CLUSTER_COUNT_ID,HALO_ID,MARKER_ID,LABEL_ID,HIT_ID,MODEL_ID]) {
     try {if (state.map.getLayer(id)) state.map.setLayoutProperty(id,'visibility',on?'visible':'none');} catch (_) {}
   }
 }
@@ -644,7 +652,7 @@ function bindInteractions(state) {
   const map = state.map;
   map.on('click',e=>{
     if (!state.enabled) return;
-    const layers = [CLUSTER_ID,MARKER_ID,HALO_ID,LABEL_ID].filter(id=>map.getLayer(id));
+    const layers = [CLUSTER_ID,MARKER_ID,HALO_ID,LABEL_ID,HIT_ID].filter(id=>map.getLayer(id));
     const hits = map.queryRenderedFeatures ? map.queryRenderedFeatures(e.point,{layers:layers}) : [];
     const hit = hits && hits[0];
     if (!hit) return;
