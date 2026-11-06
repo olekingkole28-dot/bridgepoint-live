@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { deriveNearestPoleSpans, isDistributionPowerLine } from '../release-v2300/world-v2300-utility-infrastructure-v1.js';
+import { deriveNearestPoleSpans, isDistributionPowerLineFeature } from '../release-v2300/world-v2300-utility-infrastructure-v1.js';
 
 const source = await readFile(
   new URL('../release-v2300/world-v2300-utility-infrastructure-v1.js', import.meta.url),
@@ -80,15 +80,15 @@ const nearSupports = [
   { key: 'a', coordinate: [-72.64985, 41.5600] },
   { key: 'b', coordinate: [-72.64915, 41.5600] }
 ];
-assert.equal(isDistributionPowerLine(lineFixture, nearSupports, 'power_line'), true,
+assert.equal(isDistributionPowerLineFeature(lineFixture, nearSupports, 'power_line'), true,
   'power_line source-layer admits distribution geometry when the original power/type property is absent');
-assert.equal(isDistributionPowerLine(lineFixture, nearSupports, ''), false,
+assert.equal(isDistributionPowerLineFeature(lineFixture, nearSupports, ''), false,
   'unclassified features from unrelated source layers are not treated as power lines');
-assert.equal(isDistributionPowerLine({ ...lineFixture, properties: { voltage: '115000' } }, nearSupports, 'power_line'), false,
+assert.equal(isDistributionPowerLineFeature({ ...lineFixture, properties: { voltage: '115000' } }, nearSupports, 'power_line'), false,
   'known high-voltage transmission lines remain excluded');
-assert.equal(isDistributionPowerLine({ ...lineFixture, properties: { voltage: '13.8', location: 'underground' } }, nearSupports, 'power_line'), false,
+assert.equal(isDistributionPowerLineFeature({ ...lineFixture, properties: { voltage: '13.8', location: 'underground' } }, nearSupports, 'power_line'), false,
   'underground lines remain excluded');
-assert.equal(isDistributionPowerLine({ ...lineFixture, properties: { type: 'line' } }, nearSupports.slice(0, 1), 'power_line'), false,
+assert.equal(isDistributionPowerLineFeature({ ...lineFixture, properties: { type: 'line' } }, nearSupports.slice(0, 1), 'power_line'), false,
   'un-volted lines require two distinct nearby mapped poles');
 
 const streetPoles = [
