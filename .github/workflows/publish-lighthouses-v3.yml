@@ -145,7 +145,7 @@ jobs:
           ):
             path=site/rel
             data=path.read_text(encoding="utf-8")
-            pattern=re.compile(r'((?:\./|\.\./)?'+re.escape(filename)+r'\?v=)[^"\\'<>\\s]+')
+            pattern=re.compile(r"((?:\./|\.\./)?"+re.escape(filename)+r"\?v=)[^\"'<>\s]+")
             data,count=pattern.subn(lambda match:match.group(1)+version,data)
             if count!=1:
               raise SystemExit(f"{rel}: expected exactly one {filename} loader URL, replaced {count}")
