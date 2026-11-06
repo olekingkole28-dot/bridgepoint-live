@@ -62,6 +62,22 @@ function safe(value) {
     .replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+function confidenceLabel(value,kind) {
+  const code = String(value === null || value === undefined ? '' : value).trim();
+  if (kind === 'attribute') {
+    return ({
+      '1':'1 · No confidence (only basic total-height/year information)',
+      '2':'2 · Partial confidence (incomplete or conflicting details)',
+      '3':'3 · Full confidence (complete, consistent source details)'
+    })[code] || 'Not reported';
+  }
+  return ({
+    '1':'1 · Low location confidence (turbine not clearly visible in imagery)',
+    '2':'2 · Partial confidence (pad or turbine components visible)',
+    '3':'3 · Full confidence (installed turbine visible)'
+  })[code] || 'Not reported';
+}
+
 export function normalizeWindTurbine(row) {
   if (!row || typeof row !== 'object') return null;
   const longitude = finite(row.xlong);
@@ -140,8 +156,8 @@ export function windTurbinePopupHtml(feature) {
     ['Location',[p.county,p.state].filter(Boolean).join(', ') || 'Not reported'],
     ['Installation',p.offshore?'Offshore':'Onshore'],
     ['Retrofit',p.retrofit ? ('Yes'+(p.retrofitYear?' · '+String(Math.round(p.retrofitYear)):'')) : 'Not reported / not flagged'],
-    ['USGS attribute confidence',p.attributeConfidence || 'Not reported'],
-    ['USGS location confidence',p.locationConfidence || 'Not reported'],
+    ['USGS attribute confidence',confidenceLabel(p.attributeConfidence,'attribute')],
+    ['USGS location confidence',confidenceLabel(p.locationConfidence,'location')],
     ['Database case ID',p.caseId || p.key],
     ['Coordinates',Number(c[1]).toFixed(6)+', '+Number(c[0]).toFixed(6)]
   ];
@@ -155,7 +171,8 @@ export function windTurbinePopupHtml(feature) {
     '<h3>'+safe(turbineTitle)+'</h3>'+
     '<div class="bp-wind-grid-v1">'+rows.map(r=>'<span>'+safe(r[0])+'</span><b>'+safe(r[1])+'</b>').join('')+'</div>'+
     '<p class="bp-wind-note-v1">'+safe(dimensionNote)+'</p>'+
-    '<p class="bp-wind-note-v1">The USWTDB is a United States inventory. The global globe view shows the database’s U.S. locations; it does not imply worldwide source coverage. Turbine support geometry is a representative 3D rendering, while the published dimensional fields above remain source values.</p>'+
+    '<p class="bp-wind-note-v1">The USWTDB is a United States inventory. The global globe view shows the database’s U.S. locations; it does not imply worldwide source coverage. USGS states turbine locations are visually checked with an approximately ±10 m positional tolerance; technical specifications are not field verified.</p>'+
+    '<p class="bp-wind-note-v1">Hub height and rotor diameter follow the source values when present. Tower/nacelle shape, rotor yaw, and animation speed are representative rendering details because those exact geometry/operating fields are not supplied by this inventory.</p>'+
     '<div class="bp-wind-links-v1">'+mapLink+' · '+sourceLink+'</div></article>';
 }
 
