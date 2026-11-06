@@ -35,7 +35,7 @@ function test(name, fn) {
 
 test('water keeps shoreline safety while using a bounded stable render budget', () => {
   assert.match(water, /const VERSION = 6123;/);
-  assert.match(water, /const SURFACE_RENDER_REVISION = 6194;/);
+  assert.match(water, /const SURFACE_RENDER_REVISION = 6256;/);
   assert.match(water, /const maxCells = worldView/);
   assert.match(water, /MIN_BACKGROUND_BUILD_INTERVAL_MS = 4200/);
   assert.match(water, /MIN_CAMERA_BUILD_INTERVAL_MS = 900/);
