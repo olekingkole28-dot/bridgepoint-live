@@ -840,7 +840,7 @@ async function initMap(){
   void import('./world-v2300-utility-infrastructure-v1.js?v=11-solid-utility-wires-v10')
    .then(m=>{window.__BP_UTILITY_INFRASTRUCTURE_V1__=m.initUtilityInfrastructure(world)})
    .catch(e=>console.warn('BridgePoint global mapped 3D utility infrastructure unavailable',e));
-  void import('./world-v2300-sensor-layers.js?v=6251-liquid-ocean')
+  void import('./world-v2300-sensor-layers.js?v=6256-gerstner-liquid-ocean')
    .then(m=>{window.__BP_SENSOR_LAYERS_V5945__=m.initSensorLayers(world)})
    .catch(e=>console.warn('BridgePoint NASA night lights, GEBCO depth and mapped streetlights unavailable',e));
    void import('./world-v2300-realism.js?v=5926-world-sun-materials')
