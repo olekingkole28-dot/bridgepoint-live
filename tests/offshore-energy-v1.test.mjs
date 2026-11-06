@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import {
   parseMetres,
   offshoreIconFor,
@@ -73,3 +74,17 @@ assert.ok(platformWay);
 assert.equal(platformWay.properties.modelType,'platform');
 
 console.log('BRIDGEPOINT_OFFSHORE_ENERGY_V1_PASS');
+
+const [landing, app, deploy] = await Promise.all([
+  readFile(new URL('../rebuild-v5000/landing.js', import.meta.url), 'utf8'),
+  readFile(new URL('../rebuild-v5000/app.js', import.meta.url), 'utf8'),
+  readFile(new URL('../.github/workflows/deploy-intelligence-rebuild-v5000.yml', import.meta.url), 'utf8')
+]);
+assert.ok(landing.includes("import('./bridgepoint-offshore-energy-v1.js?v=1-noaa-hifld-global-osm')"));
+assert.ok(app.includes("import('./bridgepoint-offshore-energy-v1.js?v=1-noaa-hifld-global-osm')"));
+assert.ok(deploy.includes("cp rebuild-v5000/bridgepoint-offshore-energy-v1.js site/bridgepoint-offshore-energy-v1.js"));
+assert.ok(deploy.includes("cp rebuild-v5000/bridgepoint-offshore-energy-v1.js site/app/bridgepoint-offshore-energy-v1.js"));
+assert.ok(deploy.includes("node tests/offshore-energy-v1.test.mjs"));
+assert.ok(deploy.includes("'tests/offshore-energy-v1.test.mjs'"));
+console.log('BRIDGEPOINT_OFFSHORE_ENERGY_ROOT_APP_DEPLOY_PASS');
+
