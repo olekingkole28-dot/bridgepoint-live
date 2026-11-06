@@ -9,6 +9,7 @@ on:
       - 'rebuild-v5000/landing.js'
       - '.github/workflows/verify-utility-infrastructure-v1.yml'
       - '.github/workflows/publish-utility-close-zoom-poles-v8.yml'
+      - '.github/workflows/publish-utility-solid-wires-v9.yml'
       - 'tests/utility-infrastructure-renderer-v5.test.mjs'
   workflow_dispatch:
 
@@ -44,9 +45,16 @@ jobs:
           grep -Fq 'featureCache' release-v2300/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'bp-utility-poles-3d-v1' release-v2300/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'const MIN_ZOOM = 13;' release-v2300/world-v2300-utility-infrastructure-v1.js
-          grep -Fq 'const VERSION = 8;' release-v2300/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'const VERSION = 9;' release-v2300/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'const PRECISE_POLE_MIN_ZOOM = 16;' release-v2300/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'function buildPrecisePoleGroups(supports)' release-v2300/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'function collectResidentialServiceDrops(supports)' release-v2300/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'function appendServiceDrop(batch, drop)' release-v2300/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'wireTileAnchor(coordinate, 16)' release-v2300/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'preciseWireGroups' release-v2300/world-v2300-utility-infrastructure-v1.js
+          grep -Fq "map.querySourceFeatures('bpBuildings', { sourceLayer: 'buildings' })" release-v2300/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'for (const mesh of standardWireMeshes) mesh.visible = !closeZoom;' release-v2300/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'for (const group of preciseWireGroups) drawAnchoredGroup(group);' release-v2300/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'wireTileAnchor(support.coordinate, 16)' release-v2300/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'camera.projectionMatrix.copy(projection).multiply(anchorMatrix)' release-v2300/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'new THREE.BoxGeometry(1, .18, .24)' release-v2300/world-v2300-utility-infrastructure-v1.js
