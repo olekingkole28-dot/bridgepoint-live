@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
+import { mkdir, rename, stat, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 
 const API_URL = 'https://energy.usgs.gov/api/uswtdb/v1/turbines';
