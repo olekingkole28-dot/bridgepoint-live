@@ -22,7 +22,7 @@ jobs:
     timeout-minutes: 35
     environment:
       name: github-pages
-      url: \${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url }}
     env:
       SOURCE_BRANCH: hotfix/utility-close-zoom-poles-v8
       SOURCE_REF: refs/remotes/origin/utility-close-zoom-poles-v8
@@ -34,9 +34,9 @@ jobs:
         with:
           name: bridgepoint-utility-solid-poles-v7
           run-id: 42141167792
-          repository: \${{ github.repository }}
-          github-token: \${{ secrets.GITHUB_TOKEN }}
-          path: \${{ runner.temp }}/bp-pages-baseline
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/bp-pages-baseline
 
       - name: Fetch and test the isolated close-zoom renderer V8
         shell: bash
@@ -147,7 +147,7 @@ jobs:
         uses: actions/upload-pages-artifact@v5
         with:
           name: bridgepoint-close-zoom-poles-v8
-          path: \${{ runner.temp }}/bp-site
+          path: ${{ runner.temp }}/bp-site
           include-hidden-files: true
 
       - name: Publish close-zoom pole renderer V8
