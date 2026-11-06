@@ -6,31 +6,33 @@ const source = await readFile(
   'utf8'
 );
 
-assert.ok(source.includes('const VERSION = 6;'), 'utility renderer version advances to v6');
-assert.ok(source.includes('const MIN_ZOOM = 11.5;'), 'local utility assets load at close zoom');
-assert.ok(source.includes('const MAX_GROUND_SAMPLES = 96;'), 'ground samples resolve in larger progressive batches');
-assert.ok(source.includes('new THREE.CylinderGeometry(.082, .145, 1, 16)'), 'wood/concrete poles use a full-dimension solid shaft');
-assert.ok(source.includes('new THREE.CylinderGeometry(.145, .18, .26, 16)'), 'pole bases have a grounded collar');
-assert.ok(source.includes('new THREE.BoxGeometry(1, .13, .18)'), 'crossarms are solid metre-scale timber or steel');
-assert.ok(source.includes('new THREE.CylinderGeometry(.045, .060, .24, 12)'), 'crossarms carry visible ceramic insulators');
-assert.ok(source.includes('const yaw = ((Number.isFinite(Number(support.bearing)) ? Number(support.bearing) : 0) * RAD)'), 'crossarms are aligned across the conductor route');
-assert.ok(source.includes('let catenaryA = distance * distance / Math.max(.1, 8 * sag)'), 'overhead conductors use a catenary rather than a straight/parabolic strip');
-assert.ok(source.includes('support.height * .84 + .245'), 'power conductors meet the top insulator attachment');
-assert.ok(source.includes('support.height * .68 + .07'), 'telecom conductors meet the lower communications bracket');
-assert.ok(source.includes('function hasGroundElevation(coordinate)'), 'exact terrain availability is tracked for mapped utility points');
-assert.ok(source.includes('const supports = incoming.supports;'), 'mapped poles render immediately while missing ground samples resolve');
-assert.ok(source.includes('function localMetresPerPixel(coordinate)'), 'pole dimensions adapt to globe screen scale');
-assert.ok(source.includes('function wireRadiusFor(coordinate, baseRadius)'), 'thin conductors retain a visible screen-space floor');
-assert.ok(source.includes('nearestElevation === null ? 0 : nearestElevation'), 'nearby verified terrain anchors unresolved poles until exact samples arrive');
-assert.ok(source.includes('void loadUSGS3DEPGround(assets)'), 'missing USGS ground samples load progressively without blocking first-frame rendering');
-assert.ok(source.includes('minimumDisplayScale(support.coordinate, .164, .95, 5.5)'), 'thin pole shafts remain screen-visible at close zoom');
-assert.ok(source.includes('wireRadiusFor(anchor, telecom ? .014 : .019)'), 'power and telecom wires use visibility-scaled round conductors');
-assert.ok(source.includes('const height = support.measuredHeight && Number.isFinite(sourceHeight)'), 'source-measured heights are not replaced by a generic cap');
-assert.ok(source.includes('Towers rendered by this layer: 0'), 'transmission towers remain excluded from the distribution renderer');
-assert.ok(source.includes('state.towers = 0;'), 'transmission tower counter stays zero for this module');
+assert.ok(source.includes('const VERSION = 7;'), 'utility renderer advances to v7');
+assert.ok(source.includes('const MIN_ZOOM = 13;'), 'utility 3D assets activate at close globe zoom');
+assert.ok(source.includes('const MAX_SUPPORTS = IS_SMALL_DEVICE ? 420 : 900;'), 'mobile and desktop have bounded support budgets');
+assert.ok(source.includes('const MAX_SPANS = IS_SMALL_DEVICE ? 160 : 420;'), 'mobile cable geometry has a frame-safe span budget');
+assert.ok(source.includes('function createGeometry()'), 'solid pole geometry builder exists');
+assert.ok(source.includes('pushBeam(vertices, new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 1, 0), .17, THREE, 8)'), 'pole shafts are capped octagonal polygon beams');
+assert.ok(source.includes('pushBeam(vertices, new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, .28, 0), .19, THREE, 8)'), 'pole bases are solid ground collars');
+assert.ok(source.includes('new THREE.BoxGeometry(1, .18, .24)'), 'crossarms are solid metre-scale geometry');
+assert.ok(source.includes('side: THREE.DoubleSide'), 'solid assets remain visible through mirrored globe model transforms');
+assert.ok(source.includes('function wireTileAnchor('), 'conductors are grouped in local geographic tile frames');
+assert.ok(source.includes('function appendWireSpan(batch, span, kind)'), 'wire spans are assembled into shared tile batches');
+assert.ok(source.includes('function flushWireBatches(batches)'), 'wire batches emit one solid mesh per network and tile');
+assert.ok(source.includes('const wireStats = flushWireBatches(wireBatches);'), 'wire spans no longer allocate one Three.js mesh per span');
+assert.ok(source.includes('const steps = Math.min(18, Math.max(5, Math.ceil(distance / 12)));'), 'batched cable curves have bounded tessellation');
+assert.ok(source.includes('function assetSignature(assets, zoom)'), 'decoded tile changes are fingerprinted');
+assert.ok(source.includes('if (state.ready && signature === lastAssetSignature) return;'), 'unchanged tile notifications skip full scene rebuilds');
+assert.ok(source.includes("event.sourceDataType === 'content'"), 'only actual source content events trigger tile rebuilds');
+assert.ok(source.includes('const supports = incoming.supports;'), 'mapped poles render without blocking on exact ground samples');
+assert.ok(source.includes('function localMetresPerPixel(coordinate)'), 'pole geometry scales with actual globe screen resolution');
+assert.ok(source.includes('minimumDisplayScale(support.coordinate, .34, 1.8, 14)'), 'pole shafts retain a strong visible screen-space diameter');
+assert.ok(source.includes('wireRadiusFor(span.a.coordinate, telecom ? .018 : .024)'), 'power and telecom cables are solid polygon conductors');
+assert.ok(source.includes('void loadUSGS3DEPGround(assets)'), 'USGS ground elevations resolve progressively after initial draw');
+assert.ok(source.includes('Towers rendered by this layer: 0'), 'transmission towers remain excluded and the yellow tower layer is untouched');
+assert.ok(source.includes('state.towers = 0;'), 'transmission tower counter remains zero in the local distribution layer');
 
-// Check that the catenary equation touches both insulators and reaches its
-// intended downward sag at mid-span for representative local pole spacing.
+// Confirm the catenary solver still reaches both conductor attachment points and
+// reaches the specified downward sag at the span midpoint.
 const length = 48;
 const sag = 0.95;
 let a = length * length / (8 * sag);
@@ -47,4 +49,4 @@ assert.ok(Math.abs(drop(0)) < 1e-9, 'catenary starts at the first insulator');
 assert.ok(Math.abs(drop(1)) < 1e-9, 'catenary ends at the second insulator');
 assert.ok(Math.abs(drop(0.5) + sag) < 1e-6, 'catenary sag reaches the intended mid-span drop');
 
-console.log('BRIDGEPOINT_UTILITY_RENDERER_V6_PASS');
+console.log('BRIDGEPOINT_UTILITY_RENDERER_V7_PASS');
