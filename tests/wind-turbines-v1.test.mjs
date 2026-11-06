@@ -52,7 +52,7 @@ assert.match(popup,/110 m/);
 assert.match(popup,/136 m/);
 assert.match(popup,/178 m/);
 assert.match(popup,/Project year<\/span><b>2023/);
-assert.match(popup,/Full confidence \(complete, consistent source details\)/);
+assert.match(popup,/No confidence \(only basic total-height\/year information\)/);
 assert.match(popup,/USGS turbine map/);
 assert.match(windTurbinePopupHtml(incomplete),/dimensions are absent/);
 assert.match(windTurbinePopupHtml(incomplete),/Not reported/);
