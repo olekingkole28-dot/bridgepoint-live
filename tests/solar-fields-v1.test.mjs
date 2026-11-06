@@ -97,7 +97,7 @@ assert.match(solarFieldPopupHtml(osmNode),/Reported electrical output/);
 assert.doesNotMatch(solarFieldPopupHtml(osmNode),/AC capacity/);
 
 const source=await readFile(new URL('../rebuild-v5000/bridgepoint-solar-fields-v1.js',import.meta.url),'utf8');
-assert.match(source,/id:'bp-solar-fields-models-v1',type:'custom',renderingMode:'3d'/);
+assert.match(source,/id:MODEL_ID,type:'custom',renderingMode:'3d'/);
 assert.match(source,/queryTerrainElevation/);
 assert.match(source,/item\.root\.visible=false/);
 assert.match(source,/plant:source/);
