@@ -373,7 +373,7 @@ jobs:
           node --check rebuild-v5000/bridgepoint-subsurface-wells-v1.js
           node tests/subsurface-wells-v1.test.mjs
           node --check rebuild-v5000/bridgepoint-wind-turbines-v1.js
-          node --check tools/fetch_uswtdb_turbine_snapshot.mjs
+          python3 -m py_compile tools/fetch_uswtdb_turbine_snapshot.py
           node tests/wind-turbines-v1.test.mjs
           node tests/auth-resilience-v6237.test.mjs
           node tests/underwater-dive-camera.test.mjs
@@ -448,7 +448,7 @@ jobs:
           mkdir -p site
           git fetch origin live-artifact:refs/remotes/origin/live-artifact --depth=1
           git archive refs/remotes/origin/live-artifact | tar -xf - -C site
-          node tools/fetch_uswtdb_turbine_snapshot.mjs --output site/data/bridgepoint-uswtdb-turbines-v9_1.json
+          python3 tools/fetch_uswtdb_turbine_snapshot.py --output site/data/bridgepoint-uswtdb-turbines-v9_1.json
           test -s site/data/bridgepoint-uswtdb-turbines-v9_1.json
           mkdir -p site/assets/trees
           cp /tmp/bridgepoint-tree-assets/manifest.json site/assets/trees/manifest.json
