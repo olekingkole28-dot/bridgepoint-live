@@ -1,0 +1,226 @@
+name: Publish BridgePoint FAA Obstruction & Towers V1
+
+on:
+  workflow_run:
+    workflows: ["Publish BridgePoint Solid Utility Wires V11"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+
+jobs:
+  publish-faa-obstructions:
+    if: \${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment:
+      name: github-pages
+      url: \${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: \${{ github.event.workflow_run.head_sha }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate the isolated FAA tower renderer and source snapshot builder
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile tools/build_faa_obstruction_snapshot.py tests/faa-obstruction-snapshot-builder.test.py
+          PYTHONPATH=tools python tests/faa-obstruction-snapshot-builder.test.py
+          cp rebuild-v5000/bridgepoint-faa-obstruction-towers-v1.js /tmp/bridgepoint-faa-obstruction-towers-v1.mjs
+          node --check /tmp/bridgepoint-faa-obstruction-towers-v1.mjs
+          node tests/faa-obstruction-towers-v1.test.mjs
+          echo "BRIDGEPOINT_FAA_OBSTRUCTION_TOWERS_V1_SOURCE_TESTS_PASS"
+
+      - name: Download the exact utility-wires production Pages artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: bridgepoint-solid-utility-wires-v11
+          run-id: \${{ github.event.workflow_run.id }}
+          repository: \${{ github.repository }}
+          github-token: \${{ secrets.GITHUB_TOKEN }}
+          path: \${{ runner.temp }}/bp-faa-pages-baseline
+
+      - name: Build the current FAA Daily Digital Obstacle File snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tools/build_faa_obstruction_snapshot.py \
+            --output "$RUNNER_TEMP/bridgepoint-faa-obstructions-v1.json.gz"
+          test -s "$RUNNER_TEMP/bridgepoint-faa-obstructions-v1.json.gz"
+          gzip -t "$RUNNER_TEMP/bridgepoint-faa-obstructions-v1.json.gz"
+
+      - name: Restore and fingerprint the exact published baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCHIVE="$(find "$RUNNER_TEMP/bp-faa-pages-baseline" -type f -name artifact.tar -print -quit)"
+          test -n "$ARCHIVE"
+          mkdir -p "$RUNNER_TEMP/bp-faa-site"
+          tar -xf "$ARCHIVE" -C "$RUNNER_TEMP/bp-faa-site"
+          SITE="$RUNNER_TEMP/bp-faa-site"
+          for f in index.html app/index.html landing.js app.js bridgepoint-solar-fields-v1.js app/bridgepoint-solar-fields-v1.js; do
+            test -s "$SITE/$f" || { echo "Missing production baseline file: $f"; exit 1; }
+          done
+          grep -Fq './bridgepoint-solar-fields-v1.js?v=1-global-solar-fields' "$SITE/landing.js"
+          grep -Fq './bridgepoint-solar-fields-v1.js?v=1-global-solar-fields' "$SITE/app.js"
+          grep -Fq 'bpAuthRequestV6237' "$SITE/landing.js"
+          grep -Fq 'bpAuthRequestV6237' "$SITE/app.js"
+          python3 - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          site=Path(os.environ["RUNNER_TEMP"])/"bp-faa-site"
+          files={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                 for p in site.rglob("*") if p.is_file()}
+          (Path(os.environ["RUNNER_TEMP"])/"bp-faa-baseline-hashes.json").write_text(json.dumps(files,sort_keys=True))
+          print("FAA_TOWER_BASELINE_FINGERPRINT_PASS",len(files),"existing production files")
+          PY
+
+      - name: Overlay only the FAA obstruction renderer, snapshot and four cache-busted loaders
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/bp-faa-site"
+          MODULE="rebuild-v5000/bridgepoint-faa-obstruction-towers-v1.js"
+          SNAPSHOT="$RUNNER_TEMP/bridgepoint-faa-obstructions-v1.json.gz"
+          mkdir -p "$SITE/app" "$SITE/data" "$SITE/app/data"
+          cp "$MODULE" "$SITE/bridgepoint-faa-obstruction-towers-v1.js"
+          cp "$MODULE" "$SITE/app/bridgepoint-faa-obstruction-towers-v1.js"
+          cp "$SNAPSHOT" "$SITE/data/bridgepoint-faa-obstructions-v1.json.gz"
+          cp "$SNAPSHOT" "$SITE/app/data/bridgepoint-faa-obstructions-v1.json.gz"
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib, json, os, re
+          site=Path(os.environ["RUNNER_TEMP"])/"bp-faa-site"
+          import_line=(
+              "\n  // FAA-listed tower and obstruction inventory; independent of all existing globe layers.\n"
+              "  void import('./bridgepoint-faa-obstruction-towers-v1.js?v=1-faa-obstruction-towers')\n"
+              "   .then(m=>{window.__BP_FAA_OBSTRUCTIONS_V1__=m.initFAAObstructionTowerRenderer(world)})\n"
+              "   .catch(e=>console.warn('BridgePoint FAA obstruction/tower renderer unavailable',e));\n"
+          )
+          for rel in ("landing.js","app.js"):
+              path=site/rel
+              data=path.read_text(encoding="utf-8")
+              line=".catch(e=>console.warn('BridgePoint global solar fields renderer unavailable',e));"
+              if data.count(line)!=1:
+                  raise SystemExit(f"{rel}: expected exactly one solar renderer loader anchor, found {data.count(line)}")
+              data=data.replace(line,line+import_line,1)
+              path.write_text(data,encoding="utf-8")
+
+          for rel,stem in (("index.html","landing.js"),("app/index.html","app.js")):
+              path=site/rel
+              data=path.read_text(encoding="utf-8")
+              pattern=r"("+re.escape(stem)+r"\?v=)[^&\"']+"
+              data,count=re.subn(pattern,r"\g<1>6246-faa-obstruction-towers-v1",data,count=1)
+              if count!=1:
+                  raise SystemExit(f"{rel}: expected exactly one {stem} cache-bust URL, replaced {count}")
+              path.write_text(data,encoding="utf-8")
+
+          baseline=json.loads((Path(os.environ["RUNNER_TEMP"])/"bp-faa-baseline-hashes.json").read_text())
+          after={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                 for p in site.rglob("*") if p.is_file()}
+          removed=set(baseline)-set(after)
+          added=set(after)-set(baseline)
+          changed={p for p in baseline if p in after and baseline[p]!=after[p]}
+          expected_changed={"index.html","app/index.html","landing.js","app.js"}
+          expected_added={
+              "bridgepoint-faa-obstruction-towers-v1.js",
+              "app/bridgepoint-faa-obstruction-towers-v1.js",
+              "data/bridgepoint-faa-obstructions-v1.json.gz",
+              "app/data/bridgepoint-faa-obstructions-v1.json.gz",
+          }
+          assert not removed, f"Production files removed: {sorted(removed)}"
+          assert changed==expected_changed, f"Unexpected production file changes: {sorted(changed)}"
+          assert added==expected_added, f"Unexpected added production files: {sorted(added)}"
+          module=(site/"bridgepoint-faa-obstruction-towers-v1.js").read_bytes()
+          snapshot=(site/"data/bridgepoint-faa-obstructions-v1.json.gz").read_bytes()
+          assert module==(site/"app/bridgepoint-faa-obstruction-towers-v1.js").read_bytes()
+          assert snapshot==(site/"app/data/bridgepoint-faa-obstructions-v1.json.gz").read_bytes()
+          for rel in ("landing.js","app.js"):
+              data=(site/rel).read_text()
+              assert data.count("./bridgepoint-faa-obstruction-towers-v1.js?v=1-faa-obstruction-towers")==1
+              assert data.count("bpAuthRequestV6237")>=1
+              assert "bridgepoint-solar-fields-v1.js?v=1-global-solar-fields" in data
+          assert "6246-faa-obstruction-towers-v1" in (site/"index.html").read_text()
+          assert "6246-faa-obstruction-towers-v1" in (site/"app/index.html").read_text()
+          print("FAA_TOWER_OVERLAY_SCOPE_PASS",len(baseline),"existing files unchanged except four loader/cache files; four FAA files added")
+          PY
+
+          cp "$SITE/bridgepoint-faa-obstruction-towers-v1.js" /tmp/bp-faa-towers.mjs
+          node --check /tmp/bp-faa-towers.mjs
+          node --check "$SITE/landing.js"
+          node --check "$SITE/app.js"
+          gzip -t "$SITE/data/bridgepoint-faa-obstructions-v1.json.gz"
+          cmp -s "$SITE/data/bridgepoint-faa-obstructions-v1.json.gz" "$SITE/app/data/bridgepoint-faa-obstructions-v1.json.gz"
+          echo "BRIDGEPOINT_FAA_OBSTRUCTION_TOWERS_V1_OVERLAY_BUILD_PASS"
+
+      - uses: actions/configure-pages@v5
+
+      - name: Upload the FAA-only additive Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          name: bridgepoint-faa-obstruction-towers-v1
+          path: \${{ runner.temp }}/bp-faa-site
+          include-hidden-files: true
+
+      - name: Publish FAA obstruction and tower layer
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: bridgepoint-faa-obstruction-towers-v1
+
+      - name: Verify live website, app, renderer and FAA data snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          O='https://bridgepointintelligence.online'
+          q="$GITHUB_SHA-faa-obstruction-towers-v1"
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/?faa-obstructions=$q" -o /tmp/bp-faa-root.html
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app/?faa-obstructions=$q" -o /tmp/bp-faa-app.html
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/landing.js?v=6246-faa-obstruction-towers-v1&verify=$q" -o /tmp/bp-faa-landing.js
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app.js?v=6246-faa-obstruction-towers-v1&verify=$q" -o /tmp/bp-faa-app.js
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/bridgepoint-faa-obstruction-towers-v1.js?verify=$q" -o /tmp/bp-faa-module.js
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app/bridgepoint-faa-obstruction-towers-v1.js?verify=$q" -o /tmp/bp-faa-app-module.js
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/data/bridgepoint-faa-obstructions-v1.json.gz?verify=$q" -o /tmp/bp-faa-snapshot.json.gz
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app/data/bridgepoint-faa-obstructions-v1.json.gz?verify=$q" -o /tmp/bp-faa-app-snapshot.json.gz
+          grep -Fq 'landing.js?v=6246-faa-obstruction-towers-v1' /tmp/bp-faa-root.html
+          grep -Fq 'app.js?v=6246-faa-obstruction-towers-v1' /tmp/bp-faa-app.html
+          grep -Fq '__BP_FAA_OBSTRUCTIONS_V1__' /tmp/bp-faa-landing.js
+          grep -Fq '__BP_FAA_OBSTRUCTIONS_V1__' /tmp/bp-faa-app.js
+          grep -Fq '1-faa-obstruction-towers' /tmp/bp-faa-landing.js
+          grep -Fq '1-faa-obstruction-towers' /tmp/bp-faa-app.js
+          grep -Fq 'const VERSION = 1;' /tmp/bp-faa-module.js
+          grep -Fq 'const MIN_MODEL_ZOOM = 11.4;' /tmp/bp-faa-module.js
+          cmp -s /tmp/bp-faa-module.js /tmp/bp-faa-app-module.js
+          cmp -s /tmp/bp-faa-snapshot.json.gz /tmp/bp-faa-app-snapshot.json.gz
+          gzip -t /tmp/bp-faa-snapshot.json.gz
+          python3 - <<'PY'
+          import gzip, json
+          with gzip.open('/tmp/bp-faa-snapshot.json.gz','rt',encoding='utf-8') as stream:
+              data=json.load(stream)
+          meta=data.get('metadata',{})
+          assert len(data.get('rows',[]))==meta.get('filteredRecordCount',-1)
+          assert meta.get('sourceRecordCount',0)>400000
+          assert meta.get('filteredRecordCount',0)>100000
+          assert meta.get('verificationCounts',{}).get('O',0)>0
+          assert meta.get('verificationCounts',{}).get('U',0)>0
+          print('BRIDGEPOINT_FAA_DOF_LIVE_SNAPSHOT_PASS',meta.get('filteredRecordCount'),meta.get('typeCounts'),meta.get('verificationCounts'))
+          PY
+          echo "BRIDGEPOINT_FAA_OBSTRUCTION_TOWERS_V1_LIVE_PASS"
