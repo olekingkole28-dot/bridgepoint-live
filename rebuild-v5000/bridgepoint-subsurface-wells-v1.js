@@ -320,7 +320,7 @@ function addFeatures(state,features) {
     state.featureCache.set(key,f);
   }
   if(added||features?.length) {
-    const cap=42000,all=[...state.featureCache.values()];
+    const cap=50000,all=[...state.featureCache.values()];
     if(all.length>cap) {
       const keep=all.slice(0,cap);
       state.featureCache.clear();for(const f of keep)state.featureCache.set(String(f.id),f);
@@ -363,7 +363,7 @@ function installLayers(state) {
     add(HALO_ID,{id:HALO_ID,type:'circle',source:SOURCE_ID,minzoom:0,maxzoom:15,
       paint:{'circle-radius':['interpolate',['linear'],['zoom'],0,2.3,3,4,7,6.5,12,8],
         'circle-color':['get','markerColor'],'circle-opacity':0.34,'circle-blur':0.65}});
-    add(MARKER_ID,{id:MARKER_ID,type:'circle',source:SOURCE_ID,minzoom:0,maxzoom:15,
+    add(MARKER_ID,{id:MARKER_ID,type:'circle',source:SOURCE_ID,minzoom:0,maxzoom:24,
       paint:{'circle-radius':['interpolate',['linear'],['zoom'],0,1.3,3,2.5,7,3.8,12,5],
         'circle-color':['get','markerColor'],'circle-stroke-color':['case',['get','sealed'],'#f5f7fa','#08202a'],
         'circle-stroke-width':['case',['get','sealed'],2,1.15],'circle-opacity':0.98}});
@@ -371,7 +371,7 @@ function installLayers(state) {
       const id='bp-subsurface-icon-'+kind+'-v1';
       if(!map.hasImage?.(id))map.addImage(id,makeIcon(kind),{pixelRatio:2});
     }
-    add(ICON_ID,{id:ICON_ID,type:'symbol',source:SOURCE_ID,minzoom:0,maxzoom:15,
+    add(ICON_ID,{id:ICON_ID,type:'symbol',source:SOURCE_ID,minzoom:0,maxzoom:24,
       layout:{'icon-image':['match',['get','assetIcon'],'water','bp-subsurface-icon-water-v1',
         'oil','bp-subsurface-icon-oil-v1','gas','bp-subsurface-icon-gas-v1',
         'geothermal','bp-subsurface-icon-geothermal-v1','bp-subsurface-icon-drillhole-v1'],
@@ -379,7 +379,7 @@ function installLayers(state) {
         'icon-anchor':'center','icon-pitch-alignment':'viewport','icon-rotation-alignment':'viewport',
         'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-padding':0},
       paint:{'icon-opacity':1}});
-    add(DEPTH_LABEL_ID,{id:DEPTH_LABEL_ID,type:'symbol',source:SOURCE_ID,minzoom:MIN_DEPTH_LABEL_ZOOM,maxzoom:18,
+    add(DEPTH_LABEL_ID,{id:DEPTH_LABEL_ID,type:'symbol',source:SOURCE_ID,minzoom:MIN_DEPTH_LABEL_ZOOM,maxzoom:24,
       filter:['all',['has','depthLabel'],['!=',['get','depthLabel'],'']],
       layout:{'text-field':['get','depthLabel'],'text-font':['Open Sans Semibold','Arial Unicode MS Bold'],
         'text-size':['interpolate',['linear'],['zoom'],10,9,13,11,16,13],
@@ -438,7 +438,9 @@ function addWellModel(THREE,feature) {
     const band=new THREE.Mesh(new THREE.TorusGeometry(0.98,0.08,5,12),collar);
     band.rotation.x=Math.PI/2;band.position.y=y;root.add(band);
   }
-  root.traverse(o=>{if(o.isMesh)o.frustumCulled=false});
+  // Underground geometry intentionally renders through the terrain surface so the bore path remains inspectable at every camera pitch.
+  // The bore/casing sections are visual collars only; they are not asserted lithology boundaries.
+  root.traverse(o=>{if(o.isMesh){o.frustumCulled=false;o.renderOrder=1000;for(const m of Array.isArray(o.material)?o.material:[o.material]){m.depthTest=false;m.depthWrite=false}}});
   return {root,coordinate:feature.geometry.coordinates,groundElevationM:p.surfaceElevationM,kind:p.kind};
 }
 function disposeObject(root) {
