@@ -1156,7 +1156,7 @@ export function initUtilityInfrastructure(target) {
   function buildPrecisePoleGroups(supports) {
     const batches = new Map();
     for (const support of supports || []) {
-      const tile = wireTileAnchor(support.coordinate, 17);
+      const tile = wireTileAnchor(support.coordinate, 16);
       let batch = batches.get(tile.key);
       if (!batch) {
         batch = { anchor: tile.coordinate, supports: [] };
