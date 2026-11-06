@@ -176,7 +176,7 @@ jobs:
       - name: Upload the bridge-preserved V11 site artifact
         uses: actions/upload-pages-artifact@v5
         with:
-          name: bridgepoint-solid-utility-wires-v11
+          name: bridgepoint-solid-utility-wires-v11-${{ github.run_attempt }}
           path: ${{ runner.temp }}/bp-site
           include-hidden-files: true
 
@@ -184,7 +184,7 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
         with:
-          artifact_name: bridgepoint-solid-utility-wires-v11
+          artifact_name: bridgepoint-solid-utility-wires-v11-${{ github.run_attempt }}
 
       - name: Verify live root, app, authentication, bridges, lighthouses and V11 utility wires
         env:
