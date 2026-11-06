@@ -8,6 +8,8 @@ on:
       - 'rebuild-v5000/app.js'
       - 'rebuild-v5000/landing.js'
       - '.github/workflows/verify-utility-infrastructure-v1.yml'
+      - '.github/workflows/publish-utility-close-zoom-poles-v8.yml'
+      - 'tests/utility-infrastructure-renderer-v5.test.mjs'
   workflow_dispatch:
 
 permissions:
@@ -41,13 +43,16 @@ jobs:
           grep -Fq 'queryTerrainElevation' release-v2300/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'featureCache' release-v2300/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'bp-utility-poles-3d-v1' release-v2300/world-v2300-utility-infrastructure-v1.js
-          grep -Fq 'MIN_ZOOM = 11.5' release-v2300/world-v2300-utility-infrastructure-v1.js
-          grep -Fq 'const VERSION = 5;' release-v2300/world-v2300-utility-infrastructure-v1.js
-          grep -Fq 'new THREE.CylinderGeometry(.082, .145, 1, 14)' release-v2300/world-v2300-utility-infrastructure-v1.js
-          grep -Fq 'new THREE.BoxGeometry(1, .09, .14)' release-v2300/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'const MIN_ZOOM = 13;' release-v2300/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'const VERSION = 8;' release-v2300/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'const PRECISE_POLE_MIN_ZOOM = 16;' release-v2300/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'function buildPrecisePoleGroups(supports)' release-v2300/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'wireTileAnchor(support.coordinate, 16)' release-v2300/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'camera.projectionMatrix.copy(projection).multiply(anchorMatrix)' release-v2300/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'new THREE.BoxGeometry(1, .18, .24)' release-v2300/world-v2300-utility-infrastructure-v1.js
+          grep -Fq 'side: THREE.DoubleSide' release-v2300/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'let catenaryA = distance * distance / Math.max(.1, 8 * sag)' release-v2300/world-v2300-utility-infrastructure-v1.js
           grep -Fq 'void loadUSGS3DEPGround(assets)' release-v2300/world-v2300-utility-infrastructure-v1.js
           node tests/utility-infrastructure-renderer-v5.test.mjs
-          grep -Fq 'world-v2300-utility-infrastructure-v1.js?v=6-solid-utility' rebuild-v5000/app.js
-          grep -Fq 'world-v2300-utility-infrastructure-v1.js?v=6-solid-utility' rebuild-v5000/landing.js
+          grep -Fq 'world-v2300-utility-infrastructure-v1.js?v=9-close-zoom-poles-v8' .github/workflows/publish-utility-close-zoom-poles-v8.yml
           ! grep -Fq 'setProjection' release-v2300/world-v2300-utility-infrastructure-v1.js
