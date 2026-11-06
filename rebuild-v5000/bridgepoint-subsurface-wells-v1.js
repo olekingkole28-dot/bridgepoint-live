@@ -111,7 +111,8 @@ export function normalizeUsGsWell(feature) {
   const well=parseSubsurfaceDepth(p.well_constructed_depth,'ft');
   const d=hole||well;
   const dType=hole?'drilled hole depth':well?'finished well depth':'depth';
-  const elevation=parseSubsurfaceDepth(p.altitude,'ft',12000);
+  const altitudeFeet=finite(p.altitude);
+  const elevation=altitudeFeet===null?null:altitudeFeet*0.3048;
   return makeFeature('usgs/'+String(p.id||p.monitoring_location_number||feature.id||''),feature.geometry.coordinates,{
     kind:'water',name:p.monitoring_location_name||p.monitoring_location_number||'USGS groundwater well',
     depthM:d,depthType:dType,depthNote:'USGS monitoring-location field; source values are reported in feet and converted to metres for display.',
@@ -284,11 +285,9 @@ function overpassRequestUrl(endpoint,query) {
   const u=new URL(endpoint);u.searchParams.set('data',String(query||''));return u.toString();
 }
 function overpassQuery(bbox=null) {
-  const clauses=[
-    'nwr["man_made"~"^(water_well|petroleum_well|oil_well|gas_well|well|borehole|geothermal_well)$"];'
-  ];
   const box=bbox?'('+[bbox[1],bbox[0],bbox[3],bbox[2]].join(',')+')':'';
-  return '[out:json][timeout:35];('+clauses.join('')+');out center tags 12000;';
+  const selector='nwr["man_made"~"^(water_well|petroleum_well|oil_well|gas_well|well|borehole|geothermal_well)$"]'+box+';';
+  return '[out:json][timeout:35];('+selector+');out center tags 12000;';
 }
 async function fetchOsmWells(bbox=null) {
   const q=overpassQuery(bbox);
