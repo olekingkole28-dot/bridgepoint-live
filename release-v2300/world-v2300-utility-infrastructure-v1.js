@@ -686,6 +686,8 @@ export function initUtilityInfrastructure(target) {
       },
       onRemove: () => {
         try { customLayer.renderer && customLayer.renderer.dispose(); } catch (_) {}
+        precisePoleGroups = [];
+        standardPoleMeshes = [];
         renderer = null; scene = null; dataGroup = null;
         if (customLayer) {
           customLayer.renderer = null; customLayer.scene = null; customLayer.camera = null;
