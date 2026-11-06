@@ -18,16 +18,16 @@ concurrency:
 
 jobs:
   publish-faa-obstructions:
-    if: \${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     environment:
       name: github-pages
-      url: \${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: \${{ github.event.workflow_run.head_sha }}
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - uses: actions/setup-python@v5
         with:
@@ -52,10 +52,10 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: bridgepoint-solid-utility-wires-v11
-          run-id: \${{ github.event.workflow_run.id }}
-          repository: \${{ github.repository }}
-          github-token: \${{ secrets.GITHUB_TOKEN }}
-          path: \${{ runner.temp }}/bp-faa-pages-baseline
+          run-id: ${{ github.event.workflow_run.id }}
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/bp-faa-pages-baseline
 
       - name: Build the current FAA Daily Digital Obstacle File snapshot
         shell: bash
@@ -177,7 +177,7 @@ jobs:
         uses: actions/upload-pages-artifact@v5
         with:
           name: bridgepoint-faa-obstruction-towers-v1
-          path: \${{ runner.temp }}/bp-faa-site
+          path: ${{ runner.temp }}/bp-faa-site
           include-hidden-files: true
 
       - name: Publish FAA obstruction and tower layer
