@@ -1,9 +1,9 @@
-const VERSION = 5;
+const VERSION = 6;
 const POWER_SOURCE = 'bp-utility-power-v1';
 const TELECOM_SOURCE = 'bp-utility-telecom-v1';
 const THREE_URL = '/vendor/three.module.js?v=169-local';
 const MIN_ZOOM = 11.5;
-const MAX_GROUND_SAMPLES = 16;
+const MAX_GROUND_SAMPLES = 96;
 const MAX_SOURCE_ZOOM = 17;
 const MAX_SUPPORTS = 720;
 const MAX_SPANS = 560;
@@ -347,11 +347,43 @@ export function initUtilityInfrastructure(target) {
     return groundElevationCache.has(key) || Number.isFinite(terrainAt(map, coordinate));
   }
 
+  function localMetresPerPixel(coordinate) {
+    const zoom = Math.max(0, Math.min(24, Number(map.getZoom && map.getZoom()) || 0));
+    const latitudeCosine = Math.max(0.08, Math.cos(Number(coordinate[1]) * RAD));
+    return 40075016.68557849 * latitudeCosine / (512 * Math.pow(2, zoom));
+  }
+
+  function minimumDisplayScale(coordinate, realDiameterMetres, targetPixels = 1, maxScale = 5) {
+    const realDiameter = Math.max(0.04, Number(realDiameterMetres) || 0.04);
+    return Math.max(1, Math.min(maxScale, localMetresPerPixel(coordinate) * targetPixels / realDiameter));
+  }
+
+  function wireRadiusFor(coordinate, baseRadius) {
+    // Utility conductors are physically thin. A bounded screen-space floor keeps
+    // source-mapped wires from disappearing below one raster pixel on the globe.
+    return baseRadius * minimumDisplayScale(coordinate, baseRadius * 2, 0.72, 12);
+  }
+
   function localTerrainAt(coordinate) {
     const key = groundKey(coordinate);
     if (groundElevationCache.has(key)) return groundElevationCache.get(key);
     const terrain = terrainAt(map, coordinate);
-    return Number.isFinite(terrain) ? terrain : 0;
+    if (Number.isFinite(terrain)) return terrain;
+
+    // A missing DEM sample must not suppress an otherwise mapped pole. Reuse the
+    // nearest recent USGS ground sample for a short local radius while exact samples
+    // continue loading; this avoids planting nearby poles at sea level on hills.
+    let nearestElevation = null, nearestDistance = 251;
+    for (const [sampleKey, elevation] of groundElevationCache) {
+      const [lon, lat] = sampleKey.split(',').map(Number);
+      if (!Number.isFinite(lon) || !Number.isFinite(lat)) continue;
+      const distance = haversineMetres(coordinate, [lon, lat]);
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestElevation = elevation;
+      }
+    }
+    return nearestElevation === null ? 0 : nearestElevation;
   }
 
   async function loadUSGS3DEPGround(assets) {
@@ -441,9 +473,9 @@ export function initUtilityInfrastructure(target) {
   function createGeometry() {
     // Geometry is authored in real metres. Only the vertical pole shaft scales by
     // the source pole height; crossarms, insulators and braces keep physical size.
-    bodyGeometry = new THREE.CylinderGeometry(.082, .145, 1, 14).translate(0, .5, 0);
-    poleBaseGeometry = new THREE.CylinderGeometry(.145, .18, .26, 14).translate(0, .13, 0);
-    armGeometry = new THREE.BoxGeometry(1, .09, .14);
+    bodyGeometry = new THREE.CylinderGeometry(.082, .145, 1, 16).translate(0, .5, 0);
+    poleBaseGeometry = new THREE.CylinderGeometry(.145, .18, .26, 16).translate(0, .13, 0);
+    armGeometry = new THREE.BoxGeometry(1, .13, .18);
     braceGeometry = (() => {
       const vertices = [];
       pushBeam(vertices, new THREE.Vector3(-.48, 0, 0), new THREE.Vector3(-.045, -.62, 0), .026, THREE, 7);
@@ -453,7 +485,7 @@ export function initUtilityInfrastructure(target) {
       geometry.computeVertexNormals();
       return geometry;
     })();
-    insulatorGeometry = new THREE.CylinderGeometry(.038, .052, .20, 10).translate(0, .10, 0);
+    insulatorGeometry = new THREE.CylinderGeometry(.045, .060, .24, 12).translate(0, .10, 0);
     telecomBracketGeometry = new THREE.BoxGeometry(.72, .06, .10);
     towerGeometry = makeTowerGeometry(THREE);
     transformerGeometry = new THREE.CylinderGeometry(.34, .38, 1.0, 16);
@@ -1088,7 +1120,7 @@ export function initUtilityInfrastructure(target) {
         const sagDrop = catenaryA * (Math.cosh((t - .5) * distance / catenaryA) - catenaryEnd);
         const height = terrainDelta + linearHeight + sagDrop;
         const current = new THREE.Vector3(east, height, -north);
-        if (previous) pushBeam(vertices, previous, current, telecom ? .014 : .019, THREE, 8);
+        if (previous) pushBeam(vertices, previous, current, wireRadiusFor(anchor, telecom ? .014 : .019), THREE, 8);
         previous = current;
       }
     }
@@ -1136,7 +1168,7 @@ export function initUtilityInfrastructure(target) {
           support.height * .78 * (1 - t) + (anchorGround - base + .22) * t - .10 * 4 * t * (1 - t),
           -offset[1] * t
         );
-        if (previous) pushBeam(vertices, previous, point, .012, THREE, 6);
+        if (previous) pushBeam(vertices, previous, point, wireRadiusFor(support.coordinate, .012), THREE, 6);
         previous = point;
       }
       if (!vertices.length) continue;
@@ -1156,7 +1188,7 @@ export function initUtilityInfrastructure(target) {
   function buildSceneAssets(assets) {
     clearSceneData();
     const incoming = assets;
-    const supports = incoming.supports.filter(s => hasGroundElevation(s.coordinate));
+    const supports = incoming.supports;
     const supportSet = new Set(supports);
     const nearestSupport = coordinate => supports.reduce((best, support) => {
       const distance = haversineMetres(support.coordinate, coordinate);
@@ -1226,9 +1258,11 @@ export function initUtilityInfrastructure(target) {
         ? sourceHeight : 11;
       const armLength = Math.max(1.2, Math.min(4.5, Number(support.armLengthMetres) || 2.0));
       const crossarmY = height * .84;
+      const poleDisplayScale = minimumDisplayScale(support.coordinate, .164, .95, 5.5);
       poleMesh.setMatrixAt(index, model.clone().multiply(rotation)
-        .multiply(new THREE.Matrix4().makeScale(1, height, 1)));
-      poleBaseMesh.setMatrixAt(index, model.clone().multiply(rotation));
+        .multiply(new THREE.Matrix4().makeScale(poleDisplayScale, height, poleDisplayScale)));
+      poleBaseMesh.setMatrixAt(index, model.clone().multiply(rotation)
+        .multiply(new THREE.Matrix4().makeScale(poleDisplayScale, 1, poleDisplayScale)));
       const armTransform = model.clone().multiply(rotation)
         .multiply(new THREE.Matrix4().makeTranslation(0, crossarmY, 0))
         .multiply(new THREE.Matrix4().makeScale(armLength, 1, 1));
@@ -1270,7 +1304,8 @@ export function initUtilityInfrastructure(target) {
       const matrix = modelMatrixFor(map, THREE, transformer.coordinate, ground);
       if (!matrix) continue;
       matrix.multiply(new THREE.Matrix4().makeTranslation(.34, support ? support.height * .66 : .55, 0));
-      matrix.multiply(new THREE.Matrix4().makeScale(.72, support ? .9 : 1.1, .72));
+      const equipmentScale = minimumDisplayScale(transformer.coordinate, .72, 1.15, 3.2);
+      matrix.multiply(new THREE.Matrix4().makeScale(.72 * equipmentScale, support ? .9 : 1.1, .72 * equipmentScale));
       transformerMesh.setMatrixAt(transformerCount++, matrix);
     }
     transformerMesh.count = transformerCount;
@@ -1291,6 +1326,8 @@ export function initUtilityInfrastructure(target) {
       if (!matrix) continue;
       matrix.multiply(new THREE.Matrix4().makeRotationY(Number(item.angle) * RAD));
       matrix.multiply(new THREE.Matrix4().makeTranslation(0, support.height * .83, 0));
+      const switchScale = minimumDisplayScale(item.coordinate, .42, 1.15, 3.5);
+      matrix.multiply(new THREE.Matrix4().makeScale(switchScale, 1, switchScale));
       switchMesh.setMatrixAt(switchCount++, matrix);
     }
     switchMesh.count = switchCount;
@@ -1312,13 +1349,16 @@ export function initUtilityInfrastructure(target) {
         if (!matrix) continue;
         matrix.multiply(new THREE.Matrix4().makeRotationY((Number(support.bearing) || 0) * RAD));
         matrix.multiply(new THREE.Matrix4().makeTranslation(.18, support.height * .66, .04));
-        matrix.multiply(new THREE.Matrix4().makeScale(.9, .9, .9));
+        const spliceScale = minimumDisplayScale(support.coordinate, .44, 1.15, 3.5);
+        matrix.multiply(new THREE.Matrix4().makeScale(.9 * spliceScale, .9, .9 * spliceScale));
         spliceMesh.setMatrixAt(spliceCount++, matrix);
       } else {
         const ground = localTerrainAt(cabinet.coordinate);
         const matrix = modelMatrixFor(map, THREE, cabinet.coordinate, ground);
         if (!matrix) continue;
         matrix.multiply(new THREE.Matrix4().makeTranslation(0, .42, 0));
+        const cabinetScale = minimumDisplayScale(cabinet.coordinate, .72, 1.15, 3.2);
+        matrix.multiply(new THREE.Matrix4().makeScale(cabinetScale, 1, cabinetScale));
         cabinetMesh.setMatrixAt(cabinetCount++, matrix);
       }
     }
@@ -1410,7 +1450,9 @@ export function initUtilityInfrastructure(target) {
       if (seq !== sequence || dead) return;
       // Draw immediately from terrain samples already decoded by the globe.
       // Missing points are resolved progressively from USGS EPQS in the background;
-      // ungrounded poles stay hidden instead of being buried at a zero-height fallback.
+      // Every source-mapped pole renders immediately. Exact terrain anchors are used
+      // when decoded; nearby USGS samples are a temporary local fallback while
+      // the larger 3DEP sample batch fills in.
       void loadUSGS3DEPGround(assets).catch(error => console.warn('BridgePoint USGS utility ground samples', error));
       if (seq !== sequence || dead) return;
       buildSceneAssets(assets);
