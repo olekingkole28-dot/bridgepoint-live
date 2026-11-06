@@ -57,6 +57,11 @@ export function parseSubsurfaceDepth(value, defaultUnit = 'm', max = 50000) {
 export function isSealedWellStatus(value) {
   return /\b(plugged|abandoned|sealed|capped|decommissioned|closed|grouted|permanently\s+abandoned)\b/i.test(String(value || ''));
 }
+export function resolveWellGroundElevation(sourceElevationM, terrainElevationM) {
+  if (typeof sourceElevationM === 'number' && Number.isFinite(sourceElevationM)) return sourceElevationM;
+  if (typeof terrainElevationM === 'number' && Number.isFinite(terrainElevationM)) return terrainElevationM;
+  return 0;
+}
 function validCoordinate(c) {
   return Array.isArray(c) && Number.isFinite(Number(c[0])) && Number.isFinite(Number(c[1])) &&
     Math.abs(Number(c[0])) <= 180 && Math.abs(Number(c[1])) <= 85;
@@ -502,11 +507,15 @@ function installModelLayer(state) {
       const zoom=Number(map.getZoom()||0);
       for(const item of state.models)item.root.visible=false;
       if(zoom>=MIN_MODEL_ZOOM)for(const item of state.models) {
-        let altitude=Number(item.groundElevationM);
-        if(!Number.isFinite(altitude)) {
-          try {const terrain=map.queryTerrainElevation?.({lng:item.coordinate[0],lat:item.coordinate[1]},{exaggerated:false});altitude=Number.isFinite(terrain)?terrain:0}
-          catch(_){altitude=0}
+        let terrainElevation=null;
+        if(!Number.isFinite(item.groundElevationM)) {
+          try {
+            const terrain=map.queryTerrainElevation?.({lng:item.coordinate[0],lat:item.coordinate[1]},{exaggerated:false});
+            terrainElevation=Number.isFinite(terrain)?terrain:null;
+            if(terrainElevation!==null)item.groundElevationM=terrainElevation;
+          } catch(_){}
         }
+        const altitude=resolveWellGroundElevation(item.groundElevationM,terrainElevation);
         const matrix=modelMatrixFor(map,THREE,item.coordinate,altitude);
         if(!matrix)continue;
         item.root.visible=true;state.camera.projectionMatrix.copy(projection).multiply(matrix);

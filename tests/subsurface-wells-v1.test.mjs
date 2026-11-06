@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import {
-  parseSubsurfaceDepth,isSealedWellStatus,normalizeUsGsWell,normalizeBgsOffshoreWell,
+  parseSubsurfaceDepth,isSealedWellStatus,resolveWellGroundElevation,normalizeUsGsWell,normalizeBgsOffshoreWell,
   normalizeBgsBorehole,normalizeNoaaWell,normalizeWpdxWell,normalizeOsmWell,subsurfacePopupHtml
 } from '../rebuild-v5000/bridgepoint-subsurface-wells-v1.js';
 
@@ -13,6 +13,11 @@ assert.equal(parseSubsurfaceDepth('depth unknown'),null);
 assert.equal(isSealedWellStatus('PLUGGED AND ABANDONED'),true);
 assert.equal(isSealedWellStatus('Capped'),true);
 assert.equal(isSealedWellStatus('In service'),false);
+assert.equal(resolveWellGroundElevation(null,184),184,'missing source elevation must anchor to sampled terrain');
+assert.equal(resolveWellGroundElevation(undefined,-110.64),-110.64,'negative seabed elevations must be preserved');
+assert.equal(resolveWellGroundElevation(0,184),0,'a genuine zero-metre source elevation is valid');
+assert.equal(resolveWellGroundElevation(32.5,184),32.5,'source-reported surface elevation takes precedence');
+assert.equal(resolveWellGroundElevation(null,null),0,'sea-level fallback is used only when neither source nor DEM elevation is available');
 
 const usgs=normalizeUsGsWell({id:'USGS-X',geometry:{type:'Point',coordinates:[-72.1,41.2]},properties:{
   id:'USGS-X',monitoring_location_number:'123456',monitoring_location_name:'Test well',
@@ -74,6 +79,8 @@ const [moduleSource,landing,app,home,appHome,deploy,utility] = await Promise.all
   readFile(new URL('../.github/workflows/publish-utility-solid-wires-v9.yml',import.meta.url),'utf8')
 ]);
 assert.ok(moduleSource.includes('m.depthTest=false'));
+assert.ok(moduleSource.includes('if(!Number.isFinite(item.groundElevationM))'), 'null source elevation must trigger a terrain sample instead of coercing to sea level');
+assert.ok(moduleSource.includes('resolveWellGroundElevation(item.groundElevationM,terrainElevation)'));
 assert.ok(moduleSource.includes('maxzoom:24'));
 assert.ok(moduleSource.includes('const cap=50000'));
 assert.ok(moduleSource.includes("[bbox[1],bbox[0],bbox[3],bbox[2]].join(',')"), 'regional WPdx enrichment uses south/west/north/east bounds');
