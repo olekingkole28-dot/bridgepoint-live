@@ -1,0 +1,57 @@
+name: Lighthouse V2 Live Render Smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/lighthouse-live-runtime-smoke-v2.yml'
+      - 'tests/lighthouse-live-runtime-smoke-v2.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bridgepoint-lighthouse-live-runtime-smoke
+  cancel-in-progress: false
+
+jobs:
+  lighthouse-live-render:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Chromium and Puppeteer
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y chromium
+          mkdir -p /tmp/bp-lighthouse-smoke-v2
+          cd /tmp
+          npm init -y >/dev/null 2>&1 || true
+          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+
+      - name: Test live homepage lighthouse beacons and close-zoom 3D tower
+        env:
+          CHROME_PATH: /usr/bin/chromium
+          BP_SMOKE_OUTPUT: /tmp/bp-lighthouse-smoke-v2
+          NODE_PATH: /tmp/node_modules
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/lighthouse-live-runtime-smoke-v2.mjs
+
+      - name: Upload regional and close-zoom screenshots plus diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bridgepoint-lighthouse-live-runtime-smoke-v2
+          path: /tmp/bp-lighthouse-smoke-v2/
+          if-no-files-found: warn
+          retention-days: 7
