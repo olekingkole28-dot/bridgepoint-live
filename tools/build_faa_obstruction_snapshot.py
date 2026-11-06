@@ -142,7 +142,7 @@ def main() -> None:
         if len(csv_names) != 1:
             raise ValueError(f"Expected one CSV in FAA ZIP; found {csv_names}")
         with archive.open(csv_names[0]) as binary:
-            with io.TextIOWrapper(binary, encoding="utf-8-sig", newline="") as stream:
+            with io.TextIOWrapper(binary, encoding="cp1252", newline="") as stream:
                 metadata = build_snapshot(stream, args.output)
     if args.zip is None:
         archive_path.unlink(missing_ok=True)
