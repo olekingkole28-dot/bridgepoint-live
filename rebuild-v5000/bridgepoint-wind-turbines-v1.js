@@ -174,13 +174,18 @@ function makeIcon() {
   ctx.save(); ctx.translate(48,48);
   ctx.shadowColor = 'rgba(244,207,114,.82)'; ctx.shadowBlur = 12;
   ctx.strokeStyle = '#fff0bf'; ctx.fillStyle = '#f4cf72';
-  ctx.lineWidth = 6; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  ctx.beginPath(); ctx.moveTo(48,15); ctx.lineTo(48,81); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(48,17); ctx.lineTo(22,6); ctx.lineTo(27,28); ctx.closePath(); ctx.fill(); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(48,17); ctx.lineTo(71,31); ctx.lineTo(53,38); ctx.closePath(); ctx.fill(); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(48,17); ctx.lineTo(39,43); ctx.lineTo(28,27); ctx.closePath(); ctx.fill(); ctx.stroke();
-  ctx.beginPath(); ctx.arc(48,17,7,0,TAU); ctx.fill();
-  ctx.beginPath(); ctx.moveTo(35,83); ctx.lineTo(61,83); ctx.stroke();
+  ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.moveTo(0,-18); ctx.lineTo(0,34); ctx.stroke();
+  ctx.save(); ctx.translate(0,-18);
+  for (let i=0;i<3;i++) {
+    ctx.save(); ctx.rotate(i*TAU/3);
+    ctx.beginPath(); ctx.moveTo(0,-4); ctx.lineTo(-5,-16);
+    ctx.lineTo(-2,-37); ctx.lineTo(4,-17); ctx.lineTo(2,3);
+    ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+  }
+  ctx.beginPath(); ctx.arc(0,0,6,0,TAU); ctx.fill(); ctx.stroke();
+  ctx.restore();
+  ctx.beginPath(); ctx.moveTo(-11,35); ctx.lineTo(11,35); ctx.stroke();
   ctx.restore();
   return ctx.getImageData(0,0,96,96);
 }
