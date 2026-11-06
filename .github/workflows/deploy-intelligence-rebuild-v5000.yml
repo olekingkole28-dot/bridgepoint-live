@@ -29,6 +29,7 @@ on:
       - 'tests/lighthouse-renderer-v1.test.mjs'
       - 'tests/offshore-energy-v1.test.mjs'
       - 'tests/wind-turbines-v1.test.mjs'
+      - 'tests/solar-fields-v1.test.mjs'
       - 'tools/fetch_uswtdb_turbine_snapshot.py'
       - 'pricing/**'
       - 'newsroom/**'
@@ -375,6 +376,8 @@ jobs:
           node --check rebuild-v5000/bridgepoint-wind-turbines-v1.js
           python3 -m py_compile tools/fetch_uswtdb_turbine_snapshot.py
           node tests/wind-turbines-v1.test.mjs
+          node --check rebuild-v5000/bridgepoint-solar-fields-v1.js
+          node tests/solar-fields-v1.test.mjs
           node tests/auth-resilience-v6237.test.mjs
           node tests/underwater-dive-camera.test.mjs
           grep -Fq "dot=rawKey.endsWith('-dot'),key=dot?rawKey.replace(/-dot$/,''):rawKey" release-v2300/world-v2300-map.js
@@ -538,6 +541,8 @@ jobs:
           cp rebuild-v5000/bridgepoint-subsurface-wells-v1.js site/app/bridgepoint-subsurface-wells-v1.js
           cp rebuild-v5000/bridgepoint-wind-turbines-v1.js site/bridgepoint-wind-turbines-v1.js
           cp rebuild-v5000/bridgepoint-wind-turbines-v1.js site/app/bridgepoint-wind-turbines-v1.js
+          cp rebuild-v5000/bridgepoint-solar-fields-v1.js site/bridgepoint-solar-fields-v1.js
+          cp rebuild-v5000/bridgepoint-solar-fields-v1.js site/app/bridgepoint-solar-fields-v1.js
           cp rebuild-v5000/bridgepoint-reality-assets-v5968.js site/bridgepoint-reality-assets-v5968.js
           cp rebuild-v5000/bridgepoint-live-rail-v5969.js site/bridgepoint-live-rail-v5969.js
           cp rebuild-v5000/bridgepoint-rail-mesh-v5973.js site/bridgepoint-rail-mesh-v5973.js
