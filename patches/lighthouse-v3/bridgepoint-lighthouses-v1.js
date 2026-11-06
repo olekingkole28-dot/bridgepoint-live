@@ -22,7 +22,7 @@ const EMPTY = { type: 'FeatureCollection', features: [] };
 const MOBILE = typeof window !== 'undefined' &&
   ((Number(window.innerWidth) || 1024) <= 820 ||
    (typeof navigator !== 'undefined' && Number(navigator.maxTouchPoints) > 0));
-const MAX_GLOBAL_FEATURES = 10000;
+const MAX_GLOBAL_FEATURES = 20000;
 const MAX_RENDERED_MODELS = MOBILE ? 6 : 18;
 const RAD = Math.PI / 180;
 const TAU = Math.PI * 2;
