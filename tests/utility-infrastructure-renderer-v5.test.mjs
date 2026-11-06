@@ -7,7 +7,7 @@ const source = await readFile(
   'utf8'
 );
 
-assert.ok(source.includes('const VERSION = 10;'), 'utility renderer advances to v10');
+assert.ok(source.includes('const VERSION = 11;'), 'utility renderer advances to v10');
 assert.ok(source.includes('const PRECISE_POLE_MIN_ZOOM = 16;'), 'close-zoom precision renderer activates before GPU position precision becomes limiting');
 assert.ok(source.includes('function buildPrecisePoleGroups(supports)'), 'street-zoom pole geometry is batched in local ground-anchored frames');
 assert.ok(source.includes('camera.projectionMatrix.copy(projection).multiply(anchorMatrix)'), 'close-zoom draw composes projection and local geographic anchor before GPU submission');
@@ -21,6 +21,16 @@ assert.ok(source.includes('pushBeam(vertices, new THREE.Vector3(0, 0, 0), new TH
 assert.ok(source.includes('new THREE.BoxGeometry(1, .18, .24)'), 'crossarms are solid metre-scale geometry');
 assert.ok(source.includes('side: THREE.DoubleSide'), 'solid assets remain visible through mirrored globe model transforms');
 assert.ok(source.includes('function wireTileAnchor('), 'conductors are grouped in local geographic tile frames');
+assert.match(source, /groundElevation:\s*localTerrainAt\(tile\.coordinate\),\s*power:\s*\[\],\s*telecom:\s*\[\],\s*service:\s*\[\],\s*groundVertices:\s*\[\]/, 'terrain elevation is kept separate from the ground-conductor vertex array');
+assert.ok(source.includes('modelMatrixFor(map, THREE, batch.anchor, batch.groundElevation)'), 'wire mesh anchor uses numeric tile-ground elevation');
+assert.ok(source.includes('anchorGround - batch.groundElevation + attachmentHeight(span.a)'), 'first conductor attachment uses a numeric terrain offset');
+assert.ok(source.includes('nextGround - batch.groundElevation + attachmentHeight(span.b)'), 'second conductor attachment uses a numeric terrain offset');
+assert.ok(source.includes('ground - batch.groundElevation + .06'), 'ground leads terminate at a terrain-relative height');
+assert.ok(source.includes('if (previous) pushBeam(batch.groundVertices, previous, current,'), 'ground leads are built from solid polygon beams');
+assert.ok(source.includes("['ground', batch.groundVertices, groundWireMaterial]"), 'ground leads are emitted as a solid mesh');
+assert.ok(source.includes('poleGround - batch.groundElevation +'), 'house service drops start from a numeric terrain offset');
+assert.ok(source.includes('buildingGround - batch.groundElevation +'), 'house service drops end at a numeric terrain offset');
+assert.ok(source.includes('if (previous) pushBeam(vertices, previous, current, radius, THREE, 6);'), 'pole-to-pole conductors remain solid polygon beams, not line strokes');
 assert.ok(source.includes('function appendWireSpan(batch, span, kind)'), 'wire spans are assembled into shared tile batches');
 assert.ok(source.includes("sourceLayer === 'power_line' ? 'line'"), 'OpenInfraMap power_line source-layer is authoritative when mapped power/type tags are omitted');
 assert.ok(source.includes('export function deriveNearestPoleSpans'), 'mapped poles get a conservative neighbor-span fallback when conductor ways are absent');
@@ -109,4 +119,4 @@ assert.equal(deriveNearestPoleSpans(streetPoles.slice(0, 1), []).length, 0,
 assert.equal(deriveNearestPoleSpans(streetPoles.map(pole => ({ ...pole, network: 'telecom' })), []).length, 0,
   'the power-span fallback does not connect telecom-only supports');
 
-console.log('BRIDGEPOINT_UTILITY_RENDERER_V10_PASS');
+console.log('BRIDGEPOINT_UTILITY_RENDERER_V11_PASS');
