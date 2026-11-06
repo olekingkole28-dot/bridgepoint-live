@@ -58,6 +58,20 @@ assert.equal(osmNode.properties.capacityAcMW,15);
 assert.equal(osmNode.properties.year,2020);
 assert.equal(osmNode.properties.modelGeometry,null);
 assert.match(osmNode.properties.locationAccuracy,/point\/center/);
+assert.equal(osmNode.properties.modelPhotovoltaic,true);
+
+const osmUnknown=normalizeSolarOsmElement({
+  type:'way',id:992,
+  geometry:[
+    {lon:-73.001,lat:41.001},{lon:-72.999,lat:41.001},
+    {lon:-72.999,lat:40.999},{lon:-73.001,lat:40.999}
+  ],
+  tags:{'plant:source':'solar',name:'Method Not Tagged'}
+});
+assert.ok(osmUnknown);
+assert.equal(osmUnknown.properties.modelPhotovoltaic,false);
+assert.match(solarFieldPopupHtml(osmUnknown),/Not rendered/);
+assert.doesNotMatch(solarFieldPopupHtml(osmUnknown),/14 × 3\.8 m/);
 
 const snapshotFeatures=normalizeSolarWorldSnapshot({
   typeLegend:['node','way','relation'],
@@ -114,6 +128,8 @@ assert.match(popup,/5\.1 MW/);
 assert.match(popup,/24,000 m²/);
 assert.match(popup,/USPVDB digitization confidence/);
 assert.match(popup,/not source-reported/);
+assert.match(popup,/14 × 3\.8 m/);
+assert.match(popup,/2\.05 m above modeled ground/);
 assert.match(solarFieldPopupHtml(osmNode),/Reported electrical output/);
 assert.doesNotMatch(solarFieldPopupHtml(osmNode),/AC capacity/);
 
@@ -123,5 +139,8 @@ assert.match(source,/queryTerrainElevation/);
 assert.match(source,/item\.root\.visible=false/);
 assert.match(source,/plant:source/);
 assert.doesNotMatch(source,/generator:source/);
+assert.match(source,/maps\.mail\.ru\/osm\/tools\/overpass\/api\/interpreter/);
+assert.match(source,/clusterMaxZoom:8/);
+assert.match(source,/modelPhotovoltaic===false/);
 
 console.log('solar fields v1: PASS');
