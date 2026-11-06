@@ -118,15 +118,16 @@ jobs:
               raise SystemExit(f"{rel}: expected exactly one V10 utility import, found {data.count(old)}")
             path.write_text(data.replace(old,"world-v2300-utility-infrastructure-v1.js?v=12-solid-utility-wires-v11"),encoding="utf-8")
 
-          for rel,old,new in (
-            ("index.html","landing.js?v=6245-offshore-energy-v1","landing.js?v=6245-solid-utility-wires-v11"),
-            ("app/index.html","app.js?v=6245-offshore-energy-v1","app.js?v=6245-solid-utility-wires-v11"),
+          for rel,filename,new,allowed in (
+            ("index.html","landing.js","landing.js?v=6246-solid-utility-wires-v12",("landing.js?v=6246-offshore-energy-v2","landing.js?v=6246-lighthouse-v4")),
+            ("app/index.html","app.js","app.js?v=6246-solid-utility-wires-v12",("app.js?v=6246-offshore-energy-v2","app.js?v=6246-lighthouse-v4")),
           ):
             path=site/rel
             data=path.read_text(encoding="utf-8")
-            if data.count(old)!=1:
-              raise SystemExit(f"{rel}: expected exactly one V10 loader, found {data.count(old)}")
-            path.write_text(data.replace(old,new),encoding="utf-8")
+            matches=[old for old in allowed if data.count(old)==1]
+            if len(matches)!=1:
+              raise SystemExit(f"{rel}: expected exactly one current offshore/lighthouse loader, found {len(matches)}")
+            path.write_text(data.replace(matches[0],new),encoding="utf-8")
 
           before=json.loads((Path(os.environ["RUNNER_TEMP"])/"bp-v10-file-hashes.json").read_text())
           after={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
@@ -164,8 +165,8 @@ jobs:
           node --input-type=module --check < "$SITE/world-v2300-utility-infrastructure-v1.js"
           node --input-type=module --check < "$SITE/app/world-v2300-utility-infrastructure-v1.js"
           cmp -s "$SITE/world-v2300-utility-infrastructure-v1.js" "$SITE/app/world-v2300-utility-infrastructure-v1.js"
-          grep -Fq 'landing.js?v=6245-solid-utility-wires-v11' "$SITE/index.html"
-          grep -Fq 'app.js?v=6245-solid-utility-wires-v11' "$SITE/app/index.html"
+          grep -Fq 'landing.js?v=6246-solid-utility-wires-v12' "$SITE/index.html"
+          grep -Fq 'app.js?v=6246-solid-utility-wires-v12' "$SITE/app/index.html"
           grep -Fq 'world-v2300-utility-infrastructure-v1.js?v=12-solid-utility-wires-v11' "$SITE/landing.js"
           grep -Fq 'world-v2300-utility-infrastructure-v1.js?v=12-solid-utility-wires-v11' "$SITE/app.js"
           echo "UTILITY_SOLID_WIRES_V11_BUNDLE_BUILD_PASS"
@@ -195,15 +196,15 @@ jobs:
           q="$GITHUB_SHA-solid-utility-wires-v11"
           curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/?solid-utility-wires-v11=$q" -o /tmp/bp-root.html
           curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app/?solid-utility-wires-v11=$q" -o /tmp/bp-app.html
-          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/landing.js?v=6245-solid-utility-wires-v11&verify=$q" -o /tmp/bp-landing.js
-          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app.js?v=6245-solid-utility-wires-v11&verify=$q" -o /tmp/bp-app.js
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/landing.js?v=6246-solid-utility-wires-v12&verify=$q" -o /tmp/bp-landing.js
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app.js?v=6246-solid-utility-wires-v12&verify=$q" -o /tmp/bp-app.js
           curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/world-v2300-utility-infrastructure-v1.js?v=12-solid-utility-wires-v11&verify=$q" -o /tmp/bp-utility.js
           curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app/world-v2300-utility-infrastructure-v1.js?v=12-solid-utility-wires-v11&verify=$q" -o /tmp/bp-app-utility.js
           curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/world-v2300-map.js?v=6238-global-3d-bridges-v2&verify=$q" -o /tmp/bp-world.js
           curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/bridgepoint-ct-nbi-2026.json?verify=$q" -o /tmp/bp-ct-nbi.json
 
-          grep -Fq 'landing.js?v=6245-solid-utility-wires-v11' /tmp/bp-root.html
-          grep -Fq 'app.js?v=6245-solid-utility-wires-v11' /tmp/bp-app.html
+          grep -Fq 'landing.js?v=6246-solid-utility-wires-v12' /tmp/bp-root.html
+          grep -Fq 'app.js?v=6246-solid-utility-wires-v12' /tmp/bp-app.html
           grep -Fq 'bpAuthRequestV6237' /tmp/bp-landing.js
           grep -Fq 'bpAuthRequestV6237' /tmp/bp-app.js
           grep -Fq 'world-v2300-utility-infrastructure-v1.js?v=12-solid-utility-wires-v11' /tmp/bp-landing.js

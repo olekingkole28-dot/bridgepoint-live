@@ -811,7 +811,7 @@ async function initMap(){
    .catch(e=>console.warn('BridgePoint global 3D lighthouse renderer unavailable',e));
   // Offshore energy is a separate, opt-in layer. Its renderer and data stay isolated
   // from lighthouse behavior, the globe, and every existing BridgePoint layer.
-  void import('./bridgepoint-offshore-energy-v1.js?v=1-noaa-hifld-global-osm')
+  void import('./bridgepoint-offshore-energy-v1.js?v=2-noaa-get-icondata')
    .then(m=>{window.__BP_OFFSHORE_ENERGY_V1__=m.initOffshoreEnergyRenderer(world)})
    .catch(e=>console.warn('BridgePoint offshore energy renderer unavailable',e));
    // BridgePoint exposes the same 30-day source-event timeline on the website globe.
