@@ -1,4 +1,4 @@
-const VERSION = 9;
+const VERSION = 10;
 const POWER_SOURCE = 'bp-utility-power-v1';
 const TELECOM_SOURCE = 'bp-utility-telecom-v1';
 const THREE_URL = '/vendor/three.module.js?v=169-local';
@@ -13,7 +13,9 @@ const MAX_SUPPORTS = IS_SMALL_DEVICE ? 420 : 900;
 const MAX_SPANS = IS_SMALL_DEVICE ? 160 : 420;
 const MAX_LINE_FEATURES = IS_SMALL_DEVICE ? 260 : 650;
 const MAX_SERVICE_DROPS = IS_SMALL_DEVICE ? 72 : 150;
-const SERVICE_DROP_MAX_DISTANCE_M = 42;
+const MAX_INFERRED_SPANS = IS_SMALL_DEVICE ? 150 : 340;
+const INFERRED_SPAN_MAX_DISTANCE_M = 95;
+const SERVICE_DROP_MAX_DISTANCE_M = 75;
 const SOURCE_REFRESH_DELAY_MS = IS_SMALL_DEVICE ? 160 : 95;
 const POWER_SNAP_M = 13;
 const RAD = Math.PI / 180;
@@ -204,8 +206,11 @@ function isResidentialBuilding(feature) {
   const residentialTypes = new Set(['house', 'residential', 'apartments', 'apartment', 'detached',
     'semidetached_house', 'semi_detached_house', 'terrace', 'terraced', 'duplex', 'triplex',
     'bungalow', 'cabin', 'dormitory', 'static_caravan']);
+  const nonResidentialTypes = new Set(['industrial', 'warehouse', 'factory', 'commercial', 'retail',
+    'office', 'school', 'university', 'church', 'hospital', 'parking', 'garage', 'garages', 'barn', 'hangar']);
+  if (values.some(value => nonResidentialTypes.has(value))) return false;
   if (values.some(value => residentialTypes.has(value))) return true;
-  return values.includes('yes') && ['residential', 'house'].includes(
+  return values[0] === 'yes' || ['residential', 'house'].includes(
     String(properties['building:use'] || properties.landuse || properties.use || '').toLowerCase()
   );
 }
@@ -311,7 +316,7 @@ function lineFeaturesFor(map, source, layer) {
   }
 }
 
-function makeSpans(lines, supports, kind, snapLimit, maxSpan, maxCount) {
+export function makeSpans(lines, supports, kind, snapLimit, maxSpan, maxCount) {
   const pairs = new Map();
   for (const feature of lines) {
     const properties = feature.properties || {};
@@ -369,6 +374,110 @@ function makeSpans(lines, supports, kind, snapLimit, maxSpan, maxCount) {
   return [...pairs.values()];
 }
 
+export function deriveNearestPoleSpans(supports, existingSpans = [], maxCount = MAX_INFERRED_SPANS) {
+  const poles = (supports || []).filter(support => support && support.network === 'power' &&
+    Array.isArray(support.coordinate) && support.coordinate.every(Number.isFinite));
+  if (poles.length < 2 || maxCount <= 0) return [];
+  const degree = new Map(poles.map(pole => [pole.key, 0]));
+  const parent = new Map(poles.map(pole => [pole.key, pole.key]));
+  const root = key => {
+    let current = key;
+    while (parent.has(current) && parent.get(current) !== current) current = parent.get(current);
+    let cursor = key;
+    while (parent.has(cursor) && parent.get(cursor) !== current) {
+      const next = parent.get(cursor);
+      parent.set(cursor, current);
+      cursor = next;
+    }
+    return current;
+  };
+  const union = (a, b) => {
+    const ra = root(a.key), rb = root(b.key);
+    if (ra === rb) return false;
+    parent.set(ra, rb);
+    return true;
+  };
+  const edgeKey = (a, b) => [String(a.key), String(b.key)].sort().join('|') + '|power';
+  const used = new Set();
+  for (const span of existingSpans || []) {
+    if (!span || !span.a || !span.b) continue;
+    used.add(edgeKey(span.a, span.b));
+    degree.set(span.a.key, (degree.get(span.a.key) || 0) + 1);
+    degree.set(span.b.key, (degree.get(span.b.key) || 0) + 1);
+    union(span.a, span.b);
+  }
+  const hasMappedBearing = pole => Number.isFinite(Number(pole.bearing)) &&
+    Number(pole.bearingDistance) <= POWER_SNAP_M;
+  const angleDifference = (a, b) => {
+    const difference = Math.abs((Number(a) - Number(b)) % 180);
+    return Math.min(difference, 180 - difference);
+  };
+  const nearest = new Map();
+  for (const pole of poles) {
+    const options = [];
+    for (const other of poles) {
+      if (other === pole) continue;
+      const distance = haversineMetres(pole.coordinate, other.coordinate);
+      if (distance < 10 || distance > INFERRED_SPAN_MAX_DISTANCE_M) continue;
+      const heading = (Math.atan2(
+        (other.coordinate[0] - pole.coordinate[0]) * Math.cos(Number(pole.coordinate[1]) * RAD),
+        other.coordinate[1] - pole.coordinate[1]
+      ) / RAD + 360) % 360;
+      let known = 0, alignment = 0, rejected = false;
+      if (hasMappedBearing(pole)) {
+        known++;
+        const error = angleDifference(pole.bearing, heading);
+        if (error > 52) rejected = true;
+        else alignment += 52 - error;
+      }
+      if (hasMappedBearing(other)) {
+        known++;
+        const error = angleDifference(other.bearing, (heading + 180) % 360);
+        if (error > 52) rejected = true;
+        else alignment += 52 - error;
+      }
+      if (!rejected) options.push({ pole: other, distance, heading, known, alignment });
+    }
+    options.sort((a, b) => b.known - a.known || b.alignment - a.alignment || a.distance - b.distance);
+    nearest.set(pole.key, options.slice(0, 3));
+  }
+  const candidates = new Map();
+  for (const pole of poles) {
+    for (const candidate of nearest.get(pole.key) || []) {
+      const other = candidate.pole, key = edgeKey(pole, other);
+      if (used.has(key)) continue;
+      const reverse = (nearest.get(other.key) || []).find(item => item.pole.key === pole.key);
+      if (!reverse && candidate.known === 0) continue;
+      const record = {
+        a: pole, b: other, distance: candidate.distance, bearing: candidate.heading,
+        mutual: !!reverse, known: candidate.known + (reverse ? reverse.known : 0),
+        conductorCount: 3, kind: 'power', inferred: true
+      };
+      const prior = candidates.get(key);
+      if (!prior || Number(record.mutual) > Number(prior.mutual) ||
+          record.known > prior.known ||
+          (record.known === prior.known && record.distance < prior.distance)) candidates.set(key, record);
+    }
+  }
+  const ordered = [...candidates.values()].sort((a, b) =>
+    Number(b.mutual) - Number(a.mutual) || b.known - a.known || a.distance - b.distance
+  );
+  const inferred = [];
+  for (const span of ordered) {
+    if (inferred.length >= maxCount) break;
+    if ((degree.get(span.a.key) || 0) >= 2 || (degree.get(span.b.key) || 0) >= 2) continue;
+    if (root(span.a.key) === root(span.b.key)) continue;
+    const key = edgeKey(span.a, span.b);
+    if (used.has(key)) continue;
+    used.add(key);
+    union(span.a, span.b);
+    degree.set(span.a.key, (degree.get(span.a.key) || 0) + 1);
+    degree.set(span.b.key, (degree.get(span.b.key) || 0) + 1);
+    inferred.push(span);
+  }
+  return inferred;
+}
+
 function disposeChildren(group) {
   if (!group) return;
   for (const child of [...group.children]) {
@@ -377,6 +486,40 @@ function disposeChildren(group) {
       try { child.geometry && child.geometry.dispose(); } catch (_) {}
     }
   }
+}
+
+export function isDistributionPowerLineFeature(feature, supports, sourceLayer = '') {
+  const p = feature && feature.properties || {};
+  const location = String(p.location || p['location:line'] || '').toLowerCase();
+  if (location === 'underground' || location === 'underwater' || p.tunnel === true ||
+      p.disused === true || p.construction === true) return false;
+  // OpenInfraMap imports power_line features under this source-layer; the
+  // original OSM power tag is not guaranteed to survive in the decoded properties.
+  const kind = String(p.power || p.type || (sourceLayer === 'power_line' ? 'line' : '')).toLowerCase();
+  if (kind !== 'line' && kind !== 'minor_line') return false;
+  const rawVoltage = p.voltage ?? p['voltage:primary'] ?? p.voltage_primary ?? p.voltageKv;
+  let voltage = null;
+  if (rawVoltage !== null && rawVoltage !== undefined && rawVoltage !== '') {
+    const match = String(rawVoltage).replace(/,/g, '').match(/\d+(?:\.\d+)?/);
+    if (match) {
+      let value = Number(match[0]);
+      if (Number.isFinite(value) && value > 0) {
+        if (String(rawVoltage).toLowerCase().includes('kv')) voltage = value;
+        else voltage = value >= 1000 ? value / 1000 : value;
+      }
+    }
+  }
+  if (voltage !== null && voltage >= 50) return false;
+  if (kind === 'minor_line' || voltage !== null) return true;
+  const matched = new Set();
+  for (const support of supports || []) {
+    if (pathsOf(feature).some(path => {
+      const hit = projectSupportToPath(support.coordinate, path);
+      return hit && hit.distance <= 13;
+    })) matched.add(support.key);
+    if (matched.size >= 2) return true;
+  }
+  return false;
 }
 
 export function initUtilityInfrastructure(target) {
@@ -389,7 +532,7 @@ export function initUtilityInfrastructure(target) {
   const state = {
     version: VERSION, map, enabled: true, ready: false, status: 'Waiting for source-mapped utility infrastructure…',
     poles: 0, towers: 0, powerSpans: 0, telecomSpans: 0, serviceDrops: 0, transformers: 0, switches: 0,
-    cabinets: 0, telecomMasts: 0, measuredHeights: 0, estimatedHeights: 0,
+    cabinets: 0, telecomMasts: 0, measuredHeights: 0, estimatedHeights: 0, groundLeads: 0, inferredPowerSpans: 0,
     updatedAt: null, source: 'OpenInfraMap/OSM + Middletown municipal StreetLights GIS + USGS 3DEP ground elevations',
     municipalPoleCount: 0, telecomPoleCount: 0, guyWireCount: 0, groundSamples: 0,
     groundUnresolved: 0,
@@ -407,7 +550,7 @@ export function initUtilityInfrastructure(target) {
   let transformerGeometry = null, switchGeometry = null, cabinetGeometry = null, mastGeometry = null, spliceBoxGeometry = null;
   let woodMaterial = null, towerMaterial = null, metalMaterial = null, ceramicMaterial = null;
   let cableMaterial = null, telecomMaterial = null;
-  let distributionCableMaterial = null, telecomCableMaterial = null, guyWireMaterial = null;
+  let distributionCableMaterial = null, telecomCableMaterial = null, guyWireMaterial = null, groundWireMaterial = null;
   let municipalStreetlightFeatures = [], municipalRequestKey = '', municipalFetchedAt = 0, municipalRequestPromise = null;
   let overpassFeatures = [], overpassRequestKey = '', overpassFetchedAt = 0, overpassRequestPromise = null;
   const groundElevationCache = new Map(), groundElevationPending = new Set(), groundElevationRetryAt = new Map();
@@ -597,6 +740,7 @@ export function initUtilityInfrastructure(target) {
     distributionCableMaterial = new THREE.MeshStandardMaterial({ color: 0x303940, roughness: .82, metalness: .16, emissive: 0x0c1114, emissiveIntensity: .055, side: THREE.DoubleSide });
     telecomCableMaterial = new THREE.MeshStandardMaterial({ color: 0x202a30, roughness: .88, metalness: .02, emissive: 0x080e12, emissiveIntensity: .04, side: THREE.DoubleSide });
     guyWireMaterial = new THREE.MeshStandardMaterial({ color: 0x89949a, roughness: .66, metalness: .48, side: THREE.DoubleSide });
+    groundWireMaterial = new THREE.MeshStandardMaterial({ color: 0xb77a43, roughness: .62, metalness: .34, emissive: 0x2c1608, emissiveIntensity: .12, side: THREE.DoubleSide });
   }
 
   function installSources() {
@@ -652,6 +796,7 @@ export function initUtilityInfrastructure(target) {
     disposeChildren(dataGroup);
     standardPoleMeshes = [];
     state.poles = 0; state.towers = 0; state.powerSpans = 0; state.telecomSpans = 0; state.serviceDrops = 0;
+    state.groundLeads = 0; state.inferredPowerSpans = 0;
     state.transformers = 0; state.switches = 0; state.cabinets = 0; state.telecomMasts = 0;
     state.measuredHeights = 0; state.estimatedHeights = 0;
     state.municipalPoleCount = 0; state.telecomPoleCount = 0; state.guyWireCount = 0;
@@ -877,10 +1022,13 @@ export function initUtilityInfrastructure(target) {
     return location !== 'underground' && location !== 'underwater' && p.tunnel !== true;
   }
 
-  function isDistributionPowerLine(feature, supports) {
+  function isDistributionPowerLine(feature, supports, sourceLayer = '') {
     const p = feature && feature.properties || {};
     if (!isOverheadFeature(p) || p.disused === true || p.construction === true) return false;
-    const kind = String(p.power || p.type || '').toLowerCase();
+    // OpenInfraMap imports power_line ways into this source-layer. The original
+    // OSM power tag is not guaranteed to survive as a feature property; trust the
+    // source-layer when neither power nor its mapped type field is present.
+    const kind = String(p.power || p.type || (sourceLayer === 'power_line' ? 'line' : '')).toLowerCase();
     if (kind !== 'line' && kind !== 'minor_line') return false;
     const voltage = parseVoltageKilovolts(p);
     if (voltage !== null && voltage >= 50) return false;
@@ -888,13 +1036,15 @@ export function initUtilityInfrastructure(target) {
     if (voltage !== null) return voltage < 50;
     // An un-volted "line" is only admitted when it is physically associated
     // with at least two mapped local distribution poles in this view.
-    return supports.some(s => pathsOf(feature).some(path => {
-      const hit = projectSupportToPath(s.coordinate, path);
-      return hit && hit.distance <= POWER_SNAP_M;
-    })) && supports.some((s, i) => i > 0 && pathsOf(feature).some(path => {
-      const hit = projectSupportToPath(s.coordinate, path);
-      return hit && hit.distance <= POWER_SNAP_M;
-    }));
+    const matched = new Set();
+    for (const support of supports || []) {
+      if (pathsOf(feature).some(path => {
+        const hit = projectSupportToPath(support.coordinate, path);
+        return hit && hit.distance <= POWER_SNAP_M;
+      })) matched.add(support.key);
+      if (matched.size >= 2) return true;
+    }
+    return false;
   }
 
   function overpassElementToFeature(element) {
@@ -1063,10 +1213,10 @@ export function initUtilityInfrastructure(target) {
   }
 
   function collectResidentialServiceDrops(supports) {
-    if (Number(map.getZoom && map.getZoom() || 0) < 15.5 ||
+    if (Number(map.getZoom && map.getZoom() || 0) < MIN_ZOOM ||
         !map.getSource || !map.getSource('bpBuildings')) return [];
-    const powerSupports = (supports || []).filter(support => support.network === 'power');
-    if (!powerSupports.length) return [];
+    const serviceSupports = (supports || []).filter(support => support.network === 'power' || support.network === 'telecom');
+    if (!serviceSupports.length) return [];
     let sourceBuildings = [];
     try { sourceBuildings = map.querySourceFeatures('bpBuildings', { sourceLayer: 'buildings' }) || []; }
     catch (_) { return []; }
@@ -1078,7 +1228,7 @@ export function initUtilityInfrastructure(target) {
       const footprintCenter = buildingCenterOf(building);
       if (!footprintCenter) continue;
       let nearest = null, centerDistance = SERVICE_DROP_MAX_DISTANCE_M + 28;
-      for (const support of powerSupports) {
+      for (const support of serviceSupports) {
         const distance = haversineMetres(support.coordinate, footprintCenter);
         if (distance < centerDistance) { nearest = support; centerDistance = distance; }
       }
@@ -1213,9 +1363,13 @@ export function initUtilityInfrastructure(target) {
     supports.length = Math.min(supports.length, MAX_SUPPORTS);
     const powerSupports = supports.filter(s => s.network === 'power');
     const lineFeatures = rawPowerLines
-      .filter(feature => isDistributionPowerLine(feature, powerSupports))
+      .filter(feature => isDistributionPowerLine(feature, powerSupports, 'power_line'))
       .slice(0, MAX_LINE_FEATURES);
-    const powerSpans = makeSpans(lineFeatures, powerSupports, 'power', POWER_SNAP_M, 240, MAX_SPANS);
+    const mappedPowerSpans = makeSpans(lineFeatures, powerSupports, 'power', POWER_SNAP_M, 240, MAX_SPANS);
+    // Mapped OSM power ways are preferred. When residential streets have pole
+    // points but no conductor way, infer a conservative local pole-to-pole chain.
+    const inferredPowerSpans = deriveNearestPoleSpans(powerSupports, mappedPowerSpans, MAX_INFERRED_SPANS);
+    const powerSpans = [...mappedPowerSpans, ...inferredPowerSpans];
     const telecomSpans = makeSpans(
       telecomLineFeatures.filter(feature => isOverheadFeature(feature.properties || {}))
         .slice(0, MAX_LINE_FEATURES),
@@ -1252,7 +1406,7 @@ export function initUtilityInfrastructure(target) {
     const guyWires = overpassFeatures.filter(feature => pathsOf(feature).length &&
       String(feature.properties && feature.properties.man_made || '') === 'guy_wire');
     return {
-      supports, powerSpans, telecomSpans, serviceDrops, transformers, switches, cabinets, masts, guyWires,
+      supports, powerSpans, telecomSpans, serviceDrops, inferredPowerSpans, transformers, switches, cabinets, masts, guyWires,
       lineCount: lineFeatures.length,
       municipalPoleCount: supports.filter(s => s.municipal).length,
       telecomPoleCount: supports.filter(s => s.network === 'telecom').length
@@ -1384,7 +1538,7 @@ export function initUtilityInfrastructure(target) {
     let batch = batches.get(tile.key);
     if (!batch) {
       batch = { anchor: tile.coordinate, ground: localTerrainAt(tile.coordinate),
-        power: [], telecom: [], service: [], powerSpans: 0, telecomSpans: 0, serviceDrops: 0 };
+        power: [], telecom: [], service: [], ground: [], powerSpans: 0, telecomSpans: 0, serviceDrops: 0, groundLeads: 0 };
       batches.set(tile.key, batch);
     }
     return batch;
@@ -1438,7 +1592,7 @@ export function initUtilityInfrastructure(target) {
   }
 
   function flushWireBatches(batches) {
-    let powerCount = 0, telecomCount = 0, serviceDropCount = 0, meshCount = 0;
+    let powerCount = 0, telecomCount = 0, serviceDropCount = 0, groundLeadCount = 0, meshCount = 0;
     for (const batch of batches.values()) {
       const matrix = modelMatrixFor(map, THREE, batch.anchor, batch.ground);
       if (!matrix) continue;
@@ -1451,7 +1605,8 @@ export function initUtilityInfrastructure(target) {
       for (const [kind, vertices, material] of [
         ['power', batch.power, distributionCableMaterial],
         ['telecom', batch.telecom, telecomCableMaterial],
-        ['service', batch.service, distributionCableMaterial]
+        ['service', batch.service, distributionCableMaterial],
+        ['ground', batch.ground, groundWireMaterial]
       ]) {
         if (!vertices.length) continue;
         const geometry = new THREE.BufferGeometry();
@@ -1477,6 +1632,7 @@ export function initUtilityInfrastructure(target) {
         meshCount++;
         if (kind === 'telecom') telecomCount += batch.telecomSpans;
         else if (kind === 'service') serviceDropCount += batch.serviceDrops;
+        else if (kind === 'ground') groundLeadCount += batch.groundLeads;
         else powerCount += batch.powerSpans;
       }
       if (preciseGroup.children.length) {
@@ -1484,7 +1640,33 @@ export function initUtilityInfrastructure(target) {
         preciseWireGroups.push(preciseGroup);
       }
     }
-    return { powerCount, telecomCount, serviceDropCount, meshCount };
+    return { powerCount, telecomCount, serviceDropCount, groundLeadCount, meshCount };
+  }
+
+  function appendGroundLead(batch, support) {
+    if (!support) return false;
+    const ground = localTerrainAt(support.coordinate);
+    const offset = localEastNorth(batch.anchor, support.coordinate);
+    const sourceHeight = Number(support.height);
+    const height = support.measuredHeight && Number.isFinite(sourceHeight) && sourceHeight >= 3
+      ? sourceHeight : 11;
+    const startY = ground - batch.ground + Math.max(1.4, Math.min(8.4, height * .72));
+    const endY = ground - batch.ground + .06;
+    const x = offset[0] + .23, z = -offset[1] - .20;
+    let previous = null;
+    for (let i = 0; i <= 8; i++) {
+      const t = i / 8;
+      const current = new THREE.Vector3(
+        x + Math.sin(t * Math.PI) * .025,
+        startY + (endY - startY) * t,
+        z + Math.sin(t * Math.PI) * .018
+      );
+      if (previous) pushBeam(batch.ground, previous, current,
+        wireRadiusFor(support.coordinate, .014), THREE, 6);
+      previous = current;
+    }
+    batch.groundLeads++;
+    return true;
   }
 
   function appendServiceDrop(batch, drop) {
@@ -1805,6 +1987,7 @@ export function initUtilityInfrastructure(target) {
     }
 
     const wireBatches = new Map();
+    for (const support of supports) appendGroundLead(getWireBatch(wireBatches, support.coordinate), support);
     for (const span of assets.powerSpans) appendWireSpan(getWireBatch(wireBatches, span.a.coordinate), span, 'power');
     for (const span of assets.telecomSpans) appendWireSpan(getWireBatch(wireBatches, span.a.coordinate), span, 'telecom');
     for (const drop of assets.serviceDrops) appendServiceDrop(getWireBatch(wireBatches, drop.support.coordinate), drop);
@@ -1812,6 +1995,7 @@ export function initUtilityInfrastructure(target) {
     const powerSpanCount = wireStats.powerCount;
     const telecomSpanCount = wireStats.telecomCount;
     const serviceDropCount = wireStats.serviceDropCount;
+    const groundLeadCount = wireStats.groundLeadCount;
     let guyWireCount = 0;
     for (const feature of assets.guyWires.slice(0, IS_SMALL_DEVICE ? 24 : 60)) {
       for (const mesh of createGuyWireMesh(feature, supports)) {
@@ -1822,7 +2006,8 @@ export function initUtilityInfrastructure(target) {
 
     state.poles = poleCount; state.towers = 0;
     state.powerSpans = powerSpanCount; state.telecomSpans = telecomSpanCount;
-    state.serviceDrops = serviceDropCount;
+    state.serviceDrops = serviceDropCount; state.groundLeads = groundLeadCount;
+    state.inferredPowerSpans = (assets.inferredPowerSpans || []).length;
     state.transformers = transformerCount; state.switches = switchCount;
     state.cabinets = cabinetCount + spliceCount; state.telecomMasts = mastCount;
     state.measuredHeights = measured; state.estimatedHeights = estimated;
@@ -1832,7 +2017,8 @@ export function initUtilityInfrastructure(target) {
     state.updatedAt = Date.now();
     say('Mapped local utility assets: ' + poleCount + ' single poles (including ' + state.municipalPoleCount +
       ' municipal inventory records), ' + powerSpanCount + ' distribution-wire spans, ' +
-      telecomSpanCount + ' telecom-wire spans, ' + serviceDropCount + ' residential service drops, ' + transformerCount + ' transformers, ' +
+      telecomSpanCount + ' telecom-wire spans, ' + serviceDropCount + ' residential service drops, ' +
+      groundLeadCount + ' pole ground leads, ' + state.inferredPowerSpans + ' inferred pole-to-pole spans, ' + transformerCount + ' transformers, ' +
       switchCount + ' switches, ' + (cabinetCount + spliceCount) + ' cabinets/splice boxes, ' +
       guyWireCount + ' guy wires. Towers rendered by this layer: 0. Pole heights measured: ' +
       measured + '; estimated: ' + estimated + '.');
@@ -1952,7 +2138,8 @@ export function initUtilityInfrastructure(target) {
   state.snapshot = () => ({
     version: VERSION, enabled: state.enabled, ready: state.ready, status: state.status,
     poles: state.poles, towers: state.towers, powerSpans: state.powerSpans,
-    telecomSpans: state.telecomSpans, serviceDrops: state.serviceDrops, transformers: state.transformers,
+    telecomSpans: state.telecomSpans, serviceDrops: state.serviceDrops, groundLeads: state.groundLeads,
+    inferredPowerSpans: state.inferredPowerSpans, transformers: state.transformers,
     switches: state.switches, cabinets: state.cabinets, telecomMasts: state.telecomMasts,
     municipalPoleCount: state.municipalPoleCount, telecomPoleCount: state.telecomPoleCount,
     guyWireCount: state.guyWireCount, groundSamples: groundElevationCache.size,
