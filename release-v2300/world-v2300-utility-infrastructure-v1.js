@@ -665,20 +665,23 @@ export function initUtilityInfrastructure(target) {
         if (closeZoom && precisePoleGroups.length) {
           const restoreVisibility = dataGroup.visible;
           dataGroup.visible = false;
-          for (const group of precisePoleGroups) {
-            const anchorMatrix = group.userData && group.userData.bpAnchorMatrix;
-            if (!anchorMatrix) continue;
-            group.visible = true;
-            customLayer.camera.projectionMatrix.copy(projection).multiply(anchorMatrix);
-            try {
-              customLayer.renderer.resetState && customLayer.renderer.resetState();
-              if (customLayer.renderer.state && customLayer.renderer.state.reset) customLayer.renderer.state.reset();
-            } catch (_) {}
-            customLayer.renderer.render(customLayer.scene, customLayer.camera);
-            group.visible = false;
+          try {
+            for (const group of precisePoleGroups) {
+              const anchorMatrix = group.userData && group.userData.bpAnchorMatrix;
+              if (!anchorMatrix) continue;
+              group.visible = true;
+              customLayer.camera.projectionMatrix.copy(projection).multiply(anchorMatrix);
+              try {
+                customLayer.renderer.resetState && customLayer.renderer.resetState();
+                if (customLayer.renderer.state && customLayer.renderer.state.reset) customLayer.renderer.state.reset();
+              } catch (_) {}
+              try { customLayer.renderer.render(customLayer.scene, customLayer.camera); }
+              finally { group.visible = false; }
+            }
+          } finally {
+            dataGroup.visible = restoreVisibility;
+            customLayer.camera.projectionMatrix.copy(projection);
           }
-          dataGroup.visible = restoreVisibility;
-          customLayer.camera.projectionMatrix.copy(projection);
         }
       },
       onRemove: () => {
