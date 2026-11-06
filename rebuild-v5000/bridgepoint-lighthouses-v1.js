@@ -15,7 +15,7 @@ const MOBILE = typeof window !== 'undefined' &&
   ((Number(window.innerWidth) || 1024) <= 820 ||
    (typeof navigator !== 'undefined' && Number(navigator.maxTouchPoints) > 0));
 const MAX_GLOBAL_FEATURES = 10000;
-const MAX_RENDERED_MODELS = MOBILE ? 8 : 24;
+const MAX_RENDERED_MODELS = MOBILE ? 6 : 18;
 const RAD = Math.PI / 180;
 const TAU = Math.PI * 2;
 
@@ -276,66 +276,112 @@ function createLighthouseModel(THREE, feature) {
   });
   const baseY = 0.22, bodyHeight = h * 0.755;
   const bodyBottom = diameter * 0.50, bodyTop = diameter * 0.285;
-  const steps = 8, segmentHeight = bodyHeight / steps;
+  const steps = 8;
   addMesh(THREE, root,
     new THREE.CylinderGeometry(diameter * 0.55, diameter * 0.58, 0.44, 20),
     stone, 0, 0.22, 0);
-  for (let i = 0; i < steps; i++) {
-    const t0 = i / steps, t1 = (i + 1) / steps;
-    const lower = bodyBottom + (bodyTop - bodyBottom) * t0;
-    const upper = bodyBottom + (bodyTop - bodyBottom) * t1;
-    const band = profile.palette.length > 1 && i % 3 === 2;
-    addMesh(THREE, root,
-      new THREE.CylinderGeometry(upper, lower, segmentHeight + 0.012, 20, 1, false),
-      band ? accent : stone, 0,
-      baseY + i * segmentHeight + segmentHeight * 0.5, 0);
+
+  // One tapered, closed polygon shell with vertex-colour bands keeps the tower
+  // solid while avoiding a separate draw call for every painted section.
+  const bodyGeometry = new THREE.CylinderGeometry(bodyTop, bodyBottom, bodyHeight, 24, steps, false);
+  const bodyPositions = bodyGeometry.getAttribute('position');
+  const bodyColors = [];
+  const bodyStone = new THREE.Color(profile.palette[0]);
+  const bodyAccent = new THREE.Color(profile.palette[1] || profile.palette[0]);
+  for (let i = 0; i < bodyPositions.count; i++) {
+    const t = Math.max(0, Math.min(0.9999, (bodyPositions.getY(i) + bodyHeight * 0.5) / bodyHeight));
+    const band = profile.palette.length > 1 && Math.floor(t * steps) % 3 === 2;
+    const color = band ? bodyAccent : bodyStone;
+    bodyColors.push(color.r, color.g, color.b);
   }
+  bodyGeometry.setAttribute('color', new THREE.Float32BufferAttribute(bodyColors, 3));
+  const bodyMaterial = new THREE.MeshStandardMaterial({
+    vertexColors: true, roughness: 0.78, metalness: 0.015, side
+  });
+  addMesh(THREE, root, bodyGeometry, bodyMaterial, 0, baseY + bodyHeight * 0.5, 0);
+
   const galleryY = baseY + bodyHeight;
   const galleryRadius = diameter * 0.405;
   addMesh(THREE, root,
     new THREE.CylinderGeometry(galleryRadius, galleryRadius * 1.04, 0.22, 24),
     metal, 0, galleryY, 0);
-  addMesh(THREE, root, new THREE.TorusGeometry(galleryRadius * 0.93, 0.035, 7, 32),
+  addMesh(THREE, root,
+    new THREE.TorusGeometry(galleryRadius * 0.93, 0.035, 7, 32),
     metal, 0, galleryY + 0.55, 0).rotation.x = Math.PI / 2;
+
+  // Repeated gallery rail posts and lantern mullions are instanced geometry.
   const railRadius = galleryRadius * 0.93;
+  const railPosts = new THREE.InstancedMesh(
+    new THREE.CylinderGeometry(0.022, 0.022, 0.56, 6), metal, 16
+  );
+  const instanceMatrix = new THREE.Matrix4();
   for (let i = 0; i < 16; i++) {
     const a = i / 16 * TAU;
-    addMesh(THREE, root, new THREE.CylinderGeometry(0.022, 0.022, 0.56, 6),
-      metal, Math.cos(a) * railRadius, galleryY + 0.28, Math.sin(a) * railRadius);
+    instanceMatrix.makeTranslation(
+      Math.cos(a) * railRadius, galleryY + 0.28, Math.sin(a) * railRadius
+    );
+    railPosts.setMatrixAt(i, instanceMatrix);
   }
+  railPosts.instanceMatrix.needsUpdate = true;
+  railPosts.frustumCulled = false;
+  root.add(railPosts);
+
   const chamberHeight = Math.max(1.5, h * 0.105);
   const chamberRadius = diameter * 0.305;
   const chamberY = galleryY + 0.22 + chamberHeight * 0.5;
   addMesh(THREE, root,
     new THREE.CylinderGeometry(chamberRadius, chamberRadius, chamberHeight, 16, 1, true),
     glass, 0, chamberY, 0);
-  addMesh(THREE, root,
-    new THREE.CylinderGeometry(chamberRadius * 1.05, chamberRadius * 1.05, 0.10, 20),
-    metal, 0, chamberY - chamberHeight * 0.5, 0);
-  addMesh(THREE, root,
-    new THREE.CylinderGeometry(chamberRadius * 1.09, chamberRadius * 1.09, 0.11, 20),
-    metal, 0, chamberY + chamberHeight * 0.5, 0);
+
+  const rimGeometry = new THREE.CylinderGeometry(1, 1, 0.10, 20);
+  const rims = new THREE.InstancedMesh(rimGeometry, metal, 2);
+  const identity = new THREE.Quaternion();
+  const rimMatrix = new THREE.Matrix4();
+  const rimPosition = new THREE.Vector3();
+  const rimScale = new THREE.Vector3();
+  [
+    { y: chamberY - chamberHeight * 0.5, radius: chamberRadius * 1.05 },
+    { y: chamberY + chamberHeight * 0.5, radius: chamberRadius * 1.09 }
+  ].forEach((rim, index) => {
+    rimPosition.set(0, rim.y, 0);
+    rimScale.set(rim.radius, 1, rim.radius);
+    rimMatrix.compose(rimPosition, identity, rimScale);
+    rims.setMatrixAt(index, rimMatrix);
+  });
+  rims.instanceMatrix.needsUpdate = true;
+  rims.frustumCulled = false;
+  root.add(rims);
+
+  const mullionGeometry = new THREE.BoxGeometry(0.045, chamberHeight * 0.94, 0.045);
+  const mullions = new THREE.InstancedMesh(mullionGeometry, metal, 16);
   for (let i = 0; i < 16; i++) {
     const a = i / 16 * TAU;
-    addMesh(THREE, root, new THREE.BoxGeometry(0.045, chamberHeight * 0.94, 0.045),
-      metal, Math.cos(a) * chamberRadius, chamberY, Math.sin(a) * chamberRadius);
+    instanceMatrix.makeTranslation(
+      Math.cos(a) * chamberRadius, chamberY, Math.sin(a) * chamberRadius
+    );
+    mullions.setMatrixAt(i, instanceMatrix);
   }
+  mullions.instanceMatrix.needsUpdate = true;
+  mullions.frustumCulled = false;
+  root.add(mullions);
+
   const lampMaterial = new THREE.MeshStandardMaterial({
     color: profile.lightColor, emissive: profile.lightColor, emissiveIntensity: 1.35,
     roughness: 0.18, metalness: 0, side
   });
   const lampY = chamberY;
   addMesh(THREE, root,
-    new THREE.CylinderGeometry(chamberRadius * 0.22, chamberRadius * 0.22,
-      chamberHeight * 0.58, 14), lampMaterial, 0, lampY, 0);
-  addMesh(THREE, root, new THREE.SphereGeometry(chamberRadius * 0.22, 12, 8),
+    new THREE.SphereGeometry(chamberRadius * 0.26, 16, 12),
     lampMaterial, 0, lampY, 0);
+
   const roofHeight = Math.max(0.9, h * 0.075);
-  addMesh(THREE, root, new THREE.ConeGeometry(chamberRadius * 1.28, roofHeight, 16),
+  addMesh(THREE, root,
+    new THREE.ConeGeometry(chamberRadius * 1.28, roofHeight, 16),
     roof, 0, chamberY + chamberHeight * 0.5 + roofHeight * 0.5, 0);
   addMesh(THREE, root,
     new THREE.CylinderGeometry(0.07, 0.11, roofHeight * 0.24, 8),
     metal, 0, chamberY + chamberHeight * 0.5 + roofHeight * 0.93, 0);
+
   const beamGroup = new THREE.Group();
   beamGroup.position.y = lampY;
   beamGroup.visible = false;
