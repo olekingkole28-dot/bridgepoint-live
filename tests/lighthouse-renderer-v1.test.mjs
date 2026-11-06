@@ -4,7 +4,9 @@ import {
   parseLengthMetres,
   lighthouseProfile,
   solarElevationDegrees,
-  isDarkAt
+  isDarkAt,
+  lighthouseRenderModeForZoom,
+  initLighthouseRenderer
 } from '../rebuild-v5000/bridgepoint-lighthouses-v1.js';
 
 assert.equal(parseLengthMetres('24 m'), 24);
@@ -56,3 +58,30 @@ assert.equal(isDarkAt(0, 0, midday), false);
 assert.equal(isDarkAt(0, 0, midnight), true);
 
 console.log('BRIDGEPOINT_LIGHTHOUSE_RENDERER_V1_PASS');
+
+assert.equal(lighthouseRenderModeForZoom(2.9), 'hidden');
+assert.equal(lighthouseRenderModeForZoom(4.5), 'rotating-beacon');
+assert.equal(lighthouseRenderModeForZoom(13.9), 'rotating-beacon');
+assert.equal(lighthouseRenderModeForZoom(14.2), '3d-tower');
+
+// Exercise the real initializer twice. This catches the missing module-scoped
+// WeakMap regression that previously prevented even the first marker layer.
+const priorWindow = globalThis.window;
+globalThis.window = {};
+const inertMap = {
+  getBounds: () => null,
+  addSource: () => {},
+  getStyle: () => null,
+  getZoom: () => 0,
+  on: () => {},
+  isStyleLoaded: () => false
+};
+const lighthouseApi = initLighthouseRenderer(inertMap);
+assert.ok(lighthouseApi);
+assert.equal(lighthouseApi.version, 2);
+assert.equal(initLighthouseRenderer(inertMap), lighthouseApi);
+lighthouseApi.destroy();
+if (priorWindow === undefined) delete globalThis.window;
+else globalThis.window = priorWindow;
+
+console.log('BRIDGEPOINT_LIGHTHOUSE_BEACONS_V2_PASS');
