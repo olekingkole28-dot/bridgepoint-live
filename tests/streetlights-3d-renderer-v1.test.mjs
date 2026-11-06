@@ -6,10 +6,10 @@ import {
   solarAltitude,
   streetlightHeight,
   uniqueStreetlightFeatures
-} from '../release-v2300/world-v2300-streetlights-3d-v1.js';
+} from '../streetlights-v1/world-v2300-streetlights-3d-v1.js';
 
 const source = await readFile(
-  new URL('../release-v2300/world-v2300-streetlights-3d-v1.js', import.meta.url),
+  new URL('../streetlights-v1/world-v2300-streetlights-3d-v1.js', import.meta.url),
   'utf8'
 );
 
