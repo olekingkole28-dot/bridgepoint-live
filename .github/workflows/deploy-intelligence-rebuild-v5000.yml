@@ -1272,7 +1272,7 @@ jobs:
           grep -Fq 'if (!Number.isFinite(terrainBaseM)) return null' site/bridgepoint-landmarks-v5940.js
           grep -Fq 'bridgepoint-map-key-v5920.js?v=6037-mapkey-drawer-fix' site/index.html
           grep -Fq 'bridgepoint-map-key-v5920.js?v=6037-mapkey-drawer-fix' site/app/index.html
-          grep -Fq 'Subsurface + Ocean-Depth X-Ray' site/bridgepoint-map-key-v5920.js
+          grep -Fq 'Liquid ocean + underwater exploration' site/bridgepoint-map-key-v5920.js
           grep -Fq 'world-v2300-realism.js?v=5910-world-materials' site/app.js
           grep -Fq 'gis-core-orchestrator-v5910.js?v=5910-gis-router' site/app.js
           grep -Fq 'PUBLIC_AUTO_MIN_ZOOM=4' site/parcel-boundary-viewer-v5403.js
