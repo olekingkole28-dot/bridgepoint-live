@@ -103,7 +103,7 @@ function addMapKey(panel){
   {label:'Roof shell / roof cap',cls:'bpv-mapkey-swatch-roof',desc:'Physical shell shader; a textured cap is not proof of an exact roof plane.'},
   {label:'Source-backed roof / plane outlines',color:'#f3df66',desc:'Gold outlines mark source-reported shape evidence; cyan outlines mark sourced roof-plane polygons. They remain georeferenced while panning/zooming; coverage varies and a full 3D pitched roof mesh is not available for every building.'},
   {label:'NASA daily night lights',color:'#ffd27a',desc:'Daily NASA VIIRS Day/Night Band imagery, with daylight pixels masked to solar position. Clouds/lunar conditions can mimic dimming; this is not a confirmed outage.'},
-   {label:'Subsurface + Ocean-Depth X-Ray',color:'#8effff',desc:'Cyan/violet lines show generalized public mapped tunnels/underpasses; mint markers show public transit access; GEBCO latest adds global color-coded elevation/ocean depth. No public pipe/leak telemetry is implied; a blank area is not proof the underground is clear.'},
+   {label:'Liquid ocean + underwater exploration',color:'#48dff4',desc:'The Liquid Ocean control enables animated GPU wave motion, source-backed GEBCO bathymetric terrain, satellite imagery draped below sea level, and a reversible underwater camera with depth fog and rising bubbles.'},
   {label:'Building outline / geometry edge',cls:'bpv-mapkey-swatch-outline',desc:'Pale cyan #88AEB7 to #D5E5E7 at close zoom.'},
   {label:'Floor-band shader',cls:'bpv-mapkey-swatch-floor',desc:'Optional bands derived from height/level attributes; not a verified interior plan.'},
   {label:'Night-window shader',cls:'bpv-mapkey-swatch-night',desc:'Warm/cool/mixed textures at supported night/high zoom; not live occupancy.'},

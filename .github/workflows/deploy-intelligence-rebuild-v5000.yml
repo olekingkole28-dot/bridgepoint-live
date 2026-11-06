@@ -719,7 +719,7 @@ jobs:
           cp release-v2300/world-v2300-infrastructure-volume-v5962.js site/world-v2300-infrastructure-volume-v5962.js
           cp release-v2300/world-v2300-utility-infrastructure-v1.js site/world-v2300-utility-infrastructure-v1.js
           cp release-v2300/world-v2300-sensor-layers.js site/world-v2300-sensor-layers.js
-          sed -i 's#world-v2300-sensor-layers.js?v=6015-nasa-light-toggle#world-v2300-sensor-layers.js?v=6224-underwater-dive-camera#g' site/app.js site/landing.js
+          sed -i 's#world-v2300-sensor-layers.js?v=6251-liquid-ocean#world-v2300-sensor-layers.js?v=6251-liquid-ocean#g' site/app.js site/landing.js
           sed -i 's#world-v2300-clouds.js?v=6075-global-coverage-fill#world-v2300-clouds.js?v=6094-josephine-spiral-unified#g' site/app.js site/landing.js
           sed -i 's#world-v2300-clouds.js?v=6076-rounded-cloud-banks#world-v2300-clouds.js?v=6094-josephine-spiral-unified#g' site/app.js site/landing.js
           sed -i 's#world-v2300-clouds.js?v=6088-fuller-local-tornado#world-v2300-clouds.js?v=6094-josephine-spiral-unified#g' site/app.js site/landing.js
@@ -1124,8 +1124,8 @@ jobs:
           ! grep -Fq 'data-toggle' site/world-v2300-infrastructure-volume-v5962.js
           grep -Fq 'landing.js?v=6246-offshore-energy-v2&bp=5970-globe-model-matrices' site/index.html
           grep -Fq 'app.js?v=6246-offshore-energy-v2&bp=5970-globe-model-matrices' site/app/index.html
-          grep -Fq 'world-v2300-sensor-layers.js?v=6224-underwater-dive-camera' site/app.js
-          grep -Fq 'world-v2300-sensor-layers.js?v=6224-underwater-dive-camera' site/landing.js
+          grep -Fq 'world-v2300-sensor-layers.js?v=6251-liquid-ocean' site/app.js
+          grep -Fq 'world-v2300-sensor-layers.js?v=6251-liquid-ocean' site/landing.js
           grep -Fq 'bridgepoint-gebco-depth-image-v5937' site/world-v2300-sensor-layers.js
           grep -Fq 'bridgepoint-nasa-nightlights-v5937' site/world-v2300-sensor-layers.js
           grep -Fq "kind: 'georeferenced 3D cloud-volume layer'" site/world-v2300-clouds.js
