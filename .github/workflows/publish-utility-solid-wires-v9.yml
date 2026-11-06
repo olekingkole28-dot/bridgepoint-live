@@ -119,8 +119,8 @@ jobs:
             path.write_text(data.replace(old,"world-v2300-utility-infrastructure-v1.js?v=12-solid-utility-wires-v11"),encoding="utf-8")
 
           for rel,old,new in (
-            ("index.html","landing.js?v=6244-solid-utility-wires-v10","landing.js?v=6245-solid-utility-wires-v11"),
-            ("app/index.html","app.js?v=6244-solid-utility-wires-v10","app.js?v=6245-solid-utility-wires-v11"),
+            ("index.html","landing.js?v=6245-offshore-energy-v1","landing.js?v=6245-solid-utility-wires-v11"),
+            ("app/index.html","app.js?v=6245-offshore-energy-v1","app.js?v=6245-solid-utility-wires-v11"),
           ):
             path=site/rel
             data=path.read_text(encoding="utf-8")
