@@ -1,0 +1,196 @@
+name: Publish BridgePoint Utility Renderer V6
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-utility-renderer-v6.yml'
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+
+jobs:
+  publish-utility-renderer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    env:
+      SOURCE_BRANCH: hotfix/utility-rendering-visible-v6
+      SOURCE_REF: refs/remotes/origin/utility-rendering-visible-v6
+      BASELINE_RUN_ID: '42125307960'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download the latest successful bridge-enabled production Pages artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: github-pages
+          run-id: 42125307960
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/bp-pages-baseline
+
+      - name: Fetch and validate the isolated utility v6 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin "refs/heads/${SOURCE_BRANCH}:${SOURCE_REF}" --depth=1
+          mkdir -p "$RUNNER_TEMP/utility-v6-source/release-v2300" "$RUNNER_TEMP/utility-v6-source/tests"
+          git show "${SOURCE_REF}:release-v2300/world-v2300-utility-infrastructure-v1.js" > "$RUNNER_TEMP/utility-v6-source/release-v2300/world-v2300-utility-infrastructure-v1.js"
+          git show "${SOURCE_REF}:tests/utility-infrastructure-renderer-v5.test.mjs" > "$RUNNER_TEMP/utility-v6-source/tests/utility-infrastructure-renderer-v5.test.mjs"
+          node --input-type=module --check < "$RUNNER_TEMP/utility-v6-source/release-v2300/world-v2300-utility-infrastructure-v1.js"
+          (cd "$RUNNER_TEMP/utility-v6-source" && node tests/utility-infrastructure-renderer-v5.test.mjs)
+          grep -Fq 'const VERSION = 6;' "$RUNNER_TEMP/utility-v6-source/release-v2300/world-v2300-utility-infrastructure-v1.js"
+          grep -Fq 'const supports = incoming.supports;' "$RUNNER_TEMP/utility-v6-source/release-v2300/world-v2300-utility-infrastructure-v1.js"
+          echo "UTILITY_RENDERER_V6_SOURCE_PASS"
+
+      - name: Restore the successful bridge deployment and confirm protected assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCHIVE="$(find "$RUNNER_TEMP/bp-pages-baseline" -type f -name artifact.tar -print -quit)"
+          test -n "$ARCHIVE"
+          mkdir -p "$RUNNER_TEMP/bp-site"
+          tar -xf "$ARCHIVE" -C "$RUNNER_TEMP/bp-site"
+          SITE="$RUNNER_TEMP/bp-site"
+          for f in index.html app/index.html landing.js app.js world-v2300-map.js app/world-v2300-map.js bridgepoint-ct-nbi-2026.json sw.js styles.css; do
+            test -s "$SITE/$f" || { echo "Missing current production asset: $f"; exit 1; }
+          done
+          grep -Fq 'function bridgePolygonAxis(' "$SITE/world-v2300-map.js"
+          grep -Fq 'ESTIMATED_STANDARD_PROFILE' "$SITE/world-v2300-map.js"
+          grep -Fq 'FHWA_NBI_2026_CT' "$SITE/world-v2300-map.js"
+          grep -Fq 'world-v2300-utility-infrastructure-v1.js?v=6-solid-utility' "$SITE/landing.js"
+          grep -Fq 'world-v2300-utility-infrastructure-v1.js?v=6-solid-utility' "$SITE/app.js"
+          python3 - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          site=Path(os.environ["RUNNER_TEMP"])/"bp-site"
+          protected=[
+            "sw.js","styles.css","world-v2300-map.js","app/world-v2300-map.js",
+            "bridgepoint-ct-nbi-2026.json","assets/trees/manifest.json",
+            "assets/blender-world/manifest.json",
+          ]
+          hashes={}
+          for rel in protected:
+            path=site/rel
+            if not path.is_file():
+              raise SystemExit(f"Protected production asset missing: {rel}")
+            hashes[rel]=hashlib.sha256(path.read_bytes()).hexdigest()
+          rows=json.loads((site/"bridgepoint-ct-nbi-2026.json").read_text())
+          assert len(rows)==4352 and all(isinstance(row,list) and len(row)==8 for row in rows)
+          (Path(os.environ["RUNNER_TEMP"])/"bp-protected-hashes.json").write_text(json.dumps(hashes))
+          print("BRIDGE_ENABLED_BASELINE_PASS",len(rows),"FHWA_CT_RECORDS")
+          PY
+
+      - name: Overlay only the utility renderer and versioned loader references
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/bp-site"
+          SOURCE="$RUNNER_TEMP/utility-v6-source/release-v2300/world-v2300-utility-infrastructure-v1.js"
+          cp "$SOURCE" "$SITE/world-v2300-utility-infrastructure-v1.js"
+          cp "$SOURCE" "$SITE/app/world-v2300-utility-infrastructure-v1.js"
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib, json, os
+
+          site=Path(os.environ["RUNNER_TEMP"])/"bp-site"
+          for rel in ("landing.js","app.js"):
+            path=site/rel
+            data=path.read_text(encoding="utf-8")
+            old="world-v2300-utility-infrastructure-v1.js?v=6-solid-utility"
+            if data.count(old)!=1:
+              raise SystemExit(f"{rel}: expected exactly one current utility import, found {data.count(old)}")
+            path.write_text(data.replace(old,"world-v2300-utility-infrastructure-v1.js?v=7-visible-utility-v6"),encoding="utf-8")
+
+          for rel,old,new in (
+            ("index.html","landing.js?v=6238-bridge-v2","landing.js?v=6240-utility-visible"),
+            ("app/index.html","app.js?v=6238-bridge-v2","app.js?v=6240-utility-visible"),
+          ):
+            path=site/rel
+            data=path.read_text(encoding="utf-8")
+            if data.count(old)!=1:
+              raise SystemExit(f"{rel}: expected exactly one bridge-preserving loader URL {old}")
+            path.write_text(data.replace(old,new),encoding="utf-8")
+
+          before=json.loads((Path(os.environ["RUNNER_TEMP"])/"bp-protected-hashes.json").read_text())
+          for rel,digest in before.items():
+            actual=hashlib.sha256((site/rel).read_bytes()).hexdigest()
+            if actual!=digest:
+              raise SystemExit(f"Unrelated production file changed during overlay: {rel}")
+
+          assert "bridgePolygonAxis" in (site/"world-v2300-map.js").read_text()
+          assert "bpAuthRequestV6237" in (site/"landing.js").read_text()
+          assert "bpAuthRequestV6237" in (site/"app.js").read_text()
+          print("UTILITY_ONLY_OVERLAY_SCOPE_PASS",len(before),"protected production files unchanged")
+          PY
+
+          node --check "$SITE/landing.js"
+          node --check "$SITE/app.js"
+          node --input-type=module --check < "$SITE/world-v2300-utility-infrastructure-v1.js"
+          node --input-type=module --check < "$SITE/app/world-v2300-utility-infrastructure-v1.js"
+          cmp -s "$SITE/world-v2300-utility-infrastructure-v1.js" "$SITE/app/world-v2300-utility-infrastructure-v1.js"
+          grep -Fq 'landing.js?v=6240-utility-visible' "$SITE/index.html"
+          grep -Fq 'app.js?v=6240-utility-visible' "$SITE/app/index.html"
+          grep -Fq 'world-v2300-utility-infrastructure-v1.js?v=7-visible-utility-v6' "$SITE/landing.js"
+          grep -Fq 'world-v2300-utility-infrastructure-v1.js?v=7-visible-utility-v6' "$SITE/app.js"
+          echo "UTILITY_V6_BUNDLE_BUILD_PASS"
+
+      - uses: actions/configure-pages@v5
+
+      - name: Upload the bridge-preserved utility v6 site
+        uses: actions/upload-pages-artifact@v5
+        with:
+          name: bridgepoint-utility-renderer-v6240
+          path: ${{ runner.temp }}/bp-site
+          include-hidden-files: true
+
+      - name: Publish utility renderer v6 to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: bridgepoint-utility-renderer-v6240
+
+      - name: Verify production website, app, bridges and utility v6 assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          O='https://bridgepointintelligence.online'
+          q="${GITHUB_SHA}-utility-v6"
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/?utility-v6=$q" -o /tmp/bp-root.html
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app/?utility-v6=$q" -o /tmp/bp-app.html
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/landing.js?v=6240-utility-visible&verify=$q" -o /tmp/bp-landing.js
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app.js?v=6240-utility-visible&verify=$q" -o /tmp/bp-app.js
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/world-v2300-utility-infrastructure-v1.js?v=7-visible-utility-v6&verify=$q" -o /tmp/bp-utility.js
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app/world-v2300-utility-infrastructure-v1.js?v=7-visible-utility-v6&verify=$q" -o /tmp/bp-app-utility.js
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/world-v2300-map.js?v=6238-global-3d-bridges-v2&verify=$q" -o /tmp/bp-world.js
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/bridgepoint-ct-nbi-2026.json?verify=$q" -o /tmp/bp-ct-nbi.json
+
+          grep -Fq 'landing.js?v=6240-utility-visible' /tmp/bp-root.html
+          grep -Fq 'app.js?v=6240-utility-visible' /tmp/bp-app.html
+          grep -Fq 'world-v2300-utility-infrastructure-v1.js?v=7-visible-utility-v6' /tmp/bp-landing.js
+          grep -Fq 'world-v2300-utility-infrastructure-v1.js?v=7-visible-utility-v6' /tmp/bp-app.js
+          grep -Fq 'const VERSION = 6;' /tmp/bp-utility.js
+          grep -Fq 'const supports = incoming.supports;' /tmp/bp-utility.js
+          grep -Fq 'function wireRadiusFor(coordinate, baseRadius)' /tmp/bp-utility.js
+          grep -Fq 'function minimumDisplayScale(' /tmp/bp-utility.js
+          cmp -s /tmp/bp-utility.js /tmp/bp-app-utility.js
+          grep -Fq 'function bridgePolygonAxis(' /tmp/bp-world.js
+          grep -Fq 'ESTIMATED_STANDARD_PROFILE' /tmp/bp-world.js
+          python3 - <<'PY'
+          import json
+          rows=json.load(open('/tmp/bp-ct-nbi.json'))
+          assert len(rows)==4352 and all(isinstance(row,list) and len(row)==8 for row in rows)
+          print("LIVE_CT_FHWA_2026_RECORDS",len(rows))
+          PY
+          echo "BRIDGEPOINT_UTILITY_RENDERER_V6_LIVE_PASS"
