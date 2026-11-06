@@ -379,6 +379,24 @@ export function deriveNearestPoleSpans(supports, existingSpans = [], maxCount = 
     Array.isArray(support.coordinate) && support.coordinate.every(Number.isFinite));
   if (poles.length < 2 || maxCount <= 0) return [];
   const degree = new Map(poles.map(pole => [pole.key, 0]));
+  const parent = new Map(poles.map(pole => [pole.key, pole.key]));
+  const root = key => {
+    let current = key;
+    while (parent.has(current) && parent.get(current) !== current) current = parent.get(current);
+    let cursor = key;
+    while (parent.has(cursor) && parent.get(cursor) !== current) {
+      const next = parent.get(cursor);
+      parent.set(cursor, current);
+      cursor = next;
+    }
+    return current;
+  };
+  const union = (a, b) => {
+    const ra = root(a.key), rb = root(b.key);
+    if (ra === rb) return false;
+    parent.set(ra, rb);
+    return true;
+  };
   const edgeKey = (a, b) => [String(a.key), String(b.key)].sort().join('|') + '|power';
   const used = new Set();
   for (const span of existingSpans || []) {
@@ -386,6 +404,7 @@ export function deriveNearestPoleSpans(supports, existingSpans = [], maxCount = 
     used.add(edgeKey(span.a, span.b));
     degree.set(span.a.key, (degree.get(span.a.key) || 0) + 1);
     degree.set(span.b.key, (degree.get(span.b.key) || 0) + 1);
+    union(span.a, span.b);
   }
   const hasMappedBearing = pole => Number.isFinite(Number(pole.bearing)) &&
     Number(pole.bearingDistance) <= POWER_SNAP_M;
@@ -447,9 +466,11 @@ export function deriveNearestPoleSpans(supports, existingSpans = [], maxCount = 
   for (const span of ordered) {
     if (inferred.length >= maxCount) break;
     if ((degree.get(span.a.key) || 0) >= 2 || (degree.get(span.b.key) || 0) >= 2) continue;
+    if (root(span.a.key) === root(span.b.key)) continue;
     const key = edgeKey(span.a, span.b);
     if (used.has(key)) continue;
     used.add(key);
+    union(span.a, span.b);
     degree.set(span.a.key, (degree.get(span.a.key) || 0) + 1);
     degree.set(span.b.key, (degree.get(span.b.key) || 0) + 1);
     inferred.push(span);
@@ -511,7 +532,7 @@ export function initUtilityInfrastructure(target) {
   const state = {
     version: VERSION, map, enabled: true, ready: false, status: 'Waiting for source-mapped utility infrastructure…',
     poles: 0, towers: 0, powerSpans: 0, telecomSpans: 0, serviceDrops: 0, transformers: 0, switches: 0,
-    cabinets: 0, telecomMasts: 0, measuredHeights: 0, estimatedHeights: 0, serviceDrops: 0, groundLeads: 0, inferredPowerSpans: 0,
+    cabinets: 0, telecomMasts: 0, measuredHeights: 0, estimatedHeights: 0, groundLeads: 0, inferredPowerSpans: 0,
     updatedAt: null, source: 'OpenInfraMap/OSM + Middletown municipal StreetLights GIS + USGS 3DEP ground elevations',
     municipalPoleCount: 0, telecomPoleCount: 0, guyWireCount: 0, groundSamples: 0,
     groundUnresolved: 0,
