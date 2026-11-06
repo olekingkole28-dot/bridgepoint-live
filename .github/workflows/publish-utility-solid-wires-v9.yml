@@ -1,0 +1,198 @@
+name: Publish BridgePoint Solid Utility Wires V9
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'release-v2300/world-v2300-utility-infrastructure-v1.js'
+      - 'tests/utility-infrastructure-renderer-v5.test.mjs'
+      - '.github/workflows/verify-utility-infrastructure-v1.yml'
+      - '.github/workflows/publish-utility-solid-wires-v9.yml'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+
+jobs:
+  publish-solid-utility-wires:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download the exact verified V8 production baseline
+        uses: actions/download-artifact@v4
+        with:
+          name: bridgepoint-close-zoom-poles-v8
+          run-id: 42145194427
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/bp-pages-baseline
+
+      - name: Validate V9 utility source and renderer contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/utility-v9-source/release-v2300" "$RUNNER_TEMP/utility-v9-source/tests"
+          cp release-v2300/world-v2300-utility-infrastructure-v1.js "$RUNNER_TEMP/utility-v9-source/release-v2300/world-v2300-utility-infrastructure-v1.js"
+          cp tests/utility-infrastructure-renderer-v5.test.mjs "$RUNNER_TEMP/utility-v9-source/tests/utility-infrastructure-renderer-v5.test.mjs"
+          node --input-type=module --check < "$RUNNER_TEMP/utility-v9-source/release-v2300/world-v2300-utility-infrastructure-v1.js"
+          (cd "$RUNNER_TEMP/utility-v9-source" && node tests/utility-infrastructure-renderer-v5.test.mjs)
+          grep -Fq 'const VERSION = 9;' "$RUNNER_TEMP/utility-v9-source/release-v2300/world-v2300-utility-infrastructure-v1.js"
+          grep -Fq 'const PRECISE_POLE_MIN_ZOOM = 16;' "$RUNNER_TEMP/utility-v9-source/release-v2300/world-v2300-utility-infrastructure-v1.js"
+          grep -Fq 'function buildPrecisePoleGroups(supports)' "$RUNNER_TEMP/utility-v9-source/release-v2300/world-v2300-utility-infrastructure-v1.js"
+          grep -Fq 'function collectResidentialServiceDrops(supports)' "$RUNNER_TEMP/utility-v9-source/release-v2300/world-v2300-utility-infrastructure-v1.js"
+          grep -Fq 'function appendServiceDrop(batch, drop)' "$RUNNER_TEMP/utility-v9-source/release-v2300/world-v2300-utility-infrastructure-v1.js"
+          grep -Fq "map.querySourceFeatures('bpBuildings', { sourceLayer: 'buildings' })" "$RUNNER_TEMP/utility-v9-source/release-v2300/world-v2300-utility-infrastructure-v1.js"
+          grep -Fq 'preciseWireGroups' "$RUNNER_TEMP/utility-v9-source/release-v2300/world-v2300-utility-infrastructure-v1.js"
+          echo "UTILITY_SOLID_WIRES_V9_SOURCE_PASS"
+
+      - name: Restore and fingerprint the currently deployed V8 site
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCHIVE="$(find "$RUNNER_TEMP/bp-pages-baseline" -type f -name artifact.tar -print -quit)"
+          test -n "$ARCHIVE"
+          mkdir -p "$RUNNER_TEMP/bp-site"
+          tar -xf "$ARCHIVE" -C "$RUNNER_TEMP/bp-site"
+          SITE="$RUNNER_TEMP/bp-site"
+          for f in index.html app/index.html landing.js app.js world-v2300-map.js app/world-v2300-map.js bridgepoint-ct-nbi-2026.json sw.js styles.css world-v2300-utility-infrastructure-v1.js app/world-v2300-utility-infrastructure-v1.js; do
+            test -s "$SITE/$f" || { echo "Missing verified production asset: $f"; exit 1; }
+          done
+          grep -Fq 'function bridgePolygonAxis(' "$SITE/world-v2300-map.js"
+          grep -Fq 'ESTIMATED_STANDARD_PROFILE' "$SITE/world-v2300-map.js"
+          python3 - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          site=Path(os.environ["RUNNER_TEMP"])/"bp-site"
+          before={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                  for p in site.rglob("*") if p.is_file()}
+          rows=json.loads((site/"bridgepoint-ct-nbi-2026.json").read_text())
+          assert len(rows)==4352 and all(isinstance(row,list) and len(row)==8 for row in rows)
+          (Path(os.environ["RUNNER_TEMP"])/"bp-v8-file-hashes.json").write_text(json.dumps(before,sort_keys=True))
+          print("V8_LIVE_GLOBE_AUTH_BRIDGE_BASELINE_PASS",len(before),"files",len(rows),"FHWA_CT_RECORDS")
+          PY
+
+      - name: Overlay only the utility renderer and its root/app cache-busted loaders
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/bp-site"
+          SOURCE="$RUNNER_TEMP/utility-v9-source/release-v2300/world-v2300-utility-infrastructure-v1.js"
+          cp "$SOURCE" "$SITE/world-v2300-utility-infrastructure-v1.js"
+          cp "$SOURCE" "$SITE/app/world-v2300-utility-infrastructure-v1.js"
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib, json, os
+          site=Path(os.environ["RUNNER_TEMP"])/"bp-site"
+          for rel in ("landing.js","app.js"):
+            path=site/rel
+            data=path.read_text(encoding="utf-8")
+            old="world-v2300-utility-infrastructure-v1.js?v=9-close-zoom-poles-v8"
+            if data.count(old)!=1:
+              raise SystemExit(f"{rel}: expected exactly one V8 utility import, found {data.count(old)}")
+            path.write_text(data.replace(old,"world-v2300-utility-infrastructure-v1.js?v=10-solid-utility-wires-v9"),encoding="utf-8")
+
+          for rel,old,new in (
+            ("index.html","landing.js?v=6242-close-zoom-poles-v8","landing.js?v=6243-solid-utility-wires-v9"),
+            ("app/index.html","app.js?v=6242-close-zoom-poles-v8","app.js?v=6243-solid-utility-wires-v9"),
+          ):
+            path=site/rel
+            data=path.read_text(encoding="utf-8")
+            if data.count(old)!=1:
+              raise SystemExit(f"{rel}: expected exactly one V8 loader, found {data.count(old)}")
+            path.write_text(data.replace(old,new),encoding="utf-8")
+
+          before=json.loads((Path(os.environ["RUNNER_TEMP"])/"bp-v8-file-hashes.json").read_text())
+          after={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                 for p in site.rglob("*") if p.is_file()}
+          removed=set(before)-set(after)
+          added=set(after)-set(before)
+          changed={p for p in before if p in after and before[p]!=after[p]}
+          expected={"index.html","app/index.html","landing.js","app.js",
+                    "world-v2300-utility-infrastructure-v1.js",
+                    "app/world-v2300-utility-infrastructure-v1.js"}
+          assert not removed, f"Production files removed: {sorted(removed)}"
+          assert not added, f"Unexpected production files added: {sorted(added)}"
+          assert changed==expected, f"Unexpected file changes: {sorted(changed)}"
+          assert "function bridgePolygonAxis(" in (site/"world-v2300-map.js").read_text()
+          assert "bpAuthRequestV6237" in (site/"landing.js").read_text()
+          assert "bpAuthRequestV6237" in (site/"app.js").read_text()
+          print("UTILITY_ONLY_OVERLAY_SCOPE_PASS",len(before),"baseline files preserved; exactly six approved files changed")
+          PY
+
+          node --check "$SITE/landing.js"
+          node --check "$SITE/app.js"
+          node --input-type=module --check < "$SITE/world-v2300-utility-infrastructure-v1.js"
+          node --input-type=module --check < "$SITE/app/world-v2300-utility-infrastructure-v1.js"
+          cmp -s "$SITE/world-v2300-utility-infrastructure-v1.js" "$SITE/app/world-v2300-utility-infrastructure-v1.js"
+          grep -Fq 'landing.js?v=6243-solid-utility-wires-v9' "$SITE/index.html"
+          grep -Fq 'app.js?v=6243-solid-utility-wires-v9' "$SITE/app/index.html"
+          grep -Fq 'world-v2300-utility-infrastructure-v1.js?v=10-solid-utility-wires-v9' "$SITE/landing.js"
+          grep -Fq 'world-v2300-utility-infrastructure-v1.js?v=10-solid-utility-wires-v9' "$SITE/app.js"
+          echo "UTILITY_SOLID_WIRES_V9_BUNDLE_BUILD_PASS"
+
+      - uses: actions/configure-pages@v5
+
+      - name: Upload the bridge-preserved V9 site artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          name: bridgepoint-solid-utility-wires-v9
+          path: ${{ runner.temp }}/bp-site
+          include-hidden-files: true
+
+      - name: Publish solid utility wires V9
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: bridgepoint-solid-utility-wires-v9
+
+      - name: Verify live root, app, authentication, bridges and V9 utility wires
+        shell: bash
+        run: |
+          set -euo pipefail
+          O='https://bridgepointintelligence.online'
+          q="$GITHUB_SHA-solid-utility-wires-v9"
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/?solid-utility-wires-v9=$q" -o /tmp/bp-root.html
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app/?solid-utility-wires-v9=$q" -o /tmp/bp-app.html
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/landing.js?v=6243-solid-utility-wires-v9&verify=$q" -o /tmp/bp-landing.js
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app.js?v=6243-solid-utility-wires-v9&verify=$q" -o /tmp/bp-app.js
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/world-v2300-utility-infrastructure-v1.js?v=10-solid-utility-wires-v9&verify=$q" -o /tmp/bp-utility.js
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app/world-v2300-utility-infrastructure-v1.js?v=10-solid-utility-wires-v9&verify=$q" -o /tmp/bp-app-utility.js
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/world-v2300-map.js?v=6238-global-3d-bridges-v2&verify=$q" -o /tmp/bp-world.js
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/bridgepoint-ct-nbi-2026.json?verify=$q" -o /tmp/bp-ct-nbi.json
+
+          grep -Fq 'landing.js?v=6243-solid-utility-wires-v9' /tmp/bp-root.html
+          grep -Fq 'app.js?v=6243-solid-utility-wires-v9' /tmp/bp-app.html
+          grep -Fq 'bpAuthRequestV6237' /tmp/bp-landing.js
+          grep -Fq 'bpAuthRequestV6237' /tmp/bp-app.js
+          grep -Fq 'world-v2300-utility-infrastructure-v1.js?v=10-solid-utility-wires-v9' /tmp/bp-landing.js
+          grep -Fq 'world-v2300-utility-infrastructure-v1.js?v=10-solid-utility-wires-v9' /tmp/bp-app.js
+          grep -Fq 'const VERSION = 9;' /tmp/bp-utility.js
+          grep -Fq 'const PRECISE_POLE_MIN_ZOOM = 16;' /tmp/bp-utility.js
+          grep -Fq 'function buildPrecisePoleGroups(supports)' /tmp/bp-utility.js
+          grep -Fq 'function collectResidentialServiceDrops(supports)' /tmp/bp-utility.js
+          grep -Fq 'function appendServiceDrop(batch, drop)' /tmp/bp-utility.js
+          grep -Fq 'preciseWireGroups' /tmp/bp-utility.js
+          grep -Fq "map.querySourceFeatures('bpBuildings', { sourceLayer: 'buildings' })" /tmp/bp-utility.js
+          grep -Fq 'function bridgePolygonAxis(' /tmp/bp-world.js
+          grep -Fq 'ESTIMATED_STANDARD_PROFILE' /tmp/bp-world.js
+          cmp -s /tmp/bp-utility.js /tmp/bp-app-utility.js
+          python3 - <<'PY'
+          import json
+          rows=json.load(open('/tmp/bp-ct-nbi.json'))
+          assert len(rows)==4352 and all(isinstance(row,list) and len(row)==8 for row in rows)
+          print("LIVE_CT_FHWA_2026_RECORDS",len(rows))
+          PY
+          echo "BRIDGEPOINT_SOLID_UTILITY_WIRES_V9_LIVE_PASS"
