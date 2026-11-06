@@ -6,7 +6,7 @@ const source = await readFile(
   'utf8'
 );
 
-assert.ok(source.includes('const VERSION = 8;'), 'utility renderer advances to v8');
+assert.ok(source.includes('const VERSION = 9;'), 'utility renderer advances to v8');
 assert.ok(source.includes('const PRECISE_POLE_MIN_ZOOM = 16;'), 'close-zoom precision renderer activates before GPU position precision becomes limiting');
 assert.ok(source.includes('function buildPrecisePoleGroups(supports)'), 'street-zoom pole geometry is batched in local ground-anchored frames');
 assert.ok(source.includes('camera.projectionMatrix.copy(projection).multiply(anchorMatrix)'), 'close-zoom draw composes projection and local geographic anchor before GPU submission');
@@ -22,6 +22,16 @@ assert.ok(source.includes('side: THREE.DoubleSide'), 'solid assets remain visibl
 assert.ok(source.includes('function wireTileAnchor('), 'conductors are grouped in local geographic tile frames');
 assert.ok(source.includes('function appendWireSpan(batch, span, kind)'), 'wire spans are assembled into shared tile batches');
 assert.ok(source.includes('function flushWireBatches(batches)'), 'wire batches emit one solid mesh per network and tile');
+assert.ok(source.includes('wireTileAnchor(coordinate, 16)'), 'wire batches use the same close-zoom local geographic tile frame as poles');
+assert.ok(source.includes("map.querySourceFeatures('bpBuildings', { sourceLayer: 'buildings' })"), 'residential service leads use source-mapped global building footprints');
+assert.ok(source.includes('function collectResidentialServiceDrops(supports)'), 'nearby residential footprints are connected to mapped distribution poles');
+assert.ok(source.includes('function appendServiceDrop(batch, drop)'), 'service leads are solid sagging polygon geometry');
+assert.ok(source.includes('SERVICE_DROP_MAX_DISTANCE_M = 42'), 'service leads are restricted to nearby footprints');
+assert.ok(source.includes('preciseWireGroups'), 'local utility conductors are duplicated into an anchored street-level render pass');
+assert.ok(source.includes('for (const mesh of standardWireMeshes) mesh.visible = !closeZoom;'), 'absolute-coordinate cable meshes are hidden when the precision-safe street-level wire pass is active');
+assert.ok(source.includes('for (const group of preciseWireGroups) drawAnchoredGroup(group);'), 'street-level cable meshes use the CPU-composed anchor projection just like poles');
+assert.ok(source.includes("ids(assets.serviceDrops, drop => drop.key)"), 'building service links participate in refresh fingerprinting');
+assert.ok(source.includes('state.serviceDrops = serviceDropCount;'), 'service lead count is exposed by the renderer state');
 assert.ok(source.includes('const wireStats = flushWireBatches(wireBatches);'), 'wire spans no longer allocate one Three.js mesh per span');
 assert.ok(source.includes('const steps = Math.min(18, Math.max(5, Math.ceil(distance / 12)));'), 'batched cable curves have bounded tessellation');
 assert.ok(source.includes('function assetSignature(assets, zoom)'), 'decoded tile changes are fingerprinted');
@@ -53,4 +63,4 @@ assert.ok(Math.abs(drop(0)) < 1e-9, 'catenary starts at the first insulator');
 assert.ok(Math.abs(drop(1)) < 1e-9, 'catenary ends at the second insulator');
 assert.ok(Math.abs(drop(0.5) + sag) < 1e-6, 'catenary sag reaches the intended mid-span drop');
 
-console.log('BRIDGEPOINT_UTILITY_RENDERER_V8_PASS');
+console.log('BRIDGEPOINT_UTILITY_RENDERER_V9_PASS');

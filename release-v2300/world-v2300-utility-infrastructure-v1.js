@@ -1,4 +1,4 @@
-const VERSION = 8;
+const VERSION = 9;
 const POWER_SOURCE = 'bp-utility-power-v1';
 const TELECOM_SOURCE = 'bp-utility-telecom-v1';
 const THREE_URL = '/vendor/three.module.js?v=169-local';
@@ -12,6 +12,8 @@ const MAX_SOURCE_ZOOM = 17;
 const MAX_SUPPORTS = IS_SMALL_DEVICE ? 420 : 900;
 const MAX_SPANS = IS_SMALL_DEVICE ? 160 : 420;
 const MAX_LINE_FEATURES = IS_SMALL_DEVICE ? 260 : 650;
+const MAX_SERVICE_DROPS = IS_SMALL_DEVICE ? 72 : 150;
+const SERVICE_DROP_MAX_DISTANCE_M = 42;
 const SOURCE_REFRESH_DELAY_MS = IS_SMALL_DEVICE ? 160 : 95;
 const POWER_SNAP_M = 13;
 const RAD = Math.PI / 180;
@@ -139,6 +141,73 @@ function localEastNorth(anchor, point) {
     (Number(point[0]) - Number(anchor[0])) * 111320 * cos,
     (Number(point[1]) - Number(anchor[1])) * 110540
   ];
+}
+
+function polygonRingsOf(feature) {
+  const geometry = feature && feature.geometry;
+  if (!geometry) return [];
+  if (geometry.type === 'Polygon') return geometry.coordinates || [];
+  if (geometry.type === 'MultiPolygon') return (geometry.coordinates || []).flat(1);
+  return [];
+}
+
+function buildingCenterOf(feature) {
+  const ring = polygonRingsOf(feature).find(points => Array.isArray(points) && points.length >= 3);
+  if (!ring) return null;
+  const points = ring.length > 3 && ring[0][0] === ring[ring.length - 1][0] &&
+    ring[0][1] === ring[ring.length - 1][1] ? ring.slice(0, -1) : ring;
+  let longitude = 0, latitude = 0, count = 0;
+  for (const point of points) {
+    if (!Array.isArray(point) || !Number.isFinite(Number(point[0])) || !Number.isFinite(Number(point[1]))) continue;
+    longitude += Number(point[0]); latitude += Number(point[1]); count++;
+  }
+  return count ? [longitude / count, latitude / count] : null;
+}
+
+function nearestBuildingBoundaryPoint(origin, feature) {
+  let bestDistance = Infinity, bestCoordinate = null;
+  for (const ring of polygonRingsOf(feature)) {
+    if (!Array.isArray(ring) || ring.length < 2) continue;
+    for (let i = 1; i < ring.length; i++) {
+      const a = ring[i - 1], b = ring[i];
+      if (!Array.isArray(a) || !Array.isArray(b) ||
+          ![a[0], a[1], b[0], b[1]].every(value => Number.isFinite(Number(value)))) continue;
+      const pa = localEastNorth(origin, a), pb = localEastNorth(origin, b);
+      const dx = pb[0] - pa[0], dy = pb[1] - pa[1];
+      const lengthSquared = dx * dx + dy * dy;
+      const t = lengthSquared > 0 ? Math.max(0, Math.min(1, -(pa[0] * dx + pa[1] * dy) / lengthSquared)) : 0;
+      const east = pa[0] + dx * t, north = pa[1] + dy * t;
+      const distance = Math.hypot(east, north);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestCoordinate = [Number(a[0]) + (Number(b[0]) - Number(a[0])) * t,
+          Number(a[1]) + (Number(b[1]) - Number(a[1])) * t];
+      }
+    }
+  }
+  return bestCoordinate ? { coordinate: bestCoordinate, distance: bestDistance } : null;
+}
+
+function buildingFeatureKey(feature) {
+  const properties = feature && feature.properties || {};
+  const id = properties.osm_id ?? properties.osm_way_id ?? feature.id;
+  if (id !== undefined && id !== null && id !== '') return 'building:' + String(id);
+  const center = buildingCenterOf(feature);
+  return center ? 'building:' + center[0].toFixed(7) + ',' + center[1].toFixed(7) : null;
+}
+
+function isResidentialBuilding(feature) {
+  const properties = feature && feature.properties || {};
+  const values = [properties.building, properties['building:use'], properties.building_use,
+    properties.use, properties.landuse, properties.class, properties.kind]
+    .map(value => String(value || '').trim().toLowerCase());
+  const residentialTypes = new Set(['house', 'residential', 'apartments', 'apartment', 'detached',
+    'semidetached_house', 'semi_detached_house', 'terrace', 'terraced', 'duplex', 'triplex',
+    'bungalow', 'cabin', 'dormitory', 'static_caravan']);
+  if (values.some(value => residentialTypes.has(value))) return true;
+  return values.includes('yes') && ['residential', 'house'].includes(
+    String(properties['building:use'] || properties.landuse || properties.use || '').toLowerCase()
+  );
 }
 
 function pushBeam(vertices, a, b, radius, THREE, sides) {
@@ -319,7 +388,7 @@ export function initUtilityInfrastructure(target) {
 
   const state = {
     version: VERSION, map, enabled: true, ready: false, status: 'Waiting for source-mapped utility infrastructure…',
-    poles: 0, towers: 0, powerSpans: 0, telecomSpans: 0, transformers: 0, switches: 0,
+    poles: 0, towers: 0, powerSpans: 0, telecomSpans: 0, serviceDrops: 0, transformers: 0, switches: 0,
     cabinets: 0, telecomMasts: 0, measuredHeights: 0, estimatedHeights: 0,
     updatedAt: null, source: 'OpenInfraMap/OSM + Middletown municipal StreetLights GIS + USGS 3DEP ground elevations',
     municipalPoleCount: 0, telecomPoleCount: 0, guyWireCount: 0, groundSamples: 0,
@@ -333,7 +402,7 @@ export function initUtilityInfrastructure(target) {
   let styleInitPromise = null, customLayerInstalling = false;
   let lastAssetSignature = '', groundCacheRevision = 0;
   let bodyGeometry = null, poleBaseGeometry = null, armGeometry = null, braceGeometry = null;
-  let precisePoleGroups = [], standardPoleMeshes = [];
+  let precisePoleGroups = [], standardPoleMeshes = [], preciseWireGroups = [], standardWireMeshes = [];
   let insulatorGeometry = null, telecomBracketGeometry = null, towerGeometry = null;
   let transformerGeometry = null, switchGeometry = null, cabinetGeometry = null, mastGeometry = null, spliceBoxGeometry = null;
   let woodMaterial = null, towerMaterial = null, metalMaterial = null, ceramicMaterial = null;
@@ -569,14 +638,20 @@ export function initUtilityInfrastructure(target) {
   }
 
   function clearSceneData() {
-    disposeChildren(dataGroup);
-    standardPoleMeshes = [];
+    for (const group of preciseWireGroups) {
+      try { scene && scene.remove(group); } catch (_) {}
+      disposeChildren(group);
+    }
+    preciseWireGroups = [];
+    standardWireMeshes = [];
     for (const group of precisePoleGroups) {
       try { scene && scene.remove(group); } catch (_) {}
       disposeChildren(group);
     }
     precisePoleGroups = [];
-    state.poles = 0; state.towers = 0; state.powerSpans = 0; state.telecomSpans = 0;
+    disposeChildren(dataGroup);
+    standardPoleMeshes = [];
+    state.poles = 0; state.towers = 0; state.powerSpans = 0; state.telecomSpans = 0; state.serviceDrops = 0;
     state.transformers = 0; state.switches = 0; state.cabinets = 0; state.telecomMasts = 0;
     state.measuredHeights = 0; state.estimatedHeights = 0;
     state.municipalPoleCount = 0; state.telecomPoleCount = 0; state.guyWireCount = 0;
@@ -655,29 +730,33 @@ export function initUtilityInfrastructure(target) {
         const projection = new THREE.Matrix4().fromArray(matrix);
         const closeZoom = Number(map.getZoom && map.getZoom() || 0) >= PRECISE_POLE_MIN_ZOOM;
         for (const mesh of standardPoleMeshes) mesh.visible = !closeZoom;
+        for (const mesh of standardWireMeshes) mesh.visible = !closeZoom;
         for (const group of precisePoleGroups) group.visible = false;
+        for (const group of preciseWireGroups) group.visible = false;
         customLayer.camera.projectionMatrix.copy(projection);
         try {
           customLayer.renderer.resetState && customLayer.renderer.resetState();
           if (customLayer.renderer.state && customLayer.renderer.state.reset) customLayer.renderer.state.reset();
         } catch (_) {}
         customLayer.renderer.render(customLayer.scene, customLayer.camera);
-        if (closeZoom && precisePoleGroups.length) {
+        if (closeZoom && (precisePoleGroups.length || preciseWireGroups.length)) {
           const restoreVisibility = dataGroup.visible;
           dataGroup.visible = false;
+          const drawAnchoredGroup = group => {
+            const anchorMatrix = group.userData && group.userData.bpAnchorMatrix;
+            if (!anchorMatrix) return;
+            group.visible = true;
+            customLayer.camera.projectionMatrix.copy(projection).multiply(anchorMatrix);
+            try {
+              customLayer.renderer.resetState && customLayer.renderer.resetState();
+              if (customLayer.renderer.state && customLayer.renderer.state.reset) customLayer.renderer.state.reset();
+            } catch (_) {}
+            try { customLayer.renderer.render(customLayer.scene, customLayer.camera); }
+            finally { group.visible = false; }
+          };
           try {
-            for (const group of precisePoleGroups) {
-              const anchorMatrix = group.userData && group.userData.bpAnchorMatrix;
-              if (!anchorMatrix) continue;
-              group.visible = true;
-              customLayer.camera.projectionMatrix.copy(projection).multiply(anchorMatrix);
-              try {
-                customLayer.renderer.resetState && customLayer.renderer.resetState();
-                if (customLayer.renderer.state && customLayer.renderer.state.reset) customLayer.renderer.state.reset();
-              } catch (_) {}
-              try { customLayer.renderer.render(customLayer.scene, customLayer.camera); }
-              finally { group.visible = false; }
-            }
+            for (const group of precisePoleGroups) drawAnchoredGroup(group);
+            for (const group of preciseWireGroups) drawAnchoredGroup(group);
           } finally {
             dataGroup.visible = restoreVisibility;
             customLayer.camera.projectionMatrix.copy(projection);
@@ -688,6 +767,8 @@ export function initUtilityInfrastructure(target) {
         try { customLayer.renderer && customLayer.renderer.dispose(); } catch (_) {}
         precisePoleGroups = [];
         standardPoleMeshes = [];
+        preciseWireGroups = [];
+        standardWireMeshes = [];
         renderer = null; scene = null; dataGroup = null;
         if (customLayer) {
           customLayer.renderer = null; customLayer.scene = null; customLayer.camera = null;
@@ -981,6 +1062,44 @@ export function initUtilityInfrastructure(target) {
     return overpassRequestPromise;
   }
 
+  function collectResidentialServiceDrops(supports) {
+    if (Number(map.getZoom && map.getZoom() || 0) < 15.5 ||
+        !map.getSource || !map.getSource('bpBuildings')) return [];
+    const powerSupports = (supports || []).filter(support => support.network === 'power');
+    if (!powerSupports.length) return [];
+    let sourceBuildings = [];
+    try { sourceBuildings = map.querySourceFeatures('bpBuildings', { sourceLayer: 'buildings' }) || []; }
+    catch (_) { return []; }
+    const buildings = uniqueFeatures(sourceBuildings.filter(feature =>
+      isResidentialBuilding(feature) && polygonRingsOf(feature).length), buildingFeatureKey);
+    const center = map.getCenter && map.getCenter();
+    const drops = [];
+    for (const building of buildings) {
+      const footprintCenter = buildingCenterOf(building);
+      if (!footprintCenter) continue;
+      let nearest = null, centerDistance = SERVICE_DROP_MAX_DISTANCE_M + 28;
+      for (const support of powerSupports) {
+        const distance = haversineMetres(support.coordinate, footprintCenter);
+        if (distance < centerDistance) { nearest = support; centerDistance = distance; }
+      }
+      if (!nearest) continue;
+      const boundary = nearestBuildingBoundaryPoint(nearest.coordinate, building);
+      if (!boundary || boundary.distance < 4 || boundary.distance > SERVICE_DROP_MAX_DISTANCE_M) continue;
+      const properties = building.properties || {};
+      const measuredBuildingHeight = measuredHeight(properties, 5.5);
+      const levels = Math.max(1, Math.min(8, Number(properties['building:levels'] || properties.levels) || 1));
+      const endHeight = measuredBuildingHeight.measured
+        ? Math.max(3.4, Math.min(7.2, measuredBuildingHeight.metres * .58))
+        : Math.max(3.6, Math.min(6.2, 3.8 + (levels - 1) * 1.15));
+      const key = nearest.key + '>' + buildingFeatureKey(building);
+      drops.push({ key, support: nearest, coordinate: boundary.coordinate,
+        distance: boundary.distance, endHeight, centerDistance,
+        viewDistance: center ? haversineMetres(footprintCenter, [center.lng, center.lat]) : 0 });
+    }
+    drops.sort((a, b) => a.viewDistance - b.viewDistance || a.distance - b.distance);
+    return drops.slice(0, MAX_SERVICE_DROPS);
+  }
+
   function collectAssets() {
     // OpenInfraMap's power_tower layer contains both poles and lattice towers.
     // Only the single-pole type enters this renderer; transmission remains yellow elsewhere.
@@ -1102,6 +1221,9 @@ export function initUtilityInfrastructure(target) {
         .slice(0, MAX_LINE_FEATURES),
       supports, 'telecom', 12, 150, MAX_SPANS
     );
+    // Residential building footprints are source-backed; the short service-drop
+    // links are an inferred display connection, not a surveyed utility lateral.
+    const serviceDrops = collectResidentialServiceDrops(supports);
     const masts = mastFeatures.map(feature => {
       const coordinate = pointOf(feature);
       if (!coordinate) return null;
@@ -1130,7 +1252,7 @@ export function initUtilityInfrastructure(target) {
     const guyWires = overpassFeatures.filter(feature => pathsOf(feature).length &&
       String(feature.properties && feature.properties.man_made || '') === 'guy_wire');
     return {
-      supports, powerSpans, telecomSpans, transformers, switches, cabinets, masts, guyWires,
+      supports, powerSpans, telecomSpans, serviceDrops, transformers, switches, cabinets, masts, guyWires,
       lineCount: lineFeatures.length,
       municipalPoleCount: supports.filter(s => s.municipal).length,
       telecomPoleCount: supports.filter(s => s.network === 'telecom').length
@@ -1257,10 +1379,12 @@ export function initUtilityInfrastructure(target) {
   }
 
   function getWireBatch(batches, coordinate) {
-    const tile = wireTileAnchor(coordinate);
+    // Wire vertices share the same zoom-16 local ground frame as the close-up poles.
+    const tile = wireTileAnchor(coordinate, 16);
     let batch = batches.get(tile.key);
     if (!batch) {
-      batch = { anchor: tile.coordinate, ground: localTerrainAt(tile.coordinate), power: [], telecom: [], powerSpans: 0, telecomSpans: 0 };
+      batch = { anchor: tile.coordinate, ground: localTerrainAt(tile.coordinate),
+        power: [], telecom: [], service: [], powerSpans: 0, telecomSpans: 0, serviceDrops: 0 };
       batches.set(tile.key, batch);
     }
     return batch;
@@ -1314,18 +1438,27 @@ export function initUtilityInfrastructure(target) {
   }
 
   function flushWireBatches(batches) {
-    let powerCount = 0, telecomCount = 0, meshCount = 0;
+    let powerCount = 0, telecomCount = 0, serviceDropCount = 0, meshCount = 0;
     for (const batch of batches.values()) {
       const matrix = modelMatrixFor(map, THREE, batch.anchor, batch.ground);
       if (!matrix) continue;
+      const preciseGroup = new THREE.Group();
+      preciseGroup.name = 'BridgePoint close-zoom ground-anchored utility conductors';
+      preciseGroup.matrixAutoUpdate = false;
+      preciseGroup.matrix.identity();
+      preciseGroup.visible = false;
+      preciseGroup.userData.bpAnchorMatrix = matrix.clone();
       for (const [kind, vertices, material] of [
         ['power', batch.power, distributionCableMaterial],
-        ['telecom', batch.telecom, telecomCableMaterial]
+        ['telecom', batch.telecom, telecomCableMaterial],
+        ['service', batch.service, distributionCableMaterial]
       ]) {
         if (!vertices.length) continue;
         const geometry = new THREE.BufferGeometry();
         geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
         geometry.computeVertexNormals();
+        // The ordinary world-matrix mesh serves zoomed-out views. The paired mesh
+        // reuses its geometry in the CPU-anchored precision pass for street zoom.
         const mesh = new THREE.Mesh(geometry, material);
         mesh.matrix.copy(matrix);
         mesh.matrixAutoUpdate = false;
@@ -1333,12 +1466,65 @@ export function initUtilityInfrastructure(target) {
         mesh.renderOrder = 920;
         mesh.userData.bpOwnedGeometry = true;
         dataGroup.add(mesh);
+        standardWireMeshes.push(mesh);
+        const preciseMesh = new THREE.Mesh(geometry, material);
+        preciseMesh.matrixAutoUpdate = false;
+        preciseMesh.matrix.identity();
+        preciseMesh.frustumCulled = false;
+        preciseMesh.renderOrder = 920;
+        preciseMesh.userData.bpOwnedGeometry = false;
+        preciseGroup.add(preciseMesh);
         meshCount++;
         if (kind === 'telecom') telecomCount += batch.telecomSpans;
+        else if (kind === 'service') serviceDropCount += batch.serviceDrops;
         else powerCount += batch.powerSpans;
       }
+      if (preciseGroup.children.length) {
+        scene.add(preciseGroup);
+        preciseWireGroups.push(preciseGroup);
+      }
     }
-    return { powerCount, telecomCount, meshCount };
+    return { powerCount, telecomCount, serviceDropCount, meshCount };
+  }
+
+  function appendServiceDrop(batch, drop) {
+    const support = drop && drop.support;
+    if (!support || !Array.isArray(drop.coordinate)) return false;
+    const poleGround = localTerrainAt(support.coordinate);
+    const buildingGround = localTerrainAt(drop.coordinate);
+    const offset = localEastNorth(support.coordinate, drop.coordinate);
+    const groupOffset = localEastNorth(batch.anchor, support.coordinate);
+    const distance = Math.hypot(offset[0], offset[1]);
+    if (!Number.isFinite(distance) || distance < 4 || distance > SERVICE_DROP_MAX_DISTANCE_M) return false;
+    const sag = Math.min(1.15, Math.max(.24, distance * .02));
+    let catenaryA = distance * distance / Math.max(.1, 8 * sag);
+    for (let iteration = 0; iteration < 6; iteration++) {
+      const ratio = distance / (2 * catenaryA);
+      const residual = catenaryA * (Math.cosh(ratio) - 1) - sag;
+      const derivative = Math.cosh(ratio) - 1 - ratio * Math.sinh(ratio);
+      if (!Number.isFinite(derivative) || Math.abs(derivative) < 1e-12) break;
+      catenaryA = Math.max(.05, catenaryA - residual / derivative);
+    }
+    const catenaryEnd = Math.cosh(distance / (2 * catenaryA));
+    const heightA = poleGround - batch.ground + Math.max(5.6, Math.min(8.6, support.height * .72));
+    const heightB = buildingGround - batch.ground + Math.max(3.4, Math.min(7.2, Number(drop.endHeight) || 4.6));
+    const bearing = Math.atan2(offset[0], offset[1]);
+    const acrossEast = Math.cos(bearing), acrossNorth = -Math.sin(bearing);
+    const radius = wireRadiusFor(support.coordinate, .018);
+    let previous = null;
+    const steps = Math.min(12, Math.max(5, Math.ceil(distance / 4)));
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const east = groupOffset[0] + offset[0] * t;
+      const north = groupOffset[1] + offset[1] * t;
+      const linearHeight = heightA + (heightB - heightA) * t;
+      const sagDrop = catenaryA * (Math.cosh((t - .5) * distance / catenaryA) - catenaryEnd);
+      const current = new THREE.Vector3(east + acrossEast * .035, linearHeight + sagDrop, -north - acrossNorth * .035);
+      if (previous) pushBeam(batch.service, previous, current, radius, THREE, 6);
+      previous = current;
+    }
+    batch.serviceDrops++;
+    return true;
   }
 
   function createGuyWireMesh(feature, supports) {
@@ -1395,7 +1581,7 @@ export function initUtilityInfrastructure(target) {
     return [
       Math.round(Number(zoom) * 4) / 4, groundCacheRevision,
       ids(assets.supports, pointId), ids(assets.powerSpans, spanId),
-      ids(assets.telecomSpans, spanId), ids(assets.transformers, pointId),
+      ids(assets.telecomSpans, spanId), ids(assets.serviceDrops, drop => drop.key), ids(assets.transformers, pointId),
       ids(assets.switches, pointId), ids(assets.cabinets, pointId),
       ids(assets.masts, pointId), ids(assets.guyWires, feature => pathFeatureKey(feature, 'guy'))
     ].join('|');
@@ -1419,6 +1605,7 @@ export function initUtilityInfrastructure(target) {
       supports,
       powerSpans: incoming.powerSpans.filter(span => supportSet.has(span.a) && supportSet.has(span.b)),
       telecomSpans: incoming.telecomSpans.filter(span => supportSet.has(span.a) && supportSet.has(span.b)),
+      serviceDrops: (incoming.serviceDrops || []).filter(drop => supportSet.has(drop.support)),
       transformers: incoming.transformers.filter(item => hasGroundElevation(item.coordinate) ||
         (nearestSupport(item.coordinate)?.distance ?? Infinity) <= 9),
       switches: incoming.switches.filter(item => hasGroundElevation(item.coordinate) ||
@@ -1620,9 +1807,11 @@ export function initUtilityInfrastructure(target) {
     const wireBatches = new Map();
     for (const span of assets.powerSpans) appendWireSpan(getWireBatch(wireBatches, span.a.coordinate), span, 'power');
     for (const span of assets.telecomSpans) appendWireSpan(getWireBatch(wireBatches, span.a.coordinate), span, 'telecom');
+    for (const drop of assets.serviceDrops) appendServiceDrop(getWireBatch(wireBatches, drop.support.coordinate), drop);
     const wireStats = flushWireBatches(wireBatches);
     const powerSpanCount = wireStats.powerCount;
     const telecomSpanCount = wireStats.telecomCount;
+    const serviceDropCount = wireStats.serviceDropCount;
     let guyWireCount = 0;
     for (const feature of assets.guyWires.slice(0, IS_SMALL_DEVICE ? 24 : 60)) {
       for (const mesh of createGuyWireMesh(feature, supports)) {
@@ -1633,6 +1822,7 @@ export function initUtilityInfrastructure(target) {
 
     state.poles = poleCount; state.towers = 0;
     state.powerSpans = powerSpanCount; state.telecomSpans = telecomSpanCount;
+    state.serviceDrops = serviceDropCount;
     state.transformers = transformerCount; state.switches = switchCount;
     state.cabinets = cabinetCount + spliceCount; state.telecomMasts = mastCount;
     state.measuredHeights = measured; state.estimatedHeights = estimated;
@@ -1642,7 +1832,7 @@ export function initUtilityInfrastructure(target) {
     state.updatedAt = Date.now();
     say('Mapped local utility assets: ' + poleCount + ' single poles (including ' + state.municipalPoleCount +
       ' municipal inventory records), ' + powerSpanCount + ' distribution-wire spans, ' +
-      telecomSpanCount + ' telecom-wire spans, ' + transformerCount + ' transformers, ' +
+      telecomSpanCount + ' telecom-wire spans, ' + serviceDropCount + ' residential service drops, ' + transformerCount + ' transformers, ' +
       switchCount + ' switches, ' + (cabinetCount + spliceCount) + ' cabinets/splice boxes, ' +
       guyWireCount + ' guy wires. Towers rendered by this layer: 0. Pole heights measured: ' +
       measured + '; estimated: ' + estimated + '.');
@@ -1762,7 +1952,7 @@ export function initUtilityInfrastructure(target) {
   state.snapshot = () => ({
     version: VERSION, enabled: state.enabled, ready: state.ready, status: state.status,
     poles: state.poles, towers: state.towers, powerSpans: state.powerSpans,
-    telecomSpans: state.telecomSpans, transformers: state.transformers,
+    telecomSpans: state.telecomSpans, serviceDrops: state.serviceDrops, transformers: state.transformers,
     switches: state.switches, cabinets: state.cabinets, telecomMasts: state.telecomMasts,
     municipalPoleCount: state.municipalPoleCount, telecomPoleCount: state.telecomPoleCount,
     guyWireCount: state.guyWireCount, groundSamples: groundElevationCache.size,
