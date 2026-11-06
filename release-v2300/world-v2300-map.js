@@ -688,7 +688,7 @@ export function initWorld(options={}){
      if(!layer){layers[id]={present:false,visibility:'missing'};continue}
      const before=map.getLayoutProperty(id,'visibility')||'visible';
      const targetVisibility=blenderWorldEnabled?'none':'visible';
-     const effectiveVisibility=underwaterDiveActive?'none':targetVisibility;
+     const effectiveVisibility=targetVisibility;
      if(before!==effectiveVisibility){
       map.setLayoutProperty(id,'visibility',effectiveVisibility);
       (effectiveVisibility==='none'?suppressed:restored).push(id);
