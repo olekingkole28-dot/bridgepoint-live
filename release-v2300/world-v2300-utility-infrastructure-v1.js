@@ -1192,10 +1192,10 @@ export function initUtilityInfrastructure(target) {
   }
 
   function collectResidentialServiceDrops(supports) {
-    if (Number(map.getZoom && map.getZoom() || 0) < 15.5 ||
+    if (Number(map.getZoom && map.getZoom() || 0) < MIN_ZOOM ||
         !map.getSource || !map.getSource('bpBuildings')) return [];
-    const powerSupports = (supports || []).filter(support => support.network === 'power');
-    if (!powerSupports.length) return [];
+    const serviceSupports = (supports || []).filter(support => support.network === 'power' || support.network === 'telecom');
+    if (!serviceSupports.length) return [];
     let sourceBuildings = [];
     try { sourceBuildings = map.querySourceFeatures('bpBuildings', { sourceLayer: 'buildings' }) || []; }
     catch (_) { return []; }
@@ -1207,7 +1207,7 @@ export function initUtilityInfrastructure(target) {
       const footprintCenter = buildingCenterOf(building);
       if (!footprintCenter) continue;
       let nearest = null, centerDistance = SERVICE_DROP_MAX_DISTANCE_M + 28;
-      for (const support of powerSupports) {
+      for (const support of serviceSupports) {
         const distance = haversineMetres(support.coordinate, footprintCenter);
         if (distance < centerDistance) { nearest = support; centerDistance = distance; }
       }
@@ -1623,7 +1623,7 @@ export function initUtilityInfrastructure(target) {
   }
 
   function appendGroundLead(batch, support) {
-    if (!support || support.network !== 'power') return false;
+    if (!support) return false;
     const ground = localTerrainAt(support.coordinate);
     const offset = localEastNorth(batch.anchor, support.coordinate);
     const sourceHeight = Number(support.height);
