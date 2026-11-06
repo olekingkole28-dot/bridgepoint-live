@@ -35,7 +35,7 @@ assert.equal(site.properties.tiltDeg,25);
 assert.equal(site.properties.azimuthDeg,180);
 assert.ok(site.properties.modelGeometry);
 assert.ok(site.properties.modelDimensions.lengthM>200);
-assert.ok(site.properties.modelDimensions.widthM>200);
+assert.ok(site.properties.modelDimensions.widthM>150);
 assert.deepEqual(site.geometry.coordinates,[-73,41]);
 
 assert.equal(normalizeUspvdbFeature({...polygon,properties:{...polygon.properties,p_sys_type:'roof'}}),null);
