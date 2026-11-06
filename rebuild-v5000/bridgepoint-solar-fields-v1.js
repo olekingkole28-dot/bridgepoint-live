@@ -354,12 +354,14 @@ export function solarFieldPopupHtml(feature) {
     ['Commissioned',p.year?String(p.year):'Not reported'],
     [p.source==='USPVDB'?'AC capacity':'Reported electrical output',capacity?formatNumber(capacity,2)+' MW':'Not reported'],
     ...(p.source==='USPVDB'?[['DC capacity',positive(p.capacityDcMW)?formatNumber(p.capacityDcMW,2)+' MW':'Not reported']]:[]),
-    ['Array area',area?formatNumber(area,0)+' m² ('+formatNumber(area/4046.856,2)+' acres)':'Not reported'],
-    ['Boundary dimensions',dims?formatNumber(dims.lengthM,1)+' × '+formatNumber(dims.widthM,1)+' m (polygon bounds)':'No facility polygon available'],
+    ['Array area',area?formatNumber(area,0)+' m² ('+formatNumber(area/4046.856,2)+' acres) · '+(p.areaSource||'source/calculated'):'Not reported'],
+    ['Mapped boundary dimensions',dims?formatNumber(dims.lengthM,1)+' × '+formatNumber(dims.widthM,1)+' m (polygon bounding dimensions)':'No facility polygon available'],
     ['Panel tilt',finite(p.tiltDeg)!==null?formatNumber(p.tiltDeg,1)+'°':'Not reported'],
     ['Panel azimuth',finite(p.azimuthDeg)!==null?formatNumber(p.azimuthDeg,1)+'°':'Not reported'],
-    ['Panel/rack height','Not source-reported'],
-    ['3D model rack height','Illustrative geometry only; actual height not source-reported'],
+    ['Source-measured panel/rack height','Not reported'],
+    ['3D table footprint','14 × 3.8 m · illustrative rack/table geometry, not individual module dimensions'],
+    ['3D rack center height','2.05 m above modeled ground · illustrative visual dimension, not surveyed'],
+
     ['Position',position],
     ['Location quality',p.locationAccuracy||'Not reported'],
     ['USPVDB digitization confidence',confidence],
@@ -377,7 +379,7 @@ export function solarFieldPopupHtml(feature) {
     '<h3>'+safe(p.name||'Solar field')+'</h3>'+
     '<div class="bp-solar-grid-v1">'+rows.map(r=>'<div><span>'+safe(r[0])+'</span><b>'+safe(r[1])+'</b></div>').join('')+'</div>'+
     '<p class="bp-solar-note-v1">'+safe(provenance)+'</p>'+
-    '<p class="bp-solar-note-v1">Exact panel-module dimensions and surveyed panel height are not supplied by these sources. The 3D rack geometry is a consistent visual representation, anchored to the mapped field boundary.</p>'+
+    '<p class="bp-solar-note-v1">The measured facility boundary, source coordinates, area, capacity and orientation are shown where the source reports them. Individual panel-module sizes and actual rack heights are not published in these records; the 3D table geometry is a consistently scaled visual representation anchored to the mapped ground boundary.</p>'+
     '<div class="bp-solar-source-v1">Source: '+source+'</div>'+
     '<div class="bp-solar-coords-v1">'+safe(p.sourceName||'')+' · '+safe(p.recordId||'')+'</div>'+
     '</div>';
