@@ -275,7 +275,7 @@ async function fetchWpdxWells(limit=10000,bbox=null) {
   const params={
     '$limit':limit,'$order':'row_id ASC',
     '$where':bbox
-      ?'('+wpdxWhere()+') AND within_box(geocoded_column,'+[bbox[3],bbox[0],bbox[1],bbox[2]].join(',')+')'
+      ?'('+wpdxWhere()+') AND within_box(geocoded_column,'+[bbox[1],bbox[0],bbox[3],bbox[2]].join(',')+')'
       :wpdxWhere()
   };
   const rows=await requestJson(appendParams(WPDX_ITEMS,params),45000);
