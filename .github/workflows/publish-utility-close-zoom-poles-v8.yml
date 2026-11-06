@@ -1,10 +1,10 @@
 name: Publish BridgePoint Close-Zoom Utility Poles V8
 
 on:
-  push:
+  workflow_run:
+    workflows: ["Deploy BridgePoint Intelligence V5000 Rebuild"]
+    types: [completed]
     branches: [main]
-    paths:
-      - '.github/workflows/publish-utility-close-zoom-poles-v8.yml'
 
 permissions:
   actions: read
@@ -23,13 +23,21 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    env:
-      SOURCE_BRANCH: hotfix/utility-close-zoom-poles-v8
-      SOURCE_REF: refs/remotes/origin/utility-close-zoom-poles-v8
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download the latest verified bridge-preserving V7 Pages artifact
+      - name: Download the successful V5000 production artifact
+        if: github.event.workflow_run.conclusion == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.event.workflow_run.run_attempt }}
+          run-id: ${{ github.event.workflow_run.id }}
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/bp-pages-baseline
+
+      - name: Fall back to the last verified V7 production artifact when the full rebuild fails
+        if: github.event.workflow_run.conclusion != 'success'
         uses: actions/download-artifact@v4
         with:
           name: bridgepoint-utility-solid-poles-v7
@@ -38,14 +46,13 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ${{ runner.temp }}/bp-pages-baseline
 
-      - name: Fetch and test the isolated close-zoom renderer V8
+      - name: Validate the merged close-zoom renderer V8
         shell: bash
         run: |
           set -euo pipefail
-          git fetch origin "refs/heads/$SOURCE_BRANCH:$SOURCE_REF" --depth=1
           mkdir -p "$RUNNER_TEMP/utility-v8-source/release-v2300" "$RUNNER_TEMP/utility-v8-source/tests"
-          git show "$SOURCE_REF:release-v2300/world-v2300-utility-infrastructure-v1.js" > "$RUNNER_TEMP/utility-v8-source/release-v2300/world-v2300-utility-infrastructure-v1.js"
-          git show "$SOURCE_REF:tests/utility-infrastructure-renderer-v5.test.mjs" > "$RUNNER_TEMP/utility-v8-source/tests/utility-infrastructure-renderer-v5.test.mjs"
+          cp release-v2300/world-v2300-utility-infrastructure-v1.js "$RUNNER_TEMP/utility-v8-source/release-v2300/world-v2300-utility-infrastructure-v1.js"
+          cp tests/utility-infrastructure-renderer-v5.test.mjs "$RUNNER_TEMP/utility-v8-source/tests/utility-infrastructure-renderer-v5.test.mjs"
           node --input-type=module --check < "$RUNNER_TEMP/utility-v8-source/release-v2300/world-v2300-utility-infrastructure-v1.js"
           (cd "$RUNNER_TEMP/utility-v8-source" && node tests/utility-infrastructure-renderer-v5.test.mjs)
           grep -Fq 'const VERSION = 8;' "$RUNNER_TEMP/utility-v8-source/release-v2300/world-v2300-utility-infrastructure-v1.js"
@@ -65,8 +72,6 @@ jobs:
           for f in index.html app/index.html landing.js app.js world-v2300-map.js app/world-v2300-map.js bridgepoint-ct-nbi-2026.json sw.js styles.css world-v2300-utility-infrastructure-v1.js app/world-v2300-utility-infrastructure-v1.js; do
             test -s "$SITE/$f" || { echo "Missing verified production asset: $f"; exit 1; }
           done
-          grep -Fq 'world-v2300-utility-infrastructure-v1.js?v=8-solid-poles-v7' "$SITE/landing.js"
-          grep -Fq 'world-v2300-utility-infrastructure-v1.js?v=8-solid-poles-v7' "$SITE/app.js"
           grep -Fq 'function bridgePolygonAxis(' "$SITE/world-v2300-map.js"
           grep -Fq 'ESTIMATED_STANDARD_PROFILE' "$SITE/world-v2300-map.js"
           python3 - <<'PY'
@@ -97,20 +102,25 @@ jobs:
           for rel in ("landing.js","app.js"):
             path=site/rel
             data=path.read_text(encoding="utf-8")
-            old="world-v2300-utility-infrastructure-v1.js?v=8-solid-poles-v7"
-            if data.count(old)!=1:
-              raise SystemExit(f"{rel}: expected one V7 utility import, found {data.count(old)}")
-            path.write_text(data.replace(old,"world-v2300-utility-infrastructure-v1.js?v=9-close-zoom-poles-v8"),encoding="utf-8")
+            old_candidates=[
+              "world-v2300-utility-infrastructure-v1.js?v=8-solid-poles-v7",
+              "world-v2300-utility-infrastructure-v1.js?v=6-solid-utility",
+            ]
+            matches=[old for old in old_candidates if data.count(old)==1]
+            if len(matches)!=1 or sum(data.count(old) for old in old_candidates)!=1:
+              raise SystemExit(f"{rel}: expected exactly one known utility import, found {[data.count(old) for old in old_candidates]}")
+            path.write_text(data.replace(matches[0],"world-v2300-utility-infrastructure-v1.js?v=9-close-zoom-poles-v8"),encoding="utf-8")
 
-          for rel,old,new in (
-            ("index.html","landing.js?v=6241-utility-solid-v7","landing.js?v=6242-close-zoom-poles-v8"),
-            ("app/index.html","app.js?v=6241-utility-solid-v7","app.js?v=6242-close-zoom-poles-v8"),
+          for rel,old_candidates,new in (
+            ("index.html",["landing.js?v=6241-utility-solid-v7","landing.js?v=6237-pc-auth"],"landing.js?v=6242-close-zoom-poles-v8"),
+            ("app/index.html",["app.js?v=6241-utility-solid-v7","app.js?v=6237-pc-auth"],"app.js?v=6242-close-zoom-poles-v8"),
           ):
             path=site/rel
             data=path.read_text(encoding="utf-8")
-            if data.count(old)!=1:
-              raise SystemExit(f"{rel}: expected one verified V7 loader {old}")
-            path.write_text(data.replace(old,new),encoding="utf-8")
+            matches=[old for old in old_candidates if data.count(old)==1]
+            if len(matches)!=1 or sum(data.count(old) for old in old_candidates)!=1:
+              raise SystemExit(f"{rel}: expected exactly one known current loader, found {[data.count(old) for old in old_candidates]}")
+            path.write_text(data.replace(matches[0],new),encoding="utf-8")
 
           before=json.loads((Path(os.environ["RUNNER_TEMP"])/"bp-v7-file-hashes.json").read_text())
           after={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
