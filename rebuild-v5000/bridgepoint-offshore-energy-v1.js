@@ -4,7 +4,7 @@
  * global OpenStreetMap offshore structures, and HIFLD/BSEE provenance links.
  * Approximate model dimensions/depths are explicitly identified as estimates.
  */
-const VERSION = 1;
+const VERSION = 2;
 const MAP_STATES = new WeakMap();
 let threePromise = null;
 const THREE_URL = '/vendor/three.module.js?v=169-local';
@@ -36,6 +36,15 @@ const HIFLD_SOURCE = 'https://catalog.data.gov/dataset/oil-and-natural-gas-platf
 const HIFLD_WELLS_SOURCE = 'https://catalog.data.gov/dataset/oil-and-natural-gas-wells';
 const BSEE_SOURCE = 'https://www.data.bsee.gov/Main/Platform.aspx';
 const OSM_SOURCE = 'https://www.openstreetmap.org/copyright';
+export function offshoreIconImageData(ctx) {
+  if (!ctx || typeof ctx.getImageData !== 'function') throw new TypeError('Offshore icon canvas context unavailable');
+  return ctx.getImageData(0, 0, 96, 96);
+}
+export function overpassRequestUrl(endpoint, query) {
+  const url = new URL(endpoint);
+  url.searchParams.set('data', String(query || ''));
+  return url.toString();
+}
 
 function finite(value, fallback) {
   const n = Number(value);
@@ -276,9 +285,8 @@ async function fetchOverpass(query) {
   for(const endpoint of endpoints) {
     const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),42000);
     try {
-      const r=await fetch(endpoint,{method:'POST',mode:'cors',credentials:'omit',cache:'no-store',
-        headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},
-        body:'data='+encodeURIComponent(query),signal:ctl.signal});
+      const url=overpassRequestUrl(endpoint,query);
+      const r=await fetch(url,{method:'GET',mode:'cors',credentials:'omit',cache:'no-store',signal:ctl.signal});
       if(!r.ok)throw new Error('Overpass HTTP '+r.status);
       const d=await r.json();
       if(!Array.isArray(d.elements))throw new Error('Overpass returned no elements');
@@ -332,11 +340,11 @@ function makeIcon(kind) {
     ctx.moveTo(-24,30);ctx.lineTo(24,30);ctx.stroke();
     ctx.fillStyle='#fff3c4';ctx.beginPath();ctx.arc(0,-32,5,0,TAU);ctx.fill();
   }
-  ctx.restore();return canvas;
+  ctx.restore();return offshoreIconImageData(ctx);
 }
 function addIconImage(map,id,kind) {
   if(map.hasImage?.(id))return;
-  const canvas=makeIcon(kind);map.addImage(id,canvas,{pixelRatio:2});
+  const imageData=makeIcon(kind);map.addImage(id,imageData,{pixelRatio:2});
 }
 function setVisibility(state,on) {
   const map=state.map;
