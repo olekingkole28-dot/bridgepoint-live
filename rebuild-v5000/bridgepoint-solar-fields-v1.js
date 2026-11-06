@@ -518,19 +518,37 @@ function installModelLayer(state) {
     render(gl,args) {
       if (!state.enabled||!state.renderer||!state.scene||!state.camera) return;
       const raw=args&&(args.defaultProjectionData?.mainMatrix||args.modelViewProjectionMatrix);
-      if (!raw||raw.length<16||Number(map.getZoom()||0)<MIN_MODEL_ZOOM) return;
+      if (!raw||raw.length<16) return;
       const projection=new THREE.Matrix4().fromArray(raw);
+      const zoom=Number(map.getZoom()||0);
       for (const item of state.models) item.root.visible=false;
-      for (const item of state.models) {
-        item.root.visible=true;
-        const matrix=modelMatrixFor(map,THREE,item.coordinate,item.groundElevationM);
-        if (matrix) {
-          state.camera.projectionMatrix.copy(projection).multiply(matrix);
-          try {state.renderer.resetState();state.renderer.render(state.scene,state.camera);}
-          catch(error) {if(!state.renderWarned){state.renderWarned=true;console.warn('BridgePoint solar field render',error)}}
+      if(zoom>=MIN_MODEL_ZOOM)for (const item of state.models) {
+        if(item.groundElevationM===null) {
+          try {
+            const terrain=map.queryTerrainElevation&&
+              map.queryTerrainElevation({lng:item.coordinate[0],lat:item.coordinate[1]},{exaggerated:false});
+            if(Number.isFinite(terrain))item.groundElevationM=terrain;
+          } catch(_) {}
         }
-        item.root.visible=false;
+        const altitude=Number.isFinite(item.groundElevationM)?item.groundElevationM:0;
+        const matrix=modelMatrixFor(map,THREE,item.coordinate,altitude);
+        if(!matrix)continue;
+        item.root.visible=true;
+        state.camera.projectionMatrix.copy(projection).multiply(matrix);
+        try {
+          state.renderer.resetState();
+          state.renderer.render(state.scene,state.camera);
+        } catch(error) {
+          if(!state.renderWarned){state.renderWarned=true;console.warn('BridgePoint solar field render',error);}
+        } finally {item.root.visible=false;}
       }
+    },
+    onRemove() {
+      try {if(state.renderer)state.renderer.dispose();} catch(_) {}
+      for(const item of state.models)disposeObject(item.root);
+      state.models=[];state.modelSignature='';
+      state.renderer=null;state.camera=null;state.scene=null;
+      state.stats.layerReady=false;state.layerInstalling=false;
     }
   };
   try {map.addLayer(layer);state.stats.layerReady=!!map.getLayer(MODEL_ID);}
@@ -649,10 +667,10 @@ function addSolarFieldModel(THREE,feature,map) {
 function groundElevationFor(map,feature) {
   try {
     const coordinate=feature&&feature.geometry&&feature.geometry.coordinates;
-    const elevation=coordinate&&typeof map.queryTerrainElevation==='function'
-      ?map.queryTerrainElevation(coordinate,{exaggerated:false}):null;
-    return Number.isFinite(Number(elevation))?Number(elevation):0;
-  } catch(_) {return 0;}
+    if(!coordinate||typeof map.queryTerrainElevation!=='function')return null;
+    const elevation=map.queryTerrainElevation({lng:coordinate[0],lat:coordinate[1]},{exaggerated:false});
+    return Number.isFinite(elevation)?elevation:null;
+  } catch(_) {return null;}
 }
 function disposeObject(root) {
   if (!root) return;
