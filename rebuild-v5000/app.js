@@ -224,6 +224,10 @@ async function bootMap(){
  void import('./bridgepoint-wind-turbines-v1.js?v=1-uswtdb-3d-ground-anchored')
   .then(m=>{window.__BP_WIND_TURBINES_V1__=m.initWindTurbinesRenderer(world)})
   .catch(e=>console.warn('BridgePoint USGS wind turbine renderer unavailable',e));
+ // Utility-scale solar fields are isolated and opt-in; leave the shared ocean and other globe layers untouched.
+ void import('./bridgepoint-solar-fields-v1.js?v=1-global-solar-fields')
+  .then(m=>{window.__BP_SOLAR_FIELDS_V1__=m.initSolarFieldsRenderer(world)})
+  .catch(e=>console.warn('BridgePoint global solar fields renderer unavailable',e));
 
 
  // Initialize optional map overlays only after the first core map load. Serializing their
