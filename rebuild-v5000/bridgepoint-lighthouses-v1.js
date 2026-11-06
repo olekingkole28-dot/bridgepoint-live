@@ -15,7 +15,7 @@ const MOBILE = typeof window !== 'undefined' &&
   ((Number(window.innerWidth) || 1024) <= 820 ||
    (typeof navigator !== 'undefined' && Number(navigator.maxTouchPoints) > 0));
 const MAX_GLOBAL_FEATURES = 10000;
-const MAX_RENDERED_MODELS = MOBILE ? 18 : 64;
+const MAX_RENDERED_MODELS = MOBILE ? 8 : 24;
 const RAD = Math.PI / 180;
 const TAU = Math.PI * 2;
 
@@ -37,6 +37,19 @@ export function parseLengthMetres(value) {
   const unit = String(match[2] || 'm').toLowerCase();
   const metres = ['ft','feet','foot',"'"].includes(unit) ? amount * 0.3048 : amount;
   return metres > 0 && metres <= 500 ? metres : null;
+}
+
+function parseElevationMetres(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const match = String(value).trim().replace(',', '.')
+    .match(/^(-?[0-9]+(?:\.[0-9]+)?)\s*(m|metres?|meters?|ft|feet|foot)?$/i);
+  if (!match) return null;
+  const amount = Number(match[1]);
+  if (!Number.isFinite(amount)) return null;
+  const unit = String(match[2] || 'm').toLowerCase();
+  const metres = unit === 'ft' || unit === 'feet' || unit === 'foot'
+    ? amount * 0.3048 : amount;
+  return metres >= -500 && metres <= 9000 ? metres : null;
 }
 
 function firstLength(tags, keys) {
@@ -103,7 +116,7 @@ export function normalizeLighthouseElement(element) {
   const lightColor = normalizeColor(
     tags['seamark:light:colour'] || tags['light:colour'] || tags['seamark:light:color']
   ) || '#ffe6a4';
-  const elevation = parseLengthMetres(tags.ele);
+  const elevation = parseElevationMetres(tags.ele);
   const id = String(element.type || 'osm') + '/' +
     String(element.id ?? coordinate[0].toFixed(6) + '/' + coordinate[1].toFixed(6));
   const palette = colorPalette(tags);
@@ -128,7 +141,7 @@ export function lighthouseProfile(properties = {}) {
   const d = Number(properties.diameterM);
   return {
     heightM: Number.isFinite(h) && h >= 3 && h <= 180 ? h : 22,
-    diameterM: Number.isFinite(d) && d >= 2 && d <= 50 ? d : 5.2,
+    diameterM: Number.isFinite(d) && d >= 2 && d <= 50 ? d : 5.28,
     measuredHeight: properties.measuredHeight === true,
     measuredDiameter: properties.measuredDiameter === true,
     palette: Array.isArray(properties.palette) && properties.palette.length
@@ -335,7 +348,7 @@ function createLighthouseModel(THREE, feature) {
   root.add(beamGroup);
   return {
     root, beamGroup, lampMaterial, coordinate: feature.geometry.coordinates,
-    groundElevationM: Number.isFinite(Number(p.groundElevationM)) ? Number(p.groundElevationM) : null,
+    groundElevationM: p.groundElevationM !== null && p.groundElevationM !== undefined && Number.isFinite(Number(p.groundElevationM)) ? Number(p.groundElevationM) : null,
     periodSec: profile.periodSec, night: false, nightCheckedAt: 0
   };
 }
@@ -413,7 +426,7 @@ function mergeElements(state, elements) {
 }
 
 function addMarkerLayer(map) {
-  if (!map.getSource(SOURCE_ID)) map.addSource(SOURCE_ID, { type: 'geojson', data: EMPTY, tolerance: 0.35 });
+  if (!map.getSource(SOURCE_ID)) map.addSource(SOURCE_ID, { type: 'geojson', data: EMPTY, tolerance: 0.35, attribution: '© OpenStreetMap contributors · Lighthouse locations (ODbL)' });
   if (!map.getLayer(MARKER_LAYER_ID)) {
     const style = map.getStyle && map.getStyle();
     const before = style && Array.isArray(style.layers)
@@ -556,7 +569,12 @@ function installModelLayer(state) {
           }
         }
       }
-      if (anyNight && map.triggerRepaint) map.triggerRepaint();
+      if (anyNight && map.triggerRepaint && !state.animationTimer && !document.hidden) {
+        state.animationTimer = setTimeout(() => {
+          state.animationTimer = 0;
+          if (!state.dead && !document.hidden) map.triggerRepaint();
+        }, 50);
+      }
     },
     onRemove() {
       try { state.renderer && state.renderer.dispose(); } catch (_) {}
@@ -673,7 +691,7 @@ export function initLighthouseRenderer(target) {
   const state = {
     map, installed: false, dead: false, layerInstalling: false,
     globalLoading: false, globalLoaded: false, viewportLoading: false,
-    refreshTimer: 0, THREE: null, scene: null, camera: null, renderer: null,
+    refreshTimer: 0, animationTimer: 0, THREE: null, scene: null, camera: null, renderer: null,
     featureCache: new Map(), collection: EMPTY, models: [], modelSignature: '',
     status: 'initializing',
     stats: { version: VERSION, sourceFeatures: 0, renderedModels: 0,
@@ -693,6 +711,7 @@ export function initLighthouseRenderer(target) {
     destroy() {
       state.dead = true;
       if (state.refreshTimer) clearTimeout(state.refreshTimer);
+      if (state.animationTimer) clearTimeout(state.animationTimer);
       for (const item of state.models) {
         if (state.scene) state.scene.remove(item.root);
         disposeObject(item.root);
