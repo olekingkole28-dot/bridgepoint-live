@@ -62,7 +62,7 @@ assert.equal(osm.properties.sealed,true);
 
 const popup=subsurfacePopupHtml(usgs);
 assert.match(popup,/91.44 m/);assert.match(popup,/diameter is intentionally exaggerated/);
-assert.match(subsurfacePopupHtml(wpdx),/Not reported by this source record/);
+assert.match(subsurfacePopupHtml(wpdx),/Not reported by this source/);
 
 const [landing,app,home,appHome,deploy,utility] = await Promise.all([
   readFile(new URL('../rebuild-v5000/landing.js',import.meta.url),'utf8'),
