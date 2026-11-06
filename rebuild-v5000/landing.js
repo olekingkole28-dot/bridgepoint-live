@@ -765,7 +765,7 @@ async function initMap(){
     return false;
    }
    if(!window.__BP_WATER_ENGINE_LANDING_V6123__){
-    const mod=await import('./world-v2300-water.js?v=6194-stable-water-low-cost');
+    const mod=await import('./world-v2300-water.js?v=6256-gerstner-ocean');
     const api=mod.initWaterEngine(world,{surface:'landing'});
     if(!api)throw new Error('GPU water surface did not initialize');
     window.__BP_WATER_ENGINE_LANDING_V6123__=api;
