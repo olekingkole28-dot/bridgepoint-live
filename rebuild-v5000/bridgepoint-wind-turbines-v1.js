@@ -6,19 +6,12 @@ const VERSION = 1;
 const MAP_STATES = new WeakMap();
 let threePromise = null;
 const THREE_URL = '/vendor/three.module.js?v=169-local';
-const API_URL = 'https://energy.usgs.gov/api/uswtdb/v1/turbines';
+const SNAPSHOT_URL = '/data/bridgepoint-uswtdb-turbines-v9_1.json';
 const SOURCE_URL = 'https://energy.usgs.gov/uswtdb/';
 const VIEWER_URL = 'https://eerscmap.usgs.gov/uswtdb/viewer/';
 const SOURCE_VERSION = '9.1 · 2026-09-28';
 const PAGE_SIZE = 2500;
 const MAX_ROWS = 100000;
-const SOURCE_FIELDS = [
-  'case_id','faa_ors','faa_asn','usgs_pr_id','eia_id',
-  't_state','t_county','t_fips','p_name','p_year','p_tnum','p_cap',
-  't_manu','t_model','t_cap','t_hh','t_rd','t_rsa','t_ttlh',
-  't_retrofit','t_retro_yr','t_offshore','t_conf_atr','t_conf_loc',
-  't_img_date','t_img_src','xlong','ylat'
-].join(',');
 const SOURCE_ID = 'bp-wind-turbines-source-v1';
 const CLUSTER_ID = 'bp-wind-turbines-clusters-v1';
 const CLUSTER_COUNT_ID = 'bp-wind-turbines-cluster-count-v1';
@@ -191,30 +184,22 @@ function makeIcon() {
   return ctx.getImageData(0,0,96,96);
 }
 
-async function requestPage(offset) {
-  const url = new URL(API_URL);
-  url.searchParams.set('select',SOURCE_FIELDS);
-  url.searchParams.set('limit',String(PAGE_SIZE));
-  url.searchParams.set('offset',String(offset));
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 35000);
-  try {
-    const response = await fetch(url.toString(),{
-      method:'GET',mode:'cors',credentials:'omit',cache:'no-store',
-      headers:{'Accept':'application/json'},signal:controller.signal
-    });
-    if (!response.ok) throw new Error('USWTDB HTTP '+response.status);
-    const data = await response.json();
-    const rows = Array.isArray(data) ? data :
-      (data && Array.isArray(data.features) ? data.features.map(f=>Object.assign({},f.properties||{},{
-        xlong:f.geometry && f.geometry.coordinates && f.geometry.coordinates[0],
-        ylat:f.geometry && f.geometry.coordinates && f.geometry.coordinates[1]
-      })) : null);
-    if (!rows) throw new Error('USWTDB returned an unexpected response shape');
-    const range = response.headers && (response.headers.get('Content-Range') || response.headers.get('content-range'));
-    const match = range && String(range).match(/\/\s*(\d+)\s*$/);
-    return {rows:rows,total:match?Number(match[1]):null};
-  } finally { clearTimeout(timer); }
+async function fetchSnapshot() {
+  const response = await fetch(SNAPSHOT_URL,{
+    method:'GET',mode:'same-origin',credentials:'same-origin',cache:'no-store',
+    headers:{'Accept':'application/json'}
+  });
+  if (!response.ok) throw new Error('USWTDB same-origin snapshot HTTP '+response.status);
+  const payload = await response.json();
+  if (Array.isArray(payload)) return {rows:payload,metadata:{}};
+  if (payload && Array.isArray(payload.records)) return {rows:payload.records,metadata:payload.metadata||{}};
+  if (payload && Array.isArray(payload.features)) {
+    return {rows:payload.features.map(f=>Object.assign({},f.properties||{},{
+      xlong:f.geometry && f.geometry.coordinates && f.geometry.coordinates[0],
+      ylat:f.geometry && f.geometry.coordinates && f.geometry.coordinates[1]
+    })),metadata:payload.metadata||{}};
+  }
+  throw new Error('USWTDB snapshot returned an unexpected data shape');
 }
 
 function modelMatrixFor(map,THREE,coordinate,altitude) {
@@ -571,44 +556,28 @@ function addControlGroup(state) {
 async function loadInitialData(state) {
   if (state.loading || state.dead || state.globalLoaded || !state.enabled) return;
   state.loading = true;
-  updateStatus(state,'Connecting to USGS USWTDB v'+SOURCE_VERSION+'…');
-  let offset = 0;
-  let total = null;
-  let added = 0;
+  updateStatus(state,'Loading the USGS USWTDB v'+SOURCE_VERSION+' snapshot from BridgePoint…');
   try {
-    while (offset < MAX_ROWS && !state.dead) {
-      const page = await requestPage(offset);
-      if (total === null && Number.isFinite(page.total)) total = page.total;
-      if (!page.rows.length) break;
-      const features = page.rows.map(normalizeWindTurbine).filter(Boolean);
-      addFeatures(state,features);
-      added += features.length;
-      offset += page.rows.length;
-      const totalLabel = total ? ' / '+total.toLocaleString('en-US') : '';
-      updateStatus(state,'Loading USGS turbines · '+offset.toLocaleString('en-US')+totalLabel+' source rows scanned · '+added.toLocaleString('en-US')+' mapped');
-      if (total !== null && offset >= total) break;
-      if (page.rows.length < PAGE_SIZE && total === null) {
-        // Continue one more page to handle servers that enforce a lower page-size cap.
-        const next = await requestPage(offset);
-        if (!next.rows.length) break;
-        const nextFeatures = next.rows.map(normalizeWindTurbine).filter(Boolean);
-        addFeatures(state,nextFeatures);
-        added += nextFeatures.length;
-        offset += next.rows.length;
-        if (Number.isFinite(next.total)) total = next.total;
-        if (total !== null && offset >= total) break;
-      }
-    }
+    const snapshot = await fetchSnapshot();
     if (state.dead) return;
-    state.globalLoaded = offset > 0;
-    state.lastUpdated = Date.now();
-    if (!state.globalLoaded) throw new Error('The USGS turbine API returned no turbine rows');
-    updateStatus(state,state.stats.total.toLocaleString('en-US')+' USGS turbine locations loaded · source coverage: United States only · '+SOURCE_VERSION);
+    const rows = snapshot.rows || [];
+    if (!rows.length) throw new Error('The USGS turbine snapshot contains no records');
+    const features = rows.map(normalizeWindTurbine).filter(Boolean);
+    if (!features.length) throw new Error('The USGS turbine snapshot contains no mappable turbine coordinates');
+    addFeatures(state,features);
+    state.globalLoaded = true;
+    state.lastUpdated = snapshot.metadata.generatedAtUtc || Date.now();
+    if (snapshot.metadata.version) state.stats.sourceVersion = String(snapshot.metadata.version);
+    state.stats.sourceRecordCount = rows.length;
+    const generated = snapshot.metadata.generatedAtUtc
+      ? ' · snapshot built '+String(snapshot.metadata.generatedAtUtc).slice(0,10) : '';
+    updateStatus(state,state.stats.total.toLocaleString('en-US')+
+      ' USGS turbine locations loaded · U.S. inventory only · '+state.stats.sourceVersion+generated);
   } catch (error) {
     state.stats.lastError = String(error && error.message || error);
     updateStatus(state,(state.stats.total ? 'Partial inventory: '+state.stats.total.toLocaleString('en-US')+' records · ' : '')+
-      'USGS data request failed: '+state.stats.lastError);
-    console.warn('BridgePoint USWTDB load failed',error);
+      'USGS snapshot unavailable: '+state.stats.lastError);
+    console.warn('BridgePoint USWTDB snapshot load failed',error);
   } finally {
     state.loading = false;
     refreshStatusUi(state);
