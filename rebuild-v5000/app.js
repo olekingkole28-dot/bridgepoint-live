@@ -211,6 +211,11 @@ async function bootMap(){
  void import('./bridgepoint-lighthouses-v1.js?v=2-visible-rotating-beacons')
   .then(m=>{window.__BP_LIGHTHOUSES_V1__=m.initLighthouseRenderer(world)})
   .catch(e=>console.warn('BridgePoint global 3D lighthouse renderer unavailable',e));
+ // Offshore energy is a separate, opt-in layer. Its renderer and data stay isolated
+ // from lighthouse behavior, the globe, and every existing BridgePoint layer.
+ void import('./bridgepoint-offshore-energy-v1.js?v=1-noaa-hifld-global-osm')
+  .then(m=>{window.__BP_OFFSHORE_ENERGY_V1__=m.initOffshoreEnergyRenderer(world)})
+  .catch(e=>console.warn('BridgePoint offshore energy renderer unavailable',e));
 
  // Initialize optional map overlays only after the first core map load. Serializing their
  // initialization avoids a burst of source/layer changes during the first Gold LOD render.
