@@ -2,7 +2,7 @@
  * OSM-backed global lighthouse locations; meter-scale polygon towers at close zoom;
  * locally calculated twilight controls the rotating lantern beam.
  */
-const VERSION = 3;
+const VERSION = 4;
 const MAP_STATES = new WeakMap();
 let threePromise = null;
 const THREE_URL = '/vendor/three.module.js?v=169-local';
@@ -17,6 +17,7 @@ const MAX_BEACON_ZOOM = 14.2;
 const MIN_MODEL_ZOOM = 14.0;
 const NIGHT_THRESHOLD_DEG = -6;
 const WORLD_BOUNDS = [-85, -180, 85, 180];
+const LIGHTHOUSE_SNAPSHOT_URL = '/data/bridgepoint-lighthouses-global-v1.json';
 const EMPTY = { type: 'FeatureCollection', features: [] };
 const MOBILE = typeof window !== 'undefined' &&
   ((Number(window.innerWidth) || 1024) <= 820 ||
@@ -138,9 +139,40 @@ export function normalizeLighthouseElement(element) {
       markerColor: palette[1] || palette[0], lightColor,
       periodSec: Number.isFinite(period) && period >= 1 && period <= 60 ? period : 5,
       groundElevationM: elevation, source: 'OpenStreetMap contributors',
-      sourceType: String(element.type || 'osm'), sourceId: String(element.id ?? '')
+      sourceType: String(element.type || 'osm'), sourceId: String(element.id ?? ''),
+      country: String(tags['addr:country'] || ''), region: String(tags['addr:state'] || '')
     }
   };
+}
+
+export function lighthouseSnapshotRowToElement(row, index = 0) {
+  if (!row || typeof row !== 'object') return null;
+  const lat = Number(row.lat), lon = Number(row.lon);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon) ||
+      lat < -85 || lat > 85 || lon < -180 || lon > 180) return null;
+  const osmId = String(row.osm_id || '').trim();
+  const match = osmId.match(/^(node|way|relation)\/([0-9]+)$/);
+  const type = match ? match[1] : 'node';
+  const id = match ? match[2] : 'snapshot-' + String(index);
+  const kind = String(row.kind || '').trim().toLowerCase();
+  const tags = {};
+  if (kind === 'light_major') tags['seamark:type'] = 'light_major';
+  else tags.man_made = 'lighthouse';
+  if (row.name) tags.name = String(row.name);
+  if (row.height !== null && row.height !== undefined && String(row.height).trim()) {
+    tags.height = String(row.height).trim();
+  }
+  if (row.country) tags['addr:country'] = String(row.country);
+  if (row.region) tags['addr:state'] = String(row.region);
+  const character = String(row.char || '').trim();
+  if (character) {
+    tags['seamark:light:character'] = character;
+    const period = character.match(/\b([0-9]+(?:\.[0-9]+)?)\s*s\b/i);
+    if (period) tags['seamark:light:period'] = period[1];
+    const colour = character.match(/\b(white|red|green|yellow|blue)\b/i);
+    if (colour) tags['seamark:light:colour'] = colour[1];
+  }
+  return { type, id, lat, lon, tags };
 }
 
 export function lighthouseProfile(properties = {}) {
@@ -776,13 +808,22 @@ function scheduleRefresh(state) {
 async function loadGlobalData(state) {
   if (state.globalLoading || state.globalLoaded || state.dead) return;
   state.globalLoading = true;
-  state.status = 'loading-global-openstreetmap';
+  state.status = 'loading-global-snapshot';
   try {
-    const elements = await fetchOverpass(globalOverpassQuery());
+    const response = await fetch(LIGHTHOUSE_SNAPSHOT_URL, {
+      method: 'GET', mode: 'same-origin', credentials: 'omit', cache: 'force-cache'
+    });
+    if (!response.ok) throw new Error('Lighthouse snapshot HTTP ' + response.status);
+    const rows = await response.json();
+    if (!Array.isArray(rows)) throw new Error('Invalid worldwide lighthouse snapshot');
+    const elements = rows.map(lighthouseSnapshotRowToElement).filter(Boolean);
+    if (elements.length < 10000) {
+      throw new Error('Worldwide lighthouse snapshot incomplete: ' + elements.length + ' valid records');
+    }
     if (state.dead) return;
     mergeElements(state, elements);
     state.globalLoaded = true;
-    state.status = 'global-openstreetmap-ready';
+    state.status = 'global-snapshot-ready';
     rebuildModels(state);
   } catch (error) {
     if (!state.dead) {
