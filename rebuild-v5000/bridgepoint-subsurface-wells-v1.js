@@ -512,6 +512,7 @@ function installModelLayer(state) {
           try {
             const terrain=map.queryTerrainElevation?.({lng:item.coordinate[0],lat:item.coordinate[1]},{exaggerated:false});
             terrainElevation=Number.isFinite(terrain)?terrain:null;
+            if(terrainElevation!==null)item.groundElevationM=terrainElevation;
           } catch(_){}
         }
         const altitude=resolveWellGroundElevation(item.groundElevationM,terrainElevation);
