@@ -81,3 +81,10 @@ assert.ok(engineSource.includes('v_wave = clamp(0.5 + wave * 0.34, 0.0, 1.0);'),
   'optical wave motion remains independent from geometric displacement');
 console.log('BRIDGEPOINT_WATER_MESH_FREQUENCY_TEST_PASS');
 console.log('BRIDGEPOINT_WATER_CLOSE_ZOOM_VERTEX_DISPLACEMENT_TEST_PASS');
+
+assert.ok(engineSource.includes("float gerstnerPhaseC") && engineSource.includes("vec2 dirC = normalize"), 'the water vertex shader must evaluate a third independent wave direction');
+assert.ok(engineSource.includes("vec2 rawGerstnerOffsetM") && engineSource.includes("gerstnerSteepnessA") && engineSource.includes("gerstnerSteepnessB") && engineSource.includes("gerstnerSteepnessC"), 'the water mesh must compute steepness-controlled Gerstner orbital displacement for three components');
+assert.ok(engineSource.includes("vec2 displacedPosition = a_pos + gerstnerOffsetM / (40075016.6856 * cLat)") && engineSource.includes("projectTileFor3D(displacedPosition, a_height + offsetM)"), 'Gerstner waves must displace actual GPU vertex coordinates horizontally as well as vertically');
+assert.ok(engineSource.includes("u_pitchWaveScale * marineSurgeMask") && engineSource.includes("max(0.0, u_waveOffsetLimit)"), 'Gerstner displacement must remain marine-only and obey existing camera/height safety limits');
+assert.ok(engineSource.includes("waveModel: 'three-component-gerstner-vertex-displacement'"), 'runtime API must expose the active Gerstner wave model');
+console.log('BRIDGEPOINT_GERSTNER_VERTEX_WAVE_TEST_PASS');

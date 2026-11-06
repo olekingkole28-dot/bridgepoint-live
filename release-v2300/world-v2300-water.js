@@ -2,7 +2,7 @@
 // Additive MapLibre custom layer: one shared map canvas/context, bounded source geometry,
 // GPU wave displacement, source-gated flood elevations, and view-aware mesh LOD.
 const VERSION = 6123;
-const SURFACE_RENDER_REVISION = 6194;
+const SURFACE_RENDER_REVISION = 6256;
 const LAYER_ID = 'bp-water-surface-gpu-v6123';
 const EARTH_CIRCUMFERENCE_M = 40075016.68557849;
 const RAD = Math.PI / 180;
@@ -362,7 +362,9 @@ function buildShaders(gl, shaderDescription) {
     '  vec2 windDir = length(u_windDir) > 0.001 ? normalize(u_windDir) : vec2(1.0, 0.0);',
     '  float phaseA = dot(ground, windDir) * u_waveK + u_wavePhaseA - u_time * (0.48 + u_windSpeed * 0.014);',
     '  vec2 dirB = normalize(windDir + vec2(0.52, 0.31));',
+    '  vec2 dirC = normalize(windDir + vec2(-0.43, 0.58));',
     '  float phaseB = dot(ground, dirB) * u_waveK * 0.61 + u_wavePhaseB + u_time * 0.33;',
+    '  float gerstnerPhaseC = dot(ground, dirC) * u_waveK * 1.37 + u_wavePhaseA * 0.37 + u_wavePhaseB * 0.63 - u_time * (0.36 + u_windSpeed * 0.005);',
     '  float wave = 0.63 * sin(phaseA) + 0.25 * sin(phaseA * 1.91 + 0.71) + 0.18 * sin(phaseB);',
     '  float stormInfluence = 0.0;',
     '  float stormSurge = 0.0;',
@@ -384,7 +386,17 @@ function buildShaders(gl, shaderDescription) {
     '  float marineSurgeMask = (a_kind < 0.5 || (a_kind > 2.5 && a_kind < 3.5)) ? 1.0 : 0.0;',
     '  float dynamicOffsetM = (wave * amplitude + stormSurge * marineSurgeMask) * u_pitchWaveScale;',
     '  float offsetM = clamp(dynamicOffsetM, -u_waveOffsetLimit, u_waveOffsetLimit) + a_flood;',
-    '  gl_Position = projectTileFor3D(a_pos, a_height + offsetM);',
+    '  float gerstnerAmpA = amplitude * 0.56;',
+    '  float gerstnerAmpB = amplitude * 0.28;',
+    '  float gerstnerAmpC = amplitude * 0.16;',
+    '  float gerstnerSteepnessA = clamp(0.72 / max(u_waveK * gerstnerAmpA * 3.0, 0.0001), 0.08, 0.85);',
+    '  float gerstnerSteepnessB = clamp(0.72 / max((u_waveK * 0.61) * gerstnerAmpB * 3.0, 0.0001), 0.08, 0.85);',
+    '  float gerstnerSteepnessC = clamp(0.72 / max((u_waveK * 1.37) * gerstnerAmpC * 3.0, 0.0001), 0.08, 0.85);',
+    '  vec2 rawGerstnerOffsetM = (windDir * (gerstnerSteepnessA * gerstnerAmpA * cos(phaseA)) + dirB * (gerstnerSteepnessB * gerstnerAmpB * cos(phaseB)) + dirC * (gerstnerSteepnessC * gerstnerAmpC * cos(gerstnerPhaseC))) * u_pitchWaveScale * marineSurgeMask;',
+    '  float gerstnerOffsetLengthM = length(rawGerstnerOffsetM);',
+    '  vec2 gerstnerOffsetM = rawGerstnerOffsetM * min(1.0, max(0.0, u_waveOffsetLimit) / max(gerstnerOffsetLengthM, 0.0001));',
+    '  vec2 displacedPosition = a_pos + gerstnerOffsetM / (40075016.6856 * cLat);',
+    '  gl_Position = projectTileFor3D(displacedPosition, a_height + offsetM);',
     '  v_coord = a_pos - u_waveOrigin;',
     '  v_kind = a_kind;',
     '  v_wave = clamp(0.5 + wave * 0.34, 0.0, 1.0);',
@@ -746,7 +758,7 @@ export function initWaterEngine(mapOrWorld, options = {}) {
   const mobile = window.innerWidth <= 900 || /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
   const low = Number(navigator.deviceMemory || 4) <= 3 || Number(navigator.hardwareConcurrency || 4) <= 4;
   const api = {
-    version: VERSION, map, options, enabled: true, active: true, mobile, low,
+    version: VERSION, surfaceRenderRevision: SURFACE_RENDER_REVISION, waveModel: 'three-component-gerstner-vertex-displacement', map, options, enabled: true, active: true, mobile, low,
     contextReady: false, glContextShared: true, shaderError: null, lastDrawAt: 0, animationTimeSeconds: 0,
     waterPolygonCells: 0, oceanFallbackCells: 0, flowSegments: 0, surfaceVertexCount: 0, flowVertexCount: 0,
     flowSegmentsWithSourceVelocity: 0, flowSegmentsUsingVisualFallback: 0, maxSourceStreamVelocityMps: 0,
@@ -829,7 +841,7 @@ export function initWaterEngine(mapOrWorld, options = {}) {
     },
     get state() {
       return {
-        version: VERSION, surfaceRenderRevision: SURFACE_RENDER_REVISION,
+        version: VERSION, surfaceRenderRevision: SURFACE_RENDER_REVISION, waveModel: this.waveModel,
         installed: !!map.getLayer(LAYER_ID), enabled: this.enabled, active: this.active,
         contextReady: this.contextReady, sharedMapLibreCanvas: true, secondaryCanvases: 0,
         styleLoaded: (()=>{try{return !!map.isStyleLoaded?.()}catch(_){return false}})(),

@@ -797,7 +797,7 @@ async function toggleWater(){
  if(!waterApi){
   if(!waterPromise){
    const world={map};
-   waterPromise=import('./world-v2300-water.js?v=6194-stable-water-low-cost')
+   waterPromise=import('./world-v2300-water.js?v=6256-gerstner-ocean')
     .then(m=>{
      const api=m.initWaterEngine(world,{surface:location.pathname.startsWith('/app/')?'app':'landing'});
      if(!api)throw new Error('Water surface engine did not initialize');

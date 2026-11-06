@@ -35,7 +35,7 @@ function test(name, fn) {
 
 test('water keeps shoreline safety while using a bounded stable render budget', () => {
   assert.match(water, /const VERSION = 6123;/);
-  assert.match(water, /const SURFACE_RENDER_REVISION = 6194;/);
+  assert.match(water, /const SURFACE_RENDER_REVISION = 6256;/);
   assert.match(water, /const maxCells = worldView/);
   assert.match(water, /MIN_BACKGROUND_BUILD_INTERVAL_MS = 4200/);
   assert.match(water, /MIN_CAMERA_BUILD_INTERVAL_MS = 900/);
@@ -175,7 +175,7 @@ test('cloud shadows update on the map and use available source winds', () => {
 test('entrypoints use fresh cache keys and keep the celestial canvas off the satellite globe', () => {
   for (const source of [app, landing]) {
     assert.match(source, /world-v2300-map\.js\?v=6226-underwater-satellite-lock/);
-    assert.match(source, /world-v2300-water\.js\?v=6194-stable-water-low-cost/);
+    assert.match(source, /world-v2300-water\.js\?v=6256-gerstner-ocean/);
     assert.match(source, /world-v2300-clouds\.js\?v=6200-radar-colored-rain-clouds/);
     assert.match(source, /world-v2300-weather\.js\?v=6200-storm-clouds-no-rain/);
     assert.match(source, /world-v2300-time-slider\.js\?v=6170-no-cloud-toggle-always-on/);

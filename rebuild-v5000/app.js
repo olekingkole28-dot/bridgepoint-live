@@ -171,7 +171,7 @@ async function bootMap(){
     return false;
    }
    if(!appWaterApi){
-    if(!appWaterPromise)appWaterPromise=import('./world-v2300-water.js?v=6194-stable-water-low-cost')
+    if(!appWaterPromise)appWaterPromise=import('./world-v2300-water.js?v=6256-gerstner-ocean')
      .then(m=>{const api=m.initWaterEngine(world,{surface:'app'});if(!api)throw new Error('GPU water surface did not initialize');appWaterApi=api;window.__BP_WATER_ENGINE_APP_V6123__=api;return api})
      .finally(()=>{appWaterPromise=null});
     await appWaterPromise;
@@ -236,7 +236,7 @@ async function bootMap(){
   ['underground',async()=>{const m=await import('./world-v2300-underground-xray.js?v=5965-landmarks-and-effects');window.__BP_UNDERGROUND_XRAY_V5935__=m.initUndergroundXray(world)}],
   ['infrastructure',async()=>{const m=await import('./world-v2300-infrastructure-volume-v5962.js?v=5970-globe-model-matrices');window.__BP_INFRASTRUCTURE_VOLUME_V5962__=m.initInfrastructureVolume(world)}],
   ['utility-infrastructure',async()=>{const m=await import('./world-v2300-utility-infrastructure-v1.js?v=11-solid-utility-wires-v10');window.__BP_UTILITY_INFRASTRUCTURE_V1__=m.initUtilityInfrastructure(world)}],
-  ['sensors',async()=>{const m=await import('./world-v2300-sensor-layers.js?v=6251-liquid-ocean');window.__BP_SENSOR_LAYERS_V5945__=m.initSensorLayers(world)}],
+  ['sensors',async()=>{const m=await import('./world-v2300-sensor-layers.js?v=6256-gerstner-liquid-ocean');window.__BP_SENSOR_LAYERS_V5945__=m.initSensorLayers(world)}],
   ['realism',async()=>{const m=await import('./world-v2300-realism.js?v=5910-world-materials');window.__BP_WORLD_REALISM_V5910__=m.initRealismMode(world)}],
   ['gis-core',async()=>{const m=await import('./gis-core-orchestrator-v5910.js?v=5910-gis-router');window.__BP_GIS_CORE_V5910__=m.initGisCore(world,rpc)}]
  ];
