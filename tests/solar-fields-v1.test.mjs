@@ -127,7 +127,7 @@ assert.match(popup,/4\.2 MW/);
 assert.match(popup,/5\.1 MW/);
 assert.match(popup,/24,000 m²/);
 assert.match(popup,/USPVDB digitization confidence/);
-assert.match(popup,/not source-reported/);
+assert.match(popup,/not published in these records/);
 assert.match(popup,/14 × 3\.8 m/);
 assert.match(popup,/2\.05 m above modeled ground/);
 assert.match(solarFieldPopupHtml(osmNode),/Reported electrical output/);
