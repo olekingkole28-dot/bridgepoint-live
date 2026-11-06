@@ -37,11 +37,11 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ${{ runner.temp }}/bp-pages-baseline
 
-      - name: Fall back to the verified V11 site when the full rebuild fails
+      - name: Fall back to the verified V10 site when the full rebuild fails
         if: github.event.workflow_run.conclusion != 'success'
         uses: actions/download-artifact@v4
         with:
-          name: bridgepoint-solid-utility-wires-v11
+          name: bridgepoint-solid-utility-wires-v10
           run-id: 42152601096
           repository: ${{ github.repository }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -68,7 +68,7 @@ jobs:
           grep -Fq 'preciseWireGroups' "$RUNNER_TEMP/utility-v11-source/release-v2300/world-v2300-utility-infrastructure-v1.js"
           echo "UTILITY_SOLID_WIRES_V11_SOURCE_PASS"
 
-      - name: Restore and fingerprint the currently deployed V9 site
+      - name: Restore and fingerprint the currently deployed V10 site
         shell: bash
         run: |
           set -euo pipefail
@@ -91,7 +91,7 @@ jobs:
           rows=json.loads((site/"bridgepoint-ct-nbi-2026.json").read_text())
           assert len(rows)==4352 and all(isinstance(row,list) and len(row)==8 for row in rows)
           (Path(os.environ["RUNNER_TEMP"])/"bp-v10-file-hashes.json").write_text(json.dumps(before,sort_keys=True))
-          print("V9_LIVE_GLOBE_AUTH_BRIDGE_BASELINE_PASS",len(before),"files",len(rows),"FHWA_CT_RECORDS")
+          print("V10_LIVE_GLOBE_AUTH_BRIDGE_BASELINE_PASS",len(before),"files",len(rows),"FHWA_CT_RECORDS")
           PY
 
       - name: Overlay only the utility renderer and its root/app cache-busted loaders
@@ -110,19 +110,19 @@ jobs:
           for rel in ("landing.js","app.js"):
             path=site/rel
             data=path.read_text(encoding="utf-8")
-            old="world-v2300-utility-infrastructure-v1.js?v=10-solid-utility-wires-v9"
+            old="world-v2300-utility-infrastructure-v1.js?v=11-solid-utility-wires-v10"
             if data.count(old)!=1:
-              raise SystemExit(f"{rel}: expected exactly one V9 utility import, found {data.count(old)}")
+              raise SystemExit(f"{rel}: expected exactly one V10 utility import, found {data.count(old)}")
             path.write_text(data.replace(old,"world-v2300-utility-infrastructure-v1.js?v=12-solid-utility-wires-v11"),encoding="utf-8")
 
           for rel,old,new in (
-            ("index.html","landing.js?v=6243-solid-utility-wires-v9","landing.js?v=6245-solid-utility-wires-v11"),
-            ("app/index.html","app.js?v=6243-solid-utility-wires-v9","app.js?v=6245-solid-utility-wires-v11"),
+            ("index.html","landing.js?v=6244-solid-utility-wires-v10","landing.js?v=6245-solid-utility-wires-v11"),
+            ("app/index.html","app.js?v=6244-solid-utility-wires-v10","app.js?v=6245-solid-utility-wires-v11"),
           ):
             path=site/rel
             data=path.read_text(encoding="utf-8")
             if data.count(old)!=1:
-              raise SystemExit(f"{rel}: expected exactly one V9 loader, found {data.count(old)}")
+              raise SystemExit(f"{rel}: expected exactly one V10 loader, found {data.count(old)}")
             path.write_text(data.replace(old,new),encoding="utf-8")
 
           before=json.loads((Path(os.environ["RUNNER_TEMP"])/"bp-v10-file-hashes.json").read_text())
@@ -174,9 +174,9 @@ jobs:
         run: |
           set -euo pipefail
           O='https://bridgepointintelligence.online'
-          q="$GITHUB_SHA-solid-utility-wires-v10"
-          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/?solid-utility-wires-v10=$q" -o /tmp/bp-root.html
-          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app/?solid-utility-wires-v10=$q" -o /tmp/bp-app.html
+          q="$GITHUB_SHA-solid-utility-wires-v11"
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/?solid-utility-wires-v11=$q" -o /tmp/bp-root.html
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app/?solid-utility-wires-v11=$q" -o /tmp/bp-app.html
           curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/landing.js?v=6245-solid-utility-wires-v11&verify=$q" -o /tmp/bp-landing.js
           curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app.js?v=6245-solid-utility-wires-v11&verify=$q" -o /tmp/bp-app.js
           curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/world-v2300-utility-infrastructure-v1.js?v=12-solid-utility-wires-v11&verify=$q" -o /tmp/bp-utility.js
