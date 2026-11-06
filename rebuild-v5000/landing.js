@@ -806,6 +806,9 @@ async function initMap(){
   void import('./bridgepoint-landmarks-v5940.js?v=5966-statue-pedestal-aligned')
    .then(()=>{try{window.dispatchEvent(new CustomEvent('bp:world-map-ready-v5940',{detail:{map:world.map,source:'landing-module-ready'}}))}catch(_){};if(window.__BP_LANDMARKS_V5940__)window.__BP_LANDMARKS_V5940__.attachedMaps=Math.max(1,Number(window.__BP_LANDMARKS_V5940__.attachedMaps||0))})
    .catch(e=>console.warn('BridgePoint homepage landmarks loader unavailable',e));
+  void import('./bridgepoint-lighthouses-v1.js?v=1-global-osm-night-beam')
+   .then(m=>{window.__BP_LIGHTHOUSES_V1__=m.initLighthouseRenderer(world)})
+   .catch(e=>console.warn('BridgePoint global 3D lighthouse renderer unavailable',e));
    // BridgePoint exposes the same 30-day source-event timeline on the website globe.
    void import('./world-v2300-time-slider.js?v=6170-no-cloud-toggle-always-on')
     .then(m=>{window.__BP_WORLD_TIME_SLIDER_V5908__=window.__BP_WORLD_TIME_SLIDER_V5908__?.map===map?window.__BP_WORLD_TIME_SLIDER_V5908__:m.initWorldTimeSlider(world,rpc)})
