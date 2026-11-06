@@ -15,12 +15,13 @@ const FOOTPRINT_ID = 'bp-offshore-energy-footprint-v1';
 const FOOTPRINT_LINE_ID = 'bp-offshore-energy-footprint-line-v1';
 const ICON_ID = 'bp-offshore-energy-icons-v1';
 const MODEL_ID = 'bp-offshore-energy-models-v1';
-const MIN_MARKER_ZOOM = 2.2;
+const MIN_MARKER_ZOOM = 0;
+const MIN_ICON_ZOOM = 2.2;
 const MAX_MARKER_ZOOM = 14.2;
 const MIN_FOOTPRINT_ZOOM = 8.2;
 const MIN_MODEL_ZOOM = 12.2;
 const MAX_GLOBAL_FEATURES = 14000;
-const MAX_MODELS = typeof navigator !== 'undefined' &&
+const MAX_MODELS = typeof window !== 'undefined' &&
   ((Number(window.innerWidth) || 1024) <= 820 || Number(navigator.maxTouchPoints) > 0) ? 7 : 22;
 const RAD = Math.PI / 180;
 const TAU = Math.PI * 2;
@@ -364,7 +365,7 @@ function installLayers(state) {
     [ ['oil','bp-offshore-icon-oil-v1'],['gas','bp-offshore-icon-gas-v1'],
       ['water','bp-offshore-icon-water-v1'],['platform','bp-offshore-icon-platform-v1'] ]
       .forEach(([kind,id])=>addIconImage(map,id,kind));
-    add(ICON_ID,{id:ICON_ID,type:'symbol',source:SOURCE_ID,minzoom:MIN_MARKER_ZOOM,maxzoom:MAX_MARKER_ZOOM,
+    add(ICON_ID,{id:ICON_ID,type:'symbol',source:SOURCE_ID,minzoom:MIN_ICON_ZOOM,maxzoom:MAX_MARKER_ZOOM,
       layout:{'icon-image':['match',['get','assetIcon'],'oil','bp-offshore-icon-oil-v1',
         'gas','bp-offshore-icon-gas-v1','water','bp-offshore-icon-water-v1','bp-offshore-icon-platform-v1'],
         'icon-size':['interpolate',['linear'],['zoom'],2.2,0.28,5,0.4,9,0.58,13.5,0.66],
@@ -758,6 +759,11 @@ async function setEnabled(state,on) {
   if(state.enabled) {
     installLayers(state);refreshStatusUi(state);
     if(state.THREE)installModelLayer(state);
+    else if(!state.threeLoading) {
+      state.threeLoading=true;
+      loadThree().then(THREE=>{if(state.dead)return;state.THREE=THREE;state.threeLoading=false;if(state.enabled&&state.map.getStyle?.())installModelLayer(state);rebuildModels(state);state.map.triggerRepaint?.()})
+        .catch(e=>{state.threeLoading=false;state.stats.lastError=String(e?.message||e);console.warn('BridgePoint offshore Three.js unavailable',e) });
+    }
     void loadAllData(state);
     if(state.renderer)state.map.triggerRepaint?.();
   } else {
@@ -783,7 +789,7 @@ export function initOffshoreEnergyRenderer(target) {
   const existing=MAP_STATES.get(map);if(existing)return existing.api;
   const state={
     map,enabled:false,dead:false,loading:false,globalLoaded:false,installed:false,layerInstalling:false,
-    THREE:null,scene:null,camera:null,renderer:null,models:[],modelSignature:'',
+    THREE:null,threeLoading:false,scene:null,camera:null,renderer:null,models:[],modelSignature:'',
     featureCache:new Map(),collection:EMPTY,footprints:EMPTY,popup:null,interactionsBound:false,
     status:'off',lastUpdated:null,refreshTimer:0,
     stats:{version:VERSION,sourceFeatures:0,noaaFeatures:0,osmFeatures:0,statusRecords:0,renderedModels:0,layerReady:false,lastError:null}
@@ -814,11 +820,5 @@ export function initOffshoreEnergyRenderer(target) {
   observeDock();
   const dockObserver=new MutationObserver(()=>{if(!document.getElementById('bp-offshore-energy-control-v1'))addControlGroup(state)});
   if(document.body)dockObserver.observe(document.body,{childList:true,subtree:true});
-  loadThree().then(THREE=>{
-    if(state.dead)return;state.THREE=THREE;
-    if(state.enabled&&map.getStyle?.())installModelLayer(state);
-    rebuildModels(state);
-    state.stats.threeReady=true;
-  }).catch(e=>{state.stats.lastError=String(e?.message||e);console.warn('BridgePoint offshore Three.js unavailable',e)});
   return api;
 }
