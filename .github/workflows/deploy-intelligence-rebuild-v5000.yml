@@ -20,6 +20,7 @@ on:
       - '.github/workflows/build-tree-model-assets.yml'
       - '.github/workflows/test-tree-asset-catalog.yml'
       - 'tests/celestial-water-cloud-shadows.test.mjs'
+      - 'tests/water-lod-and-imagery.test.mjs'
       - 'tests/utility-infrastructure-renderer-v5.test.mjs'
       - 'tests/auth-resilience-v6237.test.mjs'
       - 'tests/drone-awareness.test.mjs'
