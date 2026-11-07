@@ -95,6 +95,15 @@ assert.ok(mapSource.includes('features:sidewalkFeatureInputs'),
   'viewport records and global vector-tile sidewalk features must be merged before 3D geometry generation');
 assert.ok(mapSource.includes('globalVectorTileFeatures:sidewalkTileFeatures.length'),
   'the active sidewalk renderer must expose its vector-tile source count for live diagnosis');
+
+const livingDataIndex = mapSource.indexOf("const data={type:'FeatureCollection',features};");
+const sidewalkBuildIndex = mapSource.indexOf('const sidewalk3D=', livingDataIndex);
+const livingFeatureGateIndex = mapSource.indexOf('if(features.length){', livingDataIndex);
+assert.ok(livingDataIndex >= 0 && sidewalkBuildIndex > livingDataIndex && livingFeatureGateIndex > sidewalkBuildIndex,
+  '3D sidewalk generation must run before and independently of the buildings/trees nonempty-scene gate');
+assert.ok(!mapSource.includes("map.getSource('bpSidewalk3D')?.setData(EMPTY)"),
+  'an empty buildings/trees response must not clear mapped sidewalk 3D geometry');
+
 const mobile = buildSidewalk3DFeatures({features:[sidewalk],roadFeatures:[road],zoom:17,mobile:true,elevationAt:()=>10});
 assert.ok(mobile.features.length <= 180 * 6, 'mobile geometry should stay inside its bounded feature budget');
 
