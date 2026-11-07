@@ -1,9 +1,6 @@
 name: Publish BridgePoint Cohesive Globe Renderer Reliability V1
 
 on:
-  push:
-    branches: [main]
-    paths: ['.github/workflows/publish-globe-renderer-reliability-v1.yml']
   workflow_dispatch:
   workflow_run:
     workflows: ["Publish BridgePoint Lighthouse Global Snapshot V4"]
