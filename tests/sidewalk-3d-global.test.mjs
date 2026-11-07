@@ -142,7 +142,9 @@ assert.ok(mapSource.includes("window.__BP_SIDEWALK_LAYER_ORDER_V1__"),
   'live diagnostics must report the final sidewalk layer-stack status');
 assert.ok(mapSource.includes('features:sidewalkFeatureInputs') && mapSource.includes('sidewalkFeatureInputs.sort((a,b)=>sidewalkScreenDistance(a)-sidewalkScreenDistance(b))'),
   'visible sidewalk source segments must be prioritized by screen position before 3D geometry generation');
-assert.ok(mapSource.includes('bpSidewalkTileSyncTimer=setTimeout') && mapSource.includes('refreshSidewalk3DFromTiles([],true)'),\n  'late-arriving vector tiles must force a viewport rebuild even when camera bounds did not change');\nassert.ok(mapSource.includes('globalVectorTileFeatures:sidewalkSourceRaw.length'),
+assert.ok(mapSource.includes('bpSidewalkTileSyncTimer=setTimeout') && mapSource.includes('refreshSidewalk3DFromTiles([],true)'),
+  'late-arriving vector tiles must force a viewport rebuild even when camera bounds did not change');
+assert.ok(mapSource.includes('globalVectorTileFeatures:sidewalkSourceRaw.length'),
   'the active sidewalk renderer must expose its vector-tile source count for live diagnosis');
 
 assert.ok(mapSource.includes("map.querySourceFeatures('ofm',{sourceLayer:'transportation'})"),
@@ -164,7 +166,8 @@ assert.ok(!mapSource.includes("map.getSource('bpSidewalk3D')?.setData(EMPTY)"),
   'an empty buildings/trees response must not clear mapped sidewalk 3D geometry');
 
 const mobile = buildSidewalk3DFeatures({features:[sidewalk],roadFeatures:[road],zoom:17,mobile:true,elevationAt:()=>10});
-assert.ok(mobile.features.length <= 84 * 6 * 3, 'mobile viewport geometry must stay inside the expanded but bounded feature budget');\nassert.ok(partsFor(mobile, 'grass_blade').length >= 3, 'mobile grass rendering must keep individual raised blades');
+assert.ok(mobile.features.length <= 84 * 6 * 3, 'mobile viewport geometry must stay inside the expanded but bounded feature budget');
+assert.ok(partsFor(mobile, 'grass_blade').length >= 3, 'mobile grass rendering must keep individual raised blades');
 
 const images = new Map();
 const fakeMap = {
@@ -180,4 +183,5 @@ for (const image of images.values()) {
 }
 assert.equal(installSidewalk3DTextures(fakeMap), false, 'texture registration should be idempotent');
 
-assert.ok(mapSource.includes('sidewalkFeatureInputs.sort((a,b)=>sidewalkScreenDistance(a)-sidewalkScreenDistance(b))'), 'sidewalk geometry remains viewport-prioritized');\nconsole.log('BRIDGEPOINT_GLOBAL_SIDEWALK_3D_TEST_PASS');
+assert.ok(mapSource.includes('sidewalkFeatureInputs.sort((a,b)=>sidewalkScreenDistance(a)-sidewalkScreenDistance(b))'), 'sidewalk geometry remains viewport-prioritized');
+console.log('BRIDGEPOINT_GLOBAL_SIDEWALK_3D_TEST_PASS');
