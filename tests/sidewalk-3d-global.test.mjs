@@ -102,8 +102,12 @@ assert.ok(buildSidewalk3DFeatures({features:[fineSurface],zoom:17}).features.som
   'the original source-backed fine-surface sidewalk layer must remain included');
 
 const mapSource = await readFile(new URL('../release-v2300/world-v2300-map.js', import.meta.url), 'utf8');
-assert.ok(mapSource.includes("sidewalkTileFeatures=sidewalkRoadTileFeatures"),
-  'the 3D builder must consume the loaded global transportation tiles directly, not only the 2D approach layer visible subset');
+assert.ok(mapSource.includes("const sidewalkTileFeatures=[...sidewalkRoadTileFeatures,...sidewalkRenderedFeatures]"),
+  'the 3D builder must merge raw transportation source tiles with rendered sidewalk fallback features');
+assert.ok(mapSource.includes("map.queryRenderedFeatures({layers:['gta-global-sidewalk-approach-v1']})"),
+  'the 3D builder must consume the same visible 2D sidewalk/footway features already rendered in the viewport');
+assert.ok(mapSource.includes('renderedApproachFeatures:sidewalkRenderedFeatures.length'),
+  'live sidewalk diagnostics must report the rendered 2D fallback feature count separately');
 assert.ok(mapSource.includes('function refreshSidewalk3DFromTiles(extraFeatures=[])'),
   'sidewalk generation must have its own lightweight map-tile refresh path');
 assert.ok(mapSource.includes("map.on('idle',()=>{if(!moving&&map.getZoom()>=14.2)refreshSidewalk3DFromTiles()});"),

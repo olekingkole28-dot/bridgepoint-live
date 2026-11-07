@@ -66,7 +66,8 @@ jobs:
             grep -Fq "brunnel==='bridge'||brunnel==='tunnel'||bridge==='yes'||tunnel==='yes'" "${map}"
             grep -Fq 'function refreshSidewalk3DFromTiles(extraFeatures=[])' "${map}"
             grep -Fq "map.on('idle',()=>{if(!moving&&map.getZoom()>=14.2)refreshSidewalk3DFromTiles()});" "${map}"
-            grep -Fq 'sidewalkTileFeatures=sidewalkRoadTileFeatures' "${map}"
+            grep -Fq "const sidewalkTileFeatures=[...sidewalkRoadTileFeatures,...sidewalkRenderedFeatures]" "${map}"
+            grep -Fq "map.queryRenderedFeatures({layers:['gta-global-sidewalk-approach-v1']})" "${map}"
             grep -Fq "map.getSource('bpSidewalk3D')?.setData({type:'FeatureCollection',features:sidewalk3D.features})" "${map}"
             node --check "${map}"
           done
