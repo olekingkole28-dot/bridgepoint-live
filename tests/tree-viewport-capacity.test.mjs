@@ -108,7 +108,7 @@ assert.ok(treeSourceUpdateIndex >= 0 && treeRendererRefreshIndex > treeSourceUpd
   'the active renderer must be refreshed only after the completed viewport tile is committed');
 assert.match(mapSource, /bpAttachTreeRendererFromViewport\(\);const treeRendererApi=window\.__BP_TREE_INSTANCE_RENDERER_API_V1__/,
   'the completed viewport fetch must attach the 3D renderer as soon as active tile data exists');
-assert.match(mapSource, /world-v2300-tree-instanced\.js\?v=20261102-tree-canopy-coverage-v5/,
+assert.match(mapSource, /world-v2300-tree-instanced\.js\?v=20261106-renderer-reliability-v1/,
   'the updated renderer module must use a fresh URL so the browser cannot reuse its old module cache');
 assert.match(mapSource, /if\(treeRendererApi\?\.map===map\)treeRendererApi\.refreshInstances\?\.\(\{authoritative:settled\[1\]\.status==='fulfilled'/,
   'an already-attached 3D renderer must receive authoritative viewport results without requiring a camera event');
