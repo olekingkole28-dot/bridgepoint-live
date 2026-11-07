@@ -1345,12 +1345,12 @@ function bridgeLineCoveredByPolygons(line,polygons){
   }
   // Build only from line segments that intersect the current screen. Rendered features
   // are first so a clipped tile copy cannot replace the visible sidewalk geometry.
-  function refreshSidewalk3DFromTiles(extraFeatures=[]) {
+  function refreshSidewalk3DFromTiles(extraFeatures=[],force=false) {
     const z=map.getZoom();
     if(z<14.2||moving||worldMapSurfaceInactive()||!map.getSource('bpSidewalk3D')||!map.getSource('ofm'))return false;
     const bounds=map.getBounds();
     const viewKey=[z.toFixed(2),bounds.getWest().toFixed(4),bounds.getSouth().toFixed(4),bounds.getEast().toFixed(4),bounds.getNorth().toFixed(4)].join(':');
-    if(!extraFeatures.length&&map.__BP_SIDEWALK_LAST_VIEW_KEY__===viewKey&&Number(window.__BP_SIDEWALK_3D_STATE__?.featureCount||0)>0)return false;
+    if(!force&&!extraFeatures.length&&map.__BP_SIDEWALK_LAST_VIEW_KEY__===viewKey&&Number(window.__BP_SIDEWALK_3D_STATE__?.featureCount||0)>0)return false;
 
     const sidewalkRoadLayers=['gta-road-major','gta-road-local'].filter(id=>map.getLayer(id));
     let sidewalkRoadRenderedRaw=[];
@@ -1413,7 +1413,7 @@ function bridgeLineCoveredByPolygons(line,polygons){
     const sidewalk3D=buildSidewalk3DFeatures({features:sidewalkFeatureInputs,roadFeatures:roadInputs,roadsideWalkFeatures:sidewalkRoadRenderedFeatures,generateRoadsideWalks:true,zoom:z,mobile:MOBILE,elevationAt:point=>{try{const elevation=map.queryTerrainElevation?.({lng:point[0],lat:point[1]},{exaggerated:false});return Number.isFinite(elevation)?elevation:null}catch(_){return null}}});
     map.getSource('bpSidewalk3D')?.setData({type:'FeatureCollection',features:sidewalk3D.features});
     map.__BP_SIDEWALK_LAST_VIEW_KEY__=sidewalk3D.features.length?viewKey:'';
-    window.__BP_SIDEWALK_3D_STATE__={version:4,status:sidewalk3D.features.length?'ready':'no-sidewalk-geometry-in-current-viewport',featureCount:sidewalk3D.features.length,viewportFeatures:extraFeatures.length,globalVectorTileFeatures:sidewalkSourceRaw.length,roadVectorTileFeatures:sidewalkRoadTileFeatures.length,roadFeaturesForCurbs:roadInputs.length,renderedApproachFeatures:sidewalkRenderedRaw.length,clippedApproachFeatures:sidewalkRenderedFeatures.length,prioritizedLineSegments:sidewalkFeatureInputs.length,clippedRenderedRoadFeatures:sidewalkRoadRenderedFeatures.length,clippedSidewalkInputFeatures:sidewalkFeatureInputs.length,buildIndependentOfLivingWorldFetch:true,...(sidewalk3D.stats||{}),zoom:z,updatedAt:Date.now()};
+    window.__BP_SIDEWALK_3D_STATE__={version:4,status:sidewalk3D.features.length?'ready':'no-sidewalk-geometry-in-current-viewport',featureCount:sidewalk3D.features.length,viewportFeatures:extraFeatures.length,globalVectorTileFeatures:sidewalkSourceRaw.length,roadVectorTileFeatures:sidewalkRoadTileFeatures.length,roadFeaturesForCurbs:roadInputs.length,renderedApproachFeatures:sidewalkRenderedRaw.length,clippedApproachFeatures:sidewalkRenderedFeatures.length,prioritizedLineSegments:sidewalkFeatureInputs.length,clippedRenderedRoadFeatures:sidewalkRoadRenderedFeatures.length,clippedSidewalkInputFeatures:sidewalkFeatureInputs.length,buildIndependentOfLivingWorldFetch:true,forcedTileRefresh:force,...(sidewalk3D.stats||{}),zoom:z,updatedAt:Date.now()};
     return sidewalk3D.features.length>0;
   }
 
@@ -2012,7 +2012,7 @@ function bridgeLineCoveredByPolygons(line,polygons){
     if(map.getZoom()>=activeWorldLodProfile().bridgeMin)rebuildBridge3D(MOBILE?140:90);
    },MOBILE?420:220);
   };
-  let bpContextBuildingSyncTimer=0;
+  let bpContextBuildingSyncTimer=0,bpSidewalkTileSyncTimer=0;
   map.on('movestart',()=>movement(true));map.on('moveend',()=>{movement(false);clampCameraAboveTerrain();if(bpBridgeSourcePending)scheduleBridgeSourceRefresh()});map.on('zoomend',()=>{schedulePostMoveSettle();clampCameraAboveTerrain()});let bpCitySyncTimer=0,bpGlobalLodSyncTimer=0;map.on('sourcedata',e=>{
   if(e?.sourceId==='ofm'){
    clearTimeout(bpGlobalLodSyncTimer);
@@ -2020,6 +2020,10 @@ function bridgeLineCoveredByPolygons(line,polygons){
    // Vector-tile content can arrive after moveend. Rebuild the 3D bridge mesh
    // and re-sync the context building LOD as those tiles become available.
    if(e?.sourceDataType==='content'||e?.isSourceLoaded===true||e?.tile){
+    clearTimeout(bpSidewalkTileSyncTimer);
+    bpSidewalkTileSyncTimer=setTimeout(()=>{
+     if(!moving&&!map.isMoving?.()&&map.getZoom()>=14.2)refreshSidewalk3DFromTiles([],true);
+    },MOBILE?520:220);
     scheduleBridgeSourceRefresh();
     clearTimeout(bpContextBuildingSyncTimer);
     bpContextBuildingSyncTimer=setTimeout(()=>{
