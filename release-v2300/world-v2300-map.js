@@ -1,5 +1,5 @@
 import{VERSION,EDGE,EMPTY,MOBILE,LOW,TIER,rpc,edge,tileTransform,bbox,fc,clamp}from'./world-v2300-config.js';
-import{buildSidewalk3DFeatures,installSidewalk3DTextures}from'./world-v2300-sidewalks-3d.js?v=20261107-global-sidewalk-vector-tiles-v2';
+import{buildSidewalk3DFeatures,installSidewalk3DTextures}from'./world-v2300-sidewalks-3d.js?v=20261107-sidewalk-terrain-local-offsets-v3';
 // The separate celestial canvas is intentionally not mounted over the satellite globe.
 window.__BP_WORLD_RENDER_VERSION__=5630;window.__BP_STYLE_READY_GATE_V6215__={version:6215,waitsForStyleLayers:true,requiresAllRasterTiles:false,updatedAt:Date.now()};
 const PUBLIC_TECH_FAST=true;
@@ -591,6 +591,7 @@ export function initWorld(options={}){
  };
  map.once('load',bpInstallRegionalTreeCanopy);
  map.on('idle',bpAttachTreeRendererFromViewport);
+ map.on('idle',()=>{if(!moving&&map.getZoom()>=14.2)refreshSidewalk3DFromTiles()});
  map.on('moveend',bpAttachTreeRendererFromViewport);
  map.on('zoomend',bpAttachTreeRendererFromViewport);
  map.addControl(new maplibregl.NavigationControl({visualizePitch:true,showCompass:true}),'top-right');
@@ -1297,6 +1298,52 @@ function bridgeLineCoveredByPolygons(line,polygons){
   function lodDistanceMeters(a,b){const alat=Number(a?.lat??a?.[1])||0,blat=Number(b?.lat??b?.[1])||0,alng=Number(a?.lng??a?.[0])||0,blng=Number(b?.lng??b?.[0])||0,lat=(alat+blat)*.5*Math.PI/180,dx=(alng-blng)*111320*Math.cos(lat),dy=(alat-blat)*110540;return Math.hypot(dx,dy)}
   function lodViewHalfDiagonalMeters(bounds){try{const sw=bounds.getSouthWest(),ne=bounds.getNorthEast(),nw=bounds.getNorthWest(),se=bounds.getSouthEast();return .5*Math.max(lodDistanceMeters(sw,ne),lodDistanceMeters(nw,se))}catch(_){return 300}}
   function mergeLodFeatureCache(previous,incoming,center,radiusMeters,maxFeatures){const merged=new Map();for(const f of incoming||[]){if(!f?.geometry)continue;const key=lodFeatureKey(f);if(!merged.has(key))merged.set(key,f);if(merged.size>=maxFeatures)break}for(const f of previous||[]){if(merged.size>=maxFeatures)break;if(!f?.geometry)continue;const point=lodFeatureCenter(f);if(!point||lodDistanceMeters(point,center)>radiusMeters)continue;const key=lodFeatureKey(f);if(!merged.has(key))merged.set(key,f)}return [...merged.values()]}
+
+// Build the sidewalk scene directly from the loaded global transportation tiles.
+// This is deliberately independent of the slower optional building/tree viewport fetch.
+  function refreshSidewalk3DFromTiles(extraFeatures=[]) {
+    const z=map.getZoom();
+    if(z<14.2||moving||worldMapSurfaceInactive()||!map.getSource('bpSidewalk3D')||!map.getSource('ofm'))return false;
+    const bounds=map.getBounds();
+    const viewKey=[z.toFixed(2),bounds.getWest().toFixed(4),bounds.getSouth().toFixed(4),bounds.getEast().toFixed(4),bounds.getNorth().toFixed(4)].join(':');
+    if(!extraFeatures.length&&map.__BP_SIDEWALK_LAST_VIEW_KEY__===viewKey)return false;
+
+    const sidewalkRoadLayers=['gta-road-major','gta-road-local'].filter(id=>map.getLayer(id));
+    let sidewalkRoadFeatures=[];
+    try{if(sidewalkRoadLayers.length)sidewalkRoadFeatures=map.queryRenderedFeatures({layers:sidewalkRoadLayers})||[]}catch(_){}
+    let sidewalkRoadTileFeatures=[];
+    try{sidewalkRoadTileFeatures=map.querySourceFeatures('ofm',{sourceLayer:'transportation'})||[]}catch(_){}
+    const sidewalkRoadClasses=new Set(['motorway','trunk','primary','secondary','tertiary','minor','service','track','residential','unclassified','living_street','road']);
+    const sidewalkRoadKeys=new Set();
+    for(const roadFeature of sidewalkRoadTileFeatures){
+      const p=roadFeature?.properties||{},roadClass=String(p.class||'').toLowerCase();
+      const brunnel=String(p.brunnel||'').toLowerCase(),bridge=String(p.bridge||'').toLowerCase(),tunnel=String(p.tunnel||'').toLowerCase();
+      if(!sidewalkRoadClasses.has(roadClass)||brunnel==='bridge'||brunnel==='tunnel'||bridge==='yes'||tunnel==='yes')continue;
+      const geometryKey=JSON.stringify(roadFeature?.geometry?.coordinates||[]);
+      const key=String(p.osm_id||p.id||roadFeature?.id||geometryKey);
+      if(sidewalkRoadKeys.has(key))continue;
+      sidewalkRoadKeys.add(key);sidewalkRoadFeatures.push(roadFeature);
+      if(sidewalkRoadFeatures.length>=(MOBILE?100:500))break;
+    }
+
+    // querySourceFeatures reads loaded transportation source tiles, not just the
+    // narrow 2D approach-line layer's rendered subset. The 3D builder selects
+    // sidewalk/footway records from this complete local tile batch.
+    const sidewalkTileFeatures=sidewalkRoadTileFeatures;
+    const sidewalkFeatureInputs=[],sidewalkFeatureKeys=new Set();
+    for(const feature of [...extraFeatures,...sidewalkTileFeatures]){
+      const p=feature?.properties||{},geometryKey=JSON.stringify(feature?.geometry?.coordinates||[]);
+      const key=String(p.source_record_id||p.osm_id||p.id||feature?.id||geometryKey);
+      if(sidewalkFeatureKeys.has(key))continue;
+      sidewalkFeatureKeys.add(key);sidewalkFeatureInputs.push(feature);
+    }
+    const sidewalk3D=buildSidewalk3DFeatures({features:sidewalkFeatureInputs,roadFeatures:sidewalkRoadFeatures,zoom:z,mobile:MOBILE,elevationAt:point=>{try{const elevation=map.queryTerrainElevation?.({lng:point[0],lat:point[1]},{exaggerated:false});return Number.isFinite(elevation)?elevation:null}catch(_){return null}}});
+    map.getSource('bpSidewalk3D')?.setData({type:'FeatureCollection',features:sidewalk3D.features});
+    map.__BP_SIDEWALK_LAST_VIEW_KEY__=viewKey;
+    window.__BP_SIDEWALK_3D_STATE__={version:3,status:sidewalk3D.features.length?'ready':'no-mapped-sidewalks-in-current-viewport',featureCount:sidewalk3D.features.length,viewportFeatures:extraFeatures.length,globalVectorTileFeatures:sidewalkTileFeatures.length,roadVectorTileFeatures:sidewalkRoadTileFeatures.length,roadFeaturesForCurbs:sidewalkRoadFeatures.length,buildIndependentOfLivingWorldFetch:true,...(sidewalk3D.stats||{}),zoom:z,updatedAt:Date.now()};
+    return sidewalk3D.features.length>0;
+  }
+
   async function livingWorld(){
   const lod=activeWorldLodProfile();
   if(map.getZoom()<lod.treeMin||moving)return;
@@ -1308,43 +1355,8 @@ function bridgeLineCoveredByPolygons(line,polygons){
     edge('bridgepoint-global-tree-viewport-v1101',{west:tb.west,south:tb.south,east:tb.east,north:tb.north,limit:treeLimit},12000)
    ]);
    if(seq!==livingSeq||moving)return;
-   const base=settled[0].status==='fulfilled'&&settled[0].value?.type==='FeatureCollection'?settled[0].value:EMPTY,trees=settled[1].status==='fulfilled'&&settled[1].value?.type==='FeatureCollection'?settled[1].value:EMPTY,center=map.getCenter(),viewHalf=lodViewHalfDiagonalMeters(map.getBounds()),retentionRadiusMeters=clamp(viewHalf*1.6,MOBILE?180:260,z>=18?2400:z>=16?4500:8000),priorCache=map.__BP_LIVING_TILE_CACHE_V6017__||{},baseCap=MOBILE?(lod.tier==='GOLD'?2400:lod.tier==='SILVER'?1800:1200):(lod.tier==='GOLD'?9000:lod.tier==='SILVER'?7500:6000),treeCap=MOBILE?(lod.tier==='GOLD'?3200:lod.tier==='SILVER'?2400:1600):(lod.tier==='GOLD'?14000:lod.tier==='SILVER'?10500:8000),retainedBase=mergeLodFeatureCache(priorCache.base||[],base.features||[],center,retentionRadiusMeters,baseCap),retainedTrees=mergeLodFeatureCache((priorCache.trees||[]).filter(f=>String(f?.properties?.source_key||'')==='META_WRI_CHMV2_LOCAL_MAXIMA_V1109'&&String(f?.properties?.tile_key||'')===String(trees.active_tile||'')),trees.features||[],center,retentionRadiusMeters,treeCap),features=[],seen=new Set();map.__BP_LIVING_TILE_CACHE_V6017__={base:retainedBase,trees:retainedTrees,center:[center.lng,center.lat],radiusMeters:retentionRadiusMeters,updatedAt:Date.now()};for(const f of [...retainedBase,...retainedTrees]){const key=lodFeatureKey(f);if(seen.has(key))continue;seen.add(key);features.push(f)}    const data={type:'FeatureCollection',features};map.getSource('bpLivingWorld')?.setData(data);map.getSource('bpTreeLod')?.setData({type:'FeatureCollection',features:[...retainedTrees]});bpAttachTreeRendererFromViewport();const treeRendererApi=window.__BP_TREE_INSTANCE_RENDERER_API_V1__;if(treeRendererApi?.map===map)treeRendererApi.refreshInstances?.({authoritative:settled[1].status==='fulfilled'&&settled[1].value?.type==='FeatureCollection'});    const sidewalkRoadLayers=['gta-road-major','gta-road-local'].filter(id=>map.getLayer(id));
-    let sidewalkRoadFeatures=[];try{if(sidewalkRoadLayers.length)sidewalkRoadFeatures=map.queryRenderedFeatures({layers:sidewalkRoadLayers})||[]}catch(_){}
-    // Road styling layers can be hidden by the globe's style modes, so their
-    // rendered-feature query may legitimately return zero. Read the same
-    // loaded OpenFreeMap transportation tiles used by the road/sidewalk map
-    // instead, then pass only real road centerlines to curb/verge pairing.
-    let sidewalkRoadTileFeatures=[];
-    try{if(map.getSource('ofm'))sidewalkRoadTileFeatures=map.querySourceFeatures('ofm',{sourceLayer:'transportation'})||[]}catch(_){}
-    const sidewalkRoadClasses=new Set(['motorway','trunk','primary','secondary','tertiary','minor','service','track','residential','unclassified','living_street','road']);
-    const sidewalkRoadKeys=new Set();
-    for(const roadFeature of sidewalkRoadTileFeatures){
-      const p=roadFeature?.properties||{},roadClass=String(p.class||'').toLowerCase();
-      const brunnel=String(p.brunnel||'').toLowerCase(),bridge=String(p.bridge||'').toLowerCase(),tunnel=String(p.tunnel||'').toLowerCase();
-      if(!sidewalkRoadClasses.has(roadClass)||brunnel==='bridge'||brunnel==='tunnel'||bridge==='yes'||tunnel==='yes')continue;
-      const geometryKey=JSON.stringify(roadFeature?.geometry?.coordinates||[]);
-      const key=String(p.osm_id||p.id||roadFeature?.id||geometryKey);
-      if(sidewalkRoadKeys.has(key))continue;
-      sidewalkRoadKeys.add(key);sidewalkRoadFeatures.push(roadFeature);
-      if(sidewalkRoadFeatures.length>=650)break;
-    }
-    // Use both the detailed viewport response and the same global OSM vector
-    // tiles that already draw the visible 2D sidewalk/footway approach lines.
-    // The vector-tile path keeps 3D surfaces available when the optional
-    // living-world viewport response is sparse or throttled on mobile.
-    let sidewalkTileFeatures=[];
-    try{if(map.getLayer('gta-global-sidewalk-approach-v1'))sidewalkTileFeatures=map.queryRenderedFeatures({layers:['gta-global-sidewalk-approach-v1']})||[]}catch(_){}
-    const sidewalkFeatureInputs=[],sidewalkFeatureKeys=new Set();
-    for(const feature of [...retainedBase,...sidewalkTileFeatures]){
-      const p=feature?.properties||{},geometryKey=JSON.stringify(feature?.geometry?.coordinates||[]);
-      const key=String(p.source_record_id||p.osm_id||p.id||feature?.id||geometryKey);
-      if(sidewalkFeatureKeys.has(key))continue;
-      sidewalkFeatureKeys.add(key);sidewalkFeatureInputs.push(feature);
-    }
-    const sidewalk3D=buildSidewalk3DFeatures({features:sidewalkFeatureInputs,roadFeatures:sidewalkRoadFeatures,zoom:z,mobile:MOBILE,elevationAt:point=>{try{const elevation=map.queryTerrainElevation?.({lng:point[0],lat:point[1]},{exaggerated:false});return Number.isFinite(elevation)?elevation:null}catch(_){return null}}});
-    map.getSource('bpSidewalk3D')?.setData({type:'FeatureCollection',features:sidewalk3D.features});
-    window.__BP_SIDEWALK_3D_STATE__={version:2,status:sidewalk3D.features.length?'ready':'no-mapped-sidewalks-in-current-viewport',featureCount:sidewalk3D.features.length,viewportFeatures:retainedBase.length,globalVectorTileFeatures:sidewalkTileFeatures.length,roadVectorTileFeatures:sidewalkRoadTileFeatures.length,roadFeaturesForCurbs:sidewalkRoadFeatures.length,...(sidewalk3D.stats||{}),zoom:z,updatedAt:Date.now()};
-if(features.length){     const physicalData={type:'FeatureCollection',features:[...retainedTrees,...retainedBase]};
+   const base=settled[0].status==='fulfilled'&&settled[0].value?.type==='FeatureCollection'?settled[0].value:EMPTY,trees=settled[1].status==='fulfilled'&&settled[1].value?.type==='FeatureCollection'?settled[1].value:EMPTY,center=map.getCenter(),viewHalf=lodViewHalfDiagonalMeters(map.getBounds()),retentionRadiusMeters=clamp(viewHalf*1.6,MOBILE?180:260,z>=18?2400:z>=16?4500:8000),priorCache=map.__BP_LIVING_TILE_CACHE_V6017__||{},baseCap=MOBILE?(lod.tier==='GOLD'?2400:lod.tier==='SILVER'?1800:1200):(lod.tier==='GOLD'?9000:lod.tier==='SILVER'?7500:6000),treeCap=MOBILE?(lod.tier==='GOLD'?3200:lod.tier==='SILVER'?2400:1600):(lod.tier==='GOLD'?14000:lod.tier==='SILVER'?10500:8000),retainedBase=mergeLodFeatureCache(priorCache.base||[],base.features||[],center,retentionRadiusMeters,baseCap),retainedTrees=mergeLodFeatureCache((priorCache.trees||[]).filter(f=>String(f?.properties?.source_key||'')==='META_WRI_CHMV2_LOCAL_MAXIMA_V1109'&&String(f?.properties?.tile_key||'')===String(trees.active_tile||'')),trees.features||[],center,retentionRadiusMeters,treeCap),features=[],seen=new Set();map.__BP_LIVING_TILE_CACHE_V6017__={base:retainedBase,trees:retainedTrees,center:[center.lng,center.lat],radiusMeters:retentionRadiusMeters,updatedAt:Date.now()};for(const f of [...retainedBase,...retainedTrees]){const key=lodFeatureKey(f);if(seen.has(key))continue;seen.add(key);features.push(f)}    const data={type:'FeatureCollection',features};map.getSource('bpLivingWorld')?.setData(data);map.getSource('bpTreeLod')?.setData({type:'FeatureCollection',features:[...retainedTrees]});bpAttachTreeRendererFromViewport();const treeRendererApi=window.__BP_TREE_INSTANCE_RENDERER_API_V1__;if(treeRendererApi?.map===map)treeRendererApi.refreshInstances?.({authoritative:settled[1].status==='fulfilled'&&settled[1].value?.type==='FeatureCollection'});    refreshSidewalk3DFromTiles(retainedBase);
+ if(features.length){     const physicalData={type:'FeatureCollection',features:[...retainedTrees,...retainedBase]};
      let denseMobileScene=false,denseRenderedBuildings=0;
     if(MOBILE&&z<17.2){
      try{const ls=['gta-bp-buildings','gta-context-buildings','gta-city-buildings'].filter(id=>map.getLayer(id)&&(map.getLayoutProperty(id,'visibility')||'visible')!=='none');denseRenderedBuildings=ls.length?(map.queryRenderedFeatures({layers:ls})||[]).length:0;denseMobileScene=denseRenderedBuildings>45}catch(_){}

@@ -37,8 +37,8 @@ jobs:
           fetch "${O}/app.js?verify=${q}" /tmp/app.js
           fetch "${O}/world-v2300-map.js?v=6228-global-sidewalk-3d-vector-tiles&verify=${q}" /tmp/root-map.js
           fetch "${O}/app/world-v2300-map.js?v=6228-global-sidewalk-3d-vector-tiles&verify=${q}" /tmp/app-map.js
-          fetch "${O}/world-v2300-sidewalks-3d.js?v=20261107-global-sidewalk-vector-tiles-v2&verify=${q}" /tmp/root-sidewalk.js
-          fetch "${O}/app/world-v2300-sidewalks-3d.js?v=20261107-global-sidewalk-vector-tiles-v2&verify=${q}" /tmp/app-sidewalk.js
+          fetch "${O}/world-v2300-sidewalks-3d.js?v=20261107-sidewalk-terrain-local-offsets-v3&verify=${q}" /tmp/root-sidewalk.js
+          fetch "${O}/app/world-v2300-sidewalks-3d.js?v=20261107-sidewalk-terrain-local-offsets-v3&verify=${q}" /tmp/app-sidewalk.js
 
           grep -Fq 'sidewalk=6223-sidewalk-3d-global' /tmp/root.html
           grep -Fq 'sidewalk=6223-sidewalk-3d-global' /tmp/app.html
@@ -51,8 +51,8 @@ jobs:
           grep -Fq "CURRENT_CACHE='bp-intelligence-v6223-sidewalk-3d-global'" /tmp/app-update.js
           grep -Fq '6228-global-sidewalk-3d-vector-tiles' /tmp/landing.js
           grep -Fq '6228-global-sidewalk-3d-vector-tiles' /tmp/app.js
-          grep -Fq "from'./world-v2300-sidewalks-3d.js?v=20261107-global-sidewalk-vector-tiles-v2'" /tmp/root-map.js
-          grep -Fq "from'./world-v2300-sidewalks-3d.js?v=20261107-global-sidewalk-vector-tiles-v2'" /tmp/app-map.js
+          grep -Fq "from'./world-v2300-sidewalks-3d.js?v=20261107-sidewalk-terrain-local-offsets-v3'" /tmp/root-map.js
+          grep -Fq "from'./world-v2300-sidewalks-3d.js?v=20261107-sidewalk-terrain-local-offsets-v3'" /tmp/app-map.js
 
           for map in /tmp/root-map.js /tmp/app-map.js; do
             grep -Fq 'gta-bp-sidewalk-slabs-v1' "${map}"
@@ -64,7 +64,9 @@ jobs:
             grep -Fq "map.querySourceFeatures('ofm',{sourceLayer:'transportation'})" "${map}"
             grep -Fq 'roadVectorTileFeatures:sidewalkRoadTileFeatures.length' "${map}"
             grep -Fq "brunnel==='bridge'||brunnel==='tunnel'||bridge==='yes'||tunnel==='yes'" "${map}"
-            grep -Fq "map.queryRenderedFeatures({layers:['gta-global-sidewalk-approach-v1']})" "${map}"
+            grep -Fq 'function refreshSidewalk3DFromTiles(extraFeatures=[])' "${map}"
+            grep -Fq "map.on('idle',()=>{if(!moving&&map.getZoom()>=14.2)refreshSidewalk3DFromTiles()});" "${map}"
+            grep -Fq 'sidewalkTileFeatures=sidewalkRoadTileFeatures' "${map}"
             grep -Fq "map.getSource('bpSidewalk3D')?.setData({type:'FeatureCollection',features:sidewalk3D.features})" "${map}"
             node --check "${map}"
           done
@@ -75,6 +77,9 @@ jobs:
           grep -Fq "part:'curb'" /tmp/root-sidewalk.js
           grep -Fq "part:'grass_verge'" /tmp/root-sidewalk.js
           grep -Fq "part:'grass_blade'" /tmp/root-sidewalk.js
+          grep -Fq "base_m:0,terrain_sampled:sampled,terrain_elevation_m:sampled?elevation:null" /tmp/root-sidewalk.js
+          grep -Fq "top_m:0.145" /tmp/root-sidewalk.js
+          grep -Fq "top_m:0.20" /tmp/root-sidewalk.js
           grep -Fq "part:'panel_joint'" /tmp/root-sidewalk.js
           node --check /tmp/root-sidewalk.js
 

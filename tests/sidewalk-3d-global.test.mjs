@@ -41,8 +41,15 @@ assert.ok(parts('grass_verge').length > 0, 'a mapped gap between sidewalk and ro
 assert.ok(parts('grass_blade').length > 0, 'grass verges should include individual raised blade polygons');
 assert.ok(parts('panel_joint').length > 0, 'individual slabs should expose cross-slab expansion joints');
 assert.ok(parts('hairline_crack').length > 0, 'some slabs should include subtle visible hairline surface detail');
-assert.ok(parts('sidewalk_slab').every(f => f.properties.base_m === 150.25 && f.properties.terrain_sampled === true),
-  'all sidewalk slabs should anchor to sampled terrain elevation');
+assert.ok(parts('sidewalk_slab').every(f => f.properties.base_m === 0 && f.properties.top_m === 0.145 &&
+  f.properties.terrain_elevation_m === 150.25 && f.properties.terrain_sampled === true),
+  'MapLibre terrain draping must carry the slab while absolute elevation remains diagnostic-only');
+assert.ok(parts('curb').every(f => f.properties.base_m === 0 && f.properties.top_m === 0.20),
+  'curbs must use a local 20 cm extrusion, not absolute sea-level elevation');
+assert.ok(parts('grass_verge').every(f => f.properties.base_m === 0 && f.properties.top_m === 0.045),
+  'grass verges must use local ground-relative extrusion heights');
+assert.ok(parts('grass_blade').every(f => f.properties.base_m === 0 && f.properties.top_m >= 0.10 && f.properties.top_m <= 0.15),
+  'individual grass blades must remain small local extrusions');
 assert.ok(parts('sidewalk_slab').every(f => f.properties.width_truth === 'SOURCE_TAGGED_WIDTH'),
   'tagged sidewalk widths should retain their source-truth label');
 assert.ok(parts('curb').every(f => f.properties.top_m - f.properties.base_m >= 0.19),
@@ -50,6 +57,12 @@ assert.ok(parts('curb').every(f => f.properties.top_m - f.properties.base_m >= 0
 assert.equal(built.stats.sourceTaggedWidths, 1, 'source width should be reported');
 assert.equal(buildSidewalk3DFeatures({features:[sidewalk],zoom:14.1}).features.length, 0,
   '3D sidewalk geometry should stay off before its LOD threshold');
+const noElevation = buildSidewalk3DFeatures({features:[sidewalk],zoom:17,elevationAt:() => null});
+function partsNoElevation(collection) { return collection.features.filter(f => f.properties.part === 'sidewalk_slab'); }
+assert.ok(partsNoElevation(noElevation).every(f => f.properties.base_m === 0 && f.properties.top_m === 0.145 &&
+  f.properties.terrain_sampled === false && f.properties.terrain_elevation_m === null),
+  'missing terrain samples must not suppress or vertically displace sidewalk slabs');
+
 const noRoad = buildSidewalk3DFeatures({
   features:[sidewalk], roadFeatures:[], zoom:17, elevationAt:() => 5
 });
@@ -89,8 +102,12 @@ assert.ok(buildSidewalk3DFeatures({features:[fineSurface],zoom:17}).features.som
   'the original source-backed fine-surface sidewalk layer must remain included');
 
 const mapSource = await readFile(new URL('../release-v2300/world-v2300-map.js', import.meta.url), 'utf8');
-assert.ok(mapSource.includes("map.queryRenderedFeatures({layers:['gta-global-sidewalk-approach-v1']})"),
-  'the 3D builder must also consume the same rendered global sidewalk vector tiles used by the visible 2D approach layer');
+assert.ok(mapSource.includes("sidewalkTileFeatures=sidewalkRoadTileFeatures"),
+  'the 3D builder must consume the loaded global transportation tiles directly, not only the 2D approach layer visible subset');
+assert.ok(mapSource.includes('function refreshSidewalk3DFromTiles(extraFeatures=[])'),
+  'sidewalk generation must have its own lightweight map-tile refresh path');
+assert.ok(mapSource.includes("map.on('idle',()=>{if(!moving&&map.getZoom()>=14.2)refreshSidewalk3DFromTiles()});"),
+  'the global 3D sidewalk scene must refresh automatically as soon as loaded map tiles become idle');
 assert.ok(mapSource.includes('features:sidewalkFeatureInputs'),
   'viewport records and global vector-tile sidewalk features must be merged before 3D geometry generation');
 assert.ok(mapSource.includes('globalVectorTileFeatures:sidewalkTileFeatures.length'),
@@ -106,11 +123,11 @@ assert.ok(mapSource.includes('roadVectorTileFeatures:sidewalkRoadTileFeatures.le
   'the live sidewalk diagnostics must report loaded transportation road tiles used for curb placement');
 
 
-const livingDataIndex = mapSource.indexOf("const data={type:'FeatureCollection',features};");
-const sidewalkBuildIndex = mapSource.indexOf('const sidewalk3D=', livingDataIndex);
-const livingFeatureGateIndex = mapSource.indexOf('if(features.length){', livingDataIndex);
-assert.ok(livingDataIndex >= 0 && sidewalkBuildIndex > livingDataIndex && livingFeatureGateIndex > sidewalkBuildIndex,
-  '3D sidewalk generation must run before and independently of the buildings/trees nonempty-scene gate');
+const sidewalkRefreshIndex = mapSource.indexOf('function refreshSidewalk3DFromTiles(extraFeatures=[])');
+const sidewalkBuildIndex = mapSource.indexOf('const sidewalk3D=buildSidewalk3DFeatures', sidewalkRefreshIndex);
+const livingFeatureGateIndex = mapSource.indexOf('if(features.length){', sidewalkBuildIndex);
+assert.ok(sidewalkRefreshIndex >= 0 && sidewalkBuildIndex > sidewalkRefreshIndex && livingFeatureGateIndex > sidewalkBuildIndex,
+  'the source-tile sidewalk builder must remain outside and before the optional buildings/trees nonempty-scene gate');
 assert.ok(!mapSource.includes("map.getSource('bpSidewalk3D')?.setData(EMPTY)"),
   'an empty buildings/trees response must not clear mapped sidewalk 3D geometry');
 

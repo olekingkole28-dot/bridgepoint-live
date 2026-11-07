@@ -149,14 +149,14 @@ function add(output, geometry, properties) {
 function addPoly(output, ring, properties) {
   if (ring) add(output, {type:'Polygon', coordinates:ring}, properties);
 }
-function addBlade(output, center, tangent, width, length, angle, base, seed) {
+function addBlade(output, center, tangent, width, length, angle, seed) {
   const theta = Math.atan2(tangent[1], tangent[0]) + angle;
   const ux = Math.cos(theta), uy = Math.sin(theta), nx = -uy, ny = ux;
   const p1 = offsetPoint(center, ux * length * 0.5, uy * length * 0.5);
   const p2 = offsetPoint(center, -ux * length * 0.32 + nx * width * 0.5, -uy * length * 0.32 + ny * width * 0.5);
   const p3 = offsetPoint(center, -ux * length * 0.32 - nx * width * 0.5, -uy * length * 0.32 - ny * width * 0.5);
   const ring = [[p1,p2,p3,p1]];
-  add(output, {type:'Polygon',coordinates:ring}, {part:'grass_blade',base_m:base,top_m:base+0.10+rand(seed,3)*0.05,color:rand(seed,4)>.5?'#64934b':'#467b3b',truth:'PROCEDURAL_GRASS_DISPLAY_MESH'});
+  add(output, {type:'Polygon',coordinates:ring}, {part:'grass_blade',base_m:0,top_m:0.10+rand(seed,3)*0.05,color:rand(seed,4)>.5?'#64934b':'#467b3b',truth:'PROCEDURAL_GRASS_DISPLAY_MESH'});
 }
 function addLinePath(output, feature, rawLine, roads, elevationAt, limits, counts, mobile) {
   const line = cleanLine(rawLine), total = lineLength(line);
@@ -182,30 +182,33 @@ function addLinePath(output, feature, rawLine, roads, elevationAt, limits, count
     const center = pointAt(line, (start + end) * 0.5);
     let elevation = null;
     try { elevation = elevationAt ? elevationAt(center) : null; } catch (_) {}
-    const sampled = Number.isFinite(elevation), ground = sampled ? elevation : 0;
-    const common = {source_record_id:id,base_m:ground,terrain_sampled:sampled,width_m:width,width_truth:dimensions.truth,surface_material:String(p.surface || tagsOf(p).surface || 'concrete').toLowerCase(),terrain_anchor:'MAP_QUERY_TERRAIN_ELEVATION_METERS'};
-    addPoly(output, ribbon(segment, half - 0.008), {...common,part:'sidewalk_slab',top_m:ground+0.145,geometry_truth:'SOURCE_SIDEWALK_CENTERLINE_WITH_TAGGED_OR_ESTIMATED_WIDTH'});
+    const sampled = Number.isFinite(elevation);
+    // MapLibre drapes fill-extrusion geometry over active terrain. queryTerrainElevation
+    // is an absolute elevation above sea level, so keep it diagnostic-only; never
+    // add it to fill-extrusion base/height or the geometry floats above the ground.
+    const common = {source_record_id:id,base_m:0,terrain_sampled:sampled,terrain_elevation_m:sampled?elevation:null,width_m:width,width_truth:dimensions.truth,surface_material:String(p.surface || tagsOf(p).surface || 'concrete').toLowerCase(),terrain_anchor:'MAPLIBRE_TERRAIN_DRAPED_LOCAL_OFFSETS'};
+    addPoly(output, ribbon(segment, half - 0.008), {...common,part:'sidewalk_slab',top_m:0.145,geometry_truth:'SOURCE_SIDEWALK_CENTERLINE_WITH_TAGGED_OR_ESTIMATED_WIDTH'});
     counts.panels++;
     if (start > 0.05) {
       const before = pointAt(line, Math.max(0, start - 0.08)), after = pointAt(line, Math.min(total, start + 0.08));
       const dx = (after[0] - before[0]) * metersLon(center[1]), dy = (after[1] - before[1]) * 110540, length = Math.hypot(dx,dy) || 1;
       const nx = -dy / length, ny = dx / length;
       const joint = [offsetPoint(center,nx*half,ny*half),offsetPoint(center,-nx*half,-ny*half)];
-      add(output,{type:'LineString',coordinates:joint},{...common,part:'panel_joint',color:'#625f58',top_m:ground+0.151,truth:'DISPLAY_EXPANSION_JOINT'});
+      add(output,{type:'LineString',coordinates:joint},{...common,part:'panel_joint',color:'#625f58',top_m:0.151,truth:'DISPLAY_EXPANSION_JOINT'});
     }
     if (index % 5 === 3 && counts.cracks < limits.cracks) {
       const crackCenter = pointAt(line,start+actualLength*0.55), before=pointAt(line,Math.max(0,start+actualLength*0.55-0.12)),after=pointAt(line,Math.min(total,start+actualLength*0.55+0.12));
       const tx=(after[0]-before[0])*metersLon(crackCenter[1]),ty=(after[1]-before[1])*110540,tl=Math.hypot(tx,ty)||1;
       const nx=-ty/tl,ny=tx/tl,side=(rand(id,index)-0.5)*0.55;
       const coords=[offsetPoint(crackCenter,nx*(side-0.30),ny*(side-0.30)),offsetPoint(crackCenter,nx*side+tx/tl*0.035,ny*side+ty/tl*0.035),offsetPoint(crackCenter,nx*(side+0.26),ny*(side+0.26))];
-      add(output,{type:'LineString',coordinates:coords},{...common,part:'hairline_crack',color:'#514e48',top_m:ground+0.153,truth:'PROCEDURAL_SURFACE_WEAR_NOT_OBSERVED_DAMAGE'});
+      add(output,{type:'LineString',coordinates:coords},{...common,part:'hairline_crack',color:'#514e48',top_m:0.153,truth:'PROCEDURAL_SURFACE_WEAR_NOT_OBSERVED_DAMAGE'});
       counts.cracks++;
     }
     if (road && vergeWidth > 0 && counts.verges < limits.verges) {
       const grassCenterOffset = road.side * (half + 0.018 + vergeWidth * 0.5);
-      addPoly(output,ribbon(segment,vergeWidth*0.5,grassCenterOffset),{...common,part:'grass_verge',top_m:ground+0.045,color:'#4e7b3e',surface_pattern:'bp-sidewalk-grass-v1',truth:'ROAD_ADJACENT_VERGE_FROM_MAPPED_SIDEWALK_AND_ROAD'});
+      addPoly(output,ribbon(segment,vergeWidth*0.5,grassCenterOffset),{...common,part:'grass_verge',top_m:0.045,color:'#4e7b3e',surface_pattern:'bp-sidewalk-grass-v1',truth:'ROAD_ADJACENT_VERGE_FROM_MAPPED_SIDEWALK_AND_ROAD'});
       const curb = ribbon(segment,curbWidth*0.5,curbOffset);
-      addPoly(output,curb,{...common,part:'curb',top_m:ground+0.20,color:'#aaa9a2',curb_height_m:0.18,truth:'ROAD_EDGE_DERIVED_CURB'});
+      addPoly(output,curb,{...common,part:'curb',top_m:0.20,color:'#aaa9a2',curb_height_m:0.18,truth:'ROAD_EDGE_DERIVED_CURB'});
       counts.verges++;
       const bladeStep = mobile ? 0.85 : 0.62;
       for(let d=start+bladeStep*0.5;d<end && counts.blades<limits.blades;d+=bladeStep){
@@ -213,11 +216,11 @@ function addLinePath(output, feature, rawLine, roads, elevationAt, limits, count
         const tx=(after[0]-before[0])*metersLon(point[1]),ty=(after[1]-before[1])*110540,tl=Math.hypot(tx,ty)||1;
         const normal=[-ty/tl,tx/tl],offset=road.side*(half+0.018+vergeWidth*(0.15+0.7*rand(id,Math.floor(d*20))));
         const bladeCenter=offsetPoint(point,normal[0]*offset,normal[1]*offset);
-        addBlade(output,bladeCenter,[tx/tl,ty/tl],0.014+rand(id,Math.floor(d*30))*0.012,0.08+rand(id,Math.floor(d*40))*0.07,(rand(id,Math.floor(d*50))-.5)*1.2,ground,id+':'+d);
+        addBlade(output,bladeCenter,[tx/tl,ty/tl],0.014+rand(id,Math.floor(d*30))*0.012,0.08+rand(id,Math.floor(d*40))*0.07,(rand(id,Math.floor(d*50))-.5)*1.2,id+':'+d);
         counts.blades++;
       }
     } else if (road && road.distance - road.width*0.5 - half >= -0.10 && counts.verges < limits.verges) {
-      addPoly(output,ribbon(segment,curbWidth*0.5,curbOffset),{...common,part:'curb',top_m:ground+0.20,color:'#aaa9a2',curb_height_m:0.18,truth:'ROAD_EDGE_DERIVED_CURB'});
+      addPoly(output,ribbon(segment,curbWidth*0.5,curbOffset),{...common,part:'curb',top_m:0.20,color:'#aaa9a2',curb_height_m:0.18,truth:'ROAD_EDGE_DERIVED_CURB'});
       counts.verges++;
     }
   }
