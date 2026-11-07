@@ -16,8 +16,7 @@ function loadRetryHelper(source, fetchImpl) {
   const marker = 'async function bpAuthRequestV6237(';
   const start = source.indexOf(marker);
   assert.notEqual(start, -1, 'v6237 retry helper must be present');
-  const end = source.indexOf('
-async function ', start + marker.length);
+  const end = source.indexOf('\\nasync function ', start + marker.length);
   assert.notEqual(end, -1, 'retry helper must end before the next async function');
   const sandbox = {
     fetch: fetchImpl,
@@ -27,8 +26,7 @@ async function ', start + marker.length);
   };
   vm.createContext(sandbox);
   vm.runInContext(
-    source.slice(start, end) + '
-globalThis.__request = bpAuthRequestV6237;',
+    source.slice(start, end) + '\\nglobalThis.__request = bpAuthRequestV6237;',
     sandbox,
     { timeout: 1000 },
   );
