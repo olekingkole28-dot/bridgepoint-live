@@ -1,0 +1,79 @@
+import assert from 'node:assert/strict';
+import { buildSidewalk3DFeatures, installSidewalk3DTextures } from '../release-v2300/world-v2300-sidewalks-3d.js';
+
+const latitude = 41.55;
+const lonScale = 111320 * Math.cos(latitude * Math.PI / 180);
+const roadLat = latitude;
+const walkLat = latitude + 4.5 / 110540;
+const startLon = -72.65;
+const endLon = startLon + 30 / lonScale;
+const road = {
+  type: 'Feature',
+  id: 'road-1',
+  properties: { class: 'residential', width: '5.2' },
+  geometry: { type: 'LineString', coordinates: [[startLon, roadLat], [endLon, roadLat]] }
+};
+const sidewalk = {
+  type: 'Feature',
+  id: 'walk-1',
+  properties: {
+    class: 'footway',
+    footway: 'sidewalk',
+    width: '1.8',
+    surface: 'concrete',
+    source_record_id: 'osm-sidewalk-1',
+    tags: { footway: 'sidewalk', width: '1.8', surface: 'concrete' }
+  },
+  geometry: { type: 'LineString', coordinates: [[startLon, walkLat], [endLon, walkLat]] }
+};
+const built = buildSidewalk3DFeatures({
+  features: [sidewalk],
+  roadFeatures: [road],
+  zoom: 17,
+  mobile: false,
+  elevationAt: () => 150.25
+});
+const parts = name => built.features.filter(feature => feature.properties.part === name);
+assert.ok(parts('sidewalk_slab').length >= 15, 'a 30 m source sidewalk should become separate concrete slab polygons');
+assert.ok(parts('curb').length > 0, 'a nearby parallel road should produce a distinct curb at the road edge');
+assert.ok(parts('grass_verge').length > 0, 'a mapped gap between sidewalk and road should become a grass verge');
+assert.ok(parts('grass_blade').length > 0, 'grass verges should include individual raised blade polygons');
+assert.ok(parts('panel_joint').length > 0, 'individual slabs should expose cross-slab expansion joints');
+assert.ok(parts('hairline_crack').length > 0, 'some slabs should include subtle visible hairline surface detail');
+assert.ok(parts('sidewalk_slab').every(f => f.properties.base_m === 150.25 && f.properties.terrain_sampled === true),
+  'all sidewalk slabs should anchor to sampled terrain elevation');
+assert.ok(parts('sidewalk_slab').every(f => f.properties.width_truth === 'SOURCE_TAGGED_WIDTH'),
+  'tagged sidewalk widths should retain their source-truth label');
+assert.ok(parts('curb').every(f => f.properties.top_m - f.properties.base_m >= 0.19),
+  'curb geometry should have a visible raised face');
+assert.equal(built.stats.sourceTaggedWidths, 1, 'source width should be reported');
+assert.equal(buildSidewalk3DFeatures({features:[sidewalk],zoom:14.1}).features.length, 0,
+  '3D sidewalk geometry should stay off before its LOD threshold');
+const noRoad = buildSidewalk3DFeatures({
+  features:[sidewalk], roadFeatures:[], zoom:17, elevationAt:() => 5
+});
+assert.ok(noRoad.features.some(f => f.properties.part === 'sidewalk_slab'),
+  'mapped sidewalk surfaces should remain available without a road-side pairing');
+assert.equal(noRoad.features.some(f => f.properties.part === 'curb' || f.properties.part === 'grass_verge'), false,
+  'curbs and grass must not be fabricated without adjacent road geometry');
+const unclassifiedPath = {...sidewalk, properties:{class:'footway',tags:{footway:'crossing'} }};
+assert.equal(buildSidewalk3DFeatures({features:[unclassifiedPath],zoom:17}).features.length, 0,
+  'non-sidewalk footways and crossings should not be mislabeled as sidewalks');
+const mobile = buildSidewalk3DFeatures({features:[sidewalk],roadFeatures:[road],zoom:17,mobile:true,elevationAt:()=>10});
+assert.ok(mobile.features.length <= 180 * 6, 'mobile geometry should stay inside its bounded feature budget');
+
+const images = new Map();
+const fakeMap = {
+  hasImage: name => images.has(name),
+  addImage: (name, image) => images.set(name, image)
+};
+assert.equal(installSidewalk3DTextures(fakeMap), true, 'the sidewalk material textures should register');
+assert.equal(images.size, 4, 'concrete, paver, brick and grass surface textures should be registered');
+for (const image of images.values()) {
+  assert.equal(image.width, 64);
+  assert.equal(image.height, 64);
+  assert.equal(image.data.length, 64 * 64 * 4);
+}
+assert.equal(installSidewalk3DTextures(fakeMap), false, 'texture registration should be idempotent');
+
+console.log('BRIDGEPOINT_GLOBAL_SIDEWALK_3D_TEST_PASS');
