@@ -63,8 +63,8 @@ assert.deepEqual(streetlightHeight({ render_height_m: '9.4' }),
 assert.equal(streetlightHeight({ height: '30 ft' }).height, 9.144,
   'feet-tagged mast height must be converted to metres');
 assert.deepEqual(streetlightHeight({}),
-  { height: 6.5, measured: false, field: 'visual-fallback' },
-  'missing source height must use the same conservative 6.5 m fallback as the existing mapped streetlight layer');
+  { height: 8.0, measured: false, field: 'visual-fallback' },
+  'missing source height must use a clearly labelled, conservative 8 m visual estimate');
 
 assert.equal(uniqueStreetlightFeatures([point, point]).length, 1,
   'duplicate vector-tile records must not create duplicate physical fixtures');
@@ -88,6 +88,10 @@ assert.ok(source.includes("['==', ['get', 'class'], 'street_lamp']"),
   'only street-lamp assets may trigger the 3D layer');
 assert.ok(source.includes('isDarkAt(date, entry.coordinate)'),
   'illumination must be evaluated at each fixture coordinate');
+assert.ok(source.includes("if (part === 'shaft') scale = [1, height, 1];"),
+  'streetlight poles must use the intended metre-scaled pole diameter, not an accidentally compressed 9% width');
+assert.ok(source.includes('emissiveIntensity: 0.18'),
+  'metal poles must retain a visible steel silhouette in dark scenes');
 assert.ok(source.includes('customLayer.camera.projectionMatrix.copy(projection).multiply(anchorMatrix)'),
   'close-zoom models must render inside a local geographic anchor frame');
 assert.ok(source.includes("customLayer.camera = new THREE.Camera();"),
