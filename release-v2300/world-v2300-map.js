@@ -1,5 +1,5 @@
 import{VERSION,EDGE,EMPTY,MOBILE,LOW,TIER,rpc,edge,tileTransform,bbox,fc,clamp}from'./world-v2300-config.js';
-import{buildSidewalk3DFeatures,installSidewalk3DTextures}from'./world-v2300-sidewalks-3d.js?v=20261107-sidewalk-terrain-local-offsets-v3';
+import{buildSidewalk3DFeatures,installSidewalk3DTextures}from'./world-v2300-sidewalks-3d.js?v=20261107-sidewalk-terrain-local-offsets-v4-progressive-viewport-grass';
 // The separate celestial canvas is intentionally not mounted over the satellite globe.
 window.__BP_WORLD_RENDER_VERSION__=5630;window.__BP_STYLE_READY_GATE_V6215__={version:6215,waitsForStyleLayers:true,requiresAllRasterTiles:false,updatedAt:Date.now()};
 const PUBLIC_TECH_FAST=true;
