@@ -1524,8 +1524,10 @@ jobs:
           grep -Fq "gta-bp-sidewalk-slabs-v1" site/app/world-v2300-map.js
           grep -Fq 'function refreshSidewalk3DFromTiles(extraFeatures=[])' site/world-v2300-map.js
           grep -Fq 'function refreshSidewalk3DFromTiles(extraFeatures=[])' site/app/world-v2300-map.js
-          grep -Fq 'sidewalkTileFeatures=sidewalkRoadTileFeatures' site/world-v2300-map.js
-          grep -Fq 'sidewalkTileFeatures=sidewalkRoadTileFeatures' site/app/world-v2300-map.js
+          grep -Fq "const sidewalkTileFeatures=[...sidewalkRoadTileFeatures,...sidewalkRenderedFeatures]" site/world-v2300-map.js
+          grep -Fq "const sidewalkTileFeatures=[...sidewalkRoadTileFeatures,...sidewalkRenderedFeatures]" site/app/world-v2300-map.js
+          grep -Fq "map.queryRenderedFeatures({layers:['gta-global-sidewalk-approach-v1']})" site/world-v2300-map.js
+          grep -Fq "map.queryRenderedFeatures({layers:['gta-global-sidewalk-approach-v1']})" site/app/world-v2300-map.js
           grep -Fq "base_m:0,terrain_sampled:sampled,terrain_elevation_m:sampled?elevation:null" site/world-v2300-sidewalks-3d.js
           grep -Fq "top_m:0.145" site/world-v2300-sidewalks-3d.js
           grep -Fq "top_m:0.20" site/world-v2300-sidewalks-3d.js
