@@ -252,7 +252,8 @@ jobs:
           assert (site/"data/bridgepoint-lighthouses-global-v1-ATTRIBUTION.md").read_bytes()==(site/"app/data/bridgepoint-lighthouses-global-v1-ATTRIBUTION.md").read_bytes()
           print("STRICT_RELIABILITY_SCOPE_PASS",len(before),"baseline files; changed",len(changed),"allowed files; removed 0")
           PY
-          for f in "$SITE/world-v2300-map.js" "$SITE/app/world-v2300-map.js" "$SITE/world-v2300-tree-instanced.js" "$SITE/app/world-v2300-tree-instanced.js" "$SITE/bridgepoint-lighthouses-v1.js" "$SITE/app/bridgepoint-lighthouses-v1.js" "$SITE/bridgepoint-streetlights-3d-v1.js" "$SITE/app/bridgepoint-streetlights-3d-v1.js"; do node --input-type=module --check < "$f"; done
+          for f in "$SITE/world-v2300-map.js" "$SITE/app/world-v2300-map.js" "$SITE/world-v2300-tree-instanced.js" "$SITE/app/world-v2300-tree-instanced.js" "$SITE/bridgepoint-lighthouses-v1.js" "$SITE/app/bridgepoint-lighthouses-v1.js" "$SITE/bridgepoint-streetlights-3d-v1.js" "$SITE/app/bridgepoint-streetlights-3d-v1.js" "$SITE/bridgepoint-faa-obstruction-towers-v1.js" "$SITE/app/bridgepoint-faa-obstruction-towers-v1.js"; do node --input-type=module --check < "$f"; done
+          gzip -t "$SITE/data/bridgepoint-faa-obstructions-v1.json.gz"
           node --check "$SITE/landing.js"
           node --check "$SITE/app.js"
           node --input-type=module --check < "$SITE/vendor/GLTFLoader.bundle.js"
@@ -263,6 +264,12 @@ jobs:
           grep -Fq 'bpContextBuildingSyncTimer' "$SITE/world-v2300-map.js"
           grep -Fq 'partial-render-ready' "$SITE/world-v2300-tree-instanced.js"
           grep -Fq 'updateModelTransforms' "$SITE/bridgepoint-lighthouses-v1.js"
+          grep -Fq 'initFAAObstructionTowerRenderer' "$SITE/bridgepoint-faa-obstruction-towers-v1.js"
+          grep -Fq 'initUtilityInfrastructure' "$SITE/world-v2300-utility-infrastructure-v1.js"
+          grep -Fq 'bridgepoint-faa-obstruction-towers-v1.js?v=1-faa-obstruction-towers' "$SITE/landing.js"
+          grep -Fq 'bridgepoint-faa-obstruction-towers-v1.js?v=1-faa-obstruction-towers' "$SITE/app.js"
+          grep -Fq 'bridgepoint-streetlights-3d-v1.js?v=4-shared-pmtiles-and-batched' "$SITE/landing.js"
+          grep -Fq 'bridgepoint-streetlights-3d-v1.js?v=4-shared-pmtiles-and-batched' "$SITE/app.js"
           echo "RELIABILITY_ARTIFACT_READY"
 
       - uses: actions/configure-pages@v5
