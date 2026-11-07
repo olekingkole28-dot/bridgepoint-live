@@ -264,17 +264,17 @@ test('global opportunity markers render category glyphs and merge source-backed 
   assert.match(landing, /if\(!risk\)void loadRiskFeed\(\)\.then/);
 });
 
-test('both entrypoints perform a real 6222 service-worker cutover before stale startup survives', () => {
-  assert.match(landingHtml, /app-update-v5820\.js\?v=6222-goes-cloud-mask-volumetric/);
-  assert.match(appHtml, /app-update-v5820\.js\?v=6222-goes-cloud-mask-volumetric/);
-  assert.match(appUpdate, /const BUILD=6222/);
-  assert.match(appUpdate, /CURRENT_CACHE='bp-intelligence-v6222-goes-cloud-mask-volumetric'/);
+test('both entrypoints perform a real 6223 sidewalk-cache service-worker cutover before stale startup survives', () => {
+  assert.match(landingHtml, /app-update-v5820\.js\?v=6223-sidewalk-3d-global/);
+  assert.match(appHtml, /app-update-v5820\.js\?v=6223-sidewalk-3d-global/);
+  assert.match(appUpdate, /const BUILD=6223/);
+  assert.match(appUpdate, /CURRENT_CACHE='bp-intelligence-v6223-sidewalk-3d-global'/);
   assert.match(appUpdate, /function reloadOnce\(reason\)/);
   assert.match(appUpdate, /location\.replace\(u\.href\)/);
   assert.match(appUpdate, /navigator\.serviceWorker\?\.addEventListener\('controllerchange'/);
-  assert.match(serviceWorker, /const V='bp-intelligence-v6222-goes-cloud-mask-volumetric'/);
-  assert.match(landing, /navigator\.serviceWorker\.register\('\/sw\.js\?v=6222-goes-cloud-mask-volumetric'/);
-  assert.match(app, /navigator\.serviceWorker\.register\('\/sw\.js\?v=6222-goes-cloud-mask-volumetric'/);
+  assert.match(serviceWorker, /const V='bp-intelligence-v6223-sidewalk-3d-global'/);
+  assert.match(landing, /navigator\.serviceWorker\.register\('\/sw\.js\?v=6223-sidewalk-3d-global'/);
+  assert.match(app, /navigator\.serviceWorker\.register\('\/sw\.js\?v=6223-sidewalk-3d-global'/);
   assert.match(clouds, /Number\(existingCloudController\.version\) >= 6200[\s\S]{0,180}Number\(existingState\?\.version\) >= 6200/);
 });
 
