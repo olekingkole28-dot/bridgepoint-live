@@ -308,10 +308,11 @@ jobs:
             '/bridgepoint-streetlights-3d-v1.js?v=4-shared-pmtiles-and-batched' \
             '/app/bridgepoint-streetlights-3d-v1.js' \
             '/vendor/three.module.js' '/vendor/GLTFLoader.bundle.js' '/vendor/pmtiles.js' \
-            '/data/bridgepoint-lighthouses-global-v1.json' \
-            '/bridgepoint-faa-obstruction-towers-v1.js' \
-            '/world-v2300-utility-infrastructure-v1.js'; do
-            name="$(basename "$p" | tr '/.' '__')"
+            '/data/bridgepoint-lighthouses-global-v1.json' '/app/data/bridgepoint-lighthouses-global-v1.json' \
+            '/data/bridgepoint-faa-obstructions-v1.json.gz' '/app/data/bridgepoint-faa-obstructions-v1.json.gz' \
+            '/bridgepoint-faa-obstruction-towers-v1.js' '/app/bridgepoint-faa-obstruction-towers-v1.js' \
+            '/world-v2300-utility-infrastructure-v1.js' '/app/world-v2300-utility-infrastructure-v1.js'; do
+            name="$(printf '%s' "$p" | tr '/.' '_')"
             curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O$p?verify=$q" -o "$RUNNER_TEMP/$name.verified"
           done
           grep -Fq 'initFAAObstructionTowerRenderer' "$RUNNER_TEMP/bridgepoint-faa-obstruction-towers-v1_js.verified"
@@ -321,4 +322,15 @@ jobs:
           grep -Fq 'updateModelTransforms' "$RUNNER_TEMP/bridgepoint-lighthouses-v1.js.verified"
           grep -Fq 'PMTILES_LIBRARY_URL' "$RUNNER_TEMP/bridgepoint-streetlights-3d-v1.js.verified"
           grep -Fq 'GLTFLoader' "$RUNNER_TEMP/GLTFLoader_bundle.js.verified"
+          grep -Fq 'GLTFLoader' "$RUNNER_TEMP/_vendor_GLTFLloader_bundle_js.verified"
+          grep -Fq 'initFAAObstructionTowerRenderer' "$RUNNER_TEMP/_app_bridgepoint-faa-obstruction-towers-v1_js.verified"
+          grep -Fq 'initUtilityInfrastructure' "$RUNNER_TEMP/_app_world-v2300-utility-infrastructure-v1_js.verified"
+          grep -Fq 'bridgepoint-faa-obstruction-towers-v1.js?v=1-faa-obstruction-towers' "$RUNNER_TEMP/_landing_js.verified"
+          grep -Fq 'bridgepoint-faa-obstruction-towers-v1.js?v=1-faa-obstruction-towers' "$RUNNER_TEMP/_app_js.verified"
+          grep -Fq 'bridgepoint-streetlights-3d-v1.js?v=4-shared-pmtiles-and-batched' "$RUNNER_TEMP/_landing_js.verified"
+          grep -Fq 'bridgepoint-streetlights-3d-v1.js?v=4-shared-pmtiles-and-batched' "$RUNNER_TEMP/_app_js.verified"
+          gzip -t "$RUNNER_TEMP/_data_bridgepoint-faa-obstructions-v1_json_gz.verified"
+          cmp -s "$RUNNER_TEMP/_data_bridgepoint-faa-obstructions-v1_json_gz.verified" "$RUNNER_TEMP/_app_data_bridgepoint-faa-obstructions-v1_json_gz.verified"
+          cmp -s "$RUNNER_TEMP/_data_bridgepoint-lighthouses-global-v1_json.verified" "$RUNNER_TEMP/_app_data_bridgepoint-lighthouses-global-v1_json.verified"
+          cmp -s "$RUNNER_TEMP/_bridgepoint-faa-obstruction-towers-v1_js.verified" "$RUNNER_TEMP/_app_bridgepoint-faa-obstruction-towers-v1_js.verified"
           echo "BRIDGEPOINT_RENDERER_RELIABILITY_LIVE_PASS"
