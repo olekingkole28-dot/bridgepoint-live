@@ -204,8 +204,21 @@ jobs:
           for rel in ("landing.js","app.js"):
               subone(rel,r"(['\"])(?:\./|\.\./)world-v2300-map\.js\?v=[^'\"]+(['\"])",r"\1./world-v2300-map.js?v=6250-renderer-reliability-v1\2","map import")
               subone(rel,r"(['\"])(?:\./|\.\./)bridgepoint-lighthouses-v1\.js\?v=[^'\"]+(['\"])",r"\1./bridgepoint-lighthouses-v1.js?v=5-batched-render-recovery\2","lighthouse import")
-              subone(rel,r"(['\"])(?:\./|\.\./)bridgepoint-streetlights-3d-v1\.js\?v=[^'\"]+(['\"])",r"\1./bridgepoint-streetlights-3d-v1.js?v=4-shared-pmtiles-and-batched\2","streetlight import")
-              s=(site/rel).read_text(encoding="utf-8")
+              # Attach both global renderers where the initialized world is in scope.
+              p=site/rel
+              data=p.read_text(encoding="utf-8")
+              anchor=".catch(e=>console.warn('BridgePoint global 3D lighthouse renderer unavailable',e));"
+              addition=(
+                  "\n  void import('./bridgepoint-faa-obstruction-towers-v1.js?v=1-faa-obstruction-towers')\n"
+                  "   .then(m=>{window.__BP_FAA_OBSTRUCTION_TOWERS_V1__=m.initFAAObstructionTowerRenderer(world)})\n"
+                  "   .catch(e=>console.warn('BridgePoint FAA obstruction/tower renderer unavailable',e));\n"
+                  "  void import('./bridgepoint-streetlights-3d-v1.js?v=4-shared-pmtiles-and-batched')\n"
+                  "   .then(m=>{window.__BP_STREETLIGHTS_3D_V1__=m.initStreetlightRenderer(world)})\n"
+                  "   .catch(e=>console.warn('BridgePoint global 3D streetlights unavailable',e));\n"
+              )
+              if data.count(anchor)!=1: raise SystemExit(f"{rel}: expected one lighthouse loader anchor, found {data.count(anchor)}")
+              p.write_text(data.replace(anchor,anchor+addition,1),encoding="utf-8")
+              s=p.read_text(encoding="utf-8")
               for token in ("bridgepoint-faa-obstruction-towers-v1.js","world-v2300-utility-infrastructure-v1.js","bridgepoint-offshore-energy-v1.js","bridgepoint-solar-fields-v1.js","bridgepoint-wind-turbines-v1.js","bpAuthRequestV6237"):
                   if token not in s: raise SystemExit(f"{rel}: preserved feature missing: {token}")
           for rel,stem in (("index.html","landing.js"),("app/index.html","app.js")):
