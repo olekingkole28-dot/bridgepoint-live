@@ -89,14 +89,16 @@ assert.equal(platformWay.properties.modelType,'platform');
 
 console.log('BRIDGEPOINT_OFFSHORE_ENERGY_V2_DATA_LOADING_PASS');
 
-const [offshoreModule, landing, app, deploy, homePage, appPage, utilityWireOverlay] = await Promise.all([
+const [offshoreModule, landing, app, deploy, homePage, appPage, utilityWireOverlay, lighthouseOverlay, globeReliabilityOverlay] = await Promise.all([
   readFile(new URL('../rebuild-v5000/bridgepoint-offshore-energy-v1.js', import.meta.url), 'utf8'),
   readFile(new URL('../rebuild-v5000/landing.js', import.meta.url), 'utf8'),
   readFile(new URL('../rebuild-v5000/app.js', import.meta.url), 'utf8'),
   readFile(new URL('../.github/workflows/deploy-intelligence-rebuild-v5000.yml', import.meta.url), 'utf8'),
   readFile(new URL('../rebuild-v5000/index.html', import.meta.url), 'utf8'),
   readFile(new URL('../rebuild-v5000/app-index.html', import.meta.url), 'utf8'),
-  readFile(new URL('../.github/workflows/publish-utility-solid-wires-v9.yml', import.meta.url), 'utf8')
+  readFile(new URL('../.github/workflows/publish-utility-solid-wires-v9.yml', import.meta.url), 'utf8'),
+  readFile(new URL('../.github/workflows/publish-lighthouses-v3.yml', import.meta.url), 'utf8'),
+  readFile(new URL('../.github/workflows/publish-globe-renderer-reliability-v1.yml', import.meta.url), 'utf8')
 ]);
 assert.ok(landing.includes("import('./bridgepoint-offshore-energy-v1.js?v=2-noaa-get-icondata')"));
 assert.ok(app.includes("import('./bridgepoint-offshore-energy-v1.js?v=2-noaa-get-icondata')"));
@@ -110,8 +112,16 @@ assert.ok(deploy.includes("cp rebuild-v5000/bridgepoint-offshore-energy-v1.js si
 assert.ok(deploy.includes("cp rebuild-v5000/bridgepoint-offshore-energy-v1.js site/app/bridgepoint-offshore-energy-v1.js"));
 assert.ok(utilityWireOverlay.includes('landing.js?v=6247-universal-fresh-entry'));
 assert.ok(utilityWireOverlay.includes('app.js?v=6247-universal-fresh-entry'));
-assert.ok(utilityWireOverlay.includes('landing.js?v=6246-lighthouse-v4'),'utility overlay must also preserve the lighthouse-first cache transition');
-assert.ok(utilityWireOverlay.includes('app.js?v=6246-lighthouse-v4'),'app utility overlay must accept lighthouse cache transition');
+assert.ok(utilityWireOverlay.includes('landing.js?v=6250-lighthouse-v5'),'utility overlay must recognize the current lighthouse cache transition');
+assert.ok(utilityWireOverlay.includes('app.js?v=6250-lighthouse-v5'),'app utility overlay must recognize the current lighthouse cache transition');
+assert.ok(lighthouseOverlay.includes('landing.js?v=6250-streetlight-tile-stream-v5'),'lighthouse overlay must hand off from the current streetlight entry cache');
+assert.ok(lighthouseOverlay.includes('app.js?v=6250-streetlight-tile-stream-v5'),'app lighthouse overlay must hand off from the current streetlight entry cache');
+assert.ok(lighthouseOverlay.includes('landing.js?v=6250-lighthouse-v5'),'lighthouse overlay must issue a unique fresh entry cache key');
+assert.ok(lighthouseOverlay.includes('app.js?v=6250-lighthouse-v5'),'app lighthouse overlay must issue a unique fresh entry cache key');
+assert.ok(globeReliabilityOverlay.includes('bpSidewalkTileSyncTimer=setTimeout'),'final renderer overlay must preserve late tile sidewalk refresh');
+assert.ok(globeReliabilityOverlay.includes('refreshSidewalk3DFromTiles([],true)'),'final renderer overlay must preserve forced sidewalk rebuild');
+assert.ok(globeReliabilityOverlay.includes('window.__BP_FRESH_SIGNIN__!==true'),'final renderer overlay must preserve fresh homepage sign-in gate');
+assert.ok(globeReliabilityOverlay.includes('bp_fresh_signin_v1'),'final renderer overlay must preserve direct app sign-in handshake');
 assert.ok(utilityWireOverlay.includes('landing.js?v=6247-universal-fresh-entry-solid-utility-wires-v13'));
 assert.ok(utilityWireOverlay.includes('app.js?v=6247-universal-fresh-entry-solid-utility-wires-v13'));
 assert.ok(deploy.includes("node tests/offshore-energy-v1.test.mjs"));

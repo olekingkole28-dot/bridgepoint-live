@@ -120,8 +120,8 @@ jobs:
             path.write_text(data.replace(old,"world-v2300-utility-infrastructure-v1.js?v=12-solid-utility-wires-v11"),encoding="utf-8")
 
           for rel,filename,new,allowed in (
-            ("index.html","landing.js","landing.js?v=6247-universal-fresh-entry-solid-utility-wires-v13",("landing.js?v=6247-universal-fresh-entry","landing.js?v=6246-offshore-energy-v2","landing.js?v=6246-lighthouse-v4","landing.js?v=6246-subsurface-wells-v1")),
-            ("app/index.html","app.js","app.js?v=6247-universal-fresh-entry-solid-utility-wires-v13",("app.js?v=6247-universal-fresh-entry","app.js?v=6246-offshore-energy-v2","app.js?v=6246-lighthouse-v4","app.js?v=6246-subsurface-wells-v1")),
+            ("index.html","landing.js","landing.js?v=6247-universal-fresh-entry-solid-utility-wires-v13",("landing.js?v=6247-universal-fresh-entry","landing.js?v=6246-offshore-energy-v2","landing.js?v=6250-lighthouse-v5","landing.js?v=6246-subsurface-wells-v1")),
+            ("app/index.html","app.js","app.js?v=6247-universal-fresh-entry-solid-utility-wires-v13",("app.js?v=6247-universal-fresh-entry","app.js?v=6246-offshore-energy-v2","app.js?v=6250-lighthouse-v5","app.js?v=6246-subsurface-wells-v1")),
           ):
             path=site/rel
             data=path.read_text(encoding="utf-8")

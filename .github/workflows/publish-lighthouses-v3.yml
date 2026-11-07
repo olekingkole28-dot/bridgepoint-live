@@ -185,17 +185,27 @@ jobs:
               raise SystemExit(f"{rel}: expected exactly one known lighthouse import, found {len(matches)}")
             path.write_text(data.replace(matches[0],new_import),encoding="utf-8")
 
-          for rel,filename,version in (
-            ("index.html","landing.js","6246-lighthouse-v4"),
-            ("app/index.html","app.js","6246-lighthouse-v4"),
+          for rel,filename in (
+            ("index.html","landing.js"),
+            ("app/index.html","app.js"),
           ):
             path=site/rel
             data=path.read_text(encoding="utf-8")
-            pattern=re.compile(r"((?:\./|\.\./)?"+re.escape(filename)+r"\?v=)[^\"'<>\s]+")
-            data,count=pattern.subn(lambda match:match.group(1)+version,data)
-            if count!=1:
-              raise SystemExit(f"{rel}: expected exactly one {filename} loader URL, replaced {count}")
-            path.write_text(data,encoding="utf-8")
+            expected=filename+"?v=6250-streetlight-tile-stream-v5"
+            replacement=filename+"?v=6250-lighthouse-v5"
+            if data.count(expected)!=1:
+              raise SystemExit(f"{rel}: expected exactly one current streetlight entry URL, found {data.count(expected)}")
+            path.write_text(data.replace(expected,replacement,1),encoding="utf-8")
+          landing=(site/"landing.js").read_text(encoding="utf-8")
+          app=(site/"app.js").read_text(encoding="utf-8")
+          if "bpAuthRequestV6237" not in landing or "bpAuthRequestV6237" not in app:
+            raise SystemExit("Fresh-auth retry helper missing from one of the live entry bundles")
+          if "markFreshSignIn" not in landing or "bpFreshEntryTarget" not in landing:
+            raise SystemExit("Fresh sign-in handshake or safe return handling missing from the homepage bundle")
+          if "window.__BP_FRESH_SIGNIN__!==true" not in (site/"index.html").read_text(encoding="utf-8"):
+            raise SystemExit("Homepage fresh sign-in gate missing")
+          if "bp_fresh_signin_v1" not in (site/"app/index.html").read_text(encoding="utf-8"):
+            raise SystemExit("Direct app fresh sign-in handshake missing")
 
           source=Path("patches/lighthouse-v3/bridgepoint-lighthouses-v1.js")
           patched=source.read_bytes()
@@ -227,8 +237,8 @@ jobs:
           node --input-type=module --check < "$SITE/bridgepoint-lighthouses-v1.js"
           node --input-type=module --check < "$SITE/app/bridgepoint-lighthouses-v1.js"
           cmp -s "$SITE/bridgepoint-lighthouses-v1.js" "$SITE/app/bridgepoint-lighthouses-v1.js"
-          grep -Fq 'landing.js?v=6246-lighthouse-v4' "$SITE/index.html"
-          grep -Fq 'app.js?v=6246-lighthouse-v4' "$SITE/app/index.html"
+          grep -Fq 'landing.js?v=6250-lighthouse-v5' "$SITE/index.html"
+          grep -Fq 'app.js?v=6250-lighthouse-v5' "$SITE/app/index.html"
           grep -Fq 'bridgepoint-lighthouses-v1.js?v=4-global-snapshot' "$SITE/landing.js"
           grep -Fq 'bridgepoint-lighthouses-v1.js?v=4-global-snapshot' "$SITE/app.js"
           grep -Fq 'return ctx.getImageData(0, 0, 96, 96);' "$SITE/bridgepoint-lighthouses-v1.js"
@@ -266,13 +276,13 @@ jobs:
           for p in '/' '/app/'; do
             curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O$p?lighthouse-v4=$q" -o "$RUNNER_TEMP/lighthouse-page.html"
             if [ "$p" = "/" ]; then
-              grep -Fq 'landing.js?v=6246-lighthouse-v4' "$RUNNER_TEMP/lighthouse-page.html"
+              grep -Fq 'landing.js?v=6250-lighthouse-v5' "$RUNNER_TEMP/lighthouse-page.html"
             else
-              grep -Fq 'app.js?v=6246-lighthouse-v4' "$RUNNER_TEMP/lighthouse-page.html"
+              grep -Fq 'app.js?v=6250-lighthouse-v5' "$RUNNER_TEMP/lighthouse-page.html"
             fi
           done
-          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/landing.js?v=6246-lighthouse-v4&verify=$q" -o "$RUNNER_TEMP/lighthouse-landing.js"
-          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app.js?v=6246-lighthouse-v4&verify=$q" -o "$RUNNER_TEMP/lighthouse-app.js"
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/landing.js?v=6250-lighthouse-v5&verify=$q" -o "$RUNNER_TEMP/lighthouse-landing.js"
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app.js?v=6250-lighthouse-v5&verify=$q" -o "$RUNNER_TEMP/lighthouse-app.js"
           curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/bridgepoint-lighthouses-v1.js?v=4-global-snapshot&verify=$q" -o "$RUNNER_TEMP/lighthouse-root.js"
           curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app/bridgepoint-lighthouses-v1.js?verify=$q" -o "$RUNNER_TEMP/lighthouse-app-module.js"
           grep -Fq 'bridgepoint-lighthouses-v1.js?v=4-global-snapshot' "$RUNNER_TEMP/lighthouse-landing.js"
