@@ -6,8 +6,8 @@ const LAYER_ID = 'bp-v2300-instanced-trees-v2';
 const MANIFEST_URL = '/assets/trees/manifest.json';
 const VARIANTS_URL = '/assets/trees/procedural-variants.json';
 const TAXONOMY_INDEX_URL = '/assets/trees/taxonomy-index.json';
-const THREE_URL = 'https://esm.sh/three@0.169.0';
-const GLTF_URL = 'https://esm.sh/three@0.169.0/examples/jsm/loaders/GLTFLoader.js';
+const THREE_URL = '/vendor/three.module.js?v=169-local';
+const GLTF_URL = '/vendor/GLTFLoader.bundle.js?v=169-local';
 const LEGACY_LAYER_IDS = [
   'gta-bp-tree3d-trunk',
   'gta-bp-tree3d-canopy',
@@ -254,6 +254,7 @@ function validateManifest(raw) {
 }
 
 async function importModules() {
+  // Both modules are same-origin, so rendering does not depend on an external ESM CDN.
   const [THREE, loaderModule] = await Promise.all([import(THREE_URL), import(GLTF_URL)]);
   if (!THREE?.WebGLRenderer || !loaderModule?.GLTFLoader) {
     throw new Error('TREE_THREE_OR_GLTFLOADER_UNAVAILABLE');
@@ -509,55 +510,70 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
     const proceduralModels = manifest.models.filter(model =>
       model.modelType === 'PROCEDURAL_ARCHETYPE'
     );
-    const variantResponse = await fetch(options.variantsUrl || VARIANTS_URL, {
-      cache: 'no-cache',
-      credentials: 'omit',
-      headers: { Accept: 'application/json' }
-    });
-    if (proceduralModels.length && !variantResponse.ok) {
-      throw new Error('TREE_PROCEDURAL_VARIANT_CATALOG_HTTP_' + variantResponse.status);
-    }
-    if (variantResponse.ok) {
-      const variantCatalog = await variantResponse.json();
-      if (variantCatalog.schemaVersion !== 1 ||
-          !Array.isArray(variantCatalog.variants) ||
-          Number(variantCatalog.variantCount) !== variantCatalog.variants.length ||
-          variantCatalog.variantCount < 2000) {
-        throw new Error('TREE_PROCEDURAL_VARIANT_CATALOG_INVALID');
-      }
-      variantsByArchetype = new Map();
-      for (const variant of variantCatalog.variants) {
-        if (!variant?.archetypeId || !variant?.id || !variant?.parameters) continue;
-        if (!variantsByArchetype.has(variant.archetypeId)) {
-          variantsByArchetype.set(variant.archetypeId, []);
+    // Fetch the optional biodiversity enrichments concurrently. The species
+    // index enriches labels; it must never block source-positioned 3D trees.
+    const [variantResult, taxonomyResult] = await Promise.allSettled([
+      fetch(options.variantsUrl || VARIANTS_URL, {
+        cache: 'force-cache', credentials: 'omit', headers: { Accept: 'application/json' }
+      }),
+      proceduralModels.length
+        ? fetch(options.taxonomyIndexUrl || TAXONOMY_INDEX_URL, {
+            cache: 'force-cache', credentials: 'omit', headers: { Accept: 'application/json' }
+          })
+        : Promise.resolve(null)
+    ]);
+    if (variantResult.status === 'fulfilled' && variantResult.value?.ok) {
+      try {
+        const variantCatalog = await variantResult.value.json();
+        if (variantCatalog.schemaVersion === 1 &&
+            Array.isArray(variantCatalog.variants) &&
+            Number(variantCatalog.variantCount) === variantCatalog.variants.length &&
+            variantCatalog.variantCount >= 2000) {
+          variantsByArchetype = new Map();
+          for (const variant of variantCatalog.variants) {
+            if (!variant?.archetypeId || !variant?.id || !variant?.parameters) continue;
+            if (!variantsByArchetype.has(variant.archetypeId)) variantsByArchetype.set(variant.archetypeId, []);
+            variantsByArchetype.get(variant.archetypeId).push(variant);
+          }
+          for (const [key, list] of variantsByArchetype) {
+            list.sort((a, b) => a.variantIndex - b.variantIndex);
+            if (list.length !== 64) throw new Error('TREE_VARIANT_ARCHEtype_COUNT_INVALID_' + key);
+          }
+          state.proceduralVariantCount = variantCatalog.variantCount;
+          state.variantCatalogStatus = 'ready';
+        } else {
+          state.variantCatalogStatus = 'invalid-using-base-archetypes';
         }
-        variantsByArchetype.get(variant.archetypeId).push(variant);
+      } catch (error) {
+        variantsByArchetype = new Map();
+        state.variantCatalogStatus = 'unavailable-using-base-archetypes';
+        state.variantCatalogError = String(error?.message || error);
       }
-      for (const [key, list] of variantsByArchetype) {
-        list.sort((a, b) => a.variantIndex - b.variantIndex);
-        if (list.length !== 64) throw new Error('TREE_VARIANT_ARCHEtype_COUNT_INVALID_' + key);
-      }
-      state.proceduralVariantCount = variantCatalog.variantCount;
+    } else {
+      variantsByArchetype = new Map();
+      state.variantCatalogStatus = 'unavailable-using-base-archetypes';
     }
-
-    if (proceduralModels.length) {
-      const taxonomyResponse = await fetch(options.taxonomyIndexUrl || TAXONOMY_INDEX_URL, {
-        cache: 'force-cache',
-        credentials: 'omit',
-        headers: { Accept: 'application/json' }
-      });
-      if (!taxonomyResponse.ok) {
-        throw new Error('TREE_TAXONOMY_INDEX_HTTP_' + taxonomyResponse.status);
+    if (proceduralModels.length && taxonomyResult.status === 'fulfilled' &&
+        taxonomyResult.value?.ok) {
+      try {
+        const taxonomyCatalog = await taxonomyResult.value.json();
+        if (taxonomyCatalog.schemaVersion === 1 &&
+            taxonomyCatalog.license === 'CC-BY-4.0' &&
+            taxonomyCatalog.species && Object.keys(taxonomyCatalog.species).length >= 20000) {
+          taxonomyIndex = taxonomyCatalog.species;
+          state.taxonomySpeciesCount = Object.keys(taxonomyIndex).length;
+          state.taxonomyStatus = 'ready';
+        } else {
+          state.taxonomyStatus = 'unavailable-base-tree-classification';
+        }
+      } catch (error) {
+        taxonomyIndex = null;
+        state.taxonomyStatus = 'unavailable-base-tree-classification';
+        state.taxonomyError = String(error?.message || error);
       }
-      const taxonomyCatalog = await taxonomyResponse.json();
-      if (taxonomyCatalog.schemaVersion !== 1 ||
-          taxonomyCatalog.license !== 'CC-BY-4.0' ||
-          !taxonomyCatalog.species ||
-          Object.keys(taxonomyCatalog.species).length < 20000) {
-        throw new Error('TREE_TAXONOMY_INDEX_INVALID');
-      }
-      taxonomyIndex = taxonomyCatalog.species;
-      state.taxonomySpeciesCount = Object.keys(taxonomyIndex).length;
+    } else if (proceduralModels.length) {
+      taxonomyIndex = null;
+      state.taxonomyStatus = 'unavailable-base-tree-classification';
     }
     publish('manifest-ready', {
       modelCount: manifest.models.length,
@@ -614,8 +630,8 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
       groups.get(tree.modelId).push(tree);
     }
     const sequence = ++loadSequence;
-    const everyTreeHasModel = activeTrees.length > 0 && state.unsupported === 0;
-    if (!everyTreeHasModel) {
+    const hasRenderableTrees = activeTrees.length > 0;
+    if (!hasRenderableTrees) {
       for (const old of activeMeshes) scene.remove(old);
       activeMeshes = [];
       state.instanceCount = 0;
@@ -635,12 +651,27 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
     }
     publish('loading-model-lod', { lod: lodKey, instanceCount: activeTrees.length });
 
-    Promise.all([...groups.entries()].map(([modelId, trees]) =>
-      loadModel(modelId, lodKey).then(loaded => ({ loaded, trees }))
-    )).then(results => {
+    Promise.allSettled([...groups.entries()].map(([modelId, trees]) =>
+      loadModel(modelId, lodKey).then(loaded => ({ loaded, trees, modelId }))
+    )).then(settled => {
       if (destroyed || sequence !== loadSequence) return;
+      const failedGroups = settled.filter(result => result.status === 'rejected');
+      const results = settled.filter(result => result.status === 'fulfilled').map(result => result.value);
       const nextMeshes = [];
       const usedVariants = new Set();
+      if (!results.length) {
+        for (const old of activeMeshes) scene.remove(old);
+        activeMeshes = [];
+        state.instanceCount = 0;
+        restoreLegacyVisibility();
+        state.legacyLayersHidden = false;
+        state.legacyRetained = true;
+        publish('model-load-fallback', {
+          lod: lodKey, failedModelGroups: failedGroups.map(x => String(x.reason?.message || x.reason)),
+          legacyRetained: true, legacyLayersHidden: false
+        });
+        return;
+      }
       for (const result of results) {
         const treeModels = result.trees;
         const loaded = result.loaded;
@@ -723,6 +754,9 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
         }
       }
 
+      const renderedTreeCount = results.reduce((sum, result) => sum + result.trees.length, 0);
+      const partialCoverage = failedGroups.length > 0 || state.unsupported > 0 ||
+        state.truncated > 0 || renderedTreeCount < activeTrees.length;
       for (const old of activeMeshes) {
         scene.remove(old);
         old.dispose?.();
@@ -730,17 +764,28 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
       activeMeshes = nextMeshes;
       for (const mesh of activeMeshes) scene.add(mesh);
 
-      setLegacyVisibility(map, 'none');
-      state.legacyLayersHidden = true;
-      state.legacyRetained = false;
-      publish('render-ready', {
+      // One unsupported species or one missing GLB must not blank the viewport.
+      if (partialCoverage) {
+        restoreLegacyVisibility(map);
+        state.legacyLayersHidden = false;
+        state.legacyRetained = true;
+      } else {
+        setLegacyVisibility(map, 'none');
+        state.legacyLayersHidden = true;
+        state.legacyRetained = false;
+      }
+      state.instanceCount = renderedTreeCount;
+      publish(partialCoverage ? 'partial-render-ready' : 'render-ready', {
         lod: lodKey,
-        instanceCount: activeTrees.length,
+        instanceCount: renderedTreeCount,
+        requestedInstanceCount: activeTrees.length,
         batches: activeMeshes.length,
         variantCountUsed: usedVariants.size,
+        failedModelGroups: failedGroups.map(x => String(x.reason?.message || x.reason)),
         groundElevationSampledCount: state.groundElevationSampledCount,
         groundElevationFallbackCount: state.groundElevationFallbackCount,
-        proceduralInstanceCount: activeTrees.filter(tree => tree.modelType === 'PROCEDURAL_ARCHETYPE').length,
+        proceduralInstanceCount: results.reduce((sum, result) =>
+          sum + result.trees.filter(tree => tree.modelType === 'PROCEDURAL_ARCHETYPE').length, 0),
         unsupported: state.unsupported,
         truncated: state.truncated,
         legacyRetained: state.legacyRetained,
@@ -755,6 +800,20 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
       });
       restoreLegacyVisibility();
     });
+  }
+
+  let eventRefreshTimer = 0;
+  let eventRefreshAuthoritative = false;
+  function scheduleEventRefresh({ authoritative = false } = {}) {
+    if (destroyed) return;
+    eventRefreshAuthoritative = eventRefreshAuthoritative || authoritative;
+    clearTimeout(eventRefreshTimer);
+    eventRefreshTimer = setTimeout(() => {
+      const completedViewport = eventRefreshAuthoritative;
+      eventRefreshAuthoritative = false;
+      eventRefreshTimer = 0;
+      refreshInstances({ authoritative: completedViewport });
+    }, mobile ? 180 : 90);
   }
 
   function refreshInstances({ authoritative = false } = {}) {
@@ -962,16 +1021,16 @@ export async function attachTreeInstancedRenderer(map, options = {}) {
       state.regionalCanopyStatus = canopyState.status;
       state.regionalCanopyLayerId = canopyState.layerId;
     }
-    await loadManifest();
-    const modules = await importModules();
+    const [ignoredManifest, modules] = await Promise.all([loadManifest(), importModules()]);
     THREE = modules.THREE;
     loader = new modules.GLTFLoader();
     legacyVisibility = captureLegacyVisibility(map);
     installLayer();
-    map.on('moveend', refreshInstances);
-    map.on('zoomend', refreshInstances);
-    map.on('idle', refreshInstances);
+    map.on('moveend', scheduleEventRefresh);
+    map.on('zoomend', scheduleEventRefresh);
+    map.on('idle', scheduleEventRefresh);
     map.on('remove', () => {
+      clearTimeout(eventRefreshTimer);
       if (window.__BP_TREE_INSTANCE_RENDERER_API_V1__?.map === map) {
         window.__BP_TREE_INSTANCE_RENDERER_API_V1__ = null;
       }
