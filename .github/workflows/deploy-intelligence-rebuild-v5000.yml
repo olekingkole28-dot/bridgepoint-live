@@ -872,9 +872,9 @@ jobs:
           grep -Fq '6215-satellite-persistent-render-guard' site/app.js
           grep -Fq '6215-satellite-persistent-render-guard' site/landing.js
           grep -Fq 'bp-global-map-mode-v6215' site/world-v2300-spectral-imagery.js
-          grep -Fq 'bp-intelligence-v6222-goes-cloud-mask-volumetric' site/sw.js
-          grep -Fq "navigator.serviceWorker.register('/sw.js?v=6222-goes-cloud-mask-volumetric'," site/landing.js
-          grep -Fq "navigator.serviceWorker.register('/sw.js?v=6222-goes-cloud-mask-volumetric'," site/app.js
+          grep -Fq 'bp-intelligence-v6223-sidewalk-3d-global' site/sw.js
+          grep -Fq "navigator.serviceWorker.register('/sw.js?v=6223-sidewalk-3d-global'," site/landing.js
+          grep -Fq "navigator.serviceWorker.register('/sw.js?v=6223-sidewalk-3d-global'," site/app.js
           grep -Fq 'OpenStreetMap feature centroid' site/bridgepoint-pyramids-v5945.js
           grep -Fq 'currentHeightM: 138.5' site/bridgepoint-pyramids-v5945.js
           grep -Fq 'currentHeightM: 136.4' site/bridgepoint-pyramids-v5945.js
@@ -1379,10 +1379,10 @@ jobs:
           grep -Fq '__BP_FULL_REFRESH_V5535__' site/refresh-v5535.js
           grep -Fq '__BP_FULL_REFRESH_V5548__' site/refresh-v5535.js
           grep -Fq 'deferred-active-use' site/refresh-v5535.js
-          grep -Fq 'bp-intelligence-v6222-goes-cloud-mask-volumetric' site/sw.js
+          grep -Fq 'bp-intelligence-v6223-sidewalk-3d-global' site/sw.js
           node --check site/app-update-v5820.js
-          grep -Fq '/app-update-v5820.js?v=6222-goes-cloud-mask-volumetric' site/index.html
-          grep -Fq '/app-update-v5820.js?v=6222-goes-cloud-mask-volumetric' site/app/index.html
+          grep -Fq '/app-update-v5820.js?v=6223-sidewalk-3d-global' site/index.html
+          grep -Fq '/app-update-v5820.js?v=6223-sidewalk-3d-global' site/app/index.html
           grep -Fq 'bridgepoint-intelligence-legacy-retire-v5820' site/app/flutter_service_worker.js
           grep -Fq 'migrated=legacy-intelligence-v5820' site/app/intelligence-launch/index.html
           grep -Fq "bridgepoint-horizon-v5820" site/app/horizon/sw.js
@@ -1980,8 +1980,8 @@ jobs:
               && grep -Fq 'bridgepoint_public_weather_bootstrap_v5512' /tmp/app.js \
               && grep -Fq 'const VERSION=1068' /tmp/language-selector-v5200.js \
               && grep -Fq 'BridgePointLanguage' /tmp/language-selector-v5200.js \
-              && grep -Fq "const V='bp-intelligence-v6222-goes-cloud-mask-volumetric'" /tmp/sw.js \
-              && grep -Fq 'BUILD=6222' /tmp/app-update-v5820.js \
+              && grep -Fq "const V='bp-intelligence-v6223-sidewalk-3d-global'" /tmp/sw.js \
+              && grep -Fq 'BUILD=6223' /tmp/app-update-v5820.js \
               && grep -Fq 'bridgepoint-intelligence-legacy-retire-v5820' /tmp/flutter-service-worker-retire.js \
               && grep -Fq 'migrated=legacy-intelligence-v5820' /tmp/legacy-intelligence-launch.html \
               && grep -Fq "bridgepoint-horizon-v5820" /tmp/horizon-sw.js \
