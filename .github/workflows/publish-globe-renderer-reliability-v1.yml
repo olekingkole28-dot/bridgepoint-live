@@ -76,12 +76,6 @@ jobs:
             world-v2300-tree-catalog.js app/world-v2300-tree-catalog.js \
             world-v2300-tree-canopy-lod.js app/world-v2300-tree-canopy-lod.js \
             bridgepoint-lighthouses-v1.js app/bridgepoint-lighthouses-v1.js \
-            bridgepoint-streetlights-3d-v1.js app/bridgepoint-streetlights-3d-v1.js \
-            bridgepoint-faa-obstruction-towers-v1.js app/bridgepoint-faa-obstruction-towers-v1.js \
-            data/bridgepoint-faa-obstructions-v1.json.gz \
-            app/data/bridgepoint-faa-obstructions-v1.json.gz \
-            data/bridgepoint-lighthouses-global-v1.json \
-            data/bridgepoint-lighthouses-global-v1-ATTRIBUTION.md \
             world-v2300-utility-infrastructure-v1.js app/world-v2300-utility-infrastructure-v1.js \
             vendor/three.module.js vendor/pmtiles.js \
             assets/trees/manifest.json assets/trees/procedural-variants.json assets/trees/taxonomy-index.json; do
@@ -105,6 +99,54 @@ jobs:
           print("BASELINE_FILES",len(data))
           PY
 
+
+      - name: Build FAA tower and global lighthouse snapshots
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile tools/build_faa_obstruction_snapshot.py tests/faa-obstruction-snapshot-builder.test.py
+          PYTHONPATH=tools python3 tests/faa-obstruction-snapshot-builder.test.py
+          python3 tools/build_faa_obstruction_snapshot.py --output "$RUNNER_TEMP/bridgepoint-faa-obstructions-v1.json.gz"
+          gzip -t "$RUNNER_TEMP/bridgepoint-faa-obstructions-v1.json.gz"
+          cp rebuild-v5000/bridgepoint-faa-obstruction-towers-v1.js "$RUNNER_TEMP/bridgepoint-faa-obstruction-towers-v1.js"
+          node --check "$RUNNER_TEMP/bridgepoint-faa-obstruction-towers-v1.js"
+          mkdir -p "$RUNNER_TEMP/bp-reliability-site/data" "$RUNNER_TEMP/bp-reliability-site/app/data"
+          cp "$RUNNER_TEMP/bridgepoint-faa-obstructions-v1.json.gz" "$RUNNER_TEMP/bp-reliability-site/data/bridgepoint-faa-obstructions-v1.json.gz"
+          cp "$RUNNER_TEMP/bridgepoint-faa-obstructions-v1.json.gz" "$RUNNER_TEMP/bp-reliability-site/app/data/bridgepoint-faa-obstructions-v1.json.gz"
+          cp "$RUNNER_TEMP/bridgepoint-faa-obstruction-towers-v1.js" "$RUNNER_TEMP/bp-reliability-site/bridgepoint-faa-obstruction-towers-v1.js"
+          cp "$RUNNER_TEMP/bridgepoint-faa-obstruction-towers-v1.js" "$RUNNER_TEMP/bp-reliability-site/app/bridgepoint-faa-obstruction-towers-v1.js"
+
+          curl --retry 5 --retry-all-errors --retry-delay 2 -fsSL \
+            -A "BridgePoint Intelligence Lighthouse Snapshot/1.0 (https://bridgepointintelligence.online)" \
+            -H "Accept: application/json" \
+            "https://hulloships.com/atlas/data/lighthouses.json" \
+            -o "$RUNNER_TEMP/bp-reliability-site/data/bridgepoint-lighthouses-global-v1.json"
+          python3 - "$RUNNER_TEMP/bp-reliability-site/data/bridgepoint-lighthouses-global-v1.json" <<'PY'
+          import json,sys
+          from pathlib import Path
+          rows=json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+          valid=[]
+          for row in rows:
+              try: lat=float(row.get("lat")); lon=float(row.get("lon"))
+              except (TypeError,ValueError): continue
+              if -85<=lat<=85 and -180<=lon<=180: valid.append(row)
+          if len(rows)<10000 or len(valid)<10000:
+              raise SystemExit(f"Global lighthouse snapshot incomplete: {len(rows)} rows, {len(valid)} valid")
+          print("GLOBAL_LIGHTHOUSE_SNAPSHOT_PASS",len(rows),"records",len(valid),"valid")
+          PY
+          cp "$RUNNER_TEMP/bp-reliability-site/data/bridgepoint-lighthouses-global-v1.json" "$RUNNER_TEMP/bp-reliability-site/app/data/bridgepoint-lighthouses-global-v1.json"
+          cat > "$RUNNER_TEMP/bp-reliability-site/data/bridgepoint-lighthouses-global-v1-ATTRIBUTION.md" <<'EOF'
+          # BridgePoint Global Lighthouse Snapshot
+
+          Source: HulloShips global lighthouse database. The source identifies these records as OpenStreetMap-derived, © OpenStreetMap contributors, licensed under the Open Database License (ODbL).
+
+          This extracted database is redistributed under ODbL with attribution to OpenStreetMap contributors. Fields include name, country, region, mapped type, height where recorded, light character, coordinates and source OSM identifier. Community mapping coverage and recorded heights may be incomplete.
+
+          This is a location/rendering dataset, not an official aid-to-navigation register or navigational safety source. Verify operational status and characteristics with the relevant maritime authority before real-world navigation use.
+
+          ODbL: https://opendatacommons.org/licenses/odbl/1-0/
+          EOF
+          cp "$RUNNER_TEMP/bp-reliability-site/data/bridgepoint-lighthouses-global-v1-ATTRIBUTION.md" "$RUNNER_TEMP/bp-reliability-site/app/data/bridgepoint-lighthouses-global-v1-ATTRIBUTION.md"
       - name: Carry forward current newsroom and weather pages
         shell: bash
         run: |
