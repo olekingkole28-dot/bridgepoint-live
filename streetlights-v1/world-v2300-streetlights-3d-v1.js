@@ -3,7 +3,7 @@ const SOURCE_ID = 'bp-global-streetlights-overture-source-v2';
 const QUERY_LAMPS = 'bp-global-streetlights-overture-query-v2';
 const LAYER_ID = 'bp-global-streetlights-3d-v1';
 const PMTILES_SCHEME = 'pmtiles';
-const PMTILES_MODULE_URL = 'https://esm.sh/pmtiles@4.3.0';
+const PMTILES_LIBRARY_URL = '/vendor/pmtiles.js';
 const OVERTURE_BASE_PMTILES = 'pmtiles://https://overturemaps-extras-us-west-2.s3.us-west-2.amazonaws.com/tiles/2026-10-21.0/base.pmtiles';
 const PMTILES_PROTOCOL_KEY = '__BP_OVERTURE_STREETLIGHTS_PM_PROTOCOL_V2__';
 const THREE_URL = '/vendor/three.module.js?v=169-local';
@@ -231,11 +231,14 @@ function modelMatrixFor(map, THREE, coordinate, altitude) {
     );
   } catch (_) { return null; }
 }
+const PRECISION_ANCHOR_DEGREES = 0.005; // ~550 m cells: far fewer local draw batches than 55 m cells.
 function anchorFor(coordinate) {
-  return [Math.round(coordinate[0] * 2000) / 2000, Math.round(coordinate[1] * 2000) / 2000];
+  const step = PRECISION_ANCHOR_DEGREES;
+  return [Math.round(coordinate[0] / step) * step, Math.round(coordinate[1] / step) * step];
 }
 function localOffset(anchor, coordinate) {
-  const east = (coordinate[0] - anchor[0]) * 111320 * Math.max(0.08, Math.cos(anchor[1] * RAD));
+  const deltaLon = ((coordinate[0] - anchor[0] + 540) % 360) - 180;
+  const east = deltaLon * 111320 * Math.max(0.08, Math.cos(anchor[1] * RAD));
   const north = (coordinate[1] - anchor[1]) * 110540;
   return [east, -north];
 }
@@ -335,7 +338,7 @@ export function initStreetlightRenderer(target) {
   let THREE = null, threePromise = null, geometries = null, materials = null;
   let renderer = null, scene = null, dataGroup = null, customLayer = null;
   let bootTimer = null, refreshTimer = null, nightTimer = null, bootAttempts = 0;
-  let dead = false, lastSignature = '', listenersBound = false;
+  let dead = false, lastSignature = '', lastPrecisionMode = null, listenersBound = false;
   let standardCollection = null, preciseCollections = [];
   let groundDataLayerAdded = false;
 
@@ -350,10 +353,48 @@ export function initStreetlightRenderer(target) {
     if (!maplibre || typeof maplibre.addProtocol !== 'function') {
       throw new Error('MapLibre custom-protocol support is not available');
     }
-    const pmtiles = await import(PMTILES_MODULE_URL);
-    const protocol = new pmtiles.Protocol();
-    maplibre.addProtocol(PMTILES_SCHEME, protocol.tile);
+    // BridgePoint already ships PMTiles locally for its other vector-tile feeds.
+    // Reuse the shared protocol; never make the streetlight layer depend on a
+    // second ESM CDN request or register a competing handler for the same scheme.
+    let pmtiles = window.pmtiles;
+    if (!pmtiles?.Protocol || !pmtiles?.PMTiles) {
+      let promise = window.__BP_PMTILES_LIBRARY_PROMISE__;
+      if (!promise) {
+        promise = new Promise((resolve, reject) => {
+          const existing = document.querySelector('script[data-bp-pmtiles-runtime]');
+          if (existing) {
+            existing.addEventListener('load', () => resolve(window.pmtiles), { once: true });
+            existing.addEventListener('error', () => reject(new Error('BridgePoint PMTiles runtime failed to load')), { once: true });
+            return;
+          }
+          const script = document.createElement('script');
+          script.async = true;
+          script.src = PMTILES_LIBRARY_URL;
+          script.dataset.bpPmtilesRuntime = 'true';
+          script.onload = () => resolve(window.pmtiles);
+          script.onerror = () => reject(new Error('BridgePoint local PMTiles runtime failed to load'));
+          document.head.appendChild(script);
+        }).then(value => {
+          if (!value?.Protocol || !value?.PMTiles) throw new Error('Local PMTiles runtime is incomplete');
+          return value;
+        }).catch(error => {
+          window.__BP_PMTILES_LIBRARY_PROMISE__ = null;
+          throw error;
+        });
+        window.__BP_PMTILES_LIBRARY_PROMISE__ = promise;
+      }
+      pmtiles = await promise;
+    }
+    let protocol = window.__BP_TRANSPORTATION_PMTILES_PROTOCOL__ ||
+      window.__BP_UTILITY_PMTILES_PROTOCOL__ || window[PMTILES_PROTOCOL_KEY];
+    if (!protocol) {
+      protocol = new pmtiles.Protocol();
+      maplibre.addProtocol(PMTILES_SCHEME, protocol.tile);
+    }
     window[PMTILES_PROTOCOL_KEY] = protocol;
+    // Publish the same instance under the existing shared key so any later
+    // BridgePoint PMTiles consumer reuses this exact registered handler.
+    window.__BP_TRANSPORTATION_PMTILES_PROTOCOL__ = protocol;
     return protocol;
   }
   function installSourceAndQueryLayers() {
@@ -451,35 +492,45 @@ export function initStreetlightRenderer(target) {
     }
     return entries;
   }
-  function buildScene(records) {
+  function buildScene(records, precisionMode = Number(map.getZoom?.() || 0) >= PRECISE_MIN_ZOOM) {
     clearSceneData();
-    const standardEntries = buildEntries(records);
-    standardCollection = makeCollection(dataGroup, standardEntries);
-    const batches = new Map();
-    for (const record of records) {
-      const anchor = anchorFor(record.coordinate);
-      const key = anchor[0].toFixed(4) + ',' + anchor[1].toFixed(4);
-      let batch = batches.get(key);
-      if (!batch) { batch = { anchor, records: [] }; batches.set(key, batch); }
-      batch.records.push(record);
+    let renderedEntries = [];
+    if (!precisionMode) {
+      // Regional zoom uses one world-coordinate instanced batch; do not also
+      // construct a hidden duplicate set for the close-zoom anchor renderer.
+      renderedEntries = buildEntries(records);
+      standardCollection = makeCollection(dataGroup, renderedEntries);
+    } else {
+      // Close zoom batches share a ~550 m local origin, keeping metre-level
+      // placement precision while avoiding hundreds of tiny per-block draw groups.
+      const batches = new Map();
+      for (const record of records) {
+        const anchor = anchorFor(record.coordinate);
+        const key = anchor[0].toFixed(3) + ',' + anchor[1].toFixed(3);
+        let batch = batches.get(key);
+        if (!batch) { batch = { anchor, records: [] }; batches.set(key, batch); }
+        batch.records.push(record);
+      }
+      for (const batch of batches.values()) {
+        const anchorGround = terrainAt(map, batch.anchor);
+        const anchorMatrix = modelMatrixFor(map, THREE, batch.anchor, anchorGround);
+        if (!anchorMatrix) continue;
+        const entries = buildEntries(batch.records, batch.anchor, anchorGround);
+        if (!entries.length) continue;
+        const group = new THREE.Group();
+        group.name = 'BridgePoint precision-anchored streetlights';
+        group.visible = false;
+        group.userData.bpAnchorMatrix = anchorMatrix;
+        const collection = makeCollection(group, entries);
+        collection.group = group;
+        scene.add(group);
+        preciseCollections.push(collection);
+        renderedEntries.push(...entries);
+      }
     }
-    for (const batch of batches.values()) {
-      const anchorGround = terrainAt(map, batch.anchor);
-      const anchorMatrix = modelMatrixFor(map, THREE, batch.anchor, anchorGround);
-      if (!anchorMatrix) continue;
-      const entries = buildEntries(batch.records, batch.anchor, anchorGround);
-      if (!entries.length) continue;
-      const group = new THREE.Group();
-      group.name = 'BridgePoint precision-anchored streetlights';
-      group.visible = false;
-      group.userData.bpAnchorMatrix = anchorMatrix;
-      const collection = makeCollection(group, entries);
-      collection.group = group;
-      scene.add(group);
-      preciseCollections.push(collection);
-    }
-    state.poles = standardEntries.length;
-    state.measuredHeights = standardEntries.filter(entry => entry.measuredHeight).length;
+    state.precisionMode = precisionMode ? 'local-batches' : 'world-batch';
+    state.poles = renderedEntries.length;
+    state.measuredHeights = renderedEntries.filter(entry => entry.measuredHeight).length;
     state.estimatedHeights = state.poles - state.measuredHeights;
     state.ready = true;
     state.status = 'Global streetlight 3D active · ' + state.poles.toLocaleString() +
@@ -499,15 +550,19 @@ export function initStreetlightRenderer(target) {
     }
     const records = collectStreetlightRecords(map);
     if (!records.length) {
-      if (lastSignature) { clearSceneData(); lastSignature = ''; }
+      if (lastSignature || lastPrecisionMode !== null) {
+        clearSceneData(); lastSignature = ''; lastPrecisionMode = null;
+      }
       state.status = 'Overture tile loaded; no mapped street_lamp features in the current view yet.';
       return;
     }
+    const precisionMode = zoom >= PRECISE_MIN_ZOOM;
     const signature = records.map(record => record.key + ':' + record.coordinate[0].toFixed(7) + ':' +
       record.coordinate[1].toFixed(7) + ':' + record.height.toFixed(2)).sort().join('|');
-    if (signature !== lastSignature) {
+    if (signature !== lastSignature || precisionMode !== lastPrecisionMode) {
       lastSignature = signature;
-      buildScene(records);
+      lastPrecisionMode = precisionMode;
+      buildScene(records, precisionMode);
     } else {
       updateNightAll(new Date());
       if (map.triggerRepaint) map.triggerRepaint();
