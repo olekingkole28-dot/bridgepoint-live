@@ -18,7 +18,7 @@ assert.doesNotMatch(streetlights, /esm\.sh\/pmtiles/);
 assert.match(streetlights, /PRECISION_ANCHOR_DEGREES = 0\.005/);
 assert.match(streetlights, /buildScene\(records, precisionMode\)/);
 assert.match(streetlights, /signature !== lastSignature \|\| precisionMode !== lastPrecisionMode/);
-assert.match(streetlights, /renderedEntries = buildEntries(records)/);
+assert.match(streetlights, /renderedEntries = buildEntries\(records\)/);
 assert.match(streetlights, /if \(!precisionMode\)/);
 
 // The bridge geometry must be rebuilt when the OpenFreeMap vector tile content
