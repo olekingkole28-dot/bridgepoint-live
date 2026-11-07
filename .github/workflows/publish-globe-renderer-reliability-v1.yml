@@ -163,7 +163,7 @@ jobs:
               for token in ("bridgepoint-faa-obstruction-towers-v1.js","world-v2300-utility-infrastructure-v1.js","bridgepoint-offshore-energy-v1.js","bridgepoint-solar-fields-v1.js","bridgepoint-wind-turbines-v1.js","bpAuthRequestV6237"):
                   if token not in s: raise SystemExit(f"{rel}: preserved feature missing: {token}")
           for rel,stem in (("index.html","landing.js"),("app/index.html","app.js")):
-              subone(rel,r"((?:\./|\.\./)?"+re.escape(stem)+r"\?v=)[^&\"'<>\\s]+",r"\g<1>6250-renderer-reliability-v1","entry script cache key")
+              subone(rel,r"((?:\./|\.\./)?"+re.escape(stem)+r"\?v=)[^&\"'<>\s]+",r"\g<1>6250-renderer-reliability-v1","entry script cache key")
               subone(rel,r'(<link\s+rel="modulepreload"\s+href="/world-v2300-map\.js\?v=)[^&"]+',r"\g<1>6250-renderer-reliability-v1","map module preload")
           before=json.loads((Path(os.environ["RUNNER_TEMP"])/"bp-reliability-before.json").read_text())
           after={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob("*") if p.is_file()}
