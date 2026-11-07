@@ -1512,6 +1512,7 @@ jobs:
           node --check site/world-v2300-sidewalks-3d.js
           node --check site/app/world-v2300-sidewalks-3d.js
           node --check site/app/world-v2300-map.js
+          node --check scripts/deploy-pages-extended.mjs
           grep -Fq "from'./world-v2300-sidewalks-3d.js'" site/world-v2300-map.js
           grep -Fq "from'./world-v2300-sidewalks-3d.js'" site/app/world-v2300-map.js
           grep -Fq "gta-bp-sidewalk-slabs-v1" site/world-v2300-map.js
@@ -1876,12 +1877,13 @@ jobs:
           path: site
           include-hidden-files: true
 
-      - name: Deploy clean V5000 surface
+      - name: Deploy clean V5000 surface with extended Pages polling
         id: deployment
-        uses: actions/deploy-pages@v4
-        with:
-          artifact_name: bridgepoint-v5000-${{ github.run_attempt }}
-          timeout: 1800000
+        shell: bash
+        timeout-minutes: 40
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-pages-extended.mjs
 
       - name: Verify PC-backed auth route on website and app
         shell: bash
