@@ -37,6 +37,7 @@ on:
       - 'newsroom/**'
       - 'terminal/**'
       - 'scripts/publish_growth_newsroom_v5100.py'
+      - 'scripts/deploy-pages-extended.mjs'
       - 'discovery-facts.json'
       - 'robots.txt'
       - 'sitemap.xml'
