@@ -174,18 +174,18 @@ test('cloud shadows update on the map and use available source winds', () => {
 
 test('entrypoints use fresh cache keys and keep the celestial canvas off the satellite globe', () => {
   for (const source of [app, landing]) {
-    assert.match(source, /world-v2300-map\.js\?v=6228-global-sidewalk-3d-vector-tiles/);
+    assert.match(source, /world-v2300-map\.js\?v=6247-viewport-tile-sidewalk-progressive/);
     assert.match(source, /world-v2300-water\.js\?v=6256-gerstner-ocean/);
     assert.match(source, /world-v2300-clouds\.js\?v=6200-radar-colored-rain-clouds/);
     assert.match(source, /world-v2300-weather\.js\?v=6200-storm-clouds-no-rain/);
     assert.match(source, /world-v2300-time-slider\.js\?v=6170-no-cloud-toggle-always-on/);
   }
-  assert.match(appHtml, /app\.js\?v=6246-offshore-energy-v2/, 'app shell loads the updated app entrypoint');
+  assert.match(appHtml, /app\.js\?v=6247-universal-fresh-entry/, 'app shell loads the updated app entrypoint');
   assert.doesNotMatch(map, /world-v2300-space\.js\?v=6125-manual-globe-camera/, 'the retired celestial overlay must not be imported by the live globe');
   assert.doesNotMatch(timeSlider, /data-clouds|toggleSkyClouds|world-v2300-clouds/);
   assert.match(bootstrap, /world-v2300-weather\.js\?v=6195-desktop-globe-flash-stability/);
-  assert.match(appHtml, /app\.js\?v=6246-offshore-energy-v2/);
-  assert.match(landingHtml, /landing\.js\?v=6246-offshore-energy-v2/);
+  assert.match(appHtml, /app\.js\?v=6247-universal-fresh-entry/);
+  assert.match(landingHtml, /landing\.js\?v=6247-universal-fresh-entry/);
   assert.match(appHtml, /intelligence-global-v5507\.js\?v=6170-imerg-nrt-timeline/);
   assert.match(landingHtml, /intelligence-global-v5507\.js\?v=6170-imerg-nrt-timeline/);
 });
@@ -265,16 +265,16 @@ test('global opportunity markers render category glyphs and merge source-backed 
 });
 
 test('both entrypoints perform a real 6223 sidewalk-cache service-worker cutover before stale startup survives', () => {
-  assert.match(landingHtml, /app-update-v5820\.js\?v=6223-sidewalk-3d-global/);
-  assert.match(appHtml, /app-update-v5820\.js\?v=6223-sidewalk-3d-global/);
-  assert.match(appUpdate, /const BUILD=6223/);
-  assert.match(appUpdate, /CURRENT_CACHE='bp-intelligence-v6223-sidewalk-3d-global'/);
+  assert.match(landingHtml, /app-update-v5820\.js\?v=6247-universal-fresh-entry-sidewalk/);
+  assert.match(appHtml, /app-update-v5820\.js\?v=6247-universal-fresh-entry-sidewalk/);
+  assert.match(appUpdate, /const BUILD=6247/);
+  assert.match(appUpdate, /CURRENT_CACHE='bp-intelligence-v6247-universal-fresh-entry-sidewalk'/);
   assert.match(appUpdate, /function reloadOnce\(reason\)/);
   assert.match(appUpdate, /location\.replace\(u\.href\)/);
   assert.match(appUpdate, /navigator\.serviceWorker\?\.addEventListener\('controllerchange'/);
-  assert.match(serviceWorker, /const V='bp-intelligence-v6223-sidewalk-3d-global'/);
-  assert.match(landing, /navigator\.serviceWorker\.register\('\/sw\.js\?v=6223-sidewalk-3d-global'/);
-  assert.match(app, /navigator\.serviceWorker\.register\('\/sw\.js\?v=6223-sidewalk-3d-global'/);
+  assert.match(serviceWorker, /const V='bp-intelligence-v6247-universal-fresh-entry-sidewalk'/);
+  assert.match(landing, /navigator\.serviceWorker\.register\('\/sw\.js\?v=6247-universal-fresh-entry-sidewalk'/);
+  assert.match(app, /navigator\.serviceWorker\.register\('\/sw\.js\?v=6247-universal-fresh-entry-sidewalk'/);
   assert.match(clouds, /Number\(existingCloudController\.version\) >= 6200[\s\S]{0,180}Number\(existingState\?\.version\) >= 6200/);
 });
 
