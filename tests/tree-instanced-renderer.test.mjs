@@ -270,7 +270,10 @@ assert.ok(source.includes('procedural-variants.json'), 'the renderer must load t
 assert.ok(source.includes('map.queryTerrainElevation'), 'instances must anchor to terrain elevation');
 assert.ok(source.includes('getMatrixForModel'), 'instances must use the existing MapLibre geographic transform');
 assert.ok(source.includes('bpTreeLod'), 'the renderer must reuse the existing source-backed tree point cache');
-assert.ok(source.includes("state.unsupported === 0"), 'the renderer should preserve the legacy fallback when model types are unsupported');
+assert.ok(source.includes("state.unsupported > 0") && source.includes("if (partialCoverage)"),
+  'the source-backed legacy fallback must remain visible when model groups are unsupported or unavailable');
+assert.ok(source.includes("Promise.allSettled([...groups.entries()]"),
+  'one failed model asset must not reject every supported tree model group');
 assert.ok(!source.includes("state.truncated === 0"), 'a truncated source set must still render all instances that fit the GPU budget');
 assert.ok(source.includes("partialInstanceBudget"), 'the renderer should expose a partial-capacity diagnostic');
 assert.ok(source.includes("bpRootPin = smoothstep"), 'the wind shader must pin the tree root so trunks remain attached to the ground');

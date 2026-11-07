@@ -633,7 +633,7 @@ function scheduleBeaconRotation(state) {
         const degrees = ((Date.now() / 34) % 360 + 360) % 360;
         map.setLayoutProperty(BEACON_LAYER_ID, 'icon-rotate', degrees);
       } catch (_) {}
-      state.beaconTimer = setTimeout(tick, 90);
+      state.beaconTimer = setTimeout(tick, 160);
     } else {
       state.beaconTimer = setTimeout(tick, 500);
     }
@@ -677,27 +677,47 @@ function modelCandidates(state) {
   return list.slice(0, MAX_RENDERED_MODELS).map(item => item.feature);
 }
 
+function updateModelTransforms(state) {
+  if (!state.THREE || !state.map || state.dead) return 0;
+  let updated = 0;
+  for (const item of state.models) {
+    const matrix = mapMatrix(state.map, state.THREE, item.coordinate, item.groundElevationM);
+    if (!matrix) continue;
+    item.root.matrix.copy(matrix);
+    item.root.matrixAutoUpdate = false;
+    item.root.matrixWorldNeedsUpdate = true;
+    updated++;
+  }
+  state.stats.transformUpdates = updated;
+  state.stats.transformsUpdatedAt = Date.now();
+  return updated;
+}
+
 function rebuildModels(state) {
   if (!state.THREE || !state.scene || state.dead) return;
   const selected = modelCandidates(state);
   const signature = selected.map(f => f.id).join('|');
-  if (signature === state.modelSignature) return;
-  for (const item of state.models) {
-    state.scene.remove(item.root);
-    disposeObject(item.root);
-  }
-  state.models = [];
-  state.modelSignature = signature;
-  for (const feature of selected) {
-    try {
-      const item = createLighthouseModel(state.THREE, feature);
-      state.scene.add(item.root);
-      state.models.push(item);
-    } catch (error) {
-      console.warn('BridgePoint lighthouse model skipped', feature.id, error);
+  if (signature !== state.modelSignature) {
+    for (const item of state.models) {
+      state.scene.remove(item.root);
+      disposeObject(item.root);
     }
+    state.models = [];
+    state.modelSignature = signature;
+    for (const feature of selected) {
+      try {
+        const item = createLighthouseModel(state.THREE, feature);
+        state.scene.add(item.root);
+        state.models.push(item);
+      } catch (error) {
+        console.warn('BridgePoint lighthouse model skipped', feature.id, error);
+      }
+    }
+    state.stats.renderedModels = state.models.length;
   }
-  state.stats.renderedModels = state.models.length;
+  // Store one geographic model matrix per tower when the viewport settles.
+  // The render loop can then draw every tower in one Three.js call.
+  updateModelTransforms(state);
 }
 
 function installModelLayer(state) {
@@ -733,12 +753,10 @@ function installModelLayer(state) {
         args.modelViewProjectionMatrix
       );
       if (!raw || raw.length < 16) return;
-      const projection = new THREE.Matrix4().fromArray(raw);
       const now = Date.now();
       let anyNight = false;
       const zoom = Number(map.getZoom && map.getZoom() || 0);
-      for (const item of state.models) item.root.visible = false;
-      if (zoom >= MIN_MODEL_ZOOM) {
+      if (zoom >= MIN_MODEL_ZOOM && state.models.length) {
         for (const item of state.models) {
           if (now - item.nightCheckedAt > 30000) {
             item.night = isDarkAt(item.coordinate[1], item.coordinate[0], new Date(now));
@@ -750,22 +768,24 @@ function installModelLayer(state) {
             item.beamGroup.rotation.y = ((now / 1000) % item.periodSec) / item.periodSec * TAU;
             anyNight = true;
           }
-          const matrix = mapMatrix(map, THREE, item.coordinate, item.groundElevationM);
-          if (!matrix) continue;
           item.root.visible = true;
-          state.camera.projectionMatrix.copy(projection).multiply(matrix);
-          try {
-            state.renderer.resetState();
-            state.renderer.render(state.scene, state.camera);
-          } catch (error) {
-            if (!state.renderWarned) {
-              state.renderWarned = true;
-              console.warn('BridgePoint lighthouse draw', error);
-            }
-          } finally {
-            item.root.visible = false;
-          }
         }
+        // Geographic matrices live on the model roots. Render the complete
+        // visible lighthouse set once, instead of issuing one WebGL render per tower.
+        state.camera.projectionMatrix.fromArray(raw);
+        try {
+          state.renderer.resetState();
+          state.renderer.render(state.scene, state.camera);
+        } catch (error) {
+          if (!state.renderWarned) {
+            state.renderWarned = true;
+            console.warn('BridgePoint lighthouse draw', error);
+          }
+        } finally {
+          for (const item of state.models) item.root.visible = false;
+        }
+      } else {
+        for (const item of state.models) item.root.visible = false;
       }
       if (anyNight && map.triggerRepaint && !state.animationTimer && !document.hidden) {
         state.animationTimer = setTimeout(() => {
@@ -830,6 +850,9 @@ async function loadGlobalData(state) {
       state.status = 'global-source-unavailable';
       state.stats.lastError = String(error && error.message || error);
       console.warn('BridgePoint global lighthouse source unavailable', error);
+      // Do not leave the beacon source empty when the static snapshot is
+      // unavailable; fall back to the existing viewport OSM request immediately.
+      if (Number(state.map.getZoom()) >= MIN_BEACON_ZOOM) void loadViewportData(state);
     }
   } finally {
     state.globalLoading = false;

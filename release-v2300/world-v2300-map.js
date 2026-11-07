@@ -556,7 +556,7 @@ export function initWorld(options={}){
    lazyStartZoom:treeStartZoom,
    updatedAt:Date.now()
   };
-  import('./world-v2300-tree-instanced.js?v=20261102-tree-canopy-coverage-v5')
+  import('./world-v2300-tree-instanced.js?v=20261106-renderer-reliability-v1')
    .then(mod=>mod.attachTreeInstancedRenderer(map))
    .then(state=>{
     const current=window.__BP_TREE_INSTANCE_RENDERER_V1__||state||{};
@@ -1840,10 +1840,29 @@ function bridgeLineCoveredByPolygons(line,polygons){
   }
   
   map.on('move',clampCameraAboveTerrain);map.on('idle',clampCameraAboveTerrain);map.on('terrain',clampCameraAboveTerrain);
-  map.on('movestart',()=>movement(true));map.on('moveend',()=>{movement(false);clampCameraAboveTerrain()});map.on('zoomend',()=>{schedulePostMoveSettle();clampCameraAboveTerrain()});let bpCitySyncTimer=0,bpGlobalLodSyncTimer=0;map.on('sourcedata',e=>{
+  let bpBridgeSourceTimer=0,bpBridgeSourcePending=false;
+  const scheduleBridgeSourceRefresh=()=>{
+   clearTimeout(bpBridgeSourceTimer);
+   bpBridgeSourceTimer=setTimeout(()=>{
+    if(moving||map.isMoving?.()){bpBridgeSourcePending=true;return}
+    bpBridgeSourcePending=false;
+    if(map.getZoom()>=activeWorldLodProfile().bridgeMin)rebuildBridge3D(MOBILE?140:90);
+   },MOBILE?420:220);
+  };
+  let bpContextBuildingSyncTimer=0;
+  map.on('movestart',()=>movement(true));map.on('moveend',()=>{movement(false);clampCameraAboveTerrain();if(bpBridgeSourcePending)scheduleBridgeSourceRefresh()});map.on('zoomend',()=>{schedulePostMoveSettle();clampCameraAboveTerrain()});let bpCitySyncTimer=0,bpGlobalLodSyncTimer=0;map.on('sourcedata',e=>{
   if(e?.sourceId==='ofm'){
    clearTimeout(bpGlobalLodSyncTimer);
    bpGlobalLodSyncTimer=setTimeout(()=>{if(moving||map.isMoving?.())return;refreshGlobalLodPaint();window.__BP_SOURCE_BURST_GUARD_V5592__={version:5592,heavyRebuildsOnSourceData:false,coalescedPaintOnly:true,updatedAt:Date.now()}},MOBILE?900:320);
+   // Vector-tile content can arrive after moveend. Rebuild the 3D bridge mesh
+   // and re-sync the context building LOD as those tiles become available.
+   if(e?.sourceDataType==='content'||e?.isSourceLoaded===true||e?.tile){
+    scheduleBridgeSourceRefresh();
+    clearTimeout(bpContextBuildingSyncTimer);
+    bpContextBuildingSyncTimer=setTimeout(()=>{
+     if(!moving&&!map.isMoving?.())syncBuildingShellsWhenSafe('ofm-viewport-tiles-ready');
+    },MOBILE?720:260);
+   }
    return
   }
   if(e?.sourceId==='bpBuildings'){clearTimeout(bpCitySyncTimer);bpCitySyncTimer=setTimeout(()=>syncBuildingShellsWhenSafe('bpBuildings-sourcedata'),MOBILE?520:160);return}

@@ -79,9 +79,13 @@ assert.ok(source.includes("map.querySourceFeatures(SOURCE_ID, { sourceLayer: 'in
 assert.ok(source.includes("sourceLayer: 'infrastructure'") &&
   source.includes("String(properties.class || '').toLowerCase() === 'street_lamp'"),
   'the renderer must filter real street_lamp features from Overture infrastructure tiles');
-assert.ok(source.includes("https://esm.sh/pmtiles@4.3.0") && source.includes('new pmtiles.Protocol()') &&
-  source.includes('maplibre.addProtocol(PMTILES_SCHEME, protocol.tile)'),
-  'the renderer must register PMTiles before adding the global vector source');
+assert.ok(source.includes("const PMTILES_LIBRARY_URL = '/vendor/pmtiles.js'") &&
+  source.includes('new pmtiles.Protocol()') &&
+  source.includes('maplibre.addProtocol(PMTILES_SCHEME, protocol.tile)') &&
+  source.includes('window.__BP_TRANSPORTATION_PMTILES_PROTOCOL__') &&
+  source.includes('window.__BP_UTILITY_PMTILES_PROTOCOL__'),
+  'the renderer must reuse BridgePoint’s shared, same-origin PMTiles runtime before adding the global vector source');
+assert.ok(!source.includes('esm.sh/pmtiles'), 'streetlights must not depend on a separate PMTiles CDN request');
 assert.ok(source.includes('2026-10-21.0/base.pmtiles') && source.includes('url: OVERTURE_BASE_PMTILES'),
   'the source must use Overture global Base Infrastructure data');
 assert.ok(source.includes("['==', ['get', 'class'], 'street_lamp']"),
