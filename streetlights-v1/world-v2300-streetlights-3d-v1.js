@@ -1,4 +1,4 @@
-const VERSION = 4;
+const VERSION = 5;
 const SOURCE_ID = 'bp-global-streetlights-overture-source-v2';
 const QUERY_LAMPS = 'bp-global-streetlights-overture-query-v2';
 const DATA_QUERY_LAMPS = 'bp-global-streetlights-overture-query-data-v1';
@@ -427,6 +427,12 @@ export function initStreetlightRenderer(target) {
       'opacity:0', 'pointer-events:none', 'overflow:hidden',
       'width:' + width + 'px', 'height:' + height + 'px'
     ].join(';');
+    // BridgePoint's homepage CSS hides every MapLibre map by default in its
+    // preview/auth states. This data-only map must remain measurable so its
+    // tile renderer can request Overture tiles; keep it visually transparent
+    // and non-interactive rather than letting display:none collapse it to 0x0.
+    dataMapContainer.style.setProperty('display', 'block', 'important');
+    dataMapContainer.style.setProperty('visibility', 'visible', 'important');
     document.body.appendChild(dataMapContainer);
     const projectionType = map.getProjection?.()?.type || 'globe';
     dataProjection = projectionType;
