@@ -178,14 +178,14 @@ jobs:
           q="$GITHUB_SHA-global-streetlights-v1"
           curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/?streetlights=$q" -o /tmp/bp-streetlights-root.html
           curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app/?streetlights=$q" -o /tmp/bp-streetlights-app.html
-          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/landing.js?v=6247-global-auto-streetlights-v1&verify=$q" -o /tmp/bp-streetlights-landing.js
-          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app.js?v=6247-global-auto-streetlights-v1&verify=$q" -o /tmp/bp-streetlights-app.js
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/landing.js?v=6249-visible-global-streetlights-v3&verify=$q" -o /tmp/bp-streetlights-landing.js
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app.js?v=6249-visible-global-streetlights-v3&verify=$q" -o /tmp/bp-streetlights-app.js
           curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/bridgepoint-streetlights-3d-v1.js?verify=$q" -o /tmp/bp-streetlights-module.js
           curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app/bridgepoint-streetlights-3d-v1.js?verify=$q" -o /tmp/bp-streetlights-app-module.js
           curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/bridgepoint-faa-obstruction-towers-v1.js?verify=$q" -o /tmp/bp-streetlights-faa-module.js
 
-          grep -Fq 'landing.js?v=6247-global-auto-streetlights-v1' /tmp/bp-streetlights-root.html
-          grep -Fq 'app.js?v=6247-global-auto-streetlights-v1' /tmp/bp-streetlights-app.html
+          grep -Fq 'landing.js?v=6249-visible-global-streetlights-v3' /tmp/bp-streetlights-root.html
+          grep -Fq 'app.js?v=6249-visible-global-streetlights-v3' /tmp/bp-streetlights-app.html
           grep -Fq 'bpWelcomeGateV1' /tmp/bp-streetlights-root.html
           grep -Fq '__BP_STREETLIGHTS_3D_V1__' /tmp/bp-streetlights-landing.js
           grep -Fq '__BP_STREETLIGHTS_3D_V1__' /tmp/bp-streetlights-app.js
