@@ -1518,10 +1518,17 @@ jobs:
           node --check site/app/world-v2300-sidewalks-3d.js
           node --check site/app/world-v2300-map.js
           node --check scripts/deploy-pages-extended.mjs
-          grep -Fq "from'./world-v2300-sidewalks-3d.js?v=20261107-global-sidewalk-vector-tiles-v2'" site/world-v2300-map.js
-          grep -Fq "from'./world-v2300-sidewalks-3d.js?v=20261107-global-sidewalk-vector-tiles-v2'" site/app/world-v2300-map.js
+          grep -Fq "from'./world-v2300-sidewalks-3d.js?v=20261107-sidewalk-terrain-local-offsets-v3'" site/world-v2300-map.js
+          grep -Fq "from'./world-v2300-sidewalks-3d.js?v=20261107-sidewalk-terrain-local-offsets-v3'" site/app/world-v2300-map.js
           grep -Fq "gta-bp-sidewalk-slabs-v1" site/world-v2300-map.js
           grep -Fq "gta-bp-sidewalk-slabs-v1" site/app/world-v2300-map.js
+          grep -Fq 'function refreshSidewalk3DFromTiles(extraFeatures=[])' site/world-v2300-map.js
+          grep -Fq 'function refreshSidewalk3DFromTiles(extraFeatures=[])' site/app/world-v2300-map.js
+          grep -Fq 'sidewalkTileFeatures=sidewalkRoadTileFeatures' site/world-v2300-map.js
+          grep -Fq 'sidewalkTileFeatures=sidewalkRoadTileFeatures' site/app/world-v2300-map.js
+          grep -Fq "base_m:0,terrain_sampled:sampled,terrain_elevation_m:sampled?elevation:null" site/world-v2300-sidewalks-3d.js
+          grep -Fq "top_m:0.145" site/world-v2300-sidewalks-3d.js
+          grep -Fq "top_m:0.20" site/world-v2300-sidewalks-3d.js
           node --check site/world-v2300-lod-controls.js
           node --check site/app/world-v2300-lod-controls.js
           test -s site/world-v2300-space.js
