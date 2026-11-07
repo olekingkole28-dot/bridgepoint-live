@@ -106,21 +106,35 @@ jobs:
           import hashlib, json, os, re
 
           site=Path(os.environ["RUNNER_TEMP"])/"bp-streetlights-site"
-          old="./bridgepoint-streetlights-3d-v1.js?v=4-shared-pmtiles-and-batched"
           new="./bridgepoint-streetlights-3d-v1.js?v=5-grounded-tile-streaming-night-beams"
+          pattern=re.compile(r"""(\\./bridgepoint-streetlights-3d-v1\\.js)(?:\\?v=[^"']+)?""")
+          anchor=".catch(e=>console.warn('BridgePoint FAA obstruction/tower renderer unavailable',e));"
+          addition=(
+              "\\n  // Replace-safe automatic streetlight loader; keep one renderer per globe.\\n"
+              "  void import('" + new + "')\\n"
+              "   .then(m=>{window.__BP_STREETLIGHTS_3D_V1__=m.initStreetlightRenderer(world)})\\n"
+              "   .catch(e=>console.warn('BridgePoint global 3D streetlights unavailable',e));\\n"
+          )
           for rel in ("landing.js","app.js"):
               path=site/rel
               data=path.read_text(encoding="utf-8")
-              count=data.count(old)
-              if count!=1:
-                  raise SystemExit(f"{rel}: expected one existing streetlight import to replace, found {count}")
-              path.write_text(data.replace(old,new,1),encoding="utf-8")
+              matches=list(pattern.finditer(data))
+              if len(matches)==1:
+                  data=pattern.sub(lambda m:new, data, count=1)
+              elif len(matches)==0:
+                  count=data.count(anchor)
+                  if count!=1:
+                      raise SystemExit(f"{rel}: no existing streetlight import and expected one FAA insertion point, found {count}")
+                  data=data.replace(anchor,anchor+addition,1)
+              else:
+                  raise SystemExit(f"{rel}: found {len(matches)} streetlight imports; refusing to publish duplicates")
+              path.write_text(data,encoding="utf-8")
 
           for rel,stem in (("index.html","landing.js"),("app/index.html","app.js")):
               path=site/rel
               data=path.read_text(encoding="utf-8")
-              pattern=r"("+re.escape(stem)+r"\\?v=)[^&\"']+"
-              data,count=re.subn(pattern,r"\\g<1>6250-streetlight-tile-stream-v5",data,count=1)
+              cache_pattern=r"("+re.escape(stem)+r"\\?v=)[^&\"']+"
+              data,count=re.subn(cache_pattern,r"\\g<1>6250-streetlight-tile-stream-v5",data,count=1)
               if count!=1:
                   raise SystemExit(f"{rel}: expected one {stem} cache-bust URL, replaced {count}")
               path.write_text(data,encoding="utf-8")
