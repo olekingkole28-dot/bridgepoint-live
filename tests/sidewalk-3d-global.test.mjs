@@ -96,6 +96,16 @@ assert.ok(mapSource.includes('features:sidewalkFeatureInputs'),
 assert.ok(mapSource.includes('globalVectorTileFeatures:sidewalkTileFeatures.length'),
   'the active sidewalk renderer must expose its vector-tile source count for live diagnosis');
 
+assert.ok(mapSource.includes("map.querySourceFeatures('ofm',{sourceLayer:'transportation'})"),
+  'curbs and grass must use loaded OpenFreeMap road geometry even when road display layers are hidden');
+assert.ok(mapSource.includes("const sidewalkRoadClasses=new Set"),
+  'road source features must be filtered to actual road classes before sidewalk pairing');
+assert.ok(mapSource.includes("brunnel==='bridge'||brunnel==='tunnel'||bridge==='yes'||tunnel==='yes'"),
+  'bridge and tunnel deck geometry must not be used to fabricate sidewalk curbs or grass verges');
+assert.ok(mapSource.includes('roadVectorTileFeatures:sidewalkRoadTileFeatures.length'),
+  'the live sidewalk diagnostics must report loaded transportation road tiles used for curb placement');
+
+
 const livingDataIndex = mapSource.indexOf("const data={type:'FeatureCollection',features};");
 const sidewalkBuildIndex = mapSource.indexOf('const sidewalk3D=', livingDataIndex);
 const livingFeatureGateIndex = mapSource.indexOf('if(features.length){', livingDataIndex);
