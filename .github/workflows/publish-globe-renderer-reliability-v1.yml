@@ -84,8 +84,6 @@ jobs:
           grep -Fq 'bpWelcomeGateV1' "$SITE/index.html"
           grep -Fq 'bpAuthRequestV6237' "$SITE/landing.js"
           grep -Fq 'bpAuthRequestV6237' "$SITE/app.js"
-          grep -Fq 'initFAAObstructionTowerRenderer' "$SITE/bridgepoint-faa-obstruction-towers-v1.js"
-          grep -Fq 'initUtilityInfrastructure' "$SITE/world-v2300-utility-infrastructure-v1.js"
           for m in bridgepoint-offshore-energy-v1.js bridgepoint-solar-fields-v1.js bridgepoint-wind-turbines-v1.js; do
             grep -Fq "$m" "$SITE/landing.js"
           done
@@ -231,15 +229,27 @@ jobs:
           expected={"index.html","app/index.html","landing.js","app.js",
             "world-v2300-map.js","app/world-v2300-map.js",
             "world-v2300-tree-instanced.js","app/world-v2300-tree-instanced.js",
-            "bridgepoint-lighthouses-v1.js","app/bridgepoint-lighthouses-v1.js",
-            "bridgepoint-streetlights-3d-v1.js","app/bridgepoint-streetlights-3d-v1.js"}
-          allowed=expected|{"feed.xml","news-sitemap.xml","news/current-northeast-weather.html","news/global-expansion.html"}
+            "bridgepoint-lighthouses-v1.js","app/bridgepoint-lighthouses-v1.js"}
+          optional_assets={
+            "bridgepoint-streetlights-3d-v1.js","app/bridgepoint-streetlights-3d-v1.js",
+            "bridgepoint-faa-obstruction-towers-v1.js","app/bridgepoint-faa-obstruction-towers-v1.js",
+            "data/bridgepoint-faa-obstructions-v1.json.gz","app/data/bridgepoint-faa-obstructions-v1.json.gz",
+            "data/bridgepoint-lighthouses-global-v1.json","app/data/bridgepoint-lighthouses-global-v1.json",
+            "data/bridgepoint-lighthouses-global-v1-ATTRIBUTION.md","app/data/bridgepoint-lighthouses-global-v1-ATTRIBUTION.md",
+            "vendor/GLTFLoader.bundle.js"
+          }
+          allowed=expected|optional_assets|{"feed.xml","news-sitemap.xml","news/current-northeast-weather.html","news/global-expansion.html"}
+          expected_added=optional_assets-set(before)
           if not expected.issubset(changed): raise SystemExit("Missing expected files: "+json.dumps(sorted(expected-changed)))
           if not changed.issubset(allowed): raise SystemExit("Unexpected production changes: "+json.dumps(sorted(changed-allowed)))
           if removed: raise SystemExit("Production files were removed: "+json.dumps(sorted(removed)))
-          if added!={"vendor/GLTFLoader.bundle.js"}: raise SystemExit("Unexpected added files: "+json.dumps(sorted(added)))
-          for name in ("world-v2300-map.js","world-v2300-tree-instanced.js","bridgepoint-lighthouses-v1.js","bridgepoint-streetlights-3d-v1.js"):
+          if added!=expected_added: raise SystemExit("Unexpected production additions: "+json.dumps({"actual":sorted(added),"expected":sorted(expected_added)}))
+          if not optional_assets.issubset(set(after)): raise SystemExit("Missing required renderer/support assets: "+json.dumps(sorted(optional_assets-set(after))))
+          for name in ("world-v2300-map.js","world-v2300-tree-instanced.js","bridgepoint-lighthouses-v1.js","bridgepoint-streetlights-3d-v1.js","bridgepoint-faa-obstruction-towers-v1.js"):
               assert (site/name).read_bytes()==(site/"app"/name).read_bytes(),name+" root/app mismatch"
+          assert (site/"data/bridgepoint-faa-obstructions-v1.json.gz").read_bytes()==(site/"app/data/bridgepoint-faa-obstructions-v1.json.gz").read_bytes()
+          assert (site/"data/bridgepoint-lighthouses-global-v1.json").read_bytes()==(site/"app/data/bridgepoint-lighthouses-global-v1.json").read_bytes()
+          assert (site/"data/bridgepoint-lighthouses-global-v1-ATTRIBUTION.md").read_bytes()==(site/"app/data/bridgepoint-lighthouses-global-v1-ATTRIBUTION.md").read_bytes()
           print("STRICT_RELIABILITY_SCOPE_PASS",len(before),"baseline files; changed",len(changed),"allowed files; removed 0")
           PY
           for f in "$SITE/world-v2300-map.js" "$SITE/app/world-v2300-map.js" "$SITE/world-v2300-tree-instanced.js" "$SITE/app/world-v2300-tree-instanced.js" "$SITE/bridgepoint-lighthouses-v1.js" "$SITE/app/bridgepoint-lighthouses-v1.js" "$SITE/bridgepoint-streetlights-3d-v1.js" "$SITE/app/bridgepoint-streetlights-3d-v1.js"; do node --input-type=module --check < "$f"; done
