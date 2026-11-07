@@ -109,7 +109,7 @@ jobs:
           anchor=".catch(e=>console.warn('BridgePoint FAA obstruction/tower renderer unavailable',e));"
           addition=(
               "\n  // Automatic global 3D streetlights. No button; all existing map controls remain independent.\n"
-              "  void import('./bridgepoint-streetlights-3d-v1.js?v=1-global-auto-streetlights')\n"
+              "  void import('./bridgepoint-streetlights-3d-v1.js?v=3-visible-fixtures')\n"
               "   .then(m=>{window.__BP_STREETLIGHTS_3D_V1__=m.initStreetlightRenderer(world)})\n"
               "   .catch(e=>console.warn('BridgePoint global 3D streetlights unavailable',e));\n"
           )
@@ -125,7 +125,7 @@ jobs:
               path=site/rel
               data=path.read_text(encoding="utf-8")
               pattern=r"("+re.escape(stem)+r"\?v=)[^&\"']+"
-              data,count=re.subn(pattern,r"\g<1>6247-global-auto-streetlights-v1",data,count=1)
+              data,count=re.subn(pattern,r"\g<1>6249-visible-global-streetlights-v3",data,count=1)
               if count!=1:
                   raise SystemExit(f"{rel}: expected one {stem} cache-bust URL, replaced {count}")
               path.write_text(data,encoding="utf-8")
@@ -178,14 +178,14 @@ jobs:
           q="$GITHUB_SHA-global-streetlights-v1"
           curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/?streetlights=$q" -o /tmp/bp-streetlights-root.html
           curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app/?streetlights=$q" -o /tmp/bp-streetlights-app.html
-          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/landing.js?v=6247-global-auto-streetlights-v1&verify=$q" -o /tmp/bp-streetlights-landing.js
-          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app.js?v=6247-global-auto-streetlights-v1&verify=$q" -o /tmp/bp-streetlights-app.js
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/landing.js?v=6249-visible-global-streetlights-v3&verify=$q" -o /tmp/bp-streetlights-landing.js
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app.js?v=6249-visible-global-streetlights-v3&verify=$q" -o /tmp/bp-streetlights-app.js
           curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/bridgepoint-streetlights-3d-v1.js?verify=$q" -o /tmp/bp-streetlights-module.js
           curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app/bridgepoint-streetlights-3d-v1.js?verify=$q" -o /tmp/bp-streetlights-app-module.js
           curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/bridgepoint-faa-obstruction-towers-v1.js?verify=$q" -o /tmp/bp-streetlights-faa-module.js
 
-          grep -Fq 'landing.js?v=6247-global-auto-streetlights-v1' /tmp/bp-streetlights-root.html
-          grep -Fq 'app.js?v=6247-global-auto-streetlights-v1' /tmp/bp-streetlights-app.html
+          grep -Fq 'landing.js?v=6249-visible-global-streetlights-v3' /tmp/bp-streetlights-root.html
+          grep -Fq 'app.js?v=6249-visible-global-streetlights-v3' /tmp/bp-streetlights-app.html
           grep -Fq 'bpWelcomeGateV1' /tmp/bp-streetlights-root.html
           grep -Fq '__BP_STREETLIGHTS_3D_V1__' /tmp/bp-streetlights-landing.js
           grep -Fq '__BP_STREETLIGHTS_3D_V1__' /tmp/bp-streetlights-app.js
@@ -193,6 +193,8 @@ jobs:
           grep -Fq 'bridgepoint-faa-obstruction-towers-v1.js?v=1-faa-obstruction-towers' /tmp/bp-streetlights-app.js
           grep -Fq 'initFAAObstructionTowerRenderer' /tmp/bp-streetlights-faa-module.js
           grep -Fq "const MIN_ZOOM = 13;" /tmp/bp-streetlights-module.js
+          grep -Fq "2026-10-21.0/base.pmtiles" /tmp/bp-streetlights-module.js
+          grep -Fq "class'], 'street_lamp'" /tmp/bp-streetlights-module.js
           grep -Fq "const PRECISE_MIN_ZOOM = 16;" /tmp/bp-streetlights-module.js
           grep -Fq "solarAltitude(date, longitude, latitude)" /tmp/bp-streetlights-module.js
           cmp -s /tmp/bp-streetlights-module.js /tmp/bp-streetlights-app-module.js

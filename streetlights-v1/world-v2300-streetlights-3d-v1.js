@@ -1,9 +1,11 @@
-const VERSION = 1;
-const SOURCE_ID = 'bp-global-streetlights-source-v1';
-const QUERY_POLES = 'bp-global-streetlights-query-poles-v1';
-const QUERY_LAMPS = 'bp-global-streetlights-query-lamps-v1';
+const VERSION = 3;
+const SOURCE_ID = 'bp-global-streetlights-overture-source-v2';
+const QUERY_LAMPS = 'bp-global-streetlights-overture-query-v2';
 const LAYER_ID = 'bp-global-streetlights-3d-v1';
-const STREETLIGHT_TILE_URL = 'https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-streetlight-tile-v5937';
+const PMTILES_SCHEME = 'pmtiles';
+const PMTILES_MODULE_URL = 'https://esm.sh/pmtiles@4.3.0';
+const OVERTURE_BASE_PMTILES = 'pmtiles://https://overturemaps-extras-us-west-2.s3.us-west-2.amazonaws.com/tiles/2026-10-21.0/base.pmtiles';
+const PMTILES_PROTOCOL_KEY = '__BP_OVERTURE_STREETLIGHTS_PM_PROTOCOL_V2__';
 const THREE_URL = '/vendor/three.module.js?v=169-local';
 const MIN_ZOOM = 13;
 const PRECISE_MIN_ZOOM = 16;
@@ -16,6 +18,19 @@ const NIGHT_PARTS = ['nightLens', 'beam', 'groundPool'];
 
 const compass = { n: 0, north: 0, ne: 45, northeast: 45, e: 90, east: 90, se: 135, southeast: 135,
   s: 180, south: 180, sw: 225, southwest: 225, w: 270, west: 270, nw: 315, northwest: 315 };
+
+export function hasLoadedStyle(map) {
+  try {
+    const style = map?.getStyle?.();
+    // MapLibre's isStyleLoaded() also waits for every source tile to finish.
+    // BridgePoint has several optional live feeds which can keep that false
+    // indefinitely even after the style JSON itself is usable for addSource/addLayer.
+    return !!(style && Array.isArray(style.layers) && style.layers.length > 0 &&
+      map.style?._loaded !== false);
+  } catch (_) {
+    return false;
+  }
+}
 
 function finiteNumber(value) {
   if (value === null || value === undefined || value === '') return null;
@@ -107,7 +122,7 @@ export function streetlightHeight(properties = {}) {
     const height = parseHeight(properties[field]);
     if (height !== null) return { height, measured: true, field };
   }
-  return { height: 6.5, measured: false, field: 'visual-fallback' };
+  return { height: 8.0, measured: false, field: 'visual-fallback' };
 }
 function featureId(feature) {
   const p = feature && feature.properties || {};
@@ -163,7 +178,9 @@ function featureBearing(properties = {}) {
     return compass[raw.trim().toLowerCase()];
   }
   const angle = finiteNumber(raw);
-  return angle === null ? 0 : normalizeDegrees(angle);
+  // Overture/OSM street_lamp points rarely encode arm bearing. Use a consistent
+  // east-west default so the cantilever is visible in the globe's common north-up view.
+  return angle === null ? 90 : normalizeDegrees(angle);
 }
 function makeRecord(feature, poleFeature = null) {
   const chosen = poleFeature || feature;
@@ -178,40 +195,17 @@ function makeRecord(feature, poleFeature = null) {
   };
 }
 function collectStreetlightRecords(map) {
-  const query = layer => {
-    try { return map.querySourceFeatures(SOURCE_ID, { sourceLayer: layer }) || []; }
-    catch (_) { return []; }
-  };
-  const poles = uniqueStreetlightFeatures(query('streetlight_poles'));
-  const lamps = uniqueStreetlightFeatures(query('streetlight_lamps'));
-  const polesById = new Map();
-  for (const pole of poles) {
-    const id = featureId(pole);
-    if (id) polesById.set(id, pole);
+    let features = [];
+    try { features = map.querySourceFeatures(SOURCE_ID, { sourceLayer: 'infrastructure' }) || []; }
+    catch (_) { features = []; }
+    const lamps = uniqueStreetlightFeatures(features.filter(feature => {
+      const properties = feature && feature.properties || {};
+      return String(properties.class || '').toLowerCase() === 'street_lamp';
+    }));
+    const records = lamps.map(feature => makeRecord(feature)).filter(Boolean);
+    const max = window.innerWidth <= 700 ? MAX_FEATURES_MOBILE : MAX_FEATURES_DESKTOP;
+    return records.slice(0, max);
   }
-  const output = [], consumed = new Set();
-  for (const lamp of lamps) {
-    const id = featureId(lamp);
-    const pole = id ? polesById.get(id) : null;
-    const record = makeRecord(lamp, pole);
-    if (!record) continue;
-    output.push(record);
-    if (pole) consumed.add(recordKey(pole, featureCoordinate(pole)));
-  }
-  for (const pole of poles) {
-    const key = recordKey(pole, featureCoordinate(pole));
-    if (consumed.has(key)) continue;
-    const record = makeRecord(pole);
-    if (record) output.push(record);
-  }
-  const unique = new Map();
-  for (const record of output) {
-    if (!record.key) continue;
-    if (!unique.has(record.key)) unique.set(record.key, record);
-  }
-  const max = window.innerWidth <= 700 ? MAX_FEATURES_MOBILE : MAX_FEATURES_DESKTOP;
-  return [...unique.values()].slice(0, max);
-}
 function terrainAt(map, coordinate) {
   try {
     const elevation = map.queryTerrainElevation?.({ lng: coordinate[0], lat: coordinate[1] }, { exaggerated: true });
@@ -250,18 +244,18 @@ function createLampGeometry(THREE) {
   shaft.translate(0, 0.5, 0);
   const base = new THREE.CylinderGeometry(0.13, 0.16, 0.18, 14, 1, false);
   const armCurve = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(-0.03, 0, 0), new THREE.Vector3(0.14, 0.10, 0),
-    new THREE.Vector3(0.42, 0.13, 0), new THREE.Vector3(0.78, 0.075, 0),
-    new THREE.Vector3(1.04, 0.035, 0)
+    new THREE.Vector3(-0.03, 0, 0), new THREE.Vector3(0.22, 0.15, 0),
+    new THREE.Vector3(0.78, 0.20, 0), new THREE.Vector3(1.32, 0.16, 0),
+    new THREE.Vector3(1.86, 0.095, 0)
   ]);
-  const arm = new THREE.TubeGeometry(armCurve, 18, 0.031, 8, false);
+  const arm = new THREE.TubeGeometry(armCurve, 22, 0.045, 8, false);
   const braceCurve = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(0.04, -0.54, 0), new THREE.Vector3(0.20, -0.36, 0),
-    new THREE.Vector3(0.47, -0.19, 0), new THREE.Vector3(0.88, -0.075, 0)
+    new THREE.Vector3(0.04, -0.56, 0), new THREE.Vector3(0.30, -0.39, 0),
+    new THREE.Vector3(0.94, -0.20, 0), new THREE.Vector3(1.68, -0.07, 0)
   ]);
-  const brace = new THREE.TubeGeometry(braceCurve, 12, 0.018, 7, false);
+  const brace = new THREE.TubeGeometry(braceCurve, 16, 0.024, 7, false);
   const shape = new THREE.Shape();
-  const w = 0.37, h = 0.085, r = 0.045;
+  const w = 0.46, h = 0.105, r = 0.055;
   shape.moveTo(-w + r, -h); shape.lineTo(w - r, -h); shape.quadraticCurveTo(w, -h, w, -h + r);
   shape.lineTo(w, h - r); shape.quadraticCurveTo(w, h, w - r, h);
   shape.lineTo(-w + r, h); shape.quadraticCurveTo(-w, h, -w, h - r);
@@ -269,7 +263,7 @@ function createLampGeometry(THREE) {
   const housing = new THREE.ExtrudeGeometry(shape, { depth: 0.27, bevelEnabled: true, bevelSegments: 3,
     steps: 1, bevelSize: 0.018, bevelThickness: 0.014, curveSegments: 8 });
   housing.translate(0, 0, -0.135);
-  const lens = new THREE.BoxGeometry(0.52, 0.014, 0.19);
+  const lens = new THREE.BoxGeometry(0.86, 0.045, 0.28);
   const beam = new THREE.ConeGeometry(1, 1, 20, 1, true);
   const pool = new THREE.CircleGeometry(1, 28);
   pool.rotateX(-Math.PI / 2);
@@ -277,18 +271,18 @@ function createLampGeometry(THREE) {
   return { shaft, base, arm, brace, housing, lens, beam, pool, photocell };
 }
 function createMaterials(THREE) {
-  const steel = new THREE.MeshStandardMaterial({ color: 0x89969e, roughness: 0.34, metalness: 0.78, side: THREE.DoubleSide });
+  const steel = new THREE.MeshStandardMaterial({ color: 0xaeb8bf, emissive: 0x35404a, emissiveIntensity: 0.18, roughness: 0.4, metalness: 0.48, side: THREE.DoubleSide });
   const castMetal = new THREE.MeshStandardMaterial({ color: 0x6c777d, roughness: 0.42, metalness: 0.72, side: THREE.DoubleSide });
   const housing = new THREE.MeshStandardMaterial({ color: 0xc3cbd0, roughness: 0.38, metalness: 0.58, side: THREE.DoubleSide });
   const lensDay = new THREE.MeshStandardMaterial({ color: 0x82877f, roughness: 0.42, metalness: 0.05, side: THREE.DoubleSide });
   const photocell = new THREE.MeshStandardMaterial({ color: 0x202c31, roughness: 0.52, metalness: 0.2, side: THREE.DoubleSide });
   const lensNight = new THREE.MeshStandardMaterial({ color: 0xffe6af, emissive: 0xffb85c, emissiveIntensity: 4.2,
     roughness: 0.22, metalness: 0, side: THREE.DoubleSide, toneMapped: false });
-  const beam = new THREE.MeshBasicMaterial({ color: 0xffd38a, transparent: true, opacity: 0.065,
-    depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, toneMapped: false });
+  const beam = new THREE.MeshBasicMaterial({ color: 0xffd38a, transparent: true, opacity: 0,
+    depthWrite: false, side: THREE.DoubleSide, blending: THREE.NormalBlending, toneMapped: false });
   const groundPool = new THREE.ShaderMaterial({
     transparent: true, depthWrite: false, side: THREE.DoubleSide, toneMapped: false,
-    uniforms: { uColor: { value: new THREE.Color(0xffc978) }, uOpacity: { value: 0.23 } },
+    uniforms: { uColor: { value: new THREE.Color(0xffc978) }, uOpacity: { value: 0.16 } },
     vertexShader: 'varying vec2 vUv; void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
     fragmentShader: 'varying vec2 vUv;uniform vec3 uColor;uniform float uOpacity;void main(){float r=length(vUv-vec2(0.5))*2.0;float a=pow(max(0.0,1.0-r),2.35)*uOpacity;gl_FragColor=vec4(uColor,a);}'
   });
@@ -298,15 +292,15 @@ function partTransform(entry, part, THREE) {
   const height = entry.height;
   let position = [0, 0, 0], scale = [1, 1, 1];
   if (part === 'base') position = [0, 0.09, 0];
-  if (part === 'photocell') position = [0.82, height + 0.025, 0];
-  if (part === 'shaft') scale = [0.09, height, 0.09];
+  if (part === 'photocell') position = [1.50, height + 0.025, 0];
+  if (part === 'shaft') scale = [1, height, 1];
   if (part === 'arm') position = [0, height - 0.16, 0];
   if (part === 'brace') position = [0, height - 0.035, 0];
-  if (part === 'housing') position = [1.045, height - 0.09, 0];
-  if (part === 'dayLens' || part === 'nightLens') position = [1.045, height - 0.184, 0];
+  if (part === 'housing') position = [1.86, height - 0.09, 0];
+  if (part === 'dayLens' || part === 'nightLens') position = [1.86, height - 0.184, 0];
   if (part === 'photocell') position = [0.82, height + 0.025, 0];
-  if (part === 'beam') { position = [1.045, height * 0.49, 0]; scale = [height * 0.235, height * 0.98, height * 0.235]; }
-  if (part === 'groundPool') { position = [1.045, 0.035, 0]; scale = [2.35, 1, 2.35]; }
+  if (part === 'beam') { position = [1.86, height * 0.86, 0]; scale = [height * 0.06, height * 0.24, height * 0.06]; }
+  if (part === 'groundPool') { position = [1.86, 0.035, 0]; scale = [1.25, 1, 1.25]; }
   const matrix = entry.baseMatrix.clone();
   matrix.multiply(new THREE.Matrix4().makeRotationY(entry.yaw));
   matrix.multiply(new THREE.Matrix4().makeTranslation(position[0], position[1], position[2]));
@@ -331,8 +325,10 @@ export function initStreetlightRenderer(target) {
   if (window.__BP_STREETLIGHTS_3D_V1__?.map === map) return window.__BP_STREETLIGHTS_3D_V1__;
 
   const state = {
-    version: VERSION, map, ready: false, enabled: true, status: 'Waiting for global mapped streetlights…',
-    poles: 0, measuredHeights: 0, estimatedHeights: 0, nightLit: 0, source: 'BridgePoint global source-mapped OSM streetlight inventory',
+    version: VERSION, map, ready: false, enabled: true, status: 'Waiting for Overture global streetlight tiles…',
+    poles: 0, measuredHeights: 0, estimatedHeights: 0, nightLit: 0,
+    source: 'Overture Base Infrastructure 2026-10-21.0 · OSM street_lamp',
+    sourceRelease: '2026-10-21.0', attribution: '© OpenStreetMap contributors · © Overture Maps Foundation · ODbL-1.0',
     minimumZoom: MIN_ZOOM, preciseZoom: PRECISE_MIN_ZOOM, nightThresholdSolarAltitude: NIGHT_ALTITUDE_DEGREES
   };
   window.__BP_STREETLIGHTS_3D_V1__ = state;
@@ -348,27 +344,35 @@ export function initStreetlightRenderer(target) {
       .catch(error => { threePromise = null; throw error; });
     return threePromise;
   }
+  async function ensurePmtilesProtocol() {
+    if (window[PMTILES_PROTOCOL_KEY]) return window[PMTILES_PROTOCOL_KEY];
+    const maplibre = window.maplibregl;
+    if (!maplibre || typeof maplibre.addProtocol !== 'function') {
+      throw new Error('MapLibre custom-protocol support is not available');
+    }
+    const pmtiles = await import(PMTILES_MODULE_URL);
+    const protocol = new pmtiles.Protocol();
+    maplibre.addProtocol(PMTILES_SCHEME, protocol.tile);
+    window[PMTILES_PROTOCOL_KEY] = protocol;
+    return protocol;
+  }
   function installSourceAndQueryLayers() {
-    if (!map.isStyleLoaded?.()) return false;
+    if (!hasLoadedStyle(map)) return false;
     if (!map.getSource(SOURCE_ID)) {
       map.addSource(SOURCE_ID, {
-        type: 'vector', tiles: [STREETLIGHT_TILE_URL + '?z={z}&x={x}&y={y}&v=5937'],
-        minzoom: MIN_ZOOM, maxzoom: 22,
-        attribution: 'OpenStreetMap contributors · BridgePoint mapped streetlight inventory'
+        type: 'vector', url: OVERTURE_BASE_PMTILES, minzoom: MIN_ZOOM, maxzoom: MIN_ZOOM,
+        attribution: state.attribution
       });
     }
     const before = ['gta-place-label', 'gta-water-label', 'gta-road-label']
       .find(id => map.getLayer(id));
-    const queryLayers = [
-      { id: QUERY_POLES, sourceLayer: 'streetlight_poles', type: 'fill-extrusion',
-        paint: { 'fill-extrusion-color': '#ffffff', 'fill-extrusion-height': 0, 'fill-extrusion-base': 0, 'fill-extrusion-opacity': 0 } },
-      { id: QUERY_LAMPS, sourceLayer: 'streetlight_lamps', type: 'circle',
-        paint: { 'circle-color': '#ffffff', 'circle-opacity': 0, 'circle-radius': 0.1 } }
-    ];
-    for (const item of queryLayers) {
-      if (map.getLayer(item.id)) continue;
-      const layer = { id: item.id, type: item.type, source: SOURCE_ID, 'source-layer': item.sourceLayer,
-        minzoom: MIN_ZOOM, maxzoom: 24, paint: item.paint };
+    if (!map.getLayer(QUERY_LAMPS)) {
+      const layer = {
+        id: QUERY_LAMPS, type: 'circle', source: SOURCE_ID, 'source-layer': 'infrastructure',
+        minzoom: MIN_ZOOM, maxzoom: 24,
+        filter: ['==', ['get', 'class'], 'street_lamp'],
+        paint: { 'circle-color': '#fff4cf', 'circle-radius': 0.1, 'circle-opacity': 0 }
+      };
       if (before) map.addLayer(layer, before); else map.addLayer(layer);
     }
     groundDataLayerAdded = true;
@@ -496,7 +500,7 @@ export function initStreetlightRenderer(target) {
     const records = collectStreetlightRecords(map);
     if (!records.length) {
       if (lastSignature) { clearSceneData(); lastSignature = ''; }
-      state.status = 'Streetlight tile loaded; no mapped pole/lamp features in the current view yet.';
+      state.status = 'Overture tile loaded; no mapped street_lamp features in the current view yet.';
       return;
     }
     const signature = records.map(record => record.key + ':' + record.coordinate[0].toFixed(7) + ':' +
@@ -559,7 +563,7 @@ export function initStreetlightRenderer(target) {
         dataGroup.name = 'BridgePoint global streetlight models';
         scene.add(dataGroup);
         state.ready = true;
-        state.status = 'Streetlight 3D renderer ready; waiting for source-mapped tiles…';
+        state.status = 'Streetlight 3D renderer ready; waiting for Overture infrastructure tiles…';
       },
       render: (gl, args) => {
         if (!renderer || !scene || !dataGroup || !customLayer?.camera) return;
@@ -605,7 +609,7 @@ export function initStreetlightRenderer(target) {
     }
   }
   function install() {
-    if (dead || !map.isStyleLoaded?.()) return false;
+    if (dead || !hasLoadedStyle(map)) return false;
     try {
       if (!installSourceAndQueryLayers()) return false;
       if (!customLayer || !map.getLayer(LAYER_ID)) installCustomLayer();
@@ -620,10 +624,10 @@ export function initStreetlightRenderer(target) {
     if (dead) return;
     bootAttempts++;
     try {
-      if (!map.isStyleLoaded?.()) throw new Error('Map style is still loading');
+      if (!hasLoadedStyle(map)) throw new Error('Map style JSON is still loading');
       if (!install()) throw new Error('Streetlight layers are not attached yet');
       scheduleRefresh(350);
-      state.status = 'Global mapped streetlight inventory connected; loading the visible area.';
+      state.status = 'Overture global streetlight inventory connected; loading the visible area.';
     } catch (error) {
       state.status = 'Streetlight 3D initializing · ' + String(error?.message || error);
       if (bootAttempts < 45) {
@@ -672,6 +676,7 @@ export function initStreetlightRenderer(target) {
   async function initialize() {
     if (dead) return;
     try {
+      await ensurePmtilesProtocol();
       THREE = await loadThree();
       geometries = createLampGeometry(THREE);
       materials = createMaterials(THREE);
@@ -679,7 +684,7 @@ export function initStreetlightRenderer(target) {
       if (!ensureRenderer()) throw new Error('Map WebGL renderer is not ready yet');
       bindListeners();
       scheduleRefresh(500);
-      state.status = 'Global 3D streetlights loading with fixed geographic anchors and local-sun lighting.';
+      state.status = 'Global Overture 3D streetlights loading with fixed geographic anchors and local-sun lighting.';
     } catch (error) {
       state.lastError = String(error?.message || error);
       if (bootAttempts < maxWait && !dead) {
