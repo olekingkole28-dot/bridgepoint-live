@@ -591,7 +591,7 @@ export function initWorld(options={}){
  };
  map.once('load',bpInstallRegionalTreeCanopy);
  map.on('idle',bpAttachTreeRendererFromViewport);
- map.on('idle',()=>{if(!moving&&map.getZoom()>=14.2)refreshSidewalk3DFromTiles()});
+ map.on('style.load',ensureSidewalk3DLayerOrder);map.on('idle',()=>{ensureSidewalk3DLayerOrder();if(!moving&&map.getZoom()>=14.2)refreshSidewalk3DFromTiles()});
  map.on('moveend',bpAttachTreeRendererFromViewport);
  map.on('zoomend',bpAttachTreeRendererFromViewport);
  map.addControl(new maplibregl.NavigationControl({visualizePitch:true,showCompass:true}),'top-right');
@@ -1299,54 +1299,155 @@ function bridgeLineCoveredByPolygons(line,polygons){
   function lodViewHalfDiagonalMeters(bounds){try{const sw=bounds.getSouthWest(),ne=bounds.getNorthEast(),nw=bounds.getNorthWest(),se=bounds.getSouthEast();return .5*Math.max(lodDistanceMeters(sw,ne),lodDistanceMeters(nw,se))}catch(_){return 300}}
   function mergeLodFeatureCache(previous,incoming,center,radiusMeters,maxFeatures){const merged=new Map();for(const f of incoming||[]){if(!f?.geometry)continue;const key=lodFeatureKey(f);if(!merged.has(key))merged.set(key,f);if(merged.size>=maxFeatures)break}for(const f of previous||[]){if(merged.size>=maxFeatures)break;if(!f?.geometry)continue;const point=lodFeatureCenter(f);if(!point||lodDistanceMeters(point,center)>radiusMeters)continue;const key=lodFeatureKey(f);if(!merged.has(key))merged.set(key,f)}return [...merged.values()]}
 
-// Build the sidewalk scene directly from the loaded global transportation tiles.
-// This is deliberately independent of the slower optional building/tree viewport fetch.
+// Clip line geometry to the active viewport before mesh generation. Source tiles can
+  // contain long OSM ways extending well beyond the screen; letting those consume the
+  // geometry budget leaves the sidewalks in the visible street unbuilt.
+  function clipSidewalkLineToViewport(rawLine,padding=36) {
+    const line=Array.isArray(rawLine)?rawLine:[],canvas=map.getCanvas();
+    const width=canvas.clientWidth||canvas.width,height=canvas.clientHeight||canvas.height;
+    const rect={left:-padding,top:-padding,right:width+padding,bottom:height+padding};
+    if(line.length<2)return [];
+    const parts=[];let current=[],lastScreen=null;
+    for(let i=1;i<line.length;i++){
+      const a=line[i-1],b=line[i];
+      let A,B;try{A=map.project(a);B=map.project(b)}catch(_){continue}
+      const dx=B.x-A.x,dy=B.y-A.y,pp=[-dx,dx,-dy,dy],qq=[A.x-rect.left,rect.right-A.x,A.y-rect.top,rect.bottom-A.y];
+      let t0=0,t1=1,visible=true;
+      for(let k=0;k<4;k++){
+        if(Math.abs(pp[k])<1e-9){if(qq[k]<0){visible=false;break}continue}
+        const t=qq[k]/pp[k];
+        if(pp[k]<0){if(t>t1){visible=false;break}if(t>t0)t0=t}
+        else{if(t<t0){visible=false;break}if(t<t1)t1=t}
+      }
+      if(!visible||t1<t0){if(current.length>1)parts.push(current);current=[];lastScreen=null;continue}
+      let start,end,s0,s1;
+      try{
+        const x0=A.x+dx*t0,y0=A.y+dy*t0,x1=A.x+dx*t1,y1=A.y+dy*t1;
+        const ll0=map.unproject([x0,y0]),ll1=map.unproject([x1,y1]);
+        start=[ll0.lng,ll0.lat];end=[ll1.lng,ll1.lat];s0=[x0,y0];s1=[x1,y1];
+      }catch(_){continue}
+      if(!lastScreen||Math.hypot(lastScreen[0]-s0[0],lastScreen[1]-s0[1])>1.5){
+        if(current.length>1)parts.push(current);
+        current=[start,end];
+      }else current.push(end);
+      lastScreen=s1;
+    }
+    if(current.length>1)parts.push(current);
+    return parts;
+  }
+  function clipSidewalkFeatureToViewport(feature) {
+    const geometry=feature?.geometry;
+    if(!geometry||!['LineString','MultiLineString'].includes(geometry.type))return null;
+    const input=geometry.type==='LineString'?[geometry.coordinates]:geometry.coordinates||[],output=[];
+    for(const line of input)output.push(...clipSidewalkLineToViewport(line));
+    if(!output.length)return null;
+    return {...feature,geometry:output.length===1?{type:'LineString',coordinates:output[0]}:{type:'MultiLineString',coordinates:output}};
+  }
+  // Build only from line segments that intersect the current screen. Rendered features
+  // are first so a clipped tile copy cannot replace the visible sidewalk geometry.
   function refreshSidewalk3DFromTiles(extraFeatures=[]) {
     const z=map.getZoom();
     if(z<14.2||moving||worldMapSurfaceInactive()||!map.getSource('bpSidewalk3D')||!map.getSource('ofm'))return false;
     const bounds=map.getBounds();
     const viewKey=[z.toFixed(2),bounds.getWest().toFixed(4),bounds.getSouth().toFixed(4),bounds.getEast().toFixed(4),bounds.getNorth().toFixed(4)].join(':');
-    if(!extraFeatures.length&&map.__BP_SIDEWALK_LAST_VIEW_KEY__===viewKey)return false;
+    if(!extraFeatures.length&&map.__BP_SIDEWALK_LAST_VIEW_KEY__===viewKey&&Number(window.__BP_SIDEWALK_3D_STATE__?.featureCount||0)>0)return false;
 
     const sidewalkRoadLayers=['gta-road-major','gta-road-local'].filter(id=>map.getLayer(id));
-    let sidewalkRoadFeatures=[];
-    try{if(sidewalkRoadLayers.length)sidewalkRoadFeatures=map.queryRenderedFeatures({layers:sidewalkRoadLayers})||[]}catch(_){}
-    let sidewalkRoadTileFeatures=[];
-    try{sidewalkRoadTileFeatures=map.querySourceFeatures('ofm',{sourceLayer:'transportation'})||[]}catch(_){}
+    let sidewalkRoadRenderedRaw=[];
+    try{if(sidewalkRoadLayers.length)sidewalkRoadRenderedRaw=map.queryRenderedFeatures({layers:sidewalkRoadLayers})||[]}catch(_){}
+    let sidewalkRenderedRaw=[];
+    try{if(map.getLayer('gta-global-sidewalk-approach-v1'))sidewalkRenderedRaw=map.queryRenderedFeatures({layers:['gta-global-sidewalk-approach-v1']})||[]}catch(_){}
+    let sidewalkSourceRaw=[];
+    try{sidewalkSourceRaw=map.querySourceFeatures('ofm',{sourceLayer:'transportation'})||[]}catch(_){}
     const sidewalkRoadClasses=new Set(['motorway','trunk','primary','secondary','tertiary','minor','service','track','residential','unclassified','living_street','road']);
-    const sidewalkRoadKeys=new Set();
-    for(const roadFeature of sidewalkRoadTileFeatures){
-      const p=roadFeature?.properties||{},roadClass=String(p.class||'').toLowerCase();
-      const brunnel=String(p.brunnel||'').toLowerCase(),bridge=String(p.bridge||'').toLowerCase(),tunnel=String(p.tunnel||'').toLowerCase();
-      if(!sidewalkRoadClasses.has(roadClass)||brunnel==='bridge'||brunnel==='tunnel'||bridge==='yes'||tunnel==='yes')continue;
-      const geometryKey=JSON.stringify(roadFeature?.geometry?.coordinates||[]);
-      const key=String(p.osm_id||p.id||roadFeature?.id||geometryKey);
-      if(sidewalkRoadKeys.has(key))continue;
-      sidewalkRoadKeys.add(key);sidewalkRoadFeatures.push(roadFeature);
-      if(sidewalkRoadFeatures.length>=(MOBILE?100:500))break;
-    }
-
-    // querySourceFeatures reads loaded transportation source tiles, not just the
-    // narrow 2D approach-line layer's rendered subset. The 3D builder selects
-    // sidewalk/footway records from this complete local tile batch.
-    // Keep the raw source-tile path, and also consume the exact visible 2D sidewalk
-    // features. On devices where source-tile queries return an incomplete batch,
-    // this preserves parity with the sidewalk lines already rendered in the viewport.
-    let sidewalkRenderedFeatures=[];
-    try{if(map.getLayer('gta-global-sidewalk-approach-v1'))sidewalkRenderedFeatures=map.queryRenderedFeatures({layers:['gta-global-sidewalk-approach-v1']})||[]}catch(_){}
-    const sidewalkTileFeatures=[...sidewalkRoadTileFeatures,...sidewalkRenderedFeatures];
+    const sidewalkScreenDistance=feature=>{
+      const g=feature?.geometry;if(!g?.coordinates)return Infinity;
+      const lines=g.type==='LineString'?[g.coordinates]:g.type==='MultiLineString'?g.coordinates:[];
+      const canvas=map.getCanvas(),cx=(canvas.clientWidth||canvas.width)*.5,cy=(canvas.clientHeight||canvas.height)*.5;
+      let best=Infinity;
+      for(const line of lines)for(let i=1;i<line.length;i++){
+        let a,b;try{a=map.project(line[i-1]);b=map.project(line[i])}catch(_){continue}
+        const dx=b.x-a.x,dy=b.y-a.y,ll=dx*dx+dy*dy;
+        const t=ll>0?Math.max(0,Math.min(1,((cx-a.x)*dx+(cy-a.y)*dy)/ll)):0;
+        best=Math.min(best,Math.hypot(a.x+dx*t-cx,a.y+dy*t-cy));
+      }
+      return best;
+    };
+    const clipBatch=(items,kind)=>{
+      const out=[],seen=new Set();
+      for(const sourceFeature of items){
+        const p=sourceFeature?.properties||{},cls=String(p.class||'').toLowerCase();
+        if(kind==='road'&&(!sidewalkRoadClasses.has(cls)||['bridge','tunnel'].includes(String(p.brunnel||'').toLowerCase())||String(p.bridge||'').toLowerCase()==='yes'||String(p.tunnel||'').toLowerCase()==='yes'))continue;
+        const clipped=clipSidewalkFeatureToViewport(sourceFeature);
+        if(!clipped)continue;
+        const baseKey=String(p.source_record_id||p.osm_id||p.id||sourceFeature?.id||'transport-feature');
+        const geometry=clipped.geometry,lines=geometry.type==='LineString'?[geometry.coordinates]:geometry.coordinates||[];
+        for(let lineIndex=0;lineIndex<lines.length;lineIndex++){
+          const coordinates=lines[lineIndex];
+          if(!Array.isArray(coordinates)||coordinates.length<2)continue;
+          // A vector-tile feature can contain many disjoint line segments. Give every
+          // clipped segment a stable identity so its visible piece is not discarded
+          // just because another segment of the same OSM way appears first.
+          const lineKey=baseKey+'|'+JSON.stringify(coordinates);
+          if(seen.has(lineKey))continue;
+          seen.add(lineKey);
+          out.push({...clipped,id:lineKey,properties:{...p,bridgepoint_line_key:lineKey},geometry:{type:'LineString',coordinates}});
+        }
+      }
+      out.sort((a,b)=>sidewalkScreenDistance(a)-sidewalkScreenDistance(b));
+      return out;
+    };
+    const sidewalkRenderedFeatures=clipBatch(sidewalkRenderedRaw,'walkway');
+    const sidewalkRoadRenderedFeatures=clipBatch(sidewalkRoadRenderedRaw,'road');
+    const sidewalkRoadTileFeatures=clipBatch(sidewalkSourceRaw,'road');
+    const sidewalkTileFeatures=clipBatch([...sidewalkRenderedRaw,...sidewalkSourceRaw],'walkway');
     const sidewalkFeatureInputs=[],sidewalkFeatureKeys=new Set();
     for(const feature of [...extraFeatures,...sidewalkTileFeatures]){
       const p=feature?.properties||{},geometryKey=JSON.stringify(feature?.geometry?.coordinates||[]);
-      const key=String(p.source_record_id||p.osm_id||p.id||feature?.id||geometryKey);
+      const key=String(p.source_record_id||p.osm_id||p.id||feature?.id||'transport-feature')+'|'+geometryKey;
       if(sidewalkFeatureKeys.has(key))continue;
       sidewalkFeatureKeys.add(key);sidewalkFeatureInputs.push(feature);
     }
-    const sidewalk3D=buildSidewalk3DFeatures({features:sidewalkFeatureInputs,roadFeatures:sidewalkRoadFeatures,zoom:z,mobile:MOBILE,elevationAt:point=>{try{const elevation=map.queryTerrainElevation?.({lng:point[0],lat:point[1]},{exaggerated:false});return Number.isFinite(elevation)?elevation:null}catch(_){return null}}});
+    sidewalkFeatureInputs.sort((a,b)=>sidewalkScreenDistance(a)-sidewalkScreenDistance(b));
+    const roadInputs=[...sidewalkRoadRenderedFeatures,...sidewalkRoadTileFeatures].sort((a,b)=>sidewalkScreenDistance(a)-sidewalkScreenDistance(b));
+    const sidewalk3D=buildSidewalk3DFeatures({features:sidewalkFeatureInputs,roadFeatures:roadInputs,roadsideWalkFeatures:sidewalkRoadRenderedFeatures,generateRoadsideWalks:true,zoom:z,mobile:MOBILE,elevationAt:point=>{try{const elevation=map.queryTerrainElevation?.({lng:point[0],lat:point[1]},{exaggerated:false});return Number.isFinite(elevation)?elevation:null}catch(_){return null}}});
     map.getSource('bpSidewalk3D')?.setData({type:'FeatureCollection',features:sidewalk3D.features});
-    map.__BP_SIDEWALK_LAST_VIEW_KEY__=viewKey;
-    window.__BP_SIDEWALK_3D_STATE__={version:3,status:sidewalk3D.features.length?'ready':'no-mapped-sidewalks-in-current-viewport',featureCount:sidewalk3D.features.length,viewportFeatures:extraFeatures.length,globalVectorTileFeatures:sidewalkTileFeatures.length,roadVectorTileFeatures:sidewalkRoadTileFeatures.length,roadFeaturesForCurbs:sidewalkRoadFeatures.length,renderedApproachFeatures:sidewalkRenderedFeatures.length,sourceVectorTileFeatures:sidewalkRoadTileFeatures.length,buildIndependentOfLivingWorldFetch:true,...(sidewalk3D.stats||{}),zoom:z,updatedAt:Date.now()};
+    map.__BP_SIDEWALK_LAST_VIEW_KEY__=sidewalk3D.features.length?viewKey:'';
+    window.__BP_SIDEWALK_3D_STATE__={version:4,status:sidewalk3D.features.length?'ready':'no-sidewalk-geometry-in-current-viewport',featureCount:sidewalk3D.features.length,viewportFeatures:extraFeatures.length,globalVectorTileFeatures:sidewalkSourceRaw.length,roadVectorTileFeatures:sidewalkRoadTileFeatures.length,roadFeaturesForCurbs:roadInputs.length,renderedApproachFeatures:sidewalkRenderedRaw.length,clippedApproachFeatures:sidewalkRenderedFeatures.length,prioritizedLineSegments:sidewalkFeatureInputs.length,clippedRenderedRoadFeatures:sidewalkRoadRenderedFeatures.length,clippedSidewalkInputFeatures:sidewalkFeatureInputs.length,buildIndependentOfLivingWorldFetch:true,...(sidewalk3D.stats||{}),zoom:z,updatedAt:Date.now()};
     return sidewalk3D.features.length>0;
+  }
+
+  function ensureSidewalk3DLayerOrder() {
+    // Keep sidewalk slabs and roadside details above later building/tree extrusions.
+    // The map's symbol pass continues to render road/place labels over fill-extrusions.
+    const order=[
+      'gta-bp-sidewalk-slabs-v1',
+      'gta-bp-sidewalk-curbs-v1',
+      'gta-bp-sidewalk-grass-v1',
+      'gta-bp-sidewalk-grass-blades-v1',
+      'gta-bp-sidewalk-joints-cracks-v1'
+    ].filter(id=>map.getLayer(id));
+    if(!order.length)return false;
+    const layers=map.getStyle()?.layers||[];
+    const tail=layers.slice(-order.length).map(layer=>layer.id);
+    if(order.every((id,index)=>tail[index]===id))return false;
+    try{
+      for(const id of order)map.moveLayer(id);
+      const finalTail=(map.getStyle()?.layers||[]).slice(-order.length).map(layer=>layer.id);
+      window.__BP_SIDEWALK_LAYER_ORDER_V1__={
+        version:1,
+        status:order.every((id,index)=>finalTail[index]===id)?'top-of-3d-stack':'partial',
+        layers:finalTail,
+        moved:true,
+        updatedAt:Date.now()
+      };
+      return true;
+    }catch(error){
+      window.__BP_SIDEWALK_LAYER_ORDER_V1__={
+        version:1,status:'error',error:String(error?.message||error).slice(0,180),updatedAt:Date.now()
+      };
+      return false;
+    }
   }
 
   async function livingWorld(){
@@ -1873,7 +1974,7 @@ function bridgeLineCoveredByPolygons(line,polygons){
    const usable=hasWorldBaseStyle();
    if(!usable)return false;
    worldCoreFinalizing=true;
-   installBridgePointIcons(map);installBuildingMaterials(map);installWorldMaterials(map);installSidewalk3DTextures(map);map.on('style.load',()=>installSidewalk3DTextures(map));sky();terrain();bindUI();bindBuildingHitLayers();setBase('satellite');disableFineDetail();try{const before=map.getLayer('gta-road-label-major')?'gta-road-label-major':null;for(const id of ['gta-bridge3d-pier','gta-bridge3d-deck','gta-bridge3d-ramp','gta-bridge3d-surface','gta-bridge3d-center','gta-bridge3d-rail'])if(map.getLayer(id)){if(before)map.moveLayer(id,before);else map.moveLayer(id)}}catch(_){};rebuildLandmark3D(0);rebuildBridge3D(0);startParcelFlow();syncBuildingShells();
+   installBridgePointIcons(map);installBuildingMaterials(map);installWorldMaterials(map);installSidewalk3DTextures(map);map.on('style.load',()=>installSidewalk3DTextures(map));sky();terrain();bindUI();bindBuildingHitLayers();setBase('satellite');disableFineDetail();try{const before=map.getLayer('gta-road-label-major')?'gta-road-label-major':null;for(const id of ['gta-bridge3d-pier','gta-bridge3d-deck','gta-bridge3d-ramp','gta-bridge3d-surface','gta-bridge3d-center','gta-bridge3d-rail'])if(map.getLayer(id)){if(before)map.moveLayer(id,before);else map.moveLayer(id)}}catch(_){};rebuildLandmark3D(0);rebuildBridge3D(0);startParcelFlow();syncBuildingShells();ensureSidewalk3DLayerOrder();
    window.__BP_CAMERA_MODE__={mode:'FREE_FLY_SINGLE_VIEW',singleView:true,autoViewSwitching:false,streetWalkMode:false,maxPitch:110,minZoom:2.2,maxZoom:22,manualPitch:true,manualRotation:true,buildingClickOverlook:true,updatedAt:Date.now()};
    window.__BP_WORLD_CORE_READY__={version:5519,ready:true,styleUsable:true,styleLoaded:!!map.isStyleLoaded?.(),materials:!!window.__BP_BUILDING_MATERIALS__,camera:!!window.__BP_CAMERA_MODE__,updatedAt:Date.now()};
    worldCoreReady=true;worldCoreFinalizing=false;__bpTrace('finalize-world-core-ready',{styleLoaded:!!map.isStyleLoaded?.()});setTimeout(scheduleExact,MOBILE?350:220);if(map.getZoom()>=activeWorldLodProfile().treeMin)setTimeout(()=>scheduleLivingWorld(0),MOBILE?700:180);setStatus('BridgePoint World v5628 · owner-style fast tech map · white roofs · labels · realistic tree LOD');return true
