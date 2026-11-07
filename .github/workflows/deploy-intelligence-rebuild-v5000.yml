@@ -76,7 +76,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: bridgepoint-procedural-tree-bank-v1
-          run-id: 42233567281
+          run-id: 42381550409
           github-token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository }}
           path: /tmp/bridgepoint-tree-assets
@@ -180,7 +180,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: bridgepoint-manhattan-blender-world-tiles
-          run-id: 41705337101
+          run-id: 42381550409
           github-token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository }}
           path: ${{ runner.temp }}/bp-manhattan-web-tiles
