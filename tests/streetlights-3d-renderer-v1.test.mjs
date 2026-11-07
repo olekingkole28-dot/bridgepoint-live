@@ -78,6 +78,9 @@ assert.ok(source.includes("sourceMap.querySourceFeatures(SOURCE_ID, { sourceLaye
   'streetlights must use Overture source-mapped vector-tile locations rather than generated placements');
 assert.ok(source.includes('new maplibre.Map({') && source.includes('dataMap.addSource(SOURCE_ID'),
   'streetlight records must stream through the isolated PMTiles data map instead of relying on the main globe style cache');
+assert.ok(source.includes("dataMapContainer.style.setProperty('display', 'block', 'important')") &&
+  source.includes("dataMapContainer.style.setProperty('visibility', 'visible', 'important')"),
+  'homepage map CSS must not collapse the invisible tile reader to a zero-sized display:none container');
 assert.ok(source.includes('dataMap.jumpTo({') && source.includes('syncDataMap();'),
   'the invisible data map must follow the live globe camera for viewport-correct tile loading');
 assert.ok(source.includes('dataMap.on(\'sourcedata\', onSourceData)'),
