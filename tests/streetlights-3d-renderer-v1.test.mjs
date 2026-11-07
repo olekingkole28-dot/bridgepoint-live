@@ -106,9 +106,11 @@ assert.ok(source.includes('opacity: 0,') && source.includes('blending: THREE.Nor
   'the nighttime beam must not obscure the pole and lamp head');
 assert.ok(source.includes('height * 0.06') && source.includes('[1.25, 1, 1.25]'),
   'local night illumination must stay close to the fixture and ground');
+assert.ok(source.includes('return angle === null ? 90 : normalizeDegrees(angle)'),
+  'unoriented fixtures must use a clear default cantilever direction in north-up views');
 assert.ok(source.includes('new THREE.BoxGeometry(0.86, 0.045, 0.28)'),
   'the lamp head lens must be clearly modelled at close zoom');
-assert.ok(source.includes('new THREE.Vector3(1.34, 0.095, 0)') &&
+assert.ok(source.includes('new THREE.Vector3(1.86, 0.095, 0)') &&
   source.includes('TubeGeometry(armCurve, 22, 0.045'),
   'the curved lamp arm must extend far enough to distinguish the fixture silhouette');
 
