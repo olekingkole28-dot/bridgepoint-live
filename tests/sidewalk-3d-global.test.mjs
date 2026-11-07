@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { buildSidewalk3DFeatures, installSidewalk3DTextures } from '../release-v2300/world-v2300-sidewalks-3d.js';
 
 const latitude = 41.55;
@@ -59,6 +60,41 @@ assert.equal(noRoad.features.some(f => f.properties.part === 'curb' || f.propert
 const unclassifiedPath = {...sidewalk, properties:{class:'footway',tags:{footway:'crossing'} }};
 assert.equal(buildSidewalk3DFeatures({features:[unclassifiedPath],zoom:17}).features.length, 0,
   'non-sidewalk footways and crossings should not be mislabeled as sidewalks');
+
+const vectorTileSidewalk = {
+  ...sidewalk,
+  id: 'vector-tile-sidewalk-1',
+  properties: { class: 'sidewalk', subclass: 'footway', surface: 'concrete' }
+};
+const vectorTileResult = buildSidewalk3DFeatures({
+  features: [vectorTileSidewalk], zoom: 17, roadFeatures: [], elevationAt: () => 42
+});
+assert.ok(vectorTileResult.features.some(f => f.properties.part === 'sidewalk_slab'),
+  'global sidewalk vector-tile features must produce 3D slabs without backend viewport records or optional OSM tags');
+
+const vectorFootway = {
+  ...sidewalk,
+  id: 'vector-tile-footway-1',
+  properties: { class: 'footway', surface: 'paving_stones' }
+};
+assert.ok(buildSidewalk3DFeatures({features:[vectorFootway],zoom:17}).features.some(f => f.properties.part === 'sidewalk_slab'),
+  'mapped footway geometry must remain available when vector tiles omit nested tag metadata');
+
+const fineSurface = {
+  ...sidewalk,
+  id: 'surface-fine-1',
+  properties: { layer_key: 'SURFACE_MATERIAL_FINE', surface: 'concrete' }
+};
+assert.ok(buildSidewalk3DFeatures({features:[fineSurface],zoom:17}).features.some(f => f.properties.part === 'sidewalk_slab'),
+  'the original source-backed fine-surface sidewalk layer must remain included');
+
+const mapSource = await readFile(new URL('../release-v2300/world-v2300-map.js', import.meta.url), 'utf8');
+assert.ok(mapSource.includes("map.queryRenderedFeatures({layers:['gta-global-sidewalk-approach-v1']})"),
+  'the 3D builder must also consume the same rendered global sidewalk vector tiles used by the visible 2D approach layer');
+assert.ok(mapSource.includes('features:sidewalkFeatureInputs'),
+  'viewport records and global vector-tile sidewalk features must be merged before 3D geometry generation');
+assert.ok(mapSource.includes('globalVectorTileFeatures:sidewalkTileFeatures.length'),
+  'the active sidewalk renderer must expose its vector-tile source count for live diagnosis');
 const mobile = buildSidewalk3DFeatures({features:[sidewalk],roadFeatures:[road],zoom:17,mobile:true,elevationAt:()=>10});
 assert.ok(mobile.features.length <= 180 * 6, 'mobile geometry should stay inside its bounded feature budget');
 
