@@ -1137,8 +1137,8 @@ jobs:
           ! grep -Fq 'MercatorCoordinate' site/world-v2300-infrastructure-volume-v5962.js
           grep -Fq 'enabled:true' site/world-v2300-infrastructure-volume-v5962.js
           ! grep -Fq 'data-toggle' site/world-v2300-infrastructure-volume-v5962.js
-          grep -Fq 'landing.js?v=6246-offshore-energy-v2&bp=5970-globe-model-matrices' site/index.html
-          grep -Fq 'app.js?v=6246-offshore-energy-v2&bp=5970-globe-model-matrices' site/app/index.html
+          grep -Fq 'landing.js?v=6246-offshore-energy-v2&sidewalk=6223-sidewalk-3d-global&bp=5970-globe-model-matrices' site/index.html
+          grep -Fq 'app.js?v=6246-offshore-energy-v2&sidewalk=6223-sidewalk-3d-global&bp=5970-globe-model-matrices' site/app/index.html
           grep -Fq 'world-v2300-sensor-layers.js?v=6256-gerstner-liquid-ocean' site/app.js
           grep -Fq 'world-v2300-sensor-layers.js?v=6256-gerstner-liquid-ocean' site/landing.js
           grep -Fq 'bridgepoint-gebco-depth-image-v5937' site/world-v2300-sensor-layers.js
