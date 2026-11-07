@@ -10,6 +10,7 @@ const lighthouses = read('../patches/lighthouse-v3/bridgepoint-lighthouses-v1.js
 
 // Streetlights must use the existing same-origin PMTiles runtime and shared
 // protocol instead of depending on an extra public ESM CDN request.
+assert.match(streetlights, /const VERSION = 4;/);
 assert.match(streetlights, /PMTILES_LIBRARY_URL = '\/vendor\/pmtiles\.js'/);
 assert.match(streetlights, /window\.__BP_TRANSPORTATION_PMTILES_PROTOCOL__/);
 assert.match(streetlights, /window\.__BP_UTILITY_PMTILES_PROTOCOL__/);
@@ -34,6 +35,7 @@ assert.match(world, /syncBuildingShellsWhenSafe\('ofm-viewport-tiles-ready'\)/);
 
 // Tree renderer is first-party/local, its optional catalogs are non-blocking,
 // and a failed tree model group can no longer reject all other successful groups.
+assert.match(trees, /const VERSION = 3;/);
 assert.match(trees, /THREE_URL = '\/vendor\/three\.module\.js\?v=169-local'/);
 assert.match(trees, /GLTF_URL = '\/vendor\/GLTFLoader\.bundle\.js\?v=169-local'/);
 assert.match(trees, /Promise\.allSettled\(\[/);
@@ -43,6 +45,9 @@ assert.match(trees, /failedModelGroups/);
 assert.match(trees, /variantCatalogStatus = 'unavailable-using-base-archetypes'/);
 assert.match(trees, /taxonomyStatus = 'unavailable-base-tree-classification'/);
 assert.match(trees, /scheduleEventRefresh/);
+assert.match(trees, /optionalCatalogsDeferred: true/);
+assert.match(trees, /void loadOptionalTreeCatalogs\(\)/);
+assert.match(trees, /refreshInstances\(\);\s*void loadOptionalTreeCatalogs\(\);/);
 assert.doesNotMatch(trees, /https:\/\/esm\.sh\/three@0\.169\.0/);
 
 // Lighthouse towers are transformed once per settled view and rendered in one
