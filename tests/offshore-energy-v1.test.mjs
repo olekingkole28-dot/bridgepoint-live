@@ -112,8 +112,8 @@ assert.ok(utilityWireOverlay.includes('landing.js?v=6247-universal-fresh-entry')
 assert.ok(utilityWireOverlay.includes('app.js?v=6247-universal-fresh-entry'));
 assert.ok(utilityWireOverlay.includes('landing.js?v=6246-lighthouse-v4'),'utility overlay must also preserve the lighthouse-first cache transition');
 assert.ok(utilityWireOverlay.includes('app.js?v=6246-lighthouse-v4'),'app utility overlay must accept lighthouse cache transition');
-assert.ok(utilityWireOverlay.includes('landing.js?v=6246-solid-utility-wires-v12'));
-assert.ok(utilityWireOverlay.includes('app.js?v=6246-solid-utility-wires-v12'));
+assert.ok(utilityWireOverlay.includes('landing.js?v=6247-universal-fresh-entry-solid-utility-wires-v13'));
+assert.ok(utilityWireOverlay.includes('app.js?v=6247-universal-fresh-entry-solid-utility-wires-v13'));
 assert.ok(deploy.includes("node tests/offshore-energy-v1.test.mjs"));
 assert.ok(deploy.includes("'tests/offshore-energy-v1.test.mjs'"));
 console.log('BRIDGEPOINT_OFFSHORE_ENERGY_ROOT_APP_DEPLOY_PASS');
