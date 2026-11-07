@@ -1,6 +1,12 @@
 name: Publish BridgePoint Automatic Global Streetlights 3D V1
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'streetlights-v1/world-v2300-streetlights-3d-v1.js'
+      - 'tests/streetlights-3d-renderer-v1.test.mjs'
+      - '.github/workflows/publish-global-streetlights-v1.yml'
   workflow_run:
     workflows: ["Publish BridgePoint FAA Obstruction & Towers V1"]
     types: [completed]
@@ -42,11 +48,11 @@ jobs:
           node tests/streetlights-3d-renderer-v1.test.mjs
           echo "BRIDGEPOINT_GLOBAL_STREETLIGHTS_3D_V1_SOURCE_PASS"
 
-      - name: Download the exact latest verified FAA-towers production Pages artifact
+      - name: Download the exact last-deployed Pages baseline (preserve all existing globe features)
         uses: actions/download-artifact@v4
         with:
-          name: ${{ github.event_name == 'workflow_run' && format('bridgepoint-faa-obstruction-towers-v1-{0}', github.event.workflow_run.run_attempt) || 'bridgepoint-faa-obstruction-towers-v1-1' }}
-          run-id: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || '42305321550' }}
+          name: ${{ github.event_name == 'workflow_run' && format('bridgepoint-faa-obstruction-towers-v1-{0}', github.event.workflow_run.run_attempt) || 'bridgepoint-global-streetlights-v1-1' }}
+          run-id: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || '42318605820' }}
           repository: ${{ github.repository }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ${{ runner.temp }}/bp-streetlights-pages-baseline
@@ -63,7 +69,8 @@ jobs:
 
           for f in index.html app/index.html landing.js app.js \
             bridgepoint-faa-obstruction-towers-v1.js app/bridgepoint-faa-obstruction-towers-v1.js \
-            data/bridgepoint-faa-obstructions-v1.json.gz app/data/bridgepoint-faa-obstructions-v1.json.gz; do
+            data/bridgepoint-faa-obstructions-v1.json.gz app/data/bridgepoint-faa-obstructions-v1.json.gz \
+            bridgepoint-streetlights-3d-v1.js app/bridgepoint-streetlights-3d-v1.js; do
             test -s "$SITE/$f" || { echo "Missing current production file: $f"; exit 1; }
           done
           grep -Fq 'bpWelcomeGateV1' "$SITE/index.html"
@@ -85,13 +92,12 @@ jobs:
           print("STREETLIGHTS_BASELINE_FINGERPRINT_PASS",len(files),"production files")
           PY
 
-      - name: Add only the automatic 3D streetlight module and two entrypoint imports
+      - name: Replace only the existing automatic streetlight renderer and its cache keys
         shell: bash
         run: |
           set -euo pipefail
           SITE="$RUNNER_TEMP/bp-streetlights-site"
           MODULE="streetlights-v1/world-v2300-streetlights-3d-v1.js"
-          mkdir -p "$SITE/app"
           cp "$MODULE" "$SITE/bridgepoint-streetlights-3d-v1.js"
           cp "$MODULE" "$SITE/app/bridgepoint-streetlights-3d-v1.js"
 
@@ -100,26 +106,21 @@ jobs:
           import hashlib, json, os, re
 
           site=Path(os.environ["RUNNER_TEMP"])/"bp-streetlights-site"
-          anchor=".catch(e=>console.warn('BridgePoint FAA obstruction/tower renderer unavailable',e));"
-          addition=(
-              "\n  // Automatic global 3D streetlights. No button; all existing map controls remain independent.\n"
-              "  void import('./bridgepoint-streetlights-3d-v1.js?v=3-visible-fixtures')\n"
-              "   .then(m=>{window.__BP_STREETLIGHTS_3D_V1__=m.initStreetlightRenderer(world)})\n"
-              "   .catch(e=>console.warn('BridgePoint global 3D streetlights unavailable',e));\n"
-          )
+          old="./bridgepoint-streetlights-3d-v1.js?v=4-shared-pmtiles-and-batched"
+          new="./bridgepoint-streetlights-3d-v1.js?v=5-grounded-tile-streaming-night-beams"
           for rel in ("landing.js","app.js"):
               path=site/rel
               data=path.read_text(encoding="utf-8")
-              count=data.count(anchor)
+              count=data.count(old)
               if count!=1:
-                  raise SystemExit(f"{rel}: expected one preserved FAA loader anchor, found {count}")
-              path.write_text(data.replace(anchor,anchor+addition,1),encoding="utf-8")
+                  raise SystemExit(f"{rel}: expected one existing streetlight import to replace, found {count}")
+              path.write_text(data.replace(old,new,1),encoding="utf-8")
 
           for rel,stem in (("index.html","landing.js"),("app/index.html","app.js")):
               path=site/rel
               data=path.read_text(encoding="utf-8")
-              pattern=r"("+re.escape(stem)+r"\?v=)[^&\"']+"
-              data,count=re.subn(pattern,r"\g<1>6249-visible-global-streetlights-v3",data,count=1)
+              pattern=r"("+re.escape(stem)+r"\\?v=)[^&\"']+"
+              data,count=re.subn(pattern,r"\\g<1>6250-streetlight-tile-stream-v5",data,count=1)
               if count!=1:
                   raise SystemExit(f"{rel}: expected one {stem} cache-bust URL, replaced {count}")
               path.write_text(data,encoding="utf-8")
@@ -130,18 +131,20 @@ jobs:
           removed=set(baseline)-set(after)
           added=set(after)-set(baseline)
           changed={p for p in baseline if p in after and baseline[p]!=after[p]}
-          expected_changed={"index.html","app/index.html","landing.js","app.js"}
-          expected_added={"bridgepoint-streetlights-3d-v1.js","app/bridgepoint-streetlights-3d-v1.js"}
+          expected_changed={
+              "index.html","app/index.html","landing.js","app.js",
+              "bridgepoint-streetlights-3d-v1.js","app/bridgepoint-streetlights-3d-v1.js"
+          }
           assert not removed, f"Production files removed: {sorted(removed)}"
-          assert changed==expected_changed, f"Unexpected existing production file changes: {sorted(changed)}"
-          assert added==expected_added, f"Unexpected production files added: {sorted(added)}"
+          assert not added, f"Unexpected production files added: {sorted(added)}"
+          assert changed==expected_changed, f"Unexpected changed production files: {sorted(changed)}"
           assert (site/"bridgepoint-streetlights-3d-v1.js").read_bytes()==(site/"app/bridgepoint-streetlights-3d-v1.js").read_bytes()
           for rel in ("landing.js","app.js"):
               data=(site/rel).read_text(encoding="utf-8")
-              assert data.count("./bridgepoint-streetlights-3d-v1.js?v=3-visible-fixtures")==1
+              assert data.count(new)==1, f"{rel}: updated streetlight import missing or duplicated"
               assert data.count("./bridgepoint-faa-obstruction-towers-v1.js?v=1-faa-obstruction-towers")==1
               assert "bpAuthRequestV6237" in data
-          print("STREETLIGHTS_OVERLAY_SCOPE_PASS",len(baseline),"existing files preserved; only four loader files changed and two renderer copies added")
+          print("STREETLIGHTS_OVERLAY_SCOPE_PASS",len(baseline),"baseline files preserved; exactly 6 existing files changed; no additions or removals")
           PY
 
           node --input-type=module --check < "$SITE/bridgepoint-streetlights-3d-v1.js"
@@ -172,14 +175,14 @@ jobs:
           q="$GITHUB_SHA-global-streetlights-v1"
           curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/?streetlights=$q" -o /tmp/bp-streetlights-root.html
           curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app/?streetlights=$q" -o /tmp/bp-streetlights-app.html
-          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/landing.js?v=6249-visible-global-streetlights-v3&verify=$q" -o /tmp/bp-streetlights-landing.js
-          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app.js?v=6249-visible-global-streetlights-v3&verify=$q" -o /tmp/bp-streetlights-app.js
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/landing.js?v=6250-streetlight-tile-stream-v5&verify=$q" -o /tmp/bp-streetlights-landing.js
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app.js?v=6250-streetlight-tile-stream-v5&verify=$q" -o /tmp/bp-streetlights-app.js
           curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/bridgepoint-streetlights-3d-v1.js?verify=$q" -o /tmp/bp-streetlights-module.js
           curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app/bridgepoint-streetlights-3d-v1.js?verify=$q" -o /tmp/bp-streetlights-app-module.js
           curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/bridgepoint-faa-obstruction-towers-v1.js?verify=$q" -o /tmp/bp-streetlights-faa-module.js
 
-          grep -Fq 'landing.js?v=6249-visible-global-streetlights-v3' /tmp/bp-streetlights-root.html
-          grep -Fq 'app.js?v=6249-visible-global-streetlights-v3' /tmp/bp-streetlights-app.html
+          grep -Fq 'landing.js?v=6250-streetlight-tile-stream-v5' /tmp/bp-streetlights-root.html
+          grep -Fq 'app.js?v=6250-streetlight-tile-stream-v5' /tmp/bp-streetlights-app.html
           grep -Fq 'bpWelcomeGateV1' /tmp/bp-streetlights-root.html
           grep -Fq '__BP_STREETLIGHTS_3D_V1__' /tmp/bp-streetlights-landing.js
           grep -Fq '__BP_STREETLIGHTS_3D_V1__' /tmp/bp-streetlights-app.js
@@ -191,5 +194,9 @@ jobs:
           grep -Fq "class'], 'street_lamp'" /tmp/bp-streetlights-module.js
           grep -Fq "const PRECISE_MIN_ZOOM = 16;" /tmp/bp-streetlights-module.js
           grep -Fq "solarAltitude(date, longitude, latitude)" /tmp/bp-streetlights-module.js
+          grep -Fq "async function ensureDataMap()" /tmp/bp-streetlights-module.js
+          grep -Fq "dataMap.jumpTo({" /tmp/bp-streetlights-module.js
+          grep -Fq "opacity: 0.16," /tmp/bp-streetlights-module.js
+          grep -Fq "height * 0.84" /tmp/bp-streetlights-module.js
           cmp -s /tmp/bp-streetlights-module.js /tmp/bp-streetlights-app-module.js
           echo "BRIDGEPOINT_GLOBAL_STREETLIGHTS_3D_V1_LIVE_PASS"
