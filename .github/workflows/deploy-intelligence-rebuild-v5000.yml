@@ -1510,6 +1510,11 @@ jobs:
           node --check site/world-v2300-map.js
           node --check site/world-v2300-sidewalks-3d.js
           node --check site/app/world-v2300-sidewalks-3d.js
+          node --check site/app/world-v2300-map.js
+          grep -Fq "from'./world-v2300-sidewalks-3d.js'" site/world-v2300-map.js
+          grep -Fq "from'./world-v2300-sidewalks-3d.js'" site/app/world-v2300-map.js
+          grep -Fq "gta-bp-sidewalk-slabs-v1" site/world-v2300-map.js
+          grep -Fq "gta-bp-sidewalk-slabs-v1" site/app/world-v2300-map.js
           node --check site/world-v2300-lod-controls.js
           node --check site/app/world-v2300-lod-controls.js
           test -s site/world-v2300-space.js
