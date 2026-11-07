@@ -1,12 +1,6 @@
 name: Publish BridgePoint Lighthouse Global Snapshot V4
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/publish-lighthouses-v3.yml'
-      - 'patches/lighthouse-v3/**'
-      - 'tests/lighthouse-hotfix-v3.test.mjs'
   workflow_run:
     workflows: ["Deploy BridgePoint Intelligence V5000 Rebuild"]
     types: [completed]
