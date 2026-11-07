@@ -1,7 +1,7 @@
 import { normalizeTreeFeature } from './world-v2300-tree-catalog.js';
 import { installRegionalTreeCoverLayer } from './world-v2300-tree-canopy-lod.js';
 
-const VERSION = 2;
+const VERSION = 3;
 const LAYER_ID = 'bp-v2300-instanced-trees-v2';
 const MANIFEST_URL = '/assets/trees/manifest.json';
 const VARIANTS_URL = '/assets/trees/procedural-variants.json';
