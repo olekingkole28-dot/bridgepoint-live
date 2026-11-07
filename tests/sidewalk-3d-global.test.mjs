@@ -46,9 +46,9 @@ assert.ok(parts('sidewalk_slab').every(f => f.properties.base_m === 0 && f.prope
   'MapLibre terrain draping must carry the slab while absolute elevation remains diagnostic-only');
 assert.ok(parts('curb').every(f => f.properties.base_m === 0 && f.properties.top_m === 0.20),
   'curbs must use a local 20 cm extrusion, not absolute sea-level elevation');
-assert.ok(parts('grass_verge').every(f => f.properties.base_m === 0 && f.properties.top_m === 0.045),
+assert.ok(parts('grass_verge').every(f => f.properties.base_m === 0 && f.properties.top_m === 0.09),
   'grass verges must use local ground-relative extrusion heights');
-assert.ok(parts('grass_blade').every(f => f.properties.base_m === 0 && f.properties.top_m >= 0.10 && f.properties.top_m <= 0.15),
+assert.ok(parts('grass_blade').every(f => f.properties.base_m === 0 && f.properties.top_m >= 0.16 && f.properties.top_m <= 0.26),
   'individual grass blades must remain small local extrusions');
 assert.ok(parts('sidewalk_slab').every(f => f.properties.width_truth === 'SOURCE_TAGGED_WIDTH'),
   'tagged sidewalk widths should retain their source-truth label');
@@ -130,7 +130,7 @@ assert.ok(mapSource.includes("map.queryRenderedFeatures({layers:['gta-global-sid
   'the 3D builder must consume the same visible 2D sidewalk/footway features already rendered in the viewport');
 assert.ok(mapSource.includes('renderedApproachFeatures:sidewalkRenderedRaw.length'),
   'live sidewalk diagnostics must report the rendered 2D fallback feature count separately');
-assert.ok(mapSource.includes('function refreshSidewalk3DFromTiles(extraFeatures=[])'),
+assert.ok(mapSource.includes('function refreshSidewalk3DFromTiles(extraFeatures=[],force=false)'),
   'sidewalk generation must have its own lightweight map-tile refresh path');
 assert.ok(mapSource.includes("map.on('style.load',ensureSidewalk3DLayerOrder)"),
   'the 3D sidewalk surfaces must be restored after every map style reload');
@@ -142,7 +142,7 @@ assert.ok(mapSource.includes("window.__BP_SIDEWALK_LAYER_ORDER_V1__"),
   'live diagnostics must report the final sidewalk layer-stack status');
 assert.ok(mapSource.includes('features:sidewalkFeatureInputs') && mapSource.includes('sidewalkFeatureInputs.sort((a,b)=>sidewalkScreenDistance(a)-sidewalkScreenDistance(b))'),
   'visible sidewalk source segments must be prioritized by screen position before 3D geometry generation');
-assert.ok(mapSource.includes('globalVectorTileFeatures:sidewalkSourceRaw.length'),
+assert.ok(mapSource.includes('bpSidewalkTileSyncTimer=setTimeout') && mapSource.includes('refreshSidewalk3DFromTiles([],true)'),\n  'late-arriving vector tiles must force a viewport rebuild even when camera bounds did not change');\nassert.ok(mapSource.includes('globalVectorTileFeatures:sidewalkSourceRaw.length'),
   'the active sidewalk renderer must expose its vector-tile source count for live diagnosis');
 
 assert.ok(mapSource.includes("map.querySourceFeatures('ofm',{sourceLayer:'transportation'})"),
@@ -155,7 +155,7 @@ assert.ok(mapSource.includes('roadVectorTileFeatures:sidewalkRoadTileFeatures.le
   'the live sidewalk diagnostics must report loaded transportation road tiles used for curb placement');
 
 
-const sidewalkRefreshIndex = mapSource.indexOf('function refreshSidewalk3DFromTiles(extraFeatures=[])');
+const sidewalkRefreshIndex = mapSource.indexOf('function refreshSidewalk3DFromTiles(extraFeatures=[],force=false)');
 const sidewalkBuildIndex = mapSource.indexOf('const sidewalk3D=buildSidewalk3DFeatures', sidewalkRefreshIndex);
 const livingFeatureGateIndex = mapSource.indexOf('if(features.length){', sidewalkBuildIndex);
 assert.ok(sidewalkRefreshIndex >= 0 && sidewalkBuildIndex > sidewalkRefreshIndex && livingFeatureGateIndex > sidewalkBuildIndex,
@@ -164,7 +164,7 @@ assert.ok(!mapSource.includes("map.getSource('bpSidewalk3D')?.setData(EMPTY)"),
   'an empty buildings/trees response must not clear mapped sidewalk 3D geometry');
 
 const mobile = buildSidewalk3DFeatures({features:[sidewalk],roadFeatures:[road],zoom:17,mobile:true,elevationAt:()=>10});
-assert.ok(mobile.features.length <= 180 * 6, 'mobile geometry should stay inside its bounded feature budget');
+assert.ok(mobile.features.length <= 84 * 6 * 3, 'mobile viewport geometry must stay inside the expanded but bounded feature budget');\nassert.ok(partsFor(mobile, 'grass_blade').length >= 3, 'mobile grass rendering must keep individual raised blades');
 
 const images = new Map();
 const fakeMap = {
@@ -180,4 +180,4 @@ for (const image of images.values()) {
 }
 assert.equal(installSidewalk3DTextures(fakeMap), false, 'texture registration should be idempotent');
 
-console.log('BRIDGEPOINT_GLOBAL_SIDEWALK_3D_TEST_PASS');
+assert.ok(mapSource.includes('sidewalkFeatureInputs.sort((a,b)=>sidewalkScreenDistance(a)-sidewalkScreenDistance(b))'), 'sidewalk geometry remains viewport-prioritized');\nconsole.log('BRIDGEPOINT_GLOBAL_SIDEWALK_3D_TEST_PASS');
