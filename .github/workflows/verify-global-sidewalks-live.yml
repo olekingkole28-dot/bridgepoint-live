@@ -2,10 +2,7 @@ name: Verify BridgePoint Global 3D Sidewalks Live
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/verify-global-sidewalks-live.yml'
+  deployment_status:
 
 permissions:
   contents: read
@@ -16,6 +13,7 @@ concurrency:
 
 jobs:
   verify:
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'deployment_status' && github.event.deployment.environment == 'github-pages' && github.event.deployment_status.state == 'success') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -33,6 +31,8 @@ jobs:
           }
           fetch "${O}/?verify=${q}" /tmp/root.html
           fetch "${O}/app/?verify=${q}" /tmp/app.html
+          fetch "${O}/sw.js?v=6223-sidewalk-3d-global&verify=${q}" /tmp/sw.js
+          fetch "${O}/app-update-v5820.js?v=6223-sidewalk-3d-global&verify=${q}" /tmp/app-update.js
           fetch "${O}/landing.js?verify=${q}" /tmp/landing.js
           fetch "${O}/app.js?verify=${q}" /tmp/app.js
           fetch "${O}/world-v2300-map.js?v=6228-global-sidewalk-3d-vector-tiles&verify=${q}" /tmp/root-map.js
@@ -40,6 +40,15 @@ jobs:
           fetch "${O}/world-v2300-sidewalks-3d.js?v=20261107-global-sidewalk-vector-tiles-v2&verify=${q}" /tmp/root-sidewalk.js
           fetch "${O}/app/world-v2300-sidewalks-3d.js?v=20261107-global-sidewalk-vector-tiles-v2&verify=${q}" /tmp/app-sidewalk.js
 
+          grep -Fq 'sidewalk=6223-sidewalk-3d-global' /tmp/root.html
+          grep -Fq 'sidewalk=6223-sidewalk-3d-global' /tmp/app.html
+          grep -Fq '6223-sidewalk-3d-global' /tmp/landing.js
+          grep -Fq '6223-sidewalk-3d-global' /tmp/app.js
+          grep -Fq "register('/sw.js?v=6223-sidewalk-3d-global'" /tmp/landing.js
+          grep -Fq "register('/sw.js?v=6223-sidewalk-3d-global'" /tmp/app.js
+          grep -Fq "const V='bp-intelligence-v6223-sidewalk-3d-global'" /tmp/sw.js
+          grep -Fq "const BUILD=6223" /tmp/app-update.js
+          grep -Fq "CURRENT_CACHE='bp-intelligence-v6223-sidewalk-3d-global'" /tmp/app-update.js
           grep -Fq '6228-global-sidewalk-3d-vector-tiles' /tmp/landing.js
           grep -Fq '6228-global-sidewalk-3d-vector-tiles' /tmp/app.js
           grep -Fq "from'./world-v2300-sidewalks-3d.js?v=20261107-global-sidewalk-vector-tiles-v2'" /tmp/root-map.js
