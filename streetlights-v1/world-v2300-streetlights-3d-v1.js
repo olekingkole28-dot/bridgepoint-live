@@ -261,7 +261,7 @@ function createLampGeometry(THREE) {
   const housing = new THREE.ExtrudeGeometry(shape, { depth: 0.27, bevelEnabled: true, bevelSegments: 3,
     steps: 1, bevelSize: 0.018, bevelThickness: 0.014, curveSegments: 8 });
   housing.translate(0, 0, -0.135);
-  const lens = new THREE.BoxGeometry(0.52, 0.014, 0.19);
+  const lens = new THREE.BoxGeometry(0.68, 0.032, 0.24);
   const beam = new THREE.ConeGeometry(1, 1, 20, 1, true);
   const pool = new THREE.CircleGeometry(1, 28);
   pool.rotateX(-Math.PI / 2);
@@ -276,11 +276,11 @@ function createMaterials(THREE) {
   const photocell = new THREE.MeshStandardMaterial({ color: 0x202c31, roughness: 0.52, metalness: 0.2, side: THREE.DoubleSide });
   const lensNight = new THREE.MeshStandardMaterial({ color: 0xffe6af, emissive: 0xffb85c, emissiveIntensity: 4.2,
     roughness: 0.22, metalness: 0, side: THREE.DoubleSide, toneMapped: false });
-  const beam = new THREE.MeshBasicMaterial({ color: 0xffd38a, transparent: true, opacity: 0.065,
-    depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, toneMapped: false });
+  const beam = new THREE.MeshBasicMaterial({ color: 0xffd38a, transparent: true, opacity: 0.018,
+    depthWrite: false, side: THREE.DoubleSide, blending: THREE.NormalBlending, toneMapped: false });
   const groundPool = new THREE.ShaderMaterial({
     transparent: true, depthWrite: false, side: THREE.DoubleSide, toneMapped: false,
-    uniforms: { uColor: { value: new THREE.Color(0xffc978) }, uOpacity: { value: 0.23 } },
+    uniforms: { uColor: { value: new THREE.Color(0xffc978) }, uOpacity: { value: 0.16 } },
     vertexShader: 'varying vec2 vUv; void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
     fragmentShader: 'varying vec2 vUv;uniform vec3 uColor;uniform float uOpacity;void main(){float r=length(vUv-vec2(0.5))*2.0;float a=pow(max(0.0,1.0-r),2.35)*uOpacity;gl_FragColor=vec4(uColor,a);}'
   });
@@ -297,8 +297,8 @@ function partTransform(entry, part, THREE) {
   if (part === 'housing') position = [1.045, height - 0.09, 0];
   if (part === 'dayLens' || part === 'nightLens') position = [1.045, height - 0.184, 0];
   if (part === 'photocell') position = [0.82, height + 0.025, 0];
-  if (part === 'beam') { position = [1.045, height * 0.49, 0]; scale = [height * 0.235, height * 0.98, height * 0.235]; }
-  if (part === 'groundPool') { position = [1.045, 0.035, 0]; scale = [2.35, 1, 2.35]; }
+  if (part === 'beam') { position = [1.045, height * 0.49, 0]; scale = [height * 0.12, height * 0.98, height * 0.12]; }
+  if (part === 'groundPool') { position = [1.045, 0.035, 0]; scale = [1.25, 1, 1.25]; }
   const matrix = entry.baseMatrix.clone();
   matrix.multiply(new THREE.Matrix4().makeRotationY(entry.yaw));
   matrix.multiply(new THREE.Matrix4().makeTranslation(position[0], position[1], position[2]));
