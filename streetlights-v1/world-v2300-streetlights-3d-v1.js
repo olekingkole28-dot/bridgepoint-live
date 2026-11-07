@@ -1,9 +1,11 @@
-const VERSION = 1;
-const SOURCE_ID = 'bp-global-streetlights-source-v1';
-const QUERY_POLES = 'bp-global-streetlights-query-poles-v1';
-const QUERY_LAMPS = 'bp-global-streetlights-query-lamps-v1';
+const VERSION = 2;
+const SOURCE_ID = 'bp-global-streetlights-overture-source-v2';
+const QUERY_LAMPS = 'bp-global-streetlights-overture-query-v2';
 const LAYER_ID = 'bp-global-streetlights-3d-v1';
-const STREETLIGHT_TILE_URL = 'https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-streetlight-tile-v5937';
+const PMTILES_SCHEME = 'bp-overture-pmtiles';
+const PMTILES_MODULE_URL = 'https://esm.sh/pmtiles@4.3.0';
+const OVERTURE_BASE_PMTILES = 'bp-overture-pmtiles://https://overturemaps-extras-us-west-2.s3.us-west-2.amazonaws.com/tiles/2026-10-21.0/base.pmtiles';
+const PMTILES_PROTOCOL_KEY = '__BP_OVERTURE_STREETLIGHTS_PM_PROTOCOL_V2__';
 const THREE_URL = '/vendor/three.module.js?v=169-local';
 const MIN_ZOOM = 13;
 const PRECISE_MIN_ZOOM = 16;
@@ -191,40 +193,17 @@ function makeRecord(feature, poleFeature = null) {
   };
 }
 function collectStreetlightRecords(map) {
-  const query = layer => {
-    try { return map.querySourceFeatures(SOURCE_ID, { sourceLayer: layer }) || []; }
-    catch (_) { return []; }
-  };
-  const poles = uniqueStreetlightFeatures(query('streetlight_poles'));
-  const lamps = uniqueStreetlightFeatures(query('streetlight_lamps'));
-  const polesById = new Map();
-  for (const pole of poles) {
-    const id = featureId(pole);
-    if (id) polesById.set(id, pole);
+    let features = [];
+    try { features = map.querySourceFeatures(SOURCE_ID, { sourceLayer: 'infrastructure' }) || []; }
+    catch (_) { features = []; }
+    const lamps = uniqueStreetlightFeatures(features.filter(feature => {
+      const properties = feature && feature.properties || {};
+      return String(properties.class || '').toLowerCase() === 'street_lamp';
+    }));
+    const records = lamps.map(feature => makeRecord(feature)).filter(Boolean);
+    const max = window.innerWidth <= 700 ? MAX_FEATURES_MOBILE : MAX_FEATURES_DESKTOP;
+    return records.slice(0, max);
   }
-  const output = [], consumed = new Set();
-  for (const lamp of lamps) {
-    const id = featureId(lamp);
-    const pole = id ? polesById.get(id) : null;
-    const record = makeRecord(lamp, pole);
-    if (!record) continue;
-    output.push(record);
-    if (pole) consumed.add(recordKey(pole, featureCoordinate(pole)));
-  }
-  for (const pole of poles) {
-    const key = recordKey(pole, featureCoordinate(pole));
-    if (consumed.has(key)) continue;
-    const record = makeRecord(pole);
-    if (record) output.push(record);
-  }
-  const unique = new Map();
-  for (const record of output) {
-    if (!record.key) continue;
-    if (!unique.has(record.key)) unique.set(record.key, record);
-  }
-  const max = window.innerWidth <= 700 ? MAX_FEATURES_MOBILE : MAX_FEATURES_DESKTOP;
-  return [...unique.values()].slice(0, max);
-}
 function terrainAt(map, coordinate) {
   try {
     const elevation = map.queryTerrainElevation?.({ lng: coordinate[0], lat: coordinate[1] }, { exaggerated: true });
@@ -344,8 +323,10 @@ export function initStreetlightRenderer(target) {
   if (window.__BP_STREETLIGHTS_3D_V1__?.map === map) return window.__BP_STREETLIGHTS_3D_V1__;
 
   const state = {
-    version: VERSION, map, ready: false, enabled: true, status: 'Waiting for global mapped streetlights…',
-    poles: 0, measuredHeights: 0, estimatedHeights: 0, nightLit: 0, source: 'BridgePoint global source-mapped OSM streetlight inventory',
+    version: VERSION, map, ready: false, enabled: true, status: 'Waiting for Overture global streetlight tiles…',
+    poles: 0, measuredHeights: 0, estimatedHeights: 0, nightLit: 0,
+    source: 'Overture Base Infrastructure 2026-10-21.0 · OSM street_lamp',
+    sourceRelease: '2026-10-21.0', attribution: '© OpenStreetMap contributors · © Overture Maps Foundation · ODbL-1.0',
     minimumZoom: MIN_ZOOM, preciseZoom: PRECISE_MIN_ZOOM, nightThresholdSolarAltitude: NIGHT_ALTITUDE_DEGREES
   };
   window.__BP_STREETLIGHTS_3D_V1__ = state;
@@ -361,27 +342,35 @@ export function initStreetlightRenderer(target) {
       .catch(error => { threePromise = null; throw error; });
     return threePromise;
   }
+  async function ensurePmtilesProtocol() {
+    if (window[PMTILES_PROTOCOL_KEY]) return window[PMTILES_PROTOCOL_KEY];
+    const maplibre = window.maplibregl;
+    if (!maplibre || typeof maplibre.addProtocol !== 'function') {
+      throw new Error('MapLibre custom-protocol support is not available');
+    }
+    const pmtiles = await import(PMTILES_MODULE_URL);
+    const protocol = new pmtiles.Protocol();
+    maplibre.addProtocol(PMTILES_SCHEME, protocol.tile);
+    window[PMTILES_PROTOCOL_KEY] = protocol;
+    return protocol;
+  }
   function installSourceAndQueryLayers() {
     if (!hasLoadedStyle(map)) return false;
     if (!map.getSource(SOURCE_ID)) {
       map.addSource(SOURCE_ID, {
-        type: 'vector', tiles: [STREETLIGHT_TILE_URL + '?z={z}&x={x}&y={y}&v=5937'],
-        minzoom: MIN_ZOOM, maxzoom: 22,
-        attribution: 'OpenStreetMap contributors · BridgePoint mapped streetlight inventory'
+        type: 'vector', url: OVERTURE_BASE_PMTILES, minzoom: MIN_ZOOM, maxzoom: MIN_ZOOM,
+        attribution: state.attribution
       });
     }
     const before = ['gta-place-label', 'gta-water-label', 'gta-road-label']
       .find(id => map.getLayer(id));
-    const queryLayers = [
-      { id: QUERY_POLES, sourceLayer: 'streetlight_poles', type: 'fill-extrusion',
-        paint: { 'fill-extrusion-color': '#ffffff', 'fill-extrusion-height': 0, 'fill-extrusion-base': 0, 'fill-extrusion-opacity': 0 } },
-      { id: QUERY_LAMPS, sourceLayer: 'streetlight_lamps', type: 'circle',
-        paint: { 'circle-color': '#ffffff', 'circle-opacity': 0, 'circle-radius': 0.1 } }
-    ];
-    for (const item of queryLayers) {
-      if (map.getLayer(item.id)) continue;
-      const layer = { id: item.id, type: item.type, source: SOURCE_ID, 'source-layer': item.sourceLayer,
-        minzoom: MIN_ZOOM, maxzoom: 24, paint: item.paint };
+    if (!map.getLayer(QUERY_LAMPS)) {
+      const layer = {
+        id: QUERY_LAMPS, type: 'circle', source: SOURCE_ID, 'source-layer': 'infrastructure',
+        minzoom: MIN_ZOOM, maxzoom: 24,
+        filter: ['==', ['get', 'class'], 'street_lamp'],
+        paint: { 'circle-color': '#fff4cf', 'circle-radius': 0.1, 'circle-opacity': 0 }
+      };
       if (before) map.addLayer(layer, before); else map.addLayer(layer);
     }
     groundDataLayerAdded = true;
@@ -509,7 +498,7 @@ export function initStreetlightRenderer(target) {
     const records = collectStreetlightRecords(map);
     if (!records.length) {
       if (lastSignature) { clearSceneData(); lastSignature = ''; }
-      state.status = 'Streetlight tile loaded; no mapped pole/lamp features in the current view yet.';
+      state.status = 'Overture tile loaded; no mapped street_lamp features in the current view yet.';
       return;
     }
     const signature = records.map(record => record.key + ':' + record.coordinate[0].toFixed(7) + ':' +
@@ -572,7 +561,7 @@ export function initStreetlightRenderer(target) {
         dataGroup.name = 'BridgePoint global streetlight models';
         scene.add(dataGroup);
         state.ready = true;
-        state.status = 'Streetlight 3D renderer ready; waiting for source-mapped tiles…';
+        state.status = 'Streetlight 3D renderer ready; waiting for Overture infrastructure tiles…';
       },
       render: (gl, args) => {
         if (!renderer || !scene || !dataGroup || !customLayer?.camera) return;
@@ -636,7 +625,7 @@ export function initStreetlightRenderer(target) {
       if (!hasLoadedStyle(map)) throw new Error('Map style JSON is still loading');
       if (!install()) throw new Error('Streetlight layers are not attached yet');
       scheduleRefresh(350);
-      state.status = 'Global mapped streetlight inventory connected; loading the visible area.';
+      state.status = 'Overture global streetlight inventory connected; loading the visible area.';
     } catch (error) {
       state.status = 'Streetlight 3D initializing · ' + String(error?.message || error);
       if (bootAttempts < 45) {
@@ -685,6 +674,7 @@ export function initStreetlightRenderer(target) {
   async function initialize() {
     if (dead) return;
     try {
+      await ensurePmtilesProtocol();
       THREE = await loadThree();
       geometries = createLampGeometry(THREE);
       materials = createMaterials(THREE);
@@ -692,7 +682,7 @@ export function initStreetlightRenderer(target) {
       if (!ensureRenderer()) throw new Error('Map WebGL renderer is not ready yet');
       bindListeners();
       scheduleRefresh(500);
-      state.status = 'Global 3D streetlights loading with fixed geographic anchors and local-sun lighting.';
+      state.status = 'Global Overture 3D streetlights loading with fixed geographic anchors and local-sun lighting.';
     } catch (error) {
       state.lastError = String(error?.message || error);
       if (bootAttempts < maxWait && !dead) {
