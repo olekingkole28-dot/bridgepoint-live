@@ -1,4 +1,4 @@
-const VERSION = 3;
+const VERSION = 4;
 const SOURCE_ID = 'bp-global-streetlights-overture-source-v2';
 const QUERY_LAMPS = 'bp-global-streetlights-overture-query-v2';
 const LAYER_ID = 'bp-global-streetlights-3d-v1';
