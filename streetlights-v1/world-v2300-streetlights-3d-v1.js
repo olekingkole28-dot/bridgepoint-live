@@ -423,7 +423,7 @@ export function initStreetlightRenderer(target) {
     dataMapContainer.setAttribute('aria-hidden', 'true');
     dataMapContainer.setAttribute('data-bp-streetlight-tile-stream', 'true');
     dataMapContainer.style.cssText = [
-      'position:fixed', 'left:-12000px', 'top:0', 'z-index:-1',
+      'position:fixed', 'left:0', 'top:0', 'z-index:2147483646',
       'opacity:0', 'pointer-events:none', 'overflow:hidden',
       'width:' + width + 'px', 'height:' + height + 'px'
     ].join(';');
@@ -502,6 +502,7 @@ export function initStreetlightRenderer(target) {
         dataMapContainer.style.height = height + 'px';
         dataMap.resize();
       }
+      dataMap.resize();
       dataMap.jumpTo({
         center: [Number(center.lng), Number(center.lat)],
         zoom: Math.max(0, Math.min(22, Number(map.getZoom?.() || 0))),
