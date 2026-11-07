@@ -366,6 +366,7 @@ jobs:
           python tests/tree-model-catalog.test.py
           node tests/celestial-water-cloud-shadows.test.mjs
           node tests/water-lod-and-imagery.test.mjs
+          node tests/sidewalk-3d-global.test.mjs
           node tests/utility-infrastructure-renderer-v5.test.mjs
           node --check rebuild-v5000/bridgepoint-lighthouses-v1.js
           node tests/lighthouse-renderer-v1.test.mjs
