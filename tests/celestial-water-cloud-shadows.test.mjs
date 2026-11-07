@@ -174,7 +174,7 @@ test('cloud shadows update on the map and use available source winds', () => {
 
 test('entrypoints use fresh cache keys and keep the celestial canvas off the satellite globe', () => {
   for (const source of [app, landing]) {
-    assert.match(source, /world-v2300-map\.js\?v=6227-global-sidewalk-3d/);
+    assert.match(source, /world-v2300-map\.js\?v=6228-global-sidewalk-3d-vector-tiles/);
     assert.match(source, /world-v2300-water\.js\?v=6256-gerstner-ocean/);
     assert.match(source, /world-v2300-clouds\.js\?v=6200-radar-colored-rain-clouds/);
     assert.match(source, /world-v2300-weather\.js\?v=6200-storm-clouds-no-rain/);
