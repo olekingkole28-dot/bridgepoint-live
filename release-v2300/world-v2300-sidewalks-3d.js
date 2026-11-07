@@ -150,13 +150,30 @@ function addPoly(output, ring, properties) {
   if (ring) add(output, {type:'Polygon', coordinates:ring}, properties);
 }
 function addBlade(output, center, tangent, width, length, angle, seed) {
-  const theta = Math.atan2(tangent[1], tangent[0]) + angle;
-  const ux = Math.cos(theta), uy = Math.sin(theta), nx = -uy, ny = ux;
-  const p1 = offsetPoint(center, ux * length * 0.5, uy * length * 0.5);
-  const p2 = offsetPoint(center, -ux * length * 0.32 + nx * width * 0.5, -uy * length * 0.32 + ny * width * 0.5);
-  const p3 = offsetPoint(center, -ux * length * 0.32 - nx * width * 0.5, -uy * length * 0.32 - ny * width * 0.5);
-  const ring = [[p1,p2,p3,p1]];
-  add(output, {type:'Polygon',coordinates:ring}, {part:'grass_blade',base_m:0,top_m:0.10+rand(seed,3)*0.05,color:rand(seed,4)>.5?'#64934b':'#467b3b',truth:'PROCEDURAL_GRASS_DISPLAY_MESH'});
+  // Each roadside tuft is three individually extruded blades, not a flat grass texture.
+  const baseTheta = Math.atan2(tangent[1], tangent[0]) + angle;
+  const baseUx = Math.cos(baseTheta), baseUy = Math.sin(baseTheta);
+  const baseNx = -baseUy, baseNy = baseUx;
+  let made = 0;
+  for (let blade = 0; blade < 3; blade++) {
+    const spread = (blade - 1) * 0.045 + (rand(seed, blade + 21) - 0.5) * 0.035;
+    const theta = baseTheta + (blade - 1) * 0.30 + (rand(seed, blade + 24) - 0.5) * 0.24;
+    const ux = Math.cos(theta), uy = Math.sin(theta), nx = -uy, ny = ux;
+    const c = offsetPoint(center, baseNx * spread, baseNy * spread);
+    const bladeLength = 0.12 + rand(seed, blade + 27) * 0.12;
+    const bladeWidth = 0.026 + rand(seed, blade + 30) * 0.026;
+    const p1 = offsetPoint(c, ux * bladeLength * 0.5, uy * bladeLength * 0.5);
+    const p2 = offsetPoint(c, -ux * bladeLength * 0.32 + nx * bladeWidth * 0.5, -uy * bladeLength * 0.32 + ny * bladeWidth * 0.5);
+    const p3 = offsetPoint(c, -ux * bladeLength * 0.32 - nx * bladeWidth * 0.5, -uy * bladeLength * 0.32 - ny * bladeWidth * 0.5);
+    const ring = [[p1,p2,p3,p1]];
+    add(output, {type:'Polygon',coordinates:ring}, {
+      part:'grass_blade',base_m:0,top_m:0.16+rand(seed, blade + 33)*0.10,
+      color:rand(seed, blade + 36)>.5?'#64934b':'#467b3b',
+      truth:'PROCEDURAL_GRASS_DISPLAY_MESH'
+    });
+    made++;
+  }
+  return made;
 }
 function addLinePath(output, feature, rawLine, roads, elevationAt, limits, counts, mobile) {
   const line = cleanLine(rawLine), total = lineLength(line);
@@ -206,18 +223,17 @@ function addLinePath(output, feature, rawLine, roads, elevationAt, limits, count
     }
     if (road && vergeWidth > 0 && counts.verges < limits.verges) {
       const grassCenterOffset = road.side * (half + 0.018 + vergeWidth * 0.5);
-      addPoly(output,ribbon(segment,vergeWidth*0.5,grassCenterOffset),{...common,part:'grass_verge',top_m:0.045,color:'#4e7b3e',surface_pattern:'bp-sidewalk-grass-v1',truth:'ROAD_ADJACENT_VERGE_FROM_MAPPED_SIDEWALK_AND_ROAD'});
+      addPoly(output,ribbon(segment,vergeWidth*0.5,grassCenterOffset),{...common,part:'grass_verge',top_m:0.09,color:'#4e7b3e',surface_pattern:'bp-sidewalk-grass-v1',truth:'ROAD_ADJACENT_VERGE_FROM_MAPPED_SIDEWALK_AND_ROAD'});
       const curb = ribbon(segment,curbWidth*0.5,curbOffset);
       addPoly(output,curb,{...common,part:'curb',top_m:0.20,color:'#aaa9a2',curb_height_m:0.18,truth:'ROAD_EDGE_DERIVED_CURB'});
       counts.verges++;
-      const bladeStep = mobile ? 0.85 : 0.95;
+      const bladeStep = mobile ? 0.55 : 0.45;
       for(let d=start+bladeStep*0.5;d<end && counts.blades<limits.blades;d+=bladeStep){
         const point=pointAt(line,d),before=pointAt(line,Math.max(0,d-0.08)),after=pointAt(line,Math.min(total,d+0.08));
         const tx=(after[0]-before[0])*metersLon(point[1]),ty=(after[1]-before[1])*110540,tl=Math.hypot(tx,ty)||1;
         const normal=[-ty/tl,tx/tl],offset=road.side*(half+0.018+vergeWidth*(0.15+0.7*rand(id,Math.floor(d*20))));
         const bladeCenter=offsetPoint(point,normal[0]*offset,normal[1]*offset);
-        addBlade(output,bladeCenter,[tx/tl,ty/tl],0.014+rand(id,Math.floor(d*30))*0.012,0.08+rand(id,Math.floor(d*40))*0.07,(rand(id,Math.floor(d*50))-.5)*1.2,id+':'+d);
-        counts.blades++;
+        counts.blades += addBlade(output,bladeCenter,[tx/tl,ty/tl],0.045,0.19,(rand(id,Math.floor(d*50))-.5)*1.2,id+':'+d);
       }
     } else if (road && road.distance - road.width*0.5 - half >= -0.10 && counts.verges < limits.verges) {
       addPoly(output,ribbon(segment,curbWidth*0.5,curbOffset),{...common,part:'curb',top_m:0.20,color:'#aaa9a2',curb_height_m:0.18,truth:'ROAD_EDGE_DERIVED_CURB'});
@@ -261,7 +277,7 @@ function mappedWalkwayNear(line, features, limitMeters=3.2) {
 export function buildSidewalk3DFeatures({features=[],roadFeatures=[],roadsideWalkFeatures=[],generateRoadsideWalks=false,zoom=0,mobile=false,elevationAt=null}={}) {
   const empty={type:'FeatureCollection',features:[]};
   if(+zoom<14.2||(!Array.isArray(features)||!features.length)&&(!generateRoadsideWalks||!Array.isArray(roadsideWalkFeatures)||!roadsideWalkFeatures.length))return empty;
-  const limits=mobile?{paths:45,panels:180,verges:110,blades:320,cracks:45}:{paths:80,panels:240,verges:150,blades:220,cracks:45};
+  const limits=mobile?{paths:84,panels:420,verges:280,blades:1600,cracks:90}:{paths:160,panels:900,verges:600,blades:3600,cracks:180};
   const roads=[],seenRoads=new Set();
   for(const feature of Array.isArray(roadFeatures)?roadFeatures:[]){
     const p=feature?.properties||{};
@@ -270,10 +286,10 @@ export function buildSidewalk3DFeatures({features=[],roadFeatures=[],roadsideWal
     if(seenRoads.has(key))continue;seenRoads.add(key);
     const lines=linesOf(feature.geometry).map(cleanLine).filter(line=>line.length>1);
     if(lines.length)roads.push({lines,width:roadWidth(p)});
-    if(roads.length>=(mobile?100:500))break;
+    if(roads.length>=(mobile?220:600))break;
   }
   const output=[],counts={paths:0,panels:0,verges:0,blades:0,cracks:0,sourceWidths:0,estimatedWidths:0,mappedPaths:0,estimatedRoadsidePaths:0};
-  const mappedLimits={...limits,paths:Math.max(1,Math.floor(limits.paths*.25)),panels:Math.max(1,Math.floor(limits.panels*.25))};
+  const mappedLimits={...limits,paths:Math.max(1,Math.floor(limits.paths*.65)),panels:Math.max(1,Math.floor(limits.panels*.65))};
   for(const feature of Array.isArray(features)?features:[]){
     if(counts.paths>=mappedLimits.paths||counts.panels>=mappedLimits.panels)break;
     if(!isSidewalk(feature))continue;
