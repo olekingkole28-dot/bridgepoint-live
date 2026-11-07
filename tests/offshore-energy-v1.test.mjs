@@ -104,12 +104,12 @@ assert.ok(offshoreModule.includes("method:'GET',mode:'cors'"),'Overpass must use
 assert.ok(offshoreModule.includes('return offshoreIconImageData(ctx);'),'MapLibre icon images must be converted to pixel data');
 assert.ok(offshoreModule.includes("const imageData=makeIcon(kind);map.addImage(id,imageData,{pixelRatio:2});"));
 
-assert.ok(homePage.includes('landing.js?v=6246-offshore-energy-v2'));
-assert.ok(appPage.includes('app.js?v=6246-offshore-energy-v2'));
+assert.ok(homePage.includes('landing.js?v=6247-universal-fresh-entry'));
+assert.ok(appPage.includes('app.js?v=6247-universal-fresh-entry'));
 assert.ok(deploy.includes("cp rebuild-v5000/bridgepoint-offshore-energy-v1.js site/bridgepoint-offshore-energy-v1.js"));
 assert.ok(deploy.includes("cp rebuild-v5000/bridgepoint-offshore-energy-v1.js site/app/bridgepoint-offshore-energy-v1.js"));
-assert.ok(utilityWireOverlay.includes('landing.js?v=6246-offshore-energy-v2'));
-assert.ok(utilityWireOverlay.includes('app.js?v=6246-offshore-energy-v2'));
+assert.ok(utilityWireOverlay.includes('landing.js?v=6247-universal-fresh-entry'));
+assert.ok(utilityWireOverlay.includes('app.js?v=6247-universal-fresh-entry'));
 assert.ok(utilityWireOverlay.includes('landing.js?v=6246-lighthouse-v4'),'utility overlay must also preserve the lighthouse-first cache transition');
 assert.ok(utilityWireOverlay.includes('app.js?v=6246-lighthouse-v4'),'app utility overlay must accept lighthouse cache transition');
 assert.ok(utilityWireOverlay.includes('landing.js?v=6246-solid-utility-wires-v12'));
