@@ -74,8 +74,8 @@ assert.ok(source.includes("const PRECISE_MIN_ZOOM = 16;"),
   'streetlights must switch to close-zoom precision batches at the telephone-pole threshold');
 assert.ok(source.includes("map.transform.getMatrixForModel"),
   'models must anchor through BridgePoint’s globe-aware geographic transform');
-assert.ok(source.includes("map.querySourceFeatures(SOURCE_ID, { sourceLayer: layer })"),
-  'streetlights must use source-mapped vector-tile locations rather than generated placements');
+assert.ok(source.includes("map.querySourceFeatures(SOURCE_ID, { sourceLayer: 'infrastructure' })"),
+  'streetlights must use Overture source-mapped vector-tile locations rather than generated placements');
 assert.ok(source.includes("sourceLayer: 'infrastructure'") &&
   source.includes("String(properties.class || '').toLowerCase() === 'street_lamp'"),
   'the renderer must filter real street_lamp features from Overture infrastructure tiles');
