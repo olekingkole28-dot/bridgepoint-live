@@ -144,7 +144,7 @@ jobs:
           assert (site/"bridgepoint-streetlights-3d-v1.js").read_bytes()==(site/"app/bridgepoint-streetlights-3d-v1.js").read_bytes()
           for rel in ("landing.js","app.js"):
               data=(site/rel).read_text(encoding="utf-8")
-              assert data.count("./bridgepoint-streetlights-3d-v1.js?v=1-global-auto-streetlights")==1
+              assert data.count("./bridgepoint-streetlights-3d-v1.js?v=3-visible-fixtures")==1
               assert data.count("./bridgepoint-faa-obstruction-towers-v1.js?v=1-faa-obstruction-towers")==1
               assert "bpAuthRequestV6237" in data
           print("STREETLIGHTS_OVERLAY_SCOPE_PASS",len(baseline),"existing files preserved; only four loader files changed and two renderer copies added")
