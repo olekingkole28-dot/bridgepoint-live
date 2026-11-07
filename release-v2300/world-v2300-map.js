@@ -1317,9 +1317,22 @@ function bridgeLineCoveredByPolygons(line,polygons){
     map.getSource('bpLivingWorld3D')?.setData(physical);
     const sidewalkRoadLayers=['gta-road-major','gta-road-local'].filter(id=>map.getLayer(id));
     let sidewalkRoadFeatures=[];try{if(sidewalkRoadLayers.length)sidewalkRoadFeatures=map.queryRenderedFeatures({layers:sidewalkRoadLayers})||[]}catch(_){}
-    const sidewalk3D=buildSidewalk3DFeatures({features:retainedBase,roadFeatures:sidewalkRoadFeatures,zoom:z,mobile:MOBILE,elevationAt:point=>{try{const elevation=map.queryTerrainElevation?.({lng:point[0],lat:point[1]},{exaggerated:false});return Number.isFinite(elevation)?elevation:null}catch(_){return null}}});
+    // Use both the detailed viewport response and the same global OSM vector
+    // tiles that already draw the visible 2D sidewalk/footway approach lines.
+    // The vector-tile path keeps 3D surfaces available when the optional
+    // living-world viewport response is sparse or throttled on mobile.
+    let sidewalkTileFeatures=[];
+    try{if(map.getLayer('gta-global-sidewalk-approach-v1'))sidewalkTileFeatures=map.queryRenderedFeatures({layers:['gta-global-sidewalk-approach-v1']})||[]}catch(_){}
+    const sidewalkFeatureInputs=[],sidewalkFeatureKeys=new Set();
+    for(const feature of [...retainedBase,...sidewalkTileFeatures]){
+      const p=feature?.properties||{},geometryKey=JSON.stringify(feature?.geometry?.coordinates||[]);
+      const key=String(p.source_record_id||p.osm_id||p.id||feature?.id||geometryKey);
+      if(sidewalkFeatureKeys.has(key))continue;
+      sidewalkFeatureKeys.add(key);sidewalkFeatureInputs.push(feature);
+    }
+    const sidewalk3D=buildSidewalk3DFeatures({features:sidewalkFeatureInputs,roadFeatures:sidewalkRoadFeatures,zoom:z,mobile:MOBILE,elevationAt:point=>{try{const elevation=map.queryTerrainElevation?.({lng:point[0],lat:point[1]},{exaggerated:false});return Number.isFinite(elevation)?elevation:null}catch(_){return null}}});
     map.getSource('bpSidewalk3D')?.setData({type:'FeatureCollection',features:sidewalk3D.features});
-    window.__BP_SIDEWALK_3D_STATE__={version:1,status:sidewalk3D.features.length?'ready':'no-mapped-sidewalks-in-current-viewport',featureCount:sidewalk3D.features.length,...(sidewalk3D.stats||{}),zoom:z,updatedAt:Date.now()};
+    window.__BP_SIDEWALK_3D_STATE__={version:2,status:sidewalk3D.features.length?'ready':'no-mapped-sidewalks-in-current-viewport',featureCount:sidewalk3D.features.length,viewportFeatures:retainedBase.length,globalVectorTileFeatures:sidewalkTileFeatures.length,...(sidewalk3D.stats||{}),zoom:z,updatedAt:Date.now()};
     const hasTrees=retainedTrees.length>0,treeOn=hasTrees&&z>=lod.treeDetailedMin&&!denseMobileScene,treeLod=hasTrees&&z>=lod.treeMin&&!treeOn;
     vis(map,'gta-bp-tree3d-trunk',treeOn);vis(map,'gta-bp-tree3d-canopy',treeOn);
     vis(map,'gta-bp-tree-trunks',treeLod&&z>=lod.treeTrunkMin);
