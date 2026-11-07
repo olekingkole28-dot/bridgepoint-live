@@ -361,7 +361,7 @@ export function initStreetlightRenderer(target) {
       let promise = window.__BP_PMTILES_LIBRARY_PROMISE__;
       if (!promise) {
         promise = new Promise((resolve, reject) => {
-          const existing = document.querySelector('script[data-bp-pmtiles-runtime]');
+          const existing = document.querySelector('script[data-bp-pmtiles-runtime],script[src="/vendor/pmtiles.js"]');
           if (existing) {
             existing.addEventListener('load', () => resolve(window.pmtiles), { once: true });
             existing.addEventListener('error', () => reject(new Error('BridgePoint PMTiles runtime failed to load')), { once: true });
