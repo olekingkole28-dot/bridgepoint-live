@@ -1329,7 +1329,12 @@ function bridgeLineCoveredByPolygons(line,polygons){
     // querySourceFeatures reads loaded transportation source tiles, not just the
     // narrow 2D approach-line layer's rendered subset. The 3D builder selects
     // sidewalk/footway records from this complete local tile batch.
-    const sidewalkTileFeatures=sidewalkRoadTileFeatures;
+    // Keep the raw source-tile path, and also consume the exact visible 2D sidewalk
+    // features. On devices where source-tile queries return an incomplete batch,
+    // this preserves parity with the sidewalk lines already rendered in the viewport.
+    let sidewalkRenderedFeatures=[];
+    try{if(map.getLayer('gta-global-sidewalk-approach-v1'))sidewalkRenderedFeatures=map.queryRenderedFeatures({layers:['gta-global-sidewalk-approach-v1']})||[]}catch(_){}
+    const sidewalkTileFeatures=[...sidewalkRoadTileFeatures,...sidewalkRenderedFeatures];
     const sidewalkFeatureInputs=[],sidewalkFeatureKeys=new Set();
     for(const feature of [...extraFeatures,...sidewalkTileFeatures]){
       const p=feature?.properties||{},geometryKey=JSON.stringify(feature?.geometry?.coordinates||[]);
@@ -1340,7 +1345,7 @@ function bridgeLineCoveredByPolygons(line,polygons){
     const sidewalk3D=buildSidewalk3DFeatures({features:sidewalkFeatureInputs,roadFeatures:sidewalkRoadFeatures,zoom:z,mobile:MOBILE,elevationAt:point=>{try{const elevation=map.queryTerrainElevation?.({lng:point[0],lat:point[1]},{exaggerated:false});return Number.isFinite(elevation)?elevation:null}catch(_){return null}}});
     map.getSource('bpSidewalk3D')?.setData({type:'FeatureCollection',features:sidewalk3D.features});
     map.__BP_SIDEWALK_LAST_VIEW_KEY__=viewKey;
-    window.__BP_SIDEWALK_3D_STATE__={version:3,status:sidewalk3D.features.length?'ready':'no-mapped-sidewalks-in-current-viewport',featureCount:sidewalk3D.features.length,viewportFeatures:extraFeatures.length,globalVectorTileFeatures:sidewalkTileFeatures.length,roadVectorTileFeatures:sidewalkRoadTileFeatures.length,roadFeaturesForCurbs:sidewalkRoadFeatures.length,buildIndependentOfLivingWorldFetch:true,...(sidewalk3D.stats||{}),zoom:z,updatedAt:Date.now()};
+    window.__BP_SIDEWALK_3D_STATE__={version:3,status:sidewalk3D.features.length?'ready':'no-mapped-sidewalks-in-current-viewport',featureCount:sidewalk3D.features.length,viewportFeatures:extraFeatures.length,globalVectorTileFeatures:sidewalkTileFeatures.length,roadVectorTileFeatures:sidewalkRoadTileFeatures.length,roadFeaturesForCurbs:sidewalkRoadFeatures.length,renderedApproachFeatures:sidewalkRenderedFeatures.length,sourceVectorTileFeatures:sidewalkRoadTileFeatures.length,buildIndependentOfLivingWorldFetch:true,...(sidewalk3D.stats||{}),zoom:z,updatedAt:Date.now()};
     return sidewalk3D.features.length>0;
   }
 
