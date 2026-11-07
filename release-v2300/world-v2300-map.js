@@ -1840,10 +1840,22 @@ function bridgeLineCoveredByPolygons(line,polygons){
   }
   
   map.on('move',clampCameraAboveTerrain);map.on('idle',clampCameraAboveTerrain);map.on('terrain',clampCameraAboveTerrain);
-  map.on('movestart',()=>movement(true));map.on('moveend',()=>{movement(false);clampCameraAboveTerrain()});map.on('zoomend',()=>{schedulePostMoveSettle();clampCameraAboveTerrain()});let bpCitySyncTimer=0,bpGlobalLodSyncTimer=0;map.on('sourcedata',e=>{
+  let bpBridgeSourceTimer=0,bpBridgeSourcePending=false;
+  const scheduleBridgeSourceRefresh=()=>{
+   clearTimeout(bpBridgeSourceTimer);
+   bpBridgeSourceTimer=setTimeout(()=>{
+    if(moving||map.isMoving?.()){bpBridgeSourcePending=true;return}
+    bpBridgeSourcePending=false;
+    if(map.getZoom()>=activeWorldLodProfile().bridgeMin)rebuildBridge3D(MOBILE?140:90);
+   },MOBILE?420:220);
+  };
+  map.on('movestart',()=>movement(true));map.on('moveend',()=>{movement(false);clampCameraAboveTerrain();if(bpBridgeSourcePending)scheduleBridgeSourceRefresh()});map.on('zoomend',()=>{schedulePostMoveSettle();clampCameraAboveTerrain()});let bpCitySyncTimer=0,bpGlobalLodSyncTimer=0;map.on('sourcedata',e=>{
   if(e?.sourceId==='ofm'){
    clearTimeout(bpGlobalLodSyncTimer);
    bpGlobalLodSyncTimer=setTimeout(()=>{if(moving||map.isMoving?.())return;refreshGlobalLodPaint();window.__BP_SOURCE_BURST_GUARD_V5592__={version:5592,heavyRebuildsOnSourceData:false,coalescedPaintOnly:true,updatedAt:Date.now()}},MOBILE?900:320);
+   // Vector-tile content can arrive after moveend. Rebuild the 3D bridge mesh
+   // from the newly loaded transportation tiles instead of waiting for another gesture.
+   if(e?.sourceDataType==='content'||e?.isSourceLoaded===true||e?.tile)scheduleBridgeSourceRefresh();
    return
   }
   if(e?.sourceId==='bpBuildings'){clearTimeout(bpCitySyncTimer);bpCitySyncTimer=setTimeout(()=>syncBuildingShellsWhenSafe('bpBuildings-sourcedata'),MOBILE?520:160);return}
