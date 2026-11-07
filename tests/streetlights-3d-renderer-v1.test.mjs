@@ -74,8 +74,14 @@ assert.ok(source.includes("const PRECISE_MIN_ZOOM = 16;"),
   'streetlights must switch to close-zoom precision batches at the telephone-pole threshold');
 assert.ok(source.includes("map.transform.getMatrixForModel"),
   'models must anchor through BridgePoint’s globe-aware geographic transform');
-assert.ok(source.includes("map.querySourceFeatures(SOURCE_ID, { sourceLayer: 'infrastructure' })"),
+assert.ok(source.includes("sourceMap.querySourceFeatures(SOURCE_ID, { sourceLayer: 'infrastructure' })"),
   'streetlights must use Overture source-mapped vector-tile locations rather than generated placements');
+assert.ok(source.includes('new maplibre.Map({') && source.includes('dataMap.addSource(SOURCE_ID'),
+  'streetlight records must stream through the isolated PMTiles data map instead of relying on the main globe style cache');
+assert.ok(source.includes('dataMap.jumpTo({') && source.includes('syncDataMap();'),
+  'the invisible data map must follow the live globe camera for viewport-correct tile loading');
+assert.ok(source.includes('dataMap.on(\'sourcedata\', onSourceData)'),
+  'streetlight fixture refreshes must run when Overture data-map tiles arrive');
 assert.ok(source.includes("sourceLayer: 'infrastructure'") &&
   source.includes("String(properties.class || '').toLowerCase() === 'street_lamp'"),
   'the renderer must filter real street_lamp features from Overture infrastructure tiles');
@@ -100,16 +106,17 @@ assert.ok(source.includes("setInterval(() => updateNightAll(new Date()), 60000)"
   'local day/night state must refresh automatically once per minute');
 assert.ok(source.includes('hasLoadedStyle(map)'), 'style readiness must not wait for unrelated optional source tiles');
 assert.ok(source.includes('await ensurePmtilesProtocol()'), 'PMTiles protocol must be registered before source installation');
+assert.ok(source.includes('await ensureDataMap()'), 'the isolated tile reader must be ready before the 3D renderer starts');
 assert.ok(!source.includes("map.isStyleLoaded?.()"), 'the streetlight initializer must not block on unrelated tile loading');
 assert.ok(!source.includes("map.on('idle', onMapChange)"),
   'renderer must not create an idle-triggered repaint loop');
 
 assert.ok(source.includes("if (part === 'shaft') scale = [1, height, 1];"),
   'streetlight poles must use metre-scaled pole dimensions rather than a compressed 9% width');
-assert.ok(source.includes('opacity: 0,') && source.includes('blending: THREE.NormalBlending'),
-  'the nighttime beam must not obscure the pole and lamp head');
-assert.ok(source.includes('height * 0.06') && source.includes('[1.25, 1, 1.25]'),
-  'local night illumination must stay close to the fixture and ground');
+assert.ok(source.includes('opacity: 0.16,') && source.includes('blending: THREE.NormalBlending'),
+  'the translucent nighttime beam must be visible without obscuring the pole and lamp head');
+assert.ok(source.includes('height * 0.84') && source.includes('height * 0.28') && source.includes('[1.25, 1, 1.25]'),
+  'the night beam must project from the fixture down to the grounded light pool');
 assert.ok(source.includes('return angle === null ? 90 : normalizeDegrees(angle)'),
   'unoriented fixtures must use a clear default cantilever direction in north-up views');
 assert.ok(source.includes('new THREE.BoxGeometry(0.86, 0.045, 0.28)'),
