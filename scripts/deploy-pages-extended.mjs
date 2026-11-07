@@ -29,8 +29,28 @@ const terminalFailureStatuses = new Set([
   'deployment_lost'
 ]);
 
+const REQUEST_TIMEOUT_MS = 15000;
+
+async function fetchTextWithTimeout(url, options = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    // Keep the timeout active until the response body is fully consumed too.
+    const body = await response.text();
+    return { response, body };
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      throw new Error('HTTP request exceeded ' + REQUEST_TIMEOUT_MS + ' ms: ' + url);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function githubJson(path, options = {}) {
-  const response = await fetch(apiBase + path, {
+  const { response, body } = await fetchTextWithTimeout(apiBase + path, {
     ...options,
     headers: {
       Accept: 'application/vnd.github+json',
@@ -39,7 +59,6 @@ async function githubJson(path, options = {}) {
       ...(options.headers || {})
     }
   });
-  const body = await response.text();
   if (!response.ok) {
     throw new Error(
       'GitHub API ' + (options.method || 'GET') + ' ' + path +
@@ -50,12 +69,11 @@ async function githubJson(path, options = {}) {
 }
 
 async function getOidcToken() {
-  const response = await fetch(process.env.ACTIONS_ID_TOKEN_REQUEST_URL, {
+  const { response, body } = await fetchTextWithTimeout(process.env.ACTIONS_ID_TOKEN_REQUEST_URL, {
     headers: {
       Authorization: 'Bearer ' + process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN
     }
   });
-  const body = await response.text();
   if (!response.ok) throw new Error('OIDC token request failed with HTTP ' + response.status + ': ' + body.slice(0, 1000));
   const parsed = JSON.parse(body);
   if (!parsed.value) throw new Error('OIDC token response did not contain a value');
