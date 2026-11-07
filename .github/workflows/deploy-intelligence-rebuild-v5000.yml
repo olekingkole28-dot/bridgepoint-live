@@ -1080,7 +1080,7 @@ jobs:
           grep -Fq 'sourceWeatherOverlaysPreserved:true' site/landing.js
           grep -Fq 'sourceWeatherOverlaysPreserved:true' site/app.js
           grep -Fq 'legacyCinematicFxDisabled:true' site/landing.js
-          grep -Fq 'landing.js?v=6246-offshore-energy-v2' site/index.html
+          grep -Fq 'landing.js?v=6247-universal-fresh-entry' site/index.html
           grep -Fq 'world-v2300-weather.js?v=6200-storm-clouds-no-rain' site/app/index.html
           grep -Fq 'world-v2300-weather.js?v=6195-desktop-globe-flash-stability' site/app/world-v2300-bootstrap.js
           grep -Fq 'world-v2300-time-slider.js?v=6170-no-cloud-toggle-always-on' site/app.js
@@ -1138,8 +1138,8 @@ jobs:
           ! grep -Fq 'MercatorCoordinate' site/world-v2300-infrastructure-volume-v5962.js
           grep -Fq 'enabled:true' site/world-v2300-infrastructure-volume-v5962.js
           ! grep -Fq 'data-toggle' site/world-v2300-infrastructure-volume-v5962.js
-          grep -Fq 'landing.js?v=6246-offshore-energy-v2&sidewalk=6223-sidewalk-3d-global&bp=5970-globe-model-matrices' site/index.html
-          grep -Fq 'app.js?v=6246-offshore-energy-v2&sidewalk=6223-sidewalk-3d-global&bp=5970-globe-model-matrices' site/app/index.html
+          grep -Fq 'landing.js?v=6247-universal-fresh-entry&sidewalk=6247-viewport-tile-progressive&bp=5970-globe-model-matrices' site/index.html
+          grep -Fq 'app.js?v=6247-universal-fresh-entry&sidewalk=6247-viewport-tile-progressive&bp=5970-globe-model-matrices' site/app/index.html
           grep -Fq 'world-v2300-sensor-layers.js?v=6256-gerstner-liquid-ocean' site/app.js
           grep -Fq 'world-v2300-sensor-layers.js?v=6256-gerstner-liquid-ocean' site/landing.js
           grep -Fq 'bridgepoint-gebco-depth-image-v5937' site/world-v2300-sensor-layers.js
@@ -1256,7 +1256,7 @@ jobs:
           grep -Fq 'BP_SOURCE_WEATHER_CACHE_KEY_V6134' site/app.js
           grep -Fq 'restoreCachedLiveWeatherFirstFrameV6134' site/app.js
           ! grep -Fq 'if(window.__BP_CLOUDS_ONLY_PHASE_V6070__===true && m)' site/landing.js
-          grep -Fq 'landing.js?v=6246-offshore-energy-v2' site/index.html
+          grep -Fq 'landing.js?v=6247-universal-fresh-entry' site/index.html
           grep -Fq 'async function toggleNasaNightlights()' site/world-v2300-time-slider.js
           ! grep -Fq 'async function toggleSkyClouds()' site/world-v2300-time-slider.js
           grep -Fq 'data-skyview' site/world-v2300-time-slider.js
@@ -1477,7 +1477,7 @@ jobs:
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/app.js
           grep -Fq 'activateLiveWeather();' site/app.js
           grep -Fq 'enabled:true,serializedWeather:true' site/app.js
-          grep -Fq 'app.js?v=6246-offshore-energy-v2' site/app/index.html
+          grep -Fq 'app.js?v=6247-universal-fresh-entry' site/app/index.html
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/landing.js
           grep -Fq 'WMO_CAP_WARNING' site/app.js
           grep -Fq 'WMO_CAP_WARNING' site/landing.js
@@ -1741,8 +1741,8 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=6246-offshore-energy-v2' site/app/index.html
-          grep -Fq 'landing.js?v=6246-offshore-energy-v2' site/index.html
+          grep -Fq 'app.js?v=6247-universal-fresh-entry' site/app/index.html
+          grep -Fq 'landing.js?v=6247-universal-fresh-entry' site/index.html
            grep -Fq 'world-v2300-map.js?v=6247-viewport-tile-sidewalk-progressive' site/app.js
            grep -Fq 'world-v2300-map.js?v=6247-viewport-tile-sidewalk-progressive' site/landing.js
            grep -Fq 'world-v2300-map.js?v=6247-viewport-tile-sidewalk-progressive' site/index.html
@@ -1927,8 +1927,8 @@ jobs:
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/app/?verify=$q" -o /tmp/bp-auth-app.html
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/landing.js?verify=$q" -o /tmp/bp-auth-landing.js
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/app.js?verify=$q" -o /tmp/bp-auth-app.js
-          grep -Fq 'landing.js?v=6246-offshore-energy-v2' /tmp/bp-auth-root.html
-          grep -Fq 'app.js?v=6246-offshore-energy-v2' /tmp/bp-auth-app.html
+          grep -Fq 'landing.js?v=6247-universal-fresh-entry' /tmp/bp-auth-root.html
+          grep -Fq 'app.js?v=6247-universal-fresh-entry' /tmp/bp-auth-app.html
           grep -Fq 'bpw-globe-aura' /tmp/bp-auth-root.html
           grep -Fq 'bpAuthRequestV6237' /tmp/bp-auth-landing.js
           grep -Fq 'bpAuthRequestV6237' /tmp/bp-auth-app.js
