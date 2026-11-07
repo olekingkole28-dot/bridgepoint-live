@@ -76,9 +76,16 @@ assert.ok(source.includes("map.transform.getMatrixForModel"),
   'models must anchor through BridgePoint’s globe-aware geographic transform');
 assert.ok(source.includes("map.querySourceFeatures(SOURCE_ID, { sourceLayer: layer })"),
   'streetlights must use source-mapped vector-tile locations rather than generated placements');
-assert.ok(source.includes("sourceLayer: 'streetlight_poles'") &&
-  source.includes("sourceLayer: 'streetlight_lamps'"),
-  'the renderer must consume both mapped base and luminaire layers');
+assert.ok(source.includes("sourceLayer: 'infrastructure'") &&
+  source.includes("String(properties.class || '').toLowerCase() === 'street_lamp'"),
+  'the renderer must filter real street_lamp features from Overture infrastructure tiles');
+assert.ok(source.includes("https://esm.sh/pmtiles@4.3.0") && source.includes('new pmtiles.Protocol()') &&
+  source.includes('maplibre.addProtocol(PMTILES_SCHEME, protocol.tile)'),
+  'the renderer must register PMTiles before adding the global vector source');
+assert.ok(source.includes('2026-10-21.0/base.pmtiles') && source.includes('url: OVERTURE_BASE_PMTILES'),
+  'the source must use Overture global Base Infrastructure data');
+assert.ok(source.includes("['==', ['get', 'class'], 'street_lamp']"),
+  'only street-lamp assets may trigger the 3D layer');
 assert.ok(source.includes('isDarkAt(date, entry.coordinate)'),
   'illumination must be evaluated at each fixture coordinate');
 assert.ok(source.includes('customLayer.camera.projectionMatrix.copy(projection).multiply(anchorMatrix)'),
@@ -88,6 +95,7 @@ assert.ok(source.includes("customLayer.camera = new THREE.Camera();"),
 assert.ok(source.includes("setInterval(() => updateNightAll(new Date()), 60000)"),
   'local day/night state must refresh automatically once per minute');
 assert.ok(source.includes('hasLoadedStyle(map)'), 'style readiness must not wait for unrelated optional source tiles');
+assert.ok(source.includes('await ensurePmtilesProtocol()'), 'PMTiles protocol must be registered before source installation');
 assert.ok(!source.includes("map.isStyleLoaded?.()"), 'the streetlight initializer must not block on unrelated tile loading');
 assert.ok(!source.includes("map.on('idle', onMapChange)"),
   'renderer must not create an idle-triggered repaint loop');
