@@ -1,4 +1,4 @@
-(()=>{const BUILD=6223,CACHE_VERSION='6223-sidewalk-3d-global',CURRENT_SW='/sw.js?v='+CACHE_VERSION,CURRENT_CACHE='bp-intelligence-v6223-sidewalk-3d-global',RELOAD_KEY='bp-update-reload-'+BUILD;
+(()=>{const BUILD=6247,CACHE_VERSION='6247-universal-fresh-entry-sidewalk',CURRENT_SW='/sw.js?v='+CACHE_VERSION,CURRENT_CACHE='bp-intelligence-v6247-universal-fresh-entry-sidewalk',RELOAD_KEY='bp-update-reload-'+BUILD;
 let busy=false;
 const sameOrigin=u=>{try{return new URL(u,location.href).origin===location.origin}catch{return false}};
 const scopePath=s=>{try{return new URL(s).pathname}catch{return''}};
