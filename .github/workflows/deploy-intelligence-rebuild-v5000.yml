@@ -50,6 +50,11 @@ on:
       - 'app/horizon/**'
       - 'app/horizon-playable/**'
       - 'app/intelligence-launch/**'
+      - '.github/workflows/publish-utility-solid-wires-v9.yml'
+      - '.github/workflows/publish-faa-obstruction-towers-v1.yml'
+      - '.github/workflows/publish-global-streetlights-v1.yml'
+      - '.github/workflows/publish-lighthouses-v3.yml'
+      - '.github/workflows/publish-globe-renderer-reliability-v1.yml'
       - '.github/workflows/deploy-intelligence-rebuild-v5000.yml'
 
 permissions:

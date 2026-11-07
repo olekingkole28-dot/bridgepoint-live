@@ -13,7 +13,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: bridgepoint-v5000-production-authority
+  group: ${{ (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success') && 'bridgepoint-v5000-production-authority' || format('bridgepoint-v5000-noop-{0}', github.run_id) }}
   cancel-in-progress: false
 
 jobs:
