@@ -239,7 +239,8 @@ jobs:
             "vendor/GLTFLoader.bundle.js"
           }
           allowed=expected|optional_assets|{"feed.xml","news-sitemap.xml","news/current-northeast-weather.html","news/global-expansion.html"}
-          expected_added=optional_assets-set(before)
+          newsroom_assets={"feed.xml","news-sitemap.xml","news/current-northeast-weather.html","news/global-expansion.html"}
+          expected_added=(optional_assets|newsroom_assets)-set(before)
           if not expected.issubset(changed): raise SystemExit("Missing expected files: "+json.dumps(sorted(expected-changed)))
           if not changed.issubset(allowed): raise SystemExit("Unexpected production changes: "+json.dumps(sorted(changed-allowed)))
           if removed: raise SystemExit("Production files were removed: "+json.dumps(sorted(removed)))
