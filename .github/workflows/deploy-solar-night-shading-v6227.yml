@@ -16,7 +16,7 @@ permissions:
 # and publish the exact already-verified site artifact with only the map module replaced.
 concurrency:
   group: bridgepoint-v5000-production-authority
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   deploy-solar-night-shading:

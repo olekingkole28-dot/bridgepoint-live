@@ -16,7 +16,7 @@ permissions:
 # Use the one production authority and do not race the full V5000 publisher.
 concurrency:
   group: bridgepoint-v5000-production-authority
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   restore-auth-and-utility:

@@ -13,7 +13,7 @@ permissions:
 # Serialize against the full-site publisher so a delayed full build cannot overwrite this hotfix.
 concurrency:
   group: bridgepoint-v5000-production-authority
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   deploy-orbit-hotfix:

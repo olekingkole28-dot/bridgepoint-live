@@ -16,7 +16,7 @@ permissions:
 # last verified Pages artifact, not a fresh rebuild of the rest of BridgePoint.
 concurrency:
   group: bridgepoint-v5000-production-authority
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   deploy-utility-infrastructure:
