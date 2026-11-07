@@ -114,10 +114,9 @@ assert.ok(utilityWireOverlay.includes('landing.js?v=6247-universal-fresh-entry')
 assert.ok(utilityWireOverlay.includes('app.js?v=6247-universal-fresh-entry'));
 assert.ok(utilityWireOverlay.includes('landing.js?v=6250-lighthouse-v5'),'utility overlay must recognize the current lighthouse cache transition');
 assert.ok(utilityWireOverlay.includes('app.js?v=6250-lighthouse-v5'),'app utility overlay must recognize the current lighthouse cache transition');
-assert.ok(lighthouseOverlay.includes('landing.js?v=6250-streetlight-tile-stream-v5'),'lighthouse overlay must hand off from the current streetlight entry cache');
-assert.ok(lighthouseOverlay.includes('app.js?v=6250-streetlight-tile-stream-v5'),'app lighthouse overlay must hand off from the current streetlight entry cache');
-assert.ok(lighthouseOverlay.includes('landing.js?v=6250-lighthouse-v5'),'lighthouse overlay must issue a unique fresh entry cache key');
-assert.ok(lighthouseOverlay.includes('app.js?v=6250-lighthouse-v5'),'app lighthouse overlay must issue a unique fresh entry cache key');
+assert.ok(lighthouseOverlay.includes('expected=stem+"?v=6250-streetlight-tile-stream-v5"'),'lighthouse overlay must require the current streetlight entry cache');
+assert.ok(lighthouseOverlay.includes('replacement=stem+"?v=6250-lighthouse-v5"'),'lighthouse overlay must issue a unique fresh entry cache key');
+assert.ok(lighthouseOverlay.includes('if data.count(expected)!=1:'),'lighthouse overlay must reject ambiguous/stale entry URL handoffs');
 assert.ok(globeReliabilityOverlay.includes('bpSidewalkTileSyncTimer=setTimeout'),'final renderer overlay must preserve late tile sidewalk refresh');
 assert.ok(globeReliabilityOverlay.includes('refreshSidewalk3DFromTiles([],true)'),'final renderer overlay must preserve forced sidewalk rebuild');
 assert.ok(globeReliabilityOverlay.includes('window.__BP_FRESH_SIGNIN__!==true'),'final renderer overlay must preserve fresh homepage sign-in gate');
