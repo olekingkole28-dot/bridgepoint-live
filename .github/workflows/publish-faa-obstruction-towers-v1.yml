@@ -5,10 +5,6 @@ on:
     workflows: ["Publish BridgePoint Solid Utility Wires V11"]
     types: [completed]
     branches: [main]
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/publish-faa-obstruction-towers-v1.yml'
 
 permissions:
   actions: read
@@ -22,7 +18,7 @@ concurrency:
 
 jobs:
   publish-faa-obstructions:
-    if: ${{ github.event_name == 'push' || github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     environment:
@@ -131,10 +127,11 @@ jobs:
           for rel,stem in (("index.html","landing.js"),("app/index.html","app.js")):
               path=site/rel
               data=path.read_text(encoding="utf-8")
-              pattern=r"("+re.escape(stem)+r"\?v=)[^&\"']+"
-              data,count=re.subn(pattern,r"\g<1>6246-faa-obstruction-towers-v1",data,count=1)
-              if count!=1:
-                  raise SystemExit(f"{rel}: expected exactly one {stem} cache-bust URL, replaced {count}")
+              expected=stem+"?v=6247-universal-fresh-entry-solid-utility-wires-v13"
+              current=stem+"?v=6247-universal-fresh-entry-faa-obstruction-towers-v1"
+              if data.count(expected)!=1:
+                  raise SystemExit(f"{rel}: expected exactly one fresh utility-wires entry URL, found {data.count(expected)}")
+              data=data.replace(expected,current,1)
               path.write_text(data,encoding="utf-8")
 
           baseline=json.loads((Path(os.environ["RUNNER_TEMP"])/"bp-faa-baseline-hashes.json").read_text())
@@ -162,8 +159,8 @@ jobs:
               assert data.count("./bridgepoint-faa-obstruction-towers-v1.js?v=1-faa-obstruction-towers")==1
               assert data.count("bpAuthRequestV6237")>=1
               assert "bridgepoint-solar-fields-v1.js?v=1-global-solar-fields" in data
-          assert "6246-faa-obstruction-towers-v1" in (site/"index.html").read_text()
-          assert "6246-faa-obstruction-towers-v1" in (site/"app/index.html").read_text()
+          assert "6247-universal-fresh-entry-faa-obstruction-towers-v1" in (site/"index.html").read_text()
+          assert "6247-universal-fresh-entry-faa-obstruction-towers-v1" in (site/"app/index.html").read_text()
           print("FAA_TOWER_OVERLAY_SCOPE_PASS",len(baseline),"existing files unchanged except four loader/cache files; four FAA files added")
           PY
 
@@ -198,14 +195,14 @@ jobs:
           q="$GITHUB_SHA-faa-obstruction-towers-v1"
           curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/?faa-obstructions=$q" -o /tmp/bp-faa-root.html
           curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app/?faa-obstructions=$q" -o /tmp/bp-faa-app.html
-          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/landing.js?v=6246-faa-obstruction-towers-v1&verify=$q" -o /tmp/bp-faa-landing.js
-          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app.js?v=6246-faa-obstruction-towers-v1&verify=$q" -o /tmp/bp-faa-app.js
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/landing.js?v=6247-universal-fresh-entry-faa-obstruction-towers-v1&verify=$q" -o /tmp/bp-faa-landing.js
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app.js?v=6247-universal-fresh-entry-faa-obstruction-towers-v1&verify=$q" -o /tmp/bp-faa-app.js
           curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/bridgepoint-faa-obstruction-towers-v1.js?verify=$q" -o /tmp/bp-faa-module.js
           curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app/bridgepoint-faa-obstruction-towers-v1.js?verify=$q" -o /tmp/bp-faa-app-module.js
           curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/data/bridgepoint-faa-obstructions-v1.json.gz?verify=$q" -o /tmp/bp-faa-snapshot.json.gz
           curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app/data/bridgepoint-faa-obstructions-v1.json.gz?verify=$q" -o /tmp/bp-faa-app-snapshot.json.gz
-          grep -Fq 'landing.js?v=6246-faa-obstruction-towers-v1' /tmp/bp-faa-root.html
-          grep -Fq 'app.js?v=6246-faa-obstruction-towers-v1' /tmp/bp-faa-app.html
+          grep -Fq 'landing.js?v=6247-universal-fresh-entry-faa-obstruction-towers-v1' /tmp/bp-faa-root.html
+          grep -Fq 'app.js?v=6247-universal-fresh-entry-faa-obstruction-towers-v1' /tmp/bp-faa-app.html
           grep -Fq '__BP_FAA_OBSTRUCTIONS_V1__' /tmp/bp-faa-landing.js
           grep -Fq '__BP_FAA_OBSTRUCTIONS_V1__' /tmp/bp-faa-app.js
           grep -Fq '1-faa-obstruction-towers' /tmp/bp-faa-landing.js
