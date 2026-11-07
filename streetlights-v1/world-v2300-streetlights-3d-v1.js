@@ -242,18 +242,18 @@ function createLampGeometry(THREE) {
   shaft.translate(0, 0.5, 0);
   const base = new THREE.CylinderGeometry(0.13, 0.16, 0.18, 14, 1, false);
   const armCurve = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(-0.03, 0, 0), new THREE.Vector3(0.14, 0.10, 0),
-    new THREE.Vector3(0.42, 0.13, 0), new THREE.Vector3(0.78, 0.075, 0),
-    new THREE.Vector3(1.04, 0.035, 0)
+    new THREE.Vector3(-0.03, 0, 0), new THREE.Vector3(0.22, 0.15, 0),
+    new THREE.Vector3(0.58, 0.20, 0), new THREE.Vector3(0.98, 0.16, 0),
+    new THREE.Vector3(1.34, 0.095, 0)
   ]);
-  const arm = new THREE.TubeGeometry(armCurve, 18, 0.031, 8, false);
+  const arm = new THREE.TubeGeometry(armCurve, 22, 0.045, 8, false);
   const braceCurve = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(0.04, -0.54, 0), new THREE.Vector3(0.20, -0.36, 0),
-    new THREE.Vector3(0.47, -0.19, 0), new THREE.Vector3(0.88, -0.075, 0)
+    new THREE.Vector3(0.04, -0.56, 0), new THREE.Vector3(0.30, -0.39, 0),
+    new THREE.Vector3(0.70, -0.20, 0), new THREE.Vector3(1.18, -0.07, 0)
   ]);
-  const brace = new THREE.TubeGeometry(braceCurve, 12, 0.018, 7, false);
+  const brace = new THREE.TubeGeometry(braceCurve, 16, 0.024, 7, false);
   const shape = new THREE.Shape();
-  const w = 0.37, h = 0.085, r = 0.045;
+  const w = 0.46, h = 0.105, r = 0.055;
   shape.moveTo(-w + r, -h); shape.lineTo(w - r, -h); shape.quadraticCurveTo(w, -h, w, -h + r);
   shape.lineTo(w, h - r); shape.quadraticCurveTo(w, h, w - r, h);
   shape.lineTo(-w + r, h); shape.quadraticCurveTo(-w, h, -w, h - r);
@@ -261,7 +261,7 @@ function createLampGeometry(THREE) {
   const housing = new THREE.ExtrudeGeometry(shape, { depth: 0.27, bevelEnabled: true, bevelSegments: 3,
     steps: 1, bevelSize: 0.018, bevelThickness: 0.014, curveSegments: 8 });
   housing.translate(0, 0, -0.135);
-  const lens = new THREE.BoxGeometry(0.68, 0.032, 0.24);
+  const lens = new THREE.BoxGeometry(0.86, 0.045, 0.28);
   const beam = new THREE.ConeGeometry(1, 1, 20, 1, true);
   const pool = new THREE.CircleGeometry(1, 28);
   pool.rotateX(-Math.PI / 2);
@@ -276,7 +276,7 @@ function createMaterials(THREE) {
   const photocell = new THREE.MeshStandardMaterial({ color: 0x202c31, roughness: 0.52, metalness: 0.2, side: THREE.DoubleSide });
   const lensNight = new THREE.MeshStandardMaterial({ color: 0xffe6af, emissive: 0xffb85c, emissiveIntensity: 4.2,
     roughness: 0.22, metalness: 0, side: THREE.DoubleSide, toneMapped: false });
-  const beam = new THREE.MeshBasicMaterial({ color: 0xffd38a, transparent: true, opacity: 0.018,
+  const beam = new THREE.MeshBasicMaterial({ color: 0xffd38a, transparent: true, opacity: 0,
     depthWrite: false, side: THREE.DoubleSide, blending: THREE.NormalBlending, toneMapped: false });
   const groundPool = new THREE.ShaderMaterial({
     transparent: true, depthWrite: false, side: THREE.DoubleSide, toneMapped: false,
@@ -290,15 +290,15 @@ function partTransform(entry, part, THREE) {
   const height = entry.height;
   let position = [0, 0, 0], scale = [1, 1, 1];
   if (part === 'base') position = [0, 0.09, 0];
-  if (part === 'photocell') position = [0.82, height + 0.025, 0];
+  if (part === 'photocell') position = [1.08, height + 0.025, 0];
   if (part === 'shaft') scale = [1, height, 1];
   if (part === 'arm') position = [0, height - 0.16, 0];
   if (part === 'brace') position = [0, height - 0.035, 0];
-  if (part === 'housing') position = [1.045, height - 0.09, 0];
-  if (part === 'dayLens' || part === 'nightLens') position = [1.045, height - 0.184, 0];
+  if (part === 'housing') position = [1.34, height - 0.09, 0];
+  if (part === 'dayLens' || part === 'nightLens') position = [1.34, height - 0.184, 0];
   if (part === 'photocell') position = [0.82, height + 0.025, 0];
-  if (part === 'beam') { position = [1.045, height * 0.49, 0]; scale = [height * 0.12, height * 0.98, height * 0.12]; }
-  if (part === 'groundPool') { position = [1.045, 0.035, 0]; scale = [1.25, 1, 1.25]; }
+  if (part === 'beam') { position = [1.34, height * 0.86, 0]; scale = [height * 0.06, height * 0.24, height * 0.06]; }
+  if (part === 'groundPool') { position = [1.34, 0.035, 0]; scale = [1.25, 1, 1.25]; }
   const matrix = entry.baseMatrix.clone();
   matrix.multiply(new THREE.Matrix4().makeRotationY(entry.yaw));
   matrix.multiply(new THREE.Matrix4().makeTranslation(position[0], position[1], position[2]));
