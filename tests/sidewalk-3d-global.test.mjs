@@ -101,27 +101,55 @@ const fineSurface = {
 assert.ok(buildSidewalk3DFeatures({features:[fineSurface],zoom:17}).features.some(f => f.properties.part === 'sidewalk_slab'),
   'the original source-backed fine-surface sidewalk layer must remain included');
 
+const estimatedRoadside = buildSidewalk3DFeatures({
+  features: [], roadFeatures: [road], roadsideWalkFeatures: [road],
+  generateRoadsideWalks: true, zoom: 17, mobile: false
+});
+assert.ok(partsFor(estimatedRoadside, 'sidewalk_slab').length > 0,
+  'visible road centerlines must create 3D sidewalk slab geometry when no mapped sidewalk feature exists');
+assert.ok(partsFor(estimatedRoadside, 'curb').length > 0,
+  'road-edge fallback sidewalks must create raised curb geometry');
+assert.ok(partsFor(estimatedRoadside, 'grass_verge').length > 0,
+  'road-edge fallback sidewalks must create a green verge between sidewalk and curb');
+assert.ok(estimatedRoadside.stats.estimatedRoadsidePaths > 0,
+  'road-derived fallback geometry must be identified as a display estimate');
+const nearRoadSegment = {...road,id:'road-segment-near',properties:{class:'residential',bridgepoint_line_key:'road-segment-near'},geometry:{type:'LineString',coordinates:[[startLon,roadLat],[endLon,roadLat]]}};
+const farRoadSegment = {...road,id:'road-segment-far',properties:{class:'residential',bridgepoint_line_key:'road-segment-far'},geometry:{type:'LineString',coordinates:[[startLon,roadLat+.0005],[endLon,roadLat+.0005]]}};
+const segmentPriority = buildSidewalk3DFeatures({features:[],roadFeatures:[nearRoadSegment,farRoadSegment],roadsideWalkFeatures:[nearRoadSegment,farRoadSegment],generateRoadsideWalks:true,zoom:17,mobile:false});
+assert.ok(segmentPriority.features.some(f => String(f.properties.source_record_id).includes('road-segment-near')),
+  'a split vector-tile line segment must retain its independent identity for road-side sidewalk generation');
+
+function partsFor(collection, name) { return collection.features.filter(feature => feature.properties.part === name); }
+
 const mapSource = await readFile(new URL('../release-v2300/world-v2300-map.js', import.meta.url), 'utf8');
-assert.ok(mapSource.includes("const sidewalkTileFeatures=[...sidewalkRoadTileFeatures,...sidewalkRenderedFeatures]"),
-  'the 3D builder must merge raw transportation source tiles with rendered sidewalk fallback features');
+assert.ok(mapSource.includes("const lineKey=baseKey+'|'+JSON.stringify(coordinates)"),
+  'multi-line source features must be split into independently keyed visible line segments before mesh generation');
+assert.ok(mapSource.includes("out.push({...clipped,id:lineKey,properties:{...p,bridgepoint_line_key:lineKey},geometry:{type:'LineString',coordinates}})"),
+  'each clipped sidewalk and road segment must retain a unique stable line identity');
 assert.ok(mapSource.includes("map.queryRenderedFeatures({layers:['gta-global-sidewalk-approach-v1']})"),
   'the 3D builder must consume the same visible 2D sidewalk/footway features already rendered in the viewport');
-assert.ok(mapSource.includes('renderedApproachFeatures:sidewalkRenderedFeatures.length'),
+assert.ok(mapSource.includes('renderedApproachFeatures:sidewalkRenderedRaw.length'),
   'live sidewalk diagnostics must report the rendered 2D fallback feature count separately');
 assert.ok(mapSource.includes('function refreshSidewalk3DFromTiles(extraFeatures=[])'),
   'sidewalk generation must have its own lightweight map-tile refresh path');
-assert.ok(mapSource.includes("map.on('idle',()=>{if(!moving&&map.getZoom()>=14.2)refreshSidewalk3DFromTiles()});"),
-  'the global 3D sidewalk scene must refresh automatically as soon as loaded map tiles become idle');
-assert.ok(mapSource.includes('features:sidewalkFeatureInputs'),
-  'viewport records and global vector-tile sidewalk features must be merged before 3D geometry generation');
-assert.ok(mapSource.includes('globalVectorTileFeatures:sidewalkTileFeatures.length'),
+assert.ok(mapSource.includes("map.on('style.load',ensureSidewalk3DLayerOrder)"),
+  'the 3D sidewalk surfaces must be restored after every map style reload');
+assert.ok(mapSource.includes("ensureSidewalk3DLayerOrder();if(!moving&&map.getZoom()>=14.2)refreshSidewalk3DFromTiles()"),
+  'the 3D sidewalk stack must be reasserted after later viewport and dynamic-layer updates');
+assert.ok(mapSource.includes("for(const id of order)map.moveLayer(id)"),
+  'sidewalk slabs, curbs, grass, blades and joints must be moved above later 3D extrusion layers');
+assert.ok(mapSource.includes("window.__BP_SIDEWALK_LAYER_ORDER_V1__"),
+  'live diagnostics must report the final sidewalk layer-stack status');
+assert.ok(mapSource.includes('features:sidewalkFeatureInputs') && mapSource.includes('sidewalkFeatureInputs.sort((a,b)=>sidewalkScreenDistance(a)-sidewalkScreenDistance(b))'),
+  'visible sidewalk source segments must be prioritized by screen position before 3D geometry generation');
+assert.ok(mapSource.includes('globalVectorTileFeatures:sidewalkSourceRaw.length'),
   'the active sidewalk renderer must expose its vector-tile source count for live diagnosis');
 
 assert.ok(mapSource.includes("map.querySourceFeatures('ofm',{sourceLayer:'transportation'})"),
   'curbs and grass must use loaded OpenFreeMap road geometry even when road display layers are hidden');
 assert.ok(mapSource.includes("const sidewalkRoadClasses=new Set"),
   'road source features must be filtered to actual road classes before sidewalk pairing');
-assert.ok(mapSource.includes("brunnel==='bridge'||brunnel==='tunnel'||bridge==='yes'||tunnel==='yes'"),
+assert.ok(mapSource.includes("['bridge','tunnel'].includes(String(p.brunnel||'').toLowerCase())"),
   'bridge and tunnel deck geometry must not be used to fabricate sidewalk curbs or grass verges');
 assert.ok(mapSource.includes('roadVectorTileFeatures:sidewalkRoadTileFeatures.length'),
   'the live sidewalk diagnostics must report loaded transportation road tiles used for curb placement');
