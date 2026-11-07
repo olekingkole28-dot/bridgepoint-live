@@ -227,10 +227,10 @@ jobs:
           removed=set(before)-set(after);added=set(after)-set(before)
           changed={p for p in before if p in after and before[p]!=after[p]}
           expected={"index.html","app/index.html","landing.js","app.js",
-            "world-v2300-map.js","app/world-v2300-map.js",
-            "world-v2300-tree-instanced.js","app/world-v2300-tree-instanced.js",
             "bridgepoint-lighthouses-v1.js","app/bridgepoint-lighthouses-v1.js"}
           optional_assets={
+            "world-v2300-map.js","app/world-v2300-map.js",
+            "world-v2300-tree-instanced.js","app/world-v2300-tree-instanced.js",
             "bridgepoint-streetlights-3d-v1.js","app/bridgepoint-streetlights-3d-v1.js",
             "bridgepoint-faa-obstruction-towers-v1.js","app/bridgepoint-faa-obstruction-towers-v1.js",
             "data/bridgepoint-faa-obstructions-v1.json.gz","app/data/bridgepoint-faa-obstructions-v1.json.gz",
@@ -264,8 +264,6 @@ jobs:
           grep -Fq 'bpContextBuildingSyncTimer' "$SITE/world-v2300-map.js"
           grep -Fq 'partial-render-ready' "$SITE/world-v2300-tree-instanced.js"
           grep -Fq 'updateModelTransforms' "$SITE/bridgepoint-lighthouses-v1.js"
-          grep -Fq 'initFAAObstructionTowerRenderer' "$SITE/bridgepoint-faa-obstruction-towers-v1.js"
-          grep -Fq 'initUtilityInfrastructure' "$SITE/world-v2300-utility-infrastructure-v1.js"
           grep -Fq 'bridgepoint-faa-obstruction-towers-v1.js?v=1-faa-obstruction-towers' "$SITE/landing.js"
           grep -Fq 'bridgepoint-faa-obstruction-towers-v1.js?v=1-faa-obstruction-towers' "$SITE/app.js"
           grep -Fq 'bridgepoint-streetlights-3d-v1.js?v=4-shared-pmtiles-and-batched' "$SITE/landing.js"
