@@ -16,7 +16,8 @@ function loadRetryHelper(source, fetchImpl) {
   const marker = 'async function bpAuthRequestV6237(';
   const start = source.indexOf(marker);
   assert.notEqual(start, -1, 'v6237 retry helper must be present');
-  const end = source.indexOf('\nasync function ', start + marker.length);
+  const end = source.indexOf('
+async function ', start + marker.length);
   assert.notEqual(end, -1, 'retry helper must end before the next async function');
   const sandbox = {
     fetch: fetchImpl,
@@ -26,7 +27,8 @@ function loadRetryHelper(source, fetchImpl) {
   };
   vm.createContext(sandbox);
   vm.runInContext(
-    source.slice(start, end) + '\nglobalThis.__request = bpAuthRequestV6237;',
+    source.slice(start, end) + '
+globalThis.__request = bpAuthRequestV6237;',
     sandbox,
     { timeout: 1000 },
   );
@@ -87,5 +89,9 @@ assert.ok(app.includes("if([400,401].includes(Number(e?.status))"), 'transient r
 assert.ok(app.includes("if([401,403].includes(Number(r.status)))saveSession(null)"), 'transient user-check failures do not erase sessions');
 assert.ok(rootHtml.includes('landing.js?v=6247-universal-fresh-entry'), 'root entry loads v6237');
 assert.ok(appHtml.includes('app.js?v=6247-universal-fresh-entry'), 'app entry loads v6237');
-assert.ok(rootHtml.includes('bpw-globe-aura'), 'welcome globe is preserved');\nassert.ok(rootHtml.includes('window.__BP_FRESH_SIGNIN__!==true'), 'a stored token alone cannot bypass the welcome/sign-in gate on a new page entry');\nassert.ok(rootHtml.includes('return sized&&styleReady;'), 'the welcome animation does not wait for every basemap tile');\nassert.ok(landing.includes('bpFreshEntryTarget') && landing.includes('markFreshSignIn'), 'successful sign-in marks the current entry and safely returns direct app deep links');\nassert.ok(appHtml.includes("sessionStorage.getItem('bp_fresh_signin_v1')==='1'"), 'direct app entry requires a fresh sign-in handshake');
+assert.ok(rootHtml.includes('bpw-globe-aura'), 'welcome globe is preserved');
+assert.ok(rootHtml.includes('window.__BP_FRESH_SIGNIN__!==true'), 'a stored token alone cannot bypass the welcome/sign-in gate on a new page entry');
+assert.ok(rootHtml.includes('return sized&&styleReady;'), 'the welcome animation does not wait for every basemap tile');
+assert.ok(landing.includes('bpFreshEntryTarget') && landing.includes('markFreshSignIn'), 'successful sign-in marks the current entry and safely returns direct app deep links');
+assert.ok(appHtml.includes("sessionStorage.getItem('bp_fresh_signin_v1')==='1'"), 'direct app entry requires a fresh sign-in handshake');
 console.log('BRIDGEPOINT_AUTH_RESILIENCE_V6237_PASS');
