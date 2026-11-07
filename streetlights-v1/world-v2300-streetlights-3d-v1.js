@@ -178,7 +178,9 @@ function featureBearing(properties = {}) {
     return compass[raw.trim().toLowerCase()];
   }
   const angle = finiteNumber(raw);
-  return angle === null ? 0 : normalizeDegrees(angle);
+  // Overture/OSM street_lamp points rarely encode arm bearing. Use a consistent
+  // east-west default so the cantilever is visible in the globe's common north-up view.
+  return angle === null ? 90 : normalizeDegrees(angle);
 }
 function makeRecord(feature, poleFeature = null) {
   const chosen = poleFeature || feature;
@@ -243,13 +245,13 @@ function createLampGeometry(THREE) {
   const base = new THREE.CylinderGeometry(0.13, 0.16, 0.18, 14, 1, false);
   const armCurve = new THREE.CatmullRomCurve3([
     new THREE.Vector3(-0.03, 0, 0), new THREE.Vector3(0.22, 0.15, 0),
-    new THREE.Vector3(0.58, 0.20, 0), new THREE.Vector3(0.98, 0.16, 0),
-    new THREE.Vector3(1.34, 0.095, 0)
+    new THREE.Vector3(0.78, 0.20, 0), new THREE.Vector3(1.32, 0.16, 0),
+    new THREE.Vector3(1.86, 0.095, 0)
   ]);
   const arm = new THREE.TubeGeometry(armCurve, 22, 0.045, 8, false);
   const braceCurve = new THREE.CatmullRomCurve3([
     new THREE.Vector3(0.04, -0.56, 0), new THREE.Vector3(0.30, -0.39, 0),
-    new THREE.Vector3(0.70, -0.20, 0), new THREE.Vector3(1.18, -0.07, 0)
+    new THREE.Vector3(0.94, -0.20, 0), new THREE.Vector3(1.68, -0.07, 0)
   ]);
   const brace = new THREE.TubeGeometry(braceCurve, 16, 0.024, 7, false);
   const shape = new THREE.Shape();
@@ -290,15 +292,15 @@ function partTransform(entry, part, THREE) {
   const height = entry.height;
   let position = [0, 0, 0], scale = [1, 1, 1];
   if (part === 'base') position = [0, 0.09, 0];
-  if (part === 'photocell') position = [1.08, height + 0.025, 0];
+  if (part === 'photocell') position = [1.50, height + 0.025, 0];
   if (part === 'shaft') scale = [1, height, 1];
   if (part === 'arm') position = [0, height - 0.16, 0];
   if (part === 'brace') position = [0, height - 0.035, 0];
-  if (part === 'housing') position = [1.34, height - 0.09, 0];
-  if (part === 'dayLens' || part === 'nightLens') position = [1.34, height - 0.184, 0];
+  if (part === 'housing') position = [1.86, height - 0.09, 0];
+  if (part === 'dayLens' || part === 'nightLens') position = [1.86, height - 0.184, 0];
   if (part === 'photocell') position = [0.82, height + 0.025, 0];
-  if (part === 'beam') { position = [1.34, height * 0.86, 0]; scale = [height * 0.06, height * 0.24, height * 0.06]; }
-  if (part === 'groundPool') { position = [1.34, 0.035, 0]; scale = [1.25, 1, 1.25]; }
+  if (part === 'beam') { position = [1.86, height * 0.86, 0]; scale = [height * 0.06, height * 0.24, height * 0.06]; }
+  if (part === 'groundPool') { position = [1.86, 0.035, 0]; scale = [1.25, 1, 1.25]; }
   const matrix = entry.baseMatrix.clone();
   matrix.multiply(new THREE.Matrix4().makeRotationY(entry.yaw));
   matrix.multiply(new THREE.Matrix4().makeTranslation(position[0], position[1], position[2]));
