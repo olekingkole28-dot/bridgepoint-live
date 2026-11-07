@@ -122,7 +122,7 @@ export function streetlightHeight(properties = {}) {
     const height = parseHeight(properties[field]);
     if (height !== null) return { height, measured: true, field };
   }
-  return { height: 6.5, measured: false, field: 'visual-fallback' };
+  return { height: 8.0, measured: false, field: 'visual-fallback' };
 }
 function featureId(feature) {
   const p = feature && feature.properties || {};
@@ -269,7 +269,7 @@ function createLampGeometry(THREE) {
   return { shaft, base, arm, brace, housing, lens, beam, pool, photocell };
 }
 function createMaterials(THREE) {
-  const steel = new THREE.MeshStandardMaterial({ color: 0x89969e, roughness: 0.34, metalness: 0.78, side: THREE.DoubleSide });
+  const steel = new THREE.MeshStandardMaterial({ color: 0xaeb8bf, emissive: 0x35404a, emissiveIntensity: 0.18, roughness: 0.4, metalness: 0.48, side: THREE.DoubleSide });
   const castMetal = new THREE.MeshStandardMaterial({ color: 0x6c777d, roughness: 0.42, metalness: 0.72, side: THREE.DoubleSide });
   const housing = new THREE.MeshStandardMaterial({ color: 0xc3cbd0, roughness: 0.38, metalness: 0.58, side: THREE.DoubleSide });
   const lensDay = new THREE.MeshStandardMaterial({ color: 0x82877f, roughness: 0.42, metalness: 0.05, side: THREE.DoubleSide });
@@ -291,7 +291,7 @@ function partTransform(entry, part, THREE) {
   let position = [0, 0, 0], scale = [1, 1, 1];
   if (part === 'base') position = [0, 0.09, 0];
   if (part === 'photocell') position = [0.82, height + 0.025, 0];
-  if (part === 'shaft') scale = [0.09, height, 0.09];
+  if (part === 'shaft') scale = [1, height, 1];
   if (part === 'arm') position = [0, height - 0.16, 0];
   if (part === 'brace') position = [0, height - 0.035, 0];
   if (part === 'housing') position = [1.045, height - 0.09, 0];
