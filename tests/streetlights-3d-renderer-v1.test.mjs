@@ -63,8 +63,8 @@ assert.deepEqual(streetlightHeight({ render_height_m: '9.4' }),
 assert.equal(streetlightHeight({ height: '30 ft' }).height, 9.144,
   'feet-tagged mast height must be converted to metres');
 assert.deepEqual(streetlightHeight({}),
-  { height: 6.5, measured: false, field: 'visual-fallback' },
-  'missing source height must use the same conservative 6.5 m fallback as the existing mapped streetlight layer');
+  { height: 8.0, measured: false, field: 'visual-fallback' },
+  'missing source height must use a clearly labelled, conservative 8 m visual estimate');
 
 assert.equal(uniqueStreetlightFeatures([point, point]).length, 1,
   'duplicate vector-tile records must not create duplicate physical fixtures');
