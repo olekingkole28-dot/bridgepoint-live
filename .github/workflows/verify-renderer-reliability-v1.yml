@@ -1,0 +1,53 @@
+name: Verify BridgePoint Globe Renderer Reliability V1
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'streetlights-v1/world-v2300-streetlights-3d-v1.js'
+      - 'release-v2300/world-v2300-map.js'
+      - 'release-v2300/world-v2300-tree-instanced.js'
+      - 'patches/lighthouse-v3/bridgepoint-lighthouses-v1.js'
+      - 'tests/renderer-reliability-v1.test.mjs'
+      - '.github/workflows/verify-renderer-reliability-v1.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'streetlights-v1/world-v2300-streetlights-3d-v1.js'
+      - 'release-v2300/world-v2300-map.js'
+      - 'release-v2300/world-v2300-tree-instanced.js'
+      - 'patches/lighthouse-v3/bridgepoint-lighthouses-v1.js'
+      - 'tests/renderer-reliability-v1.test.mjs'
+      - '.github/workflows/verify-renderer-reliability-v1.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify-renderer-reliability:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax-check the four isolated renderer modules
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module --check < streetlights-v1/world-v2300-streetlights-3d-v1.js
+          node --input-type=module --check < release-v2300/world-v2300-map.js
+          node --input-type=module --check < release-v2300/world-v2300-tree-instanced.js
+          node --input-type=module --check < patches/lighthouse-v3/bridgepoint-lighthouses-v1.js
+          echo "BRIDGEPOINT_RENDERER_MODULE_SYNTAX_PASS"
+      - name: Verify combined source loading and renderer recovery
+        run: node tests/renderer-reliability-v1.test.mjs
+      - name: Re-run streetlight source, precision and night-light tests
+        run: node tests/streetlights-3d-renderer-v1.test.mjs
+      - name: Re-run tree taxonomy, coverage and LOD tests
+        run: node tests/tree-instanced-renderer.test.mjs
+      - name: Re-run bridge geometry and materializer tests
+        run: node tests/bridge-materializer-v2.test.cjs
+      - name: Re-run lighthouse snapshot, marker and source fallback tests
+        run: node tests/lighthouse-hotfix-v3.test.mjs
