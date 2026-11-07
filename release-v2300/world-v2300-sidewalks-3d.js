@@ -89,14 +89,15 @@ function isSidewalk(feature) {
   const sub = String(p.subclass || p.subtype || '').toLowerCase();
   const key = String(p.layer_key || '').toUpperCase();
   const footway = String(tags.footway || p.footway || '').toLowerCase();
+  const sidewalk = String(tags.sidewalk || p.sidewalk || '').toLowerCase();
   if ([
     'SIDEWALKS', 'SIDEWALKS_PARKING', 'SURFACE_MATERIAL_FINE', 'GLOBAL_SIDEWALKS'
   ].includes(key)) return true;
-  // Match the same public vector-tile classes already drawn by the globe's
-  // close-zoom sidewalk/footway line layers. This keeps 3D coverage aligned
-  // with the 2D source coverage instead of requiring optional OSM tag fields.
+  // Match the public vector-tile sidewalk/footway classes already drawn by
+  // the globe, even when the tile omits optional OSM tag fields.
   if (c === 'sidewalk' || sub === 'sidewalk' || sub === 'footway' || footway === 'sidewalk') return true;
-  return ['footway', 'pedestrian', 'path', 'cycleway', 'steps', 'living_street'].includes(c);
+  return ['footway', 'pedestrian', 'path', 'cycleway', 'steps', 'living_street'].includes(c) &&
+    sidewalk !== 'no' && sidewalk !== 'none' && footway !== 'crossing';
 }
 function sidewalkWidth(p) {
   const tags = tagsOf(p);
