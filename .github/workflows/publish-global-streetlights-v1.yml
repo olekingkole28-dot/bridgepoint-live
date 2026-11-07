@@ -6,7 +6,6 @@ on:
     paths:
       - 'streetlights-v1/world-v2300-streetlights-3d-v1.js'
       - 'tests/streetlights-3d-renderer-v1.test.mjs'
-      - '.github/workflows/publish-global-streetlights-v1.yml'
   workflow_run:
     workflows: ["Publish BridgePoint FAA Obstruction & Towers V1"]
     types: [completed]
@@ -52,7 +51,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: ${{ github.event_name == 'workflow_run' && format('bridgepoint-faa-obstruction-towers-v1-{0}', github.event.workflow_run.run_attempt) || 'bridgepoint-global-streetlights-v1-1' }}
-          run-id: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || '42318605820' }}
+          run-id: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || '42352199847' }}
           repository: ${{ github.repository }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ${{ runner.temp }}/bp-streetlights-pages-baseline
@@ -174,6 +173,7 @@ jobs:
           name: bridgepoint-global-streetlights-v1-${{ github.run_attempt }}
           path: ${{ runner.temp }}/bp-streetlights-site
           include-hidden-files: true
+          retention-days: 30
 
       - name: Publish automatic global 3D streetlights
         id: deployment
