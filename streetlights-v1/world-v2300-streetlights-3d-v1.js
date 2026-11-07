@@ -1,6 +1,7 @@
 const VERSION = 4;
 const SOURCE_ID = 'bp-global-streetlights-overture-source-v2';
 const QUERY_LAMPS = 'bp-global-streetlights-overture-query-v2';
+const DATA_QUERY_LAMPS = 'bp-global-streetlights-overture-query-data-v1';
 const LAYER_ID = 'bp-global-streetlights-3d-v1';
 const PMTILES_SCHEME = 'pmtiles';
 const PMTILES_LIBRARY_URL = '/vendor/pmtiles.js';
@@ -194,9 +195,9 @@ function makeRecord(feature, poleFeature = null) {
     heightField: height.field, yaw: (90 - featureBearing(properties)) * RAD
   };
 }
-function collectStreetlightRecords(map) {
+function collectStreetlightRecords(sourceMap = dataMap || map) {
     let features = [];
-    try { features = map.querySourceFeatures(SOURCE_ID, { sourceLayer: 'infrastructure' }) || []; }
+    try { features = sourceMap.querySourceFeatures(SOURCE_ID, { sourceLayer: 'infrastructure' }) || []; }
     catch (_) { features = []; }
     const lamps = uniqueStreetlightFeatures(features.filter(feature => {
       const properties = feature && feature.properties || {};
@@ -281,7 +282,7 @@ function createMaterials(THREE) {
   const photocell = new THREE.MeshStandardMaterial({ color: 0x202c31, roughness: 0.52, metalness: 0.2, side: THREE.DoubleSide });
   const lensNight = new THREE.MeshStandardMaterial({ color: 0xffe6af, emissive: 0xffb85c, emissiveIntensity: 4.2,
     roughness: 0.22, metalness: 0, side: THREE.DoubleSide, toneMapped: false });
-  const beam = new THREE.MeshBasicMaterial({ color: 0xffd38a, transparent: true, opacity: 0,
+  const beam = new THREE.MeshBasicMaterial({ color: 0xffd38a, transparent: true, opacity: 0.16,
     depthWrite: false, side: THREE.DoubleSide, blending: THREE.NormalBlending, toneMapped: false });
   const groundPool = new THREE.ShaderMaterial({
     transparent: true, depthWrite: false, side: THREE.DoubleSide, toneMapped: false,
@@ -302,7 +303,7 @@ function partTransform(entry, part, THREE) {
   if (part === 'housing') position = [1.86, height - 0.09, 0];
   if (part === 'dayLens' || part === 'nightLens') position = [1.86, height - 0.184, 0];
   if (part === 'photocell') position = [0.82, height + 0.025, 0];
-  if (part === 'beam') { position = [1.86, height * 0.86, 0]; scale = [height * 0.06, height * 0.24, height * 0.06]; }
+  if (part === 'beam') { position = [1.86, height * 0.5, 0]; scale = [height * 0.28, height * 0.84, height * 0.28]; }
   if (part === 'groundPool') { position = [1.86, 0.035, 0]; scale = [1.25, 1, 1.25]; }
   const matrix = entry.baseMatrix.clone();
   matrix.multiply(new THREE.Matrix4().makeRotationY(entry.yaw));
@@ -341,6 +342,12 @@ export function initStreetlightRenderer(target) {
   let dead = false, lastSignature = '', lastPrecisionMode = null, listenersBound = false;
   let standardCollection = null, preciseCollections = [];
   let groundDataLayerAdded = false;
+  // The production globe has many independent style/rendering systems and may
+  // not schedule PMTiles vector tiles for late-added sources. A tiny, invisible
+  // MapLibre data map reliably streams the same viewport tiles; all 3D geometry
+  // remains on the user's real globe and uses its terrain and projection matrix.
+  let dataMap = null, dataMapContainer = null, dataMapLoadPromise = null;
+  let dataMapReady = false, dataProjection = null, syncTimer = null;
 
   async function loadThree() {
     if (!threePromise) threePromise = import(THREE_URL).then(module => module.default || module)
@@ -400,24 +407,126 @@ export function initStreetlightRenderer(target) {
     window.__BP_TRANSPORTATION_PMTILES_PROTOCOL__ = protocol;
     return protocol;
   }
+  async function ensureDataMap() {
+    if (dataMap && dataMapReady && hasLoadedStyle(dataMap)) return dataMap;
+    if (dataMapLoadPromise) return dataMapLoadPromise;
+    const maplibre = window.maplibregl;
+    if (!maplibre?.Map || typeof maplibre.addProtocol !== 'function') {
+      throw new Error('BridgePoint MapLibre data-map runtime is unavailable');
+    }
+    const center = map.getCenter?.() || { lng: 0, lat: 18 };
+    const width = Math.max(256, Math.min(2048,
+      Math.round(map.getContainer?.().clientWidth || window.innerWidth || 1024)));
+    const height = Math.max(256, Math.min(1600,
+      Math.round(map.getContainer?.().clientHeight || window.innerHeight || 768)));
+    dataMapContainer = document.createElement('div');
+    dataMapContainer.setAttribute('aria-hidden', 'true');
+    dataMapContainer.setAttribute('data-bp-streetlight-tile-stream', 'true');
+    dataMapContainer.style.cssText = [
+      'position:fixed', 'left:-12000px', 'top:0', 'z-index:-1',
+      'opacity:0', 'pointer-events:none', 'overflow:hidden',
+      'width:' + width + 'px', 'height:' + height + 'px'
+    ].join(';');
+    document.body.appendChild(dataMapContainer);
+    const projectionType = map.getProjection?.()?.type || 'globe';
+    dataProjection = projectionType;
+    dataMap = new maplibre.Map({
+      container: dataMapContainer,
+      style: {
+        version: 8,
+        sources: {},
+        layers: [{
+          id: 'bp-streetlight-data-background-v1',
+          type: 'background',
+          paint: { 'background-color': '#000000' }
+        }]
+      },
+      center: [Number(center.lng) || 0, Number(center.lat) || 0],
+      zoom: Math.max(0, Math.min(22, Number(map.getZoom?.() || 0))),
+      pitch: Math.max(0, Math.min(85, Number(map.getPitch?.() || 0))),
+      bearing: Number(map.getBearing?.() || 0),
+      projection: { type: projectionType },
+      minZoom: 0,
+      maxZoom: 22,
+      maxPitch: 85,
+      renderWorldCopies: false,
+      interactive: false,
+      attributionControl: false,
+      fadeDuration: 0,
+      antialias: false,
+      preserveDrawingBuffer: false
+    });
+    dataMap.on('error', event => {
+      const message = String(event?.error?.message || event?.error || 'unknown tile error');
+      if (event?.sourceId === SOURCE_ID) state.dataMapLastError = message;
+    });
+    dataMapLoadPromise = new Promise((resolve, reject) => {
+      let settled = false;
+      const finish = (loaded, error = null) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        if (error) reject(error); else resolve(loaded);
+      };
+      const timer = setTimeout(() => {
+        finish(hasLoadedStyle(dataMap),
+          hasLoadedStyle(dataMap) ? null : new Error('Streetlight data-map style did not load'));
+      }, 15000);
+      if (hasLoadedStyle(dataMap)) finish(true);
+      else dataMap.once('load', () => finish(true));
+    }).then(loaded => {
+      dataMapReady = !!loaded && hasLoadedStyle(dataMap);
+      if (!dataMapReady) throw new Error('Streetlight data-map style did not become ready');
+      dataMap.on('sourcedata', onSourceData);
+      dataMap.on('moveend', () => scheduleRefresh(180));
+      syncDataMap();
+      return dataMap;
+    }).finally(() => { dataMapLoadPromise = null; });
+    return dataMapLoadPromise;
+  }
+  function syncDataMap() {
+    if (!dataMap || !dataMapReady || dead) return;
+    try {
+      const center = map.getCenter?.();
+      if (!center) return;
+      const nextProjection = map.getProjection?.()?.type || 'globe';
+      if (nextProjection !== dataProjection) {
+        dataMap.setProjection?.({ type: nextProjection });
+        dataProjection = nextProjection;
+      }
+      const width = Math.max(256, Math.round(map.getContainer?.().clientWidth || window.innerWidth || 1024));
+      const height = Math.max(256, Math.round(map.getContainer?.().clientHeight || window.innerHeight || 768));
+      if (dataMapContainer &&
+          (dataMapContainer.clientWidth !== width || dataMapContainer.clientHeight !== height)) {
+        dataMapContainer.style.width = width + 'px';
+        dataMapContainer.style.height = height + 'px';
+        dataMap.resize();
+      }
+      dataMap.jumpTo({
+        center: [Number(center.lng), Number(center.lat)],
+        zoom: Math.max(0, Math.min(22, Number(map.getZoom?.() || 0))),
+        pitch: Math.max(0, Math.min(85, Number(map.getPitch?.() || 0))),
+        bearing: Number(map.getBearing?.() || 0)
+      });
+    } catch (error) {
+      state.dataMapLastError = String(error?.message || error);
+    }
+  }
   function installSourceAndQueryLayers() {
-    if (!hasLoadedStyle(map)) return false;
-    if (!map.getSource(SOURCE_ID)) {
-      map.addSource(SOURCE_ID, {
+    if (!dataMap || !dataMapReady || !hasLoadedStyle(dataMap)) return false;
+    if (!dataMap.getSource(SOURCE_ID)) {
+      dataMap.addSource(SOURCE_ID, {
         type: 'vector', url: OVERTURE_BASE_PMTILES, minzoom: MIN_ZOOM, maxzoom: MIN_ZOOM,
         attribution: state.attribution
       });
     }
-    const before = ['gta-place-label', 'gta-water-label', 'gta-road-label']
-      .find(id => map.getLayer(id));
-    if (!map.getLayer(QUERY_LAMPS)) {
-      const layer = {
-        id: QUERY_LAMPS, type: 'circle', source: SOURCE_ID, 'source-layer': 'infrastructure',
+    if (!dataMap.getLayer(DATA_QUERY_LAMPS)) {
+      dataMap.addLayer({
+        id: DATA_QUERY_LAMPS, type: 'circle', source: SOURCE_ID, 'source-layer': 'infrastructure',
         minzoom: MIN_ZOOM, maxzoom: 24,
         filter: ['==', ['get', 'class'], 'street_lamp'],
-        paint: { 'circle-color': '#fff4cf', 'circle-radius': 0.1, 'circle-opacity': 0 }
-      };
-      if (before) map.addLayer(layer, before); else map.addLayer(layer);
+        paint: { 'circle-color': '#fff4cf', 'circle-radius': 3, 'circle-opacity': 1 }
+      });
     }
     groundDataLayerAdded = true;
     return true;
@@ -542,7 +651,7 @@ export function initStreetlightRenderer(target) {
     if (map.triggerRepaint) map.triggerRepaint();
   }
   function refresh() {
-    if (dead || !THREE || !renderer || !scene || !dataGroup || !groundDataLayerAdded) return;
+    if (dead || !THREE || !renderer || !scene || !dataGroup || !dataMapReady || !dataMap || !groundDataLayerAdded) return;
     const zoom = Number(map.getZoom?.() || 0);
     state.visible = zoom >= MIN_ZOOM;
     if (!state.visible) {
@@ -551,7 +660,7 @@ export function initStreetlightRenderer(target) {
       if (map.triggerRepaint) map.triggerRepaint();
       return;
     }
-    const records = collectStreetlightRecords(map);
+    const records = collectStreetlightRecords(dataMap);
     if (!records.length) {
       if (lastSignature || lastPrecisionMode !== null) {
         clearSceneData(); lastSignature = ''; lastPrecisionMode = null;
@@ -697,15 +806,19 @@ export function initStreetlightRenderer(target) {
   function onSourceData(event) {
     if (event && event.sourceId === SOURCE_ID) scheduleRefresh(180);
   }
-  function onMapChange() { scheduleRefresh(260); }
+  function onMapChange() {
+    syncDataMap();
+    scheduleRefresh(260);
+  }
   function onStyleLoad() { if (install()) scheduleRefresh(450); }
   function onVisibility() { if (!document.hidden) { updateNightAll(new Date()); scheduleRefresh(0); } }
   function onMapRemove() { dispose(); }
   function bindListeners() {
     if (listenersBound) return;
     listenersBound = true;
-    map.on('sourcedata', onSourceData);
+    dataMap?.on('sourcedata', onSourceData);
     map.on('moveend', onMapChange);
+    map.on('resize', onMapChange);
     map.on('zoomend', onMapChange);
     map.on('style.load', onStyleLoad);
     map.on('projectiontransition', onMapChange);
@@ -716,12 +829,16 @@ export function initStreetlightRenderer(target) {
   function dispose() {
     if (dead) return;
     dead = true;
-    clearTimeout(bootTimer); clearTimeout(refreshTimer); clearInterval(nightTimer);
+    clearTimeout(bootTimer); clearTimeout(refreshTimer); clearTimeout(syncTimer); clearInterval(nightTimer);
     document.removeEventListener('visibilitychange', onVisibility);
-    for (const [event, handler] of [['sourcedata', onSourceData], ['moveend', onMapChange], ['zoomend', onMapChange],
+    for (const [event, handler] of [['moveend', onMapChange], ['resize', onMapChange], ['zoomend', onMapChange],
       ['style.load', onStyleLoad], ['projectiontransition', onMapChange], ['remove', onMapRemove]]) {
       try { map.off(event, handler); } catch (_) {}
     }
+    try { dataMap?.off('sourcedata', onSourceData); dataMap?.remove(); } catch (_) {}
+    dataMap = null; dataMapReady = false;
+    try { dataMapContainer?.remove(); } catch (_) {}
+    dataMapContainer = null;
     clearSceneData();
     try { for (const geometry of Object.values(geometries || {})) geometry?.dispose?.(); } catch (_) {}
     try { for (const material of Object.values(materials || {})) material?.dispose?.(); } catch (_) {}
@@ -735,6 +852,8 @@ export function initStreetlightRenderer(target) {
     if (dead) return;
     try {
       await ensurePmtilesProtocol();
+      await ensureDataMap();
+      syncDataMap();
       THREE = await loadThree();
       geometries = createLampGeometry(THREE);
       materials = createMaterials(THREE);
@@ -742,7 +861,7 @@ export function initStreetlightRenderer(target) {
       if (!ensureRenderer()) throw new Error('Map WebGL renderer is not ready yet');
       bindListeners();
       scheduleRefresh(500);
-      state.status = 'Global Overture 3D streetlights loading with fixed geographic anchors and local-sun lighting.';
+      state.status = 'Global Overture 3D streetlights streaming visible Overture tiles into the anchored globe renderer.';
     } catch (error) {
       state.lastError = String(error?.message || error);
       if (bootAttempts < maxWait && !dead) {
