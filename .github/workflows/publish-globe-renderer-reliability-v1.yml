@@ -1,6 +1,10 @@
 name: Publish BridgePoint Cohesive Globe Renderer Reliability V1
 
 on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-globe-renderer-reliability-v1.yml']
+  workflow_dispatch:
   workflow_run:
     workflows: ["Publish BridgePoint Lighthouse Global Snapshot V4"]
     types: [completed]
@@ -18,7 +22,7 @@ concurrency:
 
 jobs:
   publish:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     environment:
@@ -27,7 +31,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
       - uses: actions/setup-node@v4
         with:
@@ -50,8 +54,8 @@ jobs:
       - name: Download the Pages artifact from the successful lighthouse deployment
         uses: actions/download-artifact@v4
         with:
-          name: bridgepoint-lighthouse-global-snapshot-v4
-          run-id: ${{ github.event.workflow_run.id }}
+          name: bridgepoint-v5000-1
+          run-id: 42333364600
           repository: ${{ github.repository }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ${{ runner.temp }}/bp-reliability-baseline
