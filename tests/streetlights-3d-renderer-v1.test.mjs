@@ -100,4 +100,16 @@ assert.ok(!source.includes("map.isStyleLoaded?.()"), 'the streetlight initialize
 assert.ok(!source.includes("map.on('idle', onMapChange)"),
   'renderer must not create an idle-triggered repaint loop');
 
+assert.ok(source.includes("if (part === 'shaft') scale = [1, height, 1];"),
+  'streetlight poles must use metre-scaled pole dimensions rather than a compressed 9% width');
+assert.ok(source.includes('opacity: 0,') && source.includes('blending: THREE.NormalBlending'),
+  'the nighttime beam must not obscure the pole and lamp head');
+assert.ok(source.includes('height * 0.06') && source.includes('[1.25, 1, 1.25]'),
+  'local night illumination must stay close to the fixture and ground');
+assert.ok(source.includes('new THREE.BoxGeometry(0.86, 0.045, 0.28)'),
+  'the lamp head lens must be clearly modelled at close zoom');
+assert.ok(source.includes('new THREE.Vector3(1.34, 0.095, 0)') &&
+  source.includes('TubeGeometry(armCurve, 22, 0.045'),
+  'the curved lamp arm must extend far enough to distinguish the fixture silhouette');
+
 console.log('BRIDGEPOINT_GLOBAL_STREETLIGHTS_3D_V1_TEST_PASS');
