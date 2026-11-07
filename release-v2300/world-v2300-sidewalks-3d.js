@@ -172,7 +172,7 @@ function addLinePath(output, feature, rawLine, roads, elevationAt, limits, count
       curbOffset = road.side * (half + vergeWidth + 0.035 + curbWidth * 0.5);
     }
   }
-  const panelLength = mobile ? 1.75 : 1.55;
+  const panelLength = mobile ? 1.75 : 2.0;
   const panels = Math.max(1, Math.ceil(total / panelLength));
   const actualLength = total / panels;
   for (let index = 0; index < panels && counts.panels < limits.panels; index++) {
@@ -210,7 +210,7 @@ function addLinePath(output, feature, rawLine, roads, elevationAt, limits, count
       const curb = ribbon(segment,curbWidth*0.5,curbOffset);
       addPoly(output,curb,{...common,part:'curb',top_m:0.20,color:'#aaa9a2',curb_height_m:0.18,truth:'ROAD_EDGE_DERIVED_CURB'});
       counts.verges++;
-      const bladeStep = mobile ? 0.85 : 0.62;
+      const bladeStep = mobile ? 0.85 : 0.95;
       for(let d=start+bladeStep*0.5;d<end && counts.blades<limits.blades;d+=bladeStep){
         const point=pointAt(line,d),before=pointAt(line,Math.max(0,d-0.08)),after=pointAt(line,Math.min(total,d+0.08));
         const tx=(after[0]-before[0])*metersLon(point[1]),ty=(after[1]-before[1])*110540,tl=Math.hypot(tx,ty)||1;
@@ -228,30 +228,92 @@ function addLinePath(output, feature, rawLine, roads, elevationAt, limits, count
   counts.sourceWidths += dimensions.truth === 'SOURCE_TAGGED_WIDTH' ? 1 : 0;
   counts.estimatedWidths += dimensions.truth === 'SOURCE_TAGGED_WIDTH' ? 0 : 1;
 }
-export function buildSidewalk3DFeatures({features=[],roadFeatures=[],zoom=0,mobile=false,elevationAt=null}={}) {
+function offsetRoadSidewalkLine(line, offset, side) {
+  const points=cleanLine(line);
+  if(points.length<2)return [];
+  return points.map((point,index)=>{
+    const before=points[Math.max(0,index-1)],after=points[Math.min(points.length-1,index+1)];
+    const dx=(after[0]-before[0])*metersLon(point[1]),dy=(after[1]-before[1])*METERS_LAT;
+    const length=Math.hypot(dx,dy)||1;
+    return offsetPoint(point,(-dy/length)*offset*side,(dx/length)*offset*side);
+  });
+}
+function mappedWalkwayNear(line, features, limitMeters=3.2) {
+  if(!line?.length)return false;
+  const mid=pointAt(line,lineLength(line)*0.5);
+  if(!mid)return false;
+  for(const feature of features||[]){
+    if(!isSidewalk(feature))continue;
+    for(const candidate of linesOf(feature.geometry)){
+      const clean=cleanLine(candidate);
+      for(let i=1;i<clean.length;i++){
+        const a=clean[i-1],b=clean[i],sx=metersLon(mid[1]);
+        const ax=(a[0]-mid[0])*sx,ay=(a[1]-mid[1])*METERS_LAT;
+        const bx=(b[0]-mid[0])*sx,by=(b[1]-mid[1])*METERS_LAT;
+        const vx=bx-ax,vy=by-ay,ll=vx*vx+vy*vy;
+        const t=ll>0?clamp(-(ax*vx+ay*vy)/ll,0,1):0;
+        if(Math.hypot(ax+t*vx,ay+t*vy)<=limitMeters)return true;
+      }
+    }
+  }
+  return false;
+}
+export function buildSidewalk3DFeatures({features=[],roadFeatures=[],roadsideWalkFeatures=[],generateRoadsideWalks=false,zoom=0,mobile=false,elevationAt=null}={}) {
   const empty={type:'FeatureCollection',features:[]};
-  if(+zoom<14.2||!Array.isArray(features)||!features.length)return empty;
-  const limits=mobile?{paths:45,panels:180,verges:110,blades:320,cracks:45}:{paths:300,panels:1800,verges:900,blades:2600,cracks:450};
+  if(+zoom<14.2||(!Array.isArray(features)||!features.length)&&(!generateRoadsideWalks||!Array.isArray(roadsideWalkFeatures)||!roadsideWalkFeatures.length))return empty;
+  const limits=mobile?{paths:45,panels:180,verges:110,blades:320,cracks:45}:{paths:80,panels:240,verges:150,blades:220,cracks:45};
   const roads=[],seenRoads=new Set();
   for(const feature of Array.isArray(roadFeatures)?roadFeatures:[]){
     const p=feature?.properties||{};
-    if(String(p.brunnel||'').toLowerCase()==='bridge'||String(p.bridge||'').toLowerCase()==='yes')continue;
-    const key=String(feature.id||p.osm_id||p.id||JSON.stringify(feature.geometry?.coordinates||[]));
+    if(['bridge','tunnel'].includes(String(p.brunnel||'').toLowerCase())||String(p.bridge||'').toLowerCase()==='yes'||String(p.tunnel||'').toLowerCase()==='yes')continue;
+    const key=String(p.bridgepoint_line_key||feature.id||p.osm_id||p.id||JSON.stringify(feature.geometry?.coordinates||[]));
     if(seenRoads.has(key))continue;seenRoads.add(key);
     const lines=linesOf(feature.geometry).map(cleanLine).filter(line=>line.length>1);
     if(lines.length)roads.push({lines,width:roadWidth(p)});
     if(roads.length>=(mobile?100:500))break;
   }
-  const output=[],counts={paths:0,panels:0,verges:0,blades:0,cracks:0,sourceWidths:0,estimatedWidths:0};
-  for(const feature of features){
-    if(counts.paths>=limits.paths||counts.panels>=limits.panels)break;
+  const output=[],counts={paths:0,panels:0,verges:0,blades:0,cracks:0,sourceWidths:0,estimatedWidths:0,mappedPaths:0,estimatedRoadsidePaths:0};
+  const mappedLimits={...limits,paths:Math.max(1,Math.floor(limits.paths*.25)),panels:Math.max(1,Math.floor(limits.panels*.25))};
+  for(const feature of Array.isArray(features)?features:[]){
+    if(counts.paths>=mappedLimits.paths||counts.panels>=mappedLimits.panels)break;
     if(!isSidewalk(feature))continue;
     for(const line of linesOf(feature.geometry)){
-      addLinePath(output,feature,line,roads,elevationAt,limits,counts,mobile);
-      if(counts.paths>=limits.paths||counts.panels>=limits.panels)break;
+      addLinePath(output,feature,line,roads,elevationAt,mappedLimits,counts,mobile);
+      if(counts.paths>=mappedLimits.paths||counts.panels>=mappedLimits.panels)break;
     }
   }
-  output.stats={paths:counts.paths,individualSlabs:counts.panels,curbAndGrassSegments:counts.verges,grassBlades:counts.blades,joints:counts.panels>0?Math.max(0,counts.panels-counts.paths):0,crackSegments:counts.cracks,sourceTaggedWidths:counts.sourceWidths,estimatedWidths:counts.estimatedWidths,globalSourceCoverage:'OPEN_MAP_SIDEWALK_GEOMETRY_WHERE_MAPPED',visualEstimates:'UNMEASURED_WIDTHS_CURBS_GRASS_AND_HAIRLINE_WEAR_ARE_DISPLAY_DERIVATIONS'};
+  counts.mappedPaths=counts.paths;
+  if(generateRoadsideWalks&&Array.isArray(roadsideWalkFeatures)){
+    const roadClasses=new Set(['primary','secondary','tertiary','minor','residential','unclassified','service','living_street','road']);
+    const seen=new Set();
+    for(const feature of roadsideWalkFeatures){
+      if(counts.paths>=limits.paths||counts.panels>=limits.panels)break;
+      const p=feature?.properties||{},cls=String(p.class||'').toLowerCase();
+      if(!roadClasses.has(cls)||['bridge','tunnel'].includes(String(p.brunnel||'').toLowerCase())||String(p.bridge||'').toLowerCase()==='yes'||String(p.tunnel||'').toLowerCase()==='yes')continue;
+      const roadId=String(p.bridgepoint_line_key||p.osm_id||p.id||feature.id||JSON.stringify(feature.geometry?.coordinates||[]));
+      if(seen.has(roadId))continue;seen.add(roadId);
+      const width=roadWidth(p),sidewalkWidth=1.8,gap=0.8,offset=width*.5+sidewalkWidth*.5+gap;
+      for(const rawLine of linesOf(feature.geometry)){
+        const roadLine=cleanLine(rawLine);
+        if(roadLine.length<2)continue;
+        for(const side of [-1,1]){
+          if(counts.paths>=limits.paths||counts.panels>=limits.panels)break;
+          const sidewalkLine=offsetRoadSidewalkLine(roadLine,offset,side);
+          if(sidewalkLine.length<2||mappedWalkwayNear(sidewalkLine,features))continue;
+          const synthetic={
+            type:'Feature',
+            id:'bridgepoint-estimated-sidewalk-'+roadId+'-'+side,
+            geometry:{type:'LineString',coordinates:sidewalkLine},
+            properties:{class:'sidewalk',surface:'concrete',width:String(sidewalkWidth),source_record_id:'estimated-road-sidewalk:'+roadId+':'+side,display_estimate:true,geometry_truth:'ROAD_CENTERLINE_OFFSET_DISPLAY_ESTIMATE'}
+          };
+          const before=counts.paths;
+          addLinePath(output,synthetic,sidewalkLine,roads,elevationAt,limits,counts,mobile);
+          if(counts.paths>before)counts.estimatedRoadsidePaths++;
+        }
+      }
+    }
+  }
+  output.stats={paths:counts.paths,individualSlabs:counts.panels,curbAndGrassSegments:counts.verges,grassBlades:counts.blades,joints:counts.panels>0?Math.max(0,counts.panels-counts.paths):0,crackSegments:counts.cracks,sourceTaggedWidths:counts.sourceWidths,estimatedWidths:counts.estimatedWidths,mappedPaths:counts.mappedPaths,estimatedRoadsidePaths:counts.estimatedRoadsidePaths,globalSourceCoverage:'OPEN_MAP_SIDEWALK_GEOMETRY_PLUS_VIEWPORT_ROAD_EDGE_DISPLAY_ESTIMATES',visualEstimates:'UNMEASURED_WIDTHS_CURBS_GRASS_AND_HAIRLINE_WEAR_ARE_DISPLAY_DERIVATIONS'};
   return {type:'FeatureCollection',features:output,stats:output.stats};
 }
 export function installSidewalk3DTextures(map) {
@@ -272,3 +334,5 @@ export function installSidewalk3DTextures(map) {
   }
   return installed>0;
 }
+
+[executed on device: MollieOllie (898525b9-c32e-4ce4-b683-4efb3b88b364)]
