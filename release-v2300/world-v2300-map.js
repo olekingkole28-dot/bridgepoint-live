@@ -1310,6 +1310,24 @@ function bridgeLineCoveredByPolygons(line,polygons){
    if(seq!==livingSeq||moving)return;
    const base=settled[0].status==='fulfilled'&&settled[0].value?.type==='FeatureCollection'?settled[0].value:EMPTY,trees=settled[1].status==='fulfilled'&&settled[1].value?.type==='FeatureCollection'?settled[1].value:EMPTY,center=map.getCenter(),viewHalf=lodViewHalfDiagonalMeters(map.getBounds()),retentionRadiusMeters=clamp(viewHalf*1.6,MOBILE?180:260,z>=18?2400:z>=16?4500:8000),priorCache=map.__BP_LIVING_TILE_CACHE_V6017__||{},baseCap=MOBILE?(lod.tier==='GOLD'?2400:lod.tier==='SILVER'?1800:1200):(lod.tier==='GOLD'?9000:lod.tier==='SILVER'?7500:6000),treeCap=MOBILE?(lod.tier==='GOLD'?3200:lod.tier==='SILVER'?2400:1600):(lod.tier==='GOLD'?14000:lod.tier==='SILVER'?10500:8000),retainedBase=mergeLodFeatureCache(priorCache.base||[],base.features||[],center,retentionRadiusMeters,baseCap),retainedTrees=mergeLodFeatureCache((priorCache.trees||[]).filter(f=>String(f?.properties?.source_key||'')==='META_WRI_CHMV2_LOCAL_MAXIMA_V1109'&&String(f?.properties?.tile_key||'')===String(trees.active_tile||'')),trees.features||[],center,retentionRadiusMeters,treeCap),features=[],seen=new Set();map.__BP_LIVING_TILE_CACHE_V6017__={base:retainedBase,trees:retainedTrees,center:[center.lng,center.lat],radiusMeters:retentionRadiusMeters,updatedAt:Date.now()};for(const f of [...retainedBase,...retainedTrees]){const key=lodFeatureKey(f);if(seen.has(key))continue;seen.add(key);features.push(f)}    const data={type:'FeatureCollection',features};map.getSource('bpLivingWorld')?.setData(data);map.getSource('bpTreeLod')?.setData({type:'FeatureCollection',features:[...retainedTrees]});bpAttachTreeRendererFromViewport();const treeRendererApi=window.__BP_TREE_INSTANCE_RENDERER_API_V1__;if(treeRendererApi?.map===map)treeRendererApi.refreshInstances?.({authoritative:settled[1].status==='fulfilled'&&settled[1].value?.type==='FeatureCollection'});    const sidewalkRoadLayers=['gta-road-major','gta-road-local'].filter(id=>map.getLayer(id));
     let sidewalkRoadFeatures=[];try{if(sidewalkRoadLayers.length)sidewalkRoadFeatures=map.queryRenderedFeatures({layers:sidewalkRoadLayers})||[]}catch(_){}
+    // Road styling layers can be hidden by the globe's style modes, so their
+    // rendered-feature query may legitimately return zero. Read the same
+    // loaded OpenFreeMap transportation tiles used by the road/sidewalk map
+    // instead, then pass only real road centerlines to curb/verge pairing.
+    let sidewalkRoadTileFeatures=[];
+    try{if(map.getSource('ofm'))sidewalkRoadTileFeatures=map.querySourceFeatures('ofm',{sourceLayer:'transportation'})||[]}catch(_){}
+    const sidewalkRoadClasses=new Set(['motorway','trunk','primary','secondary','tertiary','minor','service','track','residential','unclassified','living_street','road']);
+    const sidewalkRoadKeys=new Set();
+    for(const roadFeature of sidewalkRoadTileFeatures){
+      const p=roadFeature?.properties||{},roadClass=String(p.class||'').toLowerCase();
+      const brunnel=String(p.brunnel||'').toLowerCase(),bridge=String(p.bridge||'').toLowerCase(),tunnel=String(p.tunnel||'').toLowerCase();
+      if(!sidewalkRoadClasses.has(roadClass)||brunnel==='bridge'||brunnel==='tunnel'||bridge==='yes'||tunnel==='yes')continue;
+      const geometryKey=JSON.stringify(roadFeature?.geometry?.coordinates||[]);
+      const key=String(p.osm_id||p.id||roadFeature?.id||geometryKey);
+      if(sidewalkRoadKeys.has(key))continue;
+      sidewalkRoadKeys.add(key);sidewalkRoadFeatures.push(roadFeature);
+      if(sidewalkRoadFeatures.length>=650)break;
+    }
     // Use both the detailed viewport response and the same global OSM vector
     // tiles that already draw the visible 2D sidewalk/footway approach lines.
     // The vector-tile path keeps 3D surfaces available when the optional
@@ -1325,7 +1343,7 @@ function bridgeLineCoveredByPolygons(line,polygons){
     }
     const sidewalk3D=buildSidewalk3DFeatures({features:sidewalkFeatureInputs,roadFeatures:sidewalkRoadFeatures,zoom:z,mobile:MOBILE,elevationAt:point=>{try{const elevation=map.queryTerrainElevation?.({lng:point[0],lat:point[1]},{exaggerated:false});return Number.isFinite(elevation)?elevation:null}catch(_){return null}}});
     map.getSource('bpSidewalk3D')?.setData({type:'FeatureCollection',features:sidewalk3D.features});
-    window.__BP_SIDEWALK_3D_STATE__={version:2,status:sidewalk3D.features.length?'ready':'no-mapped-sidewalks-in-current-viewport',featureCount:sidewalk3D.features.length,viewportFeatures:retainedBase.length,globalVectorTileFeatures:sidewalkTileFeatures.length,...(sidewalk3D.stats||{}),zoom:z,updatedAt:Date.now()};
+    window.__BP_SIDEWALK_3D_STATE__={version:2,status:sidewalk3D.features.length?'ready':'no-mapped-sidewalks-in-current-viewport',featureCount:sidewalk3D.features.length,viewportFeatures:retainedBase.length,globalVectorTileFeatures:sidewalkTileFeatures.length,roadVectorTileFeatures:sidewalkRoadTileFeatures.length,roadFeaturesForCurbs:sidewalkRoadFeatures.length,...(sidewalk3D.stats||{}),zoom:z,updatedAt:Date.now()};
 if(features.length){     const physicalData={type:'FeatureCollection',features:[...retainedTrees,...retainedBase]};
      let denseMobileScene=false,denseRenderedBuildings=0;
     if(MOBILE&&z<17.2){
