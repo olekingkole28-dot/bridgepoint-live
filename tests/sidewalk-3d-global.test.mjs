@@ -181,5 +181,3 @@ for (const image of images.values()) {
 assert.equal(installSidewalk3DTextures(fakeMap), false, 'texture registration should be idempotent');
 
 console.log('BRIDGEPOINT_GLOBAL_SIDEWALK_3D_TEST_PASS');
-
-[executed on device: MollieOllie (898525b9-c32e-4ce4-b683-4efb3b88b364)]
