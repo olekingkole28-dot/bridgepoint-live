@@ -385,6 +385,9 @@ export function initStreetlightRenderer(target) {
       }
       pmtiles = await promise;
     }
+    // Let another BridgePoint PMTiles loader that received the same script
+    // load event finish registering its shared handler before registering one.
+    await new Promise(resolve => setTimeout(resolve, 0));
     let protocol = window.__BP_TRANSPORTATION_PMTILES_PROTOCOL__ ||
       window.__BP_UTILITY_PMTILES_PROTOCOL__ || window[PMTILES_PROTOCOL_KEY];
     if (!protocol) {
