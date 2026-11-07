@@ -55,7 +55,7 @@ permissions:
 
 concurrency:
   group: bridgepoint-v5000-production-authority
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build-tree-assets:
