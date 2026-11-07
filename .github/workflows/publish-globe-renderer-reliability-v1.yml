@@ -1,0 +1,248 @@
+name: Publish BridgePoint Cohesive Globe Renderer Reliability V1
+
+on:
+  workflow_run:
+    workflows: ["Publish BridgePoint Lighthouse Global Snapshot V4"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run renderer syntax and regression tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module --check < streetlights-v1/world-v2300-streetlights-3d-v1.js
+          node --input-type=module --check < release-v2300/world-v2300-map.js
+          node --input-type=module --check < release-v2300/world-v2300-tree-instanced.js
+          node --input-type=module --check < patches/lighthouse-v3/bridgepoint-lighthouses-v1.js
+          node tests/renderer-reliability-v1.test.mjs
+          node tests/streetlights-3d-renderer-v1.test.mjs
+          node tests/tree-instanced-renderer.test.mjs
+          node tests/bridge-materializer-v2.test.cjs
+          node tests/lighthouse-hotfix-v3.test.mjs
+
+      - name: Download the Pages artifact from the successful lighthouse deployment
+        uses: actions/download-artifact@v4
+        with:
+          name: bridgepoint-lighthouse-global-snapshot-v4
+          run-id: ${{ github.event.workflow_run.id }}
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/bp-reliability-baseline
+
+      - name: Restore the deployed site and fingerprint all files
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/bp-reliability-site"
+          mkdir -p "$SITE"
+          ARCHIVE="$(find "$RUNNER_TEMP/bp-reliability-baseline" -type f -name artifact.tar -print -quit)"
+          test -n "$ARCHIVE"
+          tar -xf "$ARCHIVE" -C "$SITE"
+          for f in \
+            index.html app/index.html landing.js app.js \
+            world-v2300-map.js app/world-v2300-map.js \
+            world-v2300-tree-instanced.js app/world-v2300-tree-instanced.js \
+            world-v2300-tree-catalog.js app/world-v2300-tree-catalog.js \
+            world-v2300-tree-canopy-lod.js app/world-v2300-tree-canopy-lod.js \
+            bridgepoint-lighthouses-v1.js app/bridgepoint-lighthouses-v1.js \
+            bridgepoint-streetlights-3d-v1.js app/bridgepoint-streetlights-3d-v1.js \
+            bridgepoint-faa-obstruction-towers-v1.js app/bridgepoint-faa-obstruction-towers-v1.js \
+            data/bridgepoint-faa-obstructions-v1.json.gz \
+            app/data/bridgepoint-faa-obstructions-v1.json.gz \
+            data/bridgepoint-lighthouses-global-v1.json \
+            data/bridgepoint-lighthouses-global-v1-ATTRIBUTION.md \
+            world-v2300-utility-infrastructure-v1.js app/world-v2300-utility-infrastructure-v1.js \
+            vendor/three.module.js vendor/pmtiles.js \
+            assets/trees/manifest.json assets/trees/procedural-variants.json assets/trees/taxonomy-index.json; do
+            test -s "$SITE/$f" || { echo "Missing production file: $f"; exit 1; }
+          done
+          grep -Fq 'bpWelcomeGateV1' "$SITE/index.html"
+          grep -Fq 'bpAuthRequestV6237' "$SITE/landing.js"
+          grep -Fq 'bpAuthRequestV6237' "$SITE/app.js"
+          grep -Fq 'initFAAObstructionTowerRenderer' "$SITE/bridgepoint-faa-obstruction-towers-v1.js"
+          grep -Fq 'initUtilityInfrastructure' "$SITE/world-v2300-utility-infrastructure-v1.js"
+          for m in bridgepoint-offshore-energy-v1.js bridgepoint-solar-fields-v1.js bridgepoint-wind-turbines-v1.js; do
+            grep -Fq "$m" "$SITE/landing.js"
+          done
+          python3 - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          site=Path(os.environ["RUNNER_TEMP"])/"bp-reliability-site"
+          data={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                for p in site.rglob("*") if p.is_file()}
+          (Path(os.environ["RUNNER_TEMP"])/"bp-reliability-before.json").write_text(json.dumps(data,sort_keys=True))
+          print("BASELINE_FILES",len(data))
+          PY
+
+      - name: Carry forward current newsroom and weather pages
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/bp-reliability-site"
+          for f in feed.xml news-sitemap.xml news/current-northeast-weather.html news/global-expansion.html; do
+            test -s "rebuild-v5000/$f"
+            mkdir -p "$SITE/$(dirname "$f")"
+            cp "rebuild-v5000/$f" "$SITE/$f"
+          done
+
+      - name: Bundle local Three.js GLTFLoader
+        shell: bash
+        run: |
+          set -euo pipefail
+          R="$RUNNER_TEMP/bp-tree-runtime"
+          SITE="$RUNNER_TEMP/bp-reliability-site"
+          mkdir -p "$R" "$SITE/vendor"
+          npm install --prefix "$R" --no-audit --no-fund --no-save three@0.169.0 esbuild@0.24.2
+          "$R/node_modules/.bin/esbuild" "$R/node_modules/three/examples/jsm/loaders/GLTFLoader.js" --bundle --format=esm --minify --external:three --outfile="$SITE/vendor/GLTFLoader.bundle.js"
+          python3 - "$SITE/vendor/GLTFLoader.bundle.js" <<'PY'
+          from pathlib import Path
+          import re,sys
+          p=Path(sys.argv[1]);s=p.read_text(encoding="utf-8")
+          s,n=re.subn(r'\bfrom\s*(["\'])three\1','from "/vendor/three.module.js?v=169-local"',s)
+          if n<1 or re.search(r'\bfrom\s*(["\'])three\1',s): raise SystemExit("GLTFLoader has an unresolved external Three.js import")
+          if "esm.sh" in s or "unpkg.com" in s: raise SystemExit("External CDN dependency detected in GLTFLoader")
+          p.write_text(s,encoding="utf-8")
+          print("LOCAL_GLTFLOADER_BUNDLE_PASS",p.stat().st_size)
+          PY
+          node --input-type=module --check < "$SITE/vendor/GLTFLoader.bundle.js"
+
+      - name: Overlay only four renderer modules and update cache keys
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/bp-reliability-site"
+          mkdir -p "$SITE/app"
+          cp release-v2300/world-v2300-map.js "$SITE/world-v2300-map.js"
+          cp release-v2300/world-v2300-map.js "$SITE/app/world-v2300-map.js"
+          cp release-v2300/world-v2300-tree-instanced.js "$SITE/world-v2300-tree-instanced.js"
+          cp release-v2300/world-v2300-tree-instanced.js "$SITE/app/world-v2300-tree-instanced.js"
+          cp patches/lighthouse-v3/bridgepoint-lighthouses-v1.js "$SITE/bridgepoint-lighthouses-v1.js"
+          cp patches/lighthouse-v3/bridgepoint-lighthouses-v1.js "$SITE/app/bridgepoint-lighthouses-v1.js"
+          cp streetlights-v1/world-v2300-streetlights-3d-v1.js "$SITE/bridgepoint-streetlights-3d-v1.js"
+          cp streetlights-v1/world-v2300-streetlights-3d-v1.js "$SITE/app/bridgepoint-streetlights-3d-v1.js"
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib,json,re,os
+          site=Path(os.environ["RUNNER_TEMP"])/"bp-reliability-site"
+          def subone(rel,pat,repl,label):
+              p=site/rel;s=p.read_text(encoding="utf-8");s,n=re.subn(pat,repl,s,count=1)
+              if n!=1: raise SystemExit(f"{rel}: {label} expected once, found {n}")
+              p.write_text(s,encoding="utf-8")
+          for rel in ("landing.js","app.js"):
+              subone(rel,r"(['\"])(?:\./|\.\./)world-v2300-map\.js\?v=[^'\"]+(['\"])",r"\1./world-v2300-map.js?v=6250-renderer-reliability-v1\2","map import")
+              subone(rel,r"(['\"])(?:\./|\.\./)bridgepoint-lighthouses-v1\.js\?v=[^'\"]+(['\"])",r"\1./bridgepoint-lighthouses-v1.js?v=5-batched-render-recovery\2","lighthouse import")
+              subone(rel,r"(['\"])(?:\./|\.\./)bridgepoint-streetlights-3d-v1\.js\?v=[^'\"]+(['\"])",r"\1./bridgepoint-streetlights-3d-v1.js?v=4-shared-pmtiles-and-batched\2","streetlight import")
+              s=(site/rel).read_text(encoding="utf-8")
+              for token in ("bridgepoint-faa-obstruction-towers-v1.js","world-v2300-utility-infrastructure-v1.js","bridgepoint-offshore-energy-v1.js","bridgepoint-solar-fields-v1.js","bridgepoint-wind-turbines-v1.js","bpAuthRequestV6237"):
+                  if token not in s: raise SystemExit(f"{rel}: preserved feature missing: {token}")
+          for rel,stem in (("index.html","landing.js"),("app/index.html","app.js")):
+              subone(rel,r"((?:\./|\.\./)?"+re.escape(stem)+r"\?v=)[^&\"'<>\\s]+",r"\g<1>6250-renderer-reliability-v1","entry script cache key")
+              subone(rel,r'(<link\s+rel="modulepreload"\s+href="/world-v2300-map\.js\?v=)[^&"]+',r"\g<1>6250-renderer-reliability-v1","map module preload")
+          before=json.loads((Path(os.environ["RUNNER_TEMP"])/"bp-reliability-before.json").read_text())
+          after={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob("*") if p.is_file()}
+          removed=set(before)-set(after);added=set(after)-set(before)
+          changed={p for p in before if p in after and before[p]!=after[p]}
+          expected={"index.html","app/index.html","landing.js","app.js",
+            "world-v2300-map.js","app/world-v2300-map.js",
+            "world-v2300-tree-instanced.js","app/world-v2300-tree-instanced.js",
+            "bridgepoint-lighthouses-v1.js","app/bridgepoint-lighthouses-v1.js",
+            "bridgepoint-streetlights-3d-v1.js","app/bridgepoint-streetlights-3d-v1.js"}
+          allowed=expected|{"feed.xml","news-sitemap.xml","news/current-northeast-weather.html","news/global-expansion.html"}
+          if not expected.issubset(changed): raise SystemExit("Missing expected files: "+json.dumps(sorted(expected-changed)))
+          if not changed.issubset(allowed): raise SystemExit("Unexpected production changes: "+json.dumps(sorted(changed-allowed)))
+          if removed: raise SystemExit("Production files were removed: "+json.dumps(sorted(removed)))
+          if added!={"vendor/GLTFLoader.bundle.js"}: raise SystemExit("Unexpected added files: "+json.dumps(sorted(added)))
+          for name in ("world-v2300-map.js","world-v2300-tree-instanced.js","bridgepoint-lighthouses-v1.js","bridgepoint-streetlights-3d-v1.js"):
+              assert (site/name).read_bytes()==(site/"app"/name).read_bytes(),name+" root/app mismatch"
+          print("STRICT_RELIABILITY_SCOPE_PASS",len(before),"baseline files; changed",len(changed),"allowed files; removed 0")
+          PY
+          for f in "$SITE/world-v2300-map.js" "$SITE/app/world-v2300-map.js" "$SITE/world-v2300-tree-instanced.js" "$SITE/app/world-v2300-tree-instanced.js" "$SITE/bridgepoint-lighthouses-v1.js" "$SITE/app/bridgepoint-lighthouses-v1.js" "$SITE/bridgepoint-streetlights-3d-v1.js" "$SITE/app/bridgepoint-streetlights-3d-v1.js"; do node --input-type=module --check < "$f"; done
+          node --check "$SITE/landing.js"
+          node --check "$SITE/app.js"
+          node --input-type=module --check < "$SITE/vendor/GLTFLoader.bundle.js"
+          grep -Fq 'from "/vendor/three.module.js?v=169-local"' "$SITE/vendor/GLTFLoader.bundle.js"
+          grep -Fq "const VERSION = 4;" "$SITE/bridgepoint-streetlights-3d-v1.js"
+          grep -Fq "const VERSION = 3;" "$SITE/world-v2300-tree-instanced.js"
+          grep -Fq 'scheduleBridgeSourceRefresh' "$SITE/world-v2300-map.js"
+          grep -Fq 'bpContextBuildingSyncTimer' "$SITE/world-v2300-map.js"
+          grep -Fq 'partial-render-ready' "$SITE/world-v2300-tree-instanced.js"
+          grep -Fq 'updateModelTransforms' "$SITE/bridgepoint-lighthouses-v1.js"
+          echo "RELIABILITY_ARTIFACT_READY"
+
+      - uses: actions/configure-pages@v5
+
+      - name: Upload cohesive Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          name: bridgepoint-globe-renderer-reliability-v1-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/bp-reliability-site
+          include-hidden-files: true
+
+      - name: Deploy the cohesive globe renderer reliability release
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: bridgepoint-globe-renderer-reliability-v1-${{ github.run_attempt }}
+
+      - name: Verify live routes, renderers and preserved infrastructure
+        shell: bash
+        run: |
+          set -euo pipefail
+          O='https://bridgepointintelligence.online'
+          q="$GITHUB_SHA-renderer-reliability-v1"
+          for p in '/' '/app/'; do
+            curl --retry 10 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O$p?renderer-reliability=$q" -o "$RUNNER_TEMP/page.html"
+            grep -Fq '6250-renderer-reliability-v1' "$RUNNER_TEMP/page.html"
+          done
+          for p in \
+            '/landing.js?v=6250-renderer-reliability-v1' \
+            '/app.js?v=6250-renderer-reliability-v1' \
+            '/world-v2300-map.js?v=6250-renderer-reliability-v1' \
+            '/app/world-v2300-map.js' '/world-v2300-tree-instanced.js' \
+            '/app/world-v2300-tree-instanced.js' \
+            '/bridgepoint-lighthouses-v1.js?v=5-batched-render-recovery' \
+            '/app/bridgepoint-lighthouses-v1.js' \
+            '/bridgepoint-streetlights-3d-v1.js?v=4-shared-pmtiles-and-batched' \
+            '/app/bridgepoint-streetlights-3d-v1.js' \
+            '/vendor/three.module.js' '/vendor/GLTFLoader.bundle.js' '/vendor/pmtiles.js' \
+            '/data/bridgepoint-lighthouses-global-v1.json' \
+            '/bridgepoint-faa-obstruction-towers-v1.js' \
+            '/world-v2300-utility-infrastructure-v1.js'; do
+            name="$(basename "$p" | tr '/.' '__')"
+            curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O$p?verify=$q" -o "$RUNNER_TEMP/$name.verified"
+          done
+          grep -Fq 'initFAAObstructionTowerRenderer' "$RUNNER_TEMP/bridgepoint-faa-obstruction-towers-v1_js.verified"
+          grep -Fq 'initUtilityInfrastructure' "$RUNNER_TEMP/world-v2300-utility-infrastructure-v1_js.verified"
+          grep -Fq 'scheduleBridgeSourceRefresh' "$RUNNER_TEMP/world-v2300-map.js.verified"
+          grep -Fq 'partial-render-ready' "$RUNNER_TEMP/world-v2300-tree-instanced.js.verified"
+          grep -Fq 'updateModelTransforms' "$RUNNER_TEMP/bridgepoint-lighthouses-v1.js.verified"
+          grep -Fq 'PMTILES_LIBRARY_URL' "$RUNNER_TEMP/bridgepoint-streetlights-3d-v1.js.verified"
+          grep -Fq 'GLTFLoader' "$RUNNER_TEMP/GLTFLoader_bundle.js.verified"
+          echo "BRIDGEPOINT_RENDERER_RELIABILITY_LIVE_PASS"
