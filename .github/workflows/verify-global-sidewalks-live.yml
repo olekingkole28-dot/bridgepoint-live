@@ -1,0 +1,69 @@
+name: Verify BridgePoint Global 3D Sidewalks Live
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/verify-global-sidewalks-live.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bridgepoint-global-sidewalks-live-verification
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify root and app are serving the exact 3D sidewalk build
+        shell: bash
+        run: |
+          set -euo pipefail
+          O='https://bridgepointintelligence.online'
+          q="sidewalk-live-${GITHUB_SHA}-$(date +%s)"
+          fetch() {
+            local url="$1" output="$2"
+            curl --retry 6 --retry-all-errors --retry-delay 2 --connect-timeout 10 --max-time 30 \
+              -fsSL -H 'Cache-Control: no-cache' "${url}" -o "${output}"
+            test -s "${output}"
+          }
+          fetch "${O}/?verify=${q}" /tmp/root.html
+          fetch "${O}/app/?verify=${q}" /tmp/app.html
+          fetch "${O}/landing.js?verify=${q}" /tmp/landing.js
+          fetch "${O}/app.js?verify=${q}" /tmp/app.js
+          fetch "${O}/world-v2300-map.js?v=6228-global-sidewalk-3d-vector-tiles&verify=${q}" /tmp/root-map.js
+          fetch "${O}/app/world-v2300-map.js?v=6228-global-sidewalk-3d-vector-tiles&verify=${q}" /tmp/app-map.js
+          fetch "${O}/world-v2300-sidewalks-3d.js?v=20261107-global-sidewalk-vector-tiles-v2&verify=${q}" /tmp/root-sidewalk.js
+          fetch "${O}/app/world-v2300-sidewalks-3d.js?v=20261107-global-sidewalk-vector-tiles-v2&verify=${q}" /tmp/app-sidewalk.js
+
+          grep -Fq '6228-global-sidewalk-3d-vector-tiles' /tmp/landing.js
+          grep -Fq '6228-global-sidewalk-3d-vector-tiles' /tmp/app.js
+          grep -Fq "from'./world-v2300-sidewalks-3d.js?v=20261107-global-sidewalk-vector-tiles-v2'" /tmp/root-map.js
+          grep -Fq "from'./world-v2300-sidewalks-3d.js?v=20261107-global-sidewalk-vector-tiles-v2'" /tmp/app-map.js
+
+          for map in /tmp/root-map.js /tmp/app-map.js; do
+            grep -Fq 'gta-bp-sidewalk-slabs-v1' "${map}"
+            grep -Fq 'gta-bp-sidewalk-curbs-v1' "${map}"
+            grep -Fq 'gta-bp-sidewalk-grass-v1' "${map}"
+            grep -Fq 'gta-bp-sidewalk-grass-blades-v1' "${map}"
+            grep -Fq 'gta-bp-sidewalk-joints-cracks-v1' "${map}"
+            grep -Fq 'globalVectorTileFeatures:sidewalkTileFeatures.length' "${map}"
+            grep -Fq "map.queryRenderedFeatures({layers:['gta-global-sidewalk-approach-v1']})" "${map}"
+            grep -Fq "map.getSource('bpSidewalk3D')?.setData({type:'FeatureCollection',features:sidewalk3D.features})" "${map}"
+            node --check "${map}"
+          done
+
+          cmp -s /tmp/root-sidewalk.js /tmp/app-sidewalk.js
+          grep -Fq 'function buildSidewalk3DFeatures' /tmp/root-sidewalk.js
+          grep -Fq "part:'sidewalk_slab'" /tmp/root-sidewalk.js
+          grep -Fq "part:'curb'" /tmp/root-sidewalk.js
+          grep -Fq "part:'grass_verge'" /tmp/root-sidewalk.js
+          grep -Fq "part:'grass_blade'" /tmp/root-sidewalk.js
+          grep -Fq "part:'panel_joint'" /tmp/root-sidewalk.js
+          node --check /tmp/root-sidewalk.js
+
+          echo 'BRIDGEPOINT_GLOBAL_SIDEWALKS_ROOT_APP_LIVE_PASS'
