@@ -1,4 +1,5 @@
 name: Deploy BridgePoint Intelligence V5000 Rebuild
+# Final full-site rollout includes the 6223 mobile cache cutover and global 3D sidewalk vector-tile renderer.
 # Explicit republish after the Blender World imagery-mask regression fix.
 # Reassert transparent native ocean fill after street-zoom imagery smoke.
 # Fresh full-site validation after clearing the stale Pages deployment; includes global 3D sidewalk vector-tile coverage.
