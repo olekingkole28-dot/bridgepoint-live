@@ -91,16 +91,36 @@ jobs:
           # SLDEM2015 global product: 128 pixels/degree, 60S-60N, LOLA + SELENE TC.
           # Browser reads only BridgePoint-hosted static PNG16 tiles, never NASA URLs.
           SLDEM_URL='https://imbrium.mit.edu/DATA/SLDEM2015/GLOBAL/JP2/SLDEM2015_128_60S_60N_000_360.JP2'
+          SLDEM_LABEL_URL='https://imbrium.mit.edu/DATA/SLDEM2015/GLOBAL/JP2/SLDEM2015_128_60S_60N_000_360_JP2.LBL'
           curl --fail --location --retry 4 --retry-all-errors --retry-delay 2 "$SLDEM_URL" -o /tmp/sldem2015-128ppd.jp2
+          curl --fail --location --retry 4 --retry-all-errors --retry-delay 2 "$SLDEM_LABEL_URL" -o /tmp/sldem2015-128ppd.lbl
           gdalinfo -json /tmp/sldem2015-128ppd.jp2 > /tmp/sldem2015-128ppd.json
           python3 - <<'PY'
-          import json
-          info=json.loads(open('/tmp/sldem2015-128ppd.json').read())
+          import json, re
+          from pathlib import Path
+          info=json.loads(Path('/tmp/sldem2015-128ppd.json').read_text())
           assert info.get('size') == [46080, 15360], info.get('size')
-          print('SLDEM2015 128ppd:', info['size'], 'sample type:', info['bands'][0].get('type'))
+          label=Path('/tmp/sldem2015-128ppd.lbl').read_text(errors='replace')
+          def field(name):
+              m=re.search(r'^\\s*'+re.escape(name)+r'\\s*=\\s*([-+]?\\d+(?:\\.\\d*)?)',label,re.M|re.I)
+              return float(m.group(1)) if m else None
+          resolution=field('MAP_RESOLUTION')
+          scale=field('SCALING_FACTOR')
+          offset=field('OFFSET')
+          west=field('WESTERNMOST_LONGITUDE')
+          if west is None:
+              center=field('CENTER_LONGITUDE')
+              assert center is not None, 'PDS label must provide WESTERNMOST_LONGITUDE or CENTER_LONGITUDE'
+              west=(center-180.0)%360.0
+          assert resolution is not None and abs(resolution-128)<0.01, resolution
+          assert scale is not None and abs(scale-0.5)<1e-6, scale
+          assert offset is not None and abs(offset-1737400)<1e-3, offset
+          west=west%360.0
+          # Tile package uses longitude columns -180..+180. Compute source column rotation from PDS origin.
+          shift=round(((180.0-west)%360.0)/10.0)%36
+          Path('/tmp/sldem-source-column-shift.txt').write_text(str(shift))
+          print('SLDEM2015 128ppd:',info['size'],'resolution:',resolution,'scale:',scale,'offset:',offset,'sourceWest:',west,'columnShift:',shift)
           PY
-          # PDS label scale is 0.5m with a 1,737,400m reference-radius offset.
-          # Encode height above that radius to match the in-browser PNG16 decoder.
           gdal_calc.py -A /tmp/sldem2015-128ppd.jp2 --outfile=/tmp/sldem2015-128ppd-u16.tif --calc="numpy.clip(numpy.rint(A.astype(numpy.float32)*0.5+32768.0),0,65535)" --type=UInt16 --NoDataValue=32768 --overwrite
           mkdir -p assets/moon/v1/sldem-128ppd
           for y in $(seq 0 11); do
@@ -108,7 +128,8 @@ jobs:
             yoff=$((y*1280))
             for x in $(seq 0 35); do
               printf -v xx '%02d' "$x"
-              xoff=$((x*1280))
+              source_x=$(((x+$(cat /tmp/sldem-source-column-shift.txt))%36))
+              xoff=$((source_x*1280))
               out="assets/moon/v1/sldem-128ppd/moon-sldem-128ppd-y${yy}-x${xx}.png"
               gdal_translate -q -of PNG -ot UInt16 -co ZLEVEL=9 -srcwin "$xoff" "$yoff" 1280 1280 /tmp/sldem2015-128ppd-u16.tif "$out"
             done
