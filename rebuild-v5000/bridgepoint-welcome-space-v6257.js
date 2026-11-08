@@ -728,6 +728,29 @@ function createMoonTerrainController() {
     moonUserRotation.multiply(yaw).multiply(pitch).multiply(roll).normalize();
     enforceMoonCameraClearance();
   }
+  function moonCameraTiltRadians(){
+    if(viewState!=='moon'||!focusLocalTarget)return 0;
+    moonMesh.updateMatrixWorld(true);
+    const surfaceNormal=focusLocalTarget.clone().normalize().transformDirection(moonMesh.matrixWorld);
+    const cameraOutward=camera.position.clone().sub(target).normalize();
+    return Math.acos(THREE.MathUtils.clamp(cameraOutward.dot(surfaceNormal),-1,1));
+  }
+  function tiltMoonCamera(deltaY){
+    if(viewState!=='moon'||!focusLocalTarget||Math.abs(deltaY)<.01)return;
+    moonMesh.updateMatrixWorld(true);
+    const surfaceNormal=focusLocalTarget.clone().normalize().transformDirection(moonMesh.matrixWorld);
+    const offset=camera.position.clone().sub(target);
+    const currentAngle=Math.acos(THREE.MathUtils.clamp(offset.clone().normalize().dot(surfaceNormal),-1,1));
+    const maximumTilt=THREE.MathUtils.degToRad(84);
+    const nextAngle=THREE.MathUtils.clamp(currentAngle-deltaY*.0042,0,maximumTilt);
+    const deltaAngle=nextAngle-currentAngle;
+    if(Math.abs(deltaAngle)<1e-7)return;
+    const cameraRight=new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion).normalize();
+    offset.applyAxisAngle(cameraRight,deltaAngle);
+    camera.position.copy(target).add(offset);
+    enforceMoonCameraClearance();
+    camera.lookAt(target);
+  }
   function rotateCameraOrMoon(dx,dy){
     if(viewState==='moon'){
       rotateMoonBy(dx,dy);
@@ -787,7 +810,10 @@ function createMoonTerrainController() {
         let twist=gesture.angle-gestureAngle;
         if(twist>Math.PI)twist-=Math.PI*2;
         if(twist<-Math.PI)twist+=Math.PI*2;
-        rotateMoonBy(dx,dy,twist);
+        // Match Earth's globe touchPitch: vertical two-finger movement tilts the view,
+        // horizontal movement spins the lunar globe, and finger spread still zooms.
+        rotateMoonBy(dx,0,twist);
+        tiltMoonCamera(dy);
       }
       if(pinchDistance>0)zoomCameraBy(pinchDistance/gesture.distance);
       pinchDistance=gesture.distance;
@@ -898,6 +924,7 @@ function createMoonTerrainController() {
     focus:focusBody,
     reset:resetView,
     state:()=>({viewState,moonOrbitPeriodDays:MOON_PERIOD_DAYS,
+      moonCameraTiltDegrees:THREE.MathUtils.radToDeg(moonCameraTiltRadians()),
       radiiKm:{earth:EARTH_RADIUS_KM,moon:MOON_RADIUS_KM,sun:SUN_RADIUS_KM},
       cinematicOrbitDistanceScale:'responsive-compressed',
       lunarTerrain:window.__BP_MOON_TERRAIN_V1__||{status:'not-requested'},
