@@ -620,7 +620,7 @@ function createMoonTerrainController() {
     const focused=body==='moon'?moonMesh:body==='sun'?sunMesh:null;
     if(!focused)return;
     focusedObject=focused;viewState=body;camera.up.set(0,1,0);
-    if(body!=='moon'){focusLocalTarget=null;moonTerrainController?.setActive(false);}
+    if(body!=='moon'){focusLocalTarget=null;moonTerrainController?.setActive(false);camera.near=0.001;}else{camera.near=0.00000005;}
     moonPivot.visible=true;sunGroup.visible=true;stars.visible=true;haze.visible=true;
     moonMesh.scale.setScalar(1);sunMesh.scale.setScalar(1);
     const world=focused===sunMesh?sunGroup.getWorldPosition(new THREE.Vector3()):focused.getWorldPosition(new THREE.Vector3());
@@ -648,7 +648,7 @@ function createMoonTerrainController() {
     }
   }
   function resetView(){
-    focusedObject=null;focusLocalTarget=null;viewState='overview';moonTerrainController?.setActive(false);camera.up.set(0,1,0);camera.fov=48;camera.updateProjectionMatrix();
+    focusedObject=null;focusLocalTarget=null;viewState='overview';moonTerrainController?.setActive(false);camera.near=0.001;camera.up.set(0,1,0);camera.fov=48;camera.updateProjectionMatrix();
     moonMesh.scale.setScalar(1);sunMesh.scale.setScalar(1);
     moonPivot.visible=true;sunGroup.visible=true;stars.visible=true;haze.visible=true;
     setResponsiveSunPosition();
