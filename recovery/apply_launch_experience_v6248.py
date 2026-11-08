@@ -5,7 +5,7 @@ import re
 import sys
 from pathlib import Path
 
-BUILD = "v6251-solar-aligned-celestial"
+BUILD = "v6252-galactic-depth"
 SW_URL = "/sw.js?v=6251-solar-aligned-celestial"
 OLD_SW_URL = "/sw.js?v=6247-universal-fresh-entry-sidewalk"
 CACHE_NAME = "bp-intelligence-v6247-universal-fresh-entry-sidewalk"
@@ -30,7 +30,7 @@ def patch_stars(source: str) -> str:
         r"(?ms)^  function buildSpaceStars\(\)\{.*?^  \}\n  buildSpaceStars\(\);"
     )
     replacement = r"""  function buildSpaceStars(){
-    const canvas=document.getElementById('bpwCelestialCanvasV6251');
+    const canvas=document.getElementById('bpwCelestialCanvasV6252');
     if(!canvas||canvas.dataset.built==='1')return;
     const scene=canvas.parentElement;
     const resize=()=>{
@@ -42,13 +42,21 @@ def patch_stars(source: str) -> str:
     resize();
     let state=0x6251a71;
     const random=()=>{state=(state*1664525+1013904223)>>>0;return state/4294967296};
-    const starCount=2200;
+    const lowPower=window.innerWidth<=620||(navigator.deviceMemory||4)<=3;
+    const starCount=lowPower?4200:8200;
     const stars=new Float32Array(starCount*4);
+    const galaxyTilt=-0.42,ga=Math.cos(galaxyTilt),gb=Math.sin(galaxyTilt);
     for(let i=0;i<starCount;i++){
-      stars[i*4]=random()*2-1;
-      stars[i*4+1]=random()*2-1;
-      stars[i*4+2]=random();
-      stars[i*4+3]=random();
+      let x,y;
+      if(random()<.58){
+        x=random()*2-1;
+        const spread=(random()+random()+random()-1.5)*.17;
+        y=.13*Math.sin(x*2.05)+spread;
+        const rx=x*ga-y*gb,ry=x*gb+y*ga;x=rx;y=ry;
+      }else{x=random()*2-1;y=random()*2-1}
+      const shell=random();
+      const z=shell<.20?.025+random()*.20:shell<.62?.23+random()*.38:.62+random()*.38;
+      stars[i*4]=x;stars[i*4+1]=y;stars[i*4+2]=z;stars[i*4+3]=random();
     }
     const gl=canvas.getContext('webgl',{alpha:true,antialias:false,depth:false,powerPreference:'low-power'});
     function celestialAlignment(width,height){
@@ -144,7 +152,7 @@ def patch_stars(source: str) -> str:
     const readAlignment=now=>{
       bindAlignmentMap();if(!alignmentDirty&&now-lastAlignment<650)return currentAlignment;if(now-lastAlignment<110&&currentAlignment)return currentAlignment;
       lastAlignment=now;alignmentDirty=false;currentAlignment=celestialAlignment(canvas.width,canvas.height);
-      window.__BP_CELESTIAL_ALIGNMENT_V6251__=currentAlignment?{...currentAlignment,mapBound:true}:{mapBound:false,waitingForGlobe:true,updatedAt:Date.now()};
+      window.__BP_CELESTIAL_ALIGNMENT_V6252__=currentAlignment?{...currentAlignment,mapBound:true}:{mapBound:false,waitingForGlobe:true,updatedAt:Date.now()};
       return currentAlignment;
     };
     const render=now=>{
@@ -191,7 +199,7 @@ def patch_stars(source: str) -> str:
     return source
 
 def launch_styles() -> str:
-    return r"""<style id="bpWelcomeGateStylesV6251">
+    return r"""<style id="bpWelcomeGateStylesV6252">
 #bpWelcomeGateV1{pointer-events:auto!important;background:radial-gradient(ellipse at 50% 50%,rgba(2,8,18,.015),rgba(0,2,7,.14) 72%,rgba(0,1,5,.30))!important}
 html.bpw-entry-locked #previewMap{background:#00030a!important}
 html.bpw-entry-locked #previewMap canvas{filter:contrast(1.17) saturate(1.10) brightness(1.025)}
@@ -262,7 +270,7 @@ def patch_root_html(source: str) -> str:
     )
     near_anchor = '    <div class="bpw-starfield bpw-stars-near" id="bpwStarsNearV4" aria-hidden="true"></div>\n'
     celestial = near_anchor + """    <div class="bpw-celestial-system" aria-hidden="true">
-      <canvas class="bpw-celestial-canvas" id="bpwCelestialCanvasV6251"></canvas>
+      <canvas class="bpw-celestial-canvas" id="bpwCelestialCanvasV6252"></canvas>
     </div>
 """
     source = replace_once(source, near_anchor, celestial, "insert Moon and Sun models")
@@ -417,11 +425,11 @@ def patch_site(site: Path) -> None:
             'class="bpw-wordmark bpw-wordmark-static"',
             ">INTELLIGENCE</span></div>",
             "bpw-celestial-system",
-            "bpwCelestialCanvasV6251",
+            "bpwCelestialCanvasV6252",
             "bpw-wordmark-main",
             "const starCount=2200",
             "vec3 lunar=mix",
-            "bpWelcomeGateStylesV6251",
+            "bpWelcomeGateStylesV6252",
             'data-mode="signup"',
             'data-mode="signin"',
         ],
@@ -432,7 +440,7 @@ def patch_site(site: Path) -> None:
         ],
         "landing bundle": [SW_URL],
         "app bundle": [SW_URL],
-        "service worker": ["const V='" + CACHE_NAME + "';", "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6251-solar-aligned-celestial'"],
+        "service worker": ["const V='" + CACHE_NAME + "';", "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6252-galactic-depth'"],
         "legacy app index": ['content="0;url=/"', "location.replace('/')", "sw.js?v=6251-solar-aligned-celestial"],
     }
     for label, markers in checks.items():
@@ -449,7 +457,7 @@ def patch_site(site: Path) -> None:
         raise AssertionError("The current installed-app identity changed")
     if legacy_manifest.get("id") != "/app/intelligence-launch/":
         raise AssertionError("The legacy installed-app identity changed")
-    print("BRIDGEPOINT_LAUNCH_EXPERIENCE_V6251_PATCH_PASS")
+    print("BRIDGEPOINT_LAUNCH_EXPERIENCE_V6252_PATCH_PASS")
     print("Website, current PWA and legacy PWA all route to the same root globe gate.")
     print("Only the launch HTML, app-entry handoff, PWA entry URLs and worker update marker are changed.")
     print("Existing offline cache key and authentication/session logic are preserved.")
