@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 BUILD = "v6252-galactic-depth"
-SW_URL = "/sw.js?v=6251-solar-aligned-celestial"
+SW_URL = "/sw.js?v=6252-galactic-depth"
 OLD_SW_URL = "/sw.js?v=6247-universal-fresh-entry-sidewalk"
 CACHE_NAME = "bp-intelligence-v6247-universal-fresh-entry-sidewalk"
 
@@ -365,13 +365,13 @@ def patch_app_index(source: str) -> str:
     source = replace_once(
         source,
         '../manifest.webmanifest"',
-        '../manifest.webmanifest?v=6251-solar-aligned-celestial"',
+        '../manifest.webmanifest?v=6252-galactic-depth"',
         "bust the app manifest URL",
     )
     source = replace_prefix_once(
         source,
         r"(app\.js\?v=)6247-universal-fresh-entry",
-        r"\g<1>6251-solar-aligned-celestial",
+        r"\g<1>6252-galactic-depth",
         "bust the app bundle URL",
     )
     return source
@@ -393,7 +393,7 @@ def patch_legacy_app(source: str) -> str:
     source = replace_once(
         source,
         "sw.js?v=6218-tree-viewport-renderer-refresh",
-        "sw.js?v=6251-solar-aligned-celestial",
+        "sw.js?v=6252-galactic-depth",
         "refresh legacy app service worker",
     )
     source = replace_once(
@@ -426,7 +426,7 @@ def patch_bundle(path: Path) -> None:
     source = replace_once(
         source,
         "navigator.serviceWorker.register('/sw.js?v=6247-universal-fresh-entry-sidewalk',{updateViaCache:'none'})",
-        "navigator.serviceWorker.register('/sw.js?v=6251-solar-aligned-celestial',{updateViaCache:'none'})",
+        "navigator.serviceWorker.register('/sw.js?v=6252-galactic-depth',{updateViaCache:'none'})",
         f"{path.name} service-worker refresh",
     )
     path.write_text(source, encoding="utf-8")
@@ -463,13 +463,13 @@ def patch_site(site: Path) -> None:
     root = replace_once(
         root,
         './manifest.webmanifest"',
-        './manifest.webmanifest?v=6251-solar-aligned-celestial"',
+        './manifest.webmanifest?v=6252-galactic-depth"',
         "bust the root manifest URL",
     )
     root = replace_prefix_once(
         root,
         r"(landing\.js\?v=)6247-universal-fresh-entry",
-        r"\g<1>6251-solar-aligned-celestial",
+        r"\g<1>6252-galactic-depth",
         "bust the landing bundle URL",
     )
     required["root"].write_text(root, encoding="utf-8")
@@ -485,7 +485,7 @@ def patch_site(site: Path) -> None:
     legacy = replace_once(
         legacy,
         './manifest.webmanifest"',
-        './manifest.webmanifest?v=6251-solar-aligned-celestial"',
+        './manifest.webmanifest?v=6252-galactic-depth"',
         "bust the legacy app manifest URL",
     )
     required["legacy app index"].write_text(legacy, encoding="utf-8")
@@ -498,21 +498,28 @@ def patch_site(site: Path) -> None:
             "bpw-celestial-system",
             "bpwCelestialCanvasV6252",
             "bpw-wordmark-main",
-            "const starCount=2200",
+            "const starCount=lowPower?4200:8200",
             "vec3 lunar=mix",
+            "const galaxyProgram=program(",
+            "const planetProgram=program(",
+            "float dustLane=1.0-smoothstep",
+            "name:'Neptune'",
+            "ringR=length(vec2(q.x,q.y/.34))",
+            "renderPlanets(celestial,now)",
+            "depth=.72+z*2.0",
             "bpWelcomeGateStylesV6252",
             'data-mode="signup"',
             'data-mode="signin"',
         ],
         "app index": [
             "/?return=",
-            "app.js?v=6251-solar-aligned-celestial",
-            "manifest.webmanifest?v=6251-solar-aligned-celestial",
+            "app.js?v=6252-galactic-depth",
+            "manifest.webmanifest?v=6252-galactic-depth",
         ],
         "landing bundle": [SW_URL],
         "app bundle": [SW_URL],
         "service worker": ["const V='" + CACHE_NAME + "';", "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6252-galactic-depth'"],
-        "legacy app index": ['content="0;url=/"', "location.replace('/')", "sw.js?v=6251-solar-aligned-celestial"],
+        "legacy app index": ['content="0;url=/"', "location.replace('/')", "sw.js?v=6252-galactic-depth"],
     }
     for label, markers in checks.items():
         content = required[label].read_text(encoding="utf-8")
@@ -536,7 +543,7 @@ def patch_site(site: Path) -> None:
 
 def main() -> None:
     if len(sys.argv) != 2:
-        raise SystemExit("Usage: apply_launch_experience_v6251.py SITE_DIRECTORY")
+        raise SystemExit("Usage: apply_launch_experience_v6252.py SITE_DIRECTORY")
     patch_site(Path(sys.argv[1]))
 
 
