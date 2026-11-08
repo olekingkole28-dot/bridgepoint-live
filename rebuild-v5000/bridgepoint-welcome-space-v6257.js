@@ -767,7 +767,12 @@ function createMoonTerrainController() {
   }
   function refreshLunarTerrainFromView(){
     if(viewState!=='moon'||!moonTerrainController)return;
-    void moonTerrainController.updateForCamera(camera.position.clone()).then(result=>{
+    // Keep the active terrain/focal point under the view center. Using the
+    // camera's radial direction here would snap an oblique two-finger tilt
+    // back to a straight-down view after each gesture.
+    moonMesh.updateMatrixWorld(true);
+    const viewedSurfacePoint=moonMesh.localToWorld(focusLocalTarget.clone());
+    void moonTerrainController.updateForCamera(viewedSurfacePoint).then(result=>{
       if(!result||viewState!=='moon')return;
       focusLocalTarget=result.focusPointLocal.clone();
       moonMesh.updateMatrixWorld(true);
