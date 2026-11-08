@@ -125,11 +125,13 @@ jobs:
           Path('/tmp/sldem-source-column-shift.txt').write_text(str(shift))
           print('SLDEM2015 128ppd:',info['size'],'resolution:',resolution,'scale:',scale,'offset:',offset,'sourceWest:',west,'columnShift:',shift)
           PY
-          # Crop first, then scale each 1280x1280 window independently. This avoids
-          # materializing a 46080x15360 intermediate TIFF before creating the local tiles.
+          # Apply the exact half-metre scale once while making a tiled, compressed
+          # local working TIFF. All 432 small PNG windows are then cut from local disk.
+          gdal_translate -q -of GTiff -ot UInt16 -co TILED=YES -co BLOCKXSIZE=256 -co BLOCKYSIZE=256 -co COMPRESS=DEFLATE -co PREDICTOR=2 -co BIGTIFF=YES -scale 0 65536 32768 65536 /tmp/sldem2015-128ppd.jp2 /tmp/sldem2015-128ppd-u16.tif
+          gdalinfo /tmp/sldem2015-128ppd-u16.tif | grep -Fq 'Size is 46080, 15360'
           mkdir -p assets/moon/v1/sldem-128ppd
           export SLDEM_TILE_SHIFT=$(cat /tmp/sldem-source-column-shift.txt)
-          export SLDEM_TILE_SOURCE=/tmp/sldem2015-128ppd.jp2
+          export SLDEM_TILE_SOURCE=/tmp/sldem2015-128ppd-u16.tif
           seq 0 431 | xargs -r -n 1 -P 4 bash -c '
             set -euo pipefail
             tile_index="$1"
@@ -139,8 +141,7 @@ jobs:
             source_x=$(((x + SLDEM_TILE_SHIFT) % 36))
             xoff=$((source_x * 1280)); yoff=$((y * 1280))
             out="assets/moon/v1/sldem-128ppd/moon-sldem-128ppd-y${yy}-x${xx}.png"
-            # Map raw DEM samples with an exact 0.5 slope and +32768 offset.
-            gdal_translate -q -of PNG -ot UInt16 -co ZLEVEL=6 -scale 0 65536 32768 65536 -srcwin "$xoff" "$yoff" 1280 1280 "$SLDEM_TILE_SOURCE" "$out"
+            gdal_translate -q -of PNG -ot UInt16 -co ZLEVEL=6 -srcwin "$xoff" "$yoff" 1280 1280 "$SLDEM_TILE_SOURCE" "$out"
           ' _
           test "$(find assets/moon/v1/sldem-128ppd -type f -name '*.png' | wc -l)" -eq 432
           gdalinfo assets/moon/v1/sldem-128ppd/moon-sldem-128ppd-y03-x18.png | grep -Fq 'Size is 1280, 1280'
