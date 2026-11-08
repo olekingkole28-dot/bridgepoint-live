@@ -745,9 +745,16 @@ function createMoonTerrainController() {
     const nextAngle=THREE.MathUtils.clamp(currentAngle-deltaY*.0042,0,maximumTilt);
     const deltaAngle=nextAngle-currentAngle;
     if(Math.abs(deltaAngle)<1e-7)return;
-    const cameraRight=new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion).normalize();
-    // Positive pitch moves the camera toward the local horizon; an upward finger drag increases it.
-    offset.applyAxisAngle(cameraRight,-deltaAngle);
+    const viewDirection=offset.clone().normalize();
+    // Rotate around the surface/view tangent so the measured camera angle
+    // increases predictably toward the horizon, independent of camera roll.
+    const pitchAxis=surfaceNormal.clone().cross(viewDirection);
+    if(pitchAxis.lengthSq()<1e-10){
+      pitchAxis.set(1,0,0).applyQuaternion(camera.quaternion);
+    }else{
+      pitchAxis.normalize();
+    }
+    offset.applyAxisAngle(pitchAxis,deltaAngle);
     camera.position.copy(target).add(offset);
     enforceMoonCameraClearance();
     camera.lookAt(target);
