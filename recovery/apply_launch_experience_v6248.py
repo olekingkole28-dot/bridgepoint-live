@@ -90,7 +90,7 @@ def patch_stars(source: str) -> str:
         const angle=Math.acos(cosAngle),testDistance=testPoint&&Number.isFinite(testPoint.x)&&Number.isFinite(testPoint.y)?Math.hypot(testPoint.x-centerPoint.x,testPoint.y-centerPoint.y)*ratio:0;
         const fallbackRadius=unit*.405,earthRadiusPixels=testDistance>0&&Math.sin(angle)>.01?testDistance/Math.sin(angle):fallbackRadius;
         const earthRadius=Math.max(unit*.27,Math.min(unit*.49,earthRadiusPixels))/unit;
-        const centerNX=(centerX-width*.5)/unit,centerNY=(height*.5-centerY)/unit,sunRadius=Math.min(earthRadius*.47,Math.max(.075,Math.min(.16,height/(2*unit)*.20))),moonRadius=earthRadius*.136;
+        const centerNX=(centerX-width*.5)/unit,centerNY=(height*.5-centerY)/unit,sunRadius=Math.min(earthRadius*.47,Math.max(.075,Math.min(.16,height/(2*unit)*.32))),moonRadius=earthRadius*.136;
         const helio=o=>{
           const N=(o.n+o.nd*d)*rad,I=(o.i+o.id*d)*rad,W=(o.w+o.wd*d)*rad,Ecc=o.e+o.ed*d,M=((o.m+o.md*d)%360+360)%360*rad;
           let E=M+Ecc*Math.sin(M)*(1+Ecc*Math.cos(M));
@@ -116,7 +116,7 @@ def patch_stars(source: str) -> str:
           const distance=earthRadius+.12+Math.log1p(range)*.12;
           return{name:o.name,type:o.type,center:[centerNX+dir.x*distance,centerNY+dir.y*distance],radius:o.radius};
         }).filter(Boolean);
-        const verticalHalf=height/(2*unit),sunY=Math.min(earthRadius+sunRadius*.24,verticalHalf-sunRadius*.62),sun=[centerNX,centerNY+sunY],orbitPhase=Date.now()*.000085;
+        const verticalHalf=height/(2*unit),sunY=Math.min(earthRadius+sunRadius*1.95,verticalHalf-sunRadius*.70),sun=[centerNX,centerNY+sunY],orbitPhase=Date.now()*.000085;
         const moon=[centerNX+Math.cos(orbitPhase)*earthRadius*.95,centerNY+(-1.48+Math.sin(orbitPhase)*.34)*earthRadius];
         return{center:[centerNX,centerNY],sun,moon,sunRadius,moonRadius,visible:1,subsolar:{lng:sunLng,lat:sunDec/rad},earthRadius,viewAngle:bearing,planets,direction:[0,1],sunlightDirection:[0,.92,.40],orbitPhase,planetsScale:'compressed-relative',updatedAt:Date.now()};
       }catch(_){return null}
