@@ -174,6 +174,23 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     extensions: { derivatives: true }
   });
   const moonMesh = new THREE.Mesh(moonGeometry, moonMaterial);
+  function createMoonPatchMaterial() {
+    const vertexShader = moonMaterial.vertexShader
+      .replace('varying vec3 vNormal; varying vec3 vPos; varying vec2 vUv;', 'varying vec3 vNormal; varying vec3 vPos; varying vec2 vUv; attribute vec4 color; varying float vAlpha;')
+      .replace('void main(){vUv=uv;vNormal=normalize(normal);vPos=position;', 'void main(){vUv=uv;vNormal=normalize(normal);vPos=position;vAlpha=color.a;');
+    const fragmentShader = moonMaterial.fragmentShader
+      .replace('precision highp float;', 'precision highp float; varying float vAlpha;')
+      .replace('gl_FragColor=vec4(color,1.0);', 'gl_FragColor=vec4(color,vAlpha);');
+    return new THREE.ShaderMaterial({
+      uniforms: moonMaterial.uniforms,
+      vertexShader, fragmentShader,
+      depthTest: true, depthWrite: false, transparent: true,
+      side: THREE.DoubleSide, polygonOffset: true,
+      polygonOffsetFactor: -2, polygonOffsetUnits: -2,
+      extensions: { derivatives: true }
+    });
+  }
+
   const moonUserRotation = new THREE.Quaternion();
   moonMesh.name = 'Moon';
   moonMesh.userData.body = 'moon';
@@ -663,11 +680,7 @@ function createMoonTerrainController() {
     geometry.setIndex(new THREE.BufferAttribute(indices, 1));
     geometry.computeVertexNormals();
     geometry.computeBoundingSphere();
-    const material = new THREE.MeshStandardMaterial({
-      map: colorTexture, vertexColors: true, roughness: 1, metalness: 0, side: THREE.DoubleSide,
-      depthTest: true, depthWrite: false, transparent: true,
-      polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2
-    });
+    const material = createMoonPatchMaterial();
     const mesh = new THREE.Mesh(geometry, material);
     mesh.name = 'BridgePoint locally hosted 512ppd lunar elevation patch';
     mesh.userData = {
@@ -738,11 +751,7 @@ function createMoonTerrainController() {
     geometry.setIndex(new THREE.BufferAttribute(indices.subarray(0, indexOffset), 1));
     geometry.computeVertexNormals();
     geometry.computeBoundingSphere();
-    if (!globalDetailMaterial) globalDetailMaterial = new THREE.MeshStandardMaterial({
-      map: colorTexture, vertexColors: true, roughness: 1, metalness: 0, side: THREE.DoubleSide,
-      depthTest: true, depthWrite: false, transparent: true,
-      polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2
-    });
+    if (!globalDetailMaterial) globalDetailMaterial = createMoonPatchMaterial();
     if (!globalDetailPatchMesh) {
       globalDetailPatchMesh = new THREE.Mesh(geometry, globalDetailMaterial);
       globalDetailPatchMesh.name = 'BridgePoint camera-centered global LOLA 16ppd terrain patch';
