@@ -332,7 +332,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   }
   function focusBody(body){
     groundMode=false;
-    camera.up.set(0,1,0);
+    camera.up.set(0,1,0);camera.fov=48;camera.updateProjectionMatrix();
     moonMesh.scale.setScalar(1);sunMesh.scale.setScalar(1);
     moonPivot.visible=true;sunGroup.visible=true;stars.visible=true;haze.visible=true;
     controls.querySelector('[data-space-ground]').textContent='GROUND SKY';
@@ -391,22 +391,26 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       Math.sin(THREE.MathUtils.degToRad(lat)),
       Math.cos(THREE.MathUtils.degToRad(lat))*Math.sin(THREE.MathUtils.degToRad(lon))
     ).normalize();
+    const phi=THREE.MathUtils.degToRad(lat),lambda=THREE.MathUtils.degToRad(lon);
+    const east=new THREE.Vector3(-Math.sin(lambda),0,Math.cos(lambda));
+    const north=new THREE.Vector3(-Math.sin(phi)*Math.cos(lambda),Math.cos(phi),-Math.sin(phi)*Math.sin(lambda));
     const observer=normal.clone().multiplyScalar(1.0015);
     camera.position.copy(observer);
-    camera.up.copy(normal);
+    camera.up.copy(north);
+    camera.fov=68;camera.updateProjectionMatrix();
     const zenith=observer.clone().add(normal);
     camera.lookAt(zenith);
     target.copy(zenith);
+    const toWorld=v=>east.clone().multiplyScalar(v.x).addScaledVector(normal,v.y).addScaledVector(north,-v.z).normalize();
     const date=new Date(),sun=sunEquatorial(date);
-    const sunDir=equatorialToLocal(sun.ra,sun.dec,date,lat,lon);
+    const sunDir=toWorld(equatorialToLocal(sun.ra,sun.dec,date,lat,lon));
     const moonRA=sun.ra+Math.PI+0.11,moonDec=-sun.dec+0.07;
-    const moonDir=equatorialToLocal(moonRA,moonDec,date,lat,lon);
+    const moonDir=toWorld(equatorialToLocal(moonRA,moonDec,date,lat,lon));
     const distant=900;
     sunGroup.position.copy(observer).addScaledVector(sunDir,distant);
     sunLight.position.copy(sunGroup.position);
     moonPivot.position.set(0,0,0);
     moonMesh.position.copy(observer).addScaledVector(moonDir,distant);
-    moonMesh.scale.setScalar((SUN_RADIUS_KM/MOON_RADIUS_KM)*MOON_RADIUS_KM/SUN_RADIUS_KM);
     // Equal apparent angular radii in ground mode: both subtend about half a degree.
     const apparentRadius=Math.tan(THREE.MathUtils.degToRad(.266))*distant;
     sunMesh.scale.setScalar(apparentRadius/sunRadiusVisual);
