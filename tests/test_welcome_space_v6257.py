@@ -236,6 +236,8 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
             "panMoonSurface(dx,0);",
             "if(viewState!=='moon')",
             "function buildHighResolutionPatch()",
+            "geometry.setIndex(new THREE.BufferAttribute(indices, 1))",
+            "geometry.setIndex(new THREE.BufferAttribute(indices.subarray(0, indexOffset), 1))",
             "globalHeightResolution",
             "highResolutionPatchResolution",
             "externalRuntimeTerrainRequests: 0",
@@ -299,6 +301,13 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
             "animateCamera(world.clone().add(new THREE.Vector3(0,0,sunRadiusVisual*2.7)),world,1.8);",
             module,
         )
+
+    def test_lunar_mesh_indices_are_buffer_attributes(self):
+        module = (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text()
+        self.assertIn("geometry.setIndex(new THREE.BufferAttribute(indices, 1))", module)
+        self.assertIn("geometry.setIndex(new THREE.BufferAttribute(indices.subarray(0, indexOffset), 1))", module)
+        self.assertNotIn("geometry.setIndex(indices);", module)
+        self.assertNotIn("geometry.setIndex(indices.subarray(0, indexOffset));", module)
 
     def test_celestial_sky_is_attached_to_the_app_map_without_a_second_canvas(self):
         module = (ROOT / "rebuild-v5000" / "bridgepoint-celestial-sky-v6257.js").read_text()
