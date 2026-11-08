@@ -155,7 +155,7 @@ jobs:
                grep -Fq 'bpw-celestial-system' /tmp/live-root.html 2>/dev/null &&
                grep -Fq 'bpw-moon-sphere' /tmp/live-root.html 2>/dev/null &&
                grep -Fq 'bpw-sun-sphere' /tmp/live-root.html 2>/dev/null &&
-               grep -Fq 'bpwStarsFarV4',456 /tmp/live-root.html 2>/dev/null &&
+               grep -Fq "make('bpwStarsFarV4',456" /tmp/live-root.html 2>/dev/null &&
                grep -Fq '/?return=' /tmp/live-app.html 2>/dev/null &&
                ! grep -Fq '/?auth=signin&return=' /tmp/live-app.html 2>/dev/null &&
                grep -Fq 'content="0;url=/"' /tmp/live-legacy-app.html 2>/dev/null &&
