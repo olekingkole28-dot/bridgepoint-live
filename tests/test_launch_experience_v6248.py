@@ -69,7 +69,7 @@ def root_fixture() -> str:
 </body></html>"""
 
 
-class LaunchExperienceV6251Tests(unittest.TestCase):
+class LaunchExperienceV6252Tests(unittest.TestCase):
     def test_root_has_static_title_two_buttons_no_earth_aura(self):
         out = patch_root_html(root_fixture())
         self.assertIn(">INTELLIGENCE</span></div>", out)
@@ -78,13 +78,13 @@ class LaunchExperienceV6251Tests(unittest.TestCase):
         self.assertNotIn('class="bpw-globe-aura"', out)
         self.assertNotIn("WELCOME TO", out)
         self.assertNotIn('class="bpw-explainer"', out)
-        self.assertIn("bpwCelestialCanvasV6251", out)
+        self.assertIn("bpwCelestialCanvasV6252", out)
         self.assertIn("bpw-wordmark-main", out)
         self.assertIn("bpw-celestial-system", out)
-        self.assertIn("const starCount=2200", out)
+        self.assertIn("const starCount=lowPower?4200:8200", out)
         self.assertIn("vec3 lunar=mix", out)
         self.assertIn("function celestialAlignment(width,height)", out)
-        self.assertIn("__BP_CELESTIAL_ALIGNMENT_V6251__", out)
+        self.assertIn("__BP_CELESTIAL_ALIGNMENT_V6252__", out)
         self.assertIn("flareReach=1.16", out)
         self.assertIn("craterRelief(uv,rim,shadow)", out)
         self.assertIn("bigGrid=uv*vec2(7.0,4.8)", out)
@@ -95,7 +95,15 @@ class LaunchExperienceV6251Tests(unittest.TestCase):
         self.assertIn("if(u_celestialVisible>.5){vec2 mdv=", out)
         self.assertIn("gl.drawArrays(gl.POINTS", out)
         self.assertIn("bpw-wordmark-main", out)
-        self.assertIn("moonRadius=.05", out)
+        self.assertIn("moonRadius=.052", out)
+        self.assertIn("const galaxyProgram=program(", out)
+        self.assertIn("const planetProgram=program(", out)
+        self.assertIn("float dustLane=1.0-smoothstep", out)
+        self.assertIn("name:'Neptune'", out)
+        self.assertIn("ringR=length(vec2(q.x,q.y/.34))", out)
+        self.assertIn("renderPlanets(celestial,now)", out)
+        self.assertIn("depth=.72+z*2.0", out)
+        self.assertIn("v_bright=step(.82,a_pos.w)", out)
         self.assertIn("function buildWordmark(){", out)
         self.assertIn("return 0;", out)
         self.assertNotIn("document.createElement('i')", out)
@@ -110,8 +118,8 @@ catch(_){location.replace('/?auth=signin&return='+encodeURIComponent(location.pa
         out = patch_app_index(src)
         self.assertEqual(out.count("/?return="), 2)
         self.assertNotIn("/?auth=signin&return=", out)
-        self.assertIn("app.js?v=6251-solar-aligned-celestial&sidewalk=6247", out)
-        self.assertIn("manifest.webmanifest?v=6251-solar-aligned-celestial", out)
+        self.assertIn("app.js?v=6252-galactic-depth&sidewalk=6247", out)
+        self.assertIn("manifest.webmanifest?v=6252-galactic-depth", out)
 
     def test_legacy_app_redirects_root_and_keeps_current_offline_cache(self):
         src = """<link rel="manifest" href="./manifest.webmanifest"><meta http-equiv="refresh" content="4;url=/app/?migrated=legacy-intelligence-v5820">
@@ -124,7 +132,7 @@ finally{location.replace('/app/?migrated=legacy-intelligence-v5820')}
         self.assertIn('content="0;url=/"', out)
         self.assertIn('href="/"', out)
         self.assertIn("location.replace('/')", out)
-        self.assertIn("sw.js?v=6251-solar-aligned-celestial", out)
+        self.assertIn("sw.js?v=6252-galactic-depth", out)
         self.assertIn("k!=='bp-intelligence-v6247-universal-fresh-entry-sidewalk'", out)
 
     def test_root_manifest_start_url_changes_but_identity_is_preserved(self):
