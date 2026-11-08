@@ -214,14 +214,23 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
         ):
             self.assertIn(marker, module)
 
-    def test_moon_focus_uses_nasa_dem_tiles_and_can_reach_surface_zoom(self):
+    def test_moon_focus_uses_locally_hosted_elevation_assets_and_can_reach_surface_zoom(self):
         module = (ROOT / "rebuild-v5000" / "bridgepoint-welcome-space-v6257.js").read_text()
         for marker in (
             "function createMoonTerrainController()",
-            "Apollo15_MetricCam_Gray_Global_1024ppd",
-            "LRO_WAC_Mosaic_Global_303ppd_v02",
-            "heightRangeMeters: [-8000, 8000]",
-            "pixels[pixelOffset] / 255 * 16000 - 8000",
+            "const ASSET = '/assets/moon/v1/'",
+            "function decodePng16Gray(url)",
+            "new DecompressionStream('deflate')",
+            "moon-global-height-4ppd-u16.png",
+            "moon-apollo15-4deg-512ppd-height-u16.png",
+            "moon-lroc-color-4k.webp",
+            "function buildGlobalTerrain()",
+            "function buildHighResolutionPatch()",
+            "globalHeightResolution",
+            "highResolutionPatchResolution",
+            "externalRuntimeTerrainRequests: 0",
+            "runtimeMode: 'local-static-assets'",
+            "function sampleGrid(grid, u, v)",
             "new THREE.MeshStandardMaterial({",
             "moonMaterial.uniforms.uTerrainMask.value = maskTexture",
             "viewState==='moon'?0.00000045:1.8",
@@ -243,12 +252,14 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
             "function enforceMoonCameraClearance()",
             "moonTerrainController?.surfaceRadiusAt(latitude,longitude)",
             "if(viewState==='moon'){enforceMoonCameraClearance();camera.lookAt(target);}",
-            "coverageContext.putImageData(coverageImage, 0, 0)",
             "depthTest: true, depthWrite: true, transparent: false",
             "#include <logdepthbuf_vertex>",
             "#include <logdepthbuf_fragment>",
         ):
             self.assertIn(marker, module)
+
+        self.assertNotIn("trek.nasa.gov/tiles/Moon", module)
+        self.assertNotIn("fetch(src", module)
 
         # The Sun's original focus camera branch remains intact.
         self.assertIn(
