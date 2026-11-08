@@ -8,6 +8,7 @@ on:
       - 'recovery/apply_welcome_space_v6257.py'
       - 'tests/test_welcome_space_v6257.py'
       - 'rebuild-v5000/bridgepoint-welcome-space-v6257.js'
+      - 'rebuild-v5000/bridgepoint-celestial-sky-v6257.js'
   workflow_dispatch:
 
 permissions:
