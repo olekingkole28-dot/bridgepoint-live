@@ -40,7 +40,7 @@ def patch_stars(source: str) -> str:
       canvas.height=Math.max(1,Math.round((rect.height||window.innerHeight||780)*ratio));
     };
     resize();
-    let state=0x6250a71;
+    let state=0x6251a71;
     const random=()=>{state=(state*1664525+1013904223)>>>0;return state/4294967296};
     const starCount=2200;
     const stars=new Float32Array(starCount*4);
@@ -155,7 +155,7 @@ def patch_stars(source: str) -> str:
         const celestial=readAlignment(now);
         gl.useProgram(sphereProgram);gl.bindBuffer(gl.ARRAY_BUFFER,quad);gl.enableVertexAttribArray(quadPosition);gl.vertexAttribPointer(quadPosition,2,gl.FLOAT,false,0,0);gl.uniform2f(sphereResolution,canvas.width,canvas.height);gl.uniform1f(sphereTime,now);
         gl.uniform2f(sphereSun,celestial?.sun?.[0]||0,celestial?.sun?.[1]||0);gl.uniform2f(sphereMoon,celestial?.moon?.[0]||0,celestial?.moon?.[1]||0);
-        gl.uniform1f(sphereSunRadius,celestial?.sunRadius||.066);gl.uniform1f(sphereMoonRadius,celestial?.moonRadius||.046);gl.uniform1f(sphereVisible,celestial?.visible?1:0);
+        gl.uniform1f(sphereSunRadius,celestial?.sunRadius||.066);gl.uniform1f(sphereMoonRadius,celestial?.moonRadius||.05);gl.uniform1f(sphereVisible,celestial?.visible?1:0);
         gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
       }
       frame=requestAnimationFrame(render);
@@ -168,7 +168,7 @@ def patch_stars(source: str) -> str:
         const celestial=readAlignment(0);
         gl.useProgram(sphereProgram);gl.bindBuffer(gl.ARRAY_BUFFER,quad);gl.enableVertexAttribArray(quadPosition);gl.vertexAttribPointer(quadPosition,2,gl.FLOAT,false,0,0);gl.uniform2f(sphereResolution,canvas.width,canvas.height);gl.uniform1f(sphereTime,0);
         gl.uniform2f(sphereSun,celestial?.sun?.[0]||0,celestial?.sun?.[1]||0);gl.uniform2f(sphereMoon,celestial?.moon?.[0]||0,celestial?.moon?.[1]||0);
-        gl.uniform1f(sphereSunRadius,celestial?.sunRadius||.066);gl.uniform1f(sphereMoonRadius,celestial?.moonRadius||.046);gl.uniform1f(sphereVisible,celestial?.visible?1:0);gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+        gl.uniform1f(sphereSunRadius,celestial?.sunRadius||.066);gl.uniform1f(sphereMoonRadius,celestial?.moonRadius||.05);gl.uniform1f(sphereVisible,celestial?.visible?1:0);gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
       }else if(!frame)frame=requestAnimationFrame(render);
     };
     window.addEventListener('resize',redraw,{passive:true});
@@ -286,13 +286,13 @@ def patch_app_index(source: str) -> str:
     source = replace_once(
         source,
         '../manifest.webmanifest"',
-        '../manifest.webmanifest?v=6250-deep-space-3d"',
+        '../manifest.webmanifest?v=6251-solar-aligned-celestial"',
         "bust the app manifest URL",
     )
     source = replace_prefix_once(
         source,
         r"(app\.js\?v=)6247-universal-fresh-entry",
-        r"\g<1>6250-deep-space-3d",
+        r"\g<1>6251-solar-aligned-celestial",
         "bust the app bundle URL",
     )
     return source
@@ -314,7 +314,7 @@ def patch_legacy_app(source: str) -> str:
     source = replace_once(
         source,
         "sw.js?v=6218-tree-viewport-renderer-refresh",
-        "sw.js?v=6250-deep-space-3d",
+        "sw.js?v=6251-solar-aligned-celestial",
         "refresh legacy app service worker",
     )
     source = replace_once(
@@ -347,7 +347,7 @@ def patch_bundle(path: Path) -> None:
     source = replace_once(
         source,
         "navigator.serviceWorker.register('/sw.js?v=6247-universal-fresh-entry-sidewalk',{updateViaCache:'none'})",
-        "navigator.serviceWorker.register('/sw.js?v=6250-deep-space-3d',{updateViaCache:'none'})",
+        "navigator.serviceWorker.register('/sw.js?v=6251-solar-aligned-celestial',{updateViaCache:'none'})",
         f"{path.name} service-worker refresh",
     )
     path.write_text(source, encoding="utf-8")
@@ -384,13 +384,13 @@ def patch_site(site: Path) -> None:
     root = replace_once(
         root,
         './manifest.webmanifest"',
-        './manifest.webmanifest?v=6250-deep-space-3d"',
+        './manifest.webmanifest?v=6251-solar-aligned-celestial"',
         "bust the root manifest URL",
     )
     root = replace_prefix_once(
         root,
         r"(landing\.js\?v=)6247-universal-fresh-entry",
-        r"\g<1>6250-deep-space-3d",
+        r"\g<1>6251-solar-aligned-celestial",
         "bust the landing bundle URL",
     )
     required["root"].write_text(root, encoding="utf-8")
@@ -406,7 +406,7 @@ def patch_site(site: Path) -> None:
     legacy = replace_once(
         legacy,
         './manifest.webmanifest"',
-        './manifest.webmanifest?v=6250-deep-space-3d"',
+        './manifest.webmanifest?v=6251-solar-aligned-celestial"',
         "bust the legacy app manifest URL",
     )
     required["legacy app index"].write_text(legacy, encoding="utf-8")
@@ -427,13 +427,13 @@ def patch_site(site: Path) -> None:
         ],
         "app index": [
             "/?return=",
-            "app.js?v=6250-deep-space-3d",
-            "manifest.webmanifest?v=6250-deep-space-3d",
+            "app.js?v=6251-solar-aligned-celestial",
+            "manifest.webmanifest?v=6251-solar-aligned-celestial",
         ],
         "landing bundle": [SW_URL],
         "app bundle": [SW_URL],
         "service worker": ["const V='" + CACHE_NAME + "';", "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6251-solar-aligned-celestial'"],
-        "legacy app index": ['content="0;url=/"', "location.replace('/')", "sw.js?v=6250-deep-space-3d"],
+        "legacy app index": ['content="0;url=/"', "location.replace('/')", "sw.js?v=6251-solar-aligned-celestial"],
     }
     for label, markers in checks.items():
         content = required[label].read_text(encoding="utf-8")
@@ -457,7 +457,7 @@ def patch_site(site: Path) -> None:
 
 def main() -> None:
     if len(sys.argv) != 2:
-        raise SystemExit("Usage: apply_launch_experience_v6250.py SITE_DIRECTORY")
+        raise SystemExit("Usage: apply_launch_experience_v6251.py SITE_DIRECTORY")
     patch_site(Path(sys.argv[1]))
 
 
