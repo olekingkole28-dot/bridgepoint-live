@@ -685,7 +685,6 @@ function createMoonTerrainController() {
         });
         if (!response.ok) throw new Error('Local lunar feature labels unavailable (' + response.status + ')');
         labelData = await response.json();
-        prepareLunarLabels();
       } catch (labelError) {
         labelData = null;
         preparedLabels = [];
@@ -695,6 +694,7 @@ function createMoonTerrainController() {
       globalData = results[0];
       patchData = results[1];
       colorTexture = results[2];
+      if (labelData) prepareLunarLabels();
       colorTexture.colorSpace = THREE.SRGBColorSpace;
       colorTexture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
       colorTexture.generateMipmaps = true;
