@@ -938,6 +938,7 @@ function createMoonTerrainController() {
     reset:resetView,
     state:()=>({viewState,moonOrbitPeriodDays:MOON_PERIOD_DAYS,
       moonCameraTiltDegrees:THREE.MathUtils.radToDeg(moonCameraTiltRadians()),
+      moonCameraDistanceKm:viewState==='moon'?camera.position.distanceTo(target)*EARTH_RADIUS_KM:null,
       radiiKm:{earth:EARTH_RADIUS_KM,moon:MOON_RADIUS_KM,sun:SUN_RADIUS_KM},
       cinematicOrbitDistanceScale:'responsive-compressed',
       lunarTerrain:window.__BP_MOON_TERRAIN_V1__||{status:'not-requested'},
