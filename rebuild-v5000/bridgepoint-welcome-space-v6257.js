@@ -118,7 +118,9 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     vertexShader: `
       #include <logdepthbuf_pars_vertex>
       varying vec3 vNormal; varying vec3 vPos; varying vec2 vUv;
-      void main(){vUv=uv;vNormal=normalize(normalMatrix*normal);vPos=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);#include <logdepthbuf_vertex>}
+      void main(){vUv=uv;vNormal=normalize(normalMatrix*normal);vPos=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);
+        #include <logdepthbuf_vertex>
+      }
     `,
     fragmentShader: `
       precision highp float; varying vec3 vNormal; varying vec3 vPos; varying vec2 vUv; uniform float uTime; uniform vec3 uSunDir; uniform sampler2D uBaseTexture; uniform float uBaseTextureReady; uniform sampler2D uTerrainMask; uniform vec4 uTerrainUvRect; uniform float uTerrainActive;
