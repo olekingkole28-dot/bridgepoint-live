@@ -5,9 +5,9 @@ import re
 import sys
 from pathlib import Path
 
-BUILD = "v6259-moon-surface-explorer"
+BUILD = "v6260-moon-focus-isolated"
 # Moon terrain assets are bundled locally under assets/moon/v1; runtime requests stay same-origin.
-SW_URL = "/sw.js?v=6259-moon-surface-explorer"
+SW_URL = "/sw.js?v=6260-moon-focus-isolated"
 CACHE_NAME = "bp-intelligence-v6247-universal-fresh-entry-sidewalk"
 
 
@@ -29,7 +29,7 @@ def patch_stars(source: str) -> str:
     # The dedicated Three.js module owns the welcome starfield, Moon and Sun.
     pattern = re.compile(r"(?ms)^  function buildSpaceStars\(\)\{.*?^  \}\n  buildSpaceStars\(\);")
     replacement = """  function buildSpaceStars(){
-    // Rendering is provided by bridgepoint-welcome-space-v6257.js.
+    // Rendering is provided by bridgepoint-welcome-space-v6260.js.
   }
   buildSpaceStars();"""
     source, count = pattern.subn(replacement, source, count=1)
@@ -123,7 +123,7 @@ def patch_root_html(source: str) -> str:
 """
     source = replace_once(source, near_anchor, celestial, "insert Moon and Sun stage")
     source = patch_stars(source)
-    module_tag = '<script type="module" src="/bridgepoint-welcome-space-v6257.js?v=6259-moon-surface-explorer"></script>\n'
+    module_tag = '<script type="module" src="/bridgepoint-welcome-space-v6260.js?v=6260-moon-focus-isolated"></script>\n'
     source = replace_once(source, "</body>", module_tag + "</body>", "load the modular Three.js welcome scene")
     source = replace_once(source, "</head>", launch_styles() + "\n</head>", "install responsive welcome styling")
 
@@ -154,13 +154,13 @@ def patch_app_index(source: str) -> str:
     source = replace_once(
         source,
         '../manifest.webmanifest"',
-        '../manifest.webmanifest?v=6259-moon-surface-explorer"',
+        '../manifest.webmanifest?v=6260-moon-focus-isolated"',
         "bust the app manifest URL",
     )
     source = replace_prefix_once(
         source,
         r"(app\.js\?v=)6247-universal-fresh-entry",
-        r"\g<1>6259-moon-surface-explorer",
+        r"\g<1>6260-moon-focus-isolated",
         "bust the app bundle URL",
     )
     return source
@@ -182,7 +182,7 @@ def patch_legacy_app(source: str) -> str:
     source = replace_once(
         source,
         "sw.js?v=6218-tree-viewport-renderer-refresh",
-        "sw.js?v=6259-moon-surface-explorer",
+        "sw.js?v=6260-moon-focus-isolated",
         "refresh legacy app service worker",
     )
     source = replace_once(
@@ -215,7 +215,7 @@ def patch_bundle(path: Path) -> None:
     source = replace_once(
         source,
         "navigator.serviceWorker.register('/sw.js?v=6247-universal-fresh-entry-sidewalk',{updateViaCache:'none'})",
-        "navigator.serviceWorker.register('/sw.js?v=6259-moon-surface-explorer',{updateViaCache:'none'})",
+        "navigator.serviceWorker.register('/sw.js?v=6260-moon-focus-isolated',{updateViaCache:'none'})",
         f"{path.name} service-worker refresh",
     )
     path.write_text(source, encoding="utf-8")
@@ -309,7 +309,7 @@ def patch_site(site: Path) -> None:
         "root manifest": site / "manifest.webmanifest",
         "legacy app index": site / "app" / "intelligence-launch" / "index.html",
         "legacy app manifest": site / "app" / "intelligence-launch" / "manifest.webmanifest",
-        "welcome space module": site / "bridgepoint-welcome-space-v6257.js",
+        "welcome space module": site / "bridgepoint-welcome-space-v6260.js",
         "celestial sky module": site / "bridgepoint-celestial-sky-v6257.js",
     }
     for label, path in required.items():
@@ -321,13 +321,13 @@ def patch_site(site: Path) -> None:
     root = replace_once(
         root,
         './manifest.webmanifest"',
-        './manifest.webmanifest?v=6259-moon-surface-explorer"',
+        './manifest.webmanifest?v=6260-moon-focus-isolated"',
         "bust the root manifest URL",
     )
     root = replace_prefix_once(
         root,
         r"(landing\.js\?v=)6247-universal-fresh-entry",
-        r"\g<1>6259-moon-surface-explorer",
+        r"\g<1>6260-moon-focus-isolated",
         "bust the landing bundle URL",
     )
     required["root"].write_text(root, encoding="utf-8")
@@ -345,7 +345,7 @@ def patch_site(site: Path) -> None:
     legacy = replace_once(
         legacy,
         './manifest.webmanifest"',
-        './manifest.webmanifest?v=6259-moon-surface-explorer"',
+        './manifest.webmanifest?v=6260-moon-focus-isolated"',
         "bust the legacy app manifest URL",
     )
     required["legacy app index"].write_text(legacy, encoding="utf-8")
@@ -358,21 +358,21 @@ def patch_site(site: Path) -> None:
             "bpw-celestial-system",
             "bpw-wordmark-main",
             "bpWelcomeGateStylesV6257",
-            'src="/bridgepoint-welcome-space-v6257.js?v=6259-moon-surface-explorer"',
+            'src="/bridgepoint-welcome-space-v6260.js?v=6260-moon-focus-isolated"',
             'data-mode="signup"',
             'data-mode="signin"',
         ],
         "app index": [
             "/?return=",
-            "app.js?v=6259-moon-surface-explorer",
-            "manifest.webmanifest?v=6259-moon-surface-explorer",
+            "app.js?v=6260-moon-focus-isolated",
+            "manifest.webmanifest?v=6260-moon-focus-isolated",
         ],
         "landing bundle": [SW_URL, "bridgepoint-celestial-sky-v6257.js?v=6257"],
         "app bundle": [SW_URL, "bridgepoint-celestial-sky-v6257.js?v=6257"],
-        "service worker": ["const V='" + CACHE_NAME + "';", "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6259-moon-surface-explorer'", "entryRoute", "clients.claim()"],
+        "service worker": ["const V='" + CACHE_NAME + "';", "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6260-moon-focus-isolated'", "entryRoute", "clients.claim()"],
         "welcome space module": ["new THREE.Raycaster()", "logarithmicDepthBuffer: true", "MOON_PERIOD_DAYS = 27.321661", "data-space-reset", "uTime"],
         "celestial sky module": ["apparentAngularRadiusPx", "bp6257-sun-surface", "initBridgePointCelestialSky"],
-        "legacy app index": ['content="0;url=/"', "location.replace('/')", "sw.js?v=6259-moon-surface-explorer"],
+        "legacy app index": ['content="0;url=/"', "location.replace('/')", "sw.js?v=6260-moon-focus-isolated"],
     }
     for label, markers in checks.items():
         content = required[label].read_text(encoding="utf-8")
