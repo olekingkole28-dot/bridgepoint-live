@@ -349,6 +349,8 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
         self.assertIn("geometry.computeVertexNormals()", module)
         self.assertIn("uApolloCutoutActive", module)
         self.assertIn("uGlobalCutoutActive", module)
+        self.assertIn("highResolutionRequestId += 1", module)
+        self.assertIn("highResolutionBounds = null", module)
         self.assertNotIn("float crater(", module)
         self.assertNotIn("crater(p,", module)
 
