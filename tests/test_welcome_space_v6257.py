@@ -291,7 +291,8 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
         self.assertIn('class="bpw-celestial-system"', index)
         helper = (ROOT / "recovery" / "apply_welcome_space_v6257.py").read_text()
         self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6260-moon-focus-isolated"', helper)
-        self.assertIn("cp recovery/bridgepoint-welcome-space-v6260.js site/bridgepoint-welcome-space-v6260.js", workflow)
+        publish_workflow = (ROOT / ".github" / "workflows" / "publish-welcome-space-v6257.yml").read_text()
+        self.assertIn("cp recovery/bridgepoint-welcome-space-v6260.js site/bridgepoint-welcome-space-v6260.js", publish_workflow)
         self.assertIn("cp -a assets/moon/v1 site/assets/moon/v1", workflow)
         self.assertIn("assets/moon/v1/**", workflow)
 
