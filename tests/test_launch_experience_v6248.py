@@ -72,21 +72,21 @@ def root_fixture() -> str:
 class LaunchExperienceV6249Tests(unittest.TestCase):
     def test_root_has_static_title_two_buttons_no_earth_aura(self):
         out = patch_root_html(root_fixture())
-        self.assertIn(">BridgePoint Intelligence</div>", out)
+        self.assertIn(">INTELLIGENCE</span></div>", out)
         self.assertIn('data-mode="signup"', out)
         self.assertIn('data-mode="signin"', out)
         self.assertNotIn('class="bpw-globe-aura"', out)
         self.assertNotIn("WELCOME TO", out)
         self.assertNotIn('class="bpw-explainer"', out)
-        self.assertIn("bpw-moon-sphere", out)
-        self.assertIn("bpw-sun-sphere", out)
+        self.assertIn("bpwCelestialCanvasV6250", out)
+        self.assertIn("bpw-wordmark-main", out)
         self.assertIn("bpw-celestial-system", out)
-        self.assertIn("make('bpwStarsFarV4',456", out)
-        self.assertIn("make('bpwStarsNearV4',228", out)
+        self.assertIn("const starCount=2200", out)
+        self.assertIn("vec3 lunar=mix", out)
         self.assertIn("canvas.getContext('webgl'", out)
         self.assertIn("gl.drawArrays(gl.POINTS", out)
-        self.assertIn("bpw-wordmark-static:before", out)
-        self.assertIn("bpw-moon-spin-v6249", out)
+        self.assertIn("bpw-wordmark-main", out)
+        self.assertIn("moonR=0.037", out)
         self.assertIn("function buildWordmark(){", out)
         self.assertIn("return 0;", out)
         self.assertNotIn("document.createElement('i')", out)
@@ -101,8 +101,8 @@ catch(_){location.replace('/?auth=signin&return='+encodeURIComponent(location.pa
         out = patch_app_index(src)
         self.assertEqual(out.count("/?return="), 2)
         self.assertNotIn("/?auth=signin&return=", out)
-        self.assertIn("app.js?v=6249-volumetric-space&sidewalk=6247", out)
-        self.assertIn("manifest.webmanifest?v=6249-volumetric-space", out)
+        self.assertIn("app.js?v=6250-deep-space-3d&sidewalk=6247", out)
+        self.assertIn("manifest.webmanifest?v=6250-deep-space-3d", out)
 
     def test_legacy_app_redirects_root_and_keeps_current_offline_cache(self):
         src = """<link rel="manifest" href="./manifest.webmanifest"><meta http-equiv="refresh" content="4;url=/app/?migrated=legacy-intelligence-v5820">
@@ -115,7 +115,7 @@ finally{location.replace('/app/?migrated=legacy-intelligence-v5820')}
         self.assertIn('content="0;url=/"', out)
         self.assertIn('href="/"', out)
         self.assertIn("location.replace('/')", out)
-        self.assertIn("sw.js?v=6249-volumetric-space", out)
+        self.assertIn("sw.js?v=6250-deep-space-3d", out)
         self.assertIn("k!=='bp-intelligence-v6247-universal-fresh-entry-sidewalk'", out)
 
     def test_root_manifest_start_url_changes_but_identity_is_preserved(self):
