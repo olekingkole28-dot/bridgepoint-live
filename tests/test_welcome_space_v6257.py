@@ -97,7 +97,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
     def test_root_uses_one_existing_earth_and_no_ground_sky_button(self):
         out = patch_root_html(root_fixture())
         self.assertIn("bpWelcomeGateStylesV6257", out)
-        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6263-moon-imagery-relief"', out)
+        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6264-geometric-crater-bowls"', out)
         self.assertIn('class="bpw-celestial-system" aria-hidden="true"></div>', out)
         self.assertNotIn("bpwCelestialCanvasV6257", out)
         self.assertNotIn('class="bpw-globe-aura"', out)
@@ -113,8 +113,8 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
         app = patch_app_index(app_index_fixture())
         self.assertEqual(app.count("/?return="), 2)
         self.assertNotIn("/?auth=signin&return=", app)
-        self.assertIn("app.js?v=6263-moon-imagery-relief", app)
-        self.assertIn("manifest.webmanifest?v=6263-moon-imagery-relief", app)
+        self.assertIn("app.js?v=6264-geometric-crater-bowls", app)
+        self.assertIn("manifest.webmanifest?v=6264-geometric-crater-bowls", app)
         legacy = patch_legacy_app(legacy_fixture())
         self.assertIn('content="0;url=/"', legacy)
         self.assertIn("location.replace('/')", legacy)
@@ -233,12 +233,10 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
             "THREE.MathUtils.smoothstep(edgeDistance, 0.0, 0.035)",
             "THREE.MathUtils.smoothstep(edgeDistance, 0.0, 0.055)",
             "createMoonPatchMaterial()",
-            "uniforms: moonMaterial.uniforms",
+            "uniforms: { ...moonMaterial.uniforms",
             "vAlpha=color.a",
             "gl_FragColor=vec4(color,vAlpha);",
             "depthWrite: false, transparent: true",
-            "dFdx(relief)",
-            "dFdy(relief)",
             "extensions: { derivatives: true }",
             "uCameraLocal",
             "globalDetailPatch",
@@ -301,7 +299,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
         workflow = (ROOT / ".github" / "workflows" / "deploy-intelligence-rebuild-v5000.yml").read_text()
         self.assertIn('class="bpw-celestial-system"', index)
         helper = (ROOT / "recovery" / "apply_welcome_space_v6257.py").read_text()
-        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6263-moon-imagery-relief"', helper)
+        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6264-geometric-crater-bowls"', helper)
         publish_workflow = (ROOT / ".github" / "workflows" / "publish-welcome-space-v6257.yml").read_text()
         self.assertIn("cp recovery/bridgepoint-welcome-space-v6260.js site/bridgepoint-welcome-space-v6260.js", publish_workflow)
         self.assertIn("cp -a assets/moon/v1 site/assets/moon/v1", workflow)
@@ -324,22 +322,55 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
         module = (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text()
         self.assertNotIn("uTerrainMask", module)
         self.assertNotIn("uGlobalDetailMask", module)
-        self.assertNotIn("discard;", module)
-        self.assertIn("createMoonPatchMaterial()", module)
-        self.assertIn("uniforms: moonMaterial.uniforms", module)
+        self.assertIn("discard;", module)
+        self.assertIn("uAllowDetailCutouts", module)
+        self.assertIn("uniforms: { ...moonMaterial.uniforms, uAllowDetailCutouts", module)
         self.assertIn("vAlpha=color.a", module)
         self.assertIn("depthWrite: false, transparent: true", module)
         self.assertIn("THREE.MathUtils.smoothstep(edgeDistance, 0.0, 0.035)", module)
         self.assertIn("THREE.MathUtils.smoothstep(edgeDistance, 0.0, 0.055)", module)
 
-    def test_lunar_surface_uses_multi_scale_fragment_relief_normals(self):
+    def test_lunar_surface_uses_displaced_dem_geometry_not_fragment_crater_rings(self):
         module = (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text()
-        self.assertIn("crater(p,110.0)*.30", module)
-        self.assertIn("dFdx(relief)", module)
-        self.assertIn("dFdy(relief)", module)
-        self.assertIn("bumpGradient*2.4", module)
-        self.assertIn("extensions: { derivatives: true }", module)
+        self.assertNotIn("float crater(", module)
+        self.assertNotIn("crater(p,", module)
+        self.assertIn("vec3 normal=normalize(vNormal);", module)
+        self.assertIn("geometry.computeVertexNormals()", module)
         self.assertIn("moonMaterial.uniforms.uCameraLocal.value.copy", module)
+
+    def test_moon_craters_are_real_128ppd_displaced_geometry_not_procedural_rings(self):
+        module = (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text()
+        self.assertIn("function loadHighResolutionTile(lat, lon)", module)
+        self.assertIn("function refreshHighResolutionCraterPatch(centerLat, centerLon, force = false)", module)
+        self.assertIn("moon-sldem-128ppd-", module)
+        self.assertIn("const segments = 512, rowWidth = segments + 1", module)
+        self.assertIn("const elevation = baseElevation * (1 - morphToBase) + highResolutionElevation * morphToBase", module)
+        self.assertIn("const point = moonSurfacePoint(lat, lon, elevation)", module)
+        self.assertIn("geometry.computeVertexNormals()", module)
+        self.assertIn("uApolloCutoutActive", module)
+        self.assertIn("uGlobalCutoutActive", module)
+        self.assertIn("highResolutionRequestId += 1", module)
+        self.assertIn("highResolutionBounds = null", module)
+        self.assertNotIn("float crater(", module)
+        self.assertNotIn("crater(p,", module)
+
+    def test_128ppd_lunar_tile_package_is_local_and_complete(self):
+        workflow = (ROOT / ".github" / "workflows" / "publish-welcome-space-v6257.yml").read_text()
+        self.assertIn("https://imbrium.mit.edu/DATA/SLDEM2015/GLOBAL/JP2/SLDEM2015_128_60S_60N_000_360.JP2", workflow)
+        self.assertIn("SLDEM_LABEL_URL", workflow)
+        self.assertIn("WESTERNMOST_LONGITUDE", workflow)
+        self.assertIn("source_shift=$(cat /tmp/sldem-source-column-shift.txt)", workflow)
+        self.assertIn("source_x=$(((x+source_shift)%36))", workflow)
+        self.assertIn("abs(scale-0.5)", workflow)
+        self.assertIn("abs(north-60)", workflow)
+        self.assertIn("abs(south+60)", workflow)
+        self.assertIn("[Ee][-+]?", workflow)
+        self.assertIn("abs(offset-1737400)", workflow)
+        self.assertIn("'tilesAcross':36", workflow)
+        self.assertIn("'tilesDown':12", workflow)
+        self.assertIn("-eq 432", workflow)
+        self.assertIn("sldem-128ppd/moon-sldem-128ppd-yNN-xNN.png", workflow)
+        self.assertIn("moon-sldem-128ppd-y03-x18.png", workflow)
 
     def test_celestial_sky_is_attached_to_the_app_map_without_a_second_canvas(self):
         module = (ROOT / "rebuild-v5000" / "bridgepoint-celestial-sky-v6257.js").read_text()
@@ -381,7 +412,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
             after = {p.relative_to(site).as_posix() for p in site.rglob("*") if p.is_file()}
             self.assertEqual(after - before, set())
             root = (site / "index.html").read_text()
-            self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6263-moon-imagery-relief"', root)
+            self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6264-geometric-crater-bowls"', root)
             self.assertIn("event.persisted", root)
             self.assertIn("location.reload()", root)
             self.assertNotIn("data-space-ground", root)

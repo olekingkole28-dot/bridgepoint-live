@@ -1,4 +1,4 @@
-name: Publish BridgePoint Moon Seamless Imagery and Relief V6263
+name: Publish BridgePoint Moon Geometric Crater Bowls V6264
 
 on:
   push:
@@ -21,7 +21,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: bridgepoint-welcome-space-v6263-moon-imagery-relief
+  group: bridgepoint-welcome-space-v6264-geometric-crater-bowls
   cancel-in-progress: false
 
 jobs:
@@ -75,7 +75,7 @@ jobs:
           print('PRODUCTION_FILES_BEFORE',len(before))
           PY
 
-      - name: Fetch and convert NASA global LOLA 16ppd elevation
+      - name: Fetch NASA LOLA fallback and convert SLDEM2015 128ppd crater tiles
         shell: bash
         run: |
           set -euo pipefail
@@ -88,6 +88,60 @@ jobs:
           gdal_translate -q -of PNG -ot UInt16 /tmp/moon-global-height-16ppd-u16.tif assets/moon/v1/moon-global-height-16ppd-u16.png
           test -s assets/moon/v1/moon-global-height-16ppd-u16.png
           gdalinfo assets/moon/v1/moon-global-height-16ppd-u16.png | grep -Fq 'Type=UInt16'
+          # SLDEM2015 global product: 128 pixels/degree, 60S-60N, LOLA + SELENE TC.
+          # Browser reads only BridgePoint-hosted static PNG16 tiles, never NASA URLs.
+          SLDEM_URL='https://imbrium.mit.edu/DATA/SLDEM2015/GLOBAL/JP2/SLDEM2015_128_60S_60N_000_360.JP2'
+          SLDEM_LABEL_URL='https://imbrium.mit.edu/DATA/SLDEM2015/GLOBAL/JP2/SLDEM2015_128_60S_60N_000_360_JP2.LBL'
+          curl --fail --location --retry 4 --retry-all-errors --retry-delay 2 "$SLDEM_URL" -o /tmp/sldem2015-128ppd.jp2
+          curl --fail --location --retry 4 --retry-all-errors --retry-delay 2 "$SLDEM_LABEL_URL" -o /tmp/sldem2015-128ppd.lbl
+          gdalinfo -json /tmp/sldem2015-128ppd.jp2 > /tmp/sldem2015-128ppd.json
+          python3 - <<'PY'
+          import json, re
+          from pathlib import Path
+          info=json.loads(Path('/tmp/sldem2015-128ppd.json').read_text())
+          assert info.get('size') == [46080, 15360], info.get('size')
+          label=Path('/tmp/sldem2015-128ppd.lbl').read_text(errors='replace')
+          def field(name):
+              m=re.search(r'^\s*'+re.escape(name)+r'\s*=\s*([-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[Ee][-+]?\d+)?)',label,re.M|re.I)
+              return float(m.group(1)) if m else None
+          resolution=field('MAP_RESOLUTION')
+          north=field('MAXIMUM_LATITUDE')
+          south=field('MINIMUM_LATITUDE')
+          scale=field('SCALING_FACTOR')
+          offset=field('OFFSET')
+          west=field('WESTERNMOST_LONGITUDE')
+          if west is None:
+              center=field('CENTER_LONGITUDE')
+              assert center is not None, 'PDS label must provide WESTERNMOST_LONGITUDE or CENTER_LONGITUDE'
+              west=(center-180.0)%360.0
+          assert resolution is not None and abs(resolution-128)<0.01, resolution
+          assert north is not None and abs(north-60)<0.1, north
+          assert south is not None and abs(south+60)<0.1, south
+          assert scale is not None and abs(scale-0.5)<1e-6, scale
+          assert offset is not None and abs(offset-1737400)<1e-3, offset
+          west=west%360.0
+          # Tile package uses longitude columns -180..+180. Compute source column rotation from PDS origin.
+          shift=round(((180.0-west)%360.0)/10.0)%36
+          Path('/tmp/sldem-source-column-shift.txt').write_text(str(shift))
+          print('SLDEM2015 128ppd:',info['size'],'resolution:',resolution,'scale:',scale,'offset:',offset,'sourceWest:',west,'columnShift:',shift)
+          PY
+          gdal_calc.py -A /tmp/sldem2015-128ppd.jp2 --outfile=/tmp/sldem2015-128ppd-u16.tif --calc="numpy.clip(numpy.rint(A.astype(numpy.float32)*0.5+32768.0),0,65535)" --type=UInt16 --NoDataValue=32768 --overwrite
+          mkdir -p assets/moon/v1/sldem-128ppd
+          source_shift=$(cat /tmp/sldem-source-column-shift.txt)
+          for y in $(seq 0 11); do
+            printf -v yy '%02d' "$y"
+            yoff=$((y*1280))
+            for x in $(seq 0 35); do
+              printf -v xx '%02d' "$x"
+              source_x=$(((x+source_shift)%36))
+              xoff=$((source_x*1280))
+              out="assets/moon/v1/sldem-128ppd/moon-sldem-128ppd-y${yy}-x${xx}.png"
+              gdal_translate -q -of PNG -ot UInt16 -co ZLEVEL=9 -srcwin "$xoff" "$yoff" 1280 1280 /tmp/sldem2015-128ppd-u16.tif "$out"
+            done
+          done
+          test "$(find assets/moon/v1/sldem-128ppd -type f -name '*.png' | wc -l)" -eq 432
+          gdalinfo assets/moon/v1/sldem-128ppd/moon-sldem-128ppd-y03-x18.png | grep -Fq 'Size is 1280, 1280'
+          gdalinfo assets/moon/v1/sldem-128ppd/moon-sldem-128ppd-y03-x18.png | grep -Fq 'Type=UInt16'
 
       - name: Add the isolated Moon renderer and in-app sky overlay
         run: |
@@ -96,6 +150,7 @@ jobs:
           mkdir -p site/assets/moon
           cp -a assets/moon/v1 site/assets/moon/v1
           test -s site/assets/moon/v1/moon-global-height-16ppd-u16.png
+          test -s site/assets/moon/v1/sldem-128ppd/moon-sldem-128ppd-y03-x18.png
           python3 - <<'PY'
           import json
           from pathlib import Path
@@ -103,6 +158,7 @@ jobs:
           data=json.loads(p.read_text())
           data['globalHeightFallback']=data.get('globalHeight')
           data['globalHeight']={'file':'moon-global-height-16ppd-u16.png','width':5760,'height':2880,'samplesPerDegree':16,'encoding':'PNG grayscale 16-bit unsigned; elevationMeters = sample - 32768','source':'NASA LRO LOLA LDEM_16; source values are half-meters with +20000 unsigned offset'}
+          data['globalHighResolutionHeight']={'source':'NASA LRO LOLA + SELENE SLDEM2015','resolutionPixelsPerDegree':128,'sampleSpacingMetersAtEquator':236.9011752,'coverageLatitudeDegrees':[-60,60],'tileSizeDegrees':10,'tileWidthPixels':1280,'tileHeightPixels':1280,'tilesAcross':36,'tilesDown':12,'filePattern':'sldem-128ppd/moon-sldem-128ppd-yNN-xNN.png','encoding':'PNG grayscale 16-bit unsigned; elevationMeters = sample - 32768'}
           p.write_text(json.dumps(data,indent=2)+'\n')
           PY
           test -s site/assets/moon/v1/manifest.json
@@ -146,15 +202,18 @@ jobs:
             'assets/moon/v1/moon-lroc-color-4k.webp',
             'assets/moon/v1/moon-feature-labels.json',
           }
-          assert added==expected_added, f'unexpected added files: {sorted(added)}'
+          highres_prefix='assets/moon/v1/sldem-128ppd/'
+          highres_tiles={p for p in added if p.startswith(highres_prefix) and p.endswith('.png')}
+          assert len(highres_tiles)==432, f'expected exactly 432 local SLDEM tiles, found {len(highres_tiles)}'
+          assert added==expected_added | highres_tiles, f'unexpected added files: {sorted(added ^ (expected_added | highres_tiles))}'
           assert changed==expected, f'unexpected production changes: {sorted(changed)}'
-          print('PASS: eight entry/PWA files changed; two celestial modules and six local Moon assets added; all unrelated globe/data/map/feature assets byte-identical.')
+          print('PASS: eight entry/PWA files changed; two celestial modules, six base Moon assets and 432 local SLDEM tiles added; all unrelated globe/data/map/feature assets byte-identical.')
           PY
           node --check /tmp/bridgepoint-welcome-gate-v6257.js
           node --input-type=module --check < site/bridgepoint-welcome-space-v6260.js
           node --input-type=module --check < site/bridgepoint-celestial-sky-v6257.js
           grep -Fq 'bpWelcomeGateStylesV6257' site/index.html
-          grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6263-moon-imagery-relief"' site/index.html
+          grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6264-geometric-crater-bowls"' site/index.html
           grep -Fq 'data-mode="signup"' site/index.html
           grep -Fq 'data-mode="signin"' site/index.html
           grep -Fq 'new THREE.Raycaster()' site/bridgepoint-welcome-space-v6260.js
@@ -176,14 +235,18 @@ jobs:
           grep -Fq 'geometry.setIndex(new THREE.BufferAttribute(indices.subarray(0, indexOffset), 1))' site/bridgepoint-welcome-space-v6260.js
           ! grep -Fq 'uTerrainMask' site/bridgepoint-welcome-space-v6260.js
           ! grep -Fq 'uGlobalDetailMask' site/bridgepoint-welcome-space-v6260.js
-          ! grep -Fq 'discard;' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'uAllowDetailCutouts' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'geometry.computeVertexNormals()' site/bridgepoint-welcome-space-v6260.js
+          ! grep -Fq 'float crater(' site/bridgepoint-welcome-space-v6260.js
+          ! grep -Fq 'crater(p,' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'createMoonPatchMaterial()' site/bridgepoint-welcome-space-v6260.js
-          grep -Fq 'uniforms: moonMaterial.uniforms' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'uniforms: { ...moonMaterial.uniforms' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'vAlpha=color.a' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'THREE.MathUtils.smoothstep(edgeDistance, 0.0, 0.055)' site/bridgepoint-welcome-space-v6260.js
-          grep -Fq 'dFdx(relief)' site/bridgepoint-welcome-space-v6260.js
-          grep -Fq 'dFdy(relief)' site/bridgepoint-welcome-space-v6260.js
-          grep -Fq 'bumpGradient*2.4' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'function refreshHighResolutionCraterPatch(centerLat, centerLon, force = false)' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'geometry.computeVertexNormals()' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'uGlobalCutoutActive' site/bridgepoint-welcome-space-v6260.js
+          ! grep -Fq 'float crater(' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'moonMaterial.uniforms.uCameraLocal.value.copy' site/bridgepoint-welcome-space-v6260.js
           ! grep -Fq 'trek.nasa.gov/tiles/Moon' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'function panMoonSurface(dx, dy)' site/bridgepoint-welcome-space-v6260.js
@@ -232,7 +295,7 @@ jobs:
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/intelligence-launch/?welcome-space-v6257=${q}" -o /tmp/live-legacy.html || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/sw.js?verify=${q}" -o /tmp/live-sw.js || true
             if grep -Fq 'bpWelcomeGateStylesV6257' /tmp/live-root.html 2>/dev/null &&
-               grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6263-moon-imagery-relief"' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6264-geometric-crater-bowls"' /tmp/live-root.html 2>/dev/null &&
                grep -Fq 'new THREE.Raycaster()' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'MOON_PERIOD_DAYS = 27.321661' /tmp/live-space.js 2>/dev/null &&
                ! grep -Fq 'earthMesh' /tmp/live-space.js 2>/dev/null &&
@@ -242,7 +305,12 @@ jobs:
                grep -Fq 'tiltMoonCamera(dy)' /tmp/live-space.js 2>/dev/null &&
                ! grep -Fq 'uTerrainMask' /tmp/live-space.js 2>/dev/null &&
                ! grep -Fq 'uGlobalDetailMask' /tmp/live-space.js 2>/dev/null &&
-               grep -Fq 'dFdx(relief)' /tmp/live-space.js 2>/dev/null &&
+               grep -Fq 'function refreshHighResolutionCraterPatch' /tmp/live-space.js 2>/dev/null &&
+               grep -Fq 'uGlobalCutoutActive' /tmp/live-space.js 2>/dev/null &&
+               ! grep -Fq 'float crater(' /tmp/live-space.js 2>/dev/null &&
+               grep -Fq 'geometry.computeVertexNormals()' /tmp/live-space.js 2>/dev/null &&
+               grep -Fq 'uGlobalCutoutActive' /tmp/live-space.js 2>/dev/null &&
+               ! grep -Fq 'float crater(' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'createMoonPatchMaterial()' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'vAlpha=color.a' /tmp/live-space.js 2>/dev/null &&
                ! grep -Fq 'data-space-ground' /tmp/live-space.js 2>/dev/null &&
@@ -252,7 +320,7 @@ jobs:
                grep -Fq 'entryRoute=' /tmp/live-sw.js 2>/dev/null &&
                grep -Fq '/?return=' /tmp/live-app.html 2>/dev/null &&
                grep -Fq 'content="0;url=/"' /tmp/live-legacy.html 2>/dev/null &&
-               grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6263-moon-imagery-relief'" /tmp/live-sw.js 2>/dev/null &&
+               grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6264-geometric-crater-bowls'" /tmp/live-sw.js 2>/dev/null &&
                grep -Fq 'runtimeMode' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'externalRuntimeTerrainRequests: 0' /tmp/live-space.js 2>/dev/null &&
                ! grep -Fq 'trek.nasa.gov/tiles/Moon' /tmp/live-space.js 2>/dev/null &&
@@ -262,13 +330,14 @@ jobs:
                curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/moon/v1/moon-feature-labels.json?verify=${q}" -o /tmp/live-moon-labels.json &&
                curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/moon/v1/moon-global-height-4ppd-u16.png?verify=${q}" -o /tmp/live-moon-global.png &&
                curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/moon/v1/moon-global-height-16ppd-u16.png?verify=${q}" -o /tmp/live-moon-global16.png &&
+               curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/moon/v1/sldem-128ppd/moon-sldem-128ppd-y03-x18.png?verify=${q}" -o /tmp/live-moon-128ppd.png &&
                curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/moon/v1/moon-apollo15-4deg-512ppd-height-u16.png?verify=${q}" -o /tmp/live-moon-patch.png &&
                curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/moon/v1/moon-lroc-color-4k.webp?verify=${q}" -o /tmp/live-moon-color.webp &&
-               test -s /tmp/live-moon-manifest.json && test -s /tmp/live-moon-global.png && test -s /tmp/live-moon-global16.png && test -s /tmp/live-moon-patch.png && test -s /tmp/live-moon-color.webp && test -s /tmp/live-moon-labels.json; then
+               test -s /tmp/live-moon-manifest.json && test -s /tmp/live-moon-global.png && test -s /tmp/live-moon-global16.png && test -s /tmp/live-moon-128ppd.png && test -s /tmp/live-moon-patch.png && test -s /tmp/live-moon-color.webp && test -s /tmp/live-moon-labels.json; then
               ok=1
               break
             fi
             sleep 3
           done
           test "$ok" -eq 1
-          echo 'LIVE V6263 PASS: original Moon focus and camera controls retained; underlying LROC imagery remains continuous beneath feathered DEM meshes; both terrain overlays fade at edges; derivative multi-scale crater and hill normals plus correct lunar-local Sun lighting verified; local NASA terrain assets and unchanged Earth/world files verified.'
+          echo 'LIVE V6264 PASS: genuine locally hosted SLDEM2015 128ppd displaced crater meshes with computed geometry normals and base-surface occlusion replacement; Apollo 15 512ppd patch retained; procedural crater rings removed; imagery, original Moon focus and touch controls preserved; unrelated Earth/world assets unchanged.'

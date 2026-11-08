@@ -1,5 +1,5 @@
 /**
- * BridgePoint Intelligence — Welcome Space Scene v6263
+ * BridgePoint Intelligence — Welcome Space Scene v6264
  * A self-contained Three.js celestial scene for the welcome gate.
  *
  * Scale policy:
@@ -16,7 +16,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
 
 (() => {
   'use strict';
-  const VERSION = 'v6263';
+  const VERSION = 'v6264';
   if (window.__BP_WELCOME_SPACE_V6257__) return;
   window.__BP_WELCOME_SPACE_V6257__ = true;
 
@@ -126,7 +126,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   scene.add(moonPivot);
   const moonGeometry = new THREE.SphereGeometry(MOON_RADIUS_KM / EARTH_RADIUS_KM, mobile ? 96 : 144, mobile ? 64 : 96);
   const moonMaterial = new THREE.ShaderMaterial({
-    uniforms: { uTime: { value: 0 }, uSunDir: { value: new THREE.Vector3(0.55, 0.38, 0.74).normalize() }, uCameraLocal: { value: new THREE.Vector3(0,0,10) }, uBaseTexture: { value: null }, uBaseTextureReady: { value: 0 } },
+    uniforms: { uTime: { value: 0 }, uSunDir: { value: new THREE.Vector3(0.55, 0.38, 0.74).normalize() }, uCameraLocal: { value: new THREE.Vector3(0,0,10) }, uApolloCutoutRect: { value: new THREE.Vector4(0,0,0,0) }, uApolloCutoutActive: { value: 0 }, uGlobalCutoutRect: { value: new THREE.Vector4(0,0,0,0) }, uGlobalCutoutActive: { value: 0 }, uAllowDetailCutouts: { value: 1 }, uBaseTexture: { value: null }, uBaseTextureReady: { value: 0 } },
     vertexShader: `
       #include <common>
       #include <logdepthbuf_pars_vertex>
@@ -138,31 +138,23 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     fragmentShader: `
       #include <common>
       #include <logdepthbuf_pars_fragment>
-      precision highp float; varying vec3 vNormal; varying vec3 vPos; varying vec2 vUv; uniform float uTime; uniform vec3 uSunDir; uniform vec3 uCameraLocal; uniform sampler2D uBaseTexture; uniform float uBaseTextureReady;
+      precision highp float; varying vec3 vNormal; varying vec3 vPos; varying vec2 vUv; uniform float uTime; uniform vec3 uSunDir; uniform vec3 uCameraLocal; uniform vec4 uApolloCutoutRect; uniform float uApolloCutoutActive; uniform vec4 uGlobalCutoutRect; uniform float uGlobalCutoutActive; uniform float uAllowDetailCutouts; uniform sampler2D uBaseTexture; uniform float uBaseTextureReady;
       float hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
       float noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
         float a=hash(i),b=hash(i+vec3(1,0,0)),c=hash(i+vec3(0,1,0)),d=hash(i+vec3(1,1,0));
         float e=hash(i+vec3(0,0,1)),f1=hash(i+vec3(1,0,1)),g=hash(i+vec3(0,1,1)),hh=hash(i+vec3(1,1,1));
         return mix(mix(mix(a,b,f.x),mix(c,d,f.x),f.y),mix(mix(e,f1,f.x),mix(g,hh,f.x),f.y),f.z);}
       float fbm(vec3 p){float v=0.0,a=.55;for(int i=0;i<5;i++){v+=a*noise(p);p=p*2.03+vec3(2.1,1.4,3.2);a*=.48;}return v;}
-      float crater(vec3 p,float scale){vec3 q=p*scale;vec3 cell=floor(q);vec3 f=fract(q);float bowl=0.0;
-        for(int z=-1;z<=1;z++)for(int y=-1;y<=1;y++)for(int x=-1;x<=1;x++){
-          vec3 id=cell+vec3(float(x),float(y),float(z));vec3 rnd=vec3(hash(id),hash(id+17.2),hash(id+31.7));
-          float d=length(vec3(float(x),float(y),float(z))+.15+rnd*.7-f);float r=.12+hash(id+9.1)*.20;
-          float inside=1.0-smoothstep(r*.53,r*1.02,d);float rim=exp(-pow((d-r)/max(.014,r*.10),2.0));
-          bowl=max(bowl,inside*.46-rim*.14);
-        }return bowl;}
       void main(){
-        vec3 p=normalize(vPos);vec2 bodyUV=vec2(atan(-p.x,p.z)/6.28318530718+.5,.5+asin(clamp(p.y,-1.0,1.0))/3.14159265359);float maria=fbm(p*5.1+vec3(5,2,1));
+        vec3 p=normalize(vPos);vec2 bodyUV=vec2(atan(-p.x,p.z)/6.28318530718+.5,.5+asin(clamp(p.y,-1.0,1.0))/3.14159265359);if(uAllowDetailCutouts>.5){if(uApolloCutoutActive>.5){vec2 apolloUV=(bodyUV-uApolloCutoutRect.xy)/uApolloCutoutRect.zw;if(all(greaterThanEqual(apolloUV,vec2(0.0)))&&all(lessThanEqual(apolloUV,vec2(1.0))))discard;}if(uGlobalCutoutActive>.5){vec2 globalUV=(bodyUV-uGlobalCutoutRect.xy)/uGlobalCutoutRect.zw;if(all(greaterThanEqual(globalUV,vec2(0.0)))&&all(lessThanEqual(globalUV,vec2(1.0))))discard;}}float maria=fbm(p*5.1+vec3(5,2,1));
         float high=fbm(p*24.0);float small=fbm(p*88.0);float micro=fbm(p*176.0);float fine=fbm(p*360.0);
-        float cr=crater(p,19.0)+crater(p,46.0)*.58+crater(p,110.0)*.30;
-        float relief=high*.16+small*.08+micro*.035+fine*.018-cr;
+        float relief=high*.16+small*.08+micro*.035+fine*.018;
         vec3 highlands=vec3(.69,.70,.69);vec3 basalt=vec3(.30,.32,.33);
         vec3 albedo=mix(basalt,highlands,smoothstep(.36,.66,maria+relief*.2));
         vec3 nasaBase=texture2D(uBaseTexture,bodyUV).rgb;
         albedo=mix(albedo,nasaBase*1.32,uBaseTextureReady*.88);
         albedo*=.78+relief*.7;albedo+=vec3(.09,.09,.085)*pow(max(small-.68,0.0),2.0);
-        vec3 baseNormal=normalize(vNormal);vec3 dpdx=dFdx(vPos),dpdy=dFdy(vPos);vec3 r1=cross(dpdy,baseNormal),r2=cross(baseNormal,dpdx);float det=dot(dpdx,r1);vec3 bumpGradient=sign(det)*(dFdx(relief)*r1+dFdy(relief)*r2);vec3 normal=normalize(abs(det)*baseNormal-bumpGradient*2.4);
+        vec3 normal=normalize(vNormal);
         float light=max(dot(normal,normalize(uSunDir)),0.0);float viewFacing=max(dot(normal,normalize(uCameraLocal-vPos)),0.0);
         float limb=.30+.70*pow(viewFacing,.42);
         vec3 color=albedo*(.10+1.05*light)*limb;
@@ -174,7 +166,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     extensions: { derivatives: true }
   });
   const moonMesh = new THREE.Mesh(moonGeometry, moonMaterial);
-  function createMoonPatchMaterial() {
+  function createMoonPatchMaterial(allowDetailCutouts = false) {
     const vertexShader = moonMaterial.vertexShader
       .replace('varying vec3 vNormal; varying vec3 vPos; varying vec2 vUv;', 'varying vec3 vNormal; varying vec3 vPos; varying vec2 vUv; attribute vec4 color; varying float vAlpha;')
       .replace('void main(){vUv=uv;vNormal=normalize(normal);vPos=position;', 'void main(){vUv=uv;vNormal=normalize(normal);vPos=position;vAlpha=color.a;');
@@ -182,7 +174,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       .replace('precision highp float;', 'precision highp float; varying float vAlpha;')
       .replace('gl_FragColor=vec4(color,1.0);', 'gl_FragColor=vec4(color,vAlpha);');
     return new THREE.ShaderMaterial({
-      uniforms: moonMaterial.uniforms,
+      uniforms: { ...moonMaterial.uniforms, uAllowDetailCutouts: { value: allowDetailCutouts ? 1 : 0 } },
       vertexShader, fragmentShader,
       depthTest: true, depthWrite: false, transparent: true,
       side: THREE.DoubleSide, polygonOffset: true,
@@ -334,6 +326,9 @@ function createMoonTerrainController() {
   let colorTexture = null, patchMesh = null;
   let globalDetailPatchMesh = null, globalDetailMaterial = null;
   let globalDetailBounds = null;
+  const highResolutionTileCache = new Map();
+  let highResolutionPatchMesh = null, highResolutionPatchMaterial = null;
+  let highResolutionBounds = null, highResolutionRequestId = 0;
   let labelData = null, preparedLabels = [], labelSprites = new Map(), lastLabelRefreshAt = 0;
   const state = {
     version: 2,
@@ -346,6 +341,8 @@ function createMoonTerrainController() {
     labelCount: 0,
     visibleLabelCount: 0,
     navigationMode: 'surface-pan-pitch-clearance',
+    highResolutionTerrainStatus: 'not-loaded',
+    highResolutionTerrainResolutionPixelsPerDegree: 128,
     updatedAt: Date.now()
   };
   const labelsGroup = new THREE.Group();
@@ -427,6 +424,34 @@ function createMoonTerrainController() {
     const b = values[y1*w+x0] * (1-fx) + values[y1*w+x1] * fx;
     return a * (1-fy) + b * fy - 32768;
   }
+  function highResolutionTileInfo(lat, lon) {
+    if (!Number.isFinite(lat) || lat <= -60 || lat >= 60) return null;
+    const normalizedLon = ((lon + 180) % 360 + 360) % 360 - 180;
+    const column = THREE.MathUtils.clamp(Math.floor((normalizedLon + 180) / 10), 0, 35);
+    const row = THREE.MathUtils.clamp(Math.floor((60 - lat) / 10), 0, 11);
+    const west = -180 + column * 10, north = 60 - row * 10;
+    const rowName = String(row).padStart(2, '0'), columnName = String(column).padStart(2, '0');
+    return { key: 'y' + rowName + '-x' + columnName, row, column, west, east: west + 10, north, south: north - 10, file: 'moon-sldem-128ppd-y' + rowName + '-x' + columnName + '.png' };
+  }
+  async function loadHighResolutionTile(lat, lon) {
+    const info = highResolutionTileInfo(lat, lon);
+    if (!info) return null;
+    if (highResolutionTileCache.has(info.key)) return highResolutionTileCache.get(info.key);
+    const grid = await decodePng16Gray(ASSET + 'sldem-128ppd/' + info.file);
+    if (grid.width !== 1280 || grid.height !== 1280) throw new Error('Invalid local SLDEM2015 128ppd tile dimensions: ' + info.file);
+    const tile = { ...info, ...grid };
+    highResolutionTileCache.set(info.key, tile);
+    while (highResolutionTileCache.size > 2) highResolutionTileCache.delete(highResolutionTileCache.keys().next().value);
+    state.highResolutionTerrainStatus = 'ready';
+    state.highResolutionTerrainTile = info.key;
+    state.highResolutionTerrainSpacingMetersAtEquator = 236.9011752;
+    state.updatedAt = Date.now();
+    return tile;
+  }
+  function sampleHighResolutionTile(tile, lat, lon) {
+    if (!tile || lat < tile.south || lat > tile.north || lon < tile.west || lon > tile.east) return null;
+    return sampleGrid(tile, (lon - tile.west) / 10, (tile.north - lat) / 10);
+  }
   function globalElevation(lat, lon) {
     if (!globalData) return 0;
     const u = (((lon + 180) % 360) + 360) % 360 / 360;
@@ -439,8 +464,12 @@ function createMoonTerrainController() {
     return sampleGrid(patchData, u, v);
   }
   function elevationAt(lat, lon) {
-    const highResolution = patchElevation(lat, lon);
-    return Number.isFinite(highResolution) ? highResolution : globalElevation(lat, lon);
+    const apolloElevation = patchElevation(lat, lon);
+    if (Number.isFinite(apolloElevation)) return apolloElevation;
+    const tileInfo = highResolutionTileInfo(lat, lon);
+    const tile = tileInfo ? highResolutionTileCache.get(tileInfo.key) : null;
+    const globalHighResolution = sampleHighResolutionTile(tile, lat, lon);
+    return Number.isFinite(globalHighResolution) ? globalHighResolution : globalElevation(lat, lon);
   }
   function focusResult(lat, lon) {
     const elevationMeters = elevationAt(lat, lon);
@@ -657,7 +686,10 @@ function createMoonTerrainController() {
       const v = y / segments, lat = PATCH.north - v * (PATCH.north - PATCH.south);
       for (let x = 0; x <= segments; x++) {
         const u = x / segments, lon = PATCH.west + u * (PATCH.east - PATCH.west);
-        const elevation = sampleGrid(patchData, u, v);
+        const sourceElevation = sampleGrid(patchData, u, v);
+        const edgeDistanceDegrees = Math.min(u, v, 1-u, 1-v) * 4;
+        const morphToBase = THREE.MathUtils.smoothstep(edgeDistanceDegrees, 0, 0.16);
+        const elevation = globalElevation(lat, lon) * (1 - morphToBase) + sourceElevation * morphToBase;
         const point = moonSurfacePoint(lat, lon, elevation);
         const vertex = y * rowWidth + x, p = vertex * 3, uv = vertex * 2;
         positions[p] = point.x; positions[p+1] = point.y; positions[p+2] = point.z;
@@ -696,14 +728,23 @@ function createMoonTerrainController() {
     patchMesh = mesh;
 
     patchMesh.visible = active;
+    const inset = 0.17;
+    const uMin = (PATCH.west + inset + 180) / 360;
+    const vMin = 0.5 + (PATCH.south + inset) / 180;
+    moonMaterial.uniforms.uApolloCutoutRect.value.set(uMin, vMin,
+      (PATCH.east - PATCH.west - inset * 2) / 360, (PATCH.north - PATCH.south - inset * 2) / 180);
+    moonMaterial.uniforms.uApolloCutoutActive.value = active ? 1 : 0;
   }
-  function refreshGlobalDetailPatch(centerLat, centerLon, force = false) {
+  async function refreshGlobalDetailPatch(centerLat, centerLon, force = false) {
     if (!active || !globalData || !colorTexture) return;
     const latitudeCenter = THREE.MathUtils.clamp(centerLat, -84.5, 84.5);
     const longitudeCenter = THREE.MathUtils.clamp(centerLon, -174.5, 174.5);
     if (globalDetailBounds && !force
       && Math.abs(latitudeCenter - globalDetailBounds.centerLat) < 3.5
-      && Math.abs(longitudeCenter - globalDetailBounds.centerLon) < 3.5) return;
+      && Math.abs(longitudeCenter - globalDetailBounds.centerLon) < 3.5) {
+      await refreshHighResolutionCraterPatch(centerLat, centerLon, force);
+      return;
+    }
     const halfSpan = 5.5;
     const west = longitudeCenter - halfSpan, east = longitudeCenter + halfSpan;
     const south = Math.max(-90, latitudeCenter - halfSpan);
@@ -751,7 +792,7 @@ function createMoonTerrainController() {
     geometry.setIndex(new THREE.BufferAttribute(indices.subarray(0, indexOffset), 1));
     geometry.computeVertexNormals();
     geometry.computeBoundingSphere();
-    if (!globalDetailMaterial) globalDetailMaterial = createMoonPatchMaterial();
+    if (!globalDetailMaterial) globalDetailMaterial = createMoonPatchMaterial(true);
     if (!globalDetailPatchMesh) {
       globalDetailPatchMesh = new THREE.Mesh(geometry, globalDetailMaterial);
       globalDetailPatchMesh.name = 'BridgePoint camera-centered global LOLA 16ppd terrain patch';
@@ -765,7 +806,111 @@ function createMoonTerrainController() {
     }
     globalDetailPatchMesh.visible = active;
     globalDetailBounds = { west, east, south, north, centerLat: latitudeCenter, centerLon: longitudeCenter };
-    state.globalDetailPatch = { source: 'BridgePoint-hosted NASA LRO LOLA global 16ppd', resolutionPixelsPerDegree: 16, meshVertices: vertexCount, bounds: globalDetailBounds };
+    state.globalDetailPatch = { source: 'BridgePoint-hosted NASA LRO LOLA global 16ppd fallback', resolutionPixelsPerDegree: 16, meshVertices: vertexCount, bounds: globalDetailBounds };
+    state.updatedAt = Date.now();
+    await refreshHighResolutionCraterPatch(centerLat, centerLon, force);
+  }
+  async function refreshHighResolutionCraterPatch(centerLat, centerLon, force = false) {
+    if (!active || !globalData || !colorTexture) return;
+    const tileInfo = highResolutionTileInfo(centerLat, centerLon);
+    if (!tileInfo) {
+      if (highResolutionPatchMesh) highResolutionPatchMesh.visible = false;
+      highResolutionBounds = null;
+      moonMaterial.uniforms.uGlobalCutoutActive.value = 0;
+      state.highResolutionTerrainStatus = 'outside-128ppd-coverage-using-global-LOLA-fallback';
+      return;
+    }
+    if (highResolutionBounds && !force && highResolutionBounds.tileKey === tileInfo.key
+      && Math.abs(centerLat - highResolutionBounds.centerLat) < 0.85
+      && Math.abs(centerLon - highResolutionBounds.centerLon) < 0.85) return;
+    const requestId = ++highResolutionRequestId;
+    let tile;
+    try { tile = await loadHighResolutionTile(centerLat, centerLon); }
+    catch (error) {
+      state.highResolutionTerrainStatus = 'tile-load-failed-using-global-LOLA-fallback';
+      state.highResolutionTerrainError = String(error?.message || error);
+      state.updatedAt = Date.now();
+      console.warn('[BridgePoint Moon] Local 128ppd crater DEM tile unavailable:', error);
+      return;
+    }
+    if (!active || requestId !== highResolutionRequestId || !tile) return;
+    const halfSpan = 2.0;
+    const patchCenterLon = THREE.MathUtils.clamp(centerLon, tile.west + halfSpan, tile.east - halfSpan);
+    const patchCenterLat = THREE.MathUtils.clamp(centerLat, tile.south + halfSpan, tile.north - halfSpan);
+    const west = patchCenterLon - halfSpan, east = patchCenterLon + halfSpan;
+    const south = patchCenterLat - halfSpan, north = patchCenterLat + halfSpan;
+    if (west >= PATCH.west && east <= PATCH.east && south >= PATCH.south && north <= PATCH.north) {
+      if (highResolutionPatchMesh) highResolutionPatchMesh.visible = false;
+      highResolutionBounds = null;
+      moonMaterial.uniforms.uGlobalCutoutActive.value = 0;
+      state.highResolutionTerrainStatus = 'apollo-15-512ppd-patch-has-priority';
+      return;
+    }
+    const segments = 512, rowWidth = segments + 1;
+    const vertexCount = rowWidth * rowWidth;
+    const positions = new Float32Array(vertexCount * 3);
+    const uvs = new Float32Array(vertexCount * 2);
+    const colors = new Float32Array(vertexCount * 4);
+    const indices = new Uint32Array(segments * segments * 6);
+    let indexOffset = 0;
+    for (let y = 0; y <= segments; y++) {
+      const v = y / segments, lat = north - v * (north - south);
+      for (let x = 0; x <= segments; x++) {
+        const u = x / segments, lon = west + u * (east - west);
+        const highResolutionElevation = sampleHighResolutionTile(tile, lat, lon);
+        const baseElevation = globalElevation(lat, lon);
+        const edgeDistanceDegrees = Math.min(lon - west, east - lon, lat - south, north - lat);
+        const morphToBase = THREE.MathUtils.smoothstep(edgeDistanceDegrees, 0, 0.16);
+        const elevation = baseElevation * (1 - morphToBase) + highResolutionElevation * morphToBase;
+        const point = moonSurfacePoint(lat, lon, elevation);
+        const vertex = y * rowWidth + x, p = vertex * 3, uv = vertex * 2;
+        positions[p] = point.x; positions[p+1] = point.y; positions[p+2] = point.z;
+        uvs[uv] = (lon + 180) / 360;
+        uvs[uv+1] = 0.5 + lat / 180;
+        const edgeDistance = Math.min(u, v, 1-u, 1-v);
+        const edgeAlpha = THREE.MathUtils.smoothstep(edgeDistance, 0, 0.04);
+        colors[vertex*4] = 1; colors[vertex*4+1] = 1; colors[vertex*4+2] = 1; colors[vertex*4+3] = edgeAlpha;
+        if (x < segments && y < segments) {
+          const cellLat = north - (y + 0.5) / segments * (north - south);
+          const cellLon = west + (x + 0.5) / segments * (east - west);
+          const insideApolloPatch = cellLon >= PATCH.west && cellLon <= PATCH.east && cellLat >= PATCH.south && cellLat <= PATCH.north;
+          if (!insideApolloPatch) {
+            const a = vertex, b = a + 1, d = a + rowWidth, c = d + 1;
+            indices[indexOffset++] = a; indices[indexOffset++] = b; indices[indexOffset++] = d;
+            indices[indexOffset++] = b; indices[indexOffset++] = c; indices[indexOffset++] = d;
+          }
+        }
+      }
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 4));
+    geometry.setIndex(new THREE.BufferAttribute(indices.subarray(0, indexOffset), 1));
+    geometry.computeVertexNormals();
+    geometry.computeBoundingSphere();
+    if (!highResolutionPatchMaterial) highResolutionPatchMaterial = createMoonPatchMaterial(false);
+    if (!highResolutionPatchMesh) {
+      highResolutionPatchMesh = new THREE.Mesh(geometry, highResolutionPatchMaterial);
+      highResolutionPatchMesh.name = 'BridgePoint locally hosted SLDEM2015 128ppd geometric crater bowls';
+      highResolutionPatchMesh.frustumCulled = false;
+      highResolutionPatchMesh.renderOrder = 4;
+      moonMesh.add(highResolutionPatchMesh);
+    } else {
+      const previous = highResolutionPatchMesh.geometry;
+      highResolutionPatchMesh.geometry = geometry;
+      previous.dispose();
+    }
+    highResolutionPatchMesh.visible = active && indexOffset > 0;
+    highResolutionBounds = { tileKey: tile.key, west, east, south, north, centerLat: patchCenterLat, centerLon: patchCenterLon };
+    const inset = 0.17;
+    const uMin = (west + inset + 180) / 360;
+    const vMin = 0.5 + (south + inset) / 180;
+    moonMaterial.uniforms.uGlobalCutoutRect.value.set(uMin, vMin, (east - west - inset * 2) / 360, (north - south - inset * 2) / 180);
+    moonMaterial.uniforms.uGlobalCutoutActive.value = active && indexOffset > 0 ? 1 : 0;
+    state.highResolutionTerrainStatus = 'ready';
+    state.highResolutionTerrainTile = tile.key;
+    state.highResolutionTerrainMesh = { source: 'NASA LRO LOLA + SELENE SLDEM2015', resolutionPixelsPerDegree: 128, sampleSpacingMetersAtEquator: 236.9011752, vertices: vertexCount, triangles: indexOffset / 3, bounds: highResolutionBounds };
     state.updatedAt = Date.now();
   }
   async function loadLocalAssets() {
@@ -826,8 +971,18 @@ function createMoonTerrainController() {
   }
   function setActive(value) {
     active = !!value;
+    if (!active) {
+      highResolutionRequestId += 1;
+      highResolutionBounds = null;
+      if (highResolutionPatchMesh) highResolutionPatchMesh.visible = false;
+      moonMaterial.uniforms.uGlobalCutoutActive.value = 0;
+      state.highResolutionTerrainStatus = 'inactive';
+    }
     if (patchMesh) patchMesh.visible = active;
     if (globalDetailPatchMesh) globalDetailPatchMesh.visible = active;
+    if (highResolutionPatchMesh) highResolutionPatchMesh.visible = active && !!highResolutionBounds;
+    moonMaterial.uniforms.uApolloCutoutActive.value = active && patchMesh ? 1 : 0;
+    moonMaterial.uniforms.uGlobalCutoutActive.value = active && highResolutionPatchMesh && highResolutionBounds ? 1 : 0;
     labelsGroup.visible = active;
     if (active) refreshLabels(true);
     commitState(active ? (patchMesh ? 'ready' : 'loading') : 'inactive');
@@ -841,7 +996,7 @@ function createMoonTerrainController() {
     const local = moonMesh.worldToLocal(worldPosition.clone()).normalize();
     const lat = THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(local.y, -1, 1)));
     const lon = THREE.MathUtils.radToDeg(Math.atan2(-local.x, local.z));
-    refreshGlobalDetailPatch(lat, lon);
+    void refreshGlobalDetailPatch(lat, lon);
     return Promise.resolve(focusResult(lat, lon));
   }
   window.__BP_MOON_TERRAIN_V1__ = state;
@@ -851,7 +1006,7 @@ function createMoonTerrainController() {
       try {
         await loadLocalAssets();
         setActive(true);
-        refreshGlobalDetailPatch(lat, lon, true);
+        await refreshGlobalDetailPatch(lat, lon, true);
         return focusResult(lat, lon);
       } catch (_) {
         return { lat, lon, elevationMeters: null, focusPointLocal: moonSurfacePoint(lat, lon, 0) };
