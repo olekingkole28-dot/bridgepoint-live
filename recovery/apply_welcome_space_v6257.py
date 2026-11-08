@@ -7,7 +7,7 @@ from pathlib import Path
 
 BUILD = "v6259-moon-surface-explorer"
 # Moon terrain assets are bundled locally under assets/moon/v1; runtime requests stay same-origin.
-SW_URL = "/sw.js?v=6258-local-moon-terrain"
+SW_URL = "/sw.js?v=6259-moon-surface-explorer"
 CACHE_NAME = "bp-intelligence-v6247-universal-fresh-entry-sidewalk"
 
 
