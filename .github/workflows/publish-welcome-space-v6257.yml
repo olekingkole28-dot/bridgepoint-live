@@ -1,4 +1,4 @@
-name: Publish BridgePoint Welcome Space Scene V6257
+name: Publish BridgePoint Moon Surface Explorer V6259
 
 on:
   push:
@@ -20,7 +20,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: bridgepoint-welcome-space-v6258-local-moon-terrain
+  group: bridgepoint-welcome-space-v6259-moon-surface-explorer
   cancel-in-progress: false
 
 jobs:
@@ -84,6 +84,7 @@ jobs:
           test -s site/assets/moon/v1/moon-global-height-4ppd-u16.png
           test -s site/assets/moon/v1/moon-apollo15-4deg-512ppd-height-u16.png
           test -s site/assets/moon/v1/moon-lroc-color-4k.webp
+          test -s site/assets/moon/v1/moon-feature-labels.json
 
       - name: Apply the launch-only entry patch
         run: python3 recovery/apply_welcome_space_v6257.py site
@@ -117,6 +118,7 @@ jobs:
             'assets/moon/v1/moon-global-height-4ppd-u16.png',
             'assets/moon/v1/moon-apollo15-4deg-512ppd-height-u16.png',
             'assets/moon/v1/moon-lroc-color-4k.webp',
+            'assets/moon/v1/moon-feature-labels.json',
           }
           assert added==expected_added, f'unexpected added files: {sorted(added)}'
           assert changed==expected, f'unexpected production changes: {sorted(changed)}'
@@ -136,6 +138,9 @@ jobs:
           grep -Fq 'externalRuntimeTerrainRequests: 0' site/bridgepoint-welcome-space-v6257.js
           grep -Fq 'moon-apollo15-4deg-512ppd-height-u16.png' site/bridgepoint-welcome-space-v6257.js
           ! grep -Fq 'trek.nasa.gov/tiles/Moon' site/bridgepoint-welcome-space-v6257.js
+          grep -Fq 'function panMoonSurface(dx,dy)' site/bridgepoint-welcome-space-v6257.js
+          grep -Fq 'moon-feature-labels.json' site/bridgepoint-welcome-space-v6257.js
+          grep -Fq 'function refreshLabels(force = false)' site/bridgepoint-welcome-space-v6257.js
           ! grep -Fq 'data-space-ground' site/bridgepoint-welcome-space-v6257.js
           ! grep -Fq 'earthMesh' site/bridgepoint-welcome-space-v6257.js
           grep -Fq 'bridgepoint-celestial-sky-v6257.js?v=6257' site/app.js
@@ -190,19 +195,22 @@ jobs:
                grep -Fq 'entryRoute=' /tmp/live-sw.js 2>/dev/null &&
                grep -Fq '/?return=' /tmp/live-app.html 2>/dev/null &&
                grep -Fq 'content="0;url=/"' /tmp/live-legacy.html 2>/dev/null &&
-               grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6258-local-moon-terrain'" /tmp/live-sw.js 2>/dev/null &&
+               grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6259-moon-surface-explorer'" /tmp/live-sw.js 2>/dev/null &&
                grep -Fq 'runtimeMode' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'externalRuntimeTerrainRequests: 0' /tmp/live-space.js 2>/dev/null &&
                ! grep -Fq 'trek.nasa.gov/tiles/Moon' /tmp/live-space.js 2>/dev/null &&
+               grep -Fq 'function panMoonSurface(dx,dy)' /tmp/live-space.js 2>/dev/null &&
+               grep -Fq 'moon-feature-labels.json' /tmp/live-space.js 2>/dev/null &&
                curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/moon/v1/manifest.json?verify=${q}" -o /tmp/live-moon-manifest.json &&
+               curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/moon/v1/moon-feature-labels.json?verify=${q}" -o /tmp/live-moon-labels.json &&
                curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/moon/v1/moon-global-height-4ppd-u16.png?verify=${q}" -o /tmp/live-moon-global.png &&
                curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/moon/v1/moon-apollo15-4deg-512ppd-height-u16.png?verify=${q}" -o /tmp/live-moon-patch.png &&
                curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/moon/v1/moon-lroc-color-4k.webp?verify=${q}" -o /tmp/live-moon-color.webp &&
-               test -s /tmp/live-moon-manifest.json && test -s /tmp/live-moon-global.png && test -s /tmp/live-moon-patch.png && test -s /tmp/live-moon-color.webp; then
+               test -s /tmp/live-moon-manifest.json && test -s /tmp/live-moon-global.png && test -s /tmp/live-moon-patch.png && test -s /tmp/live-moon-color.webp && test -s /tmp/live-moon-labels.json; then
               ok=1
               break
             fi
             sleep 3
           done
           test "$ok" -eq 1
-          echo 'LIVE V6257 PASS: single BridgePoint Earth underlay, clickable 3D Sun/Moon, in-app LOOK UP sky overlay, cache-safe current welcome/app/PWA routes verified.'
+          echo 'LIVE V6259 PASS: Moon surface pan/pitch/clearance and local IAU feature/landing-site labels verified; unrelated Earth/world assets unchanged.'
