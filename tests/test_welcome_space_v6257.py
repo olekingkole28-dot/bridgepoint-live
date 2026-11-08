@@ -355,6 +355,9 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
     def test_128ppd_lunar_tile_package_is_local_and_complete(self):
         workflow = (ROOT / ".github" / "workflows" / "publish-welcome-space-v6257.yml").read_text()
         self.assertIn("https://imbrium.mit.edu/DATA/SLDEM2015/GLOBAL/JP2/SLDEM2015_128_60S_60N_000_360.JP2", workflow)
+        self.assertIn("SLDEM_LABEL_URL", workflow)
+        self.assertIn("WESTERNMOST_LONGITUDE", workflow)
+        self.assertIn("source_x=$(((x+$(cat /tmp/sldem-source-column-shift.txt))%36))", workflow)
         self.assertIn("'tilesAcross':36", workflow)
         self.assertIn("'tilesDown':12", workflow)
         self.assertIn("-eq 432", workflow)
