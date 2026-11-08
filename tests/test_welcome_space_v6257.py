@@ -233,7 +233,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
             "THREE.MathUtils.smoothstep(edgeDistance, 0.0, 0.035)",
             "THREE.MathUtils.smoothstep(edgeDistance, 0.0, 0.055)",
             "createMoonPatchMaterial()",
-            "uniforms: moonMaterial.uniforms",
+            "uniforms: { ...moonMaterial.uniforms",
             "vAlpha=color.a",
             "gl_FragColor=vec4(color,vAlpha);",
             "depthWrite: false, transparent: true",
