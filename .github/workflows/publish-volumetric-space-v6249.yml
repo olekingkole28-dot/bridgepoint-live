@@ -1,0 +1,174 @@
+name: Publish BridgePoint Launch Experience V6249
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-launch-experience-v6249.yml'
+      - 'recovery/apply_launch_experience_v6249.py'
+      - 'tests/test_launch_experience_v6249.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Test the isolated launch patch
+        run: python3 -m unittest discover -s tests -p 'test_launch_experience_v6249.py' -v
+
+      - name: Download the latest deployed V5000 production Pages artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: bridgepoint-v5000-1
+          run-id: 42407820738
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          path: /tmp/bridgepoint-pages-bundle
+
+      - name: Extract the production Pages baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p site
+          ARTIFACT_TAR="$(find /tmp/bridgepoint-pages-bundle -type f -name 'artifact.tar' -print -quit)"
+          test -n "$ARTIFACT_TAR"
+          tar -xf "$ARTIFACT_TAR" -C site
+          for p in index.html app/index.html landing.js app.js sw.js manifest.webmanifest app/intelligence-launch/index.html app/intelligence-launch/manifest.webmanifest; do
+            test -s "site/$p" || { echo "Missing production entry file: $p"; exit 1; }
+          done
+          echo "Restored the exact deployed V5000 Pages artifact from run 42407820738."
+
+      - name: Snapshot every production file before the launch-only patch
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          root=Path('site')
+          before={p.relative_to(root).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                  for p in root.rglob('*') if p.is_file()}
+          Path('/tmp/launch-experience-before.json').write_text(json.dumps(before,sort_keys=True))
+          print('SNAPSHOT_PRODUCTION_FILES',len(before))
+          PY
+
+      - name: Apply only the V6249 launch and installed-app entry changes
+        run: python3 recovery/apply_launch_experience_v6249.py site
+
+      - name: Validate syntax and prove no unrelated production file changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check site/landing.js
+          node --check site/app.js
+          node --check site/sw.js
+          python3 - <<'PY'
+          import hashlib, json, re
+          from pathlib import Path
+          root=Path('site')
+          html=(root/'index.html').read_text(encoding='utf-8')
+          match=re.search(r'<script id="bpWelcomeGateScriptV1">([\s\S]*?)</script>',html)
+          assert match, 'Welcome gate script was not found'
+          Path('/tmp/bridgepoint-welcome-gate-v6249.js').write_text(match.group(1),encoding='utf-8')
+          before=json.loads(Path('/tmp/launch-experience-before.json').read_text())
+          after={p.relative_to(root).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                 for p in root.rglob('*') if p.is_file()}
+          removed=set(before)-set(after)
+          added=set(after)-set(before)
+          changed={p for p in before.keys() & after.keys() if before[p]!=after[p]}
+          expected={
+            'index.html','app/index.html','landing.js','app.js','sw.js','manifest.webmanifest',
+            'app/intelligence-launch/index.html','app/intelligence-launch/manifest.webmanifest'
+          }
+          assert not removed, f'Unexpected removed production files: {sorted(removed)}'
+          assert not added, f'Unexpected added production files: {sorted(added)}'
+          assert changed==expected, f'Unexpected production file changes: {sorted(changed)}'
+          print('PASS: exactly eight launch/PWA entry files changed; every globe, data, map and feature asset is byte-identical.')
+          PY
+          node --check /tmp/bridgepoint-welcome-gate-v6249.js
+          grep -Fq 'bpw-celestial-system' site/index.html
+          grep -Fq 'bpw-moon-sphere' site/index.html
+          grep -Fq 'bpw-sun-sphere' site/index.html
+          grep -Fq "make('bpwStarsFarV4',456" site/index.html
+          grep -Fq "make('bpwStarsNearV4',228" site/index.html
+          ! grep -Fq 'class="bpw-globe-aura"' site/index.html
+          grep -Fq 'BridgePoint Intelligence</div>' site/index.html
+          grep -Fq 'data-mode="signup"' site/index.html
+          grep -Fq 'data-mode="signin"' site/index.html
+          grep -Fq 'start_url":"/"' site/manifest.webmanifest
+          grep -Fq 'start_url":"/"' site/app/intelligence-launch/manifest.webmanifest
+          grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6249-volumetric-space'" site/sw.js
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          name: bridgepoint-launch-experience-v6249
+          path: site
+          include-hidden-files: true
+
+      - name: Publish the isolated V6249 launch experience
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: bridgepoint-launch-experience-v6249
+
+      - name: Verify website, app and legacy installed-app entry on the live domain
+        shell: bash
+        run: |
+          set -euo pipefail
+          O='https://bridgepointintelligence.online'
+          ok=0
+          for i in $(seq 1 30); do
+            q="${GITHUB_SHA}-${i}-$(date +%s)"
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/?launch-v6249=${q}" -o /tmp/live-root.html || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/?launch-v6249=${q}" -o /tmp/live-app.html || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/intelligence-launch/?launch-v6249=${q}" -o /tmp/live-legacy-app.html || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/landing.js?launch-v6249=${q}" -o /tmp/live-landing.js || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app.js?launch-v6249=${q}" -o /tmp/live-app.js || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/sw.js?launch-v6249=${q}" -o /tmp/live-sw.js || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/manifest.webmanifest?launch-v6249=${q}" -o /tmp/live-manifest.json || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/intelligence-launch/manifest.webmanifest?launch-v6249=${q}" -o /tmp/live-legacy-manifest.json || true
+            if grep -Fq 'bpWelcomeGateStylesV6249' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'BridgePoint Intelligence</div>' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'bpw-celestial-system' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'bpw-moon-sphere' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'bpw-sun-sphere' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq "make('bpwStarsFarV4',456" /tmp/live-root.html 2>/dev/null &&
+               grep -Fq '/?return=' /tmp/live-app.html 2>/dev/null &&
+               ! grep -Fq '/?auth=signin&return=' /tmp/live-app.html 2>/dev/null &&
+               grep -Fq 'content="0;url=/"' /tmp/live-legacy-app.html 2>/dev/null &&
+               grep -Fq "location.replace('/')" /tmp/live-legacy-app.html 2>/dev/null &&
+               grep -Fq 'sw.js?v=6249-volumetric-space' /tmp/live-landing.js 2>/dev/null &&
+               grep -Fq 'sw.js?v=6249-volumetric-space' /tmp/live-app.js 2>/dev/null &&
+               grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6249-volumetric-space'" /tmp/live-sw.js 2>/dev/null &&
+               grep -Fq '"start_url":"/"' /tmp/live-manifest.json 2>/dev/null &&
+               grep -Fq '"start_url":"/"' /tmp/live-legacy-manifest.json 2>/dev/null; then
+              ok=1
+              break
+            fi
+            sleep 4
+          done
+          test "$ok" -eq 1
+          echo 'LIVE V6249 PASS: canonical website/PWA gate, legacy-app redirect, two account buttons, lightweight title, starfield, Moon and Sun are published.'
