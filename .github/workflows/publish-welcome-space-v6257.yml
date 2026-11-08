@@ -101,7 +101,7 @@ jobs:
           PY
           # PDS label scale is 0.5m with a 1,737,400m reference-radius offset.
           # Encode height above that radius to match the in-browser PNG16 decoder.
-          gdal_calc.py -A /tmp/sldem2015-128ppd.jp2 --outfile=/tmp/sldem2015-128ppd-u16.tif --calc="numpy.clip(numpy.rint(A.astype(numpy.float32)*0.5+32768.0),0,65535)" --type=UInt16 --NoDataValue=0 --overwrite
+          gdal_calc.py -A /tmp/sldem2015-128ppd.jp2 --outfile=/tmp/sldem2015-128ppd-u16.tif --calc="numpy.clip(numpy.rint(A.astype(numpy.float32)*0.5+32768.0),0,65535)" --type=UInt16 --NoDataValue=32768 --overwrite
           mkdir -p assets/moon/v1/sldem-128ppd
           for y in $(seq 0 11); do
             printf -v yy '%02d' "$y"
@@ -214,8 +214,10 @@ jobs:
           grep -Fq 'uniforms: moonMaterial.uniforms' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'vAlpha=color.a' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'THREE.MathUtils.smoothstep(edgeDistance, 0.0, 0.055)' site/bridgepoint-welcome-space-v6260.js
-          grep -Fq 'dFdx(relief)' site/bridgepoint-welcome-space-v6260.js
-          grep -Fq 'dFdy(relief)' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'function refreshHighResolutionCraterPatch(centerLat, centerLon, force = false)' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'geometry.computeVertexNormals()' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'uGlobalCutoutActive' site/bridgepoint-welcome-space-v6260.js
+          ! grep -Fq 'float crater(' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'bumpGradient*2.4' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'moonMaterial.uniforms.uCameraLocal.value.copy' site/bridgepoint-welcome-space-v6260.js
           ! grep -Fq 'trek.nasa.gov/tiles/Moon' site/bridgepoint-welcome-space-v6260.js
@@ -278,7 +280,9 @@ jobs:
                grep -Fq 'function refreshHighResolutionCraterPatch' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'uGlobalCutoutActive' /tmp/live-space.js 2>/dev/null &&
                ! grep -Fq 'float crater(' /tmp/live-space.js 2>/dev/null &&
-               grep -Fq 'dFdx(relief)' /tmp/live-space.js 2>/dev/null &&
+               grep -Fq 'geometry.computeVertexNormals()' /tmp/live-space.js 2>/dev/null &&
+               grep -Fq 'uGlobalCutoutActive' /tmp/live-space.js 2>/dev/null &&
+               ! grep -Fq 'float crater(' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'createMoonPatchMaterial()' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'vAlpha=color.a' /tmp/live-space.js 2>/dev/null &&
                ! grep -Fq 'data-space-ground' /tmp/live-space.js 2>/dev/null &&
