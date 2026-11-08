@@ -198,8 +198,8 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   moonMesh.position.set(8.2, 0.7, -1.4);
   moonPivot.add(moonMesh);
 
-  const sunPosition = new THREE.Vector3(345, 225, 535);
-  const sunRadiusVisual = SUN_RADIUS_KM / EARTH_RADIUS_KM;
+  const sunPosition = new THREE.Vector3(4.2, 6.2, 4.5);
+  // Cinematic overview compresses inter-body distance and disk scale; ground sky uses apparent angular diameter.\n  const sunRadiusVisual = 1.22;
   const sunGeometry = new THREE.SphereGeometry(sunRadiusVisual, mobile ? 80 : 128, mobile ? 56 : 96);
   const sunMaterial = new THREE.ShaderMaterial({
     uniforms: { uTime: { value: 0 } },
@@ -467,7 +467,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     const E=mean+eccentricity*Math.sin(mean);
     const trueAnomaly=2*Math.atan2(Math.sqrt(1+eccentricity)*Math.sin(E/2),Math.sqrt(1-eccentricity)*Math.cos(E/2));
     const inclination=THREE.MathUtils.degToRad(5.145);
-    const orbitRadius=MOON_ORBIT_KM/EARTH_RADIUS_KM*.22;
+    const aspect=canvas.clientWidth/Math.max(1,canvas.clientHeight);\n    const orbitCompression=aspect<.72?.078:aspect<1?.105:.14;\n    const orbitRadius=MOON_ORBIT_KM/EARTH_RADIUS_KM*orbitCompression;
     moonPivot.position.set(0,0,0);
     if(!groundMode){
       moonMesh.position.set(orbitRadius*Math.cos(trueAnomaly),Math.sin(trueAnomaly)*Math.sin(inclination)*orbitRadius,orbitRadius*Math.sin(trueAnomaly));
