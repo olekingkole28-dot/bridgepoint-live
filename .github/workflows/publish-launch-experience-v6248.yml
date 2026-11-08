@@ -1,4 +1,4 @@
-name: Publish BridgePoint Launch Experience V6250
+name: Publish BridgePoint Launch Experience V6251
 
 on:
   push:
@@ -71,7 +71,7 @@ jobs:
           print('SNAPSHOT_PRODUCTION_FILES',len(before))
           PY
 
-      - name: Apply only the V6250 launch and installed-app entry changes
+      - name: Apply only the V6251 launch and installed-app entry changes
         run: python3 recovery/apply_launch_experience_v6248.py site
 
       - name: Validate syntax and prove no unrelated production file changed
@@ -106,7 +106,11 @@ jobs:
           PY
           node --check /tmp/bridgepoint-welcome-gate-v6250.js
           grep -Fq 'bpw-celestial-system' site/index.html
-          grep -Fq 'bpwCelestialCanvasV6250' site/index.html
+          grep -Fq 'bpwCelestialCanvasV6251' site/index.html
+          grep -Fq 'function celestialAlignment(width,height)' site/index.html
+          grep -Fq '__BP_CELESTIAL_ALIGNMENT_V6251__' site/index.html
+          grep -Fq 'flareReach=1.16' site/index.html
+          grep -Fq 'craterRelief(uv,rim,shadow)' site/index.html
           grep -Fq 'bpw-wordmark-main' site/index.html
           grep -Fq "const starCount=2200" site/index.html
           grep -Fq "vec3 lunar=mix" site/index.html
@@ -116,7 +120,7 @@ jobs:
           grep -Fq 'data-mode="signin"' site/index.html
           grep -Fq 'start_url":"/"' site/manifest.webmanifest
           grep -Fq 'start_url":"/"' site/app/intelligence-launch/manifest.webmanifest
-          grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6250-deep-space-3d'" site/sw.js
+          grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6251-solar-aligned-celestial'" site/sw.js
 
       - uses: actions/configure-pages@v5
         with:
@@ -128,7 +132,7 @@ jobs:
           path: site
           include-hidden-files: true
 
-      - name: Publish the isolated V6250 launch experience
+      - name: Publish the isolated V6251 launch experience
         id: deployment
         uses: actions/deploy-pages@v4
         with:
@@ -150,10 +154,12 @@ jobs:
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/sw.js?launch-v6250=${q}" -o /tmp/live-sw.js || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/manifest.webmanifest?launch-v6250=${q}" -o /tmp/live-manifest.json || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/intelligence-launch/manifest.webmanifest?launch-v6250=${q}" -o /tmp/live-legacy-manifest.json || true
-            if grep -Fq 'bpWelcomeGateStylesV6250' /tmp/live-root.html 2>/dev/null &&
+            if grep -Fq 'bpWelcomeGateStylesV6251' /tmp/live-root.html 2>/dev/null &&
                grep -Fq 'INTELLIGENCE</span></div>' /tmp/live-root.html 2>/dev/null &&
                grep -Fq 'bpw-celestial-system' /tmp/live-root.html 2>/dev/null &&
-               grep -Fq 'bpwCelestialCanvasV6250' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'bpwCelestialCanvasV6251' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'function celestialAlignment(width,height)' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq '__BP_CELESTIAL_ALIGNMENT_V6251__' /tmp/live-root.html 2>/dev/null &&
                grep -Fq 'bpw-wordmark-main' /tmp/live-root.html 2>/dev/null &&
                grep -Fq "const starCount=2200" /tmp/live-root.html 2>/dev/null &&
                grep -Fq '/?return=' /tmp/live-app.html 2>/dev/null &&
@@ -162,7 +168,7 @@ jobs:
                grep -Fq "location.replace('/')" /tmp/live-legacy-app.html 2>/dev/null &&
                grep -Fq 'sw.js?v=6250-deep-space-3d' /tmp/live-landing.js 2>/dev/null &&
                grep -Fq 'sw.js?v=6250-deep-space-3d' /tmp/live-app.js 2>/dev/null &&
-               grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6250-deep-space-3d'" /tmp/live-sw.js 2>/dev/null &&
+               grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6251-solar-aligned-celestial'" /tmp/live-sw.js 2>/dev/null &&
                grep -Fq '"start_url":"/"' /tmp/live-manifest.json 2>/dev/null &&
                grep -Fq '"start_url":"/"' /tmp/live-legacy-manifest.json 2>/dev/null; then
               ok=1
@@ -171,4 +177,4 @@ jobs:
             sleep 4
           done
           test "$ok" -eq 1
-          echo 'LIVE V6250 PASS: canonical website/PWA gate, legacy-app redirect, two account buttons, two-line futuristic title, deep starfield, 3D Moon and Sun are published.'
+          echo 'LIVE V6251 PASS: canonical website/PWA gate, legacy-app redirect, two account buttons, two-line futuristic title, deep starfield, 3D Moon and Sun are published.'
