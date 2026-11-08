@@ -63,19 +63,21 @@ def patch_stars(source: str) -> str:
       try{
         const candidate=window.__BP_LANDING_WORLD__?.map||window.__bpLandingWorld__?.map||null;
         if(!candidate||typeof candidate.getCenter!=='function'||typeof candidate.project!=='function')return null;
-        const center=candidate.getCenter(),rad=Math.PI/180,dayMs=86400000;
-        const jd=Date.now()/dayMs+2440587.5,n=jd-2451545.0;
+        const center=candidate.getCenter(),rad=Math.PI/180,dayMs=86400000,jd=Date.now()/dayMs+2440587.5,n=jd-2451545.0,d=jd-2451543.5;
         const L=((280.46+.9856474*n)%360+360)%360,G=((357.528+.9856003*n)%360+360)%360;
         const lambda=(L+1.915*Math.sin(G*rad)+.02*Math.sin(2*G*rad))*rad,eps=(23.439-.0000004*n)*rad;
-        const ra=Math.atan2(Math.cos(eps)*Math.sin(lambda),Math.cos(lambda)),dec=Math.asin(Math.sin(eps)*Math.sin(lambda));
-        const gmst=((280.46061837+360.98564736629*n)%360+360)%360;
-        let sunLng=ra/rad-gmst;sunLng=((sunLng+540)%360+360)%360-180;
-        const sunLat=dec/rad,lat0=Number(center.lat)*rad,latS=sunLat*rad,delta=((sunLng-Number(center.lng)+540)%360-180)*rad;
-        const east=Math.cos(latS)*Math.sin(delta),north=Math.cos(lat0)*Math.sin(latS)-Math.sin(lat0)*Math.cos(latS)*Math.cos(delta);
-        const bearing=Number(candidate.getBearing?.()||0)*rad,pitch=Number(candidate.getPitch?.()||0)*rad;
-        const sx=east*Math.cos(bearing)-north*Math.sin(bearing),sy=(east*Math.sin(bearing)+north*Math.cos(bearing))*Math.cos(pitch);
-        const directionLength=Math.hypot(sx,sy);if(directionLength<.045)return null;
-        const dx=sx/directionLength,dy=sy/directionLength,mapContainer=candidate.getContainer?.();if(!mapContainer)return null;
+        const sunRA=Math.atan2(Math.cos(eps)*Math.sin(lambda),Math.cos(lambda)),sunDec=Math.asin(Math.sin(eps)*Math.sin(lambda));
+        const gmst=((280.46061837+360.98564736629*n)%360+360)%360,deg=180/Math.PI;
+        let sunLng=sunRA/rad-gmst;sunLng=((sunLng+540)%360+360)%360-180;
+        const lat0=Number(center.lat)*rad,bearing=Number(candidate.getBearing?.()||0)*rad,pitch=Number(candidate.getPitch?.()||0)*rad;
+        const screenVector=(lng,lat)=>{
+          const phi=lat*rad,dlon=((lng-Number(center.lng)+540)%360-180)*rad;
+          const east=Math.cos(phi)*Math.sin(dlon),north=Math.cos(lat0)*Math.sin(phi)-Math.sin(lat0)*Math.cos(phi)*Math.cos(dlon);
+          const x=east*Math.cos(bearing)-north*Math.sin(bearing),y=(east*Math.sin(bearing)+north*Math.cos(bearing))*Math.cos(pitch),m=Math.hypot(x,y);
+          return m>.008?{x:x/m,y:y/m}:null;
+        };
+        const sunDir=screenVector(sunLng,sunDec/rad);if(!sunDir)return null;
+        const mapContainer=candidate.getContainer?.();if(!mapContainer)return null;
         const sceneRect=scene.getBoundingClientRect(),mapRect=mapContainer.getBoundingClientRect(),centerPoint=candidate.project([Number(center.lng),Number(center.lat)]);
         if(!centerPoint||!Number.isFinite(centerPoint.x)||!Number.isFinite(centerPoint.y))return null;
         const ratio=width/Math.max(1,canvas.clientWidth||sceneRect.width||1),unit=Math.max(1,Math.min(width,height));
@@ -85,9 +87,34 @@ def patch_stars(source: str) -> str:
         const angle=Math.acos(cosAngle),testDistance=testPoint&&Number.isFinite(testPoint.x)&&Number.isFinite(testPoint.y)?Math.hypot(testPoint.x-centerPoint.x,testPoint.y-centerPoint.y)*ratio:0;
         const fallbackRadius=unit*.405,earthRadiusPixels=testDistance>0&&Math.sin(angle)>.01?testDistance/Math.sin(angle):fallbackRadius;
         const earthRadius=Math.max(unit*.27,Math.min(unit*.49,earthRadiusPixels))/unit;
-        const centerNX=(centerX-width*.5)/unit,centerNY=(height*.5-centerY)/unit,sunRadius=.066,moonRadius=.05;
+        const centerNX=(centerX-width*.5)/unit,centerNY=(height*.5-centerY)/unit,sunRadius=.071,moonRadius=.052;
         const sunDistance=earthRadius+sunRadius*2.08,moonDistance=earthRadius+moonRadius*1.78;
-        return{center:[centerNX,centerNY],sun:[centerNX+dx*sunDistance,centerNY+dy*sunDistance],moon:[centerNX-dx*moonDistance,centerNY-dy*moonDistance],sunRadius,moonRadius,visible:1,subsolar:{lng:sunLng,lat:sunLat},earthRadius,direction:[dx,dy],updatedAt:Date.now()};
+        const helio=o=>{
+          const N=(o.n+o.nd*d)*rad,I=(o.i+o.id*d)*rad,W=(o.w+o.wd*d)*rad,Ecc=o.e+o.ed*d,M=((o.m+o.md*d)%360+360)%360*rad;
+          let E=M+Ecc*Math.sin(M)*(1+Ecc*Math.cos(M));
+          for(let j=0;j<5;j++)E-=(E-Ecc*Math.sin(E)-M)/(1-Ecc*Math.cos(E));
+          const xv=o.a*(Math.cos(E)-Ecc),yv=o.a*Math.sqrt(Math.max(0,1-Ecc*Ecc))*Math.sin(E),v=Math.atan2(yv,xv),rr=Math.hypot(xv,yv);
+          return{x:rr*(Math.cos(N)*Math.cos(v+W)-Math.sin(N)*Math.sin(v+W)*Math.cos(I)),y:rr*(Math.sin(N)*Math.cos(v+W)+Math.cos(N)*Math.sin(v+W)*Math.cos(I)),z:rr*Math.sin(v+W)*Math.sin(I)};
+        };
+        const earth=helio({n:0,nd:0,i:0,id:0,w:282.9404,wd:.0000470935,a:1,e:.016709,ed:-.000000001151,m:356.0470,md:.9856002585});
+        const planetData=[
+          {name:'Mercury',type:0,radius:.019,n:48.3313,nd:.0000324587,i:7.0047,id:.00000005,w:29.1241,wd:.0000101444,a:.387098,e:.205635,ed:.000000000559,m:168.6562,md:4.0923344368},
+          {name:'Venus',type:1,radius:.024,n:76.6799,nd:.0000246590,i:3.3946,id:.0000000275,w:54.8910,wd:.0000138374,a:.723330,e:.006773,ed:-.000000001302,m:48.0052,md:1.6021302244},
+          {name:'Mars',type:2,radius:.021,n:49.5574,nd:.0000211081,i:1.8497,id:-.0000000178,w:286.5016,wd:.0000292961,a:1.523688,e:.093405,ed:.000000002516,m:18.6021,md:.5240207766},
+          {name:'Jupiter',type:3,radius:.038,n:100.4542,nd:.0000276854,i:1.3030,id:-.0000001557,w:273.8777,wd:.0000164505,a:5.20256,e:.048498,ed:.000000004469,m:19.8950,md:.0830853001},
+          {name:'Saturn',type:4,radius:.035,n:113.6634,nd:.0000238980,i:2.4886,id:-.0000001081,w:339.3939,wd:.0000297661,a:9.55475,e:.055546,ed:-.000000009499,m:316.9670,md:.0334442282},
+          {name:'Uranus',type:5,radius:.027,n:74.0005,nd:.000013978,i:.7733,id:.000000019,w:96.6612,wd:.000030565,a:19.18171,e:.047318,ed:.00000000745,m:142.5905,md:.011725806},
+          {name:'Neptune',type:6,radius:.027,n:131.7806,nd:.000030173,i:1.7700,id:-.000000255,w:272.8461,wd:-.000006027,a:30.05826,e:.008606,ed:.00000000215,m:260.2471,md:.005995147}
+        ];
+        const planets=planetData.map(o=>{
+          const hp=helio(o),x=hp.x-earth.x,y=hp.y-earth.y,z=hp.z-earth.z,ye=y*Math.cos(eps)-z*Math.sin(eps),ze=y*Math.sin(eps)+z*Math.cos(eps),range=Math.hypot(x,ye,ze);
+          const ra=Math.atan2(ye,x),dec=Math.asin(Math.max(-1,Math.min(1,ze/Math.max(1e-9,range))));
+          let lng=ra/rad-gmst;lng=((lng+540)%360+360)%360-180;
+          const dir=screenVector(lng,dec/rad);if(!dir)return null;
+          const distance=earthRadius+.12+o.radius*1.55;
+          return{name:o.name,type:o.type,center:[centerNX+dir.x*distance,centerNY+dir.y*distance],radius:o.radius};
+        }).filter(Boolean);
+        return{center:[centerNX,centerNY],sun:[centerNX+sunDir.x*sunDistance,centerNY+sunDir.y*sunDistance],moon:[centerNX-sunDir.x*moonDistance,centerNY-sunDir.y*moonDistance],sunRadius,moonRadius,visible:1,subsolar:{lng:sunLng,lat:sunDec/rad},earthRadius,viewAngle:bearing,planets,direction:[sunDir.x,sunDir.y],updatedAt:Date.now()};
       }catch(_){return null}
     }
     const fallback=()=>{
