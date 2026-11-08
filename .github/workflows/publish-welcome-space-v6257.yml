@@ -21,7 +21,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: bridgepoint-welcome-space-v6264-fast-geometric-crater-bowls
+  group: bridgepoint-welcome-space-v6264-direct-png-tiles
   cancel-in-progress: true
 
 jobs:
