@@ -227,7 +227,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
             "viewState==='moon'?0.000003:1.8",
             "const activePointers=new Map()",
             "function refreshLunarTerrainFromView()",
-            "focusLocalTarget?moonMesh.localToWorld",
+            "focusedLocalTarget?moonMesh.localToWorld",
         ):
             self.assertIn(marker, module)
 
