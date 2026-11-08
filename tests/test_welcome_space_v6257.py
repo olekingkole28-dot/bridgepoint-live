@@ -141,6 +141,27 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
             self.assertIn(SW_URL, landing_text)
             self.assertIn("bridgepoint-celestial-sky-v6257.js?v=6257", landing_text)
 
+    def test_app_and_landing_sky_loader_patches_are_idempotent(self):
+        with tempfile.TemporaryDirectory() as folder:
+            app = Path(folder) / "app.js"
+            app_source = APP_JS_REGISTER + "\\n" + TIME_JOB + "\\n" + TIME_JOB + "\\n"
+            app.write_text(app_source)
+            patch_bundle(app)
+            patch_app_js(app)
+            once = app.read_text()
+            patch_app_js(app)
+            self.assertEqual(app.read_text(), once)
+            self.assertEqual(once.count("['celestial-sky'"), 1)
+
+            landing = Path(folder) / "landing.js"
+            landing.write_text(APP_JS_REGISTER + "\\n" + LANDING_TIME_CATCH + "\\n")
+            patch_bundle(landing)
+            patch_landing_js(landing)
+            once = landing.read_text()
+            patch_landing_js(landing)
+            self.assertEqual(landing.read_text(), once)
+            self.assertEqual(once.count("void import('./bridgepoint-celestial-sky-v6257.js?v=6257')"), 1)
+
     def test_service_worker_removes_stale_entry_documents_and_refuses_old_offline_shell(self):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "sw.js"
