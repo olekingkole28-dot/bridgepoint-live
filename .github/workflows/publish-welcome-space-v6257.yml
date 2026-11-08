@@ -138,11 +138,9 @@ jobs:
             printf -v xx "%02d" "$x"
             source_x=$(((x + SLDEM_TILE_SHIFT) % 36))
             xoff=$((source_x * 1280)); yoff=$((y * 1280))
-            raw="/tmp/sldem-raw-y${yy}-x${xx}.tif"
             out="assets/moon/v1/sldem-128ppd/moon-sldem-128ppd-y${yy}-x${xx}.png"
-            gdal_translate -q -of GTiff -ot Float32 -srcwin "$xoff" "$yoff" 1280 1280 "$SLDEM_TILE_SOURCE" "$raw"
-            gdal_calc.py -A "$raw" --outfile="$out" --calc="numpy.clip(numpy.rint(A.astype(numpy.float32)*0.5+32768.0),0,65535)" --type=UInt16 --NoDataValue=32768 --format=PNG --creation-option=ZLEVEL=6 --overwrite
-            rm -f "$raw"
+            # Map raw DEM samples with an exact 0.5 slope and +32768 offset.
+            gdal_translate -q -of PNG -ot UInt16 -co ZLEVEL=6 -a_nodata 32768 -scale 0 65536 32768 65536 -srcwin "$xoff" "$yoff" 1280 1280 "$SLDEM_TILE_SOURCE" "$out"
           ' _
           test "$(find assets/moon/v1/sldem-128ppd -type f -name '*.png' | wc -l)" -eq 432
           gdalinfo assets/moon/v1/sldem-128ppd/moon-sldem-128ppd-y03-x18.png | grep -Fq 'Size is 1280, 1280'
