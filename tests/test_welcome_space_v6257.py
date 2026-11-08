@@ -128,7 +128,8 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
             app_text = app.read_text()
             self.assertIn(SW_URL, app_text)
             self.assertEqual(app_text.count("bridgepoint-celestial-sky-v6257.js?v=6257"), 1)
-            self.assertIn("data-skyview", "LOOK UP · SKY VIEW")  # Existing in-app control remains in the time-slider module.
+            time_slider = (ROOT / "release-v2300" / "world-v2300-time-slider.js").read_text()
+            self.assertIn("data-skyview", time_slider)
 
             landing = Path(folder) / "landing.js"
             landing.write_text(APP_JS_REGISTER + "\n" + LANDING_TIME_CATCH + "\n")
@@ -196,6 +197,48 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
         self.assertIn("initBridgePointCelestialSky", module)
         self.assertIn("createElementNS", module)
         self.assertNotIn("createElement('canvas')", module)
+
+
+
+    def test_complete_site_patch_changes_only_entry_files_and_adds_two_modules(self):
+        with tempfile.TemporaryDirectory() as folder:
+            site = Path(folder)
+            (site / "app").mkdir()
+            (site / "app" / "intelligence-launch").mkdir()
+            (site / "index.html").write_text(root_fixture())
+            (site / "app" / "index.html").write_text(app_index_fixture())
+            (site / "landing.js").write_text(APP_JS_REGISTER + "\n" + LANDING_TIME_CATCH + "\n")
+            (site / "app.js").write_text(APP_JS_REGISTER + "\n" + TIME_JOB + "\n" + TIME_JOB + "\n")
+            (site / "sw.js").write_text(worker_fixture())
+            (site / "manifest.webmanifest").write_text(json.dumps({
+                "id": "/bridgepoint-intelligence-v5050", "name": "BridgePoint Intelligence",
+                "start_url": "/app/", "scope": "/", "display": "standalone"
+            }))
+            (site / "app" / "intelligence-launch" / "index.html").write_text(legacy_fixture())
+            (site / "app" / "intelligence-launch" / "manifest.webmanifest").write_text(json.dumps({
+                "id": "/app/intelligence-launch/", "name": "BridgePoint Intelligence",
+                "start_url": "/app/", "scope": "/", "display": "standalone"
+            }))
+            for name in ("bridgepoint-welcome-space-v6257.js", "bridgepoint-celestial-sky-v6257.js"):
+                (site / name).write_text((ROOT / "rebuild-v5000" / name).read_text())
+
+            before = {p.relative_to(site).as_posix() for p in site.rglob("*") if p.is_file()}
+            patch_site(site)
+            after = {p.relative_to(site).as_posix() for p in site.rglob("*") if p.is_file()}
+            self.assertEqual(after - before, set())
+            root = (site / "index.html").read_text()
+            self.assertIn('src="/bridgepoint-welcome-space-v6257.js?v=6257"', root)
+            self.assertIn("event.persisted", root)
+            self.assertIn("location.reload()", root)
+            self.assertNotIn("data-space-ground", root)
+            app_text = (site / "app.js").read_text()
+            landing_text = (site / "landing.js").read_text()
+            self.assertIn("bridgepoint-celestial-sky-v6257.js?v=6257", app_text)
+            self.assertIn("bridgepoint-celestial-sky-v6257.js?v=6257", landing_text)
+            worker = (site / "sw.js").read_text()
+            self.assertIn("entryRoute=", worker)
+            self.assertIn("if(entryRoute)return new Response", worker)
+            self.assertNotIn("caches.match(e.request)||caches.match(u.pathname.startsWith('/app')?'/app/':'/')", worker)
 
     def test_patch_rejects_unexpected_root_baseline(self):
         with self.assertRaises(AssertionError):
