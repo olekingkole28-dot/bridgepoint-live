@@ -104,7 +104,8 @@ jobs:
           data['globalHeightFallback']=data.get('globalHeight')
           data['globalHeight']={'file':'moon-global-height-16ppd-u16.png','width':5760,'height':2880,'samplesPerDegree':16,'encoding':'PNG grayscale 16-bit unsigned; elevationMeters = sample - 32768','source':'NASA LRO LOLA LDEM_16; source values are half-meters with +20000 unsigned offset'}
           p.write_text(json.dumps(data,indent=2)+'\n')
-          PY          test -s site/assets/moon/v1/manifest.json
+          PY
+          test -s site/assets/moon/v1/manifest.json
           test -s site/assets/moon/v1/moon-global-height-4ppd-u16.png
           test -s site/assets/moon/v1/moon-apollo15-4deg-512ppd-height-u16.png
           test -s site/assets/moon/v1/moon-lroc-color-4k.webp
