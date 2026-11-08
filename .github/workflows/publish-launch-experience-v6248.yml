@@ -1,4 +1,4 @@
-name: Publish BridgePoint Launch Experience V6249
+name: Publish BridgePoint Launch Experience V6250
 
 on:
   push:
@@ -71,7 +71,7 @@ jobs:
           print('SNAPSHOT_PRODUCTION_FILES',len(before))
           PY
 
-      - name: Apply only the V6249 launch and installed-app entry changes
+      - name: Apply only the V6250 launch and installed-app entry changes
         run: python3 recovery/apply_launch_experience_v6248.py site
 
       - name: Validate syntax and prove no unrelated production file changed
@@ -106,17 +106,17 @@ jobs:
           PY
           node --check /tmp/bridgepoint-welcome-gate-v6249.js
           grep -Fq 'bpw-celestial-system' site/index.html
-          grep -Fq 'bpw-moon-sphere' site/index.html
-          grep -Fq 'bpw-sun-sphere' site/index.html
-          grep -Fq "make('bpwStarsFarV4',456" site/index.html
-          grep -Fq "make('bpwStarsNearV4',228" site/index.html
+          grep -Fq 'bpwCelestialCanvasV6250' site/index.html
+          grep -Fq 'bpw-wordmark-main' site/index.html
+          grep -Fq "const starCount=2200" site/index.html
+          grep -Fq "vec3 lunar=mix" site/index.html
           ! grep -Fq 'class="bpw-globe-aura"' site/index.html
-          grep -Fq 'BridgePoint Intelligence</div>' site/index.html
+          grep -Fq 'INTELLIGENCE</span></div>' site/index.html
           grep -Fq 'data-mode="signup"' site/index.html
           grep -Fq 'data-mode="signin"' site/index.html
           grep -Fq 'start_url":"/"' site/manifest.webmanifest
           grep -Fq 'start_url":"/"' site/app/intelligence-launch/manifest.webmanifest
-          grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6249-volumetric-space'" site/sw.js
+          grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6250-deep-space-3d'" site/sw.js
 
       - uses: actions/configure-pages@v5
         with:
@@ -128,7 +128,7 @@ jobs:
           path: site
           include-hidden-files: true
 
-      - name: Publish the isolated V6249 launch experience
+      - name: Publish the isolated V6250 launch experience
         id: deployment
         uses: actions/deploy-pages@v4
         with:
@@ -150,19 +150,19 @@ jobs:
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/sw.js?launch-v6249=${q}" -o /tmp/live-sw.js || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/manifest.webmanifest?launch-v6249=${q}" -o /tmp/live-manifest.json || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/intelligence-launch/manifest.webmanifest?launch-v6249=${q}" -o /tmp/live-legacy-manifest.json || true
-            if grep -Fq 'bpWelcomeGateStylesV6249' /tmp/live-root.html 2>/dev/null &&
-               grep -Fq 'BridgePoint Intelligence</div>' /tmp/live-root.html 2>/dev/null &&
+            if grep -Fq 'bpWelcomeGateStylesV6250' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'INTELLIGENCE</span></div>' /tmp/live-root.html 2>/dev/null &&
                grep -Fq 'bpw-celestial-system' /tmp/live-root.html 2>/dev/null &&
-               grep -Fq 'bpw-moon-sphere' /tmp/live-root.html 2>/dev/null &&
-               grep -Fq 'bpw-sun-sphere' /tmp/live-root.html 2>/dev/null &&
-               grep -Fq "make('bpwStarsFarV4',456" /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'bpwCelestialCanvasV6250' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'bpw-wordmark-main' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq "const starCount=2200" /tmp/live-root.html 2>/dev/null &&
                grep -Fq '/?return=' /tmp/live-app.html 2>/dev/null &&
                ! grep -Fq '/?auth=signin&return=' /tmp/live-app.html 2>/dev/null &&
                grep -Fq 'content="0;url=/"' /tmp/live-legacy-app.html 2>/dev/null &&
                grep -Fq "location.replace('/')" /tmp/live-legacy-app.html 2>/dev/null &&
                grep -Fq 'sw.js?v=6249-volumetric-space' /tmp/live-landing.js 2>/dev/null &&
                grep -Fq 'sw.js?v=6249-volumetric-space' /tmp/live-app.js 2>/dev/null &&
-               grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6249-volumetric-space'" /tmp/live-sw.js 2>/dev/null &&
+               grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6250-deep-space-3d'" /tmp/live-sw.js 2>/dev/null &&
                grep -Fq '"start_url":"/"' /tmp/live-manifest.json 2>/dev/null &&
                grep -Fq '"start_url":"/"' /tmp/live-legacy-manifest.json 2>/dev/null; then
               ok=1
@@ -171,4 +171,4 @@ jobs:
             sleep 4
           done
           test "$ok" -eq 1
-          echo 'LIVE V6249 PASS: canonical website/PWA gate, legacy-app redirect, two account buttons, lightweight title, starfield, Moon and Sun are published.'
+          echo 'LIVE V6250 PASS: canonical website/PWA gate, legacy-app redirect, two account buttons, two-line futuristic title, deep starfield, 3D Moon and Sun are published.'
