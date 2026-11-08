@@ -117,16 +117,16 @@ jobs:
           grep -Fq "name:'Neptune'" site/index.html
           grep -Fq 'ringR=length(vec2(q.x,q.y/.34))' site/index.html
           grep -Fq 'const starCount=lowPower?4200:8200' site/index.html
+          grep -Fq 'scale=u_bodyType>6.5?1.94:1.0' site/index.html
           grep -Fq 'bpw-wordmark-main' site/index.html
-          grep -Fq "const starCount=2200" site/index.html
-          grep -Fq "vec3 lunar=mix" site/index.html
+                    grep -Fq "vec3 lunar=mix" site/index.html
           ! grep -Fq 'class="bpw-globe-aura"' site/index.html
           grep -Fq 'INTELLIGENCE</span></div>' site/index.html
           grep -Fq 'data-mode="signup"' site/index.html
           grep -Fq 'data-mode="signin"' site/index.html
           grep -Fq 'start_url":"/"' site/manifest.webmanifest
           grep -Fq 'start_url":"/"' site/app/intelligence-launch/manifest.webmanifest
-          grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6252-solar-aligned-celestial'" site/sw.js
+          grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6252-galactic-depth'" site/sw.js
 
       - uses: actions/configure-pages@v5
         with:
@@ -178,6 +178,7 @@ jobs:
                grep -Fq 'const planetProgram=program(' /tmp/live-root.html 2>/dev/null &&
                grep -Fq 'float dustLane=1.0-smoothstep' /tmp/live-root.html 2>/dev/null &&
                grep -Fq 'ringR=length(vec2(q.x,q.y/.34))' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'scale=u_bodyType>6.5?1.94:1.0' /tmp/live-root.html 2>/dev/null &&
                grep -Fq 'const starCount=lowPower?4200:8200' /tmp/live-root.html 2>/dev/null &&
                grep -Fq 'now-lastAlignment<110' /tmp/live-root.html 2>/dev/null &&
                grep -Fq '/?return=' /tmp/live-app.html 2>/dev/null &&
@@ -186,7 +187,7 @@ jobs:
                grep -Fq "location.replace('/')" /tmp/live-legacy-app.html 2>/dev/null &&
                grep -Fq 'sw.js?v=6252-galactic-depth' /tmp/live-landing.js 2>/dev/null &&
                grep -Fq 'sw.js?v=6252-galactic-depth' /tmp/live-app.js 2>/dev/null &&
-               grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6252-solar-aligned-celestial'" /tmp/live-sw.js 2>/dev/null &&
+               grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6252-galactic-depth'" /tmp/live-sw.js 2>/dev/null &&
                grep -Fq '"start_url":"/"' /tmp/live-manifest.json 2>/dev/null &&
                grep -Fq '"start_url":"/"' /tmp/live-legacy-manifest.json 2>/dev/null; then
               ok=1
@@ -195,4 +196,4 @@ jobs:
             sleep 3
           done
           test "$ok" -eq 1
-          echo 'LIVE V6252 PASS: Earth-aligned Sun, night-side Moon, solar flares, cratered lunar surface, and canonical website/PWA entry points verified.'
+          echo 'LIVE V6252 PASS: globe-aligned Sun and Moon, solar surface detail, crater relief, Milky Way dust lane, multi-depth 3D stars, seven textured planets and Saturn rings verified.'
