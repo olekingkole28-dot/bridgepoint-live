@@ -1,4 +1,4 @@
-name: Publish BridgePoint Moon Surface Explorer V6259
+name: Publish BridgePoint Moon Focus Isolation V6260
 
 on:
   push:
@@ -8,6 +8,7 @@ on:
       - 'recovery/apply_welcome_space_v6257.py'
       - 'tests/test_welcome_space_v6257.py'
       - 'rebuild-v5000/bridgepoint-welcome-space-v6257.js'
+      - 'recovery/bridgepoint-welcome-space-v6260.js'
       - 'rebuild-v5000/index.html'
       - 'assets/moon/v1/**'
       - 'rebuild-v5000/bridgepoint-celestial-sky-v6257.js'
@@ -20,7 +21,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: bridgepoint-welcome-space-v6259-moon-surface-explorer
+  group: bridgepoint-welcome-space-v6260-moon-focus-isolated
   cancel-in-progress: false
 
 jobs:
@@ -74,13 +75,35 @@ jobs:
           print('PRODUCTION_FILES_BEFORE',len(before))
           PY
 
-      - name: Add the modular welcome renderer and in-app sky overlay
+      - name: Fetch and convert NASA global LOLA 16ppd elevation
+        shell: bash
         run: |
-          cp rebuild-v5000/bridgepoint-welcome-space-v6257.js site/bridgepoint-welcome-space-v6257.js
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y gdal-bin
+          curl --fail --location --retry 4 --retry-all-errors --retry-delay 2 'https://svs.gsfc.nasa.gov/vis/a000000/a004700/a004720/ldem_16_uint.tif' -o /tmp/ldem_16_uint.tif
+          gdalinfo /tmp/ldem_16_uint.tif | grep -Fq 'Size is 5760, 2880'
+          gdal_calc.py -A /tmp/ldem_16_uint.tif --outfile=/tmp/moon-global-height-16ppd-u16.tif --calc="numpy.clip(numpy.rint((A.astype(numpy.float32)-20000.0)*0.5+32768.0),0,65535)" --type=UInt16 --overwrite
+          mkdir -p assets/moon/v1
+          gdal_translate -q -of PNG -ot UInt16 /tmp/moon-global-height-16ppd-u16.tif assets/moon/v1/moon-global-height-16ppd-u16.png
+          test -s assets/moon/v1/moon-global-height-16ppd-u16.png
+
+      - name: Add the isolated Moon renderer and in-app sky overlay
+        run: |
+          cp recovery/bridgepoint-welcome-space-v6260.js site/bridgepoint-welcome-space-v6260.js
           cp rebuild-v5000/bridgepoint-celestial-sky-v6257.js site/bridgepoint-celestial-sky-v6257.js
           mkdir -p site/assets/moon
           cp -a assets/moon/v1 site/assets/moon/v1
-          test -s site/assets/moon/v1/manifest.json
+          test -s site/assets/moon/v1/moon-global-height-16ppd-u16.png
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('site/assets/moon/v1/manifest.json')
+          data=json.loads(p.read_text())
+          data['globalHeightFallback']=data.get('globalHeight')
+          data['globalHeight']={'file':'moon-global-height-16ppd-u16.png','width':5760,'height':2880,'samplesPerDegree':16,'encoding':'PNG grayscale 16-bit unsigned; elevationMeters = sample - 32768','source':'NASA LRO LOLA LDEM_16; source values are half-meters with +20000 unsigned offset'}
+          p.write_text(json.dumps(data,indent=2)+'\n')
+          PY          test -s site/assets/moon/v1/manifest.json
           test -s site/assets/moon/v1/moon-global-height-4ppd-u16.png
           test -s site/assets/moon/v1/moon-apollo15-4deg-512ppd-height-u16.png
           test -s site/assets/moon/v1/moon-lroc-color-4k.webp
@@ -113,9 +136,10 @@ jobs:
           }
           assert not removed, f'unexpected removed files: {sorted(removed)}'
           expected_added={
-            'bridgepoint-welcome-space-v6257.js','bridgepoint-celestial-sky-v6257.js',
+            'bridgepoint-welcome-space-v6260.js','bridgepoint-celestial-sky-v6257.js',
             'assets/moon/v1/manifest.json',
             'assets/moon/v1/moon-global-height-4ppd-u16.png',
+            'assets/moon/v1/moon-global-height-16ppd-u16.png',
             'assets/moon/v1/moon-apollo15-4deg-512ppd-height-u16.png',
             'assets/moon/v1/moon-lroc-color-4k.webp',
             'assets/moon/v1/moon-feature-labels.json',
@@ -125,24 +149,28 @@ jobs:
           print('PASS: eight entry/PWA files changed; two celestial modules and five local Moon assets added; all unrelated globe/data/map/feature assets byte-identical.')
           PY
           node --check /tmp/bridgepoint-welcome-gate-v6257.js
-          node --input-type=module --check < site/bridgepoint-welcome-space-v6257.js
+          node --input-type=module --check < site/bridgepoint-welcome-space-v6260.js
           node --input-type=module --check < site/bridgepoint-celestial-sky-v6257.js
           grep -Fq 'bpWelcomeGateStylesV6257' site/index.html
-          grep -Fq 'src="/bridgepoint-welcome-space-v6257.js?v=6259-moon-surface-explorer"' site/index.html
+          grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6260-moon-focus-isolated"' site/index.html
           grep -Fq 'data-mode="signup"' site/index.html
           grep -Fq 'data-mode="signin"' site/index.html
-          grep -Fq 'new THREE.Raycaster()' site/bridgepoint-welcome-space-v6257.js
-          grep -Fq 'logarithmicDepthBuffer: true' site/bridgepoint-welcome-space-v6257.js
-          grep -Fq 'MOON_PERIOD_DAYS = 27.321661' site/bridgepoint-welcome-space-v6257.js
-          grep -Fq "runtimeMode: 'local-static-assets'" site/bridgepoint-welcome-space-v6257.js
-          grep -Fq 'externalRuntimeTerrainRequests: 0' site/bridgepoint-welcome-space-v6257.js
-          grep -Fq 'moon-apollo15-4deg-512ppd-height-u16.png' site/bridgepoint-welcome-space-v6257.js
-          ! grep -Fq 'trek.nasa.gov/tiles/Moon' site/bridgepoint-welcome-space-v6257.js
-          grep -Fq 'function panMoonSurface(dx, dy)' site/bridgepoint-welcome-space-v6257.js
-          grep -Fq 'moon-feature-labels.json' site/bridgepoint-welcome-space-v6257.js
-          grep -Fq 'function refreshLabels(force = false)' site/bridgepoint-welcome-space-v6257.js
-          ! grep -Fq 'data-space-ground' site/bridgepoint-welcome-space-v6257.js
-          ! grep -Fq 'earthMesh' site/bridgepoint-welcome-space-v6257.js
+          grep -Fq 'new THREE.Raycaster()' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'logarithmicDepthBuffer: true' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'MOON_PERIOD_DAYS = 27.321661' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq "runtimeMode: 'local-static-assets'" site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'externalRuntimeTerrainRequests: 0' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'moon-global-height-16ppd-u16.png' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'globalTerrainMeshResolution' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'moonPivot.position.copy(moonMesh.position).negate()' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq "if(viewState!=='moon')" site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'moon-apollo15-4deg-512ppd-height-u16.png' site/bridgepoint-welcome-space-v6260.js
+          ! grep -Fq 'trek.nasa.gov/tiles/Moon' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'function panMoonSurface(dx, dy)' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'moon-feature-labels.json' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'function refreshLabels(force = false)' site/bridgepoint-welcome-space-v6260.js
+          ! grep -Fq 'data-space-ground' site/bridgepoint-welcome-space-v6260.js
+          ! grep -Fq 'earthMesh' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'bridgepoint-celestial-sky-v6257.js?v=6257' site/app.js
           grep -Fq 'bridgepoint-celestial-sky-v6257.js?v=6257' site/landing.js
           grep -Fq 'const entryRoute=' site/sw.js
@@ -176,7 +204,7 @@ jobs:
           for i in $(seq 1 30); do
             q="${GITHUB_SHA}-${i}-$(date +%s)"
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/?welcome-space-v6257=${q}" -o /tmp/live-root.html || true
-            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/bridgepoint-welcome-space-v6257.js?verify=${q}" -o /tmp/live-space.js || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/bridgepoint-welcome-space-v6260.js?verify=${q}" -o /tmp/live-space.js || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/bridgepoint-celestial-sky-v6257.js?verify=${q}" -o /tmp/live-sky.js || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app.js?verify=${q}" -o /tmp/live-app.js || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/landing.js?verify=${q}" -o /tmp/live-landing.js || true
@@ -184,7 +212,7 @@ jobs:
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/intelligence-launch/?welcome-space-v6257=${q}" -o /tmp/live-legacy.html || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/sw.js?verify=${q}" -o /tmp/live-sw.js || true
             if grep -Fq 'bpWelcomeGateStylesV6257' /tmp/live-root.html 2>/dev/null &&
-               grep -Fq 'src="/bridgepoint-welcome-space-v6257.js?v=6259-moon-surface-explorer"' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6260-moon-focus-isolated"' /tmp/live-root.html 2>/dev/null &&
                grep -Fq 'new THREE.Raycaster()' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'MOON_PERIOD_DAYS = 27.321661' /tmp/live-space.js 2>/dev/null &&
                ! grep -Fq 'earthMesh' /tmp/live-space.js 2>/dev/null &&
@@ -195,7 +223,7 @@ jobs:
                grep -Fq 'entryRoute=' /tmp/live-sw.js 2>/dev/null &&
                grep -Fq '/?return=' /tmp/live-app.html 2>/dev/null &&
                grep -Fq 'content="0;url=/"' /tmp/live-legacy.html 2>/dev/null &&
-               grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6259-moon-surface-explorer'" /tmp/live-sw.js 2>/dev/null &&
+               grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6260-moon-focus-isolated'" /tmp/live-sw.js 2>/dev/null &&
                grep -Fq 'runtimeMode' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'externalRuntimeTerrainRequests: 0' /tmp/live-space.js 2>/dev/null &&
                ! grep -Fq 'trek.nasa.gov/tiles/Moon' /tmp/live-space.js 2>/dev/null &&
@@ -204,13 +232,14 @@ jobs:
                curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/moon/v1/manifest.json?verify=${q}" -o /tmp/live-moon-manifest.json &&
                curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/moon/v1/moon-feature-labels.json?verify=${q}" -o /tmp/live-moon-labels.json &&
                curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/moon/v1/moon-global-height-4ppd-u16.png?verify=${q}" -o /tmp/live-moon-global.png &&
+               curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/moon/v1/moon-global-height-16ppd-u16.png?verify=${q}" -o /tmp/live-moon-global16.png &&
                curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/moon/v1/moon-apollo15-4deg-512ppd-height-u16.png?verify=${q}" -o /tmp/live-moon-patch.png &&
                curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/moon/v1/moon-lroc-color-4k.webp?verify=${q}" -o /tmp/live-moon-color.webp &&
-               test -s /tmp/live-moon-manifest.json && test -s /tmp/live-moon-global.png && test -s /tmp/live-moon-patch.png && test -s /tmp/live-moon-color.webp && test -s /tmp/live-moon-labels.json; then
+               test -s /tmp/live-moon-manifest.json && test -s /tmp/live-moon-global.png && test -s /tmp/live-moon-global16.png && test -s /tmp/live-moon-patch.png && test -s /tmp/live-moon-color.webp && test -s /tmp/live-moon-labels.json; then
               ok=1
               break
             fi
             sleep 3
           done
           test "$ok" -eq 1
-          echo 'LIVE V6259 PASS: Moon surface pan/pitch/clearance and local IAU feature/landing-site labels verified; unrelated Earth/world assets unchanged.'
+          echo 'LIVE V6260 PASS: isolated Moon camera, full-Moon LOLA 16ppd relief, Apollo 15 512ppd patch, two-finger surface pitch/pan and local IAU labels verified; unrelated Earth/world assets unchanged.'
