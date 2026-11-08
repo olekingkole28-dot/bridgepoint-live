@@ -236,6 +236,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
             "moonUserRotation.multiply(yaw).multiply(pitch).multiply(roll)",
             "function enforceMoonCameraClearance()",
             "moonTerrainController?.surfaceRadiusAt(latitude,longitude)",
+            "if(viewState==='moon'){enforceMoonCameraClearance();camera.lookAt(target);}",
             "coverageContext.putImageData(coverageImage, 0, 0)",
             "depthTest: true, depthWrite: true, transparent: false",
             "#include <logdepthbuf_vertex>",
