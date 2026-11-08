@@ -108,15 +108,15 @@ jobs:
           grep -Fq 'bpw-celestial-system' site/index.html
           grep -Fq 'bpw-moon-sphere' site/index.html
           grep -Fq 'bpw-sun-sphere' site/index.html
-          grep -Fq 'make('\''bpwStarsFarV4'\'',456' site/index.html
-          grep -Fq 'make('\''bpwStarsNearV4'\'',228' site/index.html
+          grep -Fq "make('bpwStarsFarV4',456" site/index.html
+          grep -Fq "make('bpwStarsNearV4',228" site/index.html
           ! grep -Fq 'class="bpw-globe-aura"' site/index.html
           grep -Fq 'BridgePoint Intelligence</div>' site/index.html
           grep -Fq 'data-mode="signup"' site/index.html
           grep -Fq 'data-mode="signin"' site/index.html
           grep -Fq 'start_url":"/"' site/manifest.webmanifest
           grep -Fq 'start_url":"/"' site/app/intelligence-launch/manifest.webmanifest
-          grep -Fq 'BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='\''v6248-launch-experience'\''' site/sw.js
+          grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6248-launch-experience'" site/sw.js
 
       - uses: actions/configure-pages@v5
         with:
