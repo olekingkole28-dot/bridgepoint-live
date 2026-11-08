@@ -231,7 +231,6 @@ def patch_site(site: Path) -> None:
         "app bundle": site / "app.js",
         "service worker": site / "sw.js",
         "root manifest": site / "manifest.webmanifest",
-        "welcome space module": ["new THREE.Raycaster()", "logarithmicDepthBuffer: true", "MOON_PERIOD_DAYS = 27.321661", "data-space-ground", "uTime"],
         "legacy app index": site / "app" / "intelligence-launch" / "index.html",
         "legacy app manifest": site / "app" / "intelligence-launch" / "manifest.webmanifest",
         "welcome space module": site / "bridgepoint-welcome-space-v6256.js",
@@ -293,6 +292,7 @@ def patch_site(site: Path) -> None:
         "landing bundle": [SW_URL],
         "app bundle": [SW_URL],
         "service worker": ["const V='" + CACHE_NAME + "';", "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6256-welcome-space-scene'"],
+        "welcome space module": ["new THREE.Raycaster()", "logarithmicDepthBuffer: true", "MOON_PERIOD_DAYS = 27.321661", "data-space-ground", "uTime"],
         "legacy app index": ['content="0;url=/"', "location.replace('/')", "sw.js?v=6256-welcome-space-scene"],
     }
     for label, markers in checks.items():
@@ -317,7 +317,7 @@ def patch_site(site: Path) -> None:
 
 def main() -> None:
     if len(sys.argv) != 2:
-        raise SystemExit("Usage: apply_launch_experience_v6255.py SITE_DIRECTORY")
+        raise SystemExit("Usage: apply_welcome_space_v6256.py SITE_DIRECTORY")
     patch_site(Path(sys.argv[1]))
 
 
