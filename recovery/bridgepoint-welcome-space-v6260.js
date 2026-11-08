@@ -1,5 +1,5 @@
 /**
- * BridgePoint Intelligence — Welcome Space Scene v6262
+ * BridgePoint Intelligence — Welcome Space Scene v6263
  * A self-contained Three.js celestial scene for the welcome gate.
  *
  * Scale policy:
@@ -16,7 +16,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
 
 (() => {
   'use strict';
-  const VERSION = 'v6262';
+  const VERSION = 'v6263';
   if (window.__BP_WELCOME_SPACE_V6257__) return;
   window.__BP_WELCOME_SPACE_V6257__ = true;
 
@@ -126,19 +126,19 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   scene.add(moonPivot);
   const moonGeometry = new THREE.SphereGeometry(MOON_RADIUS_KM / EARTH_RADIUS_KM, mobile ? 96 : 144, mobile ? 64 : 96);
   const moonMaterial = new THREE.ShaderMaterial({
-    uniforms: { uTime: { value: 0 }, uSunDir: { value: new THREE.Vector3(0.55, 0.38, 0.74).normalize() }, uBaseTexture: { value: null }, uBaseTextureReady: { value: 0 }, uTerrainMask: { value: null }, uTerrainUvRect: { value: new THREE.Vector4(0,0,0,0) }, uTerrainActive: { value: 0 }, uGlobalDetailMask: { value: null }, uGlobalDetailUvRect: { value: new THREE.Vector4(0,0,0,0) }, uGlobalDetailActive: { value: 0 } },
+    uniforms: { uTime: { value: 0 }, uSunDir: { value: new THREE.Vector3(0.55, 0.38, 0.74).normalize() }, uCameraLocal: { value: new THREE.Vector3(0,0,10) }, uBaseTexture: { value: null }, uBaseTextureReady: { value: 0 } },
     vertexShader: `
       #include <common>
       #include <logdepthbuf_pars_vertex>
       varying vec3 vNormal; varying vec3 vPos; varying vec2 vUv;
-      void main(){vUv=uv;vNormal=normalize(normalMatrix*normal);vPos=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);
+      void main(){vUv=uv;vNormal=normalize(normal);vPos=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);
         #include <logdepthbuf_vertex>
       }
     `,
     fragmentShader: `
       #include <common>
       #include <logdepthbuf_pars_fragment>
-      precision highp float; varying vec3 vNormal; varying vec3 vPos; varying vec2 vUv; uniform float uTime; uniform vec3 uSunDir; uniform sampler2D uBaseTexture; uniform float uBaseTextureReady; uniform sampler2D uTerrainMask; uniform vec4 uTerrainUvRect; uniform float uTerrainActive; uniform sampler2D uGlobalDetailMask; uniform vec4 uGlobalDetailUvRect; uniform float uGlobalDetailActive;
+      precision highp float; varying vec3 vNormal; varying vec3 vPos; varying vec2 vUv; uniform float uTime; uniform vec3 uSunDir; uniform vec3 uCameraLocal; uniform sampler2D uBaseTexture; uniform float uBaseTextureReady;
       float hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
       float noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
         float a=hash(i),b=hash(i+vec3(1,0,0)),c=hash(i+vec3(0,1,0)),d=hash(i+vec3(1,1,0));
@@ -153,23 +153,25 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
           bowl=max(bowl,inside*.46-rim*.14);
         }return bowl;}
       void main(){
-        vec3 p=normalize(vPos);vec2 bodyUV=vec2(atan(-p.x,p.z)/6.28318530718+.5,.5+asin(clamp(p.y,-1.0,1.0))/3.14159265359);if(uTerrainActive>.5){vec2 patchUV=(bodyUV-uTerrainUvRect.xy)/uTerrainUvRect.zw;if(all(greaterThanEqual(patchUV,vec2(0.0)))&&all(lessThanEqual(patchUV,vec2(1.0)))){if(texture2D(uTerrainMask,patchUV).a>.5)discard;}}if(uGlobalDetailActive>.5){vec2 detailUV=(bodyUV-uGlobalDetailUvRect.xy)/uGlobalDetailUvRect.zw;if(all(greaterThanEqual(detailUV,vec2(0.0)))&&all(lessThanEqual(detailUV,vec2(1.0)))){if(texture2D(uGlobalDetailMask,detailUV).a>.5)discard;}}float maria=fbm(p*5.1+vec3(5,2,1));
-        float high=fbm(p*24.0);float small=fbm(p*88.0);float micro=fbm(p*176.0);
-        float cr=crater(p,19.0)+crater(p,46.0)*.58;
-        float relief=high*.16+small*.08+micro*.035-cr;
+        vec3 p=normalize(vPos);vec2 bodyUV=vec2(atan(-p.x,p.z)/6.28318530718+.5,.5+asin(clamp(p.y,-1.0,1.0))/3.14159265359);float maria=fbm(p*5.1+vec3(5,2,1));
+        float high=fbm(p*24.0);float small=fbm(p*88.0);float micro=fbm(p*176.0);float fine=fbm(p*360.0);
+        float cr=crater(p,19.0)+crater(p,46.0)*.58+crater(p,110.0)*.30;
+        float relief=high*.16+small*.08+micro*.035+fine*.018-cr;
         vec3 highlands=vec3(.69,.70,.69);vec3 basalt=vec3(.30,.32,.33);
         vec3 albedo=mix(basalt,highlands,smoothstep(.36,.66,maria+relief*.2));
         vec3 nasaBase=texture2D(uBaseTexture,bodyUV).rgb;
         albedo=mix(albedo,nasaBase*1.32,uBaseTextureReady*.88);
         albedo*=.78+relief*.7;albedo+=vec3(.09,.09,.085)*pow(max(small-.68,0.0),2.0);
-        vec3 normal=normalize(vNormal);float light=max(dot(normal,normalize(uSunDir)),0.0);
-        float limb=.20+.80*pow(max(normal.z,0.0),.42);
-        vec3 color=albedo*(.075+.98*light)*limb;
+        vec3 baseNormal=normalize(vNormal);vec3 dpdx=dFdx(vPos),dpdy=dFdy(vPos);vec3 r1=cross(dpdy,baseNormal),r2=cross(baseNormal,dpdx);float det=dot(dpdx,r1);vec3 bumpGradient=sign(det)*(dFdx(relief)*r1+dFdy(relief)*r2);vec3 normal=normalize(abs(det)*baseNormal-bumpGradient*2.4);
+        float light=max(dot(normal,normalize(uSunDir)),0.0);float viewFacing=max(dot(normal,normalize(uCameraLocal-vPos)),0.0);
+        float limb=.30+.70*pow(viewFacing,.42);
+        vec3 color=albedo*(.10+1.05*light)*limb;
         float ejecta=pow(max(fbm(p*62.0)-.70,0.0),2.0);color+=vec3(.11,.105,.095)*ejecta;
         gl_FragColor=vec4(color,1.0);
         #include <logdepthbuf_fragment>
       }`,
-    depthTest: true, depthWrite: true, transparent: false, side: THREE.FrontSide
+    depthTest: true, depthWrite: true, transparent: false, side: THREE.FrontSide,
+    extensions: { derivatives: true }
   });
   const moonMesh = new THREE.Mesh(moonGeometry, moonMaterial);
   const moonUserRotation = new THREE.Quaternion();
@@ -312,8 +314,8 @@ function createMoonTerrainController() {
   const PATCH = { west: 1.6333, east: 5.6333, south: 24.1322, north: 28.1322 };
   const mobile = matchMedia('(max-width: 700px)').matches || (navigator.deviceMemory || 4) <= 3;
   let active = false, assetsPromise = null, globalData = null, patchData = null;
-  let colorTexture = null, patchMesh = null, maskTexture = null;
-  let globalDetailPatchMesh = null, globalDetailMaskTexture = null, globalDetailMaterial = null;
+  let colorTexture = null, patchMesh = null;
+  let globalDetailPatchMesh = null, globalDetailMaterial = null;
   let globalDetailBounds = null;
   let labelData = null, preparedLabels = [], labelSprites = new Map(), lastLabelRefreshAt = 0;
   const state = {
@@ -631,6 +633,7 @@ function createMoonTerrainController() {
     const vertexCount = rowWidth * rowWidth;
     const positions = new Float32Array(vertexCount * 3);
     const uvs = new Float32Array(vertexCount * 2);
+    const colors = new Float32Array(vertexCount * 4);
     const indices = new Uint32Array(segments * segments * 6);
     let indexOffset = 0;
     for (let y = 0; y <= segments; y++) {
@@ -643,6 +646,9 @@ function createMoonTerrainController() {
         positions[p] = point.x; positions[p+1] = point.y; positions[p+2] = point.z;
         uvs[uv] = (lon + 180) / 360;
         uvs[uv+1] = 0.5 + lat / 180;
+        const edgeDistance = Math.min(u, v, 1-u, 1-v);
+        const edgeAlpha = THREE.MathUtils.smoothstep(edgeDistance, 0.0, 0.035);
+        colors[vertex*4] = 1; colors[vertex*4+1] = 1; colors[vertex*4+2] = 1; colors[vertex*4+3] = edgeAlpha;
         if (x < segments && y < segments) {
           const a = vertex, b = a + 1, d = a + rowWidth, c = d + 1;
           indices[indexOffset++] = a; indices[indexOffset++] = b; indices[indexOffset++] = d;
@@ -653,12 +659,14 @@ function createMoonTerrainController() {
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 4));
     geometry.setIndex(new THREE.BufferAttribute(indices, 1));
     geometry.computeVertexNormals();
     geometry.computeBoundingSphere();
     const material = new THREE.MeshStandardMaterial({
-      map: colorTexture, roughness: 1, metalness: 0, side: THREE.DoubleSide,
-      depthTest: true, depthWrite: true, transparent: false
+      map: colorTexture, vertexColors: true, roughness: 1, metalness: 0, side: THREE.DoubleSide,
+      depthTest: true, depthWrite: false, transparent: true,
+      polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2
     });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.name = 'BridgePoint locally hosted 512ppd lunar elevation patch';
@@ -674,20 +682,7 @@ function createMoonTerrainController() {
     moonMesh.add(mesh);
     patchMesh = mesh;
 
-    maskTexture = new THREE.DataTexture(new Uint8Array([255,255,255,255]), 1, 1, THREE.RGBAFormat, THREE.UnsignedByteType);
-    maskTexture.minFilter = THREE.NearestFilter;
-    maskTexture.magFilter = THREE.NearestFilter;
-    maskTexture.generateMipmaps = false;
-    maskTexture.flipY = false;
-    maskTexture.needsUpdate = true;
-    const uMin = (PATCH.west + 180) / 360;
-    const vMin = 0.5 + PATCH.south / 180;
-    moonMaterial.uniforms.uTerrainMask.value = maskTexture;
-    moonMaterial.uniforms.uTerrainUvRect.value.set(
-      uMin, vMin, (PATCH.east - PATCH.west) / 360, (PATCH.north - PATCH.south) / 180
-    );
     patchMesh.visible = active;
-    moonMaterial.uniforms.uTerrainActive.value = active ? 1 : 0;
   }
   function refreshGlobalDetailPatch(centerLat, centerLon, force = false) {
     if (!active || !globalData || !colorTexture) return;
@@ -706,6 +701,7 @@ function createMoonTerrainController() {
     const vertexCount = rowWidth * (heightSegments + 1);
     const positions = new Float32Array(vertexCount * 3);
     const uvs = new Float32Array(vertexCount * 2);
+    const colors = new Float32Array(vertexCount * 4);
     const indices = new Uint32Array(widthSegments * heightSegments * 6);
     let indexOffset = 0;
     for (let y = 0; y <= heightSegments; y++) {
@@ -719,6 +715,9 @@ function createMoonTerrainController() {
         positions[p] = point.x; positions[p+1] = point.y; positions[p+2] = point.z;
         uvs[uv] = (lon + 180) / 360;
         uvs[uv+1] = 0.5 + lat / 180;
+        const edgeDistance = Math.min(u, v, 1-u, 1-v);
+        const edgeAlpha = THREE.MathUtils.smoothstep(edgeDistance, 0.0, 0.055);
+        colors[vertex*4] = 1; colors[vertex*4+1] = 1; colors[vertex*4+2] = 1; colors[vertex*4+3] = edgeAlpha;
         if (x < widthSegments && y < heightSegments) {
           const cellLat = north - (y + 0.5) / heightSegments * (north - south);
           const cellLon = west + (x + 0.5) / widthSegments * (east - west);
@@ -735,13 +734,14 @@ function createMoonTerrainController() {
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 4));
     geometry.setIndex(new THREE.BufferAttribute(indices.subarray(0, indexOffset), 1));
     geometry.computeVertexNormals();
     geometry.computeBoundingSphere();
     if (!globalDetailMaterial) globalDetailMaterial = new THREE.MeshStandardMaterial({
-      map: colorTexture, roughness: 1, metalness: 0, side: THREE.DoubleSide,
-      depthTest: true, depthWrite: true, transparent: false,
-      polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1
+      map: colorTexture, vertexColors: true, roughness: 1, metalness: 0, side: THREE.DoubleSide,
+      depthTest: true, depthWrite: false, transparent: true,
+      polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2
     });
     if (!globalDetailPatchMesh) {
       globalDetailPatchMesh = new THREE.Mesh(geometry, globalDetailMaterial);
@@ -754,19 +754,6 @@ function createMoonTerrainController() {
       globalDetailPatchMesh.geometry = geometry;
       previous.dispose();
     }
-    if (!globalDetailMaskTexture) {
-      globalDetailMaskTexture = new THREE.DataTexture(new Uint8Array([255,255,255,255]), 1, 1, THREE.RGBAFormat, THREE.UnsignedByteType);
-      globalDetailMaskTexture.minFilter = THREE.NearestFilter;
-      globalDetailMaskTexture.magFilter = THREE.NearestFilter;
-      globalDetailMaskTexture.generateMipmaps = false;
-      globalDetailMaskTexture.flipY = false;
-      globalDetailMaskTexture.needsUpdate = true;
-    }
-    const uMin = (west + 180) / 360;
-    const vMin = 0.5 + south / 180;
-    moonMaterial.uniforms.uGlobalDetailMask.value = globalDetailMaskTexture;
-    moonMaterial.uniforms.uGlobalDetailUvRect.value.set(uMin, vMin, (east-west)/360, (north-south)/180);
-    moonMaterial.uniforms.uGlobalDetailActive.value = active ? 1 : 0;
     globalDetailPatchMesh.visible = active;
     globalDetailBounds = { west, east, south, north, centerLat: latitudeCenter, centerLon: longitudeCenter };
     state.globalDetailPatch = { source: 'BridgePoint-hosted NASA LRO LOLA global 16ppd', resolutionPixelsPerDegree: 16, meshVertices: vertexCount, bounds: globalDetailBounds };
@@ -833,8 +820,6 @@ function createMoonTerrainController() {
     if (patchMesh) patchMesh.visible = active;
     if (globalDetailPatchMesh) globalDetailPatchMesh.visible = active;
     labelsGroup.visible = active;
-    moonMaterial.uniforms.uTerrainActive.value = active && maskTexture ? 1 : 0;
-    moonMaterial.uniforms.uGlobalDetailActive.value = active && globalDetailPatchMesh ? 1 : 0;
     if (active) refreshLabels(true);
     commitState(active ? (patchMesh ? 'ready' : 'loading') : 'inactive');
   }
@@ -1227,6 +1212,7 @@ function createMoonTerrainController() {
     moonMaterial.uniforms.uTime.value=t;
     const sunWorld=sunGroup.getWorldPosition(new THREE.Vector3());
     moonMaterial.uniforms.uSunDir.value.copy(moonMesh.worldToLocal(sunWorld.clone()).normalize());
+    moonMaterial.uniforms.uCameraLocal.value.copy(moonMesh.worldToLocal(camera.position.clone()));
     if(!reducedMotion)sunGroup.rotation.y+=elapsed*.012;
     if(focusedObject&&!transitionStart&&!dragging){
       const focusedWorld=focusedObject===sunMesh?sunGroup.getWorldPosition(new THREE.Vector3()):(focusLocalTarget?moonMesh.localToWorld(focusLocalTarget.clone()):focusedObject.getWorldPosition(new THREE.Vector3()));
