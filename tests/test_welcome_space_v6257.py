@@ -261,6 +261,16 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
         self.assertNotIn("trek.nasa.gov/tiles/Moon", module)
         self.assertNotIn("fetch(src", module)
 
+        # The 3D scene must actually be mounted in the public welcome gate and its
+        # locally hosted terrain assets must be copied into the Pages artifact.
+        index = (ROOT / "rebuild-v5000" / "index.html").read_text()
+        workflow = (ROOT / ".github" / "workflows" / "deploy-intelligence-rebuild-v5000.yml").read_text()
+        self.assertIn('class="bpw-celestial-system"', index)
+        self.assertIn('bridgepoint-welcome-space-v6257.js?v=6258-local-moon-terrain', index)
+        self.assertIn("cp rebuild-v5000/bridgepoint-welcome-space-v6257.js site/bridgepoint-welcome-space-v6257.js", workflow)
+        self.assertIn("cp -a assets/moon/v1 site/assets/moon/v1", workflow)
+        self.assertIn("assets/moon/v1/**", workflow)
+
         # The Sun's original focus camera branch remains intact.
         self.assertIn(
             "animateCamera(world.clone().add(new THREE.Vector3(0,0,sunRadiusVisual*2.7)),world,1.8);",
