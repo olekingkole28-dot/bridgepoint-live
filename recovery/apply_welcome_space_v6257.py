@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 BUILD = "v6258-local-moon-terrain"
-SW_URL = "/sw.js?v=6257-welcome-space-fix"
+SW_URL = "/sw.js?v=6258-local-moon-terrain"
 CACHE_NAME = "bp-intelligence-v6247-universal-fresh-entry-sidewalk"
 
 
