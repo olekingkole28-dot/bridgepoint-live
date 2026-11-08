@@ -17,7 +17,7 @@ def root_fixture() -> str:
 <div id="bpWelcomeGateV1" data-phase="intro">
   <div class="bpw-layout">
     <div class="bpw-starfield bpw-stars-far" id="bpwStarsFarV4"></div>
-    <div class="bpw-starfield bpw-stars-near" id="bpwStarsNearV4"></div>
+    <div class="bpw-starfield bpw-stars-near" id="bpwStarsNearV4" aria-hidden="true"></div>
     <div class="bpw-globe-aura" aria-hidden="true"></div>
     <div class="bpw-stage">
       <div class="bpw-wordmark-wrap">
