@@ -97,7 +97,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
     def test_root_uses_one_existing_earth_and_no_ground_sky_button(self):
         out = patch_root_html(root_fixture())
         self.assertIn("bpWelcomeGateStylesV6257", out)
-        self.assertIn('src="/bridgepoint-welcome-space-v6257.js?v=6257"', out)
+        self.assertIn('src="/bridgepoint-welcome-space-v6257.js?v=6258-local-moon-terrain"', out)
         self.assertIn('class="bpw-celestial-system" aria-hidden="true"></div>', out)
         self.assertNotIn("bpwCelestialCanvasV6257", out)
         self.assertNotIn('class="bpw-globe-aura"', out)
@@ -313,7 +313,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
             after = {p.relative_to(site).as_posix() for p in site.rglob("*") if p.is_file()}
             self.assertEqual(after - before, set())
             root = (site / "index.html").read_text()
-            self.assertIn('src="/bridgepoint-welcome-space-v6257.js?v=6257"', root)
+            self.assertIn('src="/bridgepoint-welcome-space-v6257.js?v=6258-local-moon-terrain"', root)
             self.assertIn("event.persisted", root)
             self.assertIn("location.reload()", root)
             self.assertNotIn("data-space-ground", root)
