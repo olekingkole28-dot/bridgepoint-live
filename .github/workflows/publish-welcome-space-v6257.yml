@@ -21,7 +21,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: bridgepoint-welcome-space-v6264-geometric-crater-bowls
+  group: bridgepoint-welcome-space-v6264-fast-geometric-crater-bowls
   cancel-in-progress: false
 
 jobs:
@@ -127,18 +127,19 @@ jobs:
           PY
           gdal_calc.py -A /tmp/sldem2015-128ppd.jp2 --outfile=/tmp/sldem2015-128ppd-u16.tif --calc="numpy.clip(numpy.rint(A.astype(numpy.float32)*0.5+32768.0),0,65535)" --type=UInt16 --NoDataValue=32768 --overwrite
           mkdir -p assets/moon/v1/sldem-128ppd
-          source_shift=$(cat /tmp/sldem-source-column-shift.txt)
-          for y in $(seq 0 11); do
-            printf -v yy '%02d' "$y"
-            yoff=$((y*1280))
-            for x in $(seq 0 35); do
-              printf -v xx '%02d' "$x"
-              source_x=$(((x+source_shift)%36))
-              xoff=$((source_x*1280))
-              out="assets/moon/v1/sldem-128ppd/moon-sldem-128ppd-y${yy}-x${xx}.png"
-              gdal_translate -q -of PNG -ot UInt16 -co ZLEVEL=9 -srcwin "$xoff" "$yoff" 1280 1280 /tmp/sldem2015-128ppd-u16.tif "$out"
-            done
-          done
+          export SLDEM_TILE_SHIFT=$(cat /tmp/sldem-source-column-shift.txt)
+          export SLDEM_TILE_RASTER=/tmp/sldem2015-128ppd-u16.tif
+          seq 0 431 | xargs -r -n 1 -P 4 bash -c '
+            set -e
+            tile_index="$1"
+            y=$((tile_index / 36)); x=$((tile_index % 36))
+            printf -v yy "%02d" "$y"
+            printf -v xx "%02d" "$x"
+            source_x=$(((x + SLDEM_TILE_SHIFT) % 36))
+            xoff=$((source_x * 1280)); yoff=$((y * 1280))
+            out="assets/moon/v1/sldem-128ppd/moon-sldem-128ppd-y${yy}-x${xx}.png"
+            gdal_translate -q -of PNG -ot UInt16 -co ZLEVEL=6 -srcwin "$xoff" "$yoff" 1280 1280 "$SLDEM_TILE_RASTER" "$out"
+          ' _
           test "$(find assets/moon/v1/sldem-128ppd -type f -name '*.png' | wc -l)" -eq 432
           gdalinfo assets/moon/v1/sldem-128ppd/moon-sldem-128ppd-y03-x18.png | grep -Fq 'Size is 1280, 1280'
           gdalinfo assets/moon/v1/sldem-128ppd/moon-sldem-128ppd-y03-x18.png | grep -Fq 'Type=UInt16'
