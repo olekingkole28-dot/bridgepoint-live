@@ -3,10 +3,11 @@
  * A self-contained Three.js celestial scene for the welcome gate.
  *
  * Scale policy:
- * - Earth/Moon/Sun physical radii use their mean-radius ratios.
+ * - Earth and Moon radii use their mean-radius ratio. The welcome Sun disk is a
+ *   cinematic presentation scale, not its physical radius.
  * - Inter-body distances in the cinematic overview are compressed so all bodies
  *   remain visible on a phone and desktop. Ground-sky mode restores the Sun and
- *   Moon's matching real apparent angular radii.
+ *   Moon's matching real apparent angular radii (about 0.5 degrees).
  * - Lunar relief and solar activity are procedural shaders, not claimed NASA
  *   LOLA/DEM or live solar-observatory textures.
  */
@@ -508,7 +509,6 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       sunLight.position.copy(sunPosition);
     }
     stars.rotation.y+=reducedMotion?0:elapsed*.0008;
-    namedGeometry.computeBoundingSphere();
     renderer.render(scene,camera);
     if(!document.hidden)requestAnimationFrame(render);
   }
@@ -523,6 +523,6 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     ground:setGroundSky,
     state:()=>({viewState,groundMode,moonOrbitPeriodDays:MOON_PERIOD_DAYS,
       radiiKm:{earth:EARTH_RADIUS_KM,moon:MOON_RADIUS_KM,sun:SUN_RADIUS_KM},
-      cinematicOrbitDistanceScale:.22,proceduralLunarRelief:true})
+      cinematicOrbitDistanceScale:'responsive-compressed',proceduralLunarRelief:true})
   };
 })();
