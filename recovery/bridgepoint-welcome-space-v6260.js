@@ -973,6 +973,9 @@ function createMoonTerrainController() {
     active = !!value;
     if (patchMesh) patchMesh.visible = active;
     if (globalDetailPatchMesh) globalDetailPatchMesh.visible = active;
+    if (highResolutionPatchMesh) highResolutionPatchMesh.visible = active && !!highResolutionBounds;
+    moonMaterial.uniforms.uApolloCutoutActive.value = active && patchMesh ? 1 : 0;
+    moonMaterial.uniforms.uGlobalCutoutActive.value = active && highResolutionPatchMesh && highResolutionBounds ? 1 : 0;
     labelsGroup.visible = active;
     if (active) refreshLabels(true);
     commitState(active ? (patchMesh ? 'ready' : 'loading') : 'inactive');
@@ -986,7 +989,7 @@ function createMoonTerrainController() {
     const local = moonMesh.worldToLocal(worldPosition.clone()).normalize();
     const lat = THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(local.y, -1, 1)));
     const lon = THREE.MathUtils.radToDeg(Math.atan2(-local.x, local.z));
-    refreshGlobalDetailPatch(lat, lon);
+    void refreshGlobalDetailPatch(lat, lon);
     return Promise.resolve(focusResult(lat, lon));
   }
   window.__BP_MOON_TERRAIN_V1__ = state;
@@ -996,7 +999,7 @@ function createMoonTerrainController() {
       try {
         await loadLocalAssets();
         setActive(true);
-        refreshGlobalDetailPatch(lat, lon, true);
+        await refreshGlobalDetailPatch(lat, lon, true);
         return focusResult(lat, lon);
       } catch (_) {
         return { lat, lon, elevationMeters: null, focusPointLocal: moonSurfacePoint(lat, lon, 0) };
