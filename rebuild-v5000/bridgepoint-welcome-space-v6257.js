@@ -8,8 +8,9 @@
  * - Inter-body distances in the cinematic overview are compressed so all bodies
  *   remain visible on a phone and desktop. Ground-sky mode restores the Sun and
  *   Moon's matching real apparent angular radii (about 0.5 degrees).
- * - Lunar relief and solar activity are procedural shaders, not claimed NASA
- *   LOLA/DEM or live solar-observatory textures.
+ * - The near-side Moon can stream NASA Apollo Metric Camera elevation tiles
+ *   and LRO WAC imagery into a real displaced terrain mesh. Areas without this
+ *   regional DEM coverage retain the global NASA imagery/procedural fallback.
  */
 import * as THREE from '/vendor/three.module.js?v=169-local';
 
@@ -806,6 +807,8 @@ function createMoonTerrainController() {
     reset:resetView,
     state:()=>({viewState,moonOrbitPeriodDays:MOON_PERIOD_DAYS,
       radiiKm:{earth:EARTH_RADIUS_KM,moon:MOON_RADIUS_KM,sun:SUN_RADIUS_KM},
-      cinematicOrbitDistanceScale:'responsive-compressed',proceduralLunarRelief:true})
+      cinematicOrbitDistanceScale:'responsive-compressed',
+      lunarTerrain:window.__BP_MOON_TERRAIN_V1__||{status:'not-requested'},
+      proceduralLunarRelief:'fallback-only-outside-loaded-NASA-DEM-coverage'})
   };
 })();
