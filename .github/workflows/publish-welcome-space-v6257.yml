@@ -164,7 +164,8 @@ jobs:
           grep -Fq 'externalRuntimeTerrainRequests: 0' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'moon-global-height-16ppd-u16.png' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'globalTerrainMeshResolution' site/bridgepoint-welcome-space-v6260.js
-          grep -Fq 'moonPivot.position.copy(moonMesh.position).negate()' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'moonPivot.position.set(0,0,0)' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'moonMesh.position.set(0,0,0)' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'namedStarPoints.visible=false' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'constellationLinesMesh.visible=false' site/bridgepoint-welcome-space-v6260.js
           grep -Fq "if(viewState!=='moon')" site/bridgepoint-welcome-space-v6260.js
