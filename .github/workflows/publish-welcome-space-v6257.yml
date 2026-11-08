@@ -122,7 +122,7 @@ jobs:
           }
           assert added==expected_added, f'unexpected added files: {sorted(added)}'
           assert changed==expected, f'unexpected production changes: {sorted(changed)}'
-          print('PASS: eight entry/PWA files changed; two celestial modules and four local Moon assets added; all unrelated globe/data/map/feature assets byte-identical.')
+          print('PASS: eight entry/PWA files changed; two celestial modules and five local Moon assets added; all unrelated globe/data/map/feature assets byte-identical.')
           PY
           node --check /tmp/bridgepoint-welcome-gate-v6257.js
           node --input-type=module --check < site/bridgepoint-welcome-space-v6257.js
@@ -138,7 +138,7 @@ jobs:
           grep -Fq 'externalRuntimeTerrainRequests: 0' site/bridgepoint-welcome-space-v6257.js
           grep -Fq 'moon-apollo15-4deg-512ppd-height-u16.png' site/bridgepoint-welcome-space-v6257.js
           ! grep -Fq 'trek.nasa.gov/tiles/Moon' site/bridgepoint-welcome-space-v6257.js
-          grep -Fq 'function panMoonSurface(dx,dy)' site/bridgepoint-welcome-space-v6257.js
+          grep -Fq 'function panMoonSurface(dx, dy)' site/bridgepoint-welcome-space-v6257.js
           grep -Fq 'moon-feature-labels.json' site/bridgepoint-welcome-space-v6257.js
           grep -Fq 'function refreshLabels(force = false)' site/bridgepoint-welcome-space-v6257.js
           ! grep -Fq 'data-space-ground' site/bridgepoint-welcome-space-v6257.js
