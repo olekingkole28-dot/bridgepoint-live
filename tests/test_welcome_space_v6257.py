@@ -360,7 +360,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
         self.assertIn("SLDEM_LABEL_URL", workflow)
         self.assertIn("WESTERNMOST_LONGITUDE", workflow)
         self.assertIn("export SLDEM_TILE_SHIFT=$(cat /tmp/sldem-source-column-shift.txt)", workflow)
-        self.assertIn("export SLDEM_TILE_SOURCE=/tmp/sldem2015-128ppd.jp2", workflow)
+        self.assertNotIn("export SLDEM_TILE_SOURCE=/tmp/sldem2015-128ppd.jp2", workflow)
         self.assertIn("xargs -r -n 1 -P 4 bash -c", workflow)
         self.assertIn("source_x=$(((x + SLDEM_TILE_SHIFT) % 36))", workflow)
         self.assertIn("gdal_translate -q -of GTiff -ot UInt16 -co TILED=YES", workflow)
