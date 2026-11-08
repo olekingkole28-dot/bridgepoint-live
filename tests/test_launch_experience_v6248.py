@@ -89,6 +89,8 @@ class LaunchExperienceV6251Tests(unittest.TestCase):
         self.assertIn("craterRelief(uv,rim,shadow)", out)
         self.assertIn("bigGrid=uv*vec2(7.0,4.8)", out)
         self.assertIn("earthRadius+moonRadius*1.78", out)
+        self.assertIn("now-lastAlignment<110", out)
+        self.assertIn("for(const event of ['move','moveend','resize','rotate','pitch'])", out)
         self.assertIn("canvas.getContext('webgl'", out)
         self.assertIn("if(u_celestialVisible>.5){vec2 mdv=", out)
         self.assertIn("gl.drawArrays(gl.POINTS", out)
