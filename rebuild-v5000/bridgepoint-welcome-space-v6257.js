@@ -8,9 +8,9 @@
  * - Inter-body distances in the cinematic overview are compressed so all bodies
  *   remain visible on a phone and desktop. Ground-sky mode restores the Sun and
  *   Moon's matching real apparent angular radii (about 0.5 degrees).
- * - The near-side Moon can stream NASA Apollo Metric Camera elevation tiles
- *   and LRO WAC imagery into a real displaced terrain mesh. Areas without this
- *   regional DEM coverage retain the global NASA imagery/procedural fallback.
+ * - The Moon uses BridgePoint-hosted SLDEM2015/LOLA elevation and LROC color
+ *   assets. Global relief and a high-resolution crater patch are decoded locally;
+ *   no NASA/Moon Trek terrain tiles are requested at runtime.
  */
 import * as THREE from '/vendor/three.module.js?v=169-local';
 
@@ -289,339 +289,268 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   let viewState='overview',focusedObject=null;
   let focusLocalTarget=null,moonTerrainController=null;
 
-// NASA lunar data is streamed only when the Moon is selected.
-// The equatorial Apollo Metric Camera grayscale tiles encode actual elevation
-// (-8,000m to +8,000m). NASA LRO WAC tiles provide the matching surface imagery.
-function moonSurfacePoint(latDeg, lonDeg, elevationMeters = 0) {
-  const lat = THREE.MathUtils.degToRad(latDeg);
-  const lon = THREE.MathUtils.degToRad(lonDeg);
-  const radius = MOON_RADIUS_KM / EARTH_RADIUS_KM + Number(elevationMeters || 0) / (1000 * EARTH_RADIUS_KM);
-  return new THREE.Vector3(
-    -radius * Math.cos(lat) * Math.sin(lon),
-    radius * Math.sin(lat),
-    radius * Math.cos(lat) * Math.cos(lon)
-  );
-}
-
+// Lunar elevation and color are served only from BridgePoint static assets.
+// Source products were materialized locally; the browser never requests NASA/Moon Trek tiles.
 function createMoonTerrainController() {
-  const DEM_Z = 8, DEM_COLS = 512, DEM_ROWS = 256, TILE = 256, PATCH_TILES = 3;
-  const DEM_LAYER = 'Apollo15_MetricCam_Gray_Global_1024ppd';
-  const WAC_LAYER = 'LRO_WAC_Mosaic_Global_303ppd_v02';
-  const BASE = 'https://trek.nasa.gov/tiles/Moon/EQ/';
-  const bitmapCache = new Map();
-  let active = false, requestId = 0, patchKey = '', loadingKey = '', loadingPromise = null;
-  let patchMesh = null, colorTexture = null, maskTexture = null, lastHeightCanvas = null;
-  let lastHeightPixels = null, lastRegion = null, baseTextureLoading = null;
+  const ASSET = '/assets/moon/v1/';
+  const PATCH = { west: 1.6333, east: 5.6333, south: 24.1322, north: 28.1322 };
+  const mobile = matchMedia('(max-width: 700px)').matches || (navigator.deviceMemory || 4) <= 3;
+  let active = false, assetsPromise = null, globalData = null, patchData = null;
+  let colorTexture = null, patchMesh = null, maskTexture = null;
   const state = {
-    version: 1, source: 'NASA Apollo 15 Metric Camera DEM + NASA LRO WAC global mosaic',
-    demEncoding: '8-bit grayscale maps -8000m to +8000m; transparent pixels are no-data',
-    demTileZoom: DEM_Z, patchTiles: PATCH_TILES, status: 'idle', updatedAt: Date.now()
+    version: 2,
+    source: 'BridgePoint-hosted SLDEM2015 + LOLA elevation and LROC color',
+    demEncoding: '16-bit grayscale PNG; elevationMeters = sample - 32768',
+    runtimeMode: 'local-static-assets',
+    assetBase: ASSET,
+    status: 'idle',
+    updatedAt: Date.now()
   };
 
-  function url(layer, z, row, col, ext) {
-    return BASE + layer + '/1.0.0/default/default028mm/' + z + '/' + row + '/' + col + '.' + ext;
-  }
-  function bitmap(src) {
-    if (bitmapCache.has(src)) return bitmapCache.get(src);
-    const task = (async () => {
-      try {
-        const response = await fetch(src, { mode: 'cors', credentials: 'omit', cache: 'force-cache' });
-        if (!response.ok) return null;
-        return await createImageBitmap(await response.blob());
-      } catch (error) {
-        console.warn('[BridgePoint Moon] NASA tile unavailable:', src, error?.message || error);
-        return null;
-      }
-    })();
-    bitmapCache.set(src, task);
-    return task;
-  }
   function commitState(status, extra = {}) {
     Object.assign(state, extra, { status, active, updatedAt: Date.now() });
     window.__BP_MOON_TERRAIN_V1__ = state;
   }
-  function clearTerrainPatch() {
-    if (patchMesh) {
-      moonMesh.remove(patchMesh);
-      patchMesh.geometry.dispose();
-      patchMesh.material.map?.dispose();
-      patchMesh.material.dispose();
-      patchMesh = null;
+  function paeth(a, b, c) {
+    const p = a + b - c, pa = Math.abs(p - a), pb = Math.abs(p - b), pc = Math.abs(p - c);
+    return pa <= pb && pa <= pc ? a : pb <= pc ? b : c;
+  }
+  async function decodePng16Gray(url) {
+    const response = await fetch(url, { credentials: 'same-origin', cache: 'force-cache' });
+    if (!response.ok) throw new Error('Local lunar asset unavailable: ' + url + ' (' + response.status + ')');
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    const signature = [137,80,78,71,13,10,26,10];
+    for (let i = 0; i < 8; i++) if (bytes[i] !== signature[i]) throw new Error('Invalid PNG signature: ' + url);
+    let width = 0, height = 0, bitDepth = 0, colorType = -1, total = 0;
+    const chunks = [];
+    const read32 = (i) => ((bytes[i] * 0x1000000) + (bytes[i+1] << 16) + (bytes[i+2] << 8) + bytes[i+3]) >>> 0;
+    for (let offset = 8; offset + 12 <= bytes.length;) {
+      const length = read32(offset), type = String.fromCharCode(bytes[offset+4],bytes[offset+5],bytes[offset+6],bytes[offset+7]);
+      const dataStart = offset + 8, dataEnd = dataStart + length;
+      if (dataEnd + 4 > bytes.length) throw new Error('Truncated PNG chunk: ' + url);
+      if (type === 'IHDR') {
+        width = read32(dataStart); height = read32(dataStart + 4);
+        bitDepth = bytes[dataStart + 8]; colorType = bytes[dataStart + 9];
+      } else if (type === 'IDAT') {
+        const part = bytes.slice(dataStart, dataEnd);
+        chunks.push(part); total += part.length;
+      } else if (type === 'IEND') break;
+      offset = dataEnd + 4;
     }
-    colorTexture?.dispose();
-    maskTexture?.dispose();
-    colorTexture = null;
-    maskTexture = null;
-    moonMaterial.uniforms.uTerrainMask.value = null;
-    moonMaterial.uniforms.uTerrainActive.value = 0;
-    patchKey = '';
-    lastHeightCanvas = null;
-    lastHeightPixels = null;
-    lastRegion = null;
-  }
-  async function loadGlobalWac() {
-    if (moonMaterial.uniforms.uBaseTextureReady.value > 0.5) return true;
-    if (baseTextureLoading) return baseTextureLoading;
-    baseTextureLoading = (async () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = TILE * 2;
-      canvas.height = TILE;
-      const ctx = canvas.getContext('2d');
-      const tiles = await Promise.all([
-        bitmap(url(WAC_LAYER, 0, 0, 0, 'jpg')),
-        bitmap(url(WAC_LAYER, 0, 0, 1, 'jpg'))
-      ]);
-      tiles.forEach((image, index) => { if (image) ctx.drawImage(image, index * TILE, 0, TILE, TILE); });
-      const texture = new THREE.CanvasTexture(canvas);
-      texture.colorSpace = THREE.SRGBColorSpace;
-      texture.flipY = true;
-      texture.generateMipmaps = true;
-      texture.minFilter = THREE.LinearMipmapLinearFilter;
-      texture.magFilter = THREE.LinearFilter;
-      texture.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
-      moonMaterial.uniforms.uBaseTexture.value = texture;
-      moonMaterial.uniforms.uBaseTextureReady.value = tiles.some(Boolean) ? 1 : 0;
-      return tiles.some(Boolean);
-    })().catch(error => {
-      console.warn('[BridgePoint Moon] NASA WAC global imagery could not load:', error);
-      return false;
-    }).finally(() => { baseTextureLoading = null; });
-    return baseTextureLoading;
-  }
-  function elevationAt(latDeg, lonDeg) {
-    if (!lastHeightPixels || !lastRegion) return null;
-    const lon = ((lonDeg + 180) % 360 + 360) % 360;
-    const worldCol = lon / 360 * DEM_COLS;
-    const worldRow = (90 - latDeg) / 180 * DEM_ROWS;
-    const u = (worldCol - lastRegion.startCol) / PATCH_TILES;
-    const v = (worldRow - lastRegion.startRow) / PATCH_TILES;
-    if (u < 0 || u > 1 || v < 0 || v > 1) return null;
-    const px = Math.max(0, Math.min(lastRegion.width - 1, Math.round(u * (lastRegion.width - 1))));
-    const py = Math.max(0, Math.min(lastRegion.height - 1, Math.round(v * (lastRegion.height - 1))));
-    const offset = (py * lastRegion.width + px) * 4;
-    if (lastHeightPixels[offset + 3] < 16) return null;
-    return lastHeightPixels[offset] / 255 * 16000 - 8000;
-  }
-  function focusResult(latDeg, lonDeg) {
-    const elevation = elevationAt(latDeg, lonDeg);
-    if (!Number.isFinite(elevation)) return null;
-    return {
-      lat: latDeg, lon: lonDeg, elevationMeters: elevation,
-      focusPointLocal: moonSurfacePoint(latDeg, lonDeg, elevation)
-    };
-  }
-  async function loadPatch(latDeg, lonDeg) {
-    const worldCol = ((lonDeg + 180) % 360 + 360) % 360 / 360 * DEM_COLS;
-    const worldRow = (90 - latDeg) / 180 * DEM_ROWS;
-    const centerCol = Math.floor(worldCol);
-    const centerRow = Math.floor(worldRow);
-    const startCol = Math.max(0, Math.min(DEM_COLS - PATCH_TILES, centerCol - 1));
-    const startRow = Math.max(0, Math.min(DEM_ROWS - PATCH_TILES, centerRow - 1));
-    const key = startCol + ':' + startRow;
-    if (patchKey === key && patchMesh) {
-      patchMesh.visible = active;
-      moonMaterial.uniforms.uTerrainActive.value = active ? 1 : 0;
-      commitState('ready', { tileWindow: key, elevationSource: DEM_LAYER });
-      return focusResult(latDeg, lonDeg);
+    if (!width || !height || bitDepth !== 16 || colorType !== 0) {
+      throw new Error('Expected 16-bit grayscale lunar PNG: ' + url);
     }
-    if (loadingKey === key && loadingPromise) return loadingPromise;
-    loadingKey = key;
-    const thisRequest = ++requestId;
-    loadingPromise = (async () => {
-      commitState('loading', { tileWindow: key, elevationSource: DEM_LAYER });
-      const heightCanvas = document.createElement('canvas');
-      const colorCanvas = document.createElement('canvas');
-      const width = TILE * PATCH_TILES, height = TILE * PATCH_TILES;
-      heightCanvas.width = colorCanvas.width = width;
-      heightCanvas.height = colorCanvas.height = height;
-      const hctx = heightCanvas.getContext('2d', { willReadFrequently: true });
-      const cctx = colorCanvas.getContext('2d');
-      const jobs = [];
-      for (let row = 0; row < PATCH_TILES; row++) {
-        for (let col = 0; col < PATCH_TILES; col++) {
-          const drawX = col * TILE, drawY = row * TILE;
-          const sourceRow = startRow + row, sourceCol = startCol + col;
-          jobs.push(bitmap(url(DEM_LAYER, DEM_Z, sourceRow, sourceCol, 'png')).then(image => {
-            if (image) hctx.drawImage(image, drawX, drawY, TILE, TILE);
-          }));
-          jobs.push(bitmap(url(WAC_LAYER, DEM_Z, sourceRow, sourceCol, 'jpg')).then(image => {
-            if (image) cctx.drawImage(image, drawX, drawY, TILE, TILE);
-          }));
-        }
+    const compressed = new Uint8Array(total);
+    let writeAt = 0;
+    for (const part of chunks) { compressed.set(part, writeAt); writeAt += part.length; }
+    if (typeof DecompressionStream !== 'function') throw new Error('This browser cannot decode the local 16-bit lunar elevation package.');
+    const inflated = new Uint8Array(await new Response(
+      new Blob([compressed]).stream().pipeThrough(new DecompressionStream('deflate'))
+    ).arrayBuffer());
+    const rowBytes = width * 2;
+    if (inflated.length !== height * (rowBytes + 1)) throw new Error('Unexpected lunar PNG scanline size: ' + url);
+    const decoded = new Uint8Array(height * rowBytes);
+    let cursor = 0;
+    for (let y = 0; y < height; y++) {
+      const filter = inflated[cursor++], rowStart = y * rowBytes, priorStart = rowStart - rowBytes;
+      for (let x = 0; x < rowBytes; x++) {
+        const raw = inflated[cursor++];
+        const left = x >= 2 ? decoded[rowStart + x - 2] : 0;
+        const up = y > 0 ? decoded[priorStart + x] : 0;
+        const upperLeft = y > 0 && x >= 2 ? decoded[priorStart + x - 2] : 0;
+        let predictor = 0;
+        if (filter === 1) predictor = left;
+        else if (filter === 2) predictor = up;
+        else if (filter === 3) predictor = Math.floor((left + up) / 2);
+        else if (filter === 4) predictor = paeth(left, up, upperLeft);
+        else if (filter !== 0) throw new Error('Unsupported PNG filter ' + filter);
+        decoded[rowStart + x] = (raw + predictor) & 255;
       }
-      await Promise.all(jobs);
-      if (thisRequest !== requestId || !active) return null;
-      const pixels = hctx.getImageData(0, 0, width, height).data;
-      const mobileBudget = matchMedia('(max-width: 700px)').matches || (navigator.deviceMemory || 4) <= 3;
-      const segments = mobileBudget ? 384 : 768;
-      const vertexWidth = segments + 1, vertexCount = vertexWidth * vertexWidth;
-      const positions = new Float32Array(vertexCount * 3);
-      const uvs = new Float32Array(vertexCount * 2);
-      const valid = new Uint8Array(vertexCount);
-      const coverageCanvas = document.createElement('canvas');
-      coverageCanvas.width = segments;
-      coverageCanvas.height = segments;
-      const coverageContext = coverageCanvas.getContext('2d', { willReadFrequently: false });
-      const coverageImage = coverageContext.createImageData(segments, segments);
-      const radiusBase = MOON_RADIUS_KM / EARTH_RADIUS_KM;
-      for (let y = 0; y <= segments; y++) {
-        const v = y / segments;
-        const rowPixel = Math.max(0, Math.min(height - 1, Math.round(v * (height - 1))));
-        const lat = THREE.MathUtils.degToRad(90 - ((startRow + v * PATCH_TILES) / DEM_ROWS) * 180);
-        for (let x = 0; x <= segments; x++) {
-          const u = x / segments;
-          const colPixel = Math.max(0, Math.min(width - 1, Math.round(u * (width - 1))));
-          const pixelOffset = (rowPixel * width + colPixel) * 4;
-          const vertex = y * vertexWidth + x;
-          const alpha = pixels[pixelOffset + 3];
-          const hasHeight = alpha >= 16;
-          valid[vertex] = hasHeight ? 1 : 0;
-          const elevation = hasHeight ? pixels[pixelOffset] / 255 * 16000 - 8000 : 0;
-          const radius = radiusBase + elevation / (1000 * EARTH_RADIUS_KM);
-          const lon = THREE.MathUtils.degToRad(((startCol + u * PATCH_TILES) / DEM_COLS) * 360 - 180);
-          const c = Math.cos(lat);
-          const p = vertex * 3;
-          positions[p] = -radius * c * Math.sin(lon);
-          positions[p + 1] = radius * Math.sin(lat);
-          positions[p + 2] = radius * c * Math.cos(lon);
-          const uv = vertex * 2;
-          uvs[uv] = u;
-          uvs[uv + 1] = 1 - v;
-        }
-      }
-      const indices = [];
-      for (let y = 0; y < segments; y++) {
-        const row = y * vertexWidth;
-        for (let x = 0; x < segments; x++) {
-          const a = row + x, b = a + 1, d = a + vertexWidth, c = d + 1;
-          if (valid[a] && valid[b] && valid[c] && valid[d]) {
-            indices.push(a, b, d, b, c, d);
-            const coverageOffset = (y * segments + x) * 4;
-            coverageImage.data[coverageOffset] = 255;
-            coverageImage.data[coverageOffset + 1] = 255;
-            coverageImage.data[coverageOffset + 2] = 255;
-            coverageImage.data[coverageOffset + 3] = 255;
-          }
-        }
-      }
-      if (thisRequest !== requestId) return null;
-      if (indices.length < 300) {
-        clearTerrainPatch();
-        commitState('no-dem-coverage', { tileWindow: key, elevationSource: DEM_LAYER });
-        return null;
-      }
-      coverageContext.putImageData(coverageImage, 0, 0);
-      const geometry = new THREE.BufferGeometry();
-      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-      geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
-      geometry.setIndex(indices);
-      geometry.computeVertexNormals();
-      geometry.computeBoundingSphere();
-      const texture = new THREE.CanvasTexture(colorCanvas);
-      texture.colorSpace = THREE.SRGBColorSpace;
-      texture.flipY = true;
-      texture.generateMipmaps = true;
-      texture.minFilter = THREE.LinearMipmapLinearFilter;
-      texture.magFilter = THREE.LinearFilter;
-      texture.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
-      const mask = new THREE.CanvasTexture(coverageCanvas);
-      mask.flipY = true;
-      mask.generateMipmaps = false;
-      mask.minFilter = THREE.NearestFilter;
-      mask.magFilter = THREE.NearestFilter;
-      const material = new THREE.MeshStandardMaterial({
-        map: texture, roughness: 1, metalness: 0, side: THREE.DoubleSide,
-        depthTest: true, depthWrite: true, transparent: false
-      });
-      const mesh = new THREE.Mesh(geometry, material);
-      mesh.name = 'NASA Apollo 15 Metric Camera lunar elevation mesh';
-      mesh.userData = {
-        source: 'NASA Moon Trek WMTS Apollo15 MetricCam DEM',
-        imagery: 'NASA LRO WAC Mosaic Global 303ppd',
-        resolutionLabel: 'NASA source product 1024ppd; delivered as 256px regional WMTS tiles',
-        heightRangeMeters: [-8000, 8000],
-        tileZoom: DEM_Z,
-        tileWindow: key
-      };
-      mesh.frustumCulled = false;
-      mesh.renderOrder = 2;
-      moonMesh.add(mesh);
-      if (patchMesh) {
-        moonMesh.remove(patchMesh);
-        patchMesh.geometry.dispose();
-        patchMesh.material.map?.dispose();
-        patchMesh.material.dispose();
-      }
-      colorTexture?.dispose();
-      maskTexture?.dispose();
-      patchMesh = mesh;
-      colorTexture = texture;
-      maskTexture = mask;
-      lastHeightCanvas = heightCanvas;
-      lastHeightPixels = pixels;
-      lastRegion = { startCol, startRow, width, height };
-      patchKey = key;
-      const uMin = startCol / DEM_COLS;
-      const uRange = PATCH_TILES / DEM_COLS;
-      const northLat = 90 - startRow / DEM_ROWS * 180;
-      const southLat = 90 - (startRow + PATCH_TILES) / DEM_ROWS * 180;
-      const vMin = 0.5 + southLat / 180;
-      const vRange = (northLat - southLat) / 180;
-      moonMaterial.uniforms.uTerrainMask.value = maskTexture;
-      moonMaterial.uniforms.uTerrainUvRect.value.set(uMin, vMin, uRange, vRange);
-      moonMaterial.uniforms.uTerrainActive.value = active ? 1 : 0;
-      patchMesh.visible = active;
-      commitState('ready', {
-        tileWindow: key, validTriangles: indices.length / 3, meshVertices: vertexCount,
-        heightResolution: 'NASA Apollo 15 Metric Camera DEM WMTS level 8',
-        imageryResolution: 'NASA LRO WAC WMTS level 8'
-      });
-      return focusResult(latDeg, lonDeg);
-    })().finally(() => {
-      if (loadingKey === key) { loadingKey = ''; loadingPromise = null; }
-    });
-    return loadingPromise;
+    }
+    const values = new Uint16Array(width * height);
+    for (let i = 0, j = 0; i < values.length; i++, j += 2) values[i] = (decoded[j] << 8) | decoded[j + 1];
+    return { width, height, values };
   }
-  function surfaceRadiusAt(latDeg, lonDeg) {
-    const elevation = elevationAt(latDeg, lonDeg);
+  function sampleGrid(grid, u, v) {
+    const x = THREE.MathUtils.clamp(u, 0, 1) * (grid.width - 1);
+    const y = THREE.MathUtils.clamp(v, 0, 1) * (grid.height - 1);
+    const x0 = Math.floor(x), y0 = Math.floor(y);
+    const x1 = Math.min(grid.width - 1, x0 + 1), y1 = Math.min(grid.height - 1, y0 + 1);
+    const fx = x - x0, fy = y - y0, values = grid.values, w = grid.width;
+    const a = values[y0*w+x0] * (1-fx) + values[y0*w+x1] * fx;
+    const b = values[y1*w+x0] * (1-fx) + values[y1*w+x1] * fx;
+    return a * (1-fy) + b * fy - 32768;
+  }
+  function globalElevation(lat, lon) {
+    if (!globalData) return 0;
+    const u = (((lon + 180) % 360) + 360) % 360 / 360;
+    return sampleGrid(globalData, u, (90 - lat) / 180);
+  }
+  function patchElevation(lat, lon) {
+    if (!patchData || lon < PATCH.west || lon > PATCH.east || lat < PATCH.south || lat > PATCH.north) return null;
+    const u = (lon - PATCH.west) / (PATCH.east - PATCH.west);
+    const v = (PATCH.north - lat) / (PATCH.north - PATCH.south);
+    return sampleGrid(patchData, u, v);
+  }
+  function elevationAt(lat, lon) {
+    const highResolution = patchElevation(lat, lon);
+    return Number.isFinite(highResolution) ? highResolution : globalElevation(lat, lon);
+  }
+  function focusResult(lat, lon) {
+    const elevationMeters = elevationAt(lat, lon);
+    return { lat, lon, elevationMeters, focusPointLocal: moonSurfacePoint(lat, lon, elevationMeters) };
+  }
+  function buildGlobalTerrain() {
     const base = MOON_RADIUS_KM / EARTH_RADIUS_KM;
-    return base + (Number.isFinite(elevation) ? elevation / (1000 * EARTH_RADIUS_KM) : 0);
+    const geometry = new THREE.SphereGeometry(base, mobile ? 256 : 384, mobile ? 128 : 192);
+    const positions = geometry.attributes.position;
+    const direction = new THREE.Vector3();
+    for (let i = 0; i < positions.count; i++) {
+      direction.fromBufferAttribute(positions, i).normalize();
+      const lat = THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(direction.y, -1, 1)));
+      const lon = THREE.MathUtils.radToDeg(Math.atan2(-direction.x, direction.z));
+      const radius = base + globalElevation(lat, lon) / (1000 * EARTH_RADIUS_KM);
+      positions.setXYZ(i, direction.x * radius, direction.y * radius, direction.z * radius);
+    }
+    positions.needsUpdate = true;
+    geometry.computeVertexNormals();
+    geometry.computeBoundingSphere();
+    const previous = moonMesh.geometry;
+    moonMesh.geometry = geometry;
+    previous.dispose();
+  }
+  function buildHighResolutionPatch() {
+    const segments = mobile ? 512 : 768, rowWidth = segments + 1;
+    const vertexCount = rowWidth * rowWidth;
+    const positions = new Float32Array(vertexCount * 3);
+    const uvs = new Float32Array(vertexCount * 2);
+    const indices = new Uint32Array(segments * segments * 6);
+    let indexOffset = 0;
+    for (let y = 0; y <= segments; y++) {
+      const v = y / segments, lat = PATCH.north - v * (PATCH.north - PATCH.south);
+      for (let x = 0; x <= segments; x++) {
+        const u = x / segments, lon = PATCH.west + u * (PATCH.east - PATCH.west);
+        const elevation = sampleGrid(patchData, u, v);
+        const point = moonSurfacePoint(lat, lon, elevation);
+        const vertex = y * rowWidth + x, p = vertex * 3, uv = vertex * 2;
+        positions[p] = point.x; positions[p+1] = point.y; positions[p+2] = point.z;
+        uvs[uv] = (lon + 180) / 360;
+        uvs[uv+1] = 0.5 + lat / 180;
+        if (x < segments && y < segments) {
+          const a = vertex, b = a + 1, d = a + rowWidth, c = d + 1;
+          indices[indexOffset++] = a; indices[indexOffset++] = b; indices[indexOffset++] = d;
+          indices[indexOffset++] = b; indices[indexOffset++] = c; indices[indexOffset++] = d;
+        }
+      }
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+    geometry.setIndex(indices);
+    geometry.computeVertexNormals();
+    geometry.computeBoundingSphere();
+    const material = new THREE.MeshStandardMaterial({
+      map: colorTexture, roughness: 1, metalness: 0, side: THREE.DoubleSide,
+      depthTest: true, depthWrite: true, transparent: false
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.name = 'BridgePoint locally hosted 512ppd lunar elevation patch';
+    mesh.userData = {
+      source: 'Local SLDEM2015 merged LOLA + SELENE elevation',
+      imagery: 'Local LROC 2025 WAC natural-color mosaic',
+      resolutionLabel: '512 pixels per degree; approximately 59m source spacing at the equator',
+      elevationRangeMeters: [-3075, 2924],
+      bounds: { west: PATCH.west, east: PATCH.east, south: PATCH.south, north: PATCH.north }
+    };
+    mesh.frustumCulled = false;
+    mesh.renderOrder = 2;
+    moonMesh.add(mesh);
+    patchMesh = mesh;
+
+    maskTexture = new THREE.DataTexture(new Uint8Array([255,255,255,255]), 1, 1, THREE.RGBAFormat, THREE.UnsignedByteType);
+    maskTexture.minFilter = THREE.NearestFilter;
+    maskTexture.magFilter = THREE.NearestFilter;
+    maskTexture.generateMipmaps = false;
+    maskTexture.flipY = false;
+    maskTexture.needsUpdate = true;
+    const uMin = (PATCH.west + 180) / 360;
+    const vMin = 0.5 + PATCH.south / 180;
+    moonMaterial.uniforms.uTerrainMask.value = maskTexture;
+    moonMaterial.uniforms.uTerrainUvRect.value.set(
+      uMin, vMin, (PATCH.east - PATCH.west) / 360, (PATCH.north - PATCH.south) / 180
+    );
+    patchMesh.visible = active;
+    moonMaterial.uniforms.uTerrainActive.value = active ? 1 : 0;
+  }
+  async function loadLocalAssets() {
+    if (assetsPromise) return assetsPromise;
+    assetsPromise = (async () => {
+      commitState('loading', { runtimeMode: 'local-static-assets' });
+      const loader = new THREE.TextureLoader();
+      const results = await Promise.all([
+        decodePng16Gray(ASSET + 'moon-global-height-4ppd-u16.png'),
+        decodePng16Gray(ASSET + 'moon-apollo15-4deg-512ppd-height-u16.png'),
+        loader.loadAsync(ASSET + 'moon-lroc-color-4k.webp')
+      ]);
+      globalData = results[0];
+      patchData = results[1];
+      colorTexture = results[2];
+      colorTexture.colorSpace = THREE.SRGBColorSpace;
+      colorTexture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+      colorTexture.generateMipmaps = true;
+      colorTexture.minFilter = THREE.LinearMipmapLinearFilter;
+      colorTexture.magFilter = THREE.LinearFilter;
+      moonMaterial.uniforms.uBaseTexture.value = colorTexture;
+      moonMaterial.uniforms.uBaseTextureReady.value = 1;
+      buildGlobalTerrain();
+      buildHighResolutionPatch();
+      commitState('ready', {
+        globalHeightResolution: globalData.width + 'x' + globalData.height + ' (4 pixels/degree)',
+        highResolutionPatchResolution: patchData.width + 'x' + patchData.height + ' (512 pixels/degree)',
+        highResolutionPatchBounds: PATCH,
+        colorResolution: '4096x2048 LROC WAC',
+        runtimeMode: 'local-static-assets',
+        externalRuntimeTerrainRequests: 0
+      });
+      return true;
+    })().catch(error => {
+      assetsPromise = null;
+      commitState('error', { error: String(error?.message || error), runtimeMode: 'local-static-assets' });
+      console.error('[BridgePoint Moon] Local lunar terrain load failed:', error);
+      throw error;
+    });
+    return assetsPromise;
   }
   function setActive(value) {
     active = !!value;
-    moonMaterial.uniforms.uTerrainActive.value = active && maskTexture ? 1 : 0;
     if (patchMesh) patchMesh.visible = active;
+    moonMaterial.uniforms.uTerrainActive.value = active && maskTexture ? 1 : 0;
     commitState(active ? (patchMesh ? 'ready' : 'loading') : 'inactive');
+  }
+  function surfaceRadiusAt(lat, lon) {
+    return MOON_RADIUS_KM / EARTH_RADIUS_KM + elevationAt(lat, lon) / (1000 * EARTH_RADIUS_KM);
   }
   function updateForCamera(worldPosition) {
     if (!active || !worldPosition) return Promise.resolve(null);
     moonMesh.updateMatrixWorld(true);
-    const local = moonMesh.worldToLocal(worldPosition.clone());
-    const normal = local.normalize();
-    const lat = THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(normal.y, -1, 1)));
-    const lon = THREE.MathUtils.radToDeg(Math.atan2(-normal.x, normal.z));
-    return loadPatch(lat, lon);
+    const local = moonMesh.worldToLocal(worldPosition.clone()).normalize();
+    const lat = THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(local.y, -1, 1)));
+    const lon = THREE.MathUtils.radToDeg(Math.atan2(-local.x, local.z));
+    return Promise.resolve(focusResult(lat, lon));
   }
-  void loadGlobalWac();
   window.__BP_MOON_TERRAIN_V1__ = state;
   return {
-    activate(lat, lon) {
+    async activate(lat, lon) {
       setActive(true);
-      return loadPatch(lat, lon).then(result => result || {
-        lat, lon, elevationMeters: null, focusPointLocal: moonSurfacePoint(lat, lon, 0)
-      });
+      try {
+        await loadLocalAssets();
+        setActive(true);
+        return focusResult(lat, lon);
+      } catch (_) {
+        return { lat, lon, elevationMeters: null, focusPointLocal: moonSurfacePoint(lat, lon, 0) };
+      }
     },
-    updateForCamera(worldPosition) {
-      if (!active || !worldPosition) return Promise.resolve(null);
-      moonMesh.updateMatrixWorld(true);
-      const local = moonMesh.worldToLocal(worldPosition.clone());
-      const normal = local.normalize();
-      const lat = THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(normal.y, -1, 1)));
-      const lon = THREE.MathUtils.radToDeg(Math.atan2(-normal.x, normal.z));
-      return loadPatch(lat, lon).then(result => result || {
-        lat, lon, elevationMeters: null, focusPointLocal: moonSurfacePoint(lat, lon, 0)
-      });
-    },
+    updateForCamera,
     setActive,
     surfaceRadiusAt,
     get state() { return state; }
