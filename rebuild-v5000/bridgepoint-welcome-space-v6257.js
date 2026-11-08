@@ -116,10 +116,16 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   const moonMaterial = new THREE.ShaderMaterial({
     uniforms: { uTime: { value: 0 }, uSunDir: { value: new THREE.Vector3(0.55, 0.38, 0.74).normalize() }, uBaseTexture: { value: null }, uBaseTextureReady: { value: 0 }, uTerrainMask: { value: null }, uTerrainUvRect: { value: new THREE.Vector4(0,0,0,0) }, uTerrainActive: { value: 0 } },
     vertexShader: `
+      #include <common>
+      #include <logdepthbuf_pars_vertex>
       varying vec3 vNormal; varying vec3 vPos; varying vec2 vUv;
-      void main(){vUv=uv;vNormal=normalize(normalMatrix*normal);vPos=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}
+      void main(){vUv=uv;vNormal=normalize(normalMatrix*normal);vPos=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);
+        #include <logdepthbuf_vertex>
+      }
     `,
     fragmentShader: `
+      #include <common>
+      #include <logdepthbuf_pars_fragment>
       precision highp float; varying vec3 vNormal; varying vec3 vPos; varying vec2 vUv; uniform float uTime; uniform vec3 uSunDir; uniform sampler2D uBaseTexture; uniform float uBaseTextureReady; uniform sampler2D uTerrainMask; uniform vec4 uTerrainUvRect; uniform float uTerrainActive;
       float hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
       float noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
@@ -149,9 +155,12 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
         vec3 color=albedo*(.075+.98*light)*limb;
         float ejecta=pow(max(fbm(p*62.0)-.70,0.0),2.0);color+=vec3(.11,.105,.095)*ejecta;
         gl_FragColor=vec4(color,1.0);
-      }`
+        #include <logdepthbuf_fragment>
+      }`,
+    depthTest: true, depthWrite: true, transparent: false, side: THREE.FrontSide
   });
   const moonMesh = new THREE.Mesh(moonGeometry, moonMaterial);
+  const moonUserRotation = new THREE.Quaternion();
   moonMesh.name = 'Moon';
   moonMesh.userData.body = 'moon';
   moonMesh.position.set(8.2, 0.7, -1.4);
@@ -449,6 +458,11 @@ function createMoonTerrainController() {
       const positions = new Float32Array(vertexCount * 3);
       const uvs = new Float32Array(vertexCount * 2);
       const valid = new Uint8Array(vertexCount);
+      const coverageCanvas = document.createElement('canvas');
+      coverageCanvas.width = segments;
+      coverageCanvas.height = segments;
+      const coverageContext = coverageCanvas.getContext('2d', { willReadFrequently: false });
+      const coverageImage = coverageContext.createImageData(segments, segments);
       const radiusBase = MOON_RADIUS_KM / EARTH_RADIUS_KM;
       for (let y = 0; y <= segments; y++) {
         const v = y / segments;
@@ -482,6 +496,11 @@ function createMoonTerrainController() {
           const a = row + x, b = a + 1, d = a + vertexWidth, c = d + 1;
           if (valid[a] && valid[b] && valid[c] && valid[d]) {
             indices.push(a, b, d, b, c, d);
+            const coverageOffset = (y * segments + x) * 4;
+            coverageImage.data[coverageOffset] = 255;
+            coverageImage.data[coverageOffset + 1] = 255;
+            coverageImage.data[coverageOffset + 2] = 255;
+            coverageImage.data[coverageOffset + 3] = 255;
           }
         }
       }
@@ -491,6 +510,7 @@ function createMoonTerrainController() {
         commitState('no-dem-coverage', { tileWindow: key, elevationSource: DEM_LAYER });
         return null;
       }
+      coverageContext.putImageData(coverageImage, 0, 0);
       const geometry = new THREE.BufferGeometry();
       geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
       geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
@@ -504,13 +524,14 @@ function createMoonTerrainController() {
       texture.minFilter = THREE.LinearMipmapLinearFilter;
       texture.magFilter = THREE.LinearFilter;
       texture.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
-      const mask = new THREE.CanvasTexture(heightCanvas);
+      const mask = new THREE.CanvasTexture(coverageCanvas);
       mask.flipY = true;
       mask.generateMipmaps = false;
-      mask.minFilter = THREE.LinearFilter;
-      mask.magFilter = THREE.LinearFilter;
+      mask.minFilter = THREE.NearestFilter;
+      mask.magFilter = THREE.NearestFilter;
       const material = new THREE.MeshStandardMaterial({
-        map: texture, roughness: 1, metalness: 0, side: THREE.DoubleSide
+        map: texture, roughness: 1, metalness: 0, side: THREE.DoubleSide,
+        depthTest: true, depthWrite: true, transparent: false
       });
       const mesh = new THREE.Mesh(geometry, material);
       mesh.name = 'NASA Apollo 15 Metric Camera lunar elevation mesh';
@@ -561,6 +582,11 @@ function createMoonTerrainController() {
     });
     return loadingPromise;
   }
+  function surfaceRadiusAt(latDeg, lonDeg) {
+    const elevation = elevationAt(latDeg, lonDeg);
+    const base = MOON_RADIUS_KM / EARTH_RADIUS_KM;
+    return base + (Number.isFinite(elevation) ? elevation / (1000 * EARTH_RADIUS_KM) : 0);
+  }
   function setActive(value) {
     active = !!value;
     moonMaterial.uniforms.uTerrainActive.value = active && maskTexture ? 1 : 0;
@@ -597,6 +623,7 @@ function createMoonTerrainController() {
       });
     },
     setActive,
+    surfaceRadiusAt,
     get state() { return state; }
   };
 }
@@ -658,15 +685,60 @@ function createMoonTerrainController() {
 
   let dragging=false,lastX=0,lastY=0,pointerMoved=false;
   const activePointers=new Map();
-  let pinchDistance=0;
+  let pinchDistance=0,gestureCenter=null,gestureAngle=0;
+
+  function enforceMoonCameraClearance(){
+    if(viewState!=='moon')return;
+    moonMesh.updateMatrixWorld(true);
+    const localCamera=moonMesh.worldToLocal(camera.position.clone());
+    if(localCamera.lengthSq()<1e-18)return;
+    const radial=localCamera.clone().normalize();
+    const latitude=THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(radial.y,-1,1)));
+    const longitude=THREE.MathUtils.radToDeg(Math.atan2(-radial.x,radial.z));
+    const surfaceRadius=moonTerrainController?.surfaceRadiusAt(latitude,longitude)
+      ?? MOON_RADIUS_KM/EARTH_RADIUS_KM;
+    const clearance=3/(1000*EARTH_RADIUS_KM);
+    const minimumRadius=surfaceRadius+clearance;
+    if(localCamera.length()<minimumRadius){
+      localCamera.setLength(minimumRadius);
+      camera.position.copy(moonMesh.localToWorld(localCamera));
+    }
+  }
   function moonZoomDistance(distance){
-    const minimum=viewState==='moon'?0.000003:1.8;
+    const minimum=viewState==='moon'?0.00000045:1.8;
     return THREE.MathUtils.clamp(distance,minimum,5000);
   }
   function zoomCameraBy(factor){
     const direction=camera.position.clone().sub(target).normalize();
     const distance=moonZoomDistance(camera.position.distanceTo(target)*factor);
     camera.position.copy(target).addScaledVector(direction,distance);
+    enforceMoonCameraClearance();
+    camera.lookAt(target);
+  }
+  function rotateMoonBy(dx,dy,twist=0){
+    if(viewState!=='moon')return;
+    moonMesh.updateMatrixWorld(true);
+    const inverseMoon=moonMesh.getWorldQuaternion(new THREE.Quaternion()).invert();
+    const cameraRight=new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion).applyQuaternion(inverseMoon).normalize();
+    const cameraUp=new THREE.Vector3(0,1,0).applyQuaternion(camera.quaternion).applyQuaternion(inverseMoon).normalize();
+    const cameraForward=new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).applyQuaternion(inverseMoon).normalize();
+    const yaw=new THREE.Quaternion().setFromAxisAngle(cameraUp,-dx*.0042);
+    const pitch=new THREE.Quaternion().setFromAxisAngle(cameraRight,-dy*.0042);
+    const roll=new THREE.Quaternion().setFromAxisAngle(cameraForward,twist);
+    moonUserRotation.multiply(yaw).multiply(pitch).multiply(roll).normalize();
+    enforceMoonCameraClearance();
+  }
+  function rotateCameraOrMoon(dx,dy){
+    if(viewState==='moon'){
+      rotateMoonBy(dx,dy);
+      return;
+    }
+    const offset=camera.position.clone().sub(target);
+    const spherical=new THREE.Spherical().setFromVector3(offset);
+    spherical.theta-=dx*.004;
+    spherical.phi=THREE.MathUtils.clamp(spherical.phi+dy*.004,.10,Math.PI-.10);
+    offset.setFromSpherical(spherical);
+    camera.position.copy(target).add(offset);
     camera.lookAt(target);
   }
   function refreshLunarTerrainFromView(){
@@ -678,50 +750,68 @@ function createMoonTerrainController() {
       const resolved=moonMesh.localToWorld(focusLocalTarget.clone());
       const delta=resolved.clone().sub(target);
       if(transitionStart){targetTo.add(delta);cameraTo.add(delta);}
-      else{target.copy(resolved);camera.position.add(delta);camera.lookAt(target);}
+      else{target.copy(resolved);camera.position.add(delta);enforceMoonCameraClearance();camera.lookAt(target);}
     }).catch(error=>console.warn('[BridgePoint Moon] terrain viewport refresh failed:',error));
+  }
+  function getTwoPointerGesture(){
+    const pts=[...activePointers.values()].slice(0,2);
+    if(pts.length<2)return null;
+    return {
+      distance:Math.max(1,Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y)),
+      center:{x:(pts[0].x+pts[1].x)*.5,y:(pts[0].y+pts[1].y)*.5},
+      angle:Math.atan2(pts[1].y-pts[0].y,pts[1].x-pts[0].x)
+    };
   }
   canvas.addEventListener('pointerdown',event=>{
     if(activePointers.size===0){pointerMoved=false;lastX=event.clientX;lastY=event.clientY;}
     activePointers.set(event.pointerId,{x:event.clientX,y:event.clientY});
     dragging=true;
-    if(activePointers.size>1){const pts=[...activePointers.values()];pinchDistance=Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y);pointerMoved=true;}
+    if(activePointers.size===2){
+      const gesture=getTwoPointerGesture();
+      pinchDistance=gesture.distance;
+      gestureCenter=gesture.center;
+      gestureAngle=gesture.angle;
+      pointerMoved=true;
+    }
     canvas.setPointerCapture?.(event.pointerId);
   });
   canvas.addEventListener('pointermove',event=>{
     if(!activePointers.has(event.pointerId))return;
     activePointers.set(event.pointerId,{x:event.clientX,y:event.clientY});
     if(activePointers.size>1){
-      const pts=[...activePointers.values()];
-      const nextDistance=Math.max(1,Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y));
-      if(pinchDistance>0)zoomCameraBy(pinchDistance/nextDistance);
-      pinchDistance=nextDistance;pointerMoved=true;return;
+      const gesture=getTwoPointerGesture();
+      if(!gesture)return;
+      if(viewState==='moon'&&gestureCenter){
+        const dx=gesture.center.x-gestureCenter.x;
+        const dy=gesture.center.y-gestureCenter.y;
+        let twist=gesture.angle-gestureAngle;
+        if(twist>Math.PI)twist-=Math.PI*2;
+        if(twist<-Math.PI)twist+=Math.PI*2;
+        rotateMoonBy(dx,dy,twist);
+      }
+      if(pinchDistance>0)zoomCameraBy(pinchDistance/gesture.distance);
+      pinchDistance=gesture.distance;
+      gestureCenter=gesture.center;
+      gestureAngle=gesture.angle;
+      pointerMoved=true;
+      return;
     }
     if(!dragging)return;
     const dx=event.clientX-lastX,dy=event.clientY-lastY;
     if(Math.abs(dx)+Math.abs(dy)>2)pointerMoved=true;
     lastX=event.clientX;lastY=event.clientY;
-    const offset=camera.position.clone().sub(target);
-    const spherical=new THREE.Spherical().setFromVector3(offset);
-    spherical.theta-=dx*.004;
-    spherical.phi=THREE.MathUtils.clamp(spherical.phi+dy*.004,.10,Math.PI-.10);
-    offset.setFromSpherical(spherical);
-    camera.position.copy(target).add(offset);
-    if(viewState==='moon'){
-      moonMesh.updateMatrixWorld(true);
-      const localCamera=moonMesh.worldToLocal(camera.position.clone());
-      const safeRadius=MOON_RADIUS_KM/EARTH_RADIUS_KM+.0022;
-      if(localCamera.length()<safeRadius){
-        localCamera.setLength(safeRadius);
-        camera.position.copy(moonMesh.localToWorld(localCamera));
-      }
-    }
-    camera.lookAt(target);
+    rotateCameraOrMoon(dx,dy);
   });
   canvas.addEventListener('pointerup',event=>{
     activePointers.delete(event.pointerId);
     dragging=activePointers.size>0;
-    if(activePointers.size<2)pinchDistance=0;
+    if(activePointers.size===1){
+      const remaining=[...activePointers.values()][0];
+      lastX=remaining.x;lastY=remaining.y;
+      pinchDistance=0;gestureCenter=null;
+    }else if(activePointers.size===0){
+      pinchDistance=0;gestureCenter=null;
+    }
     if(pointerMoved){
       if(activePointers.size===0){refreshLunarTerrainFromView();pointerMoved=false;}
       return;
@@ -736,8 +826,8 @@ function createMoonTerrainController() {
   });
   canvas.addEventListener('pointercancel',event=>{
     activePointers.delete(event.pointerId);dragging=activePointers.size>0;
-    pinchDistance=activePointers.size>1?pinchDistance:0;
-    if(activePointers.size===0)pointerMoved=false;
+    if(activePointers.size<2){pinchDistance=0;gestureCenter=null;}
+    if(activePointers.size===0){pointerMoved=false;refreshLunarTerrainFromView();}
   });
   canvas.addEventListener('wheel',event=>{
     event.preventDefault();
@@ -776,6 +866,7 @@ function createMoonTerrainController() {
     {
       moonMesh.position.set(orbitRadius*Math.cos(trueAnomaly),Math.sin(trueAnomaly)*Math.sin(inclination)*orbitRadius,orbitRadius*Math.sin(trueAnomaly));
       moonMesh.lookAt(earth.position);
+      moonMesh.quaternion.multiply(moonUserRotation);
       const sunWorld=sunGroup.getWorldPosition(new THREE.Vector3());
       moonMaterial.uniforms.uSunDir.value.copy(moonMesh.worldToLocal(sunWorld.clone()).normalize());
     }
@@ -793,6 +884,7 @@ function createMoonTerrainController() {
       const focusedWorld=focusedObject===sunMesh?sunGroup.getWorldPosition(new THREE.Vector3()):(focusLocalTarget?moonMesh.localToWorld(focusLocalTarget.clone()):focusedObject.getWorldPosition(new THREE.Vector3()));
       camera.position.add(focusedWorld.clone().sub(target));target.copy(focusedWorld);camera.lookAt(target);
     }
+    if(viewState==='moon'){enforceMoonCameraClearance();camera.lookAt(target);}
     stars.rotation.y+=reducedMotion?0:elapsed*.0008;
     renderer.render(scene,camera);
     if(!document.hidden)requestAnimationFrame(render);
