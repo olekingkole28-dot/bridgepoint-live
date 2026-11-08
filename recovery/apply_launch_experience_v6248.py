@@ -193,6 +193,7 @@ def patch_stars(source: str) -> str:
       ctx.save();ctx.translate(moon.x,moon.y);ctx.rotate(spinPhase);ctx.beginPath();ctx.arc(0,0,mr,0,Math.PI*2);ctx.clip();
       for(let i=0;i<320;i++){const a=i*2.399963,dist=Math.sqrt((i+.5)/320)*mr*.92,cx=Math.cos(a)*dist,cy=Math.sin(a)*dist*.86,cr=mr*(.018+(i%9)*.014);ctx.beginPath();ctx.arc(cx,cy,cr,0,Math.PI*2);ctx.fillStyle='rgba(43,51,59,'+(.14+(i%5)*.035)+')';ctx.fill();ctx.beginPath();ctx.arc(cx-cr*.16,cy-cr*.22,cr*.68,0,Math.PI*2);ctx.strokeStyle='rgba(250,251,247,.24)';ctx.lineWidth=Math.max(.5,cr*.23);ctx.stroke()}
       ctx.restore();
+      ctx.save();ctx.beginPath();ctx.rect(0,0,w,h);ctx.arc(earthX,earthY,er*1.008,0,Math.PI*2);ctx.clip('evenodd');
       for(const body of alignment.planets||[]){
         const pc=point(body.center),r=body.radius*unit,types=[
           {light:'#d9d8cf',mid:'#898a86',dark:'#282c32'},
@@ -228,6 +229,7 @@ def patch_stars(source: str) -> str:
         const shine=ctx.createRadialGradient(pc.x-r*.42,pc.y-r*.46,0,pc.x-r*.35,pc.y-r*.40,r*.48);shine.addColorStop(0,'rgba(255,255,255,.38)');shine.addColorStop(1,'rgba(255,255,255,0)');ctx.fillStyle=shine;ctx.beginPath();ctx.arc(pc.x,pc.y,r,0,Math.PI*2);ctx.fill();
         ctx.restore();ctx.beginPath();ctx.arc(pc.x,pc.y,r*.985,0,Math.PI*2);ctx.strokeStyle='rgba(217,236,255,.34)';ctx.lineWidth=Math.max(.7,r*.045);ctx.stroke();
       }
+      ctx.restore();
     };
     if(!gl){fallback();canvas.dataset.built='1';window.addEventListener('resize',()=>{resize();fallback()},{passive:true});setInterval(()=>{if(!document.hidden)fallback()},5000);return}
     const compile=(type,code)=>{
