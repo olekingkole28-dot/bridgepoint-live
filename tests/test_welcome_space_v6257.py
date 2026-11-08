@@ -97,7 +97,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
     def test_root_uses_one_existing_earth_and_no_ground_sky_button(self):
         out = patch_root_html(root_fixture())
         self.assertIn("bpWelcomeGateStylesV6257", out)
-        self.assertIn('src="/bridgepoint-welcome-space-v6257.js?v=6259-moon-surface-explorer"', out)
+        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6260-moon-focus-isolated"', out)
         self.assertIn('class="bpw-celestial-system" aria-hidden="true"></div>', out)
         self.assertNotIn("bpwCelestialCanvasV6257", out)
         self.assertNotIn('class="bpw-globe-aura"', out)
@@ -113,8 +113,8 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
         app = patch_app_index(app_index_fixture())
         self.assertEqual(app.count("/?return="), 2)
         self.assertNotIn("/?auth=signin&return=", app)
-        self.assertIn("app.js?v=6259-moon-surface-explorer", app)
-        self.assertIn("manifest.webmanifest?v=6259-moon-surface-explorer", app)
+        self.assertIn("app.js?v=6260-moon-focus-isolated", app)
+        self.assertIn("manifest.webmanifest?v=6260-moon-focus-isolated", app)
         legacy = patch_legacy_app(legacy_fixture())
         self.assertIn('content="0;url=/"', legacy)
         self.assertIn("location.replace('/')", legacy)
@@ -200,7 +200,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
             self.assertNotIn("v6247-universal-fresh-entry-sidewalk',{updateViaCache", path.read_text())
 
     def test_welcome_module_has_no_second_earth_or_ground_button_and_keeps_interactions(self):
-        module = (ROOT / "rebuild-v5000" / "bridgepoint-welcome-space-v6257.js").read_text()
+        module = (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text()
         self.assertNotIn("earthMesh", module)
         self.assertNotIn("earthMaterial", module)
         self.assertNotIn("data-space-ground", module)
@@ -215,16 +215,26 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
             self.assertIn(marker, module)
 
     def test_moon_focus_uses_locally_hosted_elevation_assets_and_can_reach_surface_zoom(self):
-        module = (ROOT / "rebuild-v5000" / "bridgepoint-welcome-space-v6257.js").read_text()
+        module = (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text()
         for marker in (
             "function createMoonTerrainController()",
             "const ASSET = '/assets/moon/v1/'",
             "function decodePng16Gray(url)",
             "new DecompressionStream('deflate')",
-            "moon-global-height-4ppd-u16.png",
+            "moon-global-height-16ppd-u16.png",
             "moon-apollo15-4deg-512ppd-height-u16.png",
             "moon-lroc-color-4k.webp",
             "function buildGlobalTerrain()",
+            "new THREE.SphereGeometry(base, globalWidthSegments, globalHeightSegments)",
+            "globalTerrainMeshResolution",
+            "function enterMoonExploration()",
+            "function exitMoonExploration()",
+            "moonPivot.position.copy(moonMesh.position).negate()",
+            "scene.background=new THREE.Color(0x02040a)",
+            "sunGroup.visible=false",
+            "stars.visible=false",
+            "haze.visible=false",
+            "if(viewState!=='moon')",
             "function buildHighResolutionPatch()",
             "globalHeightResolution",
             "highResolutionPatchResolution",
@@ -278,8 +288,8 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
         workflow = (ROOT / ".github" / "workflows" / "deploy-intelligence-rebuild-v5000.yml").read_text()
         self.assertIn('class="bpw-celestial-system"', index)
         helper = (ROOT / "recovery" / "apply_welcome_space_v6257.py").read_text()
-        self.assertIn('src="/bridgepoint-welcome-space-v6257.js?v=6259-moon-surface-explorer"', helper)
-        self.assertIn("cp rebuild-v5000/bridgepoint-welcome-space-v6257.js site/bridgepoint-welcome-space-v6257.js", workflow)
+        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6260-moon-focus-isolated"', helper)
+        self.assertIn("cp recovery/bridgepoint-welcome-space-v6260.js site/bridgepoint-welcome-space-v6260.js", workflow)
         self.assertIn("cp -a assets/moon/v1 site/assets/moon/v1", workflow)
         self.assertIn("assets/moon/v1/**", workflow)
 
@@ -317,15 +327,19 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
                 "id": "/app/intelligence-launch/", "name": "BridgePoint Intelligence",
                 "start_url": "/app/", "scope": "/", "display": "standalone"
             }))
-            for name in ("bridgepoint-welcome-space-v6257.js", "bridgepoint-celestial-sky-v6257.js"):
-                (site / name).write_text((ROOT / "rebuild-v5000" / name).read_text())
+            (site / "bridgepoint-welcome-space-v6260.js").write_text(
+                (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text()
+            )
+            (site / "bridgepoint-celestial-sky-v6257.js").write_text(
+                (ROOT / "rebuild-v5000" / "bridgepoint-celestial-sky-v6257.js").read_text()
+            )
 
             before = {p.relative_to(site).as_posix() for p in site.rglob("*") if p.is_file()}
             patch_site(site)
             after = {p.relative_to(site).as_posix() for p in site.rglob("*") if p.is_file()}
             self.assertEqual(after - before, set())
             root = (site / "index.html").read_text()
-            self.assertIn('src="/bridgepoint-welcome-space-v6257.js?v=6259-moon-surface-explorer"', root)
+            self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6260-moon-focus-isolated"', root)
             self.assertIn("event.persisted", root)
             self.assertIn("location.reload()", root)
             self.assertNotIn("data-space-ground", root)
