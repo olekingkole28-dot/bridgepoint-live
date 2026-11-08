@@ -746,7 +746,8 @@ function createMoonTerrainController() {
     const deltaAngle=nextAngle-currentAngle;
     if(Math.abs(deltaAngle)<1e-7)return;
     const cameraRight=new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion).normalize();
-    offset.applyAxisAngle(cameraRight,deltaAngle);
+    // Positive pitch moves the camera toward the local horizon; an upward finger drag increases it.
+    offset.applyAxisAngle(cameraRight,-deltaAngle);
     camera.position.copy(target).add(offset);
     enforceMoonCameraClearance();
     camera.lookAt(target);
