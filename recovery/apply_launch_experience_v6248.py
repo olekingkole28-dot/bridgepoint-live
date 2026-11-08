@@ -5,7 +5,7 @@ import re
 import sys
 from pathlib import Path
 
-BUILD = "v6252-galactic-depth"
+BUILD = "v6253-mobile-celestial-visibility"
 SW_URL = "/sw.js?v=6252-galactic-depth"
 OLD_SW_URL = "/sw.js?v=6247-universal-fresh-entry-sidewalk"
 CACHE_NAME = "bp-intelligence-v6247-universal-fresh-entry-sidewalk"
@@ -33,11 +33,13 @@ def patch_stars(source: str) -> str:
     const canvas=document.getElementById('bpwCelestialCanvasV6252');
     if(!canvas||canvas.dataset.built==='1')return;
     const scene=canvas.parentElement;
+    let fallbackCanvas=null;
     const resize=()=>{
       const rect=scene.getBoundingClientRect();
       const ratio=Math.min(1.35,Math.max(1,window.devicePixelRatio||1));
       canvas.width=Math.max(1,Math.round((rect.width||window.innerWidth||390)*ratio));
       canvas.height=Math.max(1,Math.round((rect.height||window.innerHeight||780)*ratio));
+      if(fallbackCanvas){fallbackCanvas.width=canvas.width;fallbackCanvas.height=canvas.height;}
     };
     resize();
     let state=0x6252a71;
@@ -119,8 +121,20 @@ def patch_stars(source: str) -> str:
       }catch(_){return null}
     }
     const fallback=()=>{
-      const ctx=canvas.getContext('2d',{alpha:true});if(!ctx)return;
-      const w=canvas.width,h=canvas.height,unit=Math.min(w,h),alignment=celestialAlignment(w,h);
+      let target=canvas;
+      if(gl){
+        if(!fallbackCanvas){
+          fallbackCanvas=document.createElement('canvas');
+          fallbackCanvas.id='bpwCelestialFallbackCanvasV6253';
+          fallbackCanvas.className='bpw-celestial-canvas bpw-celestial-fallback-canvas';
+          scene.appendChild(fallbackCanvas);
+        }
+        fallbackCanvas.width=canvas.width;fallbackCanvas.height=canvas.height;
+        canvas.style.display='none';
+        target=fallbackCanvas;
+      }
+      const ctx=target.getContext('2d',{alpha:true});if(!ctx)return;
+      const w=target.width,h=target.height,unit=Math.min(w,h),alignment=celestialAlignment(w,h);
       ctx.clearRect(0,0,w,h);
       ctx.save();ctx.translate(w*.5,h*.5);ctx.rotate(-.42);ctx.scale(1,.22);
       let haze=ctx.createRadialGradient(0,0,unit*.03,0,0,unit*1.12);
@@ -192,7 +206,7 @@ def patch_stars(source: str) -> str:
       'attribute vec2 a_pos;uniform vec2 u_resolution;uniform vec2 u_bodyC;uniform float u_bodyR;uniform float u_bodyType;void main(){float aspect=u_resolution.x/u_resolution.y;float scale=u_bodyType>6.5?1.94:1.0;vec2 p=u_bodyC+a_pos*u_bodyR*1.98*scale;gl_Position=vec4(p.x*2.0/aspect,p.y*2.0,0.0,1.0);}',
       'precision mediump float;uniform vec2 u_resolution;uniform vec2 u_bodyC;uniform float u_bodyR;uniform float u_bodyType;uniform float u_time;uniform vec2 u_lightDir;float hash31(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}float noise3(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);float a=hash31(i),b=hash31(i+vec3(1,0,0)),c=hash31(i+vec3(0,1,0)),d=hash31(i+vec3(1,1,0)),e=hash31(i+vec3(0,0,1)),f1=hash31(i+vec3(1,0,1)),g=hash31(i+vec3(0,1,1)),h=hash31(i+vec3(1,1,1));return mix(mix(mix(a,b,f.x),mix(c,d,f.x),f.y),mix(mix(e,f1,f.x),mix(g,h,f.x),f.y),f.z);}float fbm(vec3 p){float v=0.0,a=.56;for(int i=0;i<4;i++){v+=a*noise3(p);p=p*2.03+vec3(2.2,1.3,3.7);a*=.47;}return v;}void main(){float unit=min(u_resolution.x,u_resolution.y);vec2 p=(gl_FragCoord.xy-.5*u_resolution)/unit;vec2 q=(p-u_bodyC)/u_bodyR;float r=length(q);if(u_bodyType>6.5){float ringR=length(vec2(q.x,q.y/.34));if(ringR<1.05||ringR>1.88)discard;float bands=step(.5,fract(ringR*15.0+noise3(vec3(q*4.0,2.0))*.28));float shade=.60+.30*bands+.10*sin(ringR*85.0);vec3 ringColor=mix(vec3(.28,.22,.16),vec3(.85,.72,.53),shade);float gaps=smoothstep(1.08,1.15,ringR)*(1.0-smoothstep(1.60,1.73,ringR));gl_FragColor=vec4(ringColor*shade,(.78+.16*bands)*gaps);return;}if(r>1.0)discard;float z=sqrt(max(0.0,1.0-dot(q,q)));vec3 n=normalize(vec3(q,z));float spin=u_time*.000012;n.xz=mat2(cos(spin),-sin(spin),sin(spin),cos(spin))*n.xz;float broad=fbm(n*5.5),fine=fbm(n*21.0+vec3(4.0,2.0,1.0)),micro=fbm(n*58.0+vec3(7.0,3.0,5.0));vec3 base=vec3(.55,.56,.56);if(u_bodyType<.5){float craters=fbm(n*27.0);base=mix(vec3(.25,.28,.30),vec3(.72,.69,.63),smoothstep(.24,.74,broad));base*=.82+fine*.30;base*=1.0-smoothstep(.56,.76,craters)*.25;}else if(u_bodyType<1.5){float clouds=fbm(n*10.0+vec3(0.0,u_time*.000015,0.0));float streak=sin(n.y*27.0+clouds*4.0)*.5+.5;base=mix(vec3(.65,.47,.28),vec3(.94,.82,.61),smoothstep(.24,.78,clouds));base=mix(base,vec3(.99,.91,.74),streak*.17);}else if(u_bodyType<2.5){float terrain=fbm(n*15.0);float dark=fbm(n*31.0+vec3(3.0,1.0,8.0));base=mix(vec3(.28,.075,.045),vec3(.87,.31,.13),smoothstep(.24,.79,terrain));base=mix(base,vec3(.16,.10,.08),smoothstep(.61,.78,dark)*.34);float polar=smoothstep(.78,.96,abs(n.y));base=mix(base,vec3(.91,.86,.76),polar*.72);}else if(u_bodyType<3.5){float bands=sin((n.y+((broad-.5)*.09))*39.0+fine*2.6);float storm=1.0-smoothstep(.10,.34,length((n.xy-vec2(.27,.20))*vec2(1.0,1.8)));base=mix(vec3(.42,.29,.20),vec3(.88,.73,.55),smoothstep(-.48,.55,bands));base=mix(base,vec3(.71,.30,.16),storm*.95);base+=vec3(.10,.06,.035)*(micro-.45);}else if(u_bodyType<4.5){float bands=sin((n.y+(broad-.5)*.06)*31.0+fine*2.0);base=mix(vec3(.42,.30,.19),vec3(.88,.76,.57),smoothstep(-.55,.55,bands));base=mix(base,vec3(.69,.48,.32),smoothstep(.62,.79,fbm(n*8.0+vec3(5.0,2.0,1.0)))*.36);}else if(u_bodyType<5.5){base=mix(vec3(.12,.35,.44),vec3(.52,.82,.84),smoothstep(.22,.78,broad));base+=vec3(.04,.09,.12)*(fine-.5);}else{base=mix(vec3(.025,.10,.32),vec3(.10,.40,.78),smoothstep(.20,.78,broad));base+=vec3(.025,.07,.15)*(fine-.5);}vec3 light=normalize(vec3(u_lightDir,.88));float diffuse=max(dot(n,light),0.0);float limb=.22+.78*pow(max(n.z,0.0),.42);vec3 color=base*(.13+.87*diffuse)*limb;color+=base*pow(max(n.z,0.0),8.0)*.16;float atmosphere=1.0-smoothstep(.84,1.0,r);color+=vec3(.12,.24,.42)*atmosphere*.10;gl_FragColor=vec4(color,1.0);}'
     );
-    if(!starProgram||!galaxyProgram||!sphereProgram||!planetProgram){fallback();canvas.dataset.built='1';return}
+    if(!starProgram||!galaxyProgram||!sphereProgram||!planetProgram){fallback();canvas.dataset.built='1';window.addEventListener('resize',()=>{resize();fallback()},{passive:true});document.addEventListener('visibilitychange',()=>{if(!document.hidden)fallback()});setInterval(()=>{if(!document.hidden)fallback()},5000);return}
     const starBuffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,starBuffer);gl.bufferData(gl.ARRAY_BUFFER,stars,gl.STATIC_DRAW);
     const starPosition=gl.getAttribLocation(starProgram,'a_pos');
     const starTime=gl.getUniformLocation(starProgram,'u_time'),starAspect=gl.getUniformLocation(starProgram,'u_aspect'),starEarth=gl.getUniformLocation(starProgram,'u_earthC'),starEarthR=gl.getUniformLocation(starProgram,'u_earthR'),starAngle=gl.getUniformLocation(starProgram,'u_viewAngle');
@@ -278,8 +292,9 @@ html.bpw-entry-locked #previewMap canvas{filter:contrast(1.17) saturate(1.10) br
 #bpWelcomeGateV1 .bpw-globe-aura{display:none!important}
 #bpWelcomeGateV1 .bpw-starfield{background:radial-gradient(ellipse at 16% 26%,rgba(36,79,151,.20),transparent 38%),radial-gradient(ellipse at 82% 70%,rgba(31,71,130,.18),transparent 42%),radial-gradient(ellipse at 52% 48%,rgba(4,13,29,.12),transparent 68%)}
 #bpWelcomeGateV1 .bpw-starfield canvas{display:none!important}
-#bpWelcomeGateV1 .bpw-celestial-system{position:absolute;inset:0;z-index:3;overflow:hidden;pointer-events:none;perspective:1200px}
-#bpWelcomeGateV1 .bpw-celestial-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none}
+#bpWelcomeGateV1 .bpw-celestial-system{position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;height:100dvh!important;z-index:9!important;overflow:hidden;pointer-events:none;perspective:1200px;isolation:isolate;opacity:1!important;visibility:visible!important}
+#bpWelcomeGateV1 .bpw-celestial-canvas{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;display:block!important;opacity:1!important;visibility:visible!important;pointer-events:none;mix-blend-mode:screen}
+#bpWelcomeGateV1 .bpw-celestial-fallback-canvas{z-index:1!important}
 #bpWelcomeGateV1 .bpw-wordmark-wrap{top:calc(env(safe-area-inset-top,0px) + clamp(18px,3.2vh,38px))!important;left:0!important;right:0!important;transform:none!important;z-index:10!important;padding:0 12px!important}
 #bpWelcomeGateV1 .bpw-wordmark-wrap:before,#bpWelcomeGateV1 .bpw-wordmark-wrap:after{content:"";position:absolute;top:50%;width:clamp(12px,8vw,110px);height:1px;background:linear-gradient(90deg,transparent,rgba(132,197,236,.66));box-shadow:0 0 9px rgba(102,184,235,.24)}
 #bpWelcomeGateV1 .bpw-wordmark-wrap:before{right:calc(50% + clamp(112px,25vw,260px))}
@@ -519,7 +534,7 @@ def patch_site(site: Path) -> None:
         ],
         "landing bundle": [SW_URL],
         "app bundle": [SW_URL],
-        "service worker": ["const V='" + CACHE_NAME + "';", "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6252-galactic-depth'"],
+        "service worker": ["const V='" + CACHE_NAME + "';", "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6253-mobile-celestial-visibility'"],
         "legacy app index": ['content="0;url=/"', "location.replace('/')", "sw.js?v=6252-galactic-depth"],
     }
     for label, markers in checks.items():
@@ -536,7 +551,7 @@ def patch_site(site: Path) -> None:
         raise AssertionError("The current installed-app identity changed")
     if legacy_manifest.get("id") != "/app/intelligence-launch/":
         raise AssertionError("The legacy installed-app identity changed")
-    print("BRIDGEPOINT_LAUNCH_EXPERIENCE_V6252_PATCH_PASS")
+    print("BRIDGEPOINT_LAUNCH_EXPERIENCE_V6253_PATCH_PASS")
     print("Website, current PWA and legacy PWA all route to the same root globe gate.")
     print("Only the launch HTML, app-entry handoff, PWA entry URLs and worker update marker are changed.")
     print("Existing offline cache key and authentication/session logic are preserved.")
@@ -544,7 +559,7 @@ def patch_site(site: Path) -> None:
 
 def main() -> None:
     if len(sys.argv) != 2:
-        raise SystemExit("Usage: apply_launch_experience_v6252.py SITE_DIRECTORY")
+        raise SystemExit("Usage: apply_launch_experience_v6253.py SITE_DIRECTORY")
     patch_site(Path(sys.argv[1]))
 
 
