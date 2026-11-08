@@ -222,17 +222,26 @@ def patch_bundle(path: Path) -> None:
 
 def patch_app_js(path: Path) -> None:
     source = path.read_text(encoding="utf-8")
+    sky_job = "['celestial-sky',async()=>{const m=await import('./bridgepoint-celestial-sky-v6257.js?v=6257');window.__BP_CELESTIAL_SKY_V6257__=m.initBridgePointCelestialSky(world)}],"
+    if source.count(sky_job) == 1:
+        return
+    if source.count(sky_job) != 0:
+        raise AssertionError(f"{path.name}: duplicate celestial sky app jobs")
     marker = "  ['time-slider',async()=>{const m=await import('./world-v2300-time-slider.js?v=6170-no-cloud-toggle-always-on');window.__BP_WORLD_TIME_SLIDER_V5908__=m.initWorldTimeSlider(world,rpc)}],"
     if source.count(marker) != 2:
         raise AssertionError(f"{path.name}: expected two existing time-slider jobs")
     pos = source.rfind(marker) + len(marker)
-    source = source[:pos] + """
-  ['celestial-sky',async()=>{const m=await import('./bridgepoint-celestial-sky-v6257.js?v=6257');window.__BP_CELESTIAL_SKY_V6257__=m.initBridgePointCelestialSky(world)}],""" + source[pos:]
+    source = source[:pos] + "\n  " + sky_job + source[pos:]
     path.write_text(source, encoding="utf-8")
 
 
 def patch_landing_js(path: Path) -> None:
     source = path.read_text(encoding="utf-8")
+    sky_import = "void import('./bridgepoint-celestial-sky-v6257.js?v=6257')"
+    if source.count(sky_import) == 1:
+        return
+    if source.count(sky_import) != 0:
+        raise AssertionError(f"{path.name}: duplicate celestial sky imports")
     marker = "    .catch(e=>console.warn('BridgePoint 30-day world change scrub unavailable',e));"
     source = replace_once(
         source,
