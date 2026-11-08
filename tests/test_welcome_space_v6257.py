@@ -214,6 +214,29 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
         ):
             self.assertIn(marker, module)
 
+    def test_moon_focus_uses_nasa_dem_tiles_and_can_reach_surface_zoom(self):
+        module = (ROOT / "rebuild-v5000" / "bridgepoint-welcome-space-v6257.js").read_text()
+        for marker in (
+            "function createMoonTerrainController()",
+            "Apollo15_MetricCam_Gray_Global_1024ppd",
+            "LRO_WAC_Mosaic_Global_303ppd_v02",
+            "heightRangeMeters: [-8000, 8000]",
+            "pixels[pixelOffset] / 255 * 16000 - 8000",
+            "new THREE.MeshStandardMaterial({",
+            "moonMaterial.uniforms.uTerrainMask.value = maskTexture",
+            "viewState==='moon'?0.000003:1.8",
+            "const activePointers=new Map()",
+            "function refreshLunarTerrainFromView()",
+            "focusLocalTarget?moonMesh.localToWorld",
+        ):
+            self.assertIn(marker, module)
+
+        # The Sun's original focus camera branch remains intact.
+        self.assertIn(
+            "animateCamera(world.clone().add(new THREE.Vector3(0,0,sunRadiusVisual*2.7)),world,1.8);",
+            module,
+        )
+
     def test_celestial_sky_is_attached_to_the_app_map_without_a_second_canvas(self):
         module = (ROOT / "rebuild-v5000" / "bridgepoint-celestial-sky-v6257.js").read_text()
         self.assertIn("function apparentAngularRadiusPx", module)
