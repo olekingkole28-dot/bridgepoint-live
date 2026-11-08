@@ -5,7 +5,7 @@ import re
 import sys
 from pathlib import Path
 
-BUILD = "v6257-welcome-space-fix"
+BUILD = "v6258-local-moon-terrain"
 SW_URL = "/sw.js?v=6257-welcome-space-fix"
 CACHE_NAME = "bp-intelligence-v6247-universal-fresh-entry-sidewalk"
 
@@ -122,7 +122,7 @@ def patch_root_html(source: str) -> str:
 """
     source = replace_once(source, near_anchor, celestial, "insert Moon and Sun stage")
     source = patch_stars(source)
-    module_tag = '<script type="module" src="/bridgepoint-welcome-space-v6257.js?v=6257"></script>\n'
+    module_tag = '<script type="module" src="/bridgepoint-welcome-space-v6257.js?v=6258-local-moon-terrain"></script>\n'
     source = replace_once(source, "</body>", module_tag + "</body>", "load the modular Three.js welcome scene")
     source = replace_once(source, "</head>", launch_styles() + "\n</head>", "install responsive welcome styling")
 
@@ -357,7 +357,7 @@ def patch_site(site: Path) -> None:
             "bpw-celestial-system",
             "bpw-wordmark-main",
             "bpWelcomeGateStylesV6257",
-            'src="/bridgepoint-welcome-space-v6257.js?v=6257"',
+            'src="/bridgepoint-welcome-space-v6257.js?v=6258-local-moon-terrain"',
             'data-mode="signup"',
             'data-mode="signin"',
         ],
@@ -368,7 +368,7 @@ def patch_site(site: Path) -> None:
         ],
         "landing bundle": [SW_URL, "bridgepoint-celestial-sky-v6257.js?v=6257"],
         "app bundle": [SW_URL, "bridgepoint-celestial-sky-v6257.js?v=6257"],
-        "service worker": ["const V='" + CACHE_NAME + "';", "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6257-welcome-space-fix'", "entryRoute", "clients.claim()"],
+        "service worker": ["const V='" + CACHE_NAME + "';", "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6258-local-moon-terrain'", "entryRoute", "clients.claim()"],
         "welcome space module": ["new THREE.Raycaster()", "logarithmicDepthBuffer: true", "MOON_PERIOD_DAYS = 27.321661", "data-space-reset", "uTime"],
         "celestial sky module": ["apparentAngularRadiusPx", "bp6257-sun-surface", "initBridgePointCelestialSky"],
         "legacy app index": ['content="0;url=/"', "location.replace('/')", "sw.js?v=6257-welcome-space-fix"],
