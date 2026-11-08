@@ -1,0 +1,325 @@
+from __future__ import annotations
+
+import json
+import re
+import sys
+from pathlib import Path
+
+BUILD = "v6256-welcome-space-scene"
+SW_URL = "/sw.js?v=6256-welcome-space-scene"
+OLD_SW_URL = "/sw.js?v=6247-universal-fresh-entry-sidewalk"
+CACHE_NAME = "bp-intelligence-v6247-universal-fresh-entry-sidewalk"
+
+
+def replace_once(source: str, old: str, new: str, label: str) -> str:
+    count = source.count(old)
+    if count != 1:
+        raise AssertionError(f"{label}: expected exactly one match, found {count}")
+    return source.replace(old, new, 1)
+
+
+def replace_prefix_once(source: str, pattern: str, replacement: str, label: str) -> str:
+    source, count = re.subn(pattern, replacement, source, count=1)
+    if count != 1:
+        raise AssertionError(f"{label}: expected exactly one match, found {count}")
+    return source
+
+
+def patch_stars(source: str) -> str:
+    # The dedicated Three.js module owns stars, bodies, lighting and camera controls.
+    pattern = re.compile(r"(?ms)^  function buildSpaceStars\(\)\{.*?^  \}\n  buildSpaceStars\(\);")
+    replacement = """  function buildSpaceStars(){
+    // Rendering is provided by bridgepoint-welcome-space-v6256.js.
+  }
+  buildSpaceStars();"""
+    source, count = pattern.subn(replacement, source, count=1)
+    if count != 1: raise AssertionError("Legacy starfield hook missing")
+    pattern = re.compile(r"(?ms)^  function buildWordmark\(\)\{.*?^  \}\n")
+    replacement = """  function buildWordmark(){
+    if(wordmark)wordmark.dataset.built='1';
+    return 0;
+  }
+"""
+    source, count = pattern.subn(replacement, source, count=1)
+    if count != 1: raise AssertionError("Wordmark builder missing")
+    return source
+
+
+def launch_styles() -> str:
+    return r"""<style id="bpWelcomeGateStylesV6256">
+#bpWelcomeGateV1{pointer-events:auto!important;background:radial-gradient(ellipse at 50% 50%,rgba(2,8,18,.015),rgba(0,2,7,.14) 72%,rgba(0,1,5,.30))!important}
+html.bpw-entry-locked #previewMap{background:#00030a!important}
+html.bpw-entry-locked #previewMap canvas{filter:contrast(1.17) saturate(1.10) brightness(1.025)}
+#bpWelcomeGateV1 .bpw-globe-aura{display:none!important}
+#bpWelcomeGateV1 .bpw-starfield{background:radial-gradient(ellipse at 16% 26%,rgba(36,79,151,.20),transparent 38%),radial-gradient(ellipse at 82% 70%,rgba(31,71,130,.18),transparent 42%),radial-gradient(ellipse at 52% 48%,rgba(4,13,29,.12),transparent 68%)}
+#bpWelcomeGateV1 .bpw-starfield canvas{display:none!important}
+#bpWelcomeGateV1 .bpw-celestial-system{position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;height:100dvh!important;z-index:9!important;overflow:hidden;pointer-events:none;perspective:1200px;isolation:isolate;opacity:1!important;visibility:visible!important}
+#bpWelcomeGateV1 .bpw-celestial-canvas{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;display:block!important;opacity:1!important;visibility:visible!important;pointer-events:none;mix-blend-mode:screen}
+#bpWelcomeGateV1 .bpw-celestial-fallback-canvas{z-index:1!important}
+#bpWelcomeGateV1 .bpw-celestial-canvas{display:none!important}
+#bpWelcomeGateV1 .bpw-wordmark-wrap{top:calc(env(safe-area-inset-top,0px) + clamp(18px,3.2vh,38px))!important;left:0!important;right:0!important;transform:none!important;z-index:10!important;padding:0 12px!important}
+#bpWelcomeGateV1 .bpw-wordmark-wrap:before,#bpWelcomeGateV1 .bpw-wordmark-wrap:after{content:"";position:absolute;top:50%;width:clamp(12px,8vw,110px);height:1px;background:linear-gradient(90deg,transparent,rgba(132,197,236,.66));box-shadow:0 0 9px rgba(102,184,235,.24)}
+#bpWelcomeGateV1 .bpw-wordmark-wrap:before{right:calc(50% + clamp(112px,25vw,260px))}
+#bpWelcomeGateV1 .bpw-wordmark-wrap:after{left:calc(50% + clamp(112px,25vw,260px));transform:scaleX(-1)}
+#bpWelcomeGateV1 .bpw-wordmark-static{position:relative!important;display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:clamp(2px,.7vh,7px);width:100%;max-width:100%;white-space:normal!important;text-align:center;font-family:"Orbitron","Eurostile","Bank Gothic",system-ui,sans-serif!important;font-weight:900!important;text-transform:uppercase!important;transform:perspective(1100px) rotateX(8deg)!important;transform-style:preserve-3d!important;filter:drop-shadow(0 9px 11px rgba(0,0,0,.72))!important}
+#bpWelcomeGateV1 .bpw-wordmark-main{display:block;font-size:clamp(30px,7.1vw,78px);line-height:.94;letter-spacing:.105em;margin-right:-.105em;color:#f4fbff;-webkit-text-fill-color:#f4fbff;-webkit-text-stroke:.6px rgba(220,241,255,.78);text-shadow:0 1px 0 #d8e8f6,0 2px 0 #94b2cb,0 3px 0 #55738f,0 4px 0 #263f59,0 7px 0 #10253a,0 11px 20px rgba(0,0,0,.88),0 0 24px rgba(112,190,242,.28)}
+#bpWelcomeGateV1 .bpw-wordmark-sub{display:block;font-size:clamp(12px,2.55vw,24px);line-height:1.15;letter-spacing:.43em;margin-right:-.43em;font-weight:700;color:#a9d5f1;-webkit-text-fill-color:#a9d5f1;-webkit-text-stroke:.25px rgba(223,242,255,.48);text-shadow:0 1px 0 #5d7892,0 3px 8px rgba(0,0,0,.86),0 0 15px rgba(90,179,236,.30)}
+#bpWelcomeGateV1 .bpw-letter-frame,#bpWelcomeGateV1 .bpw-letter-face{animation:none!important;will-change:auto!important}
+#bpWelcomeGateV1 .bpw-status,#bpWelcomeGateV1 .bpw-sound{display:none!important}
+#bpWelcomeGateV1 .bpw-gate-panel{left:12px!important;right:12px!important;bottom:calc(env(safe-area-inset-bottom,0px) + clamp(20px,4vh,42px))!important;z-index:12!important;display:flex!important;gap:0!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;backdrop-filter:none!important;opacity:1!important;visibility:visible!important;transform:none!important;transition:none!important;pointer-events:auto!important}
+#bpWelcomeGateV1 .bpw-explainer{display:none!important}
+#bpWelcomeGateV1 .bpw-actions{display:flex!important;flex-wrap:wrap;justify-content:center;align-items:center;gap:12px;width:100%;margin:0!important}
+#bpWelcomeGateV1 .bpw-actions button{min-width:min(230px,42vw);max-width:calc(100vw - 28px);margin:0!important;animation:none!important;transition:background .2s ease,border-color .2s ease!important;backdrop-filter:none!important;box-shadow:0 8px 24px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.24)!important}
+@media(max-width:620px){
+#bpWelcomeGateV1 .bpw-wordmark-wrap{padding:0 8px!important}
+#bpWelcomeGateV1 .bpw-wordmark-wrap:before{right:calc(50% + 104px)}
+#bpWelcomeGateV1 .bpw-wordmark-wrap:after{left:calc(50% + 104px)}
+#bpWelcomeGateV1 .bpw-wordmark-main{font-size:clamp(27px,8.5vw,42px);letter-spacing:.065em;margin-right:-.065em}
+#bpWelcomeGateV1 .bpw-wordmark-sub{font-size:clamp(11px,3.1vw,16px);letter-spacing:.36em;margin-right:-.36em}
+#bpWelcomeGateV1 .bpw-gate-panel{left:10px!important;right:10px!important;bottom:calc(env(safe-area-inset-bottom,0px) + 16px)!important}
+#bpWelcomeGateV1 .bpw-actions{flex-direction:column;gap:9px}
+#bpWelcomeGateV1 .bpw-actions button{width:min(100%,340px);min-width:0;padding:14px 16px}
+}
+@media(prefers-reduced-motion:reduce){#bpWelcomeGateV1 .bpw-wordmark-static{transform:none!important}}
+</style>"""
+
+def patch_root_html(source: str) -> str:
+    required = (
+        '<div id="bpWelcomeGateV1"',
+        'id="bpwStarsFarV4"',
+        'id="bpwStarsNearV4"',
+        'id="bpwWordmarkV3"',
+        'class="bpw-globe-aura"',
+        'data-mode="signup"',
+        'data-mode="signin"',
+        "function buildSpaceStars(){",
+        "function buildWordmark(){",
+    )
+    for marker in required:
+        if marker not in source:
+            raise AssertionError(f"Root landing baseline is missing {marker}")
+
+    source = replace_once(
+        source,
+        '    <div class="bpw-globe-aura" aria-hidden="true"></div>\n',
+        "",
+        "remove Earth aura element",
+    )
+    source = replace_once(
+        source,
+        '        <div class="bpw-wordmark" id="bpwWordmarkV3" role="img" aria-label="Welcome to BridgePoint Intelligence" data-title="WELCOME TO BRIDGEPOINT INTELLIGENCE"></div>',
+        '        <div class="bpw-wordmark bpw-wordmark-static" id="bpwWordmarkV3" role="img" aria-label="BridgePoint Intelligence" data-title="BridgePoint Intelligence"><span class="bpw-wordmark-main">BRIDGEPOINT</span><span class="bpw-wordmark-sub">INTELLIGENCE</span></div>',
+        "replace animated welcome text with static title",
+    )
+    source = replace_once(
+        source,
+        '      <p class="bpw-explainer"><strong>BridgePoint Intelligence</strong> brings properties, buildings, infrastructure, weather and real-world signals together in one live 3D globe.</p>\n',
+        "",
+        "remove extra welcome copy",
+    )
+    near_anchor = '    <div class="bpw-starfield bpw-stars-near" id="bpwStarsNearV4" aria-hidden="true"></div>\n'
+    celestial = near_anchor + """    <div class="bpw-celestial-system" aria-hidden="true">
+      <canvas class="bpw-celestial-canvas" id="bpwCelestialCanvasV6255"></canvas>
+    </div>
+"""
+    source = replace_once(source, near_anchor, celestial, "insert Moon and Sun models")
+    source = patch_stars(source)
+    module_tag = '<script type="module" src="/bridgepoint-welcome-space-v6256.js?v=6256"></script>\n'
+    source = replace_once(source, "</body>", module_tag + "</body>", "load the modular Three.js welcome scene")
+    source = replace_once(source, "</head>", launch_styles() + "\n</head>", "install lightweight launch styling")
+    if source.count('class="bpw-globe-aura"') != 0:
+        raise AssertionError("Earth aura element remains in launch markup")
+    if "WELCOME TO" in source:
+        raise AssertionError("Animated WELCOME TO copy remains in launch HTML")
+    return source
+
+
+def patch_app_index(source: str) -> str:
+    if 'id="bp-app-entry-gate-v6247"' not in source:
+        raise AssertionError("V6247 app entry gate baseline is missing")
+    source = source.replace("/?auth=signin&return=", "/?return=")
+    if source.count("/?return=") != 2:
+        raise AssertionError("Both app launch redirects must preserve the return route without auto-opening a modal")
+    if "/?auth=signin&return=" in source:
+        raise AssertionError("An app launch redirect still bypasses the two-button gate")
+    source = replace_once(
+        source,
+        '../manifest.webmanifest"',
+        '../manifest.webmanifest?v=6256-welcome-space-scene"',
+        "bust the app manifest URL",
+    )
+    source = replace_prefix_once(
+        source,
+        r"(app\.js\?v=)6247-universal-fresh-entry",
+        r"\g<1>6256-welcome-space-scene",
+        "bust the app bundle URL",
+    )
+    return source
+
+
+def patch_legacy_app(source: str) -> str:
+    source = replace_once(
+        source,
+        'content="4;url=/app/?migrated=legacy-intelligence-v5820"',
+        'content="0;url=/"',
+        "make legacy installed app route immediately to the canonical gate",
+    )
+    source = replace_once(
+        source,
+        'href="/app/" style="color:#4ad9ff"',
+        'href="/" style="color:#4ad9ff"',
+        "legacy app fallback link",
+    )
+    source = replace_once(
+        source,
+        "sw.js?v=6218-tree-viewport-renderer-refresh",
+        "sw.js?v=6256-welcome-space-scene",
+        "refresh legacy app service worker",
+    )
+    source = replace_once(
+        source,
+        "k.startsWith('bp-intelligence-')&&k!=='bp-intelligence-v5820'",
+        "k.startsWith('bp-intelligence-')&&k!=='bp-intelligence-v6247-universal-fresh-entry-sidewalk'",
+        "preserve the existing offline cache during legacy-app migration",
+    )
+    source = replace_once(
+        source,
+        "location.replace('/app/?migrated=legacy-intelligence-v5820')",
+        "location.replace('/')",
+        "legacy app final route",
+    )
+    return source
+
+
+def patch_manifest(path: Path, expected_id: str) -> None:
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if data.get("id") != expected_id:
+        raise AssertionError(f"{path}: unexpected installed-app identity {data.get('id')!r}")
+    if data.get("start_url") not in ("/app/", "/"):
+        raise AssertionError(f"{path}: unexpected previous start_url {data.get('start_url')!r}")
+    data["start_url"] = "/"
+    path.write_text(json.dumps(data, separators=(",", ":")), encoding="utf-8")
+
+
+def patch_bundle(path: Path) -> None:
+    source = path.read_text(encoding="utf-8")
+    source = replace_once(
+        source,
+        "navigator.serviceWorker.register('/sw.js?v=6247-universal-fresh-entry-sidewalk',{updateViaCache:'none'})",
+        "navigator.serviceWorker.register('/sw.js?v=6256-welcome-space-scene',{updateViaCache:'none'})",
+        f"{path.name} service-worker refresh",
+    )
+    path.write_text(source, encoding="utf-8")
+
+
+def patch_worker(path: Path) -> None:
+    source = path.read_text(encoding="utf-8")
+    source = replace_once(
+        source,
+        "const V='" + CACHE_NAME + "';",
+        "const V='" + CACHE_NAME + "';\nconst BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='" + BUILD + "';",
+        "bump worker script while preserving the existing offline cache name",
+    )
+    path.write_text(source, encoding="utf-8")
+
+
+def patch_site(site: Path) -> None:
+    required = {
+        "root": site / "index.html",
+        "app index": site / "app" / "index.html",
+        "landing bundle": site / "landing.js",
+        "app bundle": site / "app.js",
+        "service worker": site / "sw.js",
+        "root manifest": site / "manifest.webmanifest",
+        "welcome space module": ["new THREE.Raycaster()", "logarithmicDepthBuffer: true", "MOON_PERIOD_DAYS = 27.321661", "data-space-ground", "uTime"],
+        "legacy app index": site / "app" / "intelligence-launch" / "index.html",
+        "legacy app manifest": site / "app" / "intelligence-launch" / "manifest.webmanifest",
+        "welcome space module": site / "bridgepoint-welcome-space-v6256.js",
+    }
+    for label, path in required.items():
+        if not path.is_file():
+            raise FileNotFoundError(f"Production Pages artifact is missing {label}: {path}")
+
+    root = required["root"].read_text(encoding="utf-8")
+    root = patch_root_html(root)
+    root = replace_once(
+        root,
+        './manifest.webmanifest"',
+        './manifest.webmanifest?v=6256-welcome-space-scene"',
+        "bust the root manifest URL",
+    )
+    root = replace_prefix_once(
+        root,
+        r"(landing\.js\?v=)6247-universal-fresh-entry",
+        r"\g<1>6256-welcome-space-scene",
+        "bust the landing bundle URL",
+    )
+    required["root"].write_text(root, encoding="utf-8")
+
+    app_index = patch_app_index(required["app index"].read_text(encoding="utf-8"))
+    required["app index"].write_text(app_index, encoding="utf-8")
+    patch_bundle(required["landing bundle"])
+    patch_bundle(required["app bundle"])
+    patch_worker(required["service worker"])
+
+    patch_manifest(required["root manifest"], "/bridgepoint-intelligence-v5050")
+    legacy = patch_legacy_app(required["legacy app index"].read_text(encoding="utf-8"))
+    legacy = replace_once(
+        legacy,
+        './manifest.webmanifest"',
+        './manifest.webmanifest?v=6256-welcome-space-scene"',
+        "bust the legacy app manifest URL",
+    )
+    required["legacy app index"].write_text(legacy, encoding="utf-8")
+    patch_manifest(required["legacy app manifest"], "/app/intelligence-launch/")
+
+    checks = {
+        "root": [
+            'class="bpw-wordmark bpw-wordmark-static"',
+            ">INTELLIGENCE</span></div>",
+            "bpw-celestial-system",
+            "bpwCelestialCanvasV6255",
+            "bpw-wordmark-main",
+            "bpWelcomeGateStylesV6256",
+            'src="/bridgepoint-welcome-space-v6256.js?v=6256"',
+            'data-mode="signup"',
+            'data-mode="signin"',
+        ],
+        "app index": [
+            "/?return=",
+            "app.js?v=6256-welcome-space-scene",
+            "manifest.webmanifest?v=6256-welcome-space-scene",
+        ],
+        "landing bundle": [SW_URL],
+        "app bundle": [SW_URL],
+        "service worker": ["const V='" + CACHE_NAME + "';", "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6256-welcome-space-scene'"],
+        "legacy app index": ['content="0;url=/"', "location.replace('/')", "sw.js?v=6256-welcome-space-scene"],
+    }
+    for label, markers in checks.items():
+        content = required[label].read_text(encoding="utf-8")
+        for marker in markers:
+            if marker not in content:
+                raise AssertionError(f"{label}: missing required launch marker {marker}")
+
+    root_manifest = json.loads(required["root manifest"].read_text(encoding="utf-8"))
+    legacy_manifest = json.loads(required["legacy app manifest"].read_text(encoding="utf-8"))
+    if root_manifest.get("start_url") != "/" or legacy_manifest.get("start_url") != "/":
+        raise AssertionError("Installed app manifests must both launch at the canonical globe gate")
+    if root_manifest.get("id") != "/bridgepoint-intelligence-v5050":
+        raise AssertionError("The current installed-app identity changed")
+    if legacy_manifest.get("id") != "/app/intelligence-launch/":
+        raise AssertionError("The legacy installed-app identity changed")
+    print("BRIDGEPOINT_WELCOME_SPACE_V6256_PATCH_PASS")
+    print("Website, current PWA and legacy PWA all route to the same root globe gate.")
+    print("Only launch HTML, app-entry handoff, PWA entry URLs, worker marker and the isolated welcome scene module are changed.")
+    print("Existing offline cache key and authentication/session logic are preserved.")
+
+
+def main() -> None:
+    if len(sys.argv) != 2:
+        raise SystemExit("Usage: apply_launch_experience_v6255.py SITE_DIRECTORY")
+    patch_site(Path(sys.argv[1]))
+
+
+if __name__ == "__main__":
+    main()
