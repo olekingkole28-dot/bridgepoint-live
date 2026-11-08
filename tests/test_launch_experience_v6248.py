@@ -6,7 +6,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "recovery"))
-from apply_launch_experience_v6248 import (
+from apply_launch_experience_v6249 import (
     BUILD, CACHE_NAME, patch_app_index, patch_legacy_app, patch_manifest,
     patch_root_html, patch_worker,
 )
@@ -69,7 +69,7 @@ def root_fixture() -> str:
 </body></html>"""
 
 
-class LaunchExperienceV6248Tests(unittest.TestCase):
+class LaunchExperienceV6249Tests(unittest.TestCase):
     def test_root_has_static_title_two_buttons_no_earth_aura(self):
         out = patch_root_html(root_fixture())
         self.assertIn(">BridgePoint Intelligence</div>", out)
@@ -83,7 +83,10 @@ class LaunchExperienceV6248Tests(unittest.TestCase):
         self.assertIn("bpw-celestial-system", out)
         self.assertIn("make('bpwStarsFarV4',456", out)
         self.assertIn("make('bpwStarsNearV4',228", out)
-        self.assertIn("canvas.getContext('2d'", out)
+        self.assertIn("canvas.getContext('webgl'", out)
+        self.assertIn("gl.drawArrays(gl.POINTS", out)
+        self.assertIn("bpw-wordmark-static:before", out)
+        self.assertIn("bpw-moon-spin-v6249", out)
         self.assertIn("function buildWordmark(){", out)
         self.assertIn("return 0;", out)
         self.assertNotIn("document.createElement('i')", out)
@@ -98,8 +101,8 @@ catch(_){location.replace('/?auth=signin&return='+encodeURIComponent(location.pa
         out = patch_app_index(src)
         self.assertEqual(out.count("/?return="), 2)
         self.assertNotIn("/?auth=signin&return=", out)
-        self.assertIn("app.js?v=6248-launch-experience&sidewalk=6247", out)
-        self.assertIn("manifest.webmanifest?v=6248-launch-experience", out)
+        self.assertIn("app.js?v=6249-volumetric-space&sidewalk=6247", out)
+        self.assertIn("manifest.webmanifest?v=6249-volumetric-space", out)
 
     def test_legacy_app_redirects_root_and_keeps_current_offline_cache(self):
         src = """<link rel="manifest" href="./manifest.webmanifest"><meta http-equiv="refresh" content="4;url=/app/?migrated=legacy-intelligence-v5820">
@@ -112,7 +115,7 @@ finally{location.replace('/app/?migrated=legacy-intelligence-v5820')}
         self.assertIn('content="0;url=/"', out)
         self.assertIn('href="/"', out)
         self.assertIn("location.replace('/')", out)
-        self.assertIn("sw.js?v=6248-launch-experience", out)
+        self.assertIn("sw.js?v=6249-volumetric-space", out)
         self.assertIn("k!=='bp-intelligence-v6247-universal-fresh-entry-sidewalk'", out)
 
     def test_root_manifest_start_url_changes_but_identity_is_preserved(self):
@@ -131,7 +134,7 @@ finally{location.replace('/app/?migrated=legacy-intelligence-v5820')}
             self.assertEqual(data["id"], "/bridgepoint-intelligence-v5050")
 
     def test_worker_script_updates_without_changing_the_offline_cache_name(self):
-        from apply_launch_experience_v6248 import patch_worker
+        from apply_launch_experience_v6249 import patch_worker
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "sw.js"
             path.write_text("const V='" + CACHE_NAME + "';\nself.addEventListener('install',()=>self.skipWaiting());\n")
