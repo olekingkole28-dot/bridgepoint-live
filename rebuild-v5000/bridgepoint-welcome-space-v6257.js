@@ -790,7 +790,7 @@ function createMoonTerrainController() {
     moonMaterial.uniforms.uSunDir.value.copy(moonMesh.worldToLocal(sunWorld.clone()).normalize());
     if(!reducedMotion)sunGroup.rotation.y+=elapsed*.012;
     if(focusedObject&&!transitionStart&&!dragging){
-      const focusedWorld=focusedObject===sunMesh?sunGroup.getWorldPosition(new THREE.Vector3()):(focusedLocalTarget?moonMesh.localToWorld(focusLocalTarget.clone()):focusedObject.getWorldPosition(new THREE.Vector3()));
+      const focusedWorld=focusedObject===sunMesh?sunGroup.getWorldPosition(new THREE.Vector3()):(focusLocalTarget?moonMesh.localToWorld(focusLocalTarget.clone()):focusedObject.getWorldPosition(new THREE.Vector3()));
       camera.position.add(focusedWorld.clone().sub(target));target.copy(focusedWorld);camera.lookAt(target);
     }
     stars.rotation.y+=reducedMotion?0:elapsed*.0008;
