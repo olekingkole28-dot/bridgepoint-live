@@ -15,9 +15,9 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
 
 (() => {
   'use strict';
-  const VERSION = 'v6256';
-  if (window.__BP_WELCOME_SPACE_V6256__) return;
-  window.__BP_WELCOME_SPACE_V6256__ = true;
+  const VERSION = 'v6257';
+  if (window.__BP_WELCOME_SPACE_V6257__) return;
+  window.__BP_WELCOME_SPACE_V6257__ = true;
 
   const host = document.querySelector('#bpWelcomeGateV1 .bpw-celestial-system');
   if (!host) return;
@@ -36,14 +36,14 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   const nowSeconds = () => performance.now() * 0.001;
 
   const canvas = document.createElement('canvas');
-  canvas.id = 'bpWelcomeSpaceCanvasV6256';
+  canvas.id = 'bpWelcomeSpaceCanvasV6257';
   canvas.className = 'bpw-space-renderer-canvas';
   canvas.setAttribute('aria-label', 'Interactive three-dimensional Earth, Moon, Sun and starfield');
   canvas.tabIndex = 0;
   host.appendChild(canvas);
 
   const style = document.createElement('style');
-  style.id = 'bpWelcomeSpaceStylesV6256';
+  style.id = 'bpWelcomeSpaceStylesV6257';
   style.textContent = `
     #bpWelcomeGateV1 .bpw-space-renderer-canvas{
       position:absolute!important;inset:0!important;width:100%!important;height:100%!important;
@@ -72,7 +72,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
 
   const controls = document.createElement('div');
   controls.className = 'bpw-space-controls';
-  controls.innerHTML = '<button type="button" data-space-ground>GROUND SKY</button><button type="button" data-space-reset>RESET VIEW</button>';
+  controls.innerHTML = '<button type="button" data-space-reset>RESET VIEW</button>'; 
   host.appendChild(controls);
 
   let renderer;
@@ -102,57 +102,11 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   const ambient = new THREE.AmbientLight(0x7895bd, 0.24);
   scene.add(ambient);
 
+  // The existing MapLibre Earth remains the only Earth in the welcome scene.
+  // This invisible origin is only the Moon's orbital reference point.
   const earth = new THREE.Group();
-  earth.name = 'Earth';
+  earth.name = 'BridgePoint Earth reference anchor';
   scene.add(earth);
-  const earthGeometry = new THREE.SphereGeometry(1, mobile ? 96 : 160, mobile ? 64 : 112);
-  const earthMaterial = new THREE.ShaderMaterial({
-    uniforms: { uTime: { value: 0 }, uSunDir: { value: new THREE.Vector3(0.55, 0.38, 0.74).normalize() } },
-    vertexShader: `
-      varying vec3 vNormal; varying vec3 vPosition; varying vec2 vUv;
-      void main(){vUv=uv;vNormal=normalize(normalMatrix*normal);vPosition=position;
-        gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}
-    `,
-    fragmentShader: `
-      precision highp float; varying vec3 vNormal; varying vec3 vPosition; varying vec2 vUv;
-      uniform float uTime; uniform vec3 uSunDir;
-      float h(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
-      float n(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
-        return mix(mix(mix(h(i),h(i+vec3(1,0,0)),f.x),mix(h(i+vec3(0,1,0)),h(i+vec3(1,1,0)),f.x),f.y),
-        mix(mix(h(i+vec3(0,0,1)),h(i+vec3(1,0,1)),f.x),mix(h(i+vec3(0,1,1)),h(i+vec3(1,1,1)),f.x),f.y),f.z);}
-      float fbm(vec3 p){float v=0.0,a=.53;for(int i=0;i<5;i++){v+=a*n(p);p=p*2.03+vec3(1.7,2.4,1.2);a*=.49;}return v;}
-      void main(){
-        vec3 normal=normalize(vPosition);float land=fbm(normal*5.5+vec3(0,0,uTime*.000015));
-        float detail=fbm(normal*19.0+vec3(4.0,2.0,1.0));
-        float coast=smoothstep(.48,.58,land+detail*.12);
-        vec3 ocean=mix(vec3(.006,.035,.105),vec3(.012,.12,.24),detail);
-        vec3 continent=mix(vec3(.12,.20,.10),vec3(.48,.43,.25),smoothstep(.22,.76,detail));
-        float ice=smoothstep(.79,.97,abs(normal.y));
-        vec3 base=mix(ocean,continent,coast);base=mix(base,vec3(.81,.88,.91),ice*.82);
-        float clouds=fbm(normal*33.0+vec3(0,uTime*.000025,0));
-        float cloud=smoothstep(.63,.78,clouds)*.22;
-        base=mix(base,vec3(.86,.91,.96),cloud);
-        float lambert=max(dot(normal,normalize(uSunDir)),0.0);
-        float twilight=smoothstep(-.16,.18,dot(normal,normalize(uSunDir)));
-        vec3 night=vec3(.002,.007,.023)+vec3(.012,.035,.08)*fbm(normal*45.0);
-        vec3 day=base*(.13+.97*lambert);
-        vec3 color=mix(night,day,twilight);
-        float city=pow(fbm(normal*125.0),7.0)*(1.0-twilight);
-        color+=vec3(1.0,.55,.20)*city*.75;
-        float rim=pow(1.0-max(dot(normalize(vNormal),vec3(0,0,1)),0.0),3.0);
-        color+=vec3(.09,.33,.75)*rim*.18;
-        gl_FragColor=vec4(color,1.0);
-      }`
-  });
-  const earthMesh = new THREE.Mesh(earthGeometry, earthMaterial);
-  earthMesh.name = 'Earth interactive globe';
-  earthMesh.userData.body = 'earth';
-  earth.add(earthMesh);
-  const atmosphere = new THREE.Mesh(
-    new THREE.SphereGeometry(1.025, mobile ? 64 : 96, mobile ? 48 : 64),
-    new THREE.MeshBasicMaterial({ color: 0x398bff, transparent: true, opacity: 0.105, side: THREE.BackSide, blending: THREE.AdditiveBlending, depthWrite: false })
-  );
-  earth.add(atmosphere);
 
   const moonPivot = new THREE.Group();
   moonPivot.name = 'Moon orbital pivot';
@@ -200,7 +154,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   moonMesh.position.set(8.2, 0.7, -1.4);
   moonPivot.add(moonMesh);
 
-  const sunPosition = new THREE.Vector3(4.2, 6.2, 4.5);
+  let sunPosition = new THREE.Vector3(2.05,4.6,3.4);
   // Cinematic overview compresses inter-body distance and disk scale; ground sky uses apparent angular diameter.
   const sunRadiusVisual = 1.22;
   const sunGeometry = new THREE.SphereGeometry(sunRadiusVisual, mobile ? 80 : 128, mobile ? 56 : 96);
@@ -319,10 +273,8 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
 
   const raycaster=new THREE.Raycaster();
   const pointer=new THREE.Vector2();
-  const clickables=[earthMesh,moonMesh,sunMesh];
-  const focusTargets={overview:{position:new THREE.Vector3(0,4.2,16.5),target:new THREE.Vector3(0,0,0)},
-    earth:{position:new THREE.Vector3(0,.18,3.4),target:new THREE.Vector3(0,0,0)}};
-  let viewState='overview',groundMode=false;
+  const clickables=[moonMesh,sunMesh];
+  let viewState='overview',focusedObject=null;
   const target=new THREE.Vector3(0,0,0);
   let cameraFrom=camera.position.clone(),cameraTo=camera.position.clone();
   let targetFrom=target.clone(),targetTo=target.clone(),transitionStart=0,transitionDuration=1.35;
@@ -332,108 +284,40 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     targetFrom.copy(target);targetTo.copy(lookAt);
     transitionStart=nowSeconds();transitionDuration=duration;
   }
+  function setResponsiveSunPosition(){
+    const aspect=canvas.clientWidth/Math.max(1,canvas.clientHeight);
+    sunPosition.copy(aspect<.72?new THREE.Vector3(2.05,4.6,3.4):aspect<1?new THREE.Vector3(2.8,4.9,4.0):new THREE.Vector3(4.0,5.1,4.5));
+    sunGroup.position.copy(sunPosition);sunLight.position.copy(sunPosition);
+  }
   function focusBody(body){
-    groundMode=false;
-    camera.up.set(0,1,0);camera.fov=48;camera.updateProjectionMatrix();
-    moonMesh.scale.setScalar(1);sunMesh.scale.setScalar(1);
+    const focused=body==='moon'?moonMesh:body==='sun'?sunMesh:null;
+    if(!focused)return;
+    focusedObject=focused;viewState=body;camera.up.set(0,1,0);
     moonPivot.visible=true;sunGroup.visible=true;stars.visible=true;haze.visible=true;
-    controls.querySelector('[data-space-ground]').textContent='GROUND SKY';
-    if(body==='earth'){
-      viewState='earth';animateCamera(new THREE.Vector3(0,.16,3.5),new THREE.Vector3(0,0,0));
-    }else if(body==='moon'){
-      viewState='moon';
-      camera.fov=40;camera.updateProjectionMatrix();
-      const outward=moonMesh.position.clone().normalize();
-      const side=new THREE.Vector3(0,1,0).cross(outward).normalize();
-      const moonWorld=moonMesh.getWorldPosition(new THREE.Vector3());
-      const pos=moonWorld.clone().addScaledVector(side,.65).addScaledVector(outward,2.0);
-      animateCamera(pos,moonWorld,1.65);
-    }else if(body==='sun'){
-      viewState='sun';
-      const sunWorld=sunGroup.getWorldPosition(new THREE.Vector3());
-      const pos=sunWorld.clone().add(new THREE.Vector3(0,0,sunRadiusVisual*3.6));
-      animateCamera(pos,sunWorld,1.9);
+    moonMesh.scale.setScalar(1);sunMesh.scale.setScalar(1);
+    const world=focused===sunMesh?sunGroup.getWorldPosition(new THREE.Vector3()):focused.getWorldPosition(new THREE.Vector3());
+    if(body==='moon'){
+      camera.fov=42;camera.updateProjectionMatrix();
+      const towardEarth=world.clone().negate().normalize();
+      animateCamera(world.clone().addScaledVector(towardEarth,1.25).add(new THREE.Vector3(0,.62,0)),world,1.55);
+    }else{
+      camera.fov=62;camera.updateProjectionMatrix();
+      animateCamera(world.clone().add(new THREE.Vector3(0,0,sunRadiusVisual*2.7)),world,1.8);
     }
   }
   function resetView(){
-    groundMode=false;viewState='overview';
-    camera.up.set(0,1,0);
+    focusedObject=null;viewState='overview';camera.up.set(0,1,0);camera.fov=48;camera.updateProjectionMatrix();
     moonMesh.scale.setScalar(1);sunMesh.scale.setScalar(1);
     moonPivot.visible=true;sunGroup.visible=true;stars.visible=true;haze.visible=true;
-    controls.querySelector('[data-space-ground]').textContent='GROUND SKY';
-    const aspect=canvas.clientWidth/Math.max(1,canvas.clientHeight);
-    const distance=aspect<.72?20.5:aspect<1?18.5:16.5;
+    setResponsiveSunPosition();
+    const aspect=canvas.clientWidth/Math.max(1,canvas.clientHeight),distance=aspect<.72?20.5:aspect<1?18.5:16.5;
     animateCamera(new THREE.Vector3(0,4.2,distance),new THREE.Vector3(0,0,0),1.25);
-  }
-
-  function mapCenter(){
-    const map=window.__BP_LANDING_WORLD__?.map||window.__bpLandingWorld__?.map||null;
-    try{const c=map?.getCenter?.();if(c)return{lat:Number(c.lat)||0,lon:Number(c.lng)||0};}catch(_){}
-    return{lat:0,lon:0};
-  }
-  function sunEquatorial(date){
-    const jd=date.getTime()/86400000+2440587.5,n=jd-2451545,rad=Math.PI/180;
-    const L=((280.46+.9856474*n)%360+360)%360,G=((357.528+.9856003*n)%360+360)%360;
-    const lambda=(L+1.915*Math.sin(G*rad)+.020*Math.sin(2*G*rad))*rad,eps=(23.439-.0000004*n)*rad;
-    return{ra:Math.atan2(Math.cos(eps)*Math.sin(lambda),Math.cos(lambda)),dec:Math.asin(Math.sin(eps)*Math.sin(lambda))};
-  }
-  function sidereal(date,lon){
-    const jd=date.getTime()/86400000+2440587.5,d=jd-2451545;
-    return THREE.MathUtils.degToRad((((280.46061837+360.98564736629*d+lon)%360)+360)%360);
-  }
-  function equatorialToLocal(ra,dec,date,lat,lon){
-    const phi=THREE.MathUtils.degToRad(lat),ha=sidereal(date,lon)-ra;
-    const east=-Math.cos(dec)*Math.sin(ha);
-    const north=Math.sin(dec)*Math.cos(phi)-Math.cos(dec)*Math.cos(ha)*Math.sin(phi);
-    const up=Math.sin(dec)*Math.sin(phi)+Math.cos(dec)*Math.cos(ha)*Math.cos(phi);
-    return new THREE.Vector3(east,up,-north).normalize();
-  }
-  function setGroundSky(){
-    groundMode=true;viewState='ground';
-    controls.querySelector('[data-space-ground]').textContent='SPACE VIEW';
-    const {lat,lon}=mapCenter(),normal=new THREE.Vector3(
-      Math.cos(THREE.MathUtils.degToRad(lat))*Math.cos(THREE.MathUtils.degToRad(lon)),
-      Math.sin(THREE.MathUtils.degToRad(lat)),
-      Math.cos(THREE.MathUtils.degToRad(lat))*Math.sin(THREE.MathUtils.degToRad(lon))
-    ).normalize();
-    const phi=THREE.MathUtils.degToRad(lat),lambda=THREE.MathUtils.degToRad(lon);
-    const east=new THREE.Vector3(-Math.sin(lambda),0,Math.cos(lambda));
-    const north=new THREE.Vector3(-Math.sin(phi)*Math.cos(lambda),Math.cos(phi),-Math.sin(phi)*Math.sin(lambda));
-    const observer=normal.clone().multiplyScalar(1.0015);
-    camera.position.copy(observer);
-    camera.up.copy(north);
-    camera.fov=68;camera.updateProjectionMatrix();
-    const zenith=observer.clone().add(normal);
-    camera.lookAt(zenith);
-    target.copy(zenith);
-    const toWorld=v=>east.clone().multiplyScalar(v.x).addScaledVector(normal,v.y).addScaledVector(north,-v.z).normalize();
-    const date=new Date(),sun=sunEquatorial(date);
-    const sunDir=toWorld(equatorialToLocal(sun.ra,sun.dec,date,lat,lon));
-    const moonRA=sun.ra+Math.PI+0.11,moonDec=-sun.dec+0.07;
-    const moonDir=toWorld(equatorialToLocal(moonRA,moonDec,date,lat,lon));
-    const distant=900;
-    sunGroup.position.copy(observer).addScaledVector(sunDir,distant);
-    sunLight.position.copy(sunGroup.position);
-    moonPivot.position.set(0,0,0);
-    moonMesh.position.copy(observer).addScaledVector(moonDir,distant);
-    // Equal apparent angular radii in ground mode: both subtend about half a degree.
-    const apparentRadius=Math.tan(THREE.MathUtils.degToRad(.266))*distant;
-    sunMesh.scale.setScalar(apparentRadius/sunRadiusVisual);
-    moonMesh.scale.setScalar(apparentRadius/(MOON_RADIUS_KM/EARTH_RADIUS_KM));
-    const sunWorld=sunGroup.getWorldPosition(new THREE.Vector3());
-    earthMaterial.uniforms.uSunDir.value.copy(earth.worldToLocal(sunWorld.clone()).normalize());
-    moonMaterial.uniforms.uSunDir.value.copy(moonMesh.worldToLocal(sunWorld.clone()).normalize());
-    sunGroup.visible=sunDir.dot(normal)>0;
-    moonPivot.visible=moonDir.dot(normal)>0;
-    stars.visible=sunDir.dot(normal)<-.08;
-    haze.visible=stars.visible;
-    renderer.render(scene,camera);
   }
 
   let dragging=false,lastX=0,lastY=0,pointerMoved=false;
   canvas.addEventListener('pointerdown',event=>{dragging=true;pointerMoved=false;lastX=event.clientX;lastY=event.clientY;canvas.setPointerCapture?.(event.pointerId);});
   canvas.addEventListener('pointermove',event=>{
-    if(!dragging||groundMode)return;
+    if(!dragging)return;
     const dx=event.clientX-lastX,dy=event.clientY-lastY;
     if(Math.abs(dx)+Math.abs(dy)>2)pointerMoved=true;
     lastX=event.clientX;lastY=event.clientY;
@@ -444,7 +328,6 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   });
   canvas.addEventListener('pointerup',event=>{
     dragging=false;if(pointerMoved)return;
-    if(groundMode){resetView();return;}
     const rect=canvas.getBoundingClientRect();
     pointer.x=((event.clientX-rect.left)/rect.width)*2-1;
     pointer.y=-((event.clientY-rect.top)/rect.height)*2+1;
@@ -454,13 +337,11 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   });
   canvas.addEventListener('pointercancel',()=>{dragging=false;});
   canvas.addEventListener('wheel',event=>{
-    if(groundMode)return;
     event.preventDefault();
     const direction=camera.position.clone().sub(target).normalize();
     const distance=THREE.MathUtils.clamp(camera.position.distanceTo(target)*Math.exp(event.deltaY*.001),1.8,5000);
     camera.position.copy(target).addScaledVector(direction,distance);
   },{passive:false});
-  controls.querySelector('[data-space-ground]').addEventListener('click',()=>groundMode?resetView():setGroundSky());
   controls.querySelector('[data-space-reset]').addEventListener('click',resetView);
 
   function resize(){
@@ -468,7 +349,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     renderer.setSize(width,height,false);
     camera.aspect=width/height;
     camera.updateProjectionMatrix();
-    if(viewState==='overview'&&!groundMode)resetView();
+    if(viewState==='overview')resetView();
   }
   const resizeObserver=new ResizeObserver(resize);
   resizeObserver.observe(host);
@@ -488,28 +369,14 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     const trueAnomaly=2*Math.atan2(Math.sqrt(1+eccentricity)*Math.sin(E/2),Math.sqrt(1-eccentricity)*Math.cos(E/2));
     const inclination=THREE.MathUtils.degToRad(5.145);
     const aspect=canvas.clientWidth/Math.max(1,canvas.clientHeight);
-    const orbitCompression=aspect<.72?.078:aspect<1?.105:.14;
+    const orbitCompression=aspect<.72?.055:aspect<1?.085:.14;
     const orbitRadius=MOON_ORBIT_KM/EARTH_RADIUS_KM*orbitCompression;
     moonPivot.position.set(0,0,0);
-    if(!groundMode){
+    {
       moonMesh.position.set(orbitRadius*Math.cos(trueAnomaly),Math.sin(trueAnomaly)*Math.sin(inclination)*orbitRadius,orbitRadius*Math.sin(trueAnomaly));
       moonMesh.lookAt(earth.position);
-      earth.rotation.y+=reducedMotion?0:elapsed*TAU/(SIDEREAL_DAY_SECONDS/1200);
-      sunGroup.rotation.y+=reducedMotion?0:elapsed*.012;
       const sunWorld=sunGroup.getWorldPosition(new THREE.Vector3());
-      const earthSunLocal=earth.worldToLocal(sunWorld.clone()).normalize();
-      const moonSunLocal=moonMesh.worldToLocal(sunWorld.clone()).normalize();
-      earthMaterial.uniforms.uSunDir.value.copy(earthSunLocal);
-      moonMaterial.uniforms.uSunDir.value.copy(moonSunLocal);
-      keyLight.position.copy(sunPosition);
-      if(viewState==='moon'){
-        const mp=moonMesh.getWorldPosition(new THREE.Vector3());
-        const outward=mp.clone().normalize();
-        const side=new THREE.Vector3(0,1,0).cross(outward).normalize();
-        // Keep the Earth in the field of view beside/behind the foreground Moon.
-        const desired=mp.clone().addScaledVector(side,2.1).addScaledVector(outward,2.0);
-        if(!dragging&&transitionStart===0){camera.position.lerp(desired,.025);camera.lookAt(mp);}
-      }
+      moonMaterial.uniforms.uSunDir.value.copy(moonMesh.worldToLocal(sunWorld.clone()).normalize());
     }
     if(transitionStart){
       const u=THREE.MathUtils.clamp((t-transitionStart)/transitionDuration,0,1),k=ease(u);
@@ -518,16 +385,13 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     }
     sunMaterial.uniforms.uTime.value=t;
     moonMaterial.uniforms.uTime.value=t;
-    earthMaterial.uniforms.uTime.value=t;
-    if(!groundMode){
-      const sunWorld=sunGroup.getWorldPosition(new THREE.Vector3());
-      const earthSunLocal=earth.worldToLocal(sunWorld.clone()).normalize();
-      const moonSunLocal=moonMesh.worldToLocal(sunWorld.clone()).normalize();
-      earthMaterial.uniforms.uSunDir.value.copy(earthSunLocal);
-      moonMaterial.uniforms.uSunDir.value.copy(moonSunLocal);
-      sunLight.position.copy(sunPosition);
-    }
+    const sunWorld=sunGroup.getWorldPosition(new THREE.Vector3());
+    moonMaterial.uniforms.uSunDir.value.copy(moonMesh.worldToLocal(sunWorld.clone()).normalize());
     if(!reducedMotion)sunGroup.rotation.y+=elapsed*.012;
+    if(focusedObject&&!transitionStart&&!dragging){
+      const focusedWorld=focusedObject===sunMesh?sunGroup.getWorldPosition(new THREE.Vector3()):focusedObject.getWorldPosition(new THREE.Vector3());
+      camera.position.add(focusedWorld.clone().sub(target));target.copy(focusedWorld);camera.lookAt(target);
+    }
     stars.rotation.y+=reducedMotion?0:elapsed*.0008;
     renderer.render(scene,camera);
     if(!document.hidden)requestAnimationFrame(render);
@@ -536,12 +400,11 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   resize();
   render();
 
-  window.__BP_WELCOME_SPACE_V6256__={
+  window.__BP_WELCOME_SPACE_V6257__={
     version:VERSION,
     focus:focusBody,
     reset:resetView,
-    ground:setGroundSky,
-    state:()=>({viewState,groundMode,moonOrbitPeriodDays:MOON_PERIOD_DAYS,
+    state:()=>({viewState,moonOrbitPeriodDays:MOON_PERIOD_DAYS,
       radiiKm:{earth:EARTH_RADIUS_KM,moon:MOON_RADIUS_KM,sun:SUN_RADIUS_KM},
       cinematicOrbitDistanceScale:'responsive-compressed',proceduralLunarRelief:true})
   };
