@@ -118,6 +118,8 @@ jobs:
           grep -Fq 'ringR=length(vec2(q.x,q.y/.34))' site/index.html
           grep -Fq 'const starCount=lowPower?4200:8200' site/index.html
           grep -Fq 'scale=u_bodyType>6.5?1.94:1.0' site/index.html
+          grep -Fq 'galaxyOffset=.48-.46*galaxyBlend*galaxyBlend*(3-2*galaxyBlend)' site/index.html
+          grep -Fq 'bandOffset=mix(.48,.02,smoothstep(1.05,1.85,aspect))' site/index.html
           grep -Fq 'bpw-wordmark-main' site/index.html
                     grep -Fq "vec3 lunar=mix" site/index.html
           ! grep -Fq 'class="bpw-globe-aura"' site/index.html
@@ -179,6 +181,8 @@ jobs:
                grep -Fq 'float dustLane=1.0-smoothstep' /tmp/live-root.html 2>/dev/null &&
                grep -Fq 'ringR=length(vec2(q.x,q.y/.34))' /tmp/live-root.html 2>/dev/null &&
                grep -Fq 'scale=u_bodyType>6.5?1.94:1.0' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'galaxyOffset=.48-.46*galaxyBlend*galaxyBlend*(3-2*galaxyBlend)' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'bandOffset=mix(.48,.02,smoothstep(1.05,1.85,aspect))' /tmp/live-root.html 2>/dev/null &&
                grep -Fq 'const starCount=lowPower?4200:8200' /tmp/live-root.html 2>/dev/null &&
                grep -Fq 'now-lastAlignment<110' /tmp/live-root.html 2>/dev/null &&
                grep -Fq '/?return=' /tmp/live-app.html 2>/dev/null &&
