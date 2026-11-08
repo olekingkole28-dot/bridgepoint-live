@@ -26,7 +26,7 @@ def root_fixture() -> str:
     </div>
     <div class="bpw-status">INITIALIZING</div>
     <div class="bpw-gate-panel" id="bpwGatePanelV1">
-      <p class="bpw-explainer"><strong>BridgePoint Intelligence</strong> brings context together.</p>
+      <p class="bpw-explainer"><strong>BridgePoint Intelligence</strong> brings properties, buildings, infrastructure, weather and real-world signals together in one live 3D globe.</p>
       <div class="bpw-actions">
         <button class="bpw-create auth-open" data-mode="signup">CREATE FREE ACCOUNT</button>
         <button class="bpw-signin auth-open" data-mode="signin">SIGN IN TO BRIDGEPOINT</button>
