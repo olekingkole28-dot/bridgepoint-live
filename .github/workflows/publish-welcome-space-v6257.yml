@@ -8,6 +8,8 @@ on:
       - 'recovery/apply_welcome_space_v6257.py'
       - 'tests/test_welcome_space_v6257.py'
       - 'rebuild-v5000/bridgepoint-welcome-space-v6257.js'
+      - 'rebuild-v5000/index.html'
+      - 'assets/moon/v1/**'
       - 'rebuild-v5000/bridgepoint-celestial-sky-v6257.js'
   workflow_dispatch:
 
@@ -18,7 +20,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: bridgepoint-v5000-production-authority
+  group: bridgepoint-welcome-space-v6258-local-moon-terrain
   cancel-in-progress: false
 
 jobs:
@@ -76,6 +78,12 @@ jobs:
         run: |
           cp rebuild-v5000/bridgepoint-welcome-space-v6257.js site/bridgepoint-welcome-space-v6257.js
           cp rebuild-v5000/bridgepoint-celestial-sky-v6257.js site/bridgepoint-celestial-sky-v6257.js
+          mkdir -p site/assets/moon
+          cp -a assets/moon/v1 site/assets/moon/v1
+          test -s site/assets/moon/v1/manifest.json
+          test -s site/assets/moon/v1/moon-global-height-4ppd-u16.png
+          test -s site/assets/moon/v1/moon-apollo15-4deg-512ppd-height-u16.png
+          test -s site/assets/moon/v1/moon-lroc-color-4k.webp
 
       - name: Apply the launch-only entry patch
         run: python3 recovery/apply_welcome_space_v6257.py site
@@ -103,7 +111,14 @@ jobs:
             'app/intelligence-launch/index.html','app/intelligence-launch/manifest.webmanifest'
           }
           assert not removed, f'unexpected removed files: {sorted(removed)}'
-          assert added=={'bridgepoint-welcome-space-v6257.js','bridgepoint-celestial-sky-v6257.js'}, f'unexpected added files: {sorted(added)}'
+          expected_added={
+            'bridgepoint-welcome-space-v6257.js','bridgepoint-celestial-sky-v6257.js',
+            'assets/moon/v1/manifest.json',
+            'assets/moon/v1/moon-global-height-4ppd-u16.png',
+            'assets/moon/v1/moon-apollo15-4deg-512ppd-height-u16.png',
+            'assets/moon/v1/moon-lroc-color-4k.webp',
+          }
+          assert added==expected_added, f'unexpected added files: {sorted(added)}'
           assert changed==expected, f'unexpected production changes: {sorted(changed)}'
           print('PASS: eight entry/PWA files changed; exactly two celestial modules added; all globe/data/map/feature assets byte-identical.')
           PY
@@ -111,12 +126,16 @@ jobs:
           node --input-type=module --check < site/bridgepoint-welcome-space-v6257.js
           node --input-type=module --check < site/bridgepoint-celestial-sky-v6257.js
           grep -Fq 'bpWelcomeGateStylesV6257' site/index.html
-          grep -Fq 'src="/bridgepoint-welcome-space-v6257.js?v=6257"' site/index.html
+          grep -Fq 'src="/bridgepoint-welcome-space-v6257.js?v=6258-local-moon-terrain"' site/index.html
           grep -Fq 'data-mode="signup"' site/index.html
           grep -Fq 'data-mode="signin"' site/index.html
           grep -Fq 'new THREE.Raycaster()' site/bridgepoint-welcome-space-v6257.js
           grep -Fq 'logarithmicDepthBuffer: true' site/bridgepoint-welcome-space-v6257.js
           grep -Fq 'MOON_PERIOD_DAYS = 27.321661' site/bridgepoint-welcome-space-v6257.js
+          grep -Fq "runtimeMode: 'local-static-assets'" site/bridgepoint-welcome-space-v6257.js
+          grep -Fq 'externalRuntimeTerrainRequests: 0' site/bridgepoint-welcome-space-v6257.js
+          grep -Fq 'moon-apollo15-4deg-512ppd-height-u16.png' site/bridgepoint-welcome-space-v6257.js
+          ! grep -Fq 'trek.nasa.gov/tiles/Moon' site/bridgepoint-welcome-space-v6257.js
           ! grep -Fq 'data-space-ground' site/bridgepoint-welcome-space-v6257.js
           ! grep -Fq 'earthMesh' site/bridgepoint-welcome-space-v6257.js
           grep -Fq 'bridgepoint-celestial-sky-v6257.js?v=6257' site/app.js
@@ -171,7 +190,15 @@ jobs:
                grep -Fq 'entryRoute=' /tmp/live-sw.js 2>/dev/null &&
                grep -Fq '/?return=' /tmp/live-app.html 2>/dev/null &&
                grep -Fq 'content="0;url=/"' /tmp/live-legacy.html 2>/dev/null &&
-               grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6257-welcome-space-fix'" /tmp/live-sw.js 2>/dev/null; then
+               grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6258-local-moon-terrain'" /tmp/live-sw.js 2>/dev/null &&
+               grep -Fq 'runtimeMode' /tmp/live-space.js 2>/dev/null &&
+               grep -Fq 'externalRuntimeTerrainRequests: 0' /tmp/live-space.js 2>/dev/null &&
+               ! grep -Fq 'trek.nasa.gov/tiles/Moon' /tmp/live-space.js 2>/dev/null &&
+               curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/moon/v1/manifest.json?verify=${q}" -o /tmp/live-moon-manifest.json &&
+               curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/moon/v1/moon-global-height-4ppd-u16.png?verify=${q}" -o /tmp/live-moon-global.png &&
+               curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/moon/v1/moon-apollo15-4deg-512ppd-height-u16.png?verify=${q}" -o /tmp/live-moon-patch.png &&
+               curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/moon/v1/moon-lroc-color-4k.webp?verify=${q}" -o /tmp/live-moon-color.webp &&
+               test -s /tmp/live-moon-manifest.json && test -s /tmp/live-moon-global.png && test -s /tmp/live-moon-patch.png && test -s /tmp/live-moon-color.webp; then
               ok=1
               break
             fi
