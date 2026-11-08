@@ -111,7 +111,7 @@ jobs:
           node --input-type=module --check < site/bridgepoint-welcome-space-v6257.js
           node --input-type=module --check < site/bridgepoint-celestial-sky-v6257.js
           grep -Fq 'bpWelcomeGateStylesV6257' site/index.html
-          grep -Fq 'src="/bridgepoint-welcome-space-v6257.js?v=6256"' site/index.html
+          grep -Fq 'src="/bridgepoint-welcome-space-v6257.js?v=6257"' site/index.html
           grep -Fq 'data-mode="signup"' site/index.html
           grep -Fq 'data-mode="signin"' site/index.html
           grep -Fq 'new THREE.Raycaster()' site/bridgepoint-welcome-space-v6257.js
