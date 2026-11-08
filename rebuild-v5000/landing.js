@@ -831,6 +831,10 @@ async function initMap(){
    void import('./world-v2300-time-slider.js?v=6170-no-cloud-toggle-always-on')
     .then(m=>{window.__BP_WORLD_TIME_SLIDER_V5908__=window.__BP_WORLD_TIME_SLIDER_V5908__?.map===map?window.__BP_WORLD_TIME_SLIDER_V5908__:m.initWorldTimeSlider(world,rpc)})
     .catch(e=>console.warn('BridgePoint 30-day world change scrub unavailable',e));
+   // Celestial objects are shown only in the app's existing LOOK UP · SKY VIEW.
+   void import('./bridgepoint-celestial-sky-v6257.js?v=6257')
+    .then(m=>{window.__BP_CELESTIAL_SKY_V6257__=m.initBridgePointCelestialSky(world)})
+    .catch(e=>console.warn('BridgePoint celestial sky overlay unavailable',e));
    // BridgePoint satellite filters, daylight materials and sky layers also run on the homepage globe.
    void import('./world-v2300-spectral-imagery.js?v=6215-satellite-persistent-render-guard')
     .then(m=>{window.__BP_SPECTRAL_IMAGERY_V5931__=m.initSpectralImagery(world)})

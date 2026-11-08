@@ -236,6 +236,7 @@ async function bootMap(){
  const optionalWorldJobs=[
   ['time-slider',async()=>{const m=await import('./world-v2300-time-slider.js?v=6170-no-cloud-toggle-always-on');window.__BP_WORLD_TIME_SLIDER_V5908__=m.initWorldTimeSlider(world,rpc)}],
   ['time-slider',async()=>{const m=await import('./world-v2300-time-slider.js?v=6170-no-cloud-toggle-always-on');window.__BP_WORLD_TIME_SLIDER_V5908__=m.initWorldTimeSlider(world,rpc)}],
+  ['celestial-sky',async()=>{const m=await import('./bridgepoint-celestial-sky-v6257.js?v=6257');window.__BP_CELESTIAL_SKY_V6257__=m.initBridgePointCelestialSky(world)}],
   ['spectral-imagery',async()=>{const m=await import('./world-v2300-spectral-imagery.js?v=6215-satellite-persistent-render-guard');window.__BP_SPECTRAL_IMAGERY_V5931__=m.initSpectralImagery(world)}],
   ['underground',async()=>{const m=await import('./world-v2300-underground-xray.js?v=5965-landmarks-and-effects');window.__BP_UNDERGROUND_XRAY_V5935__=m.initUndergroundXray(world)}],
   ['infrastructure',async()=>{const m=await import('./world-v2300-infrastructure-volume-v5962.js?v=5970-globe-model-matrices');window.__BP_INFRASTRUCTURE_VOLUME_V5962__=m.initInfrastructureVolume(world)}],
