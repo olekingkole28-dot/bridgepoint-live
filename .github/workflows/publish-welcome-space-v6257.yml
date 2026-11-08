@@ -253,4 +253,4 @@ jobs:
             sleep 3
           done
           test "$ok" -eq 1
-          echo 'LIVE V6262 PASS: isolated Moon camera, full-Moon LOLA 16ppd relief, Apollo 15 512ppd patch, two-finger surface pitch/pan and local IAU labels verified; unrelated Earth/world assets unchanged.'
+          echo 'LIVE V6262 PASS: original Earth-Moon-Sun scene and click-to-Moon focus animation retained; missing lunar surface coordinate math restored; two-finger vertical camera tilt, local global LOLA 16ppd detail patch, Apollo 15 512ppd patch and local IAU labels verified; unrelated Earth/world assets unchanged.'
