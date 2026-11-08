@@ -160,7 +160,7 @@ jobs:
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/intelligence-launch/?welcome-space-v6257=${q}" -o /tmp/live-legacy.html || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/sw.js?verify=${q}" -o /tmp/live-sw.js || true
             if grep -Fq 'bpWelcomeGateStylesV6257' /tmp/live-root.html 2>/dev/null &&
-               grep -Fq 'src="/bridgepoint-welcome-space-v6257.js?v=6256"' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'src="/bridgepoint-welcome-space-v6257.js?v=6257"' /tmp/live-root.html 2>/dev/null &&
                grep -Fq 'new THREE.Raycaster()' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'MOON_PERIOD_DAYS = 27.321661' /tmp/live-space.js 2>/dev/null &&
                ! grep -Fq 'earthMesh' /tmp/live-space.js 2>/dev/null &&
