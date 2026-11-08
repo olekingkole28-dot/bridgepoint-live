@@ -132,6 +132,7 @@ jobs:
           mkdir -p assets/moon/v1/sldem-128ppd
           export SLDEM_TILE_SHIFT=$(cat /tmp/sldem-source-column-shift.txt)
           export SLDEM_TILE_SOURCE=/tmp/sldem2015-128ppd-u16.tif
+          export GDAL_PAM_ENABLED=NO
           seq 0 431 | xargs -r -n 1 -P 4 bash -c '
             set -euo pipefail
             tile_index="$1"
@@ -143,6 +144,8 @@ jobs:
             out="assets/moon/v1/sldem-128ppd/moon-sldem-128ppd-y${yy}-x${xx}.png"
             gdal_translate -q -of PNG -ot UInt16 -co ZLEVEL=6 -srcwin "$xoff" "$yoff" 1280 1280 "$SLDEM_TILE_SOURCE" "$out"
           ' _
+          find assets/moon/v1/sldem-128ppd -type f -name '*.aux.xml' -delete
+          test -z "$(find assets/moon/v1/sldem-128ppd -type f -name '*.aux.xml' -print -quit)"
           test "$(find assets/moon/v1/sldem-128ppd -type f -name '*.png' | wc -l)" -eq 432
           gdalinfo assets/moon/v1/sldem-128ppd/moon-sldem-128ppd-y03-x18.png | grep -Fq 'Size is 1280, 1280'
           gdalinfo assets/moon/v1/sldem-128ppd/moon-sldem-128ppd-y03-x18.png | grep -Fq 'Type=UInt16'
