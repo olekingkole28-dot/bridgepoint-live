@@ -225,6 +225,8 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
             "new THREE.MeshStandardMaterial({",
             "moonMaterial.uniforms.uTerrainMask.value = maskTexture",
             "viewState==='moon'?0.000003:1.8",
+            "camera.near=0.00000005",
+            "camera.near=0.001",
             "const activePointers=new Map()",
             "function refreshLunarTerrainFromView()",
             "focusLocalTarget?moonMesh.localToWorld",
