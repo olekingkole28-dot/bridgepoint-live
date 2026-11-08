@@ -6,7 +6,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "recovery"))
-from apply_launch_experience_v6249 import (
+from apply_launch_experience_v6248 import (
     BUILD, CACHE_NAME, patch_app_index, patch_legacy_app, patch_manifest,
     patch_root_html, patch_worker,
 )
@@ -134,7 +134,7 @@ finally{location.replace('/app/?migrated=legacy-intelligence-v5820')}
             self.assertEqual(data["id"], "/bridgepoint-intelligence-v5050")
 
     def test_worker_script_updates_without_changing_the_offline_cache_name(self):
-        from apply_launch_experience_v6249 import patch_worker
+        from apply_launch_experience_v6248 import patch_worker
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "sw.js"
             path.write_text("const V='" + CACHE_NAME + "';\nself.addEventListener('install',()=>self.skipWaiting());\n")
