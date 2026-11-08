@@ -34,7 +34,7 @@ jobs:
           python-version: '3.12'
 
       - name: Test the isolated launch patch
-        run: python3 -m unittest discover -s tests -p 'test_launch_experience_v6249.py' -v
+        run: python3 -m unittest discover -s tests -p 'test_launch_experience_v6248.py' -v
 
       - name: Download the latest deployed V5000 production Pages artifact
         uses: actions/download-artifact@v4
