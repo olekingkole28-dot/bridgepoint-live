@@ -331,6 +331,9 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   }
   function focusBody(body){
     groundMode=false;
+    camera.up.set(0,1,0);
+    moonMesh.scale.setScalar(1);sunMesh.scale.setScalar(1);
+    moonPivot.visible=true;sunGroup.visible=true;stars.visible=true;haze.visible=true;
     controls.querySelector('[data-space-ground]').textContent='GROUND SKY';
     if(body==='earth'){
       viewState='earth';animateCamera(new THREE.Vector3(0,.16,3.5),new THREE.Vector3(0,0,0));
@@ -348,6 +351,9 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   }
   function resetView(){
     groundMode=false;viewState='overview';
+    camera.up.set(0,1,0);
+    moonMesh.scale.setScalar(1);sunMesh.scale.setScalar(1);
+    moonPivot.visible=true;sunGroup.visible=true;stars.visible=true;haze.visible=true;
     controls.querySelector('[data-space-ground]').textContent='GROUND SKY';
     const aspect=canvas.clientWidth/Math.max(1,canvas.clientHeight);
     const distance=aspect<.72?20.5:aspect<1?18.5:16.5;
