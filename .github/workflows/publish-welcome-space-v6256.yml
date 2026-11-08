@@ -1,0 +1,161 @@
+name: Publish BridgePoint Welcome Space Scene V6256
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-welcome-space-v6256.yml'
+      - 'recovery/apply_welcome_space_v6256.py'
+      - 'tests/test_welcome_space_v6256.py'
+      - 'rebuild-v5000/bridgepoint-welcome-space-v6256.js'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Test the isolated welcome scene and patch
+        run: python3 -m unittest discover -s tests -p 'test_welcome_space_v6256.py' -v
+
+      - name: Download the deployed V5000 production Pages artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: bridgepoint-v5000-1
+          run-id: 42407820738
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          path: /tmp/bridgepoint-pages-bundle
+
+      - name: Extract the production Pages baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p site
+          ARTIFACT_TAR="$(find /tmp/bridgepoint-pages-bundle -type f -name 'artifact.tar' -print -quit)"
+          test -n "$ARTIFACT_TAR"
+          tar -xf "$ARTIFACT_TAR" -C site
+          for p in index.html app/index.html landing.js app.js sw.js manifest.webmanifest app/intelligence-launch/index.html app/intelligence-launch/manifest.webmanifest; do
+            test -s "site/$p" || { echo "Missing production entry file: $p"; exit 1; }
+          done
+
+      - name: Snapshot deployed files before the isolated change
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          root=Path('site')
+          before={p.relative_to(root).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                  for p in root.rglob('*') if p.is_file()}
+          Path('/tmp/v6256-before.json').write_text(json.dumps(before,sort_keys=True))
+          print('PRODUCTION_FILES_BEFORE',len(before))
+          PY
+
+      - name: Add only the new modular welcome renderer
+        run: cp rebuild-v5000/bridgepoint-welcome-space-v6256.js site/bridgepoint-welcome-space-v6256.js
+
+      - name: Apply the launch-only entry patch
+        run: python3 recovery/apply_welcome_space_v6256.py site
+
+      - name: Validate module syntax and prove unrelated assets are unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib,json,re
+          from pathlib import Path
+          root=Path('site')
+          html=(root/'index.html').read_text(encoding='utf-8')
+          m=re.search(r'<script id="bpWelcomeGateScriptV1">([\s\S]*?)</script>',html)
+          assert m, 'welcome gate script missing'
+          Path('/tmp/bridgepoint-welcome-gate-v6256.js').write_text(m.group(1),encoding='utf-8')
+          before=json.loads(Path('/tmp/v6256-before.json').read_text())
+          after={p.relative_to(root).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                 for p in root.rglob('*') if p.is_file()}
+          removed=set(before)-set(after)
+          added=set(after)-set(before)
+          changed={p for p in before.keys() & after.keys() if before[p]!=after[p]}
+          expected={
+            'index.html','app/index.html','landing.js','app.js','sw.js','manifest.webmanifest',
+            'app/intelligence-launch/index.html','app/intelligence-launch/manifest.webmanifest'
+          }
+          assert not removed, f'unexpected removed files: {sorted(removed)}'
+          assert added=={'bridgepoint-welcome-space-v6256.js'}, f'unexpected added files: {sorted(added)}'
+          assert changed==expected, f'unexpected production changes: {sorted(changed)}'
+          print('PASS: eight entry files changed; exactly one new welcome scene module added; all globe/data/map/feature assets byte-identical.')
+          PY
+          node --check /tmp/bridgepoint-welcome-gate-v6256.js
+          node --input-type=module --check < site/bridgepoint-welcome-space-v6256.js
+          grep -Fq 'bpWelcomeGateStylesV6256' site/index.html
+          grep -Fq 'src="/bridgepoint-welcome-space-v6256.js?v=6256"' site/index.html
+          grep -Fq 'data-mode="signup"' site/index.html
+          grep -Fq 'data-mode="signin"' site/index.html
+          grep -Fq 'new THREE.Raycaster()' site/bridgepoint-welcome-space-v6256.js
+          grep -Fq 'logarithmicDepthBuffer: true' site/bridgepoint-welcome-space-v6256.js
+          grep -Fq 'MOON_PERIOD_DAYS = 27.321661' site/bridgepoint-welcome-space-v6256.js
+          grep -Fq 'data-space-ground' site/bridgepoint-welcome-space-v6256.js
+          ! grep -Fq 'starCount=lowPower?4200:8200' site/index.html
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          name: bridgepoint-welcome-space-v6256
+          path: site
+          include-hidden-files: true
+
+      - name: Publish isolated welcome space scene
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: bridgepoint-welcome-space-v6256
+
+      - name: Verify website, module, app and installed-app routes on the live domain
+        shell: bash
+        run: |
+          set -euo pipefail
+          O='https://bridgepointintelligence.online'
+          ok=0
+          for i in $(seq 1 30); do
+            q="${GITHUB_SHA}-${i}-$(date +%s)"
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/?welcome-space-v6256=${q}" -o /tmp/live-root.html || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/bridgepoint-welcome-space-v6256.js?verify=${q}" -o /tmp/live-space.js || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/?welcome-space-v6256=${q}" -o /tmp/live-app.html || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/intelligence-launch/?welcome-space-v6256=${q}" -o /tmp/live-legacy.html || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/sw.js?verify=${q}" -o /tmp/live-sw.js || true
+            if grep -Fq 'bpWelcomeGateStylesV6256' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'src="/bridgepoint-welcome-space-v6256.js?v=6256"' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'new THREE.Raycaster()' /tmp/live-space.js 2>/dev/null &&
+               grep -Fq 'MOON_PERIOD_DAYS = 27.321661' /tmp/live-space.js 2>/dev/null &&
+               grep -Fq '/?return=' /tmp/live-app.html 2>/dev/null &&
+               grep -Fq 'content="0;url=/"' /tmp/live-legacy.html 2>/dev/null &&
+               grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6256-welcome-space-scene'" /tmp/live-sw.js 2>/dev/null; then
+              ok=1
+              break
+            fi
+            sleep 3
+          done
+          test "$ok" -eq 1
+          echo 'LIVE V6256 PASS: dedicated Three.js welcome scene, raycasting, lunar orbit module, canonical website/app/PWA routes verified.'
