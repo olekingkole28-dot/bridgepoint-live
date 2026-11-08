@@ -240,7 +240,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
             worker = (site / "sw.js").read_text()
             self.assertIn("entryRoute=", worker)
             self.assertIn("if(entryRoute)return new Response", worker)
-            self.assertNotIn("caches.match(e.request)||caches.match(u.pathname.startsWith('/app')?'/app/':'/')", worker)
+            self.assertLess(worker.index("if(entryRoute)return new Response"), worker.index("return caches.match(e.request)||caches.match"))
 
     def test_patch_rejects_unexpected_root_baseline(self):
         with self.assertRaises(AssertionError):
