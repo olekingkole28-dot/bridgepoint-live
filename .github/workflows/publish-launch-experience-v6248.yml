@@ -160,8 +160,8 @@ jobs:
                ! grep -Fq '/?auth=signin&return=' /tmp/live-app.html 2>/dev/null &&
                grep -Fq 'content="0;url=/"' /tmp/live-legacy-app.html 2>/dev/null &&
                grep -Fq "location.replace('/')" /tmp/live-legacy-app.html 2>/dev/null &&
-               grep -Fq 'sw.js?v=6250-volumetric-space' /tmp/live-landing.js 2>/dev/null &&
-               grep -Fq 'sw.js?v=6250-volumetric-space' /tmp/live-app.js 2>/dev/null &&
+               grep -Fq 'sw.js?v=6250-deep-space-3d' /tmp/live-landing.js 2>/dev/null &&
+               grep -Fq 'sw.js?v=6250-deep-space-3d' /tmp/live-app.js 2>/dev/null &&
                grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6250-deep-space-3d'" /tmp/live-sw.js 2>/dev/null &&
                grep -Fq '"start_url":"/"' /tmp/live-manifest.json 2>/dev/null &&
                grep -Fq '"start_url":"/"' /tmp/live-legacy-manifest.json 2>/dev/null; then
