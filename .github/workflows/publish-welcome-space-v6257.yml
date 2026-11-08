@@ -177,7 +177,9 @@ jobs:
           ! grep -Fq 'uTerrainMask' site/bridgepoint-welcome-space-v6260.js
           ! grep -Fq 'uGlobalDetailMask' site/bridgepoint-welcome-space-v6260.js
           ! grep -Fq 'discard;' site/bridgepoint-welcome-space-v6260.js
-          grep -Fq 'vertexColors: true' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'createMoonPatchMaterial()' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'uniforms: moonMaterial.uniforms' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'vAlpha=color.a' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'THREE.MathUtils.smoothstep(edgeDistance, 0.0, 0.055)' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'dFdx(relief)' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'dFdy(relief)' site/bridgepoint-welcome-space-v6260.js
@@ -241,7 +243,8 @@ jobs:
                ! grep -Fq 'uTerrainMask' /tmp/live-space.js 2>/dev/null &&
                ! grep -Fq 'uGlobalDetailMask' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'dFdx(relief)' /tmp/live-space.js 2>/dev/null &&
-               grep -Fq 'vertexColors: true' /tmp/live-space.js 2>/dev/null &&
+               grep -Fq 'createMoonPatchMaterial()' /tmp/live-space.js 2>/dev/null &&
+               grep -Fq 'vAlpha=color.a' /tmp/live-space.js 2>/dev/null &&
                ! grep -Fq 'data-space-ground' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'initBridgePointCelestialSky' /tmp/live-sky.js 2>/dev/null &&
                grep -Fq 'bridgepoint-celestial-sky-v6257.js?v=6257' /tmp/live-app.js 2>/dev/null &&
