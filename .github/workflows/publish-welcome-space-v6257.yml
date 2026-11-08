@@ -172,6 +172,8 @@ jobs:
           grep -Fq 'tiltMoonCamera(dy);' site/bridgepoint-welcome-space-v6260.js
           grep -Fq "if(viewState!=='moon')" site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'moon-apollo15-4deg-512ppd-height-u16.png' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'geometry.setIndex(new THREE.BufferAttribute(indices, 1))' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'geometry.setIndex(new THREE.BufferAttribute(indices.subarray(0, indexOffset), 1))' site/bridgepoint-welcome-space-v6260.js
           ! grep -Fq 'trek.nasa.gov/tiles/Moon' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'function panMoonSurface(dx, dy)' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'moon-feature-labels.json' site/bridgepoint-welcome-space-v6260.js
