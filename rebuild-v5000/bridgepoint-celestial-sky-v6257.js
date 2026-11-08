@@ -103,7 +103,7 @@ const SKY_CSS=[
  '#bp-celestial-sky-v6257 .bp-sky-twinkle{transform-box:fill-box;transform-origin:center;animation:bpSkyTwinkle 3.7s ease-in-out infinite alternate}',
  '#bp-celestial-sky-v6257 .bp-sun-flares{transform-box:fill-box;transform-origin:center;animation:bpSunFlares 22s linear infinite}',
  '@keyframes bpSkyTwinkle{from{opacity:.45}to{opacity:1}}@keyframes bpSunFlares{to{transform:rotate(360deg)}}'
-].join('\\n');
+].join('\n');
 function ensureSkyStyle(){
  if(document.getElementById(STYLE))return;
  const s=document.createElement('style');s.id=STYLE;s.textContent=SKY_CSS;document.head.appendChild(s);
@@ -135,7 +135,7 @@ export function initBridgePointCelestialSky(target){
   }
   const sun=sunPosition(date,center.lat,center.lng),nightFactor=clamp((-sun.altitude+8)/32,0,1);
   const r=apparentAngularRadiusPx(h);
-  const parts=[\`<defs>
+  const parts=[`<defs>
     <radialGradient id="bp6257-moon-surface" cx="31%" cy="24%" r="76%">
       <stop offset="0" stop-color="#f5f5ee"/><stop offset=".36" stop-color="#c9ccd0"/>
       <stop offset=".72" stop-color="#858c97"/><stop offset="1" stop-color="#303947"/>
@@ -148,10 +148,10 @@ export function initBridgePointCelestialSky(target){
     <radialGradient id="bp6257-sun-glow"><stop offset="0" stop-color="#fff5c1" stop-opacity=".64"/><stop offset=".32" stop-color="#ffb33f" stop-opacity=".30"/><stop offset="1" stop-color="#ff6a20" stop-opacity="0"/></radialGradient>
     <radialGradient id="bp6257-sunspot"><stop offset="0" stop-color="#3b0904"/><stop offset=".72" stop-color="#8f290d"/><stop offset="1" stop-color="#d85b19" stop-opacity="0"/></radialGradient>
     <filter id="bp6257-soft-glow" x="-180%" y="-180%" width="460%" height="460%"><feGaussianBlur stdDeviation="3.4"/></filter>
-    <clipPath id="bp6257-moon-clip"><circle cx="0" cy="0" r="\${r}"/></clipPath>
-  </defs>\`];
+    <clipPath id="bp6257-moon-clip"><circle cx="0" cy="0" r="${r}"/></clipPath>
+  </defs>`];
   const tint=sun.altitude<-4?.18:sun.altitude<8?.075:.018;
-  parts.push(\`<rect x="0" y="0" width="\${w}" height="\${h*.58}" fill="#07152c" opacity="\${tint}" />\`);
+  parts.push(`<rect x="0" y="0" width="${w}" height="${h*.58}" fill="#07152c" opacity="${tint}" />`);
   let visibleStars=0;
   if(nightFactor>.01){
    for(let i=0;i<stars.length;i++){
@@ -160,31 +160,31 @@ export function initBridgePointCelestialSky(target){
     const radius=clamp(2.1-star[3]*.42,.55,2.0)*(.5+nightFactor*.55);
     const alpha=clamp((nightFactor-.025)*1.22,0,.86);
     const twinkle=i%5===0?' class="bp-sky-twinkle"':'';
-    parts.push(\`<circle\${twinkle} cx="\${p.x.toFixed(1)}" cy="\${p.y.toFixed(1)}" r="\${radius.toFixed(2)}" fill="#d9edff" opacity="\${alpha.toFixed(2)}"/>\`);
+    parts.push(`<circle${twinkle} cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${radius.toFixed(2)}" fill="#d9edff" opacity="${alpha.toFixed(2)}"/>`);
     if(star[3]<.18&&p.pitch>35){
-     parts.push(\`<path d="M\${(p.x-radius*2.1).toFixed(1)} \${p.y.toFixed(1)}h\${(radius*4.2).toFixed(1)} M\${p.x.toFixed(1)} \${(p.y-radius*2.1).toFixed(1)}v\${(radius*4.2).toFixed(1)}" stroke="#b9dcff" stroke-opacity="\${(alpha*.24).toFixed(2)}" stroke-width=".6"/>\`);
+     parts.push(`<path d="M${(p.x-radius*2.1).toFixed(1)} ${p.y.toFixed(1)}h${(radius*4.2).toFixed(1)} M${p.x.toFixed(1)} ${(p.y-radius*2.1).toFixed(1)}v${(radius*4.2).toFixed(1)}" stroke="#b9dcff" stroke-opacity="${(alpha*.24).toFixed(2)}" stroke-width=".6"/>`);
     }
    }
   }
   for(let i=0;i<planets.length;i++){
    const body=planets[i],pos=planetPosition(body,date,center.lat,center.lng),p=screenPoint(map,svg,pos.azimuth,pos.altitude);
    if(!p)continue;
-   const pr=Math.max(1,body.size*.58),label=zoom>14?\`<text x="\${(p.x+pr+3).toFixed(1)}" y="\${(p.y+3).toFixed(1)}" fill="#e4f2ff" font-size="9" font-family="system-ui" opacity=".85">\${body.name}</text>\`:'';
-   parts.push(\`<g><circle cx="\${p.x.toFixed(1)}" cy="\${p.y.toFixed(1)}" r="\${(pr*1.6).toFixed(1)}" fill="\${body.color}" opacity=".14" filter="url(#bp6257-soft-glow)"/><circle cx="\${p.x.toFixed(1)}" cy="\${p.y.toFixed(1)}" r="\${pr.toFixed(1)}" fill="\${body.color}" stroke="#fff2d5" stroke-opacity=".35" stroke-width=".45"/>\${label}</g>\`);
+   const pr=Math.max(1,body.size*.58),label=zoom>14?`<text x="${(p.x+pr+3).toFixed(1)}" y="${(p.y+3).toFixed(1)}" fill="#e4f2ff" font-size="9" font-family="system-ui" opacity=".85">${body.name}</text>`:'';
+   parts.push(`<g><circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${(pr*1.6).toFixed(1)}" fill="${body.color}" opacity=".14" filter="url(#bp6257-soft-glow)"/><circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${pr.toFixed(1)}" fill="${body.color}" stroke="#fff2d5" stroke-opacity=".35" stroke-width=".45"/>${label}</g>`);
   }
   const moon=moonEq(date),moonHorizontal=horizontal(moon,date,center.lat,center.lng),mp=screenPoint(map,svg,moonHorizontal.azimuth,moonHorizontal.altitude);
   if(mp){
    const x=mp.x.toFixed(1),y=mp.y.toFixed(1),phase=clamp(moon.phase,0,1);
    const craters=[[-.36,-.27,.13],[-.04,-.43,.09],[.30,-.14,.15],[.12,.31,.10],[-.38,.22,.08],[.42,.40,.07]];
-   const craterSvg=craters.map(([cx,cy,cr])=>\`<circle cx="\${(cx*r).toFixed(2)}" cy="\${(cy*r).toFixed(2)}" r="\${(cr*r).toFixed(2)}" fill="#424b57" fill-opacity=".23" stroke="#f0f1ea" stroke-opacity=".32" stroke-width="\${Math.max(.28,r*.035).toFixed(2)}"/><ellipse cx="\${(cx*r-cr*r*.18).toFixed(2)}" cy="\${(cy*r-cr*r*.14).toFixed(2)}" rx="\${(cr*r*.48).toFixed(2)}" ry="\${(cr*r*.26).toFixed(2)}" fill="#323b47" fill-opacity=".16"/>\`).join('');
-   const shadow=phase<.985?\`<ellipse cx="\${(r*(1-phase*2)).toFixed(2)}" cy="0" rx="\${Math.max(.1,r*(1-phase)).toFixed(2)}" ry="\${(r*1.02).toFixed(2)}" fill="#071020" opacity="\${(1-phase*.94).toFixed(2)}"/>\`:'';
-   const lunarLabel=zoom>14?\`<text x="\${(mp.x+r+4).toFixed(1)}" y="\${(mp.y+3).toFixed(1)}" fill="#edf5ff" font-size="10" font-family="system-ui" opacity=".9">MOON</text>\`:'';
-   parts.push(\`<g transform="translate(\${x} \${y})">
-     <circle r="\${(r*2.45).toFixed(2)}" fill="url(#bp6257-moon-glow)" filter="url(#bp6257-soft-glow)"/>
-     <circle r="\${r.toFixed(2)}" fill="url(#bp6257-moon-surface)" stroke="#f4f7ff" stroke-opacity=".34" stroke-width=".55"/>
-     <g clip-path="url(#bp6257-moon-clip)">\${craterSvg}\${shadow}<ellipse cx="\${(-r*.24).toFixed(2)}" cy="\${(-r*.35).toFixed(2)}" rx="\${(r*.45).toFixed(2)}" ry="\${(r*.18).toFixed(2)}" fill="#fff" opacity=".10"/></g>
-     <circle r="\${r.toFixed(2)}" fill="none" stroke="#e7efff" stroke-opacity=".28" stroke-width=".45"/>
-   </g>\${lunarLabel}\`);
+   const craterSvg=craters.map(([cx,cy,cr])=>`<circle cx="${(cx*r).toFixed(2)}" cy="${(cy*r).toFixed(2)}" r="${(cr*r).toFixed(2)}" fill="#424b57" fill-opacity=".23" stroke="#f0f1ea" stroke-opacity=".32" stroke-width="${Math.max(.28,r*.035).toFixed(2)}"/><ellipse cx="${(cx*r-cr*r*.18).toFixed(2)}" cy="${(cy*r-cr*r*.14).toFixed(2)}" rx="${(cr*r*.48).toFixed(2)}" ry="${(cr*r*.26).toFixed(2)}" fill="#323b47" fill-opacity=".16"/>`).join('');
+   const shadow=phase<.985?`<ellipse cx="${(r*(1-phase*2)).toFixed(2)}" cy="0" rx="${Math.max(.1,r*(1-phase)).toFixed(2)}" ry="${(r*1.02).toFixed(2)}" fill="#071020" opacity="${(1-phase*.94).toFixed(2)}"/>`:'';
+   const lunarLabel=zoom>14?`<text x="${(mp.x+r+4).toFixed(1)}" y="${(mp.y+3).toFixed(1)}" fill="#edf5ff" font-size="10" font-family="system-ui" opacity=".9">MOON</text>`:'';
+   parts.push(`<g transform="translate(${x} ${y})">
+     <circle r="${(r*2.45).toFixed(2)}" fill="url(#bp6257-moon-glow)" filter="url(#bp6257-soft-glow)"/>
+     <circle r="${r.toFixed(2)}" fill="url(#bp6257-moon-surface)" stroke="#f4f7ff" stroke-opacity=".34" stroke-width=".55"/>
+     <g clip-path="url(#bp6257-moon-clip)">${craterSvg}${shadow}<ellipse cx="${(-r*.24).toFixed(2)}" cy="${(-r*.35).toFixed(2)}" rx="${(r*.45).toFixed(2)}" ry="${(r*.18).toFixed(2)}" fill="#fff" opacity=".10"/></g>
+     <circle r="${r.toFixed(2)}" fill="none" stroke="#e7efff" stroke-opacity=".28" stroke-width=".45"/>
+   </g>${lunarLabel}`);
   }
   const sp=screenPoint(map,svg,sun.azimuth,sun.altitude);
   if(sp){
@@ -192,16 +192,16 @@ export function initBridgePointCelestialSky(target){
    const rays=Array.from({length:18},(_,i)=>{
     const a=i*Math.PI/9,inner=r*1.03,outer=r*(1.42+.32*(.5+.5*Math.sin(i*3.71+date.getTime()*.0004)));
     const x1=Math.cos(a)*inner,y1=Math.sin(a)*inner,x2=Math.cos(a)*outer,y2=Math.sin(a)*outer;
-    return \`<path d="M\${x1.toFixed(2)} \${y1.toFixed(2)}L\${x2.toFixed(2)} \${y2.toFixed(2)}" stroke="#ffb44e" stroke-opacity=".48" stroke-width="\${Math.max(.35,r*.07).toFixed(2)}" stroke-linecap="round"/>\`;
+    return `<path d="M${x1.toFixed(2)} ${y1.toFixed(2)}L${x2.toFixed(2)} ${y2.toFixed(2)}" stroke="#ffb44e" stroke-opacity=".48" stroke-width="${Math.max(.35,r*.07).toFixed(2)}" stroke-linecap="round"/>`;
    }).join('');
-   const sunLabel=zoom>14?\`<text x="\${(sp.x+r+4).toFixed(1)}" y="\${(sp.y+3).toFixed(1)}" fill="#fff0c5" font-size="10" font-family="system-ui" opacity=".92">SUN</text>\`:'';
-   parts.push(\`<g transform="translate(\${x} \${y})">
-     <circle r="\${flareR}" fill="url(#bp6257-sun-glow)" filter="url(#bp6257-soft-glow)"/>
-     <g class="bp-sun-flares">\${rays}</g>
-     <circle r="\${(r*1.06).toFixed(2)}" fill="url(#bp6257-sun-surface)" stroke="#fff0be" stroke-opacity=".7" stroke-width=".55"/>
-     <ellipse cx="\${(-r*.27).toFixed(2)}" cy="\${(-r*.28).toFixed(2)}" rx="\${(r*.24).toFixed(2)}" ry="\${(r*.14).toFixed(2)}" fill="url(#bp6257-sunspot)" opacity=".65"/>
-     <ellipse cx="\${(r*.29).toFixed(2)}" cy="\${(r*.22).toFixed(2)}" rx="\${(r*.17).toFixed(2)}" ry="\${(r*.11).toFixed(2)}" fill="url(#bp6257-sunspot)" opacity=".5"/>
-   </g>\${sunLabel}\`);
+   const sunLabel=zoom>14?`<text x="${(sp.x+r+4).toFixed(1)}" y="${(sp.y+3).toFixed(1)}" fill="#fff0c5" font-size="10" font-family="system-ui" opacity=".92">SUN</text>`:'';
+   parts.push(`<g transform="translate(${x} ${y})">
+     <circle r="${flareR}" fill="url(#bp6257-sun-glow)" filter="url(#bp6257-soft-glow)"/>
+     <g class="bp-sun-flares">${rays}</g>
+     <circle r="${(r*1.06).toFixed(2)}" fill="url(#bp6257-sun-surface)" stroke="#fff0be" stroke-opacity=".7" stroke-width=".55"/>
+     <ellipse cx="${(-r*.27).toFixed(2)}" cy="${(-r*.28).toFixed(2)}" rx="${(r*.24).toFixed(2)}" ry="${(r*.14).toFixed(2)}" fill="url(#bp6257-sunspot)" opacity=".65"/>
+     <ellipse cx="${(r*.29).toFixed(2)}" cy="${(r*.22).toFixed(2)}" rx="${(r*.17).toFixed(2)}" ry="${(r*.11).toFixed(2)}" fill="url(#bp6257-sunspot)" opacity=".5"/>
+   </g>${sunLabel}`);
   }
   svg.innerHTML=parts.join('');
   lastState={enabled,visible:true,pitch,zoom,solarAltitude:sun.altitude,solarAzimuth:sun.azimuth,
