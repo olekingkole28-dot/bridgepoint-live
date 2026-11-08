@@ -5,8 +5,8 @@ import re
 import sys
 from pathlib import Path
 
-BUILD = "v6253-mobile-celestial-visibility"
-SW_URL = "/sw.js?v=6253-mobile-celestial-visibility"
+BUILD = "v6254-realistic-solar-scene"
+SW_URL = "/sw.js?v=6254-realistic-solar-scene"
 OLD_SW_URL = "/sw.js?v=6247-universal-fresh-entry-sidewalk"
 CACHE_NAME = "bp-intelligence-v6247-universal-fresh-entry-sidewalk"
 
@@ -30,7 +30,7 @@ def patch_stars(source: str) -> str:
         r"(?ms)^  function buildSpaceStars\(\)\{.*?^  \}\n  buildSpaceStars\(\);"
     )
     replacement = r"""  function buildSpaceStars(){
-    const canvas=document.getElementById('bpwCelestialCanvasV6252');
+    const canvas=document.getElementById('bpwCelestialCanvasV6254');
     if(!canvas||canvas.dataset.built==='1')return;
     const scene=canvas.parentElement;
     let fallbackCanvas=null;
@@ -42,7 +42,7 @@ def patch_stars(source: str) -> str:
       if(fallbackCanvas){fallbackCanvas.width=canvas.width;fallbackCanvas.height=canvas.height;}
     };
     resize();
-    let state=0x6252a71;
+    let state=0x6254a71;
     const random=()=>{state=(state*1664525+1013904223)>>>0;return state/4294967296};
     const lowPower=window.innerWidth<=620||(navigator.deviceMemory||4)<=3;
     const starCount=lowPower?4200:8200;
@@ -90,8 +90,7 @@ def patch_stars(source: str) -> str:
         const angle=Math.acos(cosAngle),testDistance=testPoint&&Number.isFinite(testPoint.x)&&Number.isFinite(testPoint.y)?Math.hypot(testPoint.x-centerPoint.x,testPoint.y-centerPoint.y)*ratio:0;
         const fallbackRadius=unit*.405,earthRadiusPixels=testDistance>0&&Math.sin(angle)>.01?testDistance/Math.sin(angle):fallbackRadius;
         const earthRadius=Math.max(unit*.27,Math.min(unit*.49,earthRadiusPixels))/unit;
-        const centerNX=(centerX-width*.5)/unit,centerNY=(height*.5-centerY)/unit,sunRadius=.071,moonRadius=.052;
-        const sunDistance=earthRadius+sunRadius*2.08,moonDistance=earthRadius+moonRadius*1.78;
+        const centerNX=(centerX-width*.5)/unit,centerNY=(height*.5-centerY)/unit,sunRadius=earthRadius*.47,moonRadius=earthRadius*.136;
         const helio=o=>{
           const N=(o.n+o.nd*d)*rad,I=(o.i+o.id*d)*rad,W=(o.w+o.wd*d)*rad,Ecc=o.e+o.ed*d,M=((o.m+o.md*d)%360+360)%360*rad;
           let E=M+Ecc*Math.sin(M)*(1+Ecc*Math.cos(M));
@@ -101,23 +100,25 @@ def patch_stars(source: str) -> str:
         };
         const earth=helio({n:0,nd:0,i:0,id:0,w:282.9404,wd:.0000470935,a:1,e:.016709,ed:-.000000001151,m:356.0470,md:.9856002585});
         const planetData=[
-          {name:'Mercury',type:0,radius:.019,n:48.3313,nd:.0000324587,i:7.0047,id:.00000005,w:29.1241,wd:.0000101444,a:.387098,e:.205635,ed:.000000000559,m:168.6562,md:4.0923344368},
-          {name:'Venus',type:1,radius:.024,n:76.6799,nd:.0000246590,i:3.3946,id:.0000000275,w:54.8910,wd:.0000138374,a:.723330,e:.006773,ed:-.000000001302,m:48.0052,md:1.6021302244},
-          {name:'Mars',type:2,radius:.021,n:49.5574,nd:.0000211081,i:1.8497,id:-.0000000178,w:286.5016,wd:.0000292961,a:1.523688,e:.093405,ed:.000000002516,m:18.6021,md:.5240207766},
-          {name:'Jupiter',type:3,radius:.038,n:100.4542,nd:.0000276854,i:1.3030,id:-.0000001557,w:273.8777,wd:.0000164505,a:5.20256,e:.048498,ed:.000000004469,m:19.8950,md:.0830853001},
-          {name:'Saturn',type:4,radius:.035,n:113.6634,nd:.0000238980,i:2.4886,id:-.0000001081,w:339.3939,wd:.0000297661,a:9.55475,e:.055546,ed:-.000000009499,m:316.9670,md:.0334442282},
-          {name:'Uranus',type:5,radius:.027,n:74.0005,nd:.000013978,i:.7733,id:.000000019,w:96.6612,wd:.000030565,a:19.18171,e:.047318,ed:.00000000745,m:142.5905,md:.011725806},
-          {name:'Neptune',type:6,radius:.027,n:131.7806,nd:.000030173,i:1.7700,id:-.000000255,w:272.8461,wd:-.000006027,a:30.05826,e:.008606,ed:.00000000215,m:260.2471,md:.005995147}
+          {name:'Mercury',type:0,radius:earthRadius*.032,n:48.3313,nd:.0000324587,i:7.0047,id:.00000005,w:29.1241,wd:.0000101444,a:.387098,e:.205635,ed:.000000000559,m:168.6562,md:4.0923344368},
+          {name:'Venus',type:1,radius:earthRadius*.049,n:76.6799,nd:.0000246590,i:3.3946,id:.0000000275,w:54.8910,wd:.0000138374,a:.723330,e:.006773,ed:-.000000001302,m:48.0052,md:1.6021302244},
+          {name:'Mars',type:2,radius:earthRadius*.037,n:49.5574,nd:.0000211081,i:1.8497,id:-.0000000178,w:286.5016,wd:.0000292961,a:1.523688,e:.093405,ed:.000000002516,m:18.6021,md:.5240207766},
+          {name:'Jupiter',type:3,radius:earthRadius*.168,n:100.4542,nd:.0000276854,i:1.3030,id:-.0000001557,w:273.8777,wd:.0000164505,a:5.20256,e:.048498,ed:.000000004469,m:19.8950,md:.0830853001},
+          {name:'Saturn',type:4,radius:earthRadius*.154,n:113.6634,nd:.0000238980,i:2.4886,id:-.0000001081,w:339.3939,wd:.0000297661,a:9.55475,e:.055546,ed:-.000000009499,m:316.9670,md:.0334442282},
+          {name:'Uranus',type:5,radius:earthRadius*.101,n:74.0005,nd:.000013978,i:.7733,id:.000000019,w:96.6612,wd:.000030565,a:19.18171,e:.047318,ed:.00000000745,m:142.5905,md:.011725806},
+          {name:'Neptune',type:6,radius:earthRadius*.099,n:131.7806,nd:.000030173,i:1.7700,id:-.000000255,w:272.8461,wd:-.000006027,a:30.05826,e:.008606,ed:.00000000215,m:260.2471,md:.005995147}
         ];
         const planets=planetData.map(o=>{
           const hp=helio(o),x=hp.x-earth.x,y=hp.y-earth.y,z=hp.z-earth.z,ye=y*Math.cos(eps)-z*Math.sin(eps),ze=y*Math.sin(eps)+z*Math.cos(eps),range=Math.hypot(x,ye,ze);
           const ra=Math.atan2(ye,x),dec=Math.asin(Math.max(-1,Math.min(1,ze/Math.max(1e-9,range))));
           let lng=ra/rad-gmst;lng=((lng+540)%360+360)%360-180;
           const dir=screenVector(lng,dec/rad);if(!dir)return null;
-          const distance=earthRadius+.12+o.radius*1.55;
+          const distance=earthRadius+.12+Math.log1p(range)*.12;
           return{name:o.name,type:o.type,center:[centerNX+dir.x*distance,centerNY+dir.y*distance],radius:o.radius};
         }).filter(Boolean);
-        return{center:[centerNX,centerNY],sun:[centerNX+sunDir.x*sunDistance,centerNY+sunDir.y*sunDistance],moon:[centerNX-sunDir.x*moonDistance,centerNY-sunDir.y*moonDistance],sunRadius,moonRadius,visible:1,subsolar:{lng:sunLng,lat:sunDec/rad},earthRadius,viewAngle:bearing,planets,direction:[sunDir.x,sunDir.y],updatedAt:Date.now()};
+        const sun=[centerNX,centerNY+earthRadius+sunRadius*1.95],orbitPhase=Date.now()*.000085;
+        const moon=[centerNX+Math.cos(orbitPhase)*earthRadius*.88,centerNY+(-.92+Math.sin(orbitPhase)*.40)*earthRadius];
+        return{center:[centerNX,centerNY],sun,moon,sunRadius,moonRadius,visible:1,subsolar:{lng:sunLng,lat:sunDec/rad},earthRadius,viewAngle:bearing,planets,direction:[0,1],sunlightDirection:[0,.92,.40],orbitPhase,planetsScale:'compressed-relative',updatedAt:Date.now()};
       }catch(_){return null}
     }
     const fallback=()=>{
@@ -125,7 +126,7 @@ def patch_stars(source: str) -> str:
       if(gl){
         if(!fallbackCanvas){
           fallbackCanvas=document.createElement('canvas');
-          fallbackCanvas.id='bpwCelestialFallbackCanvasV6253';
+          fallbackCanvas.id='bpwCelestialFallbackCanvasV6254';
           fallbackCanvas.className='bpw-celestial-canvas bpw-celestial-fallback-canvas';
           scene.appendChild(fallbackCanvas);
         }
@@ -169,11 +170,17 @@ def patch_stars(source: str) -> str:
       let g=ctx.createRadialGradient(sun.x-sr*.32,sun.y-sr*.38,sr*.04,sun.x,sun.y,sr);
       g.addColorStop(0,'#fffef5');g.addColorStop(.25,'#fff1a9');g.addColorStop(.58,'#ff9c37');g.addColorStop(.83,'#e94d19');g.addColorStop(1,'#741d18');
       ctx.beginPath();ctx.arc(sun.x,sun.y,sr,0,Math.PI*2);ctx.fillStyle=g;ctx.shadowColor='rgba(255,132,34,.9)';ctx.shadowBlur=unit*.06;ctx.fill();ctx.shadowBlur=0;
-      const moon=point(alignment.moon),mr=alignment.moonRadius*unit;g=ctx.createRadialGradient(moon.x-mr*.32,moon.y-mr*.36,mr*.03,moon.x,moon.y,mr);
+      ctx.save();ctx.translate(sun.x,sun.y);ctx.rotate(t*.018);ctx.beginPath();ctx.arc(0,0,sr*.985,0,Math.PI*2);ctx.clip();
+      for(let i=0;i<95;i++){const a=i*2.399963,dist=Math.sqrt((i+.5)/95)*sr*.91,x=Math.cos(a)*dist,y=Math.sin(a)*dist,r=sr*(.012+(i%5)*.009);ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle='rgba(255,247,188,'+(.025+(i%4)*.018)+')';ctx.fill()}
+      for(const spot of [[-.31,.16,.10],[.28,-.18,.075],[-.04,-.42,.052]]){const x=spot[0]*sr,y=spot[1]*sr,r=spot[2]*sr,pg=ctx.createRadialGradient(x,y,r*.12,x,y,r*1.7);pg.addColorStop(0,'rgba(52,12,5,.92)');pg.addColorStop(.42,'rgba(105,25,6,.76)');pg.addColorStop(1,'rgba(160,55,8,0)');ctx.fillStyle=pg;ctx.beginPath();ctx.ellipse(x,y,r*1.8,r,0,0,Math.PI*2);ctx.fill()}
+      ctx.restore();
+      const phase=Date.now()*.000085,moon=point([alignment.center[0]+Math.cos(phase)*alignment.earthRadius*.88,alignment.center[1]+(-.92+Math.sin(phase)*.40)*alignment.earthRadius]),mr=alignment.moonRadius*unit;
+      ctx.save();ctx.translate(w*.5+alignment.center[0]*unit,h*.5-alignment.center[1]*unit);ctx.beginPath();ctx.ellipse(0,alignment.earthRadius*unit*.92,alignment.earthRadius*unit*.88,alignment.earthRadius*unit*.40,0,0,Math.PI*2);ctx.strokeStyle='rgba(127,177,224,.42)';ctx.lineWidth=Math.max(1,unit*.0025);ctx.setLineDash([unit*.012,unit*.018]);ctx.stroke();ctx.setLineDash([]);ctx.restore();
+      g=ctx.createRadialGradient(moon.x-mr*.32,moon.y-mr*.36,mr*.03,moon.x,moon.y,mr);
       g.addColorStop(0,'#f5f5ef');g.addColorStop(.52,'#c7c9c6');g.addColorStop(1,'#303b47');
       ctx.beginPath();ctx.arc(moon.x,moon.y,mr,0,Math.PI*2);ctx.fillStyle=g;ctx.shadowColor='rgba(188,219,247,.34)';ctx.shadowBlur=unit*.02;ctx.fill();ctx.shadowBlur=0;
-      ctx.save();ctx.beginPath();ctx.arc(moon.x,moon.y,mr,0,Math.PI*2);ctx.clip();
-      for(let i=0;i<210;i++){const a=i*2.399963,dist=Math.sqrt((i+.5)/210)*mr*.92,cx=moon.x+Math.cos(a)*dist,cy=moon.y+Math.sin(a)*dist*.86,cr=mr*(.024+(i%7)*.016);ctx.beginPath();ctx.arc(cx,cy,cr,0,Math.PI*2);ctx.fillStyle='rgba(43,51,59,'+(.14+(i%5)*.035)+')';ctx.fill();ctx.beginPath();ctx.arc(cx-cr*.16,cy-cr*.22,cr*.68,0,Math.PI*2);ctx.strokeStyle='rgba(250,251,247,.24)';ctx.lineWidth=Math.max(.5,cr*.23);ctx.stroke()}
+      ctx.save();ctx.translate(moon.x,moon.y);ctx.rotate(phase);ctx.beginPath();ctx.arc(0,0,mr,0,Math.PI*2);ctx.clip();
+      for(let i=0;i<320;i++){const a=i*2.399963,dist=Math.sqrt((i+.5)/320)*mr*.92,cx=Math.cos(a)*dist,cy=Math.sin(a)*dist*.86,cr=mr*(.018+(i%9)*.014);ctx.beginPath();ctx.arc(cx,cy,cr,0,Math.PI*2);ctx.fillStyle='rgba(43,51,59,'+(.14+(i%5)*.035)+')';ctx.fill();ctx.beginPath();ctx.arc(cx-cr*.16,cy-cr*.22,cr*.68,0,Math.PI*2);ctx.strokeStyle='rgba(250,251,247,.24)';ctx.lineWidth=Math.max(.5,cr*.23);ctx.stroke()}
       ctx.restore();
       for(const body of alignment.planets||[]){const pc=point(body.center),r=body.radius*unit;ctx.beginPath();ctx.arc(pc.x,pc.y,r,0,Math.PI*2);ctx.fillStyle=body.type===3?'#d9b88a':body.type===2?'#c65334':body.type===1?'#decfa6':body.type===4?'#c3a47a':body.type===5?'#8bcad2':body.type===6?'#4c83c1':'#9a9d9b';ctx.fill();if(body.type===4){ctx.beginPath();ctx.ellipse(pc.x,pc.y,r*1.75,r*.48,-.16,0,Math.PI*2);ctx.strokeStyle='rgba(216,190,147,.72)';ctx.lineWidth=Math.max(1,r*.25);ctx.stroke()}}
     };
@@ -237,7 +244,7 @@ def patch_stars(source: str) -> str:
     const readAlignment=now=>{
       bindAlignmentMap();if(!alignmentDirty&&now-lastAlignment<650)return currentAlignment;if(now-lastAlignment<110&&currentAlignment)return currentAlignment;
       lastAlignment=now;alignmentDirty=false;currentAlignment=celestialAlignment(canvas.width,canvas.height);
-      window.__BP_CELESTIAL_ALIGNMENT_V6252__=currentAlignment?{...currentAlignment,mapBound:true}:{mapBound:false,waitingForGlobe:true,updatedAt:Date.now()};
+      window.__BP_CELESTIAL_ALIGNMENT_V6254__=currentAlignment?{...currentAlignment,mapBound:true}:{mapBound:false,waitingForGlobe:true,updatedAt:Date.now()};
       return currentAlignment;
     };
     const render=now=>{
@@ -285,7 +292,7 @@ def patch_stars(source: str) -> str:
     return source
 
 def launch_styles() -> str:
-    return r"""<style id="bpWelcomeGateStylesV6252">
+    return r"""<style id="bpWelcomeGateStylesV6254">
 #bpWelcomeGateV1{pointer-events:auto!important;background:radial-gradient(ellipse at 50% 50%,rgba(2,8,18,.015),rgba(0,2,7,.14) 72%,rgba(0,1,5,.30))!important}
 html.bpw-entry-locked #previewMap{background:#00030a!important}
 html.bpw-entry-locked #previewMap canvas{filter:contrast(1.17) saturate(1.10) brightness(1.025)}
@@ -357,7 +364,7 @@ def patch_root_html(source: str) -> str:
     )
     near_anchor = '    <div class="bpw-starfield bpw-stars-near" id="bpwStarsNearV4" aria-hidden="true"></div>\n'
     celestial = near_anchor + """    <div class="bpw-celestial-system" aria-hidden="true">
-      <canvas class="bpw-celestial-canvas" id="bpwCelestialCanvasV6252"></canvas>
+      <canvas class="bpw-celestial-canvas" id="bpwCelestialCanvasV6254"></canvas>
     </div>
 """
     source = replace_once(source, near_anchor, celestial, "insert Moon and Sun models")
@@ -381,13 +388,13 @@ def patch_app_index(source: str) -> str:
     source = replace_once(
         source,
         '../manifest.webmanifest"',
-        '../manifest.webmanifest?v=6253-mobile-celestial-visibility"',
+        '../manifest.webmanifest?v=6254-realistic-solar-scene"',
         "bust the app manifest URL",
     )
     source = replace_prefix_once(
         source,
         r"(app\.js\?v=)6247-universal-fresh-entry",
-        r"\g<1>6253-mobile-celestial-visibility",
+        r"\g<1>6254-realistic-solar-scene",
         "bust the app bundle URL",
     )
     return source
@@ -409,7 +416,7 @@ def patch_legacy_app(source: str) -> str:
     source = replace_once(
         source,
         "sw.js?v=6218-tree-viewport-renderer-refresh",
-        "sw.js?v=6253-mobile-celestial-visibility",
+        "sw.js?v=6254-realistic-solar-scene",
         "refresh legacy app service worker",
     )
     source = replace_once(
@@ -442,7 +449,7 @@ def patch_bundle(path: Path) -> None:
     source = replace_once(
         source,
         "navigator.serviceWorker.register('/sw.js?v=6247-universal-fresh-entry-sidewalk',{updateViaCache:'none'})",
-        "navigator.serviceWorker.register('/sw.js?v=6253-mobile-celestial-visibility',{updateViaCache:'none'})",
+        "navigator.serviceWorker.register('/sw.js?v=6254-realistic-solar-scene',{updateViaCache:'none'})",
         f"{path.name} service-worker refresh",
     )
     path.write_text(source, encoding="utf-8")
@@ -479,13 +486,13 @@ def patch_site(site: Path) -> None:
     root = replace_once(
         root,
         './manifest.webmanifest"',
-        './manifest.webmanifest?v=6253-mobile-celestial-visibility"',
+        './manifest.webmanifest?v=6254-realistic-solar-scene"',
         "bust the root manifest URL",
     )
     root = replace_prefix_once(
         root,
         r"(landing\.js\?v=)6247-universal-fresh-entry",
-        r"\g<1>6253-mobile-celestial-visibility",
+        r"\g<1>6254-realistic-solar-scene",
         "bust the landing bundle URL",
     )
     required["root"].write_text(root, encoding="utf-8")
@@ -501,7 +508,7 @@ def patch_site(site: Path) -> None:
     legacy = replace_once(
         legacy,
         './manifest.webmanifest"',
-        './manifest.webmanifest?v=6253-mobile-celestial-visibility"',
+        './manifest.webmanifest?v=6254-realistic-solar-scene"',
         "bust the legacy app manifest URL",
     )
     required["legacy app index"].write_text(legacy, encoding="utf-8")
@@ -512,7 +519,7 @@ def patch_site(site: Path) -> None:
             'class="bpw-wordmark bpw-wordmark-static"',
             ">INTELLIGENCE</span></div>",
             "bpw-celestial-system",
-            "bpwCelestialCanvasV6252",
+            "bpwCelestialCanvasV6254",
             "bpw-wordmark-main",
             "const starCount=lowPower?4200:8200",
             "vec3 lunar=mix",
@@ -523,19 +530,19 @@ def patch_site(site: Path) -> None:
             "ringR=length(vec2(q.x,q.y/.34))",
             "renderPlanets(celestial,now)",
             "depth=.72+z*2.0",
-            "bpWelcomeGateStylesV6252",
+            "bpWelcomeGateStylesV6254",
             'data-mode="signup"',
             'data-mode="signin"',
         ],
         "app index": [
             "/?return=",
-            "app.js?v=6253-mobile-celestial-visibility",
-            "manifest.webmanifest?v=6253-mobile-celestial-visibility",
+            "app.js?v=6254-realistic-solar-scene",
+            "manifest.webmanifest?v=6254-realistic-solar-scene",
         ],
         "landing bundle": [SW_URL],
         "app bundle": [SW_URL],
-        "service worker": ["const V='" + CACHE_NAME + "';", "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6253-mobile-celestial-visibility'"],
-        "legacy app index": ['content="0;url=/"', "location.replace('/')", "sw.js?v=6253-mobile-celestial-visibility"],
+        "service worker": ["const V='" + CACHE_NAME + "';", "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6254-realistic-solar-scene'"],
+        "legacy app index": ['content="0;url=/"', "location.replace('/')", "sw.js?v=6254-realistic-solar-scene"],
     }
     for label, markers in checks.items():
         content = required[label].read_text(encoding="utf-8")
@@ -551,7 +558,7 @@ def patch_site(site: Path) -> None:
         raise AssertionError("The current installed-app identity changed")
     if legacy_manifest.get("id") != "/app/intelligence-launch/":
         raise AssertionError("The legacy installed-app identity changed")
-    print("BRIDGEPOINT_LAUNCH_EXPERIENCE_V6253_PATCH_PASS")
+    print("BRIDGEPOINT_LAUNCH_EXPERIENCE_V6254_PATCH_PASS")
     print("Website, current PWA and legacy PWA all route to the same root globe gate.")
     print("Only the launch HTML, app-entry handoff, PWA entry URLs and worker update marker are changed.")
     print("Existing offline cache key and authentication/session logic are preserved.")
@@ -559,7 +566,7 @@ def patch_site(site: Path) -> None:
 
 def main() -> None:
     if len(sys.argv) != 2:
-        raise SystemExit("Usage: apply_launch_experience_v6253.py SITE_DIRECTORY")
+        raise SystemExit("Usage: apply_launch_experience_v6254.py SITE_DIRECTORY")
     patch_site(Path(sys.argv[1]))
 
 
