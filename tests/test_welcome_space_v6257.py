@@ -224,7 +224,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
             "pixels[pixelOffset] / 255 * 16000 - 8000",
             "new THREE.MeshStandardMaterial({",
             "moonMaterial.uniforms.uTerrainMask.value = maskTexture",
-            "viewState==='moon'?0.000003:1.8",
+            "viewState==='moon'?0.00000045:1.8",
             "camera.near=0.00000005",
             "camera.near=0.001",
             "const activePointers=new Map()",
