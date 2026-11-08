@@ -21,6 +21,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
 
   const host = document.querySelector('#bpWelcomeGateV1 .bpw-celestial-system');
   if (!host) return;
+  host.removeAttribute('aria-hidden');
 
   const mobile = matchMedia('(max-width: 700px)').matches ||
     (navigator.deviceMemory || 4) <= 3;
@@ -341,10 +342,12 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       viewState='earth';animateCamera(new THREE.Vector3(0,.16,3.5),new THREE.Vector3(0,0,0));
     }else if(body==='moon'){
       viewState='moon';
+      camera.fov=40;camera.updateProjectionMatrix();
       const outward=moonMesh.position.clone().normalize();
       const side=new THREE.Vector3(0,1,0).cross(outward).normalize();
-      const pos=moonMesh.getWorldPosition(new THREE.Vector3()).addScaledVector(side,2.0).addScaledVector(outward,2.2);
-      animateCamera(pos,moonMesh.getWorldPosition(new THREE.Vector3()),1.65);
+      const moonWorld=moonMesh.getWorldPosition(new THREE.Vector3());
+      const pos=moonWorld.clone().addScaledVector(side,.65).addScaledVector(outward,2.0);
+      animateCamera(pos,moonWorld,1.65);
     }else if(body==='sun'){
       viewState='sun';
       const sunWorld=sunGroup.getWorldPosition(new THREE.Vector3());
@@ -438,6 +441,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   });
   canvas.addEventListener('pointerup',event=>{
     dragging=false;if(pointerMoved)return;
+    if(groundMode){resetView();return;}
     const rect=canvas.getBoundingClientRect();
     pointer.x=((event.clientX-rect.left)/rect.width)*2-1;
     pointer.y=-((event.clientY-rect.top)/rect.height)*2+1;
