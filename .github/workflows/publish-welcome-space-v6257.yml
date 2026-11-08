@@ -125,20 +125,24 @@ jobs:
           Path('/tmp/sldem-source-column-shift.txt').write_text(str(shift))
           print('SLDEM2015 128ppd:',info['size'],'resolution:',resolution,'scale:',scale,'offset:',offset,'sourceWest:',west,'columnShift:',shift)
           PY
-          gdal_calc.py -A /tmp/sldem2015-128ppd.jp2 --outfile=/tmp/sldem2015-128ppd-u16.tif --calc="numpy.clip(numpy.rint(A.astype(numpy.float32)*0.5+32768.0),0,65535)" --type=UInt16 --NoDataValue=32768 --overwrite
+          # Crop first, then scale each 1280x1280 window independently. This avoids
+          # materializing a 46080x15360 intermediate TIFF before creating the local tiles.
           mkdir -p assets/moon/v1/sldem-128ppd
           export SLDEM_TILE_SHIFT=$(cat /tmp/sldem-source-column-shift.txt)
-          export SLDEM_TILE_RASTER=/tmp/sldem2015-128ppd-u16.tif
+          export SLDEM_TILE_SOURCE=/tmp/sldem2015-128ppd.jp2
           seq 0 431 | xargs -r -n 1 -P 4 bash -c '
-            set -e
+            set -euo pipefail
             tile_index="$1"
             y=$((tile_index / 36)); x=$((tile_index % 36))
             printf -v yy "%02d" "$y"
             printf -v xx "%02d" "$x"
             source_x=$(((x + SLDEM_TILE_SHIFT) % 36))
             xoff=$((source_x * 1280)); yoff=$((y * 1280))
+            raw="/tmp/sldem-raw-y${yy}-x${xx}.tif"
             out="assets/moon/v1/sldem-128ppd/moon-sldem-128ppd-y${yy}-x${xx}.png"
-            gdal_translate -q -of PNG -ot UInt16 -co ZLEVEL=6 -srcwin "$xoff" "$yoff" 1280 1280 "$SLDEM_TILE_RASTER" "$out"
+            gdal_translate -q -of GTiff -ot Float32 -srcwin "$xoff" "$yoff" 1280 1280 "$SLDEM_TILE_SOURCE" "$raw"
+            gdal_calc.py -A "$raw" --outfile="$out" --calc="numpy.clip(numpy.rint(A.astype(numpy.float32)*0.5+32768.0),0,65535)" --type=UInt16 --NoDataValue=32768 --format=PNG --creation-option=ZLEVEL=6 --overwrite
+            rm -f "$raw"
           ' _
           test "$(find assets/moon/v1/sldem-128ppd -type f -name '*.png' | wc -l)" -eq 432
           gdalinfo assets/moon/v1/sldem-128ppd/moon-sldem-128ppd-y03-x18.png | grep -Fq 'Size is 1280, 1280'
