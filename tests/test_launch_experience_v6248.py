@@ -69,7 +69,7 @@ def root_fixture() -> str:
 </body></html>"""
 
 
-class LaunchExperienceV6254Tests(unittest.TestCase):
+class LaunchExperienceV6255Tests(unittest.TestCase):
     def test_root_has_static_title_two_buttons_no_earth_aura(self):
         out = patch_root_html(root_fixture())
         self.assertIn(">INTELLIGENCE</span></div>", out)
@@ -78,8 +78,8 @@ class LaunchExperienceV6254Tests(unittest.TestCase):
         self.assertNotIn('class="bpw-globe-aura"', out)
         self.assertNotIn("WELCOME TO", out)
         self.assertNotIn('class="bpw-explainer"', out)
-        self.assertIn("bpwCelestialCanvasV6254", out)
-        self.assertIn("bpwCelestialFallbackCanvasV6254", out)
+        self.assertIn("bpwCelestialCanvasV6255", out)
+        self.assertIn("bpwCelestialFallbackCanvasV6255", out)
         self.assertIn("const ctx=target.getContext('2d',{alpha:true});", out)
         self.assertIn("fallbackCanvas.width=canvas.width", out)
         self.assertIn("position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;height:100dvh!important;z-index:9!important", out)
@@ -89,22 +89,26 @@ class LaunchExperienceV6254Tests(unittest.TestCase):
         self.assertIn("const starCount=lowPower?4200:8200", out)
         self.assertIn("vec3 lunar=mix", out)
         self.assertIn("function celestialAlignment(width,height)", out)
-        self.assertIn("__BP_CELESTIAL_ALIGNMENT_V6254__", out)
+        self.assertIn("__BP_CELESTIAL_ALIGNMENT_V6255__", out)
         self.assertIn("flareReach=1.20", out)
         self.assertIn("craterRelief(uv,rim,shadow)", out)
         self.assertIn("bigGrid=uv*vec2(7.0,4.8)", out)
-        self.assertIn("orbitPhase=Date.now()*.000085", out)
-        self.assertIn("sunlightDirection:[0,.92,.40]", out)
+        self.assertIn("orbitPhase=Date.now()*.000023", out)
+        self.assertIn("sunDirection:[sunVector[0]/sunLength,sunVector[1]/sunLength,.18]", out)
         self.assertIn("sunRadius=Math.min(earthRadius*.47", out)
         self.assertIn("verticalHalf-sunRadius*.70", out)
-        self.assertIn("sunBehindEarth=u_earthR>0.0", out)
+        self.assertIn("sunDirection=[sunVector[0]/sunLength,sunVector[1]/sunLength,.18]", out)
+        self.assertIn("vec2 solarScreen=normalize(u_sunC-u_earthC)", out)
+        self.assertIn("orbitPhase=Date.now()*.000023", out)
+        self.assertIn("moonCenter=[earthC[0]+earthR*.14+Math.cos(moonPhase)*earthR*.42", out)
+        self.assertIn("float laneA", out)
         self.assertIn("nightShade.addColorStop(.82,'rgba(0,4,18,.76)')", out)
-        self.assertIn("ellipse(0,alignment.earthRadius*unit*1.48,alignment.earthRadius*unit*.95", out)
+        self.assertIn("ellipse(alignment.earthRadius*unit*.14,alignment.earthRadius*unit*.57,alignment.earthRadius*unit*.42", out)
         self.assertIn("sunBehindEarth=u_earthR>0.0", out)
-        self.assertIn("earthRadius*.95,centerNY+(-1.48+Math.sin(orbitPhase)*.34)*earthRadius", out)
+        self.assertIn("earthRadius*.42,centerNY-earthRadius*.57+Math.sin(orbitPhase)*earthRadius*.16", out)
         self.assertIn("u_moonSpin", out)
         self.assertIn("nightShade.addColorStop(.82,'rgba(0,4,18,.76)')", out)
-        self.assertIn("orbitRadius=length(vec2(oq.x/.95,(oq.y+1.48)/.34))", out)
+        self.assertIn("orbitRadius=length(vec2((oq.x-.14)/.42,(oq.y+.57)/.16))", out)
         self.assertIn("now-lastAlignment<110", out)
         self.assertIn("for(const event of ['move','moveend','resize','rotate','pitch'])", out)
         self.assertIn("canvas.getContext('webgl'", out)
@@ -120,7 +124,7 @@ class LaunchExperienceV6254Tests(unittest.TestCase):
         self.assertIn("float laneA=1.0-smoothstep", out)
         self.assertIn("float laneB=1.0-smoothstep", out)
         self.assertIn("name:'Neptune'", out)
-        self.assertIn("radius:earthRadius*.168", out)
+        self.assertIn("radius:earthRadius*.205", out)
         self.assertIn("float vortex=exp(-dist*dist*16.0)", out)
         self.assertIn("Math.log1p(range)*.12", out)
         self.assertIn("ringR=length(vec2(q.x,(q.y-.045*q.x)/.46))", out)
@@ -146,8 +150,8 @@ catch(_){location.replace('/?auth=signin&return='+encodeURIComponent(location.pa
         out = patch_app_index(src)
         self.assertEqual(out.count("/?return="), 2)
         self.assertNotIn("/?auth=signin&return=", out)
-        self.assertIn("app.js?v=6254-realistic-solar-scene&sidewalk=6247", out)
-        self.assertIn("manifest.webmanifest?v=6254-realistic-solar-scene", out)
+        self.assertIn("app.js?v=6255-scene-composition-fix&sidewalk=6247", out)
+        self.assertIn("manifest.webmanifest?v=6255-scene-composition-fix", out)
 
     def test_legacy_app_redirects_root_and_keeps_current_offline_cache(self):
         src = """<link rel="manifest" href="./manifest.webmanifest"><meta http-equiv="refresh" content="4;url=/app/?migrated=legacy-intelligence-v5820">
@@ -160,7 +164,7 @@ finally{location.replace('/app/?migrated=legacy-intelligence-v5820')}
         self.assertIn('content="0;url=/"', out)
         self.assertIn('href="/"', out)
         self.assertIn("location.replace('/')", out)
-        self.assertIn("sw.js?v=6254-realistic-solar-scene", out)
+        self.assertIn("sw.js?v=6255-scene-composition-fix", out)
         self.assertIn("k!=='bp-intelligence-v6247-universal-fresh-entry-sidewalk'", out)
 
     def test_root_manifest_start_url_changes_but_identity_is_preserved(self):
