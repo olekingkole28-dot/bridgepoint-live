@@ -153,13 +153,13 @@ def patch_app_index(source: str) -> str:
     source = replace_once(
         source,
         '../manifest.webmanifest"',
-        '../manifest.webmanifest?v=6257-welcome-space-fix"',
+        '../manifest.webmanifest?v=6258-local-moon-terrain"',
         "bust the app manifest URL",
     )
     source = replace_prefix_once(
         source,
         r"(app\.js\?v=)6247-universal-fresh-entry",
-        r"\g<1>6257-welcome-space-fix",
+        r"\g<1>6258-local-moon-terrain",
         "bust the app bundle URL",
     )
     return source
@@ -181,7 +181,7 @@ def patch_legacy_app(source: str) -> str:
     source = replace_once(
         source,
         "sw.js?v=6218-tree-viewport-renderer-refresh",
-        "sw.js?v=6257-welcome-space-fix",
+        "sw.js?v=6258-local-moon-terrain",
         "refresh legacy app service worker",
     )
     source = replace_once(
@@ -214,7 +214,7 @@ def patch_bundle(path: Path) -> None:
     source = replace_once(
         source,
         "navigator.serviceWorker.register('/sw.js?v=6247-universal-fresh-entry-sidewalk',{updateViaCache:'none'})",
-        "navigator.serviceWorker.register('/sw.js?v=6257-welcome-space-fix',{updateViaCache:'none'})",
+        "navigator.serviceWorker.register('/sw.js?v=6258-local-moon-terrain',{updateViaCache:'none'})",
         f"{path.name} service-worker refresh",
     )
     path.write_text(source, encoding="utf-8")
@@ -320,13 +320,13 @@ def patch_site(site: Path) -> None:
     root = replace_once(
         root,
         './manifest.webmanifest"',
-        './manifest.webmanifest?v=6257-welcome-space-fix"',
+        './manifest.webmanifest?v=6258-local-moon-terrain"',
         "bust the root manifest URL",
     )
     root = replace_prefix_once(
         root,
         r"(landing\.js\?v=)6247-universal-fresh-entry",
-        r"\g<1>6257-welcome-space-fix",
+        r"\g<1>6258-local-moon-terrain",
         "bust the landing bundle URL",
     )
     required["root"].write_text(root, encoding="utf-8")
@@ -344,7 +344,7 @@ def patch_site(site: Path) -> None:
     legacy = replace_once(
         legacy,
         './manifest.webmanifest"',
-        './manifest.webmanifest?v=6257-welcome-space-fix"',
+        './manifest.webmanifest?v=6258-local-moon-terrain"',
         "bust the legacy app manifest URL",
     )
     required["legacy app index"].write_text(legacy, encoding="utf-8")
@@ -363,15 +363,15 @@ def patch_site(site: Path) -> None:
         ],
         "app index": [
             "/?return=",
-            "app.js?v=6257-welcome-space-fix",
-            "manifest.webmanifest?v=6257-welcome-space-fix",
+            "app.js?v=6258-local-moon-terrain",
+            "manifest.webmanifest?v=6258-local-moon-terrain",
         ],
         "landing bundle": [SW_URL, "bridgepoint-celestial-sky-v6257.js?v=6257"],
         "app bundle": [SW_URL, "bridgepoint-celestial-sky-v6257.js?v=6257"],
         "service worker": ["const V='" + CACHE_NAME + "';", "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6258-local-moon-terrain'", "entryRoute", "clients.claim()"],
         "welcome space module": ["new THREE.Raycaster()", "logarithmicDepthBuffer: true", "MOON_PERIOD_DAYS = 27.321661", "data-space-reset", "uTime"],
         "celestial sky module": ["apparentAngularRadiusPx", "bp6257-sun-surface", "initBridgePointCelestialSky"],
-        "legacy app index": ['content="0;url=/"', "location.replace('/')", "sw.js?v=6257-welcome-space-fix"],
+        "legacy app index": ['content="0;url=/"', "location.replace('/')", "sw.js?v=6258-local-moon-terrain"],
     }
     for label, markers in checks.items():
         content = required[label].read_text(encoding="utf-8")
