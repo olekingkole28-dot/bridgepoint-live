@@ -5,7 +5,7 @@ import re
 import sys
 from pathlib import Path
 
-BUILD = "v6250-deep-space-3d"
+BUILD = "v6251-solar-aligned-celestial"
 SW_URL = "/sw.js?v=6250-deep-space-3d"
 OLD_SW_URL = "/sw.js?v=6247-universal-fresh-entry-sidewalk"
 CACHE_NAME = "bp-intelligence-v6247-universal-fresh-entry-sidewalk"
@@ -30,7 +30,7 @@ def patch_stars(source: str) -> str:
         r"(?ms)^  function buildSpaceStars\(\)\{.*?^  \}\n  buildSpaceStars\(\);"
     )
     replacement = r"""  function buildSpaceStars(){
-    const canvas=document.getElementById('bpwCelestialCanvasV6250');
+    const canvas=document.getElementById('bpwCelestialCanvasV6251');
     if(!canvas||canvas.dataset.built==='1')return;
     const scene=canvas.parentElement;
     const resize=()=>{
@@ -51,35 +51,61 @@ def patch_stars(source: str) -> str:
       stars[i*4+3]=random();
     }
     const gl=canvas.getContext('webgl',{alpha:true,antialias:false,depth:false,powerPreference:'low-power'});
+    function celestialAlignment(width,height){
+      try{
+        const candidate=window.__BP_LANDING_WORLD__?.map||window.__bpLandingWorld__?.map||null;
+        if(!candidate||typeof candidate.getCenter!=='function'||typeof candidate.project!=='function')return null;
+        const center=candidate.getCenter(),rad=Math.PI/180,dayMs=86400000;
+        const jd=Date.now()/dayMs+2440587.5,n=jd-2451545.0;
+        const L=((280.46+.9856474*n)%360+360)%360,G=((357.528+.9856003*n)%360+360)%360;
+        const lambda=(L+1.915*Math.sin(G*rad)+.02*Math.sin(2*G*rad))*rad,eps=(23.439-.0000004*n)*rad;
+        const ra=Math.atan2(Math.cos(eps)*Math.sin(lambda),Math.cos(lambda)),dec=Math.asin(Math.sin(eps)*Math.sin(lambda));
+        const gmst=((280.46061837+360.98564736629*n)%360+360)%360;
+        let sunLng=ra/rad-gmst;sunLng=((sunLng+540)%360+360)%360-180;
+        const sunLat=dec/rad,lat0=Number(center.lat)*rad,latS=sunLat*rad,delta=((sunLng-Number(center.lng)+540)%360-180)*rad;
+        const east=Math.cos(latS)*Math.sin(delta),north=Math.cos(lat0)*Math.sin(latS)-Math.sin(lat0)*Math.cos(latS)*Math.cos(delta);
+        const bearing=Number(candidate.getBearing?.()||0)*rad,pitch=Number(candidate.getPitch?.()||0)*rad;
+        const sx=east*Math.cos(bearing)-north*Math.sin(bearing),sy=(east*Math.sin(bearing)+north*Math.cos(bearing))*Math.cos(pitch);
+        const directionLength=Math.hypot(sx,sy);if(directionLength<.045)return null;
+        const dx=sx/directionLength,dy=sy/directionLength,mapContainer=candidate.getContainer?.();if(!mapContainer)return null;
+        const sceneRect=scene.getBoundingClientRect(),mapRect=mapContainer.getBoundingClientRect(),centerPoint=candidate.project([Number(center.lng),Number(center.lat)]);
+        if(!centerPoint||!Number.isFinite(centerPoint.x)||!Number.isFinite(centerPoint.y))return null;
+        const ratio=width/Math.max(1,canvas.clientWidth||sceneRect.width||1),unit=Math.max(1,Math.min(width,height));
+        const centerX=(mapRect.left+centerPoint.x-sceneRect.left)*ratio,centerY=(mapRect.top+centerPoint.y-sceneRect.top)*ratio;
+        const testLng=((Number(center.lng)+35+540)%360)-180,testPoint=candidate.project([testLng,Number(center.lat)]);
+        const phi=Number(center.lat)*rad,dlon=35*rad,cosAngle=Math.max(-1,Math.min(1,Math.sin(phi)*Math.sin(phi)+Math.cos(phi)*Math.cos(phi)*Math.cos(dlon)));
+        const angle=Math.acos(cosAngle),testDistance=testPoint&&Number.isFinite(testPoint.x)&&Number.isFinite(testPoint.y)?Math.hypot(testPoint.x-centerPoint.x,testPoint.y-centerPoint.y)*ratio:0;
+        const fallbackRadius=unit*.405,earthRadiusPixels=testDistance>0&&Math.sin(angle)>.01?testDistance/Math.sin(angle):fallbackRadius;
+        const earthRadius=Math.max(unit*.27,Math.min(unit*.49,earthRadiusPixels))/unit;
+        const centerNX=(centerX-width*.5)/unit,centerNY=(height*.5-centerY)/unit,sunRadius=.066,moonRadius=.046;
+        const sunDistance=earthRadius+sunRadius*2.08,moonDistance=earthRadius+moonRadius*1.78;
+        return{center:[centerNX,centerNY],sun:[centerNX+dx*sunDistance,centerNY+dy*sunDistance],moon:[centerNX-dx*moonDistance,centerNY-dy*moonDistance],sunRadius,moonRadius,visible:1,subsolar:{lng:sunLng,lat:sunLat},earthRadius,direction:[dx,dy],updatedAt:Date.now()};
+      }catch(_){return null}
+    }
     const fallback=()=>{
-      const ctx=canvas.getContext('2d',{alpha:true});
-      if(!ctx)return;
-      const w=canvas.width,h=canvas.height,unit=Math.min(w,h);
+      const ctx=canvas.getContext('2d',{alpha:true});if(!ctx)return;
+      const w=canvas.width,h=canvas.height,unit=Math.min(w,h),alignment=celestialAlignment(w,h);
       ctx.clearRect(0,0,w,h);
-      for(let i=0;i<starCount;i++){
-        const z=stars[i*4+2],depth=.25+z*1.2;
-        const x=w*.5+stars[i*4]*unit*.55/depth;
-        const y=h*.5-stars[i*4+1]*unit*.55/depth;
-        const r=Math.min(3.2,.45+(1/depth)*.48);
-        ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);
-        ctx.fillStyle='rgba(210,229,255,'+(.2+(1-z)*.65)+')';ctx.fill();
-      }
-      const sunX=w*.5+Math.min(unit*.36,w*.36),sunY=h*.5-unit*.29,sr=unit*.073;
-      let g=ctx.createRadialGradient(sunX-sr*.3,sunY-sr*.35,sr*.05,sunX,sunY,sr);
-      g.addColorStop(0,'#fff8d5');g.addColorStop(.22,'#ffd17a');g.addColorStop(.55,'#f77b31');g.addColorStop(.86,'#a92b20');g.addColorStop(1,'#26101b');
-      ctx.beginPath();ctx.arc(sunX,sunY,sr,0,Math.PI*2);ctx.fillStyle=g;ctx.shadowColor='rgba(255,132,48,.42)';ctx.shadowBlur=unit*.035;ctx.fill();ctx.shadowBlur=0;
-      const t=Date.now()*.00011,rx=Math.min(unit*.43,w*.42),ry=unit*.24;
-      ctx.beginPath();ctx.ellipse(w*.5,h*.5,rx,ry,0,0,Math.PI*2);ctx.strokeStyle='rgba(155,197,236,.2)';ctx.lineWidth=Math.max(1,unit*.001);ctx.stroke();
-      const mx=w*.5+Math.cos(t)*rx,my=h*.5-Math.sin(t)*ry,mr=unit*.037;
-      g=ctx.createRadialGradient(mx-mr*.34,my-mr*.35,mr*.04,mx,my,mr);
-      g.addColorStop(0,'#f3f5f7');g.addColorStop(.38,'#c5cdd5');g.addColorStop(.76,'#778593');g.addColorStop(1,'#182637');
-      ctx.beginPath();ctx.arc(mx,my,mr,0,Math.PI*2);ctx.fillStyle=g;ctx.shadowColor='rgba(160,207,242,.24)';ctx.shadowBlur=unit*.02;ctx.fill();ctx.shadowBlur=0;
-      for(let i=0;i<38;i++){
-        const a=i*2.39996,dist=Math.sqrt((i+.5)/38)*mr*.78,cx=mx+Math.cos(a)*dist,cy=my+Math.sin(a)*dist*.72,cr=mr*(.035+(i%5)*.012);
-        ctx.beginPath();ctx.arc(cx,cy,cr,0,Math.PI*2);ctx.fillStyle='rgba(35,48,62,.23)';ctx.fill();
-      }
+      for(let i=0;i<starCount;i++){const z=stars[i*4+2],depth=.22+z*1.42,x=w*.5+stars[i*4]*unit*.64/depth,y=h*.5-stars[i*4+1]*unit*.64/depth,r=Math.min(3.8,.42+(1/depth)*.62);ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle='rgba(210,229,255,'+(.18+(1-z)*.70)+')';ctx.fill()}
+      if(!alignment)return;
+      const point=v=>({x:w*.5+v[0]*unit,y:h*.5-v[1]*unit}),sun=point(alignment.sun),sr=alignment.sunRadius*unit,t=Date.now()*.001;
+      const corona=ctx.createRadialGradient(sun.x,sun.y,sr*.35,sun.x,sun.y,sr*2.15);
+      corona.addColorStop(0,'rgba(255,248,210,.98)');corona.addColorStop(.18,'rgba(255,204,92,.8)');corona.addColorStop(.55,'rgba(255,105,27,.26)');corona.addColorStop(1,'rgba(255,72,12,0)');
+      ctx.fillStyle=corona;ctx.beginPath();ctx.arc(sun.x,sun.y,sr*2.15,0,Math.PI*2);ctx.fill();
+      ctx.save();ctx.translate(sun.x,sun.y);ctx.globalCompositeOperation='lighter';
+      for(let i=0;i<22;i++){const a=i*Math.PI*2/22+t*.075,reach=sr*(1.08+.24*(.5+.5*Math.sin(i*4.3+t*1.6)));ctx.save();ctx.rotate(a);ctx.beginPath();ctx.moveTo(sr*.84,-sr*.09);ctx.quadraticCurveTo(reach*.8,-sr*.04,reach,0);ctx.quadraticCurveTo(reach*.75,sr*.06,sr*.84,sr*.09);ctx.fillStyle='rgba(255,135,30,.24)';ctx.fill();ctx.restore()}
+      ctx.restore();
+      let g=ctx.createRadialGradient(sun.x-sr*.32,sun.y-sr*.38,sr*.04,sun.x,sun.y,sr);
+      g.addColorStop(0,'#fffef0');g.addColorStop(.25,'#fff1a1');g.addColorStop(.58,'#ff9b35');g.addColorStop(.83,'#e84c19');g.addColorStop(1,'#741d18');
+      ctx.beginPath();ctx.arc(sun.x,sun.y,sr,0,Math.PI*2);ctx.fillStyle=g;ctx.shadowColor='rgba(255,132,34,.85)';ctx.shadowBlur=unit*.055;ctx.fill();ctx.shadowBlur=0;
+      const moon=point(alignment.moon),mr=alignment.moonRadius*unit;g=ctx.createRadialGradient(moon.x-mr*.32,moon.y-mr*.36,mr*.03,moon.x,moon.y,mr);
+      g.addColorStop(0,'#f5f5ef');g.addColorStop(.52,'#c7c9c6');g.addColorStop(1,'#303b47');
+      ctx.beginPath();ctx.arc(moon.x,moon.y,mr,0,Math.PI*2);ctx.fillStyle=g;ctx.shadowColor='rgba(188,219,247,.3)';ctx.shadowBlur=unit*.018;ctx.fill();ctx.shadowBlur=0;
+      ctx.save();ctx.beginPath();ctx.arc(moon.x,moon.y,mr,0,Math.PI*2);ctx.clip();
+      for(let i=0;i<170;i++){const a=i*2.399963,dist=Math.sqrt((i+.5)/170)*mr*.92,cx=moon.x+Math.cos(a)*dist,cy=moon.y+Math.sin(a)*dist*.86,cr=mr*(.018+(i%7)*.008);ctx.beginPath();ctx.arc(cx,cy,cr,0,Math.PI*2);ctx.fillStyle='rgba(43,51,59,'+(.14+(i%5)*.035)+')';ctx.fill();ctx.beginPath();ctx.arc(cx-cr*.16,cy-cr*.22,cr*.68,0,Math.PI*2);ctx.strokeStyle='rgba(250,251,247,.22)';ctx.lineWidth=Math.max(.5,cr*.23);ctx.stroke()}
+      ctx.restore();
     };
-    if(!gl){fallback();canvas.dataset.built='1';window.addEventListener('resize',()=>{resize();fallback()},{passive:true});return}
+    if(!gl){fallback();canvas.dataset.built='1';window.addEventListener('resize',()=>{resize();fallback()},{passive:true});setInterval(()=>{if(!document.hidden)fallback()},5000);return}
     const compile=(type,code)=>{
       const shader=gl.createShader(type);gl.shaderSource(shader,code);gl.compileShader(shader);
       if(!gl.getShaderParameter(shader,gl.COMPILE_STATUS)){gl.deleteShader(shader);return null}
@@ -98,7 +124,7 @@ def patch_stars(source: str) -> str:
     );
     const sphereProgram=program(
       'attribute vec2 a_pos;void main(){gl_Position=vec4(a_pos,0.0,1.0);}',
-      'precision mediump float;uniform vec2 u_resolution;uniform float u_time;float hash31(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}float noise3(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);float a=hash31(i),b=hash31(i+vec3(1,0,0)),c=hash31(i+vec3(0,1,0)),d=hash31(i+vec3(1,1,0)),e=hash31(i+vec3(0,0,1)),f1=hash31(i+vec3(1,0,1)),g=hash31(i+vec3(0,1,1)),h=hash31(i+vec3(1,1,1));return mix(mix(mix(a,b,f.x),mix(c,d,f.x),f.y),mix(mix(e,f1,f.x),mix(g,h,f.x),f.y),f.z);}float fbm(vec3 p){float v=0.0,a=0.5;for(int i=0;i<4;i++){v+=a*noise3(p);p=p*2.03+vec3(1.7,2.3,1.1);a*=0.5;}return v;}void main(){float unit=min(u_resolution.x,u_resolution.y);float aspect=u_resolution.x/u_resolution.y;vec2 p=(gl_FragCoord.xy-0.5*u_resolution)/unit;vec2 sunC=vec2(min(0.40,aspect*0.36),0.29);float sunR=0.073;vec2 moonC=vec2(cos(u_time*0.00011)*min(0.43,aspect*0.42),sin(u_time*0.00011)*0.24-0.07);float moonR=0.037;vec3 outColor=vec3(0.0);float outAlpha=0.0;float orbit=abs(length(vec2(p.x/min(0.43,aspect*0.42), (p.y+0.07)/0.24))-1.0);float ring=(1.0-smoothstep(0.002,0.006,orbit))*0.16;outColor=vec3(0.34,0.55,0.82);outAlpha=ring;float sd=length(p-sunC);float sunGlow=(1.0-smoothstep(sunR,sunR*1.72,sd));if(sunGlow>0.002){outColor+=vec3(1.0,0.29,0.075)*sunGlow*0.19;outAlpha=max(outAlpha,sunGlow*0.25);}if(sd<sunR+0.003){vec2 q=(p-sunC)/sunR;float z=sqrt(max(0.0,1.0-dot(q,q)));vec3 n=normalize(vec3(q,z));float rot=u_time*0.000018;n.xz=mat2(cos(rot),-sin(rot),sin(rot),cos(rot))*n.xz;float turbulence=fbm(n*5.8+vec3(0.0,u_time*0.000012,0.0));float granulation=fbm(n*15.0-vec3(u_time*0.000018,0.0,0.0));float filament=fbm(n*23.0+vec3(2.0,7.0,1.0));vec3 hot=vec3(1.0,0.79,0.40);vec3 orange=vec3(0.98,0.30,0.055);vec3 deep=vec3(0.36,0.045,0.025);vec3 solar=mix(deep,orange,smoothstep(0.13,0.72,turbulence));solar=mix(solar,hot,smoothstep(0.56,0.91,granulation)*0.68);solar+=vec3(0.22,0.085,0.018)*(filament-0.4);float light=max(dot(n,normalize(vec3(-0.48,0.58,0.78))),0.0);float limb=0.28+0.72*pow(max(n.z,0.0),0.42);solar*=0.26+0.74*light;solar*=limb;solar+=vec3(1.0,0.34,0.08)*pow(max(n.z,0.0),7.0)*0.2;float cover=1.0-smoothstep(sunR-0.002,sunR+0.002,sd);outColor=mix(outColor,solar,cover);outAlpha=max(outAlpha,cover);}float md=length(p-moonC);float moonGlow=1.0-smoothstep(moonR*1.02,moonR*1.42,md);if(moonGlow>0.002){outColor=mix(outColor,vec3(0.48,0.68,0.9),moonGlow*0.20);outAlpha=max(outAlpha,moonGlow*0.18);}if(md<moonR+0.002){vec2 q=(p-moonC)/moonR;vec3 n=normalize(vec3(q,sqrt(max(0.0,1.0-dot(q,q)))));float rot=u_time*0.000008; n.xy=mat2(cos(rot),-sin(rot),sin(rot),cos(rot))*n.xy;vec2 uv=vec2(atan(n.y,n.x)*0.1591549+0.5,asin(clamp(n.z,-1.0,1.0))*0.3183099+0.5);vec2 grid=uv*vec2(25.0,15.0),cell=floor(grid),f=fract(grid);float bowls=0.0,rims=0.0;for(int y=-1;y<=1;y++){for(int x=-1;x<=1;x++){vec2 off=vec2(float(x),float(y)),id=cell+off;vec2 rnd=vec2(hash31(vec3(id,2.1)),hash31(vec3(id,7.3)));vec2 delta=off+vec2(0.18)+rnd*0.64-f;float dist=length(delta);float radius=0.085+hash31(vec3(id,9.2))*0.095;float bowl=1.0-smoothstep(radius*0.34,radius,dist);float rim=1.0-smoothstep(radius*0.86,radius*1.14,dist);bowls=max(bowls,bowl);rims=max(rims,rim);}}float maria=smoothstep(0.53,0.77,fbm(n*5.0+vec3(2.0,3.0,1.0)));float albedo=0.68+(fbm(n*18.0)-0.5)*0.22-bowls*0.34+rims*0.19-maria*0.13;vec3 lunar=mix(vec3(0.59,0.64,0.69),vec3(0.77,0.80,0.82),albedo);float light=max(dot(n,normalize(vec3(-0.55,0.62,0.78))),0.0);float limb=0.18+0.82*pow(max(n.z,0.0),0.38);lunar*=0.12+0.88*light;lunar*=limb;lunar+=vec3(0.12,0.15,0.18)*rims*0.19;float cover=1.0-smoothstep(moonR-0.0018,moonR+0.0018,md);outColor=mix(outColor,lunar,cover);outAlpha=max(outAlpha,cover);}gl_FragColor=vec4(outColor,outAlpha);}'
+      'precision mediump float;uniform vec2 u_resolution;uniform float u_time;uniform vec2 u_sunC;uniform vec2 u_moonC;uniform float u_sunR;uniform float u_moonR;uniform float u_celestialVisible;float hash31(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}float noise3(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);float a=hash31(i),b=hash31(i+vec3(1,0,0)),c=hash31(i+vec3(0,1,0)),d=hash31(i+vec3(1,1,0)),e=hash31(i+vec3(0,0,1)),f1=hash31(i+vec3(1,0,1)),g=hash31(i+vec3(0,1,1)),h=hash31(i+vec3(1,1,1));return mix(mix(mix(a,b,f.x),mix(c,d,f.x),f.y),mix(mix(e,f1,f.x),mix(g,h,f.x),f.y),f.z);}float fbm(vec3 p){float v=0.0,a=0.5;for(int i=0;i<5;i++){v+=a*noise3(p);p=p*2.02+vec3(1.7,2.3,1.1);a*=0.5;}return v;}float craterRelief(vec2 uv,out float rims,out float shadows){vec2 grid=uv*vec2(42.0,27.0),cell=floor(grid),f=fract(grid);float bowls=0.0;rims=0.0;shadows=0.0;for(int y=-1;y<=1;y++){for(int x=-1;x<=1;x++){vec2 off=vec2(float(x),float(y)),id=cell+off;vec2 rnd=vec2(hash31(vec3(id,2.1)),hash31(vec3(id,7.3)));vec2 delta=off+vec2(.18)+rnd*.64-f;float dist=length(delta);float radius=.035+hash31(vec3(id,9.2))*.095;float bowl=1.0-smoothstep(radius*.24,radius*.88,dist);float rim=1.0-smoothstep(radius*.87,radius*1.08,dist);float shadow=1.0-smoothstep(radius*1.06,radius*1.62,dist);bowls=max(bowls,bowl);rims=max(rims,rim);shadows=max(shadows,shadow);}}return bowls;}void main(){float unit=min(u_resolution.x,u_resolution.y);vec2 p=(gl_FragCoord.xy-0.5*u_resolution)/unit;vec3 outColor=vec3(0.0);float outAlpha=0.0;if(u_celestialVisible>.5){vec2 sdv=(p-u_sunC)/u_sunR;float sr=length(sdv),sa=atan(sdv.y,sdv.x);float solarTime=u_time*.00024;float plume=pow(max(0.0,.5+.5*sin(sa*6.0+solarTime*1.7+sin(sa*13.0-solarTime)*.55)),5.0);float coronaNoise=fbm(vec3(cos(sa)*4.0,sin(sa)*4.0,solarTime*.16));float flareReach=1.16+.23*plume+.11*(coronaNoise-.45);float corona=exp(-max(0.0,sr-1.0)*2.05);float flare=1.0-smoothstep(flareReach-.075,flareReach+.10,sr);float ray=pow(max(0.0,sin(sa*9.0+solarTime*1.2)),15.0)*(1.0-smoothstep(1.06,1.93,sr));float prominence=pow(max(0.0,sin(sa*3.0-solarTime*.55)),24.0)*(1.0-smoothstep(1.0,1.72,sr));float halo=1.0-smoothstep(1.28,2.05,sr);float solarAlpha=clamp(max(corona*.25,max(flare*.64,max(ray*.72,prominence*.68))),0.0,.94);outColor=mix(outColor,vec3(1.0,.26,.035),solarAlpha);outColor+=vec3(1.0,.42,.10)*(halo*.10+ray*.22+prominence*.26);outAlpha=max(outAlpha,solarAlpha*.85);if(sr<1.0){vec2 q=sdv;float z=sqrt(max(0.0,1.0-dot(q,q)));vec3 n=normalize(vec3(q,z));float rot=u_time*.000018;n.xz=mat2(cos(rot),-sin(rot),sin(rot),cos(rot))*n.xz;float boiling=fbm(n*7.5+vec3(0.0,u_time*.000018,u_time*.000011));float granulation=fbm(n*18.0-vec3(u_time*.000026,0.0,u_time*.000009));float filament=fbm(n*31.0+vec3(3.0,u_time*.000014,8.0));float cells=fbm(n*47.0+vec3(0.0,u_time*.000009,0.0));vec3 deep=vec3(.62,.055,.012),orange=vec3(1.0,.26,.018),gold=vec3(1.0,.67,.13),hot=vec3(1.0,.96,.69);vec3 solar=mix(deep,orange,smoothstep(.12,.74,boiling));solar=mix(solar,gold,smoothstep(.35,.76,granulation)*.68);solar=mix(solar,hot,smoothstep(.62,.91,cells)*.58);solar+=vec3(.16,.035,.004)*(filament-.42);solar*=.76+.34*granulation;float sunspot=fbm(n*9.0+vec3(5.0,2.0,1.0));solar*=1.0-smoothstep(.15,.34,sunspot)*.24;float light=max(dot(n,normalize(vec3(-.34,.48,.81))),0.0);float limb=.38+.62*pow(max(n.z,0.0),.42);solar*=.42+.58*light;solar*=limb;solar+=hot*pow(max(n.z,0.0),8.0)*.26;outColor=mix(outColor,solar,1.0);outAlpha=1.0;}}vec2 mdv=(p-u_moonC)/u_moonR;float mr=length(mdv);if(mr<1.42){float glow=1.0-smoothstep(1.0,1.42,mr);outColor=mix(outColor,vec3(.42,.59,.78),glow*.13);outAlpha=max(outAlpha,glow*.16);}if(mr<1.0){vec2 q=mdv;float z=sqrt(max(0.0,1.0-dot(q,q)));vec3 n=normalize(vec3(q,z));float libration=sin(u_time*.00007)*.035;n.xy=mat2(cos(libration),-sin(libration),sin(libration),cos(libration))*n.xy;vec2 uv=vec2(atan(n.y,n.x)*.15915494+.5,asin(clamp(n.z,-1.0,1.0))*.31830989+.5);float rim,shadow;float bowls=craterRelief(uv,rim,shadow);float highlands=fbm(n*17.0);float fine=fbm(n*67.0+vec3(3.0,7.0,2.0));float mariaNoise=fbm(n*4.5+vec3(8.0,2.0,5.0));float maria=smoothstep(.48,.68,mariaNoise);float rayNoise=fbm(n*29.0+vec3(11.0,1.0,4.0));float albedo=.72+(highlands-.5)*.22+(fine-.5)*.16-bowls*.34+rim*.27-shadow*.10-maria*.23;vec3 high=vec3(.72,.74,.73),low=vec3(.36,.40,.43);vec3 lunar=mix(low,high,clamp(albedo,0.0,1.0));lunar+=vec3(.15,.15,.13)*rim*.42;lunar*=.91+rayNoise*.16;vec2 toSun=normalize(u_sunC-u_moonC);vec3 lightDir=normalize(vec3(toSun.x,toSun.y,.82));float light=max(dot(n,lightDir),0.0);float limb=.20+.80*pow(max(n.z,0.0),.42);lunar*=.16+.84*light;lunar*=limb;lunar*=1.0-shadow*.19;lunar+=vec3(.08,.095,.11)*rim*.17;outColor=mix(outColor,lunar,1.0);outAlpha=1.0;}gl_FragColor=vec4(outColor,outAlpha);}'
     );
     if(!starProgram||!sphereProgram){fallback();canvas.dataset.built='1';return}
     const starBuffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,starBuffer);gl.bufferData(gl.ARRAY_BUFFER,stars,gl.STATIC_DRAW);
@@ -107,21 +133,43 @@ def patch_stars(source: str) -> str:
     const quad=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,quad);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
     const quadPosition=gl.getAttribLocation(sphereProgram,'a_pos');
     const sphereResolution=gl.getUniformLocation(sphereProgram,'u_resolution'),sphereTime=gl.getUniformLocation(sphereProgram,'u_time');
-    gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
-    let frame=0,last=0;
+    const sphereSun=gl.getUniformLocation(sphereProgram,'u_sunC'),sphereMoon=gl.getUniformLocation(sphereProgram,'u_moonC');
+    const sphereSunRadius=gl.getUniformLocation(sphereProgram,'u_sunR'),sphereMoonRadius=gl.getUniformLocation(sphereProgram,'u_moonR'),sphereVisible=gl.getUniformLocation(sphereProgram,'u_celestialVisible');
+    let frame=0,last=0,lastAlignment=0,activeMap=null,alignmentDirty=true,currentAlignment=null;
+    const bindAlignmentMap=()=>{
+      const m=window.__BP_LANDING_WORLD__?.map||window.__bpLandingWorld__?.map||null;
+      if(!m||m===activeMap)return;activeMap=m;alignmentDirty=true;
+      const dirty=()=>{alignmentDirty=true};for(const event of ['move','moveend','resize','rotate','pitch'])try{m.on(event,dirty)}catch(_){}
+    };
+    const readAlignment=now=>{
+      bindAlignmentMap();if(!alignmentDirty&&now-lastAlignment<650)return currentAlignment;
+      lastAlignment=now;alignmentDirty=false;currentAlignment=celestialAlignment(canvas.width,canvas.height);
+      window.__BP_CELESTIAL_ALIGNMENT_V6251__=currentAlignment?{...currentAlignment,mapBound:true}:{mapBound:false,waitingForGlobe:true,updatedAt:Date.now()};
+      return currentAlignment;
+    };
     const render=now=>{
       if(document.hidden){frame=0;return}
       if(now-last>24){
         last=now;gl.viewport(0,0,canvas.width,canvas.height);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);
         gl.useProgram(starProgram);gl.bindBuffer(gl.ARRAY_BUFFER,starBuffer);gl.enableVertexAttribArray(starPosition);gl.vertexAttribPointer(starPosition,4,gl.FLOAT,false,0,0);gl.uniform1f(starTime,now);gl.uniform1f(starAspect,canvas.width/canvas.height);gl.drawArrays(gl.POINTS,0,starCount);
-        gl.useProgram(sphereProgram);gl.bindBuffer(gl.ARRAY_BUFFER,quad);gl.enableVertexAttribArray(quadPosition);gl.vertexAttribPointer(quadPosition,2,gl.FLOAT,false,0,0);gl.uniform2f(sphereResolution,canvas.width,canvas.height);gl.uniform1f(sphereTime,now);gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+        const celestial=readAlignment(now);
+        gl.useProgram(sphereProgram);gl.bindBuffer(gl.ARRAY_BUFFER,quad);gl.enableVertexAttribArray(quadPosition);gl.vertexAttribPointer(quadPosition,2,gl.FLOAT,false,0,0);gl.uniform2f(sphereResolution,canvas.width,canvas.height);gl.uniform1f(sphereTime,now);
+        gl.uniform2f(sphereSun,celestial?.sun?.[0]||0,celestial?.sun?.[1]||0);gl.uniform2f(sphereMoon,celestial?.moon?.[0]||0,celestial?.moon?.[1]||0);
+        gl.uniform1f(sphereSunRadius,celestial?.sunRadius||.066);gl.uniform1f(sphereMoonRadius,celestial?.moonRadius||.046);gl.uniform1f(sphereVisible,celestial?.visible?1:0);
+        gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
       }
       frame=requestAnimationFrame(render);
     };
     const redraw=()=>{
-      resize();
-      if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){gl.viewport(0,0,canvas.width,canvas.height);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);gl.useProgram(starProgram);gl.bindBuffer(gl.ARRAY_BUFFER,starBuffer);gl.enableVertexAttribArray(starPosition);gl.vertexAttribPointer(starPosition,4,gl.FLOAT,false,0,0);gl.uniform1f(starTime,0);gl.uniform1f(starAspect,canvas.width/canvas.height);gl.drawArrays(gl.POINTS,0,starCount);gl.useProgram(sphereProgram);gl.bindBuffer(gl.ARRAY_BUFFER,quad);gl.enableVertexAttribArray(quadPosition);gl.vertexAttribPointer(quadPosition,2,gl.FLOAT,false,0,0);gl.uniform2f(sphereResolution,canvas.width,canvas.height);gl.uniform1f(sphereTime,0);gl.drawArrays(gl.TRIANGLE_STRIP,0,4)}
-      else if(!frame)frame=requestAnimationFrame(render);
+      resize();alignmentDirty=true;
+      if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+        gl.viewport(0,0,canvas.width,canvas.height);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.useProgram(starProgram);gl.bindBuffer(gl.ARRAY_BUFFER,starBuffer);gl.enableVertexAttribArray(starPosition);gl.vertexAttribPointer(starPosition,4,gl.FLOAT,false,0,0);gl.uniform1f(starTime,0);gl.uniform1f(starAspect,canvas.width/canvas.height);gl.drawArrays(gl.POINTS,0,starCount);
+        const celestial=readAlignment(0);
+        gl.useProgram(sphereProgram);gl.bindBuffer(gl.ARRAY_BUFFER,quad);gl.enableVertexAttribArray(quadPosition);gl.vertexAttribPointer(quadPosition,2,gl.FLOAT,false,0,0);gl.uniform2f(sphereResolution,canvas.width,canvas.height);gl.uniform1f(sphereTime,0);
+        gl.uniform2f(sphereSun,celestial?.sun?.[0]||0,celestial?.sun?.[1]||0);gl.uniform2f(sphereMoon,celestial?.moon?.[0]||0,celestial?.moon?.[1]||0);
+        gl.uniform1f(sphereSunRadius,celestial?.sunRadius||.066);gl.uniform1f(sphereMoonRadius,celestial?.moonRadius||.046);gl.uniform1f(sphereVisible,celestial?.visible?1:0);gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+      }else if(!frame)frame=requestAnimationFrame(render);
     };
     window.addEventListener('resize',redraw,{passive:true});
     document.addEventListener('visibilitychange',()=>{if(!document.hidden)redraw();else{cancelAnimationFrame(frame);frame=0}});
@@ -143,7 +191,7 @@ def patch_stars(source: str) -> str:
     return source
 
 def launch_styles() -> str:
-    return r"""<style id="bpWelcomeGateStylesV6250">
+    return r"""<style id="bpWelcomeGateStylesV6251">
 #bpWelcomeGateV1{pointer-events:auto!important;background:radial-gradient(ellipse at 50% 50%,rgba(2,8,18,.015),rgba(0,2,7,.14) 72%,rgba(0,1,5,.30))!important}
 html.bpw-entry-locked #previewMap{background:#00030a!important}
 html.bpw-entry-locked #previewMap canvas{filter:contrast(1.17) saturate(1.10) brightness(1.025)}
@@ -214,7 +262,7 @@ def patch_root_html(source: str) -> str:
     )
     near_anchor = '    <div class="bpw-starfield bpw-stars-near" id="bpwStarsNearV4" aria-hidden="true"></div>\n'
     celestial = near_anchor + """    <div class="bpw-celestial-system" aria-hidden="true">
-      <canvas class="bpw-celestial-canvas" id="bpwCelestialCanvasV6250"></canvas>
+      <canvas class="bpw-celestial-canvas" id="bpwCelestialCanvasV6251"></canvas>
     </div>
 """
     source = replace_once(source, near_anchor, celestial, "insert Moon and Sun models")
@@ -369,11 +417,11 @@ def patch_site(site: Path) -> None:
             'class="bpw-wordmark bpw-wordmark-static"',
             ">INTELLIGENCE</span></div>",
             "bpw-celestial-system",
-            "bpwCelestialCanvasV6250",
+            "bpwCelestialCanvasV6251",
             "bpw-wordmark-main",
             "const starCount=2200",
             "vec3 lunar=mix",
-            "bpWelcomeGateStylesV6250",
+            "bpWelcomeGateStylesV6251",
             'data-mode="signup"',
             'data-mode="signin"',
         ],
@@ -384,7 +432,7 @@ def patch_site(site: Path) -> None:
         ],
         "landing bundle": [SW_URL],
         "app bundle": [SW_URL],
-        "service worker": ["const V='" + CACHE_NAME + "';", "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6250-deep-space-3d'"],
+        "service worker": ["const V='" + CACHE_NAME + "';", "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6251-solar-aligned-celestial'"],
         "legacy app index": ['content="0;url=/"', "location.replace('/')", "sw.js?v=6250-deep-space-3d"],
     }
     for label, markers in checks.items():
@@ -401,7 +449,7 @@ def patch_site(site: Path) -> None:
         raise AssertionError("The current installed-app identity changed")
     if legacy_manifest.get("id") != "/app/intelligence-launch/":
         raise AssertionError("The legacy installed-app identity changed")
-    print("BRIDGEPOINT_LAUNCH_EXPERIENCE_V6250_PATCH_PASS")
+    print("BRIDGEPOINT_LAUNCH_EXPERIENCE_V6251_PATCH_PASS")
     print("Website, current PWA and legacy PWA all route to the same root globe gate.")
     print("Only the launch HTML, app-entry handoff, PWA entry URLs and worker update marker are changed.")
     print("Existing offline cache key and authentication/session logic are preserved.")
