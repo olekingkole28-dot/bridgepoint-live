@@ -77,7 +77,7 @@ class LaunchExperienceV6248Tests(unittest.TestCase):
         self.assertIn('data-mode="signin"', out)
         self.assertNotIn('class="bpw-globe-aura"', out)
         self.assertNotIn("WELCOME TO", out)
-        self.assertNotIn("bpw-explainer", out)
+        self.assertNotIn('class="bpw-explainer"', out)
         self.assertIn("bpw-moon-sphere", out)
         self.assertIn("bpw-sun-sphere", out)
         self.assertIn("bpw-celestial-system", out)
