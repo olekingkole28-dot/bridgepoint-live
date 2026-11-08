@@ -234,6 +234,8 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
             "sunGroup.visible=false",
             "stars.visible=false",
             "haze.visible=false",
+            "namedStarPoints.visible=false",
+            "constellationLinesMesh.visible=false",
             "if(viewState!=='moon')",
             "function buildHighResolutionPatch()",
             "globalHeightResolution",
