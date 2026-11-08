@@ -144,24 +144,31 @@ jobs:
           set -euo pipefail
           O='https://bridgepointintelligence.online'
           ok=0
-          for i in $(seq 1 30); do
-            q="${GITHUB_SHA}-${i}-$(date +%s)"
-            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/?launch-v6251=${q}" -o /tmp/live-root.html || true
-            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/?launch-v6251=${q}" -o /tmp/live-app.html || true
-            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/intelligence-launch/?launch-v6251=${q}" -o /tmp/live-legacy-app.html || true
-            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/landing.js?launch-v6251=${q}" -o /tmp/live-landing.js || true
-            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app.js?launch-v6251=${q}" -o /tmp/live-app.js || true
-            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/sw.js?launch-v6251=${q}" -o /tmp/live-sw.js || true
-            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/manifest.webmanifest?launch-v6251=${q}" -o /tmp/live-manifest.json || true
-            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/intelligence-launch/manifest.webmanifest?launch-v6251=${q}" -o /tmp/live-legacy-manifest.json || true
+          fetch_live() {
+            local path="$1" output="$2"
+            curl --connect-timeout 3 --max-time 8 --retry 1 --retry-connrefused --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "\${O}\${path}?launch-v6251=\${q}" -o "$output" || true
+          }
+          for i in $(seq 1 20); do
+            q="\${GITHUB_SHA}-\${i}-$(date +%s)"
+            rm -f /tmp/live-root.html /tmp/live-app.html /tmp/live-legacy-app.html /tmp/live-landing.js /tmp/live-app.js /tmp/live-sw.js /tmp/live-manifest.json /tmp/live-legacy-manifest.json
+            fetch_live "/" /tmp/live-root.html & p1=$!
+            fetch_live "/app/" /tmp/live-app.html & p2=$!
+            fetch_live "/app/intelligence-launch/" /tmp/live-legacy-app.html & p3=$!
+            fetch_live "/landing.js" /tmp/live-landing.js & p4=$!
+            fetch_live "/app.js" /tmp/live-app.js & p5=$!
+            fetch_live "/sw.js" /tmp/live-sw.js & p6=$!
+            fetch_live "/manifest.webmanifest" /tmp/live-manifest.json & p7=$!
+            fetch_live "/app/intelligence-launch/manifest.webmanifest" /tmp/live-legacy-manifest.json & p8=$!
+            wait "$p1" || true; wait "$p2" || true; wait "$p3" || true; wait "$p4" || true
+            wait "$p5" || true; wait "$p6" || true; wait "$p7" || true; wait "$p8" || true
             if grep -Fq 'bpWelcomeGateStylesV6251' /tmp/live-root.html 2>/dev/null &&
                grep -Fq 'INTELLIGENCE</span></div>' /tmp/live-root.html 2>/dev/null &&
-               grep -Fq 'bpw-celestial-system' /tmp/live-root.html 2>/dev/null &&
                grep -Fq 'bpwCelestialCanvasV6251' /tmp/live-root.html 2>/dev/null &&
                grep -Fq 'function celestialAlignment(width,height)' /tmp/live-root.html 2>/dev/null &&
                grep -Fq '__BP_CELESTIAL_ALIGNMENT_V6251__' /tmp/live-root.html 2>/dev/null &&
-               grep -Fq 'bpw-wordmark-main' /tmp/live-root.html 2>/dev/null &&
-               grep -Fq "const starCount=2200" /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'flareReach=1.16' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'craterRelief(uv,rim,shadow)' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'now-lastAlignment<110' /tmp/live-root.html 2>/dev/null &&
                grep -Fq '/?return=' /tmp/live-app.html 2>/dev/null &&
                ! grep -Fq '/?auth=signin&return=' /tmp/live-app.html 2>/dev/null &&
                grep -Fq 'content="0;url=/"' /tmp/live-legacy-app.html 2>/dev/null &&
@@ -174,7 +181,7 @@ jobs:
               ok=1
               break
             fi
-            sleep 4
+            sleep 3
           done
           test "$ok" -eq 1
-          echo 'LIVE V6251 PASS: canonical website/PWA gate, legacy-app redirect, two account buttons, two-line futuristic title, deep starfield, 3D Moon and Sun are published.'
+          echo 'LIVE V6251 PASS: Earth-aligned Sun, night-side Moon, solar flares, cratered lunar surface, and canonical website/PWA entry points verified.'
