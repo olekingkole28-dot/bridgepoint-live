@@ -5,7 +5,7 @@ import re
 import sys
 from pathlib import Path
 
-BUILD = "v6258-local-moon-terrain"
+BUILD = "v6259-moon-surface-explorer"
 # Moon terrain assets are bundled locally under assets/moon/v1; runtime requests stay same-origin.
 SW_URL = "/sw.js?v=6258-local-moon-terrain"
 CACHE_NAME = "bp-intelligence-v6247-universal-fresh-entry-sidewalk"
@@ -369,7 +369,7 @@ def patch_site(site: Path) -> None:
         ],
         "landing bundle": [SW_URL, "bridgepoint-celestial-sky-v6257.js?v=6257"],
         "app bundle": [SW_URL, "bridgepoint-celestial-sky-v6257.js?v=6257"],
-        "service worker": ["const V='" + CACHE_NAME + "';", "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6258-local-moon-terrain'", "entryRoute", "clients.claim()"],
+        "service worker": ["const V='" + CACHE_NAME + "';", "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6259-moon-surface-explorer'", "entryRoute", "clients.claim()"],
         "welcome space module": ["new THREE.Raycaster()", "logarithmicDepthBuffer: true", "MOON_PERIOD_DAYS = 27.321661", "data-space-reset", "uTime"],
         "celestial sky module": ["apparentAngularRadiusPx", "bp6257-sun-surface", "initBridgePointCelestialSky"],
         "legacy app index": ['content="0;url=/"', "location.replace('/')", "sw.js?v=6258-local-moon-terrain"],
