@@ -119,7 +119,7 @@ jobs:
           grep -Fq 'const phase=Date.now()*.000023,spinPhase=Date.now()*.000075' site/index.html
           grep -Fq 'sunPX=w*.5+alignment.sun[0]*unit' site/index.html
           grep -Fq 'const portraitSlots=[[-.64,1.05],[.64,1.05],[-1.07,.55],[1.03,.56],[-.78,-.93],[0,-1.32],[.78,-.93]]' site/index.html
-          grep -Fq 'planetEarthRadius=gl.getUniformLocation(planetProgram,\'u_earthR\')' site/index.html
+          grep -Fq "planetEarthRadius=gl.getUniformLocation(planetProgram,'u_earthR')" site/index.html
           grep -Fq 'u_earthR>0.0&&length(p-u_earthC)<u_earthR*1.008' site/index.html
           grep -Fq 'float fresnel=pow(1.0-max(n.z,0.0),2.2)' site/index.html
           grep -Fq 'moonCenter=[earthC[0]+earthR*.14+Math.cos(moonPhase)*earthR*.42' site/index.html
