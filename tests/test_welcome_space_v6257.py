@@ -97,7 +97,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
     def test_root_uses_one_existing_earth_and_no_ground_sky_button(self):
         out = patch_root_html(root_fixture())
         self.assertIn("bpWelcomeGateStylesV6257", out)
-        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6260-moon-focus-isolated"', out)
+        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6262-moon-in-place-terrain"', out)
         self.assertIn('class="bpw-celestial-system" aria-hidden="true"></div>', out)
         self.assertNotIn("bpwCelestialCanvasV6257", out)
         self.assertNotIn('class="bpw-globe-aura"', out)
@@ -113,8 +113,8 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
         app = patch_app_index(app_index_fixture())
         self.assertEqual(app.count("/?return="), 2)
         self.assertNotIn("/?auth=signin&return=", app)
-        self.assertIn("app.js?v=6260-moon-focus-isolated", app)
-        self.assertIn("manifest.webmanifest?v=6260-moon-focus-isolated", app)
+        self.assertIn("app.js?v=6262-moon-in-place-terrain", app)
+        self.assertIn("manifest.webmanifest?v=6262-moon-in-place-terrain", app)
         legacy = patch_legacy_app(legacy_fixture())
         self.assertIn('content="0;url=/"', legacy)
         self.assertIn("location.replace('/')", legacy)
@@ -227,16 +227,13 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
             "function buildGlobalTerrain()",
             "new THREE.SphereGeometry(base, globalWidthSegments, globalHeightSegments)",
             "globalTerrainMeshResolution",
-            "function enterMoonExploration()",
-            "function exitMoonExploration()",
-            "moonPivot.position.set(0,0,0)",
-            "moonMesh.position.set(0,0,0)",
-            "scene.background=new THREE.Color(0x02040a)",
-            "sunGroup.visible=false",
-            "stars.visible=false",
-            "haze.visible=false",
-            "namedStarPoints.visible=false",
-            "constellationLinesMesh.visible=false",
+            "function moonSurfacePoint(lat, lon, elevationMeters = 0)",
+            "function refreshGlobalDetailPatch(centerLat, centerLon, force = false)",
+            "globalDetailPatch",
+            "moonPivot.visible=true;sunGroup.visible=true;stars.visible=true;haze.visible=true;",
+            "animateCamera(surface.clone().addScaledVector(surfaceNormal,0.14),surface,1.55);",
+            "tiltMoonCamera(dy);",
+            "panMoonSurface(dx,0);",
             "if(viewState!=='moon')",
             "function buildHighResolutionPatch()",
             "globalHeightResolution",
@@ -291,7 +288,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
         workflow = (ROOT / ".github" / "workflows" / "deploy-intelligence-rebuild-v5000.yml").read_text()
         self.assertIn('class="bpw-celestial-system"', index)
         helper = (ROOT / "recovery" / "apply_welcome_space_v6257.py").read_text()
-        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6260-moon-focus-isolated"', helper)
+        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6262-moon-in-place-terrain"', helper)
         publish_workflow = (ROOT / ".github" / "workflows" / "publish-welcome-space-v6257.yml").read_text()
         self.assertIn("cp recovery/bridgepoint-welcome-space-v6260.js site/bridgepoint-welcome-space-v6260.js", publish_workflow)
         self.assertIn("cp -a assets/moon/v1 site/assets/moon/v1", workflow)
@@ -343,7 +340,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
             after = {p.relative_to(site).as_posix() for p in site.rglob("*") if p.is_file()}
             self.assertEqual(after - before, set())
             root = (site / "index.html").read_text()
-            self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6260-moon-focus-isolated"', root)
+            self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6262-moon-in-place-terrain"', root)
             self.assertIn("event.persisted", root)
             self.assertIn("location.reload()", root)
             self.assertNotIn("data-space-ground", root)
