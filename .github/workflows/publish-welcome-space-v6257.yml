@@ -102,7 +102,7 @@ jobs:
           assert info.get('size') == [46080, 15360], info.get('size')
           label=Path('/tmp/sldem2015-128ppd.lbl').read_text(errors='replace')
           def field(name):
-              m=re.search(r'^\\s*'+re.escape(name)+r'\\s*=\\s*([-+]?\\d+(?:\\.\\d*)?)',label,re.M|re.I)
+              m=re.search(r'^\s*'+re.escape(name)+r'\s*=\s*([-+]?\d+(?:\.\d*)?)',label,re.M|re.I)
               return float(m.group(1)) if m else None
           resolution=field('MAP_RESOLUTION')
           scale=field('SCALING_FACTOR')
