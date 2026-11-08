@@ -231,7 +231,10 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
             "function refreshGlobalDetailPatch(centerLat, centerLon, force = false)",            "colors = new Float32Array(vertexCount * 4)",
             "THREE.MathUtils.smoothstep(edgeDistance, 0.0, 0.035)",
             "THREE.MathUtils.smoothstep(edgeDistance, 0.0, 0.055)",
-            "vertexColors: true",
+            "createMoonPatchMaterial()",
+            "uniforms: moonMaterial.uniforms",
+            "vAlpha=color.a",
+            "gl_FragColor=vec4(color,vAlpha);"
             "depthWrite: false, transparent: true",
             "dFdx(relief)",
             "dFdy(relief)",
@@ -321,7 +324,9 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
         self.assertNotIn("uTerrainMask", module)
         self.assertNotIn("uGlobalDetailMask", module)
         self.assertNotIn("discard;", module)
-        self.assertIn("vertexColors: true", module)
+        self.assertIn("createMoonPatchMaterial()", module)
+        self.assertIn("uniforms: moonMaterial.uniforms", module)
+        self.assertIn("vAlpha=color.a", module)
         self.assertIn("depthWrite: false, transparent: true", module)
         self.assertIn("THREE.MathUtils.smoothstep(edgeDistance, 0.0, 0.035)", module)
         self.assertIn("THREE.MathUtils.smoothstep(edgeDistance, 0.0, 0.055)", module)
