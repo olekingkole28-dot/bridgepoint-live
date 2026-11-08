@@ -1,5 +1,5 @@
 /**
- * BridgePoint Intelligence — Welcome Space Scene v6260
+ * BridgePoint Intelligence — Welcome Space Scene v6262
  * A self-contained Three.js celestial scene for the welcome gate.
  *
  * Scale policy:
@@ -16,7 +16,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
 
 (() => {
   'use strict';
-  const VERSION = 'v6260';
+  const VERSION = 'v6262';
   if (window.__BP_WELCOME_SPACE_V6257__) return;
   window.__BP_WELCOME_SPACE_V6257__ = true;
 
@@ -35,6 +35,18 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   const MOON_PERIOD_DAYS = 27.321661;
   const SIDEREAL_DAY_SECONDS = 86164.0905;
   const nowSeconds = () => performance.now() * 0.001;
+  function moonSurfacePoint(lat, lon, elevationMeters = 0) {
+    const latitude = THREE.MathUtils.degToRad(THREE.MathUtils.clamp(lat, -90, 90));
+    const longitude = THREE.MathUtils.degToRad(lon);
+    const cosLatitude = Math.cos(latitude);
+    const radius = MOON_RADIUS_KM / EARTH_RADIUS_KM
+      + (Number(elevationMeters) || 0) / (1000 * EARTH_RADIUS_KM);
+    return new THREE.Vector3(
+      -Math.sin(longitude) * cosLatitude * radius,
+      Math.sin(latitude) * radius,
+      Math.cos(longitude) * cosLatitude * radius
+    );
+  }
 
   const canvas = document.createElement('canvas');
   canvas.id = 'bpWelcomeSpaceCanvasV6257';
@@ -114,7 +126,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   scene.add(moonPivot);
   const moonGeometry = new THREE.SphereGeometry(MOON_RADIUS_KM / EARTH_RADIUS_KM, mobile ? 96 : 144, mobile ? 64 : 96);
   const moonMaterial = new THREE.ShaderMaterial({
-    uniforms: { uTime: { value: 0 }, uSunDir: { value: new THREE.Vector3(0.55, 0.38, 0.74).normalize() }, uBaseTexture: { value: null }, uBaseTextureReady: { value: 0 }, uTerrainMask: { value: null }, uTerrainUvRect: { value: new THREE.Vector4(0,0,0,0) }, uTerrainActive: { value: 0 } },
+    uniforms: { uTime: { value: 0 }, uSunDir: { value: new THREE.Vector3(0.55, 0.38, 0.74).normalize() }, uBaseTexture: { value: null }, uBaseTextureReady: { value: 0 }, uTerrainMask: { value: null }, uTerrainUvRect: { value: new THREE.Vector4(0,0,0,0) }, uTerrainActive: { value: 0 }, uGlobalDetailMask: { value: null }, uGlobalDetailUvRect: { value: new THREE.Vector4(0,0,0,0) }, uGlobalDetailActive: { value: 0 } },
     vertexShader: `
       #include <common>
       #include <logdepthbuf_pars_vertex>
@@ -126,7 +138,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     fragmentShader: `
       #include <common>
       #include <logdepthbuf_pars_fragment>
-      precision highp float; varying vec3 vNormal; varying vec3 vPos; varying vec2 vUv; uniform float uTime; uniform vec3 uSunDir; uniform sampler2D uBaseTexture; uniform float uBaseTextureReady; uniform sampler2D uTerrainMask; uniform vec4 uTerrainUvRect; uniform float uTerrainActive;
+      precision highp float; varying vec3 vNormal; varying vec3 vPos; varying vec2 vUv; uniform float uTime; uniform vec3 uSunDir; uniform sampler2D uBaseTexture; uniform float uBaseTextureReady; uniform sampler2D uTerrainMask; uniform vec4 uTerrainUvRect; uniform float uTerrainActive; uniform sampler2D uGlobalDetailMask; uniform vec4 uGlobalDetailUvRect; uniform float uGlobalDetailActive;
       float hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
       float noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
         float a=hash(i),b=hash(i+vec3(1,0,0)),c=hash(i+vec3(0,1,0)),d=hash(i+vec3(1,1,0));
@@ -141,7 +153,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
           bowl=max(bowl,inside*.46-rim*.14);
         }return bowl;}
       void main(){
-        vec3 p=normalize(vPos);vec2 bodyUV=vec2(atan(-p.x,p.z)/6.28318530718+.5,.5+asin(clamp(p.y,-1.0,1.0))/3.14159265359);if(uTerrainActive>.5){vec2 patchUV=(bodyUV-uTerrainUvRect.xy)/uTerrainUvRect.zw;if(all(greaterThanEqual(patchUV,vec2(0.0)))&&all(lessThanEqual(patchUV,vec2(1.0)))){if(texture2D(uTerrainMask,patchUV).a>.5)discard;}}float maria=fbm(p*5.1+vec3(5,2,1));
+        vec3 p=normalize(vPos);vec2 bodyUV=vec2(atan(-p.x,p.z)/6.28318530718+.5,.5+asin(clamp(p.y,-1.0,1.0))/3.14159265359);if(uTerrainActive>.5){vec2 patchUV=(bodyUV-uTerrainUvRect.xy)/uTerrainUvRect.zw;if(all(greaterThanEqual(patchUV,vec2(0.0)))&&all(lessThanEqual(patchUV,vec2(1.0)))){if(texture2D(uTerrainMask,patchUV).a>.5)discard;}}if(uGlobalDetailActive>.5){vec2 detailUV=(bodyUV-uGlobalDetailUvRect.xy)/uGlobalDetailUvRect.zw;if(all(greaterThanEqual(detailUV,vec2(0.0)))&&all(lessThanEqual(detailUV,vec2(1.0)))){if(texture2D(uGlobalDetailMask,detailUV).a>.5)discard;}}float maria=fbm(p*5.1+vec3(5,2,1));
         float high=fbm(p*24.0);float small=fbm(p*88.0);float micro=fbm(p*176.0);
         float cr=crater(p,19.0)+crater(p,46.0)*.58;
         float relief=high*.16+small*.08+micro*.035-cr;
@@ -292,7 +304,6 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   const clickables=[moonMesh,sunMesh];
   let viewState='overview',focusedObject=null;
   let focusLocalTarget=null,moonTerrainController=null;
-  let moonIsolationActive=false;
 
 // Lunar elevation and color are served only from BridgePoint static assets.
 // Source products were materialized locally; the browser never requests NASA/Moon Trek tiles.
@@ -302,6 +313,8 @@ function createMoonTerrainController() {
   const mobile = matchMedia('(max-width: 700px)').matches || (navigator.deviceMemory || 4) <= 3;
   let active = false, assetsPromise = null, globalData = null, patchData = null;
   let colorTexture = null, patchMesh = null, maskTexture = null;
+  let globalDetailPatchMesh = null, globalDetailMaskTexture = null, globalDetailMaterial = null;
+  let globalDetailBounds = null;
   let labelData = null, preparedLabels = [], labelSprites = new Map(), lastLabelRefreshAt = 0;
   const state = {
     version: 2,
@@ -640,7 +653,7 @@ function createMoonTerrainController() {
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
-    geometry.setIndex(indices);
+    geometry.setIndex(new THREE.BufferAttribute(indices, 1));
     geometry.computeVertexNormals();
     geometry.computeBoundingSphere();
     const material = new THREE.MeshStandardMaterial({
@@ -675,6 +688,89 @@ function createMoonTerrainController() {
     );
     patchMesh.visible = active;
     moonMaterial.uniforms.uTerrainActive.value = active ? 1 : 0;
+  }
+  function refreshGlobalDetailPatch(centerLat, centerLon, force = false) {
+    if (!active || !globalData || !colorTexture) return;
+    const latitudeCenter = THREE.MathUtils.clamp(centerLat, -84.5, 84.5);
+    const longitudeCenter = THREE.MathUtils.clamp(centerLon, -174.5, 174.5);
+    if (globalDetailBounds && !force
+      && Math.abs(latitudeCenter - globalDetailBounds.centerLat) < 3.5
+      && Math.abs(longitudeCenter - globalDetailBounds.centerLon) < 3.5) return;
+    const halfSpan = 5.5;
+    const west = longitudeCenter - halfSpan, east = longitudeCenter + halfSpan;
+    const south = Math.max(-90, latitudeCenter - halfSpan);
+    const north = Math.min(90, latitudeCenter + halfSpan);
+    const widthSegments = Math.max(16, Math.round((east - west) * 16));
+    const heightSegments = Math.max(16, Math.round((north - south) * 16));
+    const rowWidth = widthSegments + 1;
+    const vertexCount = rowWidth * (heightSegments + 1);
+    const positions = new Float32Array(vertexCount * 3);
+    const uvs = new Float32Array(vertexCount * 2);
+    const indices = new Uint32Array(widthSegments * heightSegments * 6);
+    let indexOffset = 0;
+    for (let y = 0; y <= heightSegments; y++) {
+      const v = y / heightSegments;
+      const lat = north - v * (north - south);
+      for (let x = 0; x <= widthSegments; x++) {
+        const u = x / widthSegments;
+        const lon = west + u * (east - west);
+        const point = moonSurfacePoint(lat, lon, globalElevation(lat, lon));
+        const vertex = y * rowWidth + x, p = vertex * 3, uv = vertex * 2;
+        positions[p] = point.x; positions[p+1] = point.y; positions[p+2] = point.z;
+        uvs[uv] = (lon + 180) / 360;
+        uvs[uv+1] = 0.5 + lat / 180;
+        if (x < widthSegments && y < heightSegments) {
+          const cellLat = north - (y + 0.5) / heightSegments * (north - south);
+          const cellLon = west + (x + 0.5) / widthSegments * (east - west);
+          const insideApolloPatch = cellLon >= PATCH.west && cellLon <= PATCH.east
+            && cellLat >= PATCH.south && cellLat <= PATCH.north;
+          if (!insideApolloPatch) {
+            const a = vertex, b = a + 1, d = a + rowWidth, c = d + 1;
+            indices[indexOffset++] = a; indices[indexOffset++] = b; indices[indexOffset++] = d;
+            indices[indexOffset++] = b; indices[indexOffset++] = c; indices[indexOffset++] = d;
+          }
+        }
+      }
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+    geometry.setIndex(new THREE.BufferAttribute(indices.subarray(0, indexOffset), 1));
+    geometry.computeVertexNormals();
+    geometry.computeBoundingSphere();
+    if (!globalDetailMaterial) globalDetailMaterial = new THREE.MeshStandardMaterial({
+      map: colorTexture, roughness: 1, metalness: 0, side: THREE.DoubleSide,
+      depthTest: true, depthWrite: true, transparent: false,
+      polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1
+    });
+    if (!globalDetailPatchMesh) {
+      globalDetailPatchMesh = new THREE.Mesh(geometry, globalDetailMaterial);
+      globalDetailPatchMesh.name = 'BridgePoint camera-centered global LOLA 16ppd terrain patch';
+      globalDetailPatchMesh.frustumCulled = false;
+      globalDetailPatchMesh.renderOrder = 3;
+      moonMesh.add(globalDetailPatchMesh);
+    } else {
+      const previous = globalDetailPatchMesh.geometry;
+      globalDetailPatchMesh.geometry = geometry;
+      previous.dispose();
+    }
+    if (!globalDetailMaskTexture) {
+      globalDetailMaskTexture = new THREE.DataTexture(new Uint8Array([255,255,255,255]), 1, 1, THREE.RGBAFormat, THREE.UnsignedByteType);
+      globalDetailMaskTexture.minFilter = THREE.NearestFilter;
+      globalDetailMaskTexture.magFilter = THREE.NearestFilter;
+      globalDetailMaskTexture.generateMipmaps = false;
+      globalDetailMaskTexture.flipY = false;
+      globalDetailMaskTexture.needsUpdate = true;
+    }
+    const uMin = (west + 180) / 360;
+    const vMin = 0.5 + south / 180;
+    moonMaterial.uniforms.uGlobalDetailMask.value = globalDetailMaskTexture;
+    moonMaterial.uniforms.uGlobalDetailUvRect.value.set(uMin, vMin, (east-west)/360, (north-south)/180);
+    moonMaterial.uniforms.uGlobalDetailActive.value = active ? 1 : 0;
+    globalDetailPatchMesh.visible = active;
+    globalDetailBounds = { west, east, south, north, centerLat: latitudeCenter, centerLon: longitudeCenter };
+    state.globalDetailPatch = { source: 'BridgePoint-hosted NASA LRO LOLA global 16ppd', resolutionPixelsPerDegree: 16, meshVertices: vertexCount, bounds: globalDetailBounds };
+    state.updatedAt = Date.now();
   }
   async function loadLocalAssets() {
     if (assetsPromise) return assetsPromise;
@@ -735,8 +831,10 @@ function createMoonTerrainController() {
   function setActive(value) {
     active = !!value;
     if (patchMesh) patchMesh.visible = active;
+    if (globalDetailPatchMesh) globalDetailPatchMesh.visible = active;
     labelsGroup.visible = active;
     moonMaterial.uniforms.uTerrainActive.value = active && maskTexture ? 1 : 0;
+    moonMaterial.uniforms.uGlobalDetailActive.value = active && globalDetailPatchMesh ? 1 : 0;
     if (active) refreshLabels(true);
     commitState(active ? (patchMesh ? 'ready' : 'loading') : 'inactive');
   }
@@ -749,6 +847,7 @@ function createMoonTerrainController() {
     const local = moonMesh.worldToLocal(worldPosition.clone()).normalize();
     const lat = THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(local.y, -1, 1)));
     const lon = THREE.MathUtils.radToDeg(Math.atan2(-local.x, local.z));
+    refreshGlobalDetailPatch(lat, lon);
     return Promise.resolve(focusResult(lat, lon));
   }
   window.__BP_MOON_TERRAIN_V1__ = state;
@@ -758,6 +857,7 @@ function createMoonTerrainController() {
       try {
         await loadLocalAssets();
         setActive(true);
+        refreshGlobalDetailPatch(lat, lon, true);
         return focusResult(lat, lon);
       } catch (_) {
         return { lat, lon, elevationMeters: null, focusPointLocal: moonSurfacePoint(lat, lon, 0) };
@@ -786,40 +886,12 @@ function createMoonTerrainController() {
     sunPosition.copy(aspect<.72?new THREE.Vector3(2.05,4.6,3.4):aspect<1?new THREE.Vector3(2.8,4.9,4.0):new THREE.Vector3(4.0,5.1,4.5));
     sunGroup.position.copy(sunPosition);sunLight.position.copy(sunPosition);
   }
-  function enterMoonExploration(){
-    if(moonIsolationActive)return;
-    // Rebase the Moon's current orbital transform to the scene origin, then freeze it.
-    moonPivot.position.set(0,0,0);
-    moonMesh.position.set(0,0,0);
-    moonPivot.updateMatrixWorld(true);
-    moonMesh.updateMatrixWorld(true);
-    moonIsolationActive=true;
-    scene.background=new THREE.Color(0x02040a);
-    sunGroup.visible=false;
-    stars.visible=false;
-    namedStarPoints.visible=false;
-    constellationLinesMesh.visible=false;
-    haze.visible=false;
-  }
-  function exitMoonExploration(){
-    if(!moonIsolationActive)return;
-    moonPivot.position.set(0,0,0);
-    moonMesh.position.set(0,0,0);
-    moonIsolationActive=false;
-    scene.background=null;
-    sunGroup.visible=true;
-    stars.visible=true;
-    namedStarPoints.visible=true;
-    constellationLinesMesh.visible=true;
-    haze.visible=true;
-  }
   function focusBody(body){
     const focused=body==='moon'?moonMesh:body==='sun'?sunMesh:null;
     if(!focused)return;
-    if(body==='moon')enterMoonExploration();else exitMoonExploration();
     focusedObject=focused;viewState=body;camera.up.set(0,1,0);
     if(body!=='moon'){focusLocalTarget=null;moonTerrainController?.setActive(false);camera.near=0.001;}else{camera.near=0.00000005;}
-    moonPivot.visible=true;
+    moonPivot.visible=true;sunGroup.visible=true;stars.visible=true;haze.visible=true;
     moonMesh.scale.setScalar(1);sunMesh.scale.setScalar(1);
     const world=focused===sunMesh?sunGroup.getWorldPosition(new THREE.Vector3()):focused.getWorldPosition(new THREE.Vector3());
     if(body==='moon'){
@@ -846,7 +918,6 @@ function createMoonTerrainController() {
     }
   }
   function resetView(){
-    exitMoonExploration();
     focusedObject=null;focusLocalTarget=null;viewState='overview';moonTerrainController?.setActive(false);camera.near=0.001;camera.up.set(0,1,0);camera.fov=48;camera.updateProjectionMatrix();
     moonMesh.scale.setScalar(1);sunMesh.scale.setScalar(1);
     moonPivot.visible=true;sunGroup.visible=true;stars.visible=true;haze.visible=true;
@@ -951,18 +1022,10 @@ function createMoonTerrainController() {
     enforceMoonCameraClearance();
     camera.lookAt(target);
   }
-  function rotateMoonBy(dx,dy,twist=0){
-    if(viewState!=='moon')return;
-    moonMesh.updateMatrixWorld(true);
-    const inverseMoon=moonMesh.getWorldQuaternion(new THREE.Quaternion()).invert();
-    const cameraRight=new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion).applyQuaternion(inverseMoon).normalize();
-    const cameraUp=new THREE.Vector3(0,1,0).applyQuaternion(camera.quaternion).applyQuaternion(inverseMoon).normalize();
-    const cameraForward=new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).applyQuaternion(inverseMoon).normalize();
-    const yaw=new THREE.Quaternion().setFromAxisAngle(cameraUp,-dx*.0042);
-    const pitch=new THREE.Quaternion().setFromAxisAngle(cameraRight,-dy*.0042);
-    const roll=new THREE.Quaternion().setFromAxisAngle(cameraForward,twist);
-    moonUserRotation.multiply(yaw).multiply(pitch).multiply(roll).normalize();
-    enforceMoonCameraClearance();
+  function rotateMoonBy(dx,dy){
+    // Compatibility path: gestures adjust the lunar camera, never the Moon body.
+    rotateMoonViewYaw(dx);
+    tiltMoonCamera(dy);
   }
   function moonCameraTiltRadians(){
     if(viewState!=='moon'||!focusLocalTarget)return 0;
@@ -1009,7 +1072,7 @@ function createMoonTerrainController() {
     camera.lookAt(target);
   }
   function refreshLunarTerrainFromView(){
-    if(viewState!=='moon'||!moonTerrainController)return;
+    if(viewState!=='moon'||!moonTerrainController||!focusLocalTarget)return;
     // Keep the active terrain/focal point under the view center. Using the
     // camera's radial direction here would snap an oblique two-finger tilt
     // back to a straight-down view after each gesture.
@@ -1059,17 +1122,11 @@ function createMoonTerrainController() {
       if(viewState==='moon'&&gestureCenter){
         const dx=gesture.center.x-gestureCenter.x;
         const dy=gesture.center.y-gestureCenter.y;
-        let twist=gesture.angle-gestureAngle;
-        if(twist>Math.PI)twist-=Math.PI*2;
-        if(twist<-Math.PI)twist+=Math.PI*2;
-        // Two-finger vertical drag first pitches into the lunar horizon. Once
-        // in a surface-facing view, the same gesture pans along the terrain.
-        if(moonCameraTiltRadians()<THREE.MathUtils.degToRad(52)){
-          panMoonSurface(dx,0);
-          tiltMoonCamera(dy);
-        }else{
-          panMoonSurface(dx,dy);
-        }
+        // Horizontal two-finger translation pans across the Moon.
+        // Vertical translation continuously pitches the camera toward the terrain.
+        // Pinch distance below remains independent and controls zoom.
+        panMoonSurface(dx,0);
+        tiltMoonCamera(dy);
       }
       if(pinchDistance>0)zoomCameraBy(pinchDistance/gesture.distance);
       pinchDistance=gesture.distance;
@@ -1198,7 +1255,8 @@ function createMoonTerrainController() {
       radiiKm:{earth:EARTH_RADIUS_KM,moon:MOON_RADIUS_KM,sun:SUN_RADIUS_KM},
       cinematicOrbitDistanceScale:'responsive-compressed',
       lunarTerrain:window.__BP_MOON_TERRAIN_V1__||{status:'not-requested'},
-      lunarSurfaceNavigation:'two-finger-touch-pitch-and-pan; one-finger/mouse-left surface-pan; mouse-right/ctrl-drag pitch-and-yaw',
+      lunarSurfaceNavigation:'two-finger-vertical=continuous-camera-tilt; two-finger-horizontal=surface-pan; pinch=zoom; one-finger=surface-pan; reset=original-celestial-overview',
+      lunarFocusFrame:'shared-celestial-scene; Moon orbital position held while lunar camera is active',
       lunarLabelCount:window.__BP_MOON_TERRAIN_V1__?.labelCount||0,
       proceduralLunarRelief:'fallback-only-outside-loaded-NASA-DEM-coverage'})
   };
