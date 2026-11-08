@@ -194,12 +194,25 @@ def patch_stars(source: str) -> str:
     if(!starProgram||!galaxyProgram||!sphereProgram||!planetProgram){fallback();canvas.dataset.built='1';return}
     const starBuffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,starBuffer);gl.bufferData(gl.ARRAY_BUFFER,stars,gl.STATIC_DRAW);
     const starPosition=gl.getAttribLocation(starProgram,'a_pos');
-    const starTime=gl.getUniformLocation(starProgram,'u_time'),starAspect=gl.getUniformLocation(starProgram,'u_aspect');
+    const starTime=gl.getUniformLocation(starProgram,'u_time'),starAspect=gl.getUniformLocation(starProgram,'u_aspect'),starEarth=gl.getUniformLocation(starProgram,'u_earthC'),starEarthR=gl.getUniformLocation(starProgram,'u_earthR'),starAngle=gl.getUniformLocation(starProgram,'u_viewAngle');
     const quad=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,quad);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
-    const quadPosition=gl.getAttribLocation(sphereProgram,'a_pos');
+    const quadPosition=gl.getAttribLocation(sphereProgram,'a_pos'),galaxyPosition=gl.getAttribLocation(galaxyProgram,'a_pos'),planetPosition=gl.getAttribLocation(planetProgram,'a_pos');
+    const galaxyResolution=gl.getUniformLocation(galaxyProgram,'u_resolution'),galaxyEarth=gl.getUniformLocation(galaxyProgram,'u_earthC'),galaxyEarthR=gl.getUniformLocation(galaxyProgram,'u_earthR'),galaxyTime=gl.getUniformLocation(galaxyProgram,'u_time'),galaxyAngle=gl.getUniformLocation(galaxyProgram,'u_viewAngle');
     const sphereResolution=gl.getUniformLocation(sphereProgram,'u_resolution'),sphereTime=gl.getUniformLocation(sphereProgram,'u_time');
     const sphereSun=gl.getUniformLocation(sphereProgram,'u_sunC'),sphereMoon=gl.getUniformLocation(sphereProgram,'u_moonC');
     const sphereSunRadius=gl.getUniformLocation(sphereProgram,'u_sunR'),sphereMoonRadius=gl.getUniformLocation(sphereProgram,'u_moonR'),sphereVisible=gl.getUniformLocation(sphereProgram,'u_celestialVisible');
+    const planetResolution=gl.getUniformLocation(planetProgram,'u_resolution'),planetCenter=gl.getUniformLocation(planetProgram,'u_bodyC'),planetRadius=gl.getUniformLocation(planetProgram,'u_bodyR'),planetType=gl.getUniformLocation(planetProgram,'u_bodyType'),planetTime=gl.getUniformLocation(planetProgram,'u_time'),planetLight=gl.getUniformLocation(planetProgram,'u_lightDir');
+    gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
+    const renderPlanets=(celestial,now)=>{
+      if(!celestial?.planets?.length)return;
+      gl.useProgram(planetProgram);gl.bindBuffer(gl.ARRAY_BUFFER,quad);gl.enableVertexAttribArray(planetPosition);gl.vertexAttribPointer(planetPosition,2,gl.FLOAT,false,0,0);gl.uniform2f(planetResolution,canvas.width,canvas.height);gl.uniform1f(planetTime,now);
+      for(const body of celestial.planets){
+        const sunVec=[celestial.sun[0]-body.center[0],celestial.sun[1]-body.center[1]],lightLen=Math.max(.001,Math.hypot(sunVec[0],sunVec[1]));
+        gl.uniform2f(planetCenter,body.center[0],body.center[1]);gl.uniform1f(planetRadius,body.radius);gl.uniform2f(planetLight,sunVec[0]/lightLen,sunVec[1]/lightLen);
+        if(body.type===4){gl.uniform1f(planetType,7);gl.drawArrays(gl.TRIANGLE_STRIP,0,4)}
+        gl.uniform1f(planetType,body.type);gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+      }
+    };
     let frame=0,last=0,lastAlignment=0,activeMap=null,alignmentDirty=true,currentAlignment=null;
     const bindAlignmentMap=()=>{
       const m=window.__BP_LANDING_WORLD__?.map||window.__bpLandingWorld__?.map||null;
@@ -214,13 +227,14 @@ def patch_stars(source: str) -> str:
     };
     const render=now=>{
       if(document.hidden){frame=0;return}
-      if(now-last>24){
+      if(now-last>28){
         last=now;gl.viewport(0,0,canvas.width,canvas.height);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);
-        gl.useProgram(starProgram);gl.bindBuffer(gl.ARRAY_BUFFER,starBuffer);gl.enableVertexAttribArray(starPosition);gl.vertexAttribPointer(starPosition,4,gl.FLOAT,false,0,0);gl.uniform1f(starTime,now);gl.uniform1f(starAspect,canvas.width/canvas.height);gl.drawArrays(gl.POINTS,0,starCount);
-        const celestial=readAlignment(now);
+        const celestial=readAlignment(now),earthC=celestial?.center||[0,0],earthR=celestial?.earthRadius||0,angle=celestial?.viewAngle||0;
+        gl.useProgram(galaxyProgram);gl.bindBuffer(gl.ARRAY_BUFFER,quad);gl.enableVertexAttribArray(galaxyPosition);gl.vertexAttribPointer(galaxyPosition,2,gl.FLOAT,false,0,0);gl.uniform2f(galaxyResolution,canvas.width,canvas.height);gl.uniform2f(galaxyEarth,earthC[0],earthC[1]);gl.uniform1f(galaxyEarthR,earthR);gl.uniform1f(galaxyTime,now);gl.uniform1f(galaxyAngle,angle);gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+        gl.useProgram(starProgram);gl.bindBuffer(gl.ARRAY_BUFFER,starBuffer);gl.enableVertexAttribArray(starPosition);gl.vertexAttribPointer(starPosition,4,gl.FLOAT,false,0,0);gl.uniform1f(starTime,now);gl.uniform1f(starAspect,canvas.width/canvas.height);gl.uniform2f(starEarth,earthC[0],earthC[1]);gl.uniform1f(starEarthR,earthR);gl.uniform1f(starAngle,angle);gl.drawArrays(gl.POINTS,0,starCount);
+        renderPlanets(celestial,now);
         gl.useProgram(sphereProgram);gl.bindBuffer(gl.ARRAY_BUFFER,quad);gl.enableVertexAttribArray(quadPosition);gl.vertexAttribPointer(quadPosition,2,gl.FLOAT,false,0,0);gl.uniform2f(sphereResolution,canvas.width,canvas.height);gl.uniform1f(sphereTime,now);
-        gl.uniform2f(sphereSun,celestial?.sun?.[0]||0,celestial?.sun?.[1]||0);gl.uniform2f(sphereMoon,celestial?.moon?.[0]||0,celestial?.moon?.[1]||0);
-        gl.uniform1f(sphereSunRadius,celestial?.sunRadius||.066);gl.uniform1f(sphereMoonRadius,celestial?.moonRadius||.05);gl.uniform1f(sphereVisible,celestial?.visible?1:0);
+        gl.uniform2f(sphereSun,celestial?.sun?.[0]||0,celestial?.sun?.[1]||0);gl.uniform2f(sphereMoon,celestial?.moon?.[0]||0,celestial?.moon?.[1]||0);gl.uniform1f(sphereSunRadius,celestial?.sunRadius||.071);gl.uniform1f(sphereMoonRadius,celestial?.moonRadius||.052);gl.uniform1f(sphereVisible,celestial?.visible?1:0);
         gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
       }
       frame=requestAnimationFrame(render);
@@ -228,12 +242,12 @@ def patch_stars(source: str) -> str:
     const redraw=()=>{
       resize();alignmentDirty=true;
       if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+        const celestial=readAlignment(0),earthC=celestial?.center||[0,0],earthR=celestial?.earthRadius||0,angle=celestial?.viewAngle||0;
         gl.viewport(0,0,canvas.width,canvas.height);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);
-        gl.useProgram(starProgram);gl.bindBuffer(gl.ARRAY_BUFFER,starBuffer);gl.enableVertexAttribArray(starPosition);gl.vertexAttribPointer(starPosition,4,gl.FLOAT,false,0,0);gl.uniform1f(starTime,0);gl.uniform1f(starAspect,canvas.width/canvas.height);gl.drawArrays(gl.POINTS,0,starCount);
-        const celestial=readAlignment(0);
-        gl.useProgram(sphereProgram);gl.bindBuffer(gl.ARRAY_BUFFER,quad);gl.enableVertexAttribArray(quadPosition);gl.vertexAttribPointer(quadPosition,2,gl.FLOAT,false,0,0);gl.uniform2f(sphereResolution,canvas.width,canvas.height);gl.uniform1f(sphereTime,0);
-        gl.uniform2f(sphereSun,celestial?.sun?.[0]||0,celestial?.sun?.[1]||0);gl.uniform2f(sphereMoon,celestial?.moon?.[0]||0,celestial?.moon?.[1]||0);
-        gl.uniform1f(sphereSunRadius,celestial?.sunRadius||.066);gl.uniform1f(sphereMoonRadius,celestial?.moonRadius||.05);gl.uniform1f(sphereVisible,celestial?.visible?1:0);gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+        gl.useProgram(galaxyProgram);gl.bindBuffer(gl.ARRAY_BUFFER,quad);gl.enableVertexAttribArray(galaxyPosition);gl.vertexAttribPointer(galaxyPosition,2,gl.FLOAT,false,0,0);gl.uniform2f(galaxyResolution,canvas.width,canvas.height);gl.uniform2f(galaxyEarth,earthC[0],earthC[1]);gl.uniform1f(galaxyEarthR,earthR);gl.uniform1f(galaxyTime,0);gl.uniform1f(galaxyAngle,angle);gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+        gl.useProgram(starProgram);gl.bindBuffer(gl.ARRAY_BUFFER,starBuffer);gl.enableVertexAttribArray(starPosition);gl.vertexAttribPointer(starPosition,4,gl.FLOAT,false,0,0);gl.uniform1f(starTime,0);gl.uniform1f(starAspect,canvas.width/canvas.height);gl.uniform2f(starEarth,earthC[0],earthC[1]);gl.uniform1f(starEarthR,earthR);gl.uniform1f(starAngle,angle);gl.drawArrays(gl.POINTS,0,starCount);
+        renderPlanets(celestial,0);
+        gl.useProgram(sphereProgram);gl.bindBuffer(gl.ARRAY_BUFFER,quad);gl.enableVertexAttribArray(quadPosition);gl.vertexAttribPointer(quadPosition,2,gl.FLOAT,false,0,0);gl.uniform2f(sphereResolution,canvas.width,canvas.height);gl.uniform1f(sphereTime,0);gl.uniform2f(sphereSun,celestial?.sun?.[0]||0,celestial?.sun?.[1]||0);gl.uniform2f(sphereMoon,celestial?.moon?.[0]||0,celestial?.moon?.[1]||0);gl.uniform1f(sphereSunRadius,celestial?.sunRadius||.071);gl.uniform1f(sphereMoonRadius,celestial?.moonRadius||.052);gl.uniform1f(sphereVisible,celestial?.visible?1:0);gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
       }else if(!frame)frame=requestAnimationFrame(render);
     };
     window.addEventListener('resize',redraw,{passive:true});
