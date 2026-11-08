@@ -5,8 +5,8 @@ import re
 import sys
 from pathlib import Path
 
-BUILD = "v6254-realistic-solar-scene"
-SW_URL = "/sw.js?v=6254-realistic-solar-scene"
+BUILD = "v6255-scene-composition-fix"
+SW_URL = "/sw.js?v=6255-scene-composition-fix"
 OLD_SW_URL = "/sw.js?v=6247-universal-fresh-entry-sidewalk"
 CACHE_NAME = "bp-intelligence-v6247-universal-fresh-entry-sidewalk"
 
@@ -30,7 +30,7 @@ def patch_stars(source: str) -> str:
         r"(?ms)^  function buildSpaceStars\(\)\{.*?^  \}\n  buildSpaceStars\(\);"
     )
     replacement = r"""  function buildSpaceStars(){
-    const canvas=document.getElementById('bpwCelestialCanvasV6254');
+    const canvas=document.getElementById('bpwCelestialCanvasV6255');
     if(!canvas||canvas.dataset.built==='1')return;
     const scene=canvas.parentElement;
     let fallbackCanvas=null;
@@ -42,7 +42,7 @@ def patch_stars(source: str) -> str:
       if(fallbackCanvas){fallbackCanvas.width=canvas.width;fallbackCanvas.height=canvas.height;}
     };
     resize();
-    let state=0x6254a71;
+    let state=0x6255a71;
     const random=()=>{state=(state*1664525+1013904223)>>>0;return state/4294967296};
     const lowPower=window.innerWidth<=620||(navigator.deviceMemory||4)<=3;
     const starCount=lowPower?4200:8200;
@@ -129,7 +129,7 @@ def patch_stars(source: str) -> str:
       if(gl){
         if(!fallbackCanvas){
           fallbackCanvas=document.createElement('canvas');
-          fallbackCanvas.id='bpwCelestialFallbackCanvasV6254';
+          fallbackCanvas.id='bpwCelestialFallbackCanvasV6255';
           fallbackCanvas.className='bpw-celestial-canvas bpw-celestial-fallback-canvas';
           scene.appendChild(fallbackCanvas);
         }
@@ -290,7 +290,7 @@ def patch_stars(source: str) -> str:
     const readAlignment=now=>{
       bindAlignmentMap();if(!alignmentDirty&&now-lastAlignment<650)return currentAlignment;if(now-lastAlignment<110&&currentAlignment)return currentAlignment;
       lastAlignment=now;alignmentDirty=false;currentAlignment=celestialAlignment(canvas.width,canvas.height);
-      window.__BP_CELESTIAL_ALIGNMENT_V6254__=currentAlignment?{...currentAlignment,mapBound:true}:{mapBound:false,waitingForGlobe:true,updatedAt:Date.now()};
+      window.__BP_CELESTIAL_ALIGNMENT_V6255__=currentAlignment?{...currentAlignment,mapBound:true}:{mapBound:false,waitingForGlobe:true,updatedAt:Date.now()};
       return currentAlignment;
     };
     const render=now=>{
@@ -338,7 +338,7 @@ def patch_stars(source: str) -> str:
     return source
 
 def launch_styles() -> str:
-    return r"""<style id="bpWelcomeGateStylesV6254">
+    return r"""<style id="bpWelcomeGateStylesV6255">
 #bpWelcomeGateV1{pointer-events:auto!important;background:radial-gradient(ellipse at 50% 50%,rgba(2,8,18,.015),rgba(0,2,7,.14) 72%,rgba(0,1,5,.30))!important}
 html.bpw-entry-locked #previewMap{background:#00030a!important}
 html.bpw-entry-locked #previewMap canvas{filter:contrast(1.17) saturate(1.10) brightness(1.025)}
@@ -410,7 +410,7 @@ def patch_root_html(source: str) -> str:
     )
     near_anchor = '    <div class="bpw-starfield bpw-stars-near" id="bpwStarsNearV4" aria-hidden="true"></div>\n'
     celestial = near_anchor + """    <div class="bpw-celestial-system" aria-hidden="true">
-      <canvas class="bpw-celestial-canvas" id="bpwCelestialCanvasV6254"></canvas>
+      <canvas class="bpw-celestial-canvas" id="bpwCelestialCanvasV6255"></canvas>
     </div>
 """
     source = replace_once(source, near_anchor, celestial, "insert Moon and Sun models")
@@ -434,13 +434,13 @@ def patch_app_index(source: str) -> str:
     source = replace_once(
         source,
         '../manifest.webmanifest"',
-        '../manifest.webmanifest?v=6254-realistic-solar-scene"',
+        '../manifest.webmanifest?v=6255-scene-composition-fix"',
         "bust the app manifest URL",
     )
     source = replace_prefix_once(
         source,
         r"(app\.js\?v=)6247-universal-fresh-entry",
-        r"\g<1>6254-realistic-solar-scene",
+        r"\g<1>6255-scene-composition-fix",
         "bust the app bundle URL",
     )
     return source
@@ -462,7 +462,7 @@ def patch_legacy_app(source: str) -> str:
     source = replace_once(
         source,
         "sw.js?v=6218-tree-viewport-renderer-refresh",
-        "sw.js?v=6254-realistic-solar-scene",
+        "sw.js?v=6255-scene-composition-fix",
         "refresh legacy app service worker",
     )
     source = replace_once(
@@ -495,7 +495,7 @@ def patch_bundle(path: Path) -> None:
     source = replace_once(
         source,
         "navigator.serviceWorker.register('/sw.js?v=6247-universal-fresh-entry-sidewalk',{updateViaCache:'none'})",
-        "navigator.serviceWorker.register('/sw.js?v=6254-realistic-solar-scene',{updateViaCache:'none'})",
+        "navigator.serviceWorker.register('/sw.js?v=6255-scene-composition-fix',{updateViaCache:'none'})",
         f"{path.name} service-worker refresh",
     )
     path.write_text(source, encoding="utf-8")
@@ -532,13 +532,13 @@ def patch_site(site: Path) -> None:
     root = replace_once(
         root,
         './manifest.webmanifest"',
-        './manifest.webmanifest?v=6254-realistic-solar-scene"',
+        './manifest.webmanifest?v=6255-scene-composition-fix"',
         "bust the root manifest URL",
     )
     root = replace_prefix_once(
         root,
         r"(landing\.js\?v=)6247-universal-fresh-entry",
-        r"\g<1>6254-realistic-solar-scene",
+        r"\g<1>6255-scene-composition-fix",
         "bust the landing bundle URL",
     )
     required["root"].write_text(root, encoding="utf-8")
@@ -554,7 +554,7 @@ def patch_site(site: Path) -> None:
     legacy = replace_once(
         legacy,
         './manifest.webmanifest"',
-        './manifest.webmanifest?v=6254-realistic-solar-scene"',
+        './manifest.webmanifest?v=6255-scene-composition-fix"',
         "bust the legacy app manifest URL",
     )
     required["legacy app index"].write_text(legacy, encoding="utf-8")
@@ -565,21 +565,29 @@ def patch_site(site: Path) -> None:
             'class="bpw-wordmark bpw-wordmark-static"',
             ">INTELLIGENCE</span></div>",
             "bpw-celestial-system",
-            "bpwCelestialCanvasV6254",
-            "bpwCelestialFallbackCanvasV6254",
+            "bpwCelestialCanvasV6255",
+            "bpwCelestialFallbackCanvasV6255",
             "bpw-wordmark-main",
             "const starCount=lowPower?4200:8200",
             "vec3 lunar=mix",
             "sunRadius=Math.min(earthRadius*.47",
-            "sunlightDirection:[0,.92,.40]",
-            "sunBehindEarth=u_earthR>0.0",
+            "sunDirection=[sunVector[0]/sunLength,sunVector[1]/sunLength,.18]",
+            "vec2 solarScreen=normalize(u_sunC-u_earthC)",
             "moonRadius=earthRadius*.136",
-            "orbitPhase=Date.now()*.000085",
-            "orbitRadius=length(vec2(oq.x/.95,(oq.y+1.48)/.34))",
+            "orbitPhase=Date.now()*.000023",
+            "moonCenter=[earthC[0]+earthR*.14+Math.cos(moonPhase)*earthR*.42",
+            "orbitRadius=length(vec2((oq.x-.14)/.42,(oq.y+.57)/.16))",
+            "orbitNight=1.0-smoothstep(-.18,.12,dot(",
             "u_moonSpin",
-            "nightShade.addColorStop(.82,'rgba(0,4,18,.76)')",
+            "sunPX=w*.5+alignment.sun[0]*unit",
+            "nightShade.addColorStop(.79,'rgba(0,4,18,.75)')",
             "const galaxyProgram=program(",
             "const planetProgram=program(",
+            "const portraitSlots=[[-.64,1.05],[.64,1.05],[-1.07,.55],[1.03,.56],[-.78,-.93],[0,-1.32],[.78,-.93]]",
+            "radius:earthRadius*.205",
+            "u_earthR>0.0&&length(p-u_earthC)<u_earthR*1.008",
+            "planetEarthRadius=gl.getUniformLocation(planetProgram,'u_earthR')",
+            "float fresnel=pow(1.0-max(n.z,0.0),2.2)",
             "float laneA=1.0-smoothstep",
             "float laneB=1.0-smoothstep",
             "name:'Neptune'",
@@ -588,19 +596,19 @@ def patch_site(site: Path) -> None:
             "scale=u_bodyType>6.5?2.20:1.0",
             "renderPlanets(celestial,now)",
             "depth=.72+z*2.0",
-            "bpWelcomeGateStylesV6254",
+            "bpWelcomeGateStylesV6255",
             'data-mode="signup"',
             'data-mode="signin"',
         ],
         "app index": [
             "/?return=",
-            "app.js?v=6254-realistic-solar-scene",
-            "manifest.webmanifest?v=6254-realistic-solar-scene",
+            "app.js?v=6255-scene-composition-fix",
+            "manifest.webmanifest?v=6255-scene-composition-fix",
         ],
         "landing bundle": [SW_URL],
         "app bundle": [SW_URL],
-        "service worker": ["const V='" + CACHE_NAME + "';", "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6254-realistic-solar-scene'"],
-        "legacy app index": ['content="0;url=/"', "location.replace('/')", "sw.js?v=6254-realistic-solar-scene"],
+        "service worker": ["const V='" + CACHE_NAME + "';", "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6255-scene-composition-fix'"],
+        "legacy app index": ['content="0;url=/"', "location.replace('/')", "sw.js?v=6255-scene-composition-fix"],
     }
     for label, markers in checks.items():
         content = required[label].read_text(encoding="utf-8")
@@ -616,7 +624,7 @@ def patch_site(site: Path) -> None:
         raise AssertionError("The current installed-app identity changed")
     if legacy_manifest.get("id") != "/app/intelligence-launch/":
         raise AssertionError("The legacy installed-app identity changed")
-    print("BRIDGEPOINT_LAUNCH_EXPERIENCE_V6254_PATCH_PASS")
+    print("BRIDGEPOINT_LAUNCH_EXPERIENCE_V6255_PATCH_PASS")
     print("Website, current PWA and legacy PWA all route to the same root globe gate.")
     print("Only the launch HTML, app-entry handoff, PWA entry URLs and worker update marker are changed.")
     print("Existing offline cache key and authentication/session logic are preserved.")
@@ -624,7 +632,7 @@ def patch_site(site: Path) -> None:
 
 def main() -> None:
     if len(sys.argv) != 2:
-        raise SystemExit("Usage: apply_launch_experience_v6254.py SITE_DIRECTORY")
+        raise SystemExit("Usage: apply_launch_experience_v6255.py SITE_DIRECTORY")
     patch_site(Path(sys.argv[1]))
 
 
