@@ -884,6 +884,7 @@ function createMoonTerrainController() {
       const focusedWorld=focusedObject===sunMesh?sunGroup.getWorldPosition(new THREE.Vector3()):(focusLocalTarget?moonMesh.localToWorld(focusLocalTarget.clone()):focusedObject.getWorldPosition(new THREE.Vector3()));
       camera.position.add(focusedWorld.clone().sub(target));target.copy(focusedWorld);camera.lookAt(target);
     }
+    if(viewState==='moon'){enforceMoonCameraClearance();camera.lookAt(target);}
     stars.rotation.y+=reducedMotion?0:elapsed*.0008;
     renderer.render(scene,camera);
     if(!document.hidden)requestAnimationFrame(render);
