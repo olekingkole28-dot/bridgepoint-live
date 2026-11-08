@@ -230,6 +230,16 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
             "const activePointers=new Map()",
             "function refreshLunarTerrainFromView()",
             "focusLocalTarget?moonMesh.localToWorld",
+            "function rotateMoonBy(dx,dy,twist=0)",
+            "gesture.center.x-gestureCenter.x",
+            "zoomCameraBy(pinchDistance/gesture.distance)",
+            "moonUserRotation.multiply(yaw).multiply(pitch).multiply(roll)",
+            "function enforceMoonCameraClearance()",
+            "moonTerrainController?.surfaceRadiusAt(latitude,longitude)",
+            "coverageContext.putImageData(coverageImage, 0, 0)",
+            "depthTest: true, depthWrite: true, transparent: false",
+            "#include <logdepthbuf_vertex>",
+            "#include <logdepthbuf_fragment>",
         ):
             self.assertIn(marker, module)
 
