@@ -127,8 +127,8 @@ catch(_){location.replace('/?auth=signin&return='+encodeURIComponent(location.pa
         out = patch_app_index(src)
         self.assertEqual(out.count("/?return="), 2)
         self.assertNotIn("/?auth=signin&return=", out)
-        self.assertIn("app.js?v=6252-galactic-depth&sidewalk=6247", out)
-        self.assertIn("manifest.webmanifest?v=6252-galactic-depth", out)
+        self.assertIn("app.js?v=6253-mobile-celestial-visibility&sidewalk=6247", out)
+        self.assertIn("manifest.webmanifest?v=6253-mobile-celestial-visibility", out)
 
     def test_legacy_app_redirects_root_and_keeps_current_offline_cache(self):
         src = """<link rel="manifest" href="./manifest.webmanifest"><meta http-equiv="refresh" content="4;url=/app/?migrated=legacy-intelligence-v5820">
@@ -141,7 +141,7 @@ finally{location.replace('/app/?migrated=legacy-intelligence-v5820')}
         self.assertIn('content="0;url=/"', out)
         self.assertIn('href="/"', out)
         self.assertIn("location.replace('/')", out)
-        self.assertIn("sw.js?v=6252-galactic-depth", out)
+        self.assertIn("sw.js?v=6253-mobile-celestial-visibility", out)
         self.assertIn("k!=='bp-intelligence-v6247-universal-fresh-entry-sidewalk'", out)
 
     def test_root_manifest_start_url_changes_but_identity_is_preserved(self):
