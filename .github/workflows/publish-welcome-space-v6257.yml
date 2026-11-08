@@ -102,9 +102,11 @@ jobs:
           assert info.get('size') == [46080, 15360], info.get('size')
           label=Path('/tmp/sldem2015-128ppd.lbl').read_text(errors='replace')
           def field(name):
-              m=re.search(r'^\s*'+re.escape(name)+r'\s*=\s*([-+]?\d+(?:\.\d*)?)',label,re.M|re.I)
+              m=re.search(r'^\s*'+re.escape(name)+r'\s*=\s*([-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[Ee][-+]?\d+)?)',label,re.M|re.I)
               return float(m.group(1)) if m else None
           resolution=field('MAP_RESOLUTION')
+          north=field('MAXIMUM_LATITUDE')
+          south=field('MINIMUM_LATITUDE')
           scale=field('SCALING_FACTOR')
           offset=field('OFFSET')
           west=field('WESTERNMOST_LONGITUDE')
@@ -113,6 +115,8 @@ jobs:
               assert center is not None, 'PDS label must provide WESTERNMOST_LONGITUDE or CENTER_LONGITUDE'
               west=(center-180.0)%360.0
           assert resolution is not None and abs(resolution-128)<0.01, resolution
+          assert north is not None and abs(north-60)<0.1, north
+          assert south is not None and abs(south+60)<0.1, south
           assert scale is not None and abs(scale-0.5)<1e-6, scale
           assert offset is not None and abs(offset-1737400)<1e-3, offset
           west=west%360.0
