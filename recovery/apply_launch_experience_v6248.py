@@ -5,7 +5,7 @@ import re
 import sys
 from pathlib import Path
 
-BUILD = "v6249-volumetric-space"
+BUILD = "v6250-deep-space-3d"
 SW_URL = "/sw.js?v=6249-volumetric-space"
 OLD_SW_URL = "/sw.js?v=6247-universal-fresh-entry-sidewalk"
 CACHE_NAME = "bp-intelligence-v6247-universal-fresh-entry-sidewalk"
@@ -30,58 +30,107 @@ def patch_stars(source: str) -> str:
         r"(?ms)^  function buildSpaceStars\(\)\{.*?^  \}\n  buildSpaceStars\(\);"
     )
     replacement = r"""  function buildSpaceStars(){
-    const make=(id,count,seed,near)=>{
-      const field=document.getElementById(id);
-      if(!field||field.dataset.built==='1')return;
-      const rect=field.getBoundingClientRect();
-      const width=Math.max(1,rect.width||window.innerWidth||390);
-      const height=Math.max(1,rect.height||window.innerHeight||780);
-      const pixelRatio=Math.min(1.5,Math.max(1,window.devicePixelRatio||1));
-      const canvas=document.createElement('canvas');
-      canvas.setAttribute('aria-hidden','true');
-      canvas.width=Math.max(1,Math.ceil(width*pixelRatio));
-      canvas.height=Math.max(1,Math.ceil(height*pixelRatio));
-      canvas.style.cssText='position:absolute;inset:0;width:100%;height:100%;display:block';
-      field.appendChild(canvas);
-      let state=seed>>>0;
-      const random=()=>{state=(state*1664525+1013904223)>>>0;return state/4294967296};
-      const points=new Float32Array(count*3);
-      for(let i=0;i<count;i++){points[i*3]=random()*2-1;points[i*3+1]=random()*2-1;points[i*3+2]=random()}
-      const gl=canvas.getContext('webgl',{alpha:true,antialias:false,powerPreference:'low-power'});
-      if(gl){
-        const vertex='attribute vec3 a_pos;uniform float u_time;uniform float u_aspect;uniform float u_near;varying float v_alpha;void main(){float z=a_pos.z;float perspective=0.42+z*1.62;vec2 p=a_pos.xy/perspective;p.x/=u_aspect;float drift=sin(u_time*0.000035+z*8.0)*0.008;gl_Position=vec4(p.x+drift,p.y,0.55-z*0.9,1.0);gl_PointSize=(0.8+(1.0-z)*2.8+u_near*0.8)*(0.8+0.2*sin(u_time*0.001+z*19.0));v_alpha=(0.34+0.62*(1.0-z))*(0.82+0.18*sin(u_time*0.0013+z*23.0));}';
-        const fragment='precision mediump float;varying float v_alpha;void main(){vec2 q=gl_PointCoord-vec2(0.5);float d=length(q);float core=1.0-smoothstep(0.08,0.28,d);float glow=1.0-smoothstep(0.16,0.5,d);float a=(core*0.88+glow*0.25)*v_alpha;if(a<0.015)discard;gl_FragColor=vec4(0.72,0.84,1.0,a);}';
-        const compile=(type,src)=>{const sh=gl.createShader(type);gl.shaderSource(sh,src);gl.compileShader(sh);return gl.getShaderParameter(sh,gl.COMPILE_STATUS)?sh:null};
-        const vs=compile(gl.VERTEX_SHADER,vertex),fs=compile(gl.FRAGMENT_SHADER,fragment);
-        if(vs&&fs){
-          const program=gl.createProgram();gl.attachShader(program,vs);gl.attachShader(program,fs);gl.linkProgram(program);
-          if(gl.getProgramParameter(program,gl.LINK_STATUS)){
-            gl.useProgram(program);
-            const buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,points,gl.STATIC_DRAW);
-            const loc=gl.getAttribLocation(program,'a_pos');gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,3,gl.FLOAT,false,0,0);
-            const timeLoc=gl.getUniformLocation(program,'u_time'),aspectLoc=gl.getUniformLocation(program,'u_aspect'),nearLoc=gl.getUniformLocation(program,'u_near');
-            gl.uniform1f(aspectLoc,width/height);gl.uniform1f(nearLoc,near?1:0);
-            let frame=0,last=0;
-            const render=now=>{if(document.hidden){frame=0;return}if(now-last>30){last=now;gl.viewport(0,0,canvas.width,canvas.height);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);gl.uniform1f(timeLoc,now);gl.drawArrays(gl.POINTS,0,count)}frame=requestAnimationFrame(render)};
-            if(!window.matchMedia('(prefers-reduced-motion: reduce)').matches)frame=requestAnimationFrame(render);
-            else{gl.viewport(0,0,canvas.width,canvas.height);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);gl.uniform1f(timeLoc,0);gl.drawArrays(gl.POINTS,0,count)}
-            document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!frame&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches)frame=requestAnimationFrame(render)});
-            field.dataset.built='1';return;
-          }
-        }
-      }
-      const ctx=canvas.getContext('2d',{alpha:true});
-      if(ctx){ctx.scale(pixelRatio,pixelRatio);for(let i=0;i<count;i++){const z=points[i*3+2],x=(points[i*3]+1)*width/2,y=(points[i*3+1]+1)*height/2,r=(near?0.65:0.4)+(1-z)*(near?1.5:1.0);ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle='rgba(215,232,255,'+(.28+(1-z)*.65).toFixed(2)+')';ctx.fill()}}
-      field.dataset.built='1';
+    const canvas=document.getElementById('bpwCelestialCanvasV6250');
+    if(!canvas||canvas.dataset.built==='1')return;
+    const scene=canvas.parentElement;
+    const resize=()=>{
+      const rect=scene.getBoundingClientRect();
+      const ratio=Math.min(1.35,Math.max(1,window.devicePixelRatio||1));
+      canvas.width=Math.max(1,Math.round((rect.width||window.innerWidth||390)*ratio));
+      canvas.height=Math.max(1,Math.round((rect.height||window.innerHeight||780)*ratio));
     };
-    make('bpwStarsFarV4',456,90419,false);
-    make('bpwStarsNearV4',228,59173,true);
+    resize();
+    let state=0x6250a71;
+    const random=()=>{state=(state*1664525+1013904223)>>>0;return state/4294967296};
+    const starCount=2200;
+    const stars=new Float32Array(starCount*4);
+    for(let i=0;i<starCount;i++){
+      stars[i*4]=random()*2-1;
+      stars[i*4+1]=random()*2-1;
+      stars[i*4+2]=random();
+      stars[i*4+3]=random();
+    }
+    const gl=canvas.getContext('webgl',{alpha:true,antialias:false,depth:false,powerPreference:'low-power'});
+    const fallback=()=>{
+      const ctx=canvas.getContext('2d',{alpha:true});
+      if(!ctx)return;
+      const w=canvas.width,h=canvas.height,unit=Math.min(w,h);
+      ctx.clearRect(0,0,w,h);
+      for(let i=0;i<starCount;i++){
+        const z=stars[i*4+2],depth=.25+z*1.2;
+        const x=w*.5+stars[i*4]*unit*.55/depth;
+        const y=h*.5-stars[i*4+1]*unit*.55/depth;
+        const r=Math.min(3.2,.45+(1/depth)*.48);
+        ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);
+        ctx.fillStyle='rgba(210,229,255,'+(.2+(1-z)*.65)+')';ctx.fill();
+      }
+      const sunX=w*.5+Math.min(unit*.36,w*.36),sunY=h*.5-unit*.29,sr=unit*.073;
+      let g=ctx.createRadialGradient(sunX-sr*.3,sunY-sr*.35,sr*.05,sunX,sunY,sr);
+      g.addColorStop(0,'#fff8d5');g.addColorStop(.22,'#ffd17a');g.addColorStop(.55,'#f77b31');g.addColorStop(.86,'#a92b20');g.addColorStop(1,'#26101b');
+      ctx.beginPath();ctx.arc(sunX,sunY,sr,0,Math.PI*2);ctx.fillStyle=g;ctx.shadowColor='rgba(255,132,48,.42)';ctx.shadowBlur=unit*.035;ctx.fill();ctx.shadowBlur=0;
+      const t=Date.now()*.00011,rx=Math.min(unit*.43,w*.42),ry=unit*.24;
+      ctx.beginPath();ctx.ellipse(w*.5,h*.5,rx,ry,0,0,Math.PI*2);ctx.strokeStyle='rgba(155,197,236,.2)';ctx.lineWidth=Math.max(1,unit*.001);ctx.stroke();
+      const mx=w*.5+Math.cos(t)*rx,my=h*.5-Math.sin(t)*ry,mr=unit*.037;
+      g=ctx.createRadialGradient(mx-mr*.34,my-mr*.35,mr*.04,mx,my,mr);
+      g.addColorStop(0,'#f3f5f7');g.addColorStop(.38,'#c5cdd5');g.addColorStop(.76,'#778593');g.addColorStop(1,'#182637');
+      ctx.beginPath();ctx.arc(mx,my,mr,0,Math.PI*2);ctx.fillStyle=g;ctx.shadowColor='rgba(160,207,242,.24)';ctx.shadowBlur=unit*.02;ctx.fill();ctx.shadowBlur=0;
+      for(let i=0;i<38;i++){
+        const a=i*2.39996,dist=Math.sqrt((i+.5)/38)*mr*.78,cx=mx+Math.cos(a)*dist,cy=my+Math.sin(a)*dist*.72,cr=mr*(.035+(i%5)*.012);
+        ctx.beginPath();ctx.arc(cx,cy,cr,0,Math.PI*2);ctx.fillStyle='rgba(35,48,62,.23)';ctx.fill();
+      }
+    };
+    if(!gl){fallback();canvas.dataset.built='1';window.addEventListener('resize',()=>{resize();fallback()},{passive:true});return}
+    const compile=(type,code)=>{
+      const shader=gl.createShader(type);gl.shaderSource(shader,code);gl.compileShader(shader);
+      if(!gl.getShaderParameter(shader,gl.COMPILE_STATUS)){gl.deleteShader(shader);return null}
+      return shader;
+    };
+    const program=(vsCode,fsCode)=>{
+      const vs=compile(gl.VERTEX_SHADER,vsCode),fs=compile(gl.FRAGMENT_SHADER,fsCode);
+      if(!vs||!fs)return null;
+      const p=gl.createProgram();gl.attachShader(p,vs);gl.attachShader(p,fs);gl.linkProgram(p);
+      if(!gl.getProgramParameter(p,gl.LINK_STATUS)){gl.deleteProgram(p);return null}
+      return p;
+    };
+    const starProgram=program(
+      'attribute vec4 a_pos;uniform float u_time;uniform float u_aspect;varying float v_alpha;varying float v_tint;void main(){float z=mod(a_pos.z-u_time*0.000018+1.0,1.0);float depth=0.28+z*1.46;vec2 p=a_pos.xy*0.72/depth;gl_Position=vec4(p.x/u_aspect,p.y,0.0,1.0);gl_PointSize=min(6.5,0.62+(1.0/depth)*1.3)*(0.86+0.14*sin(u_time*0.001+a_pos.w*11.0));v_alpha=clamp((1.12-z)*0.82,0.12,0.94);v_tint=a_pos.w;}',
+      'precision mediump float;varying float v_alpha;varying float v_tint;void main(){vec2 q=gl_PointCoord-vec2(0.5);float d=length(q);float core=1.0-smoothstep(0.06,0.25,d);float halo=1.0-smoothstep(0.12,0.5,d);vec3 c=mix(vec3(0.62,0.78,1.0),vec3(1.0,0.91,0.76),v_tint);float a=(core*0.86+halo*0.22)*v_alpha;if(a<0.01)discard;gl_FragColor=vec4(c,a);}'
+    );
+    const sphereProgram=program(
+      'attribute vec2 a_pos;void main(){gl_Position=vec4(a_pos,0.0,1.0);}',
+      'precision mediump float;uniform vec2 u_resolution;uniform float u_time;float hash31(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}float noise3(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);float a=hash31(i),b=hash31(i+vec3(1,0,0)),c=hash31(i+vec3(0,1,0)),d=hash31(i+vec3(1,1,0)),e=hash31(i+vec3(0,0,1)),f1=hash31(i+vec3(1,0,1)),g=hash31(i+vec3(0,1,1)),h=hash31(i+vec3(1,1,1));return mix(mix(mix(a,b,f.x),mix(c,d,f.x),f.y),mix(mix(e,f1,f.x),mix(g,h,f.x),f.y),f.z);}float fbm(vec3 p){float v=0.0,a=0.5;for(int i=0;i<4;i++){v+=a*noise3(p);p=p*2.03+vec3(1.7,2.3,1.1);a*=0.5;}return v;}void main(){float unit=min(u_resolution.x,u_resolution.y);float aspect=u_resolution.x/u_resolution.y;vec2 p=(gl_FragCoord.xy-0.5*u_resolution)/unit;vec2 sunC=vec2(min(0.40,aspect*0.36),0.29);float sunR=0.073;vec2 moonC=vec2(cos(u_time*0.00011)*min(0.43,aspect*0.42),sin(u_time*0.00011)*0.24-0.07);float moonR=0.037;vec3 outColor=vec3(0.0);float outAlpha=0.0;float orbit=abs(length(vec2(p.x/min(0.43,aspect*0.42), (p.y+0.07)/0.24))-1.0);float ring=(1.0-smoothstep(0.002,0.006,orbit))*0.16;outColor=vec3(0.34,0.55,0.82);outAlpha=ring;float sd=length(p-sunC);float sunGlow=(1.0-smoothstep(sunR,sunR*1.72,sd));if(sunGlow>0.002){outColor+=vec3(1.0,0.29,0.075)*sunGlow*0.19;outAlpha=max(outAlpha,sunGlow*0.25);}if(sd<sunR+0.003){vec2 q=(p-sunC)/sunR;float z=sqrt(max(0.0,1.0-dot(q,q)));vec3 n=normalize(vec3(q,z));float rot=u_time*0.000018;n.xz=mat2(cos(rot),-sin(rot),sin(rot),cos(rot))*n.xz;float turbulence=fbm(n*5.8+vec3(0.0,u_time*0.000012,0.0));float granulation=fbm(n*15.0-vec3(u_time*0.000018,0.0,0.0));float filament=fbm(n*23.0+vec3(2.0,7.0,1.0));vec3 hot=vec3(1.0,0.79,0.40);vec3 orange=vec3(0.98,0.30,0.055);vec3 deep=vec3(0.36,0.045,0.025);vec3 solar=mix(deep,orange,smoothstep(0.13,0.72,turbulence));solar=mix(solar,hot,smoothstep(0.56,0.91,granulation)*0.68);solar+=vec3(0.22,0.085,0.018)*(filament-0.4);float light=max(dot(n,normalize(vec3(-0.48,0.58,0.78))),0.0);float limb=0.28+0.72*pow(max(n.z,0.0),0.42);solar*=0.26+0.74*light;solar*=limb;solar+=vec3(1.0,0.34,0.08)*pow(max(n.z,0.0),7.0)*0.2;float cover=1.0-smoothstep(sunR-0.002,sunR+0.002,sd);outColor=mix(outColor,solar,cover);outAlpha=max(outAlpha,cover);}float md=length(p-moonC);float moonGlow=1.0-smoothstep(moonR*1.02,moonR*1.42,md);if(moonGlow>0.002){outColor=mix(outColor,vec3(0.48,0.68,0.9),moonGlow*0.20);outAlpha=max(outAlpha,moonGlow*0.18);}if(md<moonR+0.002){vec2 q=(p-moonC)/moonR;vec3 n=normalize(vec3(q,sqrt(max(0.0,1.0-dot(q,q)))));float rot=u_time*0.000008; n.xy=mat2(cos(rot),-sin(rot),sin(rot),cos(rot))*n.xy;vec2 uv=vec2(atan(n.y,n.x)*0.1591549+0.5,asin(clamp(n.z,-1.0,1.0))*0.3183099+0.5);vec2 grid=uv*vec2(25.0,15.0),cell=floor(grid),f=fract(grid);float bowls=0.0,rims=0.0;for(int y=-1;y<=1;y++){for(int x=-1;x<=1;x++){vec2 off=vec2(float(x),float(y)),id=cell+off;vec2 rnd=vec2(hash31(vec3(id,2.1)),hash31(vec3(id,7.3)));vec2 delta=off+vec2(0.18)+rnd*0.64-f;float dist=length(delta);float radius=0.085+hash31(vec3(id,9.2))*0.095;float bowl=1.0-smoothstep(radius*0.34,radius,dist);float rim=1.0-smoothstep(radius*0.86,radius*1.14,dist);bowls=max(bowls,bowl);rims=max(rims,rim);}}float maria=smoothstep(0.53,0.77,fbm(n*5.0+vec3(2.0,3.0,1.0)));float albedo=0.68+(fbm(n*18.0)-0.5)*0.22-bowls*0.34+rims*0.19-maria*0.13;vec3 lunar=mix(vec3(0.59,0.64,0.69),vec3(0.77,0.80,0.82),albedo);float light=max(dot(n,normalize(vec3(-0.55,0.62,0.78))),0.0);float limb=0.18+0.82*pow(max(n.z,0.0),0.38);lunar*=0.12+0.88*light;lunar*=limb;lunar+=vec3(0.12,0.15,0.18)*rims*0.19;float cover=1.0-smoothstep(moonR-0.0018,moonR+0.0018,md);outColor=mix(outColor,lunar,cover);outAlpha=max(outAlpha,cover);}gl_FragColor=vec4(outColor,outAlpha);}'
+    );
+    if(!starProgram||!sphereProgram){fallback();canvas.dataset.built='1';return}
+    const starBuffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,starBuffer);gl.bufferData(gl.ARRAY_BUFFER,stars,gl.STATIC_DRAW);
+    const starPosition=gl.getAttribLocation(starProgram,'a_pos');
+    const starTime=gl.getUniformLocation(starProgram,'u_time'),starAspect=gl.getUniformLocation(starProgram,'u_aspect');
+    const quad=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,quad);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
+    const quadPosition=gl.getAttribLocation(sphereProgram,'a_pos');
+    const sphereResolution=gl.getUniformLocation(sphereProgram,'u_resolution'),sphereTime=gl.getUniformLocation(sphereProgram,'u_time');
+    gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
+    let frame=0,last=0;
+    const render=now=>{
+      if(document.hidden){frame=0;return}
+      if(now-last>24){
+        last=now;gl.viewport(0,0,canvas.width,canvas.height);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.useProgram(starProgram);gl.bindBuffer(gl.ARRAY_BUFFER,starBuffer);gl.enableVertexAttribArray(starPosition);gl.vertexAttribPointer(starPosition,4,gl.FLOAT,false,0,0);gl.uniform1f(starTime,now);gl.uniform1f(starAspect,canvas.width/canvas.height);gl.drawArrays(gl.POINTS,0,starCount);
+        gl.useProgram(sphereProgram);gl.bindBuffer(gl.ARRAY_BUFFER,quad);gl.enableVertexAttribArray(quadPosition);gl.vertexAttribPointer(quadPosition,2,gl.FLOAT,false,0,0);gl.uniform2f(sphereResolution,canvas.width,canvas.height);gl.uniform1f(sphereTime,now);gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+      }
+      frame=requestAnimationFrame(render);
+    };
+    const redraw=()=>{
+      resize();
+      if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){gl.viewport(0,0,canvas.width,canvas.height);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);gl.useProgram(starProgram);gl.bindBuffer(gl.ARRAY_BUFFER,starBuffer);gl.enableVertexAttribArray(starPosition);gl.vertexAttribPointer(starPosition,4,gl.FLOAT,false,0,0);gl.uniform1f(starTime,0);gl.uniform1f(starAspect,canvas.width/canvas.height);gl.drawArrays(gl.POINTS,0,starCount);gl.useProgram(sphereProgram);gl.bindBuffer(gl.ARRAY_BUFFER,quad);gl.enableVertexAttribArray(quadPosition);gl.vertexAttribPointer(quadPosition,2,gl.FLOAT,false,0,0);gl.uniform2f(sphereResolution,canvas.width,canvas.height);gl.uniform1f(sphereTime,0);gl.drawArrays(gl.TRIANGLE_STRIP,0,4)}
+      else if(!frame)frame=requestAnimationFrame(render);
+    };
+    window.addEventListener('resize',redraw,{passive:true});
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden)redraw();else{cancelAnimationFrame(frame);frame=0}});
+    canvas.dataset.built='1';redraw();
   }
   buildSpaceStars();"""
     source, count = pattern.subn(replacement, source, count=1)
     if count != 1:
         raise AssertionError(f"Starfield builder: expected one V5000 builder, found {count}")
-    # Replace the staggered per-character DOM construction with a zero-work static-wordmark handoff.
     pattern = re.compile(r"(?ms)^  function buildWordmark\(\)\{.*?^  \}\n")
     replacement = """  function buildWordmark(){
     if(wordmark)wordmark.dataset.built='1';
@@ -93,57 +142,41 @@ def patch_stars(source: str) -> str:
         raise AssertionError(f"Wordmark builder: expected one V5000 builder, found {count}")
     return source
 
-
 def launch_styles() -> str:
-    return r"""<style id="bpWelcomeGateStylesV6249">
-#bpWelcomeGateV1{pointer-events:auto!important;background:radial-gradient(ellipse at 50% 50%,rgba(2,8,18,.02),rgba(0,2,7,.12) 74%,rgba(0,1,5,.24))!important}
+    return r"""<style id="bpWelcomeGateStylesV6250">
+#bpWelcomeGateV1{pointer-events:auto!important;background:radial-gradient(ellipse at 50% 50%,rgba(2,8,18,.015),rgba(0,2,7,.14) 72%,rgba(0,1,5,.30))!important}
 html.bpw-entry-locked #previewMap{background:#00030a!important}
 html.bpw-entry-locked #previewMap canvas{filter:contrast(1.17) saturate(1.10) brightness(1.025)}
 #bpWelcomeGateV1 .bpw-globe-aura{display:none!important}
-#bpWelcomeGateV1 .bpw-starfield canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
-#bpWelcomeGateV1 .bpw-stars-far{opacity:.98;background:radial-gradient(ellipse at 18% 30%,rgba(39,87,178,.16),transparent 34%),radial-gradient(ellipse at 82% 68%,rgba(50,95,170,.14),transparent 36%)}
-#bpWelcomeGateV1 .bpw-stars-near{opacity:.92}
-#bpWelcomeGateV1 .bpw-wordmark-wrap{top:calc(env(safe-area-inset-top,0px) + clamp(17px,2.8vh,30px))!important;left:0!important;right:0!important;transform:none!important;z-index:10!important;padding:0 14px!important}
-#bpWelcomeGateV1 .bpw-wordmark-static{display:block!important;width:100%;max-width:100%;white-space:normal!important;text-align:center;font-family:"Eurostile","Bank Gothic","Arial Black",system-ui,sans-serif;font-size:clamp(20px,4.2vw,47px);font-weight:950;line-height:1.08;letter-spacing:.035em;text-transform:none;color:#f5faff;background:linear-gradient(180deg,#ffffff 0%,#e8f2fa 30%,#a9bfd1 52%,#f8fcff 67%,#718ca5 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;-webkit-text-stroke:.48px rgba(239,249,255,.68);text-shadow:0 1px 0 #d9e8f4,0 2px 0 #91a9bf,0 3px 0 #536d84,0 4px 0 #21384e,0 7px 12px rgba(0,0,0,.82),0 0 20px rgba(118,194,242,.26);transform:perspective(900px) rotateX(9deg);filter:none}
+#bpWelcomeGateV1 .bpw-starfield{background:radial-gradient(ellipse at 16% 26%,rgba(36,79,151,.20),transparent 38%),radial-gradient(ellipse at 82% 70%,rgba(31,71,130,.18),transparent 42%),radial-gradient(ellipse at 52% 48%,rgba(4,13,29,.12),transparent 68%)}
+#bpWelcomeGateV1 .bpw-starfield canvas{display:none!important}
+#bpWelcomeGateV1 .bpw-celestial-system{position:absolute;inset:0;z-index:3;overflow:hidden;pointer-events:none;perspective:1200px}
+#bpWelcomeGateV1 .bpw-celestial-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none}
+#bpWelcomeGateV1 .bpw-wordmark-wrap{top:calc(env(safe-area-inset-top,0px) + clamp(18px,3.2vh,38px))!important;left:0!important;right:0!important;transform:none!important;z-index:10!important;padding:0 12px!important}
+#bpWelcomeGateV1 .bpw-wordmark-wrap:before,#bpWelcomeGateV1 .bpw-wordmark-wrap:after{content:"";position:absolute;top:50%;width:clamp(12px,8vw,110px);height:1px;background:linear-gradient(90deg,transparent,rgba(132,197,236,.66));box-shadow:0 0 9px rgba(102,184,235,.24)}
+#bpWelcomeGateV1 .bpw-wordmark-wrap:before{right:calc(50% + clamp(112px,25vw,260px))}
+#bpWelcomeGateV1 .bpw-wordmark-wrap:after{left:calc(50% + clamp(112px,25vw,260px));transform:scaleX(-1)}
+#bpWelcomeGateV1 .bpw-wordmark-static{position:relative!important;display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:clamp(2px,.7vh,7px);width:100%;max-width:100%;white-space:normal!important;text-align:center;font-family:"Orbitron","Eurostile","Bank Gothic",system-ui,sans-serif!important;font-weight:900!important;text-transform:uppercase!important;transform:perspective(1100px) rotateX(8deg)!important;transform-style:preserve-3d!important;filter:drop-shadow(0 9px 11px rgba(0,0,0,.72))!important}
+#bpWelcomeGateV1 .bpw-wordmark-main{display:block;font-size:clamp(30px,7.1vw,78px);line-height:.94;letter-spacing:.105em;margin-right:-.105em;color:#f4fbff;-webkit-text-fill-color:#f4fbff;-webkit-text-stroke:.6px rgba(220,241,255,.78);text-shadow:0 1px 0 #d8e8f6,0 2px 0 #94b2cb,0 3px 0 #55738f,0 4px 0 #263f59,0 7px 0 #10253a,0 11px 20px rgba(0,0,0,.88),0 0 24px rgba(112,190,242,.28)}
+#bpWelcomeGateV1 .bpw-wordmark-sub{display:block;font-size:clamp(12px,2.55vw,24px);line-height:1.15;letter-spacing:.43em;margin-right:-.43em;font-weight:700;color:#a9d5f1;-webkit-text-fill-color:#a9d5f1;-webkit-text-stroke:.25px rgba(223,242,255,.48);text-shadow:0 1px 0 #5d7892,0 3px 8px rgba(0,0,0,.86),0 0 15px rgba(90,179,236,.30)}
 #bpWelcomeGateV1 .bpw-letter-frame,#bpWelcomeGateV1 .bpw-letter-face{animation:none!important;will-change:auto!important}
 #bpWelcomeGateV1 .bpw-status,#bpWelcomeGateV1 .bpw-sound{display:none!important}
 #bpWelcomeGateV1 .bpw-gate-panel{left:12px!important;right:12px!important;bottom:calc(env(safe-area-inset-bottom,0px) + clamp(20px,4vh,42px))!important;z-index:12!important;display:flex!important;gap:0!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;backdrop-filter:none!important;opacity:1!important;visibility:visible!important;transform:none!important;transition:none!important;pointer-events:auto!important}
 #bpWelcomeGateV1 .bpw-explainer{display:none!important}
 #bpWelcomeGateV1 .bpw-actions{display:flex!important;flex-wrap:wrap;justify-content:center;align-items:center;gap:12px;width:100%;margin:0!important}
 #bpWelcomeGateV1 .bpw-actions button{min-width:min(230px,42vw);max-width:calc(100vw - 28px);margin:0!important;animation:none!important;transition:background .2s ease,border-color .2s ease!important;backdrop-filter:none!important;box-shadow:0 8px 24px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.24)!important}
-#bpWelcomeGateV1 .bpw-celestial-system{position:absolute;inset:0;z-index:3;overflow:hidden;pointer-events:none;perspective:1200px}
-#bpWelcomeGateV1 .bpw-sun-model{position:absolute;top:17%;right:clamp(24px,8vw,128px);width:clamp(58px,9vw,118px);aspect-ratio:1;z-index:2;animation:bpw-sun-drift-v6249 150s ease-in-out infinite alternate}
-#bpWelcomeGateV1 .bpw-sun-sphere{position:absolute;inset:0;overflow:hidden;border-radius:50%;background:radial-gradient(circle at 34% 31%,#fff9d9 0%,#fff0a1 8%,#ffc45c 19%,#fa7c2c 43%,#be3e20 70%,#35101c 100%);box-shadow:inset -13px -12px 24px rgba(21,4,12,.78),inset 4px 4px 13px rgba(255,255,255,.55),0 0 18px 4px rgba(255,166,69,.30),0 0 48px 14px rgba(255,107,32,.16)}
-#bpWelcomeGateV1 .bpw-sun-sphere:before{content:"";position:absolute;inset:-8%;border-radius:50%;background:repeating-radial-gradient(ellipse at 42% 45%,rgba(255,237,174,.18) 0 2px,rgba(192,57,24,.08) 3px 6px,transparent 7px 11px),radial-gradient(ellipse at 64% 30%,rgba(255,255,205,.55),transparent 37%);mix-blend-mode:screen;opacity:.62;animation:bpw-sun-surface-v6249 56s linear infinite}
-#bpWelcomeGateV1 .bpw-sun-sphere:after{content:"";position:absolute;inset:12%;border-radius:50%;background:radial-gradient(ellipse at 26% 36%,rgba(116,28,19,.48) 0 4%,transparent 5%),radial-gradient(ellipse at 63% 67%,rgba(108,25,16,.37) 0 5%,transparent 6%),radial-gradient(ellipse at 72% 25%,rgba(255,237,184,.32),transparent 16%);filter:blur(1px)}
-#bpWelcomeGateV1 .bpw-moon-orbit{position:absolute;left:50%;top:51%;width:min(108vw,102vh,1160px);height:min(66vw,64vh,660px);border:1px solid rgba(187,213,239,.18);border-radius:50%;transform:translate(-50%,-50%) rotateX(66deg) rotateZ(-17deg);transform-style:preserve-3d;z-index:4;box-shadow:0 0 18px rgba(122,180,227,.035),inset 0 0 14px rgba(122,180,227,.025)}
-#bpWelcomeGateV1 .bpw-moon-runner{position:absolute;inset:0;border-radius:50%;transform-origin:50% 50%;transform-style:preserve-3d;animation:bpw-moon-orbit-v6249 34s linear infinite}
-#bpWelcomeGateV1 .bpw-moon-sphere{position:absolute;left:100%;top:50%;width:clamp(32px,4.8vw,58px);aspect-ratio:1;transform:translate(-50%,-50%) rotateX(-66deg) rotateZ(17deg);border-radius:50%;background:radial-gradient(circle at 28% 25%,rgba(255,255,255,.88),transparent 20%),radial-gradient(circle at 68% 62%,rgba(27,39,56,.5) 0 5%,transparent 6%),radial-gradient(circle at 40% 65%,rgba(28,37,50,.48) 0 8%,transparent 9%),radial-gradient(circle at 62% 31%,rgba(34,44,58,.32) 0 6%,transparent 7%),radial-gradient(circle at 38% 35%,#e4e8eb 0%,#b9c4ce 38%,#788797 70%,#293646 100%);box-shadow:inset -12px -10px 19px rgba(4,10,19,.78),inset 3px 4px 10px rgba(255,255,255,.72),0 0 13px rgba(167,207,239,.32)}
-@keyframes bpw-moon-orbit-v6249{to{transform:rotate(360deg)}}
-@keyframes bpw-sun-surface-v6249{to{transform:rotate(360deg)}}
-@keyframes bpw-sun-drift-v6249{0%{transform:translate3d(0,0,0)}50%{transform:translate3d(-5px,3px,0)}100%{transform:translate3d(3px,-4px,0)}}
-@media(max-width:620px){#bpWelcomeGateV1 .bpw-wordmark-wrap{padding:0 12px!important}#bpWelcomeGateV1 .bpw-wordmark-static{font-size:clamp(19px,5.1vw,27px);letter-spacing:.02em}#bpWelcomeGateV1 .bpw-gate-panel{left:10px!important;right:10px!important;bottom:calc(env(safe-area-inset-bottom,0px) + 16px)!important}#bpWelcomeGateV1 .bpw-actions{flex-direction:column;gap:9px}#bpWelcomeGateV1 .bpw-actions button{width:min(100%,340px);min-width:0;padding:14px 16px}.bpw-sun-model{top:19%;right:8%}}
-@media(prefers-reduced-motion:reduce){#bpWelcomeGateV1 .bpw-stars-far,#bpWelcomeGateV1 .bpw-stars-near,#bpWelcomeGateV1 .bpw-moon-runner,#bpWelcomeGateV1 .bpw-sun-model,#bpWelcomeGateV1 .bpw-sun-sphere:before{animation:none!important}}
-
-#bpWelcomeGateV1 .bpw-wordmark-static{position:relative!important;font-family:"Orbitron","Eurostile","Bank Gothic",system-ui,sans-serif!important;font-weight:900!important;letter-spacing:.075em!important;text-transform:uppercase!important;transform:perspective(900px) rotateX(17deg) rotateY(-4deg) translateZ(18px)!important;transform-style:preserve-3d!important;text-shadow:0 1px 0 #dceeff,0 2px 0 #9db7cf,0 3px 0 #6e8ca8,0 4px 0 #45627e,0 5px 0 #263f59,0 7px 0 #12263d,0 10px 18px rgba(0,0,0,.9),0 0 24px rgba(98,190,255,.42)!important;filter:drop-shadow(0 10px 10px rgba(0,0,0,.58))!important}
-#bpWelcomeGateV1 .bpw-wordmark-static:before{content:attr(data-title);position:absolute;inset:0;z-index:-1;color:#17344f;-webkit-text-fill-color:#17344f;-webkit-text-stroke:1px rgba(113,189,241,.8);transform:translate3d(0,7px,-9px);text-shadow:0 2px 0 #071321,0 5px 0 #020812,0 9px 15px rgba(0,0,0,.95)}
-#bpWelcomeGateV1 .bpw-wordmark-static:after{content:attr(data-title);position:absolute;inset:0;z-index:1;background:linear-gradient(180deg,rgba(255,255,255,.9),rgba(190,224,250,.18) 38%,transparent 56%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;pointer-events:none}
-#bpWelcomeGateV1 .bpw-celestial-system{perspective:1500px;transform-style:preserve-3d}
-#bpWelcomeGateV1 .bpw-sun-model{transform-style:preserve-3d;filter:drop-shadow(0 16px 24px rgba(0,0,0,.72))}
-#bpWelcomeGateV1 .bpw-sun-model:before{content:"";position:absolute;inset:-12%;border-radius:50%;border:1px solid rgba(255,191,112,.2);box-shadow:0 0 16px rgba(255,153,67,.12),inset 0 0 12px rgba(255,203,133,.08);transform:translateZ(-12px) rotateX(72deg)}
-#bpWelcomeGateV1 .bpw-sun-sphere{transform-style:preserve-3d;background:radial-gradient(circle at 30% 26%,#fffce8 0%,#fff0b1 5%,#ffc76a 15%,#f47730 39%,#bb3d22 67%,#240d1b 100%);box-shadow:inset -20px -16px 28px rgba(13,3,13,.86),inset 6px 5px 15px rgba(255,255,255,.72),0 0 30px 9px rgba(255,161,69,.2)}
-#bpWelcomeGateV1 .bpw-sun-sphere:before{background:repeating-radial-gradient(ellipse at 38% 42%,rgba(255,245,192,.24) 0 1px,rgba(183,48,20,.12) 2px 5px,transparent 6px 9px),radial-gradient(ellipse at 64% 28%,rgba(255,255,220,.65),transparent 34%),conic-gradient(from 10deg,rgba(255,215,137,.16),rgba(176,41,20,.18),rgba(255,235,169,.22),rgba(175,37,19,.15),rgba(255,215,137,.16));mix-blend-mode:screen;opacity:.86;animation:bpw-sun-surface-v6249 34s linear infinite}
-#bpWelcomeGateV1 .bpw-sun-sphere:after{background:radial-gradient(ellipse at 25% 42%,rgba(111,27,17,.62) 0 5%,transparent 6%),radial-gradient(ellipse at 62% 66%,rgba(101,22,13,.54) 0 7%,transparent 8%),radial-gradient(ellipse at 73% 26%,rgba(255,245,195,.42),transparent 18%),radial-gradient(ellipse at 40% 72%,rgba(255,190,93,.28),transparent 23%);transform:translateZ(2px)}
-#bpWelcomeGateV1 .bpw-moon-orbit{transform-style:preserve-3d;filter:drop-shadow(0 8px 16px rgba(0,0,0,.38))}
-#bpWelcomeGateV1 .bpw-moon-sphere{transform-style:preserve-3d;overflow:hidden;background:radial-gradient(circle at 29% 23%,#f8fbff 0%,#dbe2e8 13%,#aebbc7 39%,#687786 70%,#182635 100%);box-shadow:inset -16px -12px 22px rgba(2,8,17,.88),inset 5px 5px 12px rgba(255,255,255,.78),0 0 18px rgba(180,218,248,.25);animation:bpw-moon-spin-v6249 48s linear infinite}
-#bpWelcomeGateV1 .bpw-moon-sphere:before{content:"";position:absolute;inset:0;border-radius:50%;background:radial-gradient(ellipse at 27% 32%,rgba(35,47,60,.52) 0 5%,rgba(223,230,236,.18) 6%,transparent 10%),radial-gradient(ellipse at 65% 24%,rgba(32,44,57,.42) 0 8%,rgba(223,230,236,.16) 9%,transparent 14%),radial-gradient(ellipse at 57% 65%,rgba(24,36,50,.52) 0 11%,rgba(224,232,239,.12) 12%,transparent 18%),radial-gradient(ellipse at 28% 72%,rgba(38,50,63,.36) 0 6%,transparent 10%),radial-gradient(ellipse at 78% 78%,rgba(27,40,53,.4) 0 4%,transparent 8%);box-shadow:inset -12px -7px 15px rgba(0,0,0,.42)}
-#bpWelcomeGateV1 .bpw-moon-sphere:after{content:"";position:absolute;inset:-1%;border-radius:50%;background:linear-gradient(90deg,rgba(0,0,0,.62),transparent 43%,rgba(255,255,255,.1) 72%,transparent);transform:translateZ(3px)}
-@keyframes bpw-sun-surface-v6249{to{transform:rotate(360deg)}}
-@keyframes bpw-moon-spin-v6249{to{transform:translate(-50%,-50%) rotateY(360deg)}}
-@media(max-width:620px){#bpWelcomeGateV1 .bpw-wordmark-static{font-size:clamp(19px,5vw,27px);letter-spacing:.035em!important}}
-@media(prefers-reduced-motion:reduce){#bpWelcomeGateV1 .bpw-moon-sphere,#bpWelcomeGateV1 .bpw-sun-sphere:before{animation:none!important}}
+@media(max-width:620px){
+#bpWelcomeGateV1 .bpw-wordmark-wrap{padding:0 8px!important}
+#bpWelcomeGateV1 .bpw-wordmark-wrap:before{right:calc(50% + 104px)}
+#bpWelcomeGateV1 .bpw-wordmark-wrap:after{left:calc(50% + 104px)}
+#bpWelcomeGateV1 .bpw-wordmark-main{font-size:clamp(27px,8.5vw,42px);letter-spacing:.065em;margin-right:-.065em}
+#bpWelcomeGateV1 .bpw-wordmark-sub{font-size:clamp(11px,3.1vw,16px);letter-spacing:.36em;margin-right:-.36em}
+#bpWelcomeGateV1 .bpw-gate-panel{left:10px!important;right:10px!important;bottom:calc(env(safe-area-inset-bottom,0px) + 16px)!important}
+#bpWelcomeGateV1 .bpw-actions{flex-direction:column;gap:9px}
+#bpWelcomeGateV1 .bpw-actions button{width:min(100%,340px);min-width:0;padding:14px 16px}
+}
+@media(prefers-reduced-motion:reduce){#bpWelcomeGateV1 .bpw-wordmark-static{transform:none!important}}
 </style>"""
-
 
 def patch_root_html(source: str) -> str:
     required = (
@@ -181,8 +214,7 @@ def patch_root_html(source: str) -> str:
     )
     near_anchor = '    <div class="bpw-starfield bpw-stars-near" id="bpwStarsNearV4" aria-hidden="true"></div>\n'
     celestial = near_anchor + """    <div class="bpw-celestial-system" aria-hidden="true">
-      <div class="bpw-sun-model"><div class="bpw-sun-sphere"></div></div>
-      <div class="bpw-moon-orbit"><div class="bpw-moon-runner"><div class="bpw-moon-sphere"></div></div></div>
+      <canvas class="bpw-celestial-canvas" id="bpwCelestialCanvasV6250"></canvas>
     </div>
 """
     source = replace_once(source, near_anchor, celestial, "insert Moon and Sun models")
@@ -337,11 +369,11 @@ def patch_site(site: Path) -> None:
             'class="bpw-wordmark bpw-wordmark-static"',
             ">BridgePoint Intelligence</div>",
             "bpw-celestial-system",
-            "bpw-moon-sphere",
-            "bpw-sun-sphere",
-            "make('bpwStarsFarV4',456",
-            "make('bpwStarsNearV4',228",
-            "bpWelcomeGateStylesV6249",
+            "bpwCelestialCanvasV6250",
+            "bpwCelestialCanvasV6250",
+            "const starCount=2200",
+            "vec3 lunar=mix",
+            "bpWelcomeGateStylesV6250",
             'data-mode="signup"',
             'data-mode="signin"',
         ],
@@ -352,7 +384,7 @@ def patch_site(site: Path) -> None:
         ],
         "landing bundle": [SW_URL],
         "app bundle": [SW_URL],
-        "service worker": ["const V='" + CACHE_NAME + "';", "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6249-volumetric-space'"],
+        "service worker": ["const V='" + CACHE_NAME + "';", "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6250-deep-space-3d'"],
         "legacy app index": ['content="0;url=/"', "location.replace('/')", "sw.js?v=6249-volumetric-space"],
     }
     for label, markers in checks.items():
