@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 BUILD = "v6253-mobile-celestial-visibility"
-SW_URL = "/sw.js?v=6252-galactic-depth"
+SW_URL = "/sw.js?v=6253-mobile-celestial-visibility"
 OLD_SW_URL = "/sw.js?v=6247-universal-fresh-entry-sidewalk"
 CACHE_NAME = "bp-intelligence-v6247-universal-fresh-entry-sidewalk"
 
@@ -381,13 +381,13 @@ def patch_app_index(source: str) -> str:
     source = replace_once(
         source,
         '../manifest.webmanifest"',
-        '../manifest.webmanifest?v=6252-galactic-depth"',
+        '../manifest.webmanifest?v=6253-mobile-celestial-visibility"',
         "bust the app manifest URL",
     )
     source = replace_prefix_once(
         source,
         r"(app\.js\?v=)6247-universal-fresh-entry",
-        r"\g<1>6252-galactic-depth",
+        r"\g<1>6253-mobile-celestial-visibility",
         "bust the app bundle URL",
     )
     return source
@@ -409,7 +409,7 @@ def patch_legacy_app(source: str) -> str:
     source = replace_once(
         source,
         "sw.js?v=6218-tree-viewport-renderer-refresh",
-        "sw.js?v=6252-galactic-depth",
+        "sw.js?v=6253-mobile-celestial-visibility",
         "refresh legacy app service worker",
     )
     source = replace_once(
@@ -442,7 +442,7 @@ def patch_bundle(path: Path) -> None:
     source = replace_once(
         source,
         "navigator.serviceWorker.register('/sw.js?v=6247-universal-fresh-entry-sidewalk',{updateViaCache:'none'})",
-        "navigator.serviceWorker.register('/sw.js?v=6252-galactic-depth',{updateViaCache:'none'})",
+        "navigator.serviceWorker.register('/sw.js?v=6253-mobile-celestial-visibility',{updateViaCache:'none'})",
         f"{path.name} service-worker refresh",
     )
     path.write_text(source, encoding="utf-8")
@@ -479,13 +479,13 @@ def patch_site(site: Path) -> None:
     root = replace_once(
         root,
         './manifest.webmanifest"',
-        './manifest.webmanifest?v=6252-galactic-depth"',
+        './manifest.webmanifest?v=6253-mobile-celestial-visibility"',
         "bust the root manifest URL",
     )
     root = replace_prefix_once(
         root,
         r"(landing\.js\?v=)6247-universal-fresh-entry",
-        r"\g<1>6252-galactic-depth",
+        r"\g<1>6253-mobile-celestial-visibility",
         "bust the landing bundle URL",
     )
     required["root"].write_text(root, encoding="utf-8")
@@ -501,7 +501,7 @@ def patch_site(site: Path) -> None:
     legacy = replace_once(
         legacy,
         './manifest.webmanifest"',
-        './manifest.webmanifest?v=6252-galactic-depth"',
+        './manifest.webmanifest?v=6253-mobile-celestial-visibility"',
         "bust the legacy app manifest URL",
     )
     required["legacy app index"].write_text(legacy, encoding="utf-8")
@@ -529,13 +529,13 @@ def patch_site(site: Path) -> None:
         ],
         "app index": [
             "/?return=",
-            "app.js?v=6252-galactic-depth",
-            "manifest.webmanifest?v=6252-galactic-depth",
+            "app.js?v=6253-mobile-celestial-visibility",
+            "manifest.webmanifest?v=6253-mobile-celestial-visibility",
         ],
         "landing bundle": [SW_URL],
         "app bundle": [SW_URL],
         "service worker": ["const V='" + CACHE_NAME + "';", "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6253-mobile-celestial-visibility'"],
-        "legacy app index": ['content="0;url=/"', "location.replace('/')", "sw.js?v=6252-galactic-depth"],
+        "legacy app index": ['content="0;url=/"', "location.replace('/')", "sw.js?v=6253-mobile-celestial-visibility"],
     }
     for label, markers in checks.items():
         content = required[label].read_text(encoding="utf-8")
