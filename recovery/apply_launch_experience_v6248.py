@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 BUILD = "v6250-deep-space-3d"
-SW_URL = "/sw.js?v=6249-volumetric-space"
+SW_URL = "/sw.js?v=6250-deep-space-3d"
 OLD_SW_URL = "/sw.js?v=6247-universal-fresh-entry-sidewalk"
 CACHE_NAME = "bp-intelligence-v6247-universal-fresh-entry-sidewalk"
 
@@ -203,7 +203,7 @@ def patch_root_html(source: str) -> str:
     source = replace_once(
         source,
         '        <div class="bpw-wordmark" id="bpwWordmarkV3" role="img" aria-label="Welcome to BridgePoint Intelligence" data-title="WELCOME TO BRIDGEPOINT INTELLIGENCE"></div>',
-        '        <div class="bpw-wordmark bpw-wordmark-static" id="bpwWordmarkV3" role="img" aria-label="BridgePoint Intelligence" data-title="BridgePoint Intelligence">BridgePoint Intelligence</div>',
+        '        <div class="bpw-wordmark bpw-wordmark-static" id="bpwWordmarkV3" role="img" aria-label="BridgePoint Intelligence" data-title="BridgePoint Intelligence"><span class="bpw-wordmark-main">BRIDGEPOINT</span><span class="bpw-wordmark-sub">INTELLIGENCE</span></div>',
         "replace animated welcome text with static title",
     )
     source = replace_once(
@@ -238,13 +238,13 @@ def patch_app_index(source: str) -> str:
     source = replace_once(
         source,
         '../manifest.webmanifest"',
-        '../manifest.webmanifest?v=6249-volumetric-space"',
+        '../manifest.webmanifest?v=6250-deep-space-3d"',
         "bust the app manifest URL",
     )
     source = replace_prefix_once(
         source,
         r"(app\.js\?v=)6247-universal-fresh-entry",
-        r"\g<1>6249-volumetric-space",
+        r"\g<1>6250-deep-space-3d",
         "bust the app bundle URL",
     )
     return source
@@ -266,7 +266,7 @@ def patch_legacy_app(source: str) -> str:
     source = replace_once(
         source,
         "sw.js?v=6218-tree-viewport-renderer-refresh",
-        "sw.js?v=6249-volumetric-space",
+        "sw.js?v=6250-deep-space-3d",
         "refresh legacy app service worker",
     )
     source = replace_once(
@@ -299,7 +299,7 @@ def patch_bundle(path: Path) -> None:
     source = replace_once(
         source,
         "navigator.serviceWorker.register('/sw.js?v=6247-universal-fresh-entry-sidewalk',{updateViaCache:'none'})",
-        "navigator.serviceWorker.register('/sw.js?v=6249-volumetric-space',{updateViaCache:'none'})",
+        "navigator.serviceWorker.register('/sw.js?v=6250-deep-space-3d',{updateViaCache:'none'})",
         f"{path.name} service-worker refresh",
     )
     path.write_text(source, encoding="utf-8")
@@ -336,13 +336,13 @@ def patch_site(site: Path) -> None:
     root = replace_once(
         root,
         './manifest.webmanifest"',
-        './manifest.webmanifest?v=6249-volumetric-space"',
+        './manifest.webmanifest?v=6250-deep-space-3d"',
         "bust the root manifest URL",
     )
     root = replace_prefix_once(
         root,
         r"(landing\.js\?v=)6247-universal-fresh-entry",
-        r"\g<1>6249-volumetric-space",
+        r"\g<1>6250-deep-space-3d",
         "bust the landing bundle URL",
     )
     required["root"].write_text(root, encoding="utf-8")
@@ -358,7 +358,7 @@ def patch_site(site: Path) -> None:
     legacy = replace_once(
         legacy,
         './manifest.webmanifest"',
-        './manifest.webmanifest?v=6249-volumetric-space"',
+        './manifest.webmanifest?v=6250-deep-space-3d"',
         "bust the legacy app manifest URL",
     )
     required["legacy app index"].write_text(legacy, encoding="utf-8")
@@ -367,10 +367,10 @@ def patch_site(site: Path) -> None:
     checks = {
         "root": [
             'class="bpw-wordmark bpw-wordmark-static"',
-            ">BridgePoint Intelligence</div>",
+            ">INTELLIGENCE</span></div>",
             "bpw-celestial-system",
             "bpwCelestialCanvasV6250",
-            "bpwCelestialCanvasV6250",
+            "bpw-wordmark-main",
             "const starCount=2200",
             "vec3 lunar=mix",
             "bpWelcomeGateStylesV6250",
@@ -379,13 +379,13 @@ def patch_site(site: Path) -> None:
         ],
         "app index": [
             "/?return=",
-            "app.js?v=6249-volumetric-space",
-            "manifest.webmanifest?v=6249-volumetric-space",
+            "app.js?v=6250-deep-space-3d",
+            "manifest.webmanifest?v=6250-deep-space-3d",
         ],
         "landing bundle": [SW_URL],
         "app bundle": [SW_URL],
         "service worker": ["const V='" + CACHE_NAME + "';", "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6250-deep-space-3d'"],
-        "legacy app index": ['content="0;url=/"', "location.replace('/')", "sw.js?v=6249-volumetric-space"],
+        "legacy app index": ['content="0;url=/"', "location.replace('/')", "sw.js?v=6250-deep-space-3d"],
     }
     for label, markers in checks.items():
         content = required[label].read_text(encoding="utf-8")
@@ -401,7 +401,7 @@ def patch_site(site: Path) -> None:
         raise AssertionError("The current installed-app identity changed")
     if legacy_manifest.get("id") != "/app/intelligence-launch/":
         raise AssertionError("The legacy installed-app identity changed")
-    print("BRIDGEPOINT_LAUNCH_EXPERIENCE_V6249_PATCH_PASS")
+    print("BRIDGEPOINT_LAUNCH_EXPERIENCE_V6250_PATCH_PASS")
     print("Website, current PWA and legacy PWA all route to the same root globe gate.")
     print("Only the launch HTML, app-entry handoff, PWA entry URLs and worker update marker are changed.")
     print("Existing offline cache key and authentication/session logic are preserved.")
@@ -409,7 +409,7 @@ def patch_site(site: Path) -> None:
 
 def main() -> None:
     if len(sys.argv) != 2:
-        raise SystemExit("Usage: apply_launch_experience_v6249.py SITE_DIRECTORY")
+        raise SystemExit("Usage: apply_launch_experience_v6250.py SITE_DIRECTORY")
     patch_site(Path(sys.argv[1]))
 
 
