@@ -116,6 +116,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   const moonMaterial = new THREE.ShaderMaterial({
     uniforms: { uTime: { value: 0 }, uSunDir: { value: new THREE.Vector3(0.55, 0.38, 0.74).normalize() }, uBaseTexture: { value: null }, uBaseTextureReady: { value: 0 }, uTerrainMask: { value: null }, uTerrainUvRect: { value: new THREE.Vector4(0,0,0,0) }, uTerrainActive: { value: 0 } },
     vertexShader: `
+      #include <common>
       #include <logdepthbuf_pars_vertex>
       varying vec3 vNormal; varying vec3 vPos; varying vec2 vUv;
       void main(){vUv=uv;vNormal=normalize(normalMatrix*normal);vPos=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);
@@ -123,6 +124,8 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       }
     `,
     fragmentShader: `
+      #include <common>
+      #include <logdepthbuf_pars_fragment>
       precision highp float; varying vec3 vNormal; varying vec3 vPos; varying vec2 vUv; uniform float uTime; uniform vec3 uSunDir; uniform sampler2D uBaseTexture; uniform float uBaseTextureReady; uniform sampler2D uTerrainMask; uniform vec4 uTerrainUvRect; uniform float uTerrainActive;
       float hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
       float noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
