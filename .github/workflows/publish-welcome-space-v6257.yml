@@ -22,7 +22,7 @@ permissions:
 
 concurrency:
   group: bridgepoint-welcome-space-v6264-fast-geometric-crater-bowls
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   publish:
