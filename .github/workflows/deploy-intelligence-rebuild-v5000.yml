@@ -16,6 +16,7 @@ on:
       - '.github/workflows/validate-reality-assets-v5968.yml'
       - 'release-v2300/**'
       - 'assets/trees/**'
+      - 'assets/moon/v1/**'
       - 'tools/trees/**'
       - 'supabase/functions/bridgepoint-global-tree-viewport-v1101/**'
       - 'tests/tree-*.mjs'
@@ -608,6 +609,7 @@ jobs:
           cp rebuild-v5000/bridgepoint-emrf-spectrogram-v1.js site/bridgepoint-emrf-spectrogram-v1.js
           cp rebuild-v5000/bridgepoint-volumetric-fields-v5978.js site/app/bridgepoint-volumetric-fields-v5978.js
           cp rebuild-v5000/bridgepoint-celestial-sky-v5928.js site/bridgepoint-celestial-sky-v5928.js
+          cp rebuild-v5000/bridgepoint-welcome-space-v6257.js site/bridgepoint-welcome-space-v6257.js
           cp rebuild-v5000/bridgepoint-celestial-sky-v5928.js site/app/bridgepoint-celestial-sky-v5928.js
           cp rebuild-v5000/styles.css site/styles.css
           cp rebuild-v5000/app.js site/app.js
@@ -641,6 +643,12 @@ jobs:
           rm -f site/walkthrough-v5537.js site/walkthrough-v5537.css
           mkdir -p site/assets
           cp -a rebuild-v5000/assets/. site/assets/
+          mkdir -p site/assets/moon
+          cp -a assets/moon/v1 site/assets/moon/v1
+          test -s site/assets/moon/v1/manifest.json
+          test -s site/assets/moon/v1/moon-global-height-4ppd-u16.png
+          test -s site/assets/moon/v1/moon-apollo15-4deg-512ppd-height-u16.png
+          test -s site/assets/moon/v1/moon-lroc-color-4k.webp
 
           # Prepare two reproducible worldwide packages from the open Protomaps daily build.
           # The base pack is zoom 0–6 (~60 MB); Global Max is zoom 0–7 with extra global detail,
@@ -832,6 +840,7 @@ jobs:
           node --input-type=module --check < site/bridgepoint-emrf-spectrogram-v1.js
           node --input-type=module --check < site/app/bridgepoint-realworld-effects-v5927.js
           node --input-type=module --check < site/bridgepoint-celestial-sky-v5928.js
+          node --input-type=module --check < site/bridgepoint-welcome-space-v6257.js
           node --input-type=module --check < site/app/bridgepoint-celestial-sky-v5928.js
           test ! -e site/walkthrough-v5537.js
           test ! -e site/walkthrough-v5537.css
