@@ -154,10 +154,10 @@ jobs:
           ok=0
           fetch_live() {
             local path="$1" output="$2"
-            curl --connect-timeout 3 --max-time 8 --retry 1 --retry-connrefused --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "\${O}\${path}?launch-v6252=\${q}" -o "$output" || true
+            curl --connect-timeout 3 --max-time 8 --retry 1 --retry-connrefused --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}${path}?launch-v6252=${q}" -o "$output" || true
           }
           for i in $(seq 1 20); do
-            q="\${GITHUB_SHA}-\${i}-$(date +%s)"
+            q="${GITHUB_SHA}-${i}-$(date +%s)"
             rm -f /tmp/live-root.html /tmp/live-app.html /tmp/live-legacy-app.html /tmp/live-landing.js /tmp/live-app.js /tmp/live-sw.js /tmp/live-manifest.json /tmp/live-legacy-manifest.json
             fetch_live "/" /tmp/live-root.html & p1=$!
             fetch_live "/app/" /tmp/live-app.html & p2=$!
