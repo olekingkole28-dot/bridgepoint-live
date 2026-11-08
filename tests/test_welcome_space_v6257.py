@@ -241,11 +241,20 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
             "focusLocalTarget?moonMesh.localToWorld",
             "function rotateMoonBy(dx,dy,twist=0)",
             "function tiltMoonCamera(deltaY)",
+            "function panMoonSurface(dx,dy)",
+            "function syncMoonFocusToTarget()",
+            "function rotateMoonViewYaw(deltaX)",
+            "function refreshLabels(force = false)",
+            "moon-feature-labels.json",
+            "labelStatus: labelData ? 'ready' : 'unavailable'",
+            "maxVisible = mobile ? 34 : 58",
+            "activePointers.set(event.pointerId,{...existingPointer,x:event.clientX,y:event.clientY})",
+            "pointerState?.button===2",
+            "labelsGroup.visible = active",
             "moonCameraTiltDegrees:THREE.MathUtils.radToDeg(moonCameraTiltRadians())",
             "moonCameraDistanceKm:viewState==='moon'?camera.position.distanceTo(target)*EARTH_RADIUS_KM:null",
             "maximumTilt=THREE.MathUtils.degToRad(84)",
             "tiltMoonCamera(dy)",
-            "rotateMoonBy(dx,0,twist)",
             "gesture.center.x-gestureCenter.x",
             "zoomCameraBy(pinchDistance/gesture.distance)",
             "moonUserRotation.multiply(yaw).multiply(pitch).multiply(roll)",
@@ -259,6 +268,9 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
             self.assertIn(marker, module)
 
         self.assertNotIn("trek.nasa.gov/tiles/Moon", module)
+        labels = (ROOT / "assets" / "moon" / "v1" / "moon-feature-labels.json").read_text()
+        self.assertIn("Statio Tianhe", labels)
+        self.assertIn("Apollo 15 ALSEP Station", labels)
         self.assertNotIn("fetch(src", module)
 
         # The 3D scene must actually be mounted in the public welcome gate and its
