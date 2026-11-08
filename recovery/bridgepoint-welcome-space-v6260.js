@@ -971,6 +971,13 @@ function createMoonTerrainController() {
   }
   function setActive(value) {
     active = !!value;
+    if (!active) {
+      highResolutionRequestId += 1;
+      highResolutionBounds = null;
+      if (highResolutionPatchMesh) highResolutionPatchMesh.visible = false;
+      moonMaterial.uniforms.uGlobalCutoutActive.value = 0;
+      state.highResolutionTerrainStatus = 'inactive';
+    }
     if (patchMesh) patchMesh.visible = active;
     if (globalDetailPatchMesh) globalDetailPatchMesh.visible = active;
     if (highResolutionPatchMesh) highResolutionPatchMesh.visible = active && !!highResolutionBounds;
