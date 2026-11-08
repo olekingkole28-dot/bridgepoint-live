@@ -1,4 +1,4 @@
-name: Publish BridgePoint Moon Focus Isolation V6260
+name: Publish BridgePoint Moon In-Place Camera and Terrain V6262
 
 on:
   push:
@@ -21,7 +21,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: bridgepoint-welcome-space-v6260-moon-focus-isolated
+  group: bridgepoint-welcome-space-v6262-moon-in-place-terrain
   cancel-in-progress: false
 
 jobs:
@@ -154,7 +154,7 @@ jobs:
           node --input-type=module --check < site/bridgepoint-welcome-space-v6260.js
           node --input-type=module --check < site/bridgepoint-celestial-sky-v6257.js
           grep -Fq 'bpWelcomeGateStylesV6257' site/index.html
-          grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6260-moon-focus-isolated"' site/index.html
+          grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6262-moon-in-place-terrain"' site/index.html
           grep -Fq 'data-mode="signup"' site/index.html
           grep -Fq 'data-mode="signin"' site/index.html
           grep -Fq 'new THREE.Raycaster()' site/bridgepoint-welcome-space-v6260.js
@@ -164,10 +164,12 @@ jobs:
           grep -Fq 'externalRuntimeTerrainRequests: 0' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'moon-global-height-16ppd-u16.png' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'globalTerrainMeshResolution' site/bridgepoint-welcome-space-v6260.js
-          grep -Fq 'moonPivot.position.set(0,0,0)' site/bridgepoint-welcome-space-v6260.js
-          grep -Fq 'moonMesh.position.set(0,0,0)' site/bridgepoint-welcome-space-v6260.js
-          grep -Fq 'namedStarPoints.visible=false' site/bridgepoint-welcome-space-v6260.js
-          grep -Fq 'constellationLinesMesh.visible=false' site/bridgepoint-welcome-space-v6260.js
+          ! grep -Fq 'function enterMoonExploration' site/bridgepoint-welcome-space-v6260.js
+          ! grep -Fq 'scene.background=new THREE.Color(0x02040a)' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'moonPivot.visible=true;sunGroup.visible=true;stars.visible=true;haze.visible=true;' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'function moonSurfacePoint(lat, lon, elevationMeters = 0)' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'function refreshGlobalDetailPatch(centerLat, centerLon, force = false)' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'tiltMoonCamera(dy);' site/bridgepoint-welcome-space-v6260.js
           grep -Fq "if(viewState!=='moon')" site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'moon-apollo15-4deg-512ppd-height-u16.png' site/bridgepoint-welcome-space-v6260.js
           ! grep -Fq 'trek.nasa.gov/tiles/Moon' site/bridgepoint-welcome-space-v6260.js
@@ -217,10 +219,14 @@ jobs:
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/intelligence-launch/?welcome-space-v6257=${q}" -o /tmp/live-legacy.html || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/sw.js?verify=${q}" -o /tmp/live-sw.js || true
             if grep -Fq 'bpWelcomeGateStylesV6257' /tmp/live-root.html 2>/dev/null &&
-               grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6260-moon-focus-isolated"' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6262-moon-in-place-terrain"' /tmp/live-root.html 2>/dev/null &&
                grep -Fq 'new THREE.Raycaster()' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'MOON_PERIOD_DAYS = 27.321661' /tmp/live-space.js 2>/dev/null &&
                ! grep -Fq 'earthMesh' /tmp/live-space.js 2>/dev/null &&
+               grep -Fq 'function moonSurfacePoint' /tmp/live-space.js 2>/dev/null &&
+               ! grep -Fq 'function enterMoonExploration' /tmp/live-space.js 2>/dev/null &&
+               grep -Fq 'function refreshGlobalDetailPatch' /tmp/live-space.js 2>/dev/null &&
+               grep -Fq 'tiltMoonCamera(dy)' /tmp/live-space.js 2>/dev/null &&
                ! grep -Fq 'data-space-ground' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'initBridgePointCelestialSky' /tmp/live-sky.js 2>/dev/null &&
                grep -Fq 'bridgepoint-celestial-sky-v6257.js?v=6257' /tmp/live-app.js 2>/dev/null &&
@@ -228,7 +234,7 @@ jobs:
                grep -Fq 'entryRoute=' /tmp/live-sw.js 2>/dev/null &&
                grep -Fq '/?return=' /tmp/live-app.html 2>/dev/null &&
                grep -Fq 'content="0;url=/"' /tmp/live-legacy.html 2>/dev/null &&
-               grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6260-moon-focus-isolated'" /tmp/live-sw.js 2>/dev/null &&
+               grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6262-moon-in-place-terrain'" /tmp/live-sw.js 2>/dev/null &&
                grep -Fq 'runtimeMode' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'externalRuntimeTerrainRequests: 0' /tmp/live-space.js 2>/dev/null &&
                ! grep -Fq 'trek.nasa.gov/tiles/Moon' /tmp/live-space.js 2>/dev/null &&
@@ -247,4 +253,4 @@ jobs:
             sleep 3
           done
           test "$ok" -eq 1
-          echo 'LIVE V6260 PASS: isolated Moon camera, full-Moon LOLA 16ppd relief, Apollo 15 512ppd patch, two-finger surface pitch/pan and local IAU labels verified; unrelated Earth/world assets unchanged.'
+          echo 'LIVE V6262 PASS: isolated Moon camera, full-Moon LOLA 16ppd relief, Apollo 15 512ppd patch, two-finger surface pitch/pan and local IAU labels verified; unrelated Earth/world assets unchanged.'
