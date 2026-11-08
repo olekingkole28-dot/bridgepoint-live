@@ -267,7 +267,9 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   const namedPositions=[];
   for(const [name,ra,dec] of namedStars){const v=toSkyVector(ra,dec);starByName.set(name,v);namedPositions.push(v.x,v.y,v.z);}
   namedGeometry.setAttribute('position',new THREE.Float32BufferAttribute(namedPositions,3));
-  scene.add(new THREE.Points(namedGeometry,new THREE.PointsMaterial({color:0xd9eaff,size:2.2,sizeAttenuation:false,transparent:true,opacity:1,depthWrite:false})));
+  const namedStarPoints=new THREE.Points(namedGeometry,new THREE.PointsMaterial({color:0xd9eaff,size:2.2,sizeAttenuation:false,transparent:true,opacity:1,depthWrite:false}));
+  namedStarPoints.name='Named bright stars';
+  scene.add(namedStarPoints);
   const constellationLines=[
     ['Betelgeuse','Bellatrix'],['Bellatrix','Mintaka'],['Mintaka','Alnilam'],['Alnilam','Alnitak'],['Alnitak','Saiph'],['Saiph','Rigel'],['Rigel','Mintaka'],
     ['Vega','Deneb'],['Deneb','Altair'],['Altair','Vega'],
@@ -276,7 +278,9 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   const linePoints=[];
   for(const [a,b] of constellationLines){linePoints.push(starByName.get(a),starByName.get(b));}
   const constellationGeometry=new THREE.BufferGeometry().setFromPoints(linePoints);
-  scene.add(new THREE.LineSegments(constellationGeometry,new THREE.LineBasicMaterial({color:0x5a85ad,transparent:true,opacity:.23,depthWrite:false})));
+  const constellationLinesMesh=new THREE.LineSegments(constellationGeometry,new THREE.LineBasicMaterial({color:0x5a85ad,transparent:true,opacity:.23,depthWrite:false}));
+  constellationLinesMesh.name='Constellation guide lines';
+  scene.add(constellationLinesMesh);
 
   // Three-point depth layering adds a faint distant stellar haze without a flat CSS sky.
   const hazeGeometry=new THREE.SphereGeometry(3200,24,16);
@@ -793,6 +797,8 @@ function createMoonTerrainController() {
     scene.background=new THREE.Color(0x02040a);
     sunGroup.visible=false;
     stars.visible=false;
+    namedStarPoints.visible=false;
+    constellationLinesMesh.visible=false;
     haze.visible=false;
   }
   function exitMoonExploration(){
@@ -803,6 +809,8 @@ function createMoonTerrainController() {
     scene.background=null;
     sunGroup.visible=true;
     stars.visible=true;
+    namedStarPoints.visible=true;
+    constellationLinesMesh.visible=true;
     haze.visible=true;
   }
   function focusBody(body){
