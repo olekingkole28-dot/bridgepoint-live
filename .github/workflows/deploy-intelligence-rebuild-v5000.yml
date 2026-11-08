@@ -841,6 +841,7 @@ jobs:
           node --input-type=module --check < site/app/bridgepoint-realworld-effects-v5927.js
           node --input-type=module --check < site/bridgepoint-celestial-sky-v5928.js
           node --input-type=module --check < site/bridgepoint-welcome-space-v6257.js
+          python -m unittest tests/test_welcome_space_v6257.py
           node --input-type=module --check < site/app/bridgepoint-celestial-sky-v5928.js
           test ! -e site/walkthrough-v5537.js
           test ! -e site/walkthrough-v5537.css
