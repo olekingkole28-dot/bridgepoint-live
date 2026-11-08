@@ -1,5 +1,5 @@
 /**
- * BridgePoint Intelligence — Welcome Space Scene v6256
+ * BridgePoint Intelligence — Welcome Space Scene v6259
  * A self-contained Three.js celestial scene for the welcome gate.
  *
  * Scale policy:
@@ -16,7 +16,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
 
 (() => {
   'use strict';
-  const VERSION = 'v6257';
+  const VERSION = 'v6259';
   if (window.__BP_WELCOME_SPACE_V6257__) return;
   window.__BP_WELCOME_SPACE_V6257__ = true;
 
@@ -297,6 +297,7 @@ function createMoonTerrainController() {
   const mobile = matchMedia('(max-width: 700px)').matches || (navigator.deviceMemory || 4) <= 3;
   let active = false, assetsPromise = null, globalData = null, patchData = null;
   let colorTexture = null, patchMesh = null, maskTexture = null;
+  let labelData = null, preparedLabels = [], labelSprites = new Map(), lastLabelRefreshAt = 0;
   const state = {
     version: 2,
     source: 'BridgePoint-hosted SLDEM2015 + LOLA elevation and LROC color',
@@ -304,8 +305,16 @@ function createMoonTerrainController() {
     runtimeMode: 'local-static-assets',
     assetBase: ASSET,
     status: 'idle',
+    labelStatus: 'idle',
+    labelCount: 0,
+    visibleLabelCount: 0,
+    navigationMode: 'surface-pan-pitch-clearance',
     updatedAt: Date.now()
   };
+  const labelsGroup = new THREE.Group();
+  labelsGroup.name = 'USGS IAU lunar feature labels and lunar exploration sites';
+  labelsGroup.visible = false;
+  moonMesh.add(labelsGroup);
 
   function commitState(status, extra = {}) {
     Object.assign(state, extra, { status, active, updatedAt: Date.now() });
@@ -400,6 +409,184 @@ function createMoonTerrainController() {
     const elevationMeters = elevationAt(lat, lon);
     return { lat, lon, elevationMeters, focusPointLocal: moonSurfacePoint(lat, lon, elevationMeters) };
   }
+  function clearLabelSprites() {
+    for (const sprite of labelSprites.values()) {
+      labelsGroup.remove(sprite);
+      sprite.material.map?.dispose();
+      sprite.material.dispose();
+    }
+    labelSprites.clear();
+    state.visibleLabelCount = 0;
+  }
+  function prepareLunarLabels() {
+    if (!labelData || !Array.isArray(labelData.features)) return;
+    preparedLabels = labelData.features.map(feature => {
+      const lat = Number(feature.lat), lon = Number(feature.lon);
+      return {
+        ...feature,
+        key: 'iau-' + feature.id,
+        kind: 'feature',
+        lat, lon,
+        localPoint: moonSurfacePoint(lat, lon, elevationAt(lat, lon))
+      };
+    });
+    for (const site of Array.isArray(labelData.sites) ? labelData.sites : []) {
+      const lat = Number(site.lat), lon = Number(site.lon);
+      preparedLabels.push({
+        ...site,
+        key: 'site-' + site.id,
+        kind: 'site',
+        lat, lon,
+        diameterKm: 0,
+        localPoint: moonSurfacePoint(lat, lon, elevationAt(lat, lon))
+      });
+    }
+    state.labelCount = preparedLabels.length;
+    state.labelStatus = 'ready';
+  }
+  function labelPriority(feature) {
+    if (feature.kind === 'site') return 0;
+    if (feature.type === 'Statio') return 1;
+    if (/^(Mare|Oceanus|Mons|Montes|Sinus|Vallis|Lacus|Palus|Planitia)/i.test(feature.type || '')) return 2;
+    if ((feature.type || '').includes('Astronaut')) return 3;
+    if ((feature.type || '').includes('Crater')) return 4;
+    return 5;
+  }
+  function createLunarLabelSprite(feature) {
+    const canvasLabel = document.createElement('canvas');
+    canvasLabel.width = 512;
+    canvasLabel.height = 112;
+    const ctx = canvasLabel.getContext('2d');
+    const isSite = feature.kind === 'site' || feature.type === 'Statio';
+    ctx.clearRect(0, 0, 512, 112);
+    ctx.fillStyle = isSite ? 'rgba(31,22,8,.90)' : 'rgba(3,13,26,.88)';
+    ctx.fillRect(3, 3, 506, 106);
+    ctx.strokeStyle = isSite ? 'rgba(255,203,101,.96)' : 'rgba(148,205,240,.82)';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(4, 4, 504, 104);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = '700 34px system-ui, sans-serif';
+    ctx.fillStyle = isSite ? '#ffe2a0' : '#f3f9ff';
+    const title = String(feature.name || 'Lunar feature').trim();
+    ctx.fillText(title, 256, 43, 478);
+    const subtitle = feature.kind === 'site'
+      ? String(feature.mission || feature.type || 'LUNAR EXPLORATION SITE').toUpperCase()
+      : String(feature.type || 'LUNAR FEATURE').replace(/,.*$/, '').toUpperCase()
+        + (Number(feature.diameterKm) > 0 ? ' · ' + Number(feature.diameterKm).toFixed(Number(feature.diameterKm) < 10 ? 1 : 0) + ' KM' : '');
+    ctx.font = '600 21px system-ui, sans-serif';
+    ctx.fillStyle = isSite ? '#f6c968' : '#aad3ed';
+    ctx.fillText(subtitle, 256, 82, 478);
+    const texture = new THREE.CanvasTexture(canvasLabel);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.generateMipmaps = false;
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    const material = new THREE.SpriteMaterial({
+      map: texture,
+      transparent: true,
+      depthTest: true,
+      depthWrite: false,
+      opacity: 0.98,
+      sizeAttenuation: true
+    });
+    const sprite = new THREE.Sprite(material);
+    sprite.name = 'Lunar label: ' + title;
+    sprite.userData.feature = feature;
+    const normal = feature.localPoint.clone().normalize();
+    sprite.position.copy(feature.localPoint).addScaledVector(normal, 1.5 / (1000 * EARTH_RADIUS_KM));
+    sprite.renderOrder = 12;
+    labelsGroup.add(sprite);
+    labelSprites.set(feature.key, sprite);
+    return sprite;
+  }
+  function refreshLabels(force = false) {
+    const now = performance.now();
+    if (!force && now - lastLabelRefreshAt < 260) return;
+    lastLabelRefreshAt = now;
+    if (!active || !preparedLabels.length) {
+      labelsGroup.visible = false;
+      clearLabelSprites();
+      return;
+    }
+    labelsGroup.visible = true;
+    camera.updateMatrixWorld(true);
+    moonMesh.updateMatrixWorld(true);
+    const height = Math.max(1, canvas.clientHeight || innerHeight || 1);
+    const tanHalfFov = Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5));
+    const viewProjection = new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+    const frustum = new THREE.Frustum().setFromProjectionMatrix(viewProjection);
+    const localCamera = moonMesh.worldToLocal(camera.position.clone());
+    const baseRadius = MOON_RADIUS_KM / EARTH_RADIUS_KM;
+    const closeEnoughForSites = localCamera.length() <= baseRadius * 2.35;
+    const centerX = Math.max(1, canvas.clientWidth || innerWidth || 1) * 0.5;
+    const centerY = height * 0.5;
+    const candidates = [];
+    for (const feature of preparedLabels) {
+      const localPoint = feature.localPoint;
+      const worldPoint = localPoint.clone().applyMatrix4(moonMesh.matrixWorld);
+      if (!frustum.containsPoint(worldPoint)) continue;
+      const surfaceNormal = localPoint.clone().normalize().transformDirection(moonMesh.matrixWorld);
+      const toCamera = camera.position.clone().sub(worldPoint);
+      if (surfaceNormal.dot(toCamera) <= 0) continue;
+      const distance = Math.max(1e-9, toCamera.length());
+      const projected = worldPoint.clone().project(camera);
+      if (!Number.isFinite(projected.x) || projected.z < -1 || projected.z > 1) continue;
+      const screenX = (projected.x * 0.5 + 0.5) * centerX * 2;
+      const screenY = (-projected.y * 0.5 + 0.5) * height;
+      if (screenX < -30 || screenX > centerX * 2 + 30 || screenY < -24 || screenY > height + 24) continue;
+      const isSite = feature.kind === 'site' || feature.type === 'Statio';
+      if (isSite && !closeEnoughForSites) continue;
+      const diameter = Math.max(0, Number(feature.diameterKm) || 0);
+      const projectedDiameterPx = diameter > 0
+        ? diameter / (distance * EARTH_RADIUS_KM) * height / (2 * tanHalfFov)
+        : 0;
+      const minDiameterPx = (feature.type || '').includes('Satellite Feature') ? 11
+        : (feature.type || '').includes('Crater') ? 7
+        : isSite ? 0 : 5;
+      if (!isSite && projectedDiameterPx < minDiameterPx) continue;
+      candidates.push({
+        feature, distance, screenX, screenY, projectedDiameterPx,
+        priority: labelPriority(feature),
+        centerDistance: Math.hypot(screenX - centerX, screenY - centerY),
+        isSite
+      });
+    }
+    candidates.sort((a, b) =>
+      a.priority - b.priority ||
+      b.projectedDiameterPx - a.projectedDiameterPx ||
+      a.centerDistance - b.centerDistance
+    );
+    const maxVisible = mobile ? 34 : 58;
+    const chosen = [];
+    for (const candidate of candidates) {
+      const minGap = candidate.isSite ? 30 : 42;
+      if (chosen.some(other => Math.hypot(other.screenX - candidate.screenX, other.screenY - candidate.screenY) < minGap)) continue;
+      chosen.push(candidate);
+      if (chosen.length >= maxVisible) break;
+    }
+    const wanted = new Set(chosen.map(candidate => candidate.feature.key));
+    for (const [key, sprite] of labelSprites) {
+      if (!wanted.has(key)) {
+        labelsGroup.remove(sprite);
+        sprite.material.map?.dispose();
+        sprite.material.dispose();
+        labelSprites.delete(key);
+      }
+    }
+    for (const candidate of chosen) {
+      const feature = candidate.feature;
+      const sprite = labelSprites.get(feature.key) || createLunarLabelSprite(feature);
+      const desiredWidthPx = THREE.MathUtils.clamp(78 + String(feature.name || '').length * 2.4, 84, 190);
+      const desiredHeightPx = feature.kind === 'site' || feature.type === 'Statio' ? 34 : 29;
+      const worldPerPixel = 2 * candidate.distance * tanHalfFov / height;
+      sprite.scale.set(worldPerPixel * desiredWidthPx, worldPerPixel * desiredHeightPx, 1);
+      sprite.visible = true;
+    }
+    state.visibleLabelCount = chosen.length;
+    state.labelStatus = labelData ? 'ready' : 'unavailable';
+    state.updatedAt = Date.now();
+  }
   function buildGlobalTerrain() {
     const base = MOON_RADIUS_KM / EARTH_RADIUS_KM;
     const geometry = new THREE.SphereGeometry(base, mobile ? 256 : 384, mobile ? 128 : 192);
@@ -492,6 +679,19 @@ function createMoonTerrainController() {
         decodePng16Gray(ASSET + 'moon-apollo15-4deg-512ppd-height-u16.png'),
         loader.loadAsync(ASSET + 'moon-lroc-color-4k.webp')
       ]);
+      try {
+        const response = await fetch(ASSET + 'moon-feature-labels.json', {
+          credentials: 'same-origin', cache: 'force-cache'
+        });
+        if (!response.ok) throw new Error('Local lunar feature labels unavailable (' + response.status + ')');
+        labelData = await response.json();
+        prepareLunarLabels();
+      } catch (labelError) {
+        labelData = null;
+        preparedLabels = [];
+        state.labelStatus = 'unavailable';
+        console.warn('[BridgePoint Moon] Local lunar labels could not be loaded:', labelError);
+      }
       globalData = results[0];
       patchData = results[1];
       colorTexture = results[2];
@@ -504,13 +704,16 @@ function createMoonTerrainController() {
       moonMaterial.uniforms.uBaseTextureReady.value = 1;
       buildGlobalTerrain();
       buildHighResolutionPatch();
+      refreshLabels(true);
       commitState('ready', {
         globalHeightResolution: globalData.width + 'x' + globalData.height + ' (4 pixels/degree)',
         highResolutionPatchResolution: patchData.width + 'x' + patchData.height + ' (512 pixels/degree)',
         highResolutionPatchBounds: PATCH,
         colorResolution: '4096x2048 LROC WAC',
         runtimeMode: 'local-static-assets',
-        externalRuntimeTerrainRequests: 0
+        externalRuntimeTerrainRequests: 0,
+        labelStatus: labelData ? 'ready' : 'unavailable',
+        labelCount: preparedLabels.length
       });
       return true;
     })().catch(error => {
@@ -524,7 +727,9 @@ function createMoonTerrainController() {
   function setActive(value) {
     active = !!value;
     if (patchMesh) patchMesh.visible = active;
+    labelsGroup.visible = active;
     moonMaterial.uniforms.uTerrainActive.value = active && maskTexture ? 1 : 0;
+    if (active) refreshLabels(true);
     commitState(active ? (patchMesh ? 'ready' : 'loading') : 'inactive');
   }
   function surfaceRadiusAt(lat, lon) {
@@ -553,6 +758,7 @@ function createMoonTerrainController() {
     updateForCamera,
     setActive,
     surfaceRadiusAt,
+    refreshLabels,
     get state() { return state; }
   };
 }
@@ -588,7 +794,7 @@ function createMoonTerrainController() {
       moonMesh.updateMatrixWorld(true);
       const surface=moonMesh.localToWorld(focusLocalTarget.clone());
       const surfaceNormal=focusLocalTarget.clone().normalize().transformDirection(moonMesh.matrixWorld);
-      animateCamera(surface.clone().addScaledVector(surfaceNormal,1.25),surface,1.55);
+      animateCamera(surface.clone().addScaledVector(surfaceNormal,0.14),surface,1.55);
       if(!moonTerrainController)moonTerrainController=createMoonTerrainController();
       void moonTerrainController.activate(focusLat,focusLon).then(result=>{
         if(!result||viewState!=='moon'||!focusLocalTarget)return;
@@ -641,6 +847,70 @@ function createMoonTerrainController() {
     const direction=camera.position.clone().sub(target).normalize();
     const distance=moonZoomDistance(camera.position.distanceTo(target)*factor);
     camera.position.copy(target).addScaledVector(direction,distance);
+    enforceMoonCameraClearance();
+    camera.lookAt(target);
+  }
+  function syncMoonFocusToTarget() {
+    if (viewState !== 'moon') return;
+    moonMesh.updateMatrixWorld(true);
+    const localTarget = moonMesh.worldToLocal(target.clone());
+    if (localTarget.lengthSq() < 1e-18) return;
+    const radial = localTarget.normalize();
+    const latitude = THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(radial.y, -1, 1)));
+    const longitude = THREE.MathUtils.radToDeg(Math.atan2(-radial.x, radial.z));
+    const radius = moonTerrainController?.surfaceRadiusAt(latitude, longitude) ?? MOON_RADIUS_KM / EARTH_RADIUS_KM;
+    focusLocalTarget = radial.multiplyScalar(radius);
+    const exactSurfacePoint = moonMesh.localToWorld(focusLocalTarget.clone());
+    const correction = exactSurfacePoint.clone().sub(target);
+    target.copy(exactSurfacePoint);
+    camera.position.add(correction);
+  }
+  function panMoonSurface(dx, dy) {
+    if (viewState !== 'moon' || (!dx && !dy)) return;
+    moonMesh.updateMatrixWorld(true);
+    const localTarget = moonMesh.worldToLocal(target.clone());
+    if (localTarget.lengthSq() < 1e-18) return;
+    const normalWorld = localTarget.clone().normalize().transformDirection(moonMesh.matrixWorld);
+    const cameraRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+    cameraRight.addScaledVector(normalWorld, -cameraRight.dot(normalWorld));
+    if (cameraRight.lengthSq() < 1e-10) return;
+    cameraRight.normalize();
+    let screenUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+    screenUp.addScaledVector(normalWorld, -screenUp.dot(normalWorld));
+    if (screenUp.lengthSq() < 0.025) {
+      screenUp.set(0, 0, -1).applyQuaternion(camera.quaternion);
+      screenUp.addScaledVector(normalWorld, -screenUp.dot(normalWorld));
+    }
+    if (screenUp.lengthSq() < 1e-10) return;
+    screenUp.normalize();
+    const viewportHeight = Math.max(1, canvas.clientHeight || innerHeight || 1);
+    const range = camera.position.distanceTo(target);
+    const worldPerPixel = 2 * range * Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5)) / viewportHeight;
+    const tangentTravel = cameraRight.multiplyScalar(-dx).add(screenUp.multiplyScalar(dy)).multiplyScalar(worldPerPixel * 1.15);
+    const travelLength = tangentTravel.length();
+    if (travelLength < 1e-12) return;
+    const axis = normalWorld.clone().cross(tangentTravel.clone().normalize());
+    if (axis.lengthSq() < 1e-12) return;
+    axis.normalize();
+    const angle = travelLength / Math.max(1e-9, localTarget.length());
+    const move = new THREE.Quaternion().setFromAxisAngle(axis, angle);
+    const center = moonMesh.getWorldPosition(new THREE.Vector3());
+    camera.position.sub(center).applyQuaternion(move).add(center);
+    target.sub(center).applyQuaternion(move).add(center);
+    camera.quaternion.premultiply(move);
+    camera.up.applyQuaternion(move);
+    syncMoonFocusToTarget();
+    enforceMoonCameraClearance();
+    camera.lookAt(target);
+    moonTerrainController?.refreshLabels(true);
+  }
+  function rotateMoonViewYaw(deltaX) {
+    if (viewState !== 'moon' || Math.abs(deltaX) < 0.01 || !focusLocalTarget) return;
+    moonMesh.updateMatrixWorld(true);
+    const normalWorld = focusLocalTarget.clone().normalize().transformDirection(moonMesh.matrixWorld);
+    const offset = camera.position.clone().sub(target).applyAxisAngle(normalWorld, -deltaX * 0.0042);
+    camera.position.copy(target).add(offset);
+    camera.up.applyAxisAngle(normalWorld, -deltaX * 0.0042);
     enforceMoonCameraClearance();
     camera.lookAt(target);
   }
@@ -727,9 +997,11 @@ function createMoonTerrainController() {
       angle:Math.atan2(pts[1].y-pts[0].y,pts[1].x-pts[0].x)
     };
   }
+  canvas.addEventListener('contextmenu',event=>event.preventDefault());
   canvas.addEventListener('pointerdown',event=>{
     if(activePointers.size===0){pointerMoved=false;lastX=event.clientX;lastY=event.clientY;}
-    activePointers.set(event.pointerId,{x:event.clientX,y:event.clientY});
+    activePointers.set(event.pointerId,{x:event.clientX,y:event.clientY,button:event.button,pointerType:event.pointerType});
+    if(event.button===2)event.preventDefault();
     dragging=true;
     if(activePointers.size===2){
       const gesture=getTwoPointerGesture();
@@ -752,10 +1024,14 @@ function createMoonTerrainController() {
         let twist=gesture.angle-gestureAngle;
         if(twist>Math.PI)twist-=Math.PI*2;
         if(twist<-Math.PI)twist+=Math.PI*2;
-        // Match Earth's globe touchPitch: vertical two-finger movement tilts the view,
-        // horizontal movement spins the lunar globe, and finger spread still zooms.
-        rotateMoonBy(dx,0,twist);
-        tiltMoonCamera(dy);
+        // Two-finger vertical drag first pitches into the lunar horizon. Once
+        // in a surface-facing view, the same gesture pans along the terrain.
+        if(moonCameraTiltRadians()<THREE.MathUtils.degToRad(52)){
+          panMoonSurface(dx,0);
+          tiltMoonCamera(dy);
+        }else{
+          panMoonSurface(dx,dy);
+        }
       }
       if(pinchDistance>0)zoomCameraBy(pinchDistance/gesture.distance);
       pinchDistance=gesture.distance;
@@ -768,7 +1044,17 @@ function createMoonTerrainController() {
     const dx=event.clientX-lastX,dy=event.clientY-lastY;
     if(Math.abs(dx)+Math.abs(dy)>2)pointerMoved=true;
     lastX=event.clientX;lastY=event.clientY;
-    rotateCameraOrMoon(dx,dy);
+    const pointerState=activePointers.get(event.pointerId);
+    if(viewState==='moon'){
+      if(pointerState?.button===2||event.ctrlKey||event.shiftKey){
+        rotateMoonViewYaw(dx);
+        tiltMoonCamera(dy);
+      }else{
+        panMoonSurface(dx,dy);
+      }
+    }else{
+      rotateCameraOrMoon(dx,dy);
+    }
   });
   canvas.addEventListener('pointerup',event=>{
     activePointers.delete(event.pointerId);
@@ -789,6 +1075,7 @@ function createMoonTerrainController() {
     pointer.x=((event.clientX-rect.left)/rect.width)*2-1;
     pointer.y=-((event.clientY-rect.top)/rect.height)*2+1;
     raycaster.setFromCamera(pointer,camera);
+    if(event.button!==0)return;
     const hit=raycaster.intersectObjects(clickables,false)[0];
     if(hit?.object?.userData?.body)focusBody(hit.object.userData.body);
   });
@@ -852,7 +1139,11 @@ function createMoonTerrainController() {
       const focusedWorld=focusedObject===sunMesh?sunGroup.getWorldPosition(new THREE.Vector3()):(focusLocalTarget?moonMesh.localToWorld(focusLocalTarget.clone()):focusedObject.getWorldPosition(new THREE.Vector3()));
       camera.position.add(focusedWorld.clone().sub(target));target.copy(focusedWorld);camera.lookAt(target);
     }
-    if(viewState==='moon'){enforceMoonCameraClearance();camera.lookAt(target);}
+    if(viewState==='moon'){
+      enforceMoonCameraClearance();
+      camera.lookAt(target);
+      moonTerrainController?.refreshLabels();
+    }
     stars.rotation.y+=reducedMotion?0:elapsed*.0008;
     renderer.render(scene,camera);
     if(!document.hidden)requestAnimationFrame(render);
@@ -871,6 +1162,8 @@ function createMoonTerrainController() {
       radiiKm:{earth:EARTH_RADIUS_KM,moon:MOON_RADIUS_KM,sun:SUN_RADIUS_KM},
       cinematicOrbitDistanceScale:'responsive-compressed',
       lunarTerrain:window.__BP_MOON_TERRAIN_V1__||{status:'not-requested'},
+      lunarSurfaceNavigation:'two-finger-touch-pitch-and-pan; one-finger/mouse-left surface-pan; mouse-right/ctrl-drag pitch-and-yaw',
+      lunarLabelCount:window.__BP_MOON_TERRAIN_V1__?.labelCount||0,
       proceduralLunarRelief:'fallback-only-outside-loaded-NASA-DEM-coverage'})
   };
 })();
