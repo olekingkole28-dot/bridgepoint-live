@@ -128,7 +128,7 @@ jobs:
           node --input-type=module --check < site/bridgepoint-welcome-space-v6257.js
           node --input-type=module --check < site/bridgepoint-celestial-sky-v6257.js
           grep -Fq 'bpWelcomeGateStylesV6257' site/index.html
-          grep -Fq 'src="/bridgepoint-welcome-space-v6257.js?v=6258-local-moon-terrain"' site/index.html
+          grep -Fq 'src="/bridgepoint-welcome-space-v6257.js?v=6259-moon-surface-explorer"' site/index.html
           grep -Fq 'data-mode="signup"' site/index.html
           grep -Fq 'data-mode="signin"' site/index.html
           grep -Fq 'new THREE.Raycaster()' site/bridgepoint-welcome-space-v6257.js
@@ -199,7 +199,7 @@ jobs:
                grep -Fq 'runtimeMode' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'externalRuntimeTerrainRequests: 0' /tmp/live-space.js 2>/dev/null &&
                ! grep -Fq 'trek.nasa.gov/tiles/Moon' /tmp/live-space.js 2>/dev/null &&
-               grep -Fq 'function panMoonSurface(dx,dy)' /tmp/live-space.js 2>/dev/null &&
+               grep -Fq 'function panMoonSurface(dx, dy)' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'moon-feature-labels.json' /tmp/live-space.js 2>/dev/null &&
                curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/moon/v1/manifest.json?verify=${q}" -o /tmp/live-moon-manifest.json &&
                curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/moon/v1/moon-feature-labels.json?verify=${q}" -o /tmp/live-moon-labels.json &&
