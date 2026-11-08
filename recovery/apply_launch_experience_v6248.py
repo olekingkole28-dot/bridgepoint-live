@@ -45,13 +45,15 @@ def patch_stars(source: str) -> str:
     const lowPower=window.innerWidth<=620||(navigator.deviceMemory||4)<=3;
     const starCount=lowPower?4200:8200;
     const stars=new Float32Array(starCount*4);
-    const galaxyTilt=-0.42;
+    const galaxyAspect=(window.innerWidth||390)/Math.max(1,window.innerHeight||780);
+    const galaxyBlend=Math.max(0,Math.min(1,(galaxyAspect-1.05)/.8));
+    const galaxyOffset=.48-.46*galaxyBlend*galaxyBlend*(3-2*galaxyBlend);
     for(let i=0;i<starCount;i++){
       let x,y;
       if(random()<.58){
         x=random()*2-1;
         const spread=(random()+random()+random()-1.5)*.17;
-        y=.48+.15*Math.sin(x*2.5)+spread;
+        y=galaxyOffset+.15*Math.sin(x*2.5)+spread;
       }else{x=random()*2-1;y=random()*2-1}
       const shell=random();
       const z=shell<.20?.025+random()*.20:shell<.62?.23+random()*.38:.62+random()*.38;
@@ -180,7 +182,7 @@ def patch_stars(source: str) -> str:
     );
     const galaxyProgram=program(
       'attribute vec2 a_pos;void main(){gl_Position=vec4(a_pos,0.0,1.0);}',
-      'precision mediump float;uniform vec2 u_resolution;uniform vec2 u_earthC;uniform float u_earthR;uniform float u_time;uniform float u_viewAngle;float hash21(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}float noise2(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);float a=hash21(i),b=hash21(i+vec2(1.0,0.0)),c=hash21(i+vec2(0.0,1.0)),d=hash21(i+vec2(1.0,1.0));return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);}float fbm2(vec2 p){float v=0.0,a=.55;for(int i=0;i<3;i++){v+=a*noise2(p);p=p*2.03+vec2(13.1,7.7);a*=.48;}return v;}void main(){float unit=min(u_resolution.x,u_resolution.y);vec2 p=(gl_FragCoord.xy-.5*u_resolution)/unit;if(u_earthR>0.0&&length(p-u_earthC)<u_earthR*1.075)discard;float c=cos(u_viewAngle-.42),s=sin(u_viewAngle-.42);vec2 q=mat2(c,-s,s,c)*p;float band=q.y-(.48+.16*sin(q.x*2.5)+.018*sin(q.x*6.1));float cloud=fbm2(q*vec2(4.2,13.0)+vec2(u_time*.000004,0.0));float detail=fbm2(q*vec2(12.0,31.0)-vec2(u_time*.000002,0.0));float width=.105+.052*cloud;float core=exp(-pow(band/width,2.0));float dustLane=1.0-smoothstep(.006,.034,abs(band-.020*sin(q.x*5.2)));float density=core*(.15+.62*cloud+.32*detail)*(.38+.62*dustLane);float blueNeb=exp(-length((q-vec2(-.18,.64))*vec2(1.7,3.4))*2.0)*detail;float violetNeb=exp(-length((q-vec2(.20,-.58))*vec2(1.7,4.0))*2.0)*cloud;vec3 milky=mix(vec3(.16,.22,.48),vec3(.67,.63,.76),clamp(.25+cloud*.72,0.0,1.0));milky=mix(milky,vec3(.94,.72,.54),smoothstep(.63,.91,q.x)*.24);vec3 neb=vec3(.22,.40,.83)*blueNeb+vec3(.44,.22,.76)*violetNeb;vec3 color=milky*density+neb;float alpha=clamp(density*.62+blueNeb*.16+violetNeb*.17,0.0,.62);if(alpha<.008)discard;gl_FragColor=vec4(color,alpha);}'
+      'precision mediump float;uniform vec2 u_resolution;uniform vec2 u_earthC;uniform float u_earthR;uniform float u_time;uniform float u_viewAngle;float hash21(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}float noise2(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);float a=hash21(i),b=hash21(i+vec2(1.0,0.0)),c=hash21(i+vec2(0.0,1.0)),d=hash21(i+vec2(1.0,1.0));return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);}float fbm2(vec2 p){float v=0.0,a=.55;for(int i=0;i<3;i++){v+=a*noise2(p);p=p*2.03+vec2(13.1,7.7);a*=.48;}return v;}void main(){float unit=min(u_resolution.x,u_resolution.y);vec2 p=(gl_FragCoord.xy-.5*u_resolution)/unit;if(u_earthR>0.0&&length(p-u_earthC)<u_earthR*1.075)discard;float c=cos(u_viewAngle-.42),s=sin(u_viewAngle-.42);vec2 q=mat2(c,-s,s,c)*p;float aspect=u_resolution.x/u_resolution.y;float bandOffset=mix(.48,.02,smoothstep(1.05,1.85,aspect));float nebulaOffset=mix(.62,.34,smoothstep(1.05,1.85,aspect));float band=q.y-(bandOffset+.16*sin(q.x*2.5)+.018*sin(q.x*6.1));float cloud=fbm2(q*vec2(4.2,13.0)+vec2(u_time*.000004,0.0));float detail=fbm2(q*vec2(12.0,31.0)-vec2(u_time*.000002,0.0));float width=.105+.052*cloud;float core=exp(-pow(band/width,2.0));float dustLane=1.0-smoothstep(.006,.034,abs(band-.020*sin(q.x*5.2)));float density=core*(.15+.62*cloud+.32*detail)*(.38+.62*dustLane);float blueNeb=exp(-length((q-vec2(-.18,nebulaOffset))*vec2(1.7,3.4))*2.0)*detail;float violetNeb=exp(-length((q-vec2(.20,-nebulaOffset))*vec2(1.7,4.0))*2.0)*cloud;vec3 milky=mix(vec3(.16,.22,.48),vec3(.67,.63,.76),clamp(.25+cloud*.72,0.0,1.0));milky=mix(milky,vec3(.94,.72,.54),smoothstep(.63,.91,q.x)*.24);vec3 neb=vec3(.22,.40,.83)*blueNeb+vec3(.44,.22,.76)*violetNeb;vec3 color=milky*density+neb;float alpha=clamp(density*.62+blueNeb*.16+violetNeb*.17,0.0,.62);if(alpha<.008)discard;gl_FragColor=vec4(color,alpha);}'
     );
     const sphereProgram=program(
       'attribute vec2 a_pos;void main(){gl_Position=vec4(a_pos,0.0,1.0);}',
