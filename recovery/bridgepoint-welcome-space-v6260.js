@@ -789,7 +789,7 @@ function createMoonTerrainController() {
   function enterMoonExploration(){
     if(moonIsolationActive)return;
     // Rebase the Moon's current orbital transform to the scene origin, then freeze it.
-    moonPivot.position.copy(moonMesh.position).negate();
+    moonPivot.position.set(0,0,0);
     moonMesh.position.set(0,0,0);
     moonPivot.updateMatrixWorld(true);
     moonMesh.updateMatrixWorld(true);
