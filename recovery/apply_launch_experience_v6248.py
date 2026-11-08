@@ -100,25 +100,28 @@ def patch_stars(source: str) -> str:
         };
         const earth=helio({n:0,nd:0,i:0,id:0,w:282.9404,wd:.0000470935,a:1,e:.016709,ed:-.000000001151,m:356.0470,md:.9856002585});
         const planetData=[
-          {name:'Mercury',type:0,radius:earthRadius*.032,n:48.3313,nd:.0000324587,i:7.0047,id:.00000005,w:29.1241,wd:.0000101444,a:.387098,e:.205635,ed:.000000000559,m:168.6562,md:4.0923344368},
-          {name:'Venus',type:1,radius:earthRadius*.049,n:76.6799,nd:.0000246590,i:3.3946,id:.0000000275,w:54.8910,wd:.0000138374,a:.723330,e:.006773,ed:-.000000001302,m:48.0052,md:1.6021302244},
-          {name:'Mars',type:2,radius:earthRadius*.037,n:49.5574,nd:.0000211081,i:1.8497,id:-.0000000178,w:286.5016,wd:.0000292961,a:1.523688,e:.093405,ed:.000000002516,m:18.6021,md:.5240207766},
-          {name:'Jupiter',type:3,radius:earthRadius*.168,n:100.4542,nd:.0000276854,i:1.3030,id:-.0000001557,w:273.8777,wd:.0000164505,a:5.20256,e:.048498,ed:.000000004469,m:19.8950,md:.0830853001},
-          {name:'Saturn',type:4,radius:earthRadius*.154,n:113.6634,nd:.0000238980,i:2.4886,id:-.0000001081,w:339.3939,wd:.0000297661,a:9.55475,e:.055546,ed:-.000000009499,m:316.9670,md:.0334442282},
-          {name:'Uranus',type:5,radius:earthRadius*.101,n:74.0005,nd:.000013978,i:.7733,id:.000000019,w:96.6612,wd:.000030565,a:19.18171,e:.047318,ed:.00000000745,m:142.5905,md:.011725806},
-          {name:'Neptune',type:6,radius:earthRadius*.099,n:131.7806,nd:.000030173,i:1.7700,id:-.000000255,w:272.8461,wd:-.000006027,a:30.05826,e:.008606,ed:.00000000215,m:260.2471,md:.005995147}
+          {name:'Mercury',type:0,radius:earthRadius*.050,n:48.3313,nd:.0000324587,i:7.0047,id:.00000005,w:29.1241,wd:.0000101444,a:.387098,e:.205635,ed:.000000000559,m:168.6562,md:4.0923344368},
+          {name:'Venus',type:1,radius:earthRadius*.073,n:76.6799,nd:.0000246590,i:3.3946,id:.0000000275,w:54.8910,wd:.0000138374,a:.723330,e:.006773,ed:-.000000001302,m:48.0052,md:1.6021302244},
+          {name:'Mars',type:2,radius:earthRadius*.061,n:49.5574,nd:.0000211081,i:1.8497,id:-.0000000178,w:286.5016,wd:.0000292961,a:1.523688,e:.093405,ed:.000000002516,m:18.6021,md:.5240207766},
+          {name:'Jupiter',type:3,radius:earthRadius*.205,n:100.4542,nd:.0000276854,i:1.3030,id:-.0000001557,w:273.8777,wd:.0000164505,a:5.20256,e:.048498,ed:.000000004469,m:19.8950,md:.0830853001},
+          {name:'Saturn',type:4,radius:earthRadius*.184,n:113.6634,nd:.0000238980,i:2.4886,id:-.0000001081,w:339.3939,wd:.0000297661,a:9.55475,e:.055546,ed:-.000000009499,m:316.9670,md:.0334442282},
+          {name:'Uranus',type:5,radius:earthRadius*.134,n:74.0005,nd:.000013978,i:.7733,id:.000000019,w:96.6612,wd:.000030565,a:19.18171,e:.047318,ed:.00000000745,m:142.5905,md:.011725806},
+          {name:'Neptune',type:6,radius:earthRadius*.132,n:131.7806,nd:.000030173,i:1.7700,id:-.000000255,w:272.8461,wd:-.000006027,a:30.05826,e:.008606,ed:.00000000215,m:260.2471,md:.005995147}
         ];
-        const planets=planetData.map(o=>{
+        const portraitSlots=[[-.64,1.05],[.64,1.05],[-1.07,.55],[1.03,.56],[-.78,-.93],[0,-1.32],[.78,-.93]];
+        const wideSlots=[[-1.35,.45],[-.92,.82],[-.64,1.18],[.64,1.18],[.92,.82],[1.35,.45],[.18,-1.25]];
+        const slots=(width/height)>1.12?wideSlots:portraitSlots;
+        const planets=planetData.map((o,i)=>{
           const hp=helio(o),x=hp.x-earth.x,y=hp.y-earth.y,z=hp.z-earth.z,ye=y*Math.cos(eps)-z*Math.sin(eps),ze=y*Math.sin(eps)+z*Math.cos(eps),range=Math.hypot(x,ye,ze);
           const ra=Math.atan2(ye,x),dec=Math.asin(Math.max(-1,Math.min(1,ze/Math.max(1e-9,range))));
           let lng=ra/rad-gmst;lng=((lng+540)%360+360)%360-180;
           const dir=screenVector(lng,dec/rad);if(!dir)return null;
-          const distance=earthRadius+.12+Math.log1p(range)*.12;
-          return{name:o.name,type:o.type,center:[centerNX+dir.x*distance,centerNY+dir.y*distance],radius:o.radius};
+          const distance=earthRadius+.12+Math.log1p(range)*.12,slot=slots[i];
+          return{name:o.name,type:o.type,center:[centerNX+slot[0]*earthRadius,centerNY+slot[1]*earthRadius],radius:o.radius,ephemerisRange:range,ephemerisDirection:[dir.x,dir.y],ephemerisDistance:distance};
         }).filter(Boolean);
-        const verticalHalf=height/(2*unit),sunY=Math.min(earthRadius+sunRadius*1.95,verticalHalf-sunRadius*.70),sun=[centerNX,centerNY+sunY],orbitPhase=Date.now()*.000085;
-        const moon=[centerNX+Math.cos(orbitPhase)*earthRadius*.95,centerNY+(-1.48+Math.sin(orbitPhase)*.34)*earthRadius];
-        return{center:[centerNX,centerNY],sun,moon,sunRadius,moonRadius,visible:1,subsolar:{lng:sunLng,lat:sunDec/rad},earthRadius,viewAngle:bearing,planets,direction:[0,1],sunlightDirection:[0,.92,.40],orbitPhase,planetsScale:'compressed-relative',updatedAt:Date.now()};
+        const verticalHalf=height/(2*unit),sunY=Math.min(earthRadius+sunRadius*1.95,verticalHalf-sunRadius*.70),sun=[centerNX-earthRadius*.20,centerNY+sunY],sunVector=[sun[0]-centerNX,sun[1]-centerNY],sunLength=Math.max(.001,Math.hypot(sunVector[0],sunVector[1])),sunDirection=[sunVector[0]/sunLength,sunVector[1]/sunLength,.18],orbitPhase=Date.now()*.000023;
+        const moon=[centerNX+earthRadius*.14+Math.cos(orbitPhase)*earthRadius*.42,centerNY-earthRadius*.57+Math.sin(orbitPhase)*earthRadius*.16];
+        return{center:[centerNX,centerNY],sun,moon,sunRadius,moonRadius,visible:1,subsolar:{lng:sunLng,lat:sunDec/rad},earthRadius,viewAngle:bearing,planets,direction:[sunDirection[0],sunDirection[1]],sunlightDirection:sunDirection,orbitPhase,planetsScale:'compressed-relative',updatedAt:Date.now()};
       }catch(_){return null}
     }
     const fallback=()=>{
