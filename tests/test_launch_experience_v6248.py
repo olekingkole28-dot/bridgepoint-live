@@ -69,7 +69,7 @@ def root_fixture() -> str:
 </body></html>"""
 
 
-class LaunchExperienceV6252Tests(unittest.TestCase):
+class LaunchExperienceV6253Tests(unittest.TestCase):
     def test_root_has_static_title_two_buttons_no_earth_aura(self):
         out = patch_root_html(root_fixture())
         self.assertIn(">INTELLIGENCE</span></div>", out)
@@ -79,6 +79,11 @@ class LaunchExperienceV6252Tests(unittest.TestCase):
         self.assertNotIn("WELCOME TO", out)
         self.assertNotIn('class="bpw-explainer"', out)
         self.assertIn("bpwCelestialCanvasV6252", out)
+        self.assertIn("bpwCelestialFallbackCanvasV6253", out)
+        self.assertIn("const ctx=target.getContext('2d',{alpha:true});", out)
+        self.assertIn("fallbackCanvas.width=canvas.width", out)
+        self.assertIn("position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;height:100dvh!important;z-index:9!important", out)
+        self.assertIn("mix-blend-mode:screen", out)
         self.assertIn("bpw-wordmark-main", out)
         self.assertIn("bpw-celestial-system", out)
         self.assertIn("const starCount=lowPower?4200:8200", out)
