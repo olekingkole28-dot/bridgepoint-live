@@ -578,8 +578,23 @@ function createMoonTerrainController() {
   void loadGlobalWac();
   window.__BP_MOON_TERRAIN_V1__ = state;
   return {
-    activate(lat, lon) { setActive(true); return loadPatch(lat, lon); },
-    updateForCamera,
+    activate(lat, lon) {
+      setActive(true);
+      return loadPatch(lat, lon).then(result => result || {
+        lat, lon, elevationMeters: null, focusPointLocal: moonSurfacePoint(lat, lon, 0)
+      });
+    },
+    updateForCamera(worldPosition) {
+      if (!active || !worldPosition) return Promise.resolve(null);
+      moonMesh.updateMatrixWorld(true);
+      const local = moonMesh.worldToLocal(worldPosition.clone());
+      const normal = local.normalize();
+      const lat = THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(normal.y, -1, 1)));
+      const lon = THREE.MathUtils.radToDeg(Math.atan2(-normal.x, normal.z));
+      return loadPatch(lat, lon).then(result => result || {
+        lat, lon, elevationMeters: null, focusPointLocal: moonSurfacePoint(lat, lon, 0)
+      });
+    },
     setActive,
     get state() { return state; }
   };
