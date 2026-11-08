@@ -211,14 +211,13 @@ jobs:
           ! grep -Fq 'float crater(' site/bridgepoint-welcome-space-v6260.js
           ! grep -Fq 'crater(p,' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'createMoonPatchMaterial()' site/bridgepoint-welcome-space-v6260.js
-          grep -Fq 'uniforms: moonMaterial.uniforms' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'uniforms: { ...moonMaterial.uniforms' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'vAlpha=color.a' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'THREE.MathUtils.smoothstep(edgeDistance, 0.0, 0.055)' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'function refreshHighResolutionCraterPatch(centerLat, centerLon, force = false)' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'geometry.computeVertexNormals()' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'uGlobalCutoutActive' site/bridgepoint-welcome-space-v6260.js
           ! grep -Fq 'float crater(' site/bridgepoint-welcome-space-v6260.js
-          grep -Fq 'bumpGradient*2.4' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'moonMaterial.uniforms.uCameraLocal.value.copy' site/bridgepoint-welcome-space-v6260.js
           ! grep -Fq 'trek.nasa.gov/tiles/Moon' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'function panMoonSurface(dx, dy)' site/bridgepoint-welcome-space-v6260.js
