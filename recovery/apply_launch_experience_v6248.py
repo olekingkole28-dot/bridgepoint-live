@@ -142,7 +142,7 @@ def patch_stars(source: str) -> str:
       const dirty=()=>{alignmentDirty=true};for(const event of ['move','moveend','resize','rotate','pitch'])try{m.on(event,dirty)}catch(_){}
     };
     const readAlignment=now=>{
-      bindAlignmentMap();if(!alignmentDirty&&now-lastAlignment<650)return currentAlignment;
+      bindAlignmentMap();if(!alignmentDirty&&now-lastAlignment<650)return currentAlignment;if(now-lastAlignment<110&&currentAlignment)return currentAlignment;
       lastAlignment=now;alignmentDirty=false;currentAlignment=celestialAlignment(canvas.width,canvas.height);
       window.__BP_CELESTIAL_ALIGNMENT_V6251__=currentAlignment?{...currentAlignment,mapBound:true}:{mapBound:false,waitingForGlobe:true,updatedAt:Date.now()};
       return currentAlignment;
