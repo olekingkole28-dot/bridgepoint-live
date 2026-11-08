@@ -105,9 +105,12 @@ def patch_root_html(source: str) -> str:
         "",
         "remove Earth aura element",
     )
-    source = replace_prefix_once(
+    source = replace_once(
         source,
-        r'(?m)^([ \\t]*)<div class="bpw-wordmark" id="bpwWordmarkV3" role="img" aria-label="Welcome to BridgePoint Intelligence" data-title="WELCOME TO BRIDGEPOINT INTELLIGENCE"></div>[ \\t]*
+        'class="bpw-wordmark" id="bpwWordmarkV3" role="img" aria-label="Welcome to BridgePoint Intelligence" data-title="WELCOME TO BRIDGEPOINT INTELLIGENCE"></div>',
+        'class="bpw-wordmark bpw-wordmark-static" id="bpwWordmarkV3" role="img" aria-label="BridgePoint Intelligence" data-title="BridgePoint Intelligence"><span class="bpw-wordmark-main">BRIDGEPOINT</span><span class="bpw-wordmark-sub">INTELLIGENCE</span></div>',
+        "replace animated welcome text with static title",
+    )
     source = replace_once(
         source,
         '      <p class="bpw-explainer"><strong>BridgePoint Intelligence</strong> brings properties, buildings, infrastructure, weather and real-world signals together in one live 3D globe.</p>\n',
