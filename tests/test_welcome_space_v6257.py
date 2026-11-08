@@ -233,6 +233,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
             "function rotateMoonBy(dx,dy,twist=0)",
             "function tiltMoonCamera(deltaY)",
             "moonCameraTiltDegrees:THREE.MathUtils.radToDeg(moonCameraTiltRadians())",
+            "moonCameraDistanceKm:viewState==='moon'?camera.position.distanceTo(target)*EARTH_RADIUS_KM:null",
             "maximumTilt=THREE.MathUtils.degToRad(84)",
             "tiltMoonCamera(dy)",
             "rotateMoonBy(dx,0,twist)",
