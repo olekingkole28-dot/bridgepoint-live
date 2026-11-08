@@ -55,7 +55,9 @@ def root_fixture():
     make('bpwStarsFarV4',152);make('bpwStarsNearV4',76);
   }
   buildSpaceStars();
-  function buildWordmark(){wordmark.textContent='WELCOME TO BRIDGEPOINT INTELLIGENCE';}
+  function buildWordmark(){
+    wordmark.textContent='WELCOME TO BRIDGEPOINT INTELLIGENCE';
+  }
 </script>
 </body></html>"""
 
