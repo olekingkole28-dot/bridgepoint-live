@@ -1,4 +1,4 @@
-name: Publish BridgePoint Launch Experience V6253
+name: Publish BridgePoint Launch Experience V6254
 
 on:
   push:
@@ -71,7 +71,7 @@ jobs:
           print('SNAPSHOT_PRODUCTION_FILES',len(before))
           PY
 
-      - name: Apply only the V6253 launch and installed-app entry changes
+      - name: Apply only the V6254 launch and installed-app entry changes
         run: python3 recovery/apply_launch_experience_v6248.py site
 
       - name: Validate syntax and prove no unrelated production file changed
@@ -88,7 +88,7 @@ jobs:
           html=(root/'index.html').read_text(encoding='utf-8')
           match=re.search(r'<script id="bpWelcomeGateScriptV1">([\s\S]*?)</script>',html)
           assert match, 'Welcome gate script was not found'
-          Path('/tmp/bridgepoint-welcome-gate-v6253.js').write_text(match.group(1),encoding='utf-8')
+          Path('/tmp/bridgepoint-welcome-gate-v6254.js').write_text(match.group(1),encoding='utf-8')
           before=json.loads(Path('/tmp/launch-experience-before.json').read_text())
           after={p.relative_to(root).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
                  for p in root.rglob('*') if p.is_file()}
@@ -104,23 +104,32 @@ jobs:
           assert changed==expected, f'Unexpected production file changes: {sorted(changed)}'
           print('PASS: exactly eight launch/PWA entry files changed; every globe, data, map and feature asset is byte-identical.')
           PY
-          node --check /tmp/bridgepoint-welcome-gate-v6253.js
+          node --check /tmp/bridgepoint-welcome-gate-v6254.js
           grep -Fq 'bpw-celestial-system' site/index.html
-          grep -Fq 'bpwCelestialCanvasV6252' site/index.html
-          grep -Fq 'bpwCelestialFallbackCanvasV6253' site/index.html
+          grep -Fq 'bpwCelestialCanvasV6254' site/index.html
+          grep -Fq 'bpwCelestialFallbackCanvasV6254' site/index.html
           grep -Fq 'position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;height:100dvh!important;z-index:9!important' site/index.html
           grep -Fq 'mix-blend-mode:screen' site/index.html
           grep -Fq 'function celestialAlignment(width,height)' site/index.html
-          grep -Fq '__BP_CELESTIAL_ALIGNMENT_V6252__' site/index.html
-          grep -Fq 'flareReach=1.16' site/index.html
+          grep -Fq 'sunRadius=Math.min(earthRadius*.47' site/index.html
+          grep -Fq 'sunlightDirection:[0,.92,.40]' site/index.html
+          grep -Fq 'sunBehindEarth=u_earthR>0.0' site/index.html
+          grep -Fq 'verticalHalf-sunRadius*.70' site/index.html
+          grep -Fq 'moonRadius=earthRadius*.136' site/index.html
+          grep -Fq 'orbitPhase=Date.now()*.000085' site/index.html
+          grep -Fq 'orbitRadius=length(vec2(oq.x/.95,(oq.y+1.48)/.34))' site/index.html
+          grep -Fq 'u_moonSpin' site/index.html
+          grep -Fq 'cassini=1.0-smoothstep' site/index.html
+          grep -Fq '__BP_CELESTIAL_ALIGNMENT_V6254__' site/index.html
+          grep -Fq 'flareReach=1.20' site/index.html
           grep -Fq 'craterRelief(uv,rim,shadow)' site/index.html
           grep -Fq 'const galaxyProgram=program(' site/index.html
           grep -Fq 'const planetProgram=program(' site/index.html
-          grep -Fq 'float dustLane=1.0-smoothstep' site/index.html
+          grep -Fq 'float laneA=1.0-smoothstep' site/index.html
           grep -Fq "name:'Neptune'" site/index.html
-          grep -Fq 'ringR=length(vec2(q.x,q.y/.34))' site/index.html
+          grep -Fq 'ringR=length(vec2(q.x,(q.y-.045*q.x)/.46))' site/index.html
           grep -Fq 'const starCount=lowPower?4200:8200' site/index.html
-          grep -Fq 'scale=u_bodyType>6.5?1.94:1.0' site/index.html
+          grep -Fq 'scale=u_bodyType>6.5?2.20:1.0' site/index.html
           grep -Fq 'galaxyOffset=.48-.46*galaxyBlend*galaxyBlend*(3-2*galaxyBlend)' site/index.html
           grep -Fq 'bandOffset=mix(.48,.02,smoothstep(1.05,1.85,aspect))' site/index.html
           grep -Fq 'bpw-wordmark-main' site/index.html
@@ -131,7 +140,7 @@ jobs:
           grep -Fq 'data-mode="signin"' site/index.html
           grep -Fq 'start_url":"/"' site/manifest.webmanifest
           grep -Fq 'start_url":"/"' site/app/intelligence-launch/manifest.webmanifest
-          grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6253-mobile-celestial-visibility'" site/sw.js
+          grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6254-realistic-solar-scene'" site/sw.js
 
       - uses: actions/configure-pages@v5
         with:
@@ -139,15 +148,15 @@ jobs:
 
       - uses: actions/upload-pages-artifact@v5
         with:
-          name: bridgepoint-launch-experience-v6253
+          name: bridgepoint-launch-experience-v6254
           path: site
           include-hidden-files: true
 
-      - name: Publish the isolated V6253 launch experience
+      - name: Publish the isolated V6254 launch experience
         id: deployment
         uses: actions/deploy-pages@v4
         with:
-          artifact_name: bridgepoint-launch-experience-v6253
+          artifact_name: bridgepoint-launch-experience-v6254
 
       - name: Verify website, app and legacy installed-app entry on the live domain
         shell: bash
@@ -157,7 +166,7 @@ jobs:
           ok=0
           fetch_live() {
             local path="$1" output="$2"
-            curl --connect-timeout 3 --max-time 8 --retry 1 --retry-connrefused --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}${path}?launch-v6253=${q}" -o "$output" || true
+            curl --connect-timeout 3 --max-time 8 --retry 1 --retry-connrefused --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}${path}?launch-v6254=${q}" -o "$output" || true
           }
           for i in $(seq 1 20); do
             q="${GITHUB_SHA}-${i}-$(date +%s)"
@@ -172,20 +181,28 @@ jobs:
             fetch_live "/app/intelligence-launch/manifest.webmanifest" /tmp/live-legacy-manifest.json & p8=$!
             wait "$p1" || true; wait "$p2" || true; wait "$p3" || true; wait "$p4" || true
             wait "$p5" || true; wait "$p6" || true; wait "$p7" || true; wait "$p8" || true
-            if grep -Fq 'bpWelcomeGateStylesV6252' /tmp/live-root.html 2>/dev/null &&
+            if grep -Fq 'bpWelcomeGateStylesV6254' /tmp/live-root.html 2>/dev/null &&
                grep -Fq 'INTELLIGENCE</span></div>' /tmp/live-root.html 2>/dev/null &&
-               grep -Fq 'bpwCelestialCanvasV6252' /tmp/live-root.html 2>/dev/null &&
-               grep -Fq 'bpwCelestialFallbackCanvasV6253' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'bpwCelestialCanvasV6254' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'bpwCelestialFallbackCanvasV6254' /tmp/live-root.html 2>/dev/null &&
                grep -Fq 'position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;height:100dvh!important;z-index:9!important' /tmp/live-root.html 2>/dev/null &&
                grep -Fq 'function celestialAlignment(width,height)' /tmp/live-root.html 2>/dev/null &&
-               grep -Fq '__BP_CELESTIAL_ALIGNMENT_V6252__' /tmp/live-root.html 2>/dev/null &&
-               grep -Fq 'flareReach=1.16' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'sunRadius=Math.min(earthRadius*.47' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'sunlightDirection:[0,.92,.40]' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'sunBehindEarth=u_earthR>0.0' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'moonRadius=earthRadius*.136' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'orbitPhase=Date.now()*.000085' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'orbitRadius=length(vec2(oq.x/.95,(oq.y+1.48)/.34))' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'u_moonSpin' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'cassini=1.0-smoothstep' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq '__BP_CELESTIAL_ALIGNMENT_V6254__' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'flareReach=1.20' /tmp/live-root.html 2>/dev/null &&
                grep -Fq 'craterRelief(uv,rim,shadow)' /tmp/live-root.html 2>/dev/null &&
                grep -Fq 'const galaxyProgram=program(' /tmp/live-root.html 2>/dev/null &&
                grep -Fq 'const planetProgram=program(' /tmp/live-root.html 2>/dev/null &&
-               grep -Fq 'float dustLane=1.0-smoothstep' /tmp/live-root.html 2>/dev/null &&
-               grep -Fq 'ringR=length(vec2(q.x,q.y/.34))' /tmp/live-root.html 2>/dev/null &&
-               grep -Fq 'scale=u_bodyType>6.5?1.94:1.0' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'float laneA=1.0-smoothstep' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'ringR=length(vec2(q.x,(q.y-.045*q.x)/.46))' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'scale=u_bodyType>6.5?2.20:1.0' /tmp/live-root.html 2>/dev/null &&
                grep -Fq 'galaxyOffset=.48-.46*galaxyBlend*galaxyBlend*(3-2*galaxyBlend)' /tmp/live-root.html 2>/dev/null &&
                grep -Fq 'bandOffset=mix(.48,.02,smoothstep(1.05,1.85,aspect))' /tmp/live-root.html 2>/dev/null &&
                grep -Fq 'const starCount=lowPower?4200:8200' /tmp/live-root.html 2>/dev/null &&
@@ -194,9 +211,9 @@ jobs:
                ! grep -Fq '/?auth=signin&return=' /tmp/live-app.html 2>/dev/null &&
                grep -Fq 'content="0;url=/"' /tmp/live-legacy-app.html 2>/dev/null &&
                grep -Fq "location.replace('/')" /tmp/live-legacy-app.html 2>/dev/null &&
-               grep -Fq 'sw.js?v=6253-mobile-celestial-visibility' /tmp/live-landing.js 2>/dev/null &&
-               grep -Fq 'sw.js?v=6253-mobile-celestial-visibility' /tmp/live-app.js 2>/dev/null &&
-               grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6253-mobile-celestial-visibility'" /tmp/live-sw.js 2>/dev/null &&
+               grep -Fq 'sw.js?v=6254-realistic-solar-scene' /tmp/live-landing.js 2>/dev/null &&
+               grep -Fq 'sw.js?v=6254-realistic-solar-scene' /tmp/live-app.js 2>/dev/null &&
+               grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6254-realistic-solar-scene'" /tmp/live-sw.js 2>/dev/null &&
                grep -Fq '"start_url":"/"' /tmp/live-manifest.json 2>/dev/null &&
                grep -Fq '"start_url":"/"' /tmp/live-legacy-manifest.json 2>/dev/null; then
               ok=1
@@ -205,4 +222,4 @@ jobs:
             sleep 3
           done
           test "$ok" -eq 1
-          echo 'LIVE V6253 PASS: globe-aligned Sun and Moon, solar surface detail, crater relief, Milky Way dust lane, multi-depth 3D stars, seven textured planets and Saturn rings verified.'
+          echo 'LIVE V6254 PASS: fixed upper Sun, Earth-occluded solar disc, matching day/night terminator, rotating night-side Moon, crater relief, layered Milky Way dust lanes, detailed planets and Saturn ring divisions verified.'
