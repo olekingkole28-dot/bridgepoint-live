@@ -653,7 +653,7 @@ function createMoonTerrainController() {
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
-    geometry.setIndex(indices);
+    geometry.setIndex(new THREE.BufferAttribute(indices, 1));
     geometry.computeVertexNormals();
     geometry.computeBoundingSphere();
     const material = new THREE.MeshStandardMaterial({
@@ -735,7 +735,7 @@ function createMoonTerrainController() {
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
-    geometry.setIndex(indices.subarray(0, indexOffset));
+    geometry.setIndex(new THREE.BufferAttribute(indices.subarray(0, indexOffset), 1));
     geometry.computeVertexNormals();
     geometry.computeBoundingSphere();
     if (!globalDetailMaterial) globalDetailMaterial = new THREE.MeshStandardMaterial({
