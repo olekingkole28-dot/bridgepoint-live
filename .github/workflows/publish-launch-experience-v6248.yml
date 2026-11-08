@@ -88,7 +88,7 @@ jobs:
           html=(root/'index.html').read_text(encoding='utf-8')
           match=re.search(r'<script id="bpWelcomeGateScriptV1">([\s\S]*?)</script>',html)
           assert match, 'Welcome gate script was not found'
-          Path('/tmp/bridgepoint-welcome-gate-v6249.js').write_text(match.group(1),encoding='utf-8')
+          Path('/tmp/bridgepoint-welcome-gate-v6250.js').write_text(match.group(1),encoding='utf-8')
           before=json.loads(Path('/tmp/launch-experience-before.json').read_text())
           after={p.relative_to(root).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
                  for p in root.rglob('*') if p.is_file()}
@@ -104,7 +104,7 @@ jobs:
           assert changed==expected, f'Unexpected production file changes: {sorted(changed)}'
           print('PASS: exactly eight launch/PWA entry files changed; every globe, data, map and feature asset is byte-identical.')
           PY
-          node --check /tmp/bridgepoint-welcome-gate-v6249.js
+          node --check /tmp/bridgepoint-welcome-gate-v6250.js
           grep -Fq 'bpw-celestial-system' site/index.html
           grep -Fq 'bpwCelestialCanvasV6250' site/index.html
           grep -Fq 'bpw-wordmark-main' site/index.html
@@ -124,7 +124,7 @@ jobs:
 
       - uses: actions/upload-pages-artifact@v5
         with:
-          name: bridgepoint-launch-experience-v6249
+          name: bridgepoint-launch-experience-v6250
           path: site
           include-hidden-files: true
 
@@ -132,7 +132,7 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
         with:
-          artifact_name: bridgepoint-launch-experience-v6249
+          artifact_name: bridgepoint-launch-experience-v6250
 
       - name: Verify website, app and legacy installed-app entry on the live domain
         shell: bash
@@ -142,14 +142,14 @@ jobs:
           ok=0
           for i in $(seq 1 30); do
             q="${GITHUB_SHA}-${i}-$(date +%s)"
-            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/?launch-v6249=${q}" -o /tmp/live-root.html || true
-            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/?launch-v6249=${q}" -o /tmp/live-app.html || true
-            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/intelligence-launch/?launch-v6249=${q}" -o /tmp/live-legacy-app.html || true
-            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/landing.js?launch-v6249=${q}" -o /tmp/live-landing.js || true
-            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app.js?launch-v6249=${q}" -o /tmp/live-app.js || true
-            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/sw.js?launch-v6249=${q}" -o /tmp/live-sw.js || true
-            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/manifest.webmanifest?launch-v6249=${q}" -o /tmp/live-manifest.json || true
-            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/intelligence-launch/manifest.webmanifest?launch-v6249=${q}" -o /tmp/live-legacy-manifest.json || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/?launch-v6250=${q}" -o /tmp/live-root.html || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/?launch-v6250=${q}" -o /tmp/live-app.html || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/intelligence-launch/?launch-v6250=${q}" -o /tmp/live-legacy-app.html || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/landing.js?launch-v6250=${q}" -o /tmp/live-landing.js || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app.js?launch-v6250=${q}" -o /tmp/live-app.js || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/sw.js?launch-v6250=${q}" -o /tmp/live-sw.js || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/manifest.webmanifest?launch-v6250=${q}" -o /tmp/live-manifest.json || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/intelligence-launch/manifest.webmanifest?launch-v6250=${q}" -o /tmp/live-legacy-manifest.json || true
             if grep -Fq 'bpWelcomeGateStylesV6250' /tmp/live-root.html 2>/dev/null &&
                grep -Fq 'INTELLIGENCE</span></div>' /tmp/live-root.html 2>/dev/null &&
                grep -Fq 'bpw-celestial-system' /tmp/live-root.html 2>/dev/null &&
@@ -160,8 +160,8 @@ jobs:
                ! grep -Fq '/?auth=signin&return=' /tmp/live-app.html 2>/dev/null &&
                grep -Fq 'content="0;url=/"' /tmp/live-legacy-app.html 2>/dev/null &&
                grep -Fq "location.replace('/')" /tmp/live-legacy-app.html 2>/dev/null &&
-               grep -Fq 'sw.js?v=6249-volumetric-space' /tmp/live-landing.js 2>/dev/null &&
-               grep -Fq 'sw.js?v=6249-volumetric-space' /tmp/live-app.js 2>/dev/null &&
+               grep -Fq 'sw.js?v=6250-volumetric-space' /tmp/live-landing.js 2>/dev/null &&
+               grep -Fq 'sw.js?v=6250-volumetric-space' /tmp/live-app.js 2>/dev/null &&
                grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6250-deep-space-3d'" /tmp/live-sw.js 2>/dev/null &&
                grep -Fq '"start_url":"/"' /tmp/live-manifest.json 2>/dev/null &&
                grep -Fq '"start_url":"/"' /tmp/live-legacy-manifest.json 2>/dev/null; then
