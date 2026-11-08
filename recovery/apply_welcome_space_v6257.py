@@ -105,10 +105,292 @@ def patch_root_html(source: str) -> str:
         "",
         "remove Earth aura element",
     )
+    source = replace_prefix_once(
+        source,
+        r'(?m)^([ \\t]*)<div class="bpw-wordmark" id="bpwWordmarkV3" role="img" aria-label="Welcome to BridgePoint Intelligence" data-title="WELCOME TO BRIDGEPOINT INTELLIGENCE"></div>[ \\t]*
     source = replace_once(
         source,
-        '        <div class="bpw-wordmark" id="bpwWordmarkV3" role="img" aria-label="Welcome to BridgePoint Intelligence" data-title="WELCOME TO BRIDGEPOINT INTELLIGENCE"></div>',
-        '        <div class="bpw-wordmark bpw-wordmark-static" id="bpwWordmarkV3" role="img" aria-label="BridgePoint Intelligence" data-title="BridgePoint Intelligence"><span class="bpw-wordmark-main">BRIDGEPOINT</span><span class="bpw-wordmark-sub">INTELLIGENCE</span></div>',
+        '      <p class="bpw-explainer"><strong>BridgePoint Intelligence</strong> brings properties, buildings, infrastructure, weather and real-world signals together in one live 3D globe.</p>\n',
+        "",
+        "remove extra welcome copy",
+    )
+    near_anchor = '    <div class="bpw-starfield bpw-stars-near" id="bpwStarsNearV4" aria-hidden="true"></div>\n'
+    celestial = near_anchor + """    <div class="bpw-celestial-system" aria-hidden="true"></div>
+"""
+    source = replace_once(source, near_anchor, celestial, "insert Moon and Sun stage")
+    source = patch_stars(source)
+    module_tag = '<script type="module" src="/bridgepoint-welcome-space-v6257.js?v=6257"></script>\n'
+    source = replace_once(source, "</body>", module_tag + "</body>", "load the modular Three.js welcome scene")
+    source = replace_once(source, "</head>", launch_styles() + "\n</head>", "install responsive welcome styling")
+
+    pageshow_old = "window.addEventListener('pageshow',()=>{if(['/','/index.html','/app/','/app/index.html'].includes(location.pathname))window.scrollTo(0,0)},{once:true});"
+    pageshow_new = """window.addEventListener('pageshow',event=>{
+ const entryRoutes=['/','/index.html','/app/','/app/index.html','/app/intelligence-launch','/app/intelligence-launch/'];
+ if(event.persisted&&entryRoutes.includes(location.pathname)){location.reload();return;}
+ if(entryRoutes.includes(location.pathname))window.scrollTo(0,0);
+});"""
+    source = replace_once(source, pageshow_old, pageshow_new, "reload entry page restored from back-forward cache")
+    if source.count('class="bpw-globe-aura"') != 0:
+        raise AssertionError("Earth aura element remains in launch markup")
+    if "WELCOME TO" in source:
+        raise AssertionError("Animated WELCOME TO copy remains in launch HTML")
+    if 'data-space-ground' in source:
+        raise AssertionError("Ground sky control must not appear on the welcome screen")
+    return source
+
+
+def patch_app_index(source: str) -> str:
+    if 'id="bp-app-entry-gate-v6247"' not in source:
+        raise AssertionError("V6247 app entry gate baseline is missing")
+    source = source.replace("/?auth=signin&return=", "/?return=")
+    if source.count("/?return=") != 2:
+        raise AssertionError("Both app launch redirects must preserve the return route without auto-opening a modal")
+    if "/?auth=signin&return=" in source:
+        raise AssertionError("An app launch redirect still bypasses the two-button gate")
+    source = replace_once(
+        source,
+        '../manifest.webmanifest"',
+        '../manifest.webmanifest?v=6257-welcome-space-fix"',
+        "bust the app manifest URL",
+    )
+    source = replace_prefix_once(
+        source,
+        r"(app\.js\?v=)6247-universal-fresh-entry",
+        r"\g<1>6257-welcome-space-fix",
+        "bust the app bundle URL",
+    )
+    return source
+
+
+def patch_legacy_app(source: str) -> str:
+    source = replace_once(
+        source,
+        'content="4;url=/app/?migrated=legacy-intelligence-v5820"',
+        'content="0;url=/"',
+        "make legacy installed app route immediately to the canonical gate",
+    )
+    source = replace_once(
+        source,
+        'href="/app/" style="color:#4ad9ff"',
+        'href="/" style="color:#4ad9ff"',
+        "legacy app fallback link",
+    )
+    source = replace_once(
+        source,
+        "sw.js?v=6218-tree-viewport-renderer-refresh",
+        "sw.js?v=6257-welcome-space-fix",
+        "refresh legacy app service worker",
+    )
+    source = replace_once(
+        source,
+        "k.startsWith('bp-intelligence-')&&k!=='bp-intelligence-v5820'",
+        "k.startsWith('bp-intelligence-')&&k!=='bp-intelligence-v6247-universal-fresh-entry-sidewalk'",
+        "preserve the existing offline cache during legacy-app migration",
+    )
+    source = replace_once(
+        source,
+        "location.replace('/app/?migrated=legacy-intelligence-v5820')",
+        "location.replace('/')",
+        "legacy app final route",
+    )
+    return source
+
+
+def patch_manifest(path: Path, expected_id: str) -> None:
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if data.get("id") != expected_id:
+        raise AssertionError(f"{path}: unexpected installed-app identity {data.get('id')!r}")
+    if data.get("start_url") not in ("/app/", "/"):
+        raise AssertionError(f"{path}: unexpected previous start_url {data.get('start_url')!r}")
+    data["start_url"] = "/"
+    path.write_text(json.dumps(data, separators=(",", ":")), encoding="utf-8")
+
+
+def patch_bundle(path: Path) -> None:
+    source = path.read_text(encoding="utf-8")
+    source = replace_once(
+        source,
+        "navigator.serviceWorker.register('/sw.js?v=6247-universal-fresh-entry-sidewalk',{updateViaCache:'none'})",
+        "navigator.serviceWorker.register('/sw.js?v=6257-welcome-space-fix',{updateViaCache:'none'})",
+        f"{path.name} service-worker refresh",
+    )
+    path.write_text(source, encoding="utf-8")
+
+
+def patch_app_js(path: Path) -> None:
+    source = path.read_text(encoding="utf-8")
+    marker = "  ['time-slider',async()=>{const m=await import('./world-v2300-time-slider.js?v=6170-no-cloud-toggle-always-on');window.__BP_WORLD_TIME_SLIDER_V5908__=m.initWorldTimeSlider(world,rpc)}],"
+    if source.count(marker) != 2:
+        raise AssertionError(f"{path.name}: expected two existing time-slider jobs")
+    pos = source.rfind(marker) + len(marker)
+    source = source[:pos] + """
+  ['celestial-sky',async()=>{const m=await import('./bridgepoint-celestial-sky-v6257.js?v=6257');window.__BP_CELESTIAL_SKY_V6257__=m.initBridgePointCelestialSky(world)}],""" + source[pos:]
+    path.write_text(source, encoding="utf-8")
+
+
+def patch_landing_js(path: Path) -> None:
+    source = path.read_text(encoding="utf-8")
+    marker = "    .catch(e=>console.warn('BridgePoint 30-day world change scrub unavailable',e));"
+    source = replace_once(
+        source,
+        marker,
+        marker + """
+   // Celestial objects appear in the app's existing LOOK UP · SKY VIEW mode.
+   void import('./bridgepoint-celestial-sky-v6257.js?v=6257')
+    .then(m=>{window.__BP_CELESTIAL_SKY_V6257__=m.initBridgePointCelestialSky(world)})
+    .catch(e=>console.warn('BridgePoint celestial sky overlay unavailable',e));""",
+        "initialize celestial sky on the main globe",
+    )
+    path.write_text(source, encoding="utf-8")
+
+
+def patch_worker(path: Path) -> None:
+    source = path.read_text(encoding="utf-8")
+    source = replace_once(
+        source,
+        "const V='" + CACHE_NAME + "';",
+        "const V='" + CACHE_NAME + "';\nconst BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='" + BUILD + "';",
+        "bump worker script while preserving the existing offline cache name",
+    )
+    activate_old = "self.addEventListener('activate',e=>e.waitUntil((async()=>{for(const k of await caches.keys()){const legacy=k.startsWith('bridgepoint-universe-')||k.startsWith('bridgepoint-intelligence-launch-')||(k.startsWith('bp-intelligence-')&&k!==V);if(legacy)await caches.delete(k)}await self.clients.claim()})()));"
+    activate_new = """self.addEventListener('activate',e=>e.waitUntil((async()=>{
+ const active=await caches.open(V);
+ // Never let a saved offline HTML entry shadow the current welcome/app shell.
+ for(const request of await active.keys()){
+  const url=new URL(request.url);
+  if(url.origin===self.location.origin&&['/','/index.html','/app/','/app/index.html','/app/intelligence-launch','/app/intelligence-launch/'].includes(url.pathname))await active.delete(request);
+ }
+ for(const k of await caches.keys()){
+  const legacy=k.startsWith('bridgepoint-universe-')||k.startsWith('bridgepoint-intelligence-launch-')||(k.startsWith('bp-intelligence-')&&k!==V);
+  if(legacy)await caches.delete(k);
+ }
+ await self.clients.claim();
+})()));"""
+    source = replace_once(source, activate_old, activate_new, "purge only stale cached entry documents at activation")
+    navigation_old = """if(e.request.mode==='navigate'){
+  e.respondWith(fetch(e.request,{cache:'no-store'}).then(r=>{if(r&&r.ok){const c=r.clone();caches.open(V).then(x=>x.put(e.request,c)).catch(()=>{})}return r}).catch(async()=>caches.match(e.request)||caches.match(u.pathname.startsWith('/app')?'/app/':'/')));
+  return;
+ }"""
+    navigation_new = """if(e.request.mode==='navigate'){
+  const entryRoute=['/','/index.html','/app/','/app/index.html','/app/intelligence-launch','/app/intelligence-launch/'].includes(u.pathname);
+  e.respondWith(fetch(e.request,{cache:'no-store'}).then(r=>{
+   if(r&&r.ok&&!entryRoute){const c=r.clone();caches.open(V).then(x=>x.put(e.request,c)).catch(()=>{})}
+   return r;
+  }).catch(async()=>{
+   if(entryRoute)return new Response('BridgePoint needs a network connection to load the current application release.',{status:503,headers:{'Content-Type':'text/plain; charset=utf-8','Cache-Control':'no-store'}});
+   return caches.match(e.request)||caches.match(u.pathname.startsWith('/app')?'/app/':'/');
+  }));
+  return;
+ }"""
+    source = replace_once(source, navigation_old, navigation_new, "serve current online entry routes without stale HTML fallback")
+    path.write_text(source, encoding="utf-8")
+
+
+def patch_site(site: Path) -> None:
+    required = {
+        "root": site / "index.html",
+        "app index": site / "app" / "index.html",
+        "landing bundle": site / "landing.js",
+        "app bundle": site / "app.js",
+        "service worker": site / "sw.js",
+        "root manifest": site / "manifest.webmanifest",
+        "legacy app index": site / "app" / "intelligence-launch" / "index.html",
+        "legacy app manifest": site / "app" / "intelligence-launch" / "manifest.webmanifest",
+        "welcome space module": site / "bridgepoint-welcome-space-v6257.js",
+        "celestial sky module": site / "bridgepoint-celestial-sky-v6257.js",
+    }
+    for label, path in required.items():
+        if not path.is_file():
+            raise FileNotFoundError(f"Production Pages artifact is missing {label}: {path}")
+
+    root = required["root"].read_text(encoding="utf-8")
+    root = patch_root_html(root)
+    root = replace_once(
+        root,
+        './manifest.webmanifest"',
+        './manifest.webmanifest?v=6257-welcome-space-fix"',
+        "bust the root manifest URL",
+    )
+    root = replace_prefix_once(
+        root,
+        r"(landing\.js\?v=)6247-universal-fresh-entry",
+        r"\g<1>6257-welcome-space-fix",
+        "bust the landing bundle URL",
+    )
+    required["root"].write_text(root, encoding="utf-8")
+
+    app_index = patch_app_index(required["app index"].read_text(encoding="utf-8"))
+    required["app index"].write_text(app_index, encoding="utf-8")
+    patch_bundle(required["landing bundle"])
+    patch_bundle(required["app bundle"])
+    patch_app_js(required["app bundle"])
+    patch_landing_js(required["landing bundle"])
+    patch_worker(required["service worker"])
+
+    patch_manifest(required["root manifest"], "/bridgepoint-intelligence-v5050")
+    legacy = patch_legacy_app(required["legacy app index"].read_text(encoding="utf-8"))
+    legacy = replace_once(
+        legacy,
+        './manifest.webmanifest"',
+        './manifest.webmanifest?v=6257-welcome-space-fix"',
+        "bust the legacy app manifest URL",
+    )
+    required["legacy app index"].write_text(legacy, encoding="utf-8")
+    patch_manifest(required["legacy app manifest"], "/app/intelligence-launch/")
+
+    checks = {
+        "root": [
+            'class="bpw-wordmark bpw-wordmark-static"',
+            ">INTELLIGENCE</span></div>",
+            "bpw-celestial-system",
+            "bpw-wordmark-main",
+            "bpWelcomeGateStylesV6257",
+            'src="/bridgepoint-welcome-space-v6257.js?v=6257"',
+            'data-mode="signup"',
+            'data-mode="signin"',
+        ],
+        "app index": [
+            "/?return=",
+            "app.js?v=6257-welcome-space-fix",
+            "manifest.webmanifest?v=6257-welcome-space-fix",
+        ],
+        "landing bundle": [SW_URL, "bridgepoint-celestial-sky-v6257.js?v=6257"],
+        "app bundle": [SW_URL, "bridgepoint-celestial-sky-v6257.js?v=6257"],
+        "service worker": ["const V='" + CACHE_NAME + "';", "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6257-welcome-space-fix'", "entryRoute", "clients.claim()"],
+        "welcome space module": ["new THREE.Raycaster()", "logarithmicDepthBuffer: true", "MOON_PERIOD_DAYS = 27.321661", "data-space-reset", "uTime"],
+        "celestial sky module": ["apparentAngularRadiusPx", "bp6257-sun-surface", "initBridgePointCelestialSky"],
+        "legacy app index": ['content="0;url=/"', "location.replace('/')", "sw.js?v=6257-welcome-space-fix"],
+    }
+    for label, markers in checks.items():
+        content = required[label].read_text(encoding="utf-8")
+        for marker in markers:
+            if marker not in content:
+                raise AssertionError(f"{label}: missing required launch marker {marker}")
+
+    root_manifest = json.loads(required["root manifest"].read_text(encoding="utf-8"))
+    legacy_manifest = json.loads(required["legacy app manifest"].read_text(encoding="utf-8"))
+    if root_manifest.get("start_url") != "/" or legacy_manifest.get("start_url") != "/":
+        raise AssertionError("Installed app manifests must both launch at the canonical root gate")
+    if root_manifest.get("id") != "/bridgepoint-intelligence-v5050":
+        raise AssertionError("The current installed-app identity changed")
+    if legacy_manifest.get("id") != "/app/intelligence-launch/":
+        raise AssertionError("The legacy installed-app identity changed")
+    print("BRIDGEPOINT_WELCOME_SPACE_V6257_PATCH_PASS")
+    print("Website, app, current PWA and legacy PWA all route to the same root globe gate.")
+    print("Only launch HTML, app-entry handoff, app sky imports, PWA entry URLs, worker behavior and two isolated celestial modules are changed.")
+    print("Existing offline data asset caches and authentication/session logic are preserved.")
+
+
+def main() -> None:
+    if len(sys.argv) != 2:
+        raise SystemExit("Usage: apply_welcome_space_v6257.py SITE_DIRECTORY")
+    patch_site(Path(sys.argv[1]))
+
+
+if __name__ == "__main__":
+    main()
+,
+        r'\\g<1><div class="bpw-wordmark bpw-wordmark-static" id="bpwWordmarkV3" role="img" aria-label="BridgePoint Intelligence" data-title="BridgePoint Intelligence"><span class="bpw-wordmark-main">BRIDGEPOINT</span><span class="bpw-wordmark-sub">INTELLIGENCE</span></div>',
         "replace animated welcome text with static title",
     )
     source = replace_once(
