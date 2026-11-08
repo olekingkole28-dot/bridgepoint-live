@@ -347,8 +347,9 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       animateCamera(pos,moonMesh.getWorldPosition(new THREE.Vector3()),1.65);
     }else if(body==='sun'){
       viewState='sun';
-      const pos=sunPosition.clone().add(new THREE.Vector3(0,0,sunRadiusVisual*3.6));
-      animateCamera(pos,sunPosition,1.9);
+      const sunWorld=sunGroup.getWorldPosition(new THREE.Vector3());
+      const pos=sunWorld.clone().add(new THREE.Vector3(0,0,sunRadiusVisual*3.6));
+      animateCamera(pos,sunWorld,1.9);
     }
   }
   function resetView(){
@@ -488,9 +489,6 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       moonMesh.lookAt(earth.position);
       earth.rotation.y+=reducedMotion?0:elapsed*TAU/(SIDEREAL_DAY_SECONDS/1200);
       sunGroup.rotation.y+=reducedMotion?0:elapsed*.012;
-      sunMaterial.uniforms.uTime.value=t;
-      moonMaterial.uniforms.uTime.value=t;
-      earthMaterial.uniforms.uTime.value=t;
       const sunDir=sunPosition.clone().normalize();
       earthMaterial.uniforms.uSunDir.value.copy(sunDir);
       moonMaterial.uniforms.uSunDir.value.copy(sunPosition.clone().sub(moonMesh.position).normalize());
@@ -509,12 +507,16 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       camera.position.lerpVectors(cameraFrom,cameraTo,k);target.lerpVectors(targetFrom,targetTo,k);camera.lookAt(target);
       if(u>=1)transitionStart=0;
     }
+    sunMaterial.uniforms.uTime.value=t;
+    moonMaterial.uniforms.uTime.value=t;
+    earthMaterial.uniforms.uTime.value=t;
     if(!groundMode){
       const sunDir=sunPosition.clone().normalize();
       earthMaterial.uniforms.uSunDir.value.copy(sunDir);
       moonMaterial.uniforms.uSunDir.value.copy(sunPosition.clone().sub(moonMesh.position).normalize());
       sunLight.position.copy(sunPosition);
     }
+    if(!reducedMotion)sunGroup.rotation.y+=elapsed*.012;
     stars.rotation.y+=reducedMotion?0:elapsed*.0008;
     renderer.render(scene,camera);
     if(!document.hidden)requestAnimationFrame(render);
