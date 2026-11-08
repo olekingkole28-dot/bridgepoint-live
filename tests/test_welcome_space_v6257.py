@@ -255,7 +255,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
             "externalRuntimeTerrainRequests: 0",
             "runtimeMode: 'local-static-assets'",
             "function sampleGrid(grid, u, v)",
-            "new THREE.MeshStandardMaterial({",
+            "createMoonPatchMaterial()",
             "viewState==='moon'?0.00000045:1.8",
             "camera.near=0.00000005",
             "camera.near=0.001",
