@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "name": "BridgePoint NASA Moon Terrain",
+  "sources": [
+    {
+      "name": "SLDEM2015 merged LOLA + SELENE Terrain Camera",
+      "resolutionPixelsPerDegree": 512,
+      "coverageLatitudeDegrees": [
+        -60,
+        60
+      ],
+      "verticalScaleMeters": 0.5,
+      "referenceRadiusMeters": 1737400,
+      "url": "https://imbrium.mit.edu/DATA/SLDEM2015/GLOBAL/JP2/SLDEM2015_512_60S_60N_000_360.JP2"
+    },
+    {
+      "name": "LRO LOLA global cylindrical DEM",
+      "resolutionPixelsPerDegree": 64,
+      "coverageLatitudeDegrees": [
+        -90,
+        90
+      ],
+      "verticalScaleMeters": 0.5,
+      "unsignedOffsetMeters": -10000,
+      "url": "https://svs.gsfc.nasa.gov/vis/a000000/a004700/a004720/ldem_64_uint.tif"
+    },
+    {
+      "name": "LROC 2025 WAC natural-color map",
+      "width": 4096,
+      "height": 2048,
+      "url": "https://svs.gsfc.nasa.gov/vis/a000000/a004700/a004720/lroc_color_16bit_srgb_8k.tif"
+    }
+  ],
+  "globalHeight": {
+    "file": "moon-global-height-4ppd-u16.png",
+    "width": 1440,
+    "height": 720,
+    "samplesPerDegree": 4,
+    "encoding": "PNG grayscale 16-bit unsigned; elevationMeters = sample - 32768"
+  },
+  "color": {
+    "file": "moon-lroc-color-4k.webp",
+    "width": 4096,
+    "height": 2048,
+    "encoding": "sRGB"
+  },
+  "highResolutionPatches": [
+    {
+      "id": "apollo15-nearside-4deg",
+      "file": "moon-apollo15-4deg-512ppd-height-u16.png",
+      "westLongitude": 1.6333,
+      "eastLongitude": 5.6333,
+      "southLatitude": 24.1322,
+      "northLatitude": 28.1322,
+      "width": 2048,
+      "height": 2048,
+      "samplesPerDegree": 512,
+      "sampleSpacingAtEquatorMeters": 59.2252938,
+      "elevationRangeMeters": [
+        -3075.0,
+        2924.0
+      ],
+      "encoding": "PNG grayscale 16-bit unsigned; elevationMeters = sample - 32768"
+    }
+  ],
+  "runtimeMode": "All terrain/texture assets are served from BridgePoint static assets. No runtime NASA/Moon Trek tile fetch."
+}
