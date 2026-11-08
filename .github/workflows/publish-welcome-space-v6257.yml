@@ -140,7 +140,7 @@ jobs:
             xoff=$((source_x * 1280)); yoff=$((y * 1280))
             out="assets/moon/v1/sldem-128ppd/moon-sldem-128ppd-y${yy}-x${xx}.png"
             # Map raw DEM samples with an exact 0.5 slope and +32768 offset.
-            gdal_translate -q -of PNG -ot UInt16 -co ZLEVEL=6 -a_nodata 32768 -scale 0 65536 32768 65536 -srcwin "$xoff" "$yoff" 1280 1280 "$SLDEM_TILE_SOURCE" "$out"
+            gdal_translate -q -of PNG -ot UInt16 -co ZLEVEL=6 -scale 0 65536 32768 65536 -srcwin "$xoff" "$yoff" 1280 1280 "$SLDEM_TILE_SOURCE" "$out"
           ' _
           test "$(find assets/moon/v1/sldem-128ppd -type f -name '*.png' | wc -l)" -eq 432
           gdalinfo assets/moon/v1/sldem-128ppd/moon-sldem-128ppd-y03-x18.png | grep -Fq 'Size is 1280, 1280'
