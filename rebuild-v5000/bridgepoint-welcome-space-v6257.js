@@ -1014,7 +1014,8 @@ function createMoonTerrainController() {
   });
   canvas.addEventListener('pointermove',event=>{
     if(!activePointers.has(event.pointerId))return;
-    activePointers.set(event.pointerId,{x:event.clientX,y:event.clientY});
+    const existingPointer=activePointers.get(event.pointerId)||{};
+    activePointers.set(event.pointerId,{...existingPointer,x:event.clientX,y:event.clientY});
     if(activePointers.size>1){
       const gesture=getTwoPointerGesture();
       if(!gesture)return;
