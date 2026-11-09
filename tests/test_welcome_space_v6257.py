@@ -97,7 +97,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
     def test_root_uses_one_existing_earth_and_no_ground_sky_button(self):
         out = patch_root_html(root_fixture())
         self.assertIn("bpWelcomeGateStylesV6257", out)
-        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6280-unified-cosmos"', out)
+        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6281-space-camera-sync"', out)
         self.assertIn('class="bpw-celestial-system" aria-hidden="true"></div>', out)
         self.assertNotIn("bpwCelestialCanvasV6257", out)
         self.assertNotIn('class="bpw-globe-aura"', out)
@@ -115,7 +115,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
 <script>location.replace('/')</script>
 <script src="/sw.js?v=6247-universal-fresh-entry-sidewalk"></script>"""
         out = patch_legacy_app(migrated)
-        self.assertIn("sw.js?v=6280-unified-cosmos", out)
+        self.assertIn("sw.js?v=6281-space-camera-sync", out)
         self.assertNotIn("v=6247-universal-fresh-entry-sidewalk", out)
         self.assertIn('content="0;url=/"', out)
         self.assertIn("location.replace('/')", out)
@@ -130,7 +130,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
         for tag in cases:
             with self.subTest(tag=tag):
                 out = bump_manifest_url(tag, "test manifest URL")
-                self.assertEqual(out.count("v=6280-unified-cosmos"), 1)
+                self.assertEqual(out.count("v=6281-space-camera-sync"), 1)
                 self.assertNotIn("v=6265-solar-globe", out)
                 self.assertNotIn("v=6247-universal-fresh-entry", out)
 
@@ -151,7 +151,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
 <script type="module" src="/bridgepoint-welcome-space-v6260.js?v=6265-solar-globe">
 </body></html>"""
         out = patch_root_html(current)
-        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6280-unified-cosmos"', out)
+        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6281-space-camera-sync"', out)
         self.assertNotIn("v=6265-solar-globe", out)
         self.assertIn('<div class="bpw-celestial-system" aria-hidden="true"></div>', out)
         self.assertIn('class="bpw-wordmark bpw-wordmark-static"', out)
@@ -163,8 +163,8 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
         app = patch_app_index(app_index_fixture())
         self.assertEqual(app.count("/?return="), 2)
         self.assertNotIn("/?auth=signin&return=", app)
-        self.assertIn("app.js?v=6280-unified-cosmos", app)
-        self.assertIn("manifest.webmanifest?v=6280-unified-cosmos", app)
+        self.assertIn("app.js?v=6281-space-camera-sync", app)
+        self.assertIn("manifest.webmanifest?v=6281-space-camera-sync", app)
         legacy = patch_legacy_app(legacy_fixture())
         self.assertIn('content="0;url=/"', legacy)
         self.assertIn("location.replace('/')", legacy)
@@ -398,7 +398,7 @@ self.addEventListener('fetch',e=>{
         workflow = (ROOT / ".github" / "workflows" / "deploy-intelligence-rebuild-v5000.yml").read_text()
         self.assertIn('class="bpw-celestial-system"', index)
         helper = (ROOT / "recovery" / "apply_welcome_space_v6257.py").read_text()
-        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6280-unified-cosmos"', helper)
+        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6281-space-camera-sync"', helper)
         publish_workflow = (ROOT / ".github" / "workflows" / "publish-welcome-space-v6257.yml").read_text()
         self.assertIn("cp recovery/bridgepoint-welcome-space-v6260.js site/bridgepoint-welcome-space-v6260.js", publish_workflow)
         self.assertNotIn("cp -a assets/moon/v1 site/assets/moon/v1", publish_workflow)
@@ -475,7 +475,7 @@ self.addEventListener('fetch',e=>{
             bundle = Path(folder) / "app.js"
             bundle.write_text("navigator.serviceWorker.register('/sw.js?v=6269-solar-fire-plasma',{updateViaCache:'none'})")
             patch_bundle(bundle)
-            self.assertIn("sw.js?v=6280-unified-cosmos", bundle.read_text())
+            self.assertIn("sw.js?v=6281-space-camera-sync", bundle.read_text())
             self.assertNotIn("v6269-solar-fire-plasma", bundle.read_text())
 
     def test_patch_bundle_also_invalidates_v6280_worker(self):
@@ -544,7 +544,7 @@ self.addEventListener('fetch',e=>{
         galaxy = (ROOT / "rebuild-v5000" / "bridgepoint-gaia-galaxy-v6270.js").read_text()
         self.assertIn("stars.visible=true", scene)
         self.assertIn("initBridgePointSolarCosmos", scene)
-        self.assertIn("v=6280-unified-cosmos", scene)
+        self.assertIn("v=6281-space-camera-sync", scene)
         self.assertNotIn("cinematicStarfield", scene)
         self.assertNotIn("bpw-gaia-mode", scene)
         self.assertNotIn("GAIA_DR3_GALAXY_V6270", scene)
@@ -558,7 +558,7 @@ self.addEventListener('fetch',e=>{
         self.assertIn("starsGroup.visible=true", galaxy)
         self.assertIn("initBridgePointSolarCosmos", galaxy)
 
-    def test_continuous_solar_scene_reuses_existing_bodies_and_labels_planets(self):
+    def test_continuous_solar_scene_reuses_existing_bodies_without_placeholders(self):
         scene = (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text()
         cosmos = (ROOT / "rebuild-v5000" / "bridgepoint-gaia-galaxy-v6270.js").read_text()
         self.assertIn("bodyRefs:{earth:earthDepthOccluder,moon:moonMesh,sun:sunMesh}", scene)
@@ -568,7 +568,7 @@ self.addEventListener('fetch',e=>{
         self.assertIn("followsEarthCamera=viewState==='overview'", scene)
         self.assertIn("maxCameraDistance", cosmos)
         self.assertIn("planetPos(THREE,p,days,ob).multiplyScalar(auScale)", cosmos)
-        self.assertIn("3D heliocentric orbital path", cosmos)
+        self.assertIn("for(const p of [])", cosmos)
         self.assertIn("World-anchored celestial body labels", cosmos)
         self.assertIn("bpw-celestial-body-picker", cosmos)
         self.assertIn("CHOOSE CELESTIAL BODY", cosmos)
@@ -634,7 +634,7 @@ self.addEventListener('fetch',e=>{
             after = {p.relative_to(site).as_posix() for p in site.rglob("*") if p.is_file()}
             self.assertEqual(after - before, set())
             root = (site / "index.html").read_text()
-            self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6280-unified-cosmos"', root)
+            self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6281-space-camera-sync"', root)
             self.assertIn("event.persisted", root)
             self.assertIn("location.reload()", root)
             self.assertNotIn("data-space-ground", root)
