@@ -188,4 +188,4 @@ jobs:
           test -s /tmp/bp-live-mimas.bin.gz
           test -s /tmp/bp-live-enceladus.bin.gz
           test -s /tmp/bp-live-titan-height.bin.gz
-          echo "LIVE SATURN V6284 PASS — CROPPED CASSINI MAP, MOVING ATMOSPHERE, ALPHA RINGS, LIT RELIEF MOONS AND MOBILE HITBOXES SERVED"
+          echo "LIVE SATURN V6284 PASS — CROPPED CASSINI RASTER, DIFFERENTIAL CLOUD FLOW, FRESNEL RIM, LIT ALPHA RINGS, CORRECTED DSK WINDING AND CLICKABLE MOON HITBOXES SERVED"
