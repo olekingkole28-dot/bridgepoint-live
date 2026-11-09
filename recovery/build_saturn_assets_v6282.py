@@ -6,6 +6,8 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 import rasterio
+from urllib.request import Request, urlopen
+from urllib.parse import urlencode
 import spiceypy as spice
 import fast_simplification
 
@@ -111,6 +113,70 @@ def build_titan_height(src: Path, dst: Path) -> dict:
             "bytes_gzip":dst.stat().st_size,"sha256":sha256(dst),
             "header":"BPSH u32 version,width,height,reserved; float32 min/max metres; uint16 normalized elevation"}
 
+def fetch_bytes(url: str, timeout: int = 180) -> bytes:
+    req=Request(url,headers={"User-Agent":"BridgePoint-Intelligence/1.0 (NASA open-data asset build)"})
+    with urlopen(req,timeout=timeout) as response:
+        return response.read()
+
+def download_sources(root: Path) -> None:
+    """Download the exact open NASA/PDS/NAIF/Cornell source files used by the builder."""
+    files={
+      "saturn/saturn-cassini-iss-rgb-global-original.png":
+        "https://atmos.nmsu.edu/PDS/data/PDS4/co_iss_global-maps/browse/Browse_Cassini_ISS_RGB_Saturn_global_color_map_original.png",
+      "titan/titan-cassini-radar-topography-PIA16848.jpg":
+        "https://assets.science.nasa.gov/dynamicimage/assets/science/psd/photojournal/pia/pia16/pia16848/PIA16848.jpg?fit=clip&h=1126&w=2196",
+      "enceladus/enceladus-cassini-global-map-PIA08417.jpg":
+        "https://assets.science.nasa.gov/dynamicimage/assets/science/psd/photojournal/pia/pia08/pia08417/PIA08417.jpg?fit=clip&h=1182&w=1969",
+      "mimas/mimas-cassini-global-map-PIA17214-unlabeled.png":
+        "https://assets.science.nasa.gov/dynamicimage/assets/science/psd/solar/2023/09/p/i/a/1/PIA17214_unlabeled.png?fit=clip&h=4096&w=4096",
+      "enceladus/cas_enceladus_ssd_spc_0128icq_v1.bds":
+        "https://naif.jpl.nasa.gov/pub/naif/CASSINI/kernels/dsk/cas_enceladus_ssd_spc_0128icq_v1.bds",
+      "mimas/MIMAS_M3_GAS_V01.BDS":
+        "https://sbn.psi.edu/pds/shape-models/files/dsk/MIMAS_M3_GAS_V01.BDS",
+    }
+    for rel,url in files.items():
+        path=root/rel
+        if path.exists() and path.stat().st_size>1024:
+            print("SOURCE_CACHED",rel,path.stat().st_size,flush=True)
+            continue
+        path.parent.mkdir(parents=True,exist_ok=True)
+        data=fetch_bytes(url)
+        if len(data)<1024: raise RuntimeError(f"NASA source is unexpectedly small: {url}")
+        path.write_bytes(data)
+        print("SOURCE_OK",rel,len(data),flush=True)
+
+    # Cornell eCommons distributes the Cassini 4-PPD interpolated DEM as an ISIS cube.
+    titan_dem=root/"titan"/"topo_4PPD_interp.cub"
+    if not titan_dem.exists() or titan_dem.stat().st_size<100000:
+        item="88de3ac0-b77b-46fa-bb30-ba02f17cf12c"
+        bundles=json.loads(fetch_bytes(f"https://ecommons.cornell.edu/server/api/core/items/{item}/bundles"))
+        original=next(b for b in bundles["_embedded"]["bundles"] if b["name"]=="ORIGINAL")
+        bits=json.loads(fetch_bytes(original["_links"]["bitstreams"]["href"]))
+        bit=next(b for b in bits["_embedded"]["bitstreams"] if b["name"]=="topo_4PPD_interp.cub")
+        signed=json.loads(fetch_bytes(bit["_links"]["signedurl"]["href"]))["presignedUrl"]
+        data=fetch_bytes(signed)
+        if len(data)!=int(bit["sizeBytes"]): raise RuntimeError("Cornell Titan DEM byte count does not match published metadata")
+        titan_dem.parent.mkdir(parents=True,exist_ok=True);titan_dem.write_bytes(data)
+        print("SOURCE_OK","titan/topo_4PPD_interp.cub",len(data),flush=True)
+
+    # Request short Saturn-centred vector states for Mimas, Enceladus and Titan
+    # in the same BODY EQUATOR frame used by the rendered ring plane.
+    base="https://ssd.jpl.nasa.gov/api/horizons.api"
+    metadata=root/"metadata";metadata.mkdir(parents=True,exist_ok=True)
+    for key,body_id in (("mimas",601),("enceladus",602),("titan",606)):
+        path=metadata/f"horizons-{body_id}-body-equator-20261109.json"
+        if path.exists() and path.stat().st_size>1000:
+            continue
+        params={"format":"json","COMMAND":f"'{body_id}'","CENTER":"'500@699'",
+            "MAKE_EPHEM":"'YES'","EPHEM_TYPE":"'VECTORS'","START_TIME":"'2026-11-09 00:00'",
+            "STOP_TIME":"'2026-11-09 00:01'","STEP_SIZE":"'1 m'","REF_PLANE":"'BODY EQUATOR'",
+            "OUT_UNITS":"'KM-S'","CSV_FORMAT":"'YES'","VEC_TABLE":"'2'","VEC_LABELS":"'YES'","OBJ_DATA":"'NO'"}
+        data=fetch_bytes(base+"?"+urlencode(params))
+        result=json.loads(data)
+        if "$$SOE" not in result.get("result",""): raise RuntimeError(f"JPL Horizons returned no {key} vector state")
+        path.write_text(json.dumps(result,indent=2),encoding="utf-8")
+        print("EPHEMERIS_OK",key,flush=True)
+
 def build(root: Path, out: Path) -> dict:
     out.mkdir(parents=True,exist_ok=True)
     texture_dir=out/"textures"; mesh_dir=out/"meshes"; dem_dir=out/"height"
@@ -120,18 +186,31 @@ def build(root: Path, out: Path) -> dict:
     textures["enceladus"]=save_webp(root/"enceladus"/"enceladus-cassini-global-map-PIA08417.jpg",texture_dir/"enceladus-cassini-global-map.webp",94)
     textures["mimas"]=save_webp(root/"mimas"/"mimas-cassini-global-map-PIA17214-unlabeled.png",texture_dir/"mimas-cassini-global-map.webp",94)
     dem=build_titan_height(root/"titan"/"topo_4PPD_interp.cub",dem_dir/"titan-cassini-topography-4ppd-u16.bin.gz")
+    ephemerides={}
+    for key,body_id in (("mimas",601),("enceladus",602),("titan",606)):
+        eph_path=root/"metadata"/f"horizons-{body_id}-body-equator-20261109.json"
+        response=json.loads(eph_path.read_text(encoding="utf-8-sig"))
+        block=response["result"].split("$$SOE",1)[1].split("$$EOE",1)[0].strip().splitlines()[0]
+        fields=[v.strip() for v in block.split(",")]
+        if len(fields)<8: raise RuntimeError(f"JPL Horizons state vector is malformed: {eph_path.name}")
+        ephemerides[key]={"target_id":body_id,"epoch_utc":"2026-11-09T00:00:00Z",
+            "saturn_center":"500@699","reference_frame":"Saturn BODY EQUATOR",
+            "position_km":[float(v.replace("D","E")) for v in fields[2:5]],
+            "velocity_km_s":[float(v.replace("D","E")) for v in fields[5:8]],
+            "source":"NASA/JPL Horizons API"}
+    (out/"ephemerides.json").write_text(json.dumps(ephemerides,indent=2)+"\n",encoding="utf-8")
     meshes={}
     meshes["enceladus"]=build_dsk_mesh(root/"enceladus"/"cas_enceladus_ssd_spc_0128icq_v1.bds",mesh_dir/"enceladus-cassini-shape-v1.bin.gz","Enceladus",65000)
     meshes["mimas"]=build_dsk_mesh(root/"mimas"/"MIMAS_M3_GAS_V01.BDS",mesh_dir/"mimas-cassini-shape-v1.bin.gz","Mimas",90000)
     manifest={
       "version":"saturn-system-v6282","created":"2026-11-09",
       "sources":{
-        "saturn":"NASA PDS Cassini ISS RGB Saturn global color-map browse image; visual atmosphere texture only, not a height map",
+        "saturn":"NASA PDS Cassini ISS global color map; 360° longitude × 180° latitude product, 0.1° source sampling; browser texture derived from NASA browse image",
         "titan":"NASA Cassini SAR topography, Corlies et al. 2024, topo_4PPD_interp.cub; global interpolated surface values in metres, 4 pixels per degree; local DEM is not a claim of uniform radar observation coverage",
         "enceladus":"NASA NAIF Cassini DSK shape model cas_enceladus_ssd_spc_0128icq_v1 plus NASA Cassini/Voyager global mosaic PIA08417",
         "mimas":"NASA PDS Gaskell M3 shape model MIMAS_M3_GAS_V01.BDS plus NASA Cassini global mosaic PIA17214"
       },
-      "textures":textures,"titan_dem":dem,"shape_meshes":meshes,
+      "textures":textures,"titan_dem":dem,"shape_meshes":meshes,"ephemeris_file":"ephemerides.json",
       "physical":{
         "saturn_mean_radius_km":58232.0,
         "titan_mean_radius_km":2574.73,"titan_orbit_km":1221870.0,"titan_orbit_period_days":15.945421,
@@ -151,7 +230,10 @@ if __name__=="__main__":
     p=argparse.ArgumentParser()
     p.add_argument("--source-root",required=True,type=Path)
     p.add_argument("--output-root",required=True,type=Path)
+    p.add_argument("--download",action="store_true",help="Download NASA/PDS/NAIF/JPL source products before conversion")
     args=p.parse_args()
+    if args.download:
+        download_sources(args.source_root)
     m=build(args.source_root,args.output_root)
     print(json.dumps({"manifest":str(args.output_root/"manifest.json"),
                       "titan_dem":m["titan_dem"],
