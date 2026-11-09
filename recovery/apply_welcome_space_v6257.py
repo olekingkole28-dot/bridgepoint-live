@@ -308,9 +308,9 @@ def patch_landing_js(path: Path) -> None:
 
 def patch_worker(path: Path) -> None:
     source = path.read_text(encoding="utf-8")
-    cache_pattern = re.compile(r"(const\\s+V\\s*=\\s*['\\\"])bp-intelligence-[^'\\\"]+(['\\\"]\\s*;)")
+    cache_pattern = re.compile(r"(const\s+V\s*=\s*['\"])(bp-intelligence-[^'\"]+)(['\"]\s*;)")
     source, cache_count = cache_pattern.subn(
-        r"\\g<1>" + CACHE_NAME + r"\\g<2>", source, count=1
+        r"\g<1>" + CACHE_NAME + r"\g<3>", source, count=1
     )
     if cache_count != 1:
         raise AssertionError("Service worker has no unique versioned cache constant")
