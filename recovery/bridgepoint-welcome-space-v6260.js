@@ -16,7 +16,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
 
 (() => {
   'use strict';
-  const VERSION = 'v6285-saturn-lossless-pages';
+  const VERSION = 'v6286-saturn-callback-fix';
   if (window.__BP_WELCOME_SPACE_V6257__) return;
   window.__BP_WELCOME_SPACE_V6257__ = true;
 
@@ -758,9 +758,9 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
         float c=dot(chromo304,vec3(.299,.587,.114));
         float flare=smoothstep(.055,.27,h);
         float loop=smoothstep(.075,.32,l);
-        float active=smoothstep(.075,.30,a);
+        float activeSignal=smoothstep(.075,.30,a);
         float prominence=smoothstep(.07,.29,c);
-        float signal=max(max(max(flare*.92,loop*.58),active*.48),prominence*.66);
+        float signal=max(max(max(flare*.92,loop*.58),activeSignal*.48),prominence*.66);
         if(signal<.075)discard;
         vec3 plasma=hot131*vec3(.42,.96,1.38)*flare
           +loops171*vec3(1.30,.88,.28)*loop
@@ -2255,7 +2255,7 @@ function createMoonTerrainController() {
       lunarLabelCount:window.__BP_MOON_TERRAIN_V1__?.labelCount||0,
       proceduralLunarRelief:'fallback-only-outside-loaded-NASA-DEM-coverage'})
   };
-  void import('./bridgepoint-gaia-galaxy-v6270.js?v=6285-saturn-lossless-pages')
+  void import('./bridgepoint-gaia-galaxy-v6270.js?v=6286-saturn-callback-fix')
     .then(module=>{
       solarCosmos=module.initBridgePointSolarCosmos({
         THREE,scene,camera,canvas,host,controls,starsGroup:stars,
