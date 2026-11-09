@@ -109,6 +109,23 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
         self.assertIn('data-mode="signin"', out)
         self.assertNotIn("data-space-ground", out)
 
+    def test_existing_static_production_gate_bumps_sun_module_src_without_reformatting_html(self):
+        current = """<html><head>
+<style id="bpWelcomeGateStylesV6257"></style>
+</head><body>
+<div id="bpWelcomeGateV1"><div class="bpw-celestial-system" aria-hidden="true"></div>
+<div class="bpw-wordmark bpw-wordmark-static">BRIDGEPOINT</div>
+<button data-mode="signup">Sign up</button><button data-mode="signin">Sign in</button>
+</div>
+<script>window.addEventListener('pageshow',event=>{if(event.persisted)location.reload()});</script>
+<script type="module" src="/bridgepoint-welcome-space-v6260.js?v=6265-solar-globe">
+</body></html>"""
+        out = patch_root_html(current)
+        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6266-solar-realism"', out)
+        self.assertNotIn("v=6265-solar-globe", out)
+        self.assertIn('<div class="bpw-celestial-system" aria-hidden="true"></div>', out)
+        self.assertIn('class="bpw-wordmark bpw-wordmark-static"', out)
+
     def test_app_entry_and_legacy_install_route_to_current_root_gate(self):
         app = patch_app_index(app_index_fixture())
         self.assertEqual(app.count("/?return="), 2)
