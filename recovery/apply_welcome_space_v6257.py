@@ -8,7 +8,7 @@ from pathlib import Path
 BUILD = "v6282-saturn-system"
 # Moon terrain assets are bundled locally under assets/moon/v1; runtime requests stay same-origin.
 SW_URL = "/sw.js?v=6282-saturn-system"
-CACHE_NAME = "bp-intelligence-v6247-universal-fresh-entry-sidewalk"
+CACHE_NAME = "bp-intelligence-v6282-saturn-system"
 
 
 def replace_once(source: str, old: str, new: str, label: str) -> str:
@@ -378,6 +378,7 @@ def patch_site(site: Path) -> None:
         "legacy app index": site / "app" / "intelligence-launch" / "index.html",
         "legacy app manifest": site / "app" / "intelligence-launch" / "manifest.webmanifest",
         "welcome space module": site / "bridgepoint-welcome-space-v6260.js",
+        "Saturn system module": site / "bridgepoint-saturn-system-v6282.js",
         "celestial sky module": site / "bridgepoint-celestial-sky-v6257.js",
         "solar manifest": site / "assets" / "sun" / "v2" / "manifest.json",
         "solar photosphere": site / "assets" / "sun" / "v2" / "sun-photosphere-v2.webp",
