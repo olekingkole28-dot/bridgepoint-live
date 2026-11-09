@@ -87,8 +87,16 @@ jobs:
           test -s site/assets/moon/v1/moon-lroc-color-4k.webp
           test -s site/assets/moon/v1/moon-feature-labels.json
           test "$(find site/assets/moon/v1/sldem-128ppd -type f -name '*.png' | wc -l)" -eq 432
-          gdalinfo site/assets/moon/v1/sldem-128ppd/moon-sldem-128ppd-y03-x18.png | grep -Fq 'Size is 1280, 1280'
-          gdalinfo site/assets/moon/v1/sldem-128ppd/moon-sldem-128ppd-y03-x18.png | grep -Fq 'Type=UInt16'
+          python3 - <<'PY'
+          import struct
+          from pathlib import Path
+          p=Path('site/assets/moon/v1/sldem-128ppd/moon-sldem-128ppd-y03-x18.png')
+          h=p.read_bytes()[:29]
+          assert h[:8] == bytes([137,80,78,71,13,10,26,10]), 'SLDEM tile is not PNG'
+          assert struct.unpack('>II',h[16:24]) == (1280,1280), 'Unexpected SLDEM tile size'
+          assert h[24] == 16, 'SLDEM tile must remain UInt16'
+          print('Verified 1280x1280 UInt16 SLDEM2015 tile')
+          PY
           echo 'Verified existing deployed Moon terrain: 432 local SLDEM2015 tiles plus global LOLA, Apollo 15 patch, LROC color and feature labels.'
           
       - name: Add the Earth, Moon and materialized Sun scene
