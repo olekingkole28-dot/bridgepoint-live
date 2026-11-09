@@ -24,12 +24,13 @@ class SaturnSystemV6282Tests(unittest.TestCase):
         self.assertIn("initBridgePointSaturnSystem", GAIA)
 
     def test_real_cassini_shapes_and_titan_height_grid_are_used(self):
-        for marker in ("BPSM", "BPSH", "MIMAS_M3_GAS_V01.BDS",
-                       "cas_enceladus_ssd_spc_0128icq_v1.bds",
+        for marker in ("BPSM", "BPSH",
                        "titan-cassini-topography-4ppd-u16.bin.gz",
                        "new THREE.DataTexture", "enceladus-cassini-shape-v1.bin.gz",
                        "mimas-cassini-shape-v1.bin.gz"):
             self.assertIn(marker, SATURN)
+        self.assertIn("MIMAS_M3_GAS_V01.BDS", BUILDER)
+        self.assertIn("cas_enceladus_ssd_spc_0128icq_v1.bds", BUILDER)
         self.assertIn("target_count=target_vertices", BUILDER)
         self.assertIn("topo_4PPD_interp.cub", BUILDER)
 
