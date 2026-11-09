@@ -48,6 +48,15 @@ class SaturnSystemV6282Tests(unittest.TestCase):
                        "3.7931187e7", "makeOrbit(m.p,m.v)"):
             self.assertIn(marker, SATURN)
 
+    def test_surface_textures_are_the_latest_global_cassini_mosaics(self):
+        self.assertIn("PIA22770", BUILDER)
+        self.assertIn("PIA18435", BUILDER)
+        self.assertIn("PIA18437", BUILDER)
+        self.assertIn("titan-cassini-surface-mosaic.webp", SATURN)
+        self.assertIn("titan-cassini-topography-4ppd-u16.bin.gz", SATURN)
+        self.assertIn("const segments=key==='titan'?(isMobile?160:256)", SATURN)
+        self.assertIn("NASA Cassini ISS PIA22770", BUILDER)
+
     def test_saturn_texture_rotation_titan_atmosphere_and_enceladus_plumes_are_animated(self):
         for marker in ("saturnMesh.rotation.y", "titanAtmosphere.rotation.y",
                        "Titan thick golden nitrogen atmosphere",
