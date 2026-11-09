@@ -182,7 +182,7 @@ def patch_app_index(source: str) -> str:
     source = bump_manifest_url(source, "bump current app manifest URL")
     source = replace_prefix_once(
         source,
-        r"(app\.js\?v=)(?:6247-universal-fresh-entry|6264-geometric-crater-bowls|6265-solar-globe|6267-sun-visible|6268-solar-observatory)",
+        r"(app\.js\?v=)(?:6247-universal-fresh-entry|6264-geometric-crater-bowls|6265-solar-globe|6267-sun-visible|6268-solar-observatory|6269-solar-fire-plasma)",
         r"\g<1>6280-unified-cosmos",
         "bust the app bundle URL",
     )
@@ -220,7 +220,7 @@ def patch_bundle(path: Path) -> None:
     new_url = "navigator.serviceWorker.register('/sw.js?v=6280-unified-cosmos',{updateViaCache:'none'})"
     old_urls = (
         "navigator.serviceWorker.register('/sw.js?v=6268-solar-observatory',{updateViaCache:'none'})",
-        "navigator.serviceWorker.register('/sw.js?v=6280-unified-cosmos',{updateViaCache:'none'})",
+        "navigator.serviceWorker.register('/sw.js?v=6269-solar-fire-plasma',{updateViaCache:'none'})",
         "navigator.serviceWorker.register('/sw.js?v=6267-sun-visible',{updateViaCache:'none'})",
         "navigator.serviceWorker.register('/sw.js?v=6247-universal-fresh-entry-sidewalk',{updateViaCache:'none'})",
         "navigator.serviceWorker.register('/sw.js?v=6264-geometric-crater-bowls',{updateViaCache:'none'})",
@@ -368,7 +368,7 @@ def patch_site(site: Path) -> None:
     root = bump_manifest_url(root, "bump current root manifest URL")
     root = replace_prefix_once(
         root,
-        r"(landing\.js\?v=)(?:6247-universal-fresh-entry|6264-geometric-crater-bowls|6265-solar-globe|6267-sun-visible|6268-solar-observatory)",
+        r"(landing\.js\?v=)(?:6247-universal-fresh-entry|6264-geometric-crater-bowls|6265-solar-globe|6267-sun-visible|6268-solar-observatory|6269-solar-fire-plasma)",
         r"\g<1>6280-unified-cosmos",
         "bust the landing bundle URL",
     )
