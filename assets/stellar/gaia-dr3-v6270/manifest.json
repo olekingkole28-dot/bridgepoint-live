@@ -1,0 +1,89 @@
+{
+  "version": 6270,
+  "product": "BridgePoint Gaia DR3 local 3D stellar atlas",
+  "source": "ESA Gaia Data Release 3 gaiadr3.gaia_source",
+  "sourceUrl": "https://gea.esac.esa.int/archive/",
+  "supplementalSource": "ESA Hipparcos Main Catalogue via CDS VizieR I/239 for named bright stars not in the Gaia-selected subset",
+  "citation": "Gaia Collaboration et al. 2023, A&A 674, A1; ESA Hipparcos Main Catalogue I/239; Bailer-Jones geometric distances where supplied",
+  "position_epoch": 2026,
+  "coordinate_frame": "Galactic Cartesian, Sun-centred, X toward Galactic Centre, Y toward Galactic North, Z completing right-handed frame",
+  "distance_unit": "parsec",
+  "position_unit": "parsec",
+  "record_size": 68,
+  "count": 58791,
+  "quality": {
+    "nearbyQuery": "parallax > 2 mas; parallax_over_error >= 10; RUWE < 1.4; G <= 17; astrometric_params_solved in (31,95); top 50,000 by parallax",
+    "brightQuery": "top 10,000 by G magnitude with positive parallax and parallax_over_error >= 5; r_med_geo posterior when available",
+    "distance": "r_med_geo geometric posterior where available; otherwise 1000/parallax mas for high-S/N stars",
+    "propagation": "Gaia reference epoch to J2026.0 using Gaia pmra, pmdec and radial_velocity where present",
+    "physicalRadius": "Gaia radius_gspphot where available; otherwise an explicitly model-derived radius from absolute G and BP-RP temperature proxy",
+    "note": "This is a high-quality navigable subset, not the full 1.8-billion-source Gaia DR3 catalogue or every Milky Way star."
+  },
+  "named_stars": {
+    "Betelgeuse": "9223372036854803797",
+    "Rigel": "3206991473643150464",
+    "Bellatrix": "9223372036854801144",
+    "Saiph": "9223372036854803174",
+    "Alnitak": "9223372036854802535",
+    "Alnilam": "9223372036854802119",
+    "Mintaka": "9223372036854801738",
+    "Sirius": "9223372036854808157",
+    "Procyon": "9223372036854813087",
+    "Aldebaran": "9223372036854797229",
+    "Capella": "9223372036854800416",
+    "Polaris": "9223372036854787575",
+    "Vega": "9223372036854867070",
+    "Deneb": "9223372036854877906",
+    "Altair": "9223372036854873457",
+    "Arcturus": "9223372036854845481",
+    "Spica": "9223372036854841282",
+    "Antares": "9223372036854856571",
+    "Fomalhaut": "9223372036854889176",
+    "Canopus": "9223372036854806246",
+    "Regulus": "9223372036854825477",
+    "Dubhe": "862234033499968640",
+    "Alkaid": "9223372036854843109",
+    "Mizar": "9223372036854841186",
+    "Elnath": "9223372036854801236",
+    "Shaula": "9223372036854861735"
+  },
+  "hipparcosSupplementCount": 24,
+  "chunks": [
+    {
+      "file": "part-0000.bin.gz",
+      "count": 10000,
+      "bytes": 639911,
+      "sha256": "8339ca8cd82633a88cde19d326dd31c2dc5a9385e303545477798298c732caa6"
+    },
+    {
+      "file": "part-0001.bin.gz",
+      "count": 10000,
+      "bytes": 638051,
+      "sha256": "e5ab9a594b8c44656ee3121e556b815de6bc4d126200509802dfcba83deedccb"
+    },
+    {
+      "file": "part-0002.bin.gz",
+      "count": 10000,
+      "bytes": 638414,
+      "sha256": "4ec305082376351ba52c08aea96d1fb27c9c46e76048a37fe3f7fc4d98929343"
+    },
+    {
+      "file": "part-0003.bin.gz",
+      "count": 10000,
+      "bytes": 638449,
+      "sha256": "2445b4359be955baffe89576286fb594d7561abf632b8ee0fc0ff853ac034407"
+    },
+    {
+      "file": "part-0004.bin.gz",
+      "count": 10000,
+      "bytes": 638661,
+      "sha256": "7f4a7285a71a277d6d78e76f56c4ba183b095540d40b9a3d49046d97fbe09804"
+    },
+    {
+      "file": "part-0005.bin.gz",
+      "count": 8791,
+      "bytes": 570412,
+      "sha256": "c6a70b08003a5266ecff2f494e44078805abd03481dcd9f6b4e556853f40e9d0"
+    }
+  ]
+}
