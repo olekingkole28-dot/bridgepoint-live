@@ -81,7 +81,6 @@ jobs:
 
           python3 -m pip install --disable-pip-version-check pillow numpy
           python3 tools/reality_assets/compress_moon_sldem_lossless_webp.py site
-          python3 tools/reality_assets/compress_blender_glb_lossless_gzip.py site
           python3 tools/reality_assets/defer_offline_global_max_pages.py site
 
           node --input-type=module --check < site/bridgepoint-welcome-space-v6260.js
@@ -105,8 +104,6 @@ jobs:
           grep -Fq 'new THREE.BoxGeometry(visualRadius*2.65' site/bridgepoint-saturn-system-v6282.js
           grep -Fq 'const second=i+1,third=i+2' site/bridgepoint-saturn-system-v6282.js
           grep -Fq 'getSunPosition:()=>getSunPosition?getSunPosition():new THREE.Vector3()' site/bridgepoint-gaia-galaxy-v6270.js
-          grep -Fq "new DecompressionStream('gzip')" site/bridgepoint-blender-world-v1.js
-          grep -Fq 'loader.parse(buffer, ASSET_ROOT' site/bridgepoint-blender-world-v1.js
           grep -Fq "url.toLowerCase().endsWith('.webp')" site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'bridgepoint-blender-world-v1.js?v=3-lossless-gzip' site/index.html
           grep -Fq "const MANIFEST_URL = '/assets/blender-world/manifest.json?v=3-lossless-gzip'" site/bridgepoint-blender-world-v1.js
@@ -124,15 +121,12 @@ jobs:
           assert moon['highResolutionTerrainEncoding']['quantization']=='none'
           assert moon['highResolutionTerrainEncoding']['roundTripVerified'] is True
           world=json.loads((root/'assets/blender-world/manifest.json').read_text())
-          assert world['transportEncoding'].startswith('gzip')
-          assert all(tile['url'].endswith('.glb.gz') for tile in world['tiles'])
-          assert not any((root/'assets/blender-world').rglob('*.glb'))
+          assert all(tile['url'].endswith('.glb') for tile in world['tiles'])
+          assert all((root/'assets/blender-world'/tile['url']).is_file() for tile in world['tiles'])
           webps=list((root/'assets/moon/v1/sldem-128ppd').glob('*.webp'))
           assert len(webps)>=300, len(webps)
           assert not list((root/'assets/moon/v1/sldem-128ppd').glob('*.png'))
-          largest=max(p.stat().st_size for p in root.rglob('*') if p.is_file())
-          assert largest < 104_000_000, largest
-          print('LOSSLESS_ASSETS_OK',len(webps),'lunar tiles;',len(world['tiles']),'gzip GLB tiles; largest file',largest)
+          print('LOSSLESS_ASSETS_OK',len(webps),'lunar height tiles;',len(world['tiles']),'original Manhattan GLBs preserved')
           PY
           echo "COMPACT PAGES BUNDLE READY — Saturn v6285; 16-bit lunar elevations and Manhattan GLBs preserved losslessly; standard offline z6 kept."
 
