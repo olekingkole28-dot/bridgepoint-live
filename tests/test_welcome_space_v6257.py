@@ -97,7 +97,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
     def test_root_uses_one_existing_earth_and_no_ground_sky_button(self):
         out = patch_root_html(root_fixture())
         self.assertIn("bpWelcomeGateStylesV6257", out)
-        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6266-solar-realism"', out)
+        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6267-sun-visible"', out)
         self.assertIn('class="bpw-celestial-system" aria-hidden="true"></div>', out)
         self.assertNotIn("bpwCelestialCanvasV6257", out)
         self.assertNotIn('class="bpw-globe-aura"', out)
@@ -115,7 +115,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
 <script>location.replace('/')</script>
 <script src="/sw.js?v=6247-universal-fresh-entry-sidewalk"></script>"""
         out = patch_legacy_app(migrated)
-        self.assertIn("sw.js?v=6266-solar-realism", out)
+        self.assertIn("sw.js?v=6267-sun-visible", out)
         self.assertNotIn("v=6247-universal-fresh-entry-sidewalk", out)
         self.assertIn('content="0;url=/"', out)
         self.assertIn("location.replace('/')", out)
@@ -130,7 +130,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
         for tag in cases:
             with self.subTest(tag=tag):
                 out = bump_manifest_url(tag, "test manifest URL")
-                self.assertEqual(out.count("v=6266-solar-realism"), 1)
+                self.assertEqual(out.count("v=6267-sun-visible"), 1)
                 self.assertNotIn("v=6265-solar-globe", out)
                 self.assertNotIn("v=6247-universal-fresh-entry", out)
 
@@ -146,7 +146,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
 <script type="module" src="/bridgepoint-welcome-space-v6260.js?v=6265-solar-globe">
 </body></html>"""
         out = patch_root_html(current)
-        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6266-solar-realism"', out)
+        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6267-sun-visible"', out)
         self.assertNotIn("v=6265-solar-globe", out)
         self.assertIn('<div class="bpw-celestial-system" aria-hidden="true"></div>', out)
         self.assertIn('class="bpw-wordmark bpw-wordmark-static"', out)
@@ -155,8 +155,8 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
         app = patch_app_index(app_index_fixture())
         self.assertEqual(app.count("/?return="), 2)
         self.assertNotIn("/?auth=signin&return=", app)
-        self.assertIn("app.js?v=6266-solar-realism", app)
-        self.assertIn("manifest.webmanifest?v=6266-solar-realism", app)
+        self.assertIn("app.js?v=6267-sun-visible", app)
+        self.assertIn("manifest.webmanifest?v=6267-sun-visible", app)
         legacy = patch_legacy_app(legacy_fixture())
         self.assertIn('content="0;url=/"', legacy)
         self.assertIn("location.replace('/')", legacy)
@@ -260,7 +260,7 @@ self.addEventListener('fetch',e=>{
             path.write_text(modern)
             patch_worker(path)
             out = path.read_text()
-            self.assertIn("BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6266-solar-realism'", out)
+            self.assertIn("BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6267-sun-visible'", out)
             self.assertIn("await active.delete(request)", out)
             self.assertIn("const entryRoute=", out)
             self.assertIn("current release required", out)
@@ -288,6 +288,22 @@ self.addEventListener('fetch',e=>{
             "setResponsiveSunPosition()", "data-space-reset",
         ):
             self.assertIn(marker, module)
+
+    def test_sun_shader_writes_logarithmic_depth_behind_its_opaque_occluder(self):
+        module = (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text()
+        sun_shader = module.split("const sunMaterial = new THREE.ShaderMaterial({", 1)[1].split(
+            "  const solarTextureLoader", 1
+        )[0]
+        for marker in (
+            "#include <logdepthbuf_pars_vertex>",
+            "#include <logdepthbuf_vertex>",
+            "#include <logdepthbuf_pars_fragment>",
+            "#include <logdepthbuf_fragment>",
+            "depthTest:true,depthWrite:true,side:THREE.FrontSide",
+        ):
+            self.assertIn(marker, sun_shader)
+        self.assertIn("sunDepthMesh.renderOrder=-1000", module)
+        self.assertIn("sunMesh.renderOrder = -900", module)
 
     def test_moon_focus_uses_locally_hosted_elevation_assets_and_can_reach_surface_zoom(self):
         module = (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text()
@@ -374,7 +390,7 @@ self.addEventListener('fetch',e=>{
         workflow = (ROOT / ".github" / "workflows" / "deploy-intelligence-rebuild-v5000.yml").read_text()
         self.assertIn('class="bpw-celestial-system"', index)
         helper = (ROOT / "recovery" / "apply_welcome_space_v6257.py").read_text()
-        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6266-solar-realism"', helper)
+        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6267-sun-visible"', helper)
         publish_workflow = (ROOT / ".github" / "workflows" / "publish-welcome-space-v6257.yml").read_text()
         self.assertIn("cp recovery/bridgepoint-welcome-space-v6260.js site/bridgepoint-welcome-space-v6260.js", publish_workflow)
         self.assertNotIn("cp -a assets/moon/v1 site/assets/moon/v1", publish_workflow)
@@ -510,7 +526,7 @@ self.addEventListener('fetch',e=>{
             after = {p.relative_to(site).as_posix() for p in site.rglob("*") if p.is_file()}
             self.assertEqual(after - before, set())
             root = (site / "index.html").read_text()
-            self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6266-solar-realism"', root)
+            self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6267-sun-visible"', root)
             self.assertIn("event.persisted", root)
             self.assertIn("location.reload()", root)
             self.assertNotIn("data-space-ground", root)

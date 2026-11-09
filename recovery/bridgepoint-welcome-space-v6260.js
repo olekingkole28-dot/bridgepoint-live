@@ -16,7 +16,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
 
 (() => {
   'use strict';
-  const VERSION = 'v6266-solar-realism';
+  const VERSION = 'v6267-sun-visible';
   if (window.__BP_WELCOME_SPACE_V6257__) return;
   window.__BP_WELCOME_SPACE_V6257__ = true;
 
@@ -214,14 +214,19 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       uFarSideMap:{value:null},uFarSideReady:{value:0}
     },
     vertexShader:`
+      #include <common>
+      #include <logdepthbuf_pars_vertex>
       varying vec3 vPos;varying vec3 vNormal;varying vec3 vWorldNormal;varying vec3 vWorldPos;
       void main(){
         vPos=position;vNormal=normalize(normal);
         vec4 wp=modelMatrix*vec4(position,1.0);
         vWorldPos=wp.xyz;vWorldNormal=normalize(mat3(modelMatrix)*normal);
         gl_Position=projectionMatrix*viewMatrix*wp;
+        #include <logdepthbuf_vertex>
       }`,
     fragmentShader:`
+      #include <common>
+      #include <logdepthbuf_pars_fragment>
       precision highp float;
       varying vec3 vPos;varying vec3 vNormal;varying vec3 vWorldNormal;varying vec3 vWorldPos;
       uniform float uTime;
@@ -267,6 +272,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
         c*=limbDarkening*boiling;
         c+=vec3(.12,.048,.008)*pow(1.0-mu,4.0)*.22;
         gl_FragColor=vec4(clamp(c,0.0,1.0),1.0);
+        #include <logdepthbuf_fragment>
       }`,
     depthTest:true,depthWrite:true,side:THREE.FrontSide
   });
