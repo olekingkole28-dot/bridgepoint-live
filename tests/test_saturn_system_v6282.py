@@ -18,7 +18,8 @@ class SaturnSystemV6282Tests(unittest.TestCase):
         self.assertIn("initBridgePointSaturnSystem", GAIA)
         self.assertIn("saturnController?.update?.()", GAIA)
         self.assertIn("saturnController?.dispose?.()", GAIA)
-        self.assertIn("raycaster.intersectObjects(clickables,false)[0]", SCENE)
+        self.assertIn("raycaster.intersectObjects(raycastTargets,false)[0]", SCENE)
+        self.assertIn("clickables.filter(object=>['saturn','titan','enceladus','mimas'].includes(object?.userData?.body))", SCENE)
 
     def test_saturn_scene_isolated_from_the_earth_map_and_unrelated_bodies(self):
         self.assertIn("scene.background=new THREE.Color(0x02050c)", SCENE)
