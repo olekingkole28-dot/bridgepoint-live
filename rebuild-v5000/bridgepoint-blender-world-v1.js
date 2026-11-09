@@ -7,7 +7,7 @@
   if (window.__BP_BLENDER_WORLD_V1__) return;
 
   const VERSION = 1;
-  const MANIFEST_URL = '/assets/blender-world/manifest.json';
+  const MANIFEST_URL = '/assets/blender-world/manifest.json?v=3-lossless-gzip';
   const ASSET_ROOT = '/assets/blender-world/';
   const LAYER_ID = 'bp-blender-world-v1';
   const MODE_HIDE = /(?:building|roof|floor|facade|structure|landmark|bridge|^gta-road-|^gta-rail|^gta-(?:nasa|esri|usgs|oam)(?:$|-)|satellite|tree|vegetation|canopy|streetlight|hydrant|solar|pool|transport|ship|vessel|drone|flight|parcel|zoning|listing|opportunity|nyc-lidar|reality-capture)/i;
