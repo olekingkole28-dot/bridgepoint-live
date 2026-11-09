@@ -32,7 +32,7 @@ def bump_manifest_url(source: str, label: str) -> str:
         re.IGNORECASE,
     )
     source, count = pattern.subn(
-        r'\g<1>?v=' + BUILD + r'\g<2>', source, count=1
+        r'\g<1>?' + BUILD + r'\g<2>', source, count=1
     )
     if count != 1:
         raise AssertionError(f"{label}: manifest link is missing or duplicated")
