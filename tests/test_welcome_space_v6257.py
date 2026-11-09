@@ -535,6 +535,14 @@ self.addEventListener('fetch',e=>{
         self.assertIn("starsGroup.visible=true", galaxy)
         self.assertIn("starsGroup.visible=false", galaxy)
 
+    def test_galaxy_view_button_stays_visible_on_the_welcome_scene(self):
+        galaxy = (ROOT / "rebuild-v5000" / "bridgepoint-gaia-galaxy-v6270.js").read_text()
+        scene = (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text()
+        self.assertIn("[['local',state.active],['milkyway',!state.active]", galaxy)
+        self.assertNotIn("[['local',!state.active],['milkyway',!state.active]", galaxy)
+        self.assertIn("bar.querySelectorAll('button').forEach(b=>b.disabled=false)", galaxy)
+        self.assertIn("v=6272-gaia-controls-visible", scene)
+
     def test_celestial_sky_is_attached_to_the_app_map_without_a_second_canvas(self):
         module = (ROOT / "rebuild-v5000" / "bridgepoint-celestial-sky-v6257.js").read_text()
         self.assertIn("function apparentAngularRadiusPx", module)

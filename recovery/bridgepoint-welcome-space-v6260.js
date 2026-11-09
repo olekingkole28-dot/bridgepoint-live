@@ -2113,7 +2113,7 @@ function createMoonTerrainController() {
       lunarLabelCount:window.__BP_MOON_TERRAIN_V1__?.labelCount||0,
       proceduralLunarRelief:'fallback-only-outside-loaded-NASA-DEM-coverage'})
   };
-  void import('./bridgepoint-gaia-galaxy-v6270.js?v=6270-gaia-dr3-galaxy')
+  void import('./bridgepoint-gaia-galaxy-v6270.js?v=6272-gaia-controls-visible')
     .then(module=>module.initBridgePointGaiaGalaxy({
       THREE,scene,camera,renderer,canvas,host,controls,starsGroup:stars,
       getSunPosition:()=>sunPosition.clone(),
