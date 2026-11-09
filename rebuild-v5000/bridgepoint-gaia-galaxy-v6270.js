@@ -176,7 +176,7 @@ export function initBridgePointSolarCosmos(o){
   bodyMap.set(p.name.toLowerCase(),{mesh,radius});
   clickables.push(mesh);
  }
- for(const p of PLANETS){
+ for(const p of []){ // Defer orbital lines until a detailed planet model is ready.
   const points=[];
   for(let i=0;i<300;i++){
    const sample={...p,M:i*360/300};
