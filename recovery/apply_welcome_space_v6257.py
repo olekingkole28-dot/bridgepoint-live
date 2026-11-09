@@ -5,9 +5,9 @@ import re
 import sys
 from pathlib import Path
 
-BUILD = "v6264-geometric-crater-bowls"
+BUILD = "v6265-solar-globe"
 # Moon terrain assets are bundled locally under assets/moon/v1; runtime requests stay same-origin.
-SW_URL = "/sw.js?v=6264-geometric-crater-bowls"
+SW_URL = "/sw.js?v=6265-solar-globe"
 CACHE_NAME = "bp-intelligence-v6247-universal-fresh-entry-sidewalk"
 
 
@@ -123,7 +123,7 @@ def patch_root_html(source: str) -> str:
 """
     source = replace_once(source, near_anchor, celestial, "insert Moon and Sun stage")
     source = patch_stars(source)
-    module_tag = '<script type="module" src="/bridgepoint-welcome-space-v6260.js?v=6264-geometric-crater-bowls"></script>\n'
+    module_tag = '<script type="module" src="/bridgepoint-welcome-space-v6260.js?v=6265-solar-globe"></script>\n'
     source = replace_once(source, "</body>", module_tag + "</body>", "load the modular Three.js welcome scene")
     source = replace_once(source, "</head>", launch_styles() + "\n</head>", "install responsive welcome styling")
 
@@ -154,13 +154,13 @@ def patch_app_index(source: str) -> str:
     source = replace_once(
         source,
         '../manifest.webmanifest"',
-        '../manifest.webmanifest?v=6264-geometric-crater-bowls"',
+        '../manifest.webmanifest?v=6265-solar-globe"',
         "bust the app manifest URL",
     )
     source = replace_prefix_once(
         source,
         r"(app\.js\?v=)6247-universal-fresh-entry",
-        r"\g<1>6264-geometric-crater-bowls",
+        r"\g<1>6265-solar-globe",
         "bust the app bundle URL",
     )
     return source
@@ -182,7 +182,7 @@ def patch_legacy_app(source: str) -> str:
     source = replace_once(
         source,
         "sw.js?v=6218-tree-viewport-renderer-refresh",
-        "sw.js?v=6264-geometric-crater-bowls",
+        "sw.js?v=6265-solar-globe",
         "refresh legacy app service worker",
     )
     source = replace_once(
@@ -215,7 +215,7 @@ def patch_bundle(path: Path) -> None:
     source = replace_once(
         source,
         "navigator.serviceWorker.register('/sw.js?v=6247-universal-fresh-entry-sidewalk',{updateViaCache:'none'})",
-        "navigator.serviceWorker.register('/sw.js?v=6264-geometric-crater-bowls',{updateViaCache:'none'})",
+        "navigator.serviceWorker.register('/sw.js?v=6265-solar-globe',{updateViaCache:'none'})",
         f"{path.name} service-worker refresh",
     )
     path.write_text(source, encoding="utf-8")
@@ -311,6 +311,10 @@ def patch_site(site: Path) -> None:
         "legacy app manifest": site / "app" / "intelligence-launch" / "manifest.webmanifest",
         "welcome space module": site / "bridgepoint-welcome-space-v6260.js",
         "celestial sky module": site / "bridgepoint-celestial-sky-v6257.js",
+        "solar manifest": site / "assets" / "sun" / "v1" / "manifest.json",
+        "solar photosphere": site / "assets" / "sun" / "v1" / "sun-photosphere-v1.webp",
+        "solar activity": site / "assets" / "sun" / "v1" / "sun-coronal-activity-v1.webp",
+        "solar magnetic field": site / "assets" / "sun" / "v1" / "sun-magnetic-field-v1.webp",
     }
     for label, path in required.items():
         if not path.is_file():
@@ -321,13 +325,13 @@ def patch_site(site: Path) -> None:
     root = replace_once(
         root,
         './manifest.webmanifest"',
-        './manifest.webmanifest?v=6264-geometric-crater-bowls"',
+        './manifest.webmanifest?v=6265-solar-globe"',
         "bust the root manifest URL",
     )
     root = replace_prefix_once(
         root,
         r"(landing\.js\?v=)6247-universal-fresh-entry",
-        r"\g<1>6264-geometric-crater-bowls",
+        r"\g<1>6265-solar-globe",
         "bust the landing bundle URL",
     )
     required["root"].write_text(root, encoding="utf-8")
@@ -345,7 +349,7 @@ def patch_site(site: Path) -> None:
     legacy = replace_once(
         legacy,
         './manifest.webmanifest"',
-        './manifest.webmanifest?v=6264-geometric-crater-bowls"',
+        './manifest.webmanifest?v=6265-solar-globe"',
         "bust the legacy app manifest URL",
     )
     required["legacy app index"].write_text(legacy, encoding="utf-8")
@@ -358,21 +362,26 @@ def patch_site(site: Path) -> None:
             "bpw-celestial-system",
             "bpw-wordmark-main",
             "bpWelcomeGateStylesV6257",
-            'src="/bridgepoint-welcome-space-v6260.js?v=6264-geometric-crater-bowls"',
+            'src="/bridgepoint-welcome-space-v6260.js?v=6265-solar-globe"',
             'data-mode="signup"',
             'data-mode="signin"',
         ],
         "app index": [
             "/?return=",
-            "app.js?v=6264-geometric-crater-bowls",
-            "manifest.webmanifest?v=6264-geometric-crater-bowls",
+            "app.js?v=6265-solar-globe",
+            "manifest.webmanifest?v=6265-solar-globe",
         ],
         "landing bundle": [SW_URL, "bridgepoint-celestial-sky-v6257.js?v=6257"],
         "app bundle": [SW_URL, "bridgepoint-celestial-sky-v6257.js?v=6257"],
-        "service worker": ["const V='" + CACHE_NAME + "';", "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6264-geometric-crater-bowls'", "entryRoute", "clients.claim()"],
-        "welcome space module": ["new THREE.Raycaster()", "logarithmicDepthBuffer: true", "MOON_PERIOD_DAYS = 27.321661", "data-space-reset", "uTime"],
+        "service worker": ["const V='" + CACHE_NAME + "';", "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6265-solar-globe'", "entryRoute", "clients.claim()"],
+        "welcome space module": [
+            "new THREE.Raycaster()", "logarithmicDepthBuffer: true", "MOON_PERIOD_DAYS = 27.321661",
+            "data-space-reset", "uPhotosphereMap", "sun-photosphere-v1.webp",
+            "sun-coronal-activity-v1.webp", "addCoronalLoop", "rotateSunSurface",
+            "function panSunSurface", "function tiltSunCamera", "uMagneticMap"
+        ],
         "celestial sky module": ["apparentAngularRadiusPx", "bp6257-sun-surface", "initBridgePointCelestialSky"],
-        "legacy app index": ['content="0;url=/"', "location.replace('/')", "sw.js?v=6264-geometric-crater-bowls"],
+        "legacy app index": ['content="0;url=/"', "location.replace('/')", "sw.js?v=6265-solar-globe"],
     }
     for label, markers in checks.items():
         content = required[label].read_text(encoding="utf-8")
@@ -388,10 +397,10 @@ def patch_site(site: Path) -> None:
         raise AssertionError("The current installed-app identity changed")
     if legacy_manifest.get("id") != "/app/intelligence-launch/":
         raise AssertionError("The legacy installed-app identity changed")
-    print("BRIDGEPOINT_WELCOME_SPACE_V6257_PATCH_PASS")
-    print("Website, app, current PWA and legacy PWA all route to the same root globe gate.")
-    print("Only launch HTML, app-entry handoff, app sky imports, PWA entry URLs, worker behavior and two isolated celestial modules are changed.")
-    print("Existing offline data asset caches and authentication/session logic are preserved.")
+    print("BRIDGEPOINT_WELCOME_SPACE_V6265_SOLAR_PATCH_PASS")
+    print("Website, app, current PWA and legacy PWA route to the same root globe gate.")
+    print("The Sun uses BridgePoint-hosted SDO photosphere, AIA activity and HMI magnetic textures with interactive 3D corona.")
+    print("Existing lunar terrain assets, offline data caches and authentication/session logic are preserved.")
 
 
 def main() -> None:
