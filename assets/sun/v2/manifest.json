@@ -1,0 +1,69 @@
+[Reading 65 lines from start (total: 65 lines, 0 remaining)]
+
+{
+  "version": 2,
+  "textureSize": [
+    4096,
+    2048
+  ],
+  "projection": "Equirectangular 2:1 map; front photosphere from NASA SDO HMI continuum",
+  "photosphere": {
+    "file": "sun-photosphere-v2.webp",
+    "source": "NASA/GSFC SDO HMI Intensitygram Continuum (HMIIC) latest 4096px disk",
+    "sourceDate": "downloaded 2026-11-08",
+    "colorTreatment": "neutral warm continuum grade; source false-color orange LUT removed",
+    "farSideBase": "neutral procedural photosphere base; this is not presented as an image"
+  },
+  "height": {
+    "file": "sun-photosphere-height-v2.webp",
+    "source": "NASA SDO HMI intensity continuum contrast",
+    "encoding": "8-bit grayscale, 128 = average photosphere, below 128 = dark sunspot depression, above 128 = small facular/granular raised texture",
+    "geometryRelief": "visualized with a documented 4x approximate Wilson-depression/facular exaggeration; not kilometer-accurate height survey"
+  },
+  "farSideEUV": {
+    "file": "sun-stereoB-farside-EUV-2014-09-27-v2.webp",
+    "source": "NASA STEREO-B SECCHI/EUVI final usable Behind full-disk browse observations",
+    "observationDate": "2014-09-27",
+    "channelsAngstrom": [
+      "171",
+      "195",
+      "284",
+      "304"
+    ],
+    "archiveUrls": [
+      "https://stereo-ssc.nascom.nasa.gov/pub/browse/2014/09/27/behind/euvi/171/2048/20140927_141400_n4euB_171.jpg",
+      "https://stereo-ssc.nascom.nasa.gov/pub/browse/2014/09/27/behind/euvi/195/2048/20140927_155530_n4euB_195.jpg",
+      "https://stereo-ssc.nascom.nasa.gov/pub/browse/2014/09/27/behind/euvi/284/2048/20140927_141630_n4euB_284.jpg",
+      "https://stereo-ssc.nascom.nasa.gov/pub/browse/2014/09/27/behind/euvi/304/2048/20140927_155615_n4euB_304.jpg"
+    ],
+    "interpretation": "Actual archived EUV images of the far hemisphere; false-colour composite for visualization, not visible-light photosphere. STEREO-B contact was lost in 2014."
+  },
+  "coronalActivity": {
+    "file": "sun-coronal-activity-v2.webp",
+    "sources": [
+      "NASA SDO AIA 131",
+      "171",
+      "193",
+      "304",
+      "335"
+    ],
+    "sourceDate": "downloaded 2026-11-08",
+    "farSide": "separate STEREO-B archive image above"
+  },
+  "sourceFiles": [
+    "latest_4096_HMIIC.jpg",
+    "latest_4096_0131.jpg",
+    "latest_4096_0171.jpg",
+    "latest_4096_0193.jpg",
+    "latest_4096_0304.jpg",
+    "latest_4096_0335.jpg",
+    "latest_4096_HMIBC.jpg",
+    "stereoB-last-171-2048.jpg",
+    "stereoB-last-195-2048.jpg",
+    "stereoB-last-284-2048.jpg",
+    "stereoB-last-304-2048.jpg"
+  ],
+  "materializedAtUtc": "2026-11-09"
+}
+
+[executed on device: MollieOllie (898525b9-c32e-4ce4-b683-4efb3b88b364)]
