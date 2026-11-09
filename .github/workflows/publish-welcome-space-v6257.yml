@@ -340,7 +340,7 @@ jobs:
           grep -Fq 'event.persisted' site/index.html
           grep -Fq 'data-skyview' site/world-v2300-time-slider.js
           grep -Fq 'initBridgePointCelestialSky' site/bridgepoint-celestial-sky-v6257.js
-          ! grep -Fq 'starCount=lowPower?4200:8200' site/index.html
+          grep -Fq '#bpWelcomeGateV1 .bpw-starfield{display:none!important;visibility:hidden!important}' site/bridgepoint-welcome-space-v6260.js
 
       - uses: actions/configure-pages@v5
         with:
