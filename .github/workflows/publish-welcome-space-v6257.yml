@@ -1,4 +1,4 @@
-name: Publish BridgePoint Sun Globe and Solar Activity V6265
+name: Publish BridgePoint Sun Globe, Depth Occlusion and STEREO Far Side V6266
 
 on:
   push:
@@ -11,7 +11,7 @@ on:
       - 'recovery/bridgepoint-welcome-space-v6260.js'
       - 'rebuild-v5000/index.html'
       - 'assets/moon/v1/**'
-      - 'assets/sun/v1/**'
+      - 'assets/sun/v2/**'
       - 'rebuild-v5000/bridgepoint-celestial-sky-v6257.js'
   workflow_dispatch:
 
@@ -22,7 +22,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: bridgepoint-welcome-space-v6265-solar-globe
+  group: bridgepoint-welcome-space-v6266-solar-realism
   cancel-in-progress: true
 
 jobs:
@@ -104,11 +104,12 @@ jobs:
           cp recovery/bridgepoint-welcome-space-v6260.js site/bridgepoint-welcome-space-v6260.js
           cp rebuild-v5000/bridgepoint-celestial-sky-v6257.js site/bridgepoint-celestial-sky-v6257.js
           mkdir -p site/assets/sun
-          cp -a assets/sun/v1 site/assets/sun/v1
-          test -s site/assets/sun/v1/manifest.json
-          test -s site/assets/sun/v1/sun-photosphere-v1.webp
-          test -s site/assets/sun/v1/sun-coronal-activity-v1.webp
-          test -s site/assets/sun/v1/sun-magnetic-field-v1.webp
+          cp -a assets/sun/v2 site/assets/sun/v2
+          test -s site/assets/sun/v2/manifest.json
+          test -s site/assets/sun/v2/sun-photosphere-v2.webp
+          test -s site/assets/sun/v2/sun-coronal-activity-v2.webp
+          test -s site/assets/sun/v2/sun-stereoB-farside-EUV-2014-09-27-v2.webp
+          test -s site/assets/sun/v2/sun-photosphere-height-v2.webp
           # The Earth and Moon are already complete in the Pages baseline. Do not copy or rewrite them.
           test -s site/assets/moon/v1/manifest.json
           test -s site/assets/moon/v1/moon-global-height-16ppd-u16.png
@@ -141,10 +142,11 @@ jobs:
           }
           assert not removed, f'unexpected removed files: {sorted(removed)}'
           expected_added={
-            'assets/sun/v1/manifest.json',
-            'assets/sun/v1/sun-photosphere-v1.webp',
-            'assets/sun/v1/sun-coronal-activity-v1.webp',
-            'assets/sun/v1/sun-magnetic-field-v1.webp',
+            'assets/sun/v2/manifest.json',
+            'assets/sun/v2/sun-photosphere-v2.webp',
+            'assets/sun/v2/sun-photosphere-height-v2.webp',
+            'assets/sun/v2/sun-coronal-activity-v2.webp',
+            'assets/sun/v2/sun-stereoB-farside-EUV-2014-09-27-v2.webp',
           }
           assert added==expected_added, f'unexpected new production files: {sorted(added ^ expected_added)}'
           allowed_changed=expected | {'bridgepoint-welcome-space-v6260.js'}
@@ -155,7 +157,7 @@ jobs:
           assert required_changed.issubset(changed), f'missing required entry/scene updates: {sorted(required_changed - changed)}'
           unexpected_changed=changed-allowed_changed
           assert not unexpected_changed, f'unrelated production assets changed: {sorted(unexpected_changed)}'
-          print('PASS: expected entry/PWA files and welcome scene updated; only four solar assets added; existing Moon DEM tiles and unrelated Earth/world/data assets byte-identical.')
+          print('PASS: expected entry/PWA files and welcome scene updated; only five V2 solar assets added; existing Moon DEM tiles and unrelated Earth/world/data assets byte-identical.')
           PY
           node --check /tmp/bridgepoint-welcome-gate-v6257.js
           node --input-type=module --check < site/bridgepoint-welcome-space-v6260.js
@@ -167,14 +169,14 @@ jobs:
           grep -Fq 'new THREE.Raycaster()' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'logarithmicDepthBuffer: true' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'uPhotosphereMap' site/bridgepoint-welcome-space-v6260.js
-          grep -Fq 'sun-photosphere-v1.webp' site/bridgepoint-welcome-space-v6260.js
-          grep -Fq 'sun-coronal-activity-v1.webp' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'sun-photosphere-v2.webp' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'sun-coronal-activity-v2.webp' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'addCoronalLoop' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'function rotateSunSurface' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'function tiltSunCamera' site/bridgepoint-welcome-space-v6260.js
-          test -s site/assets/sun/v1/sun-photosphere-v1.webp
-          test -s site/assets/sun/v1/sun-coronal-activity-v1.webp
-          test -s site/assets/sun/v1/sun-magnetic-field-v1.webp
+          test -s site/assets/sun/v2/sun-photosphere-v2.webp
+          test -s site/assets/sun/v2/sun-coronal-activity-v2.webp
+          test -s site/assets/sun/v2/sun-photosphere-height-v2.webp
                     grep -Fq 'MOON_PERIOD_DAYS = 27.321661' site/bridgepoint-welcome-space-v6260.js
           grep -Fq "runtimeMode: 'local-static-assets'" site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'externalRuntimeTerrainRequests: 0' site/bridgepoint-welcome-space-v6260.js
@@ -245,10 +247,12 @@ jobs:
             q="${GITHUB_SHA}-${i}-$(date +%s)"
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/?welcome-space-v6257=${q}" -o /tmp/live-root.html || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/bridgepoint-welcome-space-v6260.js?verify=${q}" -o /tmp/live-space.js || true
-            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/sun/v1/manifest.json?verify=${q}" -o /tmp/live-sun-manifest.json || true
-            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/sun/v1/sun-photosphere-v1.webp?verify=${q}" -o /tmp/live-sun-photosphere.webp || true
-            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/sun/v1/sun-coronal-activity-v1.webp?verify=${q}" -o /tmp/live-sun-activity.webp || true
-            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/sun/v1/sun-magnetic-field-v1.webp?verify=${q}" -o /tmp/live-sun-magnetic.webp || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/sun/v2/manifest.json?verify=${q}" -o /tmp/live-sun-manifest.json || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/sun/v2/sun-photosphere-v2.webp?verify=${q}" -o /tmp/live-sun-photosphere.webp || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/sun/v2/sun-photosphere-height-v2.webp?verify=${q}" -o /tmp/live-sun-height.webp || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/sun/v2/sun-coronal-activity-v2.webp?verify=${q}" -o /tmp/live-sun-activity.webp || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/sun/v2/sun-stereoB-farside-EUV-2014-09-27-v2.webp?verify=${q}" -o /tmp/live-sun-farside.webp || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/sun/v2/sun-photosphere-height-v2.webp?verify=${q}" -o /tmp/live-sun-magnetic.webp || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/bridgepoint-celestial-sky-v6257.js?verify=${q}" -o /tmp/live-sky.js || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app.js?verify=${q}" -o /tmp/live-app.js || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/landing.js?verify=${q}" -o /tmp/live-landing.js || true
@@ -260,10 +264,15 @@ jobs:
                grep -Fq 'new THREE.Raycaster()' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'uPhotosphereMap' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'addCoronalLoop' /tmp/live-space.js 2>/dev/null &&
+               grep -Fq 'applySunReliefFromImage' /tmp/live-space.js 2>/dev/null &&
+               grep -Fq 'earthDepthOccluder' /tmp/live-space.js 2>/dev/null &&
+               grep -Fq 'Sun solid opaque depth occluder' /tmp/live-space.js 2>/dev/null &&
+               grep -Fq 'panSunSurface(dx,dy)' /tmp/live-space.js 2>/dev/null &&
+               grep -Fq 'uFarSideMap' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'function rotateSunSurface' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'function tiltSunCamera' /tmp/live-space.js 2>/dev/null &&
                test -s /tmp/live-sun-manifest.json && test -s /tmp/live-sun-photosphere.webp &&
-               test -s /tmp/live-sun-activity.webp && test -s /tmp/live-sun-magnetic.webp &&
+               test -s /tmp/live-sun-height.webp && test -s /tmp/live-sun-activity.webp && test -s /tmp/live-sun-farside.webp &&
                               grep -Fq 'MOON_PERIOD_DAYS = 27.321661' /tmp/live-space.js 2>/dev/null &&
                ! grep -Fq 'earthMesh' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'function moonSurfacePoint' /tmp/live-space.js 2>/dev/null &&
@@ -287,7 +296,7 @@ jobs:
                grep -Fq 'entryRoute=' /tmp/live-sw.js 2>/dev/null &&
                grep -Fq '/?return=' /tmp/live-app.html 2>/dev/null &&
                grep -Fq 'content="0;url=/"' /tmp/live-legacy.html 2>/dev/null &&
-               grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6265-solar-globe'" /tmp/live-sw.js 2>/dev/null &&
+               grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6266-solar-realism'" /tmp/live-sw.js 2>/dev/null &&
                grep -Fq 'runtimeMode' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'externalRuntimeTerrainRequests: 0' /tmp/live-space.js 2>/dev/null &&
                ! grep -Fq 'trek.nasa.gov/tiles/Moon' /tmp/live-space.js 2>/dev/null &&
@@ -307,4 +316,4 @@ jobs:
             sleep 3
           done
           test "$ok" -eq 1
-          echo 'LIVE V6265 PASS: locally hosted SDO photosphere, AIA coronal activity and HMI magnetic maps; interactive Sun rotation, surface pinch zoom and two-finger oblique camera tilt; animated 3D coronal loops and flare arcs; Moon DEM crater terrain and existing Earth/world assets preserved.'
+          echo 'LIVE V6266 PASS: opaque Earth and Sun depth occlusion; displaced HMI sunspot relief; current SDO AIA activity including 131 A; final usable STEREO-B 2014-09-27 far-side EUV observations; animated plasma structures and one-finger Sun surface pan; existing Moon DEM preserved.'
