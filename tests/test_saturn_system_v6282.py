@@ -117,7 +117,7 @@ class SaturnSystemV6282Tests(unittest.TestCase):
         self.assertIn("PIA18437", BUILDER)
         self.assertIn("titan-cassini-surface-mosaic.webp", SATURN)
         self.assertIn("titan-cassini-topography-4ppd-u16.bin.gz", SATURN)
-        self.assertIn("const segments=key==='titan'?(isMobile?256:512)", SATURN)
+        self.assertIn("const segments=key==='titan'?(isMobile?512:1024)", SATURN)
         self.assertIn("NASA Cassini ISS PIA22770", BUILDER)
 
     def test_saturn_texture_rotation_titan_atmosphere_and_enceladus_plumes_are_animated(self):
