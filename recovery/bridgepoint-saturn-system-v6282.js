@@ -400,7 +400,12 @@ export function initBridgePointSaturnSystem(options){
    const sun=getSunPosition();
    if(sun&&sun.isVector3){
     const localSun=root.worldToLocal(sun.clone());
-    if(localSun.lengthSq()>1e-12)saturnAtmosphereUniforms.lightDir.value.copy(localSun.normalize());
+    // Fragment normals/positions are in Saturn mesh-local coordinates, not
+    // the tilted Saturn-system parent frame.
+    if(localSun.lengthSq()>1e-12){
+     localSun.applyQuaternion(saturnMesh.quaternion.clone().invert()).normalize();
+     saturnAtmosphereUniforms.lightDir.value.copy(localSun);
+    }
    }
   }
   for(const [key,m] of Object.entries(MOONS)){
@@ -442,7 +447,9 @@ export function initBridgePointSaturnSystem(options){
   for(const sprite of labels.values())sprite.parent?.remove(sprite);
   for(const mesh of ringMeshes){mesh.geometry.dispose();mesh.material.alphaMap?.dispose();mesh.material.dispose()}
   for(const hitbox of moonHitboxes.values()){
-   hitbox.parent?.remove(hitbox);const index=clickables.indexOf(hitbox);if(index>=0)clickables.splice(index,1);
+   hitbox.parent?.remove(hitbox);
+   const index=clickables.indexOf(hitbox);if(index>=0)clickables.splice(index,1);
+   hitbox.geometry.dispose();hitbox.material.dispose();
   }
   for(const key of ['saturn','titan','enceladus','mimas']){
    const mesh=moonMeshes.get(key);if(mesh){const index=clickables.indexOf(mesh);if(index>=0)clickables.splice(index,1)}
