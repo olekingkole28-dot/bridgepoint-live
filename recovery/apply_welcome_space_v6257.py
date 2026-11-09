@@ -7,7 +7,7 @@ from pathlib import Path
 
 BUILD = "v6281-space-camera-sync"
 # Moon terrain assets are bundled locally under assets/moon/v1; runtime requests stay same-origin.
-SW_URL = "/sw.js?v=v6281-space-camera-sync"
+SW_URL = "/sw.js?v=6281-space-camera-sync"
 CACHE_NAME = "bp-intelligence-v6247-universal-fresh-entry-sidewalk"
 
 
