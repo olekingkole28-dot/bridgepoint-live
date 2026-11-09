@@ -58,7 +58,8 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   const style = document.createElement('style');
   style.id = 'bpWelcomeSpaceStylesV6257';
   style.textContent = `
-    #bpWelcomeGateV1 .bpw-starfield{display:none!important;visibility:hidden!important}
+    #bpWelcomeGateV1 .bpw-starfield{display:block!important;visibility:visible!important}
+    #bpWelcomeGateV1.bpw-gaia-mode .bpw-starfield{display:none!important;visibility:hidden!important}
     #bpWelcomeGateV1 .bpw-space-renderer-canvas{
       position:absolute!important;inset:0!important;width:100%!important;height:100%!important;
       display:block!important;z-index:2!important;pointer-events:auto!important;
@@ -853,10 +854,42 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     texture.needsUpdate=true;return texture;
   }
 
-  // Gaia DR3 points are populated from BridgePoint-hosted astrometric chunks.
-  // No random shell or arbitrary common-distance named-star layer remains.
+  // The welcome scene has its own distant 3D star sphere. It is purely a
+  // cinematic background, not a substitute for the measured Gaia catalogue.
+  const cinematicStarGeometry=new THREE.BufferGeometry();
+  const cinematicStarCount=mobile?4200:8200;
+  const cinematicStarPositions=new Float32Array(cinematicStarCount*3);
+  const cinematicStarColors=new Float32Array(cinematicStarCount*3);
+  let cinematicSeed=0x6271a11;
+  const cinematicRandom=()=>{cinematicSeed=(cinematicSeed*1664525+1013904223)>>>0;return cinematicSeed/4294967296};
+  const stellarPalette=[[.60,.74,1.0],[.82,.91,1.0],[1.0,.91,.76],[1.0,.73,.53]];
+  for(let i=0;i<cinematicStarCount;i++){
+    const y=cinematicRandom()*2-1,angle=cinematicRandom()*TAU;
+    const radial=Math.sqrt(Math.max(0,1-y*y)),radius=1450+cinematicRandom()*90;
+    const j=i*3,palette=stellarPalette[Math.floor(cinematicRandom()*stellarPalette.length)];
+    const brightness=.48+cinematicRandom()*.78;
+    cinematicStarPositions[j]=Math.cos(angle)*radial*radius;
+    cinematicStarPositions[j+1]=y*radius;
+    cinematicStarPositions[j+2]=Math.sin(angle)*radial*radius;
+    cinematicStarColors[j]=palette[0]*brightness;
+    cinematicStarColors[j+1]=palette[1]*brightness;
+    cinematicStarColors[j+2]=palette[2]*brightness;
+  }
+  cinematicStarGeometry.setAttribute('position',new THREE.BufferAttribute(cinematicStarPositions,3));
+  cinematicStarGeometry.setAttribute('color',new THREE.BufferAttribute(cinematicStarColors,3));
+  const cinematicStarfield=new THREE.Points(cinematicStarGeometry,new THREE.PointsMaterial({
+    size:mobile?1.2:1.35,sizeAttenuation:false,vertexColors:true,
+    transparent:true,opacity:.92,depthTest:true,depthWrite:false,blending:THREE.AdditiveBlending
+  }));
+  cinematicStarfield.name='Welcome cinematic 3D background starfield';
+  cinematicStarfield.frustumCulled=false;
+  scene.add(cinematicStarfield);
+
+  // Gaia's measured parsec positions live in a separate group and appear only
+  // when the user enters the actual Galaxy or Solar System exploration view.
   const stars=new THREE.Group();
   stars.name='Gaia DR3 stellar positions in parsecs';
+  stars.visible=false;
   scene.add(stars);
 
   // Three-point depth layering adds a faint distant stellar haze without a flat CSS sky.
@@ -2082,7 +2115,7 @@ function createMoonTerrainController() {
   };
   void import('./bridgepoint-gaia-galaxy-v6270.js?v=6270-gaia-dr3-galaxy')
     .then(module=>module.initBridgePointGaiaGalaxy({
-      THREE,scene,camera,renderer,canvas,host,controls,stars,
+      THREE,scene,camera,renderer,canvas,host,controls,starsGroup:stars,
       getSunPosition:()=>sunPosition.clone(),
       setTarget:value=>target.copy(value),
       target,
@@ -2090,6 +2123,8 @@ function createMoonTerrainController() {
       setMainBodiesVisible:visible=>{
         moonPivot.visible=visible;sunGroup.visible=visible;
         earthDepthOccluder.visible=visible;haze.visible=visible;
+        cinematicStarfield.visible=visible;
+        document.getElementById('bpWelcomeGateV1')?.classList.toggle('bpw-gaia-mode',!visible);
       },
       setBackground:value=>{scene.background=value;},
       resetMainView:resetView,
