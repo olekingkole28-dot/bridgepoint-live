@@ -872,7 +872,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   const pointer=new THREE.Vector2();
   const clickables=[earthDepthOccluder,moonMesh,sunMesh];
   let viewState='overview',focusedObject=null;
-  let focusLocalTarget=null,moonTerrainController=null,sunFocusLocalTarget=null;
+  let focusLocalTarget=null,moonTerrainController=null,sunFocusLocalTarget=null;\n  let saturnFocusMesh=null,saturnFocusLocalTarget=null;
 
 // Lunar elevation and color are served only from BridgePoint static assets.
 // Source products were materialized locally; the browser never requests NASA/Moon Trek tiles.
@@ -1599,8 +1599,24 @@ function createMoonTerrainController() {
     const bodyData=solarCosmos?.getBody?.(key)||null;
     const focused=key==='moon'?moonMesh:key==='sun'?sunMesh:key==='earth'?earthDepthOccluder:bodyData?.mesh||null;
     if(!focused)return;
+    const saturnBody=['saturn','titan','enceladus','mimas'].includes(key);
     solarCosmos?.setSelection?.(key);
-    focusedObject=focused;viewState=(key==='moon'||key==='sun')?key:'planet';camera.up.set(0,1,0);
+    focusedObject=focused;
+    saturnFocusMesh=saturnBody?focused:null;
+    saturnFocusLocalTarget=null;
+    if(saturnBody){
+      // The welcome renderer is transparent over MapLibre. Saturn needs an
+      // opaque deep-space background so the Earth map cannot show through.
+      scene.background=new THREE.Color(0x02050c);
+      earth.visible=false;moonPivot.visible=false;sunGroup.visible=false;haze.visible=false;
+      stars.visible=true;
+      viewState=key==='saturn'?'saturn-system':'saturn-surface';
+    }else{
+      scene.background=null;
+      earth.visible=true;
+      viewState=(key==='moon'||key==='sun')?key:'planet';
+    }
+    camera.up.set(0,1,0);
     if(key==='moon'){
       focusedPlanetRadius=0;sunFocusLocalTarget=null;focusLocalTarget=null;camera.near=0.00000005;
       moonTerrainController?.setActive(false);
@@ -1613,7 +1629,9 @@ function createMoonTerrainController() {
       camera.far=Math.max(camera.far,100000000000);
       camera.fov=48;camera.updateProjectionMatrix();
     }
-    moonPivot.visible=true;sunGroup.visible=true;stars.visible=true;haze.visible=true;
+    if(!saturnBody){
+      earth.visible=true;moonPivot.visible=true;sunGroup.visible=true;stars.visible=true;haze.visible=true;
+    }
     if(key==='moon'||key==='sun'){moonMesh.scale.setScalar(1);sunMesh.scale.setScalar(1);}
     const world=focused===sunMesh?sunGroup.getWorldPosition(new THREE.Vector3()):focused.getWorldPosition(new THREE.Vector3());
     if(key==='moon'){
@@ -1640,18 +1658,32 @@ function createMoonTerrainController() {
       const surface=sunGroup.localToWorld(sunFocusLocalTarget.clone());
       const surfaceNormal=sunFocusLocalTarget.clone().normalize().transformDirection(sunGroup.matrixWorld);
       animateCamera(surface.clone().addScaledVector(surfaceNormal,sunRadiusVisual*1.7),surface,1.8);
+    }else if(saturnBody){
+      const saturnMesh=solarCosmos?.getBody?.('saturn')?.mesh;
+      const saturnCenter=saturnMesh?saturnMesh.getWorldPosition(new THREE.Vector3()):new THREE.Vector3();
+      // Place the camera on the moon's outward orbital side so Saturn remains
+      // naturally behind it when a moon is opened from the system view.
+      const direction=key==='saturn'?camera.position.clone().sub(world):world.clone().sub(saturnCenter);
+      if(direction.lengthSq()<1e-12)direction.set(0,0,1);
+      direction.normalize();
+      focused.updateMatrixWorld(true);
+      const localDirection=direction.clone().applyQuaternion(focused.getWorldQuaternion(new THREE.Quaternion()).invert()).normalize();
+      saturnFocusLocalTarget=localDirection.multiplyScalar(focusedPlanetRadius);
+      const surface=focused.localToWorld(saturnFocusLocalTarget.clone());
+      const systemDistance=Number(bodyData?.systemCameraDistance)>0?bodyData.systemCameraDistance:Math.max(focusedPlanetRadius*4.1,.22);
+      animateCamera(world.clone().addScaledVector(direction,systemDistance),surface,key==='saturn'?2.1:1.5);
     }else{
       const direction=camera.position.clone().sub(world);
       if(direction.lengthSq()<1e-12)direction.set(0,0,1);
       direction.normalize();
       const systemDistance=Number(bodyData?.systemCameraDistance)>0?bodyData.systemCameraDistance:Math.max(focusedPlanetRadius*3.2,.25);
-      animateCamera(world.clone().addScaledVector(direction,systemDistance),world,key==='saturn'?2.1:1.5);
+      animateCamera(world.clone().addScaledVector(direction,systemDistance),world,1.5);
     }
   }
   function resetView(){
-    focusedObject=null;focusLocalTarget=null;sunFocusLocalTarget=null;focusedPlanetRadius=0;solarCosmos?.clearSelection?.();viewState='overview';moonTerrainController?.setActive(false);camera.near=0.001;camera.up.set(0,1,0);camera.fov=48;camera.updateProjectionMatrix();
+    focusedObject=null;focusLocalTarget=null;sunFocusLocalTarget=null;saturnFocusMesh=null;saturnFocusLocalTarget=null;focusedPlanetRadius=0;solarCosmos?.clearSelection?.();viewState='overview';scene.background=null;moonTerrainController?.setActive(false);camera.near=0.001;camera.up.set(0,1,0);camera.fov=48;camera.updateProjectionMatrix();
     moonMesh.scale.setScalar(1);sunMesh.scale.setScalar(1);
-    moonPivot.visible=true;sunGroup.visible=true;stars.visible=true;haze.visible=true;
+    earth.visible=true;moonPivot.visible=true;sunGroup.visible=true;stars.visible=true;haze.visible=true;
     setResponsiveSunPosition();
     const aspect=canvas.clientWidth/Math.max(1,canvas.clientHeight),distance=aspect<.72?20.5:aspect<1?18.5:16.5;
     overviewBaseDistance=Math.hypot(4.2,distance);lastSpaceZoomDistance=NaN;
@@ -1689,6 +1721,79 @@ function createMoonTerrainController() {
       localCamera.setLength(minimumRadius);
       camera.position.copy(sunGroup.localToWorld(localCamera));
     }
+  }
+  function enforceSaturnCameraClearance(){
+    if(!saturnFocusMesh||!saturnFocusLocalTarget)return;
+    saturnFocusMesh.updateMatrixWorld(true);
+    const localCamera=saturnFocusMesh.worldToLocal(camera.position.clone());
+    if(localCamera.lengthSq()<1e-18)return;
+    const clearance=Math.max(.00035,focusedPlanetRadius*.00025);
+    const minimumRadius=focusedPlanetRadius+clearance;
+    if(localCamera.length()<minimumRadius){
+      localCamera.setLength(minimumRadius);
+      camera.position.copy(saturnFocusMesh.localToWorld(localCamera));
+    }
+  }
+  function syncSaturnFocusToTarget(){
+    if(!saturnFocusMesh||!saturnFocusLocalTarget)return;
+    saturnFocusMesh.updateMatrixWorld(true);
+    const local=saturnFocusMesh.worldToLocal(target.clone());
+    if(local.lengthSq()<1e-18)return;
+    saturnFocusLocalTarget=local.normalize().multiplyScalar(focusedPlanetRadius);
+    const exact=saturnFocusMesh.localToWorld(saturnFocusLocalTarget.clone());
+    const correction=exact.clone().sub(target);
+    target.copy(exact);camera.position.add(correction);
+  }
+  function panSaturnSurface(dx,dy){
+    if(!saturnFocusMesh||!saturnFocusLocalTarget||(!dx&&!dy))return;
+    saturnFocusMesh.updateMatrixWorld(true);
+    const localTarget=saturnFocusMesh.worldToLocal(target.clone());
+    if(localTarget.lengthSq()<1e-18)return;
+    const normalWorld=localTarget.clone().normalize().transformDirection(saturnFocusMesh.matrixWorld);
+    const cameraRight=new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion);
+    cameraRight.addScaledVector(normalWorld,-cameraRight.dot(normalWorld));
+    if(cameraRight.lengthSq()<1e-10)return;
+    cameraRight.normalize();
+    let screenUp=new THREE.Vector3(0,1,0).applyQuaternion(camera.quaternion);
+    screenUp.addScaledVector(normalWorld,-screenUp.dot(normalWorld));
+    if(screenUp.lengthSq()<.025){
+      screenUp.set(0,0,-1).applyQuaternion(camera.quaternion);
+      screenUp.addScaledVector(normalWorld,-screenUp.dot(normalWorld));
+    }
+    if(screenUp.lengthSq()<1e-10)return;
+    screenUp.normalize();
+    const height=Math.max(1,canvas.clientHeight||innerHeight||1);
+    const distance=camera.position.distanceTo(target);
+    const worldPerPixel=2*distance*Math.tan(THREE.MathUtils.degToRad(camera.fov*.5))/height;
+    const travel=cameraRight.multiplyScalar(-dx).add(screenUp.multiplyScalar(dy)).multiplyScalar(worldPerPixel*1.15);
+    const length=travel.length();
+    if(length<1e-12)return;
+    const axis=normalWorld.clone().cross(travel.clone().normalize());
+    if(axis.lengthSq()<1e-12)return;
+    axis.normalize();
+    const move=new THREE.Quaternion().setFromAxisAngle(axis,length/Math.max(1e-9,focusedPlanetRadius));
+    const center=saturnFocusMesh.getWorldPosition(new THREE.Vector3());
+    camera.position.sub(center).applyQuaternion(move).add(center);
+    target.sub(center).applyQuaternion(move).add(center);
+    camera.quaternion.premultiply(move);camera.up.applyQuaternion(move);
+    syncSaturnFocusToTarget();enforceSaturnCameraClearance();camera.lookAt(target);
+  }
+  function tiltSaturnCamera(deltaY){
+    if(!saturnFocusMesh||!saturnFocusLocalTarget||Math.abs(deltaY)<.01)return;
+    saturnFocusMesh.updateMatrixWorld(true);
+    const normal=saturnFocusLocalTarget.clone().normalize().transformDirection(saturnFocusMesh.matrixWorld);
+    const offset=camera.position.clone().sub(target);
+    const current=Math.acos(THREE.MathUtils.clamp(offset.clone().normalize().dot(normal),-1,1));
+    const next=THREE.MathUtils.clamp(current-deltaY*.0042,0,THREE.MathUtils.degToRad(84));
+    const delta=next-current;
+    if(Math.abs(delta)<1e-7)return;
+    const view=offset.clone().normalize();
+    let axis=normal.clone().cross(view);
+    if(axis.lengthSq()<1e-10)axis.set(1,0,0).applyQuaternion(camera.quaternion);
+    else axis.normalize();
+    offset.applyAxisAngle(axis,delta);
+    camera.position.copy(target).add(offset);
+    enforceSaturnCameraClearance();camera.lookAt(target);
   }
   function syncSunFocusToTarget(){
     if(viewState!=='sun')return;
@@ -1756,7 +1861,7 @@ function createMoonTerrainController() {
     enforceSunCameraClearance();camera.lookAt(target);
   }
   function moonZoomDistance(distance){
-    const minimum=viewState==='moon'?0.00000045:viewState==='sun'?.0015:viewState==='planet'?Math.max(1e-9,focusedPlanetRadius*1.015):1.8;
+    const minimum=saturnFocusMesh?Math.max(0.00000045,focusedPlanetRadius*1.0004):viewState==='moon'?0.00000045:viewState==='sun'?.0015:viewState==='planet'?Math.max(1e-9,focusedPlanetRadius*1.015):1.8;
     const maximum=solarCosmos?.maxCameraDistance?.()||5000;
     return THREE.MathUtils.clamp(distance,minimum,maximum);
   }
@@ -1766,6 +1871,7 @@ function createMoonTerrainController() {
     camera.position.copy(target).addScaledVector(direction,distance);
     enforceMoonCameraClearance();
     enforceSunCameraClearance();
+    enforceSaturnCameraClearance();
     camera.lookAt(target);
   }
   function syncMoonFocusToTarget() {
@@ -1869,6 +1975,10 @@ function createMoonTerrainController() {
     camera.lookAt(target);
   }
   function rotateCameraOrMoon(dx,dy){
+    if(viewState==='saturn-system'||viewState==='saturn-surface'){
+      panSaturnSurface(dx,dy);
+      return;
+    }
     if(viewState==='moon'){
       rotateMoonBy(dx,dy);
       return;
@@ -1936,14 +2046,15 @@ function createMoonTerrainController() {
     if(activePointers.size>1){
       const gesture=getTwoPointerGesture();
       if(!gesture)return;
-      if((viewState==='moon'||viewState==='sun')&&gestureCenter){
+      if((viewState==='moon'||viewState==='sun'||viewState==='saturn-system'||viewState==='saturn-surface')&&gestureCenter){
         const dx=gesture.center.x-gestureCenter.x;
         const dy=gesture.center.y-gestureCenter.y;
         // Horizontal two-finger movement pans along the selected body's surface.
         // Vertical two-finger movement raises the camera toward an oblique 3D horizon.
         // Pinch distance remains independent and controls zoom.
         if(viewState==='moon'){panMoonSurface(dx,0);tiltMoonCamera(dy);}
-        else{panSunSurface(dx,0);tiltSunCamera(dy);}
+        else if(viewState==='sun'){panSunSurface(dx,0);tiltSunCamera(dy);}
+        else{panSaturnSurface(dx,0);tiltSaturnCamera(dy);}
       }
       if(pinchDistance>0)zoomCameraBy(pinchDistance/gesture.distance);
       pinchDistance=gesture.distance;
@@ -1966,6 +2077,8 @@ function createMoonTerrainController() {
       }
     }else if(viewState==='sun'){
       panSunSurface(dx,dy);
+    }else if(viewState==='saturn-system'||viewState==='saturn-surface'){
+      panSaturnSurface(dx,dy);
     }else{
       rotateCameraOrMoon(dx,dy);
     }
@@ -2077,7 +2190,7 @@ function createMoonTerrainController() {
       mesh.material.uniforms.uOpacity.value=.64+.26*(.5+.5*Math.sin(t*1.65+mesh.material.uniforms.uPhase.value));
     });
     if(focusedObject&&!transitionStart&&!dragging){
-      const focusedWorld=focusedObject===sunMesh?(sunFocusLocalTarget?sunGroup.localToWorld(sunFocusLocalTarget.clone()):sunGroup.getWorldPosition(new THREE.Vector3())):(focusLocalTarget?moonMesh.localToWorld(focusLocalTarget.clone()):focusedObject.getWorldPosition(new THREE.Vector3()));
+      const focusedWorld=focusedObject===sunMesh?(sunFocusLocalTarget?sunGroup.localToWorld(sunFocusLocalTarget.clone()):sunGroup.getWorldPosition(new THREE.Vector3())):(saturnFocusMesh===focusedObject&&saturnFocusLocalTarget?saturnFocusMesh.localToWorld(saturnFocusLocalTarget.clone()):(focusLocalTarget?moonMesh.localToWorld(focusLocalTarget.clone()):focusedObject.getWorldPosition(new THREE.Vector3())));
       camera.position.add(focusedWorld.clone().sub(target));target.copy(focusedWorld);camera.lookAt(target);
     }
     if(viewState==='moon'){
@@ -2086,6 +2199,9 @@ function createMoonTerrainController() {
       moonTerrainController?.refreshLabels();
     }else if(viewState==='sun'){
       enforceSunCameraClearance();
+      camera.lookAt(target);
+    }else if(viewState==='saturn-system'||viewState==='saturn-surface'){
+      enforceSaturnCameraClearance();
       camera.lookAt(target);
     }
     solarCosmos?.update?.();
@@ -2110,10 +2226,12 @@ function createMoonTerrainController() {
       lunarSurfaceNavigation:'two-finger-vertical=continuous-camera-tilt; two-finger-horizontal=surface-pan; pinch=zoom; one-finger=surface-pan; reset=original-celestial-overview',
       solarSurfaceNavigation:'one-finger=spin-the-Sun; two-finger-vertical=oblique-3D-camera-tilt; two-finger-horizontal=surface-pan; pinch=surface-zoom; reset=original-celestial-overview',
       lunarFocusFrame:'shared-celestial-scene; Moon orbital position held while lunar camera is active',
+      saturnModuleMode:viewState==='saturn-system'||viewState==='saturn-surface'?'isolated-opaque-saturn-system':'inactive',
+      saturnSurfaceNavigation:'one-finger=surface-pan; two-finger-horizontal=surface-pan; two-finger-vertical=84-degree-camera-tilt; pinch=surface-zoom; direct-raycast=focus-moving-moon',
       lunarLabelCount:window.__BP_MOON_TERRAIN_V1__?.labelCount||0,
       proceduralLunarRelief:'fallback-only-outside-loaded-NASA-DEM-coverage'})
   };
-  void import('./bridgepoint-gaia-galaxy-v6270.js?v=6282-saturn-system')
+  void import('./bridgepoint-gaia-galaxy-v6270.js?v=6283-saturn-isolated')
     .then(module=>{
       solarCosmos=module.initBridgePointSolarCosmos({
         THREE,scene,camera,canvas,host,controls,starsGroup:stars,
