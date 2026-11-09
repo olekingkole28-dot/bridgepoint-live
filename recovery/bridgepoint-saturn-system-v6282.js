@@ -1,5 +1,5 @@
 /**
- * BridgePoint Saturn system v6284 — atmospheric motion, ring depth, and tappable moons.
+ * BridgePoint Saturn system v6285 — atmospheric motion, ring depth, and tappable moons.
  * Saturn's Cassini ISS atmosphere map, measured main-ring boundaries, NASA DSK
  * satellite shape meshes, Titan Cassini topography, and Saturn-centred JPL
  * Horizons state vectors. All runtime assets are same-origin static files.
@@ -102,7 +102,7 @@ export function initBridgePointSaturnSystem(options){
   getSaturnPosition,getSelectedBody,isMobile=false}=options;
  if(!THREE||!solarRoot||!bodyMap||!planetMeshes)throw Error('Saturn system requires the existing BridgePoint shared celestial scene');
  THREEVector=THREE.Vector3;
- const state={version:'v6284-saturn-movement-depth',status:'idle',source:'NASA Cassini PDS + NASA NAIF DSK + JPL Horizons',
+ const state={version:'v6285-saturn-lossless-pages',status:'idle',source:'NASA Cassini PDS + NASA NAIF DSK + JPL Horizons',
   ephemerisEpochUTC:'2026-11-09T00:00:00Z',ephemerisFrame:'Saturn BODY EQUATOR',
   orbitTimeLapse:TIME_LAPSE,physicalSizeScale:'true mean radii relative to Earth',
   ringRadiusUnit:'km from Saturn centre',assets:'same-origin local static; no external runtime terrain requests',
@@ -155,7 +155,7 @@ export function initBridgePointSaturnSystem(options){
    saturnCloud.rgb*=1.0-ringShadow;
    diffuseColor*=saturnCloud;\n   #endif\n  `);
  };
- saturnMaterial.customProgramCacheKey=()=> 'bridgepoint-saturn-dual-cloud-flow-ring-shadow-v6284';
+ saturnMaterial.customProgramCacheKey=()=> 'bridgepoint-saturn-dual-cloud-flow-ring-shadow-v6285';
  const saturnMesh=new THREE.Mesh(saturnGeometry,saturnMaterial);
  saturnMesh.name='Saturn — animated Cassini ISS atmosphere';saturnMesh.userData.body='saturn';
  saturnMesh.castShadow=true;saturnMesh.receiveShadow=true;root.add(saturnMesh);
@@ -223,7 +223,7 @@ export function initBridgePointSaturnSystem(options){
    shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',
     '#include <color_fragment>\nfloat ringDustMotion=.986+.014*sin(gl_FragCoord.x*.073+gl_FragCoord.y*.019+uRingTime*.004);\ndiffuseColor.rgb*=ringDustMotion;');
   };
-  material.customProgramCacheKey=()=> 'bridgepoint-lit-ring-profile-'+name+'-v6284';
+  material.customProgramCacheKey=()=> 'bridgepoint-lit-ring-profile-'+name+'-v6285';
   material.userData.ringTime=ringTime;
   const mesh=new THREE.Mesh(ringGeometry(inner,outer,5,seg),material);
   mesh.name='Saturn '+name+' lit dust ring '+inner+'–'+outer+' km';mesh.userData.ringBand=name;
@@ -376,7 +376,7 @@ export function initBridgePointSaturnSystem(options){
     shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nuniform sampler2D uTitanHeight;uniform float uTitanHeightMin;uniform float uTitanHeightMax;');
     shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nfloat titanH=texture2D(uTitanHeight,uv).r;float titanMeters=mix(uTitanHeightMin,uTitanHeightMax,titanH);transformed+=normalize(objectNormal)*(titanMeters/6371008.4);');
    };
-   mat.customProgramCacheKey=()=> 'bridgepoint-titan-cassini-dem-4ppd-v6284';mat.needsUpdate=true;state.loaded.titanDEM=true;
+   mat.customProgramCacheKey=()=> 'bridgepoint-titan-cassini-dem-4ppd-v6285';mat.needsUpdate=true;state.loaded.titanDEM=true;
   }catch(e){state.errors.push('Titan DEM: '+String(e?.message||e))}
   saturnMaterial.needsUpdate=true;state.status='ready';
  }
@@ -457,7 +457,7 @@ export function initBridgePointSaturnSystem(options){
    bodyMap.delete(key);planetMeshes.delete(key);
   }
  }
- const api={version:'v6284-saturn-movement-depth',state,update,ensureLoaded,dispose,
+ const api={version:'v6285-saturn-lossless-pages',state,update,ensureLoaded,dispose,
   getBody:name=>bodyMap.get(String(name||'').toLowerCase())||null,
   get systemRoot(){return root},get saturnMesh(){return saturnMesh},
   physical:{saturnRadiusKm:SATURN_RADIUS_KM,moonRadiiKm:{titan:2574.73,enceladus:252.1,mimas:198.2},
@@ -465,5 +465,5 @@ export function initBridgePointSaturnSystem(options){
  };
  window.__BP_SATURN_SYSTEM_V6282__=api;
  window.__BP_SATURN_SYSTEM_V6283__=api;
- window.__BP_SATURN_SYSTEM_V6284__=api;state.status='idle';return api;
+ window.__BP_SATURN_SYSTEM_V6285__=api;state.status='idle';return api;
 }
