@@ -123,9 +123,9 @@ export function initBridgePointSaturnSystem(options){
  // the whole globe retains Saturn's measured ~10.656-hour rotation.
  saturnMaterial.onBeforeCompile=shader=>{
   shader.uniforms.uSaturnAtmosTime=saturnAtmosphereUniforms.time;
-  shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\\nuniform float uSaturnAtmosTime;');
+  shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nuniform float uSaturnAtmosTime;');
   shader.vertexShader=shader.vertexShader.replace('#include <uv_vertex>',
-   '#include <uv_vertex>\\n#ifdef USE_MAP\\nfloat saturnLatitude=abs(vMapUv.y-.5)*2.0;\\nfloat saturnDrift=0.00000115+0.00000105*(1.0-saturnLatitude);\\nvMapUv.x=fract(vMapUv.x+uSaturnAtmosTime*saturnDrift);\\n#endif');
+   '#include <uv_vertex>\n#ifdef USE_MAP\nfloat saturnLatitude=abs(vMapUv.y-.5)*2.0;\nfloat saturnDrift=0.00000115+0.00000105*(1.0-saturnLatitude);\nvMapUv.x=fract(vMapUv.x+uSaturnAtmosTime*saturnDrift);\n#endif');
  };
  saturnMaterial.customProgramCacheKey=()=> 'bridgepoint-saturn-differential-cloud-drift-v6283';
  const saturnMesh=new THREE.Mesh(saturnGeometry,saturnMaterial);
