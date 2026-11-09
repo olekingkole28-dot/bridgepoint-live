@@ -1,4 +1,4 @@
-import { initBridgePointSaturnSystem } from './bridgepoint-saturn-system-v6282.js?v=6282-saturn-system';
+import { initBridgePointSaturnSystem } from './bridgepoint-saturn-system-v6282.js?v=6283-saturn-isolated';
 
 /**
  * BridgePoint unified celestial space — Gaia DR3 stars + solar-system bodies.
@@ -117,7 +117,7 @@ export function initBridgePointSolarCosmos(o){
  bodySelect.setAttribute('aria-label','Choose a celestial body to explore');
  bodySelect.innerHTML='<option value="">CHOOSE CELESTIAL BODY</option>'+
   '<option value="earth">Earth</option><option value="moon">Moon</option><option value="sun">Sun</option>'+
-  '<option value="saturn">Saturn</option><option value="titan">Titan</option><option value="enceladus">Enceladus</option><option value="mimas">Mimas</option>';
+  '<option value="saturn">Saturn · rings &amp; moons</option>';
  const resetButton=controls?.querySelector('[data-space-reset]');
  if(controls)controls.insertBefore(bodySelect,resetButton||controls.firstChild);
  const css=document.createElement('style');
@@ -292,7 +292,11 @@ export function initBridgePointSolarCosmos(o){
   saturnController?.update?.();
  }
  function clearSelection(){selectedBody='';bodySelect.value='';}
- function setSelection(name){selectedBody=String(name||'').toLowerCase();bodySelect.value=selectedBody;}
+ function setSelection(name){
+  selectedBody=String(name||'').toLowerCase();
+  // The canvas raycaster selects moons; the module picker remains on Saturn.
+  bodySelect.value=['titan','enceladus','mimas'].includes(selectedBody)?'saturn':selectedBody;
+ }
  function getBody(name){return bodyMap.get(String(name||'').toLowerCase())||null}
  const saturnController=initBridgePointSaturnSystem({
   THREE,solarRoot,host,camera,bodyMap,planetMeshes,clickables,labelsGroup,labelMap,
