@@ -852,55 +852,11 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     texture.needsUpdate=true;return texture;
   }
 
-  // Distant 3D star shells and a small, explicitly named bright-star catalogue.
-  const starVertices=[];
-  const starColors=[];
-  let seed=0x6256b;
-  const random=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};
-  const starCount=mobile?2600:6800;
-  for(let i=0;i<starCount;i++){
-    const z=random()*2-1,a=random()*TAU,r=Math.sqrt(1-z*z),d=500+random()*2500;
-    starVertices.push(Math.cos(a)*r*d,z*d,Math.sin(a)*r*d);
-    const hue=random();starColors.push(.66+hue*.34,.72+hue*.25,1);
-  }
-  const starsGeo=new THREE.BufferGeometry();
-  starsGeo.setAttribute('position',new THREE.Float32BufferAttribute(starVertices,3));
-  starsGeo.setAttribute('color',new THREE.Float32BufferAttribute(starColors,3));
-  const stars=new THREE.Points(starsGeo,new THREE.PointsMaterial({size:mobile?1.15:1.5,sizeAttenuation:false,vertexColors:true,transparent:true,opacity:.92,depthTest:true,depthWrite:false}));
-  stars.name='Deep space star layers';scene.add(stars);
-
-  const namedStars=[
-    ['Betelgeuse',5.9195,7.4071],['Rigel',5.2423,-8.2016],['Bellatrix',5.4189,6.3497],
-    ['Saiph',5.7959,-9.6696],['Alnitak',5.6793,-1.9426],['Alnilam',5.6036,-1.2019],
-    ['Mintaka',5.5334,-0.2991],['Sirius',6.7525,-16.7161],['Procyon',7.655,-5.225],
-    ['Aldebaran',4.5987,16.5093],['Capella',5.2782,45.998],['Polaris',2.5303,89.2641],
-    ['Vega',18.6156,38.7837],['Deneb',20.6905,45.2803],['Altair',19.8464,8.8683],
-    ['Arcturus',14.261,19.1824],['Spica',13.4199,-11.1613],['Antares',16.4901,-26.432],
-    ['Fomalhaut',22.9608,-29.622],['Canopus',6.3992,-52.6957],['Regulus',10.1395,11.967]
-  ];
-  const starByName=new Map();
-  const toSkyVector=(raHours,decDeg)=>{
-    const ra=raHours*Math.PI/12,dec=THREE.MathUtils.degToRad(decDeg);
-    return new THREE.Vector3(Math.cos(dec)*Math.cos(ra),Math.sin(dec),Math.cos(dec)*Math.sin(ra)).multiplyScalar(2200);
-  };
-  const namedGeometry=new THREE.BufferGeometry();
-  const namedPositions=[];
-  for(const [name,ra,dec] of namedStars){const v=toSkyVector(ra,dec);starByName.set(name,v);namedPositions.push(v.x,v.y,v.z);}
-  namedGeometry.setAttribute('position',new THREE.Float32BufferAttribute(namedPositions,3));
-  const namedStarPoints=new THREE.Points(namedGeometry,new THREE.PointsMaterial({color:0xd9eaff,size:2.2,sizeAttenuation:false,transparent:true,opacity:1,depthTest:true,depthWrite:false}));
-  namedStarPoints.name='Named bright stars';
-  scene.add(namedStarPoints);
-  const constellationLines=[
-    ['Betelgeuse','Bellatrix'],['Bellatrix','Mintaka'],['Mintaka','Alnilam'],['Alnilam','Alnitak'],['Alnitak','Saiph'],['Saiph','Rigel'],['Rigel','Mintaka'],
-    ['Vega','Deneb'],['Deneb','Altair'],['Altair','Vega'],
-    ['Capella','Aldebaran'],['Aldebaran','Rigel']
-  ];
-  const linePoints=[];
-  for(const [a,b] of constellationLines){linePoints.push(starByName.get(a),starByName.get(b));}
-  const constellationGeometry=new THREE.BufferGeometry().setFromPoints(linePoints);
-  const constellationLinesMesh=new THREE.LineSegments(constellationGeometry,new THREE.LineBasicMaterial({color:0x5a85ad,transparent:true,opacity:.23,depthTest:true,depthWrite:false}));
-  constellationLinesMesh.name='Constellation guide lines';
-  scene.add(constellationLinesMesh);
+  // Gaia DR3 points are populated from BridgePoint-hosted astrometric chunks.
+  // No random shell or arbitrary common-distance named-star layer remains.
+  const stars=new THREE.Group();
+  stars.name='Gaia DR3 stellar positions in parsecs';
+  scene.add(stars);
 
   // Three-point depth layering adds a faint distant stellar haze without a flat CSS sky.
   const hazeGeometry=new THREE.SphereGeometry(3200,24,16);
@@ -1630,7 +1586,7 @@ function createMoonTerrainController() {
   function setResponsiveSunPosition(){
     const aspect=canvas.clientWidth/Math.max(1,canvas.clientHeight);
     sunPosition.copy(aspect<.72?new THREE.Vector3(2.05,4.6,3.4):aspect<1?new THREE.Vector3(2.8,4.9,4.0):new THREE.Vector3(4.0,5.1,4.5));
-    sunGroup.position.copy(sunPosition);sunLight.position.copy(sunPosition);
+    sunGroup.position.copy(sunPosition);sunLight.position.copy(sunPosition);stars.position.copy(sunPosition);
   }
   function focusBody(body){
     const focused=body==='moon'?moonMesh:body==='sun'?sunMesh:null;
@@ -1937,6 +1893,7 @@ function createMoonTerrainController() {
   }
   canvas.addEventListener('contextmenu',event=>event.preventDefault());
   canvas.addEventListener('pointerdown',event=>{
+    if(window.__BP_GAIA_DR3_GALAXY_V6270__?.active)return;
     if(activePointers.size===0){pointerMoved=false;lastX=event.clientX;lastY=event.clientY;}
     activePointers.set(event.pointerId,{x:event.clientX,y:event.clientY,button:event.button,pointerType:event.pointerType});
     if(event.button===2)event.preventDefault();
@@ -1951,6 +1908,7 @@ function createMoonTerrainController() {
     canvas.setPointerCapture?.(event.pointerId);
   });
   canvas.addEventListener('pointermove',event=>{
+    if(window.__BP_GAIA_DR3_GALAXY_V6270__?.active)return;
     if(!activePointers.has(event.pointerId))return;
     const existingPointer=activePointers.get(event.pointerId)||{};
     activePointers.set(event.pointerId,{...existingPointer,x:event.clientX,y:event.clientY});
@@ -1992,6 +1950,7 @@ function createMoonTerrainController() {
     }
   });
   canvas.addEventListener('pointerup',event=>{
+    if(window.__BP_GAIA_DR3_GALAXY_V6270__?.active)return;
     activePointers.delete(event.pointerId);
     dragging=activePointers.size>0;
     if(activePointers.size===1){
@@ -2015,15 +1974,17 @@ function createMoonTerrainController() {
     if(hit?.object?.userData?.body)focusBody(hit.object.userData.body);
   });
   canvas.addEventListener('pointercancel',event=>{
+    if(window.__BP_GAIA_DR3_GALAXY_V6270__?.active)return;
     activePointers.delete(event.pointerId);dragging=activePointers.size>0;
     if(activePointers.size<2){pinchDistance=0;gestureCenter=null;}
     if(activePointers.size===0){pointerMoved=false;refreshLunarTerrainFromView();}
   });
   canvas.addEventListener('wheel',event=>{
+    if(window.__BP_GAIA_DR3_GALAXY_V6270__?.active)return;
     event.preventDefault();
     zoomCameraBy(Math.exp(event.deltaY*.001));
   },{passive:false});
-  controls.querySelector('[data-space-reset]').addEventListener('click',resetView);
+  controls.querySelector('[data-space-reset]').addEventListener('click',()=>{const galaxy=window.__BP_GAIA_DR3_GALAXY_V6270__;if(galaxy?.active)galaxy.exit();else resetView()});
 
   function resize(){
     const width=Math.max(1,host.clientWidth||innerWidth),height=Math.max(1,host.clientHeight||innerHeight);
@@ -2042,6 +2003,8 @@ function createMoonTerrainController() {
   function render(){
     if(disposed)return;
     const elapsed=clock.getDelta(),t=nowSeconds();
+    const galaxy=window.__BP_GAIA_DR3_GALAXY_V6270__;
+    if(galaxy?.active){galaxy.update?.();renderer.render(scene,camera);if(!document.hidden)requestAnimationFrame(render);return;}
     const elapsedFromStart=t;
     const orbitalDays=(Date.now()-reference)/86400000 + elapsedFromStart*1200/86400;
     const mean=TAU*orbitalDays/MOON_PERIOD_DAYS;
@@ -2092,7 +2055,6 @@ function createMoonTerrainController() {
       enforceSunCameraClearance();
       camera.lookAt(target);
     }
-    stars.rotation.y+=reducedMotion?0:elapsed*.0008;
     renderer.render(scene,camera);
     if(!document.hidden)requestAnimationFrame(render);
   }
@@ -2117,4 +2079,20 @@ function createMoonTerrainController() {
       lunarLabelCount:window.__BP_MOON_TERRAIN_V1__?.labelCount||0,
       proceduralLunarRelief:'fallback-only-outside-loaded-NASA-DEM-coverage'})
   };
+  void import('./bridgepoint-gaia-galaxy-v6270.js?v=6270-gaia-dr3-galaxy')
+    .then(module=>module.initBridgePointGaiaGalaxy({
+      THREE,scene,camera,renderer,canvas,host,controls,stars,
+      getSunPosition:()=>sunPosition.clone(),
+      setTarget:value=>target.copy(value),
+      target,
+      setViewState:value=>{viewState=value;},
+      setMainBodiesVisible:visible=>{
+        moonPivot.visible=visible;sunGroup.visible=visible;
+        earthDepthOccluder.visible=visible;haze.visible=visible;
+      },
+      setBackground:value=>{scene.background=value;},
+      resetMainView:resetView,
+      isMobile:mobile
+    }))
+    .catch(error=>console.warn('[BridgePoint Gaia DR3] Galaxy renderer unavailable:',error));
 })();
