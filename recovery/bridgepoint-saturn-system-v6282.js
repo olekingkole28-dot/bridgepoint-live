@@ -325,5 +325,6 @@ export function initBridgePointSaturnSystem(options){
   physical:{saturnRadiusKm:SATURN_RADIUS_KM,moonRadiiKm:{titan:2574.73,enceladus:252.1,mimas:198.2},
    moonOrbitsKm:{titan:1221870,enceladus:238042,mimas:185539}}
  };
- window.__BP_SATURN_SYSTEM_V6282__=api;\n window.__BP_SATURN_SYSTEM_V6283__=api;state.status='idle';return api;
+ window.__BP_SATURN_SYSTEM_V6282__=api;
+ window.__BP_SATURN_SYSTEM_V6283__=api;state.status='idle';return api;
 }
