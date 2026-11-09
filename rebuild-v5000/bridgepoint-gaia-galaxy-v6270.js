@@ -2,7 +2,7 @@
  * BridgePoint Gaia DR3 3D star catalogue + heliocentric planetary scene.
  * Star positions are Gaia astrometry in parsecs, propagated to epoch 2026.0.
  */
-const BUILD='v6270-gaia-dr3-galaxy', ROOT='/assets/stellar/gaia-dr3-v6270/';
+const BUILD='v6272-gaia-controls-visible', ROOT='/assets/stellar/gaia-dr3-v6270/';
 const DEG=Math.PI/180, AU_PC=1/206264.80624709636, KM_AU=149597870.7;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const GAL=(()=>{
@@ -107,7 +107,7 @@ export async function initBridgePointGaiaGalaxy(o){
  function hudText(){return 'GAIA DR3 · '+state.starCount.toLocaleString()+' STAR POSITIONS\nTRUE 3D CARTESIAN POSITIONS · PARSECS · EPOCH '+state.epoch.toFixed(1)+'\nVIEW: '+(mode==='solar'?'SOLAR SYSTEM — PHYSICAL RADII + APPROXIMATE EPHEMERIDES':mode==='milkyway'?'MILKY WAY CONTEXT':'LOCAL STELLAR NEIGHBORHOOD')+'\n'+(chosen?('SELECTED '+chosen.id+' · '+chosen.distance.toFixed(2)+' pc · G '+chosen.g.toFixed(2)+' · BP−RP '+chosen.color.toFixed(2)):'Drag to orbit · two fingers to pan · pinch/wheel to zoom · tap a star for Gaia data')+(mode==='milkyway'?'\nDisk/arms are contextual geometry; points are Gaia catalogue stars.':'')}
  function drawHud(){hud.textContent=hudText()}
  function buttons(){
-  [['local',!state.active],['milkyway',!state.active],['solar',!state.active],['constellations',!state.active],['exit',!state.active]].forEach(([a,hide])=>{bar.querySelector('[data-gaia="'+a+'"]').hidden=hide});
+  [['local',state.active],['milkyway',!state.active],['solar',!state.active],['constellations',!state.active],['exit',!state.active]].forEach(([a,hide])=>{bar.querySelector('[data-gaia="'+a+'"]').hidden=hide});
   bar.querySelector('[data-gaia="constellations"]').textContent=constellationOn?'CONSTELLATIONS ON':'CONSTELLATIONS OFF';
  }
  function setBase(next){
