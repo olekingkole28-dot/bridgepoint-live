@@ -158,7 +158,7 @@ export async function initBridgePointGaiaGalaxy(o){
   const dx=e.clientX-last.x,dy=e.clientY-last.y;if(Math.abs(dx)+Math.abs(dy)>2)moved=true;last={x:e.clientX,y:e.clientY};if(e.shiftKey||e.button===2)pan(dx,dy);else orbit(dx,dy)});
  canvas.addEventListener('pointerup',e=>{if(!state.active)return;const single=pointers.size===1;pointers.delete(e.pointerId);if(pointers.size<2){pinch=0;center=null}if(single&&!moved)pick(e)});
  canvas.addEventListener('pointercancel',e=>pointers.delete(e.pointerId));
- canvas.addEventListener('wheel',e=>{if(state.active){e.preventDefault();zoom(Math.exp(e.deltaY*.001)}},{passive:false});
+ canvas.addEventListener('wheel',e=>{if(state.active){e.preventDefault();zoom(Math.exp(e.deltaY*.001))}},{passive:false});
  canvas.addEventListener('contextmenu',e=>{if(state.active)e.preventDefault()});
  bar.addEventListener('click',e=>{const b=e.target.closest('button[data-gaia]');if(!b)return;const a=b.dataset.gaia;
   if(a==='local')enterGalaxy();else if(a==='milkyway')enterMilky();else if(a==='solar')enterSolar();else if(a==='exit')exit();
