@@ -1753,9 +1753,10 @@ function createMoonTerrainController() {
     enforceSunCameraClearance();camera.lookAt(target);
   }
   function moonZoomDistance(distance){
-    const minimum=viewState==='moon'?0.00000045:viewState==='sun'?.0015:viewState==='planet'?Math.max(1e-9,focusedPlanetRadius*1.015):1.8;
+    const minimum=viewState==='moon'?0.00000045:viewState==='sun'?.0015:1.8;
+    const actualMinimum=viewState==='planet'?Math.max(1e-9,focusedPlanetRadius*1.015):minimum;
     const maximum=solarCosmos?.maxCameraDistance?.()||5000;
-    return THREE.MathUtils.clamp(distance,minimum,maximum);
+    return THREE.MathUtils.clamp(distance,actualMinimum,maximum);
   }
   function zoomCameraBy(factor){
     const direction=camera.position.clone().sub(target).normalize();
