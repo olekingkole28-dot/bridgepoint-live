@@ -1,0 +1,64 @@
+{
+  "version": 6270,
+  "product": "BridgePoint Gaia DR3 local 3D stellar atlas",
+  "source": "ESA Gaia Data Release 3 gaiadr3.gaia_source",
+  "sourceUrl": "https://gea.esac.esa.int/archive/",
+  "citation": "Gaia Collaboration et al. 2023, A&A 674, A1; geometric distances from Bailer-Jones et al. where supplied",
+  "position_epoch": 2026,
+  "coordinate_frame": "Galactic Cartesian, Sun-centred, X toward Galactic Centre, Y toward Galactic North, Z completing right-handed frame",
+  "distance_unit": "parsec",
+  "position_unit": "parsec",
+  "record_size": 68,
+  "count": 58767,
+  "quality": {
+    "nearbyQuery": "parallax > 2 mas; parallax_over_error >= 10; RUWE < 1.4; G <= 17; astrometric_params_solved in (31,95); top 50,000 by parallax",
+    "brightQuery": "top 10,000 by G magnitude with positive parallax and parallax_over_error >= 5; r_med_geo posterior when available",
+    "distance": "r_med_geo geometric posterior where available; otherwise 1000/parallax mas for high-S/N stars",
+    "propagation": "Gaia reference epoch to J2026.0 using Gaia pmra, pmdec and radial_velocity where present",
+    "physicalRadius": "Gaia radius_gspphot where available; otherwise an explicitly model-derived radius from absolute G and BP-RP temperature proxy",
+    "note": "This is a high-quality navigable subset, not the full 1.8-billion-source Gaia DR3 catalogue or every Milky Way star."
+  },
+  "named_stars": {
+    "Rigel": "3206991473643150464",
+    "Regulus": "3880785530720066176",
+    "Dubhe": "862234033499968640"
+  },
+  "chunks": [
+    {
+      "file": "part-0000.bin.gz",
+      "count": 10000,
+      "bytes": 639933,
+      "sha256": "496560f9ce16765a188dd472f737ed70c2e922a013d65899ef4dda16e9e6f463"
+    },
+    {
+      "file": "part-0001.bin.gz",
+      "count": 10000,
+      "bytes": 637991,
+      "sha256": "8d4d9a27b3b51d3c9f17b9650ffe90bc207740697a23aebdb5007b97eff42d60"
+    },
+    {
+      "file": "part-0002.bin.gz",
+      "count": 10000,
+      "bytes": 638390,
+      "sha256": "29379494ab4b6863196dbd3f0ae64a23d9b4b91d058cbf71beefa0d1e998cb64"
+    },
+    {
+      "file": "part-0003.bin.gz",
+      "count": 10000,
+      "bytes": 638461,
+      "sha256": "f8afb226cb3f5a2a8be50a544532a58e67abe764fbf58cc29ad14ae9055d1fbe"
+    },
+    {
+      "file": "part-0004.bin.gz",
+      "count": 10000,
+      "bytes": 638679,
+      "sha256": "bce95bdea0677582960c4d231a6809f5afedfcea24364ac7645e3d61b64f869f"
+    },
+    {
+      "file": "part-0005.bin.gz",
+      "count": 8767,
+      "bytes": 568907,
+      "sha256": "ef644beeb2bd506a5b3df0e81e1d7b3eac276c80c4f6134b21cbee0e8a23be4f"
+    }
+  ]
+}
