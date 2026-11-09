@@ -97,12 +97,17 @@ def patch_root_html(source: str) -> str:
         ):
             if marker not in source:
                 raise AssertionError(f"Current welcome root is missing {marker}")
-        old_tag = '<script type="module" src="/bridgepoint-welcome-space-v6260.js?v=6265-solar-globe"></script>'
-        new_tag = '<script type="module" src="/bridgepoint-welcome-space-v6260.js?v=6266-solar-realism"></script>'
-        if old_tag in source:
-            source = replace_once(source, old_tag, new_tag, "bump current welcome module URL")
-        elif new_tag not in source:
-            raise AssertionError("Current welcome module URL is neither V6264, V6265 nor V6266")
+        # Update the module src query independently of tag whitespace/attribute formatting.
+        # The production Pages baseline may serialize this script tag differently from fixtures.
+        module_src_pattern = re.compile(
+            r'(<script\\b[^>]*\\bsrc=["\\\']/bridgepoint-welcome-space-v6260\\.js\\?v=)[^"\\\']*(["\\\'])',
+            re.IGNORECASE,
+        )
+        source, module_src_count = module_src_pattern.subn(
+            r'\\g<1>6266-solar-realism\\g<2>', source, count=1
+        )
+        if module_src_count != 1:
+            raise AssertionError("Current welcome module src is missing or duplicated")
         if 'data-space-ground' in source:
             raise AssertionError("Ground sky control must not appear on the welcome screen")
         return source
