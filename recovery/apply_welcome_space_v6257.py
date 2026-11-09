@@ -270,22 +270,30 @@ def patch_landing_js(path: Path) -> None:
 
 def patch_worker(path: Path) -> None:
     source = path.read_text(encoding="utf-8")
-    current_build = "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6265-solar-globe'"
-    next_build = "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='" + BUILD + "'"
-    if current_build in source and "entryRoute=" in source:
-        source = replace_once(source, current_build, next_build, "bump current welcome service-worker release marker")
-        path.write_text(source, encoding="utf-8")
-        return
-    if next_build in source and "entryRoute=" in source:
-        return
-    source = replace_once(
-        source,
-        "const V='" + CACHE_NAME + "';",
-        "const V='" + CACHE_NAME + "';\n" + next_build + ";",
-        "bump worker script while preserving the existing offline cache name",
+    marker_pattern = re.compile(
+        r"(const\s+BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD\s*=\s*)['\"][^'\"]*['\"]\s*;"
     )
-    activate_old = "self.addEventListener('activate',e=>e.waitUntil((async()=>{for(const k of await caches.keys()){const legacy=k.startsWith('bridgepoint-universe-')||k.startsWith('bridgepoint-intelligence-launch-')||(k.startsWith('bp-intelligence-')&&k!==V);if(legacy)await caches.delete(k)}await self.clients.claim()})()));"
-    activate_new = """self.addEventListener('activate',e=>e.waitUntil((async()=>{
+    source, marker_count = marker_pattern.subn(
+        r"\g<1>'" + BUILD + "';", source, count=1
+    )
+    if marker_count == 0:
+        source = replace_once(
+            source,
+            "const V='" + CACHE_NAME + "';",
+            "const V='" + CACHE_NAME + "';\nconst BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='" + BUILD + "';",
+            "add current welcome service-worker release marker",
+        )
+    elif marker_count != 1:
+        raise AssertionError("Service worker has duplicate launch-experience build markers")
+
+    activation_current = (
+        "const active=await caches.open(V)" in source
+        and "await active.delete(request)" in source
+        and "clients.claim()" in source
+    )
+    if not activation_current:
+        activate_old = "self.addEventListener('activate',e=>e.waitUntil((async()=>{for(const k of await caches.keys()){const legacy=k.startsWith('bridgepoint-universe-')||k.startsWith('bridgepoint-intelligence-launch-')||(k.startsWith('bp-intelligence-')&&k!==V);if(legacy)await caches.delete(k)}await self.clients.claim()})()));"
+        activate_new = """self.addEventListener('activate',e=>e.waitUntil((async()=>{
  const active=await caches.open(V);
  // Never let a saved offline HTML entry shadow the current welcome/app shell.
  for(const request of await active.keys()){
@@ -298,12 +306,19 @@ def patch_worker(path: Path) -> None:
  }
  await self.clients.claim();
 })()));"""
-    source = replace_once(source, activate_old, activate_new, "purge only stale cached entry documents at activation")
-    navigation_old = """if(e.request.mode==='navigate'){
+        source = replace_once(source, activate_old, activate_new, "purge only stale cached entry documents at activation")
+
+    navigation_current = (
+        "const entryRoute=" in source
+        and "if(entryRoute)return new Response" in source
+        and "fetch(e.request,{cache:'no-store'})" in source
+    )
+    if not navigation_current:
+        navigation_old = """if(e.request.mode==='navigate'){
   e.respondWith(fetch(e.request,{cache:'no-store'}).then(r=>{if(r&&r.ok){const c=r.clone();caches.open(V).then(x=>x.put(e.request,c)).catch(()=>{})}return r}).catch(async()=>caches.match(e.request)||caches.match(u.pathname.startsWith('/app')?'/app/':'/')));
   return;
  }"""
-    navigation_new = """if(e.request.mode==='navigate'){
+        navigation_new = """if(e.request.mode==='navigate'){
   const entryRoute=['/','/index.html','/app/','/app/index.html','/app/intelligence-launch','/app/intelligence-launch/'].includes(u.pathname);
   e.respondWith(fetch(e.request,{cache:'no-store'}).then(r=>{
    if(r&&r.ok&&!entryRoute){const c=r.clone();caches.open(V).then(x=>x.put(e.request,c)).catch(()=>{})}
@@ -314,7 +329,8 @@ def patch_worker(path: Path) -> None:
   }));
   return;
  }"""
-    source = replace_once(source, navigation_old, navigation_new, "serve current online entry routes without stale HTML fallback")
+        source = replace_once(source, navigation_old, navigation_new, "serve current online entry routes without stale HTML fallback")
+
     path.write_text(source, encoding="utf-8")
 
 def patch_site(site: Path) -> None:
