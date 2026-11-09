@@ -254,7 +254,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
             "runtimeMode: 'local-static-assets'",
             "function sampleGrid(grid, u, v)",
             "createMoonPatchMaterial()",
-            "viewState==='moon'?0.00000045:1.8",
+            "const minimum=viewState==='moon'?0.00000045:viewState==='sun'?.0015:1.8",
             "camera.near=0.00000005",
             "camera.near=0.001",
             "const activePointers=new Map()",
@@ -427,6 +427,15 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
             (site / "bridgepoint-celestial-sky-v6257.js").write_text(
                 (ROOT / "rebuild-v5000" / "bridgepoint-celestial-sky-v6257.js").read_text()
             )
+            solar_assets = site / "assets" / "sun" / "v1"
+            solar_assets.mkdir(parents=True)
+            (solar_assets / "manifest.json").write_text("{}")
+            for name in (
+                "sun-photosphere-v1.webp",
+                "sun-coronal-activity-v1.webp",
+                "sun-magnetic-field-v1.webp",
+            ):
+                (solar_assets / name).write_bytes(b"test")
 
             before = {p.relative_to(site).as_posix() for p in site.rglob("*") if p.is_file()}
             patch_site(site)
