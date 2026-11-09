@@ -7,7 +7,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "recovery"))
 from apply_welcome_space_v6257 import (
-    BUILD, CACHE_NAME, SW_URL, patch_app_index, patch_app_js, patch_bundle,
+    BUILD, CACHE_NAME, SW_URL, bump_manifest_url, patch_app_index, patch_app_js, patch_bundle,
     patch_landing_js, patch_legacy_app, patch_manifest, patch_root_html,
     patch_site, patch_worker,
 )
@@ -108,6 +108,20 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
         self.assertIn('data-mode="signup"', out)
         self.assertIn('data-mode="signin"', out)
         self.assertNotIn("data-space-ground", out)
+
+    def test_manifest_cache_buster_replaces_any_existing_version(self):
+        cases = (
+            '<link rel="manifest" href="./manifest.webmanifest?v=6265-solar-globe">',
+            '<link rel="manifest" href="../manifest.webmanifest?v=6247-universal-fresh-entry">',
+            '<link rel="manifest" href="https://bridgepointintelligence.online/manifest.webmanifest?v=old">',
+            '<link href="/manifest.webmanifest" rel="manifest">',
+        )
+        for tag in cases:
+            with self.subTest(tag=tag):
+                out = bump_manifest_url(tag, "test manifest URL")
+                self.assertEqual(out.count("v=6266-solar-realism"), 1)
+                self.assertNotIn("v=6265-solar-globe", out)
+                self.assertNotIn("v=6247-universal-fresh-entry", out)
 
     def test_existing_static_production_gate_bumps_sun_module_src_without_reformatting_html(self):
         current = """<html><head>
