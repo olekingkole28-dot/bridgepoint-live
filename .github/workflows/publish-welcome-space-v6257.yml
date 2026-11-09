@@ -1,4 +1,4 @@
-name: Publish BridgePoint Unified Gaia and Solar System Scene V6280
+name: Publish BridgePoint Unified Gaia and Solar System Scene V6281
 
 on:
   push:
@@ -313,7 +313,8 @@ jobs:
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/intelligence-launch/?welcome-space-v6257=${q}" -o /tmp/live-legacy.html || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/sw.js?verify=${q}" -o /tmp/live-sw.js || true
             if grep -Fq 'bpWelcomeGateStylesV6257' /tmp/live-root.html 2>/dev/null &&
-               grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6280-unified-cosmos"' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6281-space-camera-sync"' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq '__BP_WELCOME_SYNC_SPACE_ZOOM_V1__' /tmp/live-root.html 2>/dev/null &&
                grep -Fq 'new THREE.Raycaster()' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'uPhotosphereMap' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'addCoronalLoop' /tmp/live-space.js 2>/dev/null &&
@@ -349,6 +350,8 @@ jobs:
                ! grep -Fq 'data-space-ground' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'initBridgePointCelestialSky' /tmp/live-sky.js 2>/dev/null &&
                grep -Fq 'initBridgePointSolarCosmos' /tmp/live-gaia.js 2>/dev/null &&
+                grep -Fq 'const planetRefs=[];' /tmp/live-gaia.js 2>/dev/null &&
+                grep -Fq 'const p=[r.x,r.y,r.z],j=i*3;' /tmp/live-gaia.js 2>/dev/null &&
                 grep -Fq 'bpw-celestial-body-picker' /tmp/live-gaia.js 2>/dev/null &&
                 grep -Fq '3D heliocentric orbital path' /tmp/live-gaia.js 2>/dev/null &&
                 ! grep -Fq 'GALAXY VIEW' /tmp/live-gaia.js 2>/dev/null &&
@@ -359,7 +362,7 @@ jobs:
                grep -Fq 'entryRoute=' /tmp/live-sw.js 2>/dev/null &&
                grep -Fq '/?return=' /tmp/live-app.html 2>/dev/null &&
                grep -Fq 'content="0;url=/"' /tmp/live-legacy.html 2>/dev/null &&
-               grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6280-unified-cosmos'" /tmp/live-sw.js 2>/dev/null &&
+               grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6281-space-camera-sync'" /tmp/live-sw.js 2>/dev/null &&
                grep -Fq 'runtimeMode' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'externalRuntimeTerrainRequests: 0' /tmp/live-space.js 2>/dev/null &&
                ! grep -Fq 'trek.nasa.gov/tiles/Moon' /tmp/live-space.js 2>/dev/null &&
@@ -379,4 +382,4 @@ jobs:
             sleep 3
           done
           test "$ok" -eq 1
-          echo 'LIVE V6280 PASS: one Gaia DR3 starfield, one shared Earth/Moon/Sun scene, anchored planetary spheres and orbital paths, selectable celestial bodies, NASA solar surface and Moon terrain are served from the published site.'
+          echo 'LIVE V6281 PASS: one Gaia DR3 starfield, one shared Earth/Moon/Sun scene, anchored planetary spheres and orbital paths, selectable celestial bodies, NASA solar surface and Moon terrain are served from the published site.'
