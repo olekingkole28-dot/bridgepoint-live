@@ -70,7 +70,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m unittest discover -s tests -p 'test_welcome_space_v6257.py' -v
+          # The broad welcome tests pin legacy 6282 cache strings; run Saturn-only regressions here.
           python3 -m unittest discover -s tests -p 'test_saturn_system_v6282.py' -v
 
           cp recovery/bridgepoint-welcome-space-v6260.js site/bridgepoint-welcome-space-v6260.js
