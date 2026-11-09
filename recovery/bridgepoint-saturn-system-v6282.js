@@ -136,8 +136,8 @@ export function initBridgePointSaturnSystem(options){
    saturnUvA.x=.175+mod((vMapUv.x-.175)+uSaturnAtmosTime*.0000065,.75);
    saturnUvB.x=.175+mod((vMapUv.x-.175)-uSaturnAtmosTime*.0000032,.75);
    saturnUvB.y=clamp(vMapUv.y+.0015*sin(vMapUv.y*28.0+uSaturnAtmosTime*.00021),.30,.77);
-   vec4 saturnLayerA=mapTexelToLinear(texture2D(map,saturnUvA));
-   vec4 saturnLayerB=mapTexelToLinear(texture2D(map,saturnUvB));
+   vec4 saturnLayerA=texture2D(map,saturnUvA);
+   vec4 saturnLayerB=texture2D(map,saturnUvB);
    vec4 saturnCloud= mix(saturnLayerA,saturnLayerB,.34);
    float saturnLuma=dot(saturnCloud.rgb,vec3(.299,.587,.114));
    float saturnMissing=1.0-smoothstep(.012,.115,saturnLuma);
@@ -155,7 +155,7 @@ export function initBridgePointSaturnSystem(options){
    saturnCloud.rgb*=1.0-ringShadow;
    diffuseColor*=saturnCloud;\n   #endif\n  `);
  };
- saturnMaterial.customProgramCacheKey=()=> 'bridgepoint-saturn-dual-cloud-flow-ring-shadow-v6285';
+ saturnMaterial.customProgramCacheKey=()=> 'bridgepoint-saturn-dual-cloud-flow-ring-shadow-v6287';
  const saturnMesh=new THREE.Mesh(saturnGeometry,saturnMaterial);
  saturnMesh.name='Saturn — animated Cassini ISS atmosphere';saturnMesh.userData.body='saturn';
  saturnMesh.castShadow=true;saturnMesh.receiveShadow=true;root.add(saturnMesh);
