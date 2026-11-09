@@ -109,6 +109,17 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
         self.assertIn('data-mode="signin"', out)
         self.assertNotIn("data-space-ground", out)
 
+    def test_already_migrated_legacy_app_bumps_any_previous_worker_version(self):
+        migrated = """<meta http-equiv="refresh" content="0;url=/">
+<link rel="manifest" href="./manifest.webmanifest">
+<script>location.replace('/')</script>
+<script src="/sw.js?v=6247-universal-fresh-entry-sidewalk"></script>"""
+        out = patch_legacy_app(migrated)
+        self.assertIn("sw.js?v=6266-solar-realism", out)
+        self.assertNotIn("v=6247-universal-fresh-entry-sidewalk", out)
+        self.assertIn('content="0;url=/"', out)
+        self.assertIn("location.replace('/')", out)
+
     def test_manifest_cache_buster_replaces_any_existing_version(self):
         cases = (
             '<link rel="manifest" href="./manifest.webmanifest?v=6265-solar-globe">',
