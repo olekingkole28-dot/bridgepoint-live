@@ -34,6 +34,17 @@ class SaturnSystemV6282Tests(unittest.TestCase):
                        "enforceSaturnCameraClearance()", "saturnFocusLocalTarget"):
             self.assertIn(marker, SCENE)
 
+    def test_saturn_receives_the_shared_sun_position_callback(self):
+        self.assertIn(
+            "getSaturnPosition,getSunPosition,getSelectedBody,isMobile=false}=options",
+            SATURN,
+        )
+        self.assertIn("if(getSunPosition){", SATURN)
+        self.assertIn(
+            "getSunPosition:()=>getSunPosition?getSunPosition():new THREE.Vector3()",
+            GAIA,
+        )
+
     def test_saturn_uses_the_existing_camera_and_body_focus_path(self):
         self.assertIn("bodyData?.systemCameraDistance", SCENE)
         self.assertIn("key==='saturn'?2.1:1.5", SCENE)
