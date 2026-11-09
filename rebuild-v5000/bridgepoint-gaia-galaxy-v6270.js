@@ -194,10 +194,12 @@ export function initBridgePointSolarCosmos(o){
  function applyFrame(force=false){
   const tick=Date.now();
   if(!force&&starState.frame&&tick-starState.lastFrameAt<1200)return starState.frame;
-  const sun=nowSun(),auScale=astronomicalScale(),pcScale=auScale/AU_PC;
+  const sun=nowSun();
   starsGroup.position.copy(sun);
   const date=new Date(),days=julian(date)-planetDayZero,ob=obliquity(date);
   const earthHelio=planetPos(THREE,PLANETS.find(p=>p.name==='Earth'),days,ob);
+  // Align Earth's ephemeris to the existing welcome Earth at the origin.
+  const auScale=sun.length()/Math.max(1e-12,earthHelio.length()),pcScale=auScale/AU_PC;
   const desiredSunToEarth=sun.clone().normalize().negate();
   const orientation=new THREE.Quaternion().setFromUnitVectors(earthHelio.clone().normalize(),desiredSunToEarth);
   starState.orientation.copy(orientation);starState.parsecScale=pcScale;
