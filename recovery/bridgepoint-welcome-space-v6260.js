@@ -16,7 +16,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
 
 (() => {
   'use strict';
-  const VERSION = 'v6267-sun-visible';
+  const VERSION = 'v6268-solar-observatory';
   if (window.__BP_WELCOME_SPACE_V6257__) return;
   window.__BP_WELCOME_SPACE_V6257__ = true;
 
@@ -211,6 +211,9 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       uPhotosphereMap:{value:null},uPhotosphereReady:{value:0},
       uActivityMap:{value:null},uActivityReady:{value:0},
       uMagneticMap:{value:null},uMagneticReady:{value:0},
+      uAIA131Map:{value:null},uAIA131Ready:{value:0},
+      uAIA171Map:{value:null},uAIA171Ready:{value:0},
+      uAIA304Map:{value:null},uAIA304Ready:{value:0},
       uFarSideMap:{value:null},uFarSideReady:{value:0}
     },
     vertexShader:`
@@ -233,6 +236,9 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       uniform sampler2D uPhotosphereMap;uniform float uPhotosphereReady;
       uniform sampler2D uActivityMap;uniform float uActivityReady;
       uniform sampler2D uMagneticMap;uniform float uMagneticReady;
+      uniform sampler2D uAIA131Map;uniform float uAIA131Ready;
+      uniform sampler2D uAIA171Map;uniform float uAIA171Ready;
+      uniform sampler2D uAIA304Map;uniform float uAIA304Ready;
       uniform sampler2D uFarSideMap;uniform float uFarSideReady;
       float hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
       float noise(vec3 p){
@@ -252,13 +258,35 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
         procedural*=.91+.12*filaments;
         vec2 bodyUV=vec2(atan(-p.x,p.z)/6.28318530718+.5,.5+asin(clamp(p.y,-1.0,1.0))/3.14159265359);
         vec3 observed=texture2D(uPhotosphereMap,bodyUV).rgb;
-        vec3 c=mix(procedural,observed,uPhotosphereReady);
+        float continuum=dot(observed,vec3(.299,.587,.114));
+        vec3 warmPhotosphere=observed*vec3(1.20,.91,.66)+vec3(.055,.025,.006)*continuum;
+        vec3 c=mix(procedural,warmPhotosphere,uPhotosphereReady);
         vec3 activity=texture2D(uActivityMap,bodyUV).rgb;
         float activityLevel=clamp(max(max(activity.r,activity.g),activity.b),0.0,1.0);
         c=mix(c,c*.84+activity*.25,uActivityReady*clamp(activityLevel*.32,0.0,.28));
-        vec3 magnetic=texture2D(uMagneticMap,bodyUV).rgb;
-        float magneticLevel=clamp(max(max(magnetic.r,magnetic.g),magnetic.b),0.0,1.0);
-        c+=vec3(.035,.018,.006)*magneticLevel*.10*uMagneticReady;
+
+        // SDO full-disk projections use an orthographic disk map, not the
+        // equirectangular UVs used by the HMI continuum photosphere.
+        vec2 solarDiskUV=vec2(.5+p.x*.38,.5+p.y*.38);
+        float solarDiskMask=1.0-smoothstep(.69,.78,length(p.xy));
+        vec3 magnetic=texture2D(uMagneticMap,solarDiskUV).rgb;
+        float magMax=max(max(magnetic.r,magnetic.g),magnetic.b);
+        float magMin=min(min(magnetic.r,magnetic.g),magnetic.b);
+        float magneticPolarityContrast=smoothstep(.055,.19,magMax-magMin)*solarDiskMask;
+        c=mix(c,magnetic,uMagneticReady*magneticPolarityContrast*.66);
+
+        vec3 aia131=texture2D(uAIA131Map,solarDiskUV).rgb;
+        vec3 aia171=texture2D(uAIA171Map,solarDiskUV).rgb;
+        vec3 aia304=texture2D(uAIA304Map,solarDiskUV).rgb;
+        float hot131=dot(aia131,vec3(.299,.587,.114));
+        float loops171=dot(aia171,vec3(.299,.587,.114));
+        float chromosphere304=dot(aia304,vec3(.299,.587,.114));
+        float flareFootpoint=smoothstep(.10,.36,hot131)*solarDiskMask*uAIA131Ready;
+        float coronalFootpoint=smoothstep(.12,.38,loops171)*solarDiskMask*uAIA171Ready;
+        float chromosphereSignal=smoothstep(.12,.40,chromosphere304)*solarDiskMask*uAIA304Ready;
+        c+=vec3(.015,.10,.16)*flareFootpoint*.62;
+        c+=vec3(.10,.055,.008)*coronalFootpoint*.42;
+        c+=vec3(.14,.026,.004)*chromosphereSignal*.30;
         vec3 farActivity=texture2D(uFarSideMap,bodyUV).rgb;
         float backSide=1.0-smoothstep(-.07,.07,p.z);
         float farEnergy=clamp(max(max(farActivity.r,farActivity.g),farActivity.b),0.0,1.0);
@@ -277,18 +305,6 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     depthTest:true,depthWrite:true,side:THREE.FrontSide
   });
   const solarTextureLoader = new THREE.TextureLoader();
-  function loadSolarTexture(file, readyUniform) {
-    const url='/assets/sun/v1/'+file;
-    return solarTextureLoader.load(url,texture=>{
-      texture.colorSpace=THREE.SRGBColorSpace;
-      texture.wrapS=THREE.RepeatWrapping;
-      texture.wrapT=THREE.ClampToEdgeWrapping;
-      texture.anisotropy=Math.min(renderer.capabilities.getMaxAnisotropy(),mobile?4:8);
-      texture.needsUpdate=true;
-      sunMaterial.uniforms[readyUniform].value=1;
-      if(window.__BP_SOLAR_SURFACE_V1__)window.__BP_SOLAR_SURFACE_V1__[readyUniform]=true;
-    },undefined,error=>console.error('[BridgePoint Sun] Local solar texture failed:',url,error));
-  }
   const SOLAR_ASSET_BASE='/assets/sun/v2/';
   function loadSolarV2Texture(file,readyUniform){
     const url=SOLAR_ASSET_BASE+file;
@@ -300,10 +316,23 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       if(window.__BP_SOLAR_SURFACE_V2__)window.__BP_SOLAR_SURFACE_V2__[readyUniform]=true;
     },undefined,error=>console.error('[BridgePoint Sun] Local solar texture failed:',url,error));
   }
-  sunMaterial.uniforms.uPhotosphereMap.value=loadSolarV2Texture('sun-photosphere-v2.webp','uPhotosphereReady');
-  sunMaterial.uniforms.uActivityMap.value=loadSolarV2Texture('sun-coronal-activity-v2.webp','uActivityReady');
-  sunMaterial.uniforms.uFarSideMap.value=loadSolarV2Texture('sun-stereoB-farside-EUV-2014-09-27-v2.webp','uFarSideReady');
-  sunMaterial.uniforms.uMagneticMap.value=loadSolarTexture('sun-magnetic-field-v1.webp','uMagneticReady');
+  const solarObservationTextures={
+    photosphere:loadSolarV2Texture('sun-photosphere-v2.webp','uPhotosphereReady'),
+    activity:loadSolarV2Texture('sun-coronal-activity-v2.webp','uActivityReady'),
+    magnetic:loadSolarV2Texture('sun-magnetogram-hmi-2026-11-09.jpg','uMagneticReady'),
+    aia131:loadSolarV2Texture('sun-aia-131-latest.jpg','uAIA131Ready'),
+    aia171:loadSolarV2Texture('sun-aia-171-latest.jpg','uAIA171Ready'),
+    aia193:loadSolarV2Texture('sun-aia-193-latest.jpg','uAIA193Ready'),
+    aia304:loadSolarV2Texture('sun-aia-304-latest.jpg','uAIA304Ready'),
+    farSide:loadSolarV2Texture('sun-stereoB-farside-EUV-2014-09-27-v2.webp','uFarSideReady')
+  };
+  sunMaterial.uniforms.uPhotosphereMap.value=solarObservationTextures.photosphere;
+  sunMaterial.uniforms.uActivityMap.value=solarObservationTextures.activity;
+  sunMaterial.uniforms.uFarSideMap.value=solarObservationTextures.farSide;
+  sunMaterial.uniforms.uMagneticMap.value=solarObservationTextures.magnetic;
+  sunMaterial.uniforms.uAIA131Map.value=solarObservationTextures.aia131;
+  sunMaterial.uniforms.uAIA171Map.value=solarObservationTextures.aia171;
+  sunMaterial.uniforms.uAIA304Map.value=solarObservationTextures.aia304;
   const sunDepthGeometry=sunGeometry.clone();
   const sunDepthMaterial=new THREE.MeshBasicMaterial({colorWrite:false,depthWrite:true,depthTest:true,side:THREE.FrontSide});
   const sunDepthMesh=new THREE.Mesh(sunDepthGeometry,sunDepthMaterial);
@@ -344,7 +373,8 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   heightImage.onload=()=>applySunReliefFromImage(heightImage);
   heightImage.onerror=error=>console.error('[BridgePoint Sun] HMI height map failed',error);
   heightImage.src=SOLAR_ASSET_BASE+'sun-photosphere-height-v2.webp';
-  window.__BP_SOLAR_SURFACE_V2__={version:2,status:'loading-local-assets',assetBase:SOLAR_ASSET_BASE,photosphereSource:'NASA SDO HMI continuum intensity, neutral continuum grade',activitySources:['SDO AIA 131','171','193','304','335'],farSideSource:'NASA STEREO-B SECCHI/EUVI 2014-09-27 final usable Behind disk (171/195/284/304)',farSideType:'archived EUV activity image, not visible-light photosphere',reliefSource:'HMI continuum contrast; Wilson depressions/facular structure visually exaggerated ~4x',runtimeNetwork:'same-origin-local-static-assets-only'};
+  window.__BP_SOLAR_SURFACE_V2__={version:2,status:'loading-local-assets',assetBase:SOLAR_ASSET_BASE,photosphereSource:'NASA SDO HMI continuum intensity, warm visible-light photosphere grade',activitySources:['SDO AIA 131','171','193','304','335'],farSideSource:'NASA STEREO-B SECCHI/EUVI 2014-09-27 final usable Behind disk (171/195/284/304)',farSideType:'archived EUV activity image, not visible-light photosphere',reliefSource:'HMI continuum contrast; Wilson depressions/facular structure visually exaggerated ~4x',runtimeNetwork:'same-origin-local-static-assets-only'};
+  window.__BP_SOLAR_SURFACE_V3__={version:3,status:'loading-locally-hosted-nasa-observations',observations:{hmiMagnetogram:'2026-11-09T04:15:00Z',aia131:'2026-11-09T05:06:44Z',aia171:'2026-11-09T04:57:22Z',aia193:'2026-11-09T05:03:06Z',aia304:'2026-11-09T04:58:42Z'},magneticGeometrySource:'SDO/HMI colored line-of-sight polarity pairs; arcs are a 3D visualization, not a PFSS field extrapolation',coronalSource:'SDO/AIA 131, 171 and 304 angstrom full-disk observations',refreshCadence:'snapshot from latest available NASA public image products; no three-minute client refresh configured',runtimeNetwork:'same-origin-local-static-assets-only'};
 
   const sunGroup = new THREE.Group();
   sunGroup.name = 'Sun';
@@ -361,7 +391,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     return new THREE.Vector3(-c*Math.sin(lon)*radius,Math.sin(lat)*radius,c*Math.cos(lon)*radius);
   }
   const solarFeatureGroup=new THREE.Group();
-  solarFeatureGroup.name='Three-dimensional coronal loops and solar flare prominences';
+  solarFeatureGroup.name='SDO/HMI-observation-driven three-dimensional magnetic field lines and AIA plasma eruptions';
   sunGroup.add(solarFeatureGroup);
   function createSolarPlasmaMaterial(color,opacity,phase){
     return new THREE.ShaderMaterial({
@@ -389,6 +419,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     });
   }
   const coronalLoopMeshes=[];
+  const observedMagneticPolarityPairs=[];
   const addCoronalLoop=(lat1,lon1,lat2,lon2,height,color,phase)=>{
     const start=sunSurfacePoint(lat1,lon1,sunRadiusVisual*1.008);
     const end=sunSurfacePoint(lat2,lon2,sunRadiusVisual*1.008);
@@ -398,38 +429,210 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     const mesh=new THREE.Mesh(new THREE.TubeGeometry(curve,64,mobile?.0065:.010,9,false),material);
     mesh.userData.phase=phase;solarFeatureGroup.add(mesh);coronalLoopMeshes.push(mesh);
   };
-  [
-    [-16,-43,13,-20,1.42,0xff8a32],[-8,8,17,35,1.58,0xffbf65],
-    [20,-12,5,24,1.36,0xff7432],[28,30,4,48,1.52,0xffa84c],
-    [-30,-18,-7,12,1.44,0xff7138],[7,-55,25,-34,1.62,0xffd07b],
-    [-22,26,-4,52,1.38,0xff8a3d],[3,38,22,62,1.48,0xffb65e]
-  ].forEach((v,i)=>addCoronalLoop(v[0],v[1],v[2],v[3],v[4],v[5],i*.83));
-  const flareMeshes=[];
-  for(let i=0;i<5;i++){
-    const latitude=[-34,-12,11,29,2][i],longitude=[-48,-24,5,34,52][i];
-    const base=sunSurfacePoint(latitude,longitude,sunRadiusVisual*1.006);
-    const normal=base.clone().normalize();
-    let tangent=new THREE.Vector3(0,1,0).cross(normal);
-    if(tangent.lengthSq()<.01)tangent=new THREE.Vector3(1,0,0).cross(normal);
-    tangent.normalize();
-    const bend=(i%2?1:-1)*sunRadiusVisual*.16;
-    const points=[
-      base,
-      base.clone().addScaledVector(normal,sunRadiusVisual*.20).addScaledVector(tangent,bend*.35),
-      base.clone().addScaledVector(normal,sunRadiusVisual*.48).addScaledVector(tangent,bend),
-      base.clone().addScaledVector(normal,sunRadiusVisual*(.72+(i%3)*.12)).addScaledVector(tangent,bend*1.25)
-    ];
-    const curve=new THREE.CatmullRomCurve3(points);
-    const material=createSolarPlasmaMaterial(i%2?0xff6824:0xffc46a,.88,i*1.27);
-    const mesh=new THREE.Mesh(new THREE.TubeGeometry(curve,64,mobile?.009:.015,9,false),material);
-    mesh.userData.phase=i*1.27;solarFeatureGroup.add(mesh);flareMeshes.push(mesh);
+  const imagePointToSolarLatLon=(x,y,width,height)=>{
+    const radius=Math.min(width,height)*.46;
+    const nx=(x-width*.5)/radius,ny=(height*.5-y)/radius;
+    const r2=nx*nx+ny*ny;
+    if(r2>.985)return null;
+    const nz=Math.sqrt(Math.max(0,1-r2));
+    return {
+      latitude:THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(ny,-1,1))),
+      longitude:THREE.MathUtils.radToDeg(Math.atan2(-nx,nz))
+    };
+  };
+  function observationCanvas(image){
+    const width=image.naturalWidth||image.width,height=image.naturalHeight||image.height;
+    const canvasObservation=document.createElement('canvas');
+    canvasObservation.width=width;canvasObservation.height=height;
+    const ctx=canvasObservation.getContext('2d',{willReadFrequently:true});
+    ctx.drawImage(image,0,0,width,height);
+    return {width,height,pixels:ctx.getImageData(0,0,width,height).data};
   }
-  const corona = new THREE.Sprite(new THREE.SpriteMaterial({
-    map: makeGlowTexture(), color: 0xff9c3d, transparent: true, opacity: 0.68,
+  function buildMagneticLoopsFromImage(image){
+    try{
+      const {width,height,pixels}=observationCanvas(image),bins=28;
+      const cells=Array.from({length:bins*bins},()=>({positive:0,negative:0,px:0,py:0,nx:0,ny:0,pc:0,nc:0}));
+      const diskRadius=Math.min(width,height)*.46,cx=width*.5,cy=height*.5,step=3;
+      for(let y=Math.floor(cy-diskRadius);y<cy+diskRadius;y+=step){
+        for(let x=Math.floor(cx-diskRadius);x<cx+diskRadius;x+=step){
+          const dx=(x-cx)/diskRadius,dy=(cy-y)/diskRadius;
+          if(dx*dx+dy*dy>.94)continue;
+          const k=(y*width+x)*4,r=pixels[k],g=pixels[k+1],b=pixels[k+2];
+          const polarity=r-b;
+          if(Math.abs(polarity)<24)continue;
+          const ix=THREE.MathUtils.clamp(Math.floor((dx+1)*.5*bins),0,bins-1);
+          const iy=THREE.MathUtils.clamp(Math.floor((dy+1)*.5*bins),0,bins-1);
+          const cell=cells[iy*bins+ix],strength=Math.abs(polarity);
+          if(polarity>0){cell.positive+=strength;cell.px+=x*strength;cell.py+=y*strength;cell.pc+=strength;}
+          else{cell.negative+=strength;cell.nx+=x*strength;cell.ny+=y*strength;cell.nc+=strength;}
+        }
+      }
+      const strongest=polarity=>cells.map((cell,index)=>{
+        const score=polarity==='positive'?cell.positive:cell.negative;
+        const weight=polarity==='positive'?cell.pc:cell.nc;
+        const x=polarity==='positive'?cell.px:cell.nx;
+        const y=polarity==='positive'?cell.py:cell.ny;
+        return {score,index,x:weight?x/weight:0,y:weight?y/weight:0};
+      }).filter(v=>v.score>800).sort((a,b)=>b.score-a.score);
+      const selectSeparated=items=>{
+        const chosen=[];
+        for(const item of items){
+          const ix=item.index%bins,iy=Math.floor(item.index/bins);
+          if(chosen.some(other=>Math.hypot(ix-(other.index%bins),iy-Math.floor(other.index/bins))<2.2))continue;
+          const point=imagePointToSolarLatLon(item.x,item.y,width,height);
+          if(point)chosen.push({...item,...point});
+          if(chosen.length>=8)break;
+        }
+        return chosen;
+      };
+      const positive=selectSeparated(strongest('positive'));
+      const negative=selectSeparated(strongest('negative'));
+      const used=new Set();let made=0;
+      for(const p of positive){
+        let best=-1,bestDistance=Infinity;
+        for(let i=0;i<negative.length;i++){
+          if(used.has(i))continue;
+          const n=negative[i],distance=Math.hypot((p.longitude-n.longitude)*Math.cos((p.latitude+n.latitude)*Math.PI/360),p.latitude-n.latitude);
+          if(distance<bestDistance){bestDistance=distance;best=i;}
+        }
+        if(best<0||bestDistance<1.2)continue;
+        used.add(best);
+        const n=negative[best],strength=Math.min(1,p.score/90000,n.score/90000);
+        const height=1.10+THREE.MathUtils.clamp(bestDistance/95,.10,.42);
+        addCoronalLoop(p.latitude,p.longitude,n.latitude,n.longitude,height,strength>.65?0xffc35a:0xff8a36,made*.79);
+        observedMagneticPolarityPairs.push({positive:{latitude:p.latitude,longitude:p.longitude},negative:{latitude:n.latitude,longitude:n.longitude},relativeStrength:strength});
+        made++;
+      }
+      if(window.__BP_SOLAR_SURFACE_V3__)window.__BP_SOLAR_SURFACE_V3__.magneticLoopStatus=made?'built-from-HMI-polarity-pairs':'no-strong-opposite-polarity-pairs-found';
+      if(made===0)console.warn('[BridgePoint Sun] HMI image loaded, but no strong polarity pairs were found for loop geometry.');
+    }catch(error){console.error('[BridgePoint Sun] HMI polarity geometry decode failed:',error);}
+  }
+  const flareMeshes=[];
+  function buildObservedEruptionArcs(image){
+    try{
+      const {width,height,pixels}=observationCanvas(image),bins=28;
+      const cells=Array.from({length:bins*bins},()=>({sum:0,x:0,y:0,count:0}));
+      const radius=Math.min(width,height)*.46,cx=width*.5,cy=height*.5,step=3;
+      for(let y=Math.floor(cy-radius);y<cy+radius;y+=step){
+        for(let x=Math.floor(cx-radius);x<cx+radius;x+=step){
+          const dx=(x-cx)/radius,dy=(cy-y)/radius;
+          if(dx*dx+dy*dy>.92)continue;
+          const k=(y*width+x)*4,luma=(pixels[k]*.299+pixels[k+1]*.587+pixels[k+2]*.114)/255;
+          const ix=THREE.MathUtils.clamp(Math.floor((dx+1)*.5*bins),0,bins-1),iy=THREE.MathUtils.clamp(Math.floor((dy+1)*.5*bins),0,bins-1);
+          const cell=cells[iy*bins+ix];cell.sum+=Math.max(0,luma-.09);cell.x+=x*Math.max(0,luma-.09);cell.y+=y*Math.max(0,luma-.09);cell.count++;
+        }
+      }
+      const active=cells.map((cell,index)=>({score:cell.sum/(cell.count||1),x:cell.sum?cell.x/cell.sum:0,y:cell.sum?cell.y/cell.sum:0,index}))
+        .filter(v=>v.score>.24).sort((a,b)=>b.score-a.score);
+      const selected=[];
+      for(const item of active){
+        const point=imagePointToSolarLatLon(item.x,item.y,width,height);
+        if(!point)continue;
+        const ix=item.index%bins,iy=Math.floor(item.index/bins);
+        if(selected.some(v=>Math.hypot(ix-v.ix,iy-v.iy)<3))continue;
+        selected.push({...point,ix,iy,intensity:THREE.MathUtils.clamp(item.score,0,1)});
+        if(selected.length>=5)break;
+      }
+      selected.forEach((region,i)=>{
+        const base=sunSurfacePoint(region.latitude,region.longitude,sunRadiusVisual*1.012);
+        const normal=base.clone().normalize();
+        let tangent=new THREE.Vector3(0,1,0).cross(normal);
+        if(tangent.lengthSq()<.01)tangent=new THREE.Vector3(1,0,0).cross(normal);
+        tangent.normalize();
+        const bend=(i%2?1:-1)*sunRadiusVisual*(.10+region.intensity*.10);
+        const height=.38+region.intensity*.62;
+        const points=[
+          base,
+          base.clone().addScaledVector(normal,sunRadiusVisual*.18).addScaledVector(tangent,bend*.28),
+          base.clone().addScaledVector(normal,sunRadiusVisual*height*.67).addScaledVector(tangent,bend),
+          base.clone().addScaledVector(normal,sunRadiusVisual*height).addScaledVector(tangent,bend*1.28)
+        ];
+        const curve=new THREE.CatmullRomCurve3(points);
+        const material=createSolarPlasmaMaterial(region.intensity>.58?0xff6b24:0xffa947,.86,i*1.19);
+        const mesh=new THREE.Mesh(new THREE.TubeGeometry(curve,72,mobile?.008:.014,10,false),material);
+        mesh.userData={phase:i*1.19,observationIntensity:region.intensity,observation:{latitude:region.latitude,longitude:region.longitude}};
+        solarFeatureGroup.add(mesh);flareMeshes.push(mesh);
+      });
+      if(window.__BP_SOLAR_SURFACE_V3__)window.__BP_SOLAR_SURFACE_V3__.observedEruptionArcs=flareMeshes.length;
+    }catch(error){console.error('[BridgePoint Sun] AIA 131 active-region geometry decode failed:',error);}
+  }
+  const magneticImage=new Image();
+  magneticImage.onload=()=>buildMagneticLoopsFromImage(magneticImage);
+  magneticImage.onerror=error=>console.error('[BridgePoint Sun] Local HMI magnetogram failed',error);
+  magneticImage.src=SOLAR_ASSET_BASE+'sun-magnetogram-hmi-2026-11-09.jpg';
+  const aiaHotImage=new Image();
+  aiaHotImage.onload=()=>buildObservedEruptionArcs(aiaHotImage);
+  aiaHotImage.onerror=error=>console.error('[BridgePoint Sun] Local AIA 131 observation failed',error);
+  aiaHotImage.src=SOLAR_ASSET_BASE+'sun-aia-131-latest.jpg';
+  const coronaGeometry=new THREE.SphereGeometry(sunRadiusVisual*1.22,mobile?192:320,mobile?96:160);
+  const coronaMaterial=new THREE.ShaderMaterial({
+    uniforms:{
+      uTime:{value:0},
+      uAIA131Map:{value:solarObservationTextures.aia131},
+      uAIA171Map:{value:solarObservationTextures.aia171},
+      uAIA304Map:{value:solarObservationTextures.aia304}
+    },
+    vertexShader:`
+      #include <common>
+      #include <logdepthbuf_pars_vertex>
+      uniform float uTime;
+      varying vec3 vSolarPos;
+      varying float vMotion;
+      void main(){
+        vec3 dir=normalize(position);
+        float wave=sin(dir.x*24.0+dir.y*17.0+uTime*.34)
+          +.52*sin(dir.y*43.0-dir.z*27.0-uTime*.23)
+          +.28*cos(dir.z*61.0+dir.x*31.0+uTime*.41);
+        vec3 displaced=position+normal*(.012*wave+.006*sin(uTime*.7+dir.y*32.0));
+        vSolarPos=displaced/1.22;
+        vMotion=wave;
+        gl_Position=projectionMatrix*modelViewMatrix*vec4(displaced,1.0);
+        #include <logdepthbuf_vertex>
+      }`,
+    fragmentShader:`
+      #include <common>
+      #include <logdepthbuf_pars_fragment>
+      precision highp float;
+      uniform sampler2D uAIA131Map;
+      uniform sampler2D uAIA171Map;
+      uniform sampler2D uAIA304Map;
+      varying vec3 vSolarPos;
+      varying float vMotion;
+      void main(){
+        if(vSolarPos.z<0.0)discard;
+        vec2 uv=vec2(.5+vSolarPos.x*.38,.5+vSolarPos.y*.38);
+        vec3 hot131=texture2D(uAIA131Map,uv).rgb;
+        vec3 loops171=texture2D(uAIA171Map,uv).rgb;
+        vec3 chromo304=texture2D(uAIA304Map,uv).rgb;
+        float h=dot(hot131,vec3(.299,.587,.114));
+        float l=dot(loops171,vec3(.299,.587,.114));
+        float c=dot(chromo304,vec3(.299,.587,.114));
+        float flare=smoothstep(.055,.27,h);
+        float loop=smoothstep(.075,.32,l);
+        float prominence=smoothstep(.07,.29,c);
+        float signal=max(max(flare*.92,loop*.58),prominence*.66);
+        if(signal<.075)discard;
+        vec3 plasma=hot131*vec3(.42,.96,1.38)*flare
+          +loops171*vec3(1.30,.88,.28)*loop
+          +chromo304*vec3(1.32,.24,.035)*prominence;
+        float stream=.88+.12*sin(vSolarPos.x*48.0+vSolarPos.y*31.0+vMotion*2.0);
+        float alpha=clamp(signal*(.23+.25*stream),0.0,.56);
+        gl_FragColor=vec4(plasma*1.7*stream,alpha);
+        #include <logdepthbuf_fragment>
+      }`,
+    transparent:true,depthTest:true,depthWrite:false,
+    blending:THREE.AdditiveBlending,side:THREE.FrontSide
+  });
+  const corona=new THREE.Mesh(coronaGeometry,coronaMaterial);
+  corona.name='SDO AIA 131/171/304 observation-driven 3D corona shell';
+  corona.renderOrder=-899;
+  sunGroup.add(corona);
+  const solarCoronaGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: makeGlowTexture(), color: 0xffa43d, transparent: true, opacity: 0.48,
     blending: THREE.AdditiveBlending, depthWrite: false
   }));
-  corona.scale.set(sunRadiusVisual * 4.2, sunRadiusVisual * 4.2, 1);
-  sunGroup.add(corona);
+  solarCoronaGlow.scale.set(sunRadiusVisual * 3.6, sunRadiusVisual * 3.6, 1);
+  sunGroup.add(solarCoronaGlow);
   const sunLight = new THREE.PointLight(0xffe2b2, 260000, 0, 2);
   sunLight.position.copy(sunPosition);
   scene.add(sunLight);
@@ -1662,6 +1865,7 @@ function createMoonTerrainController() {
       if(u>=1)transitionStart=0;
     }
     sunMaterial.uniforms.uTime.value=t;
+    coronaMaterial.uniforms.uTime.value=t;
     moonMaterial.uniforms.uTime.value=t;
     const sunWorld=sunGroup.getWorldPosition(new THREE.Vector3());
     moonMaterial.uniforms.uSunDir.value.copy(moonMesh.worldToLocal(sunWorld.clone()).normalize());
@@ -1699,7 +1903,8 @@ function createMoonTerrainController() {
     version:VERSION,
     focus:focusBody,
     reset:resetView,
-    state:()=>({viewState,moonOrbitPeriodDays:MOON_PERIOD_DAYS,solarRotationPeriodDays:25.38,solarReliefStatus:window.__BP_SOLAR_SURFACE_V2__?.reliefStatus||'loading',solarCameraTiltDegrees:viewState==='sun'&&sunFocusLocalTarget?THREE.MathUtils.radToDeg(Math.acos(THREE.MathUtils.clamp(camera.position.clone().sub(target).normalize().dot(sunFocusLocalTarget.clone().normalize().transformDirection(sunGroup.matrixWorld)),-1,1))):null,solarCoronalLoopCount:coronalLoopMeshes.length,solarFlareArcCount:flareMeshes.length,solarAssets:window.__BP_SOLAR_SURFACE_V2__||{status:'not-requested'},
+    state:()=>({viewState,moonOrbitPeriodDays:MOON_PERIOD_DAYS,solarRotationPeriodDays:25.38,solarReliefStatus:window.__BP_SOLAR_SURFACE_V2__?.reliefStatus||'loading',solarCameraTiltDegrees:viewState==='sun'&&sunFocusLocalTarget?THREE.MathUtils.radToDeg(Math.acos(THREE.MathUtils.clamp(camera.position.clone().sub(target).normalize().dot(sunFocusLocalTarget.clone().normalize().transformDirection(sunGroup.matrixWorld)),-1,1))):null,solarCoronalLoopCount:coronalLoopMeshes.length,solarFlareArcCount:flareMeshes.length,solarAssets:window.__BP_SOLAR_SURFACE_V3__||window.__BP_SOLAR_SURFACE_V2__||{status:'not-requested'},
+      solarMagneticLoopCount:coronalLoopMeshes.length,solarObservedEruptionArcCount:flareMeshes.length,
       moonCameraTiltDegrees:THREE.MathUtils.radToDeg(moonCameraTiltRadians()),
       moonCameraDistanceKm:viewState==='moon'?camera.position.distanceTo(target)*EARTH_RADIUS_KM:null,
       radiiKm:{earth:EARTH_RADIUS_KM,moon:MOON_RADIUS_KM,sun:SUN_RADIUS_KM},
