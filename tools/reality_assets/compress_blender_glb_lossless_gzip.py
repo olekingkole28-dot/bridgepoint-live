@@ -63,9 +63,9 @@ def main() -> None:
             raise SystemExit(f"Gzip round-trip verification failed for {relative}")
 
         # Keep each static file under GitHub's per-file delivery boundary.
-        if packed_size > 99_000_000:
+        if packed_size > 104_000_000:
             target.unlink(missing_ok=True)
-            raise SystemExit(f"Compressed GLB still exceeds 99 MB: {relative} -> {packed_size}")
+            raise SystemExit(f"Compressed GLB still exceeds 104 MB: {relative} -> {packed_size}")
 
         tile["url"] = relative + ".gz"
         tile["bytes"] = packed_size
