@@ -1,23 +1,6 @@
 name: Publish BridgePoint Isolated Saturn System Scene V6283
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/publish-welcome-space-v6257.yml'
-      - 'recovery/apply_welcome_space_v6257.py'
-      - 'tests/test_welcome_space_v6257.py'
-      - 'rebuild-v5000/bridgepoint-welcome-space-v6257.js'
-      - 'recovery/bridgepoint-welcome-space-v6260.js'
-      - 'rebuild-v5000/index.html'
-      - 'assets/moon/v1/**'
-      - 'assets/sun/v2/**'
-      - 'rebuild-v5000/bridgepoint-celestial-sky-v6257.js'
-      - 'rebuild-v5000/bridgepoint-gaia-galaxy-v6270.js'
-      - 'assets/stellar/gaia-dr3-v6270/**'
-      - 'recovery/bridgepoint-saturn-system-v6282.js'
-      - 'recovery/build_saturn_assets_v6282.py'
-      - 'tests/test_saturn_system_v6282.py'
   workflow_dispatch:
 
 permissions:
