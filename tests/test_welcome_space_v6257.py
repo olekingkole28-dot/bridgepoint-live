@@ -493,6 +493,14 @@ self.addEventListener('fetch',e=>{
         self.assertIn("moon-sldem-128ppd-y' + rowName + '-x' + columnName + '.webp'", module)
         self.assertIn("bitmap.close?.()", module)
 
+    def test_saturn_celestial_update_receives_sun_callback_and_solar_shader_compiles(self):
+        saturn = (ROOT / "recovery" / "bridgepoint-saturn-system-v6282.js").read_text(encoding="utf-8")
+        gaia = (ROOT / "rebuild-v5000" / "bridgepoint-gaia-galaxy-v6270.js").read_text(encoding="utf-8")
+        self.assertIn("getSaturnPosition,getSunPosition,getSelectedBody,isMobile=false}=options", saturn)
+        self.assertIn("getSunPosition:()=>getSunPosition?getSunPosition():new THREE.Vector3()", gaia)
+        self.assertIn("float activeSignal=smoothstep(.075,.30,a);", (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text(encoding="utf-8"))
+        self.assertNotIn("float active=smoothstep(.075,.30,a);", (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text(encoding="utf-8"))
+
     def test_lunar_mesh_indices_are_buffer_attributes(self):
         module = (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text()
         self.assertIn("geometry.setIndex(new THREE.BufferAttribute(indices, 1))", module)
