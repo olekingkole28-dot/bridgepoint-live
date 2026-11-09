@@ -1,4 +1,4 @@
-import { initBridgePointSaturnSystem } from './bridgepoint-saturn-system-v6282.js?v=6286-saturn-callback-fix';
+import { initBridgePointSaturnSystem } from './bridgepoint-saturn-system-v6282.js?v=6287-celestial-shader-compat';
 
 /**
  * BridgePoint unified celestial space — Gaia DR3 stars + solar-system bodies.
@@ -9,7 +9,7 @@ import { initBridgePointSaturnSystem } from './bridgepoint-saturn-system-v6282.j
  * ephemerides use the same Galactic frame; the shared frame is rotated once so
  * its computed Earth-Sun vector meets the existing welcome Sun position.
  */
-const BUILD='v6286-saturn-callback-fix';
+const BUILD='v6287-celestial-shader-compat';
 const ROOT='/assets/stellar/gaia-dr3-v6270/';
 const DEG=Math.PI/180;
 const AU_PC=1/206264.80624709636;
@@ -235,7 +235,7 @@ export function initBridgePointSolarCosmos(o){
   const material=new THREE.ShaderMaterial({
    transparent:true,depthTest:true,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false,
    uniforms:{uViewportHeight:{value:Math.max(1,host.clientHeight||innerHeight)},uAUScale:{value:state.auToScene||astronomicalScale()}},
-   vertexShader:'attribute vec3 aColor;attribute float aMagnitude;attribute float aRadius;varying vec3 vColor;varying float vBrightness;uniform float uViewportHeight;uniform float uAUScale;\n#include <logdepthbuf_pars_vertex>\nvoid main(){vColor=aColor;vec4 mv=modelViewMatrix*vec4(position,1.0);gl_Position=projectionMatrix*mv;\n#include <logdepthbuf_vertex>\nfloat physical=(aRadius*0.00465047*uAUScale*projectionMatrix[1][1]*uViewportHeight)/max(1e-9,-mv.z);float photo=clamp(4.9-aMagnitude*.22,1.1,5.2);gl_PointSize=clamp(max(physical,photo),1.0,96.0);vBrightness=clamp(exp2((8.0-aMagnitude)*.16),.22,3.6);}',
+   vertexShader:'attribute vec3 aColor;attribute float aMagnitude;attribute float aRadius;varying vec3 vColor;varying float vBrightness;uniform float uViewportHeight;uniform float uAUScale;\n#include <common>\n#include <logdepthbuf_pars_vertex>\nvoid main(){vColor=aColor;vec4 mv=modelViewMatrix*vec4(position,1.0);gl_Position=projectionMatrix*mv;\n#include <logdepthbuf_vertex>\nfloat physical=(aRadius*0.00465047*uAUScale*projectionMatrix[1][1]*uViewportHeight)/max(1e-9,-mv.z);float photo=clamp(4.9-aMagnitude*.22,1.1,5.2);gl_PointSize=clamp(max(physical,photo),1.0,96.0);vBrightness=clamp(exp2((8.0-aMagnitude)*.16),.22,3.6);}',
    fragmentShader:'varying vec3 vColor;varying float vBrightness;\n#include <logdepthbuf_pars_fragment>\nvoid main(){\n#include <logdepthbuf_fragment>\nvec2 p=gl_PointCoord-vec2(.5);float r=length(p);if(r>.5)discard;float core=exp(-r*r*34.0);float halo=exp(-r*r*9.0);float a=clamp((core*.95+halo*.20)*vBrightness,0.0,1.0);gl_FragColor=vec4(vColor*(.45+core*1.9)*vBrightness,a);}'
   });
   const points=new THREE.Points(geometry,material);points.name='Gaia DR3 measured stellar positions';points.frustumCulled=false;starSpace.add(points);
