@@ -169,7 +169,11 @@ jobs:
             'assets/moon/v1/moon-lroc-color-4k.webp',
             'assets/moon/v1/moon-feature-labels.json',
           }
-          assert expected.issubset(changed), f'missing expected entry/PWA updates: {sorted(expected - changed)}'
+          required_changed={
+            'index.html','app/index.html','landing.js','app.js','sw.js',
+            'app/intelligence-launch/index.html','bridgepoint-welcome-space-v6260.js',
+          }
+          assert required_changed.issubset(changed), f'missing required entry/scene updates: {sorted(required_changed - changed)}'
           unexpected_changed=changed-allowed_changed
           assert not unexpected_changed, f'unrelated production assets changed: {sorted(unexpected_changed)}'
           print('PASS: expected entry/PWA files and welcome scene updated; only four solar assets added; existing Moon DEM tiles and unrelated Earth/world/data assets byte-identical.')
