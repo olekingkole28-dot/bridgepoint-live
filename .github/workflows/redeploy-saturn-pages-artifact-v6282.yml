@@ -105,10 +105,11 @@ jobs:
           grep -Fq 'new THREE.BoxGeometry(visualRadius*2.65' site/bridgepoint-saturn-system-v6282.js
           grep -Fq 'const second=i+1,third=i+2' site/bridgepoint-saturn-system-v6282.js
           grep -Fq 'getSunPosition:()=>getSunPosition?getSunPosition():new THREE.Vector3()' site/bridgepoint-gaia-galaxy-v6270.js
-          grep -Fq 'new DecompressionStream(\'gzip\')' site/bridgepoint-blender-world-v1.js
+          grep -Fq "new DecompressionStream('gzip')" site/bridgepoint-blender-world-v1.js
           grep -Fq 'loader.parse(buffer, ASSET_ROOT' site/bridgepoint-blender-world-v1.js
-          grep -Fq 'url.toLowerCase().endsWith(\'.webp\')' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq "url.toLowerCase().endsWith('.webp')" site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'bridgepoint-blender-world-v1.js?v=3-lossless-gzip' site/index.html
+          grep -Fq "const MANIFEST_URL = '/assets/blender-world/manifest.json?v=3-lossless-gzip'" site/bridgepoint-blender-world-v1.js
           grep -Fq 'bridgepoint-blender-world-v1.js?v=3-lossless-gzip' site/app/index.html
           test -s site/assets/moon/v1/sldem-128ppd/moon-sldem-128ppd-y05-x06.webp
           test ! -e site/assets/moon/v1/sldem-128ppd/moon-sldem-128ppd-y05-x06.png
