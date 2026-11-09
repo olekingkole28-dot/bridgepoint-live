@@ -5,9 +5,9 @@ import re
 import sys
 from pathlib import Path
 
-BUILD = "v6280-unified-cosmos"
+BUILD = "v6281-space-camera-sync"
 # Moon terrain assets are bundled locally under assets/moon/v1; runtime requests stay same-origin.
-SW_URL = "/sw.js?v=6280-unified-cosmos"
+SW_URL = "/sw.js?v=v6281-space-camera-sync"
 CACHE_NAME = "bp-intelligence-v6247-universal-fresh-entry-sidewalk"
 
 
@@ -98,6 +98,35 @@ html.bpw-entry-locked #previewMap canvas{filter:contrast(1.17) saturate(1.10) br
 </style>"""
 
 
+def inject_space_camera_sync(source: str) -> str:
+    # Keep the existing MapLibre Earth and scale its rendered canvas with Three.js zoom.
+    marker = "  const removeCameraGuard=()=>{"
+    if "window.__BP_WELCOME_SYNC_SPACE_ZOOM_V1__=" in source:
+        return source
+    injection = """  // Scale the existing MapLibre-rendered Earth with the welcome scene's 3D camera.
+  window.__BP_WELCOME_SYNC_SPACE_ZOOM_V1__=distanceRatio=>{
+    if(!cameraLockMap)return null;
+    const mapCanvas=cameraLockMap.getCanvas?.();
+    if(!mapCanvas)return null;
+    const ratio=Number(distanceRatio);
+    const safeRatio=Number.isFinite(ratio)&&ratio>0?ratio:1;
+    const scale=gate.dataset.removed==='1'?1:Math.max(.000001,Math.min(1,1/safeRatio));
+    const previous=Number(mapCanvas.dataset.bpSpaceScale||1);
+    if(!Number.isFinite(previous)||Math.abs(scale-previous)>Math.max(.0000001,previous*.001)){
+      mapCanvas.style.transformOrigin='50% 50%';
+      mapCanvas.style.transform=scale<.999999?'scale('+scale.toFixed(8)+')':'';
+      mapCanvas.style.willChange=scale<.999999?'transform':'';
+      mapCanvas.dataset.bpSpaceScale=String(scale);
+    }
+    window.__BP_WELCOME_CAMERA_GUARD_V4__={
+      ...(window.__BP_WELCOME_CAMERA_GUARD_V4__||{}),
+      spaceSynced:true,earthVisualScale:scale,at:Date.now()
+    };
+    return scale;
+  };
+"""
+    return replace_once(source, marker, injection + marker, "add the Three.js-to-MapLibre Earth zoom bridge")
+
 def patch_root_html(source: str) -> str:
     # The last verified Pages artifact already has the V6264 welcome design.
     # When present, retain that markup and only bump the scene module URL.
@@ -124,6 +153,7 @@ def patch_root_html(source: str) -> str:
         )
         if module_src_count != 1:
             raise AssertionError("Current welcome module src is missing or duplicated")
+        source = inject_space_camera_sync(source)
         if 'data-space-ground' in source:
             raise AssertionError("Ground sky control must not appear on the welcome screen")
         return source
