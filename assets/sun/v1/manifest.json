@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "textureSize": [
+    4096,
+    2048
+  ],
+  "projection": "Equirectangular 2:1 map from 4096px SDO full-disk observations",
+  "runtime": "BridgePoint-hosted same-origin static assets; no NASA image requests at runtime",
+  "photosphere": {
+    "file": "sun-photosphere-v1.webp",
+    "source": "NASA/GSFC Solar Dynamics Observatory HMI Intensitygram Continuum (HMIIC)",
+    "sourceFile": "latest_4096_HMIIC.jpg",
+    "observedHemisphere": "SDO-facing hemisphere",
+    "farHemisphere": "procedural granulation fill, not an SDO observation"
+  },
+  "coronalActivity": {
+    "file": "sun-coronal-activity-v1.webp",
+    "sources": [
+      "NASA/GSFC SDO AIA 171 Å",
+      "AIA 193 Å",
+      "AIA 304 Å",
+      "AIA 335 Å"
+    ],
+    "sourceFiles": [
+      "latest_4096_0171.jpg",
+      "latest_4096_0193.jpg",
+      "latest_4096_0304.jpg",
+      "latest_4096_0335.jpg"
+    ],
+    "farHemisphere": "unobserved/transparent"
+  },
+  "magneticField": {
+    "file": "sun-magnetic-field-v1.webp",
+    "source": "NASA/GSFC SDO HMI magnetic field image (HMIBC)",
+    "sourceFile": "latest_4096_HMIBC.jpg"
+  },
+  "materializedAtUtc": "2026-11-08",
+  "originalDownloadDirectory": "OneDrive/BridgePoint Media/Sun Data/source"
+}
