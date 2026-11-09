@@ -1,4 +1,4 @@
-name: Publish Saturn v6284 Movement, Depth and Clickable Moons Using Existing Pages Artifact
+name: Publish Saturn v6285 Lossless Planet Assets and Movement, Depth & Clickable Moons
 
 on:
   push:
@@ -14,7 +14,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: bridgepoint-welcome-space-v6284-saturn-movement-depth
+  group: bridgepoint-welcome-space-v6285-lossless-saturn-pages
   cancel-in-progress: false
 
 jobs:
@@ -23,7 +23,7 @@ jobs:
     timeout-minutes: 45
     environment:
       name: github-pages
-      url: ${{ steps.deploy_1.outputs.page_url || steps.deploy_2.outputs.page_url || steps.deploy_3.outputs.page_url }}
+      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -66,7 +66,7 @@ jobs:
           node --input-type=module --check < site/bridgepoint-saturn-system-v6282.js
           echo "REUSED VERIFIED PAGES ARTIFACT — ONLY SATURN SCENE JS OVERLAID; NO NASA BUILD OR PLANET REGENERATION"
 
-      - name: Overlay only the isolated Saturn scene modules and refresh the existing site cache
+      - name: Overlay Saturn and enable lossless compact delivery for large static assets
         shell: bash
         run: |
           set -euo pipefail
@@ -76,13 +76,21 @@ jobs:
           cp recovery/bridgepoint-welcome-space-v6260.js site/bridgepoint-welcome-space-v6260.js
           cp rebuild-v5000/bridgepoint-gaia-galaxy-v6270.js site/bridgepoint-gaia-galaxy-v6270.js
           cp recovery/bridgepoint-saturn-system-v6282.js site/bridgepoint-saturn-system-v6282.js
+          cp rebuild-v5000/bridgepoint-blender-world-v1.js site/bridgepoint-blender-world-v1.js
           python3 recovery/apply_welcome_space_v6257.py site
+
+          python3 -m pip install --disable-pip-version-check pillow numpy
+          python3 tools/reality_assets/compress_moon_sldem_lossless_webp.py site
+          python3 tools/reality_assets/compress_blender_glb_lossless_gzip.py site
+          python3 tools/reality_assets/defer_offline_global_max_pages.py site
 
           node --input-type=module --check < site/bridgepoint-welcome-space-v6260.js
           node --input-type=module --check < site/bridgepoint-gaia-galaxy-v6270.js
           node --input-type=module --check < site/bridgepoint-saturn-system-v6282.js
+          node --input-type=module --check < site/bridgepoint-blender-world-v1.js
+          node --check site/offline/offline-world.js
 
-          grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6284-saturn-movement-depth"' site/index.html
+          grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6285-saturn-lossless-pages"' site/index.html
           grep -Fq 'scene.background=new THREE.Color(0x02050c)' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'function panSaturnSurface(dx,dy)' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'function tiltSaturnCamera(deltaY)' site/bridgepoint-welcome-space-v6260.js
@@ -97,7 +105,35 @@ jobs:
           grep -Fq 'new THREE.BoxGeometry(visualRadius*2.65' site/bridgepoint-saturn-system-v6282.js
           grep -Fq 'const second=i+1,third=i+2' site/bridgepoint-saturn-system-v6282.js
           grep -Fq 'getSunPosition:()=>getSunPosition?getSunPosition():new THREE.Vector3()' site/bridgepoint-gaia-galaxy-v6270.js
-          echo "PATCHED EXISTING PAGES BUNDLE — Saturn scene updated; Earth/Moon/Sun and prebuilt NASA Saturn assets reused."
+          grep -Fq 'new DecompressionStream(\'gzip\')' site/bridgepoint-blender-world-v1.js
+          grep -Fq 'loader.parse(buffer, ASSET_ROOT' site/bridgepoint-blender-world-v1.js
+          grep -Fq 'url.toLowerCase().endsWith(\'.webp\')' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'bridgepoint-blender-world-v1.js?v=3-lossless-gzip' site/index.html
+          grep -Fq 'bridgepoint-blender-world-v1.js?v=3-lossless-gzip' site/app/index.html
+          test -s site/assets/moon/v1/sldem-128ppd/moon-sldem-128ppd-y05-x06.webp
+          test ! -e site/assets/moon/v1/sldem-128ppd/moon-sldem-128ppd-y05-x06.png
+          test -s site/assets/offline/protomaps-world-z6.pmtiles
+          test ! -e site/assets/offline/protomaps-world-z7.pmtiles
+          ! grep -Fq 'global-max-v1' site/offline-packs/catalog.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('site')
+          moon=json.loads((root/'assets/moon/v1/manifest.json').read_text())
+          assert moon['highResolutionTerrainEncoding']['quantization']=='none'
+          assert moon['highResolutionTerrainEncoding']['roundTripVerified'] is True
+          world=json.loads((root/'assets/blender-world/manifest.json').read_text())
+          assert world['transportEncoding'].startswith('gzip')
+          assert all(tile['url'].endswith('.glb.gz') for tile in world['tiles'])
+          assert not any((root/'assets/blender-world').rglob('*.glb'))
+          webps=list((root/'assets/moon/v1/sldem-128ppd').glob('*.webp'))
+          assert len(webps)>=300, len(webps)
+          assert not list((root/'assets/moon/v1/sldem-128ppd').glob('*.png'))
+          largest=max(p.stat().st_size for p in root.rglob('*') if p.is_file())
+          assert largest < 104_000_000, largest
+          print('LOSSLESS_ASSETS_OK',len(webps),'lunar tiles;',len(world['tiles']),'gzip GLB tiles; largest file',largest)
+          PY
+          echo "COMPACT PAGES BUNDLE READY — Saturn v6285; 16-bit lunar elevations and Manhattan GLBs preserved losslessly; standard offline z6 kept."
 
       - uses: actions/configure-pages@v5
         with:
@@ -110,56 +146,32 @@ jobs:
           path: site
           include-hidden-files: true
 
-      - name: Publish attempt 1
-        id: deploy_1
-        uses: actions/deploy-pages@v5
-        with:
-          artifact_name: github-pages
-          timeout: '600000'
-        continue-on-error: true
-
-      - name: Wait before a fresh Pages attempt
-        if: steps.deploy_1.outcome != 'success'
+      - name: Verify uploaded Pages artifact is below GitHub's 1 GB limit
         shell: bash
-        run: sleep 90
-
-      - name: Publish attempt 2
-        id: deploy_2
-        if: steps.deploy_1.outcome != 'success'
-        uses: actions/deploy-pages@v5
-        with:
-          artifact_name: github-pages
-          timeout: '600000'
-        continue-on-error: true
-
-      - name: Wait before final Pages attempt
-        if: steps.deploy_1.outcome != 'success' && steps.deploy_2.outcome != 'success'
-        shell: bash
-        run: sleep 180
-
-      - name: Publish attempt 3
-        id: deploy_3
-        if: steps.deploy_1.outcome != 'success' && steps.deploy_2.outcome != 'success'
-        uses: actions/deploy-pages@v5
-        with:
-          artifact_name: github-pages
-          timeout: '600000'
-        continue-on-error: true
-
-      - name: Fail only when all Pages attempts fail
-        if: steps.deploy_1.outcome != 'success' && steps.deploy_2.outcome != 'success' && steps.deploy_3.outcome != 'success'
-        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "All three GitHub Pages attempts failed. The prebuilt Saturn artifact remains available in this run."
-          exit 1
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts"
+          size="$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$api" | jq -r '.artifacts[] | select(.name=="github-pages") | .size_in_bytes' | head -1)"
+          test -n "$size"
+          echo "GitHub Pages artifact bytes: $size"
+          test "$size" -lt 1000000000
 
-      - name: Verify Saturn v6284 movement, depth and preserved planetary assets on the live domain
-        if: steps.deploy_1.outcome == 'success' || steps.deploy_2.outcome == 'success' || steps.deploy_3.outcome == 'success'
+      - name: Publish Saturn v6285
+        id: deploy
+        uses: actions/deploy-pages@v5
+        with:
+          artifact_name: github-pages
+          timeout: '600000'
+
+      - name: Verify Saturn v6285 movement, depth and compact assets on the live domain
+        if: steps.deploy.outcome == 'success'
         shell: bash
         run: |
           set -euo pipefail
           O='https://bridgepointintelligence.online'
-          q="${GITHUB_SHA}-saturn-v6284-movement-depth-live"
+          q="${GITHUB_SHA}-saturn-v6285-lossless-pages-live"
           curl --retry 5 --retry-all-errors --retry-delay 5 -fsSL -H 'Cache-Control: no-cache' "${O}/?saturn-v6282=${q}" -o /tmp/bp-live-root.html
           curl --retry 5 --retry-all-errors --retry-delay 5 -fsSL -H 'Cache-Control: no-cache' "${O}/bridgepoint-welcome-space-v6260.js?verify=${q}" -o /tmp/bp-live-welcome.js
           curl --retry 5 --retry-all-errors --retry-delay 5 -fsSL -H 'Cache-Control: no-cache' "${O}/bridgepoint-gaia-galaxy-v6270.js?verify=${q}" -o /tmp/bp-live-gaia.js
@@ -169,7 +181,7 @@ jobs:
           curl --retry 5 --retry-all-errors --retry-delay 5 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/saturn/v1/meshes/mimas-cassini-shape-v1.bin.gz?verify=${q}" -o /tmp/bp-live-mimas.bin.gz
           curl --retry 5 --retry-all-errors --retry-delay 5 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/saturn/v1/meshes/enceladus-cassini-shape-v1.bin.gz?verify=${q}" -o /tmp/bp-live-enceladus.bin.gz
           curl --retry 5 --retry-all-errors --retry-delay 5 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/saturn/v1/height/titan-cassini-topography-4ppd-u16.bin.gz?verify=${q}" -o /tmp/bp-live-titan-height.bin.gz
-          grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6284-saturn-movement-depth"' /tmp/bp-live-root.html
+          grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6285-saturn-lossless-pages"' /tmp/bp-live-root.html
           grep -Fq 'initBridgePointSaturnSystem' /tmp/bp-live-gaia.js
           grep -Fq 'Titan' /tmp/bp-live-saturn.js
           grep -Fq 'SaturnSystemGroup' /tmp/bp-live-saturn.js
@@ -188,4 +200,4 @@ jobs:
           test -s /tmp/bp-live-mimas.bin.gz
           test -s /tmp/bp-live-enceladus.bin.gz
           test -s /tmp/bp-live-titan-height.bin.gz
-          echo "LIVE SATURN V6284 PASS — CROPPED CASSINI RASTER, DIFFERENTIAL CLOUD FLOW, FRESNEL RIM, LIT ALPHA RINGS, CORRECTED DSK WINDING AND CLICKABLE MOON HITBOXES SERVED"
+          echo "LIVE SATURN V6285 PASS — ATMOSPHERIC MOVEMENT, DEPTH RINGS, EXACT 16-BIT MOON TERRAIN, GZIP MANHATTAN GLBs AND CLICKABLE MOONS SERVED"
