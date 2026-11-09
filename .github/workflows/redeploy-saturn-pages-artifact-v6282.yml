@@ -1,4 +1,4 @@
-name: Redeploy Existing BridgePoint Saturn v6282 Pages Artifact
+name: Publish Isolated Saturn v6283 Using Existing Verified Pages Artifact
 
 on:
   push:
@@ -14,7 +14,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: bridgepoint-welcome-space-v6282-saturn-system
+  group: bridgepoint-welcome-space-v6283-saturn-isolated
   cancel-in-progress: false
 
 jobs:
@@ -25,7 +25,13 @@ jobs:
       name: github-pages
       url: ${{ steps.deploy_1.outputs.page_url || steps.deploy_2.outputs.page_url || steps.deploy_3.outputs.page_url }}
     steps:
-      - name: Download the already-built Saturn v6282 Pages artifact (no rebuild)
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Download the already-built Saturn Pages artifact (no NASA rebuild)
         uses: actions/download-artifact@v4
         with:
           name: bridgepoint-welcome-space-v6257
@@ -58,7 +64,33 @@ jobs:
           grep -Fq 'Titan' site/bridgepoint-saturn-system-v6282.js
           node --input-type=module --check < site/bridgepoint-gaia-galaxy-v6270.js
           node --input-type=module --check < site/bridgepoint-saturn-system-v6282.js
-          echo "REUSED SATURN V6282 ARTIFACT VERIFIED — NO NASA BUILD OR PLANET REGENERATION"
+          echo "REUSED VERIFIED PAGES ARTIFACT — ONLY SATURN SCENE JS OVERLAID; NO NASA BUILD OR PLANET REGENERATION"
+
+      - name: Overlay only the isolated Saturn scene modules and refresh the existing site cache
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s tests -p 'test_welcome_space_v6257.py' -v
+          python3 -m unittest discover -s tests -p 'test_saturn_system_v6282.py' -v
+
+          cp recovery/bridgepoint-welcome-space-v6260.js site/bridgepoint-welcome-space-v6260.js
+          cp rebuild-v5000/bridgepoint-gaia-galaxy-v6270.js site/bridgepoint-gaia-galaxy-v6270.js
+          cp recovery/bridgepoint-saturn-system-v6282.js site/bridgepoint-saturn-system-v6282.js
+          python3 recovery/apply_welcome_space_v6257.py site
+
+          node --input-type=module --check < site/bridgepoint-welcome-space-v6260.js
+          node --input-type=module --check < site/bridgepoint-gaia-galaxy-v6270.js
+          node --input-type=module --check < site/bridgepoint-saturn-system-v6282.js
+
+          grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6283-saturn-isolated"' site/index.html
+          grep -Fq 'scene.background=new THREE.Color(0x02050c)' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'function panSaturnSurface(dx,dy)' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'function tiltSaturnCamera(deltaY)' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'bodySelect.value=['"'"'titan'"'"','"'"'enceladus'"'"','"'"'mimas'"'"'].includes(selectedBody)?'"'"'saturn'"'"':selectedBody' site/bridgepoint-gaia-galaxy-v6270.js
+          ! grep -Fq 'value="titan">Titan' site/bridgepoint-gaia-galaxy-v6270.js
+          grep -Fq 'SaturnSystemGroup' site/bridgepoint-saturn-system-v6282.js
+          grep -Fq 'uSaturnAtmosTime' site/bridgepoint-saturn-system-v6282.js
+          echo "PATCHED EXISTING PAGES BUNDLE — Saturn scene updated; Earth/Moon/Sun and prebuilt NASA Saturn assets reused."
 
       - uses: actions/configure-pages@v5
         with:
@@ -114,13 +146,13 @@ jobs:
           echo "All three GitHub Pages attempts failed. The prebuilt Saturn artifact remains available in this run."
           exit 1
 
-      - name: Verify Saturn v6282 and preserved celestial assets on the live domain
+      - name: Verify isolated Saturn v6283 and preserved celestial assets on the live domain
         if: steps.deploy_1.outcome == 'success' || steps.deploy_2.outcome == 'success' || steps.deploy_3.outcome == 'success'
         shell: bash
         run: |
           set -euo pipefail
           O='https://bridgepointintelligence.online'
-          q="${GITHUB_SHA}-saturn-v6282-live"
+          q="${GITHUB_SHA}-saturn-v6283-isolated-live"
           curl --retry 5 --retry-all-errors --retry-delay 5 -fsSL -H 'Cache-Control: no-cache' "${O}/?saturn-v6282=${q}" -o /tmp/bp-live-root.html
           curl --retry 5 --retry-all-errors --retry-delay 5 -fsSL -H 'Cache-Control: no-cache' "${O}/bridgepoint-welcome-space-v6260.js?verify=${q}" -o /tmp/bp-live-welcome.js
           curl --retry 5 --retry-all-errors --retry-delay 5 -fsSL -H 'Cache-Control: no-cache' "${O}/bridgepoint-gaia-galaxy-v6270.js?verify=${q}" -o /tmp/bp-live-gaia.js
@@ -130,9 +162,14 @@ jobs:
           curl --retry 5 --retry-all-errors --retry-delay 5 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/saturn/v1/meshes/mimas-cassini-shape-v1.bin.gz?verify=${q}" -o /tmp/bp-live-mimas.bin.gz
           curl --retry 5 --retry-all-errors --retry-delay 5 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/saturn/v1/meshes/enceladus-cassini-shape-v1.bin.gz?verify=${q}" -o /tmp/bp-live-enceladus.bin.gz
           curl --retry 5 --retry-all-errors --retry-delay 5 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/saturn/v1/height/titan-cassini-topography-4ppd-u16.bin.gz?verify=${q}" -o /tmp/bp-live-titan-height.bin.gz
-          grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6282-saturn-system"' /tmp/bp-live-root.html
+          grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6283-saturn-isolated"' /tmp/bp-live-root.html
           grep -Fq 'initBridgePointSaturnSystem' /tmp/bp-live-gaia.js
           grep -Fq 'Titan' /tmp/bp-live-saturn.js
+          grep -Fq 'SaturnSystemGroup' /tmp/bp-live-saturn.js
+          grep -Fq 'uSaturnAtmosTime' /tmp/bp-live-saturn.js
+          grep -Fq 'scene.background=new THREE.Color(0x02050c)' /tmp/bp-live-welcome.js
+          grep -Fq 'function panSaturnSurface(dx,dy)' /tmp/bp-live-welcome.js
+          grep -Fq 'bodySelect.value=' /tmp/bp-live-gaia.js
           test -s /tmp/bp-live-saturn-manifest.json
           test -s /tmp/bp-live-saturn-ephemerides.json
           test -s /tmp/bp-live-mimas.bin.gz
