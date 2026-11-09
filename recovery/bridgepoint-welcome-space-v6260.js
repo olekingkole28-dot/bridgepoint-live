@@ -16,7 +16,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
 
 (() => {
   'use strict';
-  const VERSION = 'v6283-saturn-isolated';
+  const VERSION = 'v6284-saturn-movement-depth';
   if (window.__BP_WELCOME_SPACE_V6257__) return;
   window.__BP_WELCOME_SPACE_V6257__ = true;
 
@@ -1862,7 +1862,7 @@ function createMoonTerrainController() {
     enforceSunCameraClearance();camera.lookAt(target);
   }
   function moonZoomDistance(distance){
-    const minimum=saturnFocusMesh?Math.max(0.00000045,Math.max(.001,focusedPlanetRadius*.0005)):viewState==='moon'?0.00000045:viewState==='sun'?.0015:viewState==='planet'?Math.max(1e-9,focusedPlanetRadius*1.015):1.8;
+    const minimum=saturnFocusMesh?Math.max(0.00000045,Math.max(.001,focusedPlanetRadius*(saturnFocusMesh.scale?.x||1)*.0005)):viewState==='moon'?0.00000045:viewState==='sun'?.0015:viewState==='planet'?Math.max(1e-9,focusedPlanetRadius*1.015):1.8;
     const maximum=solarCosmos?.maxCameraDistance?.()||5000;
     return THREE.MathUtils.clamp(distance,minimum,maximum);
   }
