@@ -155,20 +155,24 @@ jobs:
           }
           assert not removed, f'unexpected removed files: {sorted(removed)}'
           expected_added={
-            'bridgepoint-welcome-space-v6260.js','bridgepoint-celestial-sky-v6257.js',
+            'assets/sun/v1/manifest.json',
+            'assets/sun/v1/sun-photosphere-v1.webp',
+            'assets/sun/v1/sun-coronal-activity-v1.webp',
+            'assets/sun/v1/sun-magnetic-field-v1.webp',
+          }
+          assert added==expected_added, f'unexpected new production files: {sorted(added ^ expected_added)}'
+          allowed_changed=expected | {
+            'bridgepoint-welcome-space-v6260.js',
             'assets/moon/v1/manifest.json',
             'assets/moon/v1/moon-global-height-4ppd-u16.png',
-            'assets/moon/v1/moon-global-height-16ppd-u16.png',
             'assets/moon/v1/moon-apollo15-4deg-512ppd-height-u16.png',
             'assets/moon/v1/moon-lroc-color-4k.webp',
             'assets/moon/v1/moon-feature-labels.json',
           }
-          highres_prefix='assets/moon/v1/sldem-128ppd/'
-          highres_tiles={p for p in added if p.startswith(highres_prefix) and p.endswith('.png')}
-          assert len(highres_tiles)==432, f'expected exactly 432 local SLDEM tiles, found {len(highres_tiles)}'
-          assert added==expected_added | highres_tiles, f'unexpected added files: {sorted(added ^ (expected_added | highres_tiles))}'
-          assert changed==expected, f'unexpected production changes: {sorted(changed)}'
-          print('PASS: eight entry/PWA files changed; two celestial modules, six base Moon assets and 432 local SLDEM tiles added; all unrelated globe/data/map/feature assets byte-identical.')
+          assert expected.issubset(changed), f'missing expected entry/PWA updates: {sorted(expected - changed)}'
+          unexpected_changed=changed-allowed_changed
+          assert not unexpected_changed, f'unrelated production assets changed: {sorted(unexpected_changed)}'
+          print('PASS: expected entry/PWA files and welcome scene updated; only four solar assets added; existing Moon DEM tiles and unrelated Earth/world/data assets byte-identical.')
           PY
           node --check /tmp/bridgepoint-welcome-gate-v6257.js
           node --input-type=module --check < site/bridgepoint-welcome-space-v6260.js
