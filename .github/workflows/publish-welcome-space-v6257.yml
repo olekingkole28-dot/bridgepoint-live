@@ -1,4 +1,4 @@
-name: Publish BridgePoint Sun Globe, Depth Occlusion and STEREO Far Side V6269
+name: Publish BridgePoint Gaia DR3 Galaxy, Solar System and Celestial Scene V6270
 
 on:
   push:
@@ -13,6 +13,8 @@ on:
       - 'assets/moon/v1/**'
       - 'assets/sun/v2/**'
       - 'rebuild-v5000/bridgepoint-celestial-sky-v6257.js'
+      - 'rebuild-v5000/bridgepoint-gaia-galaxy-v6270.js'
+      - 'assets/stellar/gaia-dr3-v6270/**'
   workflow_dispatch:
 
 permissions:
@@ -22,7 +24,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: bridgepoint-welcome-space-v6269-solar-fire-plasma
+  group: bridgepoint-welcome-space-v6270-gaia-dr3-galaxy
   cancel-in-progress: true
 
 jobs:
@@ -103,6 +105,11 @@ jobs:
         run: |
           cp recovery/bridgepoint-welcome-space-v6260.js site/bridgepoint-welcome-space-v6260.js
           cp rebuild-v5000/bridgepoint-celestial-sky-v6257.js site/bridgepoint-celestial-sky-v6257.js
+          cp rebuild-v5000/bridgepoint-gaia-galaxy-v6270.js site/bridgepoint-gaia-galaxy-v6270.js
+          mkdir -p site/assets/stellar/gaia-dr3-v6270
+          cp -a assets/stellar/gaia-dr3-v6270/. site/assets/stellar/gaia-dr3-v6270/
+          test -s site/assets/stellar/gaia-dr3-v6270/manifest.json
+          for p in part-0000.bin.gz part-0001.bin.gz part-0002.bin.gz part-0003.bin.gz part-0004.bin.gz part-0005.bin.gz; do test -s "site/assets/stellar/gaia-dr3-v6270/$p"; done
           mkdir -p site/assets/sun
           cp -a assets/sun/v2 site/assets/sun/v2
           test -s site/assets/sun/v2/manifest.json
@@ -157,6 +164,14 @@ jobs:
             'assets/sun/v2/sun-aia-171-latest.jpg',
             'assets/sun/v2/sun-aia-193-latest.jpg',
             'assets/sun/v2/sun-aia-304-latest.jpg',
+            'bridgepoint-gaia-galaxy-v6270.js',
+            'assets/stellar/gaia-dr3-v6270/manifest.json',
+            'assets/stellar/gaia-dr3-v6270/part-0000.bin.gz',
+            'assets/stellar/gaia-dr3-v6270/part-0001.bin.gz',
+            'assets/stellar/gaia-dr3-v6270/part-0002.bin.gz',
+            'assets/stellar/gaia-dr3-v6270/part-0003.bin.gz',
+            'assets/stellar/gaia-dr3-v6270/part-0004.bin.gz',
+            'assets/stellar/gaia-dr3-v6270/part-0005.bin.gz',
           }
           assert added==expected_added, f'unexpected new production files: {sorted(added ^ expected_added)}'
           allowed_changed=expected | {'bridgepoint-welcome-space-v6260.js'}
@@ -167,11 +182,16 @@ jobs:
           assert required_changed.issubset(changed), f'missing required entry/scene updates: {sorted(required_changed - changed)}'
           unexpected_changed=changed-allowed_changed
           assert not unexpected_changed, f'unrelated production assets changed: {sorted(unexpected_changed)}'
-          print('PASS: expected entry/PWA files and welcome scene updated; only ten V2 solar assets added; existing Moon DEM tiles and unrelated Earth/world/data assets byte-identical.')
+          print('PASS: expected entry/PWA files and Gaia/Sun scene updated; Gaia and solar assets added; existing Moon DEM tiles and unrelated Earth/world/data assets byte-identical.')
           PY
           node --check /tmp/bridgepoint-welcome-gate-v6257.js
           node --input-type=module --check < site/bridgepoint-welcome-space-v6260.js
           node --input-type=module --check < site/bridgepoint-celestial-sky-v6257.js
+          node --input-type=module --check < site/bridgepoint-gaia-galaxy-v6270.js
+          grep -Fq 'initBridgePointGaiaGalaxy' site/bridgepoint-gaia-galaxy-v6270.js
+          grep -Fq 'Gaia DR3 measured stellar positions' site/bridgepoint-gaia-galaxy-v6270.js
+          grep -Fq 'data-gaia="solar"' site/bridgepoint-gaia-galaxy-v6270.js
+          grep -Fq 'coordinate_frame' site/assets/stellar/gaia-dr3-v6270/manifest.json
           grep -Fq 'bpWelcomeGateStylesV6257' site/index.html
           grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6269-solar-fire-plasma"' site/index.html
           grep -Fq 'data-mode="signup"' site/index.html
@@ -278,6 +298,9 @@ jobs:
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/sun/v2/sun-coronal-activity-v2.webp?verify=${q}" -o /tmp/live-sun-activity.webp || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/sun/v2/sun-stereoB-farside-EUV-2014-09-27-v2.webp?verify=${q}" -o /tmp/live-sun-farside.webp || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/bridgepoint-celestial-sky-v6257.js?verify=${q}" -o /tmp/live-sky.js || true
+          curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/bridgepoint-gaia-galaxy-v6270.js?verify=${q}" -o /tmp/live-gaia.js || true
+          curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/stellar/gaia-dr3-v6270/manifest.json?verify=${q}" -o /tmp/live-gaia-manifest.json || true
+          curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/stellar/gaia-dr3-v6270/part-0000.bin.gz?verify=${q}" -o /tmp/live-gaia-part.bin.gz || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app.js?verify=${q}" -o /tmp/live-app.js || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/landing.js?verify=${q}" -o /tmp/live-landing.js || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/?welcome-space-v6257=${q}" -o /tmp/live-app.html || true
@@ -319,6 +342,9 @@ jobs:
                grep -Fq 'vAlpha=color.a' /tmp/live-space.js 2>/dev/null &&
                ! grep -Fq 'data-space-ground' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'initBridgePointCelestialSky' /tmp/live-sky.js 2>/dev/null &&
+               grep -Fq 'initBridgePointGaiaGalaxy' /tmp/live-gaia.js 2>/dev/null &&
+               grep -Fq 'coordinate_frame' /tmp/live-gaia-manifest.json 2>/dev/null &&
+               test -s /tmp/live-gaia-part.bin.gz &&
                grep -Fq 'bridgepoint-celestial-sky-v6257.js?v=6257' /tmp/live-app.js 2>/dev/null &&
                grep -Fq 'bridgepoint-celestial-sky-v6257.js?v=6257' /tmp/live-landing.js 2>/dev/null &&
                grep -Fq 'entryRoute=' /tmp/live-sw.js 2>/dev/null &&
@@ -344,4 +370,4 @@ jobs:
             sleep 3
           done
           test "$ok" -eq 1
-          echo 'LIVE V6269 PASS: observed NASA solar surface, animated molten photosphere, Fresnel fire rim and active-region particle streams; Earth and Moon production assets preserved.'
+          echo 'LIVE V6270 PASS: Gaia DR3 stellar catalogue, Milky Way context, constellation support, heliocentric planetary scene, NASA solar surface and Moon terrain are served from the published site.'
