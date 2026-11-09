@@ -1,4 +1,4 @@
-name: Publish BridgePoint Gaia DR3 Galaxy, Solar System and Celestial Scene V6270
+name: Publish BridgePoint Unified Gaia and Solar System Scene V6280
 
 on:
   push:
@@ -188,9 +188,15 @@ jobs:
           node --input-type=module --check < site/bridgepoint-welcome-space-v6260.js
           node --input-type=module --check < site/bridgepoint-celestial-sky-v6257.js
           node --input-type=module --check < site/bridgepoint-gaia-galaxy-v6270.js
-          grep -Fq 'initBridgePointGaiaGalaxy' site/bridgepoint-gaia-galaxy-v6270.js
+          grep -Fq 'initBridgePointSolarCosmos' site/bridgepoint-gaia-galaxy-v6270.js
           grep -Fq 'Gaia DR3 measured stellar positions' site/bridgepoint-gaia-galaxy-v6270.js
-          grep -Fq 'data-gaia="solar"' site/bridgepoint-gaia-galaxy-v6270.js
+          grep -Fq 'bpw-celestial-body-picker' site/bridgepoint-gaia-galaxy-v6270.js
+          grep -Fq '3D heliocentric orbital path' site/bridgepoint-gaia-galaxy-v6270.js
+          grep -Fq 'World-anchored celestial body labels' site/bridgepoint-gaia-galaxy-v6270.js
+          grep -Fq 'planetPos(THREE,p,days,ob).multiplyScalar(auScale)' site/bridgepoint-gaia-galaxy-v6270.js
+          ! grep -Fq 'GALAXY VIEW' site/bridgepoint-gaia-galaxy-v6270.js
+          ! grep -Fq 'cinematicStarfield' site/bridgepoint-welcome-space-v6260.js
+          ! grep -Fq 'GAIA_DR3_GALAXY_V6270' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'coordinate_frame' site/assets/stellar/gaia-dr3-v6270/manifest.json
           grep -Fq 'bpWelcomeGateStylesV6257' site/index.html
           grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6269-solar-fire-plasma"' site/index.html
@@ -342,7 +348,10 @@ jobs:
                grep -Fq 'vAlpha=color.a' /tmp/live-space.js 2>/dev/null &&
                ! grep -Fq 'data-space-ground' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'initBridgePointCelestialSky' /tmp/live-sky.js 2>/dev/null &&
-               grep -Fq 'initBridgePointGaiaGalaxy' /tmp/live-gaia.js 2>/dev/null &&
+               grep -Fq 'initBridgePointSolarCosmos' /tmp/live-gaia.js 2>/dev/null &&
+                grep -Fq 'bpw-celestial-body-picker' /tmp/live-gaia.js 2>/dev/null &&
+                grep -Fq '3D heliocentric orbital path' /tmp/live-gaia.js 2>/dev/null &&
+                ! grep -Fq 'GALAXY VIEW' /tmp/live-gaia.js 2>/dev/null &&
                grep -Fq 'coordinate_frame' /tmp/live-gaia-manifest.json 2>/dev/null &&
                test -s /tmp/live-gaia-part.bin.gz &&
                grep -Fq 'bridgepoint-celestial-sky-v6257.js?v=6257' /tmp/live-app.js 2>/dev/null &&
@@ -350,7 +359,7 @@ jobs:
                grep -Fq 'entryRoute=' /tmp/live-sw.js 2>/dev/null &&
                grep -Fq '/?return=' /tmp/live-app.html 2>/dev/null &&
                grep -Fq 'content="0;url=/"' /tmp/live-legacy.html 2>/dev/null &&
-               grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6269-solar-fire-plasma'" /tmp/live-sw.js 2>/dev/null &&
+               grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6280-unified-cosmos'" /tmp/live-sw.js 2>/dev/null &&
                grep -Fq 'runtimeMode' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'externalRuntimeTerrainRequests: 0' /tmp/live-space.js 2>/dev/null &&
                ! grep -Fq 'trek.nasa.gov/tiles/Moon' /tmp/live-space.js 2>/dev/null &&
@@ -370,4 +379,4 @@ jobs:
             sleep 3
           done
           test "$ok" -eq 1
-          echo 'LIVE V6270 PASS: Gaia DR3 stellar catalogue, Milky Way context, constellation support, heliocentric planetary scene, NASA solar surface and Moon terrain are served from the published site.'
+          echo 'LIVE V6280 PASS: one Gaia DR3 starfield, one shared Earth/Moon/Sun scene, anchored planetary spheres and orbital paths, selectable celestial bodies, NASA solar surface and Moon terrain are served from the published site.'
