@@ -97,12 +97,12 @@ def patch_root_html(source: str) -> str:
         ):
             if marker not in source:
                 raise AssertionError(f"Current welcome root is missing {marker}")
-        old_tag = '<script type="module" src="/bridgepoint-welcome-space-v6260.js?v=6266-solar-realism"></script>'
+        old_tag = '<script type="module" src="/bridgepoint-welcome-space-v6260.js?v=6265-solar-globe"></script>'
         new_tag = '<script type="module" src="/bridgepoint-welcome-space-v6260.js?v=6266-solar-realism"></script>'
         if old_tag in source:
             source = replace_once(source, old_tag, new_tag, "bump current welcome module URL")
         elif new_tag not in source:
-            raise AssertionError("Current welcome module URL is neither V6264 nor V6265")
+            raise AssertionError("Current welcome module URL is neither V6264, V6265 nor V6266")
         if 'data-space-ground' in source:
             raise AssertionError("Ground sky control must not appear on the welcome screen")
         return source
@@ -158,7 +158,7 @@ def patch_app_index(source: str) -> str:
     source = source.replace("/?auth=signin&return=", "/?return=")
     if source.count("/?return=") != 2 or "/?auth=signin&return=" in source:
         raise AssertionError("App launch redirects must preserve the return route through the root gate")
-    old_manifest = '../manifest.webmanifest?v=6266-solar-realism"'
+    old_manifest = '../manifest.webmanifest?v=6265-solar-globe"'
     new_manifest = '../manifest.webmanifest?v=6266-solar-realism"'
     if old_manifest in source:
         source = replace_once(source, old_manifest, new_manifest, "bump current app manifest URL")
@@ -166,7 +166,7 @@ def patch_app_index(source: str) -> str:
         source = replace_once(source, '../manifest.webmanifest"', new_manifest, "bust the app manifest URL")
     source = replace_prefix_once(
         source,
-        r"(app\.js\?v=)(?:6247-universal-fresh-entry|6264-geometric-crater-bowls)",
+        r"(app\.js\?v=)(?:6247-universal-fresh-entry|6264-geometric-crater-bowls|6265-solar-globe)",
         r"\g<1>6266-solar-realism",
         "bust the app bundle URL",
     )
@@ -175,12 +175,12 @@ def patch_app_index(source: str) -> str:
 def patch_legacy_app(source: str) -> str:
     # Already-migrated installed legacy route: preserve redirects and cache policy.
     if 'content="0;url=/"' in source and "location.replace('/')" in source:
-        old = "sw.js?v=6264-geometric-crater-bowls"
+        old = "sw.js?v=6265-solar-globe"
         new = "sw.js?v=6266-solar-realism"
         if old in source:
             source = replace_once(source, old, new, "bump current legacy service-worker URL")
         elif new not in source:
-            raise AssertionError("Current legacy service-worker URL is neither V6264 nor V6265")
+            raise AssertionError("Current legacy service-worker URL is neither V6264, V6265 nor V6266")
         return source
     source = replace_once(source, 'content="4;url=/app/?migrated=legacy-intelligence-v5820"', 'content="0;url=/"', "make legacy installed app route immediately to the canonical gate")
     source = replace_once(source, 'href="/app/" style="color:#4ad9ff"', 'href="/" style="color:#4ad9ff"', "legacy app fallback link")
@@ -253,7 +253,7 @@ def patch_landing_js(path: Path) -> None:
 
 def patch_worker(path: Path) -> None:
     source = path.read_text(encoding="utf-8")
-    current_build = "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6264-geometric-crater-bowls'"
+    current_build = "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6265-solar-globe'"
     next_build = "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='" + BUILD + "'"
     if current_build in source and "entryRoute=" in source:
         source = replace_once(source, current_build, next_build, "bump current welcome service-worker release marker")
@@ -323,7 +323,7 @@ def patch_site(site: Path) -> None:
 
     root = required["root"].read_text(encoding="utf-8")
     root = patch_root_html(root)
-    old_root_manifest = './manifest.webmanifest?v=6266-solar-realism"'
+    old_root_manifest = './manifest.webmanifest?v=6265-solar-globe"'
     new_root_manifest = './manifest.webmanifest?v=6266-solar-realism"'
     if old_root_manifest in root:
         root = replace_once(root, old_root_manifest, new_root_manifest, "bump current root manifest URL")
@@ -331,7 +331,7 @@ def patch_site(site: Path) -> None:
         root = replace_once(root, './manifest.webmanifest"', new_root_manifest, "bust the root manifest URL")
     root = replace_prefix_once(
         root,
-        r"(landing\.js\?v=)(?:6247-universal-fresh-entry|6264-geometric-crater-bowls)",
+        r"(landing\.js\?v=)(?:6247-universal-fresh-entry|6264-geometric-crater-bowls|6265-solar-globe)",
         r"\g<1>6266-solar-realism",
         "bust the landing bundle URL",
     )
@@ -347,7 +347,7 @@ def patch_site(site: Path) -> None:
 
     patch_manifest(required["root manifest"], "/bridgepoint-intelligence-v5050")
     legacy = patch_legacy_app(required["legacy app index"].read_text(encoding="utf-8"))
-    old_legacy_manifest = './manifest.webmanifest?v=6266-solar-realism"'
+    old_legacy_manifest = './manifest.webmanifest?v=6265-solar-globe"'
     new_legacy_manifest = './manifest.webmanifest?v=6266-solar-realism"'
     if old_legacy_manifest in legacy:
         legacy = replace_once(legacy, old_legacy_manifest, new_legacy_manifest, "bump current legacy manifest URL")
@@ -377,9 +377,11 @@ def patch_site(site: Path) -> None:
         "service worker": ["const V='" + CACHE_NAME + "';", "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6266-solar-realism'", "entryRoute", "clients.claim()"],
         "welcome space module": [
             "new THREE.Raycaster()", "logarithmicDepthBuffer: true", "MOON_PERIOD_DAYS = 27.321661",
-            "data-space-reset", "uPhotosphereMap", "sun-photosphere-v2.webp",
-            "sun-coronal-activity-v2.webp", "addCoronalLoop", "rotateSunSurface",
-            "function panSunSurface", "function tiltSunCamera", "uFarSideMap"
+            "data-space-reset", "uPhotosphereMap", "sun-photosphere-v2.webp", "sun-photosphere-height-v2.webp",
+            "sun-coronal-activity-v2.webp", "sun-stereoB-farside-EUV-2014-09-27-v2.webp",
+            "addCoronalLoop", "createSolarPlasmaMaterial", "applySunReliefFromImage",
+            "syncSunDepthGeometry", "earthDepthOccluder", "Sun solid opaque depth occluder",
+            "function panSunSurface", "panSunSurface(dx,dy)", "function tiltSunCamera", "uFarSideMap"
         ],
         "celestial sky module": ["apparentAngularRadiusPx", "bp6257-sun-surface", "initBridgePointCelestialSky"],
         "legacy app index": ['content="0;url=/"', "location.replace('/')", "sw.js?v=6266-solar-realism"],
