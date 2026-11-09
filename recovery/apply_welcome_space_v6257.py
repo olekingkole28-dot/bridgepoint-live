@@ -191,12 +191,12 @@ def patch_app_index(source: str) -> str:
 def patch_legacy_app(source: str) -> str:
     # Already-migrated installed legacy route: preserve redirects and cache policy.
     if 'content="0;url=/"' in source and "location.replace('/')" in source:
-        old = "sw.js?v=6265-solar-globe"
-        new = "sw.js?v=6266-solar-realism"
-        if old in source:
-            source = replace_once(source, old, new, "bump current legacy service-worker URL")
-        elif new not in source:
-            raise AssertionError("Current legacy service-worker URL is neither V6264, V6265 nor V6266")
+        sw_pattern = re.compile(r"(sw\.js\?v=)[^\"'\s&]+")
+        source, count = sw_pattern.subn(
+            r"\g<1>" + BUILD[1:], source, count=1
+        )
+        if count != 1:
+            raise AssertionError("Current legacy service-worker URL is missing or duplicated")
         return source
     source = replace_once(source, 'content="4;url=/app/?migrated=legacy-intelligence-v5820"', 'content="0;url=/"', "make legacy installed app route immediately to the canonical gate")
     source = replace_once(source, 'href="/app/" style="color:#4ad9ff"', 'href="/" style="color:#4ad9ff"', "legacy app fallback link")
