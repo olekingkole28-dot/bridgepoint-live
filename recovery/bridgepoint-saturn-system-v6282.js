@@ -131,8 +131,7 @@ export function initBridgePointSaturnSystem(options){
    '#include <begin_vertex>\nvSaturnLocalPosition=position;');
   shader.fragmentShader=shader.fragmentShader.replace('#include <common>',
    '#include <common>\nuniform float uSaturnAtmosTime;\nuniform vec3 uSaturnLightDir;\nvarying vec3 vSaturnLocalPosition;');
-  shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>',`
-   vec2 saturnUvA=vMapUv;
+  shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>',`\n   #ifdef USE_MAP\n   vec2 saturnUvA=vMapUv;
    vec2 saturnUvB=vMapUv;
    saturnUvA.x=.175+mod((vMapUv.x-.175)+uSaturnAtmosTime*.0000065,.75);
    saturnUvB.x=.175+mod((vMapUv.x-.175)-uSaturnAtmosTime*.0000032,.75);
@@ -154,8 +153,7 @@ export function initBridgePointSaturnSystem(options){
    float ringCoverage=smoothstep(10.2,10.7,ringHitRadius)*(1.0-smoothstep(74.2,75.5,ringHitRadius));
    float ringShadow=ringCoverage*step(0.0,ringRayT)*step(.025,abs(lightY))*.46;
    saturnCloud.rgb*=1.0-ringShadow;
-   diffuseColor*=saturnCloud;
-  `);
+   diffuseColor*=saturnCloud;\n   #endif\n  `);
  };
  saturnMaterial.customProgramCacheKey=()=> 'bridgepoint-saturn-dual-cloud-flow-ring-shadow-v6284';
  const saturnMesh=new THREE.Mesh(saturnGeometry,saturnMaterial);
