@@ -1,4 +1,4 @@
-name: Publish BridgePoint Unified Gaia and Saturn System Scene V6282
+name: Publish BridgePoint Isolated Saturn System Scene V6283
 
 on:
   push:
@@ -27,7 +27,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: bridgepoint-welcome-space-v6282-saturn-system
+  group: bridgepoint-welcome-space-v6283-saturn-isolated
   cancel-in-progress: true
 
 jobs:
@@ -245,10 +245,15 @@ jobs:
           grep -Fq 'initBridgePointSaturnSystem' site/bridgepoint-gaia-galaxy-v6270.js
           grep -Fq 'saturnController?.update?.()' site/bridgepoint-gaia-galaxy-v6270.js
           grep -Fq 'value="saturn">Saturn' site/bridgepoint-gaia-galaxy-v6270.js
-          grep -Fq 'value="titan">Titan' site/bridgepoint-gaia-galaxy-v6270.js
-          grep -Fq 'value="enceladus">Enceladus' site/bridgepoint-gaia-galaxy-v6270.js
-          grep -Fq 'value="mimas">Mimas' site/bridgepoint-gaia-galaxy-v6270.js
-          grep -Fq 'SATURN_SYSTEM' site/bridgepoint-saturn-system-v6282.js || grep -Fq 'v6282' site/bridgepoint-saturn-system-v6282.js
+          grep -Fq 'value="saturn">Saturn' site/bridgepoint-gaia-galaxy-v6270.js
+          ! grep -Fq 'value="titan">Titan' site/bridgepoint-gaia-galaxy-v6270.js
+          ! grep -Fq 'value="enceladus">Enceladus' site/bridgepoint-gaia-galaxy-v6270.js
+          ! grep -Fq 'value="mimas">Mimas' site/bridgepoint-gaia-galaxy-v6270.js
+          grep -Fq "bodySelect.value=['titan','enceladus','mimas'].includes(selectedBody)?'saturn':selectedBody" site/bridgepoint-gaia-galaxy-v6270.js
+          grep -Fq 'v6283-isolated' site/bridgepoint-saturn-system-v6282.js
+          grep -Fq 'SaturnSystemGroup' site/bridgepoint-saturn-system-v6282.js
+          grep -Fq 'uSaturnAtmosTime' site/bridgepoint-saturn-system-v6282.js
+          grep -Fq 'const segments=key=='"'"'titan'"'"'?(isMobile?256:512)' site/bridgepoint-saturn-system-v6282.js
           grep -Fq "addRing('B',92000,117580" site/bridgepoint-saturn-system-v6282.js
           grep -Fq 'Titan thick golden nitrogen atmosphere' site/bridgepoint-saturn-system-v6282.js
           grep -Fq 'Enceladus animated water-ice plume particles' site/bridgepoint-saturn-system-v6282.js
@@ -269,10 +274,14 @@ jobs:
           ! grep -Fq 'GAIA_DR3_GALAXY_V6270' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'coordinate_frame' site/assets/stellar/gaia-dr3-v6270/manifest.json
           grep -Fq 'bpWelcomeGateStylesV6257' site/index.html
-          grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6282-saturn-system"' site/index.html
+          grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6283-saturn-isolated"' site/index.html
           grep -Fq 'data-mode="signup"' site/index.html
           grep -Fq 'data-mode="signin"' site/index.html
           grep -Fq 'new THREE.Raycaster()' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'scene.background=new THREE.Color(0x02050c)' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'earth.visible=false;moonPivot.visible=false;sunGroup.visible=false;haze.visible=false' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'function panSaturnSurface(dx,dy)' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'function tiltSaturnCamera(deltaY)' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'logarithmicDepthBuffer: true' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'uPhotosphereMap' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'sun-photosphere-v2.webp' site/bridgepoint-welcome-space-v6260.js
@@ -389,7 +398,7 @@ jobs:
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/intelligence-launch/?welcome-space-v6257=${q}" -o /tmp/live-legacy.html || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/sw.js?verify=${q}" -o /tmp/live-sw.js || true
             if grep -Fq 'bpWelcomeGateStylesV6257' /tmp/live-root.html 2>/dev/null &&
-               grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6282-saturn-system"' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6283-saturn-isolated"' /tmp/live-root.html 2>/dev/null &&
                grep -Fq '__BP_WELCOME_SYNC_SPACE_ZOOM_V1__' /tmp/live-root.html 2>/dev/null &&
                grep -Fq 'new THREE.Raycaster()' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'uPhotosphereMap' /tmp/live-space.js 2>/dev/null &&
@@ -445,7 +454,7 @@ jobs:
                grep -Fq 'entryRoute=' /tmp/live-sw.js 2>/dev/null &&
                grep -Fq '/?return=' /tmp/live-app.html 2>/dev/null &&
                grep -Fq 'content="0;url=/"' /tmp/live-legacy.html 2>/dev/null &&
-               grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6282-saturn-system'" /tmp/live-sw.js 2>/dev/null &&
+               grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6283-saturn-isolated'" /tmp/live-sw.js 2>/dev/null &&
                grep -Fq 'runtimeMode' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'externalRuntimeTerrainRequests: 0' /tmp/live-space.js 2>/dev/null &&
                ! grep -Fq 'trek.nasa.gov/tiles/Moon' /tmp/live-space.js 2>/dev/null &&
@@ -465,4 +474,4 @@ jobs:
             sleep 3
           done
           test "$ok" -eq 1
-          echo 'LIVE V6282 PASS: unchanged Earth/Moon/Sun scene plus selectable Saturn, Cassini moon meshes, Titan DEM, rings and local Saturn-centred JPL ephemerides are served from the published site.'
+          echo 'LIVE V6283 PASS: isolated Saturn module, canvas-clickable Cassini moons, live cloud drift, Cassini rings and local Saturn terrain assets are served while Earth/Moon/Sun remain preserved.'
