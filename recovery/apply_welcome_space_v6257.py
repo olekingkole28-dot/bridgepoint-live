@@ -5,9 +5,9 @@ import re
 import sys
 from pathlib import Path
 
-BUILD = "v6266-solar-realism"
+BUILD = "v6267-sun-visible"
 # Moon terrain assets are bundled locally under assets/moon/v1; runtime requests stay same-origin.
-SW_URL = "/sw.js?v=6266-solar-realism"
+SW_URL = "/sw.js?v=6267-sun-visible"
 CACHE_NAME = "bp-intelligence-v6247-universal-fresh-entry-sidewalk"
 
 
@@ -120,7 +120,7 @@ def patch_root_html(source: str) -> str:
             re.IGNORECASE,
         )
         source, module_src_count = module_src_pattern.subn(
-            r'\g<1>6266-solar-realism\g<2>', source, count=1
+            r'\g<1>6267-sun-visible\g<2>', source, count=1
         )
         if module_src_count != 1:
             raise AssertionError("Current welcome module src is missing or duplicated")
@@ -159,7 +159,7 @@ def patch_root_html(source: str) -> str:
     near_anchor = '    <div class="bpw-starfield bpw-stars-near" id="bpwStarsNearV4" aria-hidden="true"></div>\n'
     source = replace_once(source, near_anchor, near_anchor + """    <div class="bpw-celestial-system" aria-hidden="true"></div>\n""", "insert Moon and Sun stage")
     source = patch_stars(source)
-    module_tag = '<script type="module" src="/bridgepoint-welcome-space-v6260.js?v=6266-solar-realism"></script>\n'
+    module_tag = '<script type="module" src="/bridgepoint-welcome-space-v6260.js?v=6267-sun-visible"></script>\n'
     source = replace_once(source, "</body>", module_tag + "</body>", "load the modular Three.js welcome scene")
     source = replace_once(source, "</head>", launch_styles() + "\n</head>", "install responsive welcome styling")
     pageshow_old = "window.addEventListener('pageshow',()=>{if(['/','/index.html','/app/','/app/index.html'].includes(location.pathname))window.scrollTo(0,0)},{once:true});"
@@ -183,7 +183,7 @@ def patch_app_index(source: str) -> str:
     source = replace_prefix_once(
         source,
         r"(app\.js\?v=)(?:6247-universal-fresh-entry|6264-geometric-crater-bowls|6265-solar-globe)",
-        r"\g<1>6266-solar-realism",
+        r"\g<1>6267-sun-visible",
         "bust the app bundle URL",
     )
     return source
@@ -200,7 +200,7 @@ def patch_legacy_app(source: str) -> str:
         return source
     source = replace_once(source, 'content="4;url=/app/?migrated=legacy-intelligence-v5820"', 'content="0;url=/"', "make legacy installed app route immediately to the canonical gate")
     source = replace_once(source, 'href="/app/" style="color:#4ad9ff"', 'href="/" style="color:#4ad9ff"', "legacy app fallback link")
-    source = replace_once(source, "sw.js?v=6218-tree-viewport-renderer-refresh", "sw.js?v=6266-solar-realism", "refresh legacy app service worker")
+    source = replace_once(source, "sw.js?v=6218-tree-viewport-renderer-refresh", "sw.js?v=6267-sun-visible", "refresh legacy app service worker")
     source = replace_once(source, "k.startsWith('bp-intelligence-')&&k!=='bp-intelligence-v5820'", "k.startsWith('bp-intelligence-')&&k!=='bp-intelligence-v6247-universal-fresh-entry-sidewalk'", "preserve the existing offline cache during legacy-app migration")
     source = replace_once(source, "location.replace('/app/?migrated=legacy-intelligence-v5820')", "location.replace('/')", "legacy app final route")
     return source
@@ -217,7 +217,7 @@ def patch_manifest(path: Path, expected_id: str) -> None:
 
 def patch_bundle(path: Path) -> None:
     source = path.read_text(encoding="utf-8")
-    new_url = "navigator.serviceWorker.register('/sw.js?v=6266-solar-realism',{updateViaCache:'none'})"
+    new_url = "navigator.serviceWorker.register('/sw.js?v=6267-sun-visible',{updateViaCache:'none'})"
     old_urls = (
         "navigator.serviceWorker.register('/sw.js?v=6247-universal-fresh-entry-sidewalk',{updateViaCache:'none'})",
         "navigator.serviceWorker.register('/sw.js?v=6264-geometric-crater-bowls',{updateViaCache:'none'})",
@@ -361,7 +361,7 @@ def patch_site(site: Path) -> None:
     root = replace_prefix_once(
         root,
         r"(landing\.js\?v=)(?:6247-universal-fresh-entry|6264-geometric-crater-bowls|6265-solar-globe)",
-        r"\g<1>6266-solar-realism",
+        r"\g<1>6267-sun-visible",
         "bust the landing bundle URL",
     )
     required["root"].write_text(root, encoding="utf-8")
@@ -387,18 +387,18 @@ def patch_site(site: Path) -> None:
             "bpw-celestial-system",
             "bpw-wordmark-main",
             "bpWelcomeGateStylesV6257",
-            'src="/bridgepoint-welcome-space-v6260.js?v=6266-solar-realism"',
+            'src="/bridgepoint-welcome-space-v6260.js?v=6267-sun-visible"',
             'data-mode="signup"',
             'data-mode="signin"',
         ],
         "app index": [
             "/?return=",
-            "app.js?v=6266-solar-realism",
-            "manifest.webmanifest?v=6266-solar-realism",
+            "app.js?v=6267-sun-visible",
+            "manifest.webmanifest?v=6267-sun-visible",
         ],
         "landing bundle": [SW_URL, "bridgepoint-celestial-sky-v6257.js?v=6257"],
         "app bundle": [SW_URL, "bridgepoint-celestial-sky-v6257.js?v=6257"],
-        "service worker": ["const V='" + CACHE_NAME + "';", "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6266-solar-realism'", "entryRoute", "clients.claim()"],
+        "service worker": ["const V='" + CACHE_NAME + "';", "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6267-sun-visible'", "entryRoute", "clients.claim()"],
         "welcome space module": [
             "new THREE.Raycaster()", "logarithmicDepthBuffer: true", "MOON_PERIOD_DAYS = 27.321661",
             "data-space-reset", "uPhotosphereMap", "sun-photosphere-v2.webp", "sun-photosphere-height-v2.webp",
@@ -408,7 +408,7 @@ def patch_site(site: Path) -> None:
             "function panSunSurface", "panSunSurface(dx,dy)", "function tiltSunCamera", "uFarSideMap"
         ],
         "celestial sky module": ["apparentAngularRadiusPx", "bp6257-sun-surface", "initBridgePointCelestialSky"],
-        "legacy app index": ['content="0;url=/"', "location.replace('/')", "sw.js?v=6266-solar-realism"],
+        "legacy app index": ['content="0;url=/"', "location.replace('/')", "sw.js?v=6267-sun-visible"],
     }
     for label, markers in checks.items():
         content = required[label].read_text(encoding="utf-8")
