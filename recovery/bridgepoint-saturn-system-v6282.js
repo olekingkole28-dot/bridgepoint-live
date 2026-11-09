@@ -109,7 +109,12 @@ export function initBridgePointSaturnSystem(options){
   loaded:{saturnTexture:false,titanDEM:false,titanTexture:false,enceladusShape:false,enceladusTexture:false,mimasShape:false,mimasTexture:false},
   errors:[],moonCount:3,ringBands:['D','C','B','Cassini Division','A','F','G','E']};
  const root=new THREE.Group();root.name='Saturn and three Cassini-mapped moons — physical scale';
- root.rotation.z=26.73*DEG;solarRoot.add(root);
+ // Saturn pole (IAU body pole RA 40.589°, Dec 83.537°) transformed from ICRF into ecliptic axes.
+ const saturnPoleRA=40.589*DEG,saturnPoleDec=83.537*DEG,obliquity=23.439291*DEG;
+ const poleEq=[Math.cos(saturnPoleDec)*Math.cos(saturnPoleRA),Math.cos(saturnPoleDec)*Math.sin(saturnPoleRA),Math.sin(saturnPoleDec)];
+ const poleEcl=[poleEq[0],poleEq[1]*Math.cos(obliquity)+poleEq[2]*Math.sin(obliquity),-poleEq[1]*Math.sin(obliquity)+poleEq[2]*Math.cos(obliquity)];
+ root.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(poleEcl[0],poleEcl[2],poleEcl[1]).normalize());
+ solarRoot.add(root);
  const saturnRadius=SATURN_RADIUS_KM/EARTH_RADIUS_KM;
  const saturnGeometry=new THREE.SphereGeometry(saturnRadius,isMobile?128:192,isMobile?80:128);
  const saturnMaterial=new THREE.MeshStandardMaterial({color:0xe2c995,roughness:.95,metalness:0});
@@ -164,7 +169,9 @@ export function initBridgePointSaturnSystem(options){
  let titanAtmosphere=null;
  for(const [key,m] of Object.entries(MOONS)){
   const radius=m.radiusKm/EARTH_RADIUS_KM;
-  const placeholder=new THREE.Mesh(new THREE.SphereGeometry(radius,isMobile?48:72,isMobile?32:48),
+  const segments=key==='titan'?(isMobile?160:256):(isMobile?48:72);
+  const rings=key==='titan'?(isMobile?80:128):(isMobile?32:48);
+  const placeholder=new THREE.Mesh(new THREE.SphereGeometry(radius,segments,rings),
    new THREE.MeshStandardMaterial({color:m.color,roughness:.92,metalness:0}));
   placeholder.name=m.name+' — physical-size 3D moon';placeholder.userData.body=key;
   root.add(placeholder);moonMeshes.set(key,placeholder);planetMeshes.set(key,placeholder);clickables.push(placeholder);
@@ -211,7 +218,7 @@ export function initBridgePointSaturnSystem(options){
 
  let loadPromise=null;
  async function loadAssets(){
-  const urls=[['saturn','textures/saturn-cassini-iss-global.webp'],['titan','textures/titan-cassini-radar-topography.webp'],
+  const urls=[['saturn','textures/saturn-cassini-iss-global.webp'],['titan','textures/titan-cassini-surface-mosaic.webp'],
    ['enceladus','textures/enceladus-cassini-global-map.webp'],['mimas','textures/mimas-cassini-global-map.webp']];
   const loaded={};
   for(const [key,path] of urls){
