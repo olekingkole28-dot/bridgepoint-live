@@ -1,4 +1,4 @@
-import { initBridgePointSaturnSystem } from './bridgepoint-saturn-system-v6282.js?v=6284-saturn-movement-depth';
+import { initBridgePointSaturnSystem } from './bridgepoint-saturn-system-v6282.js?v=6285-saturn-lossless-pages';
 
 /**
  * BridgePoint unified celestial space — Gaia DR3 stars + solar-system bodies.
@@ -9,7 +9,7 @@ import { initBridgePointSaturnSystem } from './bridgepoint-saturn-system-v6282.j
  * ephemerides use the same Galactic frame; the shared frame is rotated once so
  * its computed Earth-Sun vector meets the existing welcome Sun position.
  */
-const BUILD='v6284-saturn-movement-depth';
+const BUILD='v6285-saturn-lossless-pages';
 const ROOT='/assets/stellar/gaia-dr3-v6270/';
 const DEG=Math.PI/180;
 const AU_PC=1/206264.80624709636;
