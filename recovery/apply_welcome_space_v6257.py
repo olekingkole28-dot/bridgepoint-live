@@ -439,7 +439,7 @@ def patch_site(site: Path) -> None:
         raise AssertionError("The current installed-app identity changed")
     if legacy_manifest.get("id") != "/app/intelligence-launch/":
         raise AssertionError("The legacy installed-app identity changed")
-    print("BRIDGEPOINT_WELCOME_SPACE_V6268_SOLAR_OBSERVATORY_PATCH_PASS")
+    print("BRIDGEPOINT_WELCOME_SPACE_V6269_SOLAR_FIRE_PLASMA_PATCH_PASS")
     print("Website, app, current PWA and legacy PWA route to the same root globe gate.")
     print("The Sun uses a warm SDO/HMI continuum, timestamped HMI polarity observations, and local AIA 131/171/193/304 channels for the animated coronal shell and observation-positioned active-region structures.")
     print("Existing lunar terrain assets, offline data caches and authentication/session logic are preserved.")
