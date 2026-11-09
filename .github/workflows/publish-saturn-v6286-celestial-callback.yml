@@ -1,5 +1,5 @@
 name: Publish Saturn v6286 Celestial Initialization Fix
-# v6286.1: recognize and migrate the compact v6285 Pages cache keys.
+# v6286.2: recognize the v6285 Pages cache keys and service-worker registration.
 
 on:
   push:
