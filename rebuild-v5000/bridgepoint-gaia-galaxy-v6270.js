@@ -296,7 +296,7 @@ export function initBridgePointSolarCosmos(o){
  function getBody(name){return bodyMap.get(String(name||'').toLowerCase())||null}
  const saturnController=initBridgePointSaturnSystem({
   THREE,solarRoot,host,camera,bodyMap,planetMeshes,clickables,labelsGroup,labelMap,
-  getSaturnPosition:()=>{const f=starState.frame;return f?planetPos(THREE,PLANETS.find(p=>p.name==='Saturn'),f.days,f.ob).multiplyScalar(f.auScale):null},
+  getSaturnPosition:()=>{const f=starState.frame;return f?planetPos(THREE,PLANETS.find(p=>p.name==='Saturn'),f.days,f.ob).applyQuaternion(f.orientation.clone().invert()).multiplyScalar(f.auScale):null},
   getSelectedBody:()=>selectedBody,isMobile
  });
  async function load(){
