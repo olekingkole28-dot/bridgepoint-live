@@ -16,7 +16,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
 
 (() => {
   'use strict';
-  const VERSION = 'v6264';
+  const VERSION = 'v6265-solar-globe';
   if (window.__BP_WELCOME_SPACE_V6257__) return;
   window.__BP_WELCOME_SPACE_V6257__ = true;
 
@@ -194,10 +194,19 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   const sunRadiusVisual = 1.22;
   const sunGeometry = new THREE.SphereGeometry(sunRadiusVisual, mobile ? 80 : 128, mobile ? 56 : 96);
   const sunMaterial = new THREE.ShaderMaterial({
-    uniforms: { uTime: { value: 0 } },
+    uniforms: {
+      uTime: { value: 0 },
+      uPhotosphereMap: { value: null }, uPhotosphereReady: { value: 0 },
+      uActivityMap: { value: null }, uActivityReady: { value: 0 },
+      uMagneticMap: { value: null }, uMagneticReady: { value: 0 }
+    },
     vertexShader: `varying vec3 vPos; varying vec3 vNormal; void main(){vPos=position;vNormal=normalize(normal);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
     fragmentShader: `
-      precision highp float; varying vec3 vPos; varying vec3 vNormal; uniform float uTime;
+      precision highp float;
+      varying vec3 vPos; varying vec3 vNormal; uniform float uTime;
+      uniform sampler2D uPhotosphereMap; uniform float uPhotosphereReady;
+      uniform sampler2D uActivityMap; uniform float uActivityReady;
+      uniform sampler2D uMagneticMap; uniform float uMagneticReady;
       float hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
       float noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
         float a=hash(i),b=hash(i+vec3(1,0,0)),c=hash(i+vec3(0,1,0)),d=hash(i+vec3(1,1,0));
@@ -209,18 +218,42 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
         float gran=fbm(p*31.0+vec3(t,-t*.7,t*.4));
         float cells=fbm(p*74.0+vec3(-t*.8,t*.5,t));
         float filaments=fbm(p*18.0+vec3(t*.5,4.0,-t));
-        vec3 c=mix(vec3(.42,.018,.002),vec3(1.0,.33,.035),smoothstep(.18,.78,gran));
-        c=mix(c,vec3(1.0,.79,.30),smoothstep(.36,.80,cells)*.78);
-        c=mix(c,vec3(1.0,.97,.77),pow(max(cells-.58,0.0),1.4)*.60);
-        c*=.78+.38*filaments;
-        float s1=length((p.xy-vec2(-.30,.18))*vec2(1.0,1.6));
-        float s2=length((p.xy-vec2(.22,-.28))*vec2(1.4,1.0));
-        float spots=max(1.0-smoothstep(.03,.13,s1),1.0-smoothstep(.025,.105,s2));
-        c=mix(c,vec3(.16,.012,.001),spots*.82);
-        c*=.42+.58*pow(max(vNormal.z,0.0),.42);
+        vec3 procedural=mix(vec3(.42,.018,.002),vec3(1.0,.33,.035),smoothstep(.18,.78,gran));
+        procedural=mix(procedural,vec3(1.0,.79,.30),smoothstep(.36,.80,cells)*.78);
+        procedural=mix(procedural,vec3(1.0,.97,.77),pow(max(cells-.58,0.0),1.4)*.60);
+        procedural*=.78+.38*filaments;
+        vec2 bodyUV=vec2(atan(-p.x,p.z)/6.28318530718+.5,.5+asin(clamp(p.y,-1.0,1.0))/3.14159265359);
+        vec3 observed=texture2D(uPhotosphereMap,bodyUV).rgb;
+        vec3 c=mix(procedural,observed,uPhotosphereReady);
+        vec3 activity=texture2D(uActivityMap,bodyUV).rgb;
+        float activityLevel=clamp(max(max(activity.r,activity.g),activity.b),0.0,1.0);
+        c=mix(c,c*.82+activity*.34,uActivityReady*clamp(activityLevel*.46,0.0,.42));
+        vec3 magnetic=texture2D(uMagneticMap,bodyUV).rgb;
+        float magneticLevel=clamp(max(max(magnetic.r,magnetic.g),magnetic.b),0.0,1.0);
+        c+=vec3(.10,.018,.004)*magneticLevel*.10*uMagneticReady;
+        float boiling=0.965+.055*sin(t*1.9+gran*9.0+filaments*7.0);
+        c*=boiling;
+        c*=.48+.52*pow(max(vNormal.z,0.0),.42);
         gl_FragColor=vec4(c,1.0);
       }`
   });
+  const solarTextureLoader = new THREE.TextureLoader();
+  function loadSolarTexture(file, readyUniform) {
+    const url='/assets/sun/v1/'+file;
+    return solarTextureLoader.load(url,texture=>{
+      texture.colorSpace=THREE.SRGBColorSpace;
+      texture.wrapS=THREE.RepeatWrapping;
+      texture.wrapT=THREE.ClampToEdgeWrapping;
+      texture.anisotropy=Math.min(renderer.capabilities.getMaxAnisotropy(),mobile?4:8);
+      texture.needsUpdate=true;
+      sunMaterial.uniforms[readyUniform].value=1;
+      if(window.__BP_SOLAR_SURFACE_V1__)window.__BP_SOLAR_SURFACE_V1__[readyUniform]=true;
+    },undefined,error=>console.error('[BridgePoint Sun] Local solar texture failed:',url,error));
+  }
+  sunMaterial.uniforms.uPhotosphereMap.value=loadSolarTexture('sun-photosphere-v1.webp','uPhotosphereReady');
+  sunMaterial.uniforms.uActivityMap.value=loadSolarTexture('sun-coronal-activity-v1.webp','uActivityReady');
+  sunMaterial.uniforms.uMagneticMap.value=loadSolarTexture('sun-magnetic-field-v1.webp','uMagneticReady');
+  window.__BP_SOLAR_SURFACE_V1__={version:1,status:'loading-local-assets',assetBase:'/assets/sun/v1/',photosphereSource:'NASA SDO HMI Intensitygram Continuum',activitySources:['SDO AIA 171','SDO AIA 193','SDO AIA 304','SDO AIA 335'],magneticSource:'SDO HMI magnetic field',runtimeNetwork:'same-origin-local-static-assets-only',farHemisphere:'procedural granulation; not directly observed'};
   const sunGroup = new THREE.Group();
   sunGroup.name = 'Sun';
   sunGroup.position.copy(sunPosition);
@@ -229,11 +262,54 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   sunMesh.name = 'Sun surface';
   sunMesh.userData.body = 'sun';
   sunGroup.add(sunMesh);
+  function sunSurfacePoint(latitude,longitude,radius=sunRadiusVisual){
+    const lat=THREE.MathUtils.degToRad(latitude),lon=THREE.MathUtils.degToRad(longitude),c=Math.cos(lat);
+    return new THREE.Vector3(-c*Math.sin(lon)*radius,Math.sin(lat)*radius,c*Math.cos(lon)*radius);
+  }
+  const solarFeatureGroup=new THREE.Group();
+  solarFeatureGroup.name='Three-dimensional coronal loops and solar flare prominences';
+  sunGroup.add(solarFeatureGroup);
+  const coronalLoopMeshes=[];
+  const addCoronalLoop=(lat1,lon1,lat2,lon2,height,color,phase)=>{
+    const start=sunSurfacePoint(lat1,lon1,sunRadiusVisual*1.008);
+    const end=sunSurfacePoint(lat2,lon2,sunRadiusVisual*1.008);
+    const control=start.clone().add(end).normalize().multiplyScalar(sunRadiusVisual*height);
+    const curve=new THREE.QuadraticBezierCurve3(start,control,end);
+    const material=new THREE.MeshBasicMaterial({color,transparent:true,opacity:.56,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide});
+    const mesh=new THREE.Mesh(new THREE.TubeGeometry(curve,52,mobile?.0045:.007,7,false),material);
+    mesh.userData.phase=phase;solarFeatureGroup.add(mesh);coronalLoopMeshes.push(mesh);
+  };
+  [
+    [-16,-43,13,-20,1.42,0xff8a32],[-8,8,17,35,1.58,0xffbf65],
+    [20,-12,5,24,1.36,0xff7432],[28,30,4,48,1.52,0xffa84c],
+    [-30,-18,-7,12,1.44,0xff7138],[7,-55,25,-34,1.62,0xffd07b],
+    [-22,26,-4,52,1.38,0xff8a3d],[3,38,22,62,1.48,0xffb65e]
+  ].forEach((v,i)=>addCoronalLoop(v[0],v[1],v[2],v[3],v[4],v[5],i*.83));
+  const flareMeshes=[];
+  for(let i=0;i<5;i++){
+    const latitude=[-34,-12,11,29,2][i],longitude=[-48,-24,5,34,52][i];
+    const base=sunSurfacePoint(latitude,longitude,sunRadiusVisual*1.006);
+    const normal=base.clone().normalize();
+    let tangent=new THREE.Vector3(0,1,0).cross(normal);
+    if(tangent.lengthSq()<.01)tangent=new THREE.Vector3(1,0,0).cross(normal);
+    tangent.normalize();
+    const bend=(i%2?1:-1)*sunRadiusVisual*.16;
+    const points=[
+      base,
+      base.clone().addScaledVector(normal,sunRadiusVisual*.20).addScaledVector(tangent,bend*.35),
+      base.clone().addScaledVector(normal,sunRadiusVisual*.48).addScaledVector(tangent,bend),
+      base.clone().addScaledVector(normal,sunRadiusVisual*(.72+(i%3)*.12)).addScaledVector(tangent,bend*1.25)
+    ];
+    const curve=new THREE.CatmullRomCurve3(points);
+    const material=new THREE.MeshBasicMaterial({color:i%2?0xff6a28:0xffc15c,transparent:true,opacity:.54,blending:THREE.AdditiveBlending,depthWrite:false});
+    const mesh=new THREE.Mesh(new THREE.TubeGeometry(curve,36,mobile?.005:.008,6,false),material);
+    mesh.userData.phase=i*1.27;solarFeatureGroup.add(mesh);flareMeshes.push(mesh);
+  }
   const corona = new THREE.Sprite(new THREE.SpriteMaterial({
     map: makeGlowTexture(), color: 0xff9c3d, transparent: true, opacity: 0.68,
     blending: THREE.AdditiveBlending, depthWrite: false
   }));
-  corona.scale.set(sunRadiusVisual * 3.0, sunRadiusVisual * 3.0, 1);
+  corona.scale.set(sunRadiusVisual * 4.2, sunRadiusVisual * 4.2, 1);
   sunGroup.add(corona);
   const sunLight = new THREE.PointLight(0xffe2b2, 260000, 0, 2);
   sunLight.position.copy(sunPosition);
@@ -314,7 +390,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   const pointer=new THREE.Vector2();
   const clickables=[moonMesh,sunMesh];
   let viewState='overview',focusedObject=null;
-  let focusLocalTarget=null,moonTerrainController=null;
+  let focusLocalTarget=null,moonTerrainController=null,sunFocusLocalTarget=null;
 
 // Lunar elevation and color are served only from BridgePoint static assets.
 // Source products were materialized locally; the browser never requests NASA/Moon Trek tiles.
@@ -1039,13 +1115,18 @@ function createMoonTerrainController() {
     const focused=body==='moon'?moonMesh:body==='sun'?sunMesh:null;
     if(!focused)return;
     focusedObject=focused;viewState=body;camera.up.set(0,1,0);
-    if(body!=='moon'){focusLocalTarget=null;moonTerrainController?.setActive(false);camera.near=0.001;}else{camera.near=0.00000005;}
+    if(body==='moon'){
+      sunFocusLocalTarget=null;focusLocalTarget=null;camera.near=0.00000005;
+      moonTerrainController?.setActive(false);
+    }else{
+      focusLocalTarget=null;moonTerrainController?.setActive(false);
+      camera.near=body==='sun'?0.0000001:0.001;
+    }
     moonPivot.visible=true;sunGroup.visible=true;stars.visible=true;haze.visible=true;
     moonMesh.scale.setScalar(1);sunMesh.scale.setScalar(1);
     const world=focused===sunMesh?sunGroup.getWorldPosition(new THREE.Vector3()):focused.getWorldPosition(new THREE.Vector3());
     if(body==='moon'){
       camera.fov=42;camera.updateProjectionMatrix();
-      // Keep the selected NASA near-side DEM site at the center of the lunar view.
       const focusLat=26.1322,focusLon=3.6333;
       focusLocalTarget=moonSurfacePoint(focusLat,focusLon,0);
       moonMesh.updateMatrixWorld(true);
@@ -1063,11 +1144,15 @@ function createMoonTerrainController() {
       }).catch(error=>console.warn('[BridgePoint Moon] NASA DEM load failed:',error));
     }else{
       camera.fov=62;camera.updateProjectionMatrix();
-      animateCamera(world.clone().add(new THREE.Vector3(0,0,sunRadiusVisual*2.7)),world,1.8);
+      sunFocusLocalTarget.set(0,0,sunRadiusVisual);
+      sunGroup.updateMatrixWorld(true);
+      const surface=sunGroup.localToWorld(sunFocusLocalTarget.clone());
+      const surfaceNormal=sunFocusLocalTarget.clone().normalize().transformDirection(sunGroup.matrixWorld);
+      animateCamera(surface.clone().addScaledVector(surfaceNormal,sunRadiusVisual*1.7),surface,1.8);
     }
   }
   function resetView(){
-    focusedObject=null;focusLocalTarget=null;viewState='overview';moonTerrainController?.setActive(false);camera.near=0.001;camera.up.set(0,1,0);camera.fov=48;camera.updateProjectionMatrix();
+    focusedObject=null;focusLocalTarget=null;sunFocusLocalTarget=null;viewState='overview';moonTerrainController?.setActive(false);camera.near=0.001;camera.up.set(0,1,0);camera.fov=48;camera.updateProjectionMatrix();
     moonMesh.scale.setScalar(1);sunMesh.scale.setScalar(1);
     moonPivot.visible=true;sunGroup.visible=true;stars.visible=true;haze.visible=true;
     setResponsiveSunPosition();
@@ -1096,8 +1181,84 @@ function createMoonTerrainController() {
       camera.position.copy(moonMesh.localToWorld(localCamera));
     }
   }
+  function enforceSunCameraClearance(){
+    if(viewState!=='sun')return;
+    sunGroup.updateMatrixWorld(true);
+    const localCamera=sunGroup.worldToLocal(camera.position.clone());
+    if(localCamera.lengthSq()<1e-18)return;
+    const minimumRadius=sunRadiusVisual+Math.max(.00035,sunRadiusVisual*.00025);
+    if(localCamera.length()<minimumRadius){
+      localCamera.setLength(minimumRadius);
+      camera.position.copy(sunGroup.localToWorld(localCamera));
+    }
+  }
+  function syncSunFocusToTarget(){
+    if(viewState!=='sun')return;
+    sunGroup.updateMatrixWorld(true);
+    const local=sunGroup.worldToLocal(target.clone());
+    if(local.lengthSq()<1e-18)return;
+    sunFocusLocalTarget=local.normalize().multiplyScalar(sunRadiusVisual);
+    const exact=sunGroup.localToWorld(sunFocusLocalTarget.clone());
+    const correction=exact.clone().sub(target);
+    target.copy(exact);camera.position.add(correction);
+  }
+  function panSunSurface(dx,dy){
+    if(viewState!=='sun'||(!dx&&!dy)||!sunFocusLocalTarget)return;
+    sunGroup.updateMatrixWorld(true);
+    const normal=sunFocusLocalTarget.clone().normalize().transformDirection(sunGroup.matrixWorld);
+    const cameraRight=new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion);
+    cameraRight.addScaledVector(normal,-cameraRight.dot(normal));
+    if(cameraRight.lengthSq()<1e-10)return;
+    cameraRight.normalize();
+    let screenUp=new THREE.Vector3(0,1,0).applyQuaternion(camera.quaternion);
+    screenUp.addScaledVector(normal,-screenUp.dot(normal));
+    if(screenUp.lengthSq()<.025){
+      screenUp.set(0,0,-1).applyQuaternion(camera.quaternion);
+      screenUp.addScaledVector(normal,-screenUp.dot(normal));
+    }
+    if(screenUp.lengthSq()<1e-10)return;
+    screenUp.normalize();
+    const viewportHeight=Math.max(1,canvas.clientHeight||innerHeight||1);
+    const range=camera.position.distanceTo(target);
+    const worldPerPixel=2*range*Math.tan(THREE.MathUtils.degToRad(camera.fov*.5))/viewportHeight;
+    const travel=cameraRight.multiplyScalar(-dx).add(screenUp.multiplyScalar(dy)).multiplyScalar(worldPerPixel*1.15);
+    const length=travel.length();if(length<1e-12)return;
+    const axis=normal.clone().cross(travel.clone().normalize());if(axis.lengthSq()<1e-12)return;
+    axis.normalize();
+    const rotation=new THREE.Quaternion().setFromAxisAngle(axis,length/sunRadiusVisual);
+    const center=sunGroup.getWorldPosition(new THREE.Vector3());
+    camera.position.sub(center).applyQuaternion(rotation).add(center);
+    target.sub(center).applyQuaternion(rotation).add(center);
+    camera.quaternion.premultiply(rotation);camera.up.applyQuaternion(rotation);
+    syncSunFocusToTarget();enforceSunCameraClearance();camera.lookAt(target);
+  }
+  function tiltSunCamera(deltaY){
+    if(viewState!=='sun'||!sunFocusLocalTarget||Math.abs(deltaY)<.01)return;
+    sunGroup.updateMatrixWorld(true);
+    const normal=sunFocusLocalTarget.clone().normalize().transformDirection(sunGroup.matrixWorld);
+    const offset=camera.position.clone().sub(target);
+    const current=Math.acos(THREE.MathUtils.clamp(offset.clone().normalize().dot(normal),-1,1));
+    const next=THREE.MathUtils.clamp(current-deltaY*.0042,0,THREE.MathUtils.degToRad(84));
+    const delta=next-current;if(Math.abs(delta)<1e-7)return;
+    let axis=normal.clone().cross(offset.clone().normalize());
+    if(axis.lengthSq()<1e-10)axis.set(1,0,0).applyQuaternion(camera.quaternion);else axis.normalize();
+    offset.applyAxisAngle(axis,delta);
+    camera.position.copy(target).add(offset);
+    enforceSunCameraClearance();camera.lookAt(target);
+  }
+  function rotateSunSurface(dx,dy){
+    if(viewState!=='sun'||(!dx&&!dy))return;
+    const yaw=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),-dx*.0042);
+    const pitch=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),-dy*.0042);
+    const rotation=yaw.multiply(pitch),center=sunGroup.getWorldPosition(new THREE.Vector3());
+    sunGroup.quaternion.premultiply(rotation);
+    camera.position.sub(center).applyQuaternion(rotation).add(center);
+    target.sub(center).applyQuaternion(rotation).add(center);
+    camera.quaternion.premultiply(rotation);camera.up.applyQuaternion(rotation);
+    enforceSunCameraClearance();camera.lookAt(target);
+  }
   function moonZoomDistance(distance){
-    const minimum=viewState==='moon'?0.00000045:1.8;
+    const minimum=viewState==='moon'?0.00000045:viewState==='sun'?.0015:1.8;
     return THREE.MathUtils.clamp(distance,minimum,5000);
   }
   function zoomCameraBy(factor){
@@ -1105,6 +1266,7 @@ function createMoonTerrainController() {
     const distance=moonZoomDistance(camera.position.distanceTo(target)*factor);
     camera.position.copy(target).addScaledVector(direction,distance);
     enforceMoonCameraClearance();
+    enforceSunCameraClearance();
     camera.lookAt(target);
   }
   function syncMoonFocusToTarget() {
@@ -1212,6 +1374,10 @@ function createMoonTerrainController() {
       rotateMoonBy(dx,dy);
       return;
     }
+    if(viewState==='sun'){
+      rotateSunSurface(dx,dy);
+      return;
+    }
     const offset=camera.position.clone().sub(target);
     const spherical=new THREE.Spherical().setFromVector3(offset);
     spherical.theta-=dx*.004;
@@ -1268,14 +1434,14 @@ function createMoonTerrainController() {
     if(activePointers.size>1){
       const gesture=getTwoPointerGesture();
       if(!gesture)return;
-      if(viewState==='moon'&&gestureCenter){
+      if((viewState==='moon'||viewState==='sun')&&gestureCenter){
         const dx=gesture.center.x-gestureCenter.x;
         const dy=gesture.center.y-gestureCenter.y;
-        // Horizontal two-finger translation pans across the Moon.
-        // Vertical translation continuously pitches the camera toward the terrain.
-        // Pinch distance below remains independent and controls zoom.
-        panMoonSurface(dx,0);
-        tiltMoonCamera(dy);
+        // Horizontal two-finger movement pans along the selected body's surface.
+        // Vertical two-finger movement raises the camera toward an oblique 3D horizon.
+        // Pinch distance remains independent and controls zoom.
+        if(viewState==='moon'){panMoonSurface(dx,0);tiltMoonCamera(dy);}
+        else{panSunSurface(dx,0);tiltSunCamera(dy);}
       }
       if(pinchDistance>0)zoomCameraBy(pinchDistance/gesture.distance);
       pinchDistance=gesture.distance;
@@ -1377,15 +1543,20 @@ function createMoonTerrainController() {
     const sunWorld=sunGroup.getWorldPosition(new THREE.Vector3());
     moonMaterial.uniforms.uSunDir.value.copy(moonMesh.worldToLocal(sunWorld.clone()).normalize());
     moonMaterial.uniforms.uCameraLocal.value.copy(moonMesh.worldToLocal(camera.position.clone()));
-    if(!reducedMotion)sunGroup.rotation.y+=elapsed*.012;
+    if(!reducedMotion)sunGroup.rotation.y+=elapsed*(TAU/(25.38*86400));
+    coronalLoopMeshes.forEach((mesh,i)=>{mesh.material.opacity=.42+.24*Math.sin(t*.72+mesh.userData.phase);});
+    flareMeshes.forEach((mesh,i)=>{mesh.material.opacity=.35+.32*(.5+.5*Math.sin(t*1.25+mesh.userData.phase));});
     if(focusedObject&&!transitionStart&&!dragging){
-      const focusedWorld=focusedObject===sunMesh?sunGroup.getWorldPosition(new THREE.Vector3()):(focusLocalTarget?moonMesh.localToWorld(focusLocalTarget.clone()):focusedObject.getWorldPosition(new THREE.Vector3()));
+      const focusedWorld=focusedObject===sunMesh?(sunFocusLocalTarget?sunGroup.localToWorld(sunFocusLocalTarget.clone()):sunGroup.getWorldPosition(new THREE.Vector3())):(focusLocalTarget?moonMesh.localToWorld(focusLocalTarget.clone()):focusedObject.getWorldPosition(new THREE.Vector3()));
       camera.position.add(focusedWorld.clone().sub(target));target.copy(focusedWorld);camera.lookAt(target);
     }
     if(viewState==='moon'){
       enforceMoonCameraClearance();
       camera.lookAt(target);
       moonTerrainController?.refreshLabels();
+    }else if(viewState==='sun'){
+      enforceSunCameraClearance();
+      camera.lookAt(target);
     }
     stars.rotation.y+=reducedMotion?0:elapsed*.0008;
     renderer.render(scene,camera);
@@ -1399,13 +1570,14 @@ function createMoonTerrainController() {
     version:VERSION,
     focus:focusBody,
     reset:resetView,
-    state:()=>({viewState,moonOrbitPeriodDays:MOON_PERIOD_DAYS,
+    state:()=>({viewState,moonOrbitPeriodDays:MOON_PERIOD_DAYS,solarRotationPeriodDays:25.38,solarCameraTiltDegrees:viewState==='sun'&&sunFocusLocalTarget?THREE.MathUtils.radToDeg(Math.acos(THREE.MathUtils.clamp(camera.position.clone().sub(target).normalize().dot(sunFocusLocalTarget.clone().normalize().transformDirection(sunGroup.matrixWorld)),-1,1))):null,solarCoronalLoopCount:coronalLoopMeshes.length,solarFlareArcCount:flareMeshes.length,solarAssets:window.__BP_SOLAR_SURFACE_V1__||{status:'not-requested'},
       moonCameraTiltDegrees:THREE.MathUtils.radToDeg(moonCameraTiltRadians()),
       moonCameraDistanceKm:viewState==='moon'?camera.position.distanceTo(target)*EARTH_RADIUS_KM:null,
       radiiKm:{earth:EARTH_RADIUS_KM,moon:MOON_RADIUS_KM,sun:SUN_RADIUS_KM},
       cinematicOrbitDistanceScale:'responsive-compressed',
       lunarTerrain:window.__BP_MOON_TERRAIN_V1__||{status:'not-requested'},
       lunarSurfaceNavigation:'two-finger-vertical=continuous-camera-tilt; two-finger-horizontal=surface-pan; pinch=zoom; one-finger=surface-pan; reset=original-celestial-overview',
+      solarSurfaceNavigation:'one-finger=spin-the-Sun; two-finger-vertical=oblique-3D-camera-tilt; two-finger-horizontal=surface-pan; pinch=surface-zoom; reset=original-celestial-overview',
       lunarFocusFrame:'shared-celestial-scene; Moon orbital position held while lunar camera is active',
       lunarLabelCount:window.__BP_MOON_TERRAIN_V1__?.labelCount||0,
       proceduralLunarRelief:'fallback-only-outside-loaded-NASA-DEM-coverage'})
