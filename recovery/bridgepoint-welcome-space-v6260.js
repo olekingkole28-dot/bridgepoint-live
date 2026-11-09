@@ -1144,7 +1144,7 @@ function createMoonTerrainController() {
       }).catch(error=>console.warn('[BridgePoint Moon] NASA DEM load failed:',error));
     }else{
       camera.fov=62;camera.updateProjectionMatrix();
-      sunFocusLocalTarget.set(0,0,sunRadiusVisual);
+      sunFocusLocalTarget=new THREE.Vector3(0,0,sunRadiusVisual);
       sunGroup.updateMatrixWorld(true);
       const surface=sunGroup.localToWorld(sunFocusLocalTarget.clone());
       const surfaceNormal=sunFocusLocalTarget.clone().normalize().transformDirection(sunGroup.matrixWorld);
