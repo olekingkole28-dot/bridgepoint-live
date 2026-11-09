@@ -872,7 +872,8 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   const pointer=new THREE.Vector2();
   const clickables=[earthDepthOccluder,moonMesh,sunMesh];
   let viewState='overview',focusedObject=null;
-  let focusLocalTarget=null,moonTerrainController=null,sunFocusLocalTarget=null;\n  let saturnFocusMesh=null,saturnFocusLocalTarget=null;
+  let focusLocalTarget=null,moonTerrainController=null,sunFocusLocalTarget=null;
+  let saturnFocusMesh=null,saturnFocusLocalTarget=null;
 
 // Lunar elevation and color are served only from BridgePoint static assets.
 // Source products were materialized locally; the browser never requests NASA/Moon Trek tiles.
