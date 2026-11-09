@@ -245,7 +245,6 @@ jobs:
           grep -Fq 'initBridgePointSaturnSystem' site/bridgepoint-gaia-galaxy-v6270.js
           grep -Fq 'saturnController?.update?.()' site/bridgepoint-gaia-galaxy-v6270.js
           grep -Fq 'value="saturn">Saturn' site/bridgepoint-gaia-galaxy-v6270.js
-          grep -Fq 'value="saturn">Saturn' site/bridgepoint-gaia-galaxy-v6270.js
           ! grep -Fq 'value="titan">Titan' site/bridgepoint-gaia-galaxy-v6270.js
           ! grep -Fq 'value="enceladus">Enceladus' site/bridgepoint-gaia-galaxy-v6270.js
           ! grep -Fq 'value="mimas">Mimas' site/bridgepoint-gaia-galaxy-v6270.js
