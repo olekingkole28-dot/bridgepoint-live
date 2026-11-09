@@ -205,6 +205,7 @@ def patch_bundle(path: Path) -> None:
     old_urls = (
         "navigator.serviceWorker.register('/sw.js?v=6247-universal-fresh-entry-sidewalk',{updateViaCache:'none'})",
         "navigator.serviceWorker.register('/sw.js?v=6264-geometric-crater-bowls',{updateViaCache:'none'})",
+        "navigator.serviceWorker.register('/sw.js?v=6265-solar-globe',{updateViaCache:'none'})",
     )
     if new_url not in source:
         for old in old_urls:
@@ -314,6 +315,7 @@ def patch_site(site: Path) -> None:
         "celestial sky module": site / "bridgepoint-celestial-sky-v6257.js",
         "solar manifest": site / "assets" / "sun" / "v2" / "manifest.json",
         "solar photosphere": site / "assets" / "sun" / "v2" / "sun-photosphere-v2.webp",
+        "solar height": site / "assets" / "sun" / "v2" / "sun-photosphere-height-v2.webp",
         "solar activity": site / "assets" / "sun" / "v2" / "sun-coronal-activity-v2.webp",
         "solar far-side EUV": site / "assets" / "sun" / "v2" / "sun-stereoB-farside-EUV-2014-09-27-v2.webp",
     }
@@ -400,9 +402,9 @@ def patch_site(site: Path) -> None:
         raise AssertionError("The current installed-app identity changed")
     if legacy_manifest.get("id") != "/app/intelligence-launch/":
         raise AssertionError("The legacy installed-app identity changed")
-    print("BRIDGEPOINT_WELCOME_SPACE_V6265_SOLAR_PATCH_PASS")
+    print("BRIDGEPOINT_WELCOME_SPACE_V6266_SOLAR_REALISM_PATCH_PASS")
     print("Website, app, current PWA and legacy PWA route to the same root globe gate.")
-    print("The Sun uses BridgePoint-hosted SDO photosphere, AIA activity and HMI magnetic textures with interactive 3D corona.")
+    print("The Sun uses locally hosted SDO continuum, HMI displacement, current AIA flare activity and the final STEREO-B far-side EUV image.")
     print("Existing lunar terrain assets, offline data caches and authentication/session logic are preserved.")
 
 
