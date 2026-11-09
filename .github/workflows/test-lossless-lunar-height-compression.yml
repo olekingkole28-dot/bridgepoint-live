@@ -1,0 +1,81 @@
+name: Test Lossless Lunar Height Compression
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/test-lossless-lunar-height-compression.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Download verified production Pages artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: bridgepoint-welcome-space-v6257
+          run-id: 42685752632
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          path: /tmp/bridgepoint-pages
+
+      - name: Extract sample height tiles
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p site
+          ARCHIVE="$(find /tmp/bridgepoint-pages -type f -name artifact.tar -print -quit)"
+          test -n "$ARCHIVE"
+          tar -xf "$ARCHIVE" -C site
+
+      - name: Verify exact 16-bit WebP lossless encoding on representative tiles
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check pillow numpy
+          python - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+          import numpy as np
+
+          root = Path("site/assets/moon/v1/sldem-128ppd")
+          samples = [
+              "moon-sldem-128ppd-y05-x06.png",
+              "moon-sldem-128ppd-y04-x06.png",
+              "moon-sldem-128ppd-y06-x04.png",
+              "moon-sldem-128ppd-y07-x05.png",
+              "moon-sldem-128ppd-y08-x03.png",
+              "moon-sldem-128ppd-y03-x18.png",
+          ]
+          total_png = total_webp = 0
+          for name in samples:
+              src = root / name
+              if not src.is_file():
+                  raise SystemExit(f"Missing sample tile: {src}")
+              im = Image.open(src)
+              arr = np.asarray(im)
+              if arr.dtype != np.uint16 or arr.ndim != 2:
+                  raise SystemExit(f"Expected 16-bit grayscale tile, got mode={im.mode} dtype={arr.dtype}: {src}")
+              hi = (arr >> 8).astype(np.uint8)
+              lo = (arr & 255).astype(np.uint8)
+              packed = np.stack([hi, lo, np.zeros_like(hi)], axis=-1)
+              probe = src.with_suffix(".lossless-test.webp")
+              Image.fromarray(packed, mode="RGB").save(probe, format="WEBP", lossless=True, quality=100, method=6, exact=True)
+              decoded = np.asarray(Image.open(probe).convert("RGB"))
+              rebuilt = (decoded[..., 0].astype(np.uint16) << 8) | decoded[..., 1].astype(np.uint16)
+              if not np.array_equal(arr, rebuilt):
+                  raise SystemExit(f"16-bit pixel mismatch after WebP lossless round-trip: {name}")
+              png_bytes, webp_bytes = src.stat().st_size, probe.stat().st_size
+              ratio = 1 - webp_bytes / png_bytes
+              print(f"{name}\tPNG={png_bytes}\tWebP-lossless={webp_bytes}\tsave={ratio:.1%}\tPIXELS=EXACT")
+              total_png += png_bytes
+              total_webp += webp_bytes
+              probe.unlink()
+          print(f"TOTAL\tPNG={total_png}\tWebP-lossless={total_webp}\tsave={1-total_webp/total_png:.1%}\tPIXELS=EXACT")
+          PY
