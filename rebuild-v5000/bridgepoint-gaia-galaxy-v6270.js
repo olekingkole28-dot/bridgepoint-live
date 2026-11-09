@@ -188,10 +188,12 @@ export function initBridgePointSolarCosmos(o){
   const material=new THREE.LineBasicMaterial({color:p.c,transparent:true,opacity:.24,depthWrite:false});
   const orbit=new THREE.LineLoop(geometry,material);orbit.name=p.name+' 3D heliocentric orbital path';orbitMaterials.push(material);orbitScaleRoot.add(orbit);
  }
- const starState={rows:[],points:null,parsecScale:0,orientation:new THREE.Quaternion(),planetDays:NaN,lastPlanetUpdate:0};
+ const starState={rows:[],points:null,parsecScale:0,orientation:new THREE.Quaternion(),planetDays:NaN,lastPlanetUpdate:0,lastFrameAt:0,frame:null};
  const nowSun=()=>getSunPosition?getSunPosition():new THREE.Vector3(0,0,8);
  function astronomicalScale(){return Math.max(1,nowSun().length())}
- function applyFrame(){
+ function applyFrame(force=false){
+  const tick=Date.now();
+  if(!force&&starState.frame&&tick-starState.lastFrameAt<1200)return starState.frame;
   const sun=nowSun(),auScale=astronomicalScale(),pcScale=auScale/AU_PC;
   starsGroup.position.copy(sun);
   const date=new Date(),days=julian(date)-planetDayZero,ob=obliquity(date);
@@ -204,16 +206,17 @@ export function initBridgePointSolarCosmos(o){
   orbitScaleRoot.scale.setScalar(auScale);
   planetRefs.forEach(p=>{
    const mesh=planetMeshes.get(p.name.toLowerCase());
-   mesh.position.copy(planetPos(THREE,p,days,ob));
+   mesh.position.copy(planetPos(THREE,p,days,ob).multiplyScalar(auScale));
    labelOffsets.set(p.name.toLowerCase(),p.r/EARTH_RADIUS_KM);
   });
   starState.planetDays=days;
-  state.auToScene=auScale;state.parsecToScene=pcScale;
+  state.auToScene=auScale;state.parsecToScene=pcScale;starState.lastFrameAt=tick;
   const maxFar=pcScale*65000;
   if(camera.far<maxFar){camera.far=maxFar;camera.updateProjectionMatrix();}
   if(starState.points?.material?.uniforms?.uWorldScale)starState.points.material.uniforms.uWorldScale.value=pcScale;
   if(starState.points?.material?.uniforms?.uViewportHeight)starState.points.material.uniforms.uViewportHeight.value=Math.max(1,host.clientHeight||innerHeight);
-  return {sun,auScale,pcScale,orientation,days,ob};
+  starState.frame={sun,auScale,pcScale,orientation,days,ob};
+  return starState.frame;
  }
  function addGaiaPoints(rows){
   const positions=new Float32Array(rows.length*3),colors=new Float32Array(rows.length*3),magnitudes=new Float32Array(rows.length),radii=new Float32Array(rows.length);
@@ -283,10 +286,6 @@ export function initBridgePointSolarCosmos(o){
   planetMaterials.forEach(m=>{m.opacity=Math.max(.001,progress);});
   orbitMaterials.forEach(m=>{m.opacity=.24*progress;});
   updateLabels(sun,pcScale,orientation,distance);
-  if(days-starState.planetDays>.000001||Date.now()-starState.lastPlanetUpdate>1200){
-   // Re-sample slowly while keeping every object fixed in the same inertial frame between updates.
-   if(Date.now()-starState.lastPlanetUpdate>1200)starState.lastPlanetUpdate=Date.now();
-  }
  }
  function clearSelection(){selectedBody='';bodySelect.value='';}
  function setSelection(name){selectedBody=String(name||'').toLowerCase();bodySelect.value=selectedBody;}
@@ -318,7 +317,7 @@ export function initBridgePointSolarCosmos(o){
   state.namedStars=Object.keys(manifest.named_stars||{}).length;
   state.status='ready';
   window.__BP_SOLAR_COSMOS_V6280__=api;
-  applyFrame();update();
+  applyFrame(true);update();
  }
  const api={
   version:BUILD,state,
