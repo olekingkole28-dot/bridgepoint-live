@@ -420,7 +420,7 @@ def patch_site(site: Path) -> None:
     root = bump_manifest_url(root, "bump current root manifest URL")
     root = replace_prefix_once(
         root,
-        r"(landing\.js\?v=)(?:6247-universal-fresh-entry|6264-geometric-crater-bowls|6265-solar-globe|6267-sun-visible|6268-solar-observatory|6269-solar-fire-plasma|6282-saturn-system)",
+        r"(landing\.js\?v=)(?:6247-universal-fresh-entry|6264-geometric-crater-bowls|6265-solar-globe|6267-sun-visible|6268-solar-observatory|6269-solar-fire-plasma|6282-saturn-system|6283-saturn-isolated)",
         r"\g<1>" + BUILD[1:],
         "bust the landing bundle URL",
     )
