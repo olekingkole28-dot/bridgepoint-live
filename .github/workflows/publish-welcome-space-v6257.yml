@@ -429,7 +429,7 @@ jobs:
                grep -Fq 'initBridgePointSaturnSystem' /tmp/live-gaia.js 2>/dev/null &&
                grep -Fq 'value="saturn">Saturn' /tmp/live-gaia.js 2>/dev/null &&
                grep -Fq 'Titan thick golden nitrogen atmosphere' /tmp/live-saturn.js 2>/dev/null &&
-               grep -Fq 'Saturn B ring' /tmp/live-saturn.js 2>/dev/null &&
+               grep -Fq "addRing('B',92000,117580" /tmp/live-saturn.js 2>/dev/null &&
                test -s /tmp/live-saturn-manifest.json && test -s /tmp/live-saturn-ephemerides.json &&
                test -s /tmp/live-mimas-shape.bin.gz && test -s /tmp/live-enceladus-shape.bin.gz &&
                test -s /tmp/live-titan-height.bin.gz &&
