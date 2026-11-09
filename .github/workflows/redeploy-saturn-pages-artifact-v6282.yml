@@ -14,7 +14,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: bridgepoint-welcome-space-v6285-lossless-saturn-final
+  group: bridgepoint-welcome-space-v6285-fast-lossless-v2
   cancel-in-progress: true
 
 jobs:
