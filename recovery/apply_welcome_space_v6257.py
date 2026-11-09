@@ -227,11 +227,14 @@ def patch_legacy_app(source: str) -> str:
         )
         if count != 1:
             raise AssertionError("Current legacy service-worker URL is missing or duplicated")
+        cache_old = "k.startsWith('bp-intelligence-')&&k!=='bp-intelligence-v6247-universal-fresh-entry-sidewalk'"
+        cache_new = "k.startsWith('bp-intelligence-')&&k!=='" + CACHE_NAME + "'"
+        source = replace_once(source, cache_old, cache_new, "refresh the preserved legacy offline-cache key")
         return source
     source = replace_once(source, 'content="4;url=/app/?migrated=legacy-intelligence-v5820"', 'content="0;url=/"', "make legacy installed app route immediately to the canonical gate")
     source = replace_once(source, 'href="/app/" style="color:#4ad9ff"', 'href="/" style="color:#4ad9ff"', "legacy app fallback link")
     source = replace_once(source, "sw.js?v=6218-tree-viewport-renderer-refresh", "sw.js?v=" + BUILD[1:], "refresh legacy app service worker")
-    source = replace_once(source, "k.startsWith('bp-intelligence-')&&k!=='bp-intelligence-v5820'", "k.startsWith('bp-intelligence-')&&k!=='bp-intelligence-v6247-universal-fresh-entry-sidewalk'", "preserve the existing offline cache during legacy-app migration")
+    source = replace_once(source, "k.startsWith('bp-intelligence-')&&k!=='bp-intelligence-v5820'", "k.startsWith('bp-intelligence-')&&k!=='" + CACHE_NAME + "'", "preserve the existing offline cache during legacy-app migration")
     source = replace_once(source, "location.replace('/app/?migrated=legacy-intelligence-v5820')", "location.replace('/')", "legacy app final route")
     return source
 
