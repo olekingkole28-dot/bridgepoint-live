@@ -268,7 +268,7 @@ self.addEventListener('fetch',e=>{
             path.write_text(modern)
             patch_worker(path)
             out = path.read_text()
-            self.assertIn("BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6281-space-camera-sync'", out)
+            self.assertIn("BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6282-saturn-system'", out)
             self.assertIn("await active.delete(request)", out)
             self.assertIn("const entryRoute=", out)
             self.assertIn("current release required", out)
@@ -455,7 +455,7 @@ self.addEventListener('fetch',e=>{
     def test_sun_has_animated_molten_photosphere_fresnel_rim_and_observed_plasma_particles(self):
         module = (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text()
         for marker in (
-            "const VERSION = 'v6281-space-camera-sync'",
+            "const VERSION = 'v6282-saturn-system'",
             "float magmaFlow=",
             "float moltenCoverage=",
             "const solarFireRim=new THREE.Mesh",
@@ -470,7 +470,7 @@ self.addEventListener('fetch',e=>{
         ):
             self.assertIn(marker, module)
 
-    def test_patch_bundle_bumps_v6269_worker_to_v6281(self):
+    def test_patch_bundle_bumps_v6269_worker_to_v6282(self):
         with tempfile.TemporaryDirectory() as folder:
             bundle = Path(folder) / "app.js"
             bundle.write_text("navigator.serviceWorker.register('/sw.js?v=6269-solar-fire-plasma',{updateViaCache:'none'})")
