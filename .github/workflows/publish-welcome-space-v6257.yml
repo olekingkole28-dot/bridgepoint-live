@@ -1,4 +1,4 @@
-name: Publish BridgePoint Unified Gaia and Solar System Scene V6281
+name: Publish BridgePoint Unified Gaia and Saturn System Scene V6282
 
 on:
   push:
@@ -15,6 +15,9 @@ on:
       - 'rebuild-v5000/bridgepoint-celestial-sky-v6257.js'
       - 'rebuild-v5000/bridgepoint-gaia-galaxy-v6270.js'
       - 'assets/stellar/gaia-dr3-v6270/**'
+      - 'recovery/bridgepoint-saturn-system-v6282.js'
+      - 'recovery/build_saturn_assets_v6282.py'
+      - 'tests/test_saturn_system_v6282.py'
   workflow_dispatch:
 
 permissions:
@@ -24,7 +27,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: bridgepoint-welcome-space-v6270-gaia-dr3-galaxy
+  group: bridgepoint-welcome-space-v6282-saturn-system
   cancel-in-progress: true
 
 jobs:
@@ -42,7 +45,9 @@ jobs:
           python-version: '3.12'
 
       - name: Test the isolated welcome scene and patch
-        run: python3 -m unittest discover -s tests -p 'test_welcome_space_v6257.py' -v
+        run: |
+          python3 -m unittest discover -s tests -p 'test_welcome_space_v6257.py' -v
+          python3 -m unittest discover -s tests -p 'test_saturn_system_v6282.py' -v
 
       - name: Download the latest verified Moon and Earth Pages artifact
         uses: actions/download-artifact@v4
@@ -101,11 +106,48 @@ jobs:
           PY
           echo 'Verified existing deployed Moon terrain: 432 local SLDEM2015 tiles plus global LOLA, Apollo 15 patch, LROC color and feature labels.'
           
-      - name: Add only the Sun scene and local solar textures
+      - name: Build local Saturn and moon assets from NASA source data
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check numpy pillow rasterio spiceypy fast-simplification
+          python3 recovery/build_saturn_assets_v6282.py --download --source-root /tmp/bridgepoint-saturn-source --output-root site/assets/saturn/v1
+          python3 - <<'PY'
+          import gzip,json,struct
+          from pathlib import Path
+          root=Path('site/assets/saturn/v1')
+          manifest=json.loads((root/'manifest.json').read_text())
+          for rel in (
+              'manifest.json','ephemerides.json',
+              'textures/saturn-cassini-iss-global.webp',
+              'textures/titan-cassini-surface-mosaic.webp',
+              'textures/enceladus-cassini-global-map.webp',
+              'textures/mimas-cassini-global-map.webp',
+              'height/titan-cassini-topography-4ppd-u16.bin.gz',
+              'meshes/enceladus-cassini-shape-v1.bin.gz',
+              'meshes/mimas-cassini-shape-v1.bin.gz'):
+              p=root/rel
+              assert p.is_file() and p.stat().st_size>100, f'missing or empty Saturn asset: {rel}'
+          with gzip.open(root/'meshes/enceladus-cassini-shape-v1.bin.gz','rb') as f:
+              assert f.read(4)==b'BPSM'
+          with gzip.open(root/'meshes/mimas-cassini-shape-v1.bin.gz','rb') as f:
+              assert f.read(4)==b'BPSM'
+          with gzip.open(root/'height/titan-cassini-topography-4ppd-u16.bin.gz','rb') as f:
+              header=f.read(28)
+              assert header[:4]==b'BPSH' and struct.unpack('<I',header[4:8])[0]==1
+          ep=json.loads((root/'ephemerides.json').read_text())
+          assert set(ep)=={'mimas','enceladus','titan'}
+          assert all(v['saturn_center']=='500@699' for v in ep.values())
+          assert manifest['physical']['saturn_mean_radius_km']==58232.0
+          print('SATURN_ASSETS_PASS: Cassini textures, Titan elevation grid, two NASA DSK meshes, and Saturn-centred JPL states')
+          PY
+
+      - name: Add the Saturn module, Sun scene and local solar textures
         run: |
           cp recovery/bridgepoint-welcome-space-v6260.js site/bridgepoint-welcome-space-v6260.js
           cp rebuild-v5000/bridgepoint-celestial-sky-v6257.js site/bridgepoint-celestial-sky-v6257.js
           cp rebuild-v5000/bridgepoint-gaia-galaxy-v6270.js site/bridgepoint-gaia-galaxy-v6270.js
+          cp recovery/bridgepoint-saturn-system-v6282.js site/bridgepoint-saturn-system-v6282.js
           mkdir -p site/assets/stellar/gaia-dr3-v6270
           cp -a assets/stellar/gaia-dr3-v6270/. site/assets/stellar/gaia-dr3-v6270/
           test -s site/assets/stellar/gaia-dr3-v6270/manifest.json
@@ -172,6 +214,16 @@ jobs:
             'assets/stellar/gaia-dr3-v6270/part-0003.bin.gz',
             'assets/stellar/gaia-dr3-v6270/part-0004.bin.gz',
             'assets/stellar/gaia-dr3-v6270/part-0005.bin.gz',
+            'bridgepoint-saturn-system-v6282.js',
+            'assets/saturn/v1/manifest.json',
+            'assets/saturn/v1/ephemerides.json',
+            'assets/saturn/v1/textures/saturn-cassini-iss-global.webp',
+            'assets/saturn/v1/textures/titan-cassini-surface-mosaic.webp',
+            'assets/saturn/v1/textures/enceladus-cassini-global-map.webp',
+            'assets/saturn/v1/textures/mimas-cassini-global-map.webp',
+            'assets/saturn/v1/height/titan-cassini-topography-4ppd-u16.bin.gz',
+            'assets/saturn/v1/meshes/enceladus-cassini-shape-v1.bin.gz',
+            'assets/saturn/v1/meshes/mimas-cassini-shape-v1.bin.gz',
           }
           assert added==expected_added, f'unexpected new production files: {sorted(added ^ expected_added)}'
           allowed_changed=expected | {'bridgepoint-welcome-space-v6260.js'}
@@ -188,7 +240,25 @@ jobs:
           node --input-type=module --check < site/bridgepoint-welcome-space-v6260.js
           node --input-type=module --check < site/bridgepoint-celestial-sky-v6257.js
           node --input-type=module --check < site/bridgepoint-gaia-galaxy-v6270.js
+          node --input-type=module --check < site/bridgepoint-saturn-system-v6282.js
           grep -Fq 'initBridgePointSolarCosmos' site/bridgepoint-gaia-galaxy-v6270.js
+          grep -Fq 'initBridgePointSaturnSystem' site/bridgepoint-gaia-galaxy-v6270.js
+          grep -Fq 'saturnController?.update?.()' site/bridgepoint-gaia-galaxy-v6270.js
+          grep -Fq 'value="saturn">Saturn' site/bridgepoint-gaia-galaxy-v6270.js
+          grep -Fq 'value="titan">Titan' site/bridgepoint-gaia-galaxy-v6270.js
+          grep -Fq 'value="enceladus">Enceladus' site/bridgepoint-gaia-galaxy-v6270.js
+          grep -Fq 'value="mimas">Mimas' site/bridgepoint-gaia-galaxy-v6270.js
+          grep -Fq 'SATURN_SYSTEM' site/bridgepoint-saturn-system-v6282.js || grep -Fq 'v6282' site/bridgepoint-saturn-system-v6282.js
+          grep -Fq 'Saturn B ring' site/bridgepoint-saturn-system-v6282.js
+          grep -Fq 'Titan thick golden nitrogen atmosphere' site/bridgepoint-saturn-system-v6282.js
+          grep -Fq 'Enceladus animated water-ice plume particles' site/bridgepoint-saturn-system-v6282.js
+          test -s site/assets/saturn/v1/manifest.json
+          test -s site/assets/saturn/v1/ephemerides.json
+          test -s site/assets/saturn/v1/textures/saturn-cassini-iss-global.webp
+          test -s site/assets/saturn/v1/textures/titan-cassini-surface-mosaic.webp
+          test -s site/assets/saturn/v1/height/titan-cassini-topography-4ppd-u16.bin.gz
+          test -s site/assets/saturn/v1/meshes/enceladus-cassini-shape-v1.bin.gz
+          test -s site/assets/saturn/v1/meshes/mimas-cassini-shape-v1.bin.gz
           grep -Fq 'Gaia DR3 measured stellar positions' site/bridgepoint-gaia-galaxy-v6270.js
           grep -Fq 'bpw-celestial-body-picker' site/bridgepoint-gaia-galaxy-v6270.js
           grep -Fq '3D heliocentric orbital path' site/bridgepoint-gaia-galaxy-v6270.js
@@ -307,6 +377,12 @@ jobs:
           curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/bridgepoint-gaia-galaxy-v6270.js?verify=${q}" -o /tmp/live-gaia.js || true
           curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/stellar/gaia-dr3-v6270/manifest.json?verify=${q}" -o /tmp/live-gaia-manifest.json || true
           curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/stellar/gaia-dr3-v6270/part-0000.bin.gz?verify=${q}" -o /tmp/live-gaia-part.bin.gz || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/bridgepoint-saturn-system-v6282.js?verify=${q}" -o /tmp/live-saturn.js || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/saturn/v1/manifest.json?verify=${q}" -o /tmp/live-saturn-manifest.json || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/saturn/v1/ephemerides.json?verify=${q}" -o /tmp/live-saturn-ephemerides.json || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/saturn/v1/meshes/mimas-cassini-shape-v1.bin.gz?verify=${q}" -o /tmp/live-mimas-shape.bin.gz || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/saturn/v1/meshes/enceladus-cassini-shape-v1.bin.gz?verify=${q}" -o /tmp/live-enceladus-shape.bin.gz || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/saturn/v1/height/titan-cassini-topography-4ppd-u16.bin.gz?verify=${q}" -o /tmp/live-titan-height.bin.gz || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app.js?verify=${q}" -o /tmp/live-app.js || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/landing.js?verify=${q}" -o /tmp/live-landing.js || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/?welcome-space-v6257=${q}" -o /tmp/live-app.html || true
@@ -350,6 +426,13 @@ jobs:
                ! grep -Fq 'data-space-ground' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'initBridgePointCelestialSky' /tmp/live-sky.js 2>/dev/null &&
                grep -Fq 'initBridgePointSolarCosmos' /tmp/live-gaia.js 2>/dev/null &&
+               grep -Fq 'initBridgePointSaturnSystem' /tmp/live-gaia.js 2>/dev/null &&
+               grep -Fq 'value="saturn">Saturn' /tmp/live-gaia.js 2>/dev/null &&
+               grep -Fq 'Titan thick golden nitrogen atmosphere' /tmp/live-saturn.js 2>/dev/null &&
+               grep -Fq 'Saturn B ring' /tmp/live-saturn.js 2>/dev/null &&
+               test -s /tmp/live-saturn-manifest.json && test -s /tmp/live-saturn-ephemerides.json &&
+               test -s /tmp/live-mimas-shape.bin.gz && test -s /tmp/live-enceladus-shape.bin.gz &&
+               test -s /tmp/live-titan-height.bin.gz &&
                 grep -Fq 'const planetRefs=[];' /tmp/live-gaia.js 2>/dev/null &&
                 grep -Fq 'const p=[r.x,r.y,r.z],j=i*3;' /tmp/live-gaia.js 2>/dev/null &&
                 grep -Fq 'bpw-celestial-body-picker' /tmp/live-gaia.js 2>/dev/null &&
@@ -362,7 +445,7 @@ jobs:
                grep -Fq 'entryRoute=' /tmp/live-sw.js 2>/dev/null &&
                grep -Fq '/?return=' /tmp/live-app.html 2>/dev/null &&
                grep -Fq 'content="0;url=/"' /tmp/live-legacy.html 2>/dev/null &&
-               grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6281-space-camera-sync'" /tmp/live-sw.js 2>/dev/null &&
+               grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6282-saturn-system'" /tmp/live-sw.js 2>/dev/null &&
                grep -Fq 'runtimeMode' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'externalRuntimeTerrainRequests: 0' /tmp/live-space.js 2>/dev/null &&
                ! grep -Fq 'trek.nasa.gov/tiles/Moon' /tmp/live-space.js 2>/dev/null &&
@@ -382,4 +465,4 @@ jobs:
             sleep 3
           done
           test "$ok" -eq 1
-          echo 'LIVE V6281 PASS: one Gaia DR3 starfield, one shared Earth/Moon/Sun scene, anchored planetary spheres and orbital paths, selectable celestial bodies, NASA solar surface and Moon terrain are served from the published site.'
+          echo 'LIVE V6282 PASS: unchanged Earth/Moon/Sun scene plus selectable Saturn, Cassini moon meshes, Titan DEM, rings and local Saturn-centred JPL ephemerides are served from the published site.'
