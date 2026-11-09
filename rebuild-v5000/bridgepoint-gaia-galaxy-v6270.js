@@ -7,7 +7,7 @@
  * ephemerides use the same Galactic frame; the shared frame is rotated once so
  * its computed Earth-Sun vector meets the existing welcome Sun position.
  */
-const BUILD='v6280-unified-cosmos';
+const BUILD='v6281-space-camera-sync';
 const ROOT='/assets/stellar/gaia-dr3-v6270/';
 const DEG=Math.PI/180;
 const AU_PC=1/206264.80624709636;
@@ -101,8 +101,8 @@ export function initBridgePointSolarCosmos(o){
  if(!THREE||!scene||!camera||!starsGroup)throw new Error('Unified celestial scene requires the existing welcome Three.js objects');
  const state={version:BUILD,status:'loading',source:'ESA Gaia DR3 + Hipparcos bright-star supplement',
   starCount:0,loadedChunks:0,epoch:2026,distanceUnit:'parsec',stellarCoordinateFrame:'Galactic Cartesian, Sun-centred',
-  planetCount:7,planetEphemeris:'approximate Keplerian elements; replaceable with NASA body-specific data',
-  controls:'single-scene-camera; zoom reveals planets, orbital paths, Gaia stars and Milky Way context',
+  planetCount:0,planetWork:'deferred until the next planet has its own detailed 3D model',
+  controls:'single-scene-camera; zoom reveals existing Earth/Moon/Sun models and measured Gaia stars',
   externalDataRequests:0,errors:[],distanceRangePc:null};
  starsGroup.name='BridgePoint unified Gaia DR3 stellar and deep-space context';
  starsGroup.visible=true;
@@ -114,9 +114,7 @@ export function initBridgePointSolarCosmos(o){
  bodySelect.className='bpw-celestial-body-picker';
  bodySelect.setAttribute('aria-label','Choose a celestial body to explore');
  bodySelect.innerHTML='<option value="">CHOOSE CELESTIAL BODY</option>'+
-  '<option value="earth">Earth</option><option value="moon">Moon</option><option value="sun">Sun</option>'+
-  '<option value="mercury">Mercury</option><option value="venus">Venus</option><option value="mars">Mars</option>'+
-  '<option value="jupiter">Jupiter</option><option value="saturn">Saturn</option><option value="uranus">Uranus</option><option value="neptune">Neptune</option>';
+  '<option value="earth">Earth</option><option value="moon">Moon</option><option value="sun">Sun</option>';
  const resetButton=controls?.querySelector('[data-space-reset]');
  if(controls)controls.insertBefore(bodySelect,resetButton||controls.firstChild);
  const css=document.createElement('style');
@@ -160,7 +158,7 @@ export function initBridgePointSolarCosmos(o){
  }
  stellarContext.visible=false;
  const planetDayZero=2451543.5;
- const planetRefs=PLANETS.filter(p=>p.name!=='Earth');
+ const planetRefs=[]; // Generic placeholder worlds are deferred until their dedicated models are built.
  const solarBodies=[];
  for(const p of planetRefs){
   const radius=p.r/EARTH_RADIUS_KM;
