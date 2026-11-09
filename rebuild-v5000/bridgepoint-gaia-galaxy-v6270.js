@@ -1,3 +1,5 @@
+import { initBridgePointSaturnSystem } from './bridgepoint-saturn-system-v6282.js?v=6282-saturn-system';
+
 /**
  * BridgePoint unified celestial space — Gaia DR3 stars + solar-system bodies.
  * This module augments the existing welcome Three.js scene. It never creates a
@@ -7,7 +9,7 @@
  * ephemerides use the same Galactic frame; the shared frame is rotated once so
  * its computed Earth-Sun vector meets the existing welcome Sun position.
  */
-const BUILD='v6281-space-camera-sync';
+const BUILD='v6282-saturn-system';
 const ROOT='/assets/stellar/gaia-dr3-v6270/';
 const DEG=Math.PI/180;
 const AU_PC=1/206264.80624709636;
@@ -114,7 +116,8 @@ export function initBridgePointSolarCosmos(o){
  bodySelect.className='bpw-celestial-body-picker';
  bodySelect.setAttribute('aria-label','Choose a celestial body to explore');
  bodySelect.innerHTML='<option value="">CHOOSE CELESTIAL BODY</option>'+
-  '<option value="earth">Earth</option><option value="moon">Moon</option><option value="sun">Sun</option>';
+  '<option value="earth">Earth</option><option value="moon">Moon</option><option value="sun">Sun</option>'+
+  '<option value="saturn">Saturn</option><option value="titan">Titan</option><option value="enceladus">Enceladus</option><option value="mimas">Mimas</option>';
  const resetButton=controls?.querySelector('[data-space-reset]');
  if(controls)controls.insertBefore(bodySelect,resetButton||controls.firstChild);
  const css=document.createElement('style');
@@ -286,10 +289,16 @@ export function initBridgePointSolarCosmos(o){
   planetMaterials.forEach(m=>{m.opacity=Math.max(.001,progress);});
   orbitMaterials.forEach(m=>{m.opacity=.24*progress;});
   updateLabels(sun,pcScale,orientation,distance);
+  saturnController?.update?.();
  }
  function clearSelection(){selectedBody='';bodySelect.value='';}
  function setSelection(name){selectedBody=String(name||'').toLowerCase();bodySelect.value=selectedBody;}
  function getBody(name){return bodyMap.get(String(name||'').toLowerCase())||null}
+ const saturnController=initBridgePointSaturnSystem({
+  THREE,solarRoot,host,camera,bodyMap,planetMeshes,clickables,labelsGroup,labelMap,
+  getSaturnPosition:()=>{const f=starState.frame;return f?planetPos(THREE,PLANETS.find(p=>p.name==='Saturn'),f.days,f.ob).applyQuaternion(f.orientation.clone().invert()).multiplyScalar(f.auScale):null},
+  getSelectedBody:()=>selectedBody,isMobile
+ });
  async function load(){
   const response=await fetch(ROOT+'manifest.json',{cache:'force-cache'});
   if(!response.ok)throw Error('Gaia manifest HTTP '+response.status);
@@ -327,7 +336,7 @@ export function initBridgePointSolarCosmos(o){
   clearSelection,
   maxCameraDistance(){return (state.parsecToScene||astronomicalScale()/AU_PC)*60000},
   dispose(){
-   state.status='disposed';bodySelect.remove();labelsGroup.parent?.remove(labelsGroup);
+   state.status='disposed';saturnController?.dispose?.();bodySelect.remove();labelsGroup.parent?.remove(labelsGroup);
    stellarContext.clear();solarRoot.clear();starSpace.clear();
   }
  };

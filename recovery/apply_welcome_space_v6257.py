@@ -5,10 +5,10 @@ import re
 import sys
 from pathlib import Path
 
-BUILD = "v6281-space-camera-sync"
+BUILD = "v6282-saturn-system"
 # Moon terrain assets are bundled locally under assets/moon/v1; runtime requests stay same-origin.
-SW_URL = "/sw.js?v=6281-space-camera-sync"
-CACHE_NAME = "bp-intelligence-v6247-universal-fresh-entry-sidewalk"
+SW_URL = "/sw.js?v=6282-saturn-system"
+CACHE_NAME = "bp-intelligence-v6282-saturn-system"
 
 
 def replace_once(source: str, old: str, new: str, label: str) -> str:
@@ -227,11 +227,15 @@ def patch_legacy_app(source: str) -> str:
         )
         if count != 1:
             raise AssertionError("Current legacy service-worker URL is missing or duplicated")
+        cache_pattern = re.compile(r"(k\.startsWith\('bp-intelligence-'\)&&k!==')[^']+(')")
+        source, cache_count = cache_pattern.subn(r"\g<1>" + CACHE_NAME + r"\g<2>", source, count=1)
+        if cache_count == 0 and "k.startsWith('bp-intelligence-')" in source:
+            raise AssertionError("Current legacy offline-cache guard is missing or duplicated")
         return source
     source = replace_once(source, 'content="4;url=/app/?migrated=legacy-intelligence-v5820"', 'content="0;url=/"', "make legacy installed app route immediately to the canonical gate")
     source = replace_once(source, 'href="/app/" style="color:#4ad9ff"', 'href="/" style="color:#4ad9ff"', "legacy app fallback link")
     source = replace_once(source, "sw.js?v=6218-tree-viewport-renderer-refresh", "sw.js?v=" + BUILD[1:], "refresh legacy app service worker")
-    source = replace_once(source, "k.startsWith('bp-intelligence-')&&k!=='bp-intelligence-v5820'", "k.startsWith('bp-intelligence-')&&k!=='bp-intelligence-v6247-universal-fresh-entry-sidewalk'", "preserve the existing offline cache during legacy-app migration")
+    source = replace_once(source, "k.startsWith('bp-intelligence-')&&k!=='bp-intelligence-v5820'", "k.startsWith('bp-intelligence-')&&k!=='" + CACHE_NAME + "'", "preserve the existing offline cache during legacy-app migration")
     source = replace_once(source, "location.replace('/app/?migrated=legacy-intelligence-v5820')", "location.replace('/')", "legacy app final route")
     return source
 
@@ -378,6 +382,7 @@ def patch_site(site: Path) -> None:
         "legacy app index": site / "app" / "intelligence-launch" / "index.html",
         "legacy app manifest": site / "app" / "intelligence-launch" / "manifest.webmanifest",
         "welcome space module": site / "bridgepoint-welcome-space-v6260.js",
+        "Saturn system module": site / "bridgepoint-saturn-system-v6282.js",
         "celestial sky module": site / "bridgepoint-celestial-sky-v6257.js",
         "solar manifest": site / "assets" / "sun" / "v2" / "manifest.json",
         "solar photosphere": site / "assets" / "sun" / "v2" / "sun-photosphere-v2.webp",
@@ -471,7 +476,7 @@ def patch_site(site: Path) -> None:
         raise AssertionError("The current installed-app identity changed")
     if legacy_manifest.get("id") != "/app/intelligence-launch/":
         raise AssertionError("The legacy installed-app identity changed")
-    print("BRIDGEPOINT_WELCOME_SPACE_V6281_SPACE_CAMERA_SYNC_PATCH_PASS")
+    print("BRIDGEPOINT_WELCOME_SPACE_V6282_SATURN_SYSTEM_PATCH_PASS")
     print("Website, app, current PWA and legacy PWA route to the same root globe gate.")
     print("The Sun uses a warm SDO/HMI continuum, timestamped HMI polarity observations, and local AIA 131/171/193/304 channels for the animated coronal shell and observation-positioned active-region structures.")
     print("Existing lunar terrain assets, offline data caches and authentication/session logic are preserved.")
