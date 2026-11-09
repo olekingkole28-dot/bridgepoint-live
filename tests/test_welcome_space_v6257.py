@@ -222,6 +222,39 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
             self.assertEqual(data["start_url"], "/")
             self.assertEqual(data["id"], "/bridgepoint-intelligence-v5050")
 
+    def test_service_worker_preserves_existing_modern_entry_cleanup_while_bumping_version(self):
+        modern = """const V='bp-intelligence-v6247-universal-fresh-entry-sidewalk';
+const BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6265-solar-globe';
+self.addEventListener('activate',e=>e.waitUntil((async()=>{
+ const active=await caches.open(V);
+ for(const request of await active.keys()){
+  const url=new URL(request.url);
+  if(url.origin===self.location.origin&&['/','/index.html','/app/','/app/index.html'].includes(url.pathname))await active.delete(request);
+ }
+ for(const k of await caches.keys()){if(k!==V)await caches.delete(k)}
+ await self.clients.claim();
+})()));
+self.addEventListener('fetch',e=>{
+ if(e.request.mode==='navigate'){
+  const entryRoute=['/','/index.html','/app/'].includes(u.pathname);
+  e.respondWith(fetch(e.request,{cache:'no-store'}).catch(async()=>{
+   if(entryRoute)return new Response('current release required',{status:503});
+   return caches.match(e.request);
+  }));
+  return;
+ }
+});"""
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "sw.js"
+            path.write_text(modern)
+            patch_worker(path)
+            out = path.read_text()
+            self.assertIn("BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6266-solar-realism'", out)
+            self.assertIn("await active.delete(request)", out)
+            self.assertIn("const entryRoute=", out)
+            self.assertIn("current release required", out)
+            self.assertIn("clients.claim()", out)
+
     def test_worker_script_and_urls_are_versioned_but_offline_cache_key_is_preserved(self):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "landing.js"
