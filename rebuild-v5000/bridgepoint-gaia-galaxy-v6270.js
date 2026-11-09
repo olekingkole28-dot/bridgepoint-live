@@ -257,19 +257,20 @@ export function initBridgePointSolarCosmos(o){
    specs.push([p.name.toLowerCase(),world.clone().add(new THREE.Vector3(0,off+.36,0)),off+.36]);
   }
   const localSolarScale=clamp((distance-solarRevealLimit)/10,0,1);
+  const saturnModuleActive=['saturn','titan','enceladus','mimas'].includes(selectedBody);
   const showLocalLabels=(distance>solarRevealLimit+2&&distance<pcScale*1500)||!!selectedBody;
   for(const [name,position] of specs){
    const sprite=labelMap.get(name);if(!sprite)continue;
    const focused=selectedBody===name;
-   sprite.visible=focused||showLocalLabels&&(name==='earth'||name==='moon'||name==='sun'?true:localSolarScale>.42);
+   sprite.visible=!saturnModuleActive&&(focused||showLocalLabels&&(name==='earth'||name==='moon'||name==='sun'?true:localSolarScale>.42));
    sprite.position.copy(position);
    const d=Math.max(1e-6,camera.position.distanceTo(position));
    const worldPerPixel=2*d*Math.tan(camera.fov*DEG*.5)/Math.max(1,host.clientHeight||innerHeight);
    const w=(sprite.userData.baseWidthPx||76)*worldPerPixel;
    sprite.scale.set(w,w*.25,1);
   }
-  stellarContext.visible=distance>pcScale*2500;
-  galaxyLabel.visible=distance>pcScale*4500;
+  stellarContext.visible=!saturnModuleActive&&distance>pcScale*2500;
+  galaxyLabel.visible=!saturnModuleActive&&distance>pcScale*4500;
   if(galaxyLabel.visible){
    const center=new THREE.Vector3(8200,250,0).multiplyScalar(pcScale).applyQuaternion(orientation).add(sun);
    galaxyLabel.position.copy(center);
