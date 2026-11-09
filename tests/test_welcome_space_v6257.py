@@ -302,7 +302,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
         self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6266-solar-realism"', helper)
         publish_workflow = (ROOT / ".github" / "workflows" / "publish-welcome-space-v6257.yml").read_text()
         self.assertIn("cp recovery/bridgepoint-welcome-space-v6260.js site/bridgepoint-welcome-space-v6260.js", publish_workflow)
-        self.assertNotIn("cp -a assets/moon/v1 site/assets/moon/v1", workflow)
+        self.assertNotIn("cp -a assets/moon/v1 site/assets/moon/v1", publish_workflow)
         self.assertIn("Add only the Sun scene and local solar textures", workflow)
         self.assertIn("cp -a assets/sun/v2 site/assets/sun/v2", workflow)
         self.assertIn("assets/moon/v1/**", workflow)
@@ -419,13 +419,14 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
             (site / "bridgepoint-celestial-sky-v6257.js").write_text(
                 (ROOT / "rebuild-v5000" / "bridgepoint-celestial-sky-v6257.js").read_text()
             )
-            solar_assets = site / "assets" / "sun" / "v1"
+            solar_assets = site / "assets" / "sun" / "v2"
             solar_assets.mkdir(parents=True)
             (solar_assets / "manifest.json").write_text("{}")
             for name in (
                 "sun-photosphere-v2.webp",
                 "sun-coronal-activity-v2.webp",
                 "sun-photosphere-height-v2.webp",
+                "sun-stereoB-farside-EUV-2014-09-27-v2.webp",
             ):
                 (solar_assets / name).write_bytes(b"test")
 
