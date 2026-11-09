@@ -35,13 +35,13 @@ jobs:
           tar -xf "$ARCHIVE" -C site
 
           echo "=== TOP 100 LARGEST FILES (bytes, path) ==="
-          find site -type f -printf '%s\t%p\n' | sort -nr | head -100
+          find site -type f -printf '%s\t%p\n' | sort -nr > /tmp/bp-largest-files.txt\n          sed -n '1,100p' /tmp/bp-largest-files.txt
 
           echo "=== TOP-LEVEL DIRECTORY FOOTPRINT ==="
           du -h -d 1 site | sort -hr
 
           echo "=== SECOND-LEVEL DIRECTORY FOOTPRINT ==="
-          du -h -d 2 site | sort -hr | head -120
+          du -h -d 2 site | sort -hr > /tmp/bp-directory-sizes.txt\n          sed -n '1,120p' /tmp/bp-directory-sizes.txt
 
           echo "=== FILE TYPE TOTALS (bytes) ==="
           python3 - <<'PY'
