@@ -99,7 +99,7 @@ function textSprite(THREE,label){
 
 export function initBridgePointSaturnSystem(options){
  const {THREE,solarRoot,host,camera,bodyMap,planetMeshes,clickables,labelsGroup,labelMap,
-  getSaturnPosition,getSelectedBody,isMobile=false}=options;
+  getSaturnPosition,getSunPosition,getSelectedBody,isMobile=false}=options;
  if(!THREE||!solarRoot||!bodyMap||!planetMeshes)throw Error('Saturn system requires the existing BridgePoint shared celestial scene');
  THREEVector=THREE.Vector3;
  const state={version:'v6285-saturn-lossless-pages',status:'idle',source:'NASA Cassini PDS + NASA NAIF DSK + JPL Horizons',
