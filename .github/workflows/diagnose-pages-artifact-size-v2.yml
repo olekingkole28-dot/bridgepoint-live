@@ -1,0 +1,67 @@
+name: Diagnose BridgePoint Pages Artifact Footprint v2
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/diagnose-pages-artifact-size-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Download the previously verified production Pages artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: bridgepoint-welcome-space-v6257
+          run-id: 42685752632
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          path: /tmp/bridgepoint-pages-diagnostic
+
+      - name: Extract and report exact static file sizes
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p site
+          ARCHIVE="$(find /tmp/bridgepoint-pages-diagnostic -type f -name artifact.tar -print -quit)"
+          test -n "$ARCHIVE"
+          tar -xf "$ARCHIVE" -C site
+
+          python3 - <<'PY'
+          from collections import defaultdict
+          from pathlib import Path
+
+          root = Path("site")
+          files = [p for p in root.rglob("*") if p.is_file()]
+          print("=== TOP 100 LARGEST FILES (bytes, path) ===")
+          for p in sorted(files, key=lambda p: p.stat().st_size, reverse=True)[:100]:
+              print(f"{p.stat().st_size}\t{p}")
+
+          print("=== DIRECTORY TOTALS ===")
+          dirs = [root] + [p for p in root.rglob("*") if p.is_dir()]
+          totals = []
+          for directory in dirs:
+              total = sum(p.stat().st_size for p in directory.rglob("*") if p.is_file())
+              totals.append((total, directory))
+          for size, directory in sorted(totals, reverse=True)[:140]:
+              print(f"{size}\t{directory}")
+
+          print("=== FILE TYPE TOTALS ===")
+          types = defaultdict(lambda: [0, 0])
+          for p in files:
+              ext = p.suffix.lower() or "<no extension>"
+              types[ext][0] += p.stat().st_size
+              types[ext][1] += 1
+          for ext, (size, count) in sorted(types.items(), key=lambda item: item[1][0], reverse=True):
+              print(f"{size}\t{count}\t{ext}")
+
+          print("=== TOTAL UNCOMPRESSED SITE BYTES ===")
+          print(sum(p.stat().st_size for p in files))
+          PY
