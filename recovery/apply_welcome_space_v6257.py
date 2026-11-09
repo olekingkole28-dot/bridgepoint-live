@@ -220,7 +220,7 @@ def patch_app_index(source: str) -> str:
     source = bump_manifest_url(source, "bump current app manifest URL")
     source = replace_prefix_once(
         source,
-        r"(app\.js\?v=)(?:6247-universal-fresh-entry|6264-geometric-crater-bowls|6265-solar-globe|6267-sun-visible|6268-solar-observatory|6269-solar-fire-plasma|6280-unified-cosmos|6282-saturn-system|6283-saturn-isolated|6284-saturn-movement-depth)",
+        r"(app\.js\?v=)(?:6247-universal-fresh-entry|6264-geometric-crater-bowls|6265-solar-globe|6267-sun-visible|6268-solar-observatory|6269-solar-fire-plasma|6280-unified-cosmos|6282-saturn-system|6283-saturn-isolated|6284-saturn-movement-depth|6285-saturn-lossless-pages)",
         r"\g<1>" + BUILD[1:],
         "bust the app bundle URL",
     )
@@ -420,7 +420,7 @@ def patch_site(site: Path) -> None:
     root = bump_manifest_url(root, "bump current root manifest URL")
     root = replace_prefix_once(
         root,
-        r"(landing\.js\?v=)(?:6247-universal-fresh-entry|6264-geometric-crater-bowls|6265-solar-globe|6267-sun-visible|6268-solar-observatory|6269-solar-fire-plasma|6282-saturn-system|6283-saturn-isolated)",
+        r"(landing\.js\?v=)(?:6247-universal-fresh-entry|6264-geometric-crater-bowls|6265-solar-globe|6267-sun-visible|6268-solar-observatory|6269-solar-fire-plasma|6282-saturn-system|6283-saturn-isolated|6285-saturn-lossless-pages)",
         r"\g<1>" + BUILD[1:],
         "bust the landing bundle URL",
     )
