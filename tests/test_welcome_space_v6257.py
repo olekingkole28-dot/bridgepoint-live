@@ -97,7 +97,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
     def test_root_uses_one_existing_earth_and_no_ground_sky_button(self):
         out = patch_root_html(root_fixture())
         self.assertIn("bpWelcomeGateStylesV6257", out)
-        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6264-geometric-crater-bowls"', out)
+        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6265-solar-globe"', out)
         self.assertIn('class="bpw-celestial-system" aria-hidden="true"></div>', out)
         self.assertNotIn("bpwCelestialCanvasV6257", out)
         self.assertNotIn('class="bpw-globe-aura"', out)
@@ -113,8 +113,8 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
         app = patch_app_index(app_index_fixture())
         self.assertEqual(app.count("/?return="), 2)
         self.assertNotIn("/?auth=signin&return=", app)
-        self.assertIn("app.js?v=6264-geometric-crater-bowls", app)
-        self.assertIn("manifest.webmanifest?v=6264-geometric-crater-bowls", app)
+        self.assertIn("app.js?v=6265-solar-globe", app)
+        self.assertIn("manifest.webmanifest?v=6265-solar-globe", app)
         legacy = patch_legacy_app(legacy_fixture())
         self.assertIn('content="0;url=/"', legacy)
         self.assertIn("location.replace('/')", legacy)
@@ -299,17 +299,27 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
         workflow = (ROOT / ".github" / "workflows" / "deploy-intelligence-rebuild-v5000.yml").read_text()
         self.assertIn('class="bpw-celestial-system"', index)
         helper = (ROOT / "recovery" / "apply_welcome_space_v6257.py").read_text()
-        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6264-geometric-crater-bowls"', helper)
+        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6265-solar-globe"', helper)
         publish_workflow = (ROOT / ".github" / "workflows" / "publish-welcome-space-v6257.yml").read_text()
         self.assertIn("cp recovery/bridgepoint-welcome-space-v6260.js site/bridgepoint-welcome-space-v6260.js", publish_workflow)
         self.assertIn("cp -a assets/moon/v1 site/assets/moon/v1", workflow)
         self.assertIn("assets/moon/v1/**", workflow)
 
-        # The Sun's original focus camera branch remains intact.
-        self.assertIn(
-            "animateCamera(world.clone().add(new THREE.Vector3(0,0,sunRadiusVisual*2.7)),world,1.8);",
-            module,
-        )
+        # The Sun now uses local SDO maps, 3D coronal structures and the same
+        # oblique two-finger surface-navigation grammar as the Moon.
+        self.assertIn("sunFocusLocalTarget=new THREE.Vector3(0,0,sunRadiusVisual)", module)
+        self.assertIn("uPhotosphereMap", module)
+        self.assertIn("sun-photosphere-v1.webp", module)
+        self.assertIn("sun-coronal-activity-v1.webp", module)
+        self.assertIn("addCoronalLoop", module)
+        self.assertIn("function rotateSunSurface", module)
+        self.assertIn("function panSunSurface", module)
+        self.assertIn("function tiltSunCamera", module)
+        self.assertIn("panSunSurface(dx,0);tiltSunCamera(dy);", module)
+        self.assertIn("solarRotationPeriodDays:25.38", module)
+        self.assertIn("sun-coronal-activity-v1.webp", helper)
+        self.assertIn("assets/sun/v1/**", publish_workflow)
+        self.assertIn("cp -a assets/sun/v1 site/assets/sun/v1", publish_workflow)
 
     def test_lunar_mesh_indices_are_buffer_attributes(self):
         module = (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text()
@@ -423,7 +433,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
             after = {p.relative_to(site).as_posix() for p in site.rglob("*") if p.is_file()}
             self.assertEqual(after - before, set())
             root = (site / "index.html").read_text()
-            self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6264-geometric-crater-bowls"', root)
+            self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6265-solar-globe"', root)
             self.assertIn("event.persisted", root)
             self.assertIn("location.reload()", root)
             self.assertNotIn("data-space-ground", root)
