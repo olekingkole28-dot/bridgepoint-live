@@ -269,7 +269,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
 
         // SDO full-disk projections use an orthographic disk map, not the
         // equirectangular UVs used by the HMI continuum photosphere.
-        vec2 solarDiskUV=vec2(.5+p.x*.38,.5+p.y*.38);
+        vec2 solarDiskUV=vec2(.5+p.x*.46,.5+p.y*.46);
         float solarDiskMask=1.0-smoothstep(.94,1.08,length(p.xy));
         vec3 magnetic=texture2D(uMagneticMap,solarDiskUV).rgb;
         float magMax=max(max(magnetic.r,magnetic.g),magnetic.b);
@@ -605,7 +605,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       varying float vMotion;
       void main(){
         if(vSolarPos.z<0.0)discard;
-        vec2 uv=vec2(.5+vSolarPos.x*.38,.5+vSolarPos.y*.38);
+        vec2 uv=vec2(.5+vSolarPos.x*.46,.5+vSolarPos.y*.46);
         vec3 hot131=texture2D(uAIA131Map,uv).rgb;
         vec3 loops171=texture2D(uAIA171Map,uv).rgb;
         vec3 active193=texture2D(uAIA193Map,uv).rgb;
