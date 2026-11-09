@@ -34,7 +34,7 @@ jobs:
           test -n "$ARCHIVE"
           tar -xf "$ARCHIVE" -C site
 
-      - name: Verify exact 16-bit WebP lossless encoding on representative tiles
+      - name: Benchmark fast method-0 WebP with exact 16-bit round-trip on representative tiles
         shell: bash
         run: |
           set -euo pipefail
@@ -66,7 +66,7 @@ jobs:
               lo = (arr & 255).astype(np.uint8)
               packed = np.stack([hi, lo, np.zeros_like(hi)], axis=-1)
               probe = src.with_suffix(".lossless-test.webp")
-              Image.fromarray(packed, mode="RGB").save(probe, format="WEBP", lossless=True, quality=100, method=6, exact=True)
+              Image.fromarray(packed, mode="RGB").save(probe, format="WEBP", lossless=True, quality=100, method=0, exact=True)
               decoded = np.asarray(Image.open(probe).convert("RGB"))
               rebuilt = (decoded[..., 0].astype(np.uint16) << 8) | decoded[..., 1].astype(np.uint16)
               if not np.array_equal(arr, rebuilt):
