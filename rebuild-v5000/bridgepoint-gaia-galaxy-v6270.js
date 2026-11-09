@@ -1,4 +1,4 @@
-import { initBridgePointSaturnSystem } from './bridgepoint-saturn-system-v6282.js?v=6283-saturn-isolated';
+import { initBridgePointSaturnSystem } from './bridgepoint-saturn-system-v6282.js?v=6284-saturn-movement-depth';
 
 /**
  * BridgePoint unified celestial space — Gaia DR3 stars + solar-system bodies.
@@ -9,7 +9,7 @@ import { initBridgePointSaturnSystem } from './bridgepoint-saturn-system-v6282.j
  * ephemerides use the same Galactic frame; the shared frame is rotated once so
  * its computed Earth-Sun vector meets the existing welcome Sun position.
  */
-const BUILD='v6283-saturn-isolated';
+const BUILD='v6284-saturn-movement-depth';
 const ROOT='/assets/stellar/gaia-dr3-v6270/';
 const DEG=Math.PI/180;
 const AU_PC=1/206264.80624709636;
@@ -302,6 +302,7 @@ export function initBridgePointSolarCosmos(o){
  const saturnController=initBridgePointSaturnSystem({
   THREE,solarRoot,host,camera,bodyMap,planetMeshes,clickables,labelsGroup,labelMap,
   getSaturnPosition:()=>{const f=starState.frame;return f?planetPos(THREE,PLANETS.find(p=>p.name==='Saturn'),f.days,f.ob).applyQuaternion(f.orientation.clone().invert()).multiplyScalar(f.auScale):null},
+  getSunPosition:()=>getSunPosition?getSunPosition():new THREE.Vector3(),
   getSelectedBody:()=>selectedBody,isMobile
  });
  async function load(){
