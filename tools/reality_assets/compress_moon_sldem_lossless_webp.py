@@ -69,6 +69,18 @@ def main() -> None:
         }
         manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
+    # Force both the public homepage and app shell to load the decoder-aware module.
+    old_ref = "bridgepoint-blender-world-v1.js?v=2-raster-hide"
+    new_ref = "bridgepoint-blender-world-v1.js?v=3-lossless-gzip"
+    html_updates = 0
+    for html in site.rglob("*.html"):
+        page = html.read_text(encoding="utf-8")
+        if old_ref in page:
+            html.write_text(page.replace(old_ref, new_ref), encoding="utf-8")
+            html_updates += page.count(old_ref)
+    if html_updates < 2:
+        raise SystemExit(f"Expected homepage and app shell Blender World script references; updated {html_updates}")
+
     print(
         f"SLDEM_WEBP_COMPLETE tiles={len(pngs)} source={total_png} stored={total_webp} "
         f"saved={1-total_webp/total_png:.1%} exact_uint16=true",
