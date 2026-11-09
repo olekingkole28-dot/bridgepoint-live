@@ -5,9 +5,9 @@ import re
 import sys
 from pathlib import Path
 
-BUILD = "v6281-space-camera-sync"
+BUILD = "v6282-saturn-system"
 # Moon terrain assets are bundled locally under assets/moon/v1; runtime requests stay same-origin.
-SW_URL = "/sw.js?v=6281-space-camera-sync"
+SW_URL = "/sw.js?v=6282-saturn-system"
 CACHE_NAME = "bp-intelligence-v6247-universal-fresh-entry-sidewalk"
 
 
@@ -471,7 +471,7 @@ def patch_site(site: Path) -> None:
         raise AssertionError("The current installed-app identity changed")
     if legacy_manifest.get("id") != "/app/intelligence-launch/":
         raise AssertionError("The legacy installed-app identity changed")
-    print("BRIDGEPOINT_WELCOME_SPACE_V6281_SPACE_CAMERA_SYNC_PATCH_PASS")
+    print("BRIDGEPOINT_WELCOME_SPACE_V6282_SATURN_SYSTEM_PATCH_PASS")
     print("Website, app, current PWA and legacy PWA route to the same root globe gate.")
     print("The Sun uses a warm SDO/HMI continuum, timestamped HMI polarity observations, and local AIA 131/171/193/304 channels for the animated coronal shell and observation-positioned active-region structures.")
     print("Existing lunar terrain assets, offline data caches and authentication/session logic are preserved.")
