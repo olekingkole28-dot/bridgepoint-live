@@ -9,7 +9,7 @@ import { initBridgePointSaturnSystem } from './bridgepoint-saturn-system-v6282.j
  * ephemerides use the same Galactic frame; the shared frame is rotated once so
  * its computed Earth-Sun vector meets the existing welcome Sun position.
  */
-const BUILD='v6282-saturn-system';
+const BUILD='v6283-saturn-isolated';
 const ROOT='/assets/stellar/gaia-dr3-v6270/';
 const DEG=Math.PI/180;
 const AU_PC=1/206264.80624709636;
