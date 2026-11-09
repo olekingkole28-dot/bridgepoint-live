@@ -398,7 +398,7 @@ self.addEventListener('fetch',e=>{
         workflow = (ROOT / ".github" / "workflows" / "deploy-intelligence-rebuild-v5000.yml").read_text()
         self.assertIn('class="bpw-celestial-system"', index)
         helper = (ROOT / "recovery" / "apply_welcome_space_v6257.py").read_text()
-        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6281-space-camera-sync"', helper)
+        self.assertIn("r'\\g<1>' + BUILD[1:] + r'\\g<2>'", helper)
         publish_workflow = (ROOT / ".github" / "workflows" / "publish-welcome-space-v6257.yml").read_text()
         self.assertIn("cp recovery/bridgepoint-welcome-space-v6260.js site/bridgepoint-welcome-space-v6260.js", publish_workflow)
         self.assertNotIn("cp -a assets/moon/v1 site/assets/moon/v1", publish_workflow)
