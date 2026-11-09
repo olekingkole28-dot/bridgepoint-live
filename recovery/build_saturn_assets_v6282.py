@@ -126,7 +126,7 @@ def build(root: Path, out: Path) -> dict:
     manifest={
       "version":"saturn-system-v6282","created":"2026-11-09",
       "sources":{
-        "saturn":"NASA PDS Cassini ISS global color map; 360° longitude × 180° latitude product, 0.1° source sampling; browser texture derived from NASA browse image",
+        "saturn":"NASA PDS Cassini ISS RGB Saturn global color-map browse image; visual atmosphere texture only, not a height map",
         "titan":"NASA Cassini SAR topography, Corlies et al. 2024, topo_4PPD_interp.cub; global interpolated surface values in metres, 4 pixels per degree; local DEM is not a claim of uniform radar observation coverage",
         "enceladus":"NASA NAIF Cassini DSK shape model cas_enceladus_ssd_spc_0128icq_v1 plus NASA Cassini/Voyager global mosaic PIA08417",
         "mimas":"NASA PDS Gaskell M3 shape model MIMAS_M3_GAS_V01.BDS plus NASA Cassini global mosaic PIA17214"
