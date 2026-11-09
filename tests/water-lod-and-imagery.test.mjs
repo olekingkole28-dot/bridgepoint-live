@@ -86,11 +86,15 @@ assert.ok(homepageHtml.includes('landing.js?v=6247-universal-fresh-entry'), 'hom
 assert.ok(homepageHtml.includes('bridgepoint-view-v5917.js?v=6215-satellite-persistent-render-guard'), 'homepage must load the current satellite control loader');
 assert.ok(appHtml.includes('app.js?v=6247-universal-fresh-entry'), 'app shell must load the updated imagery loader');
 assert.ok(appHtml.includes('bridgepoint-view-v5917.js?v=6215-satellite-persistent-render-guard'), 'app must load the current satellite control loader');
-assert.ok(homepageHtml.includes('bridgepoint-blender-world-v1.js?v=2-raster-hide'), 'homepage must load the mode-aware Blender World layer controller');
-assert.ok(appHtml.includes('bridgepoint-blender-world-v1.js?v=2-raster-hide'), 'the app shell must load the same mode-aware Blender World layer controller');
+assert.ok(homepageHtml.includes('bridgepoint-blender-world-v1.js?v=3-lossless-gzip'), 'homepage must load the mode-aware Blender World layer controller');
+assert.ok(appHtml.includes('bridgepoint-blender-world-v1.js?v=3-lossless-gzip'), 'the app shell must load the same mode-aware Blender World layer controller');
 assert.ok(blenderSource.includes("const MOBILE_DEVICE = window.matchMedia?.('(max-width: 700px)').matches === true;"), 'Blender World must detect small-screen layouts');
 assert.ok(blenderSource.includes('const MAX_CONCURRENT_TILE_LOADS = MOBILE_DEVICE ? 1 : 2;'), 'Blender World must load one GLB tile at a time on phones');
 assert.ok(blenderSource.includes('const TILE_PREFETCH_PAD = MOBILE_DEVICE ? 0.06 : 0.18;'), 'phone viewports must avoid loading unnecessary adjacent Manhattan tiles');
+assert.ok(blenderSource.includes("url.toLowerCase().endsWith('.glb.gz')"), 'Manhattan tiles must support lossless gzip transfer decoding');
+assert.ok(blenderSource.includes("new DecompressionStream('gzip')"), 'compressed Manhattan tiles must be decompressed before GLTF parsing');
+assert.ok(blenderSource.includes("loader.parse(buffer, ASSET_ROOT"), 'decompressed GLBs must use the existing GLTFLoader parser');
+
 assert.ok(blenderSource.includes('intersects(tile.boundsWgs84, bounds, TILE_PREFETCH_PAD)'), 'visible tile culling must use the device-specific prefetch budget');
 assert.ok(blenderSource.includes('mobileProfile: MOBILE_DEVICE') && blenderSource.includes('maxConcurrentTileLoads: MAX_CONCURRENT_TILE_LOADS'), 'the mobile load budget must be exposed for runtime smoke verification');
 assert.ok(appLoader.includes("world-v2300-spectral-imagery.js?v=6215-satellite-persistent-render-guard"), 'app must request the new satellite imagery module');
