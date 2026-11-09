@@ -213,6 +213,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       uMagneticMap:{value:null},uMagneticReady:{value:0},
       uAIA131Map:{value:null},uAIA131Ready:{value:0},
       uAIA171Map:{value:null},uAIA171Ready:{value:0},
+      uAIA193Map:{value:null},uAIA193Ready:{value:0},
       uAIA304Map:{value:null},uAIA304Ready:{value:0},
       uFarSideMap:{value:null},uFarSideReady:{value:0}
     },
@@ -238,6 +239,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       uniform sampler2D uMagneticMap;uniform float uMagneticReady;
       uniform sampler2D uAIA131Map;uniform float uAIA131Ready;
       uniform sampler2D uAIA171Map;uniform float uAIA171Ready;
+      uniform sampler2D uAIA193Map;uniform float uAIA193Ready;
       uniform sampler2D uAIA304Map;uniform float uAIA304Ready;
       uniform sampler2D uFarSideMap;uniform float uFarSideReady;
       float hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
@@ -570,6 +572,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       uTime:{value:0},
       uAIA131Map:{value:solarObservationTextures.aia131},
       uAIA171Map:{value:solarObservationTextures.aia171},
+      uAIA193Map:{value:solarObservationTextures.aia193},
       uAIA304Map:{value:solarObservationTextures.aia304}
     },
     vertexShader:`
@@ -595,6 +598,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       precision highp float;
       uniform sampler2D uAIA131Map;
       uniform sampler2D uAIA171Map;
+      uniform sampler2D uAIA193Map;
       uniform sampler2D uAIA304Map;
       varying vec3 vSolarPos;
       varying float vMotion;
@@ -603,17 +607,21 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
         vec2 uv=vec2(.5+vSolarPos.x*.38,.5+vSolarPos.y*.38);
         vec3 hot131=texture2D(uAIA131Map,uv).rgb;
         vec3 loops171=texture2D(uAIA171Map,uv).rgb;
+        vec3 active193=texture2D(uAIA193Map,uv).rgb;
         vec3 chromo304=texture2D(uAIA304Map,uv).rgb;
         float h=dot(hot131,vec3(.299,.587,.114));
         float l=dot(loops171,vec3(.299,.587,.114));
+        float a=dot(active193,vec3(.299,.587,.114));
         float c=dot(chromo304,vec3(.299,.587,.114));
         float flare=smoothstep(.055,.27,h);
         float loop=smoothstep(.075,.32,l);
+        float active=smoothstep(.075,.30,a);
         float prominence=smoothstep(.07,.29,c);
-        float signal=max(max(flare*.92,loop*.58),prominence*.66);
+        float signal=max(max(max(flare*.92,loop*.58),active*.48),prominence*.66);
         if(signal<.075)discard;
         vec3 plasma=hot131*vec3(.42,.96,1.38)*flare
           +loops171*vec3(1.30,.88,.28)*loop
+          +active193*vec3(.64,1.04,.23)*active
           +chromo304*vec3(1.32,.24,.035)*prominence;
         float stream=.88+.12*sin(vSolarPos.x*48.0+vSolarPos.y*31.0+vMotion*2.0);
         float alpha=clamp(signal*(.23+.25*stream),0.0,.56);
