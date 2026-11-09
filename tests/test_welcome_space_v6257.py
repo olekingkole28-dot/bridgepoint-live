@@ -97,7 +97,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
     def test_root_uses_one_existing_earth_and_no_ground_sky_button(self):
         out = patch_root_html(root_fixture())
         self.assertIn("bpWelcomeGateStylesV6257", out)
-        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6265-solar-globe"', out)
+        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6266-solar-realism"', out)
         self.assertIn('class="bpw-celestial-system" aria-hidden="true"></div>', out)
         self.assertNotIn("bpwCelestialCanvasV6257", out)
         self.assertNotIn('class="bpw-globe-aura"', out)
@@ -113,8 +113,8 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
         app = patch_app_index(app_index_fixture())
         self.assertEqual(app.count("/?return="), 2)
         self.assertNotIn("/?auth=signin&return=", app)
-        self.assertIn("app.js?v=6265-solar-globe", app)
-        self.assertIn("manifest.webmanifest?v=6265-solar-globe", app)
+        self.assertIn("app.js?v=6266-solar-realism", app)
+        self.assertIn("manifest.webmanifest?v=6266-solar-realism", app)
         legacy = patch_legacy_app(legacy_fixture())
         self.assertIn('content="0;url=/"', legacy)
         self.assertIn("location.replace('/')", legacy)
@@ -299,29 +299,38 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
         workflow = (ROOT / ".github" / "workflows" / "deploy-intelligence-rebuild-v5000.yml").read_text()
         self.assertIn('class="bpw-celestial-system"', index)
         helper = (ROOT / "recovery" / "apply_welcome_space_v6257.py").read_text()
-        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6265-solar-globe"', helper)
+        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6266-solar-realism"', helper)
         publish_workflow = (ROOT / ".github" / "workflows" / "publish-welcome-space-v6257.yml").read_text()
         self.assertIn("cp recovery/bridgepoint-welcome-space-v6260.js site/bridgepoint-welcome-space-v6260.js", publish_workflow)
         self.assertNotIn("cp -a assets/moon/v1 site/assets/moon/v1", workflow)
         self.assertIn("Add only the Sun scene and local solar textures", workflow)
-        self.assertIn("cp -a assets/sun/v1 site/assets/sun/v1", workflow)
+        self.assertIn("cp -a assets/sun/v2 site/assets/sun/v2", workflow)
         self.assertIn("assets/moon/v1/**", workflow)
 
         # The Sun now uses local SDO maps, 3D coronal structures and the same
         # oblique two-finger surface-navigation grammar as the Moon.
         self.assertIn("sunFocusLocalTarget=new THREE.Vector3(0,0,sunRadiusVisual)", module)
         self.assertIn("uPhotosphereMap", module)
-        self.assertIn("sun-photosphere-v1.webp", module)
-        self.assertIn("sun-coronal-activity-v1.webp", module)
-        self.assertIn("addCoronalLoop", module)
-        self.assertIn("function rotateSunSurface", module)
+        self.assertIn("sun-photosphere-v2.webp", module)
+        self.assertIn("sun-photosphere-height-v2.webp", module)
+        self.assertIn("sun-coronal-activity-v2.webp", module)
+        self.assertIn("sun-stereoB-farside-EUV-2014-09-27-v2.webp", module)
+        self.assertIn("uFarSideMap", module)
+        self.assertIn("earthDepthOccluder", module)
+        self.assertIn("Sun solid opaque depth occluder", module)
+        self.assertIn("applySunReliefFromImage", module)
+        self.assertIn("geometry.computeVertexNormals()", module)
+        self.assertIn("createSolarPlasmaMaterial", module)
         self.assertIn("function panSunSurface", module)
         self.assertIn("function tiltSunCamera", module)
+        self.assertIn("panSunSurface(dx,dy);", module)
         self.assertIn("panSunSurface(dx,0);tiltSunCamera(dy);", module)
         self.assertIn("solarRotationPeriodDays:25.38", module)
-        self.assertIn("sun-coronal-activity-v1.webp", helper)
-        self.assertIn("assets/sun/v1/**", publish_workflow)
-        self.assertIn("cp -a assets/sun/v1 site/assets/sun/v1", publish_workflow)
+        self.assertIn("2014-09-27", helper)
+        self.assertIn("sun-photosphere-height-v2.webp", helper)
+        self.assertIn("assets/sun/v2/**", publish_workflow)
+        self.assertIn("cp -a assets/sun/v2 site/assets/sun/v2", publish_workflow)
+        self.assertNotIn("cp -a assets/moon/v1 site/assets/moon/v1", publish_workflow)
 
     def test_lunar_mesh_indices_are_buffer_attributes(self):
         module = (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text()
@@ -414,9 +423,9 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
             solar_assets.mkdir(parents=True)
             (solar_assets / "manifest.json").write_text("{}")
             for name in (
-                "sun-photosphere-v1.webp",
-                "sun-coronal-activity-v1.webp",
-                "sun-magnetic-field-v1.webp",
+                "sun-photosphere-v2.webp",
+                "sun-coronal-activity-v2.webp",
+                "sun-photosphere-height-v2.webp",
             ):
                 (solar_assets / name).write_bytes(b"test")
 
@@ -425,7 +434,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
             after = {p.relative_to(site).as_posix() for p in site.rglob("*") if p.is_file()}
             self.assertEqual(after - before, set())
             root = (site / "index.html").read_text()
-            self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6265-solar-globe"', root)
+            self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6266-solar-realism"', root)
             self.assertIn("event.persisted", root)
             self.assertIn("location.reload()", root)
             self.assertNotIn("data-space-ground", root)
