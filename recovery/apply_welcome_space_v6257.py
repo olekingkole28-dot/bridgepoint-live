@@ -455,7 +455,7 @@ def patch_site(site: Path) -> None:
             "function panSunSurface", "panSunSurface(dx,dy)", "function tiltSunCamera", "uFarSideMap"
         ],
         "celestial sky module": ["apparentAngularRadiusPx", "bp6257-sun-surface", "initBridgePointCelestialSky"],
-        "legacy app index": ['content="0;url=/"', "location.replace('/')", "sw.js?v=6280-unified-cosmos"],
+        "legacy app index": ['content="0;url=/"', "location.replace('/')", "sw.js?v=" + BUILD[1:]],
     }
     for label, markers in checks.items():
         content = required[label].read_text(encoding="utf-8")
