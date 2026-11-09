@@ -465,10 +465,10 @@ self.addEventListener('fetch',e=>{
     def test_patch_bundle_bumps_v6269_worker_to_v6280(self):
         with tempfile.TemporaryDirectory() as folder:
             bundle = Path(folder) / "app.js"
-            bundle.write_text("navigator.serviceWorker.register('/sw.js?v=6268-solar-observatory',{updateViaCache:'none'})")
+            bundle.write_text("navigator.serviceWorker.register('/sw.js?v=6269-solar-fire-plasma',{updateViaCache:'none'})")
             patch_bundle(bundle)
             self.assertIn("sw.js?v=6280-unified-cosmos", bundle.read_text())
-            self.assertNotIn("v6268-solar-observatory", bundle.read_text())
+            self.assertNotIn("v6269-solar-fire-plasma", bundle.read_text())
 
     def test_lunar_mesh_indices_are_buffer_attributes(self):
         module = (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text()
@@ -535,6 +535,10 @@ self.addEventListener('fetch',e=>{
         self.assertNotIn("GALAXY VIEW", galaxy)
         self.assertNotIn("data-gaia=", galaxy)
         self.assertIn("Gaia DR3 measured stellar positions", galaxy)
+        self.assertIn("const p=[r.x,r.y,r.z],j=i*3;", galaxy)
+        self.assertIn("if(starState.frame)return starState.frame;", galaxy)
+        self.assertIn("0.00465047*uAUScale", galaxy)
+        self.assertIn("#include <logdepthbuf_vertex>", galaxy)
         self.assertIn("starsGroup.visible=true", galaxy)
         self.assertIn("initBridgePointSolarCosmos", galaxy)
 
