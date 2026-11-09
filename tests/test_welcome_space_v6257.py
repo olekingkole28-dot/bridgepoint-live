@@ -523,6 +523,18 @@ self.addEventListener('fetch',e=>{
         self.assertNotIn("imbrium.mit.edu/DATA/SLDEM2015", workflow)
         self.assertNotIn("SLDEM_TILE_SHIFT", workflow)
 
+    def test_gaia_button_initialization_and_welcome_starfield_are_separate(self):
+        scene = (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text()
+        galaxy = (ROOT / "rebuild-v5000" / "bridgepoint-gaia-galaxy-v6270.js").read_text()
+        self.assertIn("starsGroup:stars", scene)
+        self.assertIn("const cinematicStarfield=new THREE.Points", scene)
+        self.assertIn("cinematicStarfield.visible=visible", scene)
+        self.assertIn("bpw-gaia-mode", scene)
+        self.assertIn("display:block!important;visibility:visible!important", scene)
+        self.assertIn("stars.visible=false", scene)
+        self.assertIn("starsGroup.visible=true", galaxy)
+        self.assertIn("starsGroup.visible=false", galaxy)
+
     def test_celestial_sky_is_attached_to_the_app_map_without_a_second_canvas(self):
         module = (ROOT / "rebuild-v5000" / "bridgepoint-celestial-sky-v6257.js").read_text()
         self.assertIn("function apparentAngularRadiusPx", module)
