@@ -123,12 +123,12 @@ def download_sources(root: Path) -> None:
     files={
       "saturn/saturn-cassini-iss-rgb-global-original.png":
         "https://atmos.nmsu.edu/PDS/data/PDS4/co_iss_global-maps/browse/Browse_Cassini_ISS_RGB_Saturn_global_color_map_original.png",
-      "titan/titan-cassini-radar-topography-PIA16848.jpg":
-        "https://assets.science.nasa.gov/dynamicimage/assets/science/psd/photojournal/pia/pia16/pia16848/PIA16848.jpg?fit=clip&h=1126&w=2196",
-      "enceladus/enceladus-cassini-global-map-PIA08417.jpg":
-        "https://assets.science.nasa.gov/dynamicimage/assets/science/psd/photojournal/pia/pia08/pia08417/PIA08417.jpg?fit=clip&h=1182&w=1969",
-      "mimas/mimas-cassini-global-map-PIA17214-unlabeled.png":
-        "https://assets.science.nasa.gov/dynamicimage/assets/science/psd/solar/2023/09/p/i/a/1/PIA17214_unlabeled.png?fit=clip&h=4096&w=4096",
+      "titan/titan-cassini-surface-mosaic-PIA22770.jpg":
+        "https://assets.science.nasa.gov/dynamicimage/assets/science/psd/photojournal/pia/pia22/pia22770/PIA22770.jpg?fit=clip&h=2880&w=5760",
+      "enceladus/enceladus-cassini-color-map-PIA18435.jpg":
+        "https://assets.science.nasa.gov/dynamicimage/assets/science/psd/photojournal/pia/pia18/pia18435/PIA18435.jpg?fit=clip&h=7980&w=15960",
+      "mimas/mimas-cassini-color-map-PIA18437.jpg":
+        "https://assets.science.nasa.gov/dynamicimage/assets/science/psd/photojournal/pia/pia18/pia18437/PIA18437.jpg?fit=clip&h=3178&w=6356",
       "enceladus/cas_enceladus_ssd_spc_0128icq_v1.bds":
         "https://naif.jpl.nasa.gov/pub/naif/CASSINI/kernels/dsk/cas_enceladus_ssd_spc_0128icq_v1.bds",
       "mimas/MIMAS_M3_GAS_V01.BDS":
@@ -182,9 +182,9 @@ def build(root: Path, out: Path) -> dict:
     texture_dir=out/"textures"; mesh_dir=out/"meshes"; dem_dir=out/"height"
     textures={}
     textures["saturn"]=save_webp(root/"saturn"/"saturn-cassini-iss-rgb-global-original.png",texture_dir/"saturn-cassini-iss-global.webp",95)
-    textures["titan"]=save_webp(root/"titan"/"titan-cassini-radar-topography-PIA16848.jpg",texture_dir/"titan-cassini-radar-topography.webp",94)
-    textures["enceladus"]=save_webp(root/"enceladus"/"enceladus-cassini-global-map-PIA08417.jpg",texture_dir/"enceladus-cassini-global-map.webp",94)
-    textures["mimas"]=save_webp(root/"mimas"/"mimas-cassini-global-map-PIA17214-unlabeled.png",texture_dir/"mimas-cassini-global-map.webp",94)
+    textures["titan"]=save_webp(root/"titan"/"titan-cassini-surface-mosaic-PIA22770.jpg",texture_dir/"titan-cassini-surface-mosaic.webp",94)
+    textures["enceladus"]=save_webp(root/"enceladus"/"enceladus-cassini-color-map-PIA18435.jpg",texture_dir/"enceladus-cassini-global-map.webp",94)
+    textures["mimas"]=save_webp(root/"mimas"/"mimas-cassini-color-map-PIA18437.jpg",texture_dir/"mimas-cassini-global-map.webp",94)
     dem=build_titan_height(root/"titan"/"topo_4PPD_interp.cub",dem_dir/"titan-cassini-topography-4ppd-u16.bin.gz")
     ephemerides={}
     for key,body_id in (("mimas",601),("enceladus",602),("titan",606)):
@@ -205,10 +205,10 @@ def build(root: Path, out: Path) -> dict:
     manifest={
       "version":"saturn-system-v6282","created":"2026-11-09",
       "sources":{
-        "saturn":"NASA PDS Cassini ISS global color map; 360° longitude × 180° latitude product, 0.1° source sampling; browser texture derived from NASA browse image",
-        "titan":"NASA Cassini SAR topography, Corlies et al. 2024, topo_4PPD_interp.cub; global interpolated surface values in metres, 4 pixels per degree; local DEM is not a claim of uniform radar observation coverage",
-        "enceladus":"NASA NAIF Cassini DSK shape model cas_enceladus_ssd_spc_0128icq_v1 plus NASA Cassini/Voyager global mosaic PIA08417",
-        "mimas":"NASA PDS Gaskell M3 shape model MIMAS_M3_GAS_V01.BDS plus NASA Cassini global mosaic PIA17214"
+        "saturn":"NASA PDS Cassini ISS RGB Saturn global color-map browse image; visual atmospheric albedo texture, not a height map",
+        "titan":"NASA Cassini ISS PIA22770 near-infrared 938 nm global surface mosaic assembled from 9,873 images; paired with Corlies et al. 2024 Cassini SAR topography topo_4PPD_interp.cub, a globally interpolated DEM whose source observations are sparse",
+        "enceladus":"NASA Cassini PIA18435 global enhanced-color mosaic (100 m/px source product) plus NASA NAIF Cassini DSK shape model cas_enceladus_ssd_spc_0128icq_v1",
+        "mimas":"NASA Cassini PIA18437 enhanced-color global mosaic (200 m/px source product) plus NASA PDS Gaskell M3 DSK shape model MIMAS_M3_GAS_V01.BDS"
       },
       "textures":textures,"titan_dem":dem,"shape_meshes":meshes,"ephemeris_file":"ephemerides.json",
       "physical":{
