@@ -149,7 +149,7 @@ def patch_root_html(source: str) -> str:
             re.IGNORECASE,
         )
         source, module_src_count = module_src_pattern.subn(
-            r'\g<1>6280-unified-cosmos\g<2>', source, count=1
+            r'\g<1>' + BUILD[1:] + r'\g<2>', source, count=1
         )
         if module_src_count != 1:
             raise AssertionError("Current welcome module src is missing or duplicated")
@@ -212,8 +212,8 @@ def patch_app_index(source: str) -> str:
     source = bump_manifest_url(source, "bump current app manifest URL")
     source = replace_prefix_once(
         source,
-        r"(app\.js\?v=)(?:6247-universal-fresh-entry|6264-geometric-crater-bowls|6265-solar-globe|6267-sun-visible|6268-solar-observatory|6269-solar-fire-plasma)",
-        r"\g<1>6280-unified-cosmos",
+        r"(app\.js\?v=)(?:6247-universal-fresh-entry|6264-geometric-crater-bowls|6265-solar-globe|6267-sun-visible|6268-solar-observatory|6269-solar-fire-plasma|6280-unified-cosmos)",
+        r"\g<1>" + BUILD[1:],
         "bust the app bundle URL",
     )
     return source
@@ -230,7 +230,7 @@ def patch_legacy_app(source: str) -> str:
         return source
     source = replace_once(source, 'content="4;url=/app/?migrated=legacy-intelligence-v5820"', 'content="0;url=/"', "make legacy installed app route immediately to the canonical gate")
     source = replace_once(source, 'href="/app/" style="color:#4ad9ff"', 'href="/" style="color:#4ad9ff"', "legacy app fallback link")
-    source = replace_once(source, "sw.js?v=6218-tree-viewport-renderer-refresh", "sw.js?v=6280-unified-cosmos", "refresh legacy app service worker")
+    source = replace_once(source, "sw.js?v=6218-tree-viewport-renderer-refresh", "sw.js?v=" + BUILD[1:], "refresh legacy app service worker")
     source = replace_once(source, "k.startsWith('bp-intelligence-')&&k!=='bp-intelligence-v5820'", "k.startsWith('bp-intelligence-')&&k!=='bp-intelligence-v6247-universal-fresh-entry-sidewalk'", "preserve the existing offline cache during legacy-app migration")
     source = replace_once(source, "location.replace('/app/?migrated=legacy-intelligence-v5820')", "location.replace('/')", "legacy app final route")
     return source
@@ -247,8 +247,9 @@ def patch_manifest(path: Path, expected_id: str) -> None:
 
 def patch_bundle(path: Path) -> None:
     source = path.read_text(encoding="utf-8")
-    new_url = "navigator.serviceWorker.register('/sw.js?v=6280-unified-cosmos',{updateViaCache:'none'})"
+    new_url = "navigator.serviceWorker.register('/sw.js?v=" + BUILD[1:] + "',{updateViaCache:'none'})"
     old_urls = (
+        "navigator.serviceWorker.register('/sw.js?v=6280-unified-cosmos',{updateViaCache:'none'})",
         "navigator.serviceWorker.register('/sw.js?v=6268-solar-observatory',{updateViaCache:'none'})",
         "navigator.serviceWorker.register('/sw.js?v=6269-solar-fire-plasma',{updateViaCache:'none'})",
         "navigator.serviceWorker.register('/sw.js?v=6267-sun-visible',{updateViaCache:'none'})",
@@ -399,7 +400,7 @@ def patch_site(site: Path) -> None:
     root = replace_prefix_once(
         root,
         r"(landing\.js\?v=)(?:6247-universal-fresh-entry|6264-geometric-crater-bowls|6265-solar-globe|6267-sun-visible|6268-solar-observatory|6269-solar-fire-plasma)",
-        r"\g<1>6280-unified-cosmos",
+        r"\g<1>" + BUILD[1:],
         "bust the landing bundle URL",
     )
     required["root"].write_text(root, encoding="utf-8")
@@ -470,7 +471,7 @@ def patch_site(site: Path) -> None:
         raise AssertionError("The current installed-app identity changed")
     if legacy_manifest.get("id") != "/app/intelligence-launch/":
         raise AssertionError("The legacy installed-app identity changed")
-    print("BRIDGEPOINT_WELCOME_SPACE_V6280_UNIFIED_COSMOS_PATCH_PASS")
+    print("BRIDGEPOINT_WELCOME_SPACE_V6281_SPACE_CAMERA_SYNC_PATCH_PASS")
     print("Website, app, current PWA and legacy PWA route to the same root globe gate.")
     print("The Sun uses a warm SDO/HMI continuum, timestamped HMI polarity observations, and local AIA 131/171/193/304 channels for the animated coronal shell and observation-positioned active-region structures.")
     print("Existing lunar terrain assets, offline data caches and authentication/session logic are preserved.")
