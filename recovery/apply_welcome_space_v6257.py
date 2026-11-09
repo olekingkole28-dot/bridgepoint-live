@@ -5,10 +5,10 @@ import re
 import sys
 from pathlib import Path
 
-BUILD = "v6283-saturn-isolated"
+BUILD = "v6284-saturn-movement-depth"
 # Moon terrain assets are bundled locally under assets/moon/v1; runtime requests stay same-origin.
-SW_URL = "/sw.js?v=6283-saturn-isolated"
-CACHE_NAME = "bp-intelligence-v6283-saturn-isolated"
+SW_URL = "/sw.js?v=6284-saturn-movement-depth"
+CACHE_NAME = "bp-intelligence-v6284-saturn-movement-depth"
 
 
 def replace_once(source: str, old: str, new: str, label: str) -> str:
@@ -220,7 +220,7 @@ def patch_app_index(source: str) -> str:
     source = bump_manifest_url(source, "bump current app manifest URL")
     source = replace_prefix_once(
         source,
-        r"(app\.js\?v=)(?:6247-universal-fresh-entry|6264-geometric-crater-bowls|6265-solar-globe|6267-sun-visible|6268-solar-observatory|6269-solar-fire-plasma|6280-unified-cosmos|6282-saturn-system)",
+        r"(app\.js\?v=)(?:6247-universal-fresh-entry|6264-geometric-crater-bowls|6265-solar-globe|6267-sun-visible|6268-solar-observatory|6269-solar-fire-plasma|6280-unified-cosmos|6282-saturn-system|6283-saturn-isolated)",
         r"\g<1>" + BUILD[1:],
         "bust the app bundle URL",
     )
@@ -263,6 +263,7 @@ def patch_bundle(path: Path) -> None:
     old_urls = (
         "navigator.serviceWorker.register('/sw.js?v=6280-unified-cosmos',{updateViaCache:'none'})",
         "navigator.serviceWorker.register('/sw.js?v=6282-saturn-system',{updateViaCache:'none'})",
+        "navigator.serviceWorker.register('/sw.js?v=6283-saturn-isolated',{updateViaCache:'none'})",
         "navigator.serviceWorker.register('/sw.js?v=6268-solar-observatory',{updateViaCache:'none'})",
         "navigator.serviceWorker.register('/sw.js?v=6269-solar-fire-plasma',{updateViaCache:'none'})",
         "navigator.serviceWorker.register('/sw.js?v=6267-sun-visible',{updateViaCache:'none'})",
@@ -474,6 +475,7 @@ def patch_site(site: Path) -> None:
             "syncSunDepthGeometry", "earthDepthOccluder", "Sun solid opaque depth occluder",
             "function panSunSurface", "panSunSurface(dx,dy)", "function tiltSunCamera", "uFarSideMap",
             "scene.background=new THREE.Color(0x02050c)", "saturnFocusMesh",
+            "saturnFocusMesh.scale?.x", "raycastTargets",
             "function panSaturnSurface(dx,dy)", "function tiltSaturnCamera(deltaY)",
             "enforceSaturnCameraClearance", "saturn-surface"
         ],
@@ -494,7 +496,7 @@ def patch_site(site: Path) -> None:
         raise AssertionError("The current installed-app identity changed")
     if legacy_manifest.get("id") != "/app/intelligence-launch/":
         raise AssertionError("The legacy installed-app identity changed")
-    print("BRIDGEPOINT_WELCOME_SPACE_V6283_SATURN_ISOLATED_PATCH_PASS")
+    print("BRIDGEPOINT_WELCOME_SPACE_V6284_SATURN_MOVEMENT_DEPTH_PATCH_PASS")
     print("Website, app, current PWA and legacy PWA route to the same root globe gate.")
     print("The Sun uses a warm SDO/HMI continuum, timestamped HMI polarity observations, and local AIA 131/171/193/304 channels for the animated coronal shell and observation-positioned active-region structures.")
     print("Existing lunar terrain assets, offline data caches and authentication/session logic are preserved.")
