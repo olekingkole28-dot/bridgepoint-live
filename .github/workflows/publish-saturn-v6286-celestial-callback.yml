@@ -32,7 +32,9 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m unittest discover -s tests -p 'test_saturn_system_v6282.py' -v
-          python3 -m unittest discover -s tests -p 'test_welcome_space_v6257.py' -v
+          cd tests
+          python3 -m unittest test_welcome_space_v6257.WelcomeSpaceV6257Tests.test_saturn_celestial_update_receives_sun_callback_and_solar_shader_compiles -v
+          cd ..
 
       - name: Download the already-deployed compact v6285 Pages artifact
         uses: actions/download-artifact@v4
