@@ -1,4 +1,4 @@
-name: Publish BridgePoint Sun Globe, Depth Occlusion and STEREO Far Side V6266
+name: Publish BridgePoint Sun Globe, Depth Occlusion and STEREO Far Side V6267
 
 on:
   push:
@@ -22,7 +22,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: bridgepoint-welcome-space-v6266-solar-realism
+  group: bridgepoint-welcome-space-v6267-sun-visible
   cancel-in-progress: true
 
 jobs:
@@ -163,7 +163,7 @@ jobs:
           node --input-type=module --check < site/bridgepoint-welcome-space-v6260.js
           node --input-type=module --check < site/bridgepoint-celestial-sky-v6257.js
           grep -Fq 'bpWelcomeGateStylesV6257' site/index.html
-          grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6266-solar-realism"' site/index.html
+          grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6267-sun-visible"' site/index.html
           grep -Fq 'data-mode="signup"' site/index.html
           grep -Fq 'data-mode="signin"' site/index.html
           grep -Fq 'new THREE.Raycaster()' site/bridgepoint-welcome-space-v6260.js
@@ -259,7 +259,7 @@ jobs:
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/intelligence-launch/?welcome-space-v6257=${q}" -o /tmp/live-legacy.html || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/sw.js?verify=${q}" -o /tmp/live-sw.js || true
             if grep -Fq 'bpWelcomeGateStylesV6257' /tmp/live-root.html 2>/dev/null &&
-               grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6266-solar-realism"' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6267-sun-visible"' /tmp/live-root.html 2>/dev/null &&
                grep -Fq 'new THREE.Raycaster()' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'uPhotosphereMap' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'addCoronalLoop' /tmp/live-space.js 2>/dev/null &&
@@ -295,7 +295,7 @@ jobs:
                grep -Fq 'entryRoute=' /tmp/live-sw.js 2>/dev/null &&
                grep -Fq '/?return=' /tmp/live-app.html 2>/dev/null &&
                grep -Fq 'content="0;url=/"' /tmp/live-legacy.html 2>/dev/null &&
-               grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6266-solar-realism'" /tmp/live-sw.js 2>/dev/null &&
+               grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6267-sun-visible'" /tmp/live-sw.js 2>/dev/null &&
                grep -Fq 'runtimeMode' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'externalRuntimeTerrainRequests: 0' /tmp/live-space.js 2>/dev/null &&
                ! grep -Fq 'trek.nasa.gov/tiles/Moon' /tmp/live-space.js 2>/dev/null &&
@@ -315,4 +315,4 @@ jobs:
             sleep 3
           done
           test "$ok" -eq 1
-          echo 'LIVE V6266 PASS: opaque Earth and Sun depth occlusion; displaced HMI sunspot relief; current SDO AIA activity including 131 A; final usable STEREO-B 2014-09-27 far-side EUV observations; animated plasma structures and one-finger Sun surface pan; existing Moon DEM preserved.'
+          echo 'LIVE V6267 PASS: opaque Earth and Sun depth occlusion; displaced HMI sunspot relief; current SDO AIA activity including 131 A; final usable STEREO-B 2014-09-27 far-side EUV observations; animated plasma structures and one-finger Sun surface pan; existing Moon DEM preserved.'
