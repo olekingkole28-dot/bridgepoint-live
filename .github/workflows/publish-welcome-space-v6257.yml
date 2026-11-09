@@ -199,7 +199,7 @@ jobs:
           ! grep -Fq 'GAIA_DR3_GALAXY_V6270' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'coordinate_frame' site/assets/stellar/gaia-dr3-v6270/manifest.json
           grep -Fq 'bpWelcomeGateStylesV6257' site/index.html
-          grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6280-unified-cosmos"' site/index.html
+          grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6281-space-camera-sync"' site/index.html
           grep -Fq 'data-mode="signup"' site/index.html
           grep -Fq 'data-mode="signin"' site/index.html
           grep -Fq 'new THREE.Raycaster()' site/bridgepoint-welcome-space-v6260.js
