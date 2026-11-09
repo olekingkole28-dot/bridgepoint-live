@@ -227,8 +227,8 @@ def patch_legacy_app(source: str) -> str:
         )
         if count != 1:
             raise AssertionError("Current legacy service-worker URL is missing or duplicated")
-        cache_pattern = re.compile(r"(k\\.startsWith\\('bp-intelligence-'\\)&&k!==')[^']+(')")
-        source, cache_count = cache_pattern.subn(r"\\g<1>" + CACHE_NAME + r"\\g<2>", source, count=1)
+        cache_pattern = re.compile(r"(k\.startsWith\('bp-intelligence-'\)&&k!==')[^']+(')")
+        source, cache_count = cache_pattern.subn(r"\g<1>" + CACHE_NAME + r"\g<2>", source, count=1)
         if cache_count == 0 and "k.startsWith('bp-intelligence-')" in source:
             raise AssertionError("Current legacy offline-cache guard is missing or duplicated")
         return source
