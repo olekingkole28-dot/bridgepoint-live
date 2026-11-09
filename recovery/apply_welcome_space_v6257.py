@@ -25,6 +25,20 @@ def replace_prefix_once(source: str, pattern: str, replacement: str, label: str)
     return source
 
 
+def bump_manifest_url(source: str, label: str) -> str:
+    # Production HTML snapshots may already carry any previous cache-buster or an absolute URL.
+    pattern = re.compile(
+        r'(<link\\b(?=[^>]*\\brel=["\\\']manifest["\\\'])[^>]*\\bhref=["\\\'][^"\\\']*manifest\\.webmanifest)(?:\\?[^"\\\']*)?(["\\\'])',
+        re.IGNORECASE,
+    )
+    source, count = pattern.subn(
+        r'\\g<1>?v=' + BUILD + r'\\g<2>', source, count=1
+    )
+    if count != 1:
+        raise AssertionError(f"{label}: manifest link is missing or duplicated")
+    return source
+
+
 def patch_stars(source: str) -> str:
     # The dedicated Three.js module owns the welcome starfield, Moon and Sun.
     pattern = re.compile(r"(?ms)^  function buildSpaceStars\(\)\{.*?^  \}\n  buildSpaceStars\(\);")
@@ -165,12 +179,7 @@ def patch_app_index(source: str) -> str:
     source = source.replace("/?auth=signin&return=", "/?return=")
     if source.count("/?return=") != 2 or "/?auth=signin&return=" in source:
         raise AssertionError("App launch redirects must preserve the return route through the root gate")
-    old_manifest = '../manifest.webmanifest?v=6265-solar-globe"'
-    new_manifest = '../manifest.webmanifest?v=6266-solar-realism"'
-    if old_manifest in source:
-        source = replace_once(source, old_manifest, new_manifest, "bump current app manifest URL")
-    else:
-        source = replace_once(source, '../manifest.webmanifest"', new_manifest, "bust the app manifest URL")
+    source = bump_manifest_url(source, "bump current app manifest URL")
     source = replace_prefix_once(
         source,
         r"(app\.js\?v=)(?:6247-universal-fresh-entry|6264-geometric-crater-bowls|6265-solar-globe)",
@@ -332,12 +341,7 @@ def patch_site(site: Path) -> None:
 
     root = required["root"].read_text(encoding="utf-8")
     root = patch_root_html(root)
-    old_root_manifest = './manifest.webmanifest?v=6265-solar-globe"'
-    new_root_manifest = './manifest.webmanifest?v=6266-solar-realism"'
-    if old_root_manifest in root:
-        root = replace_once(root, old_root_manifest, new_root_manifest, "bump current root manifest URL")
-    else:
-        root = replace_once(root, './manifest.webmanifest"', new_root_manifest, "bust the root manifest URL")
+    root = bump_manifest_url(root, "bump current root manifest URL")
     root = replace_prefix_once(
         root,
         r"(landing\.js\?v=)(?:6247-universal-fresh-entry|6264-geometric-crater-bowls|6265-solar-globe)",
@@ -356,12 +360,7 @@ def patch_site(site: Path) -> None:
 
     patch_manifest(required["root manifest"], "/bridgepoint-intelligence-v5050")
     legacy = patch_legacy_app(required["legacy app index"].read_text(encoding="utf-8"))
-    old_legacy_manifest = './manifest.webmanifest?v=6265-solar-globe"'
-    new_legacy_manifest = './manifest.webmanifest?v=6266-solar-realism"'
-    if old_legacy_manifest in legacy:
-        legacy = replace_once(legacy, old_legacy_manifest, new_legacy_manifest, "bump current legacy manifest URL")
-    else:
-        legacy = replace_once(legacy, './manifest.webmanifest"', new_legacy_manifest, "bust the legacy app manifest URL")
+    legacy = bump_manifest_url(legacy, "bump current legacy manifest URL")
     required["legacy app index"].write_text(legacy, encoding="utf-8")
     patch_manifest(required["legacy app manifest"], "/app/intelligence-launch/")
 
