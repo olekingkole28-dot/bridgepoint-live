@@ -239,5 +239,3 @@ if __name__=="__main__":
                       "titan_dem":m["titan_dem"],
                       "meshes":m["shape_meshes"],
                       "textures":m["textures"]},indent=2))
-
-[executed on device: MollieOllie (898525b9-c32e-4ce4-b683-4efb3b88b364)]
