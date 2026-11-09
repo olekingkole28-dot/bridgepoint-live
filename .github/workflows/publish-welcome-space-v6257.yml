@@ -142,7 +142,7 @@ jobs:
           print('SATURN_ASSETS_PASS: Cassini textures, Titan elevation grid, two NASA DSK meshes, and Saturn-centred JPL states')
           PY
 
-      - name: Add the Saturn module, Sun scene and local solar textures
+      - name: Add only the Sun scene and local solar textures; add Saturn assets
         run: |
           cp recovery/bridgepoint-welcome-space-v6260.js site/bridgepoint-welcome-space-v6260.js
           cp rebuild-v5000/bridgepoint-celestial-sky-v6257.js site/bridgepoint-celestial-sky-v6257.js
