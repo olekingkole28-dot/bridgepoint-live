@@ -16,7 +16,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
 
 (() => {
   'use strict';
-  const VERSION = 'v6280-unified-cosmos';
+  const VERSION = 'v6281-space-camera-sync';
   if (window.__BP_WELCOME_SPACE_V6257__) return;
   window.__BP_WELCOME_SPACE_V6257__ = true;
 
@@ -1582,6 +1582,7 @@ function createMoonTerrainController() {
   const target=new THREE.Vector3(0,0,0);
   let cameraFrom=camera.position.clone(),cameraTo=camera.position.clone();
   let targetFrom=target.clone(),targetTo=target.clone(),transitionStart=0,transitionDuration=1.35;
+  let overviewBaseDistance=Math.hypot(4.2,16.5),lastSpaceZoomDistance=NaN,lastSpaceZoomSyncAt=0;
   const ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
   function animateCamera(position,lookAt,duration=1.45){
     cameraFrom.copy(camera.position);cameraTo.copy(position);
@@ -1652,6 +1653,7 @@ function createMoonTerrainController() {
     moonPivot.visible=true;sunGroup.visible=true;stars.visible=true;haze.visible=true;
     setResponsiveSunPosition();
     const aspect=canvas.clientWidth/Math.max(1,canvas.clientHeight),distance=aspect<.72?20.5:aspect<1?18.5:16.5;
+    overviewBaseDistance=Math.hypot(4.2,distance);lastSpaceZoomDistance=NaN;
     animateCamera(new THREE.Vector3(0,4.2,distance),new THREE.Vector3(0,0,0),1.25);
   }
 
@@ -2042,6 +2044,20 @@ function createMoonTerrainController() {
       camera.position.lerpVectors(cameraFrom,cameraTo,k);target.lerpVectors(targetFrom,targetTo,k);camera.lookAt(target);
       if(u>=1)transitionStart=0;
     }
+    const followsEarthCamera=viewState==='overview'||(viewState==='planet'&&focusedObject===earthDepthOccluder);
+    const spaceDistance=camera.position.distanceTo(target);
+    const spaceZoomRatio=spaceDistance/Math.max(1e-9,overviewBaseDistance);
+    if(followsEarthCamera){
+      if(!Number.isFinite(lastSpaceZoomDistance)
+        ||Math.abs(spaceDistance-lastSpaceZoomDistance)>Math.max(.001,spaceDistance*.002)
+        ||t-lastSpaceZoomSyncAt>.12){
+        window.__BP_WELCOME_SYNC_SPACE_ZOOM_V1__?.(spaceZoomRatio);
+        lastSpaceZoomDistance=spaceDistance;lastSpaceZoomSyncAt=t;
+      }
+    }else if(lastSpaceZoomDistance!==0){
+      window.__BP_WELCOME_SYNC_SPACE_ZOOM_V1__?.(1);
+      lastSpaceZoomDistance=0;
+    }
     sunMaterial.uniforms.uTime.value=t;
     coronaMaterial.uniforms.uTime.value=t;
     solarFireRimMaterial.uniforms.uTime.value=t;
@@ -2096,7 +2112,7 @@ function createMoonTerrainController() {
       lunarLabelCount:window.__BP_MOON_TERRAIN_V1__?.labelCount||0,
       proceduralLunarRelief:'fallback-only-outside-loaded-NASA-DEM-coverage'})
   };
-  void import('./bridgepoint-gaia-galaxy-v6270.js?v=6280-unified-cosmos')
+  void import('./bridgepoint-gaia-galaxy-v6270.js?v=v6281-space-camera-sync')
     .then(module=>{
       solarCosmos=module.initBridgePointSolarCosmos({
         THREE,scene,camera,canvas,host,controls,starsGroup:stars,
