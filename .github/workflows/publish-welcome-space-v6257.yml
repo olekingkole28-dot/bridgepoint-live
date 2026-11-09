@@ -249,7 +249,7 @@ jobs:
           grep -Fq 'value="enceladus">Enceladus' site/bridgepoint-gaia-galaxy-v6270.js
           grep -Fq 'value="mimas">Mimas' site/bridgepoint-gaia-galaxy-v6270.js
           grep -Fq 'SATURN_SYSTEM' site/bridgepoint-saturn-system-v6282.js || grep -Fq 'v6282' site/bridgepoint-saturn-system-v6282.js
-          grep -Fq 'Saturn B ring' site/bridgepoint-saturn-system-v6282.js
+          grep -Fq "addRing('B',92000,117580" site/bridgepoint-saturn-system-v6282.js
           grep -Fq 'Titan thick golden nitrogen atmosphere' site/bridgepoint-saturn-system-v6282.js
           grep -Fq 'Enceladus animated water-ice plume particles' site/bridgepoint-saturn-system-v6282.js
           test -s site/assets/saturn/v1/manifest.json
