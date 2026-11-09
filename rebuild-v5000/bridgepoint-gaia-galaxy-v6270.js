@@ -222,7 +222,7 @@ export function initBridgePointSolarCosmos(o){
  function addGaiaPoints(rows){
   const positions=new Float32Array(rows.length*3),colors=new Float32Array(rows.length*3),magnitudes=new Float32Array(rows.length),radii=new Float32Array(rows.length);
   rows.forEach((r,i)=>{
-   const p=toGal(r.x,r.y,r.z),j=i*3;
+   const p=[r.x,r.y,r.z],j=i*3;
    positions.set(p,j);colors.set(tint(r.color),j);magnitudes[i]=r.g;radii[i]=Math.max(0,r.radius);
   });
   const geometry=new THREE.BufferGeometry();
@@ -233,7 +233,7 @@ export function initBridgePointSolarCosmos(o){
   geometry.computeBoundingSphere();
   const material=new THREE.ShaderMaterial({
    transparent:true,depthTest:true,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false,
-   uniforms:{uViewportHeight:{value:Math.max(1,host.clientHeight||innerHeight)},uAUScale:{value:astronomicalScale()}},
+   uniforms:{uViewportHeight:{value:Math.max(1,host.clientHeight||innerHeight)},uAUScale:{value:state.auToScene||astronomicalScale()}},
    vertexShader:'attribute vec3 aColor;attribute float aMagnitude;attribute float aRadius;varying vec3 vColor;varying float vBrightness;uniform float uViewportHeight;uniform float uAUScale;void main(){vColor=aColor;vec4 mv=modelViewMatrix*vec4(position,1.0);gl_Position=projectionMatrix*mv;float physical=(aRadius*0.00465047*uAUScale*projectionMatrix[1][1]*uViewportHeight)/max(1e-9,-mv.z);float photo=clamp(4.9-aMagnitude*.22,1.1,5.2);gl_PointSize=clamp(max(physical,photo),1.0,96.0);vBrightness=clamp(exp2((8.0-aMagnitude)*.16),.22,3.6);}',
    fragmentShader:'varying vec3 vColor;varying float vBrightness;void main(){vec2 p=gl_PointCoord-vec2(.5);float r=length(p);if(r>.5)discard;float core=exp(-r*r*34.0);float halo=exp(-r*r*9.0);float a=clamp((core*.95+halo*.20)*vBrightness,0.0,1.0);gl_FragColor=vec4(vColor*(.45+core*1.9)*vBrightness,a);}'
   });
