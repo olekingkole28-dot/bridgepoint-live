@@ -1,0 +1,61 @@
+name: Diagnose BridgePoint Pages Artifact Footprint
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/diagnose-pages-artifact-size.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Download the previously verified production Pages artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: bridgepoint-welcome-space-v6257
+          run-id: 42685752632
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          path: /tmp/bridgepoint-pages-diagnostic
+
+      - name: Extract and report exact static file sizes
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p site
+          ARCHIVE="$(find /tmp/bridgepoint-pages-diagnostic -type f -name artifact.tar -print -quit)"
+          test -n "$ARCHIVE"
+          tar -xf "$ARCHIVE" -C site
+
+          echo "=== TOP 100 LARGEST FILES (bytes, path) ==="
+          find site -type f -printf '%s\t%p\n' | sort -nr | head -100
+
+          echo "=== TOP-LEVEL DIRECTORY FOOTPRINT ==="
+          du -h -d 1 site | sort -hr
+
+          echo "=== SECOND-LEVEL DIRECTORY FOOTPRINT ==="
+          du -h -d 2 site | sort -hr | head -120
+
+          echo "=== FILE TYPE TOTALS (bytes) ==="
+          python3 - <<'PY'
+          from collections import defaultdict
+          from pathlib import Path
+          totals = defaultdict(lambda: [0, 0])
+          for p in Path("site").rglob("*"):
+              if p.is_file():
+                  ext = p.suffix.lower() or "<no extension>"
+                  totals[ext][0] += p.stat().st_size
+                  totals[ext][1] += 1
+          for ext, (size, count) in sorted(totals.items(), key=lambda x: x[1][0], reverse=True):
+              print(f"{size:>14} bytes  {count:>7} files  {ext}")
+          PY
+
+          echo "=== TOTAL UNCOMPRESSED SITE BYTES ==="
+          du -sb site
