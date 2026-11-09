@@ -1926,7 +1926,7 @@ function createMoonTerrainController() {
     canvas.setPointerCapture?.(event.pointerId);
   });
   canvas.addEventListener('pointermove',event=>{
-    if(window.__BP_GAIA_DR3_GALAXY_V6270__?.active)return;
+
     if(!activePointers.has(event.pointerId))return;
     const existingPointer=activePointers.get(event.pointerId)||{};
     activePointers.set(event.pointerId,{...existingPointer,x:event.clientX,y:event.clientY});
@@ -1968,7 +1968,7 @@ function createMoonTerrainController() {
     }
   });
   canvas.addEventListener('pointerup',event=>{
-    if(window.__BP_GAIA_DR3_GALAXY_V6270__?.active)return;
+
     activePointers.delete(event.pointerId);
     dragging=activePointers.size>0;
     if(activePointers.size===1){
@@ -1992,13 +1992,13 @@ function createMoonTerrainController() {
     if(hit?.object?.userData?.body)focusBody(hit.object.userData.body);
   });
   canvas.addEventListener('pointercancel',event=>{
-    if(window.__BP_GAIA_DR3_GALAXY_V6270__?.active)return;
+
     activePointers.delete(event.pointerId);dragging=activePointers.size>0;
     if(activePointers.size<2){pinchDistance=0;gestureCenter=null;}
     if(activePointers.size===0){pointerMoved=false;refreshLunarTerrainFromView();}
   });
   canvas.addEventListener('wheel',event=>{
-    if(window.__BP_GAIA_DR3_GALAXY_V6270__?.active)return;
+
     event.preventDefault();
     zoomCameraBy(Math.exp(event.deltaY*.001));
   },{passive:false});
