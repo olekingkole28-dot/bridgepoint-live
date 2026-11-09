@@ -58,6 +58,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   const style = document.createElement('style');
   style.id = 'bpWelcomeSpaceStylesV6257';
   style.textContent = `
+    #bpWelcomeGateV1 .bpw-starfield{display:none!important;visibility:hidden!important}
     #bpWelcomeGateV1 .bpw-space-renderer-canvas{
       position:absolute!important;inset:0!important;width:100%!important;height:100%!important;
       display:block!important;z-index:2!important;pointer-events:auto!important;
