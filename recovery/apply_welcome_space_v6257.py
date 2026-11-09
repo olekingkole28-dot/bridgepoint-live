@@ -99,12 +99,14 @@ def patch_root_html(source: str) -> str:
                 raise AssertionError(f"Current welcome root is missing {marker}")
         # Update the module src query independently of tag whitespace/attribute formatting.
         # The production Pages baseline may serialize this script tag differently from fixtures.
+        # Update the module src query independently of tag whitespace/attribute formatting.
+        # The production Pages baseline may serialize this script tag differently from fixtures.
         module_src_pattern = re.compile(
-            r'(<script\\b[^>]*\\bsrc=["\\\']/bridgepoint-welcome-space-v6260\\.js\\?v=)[^"\\\']*(["\\\'])',
+            r'(<script\b[^>]*\bsrc=["\']/bridgepoint-welcome-space-v6260\.js\?v=)[^"\']*(["\'])',
             re.IGNORECASE,
         )
         source, module_src_count = module_src_pattern.subn(
-            r'\\g<1>6266-solar-realism\\g<2>', source, count=1
+            r'\g<1>6266-solar-realism\g<2>', source, count=1
         )
         if module_src_count != 1:
             raise AssertionError("Current welcome module src is missing or duplicated")
