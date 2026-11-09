@@ -437,7 +437,7 @@ self.addEventListener('fetch',e=>{
             "uAIA193Map",
             "solarDiskUV",
             "solarMagneticLoopCount",
-            "observationTimeUtc",
+            "aia131:'2026-11-09T05:06:44Z'",
             "no three-minute client refresh configured",
         ):
             self.assertIn(marker, module)
