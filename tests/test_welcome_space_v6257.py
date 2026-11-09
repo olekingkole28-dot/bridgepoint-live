@@ -268,7 +268,7 @@ self.addEventListener('fetch',e=>{
             path.write_text(modern)
             patch_worker(path)
             out = path.read_text()
-            self.assertIn("BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6286-saturn-callback-fix'", out)
+            self.assertIn("BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6287-celestial-shader-compat'", out)
             self.assertIn("await active.delete(request)", out)
             self.assertIn("const entryRoute=", out)
             self.assertIn("current release required", out)
@@ -455,7 +455,7 @@ self.addEventListener('fetch',e=>{
     def test_sun_has_animated_molten_photosphere_fresnel_rim_and_observed_plasma_particles(self):
         module = (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text()
         for marker in (
-            "const VERSION = 'v6286-saturn-callback-fix'",
+            "const VERSION = 'v6287-celestial-shader-compat'",
             "float magmaFlow=",
             "float moltenCoverage=",
             "const solarFireRim=new THREE.Mesh",
@@ -500,6 +500,10 @@ self.addEventListener('fetch',e=>{
         self.assertIn("getSunPosition:()=>getSunPosition?getSunPosition():new THREE.Vector3()", gaia)
         self.assertIn("float activeSignal=smoothstep(.075,.30,a);", (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text(encoding="utf-8"))
         self.assertNotIn("float active=smoothstep(.075,.30,a);", (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text(encoding="utf-8"))
+
+    def test_gaia_log_depth_shader_includes_common_helpers(self):
+        gaia = (ROOT / "rebuild-v5000" / "bridgepoint-gaia-galaxy-v6270.js").read_text(encoding="utf-8")
+        self.assertIn("uAUScale;\\n#include <common>\\n#include <logdepthbuf_pars_vertex>", gaia)
 
     def test_lunar_mesh_indices_are_buffer_attributes(self):
         module = (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text()
