@@ -2104,7 +2104,10 @@ function createMoonTerrainController() {
     pointer.y=-((event.clientY-rect.top)/rect.height)*2+1;
     raycaster.setFromCamera(pointer,camera);
     if(event.button!==0)return;
-    const hit=raycaster.intersectObjects(clickables,false)[0];
+    const raycastTargets=viewState==='saturn-system'||viewState==='saturn-surface'
+      ?clickables.filter(object=>['saturn','titan','enceladus','mimas'].includes(object?.userData?.body))
+      :clickables;
+    const hit=raycaster.intersectObjects(raycastTargets,false)[0];
     if(hit?.object?.userData?.body)focusBody(hit.object.userData.body);
   });
   canvas.addEventListener('pointercancel',event=>{
