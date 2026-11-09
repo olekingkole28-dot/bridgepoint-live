@@ -345,7 +345,7 @@ self.addEventListener('fetch',e=>{
             "runtimeMode: 'local-static-assets'",
             "function sampleGrid(grid, u, v)",
             "createMoonPatchMaterial()",
-            "const minimum=viewState==='moon'?0.00000045:viewState==='sun'?.0015:1.8",
+            "const minimum=viewState==='moon'?0.00000045:viewState==='sun'?.0015:viewState==='planet'?Math.max(1e-9,focusedPlanetRadius*1.015):1.8",
             "camera.near=0.00000005",
             "camera.near=0.001",
             "const activePointers=new Map()",
