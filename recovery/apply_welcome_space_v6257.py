@@ -264,6 +264,7 @@ def patch_bundle(path: Path) -> None:
         "navigator.serviceWorker.register('/sw.js?v=6280-unified-cosmos',{updateViaCache:'none'})",
         "navigator.serviceWorker.register('/sw.js?v=6282-saturn-system',{updateViaCache:'none'})",
         "navigator.serviceWorker.register('/sw.js?v=6283-saturn-isolated',{updateViaCache:'none'})",
+        "navigator.serviceWorker.register('/sw.js?v=6285-saturn-lossless-pages',{updateViaCache:'none'})",
         "navigator.serviceWorker.register('/sw.js?v=6268-solar-observatory',{updateViaCache:'none'})",
         "navigator.serviceWorker.register('/sw.js?v=6269-solar-fire-plasma',{updateViaCache:'none'})",
         "navigator.serviceWorker.register('/sw.js?v=6267-sun-visible',{updateViaCache:'none'})",
