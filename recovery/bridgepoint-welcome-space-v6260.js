@@ -334,6 +334,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   sunMaterial.uniforms.uMagneticMap.value=solarObservationTextures.magnetic;
   sunMaterial.uniforms.uAIA131Map.value=solarObservationTextures.aia131;
   sunMaterial.uniforms.uAIA171Map.value=solarObservationTextures.aia171;
+  sunMaterial.uniforms.uAIA193Map.value=solarObservationTextures.aia193;
   sunMaterial.uniforms.uAIA304Map.value=solarObservationTextures.aia304;
   const sunDepthGeometry=sunGeometry.clone();
   const sunDepthMaterial=new THREE.MeshBasicMaterial({colorWrite:false,depthWrite:true,depthTest:true,side:THREE.FrontSide});
