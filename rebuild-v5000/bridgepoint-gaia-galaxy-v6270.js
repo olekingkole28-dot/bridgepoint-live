@@ -213,7 +213,7 @@ export function initBridgePointSolarCosmos(o){
   state.auToScene=auScale;state.parsecToScene=pcScale;starState.lastFrameAt=tick;
   const maxFar=pcScale*65000;
   if(camera.far<maxFar){camera.far=maxFar;camera.updateProjectionMatrix();}
-  if(starState.points?.material?.uniforms?.uWorldScale)starState.points.material.uniforms.uWorldScale.value=pcScale;
+  if(starState.points?.material?.uniforms?.uAUScale)starState.points.material.uniforms.uAUScale.value=auScale;
   if(starState.points?.material?.uniforms?.uViewportHeight)starState.points.material.uniforms.uViewportHeight.value=Math.max(1,host.clientHeight||innerHeight);
   starState.frame={sun,auScale,pcScale,orientation,days,ob};
   return starState.frame;
@@ -232,8 +232,8 @@ export function initBridgePointSolarCosmos(o){
   geometry.computeBoundingSphere();
   const material=new THREE.ShaderMaterial({
    transparent:true,depthTest:true,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false,
-   uniforms:{uViewportHeight:{value:Math.max(1,host.clientHeight||innerHeight)},uWorldScale:{value:astronomicalScale()/AU_PC}},
-   vertexShader:'attribute vec3 aColor;attribute float aMagnitude;attribute float aRadius;varying vec3 vColor;varying float vBrightness;uniform float uViewportHeight;uniform float uWorldScale;void main(){vColor=aColor;vec4 mv=modelViewMatrix*vec4(position,1.0);gl_Position=projectionMatrix*mv;float physical=(aRadius*uWorldScale*projectionMatrix[1][1]*uViewportHeight)/max(1e-9,-mv.z);float photo=clamp(4.9-aMagnitude*.22,1.1,5.2);gl_PointSize=clamp(max(physical,photo),1.0,96.0);vBrightness=clamp(exp2((8.0-aMagnitude)*.16),.22,3.6);}',
+   uniforms:{uViewportHeight:{value:Math.max(1,host.clientHeight||innerHeight)},uAUScale:{value:astronomicalScale()}},
+   vertexShader:'attribute vec3 aColor;attribute float aMagnitude;attribute float aRadius;varying vec3 vColor;varying float vBrightness;uniform float uViewportHeight;uniform float uAUScale;void main(){vColor=aColor;vec4 mv=modelViewMatrix*vec4(position,1.0);gl_Position=projectionMatrix*mv;float physical=(aRadius*0.00465047*uAUScale*projectionMatrix[1][1]*uViewportHeight)/max(1e-9,-mv.z);float photo=clamp(4.9-aMagnitude*.22,1.1,5.2);gl_PointSize=clamp(max(physical,photo),1.0,96.0);vBrightness=clamp(exp2((8.0-aMagnitude)*.16),.22,3.6);}',
    fragmentShader:'varying vec3 vColor;varying float vBrightness;void main(){vec2 p=gl_PointCoord-vec2(.5);float r=length(p);if(r>.5)discard;float core=exp(-r*r*34.0);float halo=exp(-r*r*9.0);float a=clamp((core*.95+halo*.20)*vBrightness,0.0,1.0);gl_FragColor=vec4(vColor*(.45+core*1.9)*vBrightness,a);}'
   });
   const points=new THREE.Points(geometry,material);points.name='Gaia DR3 measured stellar positions';points.frustumCulled=false;starSpace.add(points);
