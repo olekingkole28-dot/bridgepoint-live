@@ -498,8 +498,10 @@ self.addEventListener('fetch',e=>{
         gaia = (ROOT / "rebuild-v5000" / "bridgepoint-gaia-galaxy-v6270.js").read_text(encoding="utf-8")
         self.assertIn("getSaturnPosition,getSunPosition,getSelectedBody,isMobile=false}=options", saturn)
         self.assertIn("getSunPosition:()=>getSunPosition?getSunPosition():new THREE.Vector3()", gaia)
-        self.assertIn("float activeSignal=smoothstep(.075,.30,a);", (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text(encoding="utf-8"))
-        self.assertNotIn("float active=smoothstep(.075,.30,a);", (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text(encoding="utf-8"))
+        welcome = (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text(encoding="utf-8")
+        self.assertIn("float activeSignal=smoothstep(.075,.30,a);", welcome)
+        self.assertIn("active193*vec3(.64,1.04,.23)*activeSignal", welcome)
+        self.assertNotIn("active193*vec3(.64,1.04,.23)*active", welcome)
 
     def test_gaia_log_depth_shader_includes_common_helpers(self):
         gaia = (ROOT / "rebuild-v5000" / "bridgepoint-gaia-galaxy-v6270.js").read_text(encoding="utf-8")
