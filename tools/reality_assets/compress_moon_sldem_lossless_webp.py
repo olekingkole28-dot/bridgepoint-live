@@ -34,7 +34,7 @@ def main() -> None:
         packed = np.stack((high, low, np.zeros_like(high)), axis=-1)
         dst = src.with_suffix(".webp")
         Image.fromarray(packed, mode="RGB").save(
-            dst, format="WEBP", lossless=True, quality=100, method=6, exact=True
+            dst, format="WEBP", lossless=True, quality=100, method=1, exact=True
         )
 
         # Mandatory pixel-for-pixel round-trip check before the PNG is removed.
@@ -51,7 +51,7 @@ def main() -> None:
         total_png += old_size
         total_webp += new_size
         src.unlink()
-        if index % 40 == 0:
+        if index % 20 == 0:
             print(f"SLDEM_WEBP_PROGRESS {index}/{len(pngs)}", flush=True)
 
     manifest_path = site / "assets/moon/v1/manifest.json"
