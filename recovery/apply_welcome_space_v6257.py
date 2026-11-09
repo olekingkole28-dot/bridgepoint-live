@@ -5,10 +5,10 @@ import re
 import sys
 from pathlib import Path
 
-BUILD = "v6285-saturn-lossless-pages"
+BUILD = "v6286-saturn-callback-fix"
 # Moon terrain assets are bundled locally under assets/moon/v1; runtime requests stay same-origin.
-SW_URL = "/sw.js?v=6285-saturn-lossless-pages"
-CACHE_NAME = "bp-intelligence-v6285-saturn-lossless-pages"
+SW_URL = "/sw.js?v=6286-saturn-callback-fix"
+CACHE_NAME = "bp-intelligence-v6286-saturn-callback-fix"
 
 
 def replace_once(source: str, old: str, new: str, label: str) -> str:
@@ -496,7 +496,7 @@ def patch_site(site: Path) -> None:
         raise AssertionError("The current installed-app identity changed")
     if legacy_manifest.get("id") != "/app/intelligence-launch/":
         raise AssertionError("The legacy installed-app identity changed")
-    print("BRIDGEPOINT_WELCOME_SPACE_V6285_SATURN_LOSSLESS_PAGES_PATCH_PASS")
+    print("BRIDGEPOINT_WELCOME_SPACE_V6286_SATURN_CALLBACK_FIX_PATCH_PASS")
     print("Website, app, current PWA and legacy PWA route to the same root globe gate.")
     print("The Sun uses a warm SDO/HMI continuum, timestamped HMI polarity observations, and local AIA 131/171/193/304 channels for the animated coronal shell and observation-positioned active-region structures.")
     print("Existing lunar terrain assets, offline data caches and authentication/session logic are preserved.")
