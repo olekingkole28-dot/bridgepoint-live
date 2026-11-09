@@ -9,13 +9,29 @@ BUILDER = (ROOT / "recovery" / "build_saturn_assets_v6282.py").read_text(encodin
 
 
 class SaturnSystemV6282Tests(unittest.TestCase):
-    def test_saturn_and_three_moons_are_in_the_existing_celestial_picker(self):
-        for value in ('value="saturn">Saturn', 'value="titan">Titan',
-                      'value="enceladus">Enceladus', 'value="mimas">Mimas'):
-            self.assertIn(value, GAIA)
+    def test_saturn_is_the_only_saturn_picker_option_and_moons_are_canvas_targets(self):
+        self.assertIn('value="saturn">Saturn', GAIA)
+        for value in ('value="titan">Titan', 'value="enceladus">Enceladus',
+                      'value="mimas">Mimas'):
+            self.assertNotIn(value, GAIA)
+        self.assertIn("bodySelect.value=['titan','enceladus','mimas'].includes(selectedBody)?'saturn':selectedBody", GAIA)
         self.assertIn("initBridgePointSaturnSystem", GAIA)
         self.assertIn("saturnController?.update?.()", GAIA)
         self.assertIn("saturnController?.dispose?.()", GAIA)
+        self.assertIn("raycaster.intersectObjects(clickables,false)[0]", SCENE)
+
+    def test_saturn_scene_isolated_from_the_earth_map_and_unrelated_bodies(self):
+        self.assertIn("scene.background=new THREE.Color(0x02050c)", SCENE)
+        self.assertIn("earth.visible=false;moonPivot.visible=false;sunGroup.visible=false;haze.visible=false", SCENE)
+        self.assertIn("earth.visible=true;moonPivot.visible=true;sunGroup.visible=true;stars.visible=true;haze.visible=true", SCENE)
+        self.assertIn("scene.background=null", SCENE)
+        self.assertIn("SaturnSystemGroup", SATURN)
+
+    def test_saturn_uses_the_existing_moon_and_sun_gesture_controls(self):
+        for marker in ("function panSaturnSurface(dx,dy)", "function tiltSaturnCamera(deltaY)",
+                       "panSaturnSurface(dx,0);tiltSaturnCamera(dy);",
+                       "enforceSaturnCameraClearance()", "saturnFocusLocalTarget"):
+            self.assertIn(marker, SCENE)
 
     def test_saturn_uses_the_existing_camera_and_body_focus_path(self):
         self.assertIn("bodyData?.systemCameraDistance", SCENE)
@@ -55,7 +71,7 @@ class SaturnSystemV6282Tests(unittest.TestCase):
         self.assertIn("PIA18437", BUILDER)
         self.assertIn("titan-cassini-surface-mosaic.webp", SATURN)
         self.assertIn("titan-cassini-topography-4ppd-u16.bin.gz", SATURN)
-        self.assertIn("const segments=key==='titan'?(isMobile?160:256)", SATURN)
+        self.assertIn("const segments=key==='titan'?(isMobile?256:512)", SATURN)
         self.assertIn("NASA Cassini ISS PIA22770", BUILDER)
 
     def test_saturn_texture_rotation_titan_atmosphere_and_enceladus_plumes_are_animated(self):
