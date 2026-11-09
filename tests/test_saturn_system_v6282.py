@@ -45,6 +45,11 @@ class SaturnSystemV6282Tests(unittest.TestCase):
             GAIA,
         )
 
+    def test_saturn_cloud_shader_uses_three_r169_compatible_texture_sampling(self):
+        self.assertIn("vec4 saturnLayerA=texture2D(map,saturnUvA)", SATURN)
+        self.assertIn("vec4 saturnLayerB=texture2D(map,saturnUvB)", SATURN)
+        self.assertNotIn("mapTexelToLinear", SATURN)
+
     def test_saturn_uses_the_existing_camera_and_body_focus_path(self):
         self.assertIn("bodyData?.systemCameraDistance", SCENE)
         self.assertIn("key==='saturn'?2.1:1.5", SCENE)
