@@ -1,0 +1,105 @@
+name: Redeploy Existing BridgePoint Saturn v6282 Pages Artifact
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/redeploy-saturn-pages-artifact-v6282.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-pages-v6282-artifact-redeploy
+  cancel-in-progress: false
+
+jobs:
+  redeploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Download the already-built Saturn v6282 Pages artifact (no rebuild)
+        uses: actions/download-artifact@v4
+        with:
+          name: bridgepoint-welcome-space-v6257
+          run-id: 42685752632
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          path: /tmp/bridgepoint-saturn-v6282-artifact
+
+      - name: Extract and verify the existing production artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p site
+          ARTIFACT_TAR="$(find /tmp/bridgepoint-saturn-v6282-artifact -type f -name 'artifact.tar' -print -quit)"
+          test -n "$ARTIFACT_TAR"
+          tar -xf "$ARTIFACT_TAR" -C site
+
+          test -s site/index.html
+          test -s site/bridgepoint-welcome-space-v6260.js
+          test -s site/bridgepoint-gaia-galaxy-v6270.js
+          test -s site/bridgepoint-saturn-system-v6282.js
+          test -s site/assets/stellar/gaia-dr3-v6270/manifest.json
+          test -s site/assets/saturn/v1/manifest.json
+          test -s site/assets/saturn/v1/ephemerides.json
+          test -s site/assets/saturn/v1/meshes/mimas-cassini-shape-v1.bin.gz
+          test -s site/assets/saturn/v1/meshes/enceladus-cassini-shape-v1.bin.gz
+          test -s site/assets/saturn/v1/height/titan-cassini-topography-4ppd-u16.bin.gz
+          grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6282-saturn-system"' site/index.html
+          grep -Fq 'initBridgePointSaturnSystem' site/bridgepoint-gaia-galaxy-v6270.js
+          grep -Fq 'Titan' site/bridgepoint-saturn-system-v6282.js
+          node --input-type=module --check < site/bridgepoint-gaia-galaxy-v6270.js
+          node --input-type=module --check < site/bridgepoint-saturn-system-v6282.js
+          echo "REUSED SATURN V6282 ARTIFACT VERIFIED — NO NASA BUILD OR PLANET REGENERATION"
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Upload the unchanged prebuilt Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          name: bridgepoint-welcome-space-v6257
+          path: site
+          include-hidden-files: true
+
+      - name: Publish BridgePoint Pages with extended sync timeout
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: bridgepoint-welcome-space-v6257
+          timeout: '2700000'
+          reporting_interval: '10000'
+
+      - name: Verify Saturn v6282 and preserved celestial assets on the live domain
+        shell: bash
+        run: |
+          set -euo pipefail
+          O='https://bridgepointintelligence.online'
+          q="${GITHUB_SHA}-saturn-v6282-live"
+          curl --retry 5 --retry-all-errors --retry-delay 5 -fsSL -H 'Cache-Control: no-cache' "${O}/?saturn-v6282=${q}" -o /tmp/bp-live-root.html
+          curl --retry 5 --retry-all-errors --retry-delay 5 -fsSL -H 'Cache-Control: no-cache' "${O}/bridgepoint-welcome-space-v6260.js?verify=${q}" -o /tmp/bp-live-welcome.js
+          curl --retry 5 --retry-all-errors --retry-delay 5 -fsSL -H 'Cache-Control: no-cache' "${O}/bridgepoint-gaia-galaxy-v6270.js?verify=${q}" -o /tmp/bp-live-gaia.js
+          curl --retry 5 --retry-all-errors --retry-delay 5 -fsSL -H 'Cache-Control: no-cache' "${O}/bridgepoint-saturn-system-v6282.js?verify=${q}" -o /tmp/bp-live-saturn.js
+          curl --retry 5 --retry-all-errors --retry-delay 5 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/saturn/v1/manifest.json?verify=${q}" -o /tmp/bp-live-saturn-manifest.json
+          curl --retry 5 --retry-all-errors --retry-delay 5 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/saturn/v1/ephemerides.json?verify=${q}" -o /tmp/bp-live-saturn-ephemerides.json
+          curl --retry 5 --retry-all-errors --retry-delay 5 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/saturn/v1/meshes/mimas-cassini-shape-v1.bin.gz?verify=${q}" -o /tmp/bp-live-mimas.bin.gz
+          curl --retry 5 --retry-all-errors --retry-delay 5 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/saturn/v1/meshes/enceladus-cassini-shape-v1.bin.gz?verify=${q}" -o /tmp/bp-live-enceladus.bin.gz
+          curl --retry 5 --retry-all-errors --retry-delay 5 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/saturn/v1/height/titan-cassini-topography-4ppd-u16.bin.gz?verify=${q}" -o /tmp/bp-live-titan-height.bin.gz
+          grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6282-saturn-system"' /tmp/bp-live-root.html
+          grep -Fq 'initBridgePointSaturnSystem' /tmp/bp-live-gaia.js
+          grep -Fq 'Titan' /tmp/bp-live-saturn.js
+          test -s /tmp/bp-live-saturn-manifest.json
+          test -s /tmp/bp-live-saturn-ephemerides.json
+          test -s /tmp/bp-live-mimas.bin.gz
+          test -s /tmp/bp-live-enceladus.bin.gz
+          test -s /tmp/bp-live-titan-height.bin.gz
+          echo "LIVE SATURN V6282 PASS — ROOT, GAIA MODULE, SATURN MODULE, EPHEMERIDES, MOON MESHES AND TITAN HEIGHT GRID SERVED"
