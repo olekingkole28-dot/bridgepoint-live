@@ -14,7 +14,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: bridgepoint-welcome-space-v6283-saturn-isolated
+  group: bridgepoint-welcome-space-v6283-saturn-fast-overlay
   cancel-in-progress: false
 
 jobs:
@@ -86,7 +86,7 @@ jobs:
           grep -Fq 'scene.background=new THREE.Color(0x02050c)' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'function panSaturnSurface(dx,dy)' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'function tiltSaturnCamera(deltaY)' site/bridgepoint-welcome-space-v6260.js
-          grep -Fq 'bodySelect.value=['"'"'titan'"'"','"'"'enceladus'"'"','"'"'mimas'"'"'].includes(selectedBody)?'"'"'saturn'"'"':selectedBody' site/bridgepoint-gaia-galaxy-v6270.js
+          grep -Fq "bodySelect.value=['titan','enceladus','mimas'].includes(selectedBody)?'saturn':selectedBody" site/bridgepoint-gaia-galaxy-v6270.js
           ! grep -Fq 'value="titan">Titan' site/bridgepoint-gaia-galaxy-v6270.js
           grep -Fq 'SaturnSystemGroup' site/bridgepoint-saturn-system-v6282.js
           grep -Fq 'uSaturnAtmosTime' site/bridgepoint-saturn-system-v6282.js
