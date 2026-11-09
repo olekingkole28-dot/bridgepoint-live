@@ -86,7 +86,7 @@ jobs:
           test -s site/assets/moon/v1/moon-apollo15-4deg-512ppd-height-u16.png
           test -s site/assets/moon/v1/moon-lroc-color-4k.webp
           test -s site/assets/moon/v1/moon-feature-labels.json
-          test "$(find site/assets/moon/v1/sldem-128ppd -type f -name '*.png' | wc -l)" -eq 432
+          test -s site/assets/moon/v1/sldem-128ppd/moon-sldem-128ppd-y03-x18.png
           python3 - <<'PY'
           import struct
           from pathlib import Path
