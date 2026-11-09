@@ -28,11 +28,11 @@ def replace_prefix_once(source: str, pattern: str, replacement: str, label: str)
 def bump_manifest_url(source: str, label: str) -> str:
     # Production HTML snapshots may already carry any previous cache-buster or an absolute URL.
     pattern = re.compile(
-        r'(<link\\b(?=[^>]*\\brel=["\\\']manifest["\\\'])[^>]*\\bhref=["\\\'][^"\\\']*manifest\\.webmanifest)(?:\\?[^"\\\']*)?(["\\\'])',
+        r'(<link\b(?=[^>]*\brel=["\']manifest["\'])[^>]*\bhref=["\'][^"\']*manifest\.webmanifest)(?:\?[^"\']*)?(["\'])',
         re.IGNORECASE,
     )
     source, count = pattern.subn(
-        r'\\g<1>?v=' + BUILD + r'\\g<2>', source, count=1
+        r'\g<1>?v=' + BUILD + r'\g<2>', source, count=1
     )
     if count != 1:
         raise AssertionError(f"{label}: manifest link is missing or duplicated")
