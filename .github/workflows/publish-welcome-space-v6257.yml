@@ -99,12 +99,11 @@ jobs:
           PY
           echo 'Verified existing deployed Moon terrain: 432 local SLDEM2015 tiles plus global LOLA, Apollo 15 patch, LROC color and feature labels.'
           
-      - name: Add the Earth, Moon and materialized Sun scene
+      - name: Add the materialized Sun scene without touching existing Earth or Moon assets
         run: |
           cp recovery/bridgepoint-welcome-space-v6260.js site/bridgepoint-welcome-space-v6260.js
           cp rebuild-v5000/bridgepoint-celestial-sky-v6257.js site/bridgepoint-celestial-sky-v6257.js
-          mkdir -p site/assets/moon site/assets/sun
-          cp -a assets/moon/v1 site/assets/moon/v1
+          mkdir -p site/assets/sun
           cp -a assets/sun/v1 site/assets/sun/v1
           test -s site/assets/sun/v1/manifest.json
           test -s site/assets/sun/v1/sun-photosphere-v1.webp
@@ -112,21 +111,6 @@ jobs:
           test -s site/assets/sun/v1/sun-magnetic-field-v1.webp
           test -s site/assets/moon/v1/moon-global-height-16ppd-u16.png
           test -s site/assets/moon/v1/sldem-128ppd/moon-sldem-128ppd-y03-x18.png
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
-          p=Path('site/assets/moon/v1/manifest.json')
-          data=json.loads(p.read_text())
-          data['globalHeightFallback']=data.get('globalHeight')
-          data['globalHeight']={'file':'moon-global-height-16ppd-u16.png','width':5760,'height':2880,'samplesPerDegree':16,'encoding':'PNG grayscale 16-bit unsigned; elevationMeters = sample - 32768','source':'NASA LRO LOLA LDEM_16; source values are half-meters with +20000 unsigned offset'}
-          data['globalHighResolutionHeight']={'source':'NASA LRO LOLA + SELENE SLDEM2015','resolutionPixelsPerDegree':128,'sampleSpacingMetersAtEquator':236.9011752,'coverageLatitudeDegrees':[-60,60],'tileSizeDegrees':10,'tileWidthPixels':1280,'tileHeightPixels':1280,'tilesAcross':36,'tilesDown':12,'filePattern':'sldem-128ppd/moon-sldem-128ppd-yNN-xNN.png','encoding':'PNG grayscale 16-bit unsigned; elevationMeters = sample - 32768'}
-          p.write_text(json.dumps(data,indent=2)+'\n')
-          PY
-          test -s site/assets/moon/v1/manifest.json
-          test -s site/assets/moon/v1/moon-global-height-4ppd-u16.png
-          test -s site/assets/moon/v1/moon-apollo15-4deg-512ppd-height-u16.png
-          test -s site/assets/moon/v1/moon-lroc-color-4k.webp
-          test -s site/assets/moon/v1/moon-feature-labels.json
 
       - name: Apply the launch-only entry patch
         run: python3 recovery/apply_welcome_space_v6257.py site
