@@ -16,7 +16,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
 
 (() => {
   'use strict';
-  const VERSION = 'v6268-solar-observatory';
+  const VERSION = 'v6269-solar-fire-plasma';
   if (window.__BP_WELCOME_SPACE_V6257__) return;
   window.__BP_WELCOME_SPACE_V6257__ = true;
 
@@ -293,6 +293,18 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
         float backSide=1.0-smoothstep(-.07,.07,p.z);
         float farEnergy=clamp(max(max(farActivity.r,farActivity.g),farActivity.b),0.0,1.0);
         c=mix(c,mix(c,farActivity*.82+vec3(.035,.018,.006),.68),backSide*uFarSideReady*step(.015,farEnergy));
+        // Molten photosphere overlay: preserve the observed HMI/AIA detail underneath
+        // while animated convection cells and incandescent filaments roll across it.
+        float magmaFlow=gran*.46+filaments*.34+cells*.20;
+        float magmaRidges=smoothstep(.39,.72,magmaFlow);
+        float incandescentCore=smoothstep(.62,.82,cells*.62+gran*.38);
+        float fireFlicker=.91+.09*sin(uTime*3.4+gran*17.0+cells*11.0+filaments*8.0);
+        vec3 moltenPalette=mix(vec3(.86,.055,.002),vec3(1.0,.32,.014),magmaRidges);
+        moltenPalette=mix(moltenPalette,vec3(1.55,.91,.34),incandescentCore*.82);
+        float moltenCoverage=clamp(magmaRidges*.23+incandescentCore*.19,0.0,.34);
+        c=mix(c,max(c,moltenPalette),moltenCoverage*fireFlicker);
+        c+=vec3(.16,.028,.002)*incandescentCore*.10;
+
         // The Sun emits light: use observed view-dependent limb darkening, not a
         // fixed object-space normal that paints an artificial dark hemisphere.
         vec3 viewDir=normalize(cameraPosition-vWorldPos);
@@ -378,6 +390,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   heightImage.src=SOLAR_ASSET_BASE+'sun-photosphere-height-v2.webp';
   window.__BP_SOLAR_SURFACE_V2__={version:2,status:'loading-local-assets',assetBase:SOLAR_ASSET_BASE,photosphereSource:'NASA SDO HMI continuum intensity, warm visible-light photosphere grade',activitySources:['SDO AIA 131','171','193','304','335'],farSideSource:'NASA STEREO-B SECCHI/EUVI 2014-09-27 final usable Behind disk (171/195/284/304)',farSideType:'archived EUV activity image, not visible-light photosphere',reliefSource:'HMI continuum contrast; Wilson depressions/facular structure visually exaggerated ~4x',runtimeNetwork:'same-origin-local-static-assets-only'};
   window.__BP_SOLAR_SURFACE_V3__={version:3,status:'loading-locally-hosted-nasa-observations',observations:{hmiMagnetogram:'2026-11-09T04:15:00Z',aia131:'2026-11-09T05:06:44Z',aia171:'2026-11-09T04:57:22Z',aia193:'2026-11-09T05:03:06Z',aia304:'2026-11-09T04:58:42Z'},magneticGeometrySource:'SDO/HMI colored line-of-sight polarity pairs; arcs are a 3D visualization, not a PFSS field extrapolation',coronalSource:'SDO/AIA 131, 171 and 304 angstrom full-disk observations',refreshCadence:'snapshot from latest available NASA public image products; no three-minute client refresh configured',runtimeNetwork:'same-origin-local-static-assets-only'};
+  window.__BP_SOLAR_SURFACE_V4__={version:4,status:'loading-fire-plasma-visual-layers',surfaceConvection:'animated-molten-photosphere-shader-preserving-HMI-AIA-data',rim:'animated-Fresnel-incandescent-corona',plasma:'particle-streams-emitted-from-observed-AIA-131-active-regions',particleCount:0,activeRegionCount:0};
 
   const sunGroup = new THREE.Group();
   sunGroup.name = 'Sun';
@@ -511,6 +524,130 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     }catch(error){console.error('[BridgePoint Sun] HMI polarity geometry decode failed:',error);}
   }
   const flareMeshes=[];
+  const observedActiveRegions=[];
+  let solarPlasmaParticles=null;
+  function buildSolarSurfaceParticlePlumes(regions){
+    if(solarPlasmaParticles){
+      solarFeatureGroup.remove(solarPlasmaParticles);
+      solarPlasmaParticles.geometry.dispose();
+      solarPlasmaParticles.material.dispose();
+      solarPlasmaParticles=null;
+    }
+    if(!regions.length){
+      if(window.__BP_SOLAR_SURFACE_V4__)window.__BP_SOLAR_SURFACE_V4__.plasmaParticles='no-observed-active-regions';
+      return;
+    }
+    const particlesPerRegion=mobile?44:82;
+    const count=regions.length*particlesPerRegion;
+    const origins=new Float32Array(count*3);
+    const directions=new Float32Array(count*3);
+    const tangents=new Float32Array(count*3);
+    const seeds=new Float32Array(count);
+    const heights=new Float32Array(count);
+    const sizes=new Float32Array(count);
+    const heats=new Float32Array(count);
+    const fract=value=>value-Math.floor(value);
+    let cursor=0;
+    regions.forEach((region,regionIndex)=>{
+      const base=sunSurfacePoint(region.latitude,region.longitude,sunRadiusVisual*1.014);
+      const normal=base.clone().normalize();
+      let tangent=new THREE.Vector3(0,1,0).cross(normal);
+      if(tangent.lengthSq()<.01)tangent=new THREE.Vector3(1,0,0).cross(normal);
+      tangent.normalize();
+      const bitangent=normal.clone().cross(tangent).normalize();
+      for(let j=0;j<particlesPerRegion;j++){
+        const seed=fract(Math.sin((regionIndex+1)*91.731+(j+1)*17.173)*43758.5453);
+        const spreadA=fract(Math.sin((regionIndex+4)*37.719+(j+3)*9.137)*24634.6345);
+        const spreadB=fract(Math.sin((regionIndex+7)*19.131+(j+5)*23.711)*56445.2341);
+        const direction=normal.clone()
+          .addScaledVector(tangent,(spreadA-.5)*.82)
+          .addScaledVector(bitangent,(spreadB-.5)*.66)
+          .normalize();
+        const origin=base.clone().addScaledVector(normal,.003);
+        const k=cursor*3;
+        origins[k]=origin.x;origins[k+1]=origin.y;origins[k+2]=origin.z;
+        directions[k]=direction.x;directions[k+1]=direction.y;directions[k+2]=direction.z;
+        tangents[k]=tangent.x;tangents[k+1]=tangent.y;tangents[k+2]=tangent.z;
+        seeds[cursor]=fract(seed+cursor*.61803398875);
+        heights[cursor]=.16+spreadB*.58;
+        sizes[cursor]=.34+spreadA*.72;
+        heats[cursor]=THREE.MathUtils.clamp(region.intensity*(.72+spreadB*.34),.25,1.0);
+        cursor++;
+      }
+    });
+    const geometry=new THREE.BufferGeometry();
+    geometry.setAttribute('position',new THREE.BufferAttribute(origins,3));
+    geometry.setAttribute('aOrigin',new THREE.BufferAttribute(origins,3));
+    geometry.setAttribute('aDirection',new THREE.BufferAttribute(directions,3));
+    geometry.setAttribute('aTangent',new THREE.BufferAttribute(tangents,3));
+    geometry.setAttribute('aSeed',new THREE.BufferAttribute(seeds,1));
+    geometry.setAttribute('aHeight',new THREE.BufferAttribute(heights,1));
+    geometry.setAttribute('aSize',new THREE.BufferAttribute(sizes,1));
+    geometry.setAttribute('aHeat',new THREE.BufferAttribute(heats,1));
+    const material=new THREE.ShaderMaterial({
+      uniforms:{uTime:{value:0},uSizeScale:{value:mobile?96:122},uMaxPointSize:{value:mobile?15:24}},
+      vertexShader:`
+        #include <common>
+        #include <logdepthbuf_pars_vertex>
+        uniform float uTime;
+        uniform float uSizeScale;
+        uniform float uMaxPointSize;
+        attribute vec3 aOrigin;
+        attribute vec3 aDirection;
+        attribute vec3 aTangent;
+        attribute float aSeed;
+        attribute float aHeight;
+        attribute float aSize;
+        attribute float aHeat;
+        varying float vLife;
+        varying float vFade;
+        varying float vHeat;
+        void main(){
+          float life=fract(uTime*.17+aSeed);
+          float travel=.018+life*aHeight;
+          float sway=sin(uTime*2.8+aSeed*39.0+life*3.2)*.052*life;
+          vec3 plumePosition=aOrigin+aDirection*travel+aTangent*sway;
+          vec4 mvPosition=modelViewMatrix*vec4(plumePosition,1.0);
+          gl_Position=projectionMatrix*mvPosition;
+          gl_PointSize=clamp(aSize*uSizeScale/max(-mvPosition.z,.55),1.0,uMaxPointSize);
+          vLife=life;
+          vFade=smoothstep(0.0,.10,life)*(1.0-smoothstep(.72,1.0,life));
+          vHeat=aHeat;
+          #include <logdepthbuf_vertex>
+        }`,
+      fragmentShader:`
+        #include <common>
+        #include <logdepthbuf_pars_fragment>
+        precision highp float;
+        uniform float uTime;
+        varying float vLife;
+        varying float vFade;
+        varying float vHeat;
+        void main(){
+          vec2 point=(gl_PointCoord-vec2(.5))*2.0;
+          float radius=dot(point,point);
+          if(radius>1.0)discard;
+          float core=exp(-radius*10.0);
+          float halo=exp(-radius*2.45);
+          float flicker=.78+.22*sin(uTime*10.0+vLife*25.0);
+          vec3 plasma=mix(vec3(1.0,.105,.003),vec3(1.0,.91,.52),core);
+          float alpha=(core*.88+halo*.32)*vFade*vHeat*flicker*.78;
+          gl_FragColor=vec4(plasma*(.9+core*1.35),alpha);
+          #include <logdepthbuf_fragment>
+        }`,
+      transparent:true,depthTest:true,depthWrite:false,
+      blending:THREE.AdditiveBlending,toneMapped:false
+    });
+    solarPlasmaParticles=new THREE.Points(geometry,material);
+    solarPlasmaParticles.name='NASA AIA active-region surface-ejected plasma particle streams';
+    solarPlasmaParticles.frustumCulled=false;
+    solarFeatureGroup.add(solarPlasmaParticles);
+    if(window.__BP_SOLAR_SURFACE_V4__){
+      window.__BP_SOLAR_SURFACE_V4__.plasmaParticleCount=count;
+      window.__BP_SOLAR_SURFACE_V4__.activeRegionCount=regions.length;
+      window.__BP_SOLAR_SURFACE_V4__.plasmaParticles='flowing-from-observed-AIA-131-active-regions';
+    }
+  }
   function buildObservedEruptionArcs(image){
     try{
       const {width,height,pixels}=observationCanvas(image),bins=28;
@@ -536,6 +673,9 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
         selected.push({...point,ix,iy,intensity:THREE.MathUtils.clamp(item.score,0,1)});
         if(selected.length>=5)break;
       }
+      observedActiveRegions.length=0;
+      selected.forEach(region=>observedActiveRegions.push({...region}));
+      buildSolarSurfaceParticlePlumes(observedActiveRegions);
       selected.forEach((region,i)=>{
         const base=sunSurfacePoint(region.latitude,region.longitude,sunRadiusVisual*1.012);
         const normal=base.clone().normalize();
@@ -640,8 +780,58 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     map: makeGlowTexture(), color: 0xffa43d, transparent: true, opacity: 0.48,
     blending: THREE.AdditiveBlending, depthWrite: false
   }));
-  solarCoronaGlow.scale.set(sunRadiusVisual * 3.6, sunRadiusVisual * 3.6, 1);
+  solarCoronaGlow.scale.set(sunRadiusVisual * 3.9, sunRadiusVisual * 3.9, 1);
+  solarCoronaGlow.material.color.setHex(0xff7520);
+  solarCoronaGlow.material.opacity=0.56;
   sunGroup.add(solarCoronaGlow);
+  const solarFireRimGeometry=new THREE.SphereGeometry(sunRadiusVisual*1.018,mobile?128:256,mobile?64:128);
+  const solarFireRimMaterial=new THREE.ShaderMaterial({
+    uniforms:{uTime:{value:0}},
+    vertexShader:`
+      #include <common>
+      #include <logdepthbuf_pars_vertex>
+      varying vec3 vFireNormal;
+      varying vec3 vFireView;
+      varying vec3 vFirePosition;
+      uniform float uTime;
+      void main(){
+        float roll=sin(position.y*21.0+uTime*1.35)+.42*sin(position.x*37.0-position.z*26.0-uTime*1.8);
+        vec3 displaced=position+normal*(.0025*roll);
+        vec4 worldPosition=modelMatrix*vec4(displaced,1.0);
+        vFireNormal=normalize(mat3(modelMatrix)*normal);
+        vFireView=normalize(cameraPosition-worldPosition.xyz);
+        vFirePosition=normalize(position);
+        gl_Position=projectionMatrix*viewMatrix*worldPosition;
+        #include <logdepthbuf_vertex>
+      }`,
+    fragmentShader:`
+      #include <common>
+      #include <logdepthbuf_pars_fragment>
+      precision highp float;
+      uniform float uTime;
+      varying vec3 vFireNormal;
+      varying vec3 vFireView;
+      varying vec3 vFirePosition;
+      void main(){
+        float facing=clamp(dot(normalize(vFireNormal),normalize(vFireView)),0.0,1.0);
+        float fresnel=pow(1.0-facing,2.05);
+        float turbulence=.5+.5*sin(vFirePosition.y*37.0+vFirePosition.x*23.0-uTime*1.9
+          +sin(vFirePosition.z*31.0+uTime*1.2)*1.4);
+        float tongues=smoothstep(.12,.90,turbulence);
+        float rim=fresnel*(.70+.30*tongues);
+        vec3 fire=mix(vec3(1.0,.075,.002),vec3(1.0,.58,.075),smoothstep(.08,.86,fresnel)+tongues*.18);
+        fire=mix(fire,vec3(1.0,.94,.62),smoothstep(.72,.98,fresnel)*.62);
+        float alpha=clamp(pow(rim,1.24)*.72,0.0,.68);
+        gl_FragColor=vec4(fire*(1.1+.34*tongues),alpha);
+        #include <logdepthbuf_fragment>
+      }`,
+    transparent:true,depthTest:true,depthWrite:false,
+    blending:THREE.AdditiveBlending,side:THREE.FrontSide,toneMapped:false
+  });
+  const solarFireRim=new THREE.Mesh(solarFireRimGeometry,solarFireRimMaterial);
+  solarFireRim.name='Animated Fresnel solar fire rim and eruptive plasma glow';
+  solarFireRim.renderOrder=-898;
+  sunGroup.add(solarFireRim);
   const sunLight = new THREE.PointLight(0xffe2b2, 260000, 0, 2);
   sunLight.position.copy(sunPosition);
   scene.add(sunLight);
@@ -1875,6 +2065,8 @@ function createMoonTerrainController() {
     }
     sunMaterial.uniforms.uTime.value=t;
     coronaMaterial.uniforms.uTime.value=t;
+    solarFireRimMaterial.uniforms.uTime.value=t;
+    if(solarPlasmaParticles)solarPlasmaParticles.material.uniforms.uTime.value=t;
     moonMaterial.uniforms.uTime.value=t;
     const sunWorld=sunGroup.getWorldPosition(new THREE.Vector3());
     moonMaterial.uniforms.uSunDir.value.copy(moonMesh.worldToLocal(sunWorld.clone()).normalize());
@@ -1913,7 +2105,7 @@ function createMoonTerrainController() {
     focus:focusBody,
     reset:resetView,
     state:()=>({viewState,moonOrbitPeriodDays:MOON_PERIOD_DAYS,solarRotationPeriodDays:25.38,solarReliefStatus:window.__BP_SOLAR_SURFACE_V2__?.reliefStatus||'loading',solarCameraTiltDegrees:viewState==='sun'&&sunFocusLocalTarget?THREE.MathUtils.radToDeg(Math.acos(THREE.MathUtils.clamp(camera.position.clone().sub(target).normalize().dot(sunFocusLocalTarget.clone().normalize().transformDirection(sunGroup.matrixWorld)),-1,1))):null,solarCoronalLoopCount:coronalLoopMeshes.length,solarFlareArcCount:flareMeshes.length,solarAssets:window.__BP_SOLAR_SURFACE_V3__||window.__BP_SOLAR_SURFACE_V2__||{status:'not-requested'},
-      solarMagneticLoopCount:coronalLoopMeshes.length,solarObservedEruptionArcCount:flareMeshes.length,
+      solarMagneticLoopCount:coronalLoopMeshes.length,solarObservedEruptionArcCount:flareMeshes.length,solarFireLayer:window.__BP_SOLAR_SURFACE_V4__||{status:'loading'},solarPlasmaParticleCount:solarPlasmaParticles?.geometry.attributes.position.count||0,
       moonCameraTiltDegrees:THREE.MathUtils.radToDeg(moonCameraTiltRadians()),
       moonCameraDistanceKm:viewState==='moon'?camera.position.distanceTo(target)*EARTH_RADIUS_KM:null,
       radiiKm:{earth:EARTH_RADIUS_KM,moon:MOON_RADIUS_KM,sun:SUN_RADIUS_KM},

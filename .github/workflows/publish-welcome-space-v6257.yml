@@ -1,4 +1,4 @@
-name: Publish BridgePoint Sun Globe, Depth Occlusion and STEREO Far Side V6268
+name: Publish BridgePoint Sun Globe, Depth Occlusion and STEREO Far Side V6269
 
 on:
   push:
@@ -22,7 +22,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: bridgepoint-welcome-space-v6268-solar-observatory
+  group: bridgepoint-welcome-space-v6269-solar-fire-plasma
   cancel-in-progress: true
 
 jobs:
@@ -173,7 +173,7 @@ jobs:
           node --input-type=module --check < site/bridgepoint-welcome-space-v6260.js
           node --input-type=module --check < site/bridgepoint-celestial-sky-v6257.js
           grep -Fq 'bpWelcomeGateStylesV6257' site/index.html
-          grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6268-solar-observatory"' site/index.html
+          grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6269-solar-fire-plasma"' site/index.html
           grep -Fq 'data-mode="signup"' site/index.html
           grep -Fq 'data-mode="signin"' site/index.html
           grep -Fq 'new THREE.Raycaster()' site/bridgepoint-welcome-space-v6260.js
@@ -189,6 +189,13 @@ jobs:
           grep -Fq 'function buildMagneticLoopsFromImage' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'function buildObservedEruptionArcs' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'SDO AIA 131/171/304 observation-driven 3D corona shell' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'float magmaFlow=' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'moltenCoverage' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'const solarFireRim=new THREE.Mesh' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'solarFireRim.renderOrder=-898' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'function buildSolarSurfaceParticlePlumes(regions)' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'NASA AIA active-region surface-ejected plasma particle streams' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'gl_PointSize=' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'addCoronalLoop' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'function rotateSunSurface' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'function tiltSunCamera' site/bridgepoint-welcome-space-v6260.js
@@ -277,7 +284,7 @@ jobs:
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/intelligence-launch/?welcome-space-v6257=${q}" -o /tmp/live-legacy.html || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/sw.js?verify=${q}" -o /tmp/live-sw.js || true
             if grep -Fq 'bpWelcomeGateStylesV6257' /tmp/live-root.html 2>/dev/null &&
-               grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6268-solar-observatory"' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6269-solar-fire-plasma"' /tmp/live-root.html 2>/dev/null &&
                grep -Fq 'new THREE.Raycaster()' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'uPhotosphereMap' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'addCoronalLoop' /tmp/live-space.js 2>/dev/null &&
@@ -286,6 +293,10 @@ jobs:
                grep -Fq 'Sun solid opaque depth occluder' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'panSunSurface(dx,dy)' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'uFarSideMap' /tmp/live-space.js 2>/dev/null &&
+               grep -Fq 'float magmaFlow=' /tmp/live-space.js 2>/dev/null &&
+               grep -Fq 'const solarFireRim=new THREE.Mesh' /tmp/live-space.js 2>/dev/null &&
+               grep -Fq 'function buildSolarSurfaceParticlePlumes(regions)' /tmp/live-space.js 2>/dev/null &&
+               grep -Fq 'NASA AIA active-region surface-ejected plasma particle streams' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'function rotateSunSurface' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'function tiltSunCamera' /tmp/live-space.js 2>/dev/null &&
                test -s /tmp/live-sun-manifest.json && test -s /tmp/live-sun-photosphere.webp &&
@@ -313,7 +324,7 @@ jobs:
                grep -Fq 'entryRoute=' /tmp/live-sw.js 2>/dev/null &&
                grep -Fq '/?return=' /tmp/live-app.html 2>/dev/null &&
                grep -Fq 'content="0;url=/"' /tmp/live-legacy.html 2>/dev/null &&
-               grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6268-solar-observatory'" /tmp/live-sw.js 2>/dev/null &&
+               grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6269-solar-fire-plasma'" /tmp/live-sw.js 2>/dev/null &&
                grep -Fq 'runtimeMode' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'externalRuntimeTerrainRequests: 0' /tmp/live-space.js 2>/dev/null &&
                ! grep -Fq 'trek.nasa.gov/tiles/Moon' /tmp/live-space.js 2>/dev/null &&
@@ -333,4 +344,4 @@ jobs:
             sleep 3
           done
           test "$ok" -eq 1
-          echo 'LIVE V6268 PASS: opaque Earth and Sun depth occlusion; displaced HMI sunspot relief; current SDO AIA activity including 131 A; final usable STEREO-B 2014-09-27 far-side EUV observations; animated plasma structures and one-finger Sun surface pan; existing Moon DEM preserved.'
+          echo 'LIVE V6269 PASS: observed NASA solar surface, animated molten photosphere, Fresnel fire rim and active-region particle streams; Earth and Moon production assets preserved.'
