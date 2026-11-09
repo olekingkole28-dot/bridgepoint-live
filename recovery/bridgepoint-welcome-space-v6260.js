@@ -16,7 +16,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
 
 (() => {
   'use strict';
-  const VERSION = 'v6269-solar-fire-plasma';
+  const VERSION = 'v6280-unified-cosmos';
   if (window.__BP_WELCOME_SPACE_V6257__) return;
   window.__BP_WELCOME_SPACE_V6257__ = true;
 
@@ -58,8 +58,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   const style = document.createElement('style');
   style.id = 'bpWelcomeSpaceStylesV6257';
   style.textContent = `
-    #bpWelcomeGateV1 .bpw-starfield{display:block!important;visibility:visible!important}
-    #bpWelcomeGateV1.bpw-gaia-mode .bpw-starfield{display:none!important;visibility:hidden!important}
+    #bpWelcomeGateV1 .bpw-starfield{display:none!important;visibility:hidden!important}
     #bpWelcomeGateV1 .bpw-space-renderer-canvas{
       position:absolute!important;inset:0!important;width:100%!important;height:100%!important;
       display:block!important;z-index:2!important;pointer-events:auto!important;
@@ -110,7 +109,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
 
   const scene = new THREE.Scene();
   scene.background = null;
-  const camera = new THREE.PerspectiveCamera(48, 1, 0.001, 100000);
+  const camera = new THREE.PerspectiveCamera(48, 1, 0.001, 100000000000);
   camera.position.set(0, 4.2, 16.5);
   camera.lookAt(0, 0, 0);
 
@@ -130,6 +129,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     new THREE.MeshBasicMaterial({ colorWrite:false, depthWrite:true, depthTest:true, side:THREE.FrontSide })
   );
   earthDepthOccluder.name = 'Earth opaque depth occluder';
+  earthDepthOccluder.userData.body = 'earth';
   earthDepthOccluder.renderOrder = -1000;
   earth.add(earthDepthOccluder);
 
@@ -854,43 +854,14 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     texture.needsUpdate=true;return texture;
   }
 
-  // The welcome scene has its own distant 3D star sphere. It is purely a
-  // cinematic background, not a substitute for the measured Gaia catalogue.
-  const cinematicStarGeometry=new THREE.BufferGeometry();
-  const cinematicStarCount=mobile?4200:8200;
-  const cinematicStarPositions=new Float32Array(cinematicStarCount*3);
-  const cinematicStarColors=new Float32Array(cinematicStarCount*3);
-  let cinematicSeed=0x6271a11;
-  const cinematicRandom=()=>{cinematicSeed=(cinematicSeed*1664525+1013904223)>>>0;return cinematicSeed/4294967296};
-  const stellarPalette=[[.60,.74,1.0],[.82,.91,1.0],[1.0,.91,.76],[1.0,.73,.53]];
-  for(let i=0;i<cinematicStarCount;i++){
-    const y=cinematicRandom()*2-1,angle=cinematicRandom()*TAU;
-    const radial=Math.sqrt(Math.max(0,1-y*y)),radius=1450+cinematicRandom()*90;
-    const j=i*3,palette=stellarPalette[Math.floor(cinematicRandom()*stellarPalette.length)];
-    const brightness=.48+cinematicRandom()*.78;
-    cinematicStarPositions[j]=Math.cos(angle)*radial*radius;
-    cinematicStarPositions[j+1]=y*radius;
-    cinematicStarPositions[j+2]=Math.sin(angle)*radial*radius;
-    cinematicStarColors[j]=palette[0]*brightness;
-    cinematicStarColors[j+1]=palette[1]*brightness;
-    cinematicStarColors[j+2]=palette[2]*brightness;
-  }
-  cinematicStarGeometry.setAttribute('position',new THREE.BufferAttribute(cinematicStarPositions,3));
-  cinematicStarGeometry.setAttribute('color',new THREE.BufferAttribute(cinematicStarColors,3));
-  const cinematicStarfield=new THREE.Points(cinematicStarGeometry,new THREE.PointsMaterial({
-    size:mobile?1.2:1.35,sizeAttenuation:false,vertexColors:true,
-    transparent:true,opacity:.92,depthTest:true,depthWrite:false,blending:THREE.AdditiveBlending
-  }));
-  cinematicStarfield.name='Welcome cinematic 3D background starfield';
-  cinematicStarfield.frustumCulled=false;
-  scene.add(cinematicStarfield);
-
-  // Gaia's measured parsec positions live in a separate group and appear only
-  // when the user enters the actual Galaxy or Solar System exploration view.
+  // The real Gaia catalogue is the only stellar point field in this scene.
+  // Its loader starts below and makes measured stars visible from the first view.
   const stars=new THREE.Group();
-  stars.name='Gaia DR3 stellar positions in parsecs';
-  stars.visible=false;
+  stars.name='BridgePoint unified Gaia DR3 stellar positions in parsecs';
+  stars.visible=true;
   scene.add(stars);
+  let solarCosmos=null;
+  let focusedPlanetRadius=0;
 
   // Three-point depth layering adds a faint distant stellar haze without a flat CSS sky.
   const hazeGeometry=new THREE.SphereGeometry(3200,24,16);
@@ -899,7 +870,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
 
   const raycaster=new THREE.Raycaster();
   const pointer=new THREE.Vector2();
-  const clickables=[moonMesh,sunMesh];
+  const clickables=[earthDepthOccluder,moonMesh,sunMesh];
   let viewState='overview',focusedObject=null;
   let focusLocalTarget=null,moonTerrainController=null,sunFocusLocalTarget=null;
 
@@ -1623,20 +1594,28 @@ function createMoonTerrainController() {
     sunGroup.position.copy(sunPosition);sunLight.position.copy(sunPosition);stars.position.copy(sunPosition);
   }
   function focusBody(body){
-    const focused=body==='moon'?moonMesh:body==='sun'?sunMesh:null;
+    const key=String(body||'').toLowerCase();
+    const bodyData=solarCosmos?.getBody?.(key)||null;
+    const focused=key==='moon'?moonMesh:key==='sun'?sunMesh:key==='earth'?earthDepthOccluder:bodyData?.mesh||null;
     if(!focused)return;
-    focusedObject=focused;viewState=body;camera.up.set(0,1,0);
-    if(body==='moon'){
-      sunFocusLocalTarget=null;focusLocalTarget=null;camera.near=0.00000005;
+    solarCosmos?.setSelection?.(key);
+    focusedObject=focused;viewState=(key==='moon'||key==='sun')?key:'planet';camera.up.set(0,1,0);
+    if(key==='moon'){
+      focusedPlanetRadius=0;sunFocusLocalTarget=null;focusLocalTarget=null;camera.near=0.00000005;
       moonTerrainController?.setActive(false);
+    }else if(key==='sun'){
+      focusedPlanetRadius=0;focusLocalTarget=null;moonTerrainController?.setActive(false);camera.near=0.0000001;
     }else{
-      focusLocalTarget=null;moonTerrainController?.setActive(false);
-      camera.near=body==='sun'?0.0000001:0.001;
+      focusLocalTarget=null;sunFocusLocalTarget=null;moonTerrainController?.setActive(false);
+      focusedPlanetRadius=key==='earth'?1:(bodyData?.radius||1);
+      camera.near=Math.max(1e-12,focusedPlanetRadius*1e-7);
+      camera.far=Math.max(camera.far,100000000000);
+      camera.fov=48;camera.updateProjectionMatrix();
     }
     moonPivot.visible=true;sunGroup.visible=true;stars.visible=true;haze.visible=true;
-    moonMesh.scale.setScalar(1);sunMesh.scale.setScalar(1);
+    if(key==='moon'||key==='sun'){moonMesh.scale.setScalar(1);sunMesh.scale.setScalar(1);}
     const world=focused===sunMesh?sunGroup.getWorldPosition(new THREE.Vector3()):focused.getWorldPosition(new THREE.Vector3());
-    if(body==='moon'){
+    if(key==='moon'){
       camera.fov=42;camera.updateProjectionMatrix();
       const focusLat=26.1322,focusLon=3.6333;
       focusLocalTarget=moonSurfacePoint(focusLat,focusLon,0);
@@ -1653,17 +1632,22 @@ function createMoonTerrainController() {
         if(transitionStart){const delta=resolved.clone().sub(targetTo);targetTo.add(delta);cameraTo.add(delta);}
         else{const delta=resolved.clone().sub(target);target.copy(resolved);camera.position.add(delta);camera.lookAt(target);}
       }).catch(error=>console.warn('[BridgePoint Moon] NASA DEM load failed:',error));
-    }else{
+    }else if(key==='sun'){
       camera.fov=62;camera.updateProjectionMatrix();
       sunFocusLocalTarget=new THREE.Vector3(0,0,sunRadiusVisual);
       sunGroup.updateMatrixWorld(true);
       const surface=sunGroup.localToWorld(sunFocusLocalTarget.clone());
       const surfaceNormal=sunFocusLocalTarget.clone().normalize().transformDirection(sunGroup.matrixWorld);
       animateCamera(surface.clone().addScaledVector(surfaceNormal,sunRadiusVisual*1.7),surface,1.8);
+    }else{
+      const direction=camera.position.clone().sub(world);
+      if(direction.lengthSq()<1e-12)direction.set(0,0,1);
+      direction.normalize();
+      animateCamera(world.clone().addScaledVector(direction,Math.max(focusedPlanetRadius*3.2,.25)),world,1.5);
     }
   }
   function resetView(){
-    focusedObject=null;focusLocalTarget=null;sunFocusLocalTarget=null;viewState='overview';moonTerrainController?.setActive(false);camera.near=0.001;camera.up.set(0,1,0);camera.fov=48;camera.updateProjectionMatrix();
+    focusedObject=null;focusLocalTarget=null;sunFocusLocalTarget=null;focusedPlanetRadius=0;solarCosmos?.clearSelection?.();viewState='overview';moonTerrainController?.setActive(false);camera.near=0.001;camera.up.set(0,1,0);camera.fov=48;camera.updateProjectionMatrix();
     moonMesh.scale.setScalar(1);sunMesh.scale.setScalar(1);
     moonPivot.visible=true;sunGroup.visible=true;stars.visible=true;haze.visible=true;
     setResponsiveSunPosition();
@@ -1769,8 +1753,9 @@ function createMoonTerrainController() {
     enforceSunCameraClearance();camera.lookAt(target);
   }
   function moonZoomDistance(distance){
-    const minimum=viewState==='moon'?0.00000045:viewState==='sun'?.0015:1.8;
-    return THREE.MathUtils.clamp(distance,minimum,5000);
+    const minimum=viewState==='moon'?0.00000045:viewState==='sun'?.0015:viewState==='planet'?Math.max(1e-9,focusedPlanetRadius*1.015):1.8;
+    const maximum=solarCosmos?.maxCameraDistance?.()||5000;
+    return THREE.MathUtils.clamp(distance,minimum,maximum);
   }
   function zoomCameraBy(factor){
     const direction=camera.position.clone().sub(target).normalize();
@@ -1927,7 +1912,6 @@ function createMoonTerrainController() {
   }
   canvas.addEventListener('contextmenu',event=>event.preventDefault());
   canvas.addEventListener('pointerdown',event=>{
-    if(window.__BP_GAIA_DR3_GALAXY_V6270__?.active)return;
     if(activePointers.size===0){pointerMoved=false;lastX=event.clientX;lastY=event.clientY;}
     activePointers.set(event.pointerId,{x:event.clientX,y:event.clientY,button:event.button,pointerType:event.pointerType});
     if(event.button===2)event.preventDefault();
@@ -1942,7 +1926,7 @@ function createMoonTerrainController() {
     canvas.setPointerCapture?.(event.pointerId);
   });
   canvas.addEventListener('pointermove',event=>{
-    if(window.__BP_GAIA_DR3_GALAXY_V6270__?.active)return;
+
     if(!activePointers.has(event.pointerId))return;
     const existingPointer=activePointers.get(event.pointerId)||{};
     activePointers.set(event.pointerId,{...existingPointer,x:event.clientX,y:event.clientY});
@@ -1984,7 +1968,7 @@ function createMoonTerrainController() {
     }
   });
   canvas.addEventListener('pointerup',event=>{
-    if(window.__BP_GAIA_DR3_GALAXY_V6270__?.active)return;
+
     activePointers.delete(event.pointerId);
     dragging=activePointers.size>0;
     if(activePointers.size===1){
@@ -2008,17 +1992,17 @@ function createMoonTerrainController() {
     if(hit?.object?.userData?.body)focusBody(hit.object.userData.body);
   });
   canvas.addEventListener('pointercancel',event=>{
-    if(window.__BP_GAIA_DR3_GALAXY_V6270__?.active)return;
+
     activePointers.delete(event.pointerId);dragging=activePointers.size>0;
     if(activePointers.size<2){pinchDistance=0;gestureCenter=null;}
     if(activePointers.size===0){pointerMoved=false;refreshLunarTerrainFromView();}
   });
   canvas.addEventListener('wheel',event=>{
-    if(window.__BP_GAIA_DR3_GALAXY_V6270__?.active)return;
+
     event.preventDefault();
     zoomCameraBy(Math.exp(event.deltaY*.001));
   },{passive:false});
-  controls.querySelector('[data-space-reset]').addEventListener('click',()=>{const galaxy=window.__BP_GAIA_DR3_GALAXY_V6270__;if(galaxy?.active)galaxy.exit();else resetView()});
+  controls.querySelector('[data-space-reset]').addEventListener('click',()=>resetView());
 
   function resize(){
     const width=Math.max(1,host.clientWidth||innerWidth),height=Math.max(1,host.clientHeight||innerHeight);
@@ -2037,8 +2021,6 @@ function createMoonTerrainController() {
   function render(){
     if(disposed)return;
     const elapsed=clock.getDelta(),t=nowSeconds();
-    const galaxy=window.__BP_GAIA_DR3_GALAXY_V6270__;
-    if(galaxy?.active){galaxy.update?.();renderer.render(scene,camera);if(!document.hidden)requestAnimationFrame(render);return;}
     const elapsedFromStart=t;
     const orbitalDays=(Date.now()-reference)/86400000 + elapsedFromStart*1200/86400;
     const mean=TAU*orbitalDays/MOON_PERIOD_DAYS;
@@ -2089,6 +2071,7 @@ function createMoonTerrainController() {
       enforceSunCameraClearance();
       camera.lookAt(target);
     }
+    solarCosmos?.update?.();
     renderer.render(scene,camera);
     if(!document.hidden)requestAnimationFrame(render);
   }
@@ -2113,22 +2096,16 @@ function createMoonTerrainController() {
       lunarLabelCount:window.__BP_MOON_TERRAIN_V1__?.labelCount||0,
       proceduralLunarRelief:'fallback-only-outside-loaded-NASA-DEM-coverage'})
   };
-  void import('./bridgepoint-gaia-galaxy-v6270.js?v=6272-gaia-controls-visible')
-    .then(module=>module.initBridgePointGaiaGalaxy({
-      THREE,scene,camera,renderer,canvas,host,controls,starsGroup:stars,
-      getSunPosition:()=>sunPosition.clone(),
-      setTarget:value=>target.copy(value),
-      target,
-      setViewState:value=>{viewState=value;},
-      setMainBodiesVisible:visible=>{
-        moonPivot.visible=visible;sunGroup.visible=visible;
-        earthDepthOccluder.visible=visible;haze.visible=visible;
-        cinematicStarfield.visible=visible;
-        document.getElementById('bpWelcomeGateV1')?.classList.toggle('bpw-gaia-mode',!visible);
-      },
-      setBackground:value=>{scene.background=value;},
-      resetMainView:resetView,
-      isMobile:mobile
-    }))
-    .catch(error=>console.warn('[BridgePoint Gaia DR3] Galaxy renderer unavailable:',error));
+  void import('./bridgepoint-gaia-galaxy-v6270.js?v=6280-unified-cosmos')
+    .then(module=>{
+      solarCosmos=module.initBridgePointSolarCosmos({
+        THREE,scene,camera,canvas,host,controls,starsGroup:stars,
+        getSunPosition:()=>sunPosition.clone(),
+        getMoonPosition:()=>moonMesh.getWorldPosition(new THREE.Vector3()),
+        focusBody,clickables,
+        bodyRefs:{earth:earthDepthOccluder,moon:moonMesh,sun:sunMesh},
+        isMobile:mobile
+      });
+    })
+    .catch(error=>console.warn('[BridgePoint Gaia DR3] Unified celestial scene unavailable:',error));
 })();

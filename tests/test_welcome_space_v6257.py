@@ -97,7 +97,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
     def test_root_uses_one_existing_earth_and_no_ground_sky_button(self):
         out = patch_root_html(root_fixture())
         self.assertIn("bpWelcomeGateStylesV6257", out)
-        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6269-solar-fire-plasma"', out)
+        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6280-unified-cosmos"', out)
         self.assertIn('class="bpw-celestial-system" aria-hidden="true"></div>', out)
         self.assertNotIn("bpwCelestialCanvasV6257", out)
         self.assertNotIn('class="bpw-globe-aura"', out)
@@ -115,7 +115,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
 <script>location.replace('/')</script>
 <script src="/sw.js?v=6247-universal-fresh-entry-sidewalk"></script>"""
         out = patch_legacy_app(migrated)
-        self.assertIn("sw.js?v=6269-solar-fire-plasma", out)
+        self.assertIn("sw.js?v=6280-unified-cosmos", out)
         self.assertNotIn("v=6247-universal-fresh-entry-sidewalk", out)
         self.assertIn('content="0;url=/"', out)
         self.assertIn("location.replace('/')", out)
@@ -130,7 +130,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
         for tag in cases:
             with self.subTest(tag=tag):
                 out = bump_manifest_url(tag, "test manifest URL")
-                self.assertEqual(out.count("v=6269-solar-fire-plasma"), 1)
+                self.assertEqual(out.count("v=6280-unified-cosmos"), 1)
                 self.assertNotIn("v=6265-solar-globe", out)
                 self.assertNotIn("v=6247-universal-fresh-entry", out)
 
@@ -146,7 +146,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
 <script type="module" src="/bridgepoint-welcome-space-v6260.js?v=6265-solar-globe">
 </body></html>"""
         out = patch_root_html(current)
-        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6269-solar-fire-plasma"', out)
+        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6280-unified-cosmos"', out)
         self.assertNotIn("v=6265-solar-globe", out)
         self.assertIn('<div class="bpw-celestial-system" aria-hidden="true"></div>', out)
         self.assertIn('class="bpw-wordmark bpw-wordmark-static"', out)
@@ -155,8 +155,8 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
         app = patch_app_index(app_index_fixture())
         self.assertEqual(app.count("/?return="), 2)
         self.assertNotIn("/?auth=signin&return=", app)
-        self.assertIn("app.js?v=6269-solar-fire-plasma", app)
-        self.assertIn("manifest.webmanifest?v=6269-solar-fire-plasma", app)
+        self.assertIn("app.js?v=6280-unified-cosmos", app)
+        self.assertIn("manifest.webmanifest?v=6280-unified-cosmos", app)
         legacy = patch_legacy_app(legacy_fixture())
         self.assertIn('content="0;url=/"', legacy)
         self.assertIn("location.replace('/')", legacy)
@@ -260,7 +260,7 @@ self.addEventListener('fetch',e=>{
             path.write_text(modern)
             patch_worker(path)
             out = path.read_text()
-            self.assertIn("BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6269-solar-fire-plasma'", out)
+            self.assertIn("BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6280-unified-cosmos'", out)
             self.assertIn("await active.delete(request)", out)
             self.assertIn("const entryRoute=", out)
             self.assertIn("current release required", out)
@@ -390,7 +390,7 @@ self.addEventListener('fetch',e=>{
         workflow = (ROOT / ".github" / "workflows" / "deploy-intelligence-rebuild-v5000.yml").read_text()
         self.assertIn('class="bpw-celestial-system"', index)
         helper = (ROOT / "recovery" / "apply_welcome_space_v6257.py").read_text()
-        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6269-solar-fire-plasma"', helper)
+        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6280-unified-cosmos"', helper)
         publish_workflow = (ROOT / ".github" / "workflows" / "publish-welcome-space-v6257.yml").read_text()
         self.assertIn("cp recovery/bridgepoint-welcome-space-v6260.js site/bridgepoint-welcome-space-v6260.js", publish_workflow)
         self.assertNotIn("cp -a assets/moon/v1 site/assets/moon/v1", publish_workflow)
@@ -447,7 +447,7 @@ self.addEventListener('fetch',e=>{
     def test_sun_has_animated_molten_photosphere_fresnel_rim_and_observed_plasma_particles(self):
         module = (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text()
         for marker in (
-            "const VERSION = 'v6269-solar-fire-plasma'",
+            "const VERSION = 'v6280-unified-cosmos'",
             "float magmaFlow=",
             "float moltenCoverage=",
             "const solarFireRim=new THREE.Mesh",
@@ -462,13 +462,13 @@ self.addEventListener('fetch',e=>{
         ):
             self.assertIn(marker, module)
 
-    def test_patch_bundle_bumps_v6268_worker_to_v6269(self):
+    def test_patch_bundle_bumps_v6269_worker_to_v6280(self):
         with tempfile.TemporaryDirectory() as folder:
             bundle = Path(folder) / "app.js"
-            bundle.write_text("navigator.serviceWorker.register('/sw.js?v=6268-solar-observatory',{updateViaCache:'none'})")
+            bundle.write_text("navigator.serviceWorker.register('/sw.js?v=6269-solar-fire-plasma',{updateViaCache:'none'})")
             patch_bundle(bundle)
-            self.assertIn("sw.js?v=6269-solar-fire-plasma", bundle.read_text())
-            self.assertNotIn("v6268-solar-observatory", bundle.read_text())
+            self.assertIn("sw.js?v=6280-unified-cosmos", bundle.read_text())
+            self.assertNotIn("v6269-solar-fire-plasma", bundle.read_text())
 
     def test_lunar_mesh_indices_are_buffer_attributes(self):
         module = (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text()
@@ -523,25 +523,41 @@ self.addEventListener('fetch',e=>{
         self.assertNotIn("imbrium.mit.edu/DATA/SLDEM2015", workflow)
         self.assertNotIn("SLDEM_TILE_SHIFT", workflow)
 
-    def test_gaia_button_initialization_and_welcome_starfield_are_separate(self):
+    def test_welcome_space_uses_one_real_gaia_starfield_and_no_synthetic_sphere(self):
         scene = (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text()
         galaxy = (ROOT / "rebuild-v5000" / "bridgepoint-gaia-galaxy-v6270.js").read_text()
-        self.assertIn("starsGroup:stars", scene)
-        self.assertIn("const cinematicStarfield=new THREE.Points", scene)
-        self.assertIn("cinematicStarfield.visible=visible", scene)
-        self.assertIn("bpw-gaia-mode", scene)
-        self.assertIn("display:block!important;visibility:visible!important", scene)
-        self.assertIn("stars.visible=false", scene)
+        self.assertIn("stars.visible=true", scene)
+        self.assertIn("initBridgePointSolarCosmos", scene)
+        self.assertIn("v=6280-unified-cosmos", scene)
+        self.assertNotIn("cinematicStarfield", scene)
+        self.assertNotIn("bpw-gaia-mode", scene)
+        self.assertNotIn("GAIA_DR3_GALAXY_V6270", scene)
+        self.assertNotIn("GALAXY VIEW", galaxy)
+        self.assertNotIn("data-gaia=", galaxy)
+        self.assertIn("Gaia DR3 measured stellar positions", galaxy)
+        self.assertIn("const p=[r.x,r.y,r.z],j=i*3;", galaxy)
+        self.assertIn("if(starState.frame)return starState.frame;", galaxy)
+        self.assertIn("0.00465047*uAUScale", galaxy)
+        self.assertIn("#include <logdepthbuf_vertex>", galaxy)
         self.assertIn("starsGroup.visible=true", galaxy)
-        self.assertIn("starsGroup.visible=false", galaxy)
+        self.assertIn("initBridgePointSolarCosmos", galaxy)
 
-    def test_galaxy_view_button_stays_visible_on_the_welcome_scene(self):
-        galaxy = (ROOT / "rebuild-v5000" / "bridgepoint-gaia-galaxy-v6270.js").read_text()
+    def test_continuous_solar_scene_reuses_existing_bodies_and_labels_planets(self):
         scene = (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text()
-        self.assertIn("[['local',state.active],['milkyway',!state.active]", galaxy)
-        self.assertNotIn("[['local',!state.active],['milkyway',!state.active]", galaxy)
-        self.assertIn("bar.querySelectorAll('button').forEach(b=>b.disabled=false)", galaxy)
-        self.assertIn("v=6272-gaia-controls-visible", scene)
+        cosmos = (ROOT / "rebuild-v5000" / "bridgepoint-gaia-galaxy-v6270.js").read_text()
+        self.assertIn("bodyRefs:{earth:earthDepthOccluder,moon:moonMesh,sun:sunMesh}", scene)
+        self.assertIn("clickables=[earthDepthOccluder,moonMesh,sunMesh]", scene)
+        self.assertIn("maxCameraDistance", cosmos)
+        self.assertIn("planetPos(THREE,p,days,ob).multiplyScalar(auScale)", cosmos)
+        self.assertIn("3D heliocentric orbital path", cosmos)
+        self.assertIn("World-anchored celestial body labels", cosmos)
+        self.assertIn("bpw-celestial-body-picker", cosmos)
+        self.assertIn("CHOOSE CELESTIAL BODY", cosmos)
+        for planet in ("Mercury", "Venus", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune"):
+            self.assertIn("name:'" + planet + "'", cosmos)
+        self.assertNotIn("function enterGalaxy", cosmos)
+        self.assertNotIn("function enterMilky", cosmos)
+        self.assertNotIn("function enterSolar", cosmos)
 
     def test_celestial_sky_is_attached_to_the_app_map_without_a_second_canvas(self):
         module = (ROOT / "rebuild-v5000" / "bridgepoint-celestial-sky-v6257.js").read_text()
@@ -598,7 +614,7 @@ self.addEventListener('fetch',e=>{
             after = {p.relative_to(site).as_posix() for p in site.rglob("*") if p.is_file()}
             self.assertEqual(after - before, set())
             root = (site / "index.html").read_text()
-            self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6269-solar-fire-plasma"', root)
+            self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6280-unified-cosmos"', root)
             self.assertIn("event.persisted", root)
             self.assertIn("location.reload()", root)
             self.assertNotIn("data-space-ground", root)
