@@ -1,4 +1,4 @@
-name: Publish BridgePoint Sun Globe, Depth Occlusion and STEREO Far Side V6267
+name: Publish BridgePoint Sun Globe, Depth Occlusion and STEREO Far Side V6268
 
 on:
   push:
@@ -22,7 +22,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: bridgepoint-welcome-space-v6267-sun-visible
+  group: bridgepoint-welcome-space-v6268-solar-observatory
   cancel-in-progress: true
 
 jobs:
@@ -110,6 +110,11 @@ jobs:
           test -s site/assets/sun/v2/sun-coronal-activity-v2.webp
           test -s site/assets/sun/v2/sun-stereoB-farside-EUV-2014-09-27-v2.webp
           test -s site/assets/sun/v2/sun-photosphere-height-v2.webp
+          test -s site/assets/sun/v2/sun-magnetogram-hmi-2026-11-09.jpg
+          test -s site/assets/sun/v2/sun-aia-131-latest.jpg
+          test -s site/assets/sun/v2/sun-aia-171-latest.jpg
+          test -s site/assets/sun/v2/sun-aia-193-latest.jpg
+          test -s site/assets/sun/v2/sun-aia-304-latest.jpg
           # The Earth and Moon are already complete in the Pages baseline. Do not copy or rewrite them.
           test -s site/assets/moon/v1/manifest.json
           test -s site/assets/moon/v1/moon-global-height-16ppd-u16.png
@@ -147,6 +152,11 @@ jobs:
             'assets/sun/v2/sun-photosphere-height-v2.webp',
             'assets/sun/v2/sun-coronal-activity-v2.webp',
             'assets/sun/v2/sun-stereoB-farside-EUV-2014-09-27-v2.webp',
+            'assets/sun/v2/sun-magnetogram-hmi-2026-11-09.jpg',
+            'assets/sun/v2/sun-aia-131-latest.jpg',
+            'assets/sun/v2/sun-aia-171-latest.jpg',
+            'assets/sun/v2/sun-aia-193-latest.jpg',
+            'assets/sun/v2/sun-aia-304-latest.jpg',
           }
           assert added==expected_added, f'unexpected new production files: {sorted(added ^ expected_added)}'
           allowed_changed=expected | {'bridgepoint-welcome-space-v6260.js'}
@@ -157,13 +167,13 @@ jobs:
           assert required_changed.issubset(changed), f'missing required entry/scene updates: {sorted(required_changed - changed)}'
           unexpected_changed=changed-allowed_changed
           assert not unexpected_changed, f'unrelated production assets changed: {sorted(unexpected_changed)}'
-          print('PASS: expected entry/PWA files and welcome scene updated; only five V2 solar assets added; existing Moon DEM tiles and unrelated Earth/world/data assets byte-identical.')
+          print('PASS: expected entry/PWA files and welcome scene updated; only ten V2 solar assets added; existing Moon DEM tiles and unrelated Earth/world/data assets byte-identical.')
           PY
           node --check /tmp/bridgepoint-welcome-gate-v6257.js
           node --input-type=module --check < site/bridgepoint-welcome-space-v6260.js
           node --input-type=module --check < site/bridgepoint-celestial-sky-v6257.js
           grep -Fq 'bpWelcomeGateStylesV6257' site/index.html
-          grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6267-sun-visible"' site/index.html
+          grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6268-solar-observatory"' site/index.html
           grep -Fq 'data-mode="signup"' site/index.html
           grep -Fq 'data-mode="signin"' site/index.html
           grep -Fq 'new THREE.Raycaster()' site/bridgepoint-welcome-space-v6260.js
@@ -171,6 +181,14 @@ jobs:
           grep -Fq 'uPhotosphereMap' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'sun-photosphere-v2.webp' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'sun-coronal-activity-v2.webp' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'sun-magnetogram-hmi-2026-11-09.jpg' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'sun-aia-131-latest.jpg' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'sun-aia-171-latest.jpg' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'sun-aia-193-latest.jpg' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'sun-aia-304-latest.jpg' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'function buildMagneticLoopsFromImage' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'function buildObservedEruptionArcs' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'SDO AIA 131/171/304 observation-driven 3D corona shell' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'addCoronalLoop' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'function rotateSunSurface' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'function tiltSunCamera' site/bridgepoint-welcome-space-v6260.js
@@ -259,7 +277,7 @@ jobs:
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/intelligence-launch/?welcome-space-v6257=${q}" -o /tmp/live-legacy.html || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/sw.js?verify=${q}" -o /tmp/live-sw.js || true
             if grep -Fq 'bpWelcomeGateStylesV6257' /tmp/live-root.html 2>/dev/null &&
-               grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6267-sun-visible"' /tmp/live-root.html 2>/dev/null &&
+               grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6268-solar-observatory"' /tmp/live-root.html 2>/dev/null &&
                grep -Fq 'new THREE.Raycaster()' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'uPhotosphereMap' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'addCoronalLoop' /tmp/live-space.js 2>/dev/null &&
@@ -295,7 +313,7 @@ jobs:
                grep -Fq 'entryRoute=' /tmp/live-sw.js 2>/dev/null &&
                grep -Fq '/?return=' /tmp/live-app.html 2>/dev/null &&
                grep -Fq 'content="0;url=/"' /tmp/live-legacy.html 2>/dev/null &&
-               grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6267-sun-visible'" /tmp/live-sw.js 2>/dev/null &&
+               grep -Fq "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6268-solar-observatory'" /tmp/live-sw.js 2>/dev/null &&
                grep -Fq 'runtimeMode' /tmp/live-space.js 2>/dev/null &&
                grep -Fq 'externalRuntimeTerrainRequests: 0' /tmp/live-space.js 2>/dev/null &&
                ! grep -Fq 'trek.nasa.gov/tiles/Moon' /tmp/live-space.js 2>/dev/null &&
@@ -315,4 +333,4 @@ jobs:
             sleep 3
           done
           test "$ok" -eq 1
-          echo 'LIVE V6267 PASS: opaque Earth and Sun depth occlusion; displaced HMI sunspot relief; current SDO AIA activity including 131 A; final usable STEREO-B 2014-09-27 far-side EUV observations; animated plasma structures and one-finger Sun surface pan; existing Moon DEM preserved.'
+          echo 'LIVE V6268 PASS: opaque Earth and Sun depth occlusion; displaced HMI sunspot relief; current SDO AIA activity including 131 A; final usable STEREO-B 2014-09-27 far-side EUV observations; animated plasma structures and one-finger Sun surface pan; existing Moon DEM preserved.'

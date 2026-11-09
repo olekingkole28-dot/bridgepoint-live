@@ -97,7 +97,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
     def test_root_uses_one_existing_earth_and_no_ground_sky_button(self):
         out = patch_root_html(root_fixture())
         self.assertIn("bpWelcomeGateStylesV6257", out)
-        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6267-sun-visible"', out)
+        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6268-solar-observatory"', out)
         self.assertIn('class="bpw-celestial-system" aria-hidden="true"></div>', out)
         self.assertNotIn("bpwCelestialCanvasV6257", out)
         self.assertNotIn('class="bpw-globe-aura"', out)
@@ -115,7 +115,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
 <script>location.replace('/')</script>
 <script src="/sw.js?v=6247-universal-fresh-entry-sidewalk"></script>"""
         out = patch_legacy_app(migrated)
-        self.assertIn("sw.js?v=6267-sun-visible", out)
+        self.assertIn("sw.js?v=6268-solar-observatory", out)
         self.assertNotIn("v=6247-universal-fresh-entry-sidewalk", out)
         self.assertIn('content="0;url=/"', out)
         self.assertIn("location.replace('/')", out)
@@ -130,7 +130,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
         for tag in cases:
             with self.subTest(tag=tag):
                 out = bump_manifest_url(tag, "test manifest URL")
-                self.assertEqual(out.count("v=6267-sun-visible"), 1)
+                self.assertEqual(out.count("v=6268-solar-observatory"), 1)
                 self.assertNotIn("v=6265-solar-globe", out)
                 self.assertNotIn("v=6247-universal-fresh-entry", out)
 
@@ -146,7 +146,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
 <script type="module" src="/bridgepoint-welcome-space-v6260.js?v=6265-solar-globe">
 </body></html>"""
         out = patch_root_html(current)
-        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6267-sun-visible"', out)
+        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6268-solar-observatory"', out)
         self.assertNotIn("v=6265-solar-globe", out)
         self.assertIn('<div class="bpw-celestial-system" aria-hidden="true"></div>', out)
         self.assertIn('class="bpw-wordmark bpw-wordmark-static"', out)
@@ -155,8 +155,8 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
         app = patch_app_index(app_index_fixture())
         self.assertEqual(app.count("/?return="), 2)
         self.assertNotIn("/?auth=signin&return=", app)
-        self.assertIn("app.js?v=6267-sun-visible", app)
-        self.assertIn("manifest.webmanifest?v=6267-sun-visible", app)
+        self.assertIn("app.js?v=6268-solar-observatory", app)
+        self.assertIn("manifest.webmanifest?v=6268-solar-observatory", app)
         legacy = patch_legacy_app(legacy_fixture())
         self.assertIn('content="0;url=/"', legacy)
         self.assertIn("location.replace('/')", legacy)
@@ -260,7 +260,7 @@ self.addEventListener('fetch',e=>{
             path.write_text(modern)
             patch_worker(path)
             out = path.read_text()
-            self.assertIn("BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6267-sun-visible'", out)
+            self.assertIn("BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6268-solar-observatory'", out)
             self.assertIn("await active.delete(request)", out)
             self.assertIn("const entryRoute=", out)
             self.assertIn("current release required", out)
@@ -390,7 +390,7 @@ self.addEventListener('fetch',e=>{
         workflow = (ROOT / ".github" / "workflows" / "deploy-intelligence-rebuild-v5000.yml").read_text()
         self.assertIn('class="bpw-celestial-system"', index)
         helper = (ROOT / "recovery" / "apply_welcome_space_v6257.py").read_text()
-        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6267-sun-visible"', helper)
+        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6268-solar-observatory"', helper)
         publish_workflow = (ROOT / ".github" / "workflows" / "publish-welcome-space-v6257.yml").read_text()
         self.assertIn("cp recovery/bridgepoint-welcome-space-v6260.js site/bridgepoint-welcome-space-v6260.js", publish_workflow)
         self.assertNotIn("cp -a assets/moon/v1 site/assets/moon/v1", publish_workflow)
@@ -422,6 +422,27 @@ self.addEventListener('fetch',e=>{
         self.assertIn("assets/sun/v2/**", publish_workflow)
         self.assertIn("cp -a assets/sun/v2 site/assets/sun/v2", publish_workflow)
         self.assertNotIn("cp -a assets/moon/v1 site/assets/moon/v1", publish_workflow)
+
+    def test_sun_uses_current_nasa_aia_hmi_maps_and_observation_derived_3d_structures(self):
+        module = (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text()
+        for marker in (
+            "sun-magnetogram-hmi-2026-11-09.jpg",
+            "sun-aia-131-latest.jpg",
+            "sun-aia-171-latest.jpg",
+            "sun-aia-193-latest.jpg",
+            "sun-aia-304-latest.jpg",
+            "function buildMagneticLoopsFromImage",
+            "function buildObservedEruptionArcs",
+            "SDO AIA 131/171/304 observation-driven 3D corona shell",
+            "uAIA193Map",
+            "solarDiskUV",
+            "solarMagneticLoopCount",
+            "aia131:'2026-11-09T05:06:44Z'",
+            "no three-minute client refresh configured",
+        ):
+            self.assertIn(marker, module)
+        self.assertNotIn("[-16,-43,13,-20", module)
+        self.assertNotIn("latitude=[-34,-12,11,29,2]", module)
 
     def test_lunar_mesh_indices_are_buffer_attributes(self):
         module = (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text()
@@ -518,6 +539,11 @@ self.addEventListener('fetch',e=>{
                 "sun-coronal-activity-v2.webp",
                 "sun-photosphere-height-v2.webp",
                 "sun-stereoB-farside-EUV-2014-09-27-v2.webp",
+                "sun-magnetogram-hmi-2026-11-09.jpg",
+                "sun-aia-131-latest.jpg",
+                "sun-aia-171-latest.jpg",
+                "sun-aia-193-latest.jpg",
+                "sun-aia-304-latest.jpg",
             ):
                 (solar_assets / name).write_bytes(b"test")
 
@@ -526,7 +552,7 @@ self.addEventListener('fetch',e=>{
             after = {p.relative_to(site).as_posix() for p in site.rglob("*") if p.is_file()}
             self.assertEqual(after - before, set())
             root = (site / "index.html").read_text()
-            self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6267-sun-visible"', root)
+            self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6268-solar-observatory"', root)
             self.assertIn("event.persisted", root)
             self.assertIn("location.reload()", root)
             self.assertNotIn("data-space-ground", root)

@@ -1,7 +1,5 @@
-[Reading 65 lines from start (total: 65 lines, 0 remaining)]
-
 {
-  "version": 2,
+  "version": 3,
   "textureSize": [
     4096,
     2048
@@ -63,7 +61,67 @@
     "stereoB-last-284-2048.jpg",
     "stereoB-last-304-2048.jpg"
   ],
-  "materializedAtUtc": "2026-11-09"
+  "materializedAtUtc": "2026-11-09",
+  "observations": {
+    "hmiMagnetogram": {
+      "file": "sun-magnetogram-hmi-2026-11-09.jpg",
+      "source": "NASA SDO/HMI full-disk colorized line-of-sight magnetic field quick-look",
+      "observationTimeUtc": "2026-11-09T04:15:00Z",
+      "archivePath": "/data/hmi/images/2026/11/09/20261109_041500_M_color_1k.jpg",
+      "resolution": [
+        1024,
+        1024
+      ]
+    },
+    "aia131": {
+      "file": "sun-aia-131-latest.jpg",
+      "source": "NASA SDO/AIA 131 angstrom full-disk latest image",
+      "observationTimeUtc": "2026-11-09T05:06:44Z",
+      "sourceUrl": "https://sdo.gsfc.nasa.gov/assets/img/latest/latest_1024_0131.jpg",
+      "resolution": [
+        1024,
+        1024
+      ],
+      "interpretation": "Hot flare plasma and active-region emission; false color, not visible-light color"
+    },
+    "aia171": {
+      "file": "sun-aia-171-latest.jpg",
+      "source": "NASA SDO/AIA 171 angstrom full-disk latest image",
+      "observationTimeUtc": "2026-11-09T04:57:22Z",
+      "sourceUrl": "https://sdo.gsfc.nasa.gov/assets/img/latest/latest_1024_0171.jpg",
+      "resolution": [
+        1024,
+        1024
+      ],
+      "interpretation": "Coronal loops and million-degree plasma; false color"
+    },
+    "aia193": {
+      "file": "sun-aia-193-latest.jpg",
+      "source": "NASA SDO/AIA 193 angstrom full-disk latest image",
+      "observationTimeUtc": "2026-11-09T05:03:06Z",
+      "sourceUrl": "https://sdo.gsfc.nasa.gov/assets/img/latest/latest_1024_0193.jpg",
+      "resolution": [
+        1024,
+        1024
+      ],
+      "interpretation": "Coronal active regions and hotter plasma; false color"
+    },
+    "aia304": {
+      "file": "sun-aia-304-latest.jpg",
+      "source": "NASA SDO/AIA 304 angstrom full-disk latest image",
+      "observationTimeUtc": "2026-11-09T04:58:42Z",
+      "sourceUrl": "https://sdo.gsfc.nasa.gov/assets/img/latest/latest_1024_0304.jpg",
+      "resolution": [
+        1024,
+        1024
+      ],
+      "interpretation": "Chromosphere and prominences; false color"
+    }
+  },
+  "visualization": {
+    "magneticLoops": "3D arcs are generated from opposite-polarity clusters in the HMI line-of-sight magnetogram; they are a visualization, not a PFSS extrapolation or measured 3D magnetic vector field",
+    "coronalShell": "Animated depth-layered projection of observed AIA 131, 171, 193 and 304 full-disk data",
+    "photosphere": "Warm visible-light grade of the SDO/HMI continuum; AIA channel colors remain false-color physical diagnostics",
+    "refresh": "This release contains a timestamped local snapshot. It does not yet provide a guaranteed automatic three-minute refresh; the HMI and AIA products have different acquisition/processing times."
+  }
 }
-
-[executed on device: MollieOllie (898525b9-c32e-4ce4-b683-4efb3b88b364)]
