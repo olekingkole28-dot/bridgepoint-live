@@ -316,5 +316,3 @@ export function initBridgePointSaturnSystem(options){
  };
  window.__BP_SATURN_SYSTEM_V6282__=api;state.status='idle';return api;
 }
-
-[executed on device: MollieOllie (898525b9-c32e-4ce4-b683-4efb3b88b364)]
