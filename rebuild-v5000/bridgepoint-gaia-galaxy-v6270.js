@@ -138,7 +138,7 @@ export async function initBridgePointGaiaGalaxy(o){
  }
  function enterMilky(){if(!state.active)enterGalaxy();mode='milkyway';state.mode=mode;backdrop.visible=true;solar.visible=false;
   setTarget(new THREE.Vector3(8200,0,0));camera.position.set(0,2600,14500);camera.lookAt(target);buttons();drawHud()}
- function enterSolar(){if(!state.active)enterGalaxy();mode='solar';state.mode=mode;backdrop.visible=false;solar.visible=true;
+ function enterSolar(){if(!state.active)enterGalaxy();mode='solar';state.mode=mode;backdrop.visible=false;solar.visible=true;starsGroup.position.set(0,0,0);
   origin.set(0,0,0);setBase(origin);setTarget(new THREE.Vector3(0,0,0));camera.near=1e-12;camera.far=100000;camera.fov=52;camera.updateProjectionMatrix();
   camera.position.set(0,.00024,115*AU_PC);camera.lookAt(target);updatePlanets();buttons();drawHud()}
  function exit(){state.active=false;mode='overview';state.mode='overview';chosen=null;hud.hidden=true;backdrop.visible=false;solar.visible=false;sunMarker.visible=false;sunSphere.visible=false;
