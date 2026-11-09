@@ -1,0 +1,136 @@
+name: Publish Saturn v6286 Celestial Initialization Fix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-saturn-v6286-celestial-callback.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-pages-v6286-celestial-init-fix
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Saturn and celestial-loader regression tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s tests -p 'test_saturn_system_v6282.py' -v
+          python3 -m unittest discover -s tests -p 'test_welcome_space_v6257.py' -v
+
+      - name: Download the already-deployed compact v6285 Pages artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: github-pages
+          run-id: 42720829994
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          path: /tmp/bridgepoint-v6286-pages
+
+      - name: Extract existing compact site without rebuilding NASA datasets
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p site
+          ARCHIVE="$(find /tmp/bridgepoint-v6286-pages -type f -name 'artifact.tar' -print -quit)"
+          test -n "$ARCHIVE"
+          tar -xf "$ARCHIVE" -C site
+          test -s site/index.html
+          test -s site/assets/stellar/gaia-dr3-v6270/manifest.json
+          test -s site/assets/moon/v1/sldem-128ppd/moon-sldem-128ppd-y05-x06.webp
+          test -s site/assets/saturn/v1/manifest.json
+          test -s site/assets/offline/protomaps-world-z6.pmtiles
+          echo "Reused compact v6285 Pages artifact; no NASA dataset rebuild."
+
+      - name: Overlay the corrected Saturn, Gaia and welcome modules
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp recovery/bridgepoint-welcome-space-v6260.js site/bridgepoint-welcome-space-v6260.js
+          cp rebuild-v5000/bridgepoint-gaia-galaxy-v6270.js site/bridgepoint-gaia-galaxy-v6270.js
+          cp recovery/bridgepoint-saturn-system-v6282.js site/bridgepoint-saturn-system-v6282.js
+          python3 recovery/apply_welcome_space_v6257.py site
+
+          node --input-type=module --check < site/bridgepoint-welcome-space-v6260.js
+          node --input-type=module --check < site/bridgepoint-gaia-galaxy-v6270.js
+          node --input-type=module --check < site/bridgepoint-saturn-system-v6282.js
+
+          grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6286-saturn-callback-fix"' site/index.html
+          grep -Fq 'bridgepoint-gaia-galaxy-v6270.js?v=6286-saturn-callback-fix' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'bridgepoint-saturn-system-v6282.js?v=6286-saturn-callback-fix' site/bridgepoint-gaia-galaxy-v6270.js
+          grep -Fq 'getSaturnPosition,getSunPosition,getSelectedBody,isMobile=false}=options' site/bridgepoint-saturn-system-v6282.js
+          grep -Fq "float activeSignal=smoothstep(.075,.30,a);" site/bridgepoint-welcome-space-v6260.js
+          ! grep -Fq "float active=smoothstep(.075,.30,a);" site/bridgepoint-welcome-space-v6260.js
+
+          # Keep the compact delivery below the GitHub Pages hard size ceiling.
+          du -sb site
+          echo "SATURN_V6286_READY — callback declared, 16-bit lunar data preserved, compact site reused."
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Upload corrected compact Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          name: github-pages
+          path: site
+          include-hidden-files: true
+
+      - name: Verify uploaded Pages artifact stays below 1 GB
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts"
+          size="$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$api" | jq -r '.artifacts[] | select(.name=="github-pages") | .size_in_bytes' | head -1)"
+          test -n "$size"
+          echo "GitHub Pages artifact bytes: $size"
+          test "$size" -lt 1000000000
+
+      - name: Publish corrected Saturn v6286
+        id: deploy
+        uses: actions/deploy-pages@v5
+        with:
+          artifact_name: github-pages
+          timeout: '600000'
+
+      - name: Verify the published modules and existing celestial data
+        shell: bash
+        run: |
+          set -euo pipefail
+          O='https://bridgepointintelligence.online'
+          q="${GITHUB_SHA}-saturn-v6286-live"
+          curl --retry 5 --retry-all-errors --retry-delay 4 -fsSL -H 'Cache-Control: no-cache' "${O}/?v6286=${q}" -o /tmp/bp-root.html
+          curl --retry 5 --retry-all-errors --retry-delay 4 -fsSL -H 'Cache-Control: no-cache' "${O}/bridgepoint-welcome-space-v6260.js?verify=${q}" -o /tmp/bp-welcome.js
+          curl --retry 5 --retry-all-errors --retry-delay 4 -fsSL -H 'Cache-Control: no-cache' "${O}/bridgepoint-gaia-galaxy-v6270.js?verify=${q}" -o /tmp/bp-gaia.js
+          curl --retry 5 --retry-all-errors --retry-delay 4 -fsSL -H 'Cache-Control: no-cache' "${O}/bridgepoint-saturn-system-v6282.js?verify=${q}" -o /tmp/bp-saturn.js
+          curl --retry 5 --retry-all-errors --retry-delay 4 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/stellar/gaia-dr3-v6270/manifest.json?verify=${q}" -o /tmp/bp-gaia-manifest.json
+          grep -Fq 'v=6286-saturn-callback-fix' /tmp/bp-root.html
+          grep -Fq 'bridgepoint-saturn-system-v6282.js?v=6286-saturn-callback-fix' /tmp/bp-gaia.js
+          grep -Fq 'getSaturnPosition,getSunPosition,getSelectedBody,isMobile=false}=options' /tmp/bp-saturn.js
+          grep -Fq "float activeSignal=smoothstep(.075,.30,a);" /tmp/bp-welcome.js
+          python3 - <<'PY'
+          import json
+          m=json.load(open('/tmp/bp-gaia-manifest.json'))
+          assert m['version']==6270 and len(m['chunks'])==6
+          print('LIVE_GAIA_MANIFEST_OK',len(m['chunks']),'chunks')
+          PY
+          echo "LIVE_SATURN_V6286_PASS — celestial callback fixed and public assets verified."
