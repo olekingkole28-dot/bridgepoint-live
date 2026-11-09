@@ -102,13 +102,13 @@ export function initBridgePointSaturnSystem(options){
   getSaturnPosition,getSelectedBody,isMobile=false}=options;
  if(!THREE||!solarRoot||!bodyMap||!planetMeshes)throw Error('Saturn system requires the existing BridgePoint shared celestial scene');
  THREEVector=THREE.Vector3;
- const state={version:'v6282',status:'idle',source:'NASA Cassini PDS + NASA NAIF DSK + JPL Horizons',
+ const state={version:'v6283-isolated',status:'idle',source:'NASA Cassini PDS + NASA NAIF DSK + JPL Horizons',
   ephemerisEpochUTC:'2026-11-09T00:00:00Z',ephemerisFrame:'Saturn BODY EQUATOR',
   orbitTimeLapse:TIME_LAPSE,physicalSizeScale:'true mean radii relative to Earth',
   ringRadiusUnit:'km from Saturn centre',assets:'same-origin local static; no external runtime terrain requests',
   loaded:{saturnTexture:false,titanDEM:false,titanTexture:false,enceladusShape:false,enceladusTexture:false,mimasShape:false,mimasTexture:false},
   errors:[],moonCount:3,ringBands:['D','C','B','Cassini Division','A','F','G','E']};
- const root=new THREE.Group();root.name='Saturn and three Cassini-mapped moons — physical scale';
+ const root=new THREE.Group();root.name='SaturnSystemGroup — Saturn, measured rings, and orbiting moons';
  // Saturn pole (IAU body pole RA 40.589°, Dec 83.537°) transformed from ICRF into ecliptic axes.
  const saturnPoleRA=40.589*DEG,saturnPoleDec=83.537*DEG,obliquity=23.439291*DEG;
  const poleEq=[Math.cos(saturnPoleDec)*Math.cos(saturnPoleRA),Math.cos(saturnPoleDec)*Math.sin(saturnPoleRA),Math.sin(saturnPoleDec)];
@@ -118,6 +118,16 @@ export function initBridgePointSaturnSystem(options){
  const saturnRadius=SATURN_RADIUS_KM/EARTH_RADIUS_KM;
  const saturnGeometry=new THREE.SphereGeometry(saturnRadius,isMobile?128:192,isMobile?80:128);
  const saturnMaterial=new THREE.MeshStandardMaterial({color:0xe2c995,roughness:.95,metalness:0});
+ const saturnAtmosphereUniforms={time:{value:0}};
+ // Latitude-dependent cloud drift animates Cassini's mapped atmosphere while
+ // the whole globe retains Saturn's measured ~10.656-hour rotation.
+ saturnMaterial.onBeforeCompile=shader=>{
+  shader.uniforms.uSaturnAtmosTime=saturnAtmosphereUniforms.time;
+  shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\\nuniform float uSaturnAtmosTime;');
+  shader.vertexShader=shader.vertexShader.replace('#include <uv_vertex>',
+   '#include <uv_vertex>\\n#ifdef USE_MAP\\nfloat saturnLatitude=abs(vMapUv.y-.5)*2.0;\\nfloat saturnDrift=0.00000115+0.00000105*(1.0-saturnLatitude);\\nvMapUv.x=fract(vMapUv.x+uSaturnAtmosTime*saturnDrift);\\n#endif');
+ };
+ saturnMaterial.customProgramCacheKey=()=> 'bridgepoint-saturn-differential-cloud-drift-v6283';
  const saturnMesh=new THREE.Mesh(saturnGeometry,saturnMaterial);
  saturnMesh.name='Saturn — Cassini ISS mapped atmosphere';saturnMesh.userData.body='saturn';root.add(saturnMesh);
  const saturnHaze=new THREE.Mesh(new THREE.SphereGeometry(saturnRadius*1.018,isMobile?96:144,isMobile?64:96),
@@ -169,8 +179,8 @@ export function initBridgePointSaturnSystem(options){
  let titanAtmosphere=null;
  for(const [key,m] of Object.entries(MOONS)){
   const radius=m.radiusKm/EARTH_RADIUS_KM;
-  const segments=key==='titan'?(isMobile?160:256):(isMobile?48:72);
-  const rings=key==='titan'?(isMobile?80:128):(isMobile?32:48);
+  const segments=key==='titan'?(isMobile?256:512):(isMobile?48:72);
+  const rings=key==='titan'?(isMobile?128:256):(isMobile?32:48);
   const placeholder=new THREE.Mesh(new THREE.SphereGeometry(radius,segments,rings),
    new THREE.MeshStandardMaterial({color:m.color,roughness:.92,metalness:0}));
   placeholder.name=m.name+' — physical-size 3D moon';placeholder.userData.body=key;
@@ -276,6 +286,7 @@ export function initBridgePointSaturnSystem(options){
   if(['saturn','titan','enceladus','mimas'].includes(selected))void ensureLoaded();
   if(getSaturnPosition){const p=getSaturnPosition();if(p&&p.isVector3)root.position.copy(p)}
   saturnMesh.rotation.y=(simulationSeconds*TAU/(10.656*3600))%TAU;
+  saturnAtmosphereUniforms.time.value=simulationSeconds;
   saturnHaze.rotation.y=saturnMesh.rotation.y*.92;
   if(titanAtmosphere)titanAtmosphere.rotation.y=simulationSeconds*.00007;
   for(const mesh of ringMeshes)mesh.material.uniforms.uTime.value=simulationSeconds;
@@ -308,11 +319,11 @@ export function initBridgePointSaturnSystem(options){
   for(const mesh of ringMeshes){mesh.geometry.dispose();mesh.material.dispose()}
   for(const key of ['saturn','titan','enceladus','mimas']){bodyMap.delete(key);planetMeshes.delete(key)}
  }
- const api={version:'v6282',state,update,ensureLoaded,dispose,
+ const api={version:'v6283-isolated',state,update,ensureLoaded,dispose,
   getBody:name=>bodyMap.get(String(name||'').toLowerCase())||null,
   get systemRoot(){return root},get saturnMesh(){return saturnMesh},
   physical:{saturnRadiusKm:SATURN_RADIUS_KM,moonRadiiKm:{titan:2574.73,enceladus:252.1,mimas:198.2},
    moonOrbitsKm:{titan:1221870,enceladus:238042,mimas:185539}}
  };
- window.__BP_SATURN_SYSTEM_V6282__=api;state.status='idle';return api;
+ window.__BP_SATURN_SYSTEM_V6283__=api;state.status='idle';return api;
 }
