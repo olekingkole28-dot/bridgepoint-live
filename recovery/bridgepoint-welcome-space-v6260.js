@@ -16,7 +16,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
 
 (() => {
   'use strict';
-  const VERSION = 'v6281-space-camera-sync';
+  const VERSION = 'v6282-saturn-system';
   if (window.__BP_WELCOME_SPACE_V6257__) return;
   window.__BP_WELCOME_SPACE_V6257__ = true;
 
@@ -1644,7 +1644,8 @@ function createMoonTerrainController() {
       const direction=camera.position.clone().sub(world);
       if(direction.lengthSq()<1e-12)direction.set(0,0,1);
       direction.normalize();
-      animateCamera(world.clone().addScaledVector(direction,Math.max(focusedPlanetRadius*3.2,.25)),world,1.5);
+      const systemDistance=Number(bodyData?.systemCameraDistance)>0?bodyData.systemCameraDistance:Math.max(focusedPlanetRadius*3.2,.25);
+      animateCamera(world.clone().addScaledVector(direction,systemDistance),world,key==='saturn'?2.1:1.5);
     }
   }
   function resetView(){
@@ -2112,7 +2113,7 @@ function createMoonTerrainController() {
       lunarLabelCount:window.__BP_MOON_TERRAIN_V1__?.labelCount||0,
       proceduralLunarRelief:'fallback-only-outside-loaded-NASA-DEM-coverage'})
   };
-  void import('./bridgepoint-gaia-galaxy-v6270.js?v=6281-space-camera-sync')
+  void import('./bridgepoint-gaia-galaxy-v6270.js?v=6282-saturn-system')
     .then(module=>{
       solarCosmos=module.initBridgePointSolarCosmos({
         THREE,scene,camera,canvas,host,controls,starsGroup:stars,
