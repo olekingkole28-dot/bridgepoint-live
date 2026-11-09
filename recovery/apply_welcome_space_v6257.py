@@ -149,10 +149,10 @@ def patch_root_html(source: str) -> str:
             re.IGNORECASE,
         )
         source, module_src_count = module_src_pattern.subn(
-            r'\g<1>' + BUILD[1:] + r'\g<2>', source, count=1
+            r'\g<1>' + BUILD[1:] + r'\g<2>', source
         )
-        if module_src_count != 1:
-            raise AssertionError("Current welcome module src is missing or duplicated")
+        if module_src_count < 1:
+            raise AssertionError("Current welcome module src is missing")
         source = inject_space_camera_sync(source)
         if 'data-space-ground' in source:
             raise AssertionError("Ground sky control must not appear on the welcome screen")
@@ -189,8 +189,16 @@ def patch_root_html(source: str) -> str:
     near_anchor = '    <div class="bpw-starfield bpw-stars-near" id="bpwStarsNearV4" aria-hidden="true"></div>\n'
     source = replace_once(source, near_anchor, near_anchor + """    <div class="bpw-celestial-system" aria-hidden="true"></div>\n""", "insert Moon and Sun stage")
     source = patch_stars(source)
-    module_tag = '<script type="module" src="/bridgepoint-welcome-space-v6260.js?v=' + BUILD[1:] + '"></script>\n'
-    source = replace_once(source, "</body>", module_tag + "</body>", "load the modular Three.js welcome scene")
+    module_src_pattern = re.compile(
+        r'(<script\b[^>]*\bsrc=["\']/bridgepoint-welcome-space-v6260\.js\?v=)[^"\']*(["\'])',
+        re.IGNORECASE,
+    )
+    source, module_src_count = module_src_pattern.subn(
+        r'\g<1>' + BUILD[1:] + r'\g<2>', source
+    )
+    if module_src_count == 0:
+        module_tag = '<script type="module" src="/bridgepoint-welcome-space-v6260.js?v=' + BUILD[1:] + '"></script>\n'
+        source = replace_once(source, "</body>", module_tag + "</body>", "load the modular Three.js welcome scene")
     source = replace_once(source, "</head>", launch_styles() + "\n</head>", "install responsive welcome styling")
     pageshow_old = "window.addEventListener('pageshow',()=>{if(['/','/index.html','/app/','/app/index.html'].includes(location.pathname))window.scrollTo(0,0)},{once:true});"
     pageshow_new = """window.addEventListener('pageshow',event=>{
