@@ -302,7 +302,9 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
         self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6265-solar-globe"', helper)
         publish_workflow = (ROOT / ".github" / "workflows" / "publish-welcome-space-v6257.yml").read_text()
         self.assertIn("cp recovery/bridgepoint-welcome-space-v6260.js site/bridgepoint-welcome-space-v6260.js", publish_workflow)
-        self.assertIn("cp -a assets/moon/v1 site/assets/moon/v1", workflow)
+        self.assertNotIn("cp -a assets/moon/v1 site/assets/moon/v1", workflow)
+        self.assertIn("Add only the Sun scene and local solar textures", workflow)
+        self.assertIn("cp -a assets/sun/v1 site/assets/sun/v1", workflow)
         self.assertIn("assets/moon/v1/**", workflow)
 
         # The Sun now uses local SDO maps, 3D coronal structures and the same
