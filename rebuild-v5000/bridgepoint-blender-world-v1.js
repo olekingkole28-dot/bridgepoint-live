@@ -268,7 +268,13 @@
       tile.loading = true;
       const url = ASSET_ROOT + tile.url;
       const loader = new layer.GLTFLoader();
-      loader.load(url, gltf => {
+      const fail = error => {
+        tile.loading = false;
+        tile.failed = true;
+        state.failedTiles.push({ id: tile.id, error: String(error?.message || error).slice(0, 180) });
+        console.warn('BridgePoint Blender World tile download/decode', tile.id, error);
+      };
+      const ready = gltf => {
         tile.loading = false;
         if (layer.removed || !state.enabled) {
           disposeObject(layer.THREE, gltf.scene);
@@ -294,12 +300,19 @@
           state.failedTiles.push({ id: tile.id, error: String(error?.message || error).slice(0, 180) });
           console.warn('BridgePoint Blender World tile decode', tile.id, error);
         }
-      }, undefined, error => {
-        tile.loading = false;
-        tile.failed = true;
-        state.failedTiles.push({ id: tile.id, error: String(error?.message || error).slice(0, 180) });
-        console.warn('BridgePoint Blender World tile download', tile.id, error);
-      });
+      };
+      if (url.toLowerCase().endsWith('.glb.gz')) {
+        if (typeof DecompressionStream !== 'function') { fail(new Error('This browser cannot decompress the lossless GLB tile package.')); return; }
+        fetch(url, { cache: 'force-cache' })
+          .then(response => {
+            if (!response.ok) throw new Error('Compressed GLB tile unavailable: HTTP ' + response.status);
+            return new Response(response.body.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
+          })
+          .then(buffer => loader.parse(buffer, ASSET_ROOT, ready, fail))
+          .catch(fail);
+      } else {
+        loader.load(url, ready, undefined, fail);
+      }
     }
 
     function syncTiles() {
