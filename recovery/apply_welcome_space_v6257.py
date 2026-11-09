@@ -472,7 +472,10 @@ def patch_site(site: Path) -> None:
             "solarPlasmaParticles.material.uniforms.uTime.value=t", "window.__BP_SOLAR_SURFACE_V4__",
             "addCoronalLoop", "createSolarPlasmaMaterial", "applySunReliefFromImage",
             "syncSunDepthGeometry", "earthDepthOccluder", "Sun solid opaque depth occluder",
-            "function panSunSurface", "panSunSurface(dx,dy)", "function tiltSunCamera", "uFarSideMap"
+            "function panSunSurface", "panSunSurface(dx,dy)", "function tiltSunCamera", "uFarSideMap",
+            "scene.background=new THREE.Color(0x02050c)", "saturnFocusMesh",
+            "function panSaturnSurface(dx,dy)", "function tiltSaturnCamera(deltaY)",
+            "enforceSaturnCameraClearance", "saturn-surface"
         ],
         "celestial sky module": ["apparentAngularRadiusPx", "bp6257-sun-surface", "initBridgePointCelestialSky"],
         "legacy app index": ['content="0;url=/"', "location.replace('/')", "sw.js?v=" + BUILD[1:]],
