@@ -16,7 +16,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
 
 (() => {
   'use strict';
-  const VERSION = 'v6284-saturn-movement-depth';
+  const VERSION = 'v6285-saturn-lossless-pages';
   if (window.__BP_WELCOME_SPACE_V6257__) return;
   window.__BP_WELCOME_SPACE_V6257__ = true;
 
@@ -921,6 +921,26 @@ function createMoonTerrainController() {
     const response = await fetch(url, { credentials: 'same-origin', cache: 'force-cache' });
     if (!response.ok) throw new Error('Local lunar asset unavailable: ' + url + ' (' + response.status + ')');
     const bytes = new Uint8Array(await response.arrayBuffer());
+    // The 128ppd lunar terrain tiles are stored as lossless WebP RGB:
+    // red=original uint16 high byte, green=original uint16 low byte.
+    // Reconstruct the exact 16-bit elevation samples without quantization.
+    if (url.toLowerCase().endsWith('.webp')) {
+      if (typeof createImageBitmap !== 'function') throw new Error('This browser cannot decode lossless WebP lunar elevation tiles.');
+      const bitmap = await createImageBitmap(new Blob([bytes], { type: 'image/webp' }));
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = bitmap.width; canvas.height = bitmap.height;
+        const context = canvas.getContext('2d', { willReadFrequently: true });
+        if (!context) throw new Error('Unable to create lunar height decoder canvas.');
+        context.drawImage(bitmap, 0, 0);
+        const rgba = context.getImageData(0, 0, bitmap.width, bitmap.height).data;
+        const values = new Uint16Array(bitmap.width * bitmap.height);
+        for (let i = 0, p = 0; i < values.length; i++, p += 4) values[i] = (rgba[p] << 8) | rgba[p + 1];
+        return { width: bitmap.width, height: bitmap.height, values };
+      } finally {
+        bitmap.close?.();
+      }
+    }
     const signature = [137,80,78,71,13,10,26,10];
     for (let i = 0; i < 8; i++) if (bytes[i] !== signature[i]) throw new Error('Invalid PNG signature: ' + url);
     let width = 0, height = 0, bitDepth = 0, colorType = -1, total = 0;
@@ -990,7 +1010,7 @@ function createMoonTerrainController() {
     const row = THREE.MathUtils.clamp(Math.floor((60 - lat) / 10), 0, 11);
     const west = -180 + column * 10, north = 60 - row * 10;
     const rowName = String(row).padStart(2, '0'), columnName = String(column).padStart(2, '0');
-    return { key: 'y' + rowName + '-x' + columnName, row, column, west, east: west + 10, north, south: north - 10, file: 'moon-sldem-128ppd-y' + rowName + '-x' + columnName + '.png' };
+    return { key: 'y' + rowName + '-x' + columnName, row, column, west, east: west + 10, north, south: north - 10, file: 'moon-sldem-128ppd-y' + rowName + '-x' + columnName + '.webp' };
   }
   async function loadHighResolutionTile(lat, lon) {
     const info = highResolutionTileInfo(lat, lon);
