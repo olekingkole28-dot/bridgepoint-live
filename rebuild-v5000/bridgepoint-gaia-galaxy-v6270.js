@@ -117,7 +117,7 @@ export function initBridgePointSolarCosmos(o){
  bodySelect.setAttribute('aria-label','Choose a celestial body to explore');
  bodySelect.innerHTML='<option value="">CHOOSE CELESTIAL BODY</option>'+
   '<option value="earth">Earth</option><option value="moon">Moon</option><option value="sun">Sun</option>'+
-  '<option value="saturn">Saturn · rings &amp; moons</option>';
+  '<option value="saturn">Saturn</option>';
  const resetButton=controls?.querySelector('[data-space-reset]');
  if(controls)controls.insertBefore(bodySelect,resetButton||controls.firstChild);
  const css=document.createElement('style');
