@@ -85,6 +85,28 @@ html.bpw-entry-locked #previewMap canvas{filter:contrast(1.17) saturate(1.10) br
 
 
 def patch_root_html(source: str) -> str:
+    # The last verified Pages artifact already has the V6264 welcome design.
+    # When present, retain that markup and only bump the scene module URL.
+    if 'class="bpw-wordmark bpw-wordmark-static"' in source:
+        for marker in (
+            'class="bpw-celestial-system" aria-hidden="true"></div>',
+            "bpWelcomeGateStylesV6257",
+            'data-mode="signup"',
+            'data-mode="signin"',
+            "event.persisted",
+        ):
+            if marker not in source:
+                raise AssertionError(f"Current welcome root is missing {marker}")
+        old_tag = '<script type="module" src="/bridgepoint-welcome-space-v6260.js?v=6264-geometric-crater-bowls"></script>'
+        new_tag = '<script type="module" src="/bridgepoint-welcome-space-v6260.js?v=6265-solar-globe"></script>'
+        if old_tag in source:
+            source = replace_once(source, old_tag, new_tag, "bump current welcome module URL")
+        elif new_tag not in source:
+            raise AssertionError("Current welcome module URL is neither V6264 nor V6265")
+        if 'data-space-ground' in source:
+            raise AssertionError("Ground sky control must not appear on the welcome screen")
+        return source
+
     required = (
         '<div id="bpWelcomeGateV1"',
         'id="bpwStarsFarV4"',
@@ -100,12 +122,7 @@ def patch_root_html(source: str) -> str:
         if marker not in source:
             raise AssertionError(f"Root landing baseline is missing {marker}")
 
-    source = replace_once(
-        source,
-        '    <div class="bpw-globe-aura" aria-hidden="true"></div>\n',
-        "",
-        "remove Earth aura element",
-    )
+    source = replace_once(source, '    <div class="bpw-globe-aura" aria-hidden="true"></div>\n', "", "remove Earth aura element")
     source = replace_once(
         source,
         'class="bpw-wordmark" id="bpwWordmarkV3" role="img" aria-label="Welcome to BridgePoint Intelligence" data-title="WELCOME TO BRIDGEPOINT INTELLIGENCE"></div>',
@@ -119,14 +136,11 @@ def patch_root_html(source: str) -> str:
         "remove extra welcome copy",
     )
     near_anchor = '    <div class="bpw-starfield bpw-stars-near" id="bpwStarsNearV4" aria-hidden="true"></div>\n'
-    celestial = near_anchor + """    <div class="bpw-celestial-system" aria-hidden="true"></div>
-"""
-    source = replace_once(source, near_anchor, celestial, "insert Moon and Sun stage")
+    source = replace_once(source, near_anchor, near_anchor + """    <div class="bpw-celestial-system" aria-hidden="true"></div>\n""", "insert Moon and Sun stage")
     source = patch_stars(source)
     module_tag = '<script type="module" src="/bridgepoint-welcome-space-v6260.js?v=6265-solar-globe"></script>\n'
     source = replace_once(source, "</body>", module_tag + "</body>", "load the modular Three.js welcome scene")
     source = replace_once(source, "</head>", launch_styles() + "\n</head>", "install responsive welcome styling")
-
     pageshow_old = "window.addEventListener('pageshow',()=>{if(['/','/index.html','/app/','/app/index.html'].includes(location.pathname))window.scrollTo(0,0)},{once:true});"
     pageshow_new = """window.addEventListener('pageshow',event=>{
  const entryRoutes=['/','/index.html','/app/','/app/index.html','/app/intelligence-launch','/app/intelligence-launch/'];
@@ -134,71 +148,46 @@ def patch_root_html(source: str) -> str:
  if(entryRoutes.includes(location.pathname))window.scrollTo(0,0);
 });"""
     source = replace_once(source, pageshow_old, pageshow_new, "reload entry page restored from back-forward cache")
-    if source.count('class="bpw-globe-aura"') != 0:
-        raise AssertionError("Earth aura element remains in launch markup")
-    if "WELCOME TO" in source:
-        raise AssertionError("Animated WELCOME TO copy remains in launch HTML")
-    if 'data-space-ground' in source:
-        raise AssertionError("Ground sky control must not appear on the welcome screen")
+    if source.count('class="bpw-globe-aura"') != 0 or "WELCOME TO" in source or 'data-space-ground' in source:
+        raise AssertionError("The root welcome markup did not complete its launch migration")
     return source
-
 
 def patch_app_index(source: str) -> str:
     if 'id="bp-app-entry-gate-v6247"' not in source:
         raise AssertionError("V6247 app entry gate baseline is missing")
     source = source.replace("/?auth=signin&return=", "/?return=")
-    if source.count("/?return=") != 2:
-        raise AssertionError("Both app launch redirects must preserve the return route without auto-opening a modal")
-    if "/?auth=signin&return=" in source:
-        raise AssertionError("An app launch redirect still bypasses the two-button gate")
-    source = replace_once(
-        source,
-        '../manifest.webmanifest"',
-        '../manifest.webmanifest?v=6265-solar-globe"',
-        "bust the app manifest URL",
-    )
+    if source.count("/?return=") != 2 or "/?auth=signin&return=" in source:
+        raise AssertionError("App launch redirects must preserve the return route through the root gate")
+    old_manifest = '../manifest.webmanifest?v=6264-geometric-crater-bowls"'
+    new_manifest = '../manifest.webmanifest?v=6265-solar-globe"'
+    if old_manifest in source:
+        source = replace_once(source, old_manifest, new_manifest, "bump current app manifest URL")
+    else:
+        source = replace_once(source, '../manifest.webmanifest"', new_manifest, "bust the app manifest URL")
     source = replace_prefix_once(
         source,
-        r"(app\.js\?v=)6247-universal-fresh-entry",
+        r"(app\.js\?v=)(?:6247-universal-fresh-entry|6264-geometric-crater-bowls)",
         r"\g<1>6265-solar-globe",
         "bust the app bundle URL",
     )
     return source
 
-
 def patch_legacy_app(source: str) -> str:
-    source = replace_once(
-        source,
-        'content="4;url=/app/?migrated=legacy-intelligence-v5820"',
-        'content="0;url=/"',
-        "make legacy installed app route immediately to the canonical gate",
-    )
-    source = replace_once(
-        source,
-        'href="/app/" style="color:#4ad9ff"',
-        'href="/" style="color:#4ad9ff"',
-        "legacy app fallback link",
-    )
-    source = replace_once(
-        source,
-        "sw.js?v=6218-tree-viewport-renderer-refresh",
-        "sw.js?v=6265-solar-globe",
-        "refresh legacy app service worker",
-    )
-    source = replace_once(
-        source,
-        "k.startsWith('bp-intelligence-')&&k!=='bp-intelligence-v5820'",
-        "k.startsWith('bp-intelligence-')&&k!=='bp-intelligence-v6247-universal-fresh-entry-sidewalk'",
-        "preserve the existing offline cache during legacy-app migration",
-    )
-    source = replace_once(
-        source,
-        "location.replace('/app/?migrated=legacy-intelligence-v5820')",
-        "location.replace('/')",
-        "legacy app final route",
-    )
+    # Already-migrated installed legacy route: preserve redirects and cache policy.
+    if 'content="0;url=/"' in source and "location.replace('/')" in source:
+        old = "sw.js?v=6264-geometric-crater-bowls"
+        new = "sw.js?v=6265-solar-globe"
+        if old in source:
+            source = replace_once(source, old, new, "bump current legacy service-worker URL")
+        elif new not in source:
+            raise AssertionError("Current legacy service-worker URL is neither V6264 nor V6265")
+        return source
+    source = replace_once(source, 'content="4;url=/app/?migrated=legacy-intelligence-v5820"', 'content="0;url=/"', "make legacy installed app route immediately to the canonical gate")
+    source = replace_once(source, 'href="/app/" style="color:#4ad9ff"', 'href="/" style="color:#4ad9ff"', "legacy app fallback link")
+    source = replace_once(source, "sw.js?v=6218-tree-viewport-renderer-refresh", "sw.js?v=6265-solar-globe", "refresh legacy app service worker")
+    source = replace_once(source, "k.startsWith('bp-intelligence-')&&k!=='bp-intelligence-v5820'", "k.startsWith('bp-intelligence-')&&k!=='bp-intelligence-v6247-universal-fresh-entry-sidewalk'", "preserve the existing offline cache during legacy-app migration")
+    source = replace_once(source, "location.replace('/app/?migrated=legacy-intelligence-v5820')", "location.replace('/')", "legacy app final route")
     return source
-
 
 def patch_manifest(path: Path, expected_id: str) -> None:
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -212,14 +201,19 @@ def patch_manifest(path: Path, expected_id: str) -> None:
 
 def patch_bundle(path: Path) -> None:
     source = path.read_text(encoding="utf-8")
-    source = replace_once(
-        source,
+    new_url = "navigator.serviceWorker.register('/sw.js?v=6265-solar-globe',{updateViaCache:'none'})"
+    old_urls = (
         "navigator.serviceWorker.register('/sw.js?v=6247-universal-fresh-entry-sidewalk',{updateViaCache:'none'})",
-        "navigator.serviceWorker.register('/sw.js?v=6265-solar-globe',{updateViaCache:'none'})",
-        f"{path.name} service-worker refresh",
+        "navigator.serviceWorker.register('/sw.js?v=6264-geometric-crater-bowls',{updateViaCache:'none'})",
     )
+    if new_url not in source:
+        for old in old_urls:
+            if old in source:
+                source = replace_once(source, old, new_url, f"{path.name} service-worker refresh")
+                break
+        else:
+            raise AssertionError(f"{path.name}: current service-worker registration URL is unknown")
     path.write_text(source, encoding="utf-8")
-
 
 def patch_app_js(path: Path) -> None:
     source = path.read_text(encoding="utf-8")
@@ -259,10 +253,18 @@ def patch_landing_js(path: Path) -> None:
 
 def patch_worker(path: Path) -> None:
     source = path.read_text(encoding="utf-8")
+    current_build = "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6264-geometric-crater-bowls'"
+    next_build = "BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='" + BUILD + "'"
+    if current_build in source and "entryRoute=" in source:
+        source = replace_once(source, current_build, next_build, "bump current welcome service-worker release marker")
+        path.write_text(source, encoding="utf-8")
+        return
+    if next_build in source and "entryRoute=" in source:
+        return
     source = replace_once(
         source,
         "const V='" + CACHE_NAME + "';",
-        "const V='" + CACHE_NAME + "';\nconst BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='" + BUILD + "';",
+        "const V='" + CACHE_NAME + "';\n" + next_build + ";",
         "bump worker script while preserving the existing offline cache name",
     )
     activate_old = "self.addEventListener('activate',e=>e.waitUntil((async()=>{for(const k of await caches.keys()){const legacy=k.startsWith('bridgepoint-universe-')||k.startsWith('bridgepoint-intelligence-launch-')||(k.startsWith('bp-intelligence-')&&k!==V);if(legacy)await caches.delete(k)}await self.clients.claim()})()));"
@@ -298,7 +300,6 @@ def patch_worker(path: Path) -> None:
     source = replace_once(source, navigation_old, navigation_new, "serve current online entry routes without stale HTML fallback")
     path.write_text(source, encoding="utf-8")
 
-
 def patch_site(site: Path) -> None:
     required = {
         "root": site / "index.html",
@@ -322,15 +323,15 @@ def patch_site(site: Path) -> None:
 
     root = required["root"].read_text(encoding="utf-8")
     root = patch_root_html(root)
-    root = replace_once(
-        root,
-        './manifest.webmanifest"',
-        './manifest.webmanifest?v=6265-solar-globe"',
-        "bust the root manifest URL",
-    )
+    old_root_manifest = './manifest.webmanifest?v=6264-geometric-crater-bowls"'
+    new_root_manifest = './manifest.webmanifest?v=6265-solar-globe"'
+    if old_root_manifest in root:
+        root = replace_once(root, old_root_manifest, new_root_manifest, "bump current root manifest URL")
+    else:
+        root = replace_once(root, './manifest.webmanifest"', new_root_manifest, "bust the root manifest URL")
     root = replace_prefix_once(
         root,
-        r"(landing\.js\?v=)6247-universal-fresh-entry",
+        r"(landing\.js\?v=)(?:6247-universal-fresh-entry|6264-geometric-crater-bowls)",
         r"\g<1>6265-solar-globe",
         "bust the landing bundle URL",
     )
@@ -346,12 +347,12 @@ def patch_site(site: Path) -> None:
 
     patch_manifest(required["root manifest"], "/bridgepoint-intelligence-v5050")
     legacy = patch_legacy_app(required["legacy app index"].read_text(encoding="utf-8"))
-    legacy = replace_once(
-        legacy,
-        './manifest.webmanifest"',
-        './manifest.webmanifest?v=6265-solar-globe"',
-        "bust the legacy app manifest URL",
-    )
+    old_legacy_manifest = './manifest.webmanifest?v=6264-geometric-crater-bowls"'
+    new_legacy_manifest = './manifest.webmanifest?v=6265-solar-globe"'
+    if old_legacy_manifest in legacy:
+        legacy = replace_once(legacy, old_legacy_manifest, new_legacy_manifest, "bump current legacy manifest URL")
+    else:
+        legacy = replace_once(legacy, './manifest.webmanifest"', new_legacy_manifest, "bust the legacy app manifest URL")
     required["legacy app index"].write_text(legacy, encoding="utf-8")
     patch_manifest(required["legacy app manifest"], "/app/intelligence-launch/")
 
