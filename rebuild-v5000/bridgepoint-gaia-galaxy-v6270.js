@@ -141,7 +141,7 @@ export async function initBridgePointGaiaGalaxy(o){
  function enterSolar(){if(!state.active)enterGalaxy();mode='solar';state.mode=mode;backdrop.visible=false;solar.visible=true;starsGroup.position.set(0,0,0);
   origin.set(0,0,0);setBase(origin);setTarget(new THREE.Vector3(0,0,0));camera.near=1e-12;camera.far=100000;camera.fov=52;camera.updateProjectionMatrix();
   camera.position.set(0,.00024,115*AU_PC);camera.lookAt(target);updatePlanets();buttons();drawHud()}
- function exit(){state.active=false;mode='overview';state.mode='overview';chosen=null;hud.hidden=true;backdrop.visible=false;solar.visible=false;sunMarker.visible=false;sunSphere.visible=false;
+ function exit(){state.active=false;mode='overview';state.mode='overview';chosen=null;hud.hidden=true;backdrop.visible=false;solar.visible=false;sunMarker.visible=false;sunSphere.visible=false;starsGroup.visible=false;
   starsGroup.position.copy(getSunPosition());setMainBodiesVisible(true);setBackground(null);setViewState('overview');resetMainView();buttons()}
  function zoom(f){const off=camera.position.clone().sub(target);let d=off.length()*f;d=clamp(d,mode==='solar'?1e-10:1e-5,mode==='solar'?.02:mode==='milkyway'?50000:25000);camera.position.copy(target).add(off.normalize().multiplyScalar(d));camera.lookAt(target)}
  function pan(dx,dy){const d=Math.max(1e-10,camera.position.distanceTo(target)),right=new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion),up=new THREE.Vector3(0,1,0).applyQuaternion(camera.quaternion);
