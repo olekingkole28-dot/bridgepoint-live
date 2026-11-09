@@ -40,6 +40,51 @@ class SaturnSystemV6282Tests(unittest.TestCase):
         self.assertIn("bodyRefs:{earth:earthDepthOccluder,moon:moonMesh,sun:sunMesh}", SCENE)
         self.assertIn("initBridgePointSaturnSystem", GAIA)
 
+    def test_saturn_uses_cropped_cassini_raster_and_dual_flow_atmosphere(self):
+        for marker in (
+            "loaded.saturn.offset.set(.175,.30)",
+            "loaded.saturn.repeat.set(.75,.47)",
+            "saturnUvA.x=.175+mod",
+            "saturnUvB.x=.175+mod",
+            "saturnMissing",
+            "saturnProcedural",
+            "uSaturnAtmosTime",
+            "Saturn volumetric Fresnel atmospheric rim",
+            "uSaturnLightDir",
+        ):
+            self.assertIn(marker, SATURN)
+
+    def test_saturn_rings_are_lit_alpha_profile_bands_with_shadow_flags(self):
+        for marker in (
+            "function buildRingAlphaProfile",
+            "new THREE.DataTexture(data,width,height,THREE.RGBAFormat",
+            "alphaMap,transparent:true,opacity:1",
+            "roughness:.86,metalness:.015",
+            "mesh.castShadow=true;mesh.receiveShadow=true",
+            "saturnMesh.castShadow=true;saturnMesh.receiveShadow=true",
+        ):
+            self.assertIn(marker, SATURN)
+
+    def test_moons_have_bounded_visual_exaggeration_and_mobile_hitboxes(self):
+        for marker in (
+            "const visualScale=Math.min(25,(saturnRadius*.18)/radius)",
+            "placeholder.scale.setScalar(visualScale)",
+            "visualRadius*2.65",
+            "hitbox.userData.body=key",
+            "moonHitboxes.set(key,hitbox)",
+            "clickables.push(hitbox)",
+            "systemCameraDistance:Math.max(.22,visualRadius*3.6)",
+        ):
+            self.assertIn(marker, SATURN)
+        self.assertIn("saturnFocusMesh.scale?.x", SCENE)
+
+    def test_cassini_dsk_triangle_winding_is_corrected_after_axis_reflection(self):
+        self.assertIn("const second=i+1,third=i+2", SATURN)
+        self.assertIn("position[second*3+j]", SATURN)
+        self.assertIn("normal[second*3+j]", SATURN)
+        self.assertIn("uv[second*2+j]", SATURN)
+        self.assertIn("getSunPosition:()=>getSunPosition?getSunPosition():new THREE.Vector3()", GAIA)
+
     def test_real_cassini_shapes_and_titan_height_grid_are_used(self):
         for marker in ("BPSM", "BPSH",
                        "titan-cassini-topography-4ppd-u16.bin.gz",
