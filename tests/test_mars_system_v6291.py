@@ -103,7 +103,7 @@ class MarsSystemV6291Tests(unittest.TestCase):
             "smoothstep(-.08,.16,bpMarsLightFacing)",
             "outgoingLight*=mix(.045,1.0,bpMarsDaylight)",
             "surfacePivot.quaternion.clone().invert()",
-            "moon.quaternion.clone().invert()",
+            "moonMesh.quaternion.clone().invert()",
             "moonLightUniforms.get(key)",
             "installMarsNightSide(material,marsUniforms.lightDir)",
         ):
