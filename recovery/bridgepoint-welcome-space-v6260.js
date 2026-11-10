@@ -1621,17 +1621,19 @@ function createMoonTerrainController() {
     const focused=key==='moon'?moonMesh:key==='sun'?sunMesh:key==='earth'?earthDepthOccluder:bodyData?.mesh||null;
     if(!focused)return;
     const saturnBody=['saturn','titan','enceladus','mimas'].includes(key);
+    const marsBody=['mars','phobos','deimos'].includes(key);
+    const systemBody=saturnBody||marsBody;
     solarCosmos?.setSelection?.(key);
     focusedObject=focused;
-    saturnFocusMesh=saturnBody?focused:null;
+    saturnFocusMesh=systemBody?focused:null;
     saturnFocusLocalTarget=null;
-    if(saturnBody){
-      // The welcome renderer is transparent over MapLibre. Saturn needs an
-      // opaque deep-space background so the Earth map cannot show through.
+    if(systemBody){
+      // The welcome renderer is transparent over MapLibre. The selected planet
+      // system needs an opaque deep-space background so the Earth map cannot show through.
       scene.background=new THREE.Color(0x02050c);
       earth.visible=false;moonPivot.visible=false;sunGroup.visible=false;haze.visible=false;
       stars.visible=true;
-      viewState=key==='saturn'?'saturn-system':'saturn-surface';
+      viewState=key==='saturn'?'saturn-system':key==='mars'?'mars-system':marsBody?'mars-surface':'saturn-surface';
     }else{
       scene.background=null;
       earth.visible=true;
@@ -1650,7 +1652,7 @@ function createMoonTerrainController() {
       camera.far=Math.max(camera.far,100000000000);
       camera.fov=48;camera.updateProjectionMatrix();
     }
-    if(!saturnBody){
+    if(!systemBody){
       earth.visible=true;moonPivot.visible=true;sunGroup.visible=true;stars.visible=true;haze.visible=true;
     }
     if(key==='moon'||key==='sun'){moonMesh.scale.setScalar(1);sunMesh.scale.setScalar(1);}
@@ -1679,12 +1681,14 @@ function createMoonTerrainController() {
       const surface=sunGroup.localToWorld(sunFocusLocalTarget.clone());
       const surfaceNormal=sunFocusLocalTarget.clone().normalize().transformDirection(sunGroup.matrixWorld);
       animateCamera(surface.clone().addScaledVector(surfaceNormal,sunRadiusVisual*1.7),surface,1.8);
-    }else if(saturnBody){
-      const saturnMesh=solarCosmos?.getBody?.('saturn')?.mesh;
-      const saturnCenter=saturnMesh?saturnMesh.getWorldPosition(new THREE.Vector3()):new THREE.Vector3();
-      // Place the camera on the moon's outward orbital side so Saturn remains
-      // naturally behind it when a moon is opened from the system view.
-      const direction=key==='saturn'?camera.position.clone().sub(world):world.clone().sub(saturnCenter);
+    }else if(systemBody){
+      const parentKey=marsBody?'mars':'saturn';
+      const parentMesh=solarCosmos?.getBody?.(parentKey)?.mesh;
+      const parentCenter=parentMesh?parentMesh.getWorldPosition(new THREE.Vector3()):new THREE.Vector3();
+      // Parent-planet selection preserves the current viewing side; selecting
+      // Phobos/Deimos places the camera on the moon's outward orbital side.
+      const isParent=key===parentKey;
+      const direction=isParent?camera.position.clone().sub(world):world.clone().sub(parentCenter);
       if(direction.lengthSq()<1e-12)direction.set(0,0,1);
       direction.normalize();
       focused.updateMatrixWorld(true);
@@ -1692,7 +1696,7 @@ function createMoonTerrainController() {
       saturnFocusLocalTarget=localDirection.multiplyScalar(focusedPlanetRadius);
       const surface=focused.localToWorld(saturnFocusLocalTarget.clone());
       const systemDistance=Number(bodyData?.systemCameraDistance)>0?bodyData.systemCameraDistance:Math.max(focusedPlanetRadius*4.1,.22);
-      animateCamera(world.clone().addScaledVector(direction,systemDistance),surface,key==='saturn'?2.1:1.5);
+      animateCamera(world.clone().addScaledVector(direction,systemDistance),surface,isParent?2.1:1.5);
     }else{
       const direction=camera.position.clone().sub(world);
       if(direction.lengthSq()<1e-12)direction.set(0,0,1);
@@ -1996,7 +2000,7 @@ function createMoonTerrainController() {
     camera.lookAt(target);
   }
   function rotateCameraOrMoon(dx,dy){
-    if(viewState==='saturn-system'||viewState==='saturn-surface'){
+    if(viewState==='saturn-system'||viewState==='saturn-surface'||viewState==='mars-system'||viewState==='mars-surface'){
       panSaturnSurface(dx,dy);
       return;
     }
@@ -2067,7 +2071,7 @@ function createMoonTerrainController() {
     if(activePointers.size>1){
       const gesture=getTwoPointerGesture();
       if(!gesture)return;
-      if((viewState==='moon'||viewState==='sun'||viewState==='saturn-system'||viewState==='saturn-surface')&&gestureCenter){
+      if((viewState==='moon'||viewState==='sun'||viewState==='saturn-system'||viewState==='saturn-surface'||viewState==='mars-system'||viewState==='mars-surface')&&gestureCenter){
         const dx=gesture.center.x-gestureCenter.x;
         const dy=gesture.center.y-gestureCenter.y;
         // Horizontal two-finger movement pans along the selected body's surface.
@@ -2098,7 +2102,7 @@ function createMoonTerrainController() {
       }
     }else if(viewState==='sun'){
       panSunSurface(dx,dy);
-    }else if(viewState==='saturn-system'||viewState==='saturn-surface'){
+    }else if(viewState==='saturn-system'||viewState==='saturn-surface'||viewState==='mars-system'||viewState==='mars-surface'){
       panSaturnSurface(dx,dy);
     }else{
       rotateCameraOrMoon(dx,dy);
@@ -2125,9 +2129,11 @@ function createMoonTerrainController() {
     pointer.y=-((event.clientY-rect.top)/rect.height)*2+1;
     raycaster.setFromCamera(pointer,camera);
     if(event.button!==0)return;
-    const raycastTargets=viewState==='saturn-system'||viewState==='saturn-surface'
+    const raycastTargets=(viewState==='saturn-system'||viewState==='saturn-surface')
       ?clickables.filter(object=>['saturn','titan','enceladus','mimas'].includes(object?.userData?.body))
-      :clickables;
+      :(viewState==='mars-system'||viewState==='mars-surface')
+        ?clickables.filter(object=>['mars','phobos','deimos'].includes(object?.userData?.body))
+        :clickables;
     const hit=raycaster.intersectObjects(raycastTargets,false)[0];
     if(hit?.object?.userData?.body)focusBody(hit.object.userData.body);
   });
@@ -2224,7 +2230,7 @@ function createMoonTerrainController() {
     }else if(viewState==='sun'){
       enforceSunCameraClearance();
       camera.lookAt(target);
-    }else if(viewState==='saturn-system'||viewState==='saturn-surface'){
+    }else if(viewState==='saturn-system'||viewState==='saturn-surface'||viewState==='mars-system'||viewState==='mars-surface'){
       enforceSaturnCameraClearance();
       camera.lookAt(target);
     }
@@ -2251,6 +2257,7 @@ function createMoonTerrainController() {
       solarSurfaceNavigation:'one-finger=spin-the-Sun; two-finger-vertical=oblique-3D-camera-tilt; two-finger-horizontal=surface-pan; pinch=surface-zoom; reset=original-celestial-overview',
       lunarFocusFrame:'shared-celestial-scene; Moon orbital position held while lunar camera is active',
       saturnModuleMode:viewState==='saturn-system'||viewState==='saturn-surface'?'isolated-opaque-saturn-system':'inactive',
+      marsModuleMode:viewState==='mars-system'||viewState==='mars-surface'?'isolated-opaque-mars-system':'inactive',
       saturnSurfaceNavigation:'one-finger=surface-pan; two-finger-horizontal=surface-pan; two-finger-vertical=84-degree-camera-tilt; pinch=surface-zoom; direct-raycast=focus-moving-moon',
       lunarLabelCount:window.__BP_MOON_TERRAIN_V1__?.labelCount||0,
       proceduralLunarRelief:'fallback-only-outside-loaded-NASA-DEM-coverage'})
