@@ -7,8 +7,8 @@ from pathlib import Path
 
 BUILD = "v6288-saturn-realism"
 # Moon terrain assets are bundled locally under assets/moon/v1; runtime requests stay same-origin.
-SW_URL = "/sw.js?v=6287-celestial-shader-compat"
-CACHE_NAME = "bp-intelligence-v6287-celestial-shader-compat"
+SW_URL = "/sw.js?v=6288-saturn-realism"
+CACHE_NAME = "bp-intelligence-v6288-saturn-realism"
 
 
 def replace_once(source: str, old: str, new: str, label: str) -> str:
