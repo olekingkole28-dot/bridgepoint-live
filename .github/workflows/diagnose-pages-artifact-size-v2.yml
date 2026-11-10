@@ -19,8 +19,8 @@ jobs:
       - name: Download the previously verified production Pages artifact
         uses: actions/download-artifact@v4
         with:
-          name: bridgepoint-welcome-space-v6257
-          run-id: 42685752632
+          name: github-pages
+          run-id: 42723855778
           github-token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository }}
           path: /tmp/bridgepoint-pages-diagnostic
