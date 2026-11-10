@@ -107,7 +107,7 @@ export function initBridgePointSaturnSystem(options){
   orbitTimeLapse:TIME_LAPSE,physicalSizeScale:'true mean radii relative to Earth',
   ringRadiusUnit:'km from Saturn centre',assets:'same-origin local static; no external runtime terrain requests',
   loaded:{saturnTexture:false,titanDEM:false,titanTexture:false,enceladusShape:false,enceladusTexture:false,mimasShape:false,mimasTexture:false},
-  errors:[],moonCount:3,visualMoonScale:'up to 36x physical; Titan capped to 25% of Saturn radius',ringProfile:'shallow 3D ring volumes + Cassini optical-depth bands + orbiting ice grains',ringThicknessKm:6400,ringParticleCount:0,gasGiantAtmosphere:'differential zonal flow + rotating storm vortices',ringVolume:'closed depth-writing ring volumes',ringBands:['D','C','B','Cassini Division','A','F','G','E']};
+  errors:[],moonCount:3,visualMoonScale:'up to 36x physical; Titan capped to 25% of Saturn radius',ringProfile:'closed, depth-writing 3D volumes + vertically distributed Cassini ice-grain bands',ringThicknessKm:6400,ringParticleCount:0,gasGiantAtmosphere:'differential zonal flow + rotating storm vortices',ringVolume:'closed depth-writing ring volumes',ringBands:['D','C','B','Cassini Division','A','F','G','E']};
  const root=new THREE.Group();root.name='SaturnSystemGroup — Saturn, measured rings, and orbiting moons';
  // Saturn pole (IAU body pole RA 40.589°, Dec 83.537°) transformed from ICRF into ecliptic axes.
  const saturnPoleRA=40.589*DEG,saturnPoleDec=83.537*DEG,obliquity=23.439291*DEG;
@@ -207,9 +207,9 @@ export function initBridgePointSaturnSystem(options){
    saturnCloud.rgb*=1.0-ringShadow;
    diffuseColor*=saturnCloud;\n   #endif\n  `);
  };
- saturnMaterial.customProgramCacheKey=()=> 'bridgepoint-saturn-realistic-storm-clouds-v6288';
+ saturnMaterial.customProgramCacheKey=()=> 'bridgepoint-saturn-turbulent-gas-giant-v6289';
  const saturnMesh=new THREE.Mesh(saturnGeometry,saturnMaterial);
- saturnMesh.name='Saturn — 3D Cassini atmosphere with flowing storms';saturnMesh.userData.body='saturn';
+ saturnMesh.name='Saturn — turbulent 3D gas-giant atmosphere and rotating storms';saturnMesh.userData.body='saturn';
  saturnMesh.castShadow=true;saturnMesh.receiveShadow=true;root.add(saturnMesh);
  const saturnHazeUniforms={uTime:{value:0},uColor:{value:new THREE.Color(0xe6bd83)}};
  const saturnHaze=new THREE.Mesh(new THREE.SphereGeometry(saturnRadius*1.016,isMobile?96:160,isMobile?64:112),
@@ -245,8 +245,8 @@ export function initBridgePointSaturnSystem(options){
  }
  function ringGeometry(innerKm,outerKm,steps=7,segments=1024){
   const inner=innerKm/EARTH_RADIUS_KM,outer=outerKm/EARTH_RADIUS_KM;
-  // Real main rings are only ~10 m thick; a 6 km render shell exaggerates
-  // their edge so the ring planes read as 3D from the normal viewing distance.
+  // Real main rings are extremely thin; a 6,400 km maximum visual volume
+  // exaggerates cross-section deliberately so low-angle views keep 3D depth.
   const ringVisualThicknessKm=6400;
   const halfThicknessKm=Math.min(ringVisualThicknessKm*.5,(outerKm-innerKm)*.18);
   const halfThickness=halfThicknessKm/EARTH_RADIUS_KM,positions=[],uvs=[],indices=[];
@@ -283,7 +283,7 @@ export function initBridgePointSaturnSystem(options){
    shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',
     '#include <color_fragment>\nfloat ringDustMotion=.986+.014*sin(gl_FragCoord.x*.073+gl_FragCoord.y*.019+uRingTime*.004);\ndiffuseColor.rgb*=ringDustMotion;');
   };
-  material.customProgramCacheKey=()=> 'bridgepoint-lit-ring-profile-'+name+'-v6285';
+  material.customProgramCacheKey=()=> 'bridgepoint-volumetric-ring-profile-'+name+'-v6289';
   material.userData.ringTime=ringTime;
   const mesh=new THREE.Mesh(ringGeometry(inner,outer,5,seg),material);
   mesh.name='Saturn '+name+' lit dust ring '+inner+'–'+outer+' km';mesh.userData.ringBand=name;
@@ -400,7 +400,7 @@ export function initBridgePointSaturnSystem(options){
   const count=192,positions=new Float32Array(count*3),phases=new Float32Array(count),jet=new Uint8Array(count);
   for(let i=0;i<count;i++){phases[i]=i/count;jet[i]=i%8}
   const pg=new THREE.BufferGeometry();pg.setAttribute('position',new THREE.BufferAttribute(positions,3));
-  const pm=new THREE.PointsMaterial({color:0xecfaff,map:dustSprite,size:isMobile?.82:1.05,sizeAttenuation:false,transparent:true,alphaTest:.025,opacity:.78,depthTest:true,depthWrite:false,blending:THREE.AdditiveBlending});
+  const pm=new THREE.PointsMaterial({color:0xecfaff,map:dustSprite,size:isMobile?1.05:1.4,sizeAttenuation:false,transparent:true,alphaTest:.025,opacity:.78,depthTest:true,depthWrite:false,blending:THREE.AdditiveBlending});
   const points=new THREE.Points(pg,pm);points.name='Enceladus soft circular water-ice plume sprite particles';group.add(points);
   plumeEffects.push({curves,positions,phases,jet,geometry:pg,material:pm});
  }
