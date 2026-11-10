@@ -41,6 +41,10 @@ class MarsSystemV6291Tests(unittest.TestCase):
         ):
             self.assertIn(marker, MARS)
 
+    def test_mars_isolates_the_shared_solar_labels_and_keeps_its_parent_visible(self):
+        self.assertIn("const saturnModuleActive=['saturn','titan','enceladus','mimas','mars','phobos','deimos'].includes(selectedBody);", GAIA)
+        self.assertIn("key==='mars'&&['phobos','deimos'].includes(selected)", MARS)
+
     def test_phobos_and_deimos_use_real_pds_meshes_and_independent_orbits(self):
         for marker in (
             "phobos-thomas-grid-v1.bin.gz",
