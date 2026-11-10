@@ -1,5 +1,5 @@
 /**
- * BridgePoint Saturn system v6288 — animated storms, 3D ring bands, and orbiting ice grains.
+ * BridgePoint Saturn system v6290 — flowing storms, ambient cloud detail, volumetric rings, and clean moon meshes.
  * Saturn's Cassini ISS atmosphere map, measured main-ring boundaries, NASA DSK
  * satellite shape meshes, Titan Cassini topography, and Saturn-centred JPL
  * Horizons state vectors. All runtime assets are same-origin static files.
@@ -86,6 +86,33 @@ function loadTexture(THREE,url,colorSpace=true){
   },undefined,reject);
  });
 }
+function cleanDskSurface(position,normal,uv,radius,name){
+ const vertexCount=position.length/3,maxEdge=radius*.16,maxEdgeSq=maxEdge*maxEdge;
+ const minRadius=radius*.80,maxRadius=radius*1.20,minArea2=radius*radius*1e-9;
+ const cleanPosition=new Float32Array(position.length),cleanNormal=new Float32Array(normal.length),cleanUv=new Float32Array(uv.length);
+ let write=0,removedTriangles=0;
+ for(let i=0;i+2<vertexCount;i+=3){
+  const a=i,b=i+1,c=i+2;
+  const ax=position[a*3],ay=position[a*3+1],az=position[a*3+2];
+  const bx=position[b*3],by=position[b*3+1],bz=position[b*3+2];
+  const cx=position[c*3],cy=position[c*3+1],cz=position[c*3+2];
+  const abx=bx-ax,aby=by-ay,abz=bz-az,bcx=cx-bx,bcy=cy-by,bcz=cz-bz,cax=ax-cx,cay=ay-cy,caz=az-cz;
+  const edgeAB2=abx*abx+aby*aby+abz*abz,edgeBC2=bcx*bcx+bcy*bcy+bcz*bcz,edgeCA2=cax*cax+cay*cay+caz*caz;
+  const crossX=aby*(cz-az)-abz*(cy-ay),crossY=abz*(cx-ax)-abx*(cz-az),crossZ=abx*(cy-ay)-aby*(cx-ax);
+  const area2=Math.hypot(crossX,crossY,crossZ),ra=Math.hypot(ax,ay,az),rb=Math.hypot(bx,by,bz),rc=Math.hypot(cx,cy,cz);
+  const finite=[ax,ay,az,bx,by,bz,cx,cy,cz,ra,rb,rc,area2].every(Number.isFinite);
+  if(!finite||Math.max(edgeAB2,edgeBC2,edgeCA2)>maxEdgeSq||Math.min(ra,rb,rc)<minRadius||Math.max(ra,rb,rc)>maxRadius||area2<minArea2){removedTriangles++;continue}
+  // The xyz -> xzy reflection reverses face winding; retain outward DSK normals.
+  for(const sourceIndex of [a,c,b]){
+   for(let j=0;j<3;j++){cleanPosition[write*3+j]=position[sourceIndex*3+j];cleanNormal[write*3+j]=normal[sourceIndex*3+j]}
+   for(let j=0;j<2;j++)cleanUv[write*2+j]=uv[sourceIndex*2+j];
+   write++;
+  }
+ }
+ if(write<vertexCount*.60)throw Error(name+' DSK cleanup rejected an implausibly large fraction of the surface');
+ return {position:cleanPosition.subarray(0,write*3),normal:cleanNormal.subarray(0,write*3),uv:cleanUv.subarray(0,write*2),keptTriangles:write/3,removedTriangles};
+}
+
 function textSprite(THREE,label){
  const c=document.createElement('canvas');c.width=512;c.height=128;
  const x=c.getContext('2d');x.clearRect(0,0,512,128);
@@ -102,12 +129,12 @@ export function initBridgePointSaturnSystem(options){
   getSaturnPosition,getSunPosition,getSelectedBody,isMobile=false}=options;
  if(!THREE||!solarRoot||!bodyMap||!planetMeshes)throw Error('Saturn system requires the existing BridgePoint shared celestial scene');
  THREEVector=THREE.Vector3;
- const state={version:'v6289-saturn-gas-giant',status:'idle',source:'NASA Cassini PDS + NASA NAIF DSK + JPL Horizons',
+ const state={version:'v6290-saturn-flowing-rings',status:'idle',source:'NASA Cassini PDS + NASA NAIF DSK + JPL Horizons',
   ephemerisEpochUTC:'2026-11-09T00:00:00Z',ephemerisFrame:'Saturn BODY EQUATOR',
   orbitTimeLapse:TIME_LAPSE,physicalSizeScale:'true mean radii relative to Earth',
   ringRadiusUnit:'km from Saturn centre',assets:'same-origin local static; no external runtime terrain requests',
   loaded:{saturnTexture:false,titanDEM:false,titanTexture:false,enceladusShape:false,enceladusTexture:false,mimasShape:false,mimasTexture:false},
-  errors:[],moonCount:3,visualMoonScale:'up to 36x physical; Titan capped to 25% of Saturn radius',ringProfile:'closed, depth-writing 3D volumes + vertically distributed Cassini ice-grain bands',ringThicknessKm:6400,ringParticleCount:0,gasGiantAtmosphere:'differential zonal flow + rotating storm vortices',ringVolume:'closed depth-writing ring volumes',ringBands:['D','C','B','Cassini Division','A','F','G','E']};
+  errors:[],meshCleanup:{},moonCount:3,visualMoonScale:'up to 36x physical; Titan capped to 25% of Saturn radius',ringProfile:'high-resolution Cassini bands + layered volumetric dust haze',ringThicknessKm:6400,ringParticleCount:isMobile?7200:24000,gasGiantAtmosphere:'time-advected differential zonal flow + rotating storm vortices',ringVolume:'closed depth-writing ring volumes with translucent moving dust haze',ringBands:['D','C','B','Cassini Division','A','F','G','E']};
  const root=new THREE.Group();root.name='SaturnSystemGroup — Saturn, measured rings, and orbiting moons';
  // Saturn pole (IAU body pole RA 40.589°, Dec 83.537°) transformed from ICRF into ecliptic axes.
  const saturnPoleRA=40.589*DEG,saturnPoleDec=83.537*DEG,obliquity=23.439291*DEG;
@@ -133,9 +160,9 @@ export function initBridgePointSaturnSystem(options){
    '#include <common>\nuniform float uSaturnAtmosTime;\nuniform vec3 uSaturnLightDir;\nvarying vec3 vSaturnLocalPosition;');
   shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>',`\n   #ifdef USE_MAP\n   vec2 saturnUvA=vMapUv;
    vec2 saturnUvB=vMapUv;
-   saturnUvA.x=.175+mod((vMapUv.x-.175)+uSaturnAtmosTime*.000012,.75);
-   saturnUvB.x=.175+mod((vMapUv.x-.175)-uSaturnAtmosTime*.0000055,.75);
-   saturnUvB.y=clamp(vMapUv.y+.0030*sin(vMapUv.y*28.0+uSaturnAtmosTime*.00034),.30,.77);
+   saturnUvA.x=.175+mod((vMapUv.x-.175)+uSaturnAtmosTime*.000048,.75);
+   saturnUvB.x=.175+mod((vMapUv.x-.175)-uSaturnAtmosTime*.000022,.75);
+   saturnUvB.y=clamp(vMapUv.y+.0060*sin(vMapUv.y*28.0+uSaturnAtmosTime*.00092),.30,.77);
    vec4 saturnLayerA=texture2D(map,saturnUvA);
    vec4 saturnLayerB=texture2D(map,saturnUvB);
    vec4 saturnCloud= mix(saturnLayerA,saturnLayerB,.34);
@@ -147,14 +174,17 @@ export function initBridgePointSaturnSystem(options){
    // Differential zonal winds carry cloud decks at different speeds. Layered
    // domain warping makes the belts shear into turbulent ribbons instead of
    // translating a static striped texture around a sphere.
-   float stormTime=uSaturnAtmosTime*.00042;
+   float stormTime=uSaturnAtmosTime*.00105;
    float windA=sin(saturnLongitude*5.0-stormTime*.92+saturnLatitude*8.2);
    float windB=cos(saturnLongitude*13.0+stormTime*.57+saturnLatitude*5.4);
    float windC=sin(saturnLongitude*21.0-saturnLatitude*11.0-stormTime*1.38);
    float curlA=sin(saturnLongitude*8.0+sin(saturnLatitude*16.0+saturnLongitude*3.0-stormTime*.84)*2.8+stormTime*.44);
    float curlB=cos(saturnLongitude*17.0-saturnLatitude*7.0+sin(saturnLongitude*4.0+saturnLatitude*13.0+stormTime*.68)*2.2);
    float curlC=sin(saturnLatitude*37.0+sin(saturnLongitude*9.0-stormTime*1.12)*1.8+windC);
-   float fluidNoise=.5+.25*curlA+.17*curlB+.08*curlC;
+   float turbulentA=sin(saturnLongitude*29.0+saturnLatitude*13.0+stormTime*1.75+sin(saturnLatitude*31.0-stormTime*1.3)*2.3);
+   float turbulentB=cos(saturnLatitude*41.0-saturnLongitude*11.0-stormTime*1.35+sin(saturnLongitude*17.0+stormTime*.82)*1.8);
+   float turbulentC=sin(saturnLongitude*57.0+saturnLatitude*27.0+stormTime*2.3+curlA*1.4);
+   float fluidNoise=clamp(.5+.14*curlA+.12*curlB+.08*curlC+.12*turbulentA+.08*turbulentB+.06*turbulentC,0.0,1.0);
    float bandWarp=windA*3.9+windB*1.65+(fluidNoise-.5)*8.2+windC*.7;
    float warpedLatitude=saturnLatitude*76.0+bandWarp;
    float broadBand=.5+.5*sin(warpedLatitude);
@@ -206,8 +236,13 @@ export function initBridgePointSaturnSystem(options){
    float ringShadow=ringCoverage*step(0.0,ringRayT)*step(.025,abs(lightY))*.46;
    saturnCloud.rgb*=1.0-ringShadow;
    diffuseColor*=saturnCloud;\n   #endif\n  `);
+  shader.fragmentShader=shader.fragmentShader.replace('#include <emissive_fragment>',`\n   float saturnLightFacing=dot(normalize(vSaturnLocalPosition),normalize(uSaturnLightDir));
+   float saturnNightSide=1.0-smoothstep(-.10,.38,saturnLightFacing);
+   float saturnBacklitRim=pow(1.0-abs(saturnLightFacing),4.0);
+   totalEmissiveRadiance+=diffuseColor.rgb*(.035+.105*saturnNightSide+.035*saturnBacklitRim);
+   #include <emissive_fragment>`);
  };
- saturnMaterial.customProgramCacheKey=()=> 'bridgepoint-saturn-turbulent-gas-giant-v6289';
+ saturnMaterial.customProgramCacheKey=()=> 'bridgepoint-saturn-turbulent-gas-giant-v6290';
  const saturnMesh=new THREE.Mesh(saturnGeometry,saturnMaterial);
  saturnMesh.name='Saturn — turbulent 3D gas-giant atmosphere and rotating storms';saturnMesh.userData.body='saturn';
  saturnMesh.castShadow=true;saturnMesh.receiveShadow=true;root.add(saturnMesh);
@@ -223,13 +258,13 @@ export function initBridgePointSaturnSystem(options){
  bodyMap.set('saturn',{mesh:saturnMesh,radius:saturnRadius,systemCameraDistance:470});
  planetMeshes.set('saturn',saturnMesh);clickables.push(saturnMesh);
 
- const ringMeshes=[],ringTimeUniforms=[];
+ const ringMeshes=[],ringTimeUniforms=[],ringHazeMeshes=[],ringHazeUniforms=[];
  function buildRingAlphaProfile(name,opacity){
-  const width=2048,height=4,data=new Uint8Array(width*height*4);
+  const width=isMobile?4096:8192,height=8,data=new Uint8Array(width*height*4);
   const seed=({D:3,C:7,B:11,A:17,F:23,G:29,E:31})[name]||5;
   for(let x=0;x<width;x++){
    const u=x/(width-1);
-   const waves=.82+.085*Math.sin(u*TAU*97+seed)+.045*Math.sin(u*TAU*431+seed*1.7)+.025*Math.sin(u*TAU*1207+seed*.8);
+   const waves=(.82+.085*Math.sin(u*TAU*97+seed)+.045*Math.sin(u*TAU*431+seed*1.7)+.025*Math.sin(u*TAU*1207+seed*.8))*(.965+.018*Math.sin(u*TAU*2879+seed*1.1)+.012*Math.sin(u*TAU*4013+seed*.6));
    const fineGapA=Math.exp(-Math.pow((u-(.29+seed*.001))/.0018,2));
    const fineGapB=Math.exp(-Math.pow((u-(.71-seed*.0007))/.0028,2));
    const clump=.92+.08*Math.sin(u*TAU*19+seed*.31);
@@ -290,6 +325,37 @@ export function initBridgePointSaturnSystem(options){
   mesh.castShadow=true;mesh.receiveShadow=true;mesh.renderOrder=2;root.add(mesh);
   ringMeshes.push(mesh);ringTimeUniforms.push(ringTime);return mesh;
  }
+ function addRingHaze(name,inner,outer,density,color,segments=isMobile?768:1536){
+  const time={value:0};
+  const material=new THREE.ShaderMaterial({
+   uniforms:{uRingFogTime:time,uRingFogDensity:{value:density},uRingFogColor:{value:new THREE.Color(color)}},
+   vertexShader:`varying vec2 vRingFogUv;varying float vRingFogHeight;
+#include <logdepthbuf_pars_vertex>
+void main(){vRingFogUv=uv;vRingFogHeight=position.y;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);
+#include <logdepthbuf_vertex>
+}`,
+   fragmentShader:`uniform float uRingFogTime;uniform float uRingFogDensity;uniform vec3 uRingFogColor;varying vec2 vRingFogUv;varying float vRingFogHeight;
+#include <logdepthbuf_pars_fragment>
+void main(){
+#include <logdepthbuf_fragment>
+float radial=clamp(vRingFogUv.x,0.0,1.0);float angle=vRingFogUv.y*6.2831853;
+float swirlA=sin(angle*49.0-radial*73.0+uRingFogTime*.018+sin(angle*7.0+uRingFogTime*.008)*2.0);
+float swirlB=cos(angle*113.0+radial*219.0-uRingFogTime*.013);
+float fineLanes=.5+.5*sin(radial*257.0+swirlA*.9+uRingFogTime*.021);
+float clump=clamp(.52+.23*swirlA+.15*swirlB+.10*fineLanes,0.0,1.0);
+float radialEdge=smoothstep(0.0,.018,radial)*(1.0-smoothstep(.982,1.0,radial));
+float verticalDepth=exp(-abs(vRingFogHeight)*.42);
+float alpha=clamp(uRingFogDensity*radialEdge*clump*(.72+.28*verticalDepth),0.0,.085);
+gl_FragColor=vec4(uRingFogColor*(.82+.30*clump),alpha);
+}`,
+   transparent:true,depthTest:true,depthWrite:false,side:THREE.DoubleSide,
+   blending:THREE.NormalBlending,toneMapped:false
+  });
+  const mesh=new THREE.Mesh(ringGeometry(inner,outer,3,segments),material);
+  mesh.name='Saturn '+name+' volumetric dust-fog layer';mesh.userData.ringBand=name;
+  mesh.frustumCulled=false;mesh.renderOrder=3;root.add(mesh);
+  ringHazeMeshes.push(mesh);ringHazeUniforms.push(time);return mesh;
+ }
  // Cassini/PDS ring radii: gaps are left empty instead of drawing a solid disc.
  addRing('D',66900,74510,0x96836b,.13);
  addRing('C',74510,92000,0x9f9278,.28);
@@ -298,6 +364,11 @@ export function initBridgePointSaturnSystem(options){
  addRing('F',140180,140480,0xe5d3ad,.40,768);
  addRing('G',166000,174000,0xb9a98a,.085);
  addRing('E',180000,480000,0xc9c8bd,.055);
+ // Soft, depth-tested dust haze sits inside the real ring bands, not on a billboard.
+ addRingHaze('C',74510,92000,.040,0xa69b87);
+ addRingHaze('B',92000,117580,.105,0xd4c39d);
+ addRingHaze('A',122170,136775,.078,0xc9b98f);
+ addRingHaze('E',180000,480000,.026,0xc7c9c6);
  // A separate animated point cloud represents the moving ice and dust grains
  // in the rings, with denser populations in the bright A/B/C bands.
  const ringDustZones=[
@@ -309,7 +380,7 @@ export function initBridgePointSaturnSystem(options){
   {inner:166000,outer:174000,weight:.028,color:[.69,.67,.60]},
   {inner:180000,outer:480000,weight:.052,color:[.76,.78,.77],diffuse:true}
  ];
- const ringDustCount=isMobile?5600:18000;
+ const ringDustCount=isMobile?7200:24000;
  const ringDustPositions=new Float32Array(ringDustCount*3),ringDustColors=new Float32Array(ringDustCount*3);
  const ringDustRadii=new Float32Array(ringDustCount),ringDustPhases=new Float32Array(ringDustCount);
  const ringDustHeights=new Float32Array(ringDustCount),ringDustSpeeds=new Float32Array(ringDustCount);
@@ -333,11 +404,11 @@ export function initBridgePointSaturnSystem(options){
  const ringDustGeometry=new THREE.BufferGeometry();
  ringDustGeometry.setAttribute('position',new THREE.BufferAttribute(ringDustPositions,3));
  ringDustGeometry.setAttribute('color',new THREE.BufferAttribute(ringDustColors,3));
- const ringDustMaterial=new THREE.PointsMaterial({color:0xffffff,map:dustSprite,size:isMobile?1.65:2.2,sizeAttenuation:false,
+ const ringDustMaterial=new THREE.PointsMaterial({color:0xffffff,map:dustSprite,size:isMobile?1.15:1.55,sizeAttenuation:false,
   transparent:true,alphaTest:.025,vertexColors:true,depthTest:true,depthWrite:false,blending:THREE.NormalBlending,toneMapped:false});
  const ringDust=new THREE.Points(ringDustGeometry,ringDustMaterial);
  ringDust.name='Saturn 3D volume of orbiting ice grains with vertically distributed ring depth';
- ringDust.frustumCulled=false;ringDust.renderOrder=3;root.add(ringDust);
+ ringDust.frustumCulled=false;ringDust.renderOrder=4;root.add(ringDust);
  function updateRingDust(time){
   for(let i=0;i<ringDustCount;i++){
    const r=ringDustRadii[i]/EARTH_RADIUS_KM,angle=ringDustPhases[i]+ringDustSpeeds[i]*time*1.35;
@@ -441,18 +512,12 @@ export function initBridgePointSaturnSystem(options){
     // Reverse each non-indexed triangle after the swap so its front face and
     // outward DSK normals agree; otherwise the visible near-side plates vanish.
     if(count%3!==0)throw Error(m.name+' mesh triangle count is not divisible by 3');
-    for(let i=0;i<count;i+=3){
-     const second=i+1,third=i+2;
-     for(let j=0;j<3;j++){
-      let q=position[second*3+j];position[second*3+j]=position[third*3+j];position[third*3+j]=q;
-      q=normal[second*3+j];normal[second*3+j]=normal[third*3+j];normal[third*3+j]=q;
-     }
-     for(let j=0;j<2;j++){const q=uv[second*2+j];uv[second*2+j]=uv[third*2+j];uv[third*2+j]=q;}
-    }
+    const cleaned=cleanDskSurface(position,normal,uv,m.radiusKm/EARTH_RADIUS_KM,m.name);
     const geometry=new THREE.BufferGeometry();
-    geometry.setAttribute('position',new THREE.BufferAttribute(position,3));
-    geometry.setAttribute('normal',new THREE.BufferAttribute(normal,3));
-    geometry.setAttribute('uv',new THREE.BufferAttribute(uv,2));geometry.computeBoundingSphere();
+    geometry.setAttribute('position',new THREE.BufferAttribute(cleaned.position,3));
+    geometry.setAttribute('normal',new THREE.BufferAttribute(cleaned.normal,3));
+    geometry.setAttribute('uv',new THREE.BufferAttribute(cleaned.uv,2));geometry.computeBoundingSphere();
+    state.meshCleanup[key]={keptTriangles:cleaned.keptTriangles,removedTriangles:cleaned.removedTriangles};
     if(!geometry.boundingSphere||!Number.isFinite(geometry.boundingSphere.radius)||geometry.boundingSphere.radius<1e-5)
      throw Error(m.name+' DSK geometry has invalid bounds');
     const moon=moonMeshes.get(key);moon.geometry.dispose();moon.geometry=geometry;
@@ -500,6 +565,7 @@ export function initBridgePointSaturnSystem(options){
   saturnAtmosphereUniforms.time.value=simulationSeconds%1000000;
   saturnHazeUniforms.uTime.value=simulationSeconds%1000000;
   updateRingDust(simulationSeconds);
+  for(const u of ringHazeUniforms)u.value=simulationSeconds;
   if(titanAtmosphere)titanAtmosphere.rotation.y=simulationSeconds*.00007;
   for(const u of ringTimeUniforms)u.value=simulationSeconds;
   if(getSunPosition){
@@ -551,6 +617,7 @@ export function initBridgePointSaturnSystem(options){
   root.parent?.remove(root);
   for(const sprite of labels.values())sprite.parent?.remove(sprite);
   for(const mesh of ringMeshes){mesh.geometry.dispose();mesh.material.alphaMap?.dispose();mesh.material.dispose()}
+  for(const mesh of ringHazeMeshes){mesh.parent?.remove(mesh);mesh.geometry.dispose();mesh.material.dispose()}
   ringDust.parent?.remove(ringDust);ringDust.geometry.dispose();ringDust.material.map?.dispose();ringDust.material.dispose();dustSprite.dispose();
   for(const key of ['saturn','titan','enceladus','mimas']){
    const mesh=moonMeshes.get(key);if(mesh){const index=clickables.indexOf(mesh);if(index>=0)clickables.splice(index,1)}
@@ -558,7 +625,7 @@ export function initBridgePointSaturnSystem(options){
    bodyMap.delete(key);planetMeshes.delete(key);
   }
  }
- const api={version:'v6289-saturn-gas-giant',state,update,ensureLoaded,dispose,
+ const api={version:'v6290-saturn-flowing-rings',state,update,ensureLoaded,dispose,
   getBody:name=>bodyMap.get(String(name||'').toLowerCase())||null,
   get systemRoot(){return root},get saturnMesh(){return saturnMesh},
   physical:{saturnRadiusKm:SATURN_RADIUS_KM,moonRadiiKm:{titan:2574.73,enceladus:252.1,mimas:198.2},
@@ -567,5 +634,6 @@ export function initBridgePointSaturnSystem(options){
  window.__BP_SATURN_SYSTEM_V6282__=api;
  window.__BP_SATURN_SYSTEM_V6283__=api;
  window.__BP_SATURN_SYSTEM_V6285__=api;
-  window.__BP_SATURN_SYSTEM_V6289__=api;state.status='idle';return api;
+  window.__BP_SATURN_SYSTEM_V6289__=api;
+  window.__BP_SATURN_SYSTEM_V6290__=api;state.status='idle';return api;
 }
