@@ -82,7 +82,7 @@ class SaturnSystemV6289Tests(unittest.TestCase):
             "function buildRingAlphaProfile",
             "new THREE.DataTexture(data,width,height,THREE.RGBAFormat",
             "alphaMap,transparent:true,opacity:1",
-            "roughness:.86,metalness:.015",
+            "roughness:.76,metalness:.02",
             "ringVisualThicknessKm=6400",
             "halfThicknessKm=Math.min(ringVisualThicknessKm*.5,(outerKm-innerKm)*.18)",
             "renderedThicknessKm:halfThicknessKm*2",
@@ -107,7 +107,7 @@ class SaturnSystemV6289Tests(unittest.TestCase):
         self.assertNotIn("new THREE.BoxGeometry", SATURN)
         self.assertNotIn("moonHitboxes", SATURN)
         self.assertIn("saturnFocusMesh.scale?.x", SCENE)
-        self.assertIn("map:dustSprite,size=isMobile?.82:1.05", SATURN)
+        self.assertIn("map:dustSprite,size:isMobile?1.05:1.4", SATURN)
         self.assertIn("Enceladus soft circular water-ice plume sprite particles", SATURN)
         self.assertNotIn("PointsMaterial({color:0xecfaff,size:isMobile?1.45:2.05,transparent:true", SATURN)
 
@@ -157,7 +157,7 @@ class SaturnSystemV6289Tests(unittest.TestCase):
         for marker in ("saturnMesh.rotation.y", "titanAtmosphere.rotation.y",
                        "Titan thick golden nitrogen atmosphere",
                        "Enceladus south-polar water-ice geyser plumes",
-                       "Enceladus animated water-ice plume particles"):
+                       "Enceladus soft circular water-ice plume sprite particles"):
             self.assertIn(marker, SATURN)
 
 

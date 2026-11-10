@@ -64,7 +64,7 @@ jobs:
           grep -Fq 'ringVisualThicknessKm=6400' site/bridgepoint-saturn-system-v6282.js
           grep -Fq 'warpedLatitude' site/bridgepoint-saturn-system-v6282.js
           grep -Fq 'Enceladus soft circular water-ice plume sprite particles' site/bridgepoint-saturn-system-v6282.js
-          grep -Fq 'map:dustSprite,size=isMobile?.82:1.05' site/bridgepoint-saturn-system-v6282.js
+          grep -Fq 'map:dustSprite,size:isMobile?1.05:1.4' site/bridgepoint-saturn-system-v6282.js
           test -s site/assets/saturn/v1/ephemerides.json
           test -s site/assets/saturn/v1/meshes/mimas-cassini-shape-v1.bin.gz
           test -s site/assets/saturn/v1/meshes/enceladus-cassini-shape-v1.bin.gz
@@ -114,7 +114,7 @@ jobs:
           grep -Fq 'warpedLatitude' /tmp/saturn.js
           grep -Fq 'stormMaskC' /tmp/saturn.js
           grep -Fq 'Enceladus soft circular water-ice plume sprite particles' /tmp/saturn.js
-          grep -Fq 'map:dustSprite,size=isMobile?.82:1.05' /tmp/saturn.js
+          grep -Fq 'map:dustSprite,size:isMobile?1.05:1.4' /tmp/saturn.js
           grep -Fq 'depthWrite:true' /tmp/saturn.js
           grep -Fq 'ringVisualThicknessKm=6400' /tmp/saturn.js
           grep -Fq 'warpedLatitude' /tmp/saturn.js
