@@ -10,12 +10,12 @@ permissions:
   pages: write
   id-token: write
 concurrency:
-  group: bridgepoint-pages-mars-v6291-mola-phobos-deimos
+  group: bridgepoint-pages-mars-v6291-final-sparse-hirise-mask
   cancel-in-progress: false
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 51
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
