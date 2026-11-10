@@ -15,7 +15,7 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 49
+    timeout-minutes: 50
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
@@ -143,6 +143,8 @@ jobs:
           grep -Fq 'MOLA MEGDR globally displaced 3D terrain' /tmp/mars.js
           grep -Fq 'PDS Thomas irregular 3D shape model' /tmp/mars.js
           grep -Fq 'Gale Crater HiRISE 1.01 m/pixel local replacement terrain mesh' /tmp/mars.js
+          grep -Fq 'const sampleCount=info.width*info.height,hasMask=!!(info.flags&1)' /tmp/mars.js
+          grep -Fq 'nodeValid[a]&&nodeValid[b]&&nodeValid[c]' /tmp/mars.js
           jq -e '.body == "Mars" and .moons.phobos.mesh and .moons.deimos.mesh and .localized_terrain.gale' /tmp/mars-manifest.json >/dev/null
           grep -Fq 'function updateRingDust(time)' /tmp/saturn.js
           grep -Fq 'warpedLatitude' /tmp/saturn.js
