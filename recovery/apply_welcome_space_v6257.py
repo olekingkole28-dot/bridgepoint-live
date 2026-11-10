@@ -5,10 +5,10 @@ import re
 import sys
 from pathlib import Path
 
-BUILD = "v6290-saturn-flowing-rings"
-# Moon terrain assets are bundled locally under assets/moon/v1; runtime requests stay same-origin.
-SW_URL = "/sw.js?v=6290-saturn-flowing-rings"
-CACHE_NAME = "bp-intelligence-v6290-saturn-flowing"
+BUILD = "v6291-mars-orbit-geometry"
+# Moon and planetary terrain assets are bundled locally; runtime requests stay same-origin.
+SW_URL = "/sw.js?v=6291-mars-orbit-geometry"
+CACHE_NAME = "bp-intelligence-v6291-mars-orbit"
 
 
 def replace_once(source: str, old: str, new: str, label: str) -> str:
