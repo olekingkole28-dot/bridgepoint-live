@@ -79,7 +79,11 @@ jobs:
           grep -Fq 'bridgepoint-saturn-system-v6282.js?v=6287-celestial-shader-compat' site/bridgepoint-gaia-galaxy-v6270.js
           grep -Fq 'getSaturnPosition,getSunPosition,getSelectedBody,isMobile=false}=options' site/bridgepoint-saturn-system-v6282.js
           grep -Fq 'active193*vec3(.64,1.04,.23)*activeSignal' site/bridgepoint-welcome-space-v6260.js
-          ! grep -Fq 'active193*vec3(.64,1.04,.23)*active' site/bridgepoint-welcome-space-v6260.js
+          python3 - <<'PY'
+          import re
+          source=open('site/bridgepoint-welcome-space-v6260.js',encoding='utf-8').read()
+          assert re.search(r'active193\\*vec3\\(\\.64,1\\.04,\\.23\\)\\*active\\b',source) is None
+          PY
           grep -Fq 'saturnLayerA=texture2D(map,saturnUvA)' site/bridgepoint-saturn-system-v6282.js
           grep -Fq 'saturnLayerB=texture2D(map,saturnUvB)' site/bridgepoint-saturn-system-v6282.js
           ! grep -Fq 'mapTexelToLinear' site/bridgepoint-saturn-system-v6282.js
