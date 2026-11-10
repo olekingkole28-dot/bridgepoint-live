@@ -5,10 +5,10 @@ import re
 import sys
 from pathlib import Path
 
-BUILD = "v6288-saturn-realism"
+BUILD = "v6289-saturn-gas-giant"
 # Moon terrain assets are bundled locally under assets/moon/v1; runtime requests stay same-origin.
-SW_URL = "/sw.js?v=6288-saturn-realism"
-CACHE_NAME = "bp-intelligence-v6288-saturn-realism"
+SW_URL = "/sw.js?v=6289-saturn-gas-giant"
+CACHE_NAME = "bp-intelligence-v6289-gas-giant"
 
 
 def replace_once(source: str, old: str, new: str, label: str) -> str:
@@ -220,7 +220,7 @@ def patch_app_index(source: str) -> str:
     source = bump_manifest_url(source, "bump current app manifest URL")
     source = replace_prefix_once(
         source,
-        r"(app\.js\?v=)(?:6247-universal-fresh-entry|6264-geometric-crater-bowls|6265-solar-globe|6267-sun-visible|6268-solar-observatory|6269-solar-fire-plasma|6280-unified-cosmos|6282-saturn-system|6283-saturn-isolated|6284-saturn-movement-depth|6285-saturn-lossless-pages|6286-saturn-callback-fix|6287-celestial-shader-compat)",
+        r"(app\.js\?v=)(?:6247-universal-fresh-entry|6264-geometric-crater-bowls|6265-solar-globe|6267-sun-visible|6268-solar-observatory|6269-solar-fire-plasma|6280-unified-cosmos|6282-saturn-system|6283-saturn-isolated|6284-saturn-movement-depth|6285-saturn-lossless-pages|6286-saturn-callback-fix|6287-celestial-shader-compat|6288-saturn-realism)",
         r"\g<1>" + BUILD[1:],
         "bust the app bundle URL",
     )
@@ -267,6 +267,7 @@ def patch_bundle(path: Path) -> None:
         "navigator.serviceWorker.register('/sw.js?v=6285-saturn-lossless-pages',{updateViaCache:'none'})",
         "navigator.serviceWorker.register('/sw.js?v=6286-saturn-callback-fix',{updateViaCache:'none'})",
         "navigator.serviceWorker.register('/sw.js?v=6287-celestial-shader-compat',{updateViaCache:'none'})",
+        "navigator.serviceWorker.register('/sw.js?v=6288-saturn-realism',{updateViaCache:'none'})",
         "navigator.serviceWorker.register('/sw.js?v=6268-solar-observatory',{updateViaCache:'none'})",
         "navigator.serviceWorker.register('/sw.js?v=6269-solar-fire-plasma',{updateViaCache:'none'})",
         "navigator.serviceWorker.register('/sw.js?v=6267-sun-visible',{updateViaCache:'none'})",
@@ -423,7 +424,7 @@ def patch_site(site: Path) -> None:
     root = bump_manifest_url(root, "bump current root manifest URL")
     root = replace_prefix_once(
         root,
-        r"(landing\.js\?v=)(?:6247-universal-fresh-entry|6264-geometric-crater-bowls|6265-solar-globe|6267-sun-visible|6268-solar-observatory|6269-solar-fire-plasma|6282-saturn-system|6283-saturn-isolated|6285-saturn-lossless-pages|6286-saturn-callback-fix|6287-celestial-shader-compat)",
+        r"(landing\.js\?v=)(?:6247-universal-fresh-entry|6264-geometric-crater-bowls|6265-solar-globe|6267-sun-visible|6268-solar-observatory|6269-solar-fire-plasma|6282-saturn-system|6283-saturn-isolated|6285-saturn-lossless-pages|6286-saturn-callback-fix|6287-celestial-shader-compat|6288-saturn-realism)",
         r"\g<1>" + BUILD[1:],
         "bust the landing bundle URL",
     )

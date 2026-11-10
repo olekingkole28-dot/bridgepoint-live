@@ -8,7 +8,7 @@ SATURN = (ROOT / "recovery" / "bridgepoint-saturn-system-v6282.js").read_text(en
 BUILDER = (ROOT / "recovery" / "build_saturn_assets_v6282.py").read_text(encoding="utf-8")
 
 
-class SaturnSystemV6282Tests(unittest.TestCase):
+class SaturnSystemV6289Tests(unittest.TestCase):
     def test_saturn_is_the_only_saturn_picker_option_and_moons_are_canvas_targets(self):
         self.assertIn('value="saturn">Saturn', GAIA)
         for value in ('value="titan">Titan', 'value="enceladus">Enceladus',
@@ -67,23 +67,30 @@ class SaturnSystemV6282Tests(unittest.TestCase):
             "uSaturnAtmosTime",
             "Saturn volumetric Fresnel atmospheric rim",
             "uSaturnLightDir",
+            "warpedLatitude",
             "stormMaskA",
             "stormSwirlB",
+            "stormMaskC",
             "polarHexBand",
+            "saturnCloud.rgb=mix(saturnCloud.rgb,saturnFlowColor,.64)",
+            "vec3(1.13,1.085,.985)",
         ):
             self.assertIn(marker, SATURN)
 
-    def test_saturn_rings_are_lit_alpha_profile_bands_with_shadow_flags(self):
+    def test_saturn_rings_are_closed_depth_writing_volumes_with_shadow_flags(self):
         for marker in (
             "function buildRingAlphaProfile",
             "new THREE.DataTexture(data,width,height,THREE.RGBAFormat",
             "alphaMap,transparent:true,opacity:1",
             "roughness:.86,metalness:.015",
-            "halfThickness=400/EARTH_RADIUS_KM",
-            "renderedThicknessKm:800",
-            "ringDustCount=isMobile?1800:6200",
+            "ringVisualThicknessKm=6400",
+            "halfThicknessKm=Math.min(ringVisualThicknessKm*.5,(outerKm-innerKm)*.18)",
+            "renderedThicknessKm:halfThicknessKm*2",
+            "depthTest:true,depthWrite:true",
+            "ringDustCount=isMobile?5600:18000",
+            "zone.diffuse?.42:.30",
             "function updateRingDust(time)",
-            "Saturn independently orbiting water-ice grains",
+            "Saturn 3D volume of orbiting ice grains",
             "mesh.castShadow=true;mesh.receiveShadow=true",
             "saturnMesh.castShadow=true;saturnMesh.receiveShadow=true",
         ):
@@ -100,6 +107,9 @@ class SaturnSystemV6282Tests(unittest.TestCase):
         self.assertNotIn("new THREE.BoxGeometry", SATURN)
         self.assertNotIn("moonHitboxes", SATURN)
         self.assertIn("saturnFocusMesh.scale?.x", SCENE)
+        self.assertIn("map:dustSprite,size=isMobile?.82:1.05", SATURN)
+        self.assertIn("Enceladus soft circular water-ice plume sprite particles", SATURN)
+        self.assertNotIn("PointsMaterial({color:0xecfaff,size:isMobile?1.45:2.05,transparent:true", SATURN)
 
     def test_cassini_dsk_triangle_winding_is_corrected_after_axis_reflection(self):
         self.assertIn("const second=i+1,third=i+2", SATURN)
