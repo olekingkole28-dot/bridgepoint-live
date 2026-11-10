@@ -74,10 +74,10 @@ jobs:
       - uses: actions/configure-pages@v5
         with:
           enablement: true
-      - name: Upload production Pages artifact
+      - name: Upload unique Saturn v6289 Pages artifact
         uses: actions/upload-pages-artifact@v5
         with:
-          name: github-pages
+          name: github-pages-v6289
           path: site
           include-hidden-files: true
       - name: Verify uploaded artifact size
@@ -87,7 +87,7 @@ jobs:
         run: |
           set -euo pipefail
           api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts"
-          size="$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$api" | jq -r '.artifacts[] | select(.name=="github-pages") | .size_in_bytes' | head -1)"
+          size="$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$api" | jq -r '.artifacts[] | select(.name=="github-pages-v6289") | .size_in_bytes' | head -1)"
           test -n "$size"
           echo "Pages artifact bytes: $size"
           test "$size" -lt 1000000000
@@ -95,7 +95,7 @@ jobs:
         id: deploy
         uses: actions/deploy-pages@v5
         with:
-          artifact_name: github-pages
+          artifact_name: github-pages-v6289
           timeout: '1800000'
       - name: Verify Saturn v6289 served by the live site
         shell: bash
