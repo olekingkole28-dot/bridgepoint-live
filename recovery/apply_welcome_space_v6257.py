@@ -269,6 +269,7 @@ def patch_bundle(path: Path) -> None:
         "navigator.serviceWorker.register('/sw.js?v=6287-celestial-shader-compat',{updateViaCache:'none'})",
         "navigator.serviceWorker.register('/sw.js?v=6288-saturn-realism',{updateViaCache:'none'})",
         "navigator.serviceWorker.register('/sw.js?v=6289-saturn-gas-giant',{updateViaCache:'none'})",
+        "navigator.serviceWorker.register('/sw.js?v=6290-saturn-flowing-rings',{updateViaCache:'none'})",
         "navigator.serviceWorker.register('/sw.js?v=6268-solar-observatory',{updateViaCache:'none'})",
         "navigator.serviceWorker.register('/sw.js?v=6269-solar-fire-plasma',{updateViaCache:'none'})",
         "navigator.serviceWorker.register('/sw.js?v=6267-sun-visible',{updateViaCache:'none'})",
