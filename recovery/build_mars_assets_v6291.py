@@ -69,10 +69,16 @@ def download(url: str, destination: Path) -> Path:
     return destination
 
 def write_height_payload(destination: Path, magic: bytes, values: np.ndarray,
-                         bounds: tuple[float, float, float, float] | None = None) -> dict:
-    """Write uint16 normalized terrain with an explicit little-endian header."""
+                         bounds: tuple[float, float, float, float] | None = None,
+                         mask: np.ndarray | None = None) -> dict:
+    """Write uint16 normalized terrain and an optional 8-bit validity mask."""
     array = np.asarray(values, dtype=np.float32)
     finite = np.isfinite(array)
+    if mask is not None:
+        mask = np.asarray(mask, dtype=bool)
+        if mask.shape != array.shape:
+            raise ValueError("Terrain validity mask dimensions do not match elevation data")
+        finite &= mask
     if not finite.any():
         raise RuntimeError(f"{destination.name}: no finite elevation values")
     low = float(np.min(array[finite]))
@@ -84,22 +90,32 @@ def write_height_payload(destination: Path, magic: bytes, values: np.ndarray,
     # DataTexture has flipY=false: first row must be the southern edge.
     encoded = np.ascontiguousarray(np.flipud(encoded))
     height, width = encoded.shape
+    flags = 1 if mask is not None else 0
     if magic == b"BPMH":
-        header = struct.pack("<4sIIIIff", magic, 1, width, height, 0, low, high)
+        if mask is not None:
+            raise ValueError("Global MOLA height texture does not support a nodata mask")
+        header = struct.pack("<4sIIIIff", magic, 1, width, height, flags, low, high)
     elif magic == b"BPMG":
         if bounds is None:
             raise ValueError("Gale patch requires geographic bounds")
         west, east, south, north = bounds
-        header = struct.pack("<4sIIIIffffff", magic, 1, width, height, 0,
+        header = struct.pack("<4sIIIIffffff", magic, 1, width, height, flags,
                              west, east, south, north, low, high)
     else:
         raise ValueError(f"Unsupported height payload type: {magic!r}")
+    payload = header + encoded.tobytes()
+    if mask is not None:
+        # Keep mask rows in the same southern-first orientation as the samples.
+        valid_mask = np.ascontiguousarray(np.flipud(finite).astype("u1"))
+        payload += valid_mask.tobytes()
     destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_bytes(gzip.compress(header + encoded.tobytes(), compresslevel=9, mtime=0))
+    destination.write_bytes(gzip.compress(payload, compresslevel=9, mtime=0))
     return {
         "file": destination.as_posix(),
         "width": int(width), "height": int(height),
         "min_elevation_m": low, "max_elevation_m": high,
+        "valid_pixel_fraction": float(finite.mean()),
+        "mask_encoding": "uint8 0=nodata, 1=measured" if mask is not None else None,
         "bytes_gzip": destination.stat().st_size,
         "sha256": sha256(destination),
     }
@@ -302,13 +318,18 @@ def build_gale_hirise(source: Path, destination: Path) -> dict:
         values[np.isclose(values, nodata)] = np.nan
     values[(values < -10000.0) | (values > 30000.0)] = np.nan
     valid = np.isfinite(values)
-    if valid.mean() < 0.90:
-        raise RuntimeError("HiRISE Gale DTM has excessive invalid pixels after resampling")
+    valid_fraction = float(valid.mean())
+    # HiRISE stereo DTMs are delivered as sparse rectangular coverage windows.
+    # Preserve every measured pixel and mask the surrounding no-data area; do
+    # not reject or flatten legitimate empty areas outside the measured strip.
+    if valid_fraction < 0.01:
+        raise RuntimeError("HiRISE Gale DTM contains too little measured elevation coverage")
     bounds = (
         GALE_BOUNDS["west"], GALE_BOUNDS["east"],
         GALE_BOUNDS["south"], GALE_BOUNDS["north"]
     )
-    metadata = write_height_payload(destination, b"BPMG", values, bounds)
+    metadata = write_height_payload(destination, b"BPMG", values, bounds, mask=valid)
+    metadata["valid_pixel_fraction"] = valid_fraction
     metadata.update({
         "source": ASSETS["gale_dtm"],
         "source_product": "MRO HiRISE DTEEC_009149_1750_009294_1750_U01",
