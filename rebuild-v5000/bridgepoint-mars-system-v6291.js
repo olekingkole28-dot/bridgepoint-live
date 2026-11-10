@@ -106,10 +106,13 @@ function toGal(x,y,z){
  const gz=norm([gx[1]*gy[2]-gx[2]*gy[1],gx[2]*gy[0]-gx[0]*gy[2],gx[0]*gy[1]-gx[1]*gy[0]]);
  return [x*gx[0]+y*gx[1]+z*gx[2],x*gy[0]+y*gy[1]+z*gy[2],x*gz[0]+y*gz[1]+z*gz[2]];
 }
-function equatorialPoleToGal(raDeg,decDeg){
+function equatorialPoleToThree(raDeg,decDeg){
  const ra=raDeg*DEG,dec=decDeg*DEG,eps=23.439291*DEG;
  const x=Math.cos(dec)*Math.cos(ra),y=Math.cos(dec)*Math.sin(ra),z=Math.sin(dec);
- return toGal(x,y*Math.cos(eps)+z*Math.sin(eps),-y*Math.sin(eps)+z*Math.cos(eps));
+ // Equatorial -> ecliptic, then map ecliptic xyz to the shared Three.js xzy axes.
+ const yEcl=y*Math.cos(eps)+z*Math.sin(eps);
+ const zEcl=-y*Math.sin(eps)+z*Math.cos(eps);
+ return [x,zEcl,yEcl];
 }
 
 export function initBridgePointMarsSystem(options){
@@ -128,7 +131,7 @@ export function initBridgePointMarsSystem(options){
   orbitModel:'Mars-centred Kepler propagation using standard semimajor axis, eccentricity and inclination'
  };
  const root=new THREE.Group();root.name='MarsSystemGroup — MOLA relief sphere, Phobos and Deimos';
- const marsPole=equatorialPoleToGal(317.68143,52.88650);
+ const marsPole=equatorialPoleToThree(317.68143,52.88650);
  root.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(...marsPole).normalize());
  solarRoot.add(root);
  const surfacePivot=new THREE.Group();surfacePivot.name='Mars rotating terrain and local HiRISE surface patches';root.add(surfacePivot);
@@ -247,9 +250,11 @@ export function initBridgePointMarsSystem(options){
      const sx=clamp(Math.round(x/meshWidth*(info.width-1)),0,info.width-1);
      const elevKm=(info.min+(samples[sy*info.width+sx]/65535)*(info.max-info.min))/1000;
      const latR=lat*DEG,lonR=lon*DEG,r=marsRadius+elevKm/EARTH_RADIUS_KM+.000025;
-     positions[p++]=r*Math.cos(latR)*Math.cos(lonR);
+     // Match Three.js SphereGeometry's equirectangular UV orientation:
+     // longitude 0 points down -Z, with east increasing toward +X.
+     positions[p++]=r*Math.cos(latR)*Math.sin(lonR);
      positions[p++]=r*Math.sin(latR);
-     positions[p++]=-r*Math.cos(latR)*Math.sin(lonR);
+     positions[p++]=-r*Math.cos(latR)*Math.cos(lonR);
      uvs[t++]=(lon+180)/360;uvs[t++]=(lat+90)/180;
     }
    }
