@@ -1,5 +1,5 @@
 import { initBridgePointSaturnSystem } from './bridgepoint-saturn-system-v6282.js?v=6290-saturn-flowing-rings';
-import { initBridgePointMarsSystem } from './bridgepoint-mars-system-v6291.js?v=6291-mars-orbit-geometry';
+import { initBridgePointMarsSystem } from './bridgepoint-mars-system-v6291.js?v=6292-mars-night-side-shading';
 
 /**
  * BridgePoint unified celestial space — Gaia DR3 stars + solar-system bodies.
@@ -10,7 +10,7 @@ import { initBridgePointMarsSystem } from './bridgepoint-mars-system-v6291.js?v=
  * ephemerides use the same Galactic frame; the shared frame is rotated once so
  * its computed Earth-Sun vector meets the existing welcome Sun position.
  */
-const BUILD='v6291-mars-orbit-geometry';
+const BUILD='v6292-mars-night-side-shading';
 const ROOT='/assets/stellar/gaia-dr3-v6270/';
 const DEG=Math.PI/180;
 const AU_PC=1/206264.80624709636;
