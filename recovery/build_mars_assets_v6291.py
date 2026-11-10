@@ -21,6 +21,9 @@ import numpy as np
 import rasterio
 from rasterio.enums import Resampling
 from PIL import Image
+
+# The trusted Viking MDIM global mosaic has ~228M pixels; allow it while retaining a hard cap.
+Image.MAX_IMAGE_PIXELS = 300_000_000
 from astropy.io import fits
 
 EARTH_RADIUS_KM = 6371.0084
@@ -138,6 +141,10 @@ def build_global_mola(source: Path, destination: Path) -> dict:
 def build_viking_color(source: Path, destination: Path) -> dict:
     with Image.open(source) as image:
         original = image.size
+        if image.width * image.height > Image.MAX_IMAGE_PIXELS:
+            raise RuntimeError(f"Viking source raster exceeds the configured {Image.MAX_IMAGE_PIXELS:,}-pixel cap")
+        if original != (16471, 13824) and image.width * image.height < 100_000_000:
+            raise RuntimeError(f"Unexpectedly small Viking global mosaic: {original}")
         resized = image.convert("RGB").resize((8192, 4096), Image.Resampling.LANCZOS)
         destination.parent.mkdir(parents=True, exist_ok=True)
         resized.save(destination, "WEBP", quality=92, method=6, exact=True)
