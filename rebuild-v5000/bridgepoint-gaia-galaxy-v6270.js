@@ -258,7 +258,7 @@ export function initBridgePointSolarCosmos(o){
    specs.push([p.name.toLowerCase(),world.clone().add(new THREE.Vector3(0,off+.36,0)),off+.36]);
   }
   const localSolarScale=clamp((distance-solarRevealLimit)/10,0,1);
-  const saturnModuleActive=['saturn','titan','enceladus','mimas'].includes(selectedBody);
+  const saturnModuleActive=['saturn','titan','enceladus','mimas','mars','phobos','deimos'].includes(selectedBody);
   const showLocalLabels=(distance>solarRevealLimit+2&&distance<pcScale*1500)||!!selectedBody;
   for(const [name,position] of specs){
    const sprite=labelMap.get(name);if(!sprite)continue;
