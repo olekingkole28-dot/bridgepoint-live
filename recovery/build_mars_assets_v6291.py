@@ -224,11 +224,19 @@ def build_grid_shape(source: Path, destination: Path, body: str) -> dict:
             seam[:, None] & (tri_uv[:, :, 0] < 0.5),
             tri_uv[:, :, 0] + 1.0, tri_uv[:, :, 0]
         )
-    # The PDS model is in body-centric xyz. Convert to Three.js xzy axes and
-    # expand triangles so texture seam wrapping remains unambiguous.
-    positions = np.ascontiguousarray((vertices[faces][:, :, [0, 2, 1]] / EARTH_RADIUS_KM).reshape(-1, 3), dtype="<f4")
-    triangle_normals = np.ascontiguousarray(normals[faces][:, :, [0, 2, 1]].reshape(-1, 3), dtype="<f4")
-    texture_uv = np.ascontiguousarray(tri_uv.reshape(-1, 2), dtype="<f4")
+    # The PDS model is in body-centric xyz. Swapping Y/Z is a reflection;
+    # reverse triangle winding after that axis conversion so surfaces face outward.
+    render_faces = faces[:, [0, 2, 1]]
+    render_tri_uv = uv[render_faces].copy()
+    render_seam = (render_tri_uv[:, :, 0].max(axis=1) - render_tri_uv[:, :, 0].min(axis=1)) > 0.5
+    if render_seam.any():
+        render_tri_uv[:, :, 0] = np.where(
+            render_seam[:, None] & (render_tri_uv[:, :, 0] < 0.5),
+            render_tri_uv[:, :, 0] + 1.0, render_tri_uv[:, :, 0]
+        )
+    positions = np.ascontiguousarray((vertices[render_faces][:, :, [0, 2, 1]] / EARTH_RADIUS_KM).reshape(-1, 3), dtype="<f4")
+    triangle_normals = np.ascontiguousarray(normals[render_faces][:, :, [0, 2, 1]].reshape(-1, 3), dtype="<f4")
+    texture_uv = np.ascontiguousarray(render_tri_uv.reshape(-1, 2), dtype="<f4")
     header = struct.pack("<4sIIII", b"BPSM", 1, len(positions), len(faces), 0)
     payload = header + positions.tobytes() + triangle_normals.tobytes() + texture_uv.tobytes()
     destination.parent.mkdir(parents=True, exist_ok=True)
