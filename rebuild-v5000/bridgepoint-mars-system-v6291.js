@@ -247,9 +247,9 @@ export function initBridgePointMarsSystem(options){
      const sx=clamp(Math.round(x/meshWidth*(info.width-1)),0,info.width-1);
      const elevKm=(info.min+(samples[sy*info.width+sx]/65535)*(info.max-info.min))/1000;
      const latR=lat*DEG,lonR=lon*DEG,r=marsRadius+elevKm/EARTH_RADIUS_KM+.000025;
-     positions[p++]=-r*Math.cos(latR)*Math.cos(lonR);
+     positions[p++]=r*Math.cos(latR)*Math.cos(lonR);
      positions[p++]=r*Math.sin(latR);
-     positions[p++]=r*Math.cos(latR)*Math.sin(lonR);
+     positions[p++]=-r*Math.cos(latR)*Math.sin(lonR);
      uvs[t++]=(lon+180)/360;uvs[t++]=(lat+90)/180;
     }
    }
