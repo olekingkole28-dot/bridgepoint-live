@@ -298,7 +298,9 @@ export function initBridgePointSolarCosmos(o){
  function setSelection(name){
   selectedBody=String(name||'').toLowerCase();
   // The canvas raycaster selects moons; the dropdown remains on their parent planet.
-  bodySelect.value=['titan','enceladus','mimas'].includes(selectedBody)?'saturn':['phobos','deimos'].includes(selectedBody)?'mars':selectedBody;
+  // Preserve the original Saturn parent-picker mapping, then route Mars moons to Mars.
+  bodySelect.value=['titan','enceladus','mimas'].includes(selectedBody)?'saturn':selectedBody;
+  if(['phobos','deimos'].includes(selectedBody))bodySelect.value='mars';
  }
  function getBody(name){return bodyMap.get(String(name||'').toLowerCase())||null}
  const saturnController=initBridgePointSaturnSystem({
