@@ -16,7 +16,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
 
 (() => {
   'use strict';
-  const VERSION = 'v6290-saturn-flowing-rings';
+  const VERSION = 'v6291-mars-orbit-geometry';
   if (window.__BP_WELCOME_SPACE_V6257__) return;
   window.__BP_WELCOME_SPACE_V6257__ = true;
 
