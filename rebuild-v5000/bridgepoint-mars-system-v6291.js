@@ -143,7 +143,7 @@ export function initBridgePointMarsSystem(options){
   shader.vertexShader=shader.vertexShader.replace('#include <common>',
    '#include <common>\nuniform sampler2D uMarsHeight;\nuniform float uMarsHeightMin;\nuniform float uMarsHeightMax;');
   shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',
-   '#include <begin_vertex>\nfloat marsHeightNorm=texture2D(uMarsHeight,uv).r;\nfloat marsElevationKm=mix(uMarsHeightMin,uMarsHeightMax,marsHeightNorm)*0.001;\ntransformed+=normalize(normal)*(marsElevationKm/6371.0084);');
+   '#include <begin_vertex>\nfloat marsHeightNorm=texture2D(uMarsHeight,uv).r;\nfloat marsElevationKm=mix(uMarsHeightMin,uMarsHeightMax,marsHeightNorm);\ntransformed+=normalize(normal)*(marsElevationKm/6371.0084);');
  };
  marsMaterial.customProgramCacheKey=()=> 'bridgepoint-mars-mola-vertex-displacement-v6291';
  const marsMesh=new THREE.Mesh(marsGeometry,marsMaterial);
