@@ -1,4 +1,5 @@
 import { initBridgePointSaturnSystem } from './bridgepoint-saturn-system-v6282.js?v=6290-saturn-flowing-rings';
+import { initBridgePointMarsSystem } from './bridgepoint-mars-system-v6291.js?v=6291-mars-orbit-geometry';
 
 /**
  * BridgePoint unified celestial space — Gaia DR3 stars + solar-system bodies.
@@ -9,7 +10,7 @@ import { initBridgePointSaturnSystem } from './bridgepoint-saturn-system-v6282.j
  * ephemerides use the same Galactic frame; the shared frame is rotated once so
  * its computed Earth-Sun vector meets the existing welcome Sun position.
  */
-const BUILD='v6290-saturn-flowing-rings';
+const BUILD='v6291-mars-orbit-geometry';
 const ROOT='/assets/stellar/gaia-dr3-v6270/';
 const DEG=Math.PI/180;
 const AU_PC=1/206264.80624709636;
@@ -117,7 +118,7 @@ export function initBridgePointSolarCosmos(o){
  bodySelect.setAttribute('aria-label','Choose a celestial body to explore');
  bodySelect.innerHTML='<option value="">CHOOSE CELESTIAL BODY</option>'+
   '<option value="earth">Earth</option><option value="moon">Moon</option><option value="sun">Sun</option>'+
-  '<option value="saturn">Saturn</option>';
+  '<option value="saturn">Saturn</option><option value="mars">Mars</option>';
  const resetButton=controls?.querySelector('[data-space-reset]');
  if(controls)controls.insertBefore(bodySelect,resetButton||controls.firstChild);
  const css=document.createElement('style');
@@ -291,17 +292,24 @@ export function initBridgePointSolarCosmos(o){
   orbitMaterials.forEach(m=>{m.opacity=.24*progress;});
   updateLabels(sun,pcScale,orientation,distance);
   saturnController?.update?.();
+  marsController?.update?.();
  }
  function clearSelection(){selectedBody='';bodySelect.value='';}
  function setSelection(name){
   selectedBody=String(name||'').toLowerCase();
-  // The canvas raycaster selects moons; the module picker remains on Saturn.
-  bodySelect.value=['titan','enceladus','mimas'].includes(selectedBody)?'saturn':selectedBody;
+  // The canvas raycaster selects moons; the dropdown remains on their parent planet.
+  bodySelect.value=['titan','enceladus','mimas'].includes(selectedBody)?'saturn':['phobos','deimos'].includes(selectedBody)?'mars':selectedBody;
  }
  function getBody(name){return bodyMap.get(String(name||'').toLowerCase())||null}
  const saturnController=initBridgePointSaturnSystem({
   THREE,solarRoot,host,camera,bodyMap,planetMeshes,clickables,labelsGroup,labelMap,
   getSaturnPosition:()=>{const f=starState.frame;return f?planetPos(THREE,PLANETS.find(p=>p.name==='Saturn'),f.days,f.ob).applyQuaternion(f.orientation.clone().invert()).multiplyScalar(f.auScale):null},
+  getSunPosition:()=>getSunPosition?getSunPosition():new THREE.Vector3(),
+  getSelectedBody:()=>selectedBody,isMobile
+ });
+ const marsController=initBridgePointMarsSystem({
+  THREE,solarRoot,host,camera,bodyMap,planetMeshes,clickables,labelsGroup,labelMap,
+  getMarsPosition:()=>{const f=starState.frame;return f?planetPos(THREE,PLANETS.find(p=>p.name==='Mars'),f.days,f.ob).applyQuaternion(f.orientation.clone().invert()).multiplyScalar(f.auScale):null},
   getSunPosition:()=>getSunPosition?getSunPosition():new THREE.Vector3(),
   getSelectedBody:()=>selectedBody,isMobile
  });
@@ -342,7 +350,7 @@ export function initBridgePointSolarCosmos(o){
   clearSelection,
   maxCameraDistance(){return (state.parsecToScene||astronomicalScale()/AU_PC)*60000},
   dispose(){
-   state.status='disposed';saturnController?.dispose?.();bodySelect.remove();labelsGroup.parent?.remove(labelsGroup);
+   state.status='disposed';saturnController?.dispose?.();marsController?.dispose?.();bodySelect.remove();labelsGroup.parent?.remove(labelsGroup);
    stellarContext.clear();solarRoot.clear();starSpace.clear();
   }
  };
