@@ -16,7 +16,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
 
 (() => {
   'use strict';
-  const VERSION = 'v6291-mars-orbit-geometry';
+  const VERSION = 'v6292-mars-night-side-shading';
   if (window.__BP_WELCOME_SPACE_V6257__) return;
   window.__BP_WELCOME_SPACE_V6257__ = true;
 
@@ -2263,7 +2263,7 @@ function createMoonTerrainController() {
       lunarLabelCount:window.__BP_MOON_TERRAIN_V1__?.labelCount||0,
       proceduralLunarRelief:'fallback-only-outside-loaded-NASA-DEM-coverage'})
   };
-  void import('./bridgepoint-gaia-galaxy-v6270.js?v=6291-mars-orbit-geometry')
+  void import('./bridgepoint-gaia-galaxy-v6270.js?v=6292-mars-night-side-shading')
     .then(module=>{
       solarCosmos=module.initBridgePointSolarCosmos({
         THREE,scene,camera,canvas,host,controls,starsGroup:stars,
