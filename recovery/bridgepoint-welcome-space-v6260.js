@@ -2262,7 +2262,7 @@ function createMoonTerrainController() {
       lunarLabelCount:window.__BP_MOON_TERRAIN_V1__?.labelCount||0,
       proceduralLunarRelief:'fallback-only-outside-loaded-NASA-DEM-coverage'})
   };
-  void import('./bridgepoint-gaia-galaxy-v6270.js?v=6290-saturn-flowing-rings')
+  void import('./bridgepoint-gaia-galaxy-v6270.js?v=6291-mars-orbit-geometry')
     .then(module=>{
       solarCosmos=module.initBridgePointSolarCosmos({
         THREE,scene,camera,canvas,host,controls,starsGroup:stars,
