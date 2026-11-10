@@ -1696,7 +1696,8 @@ function createMoonTerrainController() {
       saturnFocusLocalTarget=localDirection.multiplyScalar(focusedPlanetRadius);
       const surface=focused.localToWorld(saturnFocusLocalTarget.clone());
       const systemDistance=Number(bodyData?.systemCameraDistance)>0?bodyData.systemCameraDistance:Math.max(focusedPlanetRadius*4.1,.22);
-      animateCamera(world.clone().addScaledVector(direction,systemDistance),surface,isParent?2.1:1.5);
+      const focusZoom=key==='saturn'?2.1:1.5; // Keep Saturn's established camera transition while matching Mars parent focus.
+      animateCamera(world.clone().addScaledVector(direction,systemDistance),surface,isParent?2.1:focusZoom);
     }else{
       const direction=camera.position.clone().sub(world);
       if(direction.lengthSq()<1e-12)direction.set(0,0,1);
