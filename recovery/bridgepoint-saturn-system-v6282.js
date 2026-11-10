@@ -107,7 +107,7 @@ export function initBridgePointSaturnSystem(options){
   orbitTimeLapse:TIME_LAPSE,physicalSizeScale:'true mean radii relative to Earth',
   ringRadiusUnit:'km from Saturn centre',assets:'same-origin local static; no external runtime terrain requests',
   loaded:{saturnTexture:false,titanDEM:false,titanTexture:false,enceladusShape:false,enceladusTexture:false,mimasShape:false,mimasTexture:false},
-  errors:[],moonCount:3,visualMoonScale:'up to 36x physical; Titan capped to 25% of Saturn radius',ringProfile:'shallow 3D ring volumes + Cassini optical-depth bands + orbiting ice grains',ringThicknessKm:6,ringParticleCount:0,ringBands:['D','C','B','Cassini Division','A','F','G','E']};
+  errors:[],moonCount:3,visualMoonScale:'up to 36x physical; Titan capped to 25% of Saturn radius',ringProfile:'shallow 3D ring volumes + Cassini optical-depth bands + orbiting ice grains',ringThicknessKm:800,ringParticleCount:0,ringBands:['D','C','B','Cassini Division','A','F','G','E']};
  const root=new THREE.Group();root.name='SaturnSystemGroup — Saturn, measured rings, and orbiting moons';
  // Saturn pole (IAU body pole RA 40.589°, Dec 83.537°) transformed from ICRF into ecliptic axes.
  const saturnPoleRA=40.589*DEG,saturnPoleDec=83.537*DEG,obliquity=23.439291*DEG;
@@ -216,7 +216,7 @@ export function initBridgePointSaturnSystem(options){
   const inner=innerKm/EARTH_RADIUS_KM,outer=outerKm/EARTH_RADIUS_KM;
   // Real main rings are only ~10 m thick; a 6 km render shell exaggerates
   // their edge so the ring planes read as 3D from the normal viewing distance.
-  const halfThickness=3/EARTH_RADIUS_KM,positions=[],uvs=[],indices=[];
+  const halfThickness=400/EARTH_RADIUS_KM,positions=[],uvs=[],indices=[];
   for(let layer=0;layer<2;layer++){
    const y=layer===0?halfThickness:-halfThickness,base=positions.length/3;
    for(let r=0;r<=steps;r++){
@@ -236,7 +236,7 @@ export function initBridgePointSaturnSystem(options){
   addWall(inner,0,false);addWall(outer,1,true);
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
   g.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));g.setIndex(indices);g.computeVertexNormals();
-  g.userData={renderedThicknessKm:6,physicalMainRingThicknessM:10,depthExaggerated:true};return g;
+  g.userData={renderedThicknessKm:800,physicalMainRingThicknessM:10,depthExaggerated:true};return g;
  }
  function addRing(name,inner,outer,tint,opacity,seg=1024){
   const ringTime={value:0},alphaMap=buildRingAlphaProfile(name,opacity);

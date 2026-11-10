@@ -59,7 +59,7 @@ jobs:
           grep -Fq 'bridgepoint-gaia-galaxy-v6270.js?v=6288-saturn-realism' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'bridgepoint-saturn-system-v6282.js?v=6288-saturn-realism' site/bridgepoint-gaia-galaxy-v6270.js
           grep -Fq 'function updateRingDust(time)' site/bridgepoint-saturn-system-v6282.js
-          grep -Fq 'halfThickness=3/EARTH_RADIUS_KM' site/bridgepoint-saturn-system-v6282.js
+          grep -Fq 'halfThickness=400/EARTH_RADIUS_KM' site/bridgepoint-saturn-system-v6282.js
           grep -Fq 'stormMaskA' site/bridgepoint-saturn-system-v6282.js
           ! grep -Fq 'new THREE.BoxGeometry' site/bridgepoint-saturn-system-v6282.js
           ! grep -Fq 'moonHitboxes' site/bridgepoint-saturn-system-v6282.js
@@ -105,7 +105,7 @@ jobs:
           curl --retry 8 --retry-all-errors --retry-delay 5 -fsSL -H 'Cache-Control: no-cache' "${O}/bridgepoint-saturn-system-v6282.js?verify=${q}" -o /tmp/saturn.js
           grep -Fq 'v=6288-saturn-realism' /tmp/root.html
           grep -Fq 'function updateRingDust(time)' /tmp/saturn.js
-          grep -Fq 'halfThickness=3/EARTH_RADIUS_KM' /tmp/saturn.js
+          grep -Fq 'halfThickness=400/EARTH_RADIUS_KM' /tmp/saturn.js
           grep -Fq 'stormMaskA' /tmp/saturn.js
           ! grep -Fq 'new THREE.BoxGeometry' /tmp/saturn.js
           echo "LIVE_SATURN_V6288_PASS."
