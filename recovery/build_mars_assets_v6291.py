@@ -165,11 +165,12 @@ def build_viking_color(source: Path, destination: Path) -> dict:
             raise RuntimeError(f"Viking global mosaic has an unexpected projection aspect ratio: {original}")
         resized = image.convert("RGB").resize((8192, 4096), Image.Resampling.LANCZOS)
         destination.parent.mkdir(parents=True, exist_ok=True)
-        resized.save(destination, "WEBP", quality=92, method=6, exact=True)
+        resized.save(destination, "WEBP", quality=86, method=6, exact=True)
     return {
         "file": destination.as_posix(), "source": ASSETS["viking"],
         "source_product": "Viking MDIM 2.1 colorized global mosaic, 1 km derived global view",
         "source_dimensions": list(original), "dimensions": [8192, 4096],
+        "webp_quality": 86,
         "bytes": destination.stat().st_size, "sha256": sha256(destination),
         "projection": "simple cylindrical global image; longitude seam at the antimeridian",
     }
