@@ -341,7 +341,7 @@ def main() -> None:
         "moons": bodies,
         "localized_terrain": {"gale": gale_patch},
         "orbital_parameters": {
-            "source": "JPL Horizons small-body target identifiers 401 (Phobos) and 402 (Deimos); Mars-centered Keplerian propagation",
+            "source": "Published Mars-system mean orbital elements; Mars-centered two-body Keplerian propagation",
             "central_body": "Mars 499",
             "phobos": {"semimajor_axis_km": 9376.0, "eccentricity": 0.0151, "inclination_deg": 1.075, "period_hours": 7.653},
             "deimos": {"semimajor_axis_km": 23463.2, "eccentricity": 0.0002, "inclination_deg": 1.793, "period_hours": 30.312},
