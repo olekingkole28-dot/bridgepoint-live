@@ -141,10 +141,12 @@ def build_global_mola(source: Path, destination: Path) -> dict:
 def build_viking_color(source: Path, destination: Path) -> dict:
     with Image.open(source) as image:
         original = image.size
-        if image.width * image.height > Image.MAX_IMAGE_PIXELS:
-            raise RuntimeError(f"Viking source raster exceeds the configured {Image.MAX_IMAGE_PIXELS:,}-pixel cap")
-        if original != (16471, 13824) and image.width * image.height < 100_000_000:
-            raise RuntimeError(f"Unexpectedly small Viking global mosaic: {original}")
+        pixel_count = image.width * image.height
+        aspect_ratio = image.width / max(1, image.height)
+        if pixel_count > Image.MAX_IMAGE_PIXELS or pixel_count < 100_000_000:
+            raise RuntimeError(f"Viking source raster has an unexpected global pixel count: {original}")
+        if not 1.4 <= aspect_ratio <= 2.2:
+            raise RuntimeError(f"Viking global mosaic has an unexpected projection aspect ratio: {original}")
         resized = image.convert("RGB").resize((8192, 4096), Image.Resampling.LANCZOS)
         destination.parent.mkdir(parents=True, exist_ok=True)
         resized.save(destination, "WEBP", quality=92, method=6, exact=True)
