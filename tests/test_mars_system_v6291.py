@@ -79,6 +79,8 @@ class MarsSystemV6291Tests(unittest.TestCase):
             "b\"BPMH\"",
             "b\"BPMG\"",
             "b\"BPSM\"",
+            "Image.MAX_IMAGE_PIXELS = 300_000_000",
+            "pixel_count = image.width * image.height",
         ):
             self.assertIn(marker, BUILDER)
 
