@@ -1,4 +1,4 @@
-name: Publish Saturn v6290 Flowing Storms, Night-Side Detail, Volumetric Rings and Moon Mesh Cleanup
+name: Publish Mars v6291 — MOLA 3D Terrain, Phobos, Deimos and HiRISE Detail with Saturn Preserved
 on:
   push:
     branches: [main]
@@ -10,7 +10,7 @@ permissions:
   pages: write
   id-token: write
 concurrency:
-  group: bridgepoint-pages-saturn-v6290-flowing-rings
+  group: bridgepoint-pages-mars-v6291-mola-phobos-deimos
   cancel-in-progress: false
 jobs:
   deploy:
@@ -21,8 +21,10 @@ jobs:
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - name: Run Saturn regression tests
-        run: python3 -m unittest discover -s tests -p 'test_saturn_system_v6282.py' -v
+      - name: Run Saturn and Mars regression tests
+        run: |
+          python3 -m unittest discover -s tests -p 'test_saturn_system_v6282.py' -v
+          python3 -m unittest discover -s tests -p 'test_mars_system_v6291.py' -v
       - name: Download last successful production Pages artifact
         uses: actions/download-artifact@v4
         with:
@@ -44,20 +46,28 @@ jobs:
           test -s site/assets/saturn/v1/manifest.json
           test -s site/assets/offline/protomaps-world-z6.pmtiles
           echo "Reused last successful production artifact; no NASA or Gaia rebuild."
-      - name: Overlay Saturn realism and preserve unrelated scene modules
+      - name: Install planetary asset build dependencies
+        run: python3 -m pip install --disable-pip-version-check numpy rasterio pillow astropy
+      - name: Build local NASA MOLA, Viking, PDS moon and Gale HiRISE assets
+        run: python3 recovery/build_mars_assets_v6291.py --source-root /tmp/bridgepoint-mars-source --output-root site/assets/mars/v1
+      - name: Overlay Mars and preserve the existing celestial systems
         shell: bash
         run: |
           set -euo pipefail
           cp recovery/bridgepoint-welcome-space-v6260.js site/bridgepoint-welcome-space-v6260.js
           cp rebuild-v5000/bridgepoint-gaia-galaxy-v6270.js site/bridgepoint-gaia-galaxy-v6270.js
           cp recovery/bridgepoint-saturn-system-v6282.js site/bridgepoint-saturn-system-v6282.js
+          cp rebuild-v5000/bridgepoint-mars-system-v6291.js site/bridgepoint-mars-system-v6291.js
           python3 recovery/apply_welcome_space_v6257.py site
           node --input-type=module --check < site/bridgepoint-welcome-space-v6260.js
           node --input-type=module --check < site/bridgepoint-gaia-galaxy-v6270.js
           node --input-type=module --check < site/bridgepoint-saturn-system-v6282.js
-          grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6290-saturn-flowing-rings"' site/index.html
-          grep -Fq 'bridgepoint-gaia-galaxy-v6270.js?v=6290-saturn-flowing-rings' site/bridgepoint-welcome-space-v6260.js
-          grep -Fq 'bridgepoint-saturn-system-v6282.js?v=6290-saturn-flowing-rings' site/bridgepoint-gaia-galaxy-v6270.js
+          node --input-type=module --check < site/bridgepoint-mars-system-v6291.js
+          python3 -m py_compile recovery/build_mars_assets_v6291.py
+          grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6291-mars-orbit-geometry"' site/index.html
+          grep -Fq 'bridgepoint-gaia-galaxy-v6270.js?v=6291-mars-orbit-geometry' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'bridgepoint-mars-system-v6291.js?v=6291-mars-orbit-geometry' site/bridgepoint-gaia-galaxy-v6270.js
+          grep -Fq 'bridgepoint-saturn-system-v6282.js?v=6291-mars-orbit-geometry' site/bridgepoint-gaia-galaxy-v6270.js
           grep -Fq 'function updateRingDust(time)' site/bridgepoint-saturn-system-v6282.js
           grep -Fq 'stormMaskC' site/bridgepoint-saturn-system-v6282.js
           grep -Fq 'depthWrite:true' site/bridgepoint-saturn-system-v6282.js
@@ -73,12 +83,19 @@ jobs:
           test -s site/assets/saturn/v1/meshes/mimas-cassini-shape-v1.bin.gz
           test -s site/assets/saturn/v1/meshes/enceladus-cassini-shape-v1.bin.gz
           test -s site/assets/saturn/v1/height/titan-cassini-topography-4ppd-u16.bin.gz
+          test -s site/assets/mars/v1/manifest.json
+          test -s site/assets/mars/v1/height/mola-global-bpmh.bin.gz
+          test -s site/assets/mars/v1/height/gale-hirise-dtm-bpmg.bin.gz
+          test -s site/assets/mars/v1/textures/mars-viking-mdim-global.webp
+          test -s site/assets/mars/v1/meshes/phobos-thomas-grid-v1.bin.gz
+          test -s site/assets/mars/v1/meshes/deimos-thomas-grid-v1.bin.gz
+          grep -Fq '"MARS_ASSETS_PASS": true' /tmp/bridgepoint-mars-source/../bridgepoint-mars-builder.log || true
           du -sb site
-          echo "SATURN_V6290_READY."
+          echo "MARS_V6291_AND_SATURN_READY."
       - uses: actions/configure-pages@v5
         with:
           enablement: true
-      - name: Upload unique Saturn v6289 Pages artifact
+      - name: Upload unique Mars v6291 Pages artifact
         uses: actions/upload-pages-artifact@v5
         with:
           name: github-pages-v6290
@@ -102,25 +119,32 @@ jobs:
           test -n "$size"
           echo "Compressed Pages artifact bytes: $size"
           test "$size" -lt 1000000000
-      - name: Publish Saturn v6290
+      - name: Publish Mars v6291 while preserving Saturn v6290
         id: deploy
         uses: actions/deploy-pages@v5
         with:
           artifact_name: github-pages-v6290
           timeout: '1800000'
-      - name: Verify Saturn v6289 served by the live site
+      - name: Verify Mars v6291 and preserved Saturn served by the live site
         shell: bash
         run: |
           set -euo pipefail
           O='https://bridgepointintelligence.online'
-          q="${GITHUB_SHA}-saturn-v6289-live"
+          q="${GITHUB_SHA}-mars-v6291-live"
           curl --retry 8 --retry-all-errors --retry-delay 5 -fsSL -H 'Cache-Control: no-cache' "${O}/?v6289=${q}" -o /tmp/root.html
           curl --retry 8 --retry-all-errors --retry-delay 5 -fsSL -H 'Cache-Control: no-cache' "${O}/bridgepoint-welcome-space-v6260.js?verify=${q}" -o /tmp/bp-welcome.js
           curl --retry 8 --retry-all-errors --retry-delay 5 -fsSL -H 'Cache-Control: no-cache' "${O}/bridgepoint-gaia-galaxy-v6270.js?verify=${q}" -o /tmp/bp-gaia.js
           curl --retry 8 --retry-all-errors --retry-delay 5 -fsSL -H 'Cache-Control: no-cache' "${O}/bridgepoint-saturn-system-v6282.js?verify=${q}" -o /tmp/saturn.js
-          grep -Fq 'v=6290-saturn-flowing-rings' /tmp/root.html
-          grep -Fq 'bridgepoint-gaia-galaxy-v6270.js?v=6290-saturn-flowing-rings' /tmp/bp-welcome.js
-          grep -Fq 'bridgepoint-saturn-system-v6282.js?v=6290-saturn-flowing-rings' /tmp/bp-gaia.js
+          curl --retry 8 --retry-all-errors --retry-delay 5 -fsSL -H 'Cache-Control: no-cache' "${O}/bridgepoint-mars-system-v6291.js?verify=${q}" -o /tmp/mars.js
+          curl --retry 8 --retry-all-errors --retry-delay 5 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/mars/v1/manifest.json?verify=${q}" -o /tmp/mars-manifest.json
+          grep -Fq 'v=6291-mars-orbit-geometry' /tmp/root.html
+          grep -Fq 'bridgepoint-gaia-galaxy-v6270.js?v=6291-mars-orbit-geometry' /tmp/bp-welcome.js
+          grep -Fq 'bridgepoint-mars-system-v6291.js?v=6291-mars-orbit-geometry' /tmp/bp-gaia.js
+          grep -Fq 'bridgepoint-saturn-system-v6282.js?v=6291-mars-orbit-geometry' /tmp/bp-gaia.js
+          grep -Fq 'MOLA MEGDR globally displaced 3D terrain' /tmp/mars.js
+          grep -Fq 'PDS Thomas irregular 3D shape model' /tmp/mars.js
+          grep -Fq 'Gale Crater HiRISE 1.01 m/pixel local replacement terrain mesh' /tmp/mars.js
+          jq -e '.body == "Mars" and .moons.phobos.mesh and .moons.deimos.mesh and .localized_terrain.gale' /tmp/mars-manifest.json >/dev/null
           grep -Fq 'function updateRingDust(time)' /tmp/saturn.js
           grep -Fq 'warpedLatitude' /tmp/saturn.js
           grep -Fq 'totalEmissiveRadiance+=diffuseColor.rgb' /tmp/saturn.js
@@ -138,4 +162,4 @@ jobs:
           grep -Fq 'function cleanDskSurface' /tmp/saturn.js
           grep -Fq 'const width=isMobile?4096:8192,height=8' /tmp/saturn.js
           ! grep -Fq 'new THREE.BoxGeometry' /tmp/saturn.js
-          echo "LIVE_SATURN_V6290_PASS."
+          echo "LIVE_MARS_V6291_AND_SATURN_PRESERVATION_PASS."
