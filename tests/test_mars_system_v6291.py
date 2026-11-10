@@ -71,6 +71,10 @@ class MarsSystemV6291Tests(unittest.TestCase):
         ):
             self.assertIn(marker, MARS)
         self.assertIn("DTEEC_009149_1750_009294_1750_U01.IMG", BUILDER)
+        self.assertIn("mask=valid", BUILDER)
+        self.assertIn("valid_pixel_fraction", BUILDER)
+        self.assertIn("const sampleCount=info.width*info.height,hasMask=!!(info.flags&1);", MARS)
+        self.assertIn("nodeValid[a]&&nodeValid[b]&&nodeValid[c]", MARS)
         self.assertIn("equatorialPoleToThree", MARS)
         self.assertIn("latitude = np.arcsin(np.clip(vertices[:, 2] / rr", BUILDER)
 
