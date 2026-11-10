@@ -120,7 +120,7 @@ export function initBridgePointMarsSystem(options){
   getMarsPosition,getSunPosition,getSelectedBody,isMobile=false}=options;
  if(!THREE||!solarRoot||!bodyMap||!planetMeshes||!clickables)throw Error('Mars system requires the existing BridgePoint shared celestial scene');
  const state={
-  version:'v6291-mars-orbit-geometry',status:'idle',
+  version:'v6292-mars-night-side-shading',status:'idle',
   source:'NASA MGS MOLA MEGDR + Viking MDIM 2.1 + PDS Small Body Optical Shape Models + MRO HiRISE',
   assets:'same-origin local static files; no runtime NASA source downloads',
   ephemerisEpochUTC:'2026-11-09T00:00:00Z',orbitTimeLapse:TIME_LAPSE,
@@ -135,9 +135,35 @@ export function initBridgePointMarsSystem(options){
  root.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(...marsPole).normalize());
  solarRoot.add(root);
  const surfacePivot=new THREE.Group();surfacePivot.name='Mars rotating terrain and local HiRISE surface patches';root.add(surfacePivot);
+ function installMarsNightSide(material,lightUniform){
+  const previousCompile=material.onBeforeCompile;
+  material.onBeforeCompile=shader=>{
+   if(previousCompile)previousCompile(shader);
+   shader.uniforms.uMarsLightDir=lightUniform;
+   shader.vertexShader=shader.vertexShader.replace('#include <common>',
+    '#include <common>\nvarying vec3 vMarsLocalPosition;');
+   const heightDisplacement='transformed+=normalize(normal)*(marsElevationKm/6371.0084);';
+   if(shader.vertexShader.includes(heightDisplacement)){
+    shader.vertexShader=shader.vertexShader.replace(heightDisplacement,
+     heightDisplacement+'\nvMarsLocalPosition=transformed;');
+   }else{
+    shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',
+     '#include <begin_vertex>\nvMarsLocalPosition=transformed;');
+   }
+   shader.fragmentShader=shader.fragmentShader.replace('#include <common>',
+    '#include <common>\nuniform vec3 uMarsLightDir;\nvarying vec3 vMarsLocalPosition;');
+   shader.fragmentShader=shader.fragmentShader.replace('#include <output_fragment>',
+    '\nfloat bpMarsLightFacing=dot(normalize(vMarsLocalPosition),normalize(uMarsLightDir));\n'+
+    'float bpMarsDaylight=smoothstep(-.08,.16,bpMarsLightFacing);\n'+
+    'outgoingLight*=mix(.045,1.0,bpMarsDaylight);\n#include <output_fragment>');
+  };
+  const previousKey=material.customProgramCacheKey;
+  material.customProgramCacheKey=()=>String(previousKey?previousKey.call(material):material.type)+'-mars-night-side-v6292';
+  material.needsUpdate=true;
+ }
  const marsRadius=MARS_RADIUS_KM/EARTH_RADIUS_KM;
  const marsGeometry=new THREE.SphereGeometry(marsRadius,isMobile?1024:2048,isMobile?512:1024);
- const marsUniforms={height:{value:null},min:{value:0},max:{value:0}};
+ const marsUniforms={height:{value:null},min:{value:0},max:{value:0},lightDir:{value:new THREE.Vector3(1,0,0)}};
  const marsMaterial=new THREE.MeshStandardMaterial({color:0xffe0ca,roughness:.94,metalness:0});
  marsMaterial.onBeforeCompile=shader=>{
   shader.uniforms.uMarsHeight=marsUniforms.height;
@@ -148,7 +174,8 @@ export function initBridgePointMarsSystem(options){
   shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',
    '#include <begin_vertex>\nfloat marsHeightNorm=texture2D(uMarsHeight,uv).r;\nfloat marsElevationKm=mix(uMarsHeightMin,uMarsHeightMax,marsHeightNorm);\ntransformed+=normalize(normal)*(marsElevationKm/6371.0084);');
  };
- marsMaterial.customProgramCacheKey=()=> 'bridgepoint-mars-mola-vertex-displacement-v6291';
+ marsMaterial.customProgramCacheKey=()=> 'bridgepoint-mars-mola-vertex-displacement-v6292';
+ installMarsNightSide(marsMaterial,marsUniforms.lightDir);
  const marsMesh=new THREE.Mesh(marsGeometry,marsMaterial);
  marsMesh.name='Mars — MOLA MEGDR globally displaced 3D terrain';marsMesh.userData.body='mars';
  marsMesh.castShadow=true;marsMesh.receiveShadow=true;surfacePivot.add(marsMesh);
@@ -164,10 +191,13 @@ export function initBridgePointMarsSystem(options){
   }));
  haze.name='Mars thin warm atmospheric rim';surfacePivot.add(haze);
  const moonMeshes=new Map(),orbitLines=new Map(),moonMaterials=[],moonTextures=[],moonLabelSprites=new Map();
+ const moonLightUniforms=new Map();
  for(const [key,moon] of Object.entries(MOONS)){
   const physicalRadius=moon.radiusKm/EARTH_RADIUS_KM,visualRadius=physicalRadius*moon.visualScale;
   const geometry=new THREE.SphereGeometry(physicalRadius,isMobile?96:160,isMobile?64:96);
   const material=new THREE.MeshStandardMaterial({color:moon.color,roughness:.96,metalness:0});
+  const lightUniform={value:new THREE.Vector3(1,0,0)};
+  installMarsNightSide(material,lightUniform);moonLightUniforms.set(key,lightUniform);
   const mesh=new THREE.Mesh(geometry,material);mesh.scale.setScalar(moon.visualScale);
   mesh.name=moon.name+' — PDS Thomas irregular shape loads locally';
   mesh.userData.body=key;mesh.userData.visualScale=moon.visualScale;mesh.userData.physicalRadius=physicalRadius;
@@ -279,6 +309,7 @@ export function initBridgePointMarsSystem(options){
    geometry.setIndex(new THREE.BufferAttribute(indices.slice(0,k),1));geometry.computeVertexNormals();geometry.computeBoundingSphere();
    const material=new THREE.MeshStandardMaterial({map:marsTexture||null,color:0xffe0ca,roughness:.98,metalness:0,
     polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2,side:THREE.DoubleSide});
+   installMarsNightSide(material,marsUniforms.lightDir);
    galePatch=new THREE.Mesh(geometry,material);
    galePatch.name='Gale Crater HiRISE 1.01 m/pixel local replacement terrain mesh';
    galePatch.visible=false;galePatch.castShadow=true;galePatch.receiveShadow=true;surfacePivot.add(galePatch);
@@ -302,6 +333,24 @@ export function initBridgePointMarsSystem(options){
    mesh.position.copy(position);mesh.lookAt(new THREE.Vector3(0,0,0));
    const line=orbitLines.get(key);line.visible=['mars','phobos','deimos'].includes(selected);
    line.material.opacity=.52+.10*Math.sin(simulationSeconds*.0007+key.length);
+  }
+  if(getSunPosition){
+   const sun=getSunPosition();
+   if(sun&&sun.isVector3){
+    const localSun=root.worldToLocal(sun.clone());
+    if(localSun.lengthSq()>1e-12){
+     const surfaceSun=localSun.clone().applyQuaternion(surfacePivot.quaternion.clone().invert()).normalize();
+     marsUniforms.lightDir.value.copy(surfaceSun);
+     for(const [key,moonMesh] of moonMeshes){
+      const moonSun=localSun.clone().sub(moonMesh.position);
+      if(moonSun.lengthSq()>1e-12){
+       moonSun.applyQuaternion(moonMesh.quaternion.clone().invert()).normalize();
+       const lightUniform=moonLightUniforms.get(key);
+       if(lightUniform)lightUniform.value.copy(moonSun);
+      }
+     }
+    }
+   }
   }
   const marsWorld=marsMesh.getWorldPosition(new THREE.Vector3()),distance=camera.position.distanceTo(marsWorld);
   const altitude=distance-marsRadius,nearGale=['mars','phobos','deimos'].includes(selected)&&altitude<.12;
@@ -336,7 +385,7 @@ export function initBridgePointMarsSystem(options){
   if(galePatch){galePatch.geometry.dispose();galePatch.material.dispose()}
  }
  const api={
-  version:'v6291-mars-orbit-geometry',state,update,ensureLoaded,loadGalePatch,dispose,
+  version:'v6292-mars-night-side-shading',state,update,ensureLoaded,loadGalePatch,dispose,
   getBody:name=>bodyMap.get(String(name||'').toLowerCase())||null,
   get marsMesh(){return marsMesh},get systemRoot(){return root},
   physical:{marsRadiusKm:MARS_RADIUS_KM,phobosRadiusKm:11.1,deimosRadiusKm:6.2,
