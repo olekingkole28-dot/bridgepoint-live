@@ -1,0 +1,111 @@
+name: Publish Saturn v6288 Realistic Atmosphere, 3D Rings and Moons
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-saturn-v6288-realism.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-pages-saturn-v6288-realism
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Saturn regression tests
+        run: python3 -m unittest discover -s tests -p 'test_saturn_system_v6282.py' -v
+      - name: Download last successful production Pages artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: github-pages
+          run-id: 42723855778
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          path: /tmp/bridgepoint-v6288-pages
+      - name: Extract production baseline without rebuilding planetary data
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p site
+          ARCHIVE="$(find /tmp/bridgepoint-v6288-pages -type f -name 'artifact.tar' -print -quit)"
+          test -n "$ARCHIVE"
+          tar -xf "$ARCHIVE" -C site
+          test -s site/index.html
+          test -s site/assets/stellar/gaia-dr3-v6270/manifest.json
+          test -s site/assets/saturn/v1/manifest.json
+          test -s site/assets/offline/protomaps-world-z6.pmtiles
+          echo "Reused last successful production artifact; no NASA or Gaia rebuild."
+      - name: Overlay Saturn realism and preserve unrelated scene modules
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp recovery/bridgepoint-welcome-space-v6260.js site/bridgepoint-welcome-space-v6260.js
+          cp rebuild-v5000/bridgepoint-gaia-galaxy-v6270.js site/bridgepoint-gaia-galaxy-v6270.js
+          cp recovery/bridgepoint-saturn-system-v6282.js site/bridgepoint-saturn-system-v6282.js
+          python3 recovery/apply_welcome_space_v6257.py site
+          node --input-type=module --check < site/bridgepoint-welcome-space-v6260.js
+          node --input-type=module --check < site/bridgepoint-gaia-galaxy-v6270.js
+          node --input-type=module --check < site/bridgepoint-saturn-system-v6282.js
+          grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6288-saturn-realism"' site/index.html
+          grep -Fq 'bridgepoint-gaia-galaxy-v6270.js?v=6288-saturn-realism' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'bridgepoint-saturn-system-v6282.js?v=6288-saturn-realism' site/bridgepoint-gaia-galaxy-v6270.js
+          grep -Fq 'function updateRingDust(time)' site/bridgepoint-saturn-system-v6282.js
+          grep -Fq 'halfThickness=3/EARTH_RADIUS_KM' site/bridgepoint-saturn-system-v6282.js
+          grep -Fq 'stormMaskA' site/bridgepoint-saturn-system-v6282.js
+          ! grep -Fq 'new THREE.BoxGeometry' site/bridgepoint-saturn-system-v6282.js
+          ! grep -Fq 'moonHitboxes' site/bridgepoint-saturn-system-v6282.js
+          test -s site/assets/saturn/v1/ephemerides.json
+          test -s site/assets/saturn/v1/meshes/mimas-cassini-shape-v1.bin.gz
+          test -s site/assets/saturn/v1/meshes/enceladus-cassini-shape-v1.bin.gz
+          test -s site/assets/saturn/v1/height/titan-cassini-topography-4ppd-u16.bin.gz
+          du -sb site
+          echo "SATURN_V6288_READY."
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - name: Upload production Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          name: github-pages
+          path: site
+          include-hidden-files: true
+      - name: Verify uploaded artifact size
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts"
+          size="$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$api" | jq -r '.artifacts[] | select(.name=="github-pages") | .size_in_bytes' | head -1)"
+          test -n "$size"
+          echo "Pages artifact bytes: $size"
+          test "$size" -lt 1000000000
+      - name: Publish Saturn v6288
+        id: deploy
+        uses: actions/deploy-pages@v5
+        with:
+          artifact_name: github-pages
+          timeout: '1800000'
+      - name: Verify v6288 served by the live site
+        shell: bash
+        run: |
+          set -euo pipefail
+          O='https://bridgepointintelligence.online'
+          q="${GITHUB_SHA}-saturn-v6288-live"
+          curl --retry 8 --retry-all-errors --retry-delay 5 -fsSL -H 'Cache-Control: no-cache' "${O}/?v6288=${q}" -o /tmp/root.html
+          curl --retry 8 --retry-all-errors --retry-delay 5 -fsSL -H 'Cache-Control: no-cache' "${O}/bridgepoint-saturn-system-v6282.js?verify=${q}" -o /tmp/saturn.js
+          grep -Fq 'v=6288-saturn-realism' /tmp/root.html
+          grep -Fq 'function updateRingDust(time)' /tmp/saturn.js
+          grep -Fq 'halfThickness=3/EARTH_RADIUS_KM' /tmp/saturn.js
+          grep -Fq 'stormMaskA' /tmp/saturn.js
+          ! grep -Fq 'new THREE.BoxGeometry' /tmp/saturn.js
+          echo "LIVE_SATURN_V6288_PASS."

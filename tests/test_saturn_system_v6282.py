@@ -56,7 +56,7 @@ class SaturnSystemV6282Tests(unittest.TestCase):
         self.assertIn("bodyRefs:{earth:earthDepthOccluder,moon:moonMesh,sun:sunMesh}", SCENE)
         self.assertIn("initBridgePointSaturnSystem", GAIA)
 
-    def test_saturn_uses_cropped_cassini_raster_and_dual_flow_atmosphere(self):
+    def test_saturn_uses_cropped_cassini_raster_dual_flow_and_dynamic_storms(self):
         for marker in (
             "loaded.saturn.offset.set(.175,.30)",
             "loaded.saturn.repeat.set(.75,.47)",
@@ -67,6 +67,9 @@ class SaturnSystemV6282Tests(unittest.TestCase):
             "uSaturnAtmosTime",
             "Saturn volumetric Fresnel atmospheric rim",
             "uSaturnLightDir",
+            "stormMaskA",
+            "stormSwirlB",
+            "polarHexBand",
         ):
             self.assertIn(marker, SATURN)
 
@@ -76,22 +79,26 @@ class SaturnSystemV6282Tests(unittest.TestCase):
             "new THREE.DataTexture(data,width,height,THREE.RGBAFormat",
             "alphaMap,transparent:true,opacity:1",
             "roughness:.86,metalness:.015",
+            "halfThickness=3/EARTH_RADIUS_KM",
+            "renderedThicknessKm:6",
+            "ringDustCount=isMobile?1800:6200",
+            "function updateRingDust(time)",
+            "Saturn independently orbiting water-ice grains",
             "mesh.castShadow=true;mesh.receiveShadow=true",
             "saturnMesh.castShadow=true;saturnMesh.receiveShadow=true",
         ):
             self.assertIn(marker, SATURN)
 
-    def test_moons_have_bounded_visual_exaggeration_and_mobile_hitboxes(self):
+    def test_moons_are_larger_and_directly_clickable(self):
         for marker in (
-            "const visualScale=Math.min(25,(saturnRadius*.18)/radius)",
+            "const visualScale=Math.min(36,(saturnRadius*.25)/radius)",
             "placeholder.scale.setScalar(visualScale)",
-            "visualRadius*2.65",
-            "hitbox.userData.body=key",
-            "moonHitboxes.set(key,hitbox)",
-            "clickables.push(hitbox)",
+            "clickables.push(placeholder)",
             "systemCameraDistance:Math.max(.22,visualRadius*3.6)",
         ):
             self.assertIn(marker, SATURN)
+        self.assertNotIn("new THREE.BoxGeometry", SATURN)
+        self.assertNotIn("moonHitboxes", SATURN)
         self.assertIn("saturnFocusMesh.scale?.x", SCENE)
 
     def test_cassini_dsk_triangle_winding_is_corrected_after_axis_reflection(self):
