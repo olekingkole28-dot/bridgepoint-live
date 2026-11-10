@@ -86,12 +86,14 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts"
-          size="$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$api" | jq -r '.artifacts[] | select(.name=="github-pages-v6289") | .size_in_bytes' | head -1)"
+          # upload-pages-artifact creates this exact tar file before upload.
+          # Check its bytes locally so the verification is not subject to GitHub
+          # artifact-list API propagation delay.
+          size="$(stat -c%s "$RUNNER_TEMP/artifact.tar")"
           test -n "$size"
           echo "Pages artifact bytes: $size"
           test "$size" -lt 1000000000
-      - name: Publish Saturn v6288
+      - name: Publish Saturn v6289
         id: deploy
         uses: actions/deploy-pages@v5
         with:
