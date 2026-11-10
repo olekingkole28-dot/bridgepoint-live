@@ -74,6 +74,10 @@ class SaturnSystemV6289Tests(unittest.TestCase):
             "polarHexBand",
             "saturnCloud.rgb=mix(saturnCloud.rgb,saturnFlowColor,.64)",
             "vec3(1.13,1.085,.985)",
+            "stormTime=uSaturnAtmosTime*.00105",
+            "turbulentA",
+            "totalEmissiveRadiance+=diffuseColor.rgb",
+            "saturnNightSide",
         ):
             self.assertIn(marker, SATURN)
 
@@ -87,7 +91,11 @@ class SaturnSystemV6289Tests(unittest.TestCase):
             "halfThicknessKm=Math.min(ringVisualThicknessKm*.5,(outerKm-innerKm)*.18)",
             "renderedThicknessKm:halfThicknessKm*2",
             "depthTest:true,depthWrite:true",
-            "ringDustCount=isMobile?5600:18000",
+            "ringDustCount=isMobile?7200:24000",
+            "const width=isMobile?4096:8192,height=8",
+            "function addRingHaze",
+            "ringHazeMeshes.push(mesh)",
+            "ringHazeUniforms",
             "zone.diffuse?.42:.30",
             "function updateRingDust(time)",
             "Saturn 3D volume of orbiting ice grains",
@@ -111,11 +119,12 @@ class SaturnSystemV6289Tests(unittest.TestCase):
         self.assertIn("Enceladus soft circular water-ice plume sprite particles", SATURN)
         self.assertNotIn("PointsMaterial({color:0xecfaff,size:isMobile?1.45:2.05,transparent:true", SATURN)
 
-    def test_cassini_dsk_triangle_winding_is_corrected_after_axis_reflection(self):
-        self.assertIn("const second=i+1,third=i+2", SATURN)
-        self.assertIn("position[second*3+j]", SATURN)
-        self.assertIn("normal[second*3+j]", SATURN)
-        self.assertIn("uv[second*2+j]", SATURN)
+    def test_cassini_dsk_triangle_winding_and_artifact_cleanup(self):
+        self.assertIn("function cleanDskSurface(position,normal,uv,radius,name)", SATURN)
+        self.assertIn("Math.max(edgeAB2,edgeBC2,edgeCA2)>maxEdgeSq", SATURN)
+        self.assertIn("Math.min(ra,rb,rc)<minRadius", SATURN)
+        self.assertIn("for(const sourceIndex of [a,c,b])", SATURN)
+        self.assertIn("state.meshCleanup[key]", SATURN)
         self.assertIn("getSunPosition:()=>getSunPosition?getSunPosition():new THREE.Vector3()", GAIA)
 
     def test_real_cassini_shapes_and_titan_height_grid_are_used(self):
