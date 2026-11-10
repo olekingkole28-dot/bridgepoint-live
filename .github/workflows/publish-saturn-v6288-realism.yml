@@ -1,8 +1,8 @@
-name: Publish Mars v6291 MOLA 3D Terrain, Phobos, Deimos and HiRISE Detail with Saturn Preserved
+name: Publish Mars v6292 Night-Side Shading with Saturn Preserved
 on:
   push:
     branches: [main]
-    paths: ['.github/workflows/publish-saturn-v6288-realism.yml']
+    paths: ['.github/workflows/publish-saturn-v6288-realism.yml', 'rebuild-v5000/bridgepoint-mars-system-v6291.js', 'rebuild-v5000/bridgepoint-gaia-galaxy-v6270.js', 'recovery/bridgepoint-welcome-space-v6260.js', 'recovery/apply_welcome_space_v6257.py', 'tests/test_mars_system_v6291.py']
   workflow_dispatch:
 permissions:
   contents: read
@@ -10,7 +10,7 @@ permissions:
   pages: write
   id-token: write
 concurrency:
-  group: bridgepoint-pages-mars-v6291-final-sparse-hirise-mask
+  group: bridgepoint-pages-mars-v6292-night-side-shading
   cancel-in-progress: false
 jobs:
   deploy:
@@ -64,9 +64,9 @@ jobs:
           node --input-type=module --check < site/bridgepoint-saturn-system-v6282.js
           node --input-type=module --check < site/bridgepoint-mars-system-v6291.js
           python3 -m py_compile recovery/build_mars_assets_v6291.py
-          grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6291-mars-orbit-geometry"' site/index.html
-          grep -Fq 'bridgepoint-gaia-galaxy-v6270.js?v=6291-mars-orbit-geometry' site/bridgepoint-welcome-space-v6260.js
-          grep -Fq 'bridgepoint-mars-system-v6291.js?v=6291-mars-orbit-geometry' site/bridgepoint-gaia-galaxy-v6270.js
+          grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6292-mars-night-side-shading"' site/index.html
+          grep -Fq 'bridgepoint-gaia-galaxy-v6270.js?v=6292-mars-night-side-shading' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'bridgepoint-mars-system-v6291.js?v=6292-mars-night-side-shading' site/bridgepoint-gaia-galaxy-v6270.js
           grep -Fq 'bridgepoint-saturn-system-v6282.js?v=6290-saturn-flowing-rings' site/bridgepoint-gaia-galaxy-v6270.js
           grep -Fq 'function updateRingDust(time)' site/bridgepoint-saturn-system-v6282.js
           grep -Fq 'stormMaskC' site/bridgepoint-saturn-system-v6282.js
@@ -90,14 +90,14 @@ jobs:
           test -s site/assets/mars/v1/meshes/phobos-thomas-grid-v1.bin.gz
           test -s site/assets/mars/v1/meshes/deimos-thomas-grid-v1.bin.gz
           du -sb site
-          echo "MARS_V6291_AND_SATURN_READY."
+          echo "MARS_V6292_NIGHT_SIDE_AND_SATURN_READY."
       - uses: actions/configure-pages@v5
         with:
           enablement: true
-      - name: Upload unique Mars v6291 Pages artifact
+      - name: Upload unique Mars v6292 Pages artifact
         uses: actions/upload-pages-artifact@v5
         with:
-          name: github-pages-v6291
+          name: github-pages-v6292
           path: site
           include-hidden-files: true
       - name: Verify uploaded artifact size
@@ -111,7 +111,7 @@ jobs:
           api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts"
           size=""
           for attempt in $(seq 1 15); do
-            size="$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$api" | jq -r '([.artifacts[] | select(.name=="github-pages-v6291") | .size_in_bytes] | max) // empty')"
+            size="$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$api" | jq -r '([.artifacts[] | select(.name=="github-pages-v6292") | .size_in_bytes] | max) // empty')"
             if [[ "$size" =~ ^[0-9]+$ ]]; then break; fi
             sleep 2
           done
@@ -122,7 +122,7 @@ jobs:
         id: deploy
         uses: actions/deploy-pages@v5
         with:
-          artifact_name: github-pages-v6291
+          artifact_name: github-pages-v6292
           timeout: '1800000'
       - name: Verify Mars v6291 and preserved Saturn served by the live site
         shell: bash
@@ -136,9 +136,9 @@ jobs:
           curl --retry 8 --retry-all-errors --retry-delay 5 -fsSL -H 'Cache-Control: no-cache' "${O}/bridgepoint-saturn-system-v6282.js?verify=${q}" -o /tmp/saturn.js
           curl --retry 8 --retry-all-errors --retry-delay 5 -fsSL -H 'Cache-Control: no-cache' "${O}/bridgepoint-mars-system-v6291.js?verify=${q}" -o /tmp/mars.js
           curl --retry 8 --retry-all-errors --retry-delay 5 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/mars/v1/manifest.json?verify=${q}" -o /tmp/mars-manifest.json
-          grep -Fq 'v=6291-mars-orbit-geometry' /tmp/root.html
-          grep -Fq 'bridgepoint-gaia-galaxy-v6270.js?v=6291-mars-orbit-geometry' /tmp/bp-welcome.js
-          grep -Fq 'bridgepoint-mars-system-v6291.js?v=6291-mars-orbit-geometry' /tmp/bp-gaia.js
+          grep -Fq 'v=6292-mars-night-side-shading' /tmp/root.html
+          grep -Fq 'bridgepoint-gaia-galaxy-v6270.js?v=6292-mars-night-side-shading' /tmp/bp-welcome.js
+          grep -Fq 'bridgepoint-mars-system-v6291.js?v=6292-mars-night-side-shading' /tmp/bp-gaia.js
           grep -Fq 'bridgepoint-saturn-system-v6282.js?v=6290-saturn-flowing-rings' /tmp/bp-gaia.js
           grep -Fq 'MOLA MEGDR globally displaced 3D terrain' /tmp/mars.js
           grep -Fq 'PDS Thomas irregular 3D shape model' /tmp/mars.js
@@ -163,4 +163,4 @@ jobs:
           grep -Fq 'function cleanDskSurface' /tmp/saturn.js
           grep -Fq 'const width=isMobile?4096:8192,height=8' /tmp/saturn.js
           ! grep -Fq 'new THREE.BoxGeometry' /tmp/saturn.js
-          echo "LIVE_MARS_V6291_AND_SATURN_PRESERVATION_PASS."
+          echo "LIVE_MARS_V6292_NIGHT_SIDE_AND_SATURN_PRESERVATION_PASS."
