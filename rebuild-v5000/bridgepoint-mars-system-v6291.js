@@ -235,11 +235,16 @@ export function initBridgePointMarsSystem(options){
    const response=await fetch(ASSET+'height/gale-hirise-dtm-bpmg.bin.gz',{cache:'force-cache'});
    if(!response.ok)throw Error('HiRISE Gale DTM payload HTTP '+response.status);
    const raw=await decompress(await response.arrayBuffer()),info=parseHeightHeader(raw,'BPMG');
-   if(raw.byteLength!==info.offset+info.width*info.height*2)throw Error('HiRISE Gale DTM payload length mismatch');
-   const samples=new Uint16Array(raw,info.offset,info.width*info.height);
+   const sampleCount=info.width*info.height,hasMask=!!(info.flags&1);
+   const expectedLength=info.offset+sampleCount*2+(hasMask?sampleCount:0);
+   if(raw.byteLength!==expectedLength)throw Error('HiRISE Gale DTM payload length/mask mismatch');
+   const samples=new Uint16Array(raw,info.offset,sampleCount);
+   const validMask=hasMask?new Uint8Array(raw,info.offset+sampleCount*2,sampleCount):null;
    const meshWidth=isMobile?256:512,meshHeight=isMobile?512:1024;
-   const positions=new Float32Array((meshWidth+1)*(meshHeight+1)*3);
-   const uvs=new Float32Array((meshWidth+1)*(meshHeight+1)*2);
+   const nodeCount=(meshWidth+1)*(meshHeight+1);
+   const positions=new Float32Array(nodeCount*3);
+   const uvs=new Float32Array(nodeCount*2);
+   const nodeValid=new Uint8Array(nodeCount);
    const indices=new Uint32Array(meshWidth*meshHeight*6);
    let p=0,t=0;
    for(let y=0;y<=meshHeight;y++){
@@ -248,7 +253,10 @@ export function initBridgePointMarsSystem(options){
     for(let x=0;x<=meshWidth;x++){
      const lon=info.west+(info.east-info.west)*x/meshWidth;
      const sx=clamp(Math.round(x/meshWidth*(info.width-1)),0,info.width-1);
-     const elevKm=(info.min+(samples[sy*info.width+sx]/65535)*(info.max-info.min))/1000;
+     const sampleIndex=sy*info.width+sx;
+     const valid=!validMask||validMask[sampleIndex]!==0;
+     nodeValid[y*(meshWidth+1)+x]=valid?1:0;
+     const elevKm=(info.min+(samples[sampleIndex]/65535)*(info.max-info.min))/1000;
      const latR=lat*DEG,lonR=lon*DEG,r=marsRadius+elevKm/EARTH_RADIUS_KM+.000025;
      // Match Three.js SphereGeometry's equirectangular UV orientation:
      // longitude 0 points down -Z, with east increasing toward +X.
@@ -261,13 +269,14 @@ export function initBridgePointMarsSystem(options){
    let k=0,stride=meshWidth+1;
    for(let y=0;y<meshHeight;y++)for(let x=0;x<meshWidth;x++){
     const a=y*stride+x,b=a+stride,c=b+1,d=a+1;
-    indices[k++]=a;indices[k++]=b;indices[k++]=c;
-    indices[k++]=a;indices[k++]=c;indices[k++]=d;
+    if(nodeValid[a]&&nodeValid[b]&&nodeValid[c]){indices[k++]=a;indices[k++]=b;indices[k++]=c;}
+    if(nodeValid[a]&&nodeValid[c]&&nodeValid[d]){indices[k++]=a;indices[k++]=c;indices[k++]=d;}
    }
+   if(k<3)throw Error('HiRISE Gale DTM validity mask contains no renderable terrain triangles');
    const geometry=new THREE.BufferGeometry();
    geometry.setAttribute('position',new THREE.BufferAttribute(positions,3));
    geometry.setAttribute('uv',new THREE.BufferAttribute(uvs,2));
-   geometry.setIndex(new THREE.BufferAttribute(indices,1));geometry.computeVertexNormals();geometry.computeBoundingSphere();
+   geometry.setIndex(new THREE.BufferAttribute(indices.slice(0,k),1));geometry.computeVertexNormals();geometry.computeBoundingSphere();
    const material=new THREE.MeshStandardMaterial({map:marsTexture||null,color:0xffe0ca,roughness:.98,metalness:0,
     polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2,side:THREE.DoubleSide});
    galePatch=new THREE.Mesh(geometry,material);
