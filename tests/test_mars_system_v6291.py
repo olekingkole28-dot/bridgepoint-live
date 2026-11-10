@@ -74,9 +74,9 @@ class MarsSystemV6291Tests(unittest.TestCase):
             "Mars_Viking_MDIM21_ClrMosaic_1km.jpg",
             "ast-sat.thomas.shape-models_V1_0.zip",
             "hirise.lpl.arizona.edu/PDS/DTM/PSP/",
-            "b'BPMH'",
-            "b'BPMG'",
-            "b'BPSM'",
+            "b\"BPMH\"",
+            "b\"BPMG\"",
+            "b\"BPSM\"",
         ):
             self.assertIn(marker, BUILDER)
 
