@@ -67,7 +67,7 @@ jobs:
           grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6291-mars-orbit-geometry"' site/index.html
           grep -Fq 'bridgepoint-gaia-galaxy-v6270.js?v=6291-mars-orbit-geometry' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'bridgepoint-mars-system-v6291.js?v=6291-mars-orbit-geometry' site/bridgepoint-gaia-galaxy-v6270.js
-          grep -Fq 'bridgepoint-saturn-system-v6282.js?v=6291-mars-orbit-geometry' site/bridgepoint-gaia-galaxy-v6270.js
+          grep -Fq 'bridgepoint-saturn-system-v6282.js?v=6290-saturn-flowing-rings' site/bridgepoint-gaia-galaxy-v6270.js
           grep -Fq 'function updateRingDust(time)' site/bridgepoint-saturn-system-v6282.js
           grep -Fq 'stormMaskC' site/bridgepoint-saturn-system-v6282.js
           grep -Fq 'depthWrite:true' site/bridgepoint-saturn-system-v6282.js
@@ -139,7 +139,7 @@ jobs:
           grep -Fq 'v=6291-mars-orbit-geometry' /tmp/root.html
           grep -Fq 'bridgepoint-gaia-galaxy-v6270.js?v=6291-mars-orbit-geometry' /tmp/bp-welcome.js
           grep -Fq 'bridgepoint-mars-system-v6291.js?v=6291-mars-orbit-geometry' /tmp/bp-gaia.js
-          grep -Fq 'bridgepoint-saturn-system-v6282.js?v=6291-mars-orbit-geometry' /tmp/bp-gaia.js
+          grep -Fq 'bridgepoint-saturn-system-v6282.js?v=6290-saturn-flowing-rings' /tmp/bp-gaia.js
           grep -Fq 'MOLA MEGDR globally displaced 3D terrain' /tmp/mars.js
           grep -Fq 'PDS Thomas irregular 3D shape model' /tmp/mars.js
           grep -Fq 'Gale Crater HiRISE 1.01 m/pixel local replacement terrain mesh' /tmp/mars.js
