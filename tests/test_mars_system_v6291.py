@@ -67,6 +67,8 @@ class MarsSystemV6291Tests(unittest.TestCase):
         ):
             self.assertIn(marker, MARS)
         self.assertIn("DTEEC_009149_1750_009294_1750_U01.IMG", BUILDER)
+        self.assertIn("equatorialPoleToThree", MARS)
+        self.assertIn("latitude = np.arcsin(np.clip(vertices[:, 2] / rr", BUILDER)
 
     def test_builder_uses_public_nasa_usgs_pds_and_hirise_sources(self):
         for marker in (
