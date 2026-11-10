@@ -12,7 +12,7 @@ class MarsSystemV6291Tests(unittest.TestCase):
     def test_mars_is_added_to_the_existing_picker_and_uses_shared_runtime(self):
         self.assertIn("value=\"mars\">Mars", GAIA)
         self.assertIn("initBridgePointMarsSystem", GAIA)
-        self.assertIn("bridgepoint-mars-system-v6291.js?v=6291-mars-orbit-geometry", GAIA)
+        self.assertIn("bridgepoint-mars-system-v6291.js?v=6292-mars-night-side-shading", GAIA)
         self.assertIn("getMarsPosition:", GAIA)
         self.assertIn("marsController?.update?.()", GAIA)
         self.assertIn("marsController?.dispose?.()", GAIA)
@@ -92,6 +92,22 @@ class MarsSystemV6291Tests(unittest.TestCase):
             "quality=86",
         ):
             self.assertIn(marker, BUILDER)
+
+
+    def test_mars_phobos_deimos_and_gale_overlay_use_sun_relative_dark_night_sides(self):
+        for marker in (
+            "function installMarsNightSide(material,lightUniform)",
+            "uMarsLightDir",
+            "vMarsLocalPosition",
+            "bpMarsLightFacing",
+            "smoothstep(-.08,.16,bpMarsLightFacing)",
+            "outgoingLight*=mix(.045,1.0,bpMarsDaylight)",
+            "surfacePivot.quaternion.clone().invert()",
+            "moon.quaternion.clone().invert()",
+            "moonLightUniforms.get(key)",
+            "installMarsNightSide(material,marsUniforms.lightDir)",
+        ):
+            self.assertIn(marker, MARS)
 
 
 if __name__ == "__main__":
