@@ -177,10 +177,12 @@ def build_grid_shape(source: Path, destination: Path, body: str) -> dict:
     lat_r = np.deg2rad(lat)[:, None]
     lon_r = np.deg2rad(lon)[None, :]
     r = radius
+    # PDS body-fixed small-body convention: +Z is north; longitude increases
+    # from +X toward +Y. The renderer converts this DSK-like xyz to Three xzy.
     vertices = np.stack((
         r * np.cos(lat_r) * np.cos(lon_r),
-        r * np.sin(lat_r) * np.ones_like(lon_r),
         r * np.cos(lat_r) * np.sin(lon_r),
+        r * np.sin(lat_r) * np.ones_like(lon_r),
     ), axis=-1).reshape(-1, 3)
     rows, cols = radius.shape
     faces = []
@@ -214,8 +216,8 @@ def build_grid_shape(source: Path, destination: Path, body: str) -> dict:
     normal_lengths = np.linalg.norm(normals, axis=1)
     normals /= np.maximum(1e-12, normal_lengths)[:, None]
     rr = np.linalg.norm(vertices, axis=1).clip(1e-9)
-    longitude = np.arctan2(vertices[:, 2], vertices[:, 0])
-    latitude = np.arcsin(np.clip(vertices[:, 1] / rr, -1.0, 1.0))
+    longitude = np.arctan2(vertices[:, 1], vertices[:, 0])
+    latitude = np.arcsin(np.clip(vertices[:, 2] / rr, -1.0, 1.0))
     uv = np.stack((longitude / (2 * math.pi) + 0.5, latitude / math.pi + 0.5), axis=1)
     tri_uv = uv[faces].copy()
     seam = (tri_uv[:, :, 0].max(axis=1) - tri_uv[:, :, 0].min(axis=1)) > 0.5
