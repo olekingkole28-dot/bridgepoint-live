@@ -1,4 +1,4 @@
-name: Publish Mars v6291 — MOLA 3D Terrain, Phobos, Deimos and HiRISE Detail with Saturn Preserved
+name: Publish Mars v6291 MOLA 3D Terrain, Phobos, Deimos and HiRISE Detail with Saturn Preserved
 on:
   push:
     branches: [main]
@@ -89,7 +89,6 @@ jobs:
           test -s site/assets/mars/v1/textures/mars-viking-mdim-global.webp
           test -s site/assets/mars/v1/meshes/phobos-thomas-grid-v1.bin.gz
           test -s site/assets/mars/v1/meshes/deimos-thomas-grid-v1.bin.gz
-          grep -Fq '"MARS_ASSETS_PASS": true' /tmp/bridgepoint-mars-source/../bridgepoint-mars-builder.log || true
           du -sb site
           echo "MARS_V6291_AND_SATURN_READY."
       - uses: actions/configure-pages@v5
@@ -98,7 +97,7 @@ jobs:
       - name: Upload unique Mars v6291 Pages artifact
         uses: actions/upload-pages-artifact@v5
         with:
-          name: github-pages-v6290
+          name: github-pages-v6291
           path: site
           include-hidden-files: true
       - name: Verify uploaded artifact size
@@ -112,7 +111,7 @@ jobs:
           api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts"
           size=""
           for attempt in $(seq 1 15); do
-            size="$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$api" | jq -r '([.artifacts[] | select(.name=="github-pages-v6290") | .size_in_bytes] | max) // empty')"
+            size="$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$api" | jq -r '([.artifacts[] | select(.name=="github-pages-v6291") | .size_in_bytes] | max) // empty')"
             if [[ "$size" =~ ^[0-9]+$ ]]; then break; fi
             sleep 2
           done
@@ -123,7 +122,7 @@ jobs:
         id: deploy
         uses: actions/deploy-pages@v5
         with:
-          artifact_name: github-pages-v6290
+          artifact_name: github-pages-v6291
           timeout: '1800000'
       - name: Verify Mars v6291 and preserved Saturn served by the live site
         shell: bash
