@@ -303,7 +303,7 @@ export function initBridgePointMarsSystem(options){
    const position=mesh.getWorldPosition(new THREE.Vector3());
    const radius=key==='mars'?marsRadius:MOONS[key].radiusKm/EARTH_RADIUS_KM*MOONS[key].visualScale;
    sprite.position.copy(position).add(new THREE.Vector3(0,radius+.035,0));
-   sprite.visible=selected==='mars'||selected===key;
+   sprite.visible=selected==='mars'||selected===key||(key==='mars'&&['phobos','deimos'].includes(selected));
    const d=Math.max(1e-6,camera.position.distanceTo(sprite.position));
    const worldPerPixel=2*d*Math.tan(camera.fov*DEG*.5)/Math.max(1,host?.clientHeight||innerHeight);
    const w=(sprite.userData.baseWidthPx||76)*worldPerPixel;sprite.scale.set(w,w*.25,1);
@@ -316,6 +316,7 @@ export function initBridgePointMarsSystem(options){
    const mesh=moonMeshes.get(key),index=clickables.indexOf(mesh);if(index>=0)clickables.splice(index,1);
    bodyMap.delete(key);planetMeshes.delete(key);
    moonLabelSprites.get(key)?.parent?.remove(moonLabelSprites.get(key));
+   mesh?.geometry?.dispose();mesh?.material?.dispose();
    orbitLines.get(key)?.geometry.dispose();orbitLines.get(key)?.material.dispose();
   }
   bodyMap.delete('mars');planetMeshes.delete('mars');marsLabel.parent?.remove(marsLabel);
