@@ -109,6 +109,14 @@ void ABPGeoTileProxyActor::InitializeTile(const FBPGeoTileKey& InTile, double Or
     }
     LayerMeshes.Reset();
     LayerMeshTags.Reset();
+}
+
+void ABPGeoTileProxyActor::RebuildVectorGeometry()
+{
+    for (UProceduralMeshComponent* Component : LayerMeshes)
+        if (Component) Component->DestroyComponent();
+    LayerMeshes.Reset();
+    LayerMeshTags.Reset();
     BuildVectorGeometry();
 }
 
@@ -354,11 +362,7 @@ void ABPGeoTileProxyActor::SetTerrainGrid(const TArray<float>& HeightsMeters, in
     TerrainHeightMeters=HeightsMeters;
     TerrainGridWidth=Width;
     TerrainGridHeight=Height;
-    for (UProceduralMeshComponent* Component:LayerMeshes)
-        if (Component) Component->DestroyComponent();
-    LayerMeshes.Reset();
-    LayerMeshTags.Reset();
-    BuildVectorGeometry();
+    RebuildVectorGeometry();
 }
 
 void ABPGeoTileProxyActor::SetLayerEnabled(FName LayerTag, bool bEnabled)
