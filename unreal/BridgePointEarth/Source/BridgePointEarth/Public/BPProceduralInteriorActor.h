@@ -2,6 +2,8 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+
+class USceneComponent;
 #include "BPProceduralInteriorActor.generated.h"
 
 class UProceduralMeshComponent;
