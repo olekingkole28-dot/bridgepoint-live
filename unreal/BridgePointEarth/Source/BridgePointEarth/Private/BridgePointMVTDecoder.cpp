@@ -199,6 +199,14 @@ namespace
                 const float Parsed = FCString::Atof(*Height);
                 if (Parsed > 0.0f && FMath::IsFinite(Parsed)) Feature.HeightMeters = Parsed;
             }
+            FString BaseHeight = Feature.Properties.FindRef(TEXT("render_min_height"));
+            if (BaseHeight.IsEmpty()) BaseHeight = Feature.Properties.FindRef(TEXT("base_height_m"));
+            if (BaseHeight.IsEmpty()) BaseHeight = Feature.Properties.FindRef(TEXT("min_height"));
+            if (!BaseHeight.IsEmpty())
+            {
+                const float Parsed = FCString::Atof(*BaseHeight);
+                if (Parsed >= 0.0f && FMath::IsFinite(Parsed)) Feature.BaseHeightMeters = Parsed;
+            }
             const FString Width = Feature.Properties.FindRef(TEXT("width"));
             if (!Width.IsEmpty())
             {
