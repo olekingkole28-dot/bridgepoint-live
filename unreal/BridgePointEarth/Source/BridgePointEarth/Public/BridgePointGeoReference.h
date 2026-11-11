@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "BridgePointEarthTypes.h"
 
-class BRIDGEPOINT_EARTH_API FBridgePointGeoReference
+class BRIDGEPOINTEARTH_API FBridgePointGeoReference
 {
 public:
     static constexpr double MaxMercatorLatitude = 85.0511287798066;
