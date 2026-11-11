@@ -91,11 +91,12 @@ ABPGeoTileProxyActor::ABPGeoTileProxyActor()
     TerrainMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 }
 
-void ABPGeoTileProxyActor::InitializeTile(const FBPGeoTileKey& InTile, double OriginLongitude, double OriginLatitude, const TArray<FBPGeoFeature>& InFeatures)
+void ABPGeoTileProxyActor::InitializeTile(const FBPGeoTileKey& InTile, double OriginLongitude, double OriginLatitude, double OriginElevationMeters, const TArray<FBPGeoFeature>& InFeatures)
 {
     Tile = InTile;
     WorldOriginLongitude = OriginLongitude;
     WorldOriginLatitude = OriginLatitude;
+    WorldOriginElevationMeters = OriginElevationMeters;
     TileCenterLonLat = FBridgePointGeoReference::CenterForTile(Tile);
     Features = InFeatures;
 
@@ -137,7 +138,7 @@ float ABPGeoTileProxyActor::SampleTerrainElevation(const FVector2D& LonLat) cons
     const float H10=TerrainHeightMeters[Y0*TerrainGridWidth+X1];
     const float H01=TerrainHeightMeters[Y1*TerrainGridWidth+X0];
     const float H11=TerrainHeightMeters[Y1*TerrainGridWidth+X1];
-    return FMath::Lerp(FMath::Lerp(H00,H10,AX),FMath::Lerp(H01,H11,AX),AY);
+    return FMath::Lerp(FMath::Lerp(H00,H10,AX),FMath::Lerp(H01,H11,AX),AY)-WorldOriginElevationMeters;
 }
 
 FVector ABPGeoTileProxyActor::ToTileLocal(const FVector2D& LonLat, double HeightMeters, bool bUseTerrain) const
@@ -343,7 +344,7 @@ void ABPGeoTileProxyActor::SetTerrainGrid(const TArray<float>& HeightsMeters, in
         {
             const double U = static_cast<double>(X) / (Width - 1);
             const double Lon = FMath::Lerp(B.West, B.East, U);
-            Vertices.Add(ToTileLocal(FVector2D(Lon, Lat), HeightsMeters[Y * Width + X], false));
+            Vertices.Add(ToTileLocal(FVector2D(Lon, Lat), HeightsMeters[Y * Width + X]-WorldOriginElevationMeters, false));
             UVs.Add(FVector2D(U, V));
         }
     }
