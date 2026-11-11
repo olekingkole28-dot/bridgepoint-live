@@ -13,6 +13,20 @@ UBPWeaponComponent::UBPWeaponComponent()
     PrimaryComponentTick.bCanEverTick = true;
 }
 
+void UBPWeaponComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+    Super::TickComponent(DeltaTime,TickType,ThisTickFunction);
+    ACharacter* Character=Cast<ACharacter>(GetOwner());
+    AController* Controller=Character ? Character->GetController() : nullptr;
+    if (!Controller) return;
+    const float NewPitch=FMath::FInterpTo(CurrentRecoilPitch,0.0f,DeltaTime,FMath::Max(0.1f,RecoilRecoverySpeed));
+    const float NewYaw=FMath::FInterpTo(CurrentRecoilYaw,0.0f,DeltaTime,FMath::Max(0.1f,RecoilRecoverySpeed));
+    Controller->AddPitchInput(NewPitch-CurrentRecoilPitch);
+    Controller->AddYawInput(NewYaw-CurrentRecoilYaw);
+    CurrentRecoilPitch=NewPitch;
+    CurrentRecoilYaw=NewYaw;
+}
+
 void UBPWeaponComponent::SetAiming(bool bInAiming)
 {
     bAiming = bInAiming;
@@ -43,8 +57,12 @@ void UBPWeaponComponent::ApplyRecoil()
     AController* Controller = Character ? Character->GetController() : nullptr;
     if (!Controller) return;
     const float Sign = FMath::RandBool() ? 1.0f : -1.0f;
-    Controller->AddPitchInput(-RecoilPitchDegrees);
-    Controller->AddYawInput(Sign * RecoilYawDegrees);
+    const float PitchImpulse=-RecoilPitchDegrees;
+    const float YawImpulse=Sign*RecoilYawDegrees;
+    Controller->AddPitchInput(PitchImpulse);
+    Controller->AddYawInput(YawImpulse);
+    CurrentRecoilPitch=FMath::Clamp(CurrentRecoilPitch+PitchImpulse,-30.0f,30.0f);
+    CurrentRecoilYaw=FMath::Clamp(CurrentRecoilYaw+YawImpulse,-30.0f,30.0f);
 }
 
 void UBPWeaponComponent::PlayImpactAudio(const FHitResult& Hit, EPhysicalSurface Surface)
