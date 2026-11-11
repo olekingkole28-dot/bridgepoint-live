@@ -20,7 +20,7 @@ public:
     ABPGeoTileProxyActor();
 
     UFUNCTION(BlueprintCallable, Category="BridgePoint|World")
-    void InitializeTile(const FBPGeoTileKey& InTile, double OriginLongitude, double OriginLatitude, const TArray<FBPGeoFeature>& InFeatures);
+    void InitializeTile(const FBPGeoTileKey& InTile, double OriginLongitude, double OriginLatitude, double OriginElevationMeters, const TArray<FBPGeoFeature>& InFeatures);
 
     UFUNCTION(BlueprintCallable, Category="BridgePoint|World")
     void SetTerrainGrid(const TArray<float>& HeightsMeters, int32 Width, int32 Height);
@@ -63,6 +63,7 @@ private:
     FVector2D TileCenterLonLat = FVector2D::ZeroVector;
     double WorldOriginLongitude = 0.0;
     double WorldOriginLatitude = 0.0;
+    double WorldOriginElevationMeters = 0.0;
     TArray<FBPGeoFeature> Features;
 
     UProceduralMeshComponent* FindOrCreateLayerMesh(FName LayerTag);
