@@ -1,7 +1,7 @@
 {
   "name":"BridgePoint Horizon",
   "short_name":"Horizon",
-  "description":"BridgePoint Horizon — survival, multiplayer, Year One and island combat.",
+  "description":"BridgePoint Horizon — new Unreal Engine 5.8 real-world spatial world. Native play opens after the replacement build is packaged and verified.",
   "id":"/app/horizon/",
   "start_url":"/app/horizon/?source=pwa",
   "scope":"/app/horizon/",
