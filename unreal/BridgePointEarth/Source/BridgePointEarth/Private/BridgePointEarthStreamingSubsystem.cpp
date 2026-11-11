@@ -234,6 +234,7 @@ void UBridgePointEarthStreamingSubsystem::StartVectorRequest(const FString& Tile
     if (!Request->ProcessRequest())
     {
         State->Requests.Remove(Request);
+        State->RetryAfterTime=GetWorld() ? GetWorld()->GetTimeSeconds()+5.0 : 0.0;
         if (Source==TEXT("bridgepoint")) State->bBridgePointRequested=false;
         else if (Source==TEXT("city_structures")) State->bCityStructuresRequested=false;
         else if (Source==TEXT("city_roofs")) State->bCityRoofsRequested=false;
@@ -267,6 +268,7 @@ void UBridgePointEarthStreamingSubsystem::StartTerrainRequest(const FString& Til
     {
         State->Requests.Remove(Request);
         State->bTerrainRequested=false;
+        State->RetryAfterTime=GetWorld() ? GetWorld()->GetTimeSeconds()+5.0 : 0.0;
     }
 }
 
@@ -274,8 +276,9 @@ void UBridgePointEarthStreamingSubsystem::HandleVectorResponse(const FString& Ti
 {
     FBPStreamedTileState* State=Tiles.Find(TileId);
     if (!State) return;
-    if (!bSuccess || Bytes.IsEmpty())
+    if (!bSuccess)
     {
+        State->RetryAfterTime=GetWorld() ? GetWorld()->GetTimeSeconds()+5.0 : 0.0;
         if (Source==TEXT("bridgepoint")) State->bBridgePointRequested=false;
         else if (Source==TEXT("city_structures")) State->bCityStructuresRequested=false;
         else if (Source==TEXT("city_roofs")) State->bCityRoofsRequested=false;
@@ -283,6 +286,8 @@ void UBridgePointEarthStreamingSubsystem::HandleVectorResponse(const FString& Ti
         else State->bOpenFreeMapRequested=false;
         return;
     }
+    // A successful empty tile is a valid "no coverage here" response.
+    if (Bytes.IsEmpty()) return;
 
     TArray<FBPGeoFeature> Decoded;
     FString Error;
@@ -323,12 +328,27 @@ void UBridgePointEarthStreamingSubsystem::HandleTerrainResponse(const FString& T
 
     IImageWrapperModule& Module=FModuleManager::LoadModuleChecked<IImageWrapperModule>(FName("ImageWrapper"));
     IImageWrapperPtr Wrapper=Module.CreateImageWrapper(EImageFormat::PNG);
-    if (!Wrapper.IsValid() || !Wrapper->SetCompressed(Bytes.GetData(),Bytes.Num())) return;
+    if (!Wrapper.IsValid() || !Wrapper->SetCompressed(Bytes.GetData(),Bytes.Num()))
+    {
+        State->bTerrainRequested=false;
+        State->RetryAfterTime=GetWorld() ? GetWorld()->GetTimeSeconds()+5.0 : 0.0;
+        return;
+    }
 
     TArray64<uint8> Raw;
-    if (!Wrapper->GetRaw(ERGBFormat::BGRA,8,Raw)) return;
+    if (!Wrapper->GetRaw(ERGBFormat::BGRA,8,Raw))
+    {
+        State->bTerrainRequested=false;
+        State->RetryAfterTime=GetWorld() ? GetWorld()->GetTimeSeconds()+5.0 : 0.0;
+        return;
+    }
     const int32 SourceW=Wrapper->GetWidth(), SourceH=Wrapper->GetHeight();
-    if (SourceW<2 || SourceH<2) return;
+    if (SourceW<2 || SourceH<2)
+    {
+        State->bTerrainRequested=false;
+        State->RetryAfterTime=GetWorld() ? GetWorld()->GetTimeSeconds()+5.0 : 0.0;
+        return;
+    }
 
     const int32 TargetW=65, TargetH=65;
     State->TerrainHeights.SetNum(TargetW*TargetH);
