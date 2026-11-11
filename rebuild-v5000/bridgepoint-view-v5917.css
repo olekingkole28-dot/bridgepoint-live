@@ -904,3 +904,14 @@ body.bpv-view-ready #bpv-dock .bpv-dock-actions.bpv-command-groups{
  #bpv-sidecar .bpv-account-package{padding:10px}
  #bpv-sidecar .bpv-account-actions button,#bpv-sidecar .bpv-account-actions a{flex:1 1 auto}
 }
+
+/* Horizon replacement gate: deliberately disabled until a packaged UE build is verified. */
+.bpv-horizon-release-group{border-top:1px solid rgba(152,118,255,.24)!important;padding-top:12px!important;margin-top:12px!important}
+.bpv-horizon-release-group .bpv-command-heading-icon{color:#b6a1ff!important;text-shadow:0 0 16px rgba(152,118,255,.35)}
+.bpv-horizon-command-grid{grid-template-columns:minmax(0,1fr)!important}
+.bpv-horizon-launch-btn{grid-column:1/-1!important;width:100%!important;min-height:54px!important;display:grid!important;grid-template-columns:28px minmax(0,1fr) auto!important;align-items:center!important;gap:8px!important;text-align:left!important;border:1px solid rgba(152,118,255,.32)!important;background:linear-gradient(105deg,rgba(103,74,180,.16),rgba(24,31,52,.40))!important;opacity:.72!important;cursor:not-allowed!important;filter:saturate(.72)}
+.bpv-horizon-launch-btn:disabled{pointer-events:none!important}
+.bpv-horizon-launch-btn .bpv-command-icon{color:#b9a7ff!important}
+.bpv-horizon-launch-btn .bpv-command-label{color:#e0d8ff!important;font-weight:950!important;letter-spacing:.12em}
+.bpv-horizon-launch-state{color:#c6b9ff!important;font-size:8px!important;font-weight:950!important;letter-spacing:.08em!important;white-space:normal!important;text-align:right!important}
+@media(max-width:520px){.bpv-horizon-launch-btn{grid-template-columns:25px minmax(0,1fr)!important}.bpv-horizon-launch-state{grid-column:2;text-align:left!important}}
