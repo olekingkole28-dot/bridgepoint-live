@@ -7,7 +7,7 @@
 class UWorldPartitionStreamingSourceComponent;
 
 UCLASS(BlueprintType)
-class BRIDGEPOINT_EARTH_API ABPWorldPartitionAnchor : public AActor
+class BRIDGEPOINTEARTH_API ABPWorldPartitionAnchor : public AActor
 {
     GENERATED_BODY()
 
