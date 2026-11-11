@@ -25,6 +25,8 @@ jobs:
     timeout-minutes: 55
     steps:
       - uses: actions/checkout@v4
+      - name: Verify Horizon replacement entry and disabled launch gate
+        run: node tests/horizon-replacement-entry.test.mjs
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
