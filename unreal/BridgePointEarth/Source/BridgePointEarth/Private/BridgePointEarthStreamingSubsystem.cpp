@@ -94,11 +94,11 @@ void UBridgePointEarthStreamingSubsystem::Tick(float DeltaTime)
 
     double Lat=0.0, Lon=0.0;
     if (!bWorldOriginConfigured || !GetPlayerGeoLocation(Lat,Lon)) return;
-    if (!FMath::IsNearlyEqual(Lat,LastPlayerLatitude,0.00003) || !FMath::IsNearlyEqual(Lon,LastPlayerLongitude,0.00003))
-    {
-        LastPlayerLatitude=Lat; LastPlayerLongitude=Lon;
-        ReconcileTiles(Lat,Lon);
-    }
+    LastPlayerLatitude=Lat;
+    LastPlayerLongitude=Lon;
+    // Reconcile on every streaming heartbeat. This also drains request slots for
+    // neighboring tiles after earlier HTTP work completes while the pawn is stationary.
+    ReconcileTiles(Lat,Lon);
 }
 
 bool UBridgePointEarthStreamingSubsystem::GetPlayerGeoLocation(double& OutLatitude, double& OutLongitude) const
@@ -242,7 +242,12 @@ void UBridgePointEarthStreamingSubsystem::HandleVectorResponse(const FString& Ti
 {
     FBPStreamedTileState* State=Tiles.Find(TileId);
     if (!State) return;
-    if (!bSuccess || Bytes.IsEmpty()) return;
+    if (!bSuccess || Bytes.IsEmpty())
+    {
+        if (Source==TEXT("bridgepoint")) State->bBridgePointRequested=false;
+        else State->bOpenFreeMapRequested=false;
+        return;
+    }
 
     TArray<FBPGeoFeature> Decoded;
     FString Error;
@@ -257,6 +262,8 @@ void UBridgePointEarthStreamingSubsystem::HandleVectorResponse(const FString& Ti
     }
     else
     {
+        if (Source==TEXT("bridgepoint")) State->bBridgePointRequested=false;
+        else State->bOpenFreeMapRequested=false;
         UE_LOG(LogTemp,Warning,TEXT("BridgePoint MVT decode failed for %s (%s): %s"),*TileId,*Source,*Error);
     }
 }
@@ -264,7 +271,8 @@ void UBridgePointEarthStreamingSubsystem::HandleVectorResponse(const FString& Ti
 void UBridgePointEarthStreamingSubsystem::HandleTerrainResponse(const FString& TileId, const TArray<uint8>& Bytes, bool bSuccess)
 {
     FBPStreamedTileState* State=Tiles.Find(TileId);
-    if (!State || !bSuccess || Bytes.IsEmpty()) return;
+    if (!State) return;
+    if (!bSuccess || Bytes.IsEmpty()) { State->bTerrainRequested=false; return; }
 
     IImageWrapperModule& Module=FModuleManager::LoadModuleChecked<IImageWrapperModule>(FName("ImageWrapper"));
     IImageWrapperPtr Wrapper=Module.CreateImageWrapper(EImageFormat::PNG);
