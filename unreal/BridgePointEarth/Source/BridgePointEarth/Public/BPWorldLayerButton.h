@@ -14,6 +14,8 @@ class BRIDGEPOINTEARTH_API UBPWorldLayerButton : public UButton
     GENERATED_BODY()
 
 public:
+    UBPWorldLayerButton();
+
     UPROPERTY(BlueprintAssignable, Category="BridgePoint|Layers")
     FBPOnWorldLayerToggled OnLayerToggled;
 
