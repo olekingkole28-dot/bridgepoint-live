@@ -42,16 +42,30 @@ FVector ABPGeoTileProxyActor::ToTileLocal(const FVector2D& LonLat, double Height
     return FVector(Local.X * 100.0, Local.Y * 100.0, HeightMeters * 100.0 + RuntimeGeometryZOffsetCm);
 }
 
-FName ABPGeoTileProxyActor::NormalizeLayerTag(const FString& SourceLayer) const
+FName ABPGeoTileProxyActor::NormalizeLayerTag(const FBPGeoFeature& Feature) const
 {
-    const FString S = SourceLayer.ToLower();
+    const FString S = Feature.SourceLayer.ToLower();
+    const auto Property = [&Feature](const TCHAR* Key) { return Feature.Properties.FindRef(FName(Key)).ToLower(); };
+    const FString Class = Property(TEXT("class"));
+    const FString Subclass = Property(TEXT("subclass"));
+    const FString Kind = Property(TEXT("kind"));
+    const FString Detail = Property(TEXT("kind_detail"));
+    const FString Railway = Property(TEXT("railway"));
+    const FString Highway = Property(TEXT("highway"));
+    const FString Bridge = Property(TEXT("bridge"));
     if (S.Contains(TEXT("building")) || S.Contains(TEXT("roof"))) return TEXT("buildings");
-    if (S.Contains(TEXT("road")) || S.Contains(TEXT("transportation"))) return TEXT("roads");
-    if (S.Contains(TEXT("street")) || S.Contains(TEXT("footway")) || S.Contains(TEXT("sidewalk"))) return TEXT("sidewalks");
-    if (S.Contains(TEXT("rail")) || S.Contains(TEXT("transit"))) return TEXT("rail");
+    if (S.Contains(TEXT("bridge")) || Bridge == TEXT("yes") || Subclass == TEXT("bridge")) return TEXT("bridges");
+    if (S.Contains(TEXT("rail")) || Railway == TEXT("rail") || Railway == TEXT("subway") ||
+        Railway == TEXT("tram") || Class == TEXT("rail") || Subclass == TEXT("rail")) return TEXT("rail");
+    if (S.Contains(TEXT("street")) || S.Contains(TEXT("footway")) || S.Contains(TEXT("sidewalk")) ||
+        Subclass == TEXT("footway") || Subclass == TEXT("pedestrian") || Subclass == TEXT("path") ||
+        Subclass == TEXT("steps") || Subclass == TEXT("cycleway") || Highway == TEXT("footway") ||
+        Highway == TEXT("pedestrian") || Detail == TEXT("sidewalk")) return TEXT("sidewalks");
+    if (S.Contains(TEXT("transportation")) || S.Contains(TEXT("road")) || !Highway.IsEmpty() ||
+        Class == TEXT("road") || Class == TEXT("street") || Kind == TEXT("major_road") || Kind == TEXT("minor_road"))
+        return TEXT("roads");
     if (S.Contains(TEXT("water")) || S.Contains(TEXT("river")) || S.Contains(TEXT("lake"))) return TEXT("water");
     if (S.Contains(TEXT("park")) || S.Contains(TEXT("landcover")) || S.Contains(TEXT("landuse"))) return TEXT("vegetation");
-    if (S.Contains(TEXT("bridge"))) return TEXT("bridges");
     return FName(*S);
 }
 
@@ -90,7 +104,7 @@ void ABPGeoTileProxyActor::BuildVectorGeometry()
 
     for (const FBPGeoFeature& Feature : Features)
     {
-        const FName Tag = NormalizeLayerTag(Feature.SourceLayer);
+        const FName Tag = NormalizeLayerTag(Feature);
         if (Tag.IsNone()) continue;
         TArray<FVector>& V = VerticesByLayer.FindOrAdd(Tag);
         TArray<int32>& T = TrianglesByLayer.FindOrAdd(Tag);
