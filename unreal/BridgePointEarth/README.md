@@ -36,7 +36,6 @@ Connected in this initial branch:
 
 Visible but still pending a full adapter in this branch:
 - Satellite/orthophoto imagery draped as a material
-- Parcels and property boundaries
 - Bridge-specific geometry and engineered bridge assets
 - Tree species/individual tree models, street furniture and streetlights
 - Wells, utility towers, power poles, powerline sag/cables and subsurface networks
