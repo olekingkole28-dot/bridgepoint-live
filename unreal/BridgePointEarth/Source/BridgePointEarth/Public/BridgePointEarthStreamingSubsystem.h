@@ -24,6 +24,7 @@ struct FBPStreamedTileState
     bool bParcelRequested = false;
     bool bOpenFreeMapRequested = false;
     bool bTerrainRequested = false;
+    bool bProxyDirty = false;
     double RetryAfterTime = 0.0;
 };
 
@@ -115,6 +116,7 @@ private:
     void HandleVectorResponse(const FString& TileId, const FString& Source, const TArray<uint8>& Bytes, bool bSuccess);
     void HandleTerrainResponse(const FString& TileId, const TArray<uint8>& Bytes, bool bSuccess);
     void UpdateProxy(const FString& TileId);
+    void FlushDirtyProxies();
     void UnloadTile(const FString& TileId);
     int32 CountInFlightRequests() const;
     FString BuildTileUrl(const FString& Template, const FBPGeoTileKey& Key) const;
