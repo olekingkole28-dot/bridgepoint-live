@@ -207,6 +207,30 @@ namespace
                 const float Parsed = FCString::Atof(*BaseHeight);
                 if (Parsed >= 0.0f && FMath::IsFinite(Parsed)) Feature.BaseHeightMeters = Parsed;
             }
+
+            FString RoofHeight = Feature.Properties.FindRef(TEXT("roof_height_m"));
+            if (RoofHeight.IsEmpty()) RoofHeight = Feature.Properties.FindRef(TEXT("roof_height"));
+            if (RoofHeight.IsEmpty()) RoofHeight = Feature.Properties.FindRef(TEXT("roof:height"));
+            if (!RoofHeight.IsEmpty())
+            {
+                const float Parsed = FCString::Atof(*RoofHeight);
+                if (Parsed >= 0.0f && FMath::IsFinite(Parsed)) Feature.RoofHeightMeters = Parsed;
+            }
+
+            // The dedicated BridgePoint roof tile publishes an absolute roof base/top pair.
+            // Convert that pair to a base-relative extrusion while preserving both source keys.
+            FString RoofBase = Feature.Properties.FindRef(TEXT("roof_base_m"));
+            FString RoofTop = Feature.Properties.FindRef(TEXT("roof_top_m"));
+            if (!RoofBase.IsEmpty() && !RoofTop.IsEmpty())
+            {
+                const float Base = FCString::Atof(*RoofBase);
+                const float Top = FCString::Atof(*RoofTop);
+                if (FMath::IsFinite(Base) && FMath::IsFinite(Top) && Base >= 0.0f && Top > Base)
+                {
+                    Feature.BaseHeightMeters = Base;
+                    Feature.HeightMeters = Top - Base;
+                }
+            }
             const FString Width = Feature.Properties.FindRef(TEXT("width"));
             if (!Width.IsEmpty())
             {
