@@ -93,6 +93,7 @@ struct FBPGeoFeature
     // -1 means the source did not provide a usable height. Never infer one here.
     UPROPERTY(BlueprintReadOnly) float HeightMeters = -1.0f;
     UPROPERTY(BlueprintReadOnly) float BaseHeightMeters = 0.0f;
+    UPROPERTY(BlueprintReadOnly) float RoofHeightMeters = 0.0f;
     UPROPERTY(BlueprintReadOnly) float WidthMeters = -1.0f;
 };
 
