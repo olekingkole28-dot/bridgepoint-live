@@ -1,11 +1,9 @@
 #include "BPWorldLayerButton.h"
 #include "Components/TextBlock.h"
 
-void UBPWorldLayerButton::NativeConstruct()
+UBPWorldLayerButton::UBPWorldLayerButton()
 {
-    Super::NativeConstruct();
     OnClicked.AddDynamic(this,&UBPWorldLayerButton::HandleClick);
-    RefreshText();
 }
 
 void UBPWorldLayerButton::Configure(FName InLayerTag, const FText& InLabel, bool bAdapterReady, bool bInitiallyEnabled, UTextBlock* InLabelWidget)
