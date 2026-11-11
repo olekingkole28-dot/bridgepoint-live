@@ -29,14 +29,14 @@ Connected in this initial branch:
 - BridgePoint buildings
 - BridgePoint city structures
 - BridgePoint roofs
-- Roads / carriageways
+- Roads / carriageways, including tagged bridge centerlines
 - Sidewalk / footpath classes
 - Rail classes
 - Water and land-cover/vegetation source layers from OpenFreeMap
 
 Visible but still pending a full adapter in this branch:
 - Satellite/orthophoto imagery draped as a material
-- Bridge-specific geometry and engineered bridge assets
+- Full engineered bridge structures (supports, rails, cables and deck assets); the current adapter only recognizes bridge centerlines
 - Tree species/individual tree models, street furniture and streetlights
 - Wells, utility towers, power poles, powerline sag/cables and subsurface networks
 - Live weather, radar, storm tracks, wind, wildfire and flood overlays
