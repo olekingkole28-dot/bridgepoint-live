@@ -77,7 +77,12 @@ void UBridgePointEarthStreamingSubsystem::ConfigureWorldOrigin(double Longitude,
 {
     WorldOriginLongitude = FBridgePointGeoReference::NormalizeLongitude(Longitude);
     WorldOriginLatitude = FMath::Clamp(Latitude, -FBridgePointGeoReference::MaxMercatorLatitude, FBridgePointGeoReference::MaxMercatorLatitude);
+    bWorldOriginElevationSet = false;
+    WorldOriginElevationMeters = 0.0;
     bWorldOriginConfigured = true;
+    for (TPair<FString,FBPStreamedTileState>& Pair:Tiles)
+        if (Pair.Value.TerrainHeights.Num() == Pair.Value.TerrainWidth*Pair.Value.TerrainHeight)
+            Pair.Value.bProxyDirty = true;
     ForceRefresh();
 }
 
@@ -367,6 +372,34 @@ void UBridgePointEarthStreamingSubsystem::HandleTerrainResponse(const FString& T
             State->TerrainHeights[Y*TargetW+X]=static_cast<float>(C.R*256.0+C.G+C.B/256.0-32768.0);
         }
     }
+
+    // Establish the local vertical datum from the DEM sample at the chosen geographic
+    // origin. Otherwise a player spawned at local Z=0 could start below a hillside
+    // whose absolute Terrarium elevation is, for example, 140 metres.
+    if (!bWorldOriginElevationSet)
+    {
+        const FBPGeoBounds Bounds=FBridgePointGeoReference::BoundsForTile(State->Key);
+        const bool bContainsOrigin=WorldOriginLongitude>=Bounds.West && WorldOriginLongitude<=Bounds.East &&
+                                   WorldOriginLatitude>=Bounds.South && WorldOriginLatitude<=Bounds.North;
+        if (bContainsOrigin)
+        {
+            const double U=FMath::Clamp((WorldOriginLongitude-Bounds.West)/FMath::Max(UE_SMALL_NUMBER,Bounds.East-Bounds.West),0.0,1.0);
+            const double V=FMath::Clamp((Bounds.North-WorldOriginLatitude)/FMath::Max(UE_SMALL_NUMBER,Bounds.North-Bounds.South),0.0,1.0);
+            const double GX=U*(TargetW-1), GY=V*(TargetH-1);
+            const int32 X0=FMath::Clamp(FMath::FloorToInt(GX),0,TargetW-1);
+            const int32 Y0=FMath::Clamp(FMath::FloorToInt(GY),0,TargetH-1);
+            const int32 X1=FMath::Min(X0+1,TargetW-1), Y1=FMath::Min(Y0+1,TargetH-1);
+            const double AX=GX-X0, AY=GY-Y0;
+            const double H00=State->TerrainHeights[Y0*TargetW+X0];
+            const double H10=State->TerrainHeights[Y0*TargetW+X1];
+            const double H01=State->TerrainHeights[Y1*TargetW+X0];
+            const double H11=State->TerrainHeights[Y1*TargetW+X1];
+            WorldOriginElevationMeters=FMath::Lerp(FMath::Lerp(H00,H10,AX),FMath::Lerp(H01,H11,AX),AY);
+            bWorldOriginElevationSet=true;
+            for (TPair<FString,FBPStreamedTileState>& Pair:Tiles)
+                if (!Pair.Value.TerrainHeights.IsEmpty()) Pair.Value.bProxyDirty=true;
+        }
+    }
     State->bProxyDirty=true;
 }
 
@@ -392,7 +425,7 @@ void UBridgePointEarthStreamingSubsystem::UpdateProxy(const FString& TileId)
         if (!Proxy) return;
         State->Proxy=Proxy;
     }
-    Proxy->InitializeTile(State->Key,WorldOriginLongitude,WorldOriginLatitude,State->Features);
+    Proxy->InitializeTile(State->Key,WorldOriginLongitude,WorldOriginLatitude,WorldOriginElevationMeters,State->Features);
     if (!State->TerrainHeights.IsEmpty())
         Proxy->SetTerrainGrid(State->TerrainHeights,State->TerrainWidth,State->TerrainHeight);
     else
