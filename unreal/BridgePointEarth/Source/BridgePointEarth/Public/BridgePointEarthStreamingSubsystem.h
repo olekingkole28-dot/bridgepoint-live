@@ -19,6 +19,8 @@ struct FBPStreamedTileState
     TWeakObjectPtr<ABPGeoTileProxyActor> Proxy;
     TArray<TSharedPtr<IHttpRequest, ESPMode::ThreadSafe>> Requests;
     bool bBridgePointRequested = false;
+    bool bCityStructuresRequested = false;
+    bool bCityRoofsRequested = false;
     bool bOpenFreeMapRequested = false;
     bool bTerrainRequested = false;
 };
@@ -37,6 +39,12 @@ public:
 
     UPROPERTY(Config, EditAnywhere, BlueprintReadWrite, Category="BridgePoint|Data")
     FString BridgePointBuildingTileName = TEXT("bridgepoint-public-building-tile-v5019");
+
+    UPROPERTY(Config, EditAnywhere, BlueprintReadWrite, Category="BridgePoint|Data")
+    FString BridgePointCityStructuresTileName = TEXT("bridgepoint-public-city-structures-v5375");
+
+    UPROPERTY(Config, EditAnywhere, BlueprintReadWrite, Category="BridgePoint|Data")
+    FString BridgePointCityRoofsTileName = TEXT("bridgepoint-public-city-roofs-v5376");
 
     UPROPERTY(Config, EditAnywhere, BlueprintReadWrite, Category="BridgePoint|Data")
     FString OpenFreeMapTileTemplate = TEXT("https://tiles.openfreemap.org/planet/latest/{z}/{x}/{y}.pbf");
@@ -106,4 +114,6 @@ private:
     int32 CountInFlightRequests() const;
     FString BuildTileUrl(const FString& Template, const FBPGeoTileKey& Key) const;
     FString BridgePointTileUrl(const FBPGeoTileKey& Key) const;
+    FString CityStructuresTileUrl(const FBPGeoTileKey& Key) const;
+    FString CityRoofsTileUrl(const FBPGeoTileKey& Key) const;
 };
