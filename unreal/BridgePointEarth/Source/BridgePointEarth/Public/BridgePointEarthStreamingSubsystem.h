@@ -23,6 +23,7 @@ struct FBPStreamedTileState
     bool bCityRoofsRequested = false;
     bool bOpenFreeMapRequested = false;
     bool bTerrainRequested = false;
+    double RetryAfterTime = 0.0;
 };
 
 UCLASS(Config=Game)
