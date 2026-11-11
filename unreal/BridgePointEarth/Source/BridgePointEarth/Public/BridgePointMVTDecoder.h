@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "BridgePointEarthTypes.h"
 
-class BRIDGEPOINT_EARTH_API FBridgePointMVTDecoder
+class BRIDGEPOINTEARTH_API FBridgePointMVTDecoder
 {
 public:
     // Decodes Mapbox Vector Tile protobuf (PBF) geometry into WGS84 feature paths.
