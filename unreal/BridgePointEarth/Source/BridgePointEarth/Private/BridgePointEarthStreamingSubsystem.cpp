@@ -144,6 +144,7 @@ void UBridgePointEarthStreamingSubsystem::EnsureTile(const FBPGeoTileKey& Key)
     FBPStreamedTileState& State=Tiles.FindOrAdd(Id);
     State.Key=Key;
 
+    if (GetWorld() && GetWorld()->GetTimeSeconds() < State.RetryAfterTime) return;
     if (CountInFlightRequests() >= MaxConcurrentRequests) return;
     if (!State.bBridgePointRequested)
         StartVectorRequest(Id,TEXT("bridgepoint"),BridgePointTileUrl(Key));
@@ -286,6 +287,7 @@ void UBridgePointEarthStreamingSubsystem::HandleVectorResponse(const FString& Ti
     }
     else
     {
+        State->RetryAfterTime=GetWorld() ? GetWorld()->GetTimeSeconds()+5.0 : 0.0;
         if (Source==TEXT("bridgepoint")) State->bBridgePointRequested=false;
         else if (Source==TEXT("city_structures")) State->bCityStructuresRequested=false;
         else if (Source==TEXT("city_roofs")) State->bCityRoofsRequested=false;
@@ -298,7 +300,13 @@ void UBridgePointEarthStreamingSubsystem::HandleTerrainResponse(const FString& T
 {
     FBPStreamedTileState* State=Tiles.Find(TileId);
     if (!State) return;
-    if (!bSuccess || Bytes.IsEmpty()) { State->bTerrainRequested=false; return; }
+    if (!bSuccess)
+    {
+        State->bTerrainRequested=false;
+        State->RetryAfterTime=GetWorld() ? GetWorld()->GetTimeSeconds()+5.0 : 0.0;
+        return;
+    }
+    if (Bytes.IsEmpty()) return;
 
     IImageWrapperModule& Module=FModuleManager::LoadModuleChecked<IImageWrapperModule>(FName("ImageWrapper"));
     IImageWrapperPtr Wrapper=Module.CreateImageWrapper(EImageFormat::PNG);
