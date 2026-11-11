@@ -220,7 +220,7 @@ void ABPGeoTileProxyActor::BuildVectorGeometry()
         if ((bBuilding || bRoof) && Feature.GeometryType==EBPGeometryType::Polygon &&
             HeightM>0.0f && Feature.Paths.Num()==1)
         {
-            const TArray<FVector2D>& Outer=Feature.Paths[0];
+            const TArray<FVector2D>& Outer=Feature.Paths[0].Points;
             int32 RingCount=Outer.Num();
             if(RingCount>1 && Outer[0].Equals(Outer.Last(),KINDA_SMALL_NUMBER))--RingCount;
             if(RingCount>=3)
@@ -248,8 +248,9 @@ void ABPGeoTileProxyActor::BuildVectorGeometry()
             }
         }
 
-        for (const TArray<FVector2D>& Path : Feature.Paths)
+        for (const FBPGeoPath& WrappedPath : Feature.Paths)
         {
+            const TArray<FVector2D>& Path=WrappedPath.Points;
             if (Feature.GeometryType == EBPGeometryType::Point)
             {
                 if (Path.IsEmpty()) continue;
