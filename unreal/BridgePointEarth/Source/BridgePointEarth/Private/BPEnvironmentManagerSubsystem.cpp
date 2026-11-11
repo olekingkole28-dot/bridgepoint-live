@@ -27,21 +27,21 @@ void UBPEnvironmentManagerSubsystem::SetEnvironment(EBPEnvironment Environment, 
 
     CurrentEnvironment = Environment;
     const bool bMoon = Environment == EBPEnvironment::Moon;
-    World->GetWorldSettings()->DefaultGravityZ = bMoon ? LunarGravityCmPerSecondSquared : EarthGravityCmPerSecondSquared;
+    World->GetWorldSettings()->DefaultGravityZ = bMoon ? LunarGravityCmPerSecondSquared : SavedGravity;
 
     if (Movement)
     {
-        Movement->GravityScale = 1.0f;
         if (bMoon)
         {
             const float CurveScale = LunarJumpVelocityCurve ? LunarJumpVelocityCurve->GetFloatValue(0.1653f) : LunarJumpVelocityScale;
-            Movement->JumpZVelocity = EarthJumpVelocityCmPerSecond * FMath::Max(0.1f, CurveScale);
+            Movement->GravityScale = 1.0f;
+            Movement->JumpZVelocity = SavedJumpVelocity * FMath::Max(0.1f, CurveScale);
         }
         else
         {
-            Movement->JumpZVelocity = EarthJumpVelocityCmPerSecond;
+            Movement->GravityScale = SavedGravityScale;
+            Movement->JumpZVelocity = SavedJumpVelocity;
         }
-        Movement->ResetJumpState();
     }
     ApplyAudioEnvironment();
     OnEnvironmentChanged.Broadcast(CurrentEnvironment, bMoon ? LunarMetaSoundDamping : 0.0f);
