@@ -1,8 +1,14 @@
-const CACHE='bridgepoint-horizon-v5820';
+const CACHE='bridgepoint-horizon-ue5-v6250';
 const SHELL=[
-  './','./index.html','./styles.css','./app.js','./runtime-contract.js','./lobby-scene.js','./model-preview.js',
-  './manifest.webmanifest','./horizon-mark.svg'
+  './index.html','./native/index.html','./manifest.webmanifest','./horizon-mark.svg'
 ];
+const NATIVE_ENTRY='/app/horizon/native/';
+const LEGACY_PATHS=new Set([
+  '/app/horizon/','/app/horizon/index.html','/app/horizon/lobby.html','/app/horizon/preview.html',
+  '/app/horizon-playable/','/app/horizon-playable/index.html','/app/horizon-playable/v2-entry.html',
+  '/app/horizon-world/','/app/horizon-world/index.html',
+  '/app/horizon-next/','/app/horizon-next/index.html'
+]);
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting()));
 });
@@ -14,20 +20,20 @@ self.addEventListener('activate',event=>{
 self.addEventListener('fetch',event=>{
   const req=event.request;if(req.method!=='GET')return;
   const u=new URL(req.url);
-  if(u.hostname.endsWith('supabase.co')||u.hostname.includes('jsdelivr.net')||u.hostname.includes('google.com'))return;
   if(u.origin!==self.location.origin)return;
-  const legacy=u.pathname==='/app/horizon/lobby.html'||u.pathname==='/app/horizon/preview.html'||u.pathname.startsWith('/app/horizon/play/');
-  if(req.mode==='navigate'&&legacy){event.respondWith(Response.redirect('/app/horizon/',302));return;}
   if(req.mode==='navigate'){
-    event.respondWith(fetch(req).then(r=>{
-      const copy=r.clone();caches.open(CACHE).then(c=>c.put('./index.html',copy)).catch(()=>{});return r;
-    }).catch(()=>caches.match('./index.html')));return;
+    if(LEGACY_PATHS.has(u.pathname)||u.pathname.startsWith('/app/horizon/play/')){
+      const target=new URL(NATIVE_ENTRY,self.location.origin);
+      target.search=u.search;
+      event.respondWith(Promise.resolve(Response.redirect(target.toString(),302)));
+      return;
+    }
+    if(u.pathname===NATIVE_ENTRY||u.pathname===NATIVE_ENTRY+'index.html'){
+      event.respondWith(caches.match('./native/index.html').then(cached=>cached||fetch(req)));
+      return;
+    }
   }
-  event.respondWith(caches.match(req).then(cached=>{
-    const net=fetch(req).then(r=>{
-      if(r.ok){const copy=r.clone();caches.open(CACHE).then(c=>c.put(req,copy)).catch(()=>{})}return r;
-    }).catch(()=>cached);
-    return cached||net;
-  }));
+  if(u.pathname.startsWith('/app/horizon/')){
+    event.respondWith(caches.match(req).then(cached=>cached||fetch(req)));
+  }
 });
-self.addEventListener('message',event=>{if(event.data==='skipWaiting'||event.data?.type==='SKIP_WAITING')self.skipWaiting()});
