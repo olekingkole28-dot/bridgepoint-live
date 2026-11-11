@@ -21,16 +21,20 @@ float UBPInventoryComponent::GetWeightRatio() const
 
 int32 UBPInventoryComponent::GetUsedSlots() const
 {
-    int32 Slots=0;
-    for (const FBPInventoryItem& Item:Items)
-        Slots+=FMath::Max(1,FMath::CeilToInt(static_cast<float>(Item.Quantity)/FMath::Max(1,Item.MaxStack)));
-    return Slots;
+    return Items.Num();
 }
 
 bool UBPInventoryComponent::TryAddItem(const FBPInventoryItem& Item)
 {
     if (Item.ItemId.IsNone() || Item.Quantity <= 0 || Item.UnitWeightKg < 0.0f) return false;
     if (GetTotalWeightKg()+Item.GetTotalWeightKg()>BackpackCapacityKg) return false;
+
+    int32 ExistingStackSpace=0;
+    for (const FBPInventoryItem& Existing:Items)
+        if (Existing.ItemId==Item.ItemId && Existing.UnitWeightKg==Item.UnitWeightKg)
+            ExistingStackSpace+=FMath::Max(0,Existing.MaxStack-Existing.Quantity);
+    const int32 NewStacks=FMath::CeilToInt(static_cast<float>(FMath::Max(0,Item.Quantity-ExistingStackSpace))/FMath::Max(1,Item.MaxStack));
+    if (GetUsedSlots()+NewStacks>BackpackSlotCapacity) return false;
 
     int32 Remaining=Item.Quantity;
     for (FBPInventoryItem& Existing:Items)
@@ -47,12 +51,6 @@ bool UBPInventoryComponent::TryAddItem(const FBPInventoryItem& Item)
         NewStack.Quantity=FMath::Min(Remaining,FMath::Max(1,Item.MaxStack));
         Items.Add(MoveTemp(NewStack));
         Remaining-=Items.Last().Quantity;
-    }
-    if (GetUsedSlots()>BackpackSlotCapacity)
-    {
-        // Roll back by removing the newly requested quantity from the final stacks.
-        RemoveItem(Item.ItemId,Item.Quantity);
-        return false;
     }
     BroadcastWeight();
     return true;
