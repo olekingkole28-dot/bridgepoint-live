@@ -7,7 +7,7 @@
 #include "BPPCGBridgeComponent.generated.h"
 
 UCLASS(ClassGroup=(BridgePoint), meta=(BlueprintSpawnableComponent))
-class BRIDGEPOINT_EARTH_API UBPPCGBridgeComponent : public UActorComponent
+class BRIDGEPOINTEARTH_API UBPPCGBridgeComponent : public UActorComponent
 {
     GENERATED_BODY()
 
