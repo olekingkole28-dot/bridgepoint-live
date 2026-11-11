@@ -233,6 +233,10 @@ function makeTopBarAndDock(){
    '<div class="bpv-command-heading"><span class="bpv-command-heading-icon" aria-hidden="true">¤</span><span><b>ACCOUNT & BILLING</b><small>View your plan, renewal schedule, payments or cancel</small></span></div>'+
    '<div class="bpv-command-grid" data-bpv-command-grid="account"><button type="button" class="bpv-command-btn bpv-account-billing-btn" data-bpv-action="account" title="View packages, account and subscription billing"><span class="bpv-command-icon" aria-hidden="true">▣</span><span class="bpv-command-label">Account & Billing</span></button></div>'+
   '</section>'+
+  '<section class="bpv-command-group bpv-horizon-release-group" data-bpv-command-section="horizon" aria-label="BridgePoint Horizon replacement build">'+
+   '<div class="bpv-command-heading"><span class="bpv-command-heading-icon" aria-hidden="true">✦</span><span><b>BRIDGEPOINT HORIZON</b><small>New Unreal Engine 5.8 world · launch locked until the native build passes testing</small></span></div>'+
+   '<div class="bpv-command-grid bpv-horizon-command-grid"><button type="button" class="bpv-command-btn bpv-horizon-launch-btn" data-bp-horizon-gate="1" disabled aria-disabled="true" title="Horizon is still being built and verified. This control will be enabled only after the new Unreal build is ready."><span class="bpv-command-icon" aria-hidden="true">✦</span><span class="bpv-command-label">HORIZON</span><small class="bpv-horizon-launch-state">IN DEVELOPMENT · NOT CLICKABLE</small></button></div>'+
+  '</section>'+
  '</div>'+
  '<div id="bpv-property-card-slot" class="bpv-property-card-slot" aria-label="Selected property card"></div>'+
  '<details id="bpv-more-info" class="bpv-more-info"><summary><span class="bpv-more-icon" aria-hidden="true">ⓘ</span><span class="bpv-more-copy"><b>MORE INFO</b><small>System status, data notes, source coverage and fine print</small></span><span class="bpv-more-chevron" aria-hidden="true">⌄</span></summary>'+
