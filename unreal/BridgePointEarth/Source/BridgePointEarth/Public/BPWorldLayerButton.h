@@ -9,7 +9,7 @@ class UTextBlock;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FBPOnWorldLayerToggled, FName, LayerTag, bool, bEnabled);
 
 UCLASS()
-class BRIDGEPOINT_EARTH_API UBPWorldLayerButton : public UButton
+class BRIDGEPOINTEARTH_API UBPWorldLayerButton : public UButton
 {
     GENERATED_BODY()
 
