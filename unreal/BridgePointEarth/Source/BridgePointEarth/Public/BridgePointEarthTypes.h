@@ -80,6 +80,14 @@ struct FBPGeoBounds
 };
 
 USTRUCT(BlueprintType)
+struct FBPGeoPath
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly) TArray<FVector2D> Points;
+};
+
+USTRUCT(BlueprintType)
 struct FBPGeoFeature
 {
     GENERATED_BODY()
@@ -88,7 +96,7 @@ struct FBPGeoFeature
     UPROPERTY(BlueprintReadOnly) int64 SourceId = INDEX_NONE;
     UPROPERTY(BlueprintReadOnly) EBPGeometryType GeometryType = EBPGeometryType::Unknown;
     // Each path stores longitude in X and latitude in Y, in WGS84 degrees.
-    UPROPERTY(BlueprintReadOnly) TArray<TArray<FVector2D>> Paths;
+    UPROPERTY(BlueprintReadOnly) TArray<FBPGeoPath> Paths;
     UPROPERTY(BlueprintReadOnly) TMap<FName, FString> Properties;
     // -1 means the source did not provide a usable height. Never infer one here.
     UPROPERTY(BlueprintReadOnly) float HeightMeters = -1.0f;
