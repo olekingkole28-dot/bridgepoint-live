@@ -231,7 +231,7 @@ namespace
                         const double Lon = (static_cast<double>(Tile.X) + U) / N * 360.0 - 180.0;
                         const double Mercator = PI * (1.0 - 2.0 * (static_cast<double>(Tile.Y) + V) / N);
                         const double Lat = FMath::RadiansToDegrees(FMath::Atan(FMath::Sinh(Mercator)));
-                        if (Id == 1 && CurrentPath.Num() > 0) FlushPath();
+                        if (Id == 1 && CurrentPath.Num() > 0 && Feature.GeometryType != EBPGeometryType::Point) FlushPath();
                         CurrentPath.Add(FVector2D(Lon, Lat));
                     }
                 }
