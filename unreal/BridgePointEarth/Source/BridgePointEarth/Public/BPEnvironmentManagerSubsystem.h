@@ -18,7 +18,7 @@ enum class EBPEnvironment : uint8
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FBPEnvironmentChanged, EBPEnvironment, NewEnvironment, float, AmbientAttenuation);
 
 UCLASS()
-class BRIDGEPOINT_EARTH_API UBPEnvironmentManagerSubsystem : public UWorldSubsystem
+class BRIDGEPOINTEARTH_API UBPEnvironmentManagerSubsystem : public UWorldSubsystem
 {
     GENERATED_BODY()
 
