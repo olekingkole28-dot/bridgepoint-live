@@ -26,6 +26,9 @@ public:
     void SetTerrainGrid(const TArray<float>& HeightsMeters, int32 Width, int32 Height);
 
     UFUNCTION(BlueprintCallable, Category="BridgePoint|World")
+    void RebuildVectorGeometry();
+
+    UFUNCTION(BlueprintCallable, Category="BridgePoint|World")
     void SetLayerEnabled(FName LayerTag, bool bEnabled);
 
     UFUNCTION(BlueprintCallable, Category="BridgePoint|World")
