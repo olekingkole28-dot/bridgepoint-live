@@ -1,5 +1,6 @@
 #include "BPWorldPartitionAnchor.h"
 #include "Components/WorldPartitionStreamingSourceComponent.h"
+#include "Components/SceneComponent.h"
 
 ABPWorldPartitionAnchor::ABPWorldPartitionAnchor()
 {
