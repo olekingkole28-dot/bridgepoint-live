@@ -11,7 +11,7 @@ class UTextBlock;
 class UBPWorldLayerButton;
 
 UCLASS(BlueprintType)
-class BRIDGEPOINT_EARTH_API UBPWorldLayerMenuWidget : public UUserWidget
+class BRIDGEPOINTEARTH_API UBPWorldLayerMenuWidget : public UUserWidget
 {
     GENERATED_BODY()
 
