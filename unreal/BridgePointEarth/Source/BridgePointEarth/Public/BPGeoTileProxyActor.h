@@ -63,8 +63,13 @@ private:
     TArray<FBPGeoFeature> Features;
 
     UProceduralMeshComponent* FindOrCreateLayerMesh(FName LayerTag);
-    FVector ToTileLocal(const FVector2D& LonLat, double HeightMeters = 0.0) const;
+    FVector ToTileLocal(const FVector2D& LonLat, double HeightMeters = 0.0, bool bUseTerrain = true) const;
+    float SampleTerrainElevation(const FVector2D& LonLat) const;
     void BuildVectorGeometry();
+
+    TArray<float> TerrainHeightMeters;
+    int32 TerrainGridWidth = 0;
+    int32 TerrainGridHeight = 0;
     void AddQuad(UProceduralMeshComponent* Mesh, TArray<FVector>& Vertices, TArray<int32>& Triangles,
                  TArray<FVector2D>& UVs, const FVector& A, const FVector& B, const FVector& C, const FVector& D);
     FName NormalizeLayerTag(const FBPGeoFeature& Feature) const;
