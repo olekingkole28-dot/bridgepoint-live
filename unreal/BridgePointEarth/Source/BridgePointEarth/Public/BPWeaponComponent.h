@@ -32,6 +32,7 @@ class BRIDGEPOINTEARTH_API UBPWeaponComponent : public UActorComponent
 
 public:
     UBPWeaponComponent();
+    virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Weapon|Aim")
     TObjectPtr<UCameraComponent> AimCamera;
