@@ -10,8 +10,8 @@ namespace
     {
         FVector2D Sum(0, 0);
         int32 Count = 0;
-        for (const TArray<FVector2D>& Path : Feature.Paths)
-            for (const FVector2D& P : Path)
+        for (const FBPGeoPath& WrappedPath : Feature.Paths)
+            for (const FVector2D& P : WrappedPath.Points)
                 if (FMath::IsFinite(P.X) && FMath::IsFinite(P.Y)) { Sum += P; ++Count; }
         return Count ? Sum / static_cast<double>(Count) : FVector2D::ZeroVector;
     }
@@ -73,8 +73,9 @@ FPCGDataCollection UBPPCGBridgeComponent::BuildStructuralCollection()
             AppendPoint(FeaturePoints, LayerTag, Local, 0.0f, Seed, FVector(50.0, 50.0, 50.0));
         }
 
-        for (const TArray<FVector2D>& Path : Feature.Paths)
+        for (const FBPGeoPath& WrappedPath : Feature.Paths)
         {
+            const TArray<FVector2D>& Path=WrappedPath.Points;
             if (Path.Num() == 1)
             {
                 const FVector2D Local = FBridgePointGeoReference::ToLocalMeters(Path[0].X, Path[0].Y, OriginLongitude, OriginLatitude);
