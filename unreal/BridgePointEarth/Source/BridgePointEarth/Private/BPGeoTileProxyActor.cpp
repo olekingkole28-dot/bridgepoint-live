@@ -1,6 +1,7 @@
 #include "BPGeoTileProxyActor.h"
 #include "BridgePointGeoReference.h"
 #include "ProceduralMeshComponent.h"
+#include "Components/SceneComponent.h"
 #include "Materials/Material.h"
 
 ABPGeoTileProxyActor::ABPGeoTileProxyActor()
