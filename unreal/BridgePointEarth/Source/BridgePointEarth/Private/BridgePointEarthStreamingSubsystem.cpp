@@ -80,9 +80,35 @@ void UBridgePointEarthStreamingSubsystem::ConfigureWorldOrigin(double Longitude,
     bWorldOriginElevationSet = false;
     WorldOriginElevationMeters = 0.0;
     bWorldOriginConfigured = true;
+
+    // Reconfiguration can happen after terrain has already streamed. Reuse any
+    // loaded tile containing the new origin instead of waiting for a second HTTP response.
     for (TPair<FString,FBPStreamedTileState>& Pair:Tiles)
-        if (Pair.Value.TerrainHeights.Num() == Pair.Value.TerrainWidth*Pair.Value.TerrainHeight)
-            Pair.Value.bProxyDirty = true;
+    {
+        const FBPStreamedTileState& State=Pair.Value;
+        if (State.TerrainWidth<2 || State.TerrainHeight<2 ||
+            State.TerrainHeights.Num()!=State.TerrainWidth*State.TerrainHeight) continue;
+        const FBPGeoBounds Bounds=FBridgePointGeoReference::BoundsForTile(State.Key);
+        if (WorldOriginLongitude<Bounds.West || WorldOriginLongitude>Bounds.East ||
+            WorldOriginLatitude<Bounds.South || WorldOriginLatitude>Bounds.North) continue;
+        const double U=FMath::Clamp((WorldOriginLongitude-Bounds.West)/FMath::Max(1.0e-12,Bounds.East-Bounds.West),0.0,1.0);
+        const double V=FMath::Clamp((Bounds.North-WorldOriginLatitude)/FMath::Max(1.0e-12,Bounds.North-Bounds.South),0.0,1.0);
+        const double GX=U*(State.TerrainWidth-1), GY=V*(State.TerrainHeight-1);
+        const int32 X0=FMath::Clamp(FMath::FloorToInt(GX),0,State.TerrainWidth-1);
+        const int32 Y0=FMath::Clamp(FMath::FloorToInt(GY),0,State.TerrainHeight-1);
+        const int32 X1=FMath::Min(X0+1,State.TerrainWidth-1), Y1=FMath::Min(Y0+1,State.TerrainHeight-1);
+        const double AX=GX-X0, AY=GY-Y0;
+        const double H00=State.TerrainHeights[Y0*State.TerrainWidth+X0];
+        const double H10=State.TerrainHeights[Y0*State.TerrainWidth+X1];
+        const double H01=State.TerrainHeights[Y1*State.TerrainWidth+X0];
+        const double H11=State.TerrainHeights[Y1*State.TerrainWidth+X1];
+        WorldOriginElevationMeters=FMath::Lerp(FMath::Lerp(H00,H10,AX),FMath::Lerp(H01,H11,AX),AY);
+        bWorldOriginElevationSet=true;
+        break;
+    }
+
+    for (TPair<FString,FBPStreamedTileState>& Pair:Tiles)
+        if (!Pair.Value.TerrainHeights.IsEmpty()) Pair.Value.bProxyDirty=true;
     ForceRefresh();
 }
 
