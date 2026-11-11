@@ -6,5 +6,6 @@ BridgePointFunctionsUrl=https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1
 BridgePointBuildingTileName=bridgepoint-public-building-tile-v5019
 BridgePointCityStructuresTileName=bridgepoint-public-city-structures-v5375
 BridgePointCityRoofsTileName=bridgepoint-public-city-roofs-v5376
+BridgePointParcelTileName=bridgepoint-parcel-boundary-tile-v5403
 OpenFreeMapTileTemplate=https://tiles.openfreemap.org/planet/latest/{z}/{x}/{y}.pbf
 TerrariumTileTemplate=https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png
