@@ -75,6 +75,7 @@ void ABPExplorerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInpu
     if (CrouchAction) Enhanced->BindAction(CrouchAction,ETriggerEvent::Started,this,&ABPExplorerCharacter::HandleCrouch);
     if (ProneAction) Enhanced->BindAction(ProneAction,ETriggerEvent::Started,this,&ABPExplorerCharacter::HandleProne);
     if (FireAction) Enhanced->BindAction(FireAction,ETriggerEvent::Started,this,&ABPExplorerCharacter::HandleFire);
+    if (ReloadAction) Enhanced->BindAction(ReloadAction,ETriggerEvent::Started,this,&ABPExplorerCharacter::HandleReload);
     if (AimAction)
     {
         Enhanced->BindAction(AimAction,ETriggerEvent::Started,this,&ABPExplorerCharacter::HandleAimStarted);
@@ -95,6 +96,7 @@ void ABPExplorerCharacter::HandleLook(const FInputActionValue& Value)
     const FVector2D Input=Value.Get<FVector2D>();
     AddControllerYawInput(Input.X);
     AddControllerPitchInput(Input.Y);
+    if (Weapon) Weapon->AddLookInput(Input);
 }
 
 void ABPExplorerCharacter::HandleJumpStarted() { Jump(); }
@@ -104,6 +106,7 @@ void ABPExplorerCharacter::HandleSprintEnded() { SetSprint(false); }
 void ABPExplorerCharacter::HandleCrouch() { ToggleCrouch(); }
 void ABPExplorerCharacter::HandleProne() { ToggleProne(); }
 void ABPExplorerCharacter::HandleFire() { if (Weapon) Weapon->Fire(); }
+void ABPExplorerCharacter::HandleReload() { if (Weapon) Weapon->Reload(); }
 void ABPExplorerCharacter::HandleAimStarted() { if (Weapon) Weapon->SetAiming(true); }
 void ABPExplorerCharacter::HandleAimEnded() { if (Weapon) Weapon->SetAiming(false); }
 
@@ -156,4 +159,14 @@ void ABPExplorerCharacter::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
     UpdateCameraStance(DeltaSeconds);
+    if (Weapon)
+    {
+        if (UBPExplorerMovementComponent* Movement=GetBridgePointMovement())
+        {
+            Weapon->SetLocomotionState(
+                Movement->bSprinting,
+                Movement->Stance==EBPStance::Crouching,
+                Movement->Stance==EBPStance::Prone);
+        }
+    }
 }
