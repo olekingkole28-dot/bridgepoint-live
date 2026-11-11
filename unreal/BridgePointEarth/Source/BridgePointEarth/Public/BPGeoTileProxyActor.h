@@ -10,7 +10,7 @@ class UProceduralMeshComponent;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FBPOnGeoTileImpact, AActor*, HitActor, const FHitResult&, Hit);
 
 UCLASS(BlueprintType)
-class BRIDGEPOINT_EARTH_API ABPGeoTileProxyActor : public AActor
+class BRIDGEPOINTEARTH_API ABPGeoTileProxyActor : public AActor
 {
     GENERATED_BODY()
 
