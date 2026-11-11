@@ -36,11 +36,33 @@ void ABPGeoTileProxyActor::InitializeTile(const FBPGeoTileKey& InTile, double Or
     BuildVectorGeometry();
 }
 
-FVector ABPGeoTileProxyActor::ToTileLocal(const FVector2D& LonLat, double HeightMeters) const
+float ABPGeoTileProxyActor::SampleTerrainElevation(const FVector2D& LonLat) const
+{
+    if (TerrainGridWidth < 2 || TerrainGridHeight < 2 ||
+        TerrainHeightMeters.Num() != TerrainGridWidth * TerrainGridHeight) return 0.0f;
+    const FBPGeoBounds Bounds=FBridgePointGeoReference::BoundsForTile(Tile);
+    const double U=FMath::Clamp((LonLat.X-Bounds.West)/FMath::Max(UE_SMALL_NUMBER,Bounds.East-Bounds.West),0.0,1.0);
+    const double V=FMath::Clamp((Bounds.North-LonLat.Y)/FMath::Max(UE_SMALL_NUMBER,Bounds.North-Bounds.South),0.0,1.0);
+    const double X=U*(TerrainGridWidth-1), Y=V*(TerrainGridHeight-1);
+    const int32 X0=FMath::Clamp(FMath::FloorToInt(X),0,TerrainGridWidth-1);
+    const int32 Y0=FMath::Clamp(FMath::FloorToInt(Y),0,TerrainGridHeight-1);
+    const int32 X1=FMath::Min(X0+1,TerrainGridWidth-1);
+    const int32 Y1=FMath::Min(Y0+1,TerrainGridHeight-1);
+    const double AX=X-X0, AY=Y-Y0;
+    const float H00=TerrainHeightMeters[Y0*TerrainGridWidth+X0];
+    const float H10=TerrainHeightMeters[Y0*TerrainGridWidth+X1];
+    const float H01=TerrainHeightMeters[Y1*TerrainGridWidth+X0];
+    const float H11=TerrainHeightMeters[Y1*TerrainGridWidth+X1];
+    return FMath::Lerp(FMath::Lerp(H00,H10,AX),FMath::Lerp(H01,H11,AX),AY);
+}
+
+FVector ABPGeoTileProxyActor::ToTileLocal(const FVector2D& LonLat, double HeightMeters, bool bUseTerrain) const
 {
     const FVector2D Local = FBridgePointGeoReference::ToLocalMeters(
         LonLat.X, LonLat.Y, TileCenterLonLat.X, TileCenterLonLat.Y);
-    return FVector(Local.X * 100.0, Local.Y * 100.0, HeightMeters * 100.0 + RuntimeGeometryZOffsetCm);
+    const double GroundHeight=bUseTerrain ? SampleTerrainElevation(LonLat) : 0.0;
+    return FVector(Local.X * 100.0, Local.Y * 100.0,
+                   (GroundHeight+HeightMeters) * 100.0 + RuntimeGeometryZOffsetCm);
 }
 
 FName ABPGeoTileProxyActor::NormalizeLayerTag(const FBPGeoFeature& Feature) const
@@ -112,6 +134,7 @@ void ABPGeoTileProxyActor::BuildVectorGeometry()
         TArray<int32>& T = TrianglesByLayer.FindOrAdd(Tag);
         TArray<FVector2D>& UV = UVsByLayer.FindOrAdd(Tag);
         const float HeightM = Feature.HeightMeters > 0.0f ? Feature.HeightMeters : 0.0f;
+        const float BaseHeightM = FMath::Max(0.0f,Feature.BaseHeightMeters);
         const bool bBuilding = Tag == TEXT("buildings");
         const bool bRoof = Tag == TEXT("roofs");
 
@@ -130,8 +153,8 @@ void ABPGeoTileProxyActor::BuildVectorGeometry()
             const int32 EdgeCount = Feature.GeometryType == EBPGeometryType::Polygon ? Path.Num() - 1 : Path.Num() - 1;
             for (int32 I = 0; I < EdgeCount; ++I)
             {
-                const FVector A = ToTileLocal(Path[I], HeightM);
-                const FVector B = ToTileLocal(Path[I + 1], HeightM);
+                const FVector A = ToTileLocal(Path[I], BaseHeightM+HeightM);
+                const FVector B = ToTileLocal(Path[I + 1], BaseHeightM+HeightM);
                 FVector Direction = (B - A).GetSafeNormal2D();
                 if (Direction.IsNearlyZero()) continue;
                 const FVector Side(-Direction.Y, Direction.X, 0.0);
@@ -145,8 +168,8 @@ void ABPGeoTileProxyActor::BuildVectorGeometry()
                 }
                 else if (HeightM > 0.0f)
                 {
-                    const FVector A0 = ToTileLocal(Path[I], 0.0);
-                    const FVector B0 = ToTileLocal(Path[I + 1], 0.0);
+                    const FVector A0 = ToTileLocal(Path[I], BaseHeightM);
+                    const FVector B0 = ToTileLocal(Path[I + 1], BaseHeightM);
                     AddQuad(nullptr, V, T, UV, A0, B0, B, A);
                 }
                 else
@@ -193,7 +216,7 @@ void ABPGeoTileProxyActor::SetTerrainGrid(const TArray<float>& HeightsMeters, in
         {
             const double U = static_cast<double>(X) / (Width - 1);
             const double Lon = FMath::Lerp(B.West, B.East, U);
-            Vertices.Add(ToTileLocal(FVector2D(Lon, Lat), HeightsMeters[Y * Width + X]));
+            Vertices.Add(ToTileLocal(FVector2D(Lon, Lat), HeightsMeters[Y * Width + X], false));
             UVs.Add(FVector2D(U, V));
         }
     }
@@ -208,6 +231,15 @@ void ABPGeoTileProxyActor::SetTerrainGrid(const TArray<float>& HeightsMeters, in
     TerrainMesh->ClearAllMeshSections();
     TerrainMesh->CreateMeshSection_LinearColor(0, Vertices, Triangles, Normals, UVs, Colors, Tangents, true);
     TerrainMesh->SetMaterial(0, UMaterial::GetDefaultMaterial(MD_Surface));
+
+    TerrainHeightMeters=HeightsMeters;
+    TerrainGridWidth=Width;
+    TerrainGridHeight=Height;
+    for (UProceduralMeshComponent* Component:LayerMeshes)
+        if (Component) Component->DestroyComponent();
+    LayerMeshes.Reset();
+    LayerMeshTags.Reset();
+    BuildVectorGeometry();
 }
 
 void ABPGeoTileProxyActor::SetLayerEnabled(FName LayerTag, bool bEnabled)
