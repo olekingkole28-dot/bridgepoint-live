@@ -21,7 +21,7 @@ FBPGeoTileKey FBridgePointGeoReference::TileForLocation(double Latitude, double 
     const double Lat = FMath::DegreesToRadians(FMath::Clamp(Latitude, -MaxMercatorLatitude, MaxMercatorLatitude));
     const double Lon = NormalizeLongitude(Longitude);
     const int32 X = FMath::Clamp(FMath::FloorToInt((Lon + 180.0) / 360.0 * N), 0, static_cast<int32>(N) - 1);
-    const int32 Y = FMath::Clamp(FMath::FloorToInt((1.0 - FMath::Asinh(FMath::Tan(Lat)) / PI) * 0.5 * N), 0, static_cast<int32>(N) - 1);
+    const int32 Y = FMath::Clamp(FMath::FloorToInt((1.0 - FMath::Loge(FMath::Tan(Lat) + FMath::Sqrt(FMath::Square(FMath::Tan(Lat)) + 1.0)) / PI) * 0.5 * N), 0, static_cast<int32>(N) - 1);
     FBPGeoTileKey Result;
     Result.X = X; Result.Y = Y; Result.Zoom = SafeZoom;
     return Result;
@@ -35,7 +35,7 @@ FBPGeoBounds FBridgePointGeoReference::BoundsForTile(const FBPGeoTileKey& Tile)
     const auto LatitudeForY = [N](double Y)
     {
         const double Mercator = PI * (1.0 - 2.0 * Y / N);
-        return FMath::RadiansToDegrees(FMath::Atan(FMath::Sinh(Mercator)));
+        return FMath::RadiansToDegrees(FMath::Atan(0.5 * (FMath::Exp(Mercator) - FMath::Exp(-Mercator))));
     };
     FBPGeoBounds Bounds;
     Bounds.West = West;
