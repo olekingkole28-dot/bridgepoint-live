@@ -1,7 +1,8 @@
 #include "BPWorldLayerButton.h"
 #include "Components/TextBlock.h"
 
-UBPWorldLayerButton::UBPWorldLayerButton()
+UBPWorldLayerButton::UBPWorldLayerButton(const FObjectInitializer& ObjectInitializer)
+    : Super(ObjectInitializer)
 {
     OnClicked.AddDynamic(this,&UBPWorldLayerButton::HandleClick);
 }
