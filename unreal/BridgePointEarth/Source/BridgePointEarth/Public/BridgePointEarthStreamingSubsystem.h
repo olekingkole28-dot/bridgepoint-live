@@ -105,6 +105,8 @@ private:
     double LastPlayerLatitude = TNumericLimits<double>::QuietNaN();
     double LastPlayerLongitude = TNumericLimits<double>::QuietNaN();
     bool bWorldOriginConfigured = false;
+    bool bWorldOriginElevationSet = false;
+    double WorldOriginElevationMeters = 0.0;
     TArray<FBPWorldLayerDefinition> LayerCatalog;
 
     void BuildLayerCatalog();
