@@ -26,7 +26,7 @@ struct FBPWeaponHitData
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FBPWeaponHitEvent, const FBPWeaponHitData&, HitData);
 
 UCLASS(ClassGroup=(BridgePoint), meta=(BlueprintSpawnableComponent))
-class BRIDGEPOINT_EARTH_API UBPWeaponComponent : public UActorComponent
+class BRIDGEPOINTEARTH_API UBPWeaponComponent : public UActorComponent
 {
     GENERATED_BODY()
 
