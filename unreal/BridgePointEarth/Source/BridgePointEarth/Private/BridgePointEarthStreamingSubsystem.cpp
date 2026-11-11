@@ -48,7 +48,7 @@ void UBridgePointEarthStreamingSubsystem::BuildLayerCatalog()
     Add(EBPWorldLayer::Roads,TEXT("roads"),TEXT("Roads and carriageways"),TEXT("Transport"),true,true,true,6.0f);
     Add(EBPWorldLayer::Sidewalks,TEXT("sidewalks"),TEXT("Sidewalks and footpaths"),TEXT("Transport"),true,true,true,1.5f);
     Add(EBPWorldLayer::Rail,TEXT("rail"),TEXT("Rail and transit corridors"),TEXT("Transport"),true,true,true,4.0f);
-    Add(EBPWorldLayer::Bridges,TEXT("bridges"),TEXT("Bridges and overpasses"),TEXT("Transport"),true,false,true,8.0f);
+    Add(EBPWorldLayer::Bridges,TEXT("bridges"),TEXT("Bridges and overpasses"),TEXT("Transport"),true,true,true,8.0f);
     Add(EBPWorldLayer::Water,TEXT("water"),TEXT("Water bodies and waterways"),TEXT("Environment"),true,true);
     Add(EBPWorldLayer::Trees,TEXT("vegetation"),TEXT("Trees and vegetation"),TEXT("Environment"),true,true);
     Add(EBPWorldLayer::StreetFurniture,TEXT("street_furniture"),TEXT("Street furniture"),TEXT("Infrastructure"),false,false,true,2.0f);
