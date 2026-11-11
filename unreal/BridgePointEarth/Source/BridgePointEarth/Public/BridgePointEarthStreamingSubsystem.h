@@ -24,7 +24,7 @@ struct FBPStreamedTileState
 };
 
 UCLASS(Config=Game)
-class BRIDGEPOINT_EARTH_API UBridgePointEarthStreamingSubsystem : public UTickableWorldSubsystem
+class BRIDGEPOINTEARTH_API UBridgePointEarthStreamingSubsystem : public UTickableWorldSubsystem
 {
     GENERATED_BODY()
 
