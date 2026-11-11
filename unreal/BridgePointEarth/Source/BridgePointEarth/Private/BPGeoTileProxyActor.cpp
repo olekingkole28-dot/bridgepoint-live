@@ -215,9 +215,9 @@ void ABPGeoTileProxyActor::BuildVectorGeometry()
         const bool bBuilding = Tag == TEXT("buildings");
         const bool bRoof = Tag == TEXT("roofs");
 
-        // Generate a top cap for a single-ring building footprint. The outer wall
-        // loop below uses the same sampled terrain and base/top heights.
-        if (bBuilding && Feature.GeometryType==EBPGeometryType::Polygon &&
+        // Generate a top cap for a single-ring building/roof footprint. BridgePoint
+        // roof features carry an explicit roof_base_m / roof_top_m pair.
+        if ((bBuilding || bRoof) && Feature.GeometryType==EBPGeometryType::Polygon &&
             HeightM>0.0f && Feature.Paths.Num()==1)
         {
             const TArray<FVector2D>& Outer=Feature.Paths[0];
@@ -227,8 +227,9 @@ void ABPGeoTileProxyActor::BuildVectorGeometry()
             {
                 TArray<FVector> RoofVertices;
                 RoofVertices.Reserve(RingCount);
+                const float CapHeightM=BaseHeightM+HeightM+(bBuilding?Feature.RoofHeightMeters:0.0f);
                 for(int32 I=0;I<RingCount;++I)
-                    RoofVertices.Add(ToTileLocal(Outer[I],BaseHeightM+HeightM));
+                    RoofVertices.Add(ToTileLocal(Outer[I],CapHeightM));
                 TArray<int32> RoofTriangles;
                 if(BPTriangulateRoof(RoofVertices,RoofTriangles))
                 {
@@ -264,6 +265,12 @@ void ABPGeoTileProxyActor::BuildVectorGeometry()
             {
                 const FVector A = ToTileLocal(Path[I], BaseHeightM+HeightM);
                 const FVector B = ToTileLocal(Path[I + 1], BaseHeightM+HeightM);
+                if (bBuilding && Feature.RoofHeightMeters>0.0f)
+                {
+                    const FVector ACap=ToTileLocal(Path[I],BaseHeightM+HeightM+Feature.RoofHeightMeters);
+                    const FVector BCap=ToTileLocal(Path[I+1],BaseHeightM+HeightM+Feature.RoofHeightMeters);
+                    AddQuad(nullptr,V,T,UV,A,B,BCap,ACap);
+                }
                 FVector Direction = (B - A).GetSafeNormal2D();
                 if (Direction.IsNearlyZero()) continue;
                 const FVector Side(-Direction.Y, Direction.X, 0.0);
