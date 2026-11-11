@@ -309,6 +309,7 @@ void UBridgePointEarthStreamingSubsystem::HandleVectorResponse(const FString& Ti
         if (Source==TEXT("bridgepoint")) State->bBridgePointRequested=false;
         else if (Source==TEXT("city_structures")) State->bCityStructuresRequested=false;
         else if (Source==TEXT("city_roofs")) State->bCityRoofsRequested=false;
+        else if (Source==TEXT("parcels")) State->bParcelRequested=false;
         else State->bOpenFreeMapRequested=false;
         UE_LOG(LogTemp,Warning,TEXT("BridgePoint MVT decode failed for %s (%s): %s"),*TileId,*Source,*Error);
     }
