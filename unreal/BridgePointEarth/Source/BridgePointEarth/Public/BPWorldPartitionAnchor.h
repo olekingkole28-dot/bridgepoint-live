@@ -13,6 +13,7 @@ class BRIDGEPOINTEARTH_API ABPWorldPartitionAnchor : public AActor
 
 public:
     ABPWorldPartitionAnchor();
+    virtual void Tick(float DeltaSeconds) override;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BridgePoint|Streaming")
     TObjectPtr<UWorldPartitionStreamingSourceComponent> StreamingSource;
