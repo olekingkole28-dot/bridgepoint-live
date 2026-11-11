@@ -147,6 +147,10 @@ void UBridgePointEarthStreamingSubsystem::EnsureTile(const FBPGeoTileKey& Key)
     if (CountInFlightRequests() >= MaxConcurrentRequests) return;
     if (!State.bBridgePointRequested)
         StartVectorRequest(Id,TEXT("bridgepoint"),BridgePointTileUrl(Key));
+    if (CountInFlightRequests() < MaxConcurrentRequests && !State.bCityStructuresRequested)
+        StartVectorRequest(Id,TEXT("city_structures"),CityStructuresTileUrl(Key));
+    if (CountInFlightRequests() < MaxConcurrentRequests && !State.bCityRoofsRequested)
+        StartVectorRequest(Id,TEXT("city_roofs"),CityRoofsTileUrl(Key));
     if (bStreamOpenFreeMap && CountInFlightRequests() < MaxConcurrentRequests && !State.bOpenFreeMapRequested)
         StartVectorRequest(Id,TEXT("openfreemap"),BuildTileUrl(OpenFreeMapTileTemplate,Key));
     if (bStreamTerrariumElevation && CountInFlightRequests() < MaxConcurrentRequests && !State.bTerrainRequested)
@@ -176,11 +180,25 @@ FString UBridgePointEarthStreamingSubsystem::BridgePointTileUrl(const FBPGeoTile
         *BridgePointFunctionsUrl, *BridgePointBuildingTileName, Key.Zoom, Key.X, Key.Y, MaxBuildingFeaturesPerTile);
 }
 
+FString UBridgePointEarthStreamingSubsystem::CityStructuresTileUrl(const FBPGeoTileKey& Key) const
+{
+    return FString::Printf(TEXT("%s/%s?z=%d&x=%d&y=%d&limit=650&v=5380"),
+        *BridgePointFunctionsUrl,*BridgePointCityStructuresTileName,Key.Zoom,Key.X,Key.Y);
+}
+
+FString UBridgePointEarthStreamingSubsystem::CityRoofsTileUrl(const FBPGeoTileKey& Key) const
+{
+    return FString::Printf(TEXT("%s/%s?z=%d&x=%d&y=%d&limit=650&v=5380"),
+        *BridgePointFunctionsUrl,*BridgePointCityRoofsTileName,Key.Zoom,Key.X,Key.Y);
+}
+
 void UBridgePointEarthStreamingSubsystem::StartVectorRequest(const FString& TileId, const FString& Source, const FString& Url)
 {
     FBPStreamedTileState* State=Tiles.Find(TileId);
     if (!State) return;
     if (Source==TEXT("bridgepoint")) State->bBridgePointRequested=true;
+    else if (Source==TEXT("city_structures")) State->bCityStructuresRequested=true;
+    else if (Source==TEXT("city_roofs")) State->bCityRoofsRequested=true;
     else State->bOpenFreeMapRequested=true;
 
     TSharedRef<IHttpRequest,ESPMode::ThreadSafe> Request=FHttpModule::Get().CreateRequest();
@@ -206,6 +224,8 @@ void UBridgePointEarthStreamingSubsystem::StartVectorRequest(const FString& Tile
     {
         State->Requests.Remove(Request);
         if (Source==TEXT("bridgepoint")) State->bBridgePointRequested=false;
+        else if (Source==TEXT("city_structures")) State->bCityStructuresRequested=false;
+        else if (Source==TEXT("city_roofs")) State->bCityRoofsRequested=false;
         else State->bOpenFreeMapRequested=false;
     }
 }
@@ -245,6 +265,8 @@ void UBridgePointEarthStreamingSubsystem::HandleVectorResponse(const FString& Ti
     if (!bSuccess || Bytes.IsEmpty())
     {
         if (Source==TEXT("bridgepoint")) State->bBridgePointRequested=false;
+        else if (Source==TEXT("city_structures")) State->bCityStructuresRequested=false;
+        else if (Source==TEXT("city_roofs")) State->bCityRoofsRequested=false;
         else State->bOpenFreeMapRequested=false;
         return;
     }
@@ -256,6 +278,8 @@ void UBridgePointEarthStreamingSubsystem::HandleVectorResponse(const FString& Ti
         for (FBPGeoFeature& Feature:Decoded)
         {
             if (Source==TEXT("bridgepoint")) Feature.SourceLayer=TEXT("bridgepoint_")+Feature.SourceLayer;
+            else if (Source==TEXT("city_structures")) Feature.SourceLayer=TEXT("city_structure_")+Feature.SourceLayer;
+            else if (Source==TEXT("city_roofs")) Feature.SourceLayer=TEXT("city_roof_")+Feature.SourceLayer;
             State->Features.Add(MoveTemp(Feature));
         }
         UpdateProxy(TileId);
@@ -263,6 +287,8 @@ void UBridgePointEarthStreamingSubsystem::HandleVectorResponse(const FString& Ti
     else
     {
         if (Source==TEXT("bridgepoint")) State->bBridgePointRequested=false;
+        else if (Source==TEXT("city_structures")) State->bCityStructuresRequested=false;
+        else if (Source==TEXT("city_roofs")) State->bCityRoofsRequested=false;
         else State->bOpenFreeMapRequested=false;
         UE_LOG(LogTemp,Warning,TEXT("BridgePoint MVT decode failed for %s (%s): %s"),*TileId,*Source,*Error);
     }
