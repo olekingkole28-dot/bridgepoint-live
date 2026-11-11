@@ -21,6 +21,7 @@ struct FBPStreamedTileState
     bool bBridgePointRequested = false;
     bool bCityStructuresRequested = false;
     bool bCityRoofsRequested = false;
+    bool bParcelRequested = false;
     bool bOpenFreeMapRequested = false;
     bool bTerrainRequested = false;
     double RetryAfterTime = 0.0;
@@ -46,6 +47,9 @@ public:
 
     UPROPERTY(Config, EditAnywhere, BlueprintReadWrite, Category="BridgePoint|Data")
     FString BridgePointCityRoofsTileName = TEXT("bridgepoint-public-city-roofs-v5376");
+
+    UPROPERTY(Config, EditAnywhere, BlueprintReadWrite, Category="BridgePoint|Data")
+    FString BridgePointParcelTileName = TEXT("bridgepoint-parcel-boundary-tile-v5403");
 
     UPROPERTY(Config, EditAnywhere, BlueprintReadWrite, Category="BridgePoint|Data")
     FString OpenFreeMapTileTemplate = TEXT("https://tiles.openfreemap.org/planet/latest/{z}/{x}/{y}.pbf");
@@ -117,4 +121,5 @@ private:
     FString BridgePointTileUrl(const FBPGeoTileKey& Key) const;
     FString CityStructuresTileUrl(const FBPGeoTileKey& Key) const;
     FString CityRoofsTileUrl(const FBPGeoTileKey& Key) const;
+    FString ParcelTileUrl(const FBPGeoTileKey& Key) const;
 };
