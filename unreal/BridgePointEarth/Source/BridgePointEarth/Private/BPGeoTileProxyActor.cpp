@@ -68,6 +68,7 @@ FVector ABPGeoTileProxyActor::ToTileLocal(const FVector2D& LonLat, double Height
 FName ABPGeoTileProxyActor::NormalizeLayerTag(const FBPGeoFeature& Feature) const
 {
     const FString S = Feature.SourceLayer.ToLower();
+    if (S.Contains(TEXT("parcel"))) return TEXT("parcels");
     const auto Property = [&Feature](const TCHAR* Key) { return Feature.Properties.FindRef(FName(Key)).ToLower(); };
     const FString Class = Property(TEXT("class"));
     const FString Subclass = Property(TEXT("subclass"));
@@ -158,7 +159,9 @@ void ABPGeoTileProxyActor::BuildVectorGeometry()
                 FVector Direction = (B - A).GetSafeNormal2D();
                 if (Direction.IsNearlyZero()) continue;
                 const FVector Side(-Direction.Y, Direction.X, 0.0);
-                const float HalfWidth = (Feature.WidthMeters > 0.0f ? Feature.WidthMeters : DefaultRoadWidthMeters) * 50.0f;
+                const float DefaultWidth = Tag == TEXT("parcels") ? 0.25f :
+                    (Tag == TEXT("sidewalks") ? 1.5f : DefaultRoadWidthMeters);
+                const float HalfWidth = (Feature.WidthMeters > 0.0f ? Feature.WidthMeters : DefaultWidth) * 50.0f;
 
                 if (Feature.GeometryType == EBPGeometryType::LineString || (!bBuilding && !bRoof))
                 {
