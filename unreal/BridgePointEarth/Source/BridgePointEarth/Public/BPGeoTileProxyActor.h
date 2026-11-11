@@ -65,5 +65,5 @@ private:
     void BuildVectorGeometry();
     void AddQuad(UProceduralMeshComponent* Mesh, TArray<FVector>& Vertices, TArray<int32>& Triangles,
                  TArray<FVector2D>& UVs, const FVector& A, const FVector& B, const FVector& C, const FVector& D);
-    FName NormalizeLayerTag(const FString& SourceLayer) const;
+    FName NormalizeLayerTag(const FBPGeoFeature& Feature) const;
 };
