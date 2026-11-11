@@ -242,7 +242,12 @@ namespace
             TArray<FVector2D> CurrentPath;
             auto FlushPath = [&]()
             {
-                if (CurrentPath.Num() > 0) Feature.Paths.Add(MoveTemp(CurrentPath));
+                if (CurrentPath.Num() > 0)
+                {
+                    FBPGeoPath NewPath;
+                    NewPath.Points=MoveTemp(CurrentPath);
+                    Feature.Paths.Add(MoveTemp(NewPath));
+                }
                 CurrentPath.Reset();
             };
             int32 G = 0;
