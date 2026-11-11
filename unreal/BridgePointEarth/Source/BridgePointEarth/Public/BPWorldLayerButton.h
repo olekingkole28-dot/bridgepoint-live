@@ -21,7 +21,6 @@ public:
     void Configure(FName InLayerTag, const FText& InLabel, bool bAdapterReady, bool bInitiallyEnabled, UTextBlock* InLabelWidget);
 
 protected:
-    virtual void NativeConstruct() override;
 
 private:
     UPROPERTY(Transient) FName LayerTag;
