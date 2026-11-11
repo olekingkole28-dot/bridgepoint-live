@@ -8,6 +8,21 @@ name: Deploy BridgePoint Intelligence V5000 Rebuild
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-intelligence-rebuild-v5000.yml'
+      - 'app/horizon/index.html'
+      - 'app/horizon/native/**'
+      - 'app/horizon/sw.js'
+      - 'app/horizon/manifest.webmanifest'
+      - 'app/horizon-playable/index.html'
+      - 'app/horizon-playable/v2-entry.html'
+      - 'app/horizon-world/index.html'
+      - 'app/horizon-next/index.html'
+      - 'rebuild-v5000/bridgepoint-view-v5917.js'
+      - 'rebuild-v5000/bridgepoint-view-v5917.css'
+      - 'tests/horizon-replacement-entry.test.mjs'
 
 permissions:
   contents: write
