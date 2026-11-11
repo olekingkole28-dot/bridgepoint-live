@@ -66,7 +66,7 @@ void UBPWorldLayerMenuWidget::RebuildLayerMenu()
 
         UBPWorldLayerButton* Button=WidgetTree->ConstructWidget<UBPWorldLayerButton>(UBPWorldLayerButton::StaticClass());
         UTextBlock* Label=WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
-        Button->AddChild(Label);
+        Button->SetContent(Label);
         Button->Configure(Definition.RuntimeTag,Definition.DisplayName,Definition.bSourceAdapterConnected,
                           Definition.bEnabledByDefault,Label);
         Button->OnLayerToggled.AddDynamic(this,&UBPWorldLayerMenuWidget::HandleLayerToggled);
