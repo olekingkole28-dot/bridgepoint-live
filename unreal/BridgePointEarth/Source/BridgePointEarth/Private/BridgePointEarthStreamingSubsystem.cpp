@@ -44,7 +44,7 @@ void UBridgePointEarthStreamingSubsystem::BuildLayerCatalog()
     Add(EBPWorldLayer::Terrain,TEXT("terrain"),TEXT("Terrain elevation"),TEXT("Base"),true,true);
     Add(EBPWorldLayer::Buildings,TEXT("buildings"),TEXT("Buildings and structures"),TEXT("Built world"),true,true);
     Add(EBPWorldLayer::Roofs,TEXT("roofs"),TEXT("Roof planes and detail"),TEXT("Built world"),true,true);
-    Add(EBPWorldLayer::Parcels,TEXT("parcels"),TEXT("Parcels and property boundaries"),TEXT("Property"),false,false,true,1.0f);
+    Add(EBPWorldLayer::Parcels,TEXT("parcels"),TEXT("Parcels and property boundaries"),TEXT("Property"),false,true,true,1.0f);
     Add(EBPWorldLayer::Roads,TEXT("roads"),TEXT("Roads and carriageways"),TEXT("Transport"),true,true,true,6.0f);
     Add(EBPWorldLayer::Sidewalks,TEXT("sidewalks"),TEXT("Sidewalks and footpaths"),TEXT("Transport"),true,true,true,1.5f);
     Add(EBPWorldLayer::Rail,TEXT("rail"),TEXT("Rail and transit corridors"),TEXT("Transport"),true,true,true,4.0f);
@@ -152,6 +152,8 @@ void UBridgePointEarthStreamingSubsystem::EnsureTile(const FBPGeoTileKey& Key)
         StartVectorRequest(Id,TEXT("city_structures"),CityStructuresTileUrl(Key));
     if (CountInFlightRequests() < MaxConcurrentRequests && !State.bCityRoofsRequested)
         StartVectorRequest(Id,TEXT("city_roofs"),CityRoofsTileUrl(Key));
+    if (CountInFlightRequests() < MaxConcurrentRequests && !State.bParcelRequested)
+        StartVectorRequest(Id,TEXT("parcels"),ParcelTileUrl(Key));
     if (bStreamOpenFreeMap && CountInFlightRequests() < MaxConcurrentRequests && !State.bOpenFreeMapRequested)
         StartVectorRequest(Id,TEXT("openfreemap"),BuildTileUrl(OpenFreeMapTileTemplate,Key));
     if (bStreamTerrariumElevation && CountInFlightRequests() < MaxConcurrentRequests && !State.bTerrainRequested)
@@ -193,6 +195,13 @@ FString UBridgePointEarthStreamingSubsystem::CityRoofsTileUrl(const FBPGeoTileKe
         *BridgePointFunctionsUrl,*BridgePointCityRoofsTileName,Key.Zoom,Key.X,Key.Y);
 }
 
+FString UBridgePointEarthStreamingSubsystem::ParcelTileUrl(const FBPGeoTileKey& Key) const
+{
+    const int64 CacheBucket=FDateTime::UtcNow().ToUnixTimestamp()/300;
+    return FString::Printf(TEXT("%s/%s?mode=public&z=%d&x=%d&y=%d&v=%lld"),
+        *BridgePointFunctionsUrl,*BridgePointParcelTileName,Key.Zoom,Key.X,Key.Y,CacheBucket);
+}
+
 void UBridgePointEarthStreamingSubsystem::StartVectorRequest(const FString& TileId, const FString& Source, const FString& Url)
 {
     FBPStreamedTileState* State=Tiles.Find(TileId);
@@ -200,6 +209,7 @@ void UBridgePointEarthStreamingSubsystem::StartVectorRequest(const FString& Tile
     if (Source==TEXT("bridgepoint")) State->bBridgePointRequested=true;
     else if (Source==TEXT("city_structures")) State->bCityStructuresRequested=true;
     else if (Source==TEXT("city_roofs")) State->bCityRoofsRequested=true;
+    else if (Source==TEXT("parcels")) State->bParcelRequested=true;
     else State->bOpenFreeMapRequested=true;
 
     TSharedRef<IHttpRequest,ESPMode::ThreadSafe> Request=FHttpModule::Get().CreateRequest();
@@ -227,6 +237,7 @@ void UBridgePointEarthStreamingSubsystem::StartVectorRequest(const FString& Tile
         if (Source==TEXT("bridgepoint")) State->bBridgePointRequested=false;
         else if (Source==TEXT("city_structures")) State->bCityStructuresRequested=false;
         else if (Source==TEXT("city_roofs")) State->bCityRoofsRequested=false;
+        else if (Source==TEXT("parcels")) State->bParcelRequested=false;
         else State->bOpenFreeMapRequested=false;
     }
 }
@@ -268,6 +279,7 @@ void UBridgePointEarthStreamingSubsystem::HandleVectorResponse(const FString& Ti
         if (Source==TEXT("bridgepoint")) State->bBridgePointRequested=false;
         else if (Source==TEXT("city_structures")) State->bCityStructuresRequested=false;
         else if (Source==TEXT("city_roofs")) State->bCityRoofsRequested=false;
+        else if (Source==TEXT("parcels")) State->bParcelRequested=false;
         else State->bOpenFreeMapRequested=false;
         return;
     }
@@ -281,6 +293,7 @@ void UBridgePointEarthStreamingSubsystem::HandleVectorResponse(const FString& Ti
             if (Source==TEXT("bridgepoint")) Feature.SourceLayer=TEXT("bridgepoint_")+Feature.SourceLayer;
             else if (Source==TEXT("city_structures")) Feature.SourceLayer=TEXT("city_structure_")+Feature.SourceLayer;
             else if (Source==TEXT("city_roofs")) Feature.SourceLayer=TEXT("city_roof_")+Feature.SourceLayer;
+            else if (Source==TEXT("parcels")) Feature.SourceLayer=TEXT("parcel_")+Feature.SourceLayer;
             State->Features.Add(MoveTemp(Feature));
         }
         UpdateProxy(TileId);
