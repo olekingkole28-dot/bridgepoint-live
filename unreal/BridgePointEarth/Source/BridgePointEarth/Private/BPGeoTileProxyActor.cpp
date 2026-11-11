@@ -53,7 +53,8 @@ FName ABPGeoTileProxyActor::NormalizeLayerTag(const FBPGeoFeature& Feature) cons
     const FString Railway = Property(TEXT("railway"));
     const FString Highway = Property(TEXT("highway"));
     const FString Bridge = Property(TEXT("bridge"));
-    if (S.Contains(TEXT("building")) || S.Contains(TEXT("roof"))) return TEXT("buildings");
+    if (S.Contains(TEXT("roof"))) return TEXT("roofs");
+    if (S.Contains(TEXT("building"))) return TEXT("buildings");
     if (S.Contains(TEXT("bridge")) || Bridge == TEXT("yes") || Subclass == TEXT("bridge")) return TEXT("bridges");
     if (S.Contains(TEXT("rail")) || Railway == TEXT("rail") || Railway == TEXT("subway") ||
         Railway == TEXT("tram") || Class == TEXT("rail") || Subclass == TEXT("rail")) return TEXT("rail");
@@ -111,6 +112,7 @@ void ABPGeoTileProxyActor::BuildVectorGeometry()
         TArray<FVector2D>& UV = UVsByLayer.FindOrAdd(Tag);
         const float HeightM = Feature.HeightMeters > 0.0f ? Feature.HeightMeters : 0.0f;
         const bool bBuilding = Tag == TEXT("buildings");
+        const bool bRoof = Tag == TEXT("roofs");
 
         for (const TArray<FVector2D>& Path : Feature.Paths)
         {
@@ -134,7 +136,7 @@ void ABPGeoTileProxyActor::BuildVectorGeometry()
                 const FVector Side(-Direction.Y, Direction.X, 0.0);
                 const float HalfWidth = (Feature.WidthMeters > 0.0f ? Feature.WidthMeters : DefaultRoadWidthMeters) * 50.0f;
 
-                if (Feature.GeometryType == EBPGeometryType::LineString || !bBuilding)
+                if (Feature.GeometryType == EBPGeometryType::LineString || (!bBuilding && !bRoof))
                 {
                     AddQuad(nullptr, V, T, UV,
                         A - Side * HalfWidth, A + Side * HalfWidth,
