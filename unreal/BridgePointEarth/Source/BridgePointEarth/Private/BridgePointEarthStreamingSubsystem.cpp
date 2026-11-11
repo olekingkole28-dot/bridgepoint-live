@@ -395,6 +395,8 @@ void UBridgePointEarthStreamingSubsystem::UpdateProxy(const FString& TileId)
     Proxy->InitializeTile(State->Key,WorldOriginLongitude,WorldOriginLatitude,State->Features);
     if (!State->TerrainHeights.IsEmpty())
         Proxy->SetTerrainGrid(State->TerrainHeights,State->TerrainWidth,State->TerrainHeight);
+    else
+        Proxy->RebuildVectorGeometry();
     for (const TPair<FName,bool>& Layer:LayerEnabled)
         Proxy->SetLayerEnabled(Layer.Key,Layer.Value);
 }
