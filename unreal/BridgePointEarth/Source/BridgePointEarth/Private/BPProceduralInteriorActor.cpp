@@ -1,5 +1,6 @@
 #include "BPProceduralInteriorActor.h"
 #include "ProceduralMeshComponent.h"
+#include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Materials/MaterialInterface.h"
 
