@@ -114,14 +114,15 @@ void ABPGeoTileProxyActor::BuildVectorGeometry()
 
         for (const TArray<FVector2D>& Path : Feature.Paths)
         {
-            if (Path.Num() < 2) continue;
             if (Feature.GeometryType == EBPGeometryType::Point)
             {
+                if (Path.IsEmpty()) continue;
                 const FVector P = ToTileLocal(Path[0]);
                 const float R = 65.0f;
                 AddQuad(nullptr, V, T, UV, P + FVector(-R,0,0), P + FVector(R,0,0), P + FVector(R,0,130), P + FVector(-R,0,130));
                 continue;
             }
+            if (Path.Num() < 2) continue;
 
             const int32 EdgeCount = Feature.GeometryType == EBPGeometryType::Polygon ? Path.Num() - 1 : Path.Num() - 1;
             for (int32 I = 0; I < EdgeCount; ++I)
