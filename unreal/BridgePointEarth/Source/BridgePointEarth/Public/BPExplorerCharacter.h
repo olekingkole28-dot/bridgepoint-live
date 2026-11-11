@@ -58,6 +58,9 @@ public:
     TObjectPtr<UInputAction> FireAction;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="BridgePoint|Input")
+    TObjectPtr<UInputAction> ReloadAction;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="BridgePoint|Input")
     TObjectPtr<UInputAction> AimAction;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="BridgePoint|Character|Camera")
@@ -97,6 +100,7 @@ private:
     void HandleCrouch();
     void HandleProne();
     void HandleFire();
+    void HandleReload();
     void HandleAimStarted();
     void HandleAimEnded();
     void UpdateCameraStance(float DeltaSeconds);
