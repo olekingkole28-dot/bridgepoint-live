@@ -10,7 +10,7 @@ class UStaticMeshComponent;
 class UMaterialInterface;
 
 UCLASS(BlueprintType)
-class BRIDGEPOINT_EARTH_API ABPProceduralInteriorActor : public AActor
+class BRIDGEPOINTEARTH_API ABPProceduralInteriorActor : public AActor
 {
     GENERATED_BODY()
 
