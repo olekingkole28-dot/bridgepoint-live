@@ -2,7 +2,83 @@
 #include "BridgePointGeoReference.h"
 #include "ProceduralMeshComponent.h"
 #include "Components/SceneComponent.h"
+
 #include "Materials/Material.h"
+
+namespace
+{
+    static double BPOrient2D(const FVector& A,const FVector& B,const FVector& C)
+    {
+        return (B.X-A.X)*(C.Y-A.Y)-(B.Y-A.Y)*(C.X-A.X);
+    }
+
+    static bool BPPointInTriangle(const FVector& P,const FVector& A,const FVector& B,const FVector& C,double Orientation)
+    {
+        const double Epsilon=1.0e-6;
+        const double AB=BPOrient2D(A,B,P)*Orientation;
+        const double BC=BPOrient2D(B,C,P)*Orientation;
+        const double CA=BPOrient2D(C,A,P)*Orientation;
+        return AB>=-Epsilon && BC>=-Epsilon && CA>=-Epsilon;
+    }
+
+    // Ear-clips a simple, non-self-intersecting polygon ring. Interior MVT rings
+    // are deliberately not triangulated as roofs here, avoiding accidental caps
+    // across courtyards; those can be handled by a full polygon-with-holes solver.
+    static bool BPTriangulateRoof(const TArray<FVector>& Vertices,TArray<int32>& OutTriangles)
+    {
+        OutTriangles.Reset();
+        if (Vertices.Num()<3) return false;
+        double Area=0.0;
+        for (int32 I=0;I<Vertices.Num();++I)
+        {
+            const FVector& A=Vertices[I];
+            const FVector& B=Vertices[(I+1)%Vertices.Num()];
+            Area+=A.X*B.Y-B.X*A.Y;
+        }
+        const double Orientation=Area>=0.0?1.0:-1.0;
+        TArray<int32> Remaining;
+        Remaining.Reserve(Vertices.Num());
+        for(int32 I=0;I<Vertices.Num();++I)Remaining.Add(I);
+
+        int32 Guard=0;
+        while(Remaining.Num()>3 && Guard++<Vertices.Num()*Vertices.Num())
+        {
+            bool bClipped=false;
+            for(int32 I=0;I<Remaining.Num();++I)
+            {
+                const int32 Prev=Remaining[(I+Remaining.Num()-1)%Remaining.Num()];
+                const int32 Curr=Remaining[I];
+                const int32 Next=Remaining[(I+1)%Remaining.Num()];
+                const double Turn=BPOrient2D(Vertices[Prev],Vertices[Curr],Vertices[Next])*Orientation;
+                if(Turn<=1.0e-7)continue;
+
+                bool bContainsVertex=false;
+                for(const int32 Candidate:Remaining)
+                {
+                    if(Candidate==Prev||Candidate==Curr||Candidate==Next)continue;
+                    if(BPPointInTriangle(Vertices[Candidate],Vertices[Prev],Vertices[Curr],Vertices[Next],Orientation))
+                    {
+                        bContainsVertex=true;break;
+                    }
+                }
+                if(bContainsVertex)continue;
+
+                if(Orientation>0.0)OutTriangles.Append({Prev,Curr,Next});
+                else OutTriangles.Append({Prev,Next,Curr});
+                Remaining.RemoveAt(I);
+                bClipped=true;
+                break;
+            }
+            if(!bClipped){OutTriangles.Reset();return false;}
+        }
+        if(Remaining.Num()==3)
+        {
+            if(Orientation>0.0)OutTriangles.Append({Remaining[0],Remaining[1],Remaining[2]});
+            else OutTriangles.Append({Remaining[0],Remaining[2],Remaining[1]});
+        }
+        return !OutTriangles.IsEmpty();
+    }
+}
 
 ABPGeoTileProxyActor::ABPGeoTileProxyActor()
 {
@@ -138,6 +214,38 @@ void ABPGeoTileProxyActor::BuildVectorGeometry()
         const float BaseHeightM = FMath::Max(0.0f,Feature.BaseHeightMeters);
         const bool bBuilding = Tag == TEXT("buildings");
         const bool bRoof = Tag == TEXT("roofs");
+
+        // Generate a top cap for a single-ring building footprint. The outer wall
+        // loop below uses the same sampled terrain and base/top heights.
+        if (bBuilding && Feature.GeometryType==EBPGeometryType::Polygon &&
+            HeightM>0.0f && Feature.Paths.Num()==1)
+        {
+            const TArray<FVector2D>& Outer=Feature.Paths[0];
+            int32 RingCount=Outer.Num();
+            if(RingCount>1 && Outer[0].Equals(Outer.Last(),KINDA_SMALL_NUMBER))--RingCount;
+            if(RingCount>=3)
+            {
+                TArray<FVector> RoofVertices;
+                RoofVertices.Reserve(RingCount);
+                for(int32 I=0;I<RingCount;++I)
+                    RoofVertices.Add(ToTileLocal(Outer[I],BaseHeightM+HeightM));
+                TArray<int32> RoofTriangles;
+                if(BPTriangulateRoof(RoofVertices,RoofTriangles))
+                {
+                    const int32 BaseIndex=V.Num();
+                    FVector2D Min( DBL_MAX, DBL_MAX), Max(-DBL_MAX,-DBL_MAX);
+                    for(const FVector& P:RoofVertices){Min.X=FMath::Min(Min.X,P.X);Min.Y=FMath::Min(Min.Y,P.Y);Max.X=FMath::Max(Max.X,P.X);Max.Y=FMath::Max(Max.Y,P.Y);}
+                    const FVector2D Extent=Max-Min;
+                    for(const FVector& P:RoofVertices)
+                    {
+                        V.Add(P);
+                        UV.Add(FVector2D((P.X-Min.X)/FMath::Max(1.0,Extent.X),(P.Y-Min.Y)/FMath::Max(1.0,Extent.Y)));
+                    }
+                    for(int32 I=0;I<RoofTriangles.Num();I+=3)
+                        T.Append({BaseIndex+RoofTriangles[I],BaseIndex+RoofTriangles[I+1],BaseIndex+RoofTriangles[I+2]});
+                }
+            }
+        }
 
         for (const TArray<FVector2D>& Path : Feature.Paths)
         {
