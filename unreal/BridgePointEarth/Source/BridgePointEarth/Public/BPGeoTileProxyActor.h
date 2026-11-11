@@ -3,6 +3,8 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "BridgePointEarthTypes.h"
+
+class USceneComponent;
 #include "BPGeoTileProxyActor.generated.h"
 
 class UProceduralMeshComponent;
