@@ -126,8 +126,8 @@ float ABPGeoTileProxyActor::SampleTerrainElevation(const FVector2D& LonLat) cons
     if (TerrainGridWidth < 2 || TerrainGridHeight < 2 ||
         TerrainHeightMeters.Num() != TerrainGridWidth * TerrainGridHeight) return 0.0f;
     const FBPGeoBounds Bounds=FBridgePointGeoReference::BoundsForTile(Tile);
-    const double U=FMath::Clamp((LonLat.X-Bounds.West)/FMath::Max(UE_SMALL_NUMBER,Bounds.East-Bounds.West),0.0,1.0);
-    const double V=FMath::Clamp((Bounds.North-LonLat.Y)/FMath::Max(UE_SMALL_NUMBER,Bounds.North-Bounds.South),0.0,1.0);
+    const double U=FMath::Clamp((LonLat.X-Bounds.West)/FMath::Max(1.0e-12,Bounds.East-Bounds.West),0.0,1.0);
+    const double V=FMath::Clamp((Bounds.North-LonLat.Y)/FMath::Max(1.0e-12,Bounds.North-Bounds.South),0.0,1.0);
     const double X=U*(TerrainGridWidth-1), Y=V*(TerrainGridHeight-1);
     const int32 X0=FMath::Clamp(FMath::FloorToInt(X),0,TerrainGridWidth-1);
     const int32 Y0=FMath::Clamp(FMath::FloorToInt(Y),0,TerrainGridHeight-1);
