@@ -99,6 +99,7 @@ void UBridgePointEarthStreamingSubsystem::Tick(float DeltaTime)
     // Reconcile on every streaming heartbeat. This also drains request slots for
     // neighboring tiles after earlier HTTP work completes while the pawn is stationary.
     ReconcileTiles(Lat,Lon);
+    FlushDirtyProxies();
 }
 
 bool UBridgePointEarthStreamingSubsystem::GetPlayerGeoLocation(double& OutLatitude, double& OutLongitude) const
@@ -301,7 +302,7 @@ void UBridgePointEarthStreamingSubsystem::HandleVectorResponse(const FString& Ti
             else if (Source==TEXT("parcels")) Feature.SourceLayer=TEXT("parcel_")+Feature.SourceLayer;
             State->Features.Add(MoveTemp(Feature));
         }
-        UpdateProxy(TileId);
+        State->bProxyDirty=true;
     }
     else
     {
@@ -366,13 +367,22 @@ void UBridgePointEarthStreamingSubsystem::HandleTerrainResponse(const FString& T
             State->TerrainHeights[Y*TargetW+X]=static_cast<float>(C.R*256.0+C.G+C.B/256.0-32768.0);
         }
     }
-    UpdateProxy(TileId);
+    State->bProxyDirty=true;
+}
+
+void UBridgePointEarthStreamingSubsystem::FlushDirtyProxies()
+{
+    TArray<FString> DirtyIds;
+    for (const TPair<FString,FBPStreamedTileState>& Pair:Tiles)
+        if (Pair.Value.bProxyDirty) DirtyIds.Add(Pair.Key);
+    for (const FString& Id:DirtyIds) UpdateProxy(Id);
 }
 
 void UBridgePointEarthStreamingSubsystem::UpdateProxy(const FString& TileId)
 {
     FBPStreamedTileState* State=Tiles.Find(TileId);
-    if (!State || !GetWorld()) return;
+    if (!State || !GetWorld() || !State->bProxyDirty) return;
+    State->bProxyDirty=false;
     ABPGeoTileProxyActor* Proxy=State->Proxy.Get();
     if (!Proxy)
     {
