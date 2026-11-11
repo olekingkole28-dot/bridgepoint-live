@@ -1,0 +1,14 @@
+{
+  "FileVersion": 3,
+  "EngineAssociation": "5.8",
+  "Category": "Games",
+  "Description": "BridgePoint Earth — source-backed geospatial runtime and lunar environment.",
+  "Modules": [
+    { "Name": "BridgePointEarth", "Type": "Runtime", "LoadingPhase": "Default" }
+  ],
+  "Plugins": [
+    { "Name": "PCG", "Enabled": true },
+    { "Name": "EnhancedInput", "Enabled": true },
+    { "Name": "ProceduralMeshComponent", "Enabled": true }
+  ]
+}
