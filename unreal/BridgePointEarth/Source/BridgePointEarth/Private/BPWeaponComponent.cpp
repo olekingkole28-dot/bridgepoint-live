@@ -72,7 +72,11 @@ void UBPWeaponComponent::PlayImpactAudio(const FHitResult& Hit, EPhysicalSurface
         GetWorld(), MetaSoundImpact, Hit.ImpactPoint, Hit.ImpactNormal.Rotation());
     if (!Audio) return;
     Audio->SetFloatParameter(SurfaceParameter, static_cast<float>(Surface));
-    Audio->SetFloatParameter(ImpactIntensityParameter, FMath::Clamp(Hit.Distance / FMath::Max(1.0f, AimRangeMeters * 100.0f), 0.05f, 1.0f));
+    const AActor* Shooter=GetOwner();
+    const float ImpactSpeed=Shooter ? Shooter->GetVelocity().Size() : 0.0f;
+    // A controllable impact-energy proxy, not distance-to-target; MetaSound can
+    // map this to transient strength while SurfaceType selects concrete/lunar-soil timbre.
+    Audio->SetFloatParameter(ImpactIntensityParameter, FMath::Clamp(0.25f + ImpactSpeed / 1800.0f, 0.05f, 1.0f));
 }
 
 bool UBPWeaponComponent::Fire()
