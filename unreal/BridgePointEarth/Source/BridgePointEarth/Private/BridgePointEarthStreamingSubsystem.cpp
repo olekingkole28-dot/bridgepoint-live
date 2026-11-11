@@ -43,7 +43,7 @@ void UBridgePointEarthStreamingSubsystem::BuildLayerCatalog()
     Add(EBPWorldLayer::Satellite,TEXT("satellite"),TEXT("Satellite imagery"),TEXT("Base"),true,false);
     Add(EBPWorldLayer::Terrain,TEXT("terrain"),TEXT("Terrain elevation"),TEXT("Base"),true,true);
     Add(EBPWorldLayer::Buildings,TEXT("buildings"),TEXT("Buildings and structures"),TEXT("Built world"),true,true);
-    Add(EBPWorldLayer::Roofs,TEXT("roofs"),TEXT("Roof planes and detail"),TEXT("Built world"),true,false);
+    Add(EBPWorldLayer::Roofs,TEXT("roofs"),TEXT("Roof planes and detail"),TEXT("Built world"),true,true);
     Add(EBPWorldLayer::Parcels,TEXT("parcels"),TEXT("Parcels and property boundaries"),TEXT("Property"),false,false,true,1.0f);
     Add(EBPWorldLayer::Roads,TEXT("roads"),TEXT("Roads and carriageways"),TEXT("Transport"),true,true,true,6.0f);
     Add(EBPWorldLayer::Sidewalks,TEXT("sidewalks"),TEXT("Sidewalks and footpaths"),TEXT("Transport"),true,true,true,1.5f);
