@@ -74,14 +74,14 @@ bool UBPModularCharacterComponent::LoadCharacterPartsFromJson(const FString& Jso
         const TSharedPtr<FJsonObject> Object=Value->AsObject();
         if (!Object.IsValid()) continue;
         FBPCharacterPartDefinition Definition;
-        FString Slot,MeshPath;
+        FString Slot,MeshPath,Socket;
         Object->TryGetStringField(TEXT("slot"),Slot);
         Object->TryGetStringField(TEXT("mesh"),MeshPath);
         Definition.Slot=FName(*Slot);
         if (MeshPath.IsEmpty()) continue;
         Definition.Mesh=TSoftObjectPtr<USkeletalMesh>(FSoftObjectPath(MeshPath));
-        Object->TryGetStringField(TEXT("socket"),Slot);
-        Definition.AttachSocket=FName(*Slot);
+        Object->TryGetStringField(TEXT("socket"),Socket);
+        Definition.AttachSocket=FName(*Socket);
 
         const TArray<TSharedPtr<FJsonValue>>* MaterialArray=nullptr;
         if (Object->TryGetArrayField(TEXT("materials"),MaterialArray) && MaterialArray)
