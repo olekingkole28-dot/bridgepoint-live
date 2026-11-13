@@ -1371,7 +1371,7 @@ for token in [
     "cloud_to_ground_vs_intracloud_classification",
     "bCommerciallyCleared",
     "IsFlashStructurallyValid",
-    "flash_time_offset_of_first_event"
+    "first_event_utc"
 ]:
     require(token in lightning_contract, f"observed GLM flash loader contract missing: {token}")
 for token in [
@@ -1383,7 +1383,7 @@ for token in [
     require(token in lightning_tests, f"native GLM flash QA missing: {token}")
 for token in [
     "GLM-L2-LCFA", "flash_lat", "flash_lon",
-    "flash_time_offset_of_first_event", "flash_energy",
+    "flash_time_offset_of_first_event", "first_event_utc", "flash_energy",
     "flash_area", "flash_quality_flag", "NOAA_PUBLIC_DATA_SOURCE_REVIEW_REQUIRED",
     "not_provided_by_this_product", "parse_scan_start_utc"
 ]:
