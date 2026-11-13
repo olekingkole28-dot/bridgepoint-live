@@ -18,7 +18,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-SCAN_RE = re.compile(r"_s(?P<stamp>\d{13})_")
+SCAN_RE = re.compile(r"_s(?P<stamp>\d{13,14})_")
 SATELLITES = {
     "GOES19": "noaa-goes19",  # GOES-East
     "GOES18": "noaa-goes18",  # GOES-West
@@ -34,7 +34,7 @@ def parse_goes_scan_time(key: str) -> dt.datetime | None:
     if not match:
         return None
     try:
-        stamp = dt.datetime.strptime(match.group("stamp"), "%Y%j%H%M%S")
+        stamp = dt.datetime.strptime(match.group("stamp")[:13], "%Y%j%H%M%S")
         return stamp.replace(tzinfo=dt.timezone.utc)
     except ValueError:
         return None
