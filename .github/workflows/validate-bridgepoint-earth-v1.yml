@@ -1,4 +1,4 @@
-name: BridgePoint Earth V1.2 - Cesium globe and Unreal source validation
+name: BridgePoint Earth V1.3 - terrain and controller source validation
 
 on:
   push:
@@ -40,6 +40,8 @@ jobs:
           assert Path("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthSubsystem.cpp").is_file()
           assert Path("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthSubsystemTests.cpp").is_file()
           assert Path("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthWorld.cpp").is_file()
+          assert Path("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthCameraPawn.cpp").is_file()
+          assert Path("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthGameMode.cpp").is_file()
           print("BRIDGEPOINT_EARTH_V1_SOURCE_CONTRACT_PASS")
           PY
       - name: Ensure plugin and heavy assets stay outside Git
@@ -50,4 +52,8 @@ jobs:
           grep -Fq 'unreal/BridgePointHorizon/ExternalAssets/' .gitignore
           test ! -e unreal/BridgePointHorizon/Plugins/CesiumForUnreal
           grep -Fq "VIIRS_NOAA20_CorrectedReflectance_TrueColor" unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthWorld.cpp
+          grep -Fq "CesiumWorldTerrainAssetId = 1" unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthWorld.cpp
+          grep -Fq "CesiumOSMBuildingsAssetId = 96188" unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthWorld.cpp
+          grep -Fq "Gamepad_LeftX" unreal/BridgePointHorizon/Config/DefaultInput.ini
+          grep -Fq "BridgePointEarthGameMode" unreal/BridgePointHorizon/Config/DefaultEngine.ini
           echo "BRIDGEPOINT_EARTH_REPOSITORY_HYGIENE_PASS"
