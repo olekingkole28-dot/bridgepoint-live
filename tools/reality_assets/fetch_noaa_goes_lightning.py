@@ -31,15 +31,34 @@ def _as_utc_iso(value: Any) -> str:
     raise ValueError(f"Unsupported CF datetime type: {type(value).__name__}")
 
 def decode_cf_times(netCDF4: Any, variable: Any) -> list[str]:
+    import numpy as np
+
     units = str(getattr(variable, "units", "")).strip()
     calendar = str(getattr(variable, "calendar", "standard"))
     if " since " not in units:
         raise RuntimeError(f"Lightning time variable is not CF-relative time: {units!r}")
-    dates = netCDF4.num2date(
-        variable[:], units=units, calendar=calendar,
-        only_use_cftime_datetimes=False, only_use_python_datetimes=True
+
+    raw = np.ma.asarray(variable[:])
+    values = np.asarray(np.ma.filled(raw, np.nan), dtype=np.float64)
+    masked = np.ma.getmaskarray(raw)
+    result = [""] * len(values)
+    valid_indices = np.where((~masked) & np.isfinite(values))[0]
+    if valid_indices.size == 0:
+        return result
+
+    decoded = netCDF4.num2date(
+        values[valid_indices],
+        units=units,
+        calendar=calendar,
+        only_use_cftime_datetimes=False,
+        only_use_python_datetimes=True,
     )
-    return [_as_utc_iso(value) for value in dates]
+    for index, date_value in zip(valid_indices, decoded):
+        try:
+            result[int(index)] = _as_utc_iso(date_value)
+        except (TypeError, ValueError, OverflowError):
+            result[int(index)] = ""
+    return result
 
 def validate_flash(lat: float, lon: float, energy: float, area: float, quality: int) -> bool:
     if not all(math.isfinite(float(v)) for v in (lat, lon, energy, area)):
@@ -97,6 +116,8 @@ def read_flash_file(path: Path, max_flashes: int) -> tuple[list[dict], dict]:
             raise RuntimeError("GLM flash variables have inconsistent row counts.")
 
         for i in range(len(first_times)):
+            if not first_times[i] or not last_times[i]:
+                continue
             try:
                 lat, lon = float(lats[i]), float(lons[i])
                 energy, area, quality = float(energies[i]), float(areas[i]), int(flags[i])

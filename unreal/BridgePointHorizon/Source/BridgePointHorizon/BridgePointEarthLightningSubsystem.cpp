@@ -283,11 +283,11 @@ bool UBridgePointEarthLightningSubsystem::LoadLightningFile(
         return false;
     }
 
-    bool bGroundStrikeGuaranteed = false;
-    Source->TryGetBoolField(TEXT("ground_strike_location_guaranteed"), bGroundStrikeGuaranteed);
-    if (bGroundStrikeGuaranteed)
+    bool bGroundStrikeGuaranteed = true;
+    if (!Source->TryGetBoolField(TEXT("ground_strike_location_guaranteed"), bGroundStrikeGuaranteed) ||
+        bGroundStrikeGuaranteed)
     {
-        OutError = TEXT("GLM flash centroids cannot be promoted to guaranteed ground-strike points.");
+        OutError = TEXT("GLM flash centroids must explicitly remain unclassified as ground-strike points.");
         return false;
     }
 
