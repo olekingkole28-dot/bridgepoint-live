@@ -77,3 +77,18 @@ The script verifies the official release SHA-256 and installs into the project P
 Cesium's plugin license does not grant rights to every imagery, photogrammetry or 3D building dataset. Review each data source independently and keep ion tokens or credentials out of Git.
 
 See BRIDGEPOINT_EARTH_FOUNDATION_V1.md for the architecture and current implementation boundary. This branch does not switch the production website entrypoint.
+
+
+## First native Earth globe
+
+The Horizon game mode now creates BridgePointEarthWorld automatically at startup. The actor:
+
+- Creates a Cesium WGS84 georeference using the existing Connecticut start coordinate.
+- Creates a Cesium ellipsoid tileset as the planetary surface.
+- Adds NASA GIBS / NOAA-20 VIIRS Corrected Reflectance True Color daily imagery using the provider's default time selector.
+- Enables Cesium source credits, caps the imagery tile level, limits concurrent tile requests and keeps a bounded sub-tile cache.
+- Does not create generic city blocks or invented building geometry.
+
+This is the first real planetary imagery layer, not the finished high-detail Earth. The VIIRS layer is a global daily browse image; it does not provide photogrammetric building facades, roof details or street-level textures. The next imagery/geometry work must use independently verified terrain, aerial, LiDAR and reality-mesh sources.
+
+The Earth actor is part of the native Unreal client only. The production browser globe and its solar-system/planet modules remain unchanged.

@@ -1282,6 +1282,20 @@ if mode_contract_path.exists():
             arena.get("one_word_names") is True,
             "TDM must keep exactly 50 one-word real-location arenas behind the vote")
 
+earth_world_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthWorld.h")
+earth_world = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthWorld.cpp")
+earth_world_contract = earth_world_header + "\n" + earth_world
+for token in [
+    "ACesiumGeoreference", "ACesium3DTileset", "UCesiumUrlTemplateRasterOverlay",
+    "SetOriginLongitudeLatitudeHeight", "ETilesetSource::FromEllipsoid",
+    "SetMaximumScreenSpaceError", "SetEnableWaterMask", "SetCreatePhysicsMeshes",
+    "VIIRS_NOAA20_CorrectedReflectance_TrueColor", "GoogleMapsCompatible_Level9",
+    "CorrectedReflectance_TrueColor/default/default", "GetSatelliteImageryAttribution"
+]:
+    require(token in earth_world_contract, f"Cesium Earth globe contract missing: {token}")
+for token in ["CreateGeoreference", "CreateBaseEllipsoid", "CreateSatelliteImageryOverlay", "ShowCreditsOnScreen"]:
+    require(token in earth_world, f"Cesium Earth startup layer missing: {token}")
+
 earth_types = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthTypes.h")
 earth_runtime = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthSubsystem.cpp")
 earth_tests = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthSubsystemTests.cpp")

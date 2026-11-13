@@ -65,21 +65,30 @@ Cesium for Unreal is free for commercial and non-commercial use. Cesium ion acco
 
 ## Current implementation status
 
-Implemented in V1:
+Implemented in V1 source:
 - WGS84 geodetic validation and ECEF conversion.
 - UTC simulation clock with pause, forward time scaling and historical reverse playback.
 - Explicit environmental evidence classes.
 - Provenance and data-range validation before samples enter the runtime cache.
 - Location/time-aware nearest environmental sample lookup.
 - Planetary/regional/local/street simulation budget selection.
-- Cesium UE 5.8 source-plugin installation with archive hash verification.
+- Cesium UE 5.8 source-plugin installer with archive hash verification.
+- Runtime Cesium georeference centered on the existing Connecticut Horizon start coordinate.
+- Runtime Cesium ellipsoid tileset as the global planetary surface.
+- NASA GIBS / NOAA-20 VIIRS true-color daily satellite browse imagery, using the provider's default time selector.
+- Cesium source credits enabled for the tileset, with bounded imagery tile concurrency and cache settings.
 
-Not yet implemented:
-- A configured Cesium georeference and initial Earth tileset in a native Unreal level.
-- Provider adapters and production data endpoints.
+Important visual boundary: the VIIRS layer provides global context only. It is not aerial photography, street-level imagery, building photogrammetry or a verified roof/facade texture source. No city geometry has been fabricated by this stage.
+
+Not yet implemented or locally verified:
+- A successful Unreal 5.8 C++ build and editor launch with the Cesium plugin installed.
+- A camera/first-frame experience that opens with a cinematic whole-Earth view.
+- Production provider adapters and data endpoints for imagery, terrain, buildings and environmental observations.
+- High-resolution terrain, bathymetry and global building 3D Tiles.
 - Photogrammetric Manhattan and other city reality meshes.
-- Live cloud/radar/weather ingest into the Earth subsystem.
+- Live cloud/radar/weather ingestion into the Earth subsystem.
 - Rain/water/fire/vegetation materials and Niagara systems bound to validated source data.
 - Pixel Streaming host deployment and browser handoff.
+- A production website entrypoint cutover.
 
-Those are the next build stages. The website production entrypoint is not switched by this foundation commit.
+The website production entrypoint is not switched by this foundation branch.
