@@ -1,5 +1,7 @@
 #include "BridgePointEarthWorld.h"
 
+#include "BridgePointEarthCloudNiagaraBridge.h"
+
 #include "Cesium3DTileset.h"
 #include "CesiumGeoreference.h"
 #include "CesiumSunSky.h"
@@ -19,6 +21,7 @@ namespace BridgePointEarth
 ABridgePointEarthWorld::ABridgePointEarthWorld()
 {
     PrimaryActorTick.bCanEverTick = true;
+    CloudNiagaraBridge = CreateDefaultSubobject<UBridgePointEarthCloudNiagaraBridge>(TEXT("ObservedCloudNiagaraBridge"));
     PrimaryActorTick.bStartWithTickEnabled = true;
     SetActorHiddenInGame(false);
     SetCanBeDamaged(false);
@@ -50,6 +53,11 @@ void ABridgePointEarthWorld::Tick(float DeltaSeconds)
 
 void ABridgePointEarthWorld::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+    if (CloudNiagaraBridge)
+    {
+        CloudNiagaraBridge->ShutdownCloudRendering();
+    }
+
     if (SunSky)
     {
         SunSky->Destroy();
@@ -113,6 +121,12 @@ bool ABridgePointEarthWorld::InitializeEarth()
     if (!CreateGeoreference())
     {
         return false;
+    }
+
+    // Optional: failure to configure a Niagara asset must never block the Earth globe.
+    if (CloudNiagaraBridge)
+    {
+        CloudNiagaraBridge->InitializeForEarth(Georeference);
     }
 
     if (bEnableAstronomicalSunSky)
