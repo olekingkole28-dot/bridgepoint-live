@@ -292,9 +292,15 @@ bool UBridgePointEarthCloudNiagaraBridge::SubmitCloudFrame(
             Point.Location.LongitudeDegrees,
             Point.Location.LatitudeDegrees,
             GeometricHeightMeters);
-        const FVector WorldPosition =
+        // Cesium returns coordinates in the georeference actor's reference
+        // frame. Niagara particles are consumed in world space, so apply the
+        // georeference actor transform exactly once before submitting them.
+        const FVector GeoreferencePosition =
             Georeference->TransformLongitudeLatitudeHeightPositionToUnreal(
                 LongitudeLatitudeHeight);
+        const FVector WorldPosition =
+            Georeference->GetActorTransform().TransformPosition(
+                GeoreferencePosition);
 
         if (!FMath::IsFinite(WorldPosition.X) ||
             !FMath::IsFinite(WorldPosition.Y) ||
