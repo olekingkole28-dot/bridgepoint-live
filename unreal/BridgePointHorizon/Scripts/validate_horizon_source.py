@@ -35,7 +35,7 @@ build = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointHor
 for dep in {
     "EnhancedInput", "GameplayTags", "GameplayAbilities", "AIModule",
     "NavigationSystem", "OnlineSubsystem", "OnlineSubsystemUtils", "VoiceChat",
-    "HTTP", "Json", "JsonUtilities", "ProceduralMeshComponent", "CesiumRuntime"
+    "HTTP", "Json", "JsonUtilities", "ProceduralMeshComponent", "Niagara", "CesiumRuntime"
 }:
     require(f'"{dep}"' in build, f"missing module dependency: {dep}")
 
@@ -68,6 +68,7 @@ required_source = [
     "BridgePointEarthSubsystem",
     "BridgePointEarthWorld",
     "BridgePointEarthCloudSubsystem",
+    "BridgePointEarthCloudNiagaraBridge",
     "BridgePointEarthLightningSubsystem",
     "BridgePointEarthCameraPawn",
     "BridgePointEarthGameMode",
@@ -1355,6 +1356,29 @@ require("unreal/BridgePointHorizon/ExternalAssets/" in read(".gitignore"),
         "NOAA cloud data must be stored outside Git history")
 
 
+cloud_niagara_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthCloudNiagaraBridge.h")
+cloud_niagara_runtime = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthCloudNiagaraBridge.cpp")
+cloud_niagara_contract = cloud_niagara_header + "\\n" + cloud_niagara_runtime
+for token in [
+    "BRIDGEPOINT_EARTH_CLOUD_NIAGARA_ASSET",
+    "User.CloudPositions",
+    "User.CloudAttributes",
+    "User.VisibilityWeight",
+    "User.PointCount",
+    "SetNiagaraArrayPosition",
+    "SetNiagaraArrayVector4",
+    "ResolveCloudFramePair",
+    "GetCloudPointsForSource",
+    "TransformLongitudeLatitudeHeightPositionToUnreal",
+    "GeopotentialToGeometricHeightMeters",
+    "GOES19",
+    "GOES18",
+    "ShutdownCloudRendering",
+]:
+    require(token in cloud_niagara_contract, f"observed-cloud Niagara bridge contract missing: {token}")
+require('"Niagara"' in build, "BridgePoint Earth runtime must link the Niagara module")
+
+
 lightning_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthLightningSubsystem.h")
 lightning_runtime = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthLightningSubsystem.cpp")
 lightning_tests = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthLightningSubsystemTests.cpp")
@@ -1415,6 +1439,10 @@ for token in [
     require(token in earth_mode, f"Earth startup game mode contract missing: {token}")
 require("BridgePointEarthGameMode" in read("unreal/BridgePointHorizon/Config/DefaultEngine.ini"),
         "native project must launch into BridgePoint Earth")
+require("CloudNiagaraBridge->InitializeForEarth(Georeference)" in earth_world,
+        "optional observed-cloud renderer must initialize after the Cesium georeference")
+require("CloudNiagaraBridge->ShutdownCloudRendering()" in earth_world,
+        "optional observed-cloud renderer must shut down before the georeference is destroyed")
 require("Gamepad_LeftX" in read("unreal/BridgePointHorizon/Config/DefaultInput.ini") and
         "Gamepad_RightX" in read("unreal/BridgePointHorizon/Config/DefaultInput.ini") and
         "Gamepad_LeftTriggerAxis" in read("unreal/BridgePointHorizon/Config/DefaultInput.ini"),
