@@ -95,6 +95,24 @@ bool UBridgePointEarthLightningSubsystem::IsFlashStructurallyValid(
         Flash.DetectionKind == TEXT("GLM_optical_flash");
 }
 
+bool UBridgePointEarthLightningSubsystem::IsSourceFreshAt(
+    const FBridgePointEarthLightningSource& Source,
+    FDateTime NowUtc,
+    int32 MaximumAgeSeconds)
+{
+    if (NowUtc.GetTicks() <= 0 ||
+        Source.LatestEventUtc.GetTicks() <= 0 ||
+        MaximumAgeSeconds < 0)
+    {
+        return false;
+    }
+
+    const double AgeSeconds =
+        (NowUtc - Source.LatestEventUtc).GetTotalSeconds();
+    return AgeSeconds >= 0.0 &&
+        AgeSeconds <= static_cast<double>(MaximumAgeSeconds);
+}
+
 int32 UBridgePointEarthLightningSubsystem::ReloadLocalLightning()
 {
     Flashes.Reset();
@@ -164,12 +182,6 @@ bool UBridgePointEarthLightningSubsystem::LoadManifest(const FString& ManifestPa
     }
 
     const FString RootDirectory = FPaths::GetPath(ManifestPath);
-    const double AgeSeconds =
-        (FDateTime::UtcNow() - ManifestGeneratedAtUtc).GetTotalSeconds();
-    const bool bManifestFresh =
-        AgeSeconds >= 0.0 &&
-        AgeSeconds <= static_cast<double>(MaximumSourceAgeSeconds);
-
     int32 SkippedSources = 0;
     for (const TSharedPtr<FJsonValue>& EntryValue : *Entries)
     {
@@ -212,7 +224,10 @@ bool UBridgePointEarthLightningSubsystem::LoadManifest(const FString& ManifestPa
 
         Source.FlashCount = LoadedFlashes.Num();
         Source.GeneratedAtUtc = ManifestGeneratedAtUtc;
-        Source.bFresh = bManifestFresh;
+        Source.bFresh = IsSourceFreshAt(
+            Source,
+            FDateTime::UtcNow(),
+            MaximumSourceAgeSeconds);
         Sources.Add(Source);
         Flashes.Append(LoadedFlashes);
     }
@@ -375,6 +390,11 @@ bool UBridgePointEarthLightningSubsystem::LoadLightningFile(
 
         if (IsFlashStructurallyValid(Flash))
         {
+            if (OutSource.LatestEventUtc.GetTicks() <= 0 ||
+                Flash.LastEventUtc > OutSource.LatestEventUtc)
+            {
+                OutSource.LatestEventUtc = Flash.LastEventUtc;
+            }
             OutFlashes.Add(Flash);
         }
     }
