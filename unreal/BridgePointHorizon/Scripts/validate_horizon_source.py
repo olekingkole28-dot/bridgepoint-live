@@ -1320,6 +1320,10 @@ for token in [
     "ReloadLocalCloudFields",
     "LoadCloudFieldFile",
     "HasFreshObservedCloudData",
+    "ResolveCloudFramePair",
+    "GetCloudPointsForSource",
+    "FrameIndex",
+    "FrameCount",
     "MaximumSourceAgeSeconds",
     "bCommerciallyCleared",
     "CloudTopHeightMeters",
@@ -1328,6 +1332,10 @@ for token in [
 ]:
     require(token in cloud_contract, f"observed cloud field loader contract missing: {token}")
 for token in [
+    "BridgePoint.Earth.Clouds.FrameSequence",
+    "GOES-East selects bracketing observed frames",
+    "Latest frame hold uses the same source",
+    "Unknown satellite does not borrow another satellite's frame",
     "BridgePoint.Earth.Clouds.SourceSchema",
     "GOES cloud sample has a valid geographic coordinate",
     "Cloud top is within atmospheric height bounds"
@@ -1335,7 +1343,9 @@ for token in [
     require(token in cloud_tests, f"cloud field native QA missing: {token}")
 for token in [
     "ABI-L2-ACMF", "ABI-L2-ACHA2KMF", "Cloud_Probabilities", "goes_imager_projection",
-    "parse_goes_scan_time", "is_valid_cloud_point", "NOAA/NESDIS GOES-R Series ABI",
+    "parse_goes_scan_time", "_latest_matching_pairs",
+    "frames_per_satellite", "frame_count", "cloud_height_reference",
+    "is_valid_cloud_point", "NOAA/NESDIS GOES-R Series ABI",
     "commercially_cleared",
     "NOAA_PUBLIC_DATA_SOURCE_REVIEW_REQUIRED"
 ]:

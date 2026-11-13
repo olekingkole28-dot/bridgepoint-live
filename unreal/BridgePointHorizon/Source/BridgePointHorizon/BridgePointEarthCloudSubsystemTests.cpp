@@ -4,6 +4,83 @@
 #include "Misc/AutomationTest.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FBridgePointEarthCloudFrameSequenceTest,
+    "BridgePoint.Earth.Clouds.FrameSequence",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FBridgePointEarthCloudFrameSequenceTest::RunTest(const FString& Parameters)
+{
+    UBridgePointEarthCloudSubsystem* CloudSubsystem =
+        NewObject<UBridgePointEarthCloudSubsystem>();
+    TestNotNull(TEXT("Cloud subsystem fixture exists"), CloudSubsystem);
+    if (!CloudSubsystem)
+    {
+        return false;
+    }
+
+    FBridgePointEarthCloudSource First;
+    First.Satellite = TEXT("GOES19");
+    First.ObservedAtUtc = FDateTime(2026, 11, 13, 4, 0, 0);
+    First.PointCount = 100;
+
+    FBridgePointEarthCloudSource Second = First;
+    Second.ObservedAtUtc = FDateTime(2026, 11, 13, 4, 10, 0);
+    Second.PointCount = 120;
+
+    FBridgePointEarthCloudSource West = First;
+    West.Satellite = TEXT("GOES18");
+    West.ObservedAtUtc = FDateTime(2026, 11, 13, 4, 5, 0);
+    West.PointCount = 50;
+
+    CloudSubsystem->CloudSources.Add(First);
+    CloudSubsystem->CloudSources.Add(West);
+    CloudSubsystem->CloudSources.Add(Second);
+
+    int32 Earlier = INDEX_NONE;
+    int32 Later = INDEX_NONE;
+    float Blend = 0.0f;
+
+    TestTrue(TEXT("GOES-East selects bracketing observed frames"),
+        CloudSubsystem->ResolveCloudFramePair(
+            TEXT("GOES19"),
+            FDateTime(2026, 11, 13, 4, 5, 0),
+            Earlier,
+            Later,
+            Blend));
+    TestEqual(TEXT("Earlier GOES-East frame index"), Earlier, 0);
+    TestEqual(TEXT("Later GOES-East frame index"), Later, 2);
+    TestTrue(TEXT("Five-minute point selects halfway blend"),
+        FMath::Abs(Blend - 0.5f) < 0.001f);
+
+    TestTrue(TEXT("Latest GOES-East frame is held briefly after observation"),
+        CloudSubsystem->ResolveCloudFramePair(
+            TEXT("GOES19"),
+            FDateTime(2026, 11, 13, 4, 20, 0),
+            Earlier,
+            Later,
+            Blend));
+    TestEqual(TEXT("Latest frame hold uses the same source"), Earlier, Later);
+    TestEqual(TEXT("Latest frame hold has zero blend"), Blend, 0.0f);
+
+    TestFalse(TEXT("Historical time before the first observed frame fails closed"),
+        CloudSubsystem->ResolveCloudFramePair(
+            TEXT("GOES19"),
+            FDateTime(2026, 11, 13, 3, 0, 0),
+            Earlier,
+            Later,
+            Blend));
+
+    TestFalse(TEXT("Unknown satellite does not borrow another satellite's frame"),
+        CloudSubsystem->ResolveCloudFramePair(
+            TEXT("HIMAWARI9"),
+            FDateTime(2026, 11, 13, 4, 5, 0),
+            Earlier,
+            Later,
+            Blend));
+    return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
     FBridgePointEarthCloudSourceSchemaTest,
     "BridgePoint.Earth.Clouds.SourceSchema",
     EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
