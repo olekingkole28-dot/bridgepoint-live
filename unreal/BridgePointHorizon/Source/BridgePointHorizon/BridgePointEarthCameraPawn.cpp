@@ -39,10 +39,13 @@ double ABridgePointEarthCameraPawn::GetCurrentEllipsoidAltitudeMeters() const
         return 0.0;
     }
 
-    const double EcefRadiusMeters =
-        GlobeAnchor->GetEarthCenteredEarthFixedPosition().Size();
-    constexpr double Wgs84MeanRadiusMeters = 6371008.8;
-    return FMath::Max(0.0, EcefRadiusMeters - Wgs84MeanRadiusMeters);
+    // Use Cesium's geodetic conversion directly. ECEF radius minus a mean
+    // Earth radius is latitude-dependent and can be wrong by kilometres.
+    const FVector LongitudeLatitudeHeight =
+        GlobeAnchor->GetLongitudeLatitudeHeight(ECesiumHeightReference::Ellipsoid);
+    return FMath::IsFinite(LongitudeLatitudeHeight.Z)
+        ? LongitudeLatitudeHeight.Z
+        : 0.0;
 }
 
 void ABridgePointEarthCameraPawn::UpdateMovementSpeed()
