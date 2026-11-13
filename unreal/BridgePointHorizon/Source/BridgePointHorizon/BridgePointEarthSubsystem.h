@@ -80,5 +80,5 @@ private:
     bool bSimulationPaused = false;
     int32 MaximumEnvironmentSamples = 4096;
     TArray<FBridgePointEarthEnvironmentSample> EnvironmentSamples;
-    FTSTicker::FDelegateHandle SimulationTickerHandle;
+    FDelegateHandle SimulationTickerHandle;
 };
