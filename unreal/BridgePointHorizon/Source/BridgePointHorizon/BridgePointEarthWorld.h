@@ -8,6 +8,7 @@ class ACesiumGeoreference;
 class ACesium3DTileset;
 class UCesiumUrlTemplateRasterOverlay;
 class ACesiumSunSky;
+class UBridgePointEarthCloudNiagaraBridge;
 
 UCLASS(BlueprintType)
 class BRIDGEPOINTHORIZON_API ABridgePointEarthWorld : public AActor
@@ -73,6 +74,9 @@ public:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BridgePoint|Earth|Runtime")
     TObjectPtr<UCesiumUrlTemplateRasterOverlay> SatelliteImageryOverlay;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BridgePoint|Earth|Runtime")
+    TObjectPtr<UBridgePointEarthCloudNiagaraBridge> CloudNiagaraBridge;
 
     UFUNCTION(BlueprintCallable, Category="BridgePoint|Earth")
     bool InitializeEarth();
