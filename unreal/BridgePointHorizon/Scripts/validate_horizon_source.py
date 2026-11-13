@@ -1324,7 +1324,7 @@ for token in [
     "bCommerciallyCleared",
     "CloudTopHeightMeters",
     "mask_class",
-    "NOAA_PUBLIC_DATA_SOURCE_REVIEW_REQUIRED"
+    "bCommerciallyCleared"
 ]:
     require(token in cloud_contract, f"observed cloud field loader contract missing: {token}")
 for token in [
@@ -1336,7 +1336,8 @@ for token in [
 for token in [
     "ABI-L2-ACMF", "ABI-L2-ACHA2KMF", "Cloud_Probabilities", "goes_imager_projection",
     "parse_goes_scan_time", "is_valid_cloud_point", "NOAA/NESDIS GOES-R Series ABI",
-    "commercially_cleared"
+    "commercially_cleared",
+    "NOAA_PUBLIC_DATA_SOURCE_REVIEW_REQUIRED"
 ]:
     require(token in cloud_ingest, f"NOAA cloud field ingest safeguard/source missing: {token}")
 require("unreal/BridgePointHorizon/ExternalAssets/" in read(".gitignore"),
