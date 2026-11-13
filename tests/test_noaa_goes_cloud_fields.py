@@ -25,6 +25,47 @@ class GoEsCloudFieldTests(unittest.TestCase):
         self.assertIsNone(MODULE.parse_goes_scan_time("not-a-goes-file.nc"))
         self.assertIsNone(MODULE.parse_goes_scan_time("OR_ABI-L2-ACMF_s20263662340123.nc"))
 
+    def test_latest_matching_pairs_are_unique_and_chronological(self):
+        from datetime import datetime, timezone, timedelta
+
+        base = datetime(2026, 11, 13, 4, 0, tzinfo=timezone.utc)
+        masks = [
+            {"key": "mask-new.nc", "scan_time": base + timedelta(minutes=20)},
+            {"key": "mask-old.nc", "scan_time": base},
+            {"key": "mask-mid.nc", "scan_time": base + timedelta(minutes=10)},
+        ]
+        heights = [
+            {"key": "height-new.nc", "scan_time": base + timedelta(minutes=20, seconds=5)},
+            {"key": "height-mid.nc", "scan_time": base + timedelta(minutes=10, seconds=4)},
+            {"key": "height-old.nc", "scan_time": base + timedelta(seconds=3)},
+        ]
+
+        pairs = MODULE._latest_matching_pairs(masks, heights, 600, 3)
+        self.assertEqual(len(pairs), 3)
+        self.assertEqual(
+            [pair[0]["key"] for pair in pairs],
+            ["mask-old.nc", "mask-mid.nc", "mask-new.nc"],
+        )
+        self.assertEqual(len({pair[1]["key"] for pair in pairs}), 3)
+
+    def test_pair_matching_skips_unmatched_or_duplicate_height_scans(self):
+        from datetime import datetime, timezone, timedelta
+
+        base = datetime(2026, 11, 13, 4, 0, tzinfo=timezone.utc)
+        masks = [
+            {"key": "mask-a.nc", "scan_time": base},
+            {"key": "mask-b.nc", "scan_time": base + timedelta(seconds=20)},
+            {"key": "mask-c.nc", "scan_time": base + timedelta(minutes=30)},
+        ]
+        heights = [
+            {"key": "height-a.nc", "scan_time": base + timedelta(seconds=5)},
+        ]
+
+        pairs = MODULE._latest_matching_pairs(masks, heights, 600, 5)
+        self.assertEqual(len(pairs), 1)
+        self.assertEqual(pairs[0][0]["key"], "mask-a.nc")
+        self.assertEqual(pairs[0][1]["key"], "height-a.nc")
+
     def test_cloud_mask_probabilities(self):
         self.assertEqual(MODULE.cloud_class_confidence(0), 0.0)
         self.assertGreater(MODULE.cloud_class_opacity(1, 0.25), 0.0)
