@@ -92,3 +92,32 @@ The Horizon game mode now creates BridgePointEarthWorld automatically at startup
 This is the first real planetary imagery layer, not the finished high-detail Earth. The VIIRS layer is a global daily browse image; it does not provide photogrammetric building facades, roof details or street-level textures. The next imagery/geometry work must use independently verified terrain, aerial, LiDAR and reality-mesh sources.
 
 The Earth actor is part of the native Unreal client only. The production browser globe and its solar-system/planet modules remain unchanged.
+
+
+## Native Earth startup, terrain and navigation
+
+The default native project now launches into BridgePointEarthGameMode. Horizon remains a separate gameplay mode and can be selected on a Horizon map in World Settings.
+
+- The globe-aware camera starts approximately 16,000 km above the Connecticut georeference origin for a whole-Earth opening view.
+- The pawn preserves a local East/South/Up camera frame while moving over the curved planet.
+- Movement speed scales with altitude: deliberate near-surface movement becomes faster at regional and planetary heights.
+- DefaultInput.ini adds XInput left-stick movement, right-stick look, and trigger lift/lower while retaining the engine's desktop keyboard/mouse controls.
+
+### Optional high-resolution terrain and mapped buildings
+
+When BRIDGEPOINT_CESIUM_ION_TOKEN is present in the local Windows user environment:
+
+- Cesium World Terrain (Ion asset 1) can replace the ellipsoid with globally streamed quantized-mesh terrain.
+- Cesium OSM Buildings (Ion asset 96188) can add global OSM-derived 3D building geometry and metadata.
+- NASA GIBS VIIRS imagery is draped over the selected Earth terrain surface.
+- If no token is present, the world still starts using the ellipsoid and NASA imagery; missing credentials do not block the app.
+
+Run this locally to securely set a read-only token without sharing it in chat or committing it:
+
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\\Scripts\\set_cesium_ion_token.ps1
+
+Restart Unreal after setting the Windows user environment variable.
+
+**Personal-use licensing boundary:** Cesium ion Community is for personal/non-commercial evaluation. Its public terms prohibit including Ion inside a product commercially made available to other organizations without the appropriate commercial integration rights. Keep these Ion-hosted layers local/personal until the applicable rights are secured. Do not route them to BridgePoint customers.
+
+OSM building geometry is not photogrammetry. It supplies mapped massing and metadata, with variable local completeness; it does not supply verified photographic facades, windows, roof machinery or sidewalk objects.
