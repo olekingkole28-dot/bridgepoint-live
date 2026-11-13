@@ -128,3 +128,12 @@ Still requires the actual Unreal 5.8 machine test:
 - Add Pixel Streaming GPU host and website bridge.
 
 The production browser globe, space renderer and planetary modules remain untouched on this branch.
+
+
+## Astronomical lighting and atmosphere
+
+CesiumSunSky is spawned against the same Cesium georeference as the Earth surface. Its solar position is driven by `UBridgePointEarthSubsystem::GetSimulationClockUtc()` and recomputed on a bounded update interval.
+
+This creates a single coherent planetary sun direction and SkyAtmosphere. UTC is passed directly to Cesium's sun-position calculation with DST disabled, avoiding a local civil-time offset being applied twice. The shared simulation clock therefore also drives sunrise/sunset and historical day/night playback.
+
+CesiumSunSky's atmospheric adjustment follows camera position/altitude. It does not supply clouds, precipitation, wind, or storm data; those are separate weather inputs to be added later.

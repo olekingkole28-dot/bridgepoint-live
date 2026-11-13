@@ -76,3 +76,14 @@ Implementation reference: VIIRS_NOAA20_CorrectedReflectance_TrueColor
 - Required attribution: © OpenStreetMap contributors.
 - Access: local Cesium ion token only; the token is never committed.
 - Commercial gate: satisfy both the Cesium ion service terms and the underlying OpenStreetMap attribution/ODbL obligations before any customer-facing integration.
+
+
+## Astronomical lighting — CesiumSunSky
+
+- Component: Cesium for Unreal `ACesiumSunSky`.
+- Role: global directional sunlight, skylight and SkyAtmosphere.
+- Position/time source: shared BridgePoint UTC simulation clock and the WGS84 Cesium georeference.
+- Update policy: one bounded update interval; not a per-frame astronomical recomputation.
+- DST: disabled for the global solar calculation; the clock input is UTC.
+- Temporal behavior: live time, pause, accelerated playback and reverse historical playback all affect the solar position.
+- Limitation: this is astronomical lighting only; it does not provide weather, clouds, rain or storm observations.

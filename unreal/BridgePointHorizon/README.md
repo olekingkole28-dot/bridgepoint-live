@@ -121,3 +121,17 @@ Restart Unreal after setting the Windows user environment variable.
 **Personal-use licensing boundary:** Cesium ion Community is for personal/non-commercial evaluation. Its public terms prohibit including Ion inside a product commercially made available to other organizations without the appropriate commercial integration rights. Keep these Ion-hosted layers local/personal until the applicable rights are secured. Do not route them to BridgePoint customers.
 
 OSM building geometry is not photogrammetry. It supplies mapped massing and metadata, with variable local completeness; it does not supply verified photographic facades, windows, roof machinery or sidewalk objects.
+
+
+## Global day/night and atmosphere
+
+The Earth runtime creates CesiumSunSky and binds its solar time to BridgePointEarthSubsystem's shared UTC simulation clock.
+
+- The global directional sun is calculated from the WGS84 georeference, UTC date and UTC time.
+- The SkyAtmosphere and SkyLight are provided by CesiumSunSky.
+- The actor updates the solar position on a bounded interval, not every rendered frame.
+- Historical playback, paused time and accelerated simulation all affect the sun position because the runtime uses the shared simulation clock.
+- DST is deliberately disabled for the global solar calculation; UTC is used consistently so a local timezone setting cannot shift the planet-wide sun.
+- CesiumSunSky updates atmospheric parameters as the camera changes altitude and location.
+
+This delivers real astronomical day/night lighting. It is not a weather effect and does not imply a cloud layer or real-time weather feed.
