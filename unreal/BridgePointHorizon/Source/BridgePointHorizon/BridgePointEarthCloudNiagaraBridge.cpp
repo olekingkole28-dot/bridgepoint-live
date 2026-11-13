@@ -333,7 +333,8 @@ bool UBridgePointEarthCloudNiagaraBridge::SubmitCloudFrame(
         FName(TEXT("User.PointCount")),
         WorldPositions.Num());
     NiagaraComponent->SetVisibility(!WorldPositions.IsEmpty());
-    NiagaraComponent->Activate(true);
+    // Refresh user arrays without resetting the active effect every scan cycle.
+    NiagaraComponent->Activate(false);
 
     LastSubmittedPointCount += WorldPositions.Num();
     return !WorldPositions.IsEmpty();
