@@ -56,7 +56,7 @@ AActor* ABridgePointEarthGameMode::ChoosePlayerStart_Implementation(AController*
     Params.SpawnCollisionHandlingOverride =
         ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
-    constexpr double InitialAltitudeCentimeters = 16000000.0 * 100.0;
+    const double InitialAltitudeCentimeters = InitialCameraAltitudeMeters * 100.0;
     RuntimePlayerStart = GetWorld()->SpawnActor<APlayerStart>(
         APlayerStart::StaticClass(),
         FVector(0.0, 0.0, InitialAltitudeCentimeters),
