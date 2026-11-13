@@ -283,6 +283,8 @@ def build_satellite_field(
     s3: Any,
     output_dir: Path,
     max_points: int,
+    frame_index: int = 0,
+    frame_count: int = 1,
 ) -> dict:
     mask_time = mask_object["scan_time"]
     height_time = height_object["scan_time"]
@@ -308,6 +310,8 @@ def build_satellite_field(
             "source_name": "NOAA/NESDIS GOES ABI Enterprise Cloud Mask + 2 km Cloud Top Height",
             "source_version": "ABI-L2-ACMF + ABI-L2-ACHA2KMF",
             "satellite": satellite,
+            "frame_index": frame_index,
+            "frame_count": frame_count,
             "mask_scan_start_utc": mask_time.isoformat().replace("+00:00", "Z"),
             "height_scan_start_utc": height_time.isoformat().replace("+00:00", "Z"),
             "evidence_kind": "Observed",
@@ -385,6 +389,8 @@ def run(args: argparse.Namespace) -> int:
                 source = build_satellite_field(
                     satellite, bucket, mask_object, height_object,
                     s3, output_dir, args.max_points,
+                    frame_index=frame_index,
+                    frame_count=len(pairs),
                 )
                 source["frame_index"] = frame_index
                 source["frame_count"] = len(pairs)
