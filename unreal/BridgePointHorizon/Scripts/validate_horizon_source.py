@@ -26,7 +26,7 @@ plugin_names = {p.get("Name") for p in uproject.get("Plugins", []) if p.get("Ena
 require("BridgePointHorizon" in module_names, "BridgePointHorizon runtime module missing")
 for plugin in {
     "EnhancedInput", "PCG", "StateTree", "GameplayAbilities", "MassAI",
-    "ChaosVehiclesPlugin", "Water", "Niagara", "Metasound", "AudioModulation",
+    "ChaosVehiclesPlugin", "Water", "Niagara", "Metasound", "AudioModulation", "CesiumForUnreal",
     "OnlineSubsystemEOS", "EOSVoiceChat", "PythonScriptPlugin", "ProceduralMeshComponent"
 }:
     require(plugin in plugin_names, f"required plugin not enabled: {plugin}")
@@ -65,6 +65,7 @@ required_source = [
     "HorizonEnemyProgressionSubsystem",
     "HorizonWorldStreamSubsystem",
     "HorizonWorldCellRenderer",
+    "BridgePointEarthSubsystem",
     "HorizonWorldRuntime",
 ]
 for stem in required_source:
@@ -1279,6 +1280,36 @@ if mode_contract_path.exists():
             arena.get("selection") == "TWO_MAPS_PLUS_RANDOM_10_SECOND_VOTE" and
             arena.get("one_word_names") is True,
             "TDM must keep exactly 50 one-word real-location arenas behind the vote")
+
+earth_types = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthTypes.h")
+earth_runtime = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthSubsystem.cpp")
+earth_tests = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthSubsystemTests.cpp")
+cesium_installer = read("unreal/BridgePointHorizon/Scripts/install_cesium_ue58.ps1")
+earth_contract = earth_types + "\n" + earth_runtime
+for token in [
+    "Wgs84SemiMajorAxisMeters", "TryToEarthCenteredEarthFixed",
+    "EBridgePointEarthEvidenceKind", "Observed", "Forecast", "Modelled", "Simulated",
+    "LicenseId", "Attribution", "ValidFromUtc", "ValidUntilUtc",
+    "ResolveDetailTier", "ResolveRenderBudget", "SetSimulationTimeScale",
+    "FindEnvironmentAtLocation", "IsEnvironmentSampleStructurallyValid"
+]:
+    require(token in earth_contract, f"BridgePoint Earth runtime contract missing: {token}")
+for token in [
+    "BridgePoint.Earth.Geodesy.WGS84",
+    "BridgePoint.Earth.Rendering.DistanceTiers",
+    "BridgePoint.Earth.Provenance.Validation",
+    "WGS84 polar radius is preserved",
+    "Missing license cannot pass provenance validation"
+]:
+    require(token in earth_tests, f"BridgePoint Earth automation test missing: {token}")
+for token in [
+    "CesiumForUnreal-58-SourceOnly-v2.31.0.zip",
+    "58EAB3D18AF29AFD399C11B41E52BE837B0F4FE588CE63E13A42426DA5D40E75",
+    "Get-FileHash", "SHA256", "BridgePointHorizon.uproject"
+]:
+    require(token in cesium_installer, f"pinned Cesium installer safeguard missing: {token}")
+require("unreal/BridgePointHorizon/Plugins/CesiumForUnreal/" in read(".gitignore"),
+        "local Cesium plugin must remain outside Git history")
 
 importer = read("unreal/BridgePointHorizon/Scripts/horizon_batch_import.py")
 for token in [

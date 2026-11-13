@@ -2,7 +2,7 @@
   "FileVersion": 3,
   "EngineAssociation": "5.8",
   "Category": "Games",
-  "Description": "BridgePoint Horizon continuous U.S. survival world client.",
+  "Description": "BridgePoint Earth shared geospatial simulation and Horizon Unreal client.",
   "Plugins": [
     {
       "Name": "EnhancedInput",
@@ -100,6 +100,10 @@
     },
     {
       "Name": "ProceduralMeshComponent",
+      "Enabled": true
+    },
+    {
+      "Name": "CesiumForUnreal",
       "Enabled": true
     }
   ],

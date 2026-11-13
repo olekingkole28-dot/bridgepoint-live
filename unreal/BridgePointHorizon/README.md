@@ -51,3 +51,29 @@ For legally acquired engine-agnostic source files:
 Epic/Fab UE-only packs do not go through this raw-file importer. Acquire them through Epic/Fab, retain the acquisition/license evidence, then evaluate their Unreal content in isolated project folders before promotion.
 
 Current promotion order is recorded in `app/horizon-playable/HORIZON_AUTOPILOT_PLAN.md` and provenance rules are recorded in `AAA_SOURCE_LEDGER_V4244.md`.
+
+
+## Shared BridgePoint Earth runtime
+
+The project now includes a shared Earth runtime subsystem. It is separate from Horizon gameplay code so the same geographic and environmental state can serve BridgePoint Intelligence and Horizon.
+
+- WGS84 coordinates convert to Earth-Centered, Earth-Fixed meters.
+- A UTC simulation clock supports live time, pause, accelerated playback and reverse historical scrubbing.
+- Environmental inputs retain explicit Observed, Forecast, Modelled or Simulated classifications.
+- Source identity, version, license, attribution, retrieval time, validity window and commercial-clearance status stay attached to each sample.
+- Input validation rejects missing provenance, invalid physical ranges, malformed coordinates and inverted validity windows.
+- Camera altitude selects planetary, regional, local or street effect budgets.
+
+### Install the pinned Cesium plugin
+
+The project enables Cesium for Unreal v2.31.0. Install the official Unreal 5.8 source-only plugin locally before opening the project.
+
+Run this from the BridgePointHorizon project directory:
+
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Scripts\install_cesium_ue58.ps1
+
+The script verifies the official release SHA-256 and installs into the project Plugins folder, which is intentionally excluded from Git. Existing plugin folders are preserved rather than silently overwritten. The first editor launch will compile the plugin modules.
+
+Cesium's plugin license does not grant rights to every imagery, photogrammetry or 3D building dataset. Review each data source independently and keep ion tokens or credentials out of Git.
+
+See BRIDGEPOINT_EARTH_FOUNDATION_V1.md for the architecture and current implementation boundary. This branch does not switch the production website entrypoint.

@@ -38,3 +38,12 @@ service-account*.json
 credentials*.json
 local.settings.json
 supabase/.temp/
+
+
+# BridgePoint Earth / Unreal local plugin and generated heavy world content
+unreal/BridgePointHorizon/Plugins/CesiumForUnreal/
+unreal/BridgePointHorizon/ExternalAssets/
+unreal/BridgePointHorizon/Staging/
+unreal/BridgePointHorizon/SourceDownloads/
+unreal/BridgePointHorizon/SavedBuilds/
+unreal/BridgePointHorizon/Cooked/
