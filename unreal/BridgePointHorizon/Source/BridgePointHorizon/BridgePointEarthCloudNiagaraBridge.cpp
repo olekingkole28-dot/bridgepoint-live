@@ -185,6 +185,7 @@ bool UBridgePointEarthCloudNiagaraBridge::EnsureNiagaraFrameComponents()
 
 void UBridgePointEarthCloudNiagaraBridge::UpdateObservedCloudFrames()
 {
+    LastSubmittedPointCount = 0;
     if (!CloudSubsystem.IsValid() || !EarthSubsystem.IsValid() ||
         !Georeference || NiagaraFrameComponents.Num() != NiagaraFrameSlotCount)
     {
