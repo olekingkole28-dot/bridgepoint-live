@@ -146,10 +146,15 @@ The first near-real-time cloud observation pipeline combines two complementary N
 - ABI-L2-ACMF: Enterprise Cloud Mask, four-level classification plus optional probability and quality flags.
 - ABI-L2-ACHA2KMF: 2 km Cloud Top Height (HT, metres) plus data quality flags.
 
-GOES-19 supplies the East view and GOES-18 supplies the West view. Full-disk products are nominally generated every ten minutes. The pipeline matches mask and height observations by their UTC scan start time, retains only quality-valid pixels, transforms the geostationary grid to WGS84, and samples a bounded number of points per satellite.
+GOES-19 supplies the East view and GOES-18 supplies the West view. Full-disk products are nominally generated every ten minutes. The pipeline matches mask and height observations by their UTC scan start time, retains the latest four aligned observations per satellite, preserves their chronological order, retains only quality-valid pixels, transforms the geostationary grid to WGS84, and samples a bounded number of points per frame.
 
 The output is an observed cloud-point field containing geographic position, cloud-top height, mask class, probability, opacity hint and source metadata. It is stored outside Git under the ignored Unreal ExternalAssets directory.
 
 UBridgePointEarthCloudSubsystem loads those local point fields, rejects unsupported schemas, unsafe paths, malformed coordinates, invalid atmospheric heights and missing provenance, and marks feeds older than 30 minutes stale. It does not synthesize missing satellite coverage.
 
 This is source data for the next volumetric/Niagara rendering stage. It is not yet a photorealistic cloud-volume renderer, and 2 km source sampling does not resolve fine cloud filaments or street-level weather.
+
+
+Each loaded observation retains its satellite identity, UTC scan time, frame index, source index and sample count. The cloud subsystem can choose two same-satellite frames bracketing an arbitrary simulation timestamp and report a linear blend fraction. If the requested time is after the newest frame, it may hold that observed frame for at most 30 minutes. It does not move or extrapolate clouds beyond measured frames.
+
+The reported NOAA geopotential cloud-top height remains separate from WGS84 ellipsoid altitude. A later renderer must combine it with the appropriate terrain/geoid reference before positioning a volume in ECEF/Unreal space.

@@ -1,4 +1,4 @@
-name: BridgePoint Earth V1.5 - observed cloud ingest and source validation
+name: BridgePoint Earth V1.6 - cloud history and simulation-time validation
 
 on:
   push:
@@ -45,6 +45,7 @@ jobs:
           assert Path("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthCameraPawn.cpp").is_file()
           assert Path("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthGameMode.cpp").is_file()
           assert Path("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthCloudSubsystem.cpp").is_file()
+          assert "ResolveCloudFramePair" in Path("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthCloudSubsystem.cpp").read_text()
           assert Path("tools/reality_assets/fetch_noaa_goes_cloud_fields.py").is_file()
           assert "ACesiumSunSky" in Path("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthWorld.cpp").read_text()
           assert "GetSimulationClockUtc" in Path("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthWorld.cpp").read_text()

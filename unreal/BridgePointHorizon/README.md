@@ -152,7 +152,7 @@ Install the local processing dependencies:
 
     python -m pip install -r unreal/BridgePointHorizon/Scripts/requirements_noaa_cloud_fields.txt
 
-Fetch the latest aligned full-disk products:
+Fetch the latest four aligned full-disk observations per satellite (about 30–40 minutes of cloud evolution):
 
     python tools/reality_assets/fetch_noaa_goes_cloud_fields.py
 
@@ -163,3 +163,6 @@ The pipeline writes its NetCDF downloads and compact cloud-point JSON files unde
 That directory is excluded from Git. The Unreal GameInstance subsystem loads the manifest and preserves each point's latitude, longitude, cloud-top height, NOAA mask class, probability, observation time and source attribution.
 
 This is the observed source-data layer for future volumetric cloud rendering. It is not yet the Niagara/volumetric renderer; no synthetic cloud points are substituted when either satellite feed is missing. Aged feeds remain labelled stale, not current. Commercial clearance is false pending an explicit source-specific review.
+
+
+The manifest stores multiple chronological frames per satellite. Unreal's cloud subsystem can select the two observed frames that bracket BridgePoint's UTC simulation time and return an interpolation fraction. It holds the newest observation only within a bounded 30-minute window, never extrapolates a future cloud field, and does not mix GOES-East points into GOES-West frames.

@@ -98,7 +98,7 @@ Primary sources: NOAA/NESDIS GOES-19 ABI (East) and GOES-18 ABI (West), anonymou
 | ABI-L2-ACMF | Four-level Enterprise Cloud Mask, probability and DQF | Full disk, nominal 10 minutes |
 | ABI-L2-ACHA2KMF | Cloud Top Height (HT) in metres and DQF | Full disk, 2 km cloud-top product |
 
-Cloud mask classes: 0 confidently clear, 1 probably clear, 2 probably cloudy, 3 confidently cloudy. The pipeline keeps classes 1–3, accepts only DQF=0 for both mask and height, and uses the observed cloud-top height rather than inventing a layer height.
+Cloud mask classes: 0 confidently clear, 1 probably clear, 2 probably cloudy, 3 confidently cloudy. The pipeline keeps classes 1–3, accepts only DQF=0 for both mask and height, records the cloud-top measurement as geopotential height in metres, and does not mistake it for ellipsoid altitude.
 
 NOAA's anonymous public buckets are:
 - noaa-goes19 for GOES-East.
@@ -112,3 +112,6 @@ Attribution: NOAA/NESDIS GOES-R Series ABI. The local source registry marks comm
 - EUMETSAT Meteosat provides near-real-time imagery and historical data via EUMETView/Data Store. Access, usage terms and the most suitable cloud products need a separate source review before integration.
 
 The first NOAA pipeline therefore provides two large regional observation domains, not global cloud coverage. Regional gaps remain gaps until an additional source is cleared and integrated.
+
+
+The default ingest retains four aligned frames per satellite in chronological order. The Unreal selector returns the closest earlier/later frame pair for the requested simulation-clock time and a blend fraction. The latest frame can be held briefly, but there is no motion extrapolation and no cross-satellite interpolation. Older frames are retained for historical playback inside the configured bounded window.
