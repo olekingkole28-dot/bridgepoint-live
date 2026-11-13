@@ -25,6 +25,7 @@ public class BridgePointHorizon : ModuleRules
             "Json",
             "JsonUtilities",
             "ProceduralMeshComponent",
+            "Niagara",
             "CesiumRuntime"
         });
 
