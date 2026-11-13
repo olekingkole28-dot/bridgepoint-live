@@ -92,3 +92,39 @@ Not yet implemented or locally verified:
 - A production website entrypoint cutover.
 
 The website production entrypoint is not switched by this foundation branch.
+
+
+## Global terrain, mapped buildings and native navigation
+
+The native Earth actor supports a local Cesium ion path:
+
+- Cesium World Terrain asset 1 supplies quantized-mesh terrain and water-mask information. Its resolution varies geographically; it is not uniform survey-grade terrain around the whole planet.
+- Cesium OSM Buildings asset 96188 supplies globally streamed OSM-derived 3D building geometry and metadata. This is mapped massing, not photogrammetric facade reconstruction.
+- NASA GIBS VIIRS imagery is overlaid on whichever terrain surface is active.
+- Without a local Ion token, the actor falls back to the WGS84 ellipsoid and NASA imagery.
+- The native default GameMode is now BridgePointEarthGameMode, using a Cesium globe-aware camera pawn with altitude-adaptive movement. Horizon retains its own GameMode.
+- Standard XInput left-stick movement, right-stick look, and trigger lift/lower mappings are included.
+
+The token is read only from the local Windows user environment variable BRIDGEPOINT_CESIUM_ION_TOKEN. The repository never stores it. Cesium ion Community is personal/non-commercial evaluation; the public terms do not permit commercial sublicensing of Ion inside an app sold to external organizations. This opt-in path must remain personal/local until a commercial integration license or another independently licensed delivery route is available.
+
+## Current implementation status — locally unverified gates
+
+Implemented in source:
+- Shared WGS84/time/evidence runtime and source-aware environmental sample cache.
+- Cesium georeference, ellipsoid fallback and NASA global daily satellite browse imagery.
+- Optional Cesium World Terrain and OSM Buildings from locally configured Ion token.
+- Globe-aware camera pawn, planetary startup position, altitude-adaptive speed and gamepad mappings.
+- Separate Earth Intelligence default GameMode; Horizon GameMode remains available.
+- Local secure token setup script and repository source guards.
+
+Still requires the actual Unreal 5.8 machine test:
+- Install/compile Cesium for Unreal in the local project.
+- Open the native project and confirm the first-frame Earth view, terrain, imagery attribution and camera navigation.
+- Test controller movement and look on the user's controller.
+- Confirm Ion asset access and quotas on the user's own account; no token is present in the repository.
+- Acquire independently licensed photogrammetry/reality meshes for Manhattan and other cities.
+- Add high-resolution local terrain and LiDAR/photogrammetry adapters.
+- Bind live cloud/radar/weather and regional hazard observations into Niagara, Water, SkyAtmosphere and foliage systems.
+- Add Pixel Streaming GPU host and website bridge.
+
+The production browser globe, space renderer and planetary modules remain untouched on this branch.
