@@ -67,6 +67,8 @@ required_source = [
     "HorizonWorldCellRenderer",
     "BridgePointEarthSubsystem",
     "BridgePointEarthWorld",
+    "BridgePointEarthCameraPawn",
+    "BridgePointEarthGameMode",
     "HorizonWorldRuntime",
 ]
 for stem in required_source:
@@ -1293,7 +1295,12 @@ for token in [
     "CorrectedReflectance_TrueColor/default/default", "GetSatelliteImageryAttribution"
 ]:
     require(token in earth_world_contract, f"Cesium Earth globe contract missing: {token}")
-for token in ["CreateGeoreference", "CreateBaseEllipsoid", "CreateSatelliteImageryOverlay", "ShowCreditsOnScreen"]:
+for token in [
+    "CreateGeoreference", "CreateBaseEllipsoid", "CreateWorldTerrain",
+    "CreateOSMBuildings", "CreateSatelliteImageryOverlay",
+    "CesiumWorldTerrainAssetId = 1", "CesiumOSMBuildingsAssetId = 96188",
+    "BRIDGEPOINT_CESIUM_ION_TOKEN", "SetIonAccessToken", "ShowCreditsOnScreen"
+]:
     require(token in earth_world, f"Cesium Earth startup layer missing: {token}")
 
 earth_types = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthTypes.h")
@@ -1301,6 +1308,32 @@ earth_runtime = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/Bridge
 earth_tests = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthSubsystemTests.cpp")
 cesium_installer = read("unreal/BridgePointHorizon/Scripts/install_cesium_ue58.ps1")
 earth_contract = earth_types + "\n" + earth_runtime
+earth_camera_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthCameraPawn.h")
+earth_camera = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthCameraPawn.cpp")
+earth_mode_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthGameMode.h")
+earth_mode = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthGameMode.cpp")
+earth_camera_contract = earth_camera_header + "\n" + earth_camera
+for token in [
+    "AGlobeAwareDefaultPawn", "GetEarthCenteredEarthFixedPosition",
+    "AltitudeSpeedScale", "UFloatingPawnMovement", "SetControlRotation"
+]:
+    require(token in earth_camera_contract, f"globe-aware Earth camera contract missing: {token}")
+for token in [
+    "ABridgePointEarthCameraPawn::StaticClass",
+    "InitialCameraAltitudeMeters * 100.0",
+    "EnsureEarthWorld",
+    "ChoosePlayerStart_Implementation"
+]:
+    require(token in earth_mode, f"Earth startup game mode contract missing: {token}")
+require("BridgePointEarthGameMode" in read("unreal/BridgePointHorizon/Config/DefaultEngine.ini"),
+        "native project must launch into BridgePoint Earth")
+require("Gamepad_LeftX" in read("unreal/BridgePointHorizon/Config/DefaultInput.ini") and
+        "Gamepad_RightX" in read("unreal/BridgePointHorizon/Config/DefaultInput.ini") and
+        "Gamepad_LeftTriggerAxis" in read("unreal/BridgePointHorizon/Config/DefaultInput.ini"),
+        "Earth camera must retain standard controller navigation mappings")
+require("SecureStringToBSTR" in read("unreal/BridgePointHorizon/Scripts/set_cesium_ion_token.ps1"),
+        "local Cesium token setup must avoid plaintext entry")
+
 for token in [
     "Wgs84SemiMajorAxisMeters", "TryToEarthCenteredEarthFixed",
     "EBridgePointEarthEvidenceKind", "Observed", "Forecast", "Modelled", "Simulated",
