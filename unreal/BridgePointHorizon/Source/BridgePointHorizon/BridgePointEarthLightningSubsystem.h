@@ -68,6 +68,9 @@ struct BRIDGEPOINTHORIZON_API FBridgePointEarthLightningSource
     FDateTime GeneratedAtUtc;
 
     UPROPERTY(BlueprintReadOnly, Category="BridgePoint|Earth|Lightning")
+    FDateTime LatestEventUtc;
+
+    UPROPERTY(BlueprintReadOnly, Category="BridgePoint|Earth|Lightning")
     int32 FlashCount = 0;
 
     UPROPERTY(BlueprintReadOnly, Category="BridgePoint|Earth|Lightning")
@@ -123,6 +126,10 @@ public:
     FString GetLightningSourceDirectory() const;
 
     static bool IsFlashStructurallyValid(const FBridgePointEarthLightningFlash& Flash);
+    static bool IsSourceFreshAt(
+        const FBridgePointEarthLightningSource& Source,
+        FDateTime NowUtc,
+        int32 MaximumAgeSeconds);
 
 private:
     int32 MaximumSources = 4;
