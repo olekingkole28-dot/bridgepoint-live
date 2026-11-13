@@ -327,7 +327,7 @@ def build_satellite_field(
         },
         "sampling": {
             "stride_pixels": stride,
-            "source_grid_width": int(mask_file_size(mask_file, "width")) if False else None,
+            "source_grid_width": None,
             "source_grid_height": None,
             "point_count": len(points),
             "maximum_points": max_points,
