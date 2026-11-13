@@ -158,3 +158,14 @@ This is source data for the next volumetric/Niagara rendering stage. It is not y
 Each loaded observation retains its satellite identity, UTC scan time, frame index, source index and sample count. The cloud subsystem can choose two same-satellite frames bracketing an arbitrary simulation timestamp and report a linear blend fraction. If the requested time is after the newest frame, it may hold that observed frame for at most 30 minutes. It does not move or extrapolate clouds beyond measured frames.
 
 The reported NOAA geopotential cloud-top height remains separate from WGS84 ellipsoid altitude. A later renderer must combine it with the appropriate terrain/geoid reference before positioning a volume in ECEF/Unreal space.
+
+
+## Observed lightning — NOAA GOES GLM LCFA
+
+The lightning intake reads NOAA GOES GLM Level-2 LCFA files from the public GOES-18 West and GOES-19 East S3 buckets. The source product is generated on a nominal 20-second interval.
+
+The first implementation retains quality-valid flash centroids and their first/last event times, radiant energy (J), footprint area (m²), quality flag and satellite attribution. Only quality flag 0 is accepted. Source points are labelled Observed and commercial clearance remains false pending source-specific review.
+
+GLM is an optical lightning mapper. Its flash centroid is an energy-weighted location of the observed optical emissions, not a guaranteed exact ground-strike point. This pipeline does not claim a ground strike and does not classify a flash as cloud-to-ground versus intracloud.
+
+UBridgePointEarthLightningSubsystem loads the Git-ignored local output, checks the source semantics and provenance, validates coordinates/energy/area/time/quality, and marks fields fresh only when the manifest is recent. It does not synthesize missing lightning.

@@ -68,6 +68,7 @@ required_source = [
     "BridgePointEarthSubsystem",
     "BridgePointEarthWorld",
     "BridgePointEarthCloudSubsystem",
+    "BridgePointEarthLightningSubsystem",
     "BridgePointEarthCameraPawn",
     "BridgePointEarthGameMode",
     "HorizonWorldRuntime",
@@ -1352,6 +1353,41 @@ for token in [
     require(token in cloud_ingest, f"NOAA cloud field ingest safeguard/source missing: {token}")
 require("unreal/BridgePointHorizon/ExternalAssets/" in read(".gitignore"),
         "NOAA cloud data must be stored outside Git history")
+
+
+lightning_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthLightningSubsystem.h")
+lightning_runtime = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthLightningSubsystem.cpp")
+lightning_tests = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthLightningSubsystemTests.cpp")
+lightning_ingest = read("tools/reality_assets/fetch_noaa_goes_lightning.py")
+lightning_contract = lightning_header + "\n" + lightning_runtime
+for token in [
+    "bridgepoint-earth-lightning-flashes-v1",
+    "BRIDGEPOINT_EARTH_LIGHTNING_PATH",
+    "ReloadLocalLightning",
+    "HasFreshObservedLightningData",
+    "GetFreshFlashCount",
+    "GLM_optical_flash",
+    "ground_strike_location_guaranteed",
+    "cloud_to_ground_vs_intracloud_classification",
+    "bCommerciallyCleared",
+    "IsFlashStructurallyValid",
+    "flash_time_offset_of_first_event"
+]:
+    require(token in lightning_contract, f"observed GLM flash loader contract missing: {token}")
+for token in [
+    "BridgePoint.Earth.Lightning.QualityAndGeometry",
+    "Quality-valid flash centroid passes source validation",
+    "Degraded GLM quality flag is rejected",
+    "Negative flash duration is rejected"
+]:
+    require(token in lightning_tests, f"native GLM flash QA missing: {token}")
+for token in [
+    "GLM-L2-LCFA", "flash_lat", "flash_lon",
+    "flash_time_offset_of_first_event", "flash_energy",
+    "flash_area", "flash_quality_flag", "NOAA_PUBLIC_DATA_SOURCE_REVIEW_REQUIRED",
+    "not_provided_by_this_product", "parse_scan_start_utc"
+]:
+    require(token in lightning_ingest, f"NOAA GLM source/quality safeguard missing: {token}")
 
 
 earth_types = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthTypes.h")

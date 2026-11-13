@@ -115,3 +115,20 @@ The first NOAA pipeline therefore provides two large regional observation domain
 
 
 The default ingest retains four aligned frames per satellite in chronological order. The Unreal selector returns the closest earlier/later frame pair for the requested simulation-clock time and a blend fraction. The latest frame can be held briefly, but there is no motion extrapolation and no cross-satellite interpolation. Older frames are retained for historical playback inside the configured bounded window.
+
+
+## Near-real-time lightning — NOAA GOES GLM Level-2 LCFA
+
+- Product: GLM-L2-LCFA (events, groups and flashes).
+- Satellites: GOES-19 (East) and GOES-18 (West); both have public NOAA NODD S3 buckets.
+- Cadence: nominally one NetCDF product file every 20 seconds per satellite.
+- Flash geometry: energy-weighted centroid latitude/longitude.
+- Time: first and last constituent event UTC.
+- Additional measurements: optical radiant energy in joules, flash footprint area in square metres, and the product quality flag.
+- Quality policy: only quality flag 0 is accepted in the first implementation.
+- Spatial resolution: approximately 8 km at nadir, degrading toward the field-of-view edge.
+- Attribution: NOAA/NESDIS GOES-R Series Geostationary Lightning Mapper.
+- Interpretation limit: the centroid is not a guaranteed ground-strike location. The product is not used here to classify cloud-to-ground versus intracloud lightning.
+- Commercial gate: source product terms, attribution and derivative-display rights are retained for review; commercial clearance is false by default. Raw NetCDF files and derived flash JSON stay outside Git.
+
+The lightning loader is a source-data layer for later visual effects and storm analysis. It is not yet a bolt/flash rendering system.

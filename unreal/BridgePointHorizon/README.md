@@ -166,3 +166,29 @@ This is the observed source-data layer for future volumetric cloud rendering. It
 
 
 The manifest stores multiple chronological frames per satellite. Unreal's cloud subsystem can select the two observed frames that bracket BridgePoint's UTC simulation time and return an interpolation fraction. It holds the newest observation only within a bounded 30-minute window, never extrapolates a future cloud field, and does not mix GOES-East points into GOES-West frames.
+
+
+## NOAA observed lightning flash intake
+
+BridgePoint also ingests NOAA/NESDIS GOES GLM Level-2 Lightning Cluster-Filter Algorithm (LCFA) files:
+
+- GOES-19 East and GOES-18 West public data buckets.
+- GLM-L2-LCFA products contain events, groups and flashes; this pipeline begins with quality-screened flash centroids.
+- Files are generated on a nominal 20-second interval.
+- Each flash retains centroid latitude/longitude, first/last event UTC, optical radiant energy, affected area and quality flag.
+- Only quality flag 0 is accepted.
+- The pipeline retains the latest 18 files per satellite by default (about six minutes), with a hard cap on flash rows.
+
+Install dependencies:
+
+    python -m pip install -r unreal/BridgePointHorizon/Scripts/requirements_noaa_lightning.txt
+
+Fetch current flash observations:
+
+    python tools/reality_assets/fetch_noaa_goes_lightning.py
+
+Outputs are written outside Git under:
+
+    unreal/BridgePointHorizon/ExternalAssets/BridgePointEarth/Lightning
+
+The Unreal GameInstance subsystem loads these as observed optical flashes. It deliberately does not treat a centroid as a guaranteed ground-strike location, or infer cloud-to-ground versus intracloud classification. Missing or stale source fields are not replaced with synthesized lightning.

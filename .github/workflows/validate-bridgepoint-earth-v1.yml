@@ -7,6 +7,8 @@ on:
       - 'unreal/BridgePointHorizon/**'
       - 'tools/reality_assets/fetch_noaa_goes_cloud_fields.py'
       - 'tests/test_noaa_goes_cloud_fields.py'
+      - 'tools/reality_assets/fetch_noaa_goes_lightning.py'
+      - 'tests/test_noaa_goes_lightning.py'
       - '.gitignore'
       - '.github/workflows/validate-bridgepoint-earth-v1.yml'
   workflow_dispatch:
@@ -33,8 +35,8 @@ jobs:
           set -euo pipefail
           python -m py_compile unreal/BridgePointHorizon/Scripts/validate_horizon_source.py
           python unreal/BridgePointHorizon/Scripts/validate_horizon_source.py
-          python -m py_compile tools/reality_assets/fetch_noaa_goes_cloud_fields.py tests/test_noaa_goes_cloud_fields.py
-          python -m unittest discover -s tests -p "test_noaa_goes_cloud_fields.py"
+          python -m py_compile tools/reality_assets/fetch_noaa_goes_cloud_fields.py tools/reality_assets/fetch_noaa_goes_lightning.py tests/test_noaa_goes_cloud_fields.py tests/test_noaa_goes_lightning.py
+          python -m unittest discover -s tests -p "test_noaa_goes_*.py"
           python - <<'PY'
           import json
           from pathlib import Path
@@ -49,6 +51,8 @@ jobs:
           assert Path("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthCloudSubsystem.cpp").is_file()
           assert "ResolveCloudFramePair" in Path("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthCloudSubsystem.cpp").read_text()
           assert Path("tools/reality_assets/fetch_noaa_goes_cloud_fields.py").is_file()
+          assert Path("tools/reality_assets/fetch_noaa_goes_lightning.py").is_file()
+          assert Path("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthLightningSubsystem.cpp").is_file()
           assert "ACesiumSunSky" in Path("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthWorld.cpp").read_text()
           assert "GetSimulationClockUtc" in Path("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthWorld.cpp").read_text()
           print("BRIDGEPOINT_EARTH_V1_SOURCE_CONTRACT_PASS")
@@ -61,6 +65,7 @@ jobs:
           grep -Fq 'unreal/BridgePointHorizon/ExternalAssets/' .gitignore
           test ! -e unreal/BridgePointHorizon/Plugins/CesiumForUnreal
           grep -Fq "VIIRS_NOAA20_CorrectedReflectance_TrueColor" unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthWorld.cpp
+          grep -Fq "GLM-L2-LCFA" tools/reality_assets/fetch_noaa_goes_lightning.py
           grep -Fq "CesiumWorldTerrainAssetId = 1" unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthWorld.cpp
           grep -Fq "CesiumOSMBuildingsAssetId = 96188" unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthWorld.cpp
           grep -Fq "Gamepad_LeftX" unreal/BridgePointHorizon/Config/DefaultInput.ini
