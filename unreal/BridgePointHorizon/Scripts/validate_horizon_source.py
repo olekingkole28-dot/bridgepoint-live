@@ -35,7 +35,7 @@ build = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointHor
 for dep in {
     "EnhancedInput", "GameplayTags", "GameplayAbilities", "AIModule",
     "NavigationSystem", "OnlineSubsystem", "OnlineSubsystemUtils", "VoiceChat",
-    "HTTP", "Json", "JsonUtilities", "ProceduralMeshComponent"
+    "HTTP", "Json", "JsonUtilities", "ProceduralMeshComponent", "CesiumRuntime"
 }:
     require(f'"{dep}"' in build, f"missing module dependency: {dep}")
 
@@ -66,6 +66,7 @@ required_source = [
     "HorizonWorldStreamSubsystem",
     "HorizonWorldCellRenderer",
     "BridgePointEarthSubsystem",
+    "BridgePointEarthWorld",
     "HorizonWorldRuntime",
 ]
 for stem in required_source:
@@ -1203,7 +1204,7 @@ require("Stripe" not in movement_tests and "Payment" not in movement_tests,
 
 
 game_mode = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonGameMode.cpp")
-for token in ["AHorizonPlayerCharacter::StaticClass", "AHorizonWorldRuntime::StaticClass", "ChoosePlayerStart_Implementation"]:
+for token in ["AHorizonPlayerCharacter::StaticClass", "AHorizonWorldRuntime::StaticClass", "ABridgePointEarthWorld::StaticClass", "EnsureEarthWorld", "ChoosePlayerStart_Implementation"]:
     require(token in game_mode, f"native bootstrap game mode feature missing: {token}")
 
 mode_contract_path = ROOT / "app" / "horizon-playable" / "HORIZON_GAME_MODES_V4243.json"

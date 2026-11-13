@@ -20,4 +20,5 @@ private:
     TObjectPtr<AActor> RuntimePlayerStart;
 
     void EnsureWorldRuntime();
+    void EnsureEarthWorld();
 };

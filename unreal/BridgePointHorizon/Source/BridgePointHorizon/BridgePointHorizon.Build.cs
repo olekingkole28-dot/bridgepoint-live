@@ -24,7 +24,8 @@ public class BridgePointHorizon : ModuleRules
             "HTTP",
             "Json",
             "JsonUtilities",
-            "ProceduralMeshComponent"
+            "ProceduralMeshComponent",
+            "CesiumRuntime"
         });
 
         PrivateDependencyModuleNames.AddRange(new string[]

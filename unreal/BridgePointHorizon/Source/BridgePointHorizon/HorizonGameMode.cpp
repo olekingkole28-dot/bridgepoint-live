@@ -5,6 +5,7 @@
 #include "GameFramework/PlayerStart.h"
 #include "HorizonPlayerCharacter.h"
 #include "HorizonWorldRuntime.h"
+#include "BridgePointEarthWorld.h"
 
 AHorizonGameMode::AHorizonGameMode()
 {
@@ -15,6 +16,7 @@ AHorizonGameMode::AHorizonGameMode()
 void AHorizonGameMode::StartPlay()
 {
     EnsureWorldRuntime();
+    EnsureEarthWorld();
     Super::StartPlay();
 }
 
@@ -56,6 +58,27 @@ void AHorizonGameMode::EnsureWorldRuntime()
 
     GetWorld()->SpawnActor<AHorizonWorldRuntime>(
         AHorizonWorldRuntime::StaticClass(),
+        FTransform::Identity,
+        Params);
+}
+
+
+void AHorizonGameMode::EnsureEarthWorld()
+{
+    if (!GetWorld())
+    {
+        return;
+    }
+
+    for (TActorIterator<ABridgePointEarthWorld> It(GetWorld()); It; ++It)
+    {
+        return;
+    }
+
+    FActorSpawnParameters Params;
+    Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+    GetWorld()->SpawnActor<ABridgePointEarthWorld>(
+        ABridgePointEarthWorld::StaticClass(),
         FTransform::Identity,
         Params);
 }
