@@ -46,6 +46,26 @@ bool FBridgePointEarthLightningQualityTest::RunTest(const FString& Parameters)
     TestFalse(TEXT("Out-of-range flash centroid is rejected"),
         UBridgePointEarthLightningSubsystem::IsFlashStructurallyValid(BadCoordinate));
 
+
+    FBridgePointEarthLightningSource Source;
+    const FDateTime NowUtc(2026, 11, 13, 4, 40, 0);
+    Source.GeneratedAtUtc = NowUtc;
+    Source.LatestEventUtc = NowUtc - FTimespan::FromSeconds(240);
+    TestFalse(TEXT("Newly generated manifest cannot make four-minute-old flashes fresh"),
+        UBridgePointEarthLightningSubsystem::IsSourceFreshAt(Source, NowUtc, 120));
+
+    Source.LatestEventUtc = NowUtc - FTimespan::FromSeconds(30);
+    TestTrue(TEXT("Recent actual GLM event remains fresh"),
+        UBridgePointEarthLightningSubsystem::IsSourceFreshAt(Source, NowUtc, 120));
+
+    Source.LatestEventUtc = NowUtc + FTimespan::FromSeconds(1);
+    TestFalse(TEXT("Future-dated GLM event fails closed"),
+        UBridgePointEarthLightningSubsystem::IsSourceFreshAt(Source, NowUtc, 120));
+
+    Source.LatestEventUtc = NowUtc - FTimespan::FromSeconds(10);
+    TestFalse(TEXT("Invalid negative freshness window fails closed"),
+        UBridgePointEarthLightningSubsystem::IsSourceFreshAt(Source, NowUtc, -1));
+
     return true;
 }
 
