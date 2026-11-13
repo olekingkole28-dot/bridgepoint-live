@@ -102,22 +102,38 @@ def _list_recent_objects(s3: Any, bucket: str, product: str, now: dt.datetime, l
     return found
 
 
-def _latest_matching_pair(
+def _latest_matching_pairs(
     mask_objects: list[dict],
     height_objects: list[dict],
     max_pair_gap_seconds: int,
-) -> tuple[dict, dict] | None:
+    max_pairs: int,
+) -> list[tuple[dict, dict]]:
+    """Return unique, chronologically ordered mask/height scan pairs."""
     heights = sorted(height_objects, key=lambda item: item["scan_time"], reverse=True)
     masks = sorted(mask_objects, key=lambda item: item["scan_time"], reverse=True)
+    used_height_keys: set[str] = set()
+    pairs: list[tuple[dict, dict]] = []
+
     for mask in masks:
         candidates = [
             h for h in heights
-            if abs((h["scan_time"] - mask["scan_time"]).total_seconds()) <= max_pair_gap_seconds
+            if h["key"] not in used_height_keys and
+            abs((h["scan_time"] - mask["scan_time"]).total_seconds()) <= max_pair_gap_seconds
         ]
-        if candidates:
-            height = min(candidates, key=lambda h: abs((h["scan_time"] - mask["scan_time"]).total_seconds()))
-            return mask, height
-    return None
+        if not candidates:
+            continue
+
+        height = min(
+            candidates,
+            key=lambda h: abs((h["scan_time"] - mask["scan_time"]).total_seconds())
+        )
+        used_height_keys.add(height["key"])
+        pairs.append((mask, height))
+        if len(pairs) >= max(1, max_pairs):
+            break
+
+    pairs.sort(key=lambda pair: pair[0]["scan_time"])
+    return pairs
 
 
 def _download_file(s3: Any, bucket: str, key: str, destination: Path) -> None:
@@ -353,25 +369,38 @@ def run(args: argparse.Namespace) -> int:
     for satellite, bucket in SATELLITES.items():
         masks = _list_recent_objects(s3, bucket, MASK_PRODUCT, now, args.lookback_hours)
         heights = _list_recent_objects(s3, bucket, HEIGHT_PRODUCT, now, args.lookback_hours)
-        pair = _latest_matching_pair(masks, heights, args.max_pair_gap_seconds)
-        if not pair:
+        pairs = _latest_matching_pairs(
+            masks,
+            heights,
+            args.max_pair_gap_seconds,
+            args.frames_per_satellite,
+        )
+        if not pairs:
             errors.append(f"{satellite}: no aligned full-disk cloud-mask/cloud-height pair found in recent hours.")
             continue
-        mask_object, height_object = pair
-        try:
-            source = build_satellite_field(
-                satellite, bucket, mask_object, height_object,
-                s3, output_dir, args.max_points,
-            )
-            sources.append(source)
-            print(f"{satellite}: {source['point_count']} cloud points from {source['observed_at_utc']}")
-        except Exception as exc:
-            errors.append(f"{satellite}: {exc}")
+
+        for frame_index, (mask_object, height_object) in enumerate(pairs):
+            try:
+                source = build_satellite_field(
+                    satellite, bucket, mask_object, height_object,
+                    s3, output_dir, args.max_points,
+                )
+                source["frame_index"] = frame_index
+                source["frame_count"] = len(pairs)
+                sources.append(source)
+                print(
+                    f"{satellite} frame {frame_index + 1}/{len(pairs)}: "
+                    f"{source['point_count']} cloud points from {source['observed_at_utc']}"
+                )
+            except Exception as exc:
+                errors.append(f"{satellite} {mask_object['key']}: {exc}")
 
     manifest = {
         "schema": SCHEMA,
         "generated_at_utc": now.isoformat().replace("+00:00", "Z"),
         "refresh_interval_seconds": 600,
+        "sequence_interval_seconds": 600,
+        "frame_count_per_satellite": args.frames_per_satellite,
         "maximum_expected_age_seconds": 1800,
         "sources": sources,
         "errors": errors,
@@ -402,7 +431,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--lookback-hours", type=int, default=6)
     parser.add_argument("--max-pair-gap-seconds", type=int, default=600)
-    parser.add_argument("--max-points", type=int, default=50000)
+    parser.add_argument("--max-points", type=int, default=20000)
+    parser.add_argument("--frames-per-satellite", type=int, default=4)
     return parser.parse_args()
 
 
