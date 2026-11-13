@@ -201,9 +201,11 @@ bool UBridgePointEarthCloudSubsystem::LoadManifest(const FString& ManifestPath)
         }
 
         LoadedSource.PointCount = LoadedPoints.Num();
+        const double SourceAgeSeconds =
+            (NowUtc - LoadedSource.ObservedAtUtc).GetTotalSeconds();
         LoadedSource.bFresh =
-            (NowUtc - LoadedSource.ObservedAtUtc).GetTotalSeconds() <=
-            static_cast<double>(MaximumSourceAgeSeconds);
+            SourceAgeSeconds >= 0.0 &&
+            SourceAgeSeconds <= static_cast<double>(MaximumSourceAgeSeconds);
 
         const int32 RemainingCapacity = MaximumTotalPoints - CloudPoints.Num();
         if (LoadedPoints.Num() > RemainingCapacity)

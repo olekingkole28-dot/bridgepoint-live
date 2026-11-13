@@ -66,6 +66,24 @@ class GoEsCloudFieldTests(unittest.TestCase):
         self.assertEqual(pairs[0][0]["key"], "mask-a.nc")
         self.assertEqual(pairs[0][1]["key"], "height-a.nc")
 
+    def test_matching_pair_count_is_bounded(self):
+        from datetime import datetime, timezone, timedelta
+
+        base = datetime(2026, 11, 13, 4, 0, tzinfo=timezone.utc)
+        masks = [
+            {"key": f"mask-{i}.nc", "scan_time": base + timedelta(minutes=i * 10)}
+            for i in range(6)
+        ]
+        heights = [
+            {"key": f"height-{i}.nc", "scan_time": base + timedelta(minutes=i * 10, seconds=3)}
+            for i in range(6)
+        ]
+
+        pairs = MODULE._latest_matching_pairs(masks, heights, 600, 4)
+        self.assertEqual(len(pairs), 4)
+        self.assertEqual(pairs[0][0]["key"], "mask-0.nc")
+        self.assertEqual(pairs[-1][0]["key"], "mask-3.nc")
+
     def test_cloud_mask_probabilities(self):
         self.assertEqual(MODULE.cloud_class_confidence(0), 0.0)
         self.assertGreater(MODULE.cloud_class_opacity(1, 0.25), 0.0)

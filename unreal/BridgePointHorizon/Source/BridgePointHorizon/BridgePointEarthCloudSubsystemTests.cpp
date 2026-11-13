@@ -22,6 +22,8 @@ bool FBridgePointEarthCloudSourceSchemaTest::RunTest(const FString& Parameters)
 
     TestTrue(TEXT("GOES cloud sample has a valid geographic coordinate"),
         Point.Location.IsValid());
+    TestEqual(TEXT("Cloud top remains separate from the WGS84 ellipsoid-height coordinate"),
+        Point.Location.EllipsoidHeightMeters, 0.0);
     TestTrue(TEXT("Cloud top is within atmospheric height bounds"),
         Point.CloudTopHeightMeters >= 0.0f && Point.CloudTopHeightMeters <= 25000.0f);
     TestTrue(TEXT("Cloud mask class uses the NOAA four-level code domain"),
