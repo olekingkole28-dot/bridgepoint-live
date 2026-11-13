@@ -31,6 +31,8 @@ jobs:
           set -euo pipefail
           python -m py_compile unreal/BridgePointHorizon/Scripts/validate_horizon_source.py
           python unreal/BridgePointHorizon/Scripts/validate_horizon_source.py
+          python -m py_compile tools/reality_assets/fetch_noaa_goes_cloud_fields.py tests/test_noaa_goes_cloud_fields.py
+          python -m unittest tests/test_noaa_goes_cloud_fields.py
           python - <<'PY'
           import json
           from pathlib import Path
