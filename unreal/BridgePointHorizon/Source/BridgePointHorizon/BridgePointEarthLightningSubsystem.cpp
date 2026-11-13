@@ -270,14 +270,11 @@ bool UBridgePointEarthLightningSubsystem::LoadLightningFile(
     const TSharedPtr<FJsonObject> Source = Root->GetObjectField(TEXT("source"));
     FString EvidenceKind;
     FString DetectionKind;
-    FString GroundStrikeGuaranteed;
     FString Classification;
 
     Source->TryGetStringField(TEXT("evidence_kind"), EvidenceKind);
     Source->TryGetStringField(TEXT("detection_type"), DetectionKind);
     Source->TryGetStringField(TEXT("cloud_to_ground_vs_intracloud_classification"), Classification);
-    Source->TryGetStringField(TEXT("ground_strike_location_guaranteed"), GroundStrikeGuaranteed);
-
     if (EvidenceKind != TEXT("Observed") ||
         DetectionKind != TEXT("optical_lightning_flashes") ||
         Classification != TEXT("not_provided_by_this_product"))
@@ -339,14 +336,11 @@ bool UBridgePointEarthLightningSubsystem::LoadLightningFile(
         double Latitude = 0.0;
         double Longitude = 0.0;
 
-        if (!FlashObject->TryGetNumberField(TEXT("flash_id"), *(new double(0.0))))
-        {
-            // Flash identifiers may be local to a single GLM file. They are
-            // diagnostic only; retain a stable local sentinel if conversion fails.
-        }
         double FlashId = 0.0;
         FlashObject->TryGetNumberField(TEXT("flash_id"), FlashId);
-        Flash.FlashId = FMath::IsFinite(FlashId) ? static_cast<int64>(FlashId) : INDEX_NONE;
+        Flash.FlashId = FMath::IsFinite(FlashId)
+            ? static_cast<int64>(FlashId)
+            : INDEX_NONE;
 
         double Energy = 0.0;
         double Area = 0.0;
