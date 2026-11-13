@@ -81,8 +81,8 @@ class GoEsCloudFieldTests(unittest.TestCase):
 
         pairs = MODULE._latest_matching_pairs(masks, heights, 600, 4)
         self.assertEqual(len(pairs), 4)
-        self.assertEqual(pairs[0][0]["key"], "mask-0.nc")
-        self.assertEqual(pairs[-1][0]["key"], "mask-3.nc")
+        self.assertEqual(pairs[0][0]["key"], "mask-2.nc")
+        self.assertEqual(pairs[-1][0]["key"], "mask-5.nc")
 
     def test_cloud_mask_probabilities(self):
         self.assertEqual(MODULE.cloud_class_confidence(0), 0.0)

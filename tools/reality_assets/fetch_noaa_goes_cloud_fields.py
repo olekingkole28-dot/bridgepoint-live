@@ -108,31 +108,33 @@ def _latest_matching_pairs(
     max_pair_gap_seconds: int,
     max_pairs: int,
 ) -> list[tuple[dict, dict]]:
-    """Return unique, chronologically ordered mask/height scan pairs."""
-    heights = sorted(height_objects, key=lambda item: item["scan_time"], reverse=True)
-    masks = sorted(mask_objects, key=lambda item: item["scan_time"], reverse=True)
-    used_height_keys: set[str] = set()
+    """Pair each mask with one closest height scan, then retain newest frames."""
+    candidates: list[tuple[float, dict, dict]] = []
+    for mask in mask_objects:
+        for height in height_objects:
+            gap = abs((height["scan_time"] - mask["scan_time"]).total_seconds())
+            if gap <= max_pair_gap_seconds:
+                candidates.append((gap, mask, height))
+
+    # Globally choose the closest timestamp matches first. This prevents a
+    # later mask from stealing a height scan that is much closer to an older
+    # mask simply because the newer mask was iterated first.
+    candidates.sort(key=lambda item: item[0])
+    used_masks: set[str] = set()
+    used_heights: set[str] = set()
     pairs: list[tuple[dict, dict]] = []
 
-    for mask in masks:
-        candidates = [
-            h for h in heights
-            if h["key"] not in used_height_keys and
-            abs((h["scan_time"] - mask["scan_time"]).total_seconds()) <= max_pair_gap_seconds
-        ]
-        if not candidates:
+    for _, mask, height in candidates:
+        if mask["key"] in used_masks or height["key"] in used_heights:
             continue
-
-        height = min(
-            candidates,
-            key=lambda h: abs((h["scan_time"] - mask["scan_time"]).total_seconds())
-        )
-        used_height_keys.add(height["key"])
+        used_masks.add(mask["key"])
+        used_heights.add(height["key"])
         pairs.append((mask, height))
-        if len(pairs) >= max(1, max_pairs):
-            break
 
     pairs.sort(key=lambda pair: pair[0]["scan_time"])
+    limit = max(1, max_pairs)
+    if len(pairs) > limit:
+        pairs = pairs[-limit:]
     return pairs
 
 
