@@ -52,3 +52,27 @@ Implementation reference: VIIRS_NOAA20_CorrectedReflectance_TrueColor
 - Temporal boundary: imagery is a daily satellite composite; cloud cover, capture timing and processing can affect what is visible. It is not guaranteed to show a current live picture at every location.
 - Commercial gate: record the current product/service citation and attribution in the source ledger and complete source-specific terms review before making any derived imagery package or downloadable tile cache available to customers. The default commercial-clearance flag remains false until that review is recorded.
 - Do not use this source as a substitute for orthophotos, photogrammetry, LiDAR or building reality meshes.
+
+
+## Optional global terrain — Cesium World Terrain
+
+- Ion asset ID: 1.
+- Format: quantized-mesh terrain.
+- Coverage: global.
+- Source resolution is uneven: Cesium lists approximately 1–30 m for the United States, around 30 m for much of Canada/Europe/Mexico, 30–90 m across many mid-latitudes, and around 1 km for full-Earth coverage.
+- Role: terrain relief, broad elevation context and water-mask support.
+- Limitation: it is not uniformly high-resolution or a substitute for newer local LiDAR/DEMs.
+- Access: local Cesium ion token only; the token is never committed.
+- Commercial gate: Cesium ion Community is for personal/non-commercial evaluation. Commercial delivery to external organizations requires the applicable integration rights.
+
+## Optional global buildings — Cesium OSM Buildings
+
+- Ion asset ID: 96188.
+- Format: 3D Tiles.
+- Source: OpenStreetMap-derived mapped building geometry.
+- Coverage: global; provider says it is updated quarterly.
+- Provider-reported volume: more than 350 million mapped buildings with metadata such as name, height, building type and some part-level attributes.
+- Limitations: OSM completeness varies by place. A missing OSM building or property is not evidence that the physical building does not exist. This layer is not photogrammetry and does not guarantee photographic facade/roof detail.
+- Required attribution: © OpenStreetMap contributors.
+- Access: local Cesium ion token only; the token is never committed.
+- Commercial gate: satisfy both the Cesium ion service terms and the underlying OpenStreetMap attribution/ODbL obligations before any customer-facing integration.
