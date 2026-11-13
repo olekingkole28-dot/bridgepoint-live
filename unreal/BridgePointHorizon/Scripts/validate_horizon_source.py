@@ -67,6 +67,7 @@ required_source = [
     "HorizonWorldCellRenderer",
     "BridgePointEarthSubsystem",
     "BridgePointEarthWorld",
+    "BridgePointEarthCloudSubsystem",
     "BridgePointEarthCameraPawn",
     "BridgePointEarthGameMode",
     "HorizonWorldRuntime",
@@ -1307,6 +1308,40 @@ for token in [
     require(token in earth_world, f"Cesium Earth startup layer missing: {token}")
 require("BRIDGEPOINT_CESIUM_ION_TOKEN" in earth_world_header,
         "Cesium Ion token must be read from a local environment variable")
+
+cloud_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthCloudSubsystem.h")
+cloud_runtime = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthCloudSubsystem.cpp")
+cloud_tests = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthCloudSubsystemTests.cpp")
+cloud_ingest = read("tools/reality_assets/fetch_noaa_goes_cloud_fields.py")
+cloud_contract = cloud_header + "\n" + cloud_runtime
+for token in [
+    "bridgepoint-earth-cloud-field-v1",
+    "BRIDGEPOINT_EARTH_CLOUDS_PATH",
+    "ReloadLocalCloudFields",
+    "LoadCloudFieldFile",
+    "HasFreshObservedCloudData",
+    "MaximumSourceAgeSeconds",
+    "bCommerciallyCleared",
+    "CloudTopHeightMeters",
+    "mask_class",
+    "NOAA_PUBLIC_DATA_SOURCE_REVIEW_REQUIRED"
+]:
+    require(token in cloud_contract, f"observed cloud field loader contract missing: {token}")
+for token in [
+    "BridgePoint.Earth.Clouds.SourceSchema",
+    "GOES cloud sample has a valid geographic coordinate",
+    "Cloud top is within atmospheric height bounds"
+]:
+    require(token in cloud_tests, f"cloud field native QA missing: {token}")
+for token in [
+    "ABI-L2-ACMF", "ABI-L2-ACHA2KMF", "Cloud_Probabilities", "goes_imager_projection",
+    "parse_goes_scan_time", "is_valid_cloud_point", "NOAA/NESDIS GOES-R Series ABI",
+    "commercially_cleared"
+]:
+    require(token in cloud_ingest, f"NOAA cloud field ingest safeguard/source missing: {token}")
+require("unreal/BridgePointHorizon/ExternalAssets/" in read(".gitignore"),
+        "NOAA cloud data must be stored outside Git history")
+
 
 earth_types = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthTypes.h")
 earth_runtime = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthSubsystem.cpp")

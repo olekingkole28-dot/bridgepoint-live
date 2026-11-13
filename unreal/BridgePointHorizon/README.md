@@ -135,3 +135,31 @@ The Earth runtime creates CesiumSunSky and binds its solar time to BridgePointEa
 - CesiumSunSky updates atmospheric parameters as the camera changes altitude and location.
 
 This delivers real astronomical day/night lighting. It is not a weather effect and does not imply a cloud layer or real-time weather feed.
+
+
+## NOAA observed cloud-field data intake
+
+BridgePoint's first real cloud-field input uses NOAA/NESDIS GOES ABI full-disk products:
+
+- GOES-19 (East) and GOES-18 (West).
+- Enterprise Cloud Mask, ABI-L2-ACMF.
+- 2 km Cloud Top Height, ABI-L2-ACHA2KMF.
+- Full-disk observations are on a nominal 10-minute cadence.
+- The cloud mask distinguishes clear, probably clear, probably cloudy and cloudy pixels.
+- Cloud-top height supplies measured cloud-top height in metres.
+
+Install the local processing dependencies:
+
+    python -m pip install -r unreal/BridgePointHorizon/Scripts/requirements_noaa_cloud_fields.txt
+
+Fetch the latest aligned full-disk products:
+
+    python tools/reality_assets/fetch_noaa_goes_cloud_fields.py
+
+The pipeline writes its NetCDF downloads and compact cloud-point JSON files under:
+
+    unreal/BridgePointHorizon/ExternalAssets/BridgePointEarth/Clouds
+
+That directory is excluded from Git. The Unreal GameInstance subsystem loads the manifest and preserves each point's latitude, longitude, cloud-top height, NOAA mask class, probability, observation time and source attribution.
+
+This is the observed source-data layer for future volumetric cloud rendering. It is not yet the Niagara/volumetric renderer; no synthetic cloud points are substituted when either satellite feed is missing. Aged feeds remain labelled stale, not current. Commercial clearance is false pending an explicit source-specific review.

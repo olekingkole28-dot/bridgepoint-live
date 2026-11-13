@@ -87,3 +87,28 @@ Implementation reference: VIIRS_NOAA20_CorrectedReflectance_TrueColor
 - DST: disabled for the global solar calculation; the clock input is UTC.
 - Temporal behavior: live time, pause, accelerated playback and reverse historical playback all affect the solar position.
 - Limitation: this is astronomical lighting only; it does not provide weather, clouds, rain or storm observations.
+
+
+## Near-real-time cloud observations — NOAA GOES ABI
+
+Primary sources: NOAA/NESDIS GOES-19 ABI (East) and GOES-18 ABI (West), anonymous public NOAA Open Data Dissemination (NODD) S3 buckets.
+
+| Product | Purpose | Resolution / cadence |
+|---|---|---|
+| ABI-L2-ACMF | Four-level Enterprise Cloud Mask, probability and DQF | Full disk, nominal 10 minutes |
+| ABI-L2-ACHA2KMF | Cloud Top Height (HT) in metres and DQF | Full disk, 2 km cloud-top product |
+
+Cloud mask classes: 0 confidently clear, 1 probably clear, 2 probably cloudy, 3 confidently cloudy. The pipeline keeps classes 1–3, accepts only DQF=0 for both mask and height, and uses the observed cloud-top height rather than inventing a layer height.
+
+NOAA's anonymous public buckets are:
+- noaa-goes19 for GOES-East.
+- noaa-goes18 for GOES-West.
+
+Attribution: NOAA/NESDIS GOES-R Series ABI. The local source registry marks commercial clearance false until the exact source product terms, derivative rights and delivery route have been reviewed. Raw NetCDF scans and derived point files are stored outside Git.
+
+## Other regional geostationary candidates — not yet ingested
+
+- JMA Himawari-9 covers East Asia and the Western Pacific. Full-disk observation is every 10 minutes; its public Real-Time Image site has specific True Color Reproduction acknowledgement/reference requirements. HimawariCloud is restricted to National Meteorological and Hydrological Services, so it is not assumed to be freely accessible to BridgePoint.
+- EUMETSAT Meteosat provides near-real-time imagery and historical data via EUMETView/Data Store. Access, usage terms and the most suitable cloud products need a separate source review before integration.
+
+The first NOAA pipeline therefore provides two large regional observation domains, not global cloud coverage. Regional gaps remain gaps until an additional source is cleared and integrated.

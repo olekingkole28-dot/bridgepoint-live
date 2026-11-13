@@ -1,4 +1,4 @@
-name: BridgePoint Earth V1.4 - planetary atmosphere and source validation
+name: BridgePoint Earth V1.5 - observed cloud ingest and source validation
 
 on:
   push:
@@ -32,7 +32,7 @@ jobs:
           python -m py_compile unreal/BridgePointHorizon/Scripts/validate_horizon_source.py
           python unreal/BridgePointHorizon/Scripts/validate_horizon_source.py
           python -m py_compile tools/reality_assets/fetch_noaa_goes_cloud_fields.py tests/test_noaa_goes_cloud_fields.py
-          python -m unittest tests/test_noaa_goes_cloud_fields.py
+          python -m unittest discover -s tests -p "test_noaa_goes_cloud_fields.py"
           python - <<'PY'
           import json
           from pathlib import Path
@@ -44,6 +44,8 @@ jobs:
           assert Path("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthWorld.cpp").is_file()
           assert Path("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthCameraPawn.cpp").is_file()
           assert Path("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthGameMode.cpp").is_file()
+          assert Path("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthCloudSubsystem.cpp").is_file()
+          assert Path("tools/reality_assets/fetch_noaa_goes_cloud_fields.py").is_file()
           assert "ACesiumSunSky" in Path("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthWorld.cpp").read_text()
           assert "GetSimulationClockUtc" in Path("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthWorld.cpp").read_text()
           print("BRIDGEPOINT_EARTH_V1_SOURCE_CONTRACT_PASS")

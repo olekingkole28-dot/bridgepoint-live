@@ -137,3 +137,19 @@ CesiumSunSky is spawned against the same Cesium georeference as the Earth surfac
 This creates a single coherent planetary sun direction and SkyAtmosphere. UTC is passed directly to Cesium's sun-position calculation with DST disabled, avoiding a local civil-time offset being applied twice. The shared simulation clock therefore also drives sunrise/sunset and historical day/night playback.
 
 CesiumSunSky's atmospheric adjustment follows camera position/altitude. It does not supply clouds, precipitation, wind, or storm data; those are separate weather inputs to be added later.
+
+
+## Observed cloud field — NOAA GOES ABI
+
+The first near-real-time cloud observation pipeline combines two complementary NOAA/NESDIS products from each operational geostationary view:
+
+- ABI-L2-ACMF: Enterprise Cloud Mask, four-level classification plus optional probability and quality flags.
+- ABI-L2-ACHA2KMF: 2 km Cloud Top Height (HT, metres) plus data quality flags.
+
+GOES-19 supplies the East view and GOES-18 supplies the West view. Full-disk products are nominally generated every ten minutes. The pipeline matches mask and height observations by their UTC scan start time, retains only quality-valid pixels, transforms the geostationary grid to WGS84, and samples a bounded number of points per satellite.
+
+The output is an observed cloud-point field containing geographic position, cloud-top height, mask class, probability, opacity hint and source metadata. It is stored outside Git under the ignored Unreal ExternalAssets directory.
+
+UBridgePointEarthCloudSubsystem loads those local point fields, rejects unsupported schemas, unsafe paths, malformed coordinates, invalid atmospheric heights and missing provenance, and marks feeds older than 30 minutes stale. It does not synthesize missing satellite coverage.
+
+This is source data for the next volumetric/Niagara rendering stage. It is not yet a photorealistic cloud-volume renderer, and 2 km source sampling does not resolve fine cloud filaments or street-level weather.
