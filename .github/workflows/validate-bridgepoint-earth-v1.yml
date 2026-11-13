@@ -5,6 +5,8 @@ on:
     branches: [living-earth-v1]
     paths:
       - 'unreal/BridgePointHorizon/**'
+      - 'tools/reality_assets/fetch_noaa_goes_cloud_fields.py'
+      - 'tests/test_noaa_goes_cloud_fields.py'
       - '.gitignore'
       - '.github/workflows/validate-bridgepoint-earth-v1.yml'
   workflow_dispatch:
