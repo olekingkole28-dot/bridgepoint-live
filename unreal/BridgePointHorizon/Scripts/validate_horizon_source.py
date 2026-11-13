@@ -921,7 +921,8 @@ require("Stripe" not in enemy_progression_tests and "Payment" not in enemy_progr
 
 
 engine_config = read("unreal/BridgePointHorizon/Config/DefaultEngine.ini")
-for token in ["/Engine/Maps/Entry", "GlobalDefaultGameMode=/Script/BridgePointHorizon.HorizonGameMode"]:
+for token in ["/Engine/Maps/Entry", "GlobalDefaultGameMode=/Script/BridgePointHorizon.BridgePointEarthGameMode",
+              "GlobalDefaultServerGameMode=/Script/BridgePointHorizon.HorizonGameMode"]:
     require(token in engine_config, f"native bootstrap config missing: {token}")
 
 input_config = read("unreal/BridgePointHorizon/Config/DefaultInput.ini")
@@ -1299,9 +1300,11 @@ for token in [
     "CreateGeoreference", "CreateBaseEllipsoid", "CreateWorldTerrain",
     "CreateOSMBuildings", "CreateSatelliteImageryOverlay",
     "CesiumWorldTerrainAssetId = 1", "CesiumOSMBuildingsAssetId = 96188",
-    "BRIDGEPOINT_CESIUM_ION_TOKEN", "SetIonAccessToken", "ShowCreditsOnScreen"
+    "SetIonAccessToken", "ShowCreditsOnScreen"
 ]:
     require(token in earth_world, f"Cesium Earth startup layer missing: {token}")
+require("BRIDGEPOINT_CESIUM_ION_TOKEN" in earth_world_header,
+        "Cesium Ion token must be read from a local environment variable")
 
 earth_types = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthTypes.h")
 earth_runtime = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthSubsystem.cpp")
