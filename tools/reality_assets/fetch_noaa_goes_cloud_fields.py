@@ -316,6 +316,7 @@ def build_satellite_field(
             "commercially_cleared": False,
             "spatial_resolution_m": 2000,
             "cloud_height_units": "m",
+            "cloud_height_reference": "geopotential_height_m",
             "mask_classes": {
                 "0": "confidently_clear",
                 "1": "probably_clear",
@@ -326,7 +327,7 @@ def build_satellite_field(
         },
         "sampling": {
             "stride_pixels": stride,
-            "source_grid_width": None,
+            "source_grid_width": int(mask_file_size(mask_file, "width")) if False else None,
             "source_grid_height": None,
             "point_count": len(points),
             "maximum_points": max_points,
