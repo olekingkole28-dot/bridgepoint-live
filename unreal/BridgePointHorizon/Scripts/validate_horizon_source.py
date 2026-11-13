@@ -1370,6 +1370,7 @@ for token in [
     "ResolveCloudFramePair",
     "GetCloudPointsForSource",
     "TransformLongitudeLatitudeHeightPositionToUnreal",
+    "GetActorTransform().TransformPosition",
     "GeopotentialToGeometricHeightMeters",
     "GOES19",
     "GOES18",
@@ -1395,10 +1396,16 @@ for token in [
     "cloud_to_ground_vs_intracloud_classification",
     "bCommerciallyCleared",
     "IsFlashStructurallyValid",
-    "first_event_utc"
+    "first_event_utc",
+    "LatestEventUtc",
+    "IsSourceFreshAt",
 ]:
     require(token in lightning_contract, f"observed GLM flash loader contract missing: {token}")
 for token in [
+    "IsSourceFreshAt",
+    "Newly generated manifest cannot make four-minute-old flashes fresh",
+    "Recent actual GLM event remains fresh",
+    "Future-dated GLM event fails closed",
     "BridgePoint.Earth.Lightning.QualityAndGeometry",
     "Quality-valid flash centroid passes source validation",
     "Degraded GLM quality flag is rejected",
