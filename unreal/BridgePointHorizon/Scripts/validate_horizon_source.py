@@ -1289,6 +1289,7 @@ earth_world_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/B
 earth_world = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthWorld.cpp")
 earth_world_contract = earth_world_header + "\n" + earth_world
 for token in [
+    "ACesiumSunSky", "CesiumSunSky.h", "GetSimulationClockUtc",
     "ACesiumGeoreference", "ACesium3DTileset", "UCesiumUrlTemplateRasterOverlay",
     "SetOriginLongitudeLatitudeHeight", "ETilesetSource::FromEllipsoid",
     "SetMaximumScreenSpaceError", "SetEnableWaterMask", "SetCreatePhysicsMeshes",
@@ -1297,7 +1298,8 @@ for token in [
 ]:
     require(token in earth_world_contract, f"Cesium Earth globe contract missing: {token}")
 for token in [
-    "CreateGeoreference", "CreateBaseEllipsoid", "CreateWorldTerrain",
+    "CreateGeoreference", "CreateSunSky", "UpdateSunFromSimulationClock",
+    "CreateBaseEllipsoid", "CreateWorldTerrain",
     "CreateOSMBuildings", "CreateSatelliteImageryOverlay",
     "CesiumWorldTerrainAssetId = 1", "CesiumOSMBuildingsAssetId = 96188",
     "SetIonAccessToken", "ShowCreditsOnScreen"

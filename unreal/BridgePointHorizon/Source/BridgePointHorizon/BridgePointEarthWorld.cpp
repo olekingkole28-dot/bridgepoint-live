@@ -2,6 +2,10 @@
 
 #include "Cesium3DTileset.h"
 #include "CesiumGeoreference.h"
+#include "CesiumSunSky.h"
+#include "CesiumGlobeAnchorComponent.h"
+#include "BridgePointEarthSubsystem.h"
+#include "Engine/GameInstance.h"
 #include "CesiumUrlTemplateRasterOverlay.h"
 #include "Engine/World.h"
 #include "HAL/PlatformMisc.h"
@@ -14,7 +18,8 @@ namespace BridgePointEarth
 
 ABridgePointEarthWorld::ABridgePointEarthWorld()
 {
-    PrimaryActorTick.bCanEverTick = false;
+    PrimaryActorTick.bCanEverTick = true;
+    PrimaryActorTick.bStartWithTickEnabled = true;
     SetActorHiddenInGame(false);
     SetCanBeDamaged(false);
 }
@@ -25,8 +30,32 @@ void ABridgePointEarthWorld::BeginPlay()
     InitializeEarth();
 }
 
+void ABridgePointEarthWorld::Tick(float DeltaSeconds)
+{
+    Super::Tick(DeltaSeconds);
+
+    if (!SunSky || !FMath::IsFinite(DeltaSeconds) || DeltaSeconds <= 0.0f)
+    {
+        return;
+    }
+
+    SunUpdateAccumulatorSeconds += DeltaSeconds;
+    const float Interval = FMath::Clamp(SunUpdateIntervalSeconds, 0.25f, 60.0f);
+    if (SunUpdateAccumulatorSeconds >= Interval)
+    {
+        SunUpdateAccumulatorSeconds = FMath::Fmod(SunUpdateAccumulatorSeconds, Interval);
+        UpdateSunFromSimulationClock();
+    }
+}
+
 void ABridgePointEarthWorld::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+    if (SunSky)
+    {
+        SunSky->Destroy();
+        SunSky = nullptr;
+    }
+
     if (SatelliteImageryOverlay)
     {
         SatelliteImageryOverlay->Deactivate();
@@ -86,6 +115,11 @@ bool ABridgePointEarthWorld::InitializeEarth()
         return false;
     }
 
+    if (bEnableAstronomicalSunSky)
+    {
+        CreateSunSky();
+    }
+
     const FString IonToken = ReadIonAccessToken();
     if (!IonToken.IsEmpty() && bPreferCesiumWorldTerrain)
     {
@@ -106,6 +140,81 @@ bool ABridgePointEarthWorld::InitializeEarth()
 
     bInitialized = ActiveSurfaceTileset != nullptr;
     return bInitialized;
+}
+
+bool ABridgePointEarthWorld::CreateSunSky()
+{
+    if (SunSky)
+    {
+        return true;
+    }
+
+    if (!GetWorld() || !Georeference)
+    {
+        return false;
+    }
+
+    FActorSpawnParameters Params;
+    Params.Owner = this;
+    Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+    SunSky = GetWorld()->SpawnActor<ACesiumSunSky>(
+        ACesiumSunSky::StaticClass(),
+        FTransform::Identity,
+        Params);
+
+    if (!SunSky || !SunSky->GlobeAnchor)
+    {
+        if (SunSky)
+        {
+            SunSky->Destroy();
+            SunSky = nullptr;
+        }
+        return false;
+    }
+
+    SunSky->GlobeAnchor->SetGeoreference(
+        TSoftObjectPtr<ACesiumGeoreference>(Georeference));
+
+    // Solar calculations use UTC directly. Keeping DST off avoids applying a
+    // local civil-time adjustment to the global solar direction.
+    SunSky->TimeZone = 0.0;
+    SunSky->UseDaylightSavingTime = false;
+    SunSky->UpdateAtmosphereAtRuntime = true;
+    UpdateSunFromSimulationClock();
+    return true;
+}
+
+void ABridgePointEarthWorld::UpdateSunFromSimulationClock()
+{
+    if (!SunSky)
+    {
+        return;
+    }
+
+    FDateTime SimulationUtc = FDateTime::UtcNow();
+    if (GetWorld())
+    {
+        if (UGameInstance* GameInstance = GetWorld()->GetGameInstance())
+        {
+            if (UBridgePointEarthSubsystem* Earth =
+                GameInstance->GetSubsystem<UBridgePointEarthSubsystem>())
+            {
+                SimulationUtc = Earth->GetSimulationClockUtc();
+            }
+        }
+    }
+
+    SunSky->Year = SimulationUtc.GetYear();
+    SunSky->Month = SimulationUtc.GetMonth();
+    SunSky->Day = SimulationUtc.GetDay();
+    SunSky->TimeZone = 0.0;
+    SunSky->UseDaylightSavingTime = false;
+    SunSky->SolarTime =
+        static_cast<double>(SimulationUtc.GetHour()) +
+        static_cast<double>(SimulationUtc.GetMinute()) / 60.0 +
+        static_cast<double>(SimulationUtc.GetSecond()) / 3600.0;
+    SunSky->UpdateSun();
 }
 
 bool ABridgePointEarthWorld::CreateGeoreference()

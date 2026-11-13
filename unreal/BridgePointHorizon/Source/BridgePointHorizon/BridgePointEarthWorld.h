@@ -7,6 +7,7 @@
 class ACesiumGeoreference;
 class ACesium3DTileset;
 class UCesiumUrlTemplateRasterOverlay;
+class ACesiumSunSky;
 
 UCLASS(BlueprintType)
 class BRIDGEPOINTHORIZON_API ABridgePointEarthWorld : public AActor
@@ -16,6 +17,7 @@ class BRIDGEPOINTHORIZON_API ABridgePointEarthWorld : public AActor
 public:
     ABridgePointEarthWorld();
     virtual void BeginPlay() override;
+    virtual void Tick(float DeltaSeconds) override;
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="BridgePoint|Earth|Origin")
@@ -26,6 +28,12 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="BridgePoint|Earth|Origin")
     double OriginHeightMeters = 0.0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="BridgePoint|Earth|Atmosphere")
+    bool bEnableAstronomicalSunSky = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="BridgePoint|Earth|Atmosphere", meta=(ClampMin="0.25", ClampMax="60.0"))
+    float SunUpdateIntervalSeconds = 1.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="BridgePoint|Earth|Terrain")
     bool bPreferCesiumWorldTerrain = true;
@@ -47,6 +55,9 @@ public:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BridgePoint|Earth|Runtime")
     TObjectPtr<ACesiumGeoreference> Georeference;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BridgePoint|Earth|Runtime")
+    TObjectPtr<ACesiumSunSky> SunSky;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="BridgePoint|Earth|Runtime")
     TObjectPtr<ACesium3DTileset> BaseEllipsoidTileset;
@@ -87,8 +98,11 @@ private:
     FString IonTokenEnvironmentVariable = TEXT("BRIDGEPOINT_CESIUM_ION_TOKEN");
 
     bool bInitialized = false;
+    float SunUpdateAccumulatorSeconds = 0.0f;
 
     FString ReadIonAccessToken() const;
+    bool CreateSunSky();
+    void UpdateSunFromSimulationClock();
     bool CreateGeoreference();
     bool CreateBaseEllipsoid();
     bool CreateWorldTerrain(const FString& IonToken);
