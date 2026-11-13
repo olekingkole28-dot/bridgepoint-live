@@ -288,6 +288,15 @@ bool UBridgePointEarthCloudSubsystem::LoadCloudFieldFile(
     Source->TryGetStringField(TEXT("attribution"), OutSource.Attribution);
     Source->TryGetBoolField(TEXT("commercially_cleared"), OutSource.bCommerciallyCleared);
 
+    double FrameIndex = 0.0;
+    double FrameCount = 1.0;
+    OutSource.FrameIndex = Source->TryGetNumberField(TEXT("frame_index"), FrameIndex)
+        ? FMath::Max(0, FMath::RoundToInt(FrameIndex))
+        : 0;
+    OutSource.FrameCount = Source->TryGetNumberField(TEXT("frame_count"), FrameCount)
+        ? FMath::Clamp(FMath::RoundToInt(FrameCount), 1, MaximumSources)
+        : 1;
+
     if (OutSource.SourceId.IsEmpty() ||
         OutSource.SourceName.IsEmpty() ||
         OutSource.LicenseId.IsEmpty() ||
@@ -355,7 +364,10 @@ bool UBridgePointEarthCloudSubsystem::LoadCloudFieldFile(
         FBridgePointEarthCloudPoint CloudPoint;
         CloudPoint.Location.LatitudeDegrees = Latitude;
         CloudPoint.Location.LongitudeDegrees = Longitude;
-        CloudPoint.Location.EllipsoidHeightMeters = CloudTop;
+        // GOES HT is a geopotential cloud-top height measurement in metres,
+        // not an ellipsoid altitude. Keep the WGS84 ground coordinate at zero
+        // and retain the observed atmospheric height in its separate field.
+        CloudPoint.Location.EllipsoidHeightMeters = 0.0;
         CloudPoint.CloudTopHeightMeters = static_cast<float>(CloudTop);
         CloudPoint.MaskClass = FMath::RoundToInt(MaskClass);
         CloudPoint.Probability = static_cast<float>(Probability);
@@ -394,4 +406,120 @@ int32 UBridgePointEarthCloudSubsystem::GetFreshCloudPointCount() const
         }
     }
     return Count;
+}
+
+
+bool UBridgePointEarthCloudSubsystem::ResolveCloudFramePair(
+    const FString& Satellite,
+    FDateTime SimulationTimeUtc,
+    int32& OutEarlierSourceIndex,
+    int32& OutLaterSourceIndex,
+    float& OutBlendAlpha) const
+{
+    OutEarlierSourceIndex = INDEX_NONE;
+    OutLaterSourceIndex = INDEX_NONE;
+    OutBlendAlpha = 0.0f;
+
+    if (Satellite.TrimStartAndEnd().IsEmpty() ||
+        SimulationTimeUtc.GetTicks() <= 0)
+    {
+        return false;
+    }
+
+    double NearestEarlierSeconds = TNumericLimits<double>::Max();
+    double NearestLaterSeconds = TNumericLimits<double>::Max();
+
+    for (int32 Index = 0; Index < CloudSources.Num(); ++Index)
+    {
+        const FBridgePointEarthCloudSource& Source = CloudSources[Index];
+        if (!Source.Satellite.Equals(Satellite, ESearchCase::IgnoreCase) ||
+            Source.PointCount <= 0)
+        {
+            continue;
+        }
+
+        const double DeltaSeconds =
+            (SimulationTimeUtc - Source.ObservedAtUtc).GetTotalSeconds();
+
+        if (DeltaSeconds >= 0.0 && DeltaSeconds < NearestEarlierSeconds)
+        {
+            NearestEarlierSeconds = DeltaSeconds;
+            OutEarlierSourceIndex = Index;
+        }
+        else if (DeltaSeconds < 0.0 && -DeltaSeconds < NearestLaterSeconds)
+        {
+            NearestLaterSeconds = -DeltaSeconds;
+            OutLaterSourceIndex = Index;
+        }
+    }
+
+    if (OutEarlierSourceIndex == INDEX_NONE)
+    {
+        return false;
+    }
+
+    const FBridgePointEarthCloudSource& Earlier =
+        CloudSources[OutEarlierSourceIndex];
+
+    // If the requested time is newer than the newest available scan, hold
+    // the latest observed field briefly. Do not extrapolate cloud motion.
+    if (OutLaterSourceIndex == INDEX_NONE)
+    {
+        if (NearestEarlierSeconds > static_cast<double>(MaximumSourceAgeSeconds))
+        {
+            OutEarlierSourceIndex = INDEX_NONE;
+            return false;
+        }
+
+        OutLaterSourceIndex = OutEarlierSourceIndex;
+        OutBlendAlpha = 0.0f;
+        return true;
+    }
+
+    const FBridgePointEarthCloudSource& Later =
+        CloudSources[OutLaterSourceIndex];
+    const double FrameDurationSeconds =
+        (Later.ObservedAtUtc - Earlier.ObservedAtUtc).GetTotalSeconds();
+
+    if (FrameDurationSeconds <= 0.0 ||
+        FrameDurationSeconds > static_cast<double>(MaximumSourceAgeSeconds))
+    {
+        OutEarlierSourceIndex = INDEX_NONE;
+        OutLaterSourceIndex = INDEX_NONE;
+        return false;
+    }
+
+    const double ElapsedSeconds =
+        (SimulationTimeUtc - Earlier.ObservedAtUtc).GetTotalSeconds();
+    OutBlendAlpha = FMath::Clamp(
+        static_cast<float>(ElapsedSeconds / FrameDurationSeconds),
+        0.0f,
+        1.0f);
+    return true;
+}
+
+TArray<FBridgePointEarthCloudPoint>
+UBridgePointEarthCloudSubsystem::GetCloudPointsForSource(int32 SourceIndex) const
+{
+    TArray<FBridgePointEarthCloudPoint> Result;
+    if (!CloudSources.IsValidIndex(SourceIndex))
+    {
+        return Result;
+    }
+
+    const int32 ExpectedCount = CloudSources[SourceIndex].PointCount;
+    if (ExpectedCount <= 0)
+    {
+        return Result;
+    }
+
+    Result.Reserve(ExpectedCount);
+    for (const FBridgePointEarthCloudPoint& Point : CloudPoints)
+    {
+        if (Point.SourceIndex == SourceIndex)
+        {
+            Result.Add(Point);
+        }
+    }
+    return Result;
 }

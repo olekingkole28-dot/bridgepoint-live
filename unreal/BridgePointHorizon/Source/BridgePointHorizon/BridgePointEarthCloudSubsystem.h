@@ -59,6 +59,12 @@ struct BRIDGEPOINTHORIZON_API FBridgePointEarthCloudSource
     int32 PointCount = 0;
 
     UPROPERTY(BlueprintReadOnly, Category="BridgePoint|Earth|Clouds")
+    int32 FrameIndex = 0;
+
+    UPROPERTY(BlueprintReadOnly, Category="BridgePoint|Earth|Clouds")
+    int32 FrameCount = 1;
+
+    UPROPERTY(BlueprintReadOnly, Category="BridgePoint|Earth|Clouds")
     bool bFresh = false;
 
     UPROPERTY(BlueprintReadOnly, Category="BridgePoint|Earth|Clouds")
@@ -110,13 +116,24 @@ public:
     UFUNCTION(BlueprintPure, Category="BridgePoint|Earth|Clouds")
     int32 GetFreshCloudPointCount() const;
 
+    UFUNCTION(BlueprintCallable, Category="BridgePoint|Earth|Clouds")
+    bool ResolveCloudFramePair(
+        const FString& Satellite,
+        FDateTime SimulationTimeUtc,
+        int32& OutEarlierSourceIndex,
+        int32& OutLaterSourceIndex,
+        float& OutBlendAlpha) const;
+
+    UFUNCTION(BlueprintCallable, Category="BridgePoint|Earth|Clouds")
+    TArray<FBridgePointEarthCloudPoint> GetCloudPointsForSource(int32 SourceIndex) const;
+
     UFUNCTION(BlueprintPure, Category="BridgePoint|Earth|Clouds")
     FString GetCloudSourceDirectory() const;
 
 private:
-    int32 MaximumSources = 4;
-    int32 MaximumPointsPerSource = 60000;
-    int32 MaximumTotalPoints = 120000;
+    int32 MaximumSources = 12;
+    int32 MaximumPointsPerSource = 20000;
+    int32 MaximumTotalPoints = 240000;
     int32 MaximumSourceAgeSeconds = 1800;
 
     bool LoadManifest(const FString& ManifestPath);
