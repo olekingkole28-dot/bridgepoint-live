@@ -1401,7 +1401,8 @@ earth_mode_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/Br
 earth_mode = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointEarthGameMode.cpp")
 earth_camera_contract = earth_camera_header + "\n" + earth_camera
 for token in [
-    "AGlobeAwareDefaultPawn", "GetEarthCenteredEarthFixedPosition",
+    "AGlobeAwareDefaultPawn", "GetLongitudeLatitudeHeight",
+    "ECesiumHeightReference::Ellipsoid",
     "AltitudeSpeedScale", "UFloatingPawnMovement", "SetControlRotation"
 ]:
     require(token in earth_camera_contract, f"globe-aware Earth camera contract missing: {token}")
