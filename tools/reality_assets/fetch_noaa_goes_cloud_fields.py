@@ -98,6 +98,7 @@ def _list_recent_objects(s3: Any, bucket: str, product: str, now: dt.datetime, l
                             "key": item["Key"],
                             "scan_time": scan_time,
                             "size": int(item.get("Size", 0)),
+                            "etag": str(item.get("ETag", "")).strip('"'),
                         })
     return found
 
@@ -138,9 +139,31 @@ def _latest_matching_pairs(
     return pairs
 
 
-def _download_file(s3: Any, bucket: str, key: str, destination: Path) -> None:
+def cache_is_current(destination: Path, expected_size: int, expected_etag: str) -> bool:
+    marker = destination.with_name(destination.name + ".etag")
+    if expected_size <= 0 or not expected_etag or not destination.is_file() or not marker.is_file():
+        return False
+    try:
+        return destination.stat().st_size == expected_size and marker.read_text(encoding="utf-8").strip() == expected_etag
+    except OSError:
+        return False
+
+
+def _download_file(
+    s3: Any,
+    bucket: str,
+    key: str,
+    destination: Path,
+    expected_size: int = 0,
+    expected_etag: str = "",
+) -> bool:
     destination.parent.mkdir(parents=True, exist_ok=True)
+    if cache_is_current(destination, expected_size, expected_etag):
+        return False
     s3.download_file(bucket, key, str(destination))
+    if expected_etag:
+        destination.with_name(destination.name + ".etag").write_text(expected_etag, encoding="utf-8")
+    return True
 
 
 def _load_cloud_points(mask_path: Path, height_path: Path, max_points: int) -> tuple[list[dict], int]:
@@ -294,8 +317,14 @@ def build_satellite_field(
     downloads = sat_dir / "downloads"
     mask_file = downloads / Path(mask_object["key"]).name
     height_file = downloads / Path(height_object["key"]).name
-    _download_file(s3, bucket, mask_object["key"], mask_file)
-    _download_file(s3, bucket, height_object["key"], height_file)
+    _download_file(
+        s3, bucket, mask_object["key"], mask_file,
+        int(mask_object.get("size", 0)), str(mask_object.get("etag", "")),
+    )
+    _download_file(
+        s3, bucket, height_object["key"], height_file,
+        int(height_object.get("size", 0)), str(height_object.get("etag", "")),
+    )
 
     points, stride = _load_cloud_points(mask_file, height_file, max_points)
     if not points:

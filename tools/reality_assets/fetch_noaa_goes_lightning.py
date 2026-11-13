@@ -79,9 +79,34 @@ def list_recent_files(s3: Any, bucket: str, now: dt.datetime, lookback_hours: in
                 key = item["Key"]
                 scan = parse_scan_start_utc(key) if key.endswith(".nc") else None
                 if scan:
-                    files.append({"key": key, "scan_time": scan})
+                    files.append({
+                        "key": key,
+                        "scan_time": scan,
+                        "size": int(item.get("Size", 0)),
+                        "etag": str(item.get("ETag", "")).strip('"'),
+                    })
     files.sort(key=lambda x: x["scan_time"], reverse=True)
     return files
+
+def cache_is_current(destination: Path, expected_size: int, expected_etag: str) -> bool:
+    marker = destination.with_name(destination.name + ".etag")
+    if expected_size <= 0 or not expected_etag or not destination.is_file() or not marker.is_file():
+        return False
+    try:
+        return destination.stat().st_size == expected_size and marker.read_text(encoding="utf-8").strip() == expected_etag
+    except OSError:
+        return False
+
+def download_if_changed(s3: Any, bucket: str, item: dict, destination: Path) -> bool:
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    expected_size = int(item.get("size", 0))
+    expected_etag = str(item.get("etag", ""))
+    if cache_is_current(destination, expected_size, expected_etag):
+        return False
+    s3.download_file(bucket, item["key"], str(destination))
+    if expected_etag:
+        destination.with_name(destination.name + ".etag").write_text(expected_etag, encoding="utf-8")
+    return True
 
 def read_flash_file(path: Path, max_flashes: int) -> tuple[list[dict], dict]:
     try:
@@ -178,7 +203,7 @@ def run(args: argparse.Namespace) -> int:
             local = download_dir / filename
             local.parent.mkdir(parents=True, exist_ok=True)
             try:
-                s3.download_file(bucket, item["key"], str(local))
+                download_if_changed(s3, bucket, item, local)
                 remaining = max(1, args.max_flashes_per_satellite - len(flashes))
                 points, metadata = read_flash_file(local, remaining)
                 for point in points:

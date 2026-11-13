@@ -26,6 +26,19 @@ class GoEsLightningTests(unittest.TestCase):
         self.assertIsNone(MODULE.parse_scan_start_utc("bad-name.nc"))
         self.assertIsNone(MODULE.parse_scan_start_utc("OR_GLM-L2-LCFA_G19_s20263670408200.nc"))
 
+    def test_download_cache_requires_matching_size_and_etag(self):
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "glm.nc"
+            target.with_name(target.name + ".etag").write_text("etag-1", encoding="utf-8")
+            target.write_bytes(b"123456")
+            self.assertTrue(MODULE.cache_is_current(target, 6, "etag-1"))
+            self.assertFalse(MODULE.cache_is_current(target, 7, "etag-1"))
+            self.assertFalse(MODULE.cache_is_current(target, 6, "etag-2"))
+            self.assertFalse(MODULE.cache_is_current(target, 6, ""))
+
     def test_flash_quality_validation(self):
         self.assertTrue(MODULE.validate_flash(40.7, -74.0, 2.5, 1000000, 0))
         self.assertFalse(MODULE.validate_flash(91.0, -74.0, 2.5, 1000000, 0))

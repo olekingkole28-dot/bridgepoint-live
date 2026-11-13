@@ -84,6 +84,20 @@ class GoEsCloudFieldTests(unittest.TestCase):
         self.assertEqual(pairs[0][0]["key"], "mask-2.nc")
         self.assertEqual(pairs[-1][0]["key"], "mask-5.nc")
 
+    def test_download_cache_requires_matching_size_and_etag(self):
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "scan.nc"
+            marker = target.with_name(target.name + ".etag")
+            target.write_bytes(b"abcd")
+            marker.write_text("abc123", encoding="utf-8")
+            self.assertTrue(MODULE.cache_is_current(target, 4, "abc123"))
+            self.assertFalse(MODULE.cache_is_current(target, 5, "abc123"))
+            self.assertFalse(MODULE.cache_is_current(target, 4, "changed"))
+            self.assertFalse(MODULE.cache_is_current(target, 4, ""))
+
     def test_cloud_mask_probabilities(self):
         self.assertEqual(MODULE.cloud_class_confidence(0), 0.0)
         self.assertGreater(MODULE.cloud_class_opacity(1, 0.25), 0.0)
