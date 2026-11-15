@@ -104,8 +104,9 @@ export function initBridgePointSolarCosmos(o){
  if(!THREE||!scene||!camera||!starsGroup)throw new Error('Unified celestial scene requires the existing welcome Three.js objects');
  const state={version:BUILD,status:'loading',source:'ESA Gaia DR3 + Hipparcos bright-star supplement',
   starCount:0,loadedChunks:0,epoch:2026,distanceUnit:'parsec',stellarCoordinateFrame:'Galactic Cartesian, Sun-centred',
-  planetCount:0,planetWork:'deferred until the next planet has its own detailed 3D model',
-  controls:'single-scene-camera; zoom reveals existing Earth/Moon/Sun models and measured Gaia stars',
+  planetCount:8,planetModels:'five locally textured 3D planets plus dedicated NASA-based Mars and Saturn systems; existing Earth/Moon/Sun preserved',
+  planetTexturesLoaded:0,planetTextureStatus:'loading',stellarStatus:'loading',
+  controls:'single-scene-camera; eight planets, Sun, Earth, Moon and named planetary moons are selectable',
   externalDataRequests:0,errors:[],distanceRangePc:null};
  starsGroup.name='BridgePoint unified Gaia DR3 stellar and deep-space context';
  starsGroup.visible=true;
@@ -117,8 +118,15 @@ export function initBridgePointSolarCosmos(o){
  bodySelect.className='bpw-celestial-body-picker';
  bodySelect.setAttribute('aria-label','Choose a celestial body to explore');
  bodySelect.innerHTML='<option value="">CHOOSE CELESTIAL BODY</option>'+
-  '<option value="earth">Earth</option><option value="moon">Moon</option><option value="sun">Sun</option>'+
-  '<option value="saturn">Saturn</option><option value="mars">Mars</option>';
+  '<optgroup label="SOLAR SYSTEM"><option value="sun">Sun</option>'+
+  '<option value="mercury" disabled>Mercury · loading map</option><option value="venus" disabled>Venus · loading map</option>'+
+  '<option value="earth">Earth</option><option value="mars">Mars</option><option value="jupiter" disabled>Jupiter · loading map</option>'+
+  '<option value="saturn">Saturn</option><option value="uranus" disabled>Uranus · loading map</option>'+
+  '<option value="neptune" disabled>Neptune · loading map</option></optgroup>'+
+  '<optgroup label="MOONS"><option value="moon">Earth · Moon</option>'+
+  '<option value="phobos">Phobos · Mars</option><option value="deimos">Deimos · Mars</option>'+
+  '<option value="titan">Titan · Saturn</option><option value="enceladus">Enceladus · Saturn</option>'+
+  '<option value="mimas">Mimas · Saturn</option></optgroup>';
  const resetButton=controls?.querySelector('[data-space-reset]');
  if(controls)controls.insertBefore(bodySelect,resetButton||controls.firstChild);
  const css=document.createElement('style');
@@ -144,6 +152,10 @@ export function initBridgePointSolarCosmos(o){
  addBodyLabel('Earth');addBodyLabel('Moon');addBodyLabel('Sun');
  const galaxyLabel=labelSprite(THREE,'MILKY WAY');labelsGroup.add(galaxyLabel);
  const planetMeshes=new Map(),planetMaterials=[],orbitMaterials=[],labelOffsets=new Map();
+ const planetTextureHandles=[],planetAtmospheres=new Map(),planetOptionByKey=new Map();
+ for(const option of bodySelect.options){
+  if(['mercury','venus','jupiter','uranus','neptune'].includes(option.value))planetOptionByKey.set(option.value,option);
+ }
  const solarRevealLimit=22;
  const stellarContext=new THREE.Group();stellarContext.name='Milky Way large-scale structural context (schematic arms; Gaia points remain measured)';starSpace.add(stellarContext);
  const disk=new THREE.Mesh(new THREE.RingGeometry(1800,15000,192),new THREE.MeshBasicMaterial({color:0x31507c,transparent:true,opacity:.115,side:THREE.DoubleSide,depthWrite:false}));
@@ -162,25 +174,26 @@ export function initBridgePointSolarCosmos(o){
  }
  stellarContext.visible=false;
  const planetDayZero=2451543.5;
- const planetRefs=[]; // Generic placeholder worlds are deferred until their dedicated models are built.
- const solarBodies=[];
- for(const p of planetRefs){
-  const radius=p.r/EARTH_RADIUS_KM;
-  const material=new THREE.MeshStandardMaterial({color:p.c,roughness:.82,metalness:.015,transparent:true,opacity:1});
-  const mesh=new THREE.Mesh(new THREE.SphereGeometry(radius,isMobile?32:48,isMobile?20:32),material);
-  mesh.name=p.name+' 3D planetary body';mesh.userData.body=p.name.toLowerCase();mesh.userData.celestialBody=p.name.toLowerCase();
-  solarRoot.add(mesh);planetMeshes.set(p.name.toLowerCase(),mesh);planetMaterials.push(material);
-  const label=labelSprite(THREE,p.name.toUpperCase());labelsGroup.add(label);labelMap.set(p.name.toLowerCase(),label);
-  labelOffsets.set(p.name.toLowerCase(),radius);
-  if(p.name==='Saturn'){
-   const ring=new THREE.Mesh(new THREE.RingGeometry(radius*1.24,radius*2.23,96),
-    new THREE.MeshBasicMaterial({color:0xd9c49b,transparent:true,opacity:.62,side:THREE.DoubleSide,depthWrite:false}));
-   ring.rotation.x=-Math.PI/2;ring.name='Saturn 3D ring system';mesh.add(ring);
-  }
-  bodyMap.set(p.name.toLowerCase(),{mesh,radius});
-  clickables.push(mesh);
- }
- for(const p of []){ // Defer orbital lines until a detailed planet model is ready.
+// Mercury, Venus, Jupiter, Uranus and Neptune use locally hosted equirectangular
+// surface maps. Mars and Saturn keep their dedicated NASA/PDS terrain systems.
+const planetRefs=PLANETS.filter(p=>['Mercury','Venus','Jupiter','Uranus','Neptune'].includes(p.name));
+const solarBodies=[];
+const PLANET_TEXTURE_ROOT='/assets/planets/v1/';
+const PLANET_TEXTURE_FILES={mercury:'mercury-2k.jpg',venus:'venus-surface-2k.jpg',jupiter:'jupiter-2k.jpg',uranus:'uranus-2k.jpg',neptune:'neptune-2k.jpg'};
+const PLANET_ROTATION_HOURS={mercury:1407.6,venus:-5832.5,jupiter:9.925,uranus:-17.24,neptune:16.11};
+const textureLoader=new THREE.TextureLoader();
+for(const p of planetRefs){
+ const key=p.name.toLowerCase(),radius=p.r/EARTH_RADIUS_KM;
+ const geometry=new THREE.SphereGeometry(radius,isMobile?128:192,isMobile?80:128);
+ const material=new THREE.MeshStandardMaterial({color:0xffffff,roughness:key==='venus'?.94:key==='jupiter'?.92:.86,metalness:0,map:null});
+ const mesh=new THREE.Mesh(geometry,material);
+ mesh.visible=false;mesh.name=p.name+' 3D planet · locally hosted image texture';
+ mesh.userData.body=key;mesh.userData.celestialBody=key;mesh.userData.physicalRadiusKm=p.r;
+ solarRoot.add(mesh);planetMeshes.set(key,mesh);planetMaterials.push(material);
+ const label=labelSprite(THREE,p.name.toUpperCase());labelsGroup.add(label);labelMap.set(key,label);
+ labelOffsets.set(key,radius);
+}
+for(const p of PLANETS.filter(p=>p.name!=='Earth')){
   const points=[];
   for(let i=0;i<300;i++){
    const sample={...p,M:i*360/300};
@@ -189,6 +202,37 @@ export function initBridgePointSolarCosmos(o){
   const geometry=new THREE.BufferGeometry().setFromPoints(points);
   const material=new THREE.LineBasicMaterial({color:p.c,transparent:true,opacity:.24,depthWrite:false});
   const orbit=new THREE.LineLoop(geometry,material);orbit.name=p.name+' 3D heliocentric orbital path';orbitMaterials.push(material);orbitScaleRoot.add(orbit);
+ }
+ async function loadPlanetTextures(){
+  const results=await Promise.all(planetRefs.map(async p=>{
+   const key=p.name.toLowerCase(),mesh=planetMeshes.get(key),option=planetOptionByKey.get(key);
+   try{
+    const texture=await new Promise((resolve,reject)=>textureLoader.load(PLANET_TEXTURE_ROOT+PLANET_TEXTURE_FILES[key],resolve,undefined,reject));
+    texture.colorSpace=THREE.SRGBColorSpace;texture.anisotropy=4;texture.needsUpdate=true;
+    mesh.material.map=texture;mesh.material.color.set(0xffffff);mesh.material.needsUpdate=true;mesh.visible=true;
+    planetTextureHandles.push(texture);
+    const radius=p.r/EARTH_RADIUS_KM;bodyMap.set(key,{mesh,radius,systemCameraDistance:Math.max(radius*4.2,.25)});
+    if(option){option.disabled=false;option.textContent=p.name;}
+    state.planetTexturesLoaded++;return true;
+   }catch(error){
+    state.errors.push(key+' texture: '+String(error?.message||error));
+    if(option){option.disabled=true;option.textContent=p.name+' · map unavailable';}
+    return false;
+   }
+  }));
+  const venus=planetMeshes.get('venus');
+  if(venus?.visible){
+   try{
+    const texture=await new Promise((resolve,reject)=>textureLoader.load(PLANET_TEXTURE_ROOT+'venus-atmosphere-2k.jpg',resolve,undefined,reject));
+    texture.colorSpace=THREE.SRGBColorSpace;texture.anisotropy=4;texture.needsUpdate=true;
+    const radius=PLANETS.find(p=>p.name==='Venus').r/EARTH_RADIUS_KM;
+    const shell=new THREE.Mesh(new THREE.SphereGeometry(radius*1.014,isMobile?96:144,isMobile?64:96),
+     new THREE.MeshBasicMaterial({map:texture,transparent:true,opacity:.18,depthWrite:false,side:THREE.DoubleSide}));
+    shell.name='Venus · atmospheric cloud and haze layer';venus.add(shell);planetAtmospheres.set('venus',shell);planetTextureHandles.push(texture);
+   }catch(error){state.errors.push('venus atmosphere: '+String(error?.message||error));}
+  }
+  state.planetTextureStatus=results.some(Boolean)?'ready':'error';state.status='ready';
+  applyFrame();update();return results.filter(Boolean).length;
  }
  const starState={rows:[],points:null,parsecScale:0,orientation:new THREE.Quaternion(),planetDays:NaN,frame:null};
  const nowSun=()=>getSunPosition?getSunPosition():new THREE.Vector3(0,0,8);
