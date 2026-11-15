@@ -14,10 +14,10 @@ CURRENT_CACHE = "bp-intelligence-v6292-mars-night-side"
 
 def bump_updater_reference(source: str, label: str) -> str:
     pattern = re.compile(
-        r'(<script\\b[^>]*?\\bsrc=["\\'][^"\\']*app-update-v5820\\.js)(?:\\?[^"\\']*)?(["\\'][^>]*>)',
+        r'(<script\b[^>]*?\bsrc=["\'][^"\']*app-update-v5820\.js)(?:\?[^"\']*)?(["\'][^>]*>)',
         re.IGNORECASE,
     )
-    result, count = pattern.subn(r"\\g<1>?" + UPDATER_QUERY + r"\\g<2>", source)
+    result, count = pattern.subn(r"\g<1>?" + UPDATER_QUERY + r"\g<2>", source)
     if count < 1:
         raise AssertionError(f"{label}: app-update-v5820.js script reference missing")
     return result
@@ -26,9 +26,9 @@ def bump_updater_reference(source: str, label: str) -> str:
 def add_modulepreload(source: str, href: str) -> str:
     # Avoid duplicate requests while allowing the exact URL/cache-buster to evolve.
     if re.search(
-        r'<link\\b(?=[^>]*\\brel=["\\']modulepreload["\\'])(?=[^>]*\\bhref=["\\']'
+        r'<link\b(?=[^>]*\brel=["\']modulepreload["\'])(?=[^>]*\bhref=["\']'
         + re.escape(href)
-        + r'["\\'])[^>]*>',
+        + r'["\'])[^>]*>',
         source,
         re.IGNORECASE,
     ):
@@ -36,7 +36,7 @@ def add_modulepreload(source: str, href: str) -> str:
     tag = f'<link rel="modulepreload" href="{href}" fetchpriority="high">'
     if "</head>" not in source:
         raise AssertionError("Root entry: closing </head> not found")
-    return source.replace("</head>", tag + "\\n</head>", 1)
+    return source.replace("</head>", tag + "\n</head>", 1)
 
 
 def patch_root_html(source: str) -> str:
@@ -56,7 +56,7 @@ def patch_root_html(source: str) -> str:
 
     source = bump_updater_reference(source, "Root entry")
     module_match = re.search(
-        r'<script\\b(?=[^>]*\\bsrc=["\\']([^"\\']*bridgepoint-welcome-space-v6260\\.js(?:\\?[^"\\']*)?)["\\'])[^>]*>',
+        r'<script\b(?=[^>]*\bsrc=["\']([^"\']*bridgepoint-welcome-space-v6260\.js(?:\?[^"\']*)?)["\'])[^>]*>',
         source,
         re.IGNORECASE,
     )
@@ -79,7 +79,7 @@ def patch_manifest(source: str) -> str:
     # the same canonical welcome entry as the website.
     data["start_url"] = "/"
     data["scope"] = "/"
-    return json.dumps(data, indent=2, ensure_ascii=False) + "\\n"
+    return json.dumps(data, indent=2, ensure_ascii=False) + "\n"
 
 
 def validate_updater(source: str) -> None:
