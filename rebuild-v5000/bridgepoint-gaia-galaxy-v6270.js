@@ -325,8 +325,7 @@ for(const p of PLANETS.filter(p=>p.name!=='Earth')){
   }
  }
  function update(){
-  if(state.status==='disposed')return;
-  if(state.status!=='ready'||!starState.frame)return;
+  if(state.status==='disposed'||!starState.frame)return;
    const {sun,auScale,pcScale,orientation,days,ob}=starState.frame;
   const distance=camera.position.distanceTo(new THREE.Vector3(0,0,0));
   const focusedPlanet=selectedBody&&planetMeshes.has(selectedBody);
@@ -334,6 +333,13 @@ for(const p of PLANETS.filter(p=>p.name!=='Earth')){
   solarRoot.visible=progress>.001||!!focusedPlanet;
   planetMaterials.forEach(m=>{m.opacity=Math.max(.001,progress);});
   orbitMaterials.forEach(m=>{m.opacity=.24*progress;});
+  const elapsed=performance.now()/1000;
+  for(const p of planetRefs){
+   const key=p.name.toLowerCase(),mesh=planetMeshes.get(key),hours=PLANET_ROTATION_HOURS[key]||24;
+   if(mesh?.visible)mesh.rotation.y=elapsed*(Math.PI*2/(hours*3600));
+  }
+  const venusAtmosphere=planetAtmospheres.get('venus');
+  if(venusAtmosphere)venusAtmosphere.rotation.y=planetMeshes.get('venus')?.rotation.y*.985||0;
   updateLabels(sun,pcScale,orientation,distance);
   saturnController?.update?.();
   marsController?.update?.();
@@ -379,7 +385,7 @@ for(const p of PLANETS.filter(p=>p.name!=='Earth')){
   if(!rows.length)throw Error('Gaia catalogue returned no usable 3D positions');
   state.loadedChunks=chunks.length;
   addGaiaPoints(rows);
-  bodySelect.disabled=false;
+  state.stellarStatus='ready';
   state.source=manifest.source||state.source;
   state.datasetQuality=manifest.quality||null;
   state.coordinateFrame=manifest.coordinate_frame||'Galactic Cartesian';
@@ -397,18 +403,20 @@ for(const p of PLANETS.filter(p=>p.name!=='Earth')){
   maxCameraDistance(){return (state.parsecToScene||astronomicalScale()/AU_PC)*60000},
   dispose(){
    state.status='disposed';saturnController?.dispose?.();marsController?.dispose?.();bodySelect.remove();labelsGroup.parent?.remove(labelsGroup);
+   for(const texture of planetTextureHandles)texture.dispose();
+   for(const mesh of planetMeshes.values()){mesh.geometry?.dispose?.();if(mesh.material?.dispose)mesh.material.dispose();}
+   for(const orbit of orbitScaleRoot.children){orbit.geometry?.dispose?.();orbit.material?.dispose?.();}
    stellarContext.clear();solarRoot.clear();starSpace.clear();
   }
  };
  window.__BP_SOLAR_COSMOS_V6280__=api;
- bodySelect.disabled=true;
- bodySelect.options[0].textContent='LOADING CELESTIAL DATA…';
+ bodySelect.disabled=false;
+ bodySelect.options[0].textContent='CHOOSE CELESTIAL BODY';
  applyFrame();
- load().then(()=>{bodySelect.options[0].textContent='CHOOSE CELESTIAL BODY';bodySelect.disabled=false;})
-  .catch(error=>{
-   state.status='error';state.errors.push(String(error?.message||error));
-   bodySelect.options[0].textContent='CELESTIAL DATA UNAVAILABLE';bodySelect.disabled=true;
-   console.error('[BridgePoint Gaia DR3] Unified celestial data unavailable:',error);
+ void loadPlanetTextures();
+ load().catch(error=>{
+   state.stellarStatus='error';state.errors.push('Gaia catalogue: '+String(error?.message||error));
+   console.error('[BridgePoint Gaia DR3] Stellar catalogue unavailable; local planetary systems remain selectable:',error);
   });
  return api;
 }
