@@ -1053,8 +1053,8 @@ jobs:
           node --input-type=module --check < site/world-v2300-realism.js
           node --input-type=module --check < site/gis-core-orchestrator-v5910.js
           grep -Fq 'Real satellite bands. No AI-drawn pixels.' site/world-v2300-spectral-imagery.js
-          grep -Fq 'world-v2300-clouds.js?v=6200-radar-colored-rain-clouds' site/app.js
-          grep -Fq 'world-v2300-clouds.js?v=6200-radar-colored-rain-clouds' site/landing.js
+          grep -Fq 'world-v2300-clouds.js?v=6202-global-satellite-cloud-banks' site/app.js
+          grep -Fq 'world-v2300-clouds.js?v=6202-global-satellite-cloud-banks' site/landing.js
           grep -Fq 'world-v2300-weather.js?v=6200-storm-clouds-no-rain' site/app.js
           grep -Fq 'function isPostTropicalCyclone(st={})' site/world-v2300-clouds.js
           grep -Fq 'postTropicalSurfaceCloudVertices+=makeCycloneRibbon' site/world-v2300-clouds.js
