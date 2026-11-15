@@ -607,6 +607,7 @@ self.addEventListener('fetch',e=>{
         self.assertIn("new THREE.TextureLoader()", cosmos)
         self.assertIn("PLANET_TEXTURE_FILES", cosmos)
         self.assertIn("planetTexturesLoaded++", cosmos)
+        self.assertIn("clickables.push(mesh)", cosmos)
         self.assertIn("bodyMap.set(key,{mesh,radius,systemCameraDistance", cosmos)
         for body in ("mercury", "venus", "jupiter", "uranus", "neptune"):
             self.assertIn(f'value="{body}"', cosmos)
