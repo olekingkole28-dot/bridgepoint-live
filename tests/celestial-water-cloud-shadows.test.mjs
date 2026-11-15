@@ -264,17 +264,16 @@ test('global opportunity markers render category glyphs and merge source-backed 
   assert.match(landing, /if\(!risk\)void loadRiskFeed\(\)\.then/);
 });
 
-test('both entrypoints perform a real 6223 sidewalk-cache service-worker cutover before stale startup survives', () => {
-  assert.match(landingHtml, /app-update-v5820\.js\?v=6247-universal-fresh-entry-sidewalk/);
-  assert.match(appHtml, /app-update-v5820\.js\?v=6247-universal-fresh-entry-sidewalk/);
-  assert.match(appUpdate, /const BUILD=6247/);
-  assert.match(appUpdate, /CURRENT_CACHE='bp-intelligence-v6247-universal-fresh-entry-sidewalk'/);
-  assert.match(appUpdate, /function reloadOnce\(reason\)/);
-  assert.match(appUpdate, /location\.replace\(u\.href\)/);
+test('both entrypoints keep the welcome document in place while migrating to the current worker', () => {
+  assert.match(landingHtml, /app-update-v5820\.js\?v=6300-direct-entry/);
+  assert.match(appHtml, /app-update-v5820\.js\?v=6300-direct-entry/);
+  assert.match(appUpdate, /const BUILD=6300/);
+  assert.match(appUpdate, /CACHE_VERSION='6292-mars-night-side-shading'/);
+  assert.match(appUpdate, /CURRENT_CACHE='bp-intelligence-v6292-mars-night-side'/);
+  assert.match(appUpdate, /navigator\.serviceWorker\.register\(CURRENT_SW/);
   assert.match(appUpdate, /navigator\.serviceWorker\?\.addEventListener\('controllerchange'/);
+  assert.doesNotMatch(appUpdate, /location\.replace|location\.reload|reloadOnce/);
   assert.match(serviceWorker, /const V='bp-intelligence-v6247-universal-fresh-entry-sidewalk'/);
-  assert.match(landing, /navigator\.serviceWorker\.register\('\/sw\.js\?v=6247-universal-fresh-entry-sidewalk'/);
-  assert.match(app, /navigator\.serviceWorker\.register\('\/sw\.js\?v=6247-universal-fresh-entry-sidewalk'/);
   assert.match(clouds, /Number\(existingCloudController\.version\) >= 6200[\s\S]{0,180}Number\(existingState\?\.version\) >= 6200/);
 });
 
