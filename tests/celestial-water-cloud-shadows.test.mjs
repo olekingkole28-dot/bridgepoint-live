@@ -128,7 +128,7 @@ test('clouds render as bright 3D volumes, not as a false-colour raster sheet', (
   assert.match(clouds, /Number\(satelliteMask\.probability\[idx\]\)<=32/);
   assert.match(clouds, /const satelliteMaxClouds = index32Supported \? \(MOBILE \? 2900 : 3500\) : \(MOBILE \? 500 : 720\)/);
   assert.match(clouds, /const CLOUD_VERTEX_LIMIT = MOBILE \? 145000 : 220000/);
-  assert.match(clouds, /const satellitePuffStacks = MOBILE \\? 3 : 4/);
+  assert.match(clouds, /const satellitePuffStacks = MOBILE \? 3 : 4/);
   assert.match(clouds, /convectiveAnvil/);
   assert.match(clouds, /undersideShade=1\.0-smoothstep\(0\.05,0\.55,heightShade\)/);
   assert.match(clouds, /time\*0\.34/);
