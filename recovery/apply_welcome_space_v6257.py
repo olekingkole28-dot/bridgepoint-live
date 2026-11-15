@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 BUILD = "v6293-full-planetarium"
+SPACE_MODULE_BUILD = "v6294-live-sun-refresh"
 # Moon and planetary terrain assets are bundled locally; runtime requests stay same-origin.
 SW_URL = "/sw.js?v=6293-full-planetarium"
 CACHE_NAME = "bp-intelligence-v6293-full-planetarium"
@@ -162,10 +163,10 @@ def patch_root_html(source: str) -> str:
             re.IGNORECASE,
         )
         source, module_src_count = module_src_pattern.subn(
-            r'\g<1>' + BUILD[1:] + r'\g<2>', source
+            r'\g<1>' + SPACE_MODULE_BUILD[1:] + r'\g<2>', source
         )
         if module_src_count == 0:
-            module_tag = '<script type="module" src="/bridgepoint-welcome-space-v6260.js?v=' + BUILD[1:] + '"></script>\n'
+            module_tag = '<script type="module" src="/bridgepoint-welcome-space-v6260.js?v=' + SPACE_MODULE_BUILD[1:] + '"></script>\n'
             source = replace_once(source, "</body>", module_tag + "</body>", "load the detailed shared celestial scene")
         source = remove_legacy_welcome_module(source)
         if len(re.findall(r'<script\b[^>]*\bsrc=["\'][^"\']*bridgepoint-welcome-space-v6260\.js', source, re.IGNORECASE)) != 1:
@@ -211,10 +212,10 @@ def patch_root_html(source: str) -> str:
         re.IGNORECASE,
     )
     source, module_src_count = module_src_pattern.subn(
-        r'\g<1>' + BUILD[1:] + r'\g<2>', source
+        r'\g<1>' + SPACE_MODULE_BUILD[1:] + r'\g<2>', source
     )
     if module_src_count == 0:
-        module_tag = '<script type="module" src="/bridgepoint-welcome-space-v6260.js?v=' + BUILD[1:] + '"></script>\n'
+        module_tag = '<script type="module" src="/bridgepoint-welcome-space-v6260.js?v=' + SPACE_MODULE_BUILD[1:] + '"></script>\n'
         source = replace_once(source, "</body>", module_tag + "</body>", "load the modular Three.js welcome scene")
     source = replace_once(source, "</head>", launch_styles() + "\n</head>", "install responsive welcome styling")
     pageshow_old = "window.addEventListener('pageshow',()=>{if(['/','/index.html','/app/','/app/index.html'].includes(location.pathname))window.scrollTo(0,0)},{once:true});"
@@ -471,7 +472,7 @@ def patch_site(site: Path) -> None:
             "bpw-celestial-system",
             "bpw-wordmark-main",
             "bpWelcomeGateStylesV6257",
-            'src="/bridgepoint-welcome-space-v6260.js?v=' + BUILD[1:] + '"',
+            'src="/bridgepoint-welcome-space-v6260.js?v=' + SPACE_MODULE_BUILD[1:] + '"',
             'data-mode="signup"',
             'data-mode="signin"',
         ],

@@ -98,14 +98,14 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
     def test_root_uses_one_existing_earth_and_no_ground_sky_button(self):
         out = patch_root_html(root_fixture())
         self.assertIn("bpWelcomeGateStylesV6257", out)
-        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6293-full-planetarium"', out)
+        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6294-live-sun-refresh"', out)
         self.assertIn('class="bpw-celestial-system" aria-hidden="true"></div>', out)
         self.assertNotIn("bpwCelestialCanvasV6257", out)
         self.assertNotIn('class="bpw-globe-aura"', out)
         self.assertNotIn('class="bpw-explainer"', out)
         self.assertNotIn("WELCOME TO", out)
         self.assertNotIn("bridgepoint-welcome-space-v6257.js", out)
-        self.assertEqual(out.count('src="/bridgepoint-welcome-space-v6260.js?v=6293-full-planetarium"'), 1)
+        self.assertEqual(out.count('src="/bridgepoint-welcome-space-v6260.js?v=6294-live-sun-refresh"'), 1)
         self.assertIn("event.persisted", out)
         self.assertIn("location.reload()", out)
         self.assertIn('data-mode="signup"', out)
@@ -155,7 +155,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
 <script type="module" src="./bridgepoint-welcome-space-v6257.js?v=6258-local-moon-terrain"></script>
 </body></html>"""
         out = patch_root_html(current)
-        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6293-full-planetarium"', out)
+        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6294-live-sun-refresh"', out)
         self.assertNotIn("v=6265-solar-globe", out)
         self.assertIn('<div class="bpw-celestial-system" aria-hidden="true"></div>', out)
         self.assertIn('class="bpw-wordmark bpw-wordmark-static"', out)
@@ -453,8 +453,23 @@ self.addEventListener('fetch',e=>{
             "uAIA193Map",
             "solarDiskUV",
             "solarMagneticLoopCount",
-            "aia131:'2026-11-09T05:06:44Z'",
-            "no three-minute client refresh configured",
+            "const LIVE_SOLAR_REFRESH_MS=3*60*1000;",
+            "https://sdo.gsfc.nasa.gov/assets/img/latest/",
+            "latest_1024_HMIIC.jpg",
+            "latest_1024_HMIBC.jpg",
+            "latest_1024_0131.jpg",
+            "latest_1024_0171.jpg",
+            "latest_1024_0193.jpg",
+            "latest_1024_0304.jpg",
+            "function refreshLiveSolarObservations(force=false)",
+            "solarTextureLoader.setCrossOrigin('anonymous')",
+            "refreshLiveSolarObservations(true)",
+            "setInterval(()=>{if(renderActive&&viewState==='sun')refreshLiveSolarObservations();},LIVE_SOLAR_REFRESH_MS)",
+            "uPhotosphereDiskMap",
+            "buildMagneticLoopsFromImage(texture.image)",
+            "buildObservedEruptionArcs(texture.image)",
+            "three-minute live-source check while Sun is selected",
+            "bundled local snapshots retained as fallback",
         ):
             self.assertIn(marker, module)
         self.assertNotIn("[-16,-43,13,-20", module)
@@ -463,7 +478,7 @@ self.addEventListener('fetch',e=>{
     def test_sun_has_animated_molten_photosphere_fresnel_rim_and_observed_plasma_particles(self):
         module = (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text()
         for marker in (
-            "const VERSION = 'v6293-full-planetarium'",
+            "const VERSION = 'v6294-live-sun-refresh'",
             "float magmaFlow=",
             "float moltenCoverage=",
             "const solarFireRim=new THREE.Mesh",
@@ -676,7 +691,7 @@ self.addEventListener('fetch',e=>{
             after = {p.relative_to(site).as_posix() for p in site.rglob("*") if p.is_file()}
             self.assertEqual(after - before, set())
             root = (site / "index.html").read_text()
-            self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6293-full-planetarium"', root)
+            self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6294-live-sun-refresh"', root)
             self.assertIn("event.persisted", root)
             self.assertIn("location.reload()", root)
             self.assertNotIn("data-space-ground", root)
