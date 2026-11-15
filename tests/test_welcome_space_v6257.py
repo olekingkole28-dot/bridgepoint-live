@@ -408,6 +408,7 @@ self.addEventListener('fetch',e=>{
         self.assertIn("Add only the Sun scene and local solar textures", publish_workflow)
         self.assertIn("cp -a assets/sun/v2 site/assets/sun/v2", publish_workflow)
         self.assertIn("assets/moon/v1/**", workflow)
+        self.assertIn("assets/sun/v2/**", workflow)
 
         # The Sun now uses local SDO maps, 3D coronal structures and the same
         # oblique two-finger surface-navigation grammar as the Moon.
@@ -430,7 +431,7 @@ self.addEventListener('fetch',e=>{
         self.assertIn("solarRotationPeriodDays:25.38", module)
         self.assertIn("2014-09-27", helper)
         self.assertIn("sun-photosphere-height-v2.webp", helper)
-        self.assertIn("assets/sun/v2/**", publish_workflow)
+        self.assertIn("test -s site/assets/sun/v2/sun-aia-304-latest.jpg", publish_workflow)
         self.assertIn("cp -a assets/sun/v2 site/assets/sun/v2", publish_workflow)
         self.assertNotIn("cp -a assets/moon/v1 site/assets/moon/v1", publish_workflow)
 
