@@ -29,6 +29,7 @@ on:
       - 'rebuild-v5000/bridgepoint-mars-system-v6291.js'
       - 'rebuild-v5000/bridgepoint-app-space-explorer-v1.js'
       - 'rebuild-v5000/app-index.html'
+      - 'rebuild-v5000/index.html'
       - 'tests/test_app_space_explorer_v1.py'
       - 'tests/test_welcome_space_v6257.py'
       - 'assets/moon/v1/**'
@@ -1940,6 +1941,7 @@ jobs:
           grep -Fq 'app-update-v5820.js?v=6300-direct-entry' site/index.html
           grep -Fq 'app-update-v5820.js?v=6300-direct-entry' site/app/index.html
           grep -Fq 'bridgepoint-welcome-space-v6260.js?v=6292-mars-night-side-shading' site/index.html
+          grep -Fq 'bridgepoint-app-space-explorer-v1.js?v=1-restored-celestial-system' site/index.html
           grep -Fq 'bridgepoint-app-space-explorer-v1.js?v=1-restored-celestial-system' site/app/index.html
           test -s site/bridgepoint-app-space-explorer-v1.js
           grep -Fq 'rel="modulepreload" href="/vendor/three.module.js?v=169-local"' site/index.html
