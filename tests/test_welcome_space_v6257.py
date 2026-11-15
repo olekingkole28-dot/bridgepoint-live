@@ -355,7 +355,8 @@ self.addEventListener('fetch',e=>{
             "runtimeMode: 'local-static-assets'",
             "function sampleGrid(grid, u, v)",
             "createMoonPatchMaterial()",
-            "const minimum=viewState==='moon'?0.00000045:viewState==='sun'?.0015:viewState==='planet'?Math.max(1e-9,focusedPlanetRadius*1.015):1.8",
+            "const minimum=saturnFocusMesh?Math.max(0.00000045,Math.max(.001,focusedPlanetRadius*(saturnFocusMesh.scale?.x||1)*.0005)):viewState==='moon'?0.00000045:viewState==='sun'?.0015:viewState==='planet'?Math.max(1e-9,focusedPlanetRadius*1.015):1.8;",
+            "const maximum=solarCosmos?.maxCameraDistance?.()||5000;",
             "camera.near=0.00000005",
             "camera.near=0.001",
             "const activePointers=new Map()",
@@ -634,6 +635,9 @@ self.addEventListener('fetch',e=>{
                 (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text()
             )
             (site / "bridgepoint-saturn-system-v6282.js").write_text("Saturn module fixture")
+            (site / "bridgepoint-mars-system-v6291.js").write_text(
+                (ROOT / "rebuild-v5000" / "bridgepoint-mars-system-v6291.js").read_text()
+            )
             (site / "bridgepoint-celestial-sky-v6257.js").write_text(
                 (ROOT / "rebuild-v5000" / "bridgepoint-celestial-sky-v6257.js").read_text()
             )
