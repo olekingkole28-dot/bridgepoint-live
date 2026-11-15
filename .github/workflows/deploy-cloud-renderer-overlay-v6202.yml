@@ -2,10 +2,9 @@ name: Publish BridgePoint Cloud Renderer v6202 Overlay
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/deploy-cloud-renderer-overlay-v6202.yml'
+  workflow_run:
+    workflows: ["Deploy BridgePoint Intelligence V5000 Rebuild"]
+    types: [completed]
 
 permissions:
   actions: read
@@ -19,6 +18,7 @@ concurrency:
 
 jobs:
   deploy-cloud-overlay:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 35
     environment:
@@ -30,8 +30,8 @@ jobs:
       - name: Download the latest preserved production Pages artifact
         uses: actions/download-artifact@v4
         with:
-          name: bridgepoint-v5000-1
-          run-id: 43748386260
+          name: bridgepoint-v5000-${{ github.event_name == 'workflow_run' && github.event.workflow_run.run_attempt || 1 }}
+          run-id: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || 43748386260 }}
           repository: ${{ github.repository }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ${{ runner.temp }}/bp-pages-baseline
