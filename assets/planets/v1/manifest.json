@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "coordinate_system": "equirectangular",
+  "assets": {
+    "mercury": {
+      "file": "mercury-2k.jpg",
+      "source": "Solar System Scope planetary textures",
+      "source_url": "https://phet.solarsystemscope.com/textures/",
+      "download_url": "https://phet.solarsystemscope.com/textures/download/2k_mercury.jpg",
+      "license": "CC BY 4.0"
+    },
+    "venus": {
+      "file": "venus-surface-2k.jpg",
+      "atmosphere_file": "venus-atmosphere-2k.jpg",
+      "source": "Solar System Scope planetary textures",
+      "source_url": "https://phet.solarsystemscope.com/textures/",
+      "surface_download_url": "https://phet.solarsystemscope.com/textures/download/2k_venus_surface.jpg",
+      "atmosphere_download_url": "https://phet.solarsystemscope.com/textures/download/2k_venus_atmosphere.jpg",
+      "license": "CC BY 4.0"
+    },
+    "jupiter": {
+      "file": "jupiter-2k.jpg",
+      "source": "Solar System Scope planetary textures",
+      "source_url": "https://phet.solarsystemscope.com/textures/",
+      "download_url": "https://phet.solarsystemscope.com/textures/download/2k_jupiter.jpg",
+      "license": "CC BY 4.0"
+    },
+    "uranus": {
+      "file": "uranus-2k.jpg",
+      "source": "Solar System Scope planetary textures",
+      "source_url": "https://phet.solarsystemscope.com/textures/",
+      "download_url": "https://phet.solarsystemscope.com/textures/download/2k_uranus.jpg",
+      "license": "CC BY 4.0"
+    },
+    "neptune": {
+      "file": "neptune-2k.jpg",
+      "source": "Solar System Scope planetary textures",
+      "source_url": "https://phet.solarsystemscope.com/textures/",
+      "download_url": "https://phet.solarsystemscope.com/textures/download/2k_neptune.jpg",
+      "license": "CC BY 4.0"
+    }
+  }
+}
