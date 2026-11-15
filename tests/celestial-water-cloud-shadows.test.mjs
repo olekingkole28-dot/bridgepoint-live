@@ -268,8 +268,8 @@ test('both entrypoints keep the welcome document in place while migrating to the
   assert.match(landingHtml, /app-update-v5820\.js\?v=6300-direct-entry/);
   assert.match(appHtml, /app-update-v5820\.js\?v=6300-direct-entry/);
   assert.match(appUpdate, /const BUILD=6300/);
-  assert.match(appUpdate, /CACHE_VERSION='6292-mars-night-side-shading'/);
-  assert.match(appUpdate, /CURRENT_CACHE='bp-intelligence-v6292-mars-night-side'/);
+  assert.match(appUpdate, /CACHE_VERSION='6293-full-planetarium'/);
+  assert.match(appUpdate, /CURRENT_CACHE='bp-intelligence-v6293-full-planetarium'/);
   assert.match(appUpdate, /navigator\.serviceWorker\.register\(CURRENT_SW/);
   assert.match(appUpdate, /navigator\.serviceWorker\?\.addEventListener\('controllerchange'/);
   assert.doesNotMatch(appUpdate, /location\.replace|location\.reload|reloadOnce/);
