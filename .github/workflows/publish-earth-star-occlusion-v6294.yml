@@ -1,4 +1,5 @@
 name: Publish Earth-Opaque Celestial Overlay v6294
+# Re-run after a syntax-gate correction; deployment scope remains renderer-only.
 
 on:
   workflow_dispatch:

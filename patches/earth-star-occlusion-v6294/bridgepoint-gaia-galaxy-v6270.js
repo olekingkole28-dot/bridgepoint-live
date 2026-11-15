@@ -373,7 +373,8 @@ for(const p of PLANETS.filter(p=>p.name!=='Earth')){
  function update(){
   if(state.status==='disposed'||!starState.frame)return;
    const {sun,auScale,pcScale,orientation,days,ob}=starState.frame;
-  updateEarthScreenOcclusion(starState.points?.material?.uniforms);\n  const distance=camera.position.distanceTo(new THREE.Vector3(0,0,0));
+  updateEarthScreenOcclusion(starState.points?.material?.uniforms);
+  const distance=camera.position.distanceTo(new THREE.Vector3(0,0,0));
   const focusedPlanet=selectedBody&&planetMeshes.has(selectedBody);
   const progress=focusedPlanet?1:clamp((distance-solarRevealLimit)/10,0,1);
   solarRoot.visible=progress>.001||!!focusedPlanet;
