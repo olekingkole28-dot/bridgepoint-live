@@ -123,7 +123,7 @@ assert.ok(globeReliabilityOverlay.includes('window.__BP_FRESH_SIGNIN__!==true'),
 assert.ok(globeReliabilityOverlay.includes('bp_fresh_signin_v1'),'final renderer overlay must preserve direct app sign-in handshake');
 assert.ok(utilityWireOverlay.includes('landing.js?v=6247-universal-fresh-entry-solid-utility-wires-v13'));
 assert.ok(utilityWireOverlay.includes('app.js?v=6247-universal-fresh-entry-solid-utility-wires-v13'));
-assert.ok(deploy.includes("node tests/offshore-energy-v1.test.mjs"));
+assert.ok(deploy.includes("node 'tests/offshore-energy-v1.test.mjs'"));
 assert.ok(deploy.includes("'tests/offshore-energy-v1.test.mjs'"));
 console.log('BRIDGEPOINT_OFFSHORE_ENERGY_ROOT_APP_DEPLOY_PASS');
 
