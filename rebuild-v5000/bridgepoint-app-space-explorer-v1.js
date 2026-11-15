@@ -1,7 +1,6 @@
-/* BridgePoint Intelligence — app-mounted 3D celestial explorer.
- * Reuses the same Three.js welcome-space scene, Gaia catalogue, Saturn system,
- * Mars system, and locally hosted terrain/texture assets used by the homepage.
- * The overlay is opt-in so ordinary property-map gestures are never intercepted.
+/* BridgePoint Intelligence — signed-in 3D celestial explorer.
+ * Reuses the same Three.js Earth/Moon/Sun scene, Gaia star catalogue,
+ * Saturn and Mars systems, and local terrain/texture assets on either globe.
  */
 (() => {
   'use strict';
@@ -17,6 +16,8 @@
       background:transparent!important;pointer-events:none!important;
     }
     #bpWelcomeGateV1.bp-app-space-explorer[hidden]{display:none!important}
+    #bpWelcomeGateV1.bp-app-space-explorer:before,
+    #bpWelcomeGateV1.bp-app-space-explorer:after{content:none!important;display:none!important}
     #bpWelcomeGateV1.bp-app-space-explorer .bpw-celestial-system{
       position:absolute!important;inset:0!important;z-index:1!important;
       overflow:hidden!important;pointer-events:none!important;
@@ -37,6 +38,18 @@
       box-shadow:0 4px 16px rgba(0,0,0,.35)!important;pointer-events:auto!important;
     }
     #bpAppSpaceToggleV1[aria-pressed="true"]{border-color:#8fd8ff!important;color:#bdeaff!important}
+    .preview-head-actions #bpAppSpaceToggleV1{
+      flex:none;min-height:28px;padding:6px 9px;border:1px solid rgba(160,205,238,.50);
+      border-radius:9px;background:rgba(5,15,29,.86);color:#eaf7ff;
+      font:900 8px/1.1 Inter,system-ui,sans-serif;letter-spacing:.055em;
+      white-space:nowrap;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.22);
+    }
+    .preview-head-actions #bpAppSpaceToggleV1[aria-pressed="true"]{
+      border-color:rgba(87,220,255,.85);background:rgba(5,45,64,.94);color:#fff;
+    }
+    @media(max-width:620px){
+      .preview-head-actions #bpAppSpaceToggleV1{min-height:26px;padding:5px 7px;font-size:7px}
+    }
   `;
   function addStyles() {
     if (document.getElementById(STYLE_ID)) return;
@@ -47,8 +60,13 @@
   }
 
   function init() {
-    const map = document.getElementById('liveMap');
-    const tools = document.querySelector('.map-tools');
+    const appMap = document.getElementById('liveMap');
+    const landingMap = document.getElementById('previewMap');
+    const landingMode = !appMap && !!landingMap;
+    const map = appMap || landingMap;
+    const tools = landingMode
+      ? document.querySelector('.preview-head-actions')
+      : document.querySelector('.map-tools');
     if (!map || !tools) return false;
     if (document.getElementById('bpAppSpaceToggleV1')) return true;
     addStyles();
@@ -57,7 +75,7 @@
     toggle.id = 'bpAppSpaceToggleV1';
     toggle.type = 'button';
     toggle.textContent = 'SPACE 3D';
-    toggle.title = 'Open the interactive 3D Sun, Moon and planetary systems';
+    toggle.title = 'Open the interactive 3D Sun, Moon, Saturn, Mars and their moons';
     toggle.setAttribute('aria-pressed', 'false');
     tools.appendChild(toggle);
 
@@ -65,8 +83,14 @@
     let loading = null;
     let open = false;
 
+    function getRenderer() {
+      const api = window.__BP_WELCOME_SPACE_V6257__;
+      return api && typeof api === 'object' && typeof api.mountTo === 'function' ? api : null;
+    }
+
     function syncMapCanvas(distanceRatio) {
-      const mapCanvas = window.__BP_V5000_WORLD__?.map?.getCanvas?.()
+      const mapCanvas = window.__BP_LANDING_WORLD__?.map?.getCanvas?.()
+        || window.__BP_V5000_WORLD__?.map?.getCanvas?.()
         || map.querySelector('canvas.maplibregl-canvas');
       if (!mapCanvas) return null;
       const ratio = Number(distanceRatio);
@@ -90,10 +114,12 @@
       overlay.hidden = true;
       overlay.setAttribute('role', 'region');
       overlay.setAttribute('aria-label', 'Interactive 3D celestial system');
-      const host = document.createElement('div');
-      host.className = 'bpw-celestial-system';
-      host.setAttribute('aria-hidden', 'true');
-      overlay.appendChild(host);
+      if (!getRenderer()) {
+        const host = document.createElement('div');
+        host.className = 'bpw-celestial-system';
+        host.setAttribute('aria-hidden', 'true');
+        overlay.appendChild(host);
+      }
       map.appendChild(overlay);
       return overlay;
     }
@@ -101,7 +127,7 @@
     function closeExplorer() {
       open = false;
       if (overlay) overlay.hidden = true;
-      try { window.__BP_WELCOME_SPACE_V6257__?.pause?.(); } catch (_) {}
+      try { getRenderer()?.pause?.(); } catch (_) {}
       syncMapCanvas(1);
       toggle.setAttribute('aria-pressed', 'false');
       toggle.textContent = 'SPACE 3D';
@@ -116,19 +142,19 @@
       close.type = 'button';
       close.dataset.appSpaceClose = '1';
       close.textContent = 'CLOSE SPACE';
-      close.setAttribute('aria-label', 'Close 3D celestial explorer and return to property map');
+      close.setAttribute('aria-label', 'Close 3D celestial explorer and return to the property map');
       close.addEventListener('click', closeExplorer);
       controls.appendChild(close);
       return true;
     }
 
     async function loadRenderer() {
-      const current = window.__BP_WELCOME_SPACE_V6257__;
+      const current = getRenderer();
       if (current) return current;
       if (!loading) {
-        loading = import('/bridgepoint-welcome-space-v6260.js?v=6292-mars-night-side-shading')
+        loading = import('/bridgepoint-welcome-space-v6260.js?v=6292-mars-night-side-shading&space=app-explorer-v1')
           .then(() => {
-            const api = window.__BP_WELCOME_SPACE_V6257__;
+            const api = getRenderer();
             if (!api) throw new Error('The 3D celestial scene did not register its renderer');
             return api;
           })
@@ -140,14 +166,16 @@
     async function openExplorer() {
       if (open) return;
       open = true;
-      ensureOverlay().hidden = false;
+      const target = ensureOverlay();
+      target.hidden = false;
       toggle.disabled = true;
       toggle.textContent = 'LOADING SPACE…';
       toggle.setAttribute('aria-pressed', 'true');
       try {
         window.__BP_WELCOME_SYNC_SPACE_ZOOM_V1__ = syncMapCanvas;
         const api = await loadRenderer();
-        if (!open) { api.pause?.(); return; }
+        if (!open) { api.pause?.(); syncMapCanvas(1); return; }
+        if (!api.mountTo(overlay)) throw new Error('The 3D celestial scene could not attach to this globe');
         api.resume?.();
         if (!installCloseControl()) {
           throw new Error('The 3D scene loaded without its space controls');
@@ -174,8 +202,9 @@
       get state() {
         return {
           open,
-          rendererReady: !!window.__BP_WELCOME_SPACE_V6257__,
-          solarCosmos: window.__BP_SOLAR_COSMOS_V6280__?.state?.status || 'loading'
+          rendererReady: !!getRenderer(),
+          solarCosmos: window.__BP_SOLAR_COSMOS_V6280__?.state?.status || 'loading',
+          entry: landingMode ? 'homepage-globe' : 'signed-in-app-globe'
         };
       }
     };
