@@ -615,7 +615,7 @@ function ensureLiveSatelliteCloudContextV6134(map){
    try{if(state?.timer)clearInterval(state.timer)}catch(_){}
    state={version:6134,map,enabled:true,sourceId:GOES_CLOUD_SOURCE_ID_V6134,layerId:GOES_CLOUD_LAYER_ID_V6134,
     source:'NOAA NESDIS MERGEDGC_current latest GeoColor',groundDraped:true,placedBelowBuildings,cloudOnlyMask:false,
-    refreshIntervalMs: 600000,requestedFrameEpoch:frame(),updatedAt:Date.now()};
+    refreshIntervalMs: 900000,requestedFrameEpoch:frame(),updatedAt:Date.now()};
    state.refresh=(force=false)=>{
     if(document.hidden)return false;
     try{
@@ -642,7 +642,7 @@ function ensureLiveSatelliteCloudContextV6134(map){
   state.maskTimer=setInterval(()=>{
    state.refresh(false);
    void state.refreshMask(false);
-  },state.refreshIntervalMs||600000);
+  },state.refreshIntervalMs||900000);
   if(state.maskVisibilityHandler)document.removeEventListener('visibilitychange',state.maskVisibilityHandler);
   state.maskVisibilityHandler=()=>{if(!document.hidden){state.refresh(true);void state.refreshMask(true)}};
   document.addEventListener('visibilitychange',state.maskVisibilityHandler);
