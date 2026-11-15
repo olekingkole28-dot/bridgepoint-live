@@ -4,7 +4,7 @@ The Mercury, Venus surface, Venus atmosphere, Jupiter, Uranus and Neptune
 equirectangular JPEG texture maps are sourced from the Solar System Scope
 planetary texture collection:
 
-  https://phet.solarsystemscope.com/textures/
+  https://edu.solarsystemscope.com/textures/
 
 The collection identifies the textures as CC BY 4.0. The source textures are
 downloaded during the production build and served locally by BridgePoint;
