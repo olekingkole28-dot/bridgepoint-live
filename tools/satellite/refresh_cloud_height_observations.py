@@ -27,6 +27,7 @@ import requests
 
 USER_AGENT = "BridgePoint-CloudHeightFeed/1.0 (+https://github.com/olekingkole28-dot/bridgepoint-live)"
 TIMEOUT = (8, 20)
+REFRESH_INTERVAL_SECONDS = 900
 MAX_NETCDF_BYTES = 120 * 1024 * 1024
 MAX_SAMPLES_PER_SOURCE = 65000
 MAX_NOAA_SAMPLES = 24000
@@ -734,7 +735,7 @@ def refresh_feed(output_path: Path) -> dict[str, Any]:
     payload = {
         "schema_version": 1,
         "generated_at": now.isoformat(),
-        "refresh_interval_seconds": 600,
+        "refresh_interval_seconds": REFRESH_INTERVAL_SECONDS,
         "height_reference": "MSL",
         "source_policy": "Measured numeric cloud-top/base values only; NOAA cloud base is omitted when not supplied. No raster-colour-derived heights.",
         "cloud_mask_policy": "Same-scan NOAA ABI-L2-ACMF probability/classification samples with DQF=0; satellite imagery RGB classification remains fallback outside this GOES coverage.",

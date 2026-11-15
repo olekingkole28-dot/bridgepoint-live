@@ -99,7 +99,7 @@ def patch_html(html: str, min_lazy_assets: int = 15) -> tuple[str, dict]:
         raise AssertionError("Expected one V6228 landing bundle reference")
 
     optional_preloads = (
-        "/world-v2300-clouds.js?v=6201-live-observation-refresh",
+        "/world-v2300-clouds.js?v=6202-global-satellite-cloud-banks",
         "/world-v2300-lightning.js?v=6195-desktop-globe-flash-stability",
         "/world-v2300-weather.js?v=6195-desktop-globe-flash-stability",
         "/intelligence-global-v5507.js?v=6170-imerg-nrt-timeline",

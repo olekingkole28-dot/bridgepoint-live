@@ -1,0 +1,194 @@
+name: Publish BridgePoint Cloud Renderer v6202 Overlay
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-cloud-renderer-overlay-v6202.yml'
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+
+jobs:
+  deploy-cloud-overlay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download the latest preserved production Pages artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: bridgepoint-v5000-1
+          run-id: 43748386260
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/bp-pages-baseline
+
+      - name: Restore the production artifact and record the untouched site
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCHIVE="$(find "$RUNNER_TEMP/bp-pages-baseline" -type f -name artifact.tar -print -quit)"
+          test -n "$ARCHIVE"
+          mkdir -p "$RUNNER_TEMP/bp-site"
+          tar -xf "$ARCHIVE" -C "$RUNNER_TEMP/bp-site"
+          SITE="$RUNNER_TEMP/bp-site"
+          for f in index.html app/index.html app.js landing.js world-v2300-clouds.js app/world-v2300-clouds.js sw.js styles.css world-v2300-map.js app/world-v2300-map.js world-v2300-water.js world-v2300-weather.js; do
+            test -s "$SITE/$f" || { echo "Production baseline is missing required file: $f"; exit 1; }
+          done
+          for f in bridgepoint-celestial-sky-v6257.js bridgepoint-gaia-galaxy-v6270.js bridgepoint-saturn-system-v6282.js bridgepoint-mars-system-v6291.js bridgepoint-welcome-space-v6260.js; do
+            test -s "$SITE/$f" || { echo "Production baseline is missing restored celestial asset: $f"; exit 1; }
+          done
+          python3 - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          site = Path(os.environ["RUNNER_TEMP"]) / "bp-site"
+          targets = {"app.js", "landing.js", "world-v2300-clouds.js", "app/world-v2300-clouds.js", "index.html", "app/index.html"}
+          snapshot = {}
+          for p in sorted(site.rglob("*")):
+              if not p.is_file():
+                  continue
+              rel = p.relative_to(site).as_posix()
+              if rel in targets:
+                  continue
+              h = hashlib.sha256()
+              with p.open("rb") as f:
+                  for chunk in iter(lambda: f.read(1024 * 1024), b""):
+                      h.update(chunk)
+              snapshot[rel] = h.hexdigest()
+          (Path(os.environ["RUNNER_TEMP"]) / "bp-cloud-preservation-before.json").write_text(
+              json.dumps(snapshot, sort_keys=True), encoding="utf-8"
+          )
+          print("BASELINE_UNTOUCHED_FILES", len(snapshot))
+          print("BASELINE_COMMIT", json.loads((site / "build.json").read_text()).get("commit"))
+          PY
+
+      - name: Overlay only the cloud renderer and its two entrypoint imports
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/bp-site"
+          cp release-v2300/world-v2300-clouds.js "$SITE/world-v2300-clouds.js"
+          cp release-v2300/world-v2300-clouds.js "$SITE/app/world-v2300-clouds.js"
+          cp rebuild-v5000/app.js "$SITE/app.js"
+          cp rebuild-v5000/landing.js "$SITE/landing.js"
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import os, re
+          site = Path(os.environ["RUNNER_TEMP"]) / "bp-site"
+          changes = (
+              ("index.html", r"""src=["'][^"']*landing\.js(?:\?[^"']*)?["']""", 'src="./landing.js?v=6202-cloud-live-observation"', "landing script"),
+              ("index.html", r"""href=["'][^"']*world-v2300-clouds\.js(?:\?[^"']*)?["']""", 'href="/world-v2300-clouds.js?v=6202-global-satellite-cloud-banks"', "landing cloud preload"),
+              ("app/index.html", r"""src=["'][^"']*app\.js(?:\?[^"']*)?["']""", 'src="../app.js?v=6202-cloud-live-observation"', "app script"),
+              ("app/index.html", r"""href=["'][^"']*world-v2300-clouds\.js(?:\?[^"']*)?["']""", 'href="/world-v2300-clouds.js?v=6202-global-satellite-cloud-banks"', "app cloud preload"),
+          )
+          for rel, pattern, replacement, label in changes:
+              p = site / rel
+              html = p.read_text(encoding="utf-8")
+              updated, count = re.subn(pattern, replacement, html, count=1)
+              if count != 1:
+                  raise SystemExit(f"{rel}: expected one {label}, found {count}")
+              p.write_text(updated, encoding="utf-8")
+          for rel in ("app.js", "landing.js"):
+              text = (site / rel).read_text(encoding="utf-8")
+              if text.count("world-v2300-clouds.js?v=6202-global-satellite-cloud-banks") != 1:
+                  raise SystemExit(f"{rel}: v6202 cloud import missing or duplicated")
+              if "bpAuthRequestV6237" not in text or "bp_auth_v5045" not in text:
+                  raise SystemExit(f"{rel}: auth implementation unexpectedly changed")
+          html = (site / "app/index.html").read_text(encoding="utf-8")
+          if 'id="bp-app-entry-gate-v6247"' not in html:
+              raise SystemExit("App sign-in gate changed in the production baseline")
+          print("CLOUD_ONLY_OVERLAY_SCOPE_PASS")
+          PY
+
+      - name: Verify JavaScript, cloud freshness policy and complete site preservation
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/bp-site"
+          node --check "$SITE/app.js"
+          node --check "$SITE/landing.js"
+          node --input-type=module --check < "$SITE/world-v2300-clouds.js"
+          node --input-type=module --check < "$SITE/app/world-v2300-clouds.js"
+          node tests/celestial-water-cloud-shadows.test.mjs
+          python tests/test_mobile_entry_v6229.py
+          grep -Fq 'maxHeightObservationAgeMs = 45 * 60 * 1000' "$SITE/world-v2300-clouds.js"
+          grep -Fq 'freshHeightSourceIndices' "$SITE/world-v2300-clouds.js"
+          grep -Fq 'cloudHeightFeedRejectedStaleSampleCount' "$SITE/world-v2300-clouds.js"
+          grep -Fq 'version: 6202, map, overlay' "$SITE/world-v2300-clouds.js"
+          grep -Fq 'const satellitePuffStacks = MOBILE ? 3 : 4' "$SITE/world-v2300-clouds.js"
+          grep -Fq 'refreshIntervalMs:900000' "$SITE/world-v2300-clouds.js"
+          grep -Fq 'undersideShade=1.0-smoothstep(0.05,0.55,heightShade)' "$SITE/world-v2300-clouds.js"
+          cmp -s "$SITE/world-v2300-clouds.js" "$SITE/app/world-v2300-clouds.js"
+
+          python3 - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          site = Path(os.environ["RUNNER_TEMP"]) / "bp-site"
+          before = json.loads((Path(os.environ["RUNNER_TEMP"]) / "bp-cloud-preservation-before.json").read_text())
+          after = {}
+          for p in sorted(site.rglob("*")):
+              if not p.is_file():
+                  continue
+              rel = p.relative_to(site).as_posix()
+              if rel in {"app.js","landing.js","world-v2300-clouds.js","app/world-v2300-clouds.js","index.html","app/index.html"}:
+                  continue
+              h = hashlib.sha256()
+              with p.open("rb") as f:
+                  for chunk in iter(lambda: f.read(1024 * 1024), b""):
+                      h.update(chunk)
+              after[rel] = h.hexdigest()
+          if before != after:
+              missing = sorted(set(before)-set(after))
+              added = sorted(set(after)-set(before))
+              changed = sorted(k for k in set(before)&set(after) if before[k] != after[k])
+              raise SystemExit("NON_CLOUD_SITE_REGRESSION "+json.dumps({"missing":missing[:20],"added":added[:20],"changed":changed[:20]}))
+          print("NON_CLOUD_SITE_BYTE_FOR_BYTE_PRESERVED", len(before))
+          PY
+          echo "BRIDGEPOINT_CLOUD_RENDERER_V6202_BUILD_PASS"
+          echo "BRIDGEPOINT_MOBILE_CLOUD_PRELOAD_CONTRACT_V6202_PASS"
+
+      - uses: actions/configure-pages@v5
+
+      - name: Upload the preserved website with the cloud-only overlay
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: ${{ runner.temp }}/bp-site
+
+      - name: Publish cloud-only overlay to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify live root, app and cloud modules
+        shell: bash
+        run: |
+          set -euo pipefail
+          O='https://bridgepointintelligence.online'
+          q="${GITHUB_SHA}-cloud-v6202"
+          curl --retry 6 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/?cloud-v6202=$q" -o /tmp/bp-root.html
+          curl --retry 6 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app/?cloud-v6202=$q" -o /tmp/bp-app.html
+          curl --retry 6 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/landing.js?v=6202-cloud-live-observation&$q" -o /tmp/bp-landing.js
+          curl --retry 6 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app.js?v=6202-cloud-live-observation&$q" -o /tmp/bp-app.js
+          curl --retry 6 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/world-v2300-clouds.js?v=6202-global-satellite-cloud-banks&$q" -o /tmp/bp-clouds.js
+          curl --retry 6 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app/world-v2300-clouds.js?v=6202-global-satellite-cloud-banks&$q" -o /tmp/bp-app-clouds.js
+
+          grep -Fq 'landing.js?v=6202-cloud-live-observation' /tmp/bp-root.html
+          grep -Fq 'app.js?v=6202-cloud-live-observation' /tmp/bp-app.html
+          grep -Fq 'world-v2300-clouds.js?v=6202-global-satellite-cloud-banks' /tmp/bp-landing.js
+          grep -Fq 'world-v2300-clouds.js?v=6202-global-satellite-cloud-banks' /tmp/bp-app.js
+          grep -Fq 'maxHeightObservationAgeMs = 45 * 60 * 1000' /tmp/bp-clouds.js
+          cmp -s /tmp/bp-clouds.js /tmp/bp-app-clouds.js
+          echo "BRIDGEPOINT_CLOUD_RENDERER_V6202_LIVE_PASS"

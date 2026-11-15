@@ -10,10 +10,14 @@ from tools.satellite.refresh_cloud_height_observations import (
     is_netcdf_url,
     meters,
     sampling_indices,
+    REFRESH_INTERVAL_SECONDS,
 )
 
 
 class CloudHeightFeedTests(unittest.TestCase):
+    def test_feed_refresh_interval_is_fifteen_minutes(self):
+        self.assertEqual(REFRESH_INTERVAL_SECONDS, 900)
+
     def test_unit_conversion_keeps_official_units_explicit(self):
         np.testing.assert_allclose(meters(np.array([1.5, 8.25]), "km", "km"), [1500.0, 8250.0])
         np.testing.assert_allclose(meters(np.array([1500.0]), "m", "m"), [1500.0])
