@@ -129,7 +129,7 @@ def inject_space_camera_sync(source: str) -> str:
 
 def remove_legacy_welcome_module(source: str) -> str:
     pattern = re.compile(
-        r'\\s*<script\\b(?=[^>]*\\bsrc=["\\'][^"\\']*bridgepoint-welcome-space-v6257\\.js(?:\\?[^"\\']*)?["\\'])[^>]*>\\s*</script>',
+        r"""\s*<script\b(?=[^>]*\bsrc=["'][^"']*bridgepoint-welcome-space-v6257\.js(?:\?[^"']*)?["'])[^>]*>\s*</script>""",
         re.IGNORECASE,
     )
     source, count = pattern.subn("\\n", source)
