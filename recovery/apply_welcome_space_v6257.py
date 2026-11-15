@@ -165,10 +165,10 @@ def patch_root_html(source: str) -> str:
             r'\g<1>' + BUILD[1:] + r'\g<2>', source
         )
         if module_src_count == 0:
-            module_tag = '<script type="module" src="/bridgepoint-welcome-space-v6260.js?v=' + BUILD[1:] + '"></script>\\n'
+            module_tag = '<script type="module" src="/bridgepoint-welcome-space-v6260.js?v=' + BUILD[1:] + '"></script>\n'
             source = replace_once(source, "</body>", module_tag + "</body>", "load the detailed shared celestial scene")
         source = remove_legacy_welcome_module(source)
-        if len(re.findall(r'<script\\b[^>]*\\bsrc=["\\'][^"\\']*bridgepoint-welcome-space-v6260\\.js', source, re.IGNORECASE)) != 1:
+        if len(re.findall(r'<script\b[^>]*\bsrc=["\'][^"\']*bridgepoint-welcome-space-v6260\.js', source, re.IGNORECASE)) != 1:
             raise AssertionError("The homepage must load exactly one detailed V6260 celestial renderer")
         source = inject_space_camera_sync(source)
         if 'data-space-ground' in source:
