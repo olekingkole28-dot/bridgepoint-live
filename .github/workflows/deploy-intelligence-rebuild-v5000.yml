@@ -378,6 +378,7 @@ jobs:
           node --check rebuild-v5000/bridgepoint-lighthouses-v1.js
           node tests/lighthouse-renderer-v1.test.mjs
           node --check rebuild-v5000/bridgepoint-offshore-energy-v1.js
+          # Keep the regression test path quoted to satisfy the repository's workflow-content contract.
           node 'tests/offshore-energy-v1.test.mjs'
           node --check rebuild-v5000/bridgepoint-subsurface-wells-v1.js
           node tests/subsurface-wells-v1.test.mjs
