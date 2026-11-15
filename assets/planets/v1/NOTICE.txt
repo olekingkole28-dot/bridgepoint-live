@@ -1,0 +1,14 @@
+BridgePoint Intelligence — planetary texture attribution
+
+The Mercury, Venus surface, Venus atmosphere, Jupiter, Uranus and Neptune
+equirectangular JPEG texture maps are sourced from the Solar System Scope
+planetary texture collection:
+
+  https://phet.solarsystemscope.com/textures/
+
+The collection identifies the textures as CC BY 4.0. The source textures are
+downloaded during the production build and served locally by BridgePoint;
+the browser does not fetch texture files from a third-party host at runtime.
+
+Attribution: Solar System Scope, "Planetary Textures", CC BY 4.0.
+License: https://creativecommons.org/licenses/by/4.0/
