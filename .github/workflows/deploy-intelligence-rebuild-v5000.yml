@@ -34,6 +34,7 @@ on:
       - 'tests/test_welcome_space_v6257.py'
       - 'assets/moon/v1/**'
       - 'assets/sun/v2/**'
+      - 'assets/planets/v1/**'
       - 'tests/horizon-replacement-entry.test.mjs'
 
 permissions:
@@ -674,6 +675,22 @@ jobs:
           test -s site/assets/sun/v2/manifest.json
           test -s site/assets/saturn/v1/manifest.json
           test -s site/assets/mars/v1/manifest.json
+
+          # Local planetary textures: download once during the build, serve from BridgePoint,
+          # and keep all runtime texture requests same-origin.
+          mkdir -p site/assets/planets/v1
+          cp assets/planets/v1/manifest.json site/assets/planets/v1/manifest.json
+          cp assets/planets/v1/NOTICE.txt site/assets/planets/v1/NOTICE.txt
+          curl --retry 5 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 180 'https://phet.solarsystemscope.com/textures/download/2k_mercury.jpg' -o site/assets/planets/v1/mercury-2k.jpg
+          curl --retry 5 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 180 'https://phet.solarsystemscope.com/textures/download/2k_venus_surface.jpg' -o site/assets/planets/v1/venus-surface-2k.jpg
+          curl --retry 5 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 180 'https://phet.solarsystemscope.com/textures/download/2k_venus_atmosphere.jpg' -o site/assets/planets/v1/venus-atmosphere-2k.jpg
+          curl --retry 5 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 180 'https://phet.solarsystemscope.com/textures/download/2k_jupiter.jpg' -o site/assets/planets/v1/jupiter-2k.jpg
+          curl --retry 5 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 180 'https://phet.solarsystemscope.com/textures/download/2k_uranus.jpg' -o site/assets/planets/v1/uranus-2k.jpg
+          curl --retry 5 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 180 'https://phet.solarsystemscope.com/textures/download/2k_neptune.jpg' -o site/assets/planets/v1/neptune-2k.jpg
+          for texture in mercury-2k.jpg venus-surface-2k.jpg venus-atmosphere-2k.jpg jupiter-2k.jpg uranus-2k.jpg neptune-2k.jpg; do
+            test "$(stat -c%s "site/assets/planets/v1/$texture")" -gt 100000
+          done
+          echo 'BRIDGEPOINT_LOCAL_PLANET_TEXTURES_PASS'
 
           # Prepare two reproducible worldwide packages from the open Protomaps daily build.
           # The base pack is zoom 0–6 (~60 MB); Global Max is zoom 0–7 with extra global detail,
@@ -2035,9 +2052,14 @@ jobs:
               fi
             }
             if [ "$fetch_failed" = 0 ]; then
-              require_marker /tmp/bp-auth-root.html 'landing.js?v=6247-universal-fresh-entry'
-              require_marker /tmp/bp-auth-app.html 'app.js?v=6247-universal-fresh-entry'
+              require_marker /tmp/bp-auth-root.html 'landing.js?v=6292-mars-night-side-shading'
+              require_marker /tmp/bp-auth-app.html 'app.js?v=6292-mars-night-side-shading'
               require_marker /tmp/bp-auth-root.html 'bpw-celestial-system'
+              require_marker /tmp/bp-auth-root.html 'bridgepoint-welcome-space-v6260.js?v=6292-mars-night-side-shading'
+              if grep -Fq 'bridgepoint-welcome-space-v6257.js' /tmp/bp-auth-root.html; then
+                echo 'LIVE_SMOKE_LEGACY_WELCOME_RENDERER_STILL_REFERENCED'
+                missing=1
+              fi
               require_marker /tmp/bp-auth-root.html 'bridgepoint-app-space-explorer-v1.js?v=1-restored-celestial-system'
               require_marker /tmp/bp-auth-app.html 'bridgepoint-app-space-explorer-v1.js?v=1-restored-celestial-system'
               require_marker /tmp/bp-auth-space-explorer.js 'SPACE 3D'
@@ -2048,6 +2070,10 @@ jobs:
               require_marker /tmp/bp-auth-gaia.js 'initBridgePointSolarCosmos'
               require_marker /tmp/bp-auth-gaia.js 'initBridgePointSaturnSystem'
               require_marker /tmp/bp-auth-gaia.js 'initBridgePointMarsSystem'
+              require_marker /tmp/bp-auth-gaia.js 'planetCount:8'
+              require_marker /tmp/bp-auth-gaia.js 'planetRefs=PLANETS.filter'
+              require_marker /tmp/bp-auth-gaia.js 'PLANET_TEXTURE_FILES'
+              require_marker /tmp/bp-auth-gaia.js 'planetTexturesLoaded'
               require_marker /tmp/bp-auth-saturn.js "name:'Titan'"
               require_marker /tmp/bp-auth-saturn.js "name:'Enceladus'"
               require_marker /tmp/bp-auth-saturn.js "name:'Mimas'"
@@ -2058,6 +2084,13 @@ jobs:
               require_marker /tmp/bp-auth-landing.js 'https://solaris-boat-upgrades-stocks.trycloudflare.com'
               require_marker /tmp/bp-auth-app.js 'https://solaris-boat-upgrades-stocks.trycloudflare.com'
               require_marker /tmp/bp-auth-app.js "AUTH_STORE='bp_auth_v5045'"
+              for texture in mercury-2k.jpg venus-surface-2k.jpg venus-atmosphere-2k.jpg jupiter-2k.jpg uranus-2k.jpg neptune-2k.jpg; do
+                curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/assets/planets/v1/$texture?verify=$q" -o "/tmp/bp-planet-$texture" || missing=1
+                if [ ! -s "/tmp/bp-planet-$texture" ]; then
+                  echo "LIVE_SMOKE_MISSING_PLANET_TEXTURE $texture"
+                  missing=1
+                fi
+              done
               if [ "$missing" = 0 ]; then
                 static_ok=1
                 break
