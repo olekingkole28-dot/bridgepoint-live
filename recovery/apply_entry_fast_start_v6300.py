@@ -85,8 +85,8 @@ def patch_manifest(source: str) -> str:
 def validate_updater(source: str) -> None:
     required = (
         "BUILD=6300",
-        "CACHE_VERSION='6292-mars-night-side-shading'",
-        "CURRENT_CACHE='bp-intelligence-v6292-mars-night-side'",
+        "CACHE_VERSION='6293-full-planetarium'",
+        "CURRENT_CACHE='bp-intelligence-v6293-full-planetarium'",
         "reloadDeferredUntilNavigation:true",
         "controllerchange",
     )
