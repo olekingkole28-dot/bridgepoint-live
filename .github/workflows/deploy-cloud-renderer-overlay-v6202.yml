@@ -91,9 +91,9 @@ jobs:
           site = Path(os.environ["RUNNER_TEMP"]) / "bp-site"
           changes = (
               ("index.html", r"""src=["'][^"']*landing\.js(?:\?[^"']*)?["']""", 'src="./landing.js?v=6202-cloud-live-observation"', "landing script"),
-              ("index.html", r"""href=["'][^"']*world-v2300-clouds\.js(?:\?[^"']*)?["']""", 'href="/world-v2300-clouds.js?v=6202-live-observation-refresh"', "landing cloud preload"),
+              ("index.html", r"""href=["'][^"']*world-v2300-clouds\.js(?:\?[^"']*)?["']""", 'href="/world-v2300-clouds.js?v=6202-global-satellite-cloud-banks"', "landing cloud preload"),
               ("app/index.html", r"""src=["'][^"']*app\.js(?:\?[^"']*)?["']""", 'src="../app.js?v=6202-cloud-live-observation"', "app script"),
-              ("app/index.html", r"""href=["'][^"']*world-v2300-clouds\.js(?:\?[^"']*)?["']""", 'href="/world-v2300-clouds.js?v=6202-live-observation-refresh"', "app cloud preload"),
+              ("app/index.html", r"""href=["'][^"']*world-v2300-clouds\.js(?:\?[^"']*)?["']""", 'href="/world-v2300-clouds.js?v=6202-global-satellite-cloud-banks"', "app cloud preload"),
           )
           for rel, pattern, replacement, label in changes:
               p = site / rel
@@ -104,7 +104,7 @@ jobs:
               p.write_text(updated, encoding="utf-8")
           for rel in ("app.js", "landing.js"):
               text = (site / rel).read_text(encoding="utf-8")
-              if text.count("world-v2300-clouds.js?v=6202-live-observation-refresh") != 1:
+              if text.count("world-v2300-clouds.js?v=6202-global-satellite-cloud-banks") != 1:
                   raise SystemExit(f"{rel}: v6202 cloud import missing or duplicated")
               if "bpAuthRequestV6237" not in text or "bp_auth_v5045" not in text:
                   raise SystemExit(f"{rel}: auth implementation unexpectedly changed")
@@ -182,13 +182,13 @@ jobs:
           curl --retry 6 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app/?cloud-v6202=$q" -o /tmp/bp-app.html
           curl --retry 6 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/landing.js?v=6202-cloud-live-observation&$q" -o /tmp/bp-landing.js
           curl --retry 6 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app.js?v=6202-cloud-live-observation&$q" -o /tmp/bp-app.js
-          curl --retry 6 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/world-v2300-clouds.js?v=6202-live-observation-refresh&$q" -o /tmp/bp-clouds.js
-          curl --retry 6 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app/world-v2300-clouds.js?v=6202-live-observation-refresh&$q" -o /tmp/bp-app-clouds.js
+          curl --retry 6 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/world-v2300-clouds.js?v=6202-global-satellite-cloud-banks&$q" -o /tmp/bp-clouds.js
+          curl --retry 6 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app/world-v2300-clouds.js?v=6202-global-satellite-cloud-banks&$q" -o /tmp/bp-app-clouds.js
 
           grep -Fq 'landing.js?v=6202-cloud-live-observation' /tmp/bp-root.html
           grep -Fq 'app.js?v=6202-cloud-live-observation' /tmp/bp-app.html
-          grep -Fq 'world-v2300-clouds.js?v=6202-live-observation-refresh' /tmp/bp-landing.js
-          grep -Fq 'world-v2300-clouds.js?v=6202-live-observation-refresh' /tmp/bp-app.js
+          grep -Fq 'world-v2300-clouds.js?v=6202-global-satellite-cloud-banks' /tmp/bp-landing.js
+          grep -Fq 'world-v2300-clouds.js?v=6202-global-satellite-cloud-banks' /tmp/bp-app.js
           grep -Fq 'maxHeightObservationAgeMs = 45 * 60 * 1000' /tmp/bp-clouds.js
           cmp -s /tmp/bp-clouds.js /tmp/bp-app-clouds.js
           echo "BRIDGEPOINT_CLOUD_RENDERER_V6202_LIVE_PASS"
