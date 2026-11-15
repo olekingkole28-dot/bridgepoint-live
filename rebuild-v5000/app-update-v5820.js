@@ -3,9 +3,9 @@
   // Keep the current published service worker and its cache. Updating a worker
   // must never force a second navigation while the welcome world is visible.
   const BUILD=6300;
-  const CACHE_VERSION='6292-mars-night-side-shading';
+  const CACHE_VERSION='6293-full-planetarium';
   const CURRENT_SW='/sw.js?v='+CACHE_VERSION;
-  const CURRENT_CACHE='bp-intelligence-v6292-mars-night-side';
+  const CURRENT_CACHE='bp-intelligence-v6293-full-planetarium';
   let busy=false;
 
   const sameOrigin=u=>{
