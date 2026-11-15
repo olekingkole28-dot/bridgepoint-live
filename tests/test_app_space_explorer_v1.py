@@ -2,6 +2,7 @@ from pathlib import Path
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
+LANDING = (ROOT / "rebuild-v5000" / "index.html").read_text(encoding="utf-8")
 APP = (ROOT / "rebuild-v5000" / "app-index.html").read_text(encoding="utf-8")
 EXPLORER = (ROOT / "rebuild-v5000" / "bridgepoint-app-space-explorer-v1.js").read_text(encoding="utf-8")
 WELCOME = (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text(encoding="utf-8")
@@ -13,9 +14,19 @@ class AppCelestialExplorerV1Tests(unittest.TestCase):
         self.assertIn("bridgepoint-app-space-explorer-v1.js?v=1-restored-celestial-system", APP)
         self.assertIn('id="liveMap"', APP)
         self.assertIn('class="map-tools"', APP)
+
+    def test_homepage_globe_also_loads_the_restored_space_explorer(self):
+        self.assertIn("bridgepoint-app-space-explorer-v1.js?v=1-restored-celestial-system", LANDING)
+        self.assertIn('id="previewMap"', LANDING)
+        self.assertIn('class="preview-head-actions"', LANDING)
+        self.assertIn("window.__BP_WELCOME_SPACE_V6257__?.pause?.()", LANDING)
+
+    def test_explorer_syncs_both_globes_and_reuses_an_existing_welcome_scene(self):
         self.assertIn("SPACE 3D", EXPLORER)
         self.assertIn("window.__BP_WELCOME_SYNC_SPACE_ZOOM_V1__ = syncMapCanvas", EXPLORER)
         self.assertIn("syncMapCanvas(1)", EXPLORER)
+        self.assertIn("api.mountTo(overlay)", EXPLORER)
+        self.assertIn("window.__BP_LANDING_WORLD__?.map?.getCanvas?.()", EXPLORER)
 
     def test_explorer_mounts_the_existing_shared_celestial_scene(self):
         self.assertIn("id = 'bpWelcomeGateV1'", EXPLORER)
