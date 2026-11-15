@@ -59,6 +59,7 @@ def root_fixture():
     wordmark.textContent='WELCOME TO BRIDGEPOINT INTELLIGENCE';
   }
 </script>
+<script type="module" src="./bridgepoint-welcome-space-v6257.js?v=6258-local-moon-terrain"></script>
 </body></html>"""
 
 
@@ -151,6 +152,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
   };
 </script>
 <script type="module" src="/bridgepoint-welcome-space-v6260.js?v=6265-solar-globe">
+<script type="module" src="./bridgepoint-welcome-space-v6257.js?v=6258-local-moon-terrain"></script>
 </body></html>"""
         out = patch_root_html(current)
         self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6292-mars-night-side-shading"', out)
@@ -160,6 +162,8 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
         self.assertIn("window.__BP_WELCOME_SYNC_SPACE_ZOOM_V1__=", out)
         self.assertIn("cameraLockMap.getCanvas?.()", out)
         self.assertIn("mapCanvas.style.transformOrigin='50% 50%'", out)
+        self.assertNotIn("bridgepoint-welcome-space-v6257.js", out)
+        self.assertEqual(out.count("bridgepoint-welcome-space-v6260.js"), 1)
 
     def test_app_entry_and_legacy_install_route_to_current_root_gate(self):
         app = patch_app_index(app_index_fixture())
@@ -593,13 +597,21 @@ self.addEventListener('fetch',e=>{
         self.assertIn("followsEarthCamera=viewState==='overview'", scene)
         self.assertIn("maxCameraDistance", cosmos)
         self.assertIn("planetPos(THREE,p,days,ob).multiplyScalar(auScale)", cosmos)
-        self.assertIn("for(const p of [])", cosmos)
+        self.assertIn("for(const p of PLANETS.filter(p=>p.name!=='Earth'))", cosmos)
         self.assertIn("World-anchored celestial body labels", cosmos)
         self.assertIn("bpw-celestial-body-picker", cosmos)
         self.assertIn("CHOOSE CELESTIAL BODY", cosmos)
-        self.assertIn("const planetRefs=[];", cosmos)
-        self.assertIn("planetCount:0", cosmos)
-        self.assertNotIn('value="mercury"', cosmos)
+        self.assertIn("const planetRefs=PLANETS.filter(p=>['Mercury','Venus','Jupiter','Uranus','Neptune'].includes(p.name));", cosmos)
+        self.assertIn("planetCount:8", cosmos)
+        self.assertIn("planetTexturesLoaded", cosmos)
+        self.assertIn("new THREE.TextureLoader()", cosmos)
+        self.assertIn("PLANET_TEXTURE_FILES", cosmos)
+        self.assertIn("planetTexturesLoaded++", cosmos)
+        self.assertIn("bodyMap.set(key,{mesh,radius,systemCameraDistance", cosmos)
+        for body in ("mercury", "venus", "jupiter", "uranus", "neptune"):
+            self.assertIn(f'value="{body}"', cosmos)
+        self.assertNotIn("const planetRefs=[];", cosmos)
+        self.assertNotIn("for(const p of [])", cosmos)
         self.assertNotIn("function enterGalaxy", cosmos)
         self.assertNotIn("function enterMilky", cosmos)
         self.assertNotIn("function enterSolar", cosmos)
