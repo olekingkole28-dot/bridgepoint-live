@@ -1,0 +1,198 @@
+name: Publish Earth-Opaque Celestial Overlay v6294
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-earth-star-occlusion-v6294.yml'
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-earth-opaque-overlay-v6294
+  cancel-in-progress: false
+
+jobs:
+  publish-earth-opaque-overlay:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download the last successful cloud-preserved production artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: github-pages
+          run-id: 43754700175
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/bp-pages-baseline
+
+      - name: Restore production Pages artifact and record untouched files
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCHIVE="$(find "$RUNNER_TEMP/bp-pages-baseline" -type f -name artifact.tar -print -quit)"
+          test -n "$ARCHIVE"
+          mkdir -p "$RUNNER_TEMP/bp-site"
+          tar -xf "$ARCHIVE" -C "$RUNNER_TEMP/bp-site"
+          SITE="$RUNNER_TEMP/bp-site"
+          for f in index.html app/index.html bridgepoint-app-space-explorer-v1.js bridgepoint-welcome-space-v6260.js bridgepoint-gaia-galaxy-v6270.js world-v2300-clouds.js app/world-v2300-clouds.js bridgepoint-saturn-system-v6282.js bridgepoint-mars-system-v6291.js; do
+            test -s "$SITE/$f" || { echo "Production artifact is missing required current asset: $f"; exit 1; }
+          done
+          python3 - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          site = Path(os.environ["RUNNER_TEMP"]) / "bp-site"
+          allowed = {"index.html", "app/index.html", "bridgepoint-app-space-explorer-v1.js",
+                     "bridgepoint-welcome-space-v6260.js", "bridgepoint-gaia-galaxy-v6270.js"}
+          snapshot = {}
+          for p in sorted(site.rglob("*")):
+              if not p.is_file():
+                  continue
+              rel = p.relative_to(site).as_posix()
+              if rel in allowed:
+                  continue
+              h = hashlib.sha256()
+              with p.open("rb") as f:
+                  for chunk in iter(lambda: f.read(1024 * 1024), b""):
+                      h.update(chunk)
+              snapshot[rel] = h.hexdigest()
+          (Path(os.environ["RUNNER_TEMP"]) / "bp-earth-opaque-preservation-before.json").write_text(
+              json.dumps(snapshot, sort_keys=True), encoding="utf-8"
+          )
+          print("BASELINE_UNTOUCHED_FILES", len(snapshot))
+          PY
+
+      - name: Overlay only the three celestial renderer modules and their HTML cache keys
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/bp-site"
+          PATCH="patches/earth-star-occlusion-v6294"
+          cp "$PATCH/bridgepoint-app-space-explorer-v1.js" "$SITE/bridgepoint-app-space-explorer-v1.js"
+          cp "$PATCH/bridgepoint-welcome-space-v6260.js" "$SITE/bridgepoint-welcome-space-v6260.js"
+          cp "$PATCH/bridgepoint-gaia-galaxy-v6270.js" "$SITE/bridgepoint-gaia-galaxy-v6270.js"
+          python3 - <<'PY'
+          from pathlib import Path
+          import re, os
+          site = Path(os.environ["RUNNER_TEMP"]) / "bp-site"
+          build = "v6294-earth-opaque"
+          for rel in ("index.html", "app/index.html"):
+              p = site / rel
+              html = p.read_text(encoding="utf-8")
+              pattern = re.compile(r"(bridgepoint-app-space-explorer-v1\.js\?v=)6293-full-planetarium")
+              html, count = pattern.subn(r"\g<1>" + build, html)
+              if count != 1:
+                  raise SystemExit(f"{rel}: expected one current app-space module URL, found {count}")
+              # The welcome module may also be referenced directly by the homepage.
+              html = re.sub(r"(bridgepoint-welcome-space-v6260\.js\?v=)6293-full-planetarium",
+                            r"\g<1>" + build, html)
+              if "bridgepoint-app-space-explorer-v1.js?v=" + build not in html:
+                  raise SystemExit(f"{rel}: app-space module cache key was not advanced")
+              p.write_text(html, encoding="utf-8")
+          print("EARTH_OPAQUE_CELESTIAL_ENTRYPOINTS_PASS")
+          PY
+
+      - name: Run isolated renderer tests and syntax checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s tests -p 'test_earth_star_occlusion_v6294.py' -v
+          node --check "$RUNNER_TEMP/bp-site/bridgepoint-app-space-explorer-v1.js"
+          node --input-type=module --check < "$RUNNER_TEMP/bp-site/bridgepoint-welcome-space-v6260.js"
+          node --input-type=module --check < "$RUNNER_TEMP/bp-site/bridgepoint-gaia-galaxy-v6270.js"
+          SITE="$RUNNER_TEMP/bp-site"
+          grep -Fq 'uEarthScreenMask' "$SITE/bridgepoint-gaia-galaxy-v6270.js"
+          grep -Fq 'gl_FragCoord.xy' "$SITE/bridgepoint-gaia-galaxy-v6270.js"
+          grep -Fq 'v6294-earth-opaque' "$SITE/bridgepoint-welcome-space-v6260.js"
+          grep -Fq 'v6294-earth-opaque' "$SITE/bridgepoint-app-space-explorer-v1.js"
+          grep -Fq 'refreshIntervalMs:900000' "$SITE/world-v2300-clouds.js"
+          grep -Fq 'function updateRingDust(time)' "$SITE/bridgepoint-saturn-system-v6282.js"
+          grep -Fq 'Phobos' "$SITE/bridgepoint-mars-system-v6291.js"
+          cmp -s "$SITE/world-v2300-clouds.js" "$SITE/app/world-v2300-clouds.js"
+          echo "EARTH_OPAQUE_RENDERER_AND_EXISTING_CELESTIAL_ASSETS_PASS"
+
+      - name: Prove every non-target site file remains byte-for-byte unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          site = Path(os.environ["RUNNER_TEMP"]) / "bp-site"
+          before = json.loads((Path(os.environ["RUNNER_TEMP"]) / "bp-earth-opaque-preservation-before.json").read_text())
+          after = {}
+          for p in sorted(site.rglob("*")):
+              if not p.is_file():
+                  continue
+              rel = p.relative_to(site).as_posix()
+              if rel in {"index.html", "app/index.html", "bridgepoint-app-space-explorer-v1.js",
+                         "bridgepoint-welcome-space-v6260.js", "bridgepoint-gaia-galaxy-v6270.js"}:
+                  continue
+              h = hashlib.sha256()
+              with p.open("rb") as f:
+                  for chunk in iter(lambda: f.read(1024 * 1024), b""):
+                      h.update(chunk)
+              after[rel] = h.hexdigest()
+          if before != after:
+              missing = sorted(set(before)-set(after))
+              added = sorted(set(after)-set(before))
+              changed = sorted(k for k in set(before)&set(after) if before[k] != after[k])
+              raise SystemExit("NON_EARTH_SITE_REGRESSION " + json.dumps({
+                  "missing": missing[:20], "added": added[:20], "changed": changed[:20]
+              }))
+          print("NON_EARTH_SITE_BYTE_FOR_BYTE_PRESERVED", len(before))
+          PY
+
+      - uses: actions/configure-pages@v5
+
+      - name: Upload the untouched production website with the Earth-opaque overlay
+        uses: actions/upload-pages-artifact@v5
+        with:
+          name: github-pages-v6294-earth-opaque
+          path: ${{ runner.temp }}/bp-site
+          include-hidden-files: true
+
+      - name: Publish the isolated Earth-opaque overlay
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages-v6294-earth-opaque
+
+      - name: Verify live site, app, clouds, and preserved planetary systems
+        shell: bash
+        run: |
+          set -euo pipefail
+          O='https://bridgepointintelligence.online'
+          q="${GITHUB_SHA}-earth-opaque-v6294"
+          mkdir -p "$RUNNER_TEMP/bp-live-check"
+          curl --retry 8 --retry-all-errors --retry-delay 3 -fsSL -H 'Cache-Control: no-cache' "$O/?earth-opaque=$q" -o "$RUNNER_TEMP/bp-live-check/root.html"
+          curl --retry 8 --retry-all-errors --retry-delay 3 -fsSL -H 'Cache-Control: no-cache' "$O/app/?earth-opaque=$q" -o "$RUNNER_TEMP/bp-live-check/app.html"
+          curl --retry 8 --retry-all-errors --retry-delay 3 -fsSL -H 'Cache-Control: no-cache' "$O/bridgepoint-app-space-explorer-v1.js?v=v6294-earth-opaque&$q" -o "$RUNNER_TEMP/bp-live-check/explorer.js"
+          curl --retry 8 --retry-all-errors --retry-delay 3 -fsSL -H 'Cache-Control: no-cache' "$O/bridgepoint-welcome-space-v6260.js?v=v6294-earth-opaque&$q" -o "$RUNNER_TEMP/bp-live-check/welcome.js"
+          curl --retry 8 --retry-all-errors --retry-delay 3 -fsSL -H 'Cache-Control: no-cache' "$O/bridgepoint-gaia-galaxy-v6270.js?v=v6294-earth-opaque&$q" -o "$RUNNER_TEMP/bp-live-check/gaia.js"
+          curl --retry 8 --retry-all-errors --retry-delay 3 -fsSL -H 'Cache-Control: no-cache' "$O/world-v2300-clouds.js?v=6202-global-satellite-cloud-banks&$q" -o "$RUNNER_TEMP/bp-live-check/clouds.js"
+          curl --retry 8 --retry-all-errors --retry-delay 3 -fsSL -H 'Cache-Control: no-cache' "$O/app/world-v2300-clouds.js?v=6202-global-satellite-cloud-banks&$q" -o "$RUNNER_TEMP/bp-live-check/app-clouds.js"
+          curl --retry 8 --retry-all-errors --retry-delay 3 -fsSL -H 'Cache-Control: no-cache' "$O/bridgepoint-saturn-system-v6282.js?$q" -o "$RUNNER_TEMP/bp-live-check/saturn.js"
+          curl --retry 8 --retry-all-errors --retry-delay 3 -fsSL -H 'Cache-Control: no-cache' "$O/bridgepoint-mars-system-v6291.js?$q" -o "$RUNNER_TEMP/bp-live-check/mars.js"
+
+          grep -Fq 'bridgepoint-app-space-explorer-v1.js?v=v6294-earth-opaque' "$RUNNER_TEMP/bp-live-check/root.html"
+          grep -Fq 'bridgepoint-app-space-explorer-v1.js?v=v6294-earth-opaque' "$RUNNER_TEMP/bp-live-check/app.html"
+          grep -Fq 'bridgepoint-welcome-space-v6260.js?v=v6294-earth-opaque' "$RUNNER_TEMP/bp-live-check/explorer.js"
+          grep -Fq 'bridgepoint-gaia-galaxy-v6270.js?v=v6294-earth-opaque' "$RUNNER_TEMP/bp-live-check/welcome.js"
+          grep -Fq 'uEarthScreenMask' "$RUNNER_TEMP/bp-live-check/gaia.js"
+          grep -Fq 'gl_FragCoord.xy' "$RUNNER_TEMP/bp-live-check/gaia.js"
+          grep -Fq 'refreshIntervalMs:900000' "$RUNNER_TEMP/bp-live-check/clouds.js"
+          cmp -s "$RUNNER_TEMP/bp-live-check/clouds.js" "$RUNNER_TEMP/bp-live-check/app-clouds.js"
+          grep -Fq "name:'Titan'" "$RUNNER_TEMP/bp-live-check/saturn.js"
+          grep -Fq 'Phobos' "$RUNNER_TEMP/bp-live-check/mars.js"
+          echo "BRIDGEPOINT_EARTH_OPAQUE_V6294_LIVE_PASS"
