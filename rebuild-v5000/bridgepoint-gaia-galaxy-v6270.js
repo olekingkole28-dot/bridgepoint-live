@@ -190,6 +190,7 @@ for(const p of planetRefs){
  mesh.visible=false;mesh.name=p.name+' 3D planet · locally hosted image texture';
  mesh.userData.body=key;mesh.userData.celestialBody=key;mesh.userData.physicalRadiusKm=p.r;
  solarRoot.add(mesh);planetMeshes.set(key,mesh);planetMaterials.push(material);
+ clickables.push(mesh);
  const label=labelSprite(THREE,p.name.toUpperCase());labelsGroup.add(label);labelMap.set(key,label);
  labelOffsets.set(key,radius);
 }
