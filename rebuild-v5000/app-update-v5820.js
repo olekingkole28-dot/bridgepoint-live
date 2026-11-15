@@ -37,8 +37,6 @@
     return n;
   }
   function updateStatus(extra={}){
-    const registration=navigator.serviceWorker?.getRegistration
-      ? null : null;
     window.__BP_APP_UPDATE__={
       build:BUILD,
       scope:'/',
@@ -47,7 +45,7 @@
       checkedAt:new Date().toISOString(),
       ...extra
     };
-    return registration;
+    return;
   }
   async function update(){
     if(busy||!('serviceWorker'in navigator))return;
