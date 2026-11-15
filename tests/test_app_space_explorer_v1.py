@@ -31,7 +31,7 @@ class AppCelestialExplorerV1Tests(unittest.TestCase):
     def test_explorer_mounts_the_existing_shared_celestial_scene(self):
         self.assertIn("id = 'bpWelcomeGateV1'", EXPLORER)
         self.assertIn("className = 'bpw-celestial-system'", EXPLORER)
-        self.assertIn("/bridgepoint-welcome-space-v6260.js?v=6292-mars-night-side-shading", EXPLORER)
+        self.assertIn("/bridgepoint-welcome-space-v6260.js?v=6293-full-planetarium", EXPLORER)
         self.assertIn("initBridgePointSolarCosmos", WELCOME + GAIA)
         self.assertIn("initBridgePointSaturnSystem", GAIA)
         self.assertIn("initBridgePointMarsSystem", GAIA)
