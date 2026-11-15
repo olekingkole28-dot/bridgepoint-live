@@ -5,10 +5,10 @@ import re
 import sys
 from pathlib import Path
 
-BUILD = "v6292-mars-night-side-shading"
+BUILD = "v6293-full-planetarium"
 # Moon and planetary terrain assets are bundled locally; runtime requests stay same-origin.
-SW_URL = "/sw.js?v=6292-mars-night-side-shading"
-CACHE_NAME = "bp-intelligence-v6292-mars-night-side"
+SW_URL = "/sw.js?v=6293-full-planetarium"
+CACHE_NAME = "bp-intelligence-v6293-full-planetarium"
 
 
 def replace_once(source: str, old: str, new: str, label: str) -> str:
