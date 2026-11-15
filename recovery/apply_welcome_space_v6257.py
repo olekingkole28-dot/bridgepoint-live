@@ -127,6 +127,17 @@ def inject_space_camera_sync(source: str) -> str:
 """
     return replace_once(source, marker, injection + marker, "add the Three.js-to-MapLibre Earth zoom bridge")
 
+def remove_legacy_welcome_module(source: str) -> str:
+    pattern = re.compile(
+        r'\\s*<script\\b(?=[^>]*\\bsrc=["\\'][^"\\']*bridgepoint-welcome-space-v6257\\.js(?:\\?[^"\\']*)?["\\'])[^>]*>\\s*</script>',
+        re.IGNORECASE,
+    )
+    source, count = pattern.subn("\\n", source)
+    if count > 1:
+        raise AssertionError("More than one legacy welcome-space module was found")
+    return source
+
+
 def patch_root_html(source: str) -> str:
     # The last verified Pages artifact already has the V6264 welcome design.
     # When present, retain that markup and only bump the scene module URL.
@@ -153,6 +164,7 @@ def patch_root_html(source: str) -> str:
         )
         if module_src_count < 1:
             raise AssertionError("Current welcome module src is missing")
+        source = remove_legacy_welcome_module(source)
         source = inject_space_camera_sync(source)
         if 'data-space-ground' in source:
             raise AssertionError("Ground sky control must not appear on the welcome screen")
