@@ -14,6 +14,8 @@ class AppCelestialExplorerV1Tests(unittest.TestCase):
         self.assertIn('id="liveMap"', APP)
         self.assertIn('class="map-tools"', APP)
         self.assertIn("SPACE 3D", EXPLORER)
+        self.assertIn("window.__BP_WELCOME_SYNC_SPACE_ZOOM_V1__ = syncMapCanvas", EXPLORER)
+        self.assertIn("syncMapCanvas(1)", EXPLORER)
 
     def test_explorer_mounts_the_existing_shared_celestial_scene(self):
         self.assertIn("id = 'bpWelcomeGateV1'", EXPLORER)
