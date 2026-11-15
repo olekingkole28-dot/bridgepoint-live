@@ -15,6 +15,7 @@ on:
       - 'app/horizon/index.html'
       - 'app/horizon/native/**'
       - 'app/horizon/sw.js'
+      - 'app/horizon/play/sw.js'
       - 'app/horizon/manifest.webmanifest'
       - 'app/horizon-playable/index.html'
       - 'app/horizon-playable/v2-entry.html'
@@ -1421,7 +1422,7 @@ jobs:
           grep -Fq '/app-update-v5820.js?v=6300-direct-entry' site/app/index.html
           grep -Fq 'bridgepoint-intelligence-legacy-retire-v5820' site/app/flutter_service_worker.js
           grep -Fq 'migrated=legacy-intelligence-v5820' site/app/intelligence-launch/index.html
-          grep -Fq "bridgepoint-horizon-v5820" site/app/horizon/sw.js
+          grep -Fq "bridgepoint-horizon-ue5-v6250" site/app/horizon/sw.js
           grep -Fq "bridgepoint-horizon-play-v5820" site/app/horizon/play/sw.js
           grep -Fq "updateViaCache:'none'" site/app/horizon/app.js
           grep -Fq "updateViaCache:'none'" site/app/horizon/play/app.js
@@ -2070,7 +2071,7 @@ jobs:
               && grep -Fq 'BUILD=6300' /tmp/app-update-v5820.js \
               && grep -Fq 'bridgepoint-intelligence-legacy-retire-v5820' /tmp/flutter-service-worker-retire.js \
               && grep -Fq 'migrated=legacy-intelligence-v5820' /tmp/legacy-intelligence-launch.html \
-              && grep -Fq "bridgepoint-horizon-v5820" /tmp/horizon-sw.js \
+              && grep -Fq "bridgepoint-horizon-ue5-v6250" /tmp/horizon-sw.js \
               && grep -Fq "bridgepoint-horizon-play-v5820" /tmp/horizon-play-sw.js \
               && grep -Fq 'BridgePoint Intelligence pricing' /tmp/pricing.html \
               && grep -Fq 'Canonical: https://bridgepointintelligence.online/.well-known/security.txt' /tmp/security.txt \
