@@ -134,6 +134,7 @@ test('clouds render as bright 3D volumes, not as a false-colour raster sheet', (
   assert.match(clouds, /time\*0\.34/);
   assert.match(clouds, /time\*2\.05/);
   assert.match(clouds, /refreshIntervalMs:900000/);
+  assert.match(clouds, /refreshIntervalMs: 900000,requestedFrameEpoch:frame\(\)/);
   assert.match(clouds, /cloudHeightFeedTimer = setInterval\(\(\) => \{ if \(!document\.hidden\) void refreshCloudHeightFeedV6162\(false\); \}, 900000\)/);
   assert.match(clouds, /const CLOUD_STORM_VERTEX_RESERVE = MOBILE \? 24000 : 32000/);
   assert.match(clouds, /new Uint32Array\(indices\)/);
