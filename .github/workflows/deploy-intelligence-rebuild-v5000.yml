@@ -1604,27 +1604,23 @@ jobs:
           grep -Fq 'bridgepoint_horizon_block_v4341' site/app/horizon/app.js
           grep -Fq 'bridgepoint_horizon_report_player_v4341' site/app/horizon/app.js
           grep -Fq 'bridgepoint_horizon_owner_reports_v4341' site/app/horizon/app.js
-          grep -Fq 'OCT 1 · 12:00 AM ET' site/app/horizon/index.html
-          grep -Fq '100 PLAYERS' site/app/horizon/index.html
-          grep -Fq 'data-tab="RULES"' site/app/horizon/index.html
-          grep -Fq 'data-tab="ABOUT"' site/app/horizon/index.html
-          grep -Fq 'id="healthBar"' site/app/horizon-playable/v2-entry.html
-          grep -Fq 'id="shieldBar"' site/app/horizon-playable/v2-entry.html
-          grep -Fq 'id="backpackBar"' site/app/horizon-playable/v2-entry.html
-          grep -Fq 'id="movePad"' site/app/horizon-playable/v2-entry.html
-          grep -Fq 'id="moveKnob"' site/app/horizon-playable/v2-entry.html
+          # The old browser-game paths intentionally redirect to the Unreal replacement gate.
+          grep -Fq "location.replace('/app/horizon/native/'+location.search+location.hash)" site/app/horizon/index.html
+          grep -Fq "location.replace('/app/horizon/native/'+location.search+location.hash)" site/app/horizon-playable/v2-entry.html
+          grep -Fq 'Horizon is being rebuilt on the real Earth.' site/app/horizon/native/index.html
+          grep -Fq 'Native build not online yet.' site/app/horizon/native/index.html
+          grep -Fq 'HORIZON · IN DEVELOPMENT' site/app/horizon/native/index.html
+          # Retained game systems are checked in their source modules, not redirect-only HTML shells.
+          grep -Fq 'OCT 1 · 12:00 AM ET' site/app/horizon/app.js
+          grep -Fq '100 players · solo / duo / trio / squad · 50 maps · 10-second vote · bot backfill' site/app/horizon/app.js
+          grep -Fq "'RULES','ABOUT'" site/app/horizon/app.js
+          grep -Fq 'friendsBadge' site/app/horizon/app.js
           grep -Fq 'BP_HORIZON_INPUT_V4341' site/app/horizon-playable/horizon-v2.js
           grep -Fq 'touchMoveX' site/app/horizon-playable/horizon-v2.js
           grep -Fq 'touchMoveY' site/app/horizon-playable/horizon-v2.js
           grep -Fq 'setPointerCapture' site/app/horizon-playable/horizon-v2.js
           grep -Fq 'pointercancel' site/app/horizon-playable/horizon-v2.js
           grep -Fq 'lostpointercapture' site/app/horizon-playable/horizon-v2.js
-          grep -Fq 'id="equipmentRail"' site/app/horizon-playable/v2-entry.html
-          grep -Fq 'id="prematchFreeze"' site/app/horizon-playable/v2-entry.html
-          grep -Fq 'data-tab="PARTY"' site/app/horizon/index.html
-          grep -Fq 'data-tab="FRIENDS"' site/app/horizon/index.html
-          grep -Fq 'id="friendsBadge"' site/app/horizon/index.html
-          grep -Fq 'id="fireUtilityBtn"' site/app/horizon-playable/v2-entry.html
 
           grep -Fq 'BP_FRONTEND_V5000' site/index.html
           grep -Fq '__BP_APP_BUILD_VERSION__=5910' site/app.js
@@ -2092,7 +2088,10 @@ jobs:
           test "$(curl -sS -o /dev/null -w '%{http_code}' "${O}/owner/acquisition/?owner-route-check=${q}")" = "404"
           test "$(curl -sS -o /dev/null -w '%{http_code}' "${O}/downloads/backup/bridgepoint_full_export_windows.ps1?owner-route-check=${q}")" = "404"
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/horizon/?v5100=${q}" -o /tmp/horizon.html
+          curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/horizon/native/?v5100=${q}" -o /tmp/horizon-native.html
+          curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/horizon/app.js?v5100=${q}" -o /tmp/horizon-app.js
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/horizon-playable/v2-entry.html?v5100=${q}" -o /tmp/horizon-playable.html
+          curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/horizon-playable/horizon-v2.js?v5100=${q}" -o /tmp/horizon-playable.js
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/discover/?v5100=${q}" -o /tmp/discover.html
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/newsroom/?v5100=${q}" -o /tmp/newsroom.html
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/claims-terminal/?v5100=${q}" -o /tmp/claims-terminal.html
@@ -2126,22 +2125,16 @@ jobs:
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/sample/?v5100=${q}" -o /tmp/sample.html
           test -s /tmp/horizon.html
           test -s /tmp/horizon-playable.html
-          grep -Fq 'Live Match' /tmp/horizon-playable.html
-          grep -Fq 'OCT 1 · 12:00 AM ET' /tmp/horizon.html
-          grep -Fq 'id="healthBar"' /tmp/horizon-playable.html
-          grep -Fq 'id="shieldBar"' /tmp/horizon-playable.html
-          grep -Fq 'id="backpackBar"' /tmp/horizon-playable.html
-          grep -Fq 'id="movePad"' /tmp/horizon-playable.html
-          grep -Fq 'id="moveKnob"' /tmp/horizon-playable.html
-          grep -Fq 'id="equipmentRail"' /tmp/horizon-playable.html
-          grep -Fq 'id="prematchFreeze"' /tmp/horizon-playable.html
-          grep -Fq 'data-tab="PARTY"' /tmp/horizon.html
-          grep -Fq 'data-tab="FRIENDS"' /tmp/horizon.html
-          grep -Fq 'id="friendsBadge"' /tmp/horizon.html
-          grep -Fq 'id="fireUtilityBtn"' /tmp/horizon-playable.html
-          grep -Fq '100 PLAYERS' /tmp/horizon.html
-          grep -Fq 'data-tab="RULES"' /tmp/horizon.html
-          grep -Fq 'data-tab="ABOUT"' /tmp/horizon.html
+          grep -Fq "location.replace('/app/horizon/native/'+location.search+location.hash)" /tmp/horizon.html
+          grep -Fq "location.replace('/app/horizon/native/'+location.search+location.hash)" /tmp/horizon-playable.html
+          grep -Fq 'Horizon is being rebuilt on the real Earth.' /tmp/horizon-native.html
+          grep -Fq 'Native build not online yet.' /tmp/horizon-native.html
+          grep -Fq 'HORIZON · IN DEVELOPMENT' /tmp/horizon-native.html
+          grep -Fq 'OCT 1 · 12:00 AM ET' /tmp/horizon-app.js
+          grep -Fq 'bridgepoint_horizon_year_one_enter_v4340' /tmp/horizon-app.js
+          grep -Fq 'BP_HORIZON_INPUT_V4341' /tmp/horizon-playable.js
+          grep -Fq 'setPointerCapture' /tmp/horizon-playable.js
+          grep -Fq 'pointercancel' /tmp/horizon-playable.js
           test -s /tmp/discover.html
           test -s /tmp/newsroom.html
           test -s /tmp/claims-terminal.html
