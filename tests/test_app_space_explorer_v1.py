@@ -27,7 +27,7 @@ class AppCelestialExplorerV1Tests(unittest.TestCase):
         self.assertIn("renderActive=false", WELCOME)
         self.assertIn("renderActive=true", WELCOME)
         self.assertIn("pause(){renderActive=false}", WELCOME)
-        self.assertIn("resume(){if(disposed)return;renderActive=true;resize();if(!document.hidden)requestAnimationFrame(render)}", WELCOME)
+        self.assertIn("resume(){if(disposed||renderActive)return;renderActive=true;resize();if(!document.hidden)requestAnimationFrame(render)}", WELCOME)
 
 
 if __name__ == "__main__":
