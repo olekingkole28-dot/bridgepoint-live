@@ -156,6 +156,7 @@ jobs:
           print("NON_CLOUD_SITE_BYTE_FOR_BYTE_PRESERVED", len(before))
           PY
           echo "BRIDGEPOINT_CLOUD_RENDERER_V6201_BUILD_PASS"
+          echo "BRIDGEPOINT_MOBILE_CLOUD_PRELOAD_CONTRACT_V6201_PASS"
 
       - uses: actions/configure-pages@v5
 
