@@ -22,6 +22,11 @@ on:
       - 'app/horizon-next/index.html'
       - 'rebuild-v5000/bridgepoint-view-v5917.js'
       - 'rebuild-v5000/bridgepoint-view-v5917.css'
+      - 'recovery/apply_welcome_space_v6257.py'
+      - 'recovery/bridgepoint-welcome-space-v6260.js'
+      - 'rebuild-v5000/bridgepoint-gaia-galaxy-v6270.js'
+      - 'rebuild-v5000/bridgepoint-mars-system-v6291.js'
+      - 'tests/test_welcome_space_v6257.py'
       - 'tests/horizon-replacement-entry.test.mjs'
 
 permissions:
