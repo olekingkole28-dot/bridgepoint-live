@@ -133,11 +133,14 @@ jobs:
             --bundle --format=esm --minify --external:three --outfile="$TEST_ROOT/vendor/GLTFLoader.bundle.js"
           python3 - "$TEST_ROOT/vendor/GLTFLoader.bundle.js" <<'PY'
           from pathlib import Path
-          import re,sys
+          import sys
           path=Path(sys.argv[1])
           source=path.read_text(encoding="utf-8")
-          source,count=re.subn(r'\\bfrom\\s*(["\\'])three\\1','from "/vendor/three.module.js?v=169-local"',source)
-          if count<1 or re.search(r'\\bfrom\\s*(["\\'])three\\1',source):
+          target='"/vendor/three.module.js?v=169-local"'
+          count=sum(source.count(x) for x in ('from"three"',"from'three'",'from "three"',"from 'three'"))
+          for token in ('from"three"',"from'three'",'from "three"',"from 'three'"):
+              source=source.replace(token,'from'+target)
+          if count<1 or any(x in source for x in ('from"three"', "from'three'", 'from "three"', "from 'three'")):
               raise SystemExit("GLTFLoader fixture has an unresolved bare Three.js import")
           path.write_text(source,encoding="utf-8")
           print("TREE_BROWSER_LOCAL_THREE_FIXTURE_PASS",path.stat().st_size)
