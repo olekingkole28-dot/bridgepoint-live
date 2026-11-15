@@ -23,7 +23,7 @@ jobs:
     timeout-minutes: 35
     environment:
       name: github-pages
-      url: \${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -32,9 +32,9 @@ jobs:
         with:
           name: bridgepoint-v5000-1
           run-id: 43748386260
-          repository: \${{ github.repository }}
-          github-token: \${{ secrets.GITHUB_TOKEN }}
-          path: \${{ runner.temp }}/bp-pages-baseline
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/bp-pages-baseline
 
       - name: Restore the production artifact and record the untouched site
         shell: bash
@@ -162,7 +162,7 @@ jobs:
       - name: Upload the preserved website with the cloud-only overlay
         uses: actions/upload-pages-artifact@v5
         with:
-          path: \${{ runner.temp }}/bp-site
+          path: ${{ runner.temp }}/bp-site
 
       - name: Publish cloud-only overlay to GitHub Pages
         id: deployment
@@ -173,7 +173,7 @@ jobs:
         run: |
           set -euo pipefail
           O='https://bridgepointintelligence.online'
-          q="\${GITHUB_SHA}-cloud-v6201"
+          q="${GITHUB_SHA}-cloud-v6201"
           curl --retry 6 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/?cloud-v6201=$q" -o /tmp/bp-root.html
           curl --retry 6 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app/?cloud-v6201=$q" -o /tmp/bp-app.html
           curl --retry 6 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/landing.js?v=6201-cloud-live-observation&$q" -o /tmp/bp-landing.js
