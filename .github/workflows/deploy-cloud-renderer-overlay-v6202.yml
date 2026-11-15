@@ -14,7 +14,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: bridgepoint-v5000-production-authority
+  group: bridgepoint-v5000-cloud-overlay-v6202
   cancel-in-progress: false
 
 jobs:
