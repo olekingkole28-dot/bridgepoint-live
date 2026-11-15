@@ -1938,7 +1938,7 @@ jobs:
           grep -Fq 'bridgepoint-welcome-space-v6260.js?v=6292-mars-night-side-shading' site/index.html
           grep -Fq 'rel="modulepreload" href="/vendor/three.module.js?v=169-local"' site/index.html
           grep -Fq 'start_url": "/"' site/manifest.webmanifest
-          grep -Fq 'CACHE_VERSION=\'6292-mars-night-side-shading\'' site/app-update-v5820.js
+          grep -Fq "CACHE_VERSION='6292-mars-night-side-shading'" site/app-update-v5820.js
           ! grep -Fq 'location.reload' site/app-update-v5820.js
           ! grep -Fq 'location.replace' site/app-update-v5820.js
           test -s site/assets/saturn/v1/ephemerides.json
