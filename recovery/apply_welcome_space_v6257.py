@@ -31,7 +31,7 @@ def bump_manifest_url(source: str, label: str) -> str:
         r'(<link\b(?=[^>]*\brel=["\']manifest["\'])[^>]*\bhref=["\'][^"\']*manifest\.webmanifest)(?:\?[^"\']*)?(["\'])',
         re.IGNORECASE,
     )
-    source, count = pattern.subn(chr(10), source)
+    source, count = pattern.subn(
         r'\g<1>?v=' + BUILD[1:] + r'\g<2>', source, count=1
     )
     if count != 1:
@@ -132,7 +132,7 @@ def remove_legacy_welcome_module(source: str) -> str:
         r"""\s*<script\b(?=[^>]*\bsrc=["'][^"']*bridgepoint-welcome-space-v6257\.js(?:\?[^"']*)?["'])[^>]*>\s*</script>""",
         re.IGNORECASE,
     )
-    source, count = pattern.subn("\\n", source)
+    source, count = pattern.subn(chr(10), source)
     if count > 1:
         raise AssertionError("More than one legacy welcome-space module was found")
     return source
