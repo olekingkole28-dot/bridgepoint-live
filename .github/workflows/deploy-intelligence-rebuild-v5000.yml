@@ -27,6 +27,9 @@ on:
       - 'recovery/bridgepoint-welcome-space-v6260.js'
       - 'rebuild-v5000/bridgepoint-gaia-galaxy-v6270.js'
       - 'rebuild-v5000/bridgepoint-mars-system-v6291.js'
+      - 'rebuild-v5000/bridgepoint-app-space-explorer-v1.js'
+      - 'rebuild-v5000/app-index.html'
+      - 'tests/test_app_space_explorer_v1.py'
       - 'tests/test_welcome_space_v6257.py'
       - 'assets/moon/v1/**'
       - 'assets/sun/v2/**'
@@ -622,6 +625,7 @@ jobs:
           cp rebuild-v5000/bridgepoint-gaia-galaxy-v6270.js site/bridgepoint-gaia-galaxy-v6270.js
           cp recovery/bridgepoint-saturn-system-v6282.js site/bridgepoint-saturn-system-v6282.js
           cp rebuild-v5000/bridgepoint-mars-system-v6291.js site/bridgepoint-mars-system-v6291.js
+          cp rebuild-v5000/bridgepoint-app-space-explorer-v1.js site/bridgepoint-app-space-explorer-v1.js
           cp rebuild-v5000/styles.css site/styles.css
           cp rebuild-v5000/app.js site/app.js
           cp rebuild-v5000/owner-everything.js site/owner-everything.js
@@ -1936,6 +1940,8 @@ jobs:
           grep -Fq 'app-update-v5820.js?v=6300-direct-entry' site/index.html
           grep -Fq 'app-update-v5820.js?v=6300-direct-entry' site/app/index.html
           grep -Fq 'bridgepoint-welcome-space-v6260.js?v=6292-mars-night-side-shading' site/index.html
+          grep -Fq 'bridgepoint-app-space-explorer-v1.js?v=1-restored-celestial-system' site/app/index.html
+          test -s site/bridgepoint-app-space-explorer-v1.js
           grep -Fq 'rel="modulepreload" href="/vendor/three.module.js?v=169-local"' site/index.html
           grep -Fq 'start_url": "/"' site/manifest.webmanifest
           grep -Fq "CACHE_VERSION='6292-mars-night-side-shading'" site/app-update-v5820.js
