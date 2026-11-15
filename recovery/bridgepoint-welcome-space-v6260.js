@@ -17,11 +17,10 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
 (() => {
   'use strict';
   const VERSION = 'v6292-mars-night-side-shading';
-  if (window.__BP_WELCOME_SPACE_V6257__) return;
-  window.__BP_WELCOME_SPACE_V6257__ = true;
-
+  if (window.__BP_WELCOME_SPACE_V6257__?.version) return;
   const host = document.querySelector('#bpWelcomeGateV1 .bpw-celestial-system');
   if (!host) return;
+  window.__BP_WELCOME_SPACE_V6257__ = true;
   host.removeAttribute('aria-hidden');
 
   const mobile = matchMedia('(max-width: 700px)').matches ||
@@ -2247,6 +2246,7 @@ function createMoonTerrainController() {
     version:VERSION,
     focus:focusBody,
     reset:resetView,
+    mountTo(target){if(!target?.appendChild)return false;if(host.parentElement!==target)target.appendChild(host);resize();return true},
     pause(){renderActive=false},
     resume(){if(disposed||renderActive)return;renderActive=true;resize();if(!document.hidden)requestAnimationFrame(render)},
     state:()=>({viewState,moonOrbitPeriodDays:MOON_PERIOD_DAYS,solarRotationPeriodDays:25.38,solarReliefStatus:window.__BP_SOLAR_SURFACE_V2__?.reliefStatus||'loading',solarCameraTiltDegrees:viewState==='sun'&&sunFocusLocalTarget?THREE.MathUtils.radToDeg(Math.acos(THREE.MathUtils.clamp(camera.position.clone().sub(target).normalize().dot(sunFocusLocalTarget.clone().normalize().transformDirection(sunGroup.matrixWorld)),-1,1))):null,solarCoronalLoopCount:coronalLoopMeshes.length,solarFlareArcCount:flareMeshes.length,solarAssets:window.__BP_SOLAR_SURFACE_V3__||window.__BP_SOLAR_SURFACE_V2__||{status:'not-requested'},
