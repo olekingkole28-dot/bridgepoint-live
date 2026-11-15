@@ -1,0 +1,77 @@
+name: Verify BridgePoint Celestial Explorer Live
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/verify-bridgepoint-celestial-live.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify-live-celestial-explorer:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Fetch live homepage, app entry, and celestial renderer modules
+        shell: bash
+        run: |
+          set -euo pipefail
+          O='https://bridgepointintelligence.online'
+          mkdir -p /tmp/bp-celestial-live
+          ok=0
+          for attempt in $(seq 1 30); do
+            q="${GITHUB_SHA}-${attempt}-$(date +%s)"
+            failed=0
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/?celestial-check=$q" -o /tmp/bp-celestial-live/root.html || failed=1
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/app/?celestial-check=$q" -o /tmp/bp-celestial-live/app.html || failed=1
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/bridgepoint-app-space-explorer-v1.js?celestial-check=$q" -o /tmp/bp-celestial-live/explorer.js || failed=1
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/bridgepoint-welcome-space-v6260.js?celestial-check=$q" -o /tmp/bp-celestial-live/welcome-space.js || failed=1
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/bridgepoint-gaia-galaxy-v6270.js?celestial-check=$q" -o /tmp/bp-celestial-live/gaia.js || failed=1
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/bridgepoint-saturn-system-v6282.js?celestial-check=$q" -o /tmp/bp-celestial-live/saturn.js || failed=1
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/bridgepoint-mars-system-v6291.js?celestial-check=$q" -o /tmp/bp-celestial-live/mars.js || failed=1
+
+            if [ "$failed" = 0 ]; then
+              if python3 - <<'PY'
+          from pathlib import Path
+          root = Path('/tmp/bp-celestial-live')
+          checks = {
+              'homepage celestial host': ('root.html', 'bpw-celestial-system'),
+              'homepage SPACE 3D launcher': ('root.html', 'bridgepoint-app-space-explorer-v1.js?v=1-restored-celestial-system'),
+              'signed-in app SPACE 3D launcher': ('app.html', 'bridgepoint-app-space-explorer-v1.js?v=1-restored-celestial-system'),
+              'SPACE 3D control': ('explorer.js', 'SPACE 3D'),
+              'shared celestial renderer import': ('explorer.js', 'bridgepoint-welcome-space-v6260.js'),
+              'renderer host move API': ('welcome-space.js', 'mountTo(target)'),
+              'textured 3D Moon': ('welcome-space.js', 'MOON_RADIUS_KM = 1737.4'),
+              '3D Sun': ('welcome-space.js', 'SUN_RADIUS_KM = 695700'),
+              'Gaia solar-cosmos system': ('gaia.js', 'initBridgePointSolarCosmos'),
+              'Saturn system controller': ('gaia.js', 'initBridgePointSaturnSystem'),
+              'Mars system controller': ('gaia.js', 'initBridgePointMarsSystem'),
+              'Titan': ('saturn.js', "name:'Titan'"),
+              'Enceladus': ('saturn.js', "name:'Enceladus'"),
+              'Mimas': ('saturn.js', "name:'Mimas'"),
+              'Phobos': ('mars.js', 'Phobos'),
+              'Deimos': ('mars.js', 'Deimos'),
+          }
+          missing = []
+          for label, (filename, marker) in checks.items():
+              passed = marker in (root / filename).read_text(encoding='utf-8')
+              print(('PASS' if passed else 'FAIL'), label)
+              if not passed:
+                  missing.append(label)
+          if missing:
+              print('MISSING_CELESTIAL_LIVE_CHECKS:', ', '.join(missing))
+              raise SystemExit(1)
+          print('BRIDGEPOINT_CELESTIAL_LIVE_PASS', len(checks), 'checks')
+          PY
+              then
+                ok=1
+                break
+              fi
+            fi
+            echo "Live homepage/app assets are still propagating (attempt $attempt/30)."
+            sleep 4
+          done
+          test "$ok" = 1
