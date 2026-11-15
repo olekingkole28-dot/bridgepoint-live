@@ -65,6 +65,23 @@
     let loading = null;
     let open = false;
 
+    function syncMapCanvas(distanceRatio) {
+      const mapCanvas = window.__BP_V5000_WORLD__?.map?.getCanvas?.()
+        || map.querySelector('canvas.maplibregl-canvas');
+      if (!mapCanvas) return null;
+      const ratio = Number(distanceRatio);
+      const safeRatio = Number.isFinite(ratio) && ratio > 0 ? ratio : 1;
+      const scale = Math.max(0.000001, Math.min(1, 1 / safeRatio));
+      const previous = Number(mapCanvas.dataset.bpSpaceScale || 1);
+      if (!Number.isFinite(previous) || Math.abs(scale - previous) > Math.max(0.0000001, previous * 0.001)) {
+        mapCanvas.style.transformOrigin = '50% 50%';
+        mapCanvas.style.transform = scale < 0.999999 ? 'scale(' + scale.toFixed(8) + ')' : '';
+        mapCanvas.style.willChange = scale < 0.999999 ? 'transform' : '';
+        mapCanvas.dataset.bpSpaceScale = String(scale);
+      }
+      return scale;
+    }
+
     function ensureOverlay() {
       if (overlay?.isConnected) return overlay;
       overlay = document.createElement('div');
@@ -85,6 +102,7 @@
       open = false;
       if (overlay) overlay.hidden = true;
       try { window.__BP_WELCOME_SPACE_V6257__?.pause?.(); } catch (_) {}
+      syncMapCanvas(1);
       toggle.setAttribute('aria-pressed', 'false');
       toggle.textContent = 'SPACE 3D';
       toggle.disabled = false;
@@ -127,6 +145,7 @@
       toggle.textContent = 'LOADING SPACE…';
       toggle.setAttribute('aria-pressed', 'true');
       try {
+        window.__BP_WELCOME_SYNC_SPACE_ZOOM_V1__ = syncMapCanvas;
         const api = await loadRenderer();
         if (!open) { api.pause?.(); return; }
         api.resume?.();
