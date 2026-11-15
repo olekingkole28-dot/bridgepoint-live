@@ -31,7 +31,7 @@ def bump_manifest_url(source: str, label: str) -> str:
         r'(<link\b(?=[^>]*\brel=["\']manifest["\'])[^>]*\bhref=["\'][^"\']*manifest\.webmanifest)(?:\?[^"\']*)?(["\'])',
         re.IGNORECASE,
     )
-    source, count = pattern.subn(
+    source, count = pattern.subn("\n", source)
         r'\g<1>?v=' + BUILD[1:] + r'\g<2>', source, count=1
     )
     if count != 1:
