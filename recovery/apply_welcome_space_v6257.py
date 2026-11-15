@@ -139,6 +139,8 @@ def remove_legacy_welcome_module(source: str) -> str:
 
 
 def patch_root_html(source: str) -> str:
+    # The legacy module shares the renderer global with V6260 and must never race it.
+    source = remove_legacy_welcome_module(source)
     # The last verified Pages artifact already has the V6264 welcome design.
     # When present, retain that markup and only bump the scene module URL.
     if 'class="bpw-wordmark bpw-wordmark-static"' in source:
@@ -162,9 +164,12 @@ def patch_root_html(source: str) -> str:
         source, module_src_count = module_src_pattern.subn(
             r'\g<1>' + BUILD[1:] + r'\g<2>', source
         )
-        if module_src_count < 1:
-            raise AssertionError("Current welcome module src is missing")
+        if module_src_count == 0:
+            module_tag = '<script type="module" src="/bridgepoint-welcome-space-v6260.js?v=' + BUILD[1:] + '"></script>\\n'
+            source = replace_once(source, "</body>", module_tag + "</body>", "load the detailed shared celestial scene")
         source = remove_legacy_welcome_module(source)
+        if len(re.findall(r'<script\\b[^>]*\\bsrc=["\\'][^"\\']*bridgepoint-welcome-space-v6260\\.js', source, re.IGNORECASE)) != 1:
+            raise AssertionError("The homepage must load exactly one detailed V6260 celestial renderer")
         source = inject_space_camera_sync(source)
         if 'data-space-ground' in source:
             raise AssertionError("Ground sky control must not appear on the welcome screen")
