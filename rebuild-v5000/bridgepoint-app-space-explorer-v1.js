@@ -152,7 +152,7 @@
       const current = getRenderer();
       if (current) return current;
       if (!loading) {
-        loading = import('/bridgepoint-welcome-space-v6260.js?v=6292-mars-night-side-shading&space=app-explorer-v1')
+        loading = import('/bridgepoint-welcome-space-v6260.js?v=6293-full-planetarium&space=app-explorer-v1')
           .then(() => {
             const api = getRenderer();
             if (!api) throw new Error('The 3D celestial scene did not register its renderer');
