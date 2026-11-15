@@ -688,8 +688,12 @@ jobs:
           curl --retry 5 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 180 'https://edu.solarsystemscope.com/textures/download/2k_uranus.jpg' -o site/assets/planets/v1/uranus-2k.jpg
           curl --retry 5 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 180 'https://edu.solarsystemscope.com/textures/download/2k_neptune.jpg' -o site/assets/planets/v1/neptune-2k.jpg
           for texture in mercury-2k.jpg venus-surface-2k.jpg venus-atmosphere-2k.jpg jupiter-2k.jpg uranus-2k.jpg neptune-2k.jpg; do
-            test "$(stat -c%s "site/assets/planets/v1/$texture")" -gt 100000
+            minimum_bytes=100000
+            # Uranus has a low-contrast, highly compressible global map; its valid 2K JPEG is 77 KB.
+            if [ "$texture" = "uranus-2k.jpg" ]; then minimum_bytes=50000; fi
+            test "$(stat -c%s "site/assets/planets/v1/$texture")" -gt "$minimum_bytes"
           done
+          echo 'BRIDGEPOINT_PLANET_TEXTURES_VALIDATED'
           echo 'BRIDGEPOINT_LOCAL_PLANET_TEXTURES_PASS'
 
           # Prepare two reproducible worldwide packages from the open Protomaps daily build.
