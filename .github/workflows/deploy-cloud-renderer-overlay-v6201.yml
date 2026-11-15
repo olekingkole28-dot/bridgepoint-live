@@ -87,21 +87,21 @@ jobs:
 
           python3 - <<'PY'
           from pathlib import Path
-          import os
+          import os, re
           site = Path(os.environ["RUNNER_TEMP"]) / "bp-site"
           changes = (
-              ("index.html", "./landing.js?v=6247-universal-fresh-entry", "./landing.js?v=6201-cloud-live-observation"),
-              ("index.html", "/world-v2300-clouds.js?v=6170-always-on-3d-cloud-volumes", "/world-v2300-clouds.js?v=6201-live-observation-refresh"),
-              ("app/index.html", "../app.js?v=6247-universal-fresh-entry", "../app.js?v=6201-cloud-live-observation"),
-              ("app/index.html", "/world-v2300-clouds.js?v=6200-radar-colored-rain-clouds", "/world-v2300-clouds.js?v=6201-live-observation-refresh"),
+              ("index.html", r'src=["\\'][^"\\']*landing\\.js(?:\\?[^"\\']*)?["\\']', 'src="./landing.js?v=6201-cloud-live-observation"', "landing script"),
+              ("index.html", r'href=["\\'][^"\\']*world-v2300-clouds\\.js(?:\\?[^"\\']*)?["\\']', 'href="/world-v2300-clouds.js?v=6201-live-observation-refresh"', "landing cloud preload"),
+              ("app/index.html", r'src=["\\'][^"\\']*app\\.js(?:\\?[^"\\']*)?["\\']', 'src="../app.js?v=6201-cloud-live-observation"', "app script"),
+              ("app/index.html", r'href=["\\'][^"\\']*world-v2300-clouds\\.js(?:\\?[^"\\']*)?["\\']', 'href="/world-v2300-clouds.js?v=6201-live-observation-refresh"', "app cloud preload"),
           )
-          for rel, old, new in changes:
+          for rel, pattern, replacement, label in changes:
               p = site / rel
-              content = p.read_text(encoding="utf-8")
-              count = content.count(old)
+              html = p.read_text(encoding="utf-8")
+              updated, count = re.subn(pattern, replacement, html, count=1)
               if count != 1:
-                  raise SystemExit(f"{rel}: expected one {old!r}, found {count}")
-              p.write_text(content.replace(old, new), encoding="utf-8")
+                  raise SystemExit(f"{rel}: expected one {label}, found {count}")
+              p.write_text(updated, encoding="utf-8")
           for rel in ("app.js", "landing.js"):
               text = (site / rel).read_text(encoding="utf-8")
               if text.count("world-v2300-clouds.js?v=6201-live-observation-refresh") != 1:
