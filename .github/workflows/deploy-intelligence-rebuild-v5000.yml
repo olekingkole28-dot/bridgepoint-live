@@ -1957,13 +1957,13 @@ jobs:
           node --check site/app-update-v5820.js
           grep -Fq 'app-update-v5820.js?v=6300-direct-entry' site/index.html
           grep -Fq 'app-update-v5820.js?v=6300-direct-entry' site/app/index.html
-          grep -Fq 'bridgepoint-welcome-space-v6260.js?v=6292-mars-night-side-shading' site/index.html
+          grep -Fq 'bridgepoint-welcome-space-v6260.js?v=6293-full-planetarium' site/index.html
           grep -Fq 'bridgepoint-app-space-explorer-v1.js?v=1-restored-celestial-system' site/index.html
           grep -Fq 'bridgepoint-app-space-explorer-v1.js?v=1-restored-celestial-system' site/app/index.html
           test -s site/bridgepoint-app-space-explorer-v1.js
           grep -Fq 'rel="modulepreload" href="/vendor/three.module.js?v=169-local"' site/index.html
           grep -Fq 'start_url": "/"' site/manifest.webmanifest
-          grep -Fq "CACHE_VERSION='6292-mars-night-side-shading'" site/app-update-v5820.js
+          grep -Fq "CACHE_VERSION='6293-full-planetarium'" site/app-update-v5820.js
           ! grep -Fq 'location.reload' site/app-update-v5820.js
           ! grep -Fq 'location.replace' site/app-update-v5820.js
           test -s site/assets/saturn/v1/ephemerides.json
@@ -2052,10 +2052,10 @@ jobs:
               fi
             }
             if [ "$fetch_failed" = 0 ]; then
-              require_marker /tmp/bp-auth-root.html 'landing.js?v=6292-mars-night-side-shading'
-              require_marker /tmp/bp-auth-app.html 'app.js?v=6292-mars-night-side-shading'
+              require_marker /tmp/bp-auth-root.html 'landing.js?v=6293-full-planetarium'
+              require_marker /tmp/bp-auth-app.html 'app.js?v=6293-full-planetarium'
               require_marker /tmp/bp-auth-root.html 'bpw-celestial-system'
-              require_marker /tmp/bp-auth-root.html 'bridgepoint-welcome-space-v6260.js?v=6292-mars-night-side-shading'
+              require_marker /tmp/bp-auth-root.html 'bridgepoint-welcome-space-v6260.js?v=6293-full-planetarium'
               if grep -Fq 'bridgepoint-welcome-space-v6257.js' /tmp/bp-auth-root.html; then
                 echo 'LIVE_SMOKE_LEGACY_WELCOME_RENDERER_STILL_REFERENCED'
                 missing=1
@@ -2169,7 +2169,7 @@ jobs:
               && grep -Fq 'bridgepoint_public_weather_bootstrap_v5512' /tmp/app.js \
               && grep -Fq 'const VERSION=1068' /tmp/language-selector-v5200.js \
               && grep -Fq 'BridgePointLanguage' /tmp/language-selector-v5200.js \
-              && grep -Fq "const V='bp-intelligence-v6292-mars-night-side'" /tmp/sw.js \
+              && grep -Fq "const V='bp-intelligence-v6293-full-planetarium'" /tmp/sw.js \
               && grep -Fq 'BUILD=6300' /tmp/app-update-v5820.js \
               && grep -Fq 'bridgepoint-intelligence-legacy-retire-v5820' /tmp/flutter-service-worker-retire.js \
               && grep -Fq 'migrated=legacy-intelligence-v5820' /tmp/legacy-intelligence-launch.html \
