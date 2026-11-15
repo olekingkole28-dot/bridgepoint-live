@@ -439,6 +439,7 @@ html.bpw-entry-locked body>main>section:not(.hero){display:none!important;visibi
     stopGlobeSpin();
     document.documentElement.classList.remove('bpw-entry-locked');
     gate.remove();
+    try{window.__BP_WELCOME_SPACE_V6257__?.pause?.()}catch(_){}
     if(resizeHandler)window.removeEventListener('resize',resizeHandler);
     clearInterval(sessionWatch);
     stopMusic();
@@ -686,5 +687,6 @@ html.bpw-entry-locked body>main>section:not(.hero){display:none!important;visibi
 
 </script>
 <script type="module" src="./bridgepoint-welcome-space-v6257.js?v=6258-local-moon-terrain"></script>
+<script defer src="/bridgepoint-app-space-explorer-v1.js?v=1-restored-celestial-system"></script>
 
 </body></html>
