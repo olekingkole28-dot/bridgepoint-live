@@ -176,7 +176,7 @@ vec4 bpRaymarchStorm(vec3 entry,vec2 cameraXY,float tint,float time,float camera
       float erosion=noise3(vec3(samplePos.xy/3100.0,samplePos.z/760.0)+vec3(time*0.09,-time*0.065,time*0.05));
       float heightShade=clamp(samplePos.z/height,0.0,1.0),radialShade=clamp(length(samplePos.xy)/radius,0.0,1.0);
       float silver=clamp(0.37+0.22*broad+0.17*fine+0.12*erosion+0.20*heightShade-0.16*radialShade,0.14,1.0);
-      vec3 cloudColor=mix(vec3(0.13,0.19,0.28),vec3(0.96,0.98,1.0),silver);
+      vec3 cloudColor=mix(vec3(0.055,0.075,0.12),vec3(0.88,0.92,0.97),silver);
       float microExtinction=0.72+0.42*fine+0.22*erosion;
       float extinction=funnel?mix(0.000105,0.000012,funnelLod):0.000060,sampleAlpha=clamp(1.0-exp(-density*stepLength*extinction*microExtinction),0.0,0.50);
       accumulatedColor+=cloudColor*((1.0-accumulatedAlpha)*sampleAlpha);accumulatedAlpha+=(1.0-accumulatedAlpha)*sampleAlpha;
@@ -208,7 +208,7 @@ function makeShaders(webgl2, shaderData = null) {
     'uniform highp float u_time;\nuniform highp float u_camera_altitude_m;\nuniform highp float u_ray_steps;\n' +
     'float noise3(vec3 p){vec3 q=floor(p);vec3 f=fract(p);f=f*f*(3.0-2.0*f);float n=q.x+q.y*57.0+q.z*113.0;float a=fract(sin(n)*43758.5453);float b=fract(sin(n+1.0)*43758.5453);float c=fract(sin(n+57.0)*43758.5453);float d=fract(sin(n+58.0)*43758.5453);float e=fract(sin(n+113.0)*43758.5453);float f1=fract(sin(n+114.0)*43758.5453);float g=fract(sin(n+170.0)*43758.5453);float h=fract(sin(n+171.0)*43758.5453);return mix(mix(mix(a,b,f.x),mix(c,d,f.x),f.y),mix(mix(e,f1,f.x),mix(g,h,f.x),f.y),f.z);}\n' +
     STORM_VOLUME_FRAGMENT + '\n' +
-    'void main(){if(v_tint>1.47){vec4 stormColor=bpRaymarchStorm(v_local,v_camera_local,v_tint,u_time,u_camera_altitude_m,u_ray_steps);if(stormColor.a<=0.0)discard;' + (webgl2 ? 'bpColor=stormColor;' : 'gl_FragColor=stormColor;') + 'return;}if(v_tint>1.438&&v_tint<1.47){float z=clamp(v_local.z,0.0,1.0),phi=atan(v_local.y,v_local.x);float noiseA=noise3(vec3(v_local.xy*9.0,z*7.0+u_time*0.035));float noiseB=noise3(vec3(v_local.xy*19.0,phi*0.6-u_time*0.07));float billow=noise3(vec3(v_local.xy*31.0,z*18.0+u_time*0.12));float spiral=0.5+0.5*cos(phi*8.0-z*32.0+u_time*3.6+(noiseA-0.5)*2.0+(billow-0.5)*1.25);float ragged=smoothstep(0.14,0.78,noiseA*0.43+noiseB*0.34+billow*0.23);float wisps=smoothstep(0.17,0.76,spiral*0.47+noiseA*0.22+noiseB*0.17+billow*0.14)*ragged;vec3 tornadoColor=mix(vec3(0.075,0.105,0.16),vec3(0.88,0.92,0.97),wisps);tornadoColor=mix(tornadoColor,vec3(0.32,0.40,0.51),pow(1.0-z,1.8)*0.34);float tornadoAlpha=clamp(mix(0.30,0.94,wisps)*(0.78+billow*0.22),0.18,0.96);' + (webgl2 ? 'bpColor=vec4(tornadoColor,tornadoAlpha);' : 'gl_FragColor=vec4(tornadoColor,tornadoAlpha);') + 'return;}vec3 n=normalize(v_local);float cloudShadingMix=1.0-smoothstep(0.84,0.96,v_tint);vec3 sculptedNormal=normalize(vec3(v_local.x*0.86,v_local.y*0.90,v_local.z*1.55));n=normalize(mix(n,sculptedNormal,cloudShadingMix));float viewFar=smoothstep(85000.0,18000000.0,u_camera_altitude_m);float detailScale=mix(22.0,5.2,viewFar);float broad=noise3(v_local*(detailScale*0.20)+vec3(u_time*0.002,v_tint*1.7,0.0));float detail=noise3(v_local*(detailScale*0.50)+vec3(u_time*0.006,v_tint*4.0,0.0));float billow=noise3(v_local*(detailScale*1.0)+vec3(0.0,u_time*0.010,v_tint*8.0));float fine=noise3(v_local*(detailScale*1.95)+vec3(u_time*0.006,v_tint*11.0,0.0));float warp=noise3(v_local*(detailScale*0.34)+vec3(-u_time*0.001,v_tint*2.3,u_time*0.001));float erosion=noise3(v_local*(detailScale*3.6)+vec3(u_time*0.012,v_tint*15.0,0.0));vec3 bump=vec3((detail-broad)*0.22,(billow-detail)*0.18,(fine-warp)*0.16);vec3 cloudNormal=normalize(n+bump*mix(0.28,0.46,1.0-viewFar));float diffuse=max(0.0,dot(cloudNormal,normalize(vec3(-0.42,0.55,0.72))));float density=broad*0.30+detail*0.26+billow*0.21+fine*0.10+warp*0.05+erosion*0.08;float sculpt=smoothstep(0.22,0.70,density);float erosionMask=smoothstep(0.18,0.68,billow*0.39+fine*0.31+erosion*0.30);float edge=clamp(0.54+abs(v_local.z)*0.20,0.0,1.0);float silver=clamp(0.23+diffuse*0.75+broad*0.08+detail*0.07+billow*0.05,0.0,1.0);vec3 lit=mix(vec3(0.44,0.53,0.66),vec3(0.99,0.997,1.0),smoothstep(0.08,0.72,silver));float underside=pow(max(0.0,-cloudNormal.z),mix(1.26,1.08,cloudShadingMix));lit=mix(lit,vec3(0.15,0.22,0.33),underside*mix(0.40,0.59,cloudShadingMix));float cloudCavity=clamp((0.52-broad)*0.18+(0.50-detail)*0.12+(0.48-billow)*0.10+(0.5-warp)*0.07+(0.5-erosion)*0.04,0.0,0.22);lit*=1.0-cloudCavity*cloudShadingMix;float silverRim=pow(max(0.0,1.0-abs(dot(cloudNormal,normalize(vec3(0.2,-0.1,1.0))))),2.35);lit=mix(lit,vec3(0.93,0.97,1.0),silverRim*mix(0.20,0.35,cloudShadingMix));float tornadoCell=smoothstep(1.40,1.44,v_tint);float rainCell=smoothstep(1.30,1.34,v_tint)*(1.0-tornadoCell);float stormCell=smoothstep(0.89,0.95,v_tint)*(1.0-rainCell)*(1.0-tornadoCell);float hurricaneCell=smoothstep(1.20,1.23,v_tint)*(1.0-smoothstep(1.28,1.30,v_tint));float hurricaneRibbonCell=smoothstep(1.286,1.290,v_tint)*(1.0-smoothstep(1.294,1.298,v_tint));float tornadoStriation=0.5+0.5*sin(atan(v_local.y,v_local.x)*6.0-u_time*4.8+v_local.z*17.0+detail*2.1);float rainCloudLevel=clamp((v_tint-1.35)*1000.0,0.0,2.0);vec3 rainCloudTint=rainCloudLevel<1.0?mix(vec3(0.10,0.72,0.28),vec3(0.98,0.82,0.08),rainCloudLevel):mix(vec3(0.98,0.82,0.08),vec3(0.90,0.10,0.12),rainCloudLevel-1.0);lit=mix(lit,rainCloudTint,rainCell*0.78);lit=mix(lit,vec3(0.19,0.23,0.30),stormCell*0.46+hurricaneCell*0.62+tornadoCell*0.78);lit=mix(lit,vec3(0.83,0.88,0.93),tornadoCell*tornadoStriation*0.62);lit=mix(lit,mix(vec3(0.46,0.58,0.72),vec3(0.97,0.985,1.0),detail),hurricaneRibbonCell*0.48);float alphaBase=edge*(0.18+sculpt*0.49+diffuse*0.18+fine*0.08+erosionMask*0.16)*(1.0+rainCell*1.8+stormCell*0.14+hurricaneCell*0.3+hurricaneRibbonCell*0.95+tornadoCell*(0.55+tornadoStriation*0.50));float thinCell=1.0-smoothstep(0.19,0.26,v_tint);float alpha=clamp(mix(alphaBase,alphaBase*(0.68+erosionMask*0.22),thinCell),0.025,0.96);' +
+    'void main(){if(v_tint>1.47){vec4 stormColor=bpRaymarchStorm(v_local,v_camera_local,v_tint,u_time,u_camera_altitude_m,u_ray_steps);if(stormColor.a<=0.0)discard;' + (webgl2 ? 'bpColor=stormColor;' : 'gl_FragColor=stormColor;') + 'return;}if(v_tint>1.438&&v_tint<1.47){float z=clamp(v_local.z,0.0,1.0),phi=atan(v_local.y,v_local.x);float noiseA=noise3(vec3(v_local.xy*9.0,z*7.0+u_time*0.035));float noiseB=noise3(vec3(v_local.xy*19.0,phi*0.6-u_time*0.07));float billow=noise3(vec3(v_local.xy*31.0,z*18.0+u_time*0.12));float spiral=0.5+0.5*cos(phi*8.0-z*32.0+u_time*3.6+(noiseA-0.5)*2.0+(billow-0.5)*1.25);float ragged=smoothstep(0.14,0.78,noiseA*0.43+noiseB*0.34+billow*0.23);float wisps=smoothstep(0.17,0.76,spiral*0.47+noiseA*0.22+noiseB*0.17+billow*0.14)*ragged;vec3 tornadoColor=mix(vec3(0.075,0.105,0.16),vec3(0.88,0.92,0.97),wisps);tornadoColor=mix(tornadoColor,vec3(0.32,0.40,0.51),pow(1.0-z,1.8)*0.34);float tornadoAlpha=clamp(mix(0.30,0.94,wisps)*(0.78+billow*0.22),0.18,0.96);' + (webgl2 ? 'bpColor=vec4(tornadoColor,tornadoAlpha);' : 'gl_FragColor=vec4(tornadoColor,tornadoAlpha);') + 'return;}vec3 n=normalize(v_local);float cloudShadingMix=1.0-smoothstep(0.84,0.96,v_tint);vec3 sculptedNormal=normalize(vec3(v_local.x*0.86,v_local.y*0.90,v_local.z*1.55));n=normalize(mix(n,sculptedNormal,cloudShadingMix));float viewFar=smoothstep(85000.0,18000000.0,u_camera_altitude_m);float detailScale=mix(22.0,5.2,viewFar);float broad=noise3(v_local*(detailScale*0.20)+vec3(u_time*0.002,v_tint*1.7,0.0));float detail=noise3(v_local*(detailScale*0.50)+vec3(u_time*0.006,v_tint*4.0,0.0));float billow=noise3(v_local*(detailScale*1.0)+vec3(0.0,u_time*0.010,v_tint*8.0));float fine=noise3(v_local*(detailScale*1.95)+vec3(u_time*0.006,v_tint*11.0,0.0));float warp=noise3(v_local*(detailScale*0.34)+vec3(-u_time*0.001,v_tint*2.3,u_time*0.001));float erosion=noise3(v_local*(detailScale*3.6)+vec3(u_time*0.012,v_tint*15.0,0.0));vec3 bump=vec3((detail-broad)*0.22,(billow-detail)*0.18,(fine-warp)*0.16);vec3 cloudNormal=normalize(n+bump*mix(0.28,0.46,1.0-viewFar));float diffuse=max(0.0,dot(cloudNormal,normalize(vec3(-0.42,0.55,0.72))));float density=broad*0.30+detail*0.26+billow*0.21+fine*0.10+warp*0.05+erosion*0.08;float sculpt=smoothstep(0.22,0.70,density);float erosionMask=smoothstep(0.18,0.68,billow*0.39+fine*0.31+erosion*0.30);float edge=clamp(0.54+abs(v_local.z)*0.20,0.0,1.0);float silver=clamp(0.23+diffuse*0.75+broad*0.08+detail*0.07+billow*0.05,0.0,1.0);vec3 lit=mix(vec3(0.44,0.53,0.66),vec3(0.99,0.997,1.0),smoothstep(0.08,0.72,silver));float underside=pow(max(0.0,-cloudNormal.z),mix(1.26,1.08,cloudShadingMix));lit=mix(lit,vec3(0.15,0.22,0.33),underside*mix(0.40,0.59,cloudShadingMix));float cloudCavity=clamp((0.52-broad)*0.18+(0.50-detail)*0.12+(0.48-billow)*0.10+(0.5-warp)*0.07+(0.5-erosion)*0.04,0.0,0.22);lit*=1.0-cloudCavity*cloudShadingMix;float silverRim=pow(max(0.0,1.0-abs(dot(cloudNormal,normalize(vec3(0.2,-0.1,1.0))))),2.35);lit=mix(lit,vec3(0.93,0.97,1.0),silverRim*mix(0.20,0.35,cloudShadingMix));float tornadoCell=smoothstep(1.40,1.44,v_tint);float rainCell=smoothstep(1.30,1.34,v_tint)*(1.0-tornadoCell);float stormCell=smoothstep(0.89,0.95,v_tint)*(1.0-rainCell)*(1.0-tornadoCell);float hurricaneCell=smoothstep(1.20,1.23,v_tint)*(1.0-smoothstep(1.28,1.30,v_tint));float hurricaneRibbonCell=smoothstep(1.286,1.290,v_tint)*(1.0-smoothstep(1.294,1.298,v_tint));float tornadoStriation=0.5+0.5*sin(atan(v_local.y,v_local.x)*6.0-u_time*4.8+v_local.z*17.0+detail*2.1);float rainCloudLevel=clamp((v_tint-1.35)*1000.0,0.0,2.0);vec3 rainCloudTint=rainCloudLevel<1.0?mix(vec3(0.10,0.72,0.28),vec3(0.98,0.82,0.08),rainCloudLevel):mix(vec3(0.98,0.82,0.08),vec3(0.90,0.10,0.12),rainCloudLevel-1.0);lit=mix(lit,rainCloudTint,rainCell*0.78);lit=mix(lit,vec3(0.075,0.095,0.14),stormCell*0.72+hurricaneCell*0.82+tornadoCell*0.90);lit=mix(lit,vec3(0.83,0.88,0.93),tornadoCell*tornadoStriation*0.62);lit=mix(lit,mix(vec3(0.46,0.58,0.72),vec3(0.97,0.985,1.0),detail),hurricaneRibbonCell*0.48);float alphaBase=edge*(0.18+sculpt*0.49+diffuse*0.18+fine*0.08+erosionMask*0.16)*(1.0+rainCell*1.8+stormCell*0.14+hurricaneCell*0.3+hurricaneRibbonCell*0.95+tornadoCell*(0.55+tornadoStriation*0.50));float thinCell=1.0-smoothstep(0.19,0.26,v_tint);float alpha=clamp(mix(alphaBase,alphaBase*(0.68+erosionMask*0.22),thinCell),0.025,0.96);' +
     (webgl2 ? 'bpColor=vec4(lit,alpha);' : 'gl_FragColor=vec4(lit,alpha);') +
     '}';
   return { vertex, fragment, projectionAware };
@@ -882,7 +882,7 @@ export function initSkyClouds(target) {
   ensureLiveSatelliteCloudContextV6150(map);
   const existingCloudController = window.__BP_SKY_CLOUDS_V5908__;
   if (existingCloudController?.map === map) {
-    const existingState = window.__BP_SKY_CLOUDS_STATE_V6200__ || window.__BP_SKY_CLOUDS_STATE_V6180__ || window.__BP_SKY_CLOUDS_STATE_V6150__ || window.__BP_SKY_CLOUDS_STATE_V6079__ || window.__BP_SKY_CLOUDS_STATE_V6077__ || window.__BP_SKY_CLOUDS_STATE_V6076__ ||
+    const existingState = window.__BP_SKY_CLOUDS_STATE_V6201__ || window.__BP_SKY_CLOUDS_STATE_V6200__ || window.__BP_SKY_CLOUDS_STATE_V6180__ || window.__BP_SKY_CLOUDS_STATE_V6150__ || window.__BP_SKY_CLOUDS_STATE_V6079__ || window.__BP_SKY_CLOUDS_STATE_V6077__ || window.__BP_SKY_CLOUDS_STATE_V6076__ ||
       window.__BP_SKY_CLOUDS_STATE_V6075__ ||
       window.__BP_SKY_CLOUDS_STATE_V6074__ ||
       window.__BP_SKY_CLOUDS_STATE_V6073__ ||
@@ -890,8 +890,8 @@ export function initSkyClouds(target) {
       existingCloudController.state || null;
     // Cache-busted modules still share this global controller slot. Never silently
     // return a legacy controller whose geometry predates the requested cloud field.
-    if (Number(existingCloudController.version) >= 6200 &&
-        Number(existingState?.version) >= 6200) {
+    if (Number(existingCloudController.version) >= 6201 &&
+        Number(existingState?.version) >= 6201) {
       return existingCloudController;
     }
     try { existingCloudController.destroy?.(); } catch (error) {
@@ -998,6 +998,28 @@ export function initSkyClouds(target) {
         }
         const rows = payload.samples.slice(0, 220000);
         const sources = payload.sources.slice(0, 16);
+        // A successful download is not proof that an observation is current. Expire
+        // measured heights after 45 minutes, matching the source-mask freshness gate.
+        const maxHeightObservationAgeMs = 45 * 60 * 1000;
+        const heightSourceFreshness = sources.map((source, sourceIndex) => {
+          const observedAt = String(source?.observed_at || source?.observedAt || '');
+          const observedMs = Date.parse(observedAt);
+          const ageMs = Number.isFinite(observedMs) ? now - observedMs : null;
+          const future = Number.isFinite(observedMs) && observedMs > now + 120000;
+          const fresh = source?.status === 'available' && Number.isFinite(observedMs) &&
+            !future && ageMs >= -120000 && ageMs <= maxHeightObservationAgeMs;
+          return {
+            sourceIndex, source: String(source?.source || source?.label || 'cloud-height source').slice(0, 180),
+            status: String(source?.status || 'unknown'), observedAt: observedAt || null,
+            ageMs: Number.isFinite(ageMs) ? Math.max(0, ageMs) : null, fresh,
+            reason: fresh ? 'fresh' : !observedAt ? 'missing-observation-time' :
+              !Number.isFinite(observedMs) ? 'invalid-observation-time' :
+              future ? 'future-observation' : ageMs > maxHeightObservationAgeMs ?
+                'observation-expired' : 'source-unavailable'
+          };
+        });
+        const freshHeightSourceIndices = new Set(heightSourceFreshness.filter(x => x.fresh).map(x => x.sourceIndex));
+        let rejectedStaleHeightSampleCount = 0;
         const samples = [];
         for (const row of rows) {
           if (!Array.isArray(row) || row.length < 5) continue;
@@ -1005,6 +1027,7 @@ export function initSkyClouds(target) {
           const sourceIndex = Math.trunc(number(row[4], -1)), source = sources[sourceIndex];
           if (![lng, lat, top].every(Number.isFinite) || Math.abs(lat) > 85 || Math.abs(lng) > 180 ||
               top < 200 || top > 23000 || !source || source.status !== 'available') continue;
+          if (!freshHeightSourceIndices.has(sourceIndex)) { rejectedStaleHeightSampleCount++; continue; }
           const sample = {
             lng, lat, cloud_top_height_m: top,
             source: String(source.source || source.label || 'source-reported cloud-top height').slice(0, 180),
@@ -1062,14 +1085,19 @@ export function initSkyClouds(target) {
           cloudMaskUpdatedAt = prior.cloudMaskUpdatedAt;
           cloudMaskSignature = prior.cloudMaskSignature || 'retained-recent-observation';
         }
+        const freshHeightSourceCount = heightSourceFreshness.filter(x => x.fresh).length;
+        const oldestFreshHeightAgeMs = heightSourceFreshness.filter(x => x.fresh)
+          .reduce((oldest, x) => Math.max(oldest, Number(x.ageMs) || 0), 0) || null;
         const signature = String(payload.generated_at || '') + '|' + samples.length + '|' + cloudMaskSignature + '|' +
-          sources.map(x => [x.source || x.label, x.status, x.observed_at, x.sample_count].join(':')).join('|');
+          sources.map(x => [x.source || x.label, x.status, x.observed_at, x.sample_count].join(':')).join('|') +
+          '|height-freshness:' + heightSourceFreshness.map(x => [x.sourceIndex, x.fresh, x.reason].join(':')).join('|');
         cloudHeightFeedLastAttemptAt = Date.now();
         if (!prior || prior.signature !== signature || prior.samples?.length !== samples.length ||
             prior.cloudMaskSignature !== cloudMaskSignature) {
           window.__BP_CLOUD_HEIGHT_FEED_V6162__ = {
             version: 2, signature, samples, sources, generatedAt: payload.generated_at || null,
             publishedSampleCount: Number(payload.sample_count) || rows.length,
+            heightSourceFreshness, freshHeightSourceCount, rejectedStaleHeightSampleCount, oldestFreshHeightAgeMs,
             cloudMaskSamples: effectiveCloudMaskSamples, cloudMaskSources: effectiveCloudMaskSources,
             cloudMaskSampleCount: effectiveCloudMaskSamples.length, cloudMaskSignature, cloudMaskUpdatedAt,
             cloudMaskGeneratedAt: payload.generated_at || null,
@@ -1082,6 +1110,10 @@ export function initSkyClouds(target) {
           }
         } else {
           prior.updatedAt = now;
+          prior.heightSourceFreshness = heightSourceFreshness;
+          prior.freshHeightSourceCount = freshHeightSourceCount;
+          prior.rejectedStaleHeightSampleCount = rejectedStaleHeightSampleCount;
+          prior.oldestFreshHeightAgeMs = oldestFreshHeightAgeMs;
         }
         window.__BP_CLOUD_HEIGHT_FEED_V6162_ERROR__ = null;
         publishState();
@@ -1385,7 +1417,7 @@ export function initSkyClouds(target) {
     const satelliteMaskUsable = Number(satelliteMask?.version)>=6150 && satelliteMask?.map===map && satelliteMaskAgeMs!=null && satelliteMaskAgeMs<3600000;
     const satelliteMaskStatus = satelliteMaskUsable ? 'fresh-observation-derived' : (window.__BP_GOES_CLOUD_CONTEXT_V6134__?.maskStatus || 'procedural-fallback');
     const state = {
-      version: 6200, map, enabled, visible: enabled && !document.hidden,
+      version: 6201, map, enabled, visible: enabled && !document.hidden,
       cloudShadowLayerAttached: !!map.getLayer?.(SHADOW_LAYER_ID), cloudShadowFeatureCount: shadowFeatureCount,
       cloudShadowUpdatedAt: shadowLastUpdateAt, cloudShadowHeightResolvedWindCount: shadowWindSourceCount,
       cloudShadowLayerError: shadowLayerError, weatherSceneGeneratedAt: getScene()?.generated_at || getScene()?.updated_at || null,
@@ -1440,14 +1472,18 @@ export function initSkyClouds(target) {
       layerPresent: !!map.getLayer?.(LAYER_ID), layerInstalled,
       layerRetryAttempts, mapStyleLoaded: map.isStyleLoaded?.() === true,
       mapStyleLayerCount: map.getStyle?.()?.layers?.length ?? 0, documentHidden: !!document.hidden,
-      cloudHeightFeedStatus: (() => { const f=window.__BP_CLOUD_HEIGHT_FEED_V6162__; return f?.samples?.length ? 'measured global cloud heights loaded; base measured only where supplied' : window.__BP_CLOUD_HEIGHT_FEED_V6162_ERROR__ ? 'measured height feed unavailable; modeled vertical fallback active' : 'waiting for measured height feed; modeled vertical fallback active'; })(),
+      cloudHeightFeedStatus: (() => { const f=window.__BP_CLOUD_HEIGHT_FEED_V6162__; return f?.samples?.length ? 'fresh source-reported cloud heights loaded; cloud bases are measured only where supplied' : f?.rejectedStaleHeightSampleCount ? 'published cloud-height observations expired; modeled vertical fallback active' : window.__BP_CLOUD_HEIGHT_FEED_V6162_ERROR__ ? 'measured height feed unavailable; modeled vertical fallback active' : 'waiting for fresh measured height observations; modeled vertical fallback active'; })(),
       cloudHeightFeedUpdatedAt: window.__BP_CLOUD_HEIGHT_FEED_V6162__?.generatedAt || null,
       cloudHeightFeedSampleCount: window.__BP_CLOUD_HEIGHT_FEED_V6162__?.samples?.length || 0,
+      cloudHeightFeedFreshSourceCount: window.__BP_CLOUD_HEIGHT_FEED_V6162__?.freshHeightSourceCount || 0,
+      cloudHeightFeedRejectedStaleSampleCount: window.__BP_CLOUD_HEIGHT_FEED_V6162__?.rejectedStaleHeightSampleCount || 0,
+      cloudHeightFeedOldestFreshObservationAgeMs: window.__BP_CLOUD_HEIGHT_FEED_V6162__?.oldestFreshHeightAgeMs ?? null,
+      cloudHeightFeedSourceFreshness: window.__BP_CLOUD_HEIGHT_FEED_V6162__?.heightSourceFreshness || [],
       cloudMaskFeedSampleCount: window.__BP_CLOUD_HEIGHT_FEED_V6162__?.cloudMaskSampleCount || 0,
       cloudMaskFeedSources: window.__BP_CLOUD_HEIGHT_FEED_V6162__?.cloudMaskSources || [],
       cloudMaskFeedUpdatedAt: window.__BP_CLOUD_HEIGHT_FEED_V6162__?.cloudMaskUpdatedAt || null,
       cloudHeightFeedPublishedSampleCount: window.__BP_CLOUD_HEIGHT_FEED_V6162__?.publishedSampleCount || 0,
-      cloudHeightFeedSources: (window.__BP_CLOUD_HEIGHT_FEED_V6162__?.sources || []).map(x => ({source:x.source||x.label||'cloud-height source',status:x.status||'unknown',sampleCount:Number(x.sample_count)||0,observedAt:x.observed_at||null})),
+      cloudHeightFeedSources: (window.__BP_CLOUD_HEIGHT_FEED_V6162__?.sources || []).map((x,i) => ({source:x.source||x.label||'cloud-height source',status:x.status||'unknown',sampleCount:Number(x.sample_count)||0,observedAt:x.observed_at||null,fresh:!!window.__BP_CLOUD_HEIGHT_FEED_V6162__?.heightSourceFreshness?.[i]?.fresh,ageMs:window.__BP_CLOUD_HEIGHT_FEED_V6162__?.heightSourceFreshness?.[i]?.ageMs??null})),
       cloudHeightFeedError: window.__BP_CLOUD_HEIGHT_FEED_V6162_ERROR__ || null,
       cloudHeightMode: satelliteMaskUsable
         ? (window.__BP_CLOUD_HEIGHT_FEED_V6162__?.samples?.length
@@ -1459,7 +1495,8 @@ export function initSkyClouds(target) {
       rendererError, zoom: number(map.getZoom?.()), pitch: number(map.getPitch?.()), updatedAt: Date.now()
     };
     window.__BP_SKY_CLOUDS_STATE_V5908__ = state;
-    window.__BP_SKY_CLOUDS_STATE_V6200__ = state;
+    window.__BP_SKY_CLOUDS_STATE_V6201__ = state;
+     window.__BP_SKY_CLOUDS_STATE_V6200__ = state;
     window.__BP_SKY_CLOUDS_STATE_V6180__ = state;
     window.__BP_SKY_CLOUDS_STATE_V6170__ = state;
     window.__BP_SKY_CLOUDS_STATE_V6150__ = state;
@@ -2836,10 +2873,10 @@ function scheduleGeometry(delay = 180) {
   else map.once?.('load', addLayerIfReady);
 
   const api = {
-    version: 6200, map, overlay,
+    version: 6201, map, overlay,
     get enabled() { return enabled; },
     setEnabled, toggle,
-    get state() { return window.__BP_SKY_CLOUDS_STATE_V6200__ || window.__BP_SKY_CLOUDS_STATE_V6180__ || window.__BP_SKY_CLOUDS_STATE_V6170__ || window.__BP_SKY_CLOUDS_STATE_V6150__ || window.__BP_SKY_CLOUDS_STATE_V6140__ || window.__BP_SKY_CLOUDS_STATE_V6077__ || window.__BP_SKY_CLOUDS_STATE_V6076__ || window.__BP_SKY_CLOUDS_STATE_V6074__ || window.__BP_SKY_CLOUDS_STATE_V6073__ || window.__BP_SKY_CLOUDS_STATE_V6047__ || window.__BP_SKY_CLOUDS_STATE_V6046__ || window.__BP_SKY_CLOUDS_STATE_V6045__ || window.__BP_SKY_CLOUDS_STATE_V6031__ || window.__BP_SKY_CLOUDS_STATE_V6029__ || window.__BP_SKY_CLOUDS_STATE_V5908__ || null; },
+    get state() { return window.__BP_SKY_CLOUDS_STATE_V6201__ || window.__BP_SKY_CLOUDS_STATE_V6200__ || window.__BP_SKY_CLOUDS_STATE_V6180__ || window.__BP_SKY_CLOUDS_STATE_V6170__ || window.__BP_SKY_CLOUDS_STATE_V6150__ || window.__BP_SKY_CLOUDS_STATE_V6140__ || window.__BP_SKY_CLOUDS_STATE_V6077__ || window.__BP_SKY_CLOUDS_STATE_V6076__ || window.__BP_SKY_CLOUDS_STATE_V6074__ || window.__BP_SKY_CLOUDS_STATE_V6073__ || window.__BP_SKY_CLOUDS_STATE_V6047__ || window.__BP_SKY_CLOUDS_STATE_V6046__ || window.__BP_SKY_CLOUDS_STATE_V6045__ || window.__BP_SKY_CLOUDS_STATE_V6031__ || window.__BP_SKY_CLOUDS_STATE_V6029__ || window.__BP_SKY_CLOUDS_STATE_V5908__ || null; },
     destroy() {
       if (disposed) return; disposed = true;
       stopAnimation(); clearTimeout(rebuildTimer); clearTimeout(refreshHandle); clearLayerRetry();

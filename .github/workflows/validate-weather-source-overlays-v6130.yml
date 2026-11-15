@@ -87,6 +87,10 @@ jobs:
           grep -Fq 'initSatelliteCloudContextV6134' release-v2300/world-v2300-clouds.js
           grep -Fq 'refreshSatelliteCloudMaskV6150' release-v2300/world-v2300-clouds.js
           grep -Fq 'bp2300:satellite-cloud-mask-updated' release-v2300/world-v2300-clouds.js
+          grep -Fq 'maxHeightObservationAgeMs = 45 * 60 * 1000' release-v2300/world-v2300-clouds.js
+          grep -Fq 'freshHeightSourceIndices' release-v2300/world-v2300-clouds.js
+          grep -Fq 'cloudHeightFeedRejectedStaleSampleCount' release-v2300/world-v2300-clouds.js
+          grep -Fq 'version: 6201, map, overlay' release-v2300/world-v2300-clouds.js
           grep -Fq 'satelliteCloudAnchors' release-v2300/world-v2300-clouds.js
           ! grep -Fq 'global satellite cloud-mask feed not yet connected' release-v2300/world-v2300-clouds.js
           grep -Fq 'GOES-East_ABI_Band13_Clean_Infrared' release-v2300/world-v2300-clouds.js
@@ -124,6 +128,6 @@ jobs:
           grep -Fq 'BP_LISTINGS_MONEY_V6130' rebuild-v5000/bridgepoint-view-v5917.js
           grep -Fq 'sourceWeatherOverlaysPreserved:true' rebuild-v5000/app.js
           grep -Fq 'sourceWeatherOverlaysPreserved:true' rebuild-v5000/landing.js
-          grep -Fq 'world-v2300-clouds.js?v=6200-radar-colored-rain-clouds' rebuild-v5000/app.js
-          grep -Fq 'world-v2300-clouds.js?v=6200-radar-colored-rain-clouds' rebuild-v5000/landing.js
+          grep -Fq 'world-v2300-clouds.js?v=6201-live-observation-refresh' rebuild-v5000/app.js
+          grep -Fq 'world-v2300-clouds.js?v=6201-live-observation-refresh' rebuild-v5000/landing.js
           ! grep -Eq 'data-clouds|toggleSkyClouds|world-v2300-clouds' release-v2300/world-v2300-time-slider.js
