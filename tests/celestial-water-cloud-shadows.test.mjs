@@ -112,7 +112,7 @@ test('clouds render as bright 3D volumes, not as a false-colour raster sheet', (
   assert.match(clouds, /setLayoutProperty\(SATELLITE_CLOUD_LAYER_ID_V6150,'visibility','none'\)/);
   assert.match(clouds, /setLayoutProperty\(EUMETSAT_CLOUD_LAYER_ID_V6150,'visibility','none'\)/);
   assert.match(clouds, /vec3\(0\.44,0\.53,0\.66\)/);
-  assert.match(clouds, /version: 6201, map, overlay/);
+  assert.match(clouds, /version: 6202, map, overlay/);
   assert.doesNotMatch(clouds.slice(clouds.indexOf('function setWorldGrade(on)'), clouds.indexOf('function getProgramInfo(gl, shaderData)')), /map\\.setFog/);
   assert.match(clouds, /const desktopGlobalSlowMotion = !MOBILE && number\(map\.getZoom\?\.\(\),0\) <= 3\.5/);
   assert.match(clouds, /const globalMotionScale = desktopGlobalSlowMotion \? 0\.32 : 1/);
@@ -121,13 +121,20 @@ test('clouds render as bright 3D volumes, not as a false-colour raster sheet', (
   assert.match(clouds, /desktopGlobalCloudMotionPaused: false/);
   assert.match(clouds, /lastCloudRepaintAt/);
   assert.ok(app.includes('world-v2300-lod-controls.js?v=6201-gold-always-on'), 'app must use Gold-always-on LOD controls');
-  assert.ok(app.includes('world-v2300-clouds.js?v=6201-live-observation-refresh'), 'app must use the cache-busted desktop-stability cloud module');
-  assert.ok(landing.includes('world-v2300-clouds.js?v=6201-live-observation-refresh'), 'landing must use the cache-busted desktop-stability cloud module');
+  assert.ok(app.includes('world-v2300-clouds.js?v=6202-global-satellite-cloud-banks'), 'app must use the cache-busted desktop-stability cloud module');
+  assert.ok(landing.includes('world-v2300-clouds.js?v=6202-global-satellite-cloud-banks'), 'landing must use the cache-busted desktop-stability cloud module');
   assert.doesNotMatch(timeSlider, /data-clouds|toggleSkyClouds|world-v2300-clouds/, 'timeline must not expose or load the cloud toggle');
   assert.match(clouds, /coverageVersion: 6180/);
   assert.match(clouds, /Number\(satelliteMask\.probability\[idx\]\)<=32/);
-  assert.match(clouds, /const satelliteMaxClouds = index32Supported \? \(MOBILE \? 1600 : 2800\) : \(MOBILE \? 480 : 760\)/);
+  assert.match(clouds, /const satelliteMaxClouds = index32Supported \? \(MOBILE \? 2900 : 3500\) : \(MOBILE \? 500 : 720\)/);
   assert.match(clouds, /const CLOUD_VERTEX_LIMIT = MOBILE \? 145000 : 220000/);
+  assert.match(clouds, /const satellitePuffStacks = MOBILE \\? 3 : 4/);
+  assert.match(clouds, /convectiveAnvil/);
+  assert.match(clouds, /undersideShade=1\.0-smoothstep\(0\.05,0\.55,heightShade\)/);
+  assert.match(clouds, /time\*0\.34/);
+  assert.match(clouds, /time\*2\.05/);
+  assert.match(clouds, /refreshIntervalMs:900000/);
+  assert.match(clouds, /cloudHeightFeedTimer = setInterval\(\(\) => \{ if \(!document\.hidden\) void refreshCloudHeightFeedV6162\(false\); \}, 900000\)/);
   assert.match(clouds, /const CLOUD_STORM_VERTEX_RESERVE = MOBILE \? 24000 : 32000/);
   assert.match(clouds, /new Uint32Array\(indices\)/);
   assert.match(clouds, /indexData instanceof Uint32Array\?gl\.UNSIGNED_INT:gl\.UNSIGNED_SHORT/);
@@ -278,7 +285,7 @@ test('both entrypoints keep the welcome document in place while migrating to the
   assert.match(appUpdate, /navigator\.serviceWorker\?\.addEventListener\('controllerchange'/);
   assert.doesNotMatch(appUpdate, /location\.replace|location\.reload|reloadOnce/);
   assert.match(serviceWorker, /const V='bp-intelligence-v6247-universal-fresh-entry-sidewalk'/);
-  assert.match(clouds, /Number\(existingCloudController\.version\) >= 6201[\s\S]{0,180}Number\(existingState\?\.version\) >= 6201/);
+  assert.match(clouds, /Number\(existingCloudController\.version\) >= 6202[\s\S]{0,180}Number\(existingState\?\.version\) >= 6202/);
 });
 
 test('new rain/lightning and global source markers stay separate from legacy effects', () => {
@@ -300,7 +307,7 @@ test('new rain/lightning and global source markers stay separate from legacy eff
   assert.match(clouds, /sourceHeightMatchedCount/);
   assert.match(clouds, /satelliteCloudHeightFeedStatus/);
   assert.match(clouds, /alphaBase\*\(0\.68\+erosionMask\*0\.22\)/);
-  assert.match(clouds, /version: 6201, map, overlay/);
+  assert.match(clouds, /version: 6202, map, overlay/);
   assert.match(clouds, /bp6150-nasa-geostationary-cloud-context/);
   assert.match(clouds, /bp6150-nasa-geostationary-cloud-source/);
   assert.match(clouds, /GOES-East_ABI_Band13_Clean_Infrared/);
