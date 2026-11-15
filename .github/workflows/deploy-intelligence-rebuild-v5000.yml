@@ -121,6 +121,30 @@ jobs:
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL \
             https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.css \
             -o "$TEST_ROOT/vendor/maplibre-gl.css"
+
+          # The renderer imports these exact same-origin modules in production.
+          # Stage them in the browser fixture too; omitting them makes this test
+          # fail before it can exercise the tree geometry or GPU draw calls.
+          RUNTIME_ROOT=/tmp/bp-tree-runtime
+          mkdir -p "$RUNTIME_ROOT"
+          npm install --prefix "$RUNTIME_ROOT" --no-audit --no-fund --no-save three@0.169.0 esbuild@0.24.2
+          cp "$RUNTIME_ROOT/node_modules/three/build/three.module.js" "$TEST_ROOT/vendor/three.module.js"
+          "$RUNTIME_ROOT/node_modules/.bin/esbuild" "$RUNTIME_ROOT/node_modules/three/examples/jsm/loaders/GLTFLoader.js" \
+            --bundle --format=esm --minify --external:three --outfile="$TEST_ROOT/vendor/GLTFLoader.bundle.js"
+          python3 - "$TEST_ROOT/vendor/GLTFLoader.bundle.js" <<'PY'
+          from pathlib import Path
+          import re,sys
+          path=Path(sys.argv[1])
+          source=path.read_text(encoding="utf-8")
+          source,count=re.subn(r'\\bfrom\\s*(["\\'])three\\1','from "/vendor/three.module.js?v=169-local"',source)
+          if count<1 or re.search(r'\\bfrom\\s*(["\\'])three\\1',source):
+              raise SystemExit("GLTFLoader fixture has an unresolved bare Three.js import")
+          path.write_text(source,encoding="utf-8")
+          print("TREE_BROWSER_LOCAL_THREE_FIXTURE_PASS",path.stat().st_size)
+          PY
+          node --input-type=module --check < "$TEST_ROOT/vendor/three.module.js"
+          node --input-type=module --check < "$TEST_ROOT/vendor/GLTFLoader.bundle.js"
+
           npm install --prefix "$PUPPETE_ROOT" puppeteer-core@24 --no-audit --no-fund
           CHROME=$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)
           if [ -z "$CHROME" ]; then
@@ -579,6 +603,13 @@ jobs:
           cp rebuild-v5000/bridgepoint-celestial-sky-v5928.js site/bridgepoint-celestial-sky-v5928.js
           cp rebuild-v5000/bridgepoint-welcome-space-v6257.js site/bridgepoint-welcome-space-v6257.js
           cp rebuild-v5000/bridgepoint-celestial-sky-v5928.js site/app/bridgepoint-celestial-sky-v5928.js
+          # Keep the current welcome scene and the exact Mars/Saturn/Gaia modules
+          # from the published v6292 celestial release in the fresh source build.
+          cp recovery/bridgepoint-welcome-space-v6260.js site/bridgepoint-welcome-space-v6260.js
+          cp rebuild-v5000/bridgepoint-celestial-sky-v6257.js site/bridgepoint-celestial-sky-v6257.js
+          cp rebuild-v5000/bridgepoint-gaia-galaxy-v6270.js site/bridgepoint-gaia-galaxy-v6270.js
+          cp recovery/bridgepoint-saturn-system-v6282.js site/bridgepoint-saturn-system-v6282.js
+          cp rebuild-v5000/bridgepoint-mars-system-v6291.js site/bridgepoint-mars-system-v6291.js
           cp rebuild-v5000/styles.css site/styles.css
           cp rebuild-v5000/app.js site/app.js
           cp rebuild-v5000/owner-everything.js site/owner-everything.js
@@ -617,6 +648,15 @@ jobs:
           test -s site/assets/moon/v1/moon-global-height-4ppd-u16.png
           test -s site/assets/moon/v1/moon-apollo15-4deg-512ppd-height-u16.png
           test -s site/assets/moon/v1/moon-lroc-color-4k.webp
+
+          mkdir -p site/assets/stellar site/assets/sun/v2
+          cp -a assets/stellar/gaia-dr3-v6270 site/assets/stellar/gaia-dr3-v6270
+          cp -a assets/sun/v2/. site/assets/sun/v2/
+          python3 recovery/pull_celestial_assets_v6292.py site
+          test -s site/assets/stellar/gaia-dr3-v6270/manifest.json
+          test -s site/assets/sun/v2/manifest.json
+          test -s site/assets/saturn/v1/manifest.json
+          test -s site/assets/mars/v1/manifest.json
 
           # Prepare two reproducible worldwide packages from the open Protomaps daily build.
           # The base pack is zoom 0–6 (~60 MB); Global Max is zoom 0–7 with extra global detail,
@@ -1866,6 +1906,35 @@ jobs:
           fi
           test -s "$TARGET/manifest.json"
           grep -Fq '"buildRevision": "blender-world-v1"' "$TARGET/manifest.json"
+
+      - name: Apply direct-entry startup fix and preserve the current celestial world
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Patch the already assembled page only after the full V5000 source
+          # validations have passed, so legacy validation markers stay meaningful.
+          python3 recovery/apply_welcome_space_v6257.py site
+          python3 recovery/apply_entry_fast_start_v6300.py site rebuild-v5000/app-update-v5820.js
+
+          python3 -m unittest discover -s tests -p 'test_welcome_space_v6257.py' -v
+          python3 -m unittest discover -s tests -p 'test_entry_fast_start_v6300.py' -v
+          node --input-type=module --check < site/bridgepoint-welcome-space-v6260.js
+          node --input-type=module --check < site/bridgepoint-gaia-galaxy-v6270.js
+          node --input-type=module --check < site/bridgepoint-saturn-system-v6282.js
+          node --input-type=module --check < site/bridgepoint-mars-system-v6291.js
+          node --input-type=module --check < site/bridgepoint-celestial-sky-v6257.js
+          node --check site/app-update-v5820.js
+          grep -Fq 'app-update-v5820.js?v=6300-direct-entry' site/index.html
+          grep -Fq 'app-update-v5820.js?v=6300-direct-entry' site/app/index.html
+          grep -Fq 'bridgepoint-welcome-space-v6260.js?v=6292-mars-night-side-shading' site/index.html
+          grep -Fq 'rel="modulepreload" href="/vendor/three.module.js?v=169-local"' site/index.html
+          grep -Fq 'start_url": "/"' site/manifest.webmanifest
+          grep -Fq 'CACHE_VERSION=\'6292-mars-night-side-shading\'' site/app-update-v5820.js
+          ! grep -Fq 'location.reload' site/app-update-v5820.js
+          ! grep -Fq 'location.replace' site/app-update-v5820.js
+          test -s site/assets/saturn/v1/ephemerides.json
+          test -s site/assets/mars/v1/height/mola-global-bpmh.bin.gz
+          echo "BRIDGEPOINT_V6300_DIRECT_ENTRY_AND_V6292_CELESTIAL_PASS"
 
       - uses: actions/configure-pages@v5
         with:
