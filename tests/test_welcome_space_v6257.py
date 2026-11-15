@@ -97,12 +97,14 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
     def test_root_uses_one_existing_earth_and_no_ground_sky_button(self):
         out = patch_root_html(root_fixture())
         self.assertIn("bpWelcomeGateStylesV6257", out)
-        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6282-saturn-system"', out)
+        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6292-mars-night-side-shading"', out)
         self.assertIn('class="bpw-celestial-system" aria-hidden="true"></div>', out)
         self.assertNotIn("bpwCelestialCanvasV6257", out)
         self.assertNotIn('class="bpw-globe-aura"', out)
         self.assertNotIn('class="bpw-explainer"', out)
         self.assertNotIn("WELCOME TO", out)
+        self.assertNotIn("bridgepoint-welcome-space-v6257.js", out)
+        self.assertEqual(out.count('src="/bridgepoint-welcome-space-v6260.js?v=6292-mars-night-side-shading"'), 1)
         self.assertIn("event.persisted", out)
         self.assertIn("location.reload()", out)
         self.assertIn('data-mode="signup"', out)
@@ -115,7 +117,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
 <script>location.replace('/')</script>
 <script src="/sw.js?v=6247-universal-fresh-entry-sidewalk"></script>"""
         out = patch_legacy_app(migrated)
-        self.assertIn("sw.js?v=6282-saturn-system", out)
+        self.assertIn("sw.js?v=6292-mars-night-side-shading", out)
         self.assertNotIn("v=6247-universal-fresh-entry-sidewalk", out)
         self.assertIn('content="0;url=/"', out)
         self.assertIn("location.replace('/')", out)
@@ -130,7 +132,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
         for tag in cases:
             with self.subTest(tag=tag):
                 out = bump_manifest_url(tag, "test manifest URL")
-                self.assertEqual(out.count("v=6282-saturn-system"), 1)
+                self.assertEqual(out.count("v=6292-mars-night-side-shading"), 1)
                 self.assertNotIn("v=6265-solar-globe", out)
                 self.assertNotIn("v=6247-universal-fresh-entry", out)
 
@@ -151,7 +153,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
 <script type="module" src="/bridgepoint-welcome-space-v6260.js?v=6265-solar-globe">
 </body></html>"""
         out = patch_root_html(current)
-        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6282-saturn-system"', out)
+        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6292-mars-night-side-shading"', out)
         self.assertNotIn("v=6265-solar-globe", out)
         self.assertIn('<div class="bpw-celestial-system" aria-hidden="true"></div>', out)
         self.assertIn('class="bpw-wordmark bpw-wordmark-static"', out)
@@ -163,8 +165,8 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
         app = patch_app_index(app_index_fixture())
         self.assertEqual(app.count("/?return="), 2)
         self.assertNotIn("/?auth=signin&return=", app)
-        self.assertIn("app.js?v=6282-saturn-system", app)
-        self.assertIn("manifest.webmanifest?v=6282-saturn-system", app)
+        self.assertIn("app.js?v=6292-mars-night-side-shading", app)
+        self.assertIn("manifest.webmanifest?v=6292-mars-night-side-shading", app)
         legacy = patch_legacy_app(legacy_fixture())
         self.assertIn('content="0;url=/"', legacy)
         self.assertIn("location.replace('/')", legacy)
@@ -268,7 +270,7 @@ self.addEventListener('fetch',e=>{
             path.write_text(modern)
             patch_worker(path)
             out = path.read_text()
-            self.assertIn("BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6287-celestial-shader-compat'", out)
+            self.assertIn("BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6292-mars-night-side-shading'", out)
             self.assertIn("await active.delete(request)", out)
             self.assertIn("const entryRoute=", out)
             self.assertIn("current release required", out)
@@ -455,7 +457,7 @@ self.addEventListener('fetch',e=>{
     def test_sun_has_animated_molten_photosphere_fresnel_rim_and_observed_plasma_particles(self):
         module = (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text()
         for marker in (
-            "const VERSION = 'v6287-celestial-shader-compat'",
+            "const VERSION = 'v6292-mars-night-side-shading'",
             "float magmaFlow=",
             "float moltenCoverage=",
             "const solarFireRim=new THREE.Mesh",
@@ -475,7 +477,7 @@ self.addEventListener('fetch',e=>{
             bundle = Path(folder) / "app.js"
             bundle.write_text("navigator.serviceWorker.register('/sw.js?v=6269-solar-fire-plasma',{updateViaCache:'none'})")
             patch_bundle(bundle)
-            self.assertIn("sw.js?v=6282-saturn-system", bundle.read_text())
+            self.assertIn("sw.js?v=6292-mars-night-side-shading", bundle.read_text())
             self.assertNotIn("v6269-solar-fire-plasma", bundle.read_text())
 
     def test_patch_bundle_also_invalidates_v6280_worker_for_v6286(self):
@@ -483,7 +485,7 @@ self.addEventListener('fetch',e=>{
             bundle = Path(folder) / "app.js"
             bundle.write_text("navigator.serviceWorker.register('/sw.js?v=6280-unified-cosmos',{updateViaCache:'none'})")
             patch_bundle(bundle)
-            self.assertIn("sw.js?v=6282-saturn-system", bundle.read_text())
+            self.assertIn("sw.js?v=6292-mars-night-side-shading", bundle.read_text())
             self.assertNotIn("v6280-unified-cosmos", bundle.read_text())
 
     def test_16bit_lunar_height_webp_tiles_reconstruct_exact_original_values(self):
@@ -565,7 +567,7 @@ self.addEventListener('fetch',e=>{
         galaxy = (ROOT / "rebuild-v5000" / "bridgepoint-gaia-galaxy-v6270.js").read_text()
         self.assertIn("stars.visible=true", scene)
         self.assertIn("initBridgePointSolarCosmos", scene)
-        self.assertIn("v=6282-saturn-system", scene)
+        self.assertIn("v=6292-mars-night-side-shading", scene)
         self.assertNotIn("cinematicStarfield", scene)
         self.assertNotIn("bpw-gaia-mode", scene)
         self.assertNotIn("GAIA_DR3_GALAXY_V6270", scene)
@@ -656,7 +658,7 @@ self.addEventListener('fetch',e=>{
             after = {p.relative_to(site).as_posix() for p in site.rglob("*") if p.is_file()}
             self.assertEqual(after - before, set())
             root = (site / "index.html").read_text()
-            self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6282-saturn-system"', root)
+            self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6292-mars-night-side-shading"', root)
             self.assertIn("event.persisted", root)
             self.assertIn("location.reload()", root)
             self.assertNotIn("data-space-ground", root)
