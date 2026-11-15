@@ -8,8 +8,8 @@ from pathlib import Path
 
 BUILD = "v6300-direct-entry"
 UPDATER_QUERY = "v=6300-direct-entry"
-CURRENT_SW_VERSION = "6292-mars-night-side-shading"
-CURRENT_CACHE = "bp-intelligence-v6292-mars-night-side"
+CURRENT_SW_VERSION = "6293-full-planetarium"
+CURRENT_CACHE = "bp-intelligence-v6293-full-planetarium"
 
 
 def bump_updater_reference(source: str, label: str) -> str:
