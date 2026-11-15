@@ -1,8 +1,6 @@
 name: Publish Mars v6292 Night-Side Shading with Saturn Preserved
+# Manual recovery workflow only. The full V5000 workflow is the single automatic Pages publisher.
 on:
-  push:
-    branches: [main]
-    paths: ['.github/workflows/publish-saturn-v6288-realism.yml', 'rebuild-v5000/bridgepoint-mars-system-v6291.js', 'rebuild-v5000/bridgepoint-gaia-galaxy-v6270.js', 'recovery/bridgepoint-welcome-space-v6260.js', 'recovery/apply_welcome_space_v6257.py', 'tests/test_mars_system_v6291.py']
   workflow_dispatch:
 permissions:
   contents: read
