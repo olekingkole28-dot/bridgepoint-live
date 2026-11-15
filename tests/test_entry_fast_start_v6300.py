@@ -25,7 +25,7 @@ from apply_entry_fast_start_v6300 import (
 def root_fixture() -> str:
     return """<!doctype html>
 <html lang="en">
-<head><title>BridgePoint Intelligence</title></head>
+<head><title>BridgePoint Intelligence</title><style id="bpWelcomeGateStylesV6257"></style></head>
 <body>
 <div id="bpWelcomeGateV1">
   <div class="bpw-celestial-system"></div>
