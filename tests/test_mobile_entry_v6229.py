@@ -14,7 +14,7 @@ def index_fixture() -> str:
     )
     return """<!doctype html><html><head>
 <link rel="modulepreload" href="/world-v2300-map.js?v=6226-underwater-satellite-lock">
-<link rel="modulepreload" href="/world-v2300-clouds.js?v=6201-live-observation-refresh">
+<link rel="modulepreload" href="/world-v2300-clouds.js?v=6202-global-satellite-cloud-banks">
 <link rel="modulepreload" href="/world-v2300-lightning.js?v=6195-desktop-globe-flash-stability">
 <link rel="modulepreload" href="/world-v2300-weather.js?v=6195-desktop-globe-flash-stability">
 <link rel="modulepreload" href="/intelligence-global-v5507.js?v=6170-imerg-nrt-timeline">
@@ -58,7 +58,7 @@ const waitForGlobe=()=>{
 
 def landing_fixture() -> str:
     return """const AUTH='bpAuthRequestV6228';
-window.__BP_ACTIVATE_CLOUDS__=async()=>import('./world-v2300-clouds.js?v=6201-live-observation-refresh');
+window.__BP_ACTIVATE_CLOUDS__=async()=>import('./world-v2300-clouds.js?v=6202-global-satellite-cloud-banks');
 async function initMap(){
   const mod=await import('./world-v2300-map.js?v=6226-underwater-satellite-lock');
   void window.__BP_ACTIVATE_CLOUDS__().catch(e=>console.warn('BridgePoint always-on 3D clouds unavailable',e));
