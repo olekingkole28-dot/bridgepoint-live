@@ -90,10 +90,10 @@ jobs:
           import os, re
           site = Path(os.environ["RUNNER_TEMP"]) / "bp-site"
           changes = (
-              ("index.html", r'src=["\\'][^"\\']*landing\\.js(?:\\?[^"\\']*)?["\\']', 'src="./landing.js?v=6201-cloud-live-observation"', "landing script"),
-              ("index.html", r'href=["\\'][^"\\']*world-v2300-clouds\\.js(?:\\?[^"\\']*)?["\\']', 'href="/world-v2300-clouds.js?v=6201-live-observation-refresh"', "landing cloud preload"),
-              ("app/index.html", r'src=["\\'][^"\\']*app\\.js(?:\\?[^"\\']*)?["\\']', 'src="../app.js?v=6201-cloud-live-observation"', "app script"),
-              ("app/index.html", r'href=["\\'][^"\\']*world-v2300-clouds\\.js(?:\\?[^"\\']*)?["\\']', 'href="/world-v2300-clouds.js?v=6201-live-observation-refresh"', "app cloud preload"),
+              ("index.html", r"""src=["'][^"']*landing\.js(?:\?[^"']*)?["']""", 'src="./landing.js?v=6201-cloud-live-observation"', "landing script"),
+              ("index.html", r"""href=["'][^"']*world-v2300-clouds\.js(?:\?[^"']*)?["']""", 'href="/world-v2300-clouds.js?v=6201-live-observation-refresh"', "landing cloud preload"),
+              ("app/index.html", r"""src=["'][^"']*app\.js(?:\?[^"']*)?["']""", 'src="../app.js?v=6201-cloud-live-observation"', "app script"),
+              ("app/index.html", r"""href=["'][^"']*world-v2300-clouds\.js(?:\?[^"']*)?["']""", 'href="/world-v2300-clouds.js?v=6201-live-observation-refresh"', "app cloud preload"),
           )
           for rel, pattern, replacement, label in changes:
               p = site / rel
