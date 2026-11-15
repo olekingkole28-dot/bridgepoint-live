@@ -28,6 +28,7 @@ on:
       - 'rebuild-v5000/bridgepoint-mars-system-v6291.js'
       - 'tests/test_welcome_space_v6257.py'
       - 'assets/moon/v1/**'
+      - 'assets/sun/v2/**'
       - 'tests/horizon-replacement-entry.test.mjs'
 
 permissions:
