@@ -104,7 +104,7 @@ jobs:
               p.write_text(updated, encoding="utf-8")
           for rel in ("app.js", "landing.js"):
               text = (site / rel).read_text(encoding="utf-8")
-              if text.count("world-v2300-clouds.js?v=6202-global-satellite-cloud-banks") != 1:
+              if text.count("import('./world-v2300-clouds.js?v=6202-global-satellite-cloud-banks')") != 1:
                   raise SystemExit(f"{rel}: v6202 cloud import missing or duplicated")
               if "bpAuthRequestV6237" not in text or "bp_auth_v5045" not in text:
                   raise SystemExit(f"{rel}: auth implementation unexpectedly changed")
