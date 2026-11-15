@@ -681,12 +681,12 @@ jobs:
           mkdir -p site/assets/planets/v1
           cp assets/planets/v1/manifest.json site/assets/planets/v1/manifest.json
           cp assets/planets/v1/NOTICE.txt site/assets/planets/v1/NOTICE.txt
-          curl --retry 5 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 180 'https://phet.solarsystemscope.com/textures/download/2k_mercury.jpg' -o site/assets/planets/v1/mercury-2k.jpg
-          curl --retry 5 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 180 'https://phet.solarsystemscope.com/textures/download/2k_venus_surface.jpg' -o site/assets/planets/v1/venus-surface-2k.jpg
-          curl --retry 5 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 180 'https://phet.solarsystemscope.com/textures/download/2k_venus_atmosphere.jpg' -o site/assets/planets/v1/venus-atmosphere-2k.jpg
-          curl --retry 5 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 180 'https://phet.solarsystemscope.com/textures/download/2k_jupiter.jpg' -o site/assets/planets/v1/jupiter-2k.jpg
-          curl --retry 5 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 180 'https://phet.solarsystemscope.com/textures/download/2k_uranus.jpg' -o site/assets/planets/v1/uranus-2k.jpg
-          curl --retry 5 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 180 'https://phet.solarsystemscope.com/textures/download/2k_neptune.jpg' -o site/assets/planets/v1/neptune-2k.jpg
+          curl --retry 5 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 180 'https://edu.solarsystemscope.com/textures/download/2k_mercury.jpg' -o site/assets/planets/v1/mercury-2k.jpg
+          curl --retry 5 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 180 'https://edu.solarsystemscope.com/textures/download/2k_venus_surface.jpg' -o site/assets/planets/v1/venus-surface-2k.jpg
+          curl --retry 5 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 180 'https://edu.solarsystemscope.com/textures/download/2k_venus_atmosphere.jpg' -o site/assets/planets/v1/venus-atmosphere-2k.jpg
+          curl --retry 5 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 180 'https://edu.solarsystemscope.com/textures/download/2k_jupiter.jpg' -o site/assets/planets/v1/jupiter-2k.jpg
+          curl --retry 5 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 180 'https://edu.solarsystemscope.com/textures/download/2k_uranus.jpg' -o site/assets/planets/v1/uranus-2k.jpg
+          curl --retry 5 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 180 'https://edu.solarsystemscope.com/textures/download/2k_neptune.jpg' -o site/assets/planets/v1/neptune-2k.jpg
           for texture in mercury-2k.jpg venus-surface-2k.jpg venus-atmosphere-2k.jpg jupiter-2k.jpg uranus-2k.jpg neptune-2k.jpg; do
             test "$(stat -c%s "site/assets/planets/v1/$texture")" -gt 100000
           done
