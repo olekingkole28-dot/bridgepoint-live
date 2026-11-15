@@ -2248,7 +2248,7 @@ function createMoonTerrainController() {
     focus:focusBody,
     reset:resetView,
     pause(){renderActive=false},
-    resume(){if(disposed)return;renderActive=true;resize();if(!document.hidden)requestAnimationFrame(render)},
+    resume(){if(disposed||renderActive)return;renderActive=true;resize();if(!document.hidden)requestAnimationFrame(render)},
     state:()=>({viewState,moonOrbitPeriodDays:MOON_PERIOD_DAYS,solarRotationPeriodDays:25.38,solarReliefStatus:window.__BP_SOLAR_SURFACE_V2__?.reliefStatus||'loading',solarCameraTiltDegrees:viewState==='sun'&&sunFocusLocalTarget?THREE.MathUtils.radToDeg(Math.acos(THREE.MathUtils.clamp(camera.position.clone().sub(target).normalize().dot(sunFocusLocalTarget.clone().normalize().transformDirection(sunGroup.matrixWorld)),-1,1))):null,solarCoronalLoopCount:coronalLoopMeshes.length,solarFlareArcCount:flareMeshes.length,solarAssets:window.__BP_SOLAR_SURFACE_V3__||window.__BP_SOLAR_SURFACE_V2__||{status:'not-requested'},
       solarMagneticLoopCount:coronalLoopMeshes.length,solarObservedEruptionArcCount:flareMeshes.length,solarFireLayer:window.__BP_SOLAR_SURFACE_V4__||{status:'loading'},solarPlasmaParticleCount:solarPlasmaParticles?.geometry.attributes.position.count||0,
       moonCameraTiltDegrees:THREE.MathUtils.radToDeg(moonCameraTiltRadians()),
