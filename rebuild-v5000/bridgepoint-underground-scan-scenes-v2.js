@@ -162,8 +162,9 @@ async function showUnderTerrain(state){
  state.mapVisible=true;status(state,'Loading the Paris Catacombs scan beneath the terrain…');
  try{
   const source=await getAssetScene(state);if(state.dead)return;
-  if(!state.mapRoot){state.mapRoot=makeMapRoot(state.THREE,source);state.scene?.add(state.mapRoot);}
+  if(!state.mapRoot)state.mapRoot=makeMapRoot(state.THREE,source);
   await ensureMapModelLayer(state);if(state.dead)return;
+  if(state.mapRoot&&state.scene&&state.mapRoot.parent!==state.scene)state.scene.add(state.mapRoot);
   status(state,'Paris Catacombs gallery mesh displayed below the terrain at an approximate site anchor.');state.map.triggerRepaint?.();refreshUi(state);
  }catch(e){state.mapVisible=false;status(state,'Could not display the catacomb scan: '+String(e?.message||e));refreshUi(state);}
 }
