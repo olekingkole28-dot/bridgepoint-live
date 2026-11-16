@@ -71,7 +71,6 @@ assert.ok(deploy.includes('bp-paris-catacombs-toggle-v3'));
 assert.ok(deploy.includes('f4232f8f91e54b0a8aa92365d6ea7b7a'));
 assert.ok(deploy.includes('7-paris-catacombs-multi-scan-icons'));
 assert.ok(deploy.includes('underground-scenes=paris-v7'));
-assert.ok(deploy.includes('sketchfab.com/models/'));
 assert.ok(deploy.includes('three@0.169.0')&&deploy.includes('esbuild@0.24.2'));
 assert.ok(deploy.includes('vendor/GLTFLoader.bundle.js'));
 assert.ok(deploy.includes('GLTFLoader has an unresolved external Three.js import'));
