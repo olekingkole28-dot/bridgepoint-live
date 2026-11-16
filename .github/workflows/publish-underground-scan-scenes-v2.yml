@@ -196,7 +196,7 @@ jobs:
                   begin=data.rfind("\n",0,start)+1
                   end=data.index(".catch(e=>console.warn('BridgePoint cave and underground scan layer unavailable',e));",start)
                   end=data.index("\n",end)+1
-                  indent=data[begin:start]
+                  indent=data[begin:].split('void import(',1)[0]
                   replacement=indent+attach.replace("\n","\n"+indent)+"\n"
                   data=data[:begin]+replacement+data[end:]
               elif new_module not in data:
