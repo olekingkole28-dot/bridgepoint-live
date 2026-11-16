@@ -189,7 +189,7 @@ function updateAircraftFilterControls(){
  for(const [key,control] of aircraftFilterButtons){const active=key==='all'?allSelected:selectedAircraftGroups.has(key);control.classList.toggle('active',active);control.setAttribute('aria-pressed',String(active))}
 }
 function setAircraftFilter(groupKey){
- if(groupKey==='all'){const allSelected=AIRCRAFT_FILTER_GROUPS.every(group=>selectedAircraftGroups.has(group.key));selectedAircraftGroups=allSelected?new Set():new Set(AIRCRAFT_FILTER_GROUPS.map(group=>group.key))}
+ if(groupKey==='all'){selectedAircraftGroups=new Set(AIRCRAFT_FILTER_GROUPS.map(group=>group.key))}
  else if(AIRCRAFT_FILTER_GROUPS.some(group=>group.key===groupKey)){if(selectedAircraftGroups.has(groupKey))selectedAircraftGroups.delete(groupKey);else selectedAircraftGroups.add(groupKey)}
  updateAircraftFilterControls();syncAircraftFilterVisibility();
 }
