@@ -16,6 +16,9 @@ on:
       - 'tests/underground-scan-scenes-v2.test.mjs'
       - 'tests/globe-renderer-recovery.test.mjs'
       - 'release-v2300/world-v2300-map.js'
+      - 'release-v2300/world-v2300-seismic-layer-v1.js'
+      - 'patches/lighthouse-v3/bridgepoint-lighthouses-v1.js'
+      - 'tests/lighthouse-hotfix-v3.test.mjs'
   push:
     branches: [main]
     paths:
@@ -32,6 +35,9 @@ on:
       - 'tests/underground-scan-scenes-v2.test.mjs'
       - 'tests/globe-renderer-recovery.test.mjs'
       - 'release-v2300/world-v2300-map.js'
+      - 'release-v2300/world-v2300-seismic-layer-v1.js'
+      - 'patches/lighthouse-v3/bridgepoint-lighthouses-v1.js'
+      - 'tests/lighthouse-hotfix-v3.test.mjs'
   workflow_run:
     workflows: ["Deploy BridgePoint Intelligence V5000 Rebuild"]
     types: [completed]
@@ -63,6 +69,8 @@ jobs:
           node --check rebuild-v5000/landing.js
           node --check rebuild-v5000/app.js
           node --input-type=module --check < release-v2300/world-v2300-map.js
+          node --input-type=module --check < release-v2300/world-v2300-seismic-layer-v1.js
+          node --input-type=module --check < patches/lighthouse-v3/bridgepoint-lighthouses-v1.js
       - name: Run overlay and cross-module regression tests
         run: |
           set -euo pipefail
@@ -70,6 +78,7 @@ jobs:
           node tests/vessel-awareness.test.mjs
           node tests/underground-scan-scenes-v2.test.mjs
           node tests/globe-renderer-recovery.test.mjs
+          node tests/lighthouse-hotfix-v3.test.mjs
       - name: Verify persistent clean-start categories
         run: |
           python3 - <<'PY'
@@ -81,7 +90,10 @@ jobs:
             "energy:/solar|wind[-_]?turbine",
             "landmarks:/landmark|poi",
             ".bpv-dock .bpv-command-group button",
-            "if(buttonOn)allowedCategories.add(category);else allowedCategories.delete(category);"
+            "const explicitToggle=target.hasAttribute('aria-pressed')",
+            "earthquakes:/earthquake|seismic|comcat/i",
+            "bp-layer-turn-on-everything",
+            "bp-layer-reset-all"
           ]:
             assert token in s, token
           c=Path("rebuild-v5000/bridgepoint-underground-scan-scenes-v2.js").read_text()
@@ -121,11 +133,14 @@ jobs:
           node --check rebuild-v5000/landing.js
           node --check rebuild-v5000/app.js
           node --input-type=module --check < release-v2300/world-v2300-map.js
+          node --input-type=module --check < release-v2300/world-v2300-seismic-layer-v1.js
+          node --input-type=module --check < patches/lighthouse-v3/bridgepoint-lighthouses-v1.js
           python3 -m py_compile tools/underground/fetch_sketchfab_scans.py
           node tests/drone-awareness.test.mjs
           node tests/vessel-awareness.test.mjs
           node tests/underground-scan-scenes-v2.test.mjs
           node tests/globe-renderer-recovery.test.mjs
+          node tests/lighthouse-hotfix-v3.test.mjs
 
       - name: Select the latest completed production baseline
         id: baseline
@@ -162,8 +177,8 @@ jobs:
                   selected=(upstream,expected)
                   print("USING_SUCCESSFUL_V5000_ARTIFACT",upstream,expected)
           if selected is None:
-              fallback_run="43910616056"
-              fallback_name="github-pages-underground-scan-scenes-v2"
+              fallback_run="43921433671"
+              fallback_name="github-pages-persistent-overlay-visibility-v2"
               url=f"https://api.github.com/repos/{repo}/actions/runs/{fallback_run}/artifacts?per_page=100"
               req=urllib.request.Request(url,headers={
                   "Accept":"application/vnd.github+json",
@@ -173,9 +188,9 @@ jobs:
                   artifacts=json.load(response).get("artifacts",[])
               item=next((a for a in artifacts if a.get("name")==fallback_name and not a.get("expired")),None)
               if not item:
-                  raise SystemExit("Neither the completed V5000 run nor the retained Paris Catacombs Pages artifact is available")
+                  raise SystemExit("Neither the completed V5000 run nor the latest successful production Pages artifact is available")
               selected=(fallback_run,fallback_name)
-              print("USING_LAST_VERIFIED_PARIS_CATACOMBS_ARTIFACT",*selected)
+              print("USING_LAST_VERIFIED_LIVE_PAGES_ARTIFACT",*selected)
           with open(os.environ["GITHUB_OUTPUT"],"a") as out:
               out.write("run_id="+selected[0]+"\n")
               out.write("artifact_name="+selected[1]+"\n")
@@ -240,6 +255,47 @@ jobs:
           print("SELECTED_PRODUCTION_BASELINE_FINGERPRINT_PASS",len(before),"files")
           PY
 
+      - name: Restore the exact global lighthouse snapshot and attribution
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/bp-overlay-site"
+          mkdir -p "$SITE/data"
+          DATAFILE="$SITE/data/bridgepoint-lighthouses-global-v1.json"
+          ATTRIBUTION="$SITE/data/bridgepoint-lighthouses-global-v1-ATTRIBUTION.md"
+          if [ ! -s "$DATAFILE" ]; then
+            curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL -A "BridgePoint Intelligence Lighthouse Snapshot/1.0 (https://bridgepointintelligence.online)" -H "Accept: application/json" "https://hulloships.com/atlas/data/lighthouses.json" -o "$DATAFILE"
+          fi
+          if [ ! -s "$ATTRIBUTION" ]; then
+            cat > "$ATTRIBUTION" <<'EOF'
+          # BridgePoint Global Lighthouse Snapshot
+
+          Source: HulloShips global lighthouse database (https://hulloships.com/atlas/lighthouses/ and https://hulloships.com/atlas/data/lighthouses.json). The source page identifies these records as OpenStreetMap-derived, © OpenStreetMap contributors, licensed under the Open Database License (ODbL).
+
+          This extracted database is redistributed under ODbL with attribution to OpenStreetMap contributors. Fields include name, country, region, mapped type, height where recorded, light character, coordinates and source OSM identifier. Community mapping coverage and recorded heights may be incomplete.
+
+          This is a location/rendering dataset, not an official aid-to-navigation register or navigational safety source. Verify operational status and characteristics with the relevant maritime authority before real-world navigation use.
+
+          ODbL: https://opendatacommons.org/licenses/odbl/1-0/
+          EOF
+          fi
+          python3 - "$DATAFILE" <<'PY'
+          import json,sys
+          from pathlib import Path
+          rows=json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+          valid=[]
+          for row in rows:
+              try:
+                  lat=float(row.get("lat")); lon=float(row.get("lon"))
+              except (TypeError,ValueError):
+                  continue
+              if -85<=lat<=85 and -180<=lon<=180:
+                  valid.append(row)
+          if len(rows)<10000 or len(valid)<10000:
+              raise SystemExit(f"Global lighthouse snapshot incomplete: {len(rows)} rows / {len(valid)} valid coordinates")
+          print("GLOBAL_LIGHTHOUSE_SNAPSHOT_SOURCE_PASS",len(rows),"records;",len(valid),"valid coordinates")
+          PY
+
       - name: Build local GLTFLoader only when the selected baseline lacks it
         shell: bash
         run: |
@@ -275,6 +331,10 @@ jobs:
           mkdir -p "$SITE/app" "$SITE/assets/underground-scan-scenes" "$SITE/vendor"
           cp rebuild-v5000/bridgepoint-drone-awareness-v1.js "$SITE/bridgepoint-drone-awareness-v1.js"
           cp release-v2300/world-v2300-map.js "$SITE/world-v2300-map.js"
+          cp patches/lighthouse-v3/bridgepoint-lighthouses-v1.js "$SITE/bridgepoint-lighthouses-v1.js"
+          cp patches/lighthouse-v3/bridgepoint-lighthouses-v1.js "$SITE/app/bridgepoint-lighthouses-v1.js"
+          cp release-v2300/world-v2300-seismic-layer-v1.js "$SITE/world-v2300-seismic-layer-v1.js"
+          cp release-v2300/world-v2300-seismic-layer-v1.js "$SITE/app/world-v2300-seismic-layer-v1.js"
           cp rebuild-v5000/bridgepoint-subsurface-wells-v1.js "$SITE/bridgepoint-subsurface-wells-v1.js"
           cp rebuild-v5000/bridgepoint-underground-scan-scenes-v2.js "$SITE/bridgepoint-underground-scan-scenes-v2.js"
           cp rebuild-v5000/bridgepoint-underground-scan-scenes-v2.js "$SITE/app/bridgepoint-underground-scan-scenes-v2.js"
@@ -297,6 +357,23 @@ jobs:
               if data.count(old_map)!=1:
                   raise SystemExit(f"{rel}: expected one current globe module import")
               data=data.replace(old_map,new_map,1)
+              lighthouse_imports=(
+                  "./bridgepoint-lighthouses-v1.js?v=2-visible-rotating-beacons",
+                  "./bridgepoint-lighthouses-v1.js?v=3-image-data-beacons",
+                  "./bridgepoint-lighthouses-v1.js?v=4-global-snapshot",
+              )
+              lighthouse_new="./bridgepoint-lighthouses-v1.js?v=5-card-toggle-street-level-markers"
+              lighthouse_old=[item for item in lighthouse_imports if data.count(item)==1]
+              if len(lighthouse_old)==1:
+                  data=data.replace(lighthouse_old[0],lighthouse_new,1)
+              elif lighthouse_new not in data:
+                  raise SystemExit(f"{rel}: expected exactly one known lighthouse renderer import")
+              seismic_old="./world-v2300-seismic-layer-v1.js?v=1-usgs-comcat-m25-week"
+              seismic_new="./world-v2300-seismic-layer-v1.js?v=2-named-earthquakes-toggle"
+              if data.count(seismic_old)==1:
+                  data=data.replace(seismic_old,seismic_new,1)
+              elif seismic_new not in data:
+                  raise SystemExit(f"{rel}: expected exactly one known USGS earthquake layer import")
               if old_mesh in data:
                   if data.count(old_mesh)!=1:
                       raise SystemExit(f"{rel}: duplicate old Paris Catacombs module imports")
@@ -339,7 +416,7 @@ jobs:
               p=site/rel
               data=p.read_text(encoding="utf-8")
               old_drone="bridgepoint-drone-awareness-v1.js?v=7-aircraft-models-tracks"
-              new_drone="bridgepoint-drone-awareness-v1.js?v=8-persistent-overlay-category-gate&aircraft=9-filters-ground-tethers"
+              new_drone="bridgepoint-drone-awareness-v1.js?v=9-persistent-icons-master-layers&aircraft=9-filters-ground-tethers"
               if old_drone in data:
                   if data.count(old_drone)!=1:
                       raise SystemExit(f"{rel}: duplicate drone guard script tag")
@@ -351,14 +428,22 @@ jobs:
               if len(matches)!=1:
                   raise SystemExit(f"{rel}: expected one globe entrypoint script")
               current=matches[0].group(1)
-              if "overlay-visibility=v2" not in current:
-                  data=data.replace(current,current+"&overlay-visibility=v2",1)
+              updated=current.replace("overlay-visibility=v2","overlay-visibility=v3")
+              if "overlay-visibility=v3" not in updated:
+                  updated+="&overlay-visibility=v3"
+              if "layer-controls=20261116" not in updated:
+                  updated+="&layer-controls=20261116"
+              data=data.replace(current,updated,1)
               view_matches=list(re.finditer(r'src="([^"]*bridgepoint-view-v5917\.js\?[^"]*)"',data))
               if len(view_matches)!=1:
                   raise SystemExit(f"{rel}: expected one bottom-card view script")
               current=view_matches[0].group(1)
-              if "overlay-visibility=v2" not in current:
-                  data=data.replace(current,current+"&overlay-visibility=v2",1)
+              updated=current.replace("overlay-visibility=v2","overlay-visibility=v3")
+              if "overlay-visibility=v3" not in updated:
+                  updated+="&overlay-visibility=v3"
+              if "layer-controls=20261116" not in updated:
+                  updated+="&layer-controls=20261116"
+              data=data.replace(current,updated,1)
               p.write_text(data,encoding="utf-8")
           view=site/"bridgepoint-view-v5917.js"
           data=view.read_text(encoding="utf-8")
@@ -381,6 +466,13 @@ jobs:
                   data=data.replace(anchor,anchor+"\n"+section,1)
               else:
                   raise SystemExit("Paris Catacombs button exists but its action attribute could not be applied")
+          for action in ("parcels","opportunities","windfx"):
+              marker=f'data-bpv-action="{action}" aria-pressed="false"'
+              if marker not in data:
+                  old=f'data-bpv-action="{action}" title='
+                  if data.count(old)!=1:
+                      raise SystemExit(f"Missing unique {action} toggle button for layer master controls")
+                  data=data.replace(old,f'data-bpv-action="{action}" aria-pressed="false" data-bp-layer-toggle="1" title=',1)
           view.write_text(data,encoding="utf-8")
           catalog=site/"assets/underground-scan-scenes/catalog.json"
           model=site/"assets/underground-scan-scenes/39e7050d272f4aac8493497621b86f39.glb.gz"
@@ -395,6 +487,12 @@ jobs:
             "bridgepoint-drone-awareness-v1.js","world-v2300-map.js"
           }
           candidates=[
+            "bridgepoint-lighthouses-v1.js",
+            "app/bridgepoint-lighthouses-v1.js",
+            "world-v2300-seismic-layer-v1.js",
+            "app/world-v2300-seismic-layer-v1.js",
+            "data/bridgepoint-lighthouses-global-v1.json",
+            "data/bridgepoint-lighthouses-global-v1-ATTRIBUTION.md",
             "bridgepoint-subsurface-wells-v1.js",
             "bridgepoint-underground-scan-scenes-v2.js",
             "app/bridgepoint-underground-scan-scenes-v2.js",
@@ -417,6 +515,10 @@ jobs:
           node --check "$SITE/app.js"
           node --check "$SITE/bridgepoint-view-v5917.js"
           node --check "$SITE/bridgepoint-drone-awareness-v1.js"
+          node --input-type=module --check < "$SITE/bridgepoint-lighthouses-v1.js"
+          node --input-type=module --check < "$SITE/app/bridgepoint-lighthouses-v1.js"
+          node --input-type=module --check < "$SITE/world-v2300-seismic-layer-v1.js"
+          node --input-type=module --check < "$SITE/app/world-v2300-seismic-layer-v1.js"
           node --input-type=module --check < "$SITE/world-v2300-map.js"
           grep -Fq 'resizeSkipped:true' "$SITE/world-v2300-map.js"
           node --check "$SITE/bridgepoint-subsurface-wells-v1.js"
@@ -424,6 +526,33 @@ jobs:
           node --input-type=module --check < "$SITE/vendor/GLTFLoader.bundle.js"
           cmp -s "$SITE/bridgepoint-underground-scan-scenes-v2.js" "$SITE/app/bridgepoint-underground-scan-scenes-v2.js"
           grep -Fq 'data-bpv-action="catacombs"' "$SITE/bridgepoint-view-v5917.js"
+          grep -Fq 'data-bpv-action="parcels" aria-pressed="false" data-bp-layer-toggle="1"' "$SITE/bridgepoint-view-v5917.js"
+          grep -Fq 'data-bpv-action="opportunities" aria-pressed="false" data-bp-layer-toggle="1"' "$SITE/bridgepoint-view-v5917.js"
+          grep -Fq 'data-bpv-action="windfx" aria-pressed="false" data-bp-layer-toggle="1"' "$SITE/bridgepoint-view-v5917.js"
+          grep -Fq 'Named earthquakes · OFF' "$SITE/world-v2300-seismic-layer-v1.js"
+          grep -Fq "data-bpvAction = 'earthquakes'" "$SITE/world-v2300-seismic-layer-v1.js"
+          grep -Fq 'Lighthouses · OFF' "$SITE/bridgepoint-lighthouses-v1.js"
+          grep -Fq 'function lighthousePopupContent(feature)' "$SITE/bridgepoint-lighthouses-v1.js"
+          grep -Fq 'bp-layer-turn-on-everything' "$SITE/bridgepoint-drone-awareness-v1.js"
+          grep -Fq 'bp-layer-reset-all' "$SITE/bridgepoint-drone-awareness-v1.js"
+          grep -Fq 'earthquakes:/earthquake|seismic|comcat/i' "$SITE/bridgepoint-drone-awareness-v1.js"
+          cmp -s "$SITE/bridgepoint-lighthouses-v1.js" "$SITE/app/bridgepoint-lighthouses-v1.js"
+          cmp -s "$SITE/world-v2300-seismic-layer-v1.js" "$SITE/app/world-v2300-seismic-layer-v1.js"
+          python3 - "$SITE/data/bridgepoint-lighthouses-global-v1.json" <<'PY'
+          import json,sys
+          from pathlib import Path
+          rows=json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+          valid=[]
+          for row in rows:
+              try:
+                  lat=float(row.get("lat")); lon=float(row.get("lon"))
+              except (TypeError,ValueError):
+                  continue
+              if -85<=lat<=85 and -180<=lon<=180:
+                  valid.append(row)
+          assert len(rows)>=10000 and len(valid)>=10000
+          print("PERSISTENT_GLOBAL_LIGHTHOUSE_SNAPSHOT_PASS",len(rows),len(valid))
+          PY
           grep -Fq "subsurface:/subsurface|catacomb|cave|underground-scan" "$SITE/bridgepoint-drone-awareness-v1.js"
           grep -Fq ".bpv-dock .bpv-command-group button" "$SITE/bridgepoint-drone-awareness-v1.js"
           grep -Fq "allowLayerCategory?.('subsurface',true)" "$SITE/bridgepoint-underground-scan-scenes-v2.js"
@@ -456,16 +585,22 @@ jobs:
           for item in \
             "root.html:$O/?overlay=$Q" \
             "app.html:$O/app/?overlay=$Q" \
-            "drone.js:$O/bridgepoint-drone-awareness-v1.js?v=8-persistent-overlay-category-gate&aircraft=9-filters-ground-tethers&verify=$Q" \
+            "drone.js:$O/bridgepoint-drone-awareness-v1.js?v=9-persistent-icons-master-layers&aircraft=9-filters-ground-tethers&verify=$Q" \
             "wells.js:$O/bridgepoint-subsurface-wells-v1.js?verify=$Q" \
             "catacomb.js:$O/bridgepoint-underground-scan-scenes-v2.js?verify=$Q" \
             "app-catacomb.js:$O/app/bridgepoint-underground-scan-scenes-v2.js?verify=$Q" \
             "catalog.json:$O/assets/underground-scan-scenes/catalog.json?verify=$Q" \
             "scan.glb.gz:$O/assets/underground-scan-scenes/39e7050d272f4aac8493497621b86f39.glb.gz?verify=$Q" \
             "gltfloader.js:$O/vendor/GLTFLoader.bundle.js?verify=$Q" \
-            "landing.js:$O/landing.js?v=6247-universal-fresh-entry&sidewalk=6247-viewport-tile-progressive&bp=5970-globe-model-matrices&sw=1&wt=1&sf=1&faa=2-aircraft-filters-faa-restored&overlay-visibility=v2" \
-            "app.js:$O/app.js?v=6247-universal-fresh-entry&sidewalk=6247-viewport-tile-progressive&bp=5970-globe-model-matrices&sw=1&wt=1&sf=1&faa=2-aircraft-filters-faa-restored&overlay-visibility=v2" \
-            "view.js:$O/bridgepoint-view-v5917.js?v=6215-satellite-persistent-render-guard&emrf=1&overlay-visibility=v2" \
+            "lighthouse.js:$O/bridgepoint-lighthouses-v1.js?verify=$Q" \
+            "lighthouse-app.js:$O/app/bridgepoint-lighthouses-v1.js?verify=$Q" \
+            "lighthouse-data.json:$O/data/bridgepoint-lighthouses-global-v1.json?verify=$Q" \
+            "lighthouse-attribution.md:$O/data/bridgepoint-lighthouses-global-v1-ATTRIBUTION.md?verify=$Q" \
+            "seismic.js:$O/world-v2300-seismic-layer-v1.js?verify=$Q" \
+            "seismic-app.js:$O/app/world-v2300-seismic-layer-v1.js?verify=$Q" \
+            "landing.js:$O/landing.js?v=6247-universal-fresh-entry&sidewalk=6247-viewport-tile-progressive&bp=5970-globe-model-matrices&sw=1&wt=1&sf=1&faa=2-aircraft-filters-faa-restored&overlay-visibility=v3&layer-controls=20261116" \
+            "app.js:$O/app.js?v=6247-universal-fresh-entry&sidewalk=6247-viewport-tile-progressive&bp=5970-globe-model-matrices&sw=1&wt=1&sf=1&faa=2-aircraft-filters-faa-restored&overlay-visibility=v3&layer-controls=20261116" \
+            "view.js:$O/bridgepoint-view-v5917.js?v=6215-satellite-persistent-render-guard&emrf=1&overlay-visibility=v3&layer-controls=20261116" \
             "world-map.js:$O/world-v2300-map.js?v=6248-mobile-render-recovery-no-error-resize&verify=$Q" \
             "faa-module.js:$O/bridgepoint-faa-obstruction-towers-v1.js?verify=$Q" \
             "faa-app-module.js:$O/app/bridgepoint-faa-obstruction-towers-v1.js?verify=$Q" \
@@ -476,10 +611,36 @@ jobs:
             curl --retry 8 --retry-all-errors --retry-delay 2 --max-time 45 -fsSL -H 'Cache-Control: no-cache' "$url" -o "$D/$name"
           done
           grep -Fq 'subsurface:/subsurface|catacomb|cave|underground-scan' "$D/drone.js"
+          grep -Fq 'earthquakes:/earthquake|seismic|comcat/i' "$D/drone.js"
+          grep -Fq 'bp-layer-turn-on-everything' "$D/drone.js"
+          grep -Fq 'bp-layer-reset-all' "$D/drone.js"
           grep -Fq '.bpv-dock .bpv-command-group button' "$D/drone.js"
           grep -Fq "allowLayerCategory?.('subsurface',true)" "$D/wells.js"
           grep -Fq "allowLayerCategory?.('subsurface',true)" "$D/catacomb.js"
           grep -Fq 'data-bpv-action="catacombs"' "$D/view.js"
+          grep -Fq 'data-bpv-action="parcels" aria-pressed="false" data-bp-layer-toggle="1"' "$D/view.js"
+          grep -Fq 'data-bpv-action="opportunities" aria-pressed="false" data-bp-layer-toggle="1"' "$D/view.js"
+          grep -Fq 'data-bpv-action="windfx" aria-pressed="false" data-bp-layer-toggle="1"' "$D/view.js"
+          grep -Fq 'Named earthquakes · OFF' "$D/seismic.js"
+          grep -Fq 'Lighthouses · OFF' "$D/lighthouse.js"
+          grep -Fq 'function lighthousePopupContent(feature)' "$D/lighthouse.js"
+          cmp -s "$D/lighthouse.js" "$D/lighthouse-app.js"
+          cmp -s "$D/seismic.js" "$D/seismic-app.js"
+          python3 - <<'PY'
+          import json,os
+          from pathlib import Path
+          root=Path(os.environ["RUNNER_TEMP"])/"persistent-overlay-live"
+          rows=json.loads((root/"lighthouse-data.json").read_text(encoding="utf-8"))
+          assert len(rows)>=10000
+          assert (root/"lighthouse-attribution.md").is_file()
+          print("LIVE_LIGHTHOUSE_DATA_AND_ATTRIBUTION_PASS",len(rows))
+          PY
+          grep -Fq 'bridgepoint-lighthouses-v1.js?v=5-card-toggle-street-level-markers' "$D/landing.js"
+          grep -Fq 'bridgepoint-lighthouses-v1.js?v=5-card-toggle-street-level-markers' "$D/app.js"
+          grep -Fq 'world-v2300-seismic-layer-v1.js?v=2-named-earthquakes-toggle' "$D/landing.js"
+          grep -Fq 'world-v2300-seismic-layer-v1.js?v=2-named-earthquakes-toggle' "$D/app.js"
+          grep -Fq 'bridgepoint-drone-awareness-v1.js?v=9-persistent-icons-master-layers' "$D/root.html"
+          grep -Fq 'bridgepoint-drone-awareness-v1.js?v=9-persistent-icons-master-layers' "$D/app.html"
           grep -Fq 'resizeSkipped:true' "$D/world-map.js"
           grep -Fq 'world-v2300-map.js?v=6248-mobile-render-recovery-no-error-resize' "$D/landing.js"
           grep -Fq 'world-v2300-map.js?v=6248-mobile-render-recovery-no-error-resize' "$D/app.js"

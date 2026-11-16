@@ -64,6 +64,12 @@ assert.match(source, /new THREE\.CylinderGeometry\(bodyTop, bodyBottom, bodyHeig
 assert.match(source, /new THREE\.InstancedMesh/);
 assert.match(source, /depthWrite: false/);
 assert.match(source, /map\.queryTerrainElevation\(coordinate/);
+assert.match(source, /Lighthouses · OFF/);
+assert.match(source, /setEnabled\(value\)/);
+assert.match(source, /function lighthousePopupContent\(feature\)/);
+assert.match(source, /map\.on\('click', \[BEACON_LAYER_ID, MARKER_LAYER_ID\]/);
+assert.match(source, /if \(state\.enabled && zoom >= MIN_MODEL_ZOOM && state\.models\.length\)/);
+assert.match(source, /id: MARKER_LAYER_ID, type: 'circle', source: SOURCE_ID,\n      minzoom: MIN_BEACON_ZOOM,\n      paint:/);
 
 assert.equal(parseLengthMetres('30 m'), 30);
 console.log('BRIDGEPOINT_LIGHTHOUSE_HOTFIX_V3_TEST_PASS');

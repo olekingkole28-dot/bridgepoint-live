@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const read = path => readFile(new URL(path, import.meta.url), 'utf8');
-const [moduleSource, landingHtml, appHtml, mapKey, view, workflow, landingSource, appSource, faaModule] = await Promise.all([
+const [moduleSource, landingHtml, appHtml, mapKey, view, workflow, landingSource, appSource, faaModule, seismicModule, lighthouseModule] = await Promise.all([
   read('../rebuild-v5000/bridgepoint-drone-awareness-v1.js'),
   read('../rebuild-v5000/index.html'),
   read('../rebuild-v5000/app-index.html'),
@@ -11,7 +11,9 @@ const [moduleSource, landingHtml, appHtml, mapKey, view, workflow, landingSource
   read('../.github/workflows/deploy-intelligence-rebuild-v5000.yml'),
   read('../rebuild-v5000/landing.js'),
   read('../rebuild-v5000/app.js'),
-  read('../rebuild-v5000/bridgepoint-faa-obstruction-towers-v1.js')
+  read('../rebuild-v5000/bridgepoint-faa-obstruction-towers-v1.js'),
+  read('../release-v2300/world-v2300-seismic-layer-v1.js'),
+  read('../patches/lighthouse-v3/bridgepoint-lighthouses-v1.js')
 ]);
 
 assert.ok(moduleSource.includes('bp-drone-awareness-live-dots-v4'), 'the live UAV point layer is present');
@@ -46,6 +48,17 @@ assert.ok(moduleSource.includes('subsurface:/subsurface|catacomb|cave|undergroun
 assert.ok(moduleSource.includes('infrastructure:/infrastructure|power[-_]?line|utility|pylon|telecom|communication|cell[-_]?tower|substation|transmission|faa-obstruction|distribution-pole/i'), 'power and communications infrastructure layers are recognized by the shared guard');
 assert.ok(moduleSource.includes('energy:/solar|wind[-_]?turbine|offshore[-_]?energy|renewable|energy-field/i'), 'solar and wind overlays have a shared persistent category');
 assert.ok(moduleSource.includes('landmarks:/landmark|poi|monument|statue|fountain|lighthouse|heritage-site/i'), 'landmark overlays are recognized by the shared guard');
+assert.ok(moduleSource.includes('earthquakes:/earthquake|seismic|comcat/i'), 'named earthquake point layers are recognized by the shared guard');
+assert.ok(moduleSource.includes('const explicitToggle=target.hasAttribute(\'aria-pressed\')'), 'the overlay guard reads the control state before an action handler can reset it');
+assert.ok(!moduleSource.includes('setTimeout(()=>{\n   const buttonOn=target.classList.contains'), 'the previous premature off-state race is removed');
+assert.ok(moduleSource.includes('bp-layer-turn-on-everything') && moduleSource.includes('bp-layer-reset-all'), 'global turn-on and reset controls are mounted at the top of the bottom card');
+assert.ok(moduleSource.includes('showAllLayers:()=>setLayerMasterState(true)') && moduleSource.includes('resetAllLayers:()=>setLayerMasterState(false)'), 'master layer controls expose direct API actions');
+assert.ok(seismicModule.includes('Named earthquakes · OFF') && seismicModule.includes('Named earthquakes · '), 'the USGS layer uses the Named earthquakes label in both states');
+assert.ok(seismicModule.includes('data-bpvAction = \'earthquakes\''), 'Named earthquakes explicitly registers its optional point category');
+assert.ok(seismicModule.includes('function popupContent(feature)'), 'Named earthquakes retains detailed click popups');
+assert.ok(lighthouseModule.includes('Lighthouses · OFF') && lighthouseModule.includes('setEnabled(value)'), 'lighthouses have a separate opt-in bottom-card toggle');
+assert.ok(lighthouseModule.includes('function lighthousePopupContent(feature)') && lighthouseModule.includes('map.on(\'click\', [BEACON_LAYER_ID, MARKER_LAYER_ID]'), 'lighthouse map symbols open source details when clicked');
+assert.ok(lighthouseModule.includes('minzoom: MIN_BEACON_ZOOM,\n      paint:'), 'lighthouse location markers remain hit-testable after the rotating-beacon to 3D handoff');
 assert.ok(moduleSource.includes('.bpv-dock .bpv-command-group button'), 'every bottom-card command button participates in opt-in category tracking');
 assert.ok(moduleSource.includes("catacombs:'subsurface'") && moduleSource.includes("wells:'subsurface'"), 'catacomb and wells buttons are mapped to the subsurface category');
 assert.ok(moduleSource.includes("if(/catacomb|cave|subsurface|well|borehole|groundwater|aquifer|underground scan/.test(label))return'subsurface';"), 'subsurface buttons are recognized from their visible labels');

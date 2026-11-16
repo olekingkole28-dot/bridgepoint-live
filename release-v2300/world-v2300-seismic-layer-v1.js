@@ -1,5 +1,5 @@
 /**
- * BridgePoint USGS Seismic Activity Layer V1
+ * BridgePoint Named Earthquakes Layer V2
  *
  * Source: USGS ComCat public GeoJSON summary feed.
  * Representation: source-reported epicenter points only. Depth is displayed
@@ -220,8 +220,10 @@ function mountControl(state) {
   button.type = 'button';
   button.className = 'bpv-command-btn bp-seismic-toggle';
   button.dataset.bpSeismicToggle = '1';
+  button.dataset.bpvAction = 'earthquakes';
+  button.dataset.bpLayerToggle = '1';
   button.setAttribute('aria-pressed', 'false');
-  button.title = 'Show the latest seven days of USGS magnitude 2.5+ earthquakes';
+  button.title = 'Show named earthquakes reported by USGS ComCat during the latest seven days';
   const icon = document.createElement('span');
   icon.className = 'bpv-command-icon';
   icon.setAttribute('aria-hidden', 'true');
@@ -229,7 +231,7 @@ function mountControl(state) {
   const label = document.createElement('span');
   label.className = 'bpv-command-label';
   label.dataset.bpSeismicLabel = '1';
-  label.textContent = 'USGS Seismic · OFF';
+  label.textContent = 'Named earthquakes · OFF';
   button.append(icon, label);
 
   const status = document.createElement('small');
@@ -255,7 +257,7 @@ function syncControl(state) {
     state.button.setAttribute('aria-pressed', String(!!state.enabled));
     state.button.classList.toggle('active', !!state.enabled);
     if (state.labelNode) {
-      setText(state.labelNode, 'USGS Seismic · ' + (state.enabled ? 'ON' : 'OFF'));
+      setText(state.labelNode, 'Named earthquakes · ' + (state.enabled ? 'ON' : 'OFF'));
     }
     state.button.disabled = !!state.busyToggle;
   }

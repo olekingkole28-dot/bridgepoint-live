@@ -61,6 +61,8 @@ const baseLayers=new Set([
 const parcelLayers=new Set(['gta-parcel','gta-parcel-glow','gta-parcel-halo','bp-public-auto-parcel-glow-v5933','bp-public-auto-parcel-line-v5933']);
 let parcelLayerEnabled=false;
 const allowedCategories=new Set(['clouds']);
+const masterControlIds=new Set(['bp-layer-turn-on-everything','bp-layer-reset-all']);
+let masterControlsMounted=false;
 const categoryPatterns={
  parcels:/parcel|cadastral|boundary-viewer/i,
  buildings:/^gta-(?:context-building-footprints|context-building-shadow|context-buildings|context-floor-lines|context-roofs|context-facade-detail|context-building-parts|bp-building-shadow|bp-buildings|bp-floor-lines|bp-roofs|bp-facade-detail|bp-building-edge|city-buildings|city-floor-lines|city-building-roof-caps|city-roofs|exact-building|exact-roof|exact-floor-lines)$/i,
@@ -73,6 +75,7 @@ const categoryPatterns={
  transport:/road-|bridge(?:3d|-)|rail|transportation|transport-mesh/i,
  water:/bp-water-surface|water-surface|waterway-flow|hydrology/i,
  clouds:/cloud-volume|sky-cloud|satellite-cloud|eumetsat-cloud/i,
+ earthquakes:/earthquake|seismic|comcat/i,
  subsurface:/subsurface|catacomb|cave|underground-scan|well|borehole|groundwater|aquifer|drillhole/i,
  infrastructure:/infrastructure|power[-_]?line|utility|pylon|telecom|communication|cell[-_]?tower|substation|transmission|faa-obstruction|distribution-pole/i,
  energy:/solar|wind[-_]?turbine|offshore[-_]?energy|renewable|energy-field/i,
@@ -109,7 +112,7 @@ function categoryForTarget(target){
  // Opening the fields panel is not itself a layer activation; the panel's own
  // Wind / RF / Drone controls opt their category in only when pressed.
  if(action==='volumetric')return null;
- const actionMap={parcels:'parcels',boundaryviewer:'parcels',worldchanges:'history',weatherfx:'weather',windfx:'wind',volumetric:'wind',satellite:'imagery',opportunities:'opportunities',listings:'listings',water:'water',catacombs:'subsurface',subsurface:'subsurface',wells:'subsurface',boreholes:'subsurface',powerlines:'infrastructure',infrastructure:'infrastructure',utilities:'infrastructure',telecom:'infrastructure',solar:'energy',windturbines:'energy',energy:'energy',landmarks:'landmarks',lighthouses:'landmarks',nature:'nature',trees:'nature',vessels:'shipping',ships:'shipping',maritime:'shipping'};
+ const actionMap={parcels:'parcels',boundaryviewer:'parcels',worldchanges:'history',weatherfx:'weather',windfx:'wind',volumetric:'wind',satellite:'imagery',opportunities:'opportunities',listings:'listings',water:'water',catacombs:'subsurface',subsurface:'subsurface',wells:'subsurface',boreholes:'subsurface',powerlines:'infrastructure',infrastructure:'infrastructure',utilities:'infrastructure',telecom:'infrastructure',solar:'energy',windturbines:'energy',energy:'energy',landmarks:'landmarks',lighthouses:'landmarks',earthquakes:'earthquakes',nature:'nature',trees:'nature',vessels:'shipping',ships:'shipping',maritime:'shipping'};
  if(actionMap[action])return actionMap[action];
  if(target.dataset?.layer==='parcels')return'parcels';
  if(target.dataset?.layer==='buildings')return'buildings';
@@ -128,6 +131,7 @@ function categoryForTarget(target){
  if(/power.?line|electric.?grid|utility|pylon|telecom|communication|cell.?tower|transmission|infrastructure|substation|faa|tower|crane|obstruction|antenna/.test(label))return'infrastructure';
  if(/solar|wind turbine|renewable|offshore energy/.test(label))return'energy';
  if(/landmark|lighthouse|monument|statue|fountain|heritage|poi/.test(label))return'landmarks';
+ if(/earthquake|seismic|comcat/.test(label))return'earthquakes';
  if(/tree|canopy|vegetation|forest/.test(label))return'nature';
  if(/ship|vessel|maritime|boat|port/.test(label))return'shipping';
  if(/road|rail|bridge|transport/.test(label))return'transport';
@@ -945,29 +949,80 @@ function installEmptyMode(m){
  try{for(const event of ['style.load','idle','moveend','zoomend','rotateend','pitchend'])m.on(event,hideDefaultOverlays)}catch(_){}
  hideDefaultOverlays();
 }
+function setLayerMasterState(turnOn){
+ const root=$('#bpv-dock-actions');
+ if(!root)return false;
+ const controls=[...root.querySelectorAll('button[aria-pressed],button.active,[data-bp-layer-toggle]')];
+ for(const control of controls){
+  if(masterControlIds.has(control.id)||control.disabled||control.closest('[data-bpv-panel]'))continue;
+  const hasPressed=control.hasAttribute('aria-pressed');
+  const current=hasPressed?control.getAttribute('aria-pressed')==='true':control.classList.contains('active');
+  if(current!==!!turnOn)control.click();
+ }
+ const lighthouse=window.__BP_LIGHTHOUSES_V1__;
+ const earthquakes=window.__BP_USGS_SEISMIC_LAYER_V1__;
+ if(lighthouse?.setEnabled&&!!lighthouse.enabled!==!!turnOn)lighthouse.setEnabled(!!turnOn);
+ if(earthquakes?.setEnabled&&!!earthquakes.enabled!==!!turnOn)void earthquakes.setEnabled(!!turnOn);
+ if(turnOn){
+  for(const key of Object.keys(categoryPatterns))allowedCategories.add(key);
+  parcelLayerEnabled=true;
+ }else{
+  allowedCategories.clear();
+  allowedCategories.add('clouds');
+  parcelLayerEnabled=false;
+ }
+ hideDefaultOverlays();
+ return true;
+}
+function mountLayerMasterControls(){
+ if(masterControlsMounted&&$('#bp-layer-turn-on-everything'))return true;
+ const actions=$('#bpv-dock-actions');
+ if(!actions)return false;
+ const section=document.createElement('section');
+ section.className='bpv-command-group bpv-layer-master-controls';
+ section.dataset.bpvCommandSection='layer-master';
+ section.setAttribute('aria-label','Layer visibility controls');
+ const heading=document.createElement('div');
+ heading.className='bpv-command-heading';
+ heading.innerHTML='<span class="bpv-command-heading-icon" aria-hidden="true">◎</span><span><b>GLOBAL LAYER CONTROLS</b><small>Show every available layer or clear optional overlays</small></span>';
+ const grid=document.createElement('div');
+ grid.className='bpv-command-grid';
+ const on=document.createElement('button');
+ on.type='button';on.id='bp-layer-turn-on-everything';on.className='bpv-command-btn bpv-layer-master-btn';
+ on.title='Turn on all available map layers and feature overlays';
+ on.innerHTML='<span class="bpv-command-icon" aria-hidden="true">◉</span><span class="bpv-command-label">Turn on everything</span>';
+ on.addEventListener('click',()=>{setLayerMasterState(true)});
+ const reset=document.createElement('button');
+ reset.type='button';reset.id='bp-layer-reset-all';reset.className='bpv-command-btn bpv-layer-master-btn';
+ reset.title='Turn off optional map layers and restore the clean globe';
+ reset.innerHTML='<span class="bpv-command-icon" aria-hidden="true">↺</span><span class="bpv-command-label">Reset all</span>';
+ reset.addEventListener('click',()=>{setLayerMasterState(false)});
+ grid.append(on,reset);section.append(heading,grid);
+ actions.insertBefore(section,actions.firstChild);
+ masterControlsMounted=true;
+ return true;
+}
 function bindStartMode(){
  document.addEventListener('click',e=>{
   if(!emptyModeActive)return;
   const target=e.target?.closest?.('.bpv-dock [data-bpv-action], .bpv-dock .bpv-command-group button, .bpv-dock [data-bpv-panel], .bpv-dock [data-bpv-slot-action], #bpv-mapkey-rail, .map-tools button, .bpv-contained-control button');
-  if(!target)return;
+  if(!target||masterControlIds.has(target.id))return;
   const category=categoryForTarget(target);
   if(!category)return;
-  if(category!=='parcels')allowedCategories.add(category);
+  const explicitToggle=target.hasAttribute('aria-pressed')||target.hasAttribute('data-bp-layer-toggle')||target.classList.contains('active');
+  const wasOn=target.hasAttribute('aria-pressed')
+   ?target.getAttribute('aria-pressed')==='true'
+   :target.classList.contains('active');
+  const nextOn=explicitToggle?!wasOn:true;
+  if(category==='parcels')parcelLayerEnabled=nextOn;
+  else if(nextOn)allowedCategories.add(category);
+  else allowedCategories.delete(category);
   hideDefaultOverlays();
-  // The existing toggle owns on/off state. If it ended off, remove just that
-  // category from the opt-in allowlist; unrelated layers stay hidden.
-  setTimeout(()=>{
-   const buttonOn=target.classList.contains('active')||target.getAttribute('aria-pressed')==='true';
-   if(category==='parcels')parcelLayerEnabled=buttonOn;
-   else if(['subsurface','infrastructure','energy','landmarks','nature','shipping'].includes(category)){
-    if(buttonOn)allowedCategories.add(category);else allowedCategories.delete(category);
-   }
-   if(category==='buildings'&&!buttonOn)allowedCategories.delete(category);
-   hideDefaultOverlays();
-  },0);
+  requestAnimationFrame(()=>{hideDefaultOverlays()});
  },true);
 }
 function tryBoot(){
+ mountLayerMasterControls();
  addStyle();addButton();const panel=$('#bpv-sidecar');if(panel)pane=createPane(panel);const current=worldMap();
  if(current){
   if(map!==current){try{styleRetryCleanup?.()}catch(_){}map=current;installEmptyMode(map);
@@ -997,6 +1052,8 @@ function boot(){
  },250);
  window.__BP_DRONE_AWARENESS_V1__={
   version:VERSION,
+  showAllLayers:()=>setLayerMasterState(true),
+  resetAllLayers:()=>setLayerMasterState(false),
   controlLabel:'Aircraft',
   source:'adsb.lol public community ADS-B feed',
   aggregation:GLOBAL_SAMPLES.length+' regional ADS-B sample windows, maximum '+REGION_RADIUS_NM+' NM radius; partial coverage only; UAV plus type-classified aircraft 3D altitude-aware tracks',

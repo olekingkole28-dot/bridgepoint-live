@@ -12,6 +12,7 @@ const BEACON_HALO_LAYER_ID = 'bp-lighthouses-beacon-halo-v2';
 const BEACON_LAYER_ID = 'bp-lighthouses-beacon-v2';
 const BEACON_IMAGE_ID = 'bp-lighthouse-rotating-beacon-v2';
 const MODEL_LAYER_ID = 'bp-lighthouses-3d-v1';
+const LIGHTHOUSE_CONTROL_ID = 'bpv-lighthouses-slot';
 const MIN_BEACON_ZOOM = 3.8;
 const MAX_BEACON_ZOOM = 14.2;
 const MIN_MODEL_ZOOM = 14.0;
@@ -140,7 +141,8 @@ export function normalizeLighthouseElement(element) {
       periodSec: Number.isFinite(period) && period >= 1 && period <= 60 ? period : 5,
       groundElevationM: elevation, source: 'OpenStreetMap contributors',
       sourceType: String(element.type || 'osm'), sourceId: String(element.id ?? ''),
-      country: String(tags['addr:country'] || ''), region: String(tags['addr:state'] || '')
+      country: String(tags['addr:country'] || ''), region: String(tags['addr:state'] || ''),
+      lightCharacter: String(tags['seamark:light:character'] || tags['light:character'] || '')
     }
   };
 }
@@ -587,7 +589,7 @@ function addMarkerLayer(map) {
   if (!map.getLayer(MARKER_LAYER_ID)) {
     map.addLayer({
       id: MARKER_LAYER_ID, type: 'circle', source: SOURCE_ID,
-      minzoom: MIN_BEACON_ZOOM, maxzoom: MAX_BEACON_ZOOM,
+      minzoom: MIN_BEACON_ZOOM,
       paint: {
         'circle-radius': ['interpolate', ['linear'], ['zoom'], 3.8, 2.6, 7, 3.5, 13.5, 3.2],
         'circle-color': ['coalesce', ['get', 'markerColor'], '#b64436'],
@@ -619,6 +621,118 @@ function addMarkerLayer(map) {
   }
 }
 
+function lighthousePopupContent(feature) {
+  const p = feature?.properties || {};
+  const root = document.createElement('div');
+  root.style.cssText = 'min-width:190px;max-width:280px;color:#101820;font:12px/1.48 system-ui,sans-serif';
+  const heading = document.createElement('strong');
+  heading.style.cssText = 'display:block;font-size:14px;margin-bottom:6px';
+  heading.textContent = p.name || 'Lighthouse';
+  root.appendChild(heading);
+  const addLine = (label, value) => {
+    if (value === null || value === undefined || value === '') return;
+    const line = document.createElement('div');
+    line.textContent = label + ': ' + String(value);
+    root.appendChild(line);
+  };
+  const height = Number(p.heightM);
+  addLine('Tower height', Number.isFinite(height) ? height.toFixed(1) + ' m' + (p.measuredHeight ? ' (mapped)' : ' (estimated)') : '');
+  const diameter = Number(p.diameterM);
+  addLine('Tower diameter', Number.isFinite(diameter) ? diameter.toFixed(1) + ' m' : '');
+  addLine('Light character', p.lightCharacter);
+  addLine('Light colour', p.lightColor);
+  addLine('Light period', Number.isFinite(Number(p.periodSec)) ? Number(p.periodSec) + ' seconds' : '');
+  addLine('Country', p.country);
+  addLine('Region', p.region);
+  addLine('Mapped ID', p.sourceId);
+  const attribution = document.createElement('small');
+  attribution.style.cssText = 'display:block;margin-top:7px;color:#586570';
+  attribution.textContent = 'Source: OpenStreetMap contributors · ODbL. Mapped status and dimensions may be incomplete.';
+  root.appendChild(attribution);
+  return root;
+}
+
+function showLighthouseDetails(state, event) {
+  if (!state.enabled) return;
+  const feature = event?.features?.[0];
+  if (!feature) return;
+  const Popup = window.maplibregl?.Popup || window.maplibreGL?.Popup;
+  if (typeof Popup !== 'function') return;
+  const coordinate = feature.geometry?.coordinates;
+  const lngLat = event.lngLat || (Array.isArray(coordinate) ? {lng:coordinate[0],lat:coordinate[1]} : null);
+  if (!lngLat) return;
+  try {
+    new Popup({closeButton:true,closeOnClick:true,maxWidth:'310px'})
+      .setLngLat(lngLat)
+      .setDOMContent(lighthousePopupContent(feature))
+      .addTo(state.map);
+  } catch (error) {
+    console.warn('BridgePoint lighthouse details unavailable', error);
+  }
+}
+
+function syncLighthouseControl(state) {
+  if (!state.button) return;
+  state.button.setAttribute('aria-pressed', String(!!state.enabled));
+  state.button.classList.toggle('active', !!state.enabled);
+  if (state.labelNode) state.labelNode.textContent = 'Lighthouses · ' + (state.enabled ? 'ON' : 'OFF');
+}
+
+function mountLighthouseControl(state) {
+  const anchor = document.getElementById('bpv-satellite-slot') ||
+    document.getElementById('bpv-underground-slot');
+  if (!anchor?.parentNode) return false;
+  let slot = document.getElementById(LIGHTHOUSE_CONTROL_ID);
+  if (!slot) {
+    slot = document.createElement('div');
+    slot.id = LIGHTHOUSE_CONTROL_ID;
+    slot.className = 'bpv-command-inline-slot';
+    slot.setAttribute('aria-label', 'Lighthouse feature layer');
+    anchor.insertAdjacentElement('afterend', slot);
+  }
+  let button = slot.querySelector('[data-bp-lighthouses-toggle]');
+  if (!button) {
+    button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'bpv-command-btn bpv-lighthouses-toggle';
+    button.dataset.bpLighthousesToggle = '1';
+    button.dataset.bpLayerToggle = '1';
+    button.dataset.bpvAction = 'lighthouses';
+    button.setAttribute('aria-pressed', 'false');
+    button.title = 'Toggle global lighthouse beacons and close-zoom 3D towers';
+    const icon = document.createElement('span');
+    icon.className = 'bpv-command-icon';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.textContent = '✦';
+    const label = document.createElement('span');
+    label.className = 'bpv-command-label';
+    label.textContent = 'Lighthouses · OFF';
+    button.append(icon, label);
+    button.addEventListener('click', () => {
+      if (state.setEnabled) state.setEnabled(!state.enabled);
+    });
+    slot.appendChild(button);
+    state.button = button;
+    state.labelNode = label;
+  } else {
+    state.button = button;
+    state.labelNode = button.querySelector('.bpv-command-label');
+  }
+  syncLighthouseControl(state);
+  return true;
+}
+
+function setLighthouseVisibility(state, visible) {
+  state.enabled = !!visible;
+  for (const id of [BEACON_HALO_LAYER_ID, MARKER_LAYER_ID, BEACON_LAYER_ID, MODEL_LAYER_ID]) {
+    if (!state.map.getLayer?.(id)) continue;
+    try { state.map.setLayoutProperty(id, 'visibility', state.enabled ? 'visible' : 'none'); } catch (_) {}
+  }
+  syncLighthouseControl(state);
+  try { state.map.triggerRepaint?.(); } catch (_) {}
+  return state.enabled;
+}
+
 function scheduleBeaconRotation(state) {
   if (state.dead || state.beaconTimer) return;
   const tick = () => {
@@ -626,7 +740,7 @@ function scheduleBeaconRotation(state) {
     if (state.dead) return;
     const map = state.map;
     const zoom = Number(map.getZoom && map.getZoom() || 0);
-    const visible = !document.hidden && zoom >= MIN_BEACON_ZOOM &&
+    const visible = state.enabled && !document.hidden && zoom >= MIN_BEACON_ZOOM &&
       zoom < MAX_BEACON_ZOOM && !!map.getLayer(BEACON_LAYER_ID);
     if (visible) {
       try {
@@ -756,7 +870,7 @@ function installModelLayer(state) {
       const now = Date.now();
       let anyNight = false;
       const zoom = Number(map.getZoom && map.getZoom() || 0);
-      if (zoom >= MIN_MODEL_ZOOM && state.models.length) {
+      if (state.enabled && zoom >= MIN_MODEL_ZOOM && state.models.length) {
         for (const item of state.models) {
           if (now - item.nightCheckedAt > 30000) {
             item.night = isDarkAt(item.coordinate[1], item.coordinate[0], new Date(now));
@@ -817,7 +931,7 @@ function scheduleRefresh(state) {
     state.refreshTimer = 0;
     try {
       if (state.map.getSource(SOURCE_ID) && state.collection.features.length) rebuildModels(state);
-      if (state.map.getZoom() >= MIN_MODEL_ZOOM && state.models.length &&
+      if (state.enabled && state.map.getZoom() >= MIN_MODEL_ZOOM && state.models.length &&
           state.map.triggerRepaint) state.map.triggerRepaint();
     } catch (error) {
       console.warn('BridgePoint lighthouse refresh', error);
@@ -888,6 +1002,12 @@ function install(map, state) {
   if (!map || !map.getStyle || !map.getStyle()) return;
   try {
     addMarkerLayer(map);
+    setLighthouseVisibility(state, state.enabled);
+    if (!state.interactionsBound) {
+      state.featureClickHandler = event => showLighthouseDetails(state, event);
+      map.on('click', [BEACON_LAYER_ID, MARKER_LAYER_ID], state.featureClickHandler);
+      state.interactionsBound = true;
+    }
     state.stats.markerLayerReady = !!map.getLayer(MARKER_LAYER_ID);
     state.stats.beaconLayerReady = !!map.getLayer(BEACON_LAYER_ID);
   } catch (error) {
@@ -940,6 +1060,8 @@ export function initLighthouseRenderer(target) {
   const state = {
     map, installed: false, dead: false, layerInstalling: false,
     globalLoading: false, globalLoaded: false, viewportLoading: false,
+    enabled: false, button: null, labelNode: null, interactionsBound: false,
+    featureClickHandler: null, controlObserver: null,
     refreshTimer: 0, animationTimer: 0, beaconTimer: 0, viewportPending: false,
     THREE: null, scene: null, camera: null, renderer: null,
     featureCache: new Map(), collection: EMPTY, models: [], modelSignature: '',
@@ -953,7 +1075,16 @@ export function initLighthouseRenderer(target) {
     get status() { return state.status; },
     get stats() { return Object.assign({}, state.stats); },
     get features() { return state.collection.features.length; },
-    get displayMode() { return lighthouseRenderModeForZoom(state.map.getZoom()); },
+    get displayMode() { return state.enabled ? lighthouseRenderModeForZoom(state.map.getZoom()) : 'off'; },
+    get enabled() { return state.enabled; },
+    setEnabled(value) {
+      const next = setLighthouseVisibility(state, !!value);
+      if (next) {
+        if (!state.globalLoaded) void loadGlobalData(state);
+        if (state.THREE) rebuildModels(state);
+      }
+      return next;
+    },
     refresh() {
       state.globalLoaded = false;
       state.globalLoading = false;
@@ -961,6 +1092,8 @@ export function initLighthouseRenderer(target) {
     },
     destroy() {
       state.dead = true;
+      state.controlObserver?.disconnect();
+      if (state.featureClickHandler) map.off?.('click', [BEACON_LAYER_ID, MARKER_LAYER_ID], state.featureClickHandler);
       if (state.refreshTimer) clearTimeout(state.refreshTimer);
       if (state.animationTimer) clearTimeout(state.animationTimer);
       if (state.beaconTimer) clearTimeout(state.beaconTimer);
@@ -975,6 +1108,16 @@ export function initLighthouseRenderer(target) {
   MAP_STATES.set(map, state);
   window.__BP_LIGHTHOUSES_V1__ = api;
   window.__BP_LIGHTHOUSES_V2__ = api;
+  state.setEnabled = api.setEnabled;
+  if (!mountLighthouseControl(state) && typeof MutationObserver === 'function' && document.body) {
+    state.controlObserver = new MutationObserver(() => {
+      if (mountLighthouseControl(state)) {
+        state.controlObserver?.disconnect();
+        state.controlObserver = null;
+      }
+    });
+    try { state.controlObserver.observe(document.body, {childList:true, subtree:true}); } catch (_) {}
+  }
   const ready = () => install(map, state);
   map.on('style.load', ready);
   map.on('load', ready);
