@@ -126,7 +126,7 @@ function categoryForTarget(target){
  if(/history|changes|timeline/.test(label))return'history';
  if(/opportunit/.test(label))return'opportunities';
  if(/catacomb|cave|subsurface|well|borehole|groundwater|aquifer|underground scan/.test(label))return'subsurface';
- if(/power.?line|electric.?grid|utility|pylon|telecom|communication|cell.?tower|transmission|infrastructure|substation/.test(label))return'infrastructure';
+ if(/power.?line|electric.?grid|utility|pylon|telecom|communication|cell.?tower|transmission|infrastructure|substation|faa|tower|crane|obstruction|antenna/.test(label))return'infrastructure';
  if(/solar|wind turbine|renewable|offshore energy/.test(label))return'energy';
  if(/landmark|lighthouse|monument|statue|fountain|heritage|poi/.test(label))return'landmarks';
  if(/tree|canopy|vegetation|forest/.test(label))return'nature';
