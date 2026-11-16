@@ -1,4 +1,4 @@
-name: Publish BridgePoint 3D Underground — Paris Catacombs v4
+name: Publish BridgePoint 3D Underground — 11 Catacombs scans v7
 
 on:
   workflow_dispatch:
@@ -189,23 +189,30 @@ jobs:
           from pathlib import Path
           import hashlib, json, os, re
           site=Path(os.environ["RUNNER_TEMP"])/"bp-underground-site"
-          old_module="./bridgepoint-underground-scan-sites-v1.js?v=1-curated-sketchfab-caves"
-          new_module="./bridgepoint-underground-scan-scenes-v2.js?v=6-paris-catacombs-room-anchor"
-          attach="""void import('./bridgepoint-underground-scan-scenes-v2.js?v=6-paris-catacombs-room-anchor')
+          old_modules=[
+              ("./bridgepoint-underground-scan-scenes-v2.js?v=7-paris-catacombs-multi-scan-icons", ".catch(e=>console.warn('BridgePoint Paris Catacombs 3D layer unavailable',e));"),
+              ("./bridgepoint-underground-scan-sites-v1.js?v=1-curated-sketchfab-caves", ".catch(e=>console.warn('BridgePoint cave and underground scan layer unavailable',e));"),
+          ]
+          new_module="./bridgepoint-underground-scan-scenes-v2.js?v=7-paris-catacombs-multi-scan-icons"
+          attach="""void import('./bridgepoint-underground-scan-scenes-v2.js?v=7-paris-catacombs-multi-scan-icons')
              .then(m=>{window.__BP_PARIS_CATACOMBS_V3__=m.initUndergroundScanScenesRenderer(world)})
              .catch(e=>console.warn('BridgePoint Paris Catacombs 3D layer unavailable',e));"""
           for rel in ("landing.js","app.js"):
               path=site/rel
               data=path.read_text(encoding="utf-8")
-              if data.count(old_module)==1:
-                  start=data.index(old_module)
-                  begin=data.rfind("\n",0,start)+1
-                  end=data.index(".catch(e=>console.warn('BridgePoint cave and underground scan layer unavailable',e));",start)
-                  end=data.index("\n",end)+1
-                  indent=data[begin:].split('void import(',1)[0]
-                  replacement=indent+attach.replace("\n","\n"+indent)+"\n"
-                  data=data[:begin]+replacement+data[end:]
-              elif new_module not in data:
+              replaced=False
+              for old_module,old_error in old_modules:
+                  if data.count(old_module)==1:
+                      start=data.index(old_module)
+                      begin=data.rfind("\n",0,start)+1
+                      end=data.index(old_error,start)
+                      end=data.index("\n",end)+1
+                      indent=data[begin:].split('void import(',1)[0]
+                      replacement=indent+attach.replace("\n","\n"+indent)+"\n"
+                      data=data[:begin]+replacement+data[end:]
+                      replaced=True
+                      break
+              if not replaced and new_module not in data:
                   anchor=".catch(e=>console.warn('BridgePoint global subsurface wells renderer unavailable',e));"
                   if data.count(anchor)!=1:
                       raise SystemExit(f"{rel}: could not locate unique existing wells import to attach the new renderer")
@@ -223,15 +230,18 @@ jobs:
               if view.count(dock_anchor)!=1:
                   raise SystemExit("Could not find the unique bottom-card bpv-dock-actions insertion point")
               section="""  '<section id="bp-paris-catacombs-control-v3" class="bpv-command-group" data-bpv-command-section="paris-catacombs" aria-label="3D Underground scans">'+
-               '<div class="bpv-command-heading"><span class="bpv-command-heading-icon" aria-hidden="true">🕳️</span><span><b>3D UNDERGROUND</b><small>Paris Catacombs · two native 3D scans</small></span></div>'+
+               '<div class="bpv-command-heading"><span class="bpv-command-heading-icon" aria-hidden="true">🕳️</span><span><b>3D UNDERGROUND</b><small>Paris Catacombs · 11 selectable scans</small></span></div>'+
                '<div class="bpv-command-grid"><button id="bp-paris-catacombs-toggle-v3" type="button" class="bpv-command-btn" aria-pressed="false" title="Toggle 3D underground scan marker"><span class="bpv-command-icon" aria-hidden="true">🪦</span><span class="bpv-command-label">3D underground</span></button></div>'+
-               '<div id="bp-paris-catacombs-count-v3" class="bpv-data-note">2 open-license LiDAR scans · Paris, France</div>'+
+               '<div id="bp-paris-catacombs-count-v3" class="bpv-data-note">11 selectable scans · 2 native GLBs + 9 creator-hosted viewers</div>'+
                '<div id="bp-paris-catacombs-status-v3" class="bpv-data-note">Layer off · existing BridgePoint layers remain unchanged.</div>'+
                '<style id="bp-paris-catacombs-style-v3">#bp-paris-catacombs-control-v3 .bpv-data-note{font:600 10px/1.45 system-ui,sans-serif;color:#9bb7c6;margin:5px 2px;overflow-wrap:anywhere}#bp-paris-catacombs-toggle-v3.is-active{border-color:rgba(113,225,190,.78);background:rgba(22,86,72,.56)}</style>'+
               '</section>'+
           """
               view=view.replace(dock_anchor,dock_anchor+"\n"+section)
               view_path.write_text(view,encoding="utf-8")
+          view=view.replace("Paris Catacombs · two native 3D scans","Paris Catacombs · 11 selectable scans")
+          view=view.replace("2 open-license LiDAR scans · Paris, France","11 selectable scans · 2 native GLBs + 9 creator-hosted viewers")
+          view_path.write_text(view,encoding="utf-8")
           if button_id not in view:
               raise SystemExit("Static Caves & Sites button was not inserted into the bottom card")
 
@@ -242,17 +252,18 @@ jobs:
               if len(matches)!=1:
                   raise SystemExit(f"{rel}: expected exactly one globe-entry script URL, found {len(matches)}")
               old=matches[0].group(1)
-              if "underground-scenes=paris-v6" not in old:
-                  data=data.replace(old,old+"&underground-scenes=paris-v6",1)
+              base=re.sub(r'&underground-scenes=paris-v\d+','',old)
+              data=data.replace(old,base+"&underground-scenes=paris-v7",1)
               path.write_text(data,encoding="utf-8")
           for rel in ("index.html","app/index.html"):
               path=site/rel
               data=path.read_text(encoding="utf-8")
-              old='/bridgepoint-view-v5917.js?v=6215-satellite-persistent-render-guard&emrf=1'
-              new=old+'&underground-scenes=paris-v6'
-              if old in data:data=data.replace(old,new,1)
-              if "bridgepoint-view-v5917.js" not in data or "underground-scenes=paris-v6" not in data:
-                  raise SystemExit(f"{rel}: view script cache key did not update")
+              def bump_view_cache(match):
+                  base=re.sub(r'&underground-scenes=paris-v\d+','',match.group(1))
+                  return base+"&underground-scenes=paris-v7"
+              data,count=re.subn(r'(/bridgepoint-view-v5917\.js\?[^"\']*)',bump_view_cache,data)
+              if count!=1 or "underground-scenes=paris-v7" not in data:
+                  raise SystemExit(f"{rel}: view script cache key did not update exactly once")
               path.write_text(data,encoding="utf-8")
 
           before=json.loads((Path(os.environ["RUNNER_TEMP"])/"bp-underground-before.json").read_text())
@@ -300,20 +311,20 @@ jobs:
         with:
           artifact_name: github-pages-underground-scan-scenes-v2
 
-      - name: Verify the 3D Underground card, multi-scan viewer, and GLB assets on root and app routes
+      - name: Verify the 3D Underground 11-scan selector, persistent markers and original GLB assets on root and app routes
         shell: bash
         run: |
           set -euo pipefail
           O='https://bridgepointintelligence.online'
-          Q="$GITHUB_SHA-underground-scenes-v4"
+          Q="$GITHUB_SHA-underground-scenes-v7"
           D="$RUNNER_TEMP/underground-live"
           mkdir -p "$D"
           for item in \
             "root.html:$O/?underground=$Q" \
             "app.html:$O/app/?underground=$Q" \
-            "view.js:$O/bridgepoint-view-v5917.js?v=6215-satellite-persistent-render-guard&emrf=1&underground-scenes=paris-v6" \
-            "landing.js:$O/landing.js?v=6247-universal-fresh-entry&underground-scenes=paris-v6" \
-            "app.js:$O/app.js?v=6247-universal-fresh-entry&underground-scenes=paris-v6" \
+            "view.js:$O/bridgepoint-view-v5917.js?v=6215-satellite-persistent-render-guard&emrf=1&underground-scenes=paris-v7" \
+            "landing.js:$O/landing.js?v=6247-universal-fresh-entry&underground-scenes=paris-v7" \
+            "app.js:$O/app.js?v=6247-universal-fresh-entry&underground-scenes=paris-v7" \
             "module.js:$O/bridgepoint-underground-scan-scenes-v2.js?verify=$Q" \
             "app-module.js:$O/app/bridgepoint-underground-scan-scenes-v2.js?verify=$Q" \
             "catalog.json:$O/assets/underground-scan-scenes/catalog.json?verify=$Q" \
@@ -326,11 +337,12 @@ jobs:
           grep -Fq 'bp-paris-catacombs-toggle-v3' "$D/view.js"
           grep -Fq 'from "/vendor/three.module.js?v=169-local"' "$D/gltfloader.js"
           ! grep -Fq 'from "three"' "$D/gltfloader.js"
-          grep -Fq 'bridgepoint-underground-scan-scenes-v2.js?v=6-paris-catacombs-room-anchor' "$D/landing.js"
-          grep -Fq 'bridgepoint-underground-scan-scenes-v2.js?v=6-paris-catacombs-room-anchor' "$D/app.js"
+          grep -Fq 'bridgepoint-underground-scan-scenes-v2.js?v=7-paris-catacombs-multi-scan-icons' "$D/landing.js"
+          grep -Fq 'bridgepoint-underground-scan-scenes-v2.js?v=7-paris-catacombs-multi-scan-icons' "$D/app.js"
           grep -Fq '3D underground' "$D/view.js"
           grep -Fq "type:'custom',renderingMode:'3d'" "$D/module.js"
-          ! grep -Fq '<iframe' "$D/module.js"
+          grep -Fq 'bpv3-hosted-model-frame' "$D/module.js"
+          grep -Fq 'sketchfab.com/models/' "$D/module.js"
           cmp -s "$D/module.js" "$D/app-module.js"
           python3 - <<'PY'
           import gzip,json,os
