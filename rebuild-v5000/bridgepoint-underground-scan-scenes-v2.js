@@ -2,7 +2,7 @@
  * The source scan is a real iPhone LiDAR capture. Its district anchor and below-ground offset
  * are visualization references only: the source mesh is not georeferenced to a surveyed chamber.
  */
-const VERSION=6, MAP_STATES=new WeakMap(), MIN_MODEL_ZOOM=11.2;
+const VERSION=7, MAP_STATES=new WeakMap(), MIN_MODEL_ZOOM=11.2;
 const THREE_URL='/vendor/three.module.js?v=169-local';
 const GLTF_URL='/vendor/GLTFLoader.bundle.js?v=169-local';
 const SOURCE_ID='bp-paris-catacombs-source-v3', HALO_ID='bp-paris-catacombs-halo-v3';
@@ -30,28 +30,98 @@ export const PARIS_CATACOMBS_MODELS_V4=[
   locationPrecision:'Approximate room-level address anchor from an independent Catacombs 3D archive; the original point cloud is not GPS-georeferenced.',
   locationSourceUrl:'https://catacombes.xyz/rooms/rats',
   detail:'A multi-chamber area known as Le Bar des Rats, identified by its creator as being toward the northwestern corner of the Paris Catacombs. It includes walls and murals and is a much denser point-cloud capture than the gallery mesh.'}
+
+ {uid:'96cc3e6942a7455382c49241c1a80915',title:'Paris Catacombs — Salle Z (3DScannerApp)',label:'Salle Z',creator:'Emm (@edemaistre)',
+  license:'CC BY 4.0',captureMethod:'iPhone 12 Pro · 3DScannerApp',
+  sourceUrl:'https://sketchfab.com/3d-models/paris-catacombs-salle-z-3dscannerapp-96cc3e6942a7455382c49241c1a80915',
+  sketchfabUid:'96cc3e6942a7455382c49241c1a80915',viewerOnly:true,geometryType:'Creator-hosted LiDAR mesh',publishedVertices:1000000,publishedTriangles:2000000,
+  locationPrecision:'Regional Catacombs anchor only; scan origin is not GPS-georeferenced.',
+  detail:'Salle Z is described by the creator as the largest room in the Paris Catacombs, with a ceiling around 15 feet high. This is the large textured iPhone 12 Pro scan.'},
+ {uid:'d407fb1ba0414482a99ccd6567b29512',title:'Paris Catacombs — Salle Z (portion)',label:'Salle Z · portion',creator:'Emm (@edemaistre)',
+  license:'CC BY 4.0',captureMethod:'iPhone 12 Pro · 3DScannerApp',
+  sourceUrl:'https://sketchfab.com/3d-models/paris-catacombs-salle-z-portion-d407fb1ba0414482a99ccd6567b29512',
+  sketchfabUid:'d407fb1ba0414482a99ccd6567b29512',viewerOnly:true,geometryType:'Creator-hosted LiDAR mesh',publishedVertices:655600,publishedTriangles:1300000,
+  locationPrecision:'Regional Catacombs anchor only; scan origin is not GPS-georeferenced.',
+  detail:'A textured scan of a portion of Salle Z, the largest room in the Catacombs, with approximately 15-foot ceilings.'},
+ {uid:'27ae0d6041c54e2eab6638d197985842',title:'Paris Catacombs — Level 1 to Level 2',label:'Level 1 → 2',creator:'Emm (@edemaistre)',
+  license:'CC BY 4.0',captureMethod:'iPhone 12 Pro · 3DScannerApp',
+  sourceUrl:'https://sketchfab.com/3d-models/paris-catacombs-from-level-1-to-level-2-27ae0d6041c54e2eab6638d197985842',
+  sketchfabUid:'27ae0d6041c54e2eab6638d197985842',viewerOnly:true,geometryType:'Creator-hosted LiDAR mesh',publishedVertices:568000,publishedTriangles:1100000,
+  locationPrecision:'Regional Catacombs anchor only; scan origin is not GPS-georeferenced.',
+  detail:'A scanned stair passage showing one of the few connections between the first and second underground quarry levels.'},
+ {uid:'befe33ccb4cf4005a6f26c83629a9be6',title:'Paris Catacombs — German Bunker Interior',label:'German Bunker',creator:'Emm (@edemaistre)',
+  license:'CC BY 4.0',captureMethod:'iPhone 12 Pro · 3DScannerApp',
+  sourceUrl:'https://sketchfab.com/3d-models/paris-catacombs-in-the-german-bunker-befe33ccb4cf4005a6f26c83629a9be6',
+  sketchfabUid:'befe33ccb4cf4005a6f26c83629a9be6',viewerOnly:true,geometryType:'Creator-hosted LiDAR mesh',publishedVertices:479500,publishedTriangles:957100,
+  locationPrecision:'Regional Catacombs anchor only; scan origin is not GPS-georeferenced.',
+  detail:'A scanned portion of the old German bunker, including wall murals and interior details.'},
+ {uid:'e78831639a3a4000b2130457badfc34b',title:'Paris Catacombs — Bureau du Centre',label:'Bureau du Centre',creator:'Emm (@edemaistre)',
+  license:'CC BY 4.0',captureMethod:'iPhone 12 Pro · Scaniverse',
+  sourceUrl:'https://sketchfab.com/3d-models/paris-catacombs-bureau-du-centre-e78831639a3a4000b2130457badfc34b',
+  sketchfabUid:'e78831639a3a4000b2130457badfc34b',viewerOnly:true,geometryType:'Creator-hosted LiDAR mesh',publishedVertices:332600,publishedTriangles:651000,
+  locationPrecision:'Regional Catacombs anchor only; creator identifies the room as below Montparnasse Cemetery but does not publish scan GPS coordinates.',
+  detail:'Bureau du Centre, or Central Bureau, is described by the creator as a room beneath Montparnasse Cemetery.'},
+ {uid:'ca80de4ccfdd45d4a5b44dad31cb0da2',title:'Paris Catacombs — The Flag Room',label:'Flag Room',creator:'Emm (@edemaistre)',
+  license:'CC BY 4.0',captureMethod:'iPhone 12 Pro · Scaniverse',
+  sourceUrl:'https://sketchfab.com/3d-models/paris-catacombs-the-flag-room-ca80de4ccfdd45d4a5b44dad31cb0da2',
+  sketchfabUid:'ca80de4ccfdd45d4a5b44dad31cb0da2',viewerOnly:true,geometryType:'Creator-hosted LiDAR mesh',publishedVertices:327600,publishedTriangles:647200,
+  locationPrecision:'Regional Catacombs anchor only; scan origin is not GPS-georeferenced.',
+  detail:'A room associated with a former bell-shaped ceiling collapse; the French flag and sign give the room its name.'},
+ {uid:'c63534cc8b97437bb933b8eba87ffb0d',title:'Paris Catacombs — Our Lady of the Catacombs',label:'Our Lady',creator:'Emm (@edemaistre)',
+  license:'CC BY 4.0',captureMethod:'iPhone 12 Pro · Scaniverse',
+  sourceUrl:'https://sketchfab.com/3d-models/paris-catacombs-our-lady-of-the-catacombs-c63534cc8b97437bb933b8eba87ffb0d',
+  sketchfabUid:'c63534cc8b97437bb933b8eba87ffb0d',viewerOnly:true,geometryType:'Creator-hosted LiDAR mesh',publishedVertices:215000,publishedTriangles:424600,
+  locationPrecision:'Regional Catacombs anchor only; scan origin is not GPS-georeferenced.',
+  detail:'A chamber with a small chapel, benches, an altar, a wooden cross and a Knights Templar cross on the ceiling.'},
+ {uid:'65ba91e03f34494a813ac864e857b51e',title:'Paris Catacombs — Seb Entering a Squeeze',label:'Squeeze Passage',creator:'Emm (@edemaistre)',
+  license:'CC BY 4.0',captureMethod:'iPhone 12 Pro · Scaniverse',
+  sourceUrl:'https://sketchfab.com/3d-models/paris-catacombs-seb-entering-a-squeeze-65ba91e03f34494a813ac864e857b51e',
+  sketchfabUid:'65ba91e03f34494a813ac864e857b51e',viewerOnly:true,geometryType:'Creator-hosted LiDAR mesh',publishedVertices:210400,publishedTriangles:408500,
+  locationPrecision:'Regional Catacombs anchor only; scan origin is not GPS-georeferenced.',
+  detail:'A scan showing a person entering a tight passage (chatière) connecting one gallery to another.'},
+ {uid:'30e95b44aa244727889f7e4421c2a362',title:'Paris Catacombs — Pillar in Room Z',label:'Room Z Pillar',creator:'Emm (@edemaistre)',
+  license:'CC BY 4.0',captureMethod:'iPhone 12 Pro · Scaniverse',
+  sourceUrl:'https://sketchfab.com/3d-models/paris-catacombs-pillar-in-room-z-30e95b44aa244727889f7e4421c2a362',
+  sketchfabUid:'30e95b44aa244727889f7e4421c2a362',viewerOnly:true,geometryType:'Creator-hosted LiDAR mesh',publishedVertices:170700,publishedTriangles:330200,
+  locationPrecision:'Regional Catacombs anchor only; scan origin is not GPS-georeferenced.',
+  detail:'A painted pillar inside Room Z, the largest room in the Paris Catacombs.'}
+
 ];
 const MODEL=PARIS_CATACOMBS_MODELS_V4[0];
 function modelFor(state,uid){return PARIS_CATACOMBS_MODELS_V4.find(m=>m.uid===uid)||PARIS_CATACOMBS_MODELS_V4.find(m=>m.uid===state?.selectedModelUid)||MODEL;}
 function placementFor(model){
- const coordinates=Array.isArray(model?.roomCoordinates)?model.roomCoordinates:PARIS_CATACOMBS_SITE_V3.coordinates;
+ const coordinates=Array.isArray(model?.roomCoordinates)?model.roomCoordinates:
+  (Array.isArray(model?.regionalCoordinates)?model.regionalCoordinates:
+   (PARIS_CATACOMBS_SITE_V3.regionalCoordinates||PARIS_CATACOMBS_SITE_V3.coordinates));
  const depth=Number.isFinite(Number(model?.depthBelowSurfaceM))?Number(model.depthBelowSurfaceM):Math.abs(PARIS_CATACOMBS_SITE_V3.visualizationOffsetM);
  return {coordinates,depthBelowSurfaceM:depth};
 }
 export const PARIS_CATACOMBS_SITE_V3={
  id:'paris-catacombs',name:'Paris Catacombs',type:'catacomb',
- coordinates:[2.3314794209,48.8432369808],
- locationPrecision:'Address-level room reference for Bar des Rats from an independent 3D archive; source GLB itself is not georeferenced.',
+ coordinates:[2.3314794209,48.8432369808],regionalCoordinates:[2.3324,48.8336],
+ locationPrecision:'The Bar des Rats marker has an approximate address-level reference. The other scan markers use a regional Catacombs anchor because their source records do not publish scan coordinates.',
  visualizationOffsetM:-20,
- description:'Two real creator-scanned Paris Catacombs LiDAR assets. The marker uses the independently documented Bar des rats room address as an approximate surface anchor; each scan keeps its own placement metadata.'
+ description:'Eleven selectable creator-scanned Paris Catacombs assets: two BridgePoint-hosted native GLBs and nine additional CC BY 4.0 scans opened in the creators’ interactive Sketchfab viewer.'
 };
 export const UNDERGROUND_SCAN_SITES_V2=[{...PARIS_CATACOMBS_SITE_V3,models:PARIS_CATACOMBS_MODELS_V4}];
+const REGIONAL_ICON_OFFSETS=[[-58,-34],[0,-48],[58,-34],[-64,0],[64,0],[-58,40],[0,50],[58,40],[0,0]];
 export function buildUndergroundSceneFeatures(sites=UNDERGROUND_SCAN_SITES_V2){
  return (Array.isArray(sites)?sites:[]).filter(s=>s&&s.id==='paris-catacombs'&&Array.isArray(s.coordinates)&&
   Number.isFinite(Number(s.coordinates[0]))&&Number.isFinite(Number(s.coordinates[1]))&&
   Math.abs(Number(s.coordinates[0]))<=180&&Math.abs(Number(s.coordinates[1]))<=85&&Array.isArray(s.models)&&s.models.length>0)
-  .map(s=>({type:'Feature',id:s.id,geometry:{type:'Point',coordinates:[Number(s.coordinates[0]),Number(s.coordinates[1])]},
-   properties:{siteId:s.id,name:s.name,type:'catacomb',iconImage:'bp-paris-catacomb-icon-v3'}}));
+  .flatMap(s=>s.models.map((model,index)=>{
+   const hasRoomAnchor=Array.isArray(model.roomCoordinates);
+   const fallback=Array.isArray(s.regionalCoordinates)?s.regionalCoordinates:s.coordinates;
+   const coordinates=hasRoomAnchor?model.roomCoordinates:fallback;
+   const regionalIndex=s.models.slice(0,index).filter(m=>!Array.isArray(m.roomCoordinates)).length;
+   const iconOffset=hasRoomAnchor?[0,0]:REGIONAL_ICON_OFFSETS[regionalIndex%REGIONAL_ICON_OFFSETS.length];
+   const valid=Array.isArray(coordinates)&&Number.isFinite(Number(coordinates[0]))&&Number.isFinite(Number(coordinates[1]))&&
+    Math.abs(Number(coordinates[0]))<=180&&Math.abs(Number(coordinates[1]))<=85;
+   if(!valid)return null;
+   return {type:'Feature',id:model.uid||s.id+'-'+index,geometry:{type:'Point',coordinates:[Number(coordinates[0]),Number(coordinates[1])]},
+    properties:{siteId:s.id,modelUid:model.uid,name:model.title,label:model.label||model.title,type:'catacomb',
+     iconImage:'bp-paris-catacomb-icon-v3',iconOffset,locationPrecision:model.locationPrecision||s.locationPrecision}};
+  })).filter(Boolean);
 }
 function safe(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function iconImage(){
