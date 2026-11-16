@@ -277,13 +277,13 @@ function mappedWalkwayNear(line, features, limitMeters=3.2) {
 export function buildSidewalk3DFeatures({features=[],roadFeatures=[],roadsideWalkFeatures=[],generateRoadsideWalks=false,zoom=0,mobile=false,elevationAt=null}={}) {
   const empty={type:'FeatureCollection',features:[]};
   if(+zoom<14.2||(!Array.isArray(features)||!features.length)&&(!generateRoadsideWalks||!Array.isArray(roadsideWalkFeatures)||!roadsideWalkFeatures.length))return empty;
-  // The close-zoom viewport covers less ground, so it needs fewer individual meshes.
-  // Keep every geometry/material type, but cap the synchronous work done per refresh.
+  // Keep sidewalk coverage substantial at close zoom while bounding every synchronous mesh batch.
+  // Each refresh uses only current visible viewport features; it never scans the full vector source.
   const limits=+zoom>=17.2
-    ?(mobile?{paths:5,panels:20,verges:12,blades:26,cracks:4,roads:48}:{paths:10,panels:48,verges:28,blades:60,cracks:10,roads:96})
+    ?(mobile?{paths:22,panels:140,verges:64,blades:180,cracks:24,roads:144}:{paths:40,panels:260,verges:112,blades:300,cracks:48,roads:220})
     :+zoom>=15.5
-      ?(mobile?{paths:12,panels:56,verges:36,blades:72,cracks:12,roads:90}:{paths:26,panels:120,verges:80,blades:180,cracks:24,roads:180})
-      :(mobile?{paths:32,panels:160,verges:100,blades:300,cracks:40,roads:140}:{paths:70,panels:360,verges:240,blades:700,cracks:70,roads:280});
+      ?(mobile?{paths:28,panels:190,verges:88,blades:220,cracks:30,roads:180}:{paths:56,panels:360,verges:168,blades:420,cracks:56,roads:280})
+      :(mobile?{paths:48,panels:300,verges:140,blades:360,cracks:48,roads:240}:{paths:88,panels:560,verges:260,blades:680,cracks:72,roads:360});
   const roads=[],seenRoads=new Set();
   for(const feature of Array.isArray(roadFeatures)?roadFeatures:[]){
     const p=feature?.properties||{};
