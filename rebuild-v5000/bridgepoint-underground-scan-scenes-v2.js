@@ -2,7 +2,7 @@
  * The source scan is a real iPhone LiDAR capture. Its district anchor and below-ground offset
  * are visualization references only: the source mesh is not georeferenced to a surveyed chamber.
  */
-const VERSION=5, MAP_STATES=new WeakMap(), MIN_MODEL_ZOOM=11.2;
+const VERSION=6, MAP_STATES=new WeakMap(), MIN_MODEL_ZOOM=11.2;
 const THREE_URL='/vendor/three.module.js?v=169-local';
 const GLTF_URL='/vendor/GLTFLoader.bundle.js?v=169-local';
 const SOURCE_ID='bp-paris-catacombs-source-v3', HALO_ID='bp-paris-catacombs-halo-v3';
