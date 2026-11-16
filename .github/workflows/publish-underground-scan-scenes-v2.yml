@@ -110,7 +110,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [ -z "\${SKETCHFAB_API_TOKEN:-}" ]; then
+          if [ -z "${SKETCHFAB_API_TOKEN:-}" ]; then
             echo "::error::Add the repository Actions secret SKETCHFAB_API_TOKEN before publishing the in-scene 3D scan assets. Do not place the token in source code."
             exit 1
           fi
@@ -293,7 +293,7 @@ jobs:
             "app-module.js:$O/app/bridgepoint-underground-scan-scenes-v2.js?verify=$Q" \
             "catalog.json:$O/assets/underground-scan-scenes/catalog.json?verify=$Q" \
             "scan.glb.gz:$O/assets/underground-scan-scenes/39e7050d272f4aac8493497621b86f39.glb.gz?verify=$Q"; do
-            name="\${item%%:*}"; url="\${item#*:}"
+            name="${item%%:*}"; url="${item#*:}"
             curl --retry 8 --retry-all-errors --retry-delay 2 --max-time 45 -fsSL -H 'Cache-Control: no-cache' "$url" -o "$D/$name"
           done
           grep -Fq 'bp-underground-scan-scenes-toggle-v2' "$D/view.js"
