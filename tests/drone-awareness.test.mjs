@@ -45,7 +45,7 @@ assert.ok(moduleSource.includes('energy:/solar|wind[-_]?turbine|offshore[-_]?ene
 assert.ok(moduleSource.includes('landmarks:/landmark|poi|monument|statue|fountain|lighthouse|heritage-site/i'), 'landmark overlays are recognized by the shared guard');
 assert.ok(moduleSource.includes('.bpv-dock .bpv-command-group button'), 'every bottom-card command button participates in opt-in category tracking');
 assert.ok(moduleSource.includes("catacombs:'subsurface'") && moduleSource.includes("wells:'subsurface'"), 'catacomb and wells buttons are mapped to the subsurface category');
-assert.ok(moduleSource.includes("if(/catacomb|cave|subsurface|well|borehole|groundwater|aquifer|underground scan/.test(label))return'subsurface';'), 'subsurface buttons are recognized from their visible labels');
+assert.ok(moduleSource.includes("if(/catacomb|cave|subsurface|well|borehole|groundwater|aquifer|underground scan/.test(label))return'subsurface';"), 'subsurface buttons are recognized from their visible labels');
 assert.ok(moduleSource.includes("for(const event of ['style.load','idle','moveend','zoomend','rotateend','pitchend'])m.on(event,hideDefaultOverlays)"), 'clean-start guard runs on settled styles/camera events');
 assert.ok(!moduleSource.includes("m.on('styledata',hideDefaultOverlays)"), 'avoid styledata feedback loops while hiding optional layers');
 assert.ok(landingHtml.includes('bridgepoint-drone-awareness-v1.js'), 'homepage loads the module');
