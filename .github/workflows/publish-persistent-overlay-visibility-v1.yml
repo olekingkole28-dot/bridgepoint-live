@@ -14,6 +14,20 @@ on:
       - 'tests/drone-awareness.test.mjs'
       - 'tests/vessel-awareness.test.mjs'
       - 'tests/underground-scan-scenes-v2.test.mjs'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-persistent-overlay-visibility-v1.yml'
+      - 'rebuild-v5000/bridgepoint-drone-awareness-v1.js'
+      - 'rebuild-v5000/bridgepoint-subsurface-wells-v1.js'
+      - 'rebuild-v5000/bridgepoint-underground-scan-scenes-v2.js'
+      - 'rebuild-v5000/landing.js'
+      - 'rebuild-v5000/app.js'
+      - 'rebuild-v5000/index.html'
+      - 'rebuild-v5000/app-index.html'
+      - 'tests/drone-awareness.test.mjs'
+      - 'tests/vessel-awareness.test.mjs'
+      - 'tests/underground-scan-scenes-v2.test.mjs'
   workflow_run:
     workflows: ["Deploy BridgePoint Intelligence V5000 Rebuild"]
     types: [completed]
@@ -72,7 +86,7 @@ jobs:
           PY
 
   publish:
-    if: github.event_name == 'workflow_run' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'push' || github.event_name == 'workflow_run' || github.event_name == 'workflow_dispatch'
     concurrency:
       group: bridgepoint-v5000-production-authority
       cancel-in-progress: false
