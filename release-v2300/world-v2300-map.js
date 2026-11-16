@@ -1377,7 +1377,7 @@ function bridgeLineCoveredByPolygons(line,polygons){
     // It contains ordinary road geometry as well as sidewalks; clipping every road
     // as a possible walkway wastes CPU and creates throwaway line segments.
     const isSidewalkTileFeature=feature=>{
-      const p=feature?.properties||{},tags=p.tags||p.source_tags||{};
+      const p=feature?.properties||{},tags=p?.properties?.tags||p?.tags||p?.source_tags||{};
       const c=String(p.class||'').toLowerCase(),sub=String(p.subclass||p.subtype||'').toLowerCase(),key=String(p.layer_key||'').toUpperCase();
       const footway=String(tags.footway||p.footway||'').toLowerCase(),sidewalk=String(tags.sidewalk||p.sidewalk||'').toLowerCase();
       if(['SIDEWALKS','SIDEWALKS_PARKING','SURFACE_MATERIAL_FINE','GLOBAL_SIDEWALKS'].includes(key))return true;
