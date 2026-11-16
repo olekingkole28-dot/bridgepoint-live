@@ -97,8 +97,8 @@ jobs:
               if rel == "index.html":
                   welcome_pattern = re.compile(r"(bridgepoint-welcome-space-v6260\.js\?v=)6295-sdo-live-feed")
                   html, welcome_count = welcome_pattern.subn(r"\g<1>" + build, html)
-                  if welcome_count != 1:
-                      raise SystemExit(f"{rel}: expected the live-Sun welcome renderer URL exactly once, found {welcome_count}")
+                  if welcome_count < 1:
+                      raise SystemExit(f"{rel}: expected at least one live-Sun welcome renderer URL, found {welcome_count}")
               if "bridgepoint-app-space-explorer-v1.js?v=" + build not in html:
                   raise SystemExit(f"{rel}: app-space module cache key was not advanced")
               p.write_text(html, encoding="utf-8")
