@@ -35,13 +35,13 @@ SCANS = [
         "title": "Paris Catacombs — Le Bar des Rats",
         "creator": "Emm (@edemaistre)",
         "license": "CC BY 4.0",
-        "capture_method": "iPhone 12 Pro · SiteScape LiDAR point cloud",
+        "capture_method": "iPhone 12 Pro · Scaniverse LiDAR point cloud",
         "geometry_type": "Dense LiDAR point cloud",
         "published_vertices": 9100000,
         "published_triangles": 0,
         "source_url": "https://sketchfab.com/3d-models/paris-catacombs-the-bar-of-the-rats-sitescape-f4232f8f91e54b0a8aa92365d6ea7b7a",
         "dataset_url": "https://doi.org/10.5281/zenodo.10232541",
-        "detail": "A multi-chamber area called Le Bar des Rats in the northwestern part of the Catacombs network. The source creator describes this as an iPhone 12 Pro / SiteScape scan with roughly 9.1 million point vertices.",
+        "detail": "A multi-chamber area called Le Bar des Rats in the northwestern part of the Catacombs network. The source creator describes this as an iPhone 12 Pro / Scaniverse scan with roughly 9.1 million point vertices.",
     },
 ]
 
