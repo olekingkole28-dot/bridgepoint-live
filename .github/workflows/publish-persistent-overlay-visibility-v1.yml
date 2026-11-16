@@ -320,7 +320,7 @@ jobs:
               p=site/rel
               data=p.read_text(encoding="utf-8")
               old_drone="bridgepoint-drone-awareness-v1.js?v=7-aircraft-models-tracks"
-              new_drone="bridgepoint-drone-awareness-v1.js?v=9-aircraft-filters-ground-tethers"
+              new_drone="bridgepoint-drone-awareness-v1.js?v=8-persistent-overlay-category-gate&aircraft=9-filters-ground-tethers"
               if old_drone in data:
                   if data.count(old_drone)!=1:
                       raise SystemExit(f"{rel}: duplicate drone guard script tag")
@@ -444,8 +444,8 @@ jobs:
             "catalog.json:$O/assets/underground-scan-scenes/catalog.json?verify=$Q" \
             "scan.glb.gz:$O/assets/underground-scan-scenes/39e7050d272f4aac8493497621b86f39.glb.gz?verify=$Q" \
             "gltfloader.js:$O/vendor/GLTFLoader.bundle.js?verify=$Q" \
-            "landing.js:$O/landing.js?v=6250-aircraft-filters-faa-restored&overlay-visibility=v2" \
-            "app.js:$O/app.js?v=6250-aircraft-filters-faa-restored&overlay-visibility=v2" \
+            "landing.js:$O/landing.js?v=6247-universal-fresh-entry&sidewalk=6247-viewport-tile-progressive&bp=5970-globe-model-matrices&sw=1&wt=1&sf=1&faa=2-aircraft-filters-faa-restored&overlay-visibility=v2" \
+            "app.js:$O/app.js?v=6247-universal-fresh-entry&sidewalk=6247-viewport-tile-progressive&bp=5970-globe-model-matrices&sw=1&wt=1&sf=1&faa=2-aircraft-filters-faa-restored&overlay-visibility=v2" \
             "view.js:$O/bridgepoint-view-v5917.js?v=6215-satellite-persistent-render-guard&emrf=1&overlay-visibility=v2" \
             "world-map.js:$O/world-v2300-map.js?v=6248-mobile-render-recovery-no-error-resize&verify=$Q" \
             "faa-module.js:$O/bridgepoint-faa-obstruction-towers-v1.js?verify=$Q" \
