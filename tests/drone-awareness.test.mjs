@@ -2,13 +2,16 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const read = path => readFile(new URL(path, import.meta.url), 'utf8');
-const [moduleSource, landingHtml, appHtml, mapKey, view, workflow] = await Promise.all([
+const [moduleSource, landingHtml, appHtml, mapKey, view, workflow, landingSource, appSource, faaModule] = await Promise.all([
   read('../rebuild-v5000/bridgepoint-drone-awareness-v1.js'),
   read('../rebuild-v5000/index.html'),
   read('../rebuild-v5000/app-index.html'),
   read('../rebuild-v5000/bridgepoint-map-key-v5920.js'),
   read('../rebuild-v5000/bridgepoint-view-v5917.js'),
-  read('../.github/workflows/deploy-intelligence-rebuild-v5000.yml')
+  read('../.github/workflows/deploy-intelligence-rebuild-v5000.yml'),
+  read('../rebuild-v5000/landing.js'),
+  read('../rebuild-v5000/app.js'),
+  read('../rebuild-v5000/bridgepoint-faa-obstruction-towers-v1.js')
 ]);
 
 assert.ok(moduleSource.includes('bp-drone-awareness-live-dots-v4'), 'the live UAV point layer is present');
@@ -121,6 +124,10 @@ assert.ok(moduleSource.includes('Solid vertical ground-to-aircraft tether'), 'so
 assert.ok(moduleSource.includes('function aircraftModelSpanMetersByKind'), 'aircraft 3D geometry uses family-specific real-world scale');
 assert.ok(moduleSource.includes('function syncAircraftFilterVisibility(active=enabled)'), 'type filters also gate the 3D meshes, trails and tethers');
 assert.ok(moduleSource.includes('return null;') && moduleSource.includes('queryGroundElevation'), 'tethers do not invent a ground elevation when terrain data is unavailable');
+assert.equal((landingSource.match(/bridgepoint-faa-obstruction-towers-v1\.js\?v=2-aircraft-filters-faa-restored/g)||[]).length,1, 'website loader restores the independent FAA obstruction renderer');
+assert.equal((appSource.match(/bridgepoint-faa-obstruction-towers-v1\.js\?v=2-aircraft-filters-faa-restored/g)||[]).length,1, 'app loader restores the independent FAA obstruction renderer');
+assert.ok(faaModule.includes('bp-faa-obstructions-toggle-v1') && faaModule.includes('FAA Towers'), 'FAA renderer still creates the bottom-card FAA Towers control');
+assert.ok(workflow.includes('tools/build_faa_obstruction_snapshot.py') && workflow.includes('site/app/data/bridgepoint-faa-obstructions-v1.json.gz'), 'production deployment includes the FAA source snapshot on both website and app paths');
 console.log('Drone awareness module checks passed.');
 
 
