@@ -44,16 +44,13 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Validate the in-scene renderer and import tool
+      - name: Validate the Paris Catacombs renderer and public asset importer
         shell: bash
         run: |
           set -euo pipefail
           node --check rebuild-v5000/bridgepoint-underground-scan-scenes-v2.js
           python3 -m py_compile tools/underground/fetch_sketchfab_scans.py
           node tests/underground-scan-scenes-v2.test.mjs
-
-      - name: Install glTF scene packer
-        run: npm install --global gltf-pipeline@4.3.1
 
       - name: Select the exact deployed Pages artifact to extend
         id: baseline
@@ -223,7 +220,7 @@ jobs:
               old='/bridgepoint-view-v5917.js?v=6215-satellite-persistent-render-guard&emrf=1'
               new=old+'&underground-scenes=paris-v3'
               if old in data:data=data.replace(old,new,1)
-              if "bridgepoint-view-v5917.js" not in data or "underground-scenes=v2" not in data:
+              if "bridgepoint-view-v5917.js" not in data or "underground-scenes=paris-v3" not in data:
                   raise SystemExit(f"{rel}: view script cache key did not update")
               path.write_text(data,encoding="utf-8")
 
