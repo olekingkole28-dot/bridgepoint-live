@@ -166,7 +166,7 @@ jobs:
       - name: Verify the Rome marker/viewer loader on root and app routes
         shell: bash
         run: |
-          set -euo pipefail
+          set -euxo pipefail
           O='https://bridgepointintelligence.online'
           Q="$GITHUB_SHA-palatine-v1"
           D="$RUNNER_TEMP/palatine-live"
@@ -185,7 +185,7 @@ jobs:
           grep -Fq 'palatine-cryptoporticus=v1' "$D/app.html"
           grep -Fq 'bridgepoint-palatine-cryptoporticus-v1.js?v=1-photo-splat-marker' "$D/landing.js"
           grep -Fq 'bridgepoint-palatine-cryptoporticus-v1.js?v=1-photo-splat-marker' "$D/app.js"
-          grep -Fq 'initPalatineCryptoporticusRenderer(world)' "$D/module.js"
+          grep -Fq 'export function initPalatineCryptoporticusRenderer(target)' "$D/module.js"
           grep -Fq 'https://superspl.at/scene/096380c2' "$D/module.js"
           grep -Fq '568 Sony a7R V photographs' "$D/module.js"
           cmp -s "$D/module.js" "$D/app-module.js"
