@@ -62,16 +62,17 @@ function safe(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&
 function findSite(id){return UNDERGROUND_SCAN_SITES_V2.find(s=>s.id===String(id))||null;}
 function modelPopupHtml(site,selected){
  const options=site.models.map(m=>'<button type="button" class="bp-underground-scene-choice-v2'+(m.uid===selected.uid?' is-active':'')+'" data-underground-model="'+safe(m.uid)+'" aria-pressed="'+String(m.uid===selected.uid)+'"><b>'+safe(m.title)+'</b><small>'+safe(m.creator)+' · '+safe(m.captureMethod)+'</small></button>').join('');
- return '<article class="bp-underground-scene-popup-v2"><div class="bp-underground-scene-kicker-v2">BRIDGEPOINT · IN-SCENE 3D SCANS</div><h3>'+safe(site.name)+'</h3><p>'+safe(site.description)+'</p>'+
+ return '<article class="bp-underground-scene-popup-v2"><div class="bp-underground-scene-kicker-v2">BRIDGEPOINT · SKETCHFAB SOURCE · IN-SCENE 3D SCANS</div><h3>'+safe(site.name)+'</h3><p>'+safe(site.description)+'</p>'+
   '<div class="bp-underground-scene-active-v2"><b id="bp-underground-scene-active-title-v2">'+safe(selected.title)+'</b>'+
   '<span>Creator: <strong id="bp-underground-scene-active-creator-v2">'+safe(selected.creator)+'</strong></span>'+
   '<span>License: <strong id="bp-underground-scene-active-license-v2">'+safe(selected.license)+'</strong></span>'+
   '<span>Capture: <strong id="bp-underground-scene-active-method-v2">'+safe(selected.captureMethod)+'</strong></span>'+
+  '<span>Source platform: <strong>Sketchfab</strong></span>'+
   '<span id="bp-underground-scene-active-state-v2">Selected mesh renders inside BridgePoint.</span>'+
   '<a id="bp-underground-scene-source-v2" href="'+safe(selected.sourceUrl)+'" target="_blank" rel="noopener noreferrer">Original source / attribution ↗</a></div>'+
   (site.models.length>1?'<div class="bp-underground-scene-choices-v2" aria-label="Scanned models at this site">'+options+'</div>':'')+
   '<p class="bp-underground-scene-precision-v2"><b>Map location:</b> '+safe(site.locationPrecision)+'</p>'+
-  '<p class="bp-underground-scene-attribution-v2">The 3D mesh is rendered in BridgePoint, not an embedded viewer. Its vertical offset below terrain is for visualization only, not a source-measured depth. The scan is not claimed as an exact georeferenced chamber mesh.</p></article>';
+  '<p class="bp-underground-scene-attribution-v2">The Sketchfab-provided 3D mesh is rendered in BridgePoint, not an embedded viewer. Creator, license and Sketchfab source are shown for attribution. Its vertical offset below terrain is for visualization only, not a source-measured depth. The scan is not claimed as an exact georeferenced chamber mesh.</p></article>';
 }
 function makeIcon(type){
  const c=document.createElement('canvas');c.width=72;c.height=72;const x=c.getContext('2d');
@@ -135,10 +136,12 @@ function prepareRoot(THREE,root){
  root.updateMatrixWorld(true);return root;
 }
 async function ensureModelLayer(state){
- if(state.scene)return;
- if(state.layerReadyPromise)return state.layerReadyPromise;
+ const map=state.map;
+ if(map.getLayer(MODEL_LAYER_ID)&&state.scene)return;
+ if(state.layerReadyPromise&&map.getLayer(MODEL_LAYER_ID))return state.layerReadyPromise;
+ state.layerReadyPromise=null;
  state.layerReadyPromise=new Promise((resolve,reject)=>{
-  const map=state.map,THREE=state.THREE;
+  const THREE=state.THREE;
   const layer={id:MODEL_LAYER_ID,type:'custom',renderingMode:'3d',
    onAdd(mapRef,gl){
     if(!state.renderer){
@@ -159,8 +162,10 @@ async function ensureModelLayer(state){
     try{state.renderer.resetState();state.renderer.render(state.scene,state.camera);}catch(e){if(!state.renderWarned){state.renderWarned=true;console.warn('BridgePoint underground GLB render',e);}}finally{root.visible=false;}
    }
   };
-  try{if(!map.getLayer(MODEL_LAYER_ID))map.addLayer(layer);else if(state.scene)resolve();}
-  catch(e){reject(e);}
+  try{
+   if(!map.getLayer(MODEL_LAYER_ID))map.addLayer(layer);
+   if(map.getLayer(MODEL_LAYER_ID)&&state.scene)resolve();
+  }catch(e){state.layerReadyPromise=null;reject(e);}
  });
  return state.layerReadyPromise;
 }
@@ -210,7 +215,7 @@ function bindMap(state){
   const hit=hits.find(f=>f.properties?.siteId);if(!hit)return;
   const site=findSite(hit.properties.siteId);if(site)openPopup(state,site,e.lngLat||site.coordinates);
  };
- state.handleStyle=()=>{if(state.enabled){installLayers(state);refreshUi(state);}};
+ state.handleStyle=()=>{if(state.enabled){installLayers(state);if(state.activeRoot&&state.THREE)void ensureModelLayer(state).catch(e=>status(state,'Underground 3D layer reattach failed: '+String(e?.message||e)));refreshUi(state);}};
  state.map.on('click',state.handleClick);state.map.on('style.load',state.handleStyle);state.map.on('load',state.handleStyle);
  state.map.on('zoomend',()=>{if(state.enabled&&state.renderer)state.map.triggerRepaint?.();});
 }
@@ -229,8 +234,11 @@ function addControl(state){
 }
 async function setEnabled(state,on){
  state.enabled=!!on;
- if(state.enabled){if(installLayers(state))status(state,'Layer ON · select a cave, catacomb or tomb icon to load a real 3D mesh inside BridgePoint.');else status(state,'Waiting for the BridgePoint globe style…');}
- else{if(state.popup){state.popup.remove();state.popup=null;}if(state.activeRoot)state.activeRoot.visible=false;setVisibility(state,false);status(state,'Layer off · every other BridgePoint layer remains unchanged.');}
+ if(state.enabled){
+  if(installLayers(state))status(state,'Layer ON · select a cave, catacomb or tomb icon to load a real 3D mesh inside BridgePoint.');
+  else status(state,'Waiting for the BridgePoint globe style…');
+  if(state.activeRoot&&state.THREE)void ensureModelLayer(state).catch(e=>status(state,'Underground 3D layer reattach failed: '+String(e?.message||e)));
+ }else{if(state.popup){state.popup.remove();state.popup=null;}if(state.activeRoot)state.activeRoot.visible=false;setVisibility(state,false);status(state,'Layer off · every other BridgePoint layer remains unchanged.');}
  refreshUi(state);if(state.renderer)state.map.triggerRepaint?.();return state.enabled;
 }
 export function initUndergroundScanScenesRenderer(target){
