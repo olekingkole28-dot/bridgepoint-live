@@ -7,6 +7,10 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/publish-earth-star-occlusion-v6294.yml'
+      - 'patches/earth-star-occlusion-v6294/bridgepoint-app-space-explorer-v1.js'
+      - 'patches/earth-star-occlusion-v6294/bridgepoint-welcome-space-v6260.js'
+      - 'patches/earth-star-occlusion-v6294/bridgepoint-gaia-galaxy-v6270.js'
+      - 'tests/test_earth_star_occlusion_v6294.py'
 
 permissions:
   actions: read

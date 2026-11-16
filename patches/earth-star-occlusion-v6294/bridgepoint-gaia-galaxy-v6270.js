@@ -274,7 +274,7 @@ for(const p of PLANETS.filter(p=>p.name!=='Earth')){
     '    float bpEarthAlong=dot(bpEarthCenterDelta,bpEarthRayDirection);',
     '    float bpEarthPerpSq=max(0.0,dot(bpEarthCenterDelta,bpEarthCenterDelta)-bpEarthAlong*bpEarthAlong);',
     '    float bpEarthRadiusSq=uBpEarthRadius*uBpEarthRadius;',
-    '    if(bpEarthAlong>0.0&&bpEarthPerpSq<bpEarthRadiusSq){',
+    '    if(bpEarthPerpSq<bpEarthRadiusSq){',
     '      float bpEarthHalfChord=sqrt(max(0.0,bpEarthRadiusSq-bpEarthPerpSq));',
     '      float bpEarthNear=bpEarthAlong-bpEarthHalfChord;',
     '      float bpEarthFar=bpEarthAlong+bpEarthHalfChord;',
