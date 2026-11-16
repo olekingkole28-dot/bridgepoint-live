@@ -232,6 +232,7 @@ const VIEWER_STYLE=[
  "#bp-paris-catacomb-viewer-v3 button{border:1px solid rgba(142,217,235,.4);border-radius:9px;background:rgba(17,53,73,.82);color:#eafaff;padding:9px 13px;font:700 12px system-ui;cursor:pointer}",
  "#bp-paris-catacomb-viewer-v3 canvas{display:block;flex:1;min-height:0;width:100%;touch-action:none;cursor:grab}",
  "#bp-paris-catacomb-viewer-v3 .bpv3-foot{padding:10px 15px;background:rgba(2,10,18,.8);border-top:1px solid rgba(135,207,231,.2);font-size:11px;color:#b4cbd7}",
+ "#bp-paris-catacomb-viewer-v3 .bpv3-dimensions{margin-top:5px;color:#e2f5fb;font-weight:700}",
  "#bp-paris-catacomb-viewer-v3 a{color:#93e8f1}"
 ].join('\n');
 function disposeViewer(state){
