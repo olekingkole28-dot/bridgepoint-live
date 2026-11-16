@@ -116,7 +116,7 @@ jobs:
           for rel,needle in (('index.html','landing.js'),('app/index.html','app.js')):
               path=site/rel
               data=path.read_text(encoding='utf-8')
-              matches=list(re.finditer(r'src="([^\"]*'+re.escape(needle)+r'(?:\\?[^\"]*)?)"',data))
+              matches=list(re.finditer('src="([^"]*'+re.escape(needle)+'[^"]*)"',data))
               if len(matches)!=1:
                   raise SystemExit(f'{rel}: expected one {needle} entry script URL, found {len(matches)}')
               old=matches[0].group(1)
@@ -171,12 +171,12 @@ jobs:
           Q="$GITHUB_SHA-palatine-v1"
           D="$RUNNER_TEMP/palatine-live"
           mkdir -p "$D"
-          for item in \\
-            "root.html:$O/?palatine-cryptoporticus=$Q" \\
-            "app.html:$O/app/?palatine-cryptoporticus=$Q" \\
-            "landing.js:$O/landing.js?palatine=$Q" \\
-            "app.js:$O/app.js?palatine=$Q" \\
-            "module.js:$O/bridgepoint-palatine-cryptoporticus-v1.js?verify=$Q" \\
+          for item in \
+            "root.html:$O/?palatine-cryptoporticus=$Q" \
+            "app.html:$O/app/?palatine-cryptoporticus=$Q" \
+            "landing.js:$O/landing.js?palatine=$Q" \
+            "app.js:$O/app.js?palatine=$Q" \
+            "module.js:$O/bridgepoint-palatine-cryptoporticus-v1.js?verify=$Q" \
             "app-module.js:$O/app/bridgepoint-palatine-cryptoporticus-v1.js?verify=$Q"; do
             name="${item%%:*}"; url="${item#*:}"
             curl --retry 6 --retry-all-errors --retry-delay 2 --max-time 60 -fL -H 'Cache-Control: no-cache' "$url" -o "$D/$name"
