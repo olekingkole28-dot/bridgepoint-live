@@ -228,7 +228,7 @@ function addLinePath(output, feature, rawLine, roads, elevationAt, limits, count
       addPoly(output,curb,{...common,part:'curb',top_m:0.20,color:'#aaa9a2',curb_height_m:0.18,truth:'ROAD_EDGE_DERIVED_CURB'});
       counts.verges++;
       const bladeStep = mobile ? 0.55 : 0.45;
-      for(let d=start+bladeStep*0.5;d<end && counts.blades<limits.blades;d+=bladeStep){
+      for(let d=start+bladeStep*0.5;d<end && counts.blades+3<=limits.blades;d+=bladeStep){
         const point=pointAt(line,d),before=pointAt(line,Math.max(0,d-0.08)),after=pointAt(line,Math.min(total,d+0.08));
         const tx=(after[0]-before[0])*metersLon(point[1]),ty=(after[1]-before[1])*110540,tl=Math.hypot(tx,ty)||1;
         const normal=[-ty/tl,tx/tl],offset=road.side*(half+0.018+vergeWidth*(0.15+0.7*rand(id,Math.floor(d*20))));
