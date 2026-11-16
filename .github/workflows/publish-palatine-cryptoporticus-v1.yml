@@ -1,0 +1,192 @@
+name: Publish BridgePoint Palatine Cryptoporticus Photogrammetry Scan
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-palatine-cryptoporticus-v1.yml'
+      - 'rebuild-v5000/bridgepoint-palatine-cryptoporticus-v1.js'
+      - 'tests/palatine-cryptoporticus-v1.test.mjs'
+      - 'docs/bridgepoint-palatine-cryptoporticus-v1.md'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate the Palatine scan marker and viewer
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check rebuild-v5000/bridgepoint-palatine-cryptoporticus-v1.js
+          node tests/palatine-cryptoporticus-v1.test.mjs
+
+      - name: Select the current deployed Jenolan Pages baseline
+        id: baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo 'run_id=43956894851'
+            echo 'artifact_name=github-pages-jenolan-caves-v1'
+          } >> "$GITHUB_OUTPUT"
+          echo 'Using the latest Pages artifact whose deploy step succeeded; its post-deploy Jenolan smoke check failed after publication.'
+
+      - name: Download the preserved production Pages artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ steps.baseline.outputs.artifact_name }}
+          run-id: ${{ steps.baseline.outputs.run_id }}
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/palatine-baseline
+
+      - name: Restore the complete deployed site and fingerprint it
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCHIVE="$(find "$RUNNER_TEMP/palatine-baseline" -type f -name artifact.tar -print -quit)"
+          test -n "$ARCHIVE"
+          SITE="$RUNNER_TEMP/palatine-site"
+          mkdir -p "$SITE"
+          tar -xf "$ARCHIVE" -C "$SITE"
+          for file in index.html app/index.html landing.js app.js bridgepoint-jenolan-caves-v1.js bridgepoint-underground-scan-scenes-v2.js vendor/three.module.js; do
+            test -s "$SITE/$file" || { echo "Preserved production baseline missing $file"; exit 1; }
+          done
+          python3 - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          site=Path(os.environ['RUNNER_TEMP'])/'palatine-site'
+          before={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file()}
+          (Path(os.environ['RUNNER_TEMP'])/'palatine-before.json').write_text(json.dumps(before,sort_keys=True))
+          print('PALATINE_BASELINE_FINGERPRINT_PASS',len(before),'files')
+          PY
+
+      - name: Overlay only the Palatine marker/viewer and entry cache keys
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/palatine-site"
+          mkdir -p "$SITE/app"
+          cp rebuild-v5000/bridgepoint-palatine-cryptoporticus-v1.js "$SITE/bridgepoint-palatine-cryptoporticus-v1.js"
+          cp rebuild-v5000/bridgepoint-palatine-cryptoporticus-v1.js "$SITE/app/bridgepoint-palatine-cryptoporticus-v1.js"
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib,json,os,re
+          site=Path(os.environ['RUNNER_TEMP'])/'palatine-site'
+          attach="""void import('./bridgepoint-palatine-cryptoporticus-v1.js?v=1-photo-splat-marker')
+           .then(m=>{window.__BP_PALATINE_CRYPTO_V1__=m.initPalatineCryptoporticusRenderer(world)})
+           .catch(e=>console.warn('BridgePoint Palatine Cryptoporticus photogrammetry layer unavailable',e));"""
+          anchor=".catch(e=>console.warn('BridgePoint global subsurface wells renderer unavailable',e));"
+          for rel in ('landing.js','app.js'):
+              path=site/rel
+              data=path.read_text(encoding='utf-8')
+              if data.count(anchor)!=1:
+                  raise SystemExit(f'{rel}: expected one safe subsurface-wells import anchor, found {data.count(anchor)}')
+              if 'bridgepoint-palatine-cryptoporticus-v1.js?v=1-photo-splat-marker' not in data:
+                  pos=data.index(anchor)+len(anchor)
+                  line_start=data.rfind('\n',0,pos)+1
+                  prefix=data[line_start:pos]
+                  indent=re.match(r'[ \\t]*',prefix).group(0)
+                  data=data[:pos]+'\\n'+indent+attach.replace('\\n','\\n'+indent)+data[pos:]
+              path.write_text(data,encoding='utf-8')
+              if 'initPalatineCryptoporticusRenderer(world)' not in data:
+                  raise SystemExit(f'{rel}: Palatine viewer import is missing')
+
+          for rel,needle in (('index.html','landing.js'),('app/index.html','app.js')):
+              path=site/rel
+              data=path.read_text(encoding='utf-8')
+              matches=list(re.finditer(r'src="([^\"]*'+re.escape(needle)+r'(?:\\?[^\"]*)?)"',data))
+              if len(matches)!=1:
+                  raise SystemExit(f'{rel}: expected one {needle} entry script URL, found {len(matches)}')
+              old=matches[0].group(1)
+              base=re.sub(r'&palatine-cryptoporticus=v\\d+','',old)
+              if 'palatine-cryptoporticus=v1' not in base:
+                  base=base+('&' if '?' in base else '?')+'palatine-cryptoporticus=v1'
+              data=data.replace(old,base,1)
+              path.write_text(data,encoding='utf-8')
+
+          before=json.loads((Path(os.environ['RUNNER_TEMP'])/'palatine-before.json').read_text())
+          after={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file()}
+          removed=set(before)-set(after)
+          added=set(after)-set(before)
+          changed={p for p in before if p in after and before[p]!=after[p]}
+          expected_changed={'landing.js','app.js','index.html','app/index.html'}
+          expected_added={'bridgepoint-palatine-cryptoporticus-v1.js','app/bridgepoint-palatine-cryptoporticus-v1.js'}
+          if removed or changed!=expected_changed or added!=expected_added:
+              raise SystemExit('PALATINE_ONLY_OVERLAY_SCOPE_FAILURE '+json.dumps({'removed':sorted(removed),'changed':sorted(changed),'expected_changed':sorted(expected_changed),'added':sorted(added),'expected_added':sorted(expected_added)}))
+          assert (site/'bridgepoint-palatine-cryptoporticus-v1.js').read_bytes()==(site/'app/bridgepoint-palatine-cryptoporticus-v1.js').read_bytes()
+          print('PALATINE_ONLY_OVERLAY_SCOPE_PASS',len(changed),'existing files changed;',len(added),'files added; no files removed')
+          PY
+          node --check "$SITE/landing.js"
+          node --check "$SITE/app.js"
+          node --input-type=module --check < "$SITE/bridgepoint-palatine-cryptoporticus-v1.js"
+          grep -Fq 'initPalatineCryptoporticusRenderer(world)' "$SITE/landing.js"
+          grep -Fq 'initPalatineCryptoporticusRenderer(world)' "$SITE/app.js"
+          grep -Fq 'bp-paris-catacombs-toggle-v3' "$SITE/bridgepoint-palatine-cryptoporticus-v1.js"
+          grep -Fq 'https://superspl.at/scene/096380c2' "$SITE/bridgepoint-palatine-cryptoporticus-v1.js"
+          cmp -s "$SITE/bridgepoint-palatine-cryptoporticus-v1.js" "$SITE/app/bridgepoint-palatine-cryptoporticus-v1.js"
+          echo 'BRIDGEPOINT_PALATINE_PHOTOGRAMMETRY_OVERLAY_PASS'
+
+      - uses: actions/configure-pages@v5
+
+      - name: Upload the preserved production site with only the Palatine viewer overlay
+        uses: actions/upload-pages-artifact@v4
+        with:
+          name: github-pages-palatine-cryptoporticus-v1
+          path: ${{ runner.temp }}/palatine-site
+          include-hidden-files: true
+
+      - name: Publish BridgePoint Palatine Cryptoporticus photogrammetry viewer v1
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages-palatine-cryptoporticus-v1
+
+      - name: Verify the Rome marker/viewer loader on root and app routes
+        shell: bash
+        run: |
+          set -euo pipefail
+          O='https://bridgepointintelligence.online'
+          Q="$GITHUB_SHA-palatine-v1"
+          D="$RUNNER_TEMP/palatine-live"
+          mkdir -p "$D"
+          for item in \\
+            "root.html:$O/?palatine-cryptoporticus=$Q" \\
+            "app.html:$O/app/?palatine-cryptoporticus=$Q" \\
+            "landing.js:$O/landing.js?palatine=$Q" \\
+            "app.js:$O/app.js?palatine=$Q" \\
+            "module.js:$O/bridgepoint-palatine-cryptoporticus-v1.js?verify=$Q" \\
+            "app-module.js:$O/app/bridgepoint-palatine-cryptoporticus-v1.js?verify=$Q"; do
+            name="${item%%:*}"; url="${item#*:}"
+            curl --retry 6 --retry-all-errors --retry-delay 2 --max-time 60 -fL -H 'Cache-Control: no-cache' "$url" -o "$D/$name"
+          done
+          grep -Fq 'palatine-cryptoporticus=v1' "$D/root.html"
+          grep -Fq 'palatine-cryptoporticus=v1' "$D/app.html"
+          grep -Fq 'bridgepoint-palatine-cryptoporticus-v1.js?v=1-photo-splat-marker' "$D/landing.js"
+          grep -Fq 'bridgepoint-palatine-cryptoporticus-v1.js?v=1-photo-splat-marker' "$D/app.js"
+          grep -Fq 'initPalatineCryptoporticusRenderer(world)' "$D/module.js"
+          grep -Fq 'https://superspl.at/scene/096380c2' "$D/module.js"
+          grep -Fq '568 Sony a7R V photographs' "$D/module.js"
+          cmp -s "$D/module.js" "$D/app-module.js"
+          echo 'BRIDGEPOINT_PALATINE_PHOTOGRAMMETRY_LIVE_VERIFY_PASS'
