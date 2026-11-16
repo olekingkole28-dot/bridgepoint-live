@@ -457,9 +457,9 @@ function addControl(state){
  let group=document.getElementById(CONTROL_ID);
  if(!group){
   group=document.createElement('section');group.id=CONTROL_ID;group.className='bpv-command-group';group.setAttribute('data-bpv-command-section','paris-catacombs');
-  group.innerHTML='<div class="bpv-command-heading"><span class="bpv-command-heading-icon" aria-hidden="true">🕳️</span><span><b>3D UNDERGROUND</b><small>Paris Catacombs · native 3D scans</small></span></div>'+
+  group.innerHTML='<div class="bpv-command-heading"><span class="bpv-command-heading-icon" aria-hidden="true">🕳️</span><span><b>3D UNDERGROUND</b><small>Paris Catacombs · 11 selectable scans</small></span></div>'+
    '<div class="bpv-command-grid"><button id="'+TOGGLE_ID+'" data-bpv-action="catacombs" type="button" class="bpv-command-btn" aria-pressed="false" title="Show 3D underground scan markers on the globe"><span class="bpv-command-icon" aria-hidden="true">🪦</span><span class="bpv-command-label">3D underground</span></button></div>'+
-   '<div id="'+COUNT_ID+'" class="bpv-data-note">2 open-license LiDAR scans · Paris, France</div><div id="'+STATUS_ID+'" class="bpv-data-note">Layer off · existing BridgePoint layers are unchanged.</div>';
+   '<div id="'+COUNT_ID+'" class="bpv-data-note">11 selectable scans · 2 native GLBs + 9 creator-hosted viewers</div><div id="'+STATUS_ID+'" class="bpv-data-note">Layer off · existing BridgePoint layers are unchanged.</div>';
   const wells=document.getElementById('bp-subsurface-wells-control-v1');if(wells&&wells.parentNode===dock)wells.after(group);else dock.prepend(group);
  }
  const b=document.getElementById(TOGGLE_ID);if(b&&!b.dataset.bpCatacombBound){b.dataset.bpCatacombBound='1';b.addEventListener('click',()=>{void setEnabled(state,!state.enabled);});}
@@ -467,31 +467,48 @@ function addControl(state){
 }
 async function setEnabled(state,on){
  state.enabled=!!on;
- if(state.enabled){window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('subsurface',true);if(installLayers(state))status(state,'3D underground ON · the Catacombs icon remains visible from globe view through street-level zoom. Select it to choose a scan.');else status(state,'Waiting for the BridgePoint globe style…');}
- else{state.mapVisible=false;if(state.popup){state.popup.remove();state.popup=null;}if(state.mapRoot)state.mapRoot.visible=false;
-  for(const id of [HALO_ID,MARKER_ID,LABEL_ID])if(state.map.getLayer(id))state.map.setLayoutProperty(id,'visibility','none');
-  status(state,'3D underground OFF · every other BridgePoint layer remains unchanged.');}
+ if(state.enabled){
+  window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('subsurface',true);
+  if(installLayers(state))status(state,'3D underground ON · all 11 scan icons remain visible and individually selectable.');
+  else status(state,'Waiting for the BridgePoint globe style…');
+  scheduleVisibilityReassertion(state);
+ }else{
+  if(state.visibilityFrame){(window.cancelAnimationFrame||clearTimeout)(state.visibilityFrame);state.visibilityFrame=0;}
+  state.mapVisible=false;if(state.popup){state.popup.remove();state.popup=null;}if(state.mapRoot)state.mapRoot.visible=false;
+  for(const id of [HALO_ID,MARKER_ID,LABEL_ID])if(state.map.getLayer(id)&&state.map.getLayoutProperty(id,'visibility')!=='none')state.map.setLayoutProperty(id,'visibility','none');
+  status(state,'3D underground OFF · every other BridgePoint layer remains unchanged.');
+ }
  refreshUi(state);state.map.triggerRepaint?.();return state.enabled;
 }
 export function initUndergroundScanScenesRenderer(target){
  const map=target&&(target.map||target);if(!map||typeof map.getBounds!=='function'||typeof map.addSource!=='function')return null;
  const prior=MAP_STATES.get(map);if(prior)return prior.api;
  const state={map,enabled:false,mapVisible:false,dead:false,popup:null,selectedModelUid:'f4232f8f91e54b0a8aa92365d6ea7b7a',THREE:null,loader:null,renderer:null,camera:null,scene:null,
-  mapRoot:null,assetBuffers:new Map(),assetPromises:new Map(),assetScenes:new Map(),assetScenePromises:new Map(),viewer:null,layerPromise:null,observer:null,dockTimer:null,status:'off',
+  mapRoot:null,assetBuffers:new Map(),assetPromises:new Map(),assetScenes:new Map(),assetScenePromises:new Map(),viewer:null,layerPromise:null,observer:null,dockTimer:null,visibilityFrame:0,status:'off',
   stats:{version:VERSION,sites:1,models:PARIS_CATACOMBS_MODELS_V4.length,layerReady:false,lastError:null}};
  state.handleClick=e=>{
   if(!state.enabled)return;
   const hits=state.map.queryRenderedFeatures?.(e.point,{layers:[MARKER_ID]})||[];
-  if(hits.some(f=>f.properties?.siteId==='paris-catacombs'))openPopup(state,e.lngLat||PARIS_CATACOMBS_SITE_V3.coordinates);
+  const hit=hits.find(f=>f.properties?.siteId==='paris-catacombs'&&f.properties?.modelUid);
+  if(hit)openPopup(state,e.lngLat||hit.geometry?.coordinates||PARIS_CATACOMBS_SITE_V3.regionalCoordinates,hit.properties.modelUid);
  };
- state.handleStyle=()=>{if(state.enabled){window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('subsurface',true);installLayers(state);if(state.mapVisible&&state.mapRoot&&state.THREE)void ensureMapModelLayer(state).catch(e=>status(state,'Catacomb 3D layer reattach failed: '+String(e?.message||e)));refreshUi(state);}};
+ state.handleVisibility=()=>scheduleVisibilityReassertion(state);
+ state.handleStyle=()=>{
+  if(!state.enabled)return;
+  window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('subsurface',true);
+  installLayers(state);
+  if(state.mapVisible&&state.mapRoot&&state.THREE)void ensureMapModelLayer(state).catch(e=>status(state,'Catacomb 3D layer reattach failed: '+String(e?.message||e)));
+  scheduleVisibilityReassertion(state);refreshUi(state);
+ };
  map.on('click',state.handleClick);map.on('style.load',state.handleStyle);map.on('load',state.handleStyle);
- map.on('zoomend',()=>{if(state.renderer)map.triggerRepaint?.();});
+ for(const event of ['styledata','idle','moveend','zoomend','rotateend','pitchend'])map.on(event,state.handleVisibility);
  const api={version:VERSION,get enabled(){return state.enabled;},get status(){return state.status;},get stats(){return {...state.stats};},
   toggle(){return setEnabled(state,!state.enabled);},setEnabled(v){return setEnabled(state,v);},
   showUnderTerrain(){return showUnderTerrain(state);},openViewer(){return openViewer(state);},
   destroy(){state.dead=true;disposeViewer(state);if(state.popup)state.popup.remove();state.observer?.disconnect?.();if(state.dockTimer)clearTimeout(state.dockTimer);
    map.off('click',state.handleClick);map.off('style.load',state.handleStyle);map.off('load',state.handleStyle);
+   for(const event of ['styledata','idle','moveend','zoomend','rotateend','pitchend'])map.off(event,state.handleVisibility);
+   if(state.visibilityFrame){(window.cancelAnimationFrame||clearTimeout)(state.visibilityFrame);state.visibilityFrame=0;}
    if(state.mapRoot){state.scene?.remove(state.mapRoot);state.mapRoot=null;}
    for(const id of [LABEL_ID,MARKER_ID,HALO_ID,MODEL_LAYER_ID])if(map.getLayer(id))map.removeLayer(id);
    if(map.getSource(SOURCE_ID))map.removeSource(SOURCE_ID);MAP_STATES.delete(map);}
