@@ -218,7 +218,7 @@ jobs:
           SITE="$RUNNER_TEMP/bp-overlay-site"
           mkdir -p "$SITE"
           tar -xf "$ARCHIVE" -C "$SITE"
-          for file in index.html app/index.html landing.js app.js bridgepoint-view-v5917.js bridgepoint-drone-awareness-v1.js world-v2300-map.js vendor/three.module.js; do
+          for file in index.html app/index.html landing.js app.js bridgepoint-view-v5917.js bridgepoint-drone-awareness-v1.js world-v2300-map.js bridgepoint-faa-obstruction-towers-v1.js app/bridgepoint-faa-obstruction-towers-v1.js data/bridgepoint-faa-obstructions-v1.json.gz app/data/bridgepoint-faa-obstructions-v1.json.gz vendor/three.module.js; do
             test -s "$SITE/$file" || { echo "Selected baseline missing $file"; exit 1; }
           done
           python3 - <<'PY'
@@ -320,7 +320,7 @@ jobs:
               p=site/rel
               data=p.read_text(encoding="utf-8")
               old_drone="bridgepoint-drone-awareness-v1.js?v=7-aircraft-models-tracks"
-              new_drone="bridgepoint-drone-awareness-v1.js?v=8-persistent-overlay-category-gate"
+              new_drone="bridgepoint-drone-awareness-v1.js?v=8-persistent-overlay-category-gate&aircraft=9-filters-ground-tethers"
               if old_drone in data:
                   if data.count(old_drone)!=1:
                       raise SystemExit(f"{rel}: duplicate drone guard script tag")
@@ -437,17 +437,21 @@ jobs:
           for item in \
             "root.html:$O/?overlay=$Q" \
             "app.html:$O/app/?overlay=$Q" \
-            "drone.js:$O/bridgepoint-drone-awareness-v1.js?v=8-persistent-overlay-category-gate&verify=$Q" \
+            "drone.js:$O/bridgepoint-drone-awareness-v1.js?v=9-aircraft-filters-ground-tethers&verify=$Q" \
             "wells.js:$O/bridgepoint-subsurface-wells-v1.js?verify=$Q" \
             "catacomb.js:$O/bridgepoint-underground-scan-scenes-v2.js?verify=$Q" \
             "app-catacomb.js:$O/app/bridgepoint-underground-scan-scenes-v2.js?verify=$Q" \
             "catalog.json:$O/assets/underground-scan-scenes/catalog.json?verify=$Q" \
             "scan.glb.gz:$O/assets/underground-scan-scenes/39e7050d272f4aac8493497621b86f39.glb.gz?verify=$Q" \
             "gltfloader.js:$O/vendor/GLTFLoader.bundle.js?verify=$Q" \
-            "landing.js:$O/landing.js?v=6247-universal-fresh-entry&overlay-visibility=v2" \
-            "app.js:$O/app.js?v=6247-universal-fresh-entry&overlay-visibility=v2" \
+            "landing.js:$O/landing.js?v=6247-universal-fresh-entry&sidewalk=6247-viewport-tile-progressive&bp=5970-globe-model-matrices&sw=1&wt=1&sf=1&faa=2-aircraft-filters-faa-restored&overlay-visibility=v2" \
+            "app.js:$O/app.js?v=6247-universal-fresh-entry&sidewalk=6247-viewport-tile-progressive&bp=5970-globe-model-matrices&sw=1&wt=1&sf=1&faa=2-aircraft-filters-faa-restored&overlay-visibility=v2" \
             "view.js:$O/bridgepoint-view-v5917.js?v=6215-satellite-persistent-render-guard&emrf=1&overlay-visibility=v2" \
-            "world-map.js:$O/world-v2300-map.js?v=6248-mobile-render-recovery-no-error-resize&verify=$Q"; do
+            "world-map.js:$O/world-v2300-map.js?v=6248-mobile-render-recovery-no-error-resize&verify=$Q" \
+            "faa-module.js:$O/bridgepoint-faa-obstruction-towers-v1.js?verify=$Q" \
+            "faa-app-module.js:$O/app/bridgepoint-faa-obstruction-towers-v1.js?verify=$Q" \
+            "faa-data.gz:$O/data/bridgepoint-faa-obstructions-v1.json.gz?verify=$Q" \
+            "faa-app-data.gz:$O/app/data/bridgepoint-faa-obstructions-v1.json.gz?verify=$Q"; do
             name="$(printf '%s' "$item" | cut -d: -f1)"
             url="$(printf '%s' "$item" | cut -d: -f2-)"
             curl --retry 8 --retry-all-errors --retry-delay 2 --max-time 45 -fsSL -H 'Cache-Control: no-cache' "$url" -o "$D/$name"
@@ -460,6 +464,12 @@ jobs:
           grep -Fq 'resizeSkipped:true' "$D/world-map.js"
           grep -Fq 'world-v2300-map.js?v=6248-mobile-render-recovery-no-error-resize' "$D/landing.js"
           grep -Fq 'world-v2300-map.js?v=6248-mobile-render-recovery-no-error-resize' "$D/app.js"
+          grep -Fq '2-aircraft-filters-faa-restored' "$D/landing.js"
+          grep -Fq '2-aircraft-filters-faa-restored' "$D/app.js"
+          grep -Fq 'bp-faa-obstructions-toggle-v1' "$D/faa-module.js"
+          cmp -s "$D/faa-module.js" "$D/faa-app-module.js"
+          cmp -s "$D/faa-data.gz" "$D/faa-app-data.gz"
+          gzip -t "$D/faa-data.gz"
           grep -Fq 'bridgepoint-subsurface-wells-v1.js?v=2-persistent-substructure-visibility' "$D/landing.js"
           grep -Fq 'bridgepoint-subsurface-wells-v1.js?v=2-persistent-substructure-visibility' "$D/app.js"
           grep -Fq 'bridgepoint-underground-scan-scenes-v2.js?v=4-persistent-overlay-category-gate' "$D/landing.js"
@@ -474,6 +484,6 @@ jobs:
           assert gzip.decompress((root/"scan.glb.gz").read_bytes())[:4]==b"glTF"
           print("LIVE_PERSISTENT_OVERLAY_AND_CATACOMB_ASSET_PASS")
           PY
-          grep -Fq 'bridgepoint-drone-awareness-v1.js?v=8-persistent-overlay-category-gate' "$D/root.html"
-          grep -Fq 'bridgepoint-drone-awareness-v1.js?v=8-persistent-overlay-category-gate' "$D/app.html"
+          grep -Fq 'bridgepoint-drone-awareness-v1.js?v=9-aircraft-filters-ground-tethers' "$D/root.html"
+          grep -Fq 'bridgepoint-drone-awareness-v1.js?v=9-aircraft-filters-ground-tethers' "$D/app.html"
           echo "LIVE_PERSISTENT_OVERLAY_VISIBILITY_PASS"

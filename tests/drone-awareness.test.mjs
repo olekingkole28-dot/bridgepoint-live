@@ -2,13 +2,16 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const read = path => readFile(new URL(path, import.meta.url), 'utf8');
-const [moduleSource, landingHtml, appHtml, mapKey, view, workflow] = await Promise.all([
+const [moduleSource, landingHtml, appHtml, mapKey, view, workflow, landingSource, appSource, faaModule] = await Promise.all([
   read('../rebuild-v5000/bridgepoint-drone-awareness-v1.js'),
   read('../rebuild-v5000/index.html'),
   read('../rebuild-v5000/app-index.html'),
   read('../rebuild-v5000/bridgepoint-map-key-v5920.js'),
   read('../rebuild-v5000/bridgepoint-view-v5917.js'),
-  read('../.github/workflows/deploy-intelligence-rebuild-v5000.yml')
+  read('../.github/workflows/deploy-intelligence-rebuild-v5000.yml'),
+  read('../rebuild-v5000/landing.js'),
+  read('../rebuild-v5000/app.js'),
+  read('../rebuild-v5000/bridgepoint-faa-obstruction-towers-v1.js')
 ]);
 
 assert.ok(moduleSource.includes('bp-drone-awareness-live-dots-v4'), 'the live UAV point layer is present');
@@ -113,6 +116,21 @@ assert.ok(moduleSource.includes("'gta-parcel','gta-parcel-glow','gta-parcel-halo
 assert.ok(landingHtml.includes('offline-world-ui.js'), 'homepage contains the offline dock UI loader');
 assert.ok(appHtml.includes('offline-world-ui.js'), 'app contains the offline dock UI loader');
 assert.ok(view.includes('bpv-mapkey-rail'), 'the map key is available from the side rail');
+assert.ok(moduleSource.includes('data-bpv-action="drones"') || moduleSource.includes("b.dataset.bpvAction='drones'"), 'the existing opt-in aircraft dock action remains compatible');
+assert.ok(moduleSource.includes('const AIRCRAFT_FILTER_GROUPS=['), 'aircraft types are exposed as independent filter groups');
+assert.ok(moduleSource.includes('function setAircraftFilter(groupKey)'), 'aircraft filters can be toggled independently');
+assert.ok(moduleSource.includes("if(groupKey==='all'){selectedAircraftGroups=new Set(AIRCRAFT_FILTER_GROUPS.map(group=>group.key))}"), 'All always restores every aircraft category');
+assert.ok(moduleSource.includes('<span class="bpv-command-label">Aircraft</span>'), 'the existing bottom-card action is visibly renamed Aircraft');
+assert.ok(moduleSource.includes("['match',['get','aircraft_kind'],kinds,true,false]"), 'map markers and trails use a valid type-matching filter expression');
+assert.ok(moduleSource.includes('Solid vertical ground-to-aircraft tether'), 'source-altitude aircraft and drones receive a visible 3D ground tether');
+assert.ok(moduleSource.includes('function aircraftModelSpanMetersByKind'), 'aircraft 3D geometry uses family-specific real-world scale');
+assert.ok(moduleSource.includes('function syncAircraftFilterVisibility(active=enabled)'), 'type filters also gate the 3D meshes, trails and tethers');
+assert.ok(moduleSource.includes("|faa|tower|crane|obstruction|antenna/.test(label))return'infrastructure';"), 'FAA tower and crane controls opt into infrastructure visibility under the clean-start guard');
+assert.ok(moduleSource.includes('return null;') && moduleSource.includes('queryGroundElevation'), 'tethers do not invent a ground elevation when terrain data is unavailable');
+assert.equal((landingSource.match(/bridgepoint-faa-obstruction-towers-v1\.js\?v=2-aircraft-filters-faa-restored/g)||[]).length,1, 'website loader restores the independent FAA obstruction renderer');
+assert.equal((appSource.match(/bridgepoint-faa-obstruction-towers-v1\.js\?v=2-aircraft-filters-faa-restored/g)||[]).length,1, 'app loader restores the independent FAA obstruction renderer');
+assert.ok(faaModule.includes('bp-faa-obstructions-toggle-v1') && faaModule.includes('FAA Towers'), 'FAA renderer still creates the bottom-card FAA Towers control');
+assert.ok(workflow.includes('tools/build_faa_obstruction_snapshot.py') && workflow.includes('site/app/data/bridgepoint-faa-obstructions-v1.json.gz'), 'production deployment includes the FAA source snapshot on both website and app paths');
 console.log('Drone awareness module checks passed.');
 
 

@@ -152,6 +152,10 @@ async function bootMap(){
  while(!world?.map&&performance.now()-started<10000)await new Promise(r=>setTimeout(r,40));
  if(!world?.map)throw new Error('Map object readiness timeout');
  const appMap=world.map;
+ // FAA-listed towers, antennas and cranes are loaded independently from the core globe.
+ void import('./bridgepoint-faa-obstruction-towers-v1.js?v=2-aircraft-filters-faa-restored')
+  .then(m=>{window.__BP_FAA_OBSTRUCTIONS_V1__=m.initFAAObstructionTowerRenderer(world)})
+  .catch(e=>console.warn('BridgePoint FAA obstruction/tower renderer unavailable',e));
  const ensureAppStartupGlobe=()=>{
   let projection='unknown';try{projection=String(appMap.getProjection?.()?.type||'unknown')}catch(_){}
   const underwaterDiveActive=window.__BP_UNDERWATER_DIVE_ACTIVE__===true||window.__BP_UNDERWATER_DIVE_TRANSITION__===true;
