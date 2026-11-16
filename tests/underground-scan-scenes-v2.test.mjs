@@ -27,6 +27,8 @@ assert.ok(moduleSource.includes('new pair.GLTFLoader()')&&moduleSource.includes(
 assert.ok(moduleSource.includes("minzoom:0,maxzoom:24"));
 assert.ok(moduleSource.includes("type:'custom',renderingMode:'3d'"));
 assert.ok(!moduleSource.includes('<iframe'));
+assert.ok(moduleSource.includes('Source platform: <strong>Sketchfab</strong>'),'creator source platform and attribution are visible in BridgePoint');
+assert.ok(moduleSource.includes('Underground 3D layer reattach failed'),'3D mesh layer can reattach after a map style reload');
 assert.ok(deploy.includes('SKETCHFAB_API_TOKEN'));
 assert.ok(deploy.includes('github-pages-usgs-seismic-layer-v1'));
 assert.ok(deploy.includes('bp-underground-scan-scenes-toggle-v2'));
