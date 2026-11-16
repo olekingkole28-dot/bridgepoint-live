@@ -221,6 +221,10 @@ async function bootMap(){
  void import('./bridgepoint-subsurface-wells-v1.js?v=1-global-wells-depth-casing')
   .then(m=>{window.__BP_SUBSURFACE_WELLS_V1__=m.initSubsurfaceWellsRenderer(world)})
   .catch(e=>console.warn('BridgePoint global subsurface wells renderer unavailable',e));
+ // Independent opt-in scanned cave and underground heritage sites; keep wells and utility renderers untouched.
+ void import('./bridgepoint-underground-scan-sites-v1.js?v=1-curated-sketchfab-caves')
+  .then(m=>{window.__BP_UNDERGROUND_SCAN_SITES_V1__=m.initUndergroundScanSitesRenderer(world)})
+  .catch(e=>console.warn('BridgePoint cave and underground scan layer unavailable',e));
  // Utility-scale wind turbines are an isolated, opt-in USWTDB layer.
  void import('./bridgepoint-wind-turbines-v1.js?v=1-uswtdb-3d-ground-anchored')
   .then(m=>{window.__BP_WIND_TURBINES_V1__=m.initWindTurbinesRenderer(world)})

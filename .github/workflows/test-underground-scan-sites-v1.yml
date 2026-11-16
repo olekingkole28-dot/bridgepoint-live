@@ -1,0 +1,28 @@
+name: Validate BridgePoint Underground Scan Sites
+
+on:
+  pull_request:
+    paths:
+      - 'rebuild-v5000/bridgepoint-underground-scan-sites-v1.js'
+      - 'rebuild-v5000/landing.js'
+      - 'rebuild-v5000/app.js'
+      - 'tests/underground-scan-sites-v1.test.mjs'
+      - 'docs/bridgepoint-underground-scan-sites-v1.md'
+      - '.github/workflows/deploy-intelligence-rebuild-v5000.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate-underground-scan-sites:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check module syntax
+        run: node --check rebuild-v5000/bridgepoint-underground-scan-sites-v1.js
+      - name: Run catalog, attribution and wiring regression tests
+        run: node tests/underground-scan-sites-v1.test.mjs

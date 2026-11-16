@@ -23,6 +23,11 @@ on:
       - 'app/horizon-next/index.html'
       - 'rebuild-v5000/bridgepoint-view-v5917.js'
       - 'rebuild-v5000/bridgepoint-view-v5917.css'
+      - 'rebuild-v5000/bridgepoint-underground-scan-sites-v1.js'
+      - 'rebuild-v5000/landing.js'
+      - 'rebuild-v5000/app.js'
+      - 'tests/underground-scan-sites-v1.test.mjs'
+      - 'docs/bridgepoint-underground-scan-sites-v1.md'
       - 'recovery/apply_welcome_space_v6257.py'
       - 'recovery/bridgepoint-welcome-space-v6260.js'
       - 'rebuild-v5000/bridgepoint-gaia-galaxy-v6270.js'
@@ -395,6 +400,8 @@ jobs:
           node 'tests/offshore-energy-v1.test.mjs'
           node --check rebuild-v5000/bridgepoint-subsurface-wells-v1.js
           node tests/subsurface-wells-v1.test.mjs
+          node --check rebuild-v5000/bridgepoint-underground-scan-sites-v1.js
+          node tests/underground-scan-sites-v1.test.mjs
           node --check rebuild-v5000/bridgepoint-wind-turbines-v1.js
           python3 -m py_compile tools/fetch_uswtdb_turbine_snapshot.py
           node tests/wind-turbines-v1.test.mjs
@@ -561,6 +568,8 @@ jobs:
           cp rebuild-v5000/bridgepoint-offshore-energy-v1.js site/app/bridgepoint-offshore-energy-v1.js
           cp rebuild-v5000/bridgepoint-subsurface-wells-v1.js site/bridgepoint-subsurface-wells-v1.js
           cp rebuild-v5000/bridgepoint-subsurface-wells-v1.js site/app/bridgepoint-subsurface-wells-v1.js
+          cp rebuild-v5000/bridgepoint-underground-scan-sites-v1.js site/bridgepoint-underground-scan-sites-v1.js
+          cp rebuild-v5000/bridgepoint-underground-scan-sites-v1.js site/app/bridgepoint-underground-scan-sites-v1.js
           cp rebuild-v5000/bridgepoint-wind-turbines-v1.js site/bridgepoint-wind-turbines-v1.js
           cp rebuild-v5000/bridgepoint-wind-turbines-v1.js site/app/bridgepoint-wind-turbines-v1.js
           cp rebuild-v5000/bridgepoint-solar-fields-v1.js site/bridgepoint-solar-fields-v1.js
