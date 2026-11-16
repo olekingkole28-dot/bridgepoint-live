@@ -65,7 +65,13 @@ const categoryPatterns={
  listings:/listing/i,
  transport:/road-|bridge(?:3d|-)|rail|transportation|transport-mesh/i,
  water:/bp-water-surface|water-surface|waterway-flow|hydrology/i,
- clouds:/cloud-volume|sky-cloud|satellite-cloud|eumetsat-cloud/i
+ clouds:/cloud-volume|sky-cloud|satellite-cloud|eumetsat-cloud/i,
+ subsurface:/subsurface|catacomb|cave|underground-scan|well|borehole|groundwater|aquifer|drillhole/i,
+ infrastructure:/infrastructure|power[-_]?line|utility|pylon|telecom|communication|cell[-_]?tower|substation|transmission|faa-obstruction|distribution-pole/i,
+ energy:/solar|wind[-_]?turbine|offshore[-_]?energy|renewable|energy-field/i,
+ landmarks:/landmark|poi|monument|statue|fountain|lighthouse|heritage-site/i,
+ nature:/tree|canopy|vegetation|forest-cover/i,
+ shipping:/vessel|ship|maritime|boat|port|shipping/i
 };
 // Only manage explicitly recognized optional overlays. Unknown style layers may be
 // essential basemap/background/terrain layers, so they must not be blanket-hidden.
@@ -96,7 +102,7 @@ function categoryForTarget(target){
  // Opening the fields panel is not itself a layer activation; the panel's own
  // Wind / RF / Drone controls opt their category in only when pressed.
  if(action==='volumetric')return null;
- const actionMap={parcels:'parcels',boundaryviewer:'parcels',worldchanges:'history',weatherfx:'weather',windfx:'wind',volumetric:'wind',satellite:'imagery',opportunities:'opportunities',listings:'listings',water:'water'};
+ const actionMap={parcels:'parcels',boundaryviewer:'parcels',worldchanges:'history',weatherfx:'weather',windfx:'wind',volumetric:'wind',satellite:'imagery',opportunities:'opportunities',listings:'listings',water:'water',catacombs:'subsurface',subsurface:'subsurface',wells:'subsurface',boreholes:'subsurface',powerlines:'infrastructure',infrastructure:'infrastructure',utilities:'infrastructure',telecom:'infrastructure',solar:'energy',windturbines:'energy',energy:'energy',landmarks:'landmarks',lighthouses:'landmarks',nature:'nature',trees:'nature',vessels:'shipping',ships:'shipping',maritime:'shipping'};
  if(actionMap[action])return actionMap[action];
  if(target.dataset?.layer==='parcels')return'parcels';
  if(target.dataset?.layer==='buildings')return'buildings';
@@ -111,6 +117,12 @@ function categoryForTarget(target){
  if(/wind|\brf\b|signal|volumetric/.test(label))return'wind';
  if(/history|changes|timeline/.test(label))return'history';
  if(/opportunit/.test(label))return'opportunities';
+ if(/catacomb|cave|subsurface|well|borehole|groundwater|aquifer|underground scan/.test(label))return'subsurface';
+ if(/power.?line|electric.?grid|utility|pylon|telecom|communication|cell.?tower|transmission|infrastructure|substation/.test(label))return'infrastructure';
+ if(/solar|wind turbine|renewable|offshore energy/.test(label))return'energy';
+ if(/landmark|lighthouse|monument|statue|fountain|heritage|poi/.test(label))return'landmarks';
+ if(/tree|canopy|vegetation|forest/.test(label))return'nature';
+ if(/ship|vessel|maritime|boat|port/.test(label))return'shipping';
  if(/road|rail|bridge|transport/.test(label))return'transport';
  return null;
 }
@@ -876,7 +888,7 @@ function installEmptyMode(m){
 function bindStartMode(){
  document.addEventListener('click',e=>{
   if(!emptyModeActive)return;
-  const target=e.target?.closest?.('.bpv-dock [data-bpv-action], .bpv-dock [data-bpv-panel], .bpv-dock [data-bpv-slot-action], #bpv-mapkey-rail, .map-tools button, .bpv-contained-control button');
+  const target=e.target?.closest?.('.bpv-dock [data-bpv-action], .bpv-dock .bpv-command-group button, .bpv-dock [data-bpv-panel], .bpv-dock [data-bpv-slot-action], #bpv-mapkey-rail, .map-tools button, .bpv-contained-control button');
   if(!target)return;
   const category=categoryForTarget(target);
   if(!category)return;
