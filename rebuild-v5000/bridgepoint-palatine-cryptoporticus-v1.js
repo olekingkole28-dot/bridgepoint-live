@@ -187,7 +187,7 @@ export function initPalatineCryptoporticusRenderer(target){
  map.on('click',state.handleClick);map.on('mousemove',state.handleMove);
  map.on('style.load',state.handleStyle);map.on('load',state.handleStyle);
  for(const event of ['styledata','idle','moveend','zoomend','rotateend','pitchend'])map.on(event,state.handleStyle);
- state.bodyObserver=typeof MutationObserver!=='undefined'&&document.body?new MutationObserver(()=>syncToggle(state)):null;
+ state.bodyObserver=typeof MutationObserver!=='undefined'&&document.body?new MutationObserver(()=>{if(document.getElementById(BUTTON_ID)!==state.button||!document.getElementById(NOTE_ID))syncToggle(state);}):null;
  state.bodyObserver?.observe(document.body,{childList:true,subtree:true});
  state.api={version:VERSION,get enabled(){return state.enabled;},get status(){return state.status;},
   get stats(){return {version:VERSION,enabled:state.enabled,lastError:state.lastError};},
