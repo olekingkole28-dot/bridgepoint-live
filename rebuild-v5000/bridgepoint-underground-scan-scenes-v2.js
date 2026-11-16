@@ -351,7 +351,7 @@ async function setEnabled(state,on){
 export function initUndergroundScanScenesRenderer(target){
  const map=target&&(target.map||target);if(!map||typeof map.getBounds!=='function'||typeof map.addSource!=='function')return null;
  const prior=MAP_STATES.get(map);if(prior)return prior.api;
- const state={map,enabled:false,mapVisible:false,dead:false,popup:null,selectedModelUid:MODEL_UID,THREE:null,loader:null,renderer:null,camera:null,scene:null,
+ const state={map,enabled:false,mapVisible:false,dead:false,popup:null,selectedModelUid:'f4232f8f91e54b0a8aa92365d6ea7b7a',THREE:null,loader:null,renderer:null,camera:null,scene:null,
   mapRoot:null,assetBuffers:new Map(),assetPromises:new Map(),assetScenes:new Map(),assetScenePromises:new Map(),viewer:null,layerPromise:null,observer:null,dockTimer:null,status:'off',
   stats:{version:VERSION,sites:1,models:PARIS_CATACOMBS_MODELS_V4.length,layerReady:false,lastError:null}};
  state.handleClick=e=>{
