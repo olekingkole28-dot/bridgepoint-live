@@ -27,7 +27,7 @@ const payload = {
   metadata: { generated: 1_800_000_060_000, count: 6, title: 'USGS test feed' },
   features: [
     valid,
-    { ...valid, id: 'duplicate-feature-id' , properties: { ...valid.properties, mag: 3.1 } },
+    { ...valid, id: 'us7000-test01' , properties: { ...valid.properties, mag: 3.1 } },
     { ...valid, properties: { ...valid.properties, mag: 2.4 } },
     { ...valid, id: 'quarry-blast', properties: { ...valid.properties, type: 'quarry blast' } },
     { ...valid, id: 'invalid-coordinate', geometry: { type: 'Point', coordinates: [181, 91, 3] } },
@@ -41,7 +41,7 @@ assert.equal(normalized.type, 'FeatureCollection');
 assert.equal(normalized.metadata.source, 'USGS ComCat');
 assert.equal(normalized.metadata.generated, payload.metadata.generated);
 assert.equal(normalized.metadata.feedCount, payload.metadata.count);
-assert.equal(normalized.features.length, 2, 'only unique, valid M2.5+ earthquake points should remain');
+assert.equal(normalized.features.length, 1, 'duplicate events, non-earthquakes, invalid records and sub-M2.5 points should be removed');
 
 const first = normalized.features[0];
 assert.equal(first.id, valid.id);
