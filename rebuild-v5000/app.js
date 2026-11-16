@@ -240,6 +240,7 @@ async function bootMap(){
   ['celestial-sky',async()=>{const m=await import('./bridgepoint-celestial-sky-v6257.js?v=6257');window.__BP_CELESTIAL_SKY_V6257__=m.initBridgePointCelestialSky(world)}],
   ['spectral-imagery',async()=>{const m=await import('./world-v2300-spectral-imagery.js?v=6215-satellite-persistent-render-guard');window.__BP_SPECTRAL_IMAGERY_V5931__=m.initSpectralImagery(world)}],
   ['underground',async()=>{const m=await import('./world-v2300-underground-xray.js?v=5965-landmarks-and-effects');window.__BP_UNDERGROUND_XRAY_V5935__=m.initUndergroundXray(world)}],
+  ['usgs-seismic',async()=>{const m=await import('./world-v2300-seismic-layer-v1.js?v=1-usgs-comcat-m25-week');window.__BP_USGS_SEISMIC_LAYER_V1__=m.initUSGSSeismicLayer(world)}],
   ['infrastructure',async()=>{const m=await import('./world-v2300-infrastructure-volume-v5962.js?v=5970-globe-model-matrices');window.__BP_INFRASTRUCTURE_VOLUME_V5962__=m.initInfrastructureVolume(world)}],
   ['utility-infrastructure',async()=>{const m=await import('./world-v2300-utility-infrastructure-v1.js?v=11-solid-utility-wires-v10');window.__BP_UTILITY_INFRASTRUCTURE_V1__=m.initUtilityInfrastructure(world)}],
   ['sensors',async()=>{const m=await import('./world-v2300-sensor-layers.js?v=6256-gerstner-liquid-ocean');window.__BP_SENSOR_LAYERS_V5945__=m.initSensorLayers(world)}],
