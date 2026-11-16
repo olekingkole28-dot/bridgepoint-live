@@ -1005,7 +1005,8 @@ function install(map, state) {
     setLighthouseVisibility(state, state.enabled);
     if (!state.interactionsBound) {
       state.featureClickHandler = event => showLighthouseDetails(state, event);
-      map.on('click', [BEACON_LAYER_ID, MARKER_LAYER_ID], state.featureClickHandler);
+      map.on('click', BEACON_LAYER_ID, state.featureClickHandler);
+      map.on('click', MARKER_LAYER_ID, state.featureClickHandler);
       state.interactionsBound = true;
     }
     state.stats.markerLayerReady = !!map.getLayer(MARKER_LAYER_ID);
@@ -1093,7 +1094,10 @@ export function initLighthouseRenderer(target) {
     destroy() {
       state.dead = true;
       state.controlObserver?.disconnect();
-      if (state.featureClickHandler) map.off?.('click', [BEACON_LAYER_ID, MARKER_LAYER_ID], state.featureClickHandler);
+      if (state.featureClickHandler) {
+        map.off?.('click', BEACON_LAYER_ID, state.featureClickHandler);
+        map.off?.('click', MARKER_LAYER_ID, state.featureClickHandler);
+      }
       if (state.refreshTimer) clearTimeout(state.refreshTimer);
       if (state.animationTimer) clearTimeout(state.animationTimer);
       if (state.beaconTimer) clearTimeout(state.beaconTimer);

@@ -93,7 +93,8 @@ jobs:
             "const explicitToggle=target.hasAttribute('aria-pressed')",
             "earthquakes:/earthquake|seismic|comcat/i",
             "bp-layer-turn-on-everything",
-            "bp-layer-reset-all"
+            "bp-layer-reset-all",
+            "if(masterControlIds.has(control.id)||control.disabled||control.closest('[data-bpv-panel]')||!categoryForTarget(control))continue;"
           ]:
             assert token in s, token
           c=Path("rebuild-v5000/bridgepoint-underground-scan-scenes-v2.js").read_text()
@@ -415,14 +416,18 @@ jobs:
           for rel in ("index.html","app/index.html"):
               p=site/rel
               data=p.read_text(encoding="utf-8")
-              old_drone="bridgepoint-drone-awareness-v1.js?v=7-aircraft-models-tracks"
+              old_drone_imports=(
+                  "bridgepoint-drone-awareness-v1.js?v=7-aircraft-models-tracks",
+                  "bridgepoint-drone-awareness-v1.js?v=8-persistent-overlay-category-gate&aircraft=9-filters-ground-tethers",
+              )
               new_drone="bridgepoint-drone-awareness-v1.js?v=9-persistent-icons-master-layers&aircraft=9-filters-ground-tethers"
-              if old_drone in data:
-                  if data.count(old_drone)!=1:
-                      raise SystemExit(f"{rel}: duplicate drone guard script tag")
-                  data=data.replace(old_drone,new_drone,1)
+              old_drone=[item for item in old_drone_imports if data.count(item)==1]
+              if len(old_drone)==1:
+                  data=data.replace(old_drone[0],new_drone,1)
               elif new_drone not in data:
-                  raise SystemExit(f"{rel}: drone guard script not found")
+                  raise SystemExit(f"{rel}: expected one known drone guard script tag, found {len(old_drone)}")
+              elif any(data.count(item)>1 for item in old_drone_imports):
+                  raise SystemExit(f"{rel}: duplicate drone guard script tag")
               needle="landing.js?v=" if rel=="index.html" else "app.js?v="
               matches=list(re.finditer(r'src="([^"]*'+re.escape(needle)+r'[^"]*)"',data))
               if len(matches)!=1:
@@ -530,7 +535,7 @@ jobs:
           grep -Fq 'data-bpv-action="opportunities" aria-pressed="false" data-bp-layer-toggle="1"' "$SITE/bridgepoint-view-v5917.js"
           grep -Fq 'data-bpv-action="windfx" aria-pressed="false" data-bp-layer-toggle="1"' "$SITE/bridgepoint-view-v5917.js"
           grep -Fq 'Named earthquakes · OFF' "$SITE/world-v2300-seismic-layer-v1.js"
-          grep -Fq "data-bpvAction = 'earthquakes'" "$SITE/world-v2300-seismic-layer-v1.js"
+          grep -Fq "button.dataset.bpvAction = 'earthquakes'" "$SITE/world-v2300-seismic-layer-v1.js"
           grep -Fq 'Lighthouses · OFF' "$SITE/bridgepoint-lighthouses-v1.js"
           grep -Fq 'function lighthousePopupContent(feature)' "$SITE/bridgepoint-lighthouses-v1.js"
           grep -Fq 'bp-layer-turn-on-everything' "$SITE/bridgepoint-drone-awareness-v1.js"

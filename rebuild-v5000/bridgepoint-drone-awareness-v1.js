@@ -954,7 +954,7 @@ function setLayerMasterState(turnOn){
  if(!root)return false;
  const controls=[...root.querySelectorAll('button[aria-pressed],button.active,[data-bp-layer-toggle]')];
  for(const control of controls){
-  if(masterControlIds.has(control.id)||control.disabled||control.closest('[data-bpv-panel]'))continue;
+  if(masterControlIds.has(control.id)||control.disabled||control.closest('[data-bpv-panel]')||!categoryForTarget(control))continue;
   const hasPressed=control.hasAttribute('aria-pressed');
   const current=hasPressed?control.getAttribute('aria-pressed')==='true':control.classList.contains('active');
   if(current!==!!turnOn)control.click();

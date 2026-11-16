@@ -52,12 +52,13 @@ assert.ok(moduleSource.includes('earthquakes:/earthquake|seismic|comcat/i'), 'na
 assert.ok(moduleSource.includes('const explicitToggle=target.hasAttribute(\'aria-pressed\')'), 'the overlay guard reads the control state before an action handler can reset it');
 assert.ok(!moduleSource.includes('setTimeout(()=>{\n   const buttonOn=target.classList.contains'), 'the previous premature off-state race is removed');
 assert.ok(moduleSource.includes('bp-layer-turn-on-everything') && moduleSource.includes('bp-layer-reset-all'), 'global turn-on and reset controls are mounted at the top of the bottom card');
+assert.ok(moduleSource.includes("||!categoryForTarget(control))continue;"), 'master controls do not click non-layer dock controls such as card maximize');
 assert.ok(moduleSource.includes('showAllLayers:()=>setLayerMasterState(true)') && moduleSource.includes('resetAllLayers:()=>setLayerMasterState(false)'), 'master layer controls expose direct API actions');
 assert.ok(seismicModule.includes('Named earthquakes · OFF') && seismicModule.includes('Named earthquakes · '), 'the USGS layer uses the Named earthquakes label in both states');
-assert.ok(seismicModule.includes('button.dataset.bpvAction = \'earthquakes\''), 'Named earthquakes explicitly registers its optional point category');
+assert.ok(seismicModule.includes("button.dataset.bpvAction = 'earthquakes'"), 'Named earthquakes explicitly registers its optional point category');
 assert.ok(seismicModule.includes('function popupContent(feature)'), 'Named earthquakes retains detailed click popups');
 assert.ok(lighthouseModule.includes('Lighthouses · OFF') && lighthouseModule.includes('setEnabled(value)'), 'lighthouses have a separate opt-in bottom-card toggle');
-assert.ok(lighthouseModule.includes('function lighthousePopupContent(feature)') && lighthouseModule.includes('map.on(\'click\', [BEACON_LAYER_ID, MARKER_LAYER_ID]'), 'lighthouse map symbols open source details when clicked');
+assert.ok(lighthouseModule.includes('function lighthousePopupContent(feature)') && lighthouseModule.includes('map.on(\'click\', BEACON_LAYER_ID') && lighthouseModule.includes('map.on(\'click\', MARKER_LAYER_ID'), 'lighthouse map symbols open source details when clicked');
 assert.ok(lighthouseModule.includes('minzoom: MIN_BEACON_ZOOM,\n      paint:'), 'lighthouse location markers remain hit-testable after the rotating-beacon to 3D handoff');
 assert.ok(moduleSource.includes('.bpv-dock .bpv-command-group button'), 'every bottom-card command button participates in opt-in category tracking');
 assert.ok(moduleSource.includes("catacombs:'subsurface'") && moduleSource.includes("wells:'subsurface'"), 'catacomb and wells buttons are mapped to the subsurface category');
