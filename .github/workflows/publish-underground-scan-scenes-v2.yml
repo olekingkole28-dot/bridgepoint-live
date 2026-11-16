@@ -132,7 +132,7 @@ jobs:
           SITE="$RUNNER_TEMP/bp-underground-site"
           mkdir -p "$SITE"
           tar -xf "$ARCHIVE" -C "$SITE"
-          for file in index.html app/index.html landing.js app.js bridgepoint-view-v5917.js vendor/three.module.js vendor/GLTFLoader.bundle.js; do
+          for file in index.html app/index.html landing.js app.js bridgepoint-view-v5917.js vendor/three.module.js; do
             test -s "$SITE/$file" || { echo "Deployed baseline missing $file"; exit 1; }
           done
           python3 - <<'PY'
@@ -144,6 +144,31 @@ jobs:
           (Path(os.environ["RUNNER_TEMP"])/"bp-underground-before.json").write_text(json.dumps(before,sort_keys=True))
           print("UNDERGROUND_BASELINE_FINGERPRINT_PASS",len(before),"files")
           PY
+
+      - name: Bundle the local GLTFLoader against production Three.js
+        shell: bash
+        run: |
+          set -euo pipefail
+          R="$RUNNER_TEMP/bp-catacomb-loader-runtime"
+          SITE="$RUNNER_TEMP/bp-underground-site"
+          mkdir -p "$R" "$SITE/vendor"
+          npm install --prefix "$R" --no-audit --no-fund --no-save three@0.169.0 esbuild@0.24.2
+          "$R/node_modules/.bin/esbuild" "$R/node_modules/three/examples/jsm/loaders/GLTFLoader.js" --bundle --format=esm --minify --external:three --outfile="$SITE/vendor/GLTFLoader.bundle.js"
+          python3 - "$SITE/vendor/GLTFLoader.bundle.js" <<'PY'
+          import re,sys
+          from pathlib import Path
+          p=Path(sys.argv[1])
+          s=p.read_text(encoding="utf-8")
+          s,n=re.subn(r'\bfrom\s*(["\'])three\1','from "/vendor/three.module.js?v=169-local"',s)
+          if n<1 or re.search(r'\bfrom\s*(["\'])three\1',s):
+              raise SystemExit("GLTFLoader has an unresolved external Three.js import")
+          if "esm.sh" in s or "unpkg.com" in s:
+              raise SystemExit("External CDN dependency detected in GLTFLoader")
+          p.write_text(s,encoding="utf-8")
+          print("BRIDGEPOINT_LOCAL_GLTFLOADER_BUNDLE_PASS",p.stat().st_size,"bytes")
+          PY
+          node --input-type=module --check < "$SITE/vendor/GLTFLoader.bundle.js"
+          grep -Fq 'from "/vendor/three.module.js?v=169-local"' "$SITE/vendor/GLTFLoader.bundle.js"
 
       - name: Overlay only the underground scan renderer, models and card button
         shell: bash
@@ -231,7 +256,7 @@ jobs:
           added=set(after)-set(before)
           changed={p for p in before if p in after and before[p]!=after[p]}
           expected_changed={"index.html","app/index.html","landing.js","app.js","bridgepoint-view-v5917.js"}
-          expected_added={"bridgepoint-underground-scan-scenes-v2.js","app/bridgepoint-underground-scan-scenes-v2.js"}
+          expected_added={"bridgepoint-underground-scan-scenes-v2.js","app/bridgepoint-underground-scan-scenes-v2.js","vendor/GLTFLoader.bundle.js"}
           expected_added|={"assets/underground-scan-scenes/catalog.json"}
           expected_added|={"assets/underground-scan-scenes/"+m["uid"]+".glb.gz" for m in json.loads((site/"assets/underground-scan-scenes/catalog.json").read_text())["models"]}
           if removed or changed!=expected_changed or added!=expected_added:
@@ -246,6 +271,8 @@ jobs:
           node --check "$SITE/app.js"
           node --check "$SITE/bridgepoint-view-v5917.js"
           node --input-type=module --check < "$SITE/bridgepoint-underground-scan-scenes-v2.js"
+          node --input-type=module --check < "$SITE/vendor/GLTFLoader.bundle.js"
+          grep -Fq 'from "/vendor/three.module.js?v=169-local"' "$SITE/vendor/GLTFLoader.bundle.js"
           cmp -s "$SITE/bridgepoint-underground-scan-scenes-v2.js" "$SITE/app/bridgepoint-underground-scan-scenes-v2.js"
           grep -Fq 'bp-paris-catacombs-toggle-v3' "$SITE/bridgepoint-view-v5917.js"
           grep -Fq 'initUndergroundScanScenesRenderer(world)' "$SITE/landing.js"
@@ -284,11 +311,14 @@ jobs:
             "module.js:$O/bridgepoint-underground-scan-scenes-v2.js?verify=$Q" \
             "app-module.js:$O/app/bridgepoint-underground-scan-scenes-v2.js?verify=$Q" \
             "catalog.json:$O/assets/underground-scan-scenes/catalog.json?verify=$Q" \
+            "gltfloader.js:$O/vendor/GLTFLoader.bundle.js?verify=$Q" \
             "scan.glb.gz:$O/assets/underground-scan-scenes/39e7050d272f4aac8493497621b86f39.glb.gz?verify=$Q"; do
             name="${item%%:*}"; url="${item#*:}"
             curl --retry 8 --retry-all-errors --retry-delay 2 --max-time 45 -fsSL -H 'Cache-Control: no-cache' "$url" -o "$D/$name"
           done
           grep -Fq 'bp-paris-catacombs-toggle-v3' "$D/view.js"
+          grep -Fq 'from "/vendor/three.module.js?v=169-local"' "$D/gltfloader.js"
+          ! grep -Fq 'from "three"' "$D/gltfloader.js"
           grep -Fq 'bridgepoint-underground-scan-scenes-v2.js?v=3-paris-catacombs-viewer' "$D/landing.js"
           grep -Fq 'bridgepoint-underground-scan-scenes-v2.js?v=3-paris-catacombs-viewer' "$D/app.js"
           grep -Fq "type:'custom',renderingMode:'3d'" "$D/module.js"
