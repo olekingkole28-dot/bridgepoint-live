@@ -126,8 +126,10 @@ assert.ok(mapSource.includes("const lineKey=baseKey+'|'+JSON.stringify(coordinat
   'multi-line source features must be split into independently keyed visible line segments before mesh generation');
 assert.ok(mapSource.includes("out.push({...clipped,id:lineKey,properties:{...p,bridgepoint_line_key:lineKey},geometry:{type:'LineString',coordinates}})"),
   'each clipped sidewalk and road segment must retain a unique stable line identity');
-assert.ok(mapSource.includes("map.queryRenderedFeatures({layers:['gta-global-sidewalk-approach-v1']})"),
-  'the 3D builder must consume the same visible 2D sidewalk/footway features already rendered in the viewport');
+assert.ok(mapSource.includes("const sidewalkFeatureLayers=['gta-global-sidewalk-approach-v1','gta-bp-sidewalk'].filter(id=>map.getLayer(id))") && mapSource.includes('map.queryRenderedFeatures({layers:sidewalkFeatureLayers})'),
+  'the 3D builder must consume both visible OpenFreeMap and BridgePoint sidewalk/footway layers');
+assert.ok(mapSource.includes("gta-sidewalk-road-probe-v1") && mapSource.includes("'gta-sidewalk-road-probe-v1'].filter(id=>map.getLayer(id))"),
+  'residential, unclassified and living-street centerlines must be available for curb and grass pairing');
 assert.ok(mapSource.includes('renderedApproachFeatures:sidewalkRenderedRaw.length'),
   'live sidewalk diagnostics must report the rendered 2D fallback feature count separately');
 assert.ok(mapSource.includes("if(kind==='walkway'&&!isSidewalkTileFeature(sourceFeature))continue;"),
@@ -136,11 +138,11 @@ assert.ok(!mapSource.includes("map.querySourceFeatures('ofm',{sourceLayer:'trans
   'close zoom must never scan every loaded OpenFreeMap transportation tile on the main thread');
 assert.ok(mapSource.includes('const sidewalkScreenDistance=feature=>'),
   'the bounded feature sort must keep its viewport-distance helper');
-assert.ok(mapSource.includes('MAX_SIDEWALK_RENDER_FEATURES=MOBILE?36:72')&&mapSource.includes('MAX_ROAD_RENDER_FEATURES=MOBILE?48:96'),
-  'visible sidewalk and road candidates must be capped before clipping and projection');
-assert.ok(mapSource.includes('MAX_SIDEWALK_RENDER_VERTICES=MOBILE?1800:4200')&&mapSource.includes('MAX_ROAD_RENDER_VERTICES=MOBILE?2400:5600'),
-  'total input vertices must be capped before synchronous viewport clipping');
-assert.ok(mapSource.includes("const sidewalkBatch=clipBatch([...sidewalkExtraRaw,...sidewalkRenderedRaw],'walkway',MAX_SIDEWALK_RENDER_FEATURES,MAX_SIDEWALK_RENDER_VERTICES)"),
+assert.ok(mapSource.includes('MAX_SIDEWALK_RENDER_FEATURES=MOBILE?96:168')&&mapSource.includes('MAX_ROAD_RENDER_FEATURES=MOBILE?144:240'),
+  'visible sidewalk and road candidates must have a larger but strict per-refresh cap');
+assert.ok(mapSource.includes('MAX_SIDEWALK_RENDER_VERTICES=MOBILE?6400:10800')&&mapSource.includes('MAX_ROAD_RENDER_VERTICES=MOBILE?7200:12000'),
+  'total input vertices must remain capped before synchronous viewport clipping');
+assert.ok(mapSource.includes("const sidewalkBatch=clipBatch([...sidewalkRenderedRaw,...sidewalkExtraRaw],'walkway',MAX_SIDEWALK_RENDER_FEATURES,MAX_SIDEWALK_RENDER_VERTICES)"),
   'the builder must receive only a bounded set of relevant visible sidewalks');
 assert.ok(mapSource.includes('sourceWideScan:false,sourceQueryDisabled:true'),
   'runtime diagnostics must confirm that the full-source scan is disabled');
@@ -187,23 +189,38 @@ const longRoad={...road,geometry:{type:'LineString',coordinates:[[startLon,roadL
 const longSidewalk={...sidewalk,geometry:{type:'LineString',coordinates:[[startLon,walkLat],[closeEndLon,walkLat]]}};
 const closeDesktop=buildSidewalk3DFeatures({features:[longSidewalk],roadFeatures:[longRoad],zoom:19,mobile:false});
 assert.equal(closeDesktop.stats.zoomBand,'CLOSE','very close zoom must select the close-zoom geometry budget');
-assert.ok(closeDesktop.stats.paths<=10&&closeDesktop.stats.individualSlabs<=48&&
-  closeDesktop.stats.curbAndGrassSegments<=28&&closeDesktop.stats.grassBlades<=60&&
-  closeDesktop.stats.crackSegments<=10&&closeDesktop.stats.roadCandidates<=96,
+assert.ok(closeDesktop.stats.paths<=40&&closeDesktop.stats.individualSlabs<=260&&
+  closeDesktop.stats.curbAndGrassSegments<=112&&closeDesktop.stats.grassBlades<=300&&
+  closeDesktop.stats.crackSegments<=48&&closeDesktop.stats.roadCandidates<=220,
   'desktop close zoom must stay within its bounded per-refresh mesh budget');
 for(const part of ['sidewalk_slab','curb','grass_verge','grass_blade','panel_joint','hairline_crack']){
   assert.ok(partsFor(closeDesktop,part).length>0, 'desktop close zoom must preserve '+part+' geometry');
 }
 const closeMobile=buildSidewalk3DFeatures({features:[longSidewalk],roadFeatures:[longRoad],zoom:19,mobile:true});
 assert.equal(closeMobile.stats.zoomBand,'CLOSE','mobile very close zoom must select the close-zoom geometry budget');
-assert.ok(closeMobile.stats.paths<=5&&closeMobile.stats.individualSlabs<=20&&
-  closeMobile.stats.curbAndGrassSegments<=12&&closeMobile.stats.grassBlades<=24&&
-  closeMobile.stats.crackSegments<=4&&closeMobile.stats.roadCandidates<=48,
+assert.ok(closeMobile.stats.paths<=22&&closeMobile.stats.individualSlabs<=140&&
+  closeMobile.stats.curbAndGrassSegments<=64&&closeMobile.stats.grassBlades<=180&&
+  closeMobile.stats.crackSegments<=24&&closeMobile.stats.roadCandidates<=144,
   'mobile close zoom must stay within its smaller bounded per-refresh mesh budget');
 for(const part of ['sidewalk_slab','curb','grass_verge','grass_blade','panel_joint','hairline_crack']){
   assert.ok(partsFor(closeMobile,part).length>0, 'mobile close zoom must preserve '+part+' geometry');
 }
 
+
+
+const denseRoadFeatures=[],denseSidewalkFeatures=[];
+for(let i=0;i<30;i++){
+  const roadY=latitude+i*14/110540,walkY=roadY+4.5/110540;
+  const end=startLon+4/lonScale;
+  denseRoadFeatures.push({...road,id:'dense-road-'+i,properties:{class:'residential',width:'5.2'},geometry:{type:'LineString',coordinates:[[startLon,roadY],[end,roadY]]}});
+  denseSidewalkFeatures.push({...sidewalk,id:'dense-walk-'+i,properties:{...sidewalk.properties,source_record_id:'dense-walk-'+i},geometry:{type:'LineString',coordinates:[[startLon,walkY],[end,walkY]]}});
+}
+const denseMobile=buildSidewalk3DFeatures({features:denseSidewalkFeatures,roadFeatures:denseRoadFeatures,roadsideWalkFeatures:denseRoadFeatures,generateRoadsideWalks:true,zoom:19,mobile:true});
+assert.ok(denseMobile.stats.paths>5,'mobile close zoom must materialize substantially more than the previous five-path cap');
+assert.ok(denseMobile.stats.individualSlabs>20,'mobile close zoom must materialize substantially more than the previous twenty slab cap');
+assert.ok(denseMobile.stats.curbAndGrassSegments>12,'mobile close zoom must retain substantially more curb/verge segments');
+assert.ok(partsFor(denseMobile,'curb').length>0&&partsFor(denseMobile,'grass_verge').length>0,
+  'residential road candidates must produce both raised curbs and grass verges on mobile close zoom');
 
 const images = new Map();
 const fakeMap = {
