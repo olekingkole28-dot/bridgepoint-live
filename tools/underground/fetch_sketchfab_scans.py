@@ -127,8 +127,7 @@ def main():
     total_bytes=sum(m["bytes"] for m in manifest["models"])
     if total_bytes > 150*1024*1024:
         raise SystemExit(f"Compressed cave scans exceed the safe Pages headroom cap: {total_bytes:,} bytes (150 MiB)")
-    (args.output/"catalog.json").write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+"
-",encoding="utf-8")
+    (args.output/"catalog.json").write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     print("BRIDGEPOINT_UNDERGROUND_GLBS_READY",len(manifest["models"]),"models ·",total_bytes,"compressed bytes")
 
 if __name__=="__main__":
