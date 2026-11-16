@@ -135,3 +135,41 @@ jobs:
           git commit -m "Refresh NASA SDO live solar images $(date -u +%Y-%m-%dT%H:%MZ)"
           git push origin HEAD:solar-live-assets --force
           echo "BRIDGEPOINT_SOLAR_LIVE_FEED_PUBLISHED"
+
+      - name: Browser-verify the live NASA feed is CORS-readable as a WebGL texture
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHROME="$(command -v google-chrome || command -v chromium-browser || command -v chromium)"
+          mkdir -p /tmp/bridgepoint-solar-cors
+          cd /tmp/bridgepoint-solar-cors
+          npm init -y >/dev/null 2>&1
+          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core');
+          (async()=>{
+            const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist']});
+            try{
+              const page=await browser.newPage();
+              await page.goto('https://bridgepointintelligence.online/',{waitUntil:'domcontentloaded',timeout:60000});
+              const result=await page.evaluate(url=>new Promise(resolve=>{
+                const image=new Image();
+                image.crossOrigin='anonymous';
+                image.onload=()=>{
+                  try{
+                    const canvas=document.createElement('canvas');
+                    canvas.width=image.naturalWidth;canvas.height=image.naturalHeight;
+                    const context=canvas.getContext('2d',{willReadFrequently:true});
+                    context.drawImage(image,0,0,1,1);
+                    context.getImageData(0,0,1,1);
+                    resolve({ok:true,width:image.naturalWidth,height:image.naturalHeight});
+                  }catch(error){resolve({ok:false,error:String(error)});}
+                };
+                image.onerror=()=>resolve({ok:false,error:'image-load-or-CORS-error'});
+                image.src=url+'?cors_probe='+Date.now();
+              }), 'https://raw.githubusercontent.com/olekingkole28-dot/bridgepoint-live/solar-live-assets/latest_1024_0131.jpg');
+              if(!result.ok||result.width!==1024||result.height!==1024)throw new Error('SOLAR_FEED_NOT_WEBGL_READABLE '+JSON.stringify(result));
+              console.log('BRIDGEPOINT_SOLAR_FEED_CORS_WEBGL_PASS',JSON.stringify(result));
+            }finally{await browser.close();}
+          })().catch(error=>{console.error(error.stack||error);process.exit(1)});
+          NODE
