@@ -1,4 +1,4 @@
-name: Publish BridgePoint Underground Scan Meshes v2
+name: Publish BridgePoint Paris Catacombs Native 3D v3
 
 on:
   workflow_dispatch:
@@ -104,16 +104,10 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ${{ runner.temp }}/bp-underground-baseline
 
-      - name: Download only verified and downloadable CC BY cave scans
-        env:
-          SKETCHFAB_API_TOKEN: ${{ secrets.SKETCHFAB_API_TOKEN }}
+      - name: Materialize the single Paris Catacombs CC BY 4.0 LiDAR scan
         shell: bash
         run: |
           set -euo pipefail
-          if [ -z "${SKETCHFAB_API_TOKEN:-}" ]; then
-            echo "::error::Add the repository Actions secret SKETCHFAB_API_TOKEN before publishing the in-scene 3D scan assets. Do not place the token in source code."
-            exit 1
-          fi
           python3 tools/underground/fetch_sketchfab_scans.py --output assets/underground-scan-scenes
           test -s assets/underground-scan-scenes/catalog.json
           python3 - <<'PY'
@@ -121,14 +115,15 @@ jobs:
           from pathlib import Path
           root=Path("assets/underground-scan-scenes")
           catalog=json.loads((root/"catalog.json").read_text(encoding="utf-8"))
-          assert len(catalog["models"])==9, f"Expected 9 individually reviewed models, got {len(catalog['models'])}"
-          for model in catalog["models"]:
-              path=root/(model["uid"]+".glb.gz")
-              raw=gzip.decompress(path.read_bytes())
-              assert raw[:4]==b"glTF" and len(raw)>32, f"Invalid GLB asset: {path}"
-              assert model["license"] in {"by","cc-by","cc-by-4.0","cc-attribution"}
-              assert model["creator"] and model["sourceUrl"]
-          print("BRIDGEPOINT_UNDERGROUND_CC_BY_GLB_ASSETS_PASS",len(catalog["models"]))
+          assert len(catalog["models"])==1, f"Paris-only build must contain exactly one scan, got {len(catalog['models'])}"
+          model=catalog["models"][0]
+          assert model["uid"]=="39e7050d272f4aac8493497621b86f39"
+          assert model["license"]=="CC BY 4.0" and model["creator"]=="Emm (@edemaistre)"
+          path=root/(model["uid"]+".glb.gz")
+          raw=gzip.decompress(path.read_bytes())
+          assert raw[:4]==b"glTF" and len(raw)>32, f"Invalid Paris Catacombs GLB asset: {path}"
+          assert model["sourceUrl"] and model["datasetUrl"] and model["sha256"]
+          print("BRIDGEPOINT_PARIS_CATACOMBS_CC_BY_GLB_ASSET_PASS",len(raw),"bytes")
           PY
 
       - name: Restore deployed site and fingerprint its complete contents
@@ -167,10 +162,10 @@ jobs:
           import hashlib, json, os, re
           site=Path(os.environ["RUNNER_TEMP"])/"bp-underground-site"
           old_module="./bridgepoint-underground-scan-sites-v1.js?v=1-curated-sketchfab-caves"
-          new_module="./bridgepoint-underground-scan-scenes-v2.js?v=2-local-glb-gltf"
-          attach="""void import('./bridgepoint-underground-scan-scenes-v2.js?v=2-local-glb-gltf')
-             .then(m=>{window.__BP_UNDERGROUND_SCAN_SCENES_V2__=m.initUndergroundScanScenesRenderer(world)})
-             .catch(e=>console.warn('BridgePoint in-scene 3D underground scans unavailable',e));"""
+          new_module="./bridgepoint-underground-scan-scenes-v2.js?v=3-paris-catacombs-viewer"
+          attach="""void import('./bridgepoint-underground-scan-scenes-v2.js?v=3-paris-catacombs-viewer')
+             .then(m=>{window.__BP_PARIS_CATACOMBS_V3__=m.initUndergroundScanScenesRenderer(world)})
+             .catch(e=>console.warn('BridgePoint Paris Catacombs 3D layer unavailable',e));"""
           for rel in ("landing.js","app.js"):
               path=site/rel
               data=path.read_text(encoding="utf-8")
@@ -195,16 +190,16 @@ jobs:
           view_path=site/"bridgepoint-view-v5917.js"
           view=view_path.read_text(encoding="utf-8")
           dock_anchor=' \'<div id="bpv-dock-actions" class="bpv-dock-actions bpv-command-groups">\'+'
-          button_id="bp-underground-scan-scenes-toggle-v2"
+          button_id="bp-paris-catacombs-toggle-v3"
           if button_id not in view:
               if view.count(dock_anchor)!=1:
                   raise SystemExit("Could not find the unique bottom-card bpv-dock-actions insertion point")
-              section="""  '<section id="bp-underground-scan-scenes-control-v2" class="bpv-command-group" data-bpv-command-section="underground-scan-scenes" aria-label="In-scene caves and underground scans">'+
-               '<div class="bpv-command-heading"><span class="bpv-command-heading-icon" aria-hidden="true">🕳️</span><span><b>CAVES & UNDERGROUND SITES</b><small>Real scan meshes rendered inside the BridgePoint globe</small></span></div>'+
-               '<div class="bpv-command-grid"><button id="bp-underground-scan-scenes-toggle-v2" type="button" class="bpv-command-btn" aria-pressed="false" title="Toggle in-scene cave and underground scan meshes"><span class="bpv-command-icon" aria-hidden="true">🪨</span><span class="bpv-command-label">Caves & Sites</span></button></div>'+
-               '<div id="bp-underground-scan-scenes-count-v2" class="bpv-data-note"></div>'+
-               '<div id="bp-underground-scan-scenes-status-v2" class="bpv-data-note">Layer off · existing BridgePoint layers remain unchanged.</div>'+
-               '<style id="bp-underground-scan-scenes-style-v2">#bp-underground-scan-scenes-control-v2 .bpv-data-note{font:600 10px/1.45 system-ui,sans-serif;color:#9bb7c6;margin:5px 2px;overflow-wrap:anywhere}#bp-underground-scan-scenes-toggle-v2.is-active{border-color:rgba(113,225,190,.78);background:rgba(22,86,72,.56)}</style>'+
+              section="""  '<section id="bp-paris-catacombs-control-v3" class="bpv-command-group" data-bpv-command-section="paris-catacombs" aria-label="Paris Catacombs LiDAR scan">'+
+               '<div class="bpv-command-heading"><span class="bpv-command-heading-icon" aria-hidden="true">🕳️</span><span><b>PARIS CATACOMBS</b><small>Real LiDAR scan · underground 3D</small></span></div>'+
+               '<div class="bpv-command-grid"><button id="bp-paris-catacombs-toggle-v3" type="button" class="bpv-command-btn" aria-pressed="false" title="Toggle Paris Catacombs globe marker"><span class="bpv-command-icon" aria-hidden="true">🪦</span><span class="bpv-command-label">Paris Catacombs</span></button></div>'+
+               '<div id="bp-paris-catacombs-count-v3" class="bpv-data-note"></div>'+
+               '<div id="bp-paris-catacombs-status-v3" class="bpv-data-note">Layer off · existing BridgePoint layers remain unchanged.</div>'+
+               '<style id="bp-paris-catacombs-style-v3">#bp-paris-catacombs-control-v3 .bpv-data-note{font:600 10px/1.45 system-ui,sans-serif;color:#9bb7c6;margin:5px 2px;overflow-wrap:anywhere}#bp-paris-catacombs-toggle-v3.is-active{border-color:rgba(113,225,190,.78);background:rgba(22,86,72,.56)}</style>'+
               '</section>'+
           """
               view=view.replace(dock_anchor,dock_anchor+"\n"+section)
@@ -219,7 +214,7 @@ jobs:
               if len(matches)!=1:
                   raise SystemExit(f"{rel}: expected exactly one globe-entry script URL, found {len(matches)}")
               old=matches[0].group(1)
-              if "underground-scenes=v2" not in old:
+              if "underground-scenes=paris-v3" not in old:
                   data=data.replace(old,old+"&underground-scenes=v2",1)
               path.write_text(data,encoding="utf-8")
           for rel in ("index.html","app/index.html"):
@@ -258,7 +253,7 @@ jobs:
           grep -Fq 'bp-underground-scan-scenes-toggle-v2' "$SITE/bridgepoint-view-v5917.js"
           grep -Fq 'initUndergroundScanScenesRenderer(world)' "$SITE/landing.js"
           grep -Fq 'initUndergroundScanScenesRenderer(world)' "$SITE/app.js"
-          echo "BRIDGEPOINT_UNDERGROUND_SCENE_MESHES_AND_STATIC_CARD_PASS"
+          echo "BRIDGEPOINT_PARIS_CATACOMBS_NATIVE_3D_PASS"
 
       - uses: actions/configure-pages@v5
 
@@ -269,13 +264,13 @@ jobs:
           path: ${{ runner.temp }}/bp-underground-site
           include-hidden-files: true
 
-      - name: Publish Caves & Underground Sites v2
+      - name: Publish Paris Catacombs Native 3D v3
         id: deployment
         uses: actions/deploy-pages@v4
         with:
           artifact_name: github-pages-underground-scan-scenes-v2
 
-      - name: Verify the card button, in-scene renderer and GLB assets on root and app routes
+      - name: Verify the Paris Catacombs card button, model viewer, and GLB asset on root and app routes
         shell: bash
         run: |
           set -euo pipefail
@@ -307,9 +302,11 @@ jobs:
           from pathlib import Path
           root=Path(os.environ["RUNNER_TEMP"])/"underground-live"
           rows=json.loads((root/"catalog.json").read_text(encoding="utf-8"))["models"]
-          assert len(rows)==9, len(rows)
+          assert len(rows)==1, len(rows)
+          assert rows[0]["uid"]=="39e7050d272f4aac8493497621b86f39"
+          assert rows[0]["license"]=="CC BY 4.0"
           assert (root/"scan.glb.gz").read_bytes()[:2]==b"\x1f\x8b"
           assert gzip.decompress((root/"scan.glb.gz").read_bytes())[:4]==b"glTF"
-          print("LIVE_UNDERGROUND_SCAN_ASSET_PASS",len(rows),"models")
+          print("LIVE_PARIS_CATACOMBS_SCAN_ASSET_PASS",len(rows),"model")
           PY
-          echo "BRIDGEPOINT_UNDERGROUND_IN_SCENE_PUBLISH_PASS"
+          echo "BRIDGEPOINT_PARIS_CATACOMBS_PUBLISH_PASS"
