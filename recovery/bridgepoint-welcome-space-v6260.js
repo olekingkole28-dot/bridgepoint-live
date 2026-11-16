@@ -16,7 +16,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
 
 (() => {
   'use strict';
-  const VERSION = 'v6294-live-sun-refresh';
+  const VERSION = 'v6295-sdo-live-feed';
   if (window.__BP_WELCOME_SPACE_V6257__?.version) return;
   const host = document.querySelector('#bpWelcomeGateV1 .bpw-celestial-system');
   if (!host) return;
@@ -398,7 +398,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   heightImage.onerror=error=>console.error('[BridgePoint Sun] HMI height map failed',error);
   heightImage.src=SOLAR_ASSET_BASE+'sun-photosphere-height-v2.webp';
   window.__BP_SOLAR_SURFACE_V2__={version:2,status:'loading-local-assets',assetBase:SOLAR_ASSET_BASE,photosphereSource:'NASA SDO HMI continuum intensity, warm visible-light photosphere grade',activitySources:['SDO AIA 131','171','193','304','335'],farSideSource:'NASA STEREO-B SECCHI/EUVI 2014-09-27 final usable Behind disk (171/195/284/304)',farSideType:'archived EUV activity image, not visible-light photosphere',reliefSource:'HMI continuum contrast; Wilson depressions/facular structure visually exaggerated ~4x',runtimeNetwork:'same-origin-local-static-assets-only'};
-  window.__BP_SOLAR_SURFACE_V3__={version:3,status:'loading-locally-hosted-nasa-observations',observations:{hmiMagnetogram:'2026-11-09T04:15:00Z',aia131:'2026-11-09T05:06:44Z',aia171:'2026-11-09T04:57:22Z',aia193:'2026-11-09T05:03:06Z',aia304:'2026-11-09T04:58:42Z'},magneticGeometrySource:'SDO/HMI colored line-of-sight polarity pairs; arcs are a 3D visualization, not a PFSS field extrapolation',coronalSource:'SDO/AIA 131, 171 and 304 angstrom full-disk observations',refreshCadence:'three-minute live-source check while Sun is selected; provider publication cadence still applies',refreshCadenceMs:180000,runtimeNetwork:'NASA SDO latest observations with bundled local snapshots retained as fallback'};
+  window.__BP_SOLAR_SURFACE_V3__={version:3,status:'loading-bundled-solar-snapshot',observations:{},bundledSnapshotObservations:{hmiMagnetogram:'2026-11-09T04:15:00Z',aia131:'2026-11-09T05:06:44Z',aia171:'2026-11-09T04:57:22Z',aia193:'2026-11-09T05:03:06Z',aia304:'2026-11-09T04:58:42Z'},magneticGeometrySource:'SDO/HMI colored line-of-sight polarity pairs; arcs are a 3D visualization, not a PFSS field extrapolation',coronalSource:'SDO/AIA 131, 171 and 304 angstrom full-disk observations',refreshCadence:'three-minute live-source check while Sun is selected; provider publication cadence still applies',refreshCadenceMs:180000,runtimeNetwork:'NASA SDO latest observations with bundled local snapshots retained as fallback'};
   window.__BP_SOLAR_SURFACE_V4__={version:4,status:'loading-fire-plasma-visual-layers',surfaceConvection:'animated-molten-photosphere-shader-preserving-HMI-AIA-data',rim:'animated-Fresnel-incandescent-corona',plasma:'particle-streams-emitted-from-observed-AIA-131-active-regions',particleCount:0,activeRegionCount:0};
 
   const sunGroup = new THREE.Group();
@@ -789,7 +789,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   // Poll NASA's latest SDO/HMI and AIA full-disk images every three minutes while
   // the user is viewing the Sun. Bundled local images remain the offline fallback.
   const LIVE_SOLAR_REFRESH_MS=3*60*1000;
-  const LIVE_SDO_LATEST_BASE='https://sdo.gsfc.nasa.gov/assets/img/latest/';
+  const LIVE_SOLAR_FEED_BASE='https://raw.githubusercontent.com/olekingkole28-dot/bridgepoint-live/solar-live-assets/';
   const LIVE_SOLAR_OBSERVATIONS=[
     {key:'photosphereDisk',file:'latest_1024_HMIIC.jpg',uniform:'uPhotosphereDiskMap',ready:'uPhotosphereDiskReady'},
     {key:'magnetic',file:'latest_1024_HMIBC.jpg',uniform:'uMagneticMap',ready:'uMagneticReady',geometry:'magnetic'},
@@ -809,8 +809,35 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       solarState.status='refreshing-live-sdo-observations';
       solarState.refreshCadenceMs=LIVE_SOLAR_REFRESH_MS;
       solarState.lastRefreshCheckAtUtc=new Date(requestStamp).toISOString();
-      solarState.refreshSource='NASA SDO/AIA + HMI latest full-disk JPEG products';
+      solarState.refreshSource='NASA SDO/AIA + HMI images mirrored by the BridgePoint 15-minute live feed';
+      solarState.liveFeedBase=LIVE_SOLAR_FEED_BASE;
+      solarState.liveFeedStatus='loading-manifest';
     }
+    fetch(LIVE_SOLAR_FEED_BASE+'solar-live.json?bp_refresh='+requestStamp,{
+      mode:'cors',credentials:'omit',cache:'no-store'
+    }).then(response=>{
+      if(!response.ok)throw new Error('HTTP '+response.status);
+      return response.json();
+    }).then(manifest=>{
+      if(!solarState)return;
+      const records=manifest?.observations||{};
+      const sourceTime=key=>records[key]?.sourceFileLastModifiedAtUtc||null;
+      solarState.observations={
+        hmiContinuum:sourceTime('photosphereDisk'),
+        hmiMagnetogram:sourceTime('magnetic'),
+        aia131:sourceTime('aia131'),
+        aia171:sourceTime('aia171'),
+        aia193:sourceTime('aia193'),
+        aia304:sourceTime('aia304')
+      };
+      solarState.sourceImageMetadata=records;
+      solarState.lastFeedManifestDownloadedAtUtc=manifest.downloadedAtUtc||null;
+      solarState.providerPublishedCadenceMinutes=Number(manifest.providerPublishedCadenceMinutes)||15;
+      solarState.liveFeedStatus='manifest-loaded';
+    }).catch(error=>{
+      if(solarState)solarState.liveFeedStatus='manifest-unavailable';
+      console.warn('[BridgePoint Sun] Live feed manifest unavailable:',error);
+    });
     let remaining=LIVE_SOLAR_OBSERVATIONS.length,loaded=0,failed=0;
     const finishOne=()=>{
       remaining--;
@@ -827,7 +854,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       }
     };
     for(const source of LIVE_SOLAR_OBSERVATIONS){
-      const url=LIVE_SDO_LATEST_BASE+source.file+'?bp_refresh='+requestStamp;
+      const url=LIVE_SOLAR_FEED_BASE+source.file+'?bp_refresh='+requestStamp;
       try{
         solarTextureLoader.load(url,texture=>{
           try{
@@ -846,6 +873,10 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
             if(previous&&previous!==texture)previous.dispose();
             loaded++;
             if(window.__BP_SOLAR_SURFACE_V2__)window.__BP_SOLAR_SURFACE_V2__[source.ready]=true;
+            if(solarState){
+              solarState.liveImageAppliedAtUtc=solarState.liveImageAppliedAtUtc||{};
+              solarState.liveImageAppliedAtUtc[source.key]=new Date().toISOString();
+            }
           }catch(error){
             failed++;
             texture.dispose();
@@ -855,7 +886,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
           }
         },undefined,error=>{
           failed++;
-          console.warn('[BridgePoint Sun] Live NASA observation unavailable; retaining last good texture:',source.file,error);
+          console.warn('[BridgePoint Sun] Live mirrored NASA observation unavailable; retaining last good texture:',source.file,error);
           finishOne();
         });
       }catch(error){
