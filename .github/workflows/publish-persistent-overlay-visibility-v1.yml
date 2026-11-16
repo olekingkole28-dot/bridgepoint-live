@@ -218,6 +218,15 @@ jobs:
           SITE="$RUNNER_TEMP/bp-overlay-site"
           mkdir -p "$SITE"
           tar -xf "$ARCHIVE" -C "$SITE"
+          # The retained baseline can predate FAA assets. Add these independent files
+          # to the preserved site before fingerprinting; do not require them in the old artifact.
+          mkdir -p "$SITE/app/data" "$SITE/data"
+          cp rebuild-v5000/bridgepoint-faa-obstruction-towers-v1.js "$SITE/bridgepoint-faa-obstruction-towers-v1.js"
+          cp rebuild-v5000/bridgepoint-faa-obstruction-towers-v1.js "$SITE/app/bridgepoint-faa-obstruction-towers-v1.js"
+          python3 tools/build_faa_obstruction_snapshot.py --output "$SITE/data/bridgepoint-faa-obstructions-v1.json.gz"
+          cp "$SITE/data/bridgepoint-faa-obstructions-v1.json.gz" "$SITE/app/data/bridgepoint-faa-obstructions-v1.json.gz"
+          gzip -t "$SITE/data/bridgepoint-faa-obstructions-v1.json.gz"
+          cmp -s "$SITE/data/bridgepoint-faa-obstructions-v1.json.gz" "$SITE/app/data/bridgepoint-faa-obstructions-v1.json.gz"
           for file in index.html app/index.html landing.js app.js bridgepoint-view-v5917.js bridgepoint-drone-awareness-v1.js world-v2300-map.js bridgepoint-faa-obstruction-towers-v1.js app/bridgepoint-faa-obstruction-towers-v1.js data/bridgepoint-faa-obstructions-v1.json.gz app/data/bridgepoint-faa-obstructions-v1.json.gz vendor/three.module.js; do
             test -s "$SITE/$file" || { echo "Selected baseline missing $file"; exit 1; }
           done
@@ -315,6 +324,16 @@ jobs:
                   data=data.replace(old_wells,new_wells,1)
               elif new_wells not in data and "bridgepoint-subsurface-wells-v1.js" not in data:
                   raise SystemExit(f"{rel}: wells module import was not found")
+              # Restore the FAA tower/crane renderer on both map entrypoints. The
+              # older retained Pages artifact may not contain these dynamic imports.
+              faa_attach = """void import('./bridgepoint-faa-obstruction-towers-v1.js?v=2-aircraft-filters-faa-restored')
+               .then(m=>{window.__BP_FAA_OBSTRUCTIONS_V1__=m.initFAAObstructionTowerRenderer(world)})
+               .catch(e=>console.warn('BridgePoint FAA obstruction/tower renderer unavailable',e));"""
+              if "bridgepoint-faa-obstruction-towers-v1.js?v=2-aircraft-filters-faa-restored" not in data:
+                  anchor = "window.__BP_LANDING_WORLD__=world;" if rel=="landing.js" else "const appMap=world.map;"
+                  if data.count(anchor)!=1:
+                      raise SystemExit(f"{rel}: expected one safe FAA renderer insertion point")
+                  data=data.replace(anchor,anchor+"\\n  "+faa_attach.replace("\\n","\\n  "),1)
               p.write_text(data,encoding="utf-8")
           for rel in ("index.html","app/index.html"):
               p=site/rel
@@ -437,7 +456,7 @@ jobs:
           for item in \
             "root.html:$O/?overlay=$Q" \
             "app.html:$O/app/?overlay=$Q" \
-            "drone.js:$O/bridgepoint-drone-awareness-v1.js?v=9-aircraft-filters-ground-tethers&verify=$Q" \
+            "drone.js:$O/bridgepoint-drone-awareness-v1.js?v=8-persistent-overlay-category-gate&aircraft=9-filters-ground-tethers&verify=$Q" \
             "wells.js:$O/bridgepoint-subsurface-wells-v1.js?verify=$Q" \
             "catacomb.js:$O/bridgepoint-underground-scan-scenes-v2.js?verify=$Q" \
             "app-catacomb.js:$O/app/bridgepoint-underground-scan-scenes-v2.js?verify=$Q" \
@@ -467,6 +486,10 @@ jobs:
           grep -Fq '2-aircraft-filters-faa-restored' "$D/landing.js"
           grep -Fq '2-aircraft-filters-faa-restored' "$D/app.js"
           grep -Fq 'bp-faa-obstructions-toggle-v1' "$D/faa-module.js"
+          grep -Fq 'function setAircraftFilter(groupKey)' "$D/drone.js"
+          grep -Fq 'AIRCRAFT_FILTER_GROUPS' "$D/drone.js"
+          ! grep -Eqi 'supabase\.co|DRONE_PROXY_KEY|apikey' "$D/drone.js"
+          grep -Fq 'FAA Towers' "$D/faa-module.js"
           cmp -s "$D/faa-module.js" "$D/faa-app-module.js"
           cmp -s "$D/faa-data.gz" "$D/faa-app-data.gz"
           gzip -t "$D/faa-data.gz"
@@ -484,6 +507,6 @@ jobs:
           assert gzip.decompress((root/"scan.glb.gz").read_bytes())[:4]==b"glTF"
           print("LIVE_PERSISTENT_OVERLAY_AND_CATACOMB_ASSET_PASS")
           PY
-          grep -Fq 'bridgepoint-drone-awareness-v1.js?v=9-aircraft-filters-ground-tethers' "$D/root.html"
-          grep -Fq 'bridgepoint-drone-awareness-v1.js?v=9-aircraft-filters-ground-tethers' "$D/app.html"
+          grep -Fq 'bridgepoint-drone-awareness-v1.js?v=8-persistent-overlay-category-gate&aircraft=9-filters-ground-tethers' "$D/root.html"
+          grep -Fq 'bridgepoint-drone-awareness-v1.js?v=8-persistent-overlay-category-gate&aircraft=9-filters-ground-tethers' "$D/app.html"
           echo "LIVE_PERSISTENT_OVERLAY_VISIBILITY_PASS"
