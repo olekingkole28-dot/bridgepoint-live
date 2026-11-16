@@ -1,4 +1,4 @@
-name: Publish Moon Restore and Earth-Opaque Celestial Overlay v6301
+name: Publish Earth Ray-Sphere Occlusion Overlay v6302
 # Re-run after a syntax-gate correction; deployment scope remains renderer-only.
 
 on:
@@ -15,7 +15,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: bridgepoint-moon-earth-overlay-v6301
+  group: bridgepoint-v5000-production-authority
   cancel-in-progress: false
 
 jobs:
@@ -31,8 +31,8 @@ jobs:
       - name: Download the last successful cloud-preserved production artifact
         uses: actions/download-artifact@v4
         with:
-          name: bridgepoint-v5000-1
-          run-id: 43781651401
+          name: bridgepoint-close-zoom-main-thread-v2-1
+          run-id: 43885461474
           repository: ${{ github.repository }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ${{ runner.temp }}/bp-pages-baseline
@@ -86,16 +86,16 @@ jobs:
           from pathlib import Path
           import re, os
           site = Path(os.environ["RUNNER_TEMP"]) / "bp-site"
-          build = "v6301-moon-earth-opaque"
+          build = "v6302-earth-ray-opaque"
           for rel in ("index.html", "app/index.html"):
               p = site / rel
               html = p.read_text(encoding="utf-8")
-              app_pattern = re.compile(r"(bridgepoint-app-space-explorer-v1\.js\?v=)6293-full-planetarium")
+              app_pattern = re.compile(r"(bridgepoint-app-space-explorer-v1\.js\?v=)[^&\"'<>\s]+")
               html, app_count = app_pattern.subn(r"\g<1>" + build, html)
               if app_count != 1:
                   raise SystemExit(f"{rel}: expected one existing app-space module URL, found {app_count}")
               if rel == "index.html":
-                  welcome_pattern = re.compile(r"(bridgepoint-welcome-space-v6260\.js\?v=)6295-sdo-live-feed")
+                  welcome_pattern = re.compile(r"(bridgepoint-welcome-space-v6260\.js\?v=)[^&\"'<>\s]+")
                   html, welcome_count = welcome_pattern.subn(r"\g<1>" + build, html)
                   if welcome_count < 1:
                       raise SystemExit(f"{rel}: expected at least one live-Sun welcome renderer URL, found {welcome_count}")
@@ -114,16 +114,18 @@ jobs:
           node --input-type=module --check < "$RUNNER_TEMP/bp-site/bridgepoint-welcome-space-v6260.js"
           node --input-type=module --check < "$RUNNER_TEMP/bp-site/bridgepoint-gaia-galaxy-v6270.js"
           SITE="$RUNNER_TEMP/bp-site"
-          grep -Fq 'uEarthScreenMask' "$SITE/bridgepoint-gaia-galaxy-v6270.js"
-          grep -Fq 'distance(gl_FragCoord.xy,uEarthScreenMask.xy)<uEarthScreenMask.z' "$SITE/bridgepoint-gaia-galaxy-v6270.js"
+          grep -Fq 'uBpEarthCenter' "$SITE/bridgepoint-gaia-galaxy-v6270.js"
+          grep -Fq 'bpEarthHit>0.0&&bpEarthHit<bpEarthObjectDistance-bpEarthEpsilon' "$SITE/bridgepoint-gaia-galaxy-v6270.js"
+          grep -Fq 'scanSceneForEarthOcclusion' "$SITE/bridgepoint-gaia-galaxy-v6270.js"
+          grep -Fq '__BP_EARTH_OCCLUSION_DIAGNOSTIC_V6302__' "$SITE/bridgepoint-gaia-galaxy-v6270.js"
           grep -Fq 'moon-global-height-4ppd-u16.png' "$SITE/bridgepoint-welcome-space-v6260.js"
           ! grep -Fq 'moon-global-height-16ppd-u16.png' "$SITE/bridgepoint-welcome-space-v6260.js"
           test -s "$SITE/assets/moon/v1/moon-global-height-4ppd-u16.png"
           test -s "$SITE/assets/moon/v1/moon-apollo15-4deg-512ppd-height-u16.png"
           test -s "$SITE/assets/moon/v1/moon-lroc-color-4k.webp"
           grep -Fq 'gl_FragCoord.xy' "$SITE/bridgepoint-gaia-galaxy-v6270.js"
-          grep -Fq 'v6301-moon-earth-opaque' "$SITE/bridgepoint-welcome-space-v6260.js"
-          grep -Fq 'v6301-moon-earth-opaque' "$SITE/bridgepoint-app-space-explorer-v1.js"
+          grep -Fq 'v6302-earth-ray-opaque' "$SITE/bridgepoint-welcome-space-v6260.js"
+          grep -Fq 'v6302-earth-ray-opaque' "$SITE/bridgepoint-app-space-explorer-v1.js"
           grep -Fq 'refreshIntervalMs:900000' "$SITE/world-v2300-clouds.js"
           grep -Fq 'function updateRingDust(time)' "$SITE/bridgepoint-saturn-system-v6282.js"
           grep -Fq 'Phobos' "$SITE/bridgepoint-mars-system-v6291.js"
@@ -167,7 +169,7 @@ jobs:
       - name: Upload the untouched production website with the Earth-opaque overlay
         uses: actions/upload-pages-artifact@v5
         with:
-          name: github-pages-v6301-moon-earth-opaque
+          name: github-pages-v6302-earth-ray-opaque
           path: ${{ runner.temp }}/bp-site
           include-hidden-files: true
 
@@ -175,9 +177,9 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
         with:
-          artifact_name: github-pages-v6301-moon-earth-opaque
+          artifact_name: github-pages-v6302-earth-ray-opaque
 
-      - name: Verify live site, app, clouds, and preserved planetary systems
+      - name: Verify live site, app, Earth ray occlusion, clouds, and preserved planetary systems
         shell: bash
         run: |
           set -euo pipefail
@@ -186,9 +188,9 @@ jobs:
           mkdir -p "$RUNNER_TEMP/bp-live-check"
           curl --retry 8 --retry-all-errors --retry-delay 3 -fsSL -H 'Cache-Control: no-cache' "$O/?earth-opaque=$q" -o "$RUNNER_TEMP/bp-live-check/root.html"
           curl --retry 8 --retry-all-errors --retry-delay 3 -fsSL -H 'Cache-Control: no-cache' "$O/app/?earth-opaque=$q" -o "$RUNNER_TEMP/bp-live-check/app.html"
-          curl --retry 8 --retry-all-errors --retry-delay 3 -fsSL -H 'Cache-Control: no-cache' "$O/bridgepoint-app-space-explorer-v1.js?v=v6301-moon-earth-opaque&$q" -o "$RUNNER_TEMP/bp-live-check/explorer.js"
-          curl --retry 8 --retry-all-errors --retry-delay 3 -fsSL -H 'Cache-Control: no-cache' "$O/bridgepoint-welcome-space-v6260.js?v=v6301-moon-earth-opaque&$q" -o "$RUNNER_TEMP/bp-live-check/welcome.js"
-          curl --retry 8 --retry-all-errors --retry-delay 3 -fsSL -H 'Cache-Control: no-cache' "$O/bridgepoint-gaia-galaxy-v6270.js?v=v6301-moon-earth-opaque&$q" -o "$RUNNER_TEMP/bp-live-check/gaia.js"
+          curl --retry 8 --retry-all-errors --retry-delay 3 -fsSL -H 'Cache-Control: no-cache' "$O/bridgepoint-app-space-explorer-v1.js?v=v6302-earth-ray-opaque&$q" -o "$RUNNER_TEMP/bp-live-check/explorer.js"
+          curl --retry 8 --retry-all-errors --retry-delay 3 -fsSL -H 'Cache-Control: no-cache' "$O/bridgepoint-welcome-space-v6260.js?v=v6302-earth-ray-opaque&$q" -o "$RUNNER_TEMP/bp-live-check/welcome.js"
+          curl --retry 8 --retry-all-errors --retry-delay 3 -fsSL -H 'Cache-Control: no-cache' "$O/bridgepoint-gaia-galaxy-v6270.js?v=v6302-earth-ray-opaque&$q" -o "$RUNNER_TEMP/bp-live-check/gaia.js"
           curl --retry 8 --retry-all-errors --retry-delay 3 -fsSL -H 'Cache-Control: no-cache' "$O/world-v2300-clouds.js?v=6202-global-satellite-cloud-banks&$q" -o "$RUNNER_TEMP/bp-live-check/clouds.js"
           curl --retry 8 --retry-all-errors --retry-delay 3 -fsSL -H 'Cache-Control: no-cache' "$O/app/world-v2300-clouds.js?v=6202-global-satellite-cloud-banks&$q" -o "$RUNNER_TEMP/bp-live-check/app-clouds.js"
           curl --retry 8 --retry-all-errors --retry-delay 3 -fsSL -H 'Cache-Control: no-cache' "$O/bridgepoint-saturn-system-v6282.js?$q" -o "$RUNNER_TEMP/bp-live-check/saturn.js"
@@ -206,17 +208,18 @@ jobs:
           assert m["globalHeight"]["samplesPerDegree"]==4
           for f in ("moon-global.png","moon-apollo.png","moon-color.webp"):
               assert (p/f).is_file() and (p/f).stat().st_size>0, f
-          print("LIVE_MOON_ASSETS_4PPD_LROC_APOLLO_PASS")
+          print("LIVE_MOON_ASSETS_PRESERVED_PASS")
           PY
 
-          grep -Fq 'bridgepoint-app-space-explorer-v1.js?v=v6301-moon-earth-opaque' "$RUNNER_TEMP/bp-live-check/root.html"
-          grep -Fq 'bridgepoint-app-space-explorer-v1.js?v=v6301-moon-earth-opaque' "$RUNNER_TEMP/bp-live-check/app.html"
-          grep -Fq 'bridgepoint-welcome-space-v6260.js?v=v6301-moon-earth-opaque' "$RUNNER_TEMP/bp-live-check/explorer.js"
-          grep -Fq 'bridgepoint-gaia-galaxy-v6270.js?v=v6301-moon-earth-opaque' "$RUNNER_TEMP/bp-live-check/welcome.js"
-          grep -Fq 'uEarthScreenMask' "$RUNNER_TEMP/bp-live-check/gaia.js"
-          grep -Fq 'gl_FragCoord.xy' "$RUNNER_TEMP/bp-live-check/gaia.js"
+          grep -Fq 'bridgepoint-app-space-explorer-v1.js?v=v6302-earth-ray-opaque' "$RUNNER_TEMP/bp-live-check/root.html"
+          grep -Fq 'bridgepoint-app-space-explorer-v1.js?v=v6302-earth-ray-opaque' "$RUNNER_TEMP/bp-live-check/app.html"
+          grep -Fq 'bridgepoint-welcome-space-v6260.js?v=v6302-earth-ray-opaque' "$RUNNER_TEMP/bp-live-check/explorer.js"
+          grep -Fq 'bridgepoint-gaia-galaxy-v6270.js?v=v6302-earth-ray-opaque' "$RUNNER_TEMP/bp-live-check/welcome.js"
+          grep -Fq 'uBpEarthCenter' "$RUNNER_TEMP/bp-live-check/gaia.js"
+          grep -Fq 'bpEarthHit>0.0&&bpEarthHit<bpEarthObjectDistance-bpEarthEpsilon' "$RUNNER_TEMP/bp-live-check/gaia.js"
+          grep -Fq '__BP_EARTH_OCCLUSION_DIAGNOSTIC_V6302__' "$RUNNER_TEMP/bp-live-check/gaia.js"
           grep -Fq 'refreshIntervalMs:900000' "$RUNNER_TEMP/bp-live-check/clouds.js"
           cmp -s "$RUNNER_TEMP/bp-live-check/clouds.js" "$RUNNER_TEMP/bp-live-check/app-clouds.js"
           grep -Fq "name:'Titan'" "$RUNNER_TEMP/bp-live-check/saturn.js"
           grep -Fq 'Phobos' "$RUNNER_TEMP/bp-live-check/mars.js"
-          echo "BRIDGEPOINT_MOON_EARTH_V6301_LIVE_PASS"
+          echo "BRIDGEPOINT_EARTH_RAY_OCCLUSION_V6302_LIVE_PASS"
