@@ -219,5 +219,5 @@ for (const image of images.values()) {
 }
 assert.equal(installSidewalk3DTextures(fakeMap), false, 'texture registration should be idempotent');
 
-assert.ok(mapSource.includes('sidewalkFeatureInputs.sort((a,b)=>sidewalkScreenDistance(a)-sidewalkScreenDistance(b))'), 'sidewalk geometry remains viewport-prioritized');
+assert.ok(mapSource.includes('out.sort((a,b)=>sidewalkScreenDistance(a)-sidewalkScreenDistance(b))'), 'bounded sidewalk geometry remains viewport-prioritized');
 console.log('BRIDGEPOINT_GLOBAL_SIDEWALK_3D_TEST_PASS');
