@@ -675,6 +675,6 @@ jobs:
           assert gzip.decompress((root/"scan.glb.gz").read_bytes())[:4]==b"glTF"
           print("LIVE_PERSISTENT_OVERLAY_AND_CATACOMB_ASSET_PASS")
           PY
-          grep -Fq 'bridgepoint-drone-awareness-v1.js?v=8-persistent-overlay-category-gate&aircraft=9-filters-ground-tethers' "$D/root.html"
-          grep -Fq 'bridgepoint-drone-awareness-v1.js?v=8-persistent-overlay-category-gate&aircraft=9-filters-ground-tethers' "$D/app.html"
+          grep -Fq 'bridgepoint-drone-awareness-v1.js?v=9-persistent-icons-master-layers&aircraft=9-filters-ground-tethers' "$D/root.html"
+          grep -Fq 'bridgepoint-drone-awareness-v1.js?v=9-persistent-icons-master-layers&aircraft=9-filters-ground-tethers' "$D/app.html"
           echo "LIVE_PERSISTENT_OVERLAY_VISIBILITY_PASS"
