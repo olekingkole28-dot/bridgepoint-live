@@ -369,14 +369,15 @@ jobs:
             "assets/underground-scan-scenes/39e7050d272f4aac8493497621b86f39.glb.gz",
             "vendor/GLTFLoader.bundle.js"
           ]
-          expected_added=set()
-          for item in candidates:
-              if item in before:expected_changed.add(item)
-              else:expected_added.add(item)
-          if removed or changed!=expected_changed or added!=expected_added:
+          expected_added={item for item in candidates if item not in before}
+          allowed_changed=expected_changed|set(candidates)
+          unexpected_changed=changed-allowed_changed
+          missing_changed=expected_changed-changed
+          if removed or added!=expected_added or unexpected_changed or missing_changed:
               raise SystemExit("PERSISTENT_OVERLAY_SCOPE_FAILURE "+json.dumps({
                 "removed":sorted(removed),"added":sorted(added),"expected_added":sorted(expected_added),
-                "changed":sorted(changed),"expected_changed":sorted(expected_changed)}))
+                "changed":sorted(changed),"allowed_changed":sorted(allowed_changed),
+                "unexpected_changed":sorted(unexpected_changed),"missing_changed":sorted(missing_changed)}))
           print("PERSISTENT_OVERLAY_SCOPE_PASS",len(changed),"changed",len(added),"added; no removals")
           PY
           node --check "$SITE/landing.js"
