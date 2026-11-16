@@ -263,7 +263,7 @@ jobs:
       - uses: actions/configure-pages@v5
 
       - name: Upload the preserved site with the in-scene underground meshes
-        uses: actions/upload-pages-artifact@v5
+        uses: actions/upload-pages-artifact@v4
         with:
           name: github-pages-underground-scan-scenes-v2
           path: ${{ runner.temp }}/bp-underground-site
