@@ -289,6 +289,7 @@ export function initUSGSSeismicLayer(world) {
     lastGoodGeojson: null,
     inFlight: false,
     busyToggle: false,
+    interactionsBound: false,
     errorCount: 0,
     nextRetryAt: 0,
     timer: null,
@@ -335,6 +336,14 @@ export function initUSGSSeismicLayer(world) {
     if (!map.getLayer?.(GLOW_LAYER_ID)) map.addLayer(specs.glow);
     if (!map.getLayer?.(POINT_LAYER_ID)) map.addLayer(specs.points);
     setVisibility(!!state.enabled);
+    // MapLibre validates layer-scoped event listeners immediately. Bind only
+    // after the opt-in source/layers have actually been installed.
+    if (!state.interactionsBound) {
+      map.on?.('click', POINT_LAYER_ID, showPopup);
+      map.on?.('mouseenter', POINT_LAYER_ID, onPointerEnter);
+      map.on?.('mouseleave', POINT_LAYER_ID, onPointerLeave);
+      state.interactionsBound = true;
+    }
   };
 
   const showPopup = event => {
@@ -371,9 +380,6 @@ export function initUSGSSeismicLayer(world) {
     }
   };
 
-  map.on?.('click', POINT_LAYER_ID, showPopup);
-  map.on?.('mouseenter', POINT_LAYER_ID, onPointerEnter);
-  map.on?.('mouseleave', POINT_LAYER_ID, onPointerLeave);
   map.on?.('styledata', onStyleData);
 
   const refresh = async ({ manual = false } = {}) => {
@@ -525,9 +531,12 @@ export function initUSGSSeismicLayer(world) {
     try { state.activeController?.abort(); } catch (_) {}
     state.mountObserver?.disconnect();
     document.removeEventListener('visibilitychange', onVisibilityChange);
-    map.off?.('click', POINT_LAYER_ID, showPopup);
-    map.off?.('mouseenter', POINT_LAYER_ID, onPointerEnter);
-    map.off?.('mouseleave', POINT_LAYER_ID, onPointerLeave);
+    if (state.interactionsBound) {
+      map.off?.('click', POINT_LAYER_ID, showPopup);
+      map.off?.('mouseenter', POINT_LAYER_ID, onPointerEnter);
+      map.off?.('mouseleave', POINT_LAYER_ID, onPointerLeave);
+      state.interactionsBound = false;
+    }
     map.off?.('styledata', onStyleData);
     if (window[GLOBAL_KEY] === state) window[GLOBAL_KEY] = null;
   });
