@@ -20,7 +20,7 @@ export const PARIS_CATACOMBS_MODELS_V4=[
   geometryType:'LiDAR mesh',publishedVertices:338500,publishedTriangles:668900,
   detail:'A scanned underground gallery section. The creator publishes this as a real iPhone 12 Pro / Scaniverse LiDAR capture.'},
  {uid:'f4232f8f91e54b0a8aa92365d6ea7b7a',title:'Paris Catacombs — Le Bar des Rats',creator:'Emm (@edemaistre)',
-  license:'CC BY 4.0',captureMethod:'iPhone 12 Pro · SiteScape LiDAR point cloud',
+  license:'CC BY 4.0',captureMethod:'iPhone 12 Pro · Scaniverse LiDAR point cloud',
   sourceUrl:'https://sketchfab.com/3d-models/paris-catacombs-the-bar-of-the-rats-sitescape-f4232f8f91e54b0a8aa92365d6ea7b7a',
   datasetUrl:'https://doi.org/10.5281/zenodo.10232541',
   assetUrl:'/assets/underground-scan-scenes/f4232f8f91e54b0a8aa92365d6ea7b7a.glb.gz',
