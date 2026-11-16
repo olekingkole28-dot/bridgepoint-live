@@ -54,7 +54,7 @@ assert.ok(!moduleSource.includes('setTimeout(()=>{\n   const buttonOn=target.cla
 assert.ok(moduleSource.includes('bp-layer-turn-on-everything') && moduleSource.includes('bp-layer-reset-all'), 'global turn-on and reset controls are mounted at the top of the bottom card');
 assert.ok(moduleSource.includes('showAllLayers:()=>setLayerMasterState(true)') && moduleSource.includes('resetAllLayers:()=>setLayerMasterState(false)'), 'master layer controls expose direct API actions');
 assert.ok(seismicModule.includes('Named earthquakes · OFF') && seismicModule.includes('Named earthquakes · '), 'the USGS layer uses the Named earthquakes label in both states');
-assert.ok(seismicModule.includes('data-bpvAction = \'earthquakes\''), 'Named earthquakes explicitly registers its optional point category');
+assert.ok(seismicModule.includes('button.dataset.bpvAction = \'earthquakes\''), 'Named earthquakes explicitly registers its optional point category');
 assert.ok(seismicModule.includes('function popupContent(feature)'), 'Named earthquakes retains detailed click popups');
 assert.ok(lighthouseModule.includes('Lighthouses · OFF') && lighthouseModule.includes('setEnabled(value)'), 'lighthouses have a separate opt-in bottom-card toggle');
 assert.ok(lighthouseModule.includes('function lighthousePopupContent(feature)') && lighthouseModule.includes('map.on(\'click\', [BEACON_LAYER_ID, MARKER_LAYER_ID]'), 'lighthouse map symbols open source details when clicked');
