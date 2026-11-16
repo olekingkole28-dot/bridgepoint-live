@@ -1954,6 +1954,8 @@ jobs:
           python3 -m unittest discover -s tests -p 'test_welcome_space_v6257.py' -v
           python3 -m unittest discover -s tests -p 'test_entry_fast_start_v6300.py' -v
           node --input-type=module --check < site/bridgepoint-welcome-space-v6260.js
+          grep -Fq "const LIVE_SOLAR_FEED_BASE='https://raw.githubusercontent.com/olekingkole28-dot/bridgepoint-live/solar-live-assets/'" site/bridgepoint-welcome-space-v6260.js
+          grep -Fq "solar-live.json?bp_refresh=" site/bridgepoint-welcome-space-v6260.js
           node --input-type=module --check < site/bridgepoint-gaia-galaxy-v6270.js
           node --input-type=module --check < site/bridgepoint-saturn-system-v6282.js
           node --input-type=module --check < site/bridgepoint-mars-system-v6291.js

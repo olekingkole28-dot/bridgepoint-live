@@ -454,7 +454,7 @@ self.addEventListener('fetch',e=>{
             "solarDiskUV",
             "solarMagneticLoopCount",
             "const LIVE_SOLAR_REFRESH_MS=3*60*1000;",
-            "https://sdo.gsfc.nasa.gov/assets/img/latest/",
+            "https://raw.githubusercontent.com/olekingkole28-dot/bridgepoint-live/solar-live-assets/",
             "latest_1024_HMIIC.jpg",
             "latest_1024_HMIBC.jpg",
             "latest_1024_0131.jpg",
@@ -469,6 +469,11 @@ self.addEventListener('fetch',e=>{
             "buildMagneticLoopsFromImage(texture.image)",
             "buildObservedEruptionArcs(texture.image)",
             "three-minute live-source check while Sun is selected",
+            "solar-live.json?bp_refresh=",
+            "sourceFileLastModifiedAtUtc",
+            "solarState.sourceImageMetadata=records",
+            "solarState.liveFeedStatus='manifest-loaded'",
+            "solarState.liveImageAppliedAtUtc[source.key]",
             "bundled local snapshots retained as fallback",
         ):
             self.assertIn(marker, module)
@@ -478,7 +483,7 @@ self.addEventListener('fetch',e=>{
     def test_sun_has_animated_molten_photosphere_fresnel_rim_and_observed_plasma_particles(self):
         module = (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text()
         for marker in (
-            "const VERSION = 'v6294-live-sun-refresh'",
+            "const VERSION = 'v6295-sdo-live-feed'",
             "float magmaFlow=",
             "float moltenCoverage=",
             "const solarFireRim=new THREE.Mesh",

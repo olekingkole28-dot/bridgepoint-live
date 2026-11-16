@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 BUILD = "v6293-full-planetarium"
-SPACE_MODULE_BUILD = "v6294-live-sun-refresh"
+SPACE_MODULE_BUILD = "v6295-sdo-live-feed"
 # Moon and planetary terrain assets are bundled locally; runtime requests stay same-origin.
 SW_URL = "/sw.js?v=6293-full-planetarium"
 CACHE_NAME = "bp-intelligence-v6293-full-planetarium"
