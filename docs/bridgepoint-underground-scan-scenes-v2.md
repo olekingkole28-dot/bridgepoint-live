@@ -1,6 +1,6 @@
 # BridgePoint 3D Underground — Paris Catacombs scan collection v7
 
-This release preserves the two existing locally hosted native 3D scans and adds nine more selectable scans from the same creator's public **Scanning in the catacombs** collection. It also gives every scan its own globe marker.
+This release preserves the two existing locally hosted native 3D scans and adds nine more selectable scans from the same creator's public **Scanning in the catacombs** collection. The catalog now contains **11 selectable scans**, each with its own globe marker.
 
 ## What appears in BridgePoint
 
