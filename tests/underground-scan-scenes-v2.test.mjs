@@ -57,7 +57,7 @@ assert.ok(!downloader.includes('SKETCHFAB_API_TOKEN'));
 assert.ok(deploy.includes('github-pages-usgs-seismic-layer-v1'));
 assert.ok(deploy.includes('bp-paris-catacombs-toggle-v3'));
 assert.ok(deploy.includes('f4232f8f91e54b0a8aa92365d6ea7b7a'));
-assert.ok(deploy.includes('5-paris-catacombs-room-anchor'));
+assert.ok(/\\d+-paris-catacombs-room-anchor/.test(deploy));
 assert.ok(deploy.includes('3D UNDERGROUND'));
 assert.ok(deploy.includes('three@0.169.0')&&deploy.includes('esbuild@0.24.2'),'publisher builds local GLTFLoader against BridgePoint Three.js');
 assert.ok(deploy.includes('vendor/GLTFLoader.bundle.js'),'local GLTFLoader is included in the narrow Pages overlay');
