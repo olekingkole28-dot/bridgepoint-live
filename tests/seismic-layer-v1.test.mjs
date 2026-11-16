@@ -93,6 +93,8 @@ for (const token of [
 }
 assert.match(source, /enabled:\s*false/, 'layer must start switched off');
 assert.doesNotMatch(source, /new\s+THREE\.|WebGLRenderer/, 'seismic overlay must reuse MapLibre and not create a second renderer');
+assert.ok(source.indexOf("const addMapLayers = () => {") < source.indexOf("map.on?.('click', POINT_LAYER_ID, showPopup)"),
+  'layer-scoped MapLibre interactions must only be bound after the source/layers are installed');
 assert.match(source, /window\.setInterval\(\(\) => \{ void refresh\(\); \}, SEISMIC_REFRESH_MS\)/,
   'polling should begin only inside the explicit enable path');
 assert.match(source, /if \(!state\.enabled \|\| state\.disposed \|\| state\.inFlight \|\| document\.hidden\) return false/,
