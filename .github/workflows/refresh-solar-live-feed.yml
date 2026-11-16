@@ -1,0 +1,137 @@
+name: Refresh BridgePoint Live SDO Image Feed
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/refresh-solar-live-feed.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bridgepoint-solar-live-feed
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Download the latest NASA SDO HMI and AIA browse images
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/bridgepoint-solar-feed
+          BASE="https://sdo.gsfc.nasa.gov/assets/img/latest"
+          while IFS='|' read -r key file; do
+            headers="/tmp/bridgepoint-solar-feed/${key}.headers"
+            target="/tmp/bridgepoint-solar-feed/${file}"
+            url="${BASE}/${file}?bp_refresh=$(date -u +%s)"
+            curl --retry 4 --retry-all-errors --retry-delay 2 -fLsS \
+              --connect-timeout 20 --max-time 120 -D "$headers" "$url" -o "$target"
+            test -s "$target"
+            python3 - "$target" <<'PY'
+          import pathlib, sys
+          p = pathlib.Path(sys.argv[1])
+          data = p.read_bytes()
+          if not data.startswith(bytes.fromhex("ffd8ff")):
+              raise SystemExit(f"Not a JPEG image: {p.name}")
+          if len(data) < 20_000:
+              raise SystemExit(f"Unexpectedly small NASA image: {p.name} ({len(data)} bytes)")
+          print("NASA_SDO_IMAGE_DOWNLOADED", p.name, len(data))
+          PY
+            awk 'BEGIN{IGNORECASE=1} /^Last-Modified:/ {sub(/\r$/, ""); sub(/^[^:]*:[[:space:]]*/, ""); value=$0} END{if(value!="") print value}' "$headers" > "/tmp/bridgepoint-solar-feed/${key}.last-modified"
+            echo "SOURCE_IMAGE_READY ${key} ${file}"
+          done <<'IMAGES'
+          photosphereDisk|latest_1024_HMIIC.jpg
+          magnetic|latest_1024_HMIBC.jpg
+          aia131|latest_1024_0131.jpg
+          aia171|latest_1024_0171.jpg
+          aia193|latest_1024_0193.jpg
+          aia304|latest_1024_0304.jpg
+          IMAGES
+
+      - name: Build source timestamps and provenance manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import email.utils
+          import json
+          import pathlib
+          from datetime import datetime, timezone
+
+          root = pathlib.Path("/tmp/bridgepoint-solar-feed")
+          sources = {
+              "photosphereDisk": ("latest_1024_HMIIC.jpg", "NASA SDO/HMI intensitygram continuum"),
+              "magnetic": ("latest_1024_HMIBC.jpg", "NASA SDO/HMI colorized line-of-sight magnetogram"),
+              "aia131": ("latest_1024_0131.jpg", "NASA SDO/AIA 131 angstrom full-disk image"),
+              "aia171": ("latest_1024_0171.jpg", "NASA SDO/AIA 171 angstrom full-disk image"),
+              "aia193": ("latest_1024_0193.jpg", "NASA SDO/AIA 193 angstrom full-disk image"),
+              "aia304": ("latest_1024_0304.jpg", "NASA SDO/AIA 304 angstrom full-disk image"),
+          }
+          observations = {}
+          for key, (filename, description) in sources.items():
+              raw = (root / f"{key}.last-modified").read_text().strip()
+              modified = None
+              if raw:
+                  try:
+                      dt = email.utils.parsedate_to_datetime(raw)
+                      if dt.tzinfo is None:
+                          dt = dt.replace(tzinfo=timezone.utc)
+                      modified = dt.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+                  except (TypeError, ValueError, OverflowError):
+                      pass
+              observations[key] = {
+                  "file": filename,
+                  "source": description,
+                  "sourceFileLastModifiedHeader": raw or None,
+                  "sourceFileLastModifiedAtUtc": modified,
+                  "sizeBytes": (root / filename).stat().st_size,
+              }
+          manifest = {
+              "schemaVersion": 1,
+              "provider": "NASA Solar Dynamics Observatory near-real-time browse products",
+              "providerPublishedCadenceMinutes": 15,
+              "downloadedAtUtc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+              "sourceDirectory": "https://sdo.gsfc.nasa.gov/assets/img/latest/",
+              "refreshBranch": "solar-live-assets",
+              "observationTimeNote": "NASA's image watermark carries the acquisition time; HTTP Last-Modified is recorded separately as the source-file publication timestamp.",
+              "observations": observations,
+          }
+          (root / "solar-live.json").write_text(json.dumps(manifest, indent=2) + "\n")
+          print("BRIDGEPOINT_SOLAR_LIVE_MANIFEST_READY", manifest["downloadedAtUtc"])
+          PY
+
+      - name: Publish only the live solar images to the dedicated feed branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "BridgePoint Solar Feed"
+          git config user.email "actions@users.noreply.github.com"
+          git fetch origin solar-live-assets || true
+          if git show-ref --verify --quiet refs/remotes/origin/solar-live-assets; then
+            git checkout -B solar-live-assets origin/solar-live-assets
+          else
+            git checkout --orphan solar-live-assets
+            git rm -rf . >/dev/null 2>&1 || true
+            git clean -fdx
+          fi
+          cp /tmp/bridgepoint-solar-feed/latest_1024_*.jpg .
+          cp /tmp/bridgepoint-solar-feed/solar-live.json .
+          git add latest_1024_*.jpg solar-live.json
+          if git diff --cached --quiet; then
+            echo "BRIDGEPOINT_SOLAR_FEED_UNCHANGED"
+            exit 0
+          fi
+          git commit -m "Refresh NASA SDO live solar images $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push origin HEAD:solar-live-assets --force
+          echo "BRIDGEPOINT_SOLAR_LIVE_FEED_PUBLISHED"
