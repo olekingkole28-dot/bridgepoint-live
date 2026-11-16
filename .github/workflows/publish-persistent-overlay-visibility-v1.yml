@@ -333,7 +333,7 @@ jobs:
                   anchor = "window.__BP_LANDING_WORLD__=world;" if rel=="landing.js" else "const appMap=world.map;"
                   if data.count(anchor)!=1:
                       raise SystemExit(f"{rel}: expected one safe FAA renderer insertion point")
-                  data=data.replace(anchor,anchor+"\\n  "+faa_attach.replace("\\n","\\n  "),1)
+                  data=data.replace(anchor,anchor+"\n  "+faa_attach.replace("\n","\n  "),1)
               p.write_text(data,encoding="utf-8")
           for rel in ("index.html","app/index.html"):
               p=site/rel
