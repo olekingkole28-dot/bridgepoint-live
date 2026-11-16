@@ -1,0 +1,272 @@
+name: Publish Persistent BridgePoint Overlay Visibility v1
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/publish-persistent-overlay-visibility-v1.yml'
+      - 'rebuild-v5000/bridgepoint-drone-awareness-v1.js'
+      - 'rebuild-v5000/bridgepoint-subsurface-wells-v1.js'
+      - 'rebuild-v5000/bridgepoint-underground-scan-scenes-v2.js'
+      - 'rebuild-v5000/landing.js'
+      - 'rebuild-v5000/app.js'
+      - 'rebuild-v5000/index.html'
+      - 'rebuild-v5000/app-index.html'
+      - 'tests/drone-awareness.test.mjs'
+      - 'tests/underground-scan-scenes-v2.test.mjs'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-persistent-overlay-visibility-v1.yml'
+      - 'rebuild-v5000/bridgepoint-drone-awareness-v1.js'
+      - 'rebuild-v5000/bridgepoint-subsurface-wells-v1.js'
+      - 'rebuild-v5000/bridgepoint-underground-scan-scenes-v2.js'
+      - 'rebuild-v5000/landing.js'
+      - 'rebuild-v5000/app.js'
+      - 'rebuild-v5000/index.html'
+      - 'rebuild-v5000/app-index.html'
+      - 'tests/drone-awareness.test.mjs'
+      - 'tests/underground-scan-scenes-v2.test.mjs'
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check JavaScript syntax
+        run: |
+          set -euo pipefail
+          node --check rebuild-v5000/bridgepoint-drone-awareness-v1.js
+          node --check rebuild-v5000/bridgepoint-subsurface-wells-v1.js
+          node --input-type=module --check < rebuild-v5000/bridgepoint-underground-scan-scenes-v2.js
+          node --check rebuild-v5000/landing.js
+          node --check rebuild-v5000/app.js
+      - name: Run overlay and catacomb regression tests
+        run: |
+          set -euo pipefail
+          node tests/drone-awareness.test.mjs
+          node tests/underground-scan-scenes-v2.test.mjs
+      - name: Verify clean-start gate recognizes persistent overlay categories
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path("rebuild-v5000/bridgepoint-drone-awareness-v1.js").read_text()
+          for token in [
+            "subsurface:/subsurface|catacomb|cave|underground-scan",
+            "infrastructure:/infrastructure|power[-_]?line|utility",
+            "energy:/solar|wind[-_]?turbine",
+            "landmarks:/landmark|poi",
+            ".bpv-dock .bpv-command-group button"
+          ]:
+            assert token in s, token
+          c=Path("rebuild-v5000/bridgepoint-underground-scan-scenes-v2.js").read_text()
+          w=Path("rebuild-v5000/bridgepoint-subsurface-wells-v1.js").read_text()
+          assert "allowLayerCategory?.('subsurface',true)" in c
+          assert "allowLayerCategory?.('subsurface',true)" in w
+          assert "if(buttonOn)allowedCategories.add(category);else allowedCategories.delete(category);" in s
+          print("PERSISTENT_OVERLAY_CATEGORY_GUARD_PASS")
+          PY
+
+  publish:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate changed runtime modules
+        run: |
+          set -euo pipefail
+          node --check rebuild-v5000/bridgepoint-drone-awareness-v1.js
+          node --check rebuild-v5000/bridgepoint-subsurface-wells-v1.js
+          node --input-type=module --check < rebuild-v5000/bridgepoint-underground-scan-scenes-v2.js
+          node --check rebuild-v5000/landing.js
+          node --check rebuild-v5000/app.js
+          node tests/drone-awareness.test.mjs
+          node tests/underground-scan-scenes-v2.test.mjs
+
+      - name: Download the exact current production Pages artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: github-pages-underground-scan-scenes-v2
+          run-id: 43906600461
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/bp-overlay-baseline
+
+      - name: Restore and fingerprint the current live site
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCHIVE="$(find "$RUNNER_TEMP/bp-overlay-baseline" -type f -name artifact.tar -print -quit)"
+          test -n "$ARCHIVE"
+          SITE="$RUNNER_TEMP/bp-overlay-site"
+          mkdir -p "$SITE"
+          tar -xf "$ARCHIVE" -C "$SITE"
+          for file in index.html app/index.html landing.js app.js bridgepoint-view-v5917.js bridgepoint-drone-awareness-v1.js bridgepoint-subsurface-wells-v1.js bridgepoint-underground-scan-scenes-v2.js app/bridgepoint-underground-scan-scenes-v2.js vendor/GLTFLoader.bundle.js; do
+            test -s "$SITE/$file" || { echo "Production baseline missing $file"; exit 1; }
+          done
+          python3 - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          root=Path(os.environ["RUNNER_TEMP"])/"bp-overlay-site"
+          before={p.relative_to(root).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                  for p in root.rglob("*") if p.is_file()}
+          (Path(os.environ["RUNNER_TEMP"])/"bp-overlay-before.json").write_text(json.dumps(before,sort_keys=True))
+          print("PRODUCTION_BASELINE_FINGERPRINT_PASS",len(before),"files")
+          PY
+
+      - name: Overlay only the shared visibility guard and affected layers
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/bp-overlay-site"
+          cp rebuild-v5000/bridgepoint-drone-awareness-v1.js "$SITE/bridgepoint-drone-awareness-v1.js"
+          cp rebuild-v5000/bridgepoint-subsurface-wells-v1.js "$SITE/bridgepoint-subsurface-wells-v1.js"
+          cp rebuild-v5000/bridgepoint-underground-scan-scenes-v2.js "$SITE/bridgepoint-underground-scan-scenes-v2.js"
+          cp rebuild-v5000/bridgepoint-underground-scan-scenes-v2.js "$SITE/app/bridgepoint-underground-scan-scenes-v2.js"
+          python3 - <<'PY'
+          import hashlib,json,os,re
+          from pathlib import Path
+          site=Path(os.environ["RUNNER_TEMP"])/"bp-overlay-site"
+          for rel in ("index.html","app/index.html"):
+              p=site/rel
+              s=p.read_text(encoding="utf-8")
+              old="bridgepoint-drone-awareness-v1.js?v=7-aircraft-models-tracks"
+              if s.count(old)!=1:
+                  raise SystemExit(f"{rel}: expected exactly one legacy drone visibility-guard URL")
+              s=s.replace(old,"bridgepoint-drone-awareness-v1.js?v=8-persistent-overlay-category-gate",1)
+              needle="landing.js?v=" if rel=="index.html" else "app.js?v="
+              matches=list(re.finditer(r'src="([^"]*'+re.escape(needle)+r'[^"]*)"',s))
+              if len(matches)!=1:
+                  raise SystemExit(f"{rel}: expected exactly one entrypoint script URL, found {len(matches)}")
+              current=matches[0].group(1)
+              if "overlay-visibility=v1" not in current:
+                  s=s.replace(current,current+"&overlay-visibility=v1",1)
+              view_matches=list(re.finditer(r'src="([^"]*bridgepoint-view-v5917\.js\?[^"]*)"',s))
+              if len(view_matches)!=1:
+                  raise SystemExit(f"{rel}: expected exactly one control-deck script URL, found {len(view_matches)}")
+              current=view_matches[0].group(1)
+              if "overlay-visibility=v1" not in current:
+                  s=s.replace(current,current+"&overlay-visibility=v1",1)
+              p.write_text(s,encoding="utf-8")
+          for rel,old,new in (
+              ("landing.js","bridgepoint-subsurface-wells-v1.js?v=1-global-wells-depth-casing","bridgepoint-subsurface-wells-v1.js?v=2-persistent-substructure-visibility"),
+              ("app.js","bridgepoint-subsurface-wells-v1.js?v=1-global-wells-depth-casing","bridgepoint-subsurface-wells-v1.js?v=2-persistent-substructure-visibility"),
+              ("landing.js","bridgepoint-underground-scan-scenes-v2.js?v=3-paris-catacombs-viewer","bridgepoint-underground-scan-scenes-v2.js?v=4-persistent-overlay-category-gate"),
+              ("app.js","bridgepoint-underground-scan-scenes-v2.js?v=3-paris-catacombs-viewer","bridgepoint-underground-scan-scenes-v2.js?v=4-persistent-overlay-category-gate"),
+          ):
+              p=site/rel
+              s=p.read_text(encoding="utf-8")
+              if s.count(old)!=1:
+                  raise SystemExit(f"{rel}: expected exactly one old runtime import: {old}")
+              p.write_text(s.replace(old,new,1),encoding="utf-8")
+          view=site/"bridgepoint-view-v5917.js"
+          s=view.read_text(encoding="utf-8")
+          old='<button id="bp-paris-catacombs-toggle-v3" type="button"'
+          new='<button id="bp-paris-catacombs-toggle-v3" data-bpv-action="catacombs" type="button"'
+          if s.count(old)!=1:
+              raise SystemExit("Could not find exactly one Paris Catacombs static card button")
+          view.write_text(s.replace(old,new,1),encoding="utf-8")
+          before=json.loads((Path(os.environ["RUNNER_TEMP"])/"bp-overlay-before.json").read_text())
+          after={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                 for p in site.rglob("*") if p.is_file()}
+          removed=set(before)-set(after)
+          added=set(after)-set(before)
+          changed={p for p in before if p in after and before[p]!=after[p]}
+          expected_changed={
+            "index.html","app/index.html","landing.js","app.js","bridgepoint-view-v5917.js",
+            "bridgepoint-drone-awareness-v1.js","bridgepoint-subsurface-wells-v1.js",
+            "bridgepoint-underground-scan-scenes-v2.js","app/bridgepoint-underground-scan-scenes-v2.js"
+          }
+          if removed or added or changed!=expected_changed:
+              raise SystemExit("PERSISTENT_OVERLAY_SCOPE_FAILURE "+json.dumps({
+                "removed":sorted(removed),"added":sorted(added),
+                "changed":sorted(changed),"expected_changed":sorted(expected_changed)}))
+          print("PERSISTENT_OVERLAY_SCOPE_PASS",len(changed),"files changed; no additions or removals")
+          PY
+          node --check "$SITE/landing.js"
+          node --check "$SITE/app.js"
+          node --check "$SITE/bridgepoint-view-v5917.js"
+          node --check "$SITE/bridgepoint-drone-awareness-v1.js"
+          node --check "$SITE/bridgepoint-subsurface-wells-v1.js"
+          node --input-type=module --check < "$SITE/bridgepoint-underground-scan-scenes-v2.js"
+          cmp -s "$SITE/bridgepoint-underground-scan-scenes-v2.js" "$SITE/app/bridgepoint-underground-scan-scenes-v2.js"
+          grep -Fq 'data-bpv-action="catacombs"' "$SITE/bridgepoint-view-v5917.js"
+          grep -Fq "subsurface:/subsurface|catacomb|cave|underground-scan" "$SITE/bridgepoint-drone-awareness-v1.js"
+          grep -Fq ".bpv-dock .bpv-command-group button" "$SITE/bridgepoint-drone-awareness-v1.js"
+          grep -Fq "allowLayerCategory?.('subsurface',true)" "$SITE/bridgepoint-underground-scan-scenes-v2.js"
+          grep -Fq "allowLayerCategory?.('subsurface',true)" "$SITE/bridgepoint-subsurface-wells-v1.js"
+          echo "BRIDGEPOINT_PERSISTENT_OVERLAY_RUNTIME_PASS"
+
+      - uses: actions/configure-pages@v5
+
+      - name: Upload the preserved site with persistent overlay visibility
+        uses: actions/upload-pages-artifact@v4
+        with:
+          name: github-pages-persistent-overlay-visibility-v1
+          path: ${{ runner.temp }}/bp-overlay-site
+          include-hidden-files: true
+
+      - name: Publish persistent overlay visibility v1
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages-persistent-overlay-visibility-v1
+
+      - name: Verify persistent categories and bottom-card modules on root and app routes
+        shell: bash
+        run: |
+          set -euo pipefail
+          O='https://bridgepointintelligence.online'
+          Q="$GITHUB_SHA-persistent-overlay-v1"
+          D="$RUNNER_TEMP/persistent-overlay-live"
+          mkdir -p "$D"
+          for item in \
+            "root.html:$O/?overlay=$Q" \
+            "app.html:$O/app/?overlay=$Q" \
+            "drone.js:$O/bridgepoint-drone-awareness-v1.js?v=8-persistent-overlay-category-gate&verify=$Q" \
+            "wells.js:$O/bridgepoint-subsurface-wells-v1.js?verify=$Q" \
+            "catacomb.js:$O/bridgepoint-underground-scan-scenes-v2.js?verify=$Q" \
+            "app-catacomb.js:$O/app/bridgepoint-underground-scan-scenes-v2.js?verify=$Q" \
+            "landing.js:$O/landing.js?v=6247-universal-fresh-entry&overlay-visibility=v1" \
+            "app.js:$O/app.js?v=6247-universal-fresh-entry&overlay-visibility=v1" \
+            "view.js:$O/bridgepoint-view-v5917.js?v=6215-satellite-persistent-render-guard&emrf=1&underground-scenes=paris-v3&overlay-visibility=v1"; do
+            name="$(printf '%s' "$item" | cut -d: -f1)"
+            url="$(printf '%s' "$item" | cut -d: -f2-)"
+            curl --retry 8 --retry-all-errors --retry-delay 2 --max-time 45 -fsSL -H 'Cache-Control: no-cache' "$url" -o "$D/$name"
+          done
+          grep -Fq 'subsurface:/subsurface|catacomb|cave|underground-scan' "$D/drone.js"
+          grep -Fq '.bpv-dock .bpv-command-group button' "$D/drone.js"
+          grep -Fq "allowLayerCategory?.('subsurface',true)" "$D/wells.js"
+          grep -Fq "allowLayerCategory?.('subsurface',true)" "$D/catacomb.js"
+          grep -Fq 'data-bpv-action="catacombs"' "$D/view.js"
+          grep -Fq 'bridgepoint-subsurface-wells-v1.js?v=2-persistent-substructure-visibility' "$D/landing.js"
+          grep -Fq 'bridgepoint-subsurface-wells-v1.js?v=2-persistent-substructure-visibility' "$D/app.js"
+          grep -Fq 'bridgepoint-underground-scan-scenes-v2.js?v=4-persistent-overlay-category-gate' "$D/landing.js"
+          grep -Fq 'bridgepoint-underground-scan-scenes-v2.js?v=4-persistent-overlay-category-gate' "$D/app.js"
+          cmp -s "$D/catacomb.js" "$D/app-catacomb.js"
+          grep -Fq 'bridgepoint-drone-awareness-v1.js?v=8-persistent-overlay-category-gate' "$D/root.html"
+          grep -Fq 'bridgepoint-drone-awareness-v1.js?v=8-persistent-overlay-category-gate' "$D/app.html"
+          echo "LIVE_PERSISTENT_OVERLAY_VISIBILITY_PASS"
