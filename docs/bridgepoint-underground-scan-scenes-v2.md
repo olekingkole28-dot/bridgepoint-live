@@ -1,4 +1,4 @@
-# BridgePoint 3D Underground — Paris Catacombs v4
+# BridgePoint 3D Underground — Paris Catacombs v5
 
 This additive release keeps the existing Paris Catacombs scan and adds a second public LiDAR capture: **Le Bar des Rats**. Both source models are archived as public Zenodo GLB files and verified as CC BY 4.0 before the publisher downloads them. BridgePoint hosts the compressed GLBs and renders them locally through its existing Three.js + MapLibre native 3D layer. There are no Sketchfab runtime embeds, iframes, account tokens, or Supabase requests.
 
@@ -15,7 +15,9 @@ This additive release keeps the existing Paris Catacombs scan and adds a second 
 
 ## Location precision
 
-The current marker is a **regional Paris Catacombs anchor**, not an exact chamber pin. The Le Bar des Rats creator describes it as a small series of chambers toward the northwestern corner of the Catacombs network, but the public record does not publish surveyed chamber coordinates, an embedded geospatial origin, or measured depth. The code therefore does not place the new model at invented coordinates. The below-terrain placement remains a visualization reference with the scan origin and depth explicitly identified as unverified.
+The Bar des Rats marker is improved from a district-only location to an **address-level room reference**: 69 Rue de Notre-Dame-des-Champs, 75006 Paris, France, with a published room-depth reference of approximately 20 m. The independent Catacombes.xyz room archive names the same room, gives the address and depth, and links a separate 3D record. A public Paris address-coordinate dataset supplies the surface anchor used by the map: longitude 2.3314794209, latitude 48.8432369808. Sources: https://catacombes.xyz/rooms/rats and https://www.cahier-snt.fr/livecsvmap/?csv=s8e1.
+
+The original Emm/Zenodo point-cloud GLB does **not** publish its own surveyed GPS origin or chamber transform. BridgePoint uses the independent room address/depth as an approximate placement reference beneath the terrain, not as proof that each point in the cloud is georeferenced. This is materially better than the former district marker, but not a survey-grade placement. The old Large Gallery keeps its separate regional anchor and visualization offset.
 
 ## Scan and rights
 
