@@ -13,6 +13,7 @@ assert.equal(models[0].license,'CC BY 4.0');
 assert.equal(models[1].uid,'f4232f8f91e54b0a8aa92365d6ea7b7a');
 assert.equal(models[1].license,'CC BY 4.0');
 assert.equal(models[1].geometryType,'Dense LiDAR point cloud');
+assert.match(models[1].captureMethod,/Scaniverse/i);
 assert.ok(models[1].publishedVertices>=9000000);
 assert.equal(models[1].publishedTriangles,0);
 assert.match(PARIS_CATACOMBS_SITE_V3.locationPrecision,/Regional map anchor/i);
