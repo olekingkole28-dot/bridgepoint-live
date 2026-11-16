@@ -119,6 +119,8 @@ assert.ok(view.includes('bpv-mapkey-rail'), 'the map key is available from the s
 assert.ok(moduleSource.includes('data-bpv-action="drones"') || moduleSource.includes("b.dataset.bpvAction='drones'"), 'the existing opt-in aircraft dock action remains compatible');
 assert.ok(moduleSource.includes('const AIRCRAFT_FILTER_GROUPS=['), 'aircraft types are exposed as independent filter groups');
 assert.ok(moduleSource.includes('function setAircraftFilter(groupKey)'), 'aircraft filters can be toggled independently');
+assert.ok(moduleSource.includes("if(groupKey==='all'){selectedAircraftGroups=new Set(AIRCRAFT_FILTER_GROUPS.map(group=>group.key))}"), 'All always restores every aircraft category');
+assert.ok(moduleSource.includes('<span class="bpv-command-label">Aircraft</span>'), 'the existing bottom-card action is visibly renamed Aircraft');
 assert.ok(moduleSource.includes("['match',['get','aircraft_kind'],kinds,true,false]"), 'map markers and trails use a valid type-matching filter expression');
 assert.ok(moduleSource.includes('Solid vertical ground-to-aircraft tether'), 'source-altitude aircraft and drones receive a visible 3D ground tether');
 assert.ok(moduleSource.includes('function aircraftModelSpanMetersByKind'), 'aircraft 3D geometry uses family-specific real-world scale');
