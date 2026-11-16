@@ -14,6 +14,8 @@ on:
       - 'tests/drone-awareness.test.mjs'
       - 'tests/vessel-awareness.test.mjs'
       - 'tests/underground-scan-scenes-v2.test.mjs'
+      - 'tests/globe-renderer-recovery.test.mjs'
+      - 'release-v2300/world-v2300-map.js'
   push:
     branches: [main]
     paths:
@@ -28,6 +30,8 @@ on:
       - 'tests/drone-awareness.test.mjs'
       - 'tests/vessel-awareness.test.mjs'
       - 'tests/underground-scan-scenes-v2.test.mjs'
+      - 'tests/globe-renderer-recovery.test.mjs'
+      - 'release-v2300/world-v2300-map.js'
   workflow_run:
     workflows: ["Deploy BridgePoint Intelligence V5000 Rebuild"]
     types: [completed]
@@ -58,12 +62,14 @@ jobs:
           node --input-type=module --check < rebuild-v5000/bridgepoint-underground-scan-scenes-v2.js
           node --check rebuild-v5000/landing.js
           node --check rebuild-v5000/app.js
+          node --input-type=module --check < release-v2300/world-v2300-map.js
       - name: Run overlay and cross-module regression tests
         run: |
           set -euo pipefail
           node tests/drone-awareness.test.mjs
           node tests/vessel-awareness.test.mjs
           node tests/underground-scan-scenes-v2.test.mjs
+          node tests/globe-renderer-recovery.test.mjs
       - name: Verify persistent clean-start categories
         run: |
           python3 - <<'PY'
@@ -114,10 +120,12 @@ jobs:
           node --input-type=module --check < rebuild-v5000/bridgepoint-underground-scan-scenes-v2.js
           node --check rebuild-v5000/landing.js
           node --check rebuild-v5000/app.js
+          node --input-type=module --check < release-v2300/world-v2300-map.js
           python3 -m py_compile tools/underground/fetch_sketchfab_scans.py
           node tests/drone-awareness.test.mjs
           node tests/vessel-awareness.test.mjs
           node tests/underground-scan-scenes-v2.test.mjs
+          node tests/globe-renderer-recovery.test.mjs
 
       - name: Select the latest completed production baseline
         id: baseline
@@ -210,7 +218,7 @@ jobs:
           SITE="$RUNNER_TEMP/bp-overlay-site"
           mkdir -p "$SITE"
           tar -xf "$ARCHIVE" -C "$SITE"
-          for file in index.html app/index.html landing.js app.js bridgepoint-view-v5917.js bridgepoint-drone-awareness-v1.js vendor/three.module.js; do
+          for file in index.html app/index.html landing.js app.js bridgepoint-view-v5917.js bridgepoint-drone-awareness-v1.js world-v2300-map.js vendor/three.module.js; do
             test -s "$SITE/$file" || { echo "Selected baseline missing $file"; exit 1; }
           done
           python3 - <<'PY'
@@ -257,6 +265,7 @@ jobs:
           SITE="$RUNNER_TEMP/bp-overlay-site"
           mkdir -p "$SITE/app" "$SITE/assets/underground-scan-scenes" "$SITE/vendor"
           cp rebuild-v5000/bridgepoint-drone-awareness-v1.js "$SITE/bridgepoint-drone-awareness-v1.js"
+          cp release-v2300/world-v2300-map.js "$SITE/world-v2300-map.js"
           cp rebuild-v5000/bridgepoint-subsurface-wells-v1.js "$SITE/bridgepoint-subsurface-wells-v1.js"
           cp rebuild-v5000/bridgepoint-underground-scan-scenes-v2.js "$SITE/bridgepoint-underground-scan-scenes-v2.js"
           cp rebuild-v5000/bridgepoint-underground-scan-scenes-v2.js "$SITE/app/bridgepoint-underground-scan-scenes-v2.js"
@@ -274,6 +283,11 @@ jobs:
           for rel in ("landing.js","app.js"):
               p=site/rel
               data=p.read_text(encoding="utf-8")
+              old_map="./world-v2300-map.js?v=6247-viewport-tile-sidewalk-progressive"
+              new_map="./world-v2300-map.js?v=6248-mobile-render-recovery-no-error-resize"
+              if data.count(old_map)!=1:
+                  raise SystemExit(f"{rel}: expected one current globe module import")
+              data=data.replace(old_map,new_map,1)
               if old_mesh in data:
                   if data.count(old_mesh)!=1:
                       raise SystemExit(f"{rel}: duplicate old Paris Catacombs module imports")
@@ -359,7 +373,7 @@ jobs:
           changed={p for p in before if p in after and before[p]!=after[p]}
           expected_changed={
             "index.html","app/index.html","landing.js","app.js","bridgepoint-view-v5917.js",
-            "bridgepoint-drone-awareness-v1.js"
+            "bridgepoint-drone-awareness-v1.js","world-v2300-map.js"
           }
           candidates=[
             "bridgepoint-subsurface-wells-v1.js",
@@ -384,6 +398,8 @@ jobs:
           node --check "$SITE/app.js"
           node --check "$SITE/bridgepoint-view-v5917.js"
           node --check "$SITE/bridgepoint-drone-awareness-v1.js"
+          node --input-type=module --check < "$SITE/world-v2300-map.js"
+          grep -Fq 'resizeSkipped:true' "$SITE/world-v2300-map.js"
           node --check "$SITE/bridgepoint-subsurface-wells-v1.js"
           node --input-type=module --check < "$SITE/bridgepoint-underground-scan-scenes-v2.js"
           node --input-type=module --check < "$SITE/vendor/GLTFLoader.bundle.js"
@@ -430,7 +446,8 @@ jobs:
             "gltfloader.js:$O/vendor/GLTFLoader.bundle.js?verify=$Q" \
             "landing.js:$O/landing.js?v=6247-universal-fresh-entry&overlay-visibility=v2" \
             "app.js:$O/app.js?v=6247-universal-fresh-entry&overlay-visibility=v2" \
-            "view.js:$O/bridgepoint-view-v5917.js?v=6215-satellite-persistent-render-guard&emrf=1&overlay-visibility=v2"; do
+            "view.js:$O/bridgepoint-view-v5917.js?v=6215-satellite-persistent-render-guard&emrf=1&overlay-visibility=v2" \
+            "world-map.js:$O/world-v2300-map.js?v=6248-mobile-render-recovery-no-error-resize&verify=$Q"; do
             name="$(printf '%s' "$item" | cut -d: -f1)"
             url="$(printf '%s' "$item" | cut -d: -f2-)"
             curl --retry 8 --retry-all-errors --retry-delay 2 --max-time 45 -fsSL -H 'Cache-Control: no-cache' "$url" -o "$D/$name"
@@ -440,6 +457,9 @@ jobs:
           grep -Fq "allowLayerCategory?.('subsurface',true)" "$D/wells.js"
           grep -Fq "allowLayerCategory?.('subsurface',true)" "$D/catacomb.js"
           grep -Fq 'data-bpv-action="catacombs"' "$D/view.js"
+          grep -Fq 'resizeSkipped:true' "$D/world-map.js"
+          grep -Fq 'world-v2300-map.js?v=6248-mobile-render-recovery-no-error-resize' "$D/landing.js"
+          grep -Fq 'world-v2300-map.js?v=6248-mobile-render-recovery-no-error-resize' "$D/app.js"
           grep -Fq 'bridgepoint-subsurface-wells-v1.js?v=2-persistent-substructure-visibility' "$D/landing.js"
           grep -Fq 'bridgepoint-subsurface-wells-v1.js?v=2-persistent-substructure-visibility' "$D/app.js"
           grep -Fq 'bridgepoint-underground-scan-scenes-v2.js?v=4-persistent-overlay-category-gate' "$D/landing.js"
