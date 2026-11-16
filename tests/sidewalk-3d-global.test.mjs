@@ -197,7 +197,7 @@ for(const part of ['sidewalk_slab','curb','grass_verge','grass_blade','panel_joi
 const closeMobile=buildSidewalk3DFeatures({features:[longSidewalk],roadFeatures:[longRoad],zoom:19,mobile:true});
 assert.equal(closeMobile.stats.zoomBand,'CLOSE','mobile very close zoom must select the close-zoom geometry budget');
 assert.ok(closeMobile.stats.paths<=5&&closeMobile.stats.individualSlabs<=20&&
-  closeMobile.stats.curbAndGrassSegments<=12&&closeMobile.stats.grassBlades<=26&&
+  closeMobile.stats.curbAndGrassSegments<=12&&closeMobile.stats.grassBlades<=24&&
   closeMobile.stats.crackSegments<=4&&closeMobile.stats.roadCandidates<=48,
   'mobile close zoom must stay within its smaller bounded per-refresh mesh budget');
 for(const part of ['sidewalk_slab','curb','grass_verge','grass_blade','panel_joint','hairline_crack']){
