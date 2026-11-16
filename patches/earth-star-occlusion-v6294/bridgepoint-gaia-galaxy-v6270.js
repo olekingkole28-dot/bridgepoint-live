@@ -10,7 +10,7 @@ import { initBridgePointMarsSystem } from './bridgepoint-mars-system-v6291.js?v=
  * ephemerides use the same Galactic frame; the shared frame is rotated once so
  * its computed Earth-Sun vector meets the existing welcome Sun position.
  */
-const BUILD='v6294-earth-opaque';
+const BUILD='v6301-moon-earth-opaque';
 const ROOT='/assets/stellar/gaia-dr3-v6270/';
 const DEG=Math.PI/180;
 const AU_PC=1/206264.80624709636;
