@@ -10,7 +10,7 @@ const lighthouses = read('../patches/lighthouse-v3/bridgepoint-lighthouses-v1.js
 
 // Streetlights must use the existing same-origin PMTiles runtime and shared
 // protocol instead of depending on an extra public ESM CDN request.
-assert.match(streetlights, /const VERSION = 4;/);
+assert.match(streetlights, /const VERSION = 5;/);
 assert.match(streetlights, /PMTILES_LIBRARY_URL = '\/vendor\/pmtiles\.js'/);
 assert.match(streetlights, /window\.__BP_TRANSPORTATION_PMTILES_PROTOCOL__/);
 assert.match(streetlights, /window\.__BP_UTILITY_PMTILES_PROTOCOL__/);
