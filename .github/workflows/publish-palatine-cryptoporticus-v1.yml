@@ -23,7 +23,7 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -107,8 +107,8 @@ jobs:
                   pos=data.index(anchor)+len(anchor)
                   line_start=data.rfind('\n',0,pos)+1
                   prefix=data[line_start:pos]
-                  indent=re.match(r'[ \\t]*',prefix).group(0)
-                  data=data[:pos]+'\\n'+indent+attach.replace('\\n','\\n'+indent)+data[pos:]
+                  indent=re.match(r'[ \t]*',prefix).group(0)
+                  data=data[:pos]+'\n'+indent+attach.replace('\n','\n'+indent)+data[pos:]
               path.write_text(data,encoding='utf-8')
               if 'initPalatineCryptoporticusRenderer(world)' not in data:
                   raise SystemExit(f'{rel}: Palatine viewer import is missing')
@@ -120,7 +120,7 @@ jobs:
               if len(matches)!=1:
                   raise SystemExit(f'{rel}: expected one {needle} entry script URL, found {len(matches)}')
               old=matches[0].group(1)
-              base=re.sub(r'&palatine-cryptoporticus=v\\d+','',old)
+              base=re.sub(r'&palatine-cryptoporticus=v\d+','',old)
               if 'palatine-cryptoporticus=v1' not in base:
                   base=base+('&' if '?' in base else '?')+'palatine-cryptoporticus=v1'
               data=data.replace(old,base,1)
