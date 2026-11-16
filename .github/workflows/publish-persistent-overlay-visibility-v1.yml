@@ -26,10 +26,6 @@ permissions:
   pages: write
   id-token: write
 
-concurrency:
-  group: bridgepoint-v5000-production-authority
-  cancel-in-progress: false
-
 jobs:
   validate:
     if: github.event_name == 'pull_request'
@@ -77,6 +73,9 @@ jobs:
 
   publish:
     if: github.event_name == 'workflow_run' || github.event_name == 'workflow_dispatch'
+    concurrency:
+      group: bridgepoint-v5000-production-authority
+      cancel-in-progress: false
     runs-on: ubuntu-24.04
     timeout-minutes: 55
     environment:
