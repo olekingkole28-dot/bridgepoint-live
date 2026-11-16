@@ -600,7 +600,7 @@ function addControlGroup(state) {
   group.innerHTML=
     '<div class="bpv-command-heading"><span class="bpv-command-heading-icon" aria-hidden="true">⛏️</span>'+
     '<span><b>SUBSURFACE WELLS</b><small>Global water wells, aquifers, lithology boreholes, oil and gas drill holes</small></span></div>'+
-    '<div class="bpv-command-grid"><button id="bp-subsurface-wells-toggle-v1" type="button" class="bpv-command-btn" aria-pressed="false" title="Toggle global subsurface wells and 3D boreholes">'+
+    '<div class="bpv-command-grid"><button id="bp-subsurface-wells-toggle-v1" data-bpv-action="subsurface" type="button" class="bpv-command-btn" aria-pressed="false" title="Toggle global subsurface wells and 3D boreholes">'+
     '<span class="bpv-command-icon" aria-hidden="true">🕳️</span><span class="bpv-command-label">Subsurface Wells</span></button></div>'+
     '<div id="bp-subsurface-wells-count-v1" class="bpv-data-note">Not loaded · toggle on to load global records</div>'+
     '<div id="bp-subsurface-wells-status-v1" class="bpv-data-note">Layer off · all existing BridgePoint layers remain unchanged</div>'+
@@ -660,7 +660,7 @@ async function loadRegionalData(state) {
 }
 async function setEnabled(state,on) {
   state.enabled=!!on;setVisibility(state,state.enabled);
-  if(state.enabled){
+  if(state.enabled){window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('subsurface',true);
     installLayers(state);bindInteractions(state);refreshStatusUi(state);
     if(state.THREE)installModelLayer(state);
     else if(!state.threeLoading){

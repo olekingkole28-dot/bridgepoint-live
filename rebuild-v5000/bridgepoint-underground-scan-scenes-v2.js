@@ -105,6 +105,7 @@ function refreshUi(state){
 }
 function installLayers(state){
  const map=state.map;if(!map?.getStyle?.())return false;
+ if(typeof map.isStyleLoaded==='function'&&!map.isStyleLoaded())return false;
  try{
   if(!map.hasImage?.('bp-paris-catacomb-icon-v3'))map.addImage('bp-paris-catacomb-icon-v3',iconImage(),{pixelRatio:2});
   if(!map.getSource(SOURCE_ID))map.addSource(SOURCE_ID,{type:'geojson',data:{type:'FeatureCollection',features:buildUndergroundSceneFeatures()},buffer:64,maxzoom:14,
@@ -121,6 +122,7 @@ function installLayers(state){
    'text-field':'PARIS CATACOMBS','text-size':['interpolate',['linear'],['zoom'],4,9,10,11,17,13],
    'text-offset':[0,1.3],'text-anchor':'top','text-allow-overlap':false,'text-ignore-placement':false},
    paint:{'text-color':'#eafcff','text-halo-color':'rgba(3,12,20,.94)','text-halo-width':1.4}});
+  for(const id of [HALO_ID,MARKER_ID,LABEL_ID])if(map.getLayer(id))map.setLayoutProperty(id,'visibility',state.enabled?'visible':'none');
   return true;
  }catch(e){state.stats.lastError=String(e?.message||e);console.warn('BridgePoint Paris Catacombs layers',e);return false;}
 }
@@ -268,7 +270,7 @@ function addControl(state){
  if(!group){
   group=document.createElement('section');group.id=CONTROL_ID;group.className='bpv-command-group';group.setAttribute('data-bpv-command-section','paris-catacombs');
   group.innerHTML='<div class="bpv-command-heading"><span class="bpv-command-heading-icon" aria-hidden="true">🕳️</span><span><b>PARIS CATACOMBS</b><small>Real underground LiDAR scan · native 3D</small></span></div>'+
-   '<div class="bpv-command-grid"><button id="'+TOGGLE_ID+'" type="button" class="bpv-command-btn" aria-pressed="false" title="Show Paris Catacombs scan markers on the globe"><span class="bpv-command-icon" aria-hidden="true">🪦</span><span class="bpv-command-label">Paris Catacombs</span></button></div>'+
+   '<div class="bpv-command-grid"><button id="'+TOGGLE_ID+'" data-bpv-action="catacombs" type="button" class="bpv-command-btn" aria-pressed="false" title="Show Paris Catacombs scan markers on the globe"><span class="bpv-command-icon" aria-hidden="true">🪦</span><span class="bpv-command-label">Paris Catacombs</span></button></div>'+
    '<div id="'+COUNT_ID+'" class="bpv-data-note">1 real LiDAR gallery scan · Paris, France</div><div id="'+STATUS_ID+'" class="bpv-data-note">Layer off · existing BridgePoint layers are unchanged.</div>';
   const wells=document.getElementById('bp-subsurface-wells-control-v1');if(wells&&wells.parentNode===dock)wells.after(group);else dock.prepend(group);
  }
@@ -277,7 +279,7 @@ function addControl(state){
 }
 async function setEnabled(state,on){
  state.enabled=!!on;
- if(state.enabled){if(installLayers(state))status(state,'Paris Catacombs ON · icon remains visible from globe view through street-level zoom. Select it to inspect the scanned gallery.');else status(state,'Waiting for the BridgePoint globe style…');}
+ if(state.enabled){window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('subsurface',true);if(installLayers(state))status(state,'Paris Catacombs ON · icon remains visible from globe view through street-level zoom. Select it to inspect the scanned gallery.');else status(state,'Waiting for the BridgePoint globe style…');}
  else{state.mapVisible=false;if(state.popup){state.popup.remove();state.popup=null;}if(state.mapRoot)state.mapRoot.visible=false;
   for(const id of [HALO_ID,MARKER_ID,LABEL_ID])if(state.map.getLayer(id))state.map.setLayoutProperty(id,'visibility','none');
   status(state,'Paris Catacombs OFF · every other BridgePoint layer remains unchanged.');}
@@ -294,7 +296,7 @@ export function initUndergroundScanScenesRenderer(target){
   const hits=state.map.queryRenderedFeatures?.(e.point,{layers:[MARKER_ID]})||[];
   if(hits.some(f=>f.properties?.siteId==='paris-catacombs'))openPopup(state,e.lngLat||PARIS_CATACOMBS_SITE_V3.coordinates);
  };
- state.handleStyle=()=>{if(state.enabled){installLayers(state);if(state.mapVisible&&state.mapRoot&&state.THREE)void ensureMapModelLayer(state).catch(e=>status(state,'Catacomb 3D layer reattach failed: '+String(e?.message||e)));refreshUi(state);}};
+ state.handleStyle=()=>{if(state.enabled){window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('subsurface',true);installLayers(state);if(state.mapVisible&&state.mapRoot&&state.THREE)void ensureMapModelLayer(state).catch(e=>status(state,'Catacomb 3D layer reattach failed: '+String(e?.message||e)));refreshUi(state);}};
  map.on('click',state.handleClick);map.on('style.load',state.handleStyle);map.on('load',state.handleStyle);
  map.on('zoomend',()=>{if(state.renderer)map.triggerRepaint?.();});
  const api={version:VERSION,get enabled(){return state.enabled;},get status(){return state.status;},get stats(){return {...state.stats};},

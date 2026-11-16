@@ -28,6 +28,9 @@ assert.ok(moduleSource.includes('new THREE.WebGLRenderer({canvas,antialias:true'
 assert.ok(moduleSource.includes('data-catacomb-action="terrain"'));
 assert.ok(!moduleSource.includes('<iframe'));
 assert.ok(moduleSource.includes('Approximate Paris Catacombs district anchor'));
+assert.ok(moduleSource.includes("allowLayerCategory?.('subsurface',true)"),'Paris Catacombs explicitly opts into the shared persistent subsurface category');
+assert.ok(moduleSource.includes("map.setLayoutProperty(id,'visibility',state.enabled?'visible':'none')"),'existing catacomb layers have visibility re-applied after guard/style events');
+assert.ok(moduleSource.includes("map.isStyleLoaded()") ,'map style must be fully loaded before adding native catacomb layers');
 assert.ok(downloader.includes('zenodo.org/api/records/'));
 assert.ok(downloader.includes('cc-by-4.0')&&downloader.includes('glTF'));
 assert.ok(!downloader.includes('SKETCHFAB_API_TOKEN'));

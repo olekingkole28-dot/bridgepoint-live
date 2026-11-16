@@ -39,12 +39,19 @@ assert.ok(moduleSource.includes('function isManagedOptionalOverlay(id)'), 'only 
 assert.ok(moduleSource.includes('if(!isManagedOptionalOverlay(layer.id)||layerAllowed(layer.id))continue;'), 'unknown/core basemap layers are never blanket-hidden');
 assert.ok(moduleSource.includes('let parcelLayerEnabled=false;'), 'parcel outlines are off at startup until the parcel control is pressed');
 assert.ok(moduleSource.includes('/landmark|poi|tree|streetlight|transit|infra-points|fire|bridge3d/i'), 'optional landmark, vegetation, transit, infrastructure, and fire overlays are off at startup');
+assert.ok(moduleSource.includes('subsurface:/subsurface|catacomb|cave|underground-scan|well|borehole|groundwater|aquifer|drillhole/i'), 'catacombs and wells share a persistent subsurface category');
+assert.ok(moduleSource.includes('infrastructure:/infrastructure|power[-_]?line|utility|pylon|telecom|communication|cell[-_]?tower|substation|transmission|faa-obstruction|distribution-pole/i'), 'power and communications infrastructure layers are recognized by the shared guard');
+assert.ok(moduleSource.includes('energy:/solar|wind[-_]?turbine|offshore[-_]?energy|renewable|energy-field/i'), 'solar and wind overlays have a shared persistent category');
+assert.ok(moduleSource.includes('landmarks:/landmark|poi|monument|statue|fountain|lighthouse|heritage-site/i'), 'landmark overlays are recognized by the shared guard');
+assert.ok(moduleSource.includes('.bpv-dock .bpv-command-group button'), 'every bottom-card command button participates in opt-in category tracking');
+assert.ok(moduleSource.includes("catacombs:'subsurface'") && moduleSource.includes("wells:'subsurface'"), 'catacomb and wells buttons are mapped to the subsurface category');
+assert.ok(moduleSource.includes("if(/catacomb|cave|subsurface|well|borehole|groundwater|aquifer|underground scan/.test(label))return'subsurface';"), 'subsurface buttons are recognized from their visible labels');
 assert.ok(moduleSource.includes("for(const event of ['style.load','idle','moveend','zoomend','rotateend','pitchend'])m.on(event,hideDefaultOverlays)"), 'clean-start guard runs on settled styles/camera events');
 assert.ok(!moduleSource.includes("m.on('styledata',hideDefaultOverlays)"), 'avoid styledata feedback loops while hiding optional layers');
 assert.ok(landingHtml.includes('bridgepoint-drone-awareness-v1.js'), 'homepage loads the module');
 assert.ok(appHtml.includes('bridgepoint-drone-awareness-v1.js'), 'app loads the module');
-assert.ok(landingHtml.includes('bridgepoint-drone-awareness-v1.js?v=7-aircraft-models-tracks'), 'homepage uses the live 3D drone runtime cache key');
-assert.ok(appHtml.includes('bridgepoint-drone-awareness-v1.js?v=7-aircraft-models-tracks'), 'app uses the same live 3D drone runtime cache key');
+assert.ok(landingHtml.includes('bridgepoint-drone-awareness-v1.js?v=8-persistent-overlay-category-gate'), 'homepage uses the live 3D drone runtime cache key');
+assert.ok(appHtml.includes('bridgepoint-drone-awareness-v1.js?v=8-persistent-overlay-category-gate'), 'app uses the same persistent overlay guard cache key');
 assert.ok(view.includes('data-bpv-command-grid="environment"'), 'environment command group exists');
 for (const action of ['weatherfx','windfx','volumetric','ai','listings','opportunities','metrics','property','explore','parcels','boundaryviewer','worldchanges','controls','motion','whole']) {
   assert.ok(view.includes('data-bpv-action="'+action+'"'), 'the dock exposes the '+action+' action');

@@ -218,7 +218,7 @@ async function bootMap(){
   .then(m=>{window.__BP_OFFSHORE_ENERGY_V1__=m.initOffshoreEnergyRenderer(world)})
   .catch(e=>console.warn('BridgePoint offshore energy renderer unavailable',e));
  // Subsurface well records are a separate opt-in layer; do not alter the core globe or other infrastructure layers.
- void import('./bridgepoint-subsurface-wells-v1.js?v=1-global-wells-depth-casing')
+ void import('./bridgepoint-subsurface-wells-v1.js?v=2-persistent-substructure-visibility')
   .then(m=>{window.__BP_SUBSURFACE_WELLS_V1__=m.initSubsurfaceWellsRenderer(world)})
   .catch(e=>console.warn('BridgePoint global subsurface wells renderer unavailable',e));
  // Independent opt-in scanned cave and underground heritage sites; keep wells and utility renderers untouched.
