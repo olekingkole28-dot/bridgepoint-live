@@ -123,6 +123,7 @@ assert.ok(moduleSource.includes("['match',['get','aircraft_kind'],kinds,true,fal
 assert.ok(moduleSource.includes('Solid vertical ground-to-aircraft tether'), 'source-altitude aircraft and drones receive a visible 3D ground tether');
 assert.ok(moduleSource.includes('function aircraftModelSpanMetersByKind'), 'aircraft 3D geometry uses family-specific real-world scale');
 assert.ok(moduleSource.includes('function syncAircraftFilterVisibility(active=enabled)'), 'type filters also gate the 3D meshes, trails and tethers');
+assert.ok(moduleSource.includes("|faa|tower|crane|obstruction|antenna/.test(label))return'infrastructure';"), 'FAA tower and crane controls opt into infrastructure visibility under the clean-start guard');
 assert.ok(moduleSource.includes('return null;') && moduleSource.includes('queryGroundElevation'), 'tethers do not invent a ground elevation when terrain data is unavailable');
 assert.equal((landingSource.match(/bridgepoint-faa-obstruction-towers-v1\.js\?v=2-aircraft-filters-faa-restored/g)||[]).length,1, 'website loader restores the independent FAA obstruction renderer');
 assert.equal((appSource.match(/bridgepoint-faa-obstruction-towers-v1\.js\?v=2-aircraft-filters-faa-restored/g)||[]).length,1, 'app loader restores the independent FAA obstruction renderer');
