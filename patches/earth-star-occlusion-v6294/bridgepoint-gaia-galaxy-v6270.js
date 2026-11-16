@@ -10,7 +10,7 @@ import { initBridgePointMarsSystem } from './bridgepoint-mars-system-v6291.js?v=
  * ephemerides use the same Galactic frame; the shared frame is rotated once so
  * its computed Earth-Sun vector meets the existing welcome Sun position.
  */
-const BUILD='v6301-moon-earth-opaque';
+const BUILD='v6302-earth-ray-opaque';
 const ROOT='/assets/stellar/gaia-dr3-v6270/';
 const DEG=Math.PI/180;
 const AU_PC=1/206264.80624709636;
@@ -239,6 +239,110 @@ for(const p of PLANETS.filter(p=>p.name!=='Earth')){
 
  const earthOcclusionMesh=bodyRefs?.earth||null;
  const earthMaskCanvas=canvas&&typeof canvas.getBoundingClientRect==='function'?canvas:null;
+
+ const earthRayCenterUniform={value:new THREE.Vector3()};
+ const earthRayRadiusUniform={value:1};
+ const earthRayState={enabled:false,scannedMaterials:0,patchedMaterials:0,compiledMaterials:0,unsupportedMaterials:0,lastScanAt:0,lastDiagnosticAt:0};
+ function patchCelestialEarthMaterial(material){
+  if(!material||material.colorWrite===false)return false;
+  material.userData=material.userData||{};
+  if(material.userData.bpEarthRayOcclusionV6302)return false;
+  const priorCompile=material.onBeforeCompile;
+  const priorProgramKey=typeof material.customProgramCacheKey==='function'?material.customProgramCacheKey.bind(material):null;
+  material.onBeforeCompile=function(shader,renderer){
+   if(typeof priorCompile==='function')priorCompile.call(this,shader,renderer);
+   const vertexMain=/void\s+main\s*\(\s*\)\s*\{/;
+   const fragmentMain=/void\s+main\s*\(\s*\)\s*\{/;
+   if(!vertexMain.test(shader.vertexShader)||!fragmentMain.test(shader.fragmentShader)){
+    earthRayState.unsupportedMaterials++;return;
+   }
+   const vertexPrefix=[
+    'varying vec3 vBpEarthWorldPosition;',
+    'void main() {',
+    '  vBpEarthWorldPosition=(modelMatrix*vec4(position,1.0)).xyz;'
+   ].join('\n');
+   const fragmentPrefix=[
+    'uniform vec3 uBpEarthCenter;',
+    'uniform float uBpEarthRadius;',
+    'varying vec3 vBpEarthWorldPosition;',
+    'void main() {',
+    '  vec3 bpEarthRayDelta=vBpEarthWorldPosition-cameraPosition;',
+    '  float bpEarthObjectDistance=length(bpEarthRayDelta);',
+    '  if(uBpEarthRadius>0.0&&bpEarthObjectDistance>1e-7){',
+    '    vec3 bpEarthRayDirection=bpEarthRayDelta/bpEarthObjectDistance;',
+    '    vec3 bpEarthCenterDelta=uBpEarthCenter-cameraPosition;',
+    '    float bpEarthAlong=dot(bpEarthCenterDelta,bpEarthRayDirection);',
+    '    float bpEarthPerpSq=max(0.0,dot(bpEarthCenterDelta,bpEarthCenterDelta)-bpEarthAlong*bpEarthAlong);',
+    '    float bpEarthRadiusSq=uBpEarthRadius*uBpEarthRadius;',
+    '    if(bpEarthAlong>0.0&&bpEarthPerpSq<bpEarthRadiusSq){',
+    '      float bpEarthHalfChord=sqrt(max(0.0,bpEarthRadiusSq-bpEarthPerpSq));',
+    '      float bpEarthNear=bpEarthAlong-bpEarthHalfChord;',
+    '      float bpEarthFar=bpEarthAlong+bpEarthHalfChord;',
+    '      float bpEarthHit=bpEarthNear>0.0?bpEarthNear:bpEarthFar;',
+    '      float bpEarthEpsilon=max(1e-5,uBpEarthRadius*1e-5);',
+    '      if(bpEarthHit>0.0&&bpEarthHit<bpEarthObjectDistance-bpEarthEpsilon)discard;',
+    '    }',
+    '  }'
+   ].join('\n');
+   shader.vertexShader=shader.vertexShader.replace(vertexMain,vertexPrefix);
+   shader.fragmentShader=shader.fragmentShader.replace(fragmentMain,fragmentPrefix);
+   shader.uniforms.uBpEarthCenter=earthRayCenterUniform;
+   shader.uniforms.uBpEarthRadius=earthRayRadiusUniform;
+   earthRayState.compiledMaterials++;
+  };
+  material.customProgramCacheKey=function(){
+   return (priorProgramKey?priorProgramKey():'')+'|bp-earth-ray-sphere-occlusion-v6302';
+  };
+  material.userData.bpEarthRayOcclusionV6302=true;
+  material.needsUpdate=true;
+  earthRayState.patchedMaterials++;
+  return true;
+ }
+ function scanSceneForEarthOcclusion(){
+  const now=performance.now();
+  if(now-earthRayState.lastScanAt<500)return;
+  earthRayState.lastScanAt=now;
+  let scanned=0;
+  scene.traverse(object=>{
+   if(!object||object===earthOcclusionMesh||object.userData?.body==='earth')return;
+   const materials=Array.isArray(object.material)?object.material:[object.material];
+   for(const material of materials){
+    if(!material)continue;
+    scanned++;
+    patchCelestialEarthMaterial(material);
+   }
+  });
+  earthRayState.scannedMaterials=scanned;
+ }
+ function updateEarthRayOcclusionUniforms(){
+  if(!earthOcclusionMesh){earthRayRadiusUniform.value=0;earthRayState.enabled=false;return;}
+  earthOcclusionMesh.updateWorldMatrix(true,false);
+  earthOcclusionMesh.getWorldPosition(earthRayCenterUniform.value);
+  const worldScale=earthOcclusionMesh.getWorldScale(new THREE.Vector3());
+  const geometry=earthOcclusionMesh.geometry;
+  if(geometry&&!geometry.boundingSphere)geometry.computeBoundingSphere();
+  const localRadius=geometry?.boundingSphere?.radius||1;
+  const radius=localRadius*Math.max(Math.abs(worldScale.x),Math.abs(worldScale.y),Math.abs(worldScale.z),1e-9);
+  earthRayRadiusUniform.value=Number.isFinite(radius)&&radius>0?radius:0;
+  earthRayState.enabled=earthRayRadiusUniform.value>0;
+  if(!earthRayState.lastDiagnosticAt||performance.now()-earthRayState.lastDiagnosticAt>1000){
+   earthRayState.lastDiagnosticAt=performance.now();
+   window.__BP_EARTH_OCCLUSION_DIAGNOSTIC_V6302__={
+    version:BUILD,enabled:earthRayState.enabled,
+    strategy:'shared-world-space-ray-sphere-fragment-discard',
+    foregroundBodiesPreserved:true,earthDepthOccluderAttached:!!earthOcclusionMesh.parent,
+    earthCenter:[earthRayCenterUniform.value.x,earthRayCenterUniform.value.y,earthRayCenterUniform.value.z],
+    earthRadius:earthRayRadiusUniform.value,
+    scannedMaterials:earthRayState.scannedMaterials,
+    patchedMaterials:earthRayState.patchedMaterials,
+    compiledMaterials:earthRayState.compiledMaterials,
+    unsupportedMaterials:earthRayState.unsupportedMaterials,
+    starScreenMaskEnabled:!!starState.points?.material?.uniforms?.uEarthMaskEnabled?.value,
+    updatedAt:Date.now()
+   };
+  }
+ }
+
  function updateEarthScreenOcclusion(uniforms){
   const enabled=uniforms?.uEarthMaskEnabled,mask=uniforms?.uEarthScreenMask?.value;
   if(!enabled||!mask||!earthOcclusionMesh||!earthMaskCanvas?.width||!earthMaskCanvas?.height){
@@ -373,6 +477,8 @@ for(const p of PLANETS.filter(p=>p.name!=='Earth')){
  function update(){
   if(state.status==='disposed'||!starState.frame)return;
    const {sun,auScale,pcScale,orientation,days,ob}=starState.frame;
+  scanSceneForEarthOcclusion();
+  updateEarthRayOcclusionUniforms();
   updateEarthScreenOcclusion(starState.points?.material?.uniforms);
   const distance=camera.position.distanceTo(new THREE.Vector3(0,0,0));
   const focusedPlanet=selectedBody&&planetMeshes.has(selectedBody);
