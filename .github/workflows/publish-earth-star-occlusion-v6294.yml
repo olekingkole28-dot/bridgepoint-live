@@ -102,7 +102,7 @@ jobs:
               if "bridgepoint-app-space-explorer-v1.js?v=" + build not in html:
                   raise SystemExit(f"{rel}: app-space module cache key was not advanced")
               p.write_text(html, encoding="utf-8")
-          print("MOON_EARTH_CELESTIAL_ENTRYPOINTS_PASS")
+          print("EARTH_RAY_CELESTIAL_ENTRYPOINTS_PASS")
           PY
 
       - name: Run isolated renderer tests and syntax checks
@@ -130,7 +130,7 @@ jobs:
           grep -Fq 'function updateRingDust(time)' "$SITE/bridgepoint-saturn-system-v6282.js"
           grep -Fq 'Phobos' "$SITE/bridgepoint-mars-system-v6291.js"
           cmp -s "$SITE/world-v2300-clouds.js" "$SITE/app/world-v2300-clouds.js"
-          echo "MOON_EARTH_RENDERER_AND_EXISTING_CELESTIAL_ASSETS_PASS"
+          echo "EARTH_RAY_RENDERER_AND_EXISTING_CELESTIAL_ASSETS_PASS"
 
       - name: Prove every non-target site file remains byte-for-byte unchanged
         shell: bash
@@ -184,7 +184,7 @@ jobs:
         run: |
           set -euo pipefail
           O='https://bridgepointintelligence.online'
-          q="${GITHUB_SHA}-moon-earth-v6301"
+          q="${GITHUB_SHA}-earth-ray-occlusion-v6302"
           mkdir -p "$RUNNER_TEMP/bp-live-check"
           curl --retry 8 --retry-all-errors --retry-delay 3 -fsSL -H 'Cache-Control: no-cache' "$O/?earth-opaque=$q" -o "$RUNNER_TEMP/bp-live-check/root.html"
           curl --retry 8 --retry-all-errors --retry-delay 3 -fsSL -H 'Cache-Control: no-cache' "$O/app/?earth-opaque=$q" -o "$RUNNER_TEMP/bp-live-check/app.html"
