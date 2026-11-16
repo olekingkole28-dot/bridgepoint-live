@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import gzip
 import json
-import math
 import struct
 from pathlib import Path
 
