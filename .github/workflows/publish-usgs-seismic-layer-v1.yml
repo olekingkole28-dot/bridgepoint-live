@@ -27,7 +27,7 @@ jobs:
     timeout-minutes: 45
     environment:
       name: github-pages
-      url: \${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -36,9 +36,9 @@ jobs:
         with:
           name: github-pages-v6302-earth-ray-opaque
           run-id: 43889146126
-          repository: \${{ github.repository }}
-          github-token: \${{ secrets.GITHUB_TOKEN }}
-          path: \${{ runner.temp }}/bp-pages-baseline
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/bp-pages-baseline
 
       - name: Restore latest production and fingerprint every non-target file
         shell: bash
@@ -214,7 +214,7 @@ jobs:
         uses: actions/upload-pages-artifact@v5
         with:
           name: github-pages-usgs-seismic-layer-v1
-          path: \${{ runner.temp }}/bp-site
+          path: ${{ runner.temp }}/bp-site
           include-hidden-files: true
 
       - name: Publish USGS seismic layer
@@ -228,7 +228,7 @@ jobs:
         run: |
           set -euo pipefail
           O='https://bridgepointintelligence.online'
-          q="\${GITHUB_SHA}-usgs-seismic-v1"
+          q="${GITHUB_SHA}-usgs-seismic-v1"
           D="$RUNNER_TEMP/bp-seismic-live"
           mkdir -p "$D"
           for item in \
