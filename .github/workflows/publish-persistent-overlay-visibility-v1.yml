@@ -355,9 +355,10 @@ jobs:
               data=p.read_text(encoding="utf-8")
               old_map="./world-v2300-map.js?v=6247-viewport-tile-sidewalk-progressive"
               new_map="./world-v2300-map.js?v=6248-mobile-render-recovery-no-error-resize"
-              if data.count(old_map)!=1:
-                  raise SystemExit(f"{rel}: expected one current globe module import")
-              data=data.replace(old_map,new_map,1)
+              if data.count(old_map)==1:
+                  data=data.replace(old_map,new_map,1)
+              elif new_map not in data:
+                  raise SystemExit(f"{rel}: neither known previous nor current globe import was found")
               lighthouse_imports=(
                   "./bridgepoint-lighthouses-v1.js?v=2-visible-rotating-beacons",
                   "./bridgepoint-lighthouses-v1.js?v=3-image-data-beacons",
@@ -489,9 +490,10 @@ jobs:
           changed={p for p in before if p in after and before[p]!=after[p]}
           expected_changed={
             "index.html","app/index.html","landing.js","app.js","bridgepoint-view-v5917.js",
-            "bridgepoint-drone-awareness-v1.js","world-v2300-map.js"
+            "bridgepoint-drone-awareness-v1.js"
           }
           candidates=[
+            "world-v2300-map.js",
             "bridgepoint-lighthouses-v1.js",
             "app/bridgepoint-lighthouses-v1.js",
             "world-v2300-seismic-layer-v1.js",
