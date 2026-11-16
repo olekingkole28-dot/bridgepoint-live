@@ -209,6 +209,7 @@ function mountControl(state) {
   if (!slot) return false;
   if (slot.querySelector('[data-bp-seismic-toggle]')) {
     state.button = slot.querySelector('[data-bp-seismic-toggle]');
+    state.labelNode = slot.querySelector('[data-bp-seismic-label]');
     state.statusNode = slot.querySelector('[data-bp-seismic-status]');
     return true;
   }
@@ -295,6 +296,7 @@ export function initUSGSSeismicLayer(world) {
     mountObserver: null,
     disposed: false,
     requestSequence: 0,
+    activeController: null,
     button: null,
     labelNode: null,
     statusNode: null,
@@ -357,7 +359,7 @@ export function initUSGSSeismicLayer(world) {
   };
   const onStyleData = () => {
     if (!state.enabled || state.disposed || state.installing) return;
-    if (map.getSource?.(SOURCE_ID)) return;
+    if (map.getSource?.(SOURCE_ID) && map.getLayer?.(GLOW_LAYER_ID) && map.getLayer?.(POINT_LAYER_ID)) return;
     state.installing = true;
     try {
       addMapLayers();
@@ -380,6 +382,7 @@ export function initUSGSSeismicLayer(world) {
     state.inFlight = true;
     const sequence = ++state.requestSequence;
     const controller = new AbortController();
+    state.activeController = controller;
     const timeout = window.setTimeout(() => controller.abort(), 15_000);
     try {
       const response = await fetch(SEISMIC_FEED_URL, {
@@ -423,6 +426,7 @@ export function initUSGSSeismicLayer(world) {
       return false;
     } finally {
       window.clearTimeout(timeout);
+      if (state.activeController === controller) state.activeController = null;
       state.inFlight = false;
     }
   };
@@ -451,6 +455,8 @@ export function initUSGSSeismicLayer(world) {
     syncControl(state);
 
     if (!next) {
+      try { state.activeController?.abort(); } catch (_) {}
+      state.activeController = null;
       if (state.timer) window.clearInterval(state.timer);
       if (state.retryTimer) window.clearTimeout(state.retryTimer);
       state.timer = null;
@@ -516,6 +522,7 @@ export function initUSGSSeismicLayer(world) {
     state.requestSequence += 1;
     if (state.timer) window.clearInterval(state.timer);
     if (state.retryTimer) window.clearTimeout(state.retryTimer);
+    try { state.activeController?.abort(); } catch (_) {}
     state.mountObserver?.disconnect();
     document.removeEventListener('visibilitychange', onVisibilityChange);
     map.off?.('click', POINT_LAYER_ID, showPopup);
