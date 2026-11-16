@@ -616,9 +616,44 @@ export function initWorld(options={}){
  worker.onmessage=e=>{const m=e.data||{},r=workerWait.get(m.requestId);if(r){workerWait.delete(m.requestId);r(m)}};
  const prepare=(features,max)=>new Promise(resolve=>{const requestId=++workerReq;workerWait.set(requestId,resolve);worker.postMessage({type:'prepare',requestId,features,max});setTimeout(()=>{if(workerWait.has(requestId)){workerWait.delete(requestId);resolve({buildings:fc(features.slice(0,max)),roofs:EMPTY,count:Math.min(features.length,max)})}},2500)});
  const setStatus=t=>{const e=document.getElementById('mapStatus');if(e)e.textContent=t};
- let bpRecoveryTimer=0,bpLastRecovery=0;
- const recoverRenderer=(reason='resume')=>{if(document.hidden)return;const now=performance.now();if(now-bpLastRecovery<450)return;bpLastRecovery=now;clearTimeout(bpRecoveryTimer);bpRecoveryTimer=setTimeout(()=>{try{map.resize();map.triggerRepaint?.();window.__BP_RENDER_RECOVERY__={reason,at:Date.now(),loaded:!!map.loaded?.()}}catch(_){}},MOBILE?140:70)};
- try{const canvas=map.getCanvas();canvas?.addEventListener('webglcontextlost',e=>{try{e.preventDefault()}catch(_){};setStatus('BridgePoint World · graphics context recovering…')},{passive:false});canvas?.addEventListener('webglcontextrestored',()=>{recoverRenderer('webgl-restored');setStatus('BridgePoint World · graphics restored')});document.addEventListener('visibilitychange',()=>{if(!document.hidden)recoverRenderer('visibility-resume')},{passive:true});window.addEventListener('pageshow',()=>recoverRenderer('pageshow'),{passive:true});window.addEventListener('online',()=>recoverRenderer('network-online'),{passive:true});window.addEventListener('orientationchange',()=>setTimeout(()=>recoverRenderer('orientation'),180),{passive:true});map.on('error',e=>{const msg=String(e?.error?.message||e?.error||'');if(/\b546\b|network|failed to fetch|source.*load|tile.*load|resource/i.test(msg)){clearTimeout(bpRecoveryTimer);bpRecoveryTimer=setTimeout(()=>recoverRenderer('transient-map-resource'),MOBILE?700:350)}})}catch(_){}
+ let bpRecoveryTimer=0,bpLastRecovery=0,bpResourceErrorCount=0,bpLastResourceErrorAt=0;
+ // Only real viewport lifecycle changes justify a MapLibre resize. Tile/source errors
+ // are not canvas-size changes; resizing for each transient request failure can make
+ // the entire globe flash while MapLibre is already retrying its own resources.
+ const recoverRenderer=(reason='resume',resizeMap=false)=>{
+  if(document.hidden)return;
+  const now=performance.now();
+  if(now-bpLastRecovery<450)return;
+  bpLastRecovery=now;clearTimeout(bpRecoveryTimer);
+  bpRecoveryTimer=setTimeout(()=>{
+   try{
+    if(resizeMap)map.resize();
+    map.triggerRepaint?.();
+    window.__BP_RENDER_RECOVERY__={reason,resized:!!resizeMap,at:Date.now(),loaded:!!map.loaded?.()};
+   }catch(_){}
+  },MOBILE?140:70);
+ };
+ try{
+  const canvas=map.getCanvas();
+  canvas?.addEventListener('webglcontextlost',e=>{try{e.preventDefault()}catch(_){};setStatus('BridgePoint World · graphics context recovering…')},{passive:false});
+  canvas?.addEventListener('webglcontextrestored',()=>{recoverRenderer('webgl-restored');setStatus('BridgePoint World · graphics restored')});
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)recoverRenderer('visibility-resume',true)},{passive:true});
+  window.addEventListener('pageshow',()=>recoverRenderer('pageshow',true),{passive:true});
+  window.addEventListener('online',()=>recoverRenderer('network-online'),{passive:true});
+  window.addEventListener('orientationchange',()=>setTimeout(()=>recoverRenderer('orientation',true),180),{passive:true});
+  map.on('error',e=>{
+   const msg=String(e?.error?.message||e?.error||'');
+   if(/\b546\b|network|failed to fetch|source.*load|tile.*load|resource/i.test(msg)){
+    bpResourceErrorCount++;bpLastResourceErrorAt=Date.now();
+    window.__BP_RENDER_RECOVERY__={
+     ...(window.__BP_RENDER_RECOVERY__||{}),reason:'transient-map-resource',
+     resized:false,resizeSkipped:true,resourceErrorCount:bpResourceErrorCount,
+     lastResourceErrorAt:bpLastResourceErrorAt,lastResourceError:msg.slice(0,180),
+     loaded:!!map.loaded?.()
+    };
+   }
+  });
+ }catch(_){}
 
  function solarPosition(date,lat,lng){
   const rad=Math.PI/180,dayMs=86400000,jd=date.getTime()/dayMs+2440587.5,n=jd-2451545.0,L=(280.46+.9856474*n)%360,g=(357.528+.9856003*n)%360,lambda=(L+1.915*Math.sin(g*rad)+.02*Math.sin(2*g*rad))*rad,eps=(23.439-.0000004*n)*rad;
