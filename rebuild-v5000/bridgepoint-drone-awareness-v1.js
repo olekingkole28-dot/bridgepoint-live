@@ -26,8 +26,7 @@ const TRACK_RETENTION_MS=45*60*1000;
 const REFRESH_MS=180000;
 const REQUEST_TIMEOUT_MS=12000;
 const SUPPORTED_SOURCE='https://api.adsb.lol/v2/';
-const DRONE_PROXY_URL='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-drone-feed-v1';
-const DRONE_PROXY_KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
+const CORS_PROXY_ROOT='https://proxy.cors.dev/';
 const REGION_RADIUS_NM=250;
 const SAMPLE_CACHE_MS=150000;
 const WORLD_CIRCUMFERENCE_M=40075016.686;const $=s=>document.querySelector(s);
@@ -171,7 +170,7 @@ function updateButton(){
 }
 function writeSummary(){
  const liveReady=diagnosticState.hasSuccessfulSource;
- const metrics=[['Regional requests attempted',diagnosticState.regionalRequestsAttempted],['Requests successfully completed',diagnosticState.regionalRequestsCompleted],['Cached regional responses',diagnosticState.regionalCacheHits],['ADSB.lol feed',diagnosticState.providers?.adsb_lol?.status||'not checked'],['FlyItalyADSB ADS-B/MLAT/OGN',diagnosticState.providers?.flyitaly_adsb?.status||'free API key not configured'],['Layer400 Remote ID',diagnosticState.providers?.layer400_remote_id?.status||'key not configured / not checked'],['Aircraft records received',liveReady?diagnosticState.aircraftRecordsReceived:'—'],['Records identified as UAVs',liveReady?diagnosticState.uavRecordsIdentified:'—'],['Invalid or stale records rejected',liveReady?diagnosticState.invalidOrStaleRecords:'—'],['Current UAV positions accepted',liveReady?diagnosticState.currentPositionsAccepted:'—'],['3D quadcopter models rendered',liveReady?diagnosticState.modelsRendered:'—'],['Historical trail points retained',liveReady?diagnosticState.historicalTrailPoints:'—'],['3D trail segments rendered',liveReady?diagnosticState.trailsRendered:'—'],['Other public aircraft positions accepted',liveReady?diagnosticState.aircraftPositionsAccepted:'—'],['3D aircraft models rendered',liveReady?diagnosticState.aircraftModelsRendered:'—'],['Aircraft trail points retained',liveReady?diagnosticState.aircraftTrailPoints:'—'],['3D aircraft trail segments rendered',liveReady?diagnosticState.aircraftTrailsRendered:'—']];
+ const metrics=[['Regional requests attempted',diagnosticState.regionalRequestsAttempted],['Requests successfully completed',diagnosticState.regionalRequestsCompleted],['Cached regional responses',diagnosticState.regionalCacheHits],['ADSB.lol feed',diagnosticState.providers?.adsb_lol?.status||'not checked'],['ADSB.lol public ADS-B',diagnosticState.providers?.flyitaly_adsb?.status||'free API key not configured'],['ADSB.lol public ADS-B',diagnosticState.providers?.layer400_remote_id?.status||'key not configured / not checked'],['Aircraft records received',liveReady?diagnosticState.aircraftRecordsReceived:'—'],['Records identified as UAVs',liveReady?diagnosticState.uavRecordsIdentified:'—'],['Invalid or stale records rejected',liveReady?diagnosticState.invalidOrStaleRecords:'—'],['Current UAV positions accepted',liveReady?diagnosticState.currentPositionsAccepted:'—'],['3D quadcopter models rendered',liveReady?diagnosticState.modelsRendered:'—'],['Historical trail points retained',liveReady?diagnosticState.historicalTrailPoints:'—'],['3D trail segments rendered',liveReady?diagnosticState.trailsRendered:'—'],['Other public aircraft positions accepted',liveReady?diagnosticState.aircraftPositionsAccepted:'—'],['3D aircraft models rendered',liveReady?diagnosticState.aircraftModelsRendered:'—'],['Aircraft trail points retained',liveReady?diagnosticState.aircraftTrailPoints:'—'],['3D aircraft trail segments rendered',liveReady?diagnosticState.aircraftTrailsRendered:'—']];
  if(summaryNode){summaryNode.replaceChildren();for(const [label,value] of metrics){const item=element('div','bp-drone-metric');item.append(element('b','',typeof value==='number'?value.toLocaleString():value),element('span','',label));summaryNode.append(item)}}
  if(regionalStatusNode){
   regionalStatusNode.replaceChildren();
@@ -626,7 +625,7 @@ const DroneCore=(()=>{
  const FEET_TO_METERS=0.3048;
  function buildRequestUrl(sample){
   if(!sample||!Number.isFinite(Number(sample.lat))||!Number.isFinite(Number(sample.lon))||Number(sample.lat)<-90||Number(sample.lat)>90||Number(sample.lon)<-180||Number(sample.lon)>180)throw new Error('Invalid regional sample coordinates');
-  return DRONE_PROXY_URL+'?lat='+encodeURIComponent(Number(sample.lat).toFixed(4))+'&lon='+encodeURIComponent(Number(sample.lon).toFixed(4))+'&radius='+REGION_RADIUS_NM;
+  return CORS_PROXY_ROOT+buildUpstreamRequestUrl(sample);
  }
  function buildUpstreamRequestUrl(sample){
   if(!sample||!Number.isFinite(Number(sample.lat))||!Number.isFinite(Number(sample.lon)))throw new Error('Invalid regional sample coordinates');
@@ -635,12 +634,12 @@ const DroneCore=(()=>{
  function parseResponse(payload){
   if(!payload||typeof payload!=='object'||Array.isArray(payload))throw new Error('Invalid ADSB.lol response: expected a JSON object');
   if(!Array.isArray(payload.ac))throw new Error('Invalid ADSB.lol response: expected the ac aircraft array');
-  return{records:payload.ac,total:Number.isFinite(Number(payload.total))?Number(payload.total):payload.ac.length,message:String(payload.msg||''),providers:payload.providers&&typeof payload.providers==='object'?payload.providers:{},upstreamUrl:typeof payload.upstreamUrl==='string'?payload.upstreamUrl:''};
+  return{records:payload.ac,total:Number.isFinite(Number(payload.total))?Number(payload.total):payload.ac.length,message:String(payload.msg||''),providers:{},upstreamUrl:''};
  }
  async function requestSample(sample,fetchImpl,signal){
   if(typeof fetchImpl!=='function')throw new Error('ADS-B request requires a fetch implementation');
   const transportUrl=buildRequestUrl(sample);
-  const response=await fetchImpl(transportUrl,{method:'GET',cache:'no-store',signal,headers:{'Accept':'application/json','apikey':DRONE_PROXY_KEY}});
+  const response=await fetchImpl(transportUrl,{method:'GET',cache:'no-store',signal,headers:{'Accept':'application/json'}});
   const body=await response.text();
   if(!response.ok)throw new Error('HTTP '+response.status+(response.statusText?' '+response.statusText:'')+(body?' · '+body.replace(/\s+/g,' ').slice(0,220):''));
   let payload;try{payload=JSON.parse(body)}catch(error){throw new Error('Invalid JSON response: '+String(error?.message||error)+' · body: '+body.replace(/\s+/g,' ').slice(0,180))}
@@ -780,7 +779,7 @@ async function refresh(force=false){
   if(failed.length)message+=' '+failed.length+' regional requests failed: '+err+(failed.length>3?' · Remaining errors are listed by region below.':'');
   if(drone3DError)message+=' 3D renderer error: '+drone3DError;
   showStatus(message,failed.length||!diagnosticState.hasSuccessfulSource||drone3DError?'error':'info');
-  const meta=$('#bp-drone-feed-meta');if(meta)meta.textContent='Sources: ADSB.lol public community ADS-B; optional FlyItalyADSB ADS-B/MLAT/OGN; optional Layer400 network Remote ID · '+good.length+'/'+samples.length+' regional sample windows succeeded · '+REGION_RADIUS_NM+' NM maximum radius each. '+(diagnosticState.providers?.flyitaly_adsb?.status==='not_configured'?'FlyItalyADSB waiting for the free server-side API key. ':'')+(diagnosticState.providers?.layer400_remote_id?.status==='not_configured'?'Layer400 waiting for approved rid.live API key. ':'')+'FlyItalyADSB attribution: Flight data: FlyItalyADSB (flyitalyadsb.com), CC BY-SA 4.0. Only explicitly classified UAV records use the drone layer; other aircraft are displayed separately by broadcast type family. Partial geographic sampling only; not a worldwide registry.';
+  const meta=$('#bp-drone-feed-meta');if(meta)meta.textContent='Sources: ADSB.lol public community ADS-B; optional ADSB.lol public ADS-B; optional Layer400 network Remote ID · '+good.length+'/'+samples.length+' regional sample windows succeeded · '+REGION_RADIUS_NM+' NM maximum radius each. '+(diagnosticState.providers?.flyitaly_adsb?.status==='not_configured'?' waiting for the free server-side API key. ':'')+(diagnosticState.providers?.layer400_remote_id?.status==='not_configured'?'Layer400 waiting for approved rid.live API key. ':'')+' attribution: . Only explicitly classified UAV records use the drone layer; other aircraft are displayed separately by broadcast type family. Partial geographic sampling only; not a worldwide registry.';
   writeSummary();
  }catch(error){
   diagnosticState.sourceStatus='failed';writeSummary();
@@ -831,7 +830,7 @@ function createPane(panel){
  const p=element('section','bp-drone-pane');p.dataset.bpvPane='drones';p.hidden=true;
  p.append(element('div','bp-drone-headline','AIRCRAFT · LIVE PUBLIC ADS-B + UAV POSITIONS · TYPE FILTERS + 3D MODELS'));
  p.append(element('div','bp-drone-feed-note','Aircraft models are source-classified by broadcast type; planes, helicopters, gliders, balloons and drones can be shown independently or together. Detailed 3D geometry remains at representative real-world dimensions when zoomed in. A ground-to-aircraft line is drawn only when the source reports a usable height and terrain reference; pressure altitude remains labelled as barometric, and missing heights are never invented.'));
- p.append(element('div','bp-drone-feed-note','DATA LIMIT · '+GLOBAL_SAMPLES.length+' regional sample hubs, each up to '+REGION_RADIUS_NM+' NM, plus a supplemental local sample at close zoom. This is partial coverage, not a worldwide registry. Most consumer drones do not broadcast ADS-B. Remote ID network: Layer400 live RID is supported through a server-side API adapter and activates only when an approved LAYER400_API_KEY with rid.live scope is configured. ADSB.lol only contributes aircraft explicitly broadcasting a UAV/DRONE category; ordinary aircraft are never relabeled. Simulated/test broadcasts and pilot/control-station locations are excluded. No simulated drones are substituted for missing live reports.'));
+ p.append(element('div','bp-drone-feed-note','DATA LIMIT · '+GLOBAL_SAMPLES.length+' regional sample hubs, each up to '+REGION_RADIUS_NM+' NM, plus a supplemental local sample at close zoom. This is partial coverage, not a worldwide registry. Most consumer drones do not broadcast ADS-B. Aircraft type classification uses only live public ADS-B records from ADSB.lol. through a server-side API adapter and activates only when an approved  with rid.live scope is configured. ADSB.lol only contributes aircraft explicitly broadcasting a UAV/DRONE category; ordinary aircraft are never relabeled. Simulated/test broadcasts and pilot/control-station locations are excluded. No simulated drones are substituted for missing live reports.'));
  const filterPanel=element('div','bp-aircraft-filter-panel');filterPanel.append(element('div','bp-drone-headline','SHOW AIRCRAFT TYPES'));
  const filterRow=element('div','bp-aircraft-filter-row');
  const allFilter=element('button','bp-aircraft-filter active','All');allFilter.type='button';allFilter.dataset.aircraftFilter='all';allFilter.setAttribute('aria-pressed','true');allFilter.addEventListener('click',()=>setAircraftFilter('all'));filterRow.append(allFilter);aircraftFilterButtons.set('all',allFilter);
