@@ -33,5 +33,8 @@ assert.ok(downloader.includes('cc-by-4.0')&&downloader.includes('glTF'));
 assert.ok(!downloader.includes('SKETCHFAB_API_TOKEN'));
 assert.ok(deploy.includes('github-pages-usgs-seismic-layer-v1'));
 assert.ok(deploy.includes('bp-paris-catacombs-toggle-v3'));
+assert.ok(deploy.includes('three@0.169.0')&&deploy.includes('esbuild@0.24.2'),'publisher builds local GLTFLoader against BridgePoint Three.js');
+assert.ok(deploy.includes('vendor/GLTFLoader.bundle.js'),'local GLTFLoader is included in the narrow Pages overlay');
+assert.ok(deploy.includes('GLTFLoader has an unresolved external Three.js import'),'bundle has no bare external runtime dependency');
 assert.ok(view.includes('id="bpv-dock-actions"'));
 console.log('BRIDGEPOINT_PARIS_CATACOMBS_NATIVE_3D_VIEWER_PASS');
