@@ -112,7 +112,7 @@ function categoryForTarget(target){
  // Opening the fields panel is not itself a layer activation; the panel's own
  // Wind / RF / Drone controls opt their category in only when pressed.
  if(action==='volumetric')return null;
- const actionMap={parcels:'parcels',boundaryviewer:'parcels',worldchanges:'history',weatherfx:'weather',windfx:'wind',volumetric:'wind',satellite:'imagery',opportunities:'opportunities',listings:'listings',water:'water',catacombs:'subsurface',subsurface:'subsurface',wells:'subsurface',boreholes:'subsurface',powerlines:'infrastructure',infrastructure:'infrastructure',utilities:'infrastructure',telecom:'infrastructure',solar:'energy',windturbines:'energy',energy:'energy',landmarks:'landmarks',lighthouses:'landmarks',earthquakes:'earthquakes',nature:'nature',trees:'nature',vessels:'shipping',ships:'shipping',maritime:'shipping'};
+ const actionMap={parcels:'parcels',boundaryviewer:'parcels',worldchanges:'history',weatherfx:'weather',windfx:'wind',volumetric:'wind',satellite:'imagery',opportunities:'opportunities',listings:'listings',water:'water',catacombs:'subsurface',subsurface:'subsurface',wells:'subsurface',boreholes:'subsurface',drones:'drones',powerlines:'infrastructure',infrastructure:'infrastructure',utilities:'infrastructure',telecom:'infrastructure',solar:'energy',windturbines:'energy',energy:'energy',landmarks:'landmarks',lighthouses:'landmarks',earthquakes:'earthquakes',nature:'nature',trees:'nature',vessels:'shipping',ships:'shipping',maritime:'shipping'};
  if(actionMap[action])return actionMap[action];
  if(target.dataset?.layer==='parcels')return'parcels';
  if(target.dataset?.layer==='buildings')return'buildings';

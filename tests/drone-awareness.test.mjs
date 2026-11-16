@@ -52,6 +52,7 @@ assert.ok(moduleSource.includes('earthquakes:/earthquake|seismic|comcat/i'), 'na
 assert.ok(moduleSource.includes('const explicitToggle=target.hasAttribute(\'aria-pressed\')'), 'the overlay guard reads the control state before an action handler can reset it');
 assert.ok(!moduleSource.includes('setTimeout(()=>{\n   const buttonOn=target.classList.contains'), 'the previous premature off-state race is removed');
 assert.ok(moduleSource.includes('bp-layer-turn-on-everything') && moduleSource.includes('bp-layer-reset-all'), 'global turn-on and reset controls are mounted at the top of the bottom card');
+assert.ok(moduleSource.includes("drones:'drones'"), 'the master layer controls include the Aircraft action');
 assert.ok(moduleSource.includes("||!categoryForTarget(control))continue;"), 'master controls do not click non-layer dock controls such as card maximize');
 assert.ok(moduleSource.includes('showAllLayers:()=>setLayerMasterState(true)') && moduleSource.includes('resetAllLayers:()=>setLayerMasterState(false)'), 'master layer controls expose direct API actions');
 assert.ok(seismicModule.includes('Named earthquakes · OFF') && seismicModule.includes('Named earthquakes · '), 'the USGS layer uses the Named earthquakes label in both states');
