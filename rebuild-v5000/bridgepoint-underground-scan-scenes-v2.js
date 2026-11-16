@@ -2,7 +2,7 @@
  * The source scan is a real iPhone LiDAR capture. Its district anchor and below-ground offset
  * are visualization references only: the source mesh is not georeferenced to a surveyed chamber.
  */
-const VERSION=4, MAP_STATES=new WeakMap(), MIN_MODEL_ZOOM=11.2;
+const VERSION=5, MAP_STATES=new WeakMap(), MIN_MODEL_ZOOM=11.2;
 const THREE_URL='/vendor/three.module.js?v=169-local';
 const GLTF_URL='/vendor/GLTFLoader.bundle.js?v=169-local';
 const SOURCE_ID='bp-paris-catacombs-source-v3', HALO_ID='bp-paris-catacombs-halo-v3';
@@ -18,6 +18,7 @@ export const PARIS_CATACOMBS_MODELS_V4=[
   datasetUrl:'https://doi.org/10.5281/zenodo.10287234',
   assetUrl:'/assets/underground-scan-scenes/'+MODEL_UID+'.glb.gz',
   geometryType:'LiDAR mesh',publishedVertices:338500,publishedTriangles:668900,
+  roomCoordinates:[2.3324,48.8336],depthBelowSurfaceM:16,locationPrecision:'Regional reference only; scan origin not georeferenced.',
   detail:'A scanned underground gallery section. The creator publishes this as a real iPhone 12 Pro / Scaniverse LiDAR capture.'},
  {uid:'f4232f8f91e54b0a8aa92365d6ea7b7a',title:'Paris Catacombs — Le Bar des Rats',creator:'Emm (@edemaistre)',
   license:'CC BY 4.0',captureMethod:'iPhone 12 Pro · Scaniverse LiDAR point cloud',
@@ -25,16 +26,24 @@ export const PARIS_CATACOMBS_MODELS_V4=[
   datasetUrl:'https://doi.org/10.5281/zenodo.10232541',
   assetUrl:'/assets/underground-scan-scenes/f4232f8f91e54b0a8aa92365d6ea7b7a.glb.gz',
   geometryType:'Dense LiDAR point cloud',publishedVertices:9100000,publishedTriangles:0,
+  roomAddress:'69 Rue de Notre-Dame-des-Champs, 75006 Paris, France',roomCoordinates:[2.3314794209,48.8432369808],depthBelowSurfaceM:20,
+  locationPrecision:'Approximate room-level address anchor from an independent Catacombs 3D archive; the original point cloud is not GPS-georeferenced.',
+  locationSourceUrl:'https://catacombes.xyz/rooms/rats',
   detail:'A multi-chamber area known as Le Bar des Rats, identified by its creator as being toward the northwestern corner of the Paris Catacombs. It includes walls and murals and is a much denser point-cloud capture than the gallery mesh.'}
 ];
 const MODEL=PARIS_CATACOMBS_MODELS_V4[0];
 function modelFor(state,uid){return PARIS_CATACOMBS_MODELS_V4.find(m=>m.uid===uid)||PARIS_CATACOMBS_MODELS_V4.find(m=>m.uid===state?.selectedModelUid)||MODEL;}
+function placementFor(model){
+ const coordinates=Array.isArray(model?.roomCoordinates)?model.roomCoordinates:PARIS_CATACOMBS_SITE_V3.coordinates;
+ const depth=Number.isFinite(Number(model?.depthBelowSurfaceM))?Number(model.depthBelowSurfaceM):Math.abs(PARIS_CATACOMBS_SITE_V3.visualizationOffsetM);
+ return {coordinates,depthBelowSurfaceM:depth};
+}
 export const PARIS_CATACOMBS_SITE_V3={
  id:'paris-catacombs',name:'Paris Catacombs',type:'catacomb',
- coordinates:[2.3324,48.8336],
- locationPrecision:'Regional map anchor only. The public scan records do not publish surveyed chamber coordinates or a georeferenced origin for either scan.',
- visualizationOffsetM:-16,
- description:'Two real creator-scanned Paris Catacombs LiDAR assets: a gallery mesh and the denser Le Bar des Rats point cloud. The marker locates the Catacombs district, not either measured scan origin.'
+ coordinates:[2.3314794209,48.8432369808],
+ locationPrecision:'Address-level room reference for Bar des Rats from an independent 3D archive; source GLB itself is not georeferenced.',
+ visualizationOffsetM:-20,
+ description:'Two real creator-scanned Paris Catacombs LiDAR assets. The marker uses the independently documented Bar des rats room address as an approximate surface anchor; each scan keeps its own placement metadata.'
 };
 export const UNDERGROUND_SCAN_SITES_V2=[{...PARIS_CATACOMBS_SITE_V3,models:PARIS_CATACOMBS_MODELS_V4}];
 export function buildUndergroundSceneFeatures(sites=UNDERGROUND_SCAN_SITES_V2){
@@ -167,8 +176,9 @@ async function ensureMapModelLayer(state){
     if(!state.enabled||!state.mapVisible||!root||!state.renderer||!state.scene||!state.camera)return;
     if(Number(map.getZoom()||0)<MIN_MODEL_ZOOM){root.visible=false;return;}
     const raw=args&&(args.defaultProjectionData?.mainMatrix||args.modelViewProjectionMatrix);if(!raw||raw.length<16)return;
-    let ground=0;try{const v=map.queryTerrainElevation?.({lng:PARIS_CATACOMBS_SITE_V3.coordinates[0],lat:PARIS_CATACOMBS_SITE_V3.coordinates[1]},{exaggerated:false});if(Number.isFinite(v))ground=v;}catch(_){}
-    const matrix=mapMatrix(map,THREE,PARIS_CATACOMBS_SITE_V3.coordinates,ground+PARIS_CATACOMBS_SITE_V3.visualizationOffsetM);if(!matrix)return;
+    const placement=placementFor(modelFor(state));
+    let ground=0;try{const v=map.queryTerrainElevation?.({lng:placement.coordinates[0],lat:placement.coordinates[1]},{exaggerated:false});if(Number.isFinite(v))ground=v;}catch(_){}
+    const matrix=mapMatrix(map,THREE,placement.coordinates,ground-placement.depthBelowSurfaceM);if(!matrix)return;
     root.visible=true;state.camera.projectionMatrix.copy(new THREE.Matrix4().fromArray(raw)).multiply(matrix);
     try{state.renderer.resetState();state.renderer.render(state.scene,state.camera);}
     catch(e){if(!state.renderWarned){state.renderWarned=true;console.warn('BridgePoint Paris Catacombs render',e);}}
@@ -189,20 +199,24 @@ async function showUnderTerrain(state){
   state.mapRoot=makeMapRoot(state.THREE,source);
   await ensureMapModelLayer(state);if(state.dead)return;
   if(state.mapRoot&&state.scene&&state.mapRoot.parent!==state.scene)state.scene.add(state.mapRoot);
-  status(state,model.title+' displayed below the terrain at the approximate Catacombs regional anchor. Scan origin and depth are not georeferenced.');state.map.triggerRepaint?.();refreshUi(state);
+  const placement=placementFor(model);
+  status(state,model.title+' displayed below terrain using '+(model.roomAddress||'the regional Catacombs reference')+' at an approximate '+placement.depthBelowSurfaceM+' m depth reference. The original GLB origin is not survey-georeferenced.');state.map.triggerRepaint?.();refreshUi(state);
  }catch(e){state.mapVisible=false;status(state,'Could not display '+model.title+': '+String(e?.message||e));refreshUi(state);}
 }
 function popupHtml(state){
- const selected=modelFor(state);
+ const selected=modelFor(state),placement=placementFor(selected);
+ const locationDetails=selected.roomAddress
+  ?'<br><b>Room reference:</b> '+safe(selected.roomAddress)+'<br><b>Surface coordinate:</b> '+placement.coordinates[1].toFixed(7)+', '+placement.coordinates[0].toFixed(7)+' (address-level anchor)<br><b>Published room depth:</b> approximately '+placement.depthBelowSurfaceM+' m<br><b>Location source:</b> <a href="'+safe(selected.locationSourceUrl)+'" target="_blank" rel="noopener noreferrer">Independent Bar des rats 3D archive</a>'
+  :'<br><b>Location:</b> Paris Catacombs regional reference<br><b>Depth:</b> visualization offset only, not a measured depth';
  const choices=PARIS_CATACOMBS_MODELS_V4.map(m=>'<button type="button" class="bp-paris-catacomb-choice-v4'+(m.uid===selected.uid?' is-active':'')+'" data-catacomb-model="'+safe(m.uid)+'" aria-pressed="'+String(m.uid===selected.uid)+'"><b>'+safe(m.title)+'</b><small>'+safe(m.geometryType)+' · '+(m.publishedTriangles?Math.round(m.publishedTriangles/1000).toLocaleString()+'K triangles':'~'+(m.publishedVertices/1000000).toFixed(1)+'M points')+'</small></button>').join('');
  return '<article class="bp-paris-catacomb-popup-v3">'+
   '<div class="bp-paris-catacomb-kicker-v3">BRIDGEPOINT · 3D UNDERGROUND</div><h3>Paris Catacombs</h3>'+
   '<p>Choose one of the locally hosted, openly licensed LiDAR captures. Each scan opens in BridgePoint’s native 3D viewer; use the terrain action to display the selected scan below the globe terrain.</p>'+
   '<div class="bp-paris-catacomb-model-list-v4" aria-label="Paris Catacombs 3D scans">'+choices+'</div>'+
   '<div class="bp-paris-catacomb-actions-v3"><button type="button" data-catacomb-action="terrain">Show selected scan below terrain</button><button type="button" data-catacomb-action="viewer">Open selected 3D model</button></div>'+
-  '<div class="bp-paris-catacomb-meta-v3"><b>Selected scan:</b> <span data-catacomb-title>'+safe(selected.title)+'</span><br><b>Creator:</b> '+safe(selected.creator)+'<br><b>Capture:</b> '+safe(selected.captureMethod)+'<br><b>License:</b> '+safe(selected.license)+'<br><b>Published geometry:</b> '+safe(selected.geometryType)+' · '+(selected.publishedTriangles?selected.publishedTriangles.toLocaleString()+' triangles · '+selected.publishedVertices.toLocaleString()+' vertices':'~'+(selected.publishedVertices/1000000).toFixed(1)+' million vertices')+
+  '<div class="bp-paris-catacomb-meta-v3"><b>Selected scan:</b> <span data-catacomb-title>'+safe(selected.title)+'</span><br><b>Creator:</b> '+safe(selected.creator)+'<br><b>Capture:</b> '+safe(selected.captureMethod)+'<br><b>License:</b> '+safe(selected.license)+'<br><b>Published geometry:</b> '+safe(selected.geometryType)+' · '+(selected.publishedTriangles?selected.publishedTriangles.toLocaleString()+' triangles · '+selected.publishedVertices.toLocaleString()+' vertices':'~'+(selected.publishedVertices/1000000).toFixed(1)+' million vertices')+locationDetails+
   '<br><b>Dataset:</b> <a data-catacomb-dataset href="'+selected.datasetUrl+'" target="_blank" rel="noopener noreferrer">Zenodo open dataset</a><br><b>Original scan:</b> <a data-catacomb-source href="'+selected.sourceUrl+'" target="_blank" rel="noopener noreferrer">Sketchfab source and attribution</a></div>'+
-  '<p class="bp-paris-catacomb-warning-v3">Location precision: regional anchor only. The scan records do not publish surveyed chamber coordinates or a georeferenced scan origin. The below-terrain placement is a visualization reference, not an asserted survey-grade position or depth. Exact local dimensions are shown in the 3D viewer from the downloaded GLB geometry.</p>'+
+  '<p class="bp-paris-catacomb-warning-v3">The Le Bar des Rats location and ~20 m depth are independent room-level archive references used to position the model beneath the street address. The LiDAR GLB itself has no surveyed GPS origin, so this is not a survey-grade chamber placement. The viewer reports the downloaded model’s own coordinate bounds, not certified architectural room dimensions.</p>'+
   '<p data-catacomb-status class="bp-paris-catacomb-status-v3">Select a scan, then open its native 3D viewer.</p></article>';
 }
 function addPopupActions(state,popup){
@@ -214,6 +228,7 @@ function addPopupActions(state,popup){
   const current=state.popup;
   if(current){current.setHTML(popupHtml(state));addPopupActions(state,current);}
   status(state,'Selected '+modelFor(state).title+'. The large point cloud loads only when opened.');
+  if(state.mapVisible)void showUnderTerrain(state);
  });
  el.querySelector('[data-catacomb-action="terrain"]')?.addEventListener('click',()=>{void showUnderTerrain(state);});
  el.querySelector('[data-catacomb-action="viewer"]')?.addEventListener('click',()=>{void openViewer(state);});
