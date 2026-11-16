@@ -190,8 +190,8 @@ jobs:
           import hashlib, json, os, re
           site=Path(os.environ["RUNNER_TEMP"])/"bp-underground-site"
           old_module="./bridgepoint-underground-scan-sites-v1.js?v=1-curated-sketchfab-caves"
-          new_module="./bridgepoint-underground-scan-scenes-v2.js?v=4-paris-catacombs-3d-underground"
-          attach="""void import('./bridgepoint-underground-scan-scenes-v2.js?v=4-paris-catacombs-3d-underground')
+          new_module="./bridgepoint-underground-scan-scenes-v2.js?v=5-paris-catacombs-room-anchor"
+          attach="""void import('./bridgepoint-underground-scan-scenes-v2.js?v=5-paris-catacombs-room-anchor')
              .then(m=>{window.__BP_PARIS_CATACOMBS_V3__=m.initUndergroundScanScenesRenderer(world)})
              .catch(e=>console.warn('BridgePoint Paris Catacombs 3D layer unavailable',e));"""
           for rel in ("landing.js","app.js"):
@@ -242,16 +242,16 @@ jobs:
               if len(matches)!=1:
                   raise SystemExit(f"{rel}: expected exactly one globe-entry script URL, found {len(matches)}")
               old=matches[0].group(1)
-              if "underground-scenes=paris-v4" not in old:
-                  data=data.replace(old,old+"&underground-scenes=paris-v4",1)
+              if "underground-scenes=paris-v5" not in old:
+                  data=data.replace(old,old+"&underground-scenes=paris-v5",1)
               path.write_text(data,encoding="utf-8")
           for rel in ("index.html","app/index.html"):
               path=site/rel
               data=path.read_text(encoding="utf-8")
               old='/bridgepoint-view-v5917.js?v=6215-satellite-persistent-render-guard&emrf=1'
-              new=old+'&underground-scenes=paris-v4'
+              new=old+'&underground-scenes=paris-v5'
               if old in data:data=data.replace(old,new,1)
-              if "bridgepoint-view-v5917.js" not in data or "underground-scenes=paris-v4" not in data:
+              if "bridgepoint-view-v5917.js" not in data or "underground-scenes=paris-v5" not in data:
                   raise SystemExit(f"{rel}: view script cache key did not update")
               path.write_text(data,encoding="utf-8")
 
@@ -311,9 +311,9 @@ jobs:
           for item in \
             "root.html:$O/?underground=$Q" \
             "app.html:$O/app/?underground=$Q" \
-            "view.js:$O/bridgepoint-view-v5917.js?v=6215-satellite-persistent-render-guard&emrf=1&underground-scenes=paris-v4" \
-            "landing.js:$O/landing.js?v=6247-universal-fresh-entry&underground-scenes=paris-v4" \
-            "app.js:$O/app.js?v=6247-universal-fresh-entry&underground-scenes=paris-v4" \
+            "view.js:$O/bridgepoint-view-v5917.js?v=6215-satellite-persistent-render-guard&emrf=1&underground-scenes=paris-v5" \
+            "landing.js:$O/landing.js?v=6247-universal-fresh-entry&underground-scenes=paris-v5" \
+            "app.js:$O/app.js?v=6247-universal-fresh-entry&underground-scenes=paris-v5" \
             "module.js:$O/bridgepoint-underground-scan-scenes-v2.js?verify=$Q" \
             "app-module.js:$O/app/bridgepoint-underground-scan-scenes-v2.js?verify=$Q" \
             "catalog.json:$O/assets/underground-scan-scenes/catalog.json?verify=$Q" \
@@ -326,8 +326,8 @@ jobs:
           grep -Fq 'bp-paris-catacombs-toggle-v3' "$D/view.js"
           grep -Fq 'from "/vendor/three.module.js?v=169-local"' "$D/gltfloader.js"
           ! grep -Fq 'from "three"' "$D/gltfloader.js"
-          grep -Fq 'bridgepoint-underground-scan-scenes-v2.js?v=4-paris-catacombs-3d-underground' "$D/landing.js"
-          grep -Fq 'bridgepoint-underground-scan-scenes-v2.js?v=4-paris-catacombs-3d-underground' "$D/app.js"
+          grep -Fq 'bridgepoint-underground-scan-scenes-v2.js?v=5-paris-catacombs-room-anchor' "$D/landing.js"
+          grep -Fq 'bridgepoint-underground-scan-scenes-v2.js?v=5-paris-catacombs-room-anchor' "$D/app.js"
           grep -Fq '3D underground' "$D/view.js"
           grep -Fq "type:'custom',renderingMode:'3d'" "$D/module.js"
           ! grep -Fq '<iframe' "$D/module.js"
