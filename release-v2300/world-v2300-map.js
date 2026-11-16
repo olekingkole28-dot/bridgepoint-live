@@ -1,5 +1,5 @@
 import{VERSION,EDGE,EMPTY,MOBILE,LOW,TIER,rpc,edge,tileTransform,bbox,fc,clamp}from'./world-v2300-config.js';
-import{buildSidewalk3DFeatures,installSidewalk3DTextures}from'./world-v2300-sidewalks-3d.js?v=20261116-close-zoom-budget-v1';
+import{buildSidewalk3DFeatures,installSidewalk3DTextures}from'./world-v2300-sidewalks-3d.js?v=20261116-main-thread-bounded-sidewalk-v2';
 // The separate celestial canvas is intentionally not mounted over the satellite globe.
 window.__BP_WORLD_RENDER_VERSION__=5630;window.__BP_STYLE_READY_GATE_V6215__={version:6215,waitsForStyleLayers:true,requiresAllRasterTiles:false,updatedAt:Date.now()};
 const PUBLIC_TECH_FAST=true;
@@ -1346,6 +1346,7 @@ function bridgeLineCoveredByPolygons(line,polygons){
   // Build only from line segments that intersect the current screen. Rendered features
   // are first so a clipped tile copy cannot replace the visible sidewalk geometry.
   function refreshSidewalk3DFromTiles(extraFeatures=[],force=false) {
+    const refreshStartedAt=performance.now();
     const z=map.getZoom();
     if(z<14.2||moving||worldMapSurfaceInactive()||!map.getSource('bpSidewalk3D')||!map.getSource('ofm'))return false;
     const bounds=map.getBounds();
@@ -1357,12 +1358,23 @@ function bridgeLineCoveredByPolygons(line,polygons){
     try{if(sidewalkRoadLayers.length)sidewalkRoadRenderedRaw=map.queryRenderedFeatures({layers:sidewalkRoadLayers})||[]}catch(_){}
     let sidewalkRenderedRaw=[];
     try{if(map.getLayer('gta-global-sidewalk-approach-v1'))sidewalkRenderedRaw=map.queryRenderedFeatures({layers:['gta-global-sidewalk-approach-v1']})||[]}catch(_){}
-    let sidewalkSourceRaw=[];
-    try{sidewalkSourceRaw=map.querySourceFeatures('ofm',{sourceLayer:'transportation'})||[]}catch(_){}
     const sidewalkRoadClasses=new Set(['motorway','trunk','primary','secondary','tertiary','minor','service','track','residential','unclassified','living_street','road']);
+    // Use only geometry already rendered inside the current viewport. querySourceFeatures()
+    // scans all loaded tiles, including off-screen tiles, and can block the browser at close zoom.
+    const MAX_SIDEWALK_RENDER_FEATURES=MOBILE?36:72;
+    const MAX_ROAD_RENDER_FEATURES=MOBILE?48:96;
+    const MAX_SIDEWALK_RENDER_VERTICES=MOBILE?1800:4200;
+    const MAX_ROAD_RENDER_VERTICES=MOBILE?2400:5600;
+    const featureVertexCount=feature=>{
+      const geometry=feature?.geometry;
+      const lines=geometry?.type==='LineString'?[geometry.coordinates]:geometry?.type==='MultiLineString'?geometry.coordinates:[];
+      let count=0;
+      for(const line of lines)count+=Array.isArray(line)?line.length:0;
+      return count;
+    };
     const sidewalkScreenDistance=feature=>{
-      const g=feature?.geometry;if(!g?.coordinates)return Infinity;
-      const lines=g.type==='LineString'?[g.coordinates]:g.type==='MultiLineString'?g.coordinates:[];
+      const geometry=feature?.geometry;if(!geometry?.coordinates)return Infinity;
+      const lines=geometry.type==='LineString'?[geometry.coordinates]:geometry.type==='MultiLineString'?geometry.coordinates:[];
       const canvas=map.getCanvas(),cx=(canvas.clientWidth||canvas.width)*.5,cy=(canvas.clientHeight||canvas.height)*.5;
       let best=Infinity;
       for(const line of lines)for(let i=1;i<line.length;i++){
@@ -1373,9 +1385,6 @@ function bridgeLineCoveredByPolygons(line,polygons){
       }
       return best;
     };
-    // Filter the shared transportation source before doing any viewport projection.
-    // It contains ordinary road geometry as well as sidewalks; clipping every road
-    // as a possible walkway wastes CPU and creates throwaway line segments.
     const isSidewalkTileFeature=feature=>{
       const p=feature?.properties||{},tags=p?.properties?.tags||p?.tags||p?.source_tags||{};
       const c=String(p.class||'').toLowerCase(),sub=String(p.subclass||p.subtype||'').toLowerCase(),key=String(p.layer_key||'').toUpperCase();
@@ -1384,12 +1393,19 @@ function bridgeLineCoveredByPolygons(line,polygons){
       if(c==='sidewalk'||sub==='sidewalk'||sub==='footway'||footway==='sidewalk')return true;
       return ['footway','pedestrian','path','cycleway','steps','living_street'].includes(c)&&sidewalk!=='no'&&sidewalk!=='none'&&footway!=='crossing';
     };
-    const clipBatch=(items,kind)=>{
+    const clipBatch=(items,kind,maxFeatures,maxVertices)=>{
       const out=[],seen=new Set();
+      let visited=0,usedVertices=0;
+      const scanLimit=maxFeatures*4;
       for(const sourceFeature of items){
+        if(visited>=scanLimit||out.length>=maxFeatures)break;
+        visited++;
         const p=sourceFeature?.properties||{},cls=String(p.class||'').toLowerCase();
         if(kind==='walkway'&&!isSidewalkTileFeature(sourceFeature))continue;
         if(kind==='road'&&(!sidewalkRoadClasses.has(cls)||['bridge','tunnel'].includes(String(p.brunnel||'').toLowerCase())||String(p.bridge||'').toLowerCase()==='yes'||String(p.tunnel||'').toLowerCase()==='yes'))continue;
+        const vertices=featureVertexCount(sourceFeature);
+        if(vertices<2||vertices>maxVertices-usedVertices)continue;
+        usedVertices+=vertices;
         const clipped=clipSidewalkFeatureToViewport(sourceFeature);
         if(!clipped)continue;
         const baseKey=String(p.source_record_id||p.osm_id||p.id||sourceFeature?.id||'transport-feature');
@@ -1397,35 +1413,36 @@ function bridgeLineCoveredByPolygons(line,polygons){
         for(let lineIndex=0;lineIndex<lines.length;lineIndex++){
           const coordinates=lines[lineIndex];
           if(!Array.isArray(coordinates)||coordinates.length<2)continue;
-          // A vector-tile feature can contain many disjoint line segments. Give every
-          // clipped segment a stable identity so its visible piece is not discarded
-          // just because another segment of the same OSM way appears first.
           const lineKey=baseKey+'|'+JSON.stringify(coordinates);
           if(seen.has(lineKey))continue;
           seen.add(lineKey);
           out.push({...clipped,id:lineKey,properties:{...p,bridgepoint_line_key:lineKey},geometry:{type:'LineString',coordinates}});
+          if(out.length>=maxFeatures)break;
         }
       }
       out.sort((a,b)=>sidewalkScreenDistance(a)-sidewalkScreenDistance(b));
-      return out;
+      return {features:out,visited,usedVertices};
     };
-    const sidewalkRenderedFeatures=clipBatch(sidewalkRenderedRaw,'walkway');
-    const sidewalkRoadRenderedFeatures=clipBatch(sidewalkRoadRenderedRaw,'road');
-    const sidewalkRoadTileFeatures=clipBatch(sidewalkSourceRaw,'road');
-    const sidewalkTileFeatures=[...sidewalkRenderedFeatures,...clipBatch(sidewalkSourceRaw,'walkway')];
-    const sidewalkFeatureInputs=[],sidewalkFeatureKeys=new Set();
-    for(const feature of [...extraFeatures,...sidewalkTileFeatures]){
-      const p=feature?.properties||{},geometryKey=JSON.stringify(feature?.geometry?.coordinates||[]);
-      const key=String(p.source_record_id||p.osm_id||p.id||feature?.id||'transport-feature')+'|'+geometryKey;
-      if(sidewalkFeatureKeys.has(key))continue;
-      sidewalkFeatureKeys.add(key);sidewalkFeatureInputs.push(feature);
+    // Preserve explicitly mapped sidewalks from the retained cache, but inspect a
+    // bounded prefix and keep only sidewalk classes before coordinate processing.
+    const sidewalkExtraRaw=[];
+    let sidewalkExtraScanned=0;
+    for(const feature of Array.isArray(extraFeatures)?extraFeatures:[]){
+      if(sidewalkExtraScanned++ >= (MOBILE?1200:2400))break;
+      if(!isSidewalkTileFeature(feature))continue;
+      sidewalkExtraRaw.push(feature);
+      if(sidewalkExtraRaw.length>=MAX_SIDEWALK_RENDER_FEATURES)break;
     }
-    sidewalkFeatureInputs.sort((a,b)=>sidewalkScreenDistance(a)-sidewalkScreenDistance(b));
-    const roadInputs=[...sidewalkRoadRenderedFeatures,...sidewalkRoadTileFeatures].sort((a,b)=>sidewalkScreenDistance(a)-sidewalkScreenDistance(b));
+    const sidewalkBatch=clipBatch([...sidewalkExtraRaw,...sidewalkRenderedRaw],'walkway',MAX_SIDEWALK_RENDER_FEATURES,MAX_SIDEWALK_RENDER_VERTICES);
+    const roadBatch=clipBatch(sidewalkRoadRenderedRaw,'road',MAX_ROAD_RENDER_FEATURES,MAX_ROAD_RENDER_VERTICES);
+    const sidewalkFeatureInputs=sidewalkBatch.features;
+    const sidewalkRenderedFeatures=sidewalkFeatureInputs;
+    const sidewalkRoadRenderedFeatures=roadBatch.features;
+    const roadInputs=sidewalkRoadRenderedFeatures;
     const sidewalk3D=buildSidewalk3DFeatures({features:sidewalkFeatureInputs,roadFeatures:roadInputs,roadsideWalkFeatures:sidewalkRoadRenderedFeatures,generateRoadsideWalks:true,zoom:z,mobile:MOBILE,elevationAt:point=>{try{const elevation=map.queryTerrainElevation?.({lng:point[0],lat:point[1]},{exaggerated:false});return Number.isFinite(elevation)?elevation:null}catch(_){return null}}});
     map.getSource('bpSidewalk3D')?.setData({type:'FeatureCollection',features:sidewalk3D.features});
     map.__BP_SIDEWALK_LAST_VIEW_KEY__=sidewalk3D.features.length?viewKey:'';
-    window.__BP_SIDEWALK_3D_STATE__={version:4,status:sidewalk3D.features.length?'ready':'no-sidewalk-geometry-in-current-viewport',featureCount:sidewalk3D.features.length,viewportFeatures:extraFeatures.length,globalVectorTileFeatures:sidewalkSourceRaw.length,roadVectorTileFeatures:sidewalkRoadTileFeatures.length,roadFeaturesForCurbs:roadInputs.length,renderedApproachFeatures:sidewalkRenderedRaw.length,clippedApproachFeatures:sidewalkRenderedFeatures.length,prioritizedLineSegments:sidewalkFeatureInputs.length,clippedRenderedRoadFeatures:sidewalkRoadRenderedFeatures.length,clippedSidewalkInputFeatures:sidewalkFeatureInputs.length,buildIndependentOfLivingWorldFetch:true,forcedTileRefresh:force,...(sidewalk3D.stats||{}),zoom:z,updatedAt:Date.now()};
+    window.__BP_SIDEWALK_3D_STATE__={version:5,status:sidewalk3D.features.length?'ready':'no-sidewalk-geometry-in-current-viewport',featureCount:sidewalk3D.features.length,viewportFeatures:extraFeatures.length,extraFeaturesScanned:sidewalkExtraScanned,renderedApproachFeatures:sidewalkRenderedRaw.length,clippedApproachFeatures:sidewalkRenderedFeatures.length,renderedRoadCandidates:sidewalkRoadRenderedRaw.length,clippedRenderedRoadFeatures:sidewalkRoadRenderedFeatures.length,roadFeaturesForCurbs:roadInputs.length,prioritizedLineSegments:sidewalkFeatureInputs.length,walkwayScan:sidewalkBatch,roadScan:roadBatch,sourceWideScan:false,sourceQueryDisabled:true,buildIndependentOfLivingWorldFetch:true,forcedTileRefresh:force,...(sidewalk3D.stats||{}),zoom:z,refreshDurationMs:performance.now()-refreshStartedAt,updatedAt:Date.now()};
     return sidewalk3D.features.length>0;
   }
 
@@ -2024,18 +2041,14 @@ function bridgeLineCoveredByPolygons(line,polygons){
     if(map.getZoom()>=activeWorldLodProfile().bridgeMin)rebuildBridge3D(MOBILE?140:90);
    },MOBILE?420:220);
   };
-  let bpContextBuildingSyncTimer=0,bpSidewalkTileSyncTimer=0;
+  let bpContextBuildingSyncTimer=0;
   map.on('movestart',()=>movement(true));map.on('moveend',()=>{movement(false);clampCameraAboveTerrain();if(bpBridgeSourcePending)scheduleBridgeSourceRefresh()});map.on('zoomend',()=>{schedulePostMoveSettle();clampCameraAboveTerrain()});let bpCitySyncTimer=0,bpGlobalLodSyncTimer=0;map.on('sourcedata',e=>{
   if(e?.sourceId==='ofm'){
    clearTimeout(bpGlobalLodSyncTimer);
    bpGlobalLodSyncTimer=setTimeout(()=>{if(moving||map.isMoving?.())return;refreshGlobalLodPaint();window.__BP_SOURCE_BURST_GUARD_V5592__={version:5592,heavyRebuildsOnSourceData:false,coalescedPaintOnly:true,updatedAt:Date.now()}},MOBILE?900:320);
-   // Vector-tile content can arrive after moveend. Rebuild the 3D bridge mesh
-   // and re-sync the context building LOD as those tiles become available.
+   // The map idle handler performs one bounded sidewalk refresh after the visible
+   // tile set settles; don't rebuild for every individual sourcedata event.
    if(e?.sourceDataType==='content'||e?.isSourceLoaded===true||e?.tile){
-    clearTimeout(bpSidewalkTileSyncTimer);
-    bpSidewalkTileSyncTimer=setTimeout(()=>{
-     if(!moving&&!map.isMoving?.()&&map.getZoom()>=14.2)refreshSidewalk3DFromTiles([],true);
-    },MOBILE?520:220);
     scheduleBridgeSourceRefresh();
     clearTimeout(bpContextBuildingSyncTimer);
     bpContextBuildingSyncTimer=setTimeout(()=>{
