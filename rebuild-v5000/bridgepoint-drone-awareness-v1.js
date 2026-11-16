@@ -897,8 +897,12 @@ function bindStartMode(){
   // The existing toggle owns on/off state. If it ended off, remove just that
   // category from the opt-in allowlist; unrelated layers stay hidden.
   setTimeout(()=>{
-   if(category==='parcels')parcelLayerEnabled=target.classList.contains('active')||target.getAttribute('aria-pressed')==='true';
-   if(category==='buildings'&&!target.classList.contains('active')&&target.getAttribute('aria-pressed')!=='true')allowedCategories.delete(category);
+   const buttonOn=target.classList.contains('active')||target.getAttribute('aria-pressed')==='true';
+   if(category==='parcels')parcelLayerEnabled=buttonOn;
+   else if(['subsurface','infrastructure','energy','landmarks','nature','shipping'].includes(category)){
+    if(buttonOn)allowedCategories.add(category);else allowedCategories.delete(category);
+   }
+   if(category==='buildings'&&!buttonOn)allowedCategories.delete(category);
    hideDefaultOverlays();
   },0);
  },true);
