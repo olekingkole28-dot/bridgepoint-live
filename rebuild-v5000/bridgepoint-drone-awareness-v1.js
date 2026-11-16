@@ -236,7 +236,7 @@ function installLayer(){
   if(!map.getLayer(LAYER))map.addLayer({id:LAYER,type:'circle',source:SOURCE,filter:['!',['has','point_count']],minzoom:0,layout:{visibility:'none'},paint:{'circle-radius':['interpolate',['linear'],['zoom'],0,4.1,3,5,8,6.3,14,8.2],'circle-color':'#f1ffff','circle-opacity':1,'circle-stroke-color':'#19dff5','circle-stroke-width':2.4,'circle-blur':0}});
   bindAircraftInteractions();
   return true;
- }catch(error){showStatus('Drone Awareness MapLibre layer initialization failed: '+String(error?.message||error),'error');console.error('Drone position layers failed',error);return false}
+ }catch(error){showStatus('Aircraft MapLibre layer initialization failed: '+String(error?.message||error),'error');console.error('Drone position layers failed',error);return false}
 }
 function loadDroneThree(){
  if(!droneThreePromise)droneThreePromise=import(THREE_URL).then(m=>m.default||m).catch(e=>{droneThreePromise=null;throw e});
@@ -744,7 +744,7 @@ async function fetchGlobalSamples(){
  const results=[];diagnosticState.regionalRequestsAttempted=0;diagnosticState.regionalRequestsCompleted=0;diagnosticState.regionalCacheHits=0;
  diagnosticState.regionalResults=GLOBAL_SAMPLES.map(sample=>({sample,status:'pending',ok:false,records:[],error:null}));writeSummary();
  for(let i=0;i<GLOBAL_SAMPLES.length;i+=3){
-  if(!enabled)throw new Error('Drone Awareness was turned off');
+  if(!enabled)throw new Error('Aircraft layer was turned off');
   const batch=await Promise.all(GLOBAL_SAMPLES.slice(i,i+3).map(getSample));results.push(...batch);
   diagnosticState.regionalRequestsAttempted+=batch.filter(x=>!x.cached).length;diagnosticState.regionalRequestsCompleted+=batch.filter(x=>!x.cached&&x.ok).length;diagnosticState.regionalCacheHits+=batch.filter(x=>x.cached).length;
   for(const result of batch){if(result.ok&&result.providers)diagnosticState.providers={...(diagnosticState.providers||{}),...result.providers};const row=diagnosticState.regionalResults.find(x=>x.sample.id===result.sample.id);if(row)Object.assign(row,{status:result.ok?'complete':'failed',ok:result.ok,cached:!!result.cached,records:result.records,providers:result.providers||null,error:result.error||null,requestUrl:result.requestUrl||''})}
@@ -754,7 +754,7 @@ async function fetchGlobalSamples(){
 }
 async function refresh(force=false){
  if(!enabled||!map||inFlight)return;
- if(!mapStyleReady()){activationQueued=true;diagnosticState.sourceStatus='waiting';writeSummary();showStatus('Drone Awareness is ON and queued for the MapLibre style. It will sample automatically when the globe is ready; no second press is needed.','info');return}
+ if(!mapStyleReady()){activationQueued=true;diagnosticState.sourceStatus='waiting';writeSummary();showStatus('Aircraft is ON and queued for the MapLibre style. It will sample automatically when the globe is ready; no second press is needed.','info');return}
  const wait=15000-(Date.now()-lastFetchAt);if(!force&&wait>0)return;if(force&&wait>0){showStatus('Public API refresh is briefly rate-limited. Try again in '+Math.ceil(wait/1000)+' seconds.');return}
  inFlight=true;lastFetchAt=Date.now();if(refreshButton)refreshButton.disabled=true;
  diagnosticState.sourceStatus='loading';diagnosticState.hasSuccessfulSource=false;diagnosticState.aircraftRecordsReceived=0;diagnosticState.uavRecordsIdentified=0;diagnosticState.invalidOrStaleRecords=0;diagnosticState.currentPositionsAccepted=0;diagnosticState.modelsRendered=0;diagnosticState.historicalTrailPoints=0;diagnosticState.trailsRendered=0;diagnosticState.aircraftRecordsIdentified=0;diagnosticState.aircraftInvalidOrStaleRecords=0;diagnosticState.aircraftPositionsAccepted=0;diagnosticState.aircraftModelsRendered=0;diagnosticState.aircraftTrailPoints=0;diagnosticState.aircraftTrailsRendered=0;diagnosticState.localSample=null;writeSummary();
@@ -806,11 +806,11 @@ function scheduleViewportRefresh(){
 }
 async function activateWhenStyleReady(){
  if(!enabled)return false;
- if(!map||!mapStyleReady()){activationQueued=true;diagnosticState.sourceStatus='waiting';writeSummary();showStatus('Drone Awareness is ON and queued until the globe style is ready. It will activate and sample automatically; no second press is needed.','info');return false}
+ if(!map||!mapStyleReady()){activationQueued=true;diagnosticState.sourceStatus='waiting';writeSummary();showStatus('Aircraft is ON and queued until the globe style is ready. It will activate and sample automatically; no second press is needed.','info');return false}
  if(activationPromise)return activationPromise;
  const generation=activationGeneration;activationQueued=false;
  activationPromise=(async()=>{
-  if(!installLayer()){activationQueued=true;diagnosticState.sourceStatus='waiting';writeSummary();showStatus('Drone Awareness remains ON while MapLibre finishes its style. Automatic retry is registered; do not press again.','info');return false}
+  if(!installLayer()){activationQueued=true;diagnosticState.sourceStatus='waiting';writeSummary();showStatus('Aircraft remains ON while MapLibre finishes its style. Automatic retry is registered; do not press again.','info');return false}
   setLayerVisibility(true);
   try{const THREE=await loadDroneThree();if(!enabled||generation!==activationGeneration)return false;if(!ensureDrone3DLayer(THREE))throw new Error('3D drone layer could not attach to the initialized globe');setDroneModels(lastCurrentRecords);rebuildDroneTrails();setAircraftModels(lastCurrentAircraftRecords);rebuildAircraftTrails();drone3DError=null}
   catch(error){drone3DError=String(error?.message||error);showStatus('Public position markers can still load, but the 3D renderer failed: '+drone3DError,'error')}
@@ -821,10 +821,10 @@ async function activateWhenStyleReady(){
 }
 async function toggle(){
  openDronePanel();
- if(!enabled){enabled=true;activationGeneration++;activationQueued=true;diagnosticState.sourceStatus='waiting';updateButton();showStatus('Drone Awareness is ON. Waiting for globe initialization if necessary; live sampling starts automatically.','info');void activateWhenStyleReady();return}
+ if(!enabled){enabled=true;activationGeneration++;activationQueued=true;diagnosticState.sourceStatus='waiting';updateButton();showStatus('Aircraft is ON. Waiting for globe initialization if necessary; live sampling starts automatically.','info');void activateWhenStyleReady();return}
  enabled=false;activationGeneration++;activationQueued=false;updateButton();if(refreshTimer)clearInterval(refreshTimer);refreshTimer=0;clearTimeout(moveTimer);aborter?.abort();
  for(const c of requestControllers)try{c.abort()}catch(_){}requestControllers.clear();setLayerVisibility(false);clearTrackedUavs();clearTrackedAircraft();removeDrone3DLayer();diagnosticState.sourceStatus='idle';diagnosticState.hasSuccessfulSource=false;writeSummary();
- window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('drones',false);showStatus('Drone Awareness is off. Session positions and observed trails were cleared; no background regional requests are running.');
+ window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('drones',false);showStatus('Aircraft is off. Session positions and observed trails were cleared; no background regional requests are running.');
 }
 function createPane(panel){
  if(!panel)return null;let existing=panel.querySelector('[data-bpv-pane="drones"]');if(existing)return existing;
@@ -838,10 +838,10 @@ function createPane(panel){
  for(const filter of AIRCRAFT_FILTER_GROUPS){const control=element('button','bp-aircraft-filter active',filter.label);control.type='button';control.dataset.aircraftFilter=filter.key;control.setAttribute('aria-pressed','true');control.addEventListener('click',()=>setAircraftFilter(filter.key));filterRow.append(control);aircraftFilterButtons.set(filter.key,control)}
  filterPanel.append(filterRow);p.append(filterPanel);updateAircraftFilterControls();
  const summary=element('div','bp-drone-summary');summary.id='bp-drone-summary-v3';p.append(summary);summaryNode=summary;
- const status=element('div','bp-drone-status','Drone Awareness is off.');status.id='bp-drone-status-v3';status.dataset.kind='info';p.append(status);statusNode=status;
+ const status=element('div','bp-drone-status','Aircraft is off.');status.id='bp-drone-status-v3';status.dataset.kind='info';p.append(status);statusNode=status;
  const regions=element('div','bp-drone-cells');regions.id='bp-drone-regional-status-v3';p.append(regions);regionalStatusNode=regions;
  const actions=element('div','bp-drone-actions'),refreshBtn=element('button','bpv-wide-action','REFRESH REGIONAL AIRCRAFT + UAV SAMPLE');refreshBtn.type='button';refreshBtn.addEventListener('click',()=>void refresh(true));actions.append(refreshBtn);refreshButton=refreshBtn;
- const off=element('button','bpv-wide-action','TURN DRONE AWARENESS OFF');off.type='button';off.addEventListener('click',()=>{if(enabled)void toggle()});actions.append(off);p.append(actions);
+ const off=element('button','bpv-wide-action','TURN AIRCRAFT OFF');off.type='button';off.addEventListener('click',()=>{if(enabled)void toggle()});actions.append(off);p.append(actions);
  const meta=element('div','bp-drone-feed-note','Live positions refresh every 3 minutes. Requests are grouped in batches of three and successful responses are cached briefly.');meta.id='bp-drone-feed-meta';p.append(meta);
  trailNoteNode=element('div','bp-drone-feed-note','Aircraft and UAV paths use observed positions sampled every 3 minutes, with gaps split instead of guessed. 3D tracks use source geometric altitude / terrain-referenced AGL first, then the source-reported pressure altitude with its barometric datum preserved; records with no usable altitude retain a 2D route. History is bounded to '+MAX_TRAIL_POINTS+' observations per aircraft.');p.append(trailNoteNode);
  const attribution=element('div','bp-drone-footnote');attribution.append(document.createTextNode('Source: '));const link=element('a','bp-drone-source','ADSB.lol public API documentation');link.href='https://api.adsb.lol/docs/open-data/api/';link.target='_blank';link.rel='noopener noreferrer';attribution.append(link);attribution.append(document.createTextNode(' · ODbL 1.0 · Layer400 RID access requires an approved rid.live API credential'));p.append(attribution);panel.append(p);writeSummary();return p;
