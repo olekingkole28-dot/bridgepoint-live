@@ -843,6 +843,9 @@ async function initMap(){
    void import('./world-v2300-underground-xray.js?v=5965-landmarks-and-effects')
     .then(m=>{window.__BP_UNDERGROUND_XRAY_V5935__=m.initUndergroundXray(world)})
     .catch(e=>console.warn('BridgePoint Underground X-ray unavailable',e));
+  void import('./world-v2300-seismic-layer-v1.js?v=1-usgs-comcat-m25-week')
+   .then(m=>{window.__BP_USGS_SEISMIC_LAYER_V1__=m.initUSGSSeismicLayer(world)})
+   .catch(e=>console.warn('BridgePoint USGS seismic layer unavailable',e));
   void import('./world-v2300-infrastructure-volume-v5962.js?v=5970-globe-model-matrices')
    .then(m=>{window.__BP_INFRASTRUCTURE_VOLUME_V5962__=m.initInfrastructureVolume(world)})
    .catch(e=>console.warn('BridgePoint power grid and FCC tower volume unavailable',e));

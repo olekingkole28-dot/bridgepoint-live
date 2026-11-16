@@ -1,0 +1,35 @@
+name: Verify BridgePoint USGS Seismic Layer V1
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/verify-usgs-seismic-layer-v1.yml'
+      - '.github/workflows/publish-usgs-seismic-layer-v1.yml'
+      - 'release-v2300/world-v2300-seismic-layer-v1.js'
+      - 'rebuild-v5000/app.js'
+      - 'rebuild-v5000/landing.js'
+      - 'tests/seismic-layer-v1.test.mjs'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test source normalization and opt-in behavior
+        run: node tests/seismic-layer-v1.test.mjs
+      - name: Check JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module --check < release-v2300/world-v2300-seismic-layer-v1.js
+          node --check rebuild-v5000/app.js
+          node --check rebuild-v5000/landing.js
+          echo "USGS_SEISMIC_LAYER_SYNTAX_PASS"
