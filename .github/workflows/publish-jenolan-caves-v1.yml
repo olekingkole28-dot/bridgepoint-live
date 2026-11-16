@@ -201,7 +201,8 @@ jobs:
               if "bridgepoint-jenolan-caves-v1.js?v=1-jenolan-large-system" not in data:
                   pos=data.index(anchor)+len(anchor)
                   line_start=data.rfind("\n",0,pos)+1
-                  indent=data[line_start:pos]
+                  line_prefix=data[line_start:pos]
+                  indent=re.match(r"[ \t]*",line_prefix).group(0)
                   insertion="\n"+indent+attach.replace("\n","\n"+indent)
                   data=data[:pos]+insertion+data[pos:]
               path.write_text(data,encoding="utf-8")
