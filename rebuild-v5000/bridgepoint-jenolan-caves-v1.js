@@ -23,7 +23,7 @@ export const JENOLAN_CAVES_SITE_V1={
  coordinates:[150.021444,-33.820556],
  country:'Australia',
  sourceUrl:'https://doi.org/10.4225/08/55911F74299DC',
- paperUrl:'https://doi.org/10.1007/s10021-014-9771-3',
+ paperUrl:'https://doi.org/10.4311/2012EX0287',
  creator:'Robert Zlot and Michael Bosse · CSIRO',
  license:'CC BY-SA 3.0',
  caveTraverseKm:17.1,
