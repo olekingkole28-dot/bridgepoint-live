@@ -741,6 +741,10 @@ async function initMap(){
   if(!world?.map)throw new Error('Shared BridgePoint world renderer unavailable');
   map=world.map;
   window.__BP_LANDING_WORLD__=world;
+  // FAA-listed towers, antennas and cranes are loaded independently from the core globe.
+  void import('./bridgepoint-faa-obstruction-towers-v1.js?v=2-aircraft-filters-faa-restored')
+   .then(m=>{window.__BP_FAA_OBSTRUCTIONS_V1__=m.initFAAObstructionTowerRenderer(world)})
+   .catch(e=>console.warn('BridgePoint FAA obstruction/tower renderer unavailable',e));
   // The public globe starts clean. Data-heavy feeds and GPU engines are lazy-loaded by their dock commands.
   window.__BP_LANDING_ENABLE_OPPORTUNITIES__=async()=>setLandingOpportunitiesEnabled(world,true);
   window.__BP_LANDING_TOGGLE_OPPORTUNITIES__=async()=>setLandingOpportunitiesEnabled(world,!landingOpportunityEnabled);
