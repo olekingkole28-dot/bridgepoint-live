@@ -1372,6 +1372,19 @@ function bridgeLineCoveredByPolygons(line,polygons){
       for(const line of lines)count+=Array.isArray(line)?line.length:0;
       return count;
     };
+    const sidewalkScreenDistance=feature=>{
+      const geometry=feature?.geometry;if(!geometry?.coordinates)return Infinity;
+      const lines=geometry.type==='LineString'?[geometry.coordinates]:geometry.type==='MultiLineString'?geometry.coordinates:[];
+      const canvas=map.getCanvas(),cx=(canvas.clientWidth||canvas.width)*.5,cy=(canvas.clientHeight||canvas.height)*.5;
+      let best=Infinity;
+      for(const line of lines)for(let i=1;i<line.length;i++){
+        let a,b;try{a=map.project(line[i-1]);b=map.project(line[i])}catch(_){continue}
+        const dx=b.x-a.x,dy=b.y-a.y,ll=dx*dx+dy*dy;
+        const t=ll>0?Math.max(0,Math.min(1,((cx-a.x)*dx+(cy-a.y)*dy)/ll)):0;
+        best=Math.min(best,Math.hypot(a.x+dx*t-cx,a.y+dy*t-cy));
+      }
+      return best;
+    };
     const isSidewalkTileFeature=feature=>{
       const p=feature?.properties||{},tags=p?.properties?.tags||p?.tags||p?.source_tags||{};
       const c=String(p.class||'').toLowerCase(),sub=String(p.subclass||p.subtype||'').toLowerCase(),key=String(p.layer_key||'').toUpperCase();

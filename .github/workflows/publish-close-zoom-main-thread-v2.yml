@@ -38,7 +38,7 @@ jobs:
       - name: Download the last deployed full-site Pages baseline
         uses: actions/download-artifact@v4
         with:
-          name: bridgepoint-close-zoom-main-thread-v2-1
+          name: bridgepoint-close-zoom-guard-v1-1
           run-id: 43880793452
           repository: ${{ github.repository }}
           github-token: ${{ secrets.GITHUB_TOKEN }}

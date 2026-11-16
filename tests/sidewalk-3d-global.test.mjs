@@ -134,6 +134,8 @@ assert.ok(mapSource.includes("if(kind==='walkway'&&!isSidewalkTileFeature(source
   'ordinary transportation road features must be filtered before sidewalk viewport clipping');
 assert.ok(!mapSource.includes("map.querySourceFeatures('ofm',{sourceLayer:'transportation'})"),
   'close zoom must never scan every loaded OpenFreeMap transportation tile on the main thread');
+assert.ok(mapSource.includes('const sidewalkScreenDistance=feature=>'),
+  'the bounded feature sort must keep its viewport-distance helper');
 assert.ok(mapSource.includes('MAX_SIDEWALK_RENDER_FEATURES=MOBILE?36:72')&&mapSource.includes('MAX_ROAD_RENDER_FEATURES=MOBILE?48:96'),
   'visible sidewalk and road candidates must be capped before clipping and projection');
 assert.ok(mapSource.includes('MAX_SIDEWALK_RENDER_VERTICES=MOBILE?1800:4200')&&mapSource.includes('MAX_ROAD_RENDER_VERTICES=MOBILE?2400:5600'),
