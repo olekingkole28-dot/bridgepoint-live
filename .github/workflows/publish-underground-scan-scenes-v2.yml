@@ -215,13 +215,13 @@ jobs:
                   raise SystemExit(f"{rel}: expected exactly one globe-entry script URL, found {len(matches)}")
               old=matches[0].group(1)
               if "underground-scenes=paris-v3" not in old:
-                  data=data.replace(old,old+"&underground-scenes=v2",1)
+                  data=data.replace(old,old+"&underground-scenes=paris-v3",1)
               path.write_text(data,encoding="utf-8")
           for rel in ("index.html","app/index.html"):
               path=site/rel
               data=path.read_text(encoding="utf-8")
               old='/bridgepoint-view-v5917.js?v=6215-satellite-persistent-render-guard&emrf=1'
-              new=old+'&underground-scenes=v2'
+              new=old+'&underground-scenes=paris-v3'
               if old in data:data=data.replace(old,new,1)
               if "bridgepoint-view-v5917.js" not in data or "underground-scenes=v2" not in data:
                   raise SystemExit(f"{rel}: view script cache key did not update")
@@ -250,7 +250,7 @@ jobs:
           node --check "$SITE/bridgepoint-view-v5917.js"
           node --input-type=module --check < "$SITE/bridgepoint-underground-scan-scenes-v2.js"
           cmp -s "$SITE/bridgepoint-underground-scan-scenes-v2.js" "$SITE/app/bridgepoint-underground-scan-scenes-v2.js"
-          grep -Fq 'bp-underground-scan-scenes-toggle-v2' "$SITE/bridgepoint-view-v5917.js"
+          grep -Fq 'bp-paris-catacombs-toggle-v3' "$SITE/bridgepoint-view-v5917.js"
           grep -Fq 'initUndergroundScanScenesRenderer(world)' "$SITE/landing.js"
           grep -Fq 'initUndergroundScanScenesRenderer(world)' "$SITE/app.js"
           echo "BRIDGEPOINT_PARIS_CATACOMBS_NATIVE_3D_PASS"
@@ -281,9 +281,9 @@ jobs:
           for item in \
             "root.html:$O/?underground=$Q" \
             "app.html:$O/app/?underground=$Q" \
-            "view.js:$O/bridgepoint-view-v5917.js?v=6215-satellite-persistent-render-guard&emrf=1&underground-scenes=v2" \
-            "landing.js:$O/landing.js?v=6247-universal-fresh-entry&underground-scenes=v2" \
-            "app.js:$O/app.js?v=6247-universal-fresh-entry&underground-scenes=v2" \
+            "view.js:$O/bridgepoint-view-v5917.js?v=6215-satellite-persistent-render-guard&emrf=1&underground-scenes=paris-v3" \
+            "landing.js:$O/landing.js?v=6247-universal-fresh-entry&underground-scenes=paris-v3" \
+            "app.js:$O/app.js?v=6247-universal-fresh-entry&underground-scenes=paris-v3" \
             "module.js:$O/bridgepoint-underground-scan-scenes-v2.js?verify=$Q" \
             "app-module.js:$O/app/bridgepoint-underground-scan-scenes-v2.js?verify=$Q" \
             "catalog.json:$O/assets/underground-scan-scenes/catalog.json?verify=$Q" \
@@ -291,9 +291,9 @@ jobs:
             name="${item%%:*}"; url="${item#*:}"
             curl --retry 8 --retry-all-errors --retry-delay 2 --max-time 45 -fsSL -H 'Cache-Control: no-cache' "$url" -o "$D/$name"
           done
-          grep -Fq 'bp-underground-scan-scenes-toggle-v2' "$D/view.js"
-          grep -Fq 'bridgepoint-underground-scan-scenes-v2.js?v=2-local-glb-gltf' "$D/landing.js"
-          grep -Fq 'bridgepoint-underground-scan-scenes-v2.js?v=2-local-glb-gltf' "$D/app.js"
+          grep -Fq 'bp-paris-catacombs-toggle-v3' "$D/view.js"
+          grep -Fq 'bridgepoint-underground-scan-scenes-v2.js?v=3-paris-catacombs-viewer' "$D/landing.js"
+          grep -Fq 'bridgepoint-underground-scan-scenes-v2.js?v=3-paris-catacombs-viewer' "$D/app.js"
           grep -Fq "type:'custom',renderingMode:'3d'" "$D/module.js"
           ! grep -Fq '<iframe' "$D/module.js"
           cmp -s "$D/module.js" "$D/app-module.js"
