@@ -193,21 +193,21 @@ jobs:
           curl --retry 8 --retry-all-errors --retry-delay 3 -fsSL -H 'Cache-Control: no-cache' "$O/app/world-v2300-clouds.js?v=6202-global-satellite-cloud-banks&$q" -o "$RUNNER_TEMP/bp-live-check/app-clouds.js"
           curl --retry 8 --retry-all-errors --retry-delay 3 -fsSL -H 'Cache-Control: no-cache' "$O/bridgepoint-saturn-system-v6282.js?$q" -o "$RUNNER_TEMP/bp-live-check/saturn.js"
           curl --retry 8 --retry-all-errors --retry-delay 3 -fsSL -H 'Cache-Control: no-cache' "$O/bridgepoint-mars-system-v6291.js?$q" -o "$RUNNER_TEMP/bp-live-check/mars.js"
-           curl --retry 8 --retry-all-errors --retry-delay 3 -fsSL -H 'Cache-Control: no-cache' "$O/assets/moon/v1/manifest.json?$q" -o "$RUNNER_TEMP/bp-live-check/moon-manifest.json"
-           curl --retry 8 --retry-all-errors --retry-delay 3 -fsSL -H 'Cache-Control: no-cache' "$O/assets/moon/v1/moon-global-height-4ppd-u16.png?$q" -o "$RUNNER_TEMP/bp-live-check/moon-global.png"
-           curl --retry 8 --retry-all-errors --retry-delay 3 -fsSL -H 'Cache-Control: no-cache' "$O/assets/moon/v1/moon-apollo15-4deg-512ppd-height-u16.png?$q" -o "$RUNNER_TEMP/bp-live-check/moon-apollo.png"
-           curl --retry 8 --retry-all-errors --retry-delay 3 -fsSL -H 'Cache-Control: no-cache' "$O/assets/moon/v1/moon-lroc-color-4k.webp?$q" -o "$RUNNER_TEMP/bp-live-check/moon-color.webp"
-           python3 - <<'PY'
-           import json, os
-           from pathlib import Path
-           p=Path(os.environ["RUNNER_TEMP"])/"bp-live-check"
-           m=json.loads((p/"moon-manifest.json").read_text())
-           assert m["globalHeight"]["file"]=="moon-global-height-4ppd-u16.png"
-           assert m["globalHeight"]["samplesPerDegree"]==4
-           for f in ("moon-global.png","moon-apollo.png","moon-color.webp"):
-               assert (p/f).is_file() and (p/f).stat().st_size>0, f
-           print("LIVE_MOON_ASSETS_4PPD_LROC_APOLLO_PASS")
-           PY
+          curl --retry 8 --retry-all-errors --retry-delay 3 -fsSL -H 'Cache-Control: no-cache' "$O/assets/moon/v1/manifest.json?$q" -o "$RUNNER_TEMP/bp-live-check/moon-manifest.json"
+          curl --retry 8 --retry-all-errors --retry-delay 3 -fsSL -H 'Cache-Control: no-cache' "$O/assets/moon/v1/moon-global-height-4ppd-u16.png?$q" -o "$RUNNER_TEMP/bp-live-check/moon-global.png"
+          curl --retry 8 --retry-all-errors --retry-delay 3 -fsSL -H 'Cache-Control: no-cache' "$O/assets/moon/v1/moon-apollo15-4deg-512ppd-height-u16.png?$q" -o "$RUNNER_TEMP/bp-live-check/moon-apollo.png"
+          curl --retry 8 --retry-all-errors --retry-delay 3 -fsSL -H 'Cache-Control: no-cache' "$O/assets/moon/v1/moon-lroc-color-4k.webp?$q" -o "$RUNNER_TEMP/bp-live-check/moon-color.webp"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=Path(os.environ["RUNNER_TEMP"])/"bp-live-check"
+          m=json.loads((p/"moon-manifest.json").read_text())
+          assert m["globalHeight"]["file"]=="moon-global-height-4ppd-u16.png"
+          assert m["globalHeight"]["samplesPerDegree"]==4
+          for f in ("moon-global.png","moon-apollo.png","moon-color.webp"):
+              assert (p/f).is_file() and (p/f).stat().st_size>0, f
+          print("LIVE_MOON_ASSETS_4PPD_LROC_APOLLO_PASS")
+          PY
 
           grep -Fq 'bridgepoint-app-space-explorer-v1.js?v=v6301-moon-earth-opaque' "$RUNNER_TEMP/bp-live-check/root.html"
           grep -Fq 'bridgepoint-app-space-explorer-v1.js?v=v6301-moon-earth-opaque' "$RUNNER_TEMP/bp-live-check/app.html"
