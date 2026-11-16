@@ -1,0 +1,315 @@
+name: Publish BridgePoint Underground Scan Meshes v2
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-underground-scan-scenes-v2.yml'
+      - 'rebuild-v5000/bridgepoint-underground-scan-scenes-v2.js'
+      - 'tools/underground/fetch_sketchfab_scans.py'
+      - 'tests/underground-scan-scenes-v2.test.mjs'
+      - 'docs/bridgepoint-underground-scan-scenes-v2.md'
+  workflow_run:
+    workflows: ["Deploy BridgePoint Intelligence V5000 Rebuild"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: ${{ (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success') && 'bridgepoint-v5000-production-authority' || format('bridgepoint-v5000-noop-{0}', github.run_id) }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Validate the in-scene renderer and import tool
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check rebuild-v5000/bridgepoint-underground-scan-scenes-v2.js
+          python3 -m py_compile tools/underground/fetch_sketchfab_scans.py
+          node tests/underground-scan-scenes-v2.test.mjs
+
+      - name: Install glTF scene packer
+        run: npm install --global gltf-pipeline@4.3.1
+
+      - name: Select the exact deployed Pages artifact to extend
+        id: baseline
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          UPSTREAM_RUN_ID: ${{ github.event.workflow_run.id }}
+          UPSTREAM_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "workflow_run" ]; then
+            python3 - <<'PY'
+          import json, os, urllib.request
+          repo=os.environ["REPOSITORY"]
+          run_id=os.environ["UPSTREAM_RUN_ID"]
+          attempt=os.environ.get("UPSTREAM_RUN_ATTEMPT") or "1"
+          req=urllib.request.Request(
+              f"https://api.github.com/repos/{repo}/actions/runs/{run_id}/artifacts?per_page=100",
+              headers={"Accept":"application/vnd.github+json",
+                       "Authorization":"Bearer "+os.environ["GH_TOKEN"],
+                       "X-GitHub-Api-Version":"2022-11-28"})
+          with urllib.request.urlopen(req,timeout=30) as response:
+              artifacts=json.load(response).get("artifacts",[])
+          name=f"bridgepoint-v5000-{attempt}"
+          match=next((a for a in artifacts if a.get("name")==name and not a.get("expired")),None)
+          if not match:
+              raise SystemExit("Successful V5000 run did not retain its expected Pages artifact: "+name)
+          with open(os.environ["GITHUB_OUTPUT"],"a") as out:
+              out.write(f"run_id={run_id}\nartifact_name={name}\n")
+          print("USING_SUCCESSFUL_V5000_PAGES_ARTIFACT",run_id,name)
+          PY
+          else
+            {
+              echo "run_id=43896950697"
+              echo "artifact_name=github-pages-usgs-seismic-layer-v1"
+            } >> "$GITHUB_OUTPUT"
+            echo "Using the latest successfully uploaded production Pages artifact while the full-site publisher is repaired."
+          fi
+
+      - name: Download the exact deployed Pages baseline
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ steps.baseline.outputs.artifact_name }}
+          run-id: ${{ steps.baseline.outputs.run_id }}
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/bp-underground-baseline
+
+      - name: Download only verified and downloadable CC BY cave scans
+        env:
+          SKETCHFAB_API_TOKEN: ${{ secrets.SKETCHFAB_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "\${SKETCHFAB_API_TOKEN:-}" ]; then
+            echo "::error::Add the repository Actions secret SKETCHFAB_API_TOKEN before publishing the in-scene 3D scan assets. Do not place the token in source code."
+            exit 1
+          fi
+          python3 tools/underground/fetch_sketchfab_scans.py --output assets/underground-scan-scenes
+          test -s assets/underground-scan-scenes/catalog.json
+          python3 - <<'PY'
+          import gzip, json
+          from pathlib import Path
+          root=Path("assets/underground-scan-scenes")
+          catalog=json.loads((root/"catalog.json").read_text(encoding="utf-8"))
+          assert len(catalog["models"])==9, f"Expected 9 individually reviewed models, got {len(catalog['models'])}"
+          for model in catalog["models"]:
+              path=root/(model["uid"]+".glb.gz")
+              raw=gzip.decompress(path.read_bytes())
+              assert raw[:4]==b"glTF" and len(raw)>32, f"Invalid GLB asset: {path}"
+              assert model["license"] in {"by","cc-by","cc-by-4.0","cc-attribution"}
+              assert model["creator"] and model["sourceUrl"]
+          print("BRIDGEPOINT_UNDERGROUND_CC_BY_GLB_ASSETS_PASS",len(catalog["models"]))
+          PY
+
+      - name: Restore deployed site and fingerprint its complete contents
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCHIVE="$(find "$RUNNER_TEMP/bp-underground-baseline" -type f -name artifact.tar -print -quit)"
+          test -n "$ARCHIVE"
+          SITE="$RUNNER_TEMP/bp-underground-site"
+          mkdir -p "$SITE"
+          tar -xf "$ARCHIVE" -C "$SITE"
+          for file in index.html app/index.html landing.js app.js bridgepoint-view-v5917.js vendor/three.module.js vendor/GLTFLoader.bundle.js; do
+            test -s "$SITE/$file" || { echo "Deployed baseline missing $file"; exit 1; }
+          done
+          python3 - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          site=Path(os.environ["RUNNER_TEMP"])/"bp-underground-site"
+          before={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                  for p in site.rglob("*") if p.is_file()}
+          (Path(os.environ["RUNNER_TEMP"])/"bp-underground-before.json").write_text(json.dumps(before,sort_keys=True))
+          print("UNDERGROUND_BASELINE_FINGERPRINT_PASS",len(before),"files")
+          PY
+
+      - name: Overlay only the underground scan renderer, models and card button
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/bp-underground-site"
+          mkdir -p "$SITE/app" "$SITE/assets/underground-scan-scenes"
+          cp rebuild-v5000/bridgepoint-underground-scan-scenes-v2.js "$SITE/bridgepoint-underground-scan-scenes-v2.js"
+          cp rebuild-v5000/bridgepoint-underground-scan-scenes-v2.js "$SITE/app/bridgepoint-underground-scan-scenes-v2.js"
+          cp -a assets/underground-scan-scenes/. "$SITE/assets/underground-scan-scenes/"
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib, json, os, re
+          site=Path(os.environ["RUNNER_TEMP"])/"bp-underground-site"
+          old_module="./bridgepoint-underground-scan-sites-v1.js?v=1-curated-sketchfab-caves"
+          new_module="./bridgepoint-underground-scan-scenes-v2.js?v=2-local-glb-gltf"
+          attach="""void import('./bridgepoint-underground-scan-scenes-v2.js?v=2-local-glb-gltf')
+             .then(m=>{window.__BP_UNDERGROUND_SCAN_SCENES_V2__=m.initUndergroundScanScenesRenderer(world)})
+             .catch(e=>console.warn('BridgePoint in-scene 3D underground scans unavailable',e));"""
+          for rel in ("landing.js","app.js"):
+              path=site/rel
+              data=path.read_text(encoding="utf-8")
+              if data.count(old_module)==1:
+                  start=data.index(old_module)
+                  begin=data.rfind("\n",0,start)+1
+                  end=data.index(".catch(e=>console.warn('BridgePoint cave and underground scan layer unavailable',e));",start)
+                  end=data.index("\n",end)+1
+                  indent=data[begin:start]
+                  replacement=indent+attach.replace("\n","\n"+indent)+"\n"
+                  data=data[:begin]+replacement+data[end:]
+              elif new_module not in data:
+                  anchor=".catch(e=>console.warn('BridgePoint global subsurface wells renderer unavailable',e));"
+                  if data.count(anchor)!=1:
+                      raise SystemExit(f"{rel}: could not locate unique existing wells import to attach the new renderer")
+                  pos=data.index(anchor)+len(anchor)
+                  data=data[:pos]+"\n"+attach+data[pos:]
+              path.write_text(data,encoding="utf-8")
+              if new_module not in data or "initUndergroundScanScenesRenderer(world)" not in data:
+                  raise SystemExit(f"{rel}: new in-scene renderer import missing")
+
+          view_path=site/"bridgepoint-view-v5917.js"
+          view=view_path.read_text(encoding="utf-8")
+          dock_anchor=' \'<div id="bpv-dock-actions" class="bpv-dock-actions bpv-command-groups">\'+'
+          button_id="bp-underground-scan-scenes-toggle-v2"
+          if button_id not in view:
+              if view.count(dock_anchor)!=1:
+                  raise SystemExit("Could not find the unique bottom-card bpv-dock-actions insertion point")
+              section="""  '<section id="bp-underground-scan-scenes-control-v2" class="bpv-command-group" data-bpv-command-section="underground-scan-scenes" aria-label="In-scene caves and underground scans">'+
+               '<div class="bpv-command-heading"><span class="bpv-command-heading-icon" aria-hidden="true">🕳️</span><span><b>CAVES & UNDERGROUND SITES</b><small>Real scan meshes rendered inside the BridgePoint globe</small></span></div>'+
+               '<div class="bpv-command-grid"><button id="bp-underground-scan-scenes-toggle-v2" type="button" class="bpv-command-btn" aria-pressed="false" title="Toggle in-scene cave and underground scan meshes"><span class="bpv-command-icon" aria-hidden="true">🪨</span><span class="bpv-command-label">Caves & Sites</span></button></div>'+
+               '<div id="bp-underground-scan-scenes-count-v2" class="bpv-data-note"></div>'+
+               '<div id="bp-underground-scan-scenes-status-v2" class="bpv-data-note">Layer off · existing BridgePoint layers remain unchanged.</div>'+
+               '<style id="bp-underground-scan-scenes-style-v2">#bp-underground-scan-scenes-control-v2 .bpv-data-note{font:600 10px/1.45 system-ui,sans-serif;color:#9bb7c6;margin:5px 2px;overflow-wrap:anywhere}#bp-underground-scan-scenes-toggle-v2.is-active{border-color:rgba(113,225,190,.78);background:rgba(22,86,72,.56)}</style>'+
+              '</section>'+
+          """
+              view=view.replace(dock_anchor,dock_anchor+"\n"+section)
+              view_path.write_text(view,encoding="utf-8")
+          if button_id not in view:
+              raise SystemExit("Static Caves & Sites button was not inserted into the bottom card")
+
+          for rel,needle in (("index.html","landing.js?v="),("app/index.html","app.js?v=")):
+              path=site/rel
+              data=path.read_text(encoding="utf-8")
+              matches=list(re.finditer(r'src="([^"]*'+re.escape(needle)+r'[^"]*)"',data))
+              if len(matches)!=1:
+                  raise SystemExit(f"{rel}: expected exactly one globe-entry script URL, found {len(matches)}")
+              old=matches[0].group(1)
+              if "underground-scenes=v2" not in old:
+                  data=data.replace(old,old+"&underground-scenes=v2",1)
+              path.write_text(data,encoding="utf-8")
+          for rel in ("index.html","app/index.html"):
+              path=site/rel
+              data=path.read_text(encoding="utf-8")
+              old='/bridgepoint-view-v5917.js?v=6215-satellite-persistent-render-guard&emrf=1'
+              new=old+'&underground-scenes=v2'
+              if old in data:data=data.replace(old,new,1)
+              if "bridgepoint-view-v5917.js" not in data or "underground-scenes=v2" not in data:
+                  raise SystemExit(f"{rel}: view script cache key did not update")
+              path.write_text(data,encoding="utf-8")
+
+          before=json.loads((Path(os.environ["RUNNER_TEMP"])/"bp-underground-before.json").read_text())
+          after={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                 for p in site.rglob("*") if p.is_file()}
+          removed=set(before)-set(after)
+          added=set(after)-set(before)
+          changed={p for p in before if p in after and before[p]!=after[p]}
+          expected_changed={"index.html","app/index.html","landing.js","app.js","bridgepoint-view-v5917.js"}
+          expected_added={"bridgepoint-underground-scan-scenes-v2.js","app/bridgepoint-underground-scan-scenes-v2.js"}
+          expected_added|={"assets/underground-scan-scenes/catalog.json"}
+          expected_added|={"assets/underground-scan-scenes/"+m["uid"]+".glb.gz" for m in json.loads((site/"assets/underground-scan-scenes/catalog.json").read_text())["models"]}
+          if removed or changed!=expected_changed or added!=expected_added:
+              raise SystemExit("UNDERGROUND_ONLY_PUBLISH_SCOPE_FAILURE "+json.dumps({
+                "removed":sorted(removed),"changed":sorted(changed),"expected_changed":sorted(expected_changed),
+                "added":sorted(added),"expected_added":sorted(expected_added)}))
+          for rel in ("bridgepoint-underground-scan-scenes-v2.js","app/bridgepoint-underground-scan-scenes-v2.js"):
+              assert (site/rel).read_bytes()==(site/"bridgepoint-underground-scan-scenes-v2.js").read_bytes()
+          print("UNDERGROUND_ONLY_OVERLAY_SCOPE_PASS",len(changed),"existing files changed;",len(added),"new files added; no production files removed")
+          PY
+          node --check "$SITE/landing.js"
+          node --check "$SITE/app.js"
+          node --check "$SITE/bridgepoint-view-v5917.js"
+          node --input-type=module --check < "$SITE/bridgepoint-underground-scan-scenes-v2.js"
+          cmp -s "$SITE/bridgepoint-underground-scan-scenes-v2.js" "$SITE/app/bridgepoint-underground-scan-scenes-v2.js"
+          grep -Fq 'bp-underground-scan-scenes-toggle-v2' "$SITE/bridgepoint-view-v5917.js"
+          grep -Fq 'initUndergroundScanScenesRenderer(world)' "$SITE/landing.js"
+          grep -Fq 'initUndergroundScanScenesRenderer(world)' "$SITE/app.js"
+          echo "BRIDGEPOINT_UNDERGROUND_SCENE_MESHES_AND_STATIC_CARD_PASS"
+
+      - uses: actions/configure-pages@v5
+
+      - name: Upload the preserved site with the in-scene underground meshes
+        uses: actions/upload-pages-artifact@v5
+        with:
+          name: github-pages-underground-scan-scenes-v2
+          path: ${{ runner.temp }}/bp-underground-site
+          include-hidden-files: true
+
+      - name: Publish Caves & Underground Sites v2
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages-underground-scan-scenes-v2
+
+      - name: Verify the card button, in-scene renderer and GLB assets on root and app routes
+        shell: bash
+        run: |
+          set -euo pipefail
+          O='https://bridgepointintelligence.online'
+          Q="$GITHUB_SHA-underground-scenes-v2"
+          D="$RUNNER_TEMP/underground-live"
+          mkdir -p "$D"
+          for item in \
+            "root.html:$O/?underground=$Q" \
+            "app.html:$O/app/?underground=$Q" \
+            "view.js:$O/bridgepoint-view-v5917.js?v=6215-satellite-persistent-render-guard&emrf=1&underground-scenes=v2" \
+            "landing.js:$O/landing.js?v=6247-universal-fresh-entry&underground-scenes=v2" \
+            "app.js:$O/app.js?v=6247-universal-fresh-entry&underground-scenes=v2" \
+            "module.js:$O/bridgepoint-underground-scan-scenes-v2.js?verify=$Q" \
+            "app-module.js:$O/app/bridgepoint-underground-scan-scenes-v2.js?verify=$Q" \
+            "catalog.json:$O/assets/underground-scan-scenes/catalog.json?verify=$Q" \
+            "scan.glb.gz:$O/assets/underground-scan-scenes/39e7050d272f4aac8493497621b86f39.glb.gz?verify=$Q"; do
+            name="\${item%%:*}"; url="\${item#*:}"
+            curl --retry 8 --retry-all-errors --retry-delay 2 --max-time 45 -fsSL -H 'Cache-Control: no-cache' "$url" -o "$D/$name"
+          done
+          grep -Fq 'bp-underground-scan-scenes-toggle-v2' "$D/view.js"
+          grep -Fq 'bridgepoint-underground-scan-scenes-v2.js?v=2-local-glb-gltf' "$D/landing.js"
+          grep -Fq 'bridgepoint-underground-scan-scenes-v2.js?v=2-local-glb-gltf' "$D/app.js"
+          grep -Fq "type:'custom',renderingMode:'3d'" "$D/module.js"
+          ! grep -Fq '<iframe' "$D/module.js"
+          cmp -s "$D/module.js" "$D/app-module.js"
+          python3 - <<'PY'
+          import gzip,json,os
+          from pathlib import Path
+          root=Path(os.environ["RUNNER_TEMP"])/"underground-live"
+          rows=json.loads((root/"catalog.json").read_text(encoding="utf-8"))["models"]
+          assert len(rows)==9, len(rows)
+          assert (root/"scan.glb.gz").read_bytes()[:2]==b"\x1f\x8b"
+          assert gzip.decompress((root/"scan.glb.gz").read_bytes())[:4]==b"glTF"
+          print("LIVE_UNDERGROUND_SCAN_ASSET_PASS",len(rows),"models")
+          PY
+          echo "BRIDGEPOINT_UNDERGROUND_IN_SCENE_PUBLISH_PASS"
