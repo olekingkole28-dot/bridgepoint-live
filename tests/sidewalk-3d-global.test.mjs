@@ -130,6 +130,10 @@ assert.ok(mapSource.includes("map.queryRenderedFeatures({layers:['gta-global-sid
   'the 3D builder must consume the same visible 2D sidewalk/footway features already rendered in the viewport');
 assert.ok(mapSource.includes('renderedApproachFeatures:sidewalkRenderedRaw.length'),
   'live sidewalk diagnostics must report the rendered 2D fallback feature count separately');
+assert.ok(mapSource.includes("if(kind==='walkway'&&!isSidewalkTileFeature(sourceFeature))continue;"),
+  'ordinary transportation road features must be filtered before sidewalk viewport clipping');
+assert.ok(mapSource.includes("const sidewalkTileFeatures=[...sidewalkRenderedFeatures,...clipBatch(sidewalkSourceRaw,'walkway')]"),
+  'already-clipped visible sidewalk features must be reused instead of projected a second time');
 assert.ok(mapSource.includes('function refreshSidewalk3DFromTiles(extraFeatures=[],force=false)'),
   'sidewalk generation must have its own lightweight map-tile refresh path');
 assert.ok(mapSource.includes("map.on('style.load',ensureSidewalk3DLayerOrder)"),
@@ -168,6 +172,29 @@ assert.ok(!mapSource.includes("map.getSource('bpSidewalk3D')?.setData(EMPTY)"),
 const mobile = buildSidewalk3DFeatures({features:[sidewalk],roadFeatures:[road],zoom:17,mobile:true,elevationAt:()=>10});
 assert.ok(mobile.features.length <= 84 * 6 * 3, 'mobile viewport geometry must stay inside the expanded but bounded feature budget');
 assert.ok(partsFor(mobile, 'grass_blade').length >= 3, 'mobile grass rendering must keep individual raised blades');
+
+const closeEndLon=startLon+500/lonScale;
+const longRoad={...road,geometry:{type:'LineString',coordinates:[[startLon,roadLat],[closeEndLon,roadLat]]}};
+const longSidewalk={...sidewalk,geometry:{type:'LineString',coordinates:[[startLon,walkLat],[closeEndLon,walkLat]]}};
+const closeDesktop=buildSidewalk3DFeatures({features:[longSidewalk],roadFeatures:[longRoad],zoom:19,mobile:false});
+assert.equal(closeDesktop.stats.zoomBand,'CLOSE','very close zoom must select the close-zoom geometry budget');
+assert.ok(closeDesktop.stats.paths<=32&&closeDesktop.stats.individualSlabs<=160&&
+  closeDesktop.stats.curbAndGrassSegments<=112&&closeDesktop.stats.grassBlades<=300&&
+  closeDesktop.stats.crackSegments<=32&&closeDesktop.stats.roadCandidates<=220,
+  'desktop close zoom must stay within its bounded per-refresh mesh budget');
+for(const part of ['sidewalk_slab','curb','grass_verge','grass_blade','panel_joint','hairline_crack']){
+  assert.ok(partsFor(closeDesktop,part).length>0, 'desktop close zoom must preserve '+part+' geometry');
+}
+const closeMobile=buildSidewalk3DFeatures({features:[longSidewalk],roadFeatures:[longRoad],zoom:19,mobile:true});
+assert.equal(closeMobile.stats.zoomBand,'CLOSE','mobile very close zoom must select the close-zoom geometry budget');
+assert.ok(closeMobile.stats.paths<=14&&closeMobile.stats.individualSlabs<=70&&
+  closeMobile.stats.curbAndGrassSegments<=48&&closeMobile.stats.grassBlades<=120&&
+  closeMobile.stats.crackSegments<=14&&closeMobile.stats.roadCandidates<=96,
+  'mobile close zoom must stay within its smaller bounded per-refresh mesh budget');
+for(const part of ['sidewalk_slab','curb','grass_verge','grass_blade','panel_joint','hairline_crack']){
+  assert.ok(partsFor(closeMobile,part).length>0, 'mobile close zoom must preserve '+part+' geometry');
+}
+
 
 const images = new Map();
 const fakeMap = {

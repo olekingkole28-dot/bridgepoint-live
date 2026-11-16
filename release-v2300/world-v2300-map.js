@@ -1,5 +1,5 @@
 import{VERSION,EDGE,EMPTY,MOBILE,LOW,TIER,rpc,edge,tileTransform,bbox,fc,clamp}from'./world-v2300-config.js';
-import{buildSidewalk3DFeatures,installSidewalk3DTextures}from'./world-v2300-sidewalks-3d.js?v=20261107-sidewalk-terrain-local-offsets-v4-progressive-viewport-grass';
+import{buildSidewalk3DFeatures,installSidewalk3DTextures}from'./world-v2300-sidewalks-3d.js?v=20261116-close-zoom-budget-v1';
 // The separate celestial canvas is intentionally not mounted over the satellite globe.
 window.__BP_WORLD_RENDER_VERSION__=5630;window.__BP_STYLE_READY_GATE_V6215__={version:6215,waitsForStyleLayers:true,requiresAllRasterTiles:false,updatedAt:Date.now()};
 const PUBLIC_TECH_FAST=true;
@@ -1373,10 +1373,22 @@ function bridgeLineCoveredByPolygons(line,polygons){
       }
       return best;
     };
+    // Filter the shared transportation source before doing any viewport projection.
+    // It contains ordinary road geometry as well as sidewalks; clipping every road
+    // as a possible walkway wastes CPU and creates throwaway line segments.
+    const isSidewalkTileFeature=feature=>{
+      const p=feature?.properties||{},tags=p?.properties?.tags||p?.tags||p?.source_tags||{};
+      const c=String(p.class||'').toLowerCase(),sub=String(p.subclass||p.subtype||'').toLowerCase(),key=String(p.layer_key||'').toUpperCase();
+      const footway=String(tags.footway||p.footway||'').toLowerCase(),sidewalk=String(tags.sidewalk||p.sidewalk||'').toLowerCase();
+      if(['SIDEWALKS','SIDEWALKS_PARKING','SURFACE_MATERIAL_FINE','GLOBAL_SIDEWALKS'].includes(key))return true;
+      if(c==='sidewalk'||sub==='sidewalk'||sub==='footway'||footway==='sidewalk')return true;
+      return ['footway','pedestrian','path','cycleway','steps','living_street'].includes(c)&&sidewalk!=='no'&&sidewalk!=='none'&&footway!=='crossing';
+    };
     const clipBatch=(items,kind)=>{
       const out=[],seen=new Set();
       for(const sourceFeature of items){
         const p=sourceFeature?.properties||{},cls=String(p.class||'').toLowerCase();
+        if(kind==='walkway'&&!isSidewalkTileFeature(sourceFeature))continue;
         if(kind==='road'&&(!sidewalkRoadClasses.has(cls)||['bridge','tunnel'].includes(String(p.brunnel||'').toLowerCase())||String(p.bridge||'').toLowerCase()==='yes'||String(p.tunnel||'').toLowerCase()==='yes'))continue;
         const clipped=clipSidewalkFeatureToViewport(sourceFeature);
         if(!clipped)continue;
@@ -1400,7 +1412,7 @@ function bridgeLineCoveredByPolygons(line,polygons){
     const sidewalkRenderedFeatures=clipBatch(sidewalkRenderedRaw,'walkway');
     const sidewalkRoadRenderedFeatures=clipBatch(sidewalkRoadRenderedRaw,'road');
     const sidewalkRoadTileFeatures=clipBatch(sidewalkSourceRaw,'road');
-    const sidewalkTileFeatures=clipBatch([...sidewalkRenderedRaw,...sidewalkSourceRaw],'walkway');
+    const sidewalkTileFeatures=[...sidewalkRenderedFeatures,...clipBatch(sidewalkSourceRaw,'walkway')];
     const sidewalkFeatureInputs=[],sidewalkFeatureKeys=new Set();
     for(const feature of [...extraFeatures,...sidewalkTileFeatures]){
       const p=feature?.properties||{},geometryKey=JSON.stringify(feature?.geometry?.coordinates||[]);
