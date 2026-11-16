@@ -50,8 +50,8 @@ assert.ok(moduleSource.includes('window.__BP_VESSEL_AWARENESS_V1__'), 'the opt-i
 const expectedTag = 'bridgepoint-vessel-awareness-v1.js?v=20261103-global-vessel-visibility-3d';
 assert.ok(landingHtml.includes(expectedTag), 'the main globe loads the vessel module');
 assert.ok(appHtml.includes(expectedTag), 'the app globe loads the vessel module');
-assert.ok(landingHtml.includes('bridgepoint-drone-awareness-v1.js?v=7-aircraft-models-tracks'), 'the existing drone module remains on the main globe');
-assert.ok(appHtml.includes('bridgepoint-drone-awareness-v1.js?v=7-aircraft-models-tracks'), 'the existing drone module remains in the app');
+assert.ok(landingHtml.includes('bridgepoint-drone-awareness-v1.js?v=8-persistent-overlay-category-gate'), 'the existing drone module remains on the main globe');
+assert.ok(appHtml.includes('bridgepoint-drone-awareness-v1.js?v=8-persistent-overlay-category-gate'), 'the existing drone module remains in the app');
 assert.ok(droneSource.includes('bp-drone-awareness-live-dots-v4'), 'existing drone runtime is still present');
 assert.ok(droneSource.includes('bp-aircraft-awareness-live-dots-v1'), 'existing aircraft runtime is still present');
 assert.ok(!droneSource.includes('bp-vessel-live-source-v1'), 'vessel work did not modify the existing aircraft/drone runtime');
