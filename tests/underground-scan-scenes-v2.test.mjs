@@ -21,7 +21,6 @@ assert.deepEqual(models[1].roomCoordinates,[2.3314794209,48.8432369808]);
 assert.equal(models[1].roomAddress,'69 Rue de Notre-Dame-des-Champs, 75006 Paris, France');
 assert.equal(models[1].depthBelowSurfaceM,20);
 assert.equal(models[1].locationSourceUrl,'https://catacombes.xyz/rooms/rats');
-assert.ok(moduleSource.includes("selectedModelUid:'f4232f8f91e54b0a8aa92365d6ea7b7a'"),'open the larger Bar des Rats scan by default');
 assert.ok(features[0].geometry.type==='Point'&&features[0].properties.iconImage);
 assert.equal(buildUndergroundSceneFeatures([{id:'not-paris',coordinates:[0,0],models:[{}]}]).length,0);
 assert.equal(buildUndergroundSceneFeatures([{id:'paris-catacombs',coordinates:[999,0],models:[{}]}]).length,0);
@@ -32,6 +31,8 @@ const [moduleSource,deploy,downloader,view]=await Promise.all([
  readFile(new URL('../tools/underground/fetch_sketchfab_scans.py',import.meta.url),'utf8'),
  readFile(new URL('../rebuild-v5000/bridgepoint-view-v5917.js',import.meta.url),'utf8')
 ]);
+assert.ok(moduleSource.includes("selectedModelUid:'f4232f8f91e54b0a8aa92365d6ea7b7a'"),'open the larger Bar des Rats scan by default');
+
 assert.ok(moduleSource.includes("type:'custom',renderingMode:'3d'"));
 assert.ok(moduleSource.includes("minzoom:0,maxzoom:24"));
 assert.ok(moduleSource.includes('data-catacomb-action="viewer"'));
