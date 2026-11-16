@@ -264,7 +264,8 @@ async function openViewer(state){
   const scene=new THREE.Scene();scene.background=new THREE.Color(0x101923);
   const pointsMaterial=new THREE.PointsMaterial({size:2.0,sizeAttenuation:false,vertexColors:true,transparent:false,depthWrite:true});
   const points=new THREE.Points(state.geometry,pointsMaterial);points.frustumCulled=false;scene.add(points);
-  const bounds=state.geometry.boundingBox||state.geometry.computeBoundingBox();
+  if(!state.geometry.boundingBox)state.geometry.computeBoundingBox();
+  const bounds=state.geometry.boundingBox;
   const size=bounds.getSize(new THREE.Vector3()),span=Math.max(size.x,size.y,size.z)||1;
   const camera=new THREE.PerspectiveCamera(44,1,.01,Math.max(5000,span*20));
   const viewer={el,renderer,scene,camera,points,theta:.62,phi:1.15,radius:span*1.35,resizeObserver:null};
