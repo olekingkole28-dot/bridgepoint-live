@@ -15,7 +15,7 @@ assert.equal(scan.splatCountApprox,5000000);
 assert.equal(scan.splatPackageSize,'68.5 MB');
 assert.ok(scan.viewerUrl.startsWith('https://superspl.at/scene/'));
 assert.ok(scan.sourceUrl.includes('827278527982425799ddbc0ec6bcc81d'));
-assert.match(scan.locationPrecision,/Approximate site\\/entrance reference/);
+assert.ok(scan.locationPrecision.includes('Approximate site/entrance reference'));
 assert.match(scan.locationPrecision,/not published/);
 assert.match(scan.detail,/one separate section/);
 
