@@ -1,134 +1,91 @@
 #!/usr/bin/env python3
-"""Fetch individually approved Sketchfab scans into BridgePoint local GLB assets.
+"""Materialize the single Paris Catacombs LiDAR GLB from its public Zenodo record.
 
-Requires SKETCHFAB_API_TOKEN in the environment (GitHub Actions secret).
-Only Creative Commons Attribution (CC BY) licenses are accepted for the commercial build.
-Temporary Download API URLs are never written to disk or logged.
+The Zenodo record is checked for its title and CC BY 4.0 license before the GLB is downloaded.
+No Sketchfab account token or runtime third-party viewer is used.
 """
 from __future__ import annotations
-import argparse, gzip, hashlib, json, os, shutil, subprocess, tempfile, urllib.request, zipfile
-from pathlib import Path, PurePosixPath
+import argparse, gzip, hashlib, json, urllib.request
+from pathlib import Path
+RECORD_ID = "10287234"
+MODEL_UID = "39e7050d272f4aac8493497621b86f39"
+SOURCE_URL = "https://sketchfab.com/3d-models/paris-catacombs-large-gallery-39e7050d272f4aac8493497621b86f39"
+DATASET_URL = "https://doi.org/10.5281/zenodo.10287234"
+MAX_SOURCE_BYTES = 300 * 1024 * 1024
 
-MODELS=[
- {"uid":"39e7050d272f4aac8493497621b86f39","site_id":"paris-catacombs","title":"Paris catacombs — Large gallery"},
- {"uid":"27ae0d6041c54e2eab6638d197985842","site_id":"paris-catacombs","title":"Paris catacombs — Level 1 to Level 2"},
- {"uid":"c63534cc8b97437bb933b8eba87ffb0d","site_id":"paris-catacombs","title":"Paris catacombs — Our Lady of the Catacombs"},
- {"uid":"d407fb1ba0414482a99ccd6567b29512","site_id":"paris-catacombs","title":"Paris catacombs — Salle Z (portion)"},
- {"uid":"ca80de4ccfdd45d4a5b44dad31cb0da2","site_id":"paris-catacombs","title":"Paris catacombs — The Flag Room"},
- {"uid":"e78831639a3a4000b2130457badfc34b","site_id":"paris-catacombs","title":"Paris catacombs — Bureau du Centre"},
- {"uid":"befe33ccb4cf4005a6f26c83629a9be6","site_id":"paris-catacombs","title":"Paris catacombs — German bunker passage"},
- {"uid":"2bff1e25b797418caea81927f394fa9d","site_id":"vrlovka-cave","title":"Stalagnate within Vrlovka Cave — highest LOD"},
- {"uid":"fe5da7d5202a4bfaa6b48e0096d4c6fd","site_id":"om-jaettestue","title":"Øm Jættestue passage grave"}
-]
-ALLOWED_LICENSES={"by","cc-by","cc-by-4.0","cc-attribution"}
-MAX_ARCHIVE_BYTES=250*1024*1024
-
-def request_json(url, authorization):
-    req=urllib.request.Request(url,headers={"Authorization":authorization,"Accept":"application/json"})
+def get_json(url):
+    req=urllib.request.Request(url,headers={"Accept":"application/json","User-Agent":"BridgePoint-Paris-Catacombs/3.0"})
     with urllib.request.urlopen(req,timeout=45) as response:
-        data=json.loads(response.read().decode("utf-8"))
-    if not isinstance(data,dict):
-        raise RuntimeError("Sketchfab returned a non-object API response")
-    return data
+        value=json.loads(response.read().decode("utf-8"))
+    if not isinstance(value,dict):
+        raise RuntimeError("Zenodo returned invalid record metadata")
+    return value
 
-def download_bytes(url,maximum):
-    req=urllib.request.Request(url,headers={"User-Agent":"BridgePoint-Underground-Scan-Importer/2"})
-    with urllib.request.urlopen(req,timeout=120) as response:
+def download(url):
+    req=urllib.request.Request(url,headers={"User-Agent":"BridgePoint-Paris-Catacombs/3.0"})
+    with urllib.request.urlopen(req,timeout=180) as response:
         length=response.headers.get("Content-Length")
-        if length and int(length)>maximum:
-            raise RuntimeError("Model archive exceeds configured size cap")
-        data=response.read(maximum+1)
-    if len(data)>maximum:
-        raise RuntimeError("Model archive exceeded configured size cap")
-    return data
-
-def safe_extract(archive_bytes,destination):
-    with tempfile.NamedTemporaryFile(suffix=".zip",delete=False) as temp:
-        temp.write(archive_bytes)
-        zip_path=Path(temp.name)
-    try:
-        with zipfile.ZipFile(zip_path) as archive:
-            for item in archive.infolist():
-                member=PurePosixPath(item.filename)
-                if member.is_absolute() or ".." in member.parts:
-                    raise RuntimeError("Sketchfab archive contains unsafe path")
-                target=(destination/Path(*member.parts)).resolve()
-                if destination.resolve() not in target.parents and target!=destination.resolve():
-                    raise RuntimeError("Archive path escapes extraction directory")
-            archive.extractall(destination)
-    finally:
-        zip_path.unlink(missing_ok=True)
-
-def convert_to_glb(extracted,output):
-    glbs=list(extracted.rglob("*.glb"))+list(extracted.rglob("*.GLB"))
-    if glbs:
-        shutil.copy2(glbs[0],output)
-        return
-    gltfs=list(extracted.rglob("*.gltf"))+list(extracted.rglob("*.GLTF"))
-    if not gltfs:
-        raise RuntimeError("Sketchfab archive contains neither GLB nor glTF scene")
-    subprocess.run(["gltf-pipeline","-i",str(gltfs[0]),"-o",str(output)],check=True,timeout=180,cwd=gltfs[0].parent)
-
-def fetch_one(model,authorization,output_dir):
-    uid=model["uid"]
-    metadata=request_json("https://api.sketchfab.com/v3/models/"+uid,authorization)
-    if metadata.get("isDownloadable") is not True:
-        raise RuntimeError(uid+" is not currently marked downloadable")
-    license_slug=str(metadata.get("license") or "").lower()
-    if license_slug not in ALLOWED_LICENSES:
-        raise RuntimeError(uid+" has license outside CC BY allow-list: "+(license_slug or "unknown"))
-    user=metadata.get("user") or {}
-    creator=user.get("username") or user.get("displayName")
-    if not creator:
-        raise RuntimeError(uid+" has no verified creator metadata")
-    info=request_json("https://api.sketchfab.com/v3/models/"+uid+"/download",authorization)
-    archive=info.get("gltf")
-    if not isinstance(archive,dict) or not archive.get("url"):
-        raise RuntimeError(uid+" has no downloadable glTF archive")
-    archive_bytes=download_bytes(str(archive["url"]),MAX_ARCHIVE_BYTES)
-    with tempfile.TemporaryDirectory(prefix="bp-sketchfab-") as temp_name:
-        temp=Path(temp_name)
-        extracted=temp/"extracted"
-        extracted.mkdir()
-        safe_extract(archive_bytes,extracted)
-        glb=temp/(uid+".glb")
-        convert_to_glb(extracted,glb)
-        if glb.stat().st_size<32 or glb.read_bytes()[:4]!=b"glTF":
-            raise RuntimeError(uid+" did not convert to a valid GLB mesh")
-        target=output_dir/(uid+".glb.gz")
-        with glb.open("rb") as source,target.open("wb") as raw:
-            with gzip.GzipFile(filename="",mode="wb",fileobj=raw,compresslevel=9,mtime=0) as packed:
-                shutil.copyfileobj(source,packed)
-    return {
-        "uid":uid,"siteId":model["site_id"],
-        "title":str(metadata.get("name") or model["title"]),
-        "creator":creator,"license":license_slug,
-        "sourceUrl":"https://sketchfab.com/3d-models/"+uid,
-        "asset":"/assets/underground-scan-scenes/"+uid+".glb.gz",
-        "bytes":target.stat().st_size,
-        "sha256":hashlib.sha256(target.read_bytes()).hexdigest()
-    }
+        if length and int(length)>MAX_SOURCE_BYTES:
+            raise RuntimeError("Catacomb scan exceeds the configured source-size limit")
+        raw=response.read(MAX_SOURCE_BYTES+1)
+    if len(raw)>MAX_SOURCE_BYTES:
+        raise RuntimeError("Catacomb scan exceeded the configured source-size limit")
+    return raw
 
 def main():
     parser=argparse.ArgumentParser()
     parser.add_argument("--output",required=True,type=Path)
     args=parser.parse_args()
-    token=os.environ.get("SKETCHFAB_API_TOKEN","").strip()
-    if not token:
-        raise SystemExit("SKETCHFAB_API_TOKEN is required; no model files were downloaded or published.")
-    authorization=token if token.startswith(("Token ","Bearer ")) else "Token "+token
+    record=get_json("https://zenodo.org/api/records/"+RECORD_ID)
+    meta=record.get("metadata") or {}
+    title=str(meta.get("title") or "").lower()
+    if "paris catacombs" not in title or "large gallery" not in title:
+        raise SystemExit("Zenodo record title did not match the Paris Catacombs Large Gallery scan")
+    license_data=meta.get("license") or {}
+    license_id=license_data.get("id") if isinstance(license_data,dict) else str(license_data)
+    if str(license_id).lower() not in {"cc-by-4.0","cc-by"}:
+        raise SystemExit("Paris Catacombs record is not CC BY 4.0; refusing to redistribute")
+    files=record.get("files") or []
+    glbs=[f for f in files if str(f.get("key","")).lower().endswith(".glb")]
+    if not glbs:
+        raise SystemExit("Zenodo record does not contain a downloadable GLB mesh")
+    exact=[f for f in glbs if MODEL_UID in str(f.get("key",""))]
+    chosen=exact[0] if exact else (glbs[0] if len(glbs)==1 else None)
+    if chosen is None:
+        raise SystemExit("Zenodo record contains multiple GLBs and none has the expected scan identifier")
+    links=chosen.get("links") or {}
+    url=links.get("content") or links.get("download") or links.get("self")
+    if not url:
+        raise SystemExit("Zenodo GLB file has no public content link")
+    raw=download(url)
+    if len(raw)<32 or raw[:4]!=b"glTF":
+        raise SystemExit("Downloaded Paris Catacombs file is not a valid binary glTF (GLB)")
     args.output.mkdir(parents=True,exist_ok=True)
-    for old in args.output.glob("*.glb.gz"):
-        old.unlink()
-    manifest={"version":2,"source":"Sketchfab Download API","licensePolicy":"CC BY only","models":[]}
-    for index,model in enumerate(MODELS,1):
-        print(f"[{index}/{len(MODELS)}] Checking downloadable CC BY scan {model['uid']} …")
-        manifest["models"].append(fetch_one(model,authorization,args.output))
-    total_bytes=sum(m["bytes"] for m in manifest["models"])
-    if total_bytes > 150*1024*1024:
-        raise SystemExit(f"Compressed cave scans exceed the safe Pages headroom cap: {total_bytes:,} bytes (150 MiB)")
+    target=args.output/(MODEL_UID+".glb.gz")
+    with target.open("wb") as handle:
+        with gzip.GzipFile(filename="",mode="wb",fileobj=handle,compresslevel=9,mtime=0) as packed:
+            packed.write(raw)
+    if target.stat().st_size>150*1024*1024:
+        target.unlink(missing_ok=True)
+        raise SystemExit("Compressed Paris Catacombs asset exceeds the safe Pages headroom cap")
+    manifest={
+      "version":3,"site":"Paris Catacombs, Paris, France",
+      "source":"Zenodo record 10287234 / Sketchfab model",
+      "creator":"Emm (@edemaistre)","license":"CC BY 4.0",
+      "licenseRecord":"https://datasetcatalog.nlm.nih.gov/dataset?q=0001904517",
+      "sourceUrl":SOURCE_URL,"datasetUrl":DATASET_URL,
+      "locationPrecision":"Approximate site-region anchor; source scan is not georeferenced to a surveyed chamber.",
+      "models":[{
+        "uid":MODEL_UID,"title":"Paris Catacombs — Large Gallery",
+        "creator":"Emm (@edemaistre)","license":"CC BY 4.0",
+        "captureMethod":"iPhone 12 Pro · Scaniverse LiDAR",
+        "sourceUrl":SOURCE_URL,"datasetUrl":DATASET_URL,
+        "asset":"/assets/underground-scan-scenes/"+target.name,
+        "sourceBytes":len(raw),"compressedBytes":target.stat().st_size,
+        "sha256":hashlib.sha256(target.read_bytes()).hexdigest()
+      }]
+    }
     (args.output/"catalog.json").write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
-    print("BRIDGEPOINT_UNDERGROUND_GLBS_READY",len(manifest["models"]),"models ·",total_bytes,"compressed bytes")
-
+    print("BRIDGEPOINT_PARIS_CATACOMBS_GLB_READY",len(raw),"source bytes",target.stat().st_size,"compressed bytes")
 if __name__=="__main__":
     main()
