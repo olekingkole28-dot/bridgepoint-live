@@ -27,6 +27,7 @@ assert.equal(decoded.count,count);
 assert.equal(decoded.sourceCount,sourceCount);
 assert.deepEqual(Array.from(decoded.positions),[1,2,3,4,5,6]);
 assert.deepEqual(Array.from(decoded.colors),Array.from(colors));
-assert.throws(()=>decodeJenolanPointCloud(Buffer.from('bad')),/header is invalid/i);
+const badHeader=Buffer.alloc(16);badHeader.write('NOPE',0,'ascii');
+assert.throws(()=>decodeJenolanPointCloud(badHeader),/header is invalid/i);
 assert.throws(()=>decodeJenolanPointCloud(Buffer.from('BPC1')),/truncated/i);
 console.log('BRIDGEPOINT_JENOLAN_CAVES_V1_PASS',feature.geometry.coordinates);
