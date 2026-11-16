@@ -233,10 +233,27 @@ async function openViewer(state){
   const resize=()=>{const r=canvas.getBoundingClientRect(),w=Math.max(1,r.width),h=Math.max(1,r.height);renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();};
   if(typeof ResizeObserver!=='undefined'){v.resizeObserver=new ResizeObserver(resize);v.resizeObserver.observe(canvas);}else window.addEventListener('resize',resize);
   resize();
-  let last=null;
-  canvas.addEventListener('pointerdown',e=>{last={x:e.clientX,y:e.clientY};canvas.setPointerCapture?.(e.pointerId);});
-  canvas.addEventListener('pointermove',e=>{if(!last)return;const dx=e.clientX-last.x,dy=e.clientY-last.y;last={x:e.clientX,y:e.clientY};v.theta-=dx*.008;v.phi=Math.max(.12,Math.min(Math.PI-.12,v.phi+dy*.008));viewerCamera(THREE,v);});
-  const stop=()=>{last=null;};canvas.addEventListener('pointerup',stop);canvas.addEventListener('pointercancel',stop);canvas.addEventListener('lostpointercapture',stop);
+  let last=null,pinchDistance=0;
+  const activePointers=new Map();
+  const distance=()=>{const pts=[...activePointers.values()];if(pts.length<2)return 0;return Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y);};
+  canvas.addEventListener('pointerdown',e=>{
+   activePointers.set(e.pointerId,{x:e.clientX,y:e.clientY});canvas.setPointerCapture?.(e.pointerId);
+   if(activePointers.size===1)last={x:e.clientX,y:e.clientY};
+   if(activePointers.size===2){last=null;pinchDistance=distance();}
+  });
+  canvas.addEventListener('pointermove',e=>{
+   if(!activePointers.has(e.pointerId))return;
+   activePointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+   if(activePointers.size>=2){const next=distance();if(pinchDistance>0&&next>0)v.radius=Math.max(4,Math.min(70,v.radius*pinchDistance/next));pinchDistance=next;viewerCamera(THREE,v);return;}
+   if(!last)return;const dx=e.clientX-last.x,dy=e.clientY-last.y;last={x:e.clientX,y:e.clientY};
+   v.theta-=dx*.008;v.phi=Math.max(.12,Math.min(Math.PI-.12,v.phi+dy*.008));viewerCamera(THREE,v);
+  });
+  const stop=e=>{
+   if(e?.pointerId!==undefined)activePointers.delete(e.pointerId);
+   pinchDistance=0;last=null;
+   if(activePointers.size===1){const p=[...activePointers.values()][0];last={x:p.x,y:p.y};}
+  };
+  canvas.addEventListener('pointerup',stop);canvas.addEventListener('pointercancel',stop);canvas.addEventListener('lostpointercapture',stop);
   canvas.addEventListener('wheel',e=>{e.preventDefault();v.radius=Math.max(4,Math.min(70,v.radius*Math.exp(e.deltaY*.001)));viewerCamera(THREE,v);},{passive:false});
   el.querySelector('[data-reset]').addEventListener('click',()=>{v.theta=.65;v.phi=1.12;v.radius=17;viewerCamera(THREE,v);});
   el.querySelector('[data-close]').addEventListener('click',()=>disposeViewer(state));
