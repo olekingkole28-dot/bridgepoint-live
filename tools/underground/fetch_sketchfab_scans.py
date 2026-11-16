@@ -67,7 +67,7 @@ def convert_to_glb(extracted,output):
     gltfs=list(extracted.rglob("*.gltf"))+list(extracted.rglob("*.GLTF"))
     if not gltfs:
         raise RuntimeError("Sketchfab archive contains neither GLB nor glTF scene")
-    subprocess.run(["gltf-pipeline","-i",str(gltfs[0]),"-o",str(output)],check=True,timeout=180)
+    subprocess.run(["gltf-pipeline","-i",str(gltfs[0]),"-o",str(output)],check=True,timeout=180,cwd=gltfs[0].parent)
 
 def fetch_one(model,authorization,output_dir):
     uid=model["uid"]
