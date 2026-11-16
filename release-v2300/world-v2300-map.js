@@ -1,5 +1,5 @@
 import{VERSION,EDGE,EMPTY,MOBILE,LOW,TIER,rpc,edge,tileTransform,bbox,fc,clamp}from'./world-v2300-config.js';
-import{buildSidewalk3DFeatures,installSidewalk3DTextures}from'./world-v2300-sidewalks-3d.js?v=20261116-main-thread-bounded-sidewalk-v2';
+import{buildSidewalk3DFeatures,installSidewalk3DTextures}from'./world-v2300-sidewalks-3d.js?v=20261116-sidewalk-coverage-curbs-v3';
 // The separate celestial canvas is intentionally not mounted over the satellite globe.
 window.__BP_WORLD_RENDER_VERSION__=5630;window.__BP_STYLE_READY_GATE_V6215__={version:6215,waitsForStyleLayers:true,requiresAllRasterTiles:false,updatedAt:Date.now()};
 const PUBLIC_TECH_FAST=true;
@@ -189,6 +189,7 @@ function style(projectionType='globe'){
   {id:'gta-road-major-marking',type:'line',source:'ofm','source-layer':'transportation',minzoom:14,filter:roadFilter(['motorway','trunk','primary','secondary']),layout:{'line-cap':'butt','line-join':'round'},paint:{'line-color':['match',['get','class'],'motorway','#f2c94c','trunk','#f2c94c','primary','#f2c94c','secondary','#f5f3ed','#f2c94c'],'line-width':['interpolate',['linear'],['zoom'],14,.42,17,.9,20,1.45],'line-opacity':['interpolate',['linear'],['zoom'],14,.35,16,.74,20,.9],'line-dasharray':[3,4]}},
   {id:'gta-road-local-casing',type:'line',source:'ofm','source-layer':'transportation',minzoom:10.5,filter:roadFilter(['tertiary','minor','service','track']),layout:{visibility:'none','line-cap':'round','line-join':'round'},paint:{'line-color':'#53717c','line-width':1,'line-opacity':0}},
   {id:'gta-road-local',type:'line',source:'ofm','source-layer':'transportation',minzoom:10.5,filter:roadFilter(['tertiary','minor','service','track']),layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#45616b','line-width':['interpolate',['linear'],['zoom'],10.5,.2,14,.65,17,1.45,20,2.6],'line-opacity':['interpolate',['linear'],['zoom'],10.5,.22,14,.3,18,.38]}},
+  {id:'gta-sidewalk-road-probe-v1',type:'line',source:'ofm','source-layer':'transportation',minzoom:13.8,filter:roadFilter(['residential','unclassified','living_street','road']),layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#45616b','line-width':.28,'line-opacity':.008}},
   {id:'gta-road-local-marking',type:'line',source:'ofm','source-layer':'transportation',minzoom:16.2,filter:roadFilter(['tertiary','minor']),layout:{'line-cap':'butt','line-join':'round'},paint:{'line-color':['match',['get','class'],'tertiary','#f2c94c','minor','#f5f3ed','#f5f3ed'],'line-width':['interpolate',['linear'],['zoom'],16.2,.3,20,.8],'line-opacity':.54,'line-dasharray':[2,5]}},
   {id:'gta-bridge-shadow',type:'line',source:'ofm','source-layer':'transportation',minzoom:10.5,filter:['==',['get','brunnel'],'bridge'],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#000000','line-width':['interpolate',['exponential',1.3],['zoom'],10.5,3,14,7,17,16,20,29],'line-opacity':.72,'line-blur':2.2,'line-translate':[0,3]}},
   {id:'gta-bridge-deck',type:'line',source:'ofm','source-layer':'transportation',minzoom:10.5,filter:['==',['get','brunnel'],'bridge'],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#111315','line-width':['interpolate',['exponential',1.3],['zoom'],10.5,1.8,14,4.8,17,11.5,20,22],'line-opacity':1}},
@@ -1353,18 +1354,19 @@ function bridgeLineCoveredByPolygons(line,polygons){
     const viewKey=[z.toFixed(2),bounds.getWest().toFixed(4),bounds.getSouth().toFixed(4),bounds.getEast().toFixed(4),bounds.getNorth().toFixed(4)].join(':');
     if(!force&&!extraFeatures.length&&map.__BP_SIDEWALK_LAST_VIEW_KEY__===viewKey&&Number(window.__BP_SIDEWALK_3D_STATE__?.featureCount||0)>0)return false;
 
-    const sidewalkRoadLayers=['gta-road-major','gta-road-local'].filter(id=>map.getLayer(id));
+    const sidewalkRoadLayers=['gta-road-major','gta-road-local','gta-sidewalk-road-probe-v1'].filter(id=>map.getLayer(id));
     let sidewalkRoadRenderedRaw=[];
     try{if(sidewalkRoadLayers.length)sidewalkRoadRenderedRaw=map.queryRenderedFeatures({layers:sidewalkRoadLayers})||[]}catch(_){}
+    const sidewalkFeatureLayers=['gta-global-sidewalk-approach-v1','gta-bp-sidewalk'].filter(id=>map.getLayer(id));
     let sidewalkRenderedRaw=[];
-    try{if(map.getLayer('gta-global-sidewalk-approach-v1'))sidewalkRenderedRaw=map.queryRenderedFeatures({layers:['gta-global-sidewalk-approach-v1']})||[]}catch(_){}
+    try{if(sidewalkFeatureLayers.length)sidewalkRenderedRaw=map.queryRenderedFeatures({layers:sidewalkFeatureLayers})||[]}catch(_){}
     const sidewalkRoadClasses=new Set(['motorway','trunk','primary','secondary','tertiary','minor','service','track','residential','unclassified','living_street','road']);
     // Use only geometry already rendered inside the current viewport. querySourceFeatures()
     // scans all loaded tiles, including off-screen tiles, and can block the browser at close zoom.
-    const MAX_SIDEWALK_RENDER_FEATURES=MOBILE?36:72;
-    const MAX_ROAD_RENDER_FEATURES=MOBILE?48:96;
-    const MAX_SIDEWALK_RENDER_VERTICES=MOBILE?1800:4200;
-    const MAX_ROAD_RENDER_VERTICES=MOBILE?2400:5600;
+    const MAX_SIDEWALK_RENDER_FEATURES=MOBILE?96:168;
+    const MAX_ROAD_RENDER_FEATURES=MOBILE?144:240;
+    const MAX_SIDEWALK_RENDER_VERTICES=MOBILE?6400:10800;
+    const MAX_ROAD_RENDER_VERTICES=MOBILE?7200:12000;
     const featureVertexCount=feature=>{
       const geometry=feature?.geometry;
       const lines=geometry?.type==='LineString'?[geometry.coordinates]:geometry?.type==='MultiLineString'?geometry.coordinates:[];
@@ -1433,7 +1435,7 @@ function bridgeLineCoveredByPolygons(line,polygons){
       sidewalkExtraRaw.push(feature);
       if(sidewalkExtraRaw.length>=MAX_SIDEWALK_RENDER_FEATURES)break;
     }
-    const sidewalkBatch=clipBatch([...sidewalkExtraRaw,...sidewalkRenderedRaw],'walkway',MAX_SIDEWALK_RENDER_FEATURES,MAX_SIDEWALK_RENDER_VERTICES);
+    const sidewalkBatch=clipBatch([...sidewalkRenderedRaw,...sidewalkExtraRaw],'walkway',MAX_SIDEWALK_RENDER_FEATURES,MAX_SIDEWALK_RENDER_VERTICES);
     const roadBatch=clipBatch(sidewalkRoadRenderedRaw,'road',MAX_ROAD_RENDER_FEATURES,MAX_ROAD_RENDER_VERTICES);
     const sidewalkFeatureInputs=sidewalkBatch.features;
     const sidewalkRenderedFeatures=sidewalkFeatureInputs;
@@ -1442,7 +1444,7 @@ function bridgeLineCoveredByPolygons(line,polygons){
     const sidewalk3D=buildSidewalk3DFeatures({features:sidewalkFeatureInputs,roadFeatures:roadInputs,roadsideWalkFeatures:sidewalkRoadRenderedFeatures,generateRoadsideWalks:true,zoom:z,mobile:MOBILE,elevationAt:point=>{try{const elevation=map.queryTerrainElevation?.({lng:point[0],lat:point[1]},{exaggerated:false});return Number.isFinite(elevation)?elevation:null}catch(_){return null}}});
     map.getSource('bpSidewalk3D')?.setData({type:'FeatureCollection',features:sidewalk3D.features});
     map.__BP_SIDEWALK_LAST_VIEW_KEY__=sidewalk3D.features.length?viewKey:'';
-    window.__BP_SIDEWALK_3D_STATE__={version:5,status:sidewalk3D.features.length?'ready':'no-sidewalk-geometry-in-current-viewport',featureCount:sidewalk3D.features.length,viewportFeatures:extraFeatures.length,extraFeaturesScanned:sidewalkExtraScanned,renderedApproachFeatures:sidewalkRenderedRaw.length,clippedApproachFeatures:sidewalkRenderedFeatures.length,renderedRoadCandidates:sidewalkRoadRenderedRaw.length,clippedRenderedRoadFeatures:sidewalkRoadRenderedFeatures.length,roadFeaturesForCurbs:roadInputs.length,prioritizedLineSegments:sidewalkFeatureInputs.length,walkwayScan:sidewalkBatch,roadScan:roadBatch,sourceWideScan:false,sourceQueryDisabled:true,buildIndependentOfLivingWorldFetch:true,forcedTileRefresh:force,...(sidewalk3D.stats||{}),zoom:z,refreshDurationMs:performance.now()-refreshStartedAt,updatedAt:Date.now()};
+    window.__BP_SIDEWALK_3D_STATE__={version:6,coverageProfile:'VISIBLE_SIDEWALK_AND_RESIDENTIAL_ROADS_V3',status:sidewalk3D.features.length?'ready':'no-sidewalk-geometry-in-current-viewport',featureCount:sidewalk3D.features.length,viewportFeatures:extraFeatures.length,extraFeaturesScanned:sidewalkExtraScanned,renderedApproachFeatures:sidewalkRenderedRaw.length,clippedApproachFeatures:sidewalkRenderedFeatures.length,renderedRoadCandidates:sidewalkRoadRenderedRaw.length,clippedRenderedRoadFeatures:sidewalkRoadRenderedFeatures.length,roadFeaturesForCurbs:roadInputs.length,prioritizedLineSegments:sidewalkFeatureInputs.length,walkwayScan:sidewalkBatch,roadScan:roadBatch,sourceWideScan:false,sourceQueryDisabled:true,buildIndependentOfLivingWorldFetch:true,forcedTileRefresh:force,...(sidewalk3D.stats||{}),zoom:z,refreshDurationMs:performance.now()-refreshStartedAt,updatedAt:Date.now()};
     return sidewalk3D.features.length>0;
   }
 
