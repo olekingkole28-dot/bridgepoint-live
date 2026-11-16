@@ -132,8 +132,16 @@ assert.ok(mapSource.includes('renderedApproachFeatures:sidewalkRenderedRaw.lengt
   'live sidewalk diagnostics must report the rendered 2D fallback feature count separately');
 assert.ok(mapSource.includes("if(kind==='walkway'&&!isSidewalkTileFeature(sourceFeature))continue;"),
   'ordinary transportation road features must be filtered before sidewalk viewport clipping');
-assert.ok(mapSource.includes("const sidewalkTileFeatures=[...sidewalkRenderedFeatures,...clipBatch(sidewalkSourceRaw,'walkway')]"),
-  'already-clipped visible sidewalk features must be reused instead of projected a second time');
+assert.ok(!mapSource.includes("map.querySourceFeatures('ofm',{sourceLayer:'transportation'})"),
+  'close zoom must never scan every loaded OpenFreeMap transportation tile on the main thread');
+assert.ok(mapSource.includes('MAX_SIDEWALK_RENDER_FEATURES=MOBILE?36:72')&&mapSource.includes('MAX_ROAD_RENDER_FEATURES=MOBILE?48:96'),
+  'visible sidewalk and road candidates must be capped before clipping and projection');
+assert.ok(mapSource.includes('MAX_SIDEWALK_RENDER_VERTICES=MOBILE?1800:4200')&&mapSource.includes('MAX_ROAD_RENDER_VERTICES=MOBILE?2400:5600'),
+  'total input vertices must be capped before synchronous viewport clipping');
+assert.ok(mapSource.includes("const sidewalkBatch=clipBatch([...sidewalkExtraRaw,...sidewalkRenderedRaw],'walkway',MAX_SIDEWALK_RENDER_FEATURES,MAX_SIDEWALK_RENDER_VERTICES)"),
+  'the builder must receive only a bounded set of relevant visible sidewalks');
+assert.ok(mapSource.includes('sourceWideScan:false,sourceQueryDisabled:true'),
+  'runtime diagnostics must confirm that the full-source scan is disabled');
 assert.ok(mapSource.includes('function refreshSidewalk3DFromTiles(extraFeatures=[],force=false)'),
   'sidewalk generation must have its own lightweight map-tile refresh path');
 assert.ok(mapSource.includes("map.on('style.load',ensureSidewalk3DLayerOrder)"),
@@ -144,21 +152,20 @@ assert.ok(mapSource.includes("for(const id of order)map.moveLayer(id)"),
   'sidewalk slabs, curbs, grass, blades and joints must be moved above later 3D extrusion layers');
 assert.ok(mapSource.includes("window.__BP_SIDEWALK_LAYER_ORDER_V1__"),
   'live diagnostics must report the final sidewalk layer-stack status');
-assert.ok(mapSource.includes('features:sidewalkFeatureInputs') && mapSource.includes('sidewalkFeatureInputs.sort((a,b)=>sidewalkScreenDistance(a)-sidewalkScreenDistance(b))'),
-  'visible sidewalk source segments must be prioritized by screen position before 3D geometry generation');
-assert.ok(mapSource.includes('bpSidewalkTileSyncTimer=setTimeout') && mapSource.includes('refreshSidewalk3DFromTiles([],true)'),
-  'late-arriving vector tiles must force a viewport rebuild even when camera bounds did not change');
-assert.ok(mapSource.includes('globalVectorTileFeatures:sidewalkSourceRaw.length'),
-  'the active sidewalk renderer must expose its vector-tile source count for live diagnosis');
-
-assert.ok(mapSource.includes("map.querySourceFeatures('ofm',{sourceLayer:'transportation'})"),
-  'curbs and grass must use loaded OpenFreeMap road geometry even when road display layers are hidden');
+assert.ok(mapSource.includes('features:sidewalkFeatureInputs') && mapSource.includes('out.sort((a,b)=>sidewalkScreenDistance(a)-sidewalkScreenDistance(b))'),
+  'bounded visible sidewalk segments must be prioritized by screen position before 3D geometry generation');
+assert.ok(!mapSource.includes('bpSidewalkTileSyncTimer=setTimeout')&&!mapSource.includes('refreshSidewalk3DFromTiles([],true)'),
+  'individual sourcedata events must not force repeated synchronous sidewalk rebuilds');
+assert.ok(mapSource.includes('The map idle handler performs one bounded sidewalk refresh'),
+  'the sidewalk refresh must run after the visible map tile set settles');
+assert.ok(mapSource.includes("map.queryRenderedFeatures({layers:sidewalkRoadLayers})"),
+  'curbs and grass must use currently visible road geometry from rendered road layers');
 assert.ok(mapSource.includes("const sidewalkRoadClasses=new Set"),
   'road source features must be filtered to actual road classes before sidewalk pairing');
 assert.ok(mapSource.includes("['bridge','tunnel'].includes(String(p.brunnel||'').toLowerCase())"),
   'bridge and tunnel deck geometry must not be used to fabricate sidewalk curbs or grass verges');
-assert.ok(mapSource.includes('roadVectorTileFeatures:sidewalkRoadTileFeatures.length'),
-  'the live sidewalk diagnostics must report loaded transportation road tiles used for curb placement');
+assert.ok(mapSource.includes('renderedRoadCandidates:sidewalkRoadRenderedRaw.length')&&mapSource.includes('roadScan:roadBatch'),
+  'live diagnostics must report bounded visible road candidates used for curb placement');
 
 
 const sidewalkRefreshIndex = mapSource.indexOf('function refreshSidewalk3DFromTiles(extraFeatures=[],force=false)');
@@ -178,18 +185,18 @@ const longRoad={...road,geometry:{type:'LineString',coordinates:[[startLon,roadL
 const longSidewalk={...sidewalk,geometry:{type:'LineString',coordinates:[[startLon,walkLat],[closeEndLon,walkLat]]}};
 const closeDesktop=buildSidewalk3DFeatures({features:[longSidewalk],roadFeatures:[longRoad],zoom:19,mobile:false});
 assert.equal(closeDesktop.stats.zoomBand,'CLOSE','very close zoom must select the close-zoom geometry budget');
-assert.ok(closeDesktop.stats.paths<=32&&closeDesktop.stats.individualSlabs<=160&&
-  closeDesktop.stats.curbAndGrassSegments<=112&&closeDesktop.stats.grassBlades<=300&&
-  closeDesktop.stats.crackSegments<=32&&closeDesktop.stats.roadCandidates<=220,
+assert.ok(closeDesktop.stats.paths<=10&&closeDesktop.stats.individualSlabs<=48&&
+  closeDesktop.stats.curbAndGrassSegments<=28&&closeDesktop.stats.grassBlades<=60&&
+  closeDesktop.stats.crackSegments<=10&&closeDesktop.stats.roadCandidates<=96,
   'desktop close zoom must stay within its bounded per-refresh mesh budget');
 for(const part of ['sidewalk_slab','curb','grass_verge','grass_blade','panel_joint','hairline_crack']){
   assert.ok(partsFor(closeDesktop,part).length>0, 'desktop close zoom must preserve '+part+' geometry');
 }
 const closeMobile=buildSidewalk3DFeatures({features:[longSidewalk],roadFeatures:[longRoad],zoom:19,mobile:true});
 assert.equal(closeMobile.stats.zoomBand,'CLOSE','mobile very close zoom must select the close-zoom geometry budget');
-assert.ok(closeMobile.stats.paths<=14&&closeMobile.stats.individualSlabs<=70&&
-  closeMobile.stats.curbAndGrassSegments<=48&&closeMobile.stats.grassBlades<=120&&
-  closeMobile.stats.crackSegments<=14&&closeMobile.stats.roadCandidates<=96,
+assert.ok(closeMobile.stats.paths<=5&&closeMobile.stats.individualSlabs<=20&&
+  closeMobile.stats.curbAndGrassSegments<=12&&closeMobile.stats.grassBlades<=26&&
+  closeMobile.stats.crackSegments<=4&&closeMobile.stats.roadCandidates<=48,
   'mobile close zoom must stay within its smaller bounded per-refresh mesh budget');
 for(const part of ['sidewalk_slab','curb','grass_verge','grass_blade','panel_joint','hairline_crack']){
   assert.ok(partsFor(closeMobile,part).length>0, 'mobile close zoom must preserve '+part+' geometry');

@@ -1,0 +1,155 @@
+name: Publish BridgePoint Close-Zoom Main-Thread Guard V2
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-close-zoom-main-thread-v2.yml'
+      - 'release-v2300/world-v2300-map.js'
+      - 'release-v2300/world-v2300-sidewalks-3d.js'
+      - 'tests/sidewalk-3d-global.test.mjs'
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run focused sidewalk and close-zoom regression tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module --check < release-v2300/world-v2300-map.js
+          node --input-type=module --check < release-v2300/world-v2300-sidewalks-3d.js
+          node tests/sidewalk-3d-global.test.mjs
+      - name: Download the last deployed full-site Pages baseline
+        uses: actions/download-artifact@v4
+        with:
+          name: bridgepoint-close-zoom-main-thread-v2-1
+          run-id: 43880793452
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/bp-close-zoom-baseline
+      - name: Restore and fingerprint the existing production site
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/bp-close-zoom-site"
+          mkdir -p "$SITE"
+          ARCHIVE="$(find "$RUNNER_TEMP/bp-close-zoom-baseline" -type f -name artifact.tar -print -quit)"
+          test -n "$ARCHIVE"
+          tar -xf "$ARCHIVE" -C "$SITE"
+          for f in index.html app/index.html landing.js app.js world-v2300-map.js app/world-v2300-map.js world-v2300-sidewalks-3d.js app/world-v2300-sidewalks-3d.js; do
+            test -s "$SITE/$f" || { echo "Missing production baseline file: $f"; exit 1; }
+          done
+          python3 - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          site=Path(os.environ["RUNNER_TEMP"])/"bp-close-zoom-site"
+          data={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob("*") if p.is_file()}
+          (Path(os.environ["RUNNER_TEMP"])/"bp-close-zoom-before.json").write_text(json.dumps(data,sort_keys=True))
+          print("CLOSE_ZOOM_BASELINE_FILES",len(data))
+          PY
+      - name: Overlay only the map's close-zoom performance fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/bp-close-zoom-site"
+          cp release-v2300/world-v2300-map.js "$SITE/world-v2300-map.js"
+          cp release-v2300/world-v2300-map.js "$SITE/app/world-v2300-map.js"
+          cp release-v2300/world-v2300-sidewalks-3d.js "$SITE/world-v2300-sidewalks-3d.js"
+          cp release-v2300/world-v2300-sidewalks-3d.js "$SITE/app/world-v2300-sidewalks-3d.js"
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib,json,re,os
+          site=Path(os.environ["RUNNER_TEMP"])/"bp-close-zoom-site"
+          build="6252-close-zoom-main-thread-v2"
+          def subone(rel,pattern,replacement,label):
+              p=site/rel
+              data=p.read_text(encoding="utf-8")
+              data,count=re.subn(pattern,replacement,data,count=1)
+              if count!=1: raise SystemExit(f"{rel}: {label} expected exactly once, changed {count}")
+              p.write_text(data,encoding="utf-8")
+          for rel in ("landing.js","app.js"):
+              subone(rel,r"(['\"])(?:\./|\.\./)world-v2300-map\.js\?v=[^'\"]+(['\"])",r"\1./world-v2300-map.js?v="+build+r"\2","map module URL")
+          for rel,stem in (("index.html","landing.js"),("app/index.html","app.js")):
+              subone(rel,r"((?:\./|\.\./)?"+re.escape(stem)+r"\?v=)[^&\"'<>\s]+",r"\g<1>"+build,"entry script cache key")
+              subone(rel,r'(<link\s+rel="modulepreload"\s+href="/world-v2300-map\.js\?v=)[^&"]+',r"\g<1>"+build,"map preload cache key")
+          before=json.loads((Path(os.environ["RUNNER_TEMP"])/"bp-close-zoom-before.json").read_text())
+          after={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob("*") if p.is_file()}
+          allowed={"index.html","app/index.html","landing.js","app.js","world-v2300-map.js","app/world-v2300-map.js","world-v2300-sidewalks-3d.js","app/world-v2300-sidewalks-3d.js"}
+          removed=set(before)-set(after);added=set(after)-set(before)
+          changed={p for p in before if p in after and before[p]!=after[p]}
+          if removed: raise SystemExit("Production files removed: "+json.dumps(sorted(removed)))
+          if added: raise SystemExit("Unexpected files added: "+json.dumps(sorted(added)))
+          if changed!=allowed: raise SystemExit("Strict close-zoom scope mismatch: "+json.dumps({"changed":sorted(changed),"expected":sorted(allowed)}))
+          for name in ("world-v2300-map.js","world-v2300-sidewalks-3d.js"):
+              if (site/name).read_bytes()!=(site/"app"/name).read_bytes(): raise SystemExit(name+" root/app mismatch")
+          print("STRICT_CLOSE_ZOOM_SCOPE_PASS",len(before),"baseline files; changed exactly",len(allowed),"files; removed 0; added 0")
+          PY
+          for f in "$SITE/world-v2300-map.js" "$SITE/app/world-v2300-map.js" "$SITE/world-v2300-sidewalks-3d.js" "$SITE/app/world-v2300-sidewalks-3d.js"; do
+            node --input-type=module --check < "$f"
+          done
+          grep -Fq 'isSidewalkTileFeature' "$SITE/world-v2300-map.js"
+          grep -Fq "if(kind==='walkway'&&!isSidewalkTileFeature(sourceFeature))continue;" "$SITE/world-v2300-map.js"
+          grep -Fq '20261116-main-thread-bounded-sidewalk-v2' "$SITE/world-v2300-map.js"
+          for part in sidewalk_slab curb grass_verge grass_blade panel_joint hairline_crack; do grep -Fq "part:'$part'" "$SITE/world-v2300-sidewalks-3d.js"; done
+          grep -Fq "zoomBand:+zoom>=17.2?'CLOSE':+zoom>=15.5?'MID':'BASE'" "$SITE/world-v2300-sidewalks-3d.js"
+          cmp -s "$SITE/world-v2300-map.js" "$SITE/app/world-v2300-map.js"
+          cmp -s "$SITE/world-v2300-sidewalks-3d.js" "$SITE/app/world-v2300-sidewalks-3d.js"
+          echo "CLOSE_ZOOM_ARTIFACT_READY"
+      - uses: actions/configure-pages@v5
+      - name: Upload exact-scope Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          name: bridgepoint-close-zoom-main-thread-v2-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/bp-close-zoom-site
+          include-hidden-files: true
+      - name: Publish the close-zoom performance overlay
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: bridgepoint-close-zoom-main-thread-v2-${{ github.run_attempt }}
+      - name: Verify website, app, sidewalks and preserved detail types
+        shell: bash
+        run: |
+          set -euo pipefail
+          O='https://bridgepointintelligence.online'
+          q="$GITHUB_SHA-close-zoom-guard-v1"
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/?close-zoom=$q" -o "$RUNNER_TEMP/root.html"
+          curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O/app/?close-zoom=$q" -o "$RUNNER_TEMP/app.html"
+          grep -Fq '6252-close-zoom-main-thread-v2' "$RUNNER_TEMP/root.html"
+          grep -Fq '6252-close-zoom-main-thread-v2' "$RUNNER_TEMP/app.html"
+          for p in '/landing.js?v=6252-close-zoom-main-thread-v2' '/app.js?v=6252-close-zoom-main-thread-v2'; do
+            name="$(printf '%s' "$p" | tr '/.' '_')"
+            curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O$p&verify=$q" -o "$RUNNER_TEMP/$name"
+            grep -Fq 'world-v2300-map.js?v=6252-close-zoom-main-thread-v2' "$RUNNER_TEMP/$name"
+          done
+          for p in '/world-v2300-map.js?v=6252-close-zoom-main-thread-v2' '/app/world-v2300-map.js?v=6252-close-zoom-main-thread-v2'; do
+            name="$(printf '%s' "$p" | tr '/.' '_')"
+            curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O$p&verify=$q" -o "$RUNNER_TEMP/$name"
+            grep -Fq '20261116-main-thread-bounded-sidewalk-v2' "$RUNNER_TEMP/$name"
+            grep -Fq 'isSidewalkTileFeature' "$RUNNER_TEMP/$name"
+          done
+          for p in '/world-v2300-sidewalks-3d.js?v=20261116-main-thread-bounded-sidewalk-v2' '/app/world-v2300-sidewalks-3d.js?v=20261116-main-thread-bounded-sidewalk-v2'; do
+            name="$(printf '%s' "$p" | tr '/.' '_')"
+            curl --retry 8 --retry-all-errors --retry-delay 2 -fsSL -H 'Cache-Control: no-cache' "$O$p&verify=$q" -o "$RUNNER_TEMP/$name"
+            for part in sidewalk_slab curb grass_verge grass_blade panel_joint hairline_crack; do grep -Fq "part:'$part'" "$RUNNER_TEMP/$name"; done
+            grep -Fq "zoomBand:+zoom>=17.2?'CLOSE':+zoom>=15.5?'MID':'BASE'" "$RUNNER_TEMP/$name"
+            node --input-type=module --check < "$RUNNER_TEMP/$name"
+          done
+          cmp -s "$RUNNER_TEMP/_world-v2300-sidewalks-3d_js?v=20261116-main-thread-bounded-sidewalk-v2" "$RUNNER_TEMP/_app_world-v2300-sidewalks-3d_js?v=20261116-main-thread-bounded-sidewalk-v2"
+          echo "BRIDGEPOINT_CLOSE_ZOOM_GUARD_ROOT_APP_LIVE_PASS"
