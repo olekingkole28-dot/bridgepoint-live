@@ -145,14 +145,14 @@ console.log('Drone awareness module checks passed.');
   assert.ok(bpDroneHelperStart >= 0 && bpDroneHelperEnd > bpDroneHelperStart, 'runtime exposes the pure DroneCore functions for tests');
   const bpDroneHelperSource = bpDroneSourceText.slice(bpDroneHelperStart, bpDroneHelperEnd);
   const bpDroneCore = new Function(
-    "const SUPPORTED_SOURCE='https://api.adsb.lol/v2/'; const DRONE_PROXY_URL='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-drone-feed-v1'; const DRONE_PROXY_KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25'; const REGION_RADIUS_NM=250;\n" +
+    "const SUPPORTED_SOURCE='https://api.adsb.lol/v2/'; const CORS_PROXY_ROOT='https://proxy.cors.dev/'; const REGION_RADIUS_NM=250;\n" +
     bpDroneHelperSource + "\nreturn DroneCore;"
   )();
 
   assert.equal(bpDroneCore.radiusNm, 250, 'supported request radius is explicitly defined at 250 NM');
   assert.equal(
     bpDroneCore.buildRequestUrl({lat:40.7, lon:-74}),
-    'https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-drone-feed-v1?lat=40.7000&lon=-74.0000&radius=250',
+    'https://proxy.cors.dev/https://api.adsb.lol/v2/lat/40.7000/lon/-74.0000/dist/250',
     'browser requests use the production BridgePoint server-side feed proxy'
   );
   assert.equal(bpDroneCore.buildUpstreamRequestUrl({lat:40.7,lon:-74}), 'https://api.adsb.lol/v2/lat/40.7000/lon/-74.0000/dist/250', 'proxy preserves the documented ADSB.lol upstream endpoint');
@@ -256,21 +256,21 @@ console.log('Drone awareness module checks passed.');
   const helperStartV4=sourceV4.indexOf('const DroneCore=(()=>{');
   const helperEndV4=sourceV4.indexOf('})();',helperStartV4)+4;
   const helperV4=sourceV4.slice(helperStartV4,helperEndV4);
-  const coreV4=new Function("const SUPPORTED_SOURCE='https://api.adsb.lol/v2/';const DRONE_PROXY_URL='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-drone-feed-v1';const DRONE_PROXY_KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';const REGION_RADIUS_NM=250;\n"+helperV4+"\nreturn DroneCore;")();
+  const coreV4=new Function("const SUPPORTED_SOURCE='https://api.adsb.lol/v2/';const CORS_PROXY_ROOT='https://proxy.cors.dev/';const REGION_RADIUS_NM=250;\n"+helperV4+"\nreturn DroneCore;")();
 
   let requestedUrlV4=null,requestOptionsV4=null;
-  const proxyPayloadV4={...fixtureV4,upstreamUrl:'https://api.adsb.lol/v2/lat/40.7000/lon/-74.0000/dist/250',providers:{adsb_lol:{status:'ok'},layer400_remote_id:{status:'not_configured'}}};
+  const proxyPayloadV4=fixtureV4;
   const responseV4=await coreV4.requestSample({id:'Fixture hub',lat:40.7,lon:-74},async(url,options)=>{
     requestedUrlV4=url;requestOptionsV4=options;
     return{ok:true,status:200,statusText:'OK',text:async()=>JSON.stringify(proxyPayloadV4)};
   },undefined);
-  assert.equal(requestedUrlV4,'https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-drone-feed-v1?lat=40.7000&lon=-74.0000&radius=250','live request helper calls the regional BridgePoint proxy');
+  assert.equal(requestedUrlV4,'https://proxy.cors.dev/https://api.adsb.lol/v2/lat/40.7000/lon/-74.0000/dist/250','live request helper calls the regional BridgePoint proxy');
   assert.equal(requestOptionsV4.method,'GET');
   assert.equal(requestOptionsV4.headers.Accept,'application/json');
-  assert.equal(requestOptionsV4.headers.apikey,'sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25','only the public Supabase key is sent to the browser proxy');
+  assert.deepEqual(requestOptionsV4.headers,{Accept:'application/json'},'no Supabase credentials or other auth headers are sent');
   assert.equal(responseV4.transportUrl,requestedUrlV4);
-  assert.equal(responseV4.requestUrl,proxyPayloadV4.upstreamUrl,'provider diagnostics retain the actual ADS-B upstream URL');
-  assert.equal(responseV4.providers.layer400_remote_id.status,'not_configured');
+  assert.equal(responseV4.requestUrl,'https://api.adsb.lol/v2/lat/40.7000/lon/-74.0000/dist/250','provider diagnostics retain the actual ADS-B upstream URL');
+  assert.deepEqual(responseV4.providers,{},'direct public ADS-B payloads do not depend on a BridgePoint proxy envelope');
   assert.equal(responseV4.records.length,4,'proxied HTTP response body is parsed from the real ac fixture');
   assert.equal(responseV4.records[0].category,'B6');
   await assert.rejects(
@@ -350,16 +350,8 @@ console.log('Drone awareness module checks passed.');
   assert.doesNotMatch(sourceV4,/Math\.max\(altitude\.meters/);
   assert.doesNotMatch(sourceV4,/return\{meters:3,known:true\}/);
   assert.doesNotMatch(sourceV4,/SIM_FLEET_COUNT|simulatedFleetFeatureCollection/);
-  assert.match(sourceV4,/Remote ID network: Layer400 live RID is supported/);
-  assert.match(sourceV4,/DRONE_PROXY_URL/);
-  assert.match(sourceV4,/LAYER400_API_KEY/);
-  assert.match(sourceV4,/height_agl_m/);
-  assert.match(sourceV4,/FlyItalyADSB ADS-B\/MLAT\/OGN/);
-  assert.match(sourceV4,/Flight data: FlyItalyADSB \(flyitalyadsb\.com\), CC BY-SA 4\.0/);
-  const proxySourceV4=readDroneV4(new URL('../supabase/functions/bridgepoint-drone-feed-v1/index.ts',import.meta.url),'utf8');
-  assert.match(proxySourceV4,/FLYITALYADSB_API_KEY/);
-  assert.match(proxySourceV4,/X-Api-Key/);
-  assert.match(proxySourceV4,/radiusNm \* 1\.852/);
-  assert.match(proxySourceV4,/function flyItalyUavRecord/);
-  assert.match(proxySourceV4,/ecat === 13/);
+  assert.match(sourceV4,/CORS_PROXY_ROOT='https:\/\/proxy\.cors\.dev\//);
+  assert.match(sourceV4,/function buildUpstreamRequestUrl/);
+  assert.doesNotMatch(sourceV4,/supabase\.co|DRONE_PROXY_KEY|apikey/i,'the Aircraft runtime has no Supabase URL or credentials');
+  assert.match(sourceV4,/ADSB\.lol public community ADS-B/);
 }
