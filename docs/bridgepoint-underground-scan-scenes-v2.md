@@ -6,9 +6,9 @@ This version replaces the external Sketchfab viewer-only design with real GLB me
 
 - One static Caves & Sites button is inserted directly into the existing bpv-dock-actions markup by the narrow publisher. The module binds to that button and retains a dynamic fallback only if the static element is missing.
 - Three site icons remain visible at map zoom 0–24 while the layer is enabled.
-- Selecting a site opens a compact attribution card and loads the selected .glb.gz scan into BridgePoint's own MapLibre 3D scene. It does not create an iframe or redirect to Sketchfab.
+- Selecting a site opens a compact attribution card and loads the selected .glb.gz scan into BridgePoint's own MapLibre 3D scene. It does not create an iframe or redirect to Sketchfab. The popup explicitly names Sketchfab and shows the creator, CC BY license and source link.
 - A selected scan is rendered through terrain at its selected site anchor. The configured vertical offset is a visualization position, not a surveyed depth. Location precision is stated because the scan files are not georeferenced to exact chamber coordinates.
-- GLB files are gzip-compressed and parsed by the local /vendor/GLTFLoader.bundle.js.
+- GLB files are gzip-compressed and parsed by the local /vendor/GLTFLoader.bundle.js. The custom 3D layer reattaches after a MapLibre style reload.
 
 ## Initial CC BY scan catalog
 
