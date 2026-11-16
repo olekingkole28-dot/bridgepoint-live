@@ -42,6 +42,10 @@ SCANS = [
         "source_url": "https://sketchfab.com/3d-models/paris-catacombs-the-bar-of-the-rats-sitescape-f4232f8f91e54b0a8aa92365d6ea7b7a",
         "dataset_url": "https://doi.org/10.5281/zenodo.10232541",
         "detail": "A multi-chamber area called Le Bar des Rats in the northwestern part of the Catacombs network. The source creator describes this as an iPhone 12 Pro / Scaniverse scan with roughly 9.1 million point vertices.",
+        "room_address": "69 Rue de Notre-Dame-des-Champs, 75006 Paris, France",
+        "room_coordinates": [2.3314794209, 48.8432369808],
+        "depth_below_surface_m": 20,
+        "location_source_url": "https://catacombes.xyz/rooms/rats",
     },
 ]
 
@@ -120,6 +124,14 @@ def materialize_scan(scan: dict, output: Path) -> dict:
         "compressedBytes": target.stat().st_size,
         "sha256": hashlib.sha256(target.read_bytes()).hexdigest(),
     }
+    if scan.get("room_address"):
+        row.update({
+            "roomAddress": scan["room_address"],
+            "roomCoordinates": scan["room_coordinates"],
+            "depthBelowSurfaceM": scan["depth_below_surface_m"],
+            "locationSourceUrl": scan["location_source_url"],
+            "locationPrecision": "Approximate address-level room reference; the original GLB scan origin is not GPS-georeferenced.",
+        })
     print("BRIDGEPOINT_UNDERGROUND_SCAN_READY", scan["title"], len(raw), "source bytes", target.stat().st_size, "compressed bytes")
     return row
 
@@ -134,9 +146,9 @@ def main() -> None:
     if total > MAX_TOTAL_COMPRESSED_BYTES:
         raise SystemExit("Combined underground GLBs exceed the configured size limit")
     manifest = {
-        "version": 4,
+        "version": 5,
         "site": "Paris Catacombs, Paris, France",
-        "locationPrecision": "Regional anchor only; the published scan records do not contain survey-grade chamber coordinates or georeferenced scan origins.",
+        "locationPrecision": "Bar des rats uses an independent address-level room and depth reference; the original LiDAR GLB scan origin is not survey-georeferenced.",
         "source": "Public Zenodo records with original Sketchfab creator attribution",
         "models": models,
     }
