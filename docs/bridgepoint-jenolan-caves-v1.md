@@ -7,7 +7,7 @@ This is a separate, BridgePoint-hosted 3D underground asset. It does not modify 
 The model is derived from **Jenolan Caves: 3D Data Collection**, a public CSIRO collection by Robert Zlot and Michael Bosse. The collection describes 3D laser scans of the natural caves and the surface above them, with roughly 2.3 billion points in the full-resolution collection and an approximately 28.4 km scanner trajectory. The associated cave survey paper describes 17.1 km of cave traverse.
 
 - Collection / source attribution: <https://doi.org/10.4225/08/55911F74299DC>
-- Source file: \`ProcessedData/jenolan_2010_2014_V.ply\` (CSIRO file ID 48134791)
+- Source file: `ProcessedData/jenolan_2010_2014_V.ply` (CSIRO file ID 48134791)
 - Source file size in the collection inventory: approximately 837 MiB
 - License: Creative Commons Attribution-ShareAlike 3.0 Unported (CC BY-SA 3.0)
 - Materialized asset: deterministic sample of up to 2.5 million points from across the full PLY, hosted by BridgePoint as a compressed point cloud
@@ -26,8 +26,8 @@ No Supabase dependency is used. The existing Paris Catacombs assets and renderer
 
 ## Build and validation
 
-\`\`\`bash
+```bash
 python3 tools/underground/build_jenolan_cloud.py --source jenolan_2010_2014_V.ply --output assets/underground/jenolan-caves-v1
 node --input-type=module --check < rebuild-v5000/bridgepoint-jenolan-caves-v1.js
 node tests/jenolan-caves-v1.test.mjs
-\`\`\`
+```
