@@ -198,7 +198,7 @@ function syncAircraftFilterVisibility(active=enabled){
  if(map){
   const visibility=new Map([[CLUSTER_LAYER,dronesOn],[CLUSTER_COUNT_LAYER,dronesOn],[LAYER,dronesOn],[TRAIL_GLOW,dronesOn],[TRAIL_LAYER,dronesOn],[TRAIL_DOT_LAYER,dronesOn],[AIRCRAFT_LAYER,otherOn],[AIRCRAFT_TRAIL_LAYER,otherOn],[AIRCRAFT_TRAIL_DOT_LAYER,otherOn]]);
   for(const [id,show] of visibility)try{if(map.getLayer(id))map.setLayoutProperty(id,'visibility',show?'visible':'none')}catch(_){}
-  const filter=kinds.length?['in',['get','aircraft_kind'],...kinds]:['==',['get','aircraft_kind'],'__none__'];
+  const filter=kinds.length?['match',['get','aircraft_kind'],kinds,true,false]:['==',['get','aircraft_kind'],'__none__'];
   for(const id of [AIRCRAFT_LAYER,AIRCRAFT_TRAIL_LAYER,AIRCRAFT_TRAIL_DOT_LAYER])try{if(map.getLayer(id))map.setFilter(id,filter)}catch(_){}
  }
  for(const model of droneModels.values())model.visible=dronesOn;
