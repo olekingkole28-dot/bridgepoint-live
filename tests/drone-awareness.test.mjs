@@ -50,8 +50,8 @@ assert.ok(moduleSource.includes("for(const event of ['style.load','idle','moveen
 assert.ok(!moduleSource.includes("m.on('styledata',hideDefaultOverlays)"), 'avoid styledata feedback loops while hiding optional layers');
 assert.ok(landingHtml.includes('bridgepoint-drone-awareness-v1.js'), 'homepage loads the module');
 assert.ok(appHtml.includes('bridgepoint-drone-awareness-v1.js'), 'app loads the module');
-assert.ok(landingHtml.includes('bridgepoint-drone-awareness-v1.js?v=8-persistent-overlay-category-gate'), 'homepage uses the live 3D drone runtime cache key');
-assert.ok(appHtml.includes('bridgepoint-drone-awareness-v1.js?v=8-persistent-overlay-category-gate'), 'app uses the same persistent overlay guard cache key');
+assert.ok(landingHtml.includes('bridgepoint-drone-awareness-v1.js?v=9-aircraft-filters-ground-tethers'), 'homepage uses the live 3D drone runtime cache key');
+assert.ok(appHtml.includes('bridgepoint-drone-awareness-v1.js?v=9-aircraft-filters-ground-tethers'), 'app uses the same persistent overlay guard cache key');
 assert.ok(view.includes('data-bpv-command-grid="environment"'), 'environment command group exists');
 for (const action of ['weatherfx','windfx','volumetric','ai','listings','opportunities','metrics','property','explore','parcels','boundaryviewer','worldchanges','controls','motion','whole']) {
   assert.ok(view.includes('data-bpv-action="'+action+'"'), 'the dock exposes the '+action+' action');
@@ -113,6 +113,14 @@ assert.ok(moduleSource.includes("'gta-parcel','gta-parcel-glow','gta-parcel-halo
 assert.ok(landingHtml.includes('offline-world-ui.js'), 'homepage contains the offline dock UI loader');
 assert.ok(appHtml.includes('offline-world-ui.js'), 'app contains the offline dock UI loader');
 assert.ok(view.includes('bpv-mapkey-rail'), 'the map key is available from the side rail');
+assert.ok(moduleSource.includes('data-bpv-action="drones"') || moduleSource.includes("b.dataset.bpvAction='drones'"), 'the existing opt-in aircraft dock action remains compatible');
+assert.ok(moduleSource.includes('const AIRCRAFT_FILTER_GROUPS=['), 'aircraft types are exposed as independent filter groups');
+assert.ok(moduleSource.includes('function setAircraftFilter(groupKey)'), 'aircraft filters can be toggled independently');
+assert.ok(moduleSource.includes("['in',['get','aircraft_kind']"), 'map markers and trails are filtered by source aircraft kind');
+assert.ok(moduleSource.includes('Solid vertical ground-to-aircraft tether'), 'source-altitude aircraft and drones receive a visible 3D ground tether');
+assert.ok(moduleSource.includes('function aircraftModelSpanMetersByKind'), 'aircraft 3D geometry uses family-specific real-world scale');
+assert.ok(moduleSource.includes('function syncAircraftFilterVisibility(active=enabled)'), 'type filters also gate the 3D meshes, trails and tethers');
+assert.ok(moduleSource.includes('return null;') && moduleSource.includes('queryGroundElevation'), 'tethers do not invent a ground elevation when terrain data is unavailable');
 console.log('Drone awareness module checks passed.');
 
 
