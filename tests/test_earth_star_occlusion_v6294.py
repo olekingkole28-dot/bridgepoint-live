@@ -11,7 +11,7 @@ MOON_DIR = ROOT / "assets" / "moon" / "v1"
 MOON_MANIFEST = json.loads((MOON_DIR / "manifest.json").read_text(encoding="utf-8"))
 
 
-class MoonAndEarthOcclusionV6301Tests(unittest.TestCase):
+class MoonAndEarthOcclusionV6302Tests(unittest.TestCase):
     def test_gaia_stars_are_clipped_to_the_projected_earth_silhouette_each_frame(self):
         for marker in (
             "const {THREE,scene,camera,host,canvas,controls,starsGroup",
