@@ -24,6 +24,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Parse the production publisher workflow YAML
+        run: |
+          python3 -m pip install --quiet PyYAML
+          python3 - <<'PY'
+          import yaml
+          with open('.github/workflows/publish-underground-scan-scenes-v2.yml',encoding='utf-8') as f:
+              data=yaml.safe_load(f)
+          assert isinstance(data,dict) and 'jobs' in data and 'publish' in data['jobs']
+          print('UNDERGROUND_PUBLISH_WORKFLOW_YAML_PASS')
+          PY
       - name: Check real in-scene renderer syntax
         run: node --check rebuild-v5000/bridgepoint-underground-scan-scenes-v2.js
       - name: Compile rights-checked Sketchfab asset importer
