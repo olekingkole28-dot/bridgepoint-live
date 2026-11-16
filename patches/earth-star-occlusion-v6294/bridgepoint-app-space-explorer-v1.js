@@ -4,7 +4,7 @@
  */
 (() => {
   'use strict';
-  const BUILD = 'v2-moon-earth-opaque';
+  const BUILD = 'v6302-earth-ray-opaque';
   if (window.__BP_APP_SPACE_EXPLORER_V1__?.build === BUILD) return;
 
   const STYLE_ID = 'bpAppSpaceExplorerStylesV1';
@@ -152,7 +152,7 @@
       const current = getRenderer();
       if (current) return current;
       if (!loading) {
-        loading = import('/bridgepoint-welcome-space-v6260.js?v=v6301-moon-earth-opaque&space=app-explorer-v1')
+        loading = import('/bridgepoint-welcome-space-v6260.js?v=v6302-earth-ray-opaque&space=app-explorer-v1')
           .then(() => {
             const api = getRenderer();
             if (!api) throw new Error('The 3D celestial scene did not register its renderer');
