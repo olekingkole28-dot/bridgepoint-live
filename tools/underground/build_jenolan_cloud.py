@@ -49,7 +49,7 @@ def build(source: Path, output: Path, max_points: int) -> dict:
         raise SystemExit(f"Source PLY is missing or unexpectedly small: {source}")
     with source.open("rb") as stream:
         ply = PlyData.read(stream, mmap=True)
-    if "vertex" not in ply:
+    if "vertex" not in {element.name for element in ply.elements}:
         raise SystemExit("Source PLY does not contain a vertex element")
 
     vertex = ply["vertex"].data
