@@ -116,7 +116,7 @@ def build(source: Path, output: Path, max_points: int) -> dict:
         "license": LICENSE,
         "creator": "Robert Zlot and Michael Bosse, CSIRO",
         "sourceUrl": SOURCE_URL,
-        "paperUrl": "https://doi.org/10.1007/s10021-014-9771-3",
+        "paperUrl": "https://doi.org/10.4311/2012EX0287",
         "caveTraverseKm": 17.1,
         "collectionTrajectoryKm": 28.4,
         "publishedCollectionPointCountApprox": 2_300_000_000,
