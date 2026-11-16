@@ -29,7 +29,7 @@ export const PARIS_CATACOMBS_MODELS_V4=[
   roomAddress:'69 Rue de Notre-Dame-des-Champs, 75006 Paris, France',roomCoordinates:[2.3314794209,48.8432369808],depthBelowSurfaceM:20,
   locationPrecision:'Approximate room-level address anchor from an independent Catacombs 3D archive; the original point cloud is not GPS-georeferenced.',
   locationSourceUrl:'https://catacombes.xyz/rooms/rats',
-  detail:'A multi-chamber area known as Le Bar des Rats, identified by its creator as being toward the northwestern corner of the Paris Catacombs. It includes walls and murals and is a much denser point-cloud capture than the gallery mesh.'}
+  detail:'A multi-chamber area known as Le Bar des Rats, identified by its creator as being toward the northwestern corner of the Paris Catacombs. It includes walls and murals and is a much denser point-cloud capture than the gallery mesh.'},
 
  {uid:'96cc3e6942a7455382c49241c1a80915',title:'Paris Catacombs — Salle Z (3DScannerApp)',label:'Salle Z',creator:'Emm (@edemaistre)',
   license:'CC BY 4.0',captureMethod:'iPhone 12 Pro · 3DScannerApp',
