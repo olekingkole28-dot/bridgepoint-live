@@ -1,261 +1,294 @@
-/* BridgePoint Caves & Underground Sites v2.
- * Real GLB scan meshes render in BridgePoint's own Three.js/MapLibre 3D scene.
- * Map anchors and visual vertical offsets are clearly distinguished from surveyed locations.
+/* BridgePoint Paris Catacombs — native underground mesh + independent 3D viewer.
+ * The source scan is a real iPhone LiDAR capture. Its district anchor and below-ground offset
+ * are visualization references only: the source mesh is not georeferenced to a surveyed chamber.
  */
-const VERSION=2, MAP_STATES=new WeakMap(), MIN_MODEL_ZOOM=11.2;
+const VERSION=3, MAP_STATES=new WeakMap(), MIN_MODEL_ZOOM=11.2;
 const THREE_URL='/vendor/three.module.js?v=169-local';
 const GLTF_URL='/vendor/GLTFLoader.bundle.js?v=169-local';
-const SOURCE_ID='bp-underground-scenes-source-v2', HALO_ID='bp-underground-scenes-halo-v2';
-const MARKER_ID='bp-underground-scenes-markers-v2', LABEL_ID='bp-underground-scenes-labels-v2';
-const MODEL_LAYER_ID='bp-underground-scenes-models-v2';
-const CONTROL_ID='bp-underground-scan-scenes-control-v2', TOGGLE_ID='bp-underground-scan-scenes-toggle-v2';
-const COUNT_ID='bp-underground-scan-scenes-count-v2', STATUS_ID='bp-underground-scan-scenes-status-v2';
-let threePromise=null;
-
-export const UNDERGROUND_SCAN_SITES_V2=[
- {id:'paris-catacombs',name:'Paris Catacombs',type:'catacomb',coordinates:[2.3324,48.8336],
-  locationPrecision:'Approximate Catacombs district anchor. Individual scan pages do not publish exact chamber coordinates.',
-  locationNote:'Paris scan meshes use this site-region anchor for discovery; they are not surveyed chamber positions.',
-  visualizationOffsetM:-18,description:'Real iPhone LiDAR / photogrammetry records of galleries, stairs and chambers in the former underground quarries of Paris.',
-  models:[
-   {uid:'39e7050d272f4aac8493497621b86f39',title:'Large gallery',creator:'Emm (@edemaistre)',license:'CC Attribution',captureMethod:'iPhone 12 Pro · Scaniverse',sourceUrl:'https://sketchfab.com/3d-models/paris-catacombs-large-gallery-39e7050d272f4aac8493497621b86f39'},
-   {uid:'27ae0d6041c54e2eab6638d197985842',title:'Level 1 to Level 2 passage',creator:'Emm (@edemaistre)',license:'CC Attribution',captureMethod:'iPhone 12 Pro · 3DScannerApp',sourceUrl:'https://sketchfab.com/3d-models/paris-catacombs-from-level-1-to-level-2-27ae0d6041c54e2eab6638d197985842'},
-   {uid:'c63534cc8b97437bb933b8eba87ffb0d',title:'Our Lady of the Catacombs chamber',creator:'Emm (@edemaistre)',license:'CC Attribution',captureMethod:'iPhone 12 Pro · Scaniverse',sourceUrl:'https://sketchfab.com/3d-models/paris-catacombs-our-lady-of-the-catacombs-c63534cc8b97437bb933b8eba87ffb0d'},
-   {uid:'d407fb1ba0414482a99ccd6567b29512',title:'Salle Z (portion)',creator:'Emm (@edemaistre)',license:'CC Attribution',captureMethod:'iPhone 12 Pro · 3DScannerApp',sourceUrl:'https://sketchfab.com/3d-models/paris-catacombs-salle-z-portion-d407fb1ba0414482a99ccd6567b29512'},
-   {uid:'ca80de4ccfdd45d4a5b44dad31cb0da2',title:'The Flag Room',creator:'Emm (@edemaistre)',license:'CC Attribution',captureMethod:'iPhone 12 Pro · Scaniverse',sourceUrl:'https://sketchfab.com/3d-models/paris-catacombs-the-flag-room-ca80de4ccfdd45d4a5b44dad31cb0da2'},
-   {uid:'e78831639a3a4000b2130457badfc34b',title:'Bureau du Centre',creator:'Emm (@edemaistre)',license:'CC Attribution',captureMethod:'iPhone 12 Pro · Scaniverse',sourceUrl:'https://sketchfab.com/3d-models/paris-catacombs-bureau-du-centre-e78831639a3a4000b2130457badfc34b'},
-   {uid:'befe33ccb4cf4005a6f26c83629a9be6',title:'German bunker passage',creator:'Emm (@edemaistre)',license:'CC Attribution',captureMethod:'iPhone 12 Pro · 3DScannerApp',sourceUrl:'https://sketchfab.com/3d-models/paris-catacombs-in-the-german-bunker-befe33ccb4cf4005a6f26c83629a9be6'}
-  ]},
- {id:'vrlovka-cave',name:'Vrlovka Cave',type:'cave',coordinates:[15.390412,45.636916],
-  locationPrecision:'Published cave-site anchor near the entrance. The model is an interior detail segment, not a georegistered full-cave survey mesh.',
-  locationNote:'The icon marks Špilja Vrlovka in Kamanje, Croatia; it does not locate the scanned column segment inside the cave.',
-  visualizationOffsetM:-12,description:'A high-detail GeoSLAM mobile-LiDAR scan segment from Vrlovka Cave.',
-  models:[
-   {uid:'2bff1e25b797418caea81927f394fa9d',title:'Stalagnate within Vrlovka Cave — highest LOD',creator:'Center for Geospatial Technologies (GAL)',license:'CC Attribution',captureMethod:'GeoSLAM mobile LiDAR survey',sourceUrl:'https://sketchfab.com/3d-models/stalagnate-within-vrlovka-cave-highest-lod-2bff1e25b797418caea81927f394fa9d'}
-  ]},
- {id:'om-jaettestue',name:'Øm Jættestue Passage Tomb',type:'tomb',coordinates:[11.994633,55.599731],
-  locationPrecision:'Published GPS coordinate for the passage-tomb site. The mesh is not a georeferenced excavation survey.',
-  locationNote:'This is a Neolithic passage tomb and burial chamber, not a natural cave.',
-  visualizationOffsetM:-5,description:'A photogrammetric scan of the Neolithic passage grave at Øm near Lejre, Denmark.',
-  models:[
-   {uid:'fe5da7d5202a4bfaa6b48e0096d4c6fd',title:'Øm Jættestue passage grave',creator:'Azad Balabanian (@azadbal)',license:'CC Attribution',captureMethod:'610-image photogrammetry · RealityCapture',sourceUrl:'https://sketchfab.com/3d-models/passage-grave-m-jttestue-denmark-fe5da7d5202a4bfaa6b48e0096d4c6fd'}
-  ]}
-];
-export const UNDERGROUND_SCAN_RIGHTS_HOLDS_V2=[
- {title:'Ice cave — Lester paints the world',reason:'CC Attribution-NonCommercial-ShareAlike; excluded from commercial assets until separate permission.',sourceUrl:'https://sketchfab.com/3d-models/ice-cave-lester-paints-the-world-76c1a32650da44fea7b11315cc30a02f'},
- {title:'Samograd Cave / CARDIKARST scans',reason:'CC Attribution-NonCommercial-ShareAlike; excluded from commercial assets until separate permission.',sourceUrl:'https://cardikarst.geog.pmf.hr/?p=491'},
- {title:'Carlsbad Caverns scan candidate',reason:'No individually verified downloadable commercial-use scan with a defensible site anchor is included. No marker is fabricated.'}
-];
-function allModels(){
- return UNDERGROUND_SCAN_SITES_V2.flatMap(site=>site.models.map(model=>({...model,siteId:site.id,siteName:site.name,
-  coordinates:site.coordinates,locationPrecision:site.locationPrecision,locationNote:site.locationNote,
-  visualizationOffsetM:site.visualizationOffsetM,assetUrl:'/assets/underground-scan-scenes/'+model.uid+'.glb.gz'})));
-}
+const SOURCE_ID='bp-paris-catacombs-source-v3', HALO_ID='bp-paris-catacombs-halo-v3';
+const MARKER_ID='bp-paris-catacombs-marker-v3', LABEL_ID='bp-paris-catacombs-label-v3';
+const MODEL_LAYER_ID='bp-paris-catacombs-model-v3';
+const CONTROL_ID='bp-paris-catacombs-control-v3', TOGGLE_ID='bp-paris-catacombs-toggle-v3';
+const COUNT_ID='bp-paris-catacombs-count-v3', STATUS_ID='bp-paris-catacombs-status-v3';
+const MODEL_UID='39e7050d272f4aac8493497621b86f39';
+const MODEL={
+ uid:MODEL_UID,title:'Paris Catacombs — Large Gallery',creator:'Emm (@edemaistre)',
+ license:'CC BY 4.0',captureMethod:'iPhone 12 Pro · Scaniverse LiDAR',
+ sourceUrl:'https://sketchfab.com/3d-models/paris-catacombs-large-gallery-39e7050d272f4aac8493497621b86f39',
+ datasetUrl:'https://doi.org/10.5281/zenodo.10287234',
+ assetUrl:'/assets/underground-scan-scenes/'+MODEL_UID+'.glb.gz'
+};
+export const PARIS_CATACOMBS_SITE_V3={
+ id:'paris-catacombs',name:'Paris Catacombs',type:'catacomb',
+ coordinates:[2.3324,48.8336],
+ locationPrecision:'Approximate Paris Catacombs district anchor. The source scan does not publish surveyed chamber coordinates.',
+ visualizationOffsetM:-16,
+ description:'A real iPhone LiDAR scan of a gallery in the Paris Catacombs. This is one scanned gallery segment, not a complete survey of the entire catacomb network.'
+};
+export const UNDERGROUND_SCAN_SITES_V2=[{...PARIS_CATACOMBS_SITE_V3,models:[MODEL]}];
 export function buildUndergroundSceneFeatures(sites=UNDERGROUND_SCAN_SITES_V2){
- return (Array.isArray(sites)?sites:[]).filter(s=>s&&typeof s.id==='string'&&Array.isArray(s.coordinates)&&
+ return (Array.isArray(sites)?sites:[]).filter(s=>s&&s.id==='paris-catacombs'&&Array.isArray(s.coordinates)&&
   Number.isFinite(Number(s.coordinates[0]))&&Number.isFinite(Number(s.coordinates[1]))&&
   Math.abs(Number(s.coordinates[0]))<=180&&Math.abs(Number(s.coordinates[1]))<=85&&Array.isArray(s.models)&&s.models.length>0)
   .map(s=>({type:'Feature',id:s.id,geometry:{type:'Point',coordinates:[Number(s.coordinates[0]),Number(s.coordinates[1])]},
-   properties:{siteId:s.id,name:s.name,type:s.type,iconImage:'bp-underground-scene-icon-'+s.type+'-v2',modelCount:s.models.length,locationPrecision:s.locationPrecision}}));
+   properties:{siteId:s.id,name:s.name,type:'catacomb',iconImage:'bp-paris-catacomb-icon-v3'}}));
 }
 function safe(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-function findSite(id){return UNDERGROUND_SCAN_SITES_V2.find(s=>s.id===String(id))||null;}
-function modelPopupHtml(site,selected){
- const options=site.models.map(m=>'<button type="button" class="bp-underground-scene-choice-v2'+(m.uid===selected.uid?' is-active':'')+'" data-underground-model="'+safe(m.uid)+'" aria-pressed="'+String(m.uid===selected.uid)+'"><b>'+safe(m.title)+'</b><small>'+safe(m.creator)+' · '+safe(m.captureMethod)+'</small></button>').join('');
- return '<article class="bp-underground-scene-popup-v2"><div class="bp-underground-scene-kicker-v2">BRIDGEPOINT · SKETCHFAB SOURCE · IN-SCENE 3D SCANS</div><h3>'+safe(site.name)+'</h3><p>'+safe(site.description)+'</p>'+
-  '<div class="bp-underground-scene-active-v2"><b id="bp-underground-scene-active-title-v2">'+safe(selected.title)+'</b>'+
-  '<span>Creator: <strong id="bp-underground-scene-active-creator-v2">'+safe(selected.creator)+'</strong></span>'+
-  '<span>License: <strong id="bp-underground-scene-active-license-v2">'+safe(selected.license)+'</strong></span>'+
-  '<span>Capture: <strong id="bp-underground-scene-active-method-v2">'+safe(selected.captureMethod)+'</strong></span>'+
-  '<span>Source platform: <strong>Sketchfab</strong></span>'+
-  '<span id="bp-underground-scene-active-state-v2">Selected mesh renders inside BridgePoint.</span>'+
-  '<a id="bp-underground-scene-source-v2" href="'+safe(selected.sourceUrl)+'" target="_blank" rel="noopener noreferrer">Original source / attribution ↗</a></div>'+
-  (site.models.length>1?'<div class="bp-underground-scene-choices-v2" aria-label="Scanned models at this site">'+options+'</div>':'')+
-  '<p class="bp-underground-scene-precision-v2"><b>Map location:</b> '+safe(site.locationPrecision)+'</p>'+
-  '<p class="bp-underground-scene-attribution-v2">The Sketchfab-provided 3D mesh is rendered in BridgePoint, not an embedded viewer. Creator, license and Sketchfab source are shown for attribution. Its vertical offset below terrain is for visualization only, not a source-measured depth. The scan is not claimed as an exact georeferenced chamber mesh.</p></article>';
+function iconImage(){
+ const c=document.createElement('canvas');c.width=80;c.height=80;const x=c.getContext('2d');
+ const g=x.createRadialGradient(26,18,3,40,40,38);g.addColorStop(0,'#f6ffff');g.addColorStop(.25,'#93eaf4');g.addColorStop(1,'#16516e');
+ x.fillStyle='rgba(3,13,21,.92)';x.beginPath();x.arc(40,40,36,0,Math.PI*2);x.fill();
+ x.strokeStyle='#9eeaf4';x.lineWidth=3;x.stroke();x.fillStyle=g;x.strokeStyle='#f0ffff';x.lineWidth=2.5;
+ x.beginPath();x.moveTo(15,60);x.lineTo(15,39);x.quadraticCurveTo(40,4,65,39);x.lineTo(65,60);x.closePath();x.fill();x.stroke();
+ x.fillStyle='#061b2a';x.beginPath();x.moveTo(27,60);x.lineTo(27,41);x.quadraticCurveTo(40,22,53,41);x.lineTo(53,60);x.closePath();x.fill();
+ x.strokeStyle='#fff';x.lineWidth=2;x.beginPath();x.moveTo(40,28);x.lineTo(40,50);x.moveTo(33,35);x.lineTo(47,35);x.stroke();
+ return x.getImageData(0,0,80,80);
 }
-function makeIcon(type){
- const c=document.createElement('canvas');c.width=72;c.height=72;const x=c.getContext('2d');
- const colors=type==='tomb'?['#e5bb76','#825a30']:type==='catacomb'?['#8ce3ef','#236a80']:['#9ce5b4','#2a7755'];
- const g=x.createRadialGradient(25,20,3,36,36,34);g.addColorStop(0,'#f4ffff');g.addColorStop(.25,colors[0]);g.addColorStop(1,colors[1]);
- x.fillStyle='rgba(3,13,21,.86)';x.beginPath();x.arc(36,36,32,0,Math.PI*2);x.fill();x.strokeStyle=colors[0];x.lineWidth=3;x.stroke();
- x.fillStyle=g;x.strokeStyle='#eefcff';x.lineWidth=2.2;
- if(type==='tomb'){x.beginPath();x.moveTo(15,30);x.lineTo(36,15);x.lineTo(57,30);x.lineTo(54,53);x.lineTo(18,53);x.closePath();x.fill();x.stroke();x.beginPath();x.moveTo(29,53);x.lineTo(29,38);x.quadraticCurveTo(36,29,43,38);x.lineTo(43,53);x.stroke();}
- else if(type==='catacomb'){x.beginPath();x.moveTo(14,54);x.lineTo(14,34);x.quadraticCurveTo(36,5,58,34);x.lineTo(58,54);x.closePath();x.fill();x.stroke();x.fillStyle='#061a28';x.beginPath();x.moveTo(26,54);x.lineTo(26,36);x.quadraticCurveTo(36,20,46,36);x.lineTo(46,54);x.closePath();x.fill();x.strokeStyle='#f0ffff';x.beginPath();x.moveTo(36,24);x.lineTo(36,46);x.moveTo(29,31);x.lineTo(43,31);x.stroke();}
- else{x.beginPath();x.moveTo(11,55);x.lineTo(11,40);x.lineTo(21,25);x.lineTo(31,32);x.lineTo(44,13);x.lineTo(61,40);x.lineTo(61,55);x.closePath();x.fill();x.stroke();x.fillStyle='#061a28';x.beginPath();x.moveTo(25,55);x.lineTo(25,42);x.quadraticCurveTo(36,29,47,42);x.lineTo(47,55);x.closePath();x.fill();}
- return x.getImageData(0,0,72,72);
+function loadThree(){return Promise.all([import(THREE_URL),import(GLTF_URL)]).then(([THREE,l])=>{
+ if(!THREE?.WebGLRenderer||!l?.GLTFLoader)throw new Error('BridgePoint local Three.js / GLTFLoader unavailable');return {THREE,GLTFLoader:l.GLTFLoader};
+});}
+async function getAssetBuffer(state){
+ if(state.assetBuffer)return state.assetBuffer;
+ if(state.assetPromise)return state.assetPromise;
+ state.assetPromise=(async()=>{
+  const response=await fetch(MODEL.assetUrl,{cache:'force-cache'});
+  if(!response.ok)throw new Error('Paris Catacombs GLB request failed ('+response.status+')');
+  if(typeof DecompressionStream==='undefined')throw new Error('Browser gzip decompression is unavailable');
+  const stream=new Blob([await response.arrayBuffer()]).stream().pipeThrough(new DecompressionStream('gzip'));
+  const buffer=await new Response(stream).arrayBuffer();
+  if(new DataView(buffer).getUint32(0,true)!==0x46546c67)throw new Error('Paris Catacombs asset is not a valid GLB');
+  state.assetBuffer=buffer;return buffer;
+ })().catch(e=>{state.assetPromise=null;throw e;});
+ return state.assetPromise;
 }
-function status(state,msg){
- state.status=String(msg||'');const el=document.getElementById(STATUS_ID);if(el)el.textContent=state.status;
- const p=state.popup?.getElement?.()?.querySelector('#bp-underground-scene-active-state-v2');if(p)p.textContent=state.status;
+async function getAssetScene(state){
+ if(state.assetScene)return state.assetScene;
+ if(state.assetScenePromise)return state.assetScenePromise;
+ state.assetScenePromise=(async()=>{
+  if(!state.THREE||!state.loader){const pair=await loadThree();if(state.dead)throw new Error('Layer closed');state.THREE=pair.THREE;state.loader=new pair.GLTFLoader();}
+  const buffer=await getAssetBuffer(state);
+  const gltf=await state.loader.parseAsync(buffer,'');
+  if(!gltf?.scene)throw new Error('Paris Catacombs GLB has no scene');
+  state.assetScene=gltf.scene;return gltf.scene;
+ })().catch(e=>{state.assetScenePromise=null;throw e;});
+ return state.assetScenePromise;
 }
-function refreshUi(state){
- const n=document.getElementById(COUNT_ID);if(n)n.textContent=state.stats.models+' real scan meshes · '+state.stats.sites+' site anchors';
- const s=document.getElementById(STATUS_ID);if(s)s.textContent=state.status;
- const b=document.getElementById(TOGGLE_ID);if(b){b.setAttribute('aria-pressed',String(state.enabled));b.classList.toggle('is-active',state.enabled);}
+function boundsOf(THREE,root){root.updateMatrixWorld(true);const b=new THREE.Box3().setFromObject(root);if(b.isEmpty())throw new Error('Paris Catacombs scan has no mesh geometry');return b;}
+function makeMapRoot(THREE,source){
+ const root=source.clone(true),box=boundsOf(THREE,root),size=box.getSize(new THREE.Vector3()),centre=box.getCenter(new THREE.Vector3());
+ root.position.x-=centre.x;root.position.z-=centre.z;root.position.y-=box.min.y;
+ const max=Math.max(size.x,size.y,size.z)||1;
+ if(max>45)root.scale.multiplyScalar(45/max);
+ root.traverse(o=>{if(!o.isMesh)return;o.frustumCulled=false;o.renderOrder=1000;
+  for(const m of Array.isArray(o.material)?o.material:[o.material])if(m){m.depthTest=false;m.depthWrite=false;m.needsUpdate=true;}});
+ root.updateMatrixWorld(true);return root;
 }
-function setVisibility(state,on){for(const id of [HALO_ID,MARKER_ID,LABEL_ID])if(state.map.getLayer(id))state.map.setLayoutProperty(id,'visibility',on?'visible':'none');}
-function installLayers(state){
- const map=state.map;if(!map?.getStyle?.())return false;
- try{
-  for(const t of ['cave','catacomb','tomb']){const id='bp-underground-scene-icon-'+t+'-v2';if(!map.hasImage?.(id))map.addImage(id,makeIcon(t),{pixelRatio:2});}
-  if(!map.getSource(SOURCE_ID))map.addSource(SOURCE_ID,{type:'geojson',data:{type:'FeatureCollection',features:buildUndergroundSceneFeatures()},buffer:64,maxzoom:14,attribution:'Scan creators and CC BY licenses are credited in each model card.'});
-  const add=(id,l)=>{if(!map.getLayer(id))map.addLayer(l);};
-  add(HALO_ID,{id:HALO_ID,type:'circle',source:SOURCE_ID,minzoom:0,maxzoom:24,layout:{visibility:state.enabled?'visible':'none'},paint:{
-   'circle-radius':['interpolate',['linear'],['zoom'],0,3.2,5,5.5,10,8,16,12,22,15],
-   'circle-color':['match',['get','type'],'tomb','#d9aa58','catacomb','#58d2e2','#7bd49a'],'circle-opacity':0.34,'circle-blur':0.52}});
-  add(MARKER_ID,{id:MARKER_ID,type:'symbol',source:SOURCE_ID,minzoom:0,maxzoom:24,layout:{
-   visibility:state.enabled?'visible':'none','icon-image':['get','iconImage'],
-   'icon-size':['interpolate',['linear'],['zoom'],0,0.31,3,0.43,7,0.58,12,0.72,18,0.84,23,0.92],
-   'icon-anchor':'bottom','icon-allow-overlap':true,'icon-ignore-placement':true,'symbol-sort-key':100}});
-  add(LABEL_ID,{id:LABEL_ID,type:'symbol',source:SOURCE_ID,minzoom:4,maxzoom:24,layout:{
-   visibility:state.enabled?'visible':'none','text-field':['get','name'],'text-size':['interpolate',['linear'],['zoom'],4,9,10,11,17,13],
-   'text-offset':[0,1.25],'text-anchor':'top','text-allow-overlap':false,'text-ignore-placement':false},
-   paint:{'text-color':'#eafcff','text-halo-color':'rgba(3,12,20,.94)','text-halo-width':1.4,'text-opacity':0.96}});
-  setVisibility(state,state.enabled);return true;
- }catch(e){state.stats.lastError=String(e?.message||e);console.warn('BridgePoint underground scene layers',e);return false;}
-}
-function loadThree(){if(!threePromise)threePromise=Promise.all([import(THREE_URL),import(GLTF_URL)]).then(([THREE,l])=>{
- if(!THREE?.WebGLRenderer||!l?.GLTFLoader)throw new Error('Local Three.js / GLTFLoader unavailable');return {THREE,GLTFLoader:l.GLTFLoader};
-}).catch(e=>{threePromise=null;throw e;});return threePromise;}
-function modelMatrixFor(map,THREE,coord,alt){
+function mapMatrix(map,THREE,coord,alt){
  try{
   const raw=map.transform&&typeof map.transform.getMatrixForModel==='function'?map.transform.getMatrixForModel([+coord[0],+coord[1]],+alt||0):null;
   if(raw&&raw.length>=16)return new THREE.Matrix4().fromArray(raw);
   const M=window.maplibregl?.MercatorCoordinate;if(!M?.fromLngLat)return null;
   const mc=M.fromLngLat([+coord[0],+coord[1]],+alt||0),metres=mc.meterInMercatorCoordinateUnits();
   if(![mc.x,mc.y,mc.z,metres].every(Number.isFinite)||metres<=0)return null;
-  return new THREE.Matrix4().set(metres,0,0,mc.x,0,0,metres,mc.y,0,metres,0,mc.z,0,0,0,1);
+  return new THREE.Matrix4().set(metres,0,0,mc.x,0,0,metres,mc.y,0,metres,0,0,0,0,0,1);
  }catch(_){return null;}
 }
-function disposeObject(root){if(!root)return;root.traverse(o=>{o.geometry?.dispose?.();if(o.material)for(const m of Array.isArray(o.material)?o.material:[o.material])m?.dispose?.();});}
-function prepareRoot(THREE,root){
- root.updateMatrixWorld(true);const box=new THREE.Box3().setFromObject(root);if(box.isEmpty())throw new Error('3D scan mesh has no geometry');
- const centre=box.getCenter(new THREE.Vector3());root.position.x-=centre.x;root.position.z-=centre.z;root.position.y-=box.min.y;
- root.traverse(o=>{if(!o.isMesh)return;o.frustumCulled=false;o.renderOrder=1000;for(const m of Array.isArray(o.material)?o.material:[o.material])if(m){m.depthTest=false;m.depthWrite=false;m.needsUpdate=true;}});
- root.updateMatrixWorld(true);return root;
+function status(state,msg){
+ state.status=String(msg||'');
+ const el=document.getElementById(STATUS_ID);if(el)el.textContent=state.status;
+ const p=state.popup?.getElement?.()?.querySelector('[data-catacomb-status]');if(p)p.textContent=state.status;
 }
-async function ensureModelLayer(state){
- const map=state.map;
- if(map.getLayer(MODEL_LAYER_ID)&&state.scene)return;
- if(state.layerReadyPromise&&map.getLayer(MODEL_LAYER_ID))return state.layerReadyPromise;
- state.layerReadyPromise=null;
- state.layerReadyPromise=new Promise((resolve,reject)=>{
+function refreshUi(state){
+ const n=document.getElementById(COUNT_ID);if(n)n.textContent='1 real LiDAR gallery scan · Paris, France';
+ const s=document.getElementById(STATUS_ID);if(s)s.textContent=state.status;
+ const b=document.getElementById(TOGGLE_ID);if(b){b.setAttribute('aria-pressed',String(state.enabled));b.classList.toggle('is-active',state.enabled);}
+}
+function installLayers(state){
+ const map=state.map;if(!map?.getStyle?.())return false;
+ try{
+  if(!map.hasImage?.('bp-paris-catacomb-icon-v3'))map.addImage('bp-paris-catacomb-icon-v3',iconImage(),{pixelRatio:2});
+  if(!map.getSource(SOURCE_ID))map.addSource(SOURCE_ID,{type:'geojson',data:{type:'FeatureCollection',features:buildUndergroundSceneFeatures()},buffer:64,maxzoom:14,
+   attribution:'Paris Catacombs LiDAR scan by Emm (@edemaistre), CC BY 4.0 · Zenodo DOI 10.5281/zenodo.10287234'});
+  const add=(id,l)=>{if(!map.getLayer(id))map.addLayer(l);};
+  add(HALO_ID,{id:HALO_ID,type:'circle',source:SOURCE_ID,minzoom:0,maxzoom:24,layout:{visibility:state.enabled?'visible':'none'},
+   paint:{'circle-radius':['interpolate',['linear'],['zoom'],0,3,5,5.5,10,8,16,12,22,15],
+    'circle-color':'#63d8eb','circle-opacity':.38,'circle-blur':.48}});
+  add(MARKER_ID,{id:MARKER_ID,type:'symbol',source:SOURCE_ID,minzoom:0,maxzoom:24,layout:{
+   visibility:state.enabled?'visible':'none','icon-image':['get','iconImage'],
+   'icon-size':['interpolate',['linear'],['zoom'],0,.31,3,.43,7,.58,12,.72,18,.84,23,.92],
+   'icon-anchor':'bottom','icon-allow-overlap':true,'icon-ignore-placement':true,'symbol-sort-key':100}});
+  add(LABEL_ID,{id:LABEL_ID,type:'symbol',source:SOURCE_ID,minzoom:4,maxzoom:24,layout:{visibility:state.enabled?'visible':'none',
+   'text-field':'PARIS CATACOMBS','text-size':['interpolate',['linear'],['zoom'],4,9,10,11,17,13],
+   'text-offset':[0,1.3],'text-anchor':'top','text-allow-overlap':false,'text-ignore-placement':false},
+   paint:{'text-color':'#eafcff','text-halo-color':'rgba(3,12,20,.94)','text-halo-width':1.4}});
+  return true;
+ }catch(e){state.stats.lastError=String(e?.message||e);console.warn('BridgePoint Paris Catacombs layers',e);return false;}
+}
+async function ensureMapModelLayer(state){
+ const map=state.map;if(map.getLayer(MODEL_LAYER_ID)&&state.scene)return;
+ if(state.layerPromise&&map.getLayer(MODEL_LAYER_ID))return state.layerPromise;
+ state.layerPromise=new Promise((resolve,reject)=>{
   const THREE=state.THREE;
   const layer={id:MODEL_LAYER_ID,type:'custom',renderingMode:'3d',
    onAdd(mapRef,gl){
     if(!state.renderer){
-     const r=new THREE.WebGLRenderer({canvas:mapRef.getCanvas(),context:gl,antialias:false,alpha:true,powerPreference:'low-power'});
-     r.autoClear=false;r.outputColorSpace=THREE.SRGBColorSpace;state.renderer=r;state.camera=new THREE.Camera();state.scene=new THREE.Scene();
-     state.scene.add(new THREE.AmbientLight(0xffffff,1.55));const light=new THREE.DirectionalLight(0xfff1d5,1.3);light.position.set(-.65,1.6,.85);state.scene.add(light);
+     state.renderer=new THREE.WebGLRenderer({canvas:mapRef.getCanvas(),context:gl,antialias:false,alpha:true,powerPreference:'low-power'});
+     state.renderer.autoClear=false;state.renderer.outputColorSpace=THREE.SRGBColorSpace;
+     state.camera=new THREE.Camera();state.scene=new THREE.Scene();
+     state.scene.add(new THREE.AmbientLight(0xffffff,1.65));
+     const light=new THREE.DirectionalLight(0xfff0d4,1.25);light.position.set(-.65,1.5,.9);state.scene.add(light);
     }
     state.stats.layerReady=true;resolve();
    },
    render(gl,args){
-    const root=state.activeRoot;if(!state.enabled||!state.renderer||!state.scene||!state.camera||!root||!state.activeModel)return;
+    const root=state.mapRoot;
+    if(!state.enabled||!state.mapVisible||!root||!state.renderer||!state.scene||!state.camera)return;
     if(Number(map.getZoom()||0)<MIN_MODEL_ZOOM){root.visible=false;return;}
     const raw=args&&(args.defaultProjectionData?.mainMatrix||args.modelViewProjectionMatrix);if(!raw||raw.length<16)return;
-    let ground=0;try{const v=map.queryTerrainElevation?.({lng:state.activeModel.coordinates[0],lat:state.activeModel.coordinates[1]},{exaggerated:false});if(Number.isFinite(v))ground=v;}catch(_){}
-    const offset=Number(state.activeModel.visualizationOffsetM),altitude=ground+(Number.isFinite(offset)?offset:-15);
-    const matrix=modelMatrixFor(map,THREE,state.activeModel.coordinates,altitude);if(!matrix)return;
+    let ground=0;try{const v=map.queryTerrainElevation?.({lng:PARIS_CATACOMBS_SITE_V3.coordinates[0],lat:PARIS_CATACOMBS_SITE_V3.coordinates[1]},{exaggerated:false});if(Number.isFinite(v))ground=v;}catch(_){}
+    const matrix=mapMatrix(map,THREE,PARIS_CATACOMBS_SITE_V3.coordinates,ground+PARIS_CATACOMBS_SITE_V3.visualizationOffsetM);if(!matrix)return;
     root.visible=true;state.camera.projectionMatrix.copy(new THREE.Matrix4().fromArray(raw)).multiply(matrix);
-    try{state.renderer.resetState();state.renderer.render(state.scene,state.camera);}catch(e){if(!state.renderWarned){state.renderWarned=true;console.warn('BridgePoint underground GLB render',e);}}finally{root.visible=false;}
+    try{state.renderer.resetState();state.renderer.render(state.scene,state.camera);}
+    catch(e){if(!state.renderWarned){state.renderWarned=true;console.warn('BridgePoint Paris Catacombs render',e);}}
+    finally{root.visible=false;}
    }
   };
-  try{
-   if(!map.getLayer(MODEL_LAYER_ID))map.addLayer(layer);
-   if(map.getLayer(MODEL_LAYER_ID)&&state.scene)resolve();
-  }catch(e){state.layerReadyPromise=null;reject(e);}
+  try{if(!map.getLayer(MODEL_LAYER_ID))map.addLayer(layer);if(map.getLayer(MODEL_LAYER_ID)&&state.scene)resolve();}
+  catch(e){state.layerPromise=null;reject(e);}
  });
- return state.layerReadyPromise;
+ return state.layerPromise;
 }
-async function fetchGlb(url){
- const response=await fetch(url,{cache:'force-cache'});if(!response.ok)throw new Error('GLB scan asset request failed ('+response.status+')');
- if(typeof DecompressionStream==='undefined')throw new Error('Browser gzip decompression is unavailable');
- const stream=new Blob([await response.arrayBuffer()]).stream().pipeThrough(new DecompressionStream('gzip'));
- return await new Response(stream).arrayBuffer();
-}
-async function loadScan(state,site,model){
- const request=++state.loadSequence;state.modelLoading=model.uid;
- if(state.activeRoot){state.scene?.remove(state.activeRoot);disposeObject(state.activeRoot);state.activeRoot=null;state.activeModel=null;}
- status(state,'Loading scan mesh inside BridgePoint: '+model.title+'…');
+async function showUnderTerrain(state){
+ state.mapVisible=true;status(state,'Loading the Paris Catacombs scan beneath the terrain…');
  try{
-  if(!state.THREE||!state.loader){const pair=await loadThree();if(state.dead||request!==state.loadSequence)return;state.THREE=pair.THREE;state.loader=new pair.GLTFLoader();}
-  await ensureModelLayer(state);if(state.dead||request!==state.loadSequence)return;
-  const buffer=await fetchGlb('/assets/underground-scan-scenes/'+model.uid+'.glb.gz');if(state.dead||request!==state.loadSequence)return;
-  const gltf=await state.loader.parseAsync(buffer,'');if(state.dead||request!==state.loadSequence){disposeObject(gltf.scene);return;}
-  const root=prepareRoot(state.THREE,gltf.scene);root.name='BridgePoint scan · '+model.title;root.visible=false;state.scene.add(root);
-  state.activeRoot=root;state.activeModel={...model,siteId:site.id,siteName:site.name,coordinates:site.coordinates,visualizationOffsetM:site.visualizationOffsetM};
-  state.modelLoading=null;status(state,'3D scan loaded inside BridgePoint · '+model.title+' · '+model.license+' · '+model.creator);
-  refreshUi(state);state.map.triggerRepaint?.();
- }catch(e){if(request!==state.loadSequence)return;state.modelLoading=null;status(state,'Could not load the in-scene scan mesh: '+String(e?.message||e));console.warn('BridgePoint underground GLB unavailable',model.uid,e);refreshUi(state);}
+  const source=await getAssetScene(state);if(state.dead)return;
+  if(!state.mapRoot){state.mapRoot=makeMapRoot(state.THREE,source);state.scene?.add(state.mapRoot);}
+  await ensureMapModelLayer(state);if(state.dead)return;
+  status(state,'Paris Catacombs gallery mesh displayed below the terrain at an approximate site anchor.');state.map.triggerRepaint?.();refreshUi(state);
+ }catch(e){state.mapVisible=false;status(state,'Could not display the catacomb scan: '+String(e?.message||e));refreshUi(state);}
 }
-function selectPopupModel(state,site,model){
- const root=state.popup?.getElement?.();if(root){
-  for(const [id,value] of [['#bp-underground-scene-active-title-v2',model.title],['#bp-underground-scene-active-creator-v2',model.creator],['#bp-underground-scene-active-license-v2',model.license],['#bp-underground-scene-active-method-v2',model.captureMethod]]){const el=root.querySelector(id);if(el)el.textContent=value;}
-  const link=root.querySelector('#bp-underground-scene-source-v2');if(link)link.href=model.sourceUrl;
-  for(const b of root.querySelectorAll('[data-underground-model]')){const active=b.getAttribute('data-underground-model')===model.uid;b.classList.toggle('is-active',active);b.setAttribute('aria-pressed',String(active));}
- }
- if(Number(state.map.getZoom()||0)<MIN_MODEL_ZOOM+.3)state.map.flyTo?.({center:site.coordinates,zoom:MIN_MODEL_ZOOM+.5,duration:1050});
- void loadScan(state,site,model);
+function popupHtml(){
+ return '<article class="bp-paris-catacomb-popup-v3">'+
+  '<div class="bp-paris-catacomb-kicker-v3">BRIDGEPOINT · UNDERGROUND LiDAR SCAN</div><h3>Paris Catacombs</h3>'+
+  '<p>One real scanned gallery from the Paris Catacombs. Turn on the underground mesh to inspect its approximate position below the BridgePoint terrain, or open the scan by itself for a full orbit-and-zoom inspection.</p>'+
+  '<div class="bp-paris-catacomb-actions-v3"><button type="button" data-catacomb-action="terrain">Show below terrain</button><button type="button" data-catacomb-action="viewer">Open 3D model viewer</button></div>'+
+  '<div class="bp-paris-catacomb-meta-v3"><b>Scan:</b> '+safe(MODEL.title)+'<br><b>Creator:</b> '+safe(MODEL.creator)+'<br><b>Capture:</b> '+safe(MODEL.captureMethod)+'<br><b>License:</b> '+safe(MODEL.license)+
+  '<br><b>Dataset:</b> <a href="'+MODEL.datasetUrl+'" target="_blank" rel="noopener noreferrer">Zenodo DOI 10.5281/zenodo.10287234</a><br><b>Original scan:</b> <a href="'+MODEL.sourceUrl+'" target="_blank" rel="noopener noreferrer">Sketchfab source and attribution</a></div>'+
+  '<p class="bp-paris-catacomb-warning-v3">Map anchor is approximate; the scan is not georeferenced to a surveyed chamber. The below-ground offset is a visualization placement, not a measured depth. The viewer shows the scan in its own local 3D space.</p>'+
+  '<p data-catacomb-status class="bp-paris-catacomb-status-v3">Choose how to inspect the scan.</p></article>';
 }
-function openPopup(state,site,lngLat){
- const Popup=window.maplibregl?.Popup;if(!Popup)return;if(state.popup)state.popup.remove();
- state.popup=new Popup({closeButton:true,closeOnClick:true,maxWidth:'390px',className:'bp-underground-scene-popup-wrap-v2'}).setLngLat(lngLat||site.coordinates).setHTML(modelPopupHtml(site,site.models[0])).addTo(state.map);
- const el=state.popup.getElement?.();if(el)for(const b of el.querySelectorAll('[data-underground-model]'))b.addEventListener('click',()=>{
-  const model=site.models.find(m=>m.uid===b.getAttribute('data-underground-model'));if(model)selectPopupModel(state,site,model);
- });
- selectPopupModel(state,site,site.models[0]);
+function addPopupActions(state,popup){
+ const el=popup.getElement?.();if(!el)return;
+ el.querySelector('[data-catacomb-action="terrain"]')?.addEventListener('click',()=>{void showUnderTerrain(state);});
+ el.querySelector('[data-catacomb-action="viewer"]')?.addEventListener('click',()=>{void openViewer(state);});
 }
-function bindMap(state){
- if(state.bound)return;state.bound=true;
- state.handleClick=e=>{
-  if(!state.enabled)return;
-  const hits=state.map.queryRenderedFeatures?.(e.point,{layers:[MARKER_ID]})||[];
-  const hit=hits.find(f=>f.properties?.siteId);if(!hit)return;
-  const site=findSite(hit.properties.siteId);if(site)openPopup(state,site,e.lngLat||site.coordinates);
- };
- state.handleStyle=()=>{if(state.enabled){installLayers(state);if(state.activeRoot&&state.THREE)void ensureModelLayer(state).catch(e=>status(state,'Underground 3D layer reattach failed: '+String(e?.message||e)));refreshUi(state);}};
- state.map.on('click',state.handleClick);state.map.on('style.load',state.handleStyle);state.map.on('load',state.handleStyle);
- state.map.on('zoomend',()=>{if(state.enabled&&state.renderer)state.map.triggerRepaint?.();});
+function openPopup(state,lngLat){
+ const Popup=window.maplibregl?.Popup;if(!Popup)return;
+ if(state.popup)state.popup.remove();
+ state.popup=new Popup({closeButton:true,closeOnClick:true,maxWidth:'420px',className:'bp-paris-catacomb-popup-wrap-v3'})
+  .setLngLat(lngLat||PARIS_CATACOMBS_SITE_V3.coordinates).setHTML(popupHtml()).addTo(state.map);
+ addPopupActions(state,state.popup);state.map.flyTo?.({center:PARIS_CATACOMBS_SITE_V3.coordinates,zoom:Math.max(11.4,Number(state.map.getZoom()||0)),duration:750});
+}
+const VIEWER_STYLE=[
+ "#bp-paris-catacomb-viewer-v3{position:fixed;inset:0;z-index:2147483000;background:radial-gradient(ellipse at 50% 35%,#183448 0%,#07131f 65%,#02070d 100%);color:#e9f7ff;font:500 14px/1.45 system-ui,sans-serif;display:flex;flex-direction:column}",
+ "#bp-paris-catacomb-viewer-v3 .bpv3-head{display:flex;align-items:center;gap:12px;padding:12px 16px;background:rgba(2,10,18,.82);border-bottom:1px solid rgba(135,207,231,.2)}",
+ "#bp-paris-catacomb-viewer-v3 .bpv3-title{font-weight:800;letter-spacing:.07em;font-size:13px;flex:1}",
+ "#bp-paris-catacomb-viewer-v3 button{border:1px solid rgba(142,217,235,.4);border-radius:9px;background:rgba(17,53,73,.82);color:#eafaff;padding:9px 13px;font:700 12px system-ui;cursor:pointer}",
+ "#bp-paris-catacomb-viewer-v3 canvas{display:block;flex:1;min-height:0;width:100%;touch-action:none;cursor:grab}",
+ "#bp-paris-catacomb-viewer-v3 .bpv3-foot{padding:10px 15px;background:rgba(2,10,18,.8);border-top:1px solid rgba(135,207,231,.2);font-size:11px;color:#b4cbd7}",
+ "#bp-paris-catacomb-viewer-v3 a{color:#93e8f1}"
+].join('\n');
+function disposeViewer(state){
+ const v=state.viewer;if(!v)return;
+ try{v.renderer.setAnimationLoop(null);v.renderer.dispose();}catch(_){}
+ v.resizeObserver?.disconnect?.();v.el?.remove?.();state.viewer=null;
+}
+function viewerCamera(THREE,v){
+ const p=v.phi,t=v.theta,r=v.radius;
+ v.camera.position.set(r*Math.sin(p)*Math.sin(t),r*Math.cos(p),r*Math.sin(p)*Math.cos(t));v.camera.lookAt(0,0,0);
+}
+async function openViewer(state){
+ try{
+  status(state,'Preparing the full 3D catacomb viewer…');
+  const source=await getAssetScene(state);if(state.dead)return;
+  disposeViewer(state);
+  const el=document.createElement('section');el.id='bp-paris-catacomb-viewer-v3';el.setAttribute('role','dialog');el.setAttribute('aria-modal','true');el.setAttribute('aria-label','Paris Catacombs 3D model viewer');
+  el.innerHTML='<header class="bpv3-head"><div class="bpv3-title">PARIS CATACOMBS · LARGE GALLERY</div><button type="button" data-reset>Reset view</button><button type="button" data-close aria-label="Close 3D viewer">Close ✕</button></header><canvas aria-label="Interactive 3D scanned gallery. Drag to rotate; scroll or pinch to zoom."></canvas><footer class="bpv3-foot">Drag to orbit · Scroll or pinch to zoom · Creator: '+safe(MODEL.creator)+' · '+safe(MODEL.license)+' · <a href="'+MODEL.sourceUrl+'" target="_blank" rel="noopener noreferrer">Original scan attribution</a></footer>';
+  let style=document.getElementById('bp-paris-catacomb-viewer-style-v3');if(!style){style=document.createElement('style');style.id='bp-paris-catacomb-viewer-style-v3';style.textContent=VIEWER_STYLE;document.head.appendChild(style);}
+  document.body.appendChild(el);
+  const canvas=el.querySelector('canvas'),THREE=state.THREE;
+  const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true,powerPreference:'high-performance'});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));renderer.outputColorSpace=THREE.SRGBColorSpace;
+  const scene=new THREE.Scene();scene.background=new THREE.Color(0x061522);
+  scene.add(new THREE.HemisphereLight(0xb9eaff,0x17212a,2.0));
+  const key=new THREE.DirectionalLight(0xffedcc,2.4);key.position.set(-5,9,7);scene.add(key);
+  const fill=new THREE.DirectionalLight(0x6fcde6,1.0);fill.position.set(7,2,-6);scene.add(fill);
+  const root=source.clone(true),box=boundsOf(THREE,root),size=box.getSize(new THREE.Vector3()),centre=box.getCenter(new THREE.Vector3());
+  const span=Math.max(size.x,size.y,size.z)||1;root.position.sub(centre);root.scale.multiplyScalar(12/span);
+  root.traverse(o=>{if(o.isMesh){o.frustumCulled=false;for(const m of Array.isArray(o.material)?o.material:[o.material])if(m){m.side=THREE.DoubleSide;m.needsUpdate=true;}}});
+  scene.add(root);
+  const camera=new THREE.PerspectiveCamera(45,1,.01,1500);
+  const v={el,renderer,scene,camera,root,theta:.65,phi:1.12,radius:17,resizeObserver:null};
+  viewerCamera(THREE,v);
+  const resize=()=>{const r=canvas.getBoundingClientRect(),w=Math.max(1,r.width),h=Math.max(1,r.height);renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();};
+  if(typeof ResizeObserver!=='undefined'){v.resizeObserver=new ResizeObserver(resize);v.resizeObserver.observe(canvas);}else window.addEventListener('resize',resize);
+  resize();
+  let last=null;
+  canvas.addEventListener('pointerdown',e=>{last={x:e.clientX,y:e.clientY};canvas.setPointerCapture?.(e.pointerId);});
+  canvas.addEventListener('pointermove',e=>{if(!last)return;const dx=e.clientX-last.x,dy=e.clientY-last.y;last={x:e.clientX,y:e.clientY};v.theta-=dx*.008;v.phi=Math.max(.12,Math.min(Math.PI-.12,v.phi+dy*.008));viewerCamera(THREE,v);});
+  const stop=()=>{last=null;};canvas.addEventListener('pointerup',stop);canvas.addEventListener('pointercancel',stop);canvas.addEventListener('lostpointercapture',stop);
+  canvas.addEventListener('wheel',e=>{e.preventDefault();v.radius=Math.max(4,Math.min(70,v.radius*Math.exp(e.deltaY*.001)));viewerCamera(THREE,v);},{passive:false});
+  el.querySelector('[data-reset]').addEventListener('click',()=>{v.theta=.65;v.phi=1.12;v.radius=17;viewerCamera(THREE,v);});
+  el.querySelector('[data-close]').addEventListener('click',()=>disposeViewer(state));
+  renderer.setAnimationLoop(()=>{renderer.render(scene,camera);});
+  state.viewer=v;status(state,'Full 3D catacomb viewer open.');refreshUi(state);
+ }catch(e){status(state,'Could not open the 3D catacomb viewer: '+String(e?.message||e));}
 }
 function addControl(state){
  const dock=document.getElementById('bpv-dock-actions');if(!dock)return false;
  let group=document.getElementById(CONTROL_ID);
  if(!group){
-  group=document.createElement('section');group.id=CONTROL_ID;group.className='bpv-command-group';group.setAttribute('data-bpv-command-section','underground-scan-scenes');
-  group.innerHTML='<div class="bpv-command-heading"><span class="bpv-command-heading-icon">🕳️</span><span><b>CAVES & UNDERGROUND SITES</b><small>Real scan meshes rendered inside the BridgePoint globe</small></span></div>'+
-   '<div class="bpv-command-grid"><button id="'+TOGGLE_ID+'" type="button" class="bpv-command-btn" aria-pressed="false"><span class="bpv-command-icon">🪨</span><span class="bpv-command-label">Caves & Sites</span></button></div>'+
-   '<div id="'+COUNT_ID+'" class="bpv-data-note"></div><div id="'+STATUS_ID+'" class="bpv-data-note">Layer off · existing BridgePoint layers remain unchanged.</div>';
+  group=document.createElement('section');group.id=CONTROL_ID;group.className='bpv-command-group';group.setAttribute('data-bpv-command-section','paris-catacombs');
+  group.innerHTML='<div class="bpv-command-heading"><span class="bpv-command-heading-icon" aria-hidden="true">🕳️</span><span><b>PARIS CATACOMBS</b><small>Real underground LiDAR scan · native 3D</small></span></div>'+
+   '<div class="bpv-command-grid"><button id="'+TOGGLE_ID+'" type="button" class="bpv-command-btn" aria-pressed="false" title="Show Paris Catacombs scan markers on the globe"><span class="bpv-command-icon" aria-hidden="true">🪦</span><span class="bpv-command-label">Paris Catacombs</span></button></div>'+
+   '<div id="'+COUNT_ID+'" class="bpv-data-note">1 real LiDAR gallery scan · Paris, France</div><div id="'+STATUS_ID+'" class="bpv-data-note">Layer off · existing BridgePoint layers are unchanged.</div>';
   const wells=document.getElementById('bp-subsurface-wells-control-v1');if(wells&&wells.parentNode===dock)wells.after(group);else dock.prepend(group);
  }
- const b=document.getElementById(TOGGLE_ID);if(b&&!b.dataset.bpUndergroundBound){b.dataset.bpUndergroundBound='1';b.addEventListener('click',()=>{void setEnabled(state,!state.enabled);});}
+ const b=document.getElementById(TOGGLE_ID);if(b&&!b.dataset.bpCatacombBound){b.dataset.bpCatacombBound='1';b.addEventListener('click',()=>{void setEnabled(state,!state.enabled);});}
  refreshUi(state);return true;
 }
 async function setEnabled(state,on){
  state.enabled=!!on;
- if(state.enabled){
-  if(installLayers(state))status(state,'Layer ON · select a cave, catacomb or tomb icon to load a real 3D mesh inside BridgePoint.');
-  else status(state,'Waiting for the BridgePoint globe style…');
-  if(state.activeRoot&&state.THREE)void ensureModelLayer(state).catch(e=>status(state,'Underground 3D layer reattach failed: '+String(e?.message||e)));
- }else{if(state.popup){state.popup.remove();state.popup=null;}if(state.activeRoot)state.activeRoot.visible=false;setVisibility(state,false);status(state,'Layer off · every other BridgePoint layer remains unchanged.');}
- refreshUi(state);if(state.renderer)state.map.triggerRepaint?.();return state.enabled;
+ if(state.enabled){if(installLayers(state))status(state,'Paris Catacombs ON · icon remains visible from globe view through street-level zoom. Select it to inspect the scanned gallery.');else status(state,'Waiting for the BridgePoint globe style…');}
+ else{state.mapVisible=false;if(state.popup){state.popup.remove();state.popup=null;}if(state.mapRoot)state.mapRoot.visible=false;
+  for(const id of [HALO_ID,MARKER_ID,LABEL_ID])if(state.map.getLayer(id))state.map.setLayoutProperty(id,'visibility','none');
+  status(state,'Paris Catacombs OFF · every other BridgePoint layer remains unchanged.');}
+ refreshUi(state);state.map.triggerRepaint?.();return state.enabled;
 }
 export function initUndergroundScanScenesRenderer(target){
  const map=target&&(target.map||target);if(!map||typeof map.getBounds!=='function'||typeof map.addSource!=='function')return null;
  const prior=MAP_STATES.get(map);if(prior)return prior.api;
- const state={map,enabled:false,dead:false,popup:null,bound:false,THREE:null,loader:null,renderer:null,camera:null,scene:null,
-  activeRoot:null,activeModel:null,modelLoading:null,loadSequence:0,layerReadyPromise:null,observer:null,dockTimer:null,status:'off',
-  stats:{version:VERSION,sites:UNDERGROUND_SCAN_SITES_V2.length,models:allModels().length,layerReady:false,lastError:null}};
+ const state={map,enabled:false,mapVisible:false,dead:false,popup:null,THREE:null,loader:null,renderer:null,camera:null,scene:null,
+  mapRoot:null,assetBuffer:null,assetPromise:null,assetScene:null,assetScenePromise:null,viewer:null,layerPromise:null,observer:null,dockTimer:null,status:'off',
+  stats:{version:VERSION,sites:1,models:1,layerReady:false,lastError:null}};
+ state.handleClick=e=>{
+  if(!state.enabled)return;
+  const hits=state.map.queryRenderedFeatures?.(e.point,{layers:[MARKER_ID]})||[];
+  if(hits.some(f=>f.properties?.siteId==='paris-catacombs'))openPopup(state,e.lngLat||PARIS_CATACOMBS_SITE_V3.coordinates);
+ };
+ state.handleStyle=()=>{if(state.enabled){installLayers(state);if(state.mapVisible&&state.mapRoot&&state.THREE)void ensureMapModelLayer(state).catch(e=>status(state,'Catacomb 3D layer reattach failed: '+String(e?.message||e)));refreshUi(state);}};
+ map.on('click',state.handleClick);map.on('style.load',state.handleStyle);map.on('load',state.handleStyle);
+ map.on('zoomend',()=>{if(state.renderer)map.triggerRepaint?.();});
  const api={version:VERSION,get enabled(){return state.enabled;},get status(){return state.status;},get stats(){return {...state.stats};},
-  toggle(){return setEnabled(state,!state.enabled);},setEnabled(v){return setEnabled(state,v);},refresh(){const s=map.getSource(SOURCE_ID);if(s?.setData)s.setData({type:'FeatureCollection',features:buildUndergroundSceneFeatures()});return state.stats;},
-  destroy(){state.dead=true;if(state.popup)state.popup.remove();if(state.observer)state.observer.disconnect();if(state.dockTimer)clearTimeout(state.dockTimer);
-   if(state.handleClick)map.off('click',state.handleClick);if(state.handleStyle){map.off('style.load',state.handleStyle);map.off('load',state.handleStyle);}
-   if(state.activeRoot){state.scene?.remove(state.activeRoot);disposeObject(state.activeRoot);}
+  toggle(){return setEnabled(state,!state.enabled);},setEnabled(v){return setEnabled(state,v);},
+  showUnderTerrain(){return showUnderTerrain(state);},openViewer(){return openViewer(state);},
+  destroy(){state.dead=true;disposeViewer(state);if(state.popup)state.popup.remove();state.observer?.disconnect?.();if(state.dockTimer)clearTimeout(state.dockTimer);
+   map.off('click',state.handleClick);map.off('style.load',state.handleStyle);map.off('load',state.handleStyle);
+   if(state.mapRoot){state.scene?.remove(state.mapRoot);}
    for(const id of [LABEL_ID,MARKER_ID,HALO_ID,MODEL_LAYER_ID])if(map.getLayer(id))map.removeLayer(id);
    if(map.getSource(SOURCE_ID))map.removeSource(SOURCE_ID);MAP_STATES.delete(map);}
  };
- state.api=api;MAP_STATES.set(map,state);window.__BP_UNDERGROUND_SCAN_SCENES_V2__=api;bindMap(state);
+ state.api=api;MAP_STATES.set(map,state);window.__BP_PARIS_CATACOMBS_V3__=api;
  const retry=()=>{if(state.dead)return;if(addControl(state))return;state.dockTimer=setTimeout(retry,250);};retry();
  if(typeof MutationObserver!=='undefined'&&document.body){state.observer=new MutationObserver(()=>{if(!document.getElementById(CONTROL_ID))addControl(state);});state.observer.observe(document.body,{childList:true,subtree:true});}
  return api;
