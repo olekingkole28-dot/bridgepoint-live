@@ -28,7 +28,7 @@ The current marker is a **regional Paris Catacombs anchor**, not an exact chambe
 
 ### Le Bar des Rats
 - Creator: Emm (@edemaistre)
-- Capture: iPhone 12 Pro · SiteScape LiDAR point cloud
+- Capture: iPhone 12 Pro · Scaniverse LiDAR point cloud
 - Published geometry: approximately 9.1 million vertices, no triangle faces
 - License: CC BY 4.0
 - Sketchfab source: https://sketchfab.com/3d-models/paris-catacombs-the-bar-of-the-rats-sitescape-f4232f8f91e54b0a8aa92365d6ea7b7a
