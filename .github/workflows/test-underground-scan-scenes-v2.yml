@@ -1,0 +1,32 @@
+name: Validate BridgePoint Underground Scan Meshes v2
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/publish-underground-scan-scenes-v2.yml'
+      - 'rebuild-v5000/bridgepoint-underground-scan-scenes-v2.js'
+      - 'tools/underground/fetch_sketchfab_scans.py'
+      - 'tests/underground-scan-scenes-v2.test.mjs'
+      - 'docs/bridgepoint-underground-scan-scenes-v2.md'
+
+permissions:
+  contents: read
+
+jobs:
+  validate-in-scene-underground-models:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check real in-scene renderer syntax
+        run: node --check rebuild-v5000/bridgepoint-underground-scan-scenes-v2.js
+      - name: Compile rights-checked Sketchfab asset importer
+        run: python3 -m py_compile tools/underground/fetch_sketchfab_scans.py
+      - name: Run underground mesh, attribution and static-card contract tests
+        run: node tests/underground-scan-scenes-v2.test.mjs
