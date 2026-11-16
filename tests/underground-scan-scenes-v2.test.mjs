@@ -30,6 +30,7 @@ assert.ok(!moduleSource.includes('<iframe'));
 assert.ok(deploy.includes('SKETCHFAB_API_TOKEN'));
 assert.ok(deploy.includes('github-pages-usgs-seismic-layer-v1'));
 assert.ok(deploy.includes('bp-underground-scan-scenes-toggle-v2'));
+assert.ok(view.includes('id="bpv-dock-actions"'),'button will be inserted directly into the existing card dock');
 assert.ok(downloader.includes('isDownloadable')&&downloader.includes('ALLOWED_LICENSES')&&downloader.includes('Authorization'));
 assert.ok(view.includes('bp-underground-scan-scenes-toggle-v2'),'button markup must be statically present in the card source');
 console.log('BRIDGEPOINT_UNDERGROUND_SCENE_MESHES_V2_PASS');
