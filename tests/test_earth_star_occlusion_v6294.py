@@ -57,7 +57,7 @@ class MoonAndEarthOcclusionV6302Tests(unittest.TestCase):
             along = sum(to_earth[i]*ray[i] for i in range(3))
             perp_sq = max(0.0, sum(v*v for v in to_earth)-along*along)
             radius_sq = radius*radius
-            if along <= 0.0 or perp_sq >= radius_sq:
+            if perp_sq >= radius_sq:
                 return False
             half_chord = max(0.0, radius_sq-perp_sq) ** 0.5
             near, far = along-half_chord, along+half_chord
