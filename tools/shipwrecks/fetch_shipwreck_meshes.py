@@ -193,12 +193,95 @@ def materialize_grafton(output: Path) -> dict:
     return model
 
 
+
+def materialize_cannon(output: Path) -> dict:
+    """Download and checksum-check the DTU Aqua Cannon Shipwreck photogrammetry GLB."""
+    record = fetch_json("https://zenodo.org/api/records/19592377")
+    meta = record.get("metadata") or {}
+    if meta.get("title") != "Benthic 3D Models and Tiles":
+        raise SystemExit("Cannon Shipwreck Zenodo record title changed; refusing to mirror")
+    creator_text = " ".join(str(item.get("name", "")) for item in (meta.get("creators") or [])).lower()
+    if "dtu aqua" not in creator_text or "mariani" not in creator_text or "thompson" not in creator_text or "fernandez" not in creator_text:
+        raise SystemExit("Cannon Shipwreck creator attribution mismatch; refusing to mirror")
+    # NLM Dataset Catalog indexes this Zenodo DOI as CC BY 4.0. Fail closed
+    # if Zenodo later publishes an explicit conflicting licence.
+    license_data = meta.get("license") or {}
+    license_id = license_data.get("id") if isinstance(license_data, dict) else str(license_data)
+    if license_id and str(license_id).lower() not in {"cc-by-4.0", "ccby4.0"}:
+        raise SystemExit("Cannon Shipwreck Zenodo record now declares a conflicting licence")
+    expected_file = "Cannon.glb"
+    expected_md5 = "83258bde7da60610bf534fff13162fca"
+    selected = next((item for item in (record.get("files") or []) if Path(str(item.get("key", ""))).name == expected_file), None)
+    if not selected:
+        raise SystemExit("Expected Cannon.glb is missing from the Zenodo record")
+    if str(selected.get("checksum") or "").lower() != "md5:" + expected_md5:
+        raise SystemExit("Cannon Shipwreck source checksum metadata changed; refusing to mirror")
+    url = (selected.get("links") or {}).get("self")
+    if not url:
+        raise SystemExit("Cannon Shipwreck record has no public GLB download URL")
+    raw = fetch_bytes(url)
+    if len(raw) < 32 or raw[:4] != b"glTF":
+        raise SystemExit("Cannon Shipwreck file is not a valid binary glTF")
+    actual_md5 = hashlib.md5(raw).hexdigest()
+    if actual_md5 != expected_md5:
+        raise SystemExit("Cannon Shipwreck GLB MD5 check failed")
+
+    output.mkdir(parents=True, exist_ok=True)
+    target = output / "cannon-photogrammetry.glb.gz"
+    with target.open("wb") as handle:
+        with gzip.GzipFile(filename="", mode="wb", fileobj=handle, compresslevel=9, mtime=0) as packed:
+            packed.write(raw)
+    if target.stat().st_size > MAX_COMPRESSED_BYTES:
+        target.unlink(missing_ok=True)
+        raise SystemExit("Compressed Cannon Shipwreck GLB exceeds size limit")
+    model = {
+        "id": "kanonvraget-cannon-photogrammetry",
+        "title": "Kanonvraget — Cannon Shipwreck underwater photogrammetry scan",
+        "creators": [
+            "DTU Aqua, National Institute of Aquatic Resources, Technical University of Denmark",
+            "Patrizio Mariani", "Fletcher Thompson", "Javier Alonso Fernández"
+        ],
+        "license": "CC BY 4.0",
+        "licenseSourceUrl": "https://datasetcatalog.nlm.nih.gov/dataset?q=0000776569",
+        "sourceUrl": "https://zenodo.org/records/19592377",
+        "datasetUrl": "https://doi.org/10.5281/zenodo.19592377",
+        "assetUrl": "/assets/shipwrecks/cannon-photogrammetry.glb.gz",
+        "viewerUrl": "https://obstek.aqua.dtu.dk/demos/viewer/cannon",
+        "coordinates": [12.8688, 55.6448],
+        "coordinateText": "55.6448° N, 12.8688° E",
+        "location": "East of Saltholm, Øresund, Denmark",
+        "locationSourceUrl": "https://www.vragguiden.dk/vrag/4643",
+        "coordinateSourceUrl": "https://www.vragguiden.dk/api/WreckPdf/4643",
+        "depthRangeM": [14, 16],
+        "displayDepthM": 15,
+        "captureDepthM": 11,
+        "capturedAt": "2025-06-12",
+        "estimatedLengthM": 48,
+        "cannonCount": 16,
+        "cannonWeightPounds": [12, 14],
+        "sourceBytes": len(raw),
+        "compressedBytes": target.stat().st_size,
+        "sourceMd5": actual_md5,
+        "assetSha256": hashlib.sha256(target.read_bytes()).hexdigest(),
+        "locationPrecision": "Verified WGS84 wreck-site position in the Danish wreck database. The source GLB itself does not publish a GPS origin or survey-control transform.",
+        "scalePrecision": "Original source scale preserved. Approximately 48 m vessel length is a historical estimate, not a scale-control certificate.",
+        "depthNote": "Danish wreck record gives 14–16 m top-to-bottom wreck depth; DTU scan record describes its capture at approximately 11 m. These are separate published measurements."
+    }
+    catalog_path = output / "catalog.json"
+    manifest = json.loads(catalog_path.read_text(encoding="utf-8")) if catalog_path.exists() else {"version": 1}
+    manifest["cannon"] = model
+    catalog_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    print("BRIDGEPOINT_KANONVRAGET_CANNON_CC_BY_GLB_READY", len(raw), "source bytes", target.stat().st_size, "compressed bytes")
+    return model
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     materialize(args.output)
     materialize_grafton(args.output)
+    materialize_cannon(args.output)
 
 
 if __name__ == "__main__":

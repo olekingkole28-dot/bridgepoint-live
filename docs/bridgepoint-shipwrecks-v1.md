@@ -76,3 +76,19 @@ An additional persistent icon is added to the existing Shipwrecks control for **
 **Placement limitation:** the individual Grafton GLB does not publish a verified GPS origin or per-model geodetic/bathymetric transform. BridgePoint preserves its source scale and orientation, recenters the mesh at the published Belgian wreck coordinate and places its center approximately 19 m below the water surface, using the dataset's capture-depth reference. This provides an inspectable underwater site visualization; it is not a survey-controlled registration of the full scan to the actual seabed. The card labels this limitation and links to the official position, original dataset and license record.
 
 The single Shipwrecks toggle now controls five persistent map markers and two independently loaded native 3D meshes. The native meshes are hidden when Shipwrecks is off and restored with the same shared 3D layer when enabled again.
+
+
+## Kanonvraget — Cannon Wreck, Øresund
+
+The Shipwrecks layer also maps **Kanonvraget (Cannon Wreck)** east of Saltholm in the Øresund. Its verified WGS84 wreck-site point is **55.6448° N, 12.8688° E** from the Danish Vraguiden wreck record (ID 4643). The record gives a 14–16 m top-to-bottom depth range, at least 16 large 12–14-pound iron cannons, and an estimated vessel length of about 48 m. The vessel identity remains unknown; suggested identifications are hypotheses, not confirmed facts.
+
+The dedicated card embeds DTU Aqua's interactive Cannon 3D viewer and links the original CC BY 4.0 dataset (Zenodo DOI 10.5281/zenodo.19592377). BridgePoint also mirrors the **Cannon.glb** file after validating the source record, creator attribution, licence metadata when supplied, GLB header and published MD5 checksum. The native mesh is centered at the wreck-site point and displayed at the 15 m midpoint of the wreck database's 14–16 m depth range.
+
+DTU Aqua describes the 12 June 2025 model capture as approximately 11 m deep. That capture-depth description is distinct from Vraguiden's 14–16 m wreck depth range and both are shown separately. The single GLB does not include a published GPS origin / survey-control transform, so its placement at the site is approximate; the original mesh scale and orientation are preserved. This is a map visualization, not survey-controlled registration or navigation data.
+
+Sources:
+- [DTU Aqua / Zenodo model record](https://zenodo.org/records/19592377)
+- [DTU Aqua interactive viewer](https://obstek.aqua.dtu.dk/demos/viewer/cannon)
+- [Vraguiden Kanonvraget record](https://www.vragguiden.dk/vrag/4643)
+- [Vraguiden position, depth and historical information](https://www.vragguiden.dk/api/WreckPdf/4643)
+- [NLM Dataset Catalog rights record — CC BY 4.0](https://datasetcatalog.nlm.nih.gov/dataset?q=0000776569)
