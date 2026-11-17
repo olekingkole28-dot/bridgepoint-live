@@ -73,6 +73,7 @@ assert.ok(moduleSource.includes("import(GLTF_URL)"),'native scan is parsed throu
 assert.ok(moduleSource.includes("new DecompressionStream('gzip')"),'the native GLB uses a compressed local asset');
 assert.ok(moduleSource.includes('showRobertGaskinOnRiverbed(state)'),'the card exposes the materialize-on-riverbed action');
 assert.ok(moduleSource.includes('maybeAutoMaterializeRobertGaskin(state)'),'the native mesh auto-loads when Shipwrecks is ON and the map is zoomed onto the wreck site');
+assert.ok(moduleSource.includes('if(state.nativeModelRoot){\n   state.nativeModelVisible=true;'),'turning Shipwrecks back on restores an already-loaded riverbed mesh');
 assert.ok(moduleSource.includes('ROBERT_GASKIN_WRECK.waterSurfaceElevationM-ROBERT_GASKIN_WRECK.depthM'),'native mesh altitude is relative to the local water-surface datum');
 assert.ok(moduleSource.includes('ROBERT_GASKIN_LENGTH_M/longAxis'),'the scanned mesh is length-calibrated to the historical vessel dimensions');
 assert.ok(moduleSource.includes("for(const event of ['style.load','load','idle','moveend','zoomend','rotateend','pitchend'])"),'all wreck icons restore after style reload and settled camera events');
