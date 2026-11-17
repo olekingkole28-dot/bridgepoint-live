@@ -65,7 +65,7 @@ assert.ok(app.includes("import('./bridgepoint-shipwrecks-v1.js?v=1-titanic-noaa-
 assert.ok(workflow.includes('actions/runs?branch=main&per_page=100'),'publisher discovers the latest successful Pages baseline dynamically');
 assert.ok(workflow.includes('bridgepoint-palatine-cryptoporticus-v1.js'),'publisher refuses an older incomplete baseline');
 assert.ok(workflow.includes('bridgepoint-shipwrecks-v1.js'));
-assert.ok(workflow.includes('expected_changed={"landing.js","app.js","index.html","app/index.html"}'));
+assert.ok(workflow.includes('expected_changed={"landing.js","app.js","index.html","app/index.html","bridgepoint-drone-awareness-v1.js"}'));
 assert.ok(workflow.includes('expected_added={"bridgepoint-shipwrecks-v1.js","app/bridgepoint-shipwrecks-v1.js"}'));
 assert.ok(!/SUPA|supabase/i.test(moduleSource),'the isolated shipwreck layer does not call any account/data backend');
 console.log('BRIDGEPOINT_SHIPWRECKS_TITANIC_V1_PASS');
