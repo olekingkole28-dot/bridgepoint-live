@@ -226,12 +226,7 @@ function nativeMapMatrix(map,THREE,coordinates,altitudeM){
   const mc=Mercator.fromLngLat([Number(coordinates[0]),Number(coordinates[1])],Number(altitudeM)||0);
   const metres=mc.meterInMercatorCoordinateUnits();
   if(![mc.x,mc.y,mc.z,metres].every(Number.isFinite)||metres<=0)return null;
-  return new THREE.Matrix4().set(
-   metres,0,0,mc.x,
-   0,0,metres,mc.y,
-   0,metres,0,mc.z,
-   0,0,0,1
-  );
+  return new THREE.Matrix4().set(metres,0,0,mc.x,0,0,metres,mc.y,0,metres,0,0,0,0,0,1);
  }catch(_){return null;}
 }
 function ensureNativeMapLayer(state){
