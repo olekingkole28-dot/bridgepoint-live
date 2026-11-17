@@ -620,14 +620,14 @@ def materialize_hms_loo(output: Path) -> dict:
     if not re.fullmatch(r"[0-9a-f]{40}", revision):
         raise SystemExit("ScanSceneverse did not provide an immutable 40-character dataset revision")
     # GLBs are stored inside 16+ GB tar shards under shards/glbs/.
-    # The index's glbs/000-050/... path maps to shards/glbs/glbs-0050.tar.
+    # The index's glbs/000-050/... path maps to shards/glbs/glbs-0096.tar.
     # Use HTTP Range reads to extract only this one member; never download the
     # full tar shard to the build runner.
     scene_id = "fc5901d8556743458c40aa4a096f01b6"
     source_file = f"glbs/000-050/{scene_id}.glb"
     tar_url = (
         "https://huggingface.co/datasets/Stable-X/ScanSceneverse/resolve/"
-        + revision + "/shards/glbs/glbs-0050.tar"
+        + revision + "/shards/glbs/glbs-0096.tar"
     )
     raw, tar_member_name = extract_tar_member_by_range(
         tar_url, f"{scene_id}.glb", MAX_HMS_LOO_SOURCE_BYTES
@@ -665,7 +665,7 @@ def materialize_hms_loo(output: Path) -> dict:
         "datasetRevision": revision,
         "sourceFile": source_file,
         "tarMemberName": tar_member_name,
-        "tarShard": "shards/glbs/glbs-0050.tar",
+        "tarShard": "shards/glbs/glbs-0096.tar",
         "locationSourceUrl": "https://shipwrecksmap.com/wrecks/hms-looe-1741/",
         "historySourceUrl": "https://floridakeys.noaa.gov/shipwrecks/hms-loo.html",
         "depthSourceUrl": "https://library.oarcloud.noaa.gov/noaa_documents.lib/NOS/CZIC/EIS_Looe_Key_1980.pdf",
