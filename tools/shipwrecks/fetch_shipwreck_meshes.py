@@ -509,13 +509,14 @@ def materialize_hms_loo(output: Path) -> dict:
         raise SystemExit("ScanSceneverse did not provide an immutable 40-character dataset revision")
     # Ask the current Dataset Viewer index for the row instead of hard-coding
     # an old shard number. The public viewer is searchable and exposes file_name.
-    search_url = (
-        "https://datasets-server.huggingface.co/search?dataset=Stable-X%2FScanSceneverse"
-        "&config=default&split=train&query=fc5901d8556743458c40aa4a096f01b6"
+    filter_url = (
+        "https://datasets-server.huggingface.co/filter?dataset=Stable-X%2FScanSceneverse"
+        "&config=default&split=train"
+        "&where=%22scene_id%22%3D%27fc5901d8556743458c40aa4a096f01b6%27"
         "&offset=0&length=10"
     )
-    search = fetch_json(search_url)
-    rows = [entry.get("row", {}) for entry in search.get("rows", [])]
+    filtered = fetch_json(filter_url)
+    rows = [entry.get("row", {}) for entry in filtered.get("rows", [])]
     matches = [
         row for row in rows
         if row.get("scene_id") == "fc5901d8556743458c40aa4a096f01b6"
