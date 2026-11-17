@@ -3,12 +3,14 @@ on:
   pull_request:
     paths:
       - '.github/workflows/inspect-plane-wrecks-source.yml'
-      - 'tools/plane_wrecks/fetch_plane_wrecks.py'\n      - 'tools/plane_wrecks/inspect_messerschmitt_source.py'
+      - 'tools/plane_wrecks/fetch_plane_wrecks.py'
+      - 'tools/plane_wrecks/inspect_messerschmitt_source.py'
   push:
     branches: [main]
     paths:
       - '.github/workflows/inspect-plane-wrecks-source.yml'
-      - 'tools/plane_wrecks/fetch_plane_wrecks.py'\n      - 'tools/plane_wrecks/inspect_messerschmitt_source.py'
+      - 'tools/plane_wrecks/fetch_plane_wrecks.py'
+      - 'tools/plane_wrecks/inspect_messerschmitt_source.py'
 permissions:
   contents: read
   issues: write
@@ -31,7 +33,9 @@ jobs:
           cat "$RUNNER_TEMP/plane-wreck-inspection.log"
           echo "exit_code=$result" >> "$GITHUB_OUTPUT"
           exit 0
-      - name: Inspect real Messerschmitt wreck Potree source URLs\n        run: python3 tools/plane_wrecks/inspect_messerschmitt_source.py\n      - name: Report source inspection result back to the BridgePoint work PR
+      - name: Inspect real Messerschmitt wreck Potree source URLs
+        run: python3 tools/plane_wrecks/inspect_messerschmitt_source.py
+      - name: Report source inspection result back to the BridgePoint work PR
         if: always()
         uses: actions/github-script@v7
         env:
@@ -52,7 +56,8 @@ jobs:
               '```',
               '',
               'This report is from a range-only read of the source archive; it does not download the full 3 GB ZIP.'
-            ].join('\n');
+            ].join('
+');
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
