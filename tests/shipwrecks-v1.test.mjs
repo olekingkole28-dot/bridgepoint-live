@@ -214,7 +214,7 @@ assert.ok(moduleSource.includes('maybeAutoMaterializeHmsLoo(state)'),'HMS Loo na
 assert.ok(moduleSource.includes('CANNON_WRECK.displayDepthM'),'Kanonvraget native mesh is placed at the site-record depth midpoint');
 assert.ok(moduleSource.includes("hit.properties?.wreckId==='kanonvraget'"),'Kanonvraget click opens its dedicated popup');
 assert.ok(moduleSource.includes('all ten wreck icons remain visible'),'the shared marker layer reports all ten persistent wreck icons');
-assert.ok(moduleSource.includes("count.textContent='10 persistent wreck icons · 7 native CC BY 4.0 seabed scans"),'dynamic count reflects all nine markers and all six native models');
+assert.ok(moduleSource.includes("count.textContent='10 persistent wreck icons · 7 native CC BY 4.0 seabed scans"),'dynamic count reflects all ten markers and all seven native models');
 assert.ok(moduleSource.includes('Verified WGS84 wreck-site position'),'Kanonvraget card explains its location precision');
 assert.ok(moduleSource.includes('DTU Aqua describes its Cannon Shipwreck reconstruction'),'Kanonvraget card keeps scan depth distinct from wreck depth');
 assert.ok(moduleSource.includes('loadHmsGraftonMesh(state,renderer)'),'HMS Grafton is loaded as a native GLB');
@@ -222,8 +222,8 @@ assert.ok(moduleSource.includes('showHmsGraftonOnSeabed(state)'),'the Grafton ca
 assert.ok(moduleSource.includes('maybeAutoMaterializeHmsGrafton(state)'),'Grafton native mesh loads when zoomed to its wreck-site icon');
 assert.ok(moduleSource.includes('HMS_GRAFTON_WRECK.waterSurfaceElevationM-HMS_GRAFTON_WRECK.scanDepthM'),'Grafton native mesh uses the approximate capture depth');
 assert.ok(moduleSource.includes("hit.properties?.wreckId==='hms-grafton'"),'Grafton click opens its dedicated popup');
-assert.ok(moduleSource.includes('all nine wreck icons remain visible'),'the shared icon layer reports all nine persistent wreck markers');
-assert.ok(moduleSource.includes("count.textContent='10 persistent wreck icons · 7 native CC BY 4.0 seabed scans"),'dynamic count reflects all nine markers and all six native models');
+assert.ok(moduleSource.includes('all ten wreck icons remain visible'),'the shared icon layer reports all nine persistent wreck markers');
+assert.ok(moduleSource.includes("count.textContent='10 persistent wreck icons · 7 native CC BY 4.0 seabed scans"),'dynamic count reflects all ten markers and all seven native models');
 assert.ok(moduleSource.includes('addRobertGaskinStyles();'),'the new Grafton card installs the shared native wreck popup styles');
 assert.ok(moduleSource.includes("NATIVE_MODEL_LAYER_ID='bp-shipwrecks-native-model-v2'"),'Robert Gaskin uses a native MapLibre 3D custom layer');
 assert.ok(moduleSource.includes("import(GLTF_URL)"),'native scan is parsed through the local GLTFLoader');
