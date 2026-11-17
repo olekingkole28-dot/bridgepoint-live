@@ -27,3 +27,35 @@ The official Magellan full-size digital twin and Voyis project pages are linked 
 - Selecting a marker opens a card; the high-detail third-party viewer loads only after a wreck marker is opened.
 - The debris-field waypoint is mapped separately; no unverified debris mesh is fabricated.
 - All external 3D content remains hosted by its original publisher.
+
+
+---
+
+# BridgePoint Shipwrecks v2 — Robert Gaskin native photogrammetry
+
+The same **Shipwrecks** toggle now controls four persistent locations together: the existing Titanic bow, stern and debris-field NOAA waypoints, plus the Robert Gaskin wreck in the St. Lawrence River near Brockville, Ontario, Canada.
+
+## Robert Gaskin — second wreck
+
+- Approximate wreck-site center: 44° 35′ 21.54″ N, 75° 40′ 37.50″ W
+- Published hull depth range: approximately 18.3–21.3 m (60–70 ft); the displayed model reference is 19.8 m below the water surface
+- Historical vessel length: 40.42 m (132.6 ft); beam: approximately 8.02 m (26.3 ft)
+- Photogrammetry: approximately 49,000 underwater photographs; the public GLB lists about 598,600 triangles and 322,800 vertices
+- Creator: Christian Rémillard
+- Asset licence: Creative Commons Attribution 4.0 (CC BY 4.0)
+- Source record: [Zenodo 10.5281/zenodo.10288556](https://doi.org/10.5281/zenodo.10288556)
+
+The publish workflow checks the Zenodo title, creator, CC BY 4.0 licence, expected GLB filename and MD5 before mirroring the model to BridgePoint. It then gzip-compresses the GLB and publishes a local catalogue. The card opens a credited Sketchfab viewer and provides a separate **Place 3D scan at its wreck depth** action. That action loads the locally hosted GLB through BridgePoint's local Three.js/GLTFLoader runtime and draws it through an isolated MapLibre 3D custom layer.
+
+**Placement limitation:** the original photogrammetry mesh does not contain a GPS-georeferenced origin or survey-control heading. BridgePoint places its center at the published wreck-site coordinate, calibrates its long axis to the published historical length, aligns that axis approximately north/south based on the description that the bow faces inland, and uses 19.8 m as a display-depth reference. The site publishes a depth range of about 18.3–21.3 m, so the model should be treated as an approximate wreck-site placement rather than a survey-grade seabed registration. The Robert Gaskin is a freshwater river wreck, not an open-ocean wreck.
+
+## Combined marker persistence
+
+- One Shipwrecks toggle controls all four icons together. All icons use one GeoJSON source, a zoom range of 0–24 and collision-overlap settings.
+- The control explicitly opts into the shared `shipwrecks` optional-overlay category, separately from general vessel tracking.
+- The renderer restores the marker/halo/label layers after map style loads and settled idle, move, zoom, rotate and pitch events.
+- Toggling Shipwrecks OFF hides the four icons and hides the native Robert Gaskin seabed mesh without changing unrelated BridgePoint layers.
+
+## Titanic mesh status
+
+The two Titanic bow/stern photogrammetry listings remain embedded from their original publisher. Their public pages do not document a redistribution licence or GPS-georeferenced scale/origin, so this release does not download or position those meshes as if they were survey-grade seabed assets. The 1:1 Titanic historical reconstruction remains a clearly labelled interpretive reference, not an authentic wreck scan.
