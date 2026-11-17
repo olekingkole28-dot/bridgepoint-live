@@ -1,13 +1,14 @@
-/* BridgePoint Shipwrecks v3 — Titanic + Robert Gaskin + HMS Grafton.
- * The Grafton scan is an additional opt-in native GLB; existing wrecks remain unchanged.
+/* BridgePoint Shipwrecks v4 — Titanic + Robert Gaskin + HMS Grafton + Kanonvraget.
+ * Each wreck has a persistent marker, dedicated source-backed card and native underwater model.
  */
-const VERSION=3, MAP_STATES=new WeakMap();
+const VERSION=4, MAP_STATES=new WeakMap();
 const THREE_URL='/vendor/three.module.js?v=169-local';
 const GLTF_URL='/vendor/GLTFLoader.bundle.js?v=169-local';
 const NATIVE_MODEL_LAYER_ID='bp-shipwrecks-native-model-v2';
 const ROBERT_GASKIN_ASSET='/assets/shipwrecks/robert-gaskin-photogrammetry.glb.gz';
 const ROBERT_GASKIN_LENGTH_M=40.42;
 const HMS_GRAFTON_ASSET='/assets/shipwrecks/hms-grafton-photogrammetry.glb.gz';
+const CANNON_ASSET='/assets/shipwrecks/cannon-photogrammetry.glb.gz';
 let shipwreckThreePromise=null;
 const SOURCE_ID='bp-shipwrecks-titanic-source-v1';
 const HALO_ID='bp-shipwrecks-titanic-halo-v1';
@@ -63,16 +64,35 @@ export const HMS_GRAFTON_WRECK={
  orientationPrecision:'The source GLB orientation is preserved; its heading relative to true north is not verified.',
  detail:'DTU Aqua underwater 3D reconstruction at the Grafton site off Oostende, captured 19 May 2025. The source record reports an approximate capture depth of 19 m.'
 };
+export const CANNON_WRECK={
+ id:'kanonvraget',name:'Kanonvraget — Cannon Wreck',label:'KANONVRAGET · CANNON WRECK',
+ part:'wreck',coordinates:[12.8688,55.6448],coordinateText:'55.6448° N, 12.8688° E',
+ depthRangeM:[14,16],displayDepthM:15,captureDepthM:11,
+ estimatedLengthM:48,cannonCount:16,cannonWeightPounds:[12,14],capturedAt:'2025-06-12',
+ license:'CC BY 4.0',
+ creators:'DTU Aqua · Patrizio Mariani · Fletcher Thompson · Javier Alonso Fernández',
+ sourceUrl:'https://zenodo.org/records/19592377',datasetUrl:'https://doi.org/10.5281/zenodo.19592377',
+ viewerUrl:'https://obstek.aqua.dtu.dk/demos/viewer/cannon',
+ locationSourceUrl:'https://www.vragguiden.dk/vrag/4643',
+ coordinateSourceUrl:'https://www.vragguiden.dk/api/WreckPdf/4643',
+ assetUrl:CANNON_ASSET,
+ location:'East of Saltholm in the Øresund, Denmark, about 4.4 km from shore.',
+ locationPrecision:'Verified WGS84 wreck-site position from the Danish wreck database. The GLB itself does not publish a GPS origin or survey-control transform; BridgePoint centers the original scan at the wreck-site coordinate for visualization.',
+ scalePrecision:'BridgePoint preserves the source GLB scale and orientation. The approximately 48 m vessel length is a historical estimate, not a scale-control certificate for the mesh.',
+ detail:'The wreck is unidentified. The Danish wreck record describes at least 16 large 12–14-pound iron cannons scattered across and beside an approximately 48 m vessel. Kanonvraget is a descriptive wreck name, not a confirmed vessel name.'
+};
+
 export function buildAllShipwreckFeatures(){
  const p=ROBERT_GASKIN_WRECK;
- const gaskin={type:'Feature',id:p.id,
-  geometry:{type:'Point',coordinates:[Number(p.coordinates[0]),Number(p.coordinates[1])]},
+ const gaskin={type:'Feature',id:p.id,geometry:{type:'Point',coordinates:[Number(p.coordinates[0]),Number(p.coordinates[1])]},
   properties:{wreckId:p.id,name:p.name,label:p.label,part:p.part,iconImage:ICON_ID,depthM:p.depthM,coordinateText:p.coordinateText}};
  const g=HMS_GRAFTON_WRECK;
- const grafton={type:'Feature',id:g.id,
-  geometry:{type:'Point',coordinates:[Number(g.coordinates[0]),Number(g.coordinates[1])]},
+ const grafton={type:'Feature',id:g.id,geometry:{type:'Point',coordinates:[Number(g.coordinates[0]),Number(g.coordinates[1])]},
   properties:{wreckId:g.id,name:g.name,label:g.label,part:g.part,iconImage:ICON_ID,depthM:g.scanDepthM,coordinateText:g.coordinateText}};
- return [...buildTitanicShipwreckFeatures(),gaskin,grafton];
+ const c=CANNON_WRECK;
+ const cannon={type:'Feature',id:c.id,geometry:{type:'Point',coordinates:[Number(c.coordinates[0]),Number(c.coordinates[1])]},
+  properties:{wreckId:c.id,name:c.name,label:c.label,part:c.part,iconImage:ICON_ID,depthM:c.displayDepthM,coordinateText:c.coordinateText}};
+ return [...buildTitanicShipwreckFeatures(),gaskin,grafton,cannon];
 }
 
 export const TITANIC_3D_MODELS=[
@@ -168,7 +188,7 @@ function makeTitanicIcon(){
 function setStatus(state,msg){state.status=msg;const el=document.getElementById(STATUS_ID);if(el)el.textContent=msg;}
 function refreshStatusUi(state){
  const count=document.getElementById(COUNT_ID);
- if(count)count.textContent='5 persistent wreck icons · 2 native CC BY 4.0 seabed scans · '+state.stats.models.toLocaleString()+' Titanic viewer references';
+ if(count)count.textContent='6 persistent wreck icons · 3 native CC BY 4.0 seabed scans · '+state.stats.models.toLocaleString()+' Titanic viewer references';
  const status=document.getElementById(STATUS_ID);if(status)status.textContent=state.status;
  const button=document.getElementById(TOGGLE_ID);
  if(button){button.setAttribute('aria-pressed',String(state.enabled));button.classList.toggle('is-active',state.enabled);}
@@ -278,6 +298,11 @@ function updateHmsGraftonModelStatus(state,message){
  const popup=state.popup?.getElement?.()?.querySelector('[data-hms-grafton-status]');
  if(popup)popup.textContent=state.graftonModelStatus;
 }
+function updateCannonModelStatus(state,message){
+ state.cannonModelStatus=String(message||'');
+ const popup=state.popup?.getElement?.()?.querySelector('[data-cannon-wreck-status]');
+ if(popup)popup.textContent=state.cannonModelStatus;
+}
 async function loadShipwreckThree(){
  if(!shipwreckThreePromise)shipwreckThreePromise=Promise.all([import(THREE_URL),import(GLTF_URL)]).then(([THREE,loader])=>{
   if(!THREE?.WebGLRenderer||!loader?.GLTFLoader)throw new Error('BridgePoint local Three.js / GLTFLoader unavailable');
@@ -382,11 +407,49 @@ async function loadHmsGraftonMesh(state){
  })().catch(error=>{state.graftonModelPromise=null;throw error;});
  return state.graftonModelPromise;
 }
+async function loadCannonMesh(state){
+ if(state.cannonModelRoot)return state.cannonModelRoot;
+ if(state.cannonModelPromise)return state.cannonModelPromise;
+ state.cannonModelPromise=(async()=>{
+  const pair=await loadShipwreckThree();if(state.destroyed)throw new Error('Shipwreck layer closed');
+  state.THREE=pair.THREE;state.GLTFLoader=pair.GLTFLoader;
+  const response=await fetch(CANNON_ASSET,{cache:'force-cache'});
+  if(!response.ok)throw new Error('Kanonvraget GLB request failed ('+response.status+')');
+  if(typeof DecompressionStream==='undefined')throw new Error('Gzip decompression is unavailable in this browser');
+  const stream=new Blob([await response.arrayBuffer()]).stream().pipeThrough(new DecompressionStream('gzip'));
+  const buffer=await new Response(stream).arrayBuffer();
+  if(new DataView(buffer).getUint32(0,true)!==0x46546c67)throw new Error('Kanonvraget asset is not a valid GLB');
+  const gltf=await new state.GLTFLoader().parseAsync(buffer,'');
+  if(!gltf?.scene)throw new Error('Kanonvraget GLB contains no scene');
+  const root=gltf.scene.clone(true);root.updateMatrixWorld(true);
+  const bounds=new pair.THREE.Box3().setFromObject(root);
+  if(bounds.isEmpty())throw new Error('Kanonvraget scan contains no 3D geometry');
+  const size=bounds.getSize(new pair.THREE.Vector3());
+  if(![size.x,size.y,size.z].every(Number.isFinite)||Math.max(size.x,size.y,size.z)<=0)throw new Error('Kanonvraget scan has invalid dimensions');
+  // Preserve DTU Aqua source scale/orientation; center the GLB on the wreck-site anchor.
+  const center=bounds.getCenter(new pair.THREE.Vector3());
+  root.position.x-=center.x;root.position.y-=center.y;root.position.z-=center.z;
+  root.visible=false;
+  root.traverse(object=>{
+   if(!object.isMesh&&!object.isPoints)return;
+   object.frustumCulled=false;object.renderOrder=1000;
+   for(const material of Array.isArray(object.material)?object.material:[object.material]){
+    if(!material)continue;
+    material.depthTest=false;material.depthWrite=false;material.needsUpdate=true;
+   }
+  });
+  root.updateMatrixWorld(true);
+  state.cannonModelRoot=root;state.cannonModelBounds={x:size.x,y:size.y,z:size.z};
+  if(state.nativeModelScene)state.nativeModelScene.add(root);
+  return root;
+ })().catch(error=>{state.cannonModelPromise=null;throw error;});
+ return state.cannonModelPromise;
+}
 function ensureRobertGaskinMapLayer(state){
  const map=state.map,THREE=state.THREE;
- if(!THREE||(!state.nativeModelRoot&&!state.graftonModelRoot)||state.destroyed)return false;
+ if(!THREE||(!state.nativeModelRoot&&!state.graftonModelRoot&&!state.cannonModelRoot)||state.destroyed)return false;
  if(map.getLayer(NATIVE_MODEL_LAYER_ID)&&state.nativeModelRenderer&&state.nativeModelScene){
-  for(const root of [state.nativeModelRoot,state.graftonModelRoot])if(root&&root.parent!==state.nativeModelScene)state.nativeModelScene.add(root);
+  for(const root of [state.nativeModelRoot,state.graftonModelRoot,state.cannonModelRoot])if(root&&root.parent!==state.nativeModelScene)state.nativeModelScene.add(root);
   return true;
  }
  const layer={
@@ -397,7 +460,7 @@ function ensureRobertGaskinMapLayer(state){
    state.nativeModelCamera=new THREE.Camera();state.nativeModelScene=new THREE.Scene();
    state.nativeModelScene.add(new THREE.AmbientLight(0xffffff,1.55));
    const key=new THREE.DirectionalLight(0xffe9c7,1.2);key.position.set(-.6,1.4,.9);state.nativeModelScene.add(key);
-   for(const root of [state.nativeModelRoot,state.graftonModelRoot])if(root)state.nativeModelScene.add(root);
+   for(const root of [state.nativeModelRoot,state.graftonModelRoot,state.cannonModelRoot])if(root)state.nativeModelScene.add(root);
    state.stats.nativeModelLayerReady=true;
   },
   render(gl,args){
@@ -422,6 +485,8 @@ function ensureRobertGaskinMapLayer(state){
     ROBERT_GASKIN_WRECK.waterSurfaceElevationM-ROBERT_GASKIN_WRECK.depthM,'nativeModelRenderWarned','Robert Gaskin');
    draw(state.graftonModelRoot,state.graftonModelVisible,HMS_GRAFTON_WRECK.coordinates,
     HMS_GRAFTON_WRECK.waterSurfaceElevationM-HMS_GRAFTON_WRECK.scanDepthM,'graftonModelRenderWarned','HMS Grafton');
+   draw(state.cannonModelRoot,state.cannonModelVisible,CANNON_WRECK.coordinates,
+    -CANNON_WRECK.displayDepthM,'cannonModelRenderWarned','Kanonvraget');
   },
   onRemove(){
    try{state.nativeModelRenderer?.dispose();}catch(_){}
@@ -435,7 +500,7 @@ async function showRobertGaskinOnRiverbed(state){
  if(!state.enabled)return false;
  state.nativeModelAutoAttempted=true;state.nativeModelVisible=true;
  updateRobertGaskinModelStatus(state,'Loading the CC BY 4.0 photogrammetry scan…');
- setStatus(state,'Robert Gaskin native underwater mesh loading; all five wreck icons remain on.');
+ setStatus(state,'Robert Gaskin native underwater mesh loading; all six wreck icons remain on.');
  try{
   await loadRobertGaskinMesh(state);
   if(state.destroyed||!state.enabled)return false;
@@ -455,7 +520,7 @@ async function showHmsGraftonOnSeabed(state){
  if(!state.enabled)return false;
  state.graftonModelAutoAttempted=true;state.graftonModelVisible=true;
  updateHmsGraftonModelStatus(state,'Loading the CC BY 4.0 HMS Grafton scan…');
- setStatus(state,'HMS Grafton native underwater mesh loading; all five wreck icons remain on.');
+ setStatus(state,'HMS Grafton native underwater mesh loading; all six wreck icons remain on.');
  try{
   await loadHmsGraftonMesh(state);
   if(state.destroyed||!state.enabled)return false;
@@ -469,6 +534,27 @@ async function showHmsGraftonOnSeabed(state){
   state.graftonModelVisible=false;
   updateHmsGraftonModelStatus(state,'Native scan could not load: '+String(error?.message||error));
   setStatus(state,'HMS Grafton native 3D mesh unavailable: '+String(error?.message||error));
+  return false;
+ }
+}
+async function showCannonOnSeabed(state){
+ if(!state.enabled)return false;
+ state.cannonModelAutoAttempted=true;state.cannonModelVisible=true;
+ updateCannonModelStatus(state,'Loading the CC BY 4.0 DTU Aqua Cannon Shipwreck scan…');
+ setStatus(state,'Kanonvraget native underwater mesh loading; all six wreck icons remain on.');
+ try{
+  await loadCannonMesh(state);
+  if(state.destroyed||!state.enabled)return false;
+  if(!ensureRobertGaskinMapLayer(state))throw new Error('MapLibre native 3D layer could not attach');
+  if(state.nativeModelScene&&state.cannonModelRoot.parent!==state.nativeModelScene)state.nativeModelScene.add(state.cannonModelRoot);
+  const b=state.cannonModelBounds;
+  updateCannonModelStatus(state,'Native DTU Aqua scan loaded · source GLB bounds '+[b.x,b.y,b.z].map(n=>n.toFixed(1)+' m').join(' × ')+'. Source scale/orientation preserved; centered at the verified wreck position and displayed at the 15 m midpoint of the published 14–16 m depth range.');
+  setStatus(state,'Kanonvraget native photogrammetry mesh loaded at its approximate wreck-site/depth reference.');
+  state.map.triggerRepaint?.();refreshStatusUi(state);return true;
+ }catch(error){
+  state.cannonModelVisible=false;
+  updateCannonModelStatus(state,'Native scan could not load: '+String(error?.message||error));
+  setStatus(state,'Kanonvraget native 3D mesh unavailable: '+String(error?.message||error));
   return false;
  }
 }
@@ -502,6 +588,33 @@ function openHmsGraftonPopup(state,lngLat){
  state.popup=new Popup({closeButton:true,closeOnClick:true,maxWidth:'450px',className:'bp-shipwreck-titanic-popup-wrap-v1'}).setLngLat(lngLat||p.coordinates).setHTML(html).addTo(state.map);
  const root=state.popup.getElement?.();
  root?.querySelector('[data-hms-grafton-action="materialize"]')?.addEventListener('click',()=>{void showHmsGraftonOnSeabed(state);});
+}
+function openCannonWreckPopup(state,lngLat){
+ const Popup=window.maplibregl?.Popup;if(!Popup)return;
+ addRobertGaskinStyles();
+ if(state.popup)state.popup.remove();
+ const p=CANNON_WRECK;
+ const html='<article class="bp-shipwreck-grafton-popup-v1 bp-shipwreck-cannon-popup-v1">'+
+  '<div class="bp-shipwreck-kicker-v1">BRIDGEPOINT · SHIPWRECKS</div><h3>Kanonvraget — Cannon Wreck</h3>'+
+  '<p>Unidentified historic sailing vessel · east of Saltholm · Øresund, Denmark</p>'+
+  '<div class="facts"><span><b>Verified WGS84 site</b>'+safe(p.coordinateText)+'</span><span><b>Wreck depth</b>14–16 m (site record)</span>'+
+  '<span><b>DTU scan capture</b>12 June 2025 · approximately 11 m depth</span><span><b>Vessel length</b>Approximately 48 m (historical estimate)</span>'+
+  '<span><b>Armament</b>At least 16 iron cannons · 12–14 lb</span><span><b>Scan model</b>DTU Aqua · underwater photogrammetry GLB</span></div>'+
+  '<div class="bp-shipwreck-viewer-v1"><iframe title="Kanonvraget Cannon Shipwreck interactive DTU Aqua 3D viewer" src="'+safe(p.viewerUrl)+'" allow="autoplay; fullscreen; xr-spatial-tracking; gyroscope; accelerometer" allowfullscreen loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>'+
+  '<div class="bp-shipwreck-gaskin-actions-v2"><button type="button" data-cannon-wreck-action="materialize">Place native 3D scan beneath the Øresund</button></div>'+
+  '<div class="bp-shipwreck-gaskin-status-v2" data-cannon-wreck-status>'+safe(state.cannonModelStatus||'Native scan not loaded yet. Select the button to place the local DTU Aqua GLB at the wreck-site depth reference.')+'</div>'+
+  '<p class="bp-shipwreck-accuracy-v1"><strong>Scan and placement:</strong> DTU Aqua describes its Cannon Shipwreck reconstruction as captured on 12 June 2025 at approximately 11 m depth. The Danish wreck database separately gives a verified WGS84 position and a 14–16 m top-to-bottom wreck depth range. BridgePoint anchors the original GLB at that verified site coordinate and places its center at 15 m below the water surface for visualization. The GLB does not publish a GPS origin or survey-control transform; its source scale and orientation are preserved, so full mesh registration is approximate. The capture-depth and wreck-depth figures are kept separate rather than treated as the same measurement.</p>'+
+  '<p class="bp-shipwreck-accuracy-v1"><strong>Historical identification:</strong> The vessel has not been conclusively identified. The Danish wreck record describes at least 16 large 12–14-pound iron cannons and estimates the ship at about 48 m long. Suggestions such as a frigate from the 1801 Battle of Copenhagen or the frigate Charlotte are hypotheses, not confirmed identifications.</p>'+
+  '<div class="bp-shipwreck-official-v1"><b>3D model, rights and wreck references</b>'+
+   '<a href="'+safe(p.datasetUrl)+'" target="_blank" rel="noopener noreferrer">Zenodo · DTU Aqua original GLB and dataset (CC BY 4.0) ↗</a>'+
+   '<a href="'+safe(p.viewerUrl)+'" target="_blank" rel="noopener noreferrer">DTU Aqua · original interactive 3D viewer ↗</a>'+
+   '<a href="'+safe(p.locationSourceUrl)+'" target="_blank" rel="noopener noreferrer">Vragguiden · Kanonvraget verified wreck record and location ↗</a>'+
+   '<a href="'+safe(p.coordinateSourceUrl)+'" target="_blank" rel="noopener noreferrer">Vragguiden · wreck coordinates, depth and historical description ↗</a>'+
+   '<a href="https://datasetcatalog.nlm.nih.gov/dataset?q=0000776569" target="_blank" rel="noopener noreferrer">NLM Dataset Catalog · CC BY 4.0 rights record ↗</a></div>'+
+  '<p class="bp-shipwreck-source-v1">Attribution: DTU Aqua, National Institute of Aquatic Resources, Technical University of Denmark; Patrizio Mariani; Fletcher Thompson; Javier Alonso Fernández. Licensed under Creative Commons Attribution 4.0 International.</p></article>';
+ state.popup=new Popup({closeButton:true,closeOnClick:true,maxWidth:'450px',className:'bp-shipwreck-titanic-popup-wrap-v1'}).setLngLat(lngLat||p.coordinates).setHTML(html).addTo(state.map);
+ const root=state.popup.getElement?.();
+ root?.querySelector('[data-cannon-wreck-action="materialize"]')?.addEventListener('click',()=>{void showCannonOnSeabed(state);});
 }
 function openRobertGaskinPopup(state,lngLat){
  const Popup=window.maplibregl?.Popup;if(!Popup)return;
@@ -541,6 +654,15 @@ function maybeAutoMaterializeHmsGrafton(state){
  void showHmsGraftonOnSeabed(state);
  return true;
 }
+function maybeAutoMaterializeCannon(state){
+ if(!state.enabled||state.cannonModelAutoAttempted||state.cannonModelRoot||state.cannonModelPromise)return false;
+ if(Number(state.map.getZoom?.()||0)<12.2)return false;
+ const bounds=state.map.getBounds?.();
+ try{if(bounds&&!bounds.contains(CANNON_WRECK.coordinates))return false;}catch(_){}
+ state.cannonModelAutoAttempted=true;
+ void showCannonOnSeabed(state);
+ return true;
+}
 function bindInteractions(state){
  if(state.interactionsBound)return;state.interactionsBound=true;
  state.handleClick=event=>{
@@ -550,6 +672,7 @@ function bindInteractions(state){
   if(!hit)return;
   if(hit.properties?.wreckId==='robert-gaskin'){openRobertGaskinPopup(state,event.lngLat||ROBERT_GASKIN_WRECK.coordinates);return;}
   if(hit.properties?.wreckId==='hms-grafton'){openHmsGraftonPopup(state,event.lngLat||HMS_GRAFTON_WRECK.coordinates);return;}
+  if(hit.properties?.wreckId==='kanonvraget'){openCannonWreckPopup(state,event.lngLat||CANNON_WRECK.coordinates);return;}
   const part=partById(String(hit.properties.partId));
   if(part)openTitanicPopup(state,part,event.lngLat||part.coordinates);
  };
@@ -559,15 +682,16 @@ function bindInteractions(state){
   // settles. Re-allow this dedicated category and restore only Titanic layers.
   syncSharedOverlayCategory(state);
   if(!installLayers(state)){
-   setStatus(state,'Shipwrecks ON · waiting for the globe style before restoring all four shipwreck icons.');
+   setStatus(state,'Shipwrecks ON · waiting for the globe style before restoring all six shipwreck icons.');
    refreshStatusUi(state);return;
   }
   setVisibility(state,true);
   state.stats.visibilityReassertions=(state.stats.visibilityReassertions||0)+1;
-  if((state.nativeModelVisible&&state.nativeModelRoot)||(state.graftonModelVisible&&state.graftonModelRoot))ensureRobertGaskinMapLayer(state);
+  if((state.nativeModelVisible&&state.nativeModelRoot)||(state.graftonModelVisible&&state.graftonModelRoot)||(state.cannonModelVisible&&state.cannonModelRoot))ensureRobertGaskinMapLayer(state);
   maybeAutoMaterializeRobertGaskin(state);
   maybeAutoMaterializeHmsGrafton(state);
-  setStatus(state,'Shipwrecks ON · all five icons remain visible through zoom, angle and style changes. Select a wreck for its card and native 3D scan.');
+  maybeAutoMaterializeCannon(state);
+  setStatus(state,'Shipwrecks ON · all six icons remain visible through zoom, angle and style changes. Select a wreck for its card and native 3D scan.');
   refreshStatusUi(state);
  };
  state.handleStyleLoad=state.handlePersistentVisibility;
@@ -582,9 +706,9 @@ function addControlGroup(state){
  group.setAttribute('data-bpv-command-section','shipwrecks');
  group.setAttribute('aria-label','Shipwrecks');
  group.innerHTML=
-  '<div class="bpv-command-heading"><span class="bpv-command-heading-icon" aria-hidden="true">🚢</span><span><b>SHIPWRECKS</b><small>Titanic + native underwater photogrammetry scans</small></span></div>'+
+  '<div class="bpv-command-heading"><span class="bpv-command-heading-icon" aria-hidden="true">🚢</span><span><b>SHIPWRECKS</b><small>Titanic + three native underwater photogrammetry scans</small></span></div>'+
   '<div class="bpv-command-grid"><button id="'+TOGGLE_ID+'" data-bpv-action="shipwrecks" type="button" class="bpv-command-btn" aria-pressed="false" title="Show or hide mapped shipwreck markers"><span class="bpv-command-icon" aria-hidden="true">🚢</span><span class="bpv-command-label">Shipwrecks</span></button></div>'+
-  '<div id="'+COUNT_ID+'" class="bpv-data-note">5 persistent wreck icons · '+state.stats.models+' Titanic viewer references · 2 native seabed GLBs</div>'+
+  '<div id="'+COUNT_ID+'" class="bpv-data-note">6 persistent wreck icons · '+state.stats.models+' Titanic viewer references · 3 native seabed GLBs</div>'+
   '<div id="'+STATUS_ID+'" class="bpv-data-note">Layer off · the rest of the BridgePoint globe remains unchanged.</div>'+
   '<style id="bp-shipwrecks-titanic-style-v2">'+
   '#'+CONTROL_ID+' .bpv-data-note{font:600 10px/1.45 system-ui,sans-serif;color:#9bb7c6;margin:5px 2px;overflow-wrap:anywhere}'+
@@ -607,8 +731,8 @@ function addControlGroup(state){
 async function setEnabled(state,on){
  state.enabled=!!on;
  if(state.enabled){
-  if(!installLayers(state))setStatus(state,'Shipwrecks ON · waiting for the map style before showing all five wreck icons.');
-  else setStatus(state,'Shipwrecks ON · all five wreck icons remain visible from global zoom through close zoom. Select a marker for its card and Robert Gaskin and HMS Grafton native seabed meshes.');
+  if(!installLayers(state))setStatus(state,'Shipwrecks ON · waiting for the map style before showing all six wreck icons.');
+  else setStatus(state,'Shipwrecks ON · all six wreck icons remain visible from global zoom through close zoom. Select a marker for its card and any native underwater scan.');
   if(state.nativeModelRoot){
    state.nativeModelVisible=true;
    if(!state.map.getLayer(NATIVE_MODEL_LAYER_ID))ensureRobertGaskinMapLayer(state);
@@ -621,11 +745,18 @@ async function setEnabled(state,on){
   }else{
    maybeAutoMaterializeHmsGrafton(state);
   }
+  if(state.cannonModelRoot){
+   state.cannonModelVisible=true;
+   if(!state.map.getLayer(NATIVE_MODEL_LAYER_ID))ensureRobertGaskinMapLayer(state);
+  }else{
+   maybeAutoMaterializeCannon(state);
+  }
  }else{
   if(state.popup){state.popup.remove();state.popup=null;}
   state.nativeModelVisible=false;state.nativeModelAutoAttempted=false;if(state.nativeModelRoot)state.nativeModelRoot.visible=false;
   state.graftonModelVisible=false;state.graftonModelAutoAttempted=false;if(state.graftonModelRoot)state.graftonModelRoot.visible=false;
-  setVisibility(state,false);setStatus(state,'Shipwrecks off · all five wreck icons and both native meshes are hidden; other BridgePoint layers are unchanged.');
+  state.cannonModelVisible=false;state.cannonModelAutoAttempted=false;if(state.cannonModelRoot)state.cannonModelRoot.visible=false;
+  setVisibility(state,false);setStatus(state,'Shipwrecks off · all six wreck icons and all three native meshes are hidden; other BridgePoint layers are unchanged.');
  }
  refreshStatusUi(state);state.map.triggerRepaint?.();return state.enabled;
 }
@@ -636,8 +767,9 @@ export function initShipwrecksRenderer(target){
  const state={map,enabled:false,popup:null,interactionsBound:false,status:'off',destroyed:false,
   nativeModelVisible:false,nativeModelAutoAttempted:false,nativeModelStatus:'Native scan not loaded.',nativeModelRoot:null,nativeModelPromise:null,
   graftonModelVisible:false,graftonModelAutoAttempted:false,graftonModelStatus:'Native scan not loaded.',graftonModelRoot:null,graftonModelPromise:null,graftonModelBounds:null,
+  cannonModelVisible:false,cannonModelAutoAttempted:false,cannonModelStatus:'Native scan not loaded.',cannonModelRoot:null,cannonModelPromise:null,cannonModelBounds:null,
   nativeModelRenderer:null,nativeModelCamera:null,nativeModelScene:null,nativeModelLayerReady:false,nativeModelBounds:null,
-  stats:{version:VERSION,parts:5,sites:3,models:TITANIC_3D_MODELS.length,nativeModels:2,lastError:null}};
+  stats:{version:VERSION,parts:6,sites:4,models:TITANIC_3D_MODELS.length,nativeModels:3,lastError:null}};
  const api={
   version:VERSION,get enabled(){return state.enabled;},get status(){return state.status;},
   get stats(){return Object.assign({},state.stats);},get partCount(){return state.stats.parts;},get modelCount(){return state.stats.models;},
@@ -645,8 +777,9 @@ export function initShipwrecksRenderer(target){
   refresh(){const source=map.getSource(SOURCE_ID);if(source?.setData)source.setData({type:'FeatureCollection',features:buildAllShipwreckFeatures()});return state.stats;},
   showRobertGaskinOnRiverbed(){return showRobertGaskinOnRiverbed(state);},
   showHmsGraftonOnSeabed(){return showHmsGraftonOnSeabed(state);},
+  showCannonOnSeabed(){return showCannonOnSeabed(state);},
   destroy(){
-   state.destroyed=true;state.enabled=false;state.nativeModelVisible=false;state.graftonModelVisible=false;
+   state.destroyed=true;state.enabled=false;state.nativeModelVisible=false;state.graftonModelVisible=false;state.cannonModelVisible=false;
    if(state.popup)state.popup.remove();
    if(state.handleClick)map.off('click',state.handleClick);
    if(state.handlePersistentVisibility){
@@ -658,6 +791,7 @@ export function initShipwrecksRenderer(target){
    try{state.nativeModelRenderer?.dispose();}catch(_){}
    if(state.nativeModelRoot){state.nativeModelScene?.remove(state.nativeModelRoot);state.nativeModelRoot=null;}
    if(state.graftonModelRoot){state.nativeModelScene?.remove(state.graftonModelRoot);state.graftonModelRoot=null;}
+   if(state.cannonModelRoot){state.nativeModelScene?.remove(state.cannonModelRoot);state.cannonModelRoot=null;}
    for(const id of [LABEL_ID,MARKER_ID,HALO_ID])if(map.getLayer(id))map.removeLayer(id);
    if(map.getSource(SOURCE_ID))map.removeSource(SOURCE_ID);
    try{if(map.hasImage?.(ICON_ID))map.removeImage(ICON_ID)}catch(_){}
