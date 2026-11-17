@@ -20,7 +20,8 @@ assert.match(TITANIC_3D_MODELS[0].embedUrl,/sketchfab\.com\/models\/292b9f523d4a
 assert.match(TITANIC_3D_MODELS[1].embedUrl,/sketchfab\.com\/models\/5baccbaf949f4882b4f73f1c0169392d\/embed/);
 assert.match(TITANIC_3D_MODELS[0].description,/does not document a survey-grade scale/i);
 assert.match(TITANIC_3D_MODELS[2].description,/not a photogrammetry scan/i);
-assert.equal(TITANIC_OFFICIAL_SCAN_SOURCES.length,2);
+assert.equal(TITANIC_OFFICIAL_SCAN_SOURCES.length,3);
+assert.match(TITANIC_OFFICIAL_SCAN_SOURCES[0].url,/repository\.library\.noaa\.gov\/view\/noaa\/10519/);
 assert.ok(buildTitanicShipwreckFeatures([{id:'invalid',coordinates:[181,0]}]).length===0);
 
 const bowPopup=titanicShipwreckPopupHtml(TITANIC_SHIPWRECK_PARTS[0],'titanic-bow-photogrammetry');
