@@ -530,7 +530,7 @@ def fetch_range(url: str, start: int, end: int) -> tuple[bytes, int]:
 
 class RangeReader(io.RawIOBase):
     """Seekable read-only view of a remote object, backed by HTTP byte ranges."""
-    def __init__(self, url: str, cache_size: int = 4 * 1024 * 1024):
+    def __init__(self, url: str, cache_size: int = 64 * 1024):
         self.url = url
         self.cache_size = cache_size
         self.position = 0
