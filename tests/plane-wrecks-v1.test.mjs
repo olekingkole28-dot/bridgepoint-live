@@ -20,7 +20,6 @@ const moduleSource=await readFile(new URL('../rebuild-v5000/bridgepoint-plane-wr
 assert.match(moduleSource,/minzoom:0,maxzoom:24/,'the aircraft icon persists from global to close zoom');
 assert.match(moduleSource,/'icon-allow-overlap':true/,'the aircraft icon is not culled by symbol collisions');
 assert.match(moduleSource,/data-bp-local-plane-viewer/,'the popup contains its own BridgePoint-hosted model viewer');
-assert.match(moduleSource,/new pair\.GLTFLoader\(\)\.parseAsync\(buffer,' '\)/,'the local viewer parses its same-origin GLB asset');
 assert.match(moduleSource,/new pair\.GLTFLoader\(\)\.parseAsync\(buffer,''\)/,'the local viewer parses its same-origin GLB asset');
 assert.match(moduleSource,/async function showOnSeabed\(state\)/,'the first model can materialize under water in the globe');
 assert.match(moduleSource,/nativeMapMatrix\(map,THREE,F4U1_CORSAIR_WRECK\.coordinates,-F4U1_CORSAIR_WRECK\.depthM\)/,'the native point cloud is placed at the documented approximate wreck depth');
