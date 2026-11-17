@@ -1,8 +1,14 @@
-/* BridgePoint Shipwrecks v1 — Titanic only.
- * Standalone opt-in marker layer. NOAA expedition waypoints anchor the bow, stern and debris field.
- * External 3D viewers remain hosted by their original publishers; no external mesh is downloaded.
+/* BridgePoint Shipwrecks v2 — Titanic + Robert Gaskin.
+ * Titanic NOAA section waypoints stay on the globe; Robert Gaskin adds a CC BY 4.0 native seabed GLB.
+ * Titanic creator-hosted photogrammetry remains embedded externally until redistribution rights are confirmed.
  */
-const VERSION=1, MAP_STATES=new WeakMap();
+const VERSION=2, MAP_STATES=new WeakMap();
+const THREE_URL='/vendor/three.module.js?v=169-local';
+const GLTF_URL='/vendor/GLTFLoader.bundle.js?v=169-local';
+const NATIVE_MODEL_LAYER_ID='bp-shipwrecks-native-model-v2';
+const ROBERT_GASKIN_ASSET='/assets/shipwrecks/robert-gaskin-photogrammetry.glb.gz';
+const ROBERT_GASKIN_LENGTH_M=40.42;
+let shipwreckThreePromise=null;
 const SOURCE_ID='bp-shipwrecks-titanic-source-v1';
 const HALO_ID='bp-shipwrecks-titanic-halo-v1';
 const MARKER_ID='bp-shipwrecks-titanic-markers-v1';
@@ -11,7 +17,7 @@ const CONTROL_ID='bp-shipwrecks-control-v1';
 const TOGGLE_ID='bp-shipwrecks-toggle-v1';
 const COUNT_ID='bp-shipwrecks-count-v1';
 const STATUS_ID='bp-shipwrecks-status-v1';
-const ICON_ID='bp-shipwrecks-titanic-icon-v1';
+const ICON_ID='bp-shipwrecks-icon-v2';
 
 export const TITANIC_SHIPWRECK_PARTS=[
  {id:'titanic-bow',name:'RMS Titanic — Bow section',label:'TITANIC · BOW',part:'bow',coordinates:[-49.946944444444,41.7325],
@@ -24,6 +30,29 @@ export const TITANIC_SHIPWRECK_PARTS=[
   coordinateText:'41° 43′ 32″ N, 49° 56′ 49″ W',depthM:3800,defaultModelId:null,
   locationPrecision:'NOAA 2004 Titanic Expedition waypoint: center of the debris field. No separate debris-field mesh is included in this release.'}
 ];
+
+export const ROBERT_GASKIN_WRECK={
+ id:'robert-gaskin',name:'Robert Gaskin — 1889 wooden barque',label:'ROBERT GASKIN',
+ part:'hull',coordinates:[-75.677083,44.589317],
+ coordinateText:'44° 35′ 21.54″ N, 75° 40′ 37.50″ W',
+ depthM:19.8,depthRangeM:[18.3,21.3],lengthM:40.42,beamM:8.02,
+ sourcePhotos:49000,triangles:598600,vertices:322800,license:'CC BY 4.0',creator:'Christian Rémillard',
+ sourceUrl:'https://sketchfab.com/3d-models/robert-gaskin-wreck-1916420a764c4e73b754755d7f2780ce',
+ datasetUrl:'https://doi.org/10.5281/zenodo.10288556',
+ locationSourceUrl:'https://www.shipwreckworld.com/maps/robert-gaskin-barque-st-lawrence-river-shipwreck',
+ historySourceUrl:'https://www.hmdb.org/m.asp?m=141820',assetUrl:ROBERT_GASKIN_ASSET,
+ locationPrecision:'Approximate wreck-site center from published wreck coordinates; the photogrammetry mesh origin is not GPS-georeferenced.',
+ scalePrecision:'Visualization scale calibrated against published 132.6 ft (40.42 m) vessel length; not a survey-control certificate.',
+ orientationPrecision:'Approximate north/inland axis based on the dive-site description that the bow faces inland; not a survey-grade heading.',
+ detail:'Photogrammetry reconstruction from approximately 49,000 underwater photographs. The original scan is preserved as a native GLB and placed at the wreck-site coordinate and published 18.3–21.3 m depth range.'
+};
+export function buildAllShipwreckFeatures(){
+ const p=ROBERT_GASKIN_WRECK;
+ const gaskin={type:'Feature',id:p.id,
+  geometry:{type:'Point',coordinates:[Number(p.coordinates[0]),Number(p.coordinates[1])]},
+  properties:{wreckId:p.id,name:p.name,label:p.label,part:p.part,iconImage:ICON_ID,depthM:p.depthM,coordinateText:p.coordinateText}};
+ return [...buildTitanicShipwreckFeatures(),gaskin];
+}
 
 export const TITANIC_3D_MODELS=[
  {id:'titanic-bow-photogrammetry',part:'bow',title:'RMS Titanic’s bow wreck',creator:'Pramet.Peet',platform:'Sketchfab',
@@ -118,7 +147,7 @@ function makeTitanicIcon(){
 function setStatus(state,msg){state.status=msg;const el=document.getElementById(STATUS_ID);if(el)el.textContent=msg;}
 function refreshStatusUi(state){
  const count=document.getElementById(COUNT_ID);
- if(count)count.textContent=state.stats.parts.toLocaleString()+' NOAA Titanic waypoints · '+state.stats.models.toLocaleString()+' 3D model references';
+ if(count)count.textContent='4 persistent wreck icons · 1 native CC BY 4.0 seabed scan · '+state.stats.models.toLocaleString()+' Titanic viewer references';
  const status=document.getElementById(STATUS_ID);if(status)status.textContent=state.status;
  const button=document.getElementById(TOGGLE_ID);
  if(button){button.setAttribute('aria-pressed',String(state.enabled));button.classList.toggle('is-active',state.enabled);}
@@ -152,8 +181,8 @@ function installLayers(state){
  try{
   if(!map.hasImage?.(ICON_ID))map.addImage(ICON_ID,makeTitanicIcon(),{pixelRatio:2});
   if(!map.getSource(SOURCE_ID))map.addSource(SOURCE_ID,{
-   type:'geojson',data:{type:'FeatureCollection',features:buildTitanicShipwreckFeatures()},
-   buffer:64,maxzoom:14,attribution:'NOAA Titanic Expedition 2004 waypoint centers; 3D viewer attribution is shown in each card.'
+   type:'geojson',data:{type:'FeatureCollection',features:buildAllShipwreckFeatures()},
+   buffer:64,maxzoom:14,attribution:'Titanic waypoint centers: NOAA 2004 Expedition. Robert Gaskin photogrammetry: Christian Remillard, CC BY 4.0 / Zenodo 10.5281/zenodo.10288556.'
   });
   const add=(id,layer)=>{if(!map.getLayer(id))map.addLayer(layer);};
   add(HALO_ID,{id:HALO_ID,type:'circle',source:SOURCE_ID,minzoom:0,maxzoom:24,
@@ -216,13 +245,171 @@ function openTitanicPopup(state,part,lngLat){
   });
  }
 }
+function updateRobertGaskinModelStatus(state,message){
+ state.nativeModelStatus=String(message||'');
+ const element=document.getElementById('bp-shipwreck-robert-status-v2');
+ if(element)element.textContent=state.nativeModelStatus;
+ const popup=state.popup?.getElement?.()?.querySelector('[data-robert-gaskin-status]');
+ if(popup)popup.textContent=state.nativeModelStatus;
+}
+async function loadShipwreckThree(){
+ if(!shipwreckThreePromise)shipwreckThreePromise=Promise.all([import(THREE_URL),import(GLTF_URL)]).then(([THREE,loader])=>{
+  if(!THREE?.WebGLRenderer||!loader?.GLTFLoader)throw new Error('BridgePoint local Three.js / GLTFLoader unavailable');
+  return {THREE,GLTFLoader:loader.GLTFLoader};
+ }).catch(error=>{shipwreckThreePromise=null;throw error;});
+ return shipwreckThreePromise;
+}
+function nativeMapMatrix(map,THREE,coordinates,altitudeM){
+ try{
+  const raw=map.transform?.getMatrixForModel?.([Number(coordinates[0]),Number(coordinates[1])],Number(altitudeM)||0);
+  if(raw&&raw.length>=16)return new THREE.Matrix4().fromArray(raw);
+  const Mercator=window.maplibregl?.MercatorCoordinate;
+  if(!Mercator?.fromLngLat)return null;
+  const mc=Mercator.fromLngLat([Number(coordinates[0]),Number(coordinates[1])],Number(altitudeM)||0);
+  const metres=mc.meterInMercatorCoordinateUnits();
+  if(![mc.x,mc.y,mc.z,metres].every(Number.isFinite)||metres<=0)return null;
+  return new THREE.Matrix4().set(metres,0,0,mc.x,0,0,metres,mc.y,0,metres,0,0,0,0,0,1);
+ }catch(_){return null;}
+}
+async function loadRobertGaskinMesh(state){
+ if(state.nativeModelRoot)return state.nativeModelRoot;
+ if(state.nativeModelPromise)return state.nativeModelPromise;
+ state.nativeModelPromise=(async()=>{
+  const pair=await loadShipwreckThree();if(state.destroyed)throw new Error('Shipwreck layer closed');
+  state.THREE=pair.THREE;state.GLTFLoader=pair.GLTFLoader;
+  const response=await fetch(ROBERT_GASKIN_ASSET,{cache:'force-cache'});
+  if(!response.ok)throw new Error('Robert Gaskin GLB request failed ('+response.status+')');
+  if(typeof DecompressionStream==='undefined')throw new Error('Gzip decompression is unavailable in this browser');
+  const stream=new Blob([await response.arrayBuffer()]).stream().pipeThrough(new DecompressionStream('gzip'));
+  const buffer=await new Response(stream).arrayBuffer();
+  if(new DataView(buffer).getUint32(0,true)!==0x46546c67)throw new Error('Robert Gaskin asset is not a valid GLB');
+  const gltf=await new state.GLTFLoader().parseAsync(buffer,'');
+  if(!gltf?.scene)throw new Error('Robert Gaskin GLB contains no scene');
+  const root=gltf.scene.clone(true);
+  root.updateMatrixWorld(true);
+  const bounds=new pair.THREE.Box3().setFromObject(root);
+  if(bounds.isEmpty())throw new Error('Robert Gaskin scan contains no 3D geometry');
+  const size=bounds.getSize(new pair.THREE.Vector3());
+  const longAxis=Math.max(size.x,size.z);
+  if(!Number.isFinite(longAxis)||longAxis<=0)throw new Error('Robert Gaskin scan has invalid dimensions');
+  const scale=ROBERT_GASKIN_LENGTH_M/longAxis;
+  root.scale.multiplyScalar(scale);
+  // The original GLB is not GPS-oriented. Rotate its long axis approximately
+  // north/south; source dive notes say the bow faces inland.
+  root.rotation.y=size.x>=size.z?Math.PI/2:0;
+  root.updateMatrixWorld(true);
+  const centeredBounds=new pair.THREE.Box3().setFromObject(root);
+  const center=centeredBounds.getCenter(new pair.THREE.Vector3());
+  root.position.x-=center.x;root.position.y-=center.y;root.position.z-=center.z;
+  root.traverse(object=>{
+   if(!object.isMesh&&!object.isPoints)return;
+   object.frustumCulled=false;object.renderOrder=1000;
+   for(const material of Array.isArray(object.material)?object.material:[object.material]){
+    if(!material)continue;
+    material.depthTest=false;material.depthWrite=false;material.needsUpdate=true;
+   }
+  });
+  root.updateMatrixWorld(true);
+  state.nativeModelRoot=root;
+  state.nativeModelBounds={x:size.x*scale,y:size.y*scale,z:size.z*scale};
+  state.nativeModelScale=scale;
+  if(state.nativeModelScene)state.nativeModelScene.add(root);
+  return root;
+ })().catch(error=>{state.nativeModelPromise=null;throw error;});
+ return state.nativeModelPromise;
+}
+function ensureRobertGaskinMapLayer(state){
+ const map=state.map,THREE=state.THREE;
+ if(!THREE||!state.nativeModelRoot||state.destroyed)return false;
+ if(map.getLayer(NATIVE_MODEL_LAYER_ID)&&state.nativeModelRenderer&&state.nativeModelScene)return true;
+ const layer={
+  id:NATIVE_MODEL_LAYER_ID,type:'custom',renderingMode:'3d',
+  onAdd(mapRef,gl){
+   state.nativeModelRenderer=new THREE.WebGLRenderer({canvas:mapRef.getCanvas(),context:gl,antialias:false,alpha:true,powerPreference:'low-power'});
+   state.nativeModelRenderer.autoClear=false;state.nativeModelRenderer.outputColorSpace=THREE.SRGBColorSpace;
+   state.nativeModelCamera=new THREE.Camera();state.nativeModelScene=new THREE.Scene();
+   state.nativeModelScene.add(new THREE.AmbientLight(0xffffff,1.55));
+   const key=new THREE.DirectionalLight(0xffe9c7,1.2);key.position.set(-.6,1.4,.9);state.nativeModelScene.add(key);
+   if(state.nativeModelRoot&&state.nativeModelRoot.parent!==state.nativeModelScene)state.nativeModelScene.add(state.nativeModelRoot);
+   state.stats.nativeModelLayerReady=true;
+  },
+  render(gl,args){
+   if(!state.enabled||!state.nativeModelVisible||!state.nativeModelRenderer||!state.nativeModelScene||!state.nativeModelCamera||!state.nativeModelRoot)return;
+   if(Number(map.getZoom?.()||0)<12.2){state.nativeModelRoot.visible=false;return;}
+   const bounds=map.getBounds?.();
+   try{if(bounds&&!bounds.contains(ROBERT_GASKIN_WRECK.coordinates)){state.nativeModelRoot.visible=false;return;}}catch(_){}
+   const raw=args&&(args.defaultProjectionData?.mainMatrix||args.modelViewProjectionMatrix);
+   if(!raw||raw.length<16)return;
+   const matrix=nativeMapMatrix(map,THREE,ROBERT_GASKIN_WRECK.coordinates,-ROBERT_GASKIN_WRECK.depthM);
+   if(!matrix)return;
+   state.nativeModelRoot.visible=true;
+   state.nativeModelCamera.projectionMatrix.copy(new THREE.Matrix4().fromArray(raw)).multiply(matrix);
+   try{state.nativeModelRenderer.resetState();state.nativeModelRenderer.render(state.nativeModelScene,state.nativeModelCamera);}
+   catch(error){if(!state.nativeModelRenderWarned){state.nativeModelRenderWarned=true;console.warn('BridgePoint Robert Gaskin seabed model render',error);}}
+   finally{state.nativeModelRoot.visible=false;}
+  },
+  onRemove(){
+   try{state.nativeModelRenderer?.dispose();}catch(_){}
+   state.nativeModelRenderer=null;state.nativeModelCamera=null;state.nativeModelScene=null;
+   state.stats.nativeModelLayerReady=false;
+  }
+ };
+ try{map.addLayer(layer);return true;}catch(error){state.stats.nativeModelLastError=String(error?.message||error);console.warn('BridgePoint native shipwreck layer unavailable',error);return false;}
+}
+async function showRobertGaskinOnRiverbed(state){
+ if(!state.enabled)return false;
+ state.nativeModelVisible=true;
+ updateRobertGaskinModelStatus(state,'Loading the CC BY 4.0 photogrammetry scan…');
+ setStatus(state,'Robert Gaskin native underwater mesh loading; all four wreck icons remain on.');
+ try{
+  await loadRobertGaskinMesh(state);
+  if(state.destroyed||!state.enabled)return false;
+  if(!ensureRobertGaskinMapLayer(state))throw new Error('MapLibre native 3D layer could not attach');
+  if(state.nativeModelScene&&state.nativeModelRoot.parent!==state.nativeModelScene)state.nativeModelScene.add(state.nativeModelRoot);
+  updateRobertGaskinModelStatus(state,'Native scan loaded · '+Math.round(state.nativeModelBounds.x*100)/100+' m long after historical-length calibration. Visible when zoomed in near the wreck site.');
+  setStatus(state,'Robert Gaskin native photogrammetry mesh loaded at its published wreck-depth reference.');
+  state.map.triggerRepaint?.();refreshStatusUi(state);return true;
+ }catch(error){
+  state.nativeModelVisible=false;
+  updateRobertGaskinModelStatus(state,'Native scan could not load: '+String(error?.message||error));
+  setStatus(state,'Robert Gaskin native 3D mesh unavailable: '+String(error?.message||error));
+  return false;
+ }
+}
+function addRobertGaskinStyles(){
+ if(document.getElementById('bp-shipwreck-gaskin-style-v2'))return;
+ const style=document.createElement('style');style.id='bp-shipwreck-gaskin-style-v2';
+ style.textContent='.bp-shipwreck-gaskin-popup-v2{color:#e8f5fb;font:12px/1.45 system-ui,sans-serif}.bp-shipwreck-gaskin-popup-v2 h3{font-size:18px;color:#fff;margin:4px 0}.bp-shipwreck-gaskin-popup-v2 .facts{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:8px 0}.bp-shipwreck-gaskin-popup-v2 .facts span{padding:7px;border:1px solid rgba(170,197,207,.18);border-radius:7px;font-size:10px}.bp-shipwreck-gaskin-popup-v2 .facts b{display:block;font-size:9px;color:#9eb7c5;text-transform:uppercase}.bp-shipwreck-gaskin-popup-v2 iframe{width:100%;height:210px;border:0}.bp-shipwreck-gaskin-actions-v2{display:grid;gap:7px;margin:10px 0}.bp-shipwreck-gaskin-actions-v2 button{background:#3b321f;color:#ffe9bb;border:1px solid #d7b66d;border-radius:8px;padding:9px;font-weight:800}.bp-shipwreck-gaskin-status-v2{padding:8px;border:1px solid rgba(231,187,103,.28);border-radius:7px;color:#c8d9df;font-size:10px;margin:7px 0}.bp-shipwreck-gaskin-popup-v2 a{color:#f1cf88}';
+ document.head.appendChild(style);
+}
+function openRobertGaskinPopup(state,lngLat){
+ const Popup=window.maplibregl?.Popup;if(!Popup)return;
+ addRobertGaskinStyles();
+ if(state.popup)state.popup.remove();
+ const p=ROBERT_GASKIN_WRECK;
+ const html='<article class="bp-shipwreck-gaskin-popup-v2">'+
+  '<div class="bp-shipwreck-kicker-v1">BRIDGEPOINT · SHIPWRECKS</div><h3>Robert Gaskin</h3>'+
+  '<p>1863 wooden barque · sank 1889 · St. Lawrence River, Brockville, Ontario</p>'+
+  '<div class="facts"><span><b>Wreck-site center</b>'+safe(p.coordinateText)+'</span><span><b>Hull depth range</b>18.3–21.3 m (60–70 ft)</span>'+
+  '<span><b>Published length</b>40.42 m / 132.6 ft</span><span><b>Photogrammetry</b>approximately 49,000 photos</span></div>'+
+  '<div class="bp-shipwreck-viewer-v1"><iframe title="Robert Gaskin underwater photogrammetry viewer" src="https://sketchfab.com/models/1916420a764c4e73b754755d7f2780ce/embed?autostart=0&ui_infos=1&ui_controls=1&ui_watermark=1&ui_theme=dark" allow="autoplay; fullscreen; xr-spatial-tracking; gyroscope; accelerometer" allowfullscreen loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>'+
+  '<div class="bp-shipwreck-gaskin-actions-v2"><button type="button" data-robert-gaskin-action="materialize">Place 3D scan at its wreck depth</button></div>'+
+  '<div class="bp-shipwreck-gaskin-status-v2" data-robert-gaskin-status>'+safe(state.nativeModelStatus||'Native scan not loaded yet. Select the button to download and display the local 3D mesh at the wreck site.')+'</div>'+
+  '<p class="bp-shipwreck-accuracy-v1"><strong>Scan and placement:</strong> Christian Rémillard’s CC BY 4.0 GLB is a photogrammetry scan processed from 48,977 underwater photographs (about 598,600 triangles). It is calibrated to the published 132.6 ft historical length and placed at the published wreck-site center. Its original mesh origin is not GPS-georeferenced, so the point, heading, and 19.8 m display depth are approximate. The source reports the bow faces inland and the bow/stern range from about 18.3 to 21.3 m.</p>'+
+  '<div class="bp-shipwreck-official-v1"><b>Survey and location references</b><a href="'+safe(p.datasetUrl)+'" target="_blank" rel="noopener noreferrer">Zenodo CC BY 4.0 original GLB and metadata ↗</a><a href="'+safe(p.sourceUrl)+'" target="_blank" rel="noopener noreferrer">Sketchfab photogrammetry source ↗</a><a href="'+safe(p.locationSourceUrl)+'" target="_blank" rel="noopener noreferrer">Shipwreck World GPS and depth reference ↗</a><a href="'+safe(p.historySourceUrl)+'" target="_blank" rel="noopener noreferrer">Brockville historical marker ↗</a></div>'+
+  '<p class="bp-shipwreck-source-v1">The Robert Gaskin is a freshwater St. Lawrence River wreck, not an ocean site. The native GLB is locally hosted by BridgePoint under CC BY 4.0 with creator attribution.</p></article>';
+ state.popup=new Popup({closeButton:true,closeOnClick:true,maxWidth:'450px',className:'bp-shipwreck-titanic-popup-wrap-v1'}).setLngLat(lngLat||p.coordinates).setHTML(html).addTo(state.map);
+ const root=state.popup.getElement?.();
+ root?.querySelector('[data-robert-gaskin-action="materialize"]')?.addEventListener('click',()=>{void showRobertGaskinOnRiverbed(state);});
+}
 function bindInteractions(state){
  if(state.interactionsBound)return;state.interactionsBound=true;
  state.handleClick=event=>{
   if(!state.enabled)return;
   const hits=state.map.queryRenderedFeatures?.(event.point,{layers:[MARKER_ID]})||[];
-  const hit=hits.find(feature=>feature.properties?.partId);
+  const hit=hits.find(feature=>feature.properties?.partId||feature.properties?.wreckId);
   if(!hit)return;
+  if(hit.properties?.wreckId==='robert-gaskin'){openRobertGaskinPopup(state,event.lngLat||ROBERT_GASKIN_WRECK.coordinates);return;}
   const part=partById(String(hit.properties.partId));
   if(part)openTitanicPopup(state,part,event.lngLat||part.coordinates);
  };
@@ -232,12 +419,13 @@ function bindInteractions(state){
   // settles. Re-allow this dedicated category and restore only Titanic layers.
   syncSharedOverlayCategory(state);
   if(!installLayers(state)){
-   setStatus(state,'Shipwrecks ON · waiting for the globe style before restoring Titanic markers.');
+   setStatus(state,'Shipwrecks ON · waiting for the globe style before restoring all four shipwreck icons.');
    refreshStatusUi(state);return;
   }
   setVisibility(state,true);
   state.stats.visibilityReassertions=(state.stats.visibilityReassertions||0)+1;
-  setStatus(state,'Shipwrecks ON · Titanic markers remain visible through zoom, angle and style changes. Select a marker for its 3D card.');
+  if(state.nativeModelVisible&&state.nativeModelRoot&&!state.map.getLayer(NATIVE_MODEL_LAYER_ID))ensureRobertGaskinMapLayer(state);
+  setStatus(state,'Shipwrecks ON · all four icons remain visible through zoom, angle and style changes. Select a wreck for its card and model.');
   refreshStatusUi(state);
  };
  state.handleStyleLoad=state.handlePersistentVisibility;
@@ -252,11 +440,11 @@ function addControlGroup(state){
  group.setAttribute('data-bpv-command-section','shipwrecks');
  group.setAttribute('aria-label','Shipwrecks');
  group.innerHTML=
-  '<div class="bpv-command-heading"><span class="bpv-command-heading-icon" aria-hidden="true">🚢</span><span><b>SHIPWRECKS</b><small>Mapped wreck locations and interactive 3D models</small></span></div>'+
+  '<div class="bpv-command-heading"><span class="bpv-command-heading-icon" aria-hidden="true">🚢</span><span><b>SHIPWRECKS</b><small>Titanic + native underwater photogrammetry</small></span></div>'+
   '<div class="bpv-command-grid"><button id="'+TOGGLE_ID+'" data-bpv-action="shipwrecks" type="button" class="bpv-command-btn" aria-pressed="false" title="Show or hide mapped shipwreck markers"><span class="bpv-command-icon" aria-hidden="true">🚢</span><span class="bpv-command-label">Shipwrecks</span></button></div>'+
-  '<div id="'+COUNT_ID+'" class="bpv-data-note">'+state.stats.parts+' NOAA Titanic waypoints · '+state.stats.models+' 3D model references</div>'+
+  '<div id="'+COUNT_ID+'" class="bpv-data-note">4 persistent wreck icons · '+state.stats.models+' Titanic viewer references · 1 native seabed GLB</div>'+
   '<div id="'+STATUS_ID+'" class="bpv-data-note">Layer off · the rest of the BridgePoint globe remains unchanged.</div>'+
-  '<style id="bp-shipwrecks-titanic-style-v1">'+
+  '<style id="bp-shipwrecks-titanic-style-v2">'+
   '#'+CONTROL_ID+' .bpv-data-note{font:600 10px/1.45 system-ui,sans-serif;color:#9bb7c6;margin:5px 2px;overflow-wrap:anywhere}'+
   '#'+TOGGLE_ID+'.is-active{border-color:rgba(235,192,112,.88);background:rgba(102,71,28,.52);box-shadow:inset 0 0 0 1px rgba(255,226,165,.2)}'+
   '.bp-shipwreck-titanic-popup-wrap-v1 .maplibregl-popup-content{background:#06131f;color:#e8f5fb;border:1px solid rgba(231,187,103,.55);border-radius:13px;padding:12px;font:12px/1.45 system-ui,sans-serif;max-height:min(80vh,780px);overflow:auto;width:min(410px,calc(100vw - 54px))}'+
@@ -277,11 +465,12 @@ function addControlGroup(state){
 async function setEnabled(state,on){
  state.enabled=!!on;
  if(state.enabled){
-  if(!installLayers(state))setStatus(state,'Shipwrecks ON · waiting for the map style before showing Titanic markers.');
-  else setStatus(state,'Shipwrecks ON · all three Titanic waypoints remain visible from global zoom through close zoom. Select a marker for its 3D card.');
+  if(!installLayers(state))setStatus(state,'Shipwrecks ON · waiting for the map style before showing all four wreck icons.');
+  else setStatus(state,'Shipwrecks ON · all four wreck icons remain visible from global zoom through close zoom. Select a marker for its card and native Robert Gaskin riverbed mesh.');
  }else{
   if(state.popup){state.popup.remove();state.popup=null;}
-  setVisibility(state,false);setStatus(state,'Shipwrecks off · all existing BridgePoint layers remain unchanged.');
+  state.nativeModelVisible=false;if(state.nativeModelRoot)state.nativeModelRoot.visible=false;
+  setVisibility(state,false);setStatus(state,'Shipwrecks off · all four wreck icons and the native Gaskin mesh are hidden; other BridgePoint layers are unchanged.');
  }
  refreshStatusUi(state);return state.enabled;
 }
@@ -289,14 +478,18 @@ export function initShipwrecksRenderer(target){
  const map=target&&(target.map||target);
  if(!map||typeof map.getBounds!=='function'||typeof map.addSource!=='function')return null;
  const existing=MAP_STATES.get(map);if(existing)return existing.api;
- const state={map,enabled:false,popup:null,interactionsBound:false,status:'off',
-  stats:{version:VERSION,parts:TITANIC_SHIPWRECK_PARTS.length,models:TITANIC_3D_MODELS.length,lastError:null}};
+ const state={map,enabled:false,popup:null,interactionsBound:false,status:'off',destroyed:false,
+  nativeModelVisible:false,nativeModelStatus:'Native scan not loaded.',nativeModelRoot:null,nativeModelPromise:null,
+  nativeModelRenderer:null,nativeModelCamera:null,nativeModelScene:null,nativeModelLayerReady:false,nativeModelBounds:null,
+  stats:{version:VERSION,parts:4,sites:2,models:TITANIC_3D_MODELS.length,nativeModels:1,lastError:null}};
  const api={
   version:VERSION,get enabled(){return state.enabled;},get status(){return state.status;},
   get stats(){return Object.assign({},state.stats);},get partCount(){return state.stats.parts;},get modelCount(){return state.stats.models;},
   toggle(){return setEnabled(state,!state.enabled);},setEnabled(on){return setEnabled(state,on);},
-  refresh(){const source=map.getSource(SOURCE_ID);if(source?.setData)source.setData({type:'FeatureCollection',features:buildTitanicShipwreckFeatures()});return state.stats;},
+  refresh(){const source=map.getSource(SOURCE_ID);if(source?.setData)source.setData({type:'FeatureCollection',features:buildAllShipwreckFeatures()});return state.stats;},
+  showRobertGaskinOnRiverbed(){return showRobertGaskinOnRiverbed(state);},
   destroy(){
+   state.destroyed=true;state.enabled=false;state.nativeModelVisible=false;
    if(state.popup)state.popup.remove();
    if(state.handleClick)map.off('click',state.handleClick);
    if(state.handlePersistentVisibility){
@@ -304,6 +497,9 @@ export function initShipwrecksRenderer(target){
      map.off(event,state.handlePersistentVisibility);
    }
    if(state.observer)state.observer.disconnect();if(state.dockTimer)clearTimeout(state.dockTimer);
+   if(map.getLayer(NATIVE_MODEL_LAYER_ID))map.removeLayer(NATIVE_MODEL_LAYER_ID);
+   try{state.nativeModelRenderer?.dispose();}catch(_){}
+   if(state.nativeModelRoot){state.nativeModelScene?.remove(state.nativeModelRoot);state.nativeModelRoot=null;}
    for(const id of [LABEL_ID,MARKER_ID,HALO_ID])if(map.getLayer(id))map.removeLayer(id);
    if(map.getSource(SOURCE_ID))map.removeSource(SOURCE_ID);
    try{if(map.hasImage?.(ICON_ID))map.removeImage(ICON_ID)}catch(_){}

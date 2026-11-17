@@ -71,8 +71,8 @@ assert.ok(moduleSource.includes("for(const event of ['style.load','idle','moveen
 assert.ok(!moduleSource.includes("m.on('styledata',hideDefaultOverlays)"), 'avoid styledata feedback loops while hiding optional layers');
 assert.ok(landingHtml.includes('bridgepoint-drone-awareness-v1.js'), 'homepage loads the module');
 assert.ok(appHtml.includes('bridgepoint-drone-awareness-v1.js'), 'app loads the module');
-assert.ok(landingHtml.includes('bridgepoint-drone-awareness-v1.js?v=10-shipwrecks-icons-persistent'), 'homepage uses the live 3D drone runtime cache key');
-assert.ok(appHtml.includes('bridgepoint-drone-awareness-v1.js?v=10-shipwrecks-icons-persistent'), 'app uses the same persistent overlay guard cache key');
+assert.ok(landingHtml.includes('bridgepoint-drone-awareness-v1.js?v=11-shipwrecks-v2-persistent-icons'), 'homepage uses the live 3D drone runtime cache key');
+assert.ok(appHtml.includes('bridgepoint-drone-awareness-v1.js?v=11-shipwrecks-v2-persistent-icons'), 'app uses the same persistent overlay guard cache key');
 assert.ok(view.includes('data-bpv-command-grid="environment"'), 'environment command group exists');
 for (const action of ['weatherfx','windfx','volumetric','ai','listings','opportunities','metrics','property','explore','parcels','boundaryviewer','worldchanges','controls','motion','whole']) {
   assert.ok(view.includes('data-bpv-action="'+action+'"'), 'the dock exposes the '+action+' action');
