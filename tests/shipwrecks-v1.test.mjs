@@ -112,7 +112,7 @@ assert.ok(moduleSource.includes('import(DRACO_URL)'),'the native model loader im
 assert.ok(moduleSource.includes('function createShipwreckGLTFLoader(state)'),'GLB parser uses a configured loader factory');
 assert.ok(moduleSource.includes('loader.setDRACOLoader(state.dracoLoader)'),'every GLTFLoader receives a DRACOLoader before parsing');
 assert.ok(moduleSource.includes("setDecoderPath('/vendor/draco/')"),'Draco worker and wasm decoder assets load from BridgePoint hosting');
-assert.equal((moduleSource.match(/createShipwreckGLTFLoader\\(state\\)\\.parseAsync/g)||[]).length,4,'all four underwater GLB parsers configure Draco decoding');
+assert.equal((moduleSource.match(/createShipwreckGLTFLoader\(state\)\.parseAsync/g)||[]).length,4,'all four underwater GLB parsers configure Draco decoding');
 assert.match(moduleSource,/data-bp-local-wreck-viewer/,'local model viewer has a dedicated BridgePoint mount point');
 assert.match(moduleSource,/canvas\.addEventListener\('pointerdown'/,'the local viewer supports drag and touch rotation');
 assert.match(moduleSource,/canvas\.addEventListener\('wheel'/,'the local viewer supports scroll zoom');
