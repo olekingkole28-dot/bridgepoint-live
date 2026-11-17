@@ -49,6 +49,9 @@ assert.ok(moduleSource.includes('infrastructure:/infrastructure|power[-_]?line|u
 assert.ok(moduleSource.includes('energy:/solar|wind[-_]?turbine|offshore[-_]?energy|renewable|energy-field/i'), 'solar and wind overlays have a shared persistent category');
 assert.ok(moduleSource.includes('landmarks:/landmark|poi|monument|statue|fountain|lighthouse|heritage-site/i'), 'landmark overlays are recognized by the shared guard');
 assert.ok(moduleSource.includes('earthquakes:/earthquake|seismic|comcat/i'), 'named earthquake point layers are recognized by the shared guard');
+assert.ok(moduleSource.includes('shipwrecks:/shipwreck|titanic/i'), 'Titanic markers have a dedicated category separate from general vessel/ship tracking');
+assert.ok(moduleSource.includes("shipwrecks:'shipwrecks'"), 'the Shipwrecks button explicitly opts into its own visibility category');
+assert.ok(moduleSource.includes("if(/shipwreck|titanic/.test(label))return'shipwrecks';"), 'Shipwrecks labels resolve to the dedicated category before generic shipping');
 assert.ok(moduleSource.includes('const explicitToggle=target.hasAttribute(\'aria-pressed\')'), 'the overlay guard reads the control state before an action handler can reset it');
 assert.ok(!moduleSource.includes('setTimeout(()=>{\n   const buttonOn=target.classList.contains'), 'the previous premature off-state race is removed');
 assert.ok(moduleSource.includes('bp-layer-turn-on-everything') && moduleSource.includes('bp-layer-reset-all'), 'global turn-on and reset controls are mounted at the top of the bottom card');
