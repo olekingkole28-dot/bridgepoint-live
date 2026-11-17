@@ -142,7 +142,7 @@ jobs:
                   if run.get("status")!="completed" or run.get("conclusion")!="success":continue
                   jobs=api(f"/actions/runs/{run['id']}/jobs?per_page=100").get("jobs",[])
                   steps=[step for job in jobs for step in (job.get("steps") or []) if step.get("conclusion")=="success"]
-                  uploaded=any("upload" in str(s.get("name","")).lower() and "page" in str(s.get("name","")).lower() for s in steps)
+                  uploaded=any("upload" in str(s.get("name","")).lower() and ("page" in str(s.get("name","")).lower() or "site" in str(s.get("name","")).lower()) for s in steps)
                   deployed=any(("publish" in str(s.get("name","")).lower() or "deploy" in str(s.get("name","")).lower()) for s in steps)
                   if not uploaded or not deployed:continue
                   artifacts=api(f"/actions/runs/{run['id']}/artifacts?per_page=100").get("artifacts",[])
