@@ -97,7 +97,7 @@ const cannonPopupSource=moduleSource.slice(moduleSource.indexOf('function openCa
 const kxiPopupSource=moduleSource.slice(moduleSource.indexOf('function openKxiPopup'),moduleSource.indexOf('function openRobertGaskinPopup'));
 assert.match(kxiPopupSource,/bridgePointLocalViewerMarkup\('hnlms-kxi'/,'KXI card mounts a BridgePoint-hosted viewer');
 assert.doesNotMatch(kxiPopupSource,/iframe|viewerUrl/i,'KXI card uses the BridgePoint viewer rather than an external embed');
-assert.match(moduleSource,/async function loadKxiMesh\\(state,renderer=null\\)/,'KXI GLB is locally loaded by the native viewer');
+assert.match(moduleSource,/async function loadKxiMesh\(state,renderer=null\)/,'KXI GLB is locally loaded by the native viewer');
 assert.match(moduleSource,/async function showKxiOnSeabed\(state\)/,'KXI card offers native underwater materialization');
 assert.match(moduleSource,/maybeAutoMaterializeKxi\(state\)/,'KXI mesh can auto-materialize when zoomed near its persistent icon');
 assert.match(moduleSource,/HNLMS_KXI_WRECK\.displayDepthM/,'KXI native mesh is anchored at the documented wreck depth');
@@ -124,8 +124,8 @@ assert.ok(moduleSource.indexOf('renderer=new THREE.WebGLRenderer')<moduleSource.
 assert.match(moduleSource,/canvas\.addEventListener\('pointerdown'/,'the local viewer supports drag and touch rotation');
 assert.match(moduleSource,/canvas\.addEventListener\('wheel'/,'the local viewer supports scroll zoom');
 assert.match(moduleSource,/distance=clamp\(distance\*lastPinch\/current/,'the local viewer supports pinch zoom');
-assert.match(moduleSource,/await loadHmsGraftonMesh\\(state,renderer\\)/,'HMS Grafton card renders the locally hosted GLB');
-assert.match(moduleSource,/await loadCannonMesh\\(state,renderer\\)/,'Kanonvraget card renders the locally hosted GLB');
+assert.match(moduleSource,/await loadHmsGraftonMesh\(state,renderer\)/,'HMS Grafton card renders the locally hosted GLB');
+assert.match(moduleSource,/await loadCannonMesh\(state,renderer\)/,'Kanonvraget card renders the locally hosted GLB');
 assert.match(moduleSource,/popup\.on\?\.\('close',cleanup\)/,'local viewer releases its renderer when the popup closes');
 
 assert.ok(moduleSource.includes('minzoom:0,maxzoom:24'),'markers remain visible across all globe zoom levels');
