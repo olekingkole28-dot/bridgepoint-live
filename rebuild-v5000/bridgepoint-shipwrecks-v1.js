@@ -1,8 +1,14 @@
-/* BridgePoint Shipwrecks v1 — Titanic only.
- * Standalone opt-in marker layer. NOAA expedition waypoints anchor the bow, stern and debris field.
- * External 3D viewers remain hosted by their original publishers; no external mesh is downloaded.
+/* BridgePoint Shipwrecks v2 — Titanic + Robert Gaskin.
+ * Titanic NOAA section waypoints stay on the globe; Robert Gaskin adds a CC BY 4.0 native seabed GLB.
+ * Titanic creator-hosted photogrammetry remains embedded externally until redistribution rights are confirmed.
  */
-const VERSION=1, MAP_STATES=new WeakMap();
+const VERSION=2, MAP_STATES=new WeakMap();
+const THREE_URL='/vendor/three.module.js?v=169-local';
+const GLTF_URL='/vendor/GLTFLoader.bundle.js?v=169-local';
+const NATIVE_MODEL_LAYER_ID='bp-shipwrecks-native-model-v2';
+const ROBERT_GASKIN_ASSET='/assets/shipwrecks/robert-gaskin-photogrammetry.glb.gz';
+const ROBERT_GASKIN_LENGTH_M=40.42;
+let shipwreckThreePromise=null;
 const SOURCE_ID='bp-shipwrecks-titanic-source-v1';
 const HALO_ID='bp-shipwrecks-titanic-halo-v1';
 const MARKER_ID='bp-shipwrecks-titanic-markers-v1';
@@ -11,7 +17,7 @@ const CONTROL_ID='bp-shipwrecks-control-v1';
 const TOGGLE_ID='bp-shipwrecks-toggle-v1';
 const COUNT_ID='bp-shipwrecks-count-v1';
 const STATUS_ID='bp-shipwrecks-status-v1';
-const ICON_ID='bp-shipwrecks-titanic-icon-v1';
+const ICON_ID='bp-shipwrecks-icon-v2';
 
 export const TITANIC_SHIPWRECK_PARTS=[
  {id:'titanic-bow',name:'RMS Titanic — Bow section',label:'TITANIC · BOW',part:'bow',coordinates:[-49.946944444444,41.7325],
@@ -24,6 +30,29 @@ export const TITANIC_SHIPWRECK_PARTS=[
   coordinateText:'41° 43′ 32″ N, 49° 56′ 49″ W',depthM:3800,defaultModelId:null,
   locationPrecision:'NOAA 2004 Titanic Expedition waypoint: center of the debris field. No separate debris-field mesh is included in this release.'}
 ];
+
+export const ROBERT_GASKIN_WRECK={
+ id:'robert-gaskin',name:'Robert Gaskin — 1889 wooden barque',label:'ROBERT GASKIN',
+ part:'hull',coordinates:[-75.677083,44.589317],
+ coordinateText:'44° 35′ 21.54″ N, 75° 40′ 37.50″ W',
+ depthM:19.8,depthRangeM:[18.3,21.3],lengthM:40.42,beamM:8.02,
+ sourcePhotos:48977,triangles:598600,vertices:322800,license:'CC BY 4.0',creator:'Christian Rémillard',
+ sourceUrl:'https://sketchfab.com/3d-models/robert-gaskin-wreck-1916420a764c4e73b754755d7f2780ce',
+ datasetUrl:'https://doi.org/10.5281/zenodo.10288556',
+ locationSourceUrl:'https://www.shipwreckworld.com/maps/robert-gaskin-barque-st-lawrence-river-shipwreck',
+ historySourceUrl:'https://www.hmdb.org/m.asp?m=141820',assetUrl:ROBERT_GASKIN_ASSET,
+ locationPrecision:'Approximate wreck-site center from published wreck coordinates; the photogrammetry mesh origin is not GPS-georeferenced.',
+ scalePrecision:'Visualization scale calibrated against published 132.6 ft (40.42 m) vessel length; not a survey-control certificate.',
+ orientationPrecision:'Approximate north/inland axis based on the dive-site description that the bow faces inland; not a survey-grade heading.',
+ detail:'Photogrammetry reconstruction from 48,977 underwater photographs. The original scan is preserved as a native GLB and placed at the wreck-site coordinate and published 18.3–21.3 m depth range.'
+};
+export function buildAllShipwreckFeatures(){
+ const p=ROBERT_GASKIN_WRECK;
+ const gaskin={type:'Feature',id:p.id,
+  geometry:{type:'Point',coordinates:[Number(p.coordinates[0]),Number(p.coordinates[1])]},
+  properties:{wreckId:p.id,name:p.name,label:p.label,part:p.part,iconImage:ICON_ID,depthM:p.depthM,coordinateText:p.coordinateText}};
+ return [...buildTitanicShipwreckFeatures(),gaskin];
+}
 
 export const TITANIC_3D_MODELS=[
  {id:'titanic-bow-photogrammetry',part:'bow',title:'RMS Titanic’s bow wreck',creator:'Pramet.Peet',platform:'Sketchfab',
@@ -118,7 +147,7 @@ function makeTitanicIcon(){
 function setStatus(state,msg){state.status=msg;const el=document.getElementById(STATUS_ID);if(el)el.textContent=msg;}
 function refreshStatusUi(state){
  const count=document.getElementById(COUNT_ID);
- if(count)count.textContent=state.stats.parts.toLocaleString()+' NOAA Titanic waypoints · '+state.stats.models.toLocaleString()+' 3D model references';
+ if(count)count.textContent='4 persistent wreck icons · 1 native CC BY 4.0 seabed scan · '+state.stats.models.toLocaleString()+' Titanic viewer references';
  const status=document.getElementById(STATUS_ID);if(status)status.textContent=state.status;
  const button=document.getElementById(TOGGLE_ID);
  if(button){button.setAttribute('aria-pressed',String(state.enabled));button.classList.toggle('is-active',state.enabled);}
@@ -152,8 +181,8 @@ function installLayers(state){
  try{
   if(!map.hasImage?.(ICON_ID))map.addImage(ICON_ID,makeTitanicIcon(),{pixelRatio:2});
   if(!map.getSource(SOURCE_ID))map.addSource(SOURCE_ID,{
-   type:'geojson',data:{type:'FeatureCollection',features:buildTitanicShipwreckFeatures()},
-   buffer:64,maxzoom:14,attribution:'NOAA Titanic Expedition 2004 waypoint centers; 3D viewer attribution is shown in each card.'
+   type:'geojson',data:{type:'FeatureCollection',features:buildAllShipwreckFeatures()},
+   buffer:64,maxzoom:14,attribution:'Titanic waypoint centers: NOAA 2004 Expedition. Robert Gaskin photogrammetry: Christian Remillard, CC BY 4.0 / Zenodo 10.5281/zenodo.10288556.'
   });
   const add=(id,layer)=>{if(!map.getLayer(id))map.addLayer(layer);};
   add(HALO_ID,{id:HALO_ID,type:'circle',source:SOURCE_ID,minzoom:0,maxzoom:24,
@@ -252,11 +281,11 @@ function addControlGroup(state){
  group.setAttribute('data-bpv-command-section','shipwrecks');
  group.setAttribute('aria-label','Shipwrecks');
  group.innerHTML=
-  '<div class="bpv-command-heading"><span class="bpv-command-heading-icon" aria-hidden="true">🚢</span><span><b>SHIPWRECKS</b><small>Mapped wreck locations and interactive 3D models</small></span></div>'+
+  '<div class="bpv-command-heading"><span class="bpv-command-heading-icon" aria-hidden="true">🚢</span><span><b>SHIPWRECKS</b><small>Titanic + native underwater photogrammetry</small></span></div>'+
   '<div class="bpv-command-grid"><button id="'+TOGGLE_ID+'" data-bpv-action="shipwrecks" type="button" class="bpv-command-btn" aria-pressed="false" title="Show or hide mapped shipwreck markers"><span class="bpv-command-icon" aria-hidden="true">🚢</span><span class="bpv-command-label">Shipwrecks</span></button></div>'+
-  '<div id="'+COUNT_ID+'" class="bpv-data-note">'+state.stats.parts+' NOAA Titanic waypoints · '+state.stats.models+' 3D model references</div>'+
+  '<div id="'+COUNT_ID+'" class="bpv-data-note">4 persistent wreck icons · '+state.stats.models+' Titanic viewer references · 1 native seabed GLB</div>'+
   '<div id="'+STATUS_ID+'" class="bpv-data-note">Layer off · the rest of the BridgePoint globe remains unchanged.</div>'+
-  '<style id="bp-shipwrecks-titanic-style-v1">'+
+  '<style id="bp-shipwrecks-titanic-style-v2">'+
   '#'+CONTROL_ID+' .bpv-data-note{font:600 10px/1.45 system-ui,sans-serif;color:#9bb7c6;margin:5px 2px;overflow-wrap:anywhere}'+
   '#'+TOGGLE_ID+'.is-active{border-color:rgba(235,192,112,.88);background:rgba(102,71,28,.52);box-shadow:inset 0 0 0 1px rgba(255,226,165,.2)}'+
   '.bp-shipwreck-titanic-popup-wrap-v1 .maplibregl-popup-content{background:#06131f;color:#e8f5fb;border:1px solid rgba(231,187,103,.55);border-radius:13px;padding:12px;font:12px/1.45 system-ui,sans-serif;max-height:min(80vh,780px);overflow:auto;width:min(410px,calc(100vw - 54px))}'+
