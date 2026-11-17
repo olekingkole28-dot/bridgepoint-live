@@ -437,7 +437,7 @@ def materialize_timaru(output: Path) -> dict:
     if len(raw) < 32 or raw[:4] != b"glTF":
         raise SystemExit("Timaru source file is not a valid binary glTF")
     git_blob_sha = hashlib.sha1(
-        b"blob " + str(len(raw)).encode("ascii") + b"\\0" + raw
+        b"blob " + str(len(raw)).encode("ascii") + b"\0" + raw
     ).hexdigest()
     if git_blob_sha != expected_blob_sha:
         raise SystemExit("Timaru source Git blob SHA changed; refusing to mirror")
@@ -491,7 +491,7 @@ def materialize_timaru(output: Path) -> dict:
     catalog_path = output / "catalog.json"
     manifest = json.loads(catalog_path.read_text(encoding="utf-8")) if catalog_path.exists() else {"version": 1}
     manifest["timaru"] = model
-    catalog_path.write_text(json.dumps(manifest, indent=2) + "\\n", encoding="utf-8")
+    catalog_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     print("BRIDGEPOINT_TIMARU_SITE42_CC_BY_GLB_READY", len(raw), "source bytes", target.stat().st_size, "compressed bytes")
     return model
 
