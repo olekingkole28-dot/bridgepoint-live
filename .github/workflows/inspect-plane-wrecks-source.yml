@@ -1,61 +1,24 @@
-name: Inspect BridgePoint first underwater aircraft mesh
+name: Inspect first underwater plane-wreck source
 on:
   pull_request:
     paths:
       - '.github/workflows/inspect-plane-wrecks-source.yml'
-      - 'tools/plane_wrecks/fetch_plane_wrecks.py'
+      - 'tools/plane_wrecks/**'
   push:
     branches: [main]
     paths:
       - '.github/workflows/inspect-plane-wrecks-source.yml'
-      - 'tools/plane_wrecks/fetch_plane_wrecks.py'
-permissions:
-  contents: read
-  issues: write
+      - 'tools/plane_wrecks/**'
 jobs:
   inspect:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Inspect only KWAJ mesh entries using ZIP byte ranges (no 3 GB archive download)
-        id: inspect
-        shell: bash
+      - name: Check KWAJ aircraft scan rights and real mesh files using ZIP byte ranges
         run: |
-          set +e
-          python3 tools/plane_wrecks/fetch_plane_wrecks.py --inspect-only > "$RUNNER_TEMP/plane-wreck-inspection.log" 2>&1
-          result=$?
-          cat "$RUNNER_TEMP/plane-wreck-inspection.log"
-          echo "exit_code=$result" >> "$GITHUB_OUTPUT"
-          exit 0
-      - name: Report source inspection result back to the BridgePoint work PR
-        if: always()
-        uses: actions/github-script@v7
-        env:
-          LOG_PATH: ${{ runner.temp }}/plane-wreck-inspection.log
-          INSPECT_EXIT_CODE: ${{ steps.inspect.outputs.exit_code }}
-        with:
-          script: |
-            const fs = require('fs');
-            const log = fs.existsSync(process.env.LOG_PATH)
-              ? fs.readFileSync(process.env.LOG_PATH, 'utf8').slice(-12000)
-              : 'Inspection log was not created.';
-            const body = [
-              '### First plane-wreck source inspection',
-              'Result: ' + (process.env.INSPECT_EXIT_CODE === '0' ? 'completed' : 'failed (exit ' + process.env.INSPECT_EXIT_CODE + ')'),
-              '',
-              '```text',
-              log,
-              '```',
-              '',
-              'This report is from a range-only read of the source archive; it does not download the full 3 GB ZIP.'
-            ].join('\n');
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: 559,
-              body
-            });
+          python3 -m py_compile tools/plane_wrecks/fetch_plane_wrecks.py tools/plane_wrecks/inspect_abyssal_manifest.py
+          python3 tools/plane_wrecks/inspect_abyssal_manifest.py

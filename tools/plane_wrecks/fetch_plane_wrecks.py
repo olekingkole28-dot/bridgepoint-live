@@ -78,16 +78,22 @@ def main():
     args = parser.parse_args()
     with HttpRangeReader(ARCHIVE_URL) as remote:
         with zipfile.ZipFile(remote) as archive:
+            members = archive.infolist()
+            print("BRIDGEPOINT_ABYSSAL_ARCHIVE_MEMBER_COUNT", len(members))
+            print("BRIDGEPOINT_ABYSSAL_DIRECTORY_SAMPLE", json.dumps([
+                {"name": info.filename, "size": info.file_size, "compressed": info.compress_size}
+                for info in members[:500]
+            ]))
             candidates = []
-            for info in archive.infolist():
+            for info in members:
                 name = info.filename
-                if re.search(r"(KWAJ|corsair|f4u)", name, re.I) and re.search(r"\.(glb|gltf|ply|obj|fbx|e57|las|laz|zip)$", name, re.I):
+                if re.search(r"\.(glb|gltf|ply|obj|fbx|e57|las|laz|pcd|zip|npz|npy|tar|bin|splat|spz|ksplat)$", name, re.I):
                     candidates.append({"name": name, "size": info.file_size, "compressed": info.compress_size})
-            if not candidates:
-                raise SystemExit("No KWAJ/Corsair model or point-cloud files found in the dataset ZIP")
-            print("BRIDGEPOINT_KWAJ_ARCHIVE_CANDIDATES", json.dumps(candidates))
+            print("BRIDGEPOINT_ABYSSAL_MODEL_AND_CONTAINER_FILES", len(candidates), json.dumps(candidates[:500]))
             if args.inspect_only:
                 return
+            if not candidates:
+                raise SystemExit("No mesh, point-cloud, or nested archive files found in the Abyssal ZIP")
             # Prefer a cleaned ready-to-render mesh over imagery or raw capture material.
             ranked = sorted(candidates, key=lambda x: (
                 0 if re.search(r"clean|mesh|model|textured", x["name"], re.I) else 1,
