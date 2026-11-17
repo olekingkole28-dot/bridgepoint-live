@@ -97,7 +97,7 @@ const cannonPopupSource=moduleSource.slice(moduleSource.indexOf('function openCa
 const kxiPopupSource=moduleSource.slice(moduleSource.indexOf('function openKxiPopup'),moduleSource.indexOf('function openRobertGaskinPopup'));
 assert.match(kxiPopupSource,/bridgePointLocalViewerMarkup\('hnlms-kxi'/,'KXI card mounts a BridgePoint-hosted viewer');
 assert.doesNotMatch(kxiPopupSource,/iframe|viewerUrl/i,'KXI card uses the BridgePoint viewer rather than an external embed');
-assert.match(moduleSource,/async function loadKxiMesh\(state\)/,'KXI GLB is locally loaded by the native viewer');
+assert.match(moduleSource,/async function loadKxiMesh\\(state,renderer=null\\)/,'KXI GLB is locally loaded by the native viewer');
 assert.match(moduleSource,/async function showKxiOnSeabed\(state\)/,'KXI card offers native underwater materialization');
 assert.match(moduleSource,/maybeAutoMaterializeKxi\(state\)/,'KXI mesh can auto-materialize when zoomed near its persistent icon');
 assert.match(moduleSource,/HNLMS_KXI_WRECK\.displayDepthM/,'KXI native mesh is anchored at the documented wreck depth');
@@ -115,7 +115,7 @@ assert.ok(moduleSource.includes('detectSupport(supportRenderer)'),'KTX2Loader de
 assert.ok(moduleSource.includes('loader.setKTX2Loader(state.ktx2Loader)'),'every GLTFLoader is configured for KTX2 before parsing');
 assert.ok(moduleSource.includes('function prepareShipwreckMapRenderer(state)'),'map materialization initializes a renderer before parsing KTX2 assets');
 assert.ok(moduleSource.includes('import(DRACO_URL)'),'the native model loader imports the local DRACOLoader');
-assert.ok(moduleSource.includes('function createShipwreckGLTFLoader(state)'),'GLB parser uses a configured loader factory');
+assert.ok(moduleSource.includes('function createShipwreckGLTFLoader(state,renderer=null)'),'GLB parser uses a configured loader factory');
 assert.ok(moduleSource.includes('loader.setDRACOLoader(state.dracoLoader)'),'every GLTFLoader receives a DRACOLoader before parsing');
 assert.ok(moduleSource.includes("setDecoderPath('/vendor/draco/')"),'Draco worker and wasm decoder assets load from BridgePoint hosting');
 assert.equal((moduleSource.match(/createShipwreckGLTFLoader\(state,renderer\)\.parseAsync/g)||[]).length,4,'all four underwater GLB parsers configure Draco and KTX2 decoding');
@@ -124,8 +124,8 @@ assert.ok(moduleSource.indexOf('renderer=new THREE.WebGLRenderer')<moduleSource.
 assert.match(moduleSource,/canvas\.addEventListener\('pointerdown'/,'the local viewer supports drag and touch rotation');
 assert.match(moduleSource,/canvas\.addEventListener\('wheel'/,'the local viewer supports scroll zoom');
 assert.match(moduleSource,/distance=clamp\(distance\*lastPinch\/current/,'the local viewer supports pinch zoom');
-assert.match(moduleSource,/await loadHmsGraftonMesh\(state\)/,'HMS Grafton card renders the locally hosted GLB');
-assert.match(moduleSource,/await loadCannonMesh\(state\)/,'Kanonvraget card renders the locally hosted GLB');
+assert.match(moduleSource,/await loadHmsGraftonMesh\\(state,renderer\\)/,'HMS Grafton card renders the locally hosted GLB');
+assert.match(moduleSource,/await loadCannonMesh\\(state,renderer\\)/,'Kanonvraget card renders the locally hosted GLB');
 assert.match(moduleSource,/popup\.on\?\.\('close',cleanup\)/,'local viewer releases its renderer when the popup closes');
 
 assert.ok(moduleSource.includes('minzoom:0,maxzoom:24'),'markers remain visible across all globe zoom levels');
@@ -135,8 +135,8 @@ assert.ok(moduleSource.includes('ROBERT_GASKIN_ASSET'),'Robert Gaskin has a loca
 assert.ok(moduleSource.includes('HMS_GRAFTON_ASSET'),'HMS Grafton has a separate local GLB asset path');
 assert.ok(moduleSource.includes('CANNON_ASSET'),'Kanonvraget has a separate local GLB asset path');
 assert.ok(moduleSource.includes('KXI_ASSET'),'HNLMS K XI has a separate local GLB asset path');
-assert.ok(moduleSource.includes('loadCannonMesh(state)'),'Kanonvraget is loaded as a native GLB');
-assert.ok(moduleSource.includes('loadKxiMesh(state)'),'HNLMS K XI is loaded as a native GLB');
+assert.ok(moduleSource.includes('loadCannonMesh(state,renderer)'),'Kanonvraget is loaded as a native GLB');
+assert.ok(moduleSource.includes('loadKxiMesh(state,renderer)'),'HNLMS K XI is loaded as a native GLB');
 assert.ok(moduleSource.includes('showCannonOnSeabed(state)'),'the Kanonvraget card can materialize its 3D scan on the map');
 assert.ok(moduleSource.includes('showKxiOnSeabed(state)'),'the HNLMS K XI card can materialize its 3D scan on the map');
 assert.ok(moduleSource.includes('maybeAutoMaterializeCannon(state)'),'Kanonvraget native mesh loads when zoomed to its wreck-site icon');
@@ -147,7 +147,7 @@ assert.ok(moduleSource.includes('all seven wreck icons remain visible'),'the sha
 assert.ok(moduleSource.includes("count.textContent='7 persistent wreck icons · 4 native CC BY 4.0 seabed scans"),'dynamic count reflects all six markers and all three native models');
 assert.ok(moduleSource.includes('Verified WGS84 wreck-site position'),'Kanonvraget card explains its location precision');
 assert.ok(moduleSource.includes('DTU Aqua describes its Cannon Shipwreck reconstruction'),'Kanonvraget card keeps scan depth distinct from wreck depth');
-assert.ok(moduleSource.includes('loadHmsGraftonMesh(state)'),'HMS Grafton is loaded as a native GLB');
+assert.ok(moduleSource.includes('loadHmsGraftonMesh(state,renderer)'),'HMS Grafton is loaded as a native GLB');
 assert.ok(moduleSource.includes('showHmsGraftonOnSeabed(state)'),'the Grafton card can materialize its 3D scan on the map');
 assert.ok(moduleSource.includes('maybeAutoMaterializeHmsGrafton(state)'),'Grafton native mesh loads when zoomed to its wreck-site icon');
 assert.ok(moduleSource.includes('HMS_GRAFTON_WRECK.waterSurfaceElevationM-HMS_GRAFTON_WRECK.scanDepthM'),'Grafton native mesh uses the approximate capture depth');
@@ -205,4 +205,4 @@ assert.ok(workflow.includes('BRIDGEPOINT_SHIPWRECKS_V8_LIVE_VERIFY_PASS'),'the p
 
 assert.ok(!/SUPA|supabase/i.test(moduleSource),'the native shipwreck renderer has no Supabase dependency');
 
-console.log('BRIDGEPOINT_SHIPWRECKS_LOCAL_VIEWERS_V7_PASS');
+console.log('BRIDGEPOINT_SHIPWRECKS_LOCAL_VIEWERS_V8_PASS');
