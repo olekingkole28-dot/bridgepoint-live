@@ -1,4 +1,5 @@
 name: Publish BridgePoint Titanic Shipwrecks v1
+# Additive Titanic-only GitHub Pages overlay; changes are fingerprint-checked before deployment.
 
 on:
   pull_request:
