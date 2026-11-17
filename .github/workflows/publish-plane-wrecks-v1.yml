@@ -240,7 +240,7 @@ jobs:
               if "initPlaneWrecksRenderer(world)" not in data:
                   if data.count(shipwreck_anchor)!=1:
                       raise SystemExit(f"{rel}: cannot find the unique Shipwrecks import anchor for Plane Wrecks")
-                  data=data.replace(shipwreck_anchor,shipwreck_anchor+"\\n"+plane_import,1)
+                  data=data.replace(shipwreck_anchor,shipwreck_anchor+chr(10)+plane_import,1)
               if "initPlaneWrecksRenderer(world)" not in data:
                   raise SystemExit(f"{rel}: Plane Wrecks entry-point import was not installed")
               p.write_text(data,encoding="utf-8")
