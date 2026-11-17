@@ -15,6 +15,10 @@ on:
     workflows: ["Publish BridgePoint Shipwrecks v11 — BridgePoint-hosted underwater wreck viewers"]
     types: [completed]
     branches: [main]
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-plane-wrecks-v1.yml'
   workflow_dispatch:
 
 permissions:
@@ -46,7 +50,7 @@ jobs:
           node tests/shipwrecks-v1.test.mjs
           node tests/drone-awareness.test.mjs
   publish:
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
     concurrency:
       group: bridgepoint-v5000-production-authority
       cancel-in-progress: false
@@ -204,12 +208,19 @@ jobs:
           expected_changed={"landing.js","app.js","index.html","app/index.html","bridgepoint-drone-awareness-v1.js"}
           overlay_files={"bridgepoint-plane-wrecks-v1.js","app/bridgepoint-plane-wrecks-v1.js",
              "assets/plane-wrecks/f4u1-corsair-kwajalein-photogrammetry.glb.gz","assets/plane-wrecks/catalog.json"}
-          for rel,needle in (("landing.js","planeWrecks=f4u1-corsair-v1"),("app.js","planeWrecks=f4u1-corsair-v1")):
+          plane_import="""void import('./bridgepoint-plane-wrecks-v1.js?v=1-f4u1-corsair-colmap-pointcloud')
+           .then(m=>{window.__BP_PLANE_WRECKS_V1__=m.initPlaneWrecksRenderer(world)})
+           .catch(e=>console.warn('BridgePoint Plane Wrecks layer unavailable',e));"""
+          shipwreck_anchor=".catch(e=>console.warn('BridgePoint shipwreck renderer unavailable',e));"
+          for rel in ("landing.js","app.js"):
               p=site/rel
               data=p.read_text(encoding="utf-8")
-              source=data
               if "initPlaneWrecksRenderer(world)" not in data:
-                  raise SystemExit(f"{rel}: Plane Wrecks module import missing")
+                  if data.count(shipwreck_anchor)!=1:
+                      raise SystemExit(f"{rel}: cannot find the unique Shipwrecks import anchor for Plane Wrecks")
+                  data=data.replace(shipwreck_anchor,shipwreck_anchor+"\\n"+plane_import,1)
+              if "initPlaneWrecksRenderer(world)" not in data:
+                  raise SystemExit(f"{rel}: Plane Wrecks entry-point import was not installed")
               p.write_text(data,encoding="utf-8")
           for rel,script in (("index.html","landing.js"),("app/index.html","app.js")):
               p=site/rel;data=p.read_text(encoding="utf-8")
