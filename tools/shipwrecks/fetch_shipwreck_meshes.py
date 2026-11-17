@@ -9,6 +9,8 @@ import argparse
 import gzip
 import hashlib
 import json
+import re
+import struct
 import urllib.request
 from pathlib import Path
 
@@ -18,6 +20,8 @@ EXPECTED_FILE = "1916420a764c4e73b754755d7f2780ce.glb"
 EXPECTED_MD5 = "cc6efdbaee28f622e7799089be99e099"
 MAX_SOURCE_BYTES = 100 * 1024 * 1024
 MAX_COMPRESSED_BYTES = 120 * 1024 * 1024
+MAX_HMS_LOO_SOURCE_BYTES = 256 * 1024 * 1024
+MAX_HMS_LOO_COMPRESSED_BYTES = 240 * 1024 * 1024
 
 
 def fetch_json(url: str) -> dict:
@@ -32,17 +36,17 @@ def fetch_json(url: str) -> dict:
     return value
 
 
-def fetch_bytes(url: str) -> bytes:
+def fetch_bytes(url: str, max_bytes: int = MAX_SOURCE_BYTES, label: str = "GLB") -> bytes:
     request = urllib.request.Request(url, headers={
         "User-Agent": "BridgePoint-Shipwrecks/2.0",
     })
-    with urllib.request.urlopen(request, timeout=240) as response:
+    with urllib.request.urlopen(request, timeout=300) as response:
         length = response.headers.get("Content-Length")
-        if length and int(length) > MAX_SOURCE_BYTES:
-            raise SystemExit("Robert Gaskin GLB exceeds source-size limit")
-        payload = response.read(MAX_SOURCE_BYTES + 1)
-    if len(payload) > MAX_SOURCE_BYTES:
-        raise SystemExit("Robert Gaskin GLB exceeds source-size limit")
+        if length and int(length) > max_bytes:
+            raise SystemExit(f"{label} exceeds source-size limit")
+        payload = response.read(max_bytes + 1)
+    if len(payload) > max_bytes:
+        raise SystemExit(f"{label} exceeds source-size limit")
     return payload
 
 
@@ -496,6 +500,85 @@ def materialize_timaru(output: Path) -> dict:
     return model
 
 
+def materialize_hms_loo(output: Path) -> dict:
+    """Mirror NOAA / ECU's CC BY 4.0 HMS Loo wrecksite GLB from a pinned HF revision."""
+    registry_url = "https://huggingface.co/api/datasets/Stable-X/ScanSceneverse"
+    registry = fetch_json(registry_url)
+    revision = str(registry.get("sha") or "").strip()
+    if not re.fullmatch(r"[0-9a-f]{40}", revision):
+        raise SystemExit("ScanSceneverse did not provide an immutable 40-character dataset revision")
+    source_file = "glbs/000-050/fc5901d8556743458c40aa4a096f01b6.glb"
+    url = (
+        "https://huggingface.co/datasets/Stable-X/ScanSceneverse/resolve/"
+        + revision + "/" + source_file
+    )
+    raw = fetch_bytes(url, max_bytes=MAX_HMS_LOO_SOURCE_BYTES, label="HMS Loo GLB")
+    if len(raw) < 32 or raw[:4] != b"glTF":
+        raise SystemExit("HMS Loo source is not a valid binary glTF")
+    version, declared_length = struct.unpack_from("<II", raw, 4)
+    if version != 2 or declared_length != len(raw):
+        raise SystemExit("HMS Loo GLB version or declared length is invalid")
+    json_length = struct.unpack_from("<I", raw, 12)[0]
+    if json_length < 2 or 20 + json_length > len(raw):
+        raise SystemExit("HMS Loo GLB JSON chunk is invalid")
+    gltf = json.loads(raw[20:20 + json_length].decode("utf-8").rstrip(" \t\r\n\0"))
+    if gltf.get("asset", {}).get("version") != "2.0" or not gltf.get("scenes") or not gltf.get("meshes"):
+        raise SystemExit("HMS Loo GLB does not contain a valid scene and mesh geometry")
+
+    output.mkdir(parents=True, exist_ok=True)
+    target = output / "hms-loo-photogrammetry.glb.gz"
+    with target.open("wb") as handle:
+        with gzip.GzipFile(filename="", mode="wb", fileobj=handle, compresslevel=9, mtime=0) as packed:
+            packed.write(raw)
+    if target.stat().st_size > MAX_HMS_LOO_COMPRESSED_BYTES:
+        target.unlink(missing_ok=True)
+        raise SystemExit("Compressed HMS Loo GLB exceeds size limit")
+
+    model = {
+        "id": "hms-loo-photogrammetry",
+        "title": "HMS Loo — Looe Key wrecksite underwater photogrammetry scan",
+        "creator": "NOAA's Florida Keys National Marine Sanctuary",
+        "creators": ["NOAA's Florida Keys National Marine Sanctuary", "East Carolina University's Maritime Studies Program"],
+        "license": "CC BY 4.0",
+        "licenseSourceUrl": "https://creativecommons.org/licenses/by/4.0/",
+        "sourceUrl": "https://sketchfab.com/3d-models/hms-loo-shipwreck-fc5901d8556743458c40aa4a096f01b6",
+        "datasetUrl": "https://huggingface.co/datasets/Stable-X/ScanSceneverse",
+        "datasetRevision": revision,
+        "sourceFile": source_file,
+        "locationSourceUrl": "https://shipwrecksmap.com/wrecks/hms-looe-1741/",
+        "historySourceUrl": "https://floridakeys.noaa.gov/shipwrecks/hms-loo.html",
+        "depthSourceUrl": "https://library.oarcloud.noaa.gov/noaa_documents.lib/NOS/CZIC/EIS_Looe_Key_1980.pdf",
+        "assetUrl": "/assets/shipwrecks/hms-loo-photogrammetry.glb.gz",
+        "coordinates": [-81.4052, 24.5477],
+        "coordinateText": "24.5477° N, 81.4052° W (approximate recorded position)",
+        "location": "Looe Key Reef, Lower Florida Keys, Florida, USA",
+        "displayDepthM": 6.75,
+        "depthRangeM": [4.5, 9],
+        "depthReference": "6.75 m is the midpoint display reference for the 4.5–9 m depth range described in a NOAA planning report.",
+        "triangles": 4099999,
+        "vertices": 2051535,
+        "capturedAt": "2023",
+        "publishedAt": "2024-02-07",
+        "guns": 44,
+        "lostDate": "1744-02-05",
+        "sourceBytes": len(raw),
+        "compressedBytes": target.stat().st_size,
+        "sourceSha256": hashlib.sha256(raw).hexdigest(),
+        "assetSha256": hashlib.sha256(target.read_bytes()).hexdigest(),
+        "locationPrecision": "Approximate recorded wreck coordinate from a public Wikidata location; NOAA identifies the wreckage at Looe Key Reef. Not a survey-grade waypoint.",
+        "scalePrecision": "NOAA / ECU photogrammetry includes scale-bar targets 25 cm apart. Original GLB scale is preserved; no independent survey-control transform is published.",
+        "orientationPrecision": "Original GLB orientation preserved; georeferenced true-north heading is not published.",
+        "depthPrecision": "NOAA planning report describes the wreckage in 4.5–9 m of water; 6.75 m is used as a midpoint display anchor, not survey-controlled vertical registration.",
+        "detail": "Photogrammetry records coral-encrusted ballast blocks, scattered ship structure and artifacts on the seabed. It is a scan of the wrecksite, not an intact or reconstructed hull."
+    }
+    catalog_path = output / "catalog.json"
+    manifest = json.loads(catalog_path.read_text(encoding="utf-8")) if catalog_path.exists() else {"version": 1}
+    manifest["hmsLoo"] = model
+    catalog_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    print("BRIDGEPOINT_HMS_LOO_CC_BY_GLB_READY", len(raw), "source bytes", target.stat().st_size, "compressed bytes")
+    return model
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", required=True, type=Path)
@@ -506,6 +589,7 @@ def main() -> None:
     materialize_kxi(args.output)
     materialize_cape_otway(args.output)
     materialize_timaru(args.output)
+    materialize_hms_loo(args.output)
 
 
 if __name__ == "__main__":
