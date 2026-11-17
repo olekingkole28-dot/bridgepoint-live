@@ -18,9 +18,12 @@ on:
     paths:
       - '.github/workflows/publish-shipwrecks-titanic-v1.yml'
       - 'rebuild-v5000/bridgepoint-shipwrecks-v1.js'
+      - 'rebuild-v5000/bridgepoint-drone-awareness-v1.js'
       - 'rebuild-v5000/landing.js'
       - 'rebuild-v5000/app.js'
       - 'tests/shipwrecks-v1.test.mjs'
+      - 'tests/drone-awareness.test.mjs'
+      - 'tests/vessel-awareness.test.mjs'
       - 'docs/bridgepoint-shipwrecks-v1.md'
   workflow_dispatch:
 
@@ -74,9 +77,12 @@ jobs:
         run: |
           set -euo pipefail
           node --input-type=module --check < rebuild-v5000/bridgepoint-shipwrecks-v1.js
+          node --check rebuild-v5000/bridgepoint-drone-awareness-v1.js
           node --check rebuild-v5000/landing.js
           node --check rebuild-v5000/app.js
           node tests/shipwrecks-v1.test.mjs
+          node tests/drone-awareness.test.mjs
+          node tests/vessel-awareness.test.mjs
 
       - name: Select the latest successful deployed GitHub Pages artifact
         id: baseline
