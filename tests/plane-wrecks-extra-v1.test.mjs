@@ -1,0 +1,37 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { EXTRA_PLANE_WRECKS } from '../rebuild-v5000/bridgepoint-plane-wrecks-extra-v1.js';
+
+assert.equal(EXTRA_PLANE_WRECKS.length,2);
+const b29=EXTRA_PLANE_WRECKS.find(x=>x.id==='b29-over-exposed-bleaklow');
+const zero=EXTRA_PLANE_WRECKS.find(x=>x.id==='mitsubishi-zero-a6m3-iwm-london');
+assert.ok(b29&&zero);
+assert.deepEqual(b29.coordinates,[-1.86542,53.45091]);
+assert.deepEqual(zero.coordinates,[-0.108328,51.496009]);
+assert.equal(b29.zenodoId,'10318135');
+assert.equal(zero.zenodoId,'10264214');
+assert.equal(zero.photos,148);
+assert.match(b29.details,/not a complete intact aircraft/i);
+assert.match(zero.details,/museum collection location/i);
+assert.match(b29.assetUrl,/\.glb\.gz$/);
+assert.match(zero.assetUrl,/\.glb\.gz$/);
+
+const moduleSource=await readFile(new URL('../rebuild-v5000/bridgepoint-plane-wrecks-extra-v1.js',import.meta.url),'utf8');
+assert.match(moduleSource,/new Marker\(\{element,anchor:'center',offset:\[0,0\]\}\)/);
+assert.match(moduleSource,/element\.hidden=!visible/);
+assert.match(moduleSource,/aria-pressed/);
+assert.match(moduleSource,/data-bp-plane-wreck-extra-viewer/);
+assert.match(moduleSource,/new THREE\.WebGLRenderer/);
+assert.match(moduleSource,/parseAsync\(raw,''\)/);
+assert.match(moduleSource,/BridgePoint-hosted textured photogrammetry mesh/);
+assert.doesNotMatch(moduleSource,/<iframe|viewerUrl/i);
+assert.match(moduleSource,/loadModel\(wreck\)/);
+assert.match(moduleSource,/initPlaneWrecksExtraRenderer/);
+
+const builder=await readFile(new URL('../tools/plane_wrecks/build_additional_models.py',import.meta.url),'utf8');
+assert.match(builder,/cc-by-4\.0/);
+assert.match(builder,/file_md5/);
+assert.match(builder,/mode != 4/);
+assert.match(builder,/UNSUPPORTED_REQUIRED/);
+assert.match(builder,/MAX_GZIP_BYTES/);
+console.log('BRIDGEPOINT_EXTRA_PLANE_WRECKS_V1_PASS');
