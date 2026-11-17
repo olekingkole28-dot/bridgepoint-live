@@ -14,7 +14,8 @@ def get(url, limit=4*1024*1024):
 
 status, headers, raw = get(BASE)
 html = raw.decode("utf-8", "replace")
-print("BRIDGEPOINT_MESSERSCHMITT_PAGE", status, headers.get("Content-Type"), len(raw))\nprint("BRIDGEPOINT_MESSERSCHMITT_HTML_SOURCE", html)
+print("BRIDGEPOINT_MESSERSCHMITT_PAGE", status, headers.get("Content-Type"), len(raw))
+print("BRIDGEPOINT_MESSERSCHMITT_HTML_SOURCE", html)
 scripts = re.findall(r'<script[^>]+src="([^"]+)"', html, re.I)
 print("BRIDGEPOINT_MESSERSCHMITT_SCRIPTS", scripts)
 for match in re.findall(r'Potree\\.loadPointCloud\\s*\\((.{0,700}?)\\)', html, re.I | re.S):
