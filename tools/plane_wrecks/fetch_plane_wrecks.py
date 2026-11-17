@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Inspect and extract the CC BY 4.0 KWAJ F4U-1 Corsair scan from the Abyssal archive.
+"""Inspect and extract the CC BY 4.0 KWAJ F4U-1 Corsair scan from the Abyssal archive.\n\nCI probe revision 2: exercise the byte-range ZIP central-directory reader.
 
 The source ZIP is approximately 3 GB. ZipFile is backed by HTTP Range requests so
 the CI job reads only the central directory and the selected mesh member, never
