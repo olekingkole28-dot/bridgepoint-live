@@ -44,6 +44,7 @@ export const TITANIC_3D_MODELS=[
 ];
 
 export const TITANIC_OFFICIAL_SCAN_SOURCES=[
+ {title:'NOAA — Titanic Expedition 2004 waypoint record',url:'https://repository.library.noaa.gov/view/noaa/10519/noaa_10519_DS1.pdf'},
  {title:'Magellan — Titanic TT24 full-size digital twin',url:'https://www.magellan.gg/magellan-titanic-tt24/'},
  {title:'Voyis — RMS Titanic survey and 3D reconstruction',url:'https://voyis.com/projects-titanic/'}
 ];
