@@ -400,8 +400,9 @@ function bindInteractions(state){
  state.handleClick=event=>{
   if(!state.enabled)return;
   const hits=state.map.queryRenderedFeatures?.(event.point,{layers:[MARKER_ID]})||[];
-  const hit=hits.find(feature=>feature.properties?.partId);
+  const hit=hits.find(feature=>feature.properties?.partId||feature.properties?.wreckId);
   if(!hit)return;
+  if(hit.properties?.wreckId==='robert-gaskin'){openRobertGaskinPopup(state,event.lngLat||ROBERT_GASKIN_WRECK.coordinates);return;}
   const part=partById(String(hit.properties.partId));
   if(part)openTitanicPopup(state,part,event.lngLat||part.coordinates);
  };
@@ -416,7 +417,8 @@ function bindInteractions(state){
   }
   setVisibility(state,true);
   state.stats.visibilityReassertions=(state.stats.visibilityReassertions||0)+1;
-  setStatus(state,'Shipwrecks ON · Titanic markers remain visible through zoom, angle and style changes. Select a marker for its 3D card.');
+  if(state.nativeModelVisible&&state.nativeModelRoot&&!state.map.getLayer(NATIVE_MODEL_LAYER_ID))ensureRobertGaskinMapLayer(state);
+  setStatus(state,'Shipwrecks ON · all four icons remain visible through zoom, angle and style changes. Select a wreck for its card and model.');
   refreshStatusUi(state);
  };
  state.handleStyleLoad=state.handlePersistentVisibility;
@@ -456,11 +458,12 @@ function addControlGroup(state){
 async function setEnabled(state,on){
  state.enabled=!!on;
  if(state.enabled){
-  if(!installLayers(state))setStatus(state,'Shipwrecks ON · waiting for the map style before showing Titanic markers.');
-  else setStatus(state,'Shipwrecks ON · all three Titanic waypoints remain visible from global zoom through close zoom. Select a marker for its 3D card.');
+  if(!installLayers(state))setStatus(state,'Shipwrecks ON · waiting for the map style before showing all four wreck icons.');
+  else setStatus(state,'Shipwrecks ON · all four wreck icons remain visible from global zoom through close zoom. Select a marker for its card and native Robert Gaskin riverbed mesh.');
  }else{
   if(state.popup){state.popup.remove();state.popup=null;}
-  setVisibility(state,false);setStatus(state,'Shipwrecks off · all existing BridgePoint layers remain unchanged.');
+  state.nativeModelVisible=false;if(state.nativeModelRoot)state.nativeModelRoot.visible=false;
+  setVisibility(state,false);setStatus(state,'Shipwrecks off · all four wreck icons and the native Gaskin mesh are hidden; other BridgePoint layers are unchanged.');
  }
  refreshStatusUi(state);return state.enabled;
 }
@@ -468,14 +471,18 @@ export function initShipwrecksRenderer(target){
  const map=target&&(target.map||target);
  if(!map||typeof map.getBounds!=='function'||typeof map.addSource!=='function')return null;
  const existing=MAP_STATES.get(map);if(existing)return existing.api;
- const state={map,enabled:false,popup:null,interactionsBound:false,status:'off',
-  stats:{version:VERSION,parts:TITANIC_SHIPWRECK_PARTS.length,models:TITANIC_3D_MODELS.length,lastError:null}};
+ const state={map,enabled:false,popup:null,interactionsBound:false,status:'off',destroyed:false,
+  nativeModelVisible:false,nativeModelStatus:'Native scan not loaded.',nativeModelRoot:null,nativeModelPromise:null,
+  nativeModelRenderer:null,nativeModelCamera:null,nativeModelScene:null,nativeModelLayerReady:false,nativeModelBounds:null,
+  stats:{version:VERSION,parts:4,sites:2,models:TITANIC_3D_MODELS.length,nativeModels:1,lastError:null}};
  const api={
   version:VERSION,get enabled(){return state.enabled;},get status(){return state.status;},
   get stats(){return Object.assign({},state.stats);},get partCount(){return state.stats.parts;},get modelCount(){return state.stats.models;},
   toggle(){return setEnabled(state,!state.enabled);},setEnabled(on){return setEnabled(state,on);},
-  refresh(){const source=map.getSource(SOURCE_ID);if(source?.setData)source.setData({type:'FeatureCollection',features:buildTitanicShipwreckFeatures()});return state.stats;},
+  refresh(){const source=map.getSource(SOURCE_ID);if(source?.setData)source.setData({type:'FeatureCollection',features:buildAllShipwreckFeatures()});return state.stats;},
+  showRobertGaskinOnRiverbed(){return showRobertGaskinOnRiverbed(state);},
   destroy(){
+   state.destroyed=true;state.enabled=false;state.nativeModelVisible=false;
    if(state.popup)state.popup.remove();
    if(state.handleClick)map.off('click',state.handleClick);
    if(state.handlePersistentVisibility){
@@ -483,6 +490,9 @@ export function initShipwrecksRenderer(target){
      map.off(event,state.handlePersistentVisibility);
    }
    if(state.observer)state.observer.disconnect();if(state.dockTimer)clearTimeout(state.dockTimer);
+   if(map.getLayer(NATIVE_MODEL_LAYER_ID))map.removeLayer(NATIVE_MODEL_LAYER_ID);
+   try{state.nativeModelRenderer?.dispose();}catch(_){}
+   if(state.nativeModelRoot){state.nativeModelScene?.remove(state.nativeModelRoot);state.nativeModelRoot=null;}
    for(const id of [LABEL_ID,MARKER_ID,HALO_ID])if(map.getLayer(id))map.removeLayer(id);
    if(map.getSource(SOURCE_ID))map.removeSource(SOURCE_ID);
    try{if(map.hasImage?.(ICON_ID))map.removeImage(ICON_ID)}catch(_){}
