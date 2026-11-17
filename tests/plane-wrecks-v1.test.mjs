@@ -38,6 +38,6 @@ const app=await readFile(new URL('../rebuild-v5000/app.js',import.meta.url),'utf
 const guard=await readFile(new URL('../rebuild-v5000/bridgepoint-drone-awareness-v1.js',import.meta.url),'utf8');
 assert.match(landing,/initPlaneWrecksRenderer\(world\)/,'homepage globe loads the Plane Wrecks module');
 assert.match(app,/initPlaneWrecksRenderer\(world\)/,'app globe loads the Plane Wrecks module');
-assert.match(guard,/planewrecks:\/plane\[-_\]\?wreck\|aircraft\[-_\]\?wreck\/i,'the visibility guard recognizes Plane Wrecks layers');
+assert.ok(guard.includes('planewrecks:/plane[-_]?wreck|aircraft[-_]?wreck/i'),'the visibility guard recognizes Plane Wrecks layers');
 assert.match(guard,/planewrecks:'planewrecks'/,'the button action maps into its own category');
 console.log('BRIDGEPOINT_PLANE_WRECKS_V1_PASS');
