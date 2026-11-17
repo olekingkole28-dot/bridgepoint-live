@@ -35,7 +35,7 @@ export const ROBERT_GASKIN_WRECK={
  id:'robert-gaskin',name:'Robert Gaskin — 1889 wooden barque',label:'ROBERT GASKIN',
  part:'hull',coordinates:[-75.677083,44.589317],
  coordinateText:'44° 35′ 21.54″ N, 75° 40′ 37.50″ W',
- depthM:19.8,depthRangeM:[18.3,21.3],lengthM:40.42,beamM:8.02,
+ depthM:19.8,depthRangeM:[18.3,21.3],waterSurfaceElevationM:74.64,verticalDatum:'IGLD 1985',waterSurfaceReferenceDate:'2026-11-16',lengthM:40.42,beamM:8.02,
  sourcePhotos:49000,triangles:598600,vertices:322800,license:'CC BY 4.0',creator:'Christian Rémillard',
  sourceUrl:'https://sketchfab.com/3d-models/robert-gaskin-wreck-1916420a764c4e73b754755d7f2780ce',
  datasetUrl:'https://doi.org/10.5281/zenodo.10288556',
@@ -340,7 +340,8 @@ function ensureRobertGaskinMapLayer(state){
    try{if(bounds&&!bounds.contains(ROBERT_GASKIN_WRECK.coordinates)){state.nativeModelRoot.visible=false;return;}}catch(_){}
    const raw=args&&(args.defaultProjectionData?.mainMatrix||args.modelViewProjectionMatrix);
    if(!raw||raw.length<16)return;
-   const matrix=nativeMapMatrix(map,THREE,ROBERT_GASKIN_WRECK.coordinates,-ROBERT_GASKIN_WRECK.depthM);
+   const wreckAltitude=ROBERT_GASKIN_WRECK.waterSurfaceElevationM-ROBERT_GASKIN_WRECK.depthM;
+   const matrix=nativeMapMatrix(map,THREE,ROBERT_GASKIN_WRECK.coordinates,wreckAltitude);
    if(!matrix)return;
    state.nativeModelRoot.visible=true;
    state.nativeModelCamera.projectionMatrix.copy(new THREE.Matrix4().fromArray(raw)).multiply(matrix);
@@ -358,6 +359,7 @@ function ensureRobertGaskinMapLayer(state){
 }
 async function showRobertGaskinOnRiverbed(state){
  if(!state.enabled)return false;
+ state.nativeModelAutoAttempted=true;
  state.nativeModelVisible=true;
  updateRobertGaskinModelStatus(state,'Loading the CC BY 4.0 photogrammetry scan…');
  setStatus(state,'Robert Gaskin native underwater mesh loading; all four wreck icons remain on.');
@@ -395,12 +397,21 @@ function openRobertGaskinPopup(state,lngLat){
   '<div class="bp-shipwreck-viewer-v1"><iframe title="Robert Gaskin underwater photogrammetry viewer" src="https://sketchfab.com/models/1916420a764c4e73b754755d7f2780ce/embed?autostart=0&ui_infos=1&ui_controls=1&ui_watermark=1&ui_theme=dark" allow="autoplay; fullscreen; xr-spatial-tracking; gyroscope; accelerometer" allowfullscreen loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>'+
   '<div class="bp-shipwreck-gaskin-actions-v2"><button type="button" data-robert-gaskin-action="materialize">Place 3D scan at its wreck depth</button></div>'+
   '<div class="bp-shipwreck-gaskin-status-v2" data-robert-gaskin-status>'+safe(state.nativeModelStatus||'Native scan not loaded yet. Select the button to download and display the local 3D mesh at the wreck site.')+'</div>'+
-  '<p class="bp-shipwreck-accuracy-v1"><strong>Scan and placement:</strong> Christian Rémillard’s CC BY 4.0 GLB is a photogrammetry scan processed from 48,977 underwater photographs (about 598,600 triangles). It is calibrated to the published 132.6 ft historical length and placed at the published wreck-site center. Its original mesh origin is not GPS-georeferenced, so the point, heading, and 19.8 m display depth are approximate. The source reports the bow faces inland and the bow/stern range from about 18.3 to 21.3 m.</p>'+
+  '<p class="bp-shipwreck-accuracy-v1"><strong>Scan and placement:</strong> Christian Rémillard’s CC BY 4.0 GLB is a photogrammetry scan processed from approximately 49,000 underwater photographs (about 598,600 triangles). It is calibrated to the published 132.6 ft historical length and placed at the published wreck-site center. Its original mesh origin is not GPS-georeferenced, so its center and heading are approximate. The model uses a 74.64 m IGLD85 water-surface reference dated 16 Nov 2026 minus the 19.8 m midpoint depth; actual river levels vary. The source reports the bow faces inland and the bow/stern range from about 18.3 to 21.3 m.</p>'+
   '<div class="bp-shipwreck-official-v1"><b>Survey and location references</b><a href="'+safe(p.datasetUrl)+'" target="_blank" rel="noopener noreferrer">Zenodo CC BY 4.0 original GLB and metadata ↗</a><a href="'+safe(p.sourceUrl)+'" target="_blank" rel="noopener noreferrer">Sketchfab photogrammetry source ↗</a><a href="'+safe(p.locationSourceUrl)+'" target="_blank" rel="noopener noreferrer">Shipwreck World GPS and depth reference ↗</a><a href="'+safe(p.historySourceUrl)+'" target="_blank" rel="noopener noreferrer">Brockville historical marker ↗</a></div>'+
   '<p class="bp-shipwreck-source-v1">The Robert Gaskin is a freshwater St. Lawrence River wreck, not an ocean site. The native GLB is locally hosted by BridgePoint under CC BY 4.0 with creator attribution.</p></article>';
  state.popup=new Popup({closeButton:true,closeOnClick:true,maxWidth:'450px',className:'bp-shipwreck-titanic-popup-wrap-v1'}).setLngLat(lngLat||p.coordinates).setHTML(html).addTo(state.map);
  const root=state.popup.getElement?.();
  root?.querySelector('[data-robert-gaskin-action="materialize"]')?.addEventListener('click',()=>{void showRobertGaskinOnRiverbed(state);});
+}
+function maybeAutoMaterializeRobertGaskin(state){
+ if(!state.enabled||state.nativeModelAutoAttempted||state.nativeModelRoot||state.nativeModelPromise)return false;
+ if(Number(state.map.getZoom?.()||0)<12.2)return false;
+ const bounds=state.map.getBounds?.();
+ try{if(bounds&&!bounds.contains(ROBERT_GASKIN_WRECK.coordinates))return false;}catch(_){}
+ state.nativeModelAutoAttempted=true;
+ void showRobertGaskinOnRiverbed(state);
+ return true;
 }
 function bindInteractions(state){
  if(state.interactionsBound)return;state.interactionsBound=true;
@@ -425,6 +436,7 @@ function bindInteractions(state){
   setVisibility(state,true);
   state.stats.visibilityReassertions=(state.stats.visibilityReassertions||0)+1;
   if(state.nativeModelVisible&&state.nativeModelRoot&&!state.map.getLayer(NATIVE_MODEL_LAYER_ID))ensureRobertGaskinMapLayer(state);
+  maybeAutoMaterializeRobertGaskin(state);
   setStatus(state,'Shipwrecks ON · all four icons remain visible through zoom, angle and style changes. Select a wreck for its card and model.');
   refreshStatusUi(state);
  };
@@ -469,7 +481,7 @@ async function setEnabled(state,on){
   else setStatus(state,'Shipwrecks ON · all four wreck icons remain visible from global zoom through close zoom. Select a marker for its card and native Robert Gaskin riverbed mesh.');
  }else{
   if(state.popup){state.popup.remove();state.popup=null;}
-  state.nativeModelVisible=false;if(state.nativeModelRoot)state.nativeModelRoot.visible=false;
+  state.nativeModelVisible=false;state.nativeModelAutoAttempted=false;if(state.nativeModelRoot)state.nativeModelRoot.visible=false;
   setVisibility(state,false);setStatus(state,'Shipwrecks off · all four wreck icons and the native Gaskin mesh are hidden; other BridgePoint layers are unchanged.');
  }
  refreshStatusUi(state);return state.enabled;
@@ -479,7 +491,7 @@ export function initShipwrecksRenderer(target){
  if(!map||typeof map.getBounds!=='function'||typeof map.addSource!=='function')return null;
  const existing=MAP_STATES.get(map);if(existing)return existing.api;
  const state={map,enabled:false,popup:null,interactionsBound:false,status:'off',destroyed:false,
-  nativeModelVisible:false,nativeModelStatus:'Native scan not loaded.',nativeModelRoot:null,nativeModelPromise:null,
+  nativeModelVisible:false,nativeModelAutoAttempted:false,nativeModelStatus:'Native scan not loaded.',nativeModelRoot:null,nativeModelPromise:null,
   nativeModelRenderer:null,nativeModelCamera:null,nativeModelScene:null,nativeModelLayerReady:false,nativeModelBounds:null,
   stats:{version:VERSION,parts:4,sites:2,models:TITANIC_3D_MODELS.length,nativeModels:1,lastError:null}};
  const api={
