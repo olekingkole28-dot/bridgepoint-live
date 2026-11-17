@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import gzip
 import hashlib
+import io
 import json
 import re
 import struct
@@ -527,48 +528,88 @@ def fetch_range(url: str, start: int, end: int) -> tuple[bytes, int]:
     return payload, total
 
 
+class RangeReader(io.RawIOBase):
+    """Seekable read-only view of a remote object, backed by HTTP byte ranges."""
+    def __init__(self, url: str, cache_size: int = 4 * 1024 * 1024):
+        self.url = url
+        self.cache_size = cache_size
+        self.position = 0
+        self.cache_start = -1
+        self.cache_data = b""
+        # Discover object length with a one-byte range request.
+        _, self.total_size = fetch_range(url, 0, 0)
+
+    def readable(self):
+        return True
+
+    def seekable(self):
+        return True
+
+    def tell(self):
+        return self.position
+
+    def seek(self, offset, whence=io.SEEK_SET):
+        if whence == io.SEEK_SET:
+            new_pos = offset
+        elif whence == io.SEEK_CUR:
+            new_pos = self.position + offset
+        elif whence == io.SEEK_END:
+            new_pos = self.total_size + offset
+        else:
+            raise ValueError("invalid whence")
+        if new_pos < 0:
+            raise ValueError("negative seek position")
+        self.position = new_pos
+        return new_pos
+
+    def read(self, size=-1):
+        if size is None or size < 0:
+            size = max(0, self.total_size - self.position)
+        if self.position >= self.total_size or size == 0:
+            return b""
+        size = min(size, self.total_size - self.position)
+        pieces = []
+        remaining = size
+        while remaining:
+            if not (
+                self.cache_start <= self.position
+                and self.position < self.cache_start + len(self.cache_data)
+            ):
+                start = (self.position // self.cache_size) * self.cache_size
+                end = min(self.total_size, start + self.cache_size) - 1
+                self.cache_data, _ = fetch_range(self.url, start, end)
+                self.cache_start = start
+            within = self.position - self.cache_start
+            take = min(remaining, len(self.cache_data) - within)
+            if take <= 0:
+                break
+            pieces.append(self.cache_data[within:within + take])
+            self.position += take
+            remaining -= take
+        return b"".join(pieces)
+
+
 def extract_tar_member_by_range(url: str, member_suffix: str, max_bytes: int) -> tuple[bytes, str]:
-    """Extract one uncompressed tar member without downloading the tar shard."""
-    offset = 0
-    total_size = None
-    entries = 0
-    chunk_size = 4 * 1024 * 1024
-    while entries < 20000:
-        header, total = fetch_range(url, offset, offset + 511)
-        total_size = total
-        if header == b"\\0" * 512:
-            break
-        name = header[:100].split(b"\\0", 1)[0].decode("utf-8", "replace")
-        prefix = header[345:500].split(b"\\0", 1)[0].decode("utf-8", "replace")
-        full_name = f"{prefix}/{name}" if prefix else name
-        size_field = header[124:136].strip(b"\\0 ")
-        try:
-            member_size = int(size_field or b"0", 8)
-        except ValueError as exc:
-            raise SystemExit(f"Invalid tar member size at byte {offset}: {full_name}") from exc
-        data_offset = offset + 512
-        if full_name.endswith(member_suffix):
-            if member_size <= 0 or member_size > max_bytes:
-                raise SystemExit(
-                    f"HMS Loo tar member size {member_size} is outside the allowed range"
-                )
-            chunks = []
-            cursor = data_offset
-            remaining = member_size
-            while remaining:
-                take = min(chunk_size, remaining)
-                block, _ = fetch_range(url, cursor, cursor + take - 1)
-                chunks.append(block)
-                cursor += take
-                remaining -= take
-            return b"".join(chunks), full_name
-        offset = data_offset + ((member_size + 511) // 512) * 512
-        entries += 1
-        if total_size is not None and offset >= total_size:
-            break
-    raise SystemExit(
-        f"HMS Loo member {member_suffix} was not found in the tar after {entries} headers"
-    )
+    """Extract a single member from a remote tar, including PAX/GNU headers."""
+    with RangeReader(url) as remote:
+        with tarfile.open(fileobj=remote, mode="r:") as archive:
+            for member in archive:
+                if not member.isfile() or not member.name.endswith(member_suffix):
+                    continue
+                if member.size <= 0 or member.size > max_bytes:
+                    raise SystemExit(
+                        f"HMS Loo tar member size {member.size} is outside the allowed range"
+                    )
+                stream = archive.extractfile(member)
+                if stream is None:
+                    raise SystemExit(f"Unable to read HMS Loo tar member: {member.name}")
+                raw = stream.read(max_bytes + 1)
+                if len(raw) != member.size or len(raw) > max_bytes:
+                    raise SystemExit(
+                        f"HMS Loo tar member length mismatch: expected {member.size}, got {len(raw)}"
+                    )
+                return raw, member.name
+    raise SystemExit(f"HMS Loo member {member_suffix} was not found in the remote tar")
 
 
 def materialize_hms_loo(output: Path) -> dict:
@@ -589,7 +630,7 @@ def materialize_hms_loo(output: Path) -> dict:
         + revision + "/shards/glbs/glbs-0050.tar"
     )
     raw, tar_member_name = extract_tar_member_by_range(
-        tar_url, f"000-050/{scene_id}.glb", MAX_HMS_LOO_SOURCE_BYTES
+        tar_url, f"{scene_id}.glb", MAX_HMS_LOO_SOURCE_BYTES
     )
     if len(raw) < 32 or raw[:4] != b"glTF":
         raise SystemExit("HMS Loo source is not a valid binary glTF")
