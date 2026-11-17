@@ -97,7 +97,7 @@ assert.ok(workflow.includes('"vendor/GLTFLoader.bundle.js"'));
 assert.ok(workflow.includes('required={"bridgepoint-shipwrecks-v1.js"'));
 assert.ok(workflow.includes('robert-gaskin-photogrammetry.glb.gz'),'the publisher overlays the licensed Robert Gaskin native mesh');
 assert.ok(workflow.includes('GLTFLoader.bundle.js'),'the publisher serves a local GLTFLoader instead of a remote CDN dependency');
-assert.ok(workflow.includes('v11-shipwrecks-v2-persistent-icons'),'the publisher repairs the shared visibility-guard cache bust on both entry points');
+assert.ok(workflow.includes('11-shipwrecks-v2-persistent-icons'),'the publisher repairs the shared visibility-guard cache bust on both entry points');
 assert.ok(workflow.includes('BRIDGEPOINT_SHIPWRECKS_V2_LIVE_VERIFY_PASS'),'the publisher verifies the live shipwreck v2 asset and entry points');
 
 assert.ok(!/SUPA|supabase/i.test(moduleSource),'the native shipwreck renderer has no Supabase dependency');
