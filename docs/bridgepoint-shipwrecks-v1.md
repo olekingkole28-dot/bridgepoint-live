@@ -139,3 +139,17 @@ The source model represents the **actual broken-up wreck remains**, not a restor
 **Placement limits:** BridgePoint uses an approximate public wreck-layer point and places the model center about 50 m below the water surface. The long axis is calibrated to the WreckSploration site measurement of 44.9 m; the official register's overall vessel length is recorded separately. The source GLB does not include a GPS origin, bathymetric transform or survey-grade heading, so the 3D map placement is a visualization rather than survey-controlled registration of individual fragments to the seabed. The local BridgePoint viewer still allows rotation, pinch/scroll zoom and view reset.
 
 The Shipwrecks renderer v10 now maintains **nine persistent wreck icons** and **six native, locally hosted seabed GLBs** (the three Titanic waypoints remain separate markers; the five earlier wreck scans are retained).
+---
+
+# BridgePoint Shipwrecks v11 — HMS Loo / Looe Key native photogrammetry
+
+The Shipwrecks layer adds **HMS Loo**, a separate persistent wreck-site icon at Looe Key Reef in the Lower Florida Keys, Florida, USA. The card uses a locally hosted GLB and the BridgePoint-native viewer; the same source mesh can be materialized in the globe at the recorded point and a 6.75 m display-depth reference.
+
+- History: HMS Loo was a British 44-gun Fifth-Rate that grounded on the reef on 5 February 1744. NOAA records that 274 sailors escaped in boats and a captured Spanish sloop.
+- Archaeology: the 2023 NOAA / East Carolina University photogrammetry records the actual coral-encrusted wrecksite, including ballast blocks, scattered structure and artifacts. It is **not** a reconstructed intact ship hull.
+- Model: 4,099,999 triangles and 2,051,535 vertices; source attribution to NOAA's Florida Keys National Marine Sanctuary and East Carolina University's Maritime Studies Program; CC BY 4.0.
+- Sources: [NOAA HMS Loo history](https://floridakeys.noaa.gov/shipwrecks/hms-loo.html), [NOAA / ECU 3D photogrammetry model](https://sketchfab.com/3d-models/hms-loo-shipwreck-fc5901d8556743458c40aa4a096f01b6), [public ScanSceneverse GLB archive](https://huggingface.co/datasets/Stable-X/ScanSceneverse), [NOAA planning report with 4.5–9 m depth range](https://library.oarcloud.noaa.gov/noaa_documents.lib/NOS/CZIC/EIS_Looe_Key_1980.pdf), and [approximate public wreck-position record](https://shipwrecksmap.com/wrecks/hms-looe-1741/).
+- Placement limits: the map point is approximate, not a survey-grade wreck waypoint. NOAA's planning report describes wreckage at 4.5–9 m; BridgePoint uses 6.75 m as the range midpoint for visualization. The source GLB has no GPS origin or published georeferenced heading, so its original scale/orientation is preserved and its visual center is aligned to the approximate map point. This is not survey-controlled registration of individual artifacts to the seabed.
+
+The Shipwrecks renderer v11 now maintains **ten persistent wreck icons** and **seven native, locally hosted seabed GLBs** (the three Titanic waypoints remain separate markers; the six earlier wreck scans are retained). The publishing workflow checks the local source GLB, attribution metadata, root/app module cache keys, live model asset and final deployment.
+
