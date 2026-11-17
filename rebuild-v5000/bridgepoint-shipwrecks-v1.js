@@ -479,12 +479,18 @@ async function setEnabled(state,on){
  if(state.enabled){
   if(!installLayers(state))setStatus(state,'Shipwrecks ON · waiting for the map style before showing all four wreck icons.');
   else setStatus(state,'Shipwrecks ON · all four wreck icons remain visible from global zoom through close zoom. Select a marker for its card and native Robert Gaskin riverbed mesh.');
+  if(state.nativeModelRoot){
+   state.nativeModelVisible=true;
+   if(!state.map.getLayer(NATIVE_MODEL_LAYER_ID))ensureRobertGaskinMapLayer(state);
+  }else{
+   maybeAutoMaterializeRobertGaskin(state);
+  }
  }else{
   if(state.popup){state.popup.remove();state.popup=null;}
   state.nativeModelVisible=false;state.nativeModelAutoAttempted=false;if(state.nativeModelRoot)state.nativeModelRoot.visible=false;
   setVisibility(state,false);setStatus(state,'Shipwrecks off · all four wreck icons and the native Gaskin mesh are hidden; other BridgePoint layers are unchanged.');
  }
- refreshStatusUi(state);return state.enabled;
+ refreshStatusUi(state);state.map.triggerRepaint?.();return state.enabled;
 }
 export function initShipwrecksRenderer(target){
  const map=target&&(target.map||target);
