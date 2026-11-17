@@ -115,23 +115,26 @@ jobs:
           def api(path):
               req=urllib.request.Request("https://api.github.com/repos/"+repo+path,headers=headers)
               with urllib.request.urlopen(req,timeout=35) as response:return json.load(response)
-          runs=api("/actions/runs?branch=main&per_page=100").get("workflow_runs",[])
           selected=None
-          for run in runs:
-              if run.get("status")!="completed" or run.get("conclusion")!="success":continue
-              jobs=api(f"/actions/runs/{run['id']}/jobs?per_page=100").get("jobs",[])
-              steps=[step for job in jobs for step in (job.get("steps") or []) if step.get("conclusion")=="success"]
-              uploaded=any("upload" in str(s.get("name","")).lower() and "page" in str(s.get("name","")).lower() for s in steps)
-              deployed=any(("publish" in str(s.get("name","")).lower() or "deploy" in str(s.get("name","")).lower()) for s in steps)
-              if not uploaded or not deployed:continue
-              artifacts=api(f"/actions/runs/{run['id']}/artifacts?per_page=100").get("artifacts",[])
-              match=next((a for a in artifacts if not a.get("expired") and
-                  (str(a.get("name","")).startswith("github-pages-") or str(a.get("name","")).startswith("bridgepoint-v5000-"))),None)
-              if match:
-                  selected=(str(run["id"]),match["name"])
-                  print("LATEST_SUCCESSFUL_PAGES_BASELINE",run["id"],run.get("name"),match["name"],match.get("size_in_bytes"))
-                  break
-          if not selected:raise SystemExit("No successful, unexpired production Pages artifact found; refusing to publish.")
+          for page in range(1,11):
+              runs=api(f"/actions/runs?branch=main&status=completed&per_page=100&page={page}").get("workflow_runs",[])
+              if not runs:break
+              for run in runs:
+                  if run.get("status")!="completed" or run.get("conclusion")!="success":continue
+                  jobs=api(f"/actions/runs/{run['id']}/jobs?per_page=100").get("jobs",[])
+                  steps=[step for job in jobs for step in (job.get("steps") or []) if step.get("conclusion")=="success"]
+                  uploaded=any("upload" in str(s.get("name","")).lower() and "page" in str(s.get("name","")).lower() for s in steps)
+                  deployed=any(("publish" in str(s.get("name","")).lower() or "deploy" in str(s.get("name","")).lower()) for s in steps)
+                  if not uploaded or not deployed:continue
+                  artifacts=api(f"/actions/runs/{run['id']}/artifacts?per_page=100").get("artifacts",[])
+                  match=next((a for a in artifacts if not a.get("expired") and
+                      (str(a.get("name","")).startswith("github-pages-") or str(a.get("name","")).startswith("bridgepoint-v5000-"))),None)
+                  if match:
+                      selected=(str(run["id"]),match["name"])
+                      print("LATEST_SUCCESSFUL_PAGES_BASELINE",run["id"],run.get("name"),match["name"],match.get("size_in_bytes"))
+                      break
+              if selected:break
+          if not selected:raise SystemExit("No successful, unexpired production Pages artifact found in the ten most recent completed-run pages; refusing to publish.")
           with open(os.environ["GITHUB_OUTPUT"],"a",encoding="utf-8") as out:
               out.write("run_id="+selected[0]+"\n")
               out.write("artifact_name="+selected[1]+"\n")
