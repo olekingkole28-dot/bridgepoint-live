@@ -504,7 +504,7 @@ jobs:
             "kxi.glb.gz:$O/assets/shipwrecks/hnlms-kxi-photogrammetry.glb.gz?verify=$Q" \
             "cape-otway.glb.gz:$O/assets/shipwrecks/cape-otway-photogrammetry.glb.gz?verify=$Q" \
             "timaru.glb.gz:$O/assets/shipwrecks/timaru-photogrammetry.glb.gz?verify=$Q" \
-            "hms-loo.glb.gz:$O/assets/shipwrecks/hms-loo-photogrammetry.glb.gz?verify=$Q" \\
+            "hms-loo.glb.gz:$O/assets/shipwrecks/hms-loo-photogrammetry.glb.gz?verify=$Q" \
             "loader.js:$O/vendor/GLTFLoader.bundle.js?verify=$Q" \
             "draco-loader.js:$O/vendor/DRACOLoader.bundle.js?verify=$Q" \
             "draco-decoder.js:$O/vendor/draco/draco_decoder.js?verify=$Q" \
