@@ -1,10 +1,11 @@
 /* BridgePoint Shipwrecks v4 — Titanic + Robert Gaskin + HMS Grafton + Kanonvraget.
  * Each wreck has a persistent marker, dedicated source-backed card and native underwater model.
  */
-const VERSION=7, MAP_STATES=new WeakMap();
+const VERSION=8, MAP_STATES=new WeakMap();
 const THREE_URL='/vendor/three.module.js?v=169-local';
 const GLTF_URL='/vendor/GLTFLoader.bundle.js?v=169-local';
 const DRACO_URL='/vendor/DRACOLoader.bundle.js?v=169-draco-v1';
+const KTX2_URL='/vendor/KTX2Loader.bundle.js?v=169-ktx2-v1';
 const NATIVE_MODEL_LAYER_ID='bp-shipwrecks-native-model-v2';
 const ROBERT_GASKIN_ASSET='/assets/shipwrecks/robert-gaskin-photogrammetry.glb.gz';
 const ROBERT_GASKIN_LENGTH_M=40.42;
@@ -331,13 +332,13 @@ function updateKxiModelStatus(state,message){
  if(popup)popup.textContent=state.kxiModelStatus;
 }
 async function loadShipwreckThree(){
- if(!shipwreckThreePromise)shipwreckThreePromise=Promise.all([import(THREE_URL),import(GLTF_URL),import(DRACO_URL)]).then(([THREE,loader,decoder])=>{
-  if(!THREE?.WebGLRenderer||!loader?.GLTFLoader||!decoder?.DRACOLoader)throw new Error('BridgePoint local Three.js / GLTFLoader / DRACOLoader unavailable');
-  return {THREE,GLTFLoader:loader.GLTFLoader,DRACOLoader:decoder.DRACOLoader};
+ if(!shipwreckThreePromise)shipwreckThreePromise=Promise.all([import(THREE_URL),import(GLTF_URL),import(DRACO_URL),import(KTX2_URL)]).then(([THREE,loader,decoder,ktx2])=>{
+  if(!THREE?.WebGLRenderer||!loader?.GLTFLoader||!decoder?.DRACOLoader||!ktx2?.KTX2Loader)throw new Error('BridgePoint local Three.js / GLTFLoader / DRACOLoader / KTX2Loader unavailable');
+  return {THREE,GLTFLoader:loader.GLTFLoader,DRACOLoader:decoder.DRACOLoader,KTX2Loader:ktx2.KTX2Loader};
  }).catch(error=>{shipwreckThreePromise=null;throw error;});
  return shipwreckThreePromise;
 }
-function createShipwreckGLTFLoader(state){
+function createShipwreckGLTFLoader(state,renderer=null){
  const loader=new state.GLTFLoader();
  if(!state.dracoLoader){
   if(!state.DRACOLoader)throw new Error('BridgePoint local DRACOLoader is unavailable');
@@ -345,7 +346,17 @@ function createShipwreckGLTFLoader(state){
   state.dracoLoader.setDecoderPath('/vendor/draco/');
   state.dracoLoader.setWorkerLimit(2);
  }
+ const supportRenderer=renderer||state.nativeModelRenderer;
+ if(!state.ktx2Loader){
+  if(!state.KTX2Loader)throw new Error('BridgePoint local KTX2Loader is unavailable');
+  if(!supportRenderer)throw new Error('A live BridgePoint WebGL renderer is required to initialize KTX2 textures');
+  state.ktx2Loader=new state.KTX2Loader();
+  state.ktx2Loader.setTranscoderPath('/vendor/basis/');
+  state.ktx2Loader.setWorkerLimit(2);
+  state.ktx2Loader.detectSupport(supportRenderer);
+ }
  loader.setDRACOLoader(state.dracoLoader);
+ loader.setKTX2Loader(state.ktx2Loader);
  return loader;
 }
 function nativeMapMatrix(map,THREE,coordinates,altitudeM){
@@ -360,7 +371,7 @@ function nativeMapMatrix(map,THREE,coordinates,altitudeM){
   return new THREE.Matrix4().set(metres,0,0,mc.x,0,0,metres,mc.y,0,metres,0,0,0,0,0,1);
  }catch(_){return null;}
 }
-async function loadRobertGaskinMesh(state){
+async function loadRobertGaskinMesh(state,renderer=null){
  if(state.nativeModelRoot)return state.nativeModelRoot;
  if(state.nativeModelPromise)return state.nativeModelPromise;
  state.nativeModelPromise=(async()=>{
@@ -372,7 +383,7 @@ async function loadRobertGaskinMesh(state){
   const stream=new Blob([await response.arrayBuffer()]).stream().pipeThrough(new DecompressionStream('gzip'));
   const buffer=await new Response(stream).arrayBuffer();
   if(new DataView(buffer).getUint32(0,true)!==0x46546c67)throw new Error('Robert Gaskin asset is not a valid GLB');
-  const gltf=await createShipwreckGLTFLoader(state).parseAsync(buffer,'');
+  const gltf=await createShipwreckGLTFLoader(state,renderer).parseAsync(buffer,'');
   if(!gltf?.scene)throw new Error('Robert Gaskin GLB contains no scene');
   const root=gltf.scene.clone(true);
   root.updateMatrixWorld(true);
@@ -407,7 +418,7 @@ async function loadRobertGaskinMesh(state){
  })().catch(error=>{state.nativeModelPromise=null;throw error;});
  return state.nativeModelPromise;
 }
-async function loadHmsGraftonMesh(state){
+async function loadHmsGraftonMesh(state,renderer=null){
  if(state.graftonModelRoot)return state.graftonModelRoot;
  if(state.graftonModelPromise)return state.graftonModelPromise;
  state.graftonModelPromise=(async()=>{
@@ -419,7 +430,7 @@ async function loadHmsGraftonMesh(state){
   const stream=new Blob([await response.arrayBuffer()]).stream().pipeThrough(new DecompressionStream('gzip'));
   const buffer=await new Response(stream).arrayBuffer();
   if(new DataView(buffer).getUint32(0,true)!==0x46546c67)throw new Error('HMS Grafton asset is not a valid GLB');
-  const gltf=await createShipwreckGLTFLoader(state).parseAsync(buffer,'');
+  const gltf=await createShipwreckGLTFLoader(state,renderer).parseAsync(buffer,'');
   if(!gltf?.scene)throw new Error('HMS Grafton GLB contains no scene');
   const root=gltf.scene.clone(true);root.updateMatrixWorld(true);
   const bounds=new pair.THREE.Box3().setFromObject(root);
@@ -445,7 +456,7 @@ async function loadHmsGraftonMesh(state){
  })().catch(error=>{state.graftonModelPromise=null;throw error;});
  return state.graftonModelPromise;
 }
-async function loadCannonMesh(state){
+async function loadCannonMesh(state,renderer=null){
  if(state.cannonModelRoot)return state.cannonModelRoot;
  if(state.cannonModelPromise)return state.cannonModelPromise;
  state.cannonModelPromise=(async()=>{
@@ -457,7 +468,7 @@ async function loadCannonMesh(state){
   const stream=new Blob([await response.arrayBuffer()]).stream().pipeThrough(new DecompressionStream('gzip'));
   const buffer=await new Response(stream).arrayBuffer();
   if(new DataView(buffer).getUint32(0,true)!==0x46546c67)throw new Error('Kanonvraget asset is not a valid GLB');
-  const gltf=await createShipwreckGLTFLoader(state).parseAsync(buffer,'');
+  const gltf=await createShipwreckGLTFLoader(state,renderer).parseAsync(buffer,'');
   if(!gltf?.scene)throw new Error('Kanonvraget GLB contains no scene');
   const root=gltf.scene.clone(true);root.updateMatrixWorld(true);
   const bounds=new pair.THREE.Box3().setFromObject(root);
@@ -484,7 +495,7 @@ async function loadCannonMesh(state){
  return state.cannonModelPromise;
 }
 
-async function loadKxiMesh(state){
+async function loadKxiMesh(state,renderer=null){
  if(state.kxiModelRoot)return state.kxiModelRoot;
  if(state.kxiModelPromise)return state.kxiModelPromise;
  state.kxiModelPromise=(async()=>{
@@ -496,7 +507,7 @@ async function loadKxiMesh(state){
   const stream=new Blob([await response.arrayBuffer()]).stream().pipeThrough(new DecompressionStream('gzip'));
   const buffer=await new Response(stream).arrayBuffer();
   if(new DataView(buffer).getUint32(0,true)!==0x46546c67)throw new Error('HNLMS K XI asset is not a valid GLB');
-  const gltf=await createShipwreckGLTFLoader(state).parseAsync(buffer,'');
+  const gltf=await createShipwreckGLTFLoader(state,renderer).parseAsync(buffer,'');
   if(!gltf?.scene)throw new Error('HNLMS K XI GLB contains no scene');
   const root=gltf.scene.clone(true);root.updateMatrixWorld(true);
   const bounds=new pair.THREE.Box3().setFromObject(root);
@@ -562,10 +573,22 @@ function mountBridgePointLocalWreckViewer(state,popup,wreckId,title){
  };
  (async()=>{
   try{
-   const sourceRoot=wreckId==='hms-grafton'?await loadHmsGraftonMesh(state):wreckId==='hnlms-kxi'?await loadKxiMesh(state):await loadCannonMesh(state);
+   const pair=await loadShipwreckThree();
    if(disposed||!host.isConnected)return;
-   const THREE=state.THREE;
+   const THREE=pair.THREE;
    if(!THREE?.WebGLRenderer)throw new Error('BridgePoint local Three.js runtime is unavailable');
+   state.THREE=THREE;state.GLTFLoader=pair.GLTFLoader;state.DRACOLoader=pair.DRACOLoader;state.KTX2Loader=pair.KTX2Loader;
+   const canvas=document.createElement('canvas');
+   canvas.setAttribute('aria-label',title+' interactive 3D model. Drag to rotate; pinch or scroll to zoom.');
+   canvas.style.touchAction='none';canvas.style.cursor='grab';
+   host.appendChild(canvas);
+   renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:'low-power'});
+   renderer.outputColorSpace=THREE.SRGBColorSpace;
+   renderer.toneMapping=THREE.ACESFilmicToneMapping;
+   renderer.toneMappingExposure=1.08;
+   renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.5));
+   const sourceRoot=wreckId==='hms-grafton'?await loadHmsGraftonMesh(state,renderer):wreckId==='hnlms-kxi'?await loadKxiMesh(state,renderer):await loadCannonMesh(state,renderer);
+   if(disposed||!host.isConnected)return;
    model=sourceRoot.clone(true);
    model.visible=true;
    model.traverse(object=>{
@@ -594,15 +617,6 @@ function mountBridgePointLocalWreckViewer(state,popup,wreckId,title){
    const key=new THREE.DirectionalLight(0xffe8c2,2.15);key.position.set(1.5,2.4,3.2);scene.add(key);
    const fill=new THREE.DirectionalLight(0x88b9d4,0.8);fill.position.set(-2,-0.6,-1.4);scene.add(fill);
    scene.add(model);
-   const canvas=document.createElement('canvas');
-   canvas.setAttribute('aria-label',title+' interactive 3D model. Drag to rotate; pinch or scroll to zoom.');
-   canvas.style.touchAction='none';canvas.style.cursor='grab';
-   host.appendChild(canvas);
-   renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:'low-power'});
-   renderer.outputColorSpace=THREE.SRGBColorSpace;
-   renderer.toneMapping=THREE.ACESFilmicToneMapping;
-   renderer.toneMappingExposure=1.08;
-   renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.5));
    camera=new THREE.PerspectiveCamera(42,1,Math.max(radius/1000,0.001),Math.max(radius*100,100));
    let theta=0.82,phi=1.18,distance=radius*2.8;
    const homeDistance=distance;
@@ -695,7 +709,7 @@ function mountBridgePointLocalWreckViewer(state,popup,wreckId,title){
 
 function ensureRobertGaskinMapLayer(state){
  const map=state.map,THREE=state.THREE;
- if(!THREE||(!state.nativeModelRoot&&!state.graftonModelRoot&&!state.cannonModelRoot&&!state.kxiModelRoot)||state.destroyed)return false;
+ if(!THREE||state.destroyed)return false;
  if(map.getLayer(NATIVE_MODEL_LAYER_ID)&&state.nativeModelRenderer&&state.nativeModelScene){
   for(const root of [state.nativeModelRoot,state.graftonModelRoot,state.cannonModelRoot,state.kxiModelRoot])if(root&&root.parent!==state.nativeModelScene)state.nativeModelScene.add(root);
   return true;
@@ -746,13 +760,22 @@ function ensureRobertGaskinMapLayer(state){
  };
  try{map.addLayer(layer);return true;}catch(error){state.stats.nativeModelLastError=String(error?.message||error);console.warn('BridgePoint native shipwreck layer unavailable',error);return false;}
 }
+async function prepareShipwreckMapRenderer(state){
+ const pair=await loadShipwreckThree();
+ if(state.destroyed)throw new Error('Shipwreck layer closed');
+ state.THREE=pair.THREE;state.GLTFLoader=pair.GLTFLoader;state.DRACOLoader=pair.DRACOLoader;state.KTX2Loader=pair.KTX2Loader;
+ if(!ensureRobertGaskinMapLayer(state))throw new Error('MapLibre native 3D layer could not attach');
+ if(!state.nativeModelRenderer)throw new Error('MapLibre WebGL renderer is unavailable for KTX2 texture support');
+ return state.nativeModelRenderer;
+}
 async function showRobertGaskinOnRiverbed(state){
  if(!state.enabled)return false;
  state.nativeModelAutoAttempted=true;state.nativeModelVisible=true;
  updateRobertGaskinModelStatus(state,'Loading the CC BY 4.0 photogrammetry scan…');
  setStatus(state,'Robert Gaskin native underwater mesh loading; all seven wreck icons remain on.');
  try{
-  await loadRobertGaskinMesh(state);
+  const renderer=await prepareShipwreckMapRenderer(state);
+  await loadRobertGaskinMesh(state,renderer);
   if(state.destroyed||!state.enabled)return false;
   if(!ensureRobertGaskinMapLayer(state))throw new Error('MapLibre native 3D layer could not attach');
   if(state.nativeModelScene&&state.nativeModelRoot.parent!==state.nativeModelScene)state.nativeModelScene.add(state.nativeModelRoot);
@@ -772,7 +795,8 @@ async function showHmsGraftonOnSeabed(state){
  updateHmsGraftonModelStatus(state,'Loading the CC BY 4.0 HMS Grafton scan…');
  setStatus(state,'HMS Grafton native underwater mesh loading; all seven wreck icons remain on.');
  try{
-  await loadHmsGraftonMesh(state);
+  const renderer=await prepareShipwreckMapRenderer(state);
+  await loadHmsGraftonMesh(state,renderer);
   if(state.destroyed||!state.enabled)return false;
   if(!ensureRobertGaskinMapLayer(state))throw new Error('MapLibre native 3D layer could not attach');
   if(state.nativeModelScene&&state.graftonModelRoot.parent!==state.nativeModelScene)state.nativeModelScene.add(state.graftonModelRoot);
@@ -793,7 +817,8 @@ async function showCannonOnSeabed(state){
  updateCannonModelStatus(state,'Loading the CC BY 4.0 DTU Aqua Cannon Shipwreck scan…');
  setStatus(state,'Kanonvraget native underwater mesh loading; all seven wreck icons remain on.');
  try{
-  await loadCannonMesh(state);
+  const renderer=await prepareShipwreckMapRenderer(state);
+  await loadCannonMesh(state,renderer);
   if(state.destroyed||!state.enabled)return false;
   if(!ensureRobertGaskinMapLayer(state))throw new Error('MapLibre native 3D layer could not attach');
   if(state.nativeModelScene&&state.cannonModelRoot.parent!==state.nativeModelScene)state.nativeModelScene.add(state.cannonModelRoot);
@@ -814,7 +839,8 @@ async function showKxiOnSeabed(state){
  updateKxiModelStatus(state,'Loading the CC BY 4.0 HNLMS K XI photogrammetry scan…');
  setStatus(state,'HNLMS K XI native underwater mesh loading; all seven wreck icons remain on.');
  try{
-  await loadKxiMesh(state);
+  const renderer=await prepareShipwreckMapRenderer(state);
+  await loadKxiMesh(state,renderer);
   if(state.destroyed||!state.enabled)return false;
   if(!ensureRobertGaskinMapLayer(state))throw new Error('MapLibre native 3D layer could not attach');
   if(state.nativeModelScene&&state.kxiModelRoot.parent!==state.nativeModelScene)state.nativeModelScene.add(state.kxiModelRoot);
@@ -1088,7 +1114,7 @@ export function initShipwrecksRenderer(target){
   graftonModelVisible:false,graftonModelAutoAttempted:false,graftonModelStatus:'Native scan not loaded.',graftonModelRoot:null,graftonModelPromise:null,graftonModelBounds:null,
   cannonModelVisible:false,cannonModelAutoAttempted:false,cannonModelStatus:'Native scan not loaded.',cannonModelRoot:null,cannonModelPromise:null,cannonModelBounds:null,
   kxiModelVisible:false,kxiModelAutoAttempted:false,kxiModelStatus:'Native scan not loaded.',kxiModelRoot:null,kxiModelPromise:null,kxiModelBounds:null,
-  DRACOLoader:null,dracoLoader:null,
+  DRACOLoader:null,dracoLoader:null,KTX2Loader:null,ktx2Loader:null,
   nativeModelRenderer:null,nativeModelCamera:null,nativeModelScene:null,nativeModelLayerReady:false,nativeModelBounds:null,
   stats:{version:VERSION,parts:7,sites:5,models:TITANIC_3D_MODELS.length,nativeModels:4,lastError:null}};
  const api={
@@ -1111,6 +1137,8 @@ export function initShipwrecksRenderer(target){
    if(state.observer)state.observer.disconnect();if(state.dockTimer)clearTimeout(state.dockTimer);
    if(map.getLayer(NATIVE_MODEL_LAYER_ID))map.removeLayer(NATIVE_MODEL_LAYER_ID);
    try{state.nativeModelRenderer?.dispose();}catch(_){}
+   try{state.ktx2Loader?.dispose?.();}catch(_){}
+   state.ktx2Loader=null;
    if(state.nativeModelRoot){state.nativeModelScene?.remove(state.nativeModelRoot);state.nativeModelRoot=null;}
    if(state.graftonModelRoot){state.nativeModelScene?.remove(state.graftonModelRoot);state.graftonModelRoot=null;}
    if(state.cannonModelRoot){state.nativeModelScene?.remove(state.cannonModelRoot);state.cannonModelRoot=null;}
