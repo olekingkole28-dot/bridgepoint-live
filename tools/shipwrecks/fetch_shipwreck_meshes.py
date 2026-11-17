@@ -106,7 +106,7 @@ def materialize(output: Path) -> dict:
             "displayDepthM": 19.8,
             "lengthM": 40.42,
             "beamM": 8.02,
-            "sourcePhotos": 48977,
+            "sourcePhotos": 49000,
             "triangles": 598600,
             "vertices": 322800,
             "sourceBytes": len(raw),
@@ -119,7 +119,7 @@ def materialize(output: Path) -> dict:
         }
     }
     (output / "catalog.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
-    print("BRIDGEPOINT_ROBERT_GASKIN_CC_BY_GL B_READY", len(raw), "source bytes", target.stat().st_size, "compressed bytes")
+    print("BRIDGEPOINT_ROBERT_GASKIN_CC_BY_GLB_READY", len(raw), "source bytes", target.stat().st_size, "compressed bytes")
     return manifest
 
 
