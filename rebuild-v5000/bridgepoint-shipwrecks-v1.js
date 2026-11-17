@@ -1,7 +1,7 @@
-/* BridgePoint Shipwrecks v4 — Titanic + Robert Gaskin + HMS Grafton + Kanonvraget.
+/* BridgePoint Shipwrecks v5 — Titanic + Robert Gaskin + HMS Grafton + Kanonvraget + Timaru.
  * Each wreck has a persistent marker, dedicated source-backed card and native underwater model.
  */
-const VERSION=9, MAP_STATES=new WeakMap();
+const VERSION=10, MAP_STATES=new WeakMap();
 const THREE_URL='/vendor/three.module.js?v=169-local';
 const GLTF_URL='/vendor/GLTFLoader.bundle.js?v=169-local';
 const DRACO_URL='/vendor/DRACOLoader.bundle.js?v=169-draco-v1';
@@ -13,6 +13,7 @@ const HMS_GRAFTON_ASSET='/assets/shipwrecks/hms-grafton-photogrammetry.glb.gz';
 const CANNON_ASSET='/assets/shipwrecks/cannon-photogrammetry.glb.gz';
 const KXI_ASSET='/assets/shipwrecks/hnlms-kxi-photogrammetry.glb.gz';
 const CAPE_OTWAY_ASSET='/assets/shipwrecks/cape-otway-photogrammetry.glb.gz';
+const TIMARU_ASSET='/assets/shipwrecks/timaru-photogrammetry.glb.gz';
 let shipwreckThreePromise=null;
 const SOURCE_ID='bp-shipwrecks-titanic-source-v1';
 const HALO_ID='bp-shipwrecks-titanic-halo-v1';
@@ -121,6 +122,25 @@ export const CAPE_OTWAY_WRECK={
  detail:'Underwater photogrammetry scan of the wreck site, with approximately 200,000 triangles and 100,600 vertices. The source description identifies two boilers, a single triple-expansion steam engine and two masts. The model was captured on 20 January 2023.'
 };
 
+export const TIMARU_WRECK={
+ id:'timaru',name:'Timaru — Site 42 / Commonwealth Naval Dredge 4',label:'TIMARU · SITE 42',part:'wreck',
+ coordinates:[115.4327897,-32.069910],coordinateText:'32.069910° S, 115.432790° E',
+ displayDepthM:50,lengthM:44.9,beamM:9.17,registeredLengthM:44.20,registeredBeamM:9.20,
+ triangles:750000,vertices:374800,capturedAt:'2025-06-01',discoveredAt:'2025-03-28',
+ builtYear:1893,lostYear:1930,
+ license:'CC BY 4.0',creator:'WreckSploration',creators:'WreckSploration · Site 42 survey team',
+ sourceUrl:'https://sketchfab.com/3d-models/site-42-timaru-2d8c988bfd3048858c752b9fa4095f66',
+ datasetUrl:'https://wrecksploration.au/projects/timaru/',
+ locationSourceUrl:'https://museum.wa.gov.au/maritime-archaeology-db/wrecks/timaru-nd4-cnd4',
+ repositoryUrl:'https://github.com/patrick-morrison/below-wrecksploration/tree/51c255e21c0709b46f4f1fe24d9de05bdd62822c/models/15%20Timaru.glb',
+ assetUrl:TIMARU_ASSET,
+ location:'Southwest of Rottnest Island, Western Australia, at the Rottnest Ships Graveyard.',
+ locationPrecision:'Approximate wreck-site center from the public WreckSploration wreck layer. The source GLB does not publish a GPS/geodetic origin or survey-control transform.',
+ scalePrecision:'Long axis calibrated to the WreckSploration site measurement of 44.9 m for visualization. The Western Australian Museum register separately lists 44.20 m overall vessel length; neither value is a survey-control certificate for the scan.',
+ orientationPrecision:'Original GLB orientation is preserved. The scan does not publish a survey-grade true-north heading.',
+ detail:'Site 42 is the broken-up remains of Timaru / Naval Dredger 4 / Commonwealth Naval Dredge 4, a steel steam hopper barge built in 1893. The 2025 photogrammetry records exposed wreck structure and scattered remains, including a boiler standing on end; it is not an intact restored ship model.'
+};
+
 export function buildAllShipwreckFeatures(){
  const p=ROBERT_GASKIN_WRECK;
  const gaskin={type:'Feature',id:p.id,geometry:{type:'Point',coordinates:[Number(p.coordinates[0]),Number(p.coordinates[1])]},
@@ -137,7 +157,10 @@ export function buildAllShipwreckFeatures(){
  const o=CAPE_OTWAY_WRECK;
  const capeOtway={type:'Feature',id:o.id,geometry:{type:'Point',coordinates:[Number(o.coordinates[0]),Number(o.coordinates[1])]},
   properties:{wreckId:o.id,name:o.name,label:o.label,part:o.part,iconImage:ICON_ID,depthM:o.displayDepthM,coordinateText:o.coordinateText}};
- return [...buildTitanicShipwreckFeatures(),gaskin,grafton,cannon,kxi,capeOtway];
+ const t=TIMARU_WRECK;
+ const timaru={type:'Feature',id:t.id,geometry:{type:'Point',coordinates:[Number(t.coordinates[0]),Number(t.coordinates[1])]},
+  properties:{wreckId:t.id,name:t.name,label:t.label,part:t.part,iconImage:ICON_ID,depthM:t.displayDepthM,coordinateText:t.coordinateText}};
+ return [...buildTitanicShipwreckFeatures(),gaskin,grafton,cannon,kxi,capeOtway,timaru];
 }
 
 export const TITANIC_3D_MODELS=[
@@ -233,7 +256,7 @@ function makeTitanicIcon(){
 function setStatus(state,msg){state.status=msg;const el=document.getElementById(STATUS_ID);if(el)el.textContent=msg;}
 function refreshStatusUi(state){
  const count=document.getElementById(COUNT_ID);
- if(count)count.textContent='8 persistent wreck icons · 5 native CC BY 4.0 seabed scans · '+state.stats.models.toLocaleString()+' Titanic viewer references';
+ if(count)count.textContent='9 persistent wreck icons · 6 native CC BY 4.0 seabed scans · '+state.stats.models.toLocaleString()+' Titanic viewer references';
  const status=document.getElementById(STATUS_ID);if(status)status.textContent=state.status;
  const button=document.getElementById(TOGGLE_ID);
  if(button){button.setAttribute('aria-pressed',String(state.enabled));button.classList.toggle('is-active',state.enabled);}
@@ -268,7 +291,7 @@ function installLayers(state){
   if(!map.hasImage?.(ICON_ID))map.addImage(ICON_ID,makeTitanicIcon(),{pixelRatio:2});
   if(!map.getSource(SOURCE_ID))map.addSource(SOURCE_ID,{
    type:'geojson',data:{type:'FeatureCollection',features:buildAllShipwreckFeatures()},
-   buffer:64,maxzoom:14,attribution:'Titanic waypoint centers: NOAA 2004 Expedition. Robert Gaskin photogrammetry: Christian Remillard, CC BY 4.0 / Zenodo 10.5281/zenodo.10288556. SS Cape Otway photogrammetry: WreckSploration, CC BY 4.0.'
+   buffer:64,maxzoom:14,attribution:'Titanic waypoint centers: NOAA 2004 Expedition. Robert Gaskin photogrammetry: Christian Remillard, CC BY 4.0 / Zenodo 10.5281/zenodo.10288556. SS Cape Otway photogrammetry: WreckSploration, CC BY 4.0. Timaru Site 42 photogrammetry: WreckSploration, CC BY 4.0.'
   });
   const add=(id,layer)=>{if(!map.getLayer(id))map.addLayer(layer);};
   add(HALO_ID,{id:HALO_ID,type:'circle',source:SOURCE_ID,minzoom:0,maxzoom:24,
@@ -357,6 +380,11 @@ function updateCapeOtwayModelStatus(state,message){
  state.capeOtwayModelStatus=String(message||'');
  const popup=state.popup?.getElement?.()?.querySelector('[data-cape-otway-status]');
  if(popup)popup.textContent=state.capeOtwayModelStatus;
+}
+function updateTimaruModelStatus(state,message){
+ state.timaruModelStatus=String(message||'');
+ const popup=state.popup?.getElement?.()?.querySelector('[data-timaru-status]');
+ if(popup)popup.textContent=state.timaruModelStatus;
 }
 async function loadShipwreckThree(){
  if(!shipwreckThreePromise)shipwreckThreePromise=Promise.all([import(THREE_URL),import(GLTF_URL),import(DRACO_URL),import(KTX2_URL)]).then(([THREE,loader,decoder,ktx2])=>{
@@ -614,8 +642,54 @@ async function loadCapeOtwayMesh(state,renderer=null){
  return state.capeOtwayModelPromise;
 }
 
+async function loadCapeOtwayMesh(state,renderer=null){
+ if(state.timaruModelRoot)return state.timaruModelRoot;
+ if(state.timaruModelPromise)return state.timaruModelPromise;
+ state.timaruModelPromise=(async()=>{
+  const pair=await loadShipwreckThree();if(state.destroyed)throw new Error('Shipwreck layer closed');
+  state.THREE=pair.THREE;state.GLTFLoader=pair.GLTFLoader;state.DRACOLoader=pair.DRACOLoader;
+  const response=await fetch(TIMARU_ASSET,{cache:'force-cache'});
+  if(!response.ok)throw new Error('SS Timaru GLB request failed ('+response.status+')');
+  if(typeof DecompressionStream==='undefined')throw new Error('Gzip decompression is unavailable in this browser');
+  const stream=new Blob([await response.arrayBuffer()]).stream().pipeThrough(new DecompressionStream('gzip'));
+  const buffer=await new Response(stream).arrayBuffer();
+  if(new DataView(buffer).getUint32(0,true)!==0x46546c67)throw new Error('SS Timaru asset is not a valid GLB');
+  const gltf=await createShipwreckGLTFLoader(state,renderer).parseAsync(buffer,'');
+  if(!gltf?.scene)throw new Error('SS Timaru GLB contains no scene');
+  const root=gltf.scene.clone(true);root.updateMatrixWorld(true);
+  const bounds=new pair.THREE.Box3().setFromObject(root);
+  if(bounds.isEmpty())throw new Error('SS Timaru photogrammetry scan contains no visible 3D geometry');
+  const size=bounds.getSize(new pair.THREE.Vector3());
+  const longAxis=Math.max(size.x,size.z);
+  if(!Number.isFinite(longAxis)||longAxis<=0)throw new Error('SS Timaru scan has invalid horizontal dimensions');
+  // Calibrate the source scan against the Western Australian Museum's 44.9 m vessel length.
+  // WreckSploration notes the bow points north; preserve the original GLB orientation.
+  const scale=TIMARU_WRECK.lengthM/longAxis;
+  root.scale.multiplyScalar(scale);root.updateMatrixWorld(true);
+  const scaledBounds=new pair.THREE.Box3().setFromObject(root);
+  const center=scaledBounds.getCenter(new pair.THREE.Vector3());
+  root.position.x-=center.x;root.position.y-=center.y;root.position.z-=center.z;
+  root.visible=false;
+  root.traverse(object=>{
+   if(!object.isMesh&&!object.isPoints)return;
+   object.frustumCulled=false;object.renderOrder=1000;
+   for(const material of Array.isArray(object.material)?object.material:[object.material]){
+    if(!material)continue;
+    material.depthTest=false;material.depthWrite=false;material.needsUpdate=true;
+   }
+  });
+  root.updateMatrixWorld(true);
+  state.timaruModelRoot=root;
+  state.timaruModelBounds={x:size.x*scale,y:size.y*scale,z:size.z*scale};
+  state.timaruModelScale=scale;
+  if(state.nativeModelScene)state.nativeModelScene.add(root);
+  return root;
+ })().catch(error=>{state.timaruModelPromise=null;throw error;});
+ return state.timaruModelPromise;
+}
+
 function bridgePointLocalViewerMarkup(id,title){
- if(id!=='hms-grafton'&&id!=='kanonvraget'&&id!=='hnlms-kxi'&&id!=='cape-otway')return '';
+ if(id!=='hms-grafton'&&id!=='kanonvraget'&&id!=='hnlms-kxi'&&id!=='cape-otway'&&id!=='timaru')return '';
  return '<div class="bp-shipwreck-local-viewer-v1" data-bp-local-wreck-viewer="'+safe(id)+'" role="group" aria-label="'+safe(title)+' BridgePoint-hosted interactive 3D viewer">'+
   '<div class="bp-shipwreck-local-viewer-loading-v1" data-bp-local-viewer-status>Loading the BridgePoint-hosted '+safe(title)+' 3D scan…</div></div>';
 }
@@ -660,7 +734,7 @@ function mountBridgePointLocalWreckViewer(state,popup,wreckId,title){
    renderer.toneMapping=THREE.ACESFilmicToneMapping;
    renderer.toneMappingExposure=1.08;
    renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.5));
-   const sourceRoot=wreckId==='hms-grafton'?await loadHmsGraftonMesh(state,renderer):wreckId==='hnlms-kxi'?await loadKxiMesh(state,renderer):wreckId==='cape-otway'?await loadCapeOtwayMesh(state,renderer):await loadCannonMesh(state,renderer);
+   const sourceRoot=wreckId==='hms-grafton'?await loadHmsGraftonMesh(state,renderer):wreckId==='hnlms-kxi'?await loadKxiMesh(state,renderer):wreckId==='cape-otway'?await loadCapeOtwayMesh(state,renderer):wreckId==='timaru'?await loadTimaruMesh(state,renderer):await loadCannonMesh(state,renderer);
    if(disposed||!host.isConnected)return;
    model=sourceRoot.clone(true);
    model.visible=true;
@@ -784,7 +858,7 @@ function ensureRobertGaskinMapLayer(state){
  const map=state.map,THREE=state.THREE;
  if(!THREE||state.destroyed)return false;
  if(map.getLayer(NATIVE_MODEL_LAYER_ID)&&state.nativeModelRenderer&&state.nativeModelScene){
-  for(const root of [state.nativeModelRoot,state.graftonModelRoot,state.cannonModelRoot,state.kxiModelRoot,state.capeOtwayModelRoot])if(root&&root.parent!==state.nativeModelScene)state.nativeModelScene.add(root);
+  for(const root of [state.nativeModelRoot,state.graftonModelRoot,state.cannonModelRoot,state.kxiModelRoot,state.capeOtwayModelRoot,state.timaruModelRoot])if(root&&root.parent!==state.nativeModelScene)state.nativeModelScene.add(root);
   return true;
  }
  const layer={
@@ -795,7 +869,7 @@ function ensureRobertGaskinMapLayer(state){
    state.nativeModelCamera=new THREE.Camera();state.nativeModelScene=new THREE.Scene();
    state.nativeModelScene.add(new THREE.AmbientLight(0xffffff,1.55));
    const key=new THREE.DirectionalLight(0xffe9c7,1.2);key.position.set(-.6,1.4,.9);state.nativeModelScene.add(key);
-   for(const root of [state.nativeModelRoot,state.graftonModelRoot,state.cannonModelRoot,state.kxiModelRoot,state.capeOtwayModelRoot])if(root)state.nativeModelScene.add(root);
+   for(const root of [state.nativeModelRoot,state.graftonModelRoot,state.cannonModelRoot,state.kxiModelRoot,state.capeOtwayModelRoot,state.timaruModelRoot])if(root)state.nativeModelScene.add(root);
    state.stats.nativeModelLayerReady=true;
   },
   render(gl,args){
@@ -826,6 +900,8 @@ function ensureRobertGaskinMapLayer(state){
     -HNLMS_KXI_WRECK.displayDepthM,'kxiModelRenderWarned','HNLMS K XI');
    draw(state.capeOtwayModelRoot,state.capeOtwayModelVisible,CAPE_OTWAY_WRECK.coordinates,
     -CAPE_OTWAY_WRECK.displayDepthM,'capeOtwayModelRenderWarned','SS Cape Otway');
+   draw(state.timaruModelRoot,state.timaruModelVisible,TIMARU_WRECK.coordinates,
+    -TIMARU_WRECK.displayDepthM,'timaruModelRenderWarned','Timaru');
   },
   onRemove(){
    try{state.nativeModelRenderer?.dispose();}catch(_){}
@@ -847,7 +923,7 @@ async function showRobertGaskinOnRiverbed(state){
  if(!state.enabled)return false;
  state.nativeModelAutoAttempted=true;state.nativeModelVisible=true;
  updateRobertGaskinModelStatus(state,'Loading the CC BY 4.0 photogrammetry scan…');
- setStatus(state,'Robert Gaskin native underwater mesh loading; all eight wreck icons remain on.');
+ setStatus(state,'Robert Gaskin native underwater mesh loading; all nine wreck icons remain on.');
  try{
   const renderer=await prepareShipwreckMapRenderer(state);
   await loadRobertGaskinMesh(state,renderer);
@@ -868,7 +944,7 @@ async function showHmsGraftonOnSeabed(state){
  if(!state.enabled)return false;
  state.graftonModelAutoAttempted=true;state.graftonModelVisible=true;
  updateHmsGraftonModelStatus(state,'Loading the CC BY 4.0 HMS Grafton scan…');
- setStatus(state,'HMS Grafton native underwater mesh loading; all eight wreck icons remain on.');
+ setStatus(state,'HMS Grafton native underwater mesh loading; all nine wreck icons remain on.');
  try{
   const renderer=await prepareShipwreckMapRenderer(state);
   await loadHmsGraftonMesh(state,renderer);
@@ -890,7 +966,7 @@ async function showCannonOnSeabed(state){
  if(!state.enabled)return false;
  state.cannonModelAutoAttempted=true;state.cannonModelVisible=true;
  updateCannonModelStatus(state,'Loading the CC BY 4.0 DTU Aqua Cannon Shipwreck scan…');
- setStatus(state,'Kanonvraget native underwater mesh loading; all eight wreck icons remain on.');
+ setStatus(state,'Kanonvraget native underwater mesh loading; all nine wreck icons remain on.');
  try{
   const renderer=await prepareShipwreckMapRenderer(state);
   await loadCannonMesh(state,renderer);
@@ -912,7 +988,7 @@ async function showKxiOnSeabed(state){
  if(!state.enabled)return false;
  state.kxiModelAutoAttempted=true;state.kxiModelVisible=true;
  updateKxiModelStatus(state,'Loading the CC BY 4.0 HNLMS K XI photogrammetry scan…');
- setStatus(state,'HNLMS K XI native underwater mesh loading; all eight wreck icons remain on.');
+ setStatus(state,'HNLMS K XI native underwater mesh loading; all nine wreck icons remain on.');
  try{
   const renderer=await prepareShipwreckMapRenderer(state);
   await loadKxiMesh(state,renderer);
@@ -934,7 +1010,7 @@ async function showCapeOtwayOnSeabed(state){
  if(!state.enabled)return false;
  state.capeOtwayModelAutoAttempted=true;state.capeOtwayModelVisible=true;
  updateCapeOtwayModelStatus(state,'Loading the CC BY 4.0 SS Cape Otway photogrammetry scan…');
- setStatus(state,'SS Cape Otway native underwater mesh loading; all eight wreck icons remain on.');
+ setStatus(state,'SS Cape Otway native underwater mesh loading; all nine wreck icons remain on.');
  try{
   const renderer=await prepareShipwreckMapRenderer(state);
   await loadCapeOtwayMesh(state,renderer);
@@ -948,6 +1024,28 @@ async function showCapeOtwayOnSeabed(state){
   state.capeOtwayModelVisible=false;
   updateCapeOtwayModelStatus(state,'Native scan could not load: '+String(error?.message||error));
   setStatus(state,'SS Cape Otway native 3D mesh unavailable: '+String(error?.message||error));
+  return false;
+ }
+}
+
+async function showCapeOtwayOnSeabed(state){
+ if(!state.enabled)return false;
+ state.timaruModelAutoAttempted=true;state.timaruModelVisible=true;
+ updateCapeOtwayModelStatus(state,'Loading the CC BY 4.0 SS Timaru photogrammetry scan…');
+ setStatus(state,'SS Timaru native underwater mesh loading; all nine wreck icons remain on.');
+ try{
+  const renderer=await prepareShipwreckMapRenderer(state);
+  await loadCapeOtwayMesh(state,renderer);
+  if(state.destroyed||!state.enabled)return false;
+  if(!ensureRobertGaskinMapLayer(state))throw new Error('MapLibre native 3D layer could not attach');
+  if(state.nativeModelScene&&state.timaruModelRoot.parent!==state.nativeModelScene)state.nativeModelScene.add(state.timaruModelRoot);
+  updateCapeOtwayModelStatus(state,'Native WreckSploration scan loaded · calibrated to 44.9 m. Approximate wreck-site/depth placement; visible when zoomed to the icon.');
+  setStatus(state,'SS Timaru native photogrammetry mesh loaded at the approximate 50 m wreck-depth reference.');
+  state.map.triggerRepaint?.();refreshStatusUi(state);return true;
+ }catch(error){
+  state.timaruModelVisible=false;
+  updateCapeOtwayModelStatus(state,'Native scan could not load: '+String(error?.message||error));
+  setStatus(state,'SS Timaru native 3D mesh unavailable: '+String(error?.message||error));
   return false;
  }
 }
@@ -1069,6 +1167,36 @@ function openCapeOtwayPopup(state,lngLat){
  mountBridgePointLocalWreckViewer(state,state.popup,'cape-otway','SS Cape Otway');
 }
 
+function openTimaruPopup(state,lngLat){
+ const Popup=window.maplibregl?.Popup;if(!Popup)return;
+ addRobertGaskinStyles();
+ if(state.popup)state.popup.remove();
+ const p=TIMARU_WRECK;
+ const html='<article class="bp-shipwreck-grafton-popup-v1 bp-shipwreck-timaru-popup-v1">'+
+  '<div class="bp-shipwreck-kicker-v1">BRIDGEPOINT · SHIPWRECKS</div><h3>Timaru — Site 42</h3>'+
+  '<p>Commonwealth Naval Dredge 4 · steel steam hopper barge · Rottnest Ships Graveyard, Western Australia</p>'+
+  '<div class="facts"><span><b>Approximate wreck position</b>'+safe(p.coordinateText)+'</span><span><b>Wreck-site depth</b>Approximately 50 m</span>'+
+  '<span><b>Built</b>1893 · Lobnitz & Co.</span><span><b>Recorded lost / dismantled</b>1930 (WA Museum register)</span>'+
+  '<span><b>Photogrammetry footprint</b>44.9 m × 9.17 m (WreckSploration site measurement)</span><span><b>Official register dimensions</b>44.20 m × 9.20 m</span>'+
+  '<span><b>3D scan</b>Approximately 750,000 triangles · 374,800 vertices</span><span><b>Site discovered / scanned</b>28 March / 1 June 2025</span></div>'+
+  bridgePointLocalViewerMarkup('timaru','Timaru — Site 42')+
+  '<div class="bp-shipwreck-gaskin-actions-v2"><button type="button" data-timaru-action="materialize">Place native 3D scan beneath the water</button></div>'+
+  '<div class="bp-shipwreck-gaskin-status-v2" data-timaru-status>'+safe(state.timaruModelStatus||'BridgePoint-hosted scan loads inside this card. The native scan can also be materialized at the wreck-site depth.')+'</div>'+
+  '<p class="bp-shipwreck-accuracy-v1"><strong>Vessel and discovery:</strong> Timaru was a steel steam hopper barge, also recorded as Naval Dredger 4 / Commonwealth Naval Dredge 4 (CND4), built in 1893 by Lobnitz & Co. The Western Australian Museum register records it as dismantled and sunk in 1930. The 2025 WreckSploration survey identifies the wreck at Site 42 off southwest Rottnest Island.</p>'+
+  '<p class="bp-shipwreck-accuracy-v1"><strong>What the 3D scan shows:</strong> This is photogrammetry of the actual broken-up wreck remains, not a pristine or restored intact ship. The site is scattered and collapsed; the WreckSploration notes describe a boiler standing on end and detached structure across the seabed. The scan is a high-detail record of the exposed material.</p>'+
+  '<p class="bp-shipwreck-accuracy-v1"><strong>Underwater placement:</strong> BridgePoint places the locally hosted model at the approximate public wreck-layer point and 50 m below the water surface. Its long axis is calibrated to the WreckSploration site measurement of 44.9 m; the WA Museum register separately lists an overall vessel length of 44.20 m. The source GLB does not publish a GPS origin, bathymetric transform or survey-grade heading, so the site placement and orientation are approximate visualization—not survey-controlled registration of every wreck fragment to the seabed.</p>'+
+  '<div class="bp-shipwreck-official-v1"><b>Model, rights, survey and wreck references</b>'+
+   '<a href="'+safe(p.sourceUrl)+'" target="_blank" rel="noopener noreferrer">WreckSploration · Site 42 Timaru photogrammetry listing · CC BY 4.0 ↗</a>'+
+   '<a href="'+safe(p.datasetUrl)+'" target="_blank" rel="noopener noreferrer">WreckSploration · dive notes, discovery and wreck survey ↗</a>'+
+   '<a href="'+safe(p.locationSourceUrl)+'" target="_blank" rel="noopener noreferrer">Western Australian Museum · Timaru / ND4 / CND4 official wreck record ↗</a>'+
+   '<a href="'+safe(p.repositoryUrl)+'" target="_blank" rel="noopener noreferrer">WreckSploration · pinned original GLB source file ↗</a>'+
+   '<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">Creative Commons Attribution 4.0 licence ↗</a></div>'+
+  '<p class="bp-shipwreck-source-v1">Attribution: WreckSploration, Site 42 — Timaru underwater photogrammetry, CC BY 4.0. BridgePoint mirrors the pinned original GLB and labels its approximate map placement.</p></article>';
+ state.popup=new Popup({closeButton:true,closeOnClick:true,maxWidth:'450px',className:'bp-shipwreck-titanic-popup-wrap-v1'}).setLngLat(lngLat||p.coordinates).setHTML(html).addTo(state.map);
+ const root=state.popup.getElement?.();
+ root?.querySelector('[data-timaru-action="materialize"]')?.addEventListener('click',()=>{void showTimaruOnSeabed(state);});
+ mountBridgePointLocalWreckViewer(state,state.popup,'timaru','Timaru — Site 42');
+}
 function openRobertGaskinPopup(state,lngLat){
  const Popup=window.maplibregl?.Popup;if(!Popup)return;
  addRobertGaskinStyles();
@@ -1134,6 +1262,15 @@ function maybeAutoMaterializeCapeOtway(state){
  void showCapeOtwayOnSeabed(state);
  return true;
 }
+function maybeAutoMaterializeTimaru(state){
+ if(!state.enabled||state.timaruModelAutoAttempted||state.timaruModelRoot||state.timaruModelPromise)return false;
+ if(Number(state.map.getZoom?.()||0)<12.2)return false;
+ const bounds=state.map.getBounds?.();
+ try{if(bounds&&!bounds.contains(TIMARU_WRECK.coordinates))return false;}catch(_){}
+ state.timaruModelAutoAttempted=true;
+ void showTimaruOnSeabed(state);
+ return true;
+}
 function bindInteractions(state){
  if(state.interactionsBound)return;state.interactionsBound=true;
  state.handleClick=event=>{
@@ -1146,6 +1283,7 @@ function bindInteractions(state){
   if(hit.properties?.wreckId==='kanonvraget'){openCannonWreckPopup(state,event.lngLat||CANNON_WRECK.coordinates);return;}
   if(hit.properties?.wreckId==='hnlms-kxi'){openKxiPopup(state,event.lngLat||HNLMS_KXI_WRECK.coordinates);return;}
   if(hit.properties?.wreckId==='cape-otway'){openCapeOtwayPopup(state,event.lngLat||CAPE_OTWAY_WRECK.coordinates);return;}
+  if(hit.properties?.wreckId==='timaru'){openTimaruPopup(state,event.lngLat||TIMARU_WRECK.coordinates);return;}
   const part=partById(String(hit.properties.partId));
   if(part)openTitanicPopup(state,part,event.lngLat||part.coordinates);
  };
@@ -1160,13 +1298,14 @@ function bindInteractions(state){
   }
   setVisibility(state,true);
   state.stats.visibilityReassertions=(state.stats.visibilityReassertions||0)+1;
-  if((state.nativeModelVisible&&state.nativeModelRoot)||(state.graftonModelVisible&&state.graftonModelRoot)||(state.cannonModelVisible&&state.cannonModelRoot)||(state.kxiModelVisible&&state.kxiModelRoot)||(state.capeOtwayModelVisible&&state.capeOtwayModelRoot))ensureRobertGaskinMapLayer(state);
+  if((state.nativeModelVisible&&state.nativeModelRoot)||(state.graftonModelVisible&&state.graftonModelRoot)||(state.cannonModelVisible&&state.cannonModelRoot)||(state.kxiModelVisible&&state.kxiModelRoot)||(state.capeOtwayModelVisible&&state.capeOtwayModelRoot)||(state.timaruModelVisible&&state.timaruModelRoot))ensureRobertGaskinMapLayer(state);
   maybeAutoMaterializeRobertGaskin(state);
   maybeAutoMaterializeHmsGrafton(state);
   maybeAutoMaterializeCannon(state);
   maybeAutoMaterializeKxi(state);
   maybeAutoMaterializeCapeOtway(state);
-  setStatus(state,'Shipwrecks ON · all eight icons remain visible through zoom, angle and style changes. Select a wreck for its card and native 3D scan.');
+  maybeAutoMaterializeTimaru(state);
+  setStatus(state,'Shipwrecks ON · all nine icons remain visible through zoom, angle and style changes. Select a wreck for its card and native 3D scan.');
   refreshStatusUi(state);
  };
  state.handleStyleLoad=state.handlePersistentVisibility;
@@ -1181,9 +1320,9 @@ function addControlGroup(state){
  group.setAttribute('data-bpv-command-section','shipwrecks');
  group.setAttribute('aria-label','Shipwrecks');
  group.innerHTML=
-  '<div class="bpv-command-heading"><span class="bpv-command-heading-icon" aria-hidden="true">🚢</span><span><b>SHIPWRECKS</b><small>Titanic + five native underwater photogrammetry scans</small></span></div>'+
+  '<div class="bpv-command-heading"><span class="bpv-command-heading-icon" aria-hidden="true">🚢</span><span><b>SHIPWRECKS</b><small>Titanic + six native underwater photogrammetry scans</small></span></div>'+
   '<div class="bpv-command-grid"><button id="'+TOGGLE_ID+'" data-bpv-action="shipwrecks" type="button" class="bpv-command-btn" aria-pressed="false" title="Show or hide mapped shipwreck markers"><span class="bpv-command-icon" aria-hidden="true">🚢</span><span class="bpv-command-label">Shipwrecks</span></button></div>'+
-  '<div id="'+COUNT_ID+'" class="bpv-data-note">7 persistent wreck icons · '+state.stats.models+' Titanic viewer references · 5 native seabed GLBs</div>'+
+  '<div id="'+COUNT_ID+'" class="bpv-data-note">9 persistent wreck icons · '+state.stats.models+' Titanic viewer references · 5 native seabed GLBs</div>'+
   '<div id="'+STATUS_ID+'" class="bpv-data-note">Layer off · the rest of the BridgePoint globe remains unchanged.</div>'+
   '<style id="bp-shipwrecks-titanic-style-v2">'+
   '#'+CONTROL_ID+' .bpv-data-note{font:600 10px/1.45 system-ui,sans-serif;color:#9bb7c6;margin:5px 2px;overflow-wrap:anywhere}'+
@@ -1206,8 +1345,8 @@ function addControlGroup(state){
 async function setEnabled(state,on){
  state.enabled=!!on;
  if(state.enabled){
-  if(!installLayers(state))setStatus(state,'Shipwrecks ON · waiting for the map style before showing all eight wreck icons.');
-  else setStatus(state,'Shipwrecks ON · all eight wreck icons remain visible from global zoom through close zoom. Select a marker for its card and any native underwater scan.');
+  if(!installLayers(state))setStatus(state,'Shipwrecks ON · waiting for the map style before showing all nine wreck icons.');
+  else setStatus(state,'Shipwrecks ON · all nine wreck icons remain visible from global zoom through close zoom. Select a marker for its card and any native underwater scan.');
   if(state.nativeModelRoot){
    state.nativeModelVisible=true;
    if(!state.map.getLayer(NATIVE_MODEL_LAYER_ID))ensureRobertGaskinMapLayer(state);
@@ -1238,6 +1377,12 @@ async function setEnabled(state,on){
   }else{
    maybeAutoMaterializeCapeOtway(state);
   }
+  if(state.timaruModelRoot){
+   state.timaruModelVisible=true;
+   if(!state.map.getLayer(NATIVE_MODEL_LAYER_ID))ensureRobertGaskinMapLayer(state);
+  }else{
+   maybeAutoMaterializeTimaru(state);
+  }
  }else{
   if(state.popup){state.popup.remove();state.popup=null;}
   state.nativeModelVisible=false;state.nativeModelAutoAttempted=false;if(state.nativeModelRoot)state.nativeModelRoot.visible=false;
@@ -1245,7 +1390,8 @@ async function setEnabled(state,on){
   state.cannonModelVisible=false;state.cannonModelAutoAttempted=false;if(state.cannonModelRoot)state.cannonModelRoot.visible=false;
   state.kxiModelVisible=false;state.kxiModelAutoAttempted=false;if(state.kxiModelRoot)state.kxiModelRoot.visible=false;
   state.capeOtwayModelVisible=false;state.capeOtwayModelAutoAttempted=false;if(state.capeOtwayModelRoot)state.capeOtwayModelRoot.visible=false;
-  setVisibility(state,false);setStatus(state,'Shipwrecks off · all eight wreck icons and all five native meshes are hidden; other BridgePoint layers are unchanged.');
+  state.timaruModelVisible=false;state.timaruModelAutoAttempted=false;if(state.timaruModelRoot)state.timaruModelRoot.visible=false;
+  setVisibility(state,false);setStatus(state,'Shipwrecks off · all nine wreck icons and all six native meshes are hidden; other BridgePoint layers are unchanged.');
  }
  refreshStatusUi(state);state.map.triggerRepaint?.();return state.enabled;
 }
@@ -1259,9 +1405,10 @@ export function initShipwrecksRenderer(target){
   cannonModelVisible:false,cannonModelAutoAttempted:false,cannonModelStatus:'Native scan not loaded.',cannonModelRoot:null,cannonModelPromise:null,cannonModelBounds:null,
   kxiModelVisible:false,kxiModelAutoAttempted:false,kxiModelStatus:'Native scan not loaded.',kxiModelRoot:null,kxiModelPromise:null,kxiModelBounds:null,
   capeOtwayModelVisible:false,capeOtwayModelAutoAttempted:false,capeOtwayModelStatus:'Native scan not loaded.',capeOtwayModelRoot:null,capeOtwayModelPromise:null,capeOtwayModelBounds:null,
+  timaruModelVisible:false,timaruModelAutoAttempted:false,timaruModelStatus:'Native scan not loaded.',timaruModelRoot:null,timaruModelPromise:null,timaruModelBounds:null,
   DRACOLoader:null,dracoLoader:null,KTX2Loader:null,ktx2Loader:null,
   nativeModelRenderer:null,nativeModelCamera:null,nativeModelScene:null,nativeModelLayerReady:false,nativeModelBounds:null,
-  stats:{version:VERSION,parts:8,sites:6,models:TITANIC_3D_MODELS.length,nativeModels:5,lastError:null}};
+  stats:{version:VERSION,parts:9,sites:7,models:TITANIC_3D_MODELS.length,nativeModels:6,lastError:null}};
  const api={
   version:VERSION,get enabled(){return state.enabled;},get status(){return state.status;},
   get stats(){return Object.assign({},state.stats);},get partCount(){return state.stats.parts;},get modelCount(){return state.stats.models;},
@@ -1272,8 +1419,9 @@ export function initShipwrecksRenderer(target){
   showCannonOnSeabed(){return showCannonOnSeabed(state);},
   showKxiOnSeabed(){return showKxiOnSeabed(state);},
   showCapeOtwayOnSeabed(){return showCapeOtwayOnSeabed(state);},
+  showTimaruOnSeabed(){return showTimaruOnSeabed(state);},
   destroy(){
-   state.destroyed=true;state.enabled=false;state.nativeModelVisible=false;state.graftonModelVisible=false;state.cannonModelVisible=false;state.kxiModelVisible=false;state.capeOtwayModelVisible=false;
+   state.destroyed=true;state.enabled=false;state.nativeModelVisible=false;state.graftonModelVisible=false;state.cannonModelVisible=false;state.kxiModelVisible=false;state.capeOtwayModelVisible=false;state.timaruModelVisible=false;
    if(state.popup)state.popup.remove();
    if(state.handleClick)map.off('click',state.handleClick);
    if(state.handlePersistentVisibility){
@@ -1290,6 +1438,7 @@ export function initShipwrecksRenderer(target){
    if(state.cannonModelRoot){state.nativeModelScene?.remove(state.cannonModelRoot);state.cannonModelRoot=null;}
    if(state.kxiModelRoot){state.nativeModelScene?.remove(state.kxiModelRoot);state.kxiModelRoot=null;}
    if(state.capeOtwayModelRoot){state.nativeModelScene?.remove(state.capeOtwayModelRoot);state.capeOtwayModelRoot=null;}
+   if(state.timaruModelRoot){state.nativeModelScene?.remove(state.timaruModelRoot);state.timaruModelRoot=null;}
    for(const id of [LABEL_ID,MARKER_ID,HALO_ID])if(map.getLayer(id))map.removeLayer(id);
    if(map.getSource(SOURCE_ID))map.removeSource(SOURCE_ID);
    try{if(map.hasImage?.(ICON_ID))map.removeImage(ICON_ID)}catch(_){}
