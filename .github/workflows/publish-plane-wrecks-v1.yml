@@ -230,7 +230,7 @@ jobs:
           expected_changed={"landing.js","app.js","index.html","app/index.html","bridgepoint-drone-awareness-v1.js"}
           overlay_files={"bridgepoint-plane-wrecks-v1.js","app/bridgepoint-plane-wrecks-v1.js",
              "assets/plane-wrecks/f4u1-corsair-kwajalein-photogrammetry.glb.gz","assets/plane-wrecks/catalog.json"}
-          plane_import="""void import('./bridgepoint-plane-wrecks-v1.js?v=1-f4u1-corsair-colmap-pointcloud')
+          plane_import="""void import('./bridgepoint-plane-wrecks-v1.js?v=2-f4u1-persistent-dom-marker')
            .then(m=>{window.__BP_PLANE_WRECKS_V1__=m.initPlaneWrecksRenderer(world)})
            .catch(e=>console.warn('BridgePoint Plane Wrecks layer unavailable',e));"""
           shipwreck_anchor=".catch(e=>console.warn('BridgePoint shipwreck renderer unavailable',e));"
@@ -278,6 +278,8 @@ jobs:
           grep -Fq 'initPlaneWrecksRenderer(world)' "$SITE/app.js"
           grep -Fq 'planewrecks:/plane[-_]?wreck|aircraft[-_]?wreck/i' "$SITE/bridgepoint-drone-awareness-v1.js"
           grep -Fq 'data-bp-local-plane-viewer' "$SITE/bridgepoint-plane-wrecks-v1.js"
+          grep -Fq 'function ensurePersistentMarker(state,visible=state.enabled)' "$SITE/bridgepoint-plane-wrecks-v1.js"
+          grep -Fq "new Marker({element,anchor:'center',offset:[0,0]})" "$SITE/bridgepoint-plane-wrecks-v1.js"
           grep -Fq 'BridgePoint-hosted colorized point-cloud' "$SITE/bridgepoint-plane-wrecks-v1.js"
           grep -Fq 'f4u1-corsair-kwajalein-photogrammetry.glb.gz' "$SITE/bridgepoint-plane-wrecks-v1.js"
           test -s "$SITE/vendor/GLTFLoader.bundle.js"
@@ -316,6 +318,8 @@ jobs:
           grep -Fq 'initPlaneWrecksRenderer(world)' "$D/appjs" || { echo "LIVE_VERIFY_FAIL: app entry does not load Plane Wrecks"; exit 1; }
           grep -Fq 'Plane Wrecks' "$D/module" || { echo "LIVE_VERIFY_FAIL: Plane Wrecks button module is missing"; exit 1; }
           grep -Fq 'data-bp-local-plane-viewer' "$D/module" || { echo "LIVE_VERIFY_FAIL: BridgePoint-hosted card viewer missing"; exit 1; }
+          grep -Fq 'function ensurePersistentMarker(state,visible=state.enabled)' "$D/module" || { echo "LIVE_VERIFY_FAIL: style-independent persistent aircraft marker missing"; exit 1; }
+          grep -Fq "new Marker({element,anchor:'center',offset:[0,0]})" "$D/module" || { echo "LIVE_VERIFY_FAIL: map-attached Corsair marker missing"; exit 1; }
           grep -Fq 'initPlaneWrecksRenderer' "$D/appmodule" || { echo "LIVE_VERIFY_FAIL: app module copy missing"; exit 1; }
           grep -Fq 'planewrecks:/plane[-_]?wreck|aircraft[-_]?wreck/i' "$D/guard" || { echo "LIVE_VERIFY_FAIL: dedicated Plane Wrecks visibility category missing"; exit 1; }
           cmp -s "$D/module" "$D/appmodule" || { echo "LIVE_VERIFY_FAIL: root/app Plane Wrecks modules differ"; exit 1; }
