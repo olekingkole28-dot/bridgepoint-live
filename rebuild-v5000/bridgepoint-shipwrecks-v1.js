@@ -36,7 +36,7 @@ export const ROBERT_GASKIN_WRECK={
  part:'hull',coordinates:[-75.677083,44.589317],
  coordinateText:'44° 35′ 21.54″ N, 75° 40′ 37.50″ W',
  depthM:19.8,depthRangeM:[18.3,21.3],lengthM:40.42,beamM:8.02,
- sourcePhotos:48977,triangles:598600,vertices:322800,license:'CC BY 4.0',creator:'Christian Rémillard',
+ sourcePhotos:49000,triangles:598600,vertices:322800,license:'CC BY 4.0',creator:'Christian Rémillard',
  sourceUrl:'https://sketchfab.com/3d-models/robert-gaskin-wreck-1916420a764c4e73b754755d7f2780ce',
  datasetUrl:'https://doi.org/10.5281/zenodo.10288556',
  locationSourceUrl:'https://www.shipwreckworld.com/maps/robert-gaskin-barque-st-lawrence-river-shipwreck',
@@ -44,7 +44,7 @@ export const ROBERT_GASKIN_WRECK={
  locationPrecision:'Approximate wreck-site center from published wreck coordinates; the photogrammetry mesh origin is not GPS-georeferenced.',
  scalePrecision:'Visualization scale calibrated against published 132.6 ft (40.42 m) vessel length; not a survey-control certificate.',
  orientationPrecision:'Approximate north/inland axis based on the dive-site description that the bow faces inland; not a survey-grade heading.',
- detail:'Photogrammetry reconstruction from 48,977 underwater photographs. The original scan is preserved as a native GLB and placed at the wreck-site coordinate and published 18.3–21.3 m depth range.'
+ detail:'Photogrammetry reconstruction from approximately 49,000 underwater photographs. The original scan is preserved as a native GLB and placed at the wreck-site coordinate and published 18.3–21.3 m depth range.'
 };
 export function buildAllShipwreckFeatures(){
  const p=ROBERT_GASKIN_WRECK;
@@ -391,7 +391,7 @@ function openRobertGaskinPopup(state,lngLat){
   '<div class="bp-shipwreck-kicker-v1">BRIDGEPOINT · SHIPWRECKS</div><h3>Robert Gaskin</h3>'+
   '<p>1863 wooden barque · sank 1889 · St. Lawrence River, Brockville, Ontario</p>'+
   '<div class="facts"><span><b>Wreck-site center</b>'+safe(p.coordinateText)+'</span><span><b>Hull depth range</b>18.3–21.3 m (60–70 ft)</span>'+
-  '<span><b>Published length</b>40.42 m / 132.6 ft</span><span><b>Photogrammetry</b>48,977 photos</span></div>'+
+  '<span><b>Published length</b>40.42 m / 132.6 ft</span><span><b>Photogrammetry</b>approximately 49,000 photos</span></div>'+
   '<div class="bp-shipwreck-viewer-v1"><iframe title="Robert Gaskin underwater photogrammetry viewer" src="https://sketchfab.com/models/1916420a764c4e73b754755d7f2780ce/embed?autostart=0&ui_infos=1&ui_controls=1&ui_watermark=1&ui_theme=dark" allow="autoplay; fullscreen; xr-spatial-tracking; gyroscope; accelerometer" allowfullscreen loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>'+
   '<div class="bp-shipwreck-gaskin-actions-v2"><button type="button" data-robert-gaskin-action="materialize">Place 3D scan at its wreck depth</button></div>'+
   '<div class="bp-shipwreck-gaskin-status-v2" data-robert-gaskin-status>'+safe(state.nativeModelStatus||'Native scan not loaded yet. Select the button to download and display the local 3D mesh at the wreck site.')+'</div>'+
@@ -419,7 +419,7 @@ function bindInteractions(state){
   // settles. Re-allow this dedicated category and restore only Titanic layers.
   syncSharedOverlayCategory(state);
   if(!installLayers(state)){
-   setStatus(state,'Shipwrecks ON · waiting for the globe style before restoring Titanic markers.');
+   setStatus(state,'Shipwrecks ON · waiting for the globe style before restoring all four shipwreck icons.');
    refreshStatusUi(state);return;
   }
   setVisibility(state,true);
