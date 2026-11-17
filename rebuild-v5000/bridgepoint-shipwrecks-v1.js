@@ -1,7 +1,7 @@
 /* BridgePoint Shipwrecks v4 — Titanic + Robert Gaskin + HMS Grafton + Kanonvraget.
  * Each wreck has a persistent marker, dedicated source-backed card and native underwater model.
  */
-const VERSION=5, MAP_STATES=new WeakMap();
+const VERSION=6, MAP_STATES=new WeakMap();
 const THREE_URL='/vendor/three.module.js?v=169-local';
 const GLTF_URL='/vendor/GLTFLoader.bundle.js?v=169-local';
 const NATIVE_MODEL_LAYER_ID='bp-shipwrecks-native-model-v2';
@@ -9,6 +9,7 @@ const ROBERT_GASKIN_ASSET='/assets/shipwrecks/robert-gaskin-photogrammetry.glb.g
 const ROBERT_GASKIN_LENGTH_M=40.42;
 const HMS_GRAFTON_ASSET='/assets/shipwrecks/hms-grafton-photogrammetry.glb.gz';
 const CANNON_ASSET='/assets/shipwrecks/cannon-photogrammetry.glb.gz';
+const KXI_ASSET='/assets/shipwrecks/hnlms-kxi-photogrammetry.glb.gz';
 let shipwreckThreePromise=null;
 const SOURCE_ID='bp-shipwrecks-titanic-source-v1';
 const HALO_ID='bp-shipwrecks-titanic-halo-v1';
@@ -80,6 +81,25 @@ export const CANNON_WRECK={
  detail:'The wreck is unidentified. The Danish wreck record describes at least 16 large 12–14-pound iron cannons scattered across and beside an approximately 48 m vessel. Kanonvraget is a descriptive wreck name, not a confirmed vessel name.'
 };
 
+export const HNLMS_KXI_WRECK={
+ id:'hnlms-kxi',name:'HNLMS K XI — Dutch K XI-class patrol submarine',label:'HNLMS K XI',part:'hull',
+ coordinates:[115.499470,-32.150390],coordinateText:'32° 09.0234′ S, 115° 29.9682′ E',
+ depthRangeM:[38,40],displayDepthM:40,lengthM:66.63,lengthUncertaintyM:0.22,
+ sourcePhotos:6733,capturedAt:'2025-01-11',discoveredAt:'2025-01-01',
+ builtYear:1925,decommissionedYear:1946,scuttledYear:1949,
+ license:'CC BY 4.0',creator:'Western Australian Museum (@wamuseum)',
+ creators:'Western Australian Museum · WreckSploration (Andrew Oakeley, David Jackson and Patrick Morrison)',
+ sourceUrl:'https://sketchfab.com/3d-models/kxi-submarine-rottnest-deepwater-graveyard-7899b257a0274c93becf69676482531f',
+ datasetUrl:'https://museum.wa.gov.au/maritime-archaeology-db/maritime-reports/dutch-k-xi-submarine-1925-1946-discovered-wadjemup-rottnest-island-perth',
+ locationSourceUrl:'https://wrecksploration.au/projects/kxi/',
+ repositoryUrl:'https://github.com/patrick-morrison/below-wrecksploration/tree/51c255e21c0709b46f4f1fe24d9de05bdd62822c/models',
+ assetUrl:KXI_ASSET,
+ locationPrecision:'Published WGS84 wreck-site coordinate from WreckSploration. The source GLB does not publish a GPS-georeferenced origin; BridgePoint centers the scan at the wreck-site point for visualization.',
+ scalePrecision:'Photogrammetry site plan measures the wreck at 66.63 ± 0.22 m. BridgePoint calibrates the GLB long axis to that measured length; this is not a survey-control certificate.',
+ orientationPrecision:'Original GLB orientation is preserved. A survey-grade heading relative to true north is not published.',
+ detail:'Full-length photogrammetry reconstruction of the visible HNLMS K XI wreck, created from 6,733 underwater images. The wreck is substantially buried, so the model represents recorded exposed structure rather than a pristine reconstruction of the entire original submarine.'
+};
+
 export function buildAllShipwreckFeatures(){
  const p=ROBERT_GASKIN_WRECK;
  const gaskin={type:'Feature',id:p.id,geometry:{type:'Point',coordinates:[Number(p.coordinates[0]),Number(p.coordinates[1])]},
@@ -90,7 +110,10 @@ export function buildAllShipwreckFeatures(){
  const c=CANNON_WRECK;
  const cannon={type:'Feature',id:c.id,geometry:{type:'Point',coordinates:[Number(c.coordinates[0]),Number(c.coordinates[1])]},
   properties:{wreckId:c.id,name:c.name,label:c.label,part:c.part,iconImage:ICON_ID,depthM:c.displayDepthM,coordinateText:c.coordinateText}};
- return [...buildTitanicShipwreckFeatures(),gaskin,grafton,cannon];
+ const k=HNLMS_KXI_WRECK;
+ const kxi={type:'Feature',id:k.id,geometry:{type:'Point',coordinates:[Number(k.coordinates[0]),Number(k.coordinates[1])]},
+  properties:{wreckId:k.id,name:k.name,label:k.label,part:k.part,iconImage:ICON_ID,depthM:k.displayDepthM,coordinateText:k.coordinateText}};
+ return [...buildTitanicShipwreckFeatures(),gaskin,grafton,cannon,kxi];
 }
 
 export const TITANIC_3D_MODELS=[
@@ -186,7 +209,7 @@ function makeTitanicIcon(){
 function setStatus(state,msg){state.status=msg;const el=document.getElementById(STATUS_ID);if(el)el.textContent=msg;}
 function refreshStatusUi(state){
  const count=document.getElementById(COUNT_ID);
- if(count)count.textContent='6 persistent wreck icons · 3 native CC BY 4.0 seabed scans · '+state.stats.models.toLocaleString()+' Titanic viewer references';
+ if(count)count.textContent='7 persistent wreck icons · 4 native CC BY 4.0 seabed scans · '+state.stats.models.toLocaleString()+' Titanic viewer references';
  const status=document.getElementById(STATUS_ID);if(status)status.textContent=state.status;
  const button=document.getElementById(TOGGLE_ID);
  if(button){button.setAttribute('aria-pressed',String(state.enabled));button.classList.toggle('is-active',state.enabled);}
@@ -300,6 +323,11 @@ function updateCannonModelStatus(state,message){
  state.cannonModelStatus=String(message||'');
  const popup=state.popup?.getElement?.()?.querySelector('[data-cannon-wreck-status]');
  if(popup)popup.textContent=state.cannonModelStatus;
+}
+function updateKxiModelStatus(state,message){
+ state.kxiModelStatus=String(message||'');
+ const popup=state.popup?.getElement?.()?.querySelector('[data-kxi-status]');
+ if(popup)popup.textContent=state.kxiModelStatus;
 }
 async function loadShipwreckThree(){
  if(!shipwreckThreePromise)shipwreckThreePromise=Promise.all([import(THREE_URL),import(GLTF_URL)]).then(([THREE,loader])=>{
@@ -444,8 +472,54 @@ async function loadCannonMesh(state){
  return state.cannonModelPromise;
 }
 
+async function loadKxiMesh(state){
+ if(state.kxiModelRoot)return state.kxiModelRoot;
+ if(state.kxiModelPromise)return state.kxiModelPromise;
+ state.kxiModelPromise=(async()=>{
+  const pair=await loadShipwreckThree();if(state.destroyed)throw new Error('Shipwreck layer closed');
+  state.THREE=pair.THREE;state.GLTFLoader=pair.GLTFLoader;
+  const response=await fetch(KXI_ASSET,{cache:'force-cache'});
+  if(!response.ok)throw new Error('HNLMS K XI GLB request failed ('+response.status+')');
+  if(typeof DecompressionStream==='undefined')throw new Error('Gzip decompression is unavailable in this browser');
+  const stream=new Blob([await response.arrayBuffer()]).stream().pipeThrough(new DecompressionStream('gzip'));
+  const buffer=await new Response(stream).arrayBuffer();
+  if(new DataView(buffer).getUint32(0,true)!==0x46546c67)throw new Error('HNLMS K XI asset is not a valid GLB');
+  const gltf=await new state.GLTFLoader().parseAsync(buffer,'');
+  if(!gltf?.scene)throw new Error('HNLMS K XI GLB contains no scene');
+  const root=gltf.scene.clone(true);root.updateMatrixWorld(true);
+  const bounds=new pair.THREE.Box3().setFromObject(root);
+  if(bounds.isEmpty())throw new Error('HNLMS K XI photogrammetry scan contains no visible 3D geometry');
+  const size=bounds.getSize(new pair.THREE.Vector3());
+  const longAxis=Math.max(size.x,size.z);
+  if(!Number.isFinite(longAxis)||longAxis<=0)throw new Error('HNLMS K XI scan has invalid horizontal dimensions');
+  // Calibrate the long axis to the WA Museum/WreckSploration measurement.
+  // Preserve source orientation; a survey-grade true-north heading is not published.
+  const scale=HNLMS_KXI_WRECK.lengthM/longAxis;
+  root.scale.multiplyScalar(scale);root.updateMatrixWorld(true);
+  const scaledBounds=new pair.THREE.Box3().setFromObject(root);
+  const center=scaledBounds.getCenter(new pair.THREE.Vector3());
+  root.position.x-=center.x;root.position.y-=center.y;root.position.z-=center.z;
+  root.visible=false;
+  root.traverse(object=>{
+   if(!object.isMesh&&!object.isPoints)return;
+   object.frustumCulled=false;object.renderOrder=1000;
+   for(const material of Array.isArray(object.material)?object.material:[object.material]){
+    if(!material)continue;
+    material.depthTest=false;material.depthWrite=false;material.needsUpdate=true;
+   }
+  });
+  root.updateMatrixWorld(true);
+  state.kxiModelRoot=root;
+  state.kxiModelBounds={x:size.x*scale,y:size.y*scale,z:size.z*scale};
+  state.kxiModelScale=scale;
+  if(state.nativeModelScene)state.nativeModelScene.add(root);
+  return root;
+ })().catch(error=>{state.kxiModelPromise=null;throw error;});
+ return state.kxiModelPromise;
+}
+
 function bridgePointLocalViewerMarkup(id,title){
- if(id!=='hms-grafton'&&id!=='kanonvraget')return '';
+ if(id!=='hms-grafton'&&id!=='kanonvraget'&&id!=='hnlms-kxi')return '';
  return '<div class="bp-shipwreck-local-viewer-v1" data-bp-local-wreck-viewer="'+safe(id)+'" role="group" aria-label="'+safe(title)+' BridgePoint-hosted interactive 3D viewer">'+
   '<div class="bp-shipwreck-local-viewer-loading-v1" data-bp-local-viewer-status>Loading the BridgePoint-hosted '+safe(title)+' 3D scan…</div></div>';
 }
@@ -476,7 +550,7 @@ function mountBridgePointLocalWreckViewer(state,popup,wreckId,title){
  };
  (async()=>{
   try{
-   const sourceRoot=wreckId==='hms-grafton'?await loadHmsGraftonMesh(state):await loadCannonMesh(state);
+   const sourceRoot=wreckId==='hms-grafton'?await loadHmsGraftonMesh(state):wreckId==='hnlms-kxi'?await loadKxiMesh(state):await loadCannonMesh(state);
    if(disposed||!host.isConnected)return;
    const THREE=state.THREE;
    if(!THREE?.WebGLRenderer)throw new Error('BridgePoint local Three.js runtime is unavailable');
@@ -609,9 +683,9 @@ function mountBridgePointLocalWreckViewer(state,popup,wreckId,title){
 
 function ensureRobertGaskinMapLayer(state){
  const map=state.map,THREE=state.THREE;
- if(!THREE||(!state.nativeModelRoot&&!state.graftonModelRoot&&!state.cannonModelRoot)||state.destroyed)return false;
+ if(!THREE||(!state.nativeModelRoot&&!state.graftonModelRoot&&!state.cannonModelRoot&&!state.kxiModelRoot)||state.destroyed)return false;
  if(map.getLayer(NATIVE_MODEL_LAYER_ID)&&state.nativeModelRenderer&&state.nativeModelScene){
-  for(const root of [state.nativeModelRoot,state.graftonModelRoot,state.cannonModelRoot])if(root&&root.parent!==state.nativeModelScene)state.nativeModelScene.add(root);
+  for(const root of [state.nativeModelRoot,state.graftonModelRoot,state.cannonModelRoot,state.kxiModelRoot])if(root&&root.parent!==state.nativeModelScene)state.nativeModelScene.add(root);
   return true;
  }
  const layer={
@@ -622,7 +696,7 @@ function ensureRobertGaskinMapLayer(state){
    state.nativeModelCamera=new THREE.Camera();state.nativeModelScene=new THREE.Scene();
    state.nativeModelScene.add(new THREE.AmbientLight(0xffffff,1.55));
    const key=new THREE.DirectionalLight(0xffe9c7,1.2);key.position.set(-.6,1.4,.9);state.nativeModelScene.add(key);
-   for(const root of [state.nativeModelRoot,state.graftonModelRoot,state.cannonModelRoot])if(root)state.nativeModelScene.add(root);
+   for(const root of [state.nativeModelRoot,state.graftonModelRoot,state.cannonModelRoot,state.kxiModelRoot])if(root)state.nativeModelScene.add(root);
    state.stats.nativeModelLayerReady=true;
   },
   render(gl,args){
@@ -649,6 +723,8 @@ function ensureRobertGaskinMapLayer(state){
     HMS_GRAFTON_WRECK.waterSurfaceElevationM-HMS_GRAFTON_WRECK.scanDepthM,'graftonModelRenderWarned','HMS Grafton');
    draw(state.cannonModelRoot,state.cannonModelVisible,CANNON_WRECK.coordinates,
     -CANNON_WRECK.displayDepthM,'cannonModelRenderWarned','Kanonvraget');
+   draw(state.kxiModelRoot,state.kxiModelVisible,HNLMS_KXI_WRECK.coordinates,
+    -HNLMS_KXI_WRECK.displayDepthM,'kxiModelRenderWarned','HNLMS K XI');
   },
   onRemove(){
    try{state.nativeModelRenderer?.dispose();}catch(_){}
@@ -662,7 +738,7 @@ async function showRobertGaskinOnRiverbed(state){
  if(!state.enabled)return false;
  state.nativeModelAutoAttempted=true;state.nativeModelVisible=true;
  updateRobertGaskinModelStatus(state,'Loading the CC BY 4.0 photogrammetry scan…');
- setStatus(state,'Robert Gaskin native underwater mesh loading; all six wreck icons remain on.');
+ setStatus(state,'Robert Gaskin native underwater mesh loading; all seven wreck icons remain on.');
  try{
   await loadRobertGaskinMesh(state);
   if(state.destroyed||!state.enabled)return false;
@@ -682,7 +758,7 @@ async function showHmsGraftonOnSeabed(state){
  if(!state.enabled)return false;
  state.graftonModelAutoAttempted=true;state.graftonModelVisible=true;
  updateHmsGraftonModelStatus(state,'Loading the CC BY 4.0 HMS Grafton scan…');
- setStatus(state,'HMS Grafton native underwater mesh loading; all six wreck icons remain on.');
+ setStatus(state,'HMS Grafton native underwater mesh loading; all seven wreck icons remain on.');
  try{
   await loadHmsGraftonMesh(state);
   if(state.destroyed||!state.enabled)return false;
@@ -703,7 +779,7 @@ async function showCannonOnSeabed(state){
  if(!state.enabled)return false;
  state.cannonModelAutoAttempted=true;state.cannonModelVisible=true;
  updateCannonModelStatus(state,'Loading the CC BY 4.0 DTU Aqua Cannon Shipwreck scan…');
- setStatus(state,'Kanonvraget native underwater mesh loading; all six wreck icons remain on.');
+ setStatus(state,'Kanonvraget native underwater mesh loading; all seven wreck icons remain on.');
  try{
   await loadCannonMesh(state);
   if(state.destroyed||!state.enabled)return false;
@@ -720,6 +796,27 @@ async function showCannonOnSeabed(state){
   return false;
  }
 }
+async function showKxiOnSeabed(state){
+ if(!state.enabled)return false;
+ state.kxiModelAutoAttempted=true;state.kxiModelVisible=true;
+ updateKxiModelStatus(state,'Loading the CC BY 4.0 HNLMS K XI photogrammetry scan…');
+ setStatus(state,'HNLMS K XI native underwater mesh loading; all seven wreck icons remain on.');
+ try{
+  await loadKxiMesh(state);
+  if(state.destroyed||!state.enabled)return false;
+  if(!ensureRobertGaskinMapLayer(state))throw new Error('MapLibre native 3D layer could not attach');
+  if(state.nativeModelScene&&state.kxiModelRoot.parent!==state.nativeModelScene)state.nativeModelScene.add(state.kxiModelRoot);
+  updateKxiModelStatus(state,'Native scan loaded · calibrated to '+HNLMS_KXI_WRECK.lengthM.toFixed(2)+' m. Approximate wreck-site/depth placement; visible when zoomed to the icon.');
+  setStatus(state,'HNLMS K XI native photogrammetry mesh loaded at its approximate 40 m wreck-depth reference.');
+  state.map.triggerRepaint?.();refreshStatusUi(state);return true;
+ }catch(error){
+  state.kxiModelVisible=false;
+  updateKxiModelStatus(state,'Native scan could not load: '+String(error?.message||error));
+  setStatus(state,'HNLMS K XI native 3D mesh unavailable: '+String(error?.message||error));
+  return false;
+ }
+}
+
 function addRobertGaskinStyles(){
  if(document.getElementById('bp-shipwreck-gaskin-style-v2'))return;
  const style=document.createElement('style');style.id='bp-shipwreck-gaskin-style-v2';
@@ -780,6 +877,34 @@ function openCannonWreckPopup(state,lngLat){
  root?.querySelector('[data-cannon-wreck-action="materialize"]')?.addEventListener('click',()=>{void showCannonOnSeabed(state);});
  mountBridgePointLocalWreckViewer(state,state.popup,'kanonvraget','Kanonvraget — Cannon Wreck');
 }
+function openKxiPopup(state,lngLat){
+ const Popup=window.maplibregl?.Popup;if(!Popup)return;
+ addRobertGaskinStyles();
+ if(state.popup)state.popup.remove();
+ const p=HNLMS_KXI_WRECK;
+ const html='<article class="bp-shipwreck-grafton-popup-v1 bp-shipwreck-kxi-popup-v1">'+
+  '<div class="bp-shipwreck-kicker-v1">BRIDGEPOINT · SHIPWRECKS</div><h3>HNLMS K XI</h3>'+
+  '<p>Dutch K XI-class patrol submarine · World War II service · Rottnest, Western Australia</p>'+
+  '<div class="facts"><span><b>Wreck-site position</b>'+safe(p.coordinateText)+'</span><span><b>Wreck depth</b>Approximately 38–40 m</span>'+
+  '<span><b>Measured length</b>66.63 ± 0.22 m</span><span><b>Photogrammetry</b>6,733 underwater images</span>'+
+  '<span><b>Recorded</b>11 January 2025</span><span><b>Identified</b>1 January 2025 · WA Museum</span></div>'+
+  bridgePointLocalViewerMarkup('hnlms-kxi','HNLMS K XI — Dutch submarine')+
+  '<div class="bp-shipwreck-gaskin-actions-v2"><button type="button" data-kxi-action="materialize">Place native 3D scan beneath the water</button></div>'+
+  '<div class="bp-shipwreck-gaskin-status-v2" data-kxi-status>'+safe(state.kxiModelStatus||'Native scan not loaded yet. The BridgePoint-hosted GLB loads when you open the card.')+'</div>'+
+  '<p class="bp-shipwreck-accuracy-v1"><strong>Ship and survey:</strong> HNLMS K XI was a Royal Netherlands Navy patrol submarine built in the 1920s. The Western Australian Museum confirms its identity by comparing historic records with the WreckSploration 3D survey. The scan was assembled from 6,733 underwater images and measures 66.63 ± 0.22 m bow-to-stern. It records the visible wreck structure; portions of the vessel are substantially buried, so this is not a pristine reconstruction of every original submarine component.</p>'+
+  '<p class="bp-shipwreck-accuracy-v1"><strong>Underwater placement:</strong> BridgePoint centers the locally hosted scan on the published WGS84 wreck-site position and calibrates its long axis to the measured 66.63 m length. The display depth uses the WA Museum’s approximately 40 m site depth (WreckSploration describes about 38 m). The source GLB does not contain a published GPS origin or verified true-north heading, so the mesh placement is approximate and is not a survey-controlled seabed registration.</p>'+
+  '<p class="bp-shipwreck-accuracy-v1"><strong>History:</strong> HNLMS K XI served with the Royal Netherlands Navy, including operations in the Dutch East Indies during World War II. The Museum records the vessel as decommissioned in 1946 and scuttled in 1949. It helped rescue 13 survivors from HMAS Yarra in 1942.</p>'+
+  '<div class="bp-shipwreck-official-v1"><b>Model, history and location sources</b>'+
+   '<a href="'+safe(p.sourceUrl)+'" target="_blank" rel="noopener noreferrer">Western Australian Museum · official K XI 3D model listing (CC BY 4.0) ↗</a>'+
+   '<a href="'+safe(p.datasetUrl)+'" target="_blank" rel="noopener noreferrer">WA Museum · Maritime Report 356 and photogrammetry site plan ↗</a>'+
+   '<a href="'+safe(p.locationSourceUrl)+'" target="_blank" rel="noopener noreferrer">WreckSploration · wreck history, location and survey details ↗</a>'+
+   '<a href="'+safe(p.repositoryUrl)+'" target="_blank" rel="noopener noreferrer">WreckSploration VR · source GLB repository ↗</a></div>'+
+  '<p class="bp-shipwreck-source-v1">Attribution: © WreckSploration and Western Australian Museum. Model licensed CC BY 4.0. HNLMS K XI is a protected historic shipwreck under Australia’s Underwater Cultural Heritage Act 2018. Do not damage, disturb or remove any part of the wreck.</p></article>';
+ state.popup=new Popup({closeButton:true,closeOnClick:true,maxWidth:'450px',className:'bp-shipwreck-titanic-popup-wrap-v1'}).setLngLat(lngLat||p.coordinates).setHTML(html).addTo(state.map);
+ const root=state.popup.getElement?.();
+ root?.querySelector('[data-kxi-action="materialize"]')?.addEventListener('click',()=>{void showKxiOnSeabed(state);});
+ mountBridgePointLocalWreckViewer(state,state.popup,'hnlms-kxi','HNLMS K XI — Dutch submarine');
+}
 function openRobertGaskinPopup(state,lngLat){
  const Popup=window.maplibregl?.Popup;if(!Popup)return;
  addRobertGaskinStyles();
@@ -827,6 +952,15 @@ function maybeAutoMaterializeCannon(state){
  void showCannonOnSeabed(state);
  return true;
 }
+function maybeAutoMaterializeKxi(state){
+ if(!state.enabled||state.kxiModelAutoAttempted||state.kxiModelRoot||state.kxiModelPromise)return false;
+ if(Number(state.map.getZoom?.()||0)<12.2)return false;
+ const bounds=state.map.getBounds?.();
+ try{if(bounds&&!bounds.contains(HNLMS_KXI_WRECK.coordinates))return false;}catch(_){}
+ state.kxiModelAutoAttempted=true;
+ void showKxiOnSeabed(state);
+ return true;
+}
 function bindInteractions(state){
  if(state.interactionsBound)return;state.interactionsBound=true;
  state.handleClick=event=>{
@@ -837,6 +971,7 @@ function bindInteractions(state){
   if(hit.properties?.wreckId==='robert-gaskin'){openRobertGaskinPopup(state,event.lngLat||ROBERT_GASKIN_WRECK.coordinates);return;}
   if(hit.properties?.wreckId==='hms-grafton'){openHmsGraftonPopup(state,event.lngLat||HMS_GRAFTON_WRECK.coordinates);return;}
   if(hit.properties?.wreckId==='kanonvraget'){openCannonWreckPopup(state,event.lngLat||CANNON_WRECK.coordinates);return;}
+  if(hit.properties?.wreckId==='hnlms-kxi'){openKxiPopup(state,event.lngLat||HNLMS_KXI_WRECK.coordinates);return;}
   const part=partById(String(hit.properties.partId));
   if(part)openTitanicPopup(state,part,event.lngLat||part.coordinates);
  };
@@ -851,11 +986,12 @@ function bindInteractions(state){
   }
   setVisibility(state,true);
   state.stats.visibilityReassertions=(state.stats.visibilityReassertions||0)+1;
-  if((state.nativeModelVisible&&state.nativeModelRoot)||(state.graftonModelVisible&&state.graftonModelRoot)||(state.cannonModelVisible&&state.cannonModelRoot))ensureRobertGaskinMapLayer(state);
+  if((state.nativeModelVisible&&state.nativeModelRoot)||(state.graftonModelVisible&&state.graftonModelRoot)||(state.cannonModelVisible&&state.cannonModelRoot)||(state.kxiModelVisible&&state.kxiModelRoot))ensureRobertGaskinMapLayer(state);
   maybeAutoMaterializeRobertGaskin(state);
   maybeAutoMaterializeHmsGrafton(state);
   maybeAutoMaterializeCannon(state);
-  setStatus(state,'Shipwrecks ON · all six icons remain visible through zoom, angle and style changes. Select a wreck for its card and native 3D scan.');
+  maybeAutoMaterializeKxi(state);
+  setStatus(state,'Shipwrecks ON · all seven icons remain visible through zoom, angle and style changes. Select a wreck for its card and native 3D scan.');
   refreshStatusUi(state);
  };
  state.handleStyleLoad=state.handlePersistentVisibility;
@@ -870,9 +1006,9 @@ function addControlGroup(state){
  group.setAttribute('data-bpv-command-section','shipwrecks');
  group.setAttribute('aria-label','Shipwrecks');
  group.innerHTML=
-  '<div class="bpv-command-heading"><span class="bpv-command-heading-icon" aria-hidden="true">🚢</span><span><b>SHIPWRECKS</b><small>Titanic + three native underwater photogrammetry scans</small></span></div>'+
+  '<div class="bpv-command-heading"><span class="bpv-command-heading-icon" aria-hidden="true">🚢</span><span><b>SHIPWRECKS</b><small>Titanic + four native underwater photogrammetry scans</small></span></div>'+
   '<div class="bpv-command-grid"><button id="'+TOGGLE_ID+'" data-bpv-action="shipwrecks" type="button" class="bpv-command-btn" aria-pressed="false" title="Show or hide mapped shipwreck markers"><span class="bpv-command-icon" aria-hidden="true">🚢</span><span class="bpv-command-label">Shipwrecks</span></button></div>'+
-  '<div id="'+COUNT_ID+'" class="bpv-data-note">6 persistent wreck icons · '+state.stats.models+' Titanic viewer references · 3 native seabed GLBs</div>'+
+  '<div id="'+COUNT_ID+'" class="bpv-data-note">7 persistent wreck icons · '+state.stats.models+' Titanic viewer references · 4 native seabed GLBs</div>'+
   '<div id="'+STATUS_ID+'" class="bpv-data-note">Layer off · the rest of the BridgePoint globe remains unchanged.</div>'+
   '<style id="bp-shipwrecks-titanic-style-v2">'+
   '#'+CONTROL_ID+' .bpv-data-note{font:600 10px/1.45 system-ui,sans-serif;color:#9bb7c6;margin:5px 2px;overflow-wrap:anywhere}'+
@@ -895,8 +1031,8 @@ function addControlGroup(state){
 async function setEnabled(state,on){
  state.enabled=!!on;
  if(state.enabled){
-  if(!installLayers(state))setStatus(state,'Shipwrecks ON · waiting for the map style before showing all six wreck icons.');
-  else setStatus(state,'Shipwrecks ON · all six wreck icons remain visible from global zoom through close zoom. Select a marker for its card and any native underwater scan.');
+  if(!installLayers(state))setStatus(state,'Shipwrecks ON · waiting for the map style before showing all seven wreck icons.');
+  else setStatus(state,'Shipwrecks ON · all seven wreck icons remain visible from global zoom through close zoom. Select a marker for its card and any native underwater scan.');
   if(state.nativeModelRoot){
    state.nativeModelVisible=true;
    if(!state.map.getLayer(NATIVE_MODEL_LAYER_ID))ensureRobertGaskinMapLayer(state);
@@ -915,12 +1051,19 @@ async function setEnabled(state,on){
   }else{
    maybeAutoMaterializeCannon(state);
   }
+  if(state.kxiModelRoot){
+   state.kxiModelVisible=true;
+   if(!state.map.getLayer(NATIVE_MODEL_LAYER_ID))ensureRobertGaskinMapLayer(state);
+  }else{
+   maybeAutoMaterializeKxi(state);
+  }
  }else{
   if(state.popup){state.popup.remove();state.popup=null;}
   state.nativeModelVisible=false;state.nativeModelAutoAttempted=false;if(state.nativeModelRoot)state.nativeModelRoot.visible=false;
   state.graftonModelVisible=false;state.graftonModelAutoAttempted=false;if(state.graftonModelRoot)state.graftonModelRoot.visible=false;
   state.cannonModelVisible=false;state.cannonModelAutoAttempted=false;if(state.cannonModelRoot)state.cannonModelRoot.visible=false;
-  setVisibility(state,false);setStatus(state,'Shipwrecks off · all six wreck icons and all three native meshes are hidden; other BridgePoint layers are unchanged.');
+  state.kxiModelVisible=false;state.kxiModelAutoAttempted=false;if(state.kxiModelRoot)state.kxiModelRoot.visible=false;
+  setVisibility(state,false);setStatus(state,'Shipwrecks off · all seven wreck icons and all four native meshes are hidden; other BridgePoint layers are unchanged.');
  }
  refreshStatusUi(state);state.map.triggerRepaint?.();return state.enabled;
 }
@@ -932,8 +1075,9 @@ export function initShipwrecksRenderer(target){
   nativeModelVisible:false,nativeModelAutoAttempted:false,nativeModelStatus:'Native scan not loaded.',nativeModelRoot:null,nativeModelPromise:null,
   graftonModelVisible:false,graftonModelAutoAttempted:false,graftonModelStatus:'Native scan not loaded.',graftonModelRoot:null,graftonModelPromise:null,graftonModelBounds:null,
   cannonModelVisible:false,cannonModelAutoAttempted:false,cannonModelStatus:'Native scan not loaded.',cannonModelRoot:null,cannonModelPromise:null,cannonModelBounds:null,
+  kxiModelVisible:false,kxiModelAutoAttempted:false,kxiModelStatus:'Native scan not loaded.',kxiModelRoot:null,kxiModelPromise:null,kxiModelBounds:null,
   nativeModelRenderer:null,nativeModelCamera:null,nativeModelScene:null,nativeModelLayerReady:false,nativeModelBounds:null,
-  stats:{version:VERSION,parts:6,sites:4,models:TITANIC_3D_MODELS.length,nativeModels:3,lastError:null}};
+  stats:{version:VERSION,parts:7,sites:5,models:TITANIC_3D_MODELS.length,nativeModels:4,lastError:null}};
  const api={
   version:VERSION,get enabled(){return state.enabled;},get status(){return state.status;},
   get stats(){return Object.assign({},state.stats);},get partCount(){return state.stats.parts;},get modelCount(){return state.stats.models;},
@@ -942,8 +1086,9 @@ export function initShipwrecksRenderer(target){
   showRobertGaskinOnRiverbed(){return showRobertGaskinOnRiverbed(state);},
   showHmsGraftonOnSeabed(){return showHmsGraftonOnSeabed(state);},
   showCannonOnSeabed(){return showCannonOnSeabed(state);},
+  showKxiOnSeabed(){return showKxiOnSeabed(state);},
   destroy(){
-   state.destroyed=true;state.enabled=false;state.nativeModelVisible=false;state.graftonModelVisible=false;state.cannonModelVisible=false;
+   state.destroyed=true;state.enabled=false;state.nativeModelVisible=false;state.graftonModelVisible=false;state.cannonModelVisible=false;state.kxiModelVisible=false;
    if(state.popup)state.popup.remove();
    if(state.handleClick)map.off('click',state.handleClick);
    if(state.handlePersistentVisibility){
@@ -956,6 +1101,7 @@ export function initShipwrecksRenderer(target){
    if(state.nativeModelRoot){state.nativeModelScene?.remove(state.nativeModelRoot);state.nativeModelRoot=null;}
    if(state.graftonModelRoot){state.nativeModelScene?.remove(state.graftonModelRoot);state.graftonModelRoot=null;}
    if(state.cannonModelRoot){state.nativeModelScene?.remove(state.cannonModelRoot);state.cannonModelRoot=null;}
+   if(state.kxiModelRoot){state.nativeModelScene?.remove(state.kxiModelRoot);state.kxiModelRoot=null;}
    for(const id of [LABEL_ID,MARKER_ID,HALO_ID])if(map.getLayer(id))map.removeLayer(id);
    if(map.getSource(SOURCE_ID))map.removeSource(SOURCE_ID);
    try{if(map.hasImage?.(ICON_ID))map.removeImage(ICON_ID)}catch(_){}

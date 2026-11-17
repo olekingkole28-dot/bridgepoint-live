@@ -275,6 +275,75 @@ def materialize_cannon(output: Path) -> dict:
     return model
 
 
+def materialize_kxi(output: Path) -> dict:
+    """Mirror the WreckSploration K XI GLB after a pinned Git object/hash check."""
+    commit = "51c255e21c0709b46f4f1fe24d9de05bdd62822c"
+    expected_size = 40440892
+    expected_blob_sha = "39d1fabe4eb713340e689316044d230214e730ed"
+    url = (
+        "https://raw.githubusercontent.com/patrick-morrison/below-wrecksploration/"
+        + commit + "/models/13%20HNLMSKXI.glb"
+    )
+    raw = fetch_bytes(url)
+    if len(raw) != expected_size:
+        raise SystemExit("HNLMS K XI GLB size changed; refusing to mirror")
+    if len(raw) < 32 or raw[:4] != b"glTF":
+        raise SystemExit("HNLMS K XI file is not a valid binary glTF")
+    git_blob_sha = hashlib.sha1(
+        b"blob " + str(len(raw)).encode("ascii") + b"\0" + raw
+    ).hexdigest()
+    if git_blob_sha != expected_blob_sha:
+        raise SystemExit("HNLMS K XI source Git blob SHA changed; refusing to mirror")
+
+    output.mkdir(parents=True, exist_ok=True)
+    target = output / "hnlms-kxi-photogrammetry.glb.gz"
+    with target.open("wb") as handle:
+        with gzip.GzipFile(filename="", mode="wb", fileobj=handle, compresslevel=9, mtime=0) as packed:
+            packed.write(raw)
+    if target.stat().st_size > MAX_COMPRESSED_BYTES:
+        target.unlink(missing_ok=True)
+        raise SystemExit("Compressed HNLMS K XI GLB exceeds size limit")
+    model = {
+        "id": "hnlms-kxi-photogrammetry",
+        "title": "HNLMS K XI — full-length underwater photogrammetry scan",
+        "creator": "Western Australian Museum",
+        "creators": ["Western Australian Museum", "WreckSploration: Andrew Oakeley, David Jackson and Patrick Morrison"],
+        "license": "CC BY 4.0",
+        "licenseSourceUrl": "https://creativecommons.org/licenses/by/4.0/",
+        "sourceUrl": "https://sketchfab.com/3d-models/kxi-submarine-rottnest-deepwater-graveyard-7899b257a0274c93becf69676482531f",
+        "datasetUrl": "https://museum.wa.gov.au/maritime-archaeology-db/maritime-reports/dutch-k-xi-submarine-1925-1946-discovered-wadjemup-rottnest-island-perth",
+        "locationSourceUrl": "https://wrecksploration.au/projects/kxi/",
+        "repositoryUrl": "https://github.com/patrick-morrison/below-wrecksploration/tree/" + commit + "/models",
+        "sourceCommit": commit,
+        "sourceGitBlobSha": git_blob_sha,
+        "assetUrl": "/assets/shipwrecks/hnlms-kxi-photogrammetry.glb.gz",
+        "coordinates": [115.499470, -32.150390],
+        "coordinateText": "32° 09.0234′ S, 115° 29.9682′ E",
+        "depthRangeM": [38, 40],
+        "displayDepthM": 40,
+        "lengthM": 66.63,
+        "lengthUncertaintyM": 0.22,
+        "sourcePhotos": 6733,
+        "capturedAt": "2025-01-11",
+        "discoveredAt": "2025-01-01",
+        "decommissionedYear": 1946,
+        "scuttledYear": 1949,
+        "sourceBytes": len(raw),
+        "compressedBytes": target.stat().st_size,
+        "sourceMd5": hashlib.md5(raw).hexdigest(),
+        "assetSha256": hashlib.sha256(target.read_bytes()).hexdigest(),
+        "locationPrecision": "Published WGS84 wreck-site coordinate; source mesh does not include a verified GPS origin.",
+        "scalePrecision": "Long axis calibrated to the published photogrammetry measurement of 66.63 ± 0.22 m.",
+        "orientationPrecision": "Original GLB orientation preserved; a survey-grade true-north heading is not published."
+    }
+    catalog_path = output / "catalog.json"
+    manifest = json.loads(catalog_path.read_text(encoding="utf-8")) if catalog_path.exists() else {"version": 1}
+    manifest["kxi"] = model
+    catalog_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    print("BRIDGEPOINT_HNLMS_KXI_CC_BY_GLB_READY", len(raw), "source bytes", target.stat().st_size, "compressed bytes")
+    return model
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", required=True, type=Path)
@@ -282,6 +351,7 @@ def main() -> None:
     materialize(args.output)
     materialize_grafton(args.output)
     materialize_cannon(args.output)
+    materialize_kxi(args.output)
 
 
 if __name__ == "__main__":

@@ -92,3 +92,30 @@ Sources:
 - [Vraguiden Kanonvraget record](https://www.vragguiden.dk/vrag/4643)
 - [Vraguiden position, depth and historical information](https://www.vragguiden.dk/api/WreckPdf/4643)
 - [NLM Dataset Catalog rights record — CC BY 4.0](https://datasetcatalog.nlm.nih.gov/dataset?q=0000776569)
+
+
+---
+
+# BridgePoint Shipwrecks v6 — HNLMS K XI full-length submarine photogrammetry
+
+The existing **Shipwrecks** control now includes a seventh persistent marker for **HNLMS K XI**, a Dutch K XI-class patrol submarine off Wadjemup / Rottnest Island, Western Australia. The model is a full-length photogrammetry reconstruction of the visible wreck, not a generic ship model or an external viewer.
+
+- Published site coordinate: **32° 09.0234′ S, 115° 29.9682′ E** (WGS84; WreckSploration)
+- Wreck depth: approximately **38–40 m** (WreckSploration / Western Australian Museum)
+- Photogrammetry measurement: **66.63 ± 0.22 m** bow-to-stern
+- Survey: **6,733 underwater images**, recorded 11 January 2025
+- Identified by the Western Australian Museum in January 2025
+- History: decommissioned in 1946; scuttled in 1949 (Western Australian Museum)
+- Model credit: **© WreckSploration and Western Australian Museum**, CC BY 4.0
+
+The publishing workflow mirrors the WreckSploration VR repository GLB from a pinned source commit and refuses to package it if the expected byte length, GLB header or Git blob SHA-1 differs. The card opens the locally hosted GLB in BridgePoint's Three.js/GLTFLoader viewer. Drag, pinch and scroll rotate/zoom the model; the reset button restores its initial view. The same local GLB can be rendered as a native MapLibre 3D layer beneath the water at the wreck location, and is loaded automatically when Shipwrecks is enabled and the camera is zoomed into the site.
+
+**Placement limits:** the model's long axis is calibrated to the published 66.63 m photogrammetry measurement and its center is placed at the published WGS84 wreck point, approximately 40 m below the water surface. The source mesh does not publish a georeferenced origin or survey-grade true-north heading. Its center/depth/heading placement is therefore an inspectable visualization, not survey-controlled seabed registration or navigation data. The wreck is substantially buried, so the scan records visible/exposed structure rather than recreating buried components or a pristine original submarine.
+
+**Heritage:** HNLMS K XI is a protected historic shipwreck under Australia's Underwater Cultural Heritage Act 2018. The card identifies the protection status and states not to damage, disturb or remove any part of the wreck.
+
+Sources:
+- [Western Australian Museum — Maritime Report 356 and photogrammetry site plan](https://museum.wa.gov.au/maritime-archaeology-db/maritime-reports/dutch-k-xi-submarine-1925-1946-discovered-wadjemup-rottnest-island-perth)
+- [WreckSploration — HNLMS K XI history, location and survey](https://wrecksploration.au/projects/kxi/)
+- [Western Australian Museum — official K XI 3D model listing](https://sketchfab.com/3d-models/kxi-submarine-rottnest-deepwater-graveyard-7899b257a0274c93becf69676482531f)
+- [WreckSploration VR — model repository](https://github.com/patrick-morrison/below-wrecksploration)

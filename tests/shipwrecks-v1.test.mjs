@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import {
- TITANIC_SHIPWRECK_PARTS,TITANIC_3D_MODELS,TITANIC_OFFICIAL_SCAN_SOURCES,ROBERT_GASKIN_WRECK,HMS_GRAFTON_WRECK,CANNON_WRECK,
+ TITANIC_SHIPWRECK_PARTS,TITANIC_3D_MODELS,TITANIC_OFFICIAL_SCAN_SOURCES,ROBERT_GASKIN_WRECK,HMS_GRAFTON_WRECK,CANNON_WRECK,HNLMS_KXI_WRECK,
  buildTitanicShipwreckFeatures,buildAllShipwreckFeatures,titanicShipwreckPopupHtml,syncTitanicShipwreckCategory
 } from '../rebuild-v5000/bridgepoint-shipwrecks-v1.js';
 
@@ -9,7 +9,7 @@ const features=buildTitanicShipwreckFeatures();
 assert.equal(TITANIC_SHIPWRECK_PARTS.length,3,'only Titanic bow, stern and debris-field waypoints are mapped');
 assert.equal(features.length,3);
 const allFeatures=buildAllShipwreckFeatures();
-assert.equal(allFeatures.length,6,'all Titanic sections, Robert Gaskin, HMS Grafton and Kanonvraget share the Shipwrecks source');
+assert.equal(allFeatures.length,7,'all Titanic sections, Robert Gaskin, HMS Grafton, Kanonvraget and HNLMS K XI share the Shipwrecks source');
 assert.equal(allFeatures.filter(f=>f.properties.wreckId==='robert-gaskin').length,1);
 assert.deepEqual(allFeatures[3].geometry.coordinates,[-75.677083,44.589317]);
 assert.equal(allFeatures.filter(f=>f.properties.wreckId==='hms-grafton').length,1);
@@ -17,6 +17,15 @@ assert.deepEqual(allFeatures[4].geometry.coordinates,[2.818383333333,51.4071]);
 assert.equal(allFeatures.filter(f=>f.properties.wreckId==='kanonvraget').length,1);
 assert.deepEqual(allFeatures[5].geometry.coordinates,[12.8688,55.6448]);
 assert.equal(allFeatures[5].properties.label,'KANONVRAGET · CANNON WRECK');
+assert.equal(allFeatures.filter(f=>f.properties.wreckId==='hnlms-kxi').length,1);
+assert.deepEqual(allFeatures[6].geometry.coordinates,[115.499470,-32.150390]);
+assert.equal(allFeatures[6].properties.label,'HNLMS K XI');
+assert.equal(HNLMS_KXI_WRECK.displayDepthM,40);
+assert.deepEqual(HNLMS_KXI_WRECK.depthRangeM,[38,40]);
+assert.equal(HNLMS_KXI_WRECK.lengthM,66.63);
+assert.equal(HNLMS_KXI_WRECK.sourcePhotos,6733);
+assert.equal(HNLMS_KXI_WRECK.license,'CC BY 4.0');
+assert.deepEqual(HNLMS_KXI_WRECK.coordinates,[115.499470,-32.150390]);
 assert.equal(CANNON_WRECK.displayDepthM,15);
 assert.deepEqual(CANNON_WRECK.depthRangeM,[14,16]);
 assert.equal(CANNON_WRECK.captureDepthM,11,'the DTU scan capture depth is kept separate from the wreck-site depth range');
@@ -85,6 +94,14 @@ const [moduleSource,landing,app,workflow]=await Promise.all([
 
 const graftonPopupSource=moduleSource.slice(moduleSource.indexOf('function openHmsGraftonPopup'),moduleSource.indexOf('function openCannonWreckPopup'));
 const cannonPopupSource=moduleSource.slice(moduleSource.indexOf('function openCannonWreckPopup'),moduleSource.indexOf('function openRobertGaskinPopup'));
+const kxiPopupSource=moduleSource.slice(moduleSource.indexOf('function openKxiPopup'),moduleSource.indexOf('function openRobertGaskinPopup'));
+assert.match(kxiPopupSource,/bridgePointLocalViewerMarkup\('hnlms-kxi'/,'KXI card mounts a BridgePoint-hosted viewer');
+assert.doesNotMatch(kxiPopupSource,/iframe|viewerUrl/i,'KXI card uses the BridgePoint viewer rather than an external embed');
+assert.match(moduleSource,/async function loadKxiMesh\(state\)/,'KXI GLB is locally loaded by the native viewer');
+assert.match(moduleSource,/async function showKxiOnSeabed\(state\)/,'KXI card offers native underwater materialization');
+assert.match(moduleSource,/maybeAutoMaterializeKxi\(state\)/,'KXI mesh can auto-materialize when zoomed near its persistent icon');
+assert.match(moduleSource,/HNLMS_KXI_WRECK\.displayDepthM/,'KXI native mesh is anchored at the documented wreck depth');
+assert.match(moduleSource,/hit\.properties\?\.wreckId==='hnlms-kxi'/,'KXI persistent icon opens its own card');
 assert.match(graftonPopupSource,/bridgePointLocalViewerMarkup\('hms-grafton'/,'HMS Grafton card mounts a BridgePoint-hosted viewer');
 assert.match(cannonPopupSource,/bridgePointLocalViewerMarkup\('kanonvraget'/,'Kanonvraget card mounts a BridgePoint-hosted viewer');
 assert.doesNotMatch(graftonPopupSource,/iframe|viewerUrl|demos\/viewer/i,'HMS Grafton card has no external viewer iframe or redirect');
@@ -104,13 +121,17 @@ assert.ok(moduleSource.includes('buildAllShipwreckFeatures()'),'Titanic and Robe
 assert.ok(moduleSource.includes('ROBERT_GASKIN_ASSET'),'Robert Gaskin has a local GLB asset path');
 assert.ok(moduleSource.includes('HMS_GRAFTON_ASSET'),'HMS Grafton has a separate local GLB asset path');
 assert.ok(moduleSource.includes('CANNON_ASSET'),'Kanonvraget has a separate local GLB asset path');
+assert.ok(moduleSource.includes('KXI_ASSET'),'HNLMS K XI has a separate local GLB asset path');
 assert.ok(moduleSource.includes('loadCannonMesh(state)'),'Kanonvraget is loaded as a native GLB');
+assert.ok(moduleSource.includes('loadKxiMesh(state)'),'HNLMS K XI is loaded as a native GLB');
 assert.ok(moduleSource.includes('showCannonOnSeabed(state)'),'the Kanonvraget card can materialize its 3D scan on the map');
+assert.ok(moduleSource.includes('showKxiOnSeabed(state)'),'the HNLMS K XI card can materialize its 3D scan on the map');
 assert.ok(moduleSource.includes('maybeAutoMaterializeCannon(state)'),'Kanonvraget native mesh loads when zoomed to its wreck-site icon');
+assert.ok(moduleSource.includes('maybeAutoMaterializeKxi(state)'),'KXI native mesh loads when zoomed to its wreck-site icon');
 assert.ok(moduleSource.includes('CANNON_WRECK.displayDepthM'),'Kanonvraget native mesh is placed at the site-record depth midpoint');
 assert.ok(moduleSource.includes("hit.properties?.wreckId==='kanonvraget'"),'Kanonvraget click opens its dedicated popup');
-assert.ok(moduleSource.includes('all six wreck icons remain visible'),'the shared marker layer reports all six persistent wreck icons');
-assert.ok(moduleSource.includes("count.textContent='6 persistent wreck icons · 3 native CC BY 4.0 seabed scans"),'dynamic count reflects all six markers and all three native models');
+assert.ok(moduleSource.includes('all seven wreck icons remain visible'),'the shared marker layer reports all six persistent wreck icons');
+assert.ok(moduleSource.includes("count.textContent='7 persistent wreck icons · 4 native CC BY 4.0 seabed scans"),'dynamic count reflects all six markers and all three native models');
 assert.ok(moduleSource.includes('Verified WGS84 wreck-site position'),'Kanonvraget card explains its location precision');
 assert.ok(moduleSource.includes('DTU Aqua describes its Cannon Shipwreck reconstruction'),'Kanonvraget card keeps scan depth distinct from wreck depth');
 assert.ok(moduleSource.includes('loadHmsGraftonMesh(state)'),'HMS Grafton is loaded as a native GLB');
@@ -118,8 +139,8 @@ assert.ok(moduleSource.includes('showHmsGraftonOnSeabed(state)'),'the Grafton ca
 assert.ok(moduleSource.includes('maybeAutoMaterializeHmsGrafton(state)'),'Grafton native mesh loads when zoomed to its wreck-site icon');
 assert.ok(moduleSource.includes('HMS_GRAFTON_WRECK.waterSurfaceElevationM-HMS_GRAFTON_WRECK.scanDepthM'),'Grafton native mesh uses the approximate capture depth');
 assert.ok(moduleSource.includes("hit.properties?.wreckId==='hms-grafton'"),'Grafton click opens its dedicated popup');
-assert.ok(moduleSource.includes('all six icons remain visible'),'the shared icon layer reports six persistent wreck markers');
-assert.ok(moduleSource.includes("count.textContent='6 persistent wreck icons · 3 native CC BY 4.0 seabed scans"),'dynamic count reflects all six markers and all three native models');
+assert.ok(moduleSource.includes('all seven icons remain visible'),'the shared icon layer reports six persistent wreck markers');
+assert.ok(moduleSource.includes("count.textContent='7 persistent wreck icons · 4 native CC BY 4.0 seabed scans"),'dynamic count reflects all six markers and all three native models');
 assert.ok(moduleSource.includes('addRobertGaskinStyles();'),'the new Grafton card installs the shared native wreck popup styles');
 assert.ok(moduleSource.includes("NATIVE_MODEL_LAYER_ID='bp-shipwrecks-native-model-v2'"),'Robert Gaskin uses a native MapLibre 3D custom layer');
 assert.ok(moduleSource.includes("import(GLTF_URL)"),'native scan is parsed through the local GLTFLoader');
@@ -139,8 +160,8 @@ assert.ok(moduleSource.includes("if(current!==next)state.map.setLayoutProperty(i
 assert.ok(moduleSource.includes("map.off(event,state.handlePersistentVisibility)"),'all persistent visibility listeners are cleaned up on destroy');
 assert.ok(moduleSource.includes('bpv-dock-actions'),'Shipwrecks control is attached to the existing globe dock');
 assert.ok(moduleSource.includes('setVisibility(state,state.enabled)'));
-assert.ok(landing.includes("import('./bridgepoint-shipwrecks-v1.js?v=2-titanic-gaskin-native')"));
-assert.ok(app.includes("import('./bridgepoint-shipwrecks-v1.js?v=2-titanic-gaskin-native')"));
+assert.ok(landing.includes("import('./bridgepoint-shipwrecks-v1.js?v=6-titanic-gaskin-grafton-cannon-kxi-local-hosted-viewers')"));
+assert.ok(app.includes("import('./bridgepoint-shipwrecks-v1.js?v=6-titanic-gaskin-grafton-cannon-kxi-local-hosted-viewers')"));
 assert.ok(workflow.includes('actions/runs?branch=main&per_page=100'),'publisher discovers the latest successful Pages baseline dynamically');
 assert.ok(workflow.includes('bridgepoint-palatine-cryptoporticus-v1.js'),'publisher refuses an older incomplete baseline');
 assert.ok(workflow.includes('bridgepoint-shipwrecks-v1.js'));
@@ -151,12 +172,13 @@ assert.ok(workflow.includes('"vendor/GLTFLoader.bundle.js"'));
 assert.ok(workflow.includes('required={"bridgepoint-shipwrecks-v1.js"'));
 assert.ok(workflow.includes('robert-gaskin-photogrammetry.glb.gz'),'the publisher overlays the licensed Robert Gaskin native mesh');
 assert.ok(workflow.includes('cannon-photogrammetry.glb.gz'),'the publisher overlays the licensed Kanonvraget native mesh');
+assert.ok(workflow.includes('hnlms-kxi-photogrammetry.glb.gz'),'the publisher mirrors the KXI photogrammetry mesh into BridgePoint');
 assert.ok(workflow.includes('GLTFLoader.bundle.js'),'the publisher serves a local GLTFLoader instead of a remote CDN dependency');
-assert.ok(workflow.includes('github-pages-shipwrecks-v5'),'the publisher deploys the Shipwrecks v5 artifact');
-assert.ok(workflow.includes('v=5-titanic-gaskin-grafton-cannon-local-hosted-viewers'),'the publisher cache-busts the BridgePoint-hosted local viewer code');
+assert.ok(workflow.includes('github-pages-shipwrecks-v6'),'the publisher deploys the Shipwrecks v5 artifact');
+assert.ok(workflow.includes('v=6-titanic-gaskin-grafton-cannon-kxi-local-hosted-viewers'),'the publisher cache-busts the BridgePoint-hosted local viewer code');
 assert.ok(workflow.includes('data-bp-local-wreck-viewer'),'the publisher verifies the local model viewer mount points');
-assert.ok(workflow.includes('11-shipwrecks-v2-persistent-icons'),'the publisher repairs the shared visibility-guard cache bust on both entry points');
-assert.ok(workflow.includes('BRIDGEPOINT_SHIPWRECKS_V5_LIVE_VERIFY_PASS'),'the publisher verifies the live shipwreck v4 asset and entry points');
+assert.ok(workflow.includes('12-shipwrecks-v3-kxi-icons'),'the publisher repairs the shared visibility-guard cache bust on both entry points');
+assert.ok(workflow.includes('BRIDGEPOINT_SHIPWRECKS_V6_LIVE_VERIFY_PASS'),'the publisher verifies the live shipwreck v4 asset and entry points');
 
 assert.ok(!/SUPA|supabase/i.test(moduleSource),'the native shipwreck renderer has no Supabase dependency');
 
