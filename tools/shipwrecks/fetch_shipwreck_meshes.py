@@ -620,36 +620,14 @@ def materialize_hms_loo(output: Path) -> dict:
     if not re.fullmatch(r"[0-9a-f]{40}", revision):
         raise SystemExit("ScanSceneverse did not provide an immutable 40-character dataset revision")
     # GLBs are stored inside 16+ GB tar shards under shards/glbs/.
-    # The index's glbs/000-050/... path maps to shards/glbs/glbs-0096.tar.
+    # The index's glbs/000-050/... path maps to shards/glbs/glbs-0174.tar.
     # Use HTTP Range reads to extract only this one member; never download the
     # full tar shard to the build runner.
     scene_id = "fc5901d8556743458c40aa4a096f01b6"
     source_file = f"glbs/000-050/{scene_id}.glb"
-    # Scan just the first tar header of each published archive. ScanSceneverse
-    # does not publish the path->tar index present in its companion dataset, so
-    # use the member prefix to locate the shard rather than guessing its number.
-    for shard_index in range(175):
-        shard_url = (
-            "https://huggingface.co/datasets/Stable-X/ScanSceneverse/resolve/"
-            + revision + f"/shards/glbs/glbs-{shard_index:04d}.tar"
-        )
-        try:
-            header_bytes, shard_total = fetch_range(shard_url, 0, 65535)
-            with tarfile.open(fileobj=io.BytesIO(header_bytes), mode="r:") as archive:
-                first_member = archive.next()
-            if first_member:
-                print(
-                    "HMS_LOO_SHARD_HEADER",
-                    shard_index,
-                    first_member.name,
-                    "archive_bytes",
-                    shard_total,
-                )
-        except Exception as error:
-            print("HMS_LOO_SHARD_HEADER_ERROR", shard_index, str(error))
     tar_url = (
         "https://huggingface.co/datasets/Stable-X/ScanSceneverse/resolve/"
-        + revision + "/shards/glbs/glbs-0096.tar"
+        + revision + "/shards/glbs/glbs-0174.tar"
     )
     raw, tar_member_name = extract_tar_member_by_range(
         tar_url, f"{scene_id}.glb", MAX_HMS_LOO_SOURCE_BYTES
@@ -687,7 +665,7 @@ def materialize_hms_loo(output: Path) -> dict:
         "datasetRevision": revision,
         "sourceFile": source_file,
         "tarMemberName": tar_member_name,
-        "tarShard": "shards/glbs/glbs-0096.tar",
+        "tarShard": "shards/glbs/glbs-0174.tar",
         "locationSourceUrl": "https://shipwrecksmap.com/wrecks/hms-looe-1741/",
         "historySourceUrl": "https://floridakeys.noaa.gov/shipwrecks/hms-loo.html",
         "depthSourceUrl": "https://library.oarcloud.noaa.gov/noaa_documents.lib/NOS/CZIC/EIS_Looe_Key_1980.pdf",
