@@ -1,27 +1,27 @@
 #!/usr/bin/env python3
-"""Check the public Sketchfab metadata/download route for the CC BY Beechcraft wreck scan."""
-import json
+"""Inspect public Sketchfab API/download routes for real underwater aircraft scans."""
 import urllib.error
 import urllib.request
 
-UID = "bcb169db484f4737a65aa7d465f9888a"
-HEADERS = {
-    "User-Agent": "BridgePoint-Plane-Wrecks/1.0",
-    "Accept": "application/json",
+MODELS = {
+    "messerschmitt-bf109": "49655a05cbe346808d810ad88f86066e",
+    "beechcraft-king-air": "bcb169db484f4737a65aa7d465f9888a",
 }
+HEADERS = {"User-Agent": "BridgePoint-Plane-Wrecks/1.0", "Accept": "application/json"}
 
-def probe(url, limit=8192):
+def probe(label, url, max_bytes=5000):
     req = urllib.request.Request(url, headers=HEADERS)
     try:
-        with urllib.request.urlopen(req, timeout=25) as r:
-            data = r.read(limit)
-            print("BRIDGEPOINT_SKETCHFAB_PROBE", r.status, r.geturl(), r.headers.get("Content-Type"), r.headers.get("Content-Length"), data[:1500].decode("utf-8","replace"))
+        with urllib.request.urlopen(req, timeout=18) as r:
+            data=r.read(max_bytes)
+            print("BRIDGEPOINT_PLANE_SOURCE", label, r.status, r.geturl(), r.headers.get("Content-Type"), r.headers.get("Content-Length"), data[:max_bytes].decode("utf-8","replace"))
     except urllib.error.HTTPError as e:
-        body = e.read(1000).decode("utf-8","replace")
-        print("BRIDGEPOINT_SKETCHFAB_PROBE_ERROR", url, e.code, body)
+        print("BRIDGEPOINT_PLANE_SOURCE_ERROR", label, e.code, e.read(1200).decode("utf-8","replace"))
     except Exception as e:
-        print("BRIDGEPOINT_SKETCHFAB_PROBE_ERROR", url, type(e).__name__, str(e)[:500])
+        print("BRIDGEPOINT_PLANE_SOURCE_ERROR", label, type(e).__name__, str(e)[:400])
 
-probe("https://api.sketchfab.com/v3/models/" + UID + "/")
-probe("https://api.sketchfab.com/v3/models/" + UID + "/download")
-probe("https://sketchfab.com/3d-models/beechcraft-king-air-plane-rockingham-dive-trail-" + UID + "/download")
+for name, uid in MODELS.items():
+    probe(name + "-metadata", "https://api.sketchfab.com/v3/models/" + uid + "/")
+    probe(name + "-download-api", "https://api.sketchfab.com/v3/models/" + uid + "/download")
+    slug = "messerschmitt-" if name.startswith("messerschmitt") else "beechcraft-king-air-plane-rockingham-dive-trail-"
+    probe(name + "-download-page", "https://sketchfab.com/3d-models/" + slug + uid + "/download", 2000)
