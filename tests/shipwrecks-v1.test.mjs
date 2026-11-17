@@ -13,6 +13,8 @@ assert.equal(allFeatures.length,4,'all Titanic sections and the Robert Gaskin ma
 assert.equal(allFeatures.filter(f=>f.properties.wreckId==='robert-gaskin').length,1);
 assert.deepEqual(allFeatures[3].geometry.coordinates,[-75.677083,44.589317]);
 assert.equal(ROBERT_GASKIN_WRECK.depthM,19.8);
+assert.equal(ROBERT_GASKIN_WRECK.waterSurfaceElevationM,74.64,'native placement uses the Brockville water-surface datum, not a negative sea-level altitude');
+assert.equal(ROBERT_GASKIN_WRECK.verticalDatum,'IGLD 1985');
 assert.deepEqual(ROBERT_GASKIN_WRECK.depthRangeM,[18.3,21.3]);
 assert.equal(ROBERT_GASKIN_WRECK.license,'CC BY 4.0');
 assert.equal(ROBERT_GASKIN_WRECK.sourcePhotos,49000,'the source description rounds to approximately 49,000 photos');
@@ -70,6 +72,8 @@ assert.ok(moduleSource.includes("NATIVE_MODEL_LAYER_ID='bp-shipwrecks-native-mod
 assert.ok(moduleSource.includes("import(GLTF_URL)"),'native scan is parsed through the local GLTFLoader');
 assert.ok(moduleSource.includes("new DecompressionStream('gzip')"),'the native GLB uses a compressed local asset');
 assert.ok(moduleSource.includes('showRobertGaskinOnRiverbed(state)'),'the card exposes the materialize-on-riverbed action');
+assert.ok(moduleSource.includes('maybeAutoMaterializeRobertGaskin(state)'),'the native mesh auto-loads when Shipwrecks is ON and the map is zoomed onto the wreck site');
+assert.ok(moduleSource.includes('ROBERT_GASKIN_WRECK.waterSurfaceElevationM-ROBERT_GASKIN_WRECK.depthM'),'native mesh altitude is relative to the local water-surface datum');
 assert.ok(moduleSource.includes('ROBERT_GASKIN_LENGTH_M/longAxis'),'the scanned mesh is length-calibrated to the historical vessel dimensions');
 assert.ok(moduleSource.includes("for(const event of ['style.load','load','idle','moveend','zoomend','rotateend','pitchend'])"),'all wreck icons restore after style reload and settled camera events');
 assert.ok(moduleSource.includes('state.map.on(event,state.handlePersistentVisibility)'),'persistent visibility listeners are attached to the shared map');
