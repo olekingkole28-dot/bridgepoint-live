@@ -662,7 +662,7 @@ async function loadTimaruMesh(state,renderer=null){
   const size=bounds.getSize(new pair.THREE.Vector3());
   const longAxis=Math.max(size.x,size.z);
   if(!Number.isFinite(longAxis)||longAxis<=0)throw new Error('SS Timaru scan has invalid horizontal dimensions');
-  // Calibrate the source scan against the Western Australian Museum's 44.9 m vessel length.
+  // Calibrate the source scan to WreckSploration's 44.9 m observed site length.
   // WreckSploration notes the bow points north; preserve the original GLB orientation.
   const scale=TIMARU_WRECK.lengthM/longAxis;
   root.scale.multiplyScalar(scale);root.updateMatrixWorld(true);
@@ -1305,7 +1305,7 @@ function bindInteractions(state){
   maybeAutoMaterializeKxi(state);
   maybeAutoMaterializeCapeOtway(state);
   maybeAutoMaterializeTimaru(state);
-  setStatus(state,'Shipwrecks ON · all nine icons remain visible through zoom, angle and style changes. Select a wreck for its card and native 3D scan.');
+  setStatus(state,'Shipwrecks ON · all nine persistent icons remain visible through zoom, angle and style changes. Select a wreck for its card and native 3D scan.');
   refreshStatusUi(state);
  };
  state.handleStyleLoad=state.handlePersistentVisibility;
@@ -1322,7 +1322,7 @@ function addControlGroup(state){
  group.innerHTML=
   '<div class="bpv-command-heading"><span class="bpv-command-heading-icon" aria-hidden="true">🚢</span><span><b>SHIPWRECKS</b><small>Titanic + six native underwater photogrammetry scans</small></span></div>'+
   '<div class="bpv-command-grid"><button id="'+TOGGLE_ID+'" data-bpv-action="shipwrecks" type="button" class="bpv-command-btn" aria-pressed="false" title="Show or hide mapped shipwreck markers"><span class="bpv-command-icon" aria-hidden="true">🚢</span><span class="bpv-command-label">Shipwrecks</span></button></div>'+
-  '<div id="'+COUNT_ID+'" class="bpv-data-note">9 persistent wreck icons · '+state.stats.models+' Titanic viewer references · 5 native seabed GLBs</div>'+
+  '<div id="'+COUNT_ID+'" class="bpv-data-note">9 persistent wreck icons · '+state.stats.models+' Titanic viewer references · 6 native seabed GLBs</div>'+
   '<div id="'+STATUS_ID+'" class="bpv-data-note">Layer off · the rest of the BridgePoint globe remains unchanged.</div>'+
   '<style id="bp-shipwrecks-titanic-style-v2">'+
   '#'+CONTROL_ID+' .bpv-data-note{font:600 10px/1.45 system-ui,sans-serif;color:#9bb7c6;margin:5px 2px;overflow-wrap:anywhere}'+
