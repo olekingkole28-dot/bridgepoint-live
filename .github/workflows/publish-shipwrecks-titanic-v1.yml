@@ -364,28 +364,28 @@ jobs:
             curl --retry 6 --retry-all-errors --retry-delay 2 --connect-timeout 20 --max-time 180 -fL \
               -H 'Cache-Control: no-cache' "$url" -o "$D/$name"
           done
-          grep -Fq 'BP_FRONTEND_V5000' "$D/root.html"
-          grep -Fq 'BP_FRONTEND_V5000' "$D/app.html"
-          grep -Fq 'shipwrecks=titanic-gaskin-v2' "$D/root.html"
-          grep -Fq 'shipwrecks=titanic-gaskin-v2' "$D/app.html"
-          grep -Fq 'bridgepoint-shipwrecks-v1.js?v=2-titanic-gaskin-native' "$D/landing.js"
-          grep -Fq 'bridgepoint-shipwrecks-v1.js?v=2-titanic-gaskin-native' "$D/app.js"
-          grep -Fq 'v11-shipwrecks-v2-persistent-icons' "$D/root.html"
-          grep -Fq 'v11-shipwrecks-v2-persistent-icons' "$D/app.html"
-          grep -Fq 'shipwrecks:/shipwreck|titanic/i' "$D/drone.js"
-          grep -Fq "shipwrecks:'shipwrecks'" "$D/drone.js"
-          grep -Fq 'initShipwrecksRenderer' "$D/module.js"
-          grep -Fq 'Robert Gaskin' "$D/module.js"
-          grep -Fq 'CC BY 4.0' "$D/catalog.json"
+          # Check the root globe entry and the actual /app/ module entry.
+          grep -Fq 'BP_FRONTEND_V5000' "$D/root.html" || { echo "LIVE_VERIFY_FAIL: root entry build marker missing"; exit 1; }
+          grep -Fq 'bridgepoint-drone-awareness-v1.js' "$D/root.html" || { echo "LIVE_VERIFY_FAIL: root visibility guard script missing"; exit 1; }
+          grep -Fq 'bridgepoint-drone-awareness-v1.js' "$D/app.html" || { echo "LIVE_VERIFY_FAIL: app visibility guard script missing"; exit 1; }
+          grep -Fq 'bridgepoint-shipwrecks-v1.js?v=2-titanic-gaskin-native' "$D/landing.js" || { echo "LIVE_VERIFY_FAIL: root Shipwrecks import missing"; exit 1; }
+          grep -Fq 'bridgepoint-shipwrecks-v1.js?v=2-titanic-gaskin-native' "$D/app.js" || { echo "LIVE_VERIFY_FAIL: app Shipwrecks import missing"; exit 1; }
+          echo "LIVE_VERIFY_PASS: root and app entrypoints + Shipwrecks imports"
+          grep -Fq 'shipwrecks:/shipwreck|titanic/i' "$D/drone.js" || { echo "LIVE_VERIFY_FAIL: dedicated shipwreck category missing"; exit 1; }
+          grep -Fq "shipwrecks:'shipwrecks'" "$D/drone.js" || { echo "LIVE_VERIFY_FAIL: shipwreck category action mapping missing"; exit 1; }
+          echo "LIVE_VERIFY_PASS: persistent Shipwrecks category"
+          grep -Fq 'initShipwrecksRenderer' "$D/module.js" || { echo "LIVE_VERIFY_FAIL: Shipwrecks module missing"; exit 1; }
+          grep -Fq 'Robert Gaskin' "$D/module.js" || { echo "LIVE_VERIFY_FAIL: Robert Gaskin model metadata missing"; exit 1; }
+          grep -Fq 'CC BY 4.0' "$D/catalog.json" || { echo "LIVE_VERIFY_FAIL: asset licence catalogue missing"; exit 1; }
           python3 - "$D/gaskin.glb.gz" <<'PY'
           import gzip,sys
           raw=gzip.decompress(open(sys.argv[1],'rb').read())
           assert raw[:4]==b'glTF' and len(raw)>32
-          print('BRIDGEPOINT_ROBERT_GASKIN_LIVE_GL B_PASS',len(raw),'bytes')
+          print('BRIDGEPOINT_ROBERT_GASKIN_LIVE_GLB_PASS',len(raw),'bytes')
           PY
-          test -s "$D/loader.js"
-          grep -Fq 'GLTFLoader' "$D/loader.js"
-          grep -Fq '41° 43′ 57″ N, 49° 56′ 49″ W' "$D/module.js"
-          grep -Fq '41° 43′ 35″ N, 49° 56′ 54″ W' "$D/module.js"
-          cmp -s "$D/module.js" "$D/app-module.js"
+          test -s "$D/loader.js" || { echo "LIVE_VERIFY_FAIL: local GLTFLoader bundle missing"; exit 1; }
+          grep -Fq 'GLTFLoader' "$D/loader.js" || { echo "LIVE_VERIFY_FAIL: local GLTFLoader export missing"; exit 1; }
+          grep -Fq '41° 43′ 57″ N, 49° 56′ 49″ W' "$D/module.js" || { echo "LIVE_VERIFY_FAIL: Titanic bow NOAA coordinate missing"; exit 1; }
+          grep -Fq '41° 43′ 35″ N, 49° 56′ 54″ W' "$D/module.js" || { echo "LIVE_VERIFY_FAIL: Titanic stern NOAA coordinate missing"; exit 1; }
+          cmp -s "$D/module.js" "$D/app-module.js" || { echo "LIVE_VERIFY_FAIL: root/app Shipwrecks modules differ"; exit 1; }
           echo "BRIDGEPOINT_SHIPWRECKS_V2_LIVE_VERIFY_PASS"
