@@ -11,10 +11,10 @@ on:
       - 'rebuild-v5000/app.js'
       - 'tools/plane_wrecks/build_f4u1_corsair.py'
       - 'tests/plane-wrecks-v1.test.mjs'
-  workflow_run:
-    workflows: ["Publish BridgePoint Shipwrecks v11 — BridgePoint-hosted underwater wreck viewers"]
-    types: [completed]
+  push:
     branches: [main]
+    paths:
+      - '.github/workflows/publish-plane-wrecks-v1.yml'
   workflow_dispatch:
 
 permissions:
@@ -46,7 +46,7 @@ jobs:
           node tests/shipwrecks-v1.test.mjs
           node tests/drone-awareness.test.mjs
   publish:
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     concurrency:
       group: bridgepoint-v5000-production-authority
       cancel-in-progress: false
