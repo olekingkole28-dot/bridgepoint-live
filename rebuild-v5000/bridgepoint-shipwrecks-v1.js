@@ -642,7 +642,7 @@ async function loadCapeOtwayMesh(state,renderer=null){
  return state.capeOtwayModelPromise;
 }
 
-async function loadCapeOtwayMesh(state,renderer=null){
+async function loadTimaruMesh(state,renderer=null){
  if(state.timaruModelRoot)return state.timaruModelRoot;
  if(state.timaruModelPromise)return state.timaruModelPromise;
  state.timaruModelPromise=(async()=>{
@@ -1028,24 +1028,24 @@ async function showCapeOtwayOnSeabed(state){
  }
 }
 
-async function showCapeOtwayOnSeabed(state){
+async function showTimaruOnSeabed(state){
  if(!state.enabled)return false;
  state.timaruModelAutoAttempted=true;state.timaruModelVisible=true;
- updateCapeOtwayModelStatus(state,'Loading the CC BY 4.0 SS Timaru photogrammetry scan…');
- setStatus(state,'SS Timaru native underwater mesh loading; all nine wreck icons remain on.');
+ updateTimaruModelStatus(state,'Loading the CC BY 4.0 Timaru photogrammetry scan…');
+ setStatus(state,'Timaru native underwater mesh loading; all nine wreck icons remain on.');
  try{
   const renderer=await prepareShipwreckMapRenderer(state);
-  await loadCapeOtwayMesh(state,renderer);
+  await loadTimaruMesh(state,renderer);
   if(state.destroyed||!state.enabled)return false;
   if(!ensureRobertGaskinMapLayer(state))throw new Error('MapLibre native 3D layer could not attach');
   if(state.nativeModelScene&&state.timaruModelRoot.parent!==state.nativeModelScene)state.nativeModelScene.add(state.timaruModelRoot);
-  updateCapeOtwayModelStatus(state,'Native WreckSploration scan loaded · calibrated to 44.9 m. Approximate wreck-site/depth placement; visible when zoomed to the icon.');
-  setStatus(state,'SS Timaru native photogrammetry mesh loaded at the approximate 50 m wreck-depth reference.');
+  updateTimaruModelStatus(state,'Native WreckSploration scan loaded · calibrated to 44.9 m. Approximate wreck-site/depth placement; visible when zoomed to the icon.');
+  setStatus(state,'Timaru native photogrammetry mesh loaded at the approximate 50 m wreck-depth reference.');
   state.map.triggerRepaint?.();refreshStatusUi(state);return true;
  }catch(error){
   state.timaruModelVisible=false;
-  updateCapeOtwayModelStatus(state,'Native scan could not load: '+String(error?.message||error));
-  setStatus(state,'SS Timaru native 3D mesh unavailable: '+String(error?.message||error));
+  updateTimaruModelStatus(state,'Native scan could not load: '+String(error?.message||error));
+  setStatus(state,'Timaru native 3D mesh unavailable: '+String(error?.message||error));
   return false;
  }
 }
@@ -1293,7 +1293,7 @@ function bindInteractions(state){
   // settles. Re-allow this dedicated category and restore only Titanic layers.
   syncSharedOverlayCategory(state);
   if(!installLayers(state)){
-   setStatus(state,'Shipwrecks ON · waiting for the globe style before restoring all six shipwreck icons.');
+   setStatus(state,'Shipwrecks ON · waiting for the globe style before restoring all nine shipwreck icons.');
    refreshStatusUi(state);return;
   }
   setVisibility(state,true);
