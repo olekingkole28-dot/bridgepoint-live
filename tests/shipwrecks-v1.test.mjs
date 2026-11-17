@@ -53,7 +53,7 @@ const [moduleSource,landing,app,workflow]=await Promise.all([
 ]);
 assert.ok(moduleSource.includes('minzoom:0,maxzoom:24'),'markers remain visible across all globe zoom levels');
 assert.ok(moduleSource.includes("'icon-allow-overlap':true"),'wreck markers do not disappear because of symbol collisions');
-assert.ok(moduleSource.includes("data-bpv-action=\\"shipwrecks\\""),'Shipwrecks participates in the shared visibility allowlist as its own category');
+assert.ok(moduleSource.includes('data-bpv-action="shipwrecks"'),'Shipwrecks participates in the shared visibility allowlist as its own category');
 assert.ok(moduleSource.includes("allowLayerCategory('shipwrecks',!!enabled)"),'Shipwrecks explicitly registers and releases its own category');
 assert.ok(moduleSource.includes("for(const event of ['style.load','load','idle','moveend','zoomend','rotateend','pitchend'])"),'the renderer reasserts marker visibility after settled zoom, camera-angle and style events');
 assert.ok(moduleSource.includes("if(current!==next)state.map.setLayoutProperty(id,'visibility',next)"),'visibility restoration avoids redundant MapLibre style writes');
