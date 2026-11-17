@@ -1,0 +1,43 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { F4U1_CORSAIR_WRECK, buildPlaneWreckFeatures } from '../rebuild-v5000/bridgepoint-plane-wrecks-v1.js';
+
+const wreck=F4U1_CORSAIR_WRECK;
+const features=buildPlaneWreckFeatures();
+assert.equal(features.length,1,'the first release contains exactly one aircraft-wreck point');
+assert.equal(features[0].properties.wreckId,'f4u1-corsair-kwajalein');
+assert.deepEqual(features[0].geometry.coordinates,wreck.coordinates);
+assert.deepEqual(wreck.coordinates,[167.4270,9.3442]);
+assert.equal(wreck.depthM,33.5);
+assert.equal(wreck.license,'CC BY 4.0');
+assert.equal(wreck.sourcePhotos,1294);
+assert.match(wreck.representation,/point cloud/i);
+assert.match(wreck.representation,/not a watertight/i);
+assert.match(wreck.locationPrecision,/Approximate/i);
+assert.match(wreck.scalePrecision,/does not publish a metric scale/i);
+
+const moduleSource=await readFile(new URL('../rebuild-v5000/bridgepoint-plane-wrecks-v1.js',import.meta.url),'utf8');
+assert.match(moduleSource,/minzoom:0,maxzoom:24/,'the aircraft icon persists from global to close zoom');
+assert.match(moduleSource,/'icon-allow-overlap':true/,'the aircraft icon is not culled by symbol collisions');
+assert.match(moduleSource,/data-bp-local-plane-viewer/,'the popup contains its own BridgePoint-hosted model viewer');
+assert.match(moduleSource,/new pair\.GLTFLoader\(\)\.parseAsync\(buffer,' '\)/,'the local viewer parses its same-origin GLB asset');
+assert.match(moduleSource,/new pair\.GLTFLoader\(\)\.parseAsync\(buffer,''\)/,'the local viewer parses its same-origin GLB asset');
+assert.match(moduleSource,/async function showOnSeabed\(state\)/,'the first model can materialize under water in the globe');
+assert.match(moduleSource,/nativeMapMatrix\(map,THREE,F4U1_CORSAIR_WRECK\.coordinates,-F4U1_CORSAIR_WRECK\.depthM\)/,'the native point cloud is placed at the documented approximate wreck depth');
+assert.match(moduleSource,/maybeAutoMaterialize\(state\)/,'the model auto-materializes when the enabled layer is zoomed onto the wreck');
+assert.match(moduleSource,/for\(const event of \['style\.load','load','idle','moveend','zoomend','rotateend','pitchend'\]\)/,'visibility restores after map style and camera events');
+assert.match(moduleSource,/allowLayerCategory\?\.\('planewrecks'/,'the layer opts into its own shared visibility category');
+assert.match(moduleSource,/new window\.maplibregl\.Popup/,'the marker opens a dedicated information card');
+assert.doesNotMatch(moduleSource,/<iframe|viewerUrl/i,'the model viewer does not embed or redirect to a third-party viewer');
+assert.match(moduleSource,/f4u1-corsair-kwajalein-photogrammetry\.glb\.gz/,'the viewer uses the BridgePoint-hosted compressed GLB');
+assert.match(moduleSource,/mountCardViewer/,'the popup mounts an interactive local viewer');
+assert.match(moduleSource,/addControlGroup/,'the Plane Wrecks button is mounted in the existing globe dock');
+
+const landing=await readFile(new URL('../rebuild-v5000/landing.js',import.meta.url),'utf8');
+const app=await readFile(new URL('../rebuild-v5000/app.js',import.meta.url),'utf8');
+const guard=await readFile(new URL('../rebuild-v5000/bridgepoint-drone-awareness-v1.js',import.meta.url),'utf8');
+assert.match(landing,/initPlaneWrecksRenderer\(world\)/,'homepage globe loads the Plane Wrecks module');
+assert.match(app,/initPlaneWrecksRenderer\(world\)/,'app globe loads the Plane Wrecks module');
+assert.match(guard,/planewrecks:\/plane\[-_\]\?wreck\|aircraft\[-_\]\?wreck\/i,'the visibility guard recognizes Plane Wrecks layers');
+assert.match(guard,/planewrecks:'planewrecks'/,'the button action maps into its own category');
+console.log('BRIDGEPOINT_PLANE_WRECKS_V1_PASS');
