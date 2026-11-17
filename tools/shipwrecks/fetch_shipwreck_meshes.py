@@ -11,6 +11,7 @@ import hashlib
 import json
 import re
 import struct
+import tarfile
 import urllib.request
 from pathlib import Path
 
@@ -500,6 +501,76 @@ def materialize_timaru(output: Path) -> dict:
     return model
 
 
+def fetch_range(url: str, start: int, end: int) -> tuple[bytes, int]:
+    """Fetch an exact byte range; refuse servers that ignore Range requests."""
+    request = urllib.request.Request(url, headers={
+        "User-Agent": "BridgePoint-Shipwrecks/2.0",
+        "Range": f"bytes={start}-{end}",
+        "Accept-Encoding": "identity",
+    })
+    with urllib.request.urlopen(request, timeout=180) as response:
+        if response.status != 206:
+            raise SystemExit(
+                f"Range request was not honored (HTTP {response.status}); refusing full archive download"
+            )
+        content_range = response.headers.get("Content-Range", "")
+        match = re.fullmatch(r"bytes (\\d+)-(\\d+)/(\\d+)", content_range)
+        if not match:
+            raise SystemExit(f"Invalid Content-Range response: {content_range}")
+        actual_start, actual_end, total = map(int, match.groups())
+        if actual_start != start or actual_end < end or actual_end >= total:
+            raise SystemExit(f"Unexpected byte range returned: {content_range}")
+        payload = response.read(end - start + 2)
+    expected = end - start + 1
+    if len(payload) != expected:
+        raise SystemExit(f"Short range response: expected {expected}, got {len(payload)}")
+    return payload, total
+
+
+def extract_tar_member_by_range(url: str, member_suffix: str, max_bytes: int) -> tuple[bytes, str]:
+    """Extract one uncompressed tar member without downloading the tar shard."""
+    offset = 0
+    total_size = None
+    entries = 0
+    chunk_size = 4 * 1024 * 1024
+    while entries < 20000:
+        header, total = fetch_range(url, offset, offset + 511)
+        total_size = total
+        if header == b"\\0" * 512:
+            break
+        name = header[:100].split(b"\\0", 1)[0].decode("utf-8", "replace")
+        prefix = header[345:500].split(b"\\0", 1)[0].decode("utf-8", "replace")
+        full_name = f"{prefix}/{name}" if prefix else name
+        size_field = header[124:136].strip(b"\\0 ")
+        try:
+            member_size = int(size_field or b"0", 8)
+        except ValueError as exc:
+            raise SystemExit(f"Invalid tar member size at byte {offset}: {full_name}") from exc
+        data_offset = offset + 512
+        if full_name.endswith(member_suffix):
+            if member_size <= 0 or member_size > max_bytes:
+                raise SystemExit(
+                    f"HMS Loo tar member size {member_size} is outside the allowed range"
+                )
+            chunks = []
+            cursor = data_offset
+            remaining = member_size
+            while remaining:
+                take = min(chunk_size, remaining)
+                block, _ = fetch_range(url, cursor, cursor + take - 1)
+                chunks.append(block)
+                cursor += take
+                remaining -= take
+            return b"".join(chunks), full_name
+        offset = data_offset + ((member_size + 511) // 512) * 512
+        entries += 1
+        if total_size is not None and offset >= total_size:
+            break
+    raise SystemExit(
+        f"HMS Loo member {member_suffix} was not found in the tar after {entries} headers"
+    )
+
+
 def materialize_hms_loo(output: Path) -> dict:
     """Mirror NOAA / ECU's CC BY 4.0 HMS Loo wrecksite GLB from a pinned HF revision."""
     registry_url = "https://huggingface.co/api/datasets/Stable-X/ScanSceneverse"
@@ -507,34 +578,19 @@ def materialize_hms_loo(output: Path) -> dict:
     revision = str(registry.get("sha") or "").strip()
     if not re.fullmatch(r"[0-9a-f]{40}", revision):
         raise SystemExit("ScanSceneverse did not provide an immutable 40-character dataset revision")
-    # Resolve the scene against current Hub content. The dataset viewer metadata
-    # uses shard paths; try the current branch and pinned immutable revision.
+    # GLBs are stored inside 16+ GB tar shards under shards/glbs/.
+    # The index's glbs/000-050/... path maps to shards/glbs/glbs-0050.tar.
+    # Use HTTP Range reads to extract only this one member; never download the
+    # full tar shard to the build runner.
     scene_id = "fc5901d8556743458c40aa4a096f01b6"
-    source_file = None
-    raw = None
-    download_errors = []
-    for shard in ("000-050", "000-051", "000-000"):
-        candidate = f"glbs/{shard}/{scene_id}.glb"
-        for ref in ("main", revision):
-            url = (
-                "https://huggingface.co/datasets/Stable-X/ScanSceneverse/resolve/"
-                + ref + "/" + candidate
-            )
-            try:
-                raw = fetch_bytes(
-                    url, max_bytes=MAX_HMS_LOO_SOURCE_BYTES, label="HMS Loo GLB"
-                )
-                source_file = candidate
-                break
-            except Exception as exc:
-                download_errors.append(f"{ref}/{candidate}: {exc}")
-        if raw is not None:
-            break
-    if raw is None or not source_file:
-        raise SystemExit(
-            "HMS Loo GLB not downloadable from current or pinned Hub refs: "
-            + " | ".join(download_errors)
-        )
+    source_file = f"glbs/000-050/{scene_id}.glb"
+    tar_url = (
+        "https://huggingface.co/datasets/Stable-X/ScanSceneverse/resolve/"
+        + revision + "/shards/glbs/glbs-0050.tar"
+    )
+    raw, tar_member_name = extract_tar_member_by_range(
+        tar_url, f"000-050/{scene_id}.glb", MAX_HMS_LOO_SOURCE_BYTES
+    )
     if len(raw) < 32 or raw[:4] != b"glTF":
         raise SystemExit("HMS Loo source is not a valid binary glTF")
     version, declared_length = struct.unpack_from("<II", raw, 4)
@@ -567,6 +623,8 @@ def materialize_hms_loo(output: Path) -> dict:
         "datasetUrl": "https://huggingface.co/datasets/Stable-X/ScanSceneverse",
         "datasetRevision": revision,
         "sourceFile": source_file,
+        "tarMemberName": tar_member_name,
+        "tarShard": "shards/glbs/glbs-0050.tar",
         "locationSourceUrl": "https://shipwrecksmap.com/wrecks/hms-looe-1741/",
         "historySourceUrl": "https://floridakeys.noaa.gov/shipwrecks/hms-loo.html",
         "depthSourceUrl": "https://library.oarcloud.noaa.gov/noaa_documents.lib/NOS/CZIC/EIS_Looe_Key_1980.pdf",
@@ -597,7 +655,7 @@ def materialize_hms_loo(output: Path) -> dict:
     manifest = json.loads(catalog_path.read_text(encoding="utf-8")) if catalog_path.exists() else {"version": 1}
     manifest["hmsLoo"] = model
     catalog_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
-    print("BRIDGEPOINT_HMS_LOO_CC_BY_GLB_READY", len(raw), "source bytes", target.stat().st_size, "compressed bytes")
+    print("BRIDGEPOINT_HMS_LOO_CC_BY_GLB_READY", tar_member_name, len(raw), "source bytes", target.stat().st_size, "compressed bytes")
     return model
 
 
