@@ -25,7 +25,7 @@ print("BRIDGEPOINT_KWAJ_RIGHTS",json.dumps({
 exts=Counter()
 candidates=[]
 dirs=set()
-with HttpRangeReader(ARCHIVE_URL) as remote:
+with HttpRangeReader(ARCHIVE_URL, block_size=8*1024*1024) as remote:
     with zipfile.ZipFile(remote) as archive:
         infos=archive.infolist()
         print("BRIDGEPOINT_KWAJ_MEMBER_COUNT",len(infos))
@@ -44,7 +44,7 @@ print("BRIDGEPOINT_KWAJ_KWAJ_TOP_LEVEL_DIRS",json.dumps(sorted(dirs)))
 print("BRIDGEPOINT_KWAJ_FILE_EXTENSIONS",json.dumps(exts.most_common(40)))
 print("BRIDGEPOINT_KWAJ_MESH_CANDIDATES",json.dumps(candidates[:500]))
 
-with HttpRangeReader(ARCHIVE_URL) as remote:
+with HttpRangeReader(ARCHIVE_URL, block_size=8*1024*1024) as remote:
     with zipfile.ZipFile(remote) as archive:
         member="KWAJ/train/sparse/0/points3D.bin"
         info=archive.getinfo(member)
