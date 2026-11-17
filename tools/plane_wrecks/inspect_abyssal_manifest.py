@@ -3,6 +3,7 @@
 from __future__ import annotations
 import json
 import re
+import struct
 import urllib.request
 import zipfile
 from collections import Counter
@@ -42,3 +43,40 @@ with HttpRangeReader(ARCHIVE_URL) as remote:
 print("BRIDGEPOINT_KWAJ_KWAJ_TOP_LEVEL_DIRS",json.dumps(sorted(dirs)))
 print("BRIDGEPOINT_KWAJ_FILE_EXTENSIONS",json.dumps(exts.most_common(40)))
 print("BRIDGEPOINT_KWAJ_MESH_CANDIDATES",json.dumps(candidates[:500]))
+
+with HttpRangeReader(ARCHIVE_URL) as remote:
+    with zipfile.ZipFile(remote) as archive:
+        member="KWAJ/train/sparse/0/points3D.bin"
+        info=archive.getinfo(member)
+        raw=archive.read(member)
+        if len(raw)!=info.file_size or len(raw)<8:
+            raise SystemExit("KWAJ COLMAP points3D.bin extraction failed")
+        count=struct.unpack_from("<Q",raw,0)[0]
+        offset=8
+        mins=[float("inf")]*3
+        maxs=[float("-inf")]*3
+        tracks=0
+        colors=0
+        samples=[]
+        for index in range(count):
+            if offset+43>len(raw):
+                raise SystemExit("Truncated COLMAP points3D.bin record")
+            point_id=struct.unpack_from("<Q",raw,offset)[0];offset+=8
+            xyz=struct.unpack_from("<ddd",raw,offset);offset+=24
+            rgb=struct.unpack_from("<BBB",raw,offset);offset+=3
+            error=struct.unpack_from("<d",raw,offset)[0];offset+=8
+            track_len=struct.unpack_from("<Q",raw,offset)[0];offset+=8
+            track_bytes=track_len*8
+            if offset+track_bytes>len(raw):
+                raise SystemExit("Truncated COLMAP point track")
+            offset+=track_bytes
+            tracks+=track_len
+            for axis in range(3):
+                mins[axis]=min(mins[axis],xyz[axis]);maxs[axis]=max(maxs[axis],xyz[axis])
+            if index<5:
+                samples.append({"id":point_id,"xyz":xyz,"rgb":rgb,"error":error,"track":track_len})
+        print("BRIDGEPOINT_KWAJ_COLMAP_POINTS",json.dumps({
+            "member":member,"bytes":len(raw),"pointCount":count,"meanTrackLength":tracks/max(1,count),
+            "bounds":{"min":mins,"max":maxs,"size":[maxs[i]-mins[i] for i in range(3)]},
+            "sample":samples,"trailingBytes":len(raw)-offset
+        }))
