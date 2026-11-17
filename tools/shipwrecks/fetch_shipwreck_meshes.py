@@ -514,7 +514,7 @@ def fetch_range(url: str, start: int, end: int) -> tuple[bytes, int]:
                 f"Range request was not honored (HTTP {response.status}); refusing full archive download"
             )
         content_range = response.headers.get("Content-Range", "")
-        match = re.fullmatch(r"bytes (\\d+)-(\\d+)/(\\d+)", content_range)
+        match = re.fullmatch(r"bytes ([0-9]+)-([0-9]+)/([0-9]+)", content_range)
         if not match:
             raise SystemExit(f"Invalid Content-Range response: {content_range}")
         actual_start, actual_end, total = map(int, match.groups())
