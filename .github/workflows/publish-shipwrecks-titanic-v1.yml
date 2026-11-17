@@ -256,7 +256,8 @@ jobs:
           for raw in sys.argv[1:]:
               p=Path(raw);s=p.read_text(encoding='utf-8')
               s,n=re.subn(r'\bfrom\s*(["\'])three\1','from "/vendor/three.module.js?v=169-local"',s)
-              if n<1 or re.search(r'\bfrom\s*(["\'])three\1',s):
+              already_patched='from "/vendor/three.module.js?v=169-local"' in s
+              if (n<1 and not already_patched) or re.search(r'\bfrom\s*(["\'])three\1',s):
                   raise SystemExit(p.name+': unresolved external Three.js import')
               if 'esm.sh' in s or 'unpkg.com' in s:
                   raise SystemExit(p.name+': external CDN dependency found')

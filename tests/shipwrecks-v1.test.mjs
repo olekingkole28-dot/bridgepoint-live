@@ -176,6 +176,7 @@ assert.ok(workflow.includes('overlay_files={'));
 assert.ok(workflow.includes('"assets/shipwrecks/robert-gaskin-photogrammetry.glb.gz"'));
 assert.ok(workflow.includes('"vendor/GLTFLoader.bundle.js"'));
 assert.ok(workflow.includes('"vendor/DRACOLoader.bundle.js"'));
+assert.ok(workflow.includes('already_patched=\'from "/vendor/three.module.js?v=169-local"\' in s'),'publisher accepts the already-local GLTFLoader bundle from the production baseline');
 assert.ok(workflow.includes('"vendor/draco/draco_decoder.js"'));
 assert.ok(workflow.includes('"vendor/draco/draco_decoder.wasm"'));
 assert.ok(workflow.includes('"vendor/draco/draco_wasm_wrapper.js"'));
