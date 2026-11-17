@@ -11,16 +11,10 @@ on:
       - 'rebuild-v5000/app.js'
       - 'tools/plane_wrecks/build_f4u1_corsair.py'
       - 'tests/plane-wrecks-v1.test.mjs'
-  push:
+  workflow_run:
+    workflows: ["Publish BridgePoint Shipwrecks v11 — BridgePoint-hosted underwater wreck viewers"]
+    types: [completed]
     branches: [main]
-    paths:
-      - '.github/workflows/publish-plane-wrecks-v1.yml'
-      - 'rebuild-v5000/bridgepoint-plane-wrecks-v1.js'
-      - 'rebuild-v5000/bridgepoint-drone-awareness-v1.js'
-      - 'rebuild-v5000/landing.js'
-      - 'rebuild-v5000/app.js'
-      - 'tools/plane_wrecks/build_f4u1_corsair.py'
-      - 'tests/plane-wrecks-v1.test.mjs'
   workflow_dispatch:
 
 permissions:
@@ -51,33 +45,8 @@ jobs:
           node tests/plane-wrecks-v1.test.mjs
           node tests/shipwrecks-v1.test.mjs
           node tests/drone-awareness.test.mjs
-      - name: Build the licensed F4U-1 Corsair point-cloud GLB from the original underwater reconstruction
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 tools/plane_wrecks/build_f4u1_corsair.py --output assets/plane-wrecks
-          python3 - <<'PY'
-          import gzip,json,struct
-          from pathlib import Path
-          root=Path('assets/plane-wrecks')
-          asset=root/'f4u1-corsair-kwajalein-photogrammetry.glb.gz'
-          catalog=json.loads((root/'catalog.json').read_text(encoding='utf-8'))
-          raw=gzip.decompress(asset.read_bytes())
-          assert raw[:4]==b'glTF' and struct.unpack_from('<I',raw,8)[0]==len(raw)
-          json_len=struct.unpack_from('<I',raw,12)[0]
-          document=json.loads(raw[20:20+json_len].decode('utf-8').rstrip(' '))
-          model=catalog
-          assert model['license']=='CC BY 4.0'
-          assert model['sourcePointCount']>=500000
-          assert model['renderedPointCount']>=400000
-          assert document['meshes'][0]['primitives'][0]['mode']==0
-          assert document['meshes'][0]['primitives'][0]['attributes']['COLOR_0']==1
-          assert asset.stat().st_size<32*1024*1024
-          print('BRIDGEPOINT_F4U1_CORSair_SOURCE_AND_GLTF_PASS',model['renderedPointCount'],'points',len(raw),'GLB bytes',asset.stat().st_size,'compressed bytes')
-          PY
-
   publish:
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
     concurrency:
       group: bridgepoint-v5000-production-authority
       cancel-in-progress: false
