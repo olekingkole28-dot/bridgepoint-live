@@ -1,5 +1,5 @@
 /* BridgePoint Plane Wrecks v1 — persistent underwater aircraft wreck markers and BridgePoint-hosted scans. */
-const VERSION=1;
+const VERSION=2;
 const STATES=new WeakMap();
 const THREE_URL='/vendor/three.module.js?v=169-local';
 const GLTF_URL='/vendor/GLTFLoader.bundle.js?v=169-local';
@@ -92,9 +92,44 @@ export function buildPlaneWreckFeatures(){
   properties:{wreckId:wreck.id,name:wreck.name,label:wreck.label,iconImage:ICON_ID,depthM:wreck.depthM}
  }];
 }
+function ensurePersistentMarker(state,visible=state.enabled){
+ const Marker=window.maplibregl?.Marker;
+ if(typeof Marker!=='function')return false;
+ try{
+  if(!state.domMarker){
+   const element=document.createElement('button');
+   element.type='button';
+   element.className='bp-plane-wreck-dom-marker-v2';
+   element.setAttribute('aria-label','F4U-1 Corsair shipwreck marker. Open aircraft wreck details.');
+   element.setAttribute('title','F4U-1 Corsair — BuNo 56267 · open BridgePoint wreck card');
+   element.innerHTML='<svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><path d="M29 4h6l4 20 20 10v6L39 35l2 15 9 7v4l-18-5-18 5v-4l9-7 2-15L5 40v-6l20-10z" fill="currentColor" stroke="#fff1ca" stroke-width="1.7" stroke-linejoin="round"/></svg>';
+   element.addEventListener('click',event=>{
+    event.preventDefault();
+    event.stopPropagation();
+    if(state.enabled)openPopup(state,F4U1_CORSAIR_WRECK.coordinates);
+   });
+   state.domMarkerElement=element;
+   state.domMarker=new Marker({element,anchor:'center',offset:[0,0]});
+  }
+  state.domMarker.setLngLat(F4U1_CORSAIR_WRECK.coordinates).addTo(state.map);
+  const element=state.domMarker.getElement?.()||state.domMarkerElement;
+  if(element){
+   element.hidden=!visible;
+   element.setAttribute('aria-hidden',String(!visible));
+   element.disabled=!visible;
+  }
+  state.stats.domMarkerReady=true;
+  state.stats.domMarkerVisible=!!visible;
+  return true;
+ }catch(error){
+  state.stats.domMarkerError=String(error?.message||error);
+  return false;
+ }
+}
 function installLayers(state){
  const map=state.map;
- if(!map?.getStyle?.())return false;
+ const markerReady=ensurePersistentMarker(state,state.enabled);
+ if(!map?.getStyle?.()){state.stats.layersReady=false;return markerReady;}
  try{
   allowed(state,state.enabled);
   if(!map.hasImage?.(ICON_ID))map.addImage(ICON_ID,makePlaneIcon(),{pixelRatio:2});
@@ -113,7 +148,7 @@ function installLayers(state){
     'circle-color':'#e7b95d','circle-opacity':0.38,'circle-blur':0.50
    }
   });
-  add(MARKER_ID,{
+  if(!markerReady)add(MARKER_ID,{
    id:MARKER_ID,type:'symbol',source:SOURCE_ID,minzoom:0,maxzoom:24,
    layout:{
     visibility:state.enabled?'visible':'none','icon-image':ICON_ID,
@@ -142,6 +177,8 @@ function installLayers(state){
 }
 function setVisibility(state,visible){
  allowed(state,visible);
+ ensurePersistentMarker(state,visible);
+ if(!state.map?.getStyle?.())return;
  const value=visible?'visible':'none';
  for(const id of [HALO_ID,MARKER_ID,LABEL_ID]){
   if(!state.map.getLayer(id))continue;
@@ -454,6 +491,10 @@ function addStyles(){
  style.textContent=
   '#'+CONTROL_ID+' .bpv-data-note{font:600 10px/1.45 system-ui,sans-serif;color:#9bb7c6;margin:5px 2px;overflow-wrap:anywhere}'+
   '#'+TOGGLE_ID+'.is-active{border-color:rgba(235,192,112,.9);background:rgba(102,71,28,.52);box-shadow:inset 0 0 0 1px rgba(255,226,165,.2)}'+
+  '.bp-plane-wreck-dom-marker-v2{display:grid;place-items:center;width:42px;height:42px;padding:0;border:1px solid rgba(255,232,178,.98);border-radius:50%;background:radial-gradient(circle,rgba(13,35,49,.96) 38%,rgba(5,17,27,.90) 74%);color:#f4c978;box-shadow:0 0 0 3px rgba(232,186,94,.20),0 2px 12px rgba(0,0,0,.85);cursor:pointer;touch-action:manipulation;z-index:40}'+
+  '.bp-plane-wreck-dom-marker-v2[hidden]{display:none!important}'+
+  '.bp-plane-wreck-dom-marker-v2 svg{display:block;width:29px;height:29px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.95))}'+
+  '.bp-plane-wreck-dom-marker-v2:focus-visible{outline:3px solid #fff;outline-offset:3px}'+
   '.bp-plane-wreck-popup-wrap-v1 .maplibregl-popup-content{background:#06131f;color:#e8f5fb;border:1px solid rgba(231,187,103,.62);border-radius:13px;padding:12px;font:12px/1.45 system-ui,sans-serif;max-height:min(82vh,820px);overflow:auto;width:min(450px,calc(100vw - 44px))}'+
   '.bp-plane-wreck-popup-wrap-v1 .maplibregl-popup-tip{border-top-color:#06131f;border-bottom-color:#06131f}'+
   '.bp-plane-wreck-kicker-v1{font-size:9px;letter-spacing:.13em;font-weight:900;color:#f0c878}.bp-plane-wreck-popup-v1 h3{font-size:18px;color:#fff;margin:4px 0}.bp-plane-wreck-subtitle-v1{color:#c4d6df;margin:2px 0 8px}'+
@@ -506,13 +547,18 @@ function bindInteractions(state){
  state.handleVisibility=()=>{
   if(!state.enabled)return;
   allowed(state,true);
-  if(!installLayers(state)){
-   setStatus(state,'Plane Wrecks ON · waiting for map style to restore the aircraft icon.');
+  const markerReady=ensurePersistentMarker(state,true);
+  const layersReady=installLayers(state);
+  if(!layersReady||!state.stats.layersReady){
+   setStatus(state,markerReady
+    ?'Plane Wrecks ON · the Corsair icon is already visible as a persistent map marker; style labels are still loading.'
+    :'Plane Wrecks ON · waiting for the globe style and map marker support.');
    refreshUi(state);return;
   }
   setVisibility(state,true);
   if(state.modelRoot&&!state.map.getLayer(MODEL_LAYER_ID))ensureNativeMapLayer(state);
   maybeAutoMaterialize(state);
+  setStatus(state,'Plane Wrecks ON · the Corsair icon stays visible through style and camera changes. Select it for the BridgePoint-hosted scan and wreck details.');
   refreshUi(state);
  };
  state.map.on('click',state.handleClick);
@@ -523,8 +569,15 @@ async function setEnabled(state,on){
  state.enabled=!!on;
  if(state.enabled){
   allowed(state,true);
-  if(!installLayers(state))setStatus(state,'Plane Wrecks ON · waiting for the globe style before showing the Corsair icon.');
-  else setStatus(state,'Plane Wrecks ON · the F4U-1 Corsair icon is persistent. Select it for the BridgePoint-hosted scan and wreck details.');
+  const markerReady=ensurePersistentMarker(state,true);
+  const layersReady=installLayers(state);
+  if(!layersReady||!state.stats.layersReady){
+   setStatus(state,markerReady
+    ?'Plane Wrecks ON · the Corsair icon is visible now; map-style labels will finish loading when the style is ready.'
+    :'Plane Wrecks ON · waiting for the globe style and map marker support.');
+  }else{
+   setStatus(state,'Plane Wrecks ON · the Corsair icon stays visible through style and camera changes. Select it for the BridgePoint-hosted scan and wreck details.');
+  }
   if(state.modelRoot){
    state.modelVisible=true;
    if(!state.map.getLayer(MODEL_LAYER_ID))ensureNativeMapLayer(state);
@@ -547,11 +600,12 @@ export function initPlaneWrecksRenderer(target){
  const existing=STATES.get(map);if(existing)return existing.api;
  const state={
   map,enabled:false,destroyed:false,popup:null,interactionsBound:false,
+  domMarker:null,domMarkerElement:null,
   modelVisible:false,modelAutoAttempted:false,modelRoot:null,modelPromise:null,modelBounds:null,
   mapRenderer:null,mapScene:null,mapCamera:null,THREE:null,GLTFLoader:null,
   modelStatus:'BridgePoint-hosted Corsair point-cloud scan has not been loaded.',
   status:'Plane Wrecks off',
-  stats:{version:VERSION,parts:1,models:1,pointCount:812536,layersReady:false,nativeLayerReady:false,lastError:null}
+  stats:{version:VERSION,parts:1,models:1,pointCount:812536,layersReady:false,nativeLayerReady:false,domMarkerReady:false,domMarkerVisible:false,lastError:null}
  };
  const api={
   version:VERSION,
@@ -564,12 +618,15 @@ export function initPlaneWrecksRenderer(target){
   refresh(){
    const source=map.getSource(SOURCE_ID);
    source?.setData?.({type:'FeatureCollection',features:buildPlaneWreckFeatures()});
+   if(state.enabled)ensurePersistentMarker(state,true);
    return Object.assign({},state.stats);
   },
   showOnSeabed(){return showOnSeabed(state);},
   destroy(){
    state.destroyed=true;state.enabled=false;state.modelVisible=false;
    if(state.popup)state.popup.remove();
+   try{state.domMarker?.remove?.();}catch(_){}
+   state.domMarker=null;state.domMarkerElement=null;
    if(state.handleClick)map.off('click',state.handleClick);
    if(state.handleVisibility){
     for(const event of ['style.load','load','idle','moveend','zoomend','rotateend','pitchend'])
