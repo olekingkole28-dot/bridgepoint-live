@@ -11,7 +11,6 @@ on:
       - 'rebuild-v5000/landing.js'
       - 'rebuild-v5000/app.js'
       - 'tests/shipwrecks-v1.test.mjs'
-      - 'tools/shipwrecks/fetch_shipwreck_meshes.py'
       - 'tests/drone-awareness.test.mjs'
       - 'tests/vessel-awareness.test.mjs'
       - 'docs/bridgepoint-shipwrecks-v1.md'
