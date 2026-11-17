@@ -1,0 +1,331 @@
+name: Publish BridgePoint Plane Wrecks v1 — F4U-1 Corsair photogrammetry
+# Additive first aircraft wreck: one persistent icon, a BridgePoint-hosted 3D viewer and a seabed point-cloud layer.
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/publish-plane-wrecks-v1.yml'
+      - 'rebuild-v5000/bridgepoint-plane-wrecks-v1.js'
+      - 'rebuild-v5000/bridgepoint-drone-awareness-v1.js'
+      - 'rebuild-v5000/landing.js'
+      - 'rebuild-v5000/app.js'
+      - 'tools/plane_wrecks/build_f4u1_corsair.py'
+      - 'tests/plane-wrecks-v1.test.mjs'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-plane-wrecks-v1.yml'
+      - 'rebuild-v5000/bridgepoint-plane-wrecks-v1.js'
+      - 'rebuild-v5000/bridgepoint-drone-awareness-v1.js'
+      - 'rebuild-v5000/landing.js'
+      - 'rebuild-v5000/app.js'
+      - 'tools/plane_wrecks/build_f4u1_corsair.py'
+      - 'tests/plane-wrecks-v1.test.mjs'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  validate:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check Plane Wrecks renderer and shared visibility guard syntax and regression tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module --check < rebuild-v5000/bridgepoint-plane-wrecks-v1.js
+          node --check rebuild-v5000/bridgepoint-drone-awareness-v1.js
+          node --check rebuild-v5000/landing.js
+          node --check rebuild-v5000/app.js
+          python3 -m py_compile tools/plane_wrecks/build_f4u1_corsair.py
+          node tests/plane-wrecks-v1.test.mjs
+          node tests/shipwrecks-v1.test.mjs
+          node tests/drone-awareness.test.mjs
+      - name: Build the licensed F4U-1 Corsair point-cloud GLB from the original underwater reconstruction
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/plane_wrecks/build_f4u1_corsair.py --output assets/plane-wrecks
+          python3 - <<'PY'
+          import gzip,json,struct
+          from pathlib import Path
+          root=Path('assets/plane-wrecks')
+          asset=root/'f4u1-corsair-kwajalein-photogrammetry.glb.gz'
+          catalog=json.loads((root/'catalog.json').read_text(encoding='utf-8'))
+          raw=gzip.decompress(asset.read_bytes())
+          assert raw[:4]==b'glTF' and struct.unpack_from('<I',raw,8)[0]==len(raw)
+          json_len=struct.unpack_from('<I',raw,12)[0]
+          document=json.loads(raw[20:20+json_len].decode('utf-8').rstrip(' '))
+          model=catalog
+          assert model['license']=='CC BY 4.0'
+          assert model['sourcePointCount']>=500000
+          assert model['renderedPointCount']>=400000
+          assert document['meshes'][0]['primitives'][0]['mode']==0
+          assert document['meshes'][0]['primitives'][0]['attributes']['COLOR_0']==1
+          assert asset.stat().st_size<32*1024*1024
+          print('BRIDGEPOINT_F4U1_CORSair_SOURCE_AND_GLTF_PASS',model['renderedPointCount'],'points',len(raw),'GLB bytes',asset.stat().st_size,'compressed bytes')
+          PY
+
+  publish:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    concurrency:
+      group: bridgepoint-v5000-production-authority
+      cancel-in-progress: false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate Plane Wrecks renderer and existing overlays
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module --check < rebuild-v5000/bridgepoint-plane-wrecks-v1.js
+          node --check rebuild-v5000/bridgepoint-drone-awareness-v1.js
+          node --check rebuild-v5000/landing.js
+          node --check rebuild-v5000/app.js
+          node tests/plane-wrecks-v1.test.mjs
+          node tests/shipwrecks-v1.test.mjs
+          node tests/drone-awareness.test.mjs
+          python3 -m py_compile tools/plane_wrecks/build_f4u1_corsair.py
+
+      - name: Materialize the rights-checked F4U-1 Corsair underwater photogrammetry point cloud
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/plane_wrecks/build_f4u1_corsair.py --output assets/plane-wrecks
+          python3 - <<'PY'
+          import gzip,json,struct
+          from pathlib import Path
+          root=Path('assets/plane-wrecks')
+          asset=root/'f4u1-corsair-kwajalein-photogrammetry.glb.gz'
+          model=json.loads((root/'catalog.json').read_text(encoding='utf-8'))
+          raw=gzip.decompress(asset.read_bytes())
+          assert raw[:4]==b'glTF' and struct.unpack_from('<I',raw,8)[0]==len(raw)
+          json_len=struct.unpack_from('<I',raw,12)[0]
+          document=json.loads(raw[20:20+json_len].decode('utf-8').rstrip(' '))
+          assert model['license']=='CC BY 4.0'
+          assert model['renderedPointCount']>=400000
+          assert document['meshes'][0]['primitives'][0]['mode']==0
+          assert asset.stat().st_size<32*1024*1024
+          print('BRIDGEPOINT_F4U1_CORSAIR_PUBLISH_ASSET_PASS',model['renderedPointCount'],'points',len(raw),'GLB bytes',asset.stat().st_size,'compressed bytes')
+          PY
+
+      - name: Select latest successful deployed GitHub Pages artifact
+        id: baseline
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json,os,urllib.request
+          repo=os.environ["REPOSITORY"];token=os.environ["GH_TOKEN"]
+          headers={"Accept":"application/vnd.github+json","Authorization":"Bearer "+token,"X-GitHub-Api-Version":"2022-11-28"}
+          def api(path):
+              req=urllib.request.Request("https://api.github.com/repos/"+repo+path,headers=headers)
+              with urllib.request.urlopen(req,timeout=35) as response:return json.load(response)
+          runs=api("/actions/runs?branch=main&per_page=100").get("workflow_runs",[])
+          selected=None
+          for run in runs:
+              if run.get("status")!="completed" or run.get("conclusion")!="success":continue
+              jobs=api(f"/actions/runs/{run['id']}/jobs?per_page=100").get("jobs",[])
+              steps=[step for job in jobs for step in (job.get("steps") or []) if step.get("conclusion")=="success"]
+              uploaded=any("upload" in str(s.get("name","")).lower() and "page" in str(s.get("name","")).lower() for s in steps)
+              deployed=any(("publish" in str(s.get("name","")).lower() or "deploy" in str(s.get("name","")).lower()) for s in steps)
+              if not uploaded or not deployed:continue
+              artifacts=api(f"/actions/runs/{run['id']}/artifacts?per_page=100").get("artifacts",[])
+              match=next((a for a in artifacts if not a.get("expired") and
+                  (str(a.get("name","")).startswith("github-pages-") or str(a.get("name","")).startswith("bridgepoint-v5000-"))),None)
+              if match:
+                  selected=(str(run["id"]),match["name"])
+                  print("LATEST_SUCCESSFUL_PAGES_BASELINE",run["id"],run.get("name"),match["name"],match.get("size_in_bytes"))
+                  break
+          if not selected:raise SystemExit("No successful, unexpired production Pages artifact found; refusing to publish.")
+          with open(os.environ["GITHUB_OUTPUT"],"a",encoding="utf-8") as out:
+              out.write("run_id="+selected[0]+"\n")
+              out.write("artifact_name="+selected[1]+"\n")
+          PY
+
+      - name: Download the preserved production Pages artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ steps.baseline.outputs.artifact_name }}
+          run-id: ${{ steps.baseline.outputs.run_id }}
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/plane-wrecks-baseline
+
+      - name: Restore production site and fingerprint all existing files
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCHIVE="$(find "$RUNNER_TEMP/plane-wrecks-baseline" -type f -name artifact.tar -print -quit)"
+          test -n "$ARCHIVE"
+          SITE="$RUNNER_TEMP/plane-wrecks-site"
+          mkdir -p "$SITE"
+          tar -xf "$ARCHIVE" -C "$SITE"
+          for file in index.html app/index.html landing.js app.js vendor/three.module.js bridgepoint-drone-awareness-v1.js bridgepoint-shipwrecks-v1.js; do
+            test -s "$SITE/$file" || { echo "Production baseline is missing $file; refusing to publish."; exit 1; }
+          done
+          python3 - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          site=Path(os.environ["RUNNER_TEMP"])/"plane-wrecks-site"
+          before={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob("*") if p.is_file()}
+          (Path(os.environ["RUNNER_TEMP"])/"plane-wrecks-before.json").write_text(json.dumps(before,sort_keys=True))
+          print("PLANE_WRECKS_BASELINE_FINGERPRINT_PASS",len(before),"files")
+          PY
+
+      - name: Ensure BridgePoint-hosted GLTFLoader is available
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/plane-wrecks-site"
+          if [ ! -s "$SITE/vendor/GLTFLoader.bundle.js" ]; then
+            R="$RUNNER_TEMP/plane-wrecks-loader-runtime"
+            mkdir -p "$R" "$SITE/vendor"
+            npm install --prefix "$R" --no-audit --no-fund --no-save three@0.169.0 esbuild@0.24.2
+            "$R/node_modules/.bin/esbuild" "$R/node_modules/three/examples/jsm/loaders/GLTFLoader.js" --bundle --format=esm --minify --external:three --outfile="$SITE/vendor/GLTFLoader.bundle.js"
+            python3 - "$SITE/vendor/GLTFLoader.bundle.js" <<'PY'
+          import re,sys
+          from pathlib import Path
+          p=Path(sys.argv[1]);s=p.read_text(encoding="utf-8")
+          s,n=re.subn(r'\bfrom\s*(["\'])three\1','from "/vendor/three.module.js?v=169-local"',s)
+          if n<1 and 'from "/vendor/three.module.js?v=169-local"' not in s:raise SystemExit("GLTFLoader external Three import patch failed")
+          if re.search(r'\bfrom\s*(["\'])three\1',s):raise SystemExit("GLTFLoader has unresolved Three import")
+          p.write_text(s,encoding="utf-8")
+          PY
+          fi
+          node --input-type=module --check < "$SITE/vendor/GLTFLoader.bundle.js"
+          grep -Fq 'from "/vendor/three.module.js?v=169-local"' "$SITE/vendor/GLTFLoader.bundle.js"
+
+      - name: Overlay only the first Plane Wrecks feature and its point-cloud asset
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/plane-wrecks-site"
+          mkdir -p "$SITE/app" "$SITE/assets/plane-wrecks"
+          cp rebuild-v5000/bridgepoint-plane-wrecks-v1.js "$SITE/bridgepoint-plane-wrecks-v1.js"
+          cp rebuild-v5000/bridgepoint-plane-wrecks-v1.js "$SITE/app/bridgepoint-plane-wrecks-v1.js"
+          cp rebuild-v5000/bridgepoint-drone-awareness-v1.js "$SITE/bridgepoint-drone-awareness-v1.js"
+          cp -a assets/plane-wrecks/. "$SITE/assets/plane-wrecks/"
+          python3 - <<'PY'
+          import hashlib,json,os,re
+          from pathlib import Path
+          site=Path(os.environ["RUNNER_TEMP"])/"plane-wrecks-site"
+          before=json.loads((Path(os.environ["RUNNER_TEMP"])/"plane-wrecks-before.json").read_text())
+          expected_changed={"landing.js","app.js","index.html","app/index.html","bridgepoint-drone-awareness-v1.js"}
+          overlay_files={"bridgepoint-plane-wrecks-v1.js","app/bridgepoint-plane-wrecks-v1.js",
+             "assets/plane-wrecks/f4u1-corsair-kwajalein-photogrammetry.glb.gz","assets/plane-wrecks/catalog.json"}
+          for rel,needle in (("landing.js","planeWrecks=f4u1-corsair-v1"),("app.js","planeWrecks=f4u1-corsair-v1")):
+              p=site/rel
+              data=p.read_text(encoding="utf-8")
+              source=data
+              if "initPlaneWrecksRenderer(world)" not in data:
+                  raise SystemExit(f"{rel}: Plane Wrecks module import missing")
+              p.write_text(data,encoding="utf-8")
+          for rel,script in (("index.html","landing.js"),("app/index.html","app.js")):
+              p=site/rel;data=p.read_text(encoding="utf-8")
+              hits=list(re.finditer(r'src="([^"]*'+re.escape(script)+r'(?:\?[^"]*)?)"',data))
+              if len(hits)!=1:raise SystemExit(f"{rel}: expected one {script} script URL, got {len(hits)}")
+              url=hits[0].group(1)
+              if "planeWrecks=f4u1-corsair-v1" not in url:
+                  data=data.replace(url,url+("&" if "?" in url else "?")+"planeWrecks=f4u1-corsair-v1",1)
+              guard=list(re.finditer(r'src="([^"]*bridgepoint-drone-awareness-v1\.js(?:\?[^"]*)?)"',data))
+              if len(guard)!=1:raise SystemExit(f"{rel}: expected one overlay-guard script URL")
+              old=guard[0].group(1)
+              updated=re.sub(r'([?&]v=)[^&"]+',r'\g<1>13-plane-wrecks-f4u1',old,count=1) if re.search(r'[?&]v=',old) else old+("&" if "?" in old else "?")+"v=13-plane-wrecks-f4u1"
+              if old!=updated:data=data.replace(old,updated,1)
+              p.write_text(data,encoding="utf-8")
+          after={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob("*") if p.is_file()}
+          removed=set(before)-set(after);added=set(after)-set(before)
+          changed={p for p in before if p in after and before[p]!=after[p]}
+          if removed or not changed.issubset(expected_changed|overlay_files|{"vendor/GLTFLoader.bundle.js"}) or not added.issubset(overlay_files|{"vendor/GLTFLoader.bundle.js"}):
+              raise SystemExit("PLANE_WRECKS_OVERLAY_SCOPE_FAILURE "+json.dumps({"removed":sorted(removed),"changed":sorted(changed),"added":sorted(added)}))
+          required={"bridgepoint-plane-wrecks-v1.js","app/bridgepoint-plane-wrecks-v1.js",
+              "assets/plane-wrecks/f4u1-corsair-kwajalein-photogrammetry.glb.gz","assets/plane-wrecks/catalog.json"}
+          missing=required-set(after)
+          if missing:raise SystemExit("PLANE_WRECKS_REQUIRED_FILE_MISSING "+json.dumps(sorted(missing)))
+          assert (site/"bridgepoint-plane-wrecks-v1.js").read_bytes()==(site/"app/bridgepoint-plane-wrecks-v1.js").read_bytes()
+          print("PLANE_WRECKS_ONLY_OVERLAY_SCOPE_PASS",len(changed),"existing files changed",len(added),"new files added; no removals")
+          PY
+          node --input-type=module --check < "$SITE/bridgepoint-plane-wrecks-v1.js"
+          node --check "$SITE/landing.js"
+          node --check "$SITE/app.js"
+          node --check "$SITE/bridgepoint-drone-awareness-v1.js"
+          cmp -s "$SITE/bridgepoint-plane-wrecks-v1.js" "$SITE/app/bridgepoint-plane-wrecks-v1.js"
+          grep -Fq 'initPlaneWrecksRenderer(world)' "$SITE/landing.js"
+          grep -Fq 'initPlaneWrecksRenderer(world)' "$SITE/app.js"
+          grep -Fq 'planewrecks:/plane[-_]?wreck|aircraft[-_]?wreck/i' "$SITE/bridgepoint-drone-awareness-v1.js"
+          grep -Fq 'data-bp-local-plane-viewer' "$SITE/bridgepoint-plane-wrecks-v1.js"
+          grep -Fq 'BridgePoint-hosted colorized point-cloud' "$SITE/bridgepoint-plane-wrecks-v1.js"
+          grep -Fq 'f4u1-corsair-kwajalein-photogrammetry.glb.gz' "$SITE/bridgepoint-plane-wrecks-v1.js"
+          test -s "$SITE/vendor/GLTFLoader.bundle.js"
+          test -s "$SITE/vendor/three.module.js"
+          echo "BRIDGEPOINT_PLANE_WRECKS_V1_OVERLAY_PASS"
+
+      - uses: actions/configure-pages@v5
+
+      - name: Upload preserved production site with additive Plane Wrecks v1 overlay
+        uses: actions/upload-pages-artifact@v4
+        with:
+          name: github-pages-plane-wrecks-v1
+          path: ${{ runner.temp }}/plane-wrecks-site
+          include-hidden-files: true
+
+      - name: Publish BridgePoint Plane Wrecks v1 — F4U-1 Corsair photogrammetry
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages-plane-wrecks-v1
+
+      - name: Verify live root and app Plane Wrecks modules, marker and hosted Corsair GLB
+        shell: bash
+        run: |
+          set -euo pipefail
+          O='https://bridgepointintelligence.online'
+          Q="$GITHUB_SHA-plane-wrecks-v1"
+          D="$RUNNER_TEMP/plane-wrecks-live"
+          mkdir -p "$D"
+          for item in             "root:$O/?planeWrecks=$Q"             "app:$O/app/?planeWrecks=$Q"             "landing:$O/landing.js?verify=$Q"             "appjs:$O/app.js?verify=$Q"             "module:$O/bridgepoint-plane-wrecks-v1.js?verify=$Q"             "appmodule:$O/app/bridgepoint-plane-wrecks-v1.js?verify=$Q"             "guard:$O/bridgepoint-drone-awareness-v1.js?verify=$Q"             "asset:$O/assets/plane-wrecks/f4u1-corsair-kwajalein-photogrammetry.glb.gz?verify=$Q"             "catalog:$O/assets/plane-wrecks/catalog.json?verify=$Q"             "loader:$O/vendor/GLTFLoader.bundle.js?verify=$Q"; do
+            name="${item%%:*}";url="${item#*:}"
+            curl --retry 6 --retry-all-errors --retry-delay 2 --connect-timeout 20 --max-time 180 -fL               -H 'Cache-Control: no-cache' "$url" -o "$D/$name"
+          done
+          grep -Fq 'BP_FRONTEND_V5000' "$D/root" || { echo "LIVE_VERIFY_FAIL: root globe marker missing"; exit 1; }
+          grep -Fq 'initPlaneWrecksRenderer(world)' "$D/landing" || { echo "LIVE_VERIFY_FAIL: landing entry does not load Plane Wrecks"; exit 1; }
+          grep -Fq 'initPlaneWrecksRenderer(world)' "$D/appjs" || { echo "LIVE_VERIFY_FAIL: app entry does not load Plane Wrecks"; exit 1; }
+          grep -Fq 'Plane Wrecks' "$D/module" || { echo "LIVE_VERIFY_FAIL: Plane Wrecks button module is missing"; exit 1; }
+          grep -Fq 'data-bp-local-plane-viewer' "$D/module" || { echo "LIVE_VERIFY_FAIL: BridgePoint-hosted card viewer missing"; exit 1; }
+          grep -Fq 'initPlaneWrecksRenderer' "$D/appmodule" || { echo "LIVE_VERIFY_FAIL: app module copy missing"; exit 1; }
+          grep -Fq 'planewrecks:/plane[-_]?wreck|aircraft[-_]?wreck/i' "$D/guard" || { echo "LIVE_VERIFY_FAIL: dedicated Plane Wrecks visibility category missing"; exit 1; }
+          cmp -s "$D/module" "$D/appmodule" || { echo "LIVE_VERIFY_FAIL: root/app Plane Wrecks modules differ"; exit 1; }
+          python3 - "$D/asset" "$D/catalog" <<'PY'
+          import gzip,json,struct,sys
+          raw=gzip.decompress(open(sys.argv[1],'rb').read())
+          catalog=json.load(open(sys.argv[2],encoding='utf-8'))
+          assert raw[:4]==b'glTF' and struct.unpack_from('<I',raw,8)[0]==len(raw)
+          json_len=struct.unpack_from('<I',raw,12)[0]
+          doc=json.loads(raw[20:20+json_len].decode('utf-8').rstrip(' '))
+          assert catalog['license']=='CC BY 4.0' and catalog['renderedPointCount']>=400000
+          assert doc['meshes'][0]['primitives'][0]['mode']==0
+          print('BRIDGEPOINT_PLANE_WRECKS_V1_LIVE_ASSET_PASS',catalog['renderedPointCount'],'points',len(raw),'GLB bytes')
+          PY
+          echo "BRIDGEPOINT_PLANE_WRECKS_V1_LIVE_VERIFY_PASS"
