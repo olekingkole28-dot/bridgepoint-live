@@ -1,4 +1,4 @@
-name: Publish BridgePoint Shipwrecks v6 — BridgePoint-hosted underwater wreck viewers
+name: Publish BridgePoint Shipwrecks v7 — BridgePoint-hosted underwater wreck viewers
 # Additive shipwreck overlay: persistent icons + locally hosted GLBs + BridgePoint-native interactive viewers.
 
 on:
@@ -80,7 +80,7 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Validate Shipwrecks v6 renderer, BridgePoint-hosted local viewers and existing overlays
+      - name: Validate Shipwrecks v7 renderer, BridgePoint-hosted local viewers and existing overlays
         shell: bash
         run: |
           set -euo pipefail
@@ -235,34 +235,44 @@ jobs:
           print("SHIPWRECKS_BASELINE_FINGERPRINT_PASS",len(before),"files")
           PY
 
-      - name: Bundle or reuse the local GLTFLoader used by native shipwreck meshes
+      - name: Bundle local GLTFLoader and DRACOLoader with same-origin Draco decoders
         shell: bash
         run: |
           set -euo pipefail
           SITE="$RUNNER_TEMP/shipwrecks-site"
-          mkdir -p "$SITE/vendor"
+          R="$RUNNER_TEMP/shipwrecks-loader-runtime"
+          mkdir -p "$SITE/vendor/draco" "$R"
+          npm install --prefix "$R" --no-audit --no-fund --no-save three@0.169.0 esbuild@0.24.2
           if [ ! -s "$SITE/vendor/GLTFLoader.bundle.js" ]; then
-            R="$RUNNER_TEMP/shipwrecks-loader-runtime"
-            mkdir -p "$R"
-            npm install --prefix "$R" --no-audit --no-fund --no-save three@0.169.0 esbuild@0.24.2
             "$R/node_modules/.bin/esbuild" "$R/node_modules/three/examples/jsm/loaders/GLTFLoader.js" --bundle --format=esm --minify --external:three --outfile="$SITE/vendor/GLTFLoader.bundle.js"
-            python3 - "$SITE/vendor/GLTFLoader.bundle.js" <<'PY'
+          fi
+          "$R/node_modules/.bin/esbuild" "$R/node_modules/three/examples/jsm/loaders/DRACOLoader.js" --bundle --format=esm --minify --external:three --outfile="$SITE/vendor/DRACOLoader.bundle.js"
+          cp "$R/node_modules/three/examples/jsm/libs/draco/draco_decoder.js" "$SITE/vendor/draco/draco_decoder.js"
+          cp "$R/node_modules/three/examples/jsm/libs/draco/draco_decoder.wasm" "$SITE/vendor/draco/draco_decoder.wasm"
+          cp "$R/node_modules/three/examples/jsm/libs/draco/draco_wasm_wrapper.js" "$SITE/vendor/draco/draco_wasm_wrapper.js"
+          python3 - "$SITE/vendor/GLTFLoader.bundle.js" "$SITE/vendor/DRACOLoader.bundle.js" <<'PY'
           import re,sys
           from pathlib import Path
-          p=Path(sys.argv[1]);s=p.read_text(encoding='utf-8')
-          s,n=re.subn(r'\bfrom\s*(["\'])three\1','from "/vendor/three.module.js?v=169-local"',s)
-          if n<1 or re.search(r'\bfrom\s*(["\'])three\1',s):
-              raise SystemExit('GLTFLoader has an unresolved external Three.js import')
-          if 'esm.sh' in s or 'unpkg.com' in s:
-              raise SystemExit('External CDN dependency found in local GLTFLoader bundle')
-          p.write_text(s,encoding='utf-8')
-          print('BRIDGEPOINT_LOCAL_GLTFLOADER_BUNDLE_PASS',p.stat().st_size,'bytes')
+          for raw in sys.argv[1:]:
+              p=Path(raw);s=p.read_text(encoding='utf-8')
+              s,n=re.subn(r'\\bfrom\\s*(["\\'])three\\1','from "/vendor/three.module.js?v=169-local"',s)
+              if n<1 or re.search(r'\\bfrom\\s*(["\\'])three\\1',s):
+                  raise SystemExit(p.name+': unresolved external Three.js import')
+              if 'esm.sh' in s or 'unpkg.com' in s:
+                  raise SystemExit(p.name+': external CDN dependency found')
+              p.write_text(s,encoding='utf-8')
+              print('BRIDGEPOINT_LOCAL_'+p.stem.upper()+'_BUNDLE_PASS',p.stat().st_size,'bytes')
           PY
-          fi
           node --input-type=module --check < "$SITE/vendor/GLTFLoader.bundle.js"
+          node --input-type=module --check < "$SITE/vendor/DRACOLoader.bundle.js"
           grep -Fq 'from "/vendor/three.module.js?v=169-local"' "$SITE/vendor/GLTFLoader.bundle.js"
+          grep -Fq 'from "/vendor/three.module.js?v=169-local"' "$SITE/vendor/DRACOLoader.bundle.js"
+          test -s "$SITE/vendor/draco/draco_decoder.js"
+          test -s "$SITE/vendor/draco/draco_decoder.wasm"
+          test -s "$SITE/vendor/draco/draco_wasm_wrapper.js"
+          echo "BRIDGEPOINT_LOCAL_DRACO_DECODER_ASSETS_PASS"
 
-      - name: Overlay only the Shipwrecks v6 module, four licensed meshes and cache keys
+      - name: Overlay only the Shipwrecks v7 module, four licensed meshes and cache keys
         shell: bash
         run: |
           set -euo pipefail
@@ -276,15 +286,16 @@ jobs:
           from pathlib import Path
           import hashlib,json,os,re
           site=Path(os.environ["RUNNER_TEMP"])/"shipwrecks-site"
-          attach="""void import('./bridgepoint-shipwrecks-v1.js?v=6-titanic-gaskin-grafton-cannon-kxi-local-hosted-viewers')
+          attach="""void import('./bridgepoint-shipwrecks-v1.js?v=7-titanic-gaskin-grafton-cannon-kxi-draco-local-viewer')
            .then(m=>{window.__BP_SHIPWRECKS_V1__=m.initShipwrecksRenderer(world)})
            .catch(e=>console.warn('BridgePoint shipwreck renderer unavailable',e));"""
           old_markers=("bridgepoint-shipwrecks-v1.js?v=1-titanic-noaa-waypoints",
                        "bridgepoint-shipwrecks-v1.js?v=2-titanic-gaskin-native",
                        "bridgepoint-shipwrecks-v1.js?v=3-titanic-gaskin-grafton-native",
                        "bridgepoint-shipwrecks-v1.js?v=4-titanic-gaskin-grafton-cannon-native",
+                       "bridgepoint-shipwrecks-v1.js?v=5-titanic-gaskin-grafton-cannon-local-hosted-viewers",
                        "bridgepoint-shipwrecks-v1.js?v=6-titanic-gaskin-grafton-cannon-kxi-local-hosted-viewers",
-                       "bridgepoint-shipwrecks-v1.js?v=6-titanic-gaskin-grafton-cannon-kxi-local-hosted-viewers")
+                       "bridgepoint-shipwrecks-v1.js?v=7-titanic-gaskin-grafton-cannon-kxi-draco-local-viewer")
           new_marker=old_markers[-1]
           wells_anchor=".catch(e=>console.warn('BridgePoint global subsurface wells renderer unavailable',e));"
           for rel in ("landing.js","app.js"):
@@ -298,7 +309,7 @@ jobs:
                           raise SystemExit(f"{rel}: no unique existing Shipwrecks import/cache key or wells insertion anchor")
                       data=data.replace(wells_anchor,wells_anchor+"\n"+attach,1)
               if new_marker not in data:
-                  raise SystemExit(f"{rel}: Shipwrecks v6 module import is missing")
+                  raise SystemExit(f"{rel}: Shipwrecks v7 module import is missing")
               p.write_text(data,encoding="utf-8")
           for rel,needle in (("index.html","landing.js"),("app/index.html","app.js")):
               p=site/rel;data=p.read_text(encoding="utf-8")
@@ -306,8 +317,8 @@ jobs:
               if len(matches)!=1:
                   raise SystemExit(f"{rel}: expected exactly one {needle} script URL, found {len(matches)}")
               url=matches[0].group(1)
-              if "shipwrecks=titanic-gaskin-grafton-cannon-kxi-v6" not in url:
-                  updated=url+("&" if "?" in url else "?")+"shipwrecks=titanic-gaskin-grafton-cannon-kxi-v6"
+              if "shipwrecks=titanic-gaskin-grafton-cannon-kxi-v7" not in url:
+                  updated=url+("&" if "?" in url else "?")+"shipwrecks=titanic-gaskin-grafton-cannon-kxi-v7"
                   data=data.replace(url,updated,1)
               drone_matches=list(re.finditer(r'src="([^"]*bridgepoint-drone-awareness-v1\.js(?:\?[^"]*)?)"',data))
               if len(drone_matches)!=1:
@@ -333,7 +344,9 @@ jobs:
             "assets/shipwrecks/hms-grafton-photogrammetry.glb.gz",
             "assets/shipwrecks/cannon-photogrammetry.glb.gz",
             "assets/shipwrecks/hnlms-kxi-photogrammetry.glb.gz",
-            "assets/shipwrecks/catalog.json","vendor/GLTFLoader.bundle.js"
+            "assets/shipwrecks/catalog.json","vendor/GLTFLoader.bundle.js",
+            "vendor/DRACOLoader.bundle.js","vendor/draco/draco_decoder.js",
+            "vendor/draco/draco_decoder.wasm","vendor/draco/draco_wasm_wrapper.js"
           }
           # Titanic v1 may already exist in the saved Pages baseline. It is an
           # allowed replacement there, or an allowed addition when absent.
@@ -347,7 +360,9 @@ jobs:
                     "assets/shipwrecks/hms-grafton-photogrammetry.glb.gz",
                     "assets/shipwrecks/cannon-photogrammetry.glb.gz",
                     "assets/shipwrecks/hnlms-kxi-photogrammetry.glb.gz",
-                    "assets/shipwrecks/catalog.json","vendor/GLTFLoader.bundle.js"}
+                    "assets/shipwrecks/catalog.json","vendor/GLTFLoader.bundle.js",
+                    "vendor/DRACOLoader.bundle.js","vendor/draco/draco_decoder.js",
+                    "vendor/draco/draco_decoder.wasm","vendor/draco/draco_wasm_wrapper.js"}
           missing=required-after.keys()
           if missing:
               raise SystemExit("SHIPWRECKS_V2_REQUIRED_RUNTIME_FILE_MISSING "+json.dumps(sorted(missing)))
@@ -367,29 +382,34 @@ jobs:
           grep -Fq 'data-bp-local-wreck-viewer' "$SITE/bridgepoint-shipwrecks-v1.js"
           if grep -Fq 'viewerUrl' "$SITE/bridgepoint-shipwrecks-v1.js"; then echo "External target viewer reference remains in Shipwrecks module"; exit 1; fi
           grep -Fq 'vendor/GLTFLoader.bundle.js' "$SITE/bridgepoint-shipwrecks-v1.js"
-          echo "BRIDGEPOINT_SHIPWRECKS_V5_OVERLAY_PASS"
+          grep -Fq 'vendor/DRACOLoader.bundle.js' "$SITE/bridgepoint-shipwrecks-v1.js"
+          grep -Fq "setDecoderPath('/vendor/draco/')" "$SITE/bridgepoint-shipwrecks-v1.js"
+          test -s "$SITE/vendor/draco/draco_decoder.js"
+          test -s "$SITE/vendor/draco/draco_decoder.wasm"
+          test -s "$SITE/vendor/draco/draco_wasm_wrapper.js"
+          echo "BRIDGEPOINT_SHIPWRECKS_V7_OVERLAY_PASS"
 
       - uses: actions/configure-pages@v5
 
-      - name: Upload the preserved production site with the additive Shipwrecks v6 overlay
+      - name: Upload the preserved production site with the additive Shipwrecks v7 overlay
         uses: actions/upload-pages-artifact@v4
         with:
-          name: github-pages-shipwrecks-v6
+          name: github-pages-shipwrecks-v7
           path: ${{ runner.temp }}/shipwrecks-site
           include-hidden-files: true
 
-      - name: Publish BridgePoint Shipwrecks v6 — BridgePoint-hosted underwater wreck viewers
+      - name: Publish BridgePoint Shipwrecks v7 — BridgePoint-hosted underwater wreck viewers
         id: deployment
         uses: actions/deploy-pages@v4
         with:
-          artifact_name: github-pages-shipwrecks-v6
+          artifact_name: github-pages-shipwrecks-v7
 
       - name: Verify live root/app entry points, seven persistent icons, four native GLBs and local viewers
         shell: bash
         run: |
           set -euo pipefail
           O='https://bridgepointintelligence.online'
-          Q="$GITHUB_SHA-shipwrecks-cannon-v5"
+          Q="$GITHUB_SHA-shipwrecks-draco-v7"
           D="$RUNNER_TEMP/shipwrecks-live"
           mkdir -p "$D"
           for item in \
@@ -401,9 +421,13 @@ jobs:
             "drone.js:$O/bridgepoint-drone-awareness-v1.js?verify=$Q" \
             "gaskin.glb.gz:$O/assets/shipwrecks/robert-gaskin-photogrammetry.glb.gz?verify=$Q" \
             "grafton.glb.gz:$O/assets/shipwrecks/hms-grafton-photogrammetry.glb.gz?verify=$Q" \
-            "cannon.glb.gz:$O/assets/shipwrecks/cannon-photogrammetry.glb.gz?verify=$Q" \\
+            "cannon.glb.gz:$O/assets/shipwrecks/cannon-photogrammetry.glb.gz?verify=$Q" \
             "kxi.glb.gz:$O/assets/shipwrecks/hnlms-kxi-photogrammetry.glb.gz?verify=$Q" \
             "loader.js:$O/vendor/GLTFLoader.bundle.js?verify=$Q" \
+            "draco-loader.js:$O/vendor/DRACOLoader.bundle.js?verify=$Q" \
+            "draco-decoder.js:$O/vendor/draco/draco_decoder.js?verify=$Q" \
+            "draco-wrapper.js:$O/vendor/draco/draco_wasm_wrapper.js?verify=$Q" \
+            "draco-wasm:$O/vendor/draco/draco_decoder.wasm?verify=$Q" \
             "catalog.json:$O/assets/shipwrecks/catalog.json?verify=$Q" \
             "app-module.js:$O/app/bridgepoint-shipwrecks-v1.js?verify=$Q"; do
             name="${item%%:*}"; url="${item#*:}"
@@ -414,8 +438,8 @@ jobs:
           grep -Fq 'BP_FRONTEND_V5000' "$D/root.html" || { echo "LIVE_VERIFY_FAIL: root entry build marker missing"; exit 1; }
           grep -Fq 'bridgepoint-drone-awareness-v1.js' "$D/root.html" || { echo "LIVE_VERIFY_FAIL: root visibility guard script missing"; exit 1; }
           grep -Fq 'bridgepoint-drone-awareness-v1.js' "$D/app.html" || { echo "LIVE_VERIFY_FAIL: app visibility guard script missing"; exit 1; }
-          grep -Fq 'bridgepoint-shipwrecks-v1.js?v=6-titanic-gaskin-grafton-cannon-kxi-local-hosted-viewers' "$D/landing.js" || { echo "LIVE_VERIFY_FAIL: root Shipwrecks import missing"; exit 1; }
-          grep -Fq 'bridgepoint-shipwrecks-v1.js?v=6-titanic-gaskin-grafton-cannon-kxi-local-hosted-viewers' "$D/app.js" || { echo "LIVE_VERIFY_FAIL: app Shipwrecks import missing"; exit 1; }
+          grep -Fq 'bridgepoint-shipwrecks-v1.js?v=7-titanic-gaskin-grafton-cannon-kxi-draco-local-viewer' "$D/landing.js" || { echo "LIVE_VERIFY_FAIL: root Shipwrecks import missing"; exit 1; }
+          grep -Fq 'bridgepoint-shipwrecks-v1.js?v=7-titanic-gaskin-grafton-cannon-kxi-draco-local-viewer' "$D/app.js" || { echo "LIVE_VERIFY_FAIL: app Shipwrecks import missing"; exit 1; }
           echo "LIVE_VERIFY_PASS: root and app entrypoints + Shipwrecks imports"
           grep -Fq 'shipwrecks:/shipwreck|titanic/i' "$D/drone.js" || { echo "LIVE_VERIFY_FAIL: dedicated shipwreck category missing"; exit 1; }
           grep -Fq "shipwrecks:'shipwrecks'" "$D/drone.js" || { echo "LIVE_VERIFY_FAIL: shipwreck category action mapping missing"; exit 1; }
@@ -429,6 +453,8 @@ jobs:
           grep -Fq 'Kanonvraget — Cannon Wreck' "$D/module.js" || { echo "LIVE_VERIFY_FAIL: Kanonvraget popup/catalog missing"; exit 1; }
           grep -Fq 'mountBridgePointLocalWreckViewer' "$D/module.js" || { echo "LIVE_VERIFY_FAIL: BridgePoint-hosted 3D viewer runtime missing"; exit 1; }
           grep -Fq 'data-bp-local-wreck-viewer' "$D/module.js" || { echo "LIVE_VERIFY_FAIL: local 3D viewer mount points missing"; exit 1; }
+          grep -Fq 'import(DRACO_URL)' "$D/module.js" || { echo "LIVE_VERIFY_FAIL: local DRACOLoader import missing"; exit 1; }
+          grep -Fq "setDecoderPath('/vendor/draco/')" "$D/module.js" || { echo "LIVE_VERIFY_FAIL: Draco decoder path missing"; exit 1; }
           if grep -Fq 'viewerUrl' "$D/module.js"; then echo "LIVE_VERIFY_FAIL: external Grafton/Cannon viewer reference remains"; exit 1; fi
           grep -Fq 'CC BY 4.0' "$D/catalog.json" || { echo "LIVE_VERIFY_FAIL: asset licence catalogue missing"; exit 1; }
           python3 - "$D/grafton.glb.gz" "$D/catalog.json" <<'PY'
@@ -471,9 +497,12 @@ jobs:
           PY
           test -s "$D/loader.js" || { echo "LIVE_VERIFY_FAIL: local GLTFLoader bundle missing"; exit 1; }
           grep -Fq 'GLTFLoader' "$D/loader.js" || { echo "LIVE_VERIFY_FAIL: local GLTFLoader export missing"; exit 1; }
+          test -s "$D/draco-loader.js" && grep -Fq 'DRACOLoader' "$D/draco-loader.js" || { echo "LIVE_VERIFY_FAIL: local DRACOLoader bundle missing"; exit 1; }
+          test -s "$D/draco-decoder.js" && test -s "$D/draco-wrapper.js" && test -s "$D/draco-wasm" || { echo "LIVE_VERIFY_FAIL: Draco decoder assets missing"; exit 1; }
+          echo "LIVE_VERIFY_PASS: BridgePoint-hosted DRACO decoder bundle and WASM assets"
           grep -Fq '41° 43′ 57″ N, 49° 56′ 49″ W' "$D/module.js" || { echo "LIVE_VERIFY_FAIL: Titanic bow NOAA coordinate missing"; exit 1; }
           grep -Fq '41° 43′ 35″ N, 49° 56′ 54″ W' "$D/module.js" || { echo "LIVE_VERIFY_FAIL: Titanic stern NOAA coordinate missing"; exit 1; }
           cmp -s "$D/module.js" "$D/app-module.js" || { echo "LIVE_VERIFY_FAIL: root/app Shipwrecks modules differ"; exit 1; }
           grep -Fq '55.6448° N, 12.8688° E' "$D/module.js" || { echo "LIVE_VERIFY_FAIL: Kanonvraget WGS84 coordinates missing"; exit 1; }
           grep -Fq '32° 09.0234′ S, 115° 29.9682′ E' "$D/module.js" || { echo "LIVE_VERIFY_FAIL: HNLMS K XI WGS84 coordinates missing"; exit 1; }
-          echo "BRIDGEPOINT_SHIPWRECKS_V6_LIVE_VERIFY_PASS"
+          echo "BRIDGEPOINT_SHIPWRECKS_V7_LIVE_VERIFY_PASS"

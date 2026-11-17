@@ -106,7 +106,13 @@ assert.match(graftonPopupSource,/bridgePointLocalViewerMarkup\('hms-grafton'/,'H
 assert.match(cannonPopupSource,/bridgePointLocalViewerMarkup\('kanonvraget'/,'Kanonvraget card mounts a BridgePoint-hosted viewer');
 assert.doesNotMatch(graftonPopupSource,/iframe|viewerUrl|demos\/viewer/i,'HMS Grafton card has no external viewer iframe or redirect');
 assert.doesNotMatch(cannonPopupSource,/iframe|viewerUrl|demos\/viewer/i,'Kanonvraget card has no external viewer iframe or redirect');
-assert.match(moduleSource,/function mountBridgePointLocalWreckViewer\(/,'the two cards use BridgePoint local GLB viewer runtime');
+assert.match(moduleSource,/function mountBridgePointLocalWreckViewer\(/,'the wreck cards use BridgePoint local GLB viewer runtime');
+assert.ok(moduleSource.includes("const DRACO_URL='/vendor/DRACOLoader.bundle.js?v=169-draco-v1'"),'BridgePoint hosts the DRACOLoader bundle locally');
+assert.ok(moduleSource.includes('import(DRACO_URL)'),'the native model loader imports the local DRACOLoader');
+assert.ok(moduleSource.includes('function createShipwreckGLTFLoader(state)'),'GLB parser uses a configured loader factory');
+assert.ok(moduleSource.includes('loader.setDRACOLoader(state.dracoLoader)'),'every GLTFLoader receives a DRACOLoader before parsing');
+assert.ok(moduleSource.includes("setDecoderPath('/vendor/draco/')"),'Draco worker and wasm decoder assets load from BridgePoint hosting');
+assert.equal((moduleSource.match(/createShipwreckGLTFLoader\\(state\\)\\.parseAsync/g)||[]).length,4,'all four underwater GLB parsers configure Draco decoding');
 assert.match(moduleSource,/data-bp-local-wreck-viewer/,'local model viewer has a dedicated BridgePoint mount point');
 assert.match(moduleSource,/canvas\.addEventListener\('pointerdown'/,'the local viewer supports drag and touch rotation');
 assert.match(moduleSource,/canvas\.addEventListener\('wheel'/,'the local viewer supports scroll zoom');
@@ -160,8 +166,8 @@ assert.ok(moduleSource.includes("if(current!==next)state.map.setLayoutProperty(i
 assert.ok(moduleSource.includes("map.off(event,state.handlePersistentVisibility)"),'all persistent visibility listeners are cleaned up on destroy');
 assert.ok(moduleSource.includes('bpv-dock-actions'),'Shipwrecks control is attached to the existing globe dock');
 assert.ok(moduleSource.includes('setVisibility(state,state.enabled)'));
-assert.ok(landing.includes("import('./bridgepoint-shipwrecks-v1.js?v=6-titanic-gaskin-grafton-cannon-kxi-local-hosted-viewers')"));
-assert.ok(app.includes("import('./bridgepoint-shipwrecks-v1.js?v=6-titanic-gaskin-grafton-cannon-kxi-local-hosted-viewers')"));
+assert.ok(landing.includes("import('./bridgepoint-shipwrecks-v1.js?v=7-titanic-gaskin-grafton-cannon-kxi-draco-local-viewer')"));
+assert.ok(app.includes("import('./bridgepoint-shipwrecks-v1.js?v=7-titanic-gaskin-grafton-cannon-kxi-draco-local-viewer')"));
 assert.ok(workflow.includes('actions/runs?branch=main&per_page=100'),'publisher discovers the latest successful Pages baseline dynamically');
 assert.ok(workflow.includes('bridgepoint-palatine-cryptoporticus-v1.js'),'publisher refuses an older incomplete baseline');
 assert.ok(workflow.includes('bridgepoint-shipwrecks-v1.js'));
@@ -169,17 +175,22 @@ assert.ok(workflow.includes('expected_changed={"landing.js","app.js","index.html
 assert.ok(workflow.includes('overlay_files={'));
 assert.ok(workflow.includes('"assets/shipwrecks/robert-gaskin-photogrammetry.glb.gz"'));
 assert.ok(workflow.includes('"vendor/GLTFLoader.bundle.js"'));
+assert.ok(workflow.includes('"vendor/DRACOLoader.bundle.js"'));
+assert.ok(workflow.includes('"vendor/draco/draco_decoder.js"'));
+assert.ok(workflow.includes('"vendor/draco/draco_decoder.wasm"'));
+assert.ok(workflow.includes('"vendor/draco/draco_wasm_wrapper.js"'));
+assert.ok(workflow.includes("setDecoderPath('/vendor/draco/')"));
 assert.ok(workflow.includes('required={"bridgepoint-shipwrecks-v1.js"'));
 assert.ok(workflow.includes('robert-gaskin-photogrammetry.glb.gz'),'the publisher overlays the licensed Robert Gaskin native mesh');
 assert.ok(workflow.includes('cannon-photogrammetry.glb.gz'),'the publisher overlays the licensed Kanonvraget native mesh');
 assert.ok(workflow.includes('hnlms-kxi-photogrammetry.glb.gz'),'the publisher mirrors the KXI photogrammetry mesh into BridgePoint');
 assert.ok(workflow.includes('GLTFLoader.bundle.js'),'the publisher serves a local GLTFLoader instead of a remote CDN dependency');
-assert.ok(workflow.includes('github-pages-shipwrecks-v6'),'the publisher deploys the Shipwrecks v5 artifact');
-assert.ok(workflow.includes('v=6-titanic-gaskin-grafton-cannon-kxi-local-hosted-viewers'),'the publisher cache-busts the BridgePoint-hosted local viewer code');
+assert.ok(workflow.includes('github-pages-shipwrecks-v7'),'the publisher deploys the Shipwrecks v5 artifact');
+assert.ok(workflow.includes('v=7-titanic-gaskin-grafton-cannon-kxi-draco-local-viewer'),'the publisher cache-busts the BridgePoint-hosted local viewer code');
 assert.ok(workflow.includes('data-bp-local-wreck-viewer'),'the publisher verifies the local model viewer mount points');
 assert.ok(workflow.includes('12-shipwrecks-v3-kxi-icons'),'the publisher repairs the shared visibility-guard cache bust on both entry points');
-assert.ok(workflow.includes('BRIDGEPOINT_SHIPWRECKS_V6_LIVE_VERIFY_PASS'),'the publisher verifies the live shipwreck v4 asset and entry points');
+assert.ok(workflow.includes('BRIDGEPOINT_SHIPWRECKS_V7_LIVE_VERIFY_PASS'),'the publisher verifies the live shipwreck v4 asset and entry points');
 
 assert.ok(!/SUPA|supabase/i.test(moduleSource),'the native shipwreck renderer has no Supabase dependency');
 
-console.log('BRIDGEPOINT_SHIPWRECKS_LOCAL_VIEWERS_V5_PASS');
+console.log('BRIDGEPOINT_SHIPWRECKS_LOCAL_VIEWERS_V7_PASS');

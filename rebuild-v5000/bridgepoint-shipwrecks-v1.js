@@ -1,9 +1,10 @@
 /* BridgePoint Shipwrecks v4 — Titanic + Robert Gaskin + HMS Grafton + Kanonvraget.
  * Each wreck has a persistent marker, dedicated source-backed card and native underwater model.
  */
-const VERSION=6, MAP_STATES=new WeakMap();
+const VERSION=7, MAP_STATES=new WeakMap();
 const THREE_URL='/vendor/three.module.js?v=169-local';
 const GLTF_URL='/vendor/GLTFLoader.bundle.js?v=169-local';
+const DRACO_URL='/vendor/DRACOLoader.bundle.js?v=169-draco-v1';
 const NATIVE_MODEL_LAYER_ID='bp-shipwrecks-native-model-v2';
 const ROBERT_GASKIN_ASSET='/assets/shipwrecks/robert-gaskin-photogrammetry.glb.gz';
 const ROBERT_GASKIN_LENGTH_M=40.42;
@@ -330,11 +331,22 @@ function updateKxiModelStatus(state,message){
  if(popup)popup.textContent=state.kxiModelStatus;
 }
 async function loadShipwreckThree(){
- if(!shipwreckThreePromise)shipwreckThreePromise=Promise.all([import(THREE_URL),import(GLTF_URL)]).then(([THREE,loader])=>{
-  if(!THREE?.WebGLRenderer||!loader?.GLTFLoader)throw new Error('BridgePoint local Three.js / GLTFLoader unavailable');
-  return {THREE,GLTFLoader:loader.GLTFLoader};
+ if(!shipwreckThreePromise)shipwreckThreePromise=Promise.all([import(THREE_URL),import(GLTF_URL),import(DRACO_URL)]).then(([THREE,loader,decoder])=>{
+  if(!THREE?.WebGLRenderer||!loader?.GLTFLoader||!decoder?.DRACOLoader)throw new Error('BridgePoint local Three.js / GLTFLoader / DRACOLoader unavailable');
+  return {THREE,GLTFLoader:loader.GLTFLoader,DRACOLoader:decoder.DRACOLoader};
  }).catch(error=>{shipwreckThreePromise=null;throw error;});
  return shipwreckThreePromise;
+}
+function createShipwreckGLTFLoader(state){
+ const loader=new state.GLTFLoader();
+ if(!state.dracoLoader){
+  if(!state.DRACOLoader)throw new Error('BridgePoint local DRACOLoader is unavailable');
+  state.dracoLoader=new state.DRACOLoader();
+  state.dracoLoader.setDecoderPath('/vendor/draco/');
+  state.dracoLoader.setWorkerLimit(2);
+ }
+ loader.setDRACOLoader(state.dracoLoader);
+ return loader;
 }
 function nativeMapMatrix(map,THREE,coordinates,altitudeM){
  try{
@@ -353,14 +365,14 @@ async function loadRobertGaskinMesh(state){
  if(state.nativeModelPromise)return state.nativeModelPromise;
  state.nativeModelPromise=(async()=>{
   const pair=await loadShipwreckThree();if(state.destroyed)throw new Error('Shipwreck layer closed');
-  state.THREE=pair.THREE;state.GLTFLoader=pair.GLTFLoader;
+  state.THREE=pair.THREE;state.GLTFLoader=pair.GLTFLoader;state.DRACOLoader=pair.DRACOLoader;
   const response=await fetch(ROBERT_GASKIN_ASSET,{cache:'force-cache'});
   if(!response.ok)throw new Error('Robert Gaskin GLB request failed ('+response.status+')');
   if(typeof DecompressionStream==='undefined')throw new Error('Gzip decompression is unavailable in this browser');
   const stream=new Blob([await response.arrayBuffer()]).stream().pipeThrough(new DecompressionStream('gzip'));
   const buffer=await new Response(stream).arrayBuffer();
   if(new DataView(buffer).getUint32(0,true)!==0x46546c67)throw new Error('Robert Gaskin asset is not a valid GLB');
-  const gltf=await new state.GLTFLoader().parseAsync(buffer,'');
+  const gltf=await createShipwreckGLTFLoader(state).parseAsync(buffer,'');
   if(!gltf?.scene)throw new Error('Robert Gaskin GLB contains no scene');
   const root=gltf.scene.clone(true);
   root.updateMatrixWorld(true);
@@ -400,14 +412,14 @@ async function loadHmsGraftonMesh(state){
  if(state.graftonModelPromise)return state.graftonModelPromise;
  state.graftonModelPromise=(async()=>{
   const pair=await loadShipwreckThree();if(state.destroyed)throw new Error('Shipwreck layer closed');
-  state.THREE=pair.THREE;state.GLTFLoader=pair.GLTFLoader;
+  state.THREE=pair.THREE;state.GLTFLoader=pair.GLTFLoader;state.DRACOLoader=pair.DRACOLoader;
   const response=await fetch(HMS_GRAFTON_ASSET,{cache:'force-cache'});
   if(!response.ok)throw new Error('HMS Grafton GLB request failed ('+response.status+')');
   if(typeof DecompressionStream==='undefined')throw new Error('Gzip decompression is unavailable in this browser');
   const stream=new Blob([await response.arrayBuffer()]).stream().pipeThrough(new DecompressionStream('gzip'));
   const buffer=await new Response(stream).arrayBuffer();
   if(new DataView(buffer).getUint32(0,true)!==0x46546c67)throw new Error('HMS Grafton asset is not a valid GLB');
-  const gltf=await new state.GLTFLoader().parseAsync(buffer,'');
+  const gltf=await createShipwreckGLTFLoader(state).parseAsync(buffer,'');
   if(!gltf?.scene)throw new Error('HMS Grafton GLB contains no scene');
   const root=gltf.scene.clone(true);root.updateMatrixWorld(true);
   const bounds=new pair.THREE.Box3().setFromObject(root);
@@ -438,14 +450,14 @@ async function loadCannonMesh(state){
  if(state.cannonModelPromise)return state.cannonModelPromise;
  state.cannonModelPromise=(async()=>{
   const pair=await loadShipwreckThree();if(state.destroyed)throw new Error('Shipwreck layer closed');
-  state.THREE=pair.THREE;state.GLTFLoader=pair.GLTFLoader;
+  state.THREE=pair.THREE;state.GLTFLoader=pair.GLTFLoader;state.DRACOLoader=pair.DRACOLoader;
   const response=await fetch(CANNON_ASSET,{cache:'force-cache'});
   if(!response.ok)throw new Error('Kanonvraget GLB request failed ('+response.status+')');
   if(typeof DecompressionStream==='undefined')throw new Error('Gzip decompression is unavailable in this browser');
   const stream=new Blob([await response.arrayBuffer()]).stream().pipeThrough(new DecompressionStream('gzip'));
   const buffer=await new Response(stream).arrayBuffer();
   if(new DataView(buffer).getUint32(0,true)!==0x46546c67)throw new Error('Kanonvraget asset is not a valid GLB');
-  const gltf=await new state.GLTFLoader().parseAsync(buffer,'');
+  const gltf=await createShipwreckGLTFLoader(state).parseAsync(buffer,'');
   if(!gltf?.scene)throw new Error('Kanonvraget GLB contains no scene');
   const root=gltf.scene.clone(true);root.updateMatrixWorld(true);
   const bounds=new pair.THREE.Box3().setFromObject(root);
@@ -477,14 +489,14 @@ async function loadKxiMesh(state){
  if(state.kxiModelPromise)return state.kxiModelPromise;
  state.kxiModelPromise=(async()=>{
   const pair=await loadShipwreckThree();if(state.destroyed)throw new Error('Shipwreck layer closed');
-  state.THREE=pair.THREE;state.GLTFLoader=pair.GLTFLoader;
+  state.THREE=pair.THREE;state.GLTFLoader=pair.GLTFLoader;state.DRACOLoader=pair.DRACOLoader;
   const response=await fetch(KXI_ASSET,{cache:'force-cache'});
   if(!response.ok)throw new Error('HNLMS K XI GLB request failed ('+response.status+')');
   if(typeof DecompressionStream==='undefined')throw new Error('Gzip decompression is unavailable in this browser');
   const stream=new Blob([await response.arrayBuffer()]).stream().pipeThrough(new DecompressionStream('gzip'));
   const buffer=await new Response(stream).arrayBuffer();
   if(new DataView(buffer).getUint32(0,true)!==0x46546c67)throw new Error('HNLMS K XI asset is not a valid GLB');
-  const gltf=await new state.GLTFLoader().parseAsync(buffer,'');
+  const gltf=await createShipwreckGLTFLoader(state).parseAsync(buffer,'');
   if(!gltf?.scene)throw new Error('HNLMS K XI GLB contains no scene');
   const root=gltf.scene.clone(true);root.updateMatrixWorld(true);
   const bounds=new pair.THREE.Box3().setFromObject(root);
@@ -1076,6 +1088,7 @@ export function initShipwrecksRenderer(target){
   graftonModelVisible:false,graftonModelAutoAttempted:false,graftonModelStatus:'Native scan not loaded.',graftonModelRoot:null,graftonModelPromise:null,graftonModelBounds:null,
   cannonModelVisible:false,cannonModelAutoAttempted:false,cannonModelStatus:'Native scan not loaded.',cannonModelRoot:null,cannonModelPromise:null,cannonModelBounds:null,
   kxiModelVisible:false,kxiModelAutoAttempted:false,kxiModelStatus:'Native scan not loaded.',kxiModelRoot:null,kxiModelPromise:null,kxiModelBounds:null,
+  DRACOLoader:null,dracoLoader:null,
   nativeModelRenderer:null,nativeModelCamera:null,nativeModelScene:null,nativeModelLayerReady:false,nativeModelBounds:null,
   stats:{version:VERSION,parts:7,sites:5,models:TITANIC_3D_MODELS.length,nativeModels:4,lastError:null}};
  const api={
