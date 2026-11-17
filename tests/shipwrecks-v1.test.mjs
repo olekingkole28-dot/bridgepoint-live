@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import {
- TITANIC_SHIPWRECK_PARTS,TITANIC_3D_MODELS,TITANIC_OFFICIAL_SCAN_SOURCES,ROBERT_GASKIN_WRECK,HMS_GRAFTON_WRECK,CANNON_WRECK,HNLMS_KXI_WRECK,CAPE_OTWAY_WRECK,TIMARU_WRECK,
+ TITANIC_SHIPWRECK_PARTS,TITANIC_3D_MODELS,TITANIC_OFFICIAL_SCAN_SOURCES,ROBERT_GASKIN_WRECK,HMS_GRAFTON_WRECK,CANNON_WRECK,HNLMS_KXI_WRECK,CAPE_OTWAY_WRECK,TIMARU_WRECK,HMS_LOO_WRECK,
  buildTitanicShipwreckFeatures,buildAllShipwreckFeatures,titanicShipwreckPopupHtml,syncTitanicShipwreckCategory
 } from '../rebuild-v5000/bridgepoint-shipwrecks-v1.js';
 
@@ -9,7 +9,7 @@ const features=buildTitanicShipwreckFeatures();
 assert.equal(TITANIC_SHIPWRECK_PARTS.length,3,'only Titanic bow, stern and debris-field waypoints are mapped');
 assert.equal(features.length,3);
 const allFeatures=buildAllShipwreckFeatures();
-assert.equal(allFeatures.length,9,'all Titanic sections, Robert Gaskin, HMS Grafton, Kanonvraget, HNLMS K XI, SS Cape Otway and Timaru share the Shipwrecks source');
+assert.equal(allFeatures.length,10,'all Titanic sections, six existing wrecks and HMS Loo share the Shipwrecks source');
 assert.equal(allFeatures.filter(f=>f.properties.wreckId==='robert-gaskin').length,1);
 assert.deepEqual(allFeatures[3].geometry.coordinates,[-75.677083,44.589317]);
 assert.equal(allFeatures.filter(f=>f.properties.wreckId==='hms-grafton').length,1);
@@ -26,6 +26,16 @@ assert.equal(allFeatures[7].properties.label,'SS CAPE OTWAY');
 assert.equal(allFeatures.filter(f=>f.properties.wreckId==='timaru').length,1);
 assert.deepEqual(allFeatures[8].geometry.coordinates,[115.4327897,-32.069910]);
 assert.equal(allFeatures[8].properties.label,'TIMARU · SITE 42');
+assert.equal(allFeatures.filter(f=>f.properties.wreckId==='hms-loo').length,1);
+assert.deepEqual(allFeatures[9].geometry.coordinates,[-81.4052,24.5477]);
+assert.equal(allFeatures[9].properties.label,'HMS LOO · LOOE KEY');
+assert.deepEqual(HMS_LOO_WRECK.coordinates,[-81.4052,24.5477]);
+assert.equal(HMS_LOO_WRECK.displayDepthM,6.75);
+assert.deepEqual(HMS_LOO_WRECK.depthRangeM,[4.5,9]);
+assert.equal(HMS_LOO_WRECK.license,'CC BY 4.0');
+assert.equal(HMS_LOO_WRECK.triangles,4099999);
+assert.equal(HMS_LOO_WRECK.vertices,2051535);
+assert.match(HMS_LOO_WRECK.sourceUrl,/sketchfab\.com\/3d-models\/hms-loo-shipwreck/);
 assert.equal(HNLMS_KXI_WRECK.displayDepthM,40);
 assert.deepEqual(HNLMS_KXI_WRECK.depthRangeM,[38,40]);
 assert.equal(HNLMS_KXI_WRECK.lengthM,66.63);
@@ -142,6 +152,10 @@ assert.match(moduleSource,/async function showTimaruOnSeabed\(state\)/,'Timaru c
 assert.match(moduleSource,/maybeAutoMaterializeTimaru\(state\)/,'Timaru mesh can auto-materialize when zoomed near its icon');
 assert.match(moduleSource,/TIMARU_WRECK\.displayDepthM/,'Timaru native mesh is anchored at the approximate wreck depth');
 assert.ok(moduleSource.includes("hit.properties?.wreckId==='timaru'"),'Timaru persistent icon opens its own information card');
+assert.ok(moduleSource.includes("hit.properties?.wreckId==='hms-loo'"),'HMS Loo persistent icon opens its own BridgePoint information card');
+assert.match(moduleSource,/function openHmsLooPopup\(/,'HMS Loo has a dedicated BridgePoint card');
+assert.match(moduleSource,/bridgePointLocalViewerMarkup\('hms-loo'/,'HMS Loo card uses the local BridgePoint model viewer');
+assert.match(moduleSource,/HMS_LOO_WRECK\.displayDepthM/,'HMS Loo native mesh uses the documented depth midpoint');
 assert.match(moduleSource,/maybeAutoMaterializeCapeOtway\(state\)/,'Cape Otway mesh can materialize automatically when zoomed near its icon');
 assert.match(moduleSource,/CAPE_OTWAY_WRECK\.displayDepthM/,'Cape Otway mesh is anchored at the approximate documented wreck depth');
 assert.match(moduleSource,/hit\.properties\?\.wreckId==='cape-otway'/,'Cape Otway persistent icon opens its information card');
@@ -161,7 +175,7 @@ assert.ok(moduleSource.includes('import(DRACO_URL)'),'the native model loader im
 assert.ok(moduleSource.includes('function createShipwreckGLTFLoader(state,renderer=null)'),'GLB parser uses a configured loader factory');
 assert.ok(moduleSource.includes('loader.setDRACOLoader(state.dracoLoader)'),'every GLTFLoader receives a DRACOLoader before parsing');
 assert.ok(moduleSource.includes("setDecoderPath('/vendor/draco/')"),'Draco worker and wasm decoder assets load from BridgePoint hosting');
-assert.equal((moduleSource.match(/createShipwreckGLTFLoader\(state,renderer\)\.parseAsync/g)||[]).length,6,'all six underwater GLB parsers configure Draco and KTX2 decoding');
+assert.equal((moduleSource.match(/createShipwreckGLTFLoader\(state,renderer\)\.parseAsync/g)||[]).length,7,'all seven underwater GLB parsers configure Draco and KTX2 decoding');
 assert.match(moduleSource,/data-bp-local-wreck-viewer/,'local model viewer has a dedicated BridgePoint mount point');
 assert.ok(moduleSource.indexOf('renderer=new THREE.WebGLRenderer')<moduleSource.indexOf('await loadKxiMesh(state,renderer)'),'the KXI card viewer creates its WebGL renderer before KTX2 parsing');
 assert.ok(moduleSource.indexOf('renderer=new THREE.WebGLRenderer')<moduleSource.indexOf('await loadCapeOtwayMesh(state,renderer)'),'the Cape Otway card viewer creates its WebGL renderer before KTX2 parsing');
@@ -183,6 +197,7 @@ assert.ok(moduleSource.includes('HMS_GRAFTON_ASSET'),'HMS Grafton has a separate
 assert.ok(moduleSource.includes('CANNON_ASSET'),'Kanonvraget has a separate local GLB asset path');
 assert.ok(moduleSource.includes('CAPE_OTWAY_ASSET'),'Cape Otway has a separate local GLB asset path');
 assert.ok(moduleSource.includes('TIMARU_ASSET'),'Timaru has a separate local GLB asset path');
+assert.ok(moduleSource.includes('HMS_LOO_ASSET'),'HMS Loo has a separate BridgePoint-hosted GLB asset path');
 assert.ok(moduleSource.includes('KXI_ASSET'),'HNLMS K XI has a separate local GLB asset path');
 assert.ok(moduleSource.includes('loadCannonMesh(state,renderer)'),'Kanonvraget is loaded as a native GLB');
 assert.ok(moduleSource.includes('loadKxiMesh(state,renderer)'),'HNLMS K XI is loaded as a native GLB');
@@ -190,14 +205,16 @@ assert.ok(moduleSource.includes('showCannonOnSeabed(state)'),'the Kanonvraget ca
 assert.ok(moduleSource.includes('showKxiOnSeabed(state)'),'the HNLMS K XI card can materialize its 3D scan on the map');
 assert.ok(moduleSource.includes('showCapeOtwayOnSeabed(state)'),'the SS Cape Otway card can materialize its 3D scan on the map');
 assert.ok(moduleSource.includes('showTimaruOnSeabed(state)'),'the Timaru card can materialize its 3D scan on the map');
+assert.ok(moduleSource.includes('showHmsLooOnSeabed(state)'),'the HMS Loo card can materialize its 3D scan on the map');
 assert.ok(moduleSource.includes('maybeAutoMaterializeCannon(state)'),'Kanonvraget native mesh loads when zoomed to its wreck-site icon');
 assert.ok(moduleSource.includes('maybeAutoMaterializeKxi(state)'),'KXI native mesh loads when zoomed to its wreck-site icon');
 assert.ok(moduleSource.includes('maybeAutoMaterializeCapeOtway(state)'),'Cape Otway native mesh loads when zoomed to its wreck-site icon');
 assert.ok(moduleSource.includes('maybeAutoMaterializeTimaru(state)'),'Timaru native mesh loads when zoomed to its wreck-site icon');
+assert.ok(moduleSource.includes('maybeAutoMaterializeHmsLoo(state)'),'HMS Loo native mesh loads when zoomed to its wreck-site icon');
 assert.ok(moduleSource.includes('CANNON_WRECK.displayDepthM'),'Kanonvraget native mesh is placed at the site-record depth midpoint');
 assert.ok(moduleSource.includes("hit.properties?.wreckId==='kanonvraget'"),'Kanonvraget click opens its dedicated popup');
-assert.ok(moduleSource.includes('all nine wreck icons remain visible'),'the shared marker layer reports all nine persistent wreck icons');
-assert.ok(moduleSource.includes("count.textContent='9 persistent wreck icons · 6 native CC BY 4.0 seabed scans"),'dynamic count reflects all nine markers and all six native models');
+assert.ok(moduleSource.includes('all ten wreck icons remain visible'),'the shared marker layer reports all ten persistent wreck icons');
+assert.ok(moduleSource.includes("count.textContent='10 persistent wreck icons · 7 native CC BY 4.0 seabed scans"),'dynamic count reflects all nine markers and all six native models');
 assert.ok(moduleSource.includes('Verified WGS84 wreck-site position'),'Kanonvraget card explains its location precision');
 assert.ok(moduleSource.includes('DTU Aqua describes its Cannon Shipwreck reconstruction'),'Kanonvraget card keeps scan depth distinct from wreck depth');
 assert.ok(moduleSource.includes('loadHmsGraftonMesh(state,renderer)'),'HMS Grafton is loaded as a native GLB');
@@ -206,7 +223,7 @@ assert.ok(moduleSource.includes('maybeAutoMaterializeHmsGrafton(state)'),'Grafto
 assert.ok(moduleSource.includes('HMS_GRAFTON_WRECK.waterSurfaceElevationM-HMS_GRAFTON_WRECK.scanDepthM'),'Grafton native mesh uses the approximate capture depth');
 assert.ok(moduleSource.includes("hit.properties?.wreckId==='hms-grafton'"),'Grafton click opens its dedicated popup');
 assert.ok(moduleSource.includes('all nine wreck icons remain visible'),'the shared icon layer reports all nine persistent wreck markers');
-assert.ok(moduleSource.includes("count.textContent='9 persistent wreck icons · 6 native CC BY 4.0 seabed scans"),'dynamic count reflects all nine markers and all six native models');
+assert.ok(moduleSource.includes("count.textContent='10 persistent wreck icons · 7 native CC BY 4.0 seabed scans"),'dynamic count reflects all nine markers and all six native models');
 assert.ok(moduleSource.includes('addRobertGaskinStyles();'),'the new Grafton card installs the shared native wreck popup styles');
 assert.ok(moduleSource.includes("NATIVE_MODEL_LAYER_ID='bp-shipwrecks-native-model-v2'"),'Robert Gaskin uses a native MapLibre 3D custom layer');
 assert.ok(moduleSource.includes("import(GLTF_URL)"),'native scan is parsed through the local GLTFLoader');
@@ -226,8 +243,8 @@ assert.ok(moduleSource.includes("if(current!==next)state.map.setLayoutProperty(i
 assert.ok(moduleSource.includes("map.off(event,state.handlePersistentVisibility)"),'all persistent visibility listeners are cleaned up on destroy');
 assert.ok(moduleSource.includes('bpv-dock-actions'),'Shipwrecks control is attached to the existing globe dock');
 assert.ok(moduleSource.includes('setVisibility(state,state.enabled)'));
-assert.ok(landing.includes("import('./bridgepoint-shipwrecks-v1.js?v=10-titanic-gaskin-grafton-cannon-kxi-cape-otway-timaru-draco-ktx2-local-viewer')"));
-assert.ok(app.includes("import('./bridgepoint-shipwrecks-v1.js?v=10-titanic-gaskin-grafton-cannon-kxi-cape-otway-timaru-draco-ktx2-local-viewer')"));
+assert.ok(landing.includes("import('./bridgepoint-shipwrecks-v1.js?v=11-titanic-gaskin-grafton-cannon-kxi-cape-otway-timaru-hms-loo-draco-ktx2-local-viewer')"));
+assert.ok(app.includes("import('./bridgepoint-shipwrecks-v1.js?v=11-titanic-gaskin-grafton-cannon-kxi-cape-otway-timaru-hms-loo-draco-ktx2-local-viewer')"));
 assert.ok(workflow.includes('actions/runs?branch=main&per_page=100'),'publisher discovers the latest successful Pages baseline dynamically');
 assert.ok(workflow.includes('bridgepoint-palatine-cryptoporticus-v1.js'),'publisher refuses an older incomplete baseline');
 assert.ok(workflow.includes('bridgepoint-shipwrecks-v1.js'));
@@ -251,6 +268,9 @@ assert.ok(workflow.includes('cannon-photogrammetry.glb.gz'),'the publisher overl
 assert.ok(workflow.includes('hnlms-kxi-photogrammetry.glb.gz'),'the publisher mirrors the KXI photogrammetry mesh into BridgePoint');
 assert.ok(workflow.includes('cape-otway-photogrammetry.glb.gz'),'the publisher mirrors the SS Cape Otway photogrammetry mesh into BridgePoint');
 assert.ok(workflow.includes('timaru-photogrammetry.glb.gz'),'the publisher mirrors the Timaru photogrammetry mesh into BridgePoint');
+assert.ok(workflow.includes('hms-loo-photogrammetry.glb.gz'),'the publisher mirrors the HMS Loo photogrammetry mesh into BridgePoint');
+assert.ok(workflow.includes('BRIDGEPOINT_HMS_LOO_NATIVE_CC_BY_ASSET_PASS'),'the publisher validates the HMS Loo source GLB and CC BY attribution before deployment');
+assert.ok(workflow.includes('BRIDGEPOINT_HMS_LOO_LIVE_GLB_PASS'),'the publisher validates the live HMS Loo GLB after deployment');
 assert.ok(workflow.includes('95fe004674f0561e8ae90b766b2dbfeee1d6fc96'),'the publisher pins the exact public Timaru GLB source');
 assert.ok(workflow.includes('BRIDGEPOINT_TIMARU_SITE42_NATIVE_CC_BY_ASSET_PASS'),'the publisher validates the Timaru model before deployment');
 assert.ok(workflow.includes('BRIDGEPOINT_TIMARU_SITE42_LIVE_GLB_PASS'),'the publisher validates the live Timaru GLB after deployment');
@@ -258,12 +278,12 @@ assert.ok(workflow.includes('BRIDGEPOINT_SS_CAPE_OTWAY_NATIVE_CC_BY_ASSET_PASS')
 assert.ok(workflow.includes('BRIDGEPOINT_SS_CAPE_OTWAY_LIVE_GLB_PASS'),'the publisher validates the live Cape Otway GLB after deployment');
 assert.ok(workflow.includes('eee4d55e7391e55ea0bd8bc0c8aaf82e04f800b1'),'the publisher pins the exact public Cape Otway source GLB');
 assert.ok(workflow.includes('GLTFLoader.bundle.js'),'the publisher serves a local GLTFLoader instead of a remote CDN dependency');
-assert.ok(workflow.includes('github-pages-shipwrecks-v10'),'the publisher deploys the Shipwrecks v9 artifact');
-assert.ok(workflow.includes('v=10-titanic-gaskin-grafton-cannon-kxi-cape-otway-timaru-draco-ktx2-local-viewer'),'the publisher cache-busts the BridgePoint-hosted local viewer code');
+assert.ok(workflow.includes('github-pages-shipwrecks-v11'),'the publisher deploys the Shipwrecks v9 artifact');
+assert.ok(workflow.includes('v=11-titanic-gaskin-grafton-cannon-kxi-cape-otway-timaru-hms-loo-draco-ktx2-local-viewer'),'the publisher cache-busts the BridgePoint-hosted local viewer code');
 assert.ok(workflow.includes('data-bp-local-wreck-viewer'),'the publisher verifies the local model viewer mount points');
 assert.ok(workflow.includes('12-shipwrecks-v3-kxi-icons'),'the publisher repairs the shared visibility-guard cache bust on both entry points');
-assert.ok(workflow.includes('BRIDGEPOINT_SHIPWRECKS_V10_LIVE_VERIFY_PASS'),'the publisher verifies the live shipwreck v9 asset and entry points');
+assert.ok(workflow.includes('BRIDGEPOINT_SHIPWRECKS_V11_LIVE_VERIFY_PASS'),'the publisher verifies the live shipwreck v9 asset and entry points');
 
 assert.ok(!/SUPA|supabase/i.test(moduleSource),'the native shipwreck renderer has no Supabase dependency');
 
-console.log('BRIDGEPOINT_SHIPWRECKS_LOCAL_VIEWERS_V10_PASS');
+console.log('BRIDGEPOINT_SHIPWRECKS_LOCAL_VIEWERS_V11_PASS');
