@@ -87,7 +87,7 @@ def main():
             candidates = []
             for info in members:
                 name = info.filename
-                if re.search(r"\\.(glb|gltf|ply|obj|fbx|e57|las|laz|pcd|zip|npz|npy|tar|bin)$", name, re.I):
+                if re.search(r"\.(glb|gltf|ply|obj|fbx|e57|las|laz|pcd|zip|npz|npy|tar|bin|splat|spz|ksplat)$", name, re.I):
                     candidates.append({"name": name, "size": info.file_size, "compressed": info.compress_size})
             print("BRIDGEPOINT_ABYSSAL_MODEL_AND_CONTAINER_FILES", len(candidates), json.dumps(candidates[:500]))
             if args.inspect_only:
