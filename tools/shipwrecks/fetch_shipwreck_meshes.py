@@ -424,6 +424,78 @@ def materialize_cape_otway(output: Path) -> dict:
     return model
 
 
+
+def materialize_timaru(output: Path) -> dict:
+    """Mirror WreckSploration's Site 42 Timaru GLB from a pinned Git revision."""
+    commit = "51c255e21c0709b46f4f1fe24d9de05bdd62822c"
+    expected_blob_sha = "95fe004674f0561e8ae90b766b2dbfeee1d6fc96"
+    url = (
+        "https://raw.githubusercontent.com/patrick-morrison/below-wrecksploration/"
+        + commit + "/models/15%20Timaru.glb"
+    )
+    raw = fetch_bytes(url)
+    if len(raw) < 32 or raw[:4] != b"glTF":
+        raise SystemExit("Timaru source file is not a valid binary glTF")
+    git_blob_sha = hashlib.sha1(
+        b"blob " + str(len(raw)).encode("ascii") + b"\\0" + raw
+    ).hexdigest()
+    if git_blob_sha != expected_blob_sha:
+        raise SystemExit("Timaru source Git blob SHA changed; refusing to mirror")
+
+    output.mkdir(parents=True, exist_ok=True)
+    target = output / "timaru-photogrammetry.glb.gz"
+    with target.open("wb") as handle:
+        with gzip.GzipFile(filename="", mode="wb", fileobj=handle, compresslevel=9, mtime=0) as packed:
+            packed.write(raw)
+    if target.stat().st_size > MAX_COMPRESSED_BYTES:
+        target.unlink(missing_ok=True)
+        raise SystemExit("Compressed Timaru GLB exceeds size limit")
+
+    model = {
+        "id": "timaru-photogrammetry",
+        "title": "Timaru — Site 42 underwater photogrammetry scan",
+        "creator": "WreckSploration",
+        "creators": ["WreckSploration", "Andrew Oakeley", "David Jackson", "Patrick Morrison"],
+        "license": "CC BY 4.0",
+        "licenseSourceUrl": "https://creativecommons.org/licenses/by/4.0/",
+        "sourceUrl": "https://sketchfab.com/3d-models/site-42-timaru-2d8c988bfd3048858c752b9fa4095f66",
+        "datasetUrl": "https://wrecksploration.au/projects/timaru/",
+        "locationSourceUrl": "https://museum.wa.gov.au/maritime-archaeology-db/wrecks/timaru-nd4-cnd4",
+        "repositoryUrl": "https://github.com/patrick-morrison/below-wrecksploration/tree/" + commit + "/models/15%20Timaru.glb",
+        "sourceCommit": commit,
+        "sourceGitBlobSha": git_blob_sha,
+        "assetUrl": "/assets/shipwrecks/timaru-photogrammetry.glb.gz",
+        "coordinates": [115.4327897, -32.069910],
+        "coordinateText": "32.069910° S, 115.432790° E",
+        "location": "Southwest of Rottnest Island, Western Australia, at the Rottnest Ships Graveyard.",
+        "displayDepthM": 50,
+        "lengthM": 44.9,
+        "beamM": 9.17,
+        "registeredLengthM": 44.20,
+        "registeredBeamM": 9.20,
+        "triangles": 750000,
+        "vertices": 374800,
+        "capturedAt": "2025-06-01",
+        "discoveredAt": "2025-03-28",
+        "builtYear": 1893,
+        "lostYear": 1930,
+        "sourceBytes": len(raw),
+        "compressedBytes": target.stat().st_size,
+        "sourceGitBlobSha": git_blob_sha,
+        "assetSha256": hashlib.sha256(target.read_bytes()).hexdigest(),
+        "locationPrecision": "Approximate wreck-site center from the public WreckSploration wreck layer. The source GLB does not publish a GPS/geodetic origin or survey-control transform.",
+        "scalePrecision": "Long axis calibrated to the WreckSploration site measurement of 44.9 m for visualization. The Western Australian Museum register separately lists 44.20 m overall vessel length.",
+        "orientationPrecision": "Original GLB orientation preserved; a survey-grade true-north heading is not published.",
+        "depthPrecision": "Approximate 50 m wreck-site depth from WreckSploration dive notes; not a survey-controlled bathymetric registration."
+    }
+    catalog_path = output / "catalog.json"
+    manifest = json.loads(catalog_path.read_text(encoding="utf-8")) if catalog_path.exists() else {"version": 1}
+    manifest["timaru"] = model
+    catalog_path.write_text(json.dumps(manifest, indent=2) + "\\n", encoding="utf-8")
+    print("BRIDGEPOINT_TIMARU_SITE42_CC_BY_GLB_READY", len(raw), "source bytes", target.stat().st_size, "compressed bytes")
+    return model
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", required=True, type=Path)
@@ -433,6 +505,7 @@ def main() -> None:
     materialize_cannon(args.output)
     materialize_kxi(args.output)
     materialize_cape_otway(args.output)
+    materialize_timaru(args.output)
 
 
 if __name__ == "__main__":
