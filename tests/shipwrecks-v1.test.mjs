@@ -1,13 +1,24 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import {
- TITANIC_SHIPWRECK_PARTS,TITANIC_3D_MODELS,TITANIC_OFFICIAL_SCAN_SOURCES,
- buildTitanicShipwreckFeatures,titanicShipwreckPopupHtml,syncTitanicShipwreckCategory
+ TITANIC_SHIPWRECK_PARTS,TITANIC_3D_MODELS,TITANIC_OFFICIAL_SCAN_SOURCES,ROBERT_GASKIN_WRECK,
+ buildTitanicShipwreckFeatures,buildAllShipwreckFeatures,titanicShipwreckPopupHtml,syncTitanicShipwreckCategory
 } from '../rebuild-v5000/bridgepoint-shipwrecks-v1.js';
 
 const features=buildTitanicShipwreckFeatures();
 assert.equal(TITANIC_SHIPWRECK_PARTS.length,3,'only Titanic bow, stern and debris-field waypoints are mapped');
 assert.equal(features.length,3);
+const allFeatures=buildAllShipwreckFeatures();
+assert.equal(allFeatures.length,4,'all Titanic sections and the Robert Gaskin marker are always included in one source');
+assert.equal(allFeatures.filter(f=>f.properties.wreckId==='robert-gaskin').length,1);
+assert.deepEqual(allFeatures[3].geometry.coordinates,[-75.677083,44.589317]);
+assert.equal(ROBERT_GASKIN_WRECK.depthM,19.8);
+assert.deepEqual(ROBERT_GASKIN_WRECK.depthRangeM,[18.3,21.3]);
+assert.equal(ROBERT_GASKIN_WRECK.license,'CC BY 4.0');
+assert.equal(ROBERT_GASKIN_WRECK.sourcePhotos,48977);
+assert.equal(ROBERT_GASKIN_WRECK.triangles,598600);
+assert.match(ROBERT_GASKIN_WRECK.datasetUrl,/zenodo\\.10288556/);
+
 assert.deepEqual(features.map(f=>f.properties.part),['bow','stern','debris']);
 assert.deepEqual(features[0].geometry.coordinates,[-49.946944444444,41.7325]);
 assert.deepEqual(features[1].geometry.coordinates,[-49.948333333333,41.726388888889]);
@@ -53,6 +64,17 @@ const [moduleSource,landing,app,workflow]=await Promise.all([
 ]);
 assert.ok(moduleSource.includes('minzoom:0,maxzoom:24'),'markers remain visible across all globe zoom levels');
 assert.ok(moduleSource.includes("'icon-allow-overlap':true"),'wreck markers do not disappear because of symbol collisions');
+assert.ok(moduleSource.includes('buildAllShipwreckFeatures()'),'Titanic and Robert Gaskin markers share one source and remain visible together');
+assert.ok(moduleSource.includes('ROBERT_GASKIN_ASSET'),'Robert Gaskin has a local GLB asset path');
+assert.ok(moduleSource.includes("NATIVE_MODEL_LAYER_ID='bp-shipwrecks-native-model-v2'"),'Robert Gaskin uses a native MapLibre 3D custom layer');
+assert.ok(moduleSource.includes("import(GLTF_URL)"),'native scan is parsed through the local GLTFLoader');
+assert.ok(moduleSource.includes("new DecompressionStream('gzip')"),'the native GLB uses a compressed local asset');
+assert.ok(moduleSource.includes('showRobertGaskinOnRiverbed(state)'),'the card exposes the materialize-on-riverbed action');
+assert.ok(moduleSource.includes('ROBERT_GASKIN_LENGTH_M/longAxis'),'the scanned mesh is length-calibrated to the historical vessel dimensions');
+assert.ok(moduleSource.includes('mapMatrix')===false,'no accidental reference to the Catacombs renderer helper');
+assert.ok(moduleSource.includes("map.on('style.load',state.handleStyleLoad)"),'the combined icon layer restores after style reload');
+assert.ok(moduleSource.includes("map.on('zoomend',state.handlePersistentVisibility)"),'the combined icon layer restores after zoom');
+
 assert.ok(moduleSource.includes('data-bpv-action="shipwrecks"'),'Shipwrecks participates in the shared visibility allowlist as its own category');
 assert.ok(moduleSource.includes("allowLayerCategory('shipwrecks',!!enabled)"),'Shipwrecks explicitly registers and releases its own category');
 assert.ok(moduleSource.includes("for(const event of ['style.load','load','idle','moveend','zoomend','rotateend','pitchend'])"),'the renderer reasserts marker visibility after settled zoom, camera-angle and style events');
@@ -60,12 +82,14 @@ assert.ok(moduleSource.includes("if(current!==next)state.map.setLayoutProperty(i
 assert.ok(moduleSource.includes("map.off(event,state.handlePersistentVisibility)"),'all persistent visibility listeners are cleaned up on destroy');
 assert.ok(moduleSource.includes('bpv-dock-actions'),'Shipwrecks control is attached to the existing globe dock');
 assert.ok(moduleSource.includes('setVisibility(state,state.enabled)'));
-assert.ok(landing.includes("import('./bridgepoint-shipwrecks-v1.js?v=1-titanic-noaa-waypoints')"));
-assert.ok(app.includes("import('./bridgepoint-shipwrecks-v1.js?v=1-titanic-noaa-waypoints')"));
+assert.ok(landing.includes("import('./bridgepoint-shipwrecks-v1.js?v=2-titanic-gaskin-native')"));
+assert.ok(app.includes("import('./bridgepoint-shipwrecks-v1.js?v=2-titanic-gaskin-native')"));
 assert.ok(workflow.includes('actions/runs?branch=main&per_page=100'),'publisher discovers the latest successful Pages baseline dynamically');
 assert.ok(workflow.includes('bridgepoint-palatine-cryptoporticus-v1.js'),'publisher refuses an older incomplete baseline');
 assert.ok(workflow.includes('bridgepoint-shipwrecks-v1.js'));
 assert.ok(workflow.includes('expected_changed={"landing.js","app.js","index.html","app/index.html","bridgepoint-drone-awareness-v1.js"}'));
 assert.ok(workflow.includes('expected_added={"bridgepoint-shipwrecks-v1.js","app/bridgepoint-shipwrecks-v1.js"}'));
 assert.ok(!/SUPA|supabase/i.test(moduleSource),'the isolated shipwreck layer does not call any account/data backend');
+assert.ok(!/SUPA|supabase/i.test(moduleSource),'the native shipwreck renderer has no Supabase dependency');
+
 console.log('BRIDGEPOINT_SHIPWRECKS_TITANIC_V1_PASS');
