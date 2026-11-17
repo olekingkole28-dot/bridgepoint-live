@@ -1,7 +1,7 @@
 /* BridgePoint Shipwrecks v4 — Titanic + Robert Gaskin + HMS Grafton + Kanonvraget.
  * Each wreck has a persistent marker, dedicated source-backed card and native underwater model.
  */
-const VERSION=4, MAP_STATES=new WeakMap();
+const VERSION=5, MAP_STATES=new WeakMap();
 const THREE_URL='/vendor/three.module.js?v=169-local';
 const GLTF_URL='/vendor/GLTFLoader.bundle.js?v=169-local';
 const NATIVE_MODEL_LAYER_ID='bp-shipwrecks-native-model-v2';
@@ -55,7 +55,6 @@ export const HMS_GRAFTON_WRECK={
  license:'CC BY 4.0',creators:'DTU Aqua · Patrizio Mariani · Fletcher Thompson · Javier Alonso Fernández',
  sourceUrl:'https://zenodo.org/records/19592377',datasetUrl:'https://doi.org/10.5281/zenodo.19592377',
  licenseSourceUrl:'https://datasetcatalog.nlm.nih.gov/dataset?q=0000776569',
- viewerUrl:'https://obstek.aqua.dtu.dk/demos/viewer/Grafton',
  locationSourceUrl:'https://publicaties.vlaanderen.be/view-file/83815',
  historySourceUrl:'https://www.uboat.net/allies/warships/ship/4395.html',
  assetUrl:HMS_GRAFTON_ASSET,
@@ -72,7 +71,6 @@ export const CANNON_WRECK={
  license:'CC BY 4.0',
  creators:'DTU Aqua · Patrizio Mariani · Fletcher Thompson · Javier Alonso Fernández',
  sourceUrl:'https://zenodo.org/records/19592377',datasetUrl:'https://doi.org/10.5281/zenodo.19592377',
- viewerUrl:'https://obstek.aqua.dtu.dk/demos/viewer/cannon',
  locationSourceUrl:'https://www.vragguiden.dk/vrag/4643',
  coordinateSourceUrl:'https://www.vragguiden.dk/api/WreckPdf/4643',
  assetUrl:CANNON_ASSET,
@@ -445,6 +443,170 @@ async function loadCannonMesh(state){
  })().catch(error=>{state.cannonModelPromise=null;throw error;});
  return state.cannonModelPromise;
 }
+
+function bridgePointLocalViewerMarkup(id,title){
+ if(id!=='hms-grafton'&&id!=='kanonvraget')return '';
+ return '<div class="bp-shipwreck-local-viewer-v1" data-bp-local-wreck-viewer="'+safe(id)+'" role="group" aria-label="'+safe(title)+' BridgePoint-hosted interactive 3D viewer">'+
+  '<div class="bp-shipwreck-local-viewer-loading-v1" data-bp-local-viewer-status>Loading the BridgePoint-hosted '+safe(title)+' 3D scan…</div></div>';
+}
+function mountBridgePointLocalWreckViewer(state,popup,wreckId,title){
+ const popupRoot=popup?.getElement?.();
+ const host=popupRoot?.querySelector('[data-bp-local-wreck-viewer="'+wreckId+'"]');
+ if(!host)return;
+ const loading=host.querySelector('[data-bp-local-viewer-status]');
+ let disposed=false,renderer=null,resizeObserver=null,model=null,scene=null,camera=null,renderFrame=0,resizeHandler=null;
+ const cleanup=()=>{
+  if(disposed)return;disposed=true;
+  if(renderFrame)cancelAnimationFrame(renderFrame);
+  if(resizeObserver)resizeObserver.disconnect();
+  if(resizeHandler)window.removeEventListener('resize',resizeHandler);
+  if(renderer){try{renderer.dispose();}catch(_){}}
+  if(model)model.traverse(object=>{
+   if(!object.isMesh&&!object.isPoints)return;
+   for(const material of Array.isArray(object.material)?object.material:[object.material]){
+    try{material?.dispose?.();}catch(_){}
+   }
+  });
+  try{scene?.clear?.();}catch(_){}
+ };
+ popup.on?.('close',cleanup);
+ const showError=error=>{
+  if(disposed||!host.isConnected)return;
+  if(loading){loading.style.display='grid';loading.textContent='BridgePoint 3D viewer could not start: '+String(error?.message||error);}
+ };
+ (async()=>{
+  try{
+   const sourceRoot=wreckId==='hms-grafton'?await loadHmsGraftonMesh(state):await loadCannonMesh(state);
+   if(disposed||!host.isConnected)return;
+   const THREE=state.THREE;
+   if(!THREE?.WebGLRenderer)throw new Error('BridgePoint local Three.js runtime is unavailable');
+   model=sourceRoot.clone(true);
+   model.visible=true;
+   model.traverse(object=>{
+    object.visible=true;
+    if(!object.isMesh&&!object.isPoints)return;
+    object.frustumCulled=false;
+    if(object.material){
+     const cloneMaterial=material=>{
+      const copy=material?.clone?.()||material;
+      if(copy){copy.depthTest=true;copy.depthWrite=true;copy.needsUpdate=true;}
+      return copy;
+     };
+     object.material=Array.isArray(object.material)?object.material.map(cloneMaterial):cloneMaterial(object.material);
+    }
+   });
+   model.updateMatrixWorld(true);
+   const bounds=new THREE.Box3().setFromObject(model);
+   if(bounds.isEmpty())throw new Error('The locally hosted GLB contains no visible 3D geometry');
+   const dimensions=bounds.getSize(new THREE.Vector3());
+   const center=bounds.getCenter(new THREE.Vector3());
+   model.position.sub(center);
+   const radius=Math.max(dimensions.x,dimensions.y,dimensions.z)*0.5||1;
+   scene=new THREE.Scene();
+   scene.background=new THREE.Color(0x020a13);
+   scene.add(new THREE.HemisphereLight(0xd7efff,0x263342,1.65));
+   const key=new THREE.DirectionalLight(0xffe8c2,2.15);key.position.set(1.5,2.4,3.2);scene.add(key);
+   const fill=new THREE.DirectionalLight(0x88b9d4,0.8);fill.position.set(-2,-0.6,-1.4);scene.add(fill);
+   scene.add(model);
+   const canvas=document.createElement('canvas');
+   canvas.setAttribute('aria-label',title+' interactive 3D model. Drag to rotate; pinch or scroll to zoom.');
+   canvas.style.touchAction='none';canvas.style.cursor='grab';
+   host.appendChild(canvas);
+   renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:'low-power'});
+   renderer.outputColorSpace=THREE.SRGBColorSpace;
+   renderer.toneMapping=THREE.ACESFilmicToneMapping;
+   renderer.toneMappingExposure=1.08;
+   renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.5));
+   camera=new THREE.PerspectiveCamera(42,1,Math.max(radius/1000,0.001),Math.max(radius*100,100));
+   let theta=0.82,phi=1.18,distance=radius*2.8;
+   const homeDistance=distance;
+   const target=new THREE.Vector3(0,0,0);
+   const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
+   const updateCamera=()=>{
+    camera.position.set(
+     target.x+distance*Math.sin(phi)*Math.sin(theta),
+     target.y+distance*Math.cos(phi),
+     target.z+distance*Math.sin(phi)*Math.cos(theta)
+    );
+    camera.lookAt(target);
+   };
+   const scheduleRender=()=>{
+    if(disposed||renderFrame)return;
+    renderFrame=requestAnimationFrame(()=>{
+     renderFrame=0;
+     if(!disposed&&renderer&&scene&&camera)renderer.render(scene,camera);
+    });
+   };
+   const resize=()=>{
+    if(disposed||!renderer||!camera)return;
+    const rect=host.getBoundingClientRect();
+    const width=Math.max(1,Math.floor(rect.width));
+    const height=Math.max(1,Math.floor(rect.height));
+    renderer.setSize(width,height,false);
+    camera.aspect=width/height;camera.updateProjectionMatrix();scheduleRender();
+   };
+   if(typeof ResizeObserver!=='undefined'){
+    resizeObserver=new ResizeObserver(resize);resizeObserver.observe(host);
+   }else{
+    resizeHandler=resize;window.addEventListener('resize',resizeHandler,{passive:true});
+   }
+   const toolbar=document.createElement('div');toolbar.className='bp-shipwreck-local-viewer-toolbar-v1';
+   const hint=document.createElement('span');hint.textContent='Drag to rotate · pinch or scroll to zoom';
+   const reset=document.createElement('button');reset.type='button';reset.textContent='Reset view';
+   reset.addEventListener('click',event=>{
+    event.preventDefault();event.stopPropagation();theta=0.82;phi=1.18;distance=homeDistance;updateCamera();scheduleRender();
+   });
+   toolbar.append(hint,reset);host.appendChild(toolbar);
+   const pointers=new Map();let lastPointer=null,lastPinch=0;
+   const pinchLength=()=>{
+    const points=Array.from(pointers.values());
+    return points.length<2?0:Math.hypot(points[0].x-points[1].x,points[0].y-points[1].y);
+   };
+   canvas.addEventListener('pointerdown',event=>{
+    event.stopPropagation();pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});
+    try{canvas.setPointerCapture(event.pointerId);}catch(_){}
+    if(pointers.size===1)lastPointer={x:event.clientX,y:event.clientY};
+    else{lastPointer=null;lastPinch=pinchLength();}
+   });
+   canvas.addEventListener('pointermove',event=>{
+    if(!pointers.has(event.pointerId))return;
+    event.stopPropagation();pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});
+    if(pointers.size>=2){
+     const current=pinchLength();
+     if(lastPinch>0&&current>0)distance=clamp(distance*lastPinch/current,radius*1.08,radius*20);
+     lastPinch=current;lastPointer=null;
+    }else if(lastPointer){
+     const dx=event.clientX-lastPointer.x,dy=event.clientY-lastPointer.y;
+     theta-=dx*0.008;phi=clamp(phi+dy*0.008,0.12,Math.PI-0.12);
+     lastPointer={x:event.clientX,y:event.clientY};
+    }
+    updateCamera();scheduleRender();
+   });
+   const endPointer=event=>{
+    if(!pointers.has(event.pointerId))return;
+    event.stopPropagation();pointers.delete(event.pointerId);
+    try{canvas.releasePointerCapture(event.pointerId);}catch(_){}
+    lastPinch=0;
+    if(pointers.size===1){const point=Array.from(pointers.values())[0];lastPointer={x:point.x,y:point.y};}
+    else lastPointer=null;
+   };
+   canvas.addEventListener('pointerup',endPointer);
+   canvas.addEventListener('pointercancel',endPointer);
+   canvas.addEventListener('lostpointercapture',endPointer);
+   canvas.addEventListener('wheel',event=>{
+    event.preventDefault();event.stopPropagation();
+    distance=clamp(distance*Math.exp(event.deltaY*0.001),radius*1.08,radius*20);
+    updateCamera();scheduleRender();
+   },{passive:false});
+   canvas.addEventListener('contextmenu',event=>event.preventDefault());
+   updateCamera();resize();
+   if(loading)loading.remove();
+   scheduleRender();
+  }catch(error){showError(error);}
+ })();
+ return cleanup;
+}
+
 function ensureRobertGaskinMapLayer(state){
  const map=state.map,THREE=state.THREE;
  if(!THREE||(!state.nativeModelRoot&&!state.graftonModelRoot&&!state.cannonModelRoot)||state.destroyed)return false;
@@ -561,7 +723,7 @@ async function showCannonOnSeabed(state){
 function addRobertGaskinStyles(){
  if(document.getElementById('bp-shipwreck-gaskin-style-v2'))return;
  const style=document.createElement('style');style.id='bp-shipwreck-gaskin-style-v2';
- style.textContent='.bp-shipwreck-gaskin-popup-v2{color:#e8f5fb;font:12px/1.45 system-ui,sans-serif}.bp-shipwreck-gaskin-popup-v2 h3{font-size:18px;color:#fff;margin:4px 0}.bp-shipwreck-gaskin-popup-v2 .facts{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:8px 0}.bp-shipwreck-gaskin-popup-v2 .facts span{padding:7px;border:1px solid rgba(170,197,207,.18);border-radius:7px;font-size:10px}.bp-shipwreck-gaskin-popup-v2 .facts b{display:block;font-size:9px;color:#9eb7c5;text-transform:uppercase}.bp-shipwreck-gaskin-popup-v2 iframe{width:100%;height:210px;border:0}.bp-shipwreck-gaskin-actions-v2{display:grid;gap:7px;margin:10px 0}.bp-shipwreck-gaskin-actions-v2 button{background:#3b321f;color:#ffe9bb;border:1px solid #d7b66d;border-radius:8px;padding:9px;font-weight:800}.bp-shipwreck-gaskin-status-v2{padding:8px;border:1px solid rgba(231,187,103,.28);border-radius:7px;color:#c8d9df;font-size:10px;margin:7px 0}.bp-shipwreck-gaskin-popup-v2 a{color:#f1cf88}';
+ style.textContent='.bp-shipwreck-gaskin-popup-v2{color:#e8f5fb;font:12px/1.45 system-ui,sans-serif}.bp-shipwreck-gaskin-popup-v2 h3{font-size:18px;color:#fff;margin:4px 0}.bp-shipwreck-gaskin-popup-v2 .facts{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:8px 0}.bp-shipwreck-gaskin-popup-v2 .facts span{padding:7px;border:1px solid rgba(170,197,207,.18);border-radius:7px;font-size:10px}.bp-shipwreck-gaskin-popup-v2 .facts b{display:block;font-size:9px;color:#9eb7c5;text-transform:uppercase}.bp-shipwreck-gaskin-popup-v2 iframe{width:100%;height:210px;border:0}.bp-shipwreck-gaskin-actions-v2{display:grid;gap:7px;margin:10px 0}.bp-shipwreck-gaskin-actions-v2 button{background:#3b321f;color:#ffe9bb;border:1px solid #d7b66d;border-radius:8px;padding:9px;font-weight:800}.bp-shipwreck-local-viewer-v1{position:relative;width:100%;height:clamp(190px,52vw,285px);min-height:190px;overflow:hidden;border:1px solid rgba(226,186,109,.34);border-radius:9px;margin:9px 0;background:radial-gradient(ellipse at 50% 42%,#183447 0%,#06131f 68%,#02070d 100%);touch-action:none}.bp-shipwreck-local-viewer-v1 canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab}.bp-shipwreck-local-viewer-loading-v1{position:absolute;inset:0;display:grid;place-items:center;padding:18px;text-align:center;color:#c5d7df;font-size:11px;pointer-events:none}.bp-shipwreck-local-viewer-toolbar-v1{position:absolute;left:7px;right:7px;bottom:7px;display:flex;justify-content:space-between;align-items:center;gap:7px;pointer-events:none}.bp-shipwreck-local-viewer-toolbar-v1 span{max-width:72%;padding:5px 7px;border-radius:6px;background:rgba(2,10,18,.78);color:#d4e5ed;font-size:9px}.bp-shipwreck-local-viewer-toolbar-v1 button{pointer-events:auto;border:1px solid rgba(231,187,103,.58);border-radius:7px;padding:6px 8px;background:rgba(7,22,34,.92);color:#ffe8b7;font:700 10px system-ui,sans-serif}.bp-shipwreck-gaskin-status-v2{padding:8px;border:1px solid rgba(231,187,103,.28);border-radius:7px;color:#c8d9df;font-size:10px;margin:7px 0}.bp-shipwreck-gaskin-popup-v2 a{color:#f1cf88}';
  document.head.appendChild(style);
 }
 function openHmsGraftonPopup(state,lngLat){
@@ -574,7 +736,7 @@ function openHmsGraftonPopup(state,lngLat){
   '<p>British G-class destroyer · lost 29 May 1940 while returning from the Dunkirk evacuation</p>'+
   '<div class="facts"><span><b>Official wreck position</b>'+safe(p.coordinateText)+'</span><span><b>3D scan capture depth</b>Approximately 19 m</span>'+
   '<span><b>Scan captured</b>19 May 2025 · Oostende, Belgium</span><span><b>Model source</b>DTU Aqua · Benthic 3D Models and Tiles</span></div>'+
-  '<div class="bp-shipwreck-viewer-v1"><iframe title="HMS Grafton underwater 3D scan viewer" src="'+safe(p.viewerUrl)+'" allow="autoplay; fullscreen; xr-spatial-tracking; gyroscope; accelerometer" allowfullscreen loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>'+
+  bridgePointLocalViewerMarkup('hms-grafton','HMS Grafton')+
   '<div class="bp-shipwreck-gaskin-actions-v2"><button type="button" data-hms-grafton-action="materialize">Place native 3D scan beneath the water</button></div>'+
   '<div class="bp-shipwreck-gaskin-status-v2" data-hms-grafton-status>'+safe(state.graftonModelStatus||'Native scan not loaded yet. Select the button to download the licensed GLB and place it at the wreck-site depth reference.')+'</div>'+
   '<p class="bp-shipwreck-accuracy-v1"><strong>3D placement accuracy:</strong> The source dataset reports the Grafton model at an approximate 19 m capture depth. The Belgian maritime plan publishes the HMS Grafton wreck coordinate shown above. The individual GLB does not publish a verified GPS origin or a per-model geodetic/bathymetric transform. BridgePoint preserves the source GLB scale and orientation, centers it at the official wreck position and places its center at approximately 19 m below the water surface for visualization. This is an approximate site placement, not survey-controlled registration of the full scan to the actual seabed; local wreck relief and charted depths vary.</p>'+
@@ -583,11 +745,12 @@ function openHmsGraftonPopup(state,lngLat){
    '<a href="'+safe(p.licenseSourceUrl)+'" target="_blank" rel="noopener noreferrer">NLM Dataset Catalog · CC BY 4.0 rights and contributor record ↗</a>'+
    '<a href="'+safe(p.locationSourceUrl)+'" target="_blank" rel="noopener noreferrer">Belgian maritime plan · official HMS Grafton position ↗</a>'+
    '<a href="'+safe(p.historySourceUrl)+'" target="_blank" rel="noopener noreferrer">HMS Grafton history and sinking details ↗</a>'+
-   '<a href="'+safe(p.viewerUrl)+'" target="_blank" rel="noopener noreferrer">Open original DTU Aqua 3D viewer ↗</a></div>'+
+  '</div>'+
   '<p class="bp-shipwreck-source-v1">The native GLB is mirrored into BridgePoint under CC BY 4.0 with creator attribution. Its original coordinate transform is not included in the individual Grafton GLB.</p></article>';
  state.popup=new Popup({closeButton:true,closeOnClick:true,maxWidth:'450px',className:'bp-shipwreck-titanic-popup-wrap-v1'}).setLngLat(lngLat||p.coordinates).setHTML(html).addTo(state.map);
  const root=state.popup.getElement?.();
  root?.querySelector('[data-hms-grafton-action="materialize"]')?.addEventListener('click',()=>{void showHmsGraftonOnSeabed(state);});
+ mountBridgePointLocalWreckViewer(state,state.popup,'hms-grafton','HMS Grafton');
 }
 function openCannonWreckPopup(state,lngLat){
  const Popup=window.maplibregl?.Popup;if(!Popup)return;
@@ -600,14 +763,14 @@ function openCannonWreckPopup(state,lngLat){
   '<div class="facts"><span><b>Verified WGS84 site</b>'+safe(p.coordinateText)+'</span><span><b>Wreck depth</b>14–16 m (site record)</span>'+
   '<span><b>DTU scan capture</b>12 June 2025 · approximately 11 m depth</span><span><b>Vessel length</b>Approximately 48 m (historical estimate)</span>'+
   '<span><b>Armament</b>At least 16 iron cannons · 12–14 lb</span><span><b>Scan model</b>DTU Aqua · underwater photogrammetry GLB</span></div>'+
-  '<div class="bp-shipwreck-viewer-v1"><iframe title="Kanonvraget Cannon Shipwreck interactive DTU Aqua 3D viewer" src="'+safe(p.viewerUrl)+'" allow="autoplay; fullscreen; xr-spatial-tracking; gyroscope; accelerometer" allowfullscreen loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>'+
+  bridgePointLocalViewerMarkup('kanonvraget','Kanonvraget — Cannon Wreck')+
   '<div class="bp-shipwreck-gaskin-actions-v2"><button type="button" data-cannon-wreck-action="materialize">Place native 3D scan beneath the Øresund</button></div>'+
   '<div class="bp-shipwreck-gaskin-status-v2" data-cannon-wreck-status>'+safe(state.cannonModelStatus||'Native scan not loaded yet. Select the button to place the local DTU Aqua GLB at the wreck-site depth reference.')+'</div>'+
   '<p class="bp-shipwreck-accuracy-v1"><strong>Scan and placement:</strong> DTU Aqua describes its Cannon Shipwreck reconstruction as captured on 12 June 2025 at approximately 11 m depth. The Danish wreck database separately gives a verified WGS84 position and a 14–16 m top-to-bottom wreck depth range. BridgePoint anchors the original GLB at that verified site coordinate and places its center at 15 m below the water surface for visualization. The GLB does not publish a GPS origin or survey-control transform; its source scale and orientation are preserved, so full mesh registration is approximate. The capture-depth and wreck-depth figures are kept separate rather than treated as the same measurement.</p>'+
   '<p class="bp-shipwreck-accuracy-v1"><strong>Historical identification:</strong> The vessel has not been conclusively identified. The Danish wreck record describes at least 16 large 12–14-pound iron cannons and estimates the ship at about 48 m long. Suggestions such as a frigate from the 1801 Battle of Copenhagen or the frigate Charlotte are hypotheses, not confirmed identifications.</p>'+
   '<div class="bp-shipwreck-official-v1"><b>3D model, rights and wreck references</b>'+
    '<a href="'+safe(p.datasetUrl)+'" target="_blank" rel="noopener noreferrer">Zenodo · DTU Aqua original GLB and dataset (CC BY 4.0) ↗</a>'+
-   '<a href="'+safe(p.viewerUrl)+'" target="_blank" rel="noopener noreferrer">DTU Aqua · original interactive 3D viewer ↗</a>'+
+
    '<a href="'+safe(p.locationSourceUrl)+'" target="_blank" rel="noopener noreferrer">Vragguiden · Kanonvraget verified wreck record and location ↗</a>'+
    '<a href="'+safe(p.coordinateSourceUrl)+'" target="_blank" rel="noopener noreferrer">Vragguiden · wreck coordinates, depth and historical description ↗</a>'+
    '<a href="https://datasetcatalog.nlm.nih.gov/dataset?q=0000776569" target="_blank" rel="noopener noreferrer">NLM Dataset Catalog · CC BY 4.0 rights record ↗</a></div>'+
@@ -615,6 +778,7 @@ function openCannonWreckPopup(state,lngLat){
  state.popup=new Popup({closeButton:true,closeOnClick:true,maxWidth:'450px',className:'bp-shipwreck-titanic-popup-wrap-v1'}).setLngLat(lngLat||p.coordinates).setHTML(html).addTo(state.map);
  const root=state.popup.getElement?.();
  root?.querySelector('[data-cannon-wreck-action="materialize"]')?.addEventListener('click',()=>{void showCannonOnSeabed(state);});
+ mountBridgePointLocalWreckViewer(state,state.popup,'kanonvraget','Kanonvraget — Cannon Wreck');
 }
 function openRobertGaskinPopup(state,lngLat){
  const Popup=window.maplibregl?.Popup;if(!Popup)return;
