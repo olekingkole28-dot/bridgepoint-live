@@ -216,13 +216,17 @@ jobs:
           from pathlib import Path
           root=Path("assets/underground-scan-scenes")
           catalog=json.loads((root/"catalog.json").read_text(encoding="utf-8"))
-          assert len(catalog["models"])==1
-          row=catalog["models"][0]
-          assert row["uid"]=="39e7050d272f4aac8493497621b86f39"
-          assert row["license"]=="CC BY 4.0"
-          raw=gzip.decompress((root/(row["uid"]+".glb.gz")).read_bytes())
-          assert raw[:4]==b"glTF" and len(raw)>32
-          print("PARIS_CATACOMBS_SOURCE_ASSET_PASS",len(raw),"bytes")
+          models=catalog["models"]
+          expected={"39e7050d272f4aac8493497621b86f39","f4232f8f91e54b0a8aa92365d6ea7b7a"}
+          assert {row["uid"] for row in models}==expected
+          assert all(row["license"]=="CC BY 4.0" for row in models)
+          total=0
+          for row in models:
+              raw=gzip.decompress((root/(row["uid"]+".glb.gz")).read_bytes())
+              assert raw[:4]==b"glTF" and len(raw)>32
+              total+=len(raw)
+              print("PARIS_CATACOMBS_SOURCE_ASSET_PASS",row["title"],len(raw),"bytes")
+          print("PARIS_CATACOMBS_TWO_NATIVE_ASSETS_PASS",len(models),"models",total,"source bytes")
           PY
 
       - name: Restore and fingerprint the selected live site
