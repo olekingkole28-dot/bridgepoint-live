@@ -1,5 +1,9 @@
 name: Inspect BridgePoint first underwater aircraft mesh
 on:
+  pull_request:
+    paths:
+      - '.github/workflows/inspect-plane-wrecks-source.yml'
+      - 'tools/plane_wrecks/fetch_plane_wrecks.py'
   push:
     branches: [main]
     paths:
