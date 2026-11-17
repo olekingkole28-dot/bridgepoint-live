@@ -59,3 +59,20 @@ The publish workflow checks the Zenodo title, creator, CC BY 4.0 licence, expect
 ## Titanic mesh status
 
 The two Titanic bow/stern photogrammetry listings remain embedded from their original publisher. Their public pages do not document a redistribution licence or GPS-georeferenced scale/origin, so this release does not download or position those meshes as if they were survey-grade seabed assets. The 1:1 Titanic historical reconstruction remains a clearly labelled interpretive reference, not an authentic wreck scan.
+
+
+---
+
+# BridgePoint Shipwrecks v3 — HMS Grafton native scan
+
+An additional persistent icon is added to the existing Shipwrecks control for **HMS Grafton (H89)** off Oostende, Belgium. The existing Titanic bow/stern/debris markers and the Robert Gaskin native riverbed model are retained.
+
+- Belgian maritime-plan position: 51° 24.4260′ N, 2° 49.1030′ E
+- The DTU Aqua dataset records the Grafton underwater reconstruction at an approximate 19 m capture depth (19 May 2025) and provides a GLB mesh.
+- Dataset contributors: DTU Aqua, Patrizio Mariani, Fletcher Thompson and Javier Alonso Fernández.
+- Rights: CC BY 4.0, as indexed for this DOI by the U.S. National Library of Medicine Dataset Catalog.
+- The card embeds the DTU Aqua viewer and offers a separate action to load the local GLB into the globe as a MapLibre native 3D layer.
+
+**Placement limitation:** the individual Grafton GLB does not publish a verified GPS origin or per-model geodetic/bathymetric transform. BridgePoint preserves its source scale and orientation, recenters the mesh at the published Belgian wreck coordinate and places its center approximately 19 m below the water surface, using the dataset's capture-depth reference. This provides an inspectable underwater site visualization; it is not a survey-controlled registration of the full scan to the actual seabed. The card labels this limitation and links to the official position, original dataset and license record.
+
+The single Shipwrecks toggle now controls five persistent map markers and two independently loaded native 3D meshes. The native meshes are hidden when Shipwrecks is off and restored with the same shared 3D layer when enabled again.

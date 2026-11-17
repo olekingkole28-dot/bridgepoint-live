@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import {
- TITANIC_SHIPWRECK_PARTS,TITANIC_3D_MODELS,TITANIC_OFFICIAL_SCAN_SOURCES,ROBERT_GASKIN_WRECK,
+ TITANIC_SHIPWRECK_PARTS,TITANIC_3D_MODELS,TITANIC_OFFICIAL_SCAN_SOURCES,ROBERT_GASKIN_WRECK,HMS_GRAFTON_WRECK,
  buildTitanicShipwreckFeatures,buildAllShipwreckFeatures,titanicShipwreckPopupHtml,syncTitanicShipwreckCategory
 } from '../rebuild-v5000/bridgepoint-shipwrecks-v1.js';
 
@@ -9,9 +9,16 @@ const features=buildTitanicShipwreckFeatures();
 assert.equal(TITANIC_SHIPWRECK_PARTS.length,3,'only Titanic bow, stern and debris-field waypoints are mapped');
 assert.equal(features.length,3);
 const allFeatures=buildAllShipwreckFeatures();
-assert.equal(allFeatures.length,4,'all Titanic sections and the Robert Gaskin marker are always included in one source');
+assert.equal(allFeatures.length,5,'all Titanic sections, Robert Gaskin and HMS Grafton share the Shipwrecks source');
 assert.equal(allFeatures.filter(f=>f.properties.wreckId==='robert-gaskin').length,1);
 assert.deepEqual(allFeatures[3].geometry.coordinates,[-75.677083,44.589317]);
+assert.equal(allFeatures.filter(f=>f.properties.wreckId==='hms-grafton').length,1);
+assert.deepEqual(allFeatures[4].geometry.coordinates,[2.818383333333,51.4071]);
+assert.equal(HMS_GRAFTON_WRECK.scanDepthM,19);
+assert.equal(HMS_GRAFTON_WRECK.license,'CC BY 4.0');
+assert.match(HMS_GRAFTON_WRECK.datasetUrl,/zenodo\.19592377/);
+assert.match(HMS_GRAFTON_WRECK.viewerUrl,/demos\/viewer\/Grafton/);
+assert.match(HMS_GRAFTON_WRECK.locationSourceUrl,/publicaties\.vlaanderen\.be/);
 assert.equal(ROBERT_GASKIN_WRECK.depthM,19.8);
 assert.equal(ROBERT_GASKIN_WRECK.waterSurfaceElevationM,74.64,'native placement uses the Brockville water-surface datum, not a negative sea-level altitude');
 assert.equal(ROBERT_GASKIN_WRECK.verticalDatum,'IGLD 1985');
@@ -68,6 +75,13 @@ assert.ok(moduleSource.includes('minzoom:0,maxzoom:24'),'markers remain visible 
 assert.ok(moduleSource.includes("'icon-allow-overlap':true"),'wreck markers do not disappear because of symbol collisions');
 assert.ok(moduleSource.includes('buildAllShipwreckFeatures()'),'Titanic and Robert Gaskin markers share one source and remain visible together');
 assert.ok(moduleSource.includes('ROBERT_GASKIN_ASSET'),'Robert Gaskin has a local GLB asset path');
+assert.ok(moduleSource.includes('HMS_GRAFTON_ASSET'),'HMS Grafton has a separate local GLB asset path');
+assert.ok(moduleSource.includes('loadHmsGraftonMesh(state)'),'HMS Grafton is loaded as a native GLB');
+assert.ok(moduleSource.includes('showHmsGraftonOnSeabed(state)'),'the Grafton card can materialize its 3D scan on the map');
+assert.ok(moduleSource.includes('maybeAutoMaterializeHmsGrafton(state)'),'Grafton native mesh loads when zoomed to its wreck-site icon');
+assert.ok(moduleSource.includes('HMS_GRAFTON_WRECK.waterSurfaceElevationM-HMS_GRAFTON_WRECK.scanDepthM'),'Grafton native mesh uses the approximate capture depth');
+assert.ok(moduleSource.includes("hit.properties?.wreckId==='hms-grafton'"),'Grafton click opens its dedicated popup');
+assert.ok(moduleSource.includes('all five icons remain visible'),'the shared icon layer reports five persistent wreck markers');
 assert.ok(moduleSource.includes("NATIVE_MODEL_LAYER_ID='bp-shipwrecks-native-model-v2'"),'Robert Gaskin uses a native MapLibre 3D custom layer');
 assert.ok(moduleSource.includes("import(GLTF_URL)"),'native scan is parsed through the local GLTFLoader');
 assert.ok(moduleSource.includes("new DecompressionStream('gzip')"),'the native GLB uses a compressed local asset');
@@ -99,8 +113,8 @@ assert.ok(workflow.includes('required={"bridgepoint-shipwrecks-v1.js"'));
 assert.ok(workflow.includes('robert-gaskin-photogrammetry.glb.gz'),'the publisher overlays the licensed Robert Gaskin native mesh');
 assert.ok(workflow.includes('GLTFLoader.bundle.js'),'the publisher serves a local GLTFLoader instead of a remote CDN dependency');
 assert.ok(workflow.includes('11-shipwrecks-v2-persistent-icons'),'the publisher repairs the shared visibility-guard cache bust on both entry points');
-assert.ok(workflow.includes('BRIDGEPOINT_SHIPWRECKS_V2_LIVE_VERIFY_PASS'),'the publisher verifies the live shipwreck v2 asset and entry points');
+assert.ok(workflow.includes('BRIDGEPOINT_SHIPWRECKS_V3_LIVE_VERIFY_PASS'),'the publisher verifies the live shipwreck v3 asset and entry points');
 
 assert.ok(!/SUPA|supabase/i.test(moduleSource),'the native shipwreck renderer has no Supabase dependency');
 
-console.log('BRIDGEPOINT_SHIPWRECKS_TITANIC_V1_PASS');
+console.log('BRIDGEPOINT_SHIPWRECKS_TITANIC_GRAFTON_V3_PASS');

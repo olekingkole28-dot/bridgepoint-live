@@ -1,13 +1,13 @@
-/* BridgePoint Shipwrecks v2 — Titanic + Robert Gaskin.
- * Titanic NOAA section waypoints stay on the globe; Robert Gaskin adds a CC BY 4.0 native seabed GLB.
- * Titanic creator-hosted photogrammetry remains embedded externally until redistribution rights are confirmed.
+/* BridgePoint Shipwrecks v3 — Titanic + Robert Gaskin + HMS Grafton.
+ * The Grafton scan is an additional opt-in native GLB; existing wrecks remain unchanged.
  */
-const VERSION=2, MAP_STATES=new WeakMap();
+const VERSION=3, MAP_STATES=new WeakMap();
 const THREE_URL='/vendor/three.module.js?v=169-local';
 const GLTF_URL='/vendor/GLTFLoader.bundle.js?v=169-local';
 const NATIVE_MODEL_LAYER_ID='bp-shipwrecks-native-model-v2';
 const ROBERT_GASKIN_ASSET='/assets/shipwrecks/robert-gaskin-photogrammetry.glb.gz';
 const ROBERT_GASKIN_LENGTH_M=40.42;
+const HMS_GRAFTON_ASSET='/assets/shipwrecks/hms-grafton-photogrammetry.glb.gz';
 let shipwreckThreePromise=null;
 const SOURCE_ID='bp-shipwrecks-titanic-source-v1';
 const HALO_ID='bp-shipwrecks-titanic-halo-v1';
@@ -46,12 +46,33 @@ export const ROBERT_GASKIN_WRECK={
  orientationPrecision:'Approximate north/inland axis based on the dive-site description that the bow faces inland; not a survey-grade heading.',
  detail:'Photogrammetry reconstruction from approximately 49,000 underwater photographs. The original scan is preserved as a native GLB and placed at the wreck-site coordinate and published 18.3–21.3 m depth range.'
 };
+export const HMS_GRAFTON_WRECK={
+ id:'hms-grafton',name:'HMS Grafton — 1940 G-class destroyer',label:'HMS GRAFTON',
+ part:'hull',coordinates:[2.818383333333,51.4071],
+ coordinateText:'51° 24.4260′ N, 2° 49.1030′ E',
+ scanDepthM:19,waterSurfaceElevationM:0,capturedAt:'2025-05-19',
+ license:'CC BY 4.0',creators:'DTU Aqua · Patrizio Mariani · Fletcher Thompson · Javier Alonso Fernández',
+ sourceUrl:'https://zenodo.org/records/19592377',datasetUrl:'https://doi.org/10.5281/zenodo.19592377',
+ licenseSourceUrl:'https://datasetcatalog.nlm.nih.gov/dataset?q=0000776569',
+ viewerUrl:'https://obstek.aqua.dtu.dk/demos/viewer/Grafton',
+ locationSourceUrl:'https://publicaties.vlaanderen.be/view-file/83815',
+ historySourceUrl:'https://www.uboat.net/allies/warships/ship/4395.html',
+ assetUrl:HMS_GRAFTON_ASSET,
+ locationPrecision:'The Belgian maritime plan gives the wreck-site coordinate. The source GLB does not publish a verified GPS origin or per-model geodetic transform; its center is placed at the official site point for visualization.',
+ scalePrecision:'The source GLB scale is preserved. No survey-control scale certificate is published with this single-model file.',
+ orientationPrecision:'The source GLB orientation is preserved; its heading relative to true north is not verified.',
+ detail:'DTU Aqua underwater 3D reconstruction at the Grafton site off Oostende, captured 19 May 2025. The source record reports an approximate capture depth of 19 m.'
+};
 export function buildAllShipwreckFeatures(){
  const p=ROBERT_GASKIN_WRECK;
  const gaskin={type:'Feature',id:p.id,
   geometry:{type:'Point',coordinates:[Number(p.coordinates[0]),Number(p.coordinates[1])]},
   properties:{wreckId:p.id,name:p.name,label:p.label,part:p.part,iconImage:ICON_ID,depthM:p.depthM,coordinateText:p.coordinateText}};
- return [...buildTitanicShipwreckFeatures(),gaskin];
+ const g=HMS_GRAFTON_WRECK;
+ const grafton={type:'Feature',id:g.id,
+  geometry:{type:'Point',coordinates:[Number(g.coordinates[0]),Number(g.coordinates[1])]},
+  properties:{wreckId:g.id,name:g.name,label:g.label,part:g.part,iconImage:ICON_ID,depthM:g.scanDepthM,coordinateText:g.coordinateText}};
+ return [...buildTitanicShipwreckFeatures(),gaskin,grafton];
 }
 
 export const TITANIC_3D_MODELS=[
@@ -252,6 +273,11 @@ function updateRobertGaskinModelStatus(state,message){
  const popup=state.popup?.getElement?.()?.querySelector('[data-robert-gaskin-status]');
  if(popup)popup.textContent=state.nativeModelStatus;
 }
+function updateHmsGraftonModelStatus(state,message){
+ state.graftonModelStatus=String(message||'');
+ const popup=state.popup?.getElement?.()?.querySelector('[data-hms-grafton-status]');
+ if(popup)popup.textContent=state.graftonModelStatus;
+}
 async function loadShipwreckThree(){
  if(!shipwreckThreePromise)shipwreckThreePromise=Promise.all([import(THREE_URL),import(GLTF_URL)]).then(([THREE,loader])=>{
   if(!THREE?.WebGLRenderer||!loader?.GLTFLoader)throw new Error('BridgePoint local Three.js / GLTFLoader unavailable');
@@ -318,10 +344,51 @@ async function loadRobertGaskinMesh(state){
  })().catch(error=>{state.nativeModelPromise=null;throw error;});
  return state.nativeModelPromise;
 }
+async function loadHmsGraftonMesh(state){
+ if(state.graftonModelRoot)return state.graftonModelRoot;
+ if(state.graftonModelPromise)return state.graftonModelPromise;
+ state.graftonModelPromise=(async()=>{
+  const pair=await loadShipwreckThree();if(state.destroyed)throw new Error('Shipwreck layer closed');
+  state.THREE=pair.THREE;state.GLTFLoader=pair.GLTFLoader;
+  const response=await fetch(HMS_GRAFTON_ASSET,{cache:'force-cache'});
+  if(!response.ok)throw new Error('HMS Grafton GLB request failed ('+response.status+')');
+  if(typeof DecompressionStream==='undefined')throw new Error('Gzip decompression is unavailable in this browser');
+  const stream=new Blob([await response.arrayBuffer()]).stream().pipeThrough(new DecompressionStream('gzip'));
+  const buffer=await new Response(stream).arrayBuffer();
+  if(new DataView(buffer).getUint32(0,true)!==0x46546c67)throw new Error('HMS Grafton asset is not a valid GLB');
+  const gltf=await new state.GLTFLoader().parseAsync(buffer,'');
+  if(!gltf?.scene)throw new Error('HMS Grafton GLB contains no scene');
+  const root=gltf.scene.clone(true);root.updateMatrixWorld(true);
+  const bounds=new pair.THREE.Box3().setFromObject(root);
+  if(bounds.isEmpty())throw new Error('HMS Grafton scan contains no 3D geometry');
+  const size=bounds.getSize(new pair.THREE.Vector3());
+  if(![size.x,size.y,size.z].every(Number.isFinite)||Math.max(size.x,size.y,size.z)<=0)throw new Error('HMS Grafton scan has invalid dimensions');
+  // The individual GLB lacks a published GPS transform; keep its source scale/orientation.
+  const center=bounds.getCenter(new pair.THREE.Vector3());
+  root.position.x-=center.x;root.position.y-=center.y;root.position.z-=center.z;
+  root.visible=false;
+  root.traverse(object=>{
+   if(!object.isMesh&&!object.isPoints)return;
+   object.frustumCulled=false;object.renderOrder=1000;
+   for(const material of Array.isArray(object.material)?object.material:[object.material]){
+    if(!material)continue;
+    material.depthTest=false;material.depthWrite=false;material.needsUpdate=true;
+   }
+  });
+  root.updateMatrixWorld(true);
+  state.graftonModelRoot=root;state.graftonModelBounds={x:size.x,y:size.y,z:size.z};
+  if(state.nativeModelScene)state.nativeModelScene.add(root);
+  return root;
+ })().catch(error=>{state.graftonModelPromise=null;throw error;});
+ return state.graftonModelPromise;
+}
 function ensureRobertGaskinMapLayer(state){
  const map=state.map,THREE=state.THREE;
- if(!THREE||!state.nativeModelRoot||state.destroyed)return false;
- if(map.getLayer(NATIVE_MODEL_LAYER_ID)&&state.nativeModelRenderer&&state.nativeModelScene)return true;
+ if(!THREE||(!state.nativeModelRoot&&!state.graftonModelRoot)||state.destroyed)return false;
+ if(map.getLayer(NATIVE_MODEL_LAYER_ID)&&state.nativeModelRenderer&&state.nativeModelScene){
+  for(const root of [state.nativeModelRoot,state.graftonModelRoot])if(root&&root.parent!==state.nativeModelScene)state.nativeModelScene.add(root);
+  return true;
+ }
  const layer={
   id:NATIVE_MODEL_LAYER_ID,type:'custom',renderingMode:'3d',
   onAdd(mapRef,gl){
@@ -330,24 +397,31 @@ function ensureRobertGaskinMapLayer(state){
    state.nativeModelCamera=new THREE.Camera();state.nativeModelScene=new THREE.Scene();
    state.nativeModelScene.add(new THREE.AmbientLight(0xffffff,1.55));
    const key=new THREE.DirectionalLight(0xffe9c7,1.2);key.position.set(-.6,1.4,.9);state.nativeModelScene.add(key);
-   if(state.nativeModelRoot&&state.nativeModelRoot.parent!==state.nativeModelScene)state.nativeModelScene.add(state.nativeModelRoot);
+   for(const root of [state.nativeModelRoot,state.graftonModelRoot])if(root)state.nativeModelScene.add(root);
    state.stats.nativeModelLayerReady=true;
   },
   render(gl,args){
-   if(!state.enabled||!state.nativeModelVisible||!state.nativeModelRenderer||!state.nativeModelScene||!state.nativeModelCamera||!state.nativeModelRoot)return;
-   if(Number(map.getZoom?.()||0)<12.2){state.nativeModelRoot.visible=false;return;}
-   const bounds=map.getBounds?.();
-   try{if(bounds&&!bounds.contains(ROBERT_GASKIN_WRECK.coordinates)){state.nativeModelRoot.visible=false;return;}}catch(_){}
+   if(!state.enabled||!state.nativeModelRenderer||!state.nativeModelScene||!state.nativeModelCamera)return;
    const raw=args&&(args.defaultProjectionData?.mainMatrix||args.modelViewProjectionMatrix);
    if(!raw||raw.length<16)return;
-   const wreckAltitude=ROBERT_GASKIN_WRECK.waterSurfaceElevationM-ROBERT_GASKIN_WRECK.depthM;
-   const matrix=nativeMapMatrix(map,THREE,ROBERT_GASKIN_WRECK.coordinates,wreckAltitude);
-   if(!matrix)return;
-   state.nativeModelRoot.visible=true;
-   state.nativeModelCamera.projectionMatrix.copy(new THREE.Matrix4().fromArray(raw)).multiply(matrix);
-   try{state.nativeModelRenderer.resetState();state.nativeModelRenderer.render(state.nativeModelScene,state.nativeModelCamera);}
-   catch(error){if(!state.nativeModelRenderWarned){state.nativeModelRenderWarned=true;console.warn('BridgePoint Robert Gaskin seabed model render',error);}}
-   finally{state.nativeModelRoot.visible=false;}
+   const draw=(root,visible,coordinates,altitudeM,warningKey,label)=>{
+    if(!root)return;
+    const inZoom=Number(map.getZoom?.()||0)>=12.2;
+    const bounds=map.getBounds?.();let inBounds=true;
+    try{if(bounds&&!bounds.contains(coordinates))inBounds=false;}catch(_){}
+    if(!visible||!inZoom||!inBounds){root.visible=false;return;}
+    const matrix=nativeMapMatrix(map,THREE,coordinates,altitudeM);
+    if(!matrix){root.visible=false;return;}
+    root.visible=true;
+    state.nativeModelCamera.projectionMatrix.copy(new THREE.Matrix4().fromArray(raw)).multiply(matrix);
+    try{state.nativeModelRenderer.resetState();state.nativeModelRenderer.render(state.nativeModelScene,state.nativeModelCamera);}
+    catch(error){if(!state[warningKey]){state[warningKey]=true;console.warn('BridgePoint '+label+' native seabed render',error);}}
+    finally{root.visible=false;}
+   };
+   draw(state.nativeModelRoot,state.nativeModelVisible,ROBERT_GASKIN_WRECK.coordinates,
+    ROBERT_GASKIN_WRECK.waterSurfaceElevationM-ROBERT_GASKIN_WRECK.depthM,'nativeModelRenderWarned','Robert Gaskin');
+   draw(state.graftonModelRoot,state.graftonModelVisible,HMS_GRAFTON_WRECK.coordinates,
+    HMS_GRAFTON_WRECK.waterSurfaceElevationM-HMS_GRAFTON_WRECK.scanDepthM,'graftonModelRenderWarned','HMS Grafton');
   },
   onRemove(){
    try{state.nativeModelRenderer?.dispose();}catch(_){}
@@ -359,10 +433,9 @@ function ensureRobertGaskinMapLayer(state){
 }
 async function showRobertGaskinOnRiverbed(state){
  if(!state.enabled)return false;
- state.nativeModelAutoAttempted=true;
- state.nativeModelVisible=true;
+ state.nativeModelAutoAttempted=true;state.nativeModelVisible=true;
  updateRobertGaskinModelStatus(state,'Loading the CC BY 4.0 photogrammetry scan…');
- setStatus(state,'Robert Gaskin native underwater mesh loading; all four wreck icons remain on.');
+ setStatus(state,'Robert Gaskin native underwater mesh loading; all five wreck icons remain on.');
  try{
   await loadRobertGaskinMesh(state);
   if(state.destroyed||!state.enabled)return false;
@@ -378,11 +451,56 @@ async function showRobertGaskinOnRiverbed(state){
   return false;
  }
 }
+async function showHmsGraftonOnSeabed(state){
+ if(!state.enabled)return false;
+ state.graftonModelAutoAttempted=true;state.graftonModelVisible=true;
+ updateHmsGraftonModelStatus(state,'Loading the CC BY 4.0 HMS Grafton scan…');
+ setStatus(state,'HMS Grafton native underwater mesh loading; all five wreck icons remain on.');
+ try{
+  await loadHmsGraftonMesh(state);
+  if(state.destroyed||!state.enabled)return false;
+  if(!ensureRobertGaskinMapLayer(state))throw new Error('MapLibre native 3D layer could not attach');
+  if(state.nativeModelScene&&state.graftonModelRoot.parent!==state.nativeModelScene)state.nativeModelScene.add(state.graftonModelRoot);
+  const b=state.graftonModelBounds;
+  updateHmsGraftonModelStatus(state,'Native scan loaded · source GLB bounds '+[b.x,b.y,b.z].map(n=>n.toFixed(1)+' m').join(' × ')+'. Source scale/orientation preserved; displayed at the approximate 19 m capture-depth reference when zoomed to the wreck.');
+  setStatus(state,'HMS Grafton native photogrammetry mesh loaded at its approximate wreck-site/depth reference.');
+  state.map.triggerRepaint?.();refreshStatusUi(state);return true;
+ }catch(error){
+  state.graftonModelVisible=false;
+  updateHmsGraftonModelStatus(state,'Native scan could not load: '+String(error?.message||error));
+  setStatus(state,'HMS Grafton native 3D mesh unavailable: '+String(error?.message||error));
+  return false;
+ }
+}
 function addRobertGaskinStyles(){
  if(document.getElementById('bp-shipwreck-gaskin-style-v2'))return;
  const style=document.createElement('style');style.id='bp-shipwreck-gaskin-style-v2';
  style.textContent='.bp-shipwreck-gaskin-popup-v2{color:#e8f5fb;font:12px/1.45 system-ui,sans-serif}.bp-shipwreck-gaskin-popup-v2 h3{font-size:18px;color:#fff;margin:4px 0}.bp-shipwreck-gaskin-popup-v2 .facts{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:8px 0}.bp-shipwreck-gaskin-popup-v2 .facts span{padding:7px;border:1px solid rgba(170,197,207,.18);border-radius:7px;font-size:10px}.bp-shipwreck-gaskin-popup-v2 .facts b{display:block;font-size:9px;color:#9eb7c5;text-transform:uppercase}.bp-shipwreck-gaskin-popup-v2 iframe{width:100%;height:210px;border:0}.bp-shipwreck-gaskin-actions-v2{display:grid;gap:7px;margin:10px 0}.bp-shipwreck-gaskin-actions-v2 button{background:#3b321f;color:#ffe9bb;border:1px solid #d7b66d;border-radius:8px;padding:9px;font-weight:800}.bp-shipwreck-gaskin-status-v2{padding:8px;border:1px solid rgba(231,187,103,.28);border-radius:7px;color:#c8d9df;font-size:10px;margin:7px 0}.bp-shipwreck-gaskin-popup-v2 a{color:#f1cf88}';
  document.head.appendChild(style);
+}
+function openHmsGraftonPopup(state,lngLat){
+ const Popup=window.maplibregl?.Popup;if(!Popup)return;
+ if(state.popup)state.popup.remove();
+ const p=HMS_GRAFTON_WRECK;
+ const html='<article class="bp-shipwreck-grafton-popup-v1">'+
+  '<div class="bp-shipwreck-kicker-v1">BRIDGEPOINT · SHIPWRECKS</div><h3>HMS Grafton (H89)</h3>'+
+  '<p>British G-class destroyer · lost 29 May 1940 while returning from the Dunkirk evacuation</p>'+
+  '<div class="facts"><span><b>Official wreck position</b>'+safe(p.coordinateText)+'</span><span><b>3D scan capture depth</b>Approximately 19 m</span>'+
+  '<span><b>Scan captured</b>19 May 2025 · Oostende, Belgium</span><span><b>Model source</b>DTU Aqua · Benthic 3D Models and Tiles</span></div>'+
+  '<div class="bp-shipwreck-viewer-v1"><iframe title="HMS Grafton underwater 3D scan viewer" src="'+safe(p.viewerUrl)+'" allow="autoplay; fullscreen; xr-spatial-tracking; gyroscope; accelerometer" allowfullscreen loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>'+
+  '<div class="bp-shipwreck-gaskin-actions-v2"><button type="button" data-hms-grafton-action="materialize">Place native 3D scan beneath the water</button></div>'+
+  '<div class="bp-shipwreck-gaskin-status-v2" data-hms-grafton-status>'+safe(state.graftonModelStatus||'Native scan not loaded yet. Select the button to download the licensed GLB and place it at the wreck-site depth reference.')+'</div>'+
+  '<p class="bp-shipwreck-accuracy-v1"><strong>3D placement accuracy:</strong> The source dataset reports the Grafton model at an approximate 19 m capture depth. The Belgian maritime plan publishes the HMS Grafton wreck coordinate shown above. The individual GLB does not publish a verified GPS origin or a per-model geodetic/bathymetric transform. BridgePoint preserves the source GLB scale and orientation, centers it at the official wreck position and places its center at approximately 19 m below the water surface for visualization. This is an approximate site placement, not survey-controlled registration of the full scan to the actual seabed; local wreck relief and charted depths vary.</p>'+
+  '<div class="bp-shipwreck-official-v1"><b>Model, rights and wreck references</b>'+
+   '<a href="'+safe(p.datasetUrl)+'" target="_blank" rel="noopener noreferrer">DTU Aqua · original 3D dataset and GLB download ↗</a>'+
+   '<a href="'+safe(p.licenseSourceUrl)+'" target="_blank" rel="noopener noreferrer">NLM Dataset Catalog · CC BY 4.0 rights and contributor record ↗</a>'+
+   '<a href="'+safe(p.locationSourceUrl)+'" target="_blank" rel="noopener noreferrer">Belgian maritime plan · official HMS Grafton position ↗</a>'+
+   '<a href="'+safe(p.historySourceUrl)+'" target="_blank" rel="noopener noreferrer">HMS Grafton history and sinking details ↗</a>'+
+   '<a href="'+safe(p.viewerUrl)+'" target="_blank" rel="noopener noreferrer">Open original DTU Aqua 3D viewer ↗</a></div>'+
+  '<p class="bp-shipwreck-source-v1">The native GLB is mirrored into BridgePoint under CC BY 4.0 with creator attribution. Its original coordinate transform is not included in the individual Grafton GLB.</p></article>';
+ state.popup=new Popup({closeButton:true,closeOnClick:true,maxWidth:'450px',className:'bp-shipwreck-titanic-popup-wrap-v1'}).setLngLat(lngLat||p.coordinates).setHTML(html).addTo(state.map);
+ const root=state.popup.getElement?.();
+ root?.querySelector('[data-hms-grafton-action="materialize"]')?.addEventListener('click',()=>{void showHmsGraftonOnSeabed(state);});
 }
 function openRobertGaskinPopup(state,lngLat){
  const Popup=window.maplibregl?.Popup;if(!Popup)return;
@@ -413,6 +531,15 @@ function maybeAutoMaterializeRobertGaskin(state){
  void showRobertGaskinOnRiverbed(state);
  return true;
 }
+function maybeAutoMaterializeHmsGrafton(state){
+ if(!state.enabled||state.graftonModelAutoAttempted||state.graftonModelRoot||state.graftonModelPromise)return false;
+ if(Number(state.map.getZoom?.()||0)<12.2)return false;
+ const bounds=state.map.getBounds?.();
+ try{if(bounds&&!bounds.contains(HMS_GRAFTON_WRECK.coordinates))return false;}catch(_){}
+ state.graftonModelAutoAttempted=true;
+ void showHmsGraftonOnSeabed(state);
+ return true;
+}
 function bindInteractions(state){
  if(state.interactionsBound)return;state.interactionsBound=true;
  state.handleClick=event=>{
@@ -421,6 +548,7 @@ function bindInteractions(state){
   const hit=hits.find(feature=>feature.properties?.partId||feature.properties?.wreckId);
   if(!hit)return;
   if(hit.properties?.wreckId==='robert-gaskin'){openRobertGaskinPopup(state,event.lngLat||ROBERT_GASKIN_WRECK.coordinates);return;}
+  if(hit.properties?.wreckId==='hms-grafton'){openHmsGraftonPopup(state,event.lngLat||HMS_GRAFTON_WRECK.coordinates);return;}
   const part=partById(String(hit.properties.partId));
   if(part)openTitanicPopup(state,part,event.lngLat||part.coordinates);
  };
@@ -435,9 +563,10 @@ function bindInteractions(state){
   }
   setVisibility(state,true);
   state.stats.visibilityReassertions=(state.stats.visibilityReassertions||0)+1;
-  if(state.nativeModelVisible&&state.nativeModelRoot&&!state.map.getLayer(NATIVE_MODEL_LAYER_ID))ensureRobertGaskinMapLayer(state);
+  if((state.nativeModelVisible&&state.nativeModelRoot)||(state.graftonModelVisible&&state.graftonModelRoot))ensureRobertGaskinMapLayer(state);
   maybeAutoMaterializeRobertGaskin(state);
-  setStatus(state,'Shipwrecks ON · all four icons remain visible through zoom, angle and style changes. Select a wreck for its card and model.');
+  maybeAutoMaterializeHmsGrafton(state);
+  setStatus(state,'Shipwrecks ON · all five icons remain visible through zoom, angle and style changes. Select a wreck for its card and native 3D scan.');
   refreshStatusUi(state);
  };
  state.handleStyleLoad=state.handlePersistentVisibility;
@@ -452,9 +581,9 @@ function addControlGroup(state){
  group.setAttribute('data-bpv-command-section','shipwrecks');
  group.setAttribute('aria-label','Shipwrecks');
  group.innerHTML=
-  '<div class="bpv-command-heading"><span class="bpv-command-heading-icon" aria-hidden="true">🚢</span><span><b>SHIPWRECKS</b><small>Titanic + native underwater photogrammetry</small></span></div>'+
+  '<div class="bpv-command-heading"><span class="bpv-command-heading-icon" aria-hidden="true">🚢</span><span><b>SHIPWRECKS</b><small>Titanic + native underwater photogrammetry scans</small></span></div>'+
   '<div class="bpv-command-grid"><button id="'+TOGGLE_ID+'" data-bpv-action="shipwrecks" type="button" class="bpv-command-btn" aria-pressed="false" title="Show or hide mapped shipwreck markers"><span class="bpv-command-icon" aria-hidden="true">🚢</span><span class="bpv-command-label">Shipwrecks</span></button></div>'+
-  '<div id="'+COUNT_ID+'" class="bpv-data-note">4 persistent wreck icons · '+state.stats.models+' Titanic viewer references · 1 native seabed GLB</div>'+
+  '<div id="'+COUNT_ID+'" class="bpv-data-note">5 persistent wreck icons · '+state.stats.models+' Titanic viewer references · 2 native seabed GLBs</div>'+
   '<div id="'+STATUS_ID+'" class="bpv-data-note">Layer off · the rest of the BridgePoint globe remains unchanged.</div>'+
   '<style id="bp-shipwrecks-titanic-style-v2">'+
   '#'+CONTROL_ID+' .bpv-data-note{font:600 10px/1.45 system-ui,sans-serif;color:#9bb7c6;margin:5px 2px;overflow-wrap:anywhere}'+
@@ -485,10 +614,17 @@ async function setEnabled(state,on){
   }else{
    maybeAutoMaterializeRobertGaskin(state);
   }
+  if(state.graftonModelRoot){
+   state.graftonModelVisible=true;
+   if(!state.map.getLayer(NATIVE_MODEL_LAYER_ID))ensureRobertGaskinMapLayer(state);
+  }else{
+   maybeAutoMaterializeHmsGrafton(state);
+  }
  }else{
   if(state.popup){state.popup.remove();state.popup=null;}
   state.nativeModelVisible=false;state.nativeModelAutoAttempted=false;if(state.nativeModelRoot)state.nativeModelRoot.visible=false;
-  setVisibility(state,false);setStatus(state,'Shipwrecks off · all four wreck icons and the native Gaskin mesh are hidden; other BridgePoint layers are unchanged.');
+  state.graftonModelVisible=false;state.graftonModelAutoAttempted=false;if(state.graftonModelRoot)state.graftonModelRoot.visible=false;
+  setVisibility(state,false);setStatus(state,'Shipwrecks off · all five wreck icons and both native meshes are hidden; other BridgePoint layers are unchanged.');
  }
  refreshStatusUi(state);state.map.triggerRepaint?.();return state.enabled;
 }
@@ -498,16 +634,18 @@ export function initShipwrecksRenderer(target){
  const existing=MAP_STATES.get(map);if(existing)return existing.api;
  const state={map,enabled:false,popup:null,interactionsBound:false,status:'off',destroyed:false,
   nativeModelVisible:false,nativeModelAutoAttempted:false,nativeModelStatus:'Native scan not loaded.',nativeModelRoot:null,nativeModelPromise:null,
+  graftonModelVisible:false,graftonModelAutoAttempted:false,graftonModelStatus:'Native scan not loaded.',graftonModelRoot:null,graftonModelPromise:null,graftonModelBounds:null,
   nativeModelRenderer:null,nativeModelCamera:null,nativeModelScene:null,nativeModelLayerReady:false,nativeModelBounds:null,
-  stats:{version:VERSION,parts:4,sites:2,models:TITANIC_3D_MODELS.length,nativeModels:1,lastError:null}};
+  stats:{version:VERSION,parts:5,sites:3,models:TITANIC_3D_MODELS.length,nativeModels:2,lastError:null}};
  const api={
   version:VERSION,get enabled(){return state.enabled;},get status(){return state.status;},
   get stats(){return Object.assign({},state.stats);},get partCount(){return state.stats.parts;},get modelCount(){return state.stats.models;},
   toggle(){return setEnabled(state,!state.enabled);},setEnabled(on){return setEnabled(state,on);},
   refresh(){const source=map.getSource(SOURCE_ID);if(source?.setData)source.setData({type:'FeatureCollection',features:buildAllShipwreckFeatures()});return state.stats;},
   showRobertGaskinOnRiverbed(){return showRobertGaskinOnRiverbed(state);},
+  showHmsGraftonOnSeabed(){return showHmsGraftonOnSeabed(state);},
   destroy(){
-   state.destroyed=true;state.enabled=false;state.nativeModelVisible=false;
+   state.destroyed=true;state.enabled=false;state.nativeModelVisible=false;state.graftonModelVisible=false;
    if(state.popup)state.popup.remove();
    if(state.handleClick)map.off('click',state.handleClick);
    if(state.handlePersistentVisibility){
@@ -518,6 +656,7 @@ export function initShipwrecksRenderer(target){
    if(map.getLayer(NATIVE_MODEL_LAYER_ID))map.removeLayer(NATIVE_MODEL_LAYER_ID);
    try{state.nativeModelRenderer?.dispose();}catch(_){}
    if(state.nativeModelRoot){state.nativeModelScene?.remove(state.nativeModelRoot);state.nativeModelRoot=null;}
+   if(state.graftonModelRoot){state.nativeModelScene?.remove(state.graftonModelRoot);state.graftonModelRoot=null;}
    for(const id of [LABEL_ID,MARKER_ID,HALO_ID])if(map.getLayer(id))map.removeLayer(id);
    if(map.getSource(SOURCE_ID))map.removeSource(SOURCE_ID);
    try{if(map.hasImage?.(ICON_ID))map.removeImage(ICON_ID)}catch(_){}

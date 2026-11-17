@@ -109,7 +109,16 @@ jobs:
           assert raw[:4]==b'glTF' and len(raw)>32
           assert record['triangles']==598600 and record['vertices']==322800
           assert record['assetSha256']
+          grafton=json.loads((root/'catalog.json').read_text(encoding='utf-8'))['grafton']
+          assert grafton['license']=='CC BY 4.0' and 'Patrizio Mariani' in grafton['creators']
+          grafton_asset=root/'hms-grafton-photogrammetry.glb.gz'
+          grafton_raw=gzip.decompress(grafton_asset.read_bytes())
+          assert grafton_raw[:4]==b'glTF' and len(grafton_raw)>32
+          assert grafton['sourceMd5']=='ed8cf639950ab31290daffce25401b1a'
+          assert grafton['coordinates']==[2.818383333333,51.4071] and grafton['scanDepthM']==19
+          assert grafton['assetSha256']
           print('BRIDGEPOINT_ROBERT_GASKIN_NATIVE_CC_BY_ASSET_PASS',len(raw),'source bytes',asset.stat().st_size,'compressed bytes')
+          print('BRIDGEPOINT_HMS_GRAFTON_NATIVE_CC_BY_ASSET_PASS',len(grafton_raw),'source bytes',grafton_asset.stat().st_size,'compressed bytes')
           PY
 
       - name: Select the latest successful deployed GitHub Pages artifact
@@ -248,24 +257,26 @@ jobs:
           from pathlib import Path
           import hashlib,json,os,re
           site=Path(os.environ["RUNNER_TEMP"])/"shipwrecks-site"
-          attach="""void import('./bridgepoint-shipwrecks-v1.js?v=2-titanic-gaskin-native')
+          attach="""void import('./bridgepoint-shipwrecks-v1.js?v=3-titanic-gaskin-grafton-native')
            .then(m=>{window.__BP_SHIPWRECKS_V1__=m.initShipwrecksRenderer(world)})
            .catch(e=>console.warn('BridgePoint shipwreck renderer unavailable',e));"""
           old_markers=("bridgepoint-shipwrecks-v1.js?v=1-titanic-noaa-waypoints",
-                       "bridgepoint-shipwrecks-v1.js?v=2-titanic-gaskin-native")
+                       "bridgepoint-shipwrecks-v1.js?v=2-titanic-gaskin-native",
+                       "bridgepoint-shipwrecks-v1.js?v=3-titanic-gaskin-grafton-native")
+          new_marker=old_markers[-1]
           wells_anchor=".catch(e=>console.warn('BridgePoint global subsurface wells renderer unavailable',e));"
           for rel in ("landing.js","app.js"):
               p=site/rel;data=p.read_text(encoding="utf-8")
-              if old_markers[1] not in data:
-                  old=[m for m in old_markers if data.count(m)==1]
+              if new_marker not in data:
+                  old=[m for m in old_markers[:-1] if data.count(m)==1]
                   if len(old)==1:
-                      data=data.replace(old[0],old_markers[1],1)
+                      data=data.replace(old[0],new_marker,1)
                   else:
                       if data.count(wells_anchor)!=1:
                           raise SystemExit(f"{rel}: no unique existing Shipwrecks import/cache key or wells insertion anchor")
                       data=data.replace(wells_anchor,wells_anchor+"\n"+attach,1)
-              if old_markers[1] not in data:
-                  raise SystemExit(f"{rel}: Shipwrecks v2 module import is missing")
+              if new_marker not in data:
+                  raise SystemExit(f"{rel}: Shipwrecks v3 module import is missing")
               p.write_text(data,encoding="utf-8")
           for rel,needle in (("index.html","landing.js"),("app/index.html","app.js")):
               p=site/rel;data=p.read_text(encoding="utf-8")
@@ -273,7 +284,7 @@ jobs:
               if len(matches)!=1:
                   raise SystemExit(f"{rel}: expected exactly one {needle} script URL, found {len(matches)}")
               url=matches[0].group(1)
-              if "shipwrecks=titanic-gaskin-v2" not in url:
+              if "shipwrecks=titanic-gaskin-grafton-v3" not in url:
                   updated=url+("&" if "?" in url else "?")+"shipwrecks=titanic-gaskin-v2"
                   data=data.replace(url,updated,1)
               drone_matches=list(re.finditer(r'src="([^"]*bridgepoint-drone-awareness-v1\.js(?:\?[^"]*)?)"',data))
@@ -297,6 +308,7 @@ jobs:
           overlay_files={
             "bridgepoint-shipwrecks-v1.js","app/bridgepoint-shipwrecks-v1.js",
             "assets/shipwrecks/robert-gaskin-photogrammetry.glb.gz",
+            "assets/shipwrecks/hms-grafton-photogrammetry.glb.gz",
             "assets/shipwrecks/catalog.json","vendor/GLTFLoader.bundle.js"
           }
           # Titanic v1 may already exist in the saved Pages baseline. It is an
@@ -308,12 +320,13 @@ jobs:
                 "added":sorted(added),"allowed_added":sorted(overlay_files)}))
           required={"bridgepoint-shipwrecks-v1.js","app/bridgepoint-shipwrecks-v1.js",
                     "assets/shipwrecks/robert-gaskin-photogrammetry.glb.gz",
+                    "assets/shipwrecks/hms-grafton-photogrammetry.glb.gz",
                     "assets/shipwrecks/catalog.json","vendor/GLTFLoader.bundle.js"}
           missing=required-after.keys()
           if missing:
               raise SystemExit("SHIPWRECKS_V2_REQUIRED_RUNTIME_FILE_MISSING "+json.dumps(sorted(missing)))
           assert (site/"bridgepoint-shipwrecks-v1.js").read_bytes()==(site/"app/bridgepoint-shipwrecks-v1.js").read_bytes()
-          print("SHIPWRECKS_V2_ONLY_OVERLAY_SCOPE_PASS",len(changed),"existing files changed",len(added),"files added; no removals")
+          print("SHIPWRECKS_V3_ONLY_OVERLAY_SCOPE_PASS",len(changed),"existing files changed",len(added),"files added; no removals")
           PY
           node --check "$SITE/landing.js"
           node --check "$SITE/app.js"
@@ -324,7 +337,7 @@ jobs:
           grep -Fq 'initShipwrecksRenderer(world)' "$SITE/app.js"
           grep -Fq 'assets/shipwrecks/robert-gaskin-photogrammetry.glb.gz' "$SITE/bridgepoint-shipwrecks-v1.js"
           grep -Fq 'vendor/GLTFLoader.bundle.js' "$SITE/bridgepoint-shipwrecks-v1.js"
-          echo "BRIDGEPOINT_SHIPWRECKS_V2_OVERLAY_PASS"
+          echo "BRIDGEPOINT_SHIPWRECKS_V3_OVERLAY_PASS"
 
       - uses: actions/configure-pages@v5
 
@@ -346,7 +359,7 @@ jobs:
         run: |
           set -euo pipefail
           O='https://bridgepointintelligence.online'
-          Q="$GITHUB_SHA-shipwrecks-titanic-v1"
+          Q="$GITHUB_SHA-shipwrecks-grafton-v3"
           D="$RUNNER_TEMP/shipwrecks-live"
           mkdir -p "$D"
           for item in \
@@ -357,6 +370,7 @@ jobs:
             "module.js:$O/bridgepoint-shipwrecks-v1.js?verify=$Q" \
             "drone.js:$O/bridgepoint-drone-awareness-v1.js?verify=$Q" \
             "gaskin.glb.gz:$O/assets/shipwrecks/robert-gaskin-photogrammetry.glb.gz?verify=$Q" \
+            "grafton.glb.gz:$O/assets/shipwrecks/hms-grafton-photogrammetry.glb.gz?verify=$Q" \
             "loader.js:$O/vendor/GLTFLoader.bundle.js?verify=$Q" \
             "catalog.json:$O/assets/shipwrecks/catalog.json?verify=$Q" \
             "app-module.js:$O/app/bridgepoint-shipwrecks-v1.js?verify=$Q"; do
@@ -368,15 +382,25 @@ jobs:
           grep -Fq 'BP_FRONTEND_V5000' "$D/root.html" || { echo "LIVE_VERIFY_FAIL: root entry build marker missing"; exit 1; }
           grep -Fq 'bridgepoint-drone-awareness-v1.js' "$D/root.html" || { echo "LIVE_VERIFY_FAIL: root visibility guard script missing"; exit 1; }
           grep -Fq 'bridgepoint-drone-awareness-v1.js' "$D/app.html" || { echo "LIVE_VERIFY_FAIL: app visibility guard script missing"; exit 1; }
-          grep -Fq 'bridgepoint-shipwrecks-v1.js?v=2-titanic-gaskin-native' "$D/landing.js" || { echo "LIVE_VERIFY_FAIL: root Shipwrecks import missing"; exit 1; }
-          grep -Fq 'bridgepoint-shipwrecks-v1.js?v=2-titanic-gaskin-native' "$D/app.js" || { echo "LIVE_VERIFY_FAIL: app Shipwrecks import missing"; exit 1; }
+          grep -Fq 'bridgepoint-shipwrecks-v1.js?v=3-titanic-gaskin-grafton-native' "$D/landing.js" || { echo "LIVE_VERIFY_FAIL: root Shipwrecks import missing"; exit 1; }
+          grep -Fq 'bridgepoint-shipwrecks-v1.js?v=3-titanic-gaskin-grafton-native' "$D/app.js" || { echo "LIVE_VERIFY_FAIL: app Shipwrecks import missing"; exit 1; }
           echo "LIVE_VERIFY_PASS: root and app entrypoints + Shipwrecks imports"
           grep -Fq 'shipwrecks:/shipwreck|titanic/i' "$D/drone.js" || { echo "LIVE_VERIFY_FAIL: dedicated shipwreck category missing"; exit 1; }
           grep -Fq "shipwrecks:'shipwrecks'" "$D/drone.js" || { echo "LIVE_VERIFY_FAIL: shipwreck category action mapping missing"; exit 1; }
           echo "LIVE_VERIFY_PASS: persistent Shipwrecks category"
           grep -Fq 'initShipwrecksRenderer' "$D/module.js" || { echo "LIVE_VERIFY_FAIL: Shipwrecks module missing"; exit 1; }
           grep -Fq 'Robert Gaskin' "$D/module.js" || { echo "LIVE_VERIFY_FAIL: Robert Gaskin model metadata missing"; exit 1; }
+          grep -Fq 'hms-grafton-photogrammetry.glb.gz' "$D/module.js" || { echo "LIVE_VERIFY_FAIL: HMS Grafton native asset path missing"; exit 1; }
           grep -Fq 'CC BY 4.0' "$D/catalog.json" || { echo "LIVE_VERIFY_FAIL: asset licence catalogue missing"; exit 1; }
+          python3 - "$D/grafton.glb.gz" "$D/catalog.json" <<'PY'
+          import gzip,json,sys
+          raw=gzip.decompress(open(sys.argv[1],'rb').read())
+          catalog=json.load(open(sys.argv[2],encoding='utf-8'))
+          assert raw[:4]==b'glTF' and len(raw)>32
+          assert catalog['grafton']['license']=='CC BY 4.0'
+          assert catalog['grafton']['sourceMd5']=='ed8cf639950ab31290daffce25401b1a'
+          print('BRIDGEPOINT_HMS_GRAFTON_LIVE_GLB_PASS',len(raw),'bytes')
+          PY
           python3 - "$D/gaskin.glb.gz" <<'PY'
           import gzip,sys
           raw=gzip.decompress(open(sys.argv[1],'rb').read())
@@ -388,4 +412,4 @@ jobs:
           grep -Fq '41° 43′ 57″ N, 49° 56′ 49″ W' "$D/module.js" || { echo "LIVE_VERIFY_FAIL: Titanic bow NOAA coordinate missing"; exit 1; }
           grep -Fq '41° 43′ 35″ N, 49° 56′ 54″ W' "$D/module.js" || { echo "LIVE_VERIFY_FAIL: Titanic stern NOAA coordinate missing"; exit 1; }
           cmp -s "$D/module.js" "$D/app-module.js" || { echo "LIVE_VERIFY_FAIL: root/app Shipwrecks modules differ"; exit 1; }
-          echo "BRIDGEPOINT_SHIPWRECKS_V2_LIVE_VERIFY_PASS"
+          echo "BRIDGEPOINT_SHIPWRECKS_V3_LIVE_VERIFY_PASS"

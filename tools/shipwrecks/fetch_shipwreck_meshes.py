@@ -126,11 +126,79 @@ def materialize(output: Path) -> dict:
     return manifest
 
 
+def materialize_grafton(output: Path) -> dict:
+    """Download and validate the DTU Aqua Grafton underwater reconstruction."""
+    record = fetch_json("https://zenodo.org/api/records/19592377")
+    meta = record.get("metadata") or {}
+    if meta.get("title") != "Benthic 3D Models and Tiles":
+        raise SystemExit("Grafton Zenodo record title changed; refusing to mirror")
+    creator_text = " ".join(str(item.get("name", "")) for item in (meta.get("creators") or [])).lower()
+    if "dtu aqua" not in creator_text or "mariani" not in creator_text or "fernandez" not in creator_text:
+        raise SystemExit("Grafton creator attribution mismatch; refusing to mirror")
+    # The NLM Dataset Catalog indexes this DOI as CC BY 4.0. If Zenodo later
+    # publishes an explicit conflicting license, fail closed.
+    license_data = meta.get("license") or {}
+    license_id = license_data.get("id") if isinstance(license_data, dict) else str(license_data)
+    if license_id and str(license_id).lower() not in {"cc-by-4.0", "ccby4.0"}:
+        raise SystemExit("Grafton Zenodo record now declares a conflicting license")
+    selected = next((item for item in (record.get("files") or []) if Path(str(item.get("key", ""))).name == "Grafton.glb"), None)
+    if not selected:
+        raise SystemExit("Expected Grafton.glb is missing from the Zenodo record")
+    expected_md5 = "ed8cf639950ab31290daffce25401b1a"
+    if str(selected.get("checksum") or "").lower() != "md5:" + expected_md5:
+        raise SystemExit("Grafton source checksum metadata changed; refusing to mirror")
+    url = (selected.get("links") or {}).get("self")
+    if not url:
+        raise SystemExit("Grafton record has no public GLB download URL")
+    raw = fetch_bytes(url)
+    if len(raw) < 32 or raw[:4] != b"glTF":
+        raise SystemExit("Grafton file is not a valid binary glTF")
+    actual_md5 = hashlib.md5(raw).hexdigest()
+    if actual_md5 != expected_md5:
+        raise SystemExit("Grafton GLB MD5 check failed")
+    output.mkdir(parents=True, exist_ok=True)
+    target = output / "hms-grafton-photogrammetry.glb.gz"
+    with target.open("wb") as handle:
+        with gzip.GzipFile(filename="", mode="wb", fileobj=handle, compresslevel=9, mtime=0) as packed:
+            packed.write(raw)
+    if target.stat().st_size > MAX_COMPRESSED_BYTES:
+        target.unlink(missing_ok=True)
+        raise SystemExit("Compressed Grafton GLB exceeds size limit")
+    model = {
+        "id": "hms-grafton-photogrammetry",
+        "title": "HMS Grafton — underwater photogrammetry model",
+        "creators": ["DTU Aqua, National Institute of Aquatic Resources, Technical University of Denmark", "Patrizio Mariani", "Fletcher Thompson", "Javier Alonso Fernández"],
+        "license": "CC BY 4.0",
+        "licenseSourceUrl": "https://datasetcatalog.nlm.nih.gov/dataset?q=0000776569",
+        "sourceUrl": "https://zenodo.org/records/19592377",
+        "datasetUrl": "https://doi.org/10.5281/zenodo.19592377",
+        "assetUrl": "/assets/shipwrecks/hms-grafton-photogrammetry.glb.gz",
+        "viewerUrl": "https://obstek.aqua.dtu.dk/demos/viewer/Grafton",
+        "coordinates": [2.818383333333, 51.4071],
+        "coordinateText": "51° 24.4260′ N, 2° 49.1030′ E",
+        "scanDepthM": 19,
+        "capturedAt": "2025-05-19",
+        "locationSourceUrl": "https://publicaties.vlaanderen.be/view-file/83815",
+        "historySourceUrl": "https://www.uboat.net/allies/warships/ship/4395.html",
+        "sourceBytes": len(raw), "compressedBytes": target.stat().st_size,
+        "sourceMd5": actual_md5, "assetSha256": hashlib.sha256(target.read_bytes()).hexdigest(),
+        "locationPrecision": "The individual model has no published GPS origin or per-model geodetic transform; the BridgePoint map placement is approximate at the official wreck-site coordinate.",
+        "verticalPrecision": "The dataset describes approximately 19 m capture depth. The model center is placed 19 m below the water surface for visualization; this is not a survey-controlled seabed elevation."
+    }
+    catalog_path = output / "catalog.json"
+    manifest = json.loads(catalog_path.read_text(encoding="utf-8")) if catalog_path.exists() else {"version": 1}
+    manifest["grafton"] = model
+    catalog_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    print("BRIDGEPOINT_HMS_GRAFTON_CC_BY_GLB_READY", len(raw), "source bytes", target.stat().st_size, "compressed bytes")
+    return model
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     materialize(args.output)
+    materialize_grafton(args.output)
 
 
 if __name__ == "__main__":
