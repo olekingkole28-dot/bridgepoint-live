@@ -1,0 +1,5 @@
+[/Script/Engine.PhysicsSettings]
++PhysicalSurfaces=(Type=SurfaceType1,Name="Concrete")
++PhysicalSurfaces=(Type=SurfaceType2,Name="LunarSoil")
+; Assign matching UPhysicalMaterial assets to world meshes and lunar terrain.
+; MetaSound impact input parameters: SurfaceType (float), ImpactIntensity (float).
