@@ -82,6 +82,8 @@ assert.ok(moduleSource.includes('maybeAutoMaterializeHmsGrafton(state)'),'Grafto
 assert.ok(moduleSource.includes('HMS_GRAFTON_WRECK.waterSurfaceElevationM-HMS_GRAFTON_WRECK.scanDepthM'),'Grafton native mesh uses the approximate capture depth');
 assert.ok(moduleSource.includes("hit.properties?.wreckId==='hms-grafton'"),'Grafton click opens its dedicated popup');
 assert.ok(moduleSource.includes('all five icons remain visible'),'the shared icon layer reports five persistent wreck markers');
+assert.ok(moduleSource.includes("count.textContent='5 persistent wreck icons · 2 native CC BY 4.0 seabed scans"),'dynamic count reflects all five markers and both native models');
+assert.ok(moduleSource.includes('addRobertGaskinStyles();'),'the new Grafton card installs the shared native wreck popup styles');
 assert.ok(moduleSource.includes("NATIVE_MODEL_LAYER_ID='bp-shipwrecks-native-model-v2'"),'Robert Gaskin uses a native MapLibre 3D custom layer');
 assert.ok(moduleSource.includes("import(GLTF_URL)"),'native scan is parsed through the local GLTFLoader');
 assert.ok(moduleSource.includes("new DecompressionStream('gzip')"),'the native GLB uses a compressed local asset');

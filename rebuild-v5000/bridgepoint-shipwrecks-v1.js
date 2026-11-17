@@ -168,7 +168,7 @@ function makeTitanicIcon(){
 function setStatus(state,msg){state.status=msg;const el=document.getElementById(STATUS_ID);if(el)el.textContent=msg;}
 function refreshStatusUi(state){
  const count=document.getElementById(COUNT_ID);
- if(count)count.textContent='4 persistent wreck icons · 1 native CC BY 4.0 seabed scan · '+state.stats.models.toLocaleString()+' Titanic viewer references';
+ if(count)count.textContent='5 persistent wreck icons · 2 native CC BY 4.0 seabed scans · '+state.stats.models.toLocaleString()+' Titanic viewer references';
  const status=document.getElementById(STATUS_ID);if(status)status.textContent=state.status;
  const button=document.getElementById(TOGGLE_ID);
  if(button){button.setAttribute('aria-pressed',String(state.enabled));button.classList.toggle('is-active',state.enabled);}
@@ -480,6 +480,7 @@ function addRobertGaskinStyles(){
 }
 function openHmsGraftonPopup(state,lngLat){
  const Popup=window.maplibregl?.Popup;if(!Popup)return;
+ addRobertGaskinStyles();
  if(state.popup)state.popup.remove();
  const p=HMS_GRAFTON_WRECK;
  const html='<article class="bp-shipwreck-grafton-popup-v1">'+
@@ -606,8 +607,8 @@ function addControlGroup(state){
 async function setEnabled(state,on){
  state.enabled=!!on;
  if(state.enabled){
-  if(!installLayers(state))setStatus(state,'Shipwrecks ON · waiting for the map style before showing all four wreck icons.');
-  else setStatus(state,'Shipwrecks ON · all four wreck icons remain visible from global zoom through close zoom. Select a marker for its card and native Robert Gaskin riverbed mesh.');
+  if(!installLayers(state))setStatus(state,'Shipwrecks ON · waiting for the map style before showing all five wreck icons.');
+  else setStatus(state,'Shipwrecks ON · all five wreck icons remain visible from global zoom through close zoom. Select a marker for its card and Robert Gaskin and HMS Grafton native seabed meshes.');
   if(state.nativeModelRoot){
    state.nativeModelVisible=true;
    if(!state.map.getLayer(NATIVE_MODEL_LAYER_ID))ensureRobertGaskinMapLayer(state);
