@@ -344,6 +344,86 @@ def materialize_kxi(output: Path) -> dict:
     return model
 
 
+
+def materialize_cape_otway(output: Path) -> dict:
+    """Mirror WreckSploration's openly licensed SS Cape Otway photogrammetry GLB.
+
+    The upstream file is pinned to an immutable repository commit and Git blob
+    SHA so the public mirror cannot silently switch to a different model.
+    """
+    commit = "51c255e21c0709b46f4f1fe24d9de05bdd62822c"
+    expected_size = 32058028
+    expected_blob_sha = "eee4d55e7391e55ea0bd8bc0c8aaf82e04f800b1"
+    url = (
+        "https://raw.githubusercontent.com/patrick-morrison/below-wrecksploration/"
+        + commit + "/models/02%20Otway.glb"
+    )
+    raw = fetch_bytes(url)
+    if len(raw) != expected_size:
+        raise SystemExit("SS Cape Otway GLB size changed; refusing to mirror")
+    if len(raw) < 32 or raw[:4] != b"glTF":
+        raise SystemExit("SS Cape Otway file is not a valid binary glTF")
+    git_blob_sha = hashlib.sha1(
+        b"blob " + str(len(raw)).encode("ascii") + b"\0" + raw
+    ).hexdigest()
+    if git_blob_sha != expected_blob_sha:
+        raise SystemExit("SS Cape Otway source Git blob SHA changed; refusing to mirror")
+
+    output.mkdir(parents=True, exist_ok=True)
+    target = output / "cape-otway-photogrammetry.glb.gz"
+    with target.open("wb") as handle:
+        with gzip.GzipFile(filename="", mode="wb", fileobj=handle, compresslevel=9, mtime=0) as packed:
+            packed.write(raw)
+    if target.stat().st_size > MAX_COMPRESSED_BYTES:
+        target.unlink(missing_ok=True)
+        raise SystemExit("Compressed SS Cape Otway GLB exceeds size limit")
+
+    model = {
+        "id": "cape-otway-photogrammetry",
+        "title": "SS Cape Otway — underwater photogrammetry scan",
+        "creator": "WreckSploration",
+        "creators": [
+            "WreckSploration",
+            "Andrew Oakeley",
+            "David Jackson",
+            "Patrick Morrison"
+        ],
+        "license": "CC BY 4.0",
+        "licenseSourceUrl": "https://creativecommons.org/licenses/by/4.0/",
+        "sourceUrl": "https://sketchfab.com/3d-models/cape-otway-d5520c55462148f58b16a176f97d50cf",
+        "datasetUrl": "https://wrecksploration.au/projects/capeotway/",
+        "locationSourceUrl": "https://museum.wa.gov.au/maritime-archaeology-db/wrecks/id-682",
+        "repositoryUrl": "https://github.com/patrick-morrison/below-wrecksploration/tree/" + commit + "/models/02%20Otway.glb",
+        "sourceCommit": commit,
+        "sourceGitBlobSha": git_blob_sha,
+        "assetUrl": "/assets/shipwrecks/cape-otway-photogrammetry.glb.gz",
+        "coordinates": [115.372533, -32.059833],
+        "coordinateText": "32.059833° S, 115.372533° E",
+        "displayDepthM": 87,
+        "lengthM": 60.10,
+        "beamM": 10.40,
+        "draftM": 4.60,
+        "triangles": 200000,
+        "vertices": 100600,
+        "capturedAt": "2023-01-20",
+        "scuttledDate": "1968-09-07",
+        "sourceBytes": len(raw),
+        "compressedBytes": target.stat().st_size,
+        "sourceMd5": hashlib.md5(raw).hexdigest(),
+        "assetSha256": hashlib.sha256(target.read_bytes()).hexdigest(),
+        "locationPrecision": "WGS84 wreck-site position published by the Western Australian Museum. The source GLB does not publish a geodetic origin or survey-control transform.",
+        "scalePrecision": "Calibrated to the Museum's published 60.10 m vessel length for visualization; not a survey-control scale certificate.",
+        "orientationPrecision": "WreckSploration records the bow facing north. The individual source GLB does not publish a GPS transform or survey-grade heading.",
+        "depthPrecision": "The wreck-site depth is approximately 87 m. BridgePoint centers the model 87 m below the water surface for visualization; this is not a survey-controlled bathymetric registration."
+    }
+    catalog_path = output / "catalog.json"
+    manifest = json.loads(catalog_path.read_text(encoding="utf-8")) if catalog_path.exists() else {"version": 1}
+    manifest["capeOtway"] = model
+    catalog_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    print("BRIDGEPOINT_SS_CAPE_OTWAY_CC_BY_ASSET_PASS", len(raw), "source bytes", target.stat().st_size, "compressed bytes")
+    return model
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", required=True, type=Path)
@@ -352,6 +432,7 @@ def main() -> None:
     materialize_grafton(args.output)
     materialize_cannon(args.output)
     materialize_kxi(args.output)
+    materialize_cape_otway(args.output)
 
 
 if __name__ == "__main__":
