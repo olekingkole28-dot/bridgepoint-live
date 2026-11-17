@@ -507,48 +507,34 @@ def materialize_hms_loo(output: Path) -> dict:
     revision = str(registry.get("sha") or "").strip()
     if not re.fullmatch(r"[0-9a-f]{40}", revision):
         raise SystemExit("ScanSceneverse did not provide an immutable 40-character dataset revision")
-    # Resolve the scene path through the Hub's repository tree API. The
-    # Dataset Viewer query service can return 500s for this 2.8 TB dataset;
-    # probing the exact path avoids relying on the viewer index.
+    # Resolve the scene against current Hub content. The dataset viewer metadata
+    # uses shard paths; try the current branch and pinned immutable revision.
     scene_id = "fc5901d8556743458c40aa4a096f01b6"
     source_file = None
-    tree_errors = []
+    raw = None
+    download_errors = []
     for shard in ("000-050", "000-051", "000-000"):
         candidate = f"glbs/{shard}/{scene_id}.glb"
-        tree_url = (
-            "https://huggingface.co/api/datasets/Stable-X/ScanSceneverse/tree/"
-            + revision + "/" + candidate
-        )
-        try:
-            entry = fetch_json(tree_url)
-            if isinstance(entry, dict) and entry.get("path") == candidate:
+        for ref in ("main", revision):
+            url = (
+                "https://huggingface.co/datasets/Stable-X/ScanSceneverse/resolve/"
+                + ref + "/" + candidate
+            )
+            try:
+                raw = fetch_bytes(
+                    url, max_bytes=MAX_HMS_LOO_SOURCE_BYTES, label="HMS Loo GLB"
+                )
                 source_file = candidate
                 break
-            if isinstance(entry, list) and any(
-                item.get("path") == candidate for item in entry if isinstance(item, dict)
-            ):
-                source_file = candidate
-                break
-            tree_errors.append(f"{candidate}: Hub tree returned no exact file record")
-        except Exception as exc:
-            tree_errors.append(f"{candidate}: {exc}")
-    if not source_file:
+            except Exception as exc:
+                download_errors.append(f"{ref}/{candidate}: {exc}")
+        if raw is not None:
+            break
+    if raw is None or not source_file:
         raise SystemExit(
-            "HMS Loo GLB not present at expected Hub shard paths: " + " | ".join(tree_errors)
+            "HMS Loo GLB not downloadable from current or pinned Hub refs: "
+            + " | ".join(download_errors)
         )
-    url = (
-        "https://huggingface.co/datasets/Stable-X/ScanSceneverse/resolve/"
-        + revision + "/" + source_file
-    )
-    try:
-        raw = fetch_bytes(url, max_bytes=MAX_HMS_LOO_SOURCE_BYTES, label="HMS Loo GLB")
-    except Exception as exc:
-        # If the dataset viewer's current row points at a repository path that
-        # is not addressable at its latest revision, fail with the actual row
-        # path/revision so it can be diagnosed, never publish an empty marker.
-        raise SystemExit(
-            f"HMS Loo GLB download failed for {source_file} at {revision}: {exc}"
-        ) from exc
     if len(raw) < 32 or raw[:4] != b"glTF":
         raise SystemExit("HMS Loo source is not a valid binary glTF")
     version, declared_length = struct.unpack_from("<II", raw, 4)
