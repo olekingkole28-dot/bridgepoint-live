@@ -27,7 +27,7 @@ def fetch_range(url: str, start: int, end: int) -> tuple[bytes, int]:
     with urllib.request.urlopen(req, timeout=180) as response:
         if response.status != 206:
             raise SystemExit(f"Range request not honored (HTTP {response.status}); refusing 3 GB download")
-        match = re.fullmatch(r"bytes (\\d+)-(\\d+)/(\\d+)", response.headers.get("Content-Range", ""))
+        match = re.fullmatch(r"bytes (\d+)-(\d+)/(\d+)", response.headers.get("Content-Range", ""))
         if not match:
             raise SystemExit("Zenodo returned an invalid Content-Range header")
         actual_start, actual_end, total = map(int, match.groups())
@@ -81,7 +81,7 @@ def main():
             candidates = []
             for info in archive.infolist():
                 name = info.filename
-                if re.search(r"(KWAJ|corsair|f4u)", name, re.I) and re.search(r"\\.(glb|gltf|ply|obj|fbx|e57|las|laz|zip)$", name, re.I):
+                if re.search(r"(KWAJ|corsair|f4u)", name, re.I) and re.search(r"\.(glb|gltf|ply|obj|fbx|e57|las|laz|zip)$", name, re.I):
                     candidates.append({"name": name, "size": info.file_size, "compressed": info.compress_size})
             if not candidates:
                 raise SystemExit("No KWAJ/Corsair model or point-cloud files found in the dataset ZIP")
