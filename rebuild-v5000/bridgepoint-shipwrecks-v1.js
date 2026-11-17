@@ -245,6 +245,156 @@ function openTitanicPopup(state,part,lngLat){
   });
  }
 }
+function updateRobertGaskinModelStatus(state,message){
+ state.nativeModelStatus=String(message||'');
+ const element=document.getElementById('bp-shipwreck-robert-status-v2');
+ if(element)element.textContent=state.nativeModelStatus;
+ const popup=state.popup?.getElement?.()?.querySelector('[data-robert-gaskin-status]');
+ if(popup)popup.textContent=state.nativeModelStatus;
+}
+async function loadShipwreckThree(){
+ if(!shipwreckThreePromise)shipwreckThreePromise=Promise.all([import(THREE_URL),import(GLTF_URL)]).then(([THREE,loader])=>{
+  if(!THREE?.WebGLRenderer||!loader?.GLTFLoader)throw new Error('BridgePoint local Three.js / GLTFLoader unavailable');
+  return {THREE,GLTFLoader:loader.GLTFLoader};
+ }).catch(error=>{shipwreckThreePromise=null;throw error;});
+ return shipwreckThreePromise;
+}
+function nativeMapMatrix(map,THREE,coordinates,altitudeM){
+ try{
+  const raw=map.transform?.getMatrixForModel?.([Number(coordinates[0]),Number(coordinates[1])],Number(altitudeM)||0);
+  if(raw&&raw.length>=16)return new THREE.Matrix4().fromArray(raw);
+  const Mercator=window.maplibregl?.MercatorCoordinate;
+  if(!Mercator?.fromLngLat)return null;
+  const mc=Mercator.fromLngLat([Number(coordinates[0]),Number(coordinates[1])],Number(altitudeM)||0);
+  const metres=mc.meterInMercatorCoordinateUnits();
+  if(![mc.x,mc.y,mc.z,metres].every(Number.isFinite)||metres<=0)return null;
+  return new THREE.Matrix4().set(metres,0,0,mc.x,0,0,metres,mc.y,0,metres,0,0,0,0,0,1);
+ }catch(_){return null;}
+}
+async function loadRobertGaskinMesh(state){
+ if(state.nativeModelRoot)return state.nativeModelRoot;
+ if(state.nativeModelPromise)return state.nativeModelPromise;
+ state.nativeModelPromise=(async()=>{
+  const pair=await loadShipwreckThree();if(state.destroyed)throw new Error('Shipwreck layer closed');
+  state.THREE=pair.THREE;state.GLTFLoader=pair.GLTFLoader;
+  const response=await fetch(ROBERT_GASKIN_ASSET,{cache:'force-cache'});
+  if(!response.ok)throw new Error('Robert Gaskin GLB request failed ('+response.status+')');
+  if(typeof DecompressionStream==='undefined')throw new Error('Gzip decompression is unavailable in this browser');
+  const stream=new Blob([await response.arrayBuffer()]).stream().pipeThrough(new DecompressionStream('gzip'));
+  const buffer=await new Response(stream).arrayBuffer();
+  if(new DataView(buffer).getUint32(0,true)!==0x46546c67)throw new Error('Robert Gaskin asset is not a valid GLB');
+  const gltf=await new state.GLTFLoader().parseAsync(buffer,'');
+  if(!gltf?.scene)throw new Error('Robert Gaskin GLB contains no scene');
+  const root=gltf.scene.clone(true);
+  root.updateMatrixWorld(true);
+  const bounds=new pair.THREE.Box3().setFromObject(root);
+  if(bounds.isEmpty())throw new Error('Robert Gaskin scan contains no 3D geometry');
+  const size=bounds.getSize(new pair.THREE.Vector3());
+  const longAxis=Math.max(size.x,size.z);
+  if(!Number.isFinite(longAxis)||longAxis<=0)throw new Error('Robert Gaskin scan has invalid dimensions');
+  const scale=ROBERT_GASKIN_LENGTH_M/longAxis;
+  root.scale.multiplyScalar(scale);
+  // The original GLB is not GPS-oriented. Rotate its long axis approximately
+  // north/south; source dive notes say the bow faces inland.
+  root.rotation.y=size.x>=size.z?Math.PI/2:0;
+  root.updateMatrixWorld(true);
+  const centeredBounds=new pair.THREE.Box3().setFromObject(root);
+  const center=centeredBounds.getCenter(new pair.THREE.Vector3());
+  root.position.x-=center.x;root.position.y-=center.y;root.position.z-=center.z;
+  root.traverse(object=>{
+   if(!object.isMesh&&!object.isPoints)return;
+   object.frustumCulled=false;object.renderOrder=1000;
+   for(const material of Array.isArray(object.material)?object.material:[object.material]){
+    if(!material)continue;
+    material.depthTest=false;material.depthWrite=false;material.needsUpdate=true;
+   }
+  });
+  root.updateMatrixWorld(true);
+  state.nativeModelRoot=root;
+  state.nativeModelBounds={x:size.x*scale,y:size.y*scale,z:size.z*scale};
+  state.nativeModelScale=scale;
+  if(state.nativeModelScene)state.nativeModelScene.add(root);
+  return root;
+ })().catch(error=>{state.nativeModelPromise=null;throw error;});
+ return state.nativeModelPromise;
+}
+function ensureRobertGaskinMapLayer(state){
+ const map=state.map,THREE=state.THREE;
+ if(!THREE||!state.nativeModelRoot||state.destroyed)return false;
+ if(map.getLayer(NATIVE_MODEL_LAYER_ID)&&state.nativeModelRenderer&&state.nativeModelScene)return true;
+ const layer={
+  id:NATIVE_MODEL_LAYER_ID,type:'custom',renderingMode:'3d',
+  onAdd(mapRef,gl){
+   state.nativeModelRenderer=new THREE.WebGLRenderer({canvas:mapRef.getCanvas(),context:gl,antialias:false,alpha:true,powerPreference:'low-power'});
+   state.nativeModelRenderer.autoClear=false;state.nativeModelRenderer.outputColorSpace=THREE.SRGBColorSpace;
+   state.nativeModelCamera=new THREE.Camera();state.nativeModelScene=new THREE.Scene();
+   state.nativeModelScene.add(new THREE.AmbientLight(0xffffff,1.55));
+   const key=new THREE.DirectionalLight(0xffe9c7,1.2);key.position.set(-.6,1.4,.9);state.nativeModelScene.add(key);
+   if(state.nativeModelRoot&&state.nativeModelRoot.parent!==state.nativeModelScene)state.nativeModelScene.add(state.nativeModelRoot);
+   state.stats.nativeModelLayerReady=true;
+  },
+  render(gl,args){
+   if(!state.enabled||!state.nativeModelVisible||!state.nativeModelRenderer||!state.nativeModelScene||!state.nativeModelCamera||!state.nativeModelRoot)return;
+   if(Number(map.getZoom?.()||0)<12.2){state.nativeModelRoot.visible=false;return;}
+   const bounds=map.getBounds?.();
+   try{if(bounds&&!bounds.contains(ROBERT_GASKIN_WRECK.coordinates)){state.nativeModelRoot.visible=false;return;}}catch(_){}
+   const raw=args&&(args.defaultProjectionData?.mainMatrix||args.modelViewProjectionMatrix);
+   if(!raw||raw.length<16)return;
+   const matrix=nativeMapMatrix(map,THREE,ROBERT_GASKIN_WRECK.coordinates,-ROBERT_GASKIN_WRECK.depthM);
+   if(!matrix)return;
+   state.nativeModelRoot.visible=true;
+   state.nativeModelCamera.projectionMatrix.copy(new THREE.Matrix4().fromArray(raw)).multiply(matrix);
+   try{state.nativeModelRenderer.resetState();state.nativeModelRenderer.render(state.nativeModelScene,state.nativeModelCamera);}
+   catch(error){if(!state.nativeModelRenderWarned){state.nativeModelRenderWarned=true;console.warn('BridgePoint Robert Gaskin seabed model render',error);}}
+   finally{state.nativeModelRoot.visible=false;}
+  },
+  onRemove(){
+   try{state.nativeModelRenderer?.dispose();}catch(_){}
+   state.nativeModelRenderer=null;state.nativeModelCamera=null;state.nativeModelScene=null;
+   state.stats.nativeModelLayerReady=false;
+  }
+ };
+ try{map.addLayer(layer);return true;}catch(error){state.stats.nativeModelLastError=String(error?.message||error);console.warn('BridgePoint native shipwreck layer unavailable',error);return false;}
+}
+async function showRobertGaskinOnRiverbed(state){
+ if(!state.enabled)return false;
+ state.nativeModelVisible=true;
+ updateRobertGaskinModelStatus(state,'Loading the CC BY 4.0 photogrammetry scan…');
+ setStatus(state,'Robert Gaskin native riverbed mesh loading; the four shipwreck icons remain on.');
+ try{
+  await loadRobertGaskinMesh(state);
+  if(state.destroyed||!state.enabled)return false;
+  if(!ensureRobertGaskinMapLayer(state))throw new Error('MapLibre native 3D layer could not attach');
+  if(state.nativeModelScene&&state.nativeModelRoot.parent!==state.nativeModelScene)state.nativeModelScene.add(state.nativeModelRoot);
+  updateRobertGaskinModelStatus(state,'Native scan loaded · '+Math.round(state.nativeModelBounds.x*100)/100+' m long after historical-length calibration. Visible when zoomed in near the wreck site.');
+  setStatus(state,'Robert Gaskin native photogrammetry mesh loaded at its riverbed reference.');
+  state.map.triggerRepaint?.();refreshStatusUi(state);return true;
+ }catch(error){
+  state.nativeModelVisible=false;
+  updateRobertGaskinModelStatus(state,'Native scan could not load: '+String(error?.message||error));
+  setStatus(state,'Robert Gaskin native 3D mesh unavailable: '+String(error?.message||error));
+  return false;
+ }
+}
+function openRobertGaskinPopup(state,lngLat){
+ const Popup=window.maplibregl?.Popup;if(!Popup)return;
+ if(state.popup)state.popup.remove();
+ const p=ROBERT_GASKIN_WRECK;
+ const html='<article class="bp-shipwreck-gaskin-popup-v2">'+
+  '<div class="bp-shipwreck-kicker-v1">BRIDGEPOINT · SHIPWRECKS</div><h3>Robert Gaskin</h3>'+
+  '<p>1863 wooden barque · sank 1889 · St. Lawrence River, Brockville, Ontario</p>'+
+  '<div class="facts"><span><b>Wreck-site center</b>'+safe(p.coordinateText)+'</span><span><b>Hull depth range</b>18.3–21.3 m (60–70 ft)</span>'+
+  '<span><b>Published length</b>40.42 m / 132.6 ft</span><span><b>Photogrammetry</b>48,977 photos</span></div>'+
+  '<div class="bp-shipwreck-viewer-v1"><iframe title="Robert Gaskin underwater photogrammetry viewer" src="https://sketchfab.com/models/1916420a764c4e73b754755d7f2780ce/embed?autostart=0&ui_infos=1&ui_controls=1&ui_watermark=1&ui_theme=dark" allow="autoplay; fullscreen; xr-spatial-tracking; gyroscope; accelerometer" allowfullscreen loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>'+
+  '<div class="bp-shipwreck-gaskin-actions-v2"><button type="button" data-robert-gaskin-action="materialize">Place 3D scan on the riverbed</button></div>'+
+  '<div class="bp-shipwreck-gaskin-status-v2" data-robert-gaskin-status>'+safe(state.nativeModelStatus||'Native scan not loaded yet. Select the button to download and display the local 3D mesh at the wreck site.')+'</div>'+
+  '<p class="bp-shipwreck-accuracy-v1"><strong>Scan and placement:</strong> Christian Rémillard’s CC BY 4.0 GLB is a photogrammetry scan processed from 48,977 underwater photographs (about 598,600 triangles). It is calibrated to the published 132.6 ft historical length and placed at the published wreck-site center. Its original mesh origin is not GPS-georeferenced, so the point, heading, and 19.8 m display depth are approximate. The source reports the bow faces inland and the bow/stern range from about 18.3 to 21.3 m.</p>'+
+  '<div class="bp-shipwreck-official-v1"><b>Survey and location references</b><a href="'+safe(p.datasetUrl)+'" target="_blank" rel="noopener noreferrer">Zenodo CC BY 4.0 original GLB and metadata ↗</a><a href="'+safe(p.sourceUrl)+'" target="_blank" rel="noopener noreferrer">Sketchfab photogrammetry source ↗</a><a href="'+safe(p.locationSourceUrl)+'" target="_blank" rel="noopener noreferrer">Shipwreck World GPS and depth reference ↗</a><a href="'+safe(p.historySourceUrl)+'" target="_blank" rel="noopener noreferrer">Brockville historical marker ↗</a></div>'+
+  '<p class="bp-shipwreck-source-v1">The Robert Gaskin is a freshwater St. Lawrence River wreck, not an ocean site. The native GLB is locally hosted by BridgePoint under CC BY 4.0 with creator attribution.</p></article>';
+ state.popup=new Popup({closeButton:true,closeOnClick:true,maxWidth:'450px',className:'bp-shipwreck-titanic-popup-wrap-v1'}).setLngLat(lngLat||p.coordinates).setHTML(html).addTo(state.map);
+ const root=state.popup.getElement?.();
+ root?.querySelector('[data-robert-gaskin-action="materialize"]')?.addEventListener('click',()=>{void showRobertGaskinOnRiverbed(state);});
+}
 function bindInteractions(state){
  if(state.interactionsBound)return;state.interactionsBound=true;
  state.handleClick=event=>{
