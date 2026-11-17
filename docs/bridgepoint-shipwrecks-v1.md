@@ -119,3 +119,23 @@ Sources:
 - [WreckSploration — HNLMS K XI history, location and survey](https://wrecksploration.au/projects/kxi/)
 - [Western Australian Museum — official K XI 3D model listing](https://sketchfab.com/3d-models/kxi-submarine-rottnest-deepwater-graveyard-7899b257a0274c93becf69676482531f)
 - [WreckSploration VR — model repository](https://github.com/patrick-morrison/below-wrecksploration)
+
+
+---
+
+# BridgePoint Shipwrecks v10 — Timaru / Site 42 native photogrammetry
+
+The existing **Shipwrecks** toggle now includes a persistent icon for **Timaru (Site 42)**, also recorded as Naval Dredger 4 / Commonwealth Naval Dredge 4 (CND4), southwest of Rottnest Island, Western Australia. The card and globe layer both use a BridgePoint-hosted copy of the WreckSploration GLB; no external viewer is embedded or opened.
+
+- Vessel: steel steam hopper barge, built in 1893 by Lobnitz & Co.; the Western Australian Museum record lists it as dismantled/sunk in 1930.
+- Wreck-site depth: approximately 50 m, per WreckSploration dive notes.
+- Photogrammetry: approximately 750,000 triangles and 374,800 vertices; site survey measurement about 44.9 m × 9.17 m. The Museum's historic register separately gives overall vessel dimensions of 44.20 m × 9.20 m.
+- Discovery / model record: 28 March 2025 / 1 June 2025.
+- Source: [WreckSploration Site 42 / Timaru](https://wrecksploration.au/projects/timaru/) and [Sketchfab source model](https://sketchfab.com/3d-models/site-42-timaru-2d8c988bfd3048858c752b9fa4095f66).
+- Rights: Creative Commons Attribution 4.0 (CC BY 4.0). The publishing workflow pins the source repository revision and Git blob SHA-1 before mirroring the GLB.
+
+The source model represents the **actual broken-up wreck remains**, not a restored intact ship. The dive notes describe scattered/collapsed structure and a boiler standing on end. The BridgePoint card contains the survey notes, attribution, original model link and Western Australian Museum register link.
+
+**Placement limits:** BridgePoint uses an approximate public wreck-layer point and places the model center about 50 m below the water surface. The long axis is calibrated to the WreckSploration site measurement of 44.9 m; the official register's overall vessel length is recorded separately. The source GLB does not include a GPS origin, bathymetric transform or survey-grade heading, so the 3D map placement is a visualization rather than survey-controlled registration of individual fragments to the seabed. The local BridgePoint viewer still allows rotation, pinch/scroll zoom and view reset.
+
+The Shipwrecks renderer v10 now maintains **nine persistent wreck icons** and **six native, locally hosted seabed GLBs** (the three Titanic waypoints remain separate markers; the five earlier wreck scans are retained).
