@@ -221,13 +221,17 @@ assert.ok(workflow.includes('required={"bridgepoint-shipwrecks-v1.js"'));
 assert.ok(workflow.includes('robert-gaskin-photogrammetry.glb.gz'),'the publisher overlays the licensed Robert Gaskin native mesh');
 assert.ok(workflow.includes('cannon-photogrammetry.glb.gz'),'the publisher overlays the licensed Kanonvraget native mesh');
 assert.ok(workflow.includes('hnlms-kxi-photogrammetry.glb.gz'),'the publisher mirrors the KXI photogrammetry mesh into BridgePoint');
+assert.ok(workflow.includes('cape-otway-photogrammetry.glb.gz'),'the publisher mirrors the SS Cape Otway photogrammetry mesh into BridgePoint');
+assert.ok(workflow.includes('BRIDGEPOINT_SS_CAPE_OTWAY_NATIVE_CC_BY_ASSET_PASS'),'the publisher validates the Cape Otway source GLB and attribution before deployment');
+assert.ok(workflow.includes('BRIDGEPOINT_SS_CAPE_OTWAY_LIVE_GLB_PASS'),'the publisher validates the live Cape Otway GLB after deployment');
+assert.ok(workflow.includes('eee4d55e7391e55ea0bd8bc0c8aaf82e04f800b1'),'the publisher pins the exact public Cape Otway source GLB');
 assert.ok(workflow.includes('GLTFLoader.bundle.js'),'the publisher serves a local GLTFLoader instead of a remote CDN dependency');
-assert.ok(workflow.includes('github-pages-shipwrecks-v8'),'the publisher deploys the Shipwrecks v5 artifact');
-assert.ok(workflow.includes('v=7-titanic-gaskin-grafton-cannon-kxi-draco-local-viewer'),'the publisher cache-busts the BridgePoint-hosted local viewer code');
+assert.ok(workflow.includes('github-pages-shipwrecks-v9'),'the publisher deploys the Shipwrecks v9 artifact');
+assert.ok(workflow.includes('v=9-titanic-gaskin-grafton-cannon-kxi-cape-otway-draco-ktx2-local-viewer'),'the publisher cache-busts the BridgePoint-hosted local viewer code');
 assert.ok(workflow.includes('data-bp-local-wreck-viewer'),'the publisher verifies the local model viewer mount points');
 assert.ok(workflow.includes('12-shipwrecks-v3-kxi-icons'),'the publisher repairs the shared visibility-guard cache bust on both entry points');
-assert.ok(workflow.includes('BRIDGEPOINT_SHIPWRECKS_V8_LIVE_VERIFY_PASS'),'the publisher verifies the live shipwreck v4 asset and entry points');
+assert.ok(workflow.includes('BRIDGEPOINT_SHIPWRECKS_V9_LIVE_VERIFY_PASS'),'the publisher verifies the live shipwreck v9 asset and entry points');
 
 assert.ok(!/SUPA|supabase/i.test(moduleSource),'the native shipwreck renderer has no Supabase dependency');
 
-console.log('BRIDGEPOINT_SHIPWRECKS_LOCAL_VIEWERS_V8_PASS');
+console.log('BRIDGEPOINT_SHIPWRECKS_LOCAL_VIEWERS_V9_PASS');
