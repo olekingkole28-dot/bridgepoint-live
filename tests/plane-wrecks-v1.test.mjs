@@ -26,7 +26,7 @@ assert.match(moduleSource,/nativeMapMatrix\(map,THREE,F4U1_CORSAIR_WRECK\.coordi
 assert.match(moduleSource,/maybeAutoMaterialize\(state\)/,'the model auto-materializes when the enabled layer is zoomed onto the wreck');
 assert.match(moduleSource,/for\(const event of \['style\.load','load','idle','moveend','zoomend','rotateend','pitchend'\]\)/,'visibility restores after map style and camera events');
 assert.match(moduleSource,/allowLayerCategory\?\.\('planewrecks'/,'the layer opts into its own shared visibility category');
-assert.match(moduleSource,/new window\.maplibregl\.Popup/,'the marker opens a dedicated information card');
+assert.ok(moduleSource.includes('new Popup('),'the marker opens a dedicated information card');
 assert.doesNotMatch(moduleSource,/<iframe|viewerUrl/i,'the model viewer does not embed or redirect to a third-party viewer');
 assert.match(moduleSource,/f4u1-corsair-kwajalein-photogrammetry\.glb\.gz/,'the viewer uses the BridgePoint-hosted compressed GLB');
 assert.match(moduleSource,/mountCardViewer/,'the popup mounts an interactive local viewer');
