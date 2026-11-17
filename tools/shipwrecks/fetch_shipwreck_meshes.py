@@ -507,30 +507,35 @@ def materialize_hms_loo(output: Path) -> dict:
     revision = str(registry.get("sha") or "").strip()
     if not re.fullmatch(r"[0-9a-f]{40}", revision):
         raise SystemExit("ScanSceneverse did not provide an immutable 40-character dataset revision")
-    # Ask the current Dataset Viewer index for the row instead of hard-coding
-    # an old shard number. The public viewer is searchable and exposes file_name.
-    filter_url = (
-        "https://datasets-server.huggingface.co/filter?dataset=Stable-X%2FScanSceneverse"
-        "&config=default&split=train"
-        "&where=%22scene_id%22%3D%27fc5901d8556743458c40aa4a096f01b6%27"
-        "&offset=0&length=10"
-    )
-    filtered = fetch_json(filter_url)
-    rows = [entry.get("row", {}) for entry in filtered.get("rows", [])]
-    matches = [
-        row for row in rows
-        if row.get("scene_id") == "fc5901d8556743458c40aa4a096f01b6"
-    ]
-    if len(matches) != 1:
-        raise SystemExit(
-            "HMS Loo scene ID was not uniquely returned by the current public Dataset Viewer index"
+    # Resolve the scene path through the Hub's repository tree API. The
+    # Dataset Viewer query service can return 500s for this 2.8 TB dataset;
+    # probing the exact path avoids relying on the viewer index.
+    scene_id = "fc5901d8556743458c40aa4a096f01b6"
+    source_file = None
+    tree_errors = []
+    for shard in ("000-050", "000-051", "000-000"):
+        candidate = f"glbs/{shard}/{scene_id}.glb"
+        tree_url = (
+            "https://huggingface.co/api/datasets/Stable-X/ScanSceneverse/tree/"
+            + revision + "/" + candidate
         )
-    source_file = str(matches[0].get("file_name") or "").strip()
-    if not re.fullmatch(
-        r"glbs/[0-9]{3}-[0-9]{3}/fc5901d8556743458c40aa4a096f01b6\\.glb",
-        source_file,
-    ):
-        raise SystemExit("HMS Loo Dataset Viewer returned an unexpected GLB path")
+        try:
+            entry = fetch_json(tree_url)
+            if isinstance(entry, dict) and entry.get("path") == candidate:
+                source_file = candidate
+                break
+            if isinstance(entry, list) and any(
+                item.get("path") == candidate for item in entry if isinstance(item, dict)
+            ):
+                source_file = candidate
+                break
+            tree_errors.append(f"{candidate}: Hub tree returned no exact file record")
+        except Exception as exc:
+            tree_errors.append(f"{candidate}: {exc}")
+    if not source_file:
+        raise SystemExit(
+            "HMS Loo GLB not present at expected Hub shard paths: " + " | ".join(tree_errors)
+        )
     url = (
         "https://huggingface.co/datasets/Stable-X/ScanSceneverse/resolve/"
         + revision + "/" + source_file
