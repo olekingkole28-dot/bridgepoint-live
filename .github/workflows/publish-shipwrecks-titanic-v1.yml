@@ -14,6 +14,10 @@ on:
       - 'tests/drone-awareness.test.mjs'
       - 'tests/vessel-awareness.test.mjs'
       - 'docs/bridgepoint-shipwrecks-v1.md'
+  workflow_run:
+    workflows: ["Publish Persistent BridgePoint Overlay Visibility v2"]
+    types: [completed]
+    branches: [main]
   push:
     branches: [main]
     paths:
@@ -60,7 +64,7 @@ jobs:
           node tests/vessel-awareness.test.mjs
 
   publish:
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
     concurrency:
       group: bridgepoint-v5000-production-authority
       cancel-in-progress: false
