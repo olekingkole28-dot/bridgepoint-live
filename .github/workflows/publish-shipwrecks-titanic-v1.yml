@@ -44,7 +44,7 @@ jobs:
   validate:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -62,6 +62,31 @@ jobs:
           node tests/shipwrecks-v1.test.mjs
           node tests/drone-awareness.test.mjs
           node tests/vessel-awareness.test.mjs
+
+      - name: Fetch and validate the public HMS Loo CC BY photogrammetry source before merge
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import gzip, importlib.util, struct, tempfile
+          from pathlib import Path
+          source=Path('tools/shipwrecks/fetch_shipwreck_meshes.py')
+          spec=importlib.util.spec_from_file_location('bridgepoint_shipwreck_meshes',source)
+          module=importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+          output=Path(tempfile.mkdtemp(prefix='bridgepoint-hms-loo-source-'))
+          record=module.materialize_hms_loo(output)
+          asset=output/'hms-loo-photogrammetry.glb.gz'
+          assert asset.is_file() and asset.stat().st_size>0
+          assert asset.stat().st_size<100*1024*1024, 'HMS Loo asset exceeds the GitHub Pages per-file publishing limit'
+          raw=gzip.decompress(asset.read_bytes())
+          assert raw[:4]==b'glTF' and len(raw)>32
+          assert struct.unpack_from('<I',raw,8)[0]==len(raw)
+          assert record['license']=='CC BY 4.0'
+          assert record['datasetRevision'] and record['assetSha256']
+          assert record['triangles']==4099999 and record['vertices']==2051535
+          print('BRIDGEPOINT_HMS_LOO_PUBLIC_SOURCE_AND_PAGES_SIZE_PASS',len(raw),'GLB bytes',asset.stat().st_size,'compressed bytes')
+          PY
 
   publish:
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
