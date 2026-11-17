@@ -51,7 +51,8 @@ assert.ok(moduleSource.includes('bpv-dock-actions'),'Shipwrecks control is attac
 assert.ok(moduleSource.includes('setVisibility(state,state.enabled)'));
 assert.ok(landing.includes("import('./bridgepoint-shipwrecks-v1.js?v=1-titanic-noaa-waypoints')"));
 assert.ok(app.includes("import('./bridgepoint-shipwrecks-v1.js?v=1-titanic-noaa-waypoints')"));
-assert.ok(workflow.includes('github-pages-palatine-cryptoporticus-v1'));
+assert.ok(workflow.includes('actions/runs?branch=main&per_page=100'),'publisher discovers the latest successful Pages baseline dynamically');
+assert.ok(workflow.includes('bridgepoint-palatine-cryptoporticus-v1.js'),'publisher refuses an older incomplete baseline');
 assert.ok(workflow.includes('bridgepoint-shipwrecks-v1.js'));
 assert.ok(workflow.includes('expected_changed={"landing.js","app.js","index.html","app/index.html"}'));
 assert.ok(workflow.includes('expected_added={"bridgepoint-shipwrecks-v1.js","app/bridgepoint-shipwrecks-v1.js"}'));
