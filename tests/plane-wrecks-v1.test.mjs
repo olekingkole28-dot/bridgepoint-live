@@ -20,7 +20,7 @@ const moduleSource=await readFile(new URL('../rebuild-v5000/bridgepoint-plane-wr
 assert.match(moduleSource,/minzoom:0,maxzoom:24/,'the aircraft icon persists from global to close zoom');
 assert.match(moduleSource,/function ensurePersistentMarker\(state,visible=state\.enabled\)/,'the aircraft icon has a map-attached persistent marker independent of style layers');
 assert.match(moduleSource,/new Marker\(\{element,anchor:'center',offset:\[0,0\]\}\)/,'the persistent aircraft icon uses the live map marker API');
-assert.ok(moduleSource.indexOf('ensurePersistentMarker(state,true)')<moduleSource.indexOf("if(!map?.getStyle?.())"),'the icon is attached before any map-style readiness check');
+assert.ok(moduleSource.indexOf('const markerReady=ensurePersistentMarker(state,state.enabled);')<moduleSource.indexOf("if(!map?.getStyle?.())"),'the icon is attached before any map-style readiness check');
 assert.match(moduleSource,/element\.addEventListener\('click',event=>\{/,'the persistent aircraft icon opens its own card');
 assert.match(moduleSource,/if\(!map\?\.getStyle\?\.\(\)\)\{state\.stats\.layersReady=false;return markerReady;\}/,'style loading cannot suppress the persistent aircraft icon');
 assert.match(moduleSource,/bp-plane-wreck-dom-marker-v2\[hidden\]/,'the map-attached marker has an explicit hide/show state');
