@@ -87,7 +87,10 @@ assert.ok(workflow.includes('actions/runs?branch=main&per_page=100'),'publisher 
 assert.ok(workflow.includes('bridgepoint-palatine-cryptoporticus-v1.js'),'publisher refuses an older incomplete baseline');
 assert.ok(workflow.includes('bridgepoint-shipwrecks-v1.js'));
 assert.ok(workflow.includes('expected_changed={"landing.js","app.js","index.html","app/index.html","bridgepoint-drone-awareness-v1.js"}'));
-assert.ok(workflow.includes('expected_added={"bridgepoint-shipwrecks-v1.js","app/bridgepoint-shipwrecks-v1.js"}'));
+assert.ok(workflow.includes('overlay_files={'));
+assert.ok(workflow.includes('"assets/shipwrecks/robert-gaskin-photogrammetry.glb.gz"'));
+assert.ok(workflow.includes('"vendor/GLTFLoader.bundle.js"'));
+assert.ok(workflow.includes('required={"bridgepoint-shipwrecks-v1.js"'));
 assert.ok(workflow.includes('robert-gaskin-photogrammetry.glb.gz'),'the publisher overlays the licensed Robert Gaskin native mesh');
 assert.ok(workflow.includes('GLTFLoader.bundle.js'),'the publisher serves a local GLTFLoader instead of a remote CDN dependency');
 assert.ok(workflow.includes('v11-shipwrecks-v2-persistent-icons'),'the publisher repairs the shared visibility-guard cache bust on both entry points');
