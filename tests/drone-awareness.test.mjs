@@ -49,6 +49,9 @@ assert.ok(moduleSource.includes('infrastructure:/infrastructure|power[-_]?line|u
 assert.ok(moduleSource.includes('energy:/solar|wind[-_]?turbine|offshore[-_]?energy|renewable|energy-field/i'), 'solar and wind overlays have a shared persistent category');
 assert.ok(moduleSource.includes('landmarks:/landmark|poi|monument|statue|fountain|lighthouse|heritage-site/i'), 'landmark overlays are recognized by the shared guard');
 assert.ok(moduleSource.includes('earthquakes:/earthquake|seismic|comcat/i'), 'named earthquake point layers are recognized by the shared guard');
+assert.ok(moduleSource.includes('shipwrecks:/shipwreck|titanic/i'), 'Titanic markers have a dedicated category separate from general vessel/ship tracking');
+assert.ok(moduleSource.includes("shipwrecks:'shipwrecks'"), 'the Shipwrecks button explicitly opts into its own visibility category');
+assert.ok(moduleSource.includes("if(/shipwreck|titanic/.test(label))return'shipwrecks';"), 'Shipwrecks labels resolve to the dedicated category before generic shipping');
 assert.ok(moduleSource.includes('const explicitToggle=target.hasAttribute(\'aria-pressed\')'), 'the overlay guard reads the control state before an action handler can reset it');
 assert.ok(!moduleSource.includes('setTimeout(()=>{\n   const buttonOn=target.classList.contains'), 'the previous premature off-state race is removed');
 assert.ok(moduleSource.includes('bp-layer-turn-on-everything') && moduleSource.includes('bp-layer-reset-all'), 'global turn-on and reset controls are mounted at the top of the bottom card');
@@ -68,8 +71,8 @@ assert.ok(moduleSource.includes("for(const event of ['style.load','idle','moveen
 assert.ok(!moduleSource.includes("m.on('styledata',hideDefaultOverlays)"), 'avoid styledata feedback loops while hiding optional layers');
 assert.ok(landingHtml.includes('bridgepoint-drone-awareness-v1.js'), 'homepage loads the module');
 assert.ok(appHtml.includes('bridgepoint-drone-awareness-v1.js'), 'app loads the module');
-assert.ok(landingHtml.includes('bridgepoint-drone-awareness-v1.js?v=8-persistent-overlay-category-gate'), 'homepage uses the live 3D drone runtime cache key');
-assert.ok(appHtml.includes('bridgepoint-drone-awareness-v1.js?v=8-persistent-overlay-category-gate'), 'app uses the same persistent overlay guard cache key');
+assert.ok(landingHtml.includes('bridgepoint-drone-awareness-v1.js?v=10-shipwrecks-icons-persistent'), 'homepage uses the live 3D drone runtime cache key');
+assert.ok(appHtml.includes('bridgepoint-drone-awareness-v1.js?v=10-shipwrecks-icons-persistent'), 'app uses the same persistent overlay guard cache key');
 assert.ok(view.includes('data-bpv-command-grid="environment"'), 'environment command group exists');
 for (const action of ['weatherfx','windfx','volumetric','ai','listings','opportunities','metrics','property','explore','parcels','boundaryviewer','worldchanges','controls','motion','whole']) {
   assert.ok(view.includes('data-bpv-action="'+action+'"'), 'the dock exposes the '+action+' action');

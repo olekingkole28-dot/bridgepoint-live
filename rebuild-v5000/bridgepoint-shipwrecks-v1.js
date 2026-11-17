@@ -123,9 +123,28 @@ function refreshStatusUi(state){
  const button=document.getElementById(TOGGLE_ID);
  if(button){button.setAttribute('aria-pressed',String(state.enabled));button.classList.toggle('is-active',state.enabled);}
 }
+export function syncTitanicShipwreckCategory(enabled,overlayGuard){
+ if(!overlayGuard||typeof overlayGuard.allowLayerCategory!=='function')return false;
+ return overlayGuard.allowLayerCategory('shipwrecks',!!enabled)!==false;
+}
+function syncSharedOverlayCategory(state){
+ try{
+  state.stats.sharedVisibilityCategoryReady=syncTitanicShipwreckCategory(
+   state.enabled,window.__BP_DRONE_AWARENESS_V1__
+  );
+ }catch(error){
+  state.stats.sharedVisibilityCategoryReady=false;
+  state.stats.sharedVisibilityCategoryError=String(error?.message||error);
+ }
+ return !!state.stats.sharedVisibilityCategoryReady;
+}
 function setVisibility(state,visible){
+ syncSharedOverlayCategory(state);
+ const next=visible?'visible':'none';
  for(const id of [HALO_ID,MARKER_ID,LABEL_ID]){
-  if(state.map.getLayer(id))state.map.setLayoutProperty(id,'visibility',visible?'visible':'none');
+  if(!state.map.getLayer(id))continue;
+  const current=state.map.getLayoutProperty(id,'visibility')||'visible';
+  if(current!==next)state.map.setLayoutProperty(id,'visibility',next);
  }
 }
 function installLayers(state){
@@ -207,15 +226,24 @@ function bindInteractions(state){
   const part=partById(String(hit.properties.partId));
   if(part)openTitanicPopup(state,part,event.lngLat||part.coordinates);
  };
- state.handleStyleLoad=()=>{
+ state.handlePersistentVisibility=()=>{
   if(!state.enabled)return;
-  if(installLayers(state))setStatus(state,'Shipwrecks ON · all three Titanic waypoints remain visible from global zoom through close zoom. Select a marker for its 3D card.');
-  else setStatus(state,'Shipwrecks ON · waiting for the globe style before restoring Titanic markers.');
+  // The shared clean-start guard can hide optional marker layers after camera
+  // settles. Re-allow this dedicated category and restore only Titanic layers.
+  syncSharedOverlayCategory(state);
+  if(!installLayers(state)){
+   setStatus(state,'Shipwrecks ON · waiting for the globe style before restoring Titanic markers.');
+   refreshStatusUi(state);return;
+  }
+  setVisibility(state,true);
+  state.stats.visibilityReassertions=(state.stats.visibilityReassertions||0)+1;
+  setStatus(state,'Shipwrecks ON · Titanic markers remain visible through zoom, angle and style changes. Select a marker for its 3D card.');
   refreshStatusUi(state);
  };
+ state.handleStyleLoad=state.handlePersistentVisibility;
  state.map.on('click',state.handleClick);
- state.map.on('style.load',state.handleStyleLoad);
- state.map.on('load',state.handleStyleLoad);
+ for(const event of ['style.load','load','idle','moveend','zoomend','rotateend','pitchend'])
+  state.map.on(event,state.handlePersistentVisibility);
 }
 function addControlGroup(state){
  const dock=document.getElementById('bpv-dock-actions');if(!dock)return false;
@@ -225,7 +253,7 @@ function addControlGroup(state){
  group.setAttribute('aria-label','Shipwrecks');
  group.innerHTML=
   '<div class="bpv-command-heading"><span class="bpv-command-heading-icon" aria-hidden="true">🚢</span><span><b>SHIPWRECKS</b><small>Mapped wreck locations and interactive 3D models</small></span></div>'+
-  '<div class="bpv-command-grid"><button id="'+TOGGLE_ID+'" type="button" class="bpv-command-btn" aria-pressed="false" title="Show or hide mapped shipwreck markers"><span class="bpv-command-icon" aria-hidden="true">🚢</span><span class="bpv-command-label">Shipwrecks</span></button></div>'+
+  '<div class="bpv-command-grid"><button id="'+TOGGLE_ID+'" data-bpv-action="shipwrecks" type="button" class="bpv-command-btn" aria-pressed="false" title="Show or hide mapped shipwreck markers"><span class="bpv-command-icon" aria-hidden="true">🚢</span><span class="bpv-command-label">Shipwrecks</span></button></div>'+
   '<div id="'+COUNT_ID+'" class="bpv-data-note">'+state.stats.parts+' NOAA Titanic waypoints · '+state.stats.models+' 3D model references</div>'+
   '<div id="'+STATUS_ID+'" class="bpv-data-note">Layer off · the rest of the BridgePoint globe remains unchanged.</div>'+
   '<style id="bp-shipwrecks-titanic-style-v1">'+
@@ -271,7 +299,10 @@ export function initShipwrecksRenderer(target){
   destroy(){
    if(state.popup)state.popup.remove();
    if(state.handleClick)map.off('click',state.handleClick);
-   if(state.handleStyleLoad){map.off('style.load',state.handleStyleLoad);map.off('load',state.handleStyleLoad);}
+   if(state.handlePersistentVisibility){
+    for(const event of ['style.load','load','idle','moveend','zoomend','rotateend','pitchend'])
+     map.off(event,state.handlePersistentVisibility);
+   }
    if(state.observer)state.observer.disconnect();if(state.dockTimer)clearTimeout(state.dockTimer);
    for(const id of [LABEL_ID,MARKER_ID,HALO_ID])if(map.getLayer(id))map.removeLayer(id);
    if(map.getSource(SOURCE_ID))map.removeSource(SOURCE_ID);

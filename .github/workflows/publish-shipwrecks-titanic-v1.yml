@@ -6,18 +6,24 @@ on:
     paths:
       - '.github/workflows/publish-shipwrecks-titanic-v1.yml'
       - 'rebuild-v5000/bridgepoint-shipwrecks-v1.js'
+      - 'rebuild-v5000/bridgepoint-drone-awareness-v1.js'
       - 'rebuild-v5000/landing.js'
       - 'rebuild-v5000/app.js'
       - 'tests/shipwrecks-v1.test.mjs'
+      - 'tests/drone-awareness.test.mjs'
+      - 'tests/vessel-awareness.test.mjs'
       - 'docs/bridgepoint-shipwrecks-v1.md'
   push:
     branches: [main]
     paths:
       - '.github/workflows/publish-shipwrecks-titanic-v1.yml'
       - 'rebuild-v5000/bridgepoint-shipwrecks-v1.js'
+      - 'rebuild-v5000/bridgepoint-drone-awareness-v1.js'
       - 'rebuild-v5000/landing.js'
       - 'rebuild-v5000/app.js'
       - 'tests/shipwrecks-v1.test.mjs'
+      - 'tests/drone-awareness.test.mjs'
+      - 'tests/vessel-awareness.test.mjs'
       - 'docs/bridgepoint-shipwrecks-v1.md'
   workflow_dispatch:
 
@@ -42,9 +48,12 @@ jobs:
         run: |
           set -euo pipefail
           node --input-type=module --check < rebuild-v5000/bridgepoint-shipwrecks-v1.js
+          node --check rebuild-v5000/bridgepoint-drone-awareness-v1.js
           node --check rebuild-v5000/landing.js
           node --check rebuild-v5000/app.js
           node tests/shipwrecks-v1.test.mjs
+          node tests/drone-awareness.test.mjs
+          node tests/vessel-awareness.test.mjs
 
   publish:
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
@@ -68,9 +77,12 @@ jobs:
         run: |
           set -euo pipefail
           node --input-type=module --check < rebuild-v5000/bridgepoint-shipwrecks-v1.js
+          node --check rebuild-v5000/bridgepoint-drone-awareness-v1.js
           node --check rebuild-v5000/landing.js
           node --check rebuild-v5000/app.js
           node tests/shipwrecks-v1.test.mjs
+          node tests/drone-awareness.test.mjs
+          node tests/vessel-awareness.test.mjs
 
       - name: Select the latest successful deployed GitHub Pages artifact
         id: baseline
@@ -152,7 +164,7 @@ jobs:
           SITE="$RUNNER_TEMP/shipwrecks-site"
           mkdir -p "$SITE"
           tar -xf "$ARCHIVE" -C "$SITE"
-          for file in index.html app/index.html landing.js app.js vendor/three.module.js \
+          for file in index.html app/index.html landing.js app.js vendor/three.module.js bridgepoint-drone-awareness-v1.js \
             bridgepoint-palatine-cryptoporticus-v1.js bridgepoint-jenolan-caves-v1.js \
             bridgepoint-underground-scan-scenes-v2.js; do
             test -s "$SITE/$file" || { echo "Selected production baseline is missing $file; refusing to publish."; exit 1; }
@@ -174,6 +186,7 @@ jobs:
           SITE="$RUNNER_TEMP/shipwrecks-site"
           mkdir -p "$SITE/app"
           cp rebuild-v5000/bridgepoint-shipwrecks-v1.js "$SITE/bridgepoint-shipwrecks-v1.js"
+          cp rebuild-v5000/bridgepoint-drone-awareness-v1.js "$SITE/bridgepoint-drone-awareness-v1.js"
           cp rebuild-v5000/bridgepoint-shipwrecks-v1.js "$SITE/app/bridgepoint-shipwrecks-v1.js"
           python3 - <<'PY'
           from pathlib import Path
@@ -183,7 +196,7 @@ jobs:
            .then(m=>{window.__BP_SHIPWRECKS_V1__=m.initShipwrecksRenderer(world)})
            .catch(e=>console.warn('BridgePoint Titanic shipwreck layer unavailable',e));"""
           anchor=".catch(e=>console.warn('BridgePoint global subsurface wells renderer unavailable',e));"
-          expected_changed={"landing.js","app.js","index.html","app/index.html"}
+          expected_changed={"landing.js","app.js","index.html","app/index.html","bridgepoint-drone-awareness-v1.js"}
           expected_added={"bridgepoint-shipwrecks-v1.js","app/bridgepoint-shipwrecks-v1.js"}
           allowed=expected_changed|expected_added
           for rel in ("landing.js","app.js"):
@@ -208,6 +221,18 @@ jobs:
               if "shipwrecks=titanic-v1" not in url:
                   updated=url+("&" if "?" in url else "?")+"shipwrecks=titanic-v1"
                   data=data.replace(url,updated,1)
+              drone_old=(
+                  "bridgepoint-drone-awareness-v1.js?v=8-persistent-overlay-category-gate&aircraft=9-filters-ground-tethers",
+                  "bridgepoint-drone-awareness-v1.js?v=9-persistent-icons-master-layers&aircraft=9-filters-ground-tethers",
+              )
+              drone_new="bridgepoint-drone-awareness-v1.js?v=10-shipwrecks-icons-persistent&aircraft=9-filters-ground-tethers"
+              old_matches=[item for item in drone_old if data.count(item)==1]
+              if drone_new not in data:
+                  if len(old_matches)!=1:
+                      raise SystemExit(f"{rel}: expected exactly one known drone visibility-guard script URL")
+                  data=data.replace(old_matches[0],drone_new,1)
+              elif any(data.count(item)>1 for item in drone_old):
+                  raise SystemExit(f"{rel}: duplicate drone visibility-guard script URL")
               path.write_text(data,encoding="utf-8")
 
           before=json.loads((Path(os.environ["RUNNER_TEMP"])/"shipwrecks-before.json").read_text())
@@ -227,6 +252,7 @@ jobs:
           PY
           node --check "$SITE/landing.js"
           node --check "$SITE/app.js"
+          node --check "$SITE/bridgepoint-drone-awareness-v1.js"
           node --input-type=module --check < "$SITE/bridgepoint-shipwrecks-v1.js"
           cmp -s "$SITE/bridgepoint-shipwrecks-v1.js" "$SITE/app/bridgepoint-shipwrecks-v1.js"
           grep -Fq 'initShipwrecksRenderer(world)' "$SITE/landing.js"
@@ -262,6 +288,7 @@ jobs:
             "landing.js:$O/landing.js?shipwrecks=$Q" \
             "app.js:$O/app.js?shipwrecks=$Q" \
             "module.js:$O/bridgepoint-shipwrecks-v1.js?verify=$Q" \
+            "drone.js:$O/bridgepoint-drone-awareness-v1.js?verify=$Q" \
             "app-module.js:$O/app/bridgepoint-shipwrecks-v1.js?verify=$Q"; do
             name="${item%%:*}"; url="${item#*:}"
             curl --retry 6 --retry-all-errors --retry-delay 2 --connect-timeout 20 --max-time 180 -fL \
@@ -273,6 +300,10 @@ jobs:
           grep -Fq 'shipwrecks=titanic-v1' "$D/app.html"
           grep -Fq 'bridgepoint-shipwrecks-v1.js?v=1-titanic-noaa-waypoints' "$D/landing.js"
           grep -Fq 'bridgepoint-shipwrecks-v1.js?v=1-titanic-noaa-waypoints' "$D/app.js"
+          grep -Fq 'v10-shipwrecks-icons-persistent' "$D/root.html"
+          grep -Fq 'v10-shipwrecks-icons-persistent' "$D/app.html"
+          grep -Fq 'shipwrecks:/shipwreck|titanic/i' "$D/drone.js"
+          grep -Fq "shipwrecks:'shipwrecks'" "$D/drone.js"
           grep -Fq 'initShipwrecksRenderer' "$D/module.js"
           grep -Fq '41° 43′ 57″ N, 49° 56′ 49″ W' "$D/module.js"
           grep -Fq '41° 43′ 35″ N, 49° 56′ 54″ W' "$D/module.js"

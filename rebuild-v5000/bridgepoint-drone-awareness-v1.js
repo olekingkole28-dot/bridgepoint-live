@@ -81,6 +81,7 @@ const categoryPatterns={
  energy:/solar|wind[-_]?turbine|offshore[-_]?energy|renewable|energy-field/i,
  landmarks:/landmark|poi|monument|statue|fountain|lighthouse|heritage-site/i,
  nature:/tree|canopy|vegetation|forest-cover/i,
+ shipwrecks:/shipwreck|titanic/i,
  shipping:/vessel|ship|maritime|boat|port|shipping/i
 };
 // Only manage explicitly recognized optional overlays. Unknown style layers may be
@@ -112,7 +113,7 @@ function categoryForTarget(target){
  // Opening the fields panel is not itself a layer activation; the panel's own
  // Wind / RF / Drone controls opt their category in only when pressed.
  if(action==='volumetric')return null;
- const actionMap={parcels:'parcels',boundaryviewer:'parcels',worldchanges:'history',weatherfx:'weather',windfx:'wind',volumetric:'wind',satellite:'imagery',opportunities:'opportunities',listings:'listings',water:'water',catacombs:'subsurface',subsurface:'subsurface',wells:'subsurface',boreholes:'subsurface',drones:'drones',powerlines:'infrastructure',infrastructure:'infrastructure',utilities:'infrastructure',telecom:'infrastructure',solar:'energy',windturbines:'energy',energy:'energy',landmarks:'landmarks',lighthouses:'landmarks',earthquakes:'earthquakes',nature:'nature',trees:'nature',vessels:'shipping',ships:'shipping',maritime:'shipping'};
+ const actionMap={parcels:'parcels',boundaryviewer:'parcels',worldchanges:'history',weatherfx:'weather',windfx:'wind',volumetric:'wind',satellite:'imagery',opportunities:'opportunities',listings:'listings',water:'water',catacombs:'subsurface',subsurface:'subsurface',wells:'subsurface',boreholes:'subsurface',drones:'drones',powerlines:'infrastructure',infrastructure:'infrastructure',utilities:'infrastructure',telecom:'infrastructure',solar:'energy',windturbines:'energy',energy:'energy',landmarks:'landmarks',lighthouses:'landmarks',earthquakes:'earthquakes',nature:'nature',trees:'nature',vessels:'shipping',ships:'shipping',maritime:'shipping',shipwrecks:'shipwrecks'};
  if(actionMap[action])return actionMap[action];
  if(target.dataset?.layer==='parcels')return'parcels';
  if(target.dataset?.layer==='buildings')return'buildings';
@@ -133,6 +134,7 @@ function categoryForTarget(target){
  if(/landmark|lighthouse|monument|statue|fountain|heritage|poi/.test(label))return'landmarks';
  if(/earthquake|seismic|comcat/.test(label))return'earthquakes';
  if(/tree|canopy|vegetation|forest/.test(label))return'nature';
+ if(/shipwreck|titanic/.test(label))return'shipwrecks';
  if(/ship|vessel|maritime|boat|port/.test(label))return'shipping';
  if(/road|rail|bridge|transport/.test(label))return'transport';
  return null;
