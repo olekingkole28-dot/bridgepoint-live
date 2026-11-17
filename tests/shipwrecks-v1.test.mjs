@@ -15,7 +15,7 @@ assert.deepEqual(allFeatures[3].geometry.coordinates,[-75.677083,44.589317]);
 assert.equal(ROBERT_GASKIN_WRECK.depthM,19.8);
 assert.deepEqual(ROBERT_GASKIN_WRECK.depthRangeM,[18.3,21.3]);
 assert.equal(ROBERT_GASKIN_WRECK.license,'CC BY 4.0');
-assert.equal(ROBERT_GASKIN_WRECK.sourcePhotos,48977);
+assert.equal(ROBERT_GASKIN_WRECK.sourcePhotos,49000,'the source description rounds to approximately 49,000 photos');
 assert.equal(ROBERT_GASKIN_WRECK.triangles,598600);
 assert.match(ROBERT_GASKIN_WRECK.datasetUrl,/zenodo\\.10288556/);
 
@@ -96,7 +96,6 @@ assert.ok(workflow.includes('GLTFLoader.bundle.js'),'the publisher serves a loca
 assert.ok(workflow.includes('v11-shipwrecks-v2-persistent-icons'),'the publisher repairs the shared visibility-guard cache bust on both entry points');
 assert.ok(workflow.includes('BRIDGEPOINT_SHIPWRECKS_V2_LIVE_VERIFY_PASS'),'the publisher verifies the live shipwreck v2 asset and entry points');
 
-assert.ok(!/SUPA|supabase/i.test(moduleSource),'the isolated shipwreck layer does not call any account/data backend');
 assert.ok(!/SUPA|supabase/i.test(moduleSource),'the native shipwreck renderer has no Supabase dependency');
 
 console.log('BRIDGEPOINT_SHIPWRECKS_TITANIC_V1_PASS');
