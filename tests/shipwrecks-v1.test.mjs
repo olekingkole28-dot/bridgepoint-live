@@ -136,11 +136,11 @@ assert.match(moduleSource,/hit\.properties\?\.wreckId==='hnlms-kxi'/,'KXI persis
 assert.match(capeOtwayPopupSource,/bridgePointLocalViewerMarkup\('cape-otway'/,'Cape Otway card mounts a BridgePoint-hosted viewer');
 assert.doesNotMatch(capeOtwayPopupSource,/iframe|viewerUrl/i,'Cape Otway card has no external viewer embed or redirect');
 assert.match(moduleSource,/async function loadCapeOtwayMesh\(state,renderer=null\)/,'Cape Otway GLB is loaded through the BridgePoint native model loader');
-assert.match(moduleSource,/async function loadTimaruMesh\\(state,renderer=null\\)/,'Timaru GLB is loaded through the BridgePoint native model loader');
+assert.match(moduleSource,/async function loadTimaruMesh\(state,renderer=null\)/,'Timaru GLB is loaded through the BridgePoint native model loader');
 assert.match(moduleSource,/async function showCapeOtwayOnSeabed\(state\)/,'Cape Otway card can materialize the native scan underwater');
-assert.match(moduleSource,/async function showTimaruOnSeabed\\(state\\)/,'Timaru card can materialize the native scan underwater');
-assert.match(moduleSource,/maybeAutoMaterializeTimaru\\(state\\)/,'Timaru mesh can auto-materialize when zoomed near its icon');
-assert.match(moduleSource,/TIMARU_WRECK\\.displayDepthM/,'Timaru native mesh is anchored at the approximate wreck depth');
+assert.match(moduleSource,/async function showTimaruOnSeabed\(state\)/,'Timaru card can materialize the native scan underwater');
+assert.match(moduleSource,/maybeAutoMaterializeTimaru\(state\)/,'Timaru mesh can auto-materialize when zoomed near its icon');
+assert.match(moduleSource,/TIMARU_WRECK\.displayDepthM/,'Timaru native mesh is anchored at the approximate wreck depth');
 assert.ok(moduleSource.includes("hit.properties?.wreckId==='timaru'"),'Timaru persistent icon opens its own information card');
 assert.match(moduleSource,/maybeAutoMaterializeCapeOtway\(state\)/,'Cape Otway mesh can materialize automatically when zoomed near its icon');
 assert.match(moduleSource,/CAPE_OTWAY_WRECK\.displayDepthM/,'Cape Otway mesh is anchored at the approximate documented wreck depth');
@@ -172,7 +172,7 @@ assert.match(moduleSource,/distance=clamp\(distance\*lastPinch\/current/,'the lo
 assert.match(moduleSource,/await loadHmsGraftonMesh\(state,renderer\)/,'HMS Grafton card renders the locally hosted GLB');
 assert.match(moduleSource,/await loadCannonMesh\(state,renderer\)/,'Kanonvraget card renders the locally hosted GLB');
 assert.match(moduleSource,/await loadCapeOtwayMesh\(state,renderer\)/,'Cape Otway card renders the locally hosted GLB');
-assert.match(moduleSource,/await loadTimaruMesh\\(state,renderer\\)/,'Timaru card renders the locally hosted GLB');
+assert.match(moduleSource,/await loadTimaruMesh\(state,renderer\)/,'Timaru card renders the locally hosted GLB');
 assert.match(moduleSource,/popup\.on\?\.\('close',cleanup\)/,'local viewer releases its renderer when the popup closes');
 
 assert.ok(moduleSource.includes('minzoom:0,maxzoom:24'),'markers remain visible across all globe zoom levels');
@@ -197,7 +197,7 @@ assert.ok(moduleSource.includes('maybeAutoMaterializeTimaru(state)'),'Timaru nat
 assert.ok(moduleSource.includes('CANNON_WRECK.displayDepthM'),'Kanonvraget native mesh is placed at the site-record depth midpoint');
 assert.ok(moduleSource.includes("hit.properties?.wreckId==='kanonvraget'"),'Kanonvraget click opens its dedicated popup');
 assert.ok(moduleSource.includes('all nine wreck icons remain visible'),'the shared marker layer reports all eight persistent wreck icons');
-assert.ok(moduleSource.includes("count.textContent='9 persistent wreck icons · 6 native CC BY 4.0 seabed scans"),'dynamic count reflects all eight markers and all five native models');
+assert.ok(moduleSource.includes("count.textContent='9 persistent wreck icons · 6 native CC BY 4.0 seabed scans"),'dynamic count reflects all nine markers and all six native models');
 assert.ok(moduleSource.includes('Verified WGS84 wreck-site position'),'Kanonvraget card explains its location precision');
 assert.ok(moduleSource.includes('DTU Aqua describes its Cannon Shipwreck reconstruction'),'Kanonvraget card keeps scan depth distinct from wreck depth');
 assert.ok(moduleSource.includes('loadHmsGraftonMesh(state,renderer)'),'HMS Grafton is loaded as a native GLB');
