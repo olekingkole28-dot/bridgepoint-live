@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import {
  TITANIC_SHIPWRECK_PARTS,TITANIC_3D_MODELS,TITANIC_OFFICIAL_SCAN_SOURCES,
- buildTitanicShipwreckFeatures,titanicShipwreckPopupHtml
+ buildTitanicShipwreckFeatures,titanicShipwreckPopupHtml,syncTitanicShipwreckCategory
 } from '../rebuild-v5000/bridgepoint-shipwrecks-v1.js';
 
 const features=buildTitanicShipwreckFeatures();
@@ -23,6 +23,13 @@ assert.match(TITANIC_3D_MODELS[2].description,/not a photogrammetry scan/i);
 assert.equal(TITANIC_OFFICIAL_SCAN_SOURCES.length,3);
 assert.match(TITANIC_OFFICIAL_SCAN_SOURCES[0].url,/repository\.library\.noaa\.gov\/view\/noaa\/10519/);
 assert.ok(buildTitanicShipwreckFeatures([{id:'invalid',coordinates:[181,0]}]).length===0);
+
+const categoryCalls=[];
+const overlayGuard={allowLayerCategory:(category,on)=>{categoryCalls.push([category,on]);return true}};
+assert.equal(syncTitanicShipwreckCategory(true,overlayGuard),true,'enabled Shipwrecks explicitly opts into its own persistent category');
+assert.equal(syncTitanicShipwreckCategory(false,overlayGuard),true,'disabled Shipwrecks releases only its own category');
+assert.deepEqual(categoryCalls,[['shipwrecks',true],['shipwrecks',false]]);
+assert.equal(syncTitanicShipwreckCategory(true,{}),false,'missing shared visibility guard is detected');
 
 const bowPopup=titanicShipwreckPopupHtml(TITANIC_SHIPWRECK_PARTS[0],'titanic-bow-photogrammetry');
 assert.match(bowPopup,/BRIDGEPOINT · SHIPWRECKS/);
@@ -46,7 +53,11 @@ const [moduleSource,landing,app,workflow]=await Promise.all([
 ]);
 assert.ok(moduleSource.includes('minzoom:0,maxzoom:24'),'markers remain visible across all globe zoom levels');
 assert.ok(moduleSource.includes("'icon-allow-overlap':true"),'wreck markers do not disappear because of symbol collisions');
-assert.ok(moduleSource.includes("map.on('style.load',state.handleStyleLoad)"),'markers are restored after map-style reloads');
+assert.ok(moduleSource.includes("data-bpv-action=\\"shipwrecks\\""),'Shipwrecks participates in the shared visibility allowlist as its own category');
+assert.ok(moduleSource.includes("allowLayerCategory('shipwrecks',!!enabled)"),'Shipwrecks explicitly registers and releases its own category');
+assert.ok(moduleSource.includes("for(const event of ['style.load','load','idle','moveend','zoomend','rotateend','pitchend'])"),'the renderer reasserts marker visibility after settled zoom, camera-angle and style events');
+assert.ok(moduleSource.includes("if(current!==next)state.map.setLayoutProperty(id,'visibility',next)"),'visibility restoration avoids redundant MapLibre style writes');
+assert.ok(moduleSource.includes("map.off(event,state.handlePersistentVisibility)"),'all persistent visibility listeners are cleaned up on destroy');
 assert.ok(moduleSource.includes('bpv-dock-actions'),'Shipwrecks control is attached to the existing globe dock');
 assert.ok(moduleSource.includes('setVisibility(state,state.enabled)'));
 assert.ok(landing.includes("import('./bridgepoint-shipwrecks-v1.js?v=1-titanic-noaa-waypoints')"));
