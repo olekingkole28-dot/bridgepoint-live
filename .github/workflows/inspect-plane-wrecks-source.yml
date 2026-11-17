@@ -1,0 +1,22 @@
+name: Inspect BridgePoint first underwater aircraft mesh
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/inspect-plane-wrecks-source.yml'
+      - 'tools/plane_wrecks/fetch_plane_wrecks.py'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/inspect-plane-wrecks-source.yml'
+      - 'tools/plane_wrecks/fetch_plane_wrecks.py'
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Inspect only KWAJ mesh entries using ZIP byte ranges (no 3 GB archive download)
+        run: python3 tools/plane_wrecks/fetch_plane_wrecks.py --inspect-only
