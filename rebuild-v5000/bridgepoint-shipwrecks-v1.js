@@ -1,7 +1,7 @@
-/* BridgePoint Shipwrecks v5 — Titanic + Robert Gaskin + HMS Grafton + Kanonvraget + Timaru.
+/* BridgePoint Shipwrecks v5 — Titanic + Robert Gaskin + HMS Grafton + Kanonvraget + Timaru + HMS Loo.
  * Each wreck has a persistent marker, dedicated source-backed card and native underwater model.
  */
-const VERSION=10, MAP_STATES=new WeakMap();
+const VERSION=11, MAP_STATES=new WeakMap();
 const THREE_URL='/vendor/three.module.js?v=169-local';
 const GLTF_URL='/vendor/GLTFLoader.bundle.js?v=169-local';
 const DRACO_URL='/vendor/DRACOLoader.bundle.js?v=169-draco-v1';
@@ -14,6 +14,7 @@ const CANNON_ASSET='/assets/shipwrecks/cannon-photogrammetry.glb.gz';
 const KXI_ASSET='/assets/shipwrecks/hnlms-kxi-photogrammetry.glb.gz';
 const CAPE_OTWAY_ASSET='/assets/shipwrecks/cape-otway-photogrammetry.glb.gz';
 const TIMARU_ASSET='/assets/shipwrecks/timaru-photogrammetry.glb.gz';
+const HMS_LOO_ASSET='/assets/shipwrecks/hms-loo-photogrammetry.glb.gz';
 let shipwreckThreePromise=null;
 const SOURCE_ID='bp-shipwrecks-titanic-source-v1';
 const HALO_ID='bp-shipwrecks-titanic-halo-v1';
@@ -141,6 +142,27 @@ export const TIMARU_WRECK={
  detail:'Site 42 is the broken-up remains of Timaru / Naval Dredger 4 / Commonwealth Naval Dredge 4, a steel steam hopper barge built in 1893. The 2025 photogrammetry records exposed wreck structure and scattered remains, including a boiler standing on end; it is not an intact restored ship model.'
 };
 
+export const HMS_LOO_WRECK={
+ id:'hms-loo',name:'HMS Loo — 1744 Looe Key wrecksite',label:'HMS LOO · LOOE KEY',part:'wrecksite',
+ coordinates:[-81.4052,24.5477],coordinateText:'24.5477° N, 81.4052° W (approximate recorded position)',
+ displayDepthM:6.75,depthRangeM:[4.5,9],
+ builtYear:1706,lostDate:'1744-02-05',guns:44,crewEscaped:274,
+ triangles:4099999,vertices:2051535,capturedAt:'2023',publishedAt:'2024-02-07',
+ license:'CC BY 4.0',creator:'NOAA Florida Keys National Marine Sanctuary',
+ creators:'NOAA Florida Keys National Marine Sanctuary · East Carolina University Maritime Studies Program',
+ sourceUrl:'https://sketchfab.com/3d-models/hms-loo-shipwreck-fc5901d8556743458c40aa4a096f01b6',
+ datasetUrl:'https://huggingface.co/datasets/Stable-X/ScanSceneverse',
+ locationSourceUrl:'https://shipwrecksmap.com/wrecks/hms-looe-1741/',
+ historySourceUrl:'https://floridakeys.noaa.gov/shipwrecks/hms-loo.html',
+ depthSourceUrl:'https://library.oarcloud.noaa.gov/noaa_documents.lib/NOS/CZIC/EIS_Looe_Key_1980.pdf',
+ assetUrl:HMS_LOO_ASSET,
+ location:'Looe Key Reef, Lower Florida Keys, Florida, USA',
+ locationPrecision:'Approximate recorded position from a Wikidata coordinate (CC0), not a survey-grade wreck waypoint. NOAA places the wreckage at Looe Key Reef. The model scan itself has no GPS origin.',
+ scalePrecision:'The NOAA/ECU photogrammetry includes scale bars with 25 cm target spacing. BridgePoint preserves the source GLB scale; no independent survey-control certificate is published.',
+ orientationPrecision:'Original source GLB orientation is preserved. No georeferenced heading or true-north transform is published.',
+ detail:'A 2023 NOAA / East Carolina University underwater photogrammetry survey of the HMS Loo wrecksite: coral-encrusted ballast blocks, scattered ship structure and artifacts on the seabed. This is a scan of the remains and surrounding seabed, not an intact or reconstructed ship hull.'
+};
+
 export function buildAllShipwreckFeatures(){
  const p=ROBERT_GASKIN_WRECK;
  const gaskin={type:'Feature',id:p.id,geometry:{type:'Point',coordinates:[Number(p.coordinates[0]),Number(p.coordinates[1])]},
@@ -160,7 +182,10 @@ export function buildAllShipwreckFeatures(){
  const t=TIMARU_WRECK;
  const timaru={type:'Feature',id:t.id,geometry:{type:'Point',coordinates:[Number(t.coordinates[0]),Number(t.coordinates[1])]},
   properties:{wreckId:t.id,name:t.name,label:t.label,part:t.part,iconImage:ICON_ID,depthM:t.displayDepthM,coordinateText:t.coordinateText}};
- return [...buildTitanicShipwreckFeatures(),gaskin,grafton,cannon,kxi,capeOtway,timaru];
+ const l=HMS_LOO_WRECK;
+ const hmsLoo={type:'Feature',id:l.id,geometry:{type:'Point',coordinates:[Number(l.coordinates[0]),Number(l.coordinates[1])]},
+  properties:{wreckId:l.id,name:l.name,label:l.label,part:l.part,iconImage:ICON_ID,depthM:l.displayDepthM,coordinateText:l.coordinateText}};
+ return [...buildTitanicShipwreckFeatures(),gaskin,grafton,cannon,kxi,capeOtway,timaru,hmsLoo];
 }
 
 export const TITANIC_3D_MODELS=[
@@ -256,7 +281,7 @@ function makeTitanicIcon(){
 function setStatus(state,msg){state.status=msg;const el=document.getElementById(STATUS_ID);if(el)el.textContent=msg;}
 function refreshStatusUi(state){
  const count=document.getElementById(COUNT_ID);
- if(count)count.textContent='9 persistent wreck icons · 6 native CC BY 4.0 seabed scans · '+state.stats.models.toLocaleString()+' Titanic viewer references';
+ if(count)count.textContent='10 persistent wreck icons · 7 native CC BY 4.0 seabed scans · '+state.stats.models.toLocaleString()+' Titanic viewer references';
  const status=document.getElementById(STATUS_ID);if(status)status.textContent=state.status;
  const button=document.getElementById(TOGGLE_ID);
  if(button){button.setAttribute('aria-pressed',String(state.enabled));button.classList.toggle('is-active',state.enabled);}
@@ -385,6 +410,11 @@ function updateTimaruModelStatus(state,message){
  state.timaruModelStatus=String(message||'');
  const popup=state.popup?.getElement?.()?.querySelector('[data-timaru-status]');
  if(popup)popup.textContent=state.timaruModelStatus;
+}
+function updateHmsLooModelStatus(state,message){
+ state.hmsLooModelStatus=String(message||'');
+ const popup=state.popup?.getElement?.()?.querySelector('[data-hms-loo-status]');
+ if(popup)popup.textContent=state.hmsLooModelStatus;
 }
 async function loadShipwreckThree(){
  if(!shipwreckThreePromise)shipwreckThreePromise=Promise.all([import(THREE_URL),import(GLTF_URL),import(DRACO_URL),import(KTX2_URL)]).then(([THREE,loader,decoder,ktx2])=>{
@@ -688,8 +718,50 @@ async function loadTimaruMesh(state,renderer=null){
  return state.timaruModelPromise;
 }
 
+async function loadHmsLooMesh(state,renderer=null){
+ if(state.hmsLooModelRoot)return state.hmsLooModelRoot;
+ if(state.hmsLooModelPromise)return state.hmsLooModelPromise;
+ state.hmsLooModelPromise=(async()=>{
+  const pair=await loadShipwreckThree();if(state.destroyed)throw new Error('Shipwreck layer closed');
+  state.THREE=pair.THREE;state.GLTFLoader=pair.GLTFLoader;state.DRACOLoader=pair.DRACOLoader;
+  const response=await fetch(HMS_LOO_ASSET,{cache:'force-cache'});
+  if(!response.ok)throw new Error('HMS Loo GLB request failed ('+response.status+')');
+  if(typeof DecompressionStream==='undefined')throw new Error('Gzip decompression is unavailable in this browser');
+  const stream=new Blob([await response.arrayBuffer()]).stream().pipeThrough(new DecompressionStream('gzip'));
+  const buffer=await new Response(stream).arrayBuffer();
+  if(buffer.byteLength<32||new DataView(buffer).getUint32(0,true)!==0x46546c67)throw new Error('HMS Loo asset is not a valid GLB');
+  if(new DataView(buffer).getUint32(8,true)!==buffer.byteLength)throw new Error('HMS Loo GLB length header is invalid');
+  const gltf=await createShipwreckGLTFLoader(state,renderer).parseAsync(buffer,'');
+  if(!gltf?.scene)throw new Error('HMS Loo GLB contains no scene');
+  const root=gltf.scene.clone(true);root.updateMatrixWorld(true);
+  const bounds=new pair.THREE.Box3().setFromObject(root);
+  if(bounds.isEmpty())throw new Error('HMS Loo photogrammetry scan contains no visible 3D geometry');
+  const size=bounds.getSize(new pair.THREE.Vector3());
+  if(![size.x,size.y,size.z].every(Number.isFinite)||Math.max(size.x,size.y,size.z)<=0)throw new Error('HMS Loo scan has invalid dimensions');
+  // Preserve the photogrammetry source scale/orientation, including its 25 cm scale targets.
+  // The scan origin is not georeferenced; only its visual center is aligned to the approximate wreck point.
+  const center=bounds.getCenter(new pair.THREE.Vector3());
+  root.position.x-=center.x;root.position.y-=center.y;root.position.z-=center.z;
+  root.visible=false;
+  root.traverse(object=>{
+   if(!object.isMesh&&!object.isPoints)return;
+   object.frustumCulled=false;object.renderOrder=1000;
+   for(const material of Array.isArray(object.material)?object.material:[object.material]){
+    if(!material)continue;
+    material.depthTest=false;material.depthWrite=false;material.needsUpdate=true;
+   }
+  });
+  root.updateMatrixWorld(true);
+  state.hmsLooModelRoot=root;
+  state.hmsLooModelBounds={x:size.x,y:size.y,z:size.z};
+  if(state.nativeModelScene)state.nativeModelScene.add(root);
+  return root;
+ })().catch(error=>{state.hmsLooModelPromise=null;throw error;});
+ return state.hmsLooModelPromise;
+}
+
 function bridgePointLocalViewerMarkup(id,title){
- if(id!=='hms-grafton'&&id!=='kanonvraget'&&id!=='hnlms-kxi'&&id!=='cape-otway'&&id!=='timaru')return '';
+ if(id!=='hms-grafton'&&id!=='kanonvraget'&&id!=='hnlms-kxi'&&id!=='cape-otway'&&id!=='timaru'&&id!=='hms-loo')return '';
  return '<div class="bp-shipwreck-local-viewer-v1" data-bp-local-wreck-viewer="'+safe(id)+'" role="group" aria-label="'+safe(title)+' BridgePoint-hosted interactive 3D viewer">'+
   '<div class="bp-shipwreck-local-viewer-loading-v1" data-bp-local-viewer-status>Loading the BridgePoint-hosted '+safe(title)+' 3D scan…</div></div>';
 }
@@ -734,7 +806,7 @@ function mountBridgePointLocalWreckViewer(state,popup,wreckId,title){
    renderer.toneMapping=THREE.ACESFilmicToneMapping;
    renderer.toneMappingExposure=1.08;
    renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.5));
-   const sourceRoot=wreckId==='hms-grafton'?await loadHmsGraftonMesh(state,renderer):wreckId==='hnlms-kxi'?await loadKxiMesh(state,renderer):wreckId==='cape-otway'?await loadCapeOtwayMesh(state,renderer):wreckId==='timaru'?await loadTimaruMesh(state,renderer):await loadCannonMesh(state,renderer);
+   const sourceRoot=wreckId==='hms-grafton'?await loadHmsGraftonMesh(state,renderer):wreckId==='hnlms-kxi'?await loadKxiMesh(state,renderer):wreckId==='cape-otway'?await loadCapeOtwayMesh(state,renderer):wreckId==='timaru'?await loadTimaruMesh(state,renderer):wreckId==='hms-loo'?await loadHmsLooMesh(state,renderer):await loadCannonMesh(state,renderer);
    if(disposed||!host.isConnected)return;
    model=sourceRoot.clone(true);
    model.visible=true;
@@ -858,7 +930,7 @@ function ensureRobertGaskinMapLayer(state){
  const map=state.map,THREE=state.THREE;
  if(!THREE||state.destroyed)return false;
  if(map.getLayer(NATIVE_MODEL_LAYER_ID)&&state.nativeModelRenderer&&state.nativeModelScene){
-  for(const root of [state.nativeModelRoot,state.graftonModelRoot,state.cannonModelRoot,state.kxiModelRoot,state.capeOtwayModelRoot,state.timaruModelRoot])if(root&&root.parent!==state.nativeModelScene)state.nativeModelScene.add(root);
+  for(const root of [state.nativeModelRoot,state.graftonModelRoot,state.cannonModelRoot,state.kxiModelRoot,state.capeOtwayModelRoot,state.timaruModelRoot,state.hmsLooModelRoot])if(root&&root.parent!==state.nativeModelScene)state.nativeModelScene.add(root);
   return true;
  }
  const layer={
@@ -869,7 +941,7 @@ function ensureRobertGaskinMapLayer(state){
    state.nativeModelCamera=new THREE.Camera();state.nativeModelScene=new THREE.Scene();
    state.nativeModelScene.add(new THREE.AmbientLight(0xffffff,1.55));
    const key=new THREE.DirectionalLight(0xffe9c7,1.2);key.position.set(-.6,1.4,.9);state.nativeModelScene.add(key);
-   for(const root of [state.nativeModelRoot,state.graftonModelRoot,state.cannonModelRoot,state.kxiModelRoot,state.capeOtwayModelRoot,state.timaruModelRoot])if(root)state.nativeModelScene.add(root);
+   for(const root of [state.nativeModelRoot,state.graftonModelRoot,state.cannonModelRoot,state.kxiModelRoot,state.capeOtwayModelRoot,state.timaruModelRoot,state.hmsLooModelRoot])if(root)state.nativeModelScene.add(root);
    state.stats.nativeModelLayerReady=true;
   },
   render(gl,args){
@@ -902,6 +974,8 @@ function ensureRobertGaskinMapLayer(state){
     -CAPE_OTWAY_WRECK.displayDepthM,'capeOtwayModelRenderWarned','SS Cape Otway');
    draw(state.timaruModelRoot,state.timaruModelVisible,TIMARU_WRECK.coordinates,
     -TIMARU_WRECK.displayDepthM,'timaruModelRenderWarned','Timaru');
+   draw(state.hmsLooModelRoot,state.hmsLooModelVisible,HMS_LOO_WRECK.coordinates,
+    -HMS_LOO_WRECK.displayDepthM,'hmsLooModelRenderWarned','HMS Loo');
   },
   onRemove(){
    try{state.nativeModelRenderer?.dispose();}catch(_){}
@@ -923,7 +997,7 @@ async function showRobertGaskinOnRiverbed(state){
  if(!state.enabled)return false;
  state.nativeModelAutoAttempted=true;state.nativeModelVisible=true;
  updateRobertGaskinModelStatus(state,'Loading the CC BY 4.0 photogrammetry scan…');
- setStatus(state,'Robert Gaskin native underwater mesh loading; all nine wreck icons remain on.');
+ setStatus(state,'Robert Gaskin native underwater mesh loading; all ten wreck icons remain on.');
  try{
   const renderer=await prepareShipwreckMapRenderer(state);
   await loadRobertGaskinMesh(state,renderer);
@@ -1046,6 +1120,29 @@ async function showTimaruOnSeabed(state){
   state.timaruModelVisible=false;
   updateTimaruModelStatus(state,'Native scan could not load: '+String(error?.message||error));
   setStatus(state,'Timaru native 3D mesh unavailable: '+String(error?.message||error));
+  return false;
+ }
+}
+
+async function showHmsLooOnSeabed(state){
+ if(!state.enabled)return false;
+ state.hmsLooModelAutoAttempted=true;state.hmsLooModelVisible=true;
+ updateHmsLooModelStatus(state,'Loading the CC BY 4.0 NOAA / East Carolina University photogrammetry scan…');
+ setStatus(state,'HMS Loo native underwater mesh loading; all ten wreck icons remain on.');
+ try{
+  const renderer=await prepareShipwreckMapRenderer(state);
+  await loadHmsLooMesh(state,renderer);
+  if(state.destroyed||!state.enabled)return false;
+  if(!ensureRobertGaskinMapLayer(state))throw new Error('MapLibre native 3D layer could not attach');
+  if(state.nativeModelScene&&state.hmsLooModelRoot.parent!==state.nativeModelScene)state.nativeModelScene.add(state.hmsLooModelRoot);
+  const b=state.hmsLooModelBounds;
+  updateHmsLooModelStatus(state,'Native NOAA / ECU scan loaded · source bounds '+[b.x,b.y,b.z].map(n=>n.toFixed(2)+' source units').join(' × ')+'. Original scale preserved; placed at the approximate 6.75 m depth reference when zoomed to the wreck.');
+  setStatus(state,'HMS Loo native photogrammetry mesh loaded at the approximate 6.75 m midpoint of NOAA’s 4.5–9 m site-depth range.');
+  state.map.triggerRepaint?.();refreshStatusUi(state);return true;
+ }catch(error){
+  state.hmsLooModelVisible=false;
+  updateHmsLooModelStatus(state,'Native scan could not load: '+String(error?.message||error));
+  setStatus(state,'HMS Loo native 3D mesh unavailable: '+String(error?.message||error));
   return false;
  }
 }
@@ -1197,6 +1294,37 @@ function openTimaruPopup(state,lngLat){
  root?.querySelector('[data-timaru-action="materialize"]')?.addEventListener('click',()=>{void showTimaruOnSeabed(state);});
  mountBridgePointLocalWreckViewer(state,state.popup,'timaru','Timaru — Site 42');
 }
+function openHmsLooPopup(state,lngLat){
+ const Popup=window.maplibregl?.Popup;if(!Popup)return;
+ addRobertGaskinStyles();
+ if(state.popup)state.popup.remove();
+ const p=HMS_LOO_WRECK;
+ const html='<article class="bp-shipwreck-grafton-popup-v1 bp-shipwreck-hms-loo-popup-v1">'+
+  '<div class="bp-shipwreck-kicker-v1">BRIDGEPOINT · SHIPWRECKS</div><h3>HMS Loo — Looe Key</h3>'+
+  '<p>British Royal Navy 44-gun Fifth-Rate · wrecked 5 February 1744 · Looe Key Reef, Lower Florida Keys, Florida, USA</p>'+
+  '<div class="facts"><span><b>Recorded wreck position</b>'+safe(p.coordinateText)+'</span><span><b>Published depth range</b>4.5–9 m (NOAA planning report)</span>'+
+  '<span><b>Display depth reference</b>6.75 m midpoint of published range</span><span><b>Ship type</b>44-gun Fifth-Rate warship</span>'+
+  '<span><b>Wrecked</b>5 February 1744</span><span><b>Survey</b>NOAA / ECU photogrammetry, 2023</span>'+
+  '<span><b>3D mesh</b>4,099,999 triangles · 2,051,535 vertices</span><span><b>Model rights</b>CC BY 4.0</span></div>'+
+  bridgePointLocalViewerMarkup('hms-loo','HMS Loo wrecksite')+
+  '<div class="bp-shipwreck-gaskin-actions-v2"><button type="button" data-hms-loo-action="materialize">Place native 3D scan beneath the water</button></div>'+
+  '<div class="bp-shipwreck-gaskin-status-v2" data-hms-loo-status>'+safe(state.hmsLooModelStatus||'BridgePoint-hosted scan loads inside this card. The same mesh can be materialized at the approximate wreck-site depth.')+'</div>'+
+  '<p class="bp-shipwreck-accuracy-v1"><strong>History:</strong> HMS Loo was a 44-gun British Fifth-Rate under Captain Ashby Utting. On 5 February 1744, after recapturing the British vessel Billander Betty from Spanish control and setting course for Charleston, Loo grounded on a reef in the Lower Florida Keys. NOAA records that the surviving 274 sailors escaped in boats and a captured Spanish sloop after the remains were blown up.</p>'+
+  '<p class="bp-shipwreck-accuracy-v1"><strong>Archaeology and what the scan shows:</strong> The wreck was identified through artifacts including cannons bearing a crowned rose and British broad-arrow markings. The NOAA / East Carolina University 2023 photogrammetry records the actual coral-encrusted wrecksite: iron ballast blocks, scattered structure and artifacts on the seabed. It is not a complete intact ship hull or a computer reconstruction of the original vessel.</p>'+
+  '<p class="bp-shipwreck-accuracy-v1"><strong>Underwater placement:</strong> The recorded coordinate is approximate and comes from a public Wikidata location record; NOAA identifies the wreckage with Looe Key Reef. A NOAA planning report describes wreckage in 4.5–9 m of water. BridgePoint uses 6.75 m as the midpoint display reference. The model has no published GPS origin or survey-grade heading; its original source scale/orientation is preserved and its visual center is placed at the approximate map point. This is a visualization, not survey-controlled registration of every artifact to the seabed.</p>'+
+  '<div class="bp-shipwreck-official-v1"><b>Photogrammetry, rights, archaeology and location references</b>'+
+   '<a href="'+safe(p.sourceUrl)+'" target="_blank" rel="noopener noreferrer">NOAA Florida Keys National Marine Sanctuary · HMS Loo 3D photogrammetry model · CC BY 4.0 ↗</a>'+
+   '<a href="'+safe(p.historySourceUrl)+'" target="_blank" rel="noopener noreferrer">NOAA · HMS Loo history and archaeological identification ↗</a>'+
+   '<a href="'+safe(p.depthSourceUrl)+'" target="_blank" rel="noopener noreferrer">NOAA planning report · 4.5–9 m wreck depth reference ↗</a>'+
+   '<a href="'+safe(p.locationSourceUrl)+'" target="_blank" rel="noopener noreferrer">Recorded wreck coordinate reference (CC0 position; approximate) ↗</a>'+
+   '<a href="'+safe(p.datasetUrl)+'" target="_blank" rel="noopener noreferrer">Public ScanSceneverse GLB archive entry and source metadata ↗</a>'+
+   '<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">Creative Commons Attribution 4.0 licence ↗</a></div>'+
+  '<p class="bp-shipwreck-source-v1">Attribution: NOAA’s Florida Keys National Marine Sanctuary and East Carolina University’s Maritime Studies Program, HMS Loo wrecksite photogrammetry, CC BY 4.0. BridgePoint hosts the original scan locally. Wreck positions are for visualization, not navigation.</p></article>';
+ state.popup=new Popup({closeButton:true,closeOnClick:true,maxWidth:'450px',className:'bp-shipwreck-titanic-popup-wrap-v1'}).setLngLat(lngLat||p.coordinates).setHTML(html).addTo(state.map);
+ const root=state.popup.getElement?.();
+ root?.querySelector('[data-hms-loo-action="materialize"]')?.addEventListener('click',()=>{void showHmsLooOnSeabed(state);});
+ mountBridgePointLocalWreckViewer(state,state.popup,'hms-loo','HMS Loo wrecksite');
+}
 function openRobertGaskinPopup(state,lngLat){
  const Popup=window.maplibregl?.Popup;if(!Popup)return;
  addRobertGaskinStyles();
@@ -1271,6 +1399,15 @@ function maybeAutoMaterializeTimaru(state){
  void showTimaruOnSeabed(state);
  return true;
 }
+function maybeAutoMaterializeHmsLoo(state){
+ if(!state.enabled||state.hmsLooModelAutoAttempted||state.hmsLooModelRoot||state.hmsLooModelPromise)return false;
+ if(Number(state.map.getZoom?.()||0)<12.2)return false;
+ const bounds=state.map.getBounds?.();
+ try{if(bounds&&!bounds.contains(HMS_LOO_WRECK.coordinates))return false;}catch(_){}
+ state.hmsLooModelAutoAttempted=true;
+ void showHmsLooOnSeabed(state);
+ return true;
+}
 function bindInteractions(state){
  if(state.interactionsBound)return;state.interactionsBound=true;
  state.handleClick=event=>{
@@ -1284,6 +1421,7 @@ function bindInteractions(state){
   if(hit.properties?.wreckId==='hnlms-kxi'){openKxiPopup(state,event.lngLat||HNLMS_KXI_WRECK.coordinates);return;}
   if(hit.properties?.wreckId==='cape-otway'){openCapeOtwayPopup(state,event.lngLat||CAPE_OTWAY_WRECK.coordinates);return;}
   if(hit.properties?.wreckId==='timaru'){openTimaruPopup(state,event.lngLat||TIMARU_WRECK.coordinates);return;}
+  if(hit.properties?.wreckId==='hms-loo'){openHmsLooPopup(state,event.lngLat||HMS_LOO_WRECK.coordinates);return;}
   const part=partById(String(hit.properties.partId));
   if(part)openTitanicPopup(state,part,event.lngLat||part.coordinates);
  };
@@ -1298,13 +1436,14 @@ function bindInteractions(state){
   }
   setVisibility(state,true);
   state.stats.visibilityReassertions=(state.stats.visibilityReassertions||0)+1;
-  if((state.nativeModelVisible&&state.nativeModelRoot)||(state.graftonModelVisible&&state.graftonModelRoot)||(state.cannonModelVisible&&state.cannonModelRoot)||(state.kxiModelVisible&&state.kxiModelRoot)||(state.capeOtwayModelVisible&&state.capeOtwayModelRoot)||(state.timaruModelVisible&&state.timaruModelRoot))ensureRobertGaskinMapLayer(state);
+  if((state.nativeModelVisible&&state.nativeModelRoot)||(state.graftonModelVisible&&state.graftonModelRoot)||(state.cannonModelVisible&&state.cannonModelRoot)||(state.kxiModelVisible&&state.kxiModelRoot)||(state.capeOtwayModelVisible&&state.capeOtwayModelRoot)||(state.timaruModelVisible&&state.timaruModelRoot)||(state.hmsLooModelVisible&&state.hmsLooModelRoot))ensureRobertGaskinMapLayer(state);
   maybeAutoMaterializeRobertGaskin(state);
   maybeAutoMaterializeHmsGrafton(state);
   maybeAutoMaterializeCannon(state);
   maybeAutoMaterializeKxi(state);
   maybeAutoMaterializeCapeOtway(state);
   maybeAutoMaterializeTimaru(state);
+  maybeAutoMaterializeHmsLoo(state);
   setStatus(state,'Shipwrecks ON · all nine persistent icons remain visible through zoom, angle and style changes. Select a wreck for its card and native 3D scan.');
   refreshStatusUi(state);
  };
@@ -1320,9 +1459,9 @@ function addControlGroup(state){
  group.setAttribute('data-bpv-command-section','shipwrecks');
  group.setAttribute('aria-label','Shipwrecks');
  group.innerHTML=
-  '<div class="bpv-command-heading"><span class="bpv-command-heading-icon" aria-hidden="true">🚢</span><span><b>SHIPWRECKS</b><small>Titanic + six native underwater photogrammetry scans</small></span></div>'+
+  '<div class="bpv-command-heading"><span class="bpv-command-heading-icon" aria-hidden="true">🚢</span><span><b>SHIPWRECKS</b><small>Titanic + seven native underwater photogrammetry scans</small></span></div>'+
   '<div class="bpv-command-grid"><button id="'+TOGGLE_ID+'" data-bpv-action="shipwrecks" type="button" class="bpv-command-btn" aria-pressed="false" title="Show or hide mapped shipwreck markers"><span class="bpv-command-icon" aria-hidden="true">🚢</span><span class="bpv-command-label">Shipwrecks</span></button></div>'+
-  '<div id="'+COUNT_ID+'" class="bpv-data-note">9 persistent wreck icons · '+state.stats.models+' Titanic viewer references · 6 native seabed GLBs</div>'+
+  '<div id="'+COUNT_ID+'" class="bpv-data-note">9 persistent wreck icons · '+state.stats.models+' Titanic viewer references · 7 native seabed GLBs</div>'+
   '<div id="'+STATUS_ID+'" class="bpv-data-note">Layer off · the rest of the BridgePoint globe remains unchanged.</div>'+
   '<style id="bp-shipwrecks-titanic-style-v2">'+
   '#'+CONTROL_ID+' .bpv-data-note{font:600 10px/1.45 system-ui,sans-serif;color:#9bb7c6;margin:5px 2px;overflow-wrap:anywhere}'+
@@ -1383,6 +1522,12 @@ async function setEnabled(state,on){
   }else{
    maybeAutoMaterializeTimaru(state);
   }
+  if(state.hmsLooModelRoot){
+   state.hmsLooModelVisible=true;
+   if(!state.map.getLayer(NATIVE_MODEL_LAYER_ID))ensureRobertGaskinMapLayer(state);
+  }else{
+   maybeAutoMaterializeHmsLoo(state);
+  }
  }else{
   if(state.popup){state.popup.remove();state.popup=null;}
   state.nativeModelVisible=false;state.nativeModelAutoAttempted=false;if(state.nativeModelRoot)state.nativeModelRoot.visible=false;
@@ -1391,6 +1536,7 @@ async function setEnabled(state,on){
   state.kxiModelVisible=false;state.kxiModelAutoAttempted=false;if(state.kxiModelRoot)state.kxiModelRoot.visible=false;
   state.capeOtwayModelVisible=false;state.capeOtwayModelAutoAttempted=false;if(state.capeOtwayModelRoot)state.capeOtwayModelRoot.visible=false;
   state.timaruModelVisible=false;state.timaruModelAutoAttempted=false;if(state.timaruModelRoot)state.timaruModelRoot.visible=false;
+  state.hmsLooModelVisible=false;state.hmsLooModelAutoAttempted=false;if(state.hmsLooModelRoot)state.hmsLooModelRoot.visible=false;
   setVisibility(state,false);setStatus(state,'Shipwrecks off · all nine wreck icons and all six native meshes are hidden; other BridgePoint layers are unchanged.');
  }
  refreshStatusUi(state);state.map.triggerRepaint?.();return state.enabled;
@@ -1406,9 +1552,10 @@ export function initShipwrecksRenderer(target){
   kxiModelVisible:false,kxiModelAutoAttempted:false,kxiModelStatus:'Native scan not loaded.',kxiModelRoot:null,kxiModelPromise:null,kxiModelBounds:null,
   capeOtwayModelVisible:false,capeOtwayModelAutoAttempted:false,capeOtwayModelStatus:'Native scan not loaded.',capeOtwayModelRoot:null,capeOtwayModelPromise:null,capeOtwayModelBounds:null,
   timaruModelVisible:false,timaruModelAutoAttempted:false,timaruModelStatus:'Native scan not loaded.',timaruModelRoot:null,timaruModelPromise:null,timaruModelBounds:null,
+  hmsLooModelVisible:false,hmsLooModelAutoAttempted:false,hmsLooModelStatus:'Native scan not loaded.',hmsLooModelRoot:null,hmsLooModelPromise:null,hmsLooModelBounds:null,
   DRACOLoader:null,dracoLoader:null,KTX2Loader:null,ktx2Loader:null,
   nativeModelRenderer:null,nativeModelCamera:null,nativeModelScene:null,nativeModelLayerReady:false,nativeModelBounds:null,
-  stats:{version:VERSION,parts:9,sites:7,models:TITANIC_3D_MODELS.length,nativeModels:6,lastError:null}};
+  stats:{version:VERSION,parts:10,sites:8,models:TITANIC_3D_MODELS.length,nativeModels:7,lastError:null}};
  const api={
   version:VERSION,get enabled(){return state.enabled;},get status(){return state.status;},
   get stats(){return Object.assign({},state.stats);},get partCount(){return state.stats.parts;},get modelCount(){return state.stats.models;},
@@ -1420,8 +1567,9 @@ export function initShipwrecksRenderer(target){
   showKxiOnSeabed(){return showKxiOnSeabed(state);},
   showCapeOtwayOnSeabed(){return showCapeOtwayOnSeabed(state);},
   showTimaruOnSeabed(){return showTimaruOnSeabed(state);},
+  showHmsLooOnSeabed(){return showHmsLooOnSeabed(state);},
   destroy(){
-   state.destroyed=true;state.enabled=false;state.nativeModelVisible=false;state.graftonModelVisible=false;state.cannonModelVisible=false;state.kxiModelVisible=false;state.capeOtwayModelVisible=false;state.timaruModelVisible=false;
+   state.destroyed=true;state.enabled=false;state.nativeModelVisible=false;state.graftonModelVisible=false;state.cannonModelVisible=false;state.kxiModelVisible=false;state.capeOtwayModelVisible=false;state.timaruModelVisible=false;state.hmsLooModelVisible=false;
    if(state.popup)state.popup.remove();
    if(state.handleClick)map.off('click',state.handleClick);
    if(state.handlePersistentVisibility){
@@ -1439,6 +1587,7 @@ export function initShipwrecksRenderer(target){
    if(state.kxiModelRoot){state.nativeModelScene?.remove(state.kxiModelRoot);state.kxiModelRoot=null;}
    if(state.capeOtwayModelRoot){state.nativeModelScene?.remove(state.capeOtwayModelRoot);state.capeOtwayModelRoot=null;}
    if(state.timaruModelRoot){state.nativeModelScene?.remove(state.timaruModelRoot);state.timaruModelRoot=null;}
+   if(state.hmsLooModelRoot){state.nativeModelScene?.remove(state.hmsLooModelRoot);state.hmsLooModelRoot=null;}
    for(const id of [LABEL_ID,MARKER_ID,HALO_ID])if(map.getLayer(id))map.removeLayer(id);
    if(map.getSource(SOURCE_ID))map.removeSource(SOURCE_ID);
    try{if(map.hasImage?.(ICON_ID))map.removeImage(ICON_ID)}catch(_){}
