@@ -625,6 +625,28 @@ def materialize_hms_loo(output: Path) -> dict:
     # full tar shard to the build runner.
     scene_id = "fc5901d8556743458c40aa4a096f01b6"
     source_file = f"glbs/000-050/{scene_id}.glb"
+    # Scan just the first tar header of each published archive. ScanSceneverse
+    # does not publish the path->tar index present in its companion dataset, so
+    # use the member prefix to locate the shard rather than guessing its number.
+    for shard_index in range(175):
+        shard_url = (
+            "https://huggingface.co/datasets/Stable-X/ScanSceneverse/resolve/"
+            + revision + f"/shards/glbs/glbs-{shard_index:04d}.tar"
+        )
+        try:
+            header_bytes, shard_total = fetch_range(shard_url, 0, 65535)
+            with tarfile.open(fileobj=io.BytesIO(header_bytes), mode="r:") as archive:
+                first_member = archive.next()
+            if first_member:
+                print(
+                    "HMS_LOO_SHARD_HEADER",
+                    shard_index,
+                    first_member.name,
+                    "archive_bytes",
+                    shard_total,
+                )
+        except Exception as error:
+            print("HMS_LOO_SHARD_HEADER_ERROR", shard_index, str(error))
     tar_url = (
         "https://huggingface.co/datasets/Stable-X/ScanSceneverse/resolve/"
         + revision + "/shards/glbs/glbs-0096.tar"
