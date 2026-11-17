@@ -291,18 +291,24 @@ jobs:
           added=set(after)-set(before)
           changed={p for p in before if p in after and before[p]!=after[p]}
           expected_changed={"landing.js","app.js","index.html","app/index.html","bridgepoint-drone-awareness-v1.js"}
-          expected_added={"bridgepoint-shipwrecks-v1.js","app/bridgepoint-shipwrecks-v1.js"}
-          for optional in ("assets/shipwrecks/robert-gaskin-photogrammetry.glb.gz",
-                           "assets/shipwrecks/catalog.json","vendor/GLTFLoader.bundle.js"):
-              if optional not in before and optional in after: expected_added.add(optional)
-          allowed=expected_changed|expected_added
-          if removed or not changed.issubset(expected_changed) or not added.issubset(expected_added):
+          overlay_files={
+            "bridgepoint-shipwrecks-v1.js","app/bridgepoint-shipwrecks-v1.js",
+            "assets/shipwrecks/robert-gaskin-photogrammetry.glb.gz",
+            "assets/shipwrecks/catalog.json","vendor/GLTFLoader.bundle.js"
+          }
+          # Titanic v1 may already exist in the saved Pages baseline. It is an
+          # allowed replacement there, or an allowed addition when absent.
+          allowed_changed=expected_changed|overlay_files
+          if removed or not changed.issubset(allowed_changed) or not added.issubset(overlay_files):
               raise SystemExit("SHIPWRECKS_V2_OVERLAY_SCOPE_FAILURE "+json.dumps({
-                "removed":sorted(removed),"changed":sorted(changed),"expected_changed":sorted(expected_changed),
-                "added":sorted(added),"expected_added":sorted(expected_added)}))
-          if added!=expected_added:
-              raise SystemExit("SHIPWRECKS_V2_REQUIRED_ASSET_SET_MISMATCH "+json.dumps({
-                "added":sorted(added),"expected_added":sorted(expected_added)}))
+                "removed":sorted(removed),"changed":sorted(changed),"allowed_changed":sorted(allowed_changed),
+                "added":sorted(added),"allowed_added":sorted(overlay_files)}))
+          required={"bridgepoint-shipwrecks-v1.js","app/bridgepoint-shipwrecks-v1.js",
+                    "assets/shipwrecks/robert-gaskin-photogrammetry.glb.gz",
+                    "assets/shipwrecks/catalog.json","vendor/GLTFLoader.bundle.js"}
+          missing=required-after.keys()
+          if missing:
+              raise SystemExit("SHIPWRECKS_V2_REQUIRED_RUNTIME_FILE_MISSING "+json.dumps(sorted(missing)))
           assert (site/"bridgepoint-shipwrecks-v1.js").read_bytes()==(site/"app/bridgepoint-shipwrecks-v1.js").read_bytes()
           print("SHIPWRECKS_V2_ONLY_OVERLAY_SCOPE_PASS",len(changed),"existing files changed",len(added),"files added; no removals")
           PY
