@@ -17,7 +17,7 @@ assert.deepEqual(ROBERT_GASKIN_WRECK.depthRangeM,[18.3,21.3]);
 assert.equal(ROBERT_GASKIN_WRECK.license,'CC BY 4.0');
 assert.equal(ROBERT_GASKIN_WRECK.sourcePhotos,49000,'the source description rounds to approximately 49,000 photos');
 assert.equal(ROBERT_GASKIN_WRECK.triangles,598600);
-assert.match(ROBERT_GASKIN_WRECK.datasetUrl,/zenodo\\.10288556/);
+assert.match(ROBERT_GASKIN_WRECK.datasetUrl,/zenodo\.10288556/);
 
 assert.deepEqual(features.map(f=>f.properties.part),['bow','stern','debris']);
 assert.deepEqual(features[0].geometry.coordinates,[-49.946944444444,41.7325]);
