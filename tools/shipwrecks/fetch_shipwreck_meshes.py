@@ -507,12 +507,42 @@ def materialize_hms_loo(output: Path) -> dict:
     revision = str(registry.get("sha") or "").strip()
     if not re.fullmatch(r"[0-9a-f]{40}", revision):
         raise SystemExit("ScanSceneverse did not provide an immutable 40-character dataset revision")
-    source_file = "glbs/000-050/fc5901d8556743458c40aa4a096f01b6.glb"
+    # Ask the current Dataset Viewer index for the row instead of hard-coding
+    # an old shard number. The public viewer is searchable and exposes file_name.
+    search_url = (
+        "https://datasets-server.huggingface.co/search?dataset=Stable-X%2FScanSceneverse"
+        "&config=default&split=train&query=fc5901d8556743458c40aa4a096f01b6"
+        "&offset=0&length=10"
+    )
+    search = fetch_json(search_url)
+    rows = [entry.get("row", {}) for entry in search.get("rows", [])]
+    matches = [
+        row for row in rows
+        if row.get("scene_id") == "fc5901d8556743458c40aa4a096f01b6"
+    ]
+    if len(matches) != 1:
+        raise SystemExit(
+            "HMS Loo scene ID was not uniquely returned by the current public Dataset Viewer index"
+        )
+    source_file = str(matches[0].get("file_name") or "").strip()
+    if not re.fullmatch(
+        r"glbs/[0-9]{3}-[0-9]{3}/fc5901d8556743458c40aa4a096f01b6\\.glb",
+        source_file,
+    ):
+        raise SystemExit("HMS Loo Dataset Viewer returned an unexpected GLB path")
     url = (
         "https://huggingface.co/datasets/Stable-X/ScanSceneverse/resolve/"
         + revision + "/" + source_file
     )
-    raw = fetch_bytes(url, max_bytes=MAX_HMS_LOO_SOURCE_BYTES, label="HMS Loo GLB")
+    try:
+        raw = fetch_bytes(url, max_bytes=MAX_HMS_LOO_SOURCE_BYTES, label="HMS Loo GLB")
+    except Exception as exc:
+        # If the dataset viewer's current row points at a repository path that
+        # is not addressable at its latest revision, fail with the actual row
+        # path/revision so it can be diagnosed, never publish an empty marker.
+        raise SystemExit(
+            f"HMS Loo GLB download failed for {source_file} at {revision}: {exc}"
+        ) from exc
     if len(raw) < 32 or raw[:4] != b"glTF":
         raise SystemExit("HMS Loo source is not a valid binary glTF")
     version, declared_length = struct.unpack_from("<II", raw, 4)
