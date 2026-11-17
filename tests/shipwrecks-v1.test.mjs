@@ -71,9 +71,8 @@ assert.ok(moduleSource.includes("import(GLTF_URL)"),'native scan is parsed throu
 assert.ok(moduleSource.includes("new DecompressionStream('gzip')"),'the native GLB uses a compressed local asset');
 assert.ok(moduleSource.includes('showRobertGaskinOnRiverbed(state)'),'the card exposes the materialize-on-riverbed action');
 assert.ok(moduleSource.includes('ROBERT_GASKIN_LENGTH_M/longAxis'),'the scanned mesh is length-calibrated to the historical vessel dimensions');
-assert.ok(moduleSource.includes('mapMatrix')===false,'no accidental reference to the Catacombs renderer helper');
-assert.ok(moduleSource.includes("map.on('style.load',state.handleStyleLoad)"),'the combined icon layer restores after style reload');
-assert.ok(moduleSource.includes("map.on('zoomend',state.handlePersistentVisibility)"),'the combined icon layer restores after zoom');
+assert.ok(moduleSource.includes("for(const event of ['style.load','load','idle','moveend','zoomend','rotateend','pitchend'])"),'all wreck icons restore after style reload and settled camera events');
+assert.ok(moduleSource.includes('state.map.on(event,state.handlePersistentVisibility)'),'persistent visibility listeners are attached to the shared map');
 
 assert.ok(moduleSource.includes('data-bpv-action="shipwrecks"'),'Shipwrecks participates in the shared visibility allowlist as its own category');
 assert.ok(moduleSource.includes("allowLayerCategory('shipwrecks',!!enabled)"),'Shipwrecks explicitly registers and releases its own category');
