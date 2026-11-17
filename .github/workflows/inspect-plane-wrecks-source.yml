@@ -56,8 +56,7 @@ jobs:
               '```',
               '',
               'This report is from a range-only read of the source archive; it does not download the full 3 GB ZIP.'
-            ].join('
-');
+            ].join('\n');
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
