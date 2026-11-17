@@ -225,7 +225,7 @@ async function bootMap(){
  void import('./bridgepoint-subsurface-wells-v1.js?v=2-persistent-substructure-visibility')
   .then(m=>{window.__BP_SUBSURFACE_WELLS_V1__=m.initSubsurfaceWellsRenderer(world)})
   .catch(e=>console.warn('BridgePoint global subsurface wells renderer unavailable',e));
-void import('./bridgepoint-shipwrecks-v1.js?v=8-titanic-gaskin-grafton-cannon-kxi-draco-ktx2-local-viewer')
+void import('./bridgepoint-shipwrecks-v1.js?v=9-titanic-gaskin-grafton-cannon-kxi-cape-otway-draco-ktx2-local-viewer')
  .then(m=>{window.__BP_SHIPWRECKS_V1__=m.initShipwrecksRenderer(world)})
  .catch(e=>console.warn('BridgePoint Titanic shipwreck layer unavailable',e));
  // Independent opt-in scanned cave and underground heritage sites; keep wells and utility renderers untouched.
