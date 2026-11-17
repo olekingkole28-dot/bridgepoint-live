@@ -826,6 +826,9 @@ async function initMap(){
 void import('./bridgepoint-shipwrecks-v1.js?v=11-titanic-gaskin-grafton-cannon-kxi-cape-otway-timaru-hms-loo-draco-ktx2-local-viewer')
  .then(m=>{window.__BP_SHIPWRECKS_V1__=m.initShipwrecksRenderer(world)})
  .catch(e=>console.warn('BridgePoint Titanic shipwreck layer unavailable',e));
+void import('./bridgepoint-plane-wrecks-v1.js?v=1-f4u1-corsair-colmap-pointcloud')
+ .then(m=>{window.__BP_PLANE_WRECKS_V1__=m.initPlaneWrecksRenderer(world)})
+ .catch(e=>console.warn('BridgePoint Plane Wrecks layer unavailable',e));
   // Independent opt-in scanned cave and underground heritage sites; keep other layers untouched.
   void import('./bridgepoint-underground-scan-sites-v1.js?v=1-curated-sketchfab-caves')
    .then(m=>{window.__BP_UNDERGROUND_SCAN_SITES_V1__=m.initUndergroundScanSitesRenderer(world)})
