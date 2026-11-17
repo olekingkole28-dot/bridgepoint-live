@@ -1,4 +1,4 @@
-name: Publish BridgePoint Shipwrecks v10 — BridgePoint-hosted underwater wreck viewers
+name: Publish BridgePoint Shipwrecks v11 — BridgePoint-hosted underwater wreck viewers
 # Additive shipwreck overlay: persistent icons + locally hosted GLBs + BridgePoint-native interactive viewers.
 
 on:
@@ -80,7 +80,7 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Validate Shipwrecks v10 renderer, BridgePoint-hosted local viewers and existing overlays
+      - name: Validate Shipwrecks v11 renderer, BridgePoint-hosted local viewers and existing overlays
         shell: bash
         run: |
           set -euo pipefail
@@ -93,7 +93,7 @@ jobs:
           node tests/vessel-awareness.test.mjs
           python3 -m py_compile tools/shipwrecks/fetch_shipwreck_meshes.py
 
-      - name: Materialize the rights-checked Robert Gaskin, Grafton, Kanonvraget, HNLMS K XI, SS Cape Otway and Timaru CC BY 4.0 GLBs
+      - name: Materialize the rights-checked Robert Gaskin, Grafton, Kanonvraget, HNLMS K XI, SS Cape Otway, Timaru and HMS Loo CC BY 4.0 GLBs
         shell: bash
         run: |
           set -euo pipefail
@@ -159,6 +159,16 @@ jobs:
           assert timaru_raw[:4]==b'glTF' and len(timaru_raw)>32
           assert timaru['assetSha256']
           print('BRIDGEPOINT_TIMARU_SITE42_NATIVE_CC_BY_ASSET_PASS',len(timaru_raw),'source bytes',timaru_asset.stat().st_size,'compressed bytes')
+          hms_loo=json.loads((root/'catalog.json').read_text(encoding='utf-8'))['hmsLoo']
+          assert hms_loo['license']=='CC BY 4.0' and 'NOAA' in hms_loo['creator']
+          assert hms_loo['coordinates']==[-81.4052,24.5477]
+          assert hms_loo['displayDepthM']==6.75 and hms_loo['depthRangeM']==[4.5,9]
+          assert hms_loo['triangles']==4099999 and hms_loo['vertices']==2051535
+          loo_asset=root/'hms-loo-photogrammetry.glb.gz'
+          loo_raw=gzip.decompress(loo_asset.read_bytes())
+          assert loo_raw[:4]==b'glTF' and len(loo_raw)>32
+          assert hms_loo['assetSha256'] and hms_loo['datasetRevision']
+          print('BRIDGEPOINT_HMS_LOO_NATIVE_CC_BY_ASSET_PASS',len(loo_raw),'source bytes',loo_asset.stat().st_size,'compressed bytes')
           PY
 
       - name: Select the latest successful deployed GitHub Pages artifact
@@ -302,7 +312,7 @@ jobs:
           test -s "$SITE/vendor/draco/draco_wasm_wrapper.js"
           echo "BRIDGEPOINT_LOCAL_DRACO_AND_KTX2_BASIS_DECODER_ASSETS_PASS"
 
-      - name: Overlay only the Shipwrecks v9 module, five licensed meshes and cache keys
+      - name: Overlay only the Shipwrecks v11 module, seven licensed meshes and cache keys
         shell: bash
         run: |
           set -euo pipefail
@@ -316,7 +326,7 @@ jobs:
           from pathlib import Path
           import hashlib,json,os,re
           site=Path(os.environ["RUNNER_TEMP"])/"shipwrecks-site"
-          attach="""void import('./bridgepoint-shipwrecks-v1.js?v=10-titanic-gaskin-grafton-cannon-kxi-cape-otway-timaru-draco-ktx2-local-viewer')
+          attach="""void import('./bridgepoint-shipwrecks-v1.js?v=11-titanic-gaskin-grafton-cannon-kxi-cape-otway-timaru-hms-loo-draco-ktx2-local-viewer')
            .then(m=>{window.__BP_SHIPWRECKS_V1__=m.initShipwrecksRenderer(world)})
            .catch(e=>console.warn('BridgePoint shipwreck renderer unavailable',e));"""
           old_markers=("bridgepoint-shipwrecks-v1.js?v=1-titanic-noaa-waypoints",
@@ -326,7 +336,7 @@ jobs:
                        "bridgepoint-shipwrecks-v1.js?v=5-titanic-gaskin-grafton-cannon-local-hosted-viewers",
                        "bridgepoint-shipwrecks-v1.js?v=6-titanic-gaskin-grafton-cannon-kxi-local-hosted-viewers",
                        "bridgepoint-shipwrecks-v1.js?v=7-titanic-gaskin-grafton-cannon-kxi-draco-local-viewer","bridgepoint-shipwrecks-v1.js?v=8-titanic-gaskin-grafton-cannon-kxi-draco-ktx2-local-viewer",
-                       "bridgepoint-shipwrecks-v1.js?v=9-titanic-gaskin-grafton-cannon-kxi-cape-otway-draco-ktx2-local-viewer","bridgepoint-shipwrecks-v1.js?v=10-titanic-gaskin-grafton-cannon-kxi-cape-otway-timaru-draco-ktx2-local-viewer")
+                       "bridgepoint-shipwrecks-v1.js?v=9-titanic-gaskin-grafton-cannon-kxi-cape-otway-draco-ktx2-local-viewer","bridgepoint-shipwrecks-v1.js?v=11-titanic-gaskin-grafton-cannon-kxi-cape-otway-timaru-hms-loo-draco-ktx2-local-viewer")
           new_marker=old_markers[-1]
           wells_anchor=".catch(e=>console.warn('BridgePoint global subsurface wells renderer unavailable',e));"
           for rel in ("landing.js","app.js"):
@@ -348,8 +358,8 @@ jobs:
               if len(matches)!=1:
                   raise SystemExit(f"{rel}: expected exactly one {needle} script URL, found {len(matches)}")
               url=matches[0].group(1)
-              if "shipwrecks=titanic-gaskin-grafton-cannon-kxi-cape-otway-timaru-v10" not in url:
-                  updated=url+("&" if "?" in url else "?")+"shipwrecks=titanic-gaskin-grafton-cannon-kxi-cape-otway-timaru-v10"
+              if "shipwrecks=titanic-gaskin-grafton-cannon-kxi-cape-otway-timaru-hms-loo-v11" not in url:
+                  updated=url+("&" if "?" in url else "?")+"shipwrecks=titanic-gaskin-grafton-cannon-kxi-cape-otway-timaru-hms-loo-v11"
                   data=data.replace(url,updated,1)
               drone_matches=list(re.finditer(r'src="([^"]*bridgepoint-drone-awareness-v1\.js(?:\?[^"]*)?)"',data))
               if len(drone_matches)!=1:
@@ -377,6 +387,7 @@ jobs:
             "assets/shipwrecks/hnlms-kxi-photogrammetry.glb.gz",
             "assets/shipwrecks/cape-otway-photogrammetry.glb.gz",
             "assets/shipwrecks/timaru-photogrammetry.glb.gz",
+            "assets/shipwrecks/hms-loo-photogrammetry.glb.gz",
             "assets/shipwrecks/catalog.json","vendor/GLTFLoader.bundle.js",
             "vendor/DRACOLoader.bundle.js","vendor/KTX2Loader.bundle.js",
             "vendor/basis/basis_transcoder.js","vendor/basis/basis_transcoder.wasm",
@@ -396,6 +407,7 @@ jobs:
                     "assets/shipwrecks/hnlms-kxi-photogrammetry.glb.gz",
             "assets/shipwrecks/cape-otway-photogrammetry.glb.gz",
                     "assets/shipwrecks/timaru-photogrammetry.glb.gz",
+            "assets/shipwrecks/hms-loo-photogrammetry.glb.gz",
                     "assets/shipwrecks/catalog.json","vendor/GLTFLoader.bundle.js",
                     "vendor/DRACOLoader.bundle.js","vendor/KTX2Loader.bundle.js",
                     "vendor/basis/basis_transcoder.js","vendor/basis/basis_transcoder.wasm",
@@ -404,7 +416,7 @@ jobs:
           if missing:
               raise SystemExit("SHIPWRECKS_V2_REQUIRED_RUNTIME_FILE_MISSING "+json.dumps(sorted(missing)))
           assert (site/"bridgepoint-shipwrecks-v1.js").read_bytes()==(site/"app/bridgepoint-shipwrecks-v1.js").read_bytes()
-          print("SHIPWRECKS_V9_ONLY_OVERLAY_SCOPE_PASS",len(changed),"existing files changed",len(added),"files added; no removals")
+          print("SHIPWRECKS_V11_ONLY_OVERLAY_SCOPE_PASS",len(changed),"existing files changed",len(added),"files added; no removals")
           PY
           node --check "$SITE/landing.js"
           node --check "$SITE/app.js"
@@ -429,24 +441,24 @@ jobs:
           test -s "$SITE/vendor/draco/draco_decoder.js"
           test -s "$SITE/vendor/draco/draco_decoder.wasm"
           test -s "$SITE/vendor/draco/draco_wasm_wrapper.js"
-          echo "BRIDGEPOINT_SHIPWRECKS_V9_OVERLAY_PASS"
+          echo "BRIDGEPOINT_SHIPWRECKS_V11_OVERLAY_PASS"
 
       - uses: actions/configure-pages@v5
 
-      - name: Upload the preserved production site with the additive Shipwrecks v8 overlay
+      - name: Upload the preserved production site with the additive Shipwrecks v11 overlay
         uses: actions/upload-pages-artifact@v4
         with:
-          name: github-pages-shipwrecks-v10
+          name: github-pages-shipwrecks-v11
           path: ${{ runner.temp }}/shipwrecks-site
           include-hidden-files: true
 
-      - name: Publish BridgePoint Shipwrecks v10 — BridgePoint-hosted underwater wreck viewers
+      - name: Publish BridgePoint Shipwrecks v11 — BridgePoint-hosted underwater wreck viewers
         id: deployment
         uses: actions/deploy-pages@v4
         with:
-          artifact_name: github-pages-shipwrecks-v10
+          artifact_name: github-pages-shipwrecks-v11
 
-      - name: Verify live root/app entry points, nine persistent icons, six native GLBs and local viewers
+      - name: Verify live root/app entry points, ten persistent icons, seven native GLBs and local viewers
         shell: bash
         run: |
           set -euo pipefail
@@ -467,6 +479,7 @@ jobs:
             "kxi.glb.gz:$O/assets/shipwrecks/hnlms-kxi-photogrammetry.glb.gz?verify=$Q" \
             "cape-otway.glb.gz:$O/assets/shipwrecks/cape-otway-photogrammetry.glb.gz?verify=$Q" \
             "timaru.glb.gz:$O/assets/shipwrecks/timaru-photogrammetry.glb.gz?verify=$Q" \
+            "hms-loo.glb.gz:$O/assets/shipwrecks/hms-loo-photogrammetry.glb.gz?verify=$Q" \\
             "loader.js:$O/vendor/GLTFLoader.bundle.js?verify=$Q" \
             "draco-loader.js:$O/vendor/DRACOLoader.bundle.js?verify=$Q" \
             "draco-decoder.js:$O/vendor/draco/draco_decoder.js?verify=$Q" \
@@ -485,8 +498,8 @@ jobs:
           grep -Fq 'BP_FRONTEND_V5000' "$D/root.html" || { echo "LIVE_VERIFY_FAIL: root entry build marker missing"; exit 1; }
           grep -Fq 'bridgepoint-drone-awareness-v1.js' "$D/root.html" || { echo "LIVE_VERIFY_FAIL: root visibility guard script missing"; exit 1; }
           grep -Fq 'bridgepoint-drone-awareness-v1.js' "$D/app.html" || { echo "LIVE_VERIFY_FAIL: app visibility guard script missing"; exit 1; }
-          grep -Fq 'bridgepoint-shipwrecks-v1.js?v=10-titanic-gaskin-grafton-cannon-kxi-cape-otway-timaru-draco-ktx2-local-viewer' "$D/landing.js" || { echo "LIVE_VERIFY_FAIL: root Shipwrecks import missing"; exit 1; }
-          grep -Fq 'bridgepoint-shipwrecks-v1.js?v=10-titanic-gaskin-grafton-cannon-kxi-cape-otway-timaru-draco-ktx2-local-viewer' "$D/app.js" || { echo "LIVE_VERIFY_FAIL: app Shipwrecks import missing"; exit 1; }
+          grep -Fq 'bridgepoint-shipwrecks-v1.js?v=11-titanic-gaskin-grafton-cannon-kxi-cape-otway-timaru-hms-loo-draco-ktx2-local-viewer' "$D/landing.js" || { echo "LIVE_VERIFY_FAIL: root Shipwrecks import missing"; exit 1; }
+          grep -Fq 'bridgepoint-shipwrecks-v1.js?v=11-titanic-gaskin-grafton-cannon-kxi-cape-otway-timaru-hms-loo-draco-ktx2-local-viewer' "$D/app.js" || { echo "LIVE_VERIFY_FAIL: app Shipwrecks import missing"; exit 1; }
           echo "LIVE_VERIFY_PASS: root and app entrypoints + Shipwrecks imports"
           grep -Fq 'shipwrecks:/shipwreck|titanic/i' "$D/drone.js" || { echo "LIVE_VERIFY_FAIL: dedicated shipwreck category missing"; exit 1; }
           grep -Fq "shipwrecks:'shipwrecks'" "$D/drone.js" || { echo "LIVE_VERIFY_FAIL: shipwreck category action mapping missing"; exit 1; }
@@ -498,6 +511,9 @@ jobs:
           grep -Fq 'hnlms-kxi-photogrammetry.glb.gz' "$D/module.js" || { echo "LIVE_VERIFY_FAIL: HNLMS K XI native asset path missing"; exit 1; }
           grep -Fq 'cape-otway-photogrammetry.glb.gz' "$D/module.js" || { echo "LIVE_VERIFY_FAIL: SS Cape Otway native asset path missing"; exit 1; }
           grep -Fq 'timaru-photogrammetry.glb.gz' "$D/module.js" || { echo "LIVE_VERIFY_FAIL: Timaru native asset path missing"; exit 1; }
+          grep -Fq 'hms-loo-photogrammetry.glb.gz' "$D/module.js" || { echo "LIVE_VERIFY_FAIL: HMS Loo native asset path missing"; exit 1; }
+          grep -Fq "hit.properties?.wreckId==='hms-loo'" "$D/module.js" || { echo "LIVE_VERIFY_FAIL: HMS Loo persistent marker click route missing"; exit 1; }
+          grep -Fq 'HMS Loo — Looe Key' "$D/module.js" || { echo "LIVE_VERIFY_FAIL: HMS Loo information card missing"; exit 1; }
           grep -Fq 'SS Cape Otway' "$D/module.js" || { echo "LIVE_VERIFY_FAIL: SS Cape Otway card metadata missing"; exit 1; }
           grep -Fq 'Timaru — Site 42' "$D/module.js" || { echo "LIVE_VERIFY_FAIL: Timaru card metadata missing"; exit 1; }
           grep -Fq "hit.properties?.wreckId==='cape-otway'" "$D/module.js" || { echo "LIVE_VERIFY_FAIL: Cape Otway icon click route missing"; exit 1; }
@@ -573,6 +589,20 @@ jobs:
           assert timaru['displayDepthM']==50 and timaru['lengthM']==44.9
           print('BRIDGEPOINT_TIMARU_SITE42_LIVE_GLB_PASS',len(raw),'bytes')
           PY
+          python3 - "$D/hms-loo.glb.gz" "$D/catalog.json" <<'PY'
+          import gzip,json,sys,struct
+          raw=gzip.decompress(open(sys.argv[1],'rb').read())
+          catalog=json.load(open(sys.argv[2],encoding='utf-8'))
+          loo=catalog['hmsLoo']
+          assert raw[:4]==b'glTF' and len(raw)>32
+          assert loo['license']=='CC BY 4.0' and 'NOAA' in loo['creator']
+          assert loo['coordinates']==[-81.4052,24.5477]
+          assert loo['displayDepthM']==6.75 and loo['depthRangeM']==[4.5,9]
+          assert loo['triangles']==4099999 and loo['vertices']==2051535
+          assert loo['datasetRevision'] and loo['assetSha256']
+          assert struct.unpack_from('<I',raw,8)[0]==len(raw)
+          print('BRIDGEPOINT_HMS_LOO_LIVE_GLB_PASS',len(raw),'bytes')
+          PY
           python3 - "$D/gaskin.glb.gz" <<'PY'
           import gzip,sys
           raw=gzip.decompress(open(sys.argv[1],'rb').read())
@@ -592,4 +622,4 @@ jobs:
           grep -Fq '55.6448° N, 12.8688° E' "$D/module.js" || { echo "LIVE_VERIFY_FAIL: Kanonvraget WGS84 coordinates missing"; exit 1; }
           grep -Fq '32° 09.0234′ S, 115° 29.9682′ E' "$D/module.js" || { echo "LIVE_VERIFY_FAIL: HNLMS K XI WGS84 coordinates missing"; exit 1; }
           grep -Fq '32.059833° S, 115.372533° E' "$D/module.js" || { echo "LIVE_VERIFY_FAIL: SS Cape Otway WGS84 coordinates missing"; exit 1; }
-          echo "BRIDGEPOINT_SHIPWRECKS_V10_LIVE_VERIFY_PASS"
+          echo "BRIDGEPOINT_SHIPWRECKS_V11_LIVE_VERIFY_PASS"
