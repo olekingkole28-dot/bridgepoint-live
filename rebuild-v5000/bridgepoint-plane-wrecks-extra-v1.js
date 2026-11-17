@@ -1,0 +1,348 @@
+/* BridgePoint Plane Wrecks extras — two texture-preserving photogrammetry GLB viewers. */
+const THREE_URL='/vendor/three.module.js?v=169-local';
+const GLTF_URL='/vendor/GLTFLoader.bundle.js?v=169-local';
+const TOGGLE_ID='bp-plane-wrecks-toggle-v1';
+const COUNT_ID='bp-plane-wrecks-count-v1';
+const MARKER_CLASS='bp-plane-wreck-extra-marker-v1';
+const STATE_BY_MAP=new WeakMap();
+let threePromise=null;
+
+export const EXTRA_PLANE_WRECKS=[
+ {
+  id:'b29-over-exposed-bleaklow',
+  name:'Boeing RB-29A Superfortress “Over Exposed”',
+  label:'B-29 OVER EXPOSED',
+  aircraft:'Boeing RB-29A Superfortress',
+  coordinates:[-1.86542,53.45091],
+  location:'Higher Shelf Stones, Bleaklow, Peak District, England, United Kingdom',
+  date:'3 November 1948',
+  details:'The model is a photogrammetry scan of the surviving fuselage remains from the Bleaklow crash site. The wider memorial site contains dispersed aircraft wreckage; this scan is not a complete intact aircraft.',
+  creator:'gentlegiantJGC',
+  photos:null,
+  zenodoId:'10318135',
+  doi:'10.5281/zenodo.10318135',
+  sourceUrl:'https://zenodo.org/records/10318135',
+  originalModelUrl:'https://sketchfab.com/3d-models/b-29-over-exposed-fuselage-413af6535d214ff0bb3543114b7dd21a',
+  historyUrl:'https://www.peakdistrict.gov.uk/visiting/places-to-visit/bleaklow',
+  assetUrl:'/assets/plane-wrecks/extra/b29-over-exposed-bleaklow.glb.gz',
+  assetName:'b29-over-exposed-bleaklow.glb.gz',
+  license:'CC BY 4.0',
+  attribution:'gentlegiantJGC, “B-29 Over Exposed Fuselage”, Zenodo record 10318135, CC BY 4.0. Model hosted by BridgePoint from the openly downloadable Zenodo GLB.',
+  locationNote:'Crash-site pin is approximate and marks the Bleaklow memorial wreckage area, not a survey-grade model origin.'
+ },
+ {
+  id:'mitsubishi-zero-a6m3-iwm-london',
+  name:'Mitsubishi A6M3 Zero Fighter Wreckage',
+  label:'MITSUBISHI ZERO',
+  aircraft:'Mitsubishi A6M3 Zero',
+  coordinates:[-0.108328,51.496009],
+  location:'Imperial War Museum London, Lambeth Road, London SE1 6HZ, United Kingdom',
+  date:'Aircraft dated 1943 · wreckage now held at IWM London',
+  details:'148 photographs captured in September 2020 and processed in RealityCapture. The scanned wreckage is now held by the Imperial War Museum in London; the marker therefore identifies the museum collection location, not the original Pacific loss location.',
+  creator:'artfletch',
+  photos:148,
+  zenodoId:'10264214',
+  doi:'10.5281/zenodo.10264214',
+  sourceUrl:'https://zenodo.org/records/10264214',
+  originalModelUrl:'https://sketchfab.com/3d-models/zero-fighter-wreckage-5d169fd080d64552ae66ffee76daf675',
+  historyUrl:'https://www.iwm.org.uk/collections/item/object/70000201',
+  assetUrl:'/assets/plane-wrecks/extra/zero-fighter-a6m3-iwm-london.glb.gz',
+  assetName:'zero-fighter-a6m3-iwm-london.glb.gz',
+  license:'CC BY 4.0',
+  attribution:'artfletch, “Zero Fighter Wreckage”, Zenodo record 10264214, CC BY 4.0. Model hosted by BridgePoint from the openly downloadable Zenodo GLB.',
+  locationNote:'Museum-location pin is approximate to the IWM London building; the scanned wreckage is in the museum collection.'
+ }
+];
+
+function safe(value){
+ return String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+}
+function mapOf(target){return target&&(target.map||target);}
+function loadThree(){
+ if(!threePromise)threePromise=Promise.all([import(THREE_URL),import(GLTF_URL)]).then(([THREE,loader])=>{
+  if(!THREE?.WebGLRenderer||!loader?.GLTFLoader)throw new Error('BridgePoint local Three.js / GLTFLoader is unavailable');
+  return {THREE,GLTFLoader:loader.GLTFLoader};
+ }).catch(error=>{threePromise=null;throw error;});
+ return threePromise;
+}
+function loadModel(wreck){
+ if(wreck.modelPromise)return wreck.modelPromise;
+ wreck.modelPromise=(async()=>{
+  const pair=await loadThree();
+  const response=await fetch(wreck.assetUrl,{cache:'force-cache'});
+  if(!response.ok)throw new Error('BridgePoint-hosted '+wreck.aircraft+' GLB request failed ('+response.status+')');
+  if(typeof DecompressionStream==='undefined')throw new Error('This browser cannot decompress the BridgePoint-hosted model');
+  const compressed=await response.arrayBuffer();
+  const raw=await new Response(new Blob([compressed]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
+  if(raw.byteLength<20||new DataView(raw).getUint32(0,true)!==0x46546c67)throw new Error('The BridgePoint-hosted file is not a valid binary glTF');
+  const gltf=await new pair.GLTFLoader().parseAsync(raw,'');
+  if(!gltf?.scene)throw new Error('The photogrammetry GLB contains no scene');
+  const root=gltf.scene;
+  root.updateMatrixWorld(true);
+  const bounds=new pair.THREE.Box3().setFromObject(root);
+  if(bounds.isEmpty())throw new Error('The photogrammetry model contains no visible geometry');
+  const size=bounds.getSize(new pair.THREE.Vector3());
+  const center=bounds.getCenter(new pair.THREE.Vector3());
+  root.position.sub(center);
+  root.updateMatrixWorld(true);
+  let meshes=0,triangles=0;
+  root.traverse(object=>{
+   if(object.isMesh){
+    meshes++;
+    const position=object.geometry?.attributes?.position;
+    const index=object.geometry?.index;
+    triangles+=index?Math.floor(index.count/3):Math.floor((position?.count||0)/3);
+    object.frustumCulled=false;
+    object.castShadow=false;object.receiveShadow=false;
+    const materials=Array.isArray(object.material)?object.material:[object.material];
+    for(const material of materials){
+     if(!material)continue;
+     material.side=pair.THREE.DoubleSide;
+     material.needsUpdate=true;
+    }
+   }
+  });
+  if(!meshes||triangles<1000)throw new Error('The source GLB did not contain a usable textured triangle mesh');
+  return {THREE:pair.THREE,root,size,meshes,triangles};
+ })().catch(error=>{wreck.modelPromise=null;throw error;});
+ return wreck.modelPromise;
+}
+function makeMarkerElement(wreck){
+ const element=document.createElement('button');
+ element.type='button';
+ element.className=MARKER_CLASS;
+ element.setAttribute('aria-label',wreck.name+'. Open BridgePoint-hosted photogrammetry viewer and details.');
+ element.title=wreck.name+' · open BridgePoint 3D model card';
+ element.innerHTML='<svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><path d="M29 4h6l4 20 20 10v6L39 35l2 15 9 7v4l-18-5-18 5v-4l9-7 2-15L5 40v-6l20-10z" fill="currentColor" stroke="#fff1ca" stroke-width="1.7" stroke-linejoin="round"/></svg>';
+ return element;
+}
+function ensureMarker(state,wreck){
+ let marker=state.markers.get(wreck.id);
+ if(marker){
+  try{marker.addTo(state.map);}catch(_){}
+  return marker;
+ }
+ const Marker=window.maplibregl?.Marker;
+ if(typeof Marker!=='function')return null;
+ const element=makeMarkerElement(wreck);
+ element.addEventListener('click',event=>{
+  event.preventDefault();event.stopPropagation();
+  if(state.enabled)openCard(state,wreck);
+ });
+ marker=new Marker({element,anchor:'center',offset:[0,0]});
+ marker.setLngLat(wreck.coordinates).addTo(state.map);
+ state.markers.set(wreck.id,marker);
+ return marker;
+}
+function setMarkerVisibility(state,wreck,visible){
+ const marker=ensureMarker(state,wreck);
+ const element=marker?.getElement?.();
+ if(element){
+  element.hidden=!visible;
+  element.setAttribute('aria-hidden',String(!visible));
+  element.disabled=!visible;
+ }
+}
+function setCountNote(){
+ const count=document.getElementById(COUNT_ID);
+ if(count)count.textContent='3 persistent aircraft-wreck icons · 2 photogrammetry mesh scans + Corsair scan · BridgePoint-hosted viewers';
+}
+function setEnabledFromButton(state){
+ const button=document.getElementById(TOGGLE_ID);
+ const next=button?.getAttribute('aria-pressed')==='true';
+ if(next===state.enabled){
+  for(const wreck of EXTRA_PLANE_WRECKS)setMarkerVisibility(state,wreck,state.enabled);
+  setCountNote();
+  return;
+ }
+ state.enabled=next;
+ for(const wreck of EXTRA_PLANE_WRECKS)setMarkerVisibility(state,wreck,state.enabled);
+ if(!state.enabled&&state.popup){state.popup.remove();state.popup=null;}
+ setCountNote();
+}
+function addStyles(){
+ if(document.getElementById('bp-plane-wreck-extra-style-v1'))return;
+ const style=document.createElement('style');style.id='bp-plane-wreck-extra-style-v1';
+ style.textContent=
+  '.bp-plane-wreck-extra-marker-v1{display:grid;place-items:center;width:42px;height:42px;padding:0;border:1px solid rgba(255,232,178,.98);border-radius:50%;background:radial-gradient(circle,rgba(13,35,49,.97) 38%,rgba(5,17,27,.92) 74%);color:#f4c978;box-shadow:0 0 0 3px rgba(232,186,94,.20),0 2px 12px rgba(0,0,0,.85);cursor:pointer;touch-action:manipulation;z-index:41}'+
+  '.bp-plane-wreck-extra-marker-v1[hidden]{display:none!important}'+
+  '.bp-plane-wreck-extra-marker-v1 svg{display:block;width:29px;height:29px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.95))}'+
+  '.bp-plane-wreck-extra-marker-v1:focus-visible{outline:3px solid #fff;outline-offset:3px}'+
+  '.bp-plane-wreck-extra-popup-v1 .maplibregl-popup-content{background:#06131f;color:#e8f5fb;border:1px solid rgba(231,187,103,.62);border-radius:13px;padding:12px;font:12px/1.45 system-ui,sans-serif;max-height:min(82vh,820px);overflow:auto;width:min(450px,calc(100vw - 44px))}'+
+  '.bp-plane-wreck-extra-popup-v1 .maplibregl-popup-tip{border-top-color:#06131f;border-bottom-color:#06131f}'+
+  '.bp-plane-wreck-extra-card-v1 .bp-extra-kicker{font-size:9px;letter-spacing:.13em;font-weight:900;color:#f0c878}.bp-plane-wreck-extra-card-v1 h3{font-size:18px;color:#fff;margin:4px 0}.bp-plane-wreck-extra-card-v1 .bp-extra-subtitle{color:#c4d6df;margin:2px 0 8px}'+
+  '.bp-plane-wreck-extra-card-v1 .bp-extra-facts{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:7px 0 10px}.bp-plane-wreck-extra-card-v1 .bp-extra-facts span{display:grid;gap:2px;padding:7px;border:1px solid rgba(170,197,207,.18);border-radius:7px;color:#e4eff4;font-size:10px;overflow-wrap:anywhere}.bp-plane-wreck-extra-card-v1 .bp-extra-facts b{font-size:9px;color:#9eb7c5;text-transform:uppercase;letter-spacing:.08em}'+
+  '.bp-plane-wreck-extra-viewer-v1{width:100%;aspect-ratio:4/3;min-height:230px;background:#02070d;border-radius:9px;overflow:hidden;margin:9px 0;border:1px solid rgba(226,186,109,.3)}.bp-plane-wreck-extra-viewer-v1 canvas{width:100%;height:100%;display:block;touch-action:none}.bp-plane-wreck-extra-viewer-loading-v1,.bp-plane-wreck-extra-viewer-error-v1{display:grid;place-items:center;min-height:220px;padding:20px;text-align:center;color:#c3d7df;font-size:12px;background:radial-gradient(ellipse at center,rgba(28,67,83,.42),rgba(2,7,13,.96))}'+
+  '.bp-plane-wreck-extra-status-v1,.bp-plane-wreck-extra-note-v1{margin:7px 0;color:#a9d2c8;font-size:10px;overflow-wrap:anywhere}.bp-plane-wreck-extra-note-v1{color:#a9c2cb}.bp-plane-wreck-extra-sources-v1{display:grid;gap:5px;border-top:1px solid rgba(154,205,212,.16);padding-top:8px;margin-top:8px;font-size:10px}.bp-plane-wreck-extra-sources-v1>b{color:#dceaf0}.bp-plane-wreck-extra-sources-v1 a{color:#f1cf88;text-decoration:underline}'+
+  '@media(max-width:480px){.bp-plane-wreck-extra-popup-v1 .maplibregl-popup-content{width:min(345px,calc(100vw - 44px));padding:10px}.bp-plane-wreck-extra-viewer-v1{min-height:190px}}';
+ document.head.appendChild(style);
+}
+function cardHtml(wreck){
+ const photos=wreck.photos?wreck.photos+' source photographs':'Source photogrammetry scan';
+ return '<article class="bp-plane-wreck-extra-card-v1">'+
+  '<div class="bp-extra-kicker">BRIDGEPOINT · PLANE WRECKS</div>'+
+  '<h3>'+safe(wreck.name)+'</h3>'+
+  '<p class="bp-extra-subtitle">'+safe(wreck.aircraft)+' · '+safe(wreck.location)+'</p>'+
+  '<div class="bp-extra-facts">'+
+   '<span><b>Aircraft</b>'+safe(wreck.aircraft)+'</span>'+
+   '<span><b>Date</b>'+safe(wreck.date)+'</span>'+
+   '<span><b>Scan source</b>'+safe(photos)+'</span>'+
+   '<span><b>Reconstruction</b>Photogrammetry triangle mesh</span>'+
+   '<span><b>Rights</b>'+safe(wreck.license)+'</span>'+
+   '<span><b>Hosted asset</b>BridgePoint local GLB</span>'+
+  '</div>'+
+  '<div class="bp-plane-wreck-extra-viewer-v1" data-bp-plane-wreck-extra-viewer="'+safe(wreck.id)+'" role="group" aria-label="BridgePoint-hosted interactive photogrammetry model"><div class="bp-plane-wreck-extra-viewer-loading-v1">Loading BridgePoint-hosted textured photogrammetry mesh…</div></div>'+
+  '<div class="bp-plane-wreck-extra-status-v1" data-extra-model-status>BridgePoint-hosted model · drag to rotate and scroll or pinch to zoom</div>'+
+  '<p class="bp-plane-wreck-extra-note-v1">'+safe(wreck.details)+'</p>'+
+  '<p class="bp-plane-wreck-extra-note-v1">'+safe(wreck.locationNote)+'</p>'+
+  '<div class="bp-plane-wreck-extra-sources-v1"><b>Model source, history and attribution</b>'+
+   '<a href="'+safe(wreck.sourceUrl)+'" target="_blank" rel="noopener noreferrer">Zenodo dataset and downloadable source GLB ↗</a>'+
+   '<a href="'+safe(wreck.historyUrl)+'" target="_blank" rel="noopener noreferrer">Aircraft / wreck historical reference ↗</a>'+
+   '<a href="'+safe(wreck.originalModelUrl)+'" target="_blank" rel="noopener noreferrer">Original 3D model record ↗</a>'+
+  '</div>'+
+  '<p class="bp-plane-wreck-extra-note-v1">Attribution: '+safe(wreck.attribution)+'</p>'+
+ '</article>';
+}
+function openCard(state,wreck){
+ const Popup=window.maplibregl?.Popup;
+ if(!Popup)return;
+ if(state.popup)state.popup.remove();
+ state.popup=new Popup({closeButton:true,closeOnClick:true,maxWidth:'490px',className:'bp-plane-wreck-extra-popup-v1'})
+  .setLngLat(wreck.coordinates).setHTML(cardHtml(wreck)).addTo(state.map);
+ mountViewer(state,state.popup,wreck);
+}
+function mountViewer(state,popup,wreck){
+ const root=popup?.getElement?.();
+ const host=root?.querySelector('[data-bp-plane-wreck-extra-viewer="'+wreck.id+'"]');
+ if(!host)return;
+ let disposed=false,renderer=null,resizeObserver=null,animationFrame=0,resizeHandler=null;
+ let scene=null,camera=null,model=null,dragging=false,lastX=0,lastY=0,distance=3;
+ const cleanup=()=>{
+  if(disposed)return;disposed=true;
+  if(animationFrame)cancelAnimationFrame(animationFrame);
+  resizeObserver?.disconnect();
+  if(resizeHandler)window.removeEventListener('resize',resizeHandler);
+  try{renderer?.dispose();}catch(_){}
+  try{scene?.clear?.();}catch(_){}
+ };
+ popup.on?.('close',cleanup);
+ const status=message=>{const node=root?.querySelector('[data-extra-model-status]');if(node)node.textContent=message;};
+ const fail=error=>{
+  if(disposed||!host.isConnected)return;
+  host.innerHTML='<div class="bp-plane-wreck-extra-viewer-error-v1">BridgePoint 3D viewer could not start: '+safe(error?.message||error)+'</div>';
+  status('BridgePoint-hosted photogrammetry viewer failed to load.');
+ };
+ (async()=>{
+  try{
+   const result=await loadModel(wreck);
+   if(disposed||!host.isConnected)return;
+   const THREE=result.THREE;
+   const canvas=document.createElement('canvas');
+   canvas.style.cursor='grab';canvas.style.touchAction='none';
+   canvas.setAttribute('aria-label',wreck.name+' photogrammetry mesh. Drag to rotate; pinch or scroll to zoom.');
+   host.replaceChildren(canvas);
+   renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:'low-power'});
+   renderer.outputColorSpace=THREE.SRGBColorSpace;
+   renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.5));
+   scene=new THREE.Scene();scene.background=new THREE.Color(0x04111c);
+   const maxDim=Math.max(result.size.x,result.size.y,result.size.z,0.001);
+   camera=new THREE.PerspectiveCamera(42,1,Math.max(0.001,maxDim/10000),maxDim*100);
+   scene.add(new THREE.HemisphereLight(0xe8f4ff,0x27313d,1.7));
+   const key=new THREE.DirectionalLight(0xffe6c0,2.1);key.position.set(3,5,6);scene.add(key);
+   const fill=new THREE.DirectionalLight(0x8bbbd5,0.8);fill.position.set(-5,1,-4);scene.add(fill);
+   const rim=new THREE.DirectionalLight(0xffffff,0.6);rim.position.set(0,-4,3);scene.add(rim);
+   model=result.root.clone(true);
+   model.traverse(object=>{
+    if(object.isMesh){
+     object.frustumCulled=false;
+     const materials=Array.isArray(object.material)?object.material:[object.material];
+     for(const material of materials){if(material){material.side=THREE.DoubleSide;material.needsUpdate=true;}}
+    }
+   });
+   scene.add(model);
+   const target=new THREE.Vector3(0,0,0);
+   distance=maxDim*2.15;
+   const spherical={theta:0.72,phi:1.05};
+   const resize=()=>{
+    const width=Math.max(1,host.clientWidth||320),height=Math.max(1,host.clientHeight||230);
+    renderer.setSize(width,height,false);camera.aspect=width/height;camera.updateProjectionMatrix();
+   };
+   resize();resizeHandler=resize;window.addEventListener('resize',resizeHandler);
+   if(typeof ResizeObserver!=='undefined'){resizeObserver=new ResizeObserver(resize);resizeObserver.observe(host);}
+   const updateCamera=()=>{
+    spherical.phi=Math.max(0.08,Math.min(Math.PI-0.08,spherical.phi));
+    const sin=Math.sin(spherical.phi);
+    camera.position.set(target.x+distance*sin*Math.sin(spherical.theta),target.y+distance*Math.cos(spherical.phi),target.z+distance*sin*Math.cos(spherical.theta));
+    camera.lookAt(target);
+   };
+   updateCamera();
+   canvas.addEventListener('pointerdown',event=>{
+    dragging=true;lastX=event.clientX;lastY=event.clientY;
+    canvas.setPointerCapture?.(event.pointerId);canvas.style.cursor='grabbing';
+   });
+   canvas.addEventListener('pointermove',event=>{
+    if(!dragging)return;
+    const dx=event.clientX-lastX,dy=event.clientY-lastY;lastX=event.clientX;lastY=event.clientY;
+    spherical.theta-=dx*0.008;spherical.phi+=dy*0.008;updateCamera();
+   });
+   const stop=()=>{dragging=false;canvas.style.cursor='grab';};
+   canvas.addEventListener('pointerup',stop);canvas.addEventListener('pointercancel',stop);
+   canvas.addEventListener('wheel',event=>{
+    event.preventDefault();distance=Math.max(maxDim*0.45,Math.min(maxDim*25,distance*Math.exp(event.deltaY*0.0012)));updateCamera();
+   },{passive:false});
+   const render=()=>{
+    if(disposed||!host.isConnected)return;
+    renderer.render(scene,camera);animationFrame=requestAnimationFrame(render);
+   };
+   render();
+   status('BridgePoint-hosted photogrammetry mesh loaded · '+result.meshes.toLocaleString()+' mesh parts · approximately '+result.triangles.toLocaleString()+' triangles · rotate and zoom to inspect.');
+  }catch(error){fail(error);}
+ })();
+}
+function attachButtonObserver(state){
+ const bind=()=>{
+  const button=document.getElementById(TOGGLE_ID);
+  if(!button)return false;
+  if(state.observedButton===button)return true;
+  state.buttonObserver?.disconnect();
+  state.observedButton=button;
+  state.buttonObserver=new MutationObserver(()=>setEnabledFromButton(state));
+  state.buttonObserver.observe(button,{attributes:true,attributeFilter:['aria-pressed']});
+  button.addEventListener('click',()=>queueMicrotask(()=>setEnabledFromButton(state)));
+  setEnabledFromButton(state);
+  return true;
+ };
+ bind();
+ if(typeof MutationObserver!=='undefined'&&document.body){
+  state.bodyObserver=new MutationObserver(()=>{if(!state.observedButton)bind();});
+  state.bodyObserver.observe(document.body,{childList:true,subtree:true});
+ }
+}
+export function initPlaneWrecksExtraRenderer(target){
+ const map=mapOf(target);
+ if(!map||typeof map.getBounds!=='function'||typeof map.addSource!=='function')return null;
+ const existing=STATE_BY_MAP.get(map);if(existing)return existing.api;
+ addStyles();
+ const state={map,enabled:false,markers:new Map(),popup:null,observedButton:null,buttonObserver:null,bodyObserver:null};
+ const sync=()=>{if(state.enabled)for(const wreck of EXTRA_PLANE_WRECKS)setMarkerVisibility(state,wreck,true);};
+ for(const event of ['load','style.load','idle'])map.on?.(event,sync);
+ attachButtonObserver(state);
+ const api={
+  version:1,
+  wrecks:EXTRA_PLANE_WRECKS.map(w=>({id:w.id,name:w.name,coordinates:w.coordinates.slice(),assetUrl:w.assetUrl})),
+  get enabled(){return state.enabled;},
+  get markerCount(){return state.markers.size;},
+  refresh(){setEnabledFromButton(state);return state.markers.size;},
+  destroy(){
+   state.buttonObserver?.disconnect();state.bodyObserver?.disconnect();
+   for(const event of ['load','style.load','idle'])map.off?.(event,sync);
+   for(const marker of state.markers.values())try{marker.remove();}catch(_){}
+   state.markers.clear();state.popup?.remove();state.popup=null;
+   document.getElementById('bp-plane-wreck-extra-style-v1')?.remove();
+   STATE_BY_MAP.delete(map);
+  }
+ };
+ state.api=api;STATE_BY_MAP.set(map,state);
+ window.__BP_PLANE_WRECKS_EXTRA_V1__=api;
+ return api;
+}
