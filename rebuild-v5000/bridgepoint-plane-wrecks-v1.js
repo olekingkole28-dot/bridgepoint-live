@@ -240,6 +240,7 @@ function ensureNativeMapLayer(state){
     canvas:mapRef.getCanvas(),context:gl,antialias:false,alpha:true,powerPreference:'low-power'
    });
    state.mapRenderer.autoClear=false;
+   state.mapRenderer.autoClear=false;
    state.mapRenderer.outputColorSpace=THREE.SRGBColorSpace;
    state.mapScene=new THREE.Scene();
    state.mapCamera=new THREE.Camera();
@@ -510,6 +511,7 @@ function bindInteractions(state){
    refreshUi(state);return;
   }
   setVisibility(state,true);
+  if(state.modelRoot&&!state.map.getLayer(MODEL_LAYER_ID))ensureNativeMapLayer(state);
   maybeAutoMaterialize(state);
   refreshUi(state);
  };
