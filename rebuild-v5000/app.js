@@ -225,6 +225,9 @@ async function bootMap(){
  void import('./bridgepoint-subsurface-wells-v1.js?v=2-persistent-substructure-visibility')
   .then(m=>{window.__BP_SUBSURFACE_WELLS_V1__=m.initSubsurfaceWellsRenderer(world)})
   .catch(e=>console.warn('BridgePoint global subsurface wells renderer unavailable',e));
+void import('./bridgepoint-shipwrecks-v1.js?v=1-titanic-noaa-waypoints')
+ .then(m=>{window.__BP_SHIPWRECKS_V1__=m.initShipwrecksRenderer(world)})
+ .catch(e=>console.warn('BridgePoint Titanic shipwreck layer unavailable',e));
  // Independent opt-in scanned cave and underground heritage sites; keep wells and utility renderers untouched.
  void import('./bridgepoint-underground-scan-sites-v1.js?v=1-curated-sketchfab-caves')
   .then(m=>{window.__BP_UNDERGROUND_SCAN_SITES_V1__=m.initUndergroundScanSitesRenderer(world)})
