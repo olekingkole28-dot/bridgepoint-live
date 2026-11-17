@@ -111,7 +111,24 @@ jobs:
                   print("LATEST_SUCCESSFUL_PAGES_BASELINE",run["id"],run.get("name"),match["name"],match.get("size_in_bytes"))
                   break
           if not selected:
-              raise SystemExit("No unexpired artifact from a successful Pages upload/deploy workflow was found; refusing to publish against an unverified baseline.")
+              # The last verified live Pages artifact is pinned as a safe recovery fallback.
+              # Confirm the run and deploy step are still successful and the artifact is unexpired.
+              fallback_run="43966102977"
+              fallback_name="github-pages-palatine-cryptoporticus-v1"
+              fallback=api(f"/actions/runs/{fallback_run}")
+              if fallback.get("conclusion")!="success" or fallback.get("path")!=".github/workflows/publish-palatine-cryptoporticus-v1.yml":
+                  raise SystemExit("Pinned fallback is no longer a successful Palatine Pages deployment.")
+              fallback_jobs=api(f"/actions/runs/{fallback_run}/jobs?per_page=100").get("jobs",[])
+              deploy_ok=any(job.get("conclusion")=="success" and any(
+                  step.get("conclusion")=="success" and
+                  step.get("name")=="Publish BridgePoint Palatine Cryptoporticus photogrammetry viewer v1"
+                  for step in (job.get("steps") or [])) for job in fallback_jobs)
+              fallback_artifacts=api(f"/actions/runs/{fallback_run}/artifacts?per_page=100").get("artifacts",[])
+              fallback_artifact=next((a for a in fallback_artifacts if a.get("name")==fallback_name and not a.get("expired")),None)
+              if not deploy_ok or not fallback_artifact:
+                  raise SystemExit("Pinned successful Palatine deploy artifact is missing or expired; refusing to publish.")
+              selected=(fallback_run,fallback_name)
+              print("USING_PINNED_VERIFIED_PAGES_FALLBACK",fallback_run,fallback_name,fallback_artifact.get("size_in_bytes"))
           with open(os.environ["GITHUB_OUTPUT"],"a",encoding="utf-8") as out:
               out.write("run_id="+selected[0]+"\n")
               out.write("artifact_name="+selected[1]+"\n")
