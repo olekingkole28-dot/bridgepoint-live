@@ -37,6 +37,27 @@ export const SPACECRAFT_COLUMBIA={
  sourceMethod:'Smithsonian high-resolution 3D digitization of the exterior artifact; three supplied GLB mesh components are composed by BridgePoint.',
  placementPrecision:'The persistent marker identifies the approximate National Air and Space Museum building location, where the capsule is listed on display. The source has no geodetic origin or survey alignment; the globe model is a visual placement, not a survey-controlled indoor position.'
 };
+export function resolveColumbiaScanTransform(sourceDimensions,expectedHeightM=SPACECRAFT_COLUMBIA.scanHeightM){
+ const axes=['x','y','z'];
+ const values=axes.map(axis=>Number(sourceDimensions?.[axis]));
+ if(values.some(value=>!Number.isFinite(value)||value<=0))throw new Error('Smithsonian Columbia scan has invalid source bounds');
+ const maxExtent=Math.max(...values);
+ // Smithsonian exterior GLB is distributed in centimetres; tolerate equivalent metre-scaled exports.
+ const scale=maxExtent>20?0.01:1;
+ const units=scale===0.01?'cm':'m';
+ const candidates=axes.map((axis,index)=>({
+  axis,scale,units,sourceExtent:values[index],
+  heightM:values[index]*scale,
+  relativeError:Math.abs(values[index]*scale-expectedHeightM)/expectedHeightM
+ })).sort((a,b)=>a.relativeError-b.relativeError);
+ const best=candidates[0];
+ if(!best||!Number.isFinite(best.relativeError)||best.relativeError>0.2){
+  throw new Error('Smithsonian Columbia scan bounds do not match its published '+expectedHeightM.toFixed(3)+' m height ('+
+   axes.map((axis,index)=>axis+'='+values[index].toFixed(3)).join(', ')+
+   ' source units; closest axis '+(best?.axis||'unknown')+' = '+(best?.heightM?.toFixed(3)||'unknown')+' m)');
+ }
+ return best;
+}
 const states=new WeakMap();
 let threePromise=null;
 function mapOf(target){return target&&(target.map||target);}
@@ -81,15 +102,27 @@ async function loadColumbia(state){
    part.name=asset.split('/').pop();
    root.add(part);
   }
-  // // This single Smithsonian download is the combined exterior mesh in centimetres and glTF Y-up.
-  // Leave it upright and apply the source centimetre-to-metre conversion for the globe.
+  // Inspect transformed source bounds before applying any BridgePoint unit or axis correction.
   root.quaternion.identity();
-  root.scale.setScalar(0.01);
+  root.scale.setScalar(1);
+  root.updateMatrixWorld(true);
+  const sourceBounds=new pair.THREE.Box3().setFromObject(root);
+  if(sourceBounds.isEmpty())throw new Error('Smithsonian Columbia exterior mesh is empty');
+  const sourceDimensions=sourceBounds.getSize(new pair.THREE.Vector3());
+  const transform=resolveColumbiaScanTransform(sourceDimensions,SPACECRAFT_COLUMBIA.scanHeightM);
+  const sourceUp=new pair.THREE.Vector3(
+   transform.axis==='x'?1:0,
+   transform.axis==='y'?1:0,
+   transform.axis==='z'?1:0
+  );
+  root.quaternion.setFromUnitVectors(sourceUp,new pair.THREE.Vector3(0,1,0));
+  root.scale.setScalar(transform.scale);
   root.updateMatrixWorld(true);
   let bounds=new pair.THREE.Box3().setFromObject(root);
-  if(bounds.isEmpty())throw new Error('Smithsonian Columbia exterior mesh is empty');
+  if(bounds.isEmpty())throw new Error('Smithsonian Columbia exterior mesh is empty after normalization');
   const dimensions=bounds.getSize(new pair.THREE.Vector3());
-  if(!Number.isFinite(dimensions.y)||dimensions.y<2.4||dimensions.y>3.2)throw new Error('Columbia scan height is outside the expected approximately 2.718 m range');
+  const heightError=Math.abs(dimensions.y-SPACECRAFT_COLUMBIA.scanHeightM)/SPACECRAFT_COLUMBIA.scanHeightM;
+  if(!Number.isFinite(dimensions.y)||heightError>0.2)throw new Error('Normalized Columbia scan height is '+dimensions.y.toFixed(3)+' m; expected '+SPACECRAFT_COLUMBIA.scanHeightM.toFixed(3)+' m');
   const center=bounds.getCenter(new pair.THREE.Vector3());
   root.position.x-=center.x;
   root.position.z-=center.z;
@@ -98,9 +131,10 @@ async function loadColumbia(state){
   bounds=new pair.THREE.Box3().setFromObject(root);
   col.group=root;
   col.dimensions={x:dimensions.x,y:dimensions.y,z:dimensions.z};
+  col.scanTransform={axis:transform.axis,units:transform.units,scale:transform.scale,sourceExtent:transform.sourceExtent};
   col.stats.assetLoaded=true;
   col.stats.heightM=dimensions.y;
-  col.status='All three Smithsonian exterior mesh components are loaded from BridgePoint hosting and composed into the Columbia scan.';
+  col.status='The Smithsonian Columbia exterior scan is normalized from '+transform.units+' on source '+transform.axis.toUpperCase()+' axis into metres and oriented upright. Measured height: '+dimensions.y.toFixed(3)+' m.';
   setStatus(state,col.status);
   return root;
  })().catch(error=>{col.promise=null;throw error;});
