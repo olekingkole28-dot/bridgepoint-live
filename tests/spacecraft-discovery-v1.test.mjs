@@ -18,7 +18,7 @@ assert.match(model.sourceLicense,/CC0/);
 assert.match(model.sourceLicense,/copied, modified, and distributed/i);
 assert.match(model.sourceMethod,/150,000-face/);
 assert.match(model.sourceMethod,/4096-pixel texture/);
-assert.match(model.sourceMethod,/units are metres/);
+assert.match(model.sourceMethod,/model units as metres/);
 assert.match(model.placementPrecision,/not an indoor survey-controlled placement/i);
 
 const transform=resolveDiscoveryScanTransform({x:31.867,y:28.018,z:16.952});
