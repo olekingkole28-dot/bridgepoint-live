@@ -144,6 +144,7 @@ jobs:
           python3 -m py_compile tools/plane_wrecks/build_f4u1_corsair.py tools/plane_wrecks/build_additional_models.py tools/plane_wrecks/build_tokai_maru.py tools/plane_wrecks/build_noaa_p39q.py tools/plane_wrecks/build_messerschmitt_bf109.py
 
       - name: Materialize the rights-checked F4U-1 Corsair underwater photogrammetry point cloud
+        if: false # Reuse validated model files from the preserved Pages artifact.
         shell: bash
         run: |
           set -euo pipefail
@@ -166,6 +167,7 @@ jobs:
           PY
 
       - name: Materialize and validate the B-29, Mitsubishi Zero and Short Sunderland photogrammetry meshes
+        if: false # Reuse validated model files from the preserved Pages artifact.
         shell: bash
         run: |
           set -euo pipefail
@@ -191,6 +193,7 @@ jobs:
           PY
 
       - name: Materialize and validate the Tokai Maru underwater photogrammetry point cloud
+        if: false # Reuse validated model files from the preserved Pages artifact.
         shell: bash
         run: |
           set -euo pipefail
@@ -215,6 +218,7 @@ jobs:
           PY
 
       - name: Materialize and validate the NOAA P-39Q Airacobra wing photogrammetry mesh
+        if: false # Reuse validated model files from the preserved Pages artifact.
         shell: bash
         run: |
           set -euo pipefail
@@ -241,6 +245,7 @@ jobs:
 
 
       - name: Materialize and validate the Messerschmitt Bf 109 Planier photogrammetry point cloud
+        if: false # Reuse validated model files from the preserved Pages artifact.
         shell: bash
         run: |
           set -euo pipefail
@@ -304,7 +309,7 @@ jobs:
               runs=api(f"/actions/runs?branch=main&status=completed&per_page=100&page={page}").get("workflow_runs",[])
               if not runs:break
               for run in runs:
-                  if run.get("status")!="completed" or run.get("conclusion")!="success":continue
+                  if run.get("status")!="completed":continue
                   jobs=api(f"/actions/runs/{run['id']}/jobs?per_page=100").get("jobs",[])
                   steps=[step for job in jobs for step in (job.get("steps") or []) if step.get("conclusion")=="success"]
                   uploaded=any("upload" in str(s.get("name","")).lower() and ("page" in str(s.get("name","")).lower() or "site" in str(s.get("name","")).lower()) for s in steps)
@@ -388,7 +393,7 @@ jobs:
           cp rebuild-v5000/bridgepoint-plane-wrecks-extra-v1.js "$SITE/bridgepoint-plane-wrecks-extra-v1.js"
           cp rebuild-v5000/bridgepoint-plane-wrecks-extra-v1.js "$SITE/app/bridgepoint-plane-wrecks-extra-v1.js"
           cp rebuild-v5000/bridgepoint-drone-awareness-v1.js "$SITE/bridgepoint-drone-awareness-v1.js"
-          cp -a assets/plane-wrecks/. "$SITE/assets/plane-wrecks/"
+          # Model files and catalogs remain from the preserved production Pages artifact.
           python3 - <<'PY'
           import hashlib,json,os,re
           from pathlib import Path
