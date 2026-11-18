@@ -344,6 +344,8 @@ jobs:
           grep -Fq 'EXTRA_PLANE_WRECKS' "$SITE/bridgepoint-plane-wrecks-extra-v1.js"
           grep -Fq 'new Marker({element,anchor:' "$SITE/bridgepoint-plane-wrecks-extra-v1.js"
           grep -Fq 'data-bp-plane-wreck-extra-viewer' "$SITE/bridgepoint-plane-wrecks-extra-v1.js"
+          grep -Fq 'ensureWorldModel' "$SITE/bridgepoint-plane-wrecks-extra-v1.js"
+          grep -Fq "renderingMode:'3d'" "$SITE/bridgepoint-plane-wrecks-extra-v1.js"
           test -s "$SITE/vendor/GLTFLoader.bundle.js"
           test -s "$SITE/vendor/three.module.js"
           echo "BRIDGEPOINT_PLANE_WRECKS_EXTRA_OVERLAY_PASS"
@@ -380,6 +382,9 @@ jobs:
           grep -Fq 'initPlaneWrecksExtraRenderer(world)' "$D/landing" || { echo "LIVE_VERIFY_FAIL: landing entry does not load extra plane meshes"; exit 1; }
           grep -Fq 'initPlaneWrecksExtraRenderer(world)' "$D/appjs" || { echo "LIVE_VERIFY_FAIL: app entry does not load extra plane meshes"; exit 1; }
           grep -Fq 'EXTRA_PLANE_WRECKS' "$D/extra" || { echo "LIVE_VERIFY_FAIL: extra aircraft mesh module missing"; exit 1; }
+          grep -Fq 'short-sunderland-ej138-munkholmen' "$D/extra" || { echo "LIVE_VERIFY_FAIL: Sunderland wreck entry missing"; exit 1; }
+          grep -Fq 'ensureWorldModel' "$D/extra" || { echo "LIVE_VERIFY_FAIL: native in-globe Sunderland model layer missing"; exit 1; }
+          grep -Fq "renderingMode:'3d'" "$D/extra" || { echo "LIVE_VERIFY_FAIL: 3D globe rendering layer missing"; exit 1; }
           cmp -s "$D/extra" "$D/extraapp" || { echo "LIVE_VERIFY_FAIL: root/app extra mesh modules differ"; exit 1; }
           grep -Fq 'Plane Wrecks' "$D/module" || { echo "LIVE_VERIFY_FAIL: Plane Wrecks button module is missing"; exit 1; }
           grep -Fq 'data-bp-local-plane-viewer' "$D/module" || { echo "LIVE_VERIFY_FAIL: BridgePoint-hosted card viewer missing"; exit 1; }
@@ -401,7 +406,7 @@ jobs:
           PY
           python3 - "$D/b29" "$D/zero" "$D/sunderland" "$D/extracatalog" <<'PY'
           import gzip,json,struct,sys
-          catalog=json.load(open(sys.argv[3],encoding='utf-8'))
+          catalog=json.load(open(sys.argv[4],encoding='utf-8'))
           assert len(catalog['models'])==3
           by_id={m['id']:m for m in catalog['models']}
           assert {'b29-over-exposed-bleaklow','mitsubishi-zero-a6m3-iwm-london','short-sunderland-ej138-munkholmen'}==set(by_id)
