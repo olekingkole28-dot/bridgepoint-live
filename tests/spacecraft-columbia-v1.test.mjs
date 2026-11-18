@@ -10,12 +10,10 @@ assert.equal(model.scanHeightM,2.718);
 assert.match(model.sourceLicense,/CC0/);
 assert.match(model.sourceMethod,/Smithsonian/i);
 assert.match(model.placementPrecision,/not a survey-controlled indoor position/i);
-assert.equal(SPACECRAFT_COLUMBIA_ASSETS.length,3);
+assert.equal(SPACECRAFT_COLUMBIA_ASSETS.length,1);
 assert.ok(SPACECRAFT_COLUMBIA_ASSETS.every(path=>path.startsWith('/assets/spacecraft/')));
 assert.ok(SPACECRAFT_COLUMBIA_ASSETS.every(path=>path.endsWith('.glb')));
-assert.ok(SPACECRAFT_COLUMBIA_ASSETS[0].includes('exterior-shell'));
-assert.ok(SPACECRAFT_COLUMBIA_ASSETS[1].includes('exterior-top'));
-assert.ok(SPACECRAFT_COLUMBIA_ASSETS[2].includes('exterior-filler'));
+assert.ok(SPACECRAFT_COLUMBIA_ASSETS[0].includes('exterior-combined'));
 
 const source=await (await import('node:fs/promises')).readFile(
  new URL('../rebuild-v5000/bridgepoint-spacecraft-columbia-v1.js',import.meta.url),'utf8'
