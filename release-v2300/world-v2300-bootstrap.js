@@ -1,4 +1,4 @@
-import{VERSION}from'./world-v2300-config.js';
+import{VERSION}from'./world-v2300-config.js?v=6238-pc-runtime';
 import{initWorld}from'./world-v2300-map.js';
 import{initDetails}from'./world-v2300-details.js';
 import{initWeather}from'./world-v2300-weather.js?v=6195-desktop-globe-flash-stability';

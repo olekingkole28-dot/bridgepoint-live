@@ -1,7 +1,7 @@
 (()=>{
 'use strict';
 if(window.__BP_GLOBAL_MOTION_V5926__)return;
-const SUPA='https://xdfsjztwgsbmabshzsjw.supabase.co';
+const SUPA='https://louise-willing-cases-strategies.trycloudflare.com';
 const KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
 const SOURCE='https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=JSON';
 const FLIGHT_ROOT='https://api.adsb.lol/v2/point/';

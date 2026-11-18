@@ -1,7 +1,7 @@
 (()=>{
 'use strict';
 const LOCAL_RUNTIME=location.hostname==='127.0.0.1'||location.hostname==='localhost';
-const SUPA=LOCAL_RUNTIME?location.origin:'https://xdfsjztwgsbmabshzsjw.supabase.co';
+const SUPA=LOCAL_RUNTIME?location.origin:'https://louise-willing-cases-strategies.trycloudflare.com';
 const KEY=LOCAL_RUNTIME?'bridgepoint-local':'sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
 const RPC=SUPA+'/rest/v1/rpc/';
 const SOURCE='bp-global-parcels-v957';

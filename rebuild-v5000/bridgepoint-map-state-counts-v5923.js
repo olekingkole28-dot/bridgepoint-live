@@ -1,7 +1,7 @@
 (()=>{
 'use strict';
 if(window.__BP_MAP_STATE_COUNTS_V5923__)return;
-const SUPA='https://xdfsjztwgsbmabshzsjw.supabase.co',KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
+const SUPA='https://louise-willing-cases-strategies.trycloudflare.com',KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
 const fmt=n=>Number(n||0).toLocaleString();
 let data=null,loading=null;
 function node(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=String(text);return n}

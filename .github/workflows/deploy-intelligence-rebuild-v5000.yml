@@ -44,6 +44,22 @@ on:
       - 'assets/planets/v1/**'
       - 'tests/horizon-replacement-entry.test.mjs'
       - 'tests/subsurface-wells-v1.test.mjs'
+      - 'acquisition_tracker.js'
+      - 'language-selector-v5200.js'
+      - 'release-v2300/world-v2300-config.js'
+      - 'release-v2300/world-v2300-bootstrap.js'
+      - 'release-v2300/world-v2300-flythrough.js'
+      - 'release-v2300/world-v2300-details.js'
+      - 'release-v2300/world-v2300-locked-countries.js'
+      - 'rebuild-v5000/global-property-v957.js'
+      - 'rebuild-v5000/bridgepoint-map-key-v5920.js'
+      - 'rebuild-v5000/bridgepoint-map-state-counts-v5923.js'
+      - 'rebuild-v5000/bridgepoint-map-physical-assets-v5924.js'
+      - 'rebuild-v5000/bridgepoint-global-motion-v5926.js'
+      - 'rebuild-v5000/intelligence-global-v5507.js'
+      - 'rebuild-v5000/intelligence-tools-v5507.js'
+      - 'rebuild-v5000/zoning-coverage-v1.js'
+      - 'tests/pc-runtime-cutover-v6238.test.mjs'
 
 permissions:
   contents: write
@@ -403,6 +419,7 @@ jobs:
           node 'tests/offshore-energy-v1.test.mjs'
           node --check rebuild-v5000/bridgepoint-subsurface-wells-v1.js
           node tests/subsurface-wells-v1.test.mjs
+          node tests/pc-runtime-cutover-v6238.test.mjs
           node --check rebuild-v5000/bridgepoint-underground-scan-sites-v1.js
           node tests/underground-scan-sites-v1.test.mjs
           node --check rebuild-v5000/bridgepoint-wind-turbines-v1.js
@@ -1374,8 +1391,8 @@ jobs:
           grep -Fq 'clusters=1&v=5961' site/world-v2300-underground-xray.js
           grep -Fq 'bp-underground-global-clusters-badge-v5961' site/world-v2300-underground-xray.js
           grep -Fq 'if (!Number.isFinite(terrainBaseM)) return null' site/bridgepoint-landmarks-v5940.js
-          grep -Fq 'bridgepoint-map-key-v5920.js?v=6037-mapkey-drawer-fix' site/index.html
-          grep -Fq 'bridgepoint-map-key-v5920.js?v=6037-mapkey-drawer-fix' site/app/index.html
+          grep -Fq 'bridgepoint-map-key-v5920.js?v=6238-pc-runtime' site/index.html
+          grep -Fq 'bridgepoint-map-key-v5920.js?v=6238-pc-runtime' site/app/index.html
           grep -Fq 'Liquid ocean + underwater exploration' site/bridgepoint-map-key-v5920.js
           grep -Fq 'Subsurface + Ocean-Depth X-Ray' site/bridgepoint-map-key-v5920.js
           grep -Fq 'data-liquid' site/world-v2300-sensor-layers.js
@@ -1426,8 +1443,8 @@ jobs:
           grep -Fq 'parcel-boundary-viewer-v5403.js?v=1130-global-public-source-credits' site/app/index.html
           node --check site/zoning-coverage-v1.js
           grep -Fq 'bridgepoint_public_zoning_coverage_v1' site/zoning-coverage-v1.js
-          grep -Fq 'zoning-coverage-v1.js?v=1123-lot-coverage-zoning' site/index.html
-          grep -Fq 'zoning-coverage-v1.js?v=1123-lot-coverage-zoning' site/app/index.html
+          grep -Fq 'zoning-coverage-v1.js?v=6238-pc-runtime' site/index.html
+          grep -Fq 'zoning-coverage-v1.js?v=6238-pc-runtime' site/app/index.html
           grep -Fq 'bridgepoint_public_global_status_v957' site/global-property-v957.js
           grep -Fq '/global-property-v957.js' site/index.html
           grep -Fq '/global-property-v957.js' site/app/index.html
@@ -1492,9 +1509,9 @@ jobs:
           ! grep -Fq '/walkthrough-v5537.css' site/app/index.html
           grep -Fq 'bp5507-live-hit' site/intelligence-global-v5507.js
           ! grep -Fq 'MAP KEY · WEATHER + WORLD' site/intelligence-global-v5507.js
-          grep -Fq 'intelligence-global-v5507.js?v=6170-imerg-nrt-timeline' site/index.html
-          grep -Fq 'intelligence-global-v5507.js?v=6170-imerg-nrt-timeline' site/app/index.html
-          grep -Fq "from'/intelligence-global-v5507.js?v=6170-imerg-nrt-timeline'" site/intelligence-tools-v5507.js
+          grep -Fq 'intelligence-global-v5507.js?v=6238-pc-runtime' site/index.html
+          grep -Fq 'intelligence-global-v5507.js?v=6238-pc-runtime' site/app/index.html
+          grep -Fq "from'/intelligence-global-v5507.js?v=6238-pc-runtime'" site/intelligence-tools-v5507.js
           ! grep -Fq "source('bp5507-live',fc())" site/intelligence-global-v5507.js
           ! grep -Fq '3D HOUSE QR' site/intelligence-tools-v5507.js
           grep -Fq 'Use two fingers and swipe / scroll up' site/intelligence-global-v5507.js
@@ -1850,8 +1867,8 @@ jobs:
           grep -Fq 'landing.css?v=5941-mobile-grid' site/index.html
           grep -Fq 'bridgepoint-view-v5917.css?v=6202-live-panels' site/index.html
           grep -Fq 'bridgepoint-view-v5917.css?v=6202-live-panels' site/app/index.html
-          grep -Fq 'bridgepoint-view-v5917.js?v=6215-satellite-persistent-render-guard' site/app/index.html
-          grep -Fq 'bridgepoint-view-v5917.js?v=6215-satellite-persistent-render-guard' site/index.html
+          grep -Fq 'bridgepoint-view-v5917.js?v=6238-pc-runtime' site/app/index.html
+          grep -Fq 'bridgepoint-view-v5917.js?v=6238-pc-runtime' site/index.html
           grep -Fq 'function setDockMaximized(on)' site/bridgepoint-view-v5917.js
           grep -Fq 'document.body.appendChild(keyRail)' site/bridgepoint-view-v5917.js
           grep -Fq 'p.removeAttribute('"'"'data-panel'"'"')' site/bridgepoint-view-v5917.js
@@ -1863,10 +1880,10 @@ jobs:
           grep -Fq '__BP_OPEN_MAP_KEY_V5920__=openMapKey' site/bridgepoint-map-key-v5920.js
           grep -Fq 'focusCoverageForOverlay' site/bridgepoint-nyc-lidar-v7000.js
           grep -Fq "const tier='GOLD';" site/world-v2300-map.js
-          grep -Fq 'intelligence-tools-v5507.js?v=6170-imerg-nrt-timeline' site/index.html
-           grep -Fq 'intelligence-tools-v5507.js?v=6170-imerg-nrt-timeline' site/app/index.html
-           grep -Fq 'bridgepoint-global-motion-v5926.js?v=6203-3d-orbit-markers-popup-global-zoom' site/index.html
-           grep -Fq 'bridgepoint-global-motion-v5926.js?v=6203-3d-orbit-markers-popup-global-zoom' site/app/index.html
+          grep -Fq 'intelligence-tools-v5507.js?v=6238-pc-runtime' site/index.html
+           grep -Fq 'intelligence-tools-v5507.js?v=6238-pc-runtime' site/app/index.html
+           grep -Fq 'bridgepoint-global-motion-v5926.js?v=6238-pc-runtime' site/index.html
+           grep -Fq 'bridgepoint-global-motion-v5926.js?v=6238-pc-runtime' site/app/index.html
            grep -Fq 'bridgepoint-landmarks-v5940.js?v=6001-style-persistence' site/index.html
            grep -Fq 'bridgepoint-landmarks-v5940.js?v=6001-style-persistence' site/app/index.html
            grep -Fq 'bottomNav' site/app/index.html

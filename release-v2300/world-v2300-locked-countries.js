@@ -1,4 +1,4 @@
-import{rpc}from'./world-v2300-config.js';
+import{rpc}from'./world-v2300-config.js?v=6238-pc-runtime';
 
 const COUNTRY='https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_countries.geojson';
 const US_CODES=['US','PR','GU','VI','AS','MP','UM'];

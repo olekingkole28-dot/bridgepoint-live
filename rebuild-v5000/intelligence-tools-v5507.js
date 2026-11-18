@@ -1,7 +1,7 @@
 import{openScenarioLab,closeScenarioLab}from'/scenario-lab-v5525.js?v=5525';
-import{rpc,sessionKey,globe,refresh,globalVisible}from'/intelligence-global-v5507.js?v=6170-imerg-nrt-timeline';
+import{rpc,sessionKey,globe,refresh,globalVisible}from'/intelligence-global-v5507.js?v=6238-pc-runtime';
 const RoadDrive5527=(()=>{
-const SUPA='https://xdfsjztwgsbmabshzsjw.supabase.co';
+const SUPA='https://louise-willing-cases-strategies.trycloudflare.com';
 const KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
 const DRIVE_MOBILE=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
 const PRESETS=[

@@ -1,7 +1,7 @@
 (()=>{
 'use strict';
 if(window.__BP_ZONING_COVERAGE_V1__)return;
-const SUPA='https://xdfsjztwgsbmabshzsjw.supabase.co';
+const SUPA='https://louise-willing-cases-strategies.trycloudflare.com';
 const KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
 const RPC=SUPA+'/rest/v1/rpc/bridgepoint_public_zoning_coverage_v1';
 let currentSelection=null,active=false,requestSeq=0;

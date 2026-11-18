@@ -1,6 +1,6 @@
 (()=>{
 'use strict';
-const SUPABASE='https://xdfsjztwgsbmabshzsjw.supabase.co';
+const SUPABASE='https://louise-willing-cases-strategies.trycloudflare.com';
 const KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
 const TRACK=SUPABASE+'/rest/v1/rpc/track_acquisition_event_v400';
 const POSTHOG_HOST='https://us.i.posthog.com';

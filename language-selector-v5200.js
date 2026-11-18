@@ -2,7 +2,7 @@
 const VERSION=1068;
 if(window.BridgePointLanguage?.version>=VERSION)return;
 
-const SUPA='https://xdfsjztwgsbmabshzsjw.supabase.co';
+const SUPA='https://louise-willing-cases-strategies.trycloudflare.com';
 const KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
 const STORAGE='bp-language';
 const LEGACY_STORAGE='bp-launch-lang';

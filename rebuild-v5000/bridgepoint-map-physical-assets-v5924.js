@@ -1,7 +1,7 @@
 (()=>{
 'use strict';
 if(window.__BP_PHYSICAL_ASSETS_V5924__)return;
-const SUPA='https://xdfsjztwgsbmabshzsjw.supabase.co',KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
+const SUPA='https://louise-willing-cases-strategies.trycloudflare.com',KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
 const EMPTY={type:'FeatureCollection',features:[]};
 const LAYERS={
  roof:['bp-v5924-roof-fill','bp-v5924-roof-outline'],

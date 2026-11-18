@@ -2,7 +2,7 @@
 'use strict';
 if(window.__BRIDGEPOINT_VIEW_V5917__)return;
 window.__BRIDGEPOINT_VIEW_V5917__={version:5920,bootedAt:Date.now(),mode:'initializing'};
-const SUPA='https://xdfsjztwgsbmabshzsjw.supabase.co';
+const SUPA='https://louise-willing-cases-strategies.trycloudflare.com';
 const KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
 const $=s=>document.querySelector(s),$$=s=>Array.from(document.querySelectorAll(s));
 const home=!!$('#previewMap')&&!$('#liveMap');

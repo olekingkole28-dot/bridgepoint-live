@@ -2,7 +2,7 @@
 'use strict';
 // Liquid Ocean is the unified control for animated surface waves, GEBCO bathymetry and reversible underwater exploration.
 if(window.__BP_MAP_KEY_V5920__)return;
-const SUPA='https://xdfsjztwgsbmabshzsjw.supabase.co';
+const SUPA='https://louise-willing-cases-strategies.trycloudflare.com';
 const KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
 const fmt=n=>Number(n||0).toLocaleString();
 let summary=null,loading=null;

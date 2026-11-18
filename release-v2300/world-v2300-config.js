@@ -1,6 +1,6 @@
 export const VERSION=2300;
 export const LOCAL_RUNTIME=location.hostname==='127.0.0.1'||location.hostname==='localhost';
-export const SUPA=LOCAL_RUNTIME?location.origin:'https://xdfsjztwgsbmabshzsjw.supabase.co';
+export const SUPA=LOCAL_RUNTIME?location.origin:'https://louise-willing-cases-strategies.trycloudflare.com';
 export const KEY=LOCAL_RUNTIME?'bridgepoint-local':'sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
 export const RPC=`${SUPA}/rest/v1/rpc/`;
 export const EDGE=`${SUPA}/functions/v1/`;
@@ -8,7 +8,7 @@ export const EMPTY={type:'FeatureCollection',features:[]};
 export const MOBILE=innerWidth<=900||/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
 export const LOW=(Number(navigator.deviceMemory||4)<=3||Number(navigator.hardwareConcurrency||4)<=4);
 export const TIER=LOW?'LOW':((Number(navigator.deviceMemory||4)>=8&&Number(navigator.hardwareConcurrency||4)>=8)?'HIGH':'MID');
-export const AUTH_KEYS=['sb-xdfsjztwgsbmabshzsjw-auth-token','bp-homepage-auth-v1990','bp-homepage-auth-v1992'];
+export const AUTH_KEYS=['bp_auth_v5045','sb-xdfsjztwgsbmabshzsjw-auth-token','bp-homepage-auth-v1990','bp-homepage-auth-v1992'];
 export const BUILDING_VIEWPORT_CANONICAL_ARGS=true;
 
 export function deepSession(v,seen=new Set()){

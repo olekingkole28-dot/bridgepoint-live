@@ -1,4 +1,4 @@
-import{LOW,MOBILE,clamp}from'./world-v2300-config.js';
+import{LOW,MOBILE,clamp}from'./world-v2300-config.js?v=6238-pc-runtime';
 
 const PROFILE=[
   [0,0],[6,0],[8,16],[10,28],[12,40],[14,54],[15.5,63],[16.8,70],[18,76],[19.5,80],[21,82]

@@ -1,4 +1,4 @@
-import{EMPTY,TIER,rpc,bbox,clamp}from'./world-v2300-config.js';
+import{EMPTY,TIER,rpc,bbox,clamp}from'./world-v2300-config.js?v=6238-pc-runtime';
 
 const OPP_MIN=TIER==='LOW'?15.0:TIER==='HIGH'?13.9:14.4;
 const OPP_ICON_MIN=TIER==='LOW'?16.3:TIER==='HIGH'?15.0:15.6;
