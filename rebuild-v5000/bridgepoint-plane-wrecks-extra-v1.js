@@ -104,6 +104,31 @@ export const EXTRA_PLANE_WRECKS=[
   license:'CC BY 4.0',
   attribution:'Haoran Wang, Nantheera Anantrasirichai and Brett Seymour, “Abyssal: A Large-scale Underwater 3D Reconstruction Dataset”, Zenodo record 21824088, CC BY 4.0. Tokai Maru / ISRO sequence converted and hosted by BridgePoint.',
   locationNote:'Apra Harbor wreck-site marker is approximate to published dive-site coordinates. Published descriptions put the shallowest part at about 42 ft (12.8 m); BridgePoint uses that as an approximate visual depth reference. The COLMAP model origin and orientation are not survey-grade.'
+ },
+ {
+  id:'bell-p39q-airacobra-lake-huron',
+  name:'Bell P-39Q Airacobra (#42-21226) — Wing Scan',
+  label:'P-39Q AIRACOBRA',
+  typeLabel:'Aircraft wreckage',
+  vehicleType:'Bell P-39Q Airacobra · serial #42-21226',
+  representationLabel:'Photogrammetry triangle mesh · wing component',
+  coordinates:[-82.425,43.028],
+  worldDepthM:10,
+  worldScale:1,
+  location:'Lake Huron, approximately four miles north of Port Huron, Michigan, USA',
+  date:'Lost 11 April 1944',
+  details:'Second Lt. Frank H. Moody’s Bell P-39Q Airacobra (#42-21226) crashed into Lake Huron during a training exercise on 11 April 1944. A search led by Michigan maritime archaeologist Wayne Lusardi and partners located the wreckage; NOAA reports an intact wing and Allison V-12 engine at approximately 10 meters depth. NOAA Ocean Exploration photographed the wing during the 2023 documentation work, and Raymond Phipps processed 438 still photographs into this photogrammetry model. This BridgePoint viewer shows the wing scan only—not a complete or intact aircraft.',
+  creator:'Raymond Phipps · NOAA Ocean Exploration',
+  photos:438,
+  sourceLabel:'NOAA Ocean Exploration source record and photogrammetry details',
+  sourceUrl:'https://oceanexplorer.noaa.gov/photogrammetry/p39q/',
+  originalModelUrl:'https://construkted.com/asset/ah9tooshsxa/',
+  historyUrl:'https://www.miplace.org/historic-preservation/programs-and-services/governors-awards-for-historic-preservation/lake-huron-red-tail-aircraft/',
+  assetUrl:'/assets/plane-wrecks/extra/p39q-airacobra-wing-photogrammetry.glb.gz',
+  assetName:'p39q-airacobra-wing-photogrammetry.glb.gz',
+  license:'Public Domain · NOAA-created model',
+  attribution:'Model courtesy of NOAA Ocean Exploration. Photogrammetry developed by Raymond Phipps, NOAA Ocean Exploration explorer-in-training, August 4, 2023. BridgePoint conversion of the publicly downloadable model; NOAA does not endorse BridgePoint.',
+  locationNote:'The marker is an approximate site locator based on NOAA’s description of the wreck as about four miles north of Port Huron. NOAA publishes an approximate site depth of 10 m but does not publish survey-grade coordinates or a geospatial transform for this wing mesh; the globe placement and model orientation are therefore for reference, not survey navigation.'
  }
 ];
 
@@ -343,7 +368,7 @@ function setMarkerVisibility(state,wreck,visible){
 }
 function setCountNote(){
  const count=document.getElementById(COUNT_ID);
- if(count)count.textContent='5 persistent wreck icons · 5 BridgePoint-hosted 3D model cards · Tokai Maru and Sunderland also placed in BridgePoint Earth';
+ if(count)count.textContent='6 persistent wreck icons · 6 BridgePoint-hosted 3D model cards · P-39Q Airacobra wing scan added; Tokai Maru and Sunderland also placed in BridgePoint Earth';
 }
 function setEnabledFromButton(state){
  const button=document.getElementById(TOGGLE_ID);
@@ -400,7 +425,7 @@ function cardHtml(wreck){
   '<p class="bp-plane-wreck-extra-note-v1">'+safe(wreck.details)+'</p>'+
   '<p class="bp-plane-wreck-extra-note-v1">'+safe(wreck.locationNote)+'</p>'+
   '<div class="bp-plane-wreck-extra-sources-v1"><b>Model source, history and attribution</b>'+
-   '<a href="'+safe(wreck.sourceUrl)+'" target="_blank" rel="noopener noreferrer">Zenodo source dataset and model provenance ↗</a>'+
+   '<a href="'+safe(wreck.sourceUrl)+'" target="_blank" rel="noopener noreferrer">'+safe(wreck.sourceLabel||'Source dataset and model provenance')+' ↗</a>'+
    '<a href="'+safe(wreck.historyUrl)+'" target="_blank" rel="noopener noreferrer">Aircraft / wreck historical reference ↗</a>'+
    '<a href="'+safe(wreck.originalModelUrl)+'" target="_blank" rel="noopener noreferrer">Original 3D model record ↗</a>'+
   '</div>'+
