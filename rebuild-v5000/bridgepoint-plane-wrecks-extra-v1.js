@@ -204,6 +204,32 @@ export const EXTRA_PLANE_WRECKS=[
   license:'CC BY 4.0',
   attribution:'Septentrion Environnement and LIS / Aix-Marseille Université, UMR CNRS 7020, “Messerschmitt Bf 109 G-6 — Planier Islet”, underwater photogrammetry. The associated published model is licensed CC BY 4.0. BridgePoint conversion is sampled from the original publicly served LIS Potree point cloud.',
   locationNote:'The map pin uses the published Planier wreck-site reference near 43.1996° N, 5.23021° E. It is an approximate site locator, not a survey-grade registration of the point-cloud origin; BridgePoint uses the published approximately 45 m depth reference.'
+ },
+ {
+  id:'boeing-b17f-black-jack-boga-boga',
+  name:'Boeing B-17F “Black Jack” — Boga Boga',
+  label:'B-17F BLACK JACK',
+  aircraft:'Boeing B-17F Flying Fortress heavy bomber',
+  typeLabel:'Aircraft wreck',
+  vehicleType:'Boeing B-17F Flying Fortress',
+  representationLabel:'Underwater photogrammetry reconstruction · source-hosted full-aircraft mesh',
+  coordinates:[149.8,-9.6],
+  location:'Off Boga Boga / Cape Vogel, Milne Bay Province, Papua New Guinea',
+  depthM:50,
+  date:'Ditched 11 July 1943 · 3D capture June 2023',
+  details:'B-17F “Black Jack” (serial 41-24521) ditched off the Cape Vogel / Boga Boga coast on 11 July 1943 after engine trouble, low fuel and severe weather during its return from a mission toward Rabaul. All ten crew survived; several were injured and were rescued with help from local villagers and Allied units. The aircraft rests on a sandy bottom at about 50 m. Divers Grant Thomas and Andrew Hamilton documented the wreck in June 2023; Curtin University HIVE created a detailed 3D reconstruction from the underwater imagery. The public source viewer displays the full aircraft reconstruction.',
+  creator:'Curtin University HIVE · underwater imagery: Grant Thomas and Andrew Hamilton',
+  photos:1983,
+  viewerMode:'public-source-embed',
+  sourceViewerName:'Sketchfab / Curtin University HIVE',
+  embedUrl:'https://sketchfab.com/models/dfbd407716a94dd9a16d6cb0c5f4a9de/embed',
+  sourceLabel:'Original photographer documentation and scan context · submerg3d',
+  sourceUrl:'https://submerg3d.com/b-17f-black-jack/',
+  originalModelUrl:'https://sketchfab.com/3d-models/american-b17-bomber-black-jack-lost-1943-dfbd407716a94dd9a16d6cb0c5f4a9de',
+  historyUrl:'https://pacificwrecks.com/aircraft/b-17/41-24521.html',
+  license:'© Curtin University HIVE · public source viewer only; local redistribution not authorized',
+  attribution:'3D model © Curtin University HIVE (Daniel Adams and Andrew Woods). Underwater imagery © Grant Thomas and Andrew Hamilton. BridgePoint hosts this information card and persistent marker and embeds the source-provided public viewer; the model file is not copied, mirrored or redistributed.',
+  locationNote:'Approximate Boga Boga / Cape Vogel area locator only. Public dive-site references place the wreck in this vicinity at about 50 m; exact coordinates are withheld in site-management material. This pin is not survey-grade and is not a navigation position.'
  }
 ];
 
@@ -443,7 +469,7 @@ function setMarkerVisibility(state,wreck,visible){
 }
 function setCountNote(){
  const count=document.getElementById(COUNT_ID);
- if(count)count.textContent='9 persistent wreck icons · 9 BridgePoint wreck cards · Messerschmitt Bf 109 added';
+ if(count)count.textContent='10 persistent wreck icons · 10 BridgePoint wreck cards · B-17F Black Jack added';
 }
 function setEnabledFromButton(state){
  const button=document.getElementById(TOGGLE_ID);
@@ -481,6 +507,7 @@ function addStyles(){
 }
 function cardHtml(wreck){
  const photos=wreck.photos?wreck.photos+' source photographs':'Source photogrammetry scan';
+ const sourceViewerName=wreck.sourceViewerName||'public source';
  return '<article class="bp-plane-wreck-extra-card-v1">'+
   '<div class="bp-extra-kicker">'+safe(wreck.kicker||'BRIDGEPOINT · PLANE WRECKS')+'</div>'+
   '<h3>'+safe(wreck.name)+'</h3>'+
@@ -492,13 +519,13 @@ function cardHtml(wreck){
    (wreck.depthMaps?'<span><b>Depth products</b>'+safe(wreck.depthMaps)+' companion Depth Anything maps</span>':'')+
    '<span><b>Reconstruction</b>'+safe(wreck.representationLabel||'Photogrammetry triangle mesh')+'</span>'+
    '<span><b>Rights</b>'+safe(wreck.license)+'</span>'+
-   '<span><b>Viewer hosting</b>'+(wreck.embedUrl?'Public Construkted embed':'BridgePoint local GLB')+'</span>'+ 
+   '<span><b>Viewer hosting</b>'+(wreck.embedUrl?safe(sourceViewerName)+' · source-streamed':'BridgePoint local GLB')+'</span>'+ 
    (wreck.worldDepthM?'<span><b>BridgePoint Earth</b>Placed at the wreck site · '+safe(wreck.worldDepthM)+' m below sea level</span>':(wreck.depthM?'<span><b>Published depth</b>Approx. '+safe(wreck.depthM)+' m below sea level</span>':''))+ 
   '</div>'+
   (wreck.embedUrl
-   ? '<div class="bp-plane-wreck-extra-viewer-v1 bp-plane-wreck-extra-source-viewer-v1" role="group" aria-label="Public NPS Submerged Resources Center 3D model viewer"><iframe src="'+safe(wreck.embedUrl)+'" title="'+safe(wreck.name)+' — public 3D viewer" loading="lazy" allow="fullscreen" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>'
+   ? '<div class="bp-plane-wreck-extra-viewer-v1 bp-plane-wreck-extra-source-viewer-v1" role="group" aria-label="Public '+safe(sourceViewerName)+' 3D model viewer"><iframe src="'+safe(wreck.embedUrl)+'" title="'+safe(wreck.name)+' — public 3D viewer" loading="lazy" allow="fullscreen" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>'
    : '<div class="bp-plane-wreck-extra-viewer-v1" data-bp-plane-wreck-extra-viewer="'+safe(wreck.id)+'" role="group" aria-label="BridgePoint-hosted interactive photogrammetry model"><div class="bp-plane-wreck-extra-viewer-loading-v1">Loading BridgePoint-hosted '+safe(wreck.representationLabel||'photogrammetry mesh')+'…</div></div>')+
-  (wreck.embedUrl?'<div class="bp-plane-wreck-extra-status-v1">Public Construkted Reality 3D viewer embedded inside this BridgePoint card · the model is streamed by the source host</div>':'<div class="bp-plane-wreck-extra-status-v1" data-extra-model-status>BridgePoint-hosted model · drag to rotate and scroll or pinch to zoom</div>')+
+  (wreck.embedUrl?'<div class="bp-plane-wreck-extra-status-v1">Public '+safe(sourceViewerName)+' 3D viewer embedded inside this BridgePoint card · geometry streams from the source host, not BridgePoint storage</div>':'<div class="bp-plane-wreck-extra-status-v1" data-extra-model-status>BridgePoint-hosted model · drag to rotate and scroll or pinch to zoom</div>')+
   '<p class="bp-plane-wreck-extra-note-v1">'+safe(wreck.details)+'</p>'+
   '<p class="bp-plane-wreck-extra-note-v1">'+safe(wreck.locationNote)+'</p>'+
   '<div class="bp-plane-wreck-extra-sources-v1"><b>Model source, history and attribution</b>'+
