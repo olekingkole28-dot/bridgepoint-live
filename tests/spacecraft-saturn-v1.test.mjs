@@ -12,7 +12,7 @@ assert.equal(SPACECRAFT_SATURN.stages,3);
 assert.equal(SPACECRAFT_SATURN.apollo11LaunchDate,'July 16, 1969');
 assert.match(SPACECRAFT_SATURN.sourceMethod,/NASA 3D Resources/);
 assert.match(SPACECRAFT_SATURN.sourceMethod,/not photogrammetry scans/);
-assert.match(SPACECRAFT_SATURN.placementPrecision,/not survey-grade/);
+assert.match(SPACECRAFT_SATURN.placementPrecision,/survey-grade reconstruction/);
 assert.equal(SPACECRAFT_SATURN_ASSETS.length,2);
 assert.ok(SPACECRAFT_SATURN_ASSETS.every(path=>path.startsWith('/assets/spacecraft/')&&path.endsWith('.glb')));
 assert.match(SPACECRAFT_SATURN_ASSETS[0],/nasa-saturn-v\.glb/);
