@@ -422,7 +422,7 @@ jobs:
                   if plane_import<0 or plane_end<0:
                       raise SystemExit(f"{rel}: no existing Plane Wrecks import anchor for additive Spacecraft layer")
                   plane_end += len(plane_catch)
-                  data=data[:plane_end]+"\\n"+spacecraft_attach+data[plane_end:]
+                  data=data[:plane_end]+"\n"+spacecraft_attach+data[plane_end:]
               p.write_text(data,encoding="utf-8")
           for rel,needle in (("index.html","landing.js"),("app/index.html","app.js")):
               p=site/rel;data=p.read_text(encoding="utf-8")
@@ -446,14 +446,6 @@ jobs:
                   drone_updated=drone_url+("&" if "?" in drone_url else "?")+"v=12-shipwrecks-v3-kxi-icons"
               if drone_updated!=drone_url:
                   data=data.replace(drone_url,drone_updated,1)
-              if "initSpacecraftRenderer(world)" not in data:
-                  plane_import=data.find("initPlaneWrecksRenderer(world)")
-                  plane_catch=".catch(e=>console.warn('BridgePoint Plane Wrecks layer unavailable',e));"
-                  plane_end=data.find(plane_catch,plane_import) if plane_import>=0 else -1
-                  if plane_import<0 or plane_end<0:
-                      raise SystemExit(f"{rel}: no existing Plane Wrecks import anchor for additive Spacecraft layer")
-                  plane_end += len(plane_catch)
-                  data=data[:plane_end]+"\\n"+spacecraft_attach+data[plane_end:]
               p.write_text(data,encoding="utf-8")
           before=json.loads((Path(os.environ["RUNNER_TEMP"])/"shipwrecks-before.json").read_text())
           after={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
@@ -503,7 +495,7 @@ jobs:
           if missing:
               raise SystemExit("SHIPWRECKS_V2_REQUIRED_RUNTIME_FILE_MISSING "+json.dumps(sorted(missing)))
           assert (site/"bridgepoint-shipwrecks-v1.js").read_bytes()==(site/"app/bridgepoint-shipwrecks-v1.js").read_bytes()
-          print("SHIPWRECKS_V11_ONLY_OVERLAY_SCOPE_PASS",len(changed),"existing files changed",len(added),"files added; no removals")
+          print("SHIPWRECKS_V11_AND_SPACECRAFT_V1_ADDITIVE_OVERLAY_SCOPE_PASS",len(changed),"existing files changed",len(added),"files added; no removals")
           PY
           node --check "$SITE/landing.js"
           node --check "$SITE/app.js"
