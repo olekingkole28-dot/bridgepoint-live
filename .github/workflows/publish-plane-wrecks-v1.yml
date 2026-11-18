@@ -377,7 +377,7 @@ jobs:
           node --input-type=module --check < "$SITE/vendor/GLTFLoader.bundle.js"
           grep -Fq 'from "/vendor/three.module.js?v=169-local"' "$SITE/vendor/GLTFLoader.bundle.js"
 
-      - name: Overlay the eight Plane Wrecks markers and cards
+      - name: Overlay the nine additional Plane Wrecks markers and cards
         shell: bash
         run: |
           set -euo pipefail
@@ -410,7 +410,7 @@ jobs:
           plane_import="""void import('./bridgepoint-plane-wrecks-v1.js?v=2-f4u1-persistent-dom-marker')
            .then(m=>{window.__BP_PLANE_WRECKS_V1__=m.initPlaneWrecksRenderer(world)})
            .catch(e=>console.warn('BridgePoint Plane Wrecks layer unavailable',e));"""
-          extra_import="""void import('./bridgepoint-plane-wrecks-extra-v1.js?v=7-messerschmitt-bf109-planier')
+          extra_import="""void import('./bridgepoint-plane-wrecks-extra-v1.js?v=8-b17f-black-jack')
            .then(m=>{window.__BP_PLANE_WRECKS_EXTRA_V1__=m.initPlaneWrecksExtraRenderer(world)})
            .catch(e=>console.warn('BridgePoint additional Plane Wrecks layer unavailable',e));"""
           shipwreck_anchor=".catch(e=>console.warn('BridgePoint shipwreck renderer unavailable',e));"
@@ -433,8 +433,8 @@ jobs:
               extra_refs=list(re.finditer(r"bridgepoint-plane-wrecks-extra-v1\.js(?:\?v=[^'\"]*)?",data))
               if len(extra_refs)!=1:
                   raise SystemExit(f"{rel}: expected exactly one extra Plane Wrecks module import, got {len(extra_refs)}")
-              data=re.sub(r"(bridgepoint-plane-wrecks-extra-v1\.js\?v=)[^'\"]+",r"\g<1>7-messerschmitt-bf109-planier",data,count=1)
-              if "bridgepoint-plane-wrecks-extra-v1.js?v=7-messerschmitt-bf109-planier" not in data:
+              data=re.sub(r"(bridgepoint-plane-wrecks-extra-v1\.js\?v=)[^'\"]+",r"\g<1>8-b17f-black-jack",data,count=1)
+              if "bridgepoint-plane-wrecks-extra-v1.js?v=8-b17f-black-jack" not in data:
                   raise SystemExit(f"{rel}: failed to version-bust the extra Plane Wrecks module import")
               p.write_text(data,encoding="utf-8")
           for rel,script in (("index.html","landing.js"),("app/index.html","app.js")):
@@ -442,8 +442,8 @@ jobs:
               hits=list(re.finditer(r'src="([^"]*'+re.escape(script)+r'(?:\?[^"]*)?)"',data))
               if len(hits)!=1:raise SystemExit(f"{rel}: expected one {script} script URL, got {len(hits)}")
               url=hits[0].group(1)
-              if "planeWrecksExtra=messerschmitt-bf109-planier-v1" not in url:
-                  data=data.replace(url,url+("&" if "?" in url else "?")+"planeWrecksExtra=messerschmitt-bf109-planier-v1",1)
+              if "planeWrecksExtra=b17f-black-jack-v1" not in url:
+                  data=data.replace(url,url+("&" if "?" in url else "?")+"planeWrecksExtra=b17f-black-jack-v1",1)
               guard=list(re.finditer(r'src="([^"]*bridgepoint-drone-awareness-v1\.js(?:\?[^"]*)?)"',data))
               if len(guard)!=1:raise SystemExit(f"{rel}: expected one overlay-guard script URL")
               old=guard[0].group(1)
@@ -504,7 +504,7 @@ jobs:
           path: ${{ runner.temp }}/plane-wrecks-site
           include-hidden-files: true
 
-      - name: Publish BridgePoint Plane Wrecks — nine persistent wreck viewers
+      - name: Publish BridgePoint Plane Wrecks — ten persistent wreck viewers
         id: deployment
         uses: actions/deploy-pages@v4
         with:
