@@ -130,6 +130,30 @@ export const EXTRA_PLANE_WRECKS=[
   attribution:'Model courtesy of NOAA Ocean Exploration. Photogrammetry developed by Raymond Phipps, NOAA Ocean Exploration explorer-in-training, August 4, 2023. BridgePoint conversion of the publicly downloadable model; NOAA does not endorse BridgePoint.',
   locationNote:'The marker is an approximate site locator based on NOAA’s description of the wreck as about four miles north of Port Huron. NOAA publishes an approximate site depth of 10 m but does not publish survey-grade coordinates or a geospatial transform for this wing mesh; the globe placement and model orientation are therefore for reference, not survey navigation.'
  }
+ ,
+ {
+  id:'kawanishi-h8k-emily-jaluit',
+  name:'Kawanishi H8K “Emily” — Jaluit Atoll',
+  label:'KAWANISHI H8K · EMILY',
+  aircraft:'Imperial Japanese Navy Kawanishi H8K flying boat',
+  coordinates:[169.717,6.0127667],
+  location:'Jaluit Atoll lagoon, off Imiej Island, Republic of the Marshall Islands',
+  depthM:27.4,
+  date:'World War II wreck · 3D capture 1 May 2023',
+  details:'The NPS Submerged Resources Center photogrammetry scan depicts an Imperial Japanese Navy Kawanishi H8K (“Emily”) four-engine maritime patrol flying boat resting inverted in the Jaluit lagoon, with its tail separated after American airstrikes. The Republic of the Marshall Islands Historic Preservation Office 1999 underwater survey documents intact H8K wreckage as site MI-JL-LA-002 off Imiej Island, at approximately 90 ft (27.4 m) depth. The survey describes the aircraft as inverted and very well intact. The asset page identifies a 40.58-million-polygon mesh captured on 1 May 2023 and processed in 3DF Zephyr.',
+  creator:'NPS Submerged Resources Center',
+  photos:null,
+  representationLabel:'40.58-million-polygon photogrammetry mesh',
+  viewerMode:'public-source-embed',
+  embedUrl:'https://construkted.com/embed/aekeemf4u6h',
+  sourceLabel:'NPS Submerged Resources Center public model record',
+  sourceUrl:'https://construkted.com/asset/aekeemf4u6h/',
+  originalModelUrl:'https://construkted.com/asset/aekeemf4u6h/',
+  historyUrl:'https://rmi-data.sprep.org/system/files/Anthropological-Survey-of-Jaluit-Atoll_Terrestrial_Underwater_Reconnaissance_Surveys_Oral_History_recordings_1999.pdf',
+  license:'Public viewing · download / redistribution not verified',
+  attribution:'Model and public viewer courtesy of the National Park Service Submerged Resources Center, “Jaluit Atoll Kawanishi H8K Emily”, hosted on Construkted Reality. BridgePoint embeds the source-provided public viewer; no local model-file mirror is claimed.',
+  locationNote:'Approximate locator from the RMI Historic Preservation Office 1999 survey for Site MI-JL-LA-002: 06°00.766′ N, 169°43.020′ E, southwest of the first coral pinnacle off Imiej Island. The report repeats the same coordinate string for the separate shallow-water H8K record, so this pin is a broad site reference only—not a verified photogrammetry origin or navigation-grade position.'
+ }
 ];
 
 function safe(value){
@@ -303,7 +327,7 @@ function ensureWorldMeshLayer(state,wreck,result){
  }
 }
 async function ensureWorldModel(state,wreck){
- if(!wreck.worldDepthM||!state.enabled||state.destroyed)return false;
+ if(!wreck.assetUrl||!wreck.worldDepthM||!state.enabled||state.destroyed)return false;
  if(state.worldPromises.has(wreck.id))return state.worldPromises.get(wreck.id);
  const task=(async()=>{
   try{
@@ -332,7 +356,7 @@ function makeMarkerElement(wreck){
  const element=document.createElement('button');
  element.type='button';
  element.className=MARKER_CLASS;
- element.setAttribute('aria-label',wreck.name+'. Open BridgePoint-hosted photogrammetry viewer and details.');
+ element.setAttribute('aria-label',wreck.name+(wreck.embedUrl?'. Open BridgePoint card with public source-hosted 3D viewer and details.':'. Open BridgePoint-hosted photogrammetry viewer and details.'));
  element.title=wreck.name+' · open BridgePoint 3D model card';
  element.innerHTML=wreck.iconType==='ship'
   ?'<svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><path d="M8 38h48l-7 15H17z" fill="currentColor" stroke="#fff1ca" stroke-width="1.7" stroke-linejoin="round"/><path d="M18 35V21h9v-8h12v22M29 21h10M12 57c4-3 8-3 12 0s8 3 12 0 8-3 12 0 6 2 8 0" fill="none" stroke="#fff1ca" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
@@ -368,7 +392,7 @@ function setMarkerVisibility(state,wreck,visible){
 }
 function setCountNote(){
  const count=document.getElementById(COUNT_ID);
- if(count)count.textContent='6 persistent wreck icons · 6 BridgePoint-hosted 3D model cards · P-39Q Airacobra wing scan added; Tokai Maru and Sunderland also placed in BridgePoint Earth';
+ if(count)count.textContent='7 persistent wreck icons · 7 BridgePoint wreck cards · Jaluit Atoll Kawanishi H8K “Emily” added';
 }
 function setEnabledFromButton(state){
  const button=document.getElementById(TOGGLE_ID);
@@ -399,7 +423,7 @@ function addStyles(){
   '.bp-plane-wreck-extra-popup-v1 .maplibregl-popup-tip{border-top-color:#06131f;border-bottom-color:#06131f}'+
   '.bp-plane-wreck-extra-card-v1 .bp-extra-kicker{font-size:9px;letter-spacing:.13em;font-weight:900;color:#f0c878}.bp-plane-wreck-extra-card-v1 h3{font-size:18px;color:#fff;margin:4px 0}.bp-plane-wreck-extra-card-v1 .bp-extra-subtitle{color:#c4d6df;margin:2px 0 8px}'+
   '.bp-plane-wreck-extra-card-v1 .bp-extra-facts{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:7px 0 10px}.bp-plane-wreck-extra-card-v1 .bp-extra-facts span{display:grid;gap:2px;padding:7px;border:1px solid rgba(170,197,207,.18);border-radius:7px;color:#e4eff4;font-size:10px;overflow-wrap:anywhere}.bp-plane-wreck-extra-card-v1 .bp-extra-facts b{font-size:9px;color:#9eb7c5;text-transform:uppercase;letter-spacing:.08em}'+
-  '.bp-plane-wreck-extra-viewer-v1{width:100%;aspect-ratio:4/3;min-height:230px;background:#02070d;border-radius:9px;overflow:hidden;margin:9px 0;border:1px solid rgba(226,186,109,.3)}.bp-plane-wreck-extra-viewer-v1 canvas{width:100%;height:100%;display:block;touch-action:none}.bp-plane-wreck-extra-viewer-loading-v1,.bp-plane-wreck-extra-viewer-error-v1{display:grid;place-items:center;min-height:220px;padding:20px;text-align:center;color:#c3d7df;font-size:12px;background:radial-gradient(ellipse at center,rgba(28,67,83,.42),rgba(2,7,13,.96))}'+
+  '.bp-plane-wreck-extra-viewer-v1{width:100%;aspect-ratio:4/3;min-height:230px;background:#02070d;border-radius:9px;overflow:hidden;margin:9px 0;border:1px solid rgba(226,186,109,.3)}.bp-plane-wreck-extra-viewer-v1 canvas,.bp-plane-wreck-extra-viewer-v1 iframe{width:100%;height:100%;min-height:230px;display:block;border:0;touch-action:pan-x pan-y}.bp-plane-wreck-extra-viewer-loading-v1,.bp-plane-wreck-extra-viewer-error-v1{display:grid;place-items:center;min-height:220px;padding:20px;text-align:center;color:#c3d7df;font-size:12px;background:radial-gradient(ellipse at center,rgba(28,67,83,.42),rgba(2,7,13,.96))}'+
   '.bp-plane-wreck-extra-status-v1,.bp-plane-wreck-extra-note-v1{margin:7px 0;color:#a9d2c8;font-size:10px;overflow-wrap:anywhere}.bp-plane-wreck-extra-note-v1{color:#a9c2cb}.bp-plane-wreck-extra-sources-v1{display:grid;gap:5px;border-top:1px solid rgba(154,205,212,.16);padding-top:8px;margin-top:8px;font-size:10px}.bp-plane-wreck-extra-sources-v1>b{color:#dceaf0}.bp-plane-wreck-extra-sources-v1 a{color:#f1cf88;text-decoration:underline}'+
   '@media(max-width:480px){.bp-plane-wreck-extra-popup-v1 .maplibregl-popup-content{width:min(345px,calc(100vw - 44px));padding:10px}.bp-plane-wreck-extra-viewer-v1{min-height:190px}}';
  document.head.appendChild(style);
@@ -417,11 +441,13 @@ function cardHtml(wreck){
    (wreck.depthMaps?'<span><b>Depth products</b>'+safe(wreck.depthMaps)+' companion Depth Anything maps</span>':'')+
    '<span><b>Reconstruction</b>'+safe(wreck.representationLabel||'Photogrammetry triangle mesh')+'</span>'+
    '<span><b>Rights</b>'+safe(wreck.license)+'</span>'+
-   '<span><b>Hosted asset</b>BridgePoint local GLB</span>'+
-   (wreck.worldDepthM?'<span><b>BridgePoint Earth</b>Placed at the wreck site · '+safe(wreck.worldDepthM)+' m below sea level</span>':'')+
+   '<span><b>Viewer hosting</b>'+(wreck.embedUrl?'Public Construkted embed':'BridgePoint local GLB')+'</span>'+ 
+   (wreck.worldDepthM?'<span><b>BridgePoint Earth</b>Placed at the wreck site · '+safe(wreck.worldDepthM)+' m below sea level</span>':(wreck.depthM?'<span><b>Published depth</b>Approx. '+safe(wreck.depthM)+' m below sea level</span>':''))+ 
   '</div>'+
-  '<div class="bp-plane-wreck-extra-viewer-v1" data-bp-plane-wreck-extra-viewer="'+safe(wreck.id)+'" role="group" aria-label="BridgePoint-hosted interactive photogrammetry model"><div class="bp-plane-wreck-extra-viewer-loading-v1">Loading BridgePoint-hosted '+safe(wreck.representationLabel||'photogrammetry mesh')+'…</div></div>'+
-  '<div class="bp-plane-wreck-extra-status-v1" data-extra-model-status>BridgePoint-hosted model · drag to rotate and scroll or pinch to zoom</div>'+
+  (wreck.embedUrl
+   ? '<div class="bp-plane-wreck-extra-viewer-v1 bp-plane-wreck-extra-source-viewer-v1" role="group" aria-label="Public NPS Submerged Resources Center 3D model viewer"><iframe src="'+safe(wreck.embedUrl)+'" title="'+safe(wreck.name)+' — public 3D viewer" loading="lazy" allow="fullscreen" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>'
+   : '<div class="bp-plane-wreck-extra-viewer-v1" data-bp-plane-wreck-extra-viewer="'+safe(wreck.id)+'" role="group" aria-label="BridgePoint-hosted interactive photogrammetry model"><div class="bp-plane-wreck-extra-viewer-loading-v1">Loading BridgePoint-hosted '+safe(wreck.representationLabel||'photogrammetry mesh')+'…</div></div>')+
+  (wreck.embedUrl?'<div class="bp-plane-wreck-extra-status-v1">Public Construkted Reality 3D viewer embedded inside this BridgePoint card · the model is streamed by the source host</div>':'<div class="bp-plane-wreck-extra-status-v1" data-extra-model-status>BridgePoint-hosted model · drag to rotate and scroll or pinch to zoom</div>')+
   '<p class="bp-plane-wreck-extra-note-v1">'+safe(wreck.details)+'</p>'+
   '<p class="bp-plane-wreck-extra-note-v1">'+safe(wreck.locationNote)+'</p>'+
   '<div class="bp-plane-wreck-extra-sources-v1"><b>Model source, history and attribution</b>'+
@@ -441,6 +467,7 @@ function openCard(state,wreck){
  mountViewer(state,state.popup,wreck);
 }
 function mountViewer(state,popup,wreck){
+ if(wreck.embedUrl)return;
  const root=popup?.getElement?.();
  const host=root?.querySelector('[data-bp-plane-wreck-extra-viewer="'+wreck.id+'"]');
  if(!host)return;
