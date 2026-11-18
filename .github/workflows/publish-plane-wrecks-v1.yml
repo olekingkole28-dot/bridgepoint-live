@@ -608,4 +608,18 @@ jobs:
           assert primitives
           print('BRIDGEPOINT_P39Q_LIVE_ASSET_PASS',manifest['triangles'],'triangles',manifest['vertices'],'vertices',len(raw),'GLB bytes')
           PY
+          python3 - "$D/messerschmitt" "$D/extracatalog" <<'PY'
+          import gzip,json,struct,sys
+          raw=gzip.decompress(open(sys.argv[1],'rb').read())
+          catalog=json.load(open(sys.argv[2],encoding='utf-8'))
+          item=next(m for m in catalog['models'] if m['id']=='messerschmitt-bf109-g6-planier')
+          assert raw[:4]==b'glTF' and struct.unpack_from('<I',raw,8)[0]==len(raw)
+          json_len=struct.unpack_from('<I',raw,12)[0]
+          doc=json.loads(raw[20:20+json_len].decode('utf-8').rstrip(' '))
+          assert item['sourcePointCount']==278909422
+          assert item['license']=='CC BY 4.0'
+          assert item['renderedPointCount']==doc['accessors'][0]['count']
+          assert doc['meshes'][0]['primitives'][0]['mode']==0
+          print('BRIDGEPOINT_MESSERSCHMITT_LIVE_ASSET_PASS',item['renderedPointCount'],'points',len(raw),'GLB bytes')
+          PY
           echo "BRIDGEPOINT_PLANE_WRECKS_EXTRA_LIVE_VERIFY_PASS"
