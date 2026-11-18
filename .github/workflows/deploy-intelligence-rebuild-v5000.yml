@@ -1606,8 +1606,8 @@ jobs:
           node --check site/app/world-v2300-sidewalks-3d.js
           node --check site/app/world-v2300-map.js
           node --check scripts/deploy-pages-extended.mjs
-          grep -Fq "from'./world-v2300-sidewalks-3d.js?v=20261107-sidewalk-terrain-local-offsets-v4-progressive-viewport-grass'" site/world-v2300-map.js
-          grep -Fq "from'./world-v2300-sidewalks-3d.js?v=20261107-sidewalk-terrain-local-offsets-v4-progressive-viewport-grass'" site/app/world-v2300-map.js
+          grep -Fq "from'./world-v2300-sidewalks-3d.js?v=20261116-sidewalk-coverage-curbs-v3'" site/world-v2300-map.js
+          grep -Fq "from'./world-v2300-sidewalks-3d.js?v=20261116-sidewalk-coverage-curbs-v3'" site/app/world-v2300-map.js
           grep -Fq "gta-bp-sidewalk-slabs-v1" site/world-v2300-map.js
           grep -Fq "gta-bp-sidewalk-slabs-v1" site/app/world-v2300-map.js
           grep -Fq 'function refreshSidewalk3DFromTiles(extraFeatures=[],force=false)' site/world-v2300-map.js
@@ -2185,7 +2185,7 @@ jobs:
               && grep -Fq '__BP_WORLD_RENDER_VERSION__=5630' /tmp/world-v2300-map.js \
               && grep -Fq 'refreshSidewalk3DFromTiles(extraFeatures=[],force=false)' /tmp/world-v2300-map.js \
               && grep -Fq 'bpSidewalkTileSyncTimer=setTimeout' /tmp/world-v2300-map.js \
-              && grep -Fq 'world-v2300-sidewalks-3d.js?v=20261107-sidewalk-terrain-local-offsets-v4-progressive-viewport-grass' /tmp/world-v2300-map.js \
+              && grep -Fq 'world-v2300-sidewalks-3d.js?v=20261116-sidewalk-coverage-curbs-v3' /tmp/world-v2300-map.js \
               && grep -Fq 'const limits=mobile?{paths:84,panels:420,verges:280,blades:1600,cracks:90}' /tmp/world-v2300-sidewalks-3d.js \
               && grep -Fq 'window.__BP_FRESH_SIGNIN__!==true' /tmp/root.html \
               && grep -Fq 'bp_fresh_signin_v1' /tmp/app.html \
