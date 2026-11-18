@@ -2597,7 +2597,7 @@ jobs:
           done
           gzip -t "$D/bridgepoint-faa-obstructions-v1.json.gz"
 
-          grep -Fq '4 persistent spacecraft icons' "$D/bridgepoint-spacecraft-v1.js"
+          grep -Fq 'initSpacecraftRenderer' "$D/bridgepoint-spacecraft-v1.js"
           grep -Fq 'Apollo 11 Command Module' "$D/bridgepoint-spacecraft-columbia-v1.js"
           grep -Fq 'Space Shuttle Orbiter OV-103' "$D/bridgepoint-spacecraft-discovery-v1.js"
           grep -Fq 'NASA Saturn V + Launch Complex 39A Gantry' "$D/bridgepoint-spacecraft-saturn-v1.js"
