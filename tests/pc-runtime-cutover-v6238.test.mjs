@@ -8,8 +8,6 @@ const runtimeFiles = [
   'acquisition_tracker.js',
   'language-selector-v5200.js',
   'release-v2300/world-v2300-config.js',
-  'rebuild-v5000/landing.js',
-  'rebuild-v5000/app.js',
   'rebuild-v5000/global-property-v957.js',
   'rebuild-v5000/bridgepoint-map-key-v5920.js',
   'rebuild-v5000/bridgepoint-map-state-counts-v5923.js',
@@ -25,6 +23,13 @@ for (const path of runtimeFiles) {
   const source = fs.readFileSync(path, 'utf8');
   assert.ok(source.includes(PC_API), path + ' must use the PC-backed runtime');
   assert.ok(!source.includes(RETIRED_API), path + ' still references the retired Supabase project');
+}
+
+for (const path of ['rebuild-v5000/landing.js', 'rebuild-v5000/app.js']) {
+  const source = fs.readFileSync(path, 'utf8');
+  assert.ok(source.includes('world-v2300-map.js?v=6238-pc-runtime'), path + ' must import the refreshed globe map module');
+  assert.ok(source.includes('world-v2300-weather.js?v=6238-pc-runtime'), path + ' must import the refreshed weather module');
+  assert.ok(!source.includes(RETIRED_API), path + ' must not reference the retired Supabase project');
 }
 
 const config = fs.readFileSync('release-v2300/world-v2300-config.js', 'utf8');
