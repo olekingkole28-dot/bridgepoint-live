@@ -1617,8 +1617,10 @@ jobs:
           grep -Fq 'function refreshSidewalk3DFromTiles(extraFeatures=[],force=false)' site/app/world-v2300-map.js
           grep -Fq "const sidewalkBatch=clipBatch([...sidewalkRenderedRaw,...sidewalkExtraRaw],'walkway',MAX_SIDEWALK_RENDER_FEATURES,MAX_SIDEWALK_RENDER_VERTICES)" site/world-v2300-map.js
           grep -Fq "const sidewalkBatch=clipBatch([...sidewalkRenderedRaw,...sidewalkExtraRaw],'walkway',MAX_SIDEWALK_RENDER_FEATURES,MAX_SIDEWALK_RENDER_VERTICES)" site/app/world-v2300-map.js
-          grep -Fq "map.queryRenderedFeatures({layers:['gta-global-sidewalk-approach-v1']})" site/world-v2300-map.js
-          grep -Fq "map.queryRenderedFeatures({layers:['gta-global-sidewalk-approach-v1']})" site/app/world-v2300-map.js
+          grep -Fq "const sidewalkFeatureLayers=['gta-global-sidewalk-approach-v1','gta-bp-sidewalk'].filter(id=>map.getLayer(id))" site/world-v2300-map.js
+           grep -Fq "map.queryRenderedFeatures({layers:sidewalkFeatureLayers})||[]" site/world-v2300-map.js
+          grep -Fq "const sidewalkFeatureLayers=['gta-global-sidewalk-approach-v1','gta-bp-sidewalk'].filter(id=>map.getLayer(id))" site/app/world-v2300-map.js
+           grep -Fq "map.queryRenderedFeatures({layers:sidewalkFeatureLayers})||[]" site/app/world-v2300-map.js
           grep -Fq "base_m:0,terrain_sampled:sampled,terrain_elevation_m:sampled?elevation:null" site/world-v2300-sidewalks-3d.js
           grep -Fq "top_m:0.145" site/world-v2300-sidewalks-3d.js
           grep -Fq "top_m:0.20" site/world-v2300-sidewalks-3d.js
