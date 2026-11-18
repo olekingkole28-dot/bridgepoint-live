@@ -544,7 +544,7 @@ jobs:
       - name: Upload the preserved production site with the additive Shipwrecks v11 overlay
         uses: actions/upload-pages-artifact@v4
         with:
-          name: github-pages-spacecraft-v1
+          name: github-pages-shipwrecks-v11
           path: ${{ runner.temp }}/shipwrecks-site
           include-hidden-files: true
 
@@ -552,7 +552,7 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
         with:
-          artifact_name: github-pages-spacecraft-v1
+          artifact_name: github-pages-shipwrecks-v11
 
       - name: Verify live root/app entry points, wrecks and BridgePoint-hosted Spacecraft launch-site scene
         shell: bash
