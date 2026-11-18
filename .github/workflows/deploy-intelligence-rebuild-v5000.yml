@@ -1606,6 +1606,8 @@ jobs:
           node --check site/app/world-v2300-sidewalks-3d.js
           node --check site/app/world-v2300-map.js
           node --check scripts/deploy-pages-extended.mjs
+           node --check scripts/pages-artifact-size.mjs
+           node tests/pages-artifact-size.test.mjs
           grep -Fq "from'./world-v2300-sidewalks-3d.js?v=20261116-sidewalk-coverage-curbs-v3'" site/world-v2300-map.js
           grep -Fq "from'./world-v2300-sidewalks-3d.js?v=20261116-sidewalk-coverage-curbs-v3'" site/app/world-v2300-map.js
           grep -Fq "gta-bp-sidewalk-slabs-v1" site/world-v2300-map.js
