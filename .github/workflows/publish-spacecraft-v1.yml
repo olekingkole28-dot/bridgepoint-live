@@ -128,11 +128,70 @@ jobs:
           print('BRIDGEPOINT_SMITHSONIAN_DISCOVERY_GLB_PASS',len(raw),'bytes')
           PY
 
-      - name: Download the verified ten-plane production Pages artifact
+      - name: Select the latest successful deployed GitHub Pages artifact
+        id: baseline
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, urllib.request
+          repo=os.environ["REPOSITORY"]
+          token=os.environ["GH_TOKEN"]
+          headers={"Accept":"application/vnd.github+json",
+                   "Authorization":"Bearer "+token,
+                   "X-GitHub-Api-Version":"2022-11-28"}
+          def api(path):
+              req=urllib.request.Request("https://api.github.com/repos/"+repo+path,headers=headers)
+              with urllib.request.urlopen(req,timeout=35) as response:
+                  return json.load(response)
+          runs=api("/actions/runs?branch=main&per_page=100").get("workflow_runs",[])
+          selected=None
+          for run in runs:
+              if run.get("status")!="completed" or run.get("conclusion")!="success":
+                  continue
+              jobs=api(f"/actions/runs/{run['id']}/jobs?per_page=100").get("jobs",[])
+              steps=[s for job in jobs for s in (job.get("steps") or []) if s.get("conclusion")=="success"]
+              uploaded=any("upload" in str(s.get("name","")).lower() and ("page" in str(s.get("name","")).lower() or "preserved production site" in str(s.get("name","")).lower()) for s in steps)
+              deployed=any(("publish" in str(s.get("name","")).lower() or "deploy" in str(s.get("name","")).lower()) for s in steps)
+              if not (uploaded and deployed):
+                  continue
+              artifacts=api(f"/actions/runs/{run['id']}/artifacts?per_page=100").get("artifacts",[])
+              match=next((a for a in artifacts if not a.get("expired") and
+                          (str(a.get("name","")).startswith("github-pages-") or
+                           str(a.get("name","")).startswith("bridgepoint-v5000-"))),None)
+              if match:
+                  selected=(str(run["id"]),match["name"])
+                  print("LATEST_SUCCESSFUL_PAGES_BASELINE",run["id"],run.get("name"),match["name"],match.get("size_in_bytes"))
+                  break
+          if not selected:
+              fallback_run="44246111711"
+              fallback_name="github-pages-plane-wrecks-v1"
+              fallback=api(f"/actions/runs/{fallback_run}")
+              if fallback.get("conclusion")!="success" or fallback.get("path")!=".github/workflows/publish-plane-wrecks-v1.yml":
+                  raise SystemExit("Pinned fallback is no longer a successful Plane Wrecks Pages deployment.")
+              fallback_jobs=api(f"/actions/runs/{fallback_run}/jobs?per_page=100").get("jobs",[])
+              deploy_ok=any(job.get("conclusion")=="success" and any(
+                  step.get("conclusion")=="success" and "Publish BridgePoint Plane Wrecks" in str(step.get("name",""))
+                  for step in (job.get("steps") or [])) for job in fallback_jobs)
+              fallback_artifacts=api(f"/actions/runs/{fallback_run}/artifacts?per_page=100").get("artifacts",[])
+              fallback_artifact=next((a for a in fallback_artifacts if a.get("name")==fallback_name and not a.get("expired")),None)
+              if not deploy_ok or not fallback_artifact:
+                  raise SystemExit("Pinned successful Plane Wrecks Pages artifact is missing or expired; refusing to publish.")
+              selected=(fallback_run,fallback_name)
+              print("USING_PINNED_VERIFIED_PLANE_WRECKS_PAGES_FALLBACK",fallback_run,fallback_name,fallback_artifact.get("size_in_bytes"))
+          with open(os.environ["GITHUB_OUTPUT"],"a",encoding="utf-8") as out:
+              out.write("run_id="+selected[0]+"\n")
+              out.write("artifact_name="+selected[1]+"\n")
+          PY
+
+      - name: Download the preserved production Pages artifact
         uses: actions/download-artifact@v4
         with:
-          name: github-pages-plane-wrecks-v1
-          run-id: 44246111711
+          name: ${{ steps.baseline.outputs.artifact_name }}
+          run-id: ${{ steps.baseline.outputs.run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository }}
           path: ${{ runner.temp }}/spacecraft-baseline
@@ -234,7 +293,9 @@ jobs:
           removed=set(before)-set(after)
           added=set(after)-set(before)
           changed={p for p in before if p in after and before[p]!=after[p]}
-          allowed_changed={"landing.js","app.js","index.html","app/index.html"}
+          allowed_changed={"landing.js","app.js","index.html","app/index.html",
+                           "bridgepoint-spacecraft-v1.js","app/bridgepoint-spacecraft-v1.js",
+                           "bridgepoint-spacecraft-columbia-v1.js","app/bridgepoint-spacecraft-columbia-v1.js"}
           allowed_added={"bridgepoint-spacecraft-v1.js","app/bridgepoint-spacecraft-v1.js",
                          "assets/spacecraft/nasa-mobile-launcher.glb",
                          "bridgepoint-spacecraft-columbia-v1.js","app/bridgepoint-spacecraft-columbia-v1.js",
