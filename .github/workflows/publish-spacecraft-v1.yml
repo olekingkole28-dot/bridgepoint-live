@@ -18,8 +18,8 @@ permissions:
   pages: write
   id-token: write
 
-# This focused publisher preserves the verified Plane Wrecks / Shipwrecks production baseline,
-# then overlays SLS + Mobile Launcher, the Smithsonian Columbia scan, and the Smithsonian Discovery scan.
+# Queued additive publisher: preserve the latest verified Plane Wrecks / Shipwrecks Pages baseline,
+# then publish SLS + Mobile Launcher, Columbia, and the Smithsonian Discovery scan with local viewers.
 concurrency:
   group: bridgepoint-v5000-production-authority
   cancel-in-progress: false
