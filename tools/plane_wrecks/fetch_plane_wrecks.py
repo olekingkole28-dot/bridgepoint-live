@@ -81,11 +81,11 @@ def main():
             candidates = []
             for info in archive.infolist():
                 name = info.filename
-                if re.search(r"(KWAJ|corsair|f4u)", name, re.I) and re.search(r"\.(glb|gltf|ply|obj|fbx|e57|las|laz|zip)$", name, re.I):
+                if re.search(r"(KWAJ|ISRO|corsair|f4u|tokai)", name, re.I) and re.search(r"\.(glb|gltf|ply|obj|fbx|e57|las|laz|zip|bin|dae|stl)$", name, re.I):
                     candidates.append({"name": name, "size": info.file_size, "compressed": info.compress_size})
             if not candidates:
-                raise SystemExit("No KWAJ/Corsair model or point-cloud files found in the dataset ZIP")
-            print("BRIDGEPOINT_KWAJ_ARCHIVE_CANDIDATES", json.dumps(candidates))
+                raise SystemExit("No ISRO/Tokai or KWAJ/Corsair 3D-model or point-cloud files found in the dataset ZIP")
+            print("BRIDGEPOINT_ABYSSAL_3D_ASSET_CANDIDATES", json.dumps(candidates))
             if args.inspect_only:
                 return
             # Prefer a cleaned ready-to-render mesh over imagery or raw capture material.
