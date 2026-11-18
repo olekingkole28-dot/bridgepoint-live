@@ -474,7 +474,7 @@ function setStatus(state,message){
 function updateCount(){
  const count=document.getElementById(COUNT_ID);
  if(!count)return;
- const label='2 persistent spacecraft icons · SLS + Mobile Launcher at Pad 39B · Apollo 11 Columbia at the Smithsonian · BridgePoint-hosted viewers';
+ const label='3 persistent spacecraft icons · SLS + Mobile Launcher at Pad 39B · Apollo 11 Columbia at the Smithsonian · Space Shuttle Discovery at Udvar-Hazy · BridgePoint-hosted 3D viewers';
  if(count.textContent!==label)count.textContent=label;
 }
 function readToggle(state){
