@@ -1,4 +1,4 @@
-import{TIER,LOW,edge,bbox,clamp,fc}from'./world-v2300-config.js';
+import{TIER,LOW,edge,bbox,clamp,fc}from'./world-v2300-config.js?v=6238-pc-runtime';
 
 const text=v=>String(v??'').toLowerCase();
 const point=o=>Number.isFinite(+o?.lng)&&Number.isFinite(+o?.lat)?{type:'Feature',geometry:{type:'Point',coordinates:[+o.lng,+o.lat]},properties:o}:null;

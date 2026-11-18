@@ -1,4 +1,4 @@
-import{VERSION}from'./world-v2300-config.js';
+import{VERSION}from'./world-v2300-config.js?v=6238-pc-runtime';
 
 const ITEMS=[
  {section:'Alerts',label:'Tornado warning',detail:'NWS tornado warning / tornado geometry',color:'#ff3c6e',kind:'line'},
