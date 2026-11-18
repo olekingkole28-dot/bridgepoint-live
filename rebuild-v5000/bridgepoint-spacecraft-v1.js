@@ -43,6 +43,10 @@ const MODEL={
  sourceRocketSpecsUrl:'https://www.nasa.gov/reference/space-launch-system/',
  sourceDimensionsUrl:'https://www.nasa.gov/reference/space-launch-system/'
 };
+export const SPACECRAFT_LAUNCH_SITE=MODEL;
+export function buildSlsBlock1Dimensions(){
+ return {totalHeightM:MODEL.rocketHeightM,coreStageHeightM:MODEL.coreStageLengthM,boosterHeightM:MODEL.boosterLengthM,mobileLauncherHeightM:MODEL.mobileLauncherHeightM};
+}
 const stateByMap=new WeakMap();
 let threePromise=null;
 function safe(value){
