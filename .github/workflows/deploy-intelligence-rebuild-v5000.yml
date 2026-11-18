@@ -5,6 +5,7 @@ name: Deploy BridgePoint Intelligence V5000 Rebuild
 # Fresh full-site validation after clearing the stale Pages deployment; includes global 3D sidewalk vector-tile coverage.
 # Final cutover also verifies transportation-source road geometry for sidewalk curb/verge placement.
 # combined surface republish: distribution-network-v5202 · projection-aware 3D clouds v6047 · persistent global field · stable NASA satellite basemap
+# 2026-11-18: trigger Pages republish for the bootstrapped PC auth tunnel endpoint.
 
 on:
   workflow_dispatch:
