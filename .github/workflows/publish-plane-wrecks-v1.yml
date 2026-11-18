@@ -86,7 +86,7 @@ jobs:
           node tests/plane-wrecks-extra-v1.test.mjs
           node tests/shipwrecks-v1.test.mjs
           node tests/drone-awareness.test.mjs
-          python3 -m py_compile tools/plane_wrecks/build_f4u1_corsair.py
+          python3 -m py_compile tools/plane_wrecks/build_f4u1_corsair.py tools/plane_wrecks/build_additional_models.py
 
       - name: Materialize the rights-checked F4U-1 Corsair underwater photogrammetry point cloud
         shell: bash
@@ -110,7 +110,7 @@ jobs:
           print('BRIDGEPOINT_F4U1_CORSAIR_PUBLISH_ASSET_PASS',model['renderedPointCount'],'points',len(raw),'GLB bytes',asset.stat().st_size,'compressed bytes')
           PY
 
-      - name: Materialize and validate the B-29 and Mitsubishi Zero photogrammetry meshes
+      - name: Materialize and validate the B-29, Mitsubishi Zero and Short Sunderland photogrammetry meshes
         shell: bash
         run: |
           set -euo pipefail
@@ -120,8 +120,8 @@ jobs:
           from pathlib import Path
           root=Path('assets/plane-wrecks/extra')
           catalog=json.loads((root/'catalog.json').read_text(encoding='utf-8'))
-          assert len(catalog['models'])==2
-          expected={'b29-over-exposed-bleaklow.glb.gz','zero-fighter-a6m3-iwm-london.glb.gz'}
+          assert len(catalog['models'])==3
+          expected={'b29-over-exposed-bleaklow.glb.gz','zero-fighter-a6m3-iwm-london.glb.gz','short-sunderland-ej138-munkholmen.glb.gz'}
           assert expected.issubset({p.name for p in root.glob('*.glb.gz')})
           for name in sorted(expected):
               asset=root/name
@@ -247,7 +247,7 @@ jobs:
           node --input-type=module --check < "$SITE/vendor/GLTFLoader.bundle.js"
           grep -Fq 'from "/vendor/three.module.js?v=169-local"' "$SITE/vendor/GLTFLoader.bundle.js"
 
-      - name: Overlay the two additive BridgePoint-hosted aircraft mesh viewers
+      - name: Overlay the three additive BridgePoint-hosted aircraft mesh viewers
         shell: bash
         run: |
           set -euo pipefail
@@ -270,11 +270,12 @@ jobs:
              "assets/plane-wrecks/f4u1-corsair-kwajalein-photogrammetry.glb.gz","assets/plane-wrecks/catalog.json",
              "assets/plane-wrecks/extra/b29-over-exposed-bleaklow.glb.gz",
              "assets/plane-wrecks/extra/zero-fighter-a6m3-iwm-london.glb.gz",
+             "assets/plane-wrecks/extra/short-sunderland-ej138-munkholmen.glb.gz",
              "assets/plane-wrecks/extra/catalog.json"}
           plane_import="""void import('./bridgepoint-plane-wrecks-v1.js?v=2-f4u1-persistent-dom-marker')
            .then(m=>{window.__BP_PLANE_WRECKS_V1__=m.initPlaneWrecksRenderer(world)})
            .catch(e=>console.warn('BridgePoint Plane Wrecks layer unavailable',e));"""
-          extra_import="""void import('./bridgepoint-plane-wrecks-extra-v1.js?v=1-b29-zero-photogrammetry')
+          extra_import="""void import('./bridgepoint-plane-wrecks-extra-v1.js?v=2-b29-zero-sunderland-photogrammetry')
            .then(m=>{window.__BP_PLANE_WRECKS_EXTRA_V1__=m.initPlaneWrecksExtraRenderer(world)})
            .catch(e=>console.warn('BridgePoint additional Plane Wrecks layer unavailable',e));"""
           shipwreck_anchor=".catch(e=>console.warn('BridgePoint shipwreck renderer unavailable',e));"
@@ -300,12 +301,12 @@ jobs:
               hits=list(re.finditer(r'src="([^"]*'+re.escape(script)+r'(?:\?[^"]*)?)"',data))
               if len(hits)!=1:raise SystemExit(f"{rel}: expected one {script} script URL, got {len(hits)}")
               url=hits[0].group(1)
-              if "planeWrecksExtra=b29-zero-v1" not in url:
-                  data=data.replace(url,url+("&" if "?" in url else "?")+"planeWrecksExtra=b29-zero-v1",1)
+              if "planeWrecksExtra=b29-zero-sunderland-v2" not in url:
+                  data=data.replace(url,url+("&" if "?" in url else "?")+"planeWrecksExtra=b29-zero-sunderland-v2",1)
               guard=list(re.finditer(r'src="([^"]*bridgepoint-drone-awareness-v1\.js(?:\?[^"]*)?)"',data))
               if len(guard)!=1:raise SystemExit(f"{rel}: expected one overlay-guard script URL")
               old=guard[0].group(1)
-              updated=re.sub(r'([?&]v=)[^&"]+',r'\g<1>14-plane-wrecks-extra',old,count=1) if re.search(r'[?&]v=',old) else old+("&" if "?" in old else "?")+"v=14-plane-wrecks-extra"
+              updated=re.sub(r'([?&]v=)[^&"]+',r'\g<1>15-plane-wrecks-extra-sunderland',old,count=1) if re.search(r'[?&]v=',old) else old+("&" if "?" in old else "?")+"v=15-plane-wrecks-extra-sunderland"
               if old!=updated:data=data.replace(old,updated,1)
               p.write_text(data,encoding="utf-8")
           after={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob("*") if p.is_file()}
@@ -318,6 +319,7 @@ jobs:
               "assets/plane-wrecks/f4u1-corsair-kwajalein-photogrammetry.glb.gz","assets/plane-wrecks/catalog.json",
               "assets/plane-wrecks/extra/b29-over-exposed-bleaklow.glb.gz",
               "assets/plane-wrecks/extra/zero-fighter-a6m3-iwm-london.glb.gz",
+              "assets/plane-wrecks/extra/short-sunderland-ej138-munkholmen.glb.gz",
               "assets/plane-wrecks/extra/catalog.json"}
           missing=required-set(after)
           if missing:raise SystemExit("PLANE_WRECKS_REQUIRED_FILE_MISSING "+json.dumps(sorted(missing)))
@@ -342,6 +344,8 @@ jobs:
           grep -Fq 'EXTRA_PLANE_WRECKS' "$SITE/bridgepoint-plane-wrecks-extra-v1.js"
           grep -Fq 'new Marker({element,anchor:' "$SITE/bridgepoint-plane-wrecks-extra-v1.js"
           grep -Fq 'data-bp-plane-wreck-extra-viewer' "$SITE/bridgepoint-plane-wrecks-extra-v1.js"
+          grep -Fq 'ensureWorldModel' "$SITE/bridgepoint-plane-wrecks-extra-v1.js"
+          grep -Fq "renderingMode:'3d'" "$SITE/bridgepoint-plane-wrecks-extra-v1.js"
           test -s "$SITE/vendor/GLTFLoader.bundle.js"
           test -s "$SITE/vendor/three.module.js"
           echo "BRIDGEPOINT_PLANE_WRECKS_EXTRA_OVERLAY_PASS"
@@ -368,7 +372,7 @@ jobs:
           Q="$GITHUB_SHA-plane-wrecks-v1"
           D="$RUNNER_TEMP/plane-wrecks-live"
           mkdir -p "$D"
-          for item in             "root:$O/?planeWrecks=$Q"             "app:$O/app/?planeWrecks=$Q"             "landing:$O/landing.js?verify=$Q"             "appjs:$O/app.js?verify=$Q"             "module:$O/bridgepoint-plane-wrecks-v1.js?verify=$Q"             "appmodule:$O/app/bridgepoint-plane-wrecks-v1.js?verify=$Q"             "extra:$O/bridgepoint-plane-wrecks-extra-v1.js?verify=$Q"             "extraapp:$O/app/bridgepoint-plane-wrecks-extra-v1.js?verify=$Q"             "guard:$O/bridgepoint-drone-awareness-v1.js?verify=$Q"             "asset:$O/assets/plane-wrecks/f4u1-corsair-kwajalein-photogrammetry.glb.gz?verify=$Q"             "catalog:$O/assets/plane-wrecks/catalog.json?verify=$Q"             "b29:$O/assets/plane-wrecks/extra/b29-over-exposed-bleaklow.glb.gz?verify=$Q"             "zero:$O/assets/plane-wrecks/extra/zero-fighter-a6m3-iwm-london.glb.gz?verify=$Q"             "extracatalog:$O/assets/plane-wrecks/extra/catalog.json?verify=$Q"             "loader:$O/vendor/GLTFLoader.bundle.js?verify=$Q"; do
+          for item in             "root:$O/?planeWrecks=$Q"             "app:$O/app/?planeWrecks=$Q"             "landing:$O/landing.js?verify=$Q"             "appjs:$O/app.js?verify=$Q"             "module:$O/bridgepoint-plane-wrecks-v1.js?verify=$Q"             "appmodule:$O/app/bridgepoint-plane-wrecks-v1.js?verify=$Q"             "extra:$O/bridgepoint-plane-wrecks-extra-v1.js?verify=$Q"             "extraapp:$O/app/bridgepoint-plane-wrecks-extra-v1.js?verify=$Q"             "guard:$O/bridgepoint-drone-awareness-v1.js?verify=$Q"             "asset:$O/assets/plane-wrecks/f4u1-corsair-kwajalein-photogrammetry.glb.gz?verify=$Q"             "catalog:$O/assets/plane-wrecks/catalog.json?verify=$Q"             "b29:$O/assets/plane-wrecks/extra/b29-over-exposed-bleaklow.glb.gz?verify=$Q"             "zero:$O/assets/plane-wrecks/extra/zero-fighter-a6m3-iwm-london.glb.gz?verify=$Q"             "sunderland:$O/assets/plane-wrecks/extra/short-sunderland-ej138-munkholmen.glb.gz?verify=$Q"             "extracatalog:$O/assets/plane-wrecks/extra/catalog.json?verify=$Q"             "loader:$O/vendor/GLTFLoader.bundle.js?verify=$Q"; do
             name="${item%%:*}";url="${item#*:}"
             curl --retry 6 --retry-all-errors --retry-delay 2 --connect-timeout 20 --max-time 180 -fL               -H 'Cache-Control: no-cache' "$url" -o "$D/$name"
           done
@@ -378,6 +382,9 @@ jobs:
           grep -Fq 'initPlaneWrecksExtraRenderer(world)' "$D/landing" || { echo "LIVE_VERIFY_FAIL: landing entry does not load extra plane meshes"; exit 1; }
           grep -Fq 'initPlaneWrecksExtraRenderer(world)' "$D/appjs" || { echo "LIVE_VERIFY_FAIL: app entry does not load extra plane meshes"; exit 1; }
           grep -Fq 'EXTRA_PLANE_WRECKS' "$D/extra" || { echo "LIVE_VERIFY_FAIL: extra aircraft mesh module missing"; exit 1; }
+          grep -Fq 'short-sunderland-ej138-munkholmen' "$D/extra" || { echo "LIVE_VERIFY_FAIL: Sunderland wreck entry missing"; exit 1; }
+          grep -Fq 'ensureWorldModel' "$D/extra" || { echo "LIVE_VERIFY_FAIL: native in-globe Sunderland model layer missing"; exit 1; }
+          grep -Fq "renderingMode:'3d'" "$D/extra" || { echo "LIVE_VERIFY_FAIL: 3D globe rendering layer missing"; exit 1; }
           cmp -s "$D/extra" "$D/extraapp" || { echo "LIVE_VERIFY_FAIL: root/app extra mesh modules differ"; exit 1; }
           grep -Fq 'Plane Wrecks' "$D/module" || { echo "LIVE_VERIFY_FAIL: Plane Wrecks button module is missing"; exit 1; }
           grep -Fq 'data-bp-local-plane-viewer' "$D/module" || { echo "LIVE_VERIFY_FAIL: BridgePoint-hosted card viewer missing"; exit 1; }
@@ -397,13 +404,13 @@ jobs:
           assert doc['meshes'][0]['primitives'][0]['mode']==0
           print('BRIDGEPOINT_PLANE_WRECKS_V1_LIVE_ASSET_PASS',catalog['renderedPointCount'],'points',len(raw),'GLB bytes')
           PY
-          python3 - "$D/b29" "$D/zero" "$D/extracatalog" <<'PY'
+          python3 - "$D/b29" "$D/zero" "$D/sunderland" "$D/extracatalog" <<'PY'
           import gzip,json,struct,sys
-          catalog=json.load(open(sys.argv[3],encoding='utf-8'))
-          assert len(catalog['models'])==2
+          catalog=json.load(open(sys.argv[4],encoding='utf-8'))
+          assert len(catalog['models'])==3
           by_id={m['id']:m for m in catalog['models']}
-          assert {'b29-over-exposed-bleaklow','mitsubishi-zero-a6m3-iwm-london'}==set(by_id)
-          for path,model_id in ((sys.argv[1],'b29-over-exposed-bleaklow'),(sys.argv[2],'mitsubishi-zero-a6m3-iwm-london')):
+          assert {'b29-over-exposed-bleaklow','mitsubishi-zero-a6m3-iwm-london','short-sunderland-ej138-munkholmen'}==set(by_id)
+          for path,model_id in ((sys.argv[1],'b29-over-exposed-bleaklow'),(sys.argv[2],'mitsubishi-zero-a6m3-iwm-london'),(sys.argv[3],'short-sunderland-ej138-munkholmen')):
               raw=gzip.decompress(open(path,'rb').read())
               assert raw[:4]==b'glTF' and struct.unpack_from('<I',raw,8)[0]==len(raw)
               json_len=struct.unpack_from('<I',raw,12)[0]

@@ -1,4 +1,4 @@
-/* BridgePoint Plane Wrecks extras — two texture-preserving photogrammetry GLB viewers. */
+/* BridgePoint Plane Wrecks extras — BridgePoint-hosted photogrammetry cards and native globe meshes. */
 const THREE_URL='/vendor/three.module.js?v=169-local';
 const GLTF_URL='/vendor/GLTFLoader.bundle.js?v=169-local';
 const TOGGLE_ID='bp-plane-wrecks-toggle-v1';
@@ -51,6 +51,30 @@ export const EXTRA_PLANE_WRECKS=[
   license:'CC BY 4.0',
   attribution:'artfletch, “Zero Fighter Wreckage”, Zenodo record 10264214, CC BY 4.0. Model hosted by BridgePoint from the openly downloadable Zenodo GLB.',
   locationNote:'Museum-location pin is approximate to the IWM London building; the scanned wreckage is in the museum collection.'
+ } ,
+ {
+  id:'short-sunderland-ej138-munkholmen',
+  name:'Short Sunderland EJ138 WH-Y · Forward Section',
+  label:'SHORT SUNDERLAND · FORWARD SECTION',
+  aircraft:'Short Sunderland Mk V flying boat',
+  coordinates:[10.373180,63.452221],
+  worldDepthM:64,
+  worldScale:1,
+  location:'Wreck west of Munkholmen, Trondheim, Trøndelag, Norway',
+  date:'Wrecked 3 November 1945 · later stripped, damaged by fire and sunk near Munkholmen',
+  details:'Underwater photogrammetry scan of the forward section of Short Sunderland EJ138 WH-Y. The aircraft broke loose from its moorings on the night of 3 November 1945, struck the shoreline and was later stripped, damaged by fire during fuel removal, then towed out and sunk near Munkholmen. This scan is the forward section, not a complete intact aircraft.',
+  creator:'Blueye Robotics',
+  photos:null,
+  zenodoId:'10327701',
+  doi:'10.5281/zenodo.10327701',
+  sourceUrl:'https://zenodo.org/records/10327701',
+  originalModelUrl:'https://sketchfab.com/3d-models/short-sunderland-3be976d6c87d47129067be221053d4bf',
+  historyUrl:'https://www.dykkepedia.com/wiki/Short_Sunderland',
+  assetUrl:'/assets/plane-wrecks/extra/short-sunderland-ej138-munkholmen.glb.gz',
+  assetName:'short-sunderland-ej138-munkholmen.glb.gz',
+  license:'CC BY 4.0',
+  attribution:'Blueye Robotics, “Short Sunderland”, Sketchfab model 3be976d6c87d47129067be221053d4bf, mirrored in Zenodo record 10327701, CC BY 4.0. Model hosted by BridgePoint from the openly downloadable Zenodo GLB.',
+  locationNote:'Wreck-site position is 63.452221° N, 10.373180° E, with the wreck reported at 57–72 m depth. BridgePoint places this scan at the 64 m reference depth; the model origin and orientation are approximate, not a survey-grade alignment.'
  }
 ];
 
@@ -107,6 +131,133 @@ function loadModel(wreck){
  })().catch(error=>{wreck.modelPromise=null;throw error;});
  return wreck.modelPromise;
 }
+
+function nativeWorldMatrix(map,THREE,wreck){
+ try{
+  const raw=map.transform?.getMatrixForModel?.(
+   [Number(wreck.coordinates[0]),Number(wreck.coordinates[1])],
+   -Number(wreck.worldDepthM||0)
+  );
+  if(raw&&raw.length>=16)return new THREE.Matrix4().fromArray(raw);
+  const Mercator=window.maplibregl?.MercatorCoordinate;
+  if(!Mercator?.fromLngLat)return null;
+  const mc=Mercator.fromLngLat(
+   [Number(wreck.coordinates[0]),Number(wreck.coordinates[1])],
+   -Number(wreck.worldDepthM||0)
+  );
+  const metres=mc.meterInMercatorCoordinateUnits();
+  if(![mc.x,mc.y,mc.z,metres].every(Number.isFinite)||metres<=0)return null;
+  return new THREE.Matrix4().set(
+   metres,0,0,mc.x,
+   0,0,metres,mc.y,
+   0,metres,0,mc.z,
+   0,0,0,1
+  );
+ }catch(_){return null;}
+}
+function ensureWorldMeshLayer(state,wreck,result){
+ const map=state.map,THREE=result.THREE;
+ const layerId='bp-plane-wreck-extra-world-'+wreck.id;
+ if(map.getLayer?.(layerId))return true;
+ const root=result.root.clone(true);
+ if(wreck.worldScale&&wreck.worldScale!==1)root.scale.setScalar(wreck.worldScale);
+ root.traverse(object=>{
+  if(!object.isMesh)return;
+  object.frustumCulled=false;
+  const materials=Array.isArray(object.material)?object.material:[object.material];
+  for(const material of materials){
+   if(!material)continue;
+   material.side=THREE.DoubleSide;
+   material.depthTest=false;
+   material.depthWrite=false;
+   material.needsUpdate=true;
+  }
+ });
+ root.visible=false;
+ const scene=new THREE.Scene();
+ scene.add(root);
+ scene.add(new THREE.AmbientLight(0xffffff,1.75));
+ const key=new THREE.DirectionalLight(0xffe4bb,1.25);
+ key.position.set(3,5,4);scene.add(key);
+ const fill=new THREE.DirectionalLight(0x8cb8d0,0.7);
+ fill.position.set(-4,1,-3);scene.add(fill);
+ const camera=new THREE.Camera();
+ let renderer=null;
+ const layer={
+  id:layerId,type:'custom',renderingMode:'3d',
+  onAdd(mapRef,gl){
+   renderer=new THREE.WebGLRenderer({
+    canvas:mapRef.getCanvas(),context:gl,antialias:false,alpha:true,powerPreference:'low-power'
+   });
+   renderer.autoClear=false;
+   renderer.outputColorSpace=THREE.SRGBColorSpace;
+   renderer.setPixelRatio(1);
+   state.worldLayers.set(wreck.id,{layerId,root,scene,camera,renderer});
+  },
+  render(_gl,args){
+   if(!state.enabled||!renderer||state.destroyed)return;
+   if(Number(map.getZoom?.()||0)<12.2){root.visible=false;return;}
+   const bounds=map.getBounds?.();
+   try{if(bounds&&!bounds.contains(wreck.coordinates)){root.visible=false;return;}}catch(_){}
+   const raw=args&&(args.defaultProjectionData?.mainMatrix||args.modelViewProjectionMatrix);
+   if(!raw||raw.length<16){root.visible=false;return;}
+   const matrix=nativeWorldMatrix(map,THREE,wreck);
+   if(!matrix){root.visible=false;return;}
+   root.visible=true;
+   camera.projectionMatrix.copy(new THREE.Matrix4().fromArray(raw)).multiply(matrix);
+   try{
+    renderer.resetState();
+    renderer.render(scene,camera);
+   }catch(error){
+    if(!state.worldWarning){
+     state.worldWarning=true;
+     console.warn('BridgePoint aircraft wreck native globe render',error);
+    }
+   }finally{
+    root.visible=false;
+   }
+  },
+  onRemove(){
+   try{renderer?.dispose();}catch(_){}
+   renderer=null;
+   state.worldLayers.delete(wreck.id);
+  }
+ };
+ try{
+  map.addLayer(layer);
+  map.triggerRepaint?.();
+  return true;
+ }catch(error){
+  state.worldError=String(error?.message||error);
+  return false;
+ }
+}
+async function ensureWorldModel(state,wreck){
+ if(!wreck.worldDepthM||!state.enabled||state.destroyed)return false;
+ if(state.worldPromises.has(wreck.id))return state.worldPromises.get(wreck.id);
+ const task=(async()=>{
+  try{
+   if(!state.map.isStyleLoaded?.()){
+    await new Promise(resolve=>state.map.once?.('load',resolve));
+   }
+   if(!state.enabled||state.destroyed)return false;
+   const result=await loadModel(wreck);
+   if(!state.enabled||state.destroyed)return false;
+   if(!ensureWorldMeshLayer(state,wreck,result)){
+    throw new Error('MapLibre 3D layer could not attach the BridgePoint-hosted wreck mesh');
+   }
+   return true;
+  }catch(error){
+   console.warn('BridgePoint aircraft wreck globe model unavailable',wreck.id,error);
+   return false;
+  }finally{
+   state.worldPromises.delete(wreck.id);
+  }
+ })();
+ state.worldPromises.set(wreck.id,task);
+ return task;
+}
+
 function makeMarkerElement(wreck){
  const element=document.createElement('button');
  element.type='button';
@@ -145,7 +296,7 @@ function setMarkerVisibility(state,wreck,visible){
 }
 function setCountNote(){
  const count=document.getElementById(COUNT_ID);
- if(count)count.textContent='3 persistent aircraft-wreck icons · 2 photogrammetry mesh scans + Corsair scan · BridgePoint-hosted viewers';
+ if(count)count.textContent='4 persistent aircraft-wreck icons · 3 BridgePoint-hosted photogrammetry mesh cards · Sunderland scan also placed in the 3D globe';
 }
 function setEnabledFromButton(state){
  const button=document.getElementById(TOGGLE_ID);
@@ -156,7 +307,11 @@ function setEnabledFromButton(state){
   return;
  }
  state.enabled=next;
- for(const wreck of EXTRA_PLANE_WRECKS)setMarkerVisibility(state,wreck,state.enabled);
+ for(const wreck of EXTRA_PLANE_WRECKS){
+  setMarkerVisibility(state,wreck,state.enabled);
+  if(state.enabled&&wreck.worldDepthM)void ensureWorldModel(state,wreck);
+ }
+ state.map.triggerRepaint?.();
  if(!state.enabled&&state.popup){state.popup.remove();state.popup=null;}
  setCountNote();
 }
@@ -190,6 +345,7 @@ function cardHtml(wreck){
    '<span><b>Reconstruction</b>Photogrammetry triangle mesh</span>'+
    '<span><b>Rights</b>'+safe(wreck.license)+'</span>'+
    '<span><b>Hosted asset</b>BridgePoint local GLB</span>'+
+   (wreck.worldDepthM?'<span><b>BridgePoint Earth</b>Placed at the wreck site · '+safe(wreck.worldDepthM)+' m below sea level</span>':'')+
   '</div>'+
   '<div class="bp-plane-wreck-extra-viewer-v1" data-bp-plane-wreck-extra-viewer="'+safe(wreck.id)+'" role="group" aria-label="BridgePoint-hosted interactive photogrammetry model"><div class="bp-plane-wreck-extra-viewer-loading-v1">Loading BridgePoint-hosted textured photogrammetry mesh…</div></div>'+
   '<div class="bp-plane-wreck-extra-status-v1" data-extra-model-status>BridgePoint-hosted model · drag to rotate and scroll or pinch to zoom</div>'+
@@ -323,8 +479,8 @@ export function initPlaneWrecksExtraRenderer(target){
  if(!map||typeof map.getBounds!=='function'||typeof map.addSource!=='function')return null;
  const existing=STATE_BY_MAP.get(map);if(existing)return existing.api;
  addStyles();
- const state={map,enabled:false,markers:new Map(),popup:null,observedButton:null,buttonObserver:null,bodyObserver:null};
- const sync=()=>{if(state.enabled)for(const wreck of EXTRA_PLANE_WRECKS)setMarkerVisibility(state,wreck,true);};
+ const state={map,enabled:false,destroyed:false,markers:new Map(),worldLayers:new Map(),worldPromises:new Map(),worldError:null,worldWarning:false,popup:null,observedButton:null,buttonObserver:null,bodyObserver:null};
+ const sync=()=>{if(state.enabled)for(const wreck of EXTRA_PLANE_WRECKS){setMarkerVisibility(state,wreck,true);if(wreck.worldDepthM)void ensureWorldModel(state,wreck);}};
  for(const event of ['load','style.load','idle'])map.on?.(event,sync);
  attachButtonObserver(state);
  const api={
@@ -334,8 +490,9 @@ export function initPlaneWrecksExtraRenderer(target){
   get markerCount(){return state.markers.size;},
   refresh(){setEnabledFromButton(state);return state.markers.size;},
   destroy(){
-   state.buttonObserver?.disconnect();state.bodyObserver?.disconnect();
+   state.destroyed=true;state.buttonObserver?.disconnect();state.bodyObserver?.disconnect();
    for(const event of ['load','style.load','idle'])map.off?.(event,sync);
+   for(const wreck of EXTRA_PLANE_WRECKS){const layerId='bp-plane-wreck-extra-world-'+wreck.id;if(map.getLayer?.(layerId))try{map.removeLayer(layerId);}catch(_){}}
    for(const marker of state.markers.values())try{marker.remove();}catch(_){}
    state.markers.clear();state.popup?.remove();state.popup=null;
    document.getElementById('bp-plane-wreck-extra-style-v1')?.remove();

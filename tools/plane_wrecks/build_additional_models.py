@@ -41,6 +41,25 @@ MODELS = [
         "source_url": "https://zenodo.org/records/10264214",
         "history_url": "https://www.iwm.org.uk/collections/item/object/70000201",
     },
+    {
+        "id": "short-sunderland-ej138-munkholmen",
+        "record_id": "10327701",
+        "record_title": "Short Sunderland",
+        "file_key": "3be976d6c87d47129067be221053d4bf.glb",
+        "file_md5": "90ca7dd1dc1f5045515cdd93df2b23cf",
+        "output": "short-sunderland-ej138-munkholmen.glb.gz",
+        "name": "Short Sunderland EJ138 WH-Y (forward section)",
+        "aircraft": "Short Sunderland Mk V flying boat",
+        "location": "Wreck west of Munkholmen, Trondheim, Trøndelag, Norway",
+        "coordinates": [10.373180, 63.452221],
+        "depth_m": 64.0,
+        "lost_date": "3 November 1945 wreck event; later stripped, damaged by fire and sunk near Munkholmen",
+        "creator": "Blueye Robotics",
+        "photos": None,
+        "representation": "Underwater photogrammetry scan of the forward section of the Short Sunderland EJ138 wreck; not a complete intact aircraft. Published by Blueye Robotics and mirrored as a self-contained GLB on Zenodo.",
+        "source_url": "https://zenodo.org/records/10327701",
+        "history_url": "https://www.dykkepedia.com/wiki/Short_Sunderland",
+    },
 ]
 USER_AGENT = "BridgePoint-Plane-Wrecks/1.0 (+https://bridgepointintelligence.online)"
 MAX_RAW_BYTES = 60 * 1024 * 1024
