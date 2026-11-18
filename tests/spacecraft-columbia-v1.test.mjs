@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { SPACECRAFT_COLUMBIA, SPACECRAFT_COLUMBIA_ASSETS, resolveColumbiaScanTransform } from '../rebuild-v5000/bridgepoint-spacecraft-columbia-v1.js';
+import { SPACECRAFT_COLUMBIA, SPACECRAFT_COLUMBIA_ASSETS, resolveColumbiaScanTransform, computeColumbiaPrincipalFrame } from '../rebuild-v5000/bridgepoint-spacecraft-columbia-v1.js';
 
 const model=SPACECRAFT_COLUMBIA;
 assert.equal(model.id,'apollo-11-command-module-columbia-smithsonian');
@@ -7,17 +7,31 @@ assert.deepEqual(model.coordinates,[-77.0199,38.8882]);
 assert.equal(model.inventoryNumber,'A19700102000');
 assert.equal(model.manufacturer,'North American Rockwell');
 assert.equal(model.scanHeightM,2.718);
-const cmScan=resolveColumbiaScanTransform({x:391.2,y:250,z:271.8});
-assert.equal(cmScan.axis,'z','the measured height may be on Z in the source GLB');
-assert.equal(cmScan.units,'cm');
-assert.equal(cmScan.scale,0.01);
-assert.equal(cmScan.heightM,2.718);
-const metreScan=resolveColumbiaScanTransform({x:3.912,y:2.718,z:2.5});
-assert.equal(metreScan.axis,'y');
-assert.equal(metreScan.units,'m');
-assert.equal(metreScan.scale,1);
-assert.equal(metreScan.heightM,2.718);
-assert.throws(()=>resolveColumbiaScanTransform({x:1,y:5,z:8}),/do not match its published/);
+const scan=resolveColumbiaScanTransform({x:471.017,y:416.148,z:423.069});
+assert.equal(scan.units,'cm');
+assert.equal(scan.scale,0.01);
+assert.deepEqual(scan.dimensionsM.map(v=>Number(v.toFixed(3))),[4.710,4.161,4.231]);
+assert.throws(()=>resolveColumbiaScanTransform({x:12,y:416,z:423}),/implausible after its documented/);
+
+// A rotated rectangular scan must recover the principal 2.718 / 3.276 / 3.912 m axes,
+// even when its raw axis-aligned bounds make all three dimensions look approximately 4 m.
+const dimensions=[391.2,327.6,271.8];
+const ax=0.63,ay=0.47,az=-0.31;
+const cx=Math.cos(ax),sx=Math.sin(ax),cy=Math.cos(ay),sy=Math.sin(ay),cz=Math.cos(az),sz=Math.sin(az);
+const rotate=p=>{
+ const x1=p[0],y1=cx*p[1]-sx*p[2],z1=sx*p[1]+cx*p[2];
+ const x2=cy*x1+sy*z1,y2=y1,z2=-sy*x1+cy*z1;
+ return [cz*x2-sz*y2,sz*x2+cz*y2,z2];
+};
+const corners=[];
+for(const x of [-dimensions[0]/2,dimensions[0]/2])
+ for(const y of [-dimensions[1]/2,dimensions[1]/2])
+  for(const z of [-dimensions[2]/2,dimensions[2]/2])corners.push(rotate([x,y,z]));
+const frame=computeColumbiaPrincipalFrame(corners,0.01);
+const recovered=frame.extentsM.map(v=>Number(v.toFixed(3))).sort((a,b)=>a-b);
+assert.deepEqual(recovered,[2.718,3.276,3.912]);
+assert.equal(Number(frame.extentsM[frame.upIndex].toFixed(3)),3.276,
+ 'prefer the catalogue overall capsule-on-stand height when available');
 assert.match(model.sourceLicense,/CC0/);
 assert.match(model.sourceMethod,/Smithsonian/i);
 assert.match(model.placementPrecision,/not a survey-controlled indoor position/i);
