@@ -2034,6 +2034,9 @@ jobs:
           saturn_attach="""void import('./bridgepoint-spacecraft-saturn-v1.js?v=1-nasa-saturn-v-launch39a')
            .then(m=>{window.__BP_SPACECRAFT_SATURN_V1__=m.initSpacecraftSaturnRenderer(world)})
            .catch(e=>console.warn('BridgePoint Saturn V launch-site layer unavailable',e));"""
+          plane_extra_attach="""void import('./bridgepoint-plane-wrecks-extra-v1.js?v=8-b17f-black-jack')
+           .then(m=>{window.__BP_PLANE_WRECKS_EXTRA_V1__=m.initPlaneWrecksExtraRenderer(world)})
+           .catch(e=>console.warn('BridgePoint additional Plane Wrecks layer unavailable',e));"""
           for rel in ("landing.js","app.js"):
               path=site/rel
               data=path.read_text(encoding="utf-8")
@@ -2051,7 +2054,11 @@ jobs:
                   anchor=".catch(e=>console.warn('BridgePoint Smithsonian Space Shuttle Discovery layer unavailable',e));"
                   if anchor not in data: raise SystemExit(f"{rel}: Discovery import catch missing")
                   data=data.replace(anchor,anchor+"\n"+saturn_attach,1)
-              for marker in ("initSpacecraftColumbiaRenderer(world)","initSpacecraftDiscoveryRenderer(world)","initSpacecraftSaturnRenderer(world)"):
+              if "initPlaneWrecksExtraRenderer(world)" not in data:
+                  anchor=".catch(e=>console.warn('BridgePoint Plane Wrecks layer unavailable',e));"
+                  if anchor not in data: raise SystemExit(f"{rel}: base Plane Wrecks catch missing")
+                  data=data.replace(anchor,anchor+"\\n"+plane_extra_attach,1)
+              for marker in ("initSpacecraftColumbiaRenderer(world)","initSpacecraftDiscoveryRenderer(world)","initSpacecraftSaturnRenderer(world)","initPlaneWrecksExtraRenderer(world"):
                   if data.count(marker)!=1: raise SystemExit(f"{rel}: expected one {marker}")
               path.write_text(data,encoding="utf-8")
 
@@ -2064,8 +2071,9 @@ jobs:
               url=matches[0].group(1)
               base,sep,query=url.partition("?")
               params=query.split("&") if sep else []
-              params=[p for p in params if not p.startswith("spacecraft=")]
+              params=[p for p in params if not p.startswith("spacecraft=") and not p.startswith("planeWrecksExtra=")]
               params.append("spacecraft=sls-mobile-launcher-pad39b-v1-saturn-v1")
+              params.append("planeWrecksExtra=b17f-black-jack-v1")
               data=data.replace(url,base+"?"+"&".join(params),1)
               path.write_text(data,encoding="utf-8")
           PY
@@ -2114,7 +2122,10 @@ jobs:
           grep -Fq '10' site/bridgepoint-shipwrecks-v1.js
           grep -Fq 'Space Shuttle Orbiter OV-103' site/bridgepoint-spacecraft-discovery-v1.js
           grep -Fq 'NASA Saturn V + Launch Complex 39A Gantry' site/bridgepoint-spacecraft-saturn-v1.js
-          grep -Fq 'bridgepoint-plane-wrecks-extra-v1.js' site/bridgepoint-plane-wrecks-v1.js
+          grep -Fq 'initPlaneWrecksExtraRenderer(world)' site/landing.js
+          grep -Fq 'initPlaneWrecksExtraRenderer(world)' site/app.js
+          grep -Fq 'planeWrecksExtra=b17f-black-jack-v1' site/index.html
+          grep -Fq 'planeWrecksExtra=b17f-black-jack-v1' site/app/index.html
           test -s site/assets/shipwrecks/catalog.json
           test -s site/assets/plane-wrecks/catalog.json
           test -s site/assets/plane-wrecks/extra/catalog.json
@@ -2515,11 +2526,8 @@ jobs:
             curl --retry 4 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/$name?verify=$Q" -o "$D/$name"
           done
 
-          for name in \
-            faa-obstructions-v1.json.gz \
-            shipwrecks/catalog.json plane-wrecks/catalog.json plane-wrecks/extra/catalog.json; do
-            path="$name"
-            if [ "$name" = "faa-obstructions-v1.json.gz" ]; then path="data/bridgepoint-faa-obstructions-v1.json.gz"; fi
+          curl --retry 4 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/data/bridgepoint-faa-obstructions-v1.json.gz?verify=$Q" -o "$D/bridgepoint-faa-obstructions-v1.json.gz"
+          for path in shipwrecks/catalog.json plane-wrecks/catalog.json plane-wrecks/extra/catalog.json; do
             curl --retry 4 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/assets/$path?verify=$Q" -o "$D/$(basename "$path")"
           done
           gzip -t "$D/bridgepoint-faa-obstructions-v1.json.gz"
@@ -2541,7 +2549,7 @@ jobs:
           grep -Fq 'initLighthouseRenderer(world)' "$D/landing.js"
           grep -Fq 'initUSGSSeismicLayer(world)' "$D/landing.js"
           grep -Fq 'initWorldTimeSlider(world,rpc)' "$D/landing.js"
-          grep -Fq 'initOrbitRenderer' "$D/bridgepoint-global-motion-v5926.js"
+          grep -Fq 'createOrbitRenderer' "$D/bridgepoint-global-motion-v5926.js"
           grep -Fq 'bridgepoint-orbit-renderer-v6201.js' "$D/bridgepoint-global-motion-v5926.js"
           grep -Fq 'onBuildingSelect' "$D/app.js"
           grep -Fq 'bridgepoint_public_building_detail_by_id_v5024' "$D/app.js"
@@ -2550,8 +2558,24 @@ jobs:
           grep -Fq 'bridgepoint-drone-awareness-v1.js' "$D/root.html"
           grep -Fq 'bridgepoint-vessel-awareness-v1.js' "$D/root.html"
           grep -Fq 'bridgepoint-faa-obstruction-towers-v1.js' "$D/root.html"
-          grep -Fq 'Radar' "$D/world-v2300-present-weather.js"
-          grep -Fq 'Radar' "$D/world-v2300-weather.js"
+          grep -Fq 'stableRadarDrape:true' "$D/world-v2300-weather.js"
+          grep -Fq "const RADAR='https://mapservices.weather.noaa.gov/eventdriven/services/radar/radar_base_reflectivity_time/" "$D/world-v2300-weather.js"
+          grep -Fq "id:'wx-radar',type:'raster'" "$D/world-v2300-weather.js"
+          grep -Fq "'raster-opacity':LOW?.54:.70" "$D/world-v2300-weather.js"
+          # Verify every preserved model endpoint without re-downloading the large GLBs.
+          for asset in \\
+            shipwrecks/robert-gaskin-photogrammetry.glb.gz shipwrecks/hms-grafton-photogrammetry.glb.gz \\
+            shipwrecks/cannon-photogrammetry.glb.gz shipwrecks/hnlms-kxi-photogrammetry.glb.gz \\
+            shipwrecks/cape-otway-photogrammetry.glb.gz shipwrecks/timaru-photogrammetry.glb.gz shipwrecks/hms-loo-photogrammetry.glb.gz \\
+            plane-wrecks/f4u1-corsair-kwajalein-photogrammetry.glb.gz \\
+            plane-wrecks/extra/b29-over-exposed-bleaklow.glb.gz plane-wrecks/extra/zero-fighter-a6m3-iwm-london.glb.gz \\
+            plane-wrecks/extra/short-sunderland-ej138-munkholmen.glb.gz plane-wrecks/extra/tokai-maru-apra-harbor-photogrammetry.glb.gz \\
+            plane-wrecks/extra/p39q-airacobra-wing-photogrammetry.glb.gz plane-wrecks/extra/messerschmitt-bf109-g6-planier.glb.gz \\
+            spacecraft/nasa-mobile-launcher.glb spacecraft/smithsonian-apollo11-exterior-combined.glb \\
+            spacecraft/smithsonian-space-shuttle-discovery-150k-4096.glb spacecraft/nasa-saturn-v.glb spacecraft/nasa-gantry.glb; do
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSI -H 'Cache-Control: no-cache' "$O/assets/$asset?verify=$Q" -o /dev/null
+          done
+          echo "BRIDGEPOINT_ALL_WRECK_AND_SPACECRAFT_MODEL_ENDPOINTS_PASS"
           echo "BRIDGEPOINT_ALL_REQUESTED_FEATURES_LIVE_PASS"
       - name: Verify live procedural tree assets
         shell: bash
