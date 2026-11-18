@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { validatePagesArtifactSize } from './pages-artifact-size.mjs';
 
 const required = [
   'GITHUB_TOKEN',
@@ -88,11 +89,11 @@ if (matches.length !== 1) {
   throw new Error('Expected exactly one non-expired Pages artifact named "' + artifactName + '"; found ' + matches.length);
 }
 const artifact = matches[0];
-if (!Number.isFinite(Number(artifact.size_in_bytes)) || Number(artifact.size_in_bytes) <= 0) {
-  throw new Error('Pages artifact "' + artifactName + '" has an invalid size');
-}
-if (Number(artifact.size_in_bytes) > 1073741824) {
-  throw new Error('Pages artifact exceeds the 1 GB supported size limit');
+let artifactBytes;
+try {
+  artifactBytes = validatePagesArtifactSize(artifact.size_in_bytes);
+} catch (error) {
+  throw new Error('Pages artifact "' + artifactName + '" failed size validation: ' + (error?.message || error));
 }
 
 console.log('Using Pages artifact "' + artifactName + '" (' + artifact.size_in_bytes + ' bytes)');
