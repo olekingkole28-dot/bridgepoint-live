@@ -10,6 +10,7 @@ name: Deploy BridgePoint Intelligence V5000 Rebuild
 # 2026-11-18: force nested globe module config imports to the v6238 PC-runtime cache key.
 # 2026-11-18: align production smoke assertions with the v6238 globe-map and weather cache refresh.
 # 2026-11-18: include globe and water imagery regression tests in production push triggers.
+# 2026-11-18: include drone-awareness cache assertion in production push triggers.
 # 2026-11-18: rerun full production validation after synchronizing the subsurface module cache-key test.
 
 on:
