@@ -13,9 +13,7 @@ const STATUS_ID='bp-spacecraft-status-v1';
 const MARKER_CLASS='bp-spacecraft-columbia-marker-v1';
 const LAYER_ID='bp-spacecraft-columbia-native-v1';
 export const SPACECRAFT_COLUMBIA_ASSETS=[
- '/assets/spacecraft/smithsonian-apollo11-exterior-shell.glb',
- '/assets/spacecraft/smithsonian-apollo11-exterior-top.glb',
- '/assets/spacecraft/smithsonian-apollo11-exterior-filler.glb'
+ '/assets/spacecraft/smithsonian-apollo11-exterior-combined.glb'
 ];
 export const SPACECRAFT_COLUMBIA={
  id:'apollo-11-command-module-columbia-smithsonian',
@@ -83,8 +81,8 @@ async function loadColumbia(state){
    part.name=asset.split('/').pop();
    root.add(part);
   }
-  // The Smithsonian package geometry is Y-up and in centimetres. The package's presentation
-  // parent adds a viewer tilt; omit that display tilt so the physical capsule stands upright on Earth.
+  // // This single Smithsonian download is the combined exterior mesh in centimetres and glTF Y-up.
+  // Leave it upright and apply the source centimetre-to-metre conversion for the globe.
   root.quaternion.identity();
   root.scale.setScalar(0.01);
   root.updateMatrixWorld(true);
