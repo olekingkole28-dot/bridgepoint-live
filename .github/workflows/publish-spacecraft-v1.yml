@@ -123,9 +123,7 @@ jobs:
           cp rebuild-v5000/bridgepoint-spacecraft-columbia-v1.js "$SITE/bridgepoint-spacecraft-columbia-v1.js"
           cp rebuild-v5000/bridgepoint-spacecraft-columbia-v1.js "$SITE/app/bridgepoint-spacecraft-columbia-v1.js"
           cp assets/spacecraft/nasa-mobile-launcher.glb "$SITE/assets/spacecraft/nasa-mobile-launcher.glb"
-          cp assets/spacecraft/smithsonian-apollo11-exterior-shell.glb "$SITE/assets/spacecraft/smithsonian-apollo11-exterior-shell.glb"
-          cp assets/spacecraft/smithsonian-apollo11-exterior-top.glb "$SITE/assets/spacecraft/smithsonian-apollo11-exterior-top.glb"
-          cp assets/spacecraft/smithsonian-apollo11-exterior-filler.glb "$SITE/assets/spacecraft/smithsonian-apollo11-exterior-filler.glb"
+          cp assets/spacecraft/smithsonian-apollo11-exterior-combined.glb "$SITE/assets/spacecraft/smithsonian-apollo11-exterior-combined.glb"
 
           python3 - "$SITE" <<'PY'
           import hashlib, json, re, sys
@@ -179,9 +177,7 @@ jobs:
           allowed_added={"bridgepoint-spacecraft-v1.js","app/bridgepoint-spacecraft-v1.js",
                          "assets/spacecraft/nasa-mobile-launcher.glb",
                          "bridgepoint-spacecraft-columbia-v1.js","app/bridgepoint-spacecraft-columbia-v1.js",
-                         "assets/spacecraft/smithsonian-apollo11-exterior-shell.glb",
-                         "assets/spacecraft/smithsonian-apollo11-exterior-top.glb",
-                         "assets/spacecraft/smithsonian-apollo11-exterior-filler.glb"}
+                         "assets/spacecraft/smithsonian-apollo11-exterior-combined.glb"}
           if removed or not changed.issubset(allowed_changed) or not added.issubset(allowed_added):
               raise SystemExit("SPACECRAFT_OVERLAY_SCOPE_FAILURE "+json.dumps({
                 "removed":sorted(removed),"changed":sorted(changed),"added":sorted(added)}))
@@ -211,9 +207,7 @@ jobs:
           grep -Fq 'bp-spacecraft-toggle-v1' "$SITE/bridgepoint-spacecraft-columbia-v1.js"
           grep -Fq 'data-bp-local-spacecraft-viewer' "$SITE/bridgepoint-spacecraft-columbia-v1.js"
           test -s "$SITE/assets/spacecraft/nasa-mobile-launcher.glb"
-          test -s "$SITE/assets/spacecraft/smithsonian-apollo11-exterior-shell.glb"
-          test -s "$SITE/assets/spacecraft/smithsonian-apollo11-exterior-top.glb"
-          test -s "$SITE/assets/spacecraft/smithsonian-apollo11-exterior-filler.glb"
+          test -s "$SITE/assets/spacecraft/smithsonian-apollo11-exterior-combined.glb"
           echo "BRIDGEPOINT_SPACECRAFT_AND_COLUMBIA_OVERLAY_PASS"
 
       - uses: actions/configure-pages@v5
@@ -249,9 +243,7 @@ jobs:
             "spacecraft.glb:$O/assets/spacecraft/nasa-mobile-launcher.glb?verify=$Q" \
             "columbia.js:$O/bridgepoint-spacecraft-columbia-v1.js?verify=$Q" \
             "app-columbia.js:$O/app/bridgepoint-spacecraft-columbia-v1.js?verify=$Q" \
-            "columbia-shell.glb:$O/assets/spacecraft/smithsonian-apollo11-exterior-shell.glb?verify=$Q" \
-            "columbia-top.glb:$O/assets/spacecraft/smithsonian-apollo11-exterior-top.glb?verify=$Q" \
-            "columbia-filler.glb:$O/assets/spacecraft/smithsonian-apollo11-exterior-filler.glb?verify=$Q"; do
+            "columbia-combined.glb:$O/assets/spacecraft/smithsonian-apollo11-exterior-combined.glb?verify=$Q"; do
             name="${item%%:*}"; url="${item#*:}"
             curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 --max-time 180 -fL \
               -H 'Cache-Control: no-cache' "$url" -o "$D/$name"
@@ -282,13 +274,13 @@ jobs:
           import json, struct, sys
           from pathlib import Path
           root=Path(sys.argv[1])
-          for name in ("columbia-shell.glb","columbia-top.glb","columbia-filler.glb"):
-              raw=(root/name).read_bytes()
-              assert 0 < len(raw) < 20*1024*1024, (name,len(raw))
-              assert raw[:4]==b"glTF" and struct.unpack_from("<I",raw,8)[0]==len(raw), name
-              n=struct.unpack_from("<I",raw,12)[0]
-              doc=json.loads(raw[20:20+n].decode("utf-8"))
-              assert doc.get("asset",{}).get("version")=="2.0" and doc.get("meshes"), name
-              print("BRIDGEPOINT_SMITHSONIAN_COLUMBIA_LIVE_GLB_PASS",name,len(raw),"bytes")
+          name="columbia-combined.glb"
+          raw=(root/name).read_bytes()
+          assert 100_000 <= len(raw) < 100*1024*1024, (name,len(raw))
+          assert raw[:4]==b"glTF" and struct.unpack_from("<I",raw,8)[0]==len(raw), name
+          n=struct.unpack_from("<I",raw,12)[0]
+          doc=json.loads(raw[20:20+n].decode("utf-8"))
+          assert doc.get("asset",{}).get("version")=="2.0" and doc.get("meshes"), name
+          print("BRIDGEPOINT_SMITHSONIAN_COLUMBIA_LIVE_GLB_PASS",name,len(raw),"bytes")
           PY
           echo "LIVE_VERIFY_PASS: SLS + Smithsonian Columbia in root/app with all BridgePoint-hosted GLBs"
