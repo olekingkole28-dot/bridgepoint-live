@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { SPACECRAFT_COLUMBIA, SPACECRAFT_COLUMBIA_ASSETS } from '../rebuild-v5000/bridgepoint-spacecraft-columbia-v1.js';
+import { SPACECRAFT_COLUMBIA, SPACECRAFT_COLUMBIA_ASSETS, resolveColumbiaScanTransform } from '../rebuild-v5000/bridgepoint-spacecraft-columbia-v1.js';
 
 const model=SPACECRAFT_COLUMBIA;
 assert.equal(model.id,'apollo-11-command-module-columbia-smithsonian');
@@ -7,6 +7,17 @@ assert.deepEqual(model.coordinates,[-77.0199,38.8882]);
 assert.equal(model.inventoryNumber,'A19700102000');
 assert.equal(model.manufacturer,'North American Rockwell');
 assert.equal(model.scanHeightM,2.718);
+const cmScan=resolveColumbiaScanTransform({x:391.2,y:250,z:271.8});
+assert.equal(cmScan.axis,'z','the measured height may be on Z in the source GLB');
+assert.equal(cmScan.units,'cm');
+assert.equal(cmScan.scale,0.01);
+assert.equal(cmScan.heightM,2.718);
+const metreScan=resolveColumbiaScanTransform({x:3.912,y:2.718,z:2.5});
+assert.equal(metreScan.axis,'y');
+assert.equal(metreScan.units,'m');
+assert.equal(metreScan.scale,1);
+assert.equal(metreScan.heightM,2.718);
+assert.throws(()=>resolveColumbiaScanTransform({x:1,y:5,z:8}),/do not match its published/);
 assert.match(model.sourceLicense,/CC0/);
 assert.match(model.sourceMethod,/Smithsonian/i);
 assert.match(model.placementPrecision,/not a survey-controlled indoor position/i);
