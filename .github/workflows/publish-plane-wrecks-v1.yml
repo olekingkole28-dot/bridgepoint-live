@@ -1,4 +1,4 @@
-name: Publish BridgePoint Plane Wrecks — seven wreck cards
+name: Publish BridgePoint Plane Wrecks — eight wreck cards
 # Additive wreck catalogue: persistent icons, BridgePoint-hosted photogrammetry viewers and native globe meshes.
 
 on:
@@ -325,7 +325,7 @@ jobs:
           node --input-type=module --check < "$SITE/vendor/GLTFLoader.bundle.js"
           grep -Fq 'from "/vendor/three.module.js?v=169-local"' "$SITE/vendor/GLTFLoader.bundle.js"
 
-      - name: Overlay the seven Plane Wrecks markers and cards
+      - name: Overlay the eight Plane Wrecks markers and cards
         shell: bash
         run: |
           set -euo pipefail
@@ -357,7 +357,7 @@ jobs:
           plane_import="""void import('./bridgepoint-plane-wrecks-v1.js?v=2-f4u1-persistent-dom-marker')
            .then(m=>{window.__BP_PLANE_WRECKS_V1__=m.initPlaneWrecksRenderer(world)})
            .catch(e=>console.warn('BridgePoint Plane Wrecks layer unavailable',e));"""
-          extra_import="""void import('./bridgepoint-plane-wrecks-extra-v1.js?v=5-jaluit-h8k-emily')
+          extra_import="""void import('./bridgepoint-plane-wrecks-extra-v1.js?v=6-kwajalein-sbd-dauntless')
            .then(m=>{window.__BP_PLANE_WRECKS_EXTRA_V1__=m.initPlaneWrecksExtraRenderer(world)})
            .catch(e=>console.warn('BridgePoint additional Plane Wrecks layer unavailable',e));"""
           shipwreck_anchor=".catch(e=>console.warn('BridgePoint shipwreck renderer unavailable',e));"
@@ -380,8 +380,8 @@ jobs:
               extra_refs=list(re.finditer(r"bridgepoint-plane-wrecks-extra-v1\.js(?:\?v=[^'\"]*)?",data))
               if len(extra_refs)!=1:
                   raise SystemExit(f"{rel}: expected exactly one extra Plane Wrecks module import, got {len(extra_refs)}")
-              data=re.sub(r"(bridgepoint-plane-wrecks-extra-v1\.js\?v=)[^'\"]+",r"\g<1>5-jaluit-h8k-emily",data,count=1)
-              if "bridgepoint-plane-wrecks-extra-v1.js?v=5-jaluit-h8k-emily" not in data:
+              data=re.sub(r"(bridgepoint-plane-wrecks-extra-v1\.js\?v=)[^'\"]+",r"\g<1>6-kwajalein-sbd-dauntless",data,count=1)
+              if "bridgepoint-plane-wrecks-extra-v1.js?v=6-kwajalein-sbd-dauntless" not in data:
                   raise SystemExit(f"{rel}: failed to version-bust the extra Plane Wrecks module import")
               p.write_text(data,encoding="utf-8")
           for rel,script in (("index.html","landing.js"),("app/index.html","app.js")):
@@ -389,8 +389,8 @@ jobs:
               hits=list(re.finditer(r'src="([^"]*'+re.escape(script)+r'(?:\?[^"]*)?)"',data))
               if len(hits)!=1:raise SystemExit(f"{rel}: expected one {script} script URL, got {len(hits)}")
               url=hits[0].group(1)
-              if "planeWrecksExtra=jaluit-h8k-emily-v1" not in url:
-                  data=data.replace(url,url+("&" if "?" in url else "?")+"planeWrecksExtra=jaluit-h8k-emily-v1",1)
+              if "planeWrecksExtra=kwajalein-sbd-dauntless-v1" not in url:
+                  data=data.replace(url,url+("&" if "?" in url else "?")+"planeWrecksExtra=kwajalein-sbd-dauntless-v1",1)
               guard=list(re.finditer(r'src="([^"]*bridgepoint-drone-awareness-v1\.js(?:\?[^"]*)?)"',data))
               if len(guard)!=1:raise SystemExit(f"{rel}: expected one overlay-guard script URL")
               old=guard[0].group(1)
@@ -450,7 +450,7 @@ jobs:
           path: ${{ runner.temp }}/plane-wrecks-site
           include-hidden-files: true
 
-      - name: Publish BridgePoint Plane Wrecks — six persistent wreck viewers
+      - name: Publish BridgePoint Plane Wrecks — eight persistent wreck viewers
         id: deployment
         uses: actions/deploy-pages@v4
         with:
@@ -473,15 +473,18 @@ jobs:
           grep -Fq 'initPlaneWrecksRenderer(world)' "$D/appjs" || { echo "LIVE_VERIFY_FAIL: app entry does not load Plane Wrecks"; exit 1; }
           grep -Fq 'initPlaneWrecksExtraRenderer(world)' "$D/landing" || { echo "LIVE_VERIFY_FAIL: landing entry does not load extra plane meshes"; exit 1; }
           grep -Fq 'initPlaneWrecksExtraRenderer(world)' "$D/appjs" || { echo "LIVE_VERIFY_FAIL: app entry does not load extra plane meshes"; exit 1; }
-          grep -Fq 'bridgepoint-plane-wrecks-extra-v1.js?v=5-jaluit-h8k-emily' "$D/landing" || { echo "LIVE_VERIFY_FAIL: landing extra module cache-bust missing"; exit 1; }
-          grep -Fq 'bridgepoint-plane-wrecks-extra-v1.js?v=5-jaluit-h8k-emily' "$D/appjs" || { echo "LIVE_VERIFY_FAIL: app extra module cache-bust missing"; exit 1; }
+          grep -Fq 'bridgepoint-plane-wrecks-extra-v1.js?v=6-kwajalein-sbd-dauntless' "$D/landing" || { echo "LIVE_VERIFY_FAIL: landing extra module cache-bust missing"; exit 1; }
+          grep -Fq 'bridgepoint-plane-wrecks-extra-v1.js?v=6-kwajalein-sbd-dauntless' "$D/appjs" || { echo "LIVE_VERIFY_FAIL: app extra module cache-bust missing"; exit 1; }
           grep -Fq 'EXTRA_PLANE_WRECKS' "$D/extra" || { echo "LIVE_VERIFY_FAIL: extra aircraft mesh module missing"; exit 1; }
           grep -Fq 'short-sunderland-ej138-munkholmen' "$D/extra" || { echo "LIVE_VERIFY_FAIL: Sunderland wreck entry missing"; exit 1; }
           grep -Fq 'tokai-maru-apra-harbor' "$D/extra" || { echo "LIVE_VERIFY_FAIL: Tokai Maru wreck entry missing"; exit 1; }
           grep -Fq 'kawanishi-h8k-emily-jaluit' "$D/extra" || { echo "LIVE_VERIFY_FAIL: Jaluit H8K Emily entry missing"; exit 1; }
           grep -Fq 'construkted.com/embed/aekeemf4u6h' "$D/extra" || { echo "LIVE_VERIFY_FAIL: Jaluit H8K public viewer URL missing"; exit 1; }
+          grep -Fq 'douglas-sbd-dauntless-kwajalein' "$D/extra" || { echo "LIVE_VERIFY_FAIL: Kwajalein SBD Dauntless entry missing"; exit 1; }
+          grep -Fq 'construkted.com/embed/a1h0143huw3' "$D/extra" || { echo "LIVE_VERIFY_FAIL: Kwajalein SBD public viewer URL missing"; exit 1; }
+          grep -Fq '40.31-million-polygon photogrammetry polygon mesh' "$D/extra" || { echo "LIVE_VERIFY_FAIL: Kwajalein SBD model metadata missing"; exit 1; }
           grep -Fq 'bell-p39q-airacobra-lake-huron' "$D/extra" || { echo "LIVE_VERIFY_FAIL: P-39Q wreck entry missing"; exit 1; }
-          grep -Fq '6 persistent wreck icons' "$D/extra" || { echo "LIVE_VERIFY_FAIL: six persistent wreck markers are not configured"; exit 1; }
+          grep -Fq '8 persistent wreck icons' "$D/extra" || { echo "LIVE_VERIFY_FAIL: six persistent wreck markers are not configured"; exit 1; }
           grep -Fq 'ensureWorldModel' "$D/extra" || { echo "LIVE_VERIFY_FAIL: native in-globe Sunderland model layer missing"; exit 1; }
           grep -Fq "renderingMode:'3d'" "$D/extra" || { echo "LIVE_VERIFY_FAIL: 3D globe rendering layer missing"; exit 1; }
           cmp -s "$D/extra" "$D/extraapp" || { echo "LIVE_VERIFY_FAIL: root/app extra mesh modules differ"; exit 1; }
