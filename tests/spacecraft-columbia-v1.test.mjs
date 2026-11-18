@@ -29,6 +29,6 @@ assert.match(source,/parseAsync\(buffer,''\)/);
 assert.match(source,/root\.scale\.setScalar\(0\.01\)/,'Smithsonian package coordinates are centimeters');
 assert.match(source,/bp-spacecraft-columbia-native-v1/,'globe scan needs its own map layer');
 assert.match(source,/Show 3D scan on the globe/);
-assert.match(source,/Open Access CC0/);
+assert.match(source,/Open Access.*CC0/);
 assert.doesNotMatch(source,/<iframe|viewerUrl/i,'do not embed a third-party viewer');
 console.log('BRIDGEPOINT_SPACECRAFT_COLUMBIA_V1_PASS');
