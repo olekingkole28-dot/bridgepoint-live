@@ -17,7 +17,7 @@ assert.equal(sunderland.zenodoId,'10327701');
 assert.equal(sunderland.license,'CC BY 4.0');
 assert.equal(sunderland.creator,'Blueye Robotics');
 assert.match(sunderland.details,/underwater photogrammetry/i);
-assert.match(sunderland.details,/deliberately sunk/i);
+assert.match(sunderland.details,/towed out and sunk/i);
 assert.match(sunderland.assetUrl,/\.glb\.gz$/);
 assert.match(sunderland.originalModelUrl,/short-sunderland/);
 assert.match(sunderland.attribution,/CC BY 4\.0/);
