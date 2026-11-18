@@ -75,6 +75,35 @@ export const EXTRA_PLANE_WRECKS=[
   license:'CC BY 4.0',
   attribution:'Blueye Robotics, “Short Sunderland”, Sketchfab model 3be976d6c87d47129067be221053d4bf, mirrored in Zenodo record 10327701, CC BY 4.0. Model hosted by BridgePoint from the openly downloadable Zenodo GLB.',
   locationNote:'Wreck-site position is 63.452221° N, 10.373180° E, with the wreck reported at 57–72 m depth. BridgePoint places this scan at the 64 m reference depth; the model origin and orientation are approximate, not a survey-grade alignment.'
+ },
+ {
+  id:'tokai-maru-apra-harbor',
+  name:'Tokai Maru — Apra Harbor, Guam',
+  label:'TOKAI MARU · GUAM',
+  typeLabel:'Vessel',
+  vehicleType:'Japanese passenger-cargo freighter',
+  kicker:'BRIDGEPOINT · UNDERWATER SHIPWRECK',
+  iconType:'ship',
+  representationLabel:'Colorized COLMAP photogrammetry point cloud',
+  coordinates:[144.65596,13.45905],
+  worldDepthM:12.8,
+  worldScale:1,
+  location:'Apra Harbor, Guam, United States',
+  date:'Sunk by USS Snapper · 27 August 1943',
+  details:'Tokai Maru was a Japanese passenger-cargo freighter torpedoed and sunk by USS Snapper on 27 August 1943 in Apra Harbor. The wreck lies beside the SMS Cormoran. The Abyssal dataset’s ISRO sequence contains 2,239 underwater photographs of Tokai Maru and companion Depth Anything depth maps. BridgePoint hosts a colorized COLMAP reconstruction point cloud from the ISRO sequence; it is a photogrammetric 3D reconstruction, not a closed textured hull mesh.',
+  creator:'Haoran Wang · Nantheera Anantrasirichai · Brett Seymour',
+  photos:2239,
+  depthMaps:2288,
+  zenodoId:'21824088',
+  doi:'10.5281/zenodo.21824088',
+  sourceUrl:'https://zenodo.org/records/21824088',
+  originalModelUrl:'https://zenodo.org/records/21824088',
+  historyUrl:'https://www.padi.com/dive-site/guam/tokai-maru/',
+  assetUrl:'/assets/plane-wrecks/extra/tokai-maru-apra-harbor-photogrammetry.glb.gz',
+  assetName:'tokai-maru-apra-harbor-photogrammetry.glb.gz',
+  license:'CC BY 4.0',
+  attribution:'Haoran Wang, Nantheera Anantrasirichai and Brett Seymour, “Abyssal: A Large-scale Underwater 3D Reconstruction Dataset”, Zenodo record 21824088, CC BY 4.0. Tokai Maru / ISRO sequence converted and hosted by BridgePoint.',
+  locationNote:'Apra Harbor wreck-site marker is approximate to published dive-site coordinates. Published descriptions put the shallowest part at about 42 ft (12.8 m); BridgePoint uses that as an approximate visual depth reference. The COLMAP model origin and orientation are not survey-grade.'
  }
 ];
 
@@ -109,25 +138,35 @@ function loadModel(wreck){
   const center=bounds.getCenter(new pair.THREE.Vector3());
   root.position.sub(center);
   root.updateMatrixWorld(true);
-  let meshes=0,triangles=0;
+  let meshes=0,triangles=0,pointClouds=0,pointCount=0;
   root.traverse(object=>{
-   if(object.isMesh){
+   if(!object.isMesh&&!object.isPoints)return;
+   object.frustumCulled=false;
+   const position=object.geometry?.attributes?.position;
+   if(object.isPoints){
+    pointClouds++;
+    pointCount+=position?.count||0;
+   }else{
     meshes++;
-    const position=object.geometry?.attributes?.position;
     const index=object.geometry?.index;
     triangles+=index?Math.floor(index.count/3):Math.floor((position?.count||0)/3);
-    object.frustumCulled=false;
     object.castShadow=false;object.receiveShadow=false;
-    const materials=Array.isArray(object.material)?object.material:[object.material];
-    for(const material of materials){
-     if(!material)continue;
-     material.side=pair.THREE.DoubleSide;
-     material.needsUpdate=true;
+   }
+   const materials=Array.isArray(object.material)?object.material:[object.material];
+   for(const material of materials){
+    if(!material)continue;
+    if(object.isMesh)material.side=pair.THREE.DoubleSide;
+    if(object.isPoints){
+     material.vertexColors=true;
+     material.size=Math.max(Math.max(size.x,size.y,size.z)*0.003,0.05);
+     material.sizeAttenuation=true;
+     material.toneMapped=false;
     }
+    material.needsUpdate=true;
    }
   });
-  if(!meshes||triangles<1000)throw new Error('The source GLB did not contain a usable textured triangle mesh');
-  return {THREE:pair.THREE,root,size,meshes,triangles};
+  if((!meshes||triangles<1000)&&pointCount<1000)throw new Error('The source GLB did not contain a substantial triangle mesh or photogrammetry point cloud');
+  return {THREE:pair.THREE,root,size,meshes,triangles,pointClouds,pointCount};
  })().catch(error=>{wreck.modelPromise=null;throw error;});
  return wreck.modelPromise;
 }
@@ -162,12 +201,18 @@ function ensureWorldMeshLayer(state,wreck,result){
  const root=result.root.clone(true);
  if(wreck.worldScale&&wreck.worldScale!==1)root.scale.setScalar(wreck.worldScale);
  root.traverse(object=>{
-  if(!object.isMesh)return;
+  if(!object.isMesh&&!object.isPoints)return;
   object.frustumCulled=false;
   const materials=Array.isArray(object.material)?object.material:[object.material];
   for(const material of materials){
    if(!material)continue;
-   material.side=THREE.DoubleSide;
+   if(object.isMesh)material.side=THREE.DoubleSide;
+   if(object.isPoints){
+    material.vertexColors=true;
+    material.size=2.8;
+    material.sizeAttenuation=false;
+    material.toneMapped=false;
+   }
    material.depthTest=false;
    material.depthWrite=false;
    material.needsUpdate=true;
@@ -264,7 +309,9 @@ function makeMarkerElement(wreck){
  element.className=MARKER_CLASS;
  element.setAttribute('aria-label',wreck.name+'. Open BridgePoint-hosted photogrammetry viewer and details.');
  element.title=wreck.name+' · open BridgePoint 3D model card';
- element.innerHTML='<svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><path d="M29 4h6l4 20 20 10v6L39 35l2 15 9 7v4l-18-5-18 5v-4l9-7 2-15L5 40v-6l20-10z" fill="currentColor" stroke="#fff1ca" stroke-width="1.7" stroke-linejoin="round"/></svg>';
+ element.innerHTML=wreck.iconType==='ship'
+  ?'<svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><path d="M8 38h48l-7 15H17z" fill="currentColor" stroke="#fff1ca" stroke-width="1.7" stroke-linejoin="round"/><path d="M18 35V21h9v-8h12v22M29 21h10M12 57c4-3 8-3 12 0s8 3 12 0 8-3 12 0 6 2 8 0" fill="none" stroke="#fff1ca" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+  :'<svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><path d="M29 4h6l4 20 20 10v6L39 35l2 15 9 7v4l-18-5-18 5v-4l9-7 2-15L5 40v-6l20-10z" fill="currentColor" stroke="#fff1ca" stroke-width="1.7" stroke-linejoin="round"/></svg>';
  return element;
 }
 function ensureMarker(state,wreck){
@@ -296,7 +343,7 @@ function setMarkerVisibility(state,wreck,visible){
 }
 function setCountNote(){
  const count=document.getElementById(COUNT_ID);
- if(count)count.textContent='4 persistent aircraft-wreck icons · 3 BridgePoint-hosted photogrammetry mesh cards · Sunderland scan also placed in the 3D globe';
+ if(count)count.textContent='5 persistent wreck icons · 5 BridgePoint-hosted 3D model cards · Tokai Maru and Sunderland also placed in BridgePoint Earth';
 }
 function setEnabledFromButton(state){
  const button=document.getElementById(TOGGLE_ID);
@@ -335,14 +382,14 @@ function addStyles(){
 function cardHtml(wreck){
  const photos=wreck.photos?wreck.photos+' source photographs':'Source photogrammetry scan';
  return '<article class="bp-plane-wreck-extra-card-v1">'+
-  '<div class="bp-extra-kicker">BRIDGEPOINT · PLANE WRECKS</div>'+
+  '<div class="bp-extra-kicker">'+safe(wreck.kicker||'BRIDGEPOINT · PLANE WRECKS')+'</div>'+
   '<h3>'+safe(wreck.name)+'</h3>'+
-  '<p class="bp-extra-subtitle">'+safe(wreck.aircraft)+' · '+safe(wreck.location)+'</p>'+
+  '<p class="bp-extra-subtitle">'+safe(wreck.vehicleType||wreck.aircraft)+' · '+safe(wreck.location)+'</p>'+
   '<div class="bp-extra-facts">'+
-   '<span><b>Aircraft</b>'+safe(wreck.aircraft)+'</span>'+
+   '<span><b>'+safe(wreck.typeLabel||'Aircraft')+'</b>'+safe(wreck.vehicleType||wreck.aircraft)+'</span>'+
    '<span><b>Date</b>'+safe(wreck.date)+'</span>'+
    '<span><b>Scan source</b>'+safe(photos)+'</span>'+
-   '<span><b>Reconstruction</b>Photogrammetry triangle mesh</span>'+
+   '<span><b>Reconstruction</b>'+safe(wreck.representationLabel||'Photogrammetry triangle mesh')+'</span>'+
    '<span><b>Rights</b>'+safe(wreck.license)+'</span>'+
    '<span><b>Hosted asset</b>BridgePoint local GLB</span>'+
    (wreck.worldDepthM?'<span><b>BridgePoint Earth</b>Placed at the wreck site · '+safe(wreck.worldDepthM)+' m below sea level</span>':'')+
@@ -352,7 +399,7 @@ function cardHtml(wreck){
   '<p class="bp-plane-wreck-extra-note-v1">'+safe(wreck.details)+'</p>'+
   '<p class="bp-plane-wreck-extra-note-v1">'+safe(wreck.locationNote)+'</p>'+
   '<div class="bp-plane-wreck-extra-sources-v1"><b>Model source, history and attribution</b>'+
-   '<a href="'+safe(wreck.sourceUrl)+'" target="_blank" rel="noopener noreferrer">Zenodo dataset and downloadable source GLB ↗</a>'+
+   '<a href="'+safe(wreck.sourceUrl)+'" target="_blank" rel="noopener noreferrer">Zenodo source dataset and model provenance ↗</a>'+
    '<a href="'+safe(wreck.historyUrl)+'" target="_blank" rel="noopener noreferrer">Aircraft / wreck historical reference ↗</a>'+
    '<a href="'+safe(wreck.originalModelUrl)+'" target="_blank" rel="noopener noreferrer">Original 3D model record ↗</a>'+
   '</div>'+
@@ -409,10 +456,19 @@ function mountViewer(state,popup,wreck){
    const rim=new THREE.DirectionalLight(0xffffff,0.6);rim.position.set(0,-4,3);scene.add(rim);
    model=result.root.clone(true);
    model.traverse(object=>{
-    if(object.isMesh){
-     object.frustumCulled=false;
-     const materials=Array.isArray(object.material)?object.material:[object.material];
-     for(const material of materials){if(material){material.side=THREE.DoubleSide;material.needsUpdate=true;}}
+    if(!object.isMesh&&!object.isPoints)return;
+    object.frustumCulled=false;
+    const materials=Array.isArray(object.material)?object.material:[object.material];
+    for(const material of materials){
+     if(!material)continue;
+     if(object.isMesh)material.side=THREE.DoubleSide;
+     if(object.isPoints){
+      material.vertexColors=true;
+      material.size=Math.max(maxDim*0.004,0.05);
+      material.sizeAttenuation=true;
+      material.toneMapped=false;
+     }
+     material.needsUpdate=true;
     }
    });
    scene.add(model);
@@ -451,7 +507,10 @@ function mountViewer(state,popup,wreck){
     renderer.render(scene,camera);animationFrame=requestAnimationFrame(render);
    };
    render();
-   status('BridgePoint-hosted photogrammetry mesh loaded · '+result.meshes.toLocaleString()+' mesh parts · approximately '+result.triangles.toLocaleString()+' triangles · rotate and zoom to inspect.');
+   const geometrySummary=result.pointCount
+    ?result.pointCount.toLocaleString()+' colorized reconstruction points'
+    :result.meshes.toLocaleString()+' mesh parts · approximately '+result.triangles.toLocaleString()+' triangles';
+   status('BridgePoint-hosted photogrammetry loaded · '+geometrySummary+' · rotate and zoom to inspect.');
   }catch(error){fail(error);}
  })();
 }
