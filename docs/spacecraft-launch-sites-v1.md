@@ -43,13 +43,9 @@ Source URLs:
 
 The existing **Spacecraft** toggle now also controls a second persistent icon for the Apollo 11 Command Module Columbia at the National Air and Space Museum in Washington, DC. Selecting the icon opens a BridgePoint-hosted local Three.js viewer with rotation, zoom and reset controls, object details, attribution and source links. The card's “Show 3D scan on the globe” action flies to the museum and enables the model's native 3D map layer.
 
-BridgePoint hosts and composes the three exterior GLB components from the Smithsonian's exterior 3D package:
+BridgePoint hosts the Smithsonian's combined exterior GLB distribution file, `apollo_exterior-150k-4096.glb`, a single combined 150k-face exterior mesh. It is the official Smithsonian download entry for the Apollo 11 Command Module exterior, not a BridgePoint-built CAD approximation.
 
-- \`x3d-cm-exterior-shell-90k-uvs-150k-4096-high.glb\` — exterior shell
-- \`x3d-cm-exterior-top-160k-uvs-150k-4096-high.glb\` — upper exterior
-- \`x3d-cm-exterior-filler-web.glb\` — exterior filler geometry
-
-The Smithsonian package uses centimetres and supplies the three exterior meshes in a shared local model frame. BridgePoint composes those meshes, keeps the capsule upright for Earth placement (rather than applying the package's presentation tilt), converts the source geometry to metres, and checks the resulting vertical extent against the museum's published 2.718 m capsule dimension. These are source-supplied digitized artifact meshes, not a BridgePoint-built CAD approximation. The package's three independent mesh components are kept as individual same-origin assets and loaded on demand.
+The Smithsonian source is scaled in centimetres. BridgePoint converts the GLB geometry to metres, keeps the capsule upright for Earth placement, and checks the resulting vertical extent against the museum's published 2.718 m capsule dimension. The model is loaded on demand from BridgePoint's same-origin asset path.
 
 **Rights:** Smithsonian Open Access, CC0 / public domain. Smithsonian attribution and the original object and model links remain in the card.
 
