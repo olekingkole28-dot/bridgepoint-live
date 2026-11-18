@@ -2057,7 +2057,7 @@ jobs:
               if "initPlaneWrecksExtraRenderer(world)" not in data:
                   anchor=".catch(e=>console.warn('BridgePoint Plane Wrecks layer unavailable',e));"
                   if anchor not in data: raise SystemExit(f"{rel}: base Plane Wrecks catch missing")
-                  data=data.replace(anchor,anchor+"\\n"+plane_extra_attach,1)
+                  data=data.replace(anchor,anchor+"\n"+plane_extra_attach,1)
               for marker in ("initSpacecraftColumbiaRenderer(world)","initSpacecraftDiscoveryRenderer(world)","initSpacecraftSaturnRenderer(world)","initPlaneWrecksExtraRenderer(world"):
                   if data.count(marker)!=1: raise SystemExit(f"{rel}: expected one {marker}")
               path.write_text(data,encoding="utf-8")
