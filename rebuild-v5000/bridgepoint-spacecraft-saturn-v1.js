@@ -230,7 +230,7 @@ async function showOnGlobe(state){
   state.status='The BridgePoint-hosted Saturn V and gantry scene is loaded. The model placement and generated apron are illustrative, not survey-controlled.';
   setStatus(state,state.status);return true;
  }catch(error){
-  state.modelVisible=false;state.status='Saturn V globe model could not load: '+String(error?.message||error);setStatus(state,state.status);return false;
+  state.modelVisible=false;state.autoAttempted=false;state.status='Saturn V globe model could not load: '+String(error?.message||error);setStatus(state,state.status);return false;
  }
 }
 function ensureMarker(state,visible=state.enabled){
