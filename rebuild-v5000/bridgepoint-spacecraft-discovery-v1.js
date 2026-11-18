@@ -35,7 +35,7 @@ export const SPACECRAFT_DISCOVERY={
  sourceModelUrl:'https://3d.si.edu/object/3d/d8c636ce-4ebc-11ea-b77f-2e728ce88125',
  sourceRecordUrl:'https://www.si.edu/object/orbiter-space-shuttle-ov-103-discovery%3Anasm_A20120325000',
  sourceManifestUrl:'https://3d-api.si.edu/content/document/3d_package:d8c636ce-4ebc-11ea-b77f-2e728ce88125/document.json',
- sourceAssetUrl:'https://3d-api.si.edu/content/document/3d_package:d8c636ce-4ebc-11ea-b77f-2e728ce88125/resources/SShuttle_Exterior_2019_CLI_TIF_Model_12-150k-4096-high.glb',
+ sourceAssetUrl:'https://3d-api.si.edu/content/document/3d_package:d8c636ce-4ebc-11ea-b77f-2e728ce88125/resources/Orbiter_Space_Shuttle_OV-103_Discovery-150k-4096.glb',
  sourceLicense:'Smithsonian Open Access · CC0 / public domain. The Smithsonian states this media may be copied, modified, and distributed without contacting the institution.',
  sourceMethod:'Smithsonian Digitization Program Office 3D scan. BridgePoint hosts the official high-resolution 150,000-face GLB distribution with a 4096-pixel texture; the source manifest identifies model units as metres.',
  placementPrecision:'The persistent marker identifies the Steven F. Udvar-Hazy Center, where Space Shuttle Discovery is on display. The source mesh has no geodetic origin or survey alignment; positioning the model at the museum marker is illustrative, not an indoor survey-controlled placement.'
