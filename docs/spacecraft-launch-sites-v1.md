@@ -72,3 +72,17 @@ Source links:
 - Smithsonian 3D object page: https://3d.si.edu/object/3d/d8c636ce-4ebc-11ea-b77f-2e728ce88125
 - Smithsonian collection record: https://www.si.edu/object/orbiter-space-shuttle-ov-103-discovery%3Anasm_A20120325000
 - Smithsonian model package manifest: https://3d-api.si.edu/content/document/3d_package:d8c636ce-4ebc-11ea-b77f-2e728ce88125/document.json
+
+
+## Fourth entry: Saturn V + Launch Complex 39 gantry — NASA 3D Resources
+
+The existing **Spacecraft** toggle also controls a fourth persistent rocket marker for the historic Launch Complex 39A area at Kennedy Space Center, Florida. Clicking it opens a BridgePoint-hosted local Three.js card viewer with drag-to-rotate, scroll-to-zoom and reset controls, object details, source links and a button to show the combined scene on the globe.
+
+BridgePoint mirrors NASA's official Saturn V GLB and the NASA Launch Complex 39 gantry GLB to its own `/assets/spacecraft/` paths. The Saturn V is scaled to NASA's published 111 m / 363 ft overall height. The gantry is proportionally normalized for the scene. BridgePoint composes the two models on a generated, simplified concrete apron to create an upright launch-vehicle-and-platform presentation similar in spirit to the SLS + Mobile Launcher scene.
+
+**Source-model distinction:** these files are NASA 3D-resource models, not photogrammetry scans. The generated apron, gantry-to-rocket spacing, orientation and LC-39A globe placement are illustrative; the source packages do not provide geodetic origins or survey-control transforms. NASA's source pages and attributions are retained inside the BridgePoint card.
+
+Source links:
+- NASA Saturn V 3D Resource: https://science.nasa.gov/3d-resources/saturn-v/
+- NASA Launch Complex 39 gantry 3D Resource: https://science.nasa.gov/3d-resources/gantry/
+- NASA Apollo 11 Pad 39A launch history: https://www.nasa.gov/history/50-years-ago-apollo-11-to-launch-from-pad-39a/
