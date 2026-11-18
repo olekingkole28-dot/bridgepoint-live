@@ -37,8 +37,7 @@ export const SPACECRAFT_COLUMBIA={
  sourceManifestUrl:'https://3d-api.si.edu/content/document/3d_package:d8c6457e-4ebc-11ea-b77f-2e728ce88125/document.json',
  sourceLicense:'Smithsonian Open Access · CC0 / public domain',
  sourceMethod:'Smithsonian high-resolution 3D digitization of the exterior artifact; three supplied GLB mesh components are composed by BridgePoint.',
- placementPrecision:'The persistent marker identifies the approximate National Air and Space Museum building location, where the capsule is listed on display. The source has no geodetic origin or survey alignment; the globe model is a visual placement, not a survey-controlled indoor position.',
- rotation:[0.0850898,0.018864,-0.215616,0.9725809]
+ placementPrecision:'The persistent marker identifies the approximate National Air and Space Museum building location, where the capsule is listed on display. The source has no geodetic origin or survey alignment; the globe model is a visual placement, not a survey-controlled indoor position.'
 };
 const states=new WeakMap();
 let threePromise=null;
@@ -84,8 +83,9 @@ async function loadColumbia(state){
    part.name=asset.split('/').pop();
    root.add(part);
   }
-  // Smithsonian's source scene defines this shared parent transform and uses centimetres.
-  root.quaternion.set(SPACECRAFT_COLUMBIA.rotation[0],SPACECRAFT_COLUMBIA.rotation[1],SPACECRAFT_COLUMBIA.rotation[2],SPACECRAFT_COLUMBIA.rotation[3]);
+  // The Smithsonian package geometry is Y-up and in centimetres. The package's presentation
+  // parent adds a viewer tilt; omit that display tilt so the physical capsule stands upright on Earth.
+  root.quaternion.identity();
   root.scale.setScalar(0.01);
   root.updateMatrixWorld(true);
   let bounds=new pair.THREE.Box3().setFromObject(root);
