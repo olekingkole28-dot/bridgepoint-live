@@ -22,7 +22,7 @@ permissions:
 # then overlays SLS + Mobile Launcher, the Smithsonian Columbia scan, and the Smithsonian Discovery scan.
 concurrency:
   group: bridgepoint-v5000-production-authority
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   publish:
