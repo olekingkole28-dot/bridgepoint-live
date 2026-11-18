@@ -38,7 +38,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p assets/spacecraft
-          BASE='https://3d-api.si.edu/content/document/3d_package:d8c6457e-4ebc-11ea-b77f-2e728ce88125/resources'
+          BASE='https://3d-api.si.edu/content/document/3d_package:d8c6457e-4ebc-11ea-b77f-2e728ce88125'
           UA='BridgePointIntelligence/1.0 (+https://bridgepointintelligence.online)'
           curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 --max-time 180 -fL -A "$UA" "$BASE/x3d-cm-exterior-shell-90k-uvs-150k-4096-high.glb" -o assets/spacecraft/smithsonian-apollo11-exterior-shell.glb
           curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 --max-time 180 -fL -A "$UA" "$BASE/x3d-cm-exterior-top-160k-uvs-150k-4096-high.glb" -o assets/spacecraft/smithsonian-apollo11-exterior-top.glb
