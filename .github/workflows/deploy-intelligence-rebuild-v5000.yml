@@ -8,6 +8,7 @@ name: Deploy BridgePoint Intelligence V5000 Rebuild
 # 2026-11-18: trigger Pages republish for the bootstrapped PC auth tunnel endpoint.
 # 2026-11-18: trigger the PC-runtime v6238 production cutover and phone cache refresh.
 # 2026-11-18: force nested globe module config imports to the v6238 PC-runtime cache key.
+# 2026-11-18: align production smoke assertions with the v6238 globe-map and weather cache refresh.
 # 2026-11-18: rerun full production validation after synchronizing the subsurface module cache-key test.
 
 on:
