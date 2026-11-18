@@ -2161,6 +2161,60 @@ jobs:
           test -s "$TARGET/manifest.json"
           grep -Fq '"buildRevision": "blender-world-v1"' "$TARGET/manifest.json"
 
+      - name: Draco-compress Manhattan GLB tiles for a Pages-safe full-site publish
+        if: needs.build-manhattan-world.outputs.package_needed == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          TARGET='site/assets/blender-world/manhattan'
+          test -s site/assets/blender-world/manifest.json
+          test -d "$TARGET"
+          BEFORE="$(find "$TARGET" -maxdepth 1 -type f -name '*.glb' -printf '%s\n' | awk '{sum += $1} END {print sum+0}')"
+          FILES="$(find "$TARGET" -maxdepth 1 -type f -name '*.glb' | wc -l)"
+          test "$FILES" -ge 20
+          npm install --no-save --no-audit --no-fund @gltf-transform/cli@4.5.1
+          export NODE_OPTIONS='--max-old-space-size=6144'
+          COMPRESSED=0
+          for file in "$TARGET"/*.glb; do
+            tmp="\${file%.glb}.draco.tmp.glb"
+            ./node_modules/.bin/gltf-transform draco "$file" "$tmp" --method edgebreaker
+            test -s "$tmp"
+            old_size="$(stat -c '%s' "$file")"
+            new_size="$(stat -c '%s' "$tmp")"
+            if [ "$new_size" -lt "$old_size" ]; then
+              mv "$tmp" "$file"
+              COMPRESSED=$((COMPRESSED+1))
+            else
+              rm -f "$tmp"
+            fi
+          done
+          AFTER="$(find "$TARGET" -maxdepth 1 -type f -name '*.glb' -printf '%s\n' | awk '{sum += $1} END {print sum+0}')"
+          python3 - "$TARGET" <<'PY'
+          import json, pathlib, struct, sys
+          root=pathlib.Path(sys.argv[1])
+          tiles=list(root.glob('*.glb'))
+          draco=0
+          for path in tiles:
+              with path.open('rb') as stream:
+                  header=stream.read(20)
+                  if len(header)!=20: raise SystemExit(f'INVALID_GLB_HEADER {path.name}')
+                  magic,version,total=struct.unpack('<4sII',header[:12])
+                  chunk_len,chunk_type=struct.unpack('<II',header[12:20])
+                  if magic!=b'glTF' or version!=2 or chunk_type!=0x4E4F534A:
+                      raise SystemExit(f'INVALID_GLB_CONTAINER {path.name}')
+                  doc=json.loads(stream.read(chunk_len))
+                  if 'KHR_draco_mesh_compression' in doc.get('extensionsUsed',[]):
+                      draco+=1
+          if not tiles or draco<1:
+              raise SystemExit(f'MANHATTAN_DRACO_VALIDATION_FAILED tiles={len(tiles)} draco={draco}')
+          print(f'MANHATTAN_DRACO_VALIDATION_PASS tiles={len(tiles)} draco_tiles={draco}')
+          PY
+          echo "MANHATTAN_GLB_BYTES_BEFORE=$BEFORE AFTER=$AFTER COMPRESSED_TILES=$COMPRESSED"
+          test -s site/vendor/draco/draco_decoder.wasm
+          node --check site/bridgepoint-blender-world-v1.js
+          grep -Fq 'setDRACOLoader' site/bridgepoint-blender-world-v1.js
+          echo "BRIDGEPOINT_MANHATTAN_DRACO_AND_RUNTIME_DECODER_PASS"
+
       - name: Apply direct-entry startup fix and preserve the current celestial world
         shell: bash
         run: |
