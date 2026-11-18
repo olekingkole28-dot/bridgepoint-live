@@ -2370,9 +2370,13 @@ jobs:
               && grep -Fq 'bp-v5940-statue-scan' /tmp/landmarks-v5940.js \
               && grep -Fq '__BP_WORLD_RENDER_VERSION__=5630' /tmp/world-v2300-map.js \
               && grep -Fq 'refreshSidewalk3DFromTiles(extraFeatures=[],force=false)' /tmp/world-v2300-map.js \
-              && grep -Fq 'bpSidewalkTileSyncTimer=setTimeout' /tmp/world-v2300-map.js \
+               && grep -Fq "const sidewalkRoadLayers=['gta-road-major','gta-road-local','gta-sidewalk-road-probe-v1'].filter(id=>map.getLayer(id))" /tmp/world-v2300-map.js \
+               && grep -Fq "const sidewalkFeatureLayers=['gta-global-sidewalk-approach-v1','gta-bp-sidewalk'].filter(id=>map.getLayer(id))" /tmp/world-v2300-map.js \
+               && grep -Fq "const sidewalkBatch=clipBatch([...sidewalkRenderedRaw,...sidewalkExtraRaw],'walkway',MAX_SIDEWALK_RENDER_FEATURES,MAX_SIDEWALK_RENDER_VERTICES)" /tmp/world-v2300-map.js \
               && grep -Fq 'world-v2300-sidewalks-3d.js?v=20261116-sidewalk-coverage-curbs-v3' /tmp/world-v2300-map.js \
-              && grep -Fq 'const limits=mobile?{paths:84,panels:420,verges:280,blades:1600,cracks:90}' /tmp/world-v2300-sidewalks-3d.js \
+               && grep -Fq 'const limits=+zoom>=17.2' /tmp/world-v2300-sidewalks-3d.js \
+               && grep -Fq 'const mappedLimits={...limits,paths:Math.max(1,Math.floor(limits.paths*.65)),panels:Math.max(1,Math.floor(limits.panels*.65))}' /tmp/world-v2300-sidewalks-3d.js \
+               && grep -Fq 'generateRoadsideWalks&&Array.isArray(roadsideWalkFeatures)' /tmp/world-v2300-sidewalks-3d.js \
               && grep -Fq 'window.__BP_FRESH_SIGNIN__!==true' /tmp/root.html \
               && grep -Fq 'bp_fresh_signin_v1' /tmp/app.html \
               && grep -Fq '__BP_SKY_CLOUDS_V5908__' /tmp/world-v2300-clouds.js \
