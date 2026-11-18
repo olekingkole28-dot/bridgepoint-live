@@ -527,8 +527,8 @@ jobs:
           grep -Fq 'initPlaneWrecksRenderer(world)' "$D/appjs" || { echo "LIVE_VERIFY_FAIL: app entry does not load Plane Wrecks"; exit 1; }
           grep -Fq 'initPlaneWrecksExtraRenderer(world)' "$D/landing" || { echo "LIVE_VERIFY_FAIL: landing entry does not load extra plane meshes"; exit 1; }
           grep -Fq 'initPlaneWrecksExtraRenderer(world)' "$D/appjs" || { echo "LIVE_VERIFY_FAIL: app entry does not load extra plane meshes"; exit 1; }
-          grep -Fq 'bridgepoint-plane-wrecks-extra-v1.js?v=7-messerschmitt-bf109-planier' "$D/landing" || { echo "LIVE_VERIFY_FAIL: landing extra module cache-bust missing"; exit 1; }
-          grep -Fq 'bridgepoint-plane-wrecks-extra-v1.js?v=7-messerschmitt-bf109-planier' "$D/appjs" || { echo "LIVE_VERIFY_FAIL: app extra module cache-bust missing"; exit 1; }
+          grep -Fq 'bridgepoint-plane-wrecks-extra-v1.js?v=8-b17f-black-jack' "$D/landing" || { echo "LIVE_VERIFY_FAIL: landing extra module cache-bust missing"; exit 1; }
+          grep -Fq 'bridgepoint-plane-wrecks-extra-v1.js?v=8-b17f-black-jack' "$D/appjs" || { echo "LIVE_VERIFY_FAIL: app extra module cache-bust missing"; exit 1; }
           grep -Fq 'EXTRA_PLANE_WRECKS' "$D/extra" || { echo "LIVE_VERIFY_FAIL: extra aircraft mesh module missing"; exit 1; }
           grep -Fq 'short-sunderland-ej138-munkholmen' "$D/extra" || { echo "LIVE_VERIFY_FAIL: Sunderland wreck entry missing"; exit 1; }
           grep -Fq 'tokai-maru-apra-harbor' "$D/extra" || { echo "LIVE_VERIFY_FAIL: Tokai Maru wreck entry missing"; exit 1; }
@@ -539,7 +539,7 @@ jobs:
           grep -Fq '40.31-million-polygon photogrammetry polygon mesh' "$D/extra" || { echo "LIVE_VERIFY_FAIL: Kwajalein SBD model metadata missing"; exit 1; }
           grep -Fq 'bell-p39q-airacobra-lake-huron' "$D/extra" || { echo "LIVE_VERIFY_FAIL: P-39Q wreck entry missing"; exit 1; }
           grep -Fq 'messerschmitt-bf109-g6-planier' "$D/extra" || { echo "LIVE_VERIFY_FAIL: Messerschmitt Bf 109 Planier wreck entry missing"; exit 1; }
-          grep -Fq '9 persistent wreck icons' "$D/extra" || { echo "LIVE_VERIFY_FAIL: nine persistent wreck markers are not configured"; exit 1; }
+          grep -Fq '10 persistent wreck icons' "$D/extra" || { echo "LIVE_VERIFY_FAIL: nine persistent wreck markers are not configured"; exit 1; }
           grep -Fq 'ensureWorldModel' "$D/extra" || { echo "LIVE_VERIFY_FAIL: native in-globe Sunderland model layer missing"; exit 1; }
           grep -Fq "renderingMode:'3d'" "$D/extra" || { echo "LIVE_VERIFY_FAIL: 3D globe rendering layer missing"; exit 1; }
           cmp -s "$D/extra" "$D/extraapp" || { echo "LIVE_VERIFY_FAIL: root/app extra mesh modules differ"; exit 1; }
