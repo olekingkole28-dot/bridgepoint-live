@@ -47,6 +47,8 @@ on:
       - 'assets/planets/v1/**'
       - 'tests/horizon-replacement-entry.test.mjs'
       - 'tests/subsurface-wells-v1.test.mjs'
+      - 'tests/celestial-water-cloud-shadows.test.mjs'
+      - 'tests/water-lod-and-imagery.test.mjs'
       - 'acquisition_tracker.js'
       - 'language-selector-v5200.js'
       - 'release-v2300/world-v2300-config.js'
