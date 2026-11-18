@@ -1,5 +1,5 @@
-name: Publish BridgePoint Plane Wrecks v1 — F4U-1 Corsair photogrammetry
-# Additive first aircraft wreck: one persistent icon, a BridgePoint-hosted 3D viewer and a seabed point-cloud layer.
+name: Publish BridgePoint Plane Wrecks — six persistent wreck viewers
+# Additive wreck catalogue: persistent icons, BridgePoint-hosted photogrammetry viewers and native globe meshes.
 
 on:
   pull_request:
@@ -12,6 +12,7 @@ on:
       - 'tools/plane_wrecks/build_f4u1_corsair.py'
       - 'tools/plane_wrecks/build_additional_models.py'
       - 'tools/plane_wrecks/build_tokai_maru.py'
+      - 'tools/plane_wrecks/build_noaa_p39q.py'
       - 'rebuild-v5000/bridgepoint-plane-wrecks-extra-v1.js'
       - 'tests/plane-wrecks-v1.test.mjs'
       - 'tests/plane-wrecks-extra-v1.test.mjs'
@@ -25,6 +26,7 @@ on:
       - '.github/workflows/publish-plane-wrecks-v1.yml'
       - 'tools/plane_wrecks/build_additional_models.py'
       - 'tools/plane_wrecks/build_tokai_maru.py'
+      - 'tools/plane_wrecks/build_noaa_p39q.py'
       - 'rebuild-v5000/bridgepoint-plane-wrecks-extra-v1.js'
       - 'tests/plane-wrecks-extra-v1.test.mjs'
   workflow_dispatch:
@@ -54,7 +56,7 @@ jobs:
           node --check rebuild-v5000/bridgepoint-drone-awareness-v1.js
           node --check rebuild-v5000/landing.js
           node --check rebuild-v5000/app.js
-          python3 -m py_compile tools/plane_wrecks/build_f4u1_corsair.py tools/plane_wrecks/build_additional_models.py tools/plane_wrecks/build_tokai_maru.py
+          python3 -m py_compile tools/plane_wrecks/build_f4u1_corsair.py tools/plane_wrecks/build_additional_models.py tools/plane_wrecks/build_tokai_maru.py tools/plane_wrecks/build_noaa_p39q.py
           node tests/plane-wrecks-v1.test.mjs
           node tests/plane-wrecks-extra-v1.test.mjs
           node tests/shipwrecks-v1.test.mjs
@@ -82,6 +84,31 @@ jobs:
           assert doc['accessors'][0]['count']==manifest['renderedPointCount']
           assert asset.stat().st_size<64*1024*1024
           print('BRIDGEPOINT_TOKAI_MARU_PR_ASSET_PASS',manifest['renderedPointCount'],'points',manifest['sourcePhotos'],'photos',manifest['depthMapCount'],'depth maps',len(raw),'GLB bytes')
+          PY
+
+      - name: Build and validate the public NOAA P-39Q Airacobra wing model
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check --no-input trimesh pillow
+          OUT="$RUNNER_TEMP/p39q-pr-validation"
+          python3 tools/plane_wrecks/build_noaa_p39q.py --output "$OUT"
+          python3 - "$OUT/p39q-airacobra-wing-photogrammetry.glb.gz" "$OUT/p39q-airacobra-wing.json" <<'PY'
+          import gzip,json,struct,sys
+          from pathlib import Path
+          asset=Path(sys.argv[1]);manifest=json.loads(Path(sys.argv[2]).read_text(encoding='utf-8'))
+          raw=gzip.decompress(asset.read_bytes())
+          assert raw[:4]==b'glTF' and struct.unpack_from('<I',raw,8)[0]==len(raw)
+          json_len=struct.unpack_from('<I',raw,12)[0]
+          doc=json.loads(raw[20:20+json_len].decode('utf-8').rstrip(' \\\\0'))
+          primitives=[p for mesh in doc.get('meshes',[]) for p in mesh.get('primitives',[])]
+          assert manifest['id']=='bell-p39q-airacobra-lake-huron'
+          assert 'Public Domain' in manifest['license']
+          assert manifest['sourcePhotos']==438 and manifest['imageAlignmentPercent']==100
+          assert manifest['triangles']>=1000 or manifest['vertices']>=1000
+          assert primitives
+          assert asset.stat().st_size<180*1024*1024
+          print('BRIDGEPOINT_P39Q_PR_ASSET_PASS',manifest['triangles'],'triangles',manifest['vertices'],'vertices',len(raw),'GLB bytes',asset.stat().st_size,'compressed bytes')
           PY
   publish:
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
@@ -112,7 +139,7 @@ jobs:
           node tests/plane-wrecks-extra-v1.test.mjs
           node tests/shipwrecks-v1.test.mjs
           node tests/drone-awareness.test.mjs
-          python3 -m py_compile tools/plane_wrecks/build_f4u1_corsair.py tools/plane_wrecks/build_additional_models.py tools/plane_wrecks/build_tokai_maru.py
+          python3 -m py_compile tools/plane_wrecks/build_f4u1_corsair.py tools/plane_wrecks/build_additional_models.py tools/plane_wrecks/build_tokai_maru.py tools/plane_wrecks/build_noaa_p39q.py
 
       - name: Materialize the rights-checked F4U-1 Corsair underwater photogrammetry point cloud
         shell: bash
@@ -183,6 +210,31 @@ jobs:
           assert doc['accessors'][0]['count']==manifest['renderedPointCount']
           assert asset.stat().st_size<64*1024*1024
           print('BRIDGEPOINT_TOKAI_MARU_PUBLISH_ASSET_PASS',manifest['renderedPointCount'],'points',manifest['sourcePhotos'],'photos',manifest['depthMapCount'],'depth maps',len(raw),'GLB bytes',asset.stat().st_size,'compressed bytes')
+          PY
+
+      - name: Materialize and validate the NOAA P-39Q Airacobra wing photogrammetry mesh
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check --no-input trimesh pillow
+          python3 tools/plane_wrecks/build_noaa_p39q.py --output assets/plane-wrecks/extra
+          python3 - <<'PY'
+          import gzip,json,struct
+          from pathlib import Path
+          root=Path('assets/plane-wrecks/extra')
+          asset=root/'p39q-airacobra-wing-photogrammetry.glb.gz'
+          manifest=json.loads((root/'p39q-airacobra-wing.json').read_text(encoding='utf-8'))
+          raw=gzip.decompress(asset.read_bytes())
+          assert raw[:4]==b'glTF' and struct.unpack_from('<I',raw,8)[0]==len(raw)
+          json_len=struct.unpack_from('<I',raw,12)[0]
+          doc=json.loads(raw[20:20+json_len].decode('utf-8').rstrip(' \\\\0'))
+          primitives=[p for mesh in doc.get('meshes',[]) for p in mesh.get('primitives',[])]
+          assert manifest['id']=='bell-p39q-airacobra-lake-huron'
+          assert 'Public Domain' in manifest['license']
+          assert manifest['sourcePhotos']==438 and manifest['imageAlignmentPercent']==100
+          assert manifest['triangles']>=1000 or manifest['vertices']>=1000
+          assert primitives and asset.stat().st_size<180*1024*1024
+          print('BRIDGEPOINT_P39Q_PUBLISH_ASSET_PASS',manifest['triangles'],'triangles',manifest['vertices'],'vertices',len(raw),'GLB bytes',asset.stat().st_size,'compressed bytes')
           PY
 
       - name: Select latest successful deployed GitHub Pages artifact
@@ -412,7 +464,7 @@ jobs:
           path: ${{ runner.temp }}/plane-wrecks-site
           include-hidden-files: true
 
-      - name: Publish BridgePoint Plane Wrecks v1 — F4U-1 Corsair photogrammetry
+      - name: Publish BridgePoint Plane Wrecks — six persistent wreck viewers
         id: deployment
         uses: actions/deploy-pages@v4
         with:
