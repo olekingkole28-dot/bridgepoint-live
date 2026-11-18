@@ -2,13 +2,14 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { EXTRA_PLANE_WRECKS } from '../rebuild-v5000/bridgepoint-plane-wrecks-extra-v1.js';
 
-assert.equal(EXTRA_PLANE_WRECKS.length,5);
+assert.equal(EXTRA_PLANE_WRECKS.length,6);
 const b29=EXTRA_PLANE_WRECKS.find(x=>x.id==='b29-over-exposed-bleaklow');
 const zero=EXTRA_PLANE_WRECKS.find(x=>x.id==='mitsubishi-zero-a6m3-iwm-london');
 const sunderland=EXTRA_PLANE_WRECKS.find(x=>x.id==='short-sunderland-ej138-munkholmen');
 const tokai=EXTRA_PLANE_WRECKS.find(x=>x.id==='tokai-maru-apra-harbor');
 const p39=EXTRA_PLANE_WRECKS.find(x=>x.id==='bell-p39q-airacobra-lake-huron');
-assert.ok(b29&&zero&&sunderland&&tokai);
+const h8k=EXTRA_PLANE_WRECKS.find(x=>x.id==='kawanishi-h8k-emily-jaluit');
+assert.ok(b29&&zero&&sunderland&&tokai&&p39&&h8k);
 assert.deepEqual(b29.coordinates,[-1.86542,53.45091]);
 assert.deepEqual(zero.coordinates,[-0.108328,51.496009]);
 assert.equal(b29.zenodoId,'10318135');
@@ -56,6 +57,19 @@ assert.match(p39.assetUrl,/p39q-airacobra-wing-photogrammetry\.glb\.gz$/);
 assert.match(p39.attribution,/NOAA does not endorse BridgePoint/);
 assert.match(p39.locationNote,/approximate site locator/i);
 
+assert.equal(h8k.name,'Kawanishi H8K “Emily” — Jaluit Atoll');
+assert.deepEqual(h8k.coordinates,[169.717,6.0127667]);
+assert.equal(h8k.depthM,27.4);
+assert.equal(h8k.creator,'NPS Submerged Resources Center');
+assert.match(h8k.details,/40\.58-million-polygon mesh/);
+assert.match(h8k.details,/MI-JL-LA-002/);
+assert.match(h8k.embedUrl,/construkted\.com\/embed\/aekeemf4u6h/);
+assert.equal(h8k.viewerMode,'public-source-embed');
+assert.equal(h8k.assetUrl,undefined);
+assert.match(h8k.license,/download \/ redistribution not verified/);
+assert.match(h8k.locationNote,/not a verified photogrammetry origin/i);
+
+
 
 const moduleSource=await readFile(new URL('../rebuild-v5000/bridgepoint-plane-wrecks-extra-v1.js',import.meta.url),'utf8');
 assert.match(moduleSource,/new Marker\(\{element,anchor:'center',offset:\[0,0\]\}\)/);
@@ -65,12 +79,14 @@ assert.match(moduleSource,/data-bp-plane-wreck-extra-viewer/);
 assert.match(moduleSource,/new THREE\.WebGLRenderer/);
 assert.match(moduleSource,/parseAsync\(raw,''\)/);
 assert.match(moduleSource,/Loading BridgePoint-hosted/);
-assert.doesNotMatch(moduleSource,/<iframe|viewerUrl/i);
+assert.match(moduleSource,/wreck\.embedUrl/,'only the explicitly public H8K source view uses its official embed');
+assert.match(moduleSource,/Public Construkted Reality 3D viewer embedded inside this BridgePoint card/);
+assert.match(moduleSource,/if\(wreck\.embedUrl\)return;/,'the source-hosted H8K embed is not mislabeled or parsed as a BridgePoint-local GLB');
 assert.match(moduleSource,/loadModel\(wreck\)/);
 assert.match(moduleSource,/object\.isPoints/);
 assert.match(moduleSource,/pointCount/);
 assert.match(moduleSource,/wreck\.iconType==='ship'/);
-assert.match(moduleSource,/6 persistent wreck icons/);
+assert.match(moduleSource,/7 persistent wreck icons/);
 assert.match(moduleSource,/initPlaneWrecksExtraRenderer/);
 assert.match(moduleSource,/nativeWorldMatrix/);
 assert.match(moduleSource,/renderingMode:'3d'/);
