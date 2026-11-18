@@ -62,7 +62,7 @@ Source links:
 
 The existing **Spacecraft** toggle now also controls a third persistent icon for Space Shuttle Discovery at the Steven F. Udvar-Hazy Center in Chantilly, Virginia. Selecting the icon opens a BridgePoint-hosted local Three.js viewer with rotation, zoom and reset controls, detailed flight history, dimensions, mass, attribution and Smithsonian source links. The card's “Show 3D scan on the globe” action flies to the museum and enables Discovery's native 3D map layer.
 
-BridgePoint hosts the Smithsonian's official high-resolution GLB distribution, SShuttle_Exterior_2019_CLI_TIF_Model_12-150k-4096-high.glb, a 150,000-face scan with a 4096-pixel texture. The package manifest declares model units in metres. BridgePoint fits the principal 3D axes from the scan vertices so the 17.768 m overall height is aligned vertically while preserving the source metre scale. The catalogue dimensions are 24.314 m × 17.768 m × 38.03 m and the listed mass is 73,176.5 kg.
+BridgePoint hosts the Smithsonian's official high-resolution GLB distribution, Orbiter_Space_Shuttle_OV-103_Discovery-150k-4096.glb, a 150,000-face scan with a 4096-pixel texture. The package manifest declares model units in metres. BridgePoint fits the principal 3D axes from the scan vertices so the 17.768 m overall height is aligned vertically while preserving the source metre scale. The catalogue dimensions are 24.314 m × 17.768 m × 38.03 m and the listed mass is 73,176.5 kg.
 
 **Rights:** Smithsonian Open Access, CC0 / public domain. The Smithsonian states that this media is free of copyright restrictions and may be copied, modified and distributed without contacting the institution. BridgePoint retains Smithsonian attribution and source links.
 
