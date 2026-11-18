@@ -7,6 +7,8 @@ on:
       - '.github/workflows/publish-spacecraft-v1.yml'
       - 'rebuild-v5000/bridgepoint-spacecraft-columbia-v1.js'
       - 'tests/spacecraft-columbia-v1.test.mjs'
+      - 'rebuild-v5000/bridgepoint-spacecraft-discovery-v1.js'
+      - 'tests/spacecraft-discovery-v1.test.mjs'
       - 'docs/spacecraft-launch-sites-v1.md'
   workflow_dispatch:
 
@@ -17,7 +19,7 @@ permissions:
   id-token: write
 
 # This focused publisher preserves the verified Plane Wrecks / Shipwrecks production baseline,
-# then overlays the existing SLS launch-site scene and the Smithsonian Columbia exterior scan.
+# then overlays SLS + Mobile Launcher, the Smithsonian Columbia scan, and the Smithsonian Discovery scan.
 concurrency:
   group: bridgepoint-v5000-production-authority
   cancel-in-progress: true
@@ -57,15 +59,43 @@ jobs:
           print("SMITHSONIAN_COLUMBIA_COMBINED_GLB_PASS",len(raw),"bytes")
           PY
 
+      - name: Download and validate Smithsonian Space Shuttle Discovery high-resolution 3D scan
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p assets/spacecraft
+          SOURCE='https://3d-api.si.edu/content/document/3d_package:d8c636ce-4ebc-11ea-b77f-2e728ce88125/resources/SShuttle_Exterior_2019_CLI_TIF_Model_12-150k-4096-high.glb'
+          UA='BridgePointIntelligence/1.0 (+https://bridgepointintelligence.online)'
+          curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 --max-time 180 -fL -A "$UA" "$SOURCE" -o assets/spacecraft/smithsonian-space-shuttle-discovery-150k-4096.glb
+          python3 - <<'PY'
+          import json, struct
+          from pathlib import Path
+          path=Path('assets/spacecraft/smithsonian-space-shuttle-discovery-150k-4096.glb')
+          raw=path.read_bytes()
+          assert 500_000 <= len(raw) < 50*1024*1024, ('Discovery GLB size',len(raw))
+          assert raw[:4]==b'glTF' and struct.unpack_from('<I',raw,8)[0]==len(raw)
+          n=struct.unpack_from('<I',raw,12)[0]
+          doc=json.loads(raw[20:20+n].decode('utf-8'))
+          assert doc.get('asset',{}).get('version')=='2.0' and doc.get('meshes')
+          assert doc.get('materials') and doc.get('images'), 'Discovery textured GLB must retain material/image data'
+          accessors=[a for a in doc.get('accessors',[]) if a.get('type')=='VEC3' and a.get('min') and a.get('max')]
+          assert accessors, 'Discovery GLB has no bounded vertex accessors'
+          extents=[max(a['max'][i]-a['min'][i] for a in accessors) for i in range(3)]
+          assert max(extents)>10 and max(extents)<60, ('Discovery source extents',extents)
+          print('SMITHSONIAN_DISCOVERY_HIGH_GL_B_PASS',len(raw),'bytes; source bounds',extents)
+          PY
       - name: Validate the additive Spacecraft renderers and hosted NASA model
         shell: bash
         run: |
           set -euo pipefail
           node --input-type=module --check < rebuild-v5000/bridgepoint-spacecraft-v1.js
           node --input-type=module --check < rebuild-v5000/bridgepoint-spacecraft-columbia-v1.js
+          node --input-type=module --check < rebuild-v5000/bridgepoint-spacecraft-discovery-v1.js
           node tests/spacecraft-launch-sites-v1.test.mjs
           node tests/spacecraft-columbia-v1.test.mjs
+          node tests/spacecraft-discovery-v1.test.mjs
           test -s assets/spacecraft/nasa-mobile-launcher.glb
+          test -s assets/spacecraft/smithsonian-space-shuttle-discovery-150k-4096.glb
           python3 - <<'PY'
           import json, struct
           from pathlib import Path
@@ -81,6 +111,21 @@ jobs:
           accessors=[a for a in doc.get('accessors', []) if a.get('type')=='VEC3' and a.get('min') and a.get('max')]
           assert accessors and max(a['max'][1]-a['min'][1] for a in accessors) > 200
           print('BRIDGEPOINT_NASA_MOBILE_LAUNCHER_GLB_PASS', len(raw), 'bytes')
+          PY
+
+          python3 - <<'PY'
+          import json, struct
+          from pathlib import Path
+          asset=Path('assets/spacecraft/smithsonian-space-shuttle-discovery-150k-4096.glb')
+          raw=asset.read_bytes()
+          assert 500_000 <= len(raw) < 50*1024*1024
+          assert raw[:4]==b'glTF' and struct.unpack_from('<I',raw,8)[0]==len(raw)
+          n=struct.unpack_from('<I',raw,12)[0]
+          doc=json.loads(raw[20:20+n].decode('utf-8'))
+          assert doc.get('asset',{}).get('version')=='2.0' and doc.get('meshes')
+          assert doc.get('materials') and doc.get('images')
+          assert any(a.get('type')=='VEC3' and a.get('min') and a.get('max') for a in doc.get('accessors',[]))
+          print('BRIDGEPOINT_SMITHSONIAN_DISCOVERY_GLB_PASS',len(raw),'bytes')
           PY
 
       - name: Download the verified ten-plane production Pages artifact
@@ -125,8 +170,11 @@ jobs:
           cp rebuild-v5000/bridgepoint-spacecraft-v1.js "$SITE/app/bridgepoint-spacecraft-v1.js"
           cp rebuild-v5000/bridgepoint-spacecraft-columbia-v1.js "$SITE/bridgepoint-spacecraft-columbia-v1.js"
           cp rebuild-v5000/bridgepoint-spacecraft-columbia-v1.js "$SITE/app/bridgepoint-spacecraft-columbia-v1.js"
+          cp rebuild-v5000/bridgepoint-spacecraft-discovery-v1.js "$SITE/bridgepoint-spacecraft-discovery-v1.js"
+          cp rebuild-v5000/bridgepoint-spacecraft-discovery-v1.js "$SITE/app/bridgepoint-spacecraft-discovery-v1.js"
           cp assets/spacecraft/nasa-mobile-launcher.glb "$SITE/assets/spacecraft/nasa-mobile-launcher.glb"
           cp assets/spacecraft/smithsonian-apollo11-exterior-combined.glb "$SITE/assets/spacecraft/smithsonian-apollo11-exterior-combined.glb"
+          cp assets/spacecraft/smithsonian-space-shuttle-discovery-150k-4096.glb "$SITE/assets/spacecraft/smithsonian-space-shuttle-discovery-150k-4096.glb"
 
           python3 - "$SITE" <<'PY'
           import hashlib, json, re, sys
@@ -138,6 +186,9 @@ jobs:
           columbia_attach="""void import('./bridgepoint-spacecraft-columbia-v1.js?v=2-apollo11-columbia-principal-axis')
            .then(m=>{window.__BP_SPACECRAFT_COLUMBIA_V1__=m.initSpacecraftColumbiaRenderer(world)})
            .catch(e=>console.warn('BridgePoint Smithsonian Columbia layer unavailable',e));"""
+          discovery_attach="""void import('./bridgepoint-spacecraft-discovery-v1.js?v=1-smithsonian-space-shuttle-discovery')
+           .then(m=>{window.__BP_SPACECRAFT_DISCOVERY_V1__=m.initSpacecraftDiscoveryRenderer(world)})
+           .catch(e=>console.warn('BridgePoint Smithsonian Space Shuttle Discovery layer unavailable',e));"""
           plane_catch=".catch(e=>console.warn('BridgePoint Plane Wrecks layer unavailable',e));"
           for rel in ("landing.js","app.js"):
               p=site/rel
@@ -156,6 +207,13 @@ jobs:
                       raise SystemExit(f"{rel}: missing existing Spacecraft import anchor for Columbia")
                   end=at+len(spacecraft_catch)
                   data=data[:end]+"\n"+columbia_attach+data[end:]
+              if "initSpacecraftDiscoveryRenderer(world)" not in data:
+                  columbia_catch=".catch(e=>console.warn('BridgePoint Smithsonian Columbia layer unavailable',e));"
+                  at=data.find(columbia_catch)
+                  if at<0:
+                      raise SystemExit(f"{rel}: missing existing Smithsonian Columbia import anchor for Discovery")
+                  end=at+len(columbia_catch)
+                  data=data[:end]+"\n"+discovery_attach+data[end:]
               p.write_text(data,encoding="utf-8")
 
           for rel,needle in (("index.html","landing.js"),("app/index.html","app.js")):
@@ -180,7 +238,9 @@ jobs:
           allowed_added={"bridgepoint-spacecraft-v1.js","app/bridgepoint-spacecraft-v1.js",
                          "assets/spacecraft/nasa-mobile-launcher.glb",
                          "bridgepoint-spacecraft-columbia-v1.js","app/bridgepoint-spacecraft-columbia-v1.js",
-                         "assets/spacecraft/smithsonian-apollo11-exterior-combined.glb"}
+                         "assets/spacecraft/smithsonian-apollo11-exterior-combined.glb",
+                         "bridgepoint-spacecraft-discovery-v1.js","app/bridgepoint-spacecraft-discovery-v1.js",
+                         "assets/spacecraft/smithsonian-space-shuttle-discovery-150k-4096.glb"}
           if removed or not changed.issubset(allowed_changed) or not added.issubset(allowed_added):
               raise SystemExit("SPACECRAFT_OVERLAY_SCOPE_FAILURE "+json.dumps({
                 "removed":sorted(removed),"changed":sorted(changed),"added":sorted(added)}))
@@ -200,8 +260,10 @@ jobs:
           node --check "$SITE/app.js"
           node --input-type=module --check < "$SITE/bridgepoint-spacecraft-v1.js"
           node --input-type=module --check < "$SITE/bridgepoint-spacecraft-columbia-v1.js"
+          node --input-type=module --check < "$SITE/bridgepoint-spacecraft-discovery-v1.js"
           cmp -s "$SITE/bridgepoint-spacecraft-v1.js" "$SITE/app/bridgepoint-spacecraft-v1.js"
           cmp -s "$SITE/bridgepoint-spacecraft-columbia-v1.js" "$SITE/app/bridgepoint-spacecraft-columbia-v1.js"
+          cmp -s "$SITE/bridgepoint-spacecraft-discovery-v1.js" "$SITE/app/bridgepoint-spacecraft-discovery-v1.js"
           grep -Fq 'initSpacecraftRenderer(world)' "$SITE/landing.js"
           grep -Fq 'initSpacecraftRenderer(world)' "$SITE/app.js"
           grep -Fq 'data-bp-local-spacecraft-viewer' "$SITE/bridgepoint-spacecraft-v1.js"
@@ -209,9 +271,14 @@ jobs:
           grep -Fq 'Apollo 11 Command Module' "$SITE/bridgepoint-spacecraft-columbia-v1.js"
           grep -Fq 'bp-spacecraft-toggle-v1' "$SITE/bridgepoint-spacecraft-columbia-v1.js"
           grep -Fq 'data-bp-local-spacecraft-viewer' "$SITE/bridgepoint-spacecraft-columbia-v1.js"
+          grep -Fq 'Space Shuttle Orbiter OV-103' "$SITE/bridgepoint-spacecraft-discovery-v1.js"
+          grep -Fq 'bp-spacecraft-toggle-v1' "$SITE/bridgepoint-spacecraft-discovery-v1.js"
+          grep -Fq 'data-bp-local-spacecraft-viewer' "$SITE/bridgepoint-spacecraft-discovery-v1.js"
+          grep -Fq 'smithsonian-space-shuttle-discovery-150k-4096.glb' "$SITE/bridgepoint-spacecraft-discovery-v1.js"
           test -s "$SITE/assets/spacecraft/nasa-mobile-launcher.glb"
           test -s "$SITE/assets/spacecraft/smithsonian-apollo11-exterior-combined.glb"
-          echo "BRIDGEPOINT_SPACECRAFT_AND_COLUMBIA_OVERLAY_PASS"
+          test -s "$SITE/assets/spacecraft/smithsonian-space-shuttle-discovery-150k-4096.glb"
+          echo "BRIDGEPOINT_SPACECRAFT_SLS_COLUMBIA_DISCOVERY_OVERLAY_PASS"
 
       - uses: actions/configure-pages@v5
 
@@ -246,7 +313,10 @@ jobs:
             "spacecraft.glb:$O/assets/spacecraft/nasa-mobile-launcher.glb?verify=$Q" \
             "columbia.js:$O/bridgepoint-spacecraft-columbia-v1.js?verify=$Q" \
             "app-columbia.js:$O/app/bridgepoint-spacecraft-columbia-v1.js?verify=$Q" \
-            "columbia-combined.glb:$O/assets/spacecraft/smithsonian-apollo11-exterior-combined.glb?verify=$Q"; do
+            "columbia-combined.glb:$O/assets/spacecraft/smithsonian-apollo11-exterior-combined.glb?verify=$Q" \
+            "discovery.js:$O/bridgepoint-spacecraft-discovery-v1.js?verify=$Q" \
+            "app-discovery.js:$O/app/bridgepoint-spacecraft-discovery-v1.js?verify=$Q" \
+            "discovery.glb:$O/assets/spacecraft/smithsonian-space-shuttle-discovery-150k-4096.glb?verify=$Q"; do
             name="${item%%:*}"; url="${item#*:}"
             curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 --max-time 180 -fL \
               -H 'Cache-Control: no-cache' "$url" -o "$D/$name"
@@ -262,8 +332,15 @@ jobs:
           grep -Fq 'Apollo 11 Command Module' "$D/columbia.js"
           grep -Fq 'computeColumbiaPrincipalFrame' "$D/columbia.js"
           grep -Fq 'Smithsonian' "$D/columbia.js"
+          grep -Fq 'initSpacecraftDiscoveryRenderer(world)' "$D/landing.js"
+          grep -Fq 'initSpacecraftDiscoveryRenderer(world)' "$D/app.js"
+          grep -Fq 'Space Shuttle Orbiter OV-103' "$D/discovery.js"
+          grep -Fq 'bp-spacecraft-discovery-marker-v1' "$D/discovery.js"
+          grep -Fq 'data-bp-local-spacecraft-viewer' "$D/discovery.js"
+          grep -Fq 'smithsonian-space-shuttle-discovery-150k-4096.glb' "$D/discovery.js"
           cmp -s "$D/spacecraft.js" "$D/app-spacecraft.js"
           cmp -s "$D/columbia.js" "$D/app-columbia.js"
+          cmp -s "$D/discovery.js" "$D/app-discovery.js"
           python3 - "$D/spacecraft.glb" <<'PY'
           import json, struct, sys
           raw=open(sys.argv[1],'rb').read()
@@ -287,4 +364,15 @@ jobs:
           assert doc.get("asset",{}).get("version")=="2.0" and doc.get("meshes"), name
           print("BRIDGEPOINT_SMITHSONIAN_COLUMBIA_LIVE_GLB_PASS",name,len(raw),"bytes")
           PY
-          echo "LIVE_VERIFY_PASS: SLS + Smithsonian Columbia in root/app with all BridgePoint-hosted GLBs"
+          python3 - "$D/discovery.glb" <<'PY'
+          import json, struct, sys
+          raw=open(sys.argv[1],'rb').read()
+          assert 500_000 <= len(raw) < 50*1024*1024
+          assert raw[:4]==b'glTF' and struct.unpack_from('<I',raw,8)[0]==len(raw)
+          n=struct.unpack_from('<I',raw,12)[0]
+          doc=json.loads(raw[20:20+n].decode('utf-8'))
+          assert doc.get('asset',{}).get('version')=='2.0' and doc.get('meshes')
+          assert doc.get('materials') and doc.get('images')
+          print('BRIDGEPOINT_SMITHSONIAN_DISCOVERY_LIVE_GLB_PASS',len(raw),'bytes')
+          PY
+          echo "LIVE_VERIFY_PASS: SLS + Smithsonian Columbia + Space Shuttle Discovery in root/app with all BridgePoint-hosted GLBs"
