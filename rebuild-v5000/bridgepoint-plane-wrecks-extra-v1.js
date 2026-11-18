@@ -345,6 +345,7 @@ function cardHtml(wreck){
    '<span><b>Reconstruction</b>Photogrammetry triangle mesh</span>'+
    '<span><b>Rights</b>'+safe(wreck.license)+'</span>'+
    '<span><b>Hosted asset</b>BridgePoint local GLB</span>'+
+   (wreck.worldDepthM?'<span><b>BridgePoint Earth</b>Placed at the wreck site · '+safe(wreck.worldDepthM)+' m below sea level</span>':'')+
   '</div>'+
   '<div class="bp-plane-wreck-extra-viewer-v1" data-bp-plane-wreck-extra-viewer="'+safe(wreck.id)+'" role="group" aria-label="BridgePoint-hosted interactive photogrammetry model"><div class="bp-plane-wreck-extra-viewer-loading-v1">Loading BridgePoint-hosted textured photogrammetry mesh…</div></div>'+
   '<div class="bp-plane-wreck-extra-status-v1" data-extra-model-status>BridgePoint-hosted model · drag to rotate and scroll or pinch to zoom</div>'+
