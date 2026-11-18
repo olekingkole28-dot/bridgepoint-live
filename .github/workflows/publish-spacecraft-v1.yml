@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/publish-spacecraft-v1.yml'
+      - 'rebuild-v5000/bridgepoint-spacecraft-columbia-v1.js'
+      - 'tests/spacecraft-columbia-v1.test.mjs'
+      - 'docs/spacecraft-launch-sites-v1.md'
   workflow_dispatch:
 
 permissions:
