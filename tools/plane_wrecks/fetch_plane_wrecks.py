@@ -103,7 +103,13 @@ def main():
                         isro_nonimages.append({"name": name, "size": info.file_size, "compressed": info.compress_size})
                 print("BRIDGEPOINT_ABYSSAL_TOP_LEVEL_FOLDERS", json.dumps(folders))
                 print("BRIDGEPOINT_ABYSSAL_ALL_RELEVANT_MODEL_FILES", json.dumps(entries))
+                depth_members = []
+                for info in archive.infolist():
+                    if info.filename.startswith("ISRO/train/depth_any/"):
+                        depth_members.append({"name": info.filename, "size": info.file_size, "compressed": info.compress_size})
                 print("BRIDGEPOINT_ABYSSAL_ISRO_NON_IMAGE_MEMBERS", json.dumps(isro_nonimages))
+                print("BRIDGEPOINT_ABYSSAL_ISRO_DEPTH_ANY_MEMBERS", json.dumps(depth_members[:30]))
+                print("BRIDGEPOINT_ABYSSAL_ISRO_DEPTH_ANY_COUNT", len(depth_members), "TOTAL_BYTES", sum(x["size"] for x in depth_members))
                 return
             print("BRIDGEPOINT_ABYSSAL_3D_ASSET_CANDIDATES", json.dumps(candidates))
             # Prefer a cleaned ready-to-render mesh over imagery or raw capture material.
