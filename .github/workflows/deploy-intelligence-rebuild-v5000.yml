@@ -2075,6 +2075,11 @@ jobs:
               params.append("spacecraft=sls-mobile-launcher-pad39b-v1-saturn-v1")
               params.append("planeWrecksExtra=b17f-black-jack-v1")
               data=data.replace(url,base+"?"+"&".join(params),1)
+              guard=list(re.finditer(r'src="([^"]*bridgepoint-drone-awareness-v1\\.js(?:\\?[^"]*)?)"',data))
+              if len(guard)!=1: raise SystemExit(f"{rel}: expected one aircraft / plane-marker visibility guard")
+              old_guard=guard[0].group(1)
+              new_guard=re.sub(r'([?&]v=)[^&"]+',r'\\g<1>16-tokai-maru-apra-harbor',old_guard,count=1) if re.search(r'[?&]v=',old_guard) else old_guard+("&" if "?" in old_guard else "?")+"v=16-tokai-maru-apra-harbor"
+              if old_guard!=new_guard: data=data.replace(old_guard,new_guard,1)
               path.write_text(data,encoding="utf-8")
           PY
 
