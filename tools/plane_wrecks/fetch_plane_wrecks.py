@@ -93,8 +93,17 @@ def main():
                     if suffix in {".glb", ".gltf", ".ply", ".obj", ".fbx", ".e57", ".las", ".laz", ".zip", ".bin", ".dae", ".stl", ".gz", ".tar", ".npz", ".npy", ".xyz", ".pcd", ".splat", ".spz"} and re.search(r"(ISRO|KWAJ|tokai|corsair|f4u|clean|mesh|model|water|point|recon|3d)", name, re.I):
                         entries.append({"name": name, "size": info.file_size, "compressed": info.compress_size})
                 folders = sorted({name.split("/", 1)[0] for name in archive.namelist() if "/" in name})
+                isro_nonimages = []
+                for info in archive.infolist():
+                    name = info.filename
+                    if not name.startswith("ISRO/"):
+                        continue
+                    suffix = Path(name).suffix.lower()
+                    if suffix not in {".jpg", ".jpeg", ".png", ".tif", ".tiff", ".webp", ".bmp"}:
+                        isro_nonimages.append({"name": name, "size": info.file_size, "compressed": info.compress_size})
                 print("BRIDGEPOINT_ABYSSAL_TOP_LEVEL_FOLDERS", json.dumps(folders))
                 print("BRIDGEPOINT_ABYSSAL_ALL_RELEVANT_MODEL_FILES", json.dumps(entries))
+                print("BRIDGEPOINT_ABYSSAL_ISRO_NON_IMAGE_MEMBERS", json.dumps(isro_nonimages))
                 return
             print("BRIDGEPOINT_ABYSSAL_3D_ASSET_CANDIDATES", json.dumps(candidates))
             # Prefer a cleaned ready-to-render mesh over imagery or raw capture material.
