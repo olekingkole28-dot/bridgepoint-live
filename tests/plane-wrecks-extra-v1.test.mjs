@@ -2,14 +2,15 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { EXTRA_PLANE_WRECKS } from '../rebuild-v5000/bridgepoint-plane-wrecks-extra-v1.js';
 
-assert.equal(EXTRA_PLANE_WRECKS.length,6);
+assert.equal(EXTRA_PLANE_WRECKS.length,7);
 const b29=EXTRA_PLANE_WRECKS.find(x=>x.id==='b29-over-exposed-bleaklow');
 const zero=EXTRA_PLANE_WRECKS.find(x=>x.id==='mitsubishi-zero-a6m3-iwm-london');
 const sunderland=EXTRA_PLANE_WRECKS.find(x=>x.id==='short-sunderland-ej138-munkholmen');
 const tokai=EXTRA_PLANE_WRECKS.find(x=>x.id==='tokai-maru-apra-harbor');
 const p39=EXTRA_PLANE_WRECKS.find(x=>x.id==='bell-p39q-airacobra-lake-huron');
 const h8k=EXTRA_PLANE_WRECKS.find(x=>x.id==='kawanishi-h8k-emily-jaluit');
-assert.ok(b29&&zero&&sunderland&&tokai&&p39&&h8k);
+const sbd=EXTRA_PLANE_WRECKS.find(x=>x.id==='douglas-sbd-dauntless-kwajalein');
+assert.ok(b29&&zero&&sunderland&&tokai&&p39&&h8k&&sbd);
 assert.deepEqual(b29.coordinates,[-1.86542,53.45091]);
 assert.deepEqual(zero.coordinates,[-0.108328,51.496009]);
 assert.equal(b29.zenodoId,'10318135');
@@ -69,6 +70,18 @@ assert.equal(h8k.assetUrl,undefined);
 assert.match(h8k.license,/download \/ redistribution not verified/);
 assert.match(h8k.locationNote,/not a verified photogrammetry origin/i);
 
+assert.equal(sbd.name,'Douglas SBD Dauntless — Kwajalein Atoll');
+assert.deepEqual(sbd.coordinates,[167.425031661987,9.34422925461341]);
+assert.equal(sbd.creator,'NPS Submerged Resources Center');
+assert.match(sbd.details,/40\.31-million-polygon photogrammetry mesh/);
+assert.match(sbd.embedUrl,/construkted\.com\/embed\/a1h0143huw3/);
+assert.equal(sbd.viewerMode,'public-source-embed');
+assert.equal(sbd.assetUrl,undefined);
+assert.match(sbd.license,/Non Commercial/);
+assert.match(sbd.locationNote,/Approximate area locator only/i);
+assert.match(sbd.attribution,/not copied, mirrored or redistributed/i);
+
+
 
 
 const moduleSource=await readFile(new URL('../rebuild-v5000/bridgepoint-plane-wrecks-extra-v1.js',import.meta.url),'utf8');
@@ -79,14 +92,14 @@ assert.match(moduleSource,/data-bp-plane-wreck-extra-viewer/);
 assert.match(moduleSource,/new THREE\.WebGLRenderer/);
 assert.match(moduleSource,/parseAsync\(raw,''\)/);
 assert.match(moduleSource,/Loading BridgePoint-hosted/);
-assert.match(moduleSource,/wreck\.embedUrl/,'only the explicitly public H8K source view uses its official embed');
+assert.match(moduleSource,/wreck\.embedUrl/,'public H8K and SBD source views use their official embeds');
 assert.match(moduleSource,/Public Construkted Reality 3D viewer embedded inside this BridgePoint card/);
 assert.match(moduleSource,/if\(wreck\.embedUrl\)return;/,'the source-hosted H8K embed is not mislabeled or parsed as a BridgePoint-local GLB');
 assert.match(moduleSource,/loadModel\(wreck\)/);
 assert.match(moduleSource,/object\.isPoints/);
 assert.match(moduleSource,/pointCount/);
 assert.match(moduleSource,/wreck\.iconType==='ship'/);
-assert.match(moduleSource,/7 persistent wreck icons/);
+assert.match(moduleSource,/8 persistent wreck icons/);
 assert.match(moduleSource,/initPlaneWrecksExtraRenderer/);
 assert.match(moduleSource,/nativeWorldMatrix/);
 assert.match(moduleSource,/renderingMode:'3d'/);
