@@ -135,7 +135,7 @@ jobs:
           spacecraft_attach="""void import('./bridgepoint-spacecraft-v1.js?v=1-sls-mobile-launcher-lc39b')
            .then(m=>{window.__BP_SPACECRAFT_V1__=m.initSpacecraftRenderer(world)})
            .catch(e=>console.warn('BridgePoint Spacecraft & Launch Sites layer unavailable',e));"""
-          columbia_attach="""void import('./bridgepoint-spacecraft-columbia-v1.js?v=1-apollo11-columbia-exterior')
+          columbia_attach="""void import('./bridgepoint-spacecraft-columbia-v1.js?v=2-apollo11-columbia-principal-axis')
            .then(m=>{window.__BP_SPACECRAFT_COLUMBIA_V1__=m.initSpacecraftColumbiaRenderer(world)})
            .catch(e=>console.warn('BridgePoint Smithsonian Columbia layer unavailable',e));"""
           plane_catch=".catch(e=>console.warn('BridgePoint Plane Wrecks layer unavailable',e));"
@@ -260,6 +260,7 @@ jobs:
           grep -Fq 'initSpacecraftColumbiaRenderer(world)' "$D/landing.js"
           grep -Fq 'initSpacecraftColumbiaRenderer(world)' "$D/app.js"
           grep -Fq 'Apollo 11 Command Module' "$D/columbia.js"
+          grep -Fq 'computeColumbiaPrincipalFrame' "$D/columbia.js"
           grep -Fq 'Smithsonian' "$D/columbia.js"
           cmp -s "$D/spacecraft.js" "$D/app-spacecraft.js"
           cmp -s "$D/columbia.js" "$D/app-columbia.js"
