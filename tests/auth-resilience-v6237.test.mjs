@@ -6,7 +6,7 @@ const landing = fs.readFileSync(new URL('../rebuild-v5000/landing.js', import.me
 const app = fs.readFileSync(new URL('../rebuild-v5000/app.js', import.meta.url), 'utf8');
 const rootHtml = fs.readFileSync(new URL('../rebuild-v5000/index.html', import.meta.url), 'utf8');
 const appHtml = fs.readFileSync(new URL('../rebuild-v5000/app-index.html', import.meta.url), 'utf8');
-const PC_API = 'https://solaris-boat-upgrades-stocks.trycloudflare.com';
+const PC_API = 'https://louise-willing-cases-strategies.trycloudflare.com';
 
 function response(status, body = {}) {
   return { status, ok: status >= 200 && status < 300, json: async () => body };
