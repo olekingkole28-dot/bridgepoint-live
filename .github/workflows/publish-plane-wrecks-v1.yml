@@ -357,7 +357,7 @@ jobs:
           plane_import="""void import('./bridgepoint-plane-wrecks-v1.js?v=2-f4u1-persistent-dom-marker')
            .then(m=>{window.__BP_PLANE_WRECKS_V1__=m.initPlaneWrecksRenderer(world)})
            .catch(e=>console.warn('BridgePoint Plane Wrecks layer unavailable',e));"""
-          extra_import="""void import('./bridgepoint-plane-wrecks-extra-v1.js?v=4-p39q-airacobra-wing')
+          extra_import="""void import('./bridgepoint-plane-wrecks-extra-v1.js?v=5-jaluit-h8k-emily')
            .then(m=>{window.__BP_PLANE_WRECKS_EXTRA_V1__=m.initPlaneWrecksExtraRenderer(world)})
            .catch(e=>console.warn('BridgePoint additional Plane Wrecks layer unavailable',e));"""
           shipwreck_anchor=".catch(e=>console.warn('BridgePoint shipwreck renderer unavailable',e));"
