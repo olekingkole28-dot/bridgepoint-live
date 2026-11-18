@@ -45,7 +45,7 @@ The existing **Spacecraft** toggle now also controls a second persistent icon fo
 
 BridgePoint hosts the Smithsonian's combined exterior GLB distribution file, `apollo_exterior-150k-4096.glb`, a single combined 150k-face exterior mesh. It is the official Smithsonian download entry for the Apollo 11 Command Module exterior, not a BridgePoint-built CAD approximation.
 
-The Smithsonian exterior GLB is distributed in centimetres. BridgePoint inspects the imported mesh bounds before applying scale, detects whether the export is centimetre- or metre-based, and aligns whichever source axis matches the published 2.718 m capsule height to BridgePoint's vertical axis. It then converts the model to metres and verifies the normalized height before loading it on demand from BridgePoint's same-origin asset path.
+The Smithsonian exterior GLB is documented as a centimetre-scaled scan. Because the captured model is not aligned to the raw X/Y/Z axes, BridgePoint computes a principal-axis frame from the scan vertices (an oriented bounding box), aligns the fitted spacecraft axis upright, and converts the original centimetres to metres. The source mesh envelope is kept distinct from the catalogue's artifact dimensions (2.718 × 3.912 m) and its separately listed on-stand height (3.276 m).
 
 **Rights:** Smithsonian Open Access, CC0 / public domain. Smithsonian attribution and the original object and model links remain in the card.
 
