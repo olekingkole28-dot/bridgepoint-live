@@ -325,7 +325,7 @@ async function startLandingNationalWeather(world){const m=world?.map;if(!m||!lan
 async function ensureLandingStormCloudWeather(world){
  const m=world?.map;if(!m)return null;
  if(!landingStormCloudWeatherPromise){landingStormCloudWeatherPromise=(async()=>{
-  if(!landingWeatherModules?.weather){const wm=await import('./world-v2300-weather.js?v=6200-storm-clouds-no-rain');landingWeatherModules={...(landingWeatherModules||{}),weather:wm.initWeather(m,{rainParticles:false,cloudsOnly:true})}}
+  if(!landingWeatherModules?.weather){const wm=await import('./world-v2300-weather.js?v=6238-pc-runtime');landingWeatherModules={...(landingWeatherModules||{}),weather:wm.initWeather(m,{rainParticles:false,cloudsOnly:true})}}
   const weather=landingWeatherModules.weather;weather?.setCloudsOnly?.(true);weather?.setActive?.(true);
   window.__BP_LANDING_STORM_CLOUD_WEATHER__={version:6200,enabled:true,cloudsOnly:true,rainParticles:false,sourceStormFeed:true,updatedAt:Date.now()};return weather;
  })().finally(()=>{landingStormCloudWeatherPromise=null})}
@@ -721,7 +721,7 @@ async function initMap(){
  try{
   window.__BP_LANDING_MAP_BOOT__={stage:'importing-world',maplibre:true,at:Date.now()};
   console.log('BP_STARTUP_TRACE','landing:before-world-import');
-  const mod=await import('./world-v2300-map.js?v=6247-viewport-tile-sidewalk-progressive');
+  const mod=await import('./world-v2300-map.js?v=6238-pc-runtime');
   console.log('BP_STARTUP_TRACE','landing:after-world-import');
   window.__BP_LANDING_MAP_BOOT__={stage:'initializing-world',maplibre:true,module:true,at:Date.now()};
   console.log('BP_STARTUP_TRACE','landing:before-initWorld');

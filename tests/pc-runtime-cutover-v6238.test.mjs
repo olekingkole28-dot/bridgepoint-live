@@ -53,6 +53,8 @@ const requiredAssets = [
   'bridgepoint-global-motion-v5926.js?v=6238-pc-runtime',
   'intelligence-tools-v5507.js?v=6238-pc-runtime',
   'intelligence-global-v5507.js?v=6238-pc-runtime',
+  'world-v2300-map.js?v=6238-pc-runtime',
+  'world-v2300-weather.js?v=6238-pc-runtime',
 ];
 for (const path of htmlFiles) {
   const html = fs.readFileSync(path, 'utf8');

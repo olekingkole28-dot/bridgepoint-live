@@ -134,7 +134,7 @@ async function initSharedVisualWeather(targetWorld,{activate=true,cloudsOnly=fal
  const styleReady=()=>{try{return map.isStyleLoaded?.()===true||!!map.getSource?.('ofm')}catch{return false}};
  if(!styleReady())await new Promise(resolve=>{let done=false;const finish=()=>{if(done)return;done=true;resolve()};map.once?.('load',finish);setTimeout(finish,5000)});
  try{
-  const wm=await import('./world-v2300-weather.js?v=6200-storm-clouds-no-rain');
+  const wm=await import('./world-v2300-weather.js?v=6238-pc-runtime');
   const weather=wm.initWeather(map,{deferActivation:!activate,rainParticles:false,cloudsOnly:!!cloudsOnly});weather?.setCloudsOnly?.(!!cloudsOnly);
   let present=window.__bpPresentWeatherV2301||null;
   if(activate){
@@ -147,7 +147,7 @@ async function initSharedVisualWeather(targetWorld,{activate=true,cloudsOnly=fal
  }catch(e){console.warn('BridgePoint shared visual weather',e);return null}
 }
 async function bootMap(){
- const mod=await import('./world-v2300-map.js?v=6247-viewport-tile-sidewalk-progressive');world=mod.initWorld({containerId:'liveMap',globalKey:'__bpWorldV2300',center:[0,20],zoom:window.innerWidth<=620?1.05:1.25,pitch:0,bearing:0,projection:'globe'});window.__BP_V5000_WORLD=world;window.__BP_V5000_WORLD__=world;
+ const mod=await import('./world-v2300-map.js?v=6238-pc-runtime');world=mod.initWorld({containerId:'liveMap',globalKey:'__bpWorldV2300',center:[0,20],zoom:window.innerWidth<=620?1.05:1.25,pitch:0,bearing:0,projection:'globe'});window.__BP_V5000_WORLD=world;window.__BP_V5000_WORLD__=world;
  const started=performance.now();
  while(!world?.map&&performance.now()-started<10000)await new Promise(r=>setTimeout(r,40));
  if(!world?.map)throw new Error('Map object readiness timeout');
