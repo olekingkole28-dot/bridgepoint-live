@@ -111,12 +111,12 @@ function makeSlsBlock1(THREE){
  for(const side of [-1,1]){
   const x=side*6.65;
   const booster=new THREE.Group();booster.name=side<0?'SLS left solid rocket booster':'SLS right solid rocket booster';
-  const body=addCylinder(THREE,booster,MODEL.boosterDiameterM/2,MODEL.boosterDiameterM/2,MODEL.boosterLengthM,27,whiteBooster,40);
+  const body=addCylinder(THREE,booster,MODEL.boosterDiameterM/2,MODEL.boosterDiameterM/2,49.8,24.9,whiteBooster,40);
   const noseCone=new THREE.Mesh(new THREE.ConeGeometry(MODEL.boosterDiameterM/2,4.2,40),whiteBooster);
-  noseCone.position.y=56.1;booster.add(noseCone);
+  noseCone.position.y=51.9;booster.add(noseCone);
   const nozzle=new THREE.Mesh(new THREE.ConeGeometry(1.12,2.6,32),dark);
   nozzle.rotation.x=Math.PI;nozzle.position.y=-1.3;booster.add(nozzle);
-  const topRing=addCylinder(THREE,booster,1.84,1.84,0.65,52.6,dark,40);
+  const topRing=addCylinder(THREE,booster,1.84,1.84,0.65,49.5,dark,40);
   booster.position.x=x;root.add(booster);
  }
  // Five RS-25 engine bells under the core stage.
@@ -191,6 +191,8 @@ async function loadLaunchScene(state){
   const rocketX=tower.x+(dx/distance)*rocketOffset;
   const rocketZ=tower.z+(dz/distance)*rocketOffset;
   const rocket=makeSlsBlock1(pair.THREE);
+  // Keep the two boosters transverse to the tower-to-vehicle separation axis.
+  rocket.rotation.y=Math.atan2(dx,dz);
   rocket.position.set(rocketX,MODEL.mobileLauncherDeckHeightM,rocketZ);
   group.add(rocket);group.updateMatrixWorld(true);
   const fullBounds=new pair.THREE.Box3().setFromObject(group);
@@ -281,7 +283,7 @@ async function showOnPad(state){
   updateStatus(state,state.modelStatus);
   return true;
  }catch(error){
-  state.modelVisible=false;
+  state.modelVisible=false;state.modelAutoAttempted=false;
   state.modelStatus='Native launch-site model could not load: '+String(error?.message||error);
   updateStatus(state,state.modelStatus);
   return false;
@@ -318,9 +320,16 @@ function ensurePersistentMarker(state,visible=state.enabled){
  }catch(error){state.stats.markerError=String(error?.message||error);return false;}
 }
 function maybeAutoMaterialize(state){
- if(!state.enabled||state.modelAutoAttempted||state.launchGroup||state.launchPromise)return false;
+ if(!state.enabled)return false;
  if(Number(state.map.getZoom?.()||0)<12.0)return false;
  try{const bounds=state.map.getBounds?.();if(bounds&&!bounds.contains(MODEL.coordinates))return false;}catch(_){}
+ if(state.launchGroup){
+  state.modelVisible=true;
+  if(!ensureNativeLayer(state))return false;
+  if(state.mapScene&&state.launchGroup.parent!==state.mapScene)state.mapScene.add(state.launchGroup);
+  state.map.triggerRepaint?.();return true;
+ }
+ if(state.launchPromise||state.modelAutoAttempted)return false;
  state.modelAutoAttempted=true;state.modelVisible=true;void showOnPad(state);return true;
 }
 function mountCardViewer(state,popup){
