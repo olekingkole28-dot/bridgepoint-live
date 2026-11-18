@@ -186,20 +186,20 @@ test('cloud shadows update on the map and use available source winds', () => {
 
 test('entrypoints use fresh cache keys and keep the celestial canvas off the satellite globe', () => {
   for (const source of [app, landing]) {
-    assert.match(source, /world-v2300-map\.js\?v=6247-viewport-tile-sidewalk-progressive/);
+    assert.match(source, /world-v2300-map\.js\?v=6238-pc-runtime/);
     assert.match(source, /world-v2300-water\.js\?v=6256-gerstner-ocean/);
     assert.match(source, /world-v2300-clouds\.js\?v=6202-global-satellite-cloud-banks/);
-    assert.match(source, /world-v2300-weather\.js\?v=6200-storm-clouds-no-rain/);
+    assert.match(source, /world-v2300-weather\.js\?v=6238-pc-runtime/);
     assert.match(source, /world-v2300-time-slider\.js\?v=6170-no-cloud-toggle-always-on/);
   }
   assert.match(appHtml, /app\.js\?v=6247-universal-fresh-entry/, 'app shell loads the updated app entrypoint');
   assert.doesNotMatch(map, /world-v2300-space\.js\?v=6125-manual-globe-camera/, 'the retired celestial overlay must not be imported by the live globe');
   assert.doesNotMatch(timeSlider, /data-clouds|toggleSkyClouds|world-v2300-clouds/);
-  assert.match(bootstrap, /world-v2300-weather\.js\?v=6195-desktop-globe-flash-stability/);
+  assert.match(bootstrap, /world-v2300-weather\.js\?v=6238-pc-runtime/);
   assert.match(appHtml, /app\.js\?v=6247-universal-fresh-entry/);
   assert.match(landingHtml, /landing\.js\?v=6247-universal-fresh-entry/);
-  assert.match(appHtml, /intelligence-global-v5507\.js\?v=6170-imerg-nrt-timeline/);
-  assert.match(landingHtml, /intelligence-global-v5507\.js\?v=6170-imerg-nrt-timeline/);
+  assert.match(appHtml, /intelligence-global-v5507\.js\?v=6238-pc-runtime/);
+  assert.match(landingHtml, /intelligence-global-v5507\.js\?v=6238-pc-runtime/);
 });
 
 test('global opportunity markers render category glyphs and merge source-backed risk reviews', () => {
