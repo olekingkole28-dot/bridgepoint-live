@@ -51,6 +51,28 @@ export const EXTRA_PLANE_WRECKS=[
   license:'CC BY 4.0',
   attribution:'artfletch, “Zero Fighter Wreckage”, Zenodo record 10264214, CC BY 4.0. Model hosted by BridgePoint from the openly downloadable Zenodo GLB.',
   locationNote:'Museum-location pin is approximate to the IWM London building; the scanned wreckage is in the museum collection.'
+ } ,
+ {
+  id:'short-sunderland-ej138-munkholmen',
+  name:'Short Sunderland Mk V EJ138 WH-Y',
+  label:'SHORT SUNDERLAND',
+  aircraft:'Short Sunderland Mk V flying boat',
+  coordinates:[10.373180,63.452221],
+  location:'Wreck west of Munkholmen, Trondheim, Trøndelag, Norway',
+  date:'7 November 1945 · deliberately sunk after maintenance fire damage',
+  details:'Underwater photogrammetry scan of the Short Sunderland wreck, a flying boat deliberately sunk near Munkholmen after it was damaged by fire during maintenance following the Second World War. The wreck rests at approximately 70 m depth; published wreck references report a depth range of about 57–72 m.',
+  creator:'Blueye Robotics',
+  photos:null,
+  zenodoId:'10327701',
+  doi:'10.5281/zenodo.10327701',
+  sourceUrl:'https://zenodo.org/records/10327701',
+  originalModelUrl:'https://sketchfab.com/3d-models/short-sunderland-3be976d6c87d47129067be221053d4bf',
+  historyUrl:'https://www.dykkepedia.com/wiki/Short_Sunderland',
+  assetUrl:'/assets/plane-wrecks/extra/short-sunderland-ej138-munkholmen.glb.gz',
+  assetName:'short-sunderland-ej138-munkholmen.glb.gz',
+  license:'CC BY 4.0',
+  attribution:'Blueye Robotics, “Short Sunderland”, Sketchfab model 3be976d6c87d47129067be221053d4bf, mirrored in Zenodo record 10327701, CC BY 4.0. Model hosted by BridgePoint from the openly downloadable Zenodo GLB.',
+  locationNote:'Wreck-site pin uses the published position 63.452221° N, 10.373180° E; its placement represents the wreck location, not a surveyed model-origin transform.'
  }
 ];
 
@@ -145,7 +167,7 @@ function setMarkerVisibility(state,wreck,visible){
 }
 function setCountNote(){
  const count=document.getElementById(COUNT_ID);
- if(count)count.textContent='3 persistent aircraft-wreck icons · 2 photogrammetry mesh scans + Corsair scan · BridgePoint-hosted viewers';
+ if(count)count.textContent='4 persistent aircraft-wreck icons · 3 photogrammetry mesh scans + Corsair scan · BridgePoint-hosted viewers';
 }
 function setEnabledFromButton(state){
  const button=document.getElementById(TOGGLE_ID);
