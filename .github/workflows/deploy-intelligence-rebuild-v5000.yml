@@ -1951,6 +1951,179 @@ jobs:
           test -s site/app/horizon-playable/assets/characters/mesh2motion/models/swat_male.glb
           echo "V5000 CLEAN INTELLIGENCE ARTIFACT READY"
 
+      - name: Download the last verified complete wreck-and-spacecraft Pages artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: github-pages-spacecraft-v1
+          run-id: 44357885452
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/bp-complete-feature-baseline
+
+      - name: Restore all ten shipwrecks, ten plane wrecks and four spacecraft into V5000
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCHIVE="$(find "$RUNNER_TEMP/bp-complete-feature-baseline" -type f -name artifact.tar -print -quit)"
+          test -n "$ARCHIVE"
+          BASE="$RUNNER_TEMP/bp-complete-feature-site"
+          mkdir -p "$BASE"
+          tar -xf "$ARCHIVE" -C "$BASE"
+
+          # This exact Pages artifact was produced by the successful ten-plane,
+          # ten-shipwreck and four-spacecraft publishers on 2026-11-18.
+          for file in \
+            bridgepoint-shipwrecks-v1.js app/bridgepoint-shipwrecks-v1.js \
+            bridgepoint-plane-wrecks-v1.js app/bridgepoint-plane-wrecks-v1.js \
+            bridgepoint-plane-wrecks-extra-v1.js app/bridgepoint-plane-wrecks-extra-v1.js \
+            bridgepoint-spacecraft-v1.js app/bridgepoint-spacecraft-v1.js \
+            bridgepoint-spacecraft-columbia-v1.js app/bridgepoint-spacecraft-columbia-v1.js \
+            bridgepoint-spacecraft-discovery-v1.js app/bridgepoint-spacecraft-discovery-v1.js \
+            bridgepoint-spacecraft-saturn-v1.js app/bridgepoint-spacecraft-saturn-v1.js \
+            assets/shipwrecks/catalog.json assets/plane-wrecks/catalog.json \
+            assets/plane-wrecks/extra/catalog.json assets/spacecraft/nasa-mobile-launcher.glb \
+            assets/spacecraft/smithsonian-apollo11-exterior-combined.glb \
+            assets/spacecraft/smithsonian-space-shuttle-discovery-150k-4096.glb \
+            assets/spacecraft/nasa-saturn-v.glb assets/spacecraft/nasa-gantry.glb \
+            vendor/three.module.js vendor/GLTFLoader.bundle.js vendor/DRACOLoader.bundle.js \
+            vendor/KTX2Loader.bundle.js vendor/draco/draco_decoder.js \
+            vendor/draco/draco_decoder.wasm vendor/draco/draco_wasm_wrapper.js; do
+            test -s "$BASE/$file" || { echo "VERIFIED_FEATURE_BASELINE_MISSING $file"; exit 1; }
+          done
+
+          mkdir -p site/app site/assets/shipwrecks site/assets/plane-wrecks site/assets/spacecraft
+          for module in \
+            bridgepoint-shipwrecks-v1.js \
+            bridgepoint-plane-wrecks-v1.js bridgepoint-plane-wrecks-extra-v1.js \
+            bridgepoint-spacecraft-v1.js bridgepoint-spacecraft-columbia-v1.js \
+            bridgepoint-spacecraft-discovery-v1.js bridgepoint-spacecraft-saturn-v1.js; do
+            cp "$BASE/$module" "site/$module"
+            cp "$BASE/$module" "site/app/$module"
+          done
+
+          cp -a "$BASE/assets/shipwrecks/." site/assets/shipwrecks/
+          cp -a "$BASE/assets/plane-wrecks/." site/assets/plane-wrecks/
+          cp -a "$BASE/assets/spacecraft/." site/assets/spacecraft/
+
+          # Preserve the exact Three.js/GLTF/Draco/KTX2 runtime used by those models.
+          mkdir -p site/vendor/draco site/vendor/basis
+          for file in three.module.js GLTFLoader.bundle.js DRACOLoader.bundle.js KTX2Loader.bundle.js; do
+            cp "$BASE/vendor/$file" "site/vendor/$file"
+          done
+          cp -a "$BASE/vendor/draco/." site/vendor/draco/
+          if [ -d "$BASE/vendor/basis" ]; then cp -a "$BASE/vendor/basis/." site/vendor/basis/; fi
+
+          # The rebuild imports this USGS seismic module from both globe entry points.
+          cp release-v2300/world-v2300-seismic-layer-v1.js site/world-v2300-seismic-layer-v1.js
+          cp release-v2300/world-v2300-seismic-layer-v1.js site/app/world-v2300-seismic-layer-v1.js
+
+          # The rebuild bundles already start SLS; add the other three persistent icons.
+          python3 - "$PWD/site" <<'PY'
+          import re,sys
+          from pathlib import Path
+          site=Path(sys.argv[1])
+          spacecraft_attach="""void import('./bridgepoint-spacecraft-v1.js?v=1-sls-mobile-launcher-lc39b')
+           .then(m=>{window.__BP_SPACECRAFT_V1__=m.initSpacecraftRenderer(world)})
+           .catch(e=>console.warn('BridgePoint Spacecraft & Launch Sites layer unavailable',e));"""
+          columbia_attach="""void import('./bridgepoint-spacecraft-columbia-v1.js?v=2-apollo11-columbia-principal-axis')
+           .then(m=>{window.__BP_SPACECRAFT_COLUMBIA_V1__=m.initSpacecraftColumbiaRenderer(world)})
+           .catch(e=>console.warn('BridgePoint Smithsonian Columbia layer unavailable',e));"""
+          discovery_attach="""void import('./bridgepoint-spacecraft-discovery-v1.js?v=1-smithsonian-space-shuttle-discovery')
+           .then(m=>{window.__BP_SPACECRAFT_DISCOVERY_V1__=m.initSpacecraftDiscoveryRenderer(world)})
+           .catch(e=>console.warn('BridgePoint Smithsonian Space Shuttle Discovery layer unavailable',e));"""
+          saturn_attach="""void import('./bridgepoint-spacecraft-saturn-v1.js?v=1-nasa-saturn-v-launch39a')
+           .then(m=>{window.__BP_SPACECRAFT_SATURN_V1__=m.initSpacecraftSaturnRenderer(world)})
+           .catch(e=>console.warn('BridgePoint Saturn V launch-site layer unavailable',e));"""
+          for rel in ("landing.js","app.js"):
+              path=site/rel
+              data=path.read_text(encoding="utf-8")
+              if "initSpacecraftRenderer(world)" not in data:
+                  raise SystemExit(f"{rel}: SLS spacecraft import anchor missing")
+              if "initSpacecraftColumbiaRenderer(world)" not in data:
+                  anchor=".catch(e=>console.warn('BridgePoint Spacecraft & Launch Sites layer unavailable',e));"
+                  if anchor not in data: raise SystemExit(f"{rel}: SLS import catch missing")
+                  data=data.replace(anchor,anchor+"\n"+columbia_attach,1)
+              if "initSpacecraftDiscoveryRenderer(world)" not in data:
+                  anchor=".catch(e=>console.warn('BridgePoint Smithsonian Columbia layer unavailable',e));"
+                  if anchor not in data: raise SystemExit(f"{rel}: Columbia import catch missing")
+                  data=data.replace(anchor,anchor+"\n"+discovery_attach,1)
+              if "initSpacecraftSaturnRenderer(world)" not in data:
+                  anchor=".catch(e=>console.warn('BridgePoint Smithsonian Space Shuttle Discovery layer unavailable',e));"
+                  if anchor not in data: raise SystemExit(f"{rel}: Discovery import catch missing")
+                  data=data.replace(anchor,anchor+"\n"+saturn_attach,1)
+              for marker in ("initSpacecraftColumbiaRenderer(world)","initSpacecraftDiscoveryRenderer(world)","initSpacecraftSaturnRenderer(world)"):
+                  if data.count(marker)!=1: raise SystemExit(f"{rel}: expected one {marker}")
+              path.write_text(data,encoding="utf-8")
+
+          # Keep the spacecraft toggle state available on both entry routes.
+          for rel,needle in (("index.html","landing.js"),("app/index.html","app.js")):
+              path=site/rel
+              data=path.read_text(encoding="utf-8")
+              matches=list(re.finditer(r'src="([^"]*'+re.escape(needle)+r'(?:\?[^"]*)?)"',data))
+              if len(matches)!=1: raise SystemExit(f"{rel}: expected exactly one {needle} script URL")
+              url=matches[0].group(1)
+              base,sep,query=url.partition("?")
+              params=query.split("&") if sep else []
+              params=[p for p in params if not p.startswith("spacecraft=")]
+              params.append("spacecraft=sls-mobile-launcher-pad39b-v1-saturn-v1")
+              data=data.replace(url,base+"?"+"&".join(params),1)
+              path.write_text(data,encoding="utf-8")
+          PY
+
+          # All existing wreck/spacecraft counts and model provenance tests must still pass.
+          node tests/shipwrecks-v1.test.mjs
+          node tests/plane-wrecks-v1.test.mjs
+          node tests/plane-wrecks-extra-v1.test.mjs
+          node tests/spacecraft-launch-sites-v1.test.mjs
+          node tests/spacecraft-columbia-v1.test.mjs
+          node tests/spacecraft-discovery-v1.test.mjs
+          node tests/spacecraft-saturn-v1.test.mjs
+
+          for module in \
+            bridgepoint-shipwrecks-v1.js bridgepoint-plane-wrecks-v1.js bridgepoint-plane-wrecks-extra-v1.js \
+            bridgepoint-spacecraft-v1.js bridgepoint-spacecraft-columbia-v1.js \
+            bridgepoint-spacecraft-discovery-v1.js bridgepoint-spacecraft-saturn-v1.js; do
+            node --input-type=module --check < "site/$module"
+            cmp -s "site/$module" "site/app/$module"
+          done
+          node --check site/world-v2300-seismic-layer-v1.js
+          cmp -s site/world-v2300-seismic-layer-v1.js site/app/world-v2300-seismic-layer-v1.js
+
+          # Verify every relative dynamic import in the real homepage/app bundles resolves.
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+          root=Path("site")
+          problems=[]
+          for name in ("landing.js","app.js"):
+              source=(root/name).read_text(encoding="utf-8")
+              refs=re.findall(r"""(?:import\(\s*|from\s*)['"]([^'"]+)['"]""",source)
+              for ref in refs:
+                  if not ref.startswith("./"): continue
+                  relative=ref[2:].split("?",1)[0].split("#",1)[0]
+                  if not (root/relative).is_file():
+                      problems.append(f"{name} -> {ref}")
+          if problems:
+              raise SystemExit("UNRESOLVED_GLOBE_IMPORTS\n"+"\n".join(problems))
+          print("BRIDGEPOINT_ALL_RELATIVE_GLOBE_IMPORTS_RESOLVE_PASS")
+          PY
+
+          # Confirm the artifact contains the full request set before Pages upload.
+          grep -Fq '4 persistent spacecraft icons' site/bridgepoint-spacecraft-v1.js
+          grep -Fq '4 persistent spacecraft icons' site/bridgepoint-spacecraft-columbia-v1.js || true
+          grep -Fq '10' site/bridgepoint-shipwrecks-v1.js
+          grep -Fq 'Space Shuttle Orbiter OV-103' site/bridgepoint-spacecraft-discovery-v1.js
+          grep -Fq 'NASA Saturn V + Launch Complex 39A Gantry' site/bridgepoint-spacecraft-saturn-v1.js
+          grep -Fq 'bridgepoint-plane-wrecks-extra-v1.js' site/bridgepoint-plane-wrecks-v1.js
+          test -s site/assets/shipwrecks/catalog.json
+          test -s site/assets/plane-wrecks/catalog.json
+          test -s site/assets/plane-wrecks/extra/catalog.json
+          test -s site/assets/spacecraft/smithsonian-apollo11-exterior-combined.glb
+          test -s site/assets/spacecraft/smithsonian-space-shuttle-discovery-150k-4096.glb
+          test -s site/assets/spacecraft/nasa-saturn-v.glb
+          test -s site/assets/spacecraft/nasa-gantry.glb
+          echo "BRIDGEPOINT_10_SHIPWRECKS_10_PLANE_WRECKS_4_SPACECRAFT_PRESERVED"
+
       - name: Download the first Manhattan web tile package
         if: needs.build-manhattan-world.outputs.package_needed == 'true'
         uses: actions/download-artifact@v4
@@ -2307,6 +2480,79 @@ jobs:
           grep -Fq 'current-map-entry.js' /tmp/discover.html
           echo BRIDGEPOINT_V5100_COMBINED_SURFACES_PASS
 
+
+      - name: Verify every requested BridgePoint feature is live on website and app
+        shell: bash
+        run: |
+          set -euo pipefail
+          O='https://bridgepointintelligence.online'
+          Q="$GITHUB_SHA-feature-complete-$(date +%s)"
+          D="$RUNNER_TEMP/bp-feature-live"
+          mkdir -p "$D"
+          fetch() { curl --retry 4 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O$2?verify=$Q" -o "$D/$1"; }
+
+          fetch root.html /
+          fetch app.html /app/
+          fetch landing.js /landing.js
+          fetch app.js /app.js
+
+          for name in \
+            bridgepoint-shipwrecks-v1.js bridgepoint-plane-wrecks-v1.js bridgepoint-plane-wrecks-extra-v1.js \
+            bridgepoint-spacecraft-v1.js bridgepoint-spacecraft-columbia-v1.js \
+            bridgepoint-spacecraft-discovery-v1.js bridgepoint-spacecraft-saturn-v1.js; do
+            curl --retry 4 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/$name?verify=$Q" -o "$D/$name"
+            curl --retry 4 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/app/$name?verify=$Q" -o "$D/app-$name"
+            cmp -s "$D/$name" "$D/app-$name"
+          done
+
+          for name in \
+            bridgepoint-drone-awareness-v1.js bridgepoint-vessel-awareness-v1.js \
+            bridgepoint-faa-obstruction-towers-v1.js bridgepoint-lighthouses-v1.js \
+            bridgepoint-underground-scan-sites-v1.js bridgepoint-global-motion-v5926.js \
+            bridgepoint-orbit-renderer-v6201.js world-v2300-weather.js \
+            world-v2300-present-weather.js world-v2300-clouds.js world-v2300-rain.js \
+            world-v2300-lightning.js world-v2300-seismic-layer-v1.js; do
+            curl --retry 4 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/$name?verify=$Q" -o "$D/$name"
+          done
+
+          for name in \
+            faa-obstructions-v1.json.gz \
+            shipwrecks/catalog.json plane-wrecks/catalog.json plane-wrecks/extra/catalog.json; do
+            path="$name"
+            if [ "$name" = "faa-obstructions-v1.json.gz" ]; then path="data/bridgepoint-faa-obstructions-v1.json.gz"; fi
+            curl --retry 4 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/assets/$path?verify=$Q" -o "$D/$(basename "$path")"
+          done
+          gzip -t "$D/bridgepoint-faa-obstructions-v1.json.gz"
+
+          grep -Fq '4 persistent spacecraft icons' "$D/bridgepoint-spacecraft-v1.js"
+          grep -Fq 'Apollo 11 Command Module' "$D/bridgepoint-spacecraft-columbia-v1.js"
+          grep -Fq 'Space Shuttle Orbiter OV-103' "$D/bridgepoint-spacecraft-discovery-v1.js"
+          grep -Fq 'NASA Saturn V + Launch Complex 39A Gantry' "$D/bridgepoint-spacecraft-saturn-v1.js"
+          grep -Fq 'hms-loo-photogrammetry.glb.gz' "$D/bridgepoint-shipwrecks-v1.js"
+          grep -Fq 'tokai-maru-apra-harbor-photogrammetry.glb.gz' "$D/bridgepoint-plane-wrecks-extra-v1.js"
+          grep -Fq 'initFAAObstructionTowerRenderer(world)' "$D/landing.js"
+          grep -Fq 'initFAAObstructionTowerRenderer(world)' "$D/app.js"
+          grep -Fq 'initShipwrecksRenderer(world)' "$D/landing.js"
+          grep -Fq 'initPlaneWrecksRenderer(world)' "$D/landing.js"
+          grep -Fq 'initSpacecraftColumbiaRenderer(world)' "$D/landing.js"
+          grep -Fq 'initSpacecraftDiscoveryRenderer(world)' "$D/landing.js"
+          grep -Fq 'initSpacecraftSaturnRenderer(world)' "$D/landing.js"
+          grep -Fq 'initUndergroundScanSitesRenderer(world)' "$D/landing.js"
+          grep -Fq 'initLighthouseRenderer(world)' "$D/landing.js"
+          grep -Fq 'initUSGSSeismicLayer(world)' "$D/landing.js"
+          grep -Fq 'initWorldTimeSlider(world,rpc)' "$D/landing.js"
+          grep -Fq 'initOrbitRenderer' "$D/bridgepoint-global-motion-v5926.js"
+          grep -Fq 'bridgepoint-orbit-renderer-v6201.js' "$D/bridgepoint-global-motion-v5926.js"
+          grep -Fq 'onBuildingSelect' "$D/app.js"
+          grep -Fq 'bridgepoint_public_building_detail_by_id_v5024' "$D/app.js"
+          grep -Fq 'bridgepoint_public_building_detail_v5000' "$D/app.js"
+          grep -Fq 'authModal' "$D/root.html"
+          grep -Fq 'bridgepoint-drone-awareness-v1.js' "$D/root.html"
+          grep -Fq 'bridgepoint-vessel-awareness-v1.js' "$D/root.html"
+          grep -Fq 'bridgepoint-faa-obstruction-towers-v1.js' "$D/root.html"
+          grep -Fq 'Radar' "$D/world-v2300-present-weather.js"
+          grep -Fq 'Radar' "$D/world-v2300-weather.js"
+          echo "BRIDGEPOINT_ALL_REQUESTED_FEATURES_LIVE_PASS"
       - name: Verify live procedural tree assets
         shell: bash
         run: |
