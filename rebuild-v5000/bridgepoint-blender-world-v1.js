@@ -13,6 +13,7 @@
   const MODE_HIDE = /(?:building|roof|floor|facade|structure|landmark|bridge|^gta-road-|^gta-rail|^gta-(?:nasa|esri|usgs|oam)(?:$|-)|satellite|tree|vegetation|canopy|streetlight|hydrant|solar|pool|transport|ship|vessel|drone|flight|parcel|zoning|listing|opportunity|nyc-lidar|reality-capture)/i;
   const THREE_URL = 'https://esm.sh/three@0.169.0';
   const GLTF_URL = 'https://esm.sh/three@0.169.0/examples/jsm/loaders/GLTFLoader.js';
+  const DRACO_URL = 'https://esm.sh/three@0.169.0/examples/jsm/loaders/DRACOLoader.js';
   const MOBILE_DEVICE = window.matchMedia?.('(max-width: 700px)').matches === true;
   const MIN_DETAIL_ZOOM = MOBILE_DEVICE ? 11.9 : 11.6;
   const MAX_CONCURRENT_TILE_LOADS = MOBILE_DEVICE ? 1 : 2;
@@ -159,8 +160,8 @@
 
   function loadThreeModules() {
     if (!modulePromise) {
-      modulePromise = Promise.all([import(THREE_URL), import(GLTF_URL)]).then(modules => ({
-        THREE: modules[0], GLTFLoader: modules[1].GLTFLoader
+      modulePromise = Promise.all([import(THREE_URL), import(GLTF_URL), import(DRACO_URL)]).then(modules => ({
+        THREE: modules[0], GLTFLoader: modules[1].GLTFLoader, DRACOLoader: modules[2].DRACOLoader
       })).catch(error => {
         modulePromise = null;
         throw error;
@@ -188,10 +189,12 @@
       onAdd(mapRef, gl) {
         this.map = mapRef;
         this.removed = false;
-        loadThreeModules().then(({ THREE, GLTFLoader }) => {
+        loadThreeModules().then(({ THREE, GLTFLoader, DRACOLoader }) => {
           if (this.removed) return;
           this.THREE = THREE;
           this.GLTFLoader = GLTFLoader;
+          this.dracoLoader = new DRACOLoader();
+          this.dracoLoader.setDecoderPath('/vendor/draco/');
           this.scene = new THREE.Scene();
           this.camera = new THREE.Camera();
           this.scene.add(new THREE.AmbientLight(0xffffff, 1.3));
@@ -250,6 +253,7 @@
         this.removed = true;
         for (const tile of tiles) unloadTile(tile);
         try { this.renderer?.dispose(); } catch (_) {}
+        try { this.dracoLoader?.dispose(); } catch (_) {}
         this.ready = false;
       }
     };
@@ -268,6 +272,7 @@
       tile.loading = true;
       const url = ASSET_ROOT + tile.url;
       const loader = new layer.GLTFLoader();
+      loader.setDRACOLoader(layer.dracoLoader);
       const fail = error => {
         tile.loading = false;
         tile.failed = true;
@@ -359,6 +364,7 @@
         const previousLoader = layer.GLTFLoader;
         const url = ASSET_ROOT + tile.url;
         const loader = new previousLoader();
+        loader.setDRACOLoader(layer.dracoLoader);
         tile.loading = true;
         loader.load(url, gltf => {
           tile.loading = false;
