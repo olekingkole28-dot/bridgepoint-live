@@ -13,9 +13,8 @@ permissions:
   pages: write
   id-token: write
 
-# This focused publisher overlays only the new Spacecraft module and its NASA GLB.
-# The pinned baseline is the verified current production Pages artifact containing
-# the ten Plane Wrecks and the existing Shipwrecks v11 layers.
+# This focused publisher preserves the verified Plane Wrecks / Shipwrecks production baseline,
+# then overlays the existing SLS launch-site scene and the Smithsonian Columbia exterior scan.
 concurrency:
   group: bridgepoint-v5000-production-authority
   cancel-in-progress: true
@@ -34,12 +33,43 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Validate the additive Spacecraft renderer and hosted NASA model
+      - name: Download and validate Smithsonian Apollo 11 Columbia exterior scan
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p assets/spacecraft
+          BASE='https://3d-api.si.edu/content/document/3d_package:d8c6457e-4ebc-11ea-b77f-2e728ce88125/resources'
+          UA='BridgePointIntelligence/1.0 (+https://bridgepointintelligence.online)'
+          curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 --max-time 180 -fL -A "$UA" "$BASE/x3d-cm-exterior-shell-90k-uvs-150k-4096-high.glb" -o assets/spacecraft/smithsonian-apollo11-exterior-shell.glb
+          curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 --max-time 180 -fL -A "$UA" "$BASE/x3d-cm-exterior-top-160k-uvs-150k-4096-high.glb" -o assets/spacecraft/smithsonian-apollo11-exterior-top.glb
+          curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 --max-time 180 -fL -A "$UA" "$BASE/x3d-cm-exterior-filler-web.glb" -o assets/spacecraft/smithsonian-apollo11-exterior-filler.glb
+          python3 - <<'PY'
+          import json, struct
+          from pathlib import Path
+          files={
+            "smithsonian-apollo11-exterior-shell.glb": 2_500_000,
+            "smithsonian-apollo11-exterior-top.glb": 1_500_000,
+            "smithsonian-apollo11-exterior-filler.glb": 2_500_000,
+          }
+          for name,minimum in files.items():
+              path=Path("assets/spacecraft")/name
+              raw=path.read_bytes()
+              assert minimum <= len(raw) < 20*1024*1024, (name,len(raw))
+              assert raw[:4]==b"glTF" and struct.unpack_from("<I",raw,8)[0]==len(raw), name
+              n=struct.unpack_from("<I",raw,12)[0]
+              doc=json.loads(raw[20:20+n].decode("utf-8"))
+              assert doc.get("asset",{}).get("version")=="2.0" and doc.get("meshes"), name
+              print("SMITHSONIAN_COLUMBIA_GLB_PASS",name,len(raw),"bytes")
+          PY
+
+      - name: Validate the additive Spacecraft renderers and hosted NASA model
         shell: bash
         run: |
           set -euo pipefail
           node --input-type=module --check < rebuild-v5000/bridgepoint-spacecraft-v1.js
+          node --input-type=module --check < rebuild-v5000/bridgepoint-spacecraft-columbia-v1.js
           node tests/spacecraft-launch-sites-v1.test.mjs
+          node tests/spacecraft-columbia-v1.test.mjs
           test -s assets/spacecraft/nasa-mobile-launcher.glb
           python3 - <<'PY'
           import json, struct
@@ -98,7 +128,12 @@ jobs:
           mkdir -p "$SITE/app" "$SITE/assets/spacecraft"
           cp rebuild-v5000/bridgepoint-spacecraft-v1.js "$SITE/bridgepoint-spacecraft-v1.js"
           cp rebuild-v5000/bridgepoint-spacecraft-v1.js "$SITE/app/bridgepoint-spacecraft-v1.js"
+          cp rebuild-v5000/bridgepoint-spacecraft-columbia-v1.js "$SITE/bridgepoint-spacecraft-columbia-v1.js"
+          cp rebuild-v5000/bridgepoint-spacecraft-columbia-v1.js "$SITE/app/bridgepoint-spacecraft-columbia-v1.js"
           cp assets/spacecraft/nasa-mobile-launcher.glb "$SITE/assets/spacecraft/nasa-mobile-launcher.glb"
+          cp assets/spacecraft/smithsonian-apollo11-exterior-shell.glb "$SITE/assets/spacecraft/smithsonian-apollo11-exterior-shell.glb"
+          cp assets/spacecraft/smithsonian-apollo11-exterior-top.glb "$SITE/assets/spacecraft/smithsonian-apollo11-exterior-top.glb"
+          cp assets/spacecraft/smithsonian-apollo11-exterior-filler.glb "$SITE/assets/spacecraft/smithsonian-apollo11-exterior-filler.glb"
 
           python3 - "$SITE" <<'PY'
           import hashlib, json, re, sys
@@ -107,6 +142,9 @@ jobs:
           spacecraft_attach="""void import('./bridgepoint-spacecraft-v1.js?v=1-sls-mobile-launcher-lc39b')
            .then(m=>{window.__BP_SPACECRAFT_V1__=m.initSpacecraftRenderer(world)})
            .catch(e=>console.warn('BridgePoint Spacecraft & Launch Sites layer unavailable',e));"""
+          columbia_attach="""void import('./bridgepoint-spacecraft-columbia-v1.js?v=1-apollo11-columbia-exterior')
+           .then(m=>{window.__BP_SPACECRAFT_COLUMBIA_V1__=m.initSpacecraftColumbiaRenderer(world)})
+           .catch(e=>console.warn('BridgePoint Smithsonian Columbia layer unavailable',e));"""
           plane_catch=".catch(e=>console.warn('BridgePoint Plane Wrecks layer unavailable',e));"
           for rel in ("landing.js","app.js"):
               p=site/rel
@@ -118,6 +156,13 @@ jobs:
                       raise SystemExit(f"{rel}: missing existing Plane Wrecks import anchor")
                   end += len(plane_catch)
                   data=data[:end]+"\n"+spacecraft_attach+data[end:]
+              if "initSpacecraftColumbiaRenderer(world)" not in data:
+                  spacecraft_catch=".catch(e=>console.warn('BridgePoint Spacecraft & Launch Sites layer unavailable',e));"
+                  at=data.find(spacecraft_catch)
+                  if at<0:
+                      raise SystemExit(f"{rel}: missing existing Spacecraft import anchor for Columbia")
+                  end=at+len(spacecraft_catch)
+                  data=data[:end]+"\n"+columbia_attach+data[end:]
               p.write_text(data,encoding="utf-8")
 
           for rel,needle in (("index.html","landing.js"),("app/index.html","app.js")):
@@ -140,7 +185,11 @@ jobs:
           changed={p for p in before if p in after and before[p]!=after[p]}
           allowed_changed={"landing.js","app.js","index.html","app/index.html"}
           allowed_added={"bridgepoint-spacecraft-v1.js","app/bridgepoint-spacecraft-v1.js",
-                         "assets/spacecraft/nasa-mobile-launcher.glb"}
+                         "assets/spacecraft/nasa-mobile-launcher.glb",
+                         "bridgepoint-spacecraft-columbia-v1.js","app/bridgepoint-spacecraft-columbia-v1.js",
+                         "assets/spacecraft/smithsonian-apollo11-exterior-shell.glb",
+                         "assets/spacecraft/smithsonian-apollo11-exterior-top.glb",
+                         "assets/spacecraft/smithsonian-apollo11-exterior-filler.glb"}
           if removed or not changed.issubset(allowed_changed) or not added.issubset(allowed_added):
               raise SystemExit("SPACECRAFT_OVERLAY_SCOPE_FAILURE "+json.dumps({
                 "removed":sorted(removed),"changed":sorted(changed),"added":sorted(added)}))
@@ -159,13 +208,21 @@ jobs:
           node --check "$SITE/landing.js"
           node --check "$SITE/app.js"
           node --input-type=module --check < "$SITE/bridgepoint-spacecraft-v1.js"
+          node --input-type=module --check < "$SITE/bridgepoint-spacecraft-columbia-v1.js"
           cmp -s "$SITE/bridgepoint-spacecraft-v1.js" "$SITE/app/bridgepoint-spacecraft-v1.js"
+          cmp -s "$SITE/bridgepoint-spacecraft-columbia-v1.js" "$SITE/app/bridgepoint-spacecraft-columbia-v1.js"
           grep -Fq 'initSpacecraftRenderer(world)' "$SITE/landing.js"
           grep -Fq 'initSpacecraftRenderer(world)' "$SITE/app.js"
           grep -Fq 'data-bp-local-spacecraft-viewer' "$SITE/bridgepoint-spacecraft-v1.js"
           grep -Fq 'not a photogrammetry scan' "$SITE/bridgepoint-spacecraft-v1.js"
+          grep -Fq 'Apollo 11 Command Module' "$SITE/bridgepoint-spacecraft-columbia-v1.js"
+          grep -Fq 'bp-spacecraft-toggle-v1' "$SITE/bridgepoint-spacecraft-columbia-v1.js"
+          grep -Fq 'data-bp-local-spacecraft-viewer' "$SITE/bridgepoint-spacecraft-columbia-v1.js"
           test -s "$SITE/assets/spacecraft/nasa-mobile-launcher.glb"
-          echo "BRIDGEPOINT_SPACECRAFT_V1_OVERLAY_PASS"
+          test -s "$SITE/assets/spacecraft/smithsonian-apollo11-exterior-shell.glb"
+          test -s "$SITE/assets/spacecraft/smithsonian-apollo11-exterior-top.glb"
+          test -s "$SITE/assets/spacecraft/smithsonian-apollo11-exterior-filler.glb"
+          echo "BRIDGEPOINT_SPACECRAFT_AND_COLUMBIA_OVERLAY_PASS"
 
       - uses: actions/configure-pages@v5
 
@@ -197,7 +254,12 @@ jobs:
             "app.js:$O/app.js?verify=$Q" \
             "spacecraft.js:$O/bridgepoint-spacecraft-v1.js?verify=$Q" \
             "app-spacecraft.js:$O/app/bridgepoint-spacecraft-v1.js?verify=$Q" \
-            "spacecraft.glb:$O/assets/spacecraft/nasa-mobile-launcher.glb?verify=$Q"; do
+            "spacecraft.glb:$O/assets/spacecraft/nasa-mobile-launcher.glb?verify=$Q" \
+            "columbia.js:$O/bridgepoint-spacecraft-columbia-v1.js?verify=$Q" \
+            "app-columbia.js:$O/app/bridgepoint-spacecraft-columbia-v1.js?verify=$Q" \
+            "columbia-shell.glb:$O/assets/spacecraft/smithsonian-apollo11-exterior-shell.glb?verify=$Q" \
+            "columbia-top.glb:$O/assets/spacecraft/smithsonian-apollo11-exterior-top.glb?verify=$Q" \
+            "columbia-filler.glb:$O/assets/spacecraft/smithsonian-apollo11-exterior-filler.glb?verify=$Q"; do
             name="${item%%:*}"; url="${item#*:}"
             curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 --max-time 180 -fL \
               -H 'Cache-Control: no-cache' "$url" -o "$D/$name"
@@ -208,7 +270,12 @@ jobs:
           grep -Fq 'SLS Block 1' "$D/spacecraft.js"
           grep -Fq 'data-bp-local-spacecraft-viewer' "$D/spacecraft.js"
           grep -Fq 'nasa-mobile-launcher.glb' "$D/spacecraft.js"
+          grep -Fq 'initSpacecraftColumbiaRenderer(world)' "$D/landing.js"
+          grep -Fq 'initSpacecraftColumbiaRenderer(world)' "$D/app.js"
+          grep -Fq 'Apollo 11 Command Module' "$D/columbia.js"
+          grep -Fq 'Smithsonian' "$D/columbia.js"
           cmp -s "$D/spacecraft.js" "$D/app-spacecraft.js"
+          cmp -s "$D/columbia.js" "$D/app-columbia.js"
           python3 - "$D/spacecraft.glb" <<'PY'
           import json, struct, sys
           raw=open(sys.argv[1],'rb').read()
@@ -219,4 +286,17 @@ jobs:
           assert len(doc.get('materials',[]))>=2 and len(doc.get('images',[]))>=2
           print('BRIDGEPOINT_NASA_MOBILE_LAUNCHER_LIVE_GLB_PASS',len(raw),'bytes')
           PY
-          echo "LIVE_VERIFY_PASS: Spacecraft in root and app + BridgePoint-hosted NASA GLB"
+          python3 - "$D" <<'PY'
+          import json, struct, sys
+          from pathlib import Path
+          root=Path(sys.argv[1])
+          for name in ("columbia-shell.glb","columbia-top.glb","columbia-filler.glb"):
+              raw=(root/name).read_bytes()
+              assert 0 < len(raw) < 20*1024*1024, (name,len(raw))
+              assert raw[:4]==b"glTF" and struct.unpack_from("<I",raw,8)[0]==len(raw), name
+              n=struct.unpack_from("<I",raw,12)[0]
+              doc=json.loads(raw[20:20+n].decode("utf-8"))
+              assert doc.get("asset",{}).get("version")=="2.0" and doc.get("meshes"), name
+              print("BRIDGEPOINT_SMITHSONIAN_COLUMBIA_LIVE_GLB_PASS",name,len(raw),"bytes")
+          PY
+          echo "LIVE_VERIFY_PASS: SLS + Smithsonian Columbia in root/app with all BridgePoint-hosted GLBs"
