@@ -185,8 +185,8 @@ async function loadDiscovery(state){
    part.name=asset.split('/').pop();
    root.add(part);
   }
-  // The scan is centimetre-scaled and not aligned to a single source X/Y/Z axis.
-  // Fit principal axes from mesh vertices, then orient its real long/short axes upright.
+  // The Smithsonian model is metre-scaled and rotated relative to the raw X/Y/Z bounds.
+  // Fit principal axes from mesh vertices, then orient the orbiter with its 17.768 m height upright.
   root.quaternion.identity();
   root.scale.setScalar(1);
   root.updateMatrixWorld(true);
