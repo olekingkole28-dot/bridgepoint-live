@@ -1,0 +1,222 @@
+name: Publish BridgePoint Spacecraft & Launch Sites v1
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-spacecraft-v1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+
+# This focused publisher overlays only the new Spacecraft module and its NASA GLB.
+# The pinned baseline is the verified current production Pages artifact containing
+# the ten Plane Wrecks and the existing Shipwrecks v11 layers.
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate the additive Spacecraft renderer and hosted NASA model
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module --check < rebuild-v5000/bridgepoint-spacecraft-v1.js
+          node tests/spacecraft-launch-sites-v1.test.mjs
+          test -s assets/spacecraft/nasa-mobile-launcher.glb
+          python3 - <<'PY'
+          import json, struct
+          from pathlib import Path
+          asset=Path('assets/spacecraft/nasa-mobile-launcher.glb')
+          raw=asset.read_bytes()
+          assert 0 < len(raw) < 100*1024*1024
+          assert raw[:4] == b'glTF' and struct.unpack_from('<I', raw, 8)[0] == len(raw)
+          n=struct.unpack_from('<I', raw, 12)[0]
+          doc=json.loads(raw[20:20+n].decode('utf-8'))
+          assert doc.get('asset', {}).get('version') == '2.0'
+          assert 'KHR_draco_mesh_compression' in doc.get('extensionsUsed', [])
+          assert len(doc.get('materials', [])) >= 2 and len(doc.get('images', [])) >= 2
+          accessors=[a for a in doc.get('accessors', []) if a.get('type')=='VEC3' and a.get('min') and a.get('max')]
+          assert accessors and max(a['max'][1]-a['min'][1] for a in accessors) > 200
+          print('BRIDGEPOINT_NASA_MOBILE_LAUNCHER_GLB_PASS', len(raw), 'bytes')
+          PY
+
+      - name: Download the verified ten-plane production Pages artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: github-pages-plane-wrecks-v1
+          run-id: 44246111711
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          path: ${{ runner.temp }}/spacecraft-baseline
+
+      - name: Restore the exact live site, then add only the spacecraft module and model
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCHIVE="$(find "$RUNNER_TEMP/spacecraft-baseline" -type f -name artifact.tar -print -quit)"
+          test -n "$ARCHIVE"
+          SITE="$RUNNER_TEMP/spacecraft-site"
+          mkdir -p "$SITE"
+          tar -xf "$ARCHIVE" -C "$SITE"
+
+          for file in index.html app/index.html landing.js app.js bridgepoint-drone-awareness-v1.js \
+            bridgepoint-plane-wrecks-v1.js app/bridgepoint-plane-wrecks-v1.js \
+            bridgepoint-shipwrecks-v1.js app/bridgepoint-shipwrecks-v1.js \
+            vendor/three.module.js vendor/GLTFLoader.bundle.js vendor/DRACOLoader.bundle.js \
+            vendor/draco/draco_decoder.js vendor/draco/draco_decoder.wasm vendor/draco/draco_wasm_wrapper.js; do
+            test -s "$SITE/$file" || { echo "SPACECRAFT_BASELINE_MISSING $file; refusing to publish"; exit 1; }
+          done
+
+          python3 - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          site=Path(os.environ["RUNNER_TEMP"])/"spacecraft-site"
+          before={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                  for p in site.rglob("*") if p.is_file()}
+          (Path(os.environ["RUNNER_TEMP"])/"spacecraft-before.json").write_text(json.dumps(before,sort_keys=True))
+          print("SPACECRAFT_BASELINE_FINGERPRINT_PASS",len(before),"files")
+          PY
+
+          mkdir -p "$SITE/app" "$SITE/assets/spacecraft"
+          cp rebuild-v5000/bridgepoint-spacecraft-v1.js "$SITE/bridgepoint-spacecraft-v1.js"
+          cp rebuild-v5000/bridgepoint-spacecraft-v1.js "$SITE/app/bridgepoint-spacecraft-v1.js"
+          cp assets/spacecraft/nasa-mobile-launcher.glb "$SITE/assets/spacecraft/nasa-mobile-launcher.glb"
+
+          python3 - "$SITE" <<'PY'
+          import hashlib, json, re, sys
+          from pathlib import Path
+          site=Path(sys.argv[1])
+          spacecraft_attach="""void import('./bridgepoint-spacecraft-v1.js?v=1-sls-mobile-launcher-lc39b')
+           .then(m=>{window.__BP_SPACECRAFT_V1__=m.initSpacecraftRenderer(world)})
+           .catch(e=>console.warn('BridgePoint Spacecraft & Launch Sites layer unavailable',e));"""
+          plane_catch=".catch(e=>console.warn('BridgePoint Plane Wrecks layer unavailable',e));"
+          for rel in ("landing.js","app.js"):
+              p=site/rel
+              data=p.read_text(encoding="utf-8")
+              if "initSpacecraftRenderer(world)" not in data:
+                  at=data.find("initPlaneWrecksRenderer(world)")
+                  end=data.find(plane_catch,at) if at>=0 else -1
+                  if at<0 or end<0:
+                      raise SystemExit(f"{rel}: missing existing Plane Wrecks import anchor")
+                  end += len(plane_catch)
+                  data=data[:end]+"\\n"+spacecraft_attach+data[end:]
+              p.write_text(data,encoding="utf-8")
+
+          for rel,needle in (("index.html","landing.js"),("app/index.html","app.js")):
+              p=site/rel
+              data=p.read_text(encoding="utf-8")
+              matches=list(re.finditer(r'src="([^"]*'+re.escape(needle)+r'(?:\\?[^"]*)?)"',data))
+              if len(matches)!=1:
+                  raise SystemExit(f"{rel}: expected one {needle} script URL; found {len(matches)}")
+              url=matches[0].group(1)
+              if "spacecraft=sls-mobile-launcher-pad39b-v1" not in url:
+                  updated=url+("&" if "?" in url else "?")+"spacecraft=sls-mobile-launcher-pad39b-v1"
+                  data=data.replace(url,updated,1)
+              p.write_text(data,encoding="utf-8")
+
+          before=json.loads((Path(__import__("os").environ["RUNNER_TEMP"])/"spacecraft-before.json").read_text())
+          after={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                 for p in site.rglob("*") if p.is_file()}
+          removed=set(before)-set(after)
+          added=set(after)-set(before)
+          changed={p for p in before if p in after and before[p]!=after[p]}
+          allowed_changed={"landing.js","app.js","index.html","app/index.html"}
+          allowed_added={"bridgepoint-spacecraft-v1.js","app/bridgepoint-spacecraft-v1.js",
+                         "assets/spacecraft/nasa-mobile-launcher.glb"}
+          if removed or not changed.issubset(allowed_changed) or not added.issubset(allowed_added):
+              raise SystemExit("SPACECRAFT_OVERLAY_SCOPE_FAILURE "+json.dumps({
+                "removed":sorted(removed),"changed":sorted(changed),"added":sorted(added)}))
+          required=allowed_added
+          missing=required-set(after)
+          if missing:
+              raise SystemExit("SPACECRAFT_REQUIRED_FILES_MISSING "+json.dumps(sorted(missing)))
+          assert (site/"bridgepoint-spacecraft-v1.js").read_bytes()==(site/"app/bridgepoint-spacecraft-v1.js").read_bytes()
+          for name in ("bridgepoint-plane-wrecks-v1.js","app/bridgepoint-plane-wrecks-v1.js",
+                       "bridgepoint-shipwrecks-v1.js","app/bridgepoint-shipwrecks-v1.js",
+                       "bridgepoint-drone-awareness-v1.js"):
+              assert before[name]==after[name], name+" changed unexpectedly"
+          print("SPACECRAFT_ADDITIVE_ONLY_OVERLAY_PASS",len(changed),"existing files changed",len(added),"files added; no removals")
+          PY
+
+          node --check "$SITE/landing.js"
+          node --check "$SITE/app.js"
+          node --input-type=module --check < "$SITE/bridgepoint-spacecraft-v1.js"
+          cmp -s "$SITE/bridgepoint-spacecraft-v1.js" "$SITE/app/bridgepoint-spacecraft-v1.js"
+          grep -Fq 'initSpacecraftRenderer(world)' "$SITE/landing.js"
+          grep -Fq 'initSpacecraftRenderer(world)' "$SITE/app.js"
+          grep -Fq 'data-bp-local-spacecraft-viewer' "$SITE/bridgepoint-spacecraft-v1.js"
+          grep -Fq 'not a photogrammetry scan' "$SITE/bridgepoint-spacecraft-v1.js"
+          test -s "$SITE/assets/spacecraft/nasa-mobile-launcher.glb"
+          echo "BRIDGEPOINT_SPACECRAFT_V1_OVERLAY_PASS"
+
+      - uses: actions/configure-pages@v5
+
+      - name: Upload the preserved production site with the additive Spacecraft overlay
+        uses: actions/upload-pages-artifact@v4
+        with:
+          name: github-pages-spacecraft-v1
+          path: ${{ runner.temp }}/spacecraft-site
+          include-hidden-files: true
+
+      - name: Publish BridgePoint Spacecraft & Launch Sites v1
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages-spacecraft-v1
+
+      - name: Verify the live Spacecraft module, model and both globe entry points
+        shell: bash
+        run: |
+          set -euo pipefail
+          O='https://bridgepointintelligence.online'
+          Q="$GITHUB_SHA-spacecraft-v1"
+          D="$RUNNER_TEMP/spacecraft-live"
+          mkdir -p "$D"
+          for item in \
+            "root.html:$O/?spacecraft=$Q" \
+            "app.html:$O/app/?spacecraft=$Q" \
+            "landing.js:$O/landing.js?verify=$Q" \
+            "app.js:$O/app.js?verify=$Q" \
+            "spacecraft.js:$O/bridgepoint-spacecraft-v1.js?verify=$Q" \
+            "app-spacecraft.js:$O/app/bridgepoint-spacecraft-v1.js?verify=$Q" \
+            "spacecraft.glb:$O/assets/spacecraft/nasa-mobile-launcher.glb?verify=$Q"; do
+            name="${item%%:*}"; url="${item#*:}"
+            curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 --max-time 180 -fL \
+              -H 'Cache-Control: no-cache' "$url" -o "$D/$name"
+          done
+          grep -Fq 'BP_FRONTEND_V5000' "$D/root.html"
+          grep -Fq 'bridgepoint-spacecraft-v1.js?v=1-sls-mobile-launcher-lc39b' "$D/landing.js"
+          grep -Fq 'bridgepoint-spacecraft-v1.js?v=1-sls-mobile-launcher-lc39b' "$D/app.js"
+          grep -Fq 'SLS Block 1' "$D/spacecraft.js"
+          grep -Fq 'data-bp-local-spacecraft-viewer' "$D/spacecraft.js"
+          grep -Fq 'nasa-mobile-launcher.glb' "$D/spacecraft.js"
+          cmp -s "$D/spacecraft.js" "$D/app-spacecraft.js"
+          python3 - "$D/spacecraft.glb" <<'PY'
+          import json, struct, sys
+          raw=open(sys.argv[1],'rb').read()
+          assert raw[:4]==b'glTF' and struct.unpack_from('<I',raw,8)[0]==len(raw)
+          n=struct.unpack_from('<I',raw,12)[0]
+          doc=json.loads(raw[20:20+n].decode('utf-8'))
+          assert 'KHR_draco_mesh_compression' in doc.get('extensionsUsed',[])
+          assert len(doc.get('materials',[]))>=2 and len(doc.get('images',[]))>=2
+          print('BRIDGEPOINT_NASA_MOBILE_LAUNCHER_LIVE_GLB_PASS',len(raw),'bytes')
+          PY
+          echo "LIVE_VERIFY_PASS: Spacecraft in root and app + BridgePoint-hosted NASA GLB"
