@@ -49,7 +49,7 @@ BridgePoint hosts and composes the three exterior GLB components from the Smiths
 - \`x3d-cm-exterior-top-160k-uvs-150k-4096-high.glb\` — upper exterior
 - \`x3d-cm-exterior-filler-web.glb\` — exterior filler geometry
 
-The Smithsonian package defines a shared parent rotation and uses centimetres. BridgePoint applies that parent transform, converts the source geometry to metres, composes the three meshes, and checks the resulting height against the museum's published 2.718 m capsule dimension. These are source-supplied digitized artifact meshes, not a BridgePoint-built CAD approximation. The package's three independent mesh components are kept as individual same-origin assets and loaded on demand.
+The Smithsonian package uses centimetres and supplies the three exterior meshes in a shared local model frame. BridgePoint composes those meshes, keeps the capsule upright for Earth placement (rather than applying the package's presentation tilt), converts the source geometry to metres, and checks the resulting vertical extent against the museum's published 2.718 m capsule dimension. These are source-supplied digitized artifact meshes, not a BridgePoint-built CAD approximation. The package's three independent mesh components are kept as individual same-origin assets and loaded on demand.
 
 **Rights:** Smithsonian Open Access, CC0 / public domain. Smithsonian attribution and the original object and model links remain in the card.
 
