@@ -195,6 +195,7 @@ async function loadLaunchScene(state){
   rocket.rotation.y=Math.atan2(dx,dz);
   rocket.position.set(rocketX,MODEL.mobileLauncherDeckHeightM,rocketZ);
   group.add(rocket);group.updateMatrixWorld(true);
+  group.traverse(object=>{if(object.isMesh)object.frustumCulled=false;});
   const fullBounds=new pair.THREE.Box3().setFromObject(group);
   const size=fullBounds.getSize(new pair.THREE.Vector3());
   state.launchGroup=group;
@@ -362,7 +363,7 @@ function mountCardViewer(state,popup){
    scene.add(new THREE.AmbientLight(0xffffff,1.55));
    const key=new THREE.DirectionalLight(0xffedce,1.6);key.position.set(-40,100,70);scene.add(key);
    const fill=new THREE.DirectionalLight(0x8ebbd3,0.65);fill.position.set(40,20,-60);scene.add(fill);
-   model=state.launchGroup.clone(true);model.traverse(object=>{object.frustumCulled=false;});
+   model=state.launchGroup.clone(true);model.visible=true;model.traverse(object=>{object.frustumCulled=false;});
    scene.add(model);
    const bounds=new THREE.Box3().setFromObject(model),size=bounds.getSize(new THREE.Vector3());
    const target=bounds.getCenter(new THREE.Vector3());
