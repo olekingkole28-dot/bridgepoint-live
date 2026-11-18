@@ -154,6 +154,29 @@ export const EXTRA_PLANE_WRECKS=[
   attribution:'Model and public viewer courtesy of the National Park Service Submerged Resources Center, “Jaluit Atoll Kawanishi H8K Emily”, hosted on Construkted Reality. BridgePoint embeds the source-provided public viewer; no local model-file mirror is claimed.',
   locationNote:'Approximate locator from the RMI Historic Preservation Office 1999 survey for Site MI-JL-LA-002: 06°00.766′ N, 169°43.020′ E, southwest of the first coral pinnacle off Imiej Island. The report repeats the same coordinate string for the separate shallow-water H8K record, so this pin is a broad site reference only—not a verified photogrammetry origin or navigation-grade position.'
  }
+ ,
+ {
+  id:'douglas-sbd-dauntless-kwajalein',
+  name:'Douglas SBD Dauntless — Kwajalein Atoll',
+  label:'DOUGLAS SBD · DAUNTLESS',
+  aircraft:'Douglas SBD Dauntless scout / dive bomber',
+  coordinates:[167.425031661987,9.34422925461341],
+  location:'Aircraft graveyard near Mellu Island, Kwajalein Atoll, Republic of the Marshall Islands',
+  date:'3D capture 27 April 2023 · World War II aircraft graveyard',
+  details:'The National Park Service Submerged Resources Center’s public Construkted Reality asset, “Kwajalein Atoll SBD Dauntless,” is a 40.31-million-polygon photogrammetry mesh captured on 27 April 2023 and processed in 3DF Zephyr. The source description identifies the aircraft graveyard near Mellu Island, where numerous SBDs were among U.S. Navy aircraft decommissioned at Roi and later moved out into the lagoon on barges after the war. The published asset does not identify an individual aircraft serial number or establish that this specific scan represents a combat loss.',
+  creator:'NPS Submerged Resources Center',
+  photos:null,
+  representationLabel:'40.31-million-polygon photogrammetry polygon mesh',
+  viewerMode:'public-source-embed',
+  embedUrl:'https://construkted.com/embed/a1h0143huw3',
+  sourceLabel:'NPS Submerged Resources Center · public Construkted Reality asset',
+  sourceUrl:'https://construkted.com/asset/a1h0143huw3/',
+  originalModelUrl:'https://construkted.com/asset/a1h0143huw3/',
+  historyUrl:'https://www.ww2wrecks.com/portfolio/the-ww2-pacific-treasures-of-kwajalein-lagoon-by-dan-farnham-part-20-the-sbd-dauntless-wrecks-of-kwajalein-lagoon/',
+  license:'Non Commercial · source-hosted viewer only; no BridgePoint file copy',
+  attribution:'3D asset and public viewer courtesy of the National Park Service Submerged Resources Center, “Kwajalein Atoll SBD Dauntless,” hosted on Construkted Reality. The source asset page specifies a Non Commercial data license. BridgePoint embeds the source-provided viewer; the 7z model download is not copied, mirrored or redistributed.',
+  locationNote:'Approximate area locator only. The Construkted asset’s published Asset location fields are blank and it provides no GPS origin or survey-grade geospatial transform for this mesh. Historical descriptions place the aircraft graveyard just off Mellu Island, roughly three miles southwest of Roi-Namur. This icon marks the Mellu Island vicinity, not the scan’s exact aircraft position or an individual wreck coordinate.'
+ }
 ];
 
 function safe(value){
@@ -392,7 +415,7 @@ function setMarkerVisibility(state,wreck,visible){
 }
 function setCountNote(){
  const count=document.getElementById(COUNT_ID);
- if(count)count.textContent='7 persistent wreck icons · 7 BridgePoint wreck cards · Jaluit Atoll Kawanishi H8K “Emily” added';
+ if(count)count.textContent='8 persistent wreck icons · 8 BridgePoint wreck cards · Kwajalein SBD Dauntless added';
 }
 function setEnabledFromButton(state){
  const button=document.getElementById(TOGGLE_ID);
