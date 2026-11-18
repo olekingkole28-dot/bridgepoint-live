@@ -568,9 +568,9 @@ jobs:
             "landing.js:$O/landing.js?shipwrecks=$Q" \
             "app.js:$O/app.js?shipwrecks=$Q" \
             "module.js:$O/bridgepoint-shipwrecks-v1.js?verify=$Q" \
-            "spacecraft.js:$O/bridgepoint-spacecraft-v1.js?verify=$Q" \\
-            "spacecraft.glb:$O/assets/spacecraft/nasa-mobile-launcher.glb?verify=$Q" \\
-            "app-spacecraft.js:$O/app/bridgepoint-spacecraft-v1.js?verify=$Q" \\
+            "spacecraft.js:$O/bridgepoint-spacecraft-v1.js?verify=$Q" \
+            "spacecraft.glb:$O/assets/spacecraft/nasa-mobile-launcher.glb?verify=$Q" \
+            "app-spacecraft.js:$O/app/bridgepoint-spacecraft-v1.js?verify=$Q" \
             "drone.js:$O/bridgepoint-drone-awareness-v1.js?verify=$Q" \
             "gaskin.glb.gz:$O/assets/shipwrecks/robert-gaskin-photogrammetry.glb.gz?verify=$Q" \
             "grafton.glb.gz:$O/assets/shipwrecks/hms-grafton-photogrammetry.glb.gz?verify=$Q" \
