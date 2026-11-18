@@ -42,6 +42,7 @@ on:
       - 'assets/sun/v2/**'
       - 'assets/planets/v1/**'
       - 'tests/horizon-replacement-entry.test.mjs'
+      - 'tests/subsurface-wells-v1.test.mjs'
 
 permissions:
   contents: write
