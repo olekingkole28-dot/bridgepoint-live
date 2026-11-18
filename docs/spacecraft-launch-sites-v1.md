@@ -37,3 +37,26 @@ Source URLs:
 - https://science.nasa.gov/3d-resources/space-launch-system-sls/
 - https://www.nasa.gov/humans-in-space/exploration-ground-systems/mobile-launcher/
 - https://www.nasa.gov/reference/space-launch-system/
+
+
+## Second entry: Apollo 11 Command Module “Columbia” — Smithsonian exterior 3D scan
+
+The existing **Spacecraft** toggle now also controls a second persistent icon for the Apollo 11 Command Module Columbia at the National Air and Space Museum in Washington, DC. Selecting the icon opens a BridgePoint-hosted local Three.js viewer with rotation, zoom and reset controls, object details, attribution and source links. The card's “Show 3D scan on the globe” action flies to the museum and enables the model's native 3D map layer.
+
+BridgePoint hosts and composes the three exterior GLB components from the Smithsonian's exterior 3D package:
+
+- \`x3d-cm-exterior-shell-90k-uvs-150k-4096-high.glb\` — exterior shell
+- \`x3d-cm-exterior-top-160k-uvs-150k-4096-high.glb\` — upper exterior
+- \`x3d-cm-exterior-filler-web.glb\` — exterior filler geometry
+
+The Smithsonian package defines a shared parent rotation and uses centimetres. BridgePoint applies that parent transform, converts the source geometry to metres, composes the three meshes, and checks the resulting height against the museum's published 2.718 m capsule dimension. These are source-supplied digitized artifact meshes, not a BridgePoint-built CAD approximation. The package's three independent mesh components are kept as individual same-origin assets and loaded on demand.
+
+**Rights:** Smithsonian Open Access, CC0 / public domain. Smithsonian attribution and the original object and model links remain in the card.
+
+**Globe placement limits:** The marker is an approximate pin for the National Air and Space Museum building, where the Smithsonian lists Columbia on display. The scan has no geodetic origin or survey alignment; the model's position on the globe is a visual placement, not a survey-controlled indoor location. The pin remains available at global and close zoom while the shared Spacecraft toggle is enabled.
+
+Source links:
+
+- Smithsonian object record: https://airandspace.si.edu/collection-objects/command-module-apollo-11/nasm_A19700102000
+- Smithsonian 3D object page: https://3d.si.edu/object/3d/command-module-apollo-11:d8c63e8a-4ebc-11ea-b77f-2e728ce88125
+- Smithsonian exterior package manifest: https://3d-api.si.edu/content/document/3d_package:d8c6457e-4ebc-11ea-b77f-2e728ce88125/document.json
