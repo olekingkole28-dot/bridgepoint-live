@@ -6,6 +6,10 @@ on:
     paths:
       - '.github/workflows/publish-shipwrecks-titanic-v1.yml'
       - 'rebuild-v5000/bridgepoint-shipwrecks-v1.js'
+      - 'rebuild-v5000/bridgepoint-spacecraft-v1.js'
+      - 'assets/spacecraft/nasa-mobile-launcher.glb'
+      - 'tests/spacecraft-launch-sites-v1.test.mjs'
+      - 'docs/spacecraft-launch-sites-v1.md'
       - 'tools/shipwrecks/fetch_shipwreck_meshes.py'
       - 'rebuild-v5000/bridgepoint-drone-awareness-v1.js'
       - 'rebuild-v5000/landing.js'
@@ -23,6 +27,10 @@ on:
     paths:
       - '.github/workflows/publish-shipwrecks-titanic-v1.yml'
       - 'rebuild-v5000/bridgepoint-shipwrecks-v1.js'
+      - 'rebuild-v5000/bridgepoint-spacecraft-v1.js'
+      - 'assets/spacecraft/nasa-mobile-launcher.glb'
+      - 'tests/spacecraft-launch-sites-v1.test.mjs'
+      - 'docs/spacecraft-launch-sites-v1.md'
       - 'tools/shipwrecks/fetch_shipwreck_meshes.py'
       - 'rebuild-v5000/bridgepoint-drone-awareness-v1.js'
       - 'rebuild-v5000/landing.js'
@@ -55,11 +63,13 @@ jobs:
         run: |
           set -euo pipefail
           node --input-type=module --check < rebuild-v5000/bridgepoint-shipwrecks-v1.js
+          node --input-type=module --check < rebuild-v5000/bridgepoint-spacecraft-v1.js
           node --check rebuild-v5000/bridgepoint-drone-awareness-v1.js
           python3 -m py_compile tools/shipwrecks/fetch_shipwreck_meshes.py
           node --check rebuild-v5000/landing.js
           node --check rebuild-v5000/app.js
           node tests/shipwrecks-v1.test.mjs
+          node tests/spacecraft-launch-sites-v1.test.mjs
           node tests/drone-awareness.test.mjs
           node tests/vessel-awareness.test.mjs
 
@@ -88,6 +98,27 @@ jobs:
           print('BRIDGEPOINT_HMS_LOO_PUBLIC_SOURCE_AND_PAGES_SIZE_PASS',len(raw),'GLB bytes',asset.stat().st_size,'compressed bytes')
           PY
 
+      - name: Validate the NASA Mobile Launcher model and BridgePoint-hosted asset dimensions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, struct
+          from pathlib import Path
+          asset=Path('assets/spacecraft/nasa-mobile-launcher.glb')
+          raw=asset.read_bytes()
+          assert asset.is_file() and 0 < len(raw) < 100*1024*1024
+          assert raw[:4]==b'glTF' and struct.unpack_from('<I',raw,8)[0]==len(raw)
+          n=struct.unpack_from('<I',raw,12)[0]
+          doc=json.loads(raw[20:20+n].decode('utf-8'))
+          assert 'KHR_draco_mesh_compression' in doc.get('extensionsUsed',[])
+          assert len(doc.get('materials',[])) >= 2 and len(doc.get('images',[])) >= 2
+          accessors=[a for a in doc.get('accessors',[]) if a.get('type')=='VEC3' and a.get('min') and a.get('max')]
+          assert accessors and max(a['max'][1]-a['min'][1] for a in accessors) > 200
+          assert doc.get('asset',{}).get('version')=='2.0'
+          print('BRIDGEPOINT_NASA_MOBILE_LAUNCHER_GLB_PASS',len(raw),'bytes',len(doc.get('materials',[])),'materials',len(doc.get('images',[])),'embedded images')
+          PY
+
   publish:
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
     concurrency:
@@ -110,10 +141,12 @@ jobs:
         run: |
           set -euo pipefail
           node --input-type=module --check < rebuild-v5000/bridgepoint-shipwrecks-v1.js
+          node --input-type=module --check < rebuild-v5000/bridgepoint-spacecraft-v1.js
           node --check rebuild-v5000/bridgepoint-drone-awareness-v1.js
           node --check rebuild-v5000/landing.js
           node --check rebuild-v5000/app.js
           node tests/shipwrecks-v1.test.mjs
+          node tests/spacecraft-launch-sites-v1.test.mjs
           node tests/drone-awareness.test.mjs
           node tests/vessel-awareness.test.mjs
           python3 -m py_compile tools/shipwrecks/fetch_shipwreck_meshes.py
@@ -342,10 +375,13 @@ jobs:
         run: |
           set -euo pipefail
           SITE="$RUNNER_TEMP/shipwrecks-site"
-          mkdir -p "$SITE/app" "$SITE/assets/shipwrecks" "$SITE/vendor"
+          mkdir -p "$SITE/app" "$SITE/assets/shipwrecks" "$SITE/assets/spacecraft" "$SITE/vendor"
           cp rebuild-v5000/bridgepoint-shipwrecks-v1.js "$SITE/bridgepoint-shipwrecks-v1.js"
           cp rebuild-v5000/bridgepoint-drone-awareness-v1.js "$SITE/bridgepoint-drone-awareness-v1.js"
           cp rebuild-v5000/bridgepoint-shipwrecks-v1.js "$SITE/app/bridgepoint-shipwrecks-v1.js"
+          cp rebuild-v5000/bridgepoint-spacecraft-v1.js "$SITE/bridgepoint-spacecraft-v1.js"
+          cp rebuild-v5000/bridgepoint-spacecraft-v1.js "$SITE/app/bridgepoint-spacecraft-v1.js"
+          cp assets/spacecraft/nasa-mobile-launcher.glb "$SITE/assets/spacecraft/nasa-mobile-launcher.glb"
           cp -a assets/shipwrecks/. "$SITE/assets/shipwrecks/"
           python3 - <<'PY'
           from pathlib import Path
@@ -354,6 +390,9 @@ jobs:
           attach="""void import('./bridgepoint-shipwrecks-v1.js?v=11-titanic-gaskin-grafton-cannon-kxi-cape-otway-timaru-hms-loo-draco-ktx2-local-viewer')
            .then(m=>{window.__BP_SHIPWRECKS_V1__=m.initShipwrecksRenderer(world)})
            .catch(e=>console.warn('BridgePoint shipwreck renderer unavailable',e));"""
+          spacecraft_attach="""void import('./bridgepoint-spacecraft-v1.js?v=1-sls-mobile-launcher-lc39b')
+           .then(m=>{window.__BP_SPACECRAFT_V1__=m.initSpacecraftRenderer(world)})
+           .catch(e=>console.warn('BridgePoint Spacecraft & Launch Sites layer unavailable',e));"""
           old_markers=("bridgepoint-shipwrecks-v1.js?v=1-titanic-noaa-waypoints",
                        "bridgepoint-shipwrecks-v1.js?v=2-titanic-gaskin-native",
                        "bridgepoint-shipwrecks-v1.js?v=3-titanic-gaskin-grafton-native",
@@ -376,6 +415,14 @@ jobs:
                       data=data.replace(wells_anchor,wells_anchor+"\n"+attach,1)
               if new_marker not in data:
                   raise SystemExit(f"{rel}: Shipwrecks v8 module import is missing")
+              if "initSpacecraftRenderer(world)" not in data:
+                  plane_import=data.find("initPlaneWrecksRenderer(world)")
+                  plane_catch=".catch(e=>console.warn('BridgePoint Plane Wrecks layer unavailable',e));"
+                  plane_end=data.find(plane_catch,plane_import) if plane_import>=0 else -1
+                  if plane_import<0 or plane_end<0:
+                      raise SystemExit(f"{rel}: no existing Plane Wrecks import anchor for additive Spacecraft layer")
+                  plane_end += len(plane_catch)
+                  data=data[:plane_end]+"\\n"+spacecraft_attach+data[plane_end:]
               p.write_text(data,encoding="utf-8")
           for rel,needle in (("index.html","landing.js"),("app/index.html","app.js")):
               p=site/rel;data=p.read_text(encoding="utf-8")
@@ -383,8 +430,11 @@ jobs:
               if len(matches)!=1:
                   raise SystemExit(f"{rel}: expected exactly one {needle} script URL, found {len(matches)}")
               url=matches[0].group(1)
-              if "shipwrecks=titanic-gaskin-grafton-cannon-kxi-cape-otway-timaru-hms-loo-v11" not in url:
-                  updated=url+("&" if "?" in url else "?")+"shipwrecks=titanic-gaskin-grafton-cannon-kxi-cape-otway-timaru-hms-loo-v11"
+              current_url=url
+              if "shipwrecks=titanic-gaskin-grafton-cannon-kxi-cape-otway-timaru-hms-loo-v11" not in current_url:
+                  current_url=current_url+("&" if "?" in current_url else "?")+"shipwrecks=titanic-gaskin-grafton-cannon-kxi-cape-otway-timaru-hms-loo-v11"
+              if "spacecraft=sls-mobile-launcher-pad39b-v1" not in current_url:
+                  updated=current_url+("&" if "?" in current_url else "?")+"spacecraft=sls-mobile-launcher-pad39b-v1"
                   data=data.replace(url,updated,1)
               drone_matches=list(re.finditer(r'src="([^"]*bridgepoint-drone-awareness-v1\.js(?:\?[^"]*)?)"',data))
               if len(drone_matches)!=1:
@@ -396,6 +446,14 @@ jobs:
                   drone_updated=drone_url+("&" if "?" in drone_url else "?")+"v=12-shipwrecks-v3-kxi-icons"
               if drone_updated!=drone_url:
                   data=data.replace(drone_url,drone_updated,1)
+              if "initSpacecraftRenderer(world)" not in data:
+                  plane_import=data.find("initPlaneWrecksRenderer(world)")
+                  plane_catch=".catch(e=>console.warn('BridgePoint Plane Wrecks layer unavailable',e));"
+                  plane_end=data.find(plane_catch,plane_import) if plane_import>=0 else -1
+                  if plane_import<0 or plane_end<0:
+                      raise SystemExit(f"{rel}: no existing Plane Wrecks import anchor for additive Spacecraft layer")
+                  plane_end += len(plane_catch)
+                  data=data[:plane_end]+"\\n"+spacecraft_attach+data[plane_end:]
               p.write_text(data,encoding="utf-8")
           before=json.loads((Path(os.environ["RUNNER_TEMP"])/"shipwrecks-before.json").read_text())
           after={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
@@ -406,6 +464,8 @@ jobs:
           expected_changed={"landing.js","app.js","index.html","app/index.html","bridgepoint-drone-awareness-v1.js"}
           overlay_files={
             "bridgepoint-shipwrecks-v1.js","app/bridgepoint-shipwrecks-v1.js",
+            "bridgepoint-spacecraft-v1.js","app/bridgepoint-spacecraft-v1.js",
+            "assets/spacecraft/nasa-mobile-launcher.glb",
             "assets/shipwrecks/robert-gaskin-photogrammetry.glb.gz",
             "assets/shipwrecks/hms-grafton-photogrammetry.glb.gz",
             "assets/shipwrecks/cannon-photogrammetry.glb.gz",
@@ -426,6 +486,8 @@ jobs:
                 "removed":sorted(removed),"changed":sorted(changed),"allowed_changed":sorted(allowed_changed),
                 "added":sorted(added),"allowed_added":sorted(overlay_files)}))
           required={"bridgepoint-shipwrecks-v1.js","app/bridgepoint-shipwrecks-v1.js",
+                    "bridgepoint-spacecraft-v1.js","app/bridgepoint-spacecraft-v1.js",
+                    "assets/spacecraft/nasa-mobile-launcher.glb",
                     "assets/shipwrecks/robert-gaskin-photogrammetry.glb.gz",
                     "assets/shipwrecks/hms-grafton-photogrammetry.glb.gz",
                     "assets/shipwrecks/cannon-photogrammetry.glb.gz",
@@ -447,7 +509,13 @@ jobs:
           node --check "$SITE/app.js"
           node --check "$SITE/bridgepoint-drone-awareness-v1.js"
           node --input-type=module --check < "$SITE/bridgepoint-shipwrecks-v1.js"
+          node --input-type=module --check < "$SITE/bridgepoint-spacecraft-v1.js"
+          node tests/spacecraft-launch-sites-v1.test.mjs
           cmp -s "$SITE/bridgepoint-shipwrecks-v1.js" "$SITE/app/bridgepoint-shipwrecks-v1.js"
+          cmp -s "$SITE/bridgepoint-spacecraft-v1.js" "$SITE/app/bridgepoint-spacecraft-v1.js"
+          grep -Fq 'initSpacecraftRenderer(world)' "$SITE/landing.js"
+          grep -Fq 'initSpacecraftRenderer(world)' "$SITE/app.js"
+          test -s "$SITE/assets/spacecraft/nasa-mobile-launcher.glb"
           grep -Fq 'initShipwrecksRenderer(world)' "$SITE/landing.js"
           grep -Fq 'initShipwrecksRenderer(world)' "$SITE/app.js"
           grep -Fq 'assets/shipwrecks/robert-gaskin-photogrammetry.glb.gz' "$SITE/bridgepoint-shipwrecks-v1.js"
@@ -466,24 +534,24 @@ jobs:
           test -s "$SITE/vendor/draco/draco_decoder.js"
           test -s "$SITE/vendor/draco/draco_decoder.wasm"
           test -s "$SITE/vendor/draco/draco_wasm_wrapper.js"
-          echo "BRIDGEPOINT_SHIPWRECKS_V11_OVERLAY_PASS"
+          echo "BRIDGEPOINT_SHIPWRECKS_V11_AND_SPACECRAFT_V1_OVERLAY_PASS"
 
       - uses: actions/configure-pages@v5
 
       - name: Upload the preserved production site with the additive Shipwrecks v11 overlay
         uses: actions/upload-pages-artifact@v4
         with:
-          name: github-pages-shipwrecks-v11
+          name: github-pages-spacecraft-v1
           path: ${{ runner.temp }}/shipwrecks-site
           include-hidden-files: true
 
-      - name: Publish BridgePoint Shipwrecks v11 — BridgePoint-hosted underwater wreck viewers
+      - name: Publish BridgePoint Shipwrecks v11 + Spacecraft v1 additive overlay
         id: deployment
         uses: actions/deploy-pages@v4
         with:
           artifact_name: github-pages-shipwrecks-v11
 
-      - name: Verify live root/app entry points, ten persistent icons, seven native GLBs and local viewers
+      - name: Verify live root/app entry points, wrecks and BridgePoint-hosted Spacecraft launch-site scene
         shell: bash
         run: |
           set -euo pipefail
@@ -497,6 +565,9 @@ jobs:
             "landing.js:$O/landing.js?shipwrecks=$Q" \
             "app.js:$O/app.js?shipwrecks=$Q" \
             "module.js:$O/bridgepoint-shipwrecks-v1.js?verify=$Q" \
+            "spacecraft.js:$O/bridgepoint-spacecraft-v1.js?verify=$Q" \\
+            "spacecraft.glb:$O/assets/spacecraft/nasa-mobile-launcher.glb?verify=$Q" \\
+            "app-spacecraft.js:$O/app/bridgepoint-spacecraft-v1.js?verify=$Q" \\
             "drone.js:$O/bridgepoint-drone-awareness-v1.js?verify=$Q" \
             "gaskin.glb.gz:$O/assets/shipwrecks/robert-gaskin-photogrammetry.glb.gz?verify=$Q" \
             "grafton.glb.gz:$O/assets/shipwrecks/hms-grafton-photogrammetry.glb.gz?verify=$Q" \
@@ -526,6 +597,24 @@ jobs:
           grep -Fq 'bridgepoint-shipwrecks-v1.js?v=11-titanic-gaskin-grafton-cannon-kxi-cape-otway-timaru-hms-loo-draco-ktx2-local-viewer' "$D/landing.js" || { echo "LIVE_VERIFY_FAIL: root Shipwrecks import missing"; exit 1; }
           grep -Fq 'bridgepoint-shipwrecks-v1.js?v=11-titanic-gaskin-grafton-cannon-kxi-cape-otway-timaru-hms-loo-draco-ktx2-local-viewer' "$D/app.js" || { echo "LIVE_VERIFY_FAIL: app Shipwrecks import missing"; exit 1; }
           echo "LIVE_VERIFY_PASS: root and app entrypoints + Shipwrecks imports"
+          grep -Fq 'bridgepoint-spacecraft-v1.js?v=1-sls-mobile-launcher-lc39b' "$D/landing.js" || { echo "LIVE_VERIFY_FAIL: root Spacecraft import missing"; exit 1; }
+          grep -Fq 'bridgepoint-spacecraft-v1.js?v=1-sls-mobile-launcher-lc39b' "$D/app.js" || { echo "LIVE_VERIFY_FAIL: app Spacecraft import missing"; exit 1; }
+          grep -Fq 'SLS Block 1' "$D/spacecraft.js" || { echo "LIVE_VERIFY_FAIL: SLS Block 1 metadata missing"; exit 1; }
+          grep -Fq 'data-bp-local-spacecraft-viewer' "$D/spacecraft.js" || { echo "LIVE_VERIFY_FAIL: BridgePoint local Spacecraft viewer missing"; exit 1; }
+          grep -Fq 'nasa-mobile-launcher.glb' "$D/spacecraft.js" || { echo "LIVE_VERIFY_FAIL: NASA Mobile Launcher asset path missing"; exit 1; }
+          grep -Fq 'not a photogrammetry scan' "$D/spacecraft.js" || { echo "LIVE_VERIFY_FAIL: provenance disclosure missing"; exit 1; }
+          cmp -s "$D/spacecraft.js" "$D/app-spacecraft.js" || { echo "LIVE_VERIFY_FAIL: root/app spacecraft modules differ"; exit 1; }
+          python3 - "$D/spacecraft.glb" <<'PY'
+          import json,struct,sys
+          raw=open(sys.argv[1],'rb').read()
+          assert raw[:4]==b'glTF' and struct.unpack_from('<I',raw,8)[0]==len(raw)
+          n=struct.unpack_from('<I',raw,12)[0]
+          doc=json.loads(raw[20:20+n].decode('utf-8'))
+          assert 'KHR_draco_mesh_compression' in doc.get('extensionsUsed',[])
+          assert len(doc.get('materials',[]))>=2 and len(doc.get('images',[]))>=2
+          print('BRIDGEPOINT_NASA_MOBILE_LAUNCHER_LIVE_GLB_PASS',len(raw),'bytes')
+          PY
+          echo "LIVE_VERIFY_PASS: BridgePoint-hosted SLS Block 1 + NASA Mobile Launcher scene and persistent marker module"
           grep -Fq 'shipwrecks:/shipwreck|titanic/i' "$D/drone.js" || { echo "LIVE_VERIFY_FAIL: dedicated shipwreck category missing"; exit 1; }
           grep -Fq "shipwrecks:'shipwrecks'" "$D/drone.js" || { echo "LIVE_VERIFY_FAIL: shipwreck category action mapping missing"; exit 1; }
           echo "LIVE_VERIFY_PASS: persistent Shipwrecks category"
