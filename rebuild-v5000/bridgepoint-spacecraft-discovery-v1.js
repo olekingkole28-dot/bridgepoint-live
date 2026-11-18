@@ -1,7 +1,7 @@
-/* BridgePoint Spacecraft Collection — Smithsonian Space Shuttle Command Module Discovery.
- * A second persistent marker is synchronized to the existing Spacecraft toggle.
- * Three original Smithsonian exterior GLB components are hosted by BridgePoint and composed
- * into a local interactive card viewer / optional native globe model. Smithsonian Open Access: CC0.
+/* BridgePoint Spacecraft Collection — Smithsonian Space Shuttle Orbiter OV-103 Discovery.
+ * A third persistent marker is synchronized to the existing Spacecraft toggle.
+ * The official Smithsonian high-resolution exterior GLB is hosted locally by BridgePoint
+ * and displayed in a local interactive card viewer / optional native globe model. CC0.
  */
 const VERSION=1;
 const THREE_URL='/vendor/three.module.js?v=169-local';
@@ -319,8 +319,8 @@ function ensureMarker(state,visible=state.enabled){
    const element=document.createElement('button');
    element.type='button';
    element.className=MARKER_CLASS;
-   element.setAttribute('aria-label','Space Shuttle Command Module Discovery at the National Air and Space Museum. Open BridgePoint 3D card.');
-   element.title='Space Shuttle Command Module Discovery · Smithsonian · open BridgePoint 3D card';
+   element.setAttribute('aria-label','Space Shuttle Orbiter OV-103 Discovery at the Steven F. Udvar-Hazy Center. Open BridgePoint 3D card.');
+   element.title='Space Shuttle Orbiter OV-103 Discovery · Smithsonian · open BridgePoint 3D card';
    element.appendChild(makeMarkerIcon());
    element.addEventListener('click',event=>{
     event.preventDefault();event.stopPropagation();
@@ -479,7 +479,7 @@ function setStatus(state,message){
 function updateCount(){
  const count=document.getElementById(COUNT_ID);
  if(!count)return;
- const label='3 persistent spacecraft icons · SLS + Mobile Launcher at Pad 39B · Apollo 11 Columbia · Space Shuttle Discovery at Udvar-Hazy · BridgePoint-hosted viewers';
+ const label='3 persistent spacecraft icons · SLS + Mobile Launcher at Pad 39B · Apollo 11 Columbia at the Smithsonian · Space Shuttle Discovery at Udvar-Hazy · BridgePoint-hosted 3D viewers';
  if(count.textContent!==label)count.textContent=label;
 }
 function readToggle(state){
