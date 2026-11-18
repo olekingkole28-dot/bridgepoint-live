@@ -222,8 +222,10 @@ function maybeAutoMaterialize(state){
  const col=state.columbia;
  if(!state.enabled)return false;
  ensureMarker(state,true);
- if(Number(state.map.getZoom?.()||0)<15.5||col.group||col.promise||col.autoAttempted)return false;
+ if(Number(state.map.getZoom?.()||0)<15.5)return false;
  try{const bounds=state.map.getBounds?.();if(bounds&&!bounds.contains(SPACECRAFT_COLUMBIA.coordinates))return false;}catch(_){}
+ if(col.group){col.modelVisible=true;if(!ensureNativeLayer(state))return false;state.map.triggerRepaint?.();return true;}
+ if(col.promise||col.autoAttempted)return false;
  col.autoAttempted=true;col.modelVisible=true;void showOnGlobe(state);return true;
 }
 function mountViewer(state,popup){
@@ -326,7 +328,7 @@ function openPopup(state,lngLat){
    '</div>'+
    '<p class="bp-spacecraft-attribution">Source: Smithsonian Institution, National Air and Space Museum, Apollo 11 Command Module Columbia, inventory A19700102000. Model rights: Open Access CC0 / public domain. BridgePoint hosts the exterior mesh components for direct viewing; source attribution is retained. The marker and globe registration are approximate, not survey-grade.</p>'+
   '</article>';
- state.popup=new Popup({closeButton:true,closeOnClick:true,maxWidth:'540px',className:'bp-spacecraft-popup-wrap'}).setLngLat(lngLat||SPACECRAFT_COLUMBIA.coordinates).setHTML(html).addTo(state.map);
+ state.popup=new Popup({closeButton:true,closeOnClick:true,maxWidth:'540px',className:'bp-spacecraft-columbia-popup-wrap'}).setLngLat(lngLat||SPACECRAFT_COLUMBIA.coordinates).setHTML(html).addTo(state.map);
  const root=state.popup.getElement?.();
  root?.querySelector('[data-spacecraft-action="materialize-columbia"]')?.addEventListener('click',()=>{void showOnGlobe(state);});
  mountViewer(state,state.popup);
