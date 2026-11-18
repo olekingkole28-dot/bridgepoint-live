@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { EXTRA_PLANE_WRECKS } from '../rebuild-v5000/bridgepoint-plane-wrecks-extra-v1.js';
 
-assert.equal(EXTRA_PLANE_WRECKS.length,7);
+assert.equal(EXTRA_PLANE_WRECKS.length,8);
 const b29=EXTRA_PLANE_WRECKS.find(x=>x.id==='b29-over-exposed-bleaklow');
 const zero=EXTRA_PLANE_WRECKS.find(x=>x.id==='mitsubishi-zero-a6m3-iwm-london');
 const sunderland=EXTRA_PLANE_WRECKS.find(x=>x.id==='short-sunderland-ej138-munkholmen');
@@ -10,7 +10,8 @@ const tokai=EXTRA_PLANE_WRECKS.find(x=>x.id==='tokai-maru-apra-harbor');
 const p39=EXTRA_PLANE_WRECKS.find(x=>x.id==='bell-p39q-airacobra-lake-huron');
 const h8k=EXTRA_PLANE_WRECKS.find(x=>x.id==='kawanishi-h8k-emily-jaluit');
 const sbd=EXTRA_PLANE_WRECKS.find(x=>x.id==='douglas-sbd-dauntless-kwajalein');
-assert.ok(b29&&zero&&sunderland&&tokai&&p39&&h8k&&sbd);
+const messerschmitt=EXTRA_PLANE_WRECKS.find(x=>x.id==='messerschmitt-bf109-g6-planier');
+assert.ok(b29&&zero&&sunderland&&tokai&&p39&&h8k&&sbd&&messerschmitt);
 assert.deepEqual(b29.coordinates,[-1.86542,53.45091]);
 assert.deepEqual(zero.coordinates,[-0.108328,51.496009]);
 assert.equal(b29.zenodoId,'10318135');
@@ -81,7 +82,19 @@ assert.match(sbd.license,/Non Commercial/);
 assert.match(sbd.locationNote,/Approximate area locator only/i);
 assert.match(sbd.attribution,/not copied, mirrored or redistributed/i);
 
-
+assert.equal(messerschmitt.name,'Messerschmitt Bf 109 G-6 — Planier Islet');
+assert.deepEqual(messerschmitt.coordinates,[5.23021,43.1996]);
+assert.equal(messerschmitt.worldDepthM,45);
+assert.equal(messerschmitt.sourcePointCount,278909422);
+assert.equal(messerschmitt.creator,'Septentrion Environnement · LIS / Aix-Marseille Université · UMR CNRS 7020');
+assert.equal(messerschmitt.license,'CC BY 4.0');
+assert.match(messerschmitt.details,/278,909,422 RGB points/);
+assert.match(messerschmitt.details,/stratified, color-preserving sample/i);
+assert.match(messerschmitt.assetUrl,/messerschmitt-bf109-g6-planier\.glb\.gz$/);
+assert.match(messerschmitt.sourceUrl,/septentrion-env\.com/);
+assert.match(messerschmitt.originalModelUrl,/septentrion\.lis-lab\.fr\/3D\/Messerschmitt/);
+assert.match(messerschmitt.attribution,/CC BY 4\.0/);
+assert.match(messerschmitt.locationNote,/approximate site locator/i);
 
 
 const moduleSource=await readFile(new URL('../rebuild-v5000/bridgepoint-plane-wrecks-extra-v1.js',import.meta.url),'utf8');
@@ -99,7 +112,7 @@ assert.match(moduleSource,/loadModel\(wreck\)/);
 assert.match(moduleSource,/object\.isPoints/);
 assert.match(moduleSource,/pointCount/);
 assert.match(moduleSource,/wreck\.iconType==='ship'/);
-assert.match(moduleSource,/8 persistent wreck icons/);
+assert.match(moduleSource,/9 persistent wreck icons/);
 assert.match(moduleSource,/initPlaneWrecksExtraRenderer/);
 assert.match(moduleSource,/nativeWorldMatrix/);
 assert.match(moduleSource,/renderingMode:'3d'/);
@@ -128,5 +141,15 @@ assert.match(p39Builder,/trimesh/);
 assert.match(p39Builder,/Public Domain/);
 assert.match(p39Builder,/p39q-airacobra-wing-photogrammetry\.glb\.gz/);
 assert.match(p39Builder,/geometry_stats/);
+
+
+const messerschmittBuilder=await readFile(new URL('../tools/plane_wrecks/build_messerschmitt_bf109.py',import.meta.url),'utf8');
+assert.match(messerschmittBuilder,/metadata\.json/);
+assert.match(messerschmittBuilder,/hierarchy\.bin/);
+assert.match(messerschmittBuilder,/octree\.bin/);
+assert.match(messerschmittBuilder,/278_909_422/);
+assert.match(messerschmittBuilder,/CC BY 4\.0/);
+assert.match(messerschmittBuilder,/MAX_RENDERED_POINTS/);
+assert.match(messerschmittBuilder,/messerschmitt-bf109-g6-planier\.glb\.gz/);
 
 console.log('BRIDGEPOINT_EXTRA_PLANE_WRECKS_V1_PASS');

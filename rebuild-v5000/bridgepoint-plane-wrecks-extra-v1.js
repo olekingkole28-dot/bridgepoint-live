@@ -177,6 +177,34 @@ export const EXTRA_PLANE_WRECKS=[
   attribution:'3D asset and public viewer courtesy of the National Park Service Submerged Resources Center, “Kwajalein Atoll SBD Dauntless,” hosted on Construkted Reality. The source asset page specifies a Non Commercial data license. BridgePoint embeds the source-provided viewer; the 7z model download is not copied, mirrored or redistributed.',
   locationNote:'Approximate area locator only. The Construkted asset’s published Asset location fields are blank and it provides no GPS origin or survey-grade geospatial transform for this mesh. Historical descriptions place the aircraft graveyard just off Mellu Island, roughly three miles southwest of Roi-Namur. This icon marks the Mellu Island vicinity, not the scan’s exact aircraft position or an individual wreck coordinate.'
  }
+
+ ,{
+  id:'messerschmitt-bf109-g6-planier',
+  name:'Messerschmitt Bf 109 G-6 — Planier Islet',
+  label:'MESSERSCHMITT Bf 109 G-6',
+  aircraft:'Messerschmitt Bf 109 G-6 fighter',
+  typeLabel:'Aircraft wreck',
+  vehicleType:'Messerschmitt Bf 109 G-6',
+  representationLabel:'RGB Potree 2.0 photogrammetry point cloud',
+  coordinates:[5.23021,43.1996],
+  worldDepthM:45,
+  worldScale:1,
+  location:'Seafloor near Planier Islet, Marseille, Provence-Alpes-Côte d’Azur, France',
+  date:'Shot down in 1944 · wreck lies at approximately 45 m depth',
+  details:'Underwater photogrammetry of a Messerschmitt Bf 109 G-6 shot down near Planier Islet in 1944. The scan was produced by Septentrion Environnement in collaboration with LIS (Laboratoire d’Informatique des Systèmes), Aix-Marseille Université, UMR CNRS 7020. The original public Potree 2.0 dataset contains 278,909,422 RGB points. BridgePoint hosts a stratified, color-preserving sample of that source as a self-contained 3D point-cloud model; it is not a watertight triangle mesh or a complete aircraft reconstruction.',
+  creator:'Septentrion Environnement · LIS / Aix-Marseille Université · UMR CNRS 7020',
+  photos:null,
+  sourcePointCount:278909422,
+  sourceLabel:'Septentrion / LIS original Potree 2.0 point-cloud source',
+  sourceUrl:'https://septentrion-env.com/en/projet/landscape-scale-photogrammetry-wrecks/',
+  originalModelUrl:'https://septentrion.lis-lab.fr/3D/Messerschmitt/',
+  historyUrl:'https://www.plongee-infos.com/chaque-jour-une-epave-7-mars-1944-le-messerschmitt-109-a-marseille/',
+  assetUrl:'/assets/plane-wrecks/extra/messerschmitt-bf109-g6-planier.glb.gz',
+  assetName:'messerschmitt-bf109-g6-planier.glb.gz',
+  license:'CC BY 4.0',
+  attribution:'Septentrion Environnement and LIS / Aix-Marseille Université, UMR CNRS 7020, “Messerschmitt Bf 109 G-6 — Planier Islet”, underwater photogrammetry. The associated published model is licensed CC BY 4.0. BridgePoint conversion is sampled from the original publicly served LIS Potree point cloud.',
+  locationNote:'The map pin uses the published Planier wreck-site reference near 43.1996° N, 5.23021° E. It is an approximate site locator, not a survey-grade registration of the point-cloud origin; BridgePoint uses the published approximately 45 m depth reference.'
+ }
 ];
 
 function safe(value){
@@ -415,7 +443,7 @@ function setMarkerVisibility(state,wreck,visible){
 }
 function setCountNote(){
  const count=document.getElementById(COUNT_ID);
- if(count)count.textContent='8 persistent wreck icons · 8 BridgePoint wreck cards · Kwajalein SBD Dauntless added';
+ if(count)count.textContent='9 persistent wreck icons · 9 BridgePoint wreck cards · Messerschmitt Bf 109 added';
 }
 function setEnabledFromButton(state){
  const button=document.getElementById(TOGGLE_ID);
