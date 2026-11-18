@@ -1,12 +1,13 @@
 {
   "version": 1,
   "coordinate_system": "equirectangular",
+  "download_mirror": "Simple Space Data stable mirror of Solar System Scope CC BY 4.0 textures",
   "assets": {
     "mercury": {
       "file": "mercury-2k.jpg",
       "source": "Solar System Scope planetary textures",
       "source_url": "https://www.solarsystemscope.com/textures/",
-      "download_url": "https://www.solarsystemscope.com/textures/download/2k_mercury.jpg",
+      "download_url": "https://www.simplespacedata.org/texture/solarsystemscope/mercury/latest/2k_mercury.jpg",
       "license": "CC BY 4.0"
     },
     "venus": {
@@ -14,29 +15,29 @@
       "atmosphere_file": "venus-atmosphere-2k.jpg",
       "source": "Solar System Scope planetary textures",
       "source_url": "https://www.solarsystemscope.com/textures/",
-      "surface_download_url": "https://www.solarsystemscope.com/textures/download/2k_venus_surface.jpg",
-      "atmosphere_download_url": "https://www.solarsystemscope.com/textures/download/2k_venus_atmosphere.jpg",
+      "surface_download_url": "https://www.simplespacedata.org/texture/solarsystemscope/venus_surface/latest/2k_venus_surface.jpg",
+      "atmosphere_download_url": "https://www.simplespacedata.org/texture/solarsystemscope/venus_atmosphere/latest/2k_venus_atmosphere.jpg",
       "license": "CC BY 4.0"
     },
     "jupiter": {
       "file": "jupiter-2k.jpg",
       "source": "Solar System Scope planetary textures",
       "source_url": "https://www.solarsystemscope.com/textures/",
-      "download_url": "https://www.solarsystemscope.com/textures/download/2k_jupiter.jpg",
+      "download_url": "https://www.simplespacedata.org/texture/solarsystemscope/jupiter/latest/2k_jupiter.jpg",
       "license": "CC BY 4.0"
     },
     "uranus": {
       "file": "uranus-2k.jpg",
       "source": "Solar System Scope planetary textures",
       "source_url": "https://www.solarsystemscope.com/textures/",
-      "download_url": "https://www.solarsystemscope.com/textures/download/2k_uranus.jpg",
+      "download_url": "https://www.simplespacedata.org/texture/solarsystemscope/uranus/latest/2k_uranus.jpg",
       "license": "CC BY 4.0"
     },
     "neptune": {
       "file": "neptune-2k.jpg",
       "source": "Solar System Scope planetary textures",
       "source_url": "https://www.solarsystemscope.com/textures/",
-      "download_url": "https://www.solarsystemscope.com/textures/download/2k_neptune.jpg",
+      "download_url": "https://www.simplespacedata.org/texture/solarsystemscope/neptune/latest/2k_neptune.jpg",
       "license": "CC BY 4.0"
     }
   }
