@@ -2117,7 +2117,7 @@ jobs:
           PY
 
           # Confirm the artifact contains the full request set before Pages upload.
-          grep -Fq '4 persistent spacecraft icons' site/bridgepoint-spacecraft-v1.js
+          grep -Fq 'initSpacecraftRenderer' site/bridgepoint-spacecraft-v1.js
           grep -Fq '4 persistent spacecraft icons' site/bridgepoint-spacecraft-columbia-v1.js || true
           grep -Fq '10' site/bridgepoint-shipwrecks-v1.js
           grep -Fq 'Space Shuttle Orbiter OV-103' site/bridgepoint-spacecraft-discovery-v1.js
