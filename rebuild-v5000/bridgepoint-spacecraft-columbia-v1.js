@@ -34,7 +34,7 @@ export const SPACECRAFT_COLUMBIA={
  sourceRecordUrl:'https://airandspace.si.edu/collection-objects/command-module-apollo-11/nasm_A19700102000',
  sourceManifestUrl:'https://3d-api.si.edu/content/document/3d_package:d8c6457e-4ebc-11ea-b77f-2e728ce88125/document.json',
  sourceLicense:'Smithsonian Open Access · CC0 / public domain',
- sourceMethod:'Smithsonian high-resolution 3D digitization of the exterior artifact; three supplied GLB mesh components are composed by BridgePoint.',
+ sourceMethod:'Smithsonian exterior photogrammetry mesh supplied as one combined GLB and hosted by BridgePoint.',
  placementPrecision:'The persistent marker identifies the approximate National Air and Space Museum building location, where the capsule is listed on display. The source has no geodetic origin or survey alignment; the globe model is a visual placement, not a survey-controlled indoor position.'
 };
 export function resolveColumbiaScanTransform(sourceDimensions){
@@ -195,9 +195,7 @@ async function loadColumbia(state){
   const frame=computeColumbiaPrincipalFrame(vertices,transform.scale);
   const right=new pair.THREE.Vector3(...frame.axes[frame.rightIndex]).normalize();
   const up=new pair.THREE.Vector3(...frame.axes[frame.upIndex]).normalize();
-  let forward=new pair.THREE.Vector3().crossVectors(right,up).normalize();
-  const sourceForward=new pair.THREE.Vector3(...frame.axes[frame.forwardIndex]);
-  if(forward.dot(sourceForward)<0)forward.negate();
+  const forward=new pair.THREE.Vector3().crossVectors(right,up).normalize();
   const principalBasis=new pair.THREE.Matrix4().makeBasis(right,up,forward);
   root.quaternion.setFromRotationMatrix(principalBasis.transpose());
   root.scale.setScalar(transform.scale);
