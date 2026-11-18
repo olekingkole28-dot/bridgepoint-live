@@ -40,6 +40,8 @@ assert.match(source,/data-bpv-action="spacecraft"/);
 assert.match(source,/function makeSlsBlock1\(THREE\)/);
 assert.match(source,/MODEL\.mobileLauncherHeightM\/rawSize\.y/);
 assert.match(source,/rocket\.position\.set\(rocketX,MODEL\.mobileLauncherDeckHeightM,rocketZ\)/);
+assert.match(source,/model=state\.launchGroup\.clone\(true\);model\.visible=true/);
+assert.match(source,/group\.traverse\(object=>\{if\(object\.isMesh\)object\.frustumCulled=false;\}\)/);
 
 const landing=await readFile(new URL('../rebuild-v5000/landing.js',import.meta.url),'utf8');
 const app=await readFile(new URL('../rebuild-v5000/app.js',import.meta.url),'utf8');
