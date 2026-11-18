@@ -401,10 +401,10 @@ jobs:
                   data=data.replace(base_anchor,base_anchor+chr(10)+extra_import,1)
               if "initPlaneWrecksExtraRenderer(world)" not in data:
                   raise SystemExit(f"{rel}: additional Plane Wrecks mesh import was not installed")
-              extra_refs=list(re.finditer(r"bridgepoint-plane-wrecks-extra-v1\.js(?:\?v=[^'"]*)?",data))
+              extra_refs=list(re.finditer(r"bridgepoint-plane-wrecks-extra-v1\.js(?:\?v=[^'\"]*)?",data))
               if len(extra_refs)!=1:
                   raise SystemExit(f"{rel}: expected exactly one extra Plane Wrecks module import, got {len(extra_refs)}")
-              data=re.sub(r"(bridgepoint-plane-wrecks-extra-v1\.js\?v=)[^'"]+",r"\g<1>4-p39q-airacobra-wing",data,count=1)
+              data=re.sub(r"(bridgepoint-plane-wrecks-extra-v1\.js\?v=)[^'\"]+",r"\g<1>4-p39q-airacobra-wing",data,count=1)
               if "bridgepoint-plane-wrecks-extra-v1.js?v=4-p39q-airacobra-wing" not in data:
                   raise SystemExit(f"{rel}: failed to version-bust the extra Plane Wrecks module import")
               p.write_text(data,encoding="utf-8")
