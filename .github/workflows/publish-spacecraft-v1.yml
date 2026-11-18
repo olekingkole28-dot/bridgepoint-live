@@ -9,6 +9,8 @@ on:
       - 'tests/spacecraft-columbia-v1.test.mjs'
       - 'rebuild-v5000/bridgepoint-spacecraft-discovery-v1.js'
       - 'tests/spacecraft-discovery-v1.test.mjs'
+      - 'rebuild-v5000/bridgepoint-spacecraft-saturn-v1.js'
+      - 'tests/spacecraft-saturn-v1.test.mjs'
       - 'docs/spacecraft-launch-sites-v1.md'
   workflow_dispatch:
 
@@ -84,6 +86,29 @@ jobs:
           assert max(extents)>10 and max(extents)<60, ('Discovery source extents',extents)
           print('SMITHSONIAN_DISCOVERY_HIGH_GL_B_PASS',len(raw),'bytes; source bounds',extents)
           PY
+      - name: Download and validate NASA Saturn V and Launch Complex 39 gantry GLBs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p assets/spacecraft
+          UA='BridgePointIntelligence/1.0 (+https://bridgepointintelligence.online)'
+          curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 --max-time 180 -fL -A "$UA" 'https://assets.science.nasa.gov/content/dam/science/cds/3d/resources/model/saturn-v/Saturn%20V.glb' -o assets/spacecraft/nasa-saturn-v.glb
+          curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 --max-time 180 -fL -A "$UA" 'https://assets.science.nasa.gov/content/dam/science/cds/3d/resources/model/gantry/Gantry.glb' -o assets/spacecraft/nasa-gantry.glb
+          python3 - <<'PY'
+          import json, struct
+          from pathlib import Path
+          for name in ('nasa-saturn-v.glb','nasa-gantry.glb'):
+              path=Path('assets/spacecraft')/name
+              raw=path.read_bytes()
+              assert 20_000 <= len(raw) < 100*1024*1024, (name,len(raw))
+              assert raw[:4]==b'glTF' and struct.unpack_from('<I',raw,8)[0]==len(raw), name
+              n=struct.unpack_from('<I',raw,12)[0]
+              doc=json.loads(raw[20:20+n].decode('utf-8'))
+              assert doc.get('asset',{}).get('version')=='2.0' and doc.get('meshes'), name
+              assert any(a.get('type')=='VEC3' and a.get('min') and a.get('max') for a in doc.get('accessors',[])), name
+              print('NASA_SATURN_LAUNCH_GLB_VALIDATED',name,len(raw),'bytes')
+          PY
+
       - name: Validate the additive Spacecraft renderers and hosted NASA model
         shell: bash
         run: |
@@ -91,11 +116,15 @@ jobs:
           node --input-type=module --check < rebuild-v5000/bridgepoint-spacecraft-v1.js
           node --input-type=module --check < rebuild-v5000/bridgepoint-spacecraft-columbia-v1.js
           node --input-type=module --check < rebuild-v5000/bridgepoint-spacecraft-discovery-v1.js
+          node --input-type=module --check < rebuild-v5000/bridgepoint-spacecraft-saturn-v1.js
           node tests/spacecraft-launch-sites-v1.test.mjs
           node tests/spacecraft-columbia-v1.test.mjs
           node tests/spacecraft-discovery-v1.test.mjs
+          node tests/spacecraft-saturn-v1.test.mjs
           test -s assets/spacecraft/nasa-mobile-launcher.glb
           test -s assets/spacecraft/smithsonian-space-shuttle-discovery-150k-4096.glb
+          test -s assets/spacecraft/nasa-saturn-v.glb
+          test -s assets/spacecraft/nasa-gantry.glb
           python3 - <<'PY'
           import json, struct
           from pathlib import Path
@@ -231,9 +260,13 @@ jobs:
           cp rebuild-v5000/bridgepoint-spacecraft-columbia-v1.js "$SITE/app/bridgepoint-spacecraft-columbia-v1.js"
           cp rebuild-v5000/bridgepoint-spacecraft-discovery-v1.js "$SITE/bridgepoint-spacecraft-discovery-v1.js"
           cp rebuild-v5000/bridgepoint-spacecraft-discovery-v1.js "$SITE/app/bridgepoint-spacecraft-discovery-v1.js"
+          cp rebuild-v5000/bridgepoint-spacecraft-saturn-v1.js "$SITE/bridgepoint-spacecraft-saturn-v1.js"
+          cp rebuild-v5000/bridgepoint-spacecraft-saturn-v1.js "$SITE/app/bridgepoint-spacecraft-saturn-v1.js"
           cp assets/spacecraft/nasa-mobile-launcher.glb "$SITE/assets/spacecraft/nasa-mobile-launcher.glb"
           cp assets/spacecraft/smithsonian-apollo11-exterior-combined.glb "$SITE/assets/spacecraft/smithsonian-apollo11-exterior-combined.glb"
           cp assets/spacecraft/smithsonian-space-shuttle-discovery-150k-4096.glb "$SITE/assets/spacecraft/smithsonian-space-shuttle-discovery-150k-4096.glb"
+          cp assets/spacecraft/nasa-saturn-v.glb "$SITE/assets/spacecraft/nasa-saturn-v.glb"
+          cp assets/spacecraft/nasa-gantry.glb "$SITE/assets/spacecraft/nasa-gantry.glb"
 
           python3 - "$SITE" <<'PY'
           import hashlib, json, re, sys
@@ -248,6 +281,9 @@ jobs:
           discovery_attach="""void import('./bridgepoint-spacecraft-discovery-v1.js?v=1-smithsonian-space-shuttle-discovery')
            .then(m=>{window.__BP_SPACECRAFT_DISCOVERY_V1__=m.initSpacecraftDiscoveryRenderer(world)})
            .catch(e=>console.warn('BridgePoint Smithsonian Space Shuttle Discovery layer unavailable',e));"""
+          saturn_attach="""void import('./bridgepoint-spacecraft-saturn-v1.js?v=1-nasa-saturn-v-launch39a')
+           .then(m=>{window.__BP_SPACECRAFT_SATURN_V1__=m.initSpacecraftSaturnRenderer(world)})
+           .catch(e=>console.warn('BridgePoint Saturn V launch-site layer unavailable',e));"""
           plane_catch=".catch(e=>console.warn('BridgePoint Plane Wrecks layer unavailable',e));"
           for rel in ("landing.js","app.js"):
               p=site/rel
@@ -273,6 +309,13 @@ jobs:
                       raise SystemExit(f"{rel}: missing existing Smithsonian Columbia import anchor for Discovery")
                   end=at+len(columbia_catch)
                   data=data[:end]+"\n"+discovery_attach+data[end:]
+              if "initSpacecraftSaturnRenderer(world)" not in data:
+                  discovery_catch=".catch(e=>console.warn('BridgePoint Smithsonian Space Shuttle Discovery layer unavailable',e));"
+                  at=data.find(discovery_catch)
+                  if at<0:
+                      raise SystemExit(f"{rel}: missing existing Discovery layer anchor for Saturn V")
+                  end=at+len(discovery_catch)
+                  data=data[:end]+"\n"+saturn_attach+data[end:]
               p.write_text(data,encoding="utf-8")
 
           for rel,needle in (("index.html","landing.js"),("app/index.html","app.js")):
@@ -282,9 +325,16 @@ jobs:
               if len(matches)!=1:
                   raise SystemExit(f"{rel}: expected one {needle} script URL; found {len(matches)}")
               url=matches[0].group(1)
-              if "spacecraft=sls-mobile-launcher-pad39b-v1" not in url:
-                  updated=url+("&" if "?" in url else "?")+"spacecraft=sls-mobile-launcher-pad39b-v1"
-                  data=data.replace(url,updated,1)
+              if "?" in url:
+                  base,query=url.split("?",1)
+                  params=query.split("&")
+                  params=["spacecraft=sls-mobile-launcher-pad39b-v1-saturn-v1" if item.startswith("spacecraft=") else item for item in params]
+                  if not any(item.startswith("spacecraft=") for item in query.split("&")):
+                      params.append("spacecraft=sls-mobile-launcher-pad39b-v1-saturn-v1")
+                  updated=base+"?"+"&".join(params)
+              else:
+                  updated=url+"?spacecraft=sls-mobile-launcher-pad39b-v1-saturn-v1"
+              data=data.replace(url,updated,1)
               p.write_text(data,encoding="utf-8")
 
           before=json.loads((Path(__import__("os").environ["RUNNER_TEMP"])/"spacecraft-before.json").read_text())
@@ -295,13 +345,16 @@ jobs:
           changed={p for p in before if p in after and before[p]!=after[p]}
           allowed_changed={"landing.js","app.js","index.html","app/index.html",
                            "bridgepoint-spacecraft-v1.js","app/bridgepoint-spacecraft-v1.js",
-                           "bridgepoint-spacecraft-columbia-v1.js","app/bridgepoint-spacecraft-columbia-v1.js"}
+                           "bridgepoint-spacecraft-columbia-v1.js","app/bridgepoint-spacecraft-columbia-v1.js",
+                           "bridgepoint-spacecraft-discovery-v1.js","app/bridgepoint-spacecraft-discovery-v1.js"}
           allowed_added={"bridgepoint-spacecraft-v1.js","app/bridgepoint-spacecraft-v1.js",
                          "assets/spacecraft/nasa-mobile-launcher.glb",
                          "bridgepoint-spacecraft-columbia-v1.js","app/bridgepoint-spacecraft-columbia-v1.js",
                          "assets/spacecraft/smithsonian-apollo11-exterior-combined.glb",
                          "bridgepoint-spacecraft-discovery-v1.js","app/bridgepoint-spacecraft-discovery-v1.js",
-                         "assets/spacecraft/smithsonian-space-shuttle-discovery-150k-4096.glb"}
+                         "assets/spacecraft/smithsonian-space-shuttle-discovery-150k-4096.glb",
+                         "bridgepoint-spacecraft-saturn-v1.js","app/bridgepoint-spacecraft-saturn-v1.js",
+                         "assets/spacecraft/nasa-saturn-v.glb","assets/spacecraft/nasa-gantry.glb"}
           if removed or not changed.issubset(allowed_changed) or not added.issubset(allowed_added):
               raise SystemExit("SPACECRAFT_OVERLAY_SCOPE_FAILURE "+json.dumps({
                 "removed":sorted(removed),"changed":sorted(changed),"added":sorted(added)}))
@@ -322,9 +375,11 @@ jobs:
           node --input-type=module --check < "$SITE/bridgepoint-spacecraft-v1.js"
           node --input-type=module --check < "$SITE/bridgepoint-spacecraft-columbia-v1.js"
           node --input-type=module --check < "$SITE/bridgepoint-spacecraft-discovery-v1.js"
+          node --input-type=module --check < "$SITE/bridgepoint-spacecraft-saturn-v1.js"
           cmp -s "$SITE/bridgepoint-spacecraft-v1.js" "$SITE/app/bridgepoint-spacecraft-v1.js"
           cmp -s "$SITE/bridgepoint-spacecraft-columbia-v1.js" "$SITE/app/bridgepoint-spacecraft-columbia-v1.js"
           cmp -s "$SITE/bridgepoint-spacecraft-discovery-v1.js" "$SITE/app/bridgepoint-spacecraft-discovery-v1.js"
+          cmp -s "$SITE/bridgepoint-spacecraft-saturn-v1.js" "$SITE/app/bridgepoint-spacecraft-saturn-v1.js"
           grep -Fq 'initSpacecraftRenderer(world)' "$SITE/landing.js"
           grep -Fq 'initSpacecraftRenderer(world)' "$SITE/app.js"
           grep -Fq 'data-bp-local-spacecraft-viewer' "$SITE/bridgepoint-spacecraft-v1.js"
@@ -336,6 +391,16 @@ jobs:
           grep -Fq 'bp-spacecraft-toggle-v1' "$SITE/bridgepoint-spacecraft-discovery-v1.js"
           grep -Fq 'data-bp-local-spacecraft-viewer' "$SITE/bridgepoint-spacecraft-discovery-v1.js"
           grep -Fq 'smithsonian-space-shuttle-discovery-150k-4096.glb' "$SITE/bridgepoint-spacecraft-discovery-v1.js"
+          grep -Fq 'initSpacecraftSaturnRenderer(world)' "$SITE/landing.js"
+          grep -Fq 'initSpacecraftSaturnRenderer(world)' "$SITE/app.js"
+          grep -Fq 'NASA Saturn V + Launch Complex 39A Gantry' "$SITE/bridgepoint-spacecraft-saturn-v1.js"
+          grep -Fq 'bp-spacecraft-saturn-marker-v1' "$SITE/bridgepoint-spacecraft-saturn-v1.js"
+          grep -Fq 'data-bp-local-spacecraft-viewer' "$SITE/bridgepoint-spacecraft-saturn-v1.js"
+          grep -Fq 'nasa-saturn-v.glb' "$SITE/bridgepoint-spacecraft-saturn-v1.js"
+          grep -Fq 'nasa-gantry.glb' "$SITE/bridgepoint-spacecraft-saturn-v1.js"
+          grep -Fq '4 persistent spacecraft icons' "$SITE/bridgepoint-spacecraft-v1.js"
+          test -s "$SITE/assets/spacecraft/nasa-saturn-v.glb"
+          test -s "$SITE/assets/spacecraft/nasa-gantry.glb"
           test -s "$SITE/assets/spacecraft/nasa-mobile-launcher.glb"
           test -s "$SITE/assets/spacecraft/smithsonian-apollo11-exterior-combined.glb"
           test -s "$SITE/assets/spacecraft/smithsonian-space-shuttle-discovery-150k-4096.glb"
@@ -377,7 +442,11 @@ jobs:
             "columbia-combined.glb:$O/assets/spacecraft/smithsonian-apollo11-exterior-combined.glb?verify=$Q" \
             "discovery.js:$O/bridgepoint-spacecraft-discovery-v1.js?verify=$Q" \
             "app-discovery.js:$O/app/bridgepoint-spacecraft-discovery-v1.js?verify=$Q" \
-            "discovery.glb:$O/assets/spacecraft/smithsonian-space-shuttle-discovery-150k-4096.glb?verify=$Q"; do
+            "discovery.glb:$O/assets/spacecraft/smithsonian-space-shuttle-discovery-150k-4096.glb?verify=$Q" \\
+            "saturn.js:$O/bridgepoint-spacecraft-saturn-v1.js?verify=$Q" \\
+            "app-saturn.js:$O/app/bridgepoint-spacecraft-saturn-v1.js?verify=$Q" \\
+            "saturn.glb:$O/assets/spacecraft/nasa-saturn-v.glb?verify=$Q" \\
+            "gantry.glb:$O/assets/spacecraft/nasa-gantry.glb?verify=$Q"; do
             name="${item%%:*}"; url="${item#*:}"
             curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 --max-time 180 -fL \
               -H 'Cache-Control: no-cache' "$url" -o "$D/$name"
@@ -399,9 +468,17 @@ jobs:
           grep -Fq 'bp-spacecraft-discovery-marker-v1' "$D/discovery.js"
           grep -Fq 'data-bp-local-spacecraft-viewer' "$D/discovery.js"
           grep -Fq 'smithsonian-space-shuttle-discovery-150k-4096.glb' "$D/discovery.js"
+          grep -Fq 'initSpacecraftSaturnRenderer(world)' "$D/landing.js"
+          grep -Fq 'initSpacecraftSaturnRenderer(world)' "$D/app.js"
+          grep -Fq 'bp-spacecraft-saturn-marker-v1' "$D/saturn.js"
+          grep -Fq 'data-bp-local-spacecraft-viewer' "$D/saturn.js"
+          grep -Fq 'NASA Saturn V + Launch Complex 39A Gantry' "$D/saturn.js"
+          grep -Fq 'nasa-saturn-v.glb' "$D/saturn.js"
+          grep -Fq 'nasa-gantry.glb' "$D/saturn.js"
           cmp -s "$D/spacecraft.js" "$D/app-spacecraft.js"
           cmp -s "$D/columbia.js" "$D/app-columbia.js"
           cmp -s "$D/discovery.js" "$D/app-discovery.js"
+          cmp -s "$D/saturn.js" "$D/app-saturn.js"
           python3 - "$D/spacecraft.glb" <<'PY'
           import json, struct, sys
           raw=open(sys.argv[1],'rb').read()
@@ -436,4 +513,16 @@ jobs:
           assert doc.get('materials') and doc.get('images')
           print('BRIDGEPOINT_SMITHSONIAN_DISCOVERY_LIVE_GLB_PASS',len(raw),'bytes')
           PY
-          echo "LIVE_VERIFY_PASS: SLS + Smithsonian Columbia + Space Shuttle Discovery in root/app with all BridgePoint-hosted GLBs"
+          python3 - "$D" <<'PY'
+          import json, struct, sys
+          from pathlib import Path
+          root=Path(sys.argv[1])
+          for name in ("saturn.glb","gantry.glb"):
+              raw=(root/name).read_bytes()
+              assert raw[:4]==b"glTF" and struct.unpack_from("<I",raw,8)[0]==len(raw), (name,len(raw))
+              n=struct.unpack_from("<I",raw,12)[0]
+              doc=json.loads(raw[20:20+n].decode("utf-8"))
+              assert doc.get("asset",{}).get("version")=="2.0" and doc.get("meshes"), name
+              print("BRIDGEPOINT_NASA_SATURN_LIVE_GLB_PASS",name,len(raw),"bytes")
+          PY
+          echo "LIVE_VERIFY_PASS: SLS + Columbia + Discovery + NASA Saturn V and Launch Complex 39 gantry in root/app with all BridgePoint-hosted GLBs"
