@@ -48,7 +48,7 @@ assert.match(moduleSource,/aria-pressed/);
 assert.match(moduleSource,/data-bp-plane-wreck-extra-viewer/);
 assert.match(moduleSource,/new THREE\.WebGLRenderer/);
 assert.match(moduleSource,/parseAsync\(raw,''\)/);
-assert.match(moduleSource,/BridgePoint-hosted textured photogrammetry mesh/);
+assert.match(moduleSource,/Loading BridgePoint-hosted/);
 assert.doesNotMatch(moduleSource,/<iframe|viewerUrl/i);
 assert.match(moduleSource,/loadModel\(wreck\)/);
 assert.match(moduleSource,/object\.isPoints/);
