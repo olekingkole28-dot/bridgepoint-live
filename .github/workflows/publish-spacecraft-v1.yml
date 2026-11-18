@@ -117,13 +117,13 @@ jobs:
                   if at<0 or end<0:
                       raise SystemExit(f"{rel}: missing existing Plane Wrecks import anchor")
                   end += len(plane_catch)
-                  data=data[:end]+"\\n"+spacecraft_attach+data[end:]
+                  data=data[:end]+"\n"+spacecraft_attach+data[end:]
               p.write_text(data,encoding="utf-8")
 
           for rel,needle in (("index.html","landing.js"),("app/index.html","app.js")):
               p=site/rel
               data=p.read_text(encoding="utf-8")
-              matches=list(re.finditer(r'src="([^"]*'+re.escape(needle)+r'(?:\\?[^"]*)?)"',data))
+              matches=list(re.finditer(r'src="([^"]*'+re.escape(needle)+r'(?:\?[^\"]*)?)"',data))
               if len(matches)!=1:
                   raise SystemExit(f"{rel}: expected one {needle} script URL; found {len(matches)}")
               url=matches[0].group(1)
