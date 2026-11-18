@@ -1,5 +1,5 @@
-name: Publish BridgePoint Plane Wrecks v1 — F4U-1 Corsair photogrammetry
-# Additive first aircraft wreck: one persistent icon, a BridgePoint-hosted 3D viewer and a seabed point-cloud layer.
+name: Publish BridgePoint Plane Wrecks — six persistent wreck viewers
+# Additive wreck catalogue: persistent icons, BridgePoint-hosted photogrammetry viewers and native globe meshes.
 
 on:
   pull_request:
@@ -12,6 +12,7 @@ on:
       - 'tools/plane_wrecks/build_f4u1_corsair.py'
       - 'tools/plane_wrecks/build_additional_models.py'
       - 'tools/plane_wrecks/build_tokai_maru.py'
+      - 'tools/plane_wrecks/build_noaa_p39q.py'
       - 'rebuild-v5000/bridgepoint-plane-wrecks-extra-v1.js'
       - 'tests/plane-wrecks-v1.test.mjs'
       - 'tests/plane-wrecks-extra-v1.test.mjs'
@@ -25,6 +26,7 @@ on:
       - '.github/workflows/publish-plane-wrecks-v1.yml'
       - 'tools/plane_wrecks/build_additional_models.py'
       - 'tools/plane_wrecks/build_tokai_maru.py'
+      - 'tools/plane_wrecks/build_noaa_p39q.py'
       - 'rebuild-v5000/bridgepoint-plane-wrecks-extra-v1.js'
       - 'tests/plane-wrecks-extra-v1.test.mjs'
   workflow_dispatch:
@@ -54,34 +56,35 @@ jobs:
           node --check rebuild-v5000/bridgepoint-drone-awareness-v1.js
           node --check rebuild-v5000/landing.js
           node --check rebuild-v5000/app.js
-          python3 -m py_compile tools/plane_wrecks/build_f4u1_corsair.py tools/plane_wrecks/build_additional_models.py tools/plane_wrecks/build_tokai_maru.py
+          python3 -m py_compile tools/plane_wrecks/build_f4u1_corsair.py tools/plane_wrecks/build_additional_models.py tools/plane_wrecks/build_tokai_maru.py tools/plane_wrecks/build_noaa_p39q.py
           node tests/plane-wrecks-v1.test.mjs
           node tests/plane-wrecks-extra-v1.test.mjs
           node tests/shipwrecks-v1.test.mjs
           node tests/drone-awareness.test.mjs
 
-      - name: Build and validate the Tokai Maru GLB from Zenodo's ISRO reconstruction
+      - name: Build and validate the public NOAA P-39Q Airacobra wing model
         shell: bash
         run: |
           set -euo pipefail
-          OUT="$RUNNER_TEMP/tokai-maru-pr-validation"
-          python3 tools/plane_wrecks/build_tokai_maru.py --output "$OUT"
-          python3 - "$OUT/tokai-maru-apra-harbor-photogrammetry.glb.gz" "$OUT/tokai-maru-apra-harbor.json" <<'PY'
+          python3 -m pip install --disable-pip-version-check --no-input trimesh pillow
+          OUT="$RUNNER_TEMP/p39q-pr-validation"
+          python3 tools/plane_wrecks/build_noaa_p39q.py --output "$OUT"
+          python3 - "$OUT/p39q-airacobra-wing-photogrammetry.glb.gz" "$OUT/p39q-airacobra-wing.json" <<'PY'
           import gzip,json,struct,sys
           from pathlib import Path
           asset=Path(sys.argv[1]);manifest=json.loads(Path(sys.argv[2]).read_text(encoding='utf-8'))
           raw=gzip.decompress(asset.read_bytes())
           assert raw[:4]==b'glTF' and struct.unpack_from('<I',raw,8)[0]==len(raw)
           json_len=struct.unpack_from('<I',raw,12)[0]
-          doc=json.loads(raw[20:20+json_len].decode('utf-8').rstrip(' '))
-          assert manifest['id']=='tokai-maru-apra-harbor'
-          assert manifest['license']=='CC BY 4.0'
-          assert manifest['sourcePhotos']>=2000 and manifest['depthMapCount']>=2000
-          assert manifest['renderedPointCount']>=500000
-          assert doc['meshes'][0]['primitives'][0]['mode']==0
-          assert doc['accessors'][0]['count']==manifest['renderedPointCount']
-          assert asset.stat().st_size<64*1024*1024
-          print('BRIDGEPOINT_TOKAI_MARU_PR_ASSET_PASS',manifest['renderedPointCount'],'points',manifest['sourcePhotos'],'photos',manifest['depthMapCount'],'depth maps',len(raw),'GLB bytes')
+          doc=json.loads(raw[20:20+json_len].decode('utf-8').rstrip(' \\\\0'))
+          primitives=[p for mesh in doc.get('meshes',[]) for p in mesh.get('primitives',[])]
+          assert manifest['id']=='bell-p39q-airacobra-lake-huron'
+          assert 'Public Domain' in manifest['license']
+          assert manifest['sourcePhotos']==438 and manifest['imageAlignmentPercent']==100
+          assert manifest['triangles']>=1000 or manifest['vertices']>=1000
+          assert primitives
+          assert asset.stat().st_size<180*1024*1024
+          print('BRIDGEPOINT_P39Q_PR_ASSET_PASS',manifest['triangles'],'triangles',manifest['vertices'],'vertices',len(raw),'GLB bytes',asset.stat().st_size,'compressed bytes')
           PY
   publish:
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
@@ -112,7 +115,7 @@ jobs:
           node tests/plane-wrecks-extra-v1.test.mjs
           node tests/shipwrecks-v1.test.mjs
           node tests/drone-awareness.test.mjs
-          python3 -m py_compile tools/plane_wrecks/build_f4u1_corsair.py tools/plane_wrecks/build_additional_models.py tools/plane_wrecks/build_tokai_maru.py
+          python3 -m py_compile tools/plane_wrecks/build_f4u1_corsair.py tools/plane_wrecks/build_additional_models.py tools/plane_wrecks/build_tokai_maru.py tools/plane_wrecks/build_noaa_p39q.py
 
       - name: Materialize the rights-checked F4U-1 Corsair underwater photogrammetry point cloud
         shell: bash
@@ -183,6 +186,31 @@ jobs:
           assert doc['accessors'][0]['count']==manifest['renderedPointCount']
           assert asset.stat().st_size<64*1024*1024
           print('BRIDGEPOINT_TOKAI_MARU_PUBLISH_ASSET_PASS',manifest['renderedPointCount'],'points',manifest['sourcePhotos'],'photos',manifest['depthMapCount'],'depth maps',len(raw),'GLB bytes',asset.stat().st_size,'compressed bytes')
+          PY
+
+      - name: Materialize and validate the NOAA P-39Q Airacobra wing photogrammetry mesh
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check --no-input trimesh pillow
+          python3 tools/plane_wrecks/build_noaa_p39q.py --output assets/plane-wrecks/extra
+          python3 - <<'PY'
+          import gzip,json,struct
+          from pathlib import Path
+          root=Path('assets/plane-wrecks/extra')
+          asset=root/'p39q-airacobra-wing-photogrammetry.glb.gz'
+          manifest=json.loads((root/'p39q-airacobra-wing.json').read_text(encoding='utf-8'))
+          raw=gzip.decompress(asset.read_bytes())
+          assert raw[:4]==b'glTF' and struct.unpack_from('<I',raw,8)[0]==len(raw)
+          json_len=struct.unpack_from('<I',raw,12)[0]
+          doc=json.loads(raw[20:20+json_len].decode('utf-8').rstrip(' \\\\0'))
+          primitives=[p for mesh in doc.get('meshes',[]) for p in mesh.get('primitives',[])]
+          assert manifest['id']=='bell-p39q-airacobra-lake-huron'
+          assert 'Public Domain' in manifest['license']
+          assert manifest['sourcePhotos']==438 and manifest['imageAlignmentPercent']==100
+          assert manifest['triangles']>=1000 or manifest['vertices']>=1000
+          assert primitives and asset.stat().st_size<180*1024*1024
+          print('BRIDGEPOINT_P39Q_PUBLISH_ASSET_PASS',manifest['triangles'],'triangles',manifest['vertices'],'vertices',len(raw),'GLB bytes',asset.stat().st_size,'compressed bytes')
           PY
 
       - name: Select latest successful deployed GitHub Pages artifact
@@ -297,7 +325,7 @@ jobs:
           node --input-type=module --check < "$SITE/vendor/GLTFLoader.bundle.js"
           grep -Fq 'from "/vendor/three.module.js?v=169-local"' "$SITE/vendor/GLTFLoader.bundle.js"
 
-      - name: Overlay the four additive BridgePoint-hosted aircraft and shipwreck viewers
+      - name: Overlay the six BridgePoint-hosted wreck viewers
         shell: bash
         run: |
           set -euo pipefail
@@ -323,11 +351,13 @@ jobs:
              "assets/plane-wrecks/extra/short-sunderland-ej138-munkholmen.glb.gz",
              "assets/plane-wrecks/extra/tokai-maru-apra-harbor-photogrammetry.glb.gz",
              "assets/plane-wrecks/extra/tokai-maru-apra-harbor.json",
+             "assets/plane-wrecks/extra/p39q-airacobra-wing-photogrammetry.glb.gz",
+             "assets/plane-wrecks/extra/p39q-airacobra-wing.json",
              "assets/plane-wrecks/extra/catalog.json"}
           plane_import="""void import('./bridgepoint-plane-wrecks-v1.js?v=2-f4u1-persistent-dom-marker')
            .then(m=>{window.__BP_PLANE_WRECKS_V1__=m.initPlaneWrecksRenderer(world)})
            .catch(e=>console.warn('BridgePoint Plane Wrecks layer unavailable',e));"""
-          extra_import="""void import('./bridgepoint-plane-wrecks-extra-v1.js?v=3-tokai-maru-apra-harbor')
+          extra_import="""void import('./bridgepoint-plane-wrecks-extra-v1.js?v=4-p39q-airacobra-wing')
            .then(m=>{window.__BP_PLANE_WRECKS_EXTRA_V1__=m.initPlaneWrecksExtraRenderer(world)})
            .catch(e=>console.warn('BridgePoint additional Plane Wrecks layer unavailable',e));"""
           shipwreck_anchor=".catch(e=>console.warn('BridgePoint shipwreck renderer unavailable',e));"
@@ -347,14 +377,20 @@ jobs:
                   data=data.replace(base_anchor,base_anchor+chr(10)+extra_import,1)
               if "initPlaneWrecksExtraRenderer(world)" not in data:
                   raise SystemExit(f"{rel}: additional Plane Wrecks mesh import was not installed")
+              extra_refs=list(re.finditer(r"bridgepoint-plane-wrecks-extra-v1\.js(?:\?v=[^'\"]*)?",data))
+              if len(extra_refs)!=1:
+                  raise SystemExit(f"{rel}: expected exactly one extra Plane Wrecks module import, got {len(extra_refs)}")
+              data=re.sub(r"(bridgepoint-plane-wrecks-extra-v1\.js\?v=)[^'\"]+",r"\g<1>4-p39q-airacobra-wing",data,count=1)
+              if "bridgepoint-plane-wrecks-extra-v1.js?v=4-p39q-airacobra-wing" not in data:
+                  raise SystemExit(f"{rel}: failed to version-bust the extra Plane Wrecks module import")
               p.write_text(data,encoding="utf-8")
           for rel,script in (("index.html","landing.js"),("app/index.html","app.js")):
               p=site/rel;data=p.read_text(encoding="utf-8")
               hits=list(re.finditer(r'src="([^"]*'+re.escape(script)+r'(?:\?[^"]*)?)"',data))
               if len(hits)!=1:raise SystemExit(f"{rel}: expected one {script} script URL, got {len(hits)}")
               url=hits[0].group(1)
-              if "planeWrecksExtra=tokai-maru-apra-harbor-v1" not in url:
-                  data=data.replace(url,url+("&" if "?" in url else "?")+"planeWrecksExtra=tokai-maru-apra-harbor-v1",1)
+              if "planeWrecksExtra=p39q-airacobra-wing-v1" not in url:
+                  data=data.replace(url,url+("&" if "?" in url else "?")+"planeWrecksExtra=p39q-airacobra-wing-v1",1)
               guard=list(re.finditer(r'src="([^"]*bridgepoint-drone-awareness-v1\.js(?:\?[^"]*)?)"',data))
               if len(guard)!=1:raise SystemExit(f"{rel}: expected one overlay-guard script URL")
               old=guard[0].group(1)
@@ -374,6 +410,8 @@ jobs:
               "assets/plane-wrecks/extra/short-sunderland-ej138-munkholmen.glb.gz",
               "assets/plane-wrecks/extra/tokai-maru-apra-harbor-photogrammetry.glb.gz",
               "assets/plane-wrecks/extra/tokai-maru-apra-harbor.json",
+             "assets/plane-wrecks/extra/p39q-airacobra-wing-photogrammetry.glb.gz",
+             "assets/plane-wrecks/extra/p39q-airacobra-wing.json",
               "assets/plane-wrecks/extra/catalog.json"}
           missing=required-set(after)
           if missing:raise SystemExit("PLANE_WRECKS_REQUIRED_FILE_MISSING "+json.dumps(sorted(missing)))
@@ -412,7 +450,7 @@ jobs:
           path: ${{ runner.temp }}/plane-wrecks-site
           include-hidden-files: true
 
-      - name: Publish BridgePoint Plane Wrecks v1 — F4U-1 Corsair photogrammetry
+      - name: Publish BridgePoint Plane Wrecks — six persistent wreck viewers
         id: deployment
         uses: actions/deploy-pages@v4
         with:
@@ -426,7 +464,7 @@ jobs:
           Q="$GITHUB_SHA-plane-wrecks-v1"
           D="$RUNNER_TEMP/plane-wrecks-live"
           mkdir -p "$D"
-          for item in             "root:$O/?planeWrecks=$Q"             "app:$O/app/?planeWrecks=$Q"             "landing:$O/landing.js?verify=$Q"             "appjs:$O/app.js?verify=$Q"             "module:$O/bridgepoint-plane-wrecks-v1.js?verify=$Q"             "appmodule:$O/app/bridgepoint-plane-wrecks-v1.js?verify=$Q"             "extra:$O/bridgepoint-plane-wrecks-extra-v1.js?verify=$Q"             "extraapp:$O/app/bridgepoint-plane-wrecks-extra-v1.js?verify=$Q"             "guard:$O/bridgepoint-drone-awareness-v1.js?verify=$Q"             "asset:$O/assets/plane-wrecks/f4u1-corsair-kwajalein-photogrammetry.glb.gz?verify=$Q"             "catalog:$O/assets/plane-wrecks/catalog.json?verify=$Q"             "b29:$O/assets/plane-wrecks/extra/b29-over-exposed-bleaklow.glb.gz?verify=$Q"             "zero:$O/assets/plane-wrecks/extra/zero-fighter-a6m3-iwm-london.glb.gz?verify=$Q"             "sunderland:$O/assets/plane-wrecks/extra/short-sunderland-ej138-munkholmen.glb.gz?verify=$Q"             "tokai:$O/assets/plane-wrecks/extra/tokai-maru-apra-harbor-photogrammetry.glb.gz?verify=$Q"             "tokaicatalog:$O/assets/plane-wrecks/extra/tokai-maru-apra-harbor.json?verify=$Q"             "extracatalog:$O/assets/plane-wrecks/extra/catalog.json?verify=$Q"             "loader:$O/vendor/GLTFLoader.bundle.js?verify=$Q"; do
+          for item in             "root:$O/?planeWrecks=$Q"             "app:$O/app/?planeWrecks=$Q"             "landing:$O/landing.js?verify=$Q"             "appjs:$O/app.js?verify=$Q"             "module:$O/bridgepoint-plane-wrecks-v1.js?verify=$Q"             "appmodule:$O/app/bridgepoint-plane-wrecks-v1.js?verify=$Q"             "extra:$O/bridgepoint-plane-wrecks-extra-v1.js?verify=$Q"             "extraapp:$O/app/bridgepoint-plane-wrecks-extra-v1.js?verify=$Q"             "guard:$O/bridgepoint-drone-awareness-v1.js?verify=$Q"             "asset:$O/assets/plane-wrecks/f4u1-corsair-kwajalein-photogrammetry.glb.gz?verify=$Q"             "catalog:$O/assets/plane-wrecks/catalog.json?verify=$Q"             "b29:$O/assets/plane-wrecks/extra/b29-over-exposed-bleaklow.glb.gz?verify=$Q"             "zero:$O/assets/plane-wrecks/extra/zero-fighter-a6m3-iwm-london.glb.gz?verify=$Q"             "sunderland:$O/assets/plane-wrecks/extra/short-sunderland-ej138-munkholmen.glb.gz?verify=$Q"             "tokai:$O/assets/plane-wrecks/extra/tokai-maru-apra-harbor-photogrammetry.glb.gz?verify=$Q"             "tokaicatalog:$O/assets/plane-wrecks/extra/tokai-maru-apra-harbor.json?verify=$Q"             "p39q:$O/assets/plane-wrecks/extra/p39q-airacobra-wing-photogrammetry.glb.gz?verify=$Q"             "p39qmanifest:$O/assets/plane-wrecks/extra/p39q-airacobra-wing.json?verify=$Q"             "extracatalog:$O/assets/plane-wrecks/extra/catalog.json?verify=$Q"             "loader:$O/vendor/GLTFLoader.bundle.js?verify=$Q"; do
             name="${item%%:*}";url="${item#*:}"
             curl --retry 6 --retry-all-errors --retry-delay 2 --connect-timeout 20 --max-time 180 -fL               -H 'Cache-Control: no-cache' "$url" -o "$D/$name"
           done
@@ -435,10 +473,13 @@ jobs:
           grep -Fq 'initPlaneWrecksRenderer(world)' "$D/appjs" || { echo "LIVE_VERIFY_FAIL: app entry does not load Plane Wrecks"; exit 1; }
           grep -Fq 'initPlaneWrecksExtraRenderer(world)' "$D/landing" || { echo "LIVE_VERIFY_FAIL: landing entry does not load extra plane meshes"; exit 1; }
           grep -Fq 'initPlaneWrecksExtraRenderer(world)' "$D/appjs" || { echo "LIVE_VERIFY_FAIL: app entry does not load extra plane meshes"; exit 1; }
+          grep -Fq 'bridgepoint-plane-wrecks-extra-v1.js?v=4-p39q-airacobra-wing' "$D/landing" || { echo "LIVE_VERIFY_FAIL: landing extra module cache-bust missing"; exit 1; }
+          grep -Fq 'bridgepoint-plane-wrecks-extra-v1.js?v=4-p39q-airacobra-wing' "$D/appjs" || { echo "LIVE_VERIFY_FAIL: app extra module cache-bust missing"; exit 1; }
           grep -Fq 'EXTRA_PLANE_WRECKS' "$D/extra" || { echo "LIVE_VERIFY_FAIL: extra aircraft mesh module missing"; exit 1; }
           grep -Fq 'short-sunderland-ej138-munkholmen' "$D/extra" || { echo "LIVE_VERIFY_FAIL: Sunderland wreck entry missing"; exit 1; }
           grep -Fq 'tokai-maru-apra-harbor' "$D/extra" || { echo "LIVE_VERIFY_FAIL: Tokai Maru wreck entry missing"; exit 1; }
-          grep -Fq '5 persistent wreck icons' "$D/extra" || { echo "LIVE_VERIFY_FAIL: five persistent wreck markers are not configured"; exit 1; }
+          grep -Fq 'bell-p39q-airacobra-lake-huron' "$D/extra" || { echo "LIVE_VERIFY_FAIL: P-39Q wreck entry missing"; exit 1; }
+          grep -Fq '6 persistent wreck icons' "$D/extra" || { echo "LIVE_VERIFY_FAIL: six persistent wreck markers are not configured"; exit 1; }
           grep -Fq 'ensureWorldModel' "$D/extra" || { echo "LIVE_VERIFY_FAIL: native in-globe Sunderland model layer missing"; exit 1; }
           grep -Fq "renderingMode:'3d'" "$D/extra" || { echo "LIVE_VERIFY_FAIL: 3D globe rendering layer missing"; exit 1; }
           cmp -s "$D/extra" "$D/extraapp" || { echo "LIVE_VERIFY_FAIL: root/app extra mesh modules differ"; exit 1; }
@@ -491,5 +532,20 @@ jobs:
           assert doc['meshes'][0]['primitives'][0]['mode']==0
           assert doc['accessors'][0]['count']==manifest['renderedPointCount']
           print('BRIDGEPOINT_TOKAI_MARU_LIVE_ASSET_PASS',manifest['renderedPointCount'],'points',len(raw),'GLB bytes')
+          PY
+          python3 - "$D/p39q" "$D/p39qmanifest" <<'PY'
+          import gzip,json,struct,sys
+          raw=gzip.decompress(open(sys.argv[1],'rb').read())
+          manifest=json.load(open(sys.argv[2],encoding='utf-8'))
+          assert raw[:4]==b'glTF' and struct.unpack_from('<I',raw,8)[0]==len(raw)
+          json_len=struct.unpack_from('<I',raw,12)[0]
+          doc=json.loads(raw[20:20+json_len].decode('utf-8').rstrip(' \\\\0'))
+          assert manifest['id']=='bell-p39q-airacobra-lake-huron'
+          assert 'Public Domain' in manifest['license']
+          assert manifest['sourcePhotos']==438 and manifest['imageAlignmentPercent']==100
+          assert manifest['triangles']>=1000 or manifest['vertices']>=1000
+          primitives=[p for mesh in doc.get('meshes',[]) for p in mesh.get('primitives',[])]
+          assert primitives
+          print('BRIDGEPOINT_P39Q_LIVE_ASSET_PASS',manifest['triangles'],'triangles',manifest['vertices'],'vertices',len(raw),'GLB bytes')
           PY
           echo "BRIDGEPOINT_PLANE_WRECKS_EXTRA_LIVE_VERIFY_PASS"
