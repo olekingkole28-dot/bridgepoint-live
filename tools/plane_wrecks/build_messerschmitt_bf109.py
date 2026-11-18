@@ -118,16 +118,15 @@ def parse_hierarchy_chunk(data: bytes, root_name: str, root_depth: int) -> tuple
             "byteSize": int(byte_size),
         }
         nodes.append(node)
-        if node_type == 2:
-            if depth < MAX_TREE_DEPTH and byte_size > 0:
-                proxies.append({
-                    "name": name,
-                    "depth": depth,
-                    "byteOffset": int(byte_offset),
-                    "byteSize": int(byte_size),
-                })
-            # Proxy children are represented by the referenced hierarchy chunk.
-            continue
+        if node_type == 2 and depth < MAX_TREE_DEPTH and byte_size > 0:
+            proxies.append({
+                "name": name,
+                "depth": depth,
+                "byteOffset": int(byte_offset),
+                "byteSize": int(byte_size),
+            })
+        # Follow the child mask for every node type, matching PotreeConverter's
+        # breadth-first hierarchy reader; proxy chunks replace their root record.
         for child in range(8):
             if child_mask & (1 << child):
                 queue.append((name + str(child), depth + 1))
@@ -147,7 +146,7 @@ def collect_hierarchy(metadata: dict) -> list[dict]:
         raise SystemExit("LIS Potree hierarchy settings are missing or invalid")
     pending = [{"name": "r", "depth": 0, "byteOffset": 0, "byteSize": first_size}]
     visited_chunks: set[tuple[int, int]] = set()
-    all_nodes: list[dict] = []
+    all_nodes_by_name: dict[str, dict] = {}
     while pending:
         chunk = pending.pop(0)
         key = (chunk["byteOffset"], chunk["byteSize"])
@@ -162,11 +161,14 @@ def collect_hierarchy(metadata: dict) -> list[dict]:
             (chunk["byteOffset"], chunk["byteOffset"] + chunk["byteSize"] - 1),
         )
         nodes, proxies = parse_hierarchy_chunk(raw, chunk["name"], chunk["depth"])
-        all_nodes.extend(nodes)
+        for node in nodes:
+            previous = all_nodes_by_name.get(node["name"])
+            if previous is None or previous["type"] == 2 or node["type"] != 2:
+                all_nodes_by_name[node["name"]] = node
         pending.extend(proxies)
-        if len(all_nodes) > 100_000:
+        if len(all_nodes_by_name) > 100_000:
             raise SystemExit("Potree hierarchy traversal exceeded the 100,000-node safety limit")
-    return all_nodes
+    return list(all_nodes_by_name.values())
 
 
 def choose_point_nodes(nodes: list[dict], stride: int) -> list[dict]:
