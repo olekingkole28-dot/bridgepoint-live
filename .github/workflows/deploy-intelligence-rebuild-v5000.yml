@@ -72,7 +72,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: bridgepoint-procedural-tree-bank-v1
-          run-id: 42381550409
+          run-id: 44376178322
           github-token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository }}
           path: /tmp/bridgepoint-tree-assets
