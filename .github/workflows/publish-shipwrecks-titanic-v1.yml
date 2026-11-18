@@ -266,7 +266,7 @@ jobs:
                   continue
               jobs=api(f"/actions/runs/{run['id']}/jobs?per_page=100").get("jobs",[])
               steps=[s for job in jobs for s in (job.get("steps") or []) if s.get("conclusion")=="success"]
-              uploaded=any("upload" in str(s.get("name","")).lower() and "page" in str(s.get("name","")).lower() for s in steps)
+              uploaded=any("upload" in str(s.get("name","")).lower() and ("page" in str(s.get("name","")).lower() or "preserved production site" in str(s.get("name","")).lower()) for s in steps)
               deployed=any(("publish" in str(s.get("name","")).lower() or "deploy" in str(s.get("name","")).lower()) for s in steps)
               if not (uploaded and deployed):
                   continue
