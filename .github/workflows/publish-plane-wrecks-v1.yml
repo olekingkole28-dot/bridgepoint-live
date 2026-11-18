@@ -59,6 +59,30 @@ jobs:
           node tests/plane-wrecks-extra-v1.test.mjs
           node tests/shipwrecks-v1.test.mjs
           node tests/drone-awareness.test.mjs
+
+      - name: Build and validate the Tokai Maru GLB from Zenodo's ISRO reconstruction
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/tokai-maru-pr-validation"
+          python3 tools/plane_wrecks/build_tokai_maru.py --output "$OUT"
+          python3 - "$OUT/tokai-maru-apra-harbor-photogrammetry.glb.gz" "$OUT/tokai-maru-apra-harbor.json" <<'PY'
+          import gzip,json,struct,sys
+          from pathlib import Path
+          asset=Path(sys.argv[1]);manifest=json.loads(Path(sys.argv[2]).read_text(encoding='utf-8'))
+          raw=gzip.decompress(asset.read_bytes())
+          assert raw[:4]==b'glTF' and struct.unpack_from('<I',raw,8)[0]==len(raw)
+          json_len=struct.unpack_from('<I',raw,12)[0]
+          doc=json.loads(raw[20:20+json_len].decode('utf-8').rstrip(' '))
+          assert manifest['id']=='tokai-maru-apra-harbor'
+          assert manifest['license']=='CC BY 4.0'
+          assert manifest['sourcePhotos']>=2000 and manifest['depthMapCount']>=2000
+          assert manifest['renderedPointCount']>=500000
+          assert doc['meshes'][0]['primitives'][0]['mode']==0
+          assert doc['accessors'][0]['count']==manifest['renderedPointCount']
+          assert asset.stat().st_size<64*1024*1024
+          print('BRIDGEPOINT_TOKAI_MARU_PR_ASSET_PASS',manifest['renderedPointCount'],'points',manifest['sourcePhotos'],'photos',manifest['depthMapCount'],'depth maps',len(raw),'GLB bytes')
+          PY
   publish:
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
     concurrency:
