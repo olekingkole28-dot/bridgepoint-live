@@ -85,9 +85,18 @@ def main():
                     candidates.append({"name": name, "size": info.file_size, "compressed": info.compress_size})
             if not candidates:
                 raise SystemExit("No ISRO/Tokai or KWAJ/Corsair 3D-model or point-cloud files found in the dataset ZIP")
-            print("BRIDGEPOINT_ABYSSAL_3D_ASSET_CANDIDATES", json.dumps(candidates))
             if args.inspect_only:
+                entries = []
+                for info in archive.infolist():
+                    name = info.filename
+                    suffix = Path(name).suffix.lower()
+                    if suffix in {".glb", ".gltf", ".ply", ".obj", ".fbx", ".e57", ".las", ".laz", ".zip", ".bin", ".dae", ".stl", ".gz", ".tar", ".npz", ".npy", ".xyz", ".pcd", ".splat", ".spz"} and re.search(r"(ISRO|KWAJ|tokai|corsair|f4u|clean|mesh|model|water|point|recon|3d)", name, re.I):
+                        entries.append({"name": name, "size": info.file_size, "compressed": info.compress_size})
+                folders = sorted({name.split("/", 1)[0] for name in archive.namelist() if "/" in name})
+                print("BRIDGEPOINT_ABYSSAL_TOP_LEVEL_FOLDERS", json.dumps(folders))
+                print("BRIDGEPOINT_ABYSSAL_ALL_RELEVANT_MODEL_FILES", json.dumps(entries))
                 return
+            print("BRIDGEPOINT_ABYSSAL_3D_ASSET_CANDIDATES", json.dumps(candidates))
             # Prefer a cleaned ready-to-render mesh over imagery or raw capture material.
             ranked = sorted(candidates, key=lambda x: (
                 0 if re.search(r"clean|mesh|model|textured", x["name"], re.I) else 1,
