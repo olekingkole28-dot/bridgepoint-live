@@ -552,7 +552,7 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
         with:
-          artifact_name: github-pages-shipwrecks-v11
+          artifact_name: github-pages-spacecraft-v1
 
       - name: Verify live root/app entry points, wrecks and BridgePoint-hosted Spacecraft launch-site scene
         shell: bash
