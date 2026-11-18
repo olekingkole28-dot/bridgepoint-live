@@ -118,22 +118,26 @@ def parse_hierarchy_chunk(data: bytes, root_name: str, root_depth: int) -> tuple
             "byteSize": int(byte_size),
         }
         nodes.append(node)
-        if node_type == 2 and depth < MAX_TREE_DEPTH and byte_size > 0:
-            proxies.append({
-                "name": name,
-                "depth": depth,
-                "byteOffset": int(byte_offset),
-                "byteSize": int(byte_size),
-            })
-        # Follow the child mask for every node type, matching PotreeConverter's
-        # breadth-first hierarchy reader; proxy chunks replace their root record.
+        if node_type == 2:
+            if depth < MAX_TREE_DEPTH and byte_size > 0:
+                proxies.append({
+                    "name": name,
+                    "depth": depth,
+                    "byteOffset": int(byte_offset),
+                    "byteSize": int(byte_size),
+                })
+            # A proxy's child records live in the referenced hierarchy chunk.
+            continue
         for child in range(8):
             if child_mask & (1 << child):
                 queue.append((name + str(child), depth + 1))
-    if len(queue) != record_count:
+    # A chunk may advertise child branches that are represented by PROXY nodes
+    # in separately-addressed chunks. The current chunk only stores its own
+    # fixed record count, so an overlong BFS name queue is expected.
+    if len(queue) < record_count:
         raise SystemExit(
-            f"Potree hierarchy chunk is incomplete: parsed {record_count} records, "
-            f"child masks describe {len(queue)}"
+            f"Potree hierarchy chunk is invalid: {record_count} records need "
+            f"{record_count} node names, but child masks describe only {len(queue)}"
         )
     return nodes, proxies
 
