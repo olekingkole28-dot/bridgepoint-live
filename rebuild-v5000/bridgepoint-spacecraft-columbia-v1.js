@@ -37,26 +37,106 @@ export const SPACECRAFT_COLUMBIA={
  sourceMethod:'Smithsonian high-resolution 3D digitization of the exterior artifact; three supplied GLB mesh components are composed by BridgePoint.',
  placementPrecision:'The persistent marker identifies the approximate National Air and Space Museum building location, where the capsule is listed on display. The source has no geodetic origin or survey alignment; the globe model is a visual placement, not a survey-controlled indoor position.'
 };
-export function resolveColumbiaScanTransform(sourceDimensions,expectedHeightM=SPACECRAFT_COLUMBIA.scanHeightM){
+export function resolveColumbiaScanTransform(sourceDimensions){
  const axes=['x','y','z'];
  const values=axes.map(axis=>Number(sourceDimensions?.[axis]));
  if(values.some(value=>!Number.isFinite(value)||value<=0))throw new Error('Smithsonian Columbia scan has invalid source bounds');
- const maxExtent=Math.max(...values);
- // Smithsonian exterior GLB is distributed in centimetres; tolerate equivalent metre-scaled exports.
- const scale=maxExtent>20?0.01:1;
- const units=scale===0.01?'cm':'m';
- const candidates=axes.map((axis,index)=>({
-  axis,scale,units,sourceExtent:values[index],
-  heightM:values[index]*scale,
-  relativeError:Math.abs(values[index]*scale-expectedHeightM)/expectedHeightM
- })).sort((a,b)=>a.relativeError-b.relativeError);
- const best=candidates[0];
- if(!best||!Number.isFinite(best.relativeError)||best.relativeError>0.2){
-  throw new Error('Smithsonian Columbia scan bounds do not match its published '+expectedHeightM.toFixed(3)+' m height ('+
-   axes.map((axis,index)=>axis+'='+values[index].toFixed(3)).join(', ')+
-   ' source units; closest axis '+(best?.axis||'unknown')+' = '+(best?.heightM?.toFixed(3)||'unknown')+' m)');
+ // Smithsonian identifies this exact exterior GLB export as centimetre-scaled.
+ const scale=0.01;
+ const dimensionsM=values.map(value=>value*scale);
+ if(dimensionsM.some(value=>value<0.5||value>10)){
+  throw new Error('Smithsonian Columbia GLB bounds are implausible after its documented centimetre-to-metre conversion ('+
+   dimensionsM.map(value=>value.toFixed(3)).join(' × ')+' m)');
  }
- return best;
+ return {units:'cm',scale,dimensionsM};
+}
+
+export function computeColumbiaPrincipalFrame(points,scale=0.01){
+ if(!Array.isArray(points)||points.length<8)throw new Error('Smithsonian Columbia scan has too few vertices to determine its orientation');
+ let sx=0,sy=0,sz=0,count=0;
+ for(const p of points){
+  if(!p||p.length<3||!p.slice(0,3).every(Number.isFinite))continue;
+  sx+=p[0];sy+=p[1];sz+=p[2];count++;
+ }
+ if(count<8)throw new Error('Smithsonian Columbia scan vertices are invalid');
+ const mean=[sx/count,sy/count,sz/count];
+ const cov=[[0,0,0],[0,0,0],[0,0,0]];
+ for(const p of points){
+  if(!p||p.length<3||!p.slice(0,3).every(Number.isFinite))continue;
+  const d=[p[0]-mean[0],p[1]-mean[1],p[2]-mean[2]];
+  for(let r=0;r<3;r++)for(let c=r;c<3;c++)cov[r][c]+=d[r]*d[c];
+ }
+ for(let r=0;r<3;r++)for(let c=r;c<3;c++){cov[r][c]/=count;cov[c][r]=cov[r][c];}
+ const a=cov.map(row=>row.slice());
+ const v=[[1,0,0],[0,1,0],[0,0,1]];
+ // Jacobi diagonalization of the symmetric 3×3 covariance matrix.
+ for(let iteration=0;iteration<48;iteration++){
+  let p=0,q=1,max=Math.abs(a[0][1]);
+  for(const pair of [[0,2],[1,2]]){
+   const value=Math.abs(a[pair[0]][pair[1]]);
+   if(value>max){max=value;p=pair[0];q=pair[1];}
+  }
+  if(max<1e-10)break;
+  const app=a[p][p],aqq=a[q][q],apq=a[p][q];
+  const tau=(aqq-app)/(2*apq);
+  const t=(tau>=0?1:-1)/(Math.abs(tau)+Math.sqrt(1+tau*tau));
+  const cosine=1/Math.sqrt(1+t*t),sine=t*cosine;
+  a[p][p]=app-t*apq;a[q][q]=aqq+t*apq;a[p][q]=0;a[q][p]=0;
+  for(let k=0;k<3;k++){
+   if(k===p||k===q)continue;
+   const akp=a[k][p],akq=a[k][q];
+   a[k][p]=cosine*akp-sine*akq;a[p][k]=a[k][p];
+   a[k][q]=sine*akp+cosine*akq;a[q][k]=a[k][q];
+  }
+  for(let k=0;k<3;k++){
+   const vkp=v[k][p],vkq=v[k][q];
+   v[k][p]=cosine*vkp-sine*vkq;
+   v[k][q]=sine*vkp+cosine*vkq;
+  }
+ }
+ const order=[0,1,2].sort((i,j)=>a[j][j]-a[i][i]);
+ const axes=order.map(index=>{
+  const length=Math.hypot(v[0][index],v[1][index],v[2][index])||1;
+  return [v[0][index]/length,v[1][index]/length,v[2][index]/length];
+ });
+ const min=[Infinity,Infinity,Infinity],max=[-Infinity,-Infinity,-Infinity];
+ for(const p of points){
+  if(!p||p.length<3||!p.slice(0,3).every(Number.isFinite))continue;
+  const d=[p[0]-mean[0],p[1]-mean[1],p[2]-mean[2]];
+  for(let i=0;i<3;i++){
+   const projection=d[0]*axes[i][0]+d[1]*axes[i][1]+d[2]*axes[i][2];
+   min[i]=Math.min(min[i],projection);max[i]=Math.max(max[i],projection);
+  }
+ }
+ const extentsM=max.map((value,i)=>(value-min[i])*scale);
+ // The Smithsonian record includes 2.718 m artifact and 3.276 m on-stand dimensions.
+ // Prefer the principal axis nearest the on-stand/artifact height; otherwise use the thinnest PCA axis.
+ const expectedHeights=[3.276,2.718];
+ let upIndex=-1,bestError=Infinity;
+ for(const target of expectedHeights){
+  for(let i=0;i<3;i++){
+   const error=Math.abs(extentsM[i]-target)/target;
+   if(error<bestError){bestError=error;upIndex=i;}
+  }
+  if(bestError<0.12)break;
+ }
+ if(bestError>0.35)upIndex=extentsM.indexOf(Math.min(...extentsM));
+ const horizontal= [0,1,2].filter(i=>i!==upIndex).sort((i,j)=>extentsM[j]-extentsM[i]);
+ return {mean,axes,extentsM,upIndex,rightIndex:horizontal[0],forwardIndex:horizontal[1],heightMatchError:bestError};
+}
+
+function collectColumbiaVertices(root,THREE,maxSamplesPerMesh=30000){
+ const points=[],position=new THREE.Vector3();
+ root.traverse(object=>{
+  const attribute=object.isMesh&&object.geometry?.attributes?.position;
+  if(!attribute||!attribute.count)return;
+  const stride=Math.max(1,Math.ceil(attribute.count/maxSamplesPerMesh));
+  for(let i=0;i<attribute.count;i+=stride){
+   position.fromBufferAttribute(attribute,i).applyMatrix4(object.matrixWorld);
+   points.push([position.x,position.y,position.z]);
+  }
+ });
+ return points;
 }
 const states=new WeakMap();
 let threePromise=null;
@@ -102,27 +182,32 @@ async function loadColumbia(state){
    part.name=asset.split('/').pop();
    root.add(part);
   }
-  // Inspect transformed source bounds before applying any BridgePoint unit or axis correction.
+  // The scan is centimetre-scaled and not aligned to a single source X/Y/Z axis.
+  // Fit principal axes from mesh vertices, then orient its real long/short axes upright.
   root.quaternion.identity();
   root.scale.setScalar(1);
   root.updateMatrixWorld(true);
   const sourceBounds=new pair.THREE.Box3().setFromObject(root);
   if(sourceBounds.isEmpty())throw new Error('Smithsonian Columbia exterior mesh is empty');
   const sourceDimensions=sourceBounds.getSize(new pair.THREE.Vector3());
-  const transform=resolveColumbiaScanTransform(sourceDimensions,SPACECRAFT_COLUMBIA.scanHeightM);
-  const sourceUp=new pair.THREE.Vector3(
-   transform.axis==='x'?1:0,
-   transform.axis==='y'?1:0,
-   transform.axis==='z'?1:0
-  );
-  root.quaternion.setFromUnitVectors(sourceUp,new pair.THREE.Vector3(0,1,0));
+  const transform=resolveColumbiaScanTransform(sourceDimensions);
+  const vertices=collectColumbiaVertices(root,pair.THREE);
+  const frame=computeColumbiaPrincipalFrame(vertices,transform.scale);
+  const right=new pair.THREE.Vector3(...frame.axes[frame.rightIndex]).normalize();
+  const up=new pair.THREE.Vector3(...frame.axes[frame.upIndex]).normalize();
+  let forward=new pair.THREE.Vector3().crossVectors(right,up).normalize();
+  const sourceForward=new pair.THREE.Vector3(...frame.axes[frame.forwardIndex]);
+  if(forward.dot(sourceForward)<0)forward.negate();
+  const principalBasis=new pair.THREE.Matrix4().makeBasis(right,up,forward);
+  root.quaternion.setFromRotationMatrix(principalBasis.transpose());
   root.scale.setScalar(transform.scale);
   root.updateMatrixWorld(true);
   let bounds=new pair.THREE.Box3().setFromObject(root);
   if(bounds.isEmpty())throw new Error('Smithsonian Columbia exterior mesh is empty after normalization');
   const dimensions=bounds.getSize(new pair.THREE.Vector3());
-  const heightError=Math.abs(dimensions.y-SPACECRAFT_COLUMBIA.scanHeightM)/SPACECRAFT_COLUMBIA.scanHeightM;
-  if(!Number.isFinite(dimensions.y)||heightError>0.2)throw new Error('Normalized Columbia scan height is '+dimensions.y.toFixed(3)+' m; expected '+SPACECRAFT_COLUMBIA.scanHeightM.toFixed(3)+' m');
+  if(![dimensions.x,dimensions.y,dimensions.z].every(value=>Number.isFinite(value)&&value>0.5&&value<10)){
+   throw new Error('Normalized Columbia scan bounds are outside the plausible metre range');
+  }
   const center=bounds.getCenter(new pair.THREE.Vector3());
   root.position.x-=center.x;
   root.position.z-=center.z;
@@ -131,10 +216,10 @@ async function loadColumbia(state){
   bounds=new pair.THREE.Box3().setFromObject(root);
   col.group=root;
   col.dimensions={x:dimensions.x,y:dimensions.y,z:dimensions.z};
-  col.scanTransform={axis:transform.axis,units:transform.units,scale:transform.scale,sourceExtent:transform.sourceExtent};
+  col.scanTransform={units:transform.units,scale:transform.scale,principalExtentsM:frame.extentsM,principalHeightAxis:frame.upIndex};
   col.stats.assetLoaded=true;
   col.stats.heightM=dimensions.y;
-  col.status='The Smithsonian Columbia exterior scan is normalized from '+transform.units+' on source '+transform.axis.toUpperCase()+' axis into metres and oriented upright. Measured height: '+dimensions.y.toFixed(3)+' m.';
+  col.status='The Smithsonian exterior scan is converted from centimetres to metres and aligned using its fitted principal 3D axes. The oriented mesh envelope is '+dimensions.x.toFixed(3)+' × '+dimensions.y.toFixed(3)+' × '+dimensions.z.toFixed(3)+' m; catalogue object dimensions remain '+SPACECRAFT_COLUMBIA.dimensions+'.';
   setStatus(state,col.status);
   return root;
  })().catch(error=>{col.promise=null;throw error;});
@@ -209,7 +294,7 @@ async function showOnGlobe(state){
   if(col.scene&&col.group.parent!==col.scene)col.scene.add(col.group);
   state.map.flyTo?.({center:SPACECRAFT_COLUMBIA.coordinates,zoom:16.4,pitch:48,duration:1500});
   state.map.triggerRepaint?.();
-  col.status='The Smithsonian exterior scan is hosted by BridgePoint. The model uses the source package transform and centimeter-to-meter scale; its museum pin is approximate, not survey-controlled.';
+  col.status='The Smithsonian exterior scan is hosted by BridgePoint. Its source centimetres are converted to metres and its principal scan axes are aligned upright; the museum pin is approximate, not survey-controlled.';
   setStatus(state,col.status);
   return true;
  }catch(error){
