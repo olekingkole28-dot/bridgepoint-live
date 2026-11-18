@@ -2176,7 +2176,7 @@ jobs:
           export NODE_OPTIONS='--max-old-space-size=6144'
           COMPRESSED=0
           for file in "$TARGET"/*.glb; do
-            tmp="\${file%.glb}.draco.tmp.glb"
+            tmp="${file%.glb}.draco.tmp.glb"
             ./node_modules/.bin/gltf-transform draco "$file" "$tmp" --method edgebreaker
             test -s "$tmp"
             old_size="$(stat -c '%s' "$file")"
