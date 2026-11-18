@@ -110,6 +110,17 @@ def main():
                 print("BRIDGEPOINT_ABYSSAL_ISRO_NON_IMAGE_MEMBERS", json.dumps(isro_nonimages))
                 print("BRIDGEPOINT_ABYSSAL_ISRO_DEPTH_ANY_MEMBERS", json.dumps(depth_members[:30]))
                 print("BRIDGEPOINT_ABYSSAL_ISRO_DEPTH_ANY_COUNT", len(depth_members), "TOTAL_BYTES", sum(x["size"] for x in depth_members))
+                params = json.loads(archive.read("ISRO/train/sparse/0/depth_params.json"))
+                print("BRIDGEPOINT_ABYSSAL_ISRO_DEPTH_PARAMS_KEYS", json.dumps(sorted(params.keys())))
+                print("BRIDGEPOINT_ABYSSAL_ISRO_DEPTH_PARAMS_SAMPLE", json.dumps({k: (v[:3] if isinstance(v, list) else v) for k, v in params.items()}))
+                sample_info = archive.getinfo("ISRO/train/depth_any/0009.png")
+                png = archive.read(sample_info.filename)
+                import struct as _struct
+                if png[:8] == b"\\x89PNG\\r\\n\\x1a\\n":
+                    print("BRIDGEPOINT_ABYSSAL_ISRO_DEPTH_PNG_HEADER", json.dumps({"width":_struct.unpack(">I",png[16:20])[0],"height":_struct.unpack(">I",png[20:24])[0],"bitDepth":png[24],"colorType":png[25],"rawBytes":len(png)}))
+                pts_info = archive.getinfo("ISRO/train/sparse/0/points3D.bin")
+                pts_head = archive.read(pts_info.filename)[:8]
+                print("BRIDGEPOINT_ABYSSAL_ISRO_COLMAP_POINT_COUNT", _struct.unpack("<Q",pts_head)[0], "UNCOMPRESSED_BYTES", pts_info.file_size, "ZIP_COMPRESSED_BYTES", pts_info.compress_size)
                 return
             print("BRIDGEPOINT_ABYSSAL_3D_ASSET_CANDIDATES", json.dumps(candidates))
             # Prefer a cleaned ready-to-render mesh over imagery or raw capture material.
