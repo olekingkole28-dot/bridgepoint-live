@@ -442,10 +442,10 @@ jobs:
             "columbia-combined.glb:$O/assets/spacecraft/smithsonian-apollo11-exterior-combined.glb?verify=$Q" \
             "discovery.js:$O/bridgepoint-spacecraft-discovery-v1.js?verify=$Q" \
             "app-discovery.js:$O/app/bridgepoint-spacecraft-discovery-v1.js?verify=$Q" \
-            "discovery.glb:$O/assets/spacecraft/smithsonian-space-shuttle-discovery-150k-4096.glb?verify=$Q" \\
-            "saturn.js:$O/bridgepoint-spacecraft-saturn-v1.js?verify=$Q" \\
-            "app-saturn.js:$O/app/bridgepoint-spacecraft-saturn-v1.js?verify=$Q" \\
-            "saturn.glb:$O/assets/spacecraft/nasa-saturn-v.glb?verify=$Q" \\
+            "discovery.glb:$O/assets/spacecraft/smithsonian-space-shuttle-discovery-150k-4096.glb?verify=$Q" \
+            "saturn.js:$O/bridgepoint-spacecraft-saturn-v1.js?verify=$Q" \
+            "app-saturn.js:$O/app/bridgepoint-spacecraft-saturn-v1.js?verify=$Q" \
+            "saturn.glb:$O/assets/spacecraft/nasa-saturn-v.glb?verify=$Q" \
             "gantry.glb:$O/assets/spacecraft/nasa-gantry.glb?verify=$Q"; do
             name="${item%%:*}"; url="${item#*:}"
             curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 --max-time 180 -fL \
