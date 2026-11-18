@@ -401,6 +401,12 @@ jobs:
                   data=data.replace(base_anchor,base_anchor+chr(10)+extra_import,1)
               if "initPlaneWrecksExtraRenderer(world)" not in data:
                   raise SystemExit(f"{rel}: additional Plane Wrecks mesh import was not installed")
+              extra_refs=list(re.finditer(r"bridgepoint-plane-wrecks-extra-v1\\.js(?:\\?v=[^'\\"]*)?",data))
+              if len(extra_refs)!=1:
+                  raise SystemExit(f"{rel}: expected exactly one extra Plane Wrecks module import, got {len(extra_refs)}")
+              data=re.sub(r"(bridgepoint-plane-wrecks-extra-v1\\.js\\?v=)[^'\\"]+",r"\\g<1>4-p39q-airacobra-wing",data,count=1)
+              if "bridgepoint-plane-wrecks-extra-v1.js?v=4-p39q-airacobra-wing" not in data:
+                  raise SystemExit(f"{rel}: failed to version-bust the extra Plane Wrecks module import")
               p.write_text(data,encoding="utf-8")
           for rel,script in (("index.html","landing.js"),("app/index.html","app.js")):
               p=site/rel;data=p.read_text(encoding="utf-8")
@@ -491,6 +497,8 @@ jobs:
           grep -Fq 'initPlaneWrecksRenderer(world)' "$D/appjs" || { echo "LIVE_VERIFY_FAIL: app entry does not load Plane Wrecks"; exit 1; }
           grep -Fq 'initPlaneWrecksExtraRenderer(world)' "$D/landing" || { echo "LIVE_VERIFY_FAIL: landing entry does not load extra plane meshes"; exit 1; }
           grep -Fq 'initPlaneWrecksExtraRenderer(world)' "$D/appjs" || { echo "LIVE_VERIFY_FAIL: app entry does not load extra plane meshes"; exit 1; }
+          grep -Fq 'bridgepoint-plane-wrecks-extra-v1.js?v=4-p39q-airacobra-wing' "$D/landing" || { echo "LIVE_VERIFY_FAIL: landing extra module cache-bust missing"; exit 1; }
+          grep -Fq 'bridgepoint-plane-wrecks-extra-v1.js?v=4-p39q-airacobra-wing' "$D/appjs" || { echo "LIVE_VERIFY_FAIL: app extra module cache-bust missing"; exit 1; }
           grep -Fq 'EXTRA_PLANE_WRECKS' "$D/extra" || { echo "LIVE_VERIFY_FAIL: extra aircraft mesh module missing"; exit 1; }
           grep -Fq 'short-sunderland-ej138-munkholmen' "$D/extra" || { echo "LIVE_VERIFY_FAIL: Sunderland wreck entry missing"; exit 1; }
           grep -Fq 'tokai-maru-apra-harbor' "$D/extra" || { echo "LIVE_VERIFY_FAIL: Tokai Maru wreck entry missing"; exit 1; }
