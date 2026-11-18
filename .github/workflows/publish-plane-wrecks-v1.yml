@@ -405,6 +405,7 @@ jobs:
              "assets/plane-wrecks/extra/tokai-maru-apra-harbor.json",
              "assets/plane-wrecks/extra/p39q-airacobra-wing-photogrammetry.glb.gz",
              "assets/plane-wrecks/extra/p39q-airacobra-wing.json",
+             "assets/plane-wrecks/extra/messerschmitt-bf109-g6-planier.glb.gz",
              "assets/plane-wrecks/extra/catalog.json"}
           plane_import="""void import('./bridgepoint-plane-wrecks-v1.js?v=2-f4u1-persistent-dom-marker')
            .then(m=>{window.__BP_PLANE_WRECKS_V1__=m.initPlaneWrecksRenderer(world)})
@@ -432,7 +433,7 @@ jobs:
               extra_refs=list(re.finditer(r"bridgepoint-plane-wrecks-extra-v1\.js(?:\?v=[^'\"]*)?",data))
               if len(extra_refs)!=1:
                   raise SystemExit(f"{rel}: expected exactly one extra Plane Wrecks module import, got {len(extra_refs)}")
-              data=re.sub(r"(bridgepoint-plane-wrecks-extra-v1\.js\?v=)[^'\"]+",r"\g<1>6-kwajalein-sbd-dauntless",data,count=1)
+              data=re.sub(r"(bridgepoint-plane-wrecks-extra-v1\.js\?v=)[^'\"]+",r"\g<1>7-messerschmitt-bf109-planier",data,count=1)
               if "bridgepoint-plane-wrecks-extra-v1.js?v=7-messerschmitt-bf109-planier" not in data:
                   raise SystemExit(f"{rel}: failed to version-bust the extra Plane Wrecks module import")
               p.write_text(data,encoding="utf-8")
@@ -464,6 +465,7 @@ jobs:
               "assets/plane-wrecks/extra/tokai-maru-apra-harbor.json",
              "assets/plane-wrecks/extra/p39q-airacobra-wing-photogrammetry.glb.gz",
              "assets/plane-wrecks/extra/p39q-airacobra-wing.json",
+             "assets/plane-wrecks/extra/messerschmitt-bf109-g6-planier.glb.gz",
               "assets/plane-wrecks/extra/catalog.json"}
           missing=required-set(after)
           if missing:raise SystemExit("PLANE_WRECKS_REQUIRED_FILE_MISSING "+json.dumps(sorted(missing)))
