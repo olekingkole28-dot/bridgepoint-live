@@ -2783,7 +2783,11 @@ jobs:
                 await appPage.waitForSelector('#bpv-dock-reopen',{visible:true,timeout:30000});
                 await appPage.click('#bpv-dock-reopen');
                 await appPage.waitForFunction(()=>!!document.querySelector('#bpv-dock')&&!document.querySelector('#bpv-dock').hidden,{timeout:10000});
-                await appPage.waitForSelector('#bp-world-time-slider-v5908 [data-standalone]',{visible:true,timeout:120000});
+                // The app mounts its 30-day timeline on demand from the "30-Day History"
+                // dock action. Open the creator before waiting for its standalone control.
+                await appPage.waitForSelector('#bpv-dock-actions [data-bpv-action="worldchanges"]',{visible:true,timeout:15000});
+                await appPage.click('#bpv-dock-actions [data-bpv-action="worldchanges"]');
+                await appPage.waitForSelector('#bp-world-time-slider-v5908 [data-standalone]',{visible:true,timeout:30000});
                 await appPage.click('#bp-world-time-slider-v5908 [data-standalone]');
                 await appPage.waitForFunction(()=>{
                   const button=document.querySelector('#bp-world-time-slider-v5908 [data-nightlights]');
