@@ -73,6 +73,13 @@ export const UNDERGROUND_SCAN_SITES=[
   models:[
    {uid:'1a5ec1e212f9451e80dc051e97164d17',title:'Ellora Caves, India — Rock-Cut Heritage Scan',creator:'Graphic solutions (@hermes3)',license:'CC Attribution',method:'Photo-based 3D reconstruction · photogrammetry · approx. 136,500 triangles',detail:'Creator-published photographic 3D reconstruction associated with the Ellora Caves archaeological site. Ellora has Buddhist, Hindu and Jain rock-cut monuments, including Cave 16 (Kailasa Temple). The model is not verified as a complete survey of all cave chambers or precisely aligned to the surrounding terrain; this is not a LiDAR point cloud.',modelUrl:'https://sketchfab.com/3d-models/ellora-caves-india-1a5ec1e212f9451e80dc051e97164d17'}
   ]},
+ {id:'bethells-beach-sea-cave',name:'Bethells Beach — Sea Cave',type:'cave',coordinates:[174.44382,-36.89555],
+  locationPrecision:'Approximate Te Henga / Bethells Beach site anchor from OpenStreetMap beach feature (36.89555° S, 174.44382° E). The source scan identifies a sea cave on this beach but does not publish a surveyed entrance coordinate or georeferenced mesh.',
+  locationNote:'This icon marks the documented Bethells Beach coastal area, not the independently measured entrance of the particular cave or the position of each scanned wall.',
+  description:'A textured photogrammetry 3D scan of a real sea cave at Te Henga / Bethells Beach near Auckland, New Zealand; one arm of the cave opens toward a forested area.',
+  models:[
+   {uid:'ce71dc2848984acfb11d8002a48a6043',title:'Sea Cave 3 — Te Henga / Bethells Beach Photogrammetry',creator:'b_nealie',license:'CC Attribution',method:'46-photo photogrammetry · 3DF Zephyr v4.353 · approx. 698,400 triangles',detail:'Creator-published photographic reconstruction of a natural coastal sea cave at Bethells Beach, Auckland, New Zealand. One cave arm leads toward vegetation; the source was created from 46 photographs. This is a textured photo mesh, not a LiDAR point cloud or a metrically aligned georeferenced cave survey. The BridgePoint card embeds the original creator-hosted viewer.',modelUrl:'https://sketchfab.com/3d-models/sea-cave-3-ce71dc2848984acfb11d8002a48a6043'}
+  ]},
  {id:'om-jaettestue',name:'Øm Jættestue Passage Tomb',type:'tomb',coordinates:[11.994633,55.599731],
   locationPrecision:'Published GPS coordinate for the passage tomb site.',
   locationNote:'This is a Neolithic passage tomb and burial chamber, not a natural cave.',

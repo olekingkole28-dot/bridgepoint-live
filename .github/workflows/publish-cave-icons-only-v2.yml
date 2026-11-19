@@ -1,5 +1,5 @@
-# Trigger the merged Ellora Cave-only Pages release against the preserved, verified v5 production artifact. Keep all other site files byte-identical.
-name: Publish Only Ellora Caves India Photo Mesh v6
+# Publish only the Bethells Beach sea cave scan using the verified Ellora v6 Pages artifact; preserve unrelated production bytes.
+name: Publish Only Bethells Beach New Zealand Sea Cave Photo Mesh v7
 on:
   workflow_dispatch:
   push:
@@ -14,7 +14,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: bridgepoint-cave-entry-publish-only-v6
+  group: bridgepoint-cave-entry-publish-only-v7
   cancel-in-progress: false
 
 jobs:
@@ -42,7 +42,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: bridgepoint-v5000-1
-          run-id: 44615127234
+          run-id: 44616761133
           repository: ${{ github.repository }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ${{ runner.temp }}/bp-cave-base
@@ -76,11 +76,11 @@ jobs:
               (site/rel).write_bytes(patched.read_bytes())
           edits={
             'landing.js':[
-              ('./'+cave+'?v=5-jackson-blue-photo-mesh','./'+cave+'?v=6-ellora-photo-mesh'),
-              ('./'+cave+'?v=5-mobile-jackson-blue-photo-mesh','./'+cave+'?v=6-mobile-ellora-photo-mesh')
+              ('./'+cave+'?v=6-ellora-photo-mesh','./'+cave+'?v=7-bethells-sea-cave-photo-mesh'),
+              ('./'+cave+'?v=6-mobile-ellora-photo-mesh','./'+cave+'?v=7-mobile-bethells-sea-cave-photo-mesh')
             ],
             'app.js':[
-              ('./'+cave+'?v=5-jackson-blue-photo-mesh','./'+cave+'?v=6-ellora-photo-mesh')
+              ('./'+cave+'?v=6-ellora-photo-mesh','./'+cave+'?v=7-bethells-sea-cave-photo-mesh')
             ]
           }
           for rel,changes in edits.items():
@@ -99,9 +99,9 @@ jobs:
               if len(matches)!=1:
                   raise SystemExit(f'{rel}: expected exactly one active {entry} cache-keyed script; got {len(matches)}')
               old=matches[0].group(1)
-              if 'cave-entry=jackson-blue-v5' not in old or 'cave-entry=ellora-v6' in old:
-                  raise SystemExit(f'{rel}: missing previous Jackson Blue Cave cache key or Ellora was already appended')
-              source=source.replace('src="'+old+'"','src="'+old+'&cave-entry=ellora-v6"',1)
+              if 'cave-entry=ellora-v6' not in old or 'cave-entry=bethells-v7' in old:
+                  raise SystemExit(f'{rel}: missing previous Ellora Cave cache key or Bethells sea cave was already appended')
+              source=source.replace('src="'+old+'"','src="'+old+'&cave-entry=bethells-v7"',1)
               f.write_text(source,encoding='utf-8')
           after={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
                  for p in site.rglob('*') if p.is_file()}
@@ -117,7 +117,7 @@ jobs:
               raise SystemExit('Website and app Cave module differ')
           for rel in ('landing.js','app.js'):
               text=(site/rel).read_text()
-              if './'+cave+'?v=6-ellora-photo-mesh' not in text:
+              if './'+cave+'?v=7-bethells-sea-cave-photo-mesh' not in text:
                   raise SystemExit(rel+' did not load the new Cave module')
           print('CAVE_ONLY_PUBLISH_SCOPE_PASS',len(changed),'files, no additions or deletions')
           PY
@@ -147,14 +147,14 @@ jobs:
           set -euo pipefail
           SITE="https://bridgepointintelligence.online"
           for pass in $(seq 1 15); do
-            if curl -fsSL -H 'Cache-Control: no-cache' "$SITE/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '1a5ec1e212f9451e80dc051e97164d17'; then
-              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null 'ellora-caves-india'
-              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/landing.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '6-ellora-photo-mesh'
-              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '6-ellora-photo-mesh'
-              echo CAVE_ELLORA_LIVE_PUBLISH_PASS
+            if curl -fsSL -H 'Cache-Control: no-cache' "$SITE/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null 'ce71dc2848984acfb11d8002a48a6043'; then
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null 'bethells-beach-sea-cave'
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/landing.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '7-bethells-sea-cave-photo-mesh'
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '7-bethells-sea-cave-photo-mesh'
+              echo CAVE_BETHELLS_LIVE_PUBLISH_PASS
               exit 0
             fi
             sleep 4
           done
-          echo CAVE_ELLORA_LIVE_VERIFY_FAILED
+          echo CAVE_BETHELLS_LIVE_VERIFY_FAILED
           exit 1
