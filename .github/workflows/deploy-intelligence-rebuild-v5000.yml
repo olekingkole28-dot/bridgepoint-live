@@ -2595,6 +2595,8 @@ jobs:
                 });
                 const url=origin+'/?bp-device-smoke='+profile.name+'-'+Date.now();
                 const entryResponse=await page.goto(url,{waitUntil:'domcontentloaded',timeout:60000});
+                await page.bringToFront();
+                await page.waitForFunction(()=>document.visibilityState==='visible',{timeout:5000});
                 const collectWelcomeEntryDiagnostic=()=>page.evaluate(()=>{
                   const gate=document.getElementById('bpWelcomeGateV1');
                   const panel=gate?.querySelector('.bpw-gate-panel');
@@ -2708,6 +2710,8 @@ jobs:
                 await appPage.setViewport({width:profile.width,height:profile.height,deviceScaleFactor:profile.dpr,isMobile:profile.mobile,hasTouch:profile.touch});
                 appPage.on('pageerror',e=>appErrors.push(String(e?.message||e)));
                 await appPage.goto(origin+'/app/?bp-device-smoke='+profile.name+'-'+Date.now(),{waitUntil:'domcontentloaded',timeout:60000});
+                await appPage.bringToFront();
+                await appPage.waitForFunction(()=>document.visibilityState==='visible',{timeout:5000});
                 await appPage.waitForFunction(()=>!!window.__BP_V5000_WORLD__?.map?.getCanvas?.()||!!document.querySelector('#liveMap canvas'),{timeout:90000});
                 const appState=await appPage.evaluate(()=>{
                   const m=window.__BP_V5000_WORLD__?.map;
