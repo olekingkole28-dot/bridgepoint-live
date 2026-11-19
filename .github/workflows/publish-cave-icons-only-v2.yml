@@ -1,3 +1,4 @@
+# Publish the squash-merged Palhares cave only; keep the last verified public site unmodified otherwise.
 name: Publish Only Gruta dos Palhares Cave Photo Mesh v3
 on:
   workflow_dispatch:
