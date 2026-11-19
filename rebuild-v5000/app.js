@@ -335,7 +335,7 @@ scheduleOptionalRenderer(() => import('./bridgepoint-jenolan-caves-v1.js?v=1-jen
  // V5614: register the lightweight weather-FX capability contract immediately.
  // Network fetches and active particle rendering stay behind the interaction/pressure governor.
  window.__BP_ACTIVATE_SHARED_WEATHER__=()=>{if(!liveContextVisible)return;void initSharedVisualWeather(world,{activate:true,cloudsOnly:false})};
- await initSharedVisualWeather(world,{activate:true,cloudsOnly:true}).catch(e=>console.warn('BridgePoint always-on storm cloud feed unavailable',e));
+ void initSharedVisualWeather(world,{activate:true,cloudsOnly:true}).catch(e=>console.warn('BridgePoint always-on storm cloud feed unavailable',e));
  startLiveWeather();
  try{world.map.jumpTo({center:[0,20],zoom:BP_MOBILE?1.05:1.25,pitch:0,bearing:0});window.__BP_GLOBAL_START__={center:[0,20],projection:'globe',zoom:world.map.getZoom(),at:Date.now()}}catch(_){}
  window.__BP_INITIAL_WEATHER_PRIORITY__=false;
