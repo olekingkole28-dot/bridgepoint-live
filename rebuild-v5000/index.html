@@ -317,9 +317,28 @@ html.bpw-entry-locked body>main>section:not(.hero){display:none!important;visibi
       }
       const message=document.getElementById('authMessage');
       if(message)message.textContent='';
+      const welcomeGate=document.getElementById('bpWelcomeGateV1');
+      if(welcomeGate){welcomeGate.inert=true;welcomeGate.setAttribute('aria-hidden','true')}
       modal.hidden=false;
       modal.removeAttribute('hidden');
+      modal.style.zIndex='2147483647';
+      modal.style.pointerEvents='auto';
       setTimeout(()=>document.getElementById('authEmail')?.focus(),50);
+    },true);
+
+    // Keep the account dialog dismissible even while the welcome globe is active.
+    document.addEventListener('click',event=>{
+      const modal=document.getElementById('authModal');
+      if(!modal||modal.hidden)return;
+      const closeButton=event.target?.closest?.('#closeAuth');
+      const backdrop=event.target===modal;
+      if(!closeButton&&!backdrop)return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      modal.hidden=true;
+      modal.setAttribute('hidden','');
+      const welcomeGate=document.getElementById('bpWelcomeGateV1');
+      if(welcomeGate){welcomeGate.inert=false;welcomeGate.removeAttribute('aria-hidden')}
     },true);
   }
 
