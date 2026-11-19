@@ -17,7 +17,10 @@ An additive, opt-in map layer for real photogrammetry and terrestrial/mobile-LiD
 | Paris Catacombs, France | 3 | Creator's iPhone scanning; Sketchfab creator Emm | Approximate district anchor; exact chamber coordinates not published |
 | Vrlovka Cave, Croatia | 1 | Center for Geospatial Technologies (GAL), GeoSLAM | Published cave-site anchor; featured model is a high-detail cave segment |
 | Hohlenstein-Stadel Cave, Germany | 1 | Nature-témoin, 27-photo photogrammetry | Published archaeological cave-site coordinate; model is the entrance |
+| Treak Cliff Cavern, England | 1 | 9of9, phone-photo RealityCapture photogrammetry · real stalactite formation | Approximate public cave entrance; interior formation is not separately georeferenced |
 | Øm Jættestue, Denmark | 1 | Azad Balabanian, 610-image photogrammetry | Published GPS site coordinate; passage tomb, not a natural cave |
+
+The Treak Cliff Cavern addition displays **CC Attribution**, is an original textured photogrammetry scan, and is embedded in the BridgePoint card via its creator-hosted Sketchfab viewer (the model file is **not** stored on BridgePoint). All Cave & Sites map icons are enlarged while the layer is active, with unchanged zoom range and click behavior.
 
 Every included Sketchfab record displayed **CC Attribution** on its model page at review time. Model metadata and attribution remain visible in the popup. Recheck the original page's license before redistribution or incorporation into a BridgePoint-hosted asset pack.
 
