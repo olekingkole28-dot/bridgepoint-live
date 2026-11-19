@@ -485,7 +485,7 @@ self.addEventListener('fetch',e=>{
     def test_sun_has_animated_molten_photosphere_fresnel_rim_and_observed_plasma_particles(self):
         module = (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text()
         for marker in (
-            "const VERSION = 'v6296-mobile-safe-welcome'",
+            "const VERSION = 'v6305-balanced-celestial-frame'",
             "float magmaFlow=",
             "float moltenCoverage=",
             "const solarFireRim=new THREE.Mesh",
@@ -594,9 +594,9 @@ self.addEventListener('fetch',e=>{
         scene = (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text()
         for marker in (
             "mobile ? 0.9 : 1.5",
-            "const mobileFrameIntervalMs = mobile ? ((navigator.deviceMemory || 4) <= 3 ? 50 : 1000 / 30) : 0;",
-            "if(mobileFrameIntervalMs>0&&lastMobileRenderAt&&frameTime-lastMobileRenderAt<mobileFrameIntervalMs)",
-            "lastMobileRenderAt=0;requestAnimationFrame(render)",
+            "const welcomeFrameIntervalMs = mobile ? ((navigator.deviceMemory || 4) <= 3 ? 50 : 1000 / 30) : 1000 / 30;",
+            "if(lastWelcomeRenderAt&&frameTime-lastWelcomeRenderAt<welcomeFrameIntervalMs)",
+            "lastWelcomeRenderAt=0;requestAnimationFrame(render)",
             "status:'deferred-on-mobile-welcome'",
             "protect mobile startup responsiveness",
         ):
