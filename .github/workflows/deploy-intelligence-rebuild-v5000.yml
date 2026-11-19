@@ -496,6 +496,7 @@ jobs:
           node --check rebuild-v5000/bridgepoint-transportation-v1.js
           node --check rebuild-v5000/bridgepoint-transportation-loader-v1.js
           node tests/drone-awareness.test.mjs
+          node tests/celestial-water-cloud-shadows.test.mjs
           node tests/vessel-awareness.test.mjs
           node tests/transportation-simulation-v1.test.mjs
           node --input-type=module --check < rebuild-v5000/bridgepoint-orbit-renderer-v6201.js
@@ -2167,6 +2168,81 @@ jobs:
           test -s site/assets/spacecraft/nasa-saturn-v.glb
           test -s site/assets/spacecraft/nasa-gantry.glb
           echo "BRIDGEPOINT_10_SHIPWRECKS_10_PLANE_WRECKS_4_SPACECRAFT_PRESERVED"
+
+      - name: Download the published Jenolan cave Pages artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: github-pages-jenolan-caves-v1
+          run-id: 43956894851
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/bp-jenolan-feature-baseline
+
+      - name: Restore Jenolan Caves 3D renderer and point cloud into V5000
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCHIVE="$(find "$RUNNER_TEMP/bp-jenolan-feature-baseline" -type f -name artifact.tar -print -quit)"
+          test -n "$ARCHIVE"
+          BASE="$RUNNER_TEMP/bp-jenolan-feature-site"
+          mkdir -p "$BASE"
+          tar -xf "$ARCHIVE" -C "$BASE"
+          for file in \
+            bridgepoint-jenolan-caves-v1.js \
+            assets/underground/jenolan-caves-v1/manifest.json \
+            assets/underground/jenolan-caves-v1/pointcloud.bin.gz; do
+            test -s "$BASE/$file" || { echo "JENOLAN_BASELINE_MISSING $file"; exit 1; }
+          done
+          mkdir -p site/app site/assets/underground/jenolan-caves-v1
+          cp "$BASE/bridgepoint-jenolan-caves-v1.js" site/bridgepoint-jenolan-caves-v1.js
+          cp "$BASE/bridgepoint-jenolan-caves-v1.js" site/app/bridgepoint-jenolan-caves-v1.js
+          cp "$BASE/assets/underground/jenolan-caves-v1/manifest.json" site/assets/underground/jenolan-caves-v1/manifest.json
+          cp "$BASE/assets/underground/jenolan-caves-v1/pointcloud.bin.gz" site/assets/underground/jenolan-caves-v1/pointcloud.bin.gz
+          python3 - "$PWD/site" <<'PY'
+          import re,sys
+          from pathlib import Path
+          site=Path(sys.argv[1])
+          attach="""void import('./bridgepoint-jenolan-caves-v1.js?v=1-jenolan-large-system')
+           .then(m=>{window.__BP_JENOLAN_CAVES_V1__=m.initJenolanCavesRenderer(world)})
+           .catch(e=>console.warn('BridgePoint Jenolan Caves 3D layer unavailable',e));"""
+          anchor=".catch(e=>console.warn('BridgePoint cave and underground scan layer unavailable',e));"
+          for rel in ("landing.js","app.js"):
+              path=site/rel
+              data=path.read_text(encoding="utf-8")
+              if "initJenolanCavesRenderer(world)" not in data:
+                  if data.count(anchor)!=1:
+                      raise SystemExit(f"{rel}: expected one underground scan import anchor")
+                  data=data.replace(anchor,anchor+"\\n"+attach,1)
+              path.write_text(data,encoding="utf-8")
+              if data.count("initJenolanCavesRenderer(world)")!=1:
+                  raise SystemExit(f"{rel}: Jenolan renderer import is missing or duplicated")
+          for rel,needle in (("index.html","landing.js"),("app/index.html","app.js")):
+              path=site/rel
+              data=path.read_text(encoding="utf-8")
+              matches=[url for url in re.findall(r'src="([^"]+)"',data) if needle in url]
+              if len(matches)!=1: raise SystemExit(f"{rel}: expected one {needle} script URL")
+              url=matches[0]
+              base,sep,query=url.partition("?")
+              params=query.split("&") if sep else []
+              params=[p for p in params if not p.startswith("jenolan-caves=")]
+              params.append("jenolan-caves=v1")
+              data=data.replace(url,base+"?"+"&".join(params),1)
+              path.write_text(data,encoding="utf-8")
+          PY
+          node --input-type=module --check < site/bridgepoint-jenolan-caves-v1.js
+          node --check site/landing.js
+          node --check site/app.js
+          cmp -s site/bridgepoint-jenolan-caves-v1.js site/app/bridgepoint-jenolan-caves-v1.js
+          grep -Fq 'initJenolanCavesRenderer(world)' site/landing.js
+          grep -Fq 'initJenolanCavesRenderer(world)' site/app.js
+          grep -Fq 'jenolan-caves=v1' site/index.html
+          grep -Fq 'jenolan-caves=v1' site/app/index.html
+          test -s site/assets/underground/jenolan-caves-v1/manifest.json
+          test -s site/assets/underground/jenolan-caves-v1/pointcloud.bin.gz
+          node tests/jenolan-caves-v1.test.mjs
+          echo "BRIDGEPOINT_JENOLAN_CAVES_3D_PRESERVED"
+
+      - name: Download the first Manhattan web tile package
 
       - name: Download the first Manhattan web tile package
         if: needs.build-manhattan-world.outputs.package_needed == 'true'
