@@ -1,4 +1,4 @@
-# Publish only the Bethells Beach sea cave scan using the verified Ellora v6 Pages artifact; preserve unrelated production bytes.
+# Trigger merged Bethells Beach sea cave from verified v6 production; enforce Cave-only changes and exact site-byte retention.
 name: Publish Only Bethells Beach New Zealand Sea Cave Photo Mesh v7
 on:
   workflow_dispatch:
