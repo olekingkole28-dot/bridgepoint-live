@@ -36,6 +36,13 @@ export const UNDERGROUND_SCAN_SITES=[
   models:[
    {uid:'6b0765f8887a47e1b0a063a118293c83',title:'Hohlenstein-Stadel — Rocky cave entrance',creator:'Nature-témoin (@speleotv)',license:'CC Attribution',method:'27-photo photogrammetry · 3DF Zephyr',detail:'A photogrammetric record of the cave entrance below the mammoth-shaped rock.',modelUrl:'https://sketchfab.com/3d-models/rocky-cave-entrance-6b0765f8887a47e1b0a063a118293c83'}
   ]},
+ {id:'treak-cliff-cavern',name:'Treak Cliff Cavern — Stalactites',type:'cave',coordinates:[-1.7972,53.3451],
+  locationPrecision:'Approximate Treak Cliff Cavern entrance/site anchor near Castleton, Derbyshire. This photographic scan is an interior stalactite formation, not a surveyed georegistered cave passage.',
+  locationNote:'The marker identifies Treak Cliff Cavern, not the measured underground position of this formation.',
+  description:'A real image-based 3D photogrammetry scan of natural stalactites inside Treak Cliff Cavern in the Peak District, England.',
+  models:[
+   {uid:'a6183b4fd7364ed59518a276ad8ef8ec',title:'Treak Cliff Cavern — Natural Stalactite Formation',creator:'9of9 (@9of9)',license:'CC Attribution',method:'Phone-photo photogrammetry · RealityCapture',detail:'Textured 3D scan of natural limestone stalactites photographed during a guided cave visit. Coverage is partial, especially in low-light areas; this is not a complete cave model.',modelUrl:'https://sketchfab.com/3d-models/treak-cliff-cavern-stalactites-a6183b4fd7364ed59518a276ad8ef8ec'}
+  ]},
  {id:'om-jaettestue',name:'Øm Jættestue Passage Tomb',type:'tomb',coordinates:[11.994633,55.599731],
   locationPrecision:'Published GPS coordinate for the passage tomb site.',
   locationNote:'This is a Neolithic passage tomb and burial chamber, not a natural cave.',
@@ -118,7 +125,7 @@ function installLayers(state){
    'circle-color':['match',['get','type'],'tomb','#d9aa58','catacomb','#58d2e2','#7bd49a'],'circle-opacity':0.35,'circle-blur':0.55}});
   add(MARKER_ID,{id:MARKER_ID,type:'symbol',source:SOURCE_ID,minzoom:0,maxzoom:24,layout:{
    visibility:state.enabled?'visible':'none','icon-image':['get','iconImage'],
-   'icon-size':['interpolate',['linear'],['zoom'],0,0.30,3,0.42,7,0.58,12,0.72,18,0.84,23,0.92],
+   'icon-size':['interpolate',['linear'],['zoom'],0,0.80,3,1.00,7,1.25,12,1.52,18,1.75,23,1.92],
    'icon-anchor':'bottom','icon-allow-overlap':true,'icon-ignore-placement':true,'symbol-sort-key':100}});
   add(LABEL_ID,{id:LABEL_ID,type:'symbol',source:SOURCE_ID,minzoom:4,maxzoom:24,layout:{
    visibility:state.enabled?'visible':'none','text-field':['get','name'],
