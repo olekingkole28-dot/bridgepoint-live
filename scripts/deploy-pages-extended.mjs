@@ -81,12 +81,23 @@ async function getOidcToken() {
   return parsed.value;
 }
 
-const artifacts = await githubJson(
-  '/repos/' + owner + '/' + repo + '/actions/runs/' + process.env.GITHUB_RUN_ID + '/artifacts?per_page=100'
-);
-const matches = (artifacts.artifacts || []).filter(item => item.name === artifactName && item.expired !== true);
+// upload-pages-artifact may finalize before the Actions listing endpoint indexes it.
+const artifactListPath = '/repos/' + owner + '/' + repo + '/actions/runs/' + process.env.GITHUB_RUN_ID + '/artifacts?per_page=100';
+let matches = [];
+for (let attempt = 1; attempt <= 15; attempt++) {
+  const artifacts = await githubJson(artifactListPath);
+  matches = (artifacts.artifacts || []).filter(item => item.name === artifactName && item.expired !== true);
+  if (matches.length === 1) break;
+  if (matches.length > 1) {
+    throw new Error('Expected exactly one non-expired Pages artifact named "' + artifactName + '"; found ' + matches.length);
+  }
+  if (attempt < 15) {
+    console.log('Pages artifact not indexed yet; retrying lookup (' + attempt + '/15)');
+    await new Promise(resolve => setTimeout(resolve, 3000));
+  }
+}
 if (matches.length !== 1) {
-  throw new Error('Expected exactly one non-expired Pages artifact named "' + artifactName + '"; found ' + matches.length);
+  throw new Error('Pages artifact "' + artifactName + '" remained undiscoverable after 15 lookup attempts');
 }
 const artifact = matches[0];
 let artifactBytes;
