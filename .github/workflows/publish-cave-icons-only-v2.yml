@@ -1,0 +1,159 @@
+name: Publish Only Large Persistent Cave Icons v2
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-cave-icons-only-v2.yml'
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-cave-icons-publish-only-v2
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Test only Cave catalog and icon persistence
+        run: |
+          set -euo pipefail
+          node --check rebuild-v5000/bridgepoint-underground-scan-sites-v1.js
+          node tests/underground-scan-sites-v1.test.mjs
+          node --check rebuild-v5000/landing.js
+          node --check rebuild-v5000/app.js
+
+      - name: Download last working exact production Pages snapshot
+        uses: actions/download-artifact@v4
+        with:
+          name: bridgepoint-v5000-1
+          run-id: 44597317774
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/bp-cave-base
+
+      - name: Patch only Cave module and three cache-key references
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/bp-cave-site"
+          ARCHIVE="$(find "$RUNNER_TEMP/bp-cave-base" -name artifact.tar -type f -print -quit)"
+          test -n "$ARCHIVE"
+          mkdir -p "$SITE"
+          tar -xf "$ARCHIVE" -C "$SITE"
+          export SITE
+          python3 - <<'PY'
+          import hashlib,json,os,re
+          from pathlib import Path
+          site=Path(os.environ['SITE'])
+          cave='bridgepoint-underground-scan-sites-v1.js'
+          expected={
+            'index.html','app/index.html','landing.js','app.js',
+            cave,'app/'+cave
+          }
+          before={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                  for p in site.rglob('*') if p.is_file()}
+          for rel in expected:
+              if rel not in before:
+                  raise SystemExit('Known-good Pages artifact is missing required file: '+rel)
+          patched=Path('rebuild-v5000')/cave
+          for rel in (cave,'app/'+cave):
+              (site/rel).write_bytes(patched.read_bytes())
+          edits={
+            'landing.js':[
+              ('./'+cave+'?v=1-curated-sketchfab-caves','./'+cave+'?v=2-big-persistent-cave-icons'),
+              ('./'+cave+'?v=1-mobile-curated-caves','./'+cave+'?v=2-mobile-big-persistent-cave-icons')
+            ],
+            'app.js':[
+              ('./'+cave+'?v=1-curated-sketchfab-caves','./'+cave+'?v=2-big-persistent-cave-icons')
+            ]
+          }
+          for rel,changes in edits.items():
+              f=site/rel
+              source=f.read_text(encoding='utf-8')
+              for old,new in changes:
+                  if source.count(old)!=1:
+                      raise SystemExit(f'{rel}: expected one exact old Cave import {old}; found {source.count(old)}')
+                  source=source.replace(old,new,1)
+              f.write_text(source,encoding='utf-8')
+          for rel,entry in (('index.html','landing.js'),('app/index.html','app.js')):
+              f=site/rel
+              source=f.read_text(encoding='utf-8')
+              pattern=r'src="([^"]*'+re.escape(entry)+r'\?v=[^"]*)"'
+              matches=list(re.finditer(pattern,source))
+              if len(matches)!=1:
+                  raise SystemExit(f'{rel}: expected exactly one active {entry} cache-keyed script; got {len(matches)}')
+              old=matches[0].group(1)
+              if 'cave-icons=' in old:
+                  raise SystemExit(f'{rel}: unexpected prior Cave icon cache key')
+              source=source.replace('src="'+old+'"','src="'+old+'&cave-icons=persistent-v2"',1)
+              f.write_text(source,encoding='utf-8')
+          after={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                 for p in site.rglob('*') if p.is_file()}
+          added=set(after)-set(before)
+          deleted=set(before)-set(after)
+          changed={p for p in before if p in after and before[p]!=after[p]}
+          if added or deleted or changed!=expected:
+              raise SystemExit('CAVE_ONLY_PUBLISH_SCOPE_FAILED '+json.dumps({
+                'added':sorted(added),'deleted':sorted(deleted),
+                'changed':sorted(changed),'expected':sorted(expected)
+              }))
+          if (site/cave).read_bytes()!=(site/'app'/cave).read_bytes():
+              raise SystemExit('Website and app Cave module differ')
+          for rel in ('landing.js','app.js'):
+              text=(site/rel).read_text()
+              if './'+cave+'?v=2-big-persistent-cave-icons' not in text:
+                  raise SystemExit(rel+' did not load the new Cave module')
+          print('CAVE_ONLY_PUBLISH_SCOPE_PASS',len(changed),'files, no additions or deletions')
+          PY
+          node --check "$SITE/landing.js"
+          node --check "$SITE/app.js"
+          node --check "$SITE/bridgepoint-underground-scan-sites-v1.js"
+          node --check "$SITE/app/bridgepoint-underground-scan-sites-v1.js"
+
+      - uses: actions/configure-pages@v5
+
+      - name: Upload exact preserved site with only Cave marker patch
+        uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/bp-cave-site
+          include-hidden-files: true
+
+      - name: Publish exact Cave marker patch to Pages
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-pages-extended.mjs
+
+      - name: Verify live Cave icons on website and app
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="https://bridgepointintelligence.online"
+          for pass in $(seq 1 15); do
+            if curl -fsSL -H 'Cache-Control: no-cache' "$SITE/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -Fq 'scheduleCaveMarkerPersistence'; then
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -Fq 'CAVE_ICON_SIZE'
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/landing.js?check=$GITHUB_SHA-$pass" | grep -Fq '2-big-persistent-cave-icons'
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app.js?check=$GITHUB_SHA-$pass" | grep -Fq '2-big-persistent-cave-icons'
+              echo CAVE_ICONS_LIVE_PUBLISH_PASS
+              exit 0
+            fi
+            sleep 4
+          done
+          echo CAVE_ICONS_LIVE_VERIFY_FAILED
+          exit 1
