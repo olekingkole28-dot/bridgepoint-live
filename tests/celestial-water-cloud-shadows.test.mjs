@@ -33,6 +33,13 @@ function test(name, fn) {
   }
 }
 
+test('deferred feature controls initialize on desktop and mobile without blocking the script queue', () => {
+  assert.doesNotMatch(landingHtml, /if\(!mobile\)return;/);
+  assert.match(landingHtml, /loadTimeout=setTimeout\(\(\)=>finish\(false\),12000\)/);
+  assert.match(landingHtml, /'bridgepoint-view-v5917\.js'/);
+  assert.match(landingHtml, /<script defer src="\/bridgepoint-transportation-loader-v1\.js\?v=4-global-pmtiles-stable-models"><\/script>/);
+});
+
 test('water keeps shoreline safety while using a bounded stable render budget', () => {
   assert.match(water, /const VERSION = 6123;/);
   assert.match(water, /const SURFACE_RENDER_REVISION = 6256;/);
