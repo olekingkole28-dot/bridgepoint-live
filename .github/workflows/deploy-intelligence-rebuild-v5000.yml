@@ -19,6 +19,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/deploy-intelligence-rebuild-v5000.yml'
+      - 'tools/restore_feature_assets.py'
       - 'app/horizon/index.html'
       - 'app/horizon/native/**'
       - 'app/horizon/sw.js'
@@ -2005,27 +2006,29 @@ jobs:
           test -s site/app/horizon-playable/assets/characters/mesh2motion/models/swat_male.glb
           echo "V5000 CLEAN INTELLIGENCE ARTIFACT READY"
 
-      - name: Download the last verified complete wreck-and-spacecraft Pages artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: github-pages-spacecraft-v1
-          run-id: 44357885452
-          repository: ${{ github.repository }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          path: ${{ runner.temp }}/bp-complete-feature-baseline
+      - name: Restore model assets from the verified publication
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          BASE="$RUNNER_TEMP/bp-complete-feature-site"
+          mkdir -p "$BASE"
+          result=0
+          python3 tools/restore_feature_assets.py restore "$BASE" || result=$?
+          if [ "$result" -eq 44 ]; then
+            # Bootstrap the hash manifest from the full Pages archive deployed on Nov 19.
+            gh run download 44574797338 -R "$GITHUB_REPOSITORY" -n bridgepoint-v5000-1 -D "$RUNNER_TEMP/bp-complete-feature-baseline"
+            tar -xf "$RUNNER_TEMP/bp-complete-feature-baseline/artifact.tar" -C "$BASE"
+          elif [ "$result" -ne 0 ]; then
+            exit "$result"
+          fi
 
       - name: Restore all ten shipwrecks, ten plane wrecks and four spacecraft into V5000
         shell: bash
         run: |
           set -euo pipefail
-          ARCHIVE="$(find "$RUNNER_TEMP/bp-complete-feature-baseline" -type f -name artifact.tar -print -quit)"
-          test -n "$ARCHIVE"
           BASE="$RUNNER_TEMP/bp-complete-feature-site"
-          mkdir -p "$BASE"
-          tar -xf "$ARCHIVE" -C "$BASE"
-
-          # This exact Pages artifact was produced by the successful ten-plane,
-          # ten-shipwreck and four-spacecraft publishers on 2026-11-18.
           for file in \
             bridgepoint-shipwrecks-v1.js app/bridgepoint-shipwrecks-v1.js \
             bridgepoint-plane-wrecks-v1.js app/bridgepoint-plane-wrecks-v1.js \
@@ -2205,24 +2208,11 @@ jobs:
           test -s site/assets/spacecraft/nasa-gantry.glb
           echo "BRIDGEPOINT_10_SHIPWRECKS_10_PLANE_WRECKS_4_SPACECRAFT_PRESERVED"
 
-      - name: Download the verified Jenolan cave Pages artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: github-pages-jenolan-caves-v1
-          run-id: 44450370430
-          repository: ${{ github.repository }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          path: ${{ runner.temp }}/bp-jenolan-feature-baseline
-
       - name: Restore Jenolan Caves 3D renderer and point cloud into V5000
         shell: bash
         run: |
           set -euo pipefail
-          ARCHIVE="$(find "$RUNNER_TEMP/bp-jenolan-feature-baseline" -type f -name artifact.tar -print -quit)"
-          test -n "$ARCHIVE"
-          BASE="$RUNNER_TEMP/bp-jenolan-feature-site"
-          mkdir -p "$BASE"
-          tar -xf "$ARCHIVE" -C "$BASE"
+          BASE="$RUNNER_TEMP/bp-complete-feature-site"
           for file in \
             bridgepoint-jenolan-caves-v1.js \
             assets/underground/jenolan-caves-v1/manifest.json \
@@ -2276,6 +2266,7 @@ jobs:
           test -s site/assets/underground/jenolan-caves-v1/manifest.json
           test -s site/assets/underground/jenolan-caves-v1/pointcloud.bin.gz
           node tests/jenolan-caves-v1.test.mjs
+          python3 tools/restore_feature_assets.py write site
           echo "BRIDGEPOINT_JENOLAN_CAVES_3D_PRESERVED"
 
       - name: Download the first Manhattan web tile package
@@ -3014,7 +3005,7 @@ jobs:
           grep -Fq 'authModal' "$D/root.html"
           grep -Fq 'bridgepoint-drone-awareness-v1.js' "$D/root.html"
           grep -Fq 'bridgepoint-vessel-awareness-v1.js' "$D/root.html"
-          grep -Fq 'bridgepoint-faa-obstruction-towers-v1.js' "$D/root.html"
+          grep -Fq 'bridgepoint-faa-obstruction-towers-v1.js' "$D/landing.js"
           grep -Fq 'stableRadarDrape:true' "$D/world-v2300-weather.js"
           grep -Fq "const RADAR='https://mapservices.weather.noaa.gov/eventdriven/services/radar/radar_base_reflectivity_time/" "$D/world-v2300-weather.js"
           grep -Fq "id:'wx-radar',type:'raster'" "$D/world-v2300-weather.js"
