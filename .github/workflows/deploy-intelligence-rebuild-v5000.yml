@@ -2263,7 +2263,7 @@ jobs:
           node --check site/app-update-v5820.js
           grep -Fq 'app-update-v5820.js?v=6300-direct-entry' site/index.html
           grep -Fq 'app-update-v5820.js?v=6300-direct-entry' site/app/index.html
-          grep -Fq 'bridgepoint-welcome-space-v6260.js?v=6295-sdo-live-feed' site/index.html
+          grep -Fq 'bridgepoint-welcome-space-v6260.js?v=6296-mobile-safe-welcome' site/index.html
           grep -Fq 'bridgepoint-app-space-explorer-v1.js?v=6293-full-planetarium' site/index.html
           grep -Fq 'bridgepoint-app-space-explorer-v1.js?v=6293-full-planetarium' site/app/index.html
           test -s site/bridgepoint-app-space-explorer-v1.js
@@ -2361,7 +2361,7 @@ jobs:
               require_marker /tmp/bp-auth-root.html 'landing.js?v=6293-full-planetarium'
               require_marker /tmp/bp-auth-app.html 'app.js?v=6293-full-planetarium'
               require_marker /tmp/bp-auth-root.html 'bpw-celestial-system'
-              require_marker /tmp/bp-auth-root.html 'bridgepoint-welcome-space-v6260.js?v=6295-sdo-live-feed'
+              require_marker /tmp/bp-auth-root.html 'bridgepoint-welcome-space-v6260.js?v=6296-mobile-safe-welcome'
               if grep -Fq 'bridgepoint-welcome-space-v6257.js' /tmp/bp-auth-root.html; then
                 echo 'LIVE_SMOKE_LEGACY_WELCOME_RENDERER_STILL_REFERENCED'
                 missing=1
