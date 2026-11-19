@@ -3,13 +3,13 @@ import { readFile } from 'node:fs/promises';
 import {UNDERGROUND_SCAN_SITES,UNDERGROUND_SCAN_RIGHTS_HOLDS,buildUndergroundSiteFeatures,undergroundSitePopupHtml} from '../rebuild-v5000/bridgepoint-underground-scan-sites-v1.js';
 
 const features=buildUndergroundSiteFeatures();
-assert.equal(features.length,17,'seventeen reviewed site anchors are mapped');
-assert.equal(UNDERGROUND_SCAN_SITES.reduce((n,s)=>n+s.models.length,0),19,'nineteen real creator-hosted 3D models and tours are cataloged');
+assert.equal(features.length,22,'twenty-two reviewed site anchors are mapped');
+assert.equal(UNDERGROUND_SCAN_SITES.reduce((n,s)=>n+s.models.length,0),24,'twenty-four real creator-hosted 3D models and tours are cataloged');
 assert.equal(UNDERGROUND_SCAN_RIGHTS_HOLDS.length,3,'rights/source holds are exposed');
 assert.ok(features.every(f=>f.geometry.type==='Point'&&f.properties.iconImage));
 assert.ok(UNDERGROUND_SCAN_SITES.every(s=>s.models.every(m=>m.uid&&m.creator&&(
  m.matterportTourId ? (m.matterportTourId==='1BTGHi85s96'&&m.modelUrl==='https://my.matterport.com/show/?m=1BTGHi85s96'&&m.license.includes('original rights retained'))
- : m.embedOnly ? (['cbe5a1c208674091b48f65ac2d4cca94','be7675a23595489c86211608f0fb1886','ccfc7c2f43214b559e93c4857eb6ed4a','899e6c8016954dab825dffb07d583fb9','d0c88d0853844a8e9a1de22a342326cb'].includes(m.uid)&&m.license.includes('no reuse license displayed')&&m.modelUrl.startsWith('https://sketchfab.com/3d-models/'))
+ : m.embedOnly ? (['cbe5a1c208674091b48f65ac2d4cca94','be7675a23595489c86211608f0fb1886','ccfc7c2f43214b559e93c4857eb6ed4a','899e6c8016954dab825dffb07d583fb9','d0c88d0853844a8e9a1de22a342326cb','34861aec56564489bdb8ec1cd030ff00','239d912831f6471da95a2fd672b53398','74b4a560749743eaa53cd89793b4a629','cd6c5687814e484da0bf4d360a324c60','2989d29a52a0494aa0cd2e279b411247'].includes(m.uid)&&(m.uid==='cd6c5687814e484da0bf4d360a324c60'?m.license==='CC Attribution':m.license.includes('no reuse license displayed'))&&m.modelUrl.startsWith('https://sketchfab.com/3d-models/'))
  : (m.license==='CC Attribution'&&m.modelUrl.startsWith('https://sketchfab.com/3d-models/'))
 ))));
 assert.equal(UNDERGROUND_SCAN_SITES.find(s=>s.id==='paris-catacombs').models.length,3);
@@ -179,6 +179,43 @@ assert.ok(undergroundSitePopupHtml(africa).includes('NoAI usage restriction'),'s
 assert.ok(undergroundSitePopupHtml(africa).includes('not a raw point-cloud viewer'));
 assert.equal(UNDERGROUND_SCAN_SITES.filter(s=>s.id==='elands-bay-cave-south-africa').length,1);
 assert.equal(UNDERGROUND_SCAN_SITES.find(s=>s.id==='lima-lima-cave-antarctica').models[0].uid,'899e6c8016954dab825dffb07d583fb9','Antarctic model retained');
+const newGlobalSites=[
+ {id:'leidarendi-lava-cave-iceland',coord:[-21.84298,63.98462],uid:'34861aec56564489bdb8ec1cd030ff00',method:/iPhone 12 Pro/,location:/node 451798297/,creator:/Hamburg/},
+ {id:'masaya-bat-cave-nicaragua',coord:[-86.1688,11.9844],uid:'239d912831f6471da95a2fd672b53398',method:/1,001 digital photos/,location:/regional anchor/,creator:/Cliff Gill/},
+ {id:'cueva-de-las-manos-argentina',coord:[-70.66667,-47.15833],uid:'74b4a560749743eaa53cd89793b4a629',method:/Agisoft PhotoScan photogrammetry/,location:/National Institute of Anthropology/,creator:/guigus60/},
+ {id:'kelkaya-sinkhole-turkey',coord:[29.41611,37.74667],uid:'cd6c5687814e484da0bf4d360a324c60',method:/2,400,000 triangles/,location:/Regional marker at Honaz/,creator:/3BATS/},
+ {id:'weld-range-rock-shelter-australia',coord:[117.61801,-26.95327],uid:'2989d29a52a0494aa0cd2e279b411247',method:/Photogrammetric rock-shelter reconstruction/,location:/Regional Weld Range landmark/,creator:/Paul Bourke/}
+];
+assert.equal(new Set(newGlobalSites.map(s=>s.id)).size,5);
+assert.equal(new Set(newGlobalSites.map(s=>s.uid)).size,5);
+for(const expected of newGlobalSites){
+ const site=UNDERGROUND_SCAN_SITES.find(s=>s.id===expected.id);
+ assert.ok(site&&site.type==='cave',expected.id+' is a genuine separately mapped cave');
+ assert.deepEqual(site.coordinates,expected.coord);
+ assert.equal(site.models.length,1);
+ assert.equal(site.models[0].uid,expected.uid);
+ assert.equal(site.models[0].embedOnly,true);
+ assert.match(site.models[0].method,expected.method);
+ assert.match(site.locationPrecision,expected.location);
+ assert.match(site.models[0].creator,expected.creator);
+ assert.equal(UNDERGROUND_SCAN_SITES.filter(s=>s.id===expected.id).length,1);
+ const html=undergroundSitePopupHtml(site);
+ assert.ok(html.includes('sketchfab.com/models/'+expected.uid+'/embed'),'same original creator-hosted embedded 3D viewer');
+ assert.ok(html.includes('sandbox="allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-presentation"'),'new 3D viewer contained in BridgePoint');
+ assert.ok(!html.includes('target="_blank"'),'no external link in the card');
+ assert.ok(!html.includes('allow-top-navigation')&&!html.includes('allow-popups'),'iframe cannot navigate away or open tabs');
+ assert.ok(!html.includes('href="https://sketchfab.com'),'do not redirect to Sketchfab');
+ assert.ok(!html.includes('allowfullscreen'),'mobile viewer cannot trigger fullscreen redirect');
+ assert.ok(html.includes('Explore the photo-mesh here in BridgePoint'),'keep original in-app viewer format');
+ assert.ok(html.includes('Creator:'));
+ assert.ok(html.includes('Capture method:'));
+ assert.ok(html.includes('Map placement:'));
+}
+assert.match(UNDERGROUND_SCAN_SITES.find(s=>s.id==='kelkaya-sinkhole-turkey').models[0].license,/^CC Attribution$/);
+assert.match(UNDERGROUND_SCAN_SITES.find(s=>s.id==='leidarendi-lava-cave-iceland').models[0].detail,/does not represent it as verified pure photogrammetry/);
+assert.match(UNDERGROUND_SCAN_SITES.find(s=>s.id==='weld-range-rock-shelter-australia').locationPrecision,/NOT the exact position/);
+assert.match(UNDERGROUND_SCAN_SITES.find(s=>s.id==='masaya-bat-cave-nicaragua').locationPrecision,/actual Tzinancostoc/);
+assert.equal(UNDERGROUND_SCAN_SITES.find(s=>s.id==='elands-bay-cave-south-africa').models[0].uid,'d0c88d0853844a8e9a1de22a342326cb','previous 19 models preserved');
 for(const site of [japan,china,egypt,antarctic,africa]){
  const html=undergroundSitePopupHtml(site);
  assert.ok(html.includes('sandbox="allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-presentation"'),'new caves must stay inside BridgePoint');
