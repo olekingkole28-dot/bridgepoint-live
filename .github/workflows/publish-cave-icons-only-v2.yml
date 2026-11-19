@@ -1,4 +1,4 @@
-# Publish only the Ohio Rock House in-app viewer containment fix from verified v9 Pages; all unrelated production bytes remain identical.
+# Trigger verified Ohio Rock House in-app viewer containment release from known-good v9 Pages snapshot; no unrelated site changes.
 name: Publish Only Ohio Rock House Embedded In-App Viewer Fix v10
 on:
   workflow_dispatch:
