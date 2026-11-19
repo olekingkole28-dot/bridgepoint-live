@@ -2739,6 +2739,22 @@ jobs:
           fetch app.html /app/
           fetch landing.js /landing.js
           fetch app.js /app.js
+          fetch view.js /bridgepoint-view-v5917.js
+          fetch jenolan.js /bridgepoint-jenolan-caves-v1.js
+          fetch app-jenolan.js /app/bridgepoint-jenolan-caves-v1.js
+          fetch jenolan-manifest.json /assets/underground/jenolan-caves-v1/manifest.json
+          fetch jenolan-pointcloud.bin.gz /assets/underground/jenolan-caves-v1/pointcloud.bin.gz
+          cmp -s "$D/jenolan.js" "$D/app-jenolan.js"
+          gzip -t "$D/jenolan-pointcloud.bin.gz"
+          python3 - "$D/jenolan-manifest.json" <<'PY'
+          import json,sys
+          from pathlib import Path
+          manifest=json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+          assert manifest["siteId"]=="jenolan-caves-system"
+          assert manifest["license"]=="CC BY-SA 3.0"
+          assert manifest["materializedPointCount"]>1_000_000
+          print("BRIDGEPOINT_JENOLAN_HOSTED_POINTCLOUD_LIVE_PASS",manifest["materializedPointCount"])
+          PY
 
           for name in \
             bridgepoint-shipwrecks-v1.js bridgepoint-plane-wrecks-v1.js bridgepoint-plane-wrecks-extra-v1.js \
@@ -2752,7 +2768,8 @@ jobs:
           for name in \
             bridgepoint-drone-awareness-v1.js bridgepoint-vessel-awareness-v1.js \
             bridgepoint-faa-obstruction-towers-v1.js bridgepoint-lighthouses-v1.js \
-            bridgepoint-underground-scan-sites-v1.js bridgepoint-global-motion-v5926.js \
+            bridgepoint-underground-scan-sites-v1.js bridgepoint-jenolan-caves-v1.js \
+            bridgepoint-global-motion-v5926.js bridgepoint-live-rail-v5969.js bridgepoint-rail-mesh-v5973.js \
             bridgepoint-orbit-renderer-v6201.js world-v2300-weather.js \
             world-v2300-present-weather.js world-v2300-clouds.js world-v2300-rain.js \
             world-v2300-lightning.js world-v2300-seismic-layer-v1.js; do
@@ -2765,6 +2782,19 @@ jobs:
           done
           gzip -t "$D/bridgepoint-faa-obstructions-v1.json.gz"
 
+          grep -Fq 'data-bpv-action="clouds"' "$D/view.js"
+          grep -Fq 'data-bpv-action="wildfire"' "$D/view.js"
+          grep -Fq 'setWildfiresVisible' "$D/world-v2300-weather.js"
+          grep -Fq 'setEnabled' "$D/world-v2300-clouds.js"
+          grep -Fq 'bp-faa-obstructions-toggle-v1' "$D/bridgepoint-faa-obstruction-towers-v1.js"
+          grep -Fq 'bp-shipwrecks-toggle-v1' "$D/bridgepoint-shipwrecks-v1.js"
+          grep -Fq 'bp-plane-wrecks-toggle-v1' "$D/bridgepoint-plane-wrecks-v1.js"
+          grep -Fq 'bp-spacecraft-toggle-v1' "$D/bridgepoint-spacecraft-v1.js"
+          grep -Fq 'data-bp-seismic-toggle' "$D/world-v2300-seismic-layer-v1.js"
+          grep -Fq 'bp-live-rail-toggle-v5969-' "$D/bridgepoint-live-rail-v5969.js"
+          grep -Fq 'bp-jenolan-caves-toggle-v1' "$D/bridgepoint-jenolan-caves-v1.js"
+          grep -Fq 'initJenolanCavesRenderer(world)' "$D/landing.js"
+          grep -Fq 'initJenolanCavesRenderer(world)' "$D/app.js"
           grep -Fq 'initSpacecraftRenderer' "$D/bridgepoint-spacecraft-v1.js"
           grep -Fq 'Apollo 11 Command Module' "$D/bridgepoint-spacecraft-columbia-v1.js"
           grep -Fq 'Space Shuttle Orbiter OV-103' "$D/bridgepoint-spacecraft-discovery-v1.js"
