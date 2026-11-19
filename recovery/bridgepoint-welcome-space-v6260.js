@@ -16,7 +16,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
 
 (() => {
   'use strict';
-  const VERSION = 'v6295-sdo-live-feed';
+  const VERSION = 'v6296-mobile-safe-welcome';
   if (window.__BP_WELCOME_SPACE_V6257__?.version) return;
   const host = document.querySelector('#bpWelcomeGateV1 .bpw-celestial-system');
   if (!host) return;
@@ -104,7 +104,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.12;
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, mobile ? 1.1 : 1.5));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, mobile ? 0.9 : 1.5));
 
   const scene = new THREE.Scene();
   scene.background = null;
@@ -2286,10 +2286,15 @@ function createMoonTerrainController() {
   window.addEventListener('resize',resize,{passive:true});
 
   const clock=new THREE.Clock();
+  // Keep the dual-WebGL welcome screen responsive on phones while preserving desktop quality.
+  const mobileFrameIntervalMs = mobile ? ((navigator.deviceMemory || 4) <= 3 ? 50 : 1000 / 30) : 0;
+  let lastMobileRenderAt = 0;
   const reference=new Date('2026-01-01T00:00:00Z').getTime();
   let disposed=false,renderActive=true;
-  function render(){
+  function render(frameTime=performance.now()){
     if(disposed||!renderActive||document.hidden)return;
+    if(mobileFrameIntervalMs>0&&lastMobileRenderAt&&frameTime-lastMobileRenderAt<mobileFrameIntervalMs){requestAnimationFrame(render);return}
+    lastMobileRenderAt=frameTime;
     const elapsed=clock.getDelta(),t=nowSeconds();
     const elapsedFromStart=t;
     const orbitalDays=(Date.now()-reference)/86400000 + elapsedFromStart*1200/86400;
@@ -2362,7 +2367,7 @@ function createMoonTerrainController() {
     renderer.render(scene,camera);
     if(renderActive&&!document.hidden)requestAnimationFrame(render);
   }
-  document.addEventListener('visibilitychange',()=>{if(renderActive&&!document.hidden)requestAnimationFrame(render);});
+  document.addEventListener('visibilitychange',()=>{if(renderActive&&!document.hidden){lastMobileRenderAt=0;requestAnimationFrame(render);}});
   resize();
   render();
   setInterval(()=>{if(renderActive&&viewState==='sun')refreshLiveSolarObservations();},LIVE_SOLAR_REFRESH_MS);
@@ -2393,16 +2398,21 @@ function createMoonTerrainController() {
       lunarLabelCount:window.__BP_MOON_TERRAIN_V1__?.labelCount||0,
       proceduralLunarRelief:'fallback-only-outside-loaded-NASA-DEM-coverage'})
   };
-  void import('./bridgepoint-gaia-galaxy-v6270.js?v=6293-full-planetarium')
-    .then(module=>{
-      solarCosmos=module.initBridgePointSolarCosmos({
-        THREE,scene,camera,canvas,host,controls,starsGroup:stars,
-        getSunPosition:()=>sunPosition.clone(),
-        getMoonPosition:()=>moonMesh.getWorldPosition(new THREE.Vector3()),
-        focusBody,clickables,
-        bodyRefs:{earth:earthDepthOccluder,moon:moonMesh,sun:sunMesh},
-        isMobile:mobile
-      });
-    })
-    .catch(error=>console.warn('[BridgePoint Gaia DR3] Unified celestial scene unavailable:',error));
+  if(!mobile){
+    void import('./bridgepoint-gaia-galaxy-v6270.js?v=6293-full-planetarium')
+      .then(module=>{
+        solarCosmos=module.initBridgePointSolarCosmos({
+          THREE,scene,camera,canvas,host,controls,starsGroup:stars,
+          getSunPosition:()=>sunPosition.clone(),
+          getMoonPosition:()=>moonMesh.getWorldPosition(new THREE.Vector3()),
+          focusBody,clickables,
+          bodyRefs:{earth:earthDepthOccluder,moon:moonMesh,sun:sunMesh},
+          isMobile:mobile
+        });
+      })
+      .catch(error=>console.warn('[BridgePoint Gaia DR3] Unified celestial scene unavailable:',error));
+  }else{
+    // The welcome view keeps its Earth, Moon and Sun on mobile; defer the heavy Gaia catalogue and extra planet textures.
+    window.__BP_WELCOME_SOLAR_COSMOS_MOBILE__={version:VERSION,status:'deferred-on-mobile-welcome',reason:'protect mobile startup responsiveness'};
+  }
 })();
