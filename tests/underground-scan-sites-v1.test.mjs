@@ -95,7 +95,9 @@ assert.ok(!rockHouse.models[0].license.includes('CC Attribution'),'no invented C
 assert.ok(undergroundSitePopupHtml(rockHouse).includes('my.matterport.com/show/?m=1BTGHi85s96&amp;play=1'));
 assert.ok(undergroundSitePopupHtml(rockHouse).includes('Open original Matterport 3D tour'));
 assert.ok(undergroundSitePopupHtml(rockHouse).includes('Elements of Media'));
-assert.ok(undergroundSitePopupHtml(rockHouse).includes('not a pure photogrammetry'));
+assert.ok(undergroundSitePopupHtml(rockHouse).includes('does not claim it is a pure photogrammetry'));
+assert.ok(undergroundSitePopupHtml(rockHouse).includes('Access / rights:'));
+assert.ok(undergroundSitePopupHtml(rockHouse).includes('original publisher retains rights'));
 assert.equal(UNDERGROUND_SCAN_SITES.filter(s=>s.id==='rock-house-ohio').length,1);
 assert.ok(undergroundSitePopupHtml(anchorChurch).includes('sketchfab.com/models/c7125417f09e43229288316c8144e625/embed'));
 assert.ok(undergroundSitePopupHtml(anchorChurch).includes('Open original Sketchfab model'));
