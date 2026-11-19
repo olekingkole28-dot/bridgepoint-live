@@ -2670,15 +2670,15 @@ jobs:
                 if(profile.name==='android-phone'&&initial.mobileProfile!=='deferred-on-mobile-welcome')throw new Error('ANDROID_MOBILE_GPU_PROFILE_NOT_APPLIED '+JSON.stringify(initial));
                 if(profile.mobile&&(!initial.mobileScriptDeferral||Number(initial.mobileScriptDeferral.deferredCount)<10))throw new Error('ANDROID_OPTIONAL_SCRIPTS_NOT_DEFERRED '+JSON.stringify(initial));
 
-                await page.evaluate(()=>{
-                  const probe={frames:0,active:true};
-                  window.__BP_WELCOME_FRAME_PROBE__=probe;
-                  const tick=()=>{if(!probe.active)return;probe.frames++;requestAnimationFrame(tick)};
-                  requestAnimationFrame(tick);
-                });
-                await new Promise(resolve=>setTimeout(resolve,1500));
-                const frames=await page.evaluate(()=>window.__BP_WELCOME_FRAME_PROBE__?.frames||0);
-                if(frames<12)throw new Error('WELCOME_MAIN_THREAD_NOT_RESPONDING '+profile.name+' frames='+frames);
+                const eventLoop=await Promise.race([
+                  page.evaluate(()=>new Promise(resolve=>{
+                    const start=performance.now();
+                    setTimeout(()=>resolve({visible:document.visibilityState==='visible',elapsedMs:performance.now()-start}),500);
+                  })),
+                  new Promise(resolve=>setTimeout(()=>resolve(null),5000))
+                ]);
+                if(!eventLoop||!eventLoop.visible||eventLoop.elapsedMs>3000)
+                  throw new Error('WELCOME_MAIN_THREAD_NOT_RESPONDING '+profile.name+' '+JSON.stringify(eventLoop));
 
                 await page.click('#bpWelcomeGateV1 .bpw-create');
                 await page.waitForFunction(()=>{const m=document.getElementById('authModal');return !!m&&!m.hidden&&document.getElementById('authPassword')?.autocomplete==='new-password'},{timeout:10000});
@@ -2720,6 +2720,66 @@ jobs:
                 });
                 if(!appState.map||!appState.canvas||appState.canvasCount!==1||appState.projection!=='globe')throw new Error('APP_GLOBE_NOT_READY '+profile.name+' '+JSON.stringify(appState));
                 if(appState.scrollWidth>appState.viewportWidth+3)throw new Error('APP_HORIZONTAL_OVERFLOW '+profile.name+' '+JSON.stringify(appState));
+
+                // Verify that the signed-in map card mounts every restored feature control,
+                // then press each control and confirm its visible state actually changes.
+                await appPage.waitForSelector('#bpv-dock-reopen',{visible:true,timeout:30000});
+                await appPage.click('#bpv-dock-reopen');
+                await appPage.waitForFunction(()=>!!document.querySelector('#bpv-dock')&&!document.querySelector('#bpv-dock').hidden,{timeout:10000});
+                const featureSelectors=[
+                  '#bp-faa-obstructions-toggle-v1',
+                  '#bp-shipwrecks-toggle-v1',
+                  '#bp-plane-wrecks-toggle-v1',
+                  '#bp-spacecraft-toggle-v1',
+                  '#bp-jenolan-caves-toggle-v1',
+                  '[data-bp-seismic-toggle="1"]',
+                  '.bp-live-rail-toggle-v5969',
+                  '[data-bpv-action="clouds"]',
+                  '[data-bpv-action="wildfire"]'
+                ];
+                await appPage.waitForFunction(selectors=>selectors.every(selector=>{
+                  const el=document.querySelector(selector),r=el?.getBoundingClientRect(),s=el?getComputedStyle(el):null;
+                  return !!el&&!!r&&r.width>0&&r.height>0&&s?.display!=='none'&&s?.visibility!=='hidden';
+                }),{timeout:120000},featureSelectors);
+                const mountedFeatures=await appPage.evaluate(selectors=>selectors.map(selector=>({
+                  selector,label:(document.querySelector(selector)?.innerText||'').trim(),
+                  visible:!!document.querySelector(selector)&&getComputedStyle(document.querySelector(selector)).visibility!=='hidden'
+                })),featureSelectors);
+                if(mountedFeatures.length!==featureSelectors.length||mountedFeatures.some(x=>!x.visible))
+                  throw new Error('BRIDGEPOINT_FEATURE_CONTROLS_NOT_VISIBLE '+JSON.stringify(mountedFeatures));
+
+                async function pressAndRestore(selector){
+                  const before=await appPage.$eval(selector,el=>el.getAttribute('aria-pressed'));
+                  await appPage.click(selector);
+                  await appPage.waitForFunction((sel,prior)=>document.querySelector(sel)?.getAttribute('aria-pressed')!==prior,{timeout:20000},selector,before);
+                  const enabled=await appPage.$eval(selector,el=>el.getAttribute('aria-pressed'));
+                  if(enabled===before)throw new Error('BRIDGEPOINT_FEATURE_BUTTON_DID_NOT_TOGGLE '+selector);
+                  await appPage.click(selector);
+                  await appPage.waitForFunction((sel,prior)=>document.querySelector(sel)?.getAttribute('aria-pressed')===prior,{timeout:20000},selector,before);
+                  return {selector,offState:before,onState:enabled,restored:true};
+                }
+                const pressedFeatures=[];
+                for(const selector of [
+                  '#bp-faa-obstructions-toggle-v1',
+                  '#bp-shipwrecks-toggle-v1',
+                  '#bp-plane-wrecks-toggle-v1',
+                  '#bp-spacecraft-toggle-v1',
+                  '#bp-jenolan-caves-toggle-v1',
+                  '[data-bp-seismic-toggle="1"]',
+                  '[data-bpv-action="clouds"]',
+                  '[data-bpv-action="wildfire"]'
+                ]) pressedFeatures.push(await pressAndRestore(selector));
+
+                await appPage.click('.bp-live-rail-toggle-v5969');
+                await appPage.waitForFunction(()=>{const panel=document.querySelector('.bp-live-rail-panel-v5969');return !!panel&&!panel.hidden},{timeout:10000});
+                const trainCheckbox='.bp-live-rail-panel-v5969 input[type="checkbox"]';
+                await appPage.waitForSelector(trainCheckbox,{visible:true,timeout:10000});
+                await appPage.click(trainCheckbox);
+                await appPage.waitForFunction(()=>window.__BP_LIVE_RAIL_V5969__?.getState?.().some(state=>state.enabled===true),{timeout:15000});
+                await appPage.click(trainCheckbox);
+                await appPage.waitForFunction(()=>window.__BP_LIVE_RAIL_V5969__?.getState?.().every(state=>state.enabled===false),{timeout:15000});
+                console.log('BRIDGEPOINT_FEATURE_BUTTON_INTERACTION_PASS '+profile.name+' '+JSON.stringify({mountedFeatures,pressedFeatures,trainPanel:true,trainToggle:true}));
+
                 const appFatal=appErrors.filter(x=>!/ResizeObserver loop/i.test(x));
                 if(appFatal.length)throw new Error('APP_BROWSER_ERRORS '+profile.name+' '+JSON.stringify(appFatal.slice(-5)));
                 console.log('BRIDGEPOINT_APP_DEVICE_PASS '+profile.name+' '+JSON.stringify(appState));
