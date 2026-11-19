@@ -374,7 +374,8 @@ const expectedLoader = '<script defer src="/bridgepoint-transportation-loader-v1
 assert.ok(!landingHtml.includes(expectedScript), 'homepage never downloads the 3D transportation module during startup');
 assert.ok(!appHtml.includes(expectedScript), 'app never downloads the 3D transportation module during startup');
 assert.ok(landingHtml.includes(expectedLoader), 'homepage loads only the lightweight card-button launcher');
-assert.ok(appHtml.includes(expectedLoader), 'app loads only the lightweight card-button launcher');
+assert.ok(appHtml.includes('data-bp-deferred-src="/bridgepoint-transportation-loader-v1.js?v=4-global-pmtiles-stable-models"'), 'app stages the lightweight transportation card-button launcher behind the core globe');
+assert.ok(appHtml.includes('bridgepoint-transportation-loader-v1.js'), 'the staged app feature queue retains the transportation launcher');
 assert.ok(loaderSource.includes("button.addEventListener('click'"), 'the simulation loader is attached to a user button press');
 assert.ok(loaderSource.includes('script.async = true'), 'the simulation bundle loads asynchronously');
 assert.ok(loaderSource.includes('script.src = MODULE_SRC'), 'the heavy simulation module is requested dynamically');
