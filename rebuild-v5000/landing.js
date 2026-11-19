@@ -741,6 +741,54 @@ async function initMap(){
   if(!world?.map)throw new Error('Shared BridgePoint world renderer unavailable');
   map=world.map;
   window.__BP_LANDING_WORLD__=world;
+  const bpMobileWelcomeBootV6301=matchMedia('(max-width:900px)').matches||
+    Number(navigator.deviceMemory||4)<=4||Number(navigator.hardwareConcurrency||4)<=4;
+  if(bpMobileWelcomeBootV6301){
+    // The phone welcome entry needs the globe and auth controls first. Do not
+    // parse/initialize every optional 3D renderer while the entry screen is opening.
+    window.__BP_LANDING_MOBILE_ENTRY_LITE_V6301__={
+      version:6301,status:'base-globe-first',optionalRenderers:'deferred',
+      deferredUntil:'welcome-gate-dismissed-or-explicit-feature-request',
+      updatedAt:Date.now()
+    };
+    window.__BP_LANDING_ENABLE_OPPORTUNITIES__=async()=>setLandingOpportunitiesEnabled(world,true);
+    window.__BP_LANDING_TOGGLE_OPPORTUNITIES__=async()=>setLandingOpportunitiesEnabled(world,!landingOpportunityEnabled);
+    window.__BP_LANDING_OPPORTUNITY_STATE__=()=>({enabled:landingOpportunityEnabled,updatedAt:Date.now()});
+    window.__BP_LANDING_ENABLE_WEATHER__=async()=>{
+      if(!world?.map)throw new Error('BridgePoint globe is not ready');
+      await setLandingWeatherEnabled(world,true);
+      void startLandingNationalWeather(world);
+      return true;
+    };
+    window.__BP_LANDING_TOGGLE_WEATHER__=async()=>{
+      if(landingWeatherEnabled){await setLandingWeatherEnabled(world,false);return false}
+      window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('weather');
+      return await window.__BP_LANDING_ENABLE_WEATHER__();
+    };
+    window.__BP_TOGGLE_WATER__=async()=>{
+      if(!window.__BP_WATER_ENGINE_LANDING_V6123__){
+        const mod=await import('./world-v2300-water.js?v=6256-gerstner-ocean');
+        window.__BP_WATER_ENGINE_LANDING_V6123__=mod.initWaterEngine(world,{surface:'landing'});
+        if(!window.__BP_WATER_ENGINE_LANDING_V6123__)throw new Error('GPU water surface did not initialize');
+      }
+      const api=window.__BP_WATER_ENGINE_LANDING_V6123__;
+      const enable=!window.__BP_WATER_ENGINE_LANDING_V6123_ENABLED__;
+      window.__BP_WATER_ENGINE_LANDING_V6123_ENABLED__=enable;
+      api.active=enable;api.setEnabled?.(enable);
+      return enable;
+    };
+    window.__BP_ACTIVATE_CLOUDS__=async()=>{
+      if(!window.__BP_SKY_CLOUDS_V5908__){
+        const mod=await import('./world-v2300-clouds.js?v=6202-global-satellite-cloud-banks');
+        window.__BP_SKY_CLOUDS_V5908__=mod.initSkyClouds(world);
+      }
+      const api=window.__BP_SKY_CLOUDS_V5908__;
+      if(!api)throw new Error('3D cloud engine unavailable');
+      api.setEnabled?.(true);return api;
+    };
+    window.__BP_LANDING_MAP_BOOT__={stage:'world-ready-mobile-entry-lite',maplibre:true,module:true,world:true,optionalRenderers:'deferred',at:Date.now()};
+    return;
+  }
   // FAA-listed towers, antennas and cranes are loaded independently from the core globe.
   void import('./bridgepoint-faa-obstruction-towers-v1.js?v=2-aircraft-filters-faa-restored')
    .then(m=>{window.__BP_FAA_OBSTRUCTIONS_V1__=m.initFAAObstructionTowerRenderer(world)})
@@ -1351,5 +1399,20 @@ function bind(){document.querySelectorAll('.auth-open').forEach(b=>b.onclick=()=
  try{window.__BP_LANDING_WORLD__?.map?.triggerRepaint?.()}catch(_){}
  window.__BP_LANDING_SOFT_REFRESH__={hardReload:false,lastAt:Date.now()}
 });
-if(!hashSession()){bind();bindMetricNavigation();bindWorldBackdrop();bindConversionPreview();watchCriticalCopy();hydrateLiveMetricSnapshot();headline();warmLandingWeatherFirstFrameV6134();initMap();setInterval(headline,60000);liveCountryCounters();setInterval(liveCountryCounters,30000);window.__BP_LIVE_COUNTER_LOOP_V5906__={intervalMs:30000,source:'bridgepoint_public_live_counters_v5902',updatedAt:Date.now()};globalCoverage();setInterval(globalCoverage,300000);opportunitySummary();setInterval(opportunitySummary,300000);packages();if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=6247-universal-fresh-entry-sidewalk',{updateViaCache:'none'}).catch(()=>{})}
+if(!hashSession()){
+ bind();bindMetricNavigation();bindWorldBackdrop();bindConversionPreview();watchCriticalCopy();headline();
+ const bpMobileEntryFirstV6301=matchMedia('(max-width:900px)').matches||
+   Number(navigator.deviceMemory||4)<=4||Number(navigator.hardwareConcurrency||4)<=4;
+ if(bpMobileEntryFirstV6301){
+  // Keep the first phone frame clear of dashboard RPC hydration and optional renderer imports.
+  window.__BP_LANDING_MOBILE_ENTRY_FIRST_FRAME_V6301__={version:6301,status:'light-first-frame',weatherWarmup:false,globalCounterHydration:false,updatedAt:Date.now()};
+  initMap();
+ }else{
+  hydrateLiveMetricSnapshot();warmLandingWeatherFirstFrameV6134();initMap();
+  setInterval(headline,60000);liveCountryCounters();setInterval(liveCountryCounters,30000);
+  window.__BP_LIVE_COUNTER_LOOP_V5906__={intervalMs:30000,source:'bridgepoint_public_live_counters_v5902',updatedAt:Date.now()};
+  globalCoverage();setInterval(globalCoverage,300000);opportunitySummary();setInterval(opportunitySummary,300000);packages();
+ }
+ if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=6247-universal-fresh-entry-sidewalk',{updateViaCache:'none'}).catch(()=>{})
+}
 // BP_V5441_DEPLOY_SYNC: compact national hazard dots; radar and boundaries unchanged.
