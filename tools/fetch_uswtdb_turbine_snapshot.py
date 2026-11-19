@@ -30,13 +30,13 @@ MAX_ROWS = 150000
 
 def download_archive():
     last_error = None
-    for attempt in range(4):
+    for attempt in range(2):
         request = urllib.request.Request(
             ARCHIVE_URL,
             headers={"User-Agent": "BridgePoint-Intelligence/1.0"}
         )
         try:
-            with urllib.request.urlopen(request, timeout=120) as response:
+            with urllib.request.urlopen(request, timeout=20) as response:
                 if response.status != 200:
                     raise RuntimeError("USGS archive HTTP %s" % response.status)
                 data = response.read()
@@ -45,8 +45,8 @@ def download_archive():
                 return data
         except Exception as error:
             last_error = error
-            if attempt < 3:
-                time.sleep(attempt + 1)
+            if attempt < 1:
+                time.sleep(1)
     raise RuntimeError("USGS archive unavailable: %s" % last_error)
 
 
