@@ -18,7 +18,10 @@ An additive, opt-in map layer for real photogrammetry and terrestrial/mobile-LiD
 | Vrlovka Cave, Croatia | 1 | Center for Geospatial Technologies (GAL), GeoSLAM | Published cave-site anchor; featured model is a high-detail cave segment |
 | Hohlenstein-Stadel Cave, Germany | 1 | Nature-témoin, 27-photo photogrammetry | Published archaeological cave-site coordinate; model is the entrance |
 | Treak Cliff Cavern, England | 1 | 9of9, phone-photo RealityCapture photogrammetry · real stalactite formation | Approximate public cave entrance; interior formation is not separately georeferenced |
+| Gruta dos Palhares, Brazil | 1 | Paulo Rodrigo Simões (@rollingdrone), textured cave photogrammetry · CC Attribution | Approximate published entrance coordinate, not a georeferenced underground surface |
 | Øm Jættestue, Denmark | 1 | Azad Balabanian, 610-image photogrammetry | Published GPS site coordinate; passage tomb, not a natural cave |
+
+Gruta dos Palhares is a photo-based textured cave mesh, not a LiDAR point cloud. Its site marker uses a published approximate entrance coordinate near Sacramento, Minas Gerais. Model by Paulo Rodrigo Simões, displayed license CC Attribution. The viewer is embedded in the existing BridgePoint-styled card; the mesh remains hosted on the creator's Sketchfab page. No globe, rendering, or icon-size changes.
 
 The Treak Cliff Cavern addition displays **CC Attribution**, is an original textured photogrammetry scan, and is embedded in the BridgePoint card via its creator-hosted Sketchfab viewer (the model file is **not** stored on BridgePoint). All Cave & Sites map icons are enlarged while the layer is active, with unchanged zoom range and click behavior.
 
