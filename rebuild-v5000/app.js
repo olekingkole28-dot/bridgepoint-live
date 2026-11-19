@@ -158,26 +158,41 @@ async function bootMap(){
  // optional renderers. Queue one renderer per idle window to prevent a login-time
  // burst of WebGL, network, and source/layer work from freezing touch input.
  const bpOptionalRendererQueue=[];
- let bpOptionalRendererStarted=false;
+ let bpOptionalRendererStarted=false,bpOptionalRendererIndex=0;
+ const bpOptionalRendererBoot={version:6310,status:'queued',queued:0,started:0,completed:0,failed:[],lastStarted:null,updatedAt:Date.now()};
+ window.__BP_APP_OPTIONAL_RENDERER_BOOT__=bpOptionalRendererBoot;
  const scheduleOptionalRenderer=run=>{
   bpOptionalRendererQueue.push(run);
+  bpOptionalRendererBoot.queued=bpOptionalRendererQueue.length+bpOptionalRendererBoot.started;
   if(bpOptionalRendererStarted)return;
   bpOptionalRendererStarted=true;
   const pump=()=>{
-   if(!bpOptionalRendererQueue.length)return;
-   if(document.hidden){setTimeout(pump,1200);return}
-   // Never let one slow optional import hold the rest of the feature buttons hostage.
-   // Launch each renderer in its own idle window, then keep draining the queue even
-   // while an earlier renderer is still fetching data or compiling GPU resources.
-   const runNext=bpOptionalRendererQueue.shift();
-   const launch=()=>{Promise.resolve().then(runNext).catch(error=>console.warn('BridgePoint deferred renderer unavailable',error));setTimeout(pump,900)};
-   if(typeof window.requestIdleCallback==='function')window.requestIdleCallback(launch,{timeout:1600});
-   else setTimeout(launch,300);
+   if(!bpOptionalRendererQueue.length){bpOptionalRendererBoot.status='complete';bpOptionalRendererBoot.updatedAt=Date.now();return}
+   if(document.hidden){bpOptionalRendererBoot.status='paused-hidden';setTimeout(pump,1200);return}
+   const runNext=bpOptionalRendererQueue.shift(),index=++bpOptionalRendererIndex;
+   bpOptionalRendererBoot.status='initializing';
+   bpOptionalRendererBoot.started=index;bpOptionalRendererBoot.lastStarted=index;bpOptionalRendererBoot.updatedAt=Date.now();
+   // Deterministic timers avoid requestIdleCallback starvation while the WebGL globe
+   // is continuously repainting. Expensive model/data work remains lazy until a button
+   // is pressed; only lightweight control registrars are initialized here.
+   setTimeout(()=>{
+    let pending;
+    try{pending=runNext()}catch(error){pending=Promise.reject(error)}
+    Promise.resolve(pending).then(()=>{
+      bpOptionalRendererBoot.completed++;
+      bpOptionalRendererBoot.updatedAt=Date.now();
+    }).catch(error=>{
+      bpOptionalRendererBoot.failed.push({index,message:String(error?.message||error).slice(0,220)});
+      bpOptionalRendererBoot.updatedAt=Date.now();
+      console.warn('BridgePoint deferred renderer unavailable',error);
+    });
+    setTimeout(pump,520);
+   },0);
   };
   let begun=false;
-  const begin=()=>{if(begun)return;begun=true;setTimeout(pump,1400)};
+  const begin=()=>{if(begun)return;begun=true;bpOptionalRendererBoot.status='draining';setTimeout(pump,1500)};
   if(world?.map?.loaded?.()||world?.map?.isStyleLoaded?.())begin();
-  else{world?.map?.once?.('load',begin);world?.map?.once?.('idle',begin);setTimeout(begin,6500)}
+  else{world?.map?.once?.('load',begin);world?.map?.once?.('idle',begin);setTimeout(begin,4200)}
  };
 scheduleOptionalRenderer(() => import('./bridgepoint-faa-obstruction-towers-v1.js?v=2-aircraft-filters-faa-restored')
   .then(m=>{window.__BP_FAA_OBSTRUCTIONS_V1__=m.initFAAObstructionTowerRenderer(world)})
@@ -345,7 +360,24 @@ scheduleOptionalRenderer(() => import('./bridgepoint-jenolan-caves-v1.js?v=1-jen
  // V5614: register the lightweight weather-FX capability contract immediately.
  // Network fetches and active particle rendering stay behind the interaction/pressure governor.
  window.__BP_ACTIVATE_SHARED_WEATHER__=()=>{if(!liveContextVisible)return;void initSharedVisualWeather(world,{activate:true,cloudsOnly:false})};
- void initSharedVisualWeather(world,{activate:true,cloudsOnly:true}).catch(e=>console.warn('BridgePoint always-on storm cloud feed unavailable',e));
+ window.__BP_SHARED_WEATHER_BOOT_V6310__={version:6310,status:'deferred-until-app-interactive',updatedAt:Date.now()};
+ const startDefaultClouds=()=>{
+  if(document.hidden||mapInteracting||(window.__BP_INTERACTION_PRIORITY_UNTIL__&&performance.now()<window.__BP_INTERACTION_PRIORITY_UNTIL__)){
+   setTimeout(startDefaultClouds,1400);return;
+  }
+  if(window.__BP_SHARED_VISUAL_WEATHER__?.map===world.map){window.__BP_SHARED_WEATHER_BOOT_V6310__.status='ready';return}
+  window.__BP_SHARED_WEATHER_BOOT_V6310__.status='loading';
+  void initSharedVisualWeather(world,{activate:true,cloudsOnly:true}).then(api=>{
+   window.__BP_SHARED_WEATHER_BOOT_V6310__.status=api?'ready':'unavailable';
+   window.__BP_SHARED_WEATHER_BOOT_V6310__.updatedAt=Date.now();
+  }).catch(e=>{
+   window.__BP_SHARED_WEATHER_BOOT_V6310__.status='unavailable';
+   window.__BP_SHARED_WEATHER_BOOT_V6310__.error=String(e?.message||e).slice(0,180);
+   console.warn('BridgePoint always-on storm cloud feed unavailable',e);
+  });
+ };
+ // Keep 3D clouds enabled by default, but let the map card and touch input settle first.
+ setTimeout(startDefaultClouds,9500);
  startLiveWeather();
  try{world.map.jumpTo({center:[0,20],zoom:BP_MOBILE?1.05:1.25,pitch:0,bearing:0});window.__BP_GLOBAL_START__={center:[0,20],projection:'globe',zoom:world.map.getZoom(),at:Date.now()}}catch(_){}
  window.__BP_INITIAL_WEATHER_PRIORITY__=false;
