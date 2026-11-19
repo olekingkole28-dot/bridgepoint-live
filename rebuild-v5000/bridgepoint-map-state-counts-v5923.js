@@ -28,7 +28,7 @@ function renderStates(rows){
 async function refresh(){
  if(loading)return loading;
  loading=(async()=>{try{
-  const r=await fetch(SUPA+'/rest/v1/rpc/bridgepoint_public_map_opportunity_summary_v5920',{method:'POST',headers:{apikey:KEY,'Content-Type':'application/json','Accept':'application/json'},body:'{}',cache:'no-store'});
+  const r=await fetch(SUPA+'/rest/v1/rpc/bridgepoint_public_map_opportunity_summary_v5920',{method:'POST',headers:{apikey:KEY,'Content-Type':'application/json','Accept':'application/json'},body:'{}'});
   const d=await r.json();if(!r.ok)throw new Error(d?.message||('HTTP '+r.status));
   if(d?.complete!==true||Number(d.version)!==5920||!Array.isArray(d.by_state))throw new Error('State counters are not ready');
   data=d;window.__BP_MAP_OPPORTUNITY_SUMMARY_V5920__=d;renderStates(d.by_state);
