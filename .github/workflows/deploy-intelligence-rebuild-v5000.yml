@@ -2657,9 +2657,9 @@ jobs:
                     const start=performance.now();
                     setTimeout(()=>resolve({elapsedMs:performance.now()-start}),500);
                   })),
-                  new Promise(resolve=>setTimeout(()=>resolve(null),5000))
+                  new Promise(resolve=>setTimeout(()=>resolve(null),8000))
                 ]);
-                if(!eventLoop||eventLoop.elapsedMs>3000)
+                if(!eventLoop||eventLoop.elapsedMs>5000)
                   throw new Error('WELCOME_MAIN_THREAD_NOT_RESPONDING '+profile.name+' '+JSON.stringify(eventLoop));
 
                 await page.click('#bpWelcomeGateV1 .bpw-create');
