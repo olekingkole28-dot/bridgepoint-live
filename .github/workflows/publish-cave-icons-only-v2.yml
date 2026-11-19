@@ -1,4 +1,4 @@
-# Publish exactly five new globally distributed Cave 3D scans from the verified v14 Elands Bay Pages snapshot; preserve all non-Cave production bytes.
+# Trigger merged five globally distributed cave scan release from verified v14 snapshot; all unrelated production files preserved byte-for-byte.
 name: Publish Only Five Real Global Cave Scans v15
 on:
   workflow_dispatch:
