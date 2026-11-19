@@ -199,12 +199,12 @@ test('entrypoints use fresh cache keys and keep the celestial canvas off the sat
     assert.match(source, /world-v2300-weather\.js\?v=6238-pc-runtime/);
     assert.match(source, /world-v2300-time-slider\.js\?v=6170-no-cloud-toggle-always-on/);
   }
-  assert.match(appHtml, /app\.js\?v=6311-app-entry-controls-priority/, 'app shell loads the updated app entrypoint');
+  assert.match(appHtml, /app\.js\?v=6312-post-auth-unblock-map/, 'app shell loads the updated app entrypoint');
   assert.doesNotMatch(map, /world-v2300-space\.js\?v=6125-manual-globe-camera/, 'the retired celestial overlay must not be imported by the live globe');
   assert.doesNotMatch(timeSlider, /data-clouds|toggleSkyClouds|world-v2300-clouds/);
   assert.match(bootstrap, /world-v2300-weather\.js\?v=6238-pc-runtime/);
-  assert.match(appHtml, /app\.js\?v=6311-app-entry-controls-priority/);
-  assert.match(landingHtml, /landing\.js\?v=6309-auth-mode-sync/);
+  assert.match(appHtml, /app\.js\?v=6312-post-auth-unblock-map/);
+  assert.match(landingHtml, /landing\.js\?v=6312-post-signin-queue/);
   assert.match(appHtml, /intelligence-global-v5507\.js\?v=6238-pc-runtime/);
   assert.match(landingHtml, /intelligence-global-v5507\.js\?v=6238-pc-runtime/);
 });
