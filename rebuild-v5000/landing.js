@@ -793,23 +793,52 @@ async function initMap(){
       window.__BP_LANDING_FEATURE_CONTROL_RESTORE_PROMISE__=(async()=>{
         if(!world?.map)throw new Error('BridgePoint globe is not ready');
         const jobs=[
-          ['./bridgepoint-faa-obstruction-towers-v1.js?v=2-mobile-aircraft-filters-faa-restored','__BP_FAA_OBSTRUCTIONS_V1__','initFAAObstructionTowerRenderer','FAA obstructions'],
-          ['./bridgepoint-shipwrecks-v1.js?v=11-titanic-gaskin-grafton-cannon-kxi-cape-otway-timaru-hms-loo-draco-ktx2-local-viewer','__BP_SHIPWRECKS_V1__','initShipwrecksRenderer','10 shipwrecks'],
-          ['./bridgepoint-plane-wrecks-v1.js?v=1-f4u1-corsair-colmap-pointcloud','__BP_PLANE_WRECKS_V1__','initPlaneWrecksRenderer','Plane Wrecks base'],
-          ['./bridgepoint-plane-wrecks-extra-v1.js?v=8-b17f-black-jack','__BP_PLANE_WRECKS_EXTRA_V1__','initPlaneWrecksExtraRenderer','10-plane-wreck catalogue'],
-          ['./bridgepoint-spacecraft-v1.js?v=1-sls-mobile-launcher-lc39b','__BP_SPACECRAFT_V1__','initSpacecraftRenderer','Spacecraft / SLS'],
-          ['./bridgepoint-spacecraft-columbia-v1.js?v=2-apollo11-columbia-principal-axis','__BP_SPACECRAFT_COLUMBIA_V1__','initSpacecraftColumbiaRenderer','Apollo 11 Columbia'],
-          ['./bridgepoint-spacecraft-discovery-v1.js?v=1-smithsonian-space-shuttle-discovery','__BP_SPACECRAFT_DISCOVERY_V1__','initSpacecraftDiscoveryRenderer','Space Shuttle Discovery'],
-          ['./bridgepoint-spacecraft-saturn-v1.js?v=1-nasa-saturn-v-launch39a','__BP_SPACECRAFT_SATURN_V1__','initSpacecraftSaturnRenderer','Saturn V'],
-          ['./bridgepoint-underground-scan-sites-v1.js?v=1-curated-sketchfab-caves','__BP_UNDERGROUND_SCAN_SITES_V1__','initUndergroundScanSitesRenderer','Caves and underground sites'],
-          ['./bridgepoint-jenolan-caves-v1.js?v=1-jenolan-large-system','__BP_JENOLAN_CAVES_V1__','initJenolanCavesRenderer','Jenolan Caves 3D scan']
+          ['./bridgepoint-faa-obstruction-towers-v1.js?v=2-mobile-aircraft-filters-faa-restored','__BP_FAA_OBSTRUCTIONS_V1__','initFAAObstructionTowerRenderer','FAA Towers'],
+          ['./bridgepoint-shipwrecks-v1.js?v=11-mobile-titanic-gaskin-grafton-cannon-kxi-cape-otway-timaru-hms-loo','__BP_SHIPWRECKS_V1__','initShipwrecksRenderer','10 Shipwrecks'],
+          ['./bridgepoint-plane-wrecks-v1.js?v=1-mobile-f4u1-corsair-colmap','__BP_PLANE_WRECKS_V1__','initPlaneWrecksRenderer','Plane Wrecks'],
+          ['./bridgepoint-plane-wrecks-extra-v1.js?v=8-mobile-b17f-black-jack','__BP_PLANE_WRECKS_EXTRA_V1__','initPlaneWrecksExtraRenderer','10 Plane Wrecks'],
+          ['./bridgepoint-spacecraft-v1.js?v=1-mobile-sls-launcher-lc39b','__BP_SPACECRAFT_V1__','initSpacecraftRenderer','Spacecraft 1 of 4'],
+          ['./bridgepoint-spacecraft-columbia-v1.js?v=2-mobile-apollo11-columbia','__BP_SPACECRAFT_COLUMBIA_V1__','initSpacecraftColumbiaRenderer','Spacecraft 2 of 4'],
+          ['./bridgepoint-spacecraft-discovery-v1.js?v=1-mobile-space-shuttle-discovery','__BP_SPACECRAFT_DISCOVERY_V1__','initSpacecraftDiscoveryRenderer','Spacecraft 3 of 4'],
+          ['./bridgepoint-spacecraft-saturn-v1.js?v=1-mobile-saturn-v-launch39a','__BP_SPACECRAFT_SATURN_V1__','initSpacecraftSaturnRenderer','Spacecraft 4 of 4'],
+          ['./bridgepoint-underground-scan-sites-v1.js?v=1-mobile-curated-caves','__BP_UNDERGROUND_SCAN_SITES_V1__','initUndergroundScanSitesRenderer','Caves and underground sites'],
+          ['./bridgepoint-jenolan-caves-v1.js?v=1-mobile-jenolan-large-system','__BP_JENOLAN_CAVES_V1__','initJenolanCavesRenderer','Jenolan Caves 3D scan'],
+          ['./world-v2300-lod-controls.js?v=6311-mobile-gold-lod','__BP_LOD_CONTROL_LANDING_V6016__','initWorldLodControls','Gold LOD controls',[{surface:'landing'}]],
+          ['./bridgepoint-lighthouses-v1.js?v=6311-mobile-lighthouses','__BP_LIGHTHOUSES_V1__','initLighthouseRenderer','3D lighthouses'],
+          ['./bridgepoint-offshore-energy-v1.js?v=6311-mobile-offshore-energy','__BP_OFFSHORE_ENERGY_V1__','initOffshoreEnergyRenderer','Offshore energy'],
+          ['./bridgepoint-subsurface-wells-v1.js?v=6311-mobile-subsurface-wells','__BP_SUBSURFACE_WELLS_V1__','initSubsurfaceWellsRenderer','Subsurface wells'],
+          ['./bridgepoint-wind-turbines-v1.js?v=6311-mobile-wind-turbines','__BP_WIND_TURBINES_V1__','initWindTurbinesRenderer','Wind turbines'],
+          ['./bridgepoint-solar-fields-v1.js?v=6311-mobile-solar-fields','__BP_SOLAR_FIELDS_V1__','initSolarFieldsRenderer','Solar fields'],
+          ['./world-v2300-time-slider.js?v=6311-mobile-world-time','__BP_WORLD_TIME_SLIDER_V5908__','initWorldTimeSlider','30-day world timeline',[rpc]],
+          ['./bridgepoint-celestial-sky-v6257.js?v=6311-mobile-celestial-sky','__BP_CELESTIAL_SKY_V6257__','initBridgePointCelestialSky','Celestial sky'],
+          ['./world-v2300-spectral-imagery.js?v=6311-mobile-spectral-imagery','__BP_SPECTRAL_IMAGERY_V5931__','initSpectralImagery','Satellite spectral filters'],
+          ['./world-v2300-underground-xray.js?v=6311-mobile-underground-xray','__BP_UNDERGROUND_XRAY_V5935__','initUndergroundXray','Underground X-ray'],
+          ['./world-v2300-seismic-layer-v1.js?v=6311-mobile-usgs-seismic','__BP_USGS_SEISMIC_LAYER_V1__','initUSGSSeismicLayer','Earthquakes and seismic activity'],
+          ['./world-v2300-infrastructure-volume-v5962.js?v=6311-mobile-infrastructure-volume','__BP_INFRASTRUCTURE_VOLUME_V5962__','initInfrastructureVolume','Power grid and FCC infrastructure'],
+          ['./world-v2300-utility-infrastructure-v1.js?v=6311-mobile-utility-wires','__BP_UTILITY_INFRASTRUCTURE_V1__','initUtilityInfrastructure','3D utility and communications infrastructure'],
+          ['./world-v2300-sensor-layers.js?v=6311-mobile-sensor-layers','__BP_SENSOR_LAYERS_V5945__','initSensorLayers','NASA night lights and mapped sensors'],
+          ['./world-v2300-realism.js?v=6311-mobile-world-realism','__BP_WORLD_REALISM_V5910__','initRealismMode','Real-world rendering controls']
         ];
         const results=[];
-        for(const [path,key,initName,label] of jobs){
+        try{window.dispatchEvent(new CustomEvent('bp:world-map-ready-v5940',{detail:{map:world.map,source:'mobile-post-signin'}}))}catch(_){}
+        try{
+          await import('./bridgepoint-landmarks-v5940.js?v=6311-mobile-landmarks');
+          try{window.dispatchEvent(new CustomEvent('bp:world-map-ready-v5940',{detail:{map:world.map,source:'mobile-post-signin-module-ready'}}))}catch(_){}
+          if(window.__BP_LANDMARKS_V5940__)window.__BP_LANDMARKS_V5940__.attachedMaps=Math.max(1,Number(window.__BP_LANDMARKS_V5940__.attachedMaps||0));
+          results.push({label:'3D landmarks',ready:true});
+        }catch(error){
+          results.push({label:'3D landmarks',ready:false,error:String(error?.message||error)});
+          console.warn('BridgePoint mobile feature control unavailable: 3D landmarks',error);
+        }
+        for(const [path,key,initName,label,args] of jobs){
           try{
             const module=await import(path);
-            window[key]=module[initName](world);
-            results.push({label,ready:!!window[key]});
+            if(key==='__BP_WORLD_TIME_SLIDER_V5908__'&&window[key]?.map===map){
+              results.push({label,ready:true,alreadyMounted:true});
+            }else{
+              window[key]=module[initName](world,...(args||[]));
+              results.push({label,ready:!!window[key]});
+            }
           }catch(error){
             results.push({label,ready:false,error:String(error?.message||error)});
             console.warn('BridgePoint mobile feature control unavailable: '+label,error);
@@ -817,7 +846,7 @@ async function initMap(){
           await new Promise(resolve=>setTimeout(resolve,35));
         }
         const ready=results.filter(x=>x.ready).length;
-        window.__BP_LANDING_FEATURE_CONTROLS_STATE__={version:6310,ready,total:results.length,results,restoredAt:Date.now()};
+        window.__BP_LANDING_FEATURE_CONTROLS_STATE__={version:6311,ready,total:results.length,results,restoredAt:Date.now()};
         return window.__BP_LANDING_FEATURE_CONTROLS_STATE__;
       })().catch(error=>{
         window.__BP_LANDING_FEATURE_CONTROL_RESTORE_PROMISE__=null;
