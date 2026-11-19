@@ -2441,6 +2441,8 @@ jobs:
           grep -Fq '__BP_WORLD_RENDER_VERSION__=5630' /tmp/bp-world.js
           grep -Fq "const V='bp-intelligence-v6247-universal-fresh-entry-sidewalk'" /tmp/bp-sw.js
           grep -Fq 'BUILD=6300' /tmp/bp-updater.js
+          grep -Fq 'BP_MOBILE_SCRIPT_DEFERRAL_V6302' /tmp/bp-root.html
+          grep -Fq 'application/x-bridgepoint-deferred' /tmp/bp-root.html
           owner_command_http="$(curl -sS -o /dev/null -w '%{http_code}' "$O/owner/command/?verify=$Q" || true)"
           owner_acquisition_http="$(curl -sS -o /dev/null -w '%{http_code}' "$O/owner/acquisition/?verify=$Q" || true)"
           echo "OWNER_ROUTE_DIAGNOSTIC command=$owner_command_http acquisition=$owner_acquisition_http (informational; not a globe/device gate)"
@@ -2545,6 +2547,8 @@ jobs:
                     create:create?{...rect(create),visible:getComputedStyle(create).visibility!=='hidden'}:null,
                     signin:signin?{...rect(signin),visible:getComputedStyle(signin).visibility!=='hidden'}:null,
                     mobileProfile:window.__BP_WELCOME_SOLAR_COSMOS_MOBILE__?.status||null,
+                    mobileScriptDeferral:window.__BP_MOBILE_SCRIPT_DEFERRAL_V6302__||null,
+                    deferredScriptNodes:document.querySelectorAll('script[type="application/x-bridgepoint-deferred"][data-bp-deferred-src]').length,
                     horizontalOverflow:document.documentElement.scrollWidth>innerWidth+3
                   };
                 });
@@ -2552,6 +2556,7 @@ jobs:
                 if(!initial.create?.visible||initial.create.width<120||!initial.signin?.visible||initial.signin.width<120)throw new Error('WELCOME_ACCOUNT_BUTTONS_NOT_VISIBLE '+profile.name+' '+JSON.stringify(initial));
                 if(initial.horizontalOverflow)throw new Error('WELCOME_HORIZONTAL_OVERFLOW '+profile.name+' '+JSON.stringify(initial));
                 if(profile.name==='android-phone'&&initial.mobileProfile!=='deferred-on-mobile-welcome')throw new Error('ANDROID_MOBILE_GPU_PROFILE_NOT_APPLIED '+JSON.stringify(initial));
+                if(profile.mobile&&(!initial.mobileScriptDeferral||Number(initial.mobileScriptDeferral.deferredCount)<10))throw new Error('ANDROID_OPTIONAL_SCRIPTS_NOT_DEFERRED '+JSON.stringify(initial));
 
                 await page.evaluate(()=>{
                   const probe={frames:0,active:true};
