@@ -2791,7 +2791,19 @@ jobs:
                 await appPage.waitForFunction(()=>!!document.querySelector('#bpv-dock')&&!document.querySelector('#bpv-dock').hidden,{timeout:10000});
                 // The staged app loader prioritizes the view, map key, planet selector,
                 // motion, rail, drone and vessel controls ahead of optional heavy layers.
-                await appPage.waitForFunction(()=>window.__BP_APP_SCRIPT_DEFERRAL_V6311__?.loadedCount>=8,{timeout:90000});
+                try{
+                  await appPage.waitForFunction(()=>window.__BP_APP_SCRIPT_DEFERRAL_V6311__?.loadedCount>=8,{timeout:90000});
+                }catch(queueError){
+                  const queueDiagnostics=await appPage.evaluate(()=>({
+                    queue:window.__BP_APP_SCRIPT_DEFERRAL_V6311__||null,
+                    visibility:document.visibilityState,
+                    readyState:document.readyState,
+                    canvas:!!window.__BP_V5000_WORLD__?.map?.getCanvas?.(),
+                    pendingPlaceholders:document.querySelectorAll('script[type="application/x-bridgepoint-deferred"][data-bp-deferred-src]').length,
+                    activeScripts:[...document.scripts].filter(s=>s.src).map(s=>s.src).slice(-16)
+                  }));
+                  throw new Error('APP_FEATURE_SCRIPT_QUEUE_STALLED '+JSON.stringify({queueDiagnostics,waitError:String(queueError?.message||queueError)}));
+                }
                 // The app mounts its 30-day timeline on demand from the "30-Day History"
                 // dock action. Open the creator before waiting for its standalone control.
                 await appPage.waitForSelector('#bpv-dock-actions [data-bpv-action="worldchanges"]',{visible:true,timeout:15000});
