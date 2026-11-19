@@ -2689,26 +2689,78 @@ jobs:
                 await page.close();
 
                 const appPage=await browser.newPage();
-                const appErrors=[];
+                const appErrors=[],appConsoleErrors=[],appRequestFailures=[],appCriticalHttpErrors=[];
                 await appPage.setUserAgent(profile.ua);
                 await appPage.setViewport({width:profile.width,height:profile.height,deviceScaleFactor:profile.dpr,isMobile:profile.mobile,hasTouch:profile.touch});
                 appPage.on('pageerror',e=>appErrors.push(String(e?.message||e)));
-                // The app entry gate intentionally requires a fresh sign-in marker.
-                // Use a local-only smoke token so this browser-only test can reach the
-                // public map shell without submitting credentials or creating an account.
-                await appPage.evaluateOnNewDocument(()=>{
-                  const now=Math.floor(Date.now()/1000);
-                  localStorage.setItem('bp_auth_v5045',JSON.stringify({
+                appPage.on('console',msg=>{if(msg.type()==='error')appConsoleErrors.push(msg.text())});
+                appPage.on('requestfailed',req=>appRequestFailures.push({url:req.url(),error:req.failure()?.errorText||null}));
+                appPage.on('response',res=>{
+                  const u=new URL(res.url());
+                  const critical=['/app.js','/world-v2300-map.js','/world-v2300-config.js','/world-v2300-bootstrap.js','/vendor/maplibre-gl.js'];
+                  if(u.origin===origin&&critical.includes(u.pathname)&&res.status()>=400)
+                    appCriticalHttpErrors.push({status:res.status(),path:u.pathname});
+                });
+                // Seed the same-origin session from a real same-origin document before
+                // navigating to /app/. This avoids storage access on about:blank and
+                // proves the entry gate sees both the token and the fresh-sign-in marker.
+                const seedResponse=await appPage.goto(origin+'/bridgepoint-mark.svg?bp-auth-seed='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+                const authSeed=await appPage.evaluate(()=>{
+                  const now=Math.floor(Date.now()/1000),session={
                     access_token:'bridgepoint-device-smoke-access',
                     refresh_token:'bridgepoint-device-smoke-refresh',
                     expires_at:now+3600,
                     expires_in:3600
-                  }));
+                  };
+                  localStorage.setItem('bp_auth_v5045',JSON.stringify(session));
                   sessionStorage.setItem('bp_fresh_signin_v1','1');
+                  const saved=JSON.parse(localStorage.getItem('bp_auth_v5045')||'null');
+                  return{
+                    tokenPresent:!!saved?.access_token,
+                    expiryValid:Number(saved?.expires_at||0)*1000>Date.now()+15000,
+                    freshSignin:sessionStorage.getItem('bp_fresh_signin_v1')==='1'
+                  };
                 });
-                await appPage.goto(origin+'/app/?bp-device-smoke='+profile.name+'-'+Date.now(),{waitUntil:'domcontentloaded',timeout:60000});
+                if(!authSeed.tokenPresent||!authSeed.expiryValid||!authSeed.freshSignin)
+                  throw new Error('APP_DEVICE_SMOKE_SESSION_SEED_FAILED '+profile.name+' '+JSON.stringify(authSeed));
+                const appResponse=await appPage.goto(origin+'/app/?bp-device-smoke='+profile.name+'-'+Date.now(),{waitUntil:'domcontentloaded',timeout:60000});
                 await appPage.bringToFront();
-                await appPage.waitForFunction(()=>!!window.__BP_V5000_WORLD__?.map?.getCanvas?.()||!!document.querySelector('#liveMap canvas'),{timeout:90000});
+                try{
+                  await appPage.waitForFunction(()=>!!window.__BP_V5000_WORLD__?.map?.getCanvas?.()||!!document.querySelector('#liveMap canvas'),{timeout:90000});
+                }catch(error){
+                  let diagnostics=null;
+                  try{diagnostics=await appPage.evaluate(()=>{
+                    let saved=null;try{saved=JSON.parse(localStorage.getItem('bp_auth_v5045')||'null')}catch(_){}
+                    const map=window.__BP_V5000_WORLD__?.map;
+                    return{
+                      url:location.href,title:document.title,readyState:document.readyState,
+                      bodyText:(document.body?.innerText||'').slice(0,1000),
+                      htmlDisplay:getComputedStyle(document.documentElement).display,
+                      freshSignin:sessionStorage.getItem('bp_fresh_signin_v1')==='1',
+                      tokenPresent:!!saved?.access_token,
+                      bootPriority:window.__BP_APP_BOOT_PRIORITY_V5906__||null,
+                      mapBoot:window.__BP_APP_BOOT_PRIORITY_V5825__||null,
+                      startReady:window.__BP_APP_START_READY_V5582__||null,
+                      mapObject:!!window.__BP_V5000_WORLD__,
+                      mapReady:!!map,canvasCount:map?.getContainer?.().querySelectorAll('canvas').length||0,
+                      projection:map?.getProjection?.()?.type||null,
+                      mapStatus:document.getElementById('mapStatus')?.textContent||null,
+                      scripts:[...document.scripts].map(x=>x.src||x.id).filter(Boolean)
+                    };
+                  })}catch(diagError){diagnostics={diagnosticError:String(diagError)}}
+                  throw new Error('APP_GLOBE_BOOT_TIMEOUT '+profile.name+' '+JSON.stringify({
+                    seedResponseStatus:seedResponse?.status?.()??null,
+                    authSeed,
+                    appResponseStatus:appResponse?.status?.()??null,
+                    finalUrl:appPage.url(),
+                    diagnostics,
+                    appErrors:appErrors.slice(-10),
+                    appConsoleErrors:appConsoleErrors.slice(-15),
+                    appRequestFailures:appRequestFailures.slice(-15),
+                    appCriticalHttpErrors,
+                    waitError:String(error?.message||error)
+                  }));
+                }
                 const appState=await appPage.evaluate(()=>{
                   const m=window.__BP_V5000_WORLD__?.map;
                   const c=document.querySelector('#liveMap canvas');
