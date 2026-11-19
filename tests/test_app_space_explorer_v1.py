@@ -11,12 +11,12 @@ GAIA = (ROOT / "rebuild-v5000" / "bridgepoint-gaia-galaxy-v6270.js").read_text(e
 
 class AppCelestialExplorerV1Tests(unittest.TestCase):
     def test_signed_in_app_loads_the_restored_space_explorer(self):
-        self.assertIn("bridgepoint-app-space-explorer-v1.js?v=6293-full-planetarium", APP)
+        self.assertIn("bridgepoint-app-space-explorer-v1.js?v=6306-mobile-planet-picker", APP)
         self.assertIn('id="liveMap"', APP)
         self.assertIn('class="map-tools"', APP)
 
     def test_homepage_globe_also_loads_the_restored_space_explorer(self):
-        self.assertIn("bridgepoint-app-space-explorer-v1.js?v=6293-full-planetarium", LANDING)
+        self.assertIn("bridgepoint-app-space-explorer-v1.js?v=6306-mobile-planet-picker", LANDING)
         self.assertIn('id="previewMap"', LANDING)
         self.assertIn('class="preview-head-actions"', LANDING)
         self.assertIn("window.__BP_WELCOME_SPACE_V6257__?.pause?.()", LANDING)
@@ -31,7 +31,7 @@ class AppCelestialExplorerV1Tests(unittest.TestCase):
     def test_explorer_mounts_the_existing_shared_celestial_scene(self):
         self.assertIn("id = 'bpWelcomeGateV1'", EXPLORER)
         self.assertIn("className = 'bpw-celestial-system'", EXPLORER)
-        self.assertIn("/bridgepoint-welcome-space-v6260.js?v=6293-full-planetarium", EXPLORER)
+        self.assertIn("/bridgepoint-welcome-space-v6260.js?v=6306-mobile-planet-picker", EXPLORER)
         self.assertIn("initBridgePointSolarCosmos", WELCOME + GAIA)
         self.assertIn("initBridgePointSaturnSystem", GAIA)
         self.assertIn("initBridgePointMarsSystem", GAIA)
