@@ -642,10 +642,17 @@ self.addEventListener('fetch',e=>{
     def test_login_does_not_require_reaccepting_terms_but_signup_does(self):
         app = (ROOT / "rebuild-v5000" / "app.js").read_text()
         page = (ROOT / "rebuild-v5000" / "app-index.html").read_text()
+        landing = (ROOT / "rebuild-v5000" / "landing.js").read_text()
+        root = (ROOT / "rebuild-v5000" / "index.html").read_text()
         self.assertIn("async function signIn(email,password){setText('authMessage','Signing in…');", app)
         self.assertIn("async function createAccount(email,password){const legal=recordLegalAcceptance();", app)
+        self.assertIn("if(mode==='signup'&&!$('authLegalAccept')?.checked)", landing)
+        self.assertIn("terms_accepted_at:acceptedAt,privacy_accepted_at:acceptedAt", landing)
+        self.assertIn("if(legal)legal.hidden=!s", landing)
         self.assertIn('<input id="authLegalAccept" type="checkbox">', page)
+        self.assertIn('<input id="authLegalAccept" type="checkbox">', root)
         self.assertNotIn('<input id="authLegalAccept" type="checkbox" required>', page)
+        self.assertNotIn('<input id="authLegalAccept" type="checkbox" required>', root)
 
     def test_continuous_solar_scene_reuses_existing_bodies_without_placeholders(self):
         scene = (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text()
