@@ -16,7 +16,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
 
 (() => {
   'use strict';
-  const VERSION = 'v6296-mobile-safe-welcome';
+  const VERSION = 'v6305-balanced-celestial-frame';
   if (window.__BP_WELCOME_SPACE_V6257__?.version) return;
   const host = document.querySelector('#bpWelcomeGateV1 .bpw-celestial-system');
   if (!host) return;
@@ -2286,15 +2286,17 @@ function createMoonTerrainController() {
   window.addEventListener('resize',resize,{passive:true});
 
   const clock=new THREE.Clock();
-  // Keep the dual-WebGL welcome screen responsive on phones while preserving desktop quality.
-  const mobileFrameIntervalMs = mobile ? ((navigator.deviceMemory || 4) <= 3 ? 50 : 1000 / 30) : 0;
-  let lastMobileRenderAt = 0;
+  // The welcome scene shares the page with the MapLibre WebGL globe.
+  // Cap both renderers together: 30 fps on desktop, 30 fps on standard phones,
+  // and 20 fps on very-low-memory phones to keep the main thread responsive.
+  const welcomeFrameIntervalMs = mobile ? ((navigator.deviceMemory || 4) <= 3 ? 50 : 1000 / 30) : 1000 / 30;
+  let lastWelcomeRenderAt = 0;
   const reference=new Date('2026-01-01T00:00:00Z').getTime();
   let disposed=false,renderActive=true;
   function render(frameTime=performance.now()){
     if(disposed||!renderActive||document.hidden)return;
-    if(mobileFrameIntervalMs>0&&lastMobileRenderAt&&frameTime-lastMobileRenderAt<mobileFrameIntervalMs){requestAnimationFrame(render);return}
-    lastMobileRenderAt=frameTime;
+    if(lastWelcomeRenderAt&&frameTime-lastWelcomeRenderAt<welcomeFrameIntervalMs){requestAnimationFrame(render);return}
+    lastWelcomeRenderAt=frameTime;
     const elapsed=clock.getDelta(),t=nowSeconds();
     const elapsedFromStart=t;
     const orbitalDays=(Date.now()-reference)/86400000 + elapsedFromStart*1200/86400;
@@ -2367,7 +2369,7 @@ function createMoonTerrainController() {
     renderer.render(scene,camera);
     if(renderActive&&!document.hidden)requestAnimationFrame(render);
   }
-  document.addEventListener('visibilitychange',()=>{if(renderActive&&!document.hidden){lastMobileRenderAt=0;requestAnimationFrame(render);}});
+  document.addEventListener('visibilitychange',()=>{if(renderActive&&!document.hidden){lastWelcomeRenderAt=0;requestAnimationFrame(render);}});
   resize();
   render();
   setInterval(()=>{if(renderActive&&viewState==='sun')refreshLiveSolarObservations();},LIVE_SOLAR_REFRESH_MS);
