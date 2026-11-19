@@ -97,7 +97,7 @@ assert.ok(landing.includes("import('./bridgepoint-wind-turbines-v1.js?v=1-uswtdb
 assert.ok(app.includes("import('./bridgepoint-wind-turbines-v1.js?v=1-uswtdb-3d-ground-anchored')"));
 assert.ok(home.includes('landing.js?v=6309-auth-mode-sync&sidewalk=6247-viewport-tile-progressive&bp=5970-globe-model-matrices&sw=1&wt=1'));
 assert.ok(home.includes('&wt=1'));
-assert.ok(appHome.includes('app.js?v=6309-auth-mode-sync&sidewalk=6247-viewport-tile-progressive&bp=5970-globe-model-matrices&sw=1&wt=1'));
+assert.ok(appHome.includes('app.js?v=6311-app-entry-controls-priority&sidewalk=6247-viewport-tile-progressive&bp=5970-globe-model-matrices&sw=1&wt=1'));
 assert.ok(appHome.includes('&wt=1'));
 assert.ok(deploy.includes('node --check rebuild-v5000/bridgepoint-wind-turbines-v1.js'));
 assert.ok(deploy.includes('python3 -m py_compile tools/fetch_uswtdb_turbine_snapshot.py'));
