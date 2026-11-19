@@ -8,8 +8,8 @@ from pathlib import Path
 
 BUILD = "v6300-direct-entry"
 UPDATER_QUERY = "v=6300-direct-entry"
-CURRENT_SW_VERSION = "6293-full-planetarium"
-CURRENT_CACHE = "bp-intelligence-v6293-full-planetarium"
+CURRENT_SW_VERSION = "6306-mobile-planet-picker"
+CURRENT_CACHE = "bp-intelligence-v6306-mobile-planet-picker"
 
 
 def bump_updater_reference(source: str, label: str) -> str:
@@ -85,8 +85,8 @@ def patch_manifest(source: str) -> str:
 def validate_updater(source: str) -> None:
     required = (
         "BUILD=6300",
-        "CACHE_VERSION='6293-full-planetarium'",
-        "CURRENT_CACHE='bp-intelligence-v6293-full-planetarium'",
+        "CACHE_VERSION='6306-mobile-planet-picker'",
+        "CURRENT_CACHE='bp-intelligence-v6306-mobile-planet-picker'",
         "reloadDeferredUntilNavigation:true",
         "controllerchange",
     )
