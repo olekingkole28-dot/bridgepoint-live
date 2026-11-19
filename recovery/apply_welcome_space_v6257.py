@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 BUILD = "v6306-mobile-planet-picker"
+ENTRY_BUNDLE_BUILD = "6309-auth-mode-sync"
 SPACE_MODULE_BUILD = "v6306-mobile-planet-picker"
 # Moon and planetary terrain assets are bundled locally; runtime requests stay same-origin.
 SW_URL = "/sw.js?v=6306-mobile-planet-picker"
@@ -240,8 +241,8 @@ def patch_app_index(source: str) -> str:
     source = bump_manifest_url(source, "bump current app manifest URL")
     source = replace_prefix_once(
         source,
-        r"(app\.js\?v=)(?:6247-universal-fresh-entry|6264-geometric-crater-bowls|6265-solar-globe|6267-sun-visible|6268-solar-observatory|6269-solar-fire-plasma|6280-unified-cosmos|6282-saturn-system|6283-saturn-isolated|6284-saturn-movement-depth|6285-saturn-lossless-pages|6286-saturn-callback-fix|6287-celestial-shader-compat|6288-saturn-realism|6289-saturn-gas-giant|6290-saturn-flowing-rings)",
-        r"\g<1>" + BUILD[1:],
+        r"(app\.js\?v=)(?:6247-universal-fresh-entry|6264-geometric-crater-bowls|6265-solar-globe|6267-sun-visible|6268-solar-observatory|6269-solar-fire-plasma|6280-unified-cosmos|6282-saturn-system|6283-saturn-isolated|6284-saturn-movement-depth|6285-saturn-lossless-pages|6286-saturn-callback-fix|6287-celestial-shader-compat|6288-saturn-realism|6289-saturn-gas-giant|6290-saturn-flowing-rings|6309-auth-mode-sync)",
+        r"\g<1>" + ENTRY_BUNDLE_BUILD,
         "bust the app bundle URL",
     )
     return source
@@ -447,8 +448,8 @@ def patch_site(site: Path) -> None:
     root = bump_manifest_url(root, "bump current root manifest URL")
     root = replace_prefix_once(
         root,
-        r"(landing\.js\?v=)(?:6247-universal-fresh-entry|6264-geometric-crater-bowls|6265-solar-globe|6267-sun-visible|6268-solar-observatory|6269-solar-fire-plasma|6282-saturn-system|6283-saturn-isolated|6285-saturn-lossless-pages|6286-saturn-callback-fix|6287-celestial-shader-compat|6288-saturn-realism|6289-saturn-gas-giant|6290-saturn-flowing-rings)",
-        r"\g<1>" + BUILD[1:],
+        r"(landing\.js\?v=)(?:6247-universal-fresh-entry|6264-geometric-crater-bowls|6265-solar-globe|6267-sun-visible|6268-solar-observatory|6269-solar-fire-plasma|6282-saturn-system|6283-saturn-isolated|6285-saturn-lossless-pages|6286-saturn-callback-fix|6287-celestial-shader-compat|6288-saturn-realism|6289-saturn-gas-giant|6290-saturn-flowing-rings|6309-auth-mode-sync)",
+        r"\g<1>" + ENTRY_BUNDLE_BUILD,
         "bust the landing bundle URL",
     )
     required["root"].write_text(root, encoding="utf-8")
@@ -480,7 +481,7 @@ def patch_site(site: Path) -> None:
         ],
         "app index": [
             "/?return=",
-            "app.js?v=" + BUILD[1:],
+            "app.js?v=" + ENTRY_BUNDLE_BUILD,
             "manifest.webmanifest?v=" + BUILD[1:],
         ],
         "landing bundle": [SW_URL, "bridgepoint-celestial-sky-v6257.js?v=6257"],
