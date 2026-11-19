@@ -59,6 +59,13 @@ export const UNDERGROUND_SCAN_SITES=[
   models:[
    {uid:'d3a9e08821e84226876b426958691adf',title:'Gruta dos Sete Salões — Quartzite Cave Photogrammetry',creator:'Paulo Rodrigo Simões / Rolling Drone Geotecnologias (@rollingdrone)',license:'CC Attribution',method:'Photo-mesh photogrammetry · textured 3D reconstruction',detail:'An original photographic 3D record of a natural quartzite cave within Parque Estadual dos Sete Salões. The creator describes this as a cave scan; it is a partial photogrammetric record, not a complete metrically aligned underground survey. Source model: approximately 2.5 million triangles.',modelUrl:'https://sketchfab.com/3d-models/gruta-dos-sete-saloes-v1-d3a9e08821e84226876b426958691adf'}
   ]},
+ {id:'jackson-blue-spring-cavern',name:'Jackson Blue Spring — Cavern and Chimney',type:'cave',coordinates:[-85.140083,30.790528],
+  locationPrecision:'Florida Geological Survey site coordinate for Jackson Blue Spring vent at Merritts Mill Pond, near Marianna, Florida (30°47′25.9″ N, 85°08′24.3″ W). The scan itself is not independently survey-georeferenced.',
+  locationNote:'The persistent map icon marks the documented spring vent, not the position or orientation of each submerged cave passage.',
+  description:'A textured underwater 3D photogrammetry scan of the real Jackson Blue Spring cavern and descending chimney cave passage in Jackson County, Florida.',
+  models:[
+   {uid:'c0ecd1020c794a9a83771d7957517438',title:'Jackson Blue — Cavern and Down the Chimney',creator:'Matthew Hardman / Divers Atlas (@diversatlas)',license:'CC Attribution',method:'1,017 Insta360 photos · Agisoft Metashape photogrammetry · May 24, 2026',detail:'Detailed creator-published underwater photographic reconstruction of Jackson Blue Spring cavern and the chimney passage. Sketchfab lists approximately 6.3 million triangles. This is a photo-textured cave mesh, not a LiDAR point cloud or a georeferenced full-system cave survey. The 3D viewer is embedded within BridgePoint while the original model remains creator-hosted.',modelUrl:'https://sketchfab.com/3d-models/jackson-blue-cavern-and-down-the-chimney-c0ecd1020c794a9a83771d7957517438'}
+  ]},
  {id:'om-jaettestue',name:'Øm Jættestue Passage Tomb',type:'tomb',coordinates:[11.994633,55.599731],
   locationPrecision:'Published GPS coordinate for the passage tomb site.',
   locationNote:'This is a Neolithic passage tomb and burial chamber, not a natural cave.',
