@@ -114,9 +114,10 @@ export function initBridgePointSolarCosmos(o){
  const solarRoot=new THREE.Group();solarRoot.name='Continuous heliocentric planetary system; Earth/Sun/Moon reused from welcome scene';solarRoot.visible=false;starsGroup.add(solarRoot);
  const orbitScaleRoot=new THREE.Group();solarRoot.add(orbitScaleRoot);
  const labelsGroup=new THREE.Group();labelsGroup.name='World-anchored celestial body labels';scene.add(labelsGroup);
- const bodySelect=document.createElement('select');
+ const bodySelect=controls?.querySelector('[data-bp-celestial-body-picker]')||document.createElement('select');
  bodySelect.className='bpw-celestial-body-picker';
- bodySelect.setAttribute('aria-label','Choose a celestial body to explore');
+ bodySelect.dataset.bpCelestialBodyPicker='1';
+ bodySelect.setAttribute('aria-label','Choose a planet or moon to explore');
  bodySelect.innerHTML='<option value="">CHOOSE CELESTIAL BODY</option>'+
   '<optgroup label="SOLAR SYSTEM"><option value="sun">Sun</option>'+
   '<option value="mercury" disabled>Mercury · loading map</option><option value="venus" disabled>Venus · loading map</option>'+
@@ -128,7 +129,7 @@ export function initBridgePointSolarCosmos(o){
   '<option value="titan">Titan · Saturn</option><option value="enceladus">Enceladus · Saturn</option>'+
   '<option value="mimas">Mimas · Saturn</option></optgroup>';
  const resetButton=controls?.querySelector('[data-space-reset]');
- if(controls)controls.insertBefore(bodySelect,resetButton||controls.firstChild);
+ if(controls&&!bodySelect.isConnected)controls.insertBefore(bodySelect,resetButton||controls.firstChild);
  const css=document.createElement('style');
  css.textContent=
   '#bpWelcomeGateV1 .bpw-celestial-body-picker{appearance:none;max-width:min(56vw,245px);border:1px solid rgba(160,205,238,.48);border-radius:999px;padding:8px 28px 8px 11px;background:rgba(5,15,29,.82);color:#eaf7ff;font:800 10px/1.1 system-ui,sans-serif;letter-spacing:.045em;box-shadow:0 4px 16px rgba(0,0,0,.32);backdrop-filter:blur(8px);pointer-events:auto}'+
@@ -137,7 +138,7 @@ export function initBridgePointSolarCosmos(o){
   '@media(max-width:620px){#bpWelcomeGateV1 .bpw-celestial-body-picker{max-width:58vw;padding:7px 23px 7px 9px;font-size:9px}#bpWelcomeGateV1 .bpw-space-controls{gap:5px}}';
  document.head.appendChild(css);
  let selectedBody='';
- bodySelect.addEventListener('change',()=>{
+ if(!bodySelect.hasAttribute('data-bp-external-change-handler'))bodySelect.addEventListener('change',()=>{
   selectedBody=bodySelect.value||'';
   if(selectedBody)focusBody?.(selectedBody);
  });
