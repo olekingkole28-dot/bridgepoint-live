@@ -19,7 +19,10 @@ An additive, opt-in map layer for real photogrammetry and terrestrial/mobile-LiD
 | Hohlenstein-Stadel Cave, Germany | 1 | Nature-témoin, 27-photo photogrammetry | Published archaeological cave-site coordinate; model is the entrance |
 | Treak Cliff Cavern, England | 1 | 9of9, phone-photo RealityCapture photogrammetry · real stalactite formation | Approximate public cave entrance; interior formation is not separately georeferenced |
 | Gruta dos Palhares, Brazil | 1 | Paulo Rodrigo Simões (@rollingdrone), textured cave photogrammetry · CC Attribution | Approximate published entrance coordinate, not a georeferenced underground surface |
+| Gruta dos Sete Salões, Brazil | 1 | Paulo Rodrigo Simões / Rolling Drone, textured quartzite-cave photogrammetry · CC Attribution | Approximate published cave area in Parque Estadual dos Sete Salões; partial, not georeferenced |
 | Øm Jættestue, Denmark | 1 | Azad Balabanian, 610-image photogrammetry | Published GPS site coordinate; passage tomb, not a natural cave |
+
+The Gruta dos Sete Salões scan is a textured photogrammetry model, not a LiDAR point cloud. The source's openly displayed CC Attribution license permits creator-attributed embedding. Model by Paulo Rodrigo Simões / Rolling Drone Geotecnologias. Reported public coordinates vary; the marker is an approximate site anchor, and the original mesh is still creator-hosted on Sketchfab. No globe renderer, previous marker, icon size, or other feature changes are intended.
 
 Gruta dos Palhares is a photo-based textured cave mesh, not a LiDAR point cloud. Its site marker uses a published approximate entrance coordinate near Sacramento, Minas Gerais. Model by Paulo Rodrigo Simões, displayed license CC Attribution. The viewer is embedded in the existing BridgePoint-styled card; the mesh remains hosted on the creator's Sketchfab page. No globe, rendering, or icon-size changes.
 
