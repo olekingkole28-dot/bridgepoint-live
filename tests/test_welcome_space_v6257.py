@@ -483,7 +483,7 @@ self.addEventListener('fetch',e=>{
     def test_sun_has_animated_molten_photosphere_fresnel_rim_and_observed_plasma_particles(self):
         module = (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text()
         for marker in (
-            "const VERSION = 'v6295-sdo-live-feed'",
+            "const VERSION = 'v6296-mobile-safe-welcome'",
             "float magmaFlow=",
             "float moltenCoverage=",
             "const solarFireRim=new THREE.Mesh",
@@ -587,6 +587,20 @@ self.addEventListener('fetch',e=>{
         self.assertIn("moon-sldem-128ppd-y03-x18.png", workflow)
         self.assertNotIn("imbrium.mit.edu/DATA/SLDEM2015", workflow)
         self.assertNotIn("SLDEM_TILE_SHIFT", workflow)
+
+    def test_mobile_welcome_scene_uses_a_low_power_gpu_budget(self):
+        scene = (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text()
+        for marker in (
+            "mobile ? 0.9 : 1.5",
+            "const mobileFrameIntervalMs = mobile ? ((navigator.deviceMemory || 4) <= 3 ? 50 : 1000 / 30) : 0;",
+            "if(mobileFrameIntervalMs>0&&lastMobileRenderAt&&frameTime-lastMobileRenderAt<mobileFrameIntervalMs)",
+            "lastMobileRenderAt=0;requestAnimationFrame(render)",
+            "status:'deferred-on-mobile-welcome'",
+            "protect mobile startup responsiveness",
+        ):
+            self.assertIn(marker, scene)
+        self.assertIn("if(!mobile){", scene)
+        self.assertIn("v=6293-full-planetarium", scene)
 
     def test_welcome_space_uses_one_real_gaia_starfield_and_no_synthetic_sphere(self):
         scene = (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text()
