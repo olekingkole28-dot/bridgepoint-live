@@ -37,7 +37,7 @@ def root_fixture() -> str:
   <button data-mode="signin">SIGN IN TO BRIDGEPOINT</button>
 </div>
 <script defer src="/app-update-v5820.js?v=6247-universal-fresh-entry-sidewalk"></script>
-<script type="module" src="/bridgepoint-welcome-space-v6260.js?v=6293-full-planetarium"></script>
+<script type="module" src="/bridgepoint-welcome-space-v6260.js?v=6306-mobile-planet-picker"></script>
 </body></html>"""
 
 
@@ -53,7 +53,7 @@ class EntryFastStartV6300Tests(unittest.TestCase):
         out = patch_root_html(root_fixture())
         self.assertIn('href="/vendor/three.module.js?v=169-local"', out)
         self.assertIn(
-            'href="/bridgepoint-welcome-space-v6260.js?v=6293-full-planetarium"',
+            'href="/bridgepoint-welcome-space-v6260.js?v=6306-mobile-planet-picker"',
             out,
         )
         self.assertIn('class="bpw-wordmark-main">BRIDGEPOINT', out)
