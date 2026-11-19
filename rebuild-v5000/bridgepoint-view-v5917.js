@@ -888,7 +888,22 @@ async function openWorldChanges(){
  const m=map||findMap(),world=home?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
  let api=window.__BP_WORLD_TIME_SLIDER_V5908__;
  if(!api||api.map!==m){const mod=await import('./world-v2300-time-slider.js?v=5981-bottom-dock-fix');api=mod.initWorldTimeSlider(world||{map:m},rpc);if(api)window.__BP_WORLD_TIME_SLIDER_V5908__=api}
- if(api?.open)api.open();else throw new Error('The 30-day timeline component did not initialize.');
+ if(typeof api?.open!=='function')throw new Error('The 30-day timeline component did not initialize.');
+ api.open();
+ // The World Changes command is an explicit open action, not a toggle. Keep the dock
+ // expanded even when an older or partially restored API object returns without updating its DOM.
+ const dock=document.getElementById('bp-world-time-slider-v5908');
+ if(dock){
+  dock.hidden=false;
+  if(!dock.classList.contains('bpwt-standalone-open')){
+   dock.classList.add('bpwt-standalone-open');
+   dock.classList.remove('bpwt-collapsed');
+   const expand=dock.querySelector('[data-standalone]');
+   if(expand){expand.setAttribute('aria-pressed','true');expand.textContent='COLLAPSE TIMELINE'}
+   const collapse=dock.querySelector('[data-collapse]');
+   if(collapse){collapse.setAttribute('aria-expanded','true');collapse.setAttribute('aria-label','Collapse world activity details');collapse.textContent='⌄'}
+  }
+ }
 }
 async function openRealWorldEffects(initialWind=false){
  const world=home?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
