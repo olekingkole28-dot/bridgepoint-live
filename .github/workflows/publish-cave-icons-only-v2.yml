@@ -1,4 +1,4 @@
-# Publish Elands Bay South African rock-art cave 3D photo-mesh from the successful Antarctica v13 production artifact; reject unrelated file changes.
+# Trigger merged Elands Bay South African rock-art Cave-only Pages release from last successful v13 production snapshot; preserve unrelated files.
 name: Publish Only South Africa Elands Bay Cave Rock Art 3D Photo Mesh v14
 on:
   workflow_dispatch:
