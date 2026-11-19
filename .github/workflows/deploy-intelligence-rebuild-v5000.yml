@@ -2212,7 +2212,7 @@ jobs:
               if "initJenolanCavesRenderer(world)" not in data:
                   if data.count(anchor)!=1:
                       raise SystemExit(f"{rel}: expected one underground scan import anchor")
-                  data=data.replace(anchor,anchor+"\\n"+attach,1)
+                  data=data.replace(anchor,anchor+"\n"+attach,1)
               path.write_text(data,encoding="utf-8")
               if data.count("initJenolanCavesRenderer(world)")!=1:
                   raise SystemExit(f"{rel}: Jenolan renderer import is missing or duplicated")
@@ -2241,8 +2241,6 @@ jobs:
           test -s site/assets/underground/jenolan-caves-v1/pointcloud.bin.gz
           node tests/jenolan-caves-v1.test.mjs
           echo "BRIDGEPOINT_JENOLAN_CAVES_3D_PRESERVED"
-
-      - name: Download the first Manhattan web tile package
 
       - name: Download the first Manhattan web tile package
         if: needs.build-manhattan-world.outputs.package_needed == 'true'
