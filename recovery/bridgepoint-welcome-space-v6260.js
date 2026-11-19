@@ -1863,7 +1863,7 @@ function createMoonTerrainController() {
     }
   }
   function resetView(){
-    focusedObject=null;focusLocalTarget=null;sunFocusLocalTarget=null;saturnFocusMesh=null;saturnFocusLocalTarget=null;focusedPlanetRadius=0;solarCosmos?.clearSelection?.();viewState='overview';scene.background=null;moonTerrainController?.setActive(false);camera.near=0.001;camera.up.set(0,1,0);camera.fov=48;camera.updateProjectionMatrix();
+    focusedObject=null;focusLocalTarget=null;sunFocusLocalTarget=null;saturnFocusMesh=null;saturnFocusLocalTarget=null;focusedPlanetRadius=0;solarCosmos?.clearSelection?.();if(bodyPicker)bodyPicker.value='';viewState='overview';scene.background=null;moonTerrainController?.setActive(false);camera.near=0.001;camera.up.set(0,1,0);camera.fov=48;camera.updateProjectionMatrix();
     moonMesh.scale.setScalar(1);sunMesh.scale.setScalar(1);
     earth.visible=true;moonPivot.visible=true;sunGroup.visible=true;stars.visible=true;haze.visible=true;
     setResponsiveSunPosition();
@@ -1904,13 +1904,68 @@ function createMoonTerrainController() {
     return solarCosmosPromise;
   }
 
+  // The opening overview already has the real Earth, Moon and Sun plus a
+  // lightweight procedural starfield. Keep the full Gaia/planet catalogue and
+  // the very high-detail Mars/Saturn systems out of startup; build them only
+  // when the visitor explicitly chooses a planet or moon.
+  const solarCosmosOnDemand=window.__BP_WELCOME_SOLAR_COSMOS_ON_DEMAND__={
+    version:VERSION,status:'ready-on-demand',
+    reason:'Gaia catalogue and high-detail Mars/Saturn scenes initialize after an explicit planet or moon selection',
+    loadedBody:null,requestedBody:null
+  };
   if(mobile){
-    const state=window.__BP_WELCOME_SOLAR_COSMOS_MOBILE__={version:VERSION,status:'scheduled-mobile-welcome',reason:'load measured stars and planets after the first responsive frame'};
-    const startMobileCosmos=()=>{state.status='loading';void ensureSolarCosmos().then(api=>{state.status='loading-measured-stars-and-planet-textures';state.apiVersion=api.version;}).catch(error=>{state.status='error';state.error=String(error?.message||error);console.warn('[BridgePoint Gaia DR3] Mobile celestial catalogue unavailable:',error);});};
-    if(typeof requestIdleCallback==='function')requestIdleCallback(startMobileCosmos,{timeout:1200});
-    else setTimeout(startMobileCosmos,900);
+    window.__BP_WELCOME_SOLAR_COSMOS_MOBILE__={
+      version:VERSION,status:'scheduled-mobile-welcome',
+      reason:'deferred until an explicit planet or moon selection to preserve first-frame responsiveness'
+    };
   }else{
-    void ensureSolarCosmos().catch(error=>console.warn('[BridgePoint Gaia DR3] Unified celestial scene unavailable:',error));
+    window.__BP_WELCOME_SOLAR_COSMOS_DESKTOP__={
+      version:VERSION,status:'ready-on-demand',
+      reason:'deferred until an explicit planet or moon selection to preserve main-thread responsiveness'
+    };
+  }
+  function waitForSolarBody(key){
+    return new Promise((resolve,reject)=>{
+      const deadline=Date.now()+20000;
+      const check=()=>{
+        const body=solarCosmos?.getBody?.(key);
+        if(body){resolve(body);return}
+        if(Date.now()>=deadline){reject(new Error('Celestial body data did not become ready: '+key));return}
+        setTimeout(check,80);
+      };
+      check();
+    });
+  }
+  if(bodyPicker){
+    bodyPicker.disabled=false;
+    bodyPicker.setAttribute('data-bp-external-change-handler','1');
+    bodyPicker.addEventListener('change',()=>{
+      const selected=String(bodyPicker.value||'').toLowerCase();
+      if(!selected)return;
+      // These three bodies are already present in the lightweight welcome scene.
+      if(['sun','earth','moon'].includes(selected)){focusBody(selected);return}
+      if(solarCosmosOnDemand.status==='loading')return;
+      solarCosmosOnDemand.status='loading';
+      solarCosmosOnDemand.requestedBody=selected;
+      bodyPicker.disabled=true;
+      void ensureSolarCosmos().then(()=>{
+        // The Gaia module enables the picker after creating its body maps; hold
+        // it disabled until the selected body's texture/map is actually ready.
+        if(bodyPicker)bodyPicker.disabled=true;
+        return waitForSolarBody(selected);
+      }).then(()=>{
+        solarCosmosOnDemand.status='ready';
+        solarCosmosOnDemand.loadedBody=selected;
+        focusBody(selected);
+      }).catch(error=>{
+        solarCosmosOnDemand.status='error';
+        solarCosmosOnDemand.error=String(error?.message||error);
+        if(bodyPicker)bodyPicker.value='';
+        console.warn('[BridgePoint Gaia DR3] Selected celestial body unavailable:',selected,error);
+      }).finally(()=>{
+        if(bodyPicker)bodyPicker.disabled=false;
+      });
+    });
   }
 
   let dragging=false,lastX=0,lastY=0,pointerMoved=false;

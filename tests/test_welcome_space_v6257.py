@@ -638,6 +638,14 @@ self.addEventListener('fetch',e=>{
             self.assertIn(f'<option value="{body}">', scene)
         self.assertIn("ensureSolarCosmos()", scene)
         self.assertIn("isMobile:mobile", scene)
+        self.assertIn("window.__BP_WELCOME_SOLAR_COSMOS_ON_DEMAND__", scene)
+        self.assertIn("bodyPicker.disabled=false", scene)
+        self.assertIn("bodyPicker.setAttribute('data-bp-external-change-handler','1')", scene)
+        self.assertIn("bodyPicker.addEventListener('change',()=>", scene)
+        self.assertIn("waitForSolarBody(selected)", scene)
+        self.assertIn("if(['sun','earth','moon'].includes(selected))", scene)
+        self.assertNotIn("void ensureSolarCosmos().catch(error=>console.warn('[BridgePoint Gaia DR3] Unified celestial scene unavailable:',error));", scene)
+        self.assertNotIn("requestIdleCallback(startMobileCosmos", scene)
         self.assertIn("const bodySelect=controls?.querySelector('[data-bp-celestial-body-picker]')", galaxy)
 
     def test_login_does_not_require_reaccepting_terms_but_signup_does(self):
