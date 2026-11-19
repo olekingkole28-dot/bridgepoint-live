@@ -107,7 +107,7 @@ assert.ok(offshoreModule.includes('return offshoreIconImageData(ctx);'),'MapLibr
 assert.ok(offshoreModule.includes("const imageData=makeIcon(kind);map.addImage(id,imageData,{pixelRatio:2});"));
 
 assert.ok(homePage.includes('landing.js?v=6309-auth-mode-sync'));
-assert.ok(appPage.includes('app.js?v=6309-auth-mode-sync'));
+assert.ok(appPage.includes('app.js?v=6311-app-entry-controls-priority'));
 assert.ok(deploy.includes("cp rebuild-v5000/bridgepoint-offshore-energy-v1.js site/bridgepoint-offshore-energy-v1.js"));
 assert.ok(deploy.includes("cp rebuild-v5000/bridgepoint-offshore-energy-v1.js site/app/bridgepoint-offshore-energy-v1.js"));
 assert.ok(utilityWireOverlay.includes('landing.js?v=6247-universal-fresh-entry'));
