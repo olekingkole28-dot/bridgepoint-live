@@ -1,4 +1,4 @@
-# Publish Anchor Church Caves photo mesh using the successful Bethells Beach v7 Pages snapshot; preserve all unrelated production bytes.
+# Trigger the merged Anchor Church Cave-only Pages release using the verified v7 production snapshot; preserve all unrelated bytes.
 name: Publish Only Anchor Church Derbyshire Caves Photo Mesh v8
 on:
   workflow_dispatch:
