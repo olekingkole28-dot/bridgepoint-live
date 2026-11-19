@@ -485,6 +485,8 @@ jobs:
           node --check rebuild-v5000/offline/offline-world.js
           node tests/global-offline-world-v1.test.mjs
           node --check rebuild-v5000/app.js
+          # Parse the shipped app bundle as an ES module too; classic-script checks miss duplicate module bindings.
+          node --input-type=module --check < rebuild-v5000/app.js
           node --check rebuild-v5000/landing.js
           node --check rebuild-v5000/bridgepoint-view-v5917.js
           node --check rebuild-v5000/bridgepoint-ai-commandbar-v1.js
