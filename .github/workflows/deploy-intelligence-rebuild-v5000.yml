@@ -69,6 +69,7 @@ on:
       - 'rebuild-v5000/intelligence-tools-v5507.js'
       - 'rebuild-v5000/zoning-coverage-v1.js'
       - 'tests/pc-runtime-cutover-v6238.test.mjs'
+      - 'tests/auth-resilience-v6237.test.mjs'
 
 permissions:
   contents: write
