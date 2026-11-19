@@ -2452,8 +2452,8 @@ jobs:
               fi
             }
             if [ "$fetch_failed" = 0 ]; then
-              require_marker /tmp/bp-auth-root.html 'landing.js?v=6306-mobile-planet-picker'
-              require_marker /tmp/bp-auth-app.html 'app.js?v=6306-mobile-planet-picker'
+              require_marker /tmp/bp-auth-root.html 'landing.js?v=6309-auth-mode-sync'
+              require_marker /tmp/bp-auth-app.html 'app.js?v=6309-auth-mode-sync'
               require_marker /tmp/bp-auth-root.html 'bpw-celestial-system'
               require_marker /tmp/bp-auth-root.html 'bridgepoint-welcome-space-v6260.js?v=6306-mobile-planet-picker'
               if grep -Fq 'bridgepoint-welcome-space-v6257.js' /tmp/bp-auth-root.html; then
