@@ -793,7 +793,7 @@ async function initMap(){
       window.__BP_LANDING_FEATURE_CONTROL_RESTORE_PROMISE__=(async()=>{
         if(!world?.map)throw new Error('BridgePoint globe is not ready');
         const jobs=[
-          ['./bridgepoint-faa-obstruction-towers-v1.js?v=2-aircraft-filters-faa-restored','__BP_FAA_OBSTRUCTIONS_V1__','initFAAObstructionTowerRenderer','FAA obstructions'],
+          ['./bridgepoint-faa-obstruction-towers-v1.js?v=2-aircraft-filters-faa-restored&mobile=1','__BP_FAA_OBSTRUCTIONS_V1__','initFAAObstructionTowerRenderer','FAA obstructions'],
           ['./bridgepoint-shipwrecks-v1.js?v=11-titanic-gaskin-grafton-cannon-kxi-cape-otway-timaru-hms-loo-draco-ktx2-local-viewer','__BP_SHIPWRECKS_V1__','initShipwrecksRenderer','10 shipwrecks'],
           ['./bridgepoint-plane-wrecks-v1.js?v=1-f4u1-corsair-colmap-pointcloud','__BP_PLANE_WRECKS_V1__','initPlaneWrecksRenderer','Plane Wrecks base'],
           ['./bridgepoint-plane-wrecks-extra-v1.js?v=8-b17f-black-jack','__BP_PLANE_WRECKS_EXTRA_V1__','initPlaneWrecksExtraRenderer','10-plane-wreck catalogue'],
