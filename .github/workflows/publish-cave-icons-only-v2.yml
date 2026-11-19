@@ -1,4 +1,4 @@
-# Publish one Jackson Blue underwater photogrammetry scan from the successful v4 Pages snapshot. Unrelated production bytes must remain identical.
+# Release the merged Jackson Blue scan from the verified v4 production snapshot; enforce only six Cave-related file changes.
 name: Publish Only Jackson Blue Florida Cave Photo Mesh v5
 on:
   workflow_dispatch:
