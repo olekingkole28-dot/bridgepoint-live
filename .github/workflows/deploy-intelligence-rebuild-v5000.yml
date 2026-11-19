@@ -78,7 +78,7 @@ permissions:
 
 concurrency:
   group: bridgepoint-v5000-production-authority-v3
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build-tree-assets:
@@ -518,7 +518,7 @@ jobs:
           git archive refs/remotes/origin/live-artifact | tar -xf - -C site
           if ! python3 tools/fetch_uswtdb_turbine_snapshot.py --output site/data/bridgepoint-uswtdb-turbines-v9_1.json; then
             echo "USWTDB source temporarily unavailable; restoring last verified production snapshot"
-            curl --retry 8 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 240 \
+            curl --retry 3 --retry-all-errors --retry-delay 2 -fL --connect-timeout 10 --max-time 60 \
               -H 'Cache-Control: no-cache' \
               'https://bridgepointintelligence.online/data/bridgepoint-uswtdb-turbines-v9_1.json?fallback=verified-production-v9_1' \
               -o site/data/bridgepoint-uswtdb-turbines-v9_1.json
