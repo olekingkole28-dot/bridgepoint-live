@@ -16,7 +16,7 @@ const fmt=n=>Number(n||0).toLocaleString();
 async function rpc(name,args={},timeout=7000){
  const c=new AbortController(),t=setTimeout(()=>c.abort(),timeout);
  try{
-  const r=await fetch(RPC+name,{method:'POST',headers:{apikey:KEY,'Content-Type':'application/json','Accept':'application/json','Cache-Control':'no-cache'},body:JSON.stringify(args),signal:c.signal,cache:'no-store'});
+  const r=await fetch(RPC+name,{method:'POST',headers:{apikey:KEY,'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(args),signal:c.signal});
   const d=await r.json().catch(()=>({}));
   if(!r.ok)throw new Error(d?.message||d?.error||('HTTP '+r.status));
   return d;
