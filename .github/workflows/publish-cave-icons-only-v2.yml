@@ -1,5 +1,5 @@
-# Publish the squash-merged Palhares cave only; keep the last verified public site unmodified otherwise.
-name: Publish Only Gruta dos Palhares Cave Photo Mesh v3
+# Publish one new Sete Saloes photo-mesh from the last successful Pages snapshot; leave all other site files intact.
+name: Publish Only Gruta dos Sete Saloes Photo Mesh v4
 on:
   workflow_dispatch:
   push:
@@ -14,7 +14,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: bridgepoint-cave-entry-publish-only-v3
+  group: bridgepoint-cave-entry-publish-only-v4
   cancel-in-progress: false
 
 jobs:
@@ -42,7 +42,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: bridgepoint-v5000-1
-          run-id: 44605074102
+          run-id: 44611506496
           repository: ${{ github.repository }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ${{ runner.temp }}/bp-cave-base
@@ -76,11 +76,11 @@ jobs:
               (site/rel).write_bytes(patched.read_bytes())
           edits={
             'landing.js':[
-              ('./'+cave+'?v=2-big-persistent-cave-icons','./'+cave+'?v=3-palhares-photo-mesh'),
-              ('./'+cave+'?v=2-mobile-big-persistent-cave-icons','./'+cave+'?v=3-mobile-palhares-photo-mesh')
+              ('./'+cave+'?v=2-big-persistent-cave-icons','./'+cave+'?v=4-sete-saloes-photo-mesh'),
+              ('./'+cave+'?v=2-mobile-big-persistent-cave-icons','./'+cave+'?v=4-mobile-sete-saloes-photo-mesh')
             ],
             'app.js':[
-              ('./'+cave+'?v=2-big-persistent-cave-icons','./'+cave+'?v=3-palhares-photo-mesh')
+              ('./'+cave+'?v=2-big-persistent-cave-icons','./'+cave+'?v=4-sete-saloes-photo-mesh')
             ]
           }
           for rel,changes in edits.items():
@@ -99,9 +99,9 @@ jobs:
               if len(matches)!=1:
                   raise SystemExit(f'{rel}: expected exactly one active {entry} cache-keyed script; got {len(matches)}')
               old=matches[0].group(1)
-              if 'cave-icons=persistent-v2' not in old:
-                  raise SystemExit(f'{rel}: missing previous Cave icon cache key')
-              source=source.replace('src="'+old+'"','src="'+old+'&cave-entry=palhares-v3"',1)
+              if 'cave-entry=palhares-v3' not in old or 'cave-entry=sete-saloes-v4' in old:
+                  raise SystemExit(f'{rel}: missing previous Palhares Cave entry cache key or new entry was already appended')
+              source=source.replace('src="'+old+'"','src="'+old+'&cave-entry=sete-saloes-v4"',1)
               f.write_text(source,encoding='utf-8')
           after={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
                  for p in site.rglob('*') if p.is_file()}
@@ -117,7 +117,7 @@ jobs:
               raise SystemExit('Website and app Cave module differ')
           for rel in ('landing.js','app.js'):
               text=(site/rel).read_text()
-              if './'+cave+'?v=3-palhares-photo-mesh' not in text:
+              if './'+cave+'?v=4-sete-saloes-photo-mesh' not in text:
                   raise SystemExit(rel+' did not load the new Cave module')
           print('CAVE_ONLY_PUBLISH_SCOPE_PASS',len(changed),'files, no additions or deletions')
           PY
@@ -147,14 +147,14 @@ jobs:
           set -euo pipefail
           SITE="https://bridgepointintelligence.online"
           for pass in $(seq 1 15); do
-            if curl -fsSL -H 'Cache-Control: no-cache' "$SITE/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '378b82695f934eafa01b397ba4d0ff83'; then
-              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null 'gruta-dos-palhares'
-              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/landing.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '3-palhares-photo-mesh'
-              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '3-palhares-photo-mesh'
-              echo CAVE_PALHARES_LIVE_PUBLISH_PASS
+            if curl -fsSL -H 'Cache-Control: no-cache' "$SITE/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null 'd3a9e08821e84226876b426958691adf'; then
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null 'gruta-dos-sete-saloes'
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/landing.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '4-sete-saloes-photo-mesh'
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '4-sete-saloes-photo-mesh'
+              echo CAVE_SETE_SALOES_LIVE_PUBLISH_PASS
               exit 0
             fi
             sleep 4
           done
-          echo CAVE_PALHARES_LIVE_VERIFY_FAILED
+          echo CAVE_SETE_SALOES_LIVE_VERIFY_FAILED
           exit 1
