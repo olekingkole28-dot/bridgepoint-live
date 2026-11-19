@@ -1,4 +1,4 @@
-# Publish one Ellora Caves photogrammetry scan from the last successful v5 Pages snapshot; all other production bytes must stay unchanged.
+# Trigger the merged Ellora Cave-only Pages release against the preserved, verified v5 production artifact. Keep all other site files byte-identical.
 name: Publish Only Ellora Caves India Photo Mesh v6
 on:
   workflow_dispatch:
