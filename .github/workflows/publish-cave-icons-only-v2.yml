@@ -1,4 +1,4 @@
-# Publish one Ohio Rock House textured 3D cave tour from the last successful v8 Pages snapshot; preserve all unrelated production files.
+# Trigger the merged Rock House Ohio Cave-only Pages release from verified v8 site; preserve all unrelated production bytes.
 name: Publish Only Ohio Rock House Cave Textured 3D Tour v9
 on:
   workflow_dispatch:
