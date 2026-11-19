@@ -76,11 +76,11 @@ jobs:
               (site/rel).write_bytes(patched.read_bytes())
           edits={
             'landing.js':[
-              ('./'+cave+'?v=2-big-persistent-cave-icons','./'+cave+'?v=4-sete-saloes-photo-mesh'),
-              ('./'+cave+'?v=2-mobile-big-persistent-cave-icons','./'+cave+'?v=4-mobile-sete-saloes-photo-mesh')
+              ('./'+cave+'?v=3-palhares-photo-mesh','./'+cave+'?v=4-sete-saloes-photo-mesh'),
+              ('./'+cave+'?v=3-mobile-palhares-photo-mesh','./'+cave+'?v=4-mobile-sete-saloes-photo-mesh')
             ],
             'app.js':[
-              ('./'+cave+'?v=2-big-persistent-cave-icons','./'+cave+'?v=4-sete-saloes-photo-mesh')
+              ('./'+cave+'?v=3-palhares-photo-mesh','./'+cave+'?v=4-sete-saloes-photo-mesh')
             ]
           }
           for rel,changes in edits.items():
