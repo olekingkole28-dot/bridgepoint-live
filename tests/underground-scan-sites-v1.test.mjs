@@ -34,11 +34,17 @@ const [moduleSource,landing,app,deploy]=await Promise.all([
  readFile(new URL('../.github/workflows/deploy-intelligence-rebuild-v5000.yml',import.meta.url),'utf8')
 ]);
 assert.ok(moduleSource.includes('minzoom:0,maxzoom:24'),'icons must persist at every zoom');
-assert.ok(moduleSource.includes("'icon-size':['interpolate',['linear'],['zoom'],0,0.80,3,1.00,7,1.25,12,1.52,18,1.75,23,1.92]"),'Caves & Sites icons are much larger across zoom levels');
+assert.ok(moduleSource.includes("const CAVE_ICON_SIZE=['interpolate',['linear'],['zoom'],0,1.6,3,1.8,7,2.0,12,2.2,18,2.4,23,3.0]"),'Caves & Sites icons are large at all zoom levels');
+assert.ok(moduleSource.includes("'icon-size':CAVE_ICON_SIZE"),'Cave symbol uses the persistent size');
+assert.ok(moduleSource.includes("state.map.on(event,state.handlePersistence)"),'Cave markers reassert on style/zoom changes');
+assert.ok(moduleSource.includes("map.off(event,state.handlePersistence)"),'Cave listeners are cleaned up');
+assert.ok(moduleSource.includes("map.getLayoutProperty(MARKER_ID,'icon-size')"),'Cave marker size is repaired if another renderer overrides it');
+assert.ok(moduleSource.includes("state.map.getLayoutProperty(id,'visibility')!==wanted"),'Cave visibility writes are idempotent to avoid styledata loops');
 assert.ok(moduleSource.includes('bpv-dock-actions'),'control must live in the existing globe card');
 assert.ok(moduleSource.includes('window.__BP_UNDERGROUND_SCAN_SITES_V1__'));
-assert.ok(landing.includes("import('./bridgepoint-underground-scan-sites-v1.js?v=1-curated-sketchfab-caves')"));
-assert.ok(app.includes("import('./bridgepoint-underground-scan-sites-v1.js?v=1-curated-sketchfab-caves')"));
+assert.ok(landing.includes("import('./bridgepoint-underground-scan-sites-v1.js?v=2-big-persistent-cave-icons')"));
+assert.ok(app.includes("import('./bridgepoint-underground-scan-sites-v1.js?v=2-big-persistent-cave-icons')"));
+assert.ok(landing.includes("./bridgepoint-underground-scan-sites-v1.js?v=2-mobile-big-persistent-cave-icons"));
 assert.ok(deploy.includes('cp rebuild-v5000/bridgepoint-underground-scan-sites-v1.js site/bridgepoint-underground-scan-sites-v1.js'));
 assert.ok(deploy.includes('cp rebuild-v5000/bridgepoint-underground-scan-sites-v1.js site/app/bridgepoint-underground-scan-sites-v1.js'));
 assert.ok(deploy.includes('node tests/underground-scan-sites-v1.test.mjs'));

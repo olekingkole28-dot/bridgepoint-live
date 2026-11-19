@@ -288,7 +288,7 @@ scheduleOptionalRenderer(() => import('./bridgepoint-spacecraft-columbia-v1.js?v
  .then(m=>{window.__BP_SPACECRAFT_COLUMBIA_V1__=m.initSpacecraftColumbiaRenderer(world)})
  .catch(e=>console.warn('BridgePoint Smithsonian Columbia layer unavailable',e)));
  // Independent opt-in scanned cave and underground heritage sites; keep wells and utility renderers untouched.
- scheduleOptionalRenderer(() => import('./bridgepoint-underground-scan-sites-v1.js?v=1-curated-sketchfab-caves')
+ scheduleOptionalRenderer(() => import('./bridgepoint-underground-scan-sites-v1.js?v=2-big-persistent-cave-icons')
   .then(m=>{window.__BP_UNDERGROUND_SCAN_SITES_V1__=m.initUndergroundScanSitesRenderer(world)})
   .catch(e=>console.warn('BridgePoint cave and underground scan layer unavailable',e)));
 scheduleOptionalRenderer(() => import('./bridgepoint-jenolan-caves-v1.js?v=1-jenolan-large-system')

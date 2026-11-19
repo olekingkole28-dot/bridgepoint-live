@@ -826,7 +826,7 @@ async function initMap(){
           ['./bridgepoint-spacecraft-columbia-v1.js?v=2-mobile-apollo11-columbia','__BP_SPACECRAFT_COLUMBIA_V1__','initSpacecraftColumbiaRenderer','Spacecraft 2 of 4'],
           ['./bridgepoint-spacecraft-discovery-v1.js?v=1-mobile-space-shuttle-discovery','__BP_SPACECRAFT_DISCOVERY_V1__','initSpacecraftDiscoveryRenderer','Spacecraft 3 of 4'],
           ['./bridgepoint-spacecraft-saturn-v1.js?v=1-mobile-saturn-v-launch39a','__BP_SPACECRAFT_SATURN_V1__','initSpacecraftSaturnRenderer','Spacecraft 4 of 4'],
-          ['./bridgepoint-underground-scan-sites-v1.js?v=1-mobile-curated-caves','__BP_UNDERGROUND_SCAN_SITES_V1__','initUndergroundScanSitesRenderer','Caves and underground sites'],
+          ['./bridgepoint-underground-scan-sites-v1.js?v=2-mobile-big-persistent-cave-icons','__BP_UNDERGROUND_SCAN_SITES_V1__','initUndergroundScanSitesRenderer','Caves and underground sites'],
           ['./bridgepoint-jenolan-caves-v1.js?v=1-mobile-jenolan-large-system','__BP_JENOLAN_CAVES_V1__','initJenolanCavesRenderer','Jenolan Caves 3D scan'],
           ['./world-v2300-lod-controls.js?v=6311-mobile-gold-lod','__BP_LOD_CONTROL_LANDING_V6016__','initWorldLodControls','Gold LOD controls',[{surface:'landing'}]],
           ['./bridgepoint-lighthouses-v1.js?v=6311-mobile-lighthouses','__BP_LIGHTHOUSES_V1__','initLighthouseRenderer','3D lighthouses'],
@@ -995,7 +995,7 @@ void import('./bridgepoint-spacecraft-columbia-v1.js?v=2-apollo11-columbia-princ
  .then(m=>{window.__BP_SPACECRAFT_COLUMBIA_V1__=m.initSpacecraftColumbiaRenderer(world)})
  .catch(e=>console.warn('BridgePoint Smithsonian Columbia layer unavailable',e));
   // Independent opt-in scanned cave and underground heritage sites; keep other layers untouched.
-  void import('./bridgepoint-underground-scan-sites-v1.js?v=1-curated-sketchfab-caves')
+  void import('./bridgepoint-underground-scan-sites-v1.js?v=2-big-persistent-cave-icons')
    .then(m=>{window.__BP_UNDERGROUND_SCAN_SITES_V1__=m.initUndergroundScanSitesRenderer(world)})
    .catch(e=>console.warn('BridgePoint cave and underground scan layer unavailable',e));
 void import('./bridgepoint-jenolan-caves-v1.js?v=1-jenolan-large-system')

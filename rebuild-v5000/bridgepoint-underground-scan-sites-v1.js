@@ -11,6 +11,8 @@ const CONTROL_ID='bp-underground-scan-sites-control-v1';
 const TOGGLE_ID='bp-underground-scan-sites-toggle-v1';
 const COUNT_ID='bp-underground-scan-sites-count-v1';
 const STATUS_ID='bp-underground-scan-sites-status-v1';
+// Full-resolution Cave & Sites markers: 72px sprite at pixelRatio 2, scaled to ~58–108 CSS px.
+const CAVE_ICON_SIZE=['interpolate',['linear'],['zoom'],0,1.6,3,1.8,7,2.0,12,2.2,18,2.4,23,3.0];
 
 export const UNDERGROUND_SCAN_SITES=[
  {id:'paris-catacombs',name:'Paris Catacombs',type:'catacomb',coordinates:[2.3324,48.8336],
@@ -113,7 +115,31 @@ function refreshStatusUi(state){
  const status=document.getElementById(STATUS_ID);if(status)status.textContent=state.status;
  const b=document.getElementById(TOGGLE_ID);if(b){b.setAttribute('aria-pressed',String(state.enabled));b.classList.toggle('is-active',state.enabled);}
 }
-function setVisibility(state,visible){for(const id of [HALO_ID,MARKER_ID,LABEL_ID])if(state.map.getLayer(id))state.map.setLayoutProperty(id,'visibility',visible?'visible':'none');}
+function setVisibility(state,visible){
+ const wanted=visible?'visible':'none';
+ for(const id of [HALO_ID,MARKER_ID,LABEL_ID]){
+  if(state.map.getLayer(id)&&state.map.getLayoutProperty(id,'visibility')!==wanted)state.map.setLayoutProperty(id,'visibility',wanted);
+ }
+}
+// Preserve opt-in cave markers when another globe renderer updates the map style.
+// One deferred check per frame maximum; no polling loop or extra network requests.
+function scheduleCaveMarkerPersistence(state){
+ if(state.dead||!state.enabled||state.markerFrame)return;
+ const run=()=>{
+  state.markerFrame=0;
+  if(state.dead||!state.enabled)return;
+  const map=state.map;
+  if(typeof map.isStyleLoaded==='function'&&!map.isStyleLoaded())return;
+  if(!map.getSource(SOURCE_ID)||!map.getLayer(MARKER_ID)||!map.hasImage?.('bp-underground-site-icon-cave-v1')){
+   installLayers(state);
+   return;
+  }
+  setVisibility(state,true);
+  const size=map.getLayoutProperty(MARKER_ID,'icon-size');
+  if(JSON.stringify(size)!==JSON.stringify(CAVE_ICON_SIZE))map.setLayoutProperty(MARKER_ID,'icon-size',CAVE_ICON_SIZE);
+ };
+ state.markerFrame=(typeof requestAnimationFrame==='function'?requestAnimationFrame:(cb=>setTimeout(cb,25)))(run);
+}
 function installLayers(state){
  const map=state.map;if(!map?.getStyle?.())return false;
  try{
@@ -125,7 +151,7 @@ function installLayers(state){
    'circle-color':['match',['get','type'],'tomb','#d9aa58','catacomb','#58d2e2','#7bd49a'],'circle-opacity':0.35,'circle-blur':0.55}});
   add(MARKER_ID,{id:MARKER_ID,type:'symbol',source:SOURCE_ID,minzoom:0,maxzoom:24,layout:{
    visibility:state.enabled?'visible':'none','icon-image':['get','iconImage'],
-   'icon-size':['interpolate',['linear'],['zoom'],0,0.80,3,1.00,7,1.25,12,1.52,18,1.75,23,1.92],
+   'icon-size':CAVE_ICON_SIZE,'icon-pitch-alignment':'viewport','icon-rotation-alignment':'viewport',
    'icon-anchor':'bottom','icon-allow-overlap':true,'icon-ignore-placement':true,'symbol-sort-key':100}});
   add(LABEL_ID,{id:LABEL_ID,type:'symbol',source:SOURCE_ID,minzoom:4,maxzoom:24,layout:{
    visibility:state.enabled?'visible':'none','text-field':['get','name'],
@@ -161,7 +187,9 @@ function bindInteractions(state){
   const site=UNDERGROUND_SCAN_SITES.find(s=>s.id===String(hit.properties.siteId));if(site)openSitePopup(state,site,e.lngLat||site.coordinates);
  };
  state.handleStyleLoad=()=>{if(!state.enabled)return;if(installLayers(state))setStatus(state,'Layer ON · '+state.stats.sites+' site icons stay visible from global zoom through close zoom. Select an icon to open its real 3D scan.');refreshStatusUi(state);};
+ state.handlePersistence=()=>scheduleCaveMarkerPersistence(state);
  state.map.on('click',state.handleClick);state.map.on('style.load',state.handleStyleLoad);state.map.on('load',state.handleStyleLoad);
+ for(const event of ['styledata','idle','moveend','zoomend','pitchend'])state.map.on(event,state.handlePersistence);
 }
 function addControlGroup(state){
  const dock=document.getElementById('bpv-dock-actions');if(!dock)return false;
@@ -199,6 +227,7 @@ async function setEnabled(state,on){
  if(state.enabled){
   if(!installLayers(state))setStatus(state,'Waiting for the map style before showing cave and underground site icons…');
   else setStatus(state,'Layer ON · '+state.stats.sites+' site icons stay visible from global zoom through close zoom. Select an icon to open its real 3D scan.');
+  scheduleCaveMarkerPersistence(state);
  }else{
   if(state.popup){state.popup.remove();state.popup=null;}
   setVisibility(state,false);setStatus(state,'Layer off · all existing BridgePoint layers remain unchanged.');
@@ -210,7 +239,7 @@ export function initUndergroundScanSitesRenderer(target){
  if(!map||typeof map.getBounds!=='function'||typeof map.addSource!=='function')return null;
  const existing=MAP_STATES.get(map);if(existing)return existing.api;
  const modelCount=UNDERGROUND_SCAN_SITES.reduce((n,s)=>n+s.models.length,0);
- const state={map,enabled:false,dead:false,popup:null,interactionsBound:false,status:'off',
+ const state={map,enabled:false,dead:false,popup:null,interactionsBound:false,markerFrame:0,status:'off',
   stats:{version:VERSION,sites:UNDERGROUND_SCAN_SITES.length,models:modelCount,rightsHolds:UNDERGROUND_SCAN_RIGHTS_HOLDS.length,lastError:null}};
  const api={
   version:VERSION,get enabled(){return state.enabled;},get status(){return state.status;},
@@ -221,6 +250,8 @@ export function initUndergroundScanSitesRenderer(target){
    state.dead=true;if(state.popup)state.popup.remove();
    if(state.handleClick)map.off('click',state.handleClick);
    if(state.handleStyleLoad){map.off('style.load',state.handleStyleLoad);map.off('load',state.handleStyleLoad);}
+   if(state.handlePersistence)for(const event of ['styledata','idle','moveend','zoomend','pitchend'])map.off(event,state.handlePersistence);
+   if(state.markerFrame)(typeof cancelAnimationFrame==='function'?cancelAnimationFrame:clearTimeout)(state.markerFrame);
    if(state.observer)state.observer.disconnect();if(state.dockTimer)clearTimeout(state.dockTimer);
    for(const id of [LABEL_ID,MARKER_ID,HALO_ID])if(map.getLayer(id))map.removeLayer(id);
    if(map.getSource(SOURCE_ID))map.removeSource(SOURCE_ID);MAP_STATES.delete(map);
