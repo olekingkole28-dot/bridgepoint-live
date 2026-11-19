@@ -3,13 +3,13 @@ import { readFile } from 'node:fs/promises';
 import {UNDERGROUND_SCAN_SITES,UNDERGROUND_SCAN_RIGHTS_HOLDS,buildUndergroundSiteFeatures,undergroundSitePopupHtml} from '../rebuild-v5000/bridgepoint-underground-scan-sites-v1.js';
 
 const features=buildUndergroundSiteFeatures();
-assert.equal(features.length,14,'fourteen reviewed site anchors are mapped');
-assert.equal(UNDERGROUND_SCAN_SITES.reduce((n,s)=>n+s.models.length,0),16,'sixteen real creator-hosted 3D models and tours are cataloged');
+assert.equal(features.length,15,'fifteen reviewed site anchors are mapped');
+assert.equal(UNDERGROUND_SCAN_SITES.reduce((n,s)=>n+s.models.length,0),17,'seventeen real creator-hosted 3D models and tours are cataloged');
 assert.equal(UNDERGROUND_SCAN_RIGHTS_HOLDS.length,3,'rights/source holds are exposed');
 assert.ok(features.every(f=>f.geometry.type==='Point'&&f.properties.iconImage));
 assert.ok(UNDERGROUND_SCAN_SITES.every(s=>s.models.every(m=>m.uid&&m.creator&&(
  m.matterportTourId ? (m.matterportTourId==='1BTGHi85s96'&&m.modelUrl==='https://my.matterport.com/show/?m=1BTGHi85s96'&&m.license.includes('original rights retained'))
- : m.embedOnly ? (['cbe5a1c208674091b48f65ac2d4cca94','be7675a23595489c86211608f0fb1886'].includes(m.uid)&&m.license.includes('no reuse license displayed')&&m.modelUrl.startsWith('https://sketchfab.com/3d-models/'))
+ : m.embedOnly ? (['cbe5a1c208674091b48f65ac2d4cca94','be7675a23595489c86211608f0fb1886','ccfc7c2f43214b559e93c4857eb6ed4a'].includes(m.uid)&&m.license.includes('no reuse license displayed')&&m.modelUrl.startsWith('https://sketchfab.com/3d-models/'))
  : (m.license==='CC Attribution'&&m.modelUrl.startsWith('https://sketchfab.com/3d-models/'))
 ))));
 assert.equal(UNDERGROUND_SCAN_SITES.find(s=>s.id==='paris-catacombs').models.length,3);
@@ -130,7 +130,20 @@ assert.match(china.models[0].method,/photogrammetry/i);
 assert.match(china.locationPrecision,/Cave 18 entrance/);
 assert.ok(undergroundSitePopupHtml(china).includes('sketchfab.com/models/be7675a23595489c86211608f0fb1886/embed'));
 assert.ok(undergroundSitePopupHtml(china).includes('Di Luo'));
-for(const site of [japan,china]){
+const egypt=UNDERGROUND_SCAN_SITES.find(s=>s.id==='pyramid-of-unas-egypt');
+assert.ok(egypt&&egypt.type==='tomb','Egyptian Pyramid of Unas must have its own large persistent gold tomb icon');
+assert.deepEqual(egypt.coordinates,[31.21494,29.86819]);
+assert.equal(egypt.models.length,1);
+assert.equal(egypt.models[0].uid,'ccfc7c2f43214b559e93c4857eb6ed4a');
+assert.equal(egypt.models[0].embedOnly,true,'Egypt scan must remain original creator-hosted mesh');
+assert.match(egypt.models[0].method,/260-photo photogrammetry/);
+assert.match(egypt.models[0].method,/Metashape/i);
+assert.match(egypt.locationPrecision,/Pyramid of Unas site/i);
+assert.ok(undergroundSitePopupHtml(egypt).includes('sketchfab.com/models/ccfc7c2f43214b559e93c4857eb6ed4a/embed'));
+assert.ok(undergroundSitePopupHtml(egypt).includes('D. Anderson'));
+assert.ok(undergroundSitePopupHtml(egypt).includes('Pyramid Texts'));
+assert.equal(UNDERGROUND_SCAN_SITES.filter(s=>s.id==='pyramid-of-unas-egypt').length,1);
+for(const site of [japan,china,egypt]){
  const html=undergroundSitePopupHtml(site);
  assert.ok(html.includes('sandbox="allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-presentation"'),'new caves must stay inside BridgePoint');
  assert.ok(!html.includes('target="_blank"'),'new cave cards may not open external websites');
@@ -142,6 +155,7 @@ for(const site of [japan,china]){
  assert.ok(!html.includes('allowfullscreen'),'new model cannot hijack mobile fullscreen');
 }
 assert.equal(UNDERGROUND_SCAN_SITES.filter(s=>s.id==='abukuma-cave-japan'||s.id==='yungang-cave-18-china').length,2);
+assert.equal(UNDERGROUND_SCAN_SITES.find(s=>s.id==='rock-house-ohio').models[0].matterportTourId,'1BTGHi85s96','Ohio preserved');
 assert.equal(UNDERGROUND_SCAN_SITES.find(s=>s.id==='anchor-church-caves-derbyshire').models[0].uid,'c7125417f09e43229288316c8144e625');
 assert.ok(undergroundSitePopupHtml(anchorChurch).includes('sketchfab.com/models/c7125417f09e43229288316c8144e625/embed'));
 assert.ok(undergroundSitePopupHtml(anchorChurch).includes('Open original Sketchfab model'));
