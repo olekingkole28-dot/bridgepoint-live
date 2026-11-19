@@ -80,6 +80,13 @@ export const UNDERGROUND_SCAN_SITES=[
   models:[
    {uid:'ce71dc2848984acfb11d8002a48a6043',title:'Sea Cave 3 — Te Henga / Bethells Beach Photogrammetry',creator:'b_nealie',license:'CC Attribution',method:'46-photo photogrammetry · 3DF Zephyr v4.353 · approx. 698,400 triangles',detail:'Creator-published photographic reconstruction of a natural coastal sea cave at Bethells Beach, Auckland, New Zealand. One cave arm leads toward vegetation; the source was created from 46 photographs. This is a textured photo mesh, not a LiDAR point cloud or a metrically aligned georeferenced cave survey. The BridgePoint card embeds the original creator-hosted viewer.',modelUrl:'https://sketchfab.com/3d-models/sea-cave-3-ce71dc2848984acfb11d8002a48a6043'}
   ]},
+ {id:'anchor-church-caves-derbyshire',name:'Anchor Church Caves — Derbyshire',type:'cave',coordinates:[-1.49750,52.84167],
+  locationPrecision:'Approximate published Anchor Church cave-complex coordinate near Ingleby and Foremark, Derbyshire, England (52.84167° N, 1.49750° W). Model surfaces are not independently survey-georeferenced to this map point.',
+  locationNote:'The persistent icon identifies the Anchor Church cave complex beside the former River Trent course, not a surveyed vertex of the photogrammetry mesh.',
+  description:'A real textured photogrammetry reconstruction of the sandstone Anchor Church caves in Derbyshire. The caves originated through river erosion and were enlarged into interconnected rock-cut rooms.',
+  models:[
+   {uid:'c7125417f09e43229288316c8144e625',title:'Anchor Church Caves — Sandstone Chambers Photo Mesh',creator:'Shiro Morturn (@morturn) / Sudbury Digital Imaging',license:'CC Attribution',method:'122-image photogrammetry · RealityScan · approximately 1.3 million triangles',detail:'A creator-published merged 3D photographic reconstruction of the real Anchor Church cave complex, near Ingleby, Derbyshire. The River Trent eroded the sandstone, and people later extended and shaped the chambers, doors and windows. Model generated in RealityScan from 122 photographs. The creator-hosted textured mesh is not a LiDAR point cloud, nor a survey-aligned subterranean terrain asset; it is embedded in BridgePoint’s existing model viewer card.',modelUrl:'https://sketchfab.com/3d-models/anchor-church-caves-derbyshire-merged-c7125417f09e43229288316c8144e625'}
+  ]},
  {id:'om-jaettestue',name:'Øm Jættestue Passage Tomb',type:'tomb',coordinates:[11.994633,55.599731],
   locationPrecision:'Published GPS coordinate for the passage tomb site.',
   locationNote:'This is a Neolithic passage tomb and burial chamber, not a natural cave.',
