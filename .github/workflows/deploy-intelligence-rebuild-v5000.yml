@@ -516,8 +516,27 @@ jobs:
           mkdir -p site
           git fetch origin live-artifact:refs/remotes/origin/live-artifact --depth=1
           git archive refs/remotes/origin/live-artifact | tar -xf - -C site
-          python3 tools/fetch_uswtdb_turbine_snapshot.py --output site/data/bridgepoint-uswtdb-turbines-v9_1.json
+          if ! python3 tools/fetch_uswtdb_turbine_snapshot.py --output site/data/bridgepoint-uswtdb-turbines-v9_1.json; then
+            echo "USWTDB source temporarily unavailable; restoring last verified production snapshot"
+            curl --retry 8 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 240 \
+              -H 'Cache-Control: no-cache' \
+              'https://bridgepointintelligence.online/data/bridgepoint-uswtdb-turbines-v9_1.json?fallback=verified-production-v9_1' \
+              -o site/data/bridgepoint-uswtdb-turbines-v9_1.json
+          fi
           test -s site/data/bridgepoint-uswtdb-turbines-v9_1.json
+          python3 - site/data/bridgepoint-uswtdb-turbines-v9_1.json <<'PY'
+          import json,sys
+          from pathlib import Path
+          data=json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+          meta=data.get("metadata") or {}
+          records=data.get("records") or []
+          assert meta.get("dataset")=="United States Wind Turbine Database"
+          assert meta.get("version")=="USWTDB_V9_1_20260928"
+          assert int(meta.get("recordCount",0))==len(records)
+          assert len(records)>=10000
+          assert meta.get("license")=="USGS public domain"
+          print("BRIDGEPOINT_USWTDB_V9_1_SNAPSHOT_READY",len(records),"records")
+          PY
           mkdir -p site/assets/trees
           cp /tmp/bridgepoint-tree-assets/manifest.json site/assets/trees/manifest.json
           cp /tmp/bridgepoint-tree-assets/procedural-variants.json site/assets/trees/procedural-variants.json
