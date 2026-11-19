@@ -2362,7 +2362,7 @@ jobs:
           test -s site/bridgepoint-app-space-explorer-v1.js
           grep -Fq 'rel="modulepreload" href="/vendor/three.module.js?v=169-local"' site/index.html
           grep -Fq 'start_url": "/"' site/manifest.webmanifest
-          grep -Fq "CACHE_VERSION='6293-full-planetarium'" site/app-update-v5820.js
+          grep -Fq "CACHE_VERSION='6306-mobile-planet-picker'" site/app-update-v5820.js
           ! grep -Fq 'location.reload' site/app-update-v5820.js
           ! grep -Fq 'location.replace' site/app-update-v5820.js
           test -s site/assets/saturn/v1/ephemerides.json
@@ -2451,8 +2451,8 @@ jobs:
               fi
             }
             if [ "$fetch_failed" = 0 ]; then
-              require_marker /tmp/bp-auth-root.html 'landing.js?v=6293-full-planetarium'
-              require_marker /tmp/bp-auth-app.html 'app.js?v=6293-full-planetarium'
+              require_marker /tmp/bp-auth-root.html 'landing.js?v=6306-mobile-planet-picker'
+              require_marker /tmp/bp-auth-app.html 'app.js?v=6306-mobile-planet-picker'
               require_marker /tmp/bp-auth-root.html 'bpw-celestial-system'
               require_marker /tmp/bp-auth-root.html 'bridgepoint-welcome-space-v6260.js?v=6306-mobile-planet-picker'
               if grep -Fq 'bridgepoint-welcome-space-v6257.js' /tmp/bp-auth-root.html; then
