@@ -21,7 +21,32 @@ const LOCAL_RUNTIME=location.hostname==='127.0.0.1'||location.hostname==='localh
  throw new Error('BridgePoint sign-in did not complete. Please try again.')
 }
 
-async function submit(e){e.preventDefault();const requestedMode=$('authForm').dataset.bpAuthMode;mode=requestedMode==='signin'?'signin':requestedMode==='signup'?'signup':mode;const email=$('authEmail').value.trim(),password=$('authPassword').value,name=$('authName').value.trim(),m=$('authMessage'),b=$('authSubmit');b.disabled=true;m.textContent=mode==='signup'?'Creating your BridgePoint account…':'Signing in…';try{if(mode==='signup'&&!$('authLegalAccept')?.checked)throw new Error('Accept the Terms of Use and Privacy Notice before creating an account.');const acceptedAt=mode==='signup'?new Date().toISOString():null;const path=mode==='signup'?'signup':'token?grant_type=password',body=mode==='signup'?{email,password,data:{display_name:name||email.split('@')[0],signup_source:'bridgepoint_landing',terms_version:'2026-09-19',terms_accepted_at:acceptedAt,privacy_accepted_at:acceptedAt}}:{email,password};const {r,d}=await bpAuthRequestV6237(SUPA+'/auth/v1/'+path,{method:'POST',headers:H,body:JSON.stringify(body)},mode==='signin',message=>{m.textContent=message});if(!r.ok){window.BridgePointAcquisition?.send?.(mode==='signup'?'SIGNUP_ERROR':'SIGNIN_ERROR',{auth_surface:'landing',http_status:r.status});throw new Error(d.msg||d.message||d.error_description||d.error||('HTTP '+r.status))}const hasSession=saveSession(d);if(hasSession)markFreshSignIn();if(mode==='signup'){window.BridgePointAcquisition?.send?.('SIGNUP_SUCCESS',{auth_surface:'landing',session_returned:hasSession,confirmation_required:!hasSession});if(d?.user?.id)window.BridgePointAcquisition?.identify?.(d.user.id,{auth_surface:'landing',signup_source:'bridgepoint_landing'});if(hasSession){const target=bpFreshEntryTarget();if(target){m.textContent='Account ready. Opening packages…';setTimeout(()=>location.assign(target),250)}else{m.textContent='Account ready. Unlocking the BridgePoint globe…';void window.__BP_LANDING_RESTORE_FEATURE_CONTROLS__?.();$('authModal').hidden=true}}else m.textContent='Account created. Check your email if confirmation is required, then sign in.'}else{if(!hasSession)throw new Error('No session returned. Please retry.');window.BridgePointAcquisition?.send?.('SIGNIN_SUCCESS',{auth_surface:'landing'});if(d?.user?.id)window.BridgePointAcquisition?.identify?.(d.user.id,{auth_surface:'landing'});const target=bpFreshEntryTarget();if(target){m.textContent='Account ready. Opening packages…';setTimeout(()=>location.assign(target),250)}else{m.textContent='Account ready. Unlocking the BridgePoint globe…';void window.__BP_LANDING_RESTORE_FEATURE_CONTROLS__?.();$('authModal').hidden=true}}}catch(err){m.textContent=String(err.message||err)}finally{b.disabled=false}}
+function schedulePostSigninFeatureRestore(){
+ const mobile=matchMedia('(max-width:900px)').matches||Number(navigator.deviceMemory||4)<=4||Number(navigator.hardwareConcurrency||4)<=4;
+ if(!mobile){void window.__BP_LANDING_RESTORE_FEATURE_CONTROLS__?.();return}
+ if(window.__BP_LANDING_FEATURE_RESTORE_SCHEDULED__===true)return;
+ window.__BP_LANDING_FEATURE_RESTORE_SCHEDULED__=true;
+ window.__BP_LANDING_FEATURE_RESTORE_COMPLETE__=false;
+ setTimeout(async()=>{
+  const started=Date.now(),deadline=started+45000,optionalFallback=started+12000;
+  while(Date.now()<deadline){
+   const queue=window.__BP_MOBILE_SCRIPT_DEFERRAL_V6302__;
+   const restore=window.__BP_LANDING_RESTORE_FEATURE_CONTROLS__;
+   const queueReady=!queue||!!queue.optionalStageReadyAt||Date.now()>=optionalFallback;
+   if(typeof restore==='function'&&queueReady)break;
+   await new Promise(resolve=>setTimeout(resolve,180));
+  }
+  const restore=window.__BP_LANDING_RESTORE_FEATURE_CONTROLS__;
+  if(typeof restore==='function'){
+   try{await restore()}catch(error){console.warn('BridgePoint post-sign-in feature restoration',error)}
+  }else{
+   console.warn('BridgePoint mobile feature controls are not ready yet; the core map card remains available');
+  }
+  window.__BP_LANDING_FEATURE_RESTORE_BUSY__=false;
+  window.__BP_LANDING_FEATURE_RESTORE_COMPLETE__=true;
+ },180);
+}
+async function submit(e){e.preventDefault();const requestedMode=$('authForm').dataset.bpAuthMode;mode=requestedMode==='signin'?'signin':requestedMode==='signup'?'signup':mode;const email=$('authEmail').value.trim(),password=$('authPassword').value,name=$('authName').value.trim(),m=$('authMessage'),b=$('authSubmit');b.disabled=true;m.textContent=mode==='signup'?'Creating your BridgePoint account…':'Signing in…';try{if(mode==='signup'&&!$('authLegalAccept')?.checked)throw new Error('Accept the Terms of Use and Privacy Notice before creating an account.');const acceptedAt=mode==='signup'?new Date().toISOString():null;const path=mode==='signup'?'signup':'token?grant_type=password',body=mode==='signup'?{email,password,data:{display_name:name||email.split('@')[0],signup_source:'bridgepoint_landing',terms_version:'2026-09-19',terms_accepted_at:acceptedAt,privacy_accepted_at:acceptedAt}}:{email,password};const {r,d}=await bpAuthRequestV6237(SUPA+'/auth/v1/'+path,{method:'POST',headers:H,body:JSON.stringify(body)},mode==='signin',message=>{m.textContent=message});if(!r.ok){window.BridgePointAcquisition?.send?.(mode==='signup'?'SIGNUP_ERROR':'SIGNIN_ERROR',{auth_surface:'landing',http_status:r.status});throw new Error(d.msg||d.message||d.error_description||d.error||('HTTP '+r.status))}const hasSession=saveSession(d);if(hasSession)markFreshSignIn();if(mode==='signup'){window.BridgePointAcquisition?.send?.('SIGNUP_SUCCESS',{auth_surface:'landing',session_returned:hasSession,confirmation_required:!hasSession});if(d?.user?.id)window.BridgePointAcquisition?.identify?.(d.user.id,{auth_surface:'landing',signup_source:'bridgepoint_landing'});if(hasSession){const target=bpFreshEntryTarget();if(target){m.textContent='Account ready. Opening packages…';setTimeout(()=>location.assign(target),250)}else{m.textContent='Account ready. Unlocking the BridgePoint globe…';$('authModal').hidden=true;schedulePostSigninFeatureRestore()}}else m.textContent='Account created. Check your email if confirmation is required, then sign in.'}else{if(!hasSession)throw new Error('No session returned. Please retry.');window.BridgePointAcquisition?.send?.('SIGNIN_SUCCESS',{auth_surface:'landing'});if(d?.user?.id)window.BridgePointAcquisition?.identify?.(d.user.id,{auth_surface:'landing'});const target=bpFreshEntryTarget();if(target){m.textContent='Account ready. Opening packages…';setTimeout(()=>location.assign(target),250)}else{m.textContent='Account ready. Unlocking the BridgePoint globe…';$('authModal').hidden=true;schedulePostSigninFeatureRestore()}}}catch(err){m.textContent=String(err.message||err)}finally{b.disabled=false}}
 function landingWeatherColorExpr(){
  // WMO_CAP_WARNING shapes inherit a phenomenon-specific icon_key when classified; unknown warnings use severity colors.
  return['match',['get','icon_key'],
@@ -790,7 +815,7 @@ async function initMap(){
     // Each renderer mounts its own card section and keeps its data/model loading opt-in.
     window.__BP_LANDING_RESTORE_FEATURE_CONTROLS__=async()=>{
       if(window.__BP_LANDING_FEATURE_CONTROL_RESTORE_PROMISE__)return window.__BP_LANDING_FEATURE_CONTROL_RESTORE_PROMISE__;
-      window.__BP_LANDING_FEATURE_CONTROL_RESTORE_PROMISE__=(async()=>{
+      window.__BP_LANDING_FEATURE_RESTORE_BUSY__=true;window.__BP_LANDING_FEATURE_CONTROL_RESTORE_PROMISE__=(async()=>{
         if(!world?.map)throw new Error('BridgePoint globe is not ready');
         const jobs=[
           ['./bridgepoint-faa-obstruction-towers-v1.js?v=2-mobile-aircraft-filters-faa-restored','__BP_FAA_OBSTRUCTIONS_V1__','initFAAObstructionTowerRenderer','FAA Towers'],
@@ -843,13 +868,21 @@ async function initMap(){
             results.push({label,ready:false,error:String(error?.message||error)});
             console.warn('BridgePoint mobile feature control unavailable: '+label,error);
           }
-          await new Promise(resolve=>setTimeout(resolve,35));
+          window.__BP_LANDING_FEATURE_CONTROL_RESTORE_PROGRESS__={version:6312,completed:results.length,total:jobs.length,updatedAt:Date.now()};
+          await new Promise(resolve=>{
+            let done=false;
+            const finish=()=>{if(done)return;done=true;clearTimeout(fallback);resolve()};
+            const fallback=setTimeout(finish,bpMobileWelcomeBootV6301?380:80);
+            if(bpMobileWelcomeBootV6301&&!document.hidden&&typeof requestAnimationFrame==='function')requestAnimationFrame(()=>setTimeout(finish,230));
+            else setTimeout(finish,bpMobileWelcomeBootV6301?320:35);
+          });
         }
         const ready=results.filter(x=>x.ready).length;
-        window.__BP_LANDING_FEATURE_CONTROLS_STATE__={version:6311,ready,total:results.length,results,restoredAt:Date.now()};
+        window.__BP_LANDING_FEATURE_CONTROLS_STATE__={version:6312,ready,total:results.length,results,restoredAt:Date.now()};
+        window.__BP_LANDING_FEATURE_RESTORE_BUSY__=false;window.__BP_LANDING_FEATURE_RESTORE_COMPLETE__=true;
         return window.__BP_LANDING_FEATURE_CONTROLS_STATE__;
       })().catch(error=>{
-        window.__BP_LANDING_FEATURE_CONTROL_RESTORE_PROMISE__=null;
+        window.__BP_LANDING_FEATURE_CONTROL_RESTORE_PROMISE__=null;window.__BP_LANDING_FEATURE_RESTORE_BUSY__=false;window.__BP_LANDING_FEATURE_RESTORE_COMPLETE__=true;
         console.warn('BridgePoint mobile feature-control restoration failed',error);
         throw error;
       });
