@@ -84,8 +84,9 @@ assert.ok(mapSource.includes("map.on('style.load',restoreSatelliteRasterStack)")
 assert.ok(mapSource.includes("'fill-opacity',0"), 'landcover and landuse fills must not obscure the satellite underlay');
 assert.ok(homepageHtml.includes('landing.js?v=6309-auth-mode-sync'), 'homepage must load the new imagery-default loader instead of a cached old version');
 assert.ok(homepageHtml.includes('bridgepoint-view-v5917.js?v=6238-pc-runtime'), 'homepage must load the current satellite control loader');
-assert.ok(appHtml.includes('app.js?v=6309-auth-mode-sync'), 'app shell must load the updated imagery loader');
+assert.ok(appHtml.includes('app.js?v=6311-app-entry-controls-priority'), 'app shell must load the updated imagery loader');
 assert.ok(appHtml.includes('bridgepoint-view-v5917.js?v=6238-pc-runtime'), 'app must load the current satellite control loader');
+assert.ok(appHtml.includes('bp-app-feature-deferral-v6311') && appHtml.includes('data-bp-deferred-src="/bridgepoint-view-v5917.js'), 'app card/view controls must be staged behind the core globe');
 assert.ok(homepageHtml.includes('bridgepoint-blender-world-v1.js?v=3-lossless-gzip'), 'homepage must load the mode-aware Blender World layer controller');
 assert.ok(appHtml.includes('bridgepoint-blender-world-v1.js?v=3-lossless-gzip'), 'the app shell must load the same mode-aware Blender World layer controller');
 assert.ok(blenderSource.includes("const MOBILE_DEVICE = window.matchMedia?.('(max-width: 700px)').matches === true;"), 'Blender World must detect small-screen layouts');
@@ -109,6 +110,6 @@ assert.ok(landingLoader.includes("world-v2300-spectral-imagery.js?v=6215-satelli
 assert.ok(viewLoader.includes("world-v2300-spectral-imagery.js?v=6215-satellite-persistent-render-guard"), 'satellite card actions must use the same persistent imagery controller');
 assert.ok(appLoader.includes("world-v2300-map.js?v=6238-pc-runtime"), 'app must load the renderer with the natural palette persistence fix');
 assert.ok(homepageHtml.includes('landing.js?v=6309-auth-mode-sync'), 'homepage must load the fresh shared globe loader');
-assert.ok(appHtml.includes('app.js?v=6309-auth-mode-sync'), 'app must load the fresh shared globe loader');
+assert.ok(appHtml.includes('app.js?v=6311-app-entry-controls-priority'), 'app must load the fresh shared globe loader');
 assert.ok(homepageHtml.includes('world-v2300-map.js?v=6238-pc-runtime') && appHtml.includes('world-v2300-map.js?v=6238-pc-runtime'), 'both HTML shells must preload the same updated shared globe renderer');
 console.log('BRIDGEPOINT_WATER_LOD_AND_LAND_IMAGERY_TEST_PASS');
