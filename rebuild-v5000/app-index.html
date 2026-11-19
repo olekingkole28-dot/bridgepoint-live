@@ -299,10 +299,10 @@ html.bp-instant-globe-start .app-shell .map-brand-card{display:none!important}
  const loaded=[],failed=[];
  let queuePromise=null;
  const state=window.__BP_APP_SCRIPT_DEFERRAL_V6311__={
-  version:6311,status:'waiting-for-core-globe',mobile,
+  version:6312,status:'waiting-for-globe-canvas',mobile,
   deferredCount:placeholders.length,priorityCount:placeholders.filter(p=>rank(p.dataset.bpDeferredSrc)<priority.length).length,
   loadedCount:0,failedCount:0,scripts:placeholders.map(p=>p.dataset.bpDeferredSrc),
-  startedAt:null,completedAt:null
+  startedAt:null,completedAt:null,canvasReadyAt:null,priorityReadyAt:null,styleReadyAt:null
  };
  const loadQueue=()=>{
   if(queuePromise)return queuePromise;
@@ -324,7 +324,12 @@ html.bp-instant-globe-start .app-shell .map-brand-card{display:none!important}
      script.async=false;script.src=src;script.onload=()=>finish(true);script.onerror=()=>finish(false);
      document.head.appendChild(script);
     });
-    state.lastLoaded=src;state.status=i+1<Math.min(priority.length,placeholders.length)?'loading-priority-controls':'loading-additional-features';
+    state.lastLoaded=src;
+    const completed=loaded.length+failed.length;
+    if(completed===state.priorityCount&&!state.priorityReadyAt){
+     state.priorityReadyAt=Date.now();state.status='core-card-controls-ready';
+     try{window.dispatchEvent(new CustomEvent('bp:app-priority-controls-ready',{detail:{version:6312,loaded:loaded.length,failed:failed.length}}))}catch(_){}
+    }else state.status=completed<state.priorityCount?'loading-priority-controls':'loading-additional-features';
     // Keep the globe responsive by yielding between each registrar and each batch.
     await new Promise(resolve=>setTimeout(resolve,i<priority.length?180:90));
    }
@@ -337,14 +342,22 @@ html.bp-instant-globe-start .app-shell .map-brand-card{display:none!important}
  const checkBaseGlobe=()=>{
   if(queuePromise)return;
   const map=window.__BP_V5000_WORLD__?.map;
-  let ready=false;
-  try{ready=!!map&&(map.isStyleLoaded?.()===true||map.loaded?.()===true)}catch(_){}
-  if(ready){
-   state.status='base-globe-ready';
-   setTimeout(()=>{if(!queuePromise)void loadQueue()},650);
+  let canvas=null,styleReady=false;
+  try{
+   if(map&&typeof map.getCanvas==='function')canvas=map.getCanvas();
+   styleReady=!!map&&(map.isStyleLoaded?.()===true||map.loaded?.()===true);
+  }catch(_){}
+  // The base globe canvas is sufficient to register the app card and its controls.
+  // Do not wait for all tiles: on mobile they can remain pending while the WebGL globe
+  // is already interactive and the map style reports not-yet-loaded.
+  if(canvas){
+   state.status='base-globe-canvas-ready';
+   state.canvasReadyAt=state.canvasReadyAt||Date.now();
+   if(styleReady)state.styleReadyAt=Date.now();
+   setTimeout(()=>{if(!queuePromise)void loadQueue()},mobile?180:120);
    return;
   }
-  setTimeout(checkBaseGlobe,300);
+  setTimeout(checkBaseGlobe,220);
  };
  window.__BP_LOAD_APP_FEATURES_V6311__=loadQueue;
  setTimeout(checkBaseGlobe,250);
