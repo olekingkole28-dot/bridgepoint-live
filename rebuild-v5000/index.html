@@ -664,9 +664,35 @@ html.bpw-entry-locked body>main>section:not(.hero){display:none!important;visibi
         }
         return;
       }
+      // Never leave account access hidden while the live landing map is still booting.
+      // Phones may take longer to initialize the MapLibre globe; expose the welcome
+      // actions after 12 seconds and keep retrying the map in the background.
+      if(!activeMap&&Date.now()-startedAt>12000&&gate.dataset.mapFallback!=='1'){
+        gate.dataset.mapFallback='1';
+        gate.dataset.phase='gate';
+        if(status)status.hidden=true;
+        window.__BP_WELCOME_GATE_FALLBACK_V6297__={
+          version:'v6297-account-gate-before-map',
+          reason:'landing-map-not-ready',
+          elapsedMs:Date.now()-startedAt,
+          visible:true
+        };
+      }
       if(Date.now()-startedAt>45000){
         if(activeMap){holdWholeEarth(activeMap,true);startSequence()}
-        else{if(status)status.textContent='CONNECTING TO THE BRIDGEPOINT WORLD';setTimeout(waitForGlobe,1000);return}
+        else{
+          if(gate.dataset.mapFallback!=='1'){
+            gate.dataset.mapFallback='1';
+            gate.dataset.phase='gate';
+            if(status)status.hidden=true;
+          }
+          window.__BP_WELCOME_GATE_FALLBACK_V6297__=window.__BP_WELCOME_GATE_FALLBACK_V6297__||{
+            version:'v6297-account-gate-before-map',reason:'landing-map-never-initialized',
+            elapsedMs:Date.now()-startedAt,visible:true
+          };
+          setTimeout(waitForGlobe,1000);
+          return
+        }
       }else{setTimeout(waitForGlobe,220);return}
     };
     waitForGlobe();
