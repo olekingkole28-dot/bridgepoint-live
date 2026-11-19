@@ -485,10 +485,10 @@ function installAppSlots(){
 }
 async function rpc(name,args={},timeout=11000,token=null){
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),timeout);
- const headers={'apikey':KEY,'Content-Type':'application/json','Accept':'application/json','Cache-Control':'no-cache'};
+ const headers={'apikey':KEY,'Content-Type':'application/json','Accept':'application/json'};
  if(token)headers.Authorization='Bearer '+token;
  try{
-  const r=await fetch(SUPA+'/rest/v1/rpc/'+name,{method:'POST',headers,body:JSON.stringify(args),signal:controller.signal,cache:'no-store'});
+  const r=await fetch(SUPA+'/rest/v1/rpc/'+name,{method:'POST',headers,body:JSON.stringify(args),signal:controller.signal});
   const d=await r.json().catch(()=>({}));
   if(!r.ok)throw new Error(d?.message||d?.error||('BridgePoint request failed · HTTP '+r.status));
   return d;
@@ -506,7 +506,7 @@ function renderAccountSignedOut(){
  if(summary){summary.replaceChildren();const card=node('article','bpv-account-empty');card.append(node('b','','Your account is not signed in'),node('p','','Sign in to check your subscription, trial end date, next renewal period and payment-management options.'));const actions=node('div','bpv-account-actions');actions.append(billingLink('SIGN IN','/?auth=signin'),billingLink('CREATE ACCOUNT','/?auth=signup'));card.append(actions);summary.append(card)}
  if(packages){packages.replaceChildren();const note=node('p','bpv-data-note','The live package catalog loads after sign-in. Browse the public pricing overview now.');packages.append(note,billingLink('VIEW PRICING','/pricing.html'))}
 }
-async function accountBillingFetchUser(token){const r=await fetch(SUPA+'/auth/v1/user',{method:'GET',headers:{apikey:KEY,Authorization:'Bearer '+token,Accept:'application/json'},cache:'no-store'});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d?.message||'Could not verify the signed-in account.');return d}
+async function accountBillingFetchUser(token){const r=await fetch(SUPA+'/auth/v1/user',{method:'GET',headers:{apikey:KEY,Authorization:'Bearer '+token,Accept:'application/json'}});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d?.message||'Could not verify the signed-in account.');return d}
 function renderAccountSubscriptions(user,payload){
  const summary=$('#bpv-account-summary'),email=$('#bpv-account-email'),state=$('#bpv-account-state');if(!summary)return;
  if(email)email.textContent=user?.email||'Verified BridgePoint account';if(state)state.textContent='Subscription records are shown for this signed-in account and eligible shared workspaces.';
@@ -569,12 +569,12 @@ async function loadAccountBilling(){
 }
 async function openAccountBillingPortal(){
  const token=sessionToken();if(!token){location.assign('/?auth=signin');return}const button=$('#bpv-account-open-portal');if(button){button.disabled=true;button.textContent='OPENING SECURE STRIPE PORTAL…'}billingMessage('Opening your secure Stripe billing portal…');
- try{const r=await fetch(SUPA+'/functions/v1/bridgepoint-billing-portal-v66',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+token,'Content-Type':'application/json',Accept:'application/json'},body:'{}',cache:'no-store'});const d=await r.json().catch(()=>({}));if(!r.ok||d.complete!==true||!d.url){const raw=String(d.error||'Billing portal unavailable');if(/no stripe customer|no active billing profile/i.test(raw)){billingMessage('No Stripe billing profile is linked to this account yet. Choose an available package below to start a subscription.',true);return}throw new Error(raw)}const target=new URL(d.url);if(target.protocol!=='https:')throw new Error('The billing portal returned an unexpected secure URL.');location.assign(target.href)}catch(e){billingMessage('Could not open Stripe billing management: '+String(e?.message||e),true)}finally{if(button){button.disabled=false;button.textContent='MANAGE PAYMENTS / CHANGE OR CANCEL'}}
+ try{const r=await fetch(SUPA+'/functions/v1/bridgepoint-billing-portal-v66',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+token,'Content-Type':'application/json',Accept:'application/json'},body:'{}'});const d=await r.json().catch(()=>({}));if(!r.ok||d.complete!==true||!d.url){const raw=String(d.error||'Billing portal unavailable');if(/no stripe customer|no active billing profile/i.test(raw)){billingMessage('No Stripe billing profile is linked to this account yet. Choose an available package below to start a subscription.',true);return}throw new Error(raw)}const target=new URL(d.url);if(target.protocol!=='https:')throw new Error('The billing portal returned an unexpected secure URL.');location.assign(target.href)}catch(e){billingMessage('Could not open Stripe billing management: '+String(e?.message||e),true)}finally{if(button){button.disabled=false;button.textContent='MANAGE PAYMENTS / CHANGE OR CANCEL'}}
 }
 async function beginAccountCheckout(pkg,interval,button){
  const token=sessionToken();if(!token){location.assign('/?auth=signin');return}if(!pkg?.package_key||!['month','year'].includes(interval))return;
  const original=button.textContent;button.disabled=true;button.textContent='OPENING SECURE CHECKOUT…';billingMessage('Preparing Stripe checkout for '+String(pkg.package_name||pkg.package_key)+'…');
- try{const r=await fetch(SUPA+'/functions/v1/bridgepoint-checkout-v67',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+token,'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify({package_key:pkg.package_key,interval}),cache:'no-store'});const d=await r.json().catch(()=>({}));if(!r.ok||d.complete!==true||!d.url)throw new Error(String(d.error||'Checkout is not ready for this package.'));const target=new URL(d.url);if(target.protocol!=='https:')throw new Error('Checkout returned an unexpected URL.');location.assign(target.href)}catch(e){billingMessage('Checkout could not be opened: '+String(e?.message||e),true);button.disabled=false;button.textContent=original}
+ try{const r=await fetch(SUPA+'/functions/v1/bridgepoint-checkout-v67',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+token,'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify({package_key:pkg.package_key,interval})});const d=await r.json().catch(()=>({}));if(!r.ok||d.complete!==true||!d.url)throw new Error(String(d.error||'Checkout is not ready for this package.'));const target=new URL(d.url);if(target.protocol!=='https:')throw new Error('Checkout returned an unexpected URL.');location.assign(target.href)}catch(e){billingMessage('Checkout could not be opened: '+String(e?.message||e),true);button.disabled=false;button.textContent=original}
 }
 async function requestAccountPackage(pkg,button){
  const token=sessionToken();if(!token){location.assign('/?auth=signin');return}const original=button.textContent;button.disabled=true;button.textContent='SENDING REQUEST…';billingMessage('Submitting package request…');
