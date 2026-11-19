@@ -157,7 +157,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   // This opaque depth-only sphere gives the star shell the same globe occlusion,
   // so stars on the far side can never shine through the Earth disk.
   const earthDepthOccluder = new THREE.Mesh(
-    new THREE.SphereGeometry(1.0, mobile ? 96 : 160, mobile ? 64 : 112),
+    new THREE.SphereGeometry(1.006, mobile ? 128 : 192, mobile ? 96 : 128),
     new THREE.MeshBasicMaterial({ colorWrite:false, depthWrite:true, depthTest:true, side:THREE.FrontSide })
   );
   earthDepthOccluder.name = 'Earth opaque depth occluder';
