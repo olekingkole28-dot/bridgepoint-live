@@ -20,6 +20,7 @@ on:
     paths:
       - '.github/workflows/deploy-intelligence-rebuild-v5000.yml'
       - 'tools/restore_feature_assets.py'
+      - 'tests/jenolan-caves-v1.test.mjs'
       - 'app/horizon/index.html'
       - 'app/horizon/native/**'
       - 'app/horizon/sw.js'

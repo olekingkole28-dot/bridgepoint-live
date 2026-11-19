@@ -7,7 +7,10 @@ import {
 } from '../rebuild-v5000/bridgepoint-jenolan-caves-v1.js';
 
 const workflow=await readFile(new URL('../.github/workflows/deploy-intelligence-rebuild-v5000.yml',import.meta.url),'utf8');
-assert.ok(workflow.includes('github-pages-jenolan-caves-v1'));
+assert.ok(workflow.includes('python3 tools/restore_feature_assets.py restore'));
+assert.ok(workflow.includes('python3 tools/restore_feature_assets.py write site'));
+const inventory=await readFile(new URL('../tools/restore_feature_assets.py',import.meta.url),'utf8');
+assert.ok(inventory.includes('assets/underground/jenolan-caves-v1/'));
 assert.ok(workflow.includes('assets/underground/jenolan-caves-v1/pointcloud.bin.gz'));
 assert.ok(workflow.includes('initJenolanCavesRenderer(world)'));
 assert.ok(workflow.includes('node tests/jenolan-caves-v1.test.mjs'));
