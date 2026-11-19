@@ -2726,6 +2726,13 @@ jobs:
                 await appPage.waitForSelector('#bpv-dock-reopen',{visible:true,timeout:30000});
                 await appPage.click('#bpv-dock-reopen');
                 await appPage.waitForFunction(()=>!!document.querySelector('#bpv-dock')&&!document.querySelector('#bpv-dock').hidden,{timeout:10000});
+                await appPage.waitForSelector('#bp-world-time-slider-v5908 [data-standalone]',{visible:true,timeout:120000});
+                await appPage.click('#bp-world-time-slider-v5908 [data-standalone]');
+                await appPage.waitForFunction(()=>{
+                  const button=document.querySelector('#bp-world-time-slider-v5908 [data-nightlights]');
+                  const rect=button?.getBoundingClientRect();
+                  return !!button&&!!rect&&rect.width>0&&rect.height>0&&getComputedStyle(button).display!=='none';
+                },{timeout:15000});
                 const featureSelectors=[
                   '#bp-faa-obstructions-toggle-v1',
                   '#bp-shipwrecks-toggle-v1',
