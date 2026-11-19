@@ -2754,6 +2754,8 @@ jobs:
                       mapReady:!!map,canvasCount:map?.getContainer?.().querySelectorAll('canvas').length||0,
                       projection:map?.getProjection?.()?.type||null,
                       mapStatus:document.getElementById('mapStatus')?.textContent||null,
+                      appScriptDeferral:window.__BP_APP_SCRIPT_DEFERRAL_V6311__||null,
+                      appOptionalRendererBoot:window.__BP_APP_OPTIONAL_RENDERER_BOOT__||null,
                       scripts:[...document.scripts].map(x=>x.src||x.id).filter(Boolean)
                     };
                   })}catch(diagError){diagnostics={diagnosticError:String(diagError)}}
@@ -2780,9 +2782,13 @@ jobs:
 
                 // Verify that the signed-in map card mounts every restored feature control,
                 // then press each control and confirm its visible state actually changes.
+                await appPage.waitForFunction(()=>!!window.__BP_APP_SCRIPT_DEFERRAL_V6311__?.loadedCount&&window.__BP_APP_SCRIPT_DEFERRAL_V6311__.loadedCount>=1,{timeout:60000});
                 await appPage.waitForSelector('#bpv-dock-reopen',{visible:true,timeout:30000});
                 await appPage.click('#bpv-dock-reopen');
                 await appPage.waitForFunction(()=>!!document.querySelector('#bpv-dock')&&!document.querySelector('#bpv-dock').hidden,{timeout:10000});
+                // The staged app loader prioritizes the view, map key, planet selector,
+                // motion, rail, drone and vessel controls ahead of optional heavy layers.
+                await appPage.waitForFunction(()=>window.__BP_APP_SCRIPT_DEFERRAL_V6311__?.loadedCount>=8,{timeout:90000});
                 // The app mounts its 30-day timeline on demand from the "30-Day History"
                 // dock action. Open the creator before waiting for its standalone control.
                 await appPage.waitForSelector('#bpv-dock-actions [data-bpv-action="worldchanges"]',{visible:true,timeout:15000});
