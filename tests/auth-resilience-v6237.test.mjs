@@ -91,7 +91,7 @@ assert.ok(rootHtml.includes('window.__BP_SET_AUTH_MODE__(nextMode)'), 'welcome C
 assert.ok(landing.includes("$('authForm').dataset.bpAuthMode=mode"), 'the shared setter keeps the form mode in sync');
 assert.ok(landing.includes("const requestedMode=$('authForm').dataset.bpAuthMode"), 'form submission honors the welcome screen mode even when its deferred bundle loads late');
 assert.ok(landing.includes("document.getElementById('authForm')?.dataset.bpAuthMode==='signin'"), 'a welcome-screen sign-in selection survives deferred landing bundle startup');
-assert.ok(appHtml.includes('app.js?v=6309-auth-mode-sync'), 'app entry loads v6237');
+assert.ok(appHtml.includes('app.js?v=6311-app-entry-controls-priority'), 'app entry loads v6237');
 assert.ok(rootHtml.includes('bpw-globe-aura'), 'welcome globe is preserved');
 assert.ok(rootHtml.includes('window.__BP_FRESH_SIGNIN__!==true'), 'a stored token alone cannot bypass the welcome/sign-in gate on a new page entry');
 assert.ok(rootHtml.includes('return sized&&styleReady;'), 'the welcome animation does not wait for every basemap tile');
