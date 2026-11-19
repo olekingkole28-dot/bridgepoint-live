@@ -200,6 +200,8 @@ function makeTopBarAndDock(){
    '<div class="bpv-command-heading"><span class="bpv-command-heading-icon" aria-hidden="true">☁</span><span><b>WEATHER & ENVIRONMENT</b><small>Storm effects, wind and signal fields</small></span></div>'+
    '<div class="bpv-command-grid" data-bpv-command-grid="environment">'+
     '<button type="button" class="bpv-command-btn bpv-weather-fx-btn" data-bpv-action="weatherfx" title="Open animated weather effects"><span class="bpv-command-icon" aria-hidden="true">☁</span><span class="bpv-command-label">Weather FX</span></button>'+
+    '<button type="button" class="bpv-command-btn" data-bpv-action="clouds" aria-pressed="true" title="Toggle the global animated 3D cloud layer"><span class="bpv-command-icon" aria-hidden="true">☁</span><span class="bpv-command-label">3D Clouds</span></button>'+
+    '<button type="button" class="bpv-command-btn" data-bpv-action="wildfire" aria-pressed="false" title="Toggle live wildfire and burn-perimeter geometry"><span class="bpv-command-icon" aria-hidden="true">🔥</span><span class="bpv-command-label">Wildfire</span></button>'+
     '<button type="button" class="bpv-command-btn bpv-wind-voxels-btn" data-bpv-action="windfx" title="Explore wind flow and drone routes"><span class="bpv-command-icon" aria-hidden="true">≋</span><span class="bpv-command-label">Wind + Drone</span></button>'+
     '<button type="button" class="bpv-command-btn" data-bpv-action="volumetric" title="Open wind and RF field visualizations"><span class="bpv-command-icon" aria-hidden="true">⌁</span><span class="bpv-command-label">Wind / RF Fields</span></button>'+
     '<button type="button" class="bpv-command-btn bpv-emrf-spectrogram-btn" data-bpv-action="emrf" aria-pressed="false" title="Toggle global electromagnetic spectrum, Starlink beam models, cellular RF and ionospheric propagation"><span class="bpv-command-icon" aria-hidden="true">◉</span><span class="bpv-command-label">Global EM / RF</span></button>'+
@@ -1017,6 +1019,36 @@ if(a==='parcels'){toggleParcelBoundaries();return}
 if(a==='listings'){openPanel('listings');return}
 if(a==='worldchanges'){void openWorldChanges();return}
 if(a==='weatherfx'){void openRealWorldEffects(false);return}
+if(a==='clouds'){
+ const surfaceWorld=home?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
+ const activeMap=surfaceWorld?.map||surfaceWorld;
+ b.disabled=true;
+ void import('./world-v2300-clouds.js?v=6202-global-satellite-cloud-banks').then(m=>{
+  const api=window.__BP_SKY_CLOUDS_V5908__?.map===activeMap?window.__BP_SKY_CLOUDS_V5908__:m.initSkyClouds({map:activeMap});
+  if(!api)throw new Error('3D cloud renderer is unavailable');
+  const next=!api.enabled;
+  api.setEnabled(next);
+  b.setAttribute('aria-pressed',String(next));
+  b.classList.toggle('active',next);
+  const label=b.querySelector('.bpv-command-label');if(label)label.textContent='3D Clouds · '+(next?'ON':'OFF');
+ }).catch(e=>{b.title='3D cloud control unavailable: '+String(e?.message||e);console.warn('BridgePoint 3D cloud control unavailable',e)}).finally(()=>{b.disabled=false});
+ return;
+}
+if(a==='wildfire'){
+ const surfaceWorld=home?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
+ const activeMap=surfaceWorld?.map||surfaceWorld;
+ b.disabled=true;
+ void import('./world-v2300-weather.js?v=6130-cloud-rain-lightning').then(m=>{
+  const api=window.__bpWeatherV2300?.map===activeMap?window.__bpWeatherV2300:m.initWeather(activeMap,{deferActivation:true});
+  if(!api?.setWildfiresVisible)throw new Error('Live wildfire renderer is unavailable');
+  const next=api.state?.wildfiresVisible!==true;
+  api.setWildfiresVisible(next);
+  b.setAttribute('aria-pressed',String(next));
+  b.classList.toggle('active',next);
+  const label=b.querySelector('.bpv-command-label');if(label)label.textContent='Wildfire · '+(next?'ON':'OFF');
+ }).catch(e=>{b.title='Wildfire control unavailable: '+String(e?.message||e);console.warn('BridgePoint wildfire control unavailable',e)}).finally(()=>{b.disabled=false});
+ return;
+}
 if(a==='windfx'){void openVolumetricFields(true).catch(e=>console.warn('BridgePoint 3D wind unavailable',e));return}
   if(a==='volumetric'){void openVolumetricFields().catch(e=>console.warn('BridgePoint volumetric fields unavailable',e));return}
   if(a==='emrf'){void toggleEmrfSpectrogram(b).catch(e=>console.warn('BridgePoint global EM/RF spectrogram unavailable',e));return}
