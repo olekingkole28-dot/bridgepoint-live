@@ -45,6 +45,13 @@ export const UNDERGROUND_SCAN_SITES=[
   models:[
    {uid:'a6183b4fd7364ed59518a276ad8ef8ec',title:'Treak Cliff Cavern — Natural Stalactite Formation',creator:'9of9 (@9of9)',license:'CC Attribution',method:'Phone-photo photogrammetry · RealityCapture',detail:'Textured 3D scan of natural limestone stalactites photographed during a guided cave visit. Coverage is partial, especially in low-light areas; this is not a complete cave model.',modelUrl:'https://sketchfab.com/3d-models/treak-cliff-cavern-stalactites-a6183b4fd7364ed59518a276ad8ef8ec'}
   ]},
+ {id:'gruta-dos-palhares',name:'Gruta dos Palhares',type:'cave',coordinates:[-47.466659,-19.931757],
+  locationPrecision:'Approximate published cave entrance/municipal park coordinate near Sacramento, Minas Gerais, Brazil; the source mesh is not certified as a survey-aligned subsurface model.',
+  locationNote:'The map icon identifies Gruta dos Palhares at its public site coordinate, not a measured position for every surface in the scan.',
+  description:'A textured photogrammetry 3D mesh of the real sandstone Gruta dos Palhares cave, a natural rock shelter in Sacramento, Minas Gerais, Brazil.',
+  models:[
+   {uid:'378b82695f934eafa01b397ba4d0ff83',title:'Gruta dos Palhares — Sandstone Cave Photogrammetry',creator:'Paulo Rodrigo Simões (@rollingdrone)',license:'CC Attribution',method:'Textured photo-based mesh · photogrammetry',detail:'Creator-published photogrammetry of the sandstone grotto and entrance hall, catalogued as Brazilian cave MG 299. The scan documents cave surfaces; its exact underground geometry and absolute dimensions are not independently validated for globe placement.',modelUrl:'https://sketchfab.com/3d-models/gruta-dos-palhares-sacramento-mg-378b82695f934eafa01b397ba4d0ff83'}
+  ]},
  {id:'om-jaettestue',name:'Øm Jættestue Passage Tomb',type:'tomb',coordinates:[11.994633,55.599731],
   locationPrecision:'Published GPS coordinate for the passage tomb site.',
   locationNote:'This is a Neolithic passage tomb and burial chamber, not a natural cave.',
