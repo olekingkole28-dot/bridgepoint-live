@@ -104,6 +104,9 @@ assert.ok(rootHtml.includes('priorityReadyAt') && rootHtml.includes('optionalSta
 assert.ok(rootHtml.includes("typeof map.getCanvas==='function'&&map.getCanvas()"), 'card controls can start as soon as the base globe canvas exists');
 assert.ok(rootHtml.includes('window.__BP_LANDING_FEATURE_RESTORE_SCHEDULED__===true'), 'optional deferred scripts wait for the post-sign-in feature restoration batch');
 assert.ok(appHtml.includes("status:'waiting-for-globe-canvas'"), 'app feature queue waits for the WebGL canvas, not full map style readiness');
+assert.ok(!appHtml.includes('while(document.hidden)'), 'app feature queue never waits indefinitely for a page visibility transition');
+assert.ok(appHtml.includes('state.lastStarted=src'), 'app feature queue reports the currently loading control script');
+assert.ok(appHtml.includes('backgroundLoadCount'), 'app feature queue reports when scripts are loaded while backgrounded');
 assert.ok(appHtml.includes("typeof map.getCanvas==='function')canvas=map.getCanvas()"), 'app feature controls start as soon as the globe canvas exists');
 assert.ok(appHtml.includes("setTimeout(()=>{if(!queuePromise)void loadQueue()},mobile?180:120)"), 'app feature modules begin immediately after the canvas becomes available');
 assert.ok(appHtml.includes('priorityReadyAt'), 'app deferral exposes when the core feature controls finish loading');
