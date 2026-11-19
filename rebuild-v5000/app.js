@@ -1748,12 +1748,7 @@ function bindPublicListingPopup(){
   try{new maplibregl.Popup({closeButton:true,closeOnClick:true,maxWidth:'320px'}).setLngLat(e.lngLat).setDOMContent(root).addTo(map)}catch(_){}
  });
 }
-function startPublicListings(){
- const map=world?.map;if(!map)throw new Error('BridgePoint globe is not ready');
- publicListingsOverlayEnabled=true;window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('listings',true);
- if(!map.__bpPublicListingsBound){map.__bpPublicListingsBound=true;bindPublicListingPopup();map.on('moveend',schedulePublicListings)}
- schedulePublicListings();
-}
+
 
 
 
