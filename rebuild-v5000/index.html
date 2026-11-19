@@ -769,13 +769,34 @@ html.bpw-entry-locked body>main>section:not(.hero){display:none!important;visibi
   return queuePromise;
  }
  window.__BP_LOAD_DEFERRED_FEATURES_V6302__=loadDeferredFeatures;
- if(!document.getElementById('bpWelcomeGateV1')){
-  void loadDeferredFeatures();return;
+ const scheduleAfterBaseGlobe=(reason)=>{
+  state.status='waiting-for-base-globe';
+  state.trigger=reason;
+  const check=()=>{
+   if(queuePromise)return;
+   const map=window.__BP_LANDING_WORLD__?.map||window.__BP_V5000_WORLD__?.map;
+   const boot=window.__BP_LANDING_MAP_BOOT__||null;
+   let styleReady=false;
+   try{styleReady=!!map&&(map.isStyleLoaded?.()===true||map.loaded?.()===true)}catch(_){}
+   if(map&&styleReady){
+    const start=()=>{if(!queuePromise)void loadDeferredFeatures()};
+    if(typeof requestIdleCallback==='function')requestIdleCallback(start,{timeout:1800});
+    else setTimeout(start,700);
+    return;
+   }
+   setTimeout(check,350);
+  };
+  check();
+ };
+ const gate=document.getElementById('bpWelcomeGateV1');
+ if(!gate){
+  scheduleAfterBaseGlobe('already-signed-in-entry');
+  return;
  }
  const observer=new MutationObserver(()=>{
   if(!document.getElementById('bpWelcomeGateV1')){
    observer.disconnect();
-   void loadDeferredFeatures();
+   scheduleAfterBaseGlobe('welcome-gate-dismissed');
   }
  });
  observer.observe(document.documentElement,{childList:true,subtree:true});
