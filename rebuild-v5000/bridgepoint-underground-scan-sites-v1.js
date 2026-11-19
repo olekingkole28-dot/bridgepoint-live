@@ -121,7 +121,7 @@ function modelByUid(site,uid){return (site.models||[]).find(m=>m.uid===uid)||sit
 // Only the Ohio publisher's documented Matterport 3D showcase uses the alternate viewer.
 // Existing Sketchfab embeds remain byte-for-byte identical.
 function modelViewerUrl(model){
- if(model?.matterportTourId&&/^[A-Za-z0-9]{11}$/.test(model.matterportTourId))return 'https://my.matterport.com/show/?m='+encodeURIComponent(model.matterportTourId)+'&play=1';
+ if(model?.matterportTourId&&/^[A-Za-z0-9]{11}$/.test(model.matterportTourId))return 'https://my.matterport.com/show/?m='+encodeURIComponent(model.matterportTourId);
  return embedUrl(model?.uid);
 }
 
@@ -130,16 +130,16 @@ export function undergroundSitePopupHtml(site,selectedUid=null){
  const selected=modelByUid(site,selectedUid);
  const isMatterport=Boolean(selected?.matterportTourId);
  const choices=site.models.map(m=>'<button type="button" class="bp-underground-scan-choice-v1'+(m.uid===selected.uid?' is-active':'')+'" data-scan-uid="'+safe(m.uid)+'" aria-pressed="'+String(m.uid===selected.uid)+'"><span>'+safe(m.title)+'</span><small>'+safe(m.creator)+' · '+safe(m.license)+'</small></button>').join('');
- return '<article class="bp-underground-site-popup-v1">'+
+ return '<article class="bp-underground-site-popup-v1'+(isMatterport?' bp-underground-site-popup-matterport-v1':'')+'">'+
   '<div class="bp-underground-site-kicker-v1">BRIDGEPOINT · CAVES & UNDERGROUND SITES</div><h3>'+safe(site.name)+'</h3>'+
   '<p class="bp-underground-site-description-v1">'+safe(site.description)+'</p>'+
-  '<div class="bp-underground-site-viewer-v1"><iframe id="bp-underground-scan-viewer-v1" title="'+safe(selected.title)+' — interactive 3D scan by '+safe(selected.creator)+'" src="'+safe(modelViewerUrl(selected))+'" allow="autoplay; fullscreen; xr-spatial-tracking" allowfullscreen loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>'+
+  '<div class="bp-underground-site-viewer-v1"><iframe id="bp-underground-scan-viewer-v1" title="'+safe(selected.title)+' — interactive 3D scan by '+safe(selected.creator)+'" src="'+safe(modelViewerUrl(selected))+'" '+(isMatterport?'sandbox="allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-presentation" allow="autoplay; xr-spatial-tracking"':'allow="autoplay; fullscreen; xr-spatial-tracking" allowfullscreen')+' loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>'+
   '<div class="bp-underground-site-model-meta-v1"><b id="bp-underground-scan-title-v1">'+safe(selected.title)+'</b>'+
   '<span>Creator: <strong id="bp-underground-scan-creator-v1">'+safe(selected.creator)+'</strong></span>'+
   '<span>'+(isMatterport?'Access / rights: ':'Displayed license: ')+'<strong id="bp-underground-scan-license-v1">'+safe(selected.license)+'</strong></span>'+
   '<span>Capture method: <strong id="bp-underground-scan-method-v1">'+safe(selected.method)+'</strong></span>'+
   '<p id="bp-underground-scan-detail-v1">'+safe(selected.detail)+'</p>'+
-  '<a id="bp-underground-scan-source-v1" href="'+safe(selected.modelUrl)+'" target="_blank" rel="noopener noreferrer">'+(isMatterport?'Open original Matterport 3D tour ↗':'Open original Sketchfab model ↗')+'</a></div>'+
+  (isMatterport?'<span class="bp-underground-site-provider-v1">Original 3D publisher: Elements of Media · Play the tour here in BridgePoint</span>':'<a id="bp-underground-scan-source-v1" href="'+safe(selected.modelUrl)+'" target="_blank" rel="noopener noreferrer">Open original Sketchfab model ↗</a>')+'</div>'+
   (site.models.length>1?'<div class="bp-underground-site-choices-v1" aria-label="Other scans at this site">'+choices+'</div>':'')+
   '<p class="bp-underground-site-precision-v1"><strong>Map placement:</strong> '+safe(site.locationPrecision)+'</p>'+
   '<p class="bp-underground-site-attribution-v1">'+(isMatterport?'3D tour is hosted by Matterport and published by Elements of Media; the original publisher retains rights. BridgePoint embeds the public interactive showcase, does not redistribute the model and does not claim it is a pure photogrammetry or survey-georeferenced mesh.':'3D content is hosted by Sketchfab and remains on its creator’s model page. Creator attribution and displayed license are shown above. BridgePoint does not claim this scan is a metrically georeferenced subsurface mesh.')+'</p></article>';
@@ -267,6 +267,8 @@ function addControlGroup(state){
   '.bp-underground-site-description-v1,.bp-underground-site-precision-v1,.bp-underground-site-attribution-v1{color:#a9c2cb;margin:6px 0}'+
   '.bp-underground-site-viewer-v1{width:100%;aspect-ratio:4/3;min-height:190px;background:#03080d;border-radius:9px;overflow:hidden;margin:9px 0;border:1px solid rgba(120,210,205,.25)}'+
   '.bp-underground-site-viewer-v1 iframe{width:100%;height:100%;border:0;display:block}'+
+  '.bp-underground-site-popup-matterport-v1 .bp-underground-site-viewer-v1{aspect-ratio:4/5;min-height:min(52vh,440px)}'+
+  '.bp-underground-site-provider-v1{color:#91dfce;font-weight:650}'+
   '.bp-underground-site-model-meta-v1{display:grid;gap:4px;color:#b9d0d8;font-size:11px}.bp-underground-site-model-meta-v1>b{font-size:13px;color:#fff}.bp-underground-site-model-meta-v1 strong{color:#edfaff}.bp-underground-site-model-meta-v1 p{margin:3px 0;color:#adc3cc}'+
   '.bp-underground-site-model-meta-v1 a{color:#7ee3d4;text-decoration:underline}'+
   '.bp-underground-site-choices-v1{display:grid;gap:5px;margin:10px 0}.bp-underground-scan-choice-v1{display:grid;gap:2px;text-align:left;border:1px solid rgba(135,184,196,.24);background:rgba(14,36,47,.8);color:#eafaff;border-radius:8px;padding:7px 9px;font:600 11px/1.35 system-ui,sans-serif}.bp-underground-scan-choice-v1 small{font-size:9px;color:#9cbac5}.bp-underground-scan-choice-v1.is-active{border-color:#75dbc8;background:rgba(22,82,75,.52)}'+
