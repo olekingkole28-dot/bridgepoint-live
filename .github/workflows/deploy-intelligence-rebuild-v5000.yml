@@ -2482,8 +2482,55 @@ jobs:
                   if(u.origin===origin&&critical.includes(u.pathname)&&res.status()>=400)criticalHttpErrors.push({status:res.status(),path:u.pathname});
                 });
                 const url=origin+'/?bp-device-smoke='+profile.name+'-'+Date.now();
-                await page.goto(url,{waitUntil:'domcontentloaded',timeout:60000});
-                await page.waitForSelector('#bpWelcomeGateV1 .bpw-create',{visible:true,timeout:45000});
+                const entryResponse=await page.goto(url,{waitUntil:'domcontentloaded',timeout:60000});
+                const collectWelcomeEntryDiagnostic=()=>page.evaluate(()=>{
+                  const gate=document.getElementById('bpWelcomeGateV1');
+                  const panel=gate?.querySelector('.bpw-gate-panel');
+                  const create=gate?.querySelector('.bpw-create');
+                  const signin=gate?.querySelector('.bpw-signin');
+                  const summary=element=>{
+                    if(!element)return null;
+                    const s=getComputedStyle(element),r=element.getBoundingClientRect();
+                    return{
+                      display:s.display,visibility:s.visibility,opacity:s.opacity,pointerEvents:s.pointerEvents,
+                      hidden:element.hidden,rect:{x:r.x,y:r.y,width:r.width,height:r.height},
+                      className:element.className
+                    };
+                  };
+                  return{
+                    url:location.href,title:document.title,readyState:document.readyState,
+                    bodyText:(document.body?.innerText||'').slice(0,700),
+                    gateExists:!!gate,gatePhase:gate?.dataset.phase||null,
+                    gateRemoved:gate?.dataset.removed||null,gateMapFallback:gate?.dataset.mapFallback||null,
+                    fallbackGlobal:window.__BP_WELCOME_GATE_FALLBACK_V6297__||null,
+                    mapBoot:window.__BP_LANDING_MAP_BOOT__||null,
+                    landingMap:!!window.__BP_LANDING_WORLD__?.map,
+                    gate:summary(gate),panel:summary(panel),create:summary(create),signin:summary(signin),
+                    panelHtml:panel?.outerHTML?.slice(0,2600)||null,
+                    scripts:[...document.scripts].map(s=>s.src||s.id).filter(Boolean),
+                    styles:[...document.querySelectorAll('style')].map(s=>s.id||'inline-style'),
+                    styleLinks:[...document.querySelectorAll('link[rel="stylesheet"]')].map(s=>s.href)
+                  };
+                });
+                await new Promise(resolve=>setTimeout(resolve,15000));
+                const welcomeDiagnostic=await collectWelcomeEntryDiagnostic();
+                console.log('BRIDGEPOINT_WELCOME_ENTRY_DIAGNOSTIC',JSON.stringify({
+                  responseStatus:entryResponse?.status?.()??null,
+                  responseUrl:entryResponse?.url?.()||null,
+                  pageErrors,
+                  criticalHttpErrors,
+                  page:welcomeDiagnostic
+                }));
+                try{
+                  await page.waitForSelector('#bpWelcomeGateV1 .bpw-create',{visible:true,timeout:12000});
+                }catch(error){
+                  const finalDiagnostic=await collectWelcomeEntryDiagnostic();
+                  console.error('BRIDGEPOINT_WELCOME_ENTRY_SELECTOR_FAILURE',JSON.stringify(finalDiagnostic));
+                  throw new Error('WELCOME_ACCOUNT_ENTRY_UNAVAILABLE '+JSON.stringify({
+                    responseStatus:entryResponse?.status?.()??null,
+                    pageErrors,criticalHttpErrors,page:finalDiagnostic
+                  }));
+                }
                 await page.waitForSelector('#bpWelcomeGateV1 .bpw-signin',{visible:true,timeout:45000});
                 await page.waitForSelector('#bpWelcomeSpaceCanvasV6257',{visible:true,timeout:45000});
                 const initial=await page.evaluate(()=>{
