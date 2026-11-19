@@ -292,7 +292,7 @@ test('both entrypoints keep the welcome document in place while migrating to the
   assert.match(appUpdate, /navigator\.serviceWorker\.register\(CURRENT_SW/);
   assert.match(appUpdate, /navigator\.serviceWorker\?\.addEventListener\('controllerchange'/);
   assert.doesNotMatch(appUpdate, /location\.replace|location\.reload|reloadOnce/);
-  assert.match(serviceWorker, /const V='bp-intelligence-v6309-auth-mode-sync-sidewalk'/);
+  assert.match(serviceWorker, /const V='bp-intelligence-v6247-universal-fresh-entry-sidewalk'/);
   assert.match(clouds, /Number\(existingCloudController\.version\) >= 6202[\s\S]{0,180}Number\(existingState\?\.version\) >= 6202/);
 });
 
