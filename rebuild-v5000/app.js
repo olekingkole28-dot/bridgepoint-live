@@ -231,13 +231,28 @@ void import('./bridgepoint-shipwrecks-v1.js?v=11-titanic-gaskin-grafton-cannon-k
 void import('./bridgepoint-plane-wrecks-v1.js?v=1-f4u1-corsair-colmap-pointcloud')
  .then(m=>{window.__BP_PLANE_WRECKS_V1__=m.initPlaneWrecksRenderer(world)})
  .catch(e=>console.warn('BridgePoint Plane Wrecks layer unavailable',e));
+void import('./bridgepoint-plane-wrecks-extra-v1.js?v=8-b17f-black-jack')
+ .then(m=>{window.__BP_PLANE_WRECKS_EXTRA_V1__=m.initPlaneWrecksExtraRenderer(world)})
+ .catch(e=>console.warn('BridgePoint additional Plane Wrecks layer unavailable',e));
 void import('./bridgepoint-spacecraft-v1.js?v=1-sls-mobile-launcher-lc39b')
  .then(m=>{window.__BP_SPACECRAFT_V1__=m.initSpacecraftRenderer(world)})
  .catch(e=>console.warn('BridgePoint Spacecraft & Launch Sites layer unavailable',e));
+void import('./bridgepoint-spacecraft-saturn-v1.js?v=1-nasa-saturn-v-launch39a')
+ .then(m=>{window.__BP_SPACECRAFT_SATURN_V1__=m.initSpacecraftSaturnRenderer(world)})
+ .catch(e=>console.warn('BridgePoint Saturn V launch-site layer unavailable',e));
+void import('./bridgepoint-spacecraft-discovery-v1.js?v=1-smithsonian-space-shuttle-discovery')
+ .then(m=>{window.__BP_SPACECRAFT_DISCOVERY_V1__=m.initSpacecraftDiscoveryRenderer(world)})
+ .catch(e=>console.warn('BridgePoint Smithsonian Space Shuttle Discovery layer unavailable',e));
+void import('./bridgepoint-spacecraft-columbia-v1.js?v=2-apollo11-columbia-principal-axis')
+ .then(m=>{window.__BP_SPACECRAFT_COLUMBIA_V1__=m.initSpacecraftColumbiaRenderer(world)})
+ .catch(e=>console.warn('BridgePoint Smithsonian Columbia layer unavailable',e));
  // Independent opt-in scanned cave and underground heritage sites; keep wells and utility renderers untouched.
  void import('./bridgepoint-underground-scan-sites-v1.js?v=1-curated-sketchfab-caves')
   .then(m=>{window.__BP_UNDERGROUND_SCAN_SITES_V1__=m.initUndergroundScanSitesRenderer(world)})
   .catch(e=>console.warn('BridgePoint cave and underground scan layer unavailable',e));
+void import('./bridgepoint-jenolan-caves-v1.js?v=1-jenolan-large-system')
+ .then(m=>{window.__BP_JENOLAN_CAVES_V1__=m.initJenolanCavesRenderer(world)})
+ .catch(e=>console.warn('BridgePoint Jenolan Caves 3D layer unavailable',e));
  // Utility-scale wind turbines are an isolated, opt-in USWTDB layer.
  void import('./bridgepoint-wind-turbines-v1.js?v=1-uswtdb-3d-ground-anchored')
   .then(m=>{window.__BP_WIND_TURBINES_V1__=m.initWindTurbinesRenderer(world)})
