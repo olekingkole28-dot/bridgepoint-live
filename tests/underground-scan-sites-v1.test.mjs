@@ -3,12 +3,13 @@ import { readFile } from 'node:fs/promises';
 import {UNDERGROUND_SCAN_SITES,UNDERGROUND_SCAN_RIGHTS_HOLDS,buildUndergroundSiteFeatures,undergroundSitePopupHtml} from '../rebuild-v5000/bridgepoint-underground-scan-sites-v1.js';
 
 const features=buildUndergroundSiteFeatures();
-assert.equal(features.length,12,'twelve reviewed site anchors are mapped');
-assert.equal(UNDERGROUND_SCAN_SITES.reduce((n,s)=>n+s.models.length,0),14,'fourteen real creator-hosted 3D models and tours are cataloged');
+assert.equal(features.length,14,'fourteen reviewed site anchors are mapped');
+assert.equal(UNDERGROUND_SCAN_SITES.reduce((n,s)=>n+s.models.length,0),16,'sixteen real creator-hosted 3D models and tours are cataloged');
 assert.equal(UNDERGROUND_SCAN_RIGHTS_HOLDS.length,3,'rights/source holds are exposed');
 assert.ok(features.every(f=>f.geometry.type==='Point'&&f.properties.iconImage));
 assert.ok(UNDERGROUND_SCAN_SITES.every(s=>s.models.every(m=>m.uid&&m.creator&&(
  m.matterportTourId ? (m.matterportTourId==='1BTGHi85s96'&&m.modelUrl==='https://my.matterport.com/show/?m=1BTGHi85s96'&&m.license.includes('original rights retained'))
+ : m.embedOnly ? (['cbe5a1c208674091b48f65ac2d4cca94','be7675a23595489c86211608f0fb1886'].includes(m.uid)&&m.license.includes('no reuse license displayed')&&m.modelUrl.startsWith('https://sketchfab.com/3d-models/'))
  : (m.license==='CC Attribution'&&m.modelUrl.startsWith('https://sketchfab.com/3d-models/'))
 ))));
 assert.equal(UNDERGROUND_SCAN_SITES.find(s=>s.id==='paris-catacombs').models.length,3);
@@ -108,6 +109,40 @@ assert.ok(undergroundSitePopupHtml(rockHouse).includes('does not claim it is a p
 assert.ok(undergroundSitePopupHtml(rockHouse).includes('Access / rights:'));
 assert.ok(undergroundSitePopupHtml(rockHouse).includes('original publisher retains rights'));
 assert.equal(UNDERGROUND_SCAN_SITES.filter(s=>s.id==='rock-house-ohio').length,1);
+const japan=UNDERGROUND_SCAN_SITES.find(s=>s.id==='abukuma-cave-japan');
+assert.ok(japan&&japan.type==='cave','Abukuma must be a real Japan cave with its own large persistent icon');
+assert.deepEqual(japan.coordinates,[140.67292,37.34417]);
+assert.equal(japan.models.length,1);
+assert.equal(japan.models[0].uid,'cbe5a1c208674091b48f65ac2d4cca94');
+assert.equal(japan.models[0].embedOnly,true);
+assert.match(japan.models[0].method,/724 photographs/);
+assert.match(japan.models[0].method,/photogrammetry/i);
+assert.match(japan.locationPrecision,/entrance/i);
+assert.ok(undergroundSitePopupHtml(japan).includes('sketchfab.com/models/cbe5a1c208674091b48f65ac2d4cca94/embed'));
+assert.ok(undergroundSitePopupHtml(japan).includes('Fujihiko Matsumoto'));
+const china=UNDERGROUND_SCAN_SITES.find(s=>s.id==='yungang-cave-18-china');
+assert.ok(china&&china.type==='cave','Yungang Cave 18 must be a real cave in China');
+assert.deepEqual(china.coordinates,[113.12334,40.11019]);
+assert.equal(china.models.length,1);
+assert.equal(china.models[0].uid,'be7675a23595489c86211608f0fb1886');
+assert.equal(china.models[0].embedOnly,true);
+assert.match(china.models[0].method,/photogrammetry/i);
+assert.match(china.locationPrecision,/Cave 18 entrance/);
+assert.ok(undergroundSitePopupHtml(china).includes('sketchfab.com/models/be7675a23595489c86211608f0fb1886/embed'));
+assert.ok(undergroundSitePopupHtml(china).includes('Di Luo'));
+for(const site of [japan,china]){
+ const html=undergroundSitePopupHtml(site);
+ assert.ok(html.includes('sandbox="allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-presentation"'),'new caves must stay inside BridgePoint');
+ assert.ok(!html.includes('target="_blank"'),'new cave cards may not open external websites');
+ assert.ok(!html.includes('allow-top-navigation'),'embedded scan cannot navigate away');
+ assert.ok(!html.includes('allow-popups'),'embedded scan cannot open popup tabs');
+ assert.ok(!html.includes('href="https://sketchfab.com'),'new card should show creator, not external link');
+ assert.ok(html.includes('Explore the photo-mesh here in BridgePoint'));
+ assert.ok(html.includes('no reuse license displayed'));
+ assert.ok(!html.includes('allowfullscreen'),'new model cannot hijack mobile fullscreen');
+}
+assert.equal(UNDERGROUND_SCAN_SITES.filter(s=>s.id==='abukuma-cave-japan'||s.id==='yungang-cave-18-china').length,2);
+assert.equal(UNDERGROUND_SCAN_SITES.find(s=>s.id==='anchor-church-caves-derbyshire').models[0].uid,'c7125417f09e43229288316c8144e625');
 assert.ok(undergroundSitePopupHtml(anchorChurch).includes('sketchfab.com/models/c7125417f09e43229288316c8144e625/embed'));
 assert.ok(undergroundSitePopupHtml(anchorChurch).includes('Open original Sketchfab model'));
 assert.ok(undergroundSitePopupHtml(anchorChurch).includes('allowfullscreen'),'existing Sketchfab viewer permissions retained');
