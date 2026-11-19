@@ -6,6 +6,7 @@ const landing = fs.readFileSync(new URL('../rebuild-v5000/landing.js', import.me
 const app = fs.readFileSync(new URL('../rebuild-v5000/app.js', import.meta.url), 'utf8');
 const rootHtml = fs.readFileSync(new URL('../rebuild-v5000/index.html', import.meta.url), 'utf8');
 const appHtml = fs.readFileSync(new URL('../rebuild-v5000/app-index.html', import.meta.url), 'utf8');
+const view = fs.readFileSync(new URL('../rebuild-v5000/bridgepoint-view-v5917.js', import.meta.url), 'utf8');
 const PC_API = 'https://louise-willing-cases-strategies.trycloudflare.com';
 
 function response(status, body = {}) {
@@ -103,6 +104,11 @@ assert.ok(landing.includes('requestAnimationFrame(()=>setTimeout(finish,230))'),
 assert.ok(rootHtml.includes('priorityReadyAt') && rootHtml.includes('optionalStageReadyAt'), 'mobile deferred loader exposes core-card readiness before optional modules');
 assert.ok(rootHtml.includes("typeof map.getCanvas==='function'&&map.getCanvas()"), 'card controls can start as soon as the base globe canvas exists');
 assert.ok(rootHtml.includes('window.__BP_LANDING_FEATURE_RESTORE_SCHEDULED__===true'), 'optional deferred scripts wait for the post-sign-in feature restoration batch');
+assert.ok(view.includes("async function openWorldChanges()"), 'World Changes uses the shared timeline opener');
+assert.ok(view.includes("dock.classList.add('bpwt-standalone-open')"), 'World Changes explicitly forces the timeline into its expanded state');
+assert.ok(view.includes("expand.setAttribute('aria-pressed','true')"), 'expanded timeline keeps its control accessibility state synchronized');
+assert.ok(rootHtml.includes('bridgepoint-view-v5917.js?v=6238-pc-runtime&emrf=1&worldhistory=6313-open-fix'), 'website loads the explicit timeline-open fix');
+assert.ok(appHtml.includes('bridgepoint-view-v5917.js?v=6238-pc-runtime&emrf=1&worldhistory=6313-open-fix'), 'app loads the explicit timeline-open fix');
 assert.ok(appHtml.includes("status:'waiting-for-globe-canvas'"), 'app feature queue waits for the WebGL canvas, not full map style readiness');
 assert.ok(!appHtml.includes('while(document.hidden)'), 'app feature queue never waits indefinitely for a page visibility transition');
 assert.ok(appHtml.includes('state.lastStarted=src'), 'app feature queue reports the currently loading control script');
