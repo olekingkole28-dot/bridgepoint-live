@@ -2197,7 +2197,7 @@ jobs:
                   match=next((a for a in artifacts if a.get("name")==artifact_name and not a.get("expired")),None)
                   if match:
                       with open(os.environ["GITHUB_OUTPUT"],"a",encoding="utf-8") as output:
-                          output.write(f"run_id={row['id']}\\nartifact_name={artifact_name}\\n")
+                          output.write(f"run_id={row['id']}\nartifact_name={artifact_name}\n")
                       print("JENOLAN_ARTIFACT_SELECTED",row["id"],match.get("size_in_bytes"))
                       raise SystemExit(0)
               print("Waiting for successful published Jenolan artifact",attempt+1,"/ 60",flush=True)
