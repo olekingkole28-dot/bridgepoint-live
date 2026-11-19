@@ -70,6 +70,9 @@ on:
       - 'rebuild-v5000/zoning-coverage-v1.js'
       - 'tests/pc-runtime-cutover-v6238.test.mjs'
       - 'tests/auth-resilience-v6237.test.mjs'
+      - 'tests/offshore-energy-v1.test.mjs'
+      - 'tests/wind-turbines-v1.test.mjs'
+      - 'tests/transportation-simulation-v1.test.mjs'
 
 permissions:
   contents: write
