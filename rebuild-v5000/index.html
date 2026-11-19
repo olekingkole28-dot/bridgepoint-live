@@ -890,10 +890,12 @@ html.bpw-entry-locked body>main>section:not(.hero){display:none!important;visibi
    state.completedAt=Date.now();state.failedScripts=failures;
    return state;
   })().catch(error=>{
-   state.status='failed';
+   state.status='retrying';
    state.error=String(error?.message||error);
    state.failedScripts=failures;
-   throw error;
+   queuePromise=null;
+   setTimeout(()=>{if(!queuePromise)void loadDeferredFeatures().catch(retryError=>console.warn('BridgePoint deferred controls retry',retryError))},1200);
+   return state;
   });
   return queuePromise;
  }
