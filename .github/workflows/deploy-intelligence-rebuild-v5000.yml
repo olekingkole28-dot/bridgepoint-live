@@ -2528,7 +2528,7 @@ jobs:
           grep -Fq '__BP_LANDING_MAP_BOOT__' /tmp/bp-landing.js
           grep -Fq 'bpAuthRequestV6237' /tmp/bp-landing.js
           grep -Fq 'bpAuthRequestV6237' /tmp/bp-app.js
-          grep -Fq 'mobileFrameIntervalMs' /tmp/bp-welcome.js
+          grep -Fq 'welcomeFrameIntervalMs' /tmp/bp-welcome.js
           grep -Fq 'deferred-on-mobile-welcome' /tmp/bp-welcome.js
           grep -Fq 'v6305-balanced-celestial-frame' /tmp/bp-welcome.js
           grep -Fq '__BP_WORLD_RENDER_VERSION__=5630' /tmp/bp-world.js
@@ -2691,6 +2691,19 @@ jobs:
                 await appPage.setUserAgent(profile.ua);
                 await appPage.setViewport({width:profile.width,height:profile.height,deviceScaleFactor:profile.dpr,isMobile:profile.mobile,hasTouch:profile.touch});
                 appPage.on('pageerror',e=>appErrors.push(String(e?.message||e)));
+                // The app entry gate intentionally requires a fresh sign-in marker.
+                // Use a local-only smoke token so this browser-only test can reach the
+                // public map shell without submitting credentials or creating an account.
+                await appPage.evaluateOnNewDocument(()=>{
+                  const now=Math.floor(Date.now()/1000);
+                  localStorage.setItem('bp_auth_v5045',JSON.stringify({
+                    access_token:'bridgepoint-device-smoke-access',
+                    refresh_token:'bridgepoint-device-smoke-refresh',
+                    expires_at:now+3600,
+                    expires_in:3600
+                  }));
+                  sessionStorage.setItem('bp_fresh_signin_v1','1');
+                });
                 await appPage.goto(origin+'/app/?bp-device-smoke='+profile.name+'-'+Date.now(),{waitUntil:'domcontentloaded',timeout:60000});
                 await appPage.bringToFront();
                 await appPage.waitForFunction(()=>!!window.__BP_V5000_WORLD__?.map?.getCanvas?.()||!!document.querySelector('#liveMap canvas'),{timeout:90000});
