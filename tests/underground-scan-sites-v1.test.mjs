@@ -3,13 +3,13 @@ import { readFile } from 'node:fs/promises';
 import {UNDERGROUND_SCAN_SITES,UNDERGROUND_SCAN_RIGHTS_HOLDS,buildUndergroundSiteFeatures,undergroundSitePopupHtml} from '../rebuild-v5000/bridgepoint-underground-scan-sites-v1.js';
 
 const features=buildUndergroundSiteFeatures();
-assert.equal(features.length,15,'fifteen reviewed site anchors are mapped');
-assert.equal(UNDERGROUND_SCAN_SITES.reduce((n,s)=>n+s.models.length,0),17,'seventeen real creator-hosted 3D models and tours are cataloged');
+assert.equal(features.length,16,'sixteen reviewed site anchors are mapped');
+assert.equal(UNDERGROUND_SCAN_SITES.reduce((n,s)=>n+s.models.length,0),18,'eighteen real creator-hosted 3D models and tours are cataloged');
 assert.equal(UNDERGROUND_SCAN_RIGHTS_HOLDS.length,3,'rights/source holds are exposed');
 assert.ok(features.every(f=>f.geometry.type==='Point'&&f.properties.iconImage));
 assert.ok(UNDERGROUND_SCAN_SITES.every(s=>s.models.every(m=>m.uid&&m.creator&&(
  m.matterportTourId ? (m.matterportTourId==='1BTGHi85s96'&&m.modelUrl==='https://my.matterport.com/show/?m=1BTGHi85s96'&&m.license.includes('original rights retained'))
- : m.embedOnly ? (['cbe5a1c208674091b48f65ac2d4cca94','be7675a23595489c86211608f0fb1886','ccfc7c2f43214b559e93c4857eb6ed4a'].includes(m.uid)&&m.license.includes('no reuse license displayed')&&m.modelUrl.startsWith('https://sketchfab.com/3d-models/'))
+ : m.embedOnly ? (['cbe5a1c208674091b48f65ac2d4cca94','be7675a23595489c86211608f0fb1886','ccfc7c2f43214b559e93c4857eb6ed4a','899e6c8016954dab825dffb07d583fb9'].includes(m.uid)&&m.license.includes('no reuse license displayed')&&m.modelUrl.startsWith('https://sketchfab.com/3d-models/'))
  : (m.license==='CC Attribution'&&m.modelUrl.startsWith('https://sketchfab.com/3d-models/'))
 ))));
 assert.equal(UNDERGROUND_SCAN_SITES.find(s=>s.id==='paris-catacombs').models.length,3);
@@ -143,7 +143,25 @@ assert.ok(undergroundSitePopupHtml(egypt).includes('sketchfab.com/models/ccfc7c2
 assert.ok(undergroundSitePopupHtml(egypt).includes('D. Anderson'));
 assert.ok(undergroundSitePopupHtml(egypt).includes('Pyramid Texts'));
 assert.equal(UNDERGROUND_SCAN_SITES.filter(s=>s.id==='pyramid-of-unas-egypt').length,1);
-for(const site of [japan,china,egypt]){
+const antarctic=UNDERGROUND_SCAN_SITES.find(s=>s.id==='lima-lima-cave-antarctica');
+assert.ok(antarctic&&antarctic.type==='cave','real Antarctic Lima Lima cave has existing large persistent icon');
+assert.deepEqual(antarctic.coordinates,[-61.0369667,-62.61545]);
+assert.equal(antarctic.models.length,1);
+assert.equal(antarctic.models[0].uid,'899e6c8016954dab825dffb07d583fb9');
+assert.equal(antarctic.models[0].embedOnly,true);
+assert.match(antarctic.models[0].method,/laser capture/i,'laser origin must not be misrepresented as photo-mesh');
+assert.match(antarctic.models[0].method,/Metashape 1\.8\.3/i);
+assert.match(antarctic.models[0].method,/2,000,000 triangles/i);
+assert.match(antarctic.models[0].method,/solid polygon geometry/i);
+assert.match(antarctic.models[0].method,/NOT photo-based photogrammetry/i);
+assert.match(antarctic.locationPrecision,/Antarctic Treaty Secretariat/i);
+assert.match(antarctic.locationPrecision,/2022/i);
+assert.ok(undergroundSitePopupHtml(antarctic).includes('sketchfab.com/models/899e6c8016954dab825dffb07d583fb9/embed'));
+assert.ok(undergroundSitePopupHtml(antarctic).includes('LEACH'));
+assert.ok(undergroundSitePopupHtml(antarctic).includes('White Landscapes'));
+assert.ok(undergroundSitePopupHtml(antarctic).includes('not a camera-photogrammetry scan'),'capture modality must be disclosed');
+assert.equal(UNDERGROUND_SCAN_SITES.filter(s=>s.id==='lima-lima-cave-antarctica').length,1);
+for(const site of [japan,china,egypt,antarctic]){
  const html=undergroundSitePopupHtml(site);
  assert.ok(html.includes('sandbox="allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-presentation"'),'new caves must stay inside BridgePoint');
  assert.ok(!html.includes('target="_blank"'),'new cave cards may not open external websites');
