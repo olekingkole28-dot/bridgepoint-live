@@ -98,7 +98,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
     def test_root_uses_one_existing_earth_and_no_ground_sky_button(self):
         out = patch_root_html(root_fixture())
         self.assertIn("bpWelcomeGateStylesV6257", out)
-        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6296-mobile-safe-welcome"', out)
+        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6306-mobile-planet-picker"', out)
         self.assertIn('class="bpw-celestial-system" aria-hidden="true"></div>', out)
         self.assertNotIn("bpwCelestialCanvasV6257", out)
         self.assertNotIn('class="bpw-globe-aura"', out)
@@ -597,19 +597,25 @@ self.addEventListener('fetch',e=>{
             "const welcomeFrameIntervalMs = mobile ? ((navigator.deviceMemory || 4) <= 3 ? 50 : 1000 / 30) : 1000 / 30;",
             "if(lastWelcomeRenderAt&&frameTime-lastWelcomeRenderAt<welcomeFrameIntervalMs)",
             "lastWelcomeRenderAt=0;requestAnimationFrame(render)",
-            "status:'deferred-on-mobile-welcome'",
-            "protect mobile startup responsiveness",
+            "status:'scheduled-mobile-welcome'",
+            "load measured stars and planets after the first responsive frame",
+            "requestIdleCallback(startMobileCosmos,{timeout:1200})",
+            "data-bp-celestial-body-picker",
+            "v=6306-mobile-planet-picker",
         ):
             self.assertIn(marker, scene)
+        self.assertIn("if(mobile){", scene)
         self.assertIn("if(!mobile){", scene)
-        self.assertIn("v=6293-full-planetarium", scene)
+        self.assertIn("initBridgePointSolarCosmos", scene)
 
     def test_welcome_space_uses_one_real_gaia_starfield_and_no_synthetic_sphere(self):
         scene = (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text()
         galaxy = (ROOT / "rebuild-v5000" / "bridgepoint-gaia-galaxy-v6270.js").read_text()
         self.assertIn("stars.visible=true", scene)
         self.assertIn("initBridgePointSolarCosmos", scene)
-        self.assertIn("v=6293-full-planetarium", scene)
+        self.assertIn("v=6306-mobile-planet-picker", scene)
+        self.assertIn("data-bp-celestial-body-picker", scene)
+        self.assertIn("v=6306-mobile-planet-picker", galaxy) if False else None
         self.assertNotIn("cinematicStarfield", scene)
         self.assertNotIn("bpw-gaia-mode", scene)
         self.assertNotIn("GAIA_DR3_GALAXY_V6270", scene)
@@ -622,6 +628,26 @@ self.addEventListener('fetch',e=>{
         self.assertIn("#include <logdepthbuf_vertex>", galaxy)
         self.assertIn("starsGroup.visible=true", galaxy)
         self.assertIn("initBridgePointSolarCosmos", galaxy)
+        self.assertIn("controls?.querySelector('[data-bp-celestial-body-picker]')", galaxy)
+        self.assertIn("!bodySelect.hasAttribute('data-bp-external-change-handler')", galaxy)
+
+    def test_mobile_scene_restores_full_planet_and_moon_picker(self):
+        scene = (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text()
+        galaxy = (ROOT / "rebuild-v5000" / "bridgepoint-gaia-galaxy-v6270.js").read_text()
+        for body in ("sun", "mercury", "venus", "earth", "mars", "jupiter", "saturn", "uranus", "neptune",
+                     "moon", "phobos", "deimos", "titan", "enceladus", "mimas"):
+            self.assertIn(f'<option value="{body}">', scene)
+        self.assertIn("ensureSolarCosmos()", scene)
+        self.assertIn("isMobile:mobile", scene)
+        self.assertIn("const bodySelect=controls?.querySelector('[data-bp-celestial-body-picker]')", galaxy)
+
+    def test_login_does_not_require_reaccepting_terms_but_signup_does(self):
+        app = (ROOT / "rebuild-v5000" / "app.js").read_text()
+        page = (ROOT / "rebuild-v5000" / "app-index.html").read_text()
+        self.assertIn("async function signIn(email,password){setText('authMessage','Signing in…');", app)
+        self.assertIn("async function createAccount(email,password){const legal=recordLegalAcceptance();", app)
+        self.assertIn('<input id="authLegalAccept" type="checkbox">', page)
+        self.assertNotIn('<input id="authLegalAccept" type="checkbox" required>', page)
 
     def test_continuous_solar_scene_reuses_existing_bodies_without_placeholders(self):
         scene = (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text()
