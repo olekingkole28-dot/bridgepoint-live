@@ -77,7 +77,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: bridgepoint-v5000-production-authority-v2
+  group: bridgepoint-v5000-production-authority-v3
   cancel-in-progress: false
 
 jobs:
