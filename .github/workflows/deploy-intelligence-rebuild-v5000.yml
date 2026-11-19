@@ -2051,8 +2051,12 @@ jobs:
             bridgepoint-plane-wrecks-v1.js bridgepoint-plane-wrecks-extra-v1.js \
             bridgepoint-spacecraft-v1.js bridgepoint-spacecraft-columbia-v1.js \
             bridgepoint-spacecraft-discovery-v1.js bridgepoint-spacecraft-saturn-v1.js; do
-            cp "$BASE/$module" "site/$module"
-            cp "$BASE/$module" "site/app/$module"
+            case "$module" in
+              bridgepoint-spacecraft*) source="rebuild-v5000/$module" ;;
+              *) source="$BASE/$module" ;;
+            esac
+            cp "$source" "site/$module"
+            cp "$source" "site/app/$module"
           done
 
           cp -a "$BASE/assets/shipwrecks/." site/assets/shipwrecks/
@@ -2126,7 +2130,7 @@ jobs:
               base,sep,query=url.partition("?")
               params=query.split("&") if sep else []
               params=[p for p in params if not p.startswith("spacecraft=") and not p.startswith("planeWrecksExtra=")]
-              params.append("spacecraft=sls-mobile-launcher-pad39b-v1-saturn-v1")
+              params.append("spacecraft=single-owner-6314")
               params.append("planeWrecksExtra=b17f-black-jack-v1")
               data=data.replace(url,base+"?"+"&".join(params),1)
               guard=list(re.finditer(r'src="([^"]*bridgepoint-drone-awareness-v1\.js(?:\?[^"]*)?)"',data))
@@ -2184,7 +2188,7 @@ jobs:
 
           # Confirm the artifact contains the full request set before Pages upload.
           grep -Fq 'initSpacecraftRenderer' site/bridgepoint-spacecraft-v1.js
-          grep -Fq '4 persistent spacecraft icons' site/bridgepoint-spacecraft-columbia-v1.js || true
+          grep -Fq '4 persistent spacecraft icons' site/bridgepoint-spacecraft-v1.js
           grep -Fq '10' site/bridgepoint-shipwrecks-v1.js
           grep -Fq 'Space Shuttle Orbiter OV-103' site/bridgepoint-spacecraft-discovery-v1.js
           grep -Fq 'NASA Saturn V + Launch Complex 39A Gantry' site/bridgepoint-spacecraft-saturn-v1.js

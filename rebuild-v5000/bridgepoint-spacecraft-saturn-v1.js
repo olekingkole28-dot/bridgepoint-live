@@ -8,7 +8,6 @@ const THREE_URL='/vendor/three.module.js?v=169-local';
 const GLTF_URL='/vendor/GLTFLoader.bundle.js?v=169-local';
 const DRACO_URL='/vendor/DRACOLoader.bundle.js?v=169-draco-v1';
 const TOGGLE_ID='bp-spacecraft-toggle-v1';
-const COUNT_ID='bp-spacecraft-count-v1';
 const STATUS_ID='bp-spacecraft-status-v1';
 const MARKER_CLASS='bp-spacecraft-saturn-marker-v1';
 const LAYER_ID='bp-spacecraft-saturn-native-v1';
@@ -369,12 +368,6 @@ function setStatus(state,message){
  const status=document.getElementById(STATUS_ID);
  if(status&&!status.textContent.includes('Saturn V'))status.textContent+=' · Saturn V + gantry available';
 }
-function updateCount(){
- const count=document.getElementById(COUNT_ID);
- if(!count)return;
- const label='4 persistent spacecraft icons · SLS + Mobile Launcher at Pad 39B · Apollo 11 Columbia · Space Shuttle Discovery · Saturn V + gantry at Pad 39A · BridgePoint-hosted 3D viewers';
- if(count.textContent!==label)count.textContent=label;
-}
 function readToggle(state){
  const button=state.toggleButton||document.getElementById(TOGGLE_ID);
  const enabled=button?.getAttribute('aria-pressed')==='true';
@@ -382,7 +375,7 @@ function readToggle(state){
  state.enabled=enabled;ensureMarker(state,enabled);
  if(!enabled){state.modelVisible=false;state.marker?.getElement?.()?.setAttribute('aria-hidden','true');}
  else{ensureMarker(state,true);maybeAutoMaterialize(state);}
- state.map.triggerRepaint?.();updateCount();
+ state.map.triggerRepaint?.();
 }
 function attachToggle(state){
  const button=document.getElementById(TOGGLE_ID);
@@ -392,7 +385,7 @@ function attachToggle(state){
  state.toggleObserver?.disconnect();
  state.toggleObserver=new MutationObserver(()=>readToggle(state));
  state.toggleObserver.observe(button,{attributes:true,attributeFilter:['aria-pressed']});
- readToggle(state);updateCount();return true;
+ readToggle(state);return true;
 }
 function bindMapEvents(state){
  if(state.bound)return;state.bound=true;
@@ -422,7 +415,7 @@ export function initSpacecraftSaturnRenderer(target){
   setEnabled(on){
    state.enabled=!!on;ensureMarker(state,state.enabled);
    if(!state.enabled)state.modelVisible=false;else maybeAutoMaterialize(state);
-   state.map.triggerRepaint?.();updateCount();return state.enabled;
+   state.map.triggerRepaint?.();return state.enabled;
   },
   showOnGlobe(){return showOnGlobe(state);},
   openCard(){if(state.enabled)openPopup(state,SPACECRAFT_SATURN.coordinates);},
@@ -438,8 +431,8 @@ export function initSpacecraftSaturnRenderer(target){
  state.api=api;states.set(map,state);window.__BP_SPACECRAFT_SATURN_V1__=api;
  bindMapEvents(state);attachToggle(state);
  if(typeof MutationObserver!=='undefined'&&document.body){
-  state.bodyObserver=new MutationObserver(()=>{if(!state.toggleButton||!state.toggleButton.isConnected)attachToggle(state);updateCount();});
+  state.bodyObserver=new MutationObserver(()=>{if(!state.toggleButton||!state.toggleButton.isConnected)attachToggle(state);});
   state.bodyObserver.observe(document.body,{childList:true,subtree:true});
  }
- updateCount();return api;
+ return api;
 }

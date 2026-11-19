@@ -26,7 +26,7 @@ const SLOT_INFO={
 };
 function node(tag,cls,html){const n=document.createElement(tag);if(cls)n.className=cls;if(html!==undefined)n.innerHTML=html;return n}
 function addClass(el,cls){if(el)el.classList.add(cls)}
-function setDockMaximized(on){const d=$('#bpv-dock'),b=$('[data-bpv-dock-expand]');if(!d)return;d.classList.toggle('bpv-dock-maximized',!!on);if(b){b.textContent=on?'RESTORE ↘':'MAXIMIZE ↗';b.setAttribute('aria-pressed',String(!!on))}}
+function setDockMaximized(on){const d=$('#bpv-dock'),b=$('[data-bpv-dock-expand]');if(!d)return;d.classList.toggle('bpv-dock-maximized',!!on);if(b){const label=on?'RESTORE ↘':'MAXIMIZE ↗';if(b.textContent!==label)b.textContent=label;b.setAttribute('aria-pressed',String(!!on))}}
 function showActionNotice(message){
  const info=$('#bpv-more-info');if(info)info.open=true;
  const slot=$('#bpv-status-panel-slot')||$('#bpv-external-tools-slot')||$('#bpv-dock-actions');
@@ -295,7 +295,7 @@ function makeTopBarAndDock(){
    auxiliarySlot.appendChild(el);el.classList.add('bpv-contained-control');
   });
   const activePanels=auxiliarySlot.querySelectorAll('#bp5507-tool-panel:not([hidden]),#bp5507-hud:not([hidden]),#bp5507-key-panel:not([hidden]),#bp-realworld-effects-v5927:not([hidden]),#bpRoadDrive:not([hidden]),.bp-rd-drive-controls:not([hidden]),#bp-world-realism-v5910 .bpr-panel:not([hidden]),#bp-reality-assets-v5968:not([hidden]),[id^="bp-reality-assets-v5968-"]:not([hidden]),.bp-live-rail-panel-v5969:not([hidden])');
-  if(Array.from(activePanels).some(el=>getComputedStyle(el).display!=='none')){const info=$('#bpv-more-info');if(info)info.open=true;setDockMaximized(true);}
+  if(Array.from(activePanels).some(el=>getComputedStyle(el).display!=='none')){const info=$('#bpv-more-info');if(info&&!info.open)info.open=true;setDockMaximized(true);}
  };
  placeAuxiliaryControls();
  const auxiliaryObserver=new MutationObserver(placeAuxiliaryControls);
@@ -1013,7 +1013,6 @@ function buildUI(){
   const statusPanel=$('#systemPanel'),statusSlot=$('#bpv-status-panel-slot');if(statusPanel&&statusSlot&&statusPanel.parentElement!==statusSlot)statusSlot.appendChild(statusPanel);
   const bp=$('#buildingPanel');
   const propertySlot=$('#bpv-property-card-slot');if(bp&&propertySlot&&bp.parentElement!==propertySlot)propertySlot.appendChild(bp);
-  if(bp){const ob=new MutationObserver(()=>{if(!bp.hidden){installAppSlots();selectProperty(window.__BP_XRAY_STATE__?.buildingId||null,$('#buildingTitle')?.textContent||'Selected building',window.__BP_SELECTED_BUILDING_FEATURE__||null)}});ob.observe(bp,{attributes:true,attributeFilter:['hidden'],childList:true,subtree:true,characterData:true})}
  }
  const mapToolsPanel=$('#bpv-controls-mount');
  if(mapToolsPanel){

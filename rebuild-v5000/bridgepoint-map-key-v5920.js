@@ -64,11 +64,18 @@ function renderSummary(d){
 }
 function metric(label,value,desc){const x=el('article','bpv-metric-card');x.append(el('span','',label),el('b','',value),el('small','',desc));return x}
 function updateMetricPanel(c){
+ const setText=(element,text)=>{if(element&&element.textContent!==text)element.textContent=text};
  const grid=document.getElementById('bpv-metric-grid');if(!grid)return;
  for(const card of grid.querySelectorAll('.bpv-metric-card')){
   const label=card.querySelector('span')?.textContent||'',value=card.querySelector('b'),detail=card.querySelector('small');if(!value)continue;
-  if(/Worldwide active opportunit/i.test(label)){card.querySelector('span').textContent='Worldwide main-map opportunity records';value.textContent=fmt(c.map_opportunity_records);if(detail)detail.textContent='Qualified active records behind colored buildings; refreshed hourly.'}
-  else if(/Unique opportunity properties/i.test(label)){value.textContent=fmt(c.map_unique_properties);if(detail)detail.textContent='Distinct property IDs in the main map inventory; categories overlap.'}
+  if(/Worldwide (active opportunit|main-map opportunity records)/i.test(label)){
+   setText(card.querySelector('span'),'Worldwide main-map opportunity records');
+   setText(value,fmt(c.map_opportunity_records));
+   setText(detail,'Qualified active records behind colored buildings; refreshed hourly.');
+  }else if(/Unique opportunity properties/i.test(label)){
+   setText(value,fmt(c.map_unique_properties));
+   setText(detail,'Distinct property IDs in the main map inventory; categories overlap.');
+  }
  }
 }
 function addInventory(){

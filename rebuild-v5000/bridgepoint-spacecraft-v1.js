@@ -295,8 +295,6 @@ function updateStatus(state,message){
  const node=document.getElementById(STATUS_ID);if(node)node.textContent=state.status;
  const popup=state.popup?.getElement?.()?.querySelector('[data-spacecraft-status]');
  if(popup)popup.textContent=state.modelStatus||state.status;
- const count=document.getElementById(COUNT_ID);
- if(count)count.textContent=state.stats.assetLoaded?'4 persistent spacecraft icons · SLS + Mobile Launcher at Pad 39B · Apollo 11 Columbia at the Smithsonian · Space Shuttle Discovery at Udvar-Hazy · BridgePoint-hosted 3D viewers':'4 persistent spacecraft icons · SLS + Mobile Launcher at Pad 39B · Apollo 11 Columbia at the Smithsonian · Space Shuttle Discovery at Udvar-Hazy · BridgePoint-hosted 3D viewers';
 }
 function makeRocketIcon(){
  const node=document.createElement('span');
@@ -450,8 +448,6 @@ function addStyles(){
 function refreshUi(state){
  const button=document.getElementById(TOGGLE_ID);
  if(button){button.setAttribute('aria-pressed',String(state.enabled));button.classList.toggle('is-active',state.enabled);}
- const count=document.getElementById(COUNT_ID);
- if(count)count.textContent=state.stats.assetLoaded?'4 persistent spacecraft icons · SLS + Mobile Launcher at Pad 39B · Apollo 11 Columbia at the Smithsonian · Space Shuttle Discovery at Udvar-Hazy · BridgePoint-hosted 3D viewers':'4 persistent spacecraft icons · SLS + Mobile Launcher at Pad 39B · Apollo 11 Columbia at the Smithsonian · Space Shuttle Discovery at Udvar-Hazy · BridgePoint-hosted 3D viewers';
  const status=document.getElementById(STATUS_ID);if(status)status.textContent=state.status;
 }
 function addControlGroup(state){
@@ -464,7 +460,7 @@ function addControlGroup(state){
  group.innerHTML=
   '<div class="bpv-command-heading"><span class="bpv-command-heading-icon" aria-hidden="true">🚀</span><span><b>SPACECRAFT & LAUNCH SITES</b><small>BridgePoint-hosted true-scale 3D launch scenes</small></span></div>'+
   '<div class="bpv-command-grid"><button id="'+TOGGLE_ID+'" data-bpv-action="spacecraft" type="button" class="bpv-command-btn" aria-pressed="false" title="Show or hide spacecraft and launch-site markers"><span class="bpv-command-icon" aria-hidden="true">🚀</span><span class="bpv-command-label">Spacecraft</span></button></div>'+
-  '<div id="'+COUNT_ID+'" class="bpv-data-note">4 persistent spacecraft icons · SLS + Mobile Launcher at Pad 39B · Apollo 11 Columbia at the Smithsonian · Space Shuttle Discovery at Udvar-Hazy · BridgePoint-hosted 3D viewers</div>'+
+  '<div id="'+COUNT_ID+'" class="bpv-data-note">4 persistent spacecraft icons · SLS + Mobile Launcher at Pad 39B · Apollo 11 Columbia at the Smithsonian · Space Shuttle Discovery at Udvar-Hazy · Saturn V + gantry at Pad 39A · BridgePoint-hosted 3D viewers</div>'+
   '<div id="'+STATUS_ID+'" class="bpv-data-note">Layer off · existing Plane Wrecks and Shipwrecks layers remain unchanged.</div>';
  const plane=document.getElementById('bp-plane-wrecks-control-v1');
  const ship=document.getElementById('bp-shipwrecks-control-v1');

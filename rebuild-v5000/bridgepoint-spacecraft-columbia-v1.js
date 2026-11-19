@@ -8,7 +8,6 @@ const THREE_URL='/vendor/three.module.js?v=169-local';
 const GLTF_URL='/vendor/GLTFLoader.bundle.js?v=169-local';
 const DRACO_URL='/vendor/DRACOLoader.bundle.js?v=169-draco-v1';
 const TOGGLE_ID='bp-spacecraft-toggle-v1';
-const COUNT_ID='bp-spacecraft-count-v1';
 const STATUS_ID='bp-spacecraft-status-v1';
 const MARKER_CLASS='bp-spacecraft-columbia-marker-v1';
 const LAYER_ID='bp-spacecraft-columbia-native-v1';
@@ -471,12 +470,6 @@ function setStatus(state,message){
  const status=document.getElementById(STATUS_ID);
  if(status&&!status.textContent.includes('Columbia'))status.textContent+=' · Columbia scan available';
 }
-function updateCount(){
- const count=document.getElementById(COUNT_ID);
- if(!count)return;
- const label='4 persistent spacecraft icons · SLS + Mobile Launcher at Pad 39B · Apollo 11 Columbia at the Smithsonian · Space Shuttle Discovery at Udvar-Hazy · BridgePoint-hosted 3D viewers';
- if(count.textContent!==label)count.textContent=label;
-}
 function readToggle(state){
  const button=state.toggleButton||document.getElementById(TOGGLE_ID);
  const enabled=button?.getAttribute('aria-pressed')==='true';
@@ -492,7 +485,6 @@ function readToggle(state){
   maybeAutoMaterialize(state);
   state.map.triggerRepaint?.();
  }
- updateCount();
 }
 function attachToggle(state){
  const button=document.getElementById(TOGGLE_ID);
@@ -503,7 +495,6 @@ function attachToggle(state){
  state.toggleObserver=new MutationObserver(()=>readToggle(state));
  state.toggleObserver.observe(button,{attributes:true,attributeFilter:['aria-pressed']});
  readToggle(state);
- updateCount();
  return true;
 }
 function bindMapEvents(state){
@@ -539,7 +530,7 @@ export function initSpacecraftColumbiaRenderer(target){
    ensureMarker(state,state.enabled);
    if(!state.enabled)state.columbia.modelVisible=false;
    else maybeAutoMaterialize(state);
-   state.map.triggerRepaint?.();updateCount();return state.enabled;
+   state.map.triggerRepaint?.();return state.enabled;
   },
   showOnGlobe(){return showOnGlobe(state);},
   openCard(){if(state.enabled)openPopup(state,SPACECRAFT_COLUMBIA.coordinates);},
@@ -560,9 +551,8 @@ export function initSpacecraftColumbiaRenderer(target){
  bindMapEvents(state);
  attachToggle(state);
  if(typeof MutationObserver!=='undefined'&&document.body){
-  state.bodyObserver=new MutationObserver(()=>{if(!state.toggleButton||!state.toggleButton.isConnected)attachToggle(state);updateCount();});
+  state.bodyObserver=new MutationObserver(()=>{if(!state.toggleButton||!state.toggleButton.isConnected)attachToggle(state);});
   state.bodyObserver.observe(document.body,{childList:true,subtree:true});
  }
- updateCount();
  return api;
 }

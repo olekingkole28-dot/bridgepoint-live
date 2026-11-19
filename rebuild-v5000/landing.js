@@ -982,16 +982,16 @@ void import('./bridgepoint-plane-wrecks-v1.js?v=1-f4u1-corsair-colmap-pointcloud
 void import('./bridgepoint-plane-wrecks-extra-v1.js?v=8-b17f-black-jack')
  .then(m=>{window.__BP_PLANE_WRECKS_EXTRA_V1__=m.initPlaneWrecksExtraRenderer(world)})
  .catch(e=>console.warn('BridgePoint additional Plane Wrecks layer unavailable',e));
-void import('./bridgepoint-spacecraft-v1.js?v=1-sls-mobile-launcher-lc39b')
+void import('./bridgepoint-spacecraft-v1.js?v=1-sls-mobile-launcher-lc39b&ui=6314')
  .then(m=>{window.__BP_SPACECRAFT_V1__=m.initSpacecraftRenderer(world)})
  .catch(e=>console.warn('BridgePoint Spacecraft & Launch Sites layer unavailable',e));
-void import('./bridgepoint-spacecraft-saturn-v1.js?v=1-nasa-saturn-v-launch39a')
+void import('./bridgepoint-spacecraft-saturn-v1.js?v=1-nasa-saturn-v-launch39a&ui=6314')
  .then(m=>{window.__BP_SPACECRAFT_SATURN_V1__=m.initSpacecraftSaturnRenderer(world)})
  .catch(e=>console.warn('BridgePoint Saturn V launch-site layer unavailable',e));
-void import('./bridgepoint-spacecraft-discovery-v1.js?v=1-smithsonian-space-shuttle-discovery')
+void import('./bridgepoint-spacecraft-discovery-v1.js?v=1-smithsonian-space-shuttle-discovery&ui=6314')
  .then(m=>{window.__BP_SPACECRAFT_DISCOVERY_V1__=m.initSpacecraftDiscoveryRenderer(world)})
  .catch(e=>console.warn('BridgePoint Smithsonian Space Shuttle Discovery layer unavailable',e));
-void import('./bridgepoint-spacecraft-columbia-v1.js?v=2-apollo11-columbia-principal-axis')
+void import('./bridgepoint-spacecraft-columbia-v1.js?v=2-apollo11-columbia-principal-axis&ui=6314')
  .then(m=>{window.__BP_SPACECRAFT_COLUMBIA_V1__=m.initSpacecraftColumbiaRenderer(world)})
  .catch(e=>console.warn('BridgePoint Smithsonian Columbia layer unavailable',e));
   // Independent opt-in scanned cave and underground heritage sites; keep other layers untouched.
