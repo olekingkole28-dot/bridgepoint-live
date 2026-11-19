@@ -2130,7 +2130,7 @@ jobs:
               base,sep,query=url.partition("?")
               params=query.split("&") if sep else []
               params=[p for p in params if not p.startswith("spacecraft=") and not p.startswith("planeWrecksExtra=")]
-              params.append("spacecraft=single-owner-6314")
+              params.append("spacecraft=single-owner-6314&propertyCard=6315")
               params.append("planeWrecksExtra=b17f-black-jack-v1")
               data=data.replace(url,base+"?"+"&".join(params),1)
               guard=list(re.finditer(r'src="([^"]*bridgepoint-drone-awareness-v1\.js(?:\?[^"]*)?)"',data))
@@ -3020,15 +3020,15 @@ jobs:
           grep -Fq "id:'wx-radar',type:'raster'" "$D/world-v2300-weather.js"
           grep -Fq "'raster-opacity':LOW?.54:.70" "$D/world-v2300-weather.js"
           # Verify every preserved model endpoint without re-downloading the large GLBs.
-          for asset in \\
-            shipwrecks/robert-gaskin-photogrammetry.glb.gz shipwrecks/hms-grafton-photogrammetry.glb.gz \\
-            shipwrecks/cannon-photogrammetry.glb.gz shipwrecks/hnlms-kxi-photogrammetry.glb.gz \\
-            shipwrecks/cape-otway-photogrammetry.glb.gz shipwrecks/timaru-photogrammetry.glb.gz shipwrecks/hms-loo-photogrammetry.glb.gz \\
-            plane-wrecks/f4u1-corsair-kwajalein-photogrammetry.glb.gz \\
-            plane-wrecks/extra/b29-over-exposed-bleaklow.glb.gz plane-wrecks/extra/zero-fighter-a6m3-iwm-london.glb.gz \\
-            plane-wrecks/extra/short-sunderland-ej138-munkholmen.glb.gz plane-wrecks/extra/tokai-maru-apra-harbor-photogrammetry.glb.gz \\
-            plane-wrecks/extra/p39q-airacobra-wing-photogrammetry.glb.gz plane-wrecks/extra/messerschmitt-bf109-g6-planier.glb.gz \\
-            spacecraft/nasa-mobile-launcher.glb spacecraft/smithsonian-apollo11-exterior-combined.glb \\
+          for asset in \
+            shipwrecks/robert-gaskin-photogrammetry.glb.gz shipwrecks/hms-grafton-photogrammetry.glb.gz \
+            shipwrecks/cannon-photogrammetry.glb.gz shipwrecks/hnlms-kxi-photogrammetry.glb.gz \
+            shipwrecks/cape-otway-photogrammetry.glb.gz shipwrecks/timaru-photogrammetry.glb.gz shipwrecks/hms-loo-photogrammetry.glb.gz \
+            plane-wrecks/f4u1-corsair-kwajalein-photogrammetry.glb.gz \
+            plane-wrecks/extra/b29-over-exposed-bleaklow.glb.gz plane-wrecks/extra/zero-fighter-a6m3-iwm-london.glb.gz \
+            plane-wrecks/extra/short-sunderland-ej138-munkholmen.glb.gz plane-wrecks/extra/tokai-maru-apra-harbor-photogrammetry.glb.gz \
+            plane-wrecks/extra/p39q-airacobra-wing-photogrammetry.glb.gz plane-wrecks/extra/messerschmitt-bf109-g6-planier.glb.gz \
+            spacecraft/nasa-mobile-launcher.glb spacecraft/smithsonian-apollo11-exterior-combined.glb \
             spacecraft/smithsonian-space-shuttle-discovery-150k-4096.glb spacecraft/nasa-saturn-v.glb spacecraft/nasa-gantry.glb; do
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSI -H 'Cache-Control: no-cache' "$O/assets/$asset?verify=$Q" -o /dev/null
           done

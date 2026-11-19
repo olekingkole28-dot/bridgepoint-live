@@ -1048,8 +1048,11 @@ void import('./bridgepoint-jenolan-caves-v1.js?v=1-jenolan-large-system')
    map.jumpTo({center:[0,18],zoom:previewGlobeZoom,pitch:0,bearing:0});
    window.__BP_LANDING_GLOBAL_START__={center:[0,20],projection:'globe',zoom:map.getZoom(),at:Date.now()}
   }catch(_){};
-  world.onBuildingSelect?.(({feature})=>{
+  world.onBuildingSelect?.(({feature,lngLat})=>{
    const p=feature?.properties||{},h=Number(p.render_height_m||p.height_m||p.height||p.render_height||8.5),id=p.building_id||feature?.id||'mapped';
+   const card=$('previewCard');delete card.dataset.lat;delete card.dataset.lng;
+   if(Number.isFinite(lngLat?.lat)&&Number.isFinite(lngLat?.lng)){card.dataset.lat=lngLat.lat;card.dataset.lng=lngLat.lng}
+   if($('bpv-dock')?.hidden)$('bpv-dock-reopen')?.click();
    $('previewTitle').textContent='Building #'+id;
    $('previewMeta').textContent=h.toFixed(1)+' m rendered height · same live BridgePoint World renderer as the app';
    $('previewCard').hidden=false
@@ -1425,6 +1428,9 @@ async function resolveLandingRowCoordinates(row){
 async function hydrateLandingLookup(row){
  const lng=Number(row.longitude),lat=Number(row.latitude),cc=String(row.country_code||'').trim().toUpperCase(),globalRow=!!row.global_property_id||(cc&&cc!=='US'),address=row.full_address||row.geocoder_address||row.display_label||'Selected property';
  if(Number.isFinite(lng)&&Number.isFinite(lat)&&map){map.easeTo({center:[lng,lat],zoom:17,pitch:62,bearing:-18,duration:850})}
+ const card=$('previewCard');delete card.dataset.lat;delete card.dataset.lng;
+ if(Number.isFinite(lng)&&Number.isFinite(lat)){card.dataset.lat=lat;card.dataset.lng=lng}
+ if($('bpv-dock')?.hidden)$('bpv-dock-reopen')?.click();
  $('previewTitle').textContent=address;
  $('previewMeta').textContent=globalRow?'Loading public global parcel truth…':'Loading public property + structure truth…';
  $('previewType').textContent=row.match_type||row.match_reason||'Property match';

@@ -374,6 +374,10 @@ function makeSlots(container,kind){
   card.append(btn,status,p);container.appendChild(card);
   btn.addEventListener('click',()=>activateSlot(key,kind));
  }
+ const claims=node('a','bpv-slot-title','Claims Lifecycle Terminal');
+ claims.href='/claims-terminal/';
+ container.appendChild(claims);
+
 }
 function selectProperty(id,label,feature,coordinates=null){
  const nextId=id||null,props=feature?.properties||{};
@@ -420,6 +424,25 @@ function refreshSlotLabels(){
 }
 function activateSlot(key,kind){
  refreshSlotLabels();
+ const inspectorTabs={timeline:'intel',aerial:'media',xray:'xray',roof:'overview',provenance:'provenance'};
+ const tab=inspectorTabs[key];
+ if(tab){
+  if(home){
+   const preview=$('#previewCard');
+   if(preview?.dataset.lng&&preview.dataset.lat){
+    const params=new URLSearchParams({lng:preview.dataset.lng,lat:preview.dataset.lat,z:'17',inspector:tab});
+    location.assign('/app/?'+params);return;
+   }
+  }else{
+   const button=$('#bpInspectorTabs [data-tab="'+tab+'"]');
+   const panel=$('#buildingPanel');
+   if(button&&panel&&!panel.hidden){
+    closePanel();button.click();
+    const target=key==='timeline'?$('#pTimelineList'):key==='aerial'?$('#pImageryHistory'):button;
+    target?.scrollIntoView?.({block:'nearest'});return;
+   }
+  }
+ }
  if(key==='zoning'){
   openPanel('property');
   const run=()=>window.__BP_ZONING_COVERAGE_V1__?.open?.(window.__BP_SELECTED_PROPERTY_V1__||selected);
@@ -446,10 +469,7 @@ function activateSlot(key,kind){
   return;
  }
  if(key==='timeline'){
-  const api=window.__BP_WORLD_TIME_SLIDER_V5908__;
-  if(api){try{api.setOpen?.(true);api.open?.();api.expand?.();}catch(_){}}
-  openPanel('property');
-  showSlotMessage(key,'The global BridgePoint timeline is available. A building-specific timeline will show only events explicitly linked to this property.');
+  showSlotMessage(key,'Select a mapped building to open its property history.');
   return;
  }
  openPanel('property');
