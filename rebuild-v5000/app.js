@@ -305,30 +305,39 @@ scheduleOptionalRenderer(() => import('./bridgepoint-jenolan-caves-v1.js?v=1-jen
   ['realism',async()=>{const m=await import('./world-v2300-realism.js?v=5910-world-materials');window.__BP_WORLD_REALISM_V5910__=m.initRealismMode(world)}],
   ['gis-core',async()=>{const m=await import('./gis-core-orchestrator-v5910.js?v=5910-gis-router');window.__BP_GIS_CORE_V5910__=m.initGisCore(world,rpc)}]
  ];
- let optionalWorldIndex=0,optionalWorldStarted=false,optionalWorldBusy=false,optionalWorldScheduled=false;
+ let optionalWorldIndex=0,optionalWorldStarted=false,optionalWorldScheduled=false;
+ window.__BP_OPTIONAL_WORLD_MODULES__={started:false,index:0,total:optionalWorldJobs.length,lastStarted:null,lastError:null};
  const runNextOptionalWorldModule=()=>{
-  if(optionalWorldIndex>=optionalWorldJobs.length||document.hidden||optionalWorldBusy||optionalWorldScheduled)return;
+  if(optionalWorldIndex>=optionalWorldJobs.length||document.hidden||optionalWorldScheduled)return;
   optionalWorldScheduled=true;
   const launch=()=>{
    optionalWorldScheduled=false;
    if(document.hidden){setTimeout(runNextOptionalWorldModule,900);return}
-   if(optionalWorldBusy)return;
    const [name,run]=optionalWorldJobs[optionalWorldIndex++];
-   optionalWorldBusy=true;
-   Promise.resolve().then(run)
-    .catch(e=>console.warn('BridgePoint optional world module '+name+' unavailable',e))
-    .finally(()=>{optionalWorldBusy=false;setTimeout(runNextOptionalWorldModule,160)});
+   const state=window.__BP_OPTIONAL_WORLD_MODULES__;
+   if(state){state.index=optionalWorldIndex;state.lastStarted=name}
+   // Keep the optional-world queue moving even if a data-heavy module remains pending.
+   Promise.resolve().then(run).catch(e=>{
+    if(state)state.lastError={name,message:String(e?.message||e)};
+    console.warn('BridgePoint optional world module '+name+' unavailable',e)
+   });
+   setTimeout(runNextOptionalWorldModule,700);
   };
   if(typeof window.requestIdleCallback==='function')window.requestIdleCallback(launch,{timeout:1200});
-  else setTimeout(launch,450);
+  else setTimeout(launch,350);
  };
  const startOptionalWorldModules=()=>{
   if(optionalWorldStarted)return;
   optionalWorldStarted=true;
+  if(window.__BP_OPTIONAL_WORLD_MODULES__)window.__BP_OPTIONAL_WORLD_MODULES__.started=true;
   setTimeout(runNextOptionalWorldModule,260);
  };
  if(world.map.loaded?.()||world.map.isStyleLoaded?.())startOptionalWorldModules();
- else world.map.once?.('load',startOptionalWorldModules);
+ else{
+  world.map.once?.('load',startOptionalWorldModules);
+  world.map.once?.('idle',startOptionalWorldModules);
+  setTimeout(startOptionalWorldModules,6500);
+ }
  document.addEventListener('visibilitychange',()=>{
   if(!document.hidden&&optionalWorldStarted&&optionalWorldIndex<optionalWorldJobs.length)runNextOptionalWorldModule();
  },{passive:true});
