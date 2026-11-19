@@ -2810,10 +2810,27 @@ jobs:
                   '[data-bpv-action="wildfire"]',
                   '[data-bpv-action="motion"]'
                 ];
-                await appPage.waitForFunction(selectors=>selectors.every(selector=>{
-                  const el=document.querySelector(selector),r=el?.getBoundingClientRect(),s=el?getComputedStyle(el):null;
-                  return !!el&&!!r&&r.width>0&&r.height>0&&s?.display!=='none'&&s?.visibility!=='hidden';
-                }),{timeout:120000},featureSelectors);
+                try{
+                  await appPage.waitForFunction(selectors=>selectors.every(selector=>{
+                    const el=document.querySelector(selector),r=el?.getBoundingClientRect(),s=el?getComputedStyle(el):null;
+                    return !!el&&!!r&&r.width>0&&r.height>0&&s?.display!=='none'&&s?.visibility!=='hidden';
+                  }),{timeout:60000},featureSelectors);
+                }catch(waitError){
+                  const diagnostics=await appPage.evaluate(selectors=>({
+                    missing:selectors.filter(selector=>{
+                      const el=document.querySelector(selector),r=el?.getBoundingClientRect(),s=el?getComputedStyle(el):null;
+                      return !el||!r||r.width<=0||r.height<=0||s?.display==='none'||s?.visibility==='hidden';
+                    }),
+                    present:selectors.filter(selector=>!!document.querySelector(selector)),
+                    dockActions:!!document.getElementById('bpv-dock-actions'),
+                    dockText:(document.getElementById('bpv-dock-actions')?.innerText||'').slice(0,5000),
+                    dockGroups:[...(document.querySelectorAll('#bpv-dock-actions [data-bpv-command-section]'))].map(el=>el.getAttribute('data-bpv-command-section')),
+                    appWorld:!!window.__BP_V5000_WORLD__,
+                    mapCanvasCount:window.__BP_V5000_WORLD__?.map?.getContainer?.().querySelectorAll('canvas').length||0,
+                    featureGlobals:Object.keys(window).filter(key=>/FAA|SHIPWRECK|PLANE_WRECK|SPACECRAFT|JENOLAN|UNDERGROUND|SEISMIC|DRONE|VESSEL|LIVE_RAIL|WORLD_TIME/i.test(key)&&/^__BP_/.test(key)).slice(0,100)
+                  }),featureSelectors);
+                  throw new Error('BRIDGEPOINT_APP_FEATURE_BUTTONS_NOT_MOUNTED '+JSON.stringify({diagnostics,appErrors:appErrors.slice(-8),appConsoleErrors:appConsoleErrors.slice(-12),waitError:String(waitError?.message||waitError)}));
+                }
                 const mountedFeatures=await appPage.evaluate(selectors=>selectors.map(selector=>({
                   selector,label:(document.querySelector(selector)?.innerText||'').trim(),
                   visible:!!document.querySelector(selector)&&getComputedStyle(document.querySelector(selector)).visibility!=='hidden'
