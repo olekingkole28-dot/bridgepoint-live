@@ -16,7 +16,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
 
 (() => {
   'use strict';
-  const VERSION = 'v6305-balanced-celestial-frame';
+  const VERSION = 'v6306-mobile-planet-picker';
   if (window.__BP_WELCOME_SPACE_V6257__?.version) return;
   const host = document.querySelector('#bpWelcomeGateV1 .bpw-celestial-system');
   if (!host) return;
@@ -57,7 +57,9 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   const style = document.createElement('style');
   style.id = 'bpWelcomeSpaceStylesV6257';
   style.textContent = `
-    #bpWelcomeGateV1 .bpw-starfield{display:none!important;visibility:hidden!important}
+    #bpWelcomeGateV1 .bpw-starfield{display:block!important;visibility:visible!important}
+    #bpWelcomeGateV1 .bpw-fallback-star{position:absolute;display:block;border-radius:50%;background:#e8f5ff;box-shadow:0 0 5px rgba(156,211,255,.9);opacity:.62;animation:bpw-fallback-twinkle 4.6s ease-in-out infinite}
+    @keyframes bpw-fallback-twinkle{0%,100%{opacity:.18;transform:scale(.72)}50%{opacity:.88;transform:scale(1.15)}}
     #bpWelcomeGateV1 .bpw-space-renderer-canvas{
       position:absolute!important;inset:0!important;width:100%!important;height:100%!important;
       display:block!important;z-index:2!important;pointer-events:auto!important;
@@ -69,24 +71,53 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       top:calc(env(safe-area-inset-top) + clamp(68px,10vh,104px));
       display:flex;gap:7px;pointer-events:auto
     }
-    #bpWelcomeGateV1 .bpw-space-controls button{
-      appearance:none;border:1px solid rgba(160,205,238,.44);border-radius:999px;
-      padding:8px 11px;background:rgba(5,15,29,.74);color:#eaf7ff;
-      font:700 10px/1.1 system-ui,sans-serif;letter-spacing:.08em;
-      box-shadow:0 4px 16px rgba(0,0,0,.35);backdrop-filter:blur(8px)
+    #bpWelcomeGateV1 .bpw-space-controls button,
+    #bpWelcomeGateV1 .bpw-celestial-body-picker{
+      appearance:none;border:1px solid rgba(160,205,238,.48);border-radius:999px;
+      padding:8px 11px;background:rgba(5,15,29,.82);color:#eaf7ff;
+      font:800 10px/1.1 system-ui,sans-serif;letter-spacing:.045em;
+      box-shadow:0 4px 16px rgba(0,0,0,.35);backdrop-filter:blur(8px);pointer-events:auto
     }
+    #bpWelcomeGateV1 .bpw-celestial-body-picker{max-width:min(56vw,245px);padding-right:27px}
+    #bpWelcomeGateV1 .bpw-celestial-body-picker option{background:#061426;color:#eaf7ff}
     #bpWelcomeGateV1 .bpw-space-controls button:focus-visible{outline:2px solid #9bdcff;outline-offset:2px}
     @media(max-width:620px){
       #bpWelcomeGateV1 .bpw-space-controls{top:calc(env(safe-area-inset-top) + 88px);right:10px}
-      #bpWelcomeGateV1 .bpw-space-controls button{padding:7px 9px;font-size:9px}
+      #bpWelcomeGateV1 .bpw-space-controls button,
+      #bpWelcomeGateV1 .bpw-celestial-body-picker{padding:7px 9px;font-size:9px}
+      #bpWelcomeGateV1 .bpw-celestial-body-picker{max-width:58vw}
     }
   `;
   document.head.appendChild(style);
 
   const controls = document.createElement('div');
   controls.className = 'bpw-space-controls';
-  controls.innerHTML = '<button type="button" data-space-reset>RESET VIEW</button>'; 
+  controls.innerHTML = '<select class="bpw-celestial-body-picker" data-bp-celestial-body-picker aria-label="Choose a planet or moon to explore"><option value="">CHOOSE CELESTIAL BODY</option><optgroup label="SOLAR SYSTEM"><option value="sun">Sun</option><option value="mercury">Mercury</option><option value="venus">Venus</option><option value="earth">Earth</option><option value="mars">Mars</option><option value="jupiter">Jupiter</option><option value="saturn">Saturn</option><option value="uranus">Uranus</option><option value="neptune">Neptune</option></optgroup><optgroup label="MOONS"><option value="moon">Earth · Moon</option><option value="phobos">Phobos · Mars</option><option value="deimos">Deimos · Mars</option><option value="titan">Titan · Saturn</option><option value="enceladus">Enceladus · Saturn</option><option value="mimas">Mimas · Saturn</option></optgroup></select><button type="button" data-space-reset>RESET VIEW</button>';
   host.appendChild(controls);
+  const bodyPicker=controls.querySelector('[data-bp-celestial-body-picker]');
+  if(bodyPicker)bodyPicker.disabled=true;
+  const seedFallbackStars=()=>{
+    const layers=[document.getElementById('bpwStarsFarV4'),document.getElementById('bpwStarsNearV4')];
+    layers.forEach((layer,index)=>{
+      if(!layer||layer.querySelector('.bpw-fallback-star'))return;
+      let seed=0x51f15e+index*0x9e3779b9;
+      const count=mobile?48:82;
+      for(let i=0;i<count;i++){
+        seed=(Math.imul(seed,1664525)+1013904223)>>>0;
+        const x=(seed%10000)/100;
+        seed=(Math.imul(seed,1664525)+1013904223)>>>0;
+        const y=(seed%10000)/100;
+        seed=(Math.imul(seed,1664525)+1013904223)>>>0;
+        const size=.8+(seed%16)/10;
+        const dot=document.createElement('span');
+        dot.className='bpw-fallback-star';
+        dot.style.left=x+'%';dot.style.top=y+'%';dot.style.width=size+'px';dot.style.height=size+'px';
+        dot.style.animationDelay=-(seed%4600)/1000+'s';
+        layer.appendChild(dot);
+      }
+    });
+  };
+  seedFallbackStars();
 
   let renderer;
   try {
@@ -98,7 +129,9 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   } catch (error) {
     console.error('[BridgePoint space] WebGL renderer unavailable:', error);
     canvas.remove();
-    controls.remove();
+    if(bodyPicker){bodyPicker.disabled=true;bodyPicker.options[0].textContent='3D SPACE UNAVAILABLE';}
+    const reset=controls.querySelector('[data-space-reset]');if(reset)reset.hidden=true;
+    window.__BP_WELCOME_RENDERER_FALLBACK__={status:'webgl-unavailable',message:String(error?.message||error),cssStarFallback:true};
     return;
   }
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -1839,6 +1872,47 @@ function createMoonTerrainController() {
     animateCamera(new THREE.Vector3(0,4.2,distance),new THREE.Vector3(0,0,0),1.25);
   }
 
+  let solarCosmosPromise=null;
+  function ensureSolarCosmos(){
+    if(solarCosmos)return Promise.resolve(solarCosmos);
+    if(!solarCosmosPromise){
+      solarCosmosPromise=import('./bridgepoint-gaia-galaxy-v6270.js?v=6306-mobile-planet-picker').then(module=>{
+        if(!solarCosmos)solarCosmos=module.initBridgePointSolarCosmos({
+          THREE,scene,camera,canvas,host,controls,starsGroup:stars,
+          getSunPosition:()=>sunPosition.clone(),
+          getMoonPosition:()=>moonMesh.getWorldPosition(new THREE.Vector3()),
+          focusBody,clickables,
+          bodyRefs:{earth:earthDepthOccluder,moon:moonMesh,sun:sunMesh},
+          isMobile:mobile
+        });
+        if(bodyPicker)bodyPicker.disabled=false;
+        const clearFallbackWhenGaiaArrives=attempt=>{
+          if(Number(solarCosmos?.state?.starCount)>0){
+            document.querySelectorAll('#bpWelcomeGateV1 .bpw-fallback-star').forEach(node=>node.remove());
+            return;
+          }
+          if(attempt<48)setTimeout(()=>clearFallbackWhenGaiaArrives(attempt+1),250);
+        };
+        clearFallbackWhenGaiaArrives(0);
+        return solarCosmos;
+      }).catch(error=>{
+        solarCosmosPromise=null;
+        if(bodyPicker){bodyPicker.disabled=false;bodyPicker.options[0].textContent='PLANET DATA UNAVAILABLE';}
+        throw error;
+      });
+    }
+    return solarCosmosPromise;
+  }
+
+  if(mobile){
+    const state=window.__BP_WELCOME_SOLAR_COSMOS_MOBILE__={version:VERSION,status:'scheduled-mobile-welcome',reason:'load measured stars and planets after the first responsive frame'};
+    const startMobileCosmos=()=>{state.status='loading';void ensureSolarCosmos().then(api=>{state.status='loading-measured-stars-and-planet-textures';state.apiVersion=api.version;}).catch(error=>{state.status='error';state.error=String(error?.message||error);console.warn('[BridgePoint Gaia DR3] Mobile celestial catalogue unavailable:',error);});};
+    if(typeof requestIdleCallback==='function')requestIdleCallback(startMobileCosmos,{timeout:1200});
+    else setTimeout(startMobileCosmos,900);
+  }else{
+    void ensureSolarCosmos().catch(error=>console.warn('[BridgePoint Gaia DR3] Unified celestial scene unavailable:',error));
+  }
+
   let dragging=false,lastX=0,lastY=0,pointerMoved=false;
   const activePointers=new Map();
   let pinchDistance=0,gestureCenter=null,gestureAngle=0;
@@ -2400,21 +2474,5 @@ function createMoonTerrainController() {
       lunarLabelCount:window.__BP_MOON_TERRAIN_V1__?.labelCount||0,
       proceduralLunarRelief:'fallback-only-outside-loaded-NASA-DEM-coverage'})
   };
-  if(!mobile){
-    void import('./bridgepoint-gaia-galaxy-v6270.js?v=6293-full-planetarium')
-      .then(module=>{
-        solarCosmos=module.initBridgePointSolarCosmos({
-          THREE,scene,camera,canvas,host,controls,starsGroup:stars,
-          getSunPosition:()=>sunPosition.clone(),
-          getMoonPosition:()=>moonMesh.getWorldPosition(new THREE.Vector3()),
-          focusBody,clickables,
-          bodyRefs:{earth:earthDepthOccluder,moon:moonMesh,sun:sunMesh},
-          isMobile:mobile
-        });
-      })
-      .catch(error=>console.warn('[BridgePoint Gaia DR3] Unified celestial scene unavailable:',error));
-  }else{
-    // The welcome view keeps its Earth, Moon and Sun on mobile; defer the heavy Gaia catalogue and extra planet textures.
-    window.__BP_WELCOME_SOLAR_COSMOS_MOBILE__={version:VERSION,status:'deferred-on-mobile-welcome',reason:'protect mobile startup responsiveness'};
-  }
+
 })();
