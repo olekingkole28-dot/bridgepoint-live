@@ -1,4 +1,4 @@
-# Publish one new Sete Saloes photo-mesh from the last successful Pages snapshot; leave all other site files intact.
+# Trigger one dedicated Sete Saloes Pages release using the last verified v3 globe as baseline; only Cave files can change.
 name: Publish Only Gruta dos Sete Saloes Photo Mesh v4
 on:
   workflow_dispatch:
