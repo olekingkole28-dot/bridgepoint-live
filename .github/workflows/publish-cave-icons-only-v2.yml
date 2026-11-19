@@ -45,8 +45,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          RUNS="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/publish-cave-icons-only-v2.yml/runs?status=success&branch=main&per_page=25")"
-          BASELINE_ID="$(node -e 'const d=JSON.parse(process.argv[1]);const r=(d.workflow_runs||[]).find(x=>x.conclusion==="success"&&x.id!==Number(process.env.GITHUB_RUN_ID));if(!r)process.exit(1);process.stdout.write(String(r.id));' "$RUNS")"
+          BASELINE_ID="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/publish-cave-icons-only-v2.yml/runs?status=success&branch=main&per_page=25" --jq '.workflow_runs | map(select(.conclusion == "success")) | first | .id')"
+          test -n "$BASELINE_ID"
+          test "$BASELINE_ID" != null
           ARTIFACT="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${BASELINE_ID}/artifacts" --jq '.artifacts[] | select((.expired|not) and (.name | startswith("bridgepoint-v5000-"))) | .name' | head -n 1)"
           test -n "$BASELINE_ID"
           test -n "$ARTIFACT"
