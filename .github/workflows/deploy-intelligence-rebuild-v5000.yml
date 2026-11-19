@@ -2521,18 +2521,18 @@ jobs:
                   criticalHttpErrors,
                   page:welcomeDiagnostic
                 }));
-                try{
-                  await page.waitForSelector('#bpWelcomeGateV1 .bpw-create',{visible:true,timeout:12000});
-                }catch(error){
-                  const finalDiagnostic=await collectWelcomeEntryDiagnostic();
-                  console.error('BRIDGEPOINT_WELCOME_ENTRY_SELECTOR_FAILURE',JSON.stringify(finalDiagnostic));
+                const entryButtonReady=button=>!!button&&
+                  button.hidden===false&&button.display!=='none'&&
+                  button.visibility==='visible'&&Number(button.opacity)>=.95&&
+                  button.pointerEvents!=='none'&&
+                  Number(button.rect?.width)>=120&&Number(button.rect?.height)>=28;
+                if(!welcomeDiagnostic.gateExists||welcomeDiagnostic.gate?.display==='none'||
+                   !entryButtonReady(welcomeDiagnostic.create)||!entryButtonReady(welcomeDiagnostic.signin)){
                   throw new Error('WELCOME_ACCOUNT_ENTRY_UNAVAILABLE '+JSON.stringify({
                     responseStatus:entryResponse?.status?.()??null,
-                    pageErrors,criticalHttpErrors,page:finalDiagnostic
+                    pageErrors,criticalHttpErrors,page:welcomeDiagnostic
                   }));
                 }
-                await page.waitForSelector('#bpWelcomeGateV1 .bpw-signin',{visible:true,timeout:45000});
-                await page.waitForSelector('#bpWelcomeSpaceCanvasV6257',{visible:true,timeout:45000});
                 const initial=await page.evaluate(()=>{
                   const canvas=document.getElementById('bpWelcomeSpaceCanvasV6257');
                   const create=document.querySelector('#bpWelcomeGateV1 .bpw-create');
