@@ -52,6 +52,13 @@ export const UNDERGROUND_SCAN_SITES=[
   models:[
    {uid:'378b82695f934eafa01b397ba4d0ff83',title:'Gruta dos Palhares — Sandstone Cave Photogrammetry',creator:'Paulo Rodrigo Simões (@rollingdrone)',license:'CC Attribution',method:'Textured photo-based mesh · photogrammetry',detail:'Creator-published photogrammetry of the sandstone grotto and entrance hall, catalogued as Brazilian cave MG 299. The scan documents cave surfaces; its exact underground geometry and absolute dimensions are not independently validated for globe placement.',modelUrl:'https://sketchfab.com/3d-models/gruta-dos-palhares-sacramento-mg-378b82695f934eafa01b397ba4d0ff83'}
   ]},
+ {id:'gruta-dos-sete-saloes',name:'Gruta dos Sete Salões',type:'cave',coordinates:[-41.377075,-19.276911],
+  locationPrecision:'Approximate reported cave-site coordinates in Parque Estadual dos Sete Salões, Minas Gerais, Brazil. Public location records differ, and the photographed cave geometry is not survey-georeferenced.',
+  locationNote:'The marker identifies the cave area in the state park, not a surveyed point within its underground chambers.',
+  description:'A real textured, photo-reconstructed 3D scan of the quartzite Gruta dos Sete Salões in the protected Rio Doce region of Minas Gerais, Brazil.',
+  models:[
+   {uid:'d3a9e08821e84226876b426958691adf',title:'Gruta dos Sete Salões — Quartzite Cave Photogrammetry',creator:'Paulo Rodrigo Simões / Rolling Drone Geotecnologias (@rollingdrone)',license:'CC Attribution',method:'Photo-mesh photogrammetry · textured 3D reconstruction',detail:'An original photographic 3D record of a natural quartzite cave within Parque Estadual dos Sete Salões. The creator describes this as a cave scan; it is a partial photogrammetric record, not a complete metrically aligned underground survey. Source model: approximately 2.5 million triangles.',modelUrl:'https://sketchfab.com/3d-models/gruta-dos-sete-saloes-v1-d3a9e08821e84226876b426958691adf'}
+  ]},
  {id:'om-jaettestue',name:'Øm Jættestue Passage Tomb',type:'tomb',coordinates:[11.994633,55.599731],
   locationPrecision:'Published GPS coordinate for the passage tomb site.',
   locationNote:'This is a Neolithic passage tomb and burial chamber, not a natural cave.',
