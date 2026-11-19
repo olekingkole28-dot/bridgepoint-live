@@ -598,14 +598,17 @@ self.addEventListener('fetch',e=>{
             "if(lastWelcomeRenderAt&&frameTime-lastWelcomeRenderAt<welcomeFrameIntervalMs)",
             "lastWelcomeRenderAt=0;requestAnimationFrame(render)",
             "status:'scheduled-mobile-welcome'",
-            "load measured stars and planets after the first responsive frame",
-            "requestIdleCallback(startMobileCosmos,{timeout:1200})",
+            "deferred until an explicit planet or moon selection to preserve first-frame responsiveness",
+            "window.__BP_WELCOME_SOLAR_COSMOS_ON_DEMAND__",
+            "bodyPicker.addEventListener('change',()=>",
+            "waitForSolarBody(selected)",
             "data-bp-celestial-body-picker",
             "v=6306-mobile-planet-picker",
         ):
             self.assertIn(marker, scene)
         self.assertIn("if(mobile){", scene)
         self.assertIn("initBridgePointSolarCosmos", scene)
+        self.assertNotIn("requestIdleCallback(startMobileCosmos,{timeout:1200})", scene)
 
     def test_welcome_space_uses_one_real_gaia_starfield_and_no_synthetic_sphere(self):
         scene = (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text()
