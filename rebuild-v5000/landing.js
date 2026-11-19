@@ -786,6 +786,46 @@ async function initMap(){
       if(!api)throw new Error('3D cloud engine unavailable');
       api.setEnabled?.(true);return api;
     };
+    // Restore the optional dock controls only after a successful sign-in on the light mobile entry.
+    // Each renderer mounts its own card section and keeps its data/model loading opt-in.
+    window.__BP_LANDING_RESTORE_FEATURE_CONTROLS__=async()=>{
+      if(window.__BP_LANDING_FEATURE_CONTROL_RESTORE_PROMISE__)return window.__BP_LANDING_FEATURE_CONTROL_RESTORE_PROMISE__;
+      window.__BP_LANDING_FEATURE_CONTROL_RESTORE_PROMISE__=(async()=>{
+        if(!world?.map)throw new Error('BridgePoint globe is not ready');
+        const jobs=[
+          ['./bridgepoint-faa-obstruction-towers-v1.js?v=2-aircraft-filters-faa-restored','__BP_FAA_OBSTRUCTIONS_V1__','initFAAObstructionTowerRenderer','FAA obstructions'],
+          ['./bridgepoint-shipwrecks-v1.js?v=11-titanic-gaskin-grafton-cannon-kxi-cape-otway-timaru-hms-loo-draco-ktx2-local-viewer','__BP_SHIPWRECKS_V1__','initShipwrecksRenderer','10 shipwrecks'],
+          ['./bridgepoint-plane-wrecks-v1.js?v=1-f4u1-corsair-colmap-pointcloud','__BP_PLANE_WRECKS_V1__','initPlaneWrecksRenderer','Plane Wrecks base'],
+          ['./bridgepoint-plane-wrecks-extra-v1.js?v=8-b17f-black-jack','__BP_PLANE_WRECKS_EXTRA_V1__','initPlaneWrecksExtraRenderer','10-plane-wreck catalogue'],
+          ['./bridgepoint-spacecraft-v1.js?v=1-sls-mobile-launcher-lc39b','__BP_SPACECRAFT_V1__','initSpacecraftRenderer','Spacecraft / SLS'],
+          ['./bridgepoint-spacecraft-columbia-v1.js?v=2-apollo11-columbia-principal-axis','__BP_SPACECRAFT_COLUMBIA_V1__','initSpacecraftColumbiaRenderer','Apollo 11 Columbia'],
+          ['./bridgepoint-spacecraft-discovery-v1.js?v=1-smithsonian-space-shuttle-discovery','__BP_SPACECRAFT_DISCOVERY_V1__','initSpacecraftDiscoveryRenderer','Space Shuttle Discovery'],
+          ['./bridgepoint-spacecraft-saturn-v1.js?v=1-nasa-saturn-v-launch39a','__BP_SPACECRAFT_SATURN_V1__','initSpacecraftSaturnRenderer','Saturn V'],
+          ['./bridgepoint-underground-scan-sites-v1.js?v=1-curated-sketchfab-caves','__BP_UNDERGROUND_SCAN_SITES_V1__','initUndergroundScanSitesRenderer','Caves and underground sites'],
+          ['./bridgepoint-jenolan-caves-v1.js?v=1-jenolan-large-system','__BP_JENOLAN_CAVES_V1__','initJenolanCavesRenderer','Jenolan Caves 3D scan']
+        ];
+        const results=[];
+        for(const [path,key,initName,label] of jobs){
+          try{
+            const module=await import(path);
+            window[key]=module[initName](world);
+            results.push({label,ready:!!window[key]});
+          }catch(error){
+            results.push({label,ready:false,error:String(error?.message||error)});
+            console.warn('BridgePoint mobile feature control unavailable: '+label,error);
+          }
+          await new Promise(resolve=>setTimeout(resolve,35));
+        }
+        const ready=results.filter(x=>x.ready).length;
+        window.__BP_LANDING_FEATURE_CONTROLS_STATE__={version:6310,ready,total:results.length,results,restoredAt:Date.now()};
+        return window.__BP_LANDING_FEATURE_CONTROLS_STATE__;
+      })().catch(error=>{
+        window.__BP_LANDING_FEATURE_CONTROL_RESTORE_PROMISE__=null;
+        console.warn('BridgePoint mobile feature-control restoration failed',error);
+        throw error;
+      });
+      return window.__BP_LANDING_FEATURE_CONTROL_RESTORE_PROMISE__;
+    };
     window.__BP_LANDING_MAP_BOOT__={stage:'world-ready-mobile-entry-lite',maplibre:true,module:true,world:true,optionalRenderers:'deferred',at:Date.now()};
     return;
   }
@@ -877,13 +917,28 @@ void import('./bridgepoint-shipwrecks-v1.js?v=11-titanic-gaskin-grafton-cannon-k
 void import('./bridgepoint-plane-wrecks-v1.js?v=1-f4u1-corsair-colmap-pointcloud')
  .then(m=>{window.__BP_PLANE_WRECKS_V1__=m.initPlaneWrecksRenderer(world)})
  .catch(e=>console.warn('BridgePoint Plane Wrecks layer unavailable',e));
+void import('./bridgepoint-plane-wrecks-extra-v1.js?v=8-b17f-black-jack')
+ .then(m=>{window.__BP_PLANE_WRECKS_EXTRA_V1__=m.initPlaneWrecksExtraRenderer(world)})
+ .catch(e=>console.warn('BridgePoint additional Plane Wrecks layer unavailable',e));
 void import('./bridgepoint-spacecraft-v1.js?v=1-sls-mobile-launcher-lc39b')
  .then(m=>{window.__BP_SPACECRAFT_V1__=m.initSpacecraftRenderer(world)})
  .catch(e=>console.warn('BridgePoint Spacecraft & Launch Sites layer unavailable',e));
+void import('./bridgepoint-spacecraft-saturn-v1.js?v=1-nasa-saturn-v-launch39a')
+ .then(m=>{window.__BP_SPACECRAFT_SATURN_V1__=m.initSpacecraftSaturnRenderer(world)})
+ .catch(e=>console.warn('BridgePoint Saturn V launch-site layer unavailable',e));
+void import('./bridgepoint-spacecraft-discovery-v1.js?v=1-smithsonian-space-shuttle-discovery')
+ .then(m=>{window.__BP_SPACECRAFT_DISCOVERY_V1__=m.initSpacecraftDiscoveryRenderer(world)})
+ .catch(e=>console.warn('BridgePoint Smithsonian Space Shuttle Discovery layer unavailable',e));
+void import('./bridgepoint-spacecraft-columbia-v1.js?v=2-apollo11-columbia-principal-axis')
+ .then(m=>{window.__BP_SPACECRAFT_COLUMBIA_V1__=m.initSpacecraftColumbiaRenderer(world)})
+ .catch(e=>console.warn('BridgePoint Smithsonian Columbia layer unavailable',e));
   // Independent opt-in scanned cave and underground heritage sites; keep other layers untouched.
   void import('./bridgepoint-underground-scan-sites-v1.js?v=1-curated-sketchfab-caves')
    .then(m=>{window.__BP_UNDERGROUND_SCAN_SITES_V1__=m.initUndergroundScanSitesRenderer(world)})
    .catch(e=>console.warn('BridgePoint cave and underground scan layer unavailable',e));
+void import('./bridgepoint-jenolan-caves-v1.js?v=1-jenolan-large-system')
+ .then(m=>{window.__BP_JENOLAN_CAVES_V1__=m.initJenolanCavesRenderer(world)})
+ .catch(e=>console.warn('BridgePoint Jenolan Caves 3D layer unavailable',e));
   // Utility-scale wind turbines are an isolated, opt-in USWTDB layer.
   void import('./bridgepoint-wind-turbines-v1.js?v=1-uswtdb-3d-ground-anchored')
    .then(m=>{window.__BP_WIND_TURBINES_V1__=m.initWindTurbinesRenderer(world)})
