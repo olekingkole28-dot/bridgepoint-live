@@ -2415,173 +2415,151 @@ jobs:
         run: |
           set -euo pipefail
           O='https://bridgepointintelligence.online'
-          ok=0
-          for i in $(seq 1 45); do
-            q="${GITHUB_SHA}-${i}-$(date +%s)"
-            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/?v5410=${q}" -o /tmp/root.html || true
-            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/?v5410=${q}" -o /tmp/app.html || true
-            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app.js?v5910=${q}" -o /tmp/app.js || true
-            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/bridgepoint-landmarks-v5940.js?v5940=${q}" -o /tmp/landmarks-v5940.js || true
-            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/world-v2300-map.js?v5628=${q}" -o /tmp/world-v2300-map.js || true
-            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/world-v2300-sidewalks-3d.js?v6247=${q}" -o /tmp/world-v2300-sidewalks-3d.js || true
-            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/world-v2300-clouds.js?v5910=${q}" -o /tmp/world-v2300-clouds.js || true
-            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/world-v2300-time-slider.js?v5910=${q}" -o /tmp/world-v2300-time-slider.js || true
-            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/world-v2300-spectral-imagery.js?v5910=${q}" -o /tmp/world-v2300-spectral-imagery.js || true
-            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/world-v2300-realism.js?v5910=${q}" -o /tmp/world-v2300-realism.js || true
-            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/gis-core-orchestrator-v5910.js?v5910=${q}" -o /tmp/gis-core-orchestrator-v5910.js || true
-            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/walkthrough-v5537.js?v5539=${q}" -o /tmp/walkthrough-v5537.js || true
-            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/parcel-boundary-viewer-v5403.js?v5404=${q}" -o /tmp/parcel-boundary-viewer-v5403.js || true
-            curl --retry 1 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/pricing.html?v5551=${q}" -o /tmp/pricing.html || true
-            curl --retry 1 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/.well-known/security.txt?v5551=${q}" -o /tmp/security.txt || true
-            curl --retry 1 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/terminal/?v5551=${q}" -o /tmp/terminal.html || true
-            curl --retry 1 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/newsroom/?v5551=${q}" -o /tmp/newsroom.html || true
-            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/language-selector-v5200.js?v1068=${q}" -o /tmp/language-selector-v5200.js || true
-            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/sw.js?v6135=${q}" -o /tmp/sw.js || true
-            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app-update-v5820.js?v5910=${q}" -o /tmp/app-update-v5820.js || true
-            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/bridgepoint-blender-world-v1.js?v1=${q}" -o /tmp/bridgepoint-blender-world-v1.js || true
-            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/blender-world/manifest.json?v1=${q}" -o /tmp/manhattan-blender-world-manifest.json || true
-            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/flutter_service_worker.js?v5820=${q}" -o /tmp/flutter-service-worker-retire.js || true
-            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/intelligence-launch/?v5820=${q}" -o /tmp/legacy-intelligence-launch.html || true
-            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/horizon/sw.js?v5822=${q}" -o /tmp/horizon-sw.js || true
-            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/horizon/play/sw.js?v5822=${q}" -o /tmp/horizon-play-sw.js || true
-            if grep -Fq 'BP_LANDING_V5410' /tmp/root.html \
-              && grep -Fq 'language-selector-v5200.js' /tmp/root.html \
-              && grep -Fq 'authModal' /tmp/root.html \
-              && grep -Fq 'app.js' /tmp/app.html \
-              && grep -Fq 'language-selector-v5200.js' /tmp/app.html \
-              && grep -Fq 'BP_FRONTEND_V5000' /tmp/app.html \
-              && grep -Fq 'toggleLiveContext' /tmp/app.html \
-              && grep -Fq 'data-nosnippet' /tmp/app.html \
-              && grep -Fq '__BP_APP_BUILD_VERSION__=5910' /tmp/app.js \
-              && grep -Fq 'window.__BP_LANDMARKS_V5940__' /tmp/landmarks-v5940.js \
-              && grep -Fq 'bp-v5940-statue-scan' /tmp/landmarks-v5940.js \
-              && grep -Fq '__BP_WORLD_RENDER_VERSION__=5630' /tmp/world-v2300-map.js \
-              && grep -Fq 'refreshSidewalk3DFromTiles(extraFeatures=[],force=false)' /tmp/world-v2300-map.js \
-               && grep -Fq "const sidewalkRoadLayers=['gta-road-major','gta-road-local','gta-sidewalk-road-probe-v1'].filter(id=>map.getLayer(id))" /tmp/world-v2300-map.js \
-               && grep -Fq "const sidewalkFeatureLayers=['gta-global-sidewalk-approach-v1','gta-bp-sidewalk'].filter(id=>map.getLayer(id))" /tmp/world-v2300-map.js \
-               && grep -Fq "const sidewalkBatch=clipBatch([...sidewalkRenderedRaw,...sidewalkExtraRaw],'walkway',MAX_SIDEWALK_RENDER_FEATURES,MAX_SIDEWALK_RENDER_VERTICES)" /tmp/world-v2300-map.js \
-              && grep -Fq 'world-v2300-sidewalks-3d.js?v=20261116-sidewalk-coverage-curbs-v3' /tmp/world-v2300-map.js \
-               && grep -Fq 'const limits=+zoom>=17.2' /tmp/world-v2300-sidewalks-3d.js \
-               && grep -Fq 'const mappedLimits={...limits,paths:Math.max(1,Math.floor(limits.paths*.65)),panels:Math.max(1,Math.floor(limits.panels*.65))}' /tmp/world-v2300-sidewalks-3d.js \
-               && grep -Fq 'generateRoadsideWalks&&Array.isArray(roadsideWalkFeatures)' /tmp/world-v2300-sidewalks-3d.js \
-              && grep -Fq 'window.__BP_FRESH_SIGNIN__!==true' /tmp/root.html \
-              && grep -Fq 'bp_fresh_signin_v1' /tmp/app.html \
-              && grep -Fq '__BP_SKY_CLOUDS_V5908__' /tmp/world-v2300-clouds.js \
-              && grep -Fq 'bridgepoint_public_world_activity_v5927' /tmp/world-v2300-time-slider.js \
-              && grep -Fq 'https://planetarycomputer.microsoft.com/api/stac/v1/search' /tmp/world-v2300-spectral-imagery.js \
-              && grep -Fq 'window.__BP_REAL_WORLD_MODE_V5910__' /tmp/world-v2300-realism.js \
-              && grep -Fq 'BridgePoint GIS Core Orchestration Engine' /tmp/gis-core-orchestrator-v5910.js \
-              && test -s /tmp/world-v2300-sidewalks-3d.js \
-              && test ! -s /tmp/walkthrough-v5537.js \
-              && grep -Fq '__BP_PARCEL_BOUNDARY_VIEWER_V5577__' /tmp/parcel-boundary-viewer-v5403.js \
-              && grep -Fq 'bridgepoint_frontend_status_v5000' /tmp/app.js \
-              && grep -Fq 'bindPerformanceGovernor' /tmp/app.js \
-              && grep -Fq 'bridgepoint_public_weather_bootstrap_v5512' /tmp/app.js \
-              && grep -Fq 'const VERSION=1068' /tmp/language-selector-v5200.js \
-              && grep -Fq 'BridgePointLanguage' /tmp/language-selector-v5200.js \
-              && grep -Fq "const V='bp-intelligence-v6247-universal-fresh-entry-sidewalk'" /tmp/sw.js \
-              && grep -Fq 'BUILD=6300' /tmp/app-update-v5820.js \
-              && grep -Fq 'bridgepoint-intelligence-legacy-retire-v5820' /tmp/flutter-service-worker-retire.js \
-              && grep -Fq 'migrated=legacy-intelligence-v5820' /tmp/legacy-intelligence-launch.html \
-              && grep -Fq "bridgepoint-horizon-ue5-v6250" /tmp/horizon-sw.js \
-              && grep -Fq "bridgepoint-horizon-play-v5820" /tmp/horizon-play-sw.js \
-              && grep -Fq 'BridgePoint Intelligence pricing' /tmp/pricing.html \
-              && grep -Fq 'Canonical: https://bridgepointintelligence.online/.well-known/security.txt' /tmp/security.txt \
-              && ! grep -Eq 'live-(chileno|chicken-coop|lucas|thunder-creek|0505n|0584-cottonwood|0587-shingle|0611-green-mountain)' /tmp/newsroom.html; then
-              ok=1
-              break
-            fi
-            sleep 4
-          done
-          test "$ok" = 1
-          test -s /tmp/bridgepoint-blender-world-v1.js
-          grep -Fq 'Open the separate Blender World globe' /tmp/bridgepoint-blender-world-v1.js
-          grep -Fq '"buildRevision": "blender-world-v1"' /tmp/manhattan-blender-world-manifest.json
-          grep -Fq 'BRIDGEPOINT' /tmp/root.html
-          ! grep -Eiq 'HORIZON|battle pass|zombie|game mode' /tmp/root.html
-          q="${GITHUB_SHA}-surface-check-$(date +%s)"
-          test "$(curl -sS -o /dev/null -w '%{http_code}' "${O}/owner/command/?owner-route-check=${q}")" = "404"
-          test "$(curl -sS -o /dev/null -w '%{http_code}' "${O}/owner/acquisition/?owner-route-check=${q}")" = "404"
-          test "$(curl -sS -o /dev/null -w '%{http_code}' "${O}/downloads/backup/bridgepoint_full_export_windows.ps1?owner-route-check=${q}")" = "404"
-          curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/horizon/?v5100=${q}" -o /tmp/horizon.html
-          curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/horizon/native/?v5100=${q}" -o /tmp/horizon-native.html
-          curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/horizon/app.js?v5100=${q}" -o /tmp/horizon-app.js
-          curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/horizon-playable/v2-entry.html?v5100=${q}" -o /tmp/horizon-playable.html
-          curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/horizon-playable/horizon-v2.js?v5100=${q}" -o /tmp/horizon-playable.js
-          curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/discover/?v5100=${q}" -o /tmp/discover.html
-          curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/newsroom/?v5100=${q}" -o /tmp/newsroom.html
-          curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/claims-terminal/?v5100=${q}" -o /tmp/claims-terminal.html
-          curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/terminal/?v5100=${q}" -o /tmp/terminal.html
-          curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/integrity-index/?v5100=${q}" -o /tmp/integrity-index.html
-          curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/settlement-lab/?v5100=${q}" -o /tmp/settlement-lab.html
-          curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/distribution/?v5202=${q}" -o /tmp/distribution.html
-          curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/distribution/gis-widget/?v5202=${q}" -o /tmp/gis-widget.html
-          curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/public-audit/?v5203=${q}" -o /tmp/public-audit.html
-          curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/portfolio-evidence/?v5204=${q}" -o /tmp/portfolio-evidence.html
-          curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/data-discrepancy/?v5208=${q}" -o /tmp/data-discrepancy.html
-          FEED_JSON_HTTP="$(curl --retry 1 --retry-all-errors --retry-delay 2 --max-time 30 -sS -L -H 'Cache-Control: no-cache' -o /tmp/bridgepoint-exposure-feed.json -w '%{http_code}' "https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-exposure-feed-v5202?format=json&limit=3" || true)"
-          FEED_RSS_HTTP="$(curl --retry 1 --retry-all-errors --retry-delay 2 --max-time 30 -sS -L -H 'Cache-Control: no-cache' -o /tmp/bridgepoint-exposure-feed.rss -w '%{http_code}' "https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-exposure-feed-v5202?format=rss&limit=3" || true)"
-          if [ "$FEED_JSON_HTTP" = "200" ]; then
-            test -s /tmp/bridgepoint-exposure-feed.json
-            grep -Fq 'BridgePoint Exposure Stream' /tmp/bridgepoint-exposure-feed.json
-            grep -Fq '"trade_instruction": false' /tmp/bridgepoint-exposure-feed.json
-            echo "BRIDGEPOINT_EXPOSURE_JSON_FEED_PASS"
-          else
-            echo "BRIDGEPOINT_EXPOSURE_JSON_FEED_UNAVAILABLE_NONBLOCKING http=$FEED_JSON_HTTP; external feed outage does not block the globe/app deployment"
-          fi
-          if [ "$FEED_RSS_HTTP" = "200" ]; then
-            test -s /tmp/bridgepoint-exposure-feed.rss
-            grep -Fq '<title>BridgePoint Exposure Stream</title>' /tmp/bridgepoint-exposure-feed.rss
-            echo "BRIDGEPOINT_EXPOSURE_RSS_FEED_PASS"
-          else
-            echo "BRIDGEPOINT_EXPOSURE_RSS_FEED_UNAVAILABLE_NONBLOCKING http=$FEED_RSS_HTTP; external feed outage does not block the globe/app deployment"
-          fi
-          curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/founder-access/?v5100=${q}" -o /tmp/founder.html
-          curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/for-solar/?v5100=${q}" -o /tmp/solar.html
-          curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/sample/?v5100=${q}" -o /tmp/sample.html
-          test -s /tmp/horizon.html
-          test -s /tmp/horizon-playable.html
-          grep -Fq "location.replace('/app/horizon/native/'+location.search+location.hash)" /tmp/horizon.html
-          grep -Fq "location.replace('/app/horizon/native/'+location.search+location.hash)" /tmp/horizon-playable.html
-          grep -Fq 'Horizon is being rebuilt on the real Earth.' /tmp/horizon-native.html
-          grep -Fq 'Native build not online yet.' /tmp/horizon-native.html
-          grep -Fq 'HORIZON · IN DEVELOPMENT' /tmp/horizon-native.html
-          grep -Fq 'OCT 1 · 12:00 AM ET' /tmp/horizon-app.js
-          grep -Fq 'bridgepoint_horizon_year_one_enter_v4340' /tmp/horizon-app.js
-          grep -Fq 'BP_HORIZON_INPUT_V4341' /tmp/horizon-playable.js
-          grep -Fq 'setPointerCapture' /tmp/horizon-playable.js
-          grep -Fq 'pointercancel' /tmp/horizon-playable.js
-          test -s /tmp/discover.html
-          test -s /tmp/newsroom.html
-          test -s /tmp/claims-terminal.html
-          test -s /tmp/terminal.html
-          test -s /tmp/integrity-index.html
-          test -s /tmp/settlement-lab.html
-          test -s /tmp/distribution.html
-          test -s /tmp/gis-widget.html
-          test -s /tmp/public-audit.html
-          test -s /tmp/portfolio-evidence.html
-          test -s /tmp/data-discrepancy.html
-          test -s /tmp/founder.html
-          test -s /tmp/solar.html
-          test -s /tmp/sample.html
-          grep -Fq 'BILLING OFF' /tmp/founder.html
-          grep -Fq 'Property intelligence for solar teams' /tmp/solar.html
-          ! grep -Fq 'bridgepoint-territory-report-v674' /tmp/sample.html
-          grep -Fq 'GROWTH NEWSROOM' /tmp/newsroom.html
-          grep -Fq 'Claims Lifecycle Terminal' /tmp/claims-terminal.html
-          grep -Fq 'Institutional Terminal' /tmp/terminal.html
-          grep -Fq 'BridgePoint Integrity Index' /tmp/integrity-index.html
-          grep -Fq 'BridgePoint Settlement Lab' /tmp/settlement-lab.html
-          grep -Fq 'Distribution Network' /tmp/distribution.html
-          grep -Fq 'BridgePoint GIS Property Widget' /tmp/gis-widget.html
-          grep -Fq 'Public Evidence Audit' /tmp/public-audit.html
-          grep -Fq 'Portfolio Evidence Lab' /tmp/portfolio-evidence.html
-          grep -Fq 'Data Discrepancy Ledger' /tmp/data-discrepancy.html
-          grep -Fq 'BRIDGEPOINT' /tmp/horizon.html
-          grep -Fq 'current-map-entry.js' /tmp/discover.html
-          echo BRIDGEPOINT_V5100_COMBINED_SURFACES_PASS
+          Q="bp-core-$(date +%s)"
+          curl --retry 4 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/?verify=$Q" -o /tmp/bp-root.html
+          curl --retry 4 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/app/?verify=$Q" -o /tmp/bp-app.html
+          curl --retry 4 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/landing.js?verify=$Q" -o /tmp/bp-landing.js
+          curl --retry 4 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/app.js?verify=$Q" -o /tmp/bp-app.js
+          curl --retry 4 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/bridgepoint-welcome-space-v6260.js?verify=$Q" -o /tmp/bp-welcome.js
+          curl --retry 4 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/world-v2300-map.js?verify=$Q" -o /tmp/bp-world.js
+          curl --retry 4 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/sw.js?verify=$Q" -o /tmp/bp-sw.js
+          curl --retry 4 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/app-update-v5820.js?verify=$Q" -o /tmp/bp-updater.js
 
+          grep -Fq 'BP_LANDING_V5410' /tmp/bp-root.html
+          grep -Fq 'bpWelcomeGateV1' /tmp/bp-root.html
+          grep -Fq 'bpw-create auth-open' /tmp/bp-root.html
+          grep -Fq 'bpw-signin auth-open' /tmp/bp-root.html
+          grep -Fq 'BP_FRONTEND_V5000' /tmp/bp-app.html
+          grep -Fq 'landingPropertySearch' /tmp/bp-root.html
+          grep -Fq '__BP_LANDING_MAP_BOOT__' /tmp/bp-landing.js
+          grep -Fq 'bpAuthRequestV6237' /tmp/bp-landing.js
+          grep -Fq 'bpAuthRequestV6237' /tmp/bp-app.js
+          grep -Fq 'mobileFrameIntervalMs' /tmp/bp-welcome.js
+          grep -Fq 'deferred-on-mobile-welcome' /tmp/bp-welcome.js
+          grep -Fq 'v6296-mobile-safe-welcome' /tmp/bp-welcome.js
+          grep -Fq '__BP_WORLD_RENDER_VERSION__=5630' /tmp/bp-world.js
+          grep -Fq "const V='bp-intelligence-v6247-universal-fresh-entry-sidewalk'" /tmp/bp-sw.js
+          grep -Fq 'BUILD=6300' /tmp/bp-updater.js
+          test "$(curl -sS -o /dev/null -w '%{http_code}' "$O/owner/command/?verify=$Q")" = "404"
+          test "$(curl -sS -o /dev/null -w '%{http_code}' "$O/owner/acquisition/?verify=$Q")" = "404"
+          echo 'BRIDGEPOINT_CORE_PRODUCTION_CUTOVER_PASS'
+          echo 'Legacy marketing and retired app-route inventory is checked separately; it does not gate globe startup or device smoke.'
+
+      - name: Desktop, tablet and Android welcome-screen responsiveness smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp
+          npm init -y >/dev/null 2>&1 || true
+          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core');
+          const assert=require('node:assert/strict');
+          const origin='https://bridgepointintelligence.online';
+          const profiles=[
+            {name:'desktop',ua:'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140 Safari/537.36',width:1440,height:900,dpr:1,mobile:false,touch:false},
+            {name:'tablet',ua:'Mozilla/5.0 (Linux; Android 16; Pixel Tablet) AppleWebKit/537.36 Chrome/140 Safari/537.36',width:820,height:1180,dpr:1.5,mobile:true,touch:true},
+            {name:'android-phone',ua:'Mozilla/5.0 (Linux; Android 16; Pixel 9a) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36',width:390,height:844,dpr:2,mobile:true,touch:true}
+          ];
+          (async()=>{
+            const browser=await puppeteer.launch({
+              headless:true,executablePath:process.env.CHROME_PATH,protocolTimeout:90000,
+              args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader']
+            });
+            try{
+              for(const profile of profiles){
+                const page=await browser.newPage();
+                const pageErrors=[],criticalHttpErrors=[];
+                await page.setUserAgent(profile.ua);
+                await page.setViewport({width:profile.width,height:profile.height,deviceScaleFactor:profile.dpr,isMobile:profile.mobile,hasTouch:profile.touch});
+                page.on('pageerror',e=>pageErrors.push(String(e?.message||e)));
+                page.on('response',res=>{
+                  const u=new URL(res.url());
+                  const critical=['/landing.js','/app.js','/world-v2300-map.js','/bridgepoint-welcome-space-v6260.js','/vendor/three.module.js','/vendor/maplibre-gl.js'];
+                  if(u.origin===origin&&critical.includes(u.pathname)&&res.status()>=400)criticalHttpErrors.push({status:res.status(),path:u.pathname});
+                });
+                const url=origin+'/?bp-device-smoke='+profile.name+'-'+Date.now();
+                await page.goto(url,{waitUntil:'domcontentloaded',timeout:60000});
+                await page.waitForSelector('#bpWelcomeGateV1 .bpw-create',{visible:true,timeout:45000});
+                await page.waitForSelector('#bpWelcomeGateV1 .bpw-signin',{visible:true,timeout:45000});
+                await page.waitForSelector('#bpWelcomeSpaceCanvasV6257',{visible:true,timeout:45000});
+                const initial=await page.evaluate(()=>{
+                  const canvas=document.getElementById('bpWelcomeSpaceCanvasV6257');
+                  const create=document.querySelector('#bpWelcomeGateV1 .bpw-create');
+                  const signin=document.querySelector('#bpWelcomeGateV1 .bpw-signin');
+                  const rect=e=>{const r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height}};
+                  const gl=canvas?.getContext('webgl2')||canvas?.getContext('webgl');
+                  return{
+                    gateVisible:!!document.querySelector('#bpWelcomeGateV1')&&getComputedStyle(document.querySelector('#bpWelcomeGateV1')).display!=='none',
+                    canvas:canvas?{width:canvas.width,height:canvas.height,clientWidth:canvas.clientWidth,clientHeight:canvas.clientHeight,context:!!gl,contextLost:gl?.isContextLost?.()??true}:null,
+                    create:create?{...rect(create),visible:getComputedStyle(create).visibility!=='hidden'}:null,
+                    signin:signin?{...rect(signin),visible:getComputedStyle(signin).visibility!=='hidden'}:null,
+                    mobileProfile:window.__BP_WELCOME_SOLAR_COSMOS_MOBILE__?.status||null,
+                    horizontalOverflow:document.documentElement.scrollWidth>innerWidth+3
+                  };
+                });
+                if(!initial.gateVisible||!initial.canvas||initial.canvas.width<200||initial.canvas.height<200||!initial.canvas.context||initial.canvas.contextLost)throw new Error('WELCOME_RENDERER_NOT_READY '+profile.name+' '+JSON.stringify(initial));
+                if(!initial.create?.visible||initial.create.width<120||!initial.signin?.visible||initial.signin.width<120)throw new Error('WELCOME_ACCOUNT_BUTTONS_NOT_VISIBLE '+profile.name+' '+JSON.stringify(initial));
+                if(initial.horizontalOverflow)throw new Error('WELCOME_HORIZONTAL_OVERFLOW '+profile.name+' '+JSON.stringify(initial));
+                if(profile.name==='android-phone'&&initial.mobileProfile!=='deferred-on-mobile-welcome')throw new Error('ANDROID_MOBILE_GPU_PROFILE_NOT_APPLIED '+JSON.stringify(initial));
+
+                await page.evaluate(()=>{
+                  const probe={frames:0,active:true};
+                  window.__BP_WELCOME_FRAME_PROBE__=probe;
+                  const tick=()=>{if(!probe.active)return;probe.frames++;requestAnimationFrame(tick)};
+                  requestAnimationFrame(tick);
+                });
+                await new Promise(resolve=>setTimeout(resolve,1500));
+                const frames=await page.evaluate(()=>window.__BP_WELCOME_FRAME_PROBE__?.frames||0);
+                if(frames<12)throw new Error('WELCOME_MAIN_THREAD_NOT_RESPONDING '+profile.name+' frames='+frames);
+
+                await page.click('#bpWelcomeGateV1 .bpw-create');
+                await page.waitForFunction(()=>{const m=document.getElementById('authModal');return !!m&&!m.hidden&&document.getElementById('authPassword')?.autocomplete==='new-password'},{timeout:10000});
+                await page.click('#closeAuth');
+                await page.waitForFunction(()=>document.getElementById('authModal')?.hidden===true,{timeout:5000});
+                await page.click('#bpWelcomeGateV1 .bpw-signin');
+                await page.waitForFunction(()=>{const m=document.getElementById('authModal');return !!m&&!m.hidden&&document.getElementById('authPassword')?.autocomplete==='current-password'},{timeout:10000});
+                await page.click('#closeAuth');
+                await page.evaluate(()=>{if(window.__BP_WELCOME_FRAME_PROBE__)window.__BP_WELCOME_FRAME_PROBE__.active=false});
+                await page.waitForFunction(()=>!!window.__BP_LANDING_MAP_BOOT__?.stage,{timeout:30000});
+                const mapState=await page.evaluate(()=>{
+                  const m=window.__BP_LANDING_WORLD__?.map;
+                  return{
+                    boot:window.__BP_LANDING_MAP_BOOT__||null,
+                    map:!!m,projection:m?.getProjection?.()?.type||null,
+                    canvases:m?.getContainer?.().querySelectorAll('canvas').length||0,
+                    styleLoaded:m?.isStyleLoaded?.()===true
+                  };
+                });
+                if(mapState.boot?.stage==='error'||!mapState.map||mapState.projection!=='globe'||mapState.canvases!==1)throw new Error('WELCOME_TO_LIVE_GLOBE_HANDOFF_FAILED '+profile.name+' '+JSON.stringify(mapState));
+                const errors=pageErrors.filter(x=>!/ResizeObserver loop/i.test(x));
+                if(errors.length||criticalHttpErrors.length)throw new Error('WELCOME_BROWSER_ERRORS '+profile.name+' '+JSON.stringify({errors:errors.slice(-5),criticalHttpErrors}));
+                console.log('BRIDGEPOINT_WELCOME_DEVICE_PASS '+profile.name+' '+JSON.stringify({initial,frames,mapState}));
+                await page.close();
+
+                const appPage=await browser.newPage();
+                const appErrors=[];
+                await appPage.setUserAgent(profile.ua);
+                await appPage.setViewport({width:profile.width,height:profile.height,deviceScaleFactor:profile.dpr,isMobile:profile.mobile,hasTouch:profile.touch});
+                appPage.on('pageerror',e=>appErrors.push(String(e?.message||e)));
+                await appPage.goto(origin+'/app/?bp-device-smoke='+profile.name+'-'+Date.now(),{waitUntil:'domcontentloaded',timeout:60000});
+                await appPage.waitForFunction(()=>!!window.__BP_V5000_WORLD__?.map?.getCanvas?.()||!!document.querySelector('#liveMap canvas'),{timeout:90000});
+                const appState=await appPage.evaluate(()=>{
+                  const m=window.__BP_V5000_WORLD__?.map;
+                  const c=document.querySelector('#liveMap canvas');
+                  return{map:!!m,canvas:!!c,canvasCount:m?.getContainer?.().querySelectorAll('canvas').length||0,projection:m?.getProjection?.()?.type||null,viewportWidth:innerWidth,scrollWidth:document.documentElement.scrollWidth};
+                });
+                if(!appState.map||!appState.canvas||appState.canvasCount!==1||appState.projection!=='globe')throw new Error('APP_GLOBE_NOT_READY '+profile.name+' '+JSON.stringify(appState));
+                if(appState.scrollWidth>appState.viewportWidth+3)throw new Error('APP_HORIZONTAL_OVERFLOW '+profile.name+' '+JSON.stringify(appState));
+                const appFatal=appErrors.filter(x=>!/ResizeObserver loop/i.test(x));
+                if(appFatal.length)throw new Error('APP_BROWSER_ERRORS '+profile.name+' '+JSON.stringify(appFatal.slice(-5)));
+                console.log('BRIDGEPOINT_APP_DEVICE_PASS '+profile.name+' '+JSON.stringify(appState));
+                await appPage.close();
+              }
+            }finally{await browser.close()}
+          })().catch(e=>{console.error(e.stack||e);process.exit(1)});
+          NODE
 
       - name: Verify every requested BridgePoint feature is live on website and app
         shell: bash
