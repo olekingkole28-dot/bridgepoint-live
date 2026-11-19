@@ -310,7 +310,8 @@ html.bp-instant-globe-start .app-shell .map-brand-card{display:none!important}
   queuePromise=(async()=>{
    for(let i=0;i<placeholders.length;i++){
     const placeholder=placeholders[i],src=placeholder.dataset.bpDeferredSrc,kind=placeholder.dataset.bpDeferredKind||'classic';
-    while(document.hidden)await new Promise(resolve=>setTimeout(resolve,700));
+    if(document.hidden)state.backgroundLoadCount=(state.backgroundLoadCount||0)+1;
+    state.lastStarted=src;
     await new Promise(resolve=>{
      const script=document.createElement('script');let settled=false;
      const finish=ok=>{
