@@ -98,14 +98,14 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
     def test_root_uses_one_existing_earth_and_no_ground_sky_button(self):
         out = patch_root_html(root_fixture())
         self.assertIn("bpWelcomeGateStylesV6257", out)
-        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6295-sdo-live-feed"', out)
+        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6296-mobile-safe-welcome"', out)
         self.assertIn('class="bpw-celestial-system" aria-hidden="true"></div>', out)
         self.assertNotIn("bpwCelestialCanvasV6257", out)
         self.assertNotIn('class="bpw-globe-aura"', out)
         self.assertNotIn('class="bpw-explainer"', out)
         self.assertNotIn("WELCOME TO", out)
         self.assertNotIn("bridgepoint-welcome-space-v6257.js", out)
-        self.assertEqual(out.count('src="/bridgepoint-welcome-space-v6260.js?v=6295-sdo-live-feed"'), 1)
+        self.assertEqual(out.count('src="/bridgepoint-welcome-space-v6260.js?v=6296-mobile-safe-welcome"'), 1)
         self.assertIn("event.persisted", out)
         self.assertIn("location.reload()", out)
         self.assertIn('data-mode="signup"', out)
@@ -155,7 +155,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
 <script type="module" src="./bridgepoint-welcome-space-v6257.js?v=6258-local-moon-terrain"></script>
 </body></html>"""
         out = patch_root_html(current)
-        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6295-sdo-live-feed"', out)
+        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6296-mobile-safe-welcome"', out)
         self.assertNotIn("v=6265-solar-globe", out)
         self.assertIn('<div class="bpw-celestial-system" aria-hidden="true"></div>', out)
         self.assertIn('class="bpw-wordmark bpw-wordmark-static"', out)
@@ -710,7 +710,7 @@ self.addEventListener('fetch',e=>{
             after = {p.relative_to(site).as_posix() for p in site.rglob("*") if p.is_file()}
             self.assertEqual(after - before, set())
             root = (site / "index.html").read_text()
-            self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6295-sdo-live-feed"', root)
+            self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6296-mobile-safe-welcome"', root)
             self.assertIn("event.persisted", root)
             self.assertIn("location.reload()", root)
             self.assertNotIn("data-space-ground", root)
