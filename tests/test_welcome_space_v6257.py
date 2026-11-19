@@ -171,7 +171,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
         app = patch_app_index(app_index_fixture())
         self.assertEqual(app.count("/?return="), 2)
         self.assertNotIn("/?auth=signin&return=", app)
-        self.assertIn("app.js?v=6311-app-entry-controls-priority", app)
+        self.assertIn("app.js?v=6312-post-auth-unblock-map", app)
         self.assertIn("manifest.webmanifest?v=6306-mobile-planet-picker", app)
         legacy = patch_legacy_app(legacy_fixture())
         self.assertIn('content="0;url=/"', legacy)
