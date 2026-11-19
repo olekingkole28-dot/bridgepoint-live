@@ -485,7 +485,7 @@ self.addEventListener('fetch',e=>{
     def test_sun_has_animated_molten_photosphere_fresnel_rim_and_observed_plasma_particles(self):
         module = (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text()
         for marker in (
-            "const VERSION = 'v6305-balanced-celestial-frame'",
+            "const VERSION = 'v6306-mobile-planet-picker'",
             "float magmaFlow=",
             "float moltenCoverage=",
             "const solarFireRim=new THREE.Mesh",
@@ -621,6 +621,7 @@ self.addEventListener('fetch',e=>{
         self.assertNotIn("data-gaia=", galaxy)
         self.assertIn("Gaia DR3 measured stellar positions", galaxy)
         self.assertIn("const p=[r.x,r.y,r.z],j=i*3;", galaxy)
+        self.assertIn("bridgepoint-app-space-explorer-v1.js?v=6306-mobile-planet-picker", (ROOT / "rebuild-v5000" / "index.html").read_text())
         self.assertIn("if(starState.frame)return starState.frame;", galaxy)
         self.assertIn("0.00465047*uAUScale", galaxy)
         self.assertIn("#include <logdepthbuf_vertex>", galaxy)
