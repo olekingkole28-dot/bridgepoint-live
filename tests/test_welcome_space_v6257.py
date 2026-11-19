@@ -118,7 +118,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
 <script>location.replace('/')</script>
 <script src="/sw.js?v=6247-universal-fresh-entry-sidewalk"></script>"""
         out = patch_legacy_app(migrated)
-        self.assertIn("sw.js?v=6293-full-planetarium", out)
+        self.assertIn("sw.js?v=6306-mobile-planet-picker", out)
         self.assertNotIn("v=6247-universal-fresh-entry-sidewalk", out)
         self.assertIn('content="0;url=/"', out)
         self.assertIn("location.replace('/')", out)
@@ -133,7 +133,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
         for tag in cases:
             with self.subTest(tag=tag):
                 out = bump_manifest_url(tag, "test manifest URL")
-                self.assertEqual(out.count("v=6293-full-planetarium"), 1)
+                self.assertEqual(out.count("v=6306-mobile-planet-picker"), 1)
                 self.assertNotIn("v=6265-solar-globe", out)
                 self.assertNotIn("v=6247-universal-fresh-entry", out)
 
@@ -171,8 +171,8 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
         app = patch_app_index(app_index_fixture())
         self.assertEqual(app.count("/?return="), 2)
         self.assertNotIn("/?auth=signin&return=", app)
-        self.assertIn("app.js?v=6293-full-planetarium", app)
-        self.assertIn("manifest.webmanifest?v=6293-full-planetarium", app)
+        self.assertIn("app.js?v=6306-mobile-planet-picker", app)
+        self.assertIn("manifest.webmanifest?v=6306-mobile-planet-picker", app)
         legacy = patch_legacy_app(legacy_fixture())
         self.assertIn('content="0;url=/"', legacy)
         self.assertIn("location.replace('/')", legacy)
@@ -276,7 +276,7 @@ self.addEventListener('fetch',e=>{
             path.write_text(modern)
             patch_worker(path)
             out = path.read_text()
-            self.assertIn("BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6293-full-planetarium'", out)
+            self.assertIn("BRIDGEPOINT_LAUNCH_EXPERIENCE_BUILD='v6306-mobile-planet-picker'", out)
             self.assertIn("await active.delete(request)", out)
             self.assertIn("const entryRoute=", out)
             self.assertIn("current release required", out)
@@ -505,7 +505,7 @@ self.addEventListener('fetch',e=>{
             bundle = Path(folder) / "app.js"
             bundle.write_text("navigator.serviceWorker.register('/sw.js?v=6269-solar-fire-plasma',{updateViaCache:'none'})")
             patch_bundle(bundle)
-            self.assertIn("sw.js?v=6293-full-planetarium", bundle.read_text())
+            self.assertIn("sw.js?v=6306-mobile-planet-picker", bundle.read_text())
             self.assertNotIn("v6269-solar-fire-plasma", bundle.read_text())
 
     def test_patch_bundle_also_invalidates_v6280_worker_for_v6286(self):
@@ -513,7 +513,7 @@ self.addEventListener('fetch',e=>{
             bundle = Path(folder) / "app.js"
             bundle.write_text("navigator.serviceWorker.register('/sw.js?v=6280-unified-cosmos',{updateViaCache:'none'})")
             patch_bundle(bundle)
-            self.assertIn("sw.js?v=6293-full-planetarium", bundle.read_text())
+            self.assertIn("sw.js?v=6306-mobile-planet-picker", bundle.read_text())
             self.assertNotIn("v6280-unified-cosmos", bundle.read_text())
 
     def test_16bit_lunar_height_webp_tiles_reconstruct_exact_original_values(self):
