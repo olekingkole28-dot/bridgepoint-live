@@ -3,11 +3,14 @@ import { readFile } from 'node:fs/promises';
 import {UNDERGROUND_SCAN_SITES,UNDERGROUND_SCAN_RIGHTS_HOLDS,buildUndergroundSiteFeatures,undergroundSitePopupHtml} from '../rebuild-v5000/bridgepoint-underground-scan-sites-v1.js';
 
 const features=buildUndergroundSiteFeatures();
-assert.equal(features.length,11,'eleven reviewed site anchors are mapped');
-assert.equal(UNDERGROUND_SCAN_SITES.reduce((n,s)=>n+s.models.length,0),13,'thirteen real creator-hosted scans are cataloged');
+assert.equal(features.length,12,'twelve reviewed site anchors are mapped');
+assert.equal(UNDERGROUND_SCAN_SITES.reduce((n,s)=>n+s.models.length,0),14,'fourteen real creator-hosted 3D models and tours are cataloged');
 assert.equal(UNDERGROUND_SCAN_RIGHTS_HOLDS.length,3,'rights/source holds are exposed');
 assert.ok(features.every(f=>f.geometry.type==='Point'&&f.properties.iconImage));
-assert.ok(UNDERGROUND_SCAN_SITES.every(s=>s.models.every(m=>m.uid&&m.creator&&m.license==='CC Attribution'&&m.modelUrl.startsWith('https://sketchfab.com/3d-models/'))));
+assert.ok(UNDERGROUND_SCAN_SITES.every(s=>s.models.every(m=>m.uid&&m.creator&&(
+ m.matterportTourId ? (m.matterportTourId==='1BTGHi85s96'&&m.modelUrl==='https://my.matterport.com/show/?m=1BTGHi85s96'&&m.license.includes('original rights retained'))
+ : (m.license==='CC Attribution'&&m.modelUrl.startsWith('https://sketchfab.com/3d-models/'))
+))));
 assert.equal(UNDERGROUND_SCAN_SITES.find(s=>s.id==='paris-catacombs').models.length,3);
 assert.match(UNDERGROUND_SCAN_SITES.find(s=>s.id==='vrlovka-cave').models[0].method,/LiDAR/i);
 assert.match(UNDERGROUND_SCAN_SITES.find(s=>s.id==='om-jaettestue').locationNote,/not a natural cave/i);
@@ -81,6 +84,21 @@ assert.match(anchorChurch.locationPrecision,/Approximate/i);
 assert.ok(undergroundSitePopupHtml(anchorChurch).includes('sketchfab.com/models/c7125417f09e43229288316c8144e625/embed'));
 assert.ok(undergroundSitePopupHtml(anchorChurch).includes('Shiro Morturn'));
 assert.equal(UNDERGROUND_SCAN_SITES.filter(s=>s.id==='anchor-church-caves-derbyshire').length,1);
+const rockHouse=UNDERGROUND_SCAN_SITES.find(s=>s.id==='rock-house-ohio');
+assert.ok(rockHouse&&rockHouse.type==='cave','real Hocking Hills Ohio natural cave has mapped icon');
+assert.deepEqual(rockHouse.coordinates,[-82.61359,39.49755]);
+assert.equal(rockHouse.models.length,1);
+assert.equal(rockHouse.models[0].matterportTourId,'1BTGHi85s96');
+assert.match(rockHouse.models[0].method,/photo-textured/i);
+assert.match(rockHouse.models[0].method,/depth sensing/i);
+assert.ok(!rockHouse.models[0].license.includes('CC Attribution'),'no invented CC license for Matterport');
+assert.ok(undergroundSitePopupHtml(rockHouse).includes('my.matterport.com/show/?m=1BTGHi85s96&amp;play=1'));
+assert.ok(undergroundSitePopupHtml(rockHouse).includes('Open original Matterport 3D tour'));
+assert.ok(undergroundSitePopupHtml(rockHouse).includes('Elements of Media'));
+assert.ok(undergroundSitePopupHtml(rockHouse).includes('not a pure photogrammetry'));
+assert.equal(UNDERGROUND_SCAN_SITES.filter(s=>s.id==='rock-house-ohio').length,1);
+assert.ok(undergroundSitePopupHtml(anchorChurch).includes('sketchfab.com/models/c7125417f09e43229288316c8144e625/embed'));
+assert.ok(undergroundSitePopupHtml(anchorChurch).includes('Open original Sketchfab model'));
 assert.equal(UNDERGROUND_SCAN_SITES.find(s=>s.id==='bethells-beach-sea-cave').models[0].uid,'ce71dc2848984acfb11d8002a48a6043');
 assert.equal(UNDERGROUND_SCAN_SITES.find(s=>s.id==='ellora-caves-india').models[0].uid,'1a5ec1e212f9451e80dc051e97164d17');
 assert.equal(UNDERGROUND_SCAN_SITES.find(s=>s.id==='jackson-blue-spring-cavern').models[0].uid,'c0ecd1020c794a9a83771d7957517438');
