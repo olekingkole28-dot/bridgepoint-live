@@ -2530,7 +2530,7 @@ jobs:
           grep -Fq 'bpAuthRequestV6237' /tmp/bp-app.js
           grep -Fq 'mobileFrameIntervalMs' /tmp/bp-welcome.js
           grep -Fq 'deferred-on-mobile-welcome' /tmp/bp-welcome.js
-          grep -Fq 'v6296-mobile-safe-welcome' /tmp/bp-welcome.js
+          grep -Fq 'v6305-balanced-celestial-frame' /tmp/bp-welcome.js
           grep -Fq '__BP_WORLD_RENDER_VERSION__=5630' /tmp/bp-world.js
           grep -Fq "const V='bp-intelligence-v6247-universal-fresh-entry-sidewalk'" /tmp/bp-sw.js
           grep -Fq 'BUILD=6300' /tmp/bp-updater.js
