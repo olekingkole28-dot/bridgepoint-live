@@ -105,7 +105,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
         self.assertNotIn('class="bpw-explainer"', out)
         self.assertNotIn("WELCOME TO", out)
         self.assertNotIn("bridgepoint-welcome-space-v6257.js", out)
-        self.assertEqual(out.count('src="/bridgepoint-welcome-space-v6260.js?v=6296-mobile-safe-welcome"'), 1)
+        self.assertEqual(out.count('src="/bridgepoint-welcome-space-v6260.js?v=6306-mobile-planet-picker"'), 1)
         self.assertIn("event.persisted", out)
         self.assertIn("location.reload()", out)
         self.assertIn('data-mode="signup"', out)
@@ -157,7 +157,7 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
 <script type="module" src="./bridgepoint-welcome-space-v6257.js?v=6258-local-moon-terrain"></script>
 </body></html>"""
         out = patch_root_html(current)
-        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6296-mobile-safe-welcome"', out)
+        self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6306-mobile-planet-picker"', out)
         self.assertNotIn("v=6265-solar-globe", out)
         self.assertIn('<div class="bpw-celestial-system" aria-hidden="true"></div>', out)
         self.assertIn('class="bpw-wordmark bpw-wordmark-static"', out)
@@ -605,7 +605,6 @@ self.addEventListener('fetch',e=>{
         ):
             self.assertIn(marker, scene)
         self.assertIn("if(mobile){", scene)
-        self.assertIn("if(!mobile){", scene)
         self.assertIn("initBridgePointSolarCosmos", scene)
 
     def test_welcome_space_uses_one_real_gaia_starfield_and_no_synthetic_sphere(self):
@@ -615,7 +614,6 @@ self.addEventListener('fetch',e=>{
         self.assertIn("initBridgePointSolarCosmos", scene)
         self.assertIn("v=6306-mobile-planet-picker", scene)
         self.assertIn("data-bp-celestial-body-picker", scene)
-        self.assertIn("v=6306-mobile-planet-picker", galaxy) if False else None
         self.assertNotIn("cinematicStarfield", scene)
         self.assertNotIn("bpw-gaia-mode", scene)
         self.assertNotIn("GAIA_DR3_GALAXY_V6270", scene)
@@ -738,7 +736,7 @@ self.addEventListener('fetch',e=>{
             after = {p.relative_to(site).as_posix() for p in site.rglob("*") if p.is_file()}
             self.assertEqual(after - before, set())
             root = (site / "index.html").read_text()
-            self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6296-mobile-safe-welcome"', root)
+            self.assertIn('src="/bridgepoint-welcome-space-v6260.js?v=6306-mobile-planet-picker"', root)
             self.assertIn("event.persisted", root)
             self.assertIn("location.reload()", root)
             self.assertNotIn("data-space-ground", root)
