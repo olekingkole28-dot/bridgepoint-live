@@ -87,7 +87,7 @@ assert.ok(moduleSource.includes("[bbox[1],bbox[0],bbox[3],bbox[2]].join(',')"), 
 assert.ok(landing.includes("import('./bridgepoint-subsurface-wells-v1.js?v=2-persistent-substructure-visibility')"));
 assert.ok(app.includes("import('./bridgepoint-subsurface-wells-v1.js?v=2-persistent-substructure-visibility')"));
 assert.ok(home.includes('landing.js?v=6309-auth-mode-sync&sidewalk=6247-viewport-tile-progressive&bp=5970-globe-model-matrices&sw=1'));
-assert.ok(appHome.includes('app.js?v=6309-auth-mode-sync&sidewalk=6247-viewport-tile-progressive&bp=5970-globe-model-matrices&sw=1'));
+assert.ok(appHome.includes('app.js?v=6311-app-entry-controls-priority&sidewalk=6247-viewport-tile-progressive&bp=5970-globe-model-matrices&sw=1'));
 assert.ok(deploy.includes('cp rebuild-v5000/bridgepoint-subsurface-wells-v1.js site/bridgepoint-subsurface-wells-v1.js'));
 assert.ok(deploy.includes('cp rebuild-v5000/bridgepoint-subsurface-wells-v1.js site/app/bridgepoint-subsurface-wells-v1.js'));
 assert.ok(deploy.includes('node tests/subsurface-wells-v1.test.mjs'));
