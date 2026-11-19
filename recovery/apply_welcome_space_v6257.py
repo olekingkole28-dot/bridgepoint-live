@@ -5,11 +5,11 @@ import re
 import sys
 from pathlib import Path
 
-BUILD = "v6293-full-planetarium"
+BUILD = "v6306-mobile-planet-picker"
 SPACE_MODULE_BUILD = "v6306-mobile-planet-picker"
 # Moon and planetary terrain assets are bundled locally; runtime requests stay same-origin.
-SW_URL = "/sw.js?v=6293-full-planetarium"
-CACHE_NAME = "bp-intelligence-v6293-full-planetarium"
+SW_URL = "/sw.js?v=6306-mobile-planet-picker"
+CACHE_NAME = "bp-intelligence-v6306-mobile-planet-picker"
 
 
 def replace_once(source: str, old: str, new: str, label: str) -> str:
