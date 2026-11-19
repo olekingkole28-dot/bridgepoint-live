@@ -1,6 +1,6 @@
 /* BridgePoint Caves & Underground Sites v1.
  * Additive, opt-in map layer. Map anchors carry location precision; real 3D meshes remain
- * hosted by Sketchfab. No third-party model files are downloaded, cached or redistributed.
+ * hosted by Sketchfab or (for Ohio Rock House only) its Matterport publisher. No third-party model files are downloaded, cached or redistributed.
  */
 const VERSION=1, MAP_STATES=new WeakMap();
 const SOURCE_ID='bp-underground-scan-sites-source-v1';
@@ -136,7 +136,7 @@ export function undergroundSitePopupHtml(site,selectedUid=null){
   '<div class="bp-underground-site-viewer-v1"><iframe id="bp-underground-scan-viewer-v1" title="'+safe(selected.title)+' — interactive 3D scan by '+safe(selected.creator)+'" src="'+safe(modelViewerUrl(selected))+'" allow="autoplay; fullscreen; xr-spatial-tracking" allowfullscreen loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>'+
   '<div class="bp-underground-site-model-meta-v1"><b id="bp-underground-scan-title-v1">'+safe(selected.title)+'</b>'+
   '<span>Creator: <strong id="bp-underground-scan-creator-v1">'+safe(selected.creator)+'</strong></span>'+
-  '<span>Displayed license: <strong id="bp-underground-scan-license-v1">'+safe(selected.license)+'</strong></span>'+
+  '<span>'+(isMatterport?'Access / rights: ':'Displayed license: ')+'<strong id="bp-underground-scan-license-v1">'+safe(selected.license)+'</strong></span>'+
   '<span>Capture method: <strong id="bp-underground-scan-method-v1">'+safe(selected.method)+'</strong></span>'+
   '<p id="bp-underground-scan-detail-v1">'+safe(selected.detail)+'</p>'+
   '<a id="bp-underground-scan-source-v1" href="'+safe(selected.modelUrl)+'" target="_blank" rel="noopener noreferrer">'+(isMatterport?'Open original Matterport 3D tour ↗':'Open original Sketchfab model ↗')+'</a></div>'+
@@ -200,7 +200,7 @@ function installLayers(state){
  const map=state.map;if(!map?.getStyle?.())return false;
  try{
   for(const type of ['cave','catacomb','tomb']){const id='bp-underground-site-icon-'+type+'-v1';if(!map.hasImage?.(id))map.addImage(id,makeIcon(type),{pixelRatio:2});}
-  if(!map.getSource(SOURCE_ID))map.addSource(SOURCE_ID,{type:'geojson',data:{type:'FeatureCollection',features:buildUndergroundSiteFeatures()},buffer:64,maxzoom:14,attribution:'3D scans via Sketchfab; model creators and displayed licenses are attributed in each site viewer.'});
+  if(!map.getSource(SOURCE_ID))map.addSource(SOURCE_ID,{type:'geojson',data:{type:'FeatureCollection',features:buildUndergroundSiteFeatures()},buffer:64,maxzoom:14,attribution:'3D scans via Sketchfab or creator-published Matterport; model rights and attribution are shown in each site viewer.'});
   const add=(id,layer)=>{if(!map.getLayer(id))map.addLayer(layer);};
   add(HALO_ID,{id:HALO_ID,type:'circle',source:SOURCE_ID,minzoom:0,maxzoom:24,layout:{visibility:state.enabled?'visible':'none'},paint:{
    'circle-radius':['interpolate',['linear'],['zoom'],0,3.5,5,6,10,9,16,13,22,16],
