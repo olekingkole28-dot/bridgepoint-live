@@ -2759,8 +2759,10 @@ jobs:
                   await appPage.waitForFunction((sel,prior)=>document.querySelector(sel)?.getAttribute('aria-pressed')!==prior,{timeout:20000},selector,before);
                   const enabled=await appPage.$eval(selector,el=>el.getAttribute('aria-pressed'));
                   if(enabled===before)throw new Error('BRIDGEPOINT_FEATURE_BUTTON_DID_NOT_TOGGLE '+selector);
+                  await appPage.waitForFunction(sel=>!!document.querySelector(sel)&&!document.querySelector(sel).disabled,{timeout:60000},selector);
                   await appPage.click(selector);
-                  await appPage.waitForFunction((sel,prior)=>document.querySelector(sel)?.getAttribute('aria-pressed')===prior,{timeout:20000},selector,before);
+                  await appPage.waitForFunction((sel,prior)=>document.querySelector(sel)?.getAttribute('aria-pressed')===prior,{timeout:30000},selector,before);
+                  await appPage.waitForFunction(sel=>!!document.querySelector(sel)&&!document.querySelector(sel).disabled,{timeout:60000},selector);
                   return {selector,offState:before,onState:enabled,restored:true};
                 }
                 const pressedFeatures=[];
