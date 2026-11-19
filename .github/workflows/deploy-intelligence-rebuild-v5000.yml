@@ -2169,47 +2169,11 @@ jobs:
           test -s site/assets/spacecraft/nasa-gantry.glb
           echo "BRIDGEPOINT_10_SHIPWRECKS_10_PLANE_WRECKS_4_SPACECRAFT_PRESERVED"
 
-      - name: Select the latest successful Jenolan Caves Pages artifact
-        id: jenolan
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPOSITORY: ${{ github.repository }}
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          import json, os, time, urllib.request
-          repo=os.environ["REPOSITORY"]
-          token=os.environ["GH_TOKEN"]
-          workflow_path=".github/workflows/publish-jenolan-caves-v1.yml"
-          artifact_name="github-pages-jenolan-caves-v1"
-          headers={"Accept":"application/vnd.github+json",
-                   "Authorization":"Bearer "+token,
-                   "X-GitHub-Api-Version":"2022-11-28"}
-          def get_json(url):
-              request=urllib.request.Request(url,headers=headers)
-              with urllib.request.urlopen(request,timeout=45) as response:
-                  return json.load(response)
-          for attempt in range(60):
-              runs=get_json(f"https://api.github.com/repos/{repo}/actions/runs?branch=main&per_page=100").get("workflow_runs",[])
-              candidates=[r for r in runs if r.get("path")==workflow_path and r.get("conclusion")=="success"]
-              for row in candidates:
-                  artifacts=get_json(f"https://api.github.com/repos/{repo}/actions/runs/{row['id']}/artifacts?per_page=100").get("artifacts",[])
-                  match=next((a for a in artifacts if a.get("name")==artifact_name and not a.get("expired")),None)
-                  if match:
-                      with open(os.environ["GITHUB_OUTPUT"],"a",encoding="utf-8") as output:
-                          output.write(f"run_id={row['id']}\nartifact_name={artifact_name}\n")
-                      print("JENOLAN_ARTIFACT_SELECTED",row["id"],match.get("size_in_bytes"))
-                      raise SystemExit(0)
-              print("Waiting for successful published Jenolan artifact",attempt+1,"/ 60",flush=True)
-              time.sleep(15)
-          raise SystemExit("No successful, unexpired Jenolan Caves Pages artifact was published within the validation window.")
-          PY
-
-      - name: Download the published Jenolan cave Pages artifact
+      - name: Download the verified Jenolan cave Pages artifact
         uses: actions/download-artifact@v4
         with:
-          name: ${{ steps.jenolan.outputs.artifact_name }}
-          run-id: ${{ steps.jenolan.outputs.run_id }}
+          name: github-pages-jenolan-caves-v1
+          run-id: 44450370430
           repository: ${{ github.repository }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ${{ runner.temp }}/bp-jenolan-feature-baseline
