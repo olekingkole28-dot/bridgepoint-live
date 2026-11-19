@@ -97,4 +97,13 @@ assert.ok(rootHtml.includes('window.__BP_FRESH_SIGNIN__!==true'), 'a stored toke
 assert.ok(rootHtml.includes('return sized&&styleReady;'), 'the welcome animation does not wait for every basemap tile');
 assert.ok(landing.includes('bpFreshEntryTarget') && landing.includes('markFreshSignIn'), 'successful sign-in marks the current entry and safely returns direct app deep links');
 assert.ok(appHtml.includes("sessionStorage.getItem('bp_fresh_signin_v1')==='1'"), 'direct app entry requires a fresh sign-in handshake');
+assert.ok(landing.includes('schedulePostSigninFeatureRestore'), 'mobile welcome sign-in schedules feature restoration only after closing the account dialog');
+assert.ok(landing.includes('window.__BP_LANDING_FEATURE_RESTORE_BUSY__=true'), 'mobile feature restoration exposes a serialization guard');
+assert.ok(landing.includes('requestAnimationFrame(()=>setTimeout(finish,230))'), 'mobile feature modules yield between initializers so map input can run');
+assert.ok(rootHtml.includes('priorityReadyAt') && rootHtml.includes('optionalStageReadyAt'), 'mobile deferred loader exposes core-card readiness before optional modules');
+assert.ok(rootHtml.includes("typeof map.getCanvas==='function'&&map.getCanvas()"), 'card controls can start as soon as the base globe canvas exists');
+assert.ok(rootHtml.includes('window.__BP_LANDING_FEATURE_RESTORE_SCHEDULED__===true'), 'optional deferred scripts wait for the post-sign-in feature restoration batch');
+assert.ok(app.includes("await authExchange('token?grant_type=password',{email,password});setText('authMessage','');closeAuth();"), 'in-app sign-in closes the account overlay before workspace data loads');
+assert.ok(app.includes("setTimeout(()=>{void loadWorkspace(true).then(()=>{if(pk)return handlePackageAction(pk)}).catch"), 'in-app account workspace loads in the background after sign-in');
+assert.ok(app.includes("setText('authMessage','Account created and signed in.');closeAuth();setTimeout(()=>{void loadWorkspace(true)"), 'in-app account creation releases the map before loading account data');
 console.log('BRIDGEPOINT_AUTH_RESILIENCE_V6237_PASS');
