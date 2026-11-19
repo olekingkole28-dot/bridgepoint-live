@@ -2356,9 +2356,9 @@ jobs:
           node --check site/app-update-v5820.js
           grep -Fq 'app-update-v5820.js?v=6300-direct-entry' site/index.html
           grep -Fq 'app-update-v5820.js?v=6300-direct-entry' site/app/index.html
-          grep -Fq 'bridgepoint-welcome-space-v6260.js?v=6296-mobile-safe-welcome' site/index.html
-          grep -Fq 'bridgepoint-app-space-explorer-v1.js?v=6293-full-planetarium' site/index.html
-          grep -Fq 'bridgepoint-app-space-explorer-v1.js?v=6293-full-planetarium' site/app/index.html
+          grep -Fq 'bridgepoint-welcome-space-v6260.js?v=6306-mobile-planet-picker' site/index.html
+          grep -Fq 'bridgepoint-app-space-explorer-v1.js?v=6306-mobile-planet-picker' site/index.html
+          grep -Fq 'bridgepoint-app-space-explorer-v1.js?v=6306-mobile-planet-picker' site/app/index.html
           test -s site/bridgepoint-app-space-explorer-v1.js
           grep -Fq 'rel="modulepreload" href="/vendor/three.module.js?v=169-local"' site/index.html
           grep -Fq 'start_url": "/"' site/manifest.webmanifest
@@ -2454,13 +2454,13 @@ jobs:
               require_marker /tmp/bp-auth-root.html 'landing.js?v=6293-full-planetarium'
               require_marker /tmp/bp-auth-app.html 'app.js?v=6293-full-planetarium'
               require_marker /tmp/bp-auth-root.html 'bpw-celestial-system'
-              require_marker /tmp/bp-auth-root.html 'bridgepoint-welcome-space-v6260.js?v=6296-mobile-safe-welcome'
+              require_marker /tmp/bp-auth-root.html 'bridgepoint-welcome-space-v6260.js?v=6306-mobile-planet-picker'
               if grep -Fq 'bridgepoint-welcome-space-v6257.js' /tmp/bp-auth-root.html; then
                 echo 'LIVE_SMOKE_LEGACY_WELCOME_RENDERER_STILL_REFERENCED'
                 missing=1
               fi
-              require_marker /tmp/bp-auth-root.html 'bridgepoint-app-space-explorer-v1.js?v=6293-full-planetarium'
-              require_marker /tmp/bp-auth-app.html 'bridgepoint-app-space-explorer-v1.js?v=6293-full-planetarium'
+              require_marker /tmp/bp-auth-root.html 'bridgepoint-app-space-explorer-v1.js?v=6306-mobile-planet-picker'
+              require_marker /tmp/bp-auth-app.html 'bridgepoint-app-space-explorer-v1.js?v=6306-mobile-planet-picker'
               require_marker /tmp/bp-auth-space-explorer.js 'SPACE 3D'
               require_marker /tmp/bp-auth-space-explorer.js 'bridgepoint-welcome-space-v6260.js'
               require_marker /tmp/bp-auth-welcome-space.js 'MOON_RADIUS_KM = 1737.4'
@@ -2529,8 +2529,9 @@ jobs:
           grep -Fq 'bpAuthRequestV6237' /tmp/bp-landing.js
           grep -Fq 'bpAuthRequestV6237' /tmp/bp-app.js
           grep -Fq 'welcomeFrameIntervalMs' /tmp/bp-welcome.js
-          grep -Fq 'deferred-on-mobile-welcome' /tmp/bp-welcome.js
-          grep -Fq 'v6305-balanced-celestial-frame' /tmp/bp-welcome.js
+          grep -Fq 'scheduled-mobile-welcome' /tmp/bp-welcome.js
+           grep -Fq 'data-bp-celestial-body-picker' /tmp/bp-welcome.js
+          grep -Fq 'v6306-mobile-planet-picker' /tmp/bp-welcome.js
           grep -Fq '__BP_WORLD_RENDER_VERSION__=5630' /tmp/bp-world.js
           grep -Fq "const V='bp-intelligence-v6247-universal-fresh-entry-sidewalk'" /tmp/bp-sw.js
           grep -Fq 'BUILD=6300' /tmp/bp-updater.js
@@ -2649,7 +2650,7 @@ jobs:
                 if(!initial.gateVisible||!initial.canvas||initial.canvas.width<200||initial.canvas.height<200||!initial.canvas.context||initial.canvas.contextLost)throw new Error('WELCOME_RENDERER_NOT_READY '+profile.name+' '+JSON.stringify(initial));
                 if(!initial.create?.visible||initial.create.width<120||!initial.signin?.visible||initial.signin.width<120)throw new Error('WELCOME_ACCOUNT_BUTTONS_NOT_VISIBLE '+profile.name+' '+JSON.stringify(initial));
                 if(initial.horizontalOverflow)throw new Error('WELCOME_HORIZONTAL_OVERFLOW '+profile.name+' '+JSON.stringify(initial));
-                if(profile.name==='android-phone'&&initial.mobileProfile!=='deferred-on-mobile-welcome')throw new Error('ANDROID_MOBILE_GPU_PROFILE_NOT_APPLIED '+JSON.stringify(initial));
+                if(profile.name==='android-phone'&&!['scheduled-mobile-welcome','loading','loading-measured-stars-and-planet-textures'].includes(initial.mobileProfile))throw new Error('ANDROID_MOBILE_GPU_PROFILE_NOT_APPLIED '+JSON.stringify(initial));
                 if(profile.mobile&&(!initial.mobileScriptDeferral||Number(initial.mobileScriptDeferral.deferredCount)<10))throw new Error('ANDROID_OPTIONAL_SCRIPTS_NOT_DEFERRED '+JSON.stringify(initial));
 
                 const eventLoop=await Promise.race([
