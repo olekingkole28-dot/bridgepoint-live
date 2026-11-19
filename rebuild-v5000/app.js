@@ -153,9 +153,34 @@ async function bootMap(){
  if(!world?.map)throw new Error('Map object readiness timeout');
  const appMap=world.map;
  // FAA-listed towers, antennas and cranes are loaded independently from the core globe.
- void import('./bridgepoint-faa-obstruction-towers-v1.js?v=2-aircraft-filters-faa-restored')
+ 
+ // Let the signed-in map and bottom feature card become interactive before loading
+ // optional renderers. Queue one renderer per idle window to prevent a login-time
+ // burst of WebGL, network, and source/layer work from freezing touch input.
+ const bpOptionalRendererQueue=[];
+ let bpOptionalRendererStarted=false,bpOptionalRendererBusy=false;
+ const scheduleOptionalRenderer=run=>{
+  bpOptionalRendererQueue.push(run);
+  if(bpOptionalRendererStarted)return;
+  bpOptionalRendererStarted=true;
+  const pump=()=>{
+   if(document.hidden||bpOptionalRendererBusy||!bpOptionalRendererQueue.length){
+    if(bpOptionalRendererQueue.length)setTimeout(pump,1200);
+    return;
+   }
+   bpOptionalRendererBusy=true;
+   const launch=()=>Promise.resolve().then(bpOptionalRendererQueue.shift())
+    .catch(error=>console.warn('BridgePoint deferred renderer unavailable',error))
+    .finally(()=>{bpOptionalRendererBusy=false;setTimeout(pump,1100)});
+   if(typeof window.requestIdleCallback==='function')window.requestIdleCallback(launch,{timeout:1800});
+   else setTimeout(launch,350);
+  };
+  const begin=()=>setTimeout(pump,1800);
+  if(world?.map?.loaded?.())begin();else world?.map?.once?.('load',begin);
+ };
+scheduleOptionalRenderer(() => import('./bridgepoint-faa-obstruction-towers-v1.js?v=2-aircraft-filters-faa-restored')
   .then(m=>{window.__BP_FAA_OBSTRUCTIONS_V1__=m.initFAAObstructionTowerRenderer(world)})
-  .catch(e=>console.warn('BridgePoint FAA obstruction/tower renderer unavailable',e));
+  .catch(e=>console.warn('BridgePoint FAA obstruction/tower renderer unavailable',e)));
  const ensureAppStartupGlobe=()=>{
   let projection='unknown';try{projection=String(appMap.getProjection?.()?.type||'unknown')}catch(_){}
   const underwaterDiveActive=window.__BP_UNDERWATER_DIVE_ACTIVE__===true||window.__BP_UNDERWATER_DIVE_TRANSITION__===true;
@@ -206,61 +231,61 @@ async function bootMap(){
    return appCloudApi;
   };
   void window.__BP_ACTIVATE_CLOUDS__().catch(e=>console.warn('BridgePoint always-on 3D clouds unavailable',e));
-  void import('./world-v2300-lod-controls.js?v=6201-gold-always-on').then(m=>{window.__BP_LOD_CONTROL_APP_V6016__=m.initWorldLodControls(world,{surface:'app'})}).catch(e=>console.warn('BridgePoint LOD controls unavailable',e));
+  scheduleOptionalRenderer(() => import('./world-v2300-lod-controls.js?v=6201-gold-always-on').then(m=>{window.__BP_LOD_CONTROL_APP_V6016__=m.initWorldLodControls(world,{surface:'app'})}).catch(e=>console.warn('BridgePoint LOD controls unavailable',e)));
  window.__BP_PENDING_LANDMARK_MAP_V5940__=world.map;
  try{window.dispatchEvent(new CustomEvent('bp:world-map-ready-v5940',{detail:{map:world.map,source:'app'}}))}catch(_){}
  // The shell already includes a static landmark loader. Signal it instead of evaluating
  // a second copy of the same module under a different URL.
  try{window.dispatchEvent(new CustomEvent('bp:world-map-ready-v5940',{detail:{map:world.map,source:'app-module-ready'}}))}catch(_){}
  if(window.__BP_LANDMARKS_V5940__)window.__BP_LANDMARKS_V5940__.attachedMaps=Math.max(1,Number(window.__BP_LANDMARKS_V5940__.attachedMaps||0));
- void import('./bridgepoint-lighthouses-v1.js?v=2-visible-rotating-beacons')
+ scheduleOptionalRenderer(() => import('./bridgepoint-lighthouses-v1.js?v=2-visible-rotating-beacons')
   .then(m=>{window.__BP_LIGHTHOUSES_V1__=m.initLighthouseRenderer(world)})
-  .catch(e=>console.warn('BridgePoint global 3D lighthouse renderer unavailable',e));
+  .catch(e=>console.warn('BridgePoint global 3D lighthouse renderer unavailable',e)));
  // Offshore energy is a separate, opt-in layer. Its renderer and data stay isolated
  // from lighthouse behavior, the globe, and every existing BridgePoint layer.
- void import('./bridgepoint-offshore-energy-v1.js?v=2-noaa-get-icondata')
+ scheduleOptionalRenderer(() => import('./bridgepoint-offshore-energy-v1.js?v=2-noaa-get-icondata')
   .then(m=>{window.__BP_OFFSHORE_ENERGY_V1__=m.initOffshoreEnergyRenderer(world)})
-  .catch(e=>console.warn('BridgePoint offshore energy renderer unavailable',e));
+  .catch(e=>console.warn('BridgePoint offshore energy renderer unavailable',e)));
  // Subsurface well records are a separate opt-in layer; do not alter the core globe or other infrastructure layers.
- void import('./bridgepoint-subsurface-wells-v1.js?v=2-persistent-substructure-visibility')
+ scheduleOptionalRenderer(() => import('./bridgepoint-subsurface-wells-v1.js?v=2-persistent-substructure-visibility')
   .then(m=>{window.__BP_SUBSURFACE_WELLS_V1__=m.initSubsurfaceWellsRenderer(world)})
-  .catch(e=>console.warn('BridgePoint global subsurface wells renderer unavailable',e));
-void import('./bridgepoint-shipwrecks-v1.js?v=11-titanic-gaskin-grafton-cannon-kxi-cape-otway-timaru-hms-loo-draco-ktx2-local-viewer')
+  .catch(e=>console.warn('BridgePoint global subsurface wells renderer unavailable',e)));
+scheduleOptionalRenderer(() => import('./bridgepoint-shipwrecks-v1.js?v=11-titanic-gaskin-grafton-cannon-kxi-cape-otway-timaru-hms-loo-draco-ktx2-local-viewer')
  .then(m=>{window.__BP_SHIPWRECKS_V1__=m.initShipwrecksRenderer(world)})
- .catch(e=>console.warn('BridgePoint Titanic shipwreck layer unavailable',e));
-void import('./bridgepoint-plane-wrecks-v1.js?v=1-f4u1-corsair-colmap-pointcloud')
+ .catch(e=>console.warn('BridgePoint Titanic shipwreck layer unavailable',e)));
+scheduleOptionalRenderer(() => import('./bridgepoint-plane-wrecks-v1.js?v=1-f4u1-corsair-colmap-pointcloud')
  .then(m=>{window.__BP_PLANE_WRECKS_V1__=m.initPlaneWrecksRenderer(world)})
- .catch(e=>console.warn('BridgePoint Plane Wrecks layer unavailable',e));
-void import('./bridgepoint-plane-wrecks-extra-v1.js?v=8-b17f-black-jack')
+ .catch(e=>console.warn('BridgePoint Plane Wrecks layer unavailable',e)));
+scheduleOptionalRenderer(() => import('./bridgepoint-plane-wrecks-extra-v1.js?v=8-b17f-black-jack')
  .then(m=>{window.__BP_PLANE_WRECKS_EXTRA_V1__=m.initPlaneWrecksExtraRenderer(world)})
- .catch(e=>console.warn('BridgePoint additional Plane Wrecks layer unavailable',e));
-void import('./bridgepoint-spacecraft-v1.js?v=1-sls-mobile-launcher-lc39b')
+ .catch(e=>console.warn('BridgePoint additional Plane Wrecks layer unavailable',e)));
+scheduleOptionalRenderer(() => import('./bridgepoint-spacecraft-v1.js?v=1-sls-mobile-launcher-lc39b')
  .then(m=>{window.__BP_SPACECRAFT_V1__=m.initSpacecraftRenderer(world)})
- .catch(e=>console.warn('BridgePoint Spacecraft & Launch Sites layer unavailable',e));
-void import('./bridgepoint-spacecraft-saturn-v1.js?v=1-nasa-saturn-v-launch39a')
+ .catch(e=>console.warn('BridgePoint Spacecraft & Launch Sites layer unavailable',e)));
+scheduleOptionalRenderer(() => import('./bridgepoint-spacecraft-saturn-v1.js?v=1-nasa-saturn-v-launch39a')
  .then(m=>{window.__BP_SPACECRAFT_SATURN_V1__=m.initSpacecraftSaturnRenderer(world)})
- .catch(e=>console.warn('BridgePoint Saturn V launch-site layer unavailable',e));
-void import('./bridgepoint-spacecraft-discovery-v1.js?v=1-smithsonian-space-shuttle-discovery')
+ .catch(e=>console.warn('BridgePoint Saturn V launch-site layer unavailable',e)));
+scheduleOptionalRenderer(() => import('./bridgepoint-spacecraft-discovery-v1.js?v=1-smithsonian-space-shuttle-discovery')
  .then(m=>{window.__BP_SPACECRAFT_DISCOVERY_V1__=m.initSpacecraftDiscoveryRenderer(world)})
- .catch(e=>console.warn('BridgePoint Smithsonian Space Shuttle Discovery layer unavailable',e));
-void import('./bridgepoint-spacecraft-columbia-v1.js?v=2-apollo11-columbia-principal-axis')
+ .catch(e=>console.warn('BridgePoint Smithsonian Space Shuttle Discovery layer unavailable',e)));
+scheduleOptionalRenderer(() => import('./bridgepoint-spacecraft-columbia-v1.js?v=2-apollo11-columbia-principal-axis')
  .then(m=>{window.__BP_SPACECRAFT_COLUMBIA_V1__=m.initSpacecraftColumbiaRenderer(world)})
- .catch(e=>console.warn('BridgePoint Smithsonian Columbia layer unavailable',e));
+ .catch(e=>console.warn('BridgePoint Smithsonian Columbia layer unavailable',e)));
  // Independent opt-in scanned cave and underground heritage sites; keep wells and utility renderers untouched.
- void import('./bridgepoint-underground-scan-sites-v1.js?v=1-curated-sketchfab-caves')
+ scheduleOptionalRenderer(() => import('./bridgepoint-underground-scan-sites-v1.js?v=1-curated-sketchfab-caves')
   .then(m=>{window.__BP_UNDERGROUND_SCAN_SITES_V1__=m.initUndergroundScanSitesRenderer(world)})
-  .catch(e=>console.warn('BridgePoint cave and underground scan layer unavailable',e));
-void import('./bridgepoint-jenolan-caves-v1.js?v=1-jenolan-large-system')
+  .catch(e=>console.warn('BridgePoint cave and underground scan layer unavailable',e)));
+scheduleOptionalRenderer(() => import('./bridgepoint-jenolan-caves-v1.js?v=1-jenolan-large-system')
  .then(m=>{window.__BP_JENOLAN_CAVES_V1__=m.initJenolanCavesRenderer(world)})
- .catch(e=>console.warn('BridgePoint Jenolan Caves 3D layer unavailable',e));
+ .catch(e=>console.warn('BridgePoint Jenolan Caves 3D layer unavailable',e)));
  // Utility-scale wind turbines are an isolated, opt-in USWTDB layer.
- void import('./bridgepoint-wind-turbines-v1.js?v=1-uswtdb-3d-ground-anchored')
+ scheduleOptionalRenderer(() => import('./bridgepoint-wind-turbines-v1.js?v=1-uswtdb-3d-ground-anchored')
   .then(m=>{window.__BP_WIND_TURBINES_V1__=m.initWindTurbinesRenderer(world)})
-  .catch(e=>console.warn('BridgePoint USGS wind turbine renderer unavailable',e));
+  .catch(e=>console.warn('BridgePoint USGS wind turbine renderer unavailable',e)));
  // Utility-scale solar fields are isolated and opt-in; leave the shared ocean and other globe layers untouched.
- void import('./bridgepoint-solar-fields-v1.js?v=1-global-solar-fields')
+ scheduleOptionalRenderer(() => import('./bridgepoint-solar-fields-v1.js?v=1-global-solar-fields')
   .then(m=>{window.__BP_SOLAR_FIELDS_V1__=m.initSolarFieldsRenderer(world)})
-  .catch(e=>console.warn('BridgePoint global solar fields renderer unavailable',e));
+  .catch(e=>console.warn('BridgePoint global solar fields renderer unavailable',e)));
 
 
  // Initialize optional map overlays only after the first core map load. Serializing their
