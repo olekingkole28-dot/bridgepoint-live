@@ -1,4 +1,4 @@
-# Publish only Egypt Pyramid of Unas authentic chamber photo-mesh from the last verified China/Japan v11 Pages artifact; preserve all unrelated production files.
+# Trigger merged Egypt Pyramid of Unas Cave-only Pages release from verified v11 site; preserve all unrelated production bytes.
 name: Publish Only Egypt Pyramid of Unas Burial Chambers Photo Mesh v12
 on:
   workflow_dispatch:
