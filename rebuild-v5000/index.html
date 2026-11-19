@@ -284,29 +284,19 @@ html.bpw-entry-locked body>main>section:not(.hero){display:none!important;visibi
   const gate=document.getElementById('bpWelcomeGateV1');
   if(!gate)return;
 
-  // Keep the welcome account actions independent from the deferred globe startup.
-  // The landing bundle also binds .auth-open, but this capture handler is the
-  // guaranteed entry path on slower phones and when optional scripts are delayed.
-  if(!window.__BP_WELCOME_AUTH_ACTIONS_V6303__){
-    window.__BP_WELCOME_AUTH_ACTIONS_V6303__=true;
-    gate.addEventListener('click',event=>{
-      const button=event.target?.closest?.('.bpw-actions .auth-open');
+  // Handle the welcome CTAs at document capture, before deferred landing handlers.
+  // This directly opens the existing modal and never depends on landing.js globals.
+  if(!window.__BP_WELCOME_AUTH_ACTIONS_V6304__){
+    window.__BP_WELCOME_AUTH_ACTIONS_V6304__=true;
+    document.addEventListener('click',event=>{
+      const button=event.target?.closest?.('#bpWelcomeGateV1 .bpw-actions .auth-open');
       if(!button)return;
       event.preventDefault();
       event.stopImmediatePropagation();
-      const authMode=button.dataset.mode==='signin'?'signin':'signup';
-      try{
-        if(typeof window.openAuth==='function'){
-          window.openAuth(authMode);
-          return;
-        }
-      }catch(error){
-        console.warn('BridgePoint welcome auth handoff fallback',error);
-      }
+      const signup=button.dataset.mode!=='signin';
       const modal=document.getElementById('authModal');
       const password=document.getElementById('authPassword');
       if(!modal||!password)return;
-      const signup=authMode==='signup';
       const setText=(id,value)=>{const node=document.getElementById(id);if(node)node.textContent=value};
       const nameField=document.getElementById('nameField');
       if(nameField)nameField.hidden=!signup;
@@ -319,6 +309,7 @@ html.bpw-entry-locked body>main>section:not(.hero){display:none!important;visibi
       const message=document.getElementById('authMessage');
       if(message)message.textContent='';
       modal.hidden=false;
+      modal.removeAttribute('hidden');
       setTimeout(()=>document.getElementById('authEmail')?.focus(),50);
     },true);
   }
