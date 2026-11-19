@@ -475,7 +475,7 @@ html.bpw-entry-locked body>main>section:not(.hero){display:none!important;visibi
         activeMap.easeTo({
           center:[Number(center.lng)+30,GLOBAL_CENTER[1]],
           zoom:GLOBAL_ZOOM,pitch:0,bearing:0,
-          duration:22000,
+          duration:16000,
           easing:t=>t,
           essential:true
         });
@@ -485,7 +485,7 @@ html.bpw-entry-locked body>main>section:not(.hero){display:none!important;visibi
       }catch(_){spinTimer=setTimeout(step,1200)}
     };
     step();
-    window.__BP_WELCOME_GLOBE_SPIN_V4__={active:true,degreesPerStep:30,stepDurationMs:22000,at:Date.now()};
+    window.__BP_WELCOME_GLOBE_SPIN_V4__={active:true,degreesPerStep:30,stepDurationMs:16000,at:Date.now()};
   };
   const stopMusic=()=>{
     if(musicChordTimer)clearInterval(musicChordTimer);
