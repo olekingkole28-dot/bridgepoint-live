@@ -292,7 +292,14 @@ test('both entrypoints keep the welcome document in place while migrating to the
 test('new rain/lightning and global source markers stay separate from legacy effects', () => {
   assert.match(weather, /active=!!v;/);
   assert.match(weather, /const LEGACY_NATIVE_WEATHER_LAYERS=\['wx-snow-depth','wx-alert-fill','wx-fire-fill','wx-thermal','wx-quake-glow','wx-storm-glow'\]/);
-  assert.match(weather, /const WEATHER_SOURCE_OVERLAY_LAYERS=\['wx-alert-line','wx-fire-line','wx-quake','wx-storm','wx-obs','wx-water'/);
+  assert.match(weather, /const WEATHER_SOURCE_OVERLAY_LAYERS=\['wx-alert-line','wx-quake','wx-storm','wx-obs','wx-water'/);
+  assert.match(weather, /const WILDFIRE_OVERLAY_LAYERS=\['wx-fire-fill','wx-fire-line'\]/);
+  assert.match(weather, /function setWildfiresVisible\(value\)/);
+  assert.match(weather, /if\(!active&&!wildfiresVisible\)return/);
+  assert.match(listingView, /data-bpv-action="clouds"/);
+  assert.match(listingView, /data-bpv-action="wildfire"/);
+  assert.match(listingView, /api\.setWildfiresVisible\(next\)/);
+  assert.match(listingView, /api\.setEnabled\(next\)/);
   assert.match(weather, /function applySourceWeatherVisibility\(\)/);
   assert.match(app, /id:'bp-v5004-weather-shape-fill'.{0,500}layout:\{visibility:'visible'\}/);
   assert.match(landing, /bp-landing-weather-fill/);
