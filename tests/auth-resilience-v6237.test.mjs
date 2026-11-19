@@ -86,7 +86,7 @@ assert.ok(app.includes("path==='token?grant_type=password'||path==='token?grant_
 assert.ok(app.includes("if([400,401].includes(Number(e?.status))"), 'transient refresh failures do not erase sessions');
 assert.ok(app.includes("if([401,403].includes(Number(r.status)))saveSession(null)"), 'transient user-check failures do not erase sessions');
 assert.ok(rootHtml.includes('landing.js?v=6309-auth-mode-sync'), 'root entry loads the cache-busted auth-mode-synchronized landing bundle');
-assert.ok(rootHtml.includes('authForm.dataset.bpAuthMode=nextMode'), 'welcome CTAs always record the requested sign-in or sign-up mode');
+assert.ok(rootHtml.includes('form.dataset.bpAuthMode=nextMode'), 'welcome CTAs always record the requested sign-in or sign-up mode');
 assert.ok(rootHtml.includes('window.__BP_SET_AUTH_MODE__(nextMode)'), 'welcome CTAs use the shared authentication mode setter when loaded');
 assert.ok(landing.includes("$('authForm').dataset.bpAuthMode=mode"), 'the shared setter keeps the form mode in sync');
 assert.ok(landing.includes("const requestedMode=$('authForm').dataset.bpAuthMode"), 'form submission honors the welcome screen mode even when its deferred bundle loads late');
