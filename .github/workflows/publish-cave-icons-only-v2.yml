@@ -1,4 +1,4 @@
-# Publish only genuine Antarctic Lima-Lima 2M solid cave polygon mesh from the last successful Egypt v12 site; reject any changes outside Cave module and its cache references.
+# Trigger merged genuine Antarctic Lima-Lima 2M solid cave polygon mesh release; preserve last verified v12 production site beyond exact Cave changes.
 name: Publish Only Antarctica Lima-Lima Real Cave Solid 3D Mesh v13
 on:
   workflow_dispatch:
