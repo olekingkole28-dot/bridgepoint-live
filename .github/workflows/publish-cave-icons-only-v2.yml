@@ -1,4 +1,4 @@
-# Publish only Japan Abukuma and China Yungang photogrammetry embeds using the last verified Ohio v10 production artifact; unrelated file hashes must match.
+# Trigger merged China Yungang and Japan Abukuma Cave-only release using verified v10 Pages artifact; preserve all unrelated bytes.
 name: Publish Only Japan and China Cave Photogrammetry Models v11
 on:
   workflow_dispatch:
