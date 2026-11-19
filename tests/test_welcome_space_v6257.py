@@ -140,6 +140,8 @@ class WelcomeSpaceV6257Tests(unittest.TestCase):
     def test_existing_static_production_gate_bumps_sun_module_src_without_reformatting_html(self):
         current = """<html><head>
 <style id="bpWelcomeGateStylesV6257"></style>
+<style id="bpw-emergency-account-actions-v6298"></style>
+<!-- BPW_EMERGENCY_ACCOUNT_ACTIONS_V6298 -->
 </head><body>
 <div id="bpWelcomeGateV1"><div class="bpw-celestial-system" aria-hidden="true"></div>
 <div class="bpw-wordmark bpw-wordmark-static">BRIDGEPOINT</div>
