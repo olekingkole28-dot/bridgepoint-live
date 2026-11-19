@@ -87,6 +87,13 @@ export const UNDERGROUND_SCAN_SITES=[
   models:[
    {uid:'c7125417f09e43229288316c8144e625',title:'Anchor Church Caves — Sandstone Chambers Photo Mesh',creator:'Shiro Morturn (@morturn) / Sudbury Digital Imaging',license:'CC Attribution',method:'122-image photogrammetry · RealityScan · approximately 1.3 million triangles',detail:'A creator-published merged 3D photographic reconstruction of the real Anchor Church cave complex, near Ingleby, Derbyshire. The River Trent eroded the sandstone, and people later extended and shaped the chambers, doors and windows. Model generated in RealityScan from 122 photographs. The creator-hosted textured mesh is not a LiDAR point cloud, nor a survey-aligned subterranean terrain asset; it is embedded in BridgePoint’s existing model viewer card.',modelUrl:'https://sketchfab.com/3d-models/anchor-church-caves-derbyshire-merged-c7125417f09e43229288316c8144e625'}
   ]},
+ {id:'rock-house-ohio',name:'Rock House Cavern — Hocking Hills, Ohio',type:'cave',coordinates:[-82.61359,39.49755],
+  locationPrecision:'Approximate Rock House Cave named-feature coordinate in Hocking Hills State Park, Ohio (39.49755° N, 82.61359° W). The Matterport tour is not an independently georeferenced raw underground mesh.',
+  locationNote:'The large persistent icon identifies the documented Rock House cave site, not an exact position for each photographed wall or 3D tour scan station.',
+  description:'A real interactive, photo-textured 3D digital twin of the 200-foot-long Rock House sandstone cave in Ohio, with natural window openings carved into Blackhand Sandstone.',
+  models:[
+   {uid:'matterport-rock-house-ohio-1BTGHi85s96',matterportTourId:'1BTGHi85s96',title:'Rock House — Hocking Hills 3D Cave Tour',creator:'Elements of Media (@elementsofmedia)',license:'Public publisher-hosted Matterport embed; original rights retained',method:'Matterport Pro3 · photo-textured spatial scan (depth sensing and imagery; not a point-cloud viewer)',detail:'The capture creator publicly shares this navigable Matterport 3D digital twin of Rock House in Hocking Hills State Park, Ohio. It shows the real sandstone cave, columns and window-like openings. Unlike the Sketchfab-only cave scans, this one uses a photo-textured Matterport tour, which may incorporate LiDAR-derived depth and camera imagery. It is not verified as a pure photogrammetry mesh or a downloadable/CC-licensed model. BridgePoint embeds the original creator-hosted viewer; no mesh bytes are copied or redistributed.',modelUrl:'https://my.matterport.com/show/?m=1BTGHi85s96'}
+  ]},
  {id:'om-jaettestue',name:'Øm Jættestue Passage Tomb',type:'tomb',coordinates:[11.994633,55.599731],
   locationPrecision:'Published GPS coordinate for the passage tomb site.',
   locationNote:'This is a Neolithic passage tomb and burial chamber, not a natural cave.',
@@ -111,24 +118,31 @@ export function buildUndergroundSiteFeatures(sites=UNDERGROUND_SCAN_SITES){
 function safe(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function embedUrl(uid){return 'https://sketchfab.com/models/'+encodeURIComponent(uid)+'/embed?autostart=1&preload=1&ui_theme=dark&dnt=1';}
 function modelByUid(site,uid){return (site.models||[]).find(m=>m.uid===uid)||site.models[0]||null;}
+// Only the Ohio publisher's documented Matterport 3D showcase uses the alternate viewer.
+// Existing Sketchfab embeds remain byte-for-byte identical.
+function modelViewerUrl(model){
+ if(model?.matterportTourId&&/^[A-Za-z0-9]{11}$/.test(model.matterportTourId))return 'https://my.matterport.com/show/?m='+encodeURIComponent(model.matterportTourId)+'&play=1';
+ return embedUrl(model?.uid);
+}
 
 export function undergroundSitePopupHtml(site,selectedUid=null){
  if(!site||!Array.isArray(site.models)||!site.models.length)return '';
  const selected=modelByUid(site,selectedUid);
+ const isMatterport=Boolean(selected?.matterportTourId);
  const choices=site.models.map(m=>'<button type="button" class="bp-underground-scan-choice-v1'+(m.uid===selected.uid?' is-active':'')+'" data-scan-uid="'+safe(m.uid)+'" aria-pressed="'+String(m.uid===selected.uid)+'"><span>'+safe(m.title)+'</span><small>'+safe(m.creator)+' · '+safe(m.license)+'</small></button>').join('');
  return '<article class="bp-underground-site-popup-v1">'+
   '<div class="bp-underground-site-kicker-v1">BRIDGEPOINT · CAVES & UNDERGROUND SITES</div><h3>'+safe(site.name)+'</h3>'+
   '<p class="bp-underground-site-description-v1">'+safe(site.description)+'</p>'+
-  '<div class="bp-underground-site-viewer-v1"><iframe id="bp-underground-scan-viewer-v1" title="'+safe(selected.title)+' — interactive 3D scan by '+safe(selected.creator)+'" src="'+safe(embedUrl(selected.uid))+'" allow="autoplay; fullscreen; xr-spatial-tracking" allowfullscreen loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>'+
+  '<div class="bp-underground-site-viewer-v1"><iframe id="bp-underground-scan-viewer-v1" title="'+safe(selected.title)+' — interactive 3D scan by '+safe(selected.creator)+'" src="'+safe(modelViewerUrl(selected))+'" allow="autoplay; fullscreen; xr-spatial-tracking" allowfullscreen loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>'+
   '<div class="bp-underground-site-model-meta-v1"><b id="bp-underground-scan-title-v1">'+safe(selected.title)+'</b>'+
   '<span>Creator: <strong id="bp-underground-scan-creator-v1">'+safe(selected.creator)+'</strong></span>'+
   '<span>Displayed license: <strong id="bp-underground-scan-license-v1">'+safe(selected.license)+'</strong></span>'+
   '<span>Capture method: <strong id="bp-underground-scan-method-v1">'+safe(selected.method)+'</strong></span>'+
   '<p id="bp-underground-scan-detail-v1">'+safe(selected.detail)+'</p>'+
-  '<a id="bp-underground-scan-source-v1" href="'+safe(selected.modelUrl)+'" target="_blank" rel="noopener noreferrer">Open original Sketchfab model ↗</a></div>'+
+  '<a id="bp-underground-scan-source-v1" href="'+safe(selected.modelUrl)+'" target="_blank" rel="noopener noreferrer">'+(isMatterport?'Open original Matterport 3D tour ↗':'Open original Sketchfab model ↗')+'</a></div>'+
   (site.models.length>1?'<div class="bp-underground-site-choices-v1" aria-label="Other scans at this site">'+choices+'</div>':'')+
   '<p class="bp-underground-site-precision-v1"><strong>Map placement:</strong> '+safe(site.locationPrecision)+'</p>'+
-  '<p class="bp-underground-site-attribution-v1">3D content is hosted by Sketchfab and remains on its creator’s model page. Creator attribution and displayed license are shown above. BridgePoint does not claim this scan is a metrically georeferenced subsurface mesh.</p></article>';
+  '<p class="bp-underground-site-attribution-v1">'+(isMatterport?'3D tour is hosted by Matterport and published by Elements of Media; the original publisher retains rights. BridgePoint embeds the public interactive showcase, does not redistribute the model and does not claim it is a pure photogrammetry or survey-georeferenced mesh.':'3D content is hosted by Sketchfab and remains on its creator’s model page. Creator attribution and displayed license are shown above. BridgePoint does not claim this scan is a metrically georeferenced subsurface mesh.')+'</p></article>';
 }
 
 function makeIcon(type){
@@ -212,7 +226,7 @@ function openSitePopup(state,site,lngLat){
  for(const button of root.querySelectorAll('[data-scan-uid]'))button.addEventListener('click',()=>{
   const model=modelByUid(site,button.getAttribute('data-scan-uid'));if(!model)return;
   const viewer=root.querySelector('#bp-underground-scan-viewer-v1');
-  if(viewer){viewer.src=embedUrl(model.uid);viewer.title=model.title+' — interactive 3D scan by '+model.creator;}
+  if(viewer){viewer.src=modelViewerUrl(model);viewer.title=model.title+' — interactive 3D scan by '+model.creator;}
   const put=(selector,value)=>{const el=root.querySelector(selector);if(el)el.textContent=value;};
   put('#bp-underground-scan-title-v1',model.title);put('#bp-underground-scan-creator-v1',model.creator);
   put('#bp-underground-scan-license-v1',model.license);put('#bp-underground-scan-method-v1',model.method);put('#bp-underground-scan-detail-v1',model.detail);
