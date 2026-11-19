@@ -2684,7 +2684,7 @@ jobs:
                 if(mapState.boot?.stage==='error'||!mapState.map||mapState.projection!=='globe'||mapState.canvases!==1)throw new Error('WELCOME_TO_LIVE_GLOBE_HANDOFF_FAILED '+profile.name+' '+JSON.stringify(mapState));
                 const errors=pageErrors.filter(x=>!/ResizeObserver loop/i.test(x));
                 if(errors.length||criticalHttpErrors.length)throw new Error('WELCOME_BROWSER_ERRORS '+profile.name+' '+JSON.stringify({errors:errors.slice(-5),criticalHttpErrors}));
-                console.log('BRIDGEPOINT_WELCOME_DEVICE_PASS '+profile.name+' '+JSON.stringify({initial,frames,mapState}));
+                console.log('BRIDGEPOINT_WELCOME_DEVICE_PASS '+profile.name+' '+JSON.stringify({initial,mapState}));
                 await page.close();
 
                 const appPage=await browser.newPage();
