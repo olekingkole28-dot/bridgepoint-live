@@ -158,25 +158,26 @@ async function bootMap(){
  // optional renderers. Queue one renderer per idle window to prevent a login-time
  // burst of WebGL, network, and source/layer work from freezing touch input.
  const bpOptionalRendererQueue=[];
- let bpOptionalRendererStarted=false,bpOptionalRendererBusy=false;
+ let bpOptionalRendererStarted=false;
  const scheduleOptionalRenderer=run=>{
   bpOptionalRendererQueue.push(run);
   if(bpOptionalRendererStarted)return;
   bpOptionalRendererStarted=true;
   const pump=()=>{
-   if(document.hidden||bpOptionalRendererBusy||!bpOptionalRendererQueue.length){
-    if(bpOptionalRendererQueue.length)setTimeout(pump,1200);
-    return;
-   }
-   bpOptionalRendererBusy=true;
-   const launch=()=>Promise.resolve().then(bpOptionalRendererQueue.shift())
-    .catch(error=>console.warn('BridgePoint deferred renderer unavailable',error))
-    .finally(()=>{bpOptionalRendererBusy=false;setTimeout(pump,1100)});
-   if(typeof window.requestIdleCallback==='function')window.requestIdleCallback(launch,{timeout:1800});
-   else setTimeout(launch,350);
+   if(!bpOptionalRendererQueue.length)return;
+   if(document.hidden){setTimeout(pump,1200);return}
+   // Never let one slow optional import hold the rest of the feature buttons hostage.
+   // Launch each renderer in its own idle window, then keep draining the queue even
+   // while an earlier renderer is still fetching data or compiling GPU resources.
+   const runNext=bpOptionalRendererQueue.shift();
+   const launch=()=>{Promise.resolve().then(runNext).catch(error=>console.warn('BridgePoint deferred renderer unavailable',error));setTimeout(pump,900)};
+   if(typeof window.requestIdleCallback==='function')window.requestIdleCallback(launch,{timeout:1600});
+   else setTimeout(launch,300);
   };
-  const begin=()=>setTimeout(pump,1800);
-  if(world?.map?.loaded?.())begin();else world?.map?.once?.('load',begin);
+  let begun=false;
+  const begin=()=>{if(begun)return;begun=true;setTimeout(pump,1400)};
+  if(world?.map?.loaded?.()||world?.map?.isStyleLoaded?.())begin();
+  else{world?.map?.once?.('load',begin);world?.map?.once?.('idle',begin);setTimeout(begin,6500)}
  };
 scheduleOptionalRenderer(() => import('./bridgepoint-faa-obstruction-towers-v1.js?v=2-aircraft-filters-faa-restored')
   .then(m=>{window.__BP_FAA_OBSTRUCTIONS_V1__=m.initFAAObstructionTowerRenderer(world)})
