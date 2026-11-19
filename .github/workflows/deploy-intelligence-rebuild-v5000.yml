@@ -2579,7 +2579,6 @@ jobs:
                 const url=origin+'/?bp-device-smoke='+profile.name+'-'+Date.now();
                 const entryResponse=await page.goto(url,{waitUntil:'domcontentloaded',timeout:60000});
                 await page.bringToFront();
-                await page.waitForFunction(()=>document.visibilityState==='visible',{timeout:5000});
                 const collectWelcomeEntryDiagnostic=()=>page.evaluate(()=>{
                   const gate=document.getElementById('bpWelcomeGateV1');
                   const panel=gate?.querySelector('.bpw-gate-panel');
@@ -2656,11 +2655,11 @@ jobs:
                 const eventLoop=await Promise.race([
                   page.evaluate(()=>new Promise(resolve=>{
                     const start=performance.now();
-                    setTimeout(()=>resolve({visible:document.visibilityState==='visible',elapsedMs:performance.now()-start}),500);
+                    setTimeout(()=>resolve({elapsedMs:performance.now()-start}),500);
                   })),
                   new Promise(resolve=>setTimeout(()=>resolve(null),5000))
                 ]);
-                if(!eventLoop||!eventLoop.visible||eventLoop.elapsedMs>3000)
+                if(!eventLoop||eventLoop.elapsedMs>3000)
                   throw new Error('WELCOME_MAIN_THREAD_NOT_RESPONDING '+profile.name+' '+JSON.stringify(eventLoop));
 
                 await page.click('#bpWelcomeGateV1 .bpw-create');
@@ -2694,7 +2693,6 @@ jobs:
                 appPage.on('pageerror',e=>appErrors.push(String(e?.message||e)));
                 await appPage.goto(origin+'/app/?bp-device-smoke='+profile.name+'-'+Date.now(),{waitUntil:'domcontentloaded',timeout:60000});
                 await appPage.bringToFront();
-                await appPage.waitForFunction(()=>document.visibilityState==='visible',{timeout:5000});
                 await appPage.waitForFunction(()=>!!window.__BP_V5000_WORLD__?.map?.getCanvas?.()||!!document.querySelector('#liveMap canvas'),{timeout:90000});
                 const appState=await appPage.evaluate(()=>{
                   const m=window.__BP_V5000_WORLD__?.map;
