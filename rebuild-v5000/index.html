@@ -283,6 +283,46 @@ html.bpw-entry-locked body>main>section:not(.hero){display:none!important;visibi
   'use strict';
   const gate=document.getElementById('bpWelcomeGateV1');
   if(!gate)return;
+
+  // Keep the welcome account actions independent from the deferred globe startup.
+  // The landing bundle also binds .auth-open, but this capture handler is the
+  // guaranteed entry path on slower phones and when optional scripts are delayed.
+  if(!window.__BP_WELCOME_AUTH_ACTIONS_V6303__){
+    window.__BP_WELCOME_AUTH_ACTIONS_V6303__=true;
+    gate.addEventListener('click',event=>{
+      const button=event.target?.closest?.('.bpw-actions .auth-open');
+      if(!button)return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const authMode=button.dataset.mode==='signin'?'signin':'signup';
+      try{
+        if(typeof window.openAuth==='function'){
+          window.openAuth(authMode);
+          return;
+        }
+      }catch(error){
+        console.warn('BridgePoint welcome auth handoff fallback',error);
+      }
+      const modal=document.getElementById('authModal');
+      const password=document.getElementById('authPassword');
+      if(!modal||!password)return;
+      const signup=authMode==='signup';
+      const setText=(id,value)=>{const node=document.getElementById(id);if(node)node.textContent=value};
+      const nameField=document.getElementById('nameField');
+      if(nameField)nameField.hidden=!signup;
+      setText('authTitle',signup?'Start using BridgePoint':'Welcome back');
+      setText('authEyebrow',signup?'CREATE YOUR BRIDGEPOINT ACCOUNT':'SIGN IN TO BRIDGEPOINT');
+      setText('authIntro',signup?'Your account connects Saved, package access, Claims and Workflow to the same BridgePoint identity.':'Sign in to continue into your BridgePoint workspace.');
+      setText('authSubmit',signup?'CREATE ACCOUNT':'SIGN IN');
+      setText('authSwitch',signup?'Already have an account? Sign in':'Need an account? Create one');
+      password.autocomplete=signup?'new-password':'current-password';
+      const message=document.getElementById('authMessage');
+      if(message)message.textContent='';
+      modal.hidden=false;
+      setTimeout(()=>document.getElementById('authEmail')?.focus(),50);
+    },true);
+  }
+
   const STORE='bp_auth_v5045';
   const soundButton=document.getElementById('bpwSoundV1');
   const status=document.getElementById('bpwStatusV1');
