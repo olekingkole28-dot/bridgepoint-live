@@ -1,9 +1,18 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import {
   JENOLAN_CAVES_SITE_V1,
   buildJenolanCavesFeature,
   decodeJenolanPointCloud
 } from '../rebuild-v5000/bridgepoint-jenolan-caves-v1.js';
+
+const workflow=await readFile(new URL('../.github/workflows/deploy-intelligence-rebuild-v5000.yml',import.meta.url),'utf8');
+assert.match(workflow,/github-pages-jenolan-caves-v1/);
+assert.match(workflow,/run-id: 43956894851/);
+assert.match(workflow,/assets\\/underground\\/jenolan-caves-v1\\/pointcloud\\.bin\\.gz/);
+assert.match(workflow,/initJenolanCavesRenderer\\(world\\)/);
+assert.match(workflow,/jenolan-caves=v1/);
+assert.match(workflow,/node tests\\/jenolan-caves-v1\\.test\\.mjs/);
 
 const feature=buildJenolanCavesFeature();
 assert.equal(feature.type,'Feature');
