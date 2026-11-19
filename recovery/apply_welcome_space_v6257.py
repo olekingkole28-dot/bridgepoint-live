@@ -148,6 +148,8 @@ def patch_root_html(source: str) -> str:
         for marker in (
             'class="bpw-celestial-system" aria-hidden="true"></div>',
             "bpWelcomeGateStylesV6257",
+            "BPW_EMERGENCY_ACCOUNT_ACTIONS_V6298",
+            "bpw-emergency-account-actions-v6298",
             'data-mode="signup"',
             'data-mode="signin"',
             "event.persisted",
