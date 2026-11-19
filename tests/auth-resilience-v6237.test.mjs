@@ -103,6 +103,10 @@ assert.ok(landing.includes('requestAnimationFrame(()=>setTimeout(finish,230))'),
 assert.ok(rootHtml.includes('priorityReadyAt') && rootHtml.includes('optionalStageReadyAt'), 'mobile deferred loader exposes core-card readiness before optional modules');
 assert.ok(rootHtml.includes("typeof map.getCanvas==='function'&&map.getCanvas()"), 'card controls can start as soon as the base globe canvas exists');
 assert.ok(rootHtml.includes('window.__BP_LANDING_FEATURE_RESTORE_SCHEDULED__===true'), 'optional deferred scripts wait for the post-sign-in feature restoration batch');
+assert.ok(appHtml.includes("status:'waiting-for-globe-canvas'"), 'app feature queue waits for the WebGL canvas, not full map style readiness');
+assert.ok(appHtml.includes("typeof map.getCanvas==='function')canvas=map.getCanvas()"), 'app feature controls start as soon as the globe canvas exists');
+assert.ok(appHtml.includes("setTimeout(()=>{if(!queuePromise)void loadQueue()},mobile?180:120)"), 'app feature modules begin immediately after the canvas becomes available');
+assert.ok(appHtml.includes('priorityReadyAt'), 'app deferral exposes when the core feature controls finish loading');
 assert.ok(app.includes("await authExchange('token?grant_type=password',{email,password});setText('authMessage','');closeAuth();"), 'in-app sign-in closes the account overlay before workspace data loads');
 assert.ok(app.includes("setTimeout(()=>{void loadWorkspace(true).then(()=>{if(pk)return handlePackageAction(pk)}).catch"), 'in-app account workspace loads in the background after sign-in');
 assert.ok(app.includes("setText('authMessage','Account created and signed in.');closeAuth();setTimeout(()=>{void loadWorkspace(true)"), 'in-app account creation releases the map before loading account data');
