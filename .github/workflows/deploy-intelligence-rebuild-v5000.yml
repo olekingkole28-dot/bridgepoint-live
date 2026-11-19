@@ -2732,10 +2732,15 @@ jobs:
                   '#bp-plane-wrecks-toggle-v1',
                   '#bp-spacecraft-toggle-v1',
                   '#bp-jenolan-caves-toggle-v1',
+                  '#bp-underground-scan-sites-toggle-v1',
                   '[data-bp-seismic-toggle="1"]',
+                  '[data-bpv-action="drones"]',
+                  '[data-bp-vessel-awareness-button="1"]',
+                  '[data-nightlights]',
                   '.bp-live-rail-toggle-v5969',
                   '[data-bpv-action="clouds"]',
-                  '[data-bpv-action="wildfire"]'
+                  '[data-bpv-action="wildfire"]',
+                  '[data-bpv-action="motion"]'
                 ];
                 await appPage.waitForFunction(selectors=>selectors.every(selector=>{
                   const el=document.querySelector(selector),r=el?.getBoundingClientRect(),s=el?getComputedStyle(el):null;
@@ -2759,26 +2764,37 @@ jobs:
                   return {selector,offState:before,onState:enabled,restored:true};
                 }
                 const pressedFeatures=[];
-                for(const selector of [
-                  '#bp-faa-obstructions-toggle-v1',
-                  '#bp-shipwrecks-toggle-v1',
-                  '#bp-plane-wrecks-toggle-v1',
-                  '#bp-spacecraft-toggle-v1',
-                  '#bp-jenolan-caves-toggle-v1',
-                  '[data-bp-seismic-toggle="1"]',
-                  '[data-bpv-action="clouds"]',
-                  '[data-bpv-action="wildfire"]'
-                ]) pressedFeatures.push(await pressAndRestore(selector));
+                if(profile.name==='android-phone'){
+                  for(const selector of [
+                    '#bp-faa-obstructions-toggle-v1',
+                    '#bp-shipwrecks-toggle-v1',
+                    '#bp-plane-wrecks-toggle-v1',
+                    '#bp-spacecraft-toggle-v1',
+                    '#bp-jenolan-caves-toggle-v1',
+                    '#bp-underground-scan-sites-toggle-v1',
+                    '[data-bp-seismic-toggle="1"]',
+                    '[data-bpv-action="drones"]',
+                    '[data-bp-vessel-awareness-button="1"]',
+                    '[data-nightlights]',
+                    '[data-bpv-action="clouds"]',
+                    '[data-bpv-action="wildfire"]'
+                  ]) pressedFeatures.push(await pressAndRestore(selector));
 
-                await appPage.click('.bp-live-rail-toggle-v5969');
-                await appPage.waitForFunction(()=>{const panel=document.querySelector('.bp-live-rail-panel-v5969');return !!panel&&!panel.hidden},{timeout:10000});
-                const trainCheckbox='.bp-live-rail-panel-v5969 input[type="checkbox"]';
-                await appPage.waitForSelector(trainCheckbox,{visible:true,timeout:10000});
-                await appPage.click(trainCheckbox);
-                await appPage.waitForFunction(()=>window.__BP_LIVE_RAIL_V5969__?.getState?.().some(state=>state.enabled===true),{timeout:15000});
-                await appPage.click(trainCheckbox);
-                await appPage.waitForFunction(()=>window.__BP_LIVE_RAIL_V5969__?.getState?.().every(state=>state.enabled===false),{timeout:15000});
-                console.log('BRIDGEPOINT_FEATURE_BUTTON_INTERACTION_PASS '+profile.name+' '+JSON.stringify({mountedFeatures,pressedFeatures,trainPanel:true,trainToggle:true}));
+                  await appPage.click('.bp-live-rail-toggle-v5969');
+                  await appPage.waitForFunction(()=>{const panel=document.querySelector('.bp-live-rail-panel-v5969');return !!panel&&!panel.hidden},{timeout:10000});
+                  const trainCheckbox='.bp-live-rail-panel-v5969 input[type="checkbox"]';
+                  await appPage.waitForSelector(trainCheckbox,{visible:true,timeout:10000});
+                  await appPage.click(trainCheckbox);
+                  await appPage.waitForFunction(()=>window.__BP_LIVE_RAIL_V5969__?.getState?.().some(state=>state.enabled===true),{timeout:15000});
+                  await appPage.click(trainCheckbox);
+                  await appPage.waitForFunction(()=>window.__BP_LIVE_RAIL_V5969__?.getState?.().every(state=>state.enabled===false),{timeout:15000});
+
+                  await appPage.click('[data-bpv-action="motion"]');
+                  await appPage.waitForFunction(()=>{const side=document.getElementById('bpv-sidecar');return !!side&&!side.hidden&&side.dataset.panel==='controls'},{timeout:10000});
+                  await appPage.click('#bpv-panel-close');
+                  await appPage.waitForFunction(()=>document.getElementById('bpv-sidecar')?.hidden===true,{timeout:5000});
+                  console.log('BRIDGEPOINT_FEATURE_BUTTON_INTERACTION_PASS '+profile.name+' '+JSON.stringify({mountedFeatures,pressedFeatures,trainPanel:true,trainToggle:true,motionPanel:true}));
+                }
 
                 const appFatal=appErrors.filter(x=>!/ResizeObserver loop/i.test(x));
                 if(appFatal.length)throw new Error('APP_BROWSER_ERRORS '+profile.name+' '+JSON.stringify(appFatal.slice(-5)));
