@@ -465,8 +465,8 @@ test('website and app start on the same cache-busted globe-first weather build',
   assert.ok(landingHtml.includes('landing.js?v=6309-auth-mode-sync'));
   assert.ok(appHtml.includes('app.js?v=6311-app-entry-controls-priority'));
   assert.match(appHtml, /bp-app-feature-deferral-v6311/, 'app shell stages optional feature scripts after the core globe');
-  assert.match(appHtml, /data-bp-deferred-src="\\/bridgepoint-view-v5917\\.js/, 'app view controls are loaded from the priority queue');
-  assert.match(appHtml, /window\\.__BP_APP_SCRIPT_DEFERRAL_V6311__/, 'app exposes deferred-script boot status for device diagnostics');
+  assert.match(appHtml, /data-bp-deferred-src="\/bridgepoint-view-v5917\.js/, 'app view controls are loaded from the priority queue');
+  assert.match(appHtml, /window\.__BP_APP_SCRIPT_DEFERRAL_V6311__/, 'app exposes deferred-script boot status for device diagnostics');
   assert.ok(landingHtml.includes('intelligence-global-v5507.js?v=6238-pc-runtime'));
   assert.ok(appHtml.includes('intelligence-global-v5507.js?v=6238-pc-runtime'));
 });
