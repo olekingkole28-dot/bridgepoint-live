@@ -462,8 +462,8 @@ test('homepage opportunities stay off at startup and the button enables the publ
 test('website and app start on the same cache-busted globe-first weather build', () => {
   assert.match(landingHtml, /bp-globe-only-first-frame-v6137/);
   assert.match(appHtml, /bp-app-globe-only-first-frame-v6137/);
-  assert.ok(landingHtml.includes('landing.js?v=6309-auth-mode-sync'));
-  assert.ok(appHtml.includes('app.js?v=6311-app-entry-controls-priority'));
+  assert.ok(landingHtml.includes('landing.js?v=6312-post-signin-queue'));
+  assert.ok(appHtml.includes('app.js?v=6312-post-auth-unblock-map'));
   assert.match(appHtml, /bp-app-feature-deferral-v6311/, 'app shell stages optional feature scripts after the core globe');
   assert.match(appHtml, /data-bp-deferred-src="\/bridgepoint-view-v5917\.js/, 'app view controls are loaded from the priority queue');
   assert.match(appHtml, /window\.__BP_APP_SCRIPT_DEFERRAL_V6311__/, 'app exposes deferred-script boot status for device diagnostics');
