@@ -3,13 +3,13 @@ import { readFile } from 'node:fs/promises';
 import {UNDERGROUND_SCAN_SITES,UNDERGROUND_SCAN_RIGHTS_HOLDS,buildUndergroundSiteFeatures,undergroundSitePopupHtml} from '../rebuild-v5000/bridgepoint-underground-scan-sites-v1.js';
 
 const features=buildUndergroundSiteFeatures();
-assert.equal(features.length,16,'sixteen reviewed site anchors are mapped');
-assert.equal(UNDERGROUND_SCAN_SITES.reduce((n,s)=>n+s.models.length,0),18,'eighteen real creator-hosted 3D models and tours are cataloged');
+assert.equal(features.length,17,'seventeen reviewed site anchors are mapped');
+assert.equal(UNDERGROUND_SCAN_SITES.reduce((n,s)=>n+s.models.length,0),19,'nineteen real creator-hosted 3D models and tours are cataloged');
 assert.equal(UNDERGROUND_SCAN_RIGHTS_HOLDS.length,3,'rights/source holds are exposed');
 assert.ok(features.every(f=>f.geometry.type==='Point'&&f.properties.iconImage));
 assert.ok(UNDERGROUND_SCAN_SITES.every(s=>s.models.every(m=>m.uid&&m.creator&&(
  m.matterportTourId ? (m.matterportTourId==='1BTGHi85s96'&&m.modelUrl==='https://my.matterport.com/show/?m=1BTGHi85s96'&&m.license.includes('original rights retained'))
- : m.embedOnly ? (['cbe5a1c208674091b48f65ac2d4cca94','be7675a23595489c86211608f0fb1886','ccfc7c2f43214b559e93c4857eb6ed4a','899e6c8016954dab825dffb07d583fb9'].includes(m.uid)&&m.license.includes('no reuse license displayed')&&m.modelUrl.startsWith('https://sketchfab.com/3d-models/'))
+ : m.embedOnly ? (['cbe5a1c208674091b48f65ac2d4cca94','be7675a23595489c86211608f0fb1886','ccfc7c2f43214b559e93c4857eb6ed4a','899e6c8016954dab825dffb07d583fb9','d0c88d0853844a8e9a1de22a342326cb'].includes(m.uid)&&m.license.includes('no reuse license displayed')&&m.modelUrl.startsWith('https://sketchfab.com/3d-models/'))
  : (m.license==='CC Attribution'&&m.modelUrl.startsWith('https://sketchfab.com/3d-models/'))
 ))));
 assert.equal(UNDERGROUND_SCAN_SITES.find(s=>s.id==='paris-catacombs').models.length,3);
@@ -161,7 +161,25 @@ assert.ok(undergroundSitePopupHtml(antarctic).includes('LEACH'));
 assert.ok(undergroundSitePopupHtml(antarctic).includes('White Landscapes'));
 assert.ok(undergroundSitePopupHtml(antarctic).includes('not a camera-photogrammetry scan'),'capture modality must be disclosed');
 assert.equal(UNDERGROUND_SCAN_SITES.filter(s=>s.id==='lima-lima-cave-antarctica').length,1);
-for(const site of [japan,china,egypt,antarctic]){
+const africa=UNDERGROUND_SCAN_SITES.find(s=>s.id==='elands-bay-cave-south-africa');
+assert.ok(africa&&africa.type==='cave','real South African Elands Bay cave has existing large persistent icon');
+assert.deepEqual(africa.coordinates,[18.31766,-32.31779]);
+assert.equal(africa.models.length,1);
+assert.equal(africa.models[0].uid,'d0c88d0853844a8e9a1de22a342326cb');
+assert.equal(africa.models[0].embedOnly,true);
+assert.match(africa.models[0].method,/250 DSLR photographs/i);
+assert.match(africa.models[0].method,/1,500 drone photographs/);
+assert.match(africa.models[0].method,/3 laser scans/);
+assert.match(africa.models[0].method,/RealityCapture/);
+assert.match(africa.models[0].method,/408,500 triangles/);
+assert.match(africa.locationPrecision,/OpenStreetMap Elands Bay Cave entrance node 10614878708/);
+assert.ok(undergroundSitePopupHtml(africa).includes('sketchfab.com/models/d0c88d0853844a8e9a1de22a342326cb/embed'));
+assert.ok(undergroundSitePopupHtml(africa).includes('The Rock Art Portal'));
+assert.ok(undergroundSitePopupHtml(africa).includes('NoAI usage restriction'),'source usage restrictions attributed');
+assert.ok(undergroundSitePopupHtml(africa).includes('not a raw point-cloud viewer'));
+assert.equal(UNDERGROUND_SCAN_SITES.filter(s=>s.id==='elands-bay-cave-south-africa').length,1);
+assert.equal(UNDERGROUND_SCAN_SITES.find(s=>s.id==='lima-lima-cave-antarctica').models[0].uid,'899e6c8016954dab825dffb07d583fb9','Antarctic model retained');
+for(const site of [japan,china,egypt,antarctic,africa]){
  const html=undergroundSitePopupHtml(site);
  assert.ok(html.includes('sandbox="allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-presentation"'),'new caves must stay inside BridgePoint');
  assert.ok(!html.includes('target="_blank"'),'new cave cards may not open external websites');

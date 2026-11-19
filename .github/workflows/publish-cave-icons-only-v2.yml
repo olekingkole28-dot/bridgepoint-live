@@ -1,5 +1,5 @@
-# Trigger merged genuine Antarctic Lima-Lima 2M solid cave polygon mesh release; preserve last verified v12 production site beyond exact Cave changes.
-name: Publish Only Antarctica Lima-Lima Real Cave Solid 3D Mesh v13
+# Publish Elands Bay South African rock-art cave 3D photo-mesh from the successful Antarctica v13 production artifact; reject unrelated file changes.
+name: Publish Only South Africa Elands Bay Cave Rock Art 3D Photo Mesh v14
 on:
   workflow_dispatch:
   push:
@@ -14,7 +14,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: bridgepoint-cave-entry-publish-only-v13
+  group: bridgepoint-cave-entry-publish-only-v14
   cancel-in-progress: false
 
 jobs:
@@ -42,7 +42,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: bridgepoint-v5000-1
-          run-id: 44628219405
+          run-id: 44630095292
           repository: ${{ github.repository }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ${{ runner.temp }}/bp-cave-base
@@ -76,11 +76,11 @@ jobs:
               (site/rel).write_bytes(patched.read_bytes())
           edits={
             'landing.js':[
-              ('./'+cave+'?v=12-egypt-unas-pyramid-photo-mesh','./'+cave+'?v=13-antarctica-lima-lima-solid-mesh'),
-              ('./'+cave+'?v=12-mobile-egypt-unas-pyramid-photo-mesh','./'+cave+'?v=13-mobile-antarctica-lima-lima-solid-mesh')
+              ('./'+cave+'?v=13-antarctica-lima-lima-solid-mesh','./'+cave+'?v=14-south-africa-elands-bay-rock-art'),
+              ('./'+cave+'?v=13-mobile-antarctica-lima-lima-solid-mesh','./'+cave+'?v=14-mobile-south-africa-elands-bay-rock-art')
             ],
             'app.js':[
-              ('./'+cave+'?v=12-egypt-unas-pyramid-photo-mesh','./'+cave+'?v=13-antarctica-lima-lima-solid-mesh')
+              ('./'+cave+'?v=13-antarctica-lima-lima-solid-mesh','./'+cave+'?v=14-south-africa-elands-bay-rock-art')
             ]
           }
           for rel,changes in edits.items():
@@ -99,9 +99,9 @@ jobs:
               if len(matches)!=1:
                   raise SystemExit(f'{rel}: expected exactly one active {entry} cache-keyed script; got {len(matches)}')
               old=matches[0].group(1)
-              if 'cave-entry=egypt-unas-v12' not in old or 'cave-entry=antarctica-lima-lima-v13' in old:
-                  raise SystemExit(f'{rel}: missing previous Egypt Pyramid Cave cache key or Antarctica model already appended')
-              source=source.replace('src="'+old+'"','src="'+old+'&cave-entry=antarctica-lima-lima-v13"',1)
+              if 'cave-entry=antarctica-lima-lima-v13' not in old or 'cave-entry=elands-bay-v14' in old:
+                  raise SystemExit(f'{rel}: missing previous Antarctica Cave cache key or Elands Bay model already appended')
+              source=source.replace('src="'+old+'"','src="'+old+'&cave-entry=elands-bay-v14"',1)
               f.write_text(source,encoding='utf-8')
           after={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
                  for p in site.rglob('*') if p.is_file()}
@@ -117,7 +117,7 @@ jobs:
               raise SystemExit('Website and app Cave module differ')
           for rel in ('landing.js','app.js'):
               text=(site/rel).read_text()
-              if './'+cave+'?v=13-antarctica-lima-lima-solid-mesh' not in text:
+              if './'+cave+'?v=14-south-africa-elands-bay-rock-art' not in text:
                   raise SystemExit(rel+' did not load the new Cave module')
           print('CAVE_ONLY_PUBLISH_SCOPE_PASS',len(changed),'files, no additions or deletions')
           PY
@@ -147,17 +147,17 @@ jobs:
           set -euo pipefail
           SITE="https://bridgepointintelligence.online"
           for pass in $(seq 1 15); do
-            if curl -fsSL -H 'Cache-Control: no-cache' "$SITE/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '899e6c8016954dab825dffb07d583fb9'; then
-              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null 'lima-lima-cave-antarctica'
-              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null 'pyramid-of-unas-egypt'
-              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null 'abukuma-cave-japan'
+            if curl -fsSL -H 'Cache-Control: no-cache' "$SITE/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null 'd0c88d0853844a8e9a1de22a342326cb'; then
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null 'elands-bay-cave-south-africa'
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null 'lima-lima-cave-antarctica'
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null 'pyramid-of-unas-egypt'
               curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null 'const containedViewer=isMatterport||isEmbedOnly'
-              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/landing.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '13-antarctica-lima-lima-solid-mesh'
-              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '13-antarctica-lima-lima-solid-mesh'
-              echo CAVE_ANTARCTICA_LIMA_LIMA_LIVE_PUBLISH_PASS
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/landing.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '14-south-africa-elands-bay-rock-art'
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '14-south-africa-elands-bay-rock-art'
+              echo CAVE_AFRICA_ELANDS_BAY_LIVE_PUBLISH_PASS
               exit 0
             fi
             sleep 4
           done
-          echo CAVE_ANTARCTICA_LIMA_LIMA_LIVE_VERIFY_FAILED
+          echo CAVE_AFRICA_ELANDS_BAY_LIVE_VERIFY_FAILED
           exit 1
