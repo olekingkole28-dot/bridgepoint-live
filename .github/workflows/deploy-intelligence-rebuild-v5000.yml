@@ -2176,9 +2176,8 @@ jobs:
           REPOSITORY: ${{ github.repository }}
         shell: bash
         run: |
-          set -euo pipefail
           python3 - <<'PY'
-          import json, os, urllib.request
+          import json, os, time, urllib.request
           repo=os.environ["REPOSITORY"]
           token=os.environ["GH_TOKEN"]
           workflow_path=".github/workflows/publish-jenolan-caves-v1.yml"
@@ -2190,18 +2189,20 @@ jobs:
               request=urllib.request.Request(url,headers=headers)
               with urllib.request.urlopen(request,timeout=45) as response:
                   return json.load(response)
-          runs=get_json(f"https://api.github.com/repos/{repo}/actions/runs?branch=main&per_page=100").get("workflow_runs",[])
-          candidates=[r for r in runs if r.get("path")==workflow_path and r.get("conclusion")=="success"]
-          for row in candidates:
-              artifacts=get_json(f"https://api.github.com/repos/{repo}/actions/runs/{row['id']}/artifacts?per_page=100").get("artifacts",[])
-              match=next((a for a in artifacts if a.get("name")==artifact_name and not a.get("expired")),None)
-              if match:
-                  with open(os.environ["GITHUB_OUTPUT"],"a",encoding="utf-8") as output:
-                      output.write(f"run_id={row['id']}\\nartifact_name={artifact_name}\\n")
-                  print("JENOLAN_ARTIFACT_SELECTED",row["id"],match.get("size_in_bytes"))
-                  break
-          else:
-              raise SystemExit("No successful, unexpired Jenolan Caves Pages artifact is available.")
+          for attempt in range(60):
+              runs=get_json(f"https://api.github.com/repos/{repo}/actions/runs?branch=main&per_page=100").get("workflow_runs",[])
+              candidates=[r for r in runs if r.get("path")==workflow_path and r.get("conclusion")=="success"]
+              for row in candidates:
+                  artifacts=get_json(f"https://api.github.com/repos/{repo}/actions/runs/{row['id']}/artifacts?per_page=100").get("artifacts",[])
+                  match=next((a for a in artifacts if a.get("name")==artifact_name and not a.get("expired")),None)
+                  if match:
+                      with open(os.environ["GITHUB_OUTPUT"],"a",encoding="utf-8") as output:
+                          output.write(f"run_id={row['id']}\\nartifact_name={artifact_name}\\n")
+                      print("JENOLAN_ARTIFACT_SELECTED",row["id"],match.get("size_in_bytes"))
+                      raise SystemExit(0)
+              print("Waiting for successful published Jenolan artifact",attempt+1,"/ 60",flush=True)
+              time.sleep(15)
+          raise SystemExit("No successful, unexpired Jenolan Caves Pages artifact was published within the validation window.")
           PY
 
       - name: Download the published Jenolan cave Pages artifact
