@@ -667,7 +667,7 @@ html.bpw-entry-locked body>main>section:not(.hero){display:none!important;visibi
       // Never leave account access hidden while the live landing map is still booting.
       // Phones may take longer to initialize the MapLibre globe; expose the welcome
       // actions after 12 seconds and keep retrying the map in the background.
-      if(!activeMap&&Date.now()-startedAt>12000&&gate.dataset.mapFallback!=='1'){
+      if(Date.now()-startedAt>12000&&gate.dataset.mapFallback!=='1'){
         gate.dataset.mapFallback='1';
         gate.dataset.phase='gate';
         if(status)status.hidden=true;
