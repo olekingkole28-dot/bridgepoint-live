@@ -62,8 +62,8 @@ jobs:
           node --input-type=module --check < site/bridgepoint-saturn-system-v6282.js
           node --input-type=module --check < site/bridgepoint-mars-system-v6291.js
           python3 -m py_compile recovery/build_mars_assets_v6291.py
-          grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6293-full-planetarium"' site/index.html
-          grep -Fq 'bridgepoint-gaia-galaxy-v6270.js?v=6293-full-planetarium' site/bridgepoint-welcome-space-v6260.js
+          grep -Fq 'src="/bridgepoint-welcome-space-v6260.js?v=6306-mobile-planet-picker"' site/index.html
+          grep -Fq 'bridgepoint-gaia-galaxy-v6270.js?v=6306-mobile-planet-picker' site/bridgepoint-welcome-space-v6260.js
           grep -Fq 'bridgepoint-mars-system-v6291.js?v=6292-mars-night-side-shading' site/bridgepoint-gaia-galaxy-v6270.js
           grep -Fq 'bridgepoint-saturn-system-v6282.js?v=6290-saturn-flowing-rings' site/bridgepoint-gaia-galaxy-v6270.js
           grep -Fq 'function updateRingDust(time)' site/bridgepoint-saturn-system-v6282.js
@@ -134,8 +134,8 @@ jobs:
           curl --retry 8 --retry-all-errors --retry-delay 5 -fsSL -H 'Cache-Control: no-cache' "${O}/bridgepoint-saturn-system-v6282.js?verify=${q}" -o /tmp/saturn.js
           curl --retry 8 --retry-all-errors --retry-delay 5 -fsSL -H 'Cache-Control: no-cache' "${O}/bridgepoint-mars-system-v6291.js?verify=${q}" -o /tmp/mars.js
           curl --retry 8 --retry-all-errors --retry-delay 5 -fsSL -H 'Cache-Control: no-cache' "${O}/assets/mars/v1/manifest.json?verify=${q}" -o /tmp/mars-manifest.json
-          grep -Fq 'v=6293-full-planetarium' /tmp/root.html
-          grep -Fq 'bridgepoint-gaia-galaxy-v6270.js?v=6293-full-planetarium' /tmp/bp-welcome.js
+          grep -Fq 'v=6306-mobile-planet-picker' /tmp/root.html
+          grep -Fq 'bridgepoint-gaia-galaxy-v6270.js?v=6306-mobile-planet-picker' /tmp/bp-welcome.js
           grep -Fq 'bridgepoint-mars-system-v6291.js?v=6292-mars-night-side-shading' /tmp/bp-gaia.js
           grep -Fq 'bridgepoint-saturn-system-v6282.js?v=6290-saturn-flowing-rings' /tmp/bp-gaia.js
           grep -Fq 'MOLA MEGDR globally displaced 3D terrain' /tmp/mars.js
