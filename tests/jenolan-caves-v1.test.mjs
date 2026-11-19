@@ -7,12 +7,11 @@ import {
 } from '../rebuild-v5000/bridgepoint-jenolan-caves-v1.js';
 
 const workflow=await readFile(new URL('../.github/workflows/deploy-intelligence-rebuild-v5000.yml',import.meta.url),'utf8');
-assert.match(workflow,/github-pages-jenolan-caves-v1/);
+assert.ok(workflow.includes('github-pages-jenolan-caves-v1'));
 assert.ok(workflow.includes('assets/underground/jenolan-caves-v1/pointcloud.bin.gz'));
 assert.ok(workflow.includes('initJenolanCavesRenderer(world)'));
-assert.match(workflow,/initJenolanCavesRenderer\\(world\\)/);
 assert.ok(workflow.includes('node tests/jenolan-caves-v1.test.mjs'));
-assert.match(workflow,/node tests\\/jenolan-caves-v1\\.test\\.mjs/);
+assert.ok(workflow.includes('jenolan-caves=v1'));
 
 const feature=buildJenolanCavesFeature();
 assert.equal(feature.type,'Feature');
