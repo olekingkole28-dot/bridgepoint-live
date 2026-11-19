@@ -66,6 +66,13 @@ export const UNDERGROUND_SCAN_SITES=[
   models:[
    {uid:'c0ecd1020c794a9a83771d7957517438',title:'Jackson Blue — Cavern and Down the Chimney',creator:'Matthew Hardman / Divers Atlas (@diversatlas)',license:'CC Attribution',method:'1,017 Insta360 photos · Agisoft Metashape photogrammetry · May 24, 2026',detail:'Detailed creator-published underwater photographic reconstruction of Jackson Blue Spring cavern and the chimney passage. Sketchfab lists approximately 6.3 million triangles. This is a photo-textured cave mesh, not a LiDAR point cloud or a georeferenced full-system cave survey. The 3D viewer is embedded within BridgePoint while the original model remains creator-hosted.',modelUrl:'https://sketchfab.com/3d-models/jackson-blue-cavern-and-down-the-chimney-c0ecd1020c794a9a83771d7957517438'}
   ]},
+ {id:'ellora-caves-india',name:'Ellora Caves — Rock-Cut Cave Temples',type:'cave',coordinates:[75.17917,20.02639],
+  locationPrecision:'Ministry of Culture, India, Ellora Caves UNESCO World Heritage site coordinates (20°01′35.004″ N, 75°10′45.012″ E). This is a complex-wide site anchor; individual carved caves and 3D mesh surfaces are not independently georegistered.',
+  locationNote:'This icon locates the documented Ellora cave-temple complex, not a surveyed point for every chamber or the exact position of each part of this 3D scan.',
+  description:'A photo-reconstructed 3D mesh of the real Ellora rock-cut cave-temple complex in Maharashtra, India, a UNESCO World Heritage Site carved into basalt cliffs.',
+  models:[
+   {uid:'1a5ec1e212f9451e80dc051e97164d17',title:'Ellora Caves, India — Rock-Cut Heritage Scan',creator:'Graphic solutions (@hermes3)',license:'CC Attribution',method:'Photo-based 3D reconstruction · photogrammetry · approx. 136,500 triangles',detail:'Creator-published photographic 3D reconstruction associated with the Ellora Caves archaeological site. Ellora has Buddhist, Hindu and Jain rock-cut monuments, including Cave 16 (Kailasa Temple). The model is not verified as a complete survey of all cave chambers or precisely aligned to the surrounding terrain; this is not a LiDAR point cloud.',modelUrl:'https://sketchfab.com/3d-models/ellora-caves-india-1a5ec1e212f9451e80dc051e97164d17'}
+  ]},
  {id:'om-jaettestue',name:'Øm Jættestue Passage Tomb',type:'tomb',coordinates:[11.994633,55.599731],
   locationPrecision:'Published GPS coordinate for the passage tomb site.',
   locationNote:'This is a Neolithic passage tomb and burial chamber, not a natural cave.',
