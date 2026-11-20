@@ -27,7 +27,9 @@ const IDS = {
   footprintSource: 'bp-emrf-starlink-footprint-source-v1',
   footprintFill: 'bp-emrf-starlink-footprint-fill-v1',
   footprintLine: 'bp-emrf-starlink-footprint-line-v1',
-  beamLayer: 'bp-emrf-starlink-beam-cones-v1'
+  beamLayer: 'bp-emrf-starlink-beam-cones-v1',
+  groundSource: 'bp-emrf-starlink-global-ground-v3',
+  groundHeat: 'bp-emrf-starlink-global-ground-heat-v3'
 };
 const EMPTY = {type:'FeatureCollection',features:[]};
 const RAD = Math.PI / 180;
@@ -35,6 +37,13 @@ const EARTH_M = 6371008.8;
 const clamp = (v,a,b) => Math.max(a,Math.min(b,v));
 const fmt = v => Number(v || 0).toLocaleString();
 const normalizeLon = v => ((v + 540) % 360) - 180;
+const safeHeight = (raw,fallback=null) => {
+  if(raw===undefined||raw===null||raw==='')return fallback;
+  const m=String(raw).trim().toLowerCase().match(/^(\d+(?:\.\d+)?)\s*(m|metres|meters|ft|feet|')?$/);
+  if(!m)return fallback;
+  const n=Number(m[1])*((m[2]==='ft'||m[2]==='feet'||m[2]==="'")?.3048:1);
+  return n>1&&n<650?n:fallback;
+};
 
 function installStyle() {
   if (document.getElementById(ROOT + '-style')) return;
@@ -160,7 +169,10 @@ function dedupeSites(elements) {
     out.push({
       lon:p.lon,lat:p.lat,id:key,source:'OpenStreetMap',kind:'mapped mobile-network structure',
       label:String(tags.name || tags.operator || tags['operator:wikidata'] || 'Mapped mobile-network site').slice(0,100),
-      known4:radio.known4,known5:radio.known5,unknown:radio.unknown
+      known4:radio.known4,known5:radio.known5,unknown:radio.unknown,
+      heightM:safeHeight(tags.height??tags['tower:height']??tags['height:roof']),
+      towerKind:String(tags['tower:construction']||tags['tower:type']||tags.man_made||'unknown').slice(0,64),
+      towerColor:String(tags.colour||tags.color||'').trim().slice(0,32)
     });
   }
   return out;
@@ -209,14 +221,14 @@ export function initBridgePointEmrfSpectrogram(target) {
     '<div data-stats><div data-stat><b data-beams>0</b><small>Starlink beams · modeled (public orbital elements)</small></div><div data-stat><b data-sites>0</b><small>Mapped telecom structures</small></div><div data-stat><b data-drap>—</b><small>NOAA D-RAP valid time (UTC)</small></div></div>' +
     '<div data-status aria-live="polite">Preparing the global RF field…</div>' +
     '<div data-legend><span><i style="background:#58e6ff"></i>4G nominal range</span><span><i class="five"></i>5G nominal range</span><span><i class="iono"></i>HF absorption</span><span><i style="background:#ffda85"></i>Starlink modeled beam</span></div>' +
-    '<p data-note>Starlink positions derive from CelesTrak OMM records propagated with J2-adjusted approximate mechanics; thousands of 8° cones are illustrative coverage, NOT live SpaceX beam telemetry. Satellite 3D models use publicly reported exterior dimensions for V1.5 and V2 Mini, NOT original SpaceX CAD. Models are enlarged for visibility at global zoom. Mobile-site envelopes are nominal planning radii, not measured carrier coverage or live signal strength. FCC antenna registrations may include broadcast and other non-cellular structures, and are not proof of an active mobile radio. OpenStreetMap tower tags are incomplete. NOAA D-RAP describes HF ionospheric absorption, not 4G/5G or Starlink-band attenuation. Data coverage varies by source and region.</p>';
+    '<p data-note>Starlink positions derive from CelesTrak OMM records propagated with J2-adjusted approximate mechanics; thousands of 8° cones are illustrative coverage, NOT live SpaceX beam telemetry. Satellite 3D models use publicly reported exterior dimensions for V1.5 and V2 Mini, NOT original SpaceX CAD. Models are enlarged for visibility at global zoom. Ground colors visualize modeled Starlink footprint density, not measured EM/RF intensity. Mobile-site envelopes are nominal planning radii, not measured carrier coverage or live signal strength. FCC antenna registrations may include broadcast and other non-cellular structures, and are not proof of an active mobile radio. OpenStreetMap tower tags are incomplete. Structure-aware glows are illustrative occlusion and multipath cues based on visible map geometry, not calibrated radio propagation. Tower height is source-mapped when available; other tower shapes and dimensions are representative, not exact CAD. NOAA D-RAP describes HF ionospheric absorption, not 4G/5G or Starlink-band attenuation. Data coverage varies by source and region.</p>';
   if (dock) dock.insertBefore(root,dock.querySelector('#bpv-dock-actions'));
   else map.getContainer().appendChild(root);
   const $ = selector => root.querySelector(selector);
   const say = value => { const el = $('[data-status]'); if (el) el.textContent = String(value || ''); };
   const st = {
     version:VERSION,map,root,active:false,closing:false,three:null,threePromise:null,beamLayer:null,beamMesh:null,beamMaterial:null,
-    beams:[],sites:[],drap:{validAt:null,gridCells:0},drapPromise:null,sitesPromise:null,siteCache:null,siteCacheKey:'',
+    beams:[],sites:[],groundFootprints:[],interactionDirty:true,drap:{validAt:null,gridCells:0},drapPromise:null,sitesPromise:null,siteCache:null,siteCacheKey:'',
     moveTimer:0,beamTimer:0,drapTimer:0,sitesTimer:0,orbitTimer:0,req:0,styleBound:false,lastError:null,starlinkV2:null,starlinkPromise:null
   };
 
@@ -234,6 +246,7 @@ export function initBridgePointEmrfSpectrogram(target) {
       addSource(IDS.fourSource,EMPTY);
       addSource(IDS.fiveSource,EMPTY);
       addSource(IDS.footprintSource,EMPTY);
+      addSource(IDS.groundSource,EMPTY);
       addLayer({id:IDS.drapFill,type:'fill',source:IDS.drapSource,paint:{
         'fill-color':['interpolate',['linear'],['get','frequency_mhz'],0,'#26366c',3,'#3265dc',8,'#8c4fe4',15,'#ed4cbf',25,'#ff764b',30,'#fff08b'],
         'fill-opacity':['interpolate',['linear'],['get','frequency_mhz'],0,0,2,.08,5,.15,15,.24,30,.34],
@@ -259,6 +272,12 @@ export function initBridgePointEmrfSpectrogram(target) {
         'circle-color':['case',['==',['get','known5'],true],'#bd80ff',['==',['get','known4'],true],'#5deaff','#f7d98f'],
         'circle-opacity':.95,'circle-stroke-color':'rgba(5,13,29,.9)','circle-stroke-width':.8
       }});
+      addLayer({id:IDS.groundHeat,type:'heatmap',source:IDS.groundSource,maxzoom:14,paint:{
+        'heatmap-weight':1,'heatmap-intensity':['interpolate',['linear'],['zoom'],0,.8,5,1.35,10,1.7],
+        'heatmap-radius':['interpolate',['linear'],['zoom'],0,13,3,22,7,32,12,42],
+        'heatmap-opacity':['interpolate',['linear'],['zoom'],0,.78,7,.57,13,.12],
+        'heatmap-color':['interpolate',['linear'],['heatmap-density'],0,'rgba(0,12,45,0)',.07,'#154abf',.25,'#00e5ff',.43,'#384bff',.63,'#ac39df',.8,'#f9e46e',1,'#ff733e']
+      }});
       addLayer({id:IDS.footprintFill,type:'fill',source:IDS.footprintSource,paint:{'fill-color':'#ffd36f','fill-opacity':.12}});
       addLayer({id:IDS.footprintLine,type:'line',source:IDS.footprintSource,paint:{'line-color':'#ffe29b','line-opacity':.72,'line-width':['interpolate',['linear'],['zoom'],0,.4,6,1,12,1.7],'line-dasharray':[2,1]}});
       setVisibility(true);
@@ -271,7 +290,7 @@ export function initBridgePointEmrfSpectrogram(target) {
   }
 
   function setVisibility(on) {
-    for (const id of [IDS.drapFill,IDS.drapLine,IDS.fourFill,IDS.fourLine,IDS.fiveFill,IDS.fiveLine,IDS.heat,IDS.sites,IDS.footprintFill,IDS.footprintLine]) {
+    for (const id of [IDS.drapFill,IDS.drapLine,IDS.fourFill,IDS.fourLine,IDS.fiveFill,IDS.fiveLine,IDS.heat,IDS.sites,IDS.groundHeat,IDS.footprintFill,IDS.footprintLine]) {
       try { if (map.getLayer(id)) map.setLayoutProperty(id,'visibility',on?'visible':'none'); } catch (_) {}
     }
     if (st.beamLayer) st.beamLayer.visible = !!on;
@@ -357,7 +376,7 @@ export function initBridgePointEmrfSpectrogram(target) {
         }
         if (!coords || !Number.isFinite(Number(coords[0])) || !Number.isFinite(Number(coords[1]))) return null;
         const p=feature.properties||{};
-        return {lon:Number(coords[0]),lat:Number(coords[1]),id:'FCC:'+String(p.RegNum||p.OBJECTID||''),source:'FCC Antenna Structure Registration',kind:'registered antenna structure',label:String(p.Entity||'FCC registered antenna structure').slice(0,100),known4:false,known5:false,unknown:true};
+        return {lon:Number(coords[0]),lat:Number(coords[1]),id:'FCC:'+String(p.RegNum||p.OBJECTID||''),source:'FCC Antenna Structure Registration',kind:'registered antenna structure',label:String(p.Entity||'FCC registered antenna structure').slice(0,100),known4:false,known5:false,unknown:true,heightM:safeHeight(p.Strucht),towerKind:'registered-structure'};
       }).filter(Boolean);
     } finally { clearTimeout(timer); }
   }
@@ -396,12 +415,25 @@ export function initBridgePointEmrfSpectrogram(target) {
   }
 
   function paintSites(sites) {
+    st.interactionDirty=true;
     const data=buildSiteData(sites);
     if (!map.getSource(IDS.siteSource)) ensureMapLayers();
     map.getSource(IDS.siteSource)?.setData(data.points);
     map.getSource(IDS.fourSource)?.setData(data.four);
     map.getSource(IDS.fiveSource)?.setData(data.five);
     $('[data-sites]').textContent=fmt(sites.length);
+    if(st.active&&sites.length){void updateBeams();scheduleInteraction();}
+  }
+  function paintGlobalGround(){
+    const sampled=st.starlinkV2?.getFootprints?.(1000)||[];
+    st.groundFootprints=sampled;
+    if(!map.getSource(IDS.groundSource))ensureMapLayers();
+    const features=sampled.map(p=>({type:'Feature',geometry:{type:'Point',coordinates:[p.lon,p.lat]},properties:{
+      id:p.id,nominal_radius_m:p.radiusM,truth_class:'MODELED_STARLINK_FOOTPRINT_NOT_MEASURED_EMRF'
+    }}));
+    map.getSource(IDS.groundSource)?.setData(asFeatureCollection(features));
+    st.interactionDirty=true;
+    scheduleInteraction();map.triggerRepaint?.();
   }
 
   function getOrbitPositions() {
@@ -466,6 +498,83 @@ export function initBridgePointEmrfSpectrogram(target) {
     sphere4Mesh.count=0;sphere5Mesh.count=0;
     sphere4Mesh.frustumCulled=false;sphere5Mesh.frustumCulled=false;
 
+    // Grounded, polygonal tower components; heights use source tags when available.
+    // Lattice/frame details are representative since FCC/OSM do not supply CAD.
+    const towerMax=96;
+    const towerMat=new THREE.MeshStandardMaterial({color:0x9baeb6,metalness:.73,roughness:.36});
+    const towerMetal=new THREE.MeshStandardMaterial({color:0xe7ebef,metalness:.66,roughness:.33});
+    function towerPart(geometry,material,name){
+      const mesh=new THREE.InstancedMesh(geometry,material,towerMax);
+      mesh.count=0;mesh.name=name;mesh.frustumCulled=false;
+      mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      return mesh;
+    }
+    const towerShaft=towerPart(new THREE.CylinderGeometry(.22,.43,1,8),towerMat,'3D anchored telecom tower steel shaft');
+    const legGeo=new THREE.CylinderGeometry(.07,.12,1,6);
+    const towerLegs=[0,1,2,3].map(i=>towerPart(legGeo,towerMat,'polygon steel lattice leg '+(i+1)));
+    const towerAntenna=towerPart(new THREE.BoxGeometry(.65,2,.5),towerMetal,'tower radio antenna panel');
+    const towerPlatform=towerPart(new THREE.BoxGeometry(2.8,.20,2.8),towerMat,'tower upper radio equipment platform');
+    const towerBase=towerPart(new THREE.BoxGeometry(2.25,.7,2.25),towerMetal,'terrain rooted base plinth');
+    const towerMeshes=[towerShaft,...towerLegs,towerAntenna,towerPlatform,towerBase];
+    const surfaceMaterial=new THREE.MeshBasicMaterial({color:0x3a95ef,transparent:true,opacity:.105,depthWrite:false,depthTest:true,side:THREE.DoubleSide});
+    const groundSpheres=new THREE.InstancedMesh(new THREE.SphereGeometry(1,14,9),surfaceMaterial,192);
+    groundSpheres.count=0;groundSpheres.frustumCulled=false;groundSpheres.name='Modeled Starlink 3D downlink envelopes over Earth';
+    const scatterLines=new THREE.LineSegments(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:0x9be8ff,transparent:true,opacity:.62,depthWrite:false,depthTest:true,blending:THREE.AdditiveBlending}));
+    scatterLines.frustumCulled=false;scatterLines.name='Illustrative structure-occluded RF multipath, not calibrated ray tracing';
+    function siteTerrain(site){
+      try{const v=map.queryTerrainElevation?.([site.lon,site.lat]);return Number.isFinite(v)?v:0;}catch(_){return 0;}
+    }
+    function mappedWorld(lon,lat,elevation=0){
+      try{
+        const arr=map.transform?.getMatrixForModel?.([lon,lat],elevation);
+        return arr?new THREE.Matrix4().fromArray(arr):null;
+      }catch(_){return null;}
+    }
+    function recalcInteractions(){
+      const coords=[],zoom=Number(map.getZoom?.()||0);
+      if(st.active&&zoom>=15&&typeof map.queryRenderedFeatures==='function'){
+        try{
+          const canvas=map.getCanvas(),w=canvas.clientWidth,h=canvas.clientHeight;
+          const ids=(map.getStyle()?.layers||[]).filter(l=>
+            l.type==='fill-extrusion'&&/building|structure|extrusion/i.test(l.id)).map(l=>l.id).slice(0,8);
+          const features=ids.length?map.queryRenderedFeatures([[w*.22,h*.18],[w*.78,h*.80]],{layers:ids}):[];
+          const satelliteCoverage=st.starlinkV2?.getFootprints?.(3000)||[];
+          const distanceM=(a,b)=>Math.hypot((a.lon-b.lon)*111320*Math.cos(a.lat*RAD),(a.lat-b.lat)*111320);
+          let drawn=0;
+          for(const feature of features){
+            if(drawn>=28)break;
+            const polygon=feature.geometry?.type==='Polygon'?feature.geometry.coordinates?.[0]:
+               feature.geometry?.type==='MultiPolygon'?feature.geometry.coordinates?.[0]?.[0]:null;
+            if(!Array.isArray(polygon)||polygon.length<3)continue;
+            const ring=polygon.slice(0,Math.min(32,polygon.length));
+            const lon=ring.reduce((a,p)=>a+Number(p[0]||0),0)/ring.length;
+            const lat=ring.reduce((a,p)=>a+Number(p[1]||0),0)/ring.length;
+            if(!Number.isFinite(lon)||!Number.isFinite(lat))continue;
+            const height=safeHeight(feature.properties?.render_height??feature.properties?.height??(
+              Number.isFinite(Number(feature.properties?.['building:levels']))?Number(feature.properties['building:levels'])*3:null
+            ));
+            if(!height)continue;
+            const place={lon,lat};
+            const tower=st.sites.find(site=>distanceM(place,site)<(site.known5?450:900));
+            const covered=!!tower||satelliteCoverage.some(p=>distanceM(place,p)<p.radiusM);
+            if(!covered)continue;
+            const world=mappedWorld(lon,lat,siteTerrain(place));if(!world)continue;
+            const dir=tower?Math.atan2(lat-tower.lat,(lon-tower.lon)*Math.cos(lat*RAD)):Math.PI/4;
+            const sx=Math.cos(dir),sz=Math.sin(dir);
+            const p0=new THREE.Vector3(-sx*16,height+7,-sz*16).applyMatrix4(world);
+            const contact=new THREE.Vector3(0,height,0).applyMatrix4(world);
+            const p1=new THREE.Vector3(sx*23,height*.64,sz*23).applyMatrix4(world);
+            const p2=new THREE.Vector3(-sz*14,height*.46,sx*14).applyMatrix4(world);
+            for(const p of [p0,contact,contact,p1,contact,p2])coords.push(p.x,p.y,p.z);
+            drawn++;
+          }
+        }catch(e){if(!st.warnedScatter){st.warnedScatter=true;console.warn('BridgePoint EM/RF obstruction visualization',e);}}
+      }
+      const geometry=new THREE.BufferGeometry();
+      geometry.setAttribute('position',new THREE.Float32BufferAttribute(coords,3));
+      scatterLines.geometry?.dispose?.();scatterLines.geometry=geometry;
+      map.triggerRepaint?.();
+    }
     const localMatrix=(y,sx,sy,sz)=>new THREE.Matrix4().compose(
       new THREE.Vector3(0,y,0),new THREE.Quaternion(),new THREE.Vector3(sx,sy,sz)
     );
@@ -479,7 +588,8 @@ export function initBridgePointEmrfSpectrogram(target) {
         layer.mesh=mesh;
         layer.sphere4Mesh=sphere4Mesh;
         layer.sphere5Mesh=sphere5Mesh;
-        layer.scene.add(mesh,sphere4Mesh,sphere5Mesh);
+        layer.scene.add(mesh,sphere4Mesh,sphere5Mesh,groundSpheres,scatterLines,...towerMeshes);
+        layer.rebuildInteractions=recalcInteractions;
       },
       render:(gl,args)=>{
         if (!layer.visible || !layer.renderer || !layer.mesh || !st.active) return;
@@ -511,11 +621,12 @@ export function initBridgePointEmrfSpectrogram(target) {
         const sites=st.sites;
         const count=Math.min(maxSpheres,sites.length);
         const matrix4=new THREE.Matrix4(),matrix5=new THREE.Matrix4();
+        const terrestrialWorld=(site)=>mappedWorld(site.lon,site.lat,siteTerrain(site));
         let renderedSites=0;
         for(let i=0;i<count;i++){
           const site=sites[Math.floor(i*sites.length/count)];
           let modelMatrix;
-          try { modelMatrix=map.transform.getMatrixForModel([site.lon,site.lat],0); } catch (_) { continue; }
+          try { modelMatrix=map.transform.getMatrixForModel([site.lon,site.lat],siteTerrain(site)); } catch (_) { continue; }
           if(!modelMatrix)continue;
           matrix4.fromArray(modelMatrix).multiply(localMatrix(450,900,450,900));
           matrix5.fromArray(modelMatrix).multiply(localMatrix(225,450,225,450));
@@ -527,6 +638,58 @@ export function initBridgePointEmrfSpectrogram(target) {
         layer.sphere5Mesh.count=renderedSites;
         layer.sphere4Mesh.instanceMatrix.needsUpdate=true;
         layer.sphere5Mesh.instanceMatrix.needsUpdate=true;
+        // True metre heights and terrain anchors for nearby structures;
+        // untagged heights use a disclosed generic 38 m visual stand-in.
+        let towerCount=0,latticeCount=0;
+        if(zoom>=9)for(const site of sites){
+          if(towerCount>=towerMax)break;
+          // A telecom cell-site tag on a roof is NOT evidence of a separate tower.
+          if(site.source==='OpenStreetMap'&&!/tower|mast|pole|lattice|communication/i.test(site.towerKind||''))continue;
+          const world=terrestrialWorld(site);if(!world)continue;
+          const h=clamp(Number(site.heightM)||38,9,340);
+          const mast=/mast|monopole|pole/i.test(site.towerKind||'');
+          const translate=new THREE.Matrix4(),scale=new THREE.Matrix4();
+          towerShaft.setMatrixAt(towerCount,new THREE.Matrix4().copy(world)
+            .multiply(translate.makeTranslation(0,h*.5,0)).multiply(scale.makeScale(1,h,1)));
+          towerBase.setMatrixAt(towerCount,new THREE.Matrix4().copy(world)
+            .multiply(translate.makeTranslation(0,.35,0)));
+          towerPlatform.setMatrixAt(towerCount,new THREE.Matrix4().copy(world)
+            .multiply(translate.makeTranslation(0,h*.82,0)));
+          towerAntenna.setMatrixAt(towerCount,new THREE.Matrix4().copy(world)
+            .multiply(translate.makeTranslation(0,h+1.1,0)));
+          // Respect an explicitly mapped OSM tower paint tag; use neutral
+          // steel for all other structures, not an invented operator color.
+          const colorTag=String(site.towerColor||'').toLowerCase();
+          const tint=/^#[0-9a-f]{6}$/.test(colorTag)?colorTag:
+            ({red:'#ce353a',white:'#e6e9ec',grey:'#929da5',gray:'#929da5',silver:'#b0c1ca'})[colorTag]||'#9baeb6';
+          towerShaft.setColorAt(towerCount,new THREE.Color(tint));
+          towerBase.setColorAt(towerCount,new THREE.Color(tint));
+          if(!mast){
+            for(let j=0;j<4;j++){
+              towerLegs[j].setColorAt(latticeCount,new THREE.Color(tint));
+              const x=(j%2?1:-1)*1.35,z=(j>=2?1:-1)*1.35;
+              towerLegs[j].setMatrixAt(latticeCount,new THREE.Matrix4().copy(world)
+                .multiply(translate.makeTranslation(x,h*.5,z)).multiply(scale.makeScale(1,h,1)));
+            }
+            latticeCount++;
+          }
+          towerCount++;
+        }
+        for(const item of [towerShaft,towerBase,towerPlatform,towerAntenna]){item.count=towerCount;item.instanceMatrix.needsUpdate=true;if(item.instanceColor)item.instanceColor.needsUpdate=true;}
+        for(const item of towerLegs){item.count=latticeCount;item.instanceMatrix.needsUpdate=true;if(item.instanceColor)item.instanceColor.needsUpdate=true;}
+        // Sparse globe-wide, satellite-derived 3D domes, overlaid with the
+        // 2D ground-heat ramp. Coverage is model geometry, not measured signal.
+        const footprints=st.groundFootprints;
+        const groundCount=Math.min(192,footprints.length);
+        let domes=0;
+        for(let i=0;i<groundCount;i++){
+          const p=footprints[Math.floor(i*footprints.length/groundCount)];
+          const world=mappedWorld(p.lon,p.lat,0);if(!world)continue;
+          groundSpheres.setMatrixAt(domes++,new THREE.Matrix4().copy(world)
+            .multiply(new THREE.Matrix4().makeTranslation(0,p.radiusM*.2,0))
+            .multiply(new THREE.Matrix4().makeScale(p.radiusM,p.radiusM*.76,p.radiusM)));
+        }
+        groundSpheres.count=domes;groundSpheres.instanceMatrix.needsUpdate=true;
         try {
           layer.renderer.resetState?.();
           layer.renderer.render(layer.scene,layer.camera);
@@ -535,6 +698,9 @@ export function initBridgePointEmrfSpectrogram(target) {
         }
       },
       onRemove:()=>{
+        for(const o of [...towerMeshes,groundSpheres,scatterLines]){
+          o.geometry?.dispose?.();o.material?.dispose?.();
+        }
         try { layer.renderer?.dispose?.(); } catch (_) {}
         st.beamLayer=null;
       }
@@ -557,7 +723,7 @@ export function initBridgePointEmrfSpectrogram(target) {
     if (!map.getSource(IDS.footprintSource)) ensureMapLayers();
     map.getSource(IDS.footprintSource)?.setData(makeFootprints(beams));
     $('[data-beams]').textContent=fmt(st.starlinkV2?.state?.beamCount||beams.length);
-    if (beams.length || st.sites.length) {
+    if (beams.length || st.sites.length || st.starlinkV2?.state?.beamCount) {
       try {
         const layer=await ensureBeamLayer();
         layer.visible=true;
@@ -568,7 +734,7 @@ export function initBridgePointEmrfSpectrogram(target) {
     } else if (st.beamLayer) {
       st.beamLayer.visible=false;
     }
-    if (st.active) map.triggerRepaint?.();
+    if (st.active){scheduleInteraction();map.triggerRepaint?.();}
   }
 
   function scheduleSites(force=false) {
@@ -583,8 +749,8 @@ export function initBridgePointEmrfSpectrogram(target) {
     ensureMapLayers();setVisibility(true);
     say('GLOBAL EM/RF ON · loading thousands of modeled Starlink downlink cones from first-party CelesTrak OMM orbital data. NOAA and mapped towers load independently.');
     void enableStarlinkThousandsV2();
-    setTimeout(()=>{if(st.active)void loadDrap(false);},2400);
-    setTimeout(()=>{if(st.active&&Number(map.getZoom?.()||0)>=7)void loadSites(false);},3300);
+    void loadDrap(false);
+    if(Number(map.getZoom?.()||0)>=7)void loadSites(false);
     clearInterval(st.beamTimer);st.beamTimer=setInterval(()=>{if(st.active&&!document.hidden)void updateBeams();},18000);
     clearInterval(st.drapTimer);st.drapTimer=setInterval(()=>{if(st.active&&!document.hidden)void loadDrap(false);},120000);
     clearInterval(st.sitesTimer);st.sitesTimer=setInterval(()=>{if(st.active&&!document.hidden&&Number(map.getZoom?.()||0)>=7)void loadSites(false);},900000);
@@ -597,7 +763,7 @@ export function initBridgePointEmrfSpectrogram(target) {
     if(st.starlinkPromise)return st.starlinkPromise;
     st.starlinkPromise=(async()=>{
       try{
-        const mod=await import('./bridgepoint-emrf-starlink-global-v2.js?v=2-global-4200-omm-satellites');
+        const mod=await import('./bridgepoint-emrf-starlink-global-v2.js?v=3-emrf-model-orbit-ground');
         if(!st.active)return;
         let api=window.__BP_EMRF_STARLINK_BEAMS_V2__;
         if(api?.map!==map)api=mod.initBridgePointStarlinkBeamV2(map);
@@ -617,6 +783,9 @@ export function initBridgePointEmrfSpectrogram(target) {
     if(!st.active)return;
     const d=event.detail||{};
     if(Number.isFinite(d.count)&&d.count>0){
+      paintGlobalGround();
+      if(!st.beamLayer)void updateBeams();
+      scheduleInteraction();
       $('[data-beams]').textContent=fmt(d.count);
       say(fmt(d.count)+' source-orbit satellites · 3D modeled Starlink coverage beams active · '+fmt(d.catalogCount||0)+' public orbital records · exterior satellite dimensions published, not original CAD. RF footprints illustrative, not live transmissions.');
     }else if(d.error){
@@ -633,6 +802,7 @@ export function initBridgePointEmrfSpectrogram(target) {
     clearInterval(st.sitesTimer);st.sitesTimer=0;
     clearInterval(st.orbitTimer);st.orbitTimer=0;
     clearTimeout(st.moveTimer);st.moveTimer=0;
+    clearTimeout(st.interactionTimer);st.interactionTimer=0;
     setVisibility(false);
     root.hidden=true;
     return false;
@@ -646,13 +816,20 @@ export function initBridgePointEmrfSpectrogram(target) {
       if (!st.active) return;
       if (ensureMapLayers()) {
         setVisibility(true);
+        scheduleInteraction();
         if (st.beams.length) void updateBeams();
         paintSites(st.sites);
+        paintGlobalGround();
       }
       if(st.starlinkV2?.state?.enabled)map.triggerRepaint?.();
     },0);
   }
-  const onMove=()=>{if(st.active&&Number(map.getZoom?.()||0)>=7)scheduleSites(false);};
+  function scheduleInteraction(){
+    clearTimeout(st.interactionTimer);
+    if(!st.active)return;
+    st.interactionTimer=setTimeout(()=>{if(st.active)st.beamLayer?.rebuildInteractions?.();},340);
+  }
+  const onMove=()=>{st.interactionDirty=true;scheduleInteraction();if(st.active&&Number(map.getZoom?.()||0)>=7)scheduleSites(false);};
   const onVisibility=()=>{if(!st.active)return;if(document.hidden){return;}void updateBeams();};
   const closeButton=$('[data-close]');
   if (closeButton) closeButton.addEventListener('click',closePanel);
@@ -670,8 +847,8 @@ export function initBridgePointEmrfSpectrogram(target) {
       document.removeEventListener('bp:emrf-starlink-status',onStarlinkV2Status);
       st.starlinkV2?.destroy?.();
       if(st.beamLayer&&map.getLayer(IDS.beamLayer)){try{map.removeLayer(IDS.beamLayer);}catch(_){}}
-      for(const id of [IDS.drapFill,IDS.drapLine,IDS.fourFill,IDS.fourLine,IDS.fiveFill,IDS.fiveLine,IDS.heat,IDS.sites,IDS.footprintFill,IDS.footprintLine])try{if(map.getLayer(id))map.removeLayer(id);}catch(_){}
-      for(const id of [IDS.drapSource,IDS.siteSource,IDS.fourSource,IDS.fiveSource,IDS.footprintSource])try{if(map.getSource(id))map.removeSource(id);}catch(_){}
+      for(const id of [IDS.drapFill,IDS.drapLine,IDS.fourFill,IDS.fourLine,IDS.fiveFill,IDS.fiveLine,IDS.heat,IDS.sites,IDS.groundHeat,IDS.footprintFill,IDS.footprintLine])try{if(map.getLayer(id))map.removeLayer(id);}catch(_){}
+      for(const id of [IDS.drapSource,IDS.siteSource,IDS.fourSource,IDS.fiveSource,IDS.footprintSource,IDS.groundSource])try{if(map.getSource(id))map.removeSource(id);}catch(_){}
       root.remove();if(window.__BP_EMRF_SPECTROGRAM_V1__===api)window.__BP_EMRF_SPECTROGRAM_V1__=null;
     }
   };
