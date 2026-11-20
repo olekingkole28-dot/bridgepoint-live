@@ -8,7 +8,8 @@
 const OMM='/starlink-orbits-v2.json';
 const THREE_URL='/vendor/three.module.js?v=169-local';
 const LAYER='bp-emrf-thousands-starlink-beams-v2';
-const MAX_BEAMS=4200,MIN_RECORDS=2500;
+const MAX_BEAMS=4200,MAX_MOBILE_BEAMS=2800,MIN_RECORDS=2500;
+const runtimeBeamBudget=()=>typeof window!=='undefined'&&window.innerWidth<700?MAX_MOBILE_BEAMS:MAX_BEAMS;
 const RAD=Math.PI/180,EARTH_KM=6378.137,MU=398600.4418,J2=1.08262668e-3;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 let catalogPromise=null,threePromise=null;
@@ -240,7 +241,7 @@ export function initBridgePointStarlinkBeamV2(target){
    const doc=await prefetchStarlinkOmmV2();
    if(!state.enabled||state.disposed)return;
    state.catalog=doc;
-   const sample=selectStarlinkCatalogV2(doc.records,MAX_BEAMS);
+   const sample=selectStarlinkCatalogV2(doc.records,runtimeBeamBudget());
    const now=Date.now();
    const next=sample.map(row=>propagateStarlinkOmmV2(row,now)).filter(Boolean);
    if(next.length<2000)throw Error('Too few fresh catalog objects for a representative global constellation');
@@ -271,7 +272,7 @@ export function initBridgePointStarlinkBeamV2(target){
    if(!state.orbitTimer)state.orbitTimer=setInterval(()=>{
     if(!state.enabled||document.hidden||!state.catalog)return;
     const now=Date.now();
-    const next=selectStarlinkCatalogV2(state.catalog.records,MAX_BEAMS)
+    const next=selectStarlinkCatalogV2(state.catalog.records,runtimeBeamBudget())
       .map(row=>propagateStarlinkOmmV2(row,now)).filter(Boolean);
     if(next.length>=2000)applyPositions(next);
    },20000);
