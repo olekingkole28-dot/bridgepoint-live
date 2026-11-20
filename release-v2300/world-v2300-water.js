@@ -632,7 +632,10 @@ function createLayer(api, map) {
         const waveFrequencyZoom = clamp(z, 0.6, 15.0);
         const detailFrequencyZoom = clamp(z, 0.6, 20.0);
         const requestedWavesPerWorld = 8.53 * Math.pow(2, waveFrequencyZoom);
-        const detailCyclesPerWorld = 8.53 * Math.pow(2, detailFrequencyZoom);
+        // Broad views need low-frequency swell, not street-level micro-detail repeated
+        // across every vector tile. Keep close zoom detail unchanged while suppressing
+        // global aliasing/pixel noise.
+        const detailCyclesPerWorld = z < 7 ? 2.2 * Math.pow(2, detailFrequencyZoom) : 8.53 * Math.pow(2, detailFrequencyZoom);
         const center = map.getCenter();
         const centerCosLat = Math.max(0.12, Math.cos(center.lat * RAD));
         const safeWaveFrequency = resolveWaveFrequencyCyclesPerWorld(
@@ -1436,7 +1439,14 @@ function sceneLevelAt(scene, lng, lat) { return absoluteWaterLevelAt(scene, lng,
           // A cell whose centre belongs to one water polygon cannot borrow corner vertices
           // from a different lake/river/sea polygon just because both share a broad class.
           // Their surface datums may differ, creating a vertical blue seam/spike at close zoom.
-          const cornersStayInSameWaterFeature = points.every(pt => waterAtGridVertex(pt) === waterFeature);
+          const isMarineCell = marineFeature(waterFeature);
+          // Vector tiles clip a single ocean polygon into many tile-local pieces. Treat
+          // adjacent marine pieces as one continuous sea so the custom surface cannot
+          // form rectangular tile seams or dark gaps at global/medium zoom.
+          const cornersStayInSameWaterFeature = points.every(pt => {
+            const cornerFeature = waterAtGridVertex(pt);
+            return isMarineCell ? !!cornerFeature && marineFeature(cornerFeature) : cornerFeature === waterFeature;
+          });
           if (!cornersStayInSameWaterFeature) {
             api.surfaceCellsRejectedAtShoreline++;
             api.surfaceCellsRejectedWaterFeatureBoundary++;
