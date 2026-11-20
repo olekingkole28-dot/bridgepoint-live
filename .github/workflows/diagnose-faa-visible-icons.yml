@@ -29,6 +29,8 @@ jobs:
           # Diagnose candidate FAA renderer against the already-live data and MapLibre assets.
           cp rebuild-v5000/bridgepoint-faa-obstruction-towers-v1.js /tmp/faa-smoke/bridgepoint-faa-obstruction-towers-v1.js
           cp rebuild-v5000/bridgepoint-drone-awareness-v1.js /tmp/faa-smoke/bridgepoint-drone-awareness-v1.js
+          node --check /tmp/faa-smoke/bridgepoint-drone-awareness-v1.js
+          grep -Fq "if(value.startsWith('bp-faa-obstructions-'))return false" /tmp/faa-smoke/bridgepoint-drone-awareness-v1.js
           node --check /tmp/faa-smoke/bridgepoint-faa-obstruction-towers-v1.js || true
           python3 - <<'PY'
           import gzip,json,pathlib
