@@ -146,7 +146,7 @@ assert.equal(UNDERGROUND_SCAN_SITES.filter(s=>s.id==='pyramid-of-unas-egypt').le
 const antarctic=UNDERGROUND_SCAN_SITES.find(s=>s.id==='lima-lima-cave-antarctica');
 assert.ok(antarctic&&antarctic.type==='cave','real Antarctic Lima Lima cave has existing large persistent icon');
 assert.deepEqual(antarctic.coordinates,[-61.0369667,-62.61545]);
-assert.equal(antarctic.models.length,1);
+assert.equal(antarctic.models.length,4,'original Antarctic cave plus three original-source research chamber scans');
 assert.equal(antarctic.models[0].uid,'899e6c8016954dab825dffb07d583fb9');
 assert.equal(antarctic.models[0].embedOnly,true);
 assert.match(antarctic.models[0].method,/laser capture/i,'laser origin must not be misrepresented as photo-mesh');
@@ -221,6 +221,35 @@ for(const [id,uid] of largeCavesV18){
  assert.ok(html.includes('sandbox="allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-presentation"'));
  assert.ok(!html.includes('allow-top-navigation')&&!html.includes('allow-popups'));
 }
+
+const polarNewGreenland=[
+ ['eqik-cove-cave-greenland',[-21.93311,80.25346],['5e49a7bc370147f7a57d70187257ffb7','e0e487e56083459d935bde3eb51f12ae']],
+ ['inussuk-cairn-climb-cave-greenland',[-21.71019,80.37756],['2eac394c5e4945deadadbc45c32a093e']],
+ ['geus-ordovician-cave-greenland',[-30,78],['58f3d97cd9b3410a8f34193979c4d13a']]
+];
+assert.equal(polarNewGreenland.length,3);
+const limaLimaAntarcticIds=['3ed9bf8dd9eb4821851b56974c4f1a6b','a96e1387d5af46189920d78b9297c898','c3e3ce73bff4404b8006014b240ac8c2'];
+assert.deepEqual(antarctic.models.slice(1).map(m=>m.uid),limaLimaAntarcticIds);
+const sevenVerifiedPolarModels=polarNewGreenland.flatMap(([id,coords,uids])=>{
+ const site=UNDERGROUND_SCAN_SITES.find(s=>s.id===id);
+ assert.ok(site&&site.type==='cave');
+ assert.deepEqual(site.coordinates,coords);
+ assert.deepEqual(site.models.map(m=>m.uid),uids);
+ assert.ok(site.locationPrecision.length>=50);
+ assert.ok(site.models.every(m=>m.embedOnly));
+ return site.models.map(m=>[site,m]);
+}).concat(antarctic.models.slice(1).map(m=>[antarctic,m]));
+assert.equal(sevenVerifiedPolarModels.length,7);
+assert.equal(new Set(sevenVerifiedPolarModels.map(([,m])=>m.uid)).size,7);
+for(const [site,m] of sevenVerifiedPolarModels){
+ assert.ok(m.creator&&m.method&&m.detail&&m.modelUrl.includes(m.uid));
+ const html=undergroundSitePopupHtml(site,m.uid);
+ assert.ok(html.includes('sketchfab.com/models/'+m.uid+'/embed'));
+ assert.ok(html.includes('sandbox="allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-presentation"'));
+ assert.ok(!html.includes('allow-top-navigation')&&!html.includes('allow-popups')&&!html.includes('target="_blank"'));
+}
+assert.match(UNDERGROUND_SCAN_SITES.find(s=>s.id==='geus-ordovician-cave-greenland').locationPrecision,/region-only/);
+assert.ok(!UNDERGROUND_SCAN_SITES.some(s=>s.models.some(m=>m.uid==='8232d52d0ad949be9e4df415b5480704')),'noncommercial Greenland U-cave model not added to BridgePoint');
 const fiveRemoteDeepCaves=[
  {id:'wells-gray-sarlaccs-pit-canada',coordinates:[-120,52.33306],uid:'df5dea76480f4ed3af018d885a13b704',method:/photogrammetry/i,detail:/ONLY reconstructs the exposed entrance/,placement:/regional/i},
  {id:'gorner-glacier-g6-moulin-switzerland',coordinates:[7.81528,45.94750],uid:'5dc79d2891f24e9fa571b9e910556ec8',method:/Photogrammetry/i,detail:/not a LiDAR point-cloud/,placement:/NOT the surveyed/i},
