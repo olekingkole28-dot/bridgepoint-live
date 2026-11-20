@@ -1,5 +1,5 @@
 'use strict';
-// BridgePoint global EM/RF signal spectrogram v1.
+// BridgePoint global EM/RF signal spectrogram v1 + immediate global Starlink v2 overlay.
 // Satellite positions are propagated public TLE/OMM estimates; beam cones are illustrative models,
 // never SpaceX beam-steering telemetry. Cell radii are planning envelopes, not measured RSSI.
 const VERSION = 1;
@@ -206,10 +206,10 @@ export function initBridgePointEmrfSpectrogram(target) {
   root.setAttribute('aria-label','Global electromagnetic and radio-frequency spectrogram');
   root.innerHTML =
     '<div data-head><div><b>GLOBAL ELECTROMAGNETIC / RF SPECTROGRAM</b><small>Satellite link footprints · mapped mobile sites · ionospheric HF propagation</small></div><button data-close type="button" aria-label="Close panel">×</button></div>' +
-    '<div data-stats><div data-stat><b data-beams>0</b><small>Starlink beam cones · modeled</small></div><div data-stat><b data-sites>0</b><small>Mapped telecom structures</small></div><div data-stat><b data-drap>—</b><small>NOAA D-RAP valid time (UTC)</small></div></div>' +
+    '<div data-stats><div data-stat><b data-beams>0</b><small>Starlink beams · modeled (public orbital elements)</small></div><div data-stat><b data-sites>0</b><small>Mapped telecom structures</small></div><div data-stat><b data-drap>—</b><small>NOAA D-RAP valid time (UTC)</small></div></div>' +
     '<div data-status aria-live="polite">Preparing the global RF field…</div>' +
     '<div data-legend><span><i style="background:#58e6ff"></i>4G nominal range</span><span><i class="five"></i>5G nominal range</span><span><i class="iono"></i>HF absorption</span><span><i style="background:#ffda85"></i>Starlink modeled beam</span></div>' +
-    '<p data-note>Starlink positions are propagated public orbital estimates; cones use an illustrative 8° half-angle, not SpaceX live beam telemetry. Mobile-site envelopes are nominal planning radii, not measured carrier coverage or live signal strength. FCC antenna registrations may include broadcast and other non-cellular structures, and are not proof of an active mobile radio. OpenStreetMap tower tags are incomplete. NOAA D-RAP describes HF ionospheric absorption, not 4G/5G or Starlink-band attenuation. Data coverage varies by source and region.</p>';
+    '<p data-note>Starlink positions derive from CelesTrak OMM records propagated with J2-adjusted approximate mechanics; thousands of 8° cones are illustrative coverage, NOT live SpaceX beam telemetry. Satellite 3D models use publicly reported exterior dimensions for V1.5 and V2 Mini, NOT original SpaceX CAD. Models are enlarged for visibility at global zoom. Mobile-site envelopes are nominal planning radii, not measured carrier coverage or live signal strength. FCC antenna registrations may include broadcast and other non-cellular structures, and are not proof of an active mobile radio. OpenStreetMap tower tags are incomplete. NOAA D-RAP describes HF ionospheric absorption, not 4G/5G or Starlink-band attenuation. Data coverage varies by source and region.</p>';
   if (dock) dock.insertBefore(root,dock.querySelector('#bpv-dock-actions'));
   else map.getContainer().appendChild(root);
   const $ = selector => root.querySelector(selector);
@@ -217,7 +217,7 @@ export function initBridgePointEmrfSpectrogram(target) {
   const st = {
     version:VERSION,map,root,active:false,closing:false,three:null,threePromise:null,beamLayer:null,beamMesh:null,beamMaterial:null,
     beams:[],sites:[],drap:{validAt:null,gridCells:0},drapPromise:null,sitesPromise:null,siteCache:null,siteCacheKey:'',
-    moveTimer:0,beamTimer:0,drapTimer:0,sitesTimer:0,orbitTimer:0,req:0,styleBound:false,lastError:null
+    moveTimer:0,beamTimer:0,drapTimer:0,sitesTimer:0,orbitTimer:0,req:0,styleBound:false,lastError:null,starlinkV2:null,starlinkPromise:null
   };
 
   function addSource(id,data) {
@@ -227,7 +227,7 @@ export function initBridgePointEmrfSpectrogram(target) {
     if (!map.getLayer(layer.id)) map.addLayer(layer);
   }
   function ensureMapLayers() {
-    if (!map.isStyleLoaded?.()) return false;
+    if (!map.getStyle?.()) return false;
     try {
       addSource(IDS.drapSource,EMPTY);
       addSource(IDS.siteSource,EMPTY);
@@ -441,10 +441,7 @@ export function initBridgePointEmrfSpectrogram(target) {
   async function ensureBeamLayer() {
     if (st.beamLayer && st.beamLayer.map===map) return st.beamLayer;
     const THREE=await loadThree();
-    if (!map.isStyleLoaded?.()) await new Promise(resolve=>{
-      let done=false;const end=()=>{if(done)return;done=true;map.off?.('style.load',end);map.off?.('idle',end);resolve();};
-      map.once?.('style.load',end);map.once?.('idle',end);setTimeout(end,8000);
-    });
+    // Do not stall for 8 seconds waiting for unrelated radar source tiles.
     if (map.getLayer(IDS.beamLayer)) throw new Error('Starlink beam layer handle was lost during a style replacement');
 
     // Instanced meshes keep the global view to three WebGL draws per frame,
@@ -493,7 +490,7 @@ export function initBridgePointEmrfSpectrogram(target) {
         layer.camera.projectionMatrix.copy(projection);
         layer.mesh.material.uniforms.u_time.value=now;
 
-        const beamCount=Math.min(64,st.beams.length);
+        const beamCount=st.starlinkV2?.state?.beamCount?0:Math.min(64,st.beams.length);
         const colorMatrix=new THREE.Matrix4();
         let renderedBeams=0;
         for(let i=0;i<beamCount;i++){
@@ -559,7 +556,7 @@ export function initBridgePointEmrfSpectrogram(target) {
     st.beams=beams;
     if (!map.getSource(IDS.footprintSource)) ensureMapLayers();
     map.getSource(IDS.footprintSource)?.setData(makeFootprints(beams));
-    $('[data-beams]').textContent=fmt(beams.length);
+    $('[data-beams]').textContent=fmt(st.starlinkV2?.state?.beamCount||beams.length);
     if (beams.length || st.sites.length) {
       try {
         const layer=await ensureBeamLayer();
@@ -580,26 +577,57 @@ export function initBridgePointEmrfSpectrogram(target) {
   }
 
   async function enable() {
-    if (st.active) { root.hidden=false;return true; }
-    st.active=true;
-    root.hidden=false;
-    if (!ensureMapLayers()) throw new Error('Map style is not ready for global EM/RF overlays');
-    setVisibility(true);
-    say('Global spectrogram on · loading public orbit, telecom-site and ionospheric fields…');
-    void loadDrap(true);
-    void loadSites(true);
-    void updateBeams();
-    clearInterval(st.beamTimer);st.beamTimer=setInterval(()=>{if(st.active&&!document.hidden)void updateBeams();},8000);
-    clearInterval(st.drapTimer);st.drapTimer=setInterval(()=>{if(st.active&&!document.hidden)void loadDrap(true);},120000);
-    clearInterval(st.sitesTimer);st.sitesTimer=setInterval(()=>{if(st.active&&!document.hidden)void loadSites(true);},900000);
-    clearInterval(st.orbitTimer);st.orbitTimer=setInterval(()=>{if(st.active&&!document.hidden)void updateBeams();},12000);
+    if(st.active){root.hidden=false;return true;}
+    st.active=true;root.hidden=false;
+    // Never await NOAA/Overpass/FCC/style idle before revealing modeled satellite beams.
+    ensureMapLayers();setVisibility(true);
+    say('GLOBAL EM/RF ON · loading thousands of modeled Starlink downlink cones from first-party CelesTrak OMM orbital data. NOAA and mapped towers load independently.');
+    void enableStarlinkThousandsV2();
+    setTimeout(()=>{if(st.active)void loadDrap(false);},2400);
+    setTimeout(()=>{if(st.active&&Number(map.getZoom?.()||0)>=7)void loadSites(false);},3300);
+    clearInterval(st.beamTimer);st.beamTimer=setInterval(()=>{if(st.active&&!document.hidden)void updateBeams();},18000);
+    clearInterval(st.drapTimer);st.drapTimer=setInterval(()=>{if(st.active&&!document.hidden)void loadDrap(false);},120000);
+    clearInterval(st.sitesTimer);st.sitesTimer=setInterval(()=>{if(st.active&&!document.hidden&&Number(map.getZoom?.()||0)>=7)void loadSites(false);},900000);
     map.triggerRepaint?.();
     return true;
   }
 
+  async function enableStarlinkThousandsV2(){
+    if(!st.active)return;
+    if(st.starlinkPromise)return st.starlinkPromise;
+    st.starlinkPromise=(async()=>{
+      try{
+        const mod=await import('./bridgepoint-emrf-starlink-global-v2.js?v=2-global-4200-omm-satellites');
+        if(!st.active)return;
+        let api=window.__BP_EMRF_STARLINK_BEAMS_V2__;
+        if(api?.map!==map)api=mod.initBridgePointStarlinkBeamV2(map);
+        if(!api?.enable)throw Error('Starlink globe beam renderer unavailable');
+        st.starlinkV2=api;
+        await api.enable();
+        if(!st.active)api.disable();
+      }catch(e){
+        st.lastError=String(e?.message||e);
+        say('Modeled Starlink beams unavailable: '+st.lastError+'. NOAA and mapped cellular RF remain independent.');
+        console.warn('BridgePoint Starlink thousands instanced renderer',e);
+      }
+    })().finally(()=>{st.starlinkPromise=null});
+    return st.starlinkPromise;
+  }
+  const onStarlinkV2Status=event=>{
+    if(!st.active)return;
+    const d=event.detail||{};
+    if(Number.isFinite(d.count)&&d.count>0){
+      $('[data-beams]').textContent=fmt(d.count);
+      say(fmt(d.count)+' source-orbit satellites · 3D modeled Starlink coverage beams active · '+fmt(d.catalogCount||0)+' public orbital records · exterior satellite dimensions published, not original CAD. RF footprints illustrative, not live transmissions.');
+    }else if(d.error){
+      say('Starlink orbital source unavailable: '+String(d.error)+'. Existing NOAA / terrestrial RF unaffected.');
+    }else if(d.message)say(d.message);
+  };
+  document.addEventListener('bp:emrf-starlink-status',onStarlinkV2Status);
   function disable() {
     if (!st.active) return false;
     st.active=false;
+    st.starlinkV2?.disable?.();
     clearInterval(st.beamTimer);st.beamTimer=0;
     clearInterval(st.drapTimer);st.drapTimer=0;
     clearInterval(st.sitesTimer);st.sitesTimer=0;
@@ -621,9 +649,10 @@ export function initBridgePointEmrfSpectrogram(target) {
         if (st.beams.length) void updateBeams();
         paintSites(st.sites);
       }
+      if(st.starlinkV2?.state?.enabled)map.triggerRepaint?.();
     },0);
   }
-  const onMove=()=>{if(st.active)scheduleSites(false);};
+  const onMove=()=>{if(st.active&&Number(map.getZoom?.()||0)>=7)scheduleSites(false);};
   const onVisibility=()=>{if(!st.active)return;if(document.hidden){return;}void updateBeams();};
   const closeButton=$('[data-close]');
   if (closeButton) closeButton.addEventListener('click',closePanel);
@@ -634,10 +663,12 @@ export function initBridgePointEmrfSpectrogram(target) {
     version:VERSION,map,root,enable,disable,open:openPanel,close:closePanel,
     refresh:()=>Promise.allSettled([loadDrap(true),loadSites(true),updateBeams()]),
     get active(){return st.active;},
-    get state(){return {version:VERSION,active:st.active,starlinkBeamCones:st.beams.length,mappedTelecomStructures:st.sites.length,drapValidAt:st.drap.validAt,drapGridCells:st.drap.gridCells,lastError:st.lastError,siteSources:['OpenStreetMap telecom tags','FCC Antenna Structure Registration (U.S.)'],atmosphereSource:'NOAA SWPC D-RAP HF absorption grid',beamMethod:'propagated public TLE/OMM positions + illustrative 8-degree nadir cone',cellMethod:'existing Wind / RF Fields nominal 4G 900 m / 5G 450 m planning envelopes; not measured RF coverage'};},
+    get state(){return {version:VERSION,active:st.active,starlinkBeamCones:st.starlinkV2?.state?.beamCount||st.beams.length,starlinkCatalogCount:st.starlinkV2?.state?.catalogCount||0,starlinkSourceError:st.starlinkV2?.state?.sourceError||null,mappedTelecomStructures:st.sites.length,drapValidAt:st.drap.validAt,drapGridCells:st.drap.gridCells,lastError:st.lastError,siteSources:['OpenStreetMap telecom tags','FCC Antenna Structure Registration (U.S.)'],atmosphereSource:'NOAA SWPC D-RAP HF absorption grid',beamMethod:'propagated public TLE/OMM positions + illustrative 8-degree nadir cone',cellMethod:'existing Wind / RF Fields nominal 4G 900 m / 5G 450 m planning envelopes; not measured RF coverage'};},
     destroy(){
       disable();map.off?.('moveend',onMove);map.off?.('zoomend',onMove);map.off?.('style.load',onStyle);
       document.removeEventListener('visibilitychange',onVisibility);
+      document.removeEventListener('bp:emrf-starlink-status',onStarlinkV2Status);
+      st.starlinkV2?.destroy?.();
       if(st.beamLayer&&map.getLayer(IDS.beamLayer)){try{map.removeLayer(IDS.beamLayer);}catch(_){}}
       for(const id of [IDS.drapFill,IDS.drapLine,IDS.fourFill,IDS.fourLine,IDS.fiveFill,IDS.fiveLine,IDS.heat,IDS.sites,IDS.footprintFill,IDS.footprintLine])try{if(map.getLayer(id))map.removeLayer(id);}catch(_){}
       for(const id of [IDS.drapSource,IDS.siteSource,IDS.fourSource,IDS.fiveSource,IDS.footprintSource])try{if(map.getSource(id))map.removeSource(id);}catch(_){}
