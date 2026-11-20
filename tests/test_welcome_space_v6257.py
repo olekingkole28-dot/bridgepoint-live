@@ -595,7 +595,7 @@ self.addEventListener('fetch',e=>{
         for marker in (
             "mobile ? 0.9 : 1.5",
             "const welcomeFrameIntervalMs = mobile ? ((navigator.deviceMemory || 4) <= 3 ? 50 : 1000 / 30) : 1000 / 30;",
-            "if(lastWelcomeRenderAt&&frameTime-lastWelcomeRenderAt<welcomeFrameIntervalMs)",
+            "const frameInterval = gateVisible ? welcomeGateFrameIntervalMs : welcomeFrameIntervalMs;",
             "lastWelcomeRenderAt=0;requestAnimationFrame(render)",
             "status:'scheduled-mobile-welcome'",
             "deferred until an explicit planet or moon selection to preserve first-frame responsiveness",
