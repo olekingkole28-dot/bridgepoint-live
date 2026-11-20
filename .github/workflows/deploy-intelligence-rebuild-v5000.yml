@@ -1354,7 +1354,7 @@ jobs:
           grep -Fq 'if (field.score <= 0.58 || field.score > 0.90) continue;' site/world-v2300-clouds.js
           grep -Fq 'maxThin = MOBILE ? 750 : 850' site/world-v2300-clouds.js
           grep -Fq '190000, 580000' site/world-v2300-clouds.js
-          grep -Fq 'maxMacro = MOBILE ? 110 : 130' site/world-v2300-clouds.js
+          grep -Fq 'maxMacro = MOBILE ? 150 : 210' site/world-v2300-clouds.js
           grep -Fq 'globalThinLayerFormations: globalCloudGeometryCache?.thinLayerFormationCount || 0' site/world-v2300-clouds.js
           grep -Fq 'if (Number(existingCloudController.version) >= 6330' site/world-v2300-clouds.js
           grep -Fq 'const columns = 40, rows = 18, maxMacro = MOBILE ? 110 : 130;' site/world-v2300-clouds.js
