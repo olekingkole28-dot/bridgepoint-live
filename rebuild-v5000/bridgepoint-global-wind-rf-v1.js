@@ -68,7 +68,7 @@ function streamGeometry(T,map,rows,kind,zoom){
  const count=Math.min(selected.length,budget);
  const linesPerSample=isJet?(mobile?4:5):mobile?7:10;
  const segments=mobile?16:20;
- const baseWidth=zoom<7?(isJet?17000:11000):clamp(2200*Math.pow(2,8-zoom),3,2200);
+ const baseWidth=zoom<7?(isJet?85000:110000)*clamp(Math.pow(2,3-zoom),.125,1):clamp(2200*Math.pow(2,8-zoom),3,2200);
  for(let i=0;i<count;i++){
   const row=selected[Math.floor(i*selected.length/count)];
   const [lat,lon,surfaceKmh,surfaceFrom,jetKmh,jetFrom,jetHeight]=row;
@@ -138,7 +138,7 @@ function ribbonMaterial(T,jet){
     float alpha=uOpacity*edge*(.18+.82*wisp)*shimmer;
     gl_FragColor=vec4(vColor,alpha);
   }`,
-  vertexColors:true,transparent:true,depthTest:true,depthWrite:false,side:T.DoubleSide,blending:T.NormalBlending
+  vertexColors:true,transparent:true,depthTest:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1,side:T.DoubleSide,blending:T.NormalBlending
  });
 }
 export function initBridgePointGlobalWindRfV1(target){
