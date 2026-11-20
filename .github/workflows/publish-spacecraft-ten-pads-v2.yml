@@ -1,0 +1,192 @@
+name: Publish BridgePoint Ten Additional Launch Pads v2
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-spacecraft-ten-pads-v2.yml'
+      - 'rebuild-v5000/bridgepoint-spacecraft-ten-pads-v2.js'
+      - 'rebuild-v5000/landing.js'
+      - 'rebuild-v5000/app.js'
+      - 'tests/spacecraft-ten-pads-v2.test.mjs'
+
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate ten new scenes and preserve four existing spacecraft
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module --check < rebuild-v5000/bridgepoint-spacecraft-ten-pads-v2.js
+          node --check rebuild-v5000/landing.js
+          node --check rebuild-v5000/app.js
+          node tests/spacecraft-ten-pads-v2.test.mjs
+
+      - name: Resolve latest successful caves-and-sites production snapshot
+        id: baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          RUN_ID="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/publish-cave-icons-only-v2.yml/runs?status=success&branch=main&per_page=15" --jq '.workflow_runs | map(select(.conclusion == "success")) | first | .id')"
+          test -n "$RUN_ID" && test "$RUN_ID" != null
+          ARTIFACT="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/artifacts" --jq '.artifacts[] | select((.expired|not) and (.name | startswith("bridgepoint-v5000-"))) | .name' | head -n 1)"
+          test -n "$ARTIFACT"
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=$ARTIFACT" >> "$GITHUB_OUTPUT"
+          echo "PRESERVING_LATEST_CAVES_AND_SITES_PAGES_SNAPSHOT $RUN_ID $ARTIFACT"
+
+      - name: Download complete verified Pages baseline
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ steps.baseline.outputs.artifact_name }}
+          run-id: ${{ steps.baseline.outputs.run_id }}
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/spacecraft-ten-base
+
+      - name: Overlay only ten-spacecraft scene module and entry imports
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCHIVE="$(find "$RUNNER_TEMP/spacecraft-ten-base" -name artifact.tar -type f -print -quit)"
+          test -n "$ARCHIVE"
+          SITE="$RUNNER_TEMP/spacecraft-ten-site"
+          mkdir -p "$SITE"
+          tar -xf "$ARCHIVE" -C "$SITE"
+          export SITE
+          python3 - <<'PY'
+          import hashlib, json, os, re
+          from pathlib import Path
+          site=Path(os.environ['SITE'])
+          rel='bridgepoint-spacecraft-ten-pads-v2.js'
+          required=(
+              'index.html','app/index.html','landing.js','app.js',
+              'bridgepoint-spacecraft-v1.js','bridgepoint-spacecraft-columbia-v1.js',
+              'bridgepoint-spacecraft-discovery-v1.js','bridgepoint-spacecraft-saturn-v1.js',
+              'bridgepoint-underground-scan-sites-v1.js','app/bridgepoint-underground-scan-sites-v1.js',
+              'bridgepoint-plane-wrecks-v1.js','bridgepoint-shipwrecks-v1.js',
+              'vendor/three.module.js'
+          )
+          before={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                  for p in site.rglob('*') if p.is_file()}
+          missing=set(required)-set(before)
+          if missing: raise SystemExit('PRESERVED_PRODUCTION_FILES_MISSING '+str(sorted(missing)))
+          # Never replace the cave data, globes, wrecks, auth, other spacecraft or any existing model.
+          for path in (rel,'app/'+rel):
+              p=site/path
+              p.write_bytes((Path('rebuild-v5000')/rel).read_bytes())
+          landing=site/'landing.js'
+          source=landing.read_text(encoding='utf-8')
+          if 'initSpacecraftTenPadsRenderer' not in source:
+              pattern=re.compile(r"(?m)^([ \t]*\['\./bridgepoint-spacecraft-saturn-v1\.js[^\n]*\],)$")
+              mobiles=list(pattern.finditer(source))
+              if len(mobiles)!=1: raise SystemExit('MOBILE_SPACECRAFT_INSERT_ANCHOR_MISSING')
+              at=mobiles[0]
+              mobile="          ['./"+rel+"?v=2-ten-pads-mobile','__BP_SPACECRAFT_TEN_PADS_V2__','initSpacecraftTenPadsRenderer','10 more launch pads'],"
+              source=source[:at.end()]+'\n'+mobile+source[at.end():]
+              anchor=".catch(e=>console.warn('BridgePoint Saturn V launch-site layer unavailable',e));"
+              if source.count(anchor)!=1: raise SystemExit('LANDING_SPACECRAFT_INSERT_ANCHOR_MISSING')
+              extra="void import('./"+rel+"?v=2-ten-pads-on-globe')\n .then(m=>{window.__BP_SPACECRAFT_TEN_PADS_V2__=m.initSpacecraftTenPadsRenderer(world)})\n .catch(e=>console.warn('BridgePoint ten launch-pad layer unavailable',e));"
+              source=source.replace(anchor,anchor+'\n'+extra,1)
+          if source.count('initSpacecraftTenPadsRenderer')!=2: raise SystemExit('LANDING_EXPECTED_MOBILE_AND_DESKTOP_INIT')
+          landing.write_text(source,encoding='utf-8')
+          app=site/'app.js'
+          source=app.read_text(encoding='utf-8')
+          if 'initSpacecraftTenPadsRenderer' not in source:
+              anchor=".catch(e=>console.warn('BridgePoint Saturn V launch-site layer unavailable',e)));"
+              if source.count(anchor)!=1: raise SystemExit('APP_SPACECRAFT_INSERT_ANCHOR_MISSING')
+              extra="scheduleOptionalRenderer(() => import('./"+rel+"?v=2-ten-pads-on-globe')\n .then(m=>{window.__BP_SPACECRAFT_TEN_PADS_V2__=m.initSpacecraftTenPadsRenderer(world)})\n .catch(e=>console.warn('BridgePoint ten launch-pad layer unavailable',e)));"
+              source=source.replace(anchor,anchor+'\n'+extra,1)
+          if source.count('initSpacecraftTenPadsRenderer')!=1: raise SystemExit('APP_SPACECRAFT_EXPECTED_ONE_INIT')
+          app.write_text(source,encoding='utf-8')
+          for entry,target in (('index.html','landing.js'),('app/index.html','app.js')):
+              p=site/entry
+              src=p.read_text(encoding='utf-8')
+              pattern=re.compile(r'src="([^"]*'+re.escape(target)+r'(?:\?[^"]*)?)"')
+              matches=list(pattern.finditer(src))
+              if len(matches)!=1: raise SystemExit('EXPECTED_SINGLE_ENTRY_SCRIPT '+entry)
+              url=matches[0].group(1)
+              if 'spacecraft10=v2' not in url: src=src.replace('src="'+url+'"','src="'+url+('&' if '?' in url else '?')+'spacecraft10=v2"',1)
+              p.write_text(src,encoding='utf-8')
+          after={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                 for p in site.rglob('*') if p.is_file()}
+          removed=set(before)-set(after)
+          changed={p for p in before if p in after and before[p]!=after[p]}
+          added=set(after)-set(before)
+          allowed_changes={'landing.js','app.js','index.html','app/index.html'}
+          allowed_adds={rel,'app/'+rel}
+          if removed or changed-allowed_changes or added-allowed_adds:
+              raise SystemExit('NO_REGRESSIONS_SCOPE_CHECK_FAILED '+json.dumps({
+                  'removed':sorted(removed),'unexpected_changed':sorted(changed-allowed_changes),
+                  'unexpected_added':sorted(added-allowed_adds)}))
+          if not allowed_adds.issubset(after): raise SystemExit('TEN_SCENE_MODULE_MISSING')
+          if (site/rel).read_bytes()!=(site/'app'/rel).read_bytes(): raise SystemExit('APP_ROOT_SPACECRAFT_MODULE_MISMATCH')
+          for old in ('bridgepoint-spacecraft-v1.js','bridgepoint-spacecraft-columbia-v1.js',
+                      'bridgepoint-spacecraft-discovery-v1.js','bridgepoint-spacecraft-saturn-v1.js'):
+              assert old in (site/'landing.js').read_text()
+              assert old in (site/'app.js').read_text()
+          print('BRIDGEPOINT_ADDITIVE_ONLY_PASS',len(added),'new files',len(changed),'entry cache/import changes; baseline file count',len(before))
+          PY
+          node --check "$SITE/landing.js"
+          node --check "$SITE/app.js"
+          node --input-type=module --check < "$SITE/bridgepoint-spacecraft-ten-pads-v2.js"
+          node --input-type=module --check < "$SITE/app/bridgepoint-spacecraft-ten-pads-v2.js"
+          cmp "$SITE/bridgepoint-spacecraft-ten-pads-v2.js" "$SITE/app/bridgepoint-spacecraft-ten-pads-v2.js"
+
+      - uses: actions/configure-pages@v5
+
+      - name: Upload preserved site plus ten new spacecraft scenes
+        uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-spacecraft-ten
+          path: ${{ runner.temp }}/spacecraft-ten-site
+          include-hidden-files: true
+
+      - name: Publish ten launch-pad scenes to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: bridgepoint-v5000-spacecraft-ten
+
+      - name: Verify production root and app spacecraft module
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="https://bridgepointintelligence.online"
+          ok=0
+          for pass in 1 2 3 4 5 6; do
+            if curl --retry 2 --retry-all-errors -fsSL --max-time 30 -H 'Cache-Control: no-cache' "$SITE/bridgepoint-spacecraft-ten-pads-v2.js?check=$GITHUB_SHA-$pass" | grep -Fq 'initSpacecraftTenPadsRenderer' &&
+               curl --retry 2 --retry-all-errors -fsSL --max-time 30 -H 'Cache-Control: no-cache' "$SITE/app/bridgepoint-spacecraft-ten-pads-v2.js?check=$GITHUB_SHA-$pass" | grep -Fq 'SPACECRAFT_TEN_LAUNCH_PADS' &&
+               curl --retry 2 --retry-all-errors -fsSL --max-time 30 -H 'Cache-Control: no-cache' "$SITE/landing.js?check=$GITHUB_SHA-$pass" | grep -Fq 'initSpacecraftTenPadsRenderer' &&
+               curl --retry 2 --retry-all-errors -fsSL --max-time 30 -H 'Cache-Control: no-cache' "$SITE/app.js?check=$GITHUB_SHA-$pass" | grep -Fq 'initSpacecraftTenPadsRenderer'; then
+              ok=1
+              break
+            fi
+            sleep 12
+          done
+          test "$ok" = 1
+          echo "LIVE_SPACECRAFT_TEN_ROOT_AND_APP_PASS"
