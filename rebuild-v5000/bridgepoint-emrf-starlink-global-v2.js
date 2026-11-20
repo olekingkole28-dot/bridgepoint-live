@@ -332,6 +332,16 @@ export function initBridgePointStarlinkBeamV2(target){
  map.on?.('style.load',handleStyle);map.on?.('moveend',onView);map.on?.('zoomend',onView);
  const api={
   map,version:2,
+  getFootprints(max=1200){
+   if(!state.enabled)return [];
+   const n=Math.min(Math.max(0,Math.floor(max)),state.positions.length);
+   const out=[];
+   for(let i=0;i<n;i++){
+    const p=state.positions[Math.floor(i*state.positions.length/n)];
+    out.push({lon:p.lon,lat:p.lat,id:p.id,name:p.name,altitudeM:p.altitudeM,radiusM:clamp(p.altitudeM*Math.tan(8*RAD),18000,200000)});
+   }
+   return out;
+  },
   get state(){return {enabled:state.enabled,beamCount:state.positions.length,
    catalogCount:state.catalog?.record_count||0,orbitSnapshotAt:state.catalog?.fetched_at||null,
    modelVisibilityScale:state.modelBoost,orbitTracks:'estimated source-based 3D orbital arcs',satellitePickCards:true,sourceError:state.sourceError,
