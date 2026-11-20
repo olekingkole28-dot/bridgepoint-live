@@ -64,7 +64,7 @@ function allocateFlames(T,groups,seed){
  for(const [index,item] of groups.entries()){
   const {x,y,z,height,energy=1}=item;
   const diversity=hash(seed+index*7.57);
-  const tongues=energy>1.1?5:3;
+  const tongues=energy>1.1?4:3;
   for(let k=0;k<tongues;k++){
    const h=height*(k===0?1: .48+.43*hash(seed+index*31+k));
    const angle=k*pi*2/tongues+diversity*3,spread=height*(k===0?.04:.11);
@@ -130,7 +130,7 @@ function allocateFlames(T,groups,seed){
  });
  const mesh=new T.Mesh(g,material);mesh.frustumCulled=false;
  mesh.name='BridgePoint true 3D turbulent wildfire tongues (GPU-animated)';
- return {mesh,uniforms,tongueCount:groups.length*3};
+ return {mesh,uniforms,tongueCount:positions.length/((rings+1)*radial*3)};
 }
 function makeGroundHeatSheet(T,map,fire,perimeters,centerElevation,allowed,seed){
  const radius=clamp(fire.radiusM||180,90,850),samples=26;
@@ -242,7 +242,7 @@ export function createBridgePointWildfireVolumeV4(T,{map,fire,perimeters=[],buil
  // Always visibly reconstruct around an observed detection even if its
  // upstream perimeter geometry is invalid or excludes the sampled centre.
  if(!accepted.length)accepted.push({x:0,y:.44,z:0,height:baseHeight,energy:1});
- for(const [i,b] of buildings.entries()){
+ for(const [i,b] of buildings.slice(0,9).entries()){
   const [x,z]=[(b.coord[0]-fire.coordinates[0])*111320*Math.cos(fire.coordinates[1]*pi/180),
                (b.coord[1]-fire.coordinates[1])*111320];
   if(!allowed(b.coord))continue;
@@ -251,7 +251,7 @@ export function createBridgePointWildfireVolumeV4(T,{map,fire,perimeters=[],buil
    accepted.push({x:x+(j-1)*1.2,y:y+b.height*(.65+j*.14),z:z+(j-1)*.6,
     height:clamp(b.height*.22+2.8,3.5,18),energy:1.12});
  }
- for(const [i,tr] of trees.entries()){
+ for(const [i,tr] of trees.slice(0,12).entries()){
   const [x,z]=[(tr.coord[0]-fire.coordinates[0])*111320*Math.cos(fire.coordinates[1]*pi/180),
                (tr.coord[1]-fire.coordinates[1])*111320];
   if(!allowed(tr.coord))continue;
