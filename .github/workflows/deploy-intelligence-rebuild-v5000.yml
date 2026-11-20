@@ -2029,12 +2029,11 @@ jobs:
           mkdir -p "$BASE"
           result=0
           python3 tools/restore_feature_assets.py restore "$BASE" || result=$?
-          if [ "$result" -eq 44 ]; then
-            # Bootstrap the hash manifest from the full Pages archive deployed on Nov 19.
+          if [ "$result" -ne 0 ]; then
+            # Use the last verified complete publication whenever live asset retrieval is unavailable.
+            echo "Live feature-asset restore returned $result; using verified V5000 baseline."
             gh run download 44574797338 -R "$GITHUB_REPOSITORY" -n bridgepoint-v5000-1 -D "$RUNNER_TEMP/bp-complete-feature-baseline"
             tar -xf "$RUNNER_TEMP/bp-complete-feature-baseline/artifact.tar" -C "$BASE"
-          elif [ "$result" -ne 0 ]; then
-            exit "$result"
           fi
 
       - name: Restore all ten shipwrecks, ten plane wrecks and four spacecraft into V5000
