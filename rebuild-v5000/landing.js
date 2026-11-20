@@ -350,7 +350,7 @@ async function startLandingNationalWeather(world){const m=world?.map;if(!m||!lan
 async function ensureLandingStormCloudWeather(world){
  const m=world?.map;if(!m)return null;
  if(!landingStormCloudWeatherPromise){landingStormCloudWeatherPromise=(async()=>{
-  if(!landingWeatherModules?.weather){const wm=await import('./world-v2300-weather.js?v=6330-storm-details-trajectories');landingWeatherModules={...(landingWeatherModules||{}),weather:wm.initWeather(m,{rainParticles:false,cloudsOnly:true})}}
+  if(!landingWeatherModules?.weather){const wm=await import('./world-v2300-weather.js?v=6330-storm-details-trajectories&zoom=6331');landingWeatherModules={...(landingWeatherModules||{}),weather:wm.initWeather(m,{rainParticles:false,cloudsOnly:true})}}
   const weather=landingWeatherModules.weather;weather?.setCloudsOnly?.(true);weather?.setActive?.(true);
   window.__BP_LANDING_STORM_CLOUD_WEATHER__={version:6200,enabled:true,cloudsOnly:true,rainParticles:false,sourceStormFeed:true,updatedAt:Date.now()};return weather;
  })().finally(()=>{landingStormCloudWeatherPromise=null})}
@@ -893,6 +893,10 @@ async function initMap(){
       });
       return window.__BP_LANDING_FEATURE_CONTROL_RESTORE_PROMISE__;
     };
+    // Weather is part of the always-on globe, including the lightweight phone entry.
+    // Start the renderer and its source feed independently so either can recover if the other fails.
+    void window.__BP_ACTIVATE_CLOUDS__().catch(e=>console.warn('BridgePoint mobile always-on 3D clouds unavailable',e));
+    void ensureLandingStormCloudWeather(world).catch(e=>console.warn('BridgePoint mobile always-on storm cloud feed unavailable',e));
     window.__BP_LANDING_MAP_BOOT__={stage:'world-ready-mobile-entry-lite',maplibre:true,module:true,world:true,optionalRenderers:'deferred',at:Date.now()};
     return;
   }
