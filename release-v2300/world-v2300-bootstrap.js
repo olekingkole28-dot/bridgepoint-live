@@ -1,7 +1,7 @@
 import{VERSION}from'./world-v2300-config.js?v=6238-pc-runtime';
 import{initWorld}from'./world-v2300-map.js?v=6238-pc-runtime';
 import{initDetails}from'./world-v2300-details.js';
-import{initWeather}from'./world-v2300-weather.js?v=6318-storm-icons-clickable';
+import{initWeather}from'./world-v2300-weather.js?v=6330-storm-details-trajectories';
 import{initPresentWeather}from'./world-v2300-present-weather.js';
 import{initWeatherKey}from'./world-v2300-weather-key.js';
 import{initWeatherPersistence}from'./world-v2300-weather-persistence.js';
