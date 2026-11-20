@@ -1,4 +1,4 @@
-name: Publish FAA Persistent Category Icons Only v5
+name: Publish FAA Persistent Category Icons Only v6 - Visibility Gate Repair
 on:
   workflow_dispatch:
   push:
@@ -32,11 +32,15 @@ jobs:
         run: |
           set -euo pipefail
           node --check rebuild-v5000/bridgepoint-faa-obstruction-towers-v1.js
+          node --check rebuild-v5000/bridgepoint-drone-awareness-v1.js
           node --check rebuild-v5000/landing.js
           node --check rebuild-v5000/app.js
           node tests/faa-obstruction-towers-v1.test.mjs
           grep -Fq 'function buildTowerModel(THREE,feature)' rebuild-v5000/bridgepoint-faa-obstruction-towers-v1.js
           grep -Fq 'keepFAAIconsVisible(state)' rebuild-v5000/bridgepoint-faa-obstruction-towers-v1.js
+          grep -Fq "allowLayerCategory?.('faa',state.enabled)" rebuild-v5000/bridgepoint-faa-obstruction-towers-v1.js
+          grep -Fq "if(target.id==='bp-faa-obstructions-toggle-v1')return'faa'" rebuild-v5000/bridgepoint-drone-awareness-v1.js
+          grep -Fq 'faa:/^bp-faa-obstructions-/i' rebuild-v5000/bridgepoint-drone-awareness-v1.js
       - name: Verify current PC-hosted Cloudflare auth is unchanged
         run: |
           set -euo pipefail
@@ -97,7 +101,8 @@ jobs:
           from pathlib import Path
           site=Path(os.environ['SITE'])
           needed=['index.html','app/index.html','landing.js','app.js',
-                  'bridgepoint-faa-obstruction-towers-v1.js','app/bridgepoint-faa-obstruction-towers-v1.js']
+                  'bridgepoint-faa-obstruction-towers-v1.js','app/bridgepoint-faa-obstruction-towers-v1.js',
+                  'bridgepoint-drone-awareness-v1.js','app/bridgepoint-drone-awareness-v1.js']
           for rel in needed:
               if not (site/rel).is_file():raise SystemExit('Missing baseline '+rel)
               url='https://bridgepointintelligence.online/'+rel+'?faa-baseline='+os.environ['GITHUB_SHA']
@@ -111,19 +116,22 @@ jobs:
           module=Path('rebuild-v5000/bridgepoint-faa-obstruction-towers-v1.js').read_bytes()
           for rel in ('bridgepoint-faa-obstruction-towers-v1.js','app/bridgepoint-faa-obstruction-towers-v1.js'):
               (site/rel).write_bytes(module)
+          gate=Path('rebuild-v5000/bridgepoint-drone-awareness-v1.js').read_bytes()
+          for rel in ('bridgepoint-drone-awareness-v1.js','app/bridgepoint-drone-awareness-v1.js'):
+              (site/rel).write_bytes(gate)
           for rel in ('landing.js','app.js'):
               p=site/rel
               s=p.read_text()
-              oldkey='&icons=4-faa-visible-persistent'
+              oldkey='&icons=5-faa-viewport-icons'
               expected=2 if rel=='landing.js' else 1
               if s.count(oldkey)!=expected:raise SystemExit(f'{rel}: unexpected FAA loader state')
-              p.write_text(s.replace(oldkey,'&icons=5-faa-viewport-icons'))
+              p.write_text(s.replace(oldkey,'&icons=6-faa-layer-gate-permission'))
           for rel in ('index.html','app/index.html'):
               p=site/rel
               s=p.read_text()
-              key='faa=4-faa-visible-persistent'
+              key='faa=5-faa-viewport-icons'
               if s.count(key)!=1:raise SystemExit(f'{rel}: unexpected FAA cache state')
-              p.write_text(s.replace(key,'faa=5-faa-viewport-icons'))
+              p.write_text(s.replace(key,'faa=6-faa-layer-gate-permission'))
           new={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file()}
           expected=set(needed)
           changed={k for k in old if old[k]!=new.get(k)}
@@ -132,13 +140,14 @@ jobs:
           for rel in ('data/bridgepoint-faa-obstructions-v1.json.gz','app/data/bridgepoint-faa-obstructions-v1.json.gz'):
               if not (site/rel).is_file() or (site/rel).stat().st_size<1000:
                   raise SystemExit('Missing FAA DOF data; refusing blank-icons deployment: '+rel)
-          print('FAA_ONLY_SCOPE_PASS six files, no deletions or unrelated changes')
+          print('FAA_ONLY_SCOPE_PASS eight files, no deletions or unrelated changes')
           PY
           node --check "$SITE/landing.js"
           node --check "$SITE/app.js"
           node --check "$SITE/bridgepoint-faa-obstruction-towers-v1.js"
+          node --check "$SITE/bridgepoint-drone-awareness-v1.js"
       - uses: actions/configure-pages@v5
-      - name: Upload preserved site with six FAA-only changes
+      - name: Upload preserved site with eight FAA-only changes
         uses: actions/upload-pages-artifact@v4
         with:
           name: bridgepoint-v5000-${{ github.run_attempt }}
@@ -158,7 +167,11 @@ jobs:
           grep -Fq 'cluster:false,maxzoom:17' /tmp/faa-live.js
           grep -Fq 'new TextDecoder' /tmp/faa-live.js
           curl --retry 8 --retry-all-errors -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/landing.js?verify=$GITHUB_SHA" > /tmp/faa-landing.js
-          grep -Fq 'icons=5-faa-viewport-icons' /tmp/faa-landing.js
+          grep -Fq 'icons=6-faa-layer-gate-permission' /tmp/faa-landing.js
+          grep -Fq "allowLayerCategory?.('faa',state.enabled)" /tmp/faa-live.js
+          curl --retry 8 --retry-all-errors -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/bridgepoint-drone-awareness-v1.js?verify=$GITHUB_SHA" > /tmp/faa-gate-live.js
+          grep -Fq "if(target.id==='bp-faa-obstructions-toggle-v1')return'faa'" /tmp/faa-gate-live.js
+          grep -Fq 'faa:/^bp-faa-obstructions-/i' /tmp/faa-gate-live.js
           curl --retry 3 --retry-all-errors -fsSL https://characterization-seas-total-adopt.trycloudflare.com/auth/v1/health > /tmp/faa-auth.json
           grep -Fq '"local":true' /tmp/faa-auth.json
           echo 'FAA_ONLY_LIVE_PUBLISH_PASS'
