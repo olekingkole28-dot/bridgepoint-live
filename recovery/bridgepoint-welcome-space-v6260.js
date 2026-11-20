@@ -16,7 +16,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
 
 (() => {
   'use strict';
-  const VERSION = 'v6306-mobile-planet-picker';
+  const VERSION = 'v6400-fortnite-weather-welcome';
   if (window.__BP_WELCOME_SPACE_V6257__?.version) return;
   const host = document.querySelector('#bpWelcomeGateV1 .bpw-celestial-system');
   if (!host) return;
@@ -1023,9 +1023,165 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   const haze=new THREE.Mesh(hazeGeometry,new THREE.MeshBasicMaterial({color:0x111c48,side:THREE.BackSide,transparent:true,opacity:.075,depthWrite:false}));
   scene.add(haze);
 
+  // Persistent Fortnite-style weather atmosphere for the welcome globe. These
+  // forms are intentionally visual models: live source-backed storms remain
+  // authoritative in the map, while the welcome scene never goes empty.
+  const weatherGroup = new THREE.Group();
+  weatherGroup.name = 'Persistent animated weather atmosphere';
+  weatherGroup.renderOrder = 1;
+  scene.add(weatherGroup);
+  const weatherPuffGeometry = new THREE.SphereGeometry(1, mobile ? 10 : 14, mobile ? 7 : 10);
+  const weatherCloudMaterial = new THREE.MeshStandardMaterial({
+    color: 0xf4f8ff, roughness: 1, metalness: 0, transparent: true,
+    opacity: .82, depthTest: true, depthWrite: false
+  });
+  const weatherStormMaterial = new THREE.MeshStandardMaterial({
+    color: 0x3b4655, roughness: 1, metalness: 0, transparent: true,
+    opacity: .90, depthTest: true, depthWrite: false
+  });
+  const weatherRadarMaterials = [
+    new THREE.MeshBasicMaterial({color:0x1b6dff,transparent:true,opacity:.82,depthTest:true,depthWrite:false}),
+    new THREE.MeshBasicMaterial({color:0x00d86a,transparent:true,opacity:.86,depthTest:true,depthWrite:false}),
+    new THREE.MeshBasicMaterial({color:0xffdc27,transparent:true,opacity:.90,depthTest:true,depthWrite:false}),
+    new THREE.MeshBasicMaterial({color:0xff751d,transparent:true,opacity:.92,depthTest:true,depthWrite:false}),
+    new THREE.MeshBasicMaterial({color:0xf51e3d,transparent:true,opacity:.94,depthTest:true,depthWrite:false})
+  ];
+  const weatherHash = (a,b=0,c=0) => {
+    const value = Math.sin(a*127.1 + b*311.7 + c*74.7) * 43758.5453;
+    return value - Math.floor(value);
+  };
+  const weatherSurfaceFrame = (lat, lon, radius=1.026) => {
+    const latitude = THREE.MathUtils.degToRad(THREE.MathUtils.clamp(lat,-88,88));
+    const longitude = THREE.MathUtils.degToRad(lon);
+    const cosLatitude = Math.cos(latitude);
+    const normal = new THREE.Vector3(
+      -Math.sin(longitude)*cosLatitude,
+      Math.sin(latitude),
+      Math.cos(longitude)*cosLatitude
+    ).normalize();
+    const point = normal.clone().multiplyScalar(radius);
+    const referenceAxis = Math.abs(normal.y) < .92 ? new THREE.Vector3(0,1,0) : new THREE.Vector3(1,0,0);
+    const east = new THREE.Vector3().crossVectors(referenceAxis,normal).normalize();
+    const north = new THREE.Vector3().crossVectors(normal,east).normalize();
+    return {point,normal,east,north};
+  };
+  const makeWeatherCluster = (lat, lon, scale, storm=false, seed=0) => {
+    const frame = weatherSurfaceFrame(lat,lon,1.028);
+    const root = new THREE.Group();
+    root.name = storm ? 'Dark storm cloud cluster' : 'Bright billowy cloud cluster';
+    root.position.copy(frame.point);
+    root.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),frame.normal);
+    root.userData.weatherCloud = true;
+    const count = storm ? (mobile ? 7 : 10) : (mobile ? 5 : 8);
+    for(let i=0;i<count;i++){
+      const angle = weatherHash(seed,i,1)*Math.PI*2;
+      const ring = i===0 ? 0 : scale*(.16 + weatherHash(seed,i,2)*.58);
+      const puff = new THREE.Mesh(weatherPuffGeometry,storm ? weatherStormMaterial : weatherCloudMaterial);
+      puff.position.set(
+        Math.cos(angle)*ring,
+        Math.sin(angle)*ring*.68,
+        .012 + weatherHash(seed,i,3)*scale*.34
+      );
+      const sx = scale*(.28 + weatherHash(seed,i,4)*.40);
+      const sy = scale*(.22 + weatherHash(seed,i,5)*.34);
+      const sz = scale*(.18 + weatherHash(seed,i,6)*.28);
+      puff.scale.set(sx,sy,sz);
+      root.add(puff);
+    }
+    weatherGroup.add(root);
+    return root;
+  };
+  const makeRadarSpiral = (lat, lon, seed=0) => {
+    const frame = weatherSurfaceFrame(lat,lon,1.034);
+    const root = new THREE.Group();
+    root.name = 'Animated colored hurricane field';
+    root.position.copy(frame.point);
+    root.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),frame.normal);
+    root.userData.weatherCloud = true;
+    const stepCount = mobile ? 24 : 38;
+    for(let i=0;i<stepCount;i++){
+      const t = i/Math.max(1,stepCount-1);
+      const angle = t*Math.PI*4.5 + .18*Math.sin(t*18+seed);
+      const radius = .014 + .17*t;
+      const cloud = new THREE.Mesh(weatherPuffGeometry,weatherRadarMaterials[Math.min(4,Math.floor(t*5))]);
+      cloud.position.set(Math.cos(angle)*radius,Math.sin(angle)*radius*.74,.036+.022*Math.sin(t*Math.PI));
+      const size = .014 + .024*(1-t);
+      cloud.scale.set(size*(1.55+.45*Math.sin(t*9)),size,size*.58);
+      root.add(cloud);
+    }
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(.032,mobile?10:16,mobile?7:10),
+      new THREE.MeshBasicMaterial({color:0x101629,transparent:true,opacity:.95,depthTest:true,depthWrite:false}));
+    eye.position.z=.064;
+    root.add(eye);
+    const marker = new THREE.Mesh(new THREE.TorusGeometry(.092,.008,mobile?6:10,mobile?18:28),
+      new THREE.MeshBasicMaterial({color:0xff3358,transparent:true,opacity:.92,depthTest:true,depthWrite:false}));
+    marker.position.z=.11;
+    marker.userData.body='weather';
+    marker.userData.weatherType='hurricane';
+    root.add(marker);
+    weatherGroup.add(root);
+    return {root,marker};
+  };
+  const makeTornado = (lat, lon, seed=0) => {
+    const frame = weatherSurfaceFrame(lat,lon,1.034);
+    const root = new THREE.Group();
+    root.name = 'Animated modeled tornado';
+    root.position.copy(frame.point);
+    root.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),frame.normal);
+    root.userData.weatherCloud = true;
+    const steps = mobile ? 9 : 14;
+    for(let i=0;i<steps;i++){
+      const t=i/Math.max(1,steps-1);
+      const puff = new THREE.Mesh(weatherPuffGeometry,weatherStormMaterial);
+      const angle = seed + t*15.0;
+      const radius = .060*(1-t*.72);
+      puff.position.set(Math.cos(angle)*radius,Math.sin(angle)*radius*.72,.035+t*.25);
+      const width = .075*(1-t*.58);
+      puff.scale.set(width*(1.0+.18*Math.sin(i*2.1)),width*.72,width*.58);
+      root.add(puff);
+    }
+    const radarBase = new THREE.Mesh(new THREE.TorusGeometry(.082,.012,mobile?6:10,mobile?18:28),
+      new THREE.MeshBasicMaterial({color:0xff3a28,transparent:true,opacity:.88,depthTest:true,depthWrite:false}));
+    radarBase.position.z=.075;
+    root.add(radarBase);
+    const marker = new THREE.Mesh(new THREE.TorusGeometry(.066,.007,mobile?6:10,mobile?18:26),
+      new THREE.MeshBasicMaterial({color:0x42d9ff,transparent:true,opacity:.94,depthTest:true,depthWrite:false}));
+    marker.position.z=.14;
+    marker.userData.body='weather';
+    marker.userData.weatherType='tornado';
+    root.add(marker);
+    weatherGroup.add(root);
+    return {root,marker};
+  };
+  const weatherClusters = [];
+  const clusterCount = mobile ? 22 : 42;
+  for(let i=0;i<clusterCount;i++){
+    const lat = -66 + weatherHash(i,1)*132;
+    const lon = -180 + weatherHash(i,2)*360;
+    const size = .055 + weatherHash(i,3)*.075;
+    weatherClusters.push(makeWeatherCluster(lat,lon,size,false,i));
+  }
+  const stormClusterCount = mobile ? 5 : 10;
+  for(let i=0;i<stormClusterCount;i++){
+    const lat = -48 + weatherHash(i,21)*96;
+    const lon = -180 + weatherHash(i,22)*360;
+    makeWeatherCluster(lat,lon,.075+weatherHash(i,23)*.075,true,100+i);
+  }
+  const welcomeHurricane = makeRadarSpiral(19,-58,4.6);
+  const welcomeTornado = makeTornado(35.6,-97.4,2.4);
+  const weatherCard = document.createElement('div');
+  weatherCard.hidden = true;
+  weatherCard.setAttribute('role','dialog');
+  weatherCard.setAttribute('aria-label','Animated weather field details');
+  weatherCard.style.cssText = 'position:absolute;z-index:12;left:12px;right:12px;bottom:clamp(118px,17vh,176px);max-width:360px;margin:auto;padding:14px 16px;border:1px solid rgba(118,214,255,.58);border-radius:18px;background:linear-gradient(145deg,rgba(5,18,38,.95),rgba(13,33,59,.92));box-shadow:0 14px 34px rgba(0,0,0,.44);color:#eef8ff;font:600 12px/1.42 system-ui,sans-serif;letter-spacing:.02em;pointer-events:auto;backdrop-filter:blur(12px)';
+  weatherCard.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><strong style="font-size:13px;letter-spacing:.08em">ANIMATED WEATHER FIELD</strong><button type="button" aria-label="Close weather details" style="border:0;background:transparent;color:#bfeaff;font-size:20px;line-height:1;cursor:pointer">×</button></div><div style="margin-top:8px;color:#c3e9ff">Colored cyclone spiral and modeled tornado are rotating with surrounding cloud motion.</div><div style="margin-top:7px;color:#91a9bd;font-size:11px">Visual model on the welcome globe; live source-backed alerts and storm details remain in the map view.</div>';
+  host.appendChild(weatherCard);
+  weatherCard.querySelector('button')?.addEventListener('click',()=>{weatherCard.hidden=true;});
+
+
   const raycaster=new THREE.Raycaster();
   const pointer=new THREE.Vector2();
-  const clickables=[earthDepthOccluder,moonMesh,sunMesh];
+  const clickables=[earthDepthOccluder,moonMesh,sunMesh, welcomeHurricane.marker, welcomeTornado.marker];
   let viewState='overview',focusedObject=null;
   let focusLocalTarget=null,moonTerrainController=null,sunFocusLocalTarget=null;
   let saturnFocusMesh=null,saturnFocusLocalTarget=null;
@@ -1772,6 +1928,8 @@ function createMoonTerrainController() {
   }
   function focusBody(body){
     const key=String(body||'').toLowerCase();
+    if(key==='weather'){weatherCard.hidden=false;return;}
+    weatherCard.hidden=true;
     const bodyData=solarCosmos?.getBody?.(key)||null;
     const focused=key==='moon'?moonMesh:key==='sun'?sunMesh:key==='earth'?earthDepthOccluder:bodyData?.mesh||null;
     if(!focused)return;
@@ -2461,6 +2619,12 @@ function createMoonTerrainController() {
     }else if(lastSpaceZoomDistance!==0){
       window.__BP_WELCOME_SYNC_SPACE_ZOOM_V1__?.(1);
       lastSpaceZoomDistance=0;
+    }
+    const weatherVisible = viewState==='overview' || (viewState==='planet' && focusedObject===earthDepthOccluder);
+    weatherGroup.visible = weatherVisible;
+    if(weatherVisible){
+      if(!reducedMotion)weatherGroup.rotation.y = t*.012;
+      weatherGroup.children.forEach((node,i)=>{if(node.userData.weatherCloud)node.rotation.z=Math.sin(t*.48+i*.63)*.045;});
     }
     sunMaterial.uniforms.uTime.value=t;
     coronaMaterial.uniforms.uTime.value=t;
