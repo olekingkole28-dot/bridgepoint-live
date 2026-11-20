@@ -3,13 +3,13 @@ import { readFile } from 'node:fs/promises';
 import {UNDERGROUND_SCAN_SITES,UNDERGROUND_SCAN_RIGHTS_HOLDS,buildUndergroundSiteFeatures,undergroundSitePopupHtml} from '../rebuild-v5000/bridgepoint-underground-scan-sites-v1.js';
 
 const features=buildUndergroundSiteFeatures();
-assert.equal(features.length,43,'forty-three reviewed cave site anchors are mapped');
-assert.equal(UNDERGROUND_SCAN_SITES.reduce((n,s)=>n+s.models.length,0),51,'fifty-one real creator-hosted 3D models and tours are cataloged');
+assert.equal(features.length,53,'fifty-three reviewed cave site anchors are mapped');
+assert.equal(UNDERGROUND_SCAN_SITES.reduce((n,s)=>n+s.models.length,0),63,'sixty-three real creator-hosted 3D models and tours are cataloged');
 assert.equal(UNDERGROUND_SCAN_RIGHTS_HOLDS.length,3,'rights/source holds are exposed');
 assert.ok(features.every(f=>f.geometry.type==='Point'&&f.properties.iconImage));
 assert.ok(UNDERGROUND_SCAN_SITES.every(s=>s.models.every(m=>m.uid&&m.creator&&(
  m.matterportTourId ? (m.matterportTourId==='1BTGHi85s96'&&m.modelUrl==='https://my.matterport.com/show/?m=1BTGHi85s96'&&m.license.includes('original rights retained'))
- : m.embedOnly ? (['cbe5a1c208674091b48f65ac2d4cca94','be7675a23595489c86211608f0fb1886','ccfc7c2f43214b559e93c4857eb6ed4a','899e6c8016954dab825dffb07d583fb9','d0c88d0853844a8e9a1de22a342326cb','34861aec56564489bdb8ec1cd030ff00','239d912831f6471da95a2fd672b53398','74b4a560749743eaa53cd89793b4a629','cd6c5687814e484da0bf4d360a324c60','2989d29a52a0494aa0cd2e279b411247','df5dea76480f4ed3af018d885a13b704','5dc79d2891f24e9fa571b9e910556ec8','2f06ab8d1bd14ce5a85c417fefd91cda','85a2ff52fa7b4a44b87033145fd1b01f','7161373c7ccb48da9aa00e52214df1b8','11aedb4bc1064685a8cfe33f8956a108','14773139954740e48be1fa1861d01eb7','d1691e402d0840378804f2df5aaedb2b','a35b2ecd72094b2d8a2fef9a32b98186','b9aac38260054f5f8858be684279c37e','e2420bd47de1497993addd2b3f6e1e7e','a8890e16ca49498c892d82496cdbbae9','bf983bfabc194e94893d9955ed87f471','e36a8a863b8348159d237ea808d492d7','3be79c6a956c423d9b05fa67ce559ee9','a873f750875d4f37a3784ffddc9f5abc','d07aa3cf92a4478684130d9261e1d94c','d010364e4b684a488e934d6664a3c54e','17c248ec0c284b6ebbd201d35753c4b8','c92b96fed07743ce8277619d2a6fb347','5e49a7bc370147f7a57d70187257ffb7','e0e487e56083459d935bde3eb51f12ae','2eac394c5e4945deadadbc45c32a093e','58f3d97cd9b3410a8f34193979c4d13a','3ed9bf8dd9eb4821851b56974c4f1a6b','a96e1387d5af46189920d78b9297c898','c3e3ce73bff4404b8006014b240ac8c2'].includes(m.uid)&&(['cd6c5687814e484da0bf4d360a324c60','e2420bd47de1497993addd2b3f6e1e7e','bf983bfabc194e94893d9955ed87f471','3be79c6a956c423d9b05fa67ce559ee9','a873f750875d4f37a3784ffddc9f5abc','58f3d97cd9b3410a8f34193979c4d13a'].includes(m.uid)?m.license==='CC Attribution':m.license.includes('no reuse license displayed'))&&m.modelUrl.startsWith('https://sketchfab.com/3d-models/'))
+ : m.embedOnly ? (['cbe5a1c208674091b48f65ac2d4cca94','be7675a23595489c86211608f0fb1886','ccfc7c2f43214b559e93c4857eb6ed4a','899e6c8016954dab825dffb07d583fb9','d0c88d0853844a8e9a1de22a342326cb','34861aec56564489bdb8ec1cd030ff00','239d912831f6471da95a2fd672b53398','74b4a560749743eaa53cd89793b4a629','cd6c5687814e484da0bf4d360a324c60','2989d29a52a0494aa0cd2e279b411247','df5dea76480f4ed3af018d885a13b704','5dc79d2891f24e9fa571b9e910556ec8','2f06ab8d1bd14ce5a85c417fefd91cda','85a2ff52fa7b4a44b87033145fd1b01f','7161373c7ccb48da9aa00e52214df1b8','11aedb4bc1064685a8cfe33f8956a108','14773139954740e48be1fa1861d01eb7','d1691e402d0840378804f2df5aaedb2b','a35b2ecd72094b2d8a2fef9a32b98186','b9aac38260054f5f8858be684279c37e','e2420bd47de1497993addd2b3f6e1e7e','a8890e16ca49498c892d82496cdbbae9','bf983bfabc194e94893d9955ed87f471','e36a8a863b8348159d237ea808d492d7','3be79c6a956c423d9b05fa67ce559ee9','a873f750875d4f37a3784ffddc9f5abc','d07aa3cf92a4478684130d9261e1d94c','d010364e4b684a488e934d6664a3c54e','17c248ec0c284b6ebbd201d35753c4b8','c92b96fed07743ce8277619d2a6fb347','5e49a7bc370147f7a57d70187257ffb7','e0e487e56083459d935bde3eb51f12ae','2eac394c5e4945deadadbc45c32a093e','58f3d97cd9b3410a8f34193979c4d13a','3ed9bf8dd9eb4821851b56974c4f1a6b','a96e1387d5af46189920d78b9297c898','c3e3ce73bff4404b8006014b240ac8c2','1663083e3d0f46bb99efccd8a4a8f941','nd70Yvu9EP5yEA4pb7iSCbMb25q','d7d0abceb316400b828d28cbf26ed6d2','12d1180e0d2f4c24b1f827d3322f4d54','78580c37f2a54a6791919d7a15b87719','9c4363f2250f4b04bdcd163d2843dd91','f6f8ce48fe0f49339ba2dfab69d49174','ca8ba859d0694aab8c0c046804c36b55','dadb5c06f534428a8d27fbff612afc6a','d3595bd7ab974e4e8eb2efa3ceeec04d','e23deee8940f4b048a2c8a99e98358f9','9ab1ea083f9e464fb2da2a166ea01111'].includes(m.uid)&&(['cd6c5687814e484da0bf4d360a324c60','e2420bd47de1497993addd2b3f6e1e7e','bf983bfabc194e94893d9955ed87f471','3be79c6a956c423d9b05fa67ce559ee9','a873f750875d4f37a3784ffddc9f5abc','58f3d97cd9b3410a8f34193979c4d13a'].includes(m.uid)?m.license==='CC Attribution':m.license.includes('no reuse license displayed'))&&m.modelUrl.startsWith('https://sketchfab.com/3d-models/'))
  : (m.license==='CC Attribution'&&m.modelUrl.startsWith('https://sketchfab.com/3d-models/'))
 ))));
 assert.equal(UNDERGROUND_SCAN_SITES.find(s=>s.id==='paris-catacombs').models.length,3);
@@ -250,6 +250,30 @@ for(const [site,m] of sevenVerifiedPolarModels){
 }
 assert.match(UNDERGROUND_SCAN_SITES.find(s=>s.id==='geus-ordovician-cave-greenland').locationPrecision,/region-only/);
 assert.ok(!UNDERGROUND_SCAN_SITES.some(s=>s.models.some(m=>m.uid==='8232d52d0ad949be9e4df415b5480704')),'noncommercial Greenland U-cave model not added to BridgePoint');
+const tenUsCaveSitesV20=[["alabama-300m-archived-cave",["1663083e3d0f46bb99efccd8a4a8f941"]],["mammoth-cave-kentucky-3d-survey",["nd70Yvu9EP5yEA4pb7iSCbMb25q"]],["carlsbad-painted-grotto-nm",["d7d0abceb316400b828d28cbf26ed6d2"]],["big-bat-cave-kentucky-real-mesh",["12d1180e0d2f4c24b1f827d3322f4d54","78580c37f2a54a6791919d7a15b87719"]],["hidden-cave-fallon-nevada-photogrammetry",["9c4363f2250f4b04bdcd163d2843dd91","f6f8ce48fe0f49339ba2dfab69d49174"]],["petit-jean-rock-house-cave-arkansas",["ca8ba859d0694aab8c0c046804c36b55"]],["paisley-cave-one-oregon",["dadb5c06f534428a8d27fbff612afc6a"]],["lava-beds-photo-cave-california",["d3595bd7ab974e4e8eb2efa3ceeec04d"]],["russell-cave-national-monument-alabama",["e23deee8940f4b048a2c8a99e98358f9"]],["chilly-bowl-boogie-tube-arkansas",["9ab1ea083f9e464fb2da2a166ea01111"]]];
+assert.equal(tenUsCaveSitesV20.length,10,'ten distinct US cave map markers');
+assert.equal(tenUsCaveSitesV20.reduce((n,[,models])=>n+models.length,0),12,'two extra choices at Big Bat and Hidden Cave');
+assert.equal(new Set(tenUsCaveSitesV20.map(([id])=>id)).size,10);
+for(const [siteId,modelIds] of tenUsCaveSitesV20){
+ const site=UNDERGROUND_SCAN_SITES.find(s=>s.id===siteId);
+ assert.ok(site&&site.type==='cave','genuine cave environment site '+siteId);
+ assert.deepEqual(site.models.map(m=>m.uid),modelIds,'creator-hosted 3D scans for '+siteId);
+ assert.equal(site.models.length,modelIds.length,'no duplicate or synthetic scans');
+ assert.ok(site.locationPrecision.length>50&&site.locationNote.length>30);
+ assert.ok(site.models.every(m=>m.embedOnly&&m.method&&m.detail&&m.creator));
+ for(const uid of modelIds){
+  const html=undergroundSitePopupHtml(site,uid);
+  assert.ok(html.includes('sketchfab.com/models/'+uid+'/embed'),'in-BridgePoint viewer '+uid);
+  assert.ok(html.includes('sandbox="allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-presentation"'));
+  assert.ok(!html.includes('allow-top-navigation')&&!html.includes('allow-popups')&&!html.includes('target="_blank"'));
+ }
+}
+assert.match(UNDERGROUND_SCAN_SITES.find(s=>s.id==='alabama-300m-archived-cave').locationPrecision,/REGION ONLY/);
+assert.match(UNDERGROUND_SCAN_SITES.find(s=>s.id==='mammoth-cave-kentucky-3d-survey').models[0].detail,/UNSPECIFIED scanned segment/);
+assert.match(UNDERGROUND_SCAN_SITES.find(s=>s.id==='big-bat-cave-kentucky-real-mesh').models[0].detail,/PART/);
+assert.match(UNDERGROUND_SCAN_SITES.find(s=>s.id==='hidden-cave-fallon-nevada-photogrammetry').models[0].detail,/DEFAULT/);
+assert.match(UNDERGROUND_SCAN_SITES.find(s=>s.id==='petit-jean-rock-house-cave-arkansas').models[0].detail,/HALF/);
+
 const fiveRemoteDeepCaves=[
  {id:'wells-gray-sarlaccs-pit-canada',coordinates:[-120,52.33306],uid:'df5dea76480f4ed3af018d885a13b704',method:/photogrammetry/i,detail:/ONLY reconstructs the exposed entrance/,placement:/regional/i},
  {id:'gorner-glacier-g6-moulin-switzerland',coordinates:[7.81528,45.94750],uid:'5dc79d2891f24e9fa571b9e910556ec8',method:/Photogrammetry/i,detail:/not a LiDAR point-cloud/,placement:/NOT the surveyed/i},
