@@ -1237,8 +1237,8 @@ jobs:
           grep -Fq 'world-v2300-infrastructure-volume-v5962.js?v=5970-globe-model-matrices' site/landing.js
           grep -Fq 'world-v2300-utility-infrastructure-v1.js?v=11-solid-utility-wires-v10' site/app.js
           grep -Fq 'world-v2300-utility-infrastructure-v1.js?v=11-solid-utility-wires-v10' site/landing.js
-          grep -Fq "const SUPA='https://louise-willing-cases-strategies.trycloudflare.com'" site/landing.js
-          grep -Fq "const SUPA='https://louise-willing-cases-strategies.trycloudflare.com'" site/app.js
+          grep -Fq "const SUPA='https://characterization-seas-total-adopt.trycloudflare.com'" site/landing.js
+          grep -Fq "const SUPA='https://characterization-seas-total-adopt.trycloudflare.com'" site/app.js
           grep -Fq 'bpAuthRequestV6237' site/landing.js
           grep -Fq 'bpAuthRequestV6237' site/app.js
           ! grep -Fq "const SUPA='https://xdfsjztwgsbmabshzsjw.supabase.co'" site/landing.js
@@ -2402,7 +2402,7 @@ jobs:
         run: |
           set -euo pipefail
           O='https://bridgepointintelligence.online'
-          API='https://louise-willing-cases-strategies.trycloudflare.com'
+          API='https://characterization-seas-total-adopt.trycloudflare.com'
           q="auth-v6237-$(date +%s)"
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL "$API/healthz" -o /tmp/bp-auth-health.json
           python3 - <<'PY'
@@ -2490,8 +2490,8 @@ jobs:
               require_marker /tmp/bp-auth-mars.js 'Deimos'
               require_marker /tmp/bp-auth-landing.js 'bpAuthRequestV6237'
               require_marker /tmp/bp-auth-app.js 'bpAuthRequestV6237'
-              require_marker /tmp/bp-auth-landing.js 'https://louise-willing-cases-strategies.trycloudflare.com'
-              require_marker /tmp/bp-auth-app.js 'https://louise-willing-cases-strategies.trycloudflare.com'
+              require_marker /tmp/bp-auth-landing.js 'https://characterization-seas-total-adopt.trycloudflare.com'
+              require_marker /tmp/bp-auth-app.js 'https://characterization-seas-total-adopt.trycloudflare.com'
               require_marker /tmp/bp-auth-app.js "AUTH_STORE='bp_auth_v5045'"
               for texture in mercury-2k.jpg venus-surface-2k.jpg venus-atmosphere-2k.jpg jupiter-2k.jpg uranus-2k.jpg neptune-2k.jpg; do
                 curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/assets/planets/v1/$texture?verify=$q" -o "/tmp/bp-planet-$texture" || missing=1
