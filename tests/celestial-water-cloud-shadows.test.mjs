@@ -53,7 +53,7 @@ test('water keeps shoreline safety while using a bounded stable render budget', 
   assert.doesNotMatch(water, /map\.on\('idle', \(\) => scheduleBuild\(160\)\)/);
   assert.match(water, /if \(low\) return z < 3\.5 \? 260 : z >= 12 \? 180 : 220;/);
   assert.match(water, /return z < 3\.5 \? 150 : z >= 12 \? 85 : 110;/);
-  assert.match(water, /if \(z >= 12\) \{\s*return \{ scale: 0, maxOffsetM: 0, guarded: true \};\s*\}/);
+  assert.match(water, /return \{ scale: 1, maxOffsetM: 8\.0, guarded: false \};/);
   assert.match(water, /surfaceMaskValidationAllZooms: true/);
   assert.match(water, /surfaceCellsRejectedInvalidTerrain/);
 });
@@ -195,7 +195,7 @@ test('entrypoints use fresh cache keys and keep the celestial canvas off the sat
   for (const source of [app, landing]) {
     assert.match(source, /world-v2300-map\.js\?v=6238-pc-runtime/);
     assert.match(source, /world-v2300-water\.js\?v=6256-gerstner-ocean/);
-    assert.match(source, /world-v2300-clouds\.js\?v=6202-global-satellite-cloud-banks/);
+    assert.match(source, /world-v2300-clouds\.js\?v=6318-storm-clouds-visible/);
     assert.match(source, /world-v2300-weather\.js\?v=6318-storm-icons-clickable/);
     assert.match(source, /world-v2300-time-slider\.js\?v=6170-no-cloud-toggle-always-on/);
   }
@@ -299,7 +299,7 @@ test('both entrypoints keep the welcome document in place while migrating to the
 test('new rain/lightning and global source markers stay separate from legacy effects', () => {
   assert.match(weather, /active=!!v;/);
   assert.match(weather, /const LEGACY_NATIVE_WEATHER_LAYERS=\['wx-snow-depth','wx-alert-fill','wx-fire-fill','wx-thermal','wx-quake-glow','wx-storm-glow'\]/);
-  assert.match(weather, /const WEATHER_SOURCE_OVERLAY_LAYERS=\['wx-alert-line','wx-quake','wx-storm','wx-obs','wx-water'/);
+  assert.match(weather, /const WEATHER_SOURCE_OVERLAY_LAYERS=\['wx-alert-line','bp2300-storm-alert-icon-v6318','bp2300-storm-point-icon-v6318','wx-quake'/);
   assert.match(weather, /const WILDFIRE_OVERLAY_LAYERS=\['wx-fire-fill','wx-fire-line'\]/);
   assert.match(weather, /function setWildfiresVisible\(value\)/);
   assert.match(weather, /if\(!active&&!wildfiresVisible\)return/);
