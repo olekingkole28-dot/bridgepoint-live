@@ -1,3 +1,4 @@
+import{attachStormViewer}from'./world-v2300-storm-viewer.js?v=6340-moving-volumes';
 import{VERSION,EMPTY,MOBILE,LOW,TIER,edge,publicRpc,bbox,fc,clamp}from'./world-v2300-config.js?v=6238-pc-runtime';
 import{initRainLayer}from'./world-v2300-rain.js?v=6193-geographic-rain-lightning';
 import{initLightningLayer}from'./world-v2300-lightning.js?v=6195-desktop-globe-flash-stability';
@@ -341,7 +342,7 @@ function bindStormDetailInteractions(){
   const heading=document.createElement('strong');heading.textContent=title;box.appendChild(heading);
   const fields=[['Type',p.event||p.phenom||p.classification||p.type],['Severity',p.severity||p.category||(p.wind_mph?`${p.wind_mph} mph winds`:null)],['Status',p.status||p.urgency||p.certainty],['Source',p.source||p.senderName||p.provenance],['Issued',p.effective||p.issued||p.observed_at||p.updated_at],['Expires',p.expires||p.ends_at],['Details',p.description||p.headline||p.instruction]];
   for(const [label,value] of fields){if(value==null||value==='')continue;const row=document.createElement('div');row.className='bp-storm-detail-row';const key=document.createElement('b');key.textContent=label+': ';const valueNode=document.createElement('span');valueNode.textContent=String(value).slice(0,520);row.append(key,valueNode);box.appendChild(row)}
-  try{new Popup({closeButton:true,closeOnClick:true,maxWidth:'340px'}).setLngLat(e.lngLat).setDOMContent(box).addTo(map)}catch(_){}
+  try{new Popup({closeButton:true,closeOnClick:true,maxWidth:'380px'}).setLngLat(e.lngLat).setDOMContent(box).addTo(map);attachStormViewer(box,p)}catch(error){console.warn('Storm detail viewer',error)}
  };
  for(const id of layerIds)try{if(map.getLayer(id)){map.on('click',id,open);map.on('mouseenter',id,()=>{map.getCanvas().style.cursor='pointer'});map.on('mouseleave',id,()=>{map.getCanvas().style.cursor=''})}}catch(_){}
 }
