@@ -44,7 +44,7 @@ function ensurePanelPane(name){
   mapkey:['BRIDGEPOINT MAP KEY','The map and weather legend opens from the live map key control.'],
   boundaryviewer:['PUBLIC PARCEL VIEWER','Open the public parcel-boundary viewer. Availability depends on the parcel viewer module finishing initialization.'],
   worldchanges:['30-DAY WORLD HISTORY','The timeline shows only changes supported by source observations. Current imagery and geometry are not a complete rewind.'],
-  volumetric:['WIND / RF FIELDS','Open source-backed wind and radio-frequency field controls. The globe remains interactive.'],
+  volumetric:['WIND + RF / JET STREAMS','Activate animated global and local wind, elevated jet streams, and both source-anchored 4G/5G coverage views together.'],
   motion:['ORBIT & MOTION','Open the globe motion controls for orbit, bearing, pitch and navigation.'],
   satellite:['SATELLITE IMAGERY','Open available imagery, spectral and color-layer controls. Coverage depends on source availability.'],
   premium:['FREE PREMIUM TOOLS','Available tools and package access are shown only when the relevant BridgePoint control is available.'],
@@ -203,7 +203,7 @@ function makeTopBarAndDock(){
     '<button type="button" class="bpv-command-btn" data-bpv-action="clouds" aria-pressed="true" title="Toggle the global animated 3D cloud layer"><span class="bpv-command-icon" aria-hidden="true">☁</span><span class="bpv-command-label">3D Clouds</span></button>'+
     '<button type="button" class="bpv-command-btn" data-bpv-action="wildfire" aria-pressed="false" title="Toggle live wildfire and burn-perimeter geometry"><span class="bpv-command-icon" aria-hidden="true">🔥</span><span class="bpv-command-label">Wildfire</span></button>'+
     '<button type="button" class="bpv-command-btn bpv-wind-voxels-btn" data-bpv-action="windfx" title="Explore wind flow and drone routes"><span class="bpv-command-icon" aria-hidden="true">≋</span><span class="bpv-command-label">Wind + Drone</span></button>'+
-    '<button type="button" class="bpv-command-btn" data-bpv-action="volumetric" title="Open wind and RF field visualizations"><span class="bpv-command-icon" aria-hidden="true">⌁</span><span class="bpv-command-label">Wind / RF Fields</span></button>'+
+    '<button type="button" class="bpv-command-btn" data-bpv-action="volumetric" title="Instant animated 3D wind, jet-stream danger markers and 4G/5G radio coverage"><span class="bpv-command-icon" aria-hidden="true">⌁</span><span class="bpv-command-label">Wind + RF / Jets</span></button>'+
     '<button type="button" class="bpv-command-btn bpv-emrf-spectrogram-btn" data-bpv-action="emrf" aria-pressed="false" title="Toggle global electromagnetic spectrum, Starlink beam models, cellular RF and ionospheric propagation"><span class="bpv-command-icon" aria-hidden="true">◉</span><span class="bpv-command-label">Global EM / RF</span></button>'+
    '</div><div class="bpv-command-inline-slot" id="bpv-world-activity-slot" aria-label="Weather timeline and world activity"></div>'+
   '</section>'+
@@ -934,14 +934,14 @@ async function openRealWorldEffects(initialWind=false){
 async function openVolumetricFields(initialWind=false){
  const world=home?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
  if(!world?.map)throw new Error('BridgePoint globe not ready');
- const mod=await import('./bridgepoint-volumetric-fields-v5978.js?v=5992-expanded-field-panel');
+ const mod=await import('./bridgepoint-volumetric-fields-v5978.js?v=6000-auto-wind-4g-5g-jets');
  const api=mod.initBridgePointVolumetricFields(world);if(typeof api?.open!=='function')throw new Error('Volumetric field panel did not initialize');api.open();
  if(initialWind){if(typeof api?.setWind!=='function')throw new Error('Wind controls did not initialize');await api.setWind(true)}
 }
 async function toggleWindAndDroneField(){
  const world=home?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
  if(!world?.map)throw new Error('BridgePoint globe not ready');
- const mod=await import('./bridgepoint-volumetric-fields-v5978.js?v=5992-expanded-field-panel');
+ const mod=await import('./bridgepoint-volumetric-fields-v5978.js?v=6000-auto-wind-4g-5g-jets');
  let api=window.__BP_VOLUMETRIC_FIELDS_V5992__;
  if(!api||api.map!==world.map)api=mod.initBridgePointVolumetricFields(world);
  if(typeof api?.setWind!=='function')throw new Error('Wind controls did not initialize');
@@ -1128,6 +1128,16 @@ openPanel(a)});});
 function init(){
  if(!mapHost)return;
  buildUI();
+ // Warm the small source-backed global 10m/250hPa/FCC snapshot after
+ // the normal globe boots, never blocking welcome, auth, or other buttons.
+ if(!window.__BP_WIND_RF_WARMED_V1__){
+  window.__BP_WIND_RF_WARMED_V1__=true;
+  setTimeout(()=>{
+   void import('./bridgepoint-global-wind-rf-v1.js?v=1-wind-jet-streams-all-on')
+    .then(m=>m.prefetchWindRfGlobalV1())
+    .catch(e=>console.info('BridgePoint optional wind/RF cache warming:',String(e?.message||e)));
+  },1900);
+ }
  // Warm only the Starlink OMM catalog after BridgePoint's core globe starts.
  // Later opening Global EM/RF immediately uses the shared first-party snapshot
  // instead of beginning a multi-megabyte orbit request after the user clicks.
