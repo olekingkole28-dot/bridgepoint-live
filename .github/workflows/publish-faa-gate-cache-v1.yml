@@ -137,7 +137,7 @@ jobs:
       - name: Upload untouched production with only FAA gate cache references updated
         uses: actions/upload-pages-artifact@v4
         with:
-          name: bridgepoint-v5000-faa-cache-${{ github.run_attempt }}
+          name: bridgepoint-v5000-${{ github.run_attempt }}
           path: ${{ runner.temp }}/faa-cache-site
           include-hidden-files: true
       - name: Publish two-file FAA cache correction
