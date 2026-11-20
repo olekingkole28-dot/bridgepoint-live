@@ -143,13 +143,16 @@ async function loadCurrentFires(state){
  state.loading=true;state.error='';state.abort?.abort();
  const controller=new AbortController();state.abort=controller;
  try{
-  let all=[];
+  let all=[],primaryError=null;
   for(const hours of [24,72]){
-   const data=await getJSON(API+'/active?hours='+hours,controller.signal);
-   all=normalizeActiveFireRecords(data);
-   if(all.length>0)break;
+   try{
+    const data=await getJSON(API+'/active?hours='+hours,controller.signal);
+    all=normalizeActiveFireRecords(data);
+    if(all.length>0)break;
+   }catch(e){primaryError=e;break;}
   }
-  // NASA EONET enriches named events, without replacing observed thermal points.
+  // When the global FIRMS aggregation is unavailable, still show current
+  // NASA EONET tracked events (not invented coordinates or modelled perimeters).
   try{
    const ev=normalizeEonetFires(await getJSON(EONET,controller.signal));
    const seen=new Set(all.map(x=>x.coordinates.map(v=>v.toFixed(2)).join(',')));
@@ -158,6 +161,7 @@ async function loadCurrentFires(state){
     if(!seen.has(key)){all.push(fire);seen.add(key);}
    }
   }catch(e){if(!all.length)state.eonetError=String(e?.message||e);}
+  if(!all.length&&primaryError)state.error='WorldFires unavailable: '+String(primaryError.message||primaryError);
   if(controller.signal.aborted||state.destroyed||!state.enabled)return;
   if(!all.length)throw Error('No recent fire detections returned (or source unavailable)');
   state.fires=all.slice(0,MAX_MAP_FIRE_RECORDS);
