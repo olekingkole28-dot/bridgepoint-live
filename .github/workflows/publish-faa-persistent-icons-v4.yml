@@ -1,4 +1,4 @@
-name: Publish FAA Persistent Category Icons Only v4
+name: Publish FAA Persistent Category Icons Only v5
 on:
   workflow_dispatch:
   push:
@@ -114,16 +114,16 @@ jobs:
           for rel in ('landing.js','app.js'):
               p=site/rel
               s=p.read_text()
-              oldkey='&icons=3-faa-category-icons-global-street'
+              oldkey='&icons=4-faa-visible-persistent'
               expected=2 if rel=='landing.js' else 1
               if s.count(oldkey)!=expected:raise SystemExit(f'{rel}: unexpected FAA loader state')
-              p.write_text(s.replace(oldkey,'&icons=4-faa-visible-persistent'))
+              p.write_text(s.replace(oldkey,'&icons=5-faa-viewport-icons'))
           for rel in ('index.html','app/index.html'):
               p=site/rel
               s=p.read_text()
-              key='faa=3-faa-category-icons-global-street'
+              key='faa=4-faa-visible-persistent'
               if s.count(key)!=1:raise SystemExit(f'{rel}: unexpected FAA cache state')
-              p.write_text(s.replace(key,'faa=4-faa-visible-persistent'))
+              p.write_text(s.replace(key,'faa=5-faa-viewport-icons'))
           new={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file()}
           expected=set(needed)
           changed={k for k in old if old[k]!=new.get(k)}
@@ -154,9 +154,11 @@ jobs:
           set -euo pipefail
           curl --retry 8 --retry-all-errors -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/bridgepoint-faa-obstruction-towers-v1.js?verify=$GITHUB_SHA" > /tmp/faa-live.js
           grep -Fq 'keepFAAIconsVisible(state)' /tmp/faa-live.js
+          grep -Fq 'function buildFAAIconIndex(rows)' /tmp/faa-live.js
+          grep -Fq 'cluster:false,maxzoom:17' /tmp/faa-live.js
           grep -Fq 'new TextDecoder' /tmp/faa-live.js
           curl --retry 8 --retry-all-errors -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/landing.js?verify=$GITHUB_SHA" > /tmp/faa-landing.js
-          grep -Fq 'icons=4-faa-visible-persistent' /tmp/faa-landing.js
+          grep -Fq 'icons=5-faa-viewport-icons' /tmp/faa-landing.js
           curl --retry 3 --retry-all-errors -fsSL https://characterization-seas-total-adopt.trycloudflare.com/auth/v1/health > /tmp/faa-auth.json
           grep -Fq '"local":true' /tmp/faa-auth.json
           echo 'FAA_ONLY_LIVE_PUBLISH_PASS'
