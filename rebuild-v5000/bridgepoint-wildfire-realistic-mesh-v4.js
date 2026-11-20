@@ -132,3 +132,143 @@ function allocateFlames(T,groups,seed){
  mesh.name='BridgePoint true 3D turbulent wildfire tongues (GPU-animated)';
  return {mesh,uniforms,tongueCount:groups.length*3};
 }
+function makeGroundHeatSheet(T,map,fire,perimeters,centerElevation,allowed,seed){
+ const radius=clamp(fire.radiusM||180,90,850),samples=26;
+ const p=[],uv=[],tri=[],vertices=new Map();
+ const step=2*radius/samples;
+ const grid=(x,z)=>{
+  const k=x+':'+z;
+  if(vertices.has(k))return vertices.get(k);
+  const dx=-radius+step*x,dz=-radius+step*z;
+  const coord=lonLatAt(fire.coordinates,dx,dz);
+  const inside=dx*dx+dz*dz<=radius*radius&&allowed(coord);
+  const item={dx,dz,inside,y:inside?elevationAt(map,fire,dx,dz,centerElevation)+.72:0};
+  vertices.set(k,item);return item;
+ };
+ let polygons=0;
+ for(let z=0;z<samples;z++)for(let x=0;x<samples;x++){
+  const corners=[grid(x,z),grid(x+1,z),grid(x+1,z+1),grid(x,z+1)];
+  if(!corners.every(c=>c.inside))continue;
+  const base=p.length/3;
+  for(const c of corners){p.push(c.dx,c.y,c.dz);uv.push(c.dx/radius,c.dz/radius);}
+  tri.push(base,base+1,base+2,base,base+2,base+3);polygons+=2;
+ }
+ if(!polygons)return null;
+ const g=new T.BufferGeometry();
+ g.setAttribute('position',new T.Float32BufferAttribute(p,3));
+ g.setAttribute('aGroundXY',new T.Float32BufferAttribute(uv,2));
+ g.setIndex(tri);
+ const uniforms={uTime:{value:0},uFirePower:{value:clamp(Math.log2(2+Math.max(0,fire.frp||0))/7.5,.42,1.25)},uSeed:{value:seed}};
+ const m=new T.ShaderMaterial({
+  uniforms,transparent:true,depthWrite:false,depthTest:true,
+  side:T.DoubleSide,blending:T.NormalBlending,
+  vertexShader:[
+   'precision highp float;',
+   'attribute vec2 aGroundXY;',
+   'varying vec2 vGround;',
+   'void main(){vGround=aGroundXY;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}'
+  ].join('\n'),
+  fragmentShader:[
+   'precision highp float;',
+   'uniform float uTime,uFirePower,uSeed;',
+   'varying vec2 vGround;',
+   'float hash2(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}',
+   'float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);',
+   'return mix(mix(hash2(i),hash2(i+vec2(1,0)),f.x),mix(hash2(i+vec2(0,1)),hash2(i+vec2(1,1)),f.x),f.y);}',
+   'void main(){',
+   'vec2 uv=vGround;',
+   'float flow=noise(uv*13.0+vec2(uTime*.52,-uTime*.34+uSeed));',
+   'float rolling=noise(uv*31.0+vec2(-uTime*.81,uTime*.59));',
+   'float detail=noise(uv*66.0+vec2(uTime*1.40,-uTime*1.11));',
+   'float radial=length(uv);',
+   'float frontline=1.0-smoothstep(.12,.52,abs(radial-(.55+.16*flow)));',
+   'float patches=smoothstep(.54,.82,.55*flow+.35*rolling+.3*detail);',
+   'float hot=clamp((patches*.72+frontline*.55)*uFirePower,0.0,1.0);',
+   'float flicker=.77+.19*sin(uTime*7.2+detail*22.0+uv.x*40.0)+.11*detail;',
+   'hot=clamp(hot*flicker,0.0,1.0);',
+   'vec3 ash=vec3(.12,.018,.008),smoulder=vec3(.47,.058,.008);',
+   'vec3 orange=vec3(1.0,.24,.012),fire=vec3(1.0,.62,.075),white=vec3(1.0,.94,.48);',
+   'vec3 col=mix(ash,smoulder,smoothstep(.12,.50,hot));',
+   'col=mix(col,orange,smoothstep(.33,.69,hot));',
+   'col=mix(col,fire,smoothstep(.58,.92,hot));',
+   'col=mix(col,white,pow(max(0.0,hot-.78),2.0)*7.0);',
+   'float alpha=clamp(.06+.56*hot,0.0,.63);',
+   'gl_FragColor=vec4(col,alpha);',
+   '}'
+  ].join('\n')
+ });
+ const mesh=new T.Mesh(g,m);mesh.frustumCulled=false;
+ mesh.name='BridgePoint terrain-following rolling fire-front shader';
+ return {mesh,uniforms,triangleCount:polygons};
+}
+export function createBridgePointWildfireVolumeV4(T,{map,fire,perimeters=[],buildings=[],trees=[],quality=1}){
+ if(!T?.ShaderMaterial||!T?.BufferGeometry||!fire?.coordinates)return null;
+ const siteSeed=fire.coordinates[0]*71.93+fire.coordinates[1]*113.71+(fire.count||1)*.019;
+ const radius=clamp(fire.radiusM||180,90,850);
+ const allowed=coords=>{
+  const [x,z]=[(coords[0]-fire.coordinates[0])*111320*Math.cos(fire.coordinates[1]*pi/180),
+               (coords[1]-fire.coordinates[1])*111320];
+  return x*x+z*z<=radius*radius&&isInsideMeasuredFireBoundary(coords,perimeters);
+ };
+ let centerElevation=0;
+ try{
+  const h=map.queryTerrainElevation?.(fire.coordinates,{exaggerated:false});
+  if(finite(h))centerElevation=h;
+ }catch(_){}
+ const scene=new T.Scene(),heatGroup=new T.Group();
+ scene.add(heatGroup);
+ const n=clamp(Math.floor((quality>=2?130:quality>=1?94:49)+Math.sqrt(fire.count||1)*2.1),38,quality>=2?170:quality>=1?124:65);
+ const patchCenters=[],patchCount=quality>=1?9:6;
+ for(let p=0;p<patchCount;p++){
+  const theta=p*pi*2/patchCount+hash(siteSeed+p*3)*.7;
+  const rr=radius*(.12+.63*hash(siteSeed+p*11.3));
+  patchCenters.push([Math.cos(theta)*rr,Math.sin(theta)*rr]);
+ }
+ const accepted=[],baseHeight=clamp(5.5+Math.log2(1+Math.max(0,fire.frp||0))*.95,5.5,17);
+ for(let i=0;i<n*12&&accepted.length<n;i++){
+  const u=hash(siteSeed+i*13.39),v=hash(siteSeed+i*37.11),
+    patch=patchCenters[i%patchCount];
+  const frontier=i%5===0;
+  const theta=pi*2*(u+i*.6180339);
+  const dist=frontier?radius*(.57+.29*v):radius*(.06+.24*v);
+  const x=frontier?Math.cos(theta)*dist:patch[0]+Math.cos(theta)*dist;
+  const z=frontier?Math.sin(theta)*dist:patch[1]+Math.sin(theta)*dist;
+  const coord=lonLatAt(fire.coordinates,x,z);
+  if(!allowed(coord))continue;
+  const height=baseHeight*(.49+1.06*hash(siteSeed+i*5.49));
+  const y=elevationAt(map,fire,x,z,centerElevation)+.42;
+  accepted.push({x,y,z,height,energy:.75+hash(siteSeed+i*.74)*.75});
+ }
+ // Always visibly reconstruct around an observed detection even if its
+ // upstream perimeter geometry is invalid or excludes the sampled centre.
+ if(!accepted.length)accepted.push({x:0,y:.44,z:0,height:baseHeight,energy:1});
+ for(const [i,b] of buildings.entries()){
+  const [x,z]=[(b.coord[0]-fire.coordinates[0])*111320*Math.cos(fire.coordinates[1]*pi/180),
+               (b.coord[1]-fire.coordinates[1])*111320];
+  if(!allowed(b.coord))continue;
+  const y=elevationAt(map,fire,x,z,centerElevation);
+  for(let j=0;j<3;j++)
+   accepted.push({x:x+(j-1)*1.2,y:y+b.height*(.65+j*.14),z:z+(j-1)*.6,
+    height:clamp(b.height*.22+2.8,3.5,18),energy:1.12});
+ }
+ for(const [i,tr] of trees.entries()){
+  const [x,z]=[(tr.coord[0]-fire.coordinates[0])*111320*Math.cos(fire.coordinates[1]*pi/180),
+               (tr.coord[1]-fire.coordinates[1])*111320];
+  if(!allowed(tr.coord))continue;
+  const y=elevationAt(map,fire,x,z,centerElevation);
+  for(let j=0;j<3;j++)accepted.push({x:x+(j-1)*.72,y:y+tr.height*(.15+j*.28),z:z+(j-1)*.5,
+   height:clamp(tr.height*.43,3.5,16),energy:1.2});
+ }
+ const flame=allocateFlames(T,accepted,siteSeed);heatGroup.add(flame.mesh);
+ const ground=makeGroundHeatSheet(T,map,fire,perimeters,centerElevation,allowed,siteSeed);
+ if(ground)heatGroup.add(ground.mesh);
+ const uniforms=[flame.uniforms,...(ground?[ground.uniforms]:[])];
+ function dispose(){
+  for(const obj of [flame.mesh,ground?.mesh].filter(Boolean)){
+   obj.geometry?.dispose?.();obj.material?.dispose?.();
+  }
+ }
+ return {scene,flames:[],uniforms,dispose,fire,quality,groupCount:accepted.length,
+  tongueCount:flame.tongueCount,terrainTriangles:ground?.triangleCount||0,
+  built:buildings.length,tree:trees.length};
+}
