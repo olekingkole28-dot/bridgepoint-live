@@ -1,4 +1,5 @@
 name: Publish Instant Global EM RF and Thousands of Starlink 3D Beams v2
+# Re-run after corrected and locally checked real-OMM model provenance regression assertion.
 
 on:
   workflow_dispatch:
