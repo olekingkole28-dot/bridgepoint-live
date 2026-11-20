@@ -1,0 +1,62 @@
+name: Diagnose EMRF Starlink and Wildfire Actual Production (read-only)
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/diagnose-emrf-wildfire-live-restore-v1.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Inspect live production asset reachability, no mutations
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import urllib.request,urllib.error,json,time,datetime
+          root='https://bridgepointintelligence.online/'
+          names=[
+            'bridgepoint-view-v5917.js','bridgepoint-emrf-spectrogram-v1.js',
+            'bridgepoint-emrf-starlink-global-v2.js','app/bridgepoint-emrf-starlink-global-v2.js',
+            'starlink-orbits-v2.json',
+            'bridgepoint-wildfires-volumetric-v1.js','app/bridgepoint-wildfires-volumetric-v1.js',
+            'bridgepoint-wildfire-realistic-mesh-v4.js',
+            'vendor/three.module.js','bridgepoint-drone-awareness-v1.js',
+            'index.html','app/index.html'
+          ]
+          for name in names:
+            req=urllib.request.Request(root+name+'?diag='+str(time.time_ns()),headers={'Cache-Control':'no-cache','User-Agent':'BridgePoint-ReadOnly-Diagnostic'})
+            try:
+              with urllib.request.urlopen(req,timeout=30) as r:
+                payload=r.read() if name in ('starlink-orbits-v2.json',) else r.read(200)
+                print('PUBLIC_ASSET',name,'status',r.status,'length',r.headers.get('Content-Length'),'type',r.headers.get('Content-Type'),'prefix',repr(payload[:32]))
+                if name=='starlink-orbits-v2.json':
+                  data=json.loads(payload)
+                  epoch=datetime.datetime.fromisoformat(data['fetched_at'].replace('Z','+00:00'))
+                  age=(datetime.datetime.now(datetime.timezone.utc)-epoch).total_seconds()/86400
+                  print('STARLINK_CATALOG',json.dumps({'records':data.get('record_count'),'recent':data.get('recent_72h'),'fetched_at':data.get('fetched_at'),'age_days':round(age,3),'valid':age<=7 and data.get('record_count',0)>=2500}))
+            except Exception as e:print('PUBLIC_ASSET_ERROR',name,str(e)[:330])
+          PY
+      - name: Probe real public fire sources used by renderer (read-only)
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import urllib.request,urllib.error,json
+          for name,url in [
+            ('WorldFires','https://worldfires.org/api/v1/active?hours=24'),
+            ('NASA_EONET','https://eonet.gsfc.nasa.gov/api/v3/events?category=wildfires&status=open&days=14&limit=300')]:
+            try:
+              req=urllib.request.Request(url,headers={'User-Agent':'Mozilla/5.0 (compatible; BridgePointDiagnostics/1.0)','Accept':'application/json'})
+              with urllib.request.urlopen(req,timeout=24) as r:
+                p=r.read(3000000)
+                d=json.loads(p)
+                print('FIRE_SOURCE',name,'status',r.status,'bytes',len(p),'rows',len(d.get('data',d.get('events',[]))),'CORS',r.headers.get('Access-Control-Allow-Origin'))
+            except Exception as e:print('FIRE_SOURCE_ERROR',name,str(e)[:350])
+          PY
