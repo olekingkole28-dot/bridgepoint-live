@@ -28,6 +28,7 @@ jobs:
           done
           # Diagnose candidate FAA renderer against the already-live data and MapLibre assets.
           cp rebuild-v5000/bridgepoint-faa-obstruction-towers-v1.js /tmp/faa-smoke/bridgepoint-faa-obstruction-towers-v1.js
+          cp rebuild-v5000/bridgepoint-drone-awareness-v1.js /tmp/faa-smoke/bridgepoint-drone-awareness-v1.js
           node --check /tmp/faa-smoke/bridgepoint-faa-obstruction-towers-v1.js || true
           python3 - <<'PY'
           import gzip,json,pathlib
@@ -51,7 +52,11 @@ jobs:
           try {
             const map=new maplibregl.Map({container:'map',style:{version:8,sources:{},layers:[]},center:[-96,38],zoom:2,attributionControl:false,renderWorldCopies:false});
             window.__faaMap=map;
+            window.__BP_V5000_WORLD__={map};
             map.on('error',e=>console.error('MAP_ERROR',e.error?.message||String(e.error||e)));
+            // Replicate the *real* BridgePoint drone-awareness overlay gate. It
+            // sweeps FAA layers off after idle unless the FAA button opts in.
+            await import('/bridgepoint-drone-awareness-v1.js');
             const {initFAAObstructionTowerRenderer}=await import('/bridgepoint-faa-obstruction-towers-v1.js');
             const api=initFAAObstructionTowerRenderer(map);
             window.__faaApi=api;
@@ -87,6 +92,19 @@ jobs:
             return {error:window.__faaInitError||null,apiEnabled:api?.enabled,status:api?.status,stats:api?.stats,sourceExists:!!src,sourceLoaded:m?.isSourceLoaded?.('bp-faa-obstructions-source-v1'),styleLoaded:m?.isStyleLoaded?.(),zoom:m?.getZoom?.(),mapLayers:layers.map(id=>({id,exists:!!m?.getLayer(id),visibility:m?.getLayoutProperty?.(id,'visibility')})),renderedFAA:hit.length,markerRendered:m?.queryRenderedFeatures(undefined,{layers:['bp-faa-obstructions-markers-v1']})?.length||0,sample:hit.slice(0,3).map(x=>x.properties)};
           });
           console.log('BROWSER_RESULT',JSON.stringify(result).slice(0,8500));
+          await page.evaluate(()=>{
+            const m=window.__faaMap;
+            m.fire('idle');m.fire('moveend');m.fire('zoomend');
+          });
+          await page.waitForTimeout(850);
+          const gate=await page.evaluate(()=>({
+            markerVisibility:window.__faaMap.getLayoutProperty('bp-faa-obstructions-markers-v1','visibility'),
+            haloVisibility:window.__faaMap.getLayoutProperty('bp-faa-obstructions-halo-v1','visibility'),
+            renderedSymbols:window.__faaMap.queryRenderedFeatures(undefined,{layers:['bp-faa-obstructions-markers-v1']}).length,
+            droneGateReady:!!window.__BP_DRONE_AWARENESS_V1__,
+            droneGateMode:window.__BP_DRONE_AWARENESS_V1__?.state?.emptyModeActive
+          }));
+          console.log('REAL_OVERLAY_GATE_RESULT',JSON.stringify(gate));
           await page.evaluate(()=>window.__faaMap.jumpTo({center:[-87.866869,30.237311],zoom:13}));
           try {await page.waitForFunction(()=>{
             const m=window.__faaMap,a=window.__faaApi;
@@ -118,6 +136,7 @@ jobs:
           await page.screenshot({path:'/tmp/faa-smoke/result.png',timeout:15000}).catch(e=>console.warn('SCREENSHOT',e.message));
           await browser.close();
           if(result.error||!result.apiEnabled||!result.sourceExists||result.stats?.total<1000||result.renderedFAA===0||!result.sourceLoaded||
+             !gate.droneGateReady||!gate.droneGateMode||gate.markerVisibility==='none'||gate.haloVisibility==='none'||gate.renderedSymbols===0||
              street.rendered===0||street.markerRendered===0||result.markerRendered===0||!street.sourceLoaded||toggle.error||toggle.off?.enabled!==false||toggle.off?.rendered!==0||toggle.enabledAgain!==true||reenabled===0)process.exitCode=1;
           JS
           cd /tmp/faa-smoke
