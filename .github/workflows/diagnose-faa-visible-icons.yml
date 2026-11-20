@@ -250,11 +250,30 @@ jobs:
               recent:window.__FAA_VISIBILITY_TRACE__?.slice(-10)};
           });
           console.log('ACTUAL_FAA_POST_RESTORE_VISIBILITY',JSON.stringify(after).slice(0,11500));
+          const buttonCycle=await page.evaluate(async()=>{
+            const a=window.__ACTUAL_FAA_API__,m=window.__BP_LANDING_WORLD__.map,
+              marker='bp-faa-obstructions-markers-v1';
+            await a.setEnabled(false);
+            const off={enabled:a.enabled,visibility:m.getLayoutProperty(marker,'visibility'),
+              gateAllowsFAA:window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('faa',false)};
+            await a.setEnabled(true);
+            return {off,on:{enabled:a.enabled,visibility:m.getLayoutProperty(marker,'visibility'),
+              gateAllowsFAA:window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('faa',true)}};
+          });
+          await page.waitForTimeout(900);
+          const afterCycle=await page.evaluate(()=>{
+            const m=window.__BP_LANDING_WORLD__.map;
+            return {visibility:m.getLayoutProperty('bp-faa-obstructions-markers-v1','visibility'),
+              rendered:m.queryRenderedFeatures(undefined,{layers:['bp-faa-obstructions-markers-v1']}).length};
+          });
+          console.log('ACTUAL_FAA_BUTTON_CYCLE',JSON.stringify({buttonCycle,afterCycle}));
           console.log('ACTUAL_BRIDGEPOINT_WARNINGS',JSON.stringify(warns));
           await page.screenshot({path:'/tmp/faa-smoke/actual-globe.png',timeout:15000}).catch(e=>console.log('SCREENSHOT',e.message));
           await browser.close();
           if(faaIntercepts<1||gateIntercepts<1||!result.enabled||!result.sharedGatePresent||!result.sourceLoaded||
-            result.markerVisible==='none'||result.haloVisible==='none'||result.rendered<1)
+            result.markerVisible==='none'||result.haloVisible==='none'||result.rendered<1||
+            buttonCycle.off.enabled||buttonCycle.off.visibility!=='none'||!buttonCycle.on.enabled||
+            buttonCycle.on.visibility==='none'||afterCycle.visibility==='none'||afterCycle.rendered<1)
               process.exitCode=1;
           JS
           cd /tmp/faa-smoke
