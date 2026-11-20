@@ -1,4 +1,4 @@
-// Legacy full-site rollout guard; active imports use v6202: world-v2300-clouds.js?v=6330-always-on-color-cyclones&motion=6341
+// Legacy full-site rollout guard; active imports use v6202: world-v2300-clouds.js?v=6400-fortnite-atmosphere&motion=6341
 const SUPA='https://characterization-seas-total-adopt.trycloudflare.com';
 window.__BP_APP_BUILD_VERSION__=5910;window.__BP_PUBLIC_MARKET_MAP_V5906__={publicMap:true,publicOpportunityLayers:true,updatedAt:Date.now()}
 const KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
@@ -239,7 +239,7 @@ scheduleOptionalRenderer(() => import('./bridgepoint-faa-obstruction-towers-v1.j
     const existing=window.__BP_SKY_CLOUDS_V5908__;
     if(existing?.map===world.map)appCloudApi=existing;
     else{
-     if(!appCloudPromise)appCloudPromise=import('./world-v2300-clouds.js?v=6330-always-on-color-cyclones&motion=6341')
+     if(!appCloudPromise)appCloudPromise=import('./world-v2300-clouds.js?v=6400-fortnite-atmosphere&motion=6341')
       .then(m=>{const api=m.initSkyClouds(world);if(!api)throw new Error('3D cloud engine did not initialize');window.__BP_SKY_CLOUDS_V5908__=api;return api})
       .finally(()=>{appCloudPromise=null});
      appCloudApi=await appCloudPromise;
