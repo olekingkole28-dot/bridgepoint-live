@@ -350,6 +350,8 @@ async function startLandingNationalWeather(world){const m=world?.map;if(!m||!lan
 async function ensureLandingStormCloudWeather(world){
  const m=world?.map;if(!m)return null;
  if(!landingStormCloudWeatherPromise){landingStormCloudWeatherPromise=(async()=>{
+  // MapLibre cannot add weather sources before its style is ready.
+  if(!m.isStyleLoaded?.()&&!m.getSource?.('ofm'))await new Promise(resolve=>m.once('load',resolve));
   if(!landingWeatherModules?.weather){const wm=await import('./world-v2300-weather.js?v=6330-storm-details-trajectories&zoom=6331');landingWeatherModules={...(landingWeatherModules||{}),weather:wm.initWeather(m,{rainParticles:false,cloudsOnly:true})}}
   const weather=landingWeatherModules.weather;weather?.setCloudsOnly?.(true);weather?.setActive?.(true);
   window.__BP_LANDING_STORM_CLOUD_WEATHER__={version:6200,enabled:true,cloudsOnly:true,rainParticles:false,sourceStormFeed:true,updatedAt:Date.now()};return weather;
