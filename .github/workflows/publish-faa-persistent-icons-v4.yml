@@ -1,4 +1,4 @@
-name: Publish FAA Persistent Category Icons Only v7 - Verified Real Globe
+name: Publish FAA Persistent Category Icons Only v8 - Real Existing Site Paths
 on:
   workflow_dispatch:
   push:
@@ -103,7 +103,7 @@ jobs:
           site=Path(os.environ['SITE'])
           needed=['index.html','app/index.html','landing.js','app.js',
                   'bridgepoint-faa-obstruction-towers-v1.js','app/bridgepoint-faa-obstruction-towers-v1.js',
-                  'bridgepoint-drone-awareness-v1.js','app/bridgepoint-drone-awareness-v1.js']
+                  'bridgepoint-drone-awareness-v1.js']
           for rel in needed:
               if not (site/rel).is_file():raise SystemExit('Missing baseline '+rel)
               url='https://bridgepointintelligence.online/'+rel+'?faa-baseline='+os.environ['GITHUB_SHA']
@@ -118,8 +118,7 @@ jobs:
           for rel in ('bridgepoint-faa-obstruction-towers-v1.js','app/bridgepoint-faa-obstruction-towers-v1.js'):
               (site/rel).write_bytes(module)
           gate=Path('rebuild-v5000/bridgepoint-drone-awareness-v1.js').read_bytes()
-          for rel in ('bridgepoint-drone-awareness-v1.js','app/bridgepoint-drone-awareness-v1.js'):
-              (site/rel).write_bytes(gate)
+          (site/'bridgepoint-drone-awareness-v1.js').write_bytes(gate)
           for rel in ('landing.js','app.js'):
               p=site/rel
               s=p.read_text()
@@ -141,14 +140,14 @@ jobs:
           for rel in ('data/bridgepoint-faa-obstructions-v1.json.gz','app/data/bridgepoint-faa-obstructions-v1.json.gz'):
               if not (site/rel).is_file() or (site/rel).stat().st_size<1000:
                   raise SystemExit('Missing FAA DOF data; refusing blank-icons deployment: '+rel)
-          print('FAA_ONLY_SCOPE_PASS eight files, no deletions or unrelated changes')
+          print('FAA_ONLY_SCOPE_PASS seven files, no deletions or unrelated changes')
           PY
           node --check "$SITE/landing.js"
           node --check "$SITE/app.js"
           node --check "$SITE/bridgepoint-faa-obstruction-towers-v1.js"
           node --check "$SITE/bridgepoint-drone-awareness-v1.js"
       - uses: actions/configure-pages@v5
-      - name: Upload preserved site with eight FAA-related changes
+      - name: Upload preserved site with seven FAA-related changes
         uses: actions/upload-pages-artifact@v4
         with:
           name: bridgepoint-v5000-${{ github.run_attempt }}
