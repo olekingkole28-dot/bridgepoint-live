@@ -239,8 +239,20 @@ function selectedMarkerFires(state){
   const prev=picked.get(key);
   if(!prev||f.frp+f.count*.8>prev.frp+prev.count*.8)picked.set(key,f);
  }
- return Array.from(picked.values())
-  .sort((a,b)=>(b.frp+b.count*.8)-(a.frp+a.count*.8)).slice(0,160);
+ // Reserve slots across the visible globe before filling by intensity,
+ // so high-FRP regional clusters never hide weaker fires on other continents.
+ const score=f=>f.frp+f.count*.8;
+ const bestRegional=new Map();
+ for(const fire of picked.values()){
+  const [lon,lat]=fire.coordinates;
+  const region=Math.floor((lon+180)/30)+':'+Math.floor((lat+90)/20);
+  const prev=bestRegional.get(region);
+  if(!prev||score(fire)>score(prev))bestRegional.set(region,fire);
+ }
+ const coverage=Array.from(bestRegional.values()).sort((a,b)=>score(b)-score(a));
+ const firstIds=new Set(coverage.map(f=>f.id));
+ const rest=Array.from(picked.values()).filter(f=>!firstIds.has(f.id)).sort((a,b)=>score(b)-score(a));
+ return coverage.concat(rest).slice(0,160);
 }
 function refreshPersistentMarkers(state){
  if(!state.enabled){for(const entry of state.markers.values())entry.marker.remove();state.markers.clear();return;}
