@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const PC_API = 'https://louise-willing-cases-strategies.trycloudflare.com';
+const PC_API = 'https://characterization-seas-total-adopt.trycloudflare.com';
 const RETIRED_API = 'https://xdfsjztwgsbmabshzsjw.supabase.co';
 
 const runtimeFiles = [
