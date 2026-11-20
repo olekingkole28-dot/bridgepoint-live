@@ -483,10 +483,9 @@ function installLayers(state) {
   if(!map||!map.getStyle?.())return false;
   try {
     if(!map.getSource(SOURCE_ID))map.addSource(SOURCE_ID,{
-      type:'geojson',data:state.collection,cluster:true,clusterRadius:28,clusterMaxZoom:6,maxzoom:12,
-      clusterProperties:Object.fromEntries(FAA_ICON_CATEGORIES.map(item=>[
-        item.clusterCountKey,['+',['case',['==',['get','category'],item.key],1,0]]
-      ])),
+      // Bounded viewport geometry, not 276k clustered features in a single worker.
+      // Individual category icons remain visible at every zoom level.
+      type:'geojson',data:state.collection,cluster:false,maxzoom:17,
       attribution:'Federal Aviation Administration · Daily Digital Obstacle File'
     });
     const add=(id,layer)=>{if(!map.getLayer(id))map.addLayer(layer);};
@@ -509,9 +508,12 @@ function installLayers(state) {
       layout:{'text-field':['get','point_count_abbreviated'],'text-font':['Open Sans Bold','Arial Unicode MS Bold'],
         'text-size':['interpolate',['linear'],['zoom'],0,8,5.5,12],'text-allow-overlap':true,'text-ignore-placement':true},
       paint:{'text-color':'#07161d','text-halo-color':'#d9f9fb','text-halo-width':0.5}});
-    add(HALO_ID,{id:HALO_ID,type:'circle',source:SOURCE_ID,filter:['!',['has','point_count']],minzoom:5.4,maxzoom:13,
-      paint:{'circle-radius':['interpolate',['linear'],['zoom'],5.4,4,9,7,12.8,11],
-        'circle-color':['get','markerColor'],'circle-opacity':0.46,'circle-blur':0.35}});
+    // A solid category-colored pin under each icon is a guaranteed visual
+    // fallback if a symbol atlas is temporarily unavailable on a mobile GPU.
+    add(HALO_ID,{id:HALO_ID,type:'circle',source:SOURCE_ID,filter:['!',['has','point_count']],minzoom:0,maxzoom:24,
+      paint:{'circle-radius':['interpolate',['linear'],['zoom'],0,3.6,5,4.8,9,6.6,13,8,20,10],
+        'circle-color':['get','markerColor'],'circle-opacity':0.88,'circle-blur':0,
+        'circle-stroke-color':'#062a38','circle-stroke-width':1.2}});
     add(MARKER_ID,{id:MARKER_ID,type:'symbol',source:SOURCE_ID,filter:['!',['has','point_count']],minzoom:0,maxzoom:24,
       layout:{'icon-image':categoryIconExpression(),
         'icon-size':['interpolate',['linear'],['zoom'],6,0.54,9,0.62,12,0.75,16,0.86,20,0.96,24,1.02],
@@ -548,6 +550,91 @@ function keepFAAIconsVisible(state) {
   for(const id of [CLUSTER_ID,...clusterIconLayerIds(),CLUSTER_COUNT_ID,HALO_ID,MARKER_ID,LABEL_ID,HIT_ID]) {
     try {if(state.map.getLayer(id))state.map.moveLayer(id);} catch (_) {}
   }
+}
+// FAA's 276k-record inventory must never be handed to one MapLibre GeoJSON
+// worker as a single unbounded load. Index raw records once, then send a small
+// but geographically distributed snapshot for the current camera only.
+function buildFAAIconIndex(rows) {
+  const buckets=new Map(),overview=[],seen=new Set();
+  for(const row of rows) {
+    if(!Array.isArray(row))continue;
+    const lat=Number(row[4]),lon=Number(row[5]),category=classifyType(row[6]);
+    if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>85||Math.abs(lon)>180||category==='other')continue;
+    const key=Math.floor(lat)+':'+Math.floor(lon);
+    let bucket=buckets.get(key);
+    if(!bucket){bucket=[];buckets.set(key,bucket);}
+    bucket.push(row);
+    // A different category icon for each populated geographic cell, visible
+    // on the global globe without MapLibre clustering hiding all individuals.
+    const overviewKey=category+':'+Math.floor((lat+90)/1.6)+':'+Math.floor((lon+180)/1.6);
+    if(!seen.has(overviewKey)){seen.add(overviewKey);overview.push(row);}
+  }
+  return {buckets,overview};
+}
+function refreshFAAIconSource(state) {
+  if(!state.enabled||!state.rawRows?.length)return;
+  const map=state.map,source=map.getSource(SOURCE_ID);
+  if(!source)return;
+  const zoom=Number(map.getZoom?.()||0);
+  const bounds=map.getBounds?.();
+  const visible=(row)=>!bounds||bounds.contains([Number(row[5]),Number(row[4])]);
+  const selected=new Map();
+  const MAX_VISIBLE=zoom<5?5000:7000;
+  const take=(row)=>{
+    if(!row||selected.size>=MAX_VISIBLE)return;
+    const key=String(row[0]||'');
+    if(!key||selected.has(key))return;
+    const f=normalizeFAAObstructionRow(row);
+    if(f)selected.set(key,f);
+  };
+  if(zoom<5) {
+    // Global icons remain real FAA point locations, never synthetic pins.
+    const candidates=state.overviewRows||[];
+    const stride=Math.max(1,Math.ceil(candidates.length/MAX_VISIBLE));
+    for(let i=0;i<candidates.length;i+=stride)take(candidates[i]);
+  } else {
+    // Include global representative markers first, so they do not vanish as
+    // zoom increases. Add the actual local FAA records around those markers.
+    for(const row of state.overviewRows||[])if(visible(row))take(row);
+    const nearby=[];
+    if(bounds&&state.rowBuckets) {
+      const south=Math.max(-85,Math.floor(bounds.getSouth())-1);
+      const north=Math.min(85,Math.ceil(bounds.getNorth())+1);
+      const west=Math.max(-180,Math.floor(bounds.getWest())-1);
+      const east=Math.min(180,Math.ceil(bounds.getEast())+1);
+      if(west<=east) {
+        for(let lat=south;lat<=north;lat++)for(let lon=west;lon<=east;lon++) {
+          const bucket=state.rowBuckets.get(lat+':'+lon);
+          if(bucket)for(const row of bucket)if(visible(row))nearby.push(row);
+        }
+      } else {
+        for(const row of state.rawRows)if(visible(row))nearby.push(row);
+      }
+    } else {
+      for(const row of state.rawRows)if(visible(row))nearby.push(row);
+    }
+    const capacity=Math.max(0,MAX_VISIBLE-selected.size);
+    const stride=Math.max(1,Math.ceil(nearby.length/Math.max(1,capacity)));
+    for(let i=0;i<nearby.length&&selected.size<MAX_VISIBLE;i+=stride)take(nearby[i]);
+  }
+  const features=[...selected.values()];
+  state.collection={type:'FeatureCollection',features};
+  state.featureCache=new Map(features.map(f=>[f.properties.key,f]));
+  state.stats.visible=features.length;
+  source.setData(state.collection);
+  keepFAAIconsVisible(state);
+  map.triggerRepaint?.();
+}
+function scheduleFAAIconRefresh(state) {
+  if(!state.enabled||!state.rawRows?.length)return;
+  if(state.iconRefreshTimer)clearTimeout(state.iconRefreshTimer);
+  state.iconRefreshTimer=setTimeout(()=>{
+    state.iconRefreshTimer=0;
+    if(!state.dead&&state.enabled) {
+      refreshFAAIconSource(state);
+      rebuildModels(state);
+    }
+  },65);
 }
 function modelCandidates(state) {
   if(Number(state.map.getZoom()||0)<MIN_MODEL_ZOOM)return [];
@@ -664,7 +751,7 @@ function bindInteractions(state) {
   const changed=()=>{
     if(!state.enabled)return;
     keepFAAIconsVisible(state);
-    rebuildModels(state);
+    scheduleFAAIconRefresh(state);
     if(state.renderer)map.triggerRepaint?.();
   };
   map.on('moveend',changed);map.on('zoomend',changed);
@@ -677,23 +764,23 @@ async function loadInitialData(state) {
     const snapshot=await loadSnapshot();
     if(state.dead)return;
     if(!snapshot||!Array.isArray(snapshot.rows))throw new Error('FAA snapshot schema is missing rows');
-    const features=snapshot.rows.map(normalizeFAAObstructionRow).filter(Boolean);
-    if(!features.length)throw new Error('FAA snapshot contains no usable tower or antenna records');
-    state.collection={type:'FeatureCollection',features};
-    state.featureCache=new Map(features.map(f=>[f.properties.key,f]));
+    if(snapshot.rows.length===0)throw new Error('FAA snapshot contains no usable tower or antenna records');
+    state.rawRows=snapshot.rows;
+    const index=buildFAAIconIndex(state.rawRows);
+    state.rowBuckets=index.buckets;
+    state.overviewRows=index.overview;
     state.globalLoaded=true;state.lastUpdated=snapshot.metadata&&snapshot.metadata.builtAtUtc||null;
-    state.stats.total=features.length;
-    state.stats.verified=features.filter(f=>f.properties.verification==='O').length;
-    state.stats.unverified=features.length-state.stats.verified;
+    state.stats.total=Number(snapshot.metadata?.filteredRecordCount)||state.rawRows.length;
+    state.stats.verified=Number(snapshot.metadata?.verificationCounts?.O)||0;
+    state.stats.unverified=Number(snapshot.metadata?.verificationCounts?.U)||0;
     state.stats.sourceRecordCount=Number(snapshot.metadata&&snapshot.metadata.sourceRecordCount)||null;
     state.stats.sourceUpdated=snapshot.metadata&&snapshot.metadata.builtAtUtc||'Not reported';
     const sourceDate=state.stats.sourceUpdated&&state.stats.sourceUpdated!=='Not reported'
       ? ' · snapshot '+String(state.stats.sourceUpdated).slice(0,10) : '';
-    state.loadedStatus=features.length.toLocaleString('en-US')+' FAA-listed obstructions loaded'+sourceDate+' · tap a tower for source heights and record details';
+    state.loadedStatus=state.stats.total.toLocaleString('en-US')+' FAA-listed obstructions loaded'+sourceDate+' · visible icons stay on until FAA Towers is switched off';
     updateStatus(state,state.loadedStatus);
     if(!state.map.getSource(SOURCE_ID))installLayers(state);
-    const source=state.map.getSource(SOURCE_ID);if(source)source.setData(state.collection);
-    keepFAAIconsVisible(state);
+    refreshFAAIconSource(state);
     rebuildModels(state);
     if(state.renderer)state.map.triggerRepaint?.();
   } catch(error) {
@@ -728,6 +815,7 @@ async function setEnabled(state,on) {
     if(state.renderer)state.map.triggerRepaint?.();
   }
   setVisibility(state,state.enabled);
+  if(state.enabled&&state.globalLoaded)refreshFAAIconSource(state);
   keepFAAIconsVisible(state);
   refreshCounts(state);
   return state.enabled;
@@ -739,6 +827,7 @@ function install(map,state) {
   if(state.enabled) {
     if(state.THREE)installModelLayer(state);
     if(!state.globalLoaded)void loadInitialData(state);
+    else refreshFAAIconSource(state);
   }
 }
 export function initFAAObstructionTowerRenderer(target) {
@@ -748,9 +837,10 @@ export function initFAAObstructionTowerRenderer(target) {
   const state={
     map,enabled:false,dead:false,loading:false,globalLoaded:false,threeLoading:false,layerInstalling:false,
     THREE:null,scene:null,camera:null,renderer:null,models:[],modelSignature:'',featureCache:new Map(),
+    rawRows:[],rowBuckets:new Map(),overviewRows:[],iconRefreshTimer:0,
     collection:EMPTY,popup:null,interactionsBound:false,status:'Layer off',loadedStatus:'',lastUpdated:null,renderWarned:false,
     repaintTimer:0,
-    stats:{version:VERSION,total:0,verified:0,unverified:0,models:0,sourceRecordCount:null,
+    stats:{version:VERSION,total:0,verified:0,unverified:0,visible:0,models:0,sourceRecordCount:null,
       sourceUpdated:null,layerReady:false,lastError:null}
   };
   const api={
@@ -766,6 +856,7 @@ export function initFAAObstructionTowerRenderer(target) {
     destroy(){
       state.dead=true;
       if(state.repaintTimer)clearTimeout(state.repaintTimer);
+      if(state.iconRefreshTimer)clearTimeout(state.iconRefreshTimer);
       if(state.popup)state.popup.remove();
       for(const item of state.models){state.scene?.remove(item.root);disposeObject(item.root);}
       state.models=[];
