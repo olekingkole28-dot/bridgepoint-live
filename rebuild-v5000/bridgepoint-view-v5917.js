@@ -953,7 +953,7 @@ async function toggleWindAndDroneField(){
 async function toggleEmrfSpectrogram(button){
  const world=home?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
  if(!world?.map)throw new Error('BridgePoint globe not ready');
- const mod=await import('/bridgepoint-emrf-spectrogram-v1.js?v=2-instant-thousands-starlink-globe');
+ const mod=await import('/bridgepoint-emrf-spectrogram-v1.js?v=3-emrf-model-orbit-ground');
  let api=window.__BP_EMRF_SPECTROGRAM_V1__;
  if(!api||api.map!==world.map)api=mod.initBridgePointEmrfSpectrogram(world);
  if(typeof api?.enable!=='function'||typeof api?.disable!=='function')throw new Error('Global EM/RF renderer did not initialize');
@@ -1134,7 +1134,7 @@ function init(){
  if(!window.__BP_EMRF_CATALOG_WARMED_V2__){
   window.__BP_EMRF_CATALOG_WARMED_V2__=true;
   setTimeout(()=>{
-   void import('./bridgepoint-emrf-starlink-global-v2.js?v=2-global-4200-omm-satellites')
+   void import('./bridgepoint-emrf-starlink-global-v2.js?v=3-emrf-model-orbit-ground')
     .then(m=>m.prefetchStarlinkOmmV2())
     .catch(e=>console.info('BridgePoint optional Starlink OMM warm fetch not yet ready:',String(e?.message||e)));
   },3300);
