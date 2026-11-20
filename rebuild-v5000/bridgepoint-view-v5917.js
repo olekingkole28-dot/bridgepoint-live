@@ -200,7 +200,7 @@ function makeTopBarAndDock(){
    '<div class="bpv-command-heading"><span class="bpv-command-heading-icon" aria-hidden="true">☁</span><span><b>WEATHER & ENVIRONMENT</b><small>Storm effects, wind and signal fields</small></span></div>'+
    '<div class="bpv-command-grid" data-bpv-command-grid="environment">'+
     '<button type="button" class="bpv-command-btn bpv-weather-fx-btn" data-bpv-action="weatherfx" title="Open animated weather effects"><span class="bpv-command-icon" aria-hidden="true">☁</span><span class="bpv-command-label">Weather FX</span></button>'+
-    '<button type="button" class="bpv-command-btn" data-bpv-action="clouds" aria-pressed="true" title="Toggle the global animated 3D cloud layer"><span class="bpv-command-icon" aria-hidden="true">☁</span><span class="bpv-command-label">3D Clouds</span></button>'+
+
     '<button type="button" class="bpv-command-btn" data-bpv-action="wildfire" aria-pressed="false" title="Toggle live wildfire and burn-perimeter geometry"><span class="bpv-command-icon" aria-hidden="true">🔥</span><span class="bpv-command-label">Wildfire</span></button>'+
     '<button type="button" class="bpv-command-btn bpv-wind-voxels-btn" data-bpv-action="windfx" title="Explore wind flow and drone routes"><span class="bpv-command-icon" aria-hidden="true">≋</span><span class="bpv-command-label">Wind + Drone</span></button>'+
     '<button type="button" class="bpv-command-btn" data-bpv-action="volumetric" title="Instant animated 3D wind, jet-stream danger markers and 4G/5G radio coverage"><span class="bpv-command-icon" aria-hidden="true">⌁</span><span class="bpv-command-label">Wind + RF / Jets</span></button>'+
@@ -1058,7 +1058,7 @@ if(a==='clouds'){
  const surfaceWorld=home?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
  const activeMap=surfaceWorld?.map||surfaceWorld;
  b.disabled=true;
- void import('./world-v2300-clouds.js?v=6320-colored-cyclone-cloudbands').then(m=>{
+ void import('./world-v2300-clouds.js?v=6330-always-on-color-cyclones').then(m=>{
   const api=window.__BP_SKY_CLOUDS_V5908__?.map===activeMap?window.__BP_SKY_CLOUDS_V5908__:m.initSkyClouds({map:activeMap});
   if(!api)throw new Error('3D cloud renderer is unavailable');
   const next=true;

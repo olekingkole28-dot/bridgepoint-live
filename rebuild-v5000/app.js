@@ -1,4 +1,4 @@
-// Legacy full-site rollout guard; active imports use v6202: world-v2300-clouds.js?v=6320-colored-cyclone-cloudbands
+// Legacy full-site rollout guard; active imports use v6202: world-v2300-clouds.js?v=6330-always-on-color-cyclones
 const SUPA='https://characterization-seas-total-adopt.trycloudflare.com';
 window.__BP_APP_BUILD_VERSION__=5910;window.__BP_PUBLIC_MARKET_MAP_V5906__={publicMap:true,publicOpportunityLayers:true,updatedAt:Date.now()}
 const KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
@@ -239,7 +239,7 @@ scheduleOptionalRenderer(() => import('./bridgepoint-faa-obstruction-towers-v1.j
     const existing=window.__BP_SKY_CLOUDS_V5908__;
     if(existing?.map===world.map)appCloudApi=existing;
     else{
-     if(!appCloudPromise)appCloudPromise=import('./world-v2300-clouds.js?v=6320-colored-cyclone-cloudbands')
+     if(!appCloudPromise)appCloudPromise=import('./world-v2300-clouds.js?v=6330-always-on-color-cyclones')
       .then(m=>{const api=m.initSkyClouds(world);if(!api)throw new Error('3D cloud engine did not initialize');window.__BP_SKY_CLOUDS_V5908__=api;return api})
       .finally(()=>{appCloudPromise=null});
      appCloudApi=await appCloudPromise;
@@ -384,6 +384,7 @@ scheduleOptionalRenderer(() => import('./bridgepoint-jenolan-caves-v1.js?v=1-jen
   });
  };
  // Keep 3D clouds enabled by default, but let the map card and touch input settle first.
+ void initSharedVisualWeather(world,{activate:true,cloudsOnly:true}).then(api=>{window.__BP_SHARED_WEATHER_BOOT_V6310__.status=api?'ready':'unavailable'}).catch(e=>console.warn('BridgePoint immediate storm track feed unavailable',e));
  setTimeout(startDefaultClouds,9500);
  startLiveWeather();
  try{world.map.jumpTo({center:[0,20],zoom:BP_MOBILE?1.05:1.25,pitch:0,bearing:0});window.__BP_GLOBAL_START__={center:[0,20],projection:'globe',zoom:world.map.getZoom(),at:Date.now()}}catch(_){}

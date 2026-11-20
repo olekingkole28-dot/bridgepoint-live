@@ -918,3 +918,6 @@ body.bpv-view-ready #bpv-dock .bpv-dock-actions.bpv-command-groups{
 
 /* 3D clouds are an always-on world layer; the legacy visibility switch is retired. */
 .bpv-command-btn[data-bpv-action="clouds"]{display:none!important}
+
+/* Keep the deprecated manual cloud switch out of every card surface. */
+.bpv-command-btn[data-bpv-action="clouds"],[data-bpv-action="clouds"]{display:none!important}
