@@ -84,7 +84,7 @@ def patch_manifest(source: str) -> str:
 
 def validate_updater(source: str) -> None:
     required = (
-        "BUILD=6300",
+        "BUILD=6330",
         "CACHE_VERSION='6306-mobile-planet-picker'",
         "CURRENT_CACHE='bp-intelligence-v6306-mobile-planet-picker'",
         "reloadDeferredUntilNavigation:true",
