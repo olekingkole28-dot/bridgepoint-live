@@ -78,7 +78,7 @@ jobs:
                   for(let j=0;j<=m;j++)for(let i=0;i<=n;i++){
                     const phi=Math.PI*j/m,theta=Math.PI*2*i/n;
                     const x=Math.cos(theta)*Math.sin(phi),y=Math.sin(theta)*Math.sin(phi),z=Math.cos(phi);
-                    vertices.a_pos.push(x*.65,y*.62,z*.62);
+                    vertices.a_pos.push(.5+x*.34,.5+y*.32,z*.62);
                     vertices.a_altitude.push(0);vertices.a_local.push(x,y,z);vertices.a_tint.push(tint);
                     vertices.a_wind.push(0,0);vertices.a_storm_motion.push(0,0);vertices.a_storm_epoch.push(0);
                   }
@@ -92,7 +92,7 @@ jobs:
                   }
                   const ib=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ib);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(idx),gl.STATIC_DRAW);
                   const uniform=(name)=>gl.getUniformLocation(program,name);
-                  gl.uniformMatrix4fv(uniform('u_matrix'),false,new Float32Array([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]));
+                  gl.uniformMatrix4fv(uniform('u_matrix'),false,new Float32Array([2,0,0,0,0,2,0,0,0,0,1,0,-1,-1,0,1]));
                   gl.uniform1f(uniform('u_time'),3);
                   gl.uniform1f(uniform('u_motion_time'),0);gl.uniform1f(uniform('u_storm_motion_time'),0);
                   gl.uniform1f(uniform('u_camera_altitude_m'),5000);gl.uniform1f(uniform('u_ray_steps'),12);
