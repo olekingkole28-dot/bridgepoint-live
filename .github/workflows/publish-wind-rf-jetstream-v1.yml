@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/publish-wind-rf-jetstream-v1.yml'
+      - 'rebuild-v5000/bridgepoint-global-wind-rf-v1.js'
 
 permissions:
   contents: read
