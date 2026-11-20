@@ -2839,7 +2839,6 @@ jobs:
                   '[data-bp-vessel-awareness-button="1"]',
                   '[data-nightlights]',
                   '.bp-live-rail-toggle-v5969',
-                  '[data-bpv-action="clouds"]',
                   '[data-bpv-action="wildfire"]',
                   '[data-bpv-action="motion"]'
                 ];
