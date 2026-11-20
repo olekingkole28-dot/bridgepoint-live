@@ -152,6 +152,10 @@ async function bootMap(){
  while(!world?.map&&performance.now()-started<10000)await new Promise(r=>setTimeout(r,40));
  if(!world?.map)throw new Error('Map object readiness timeout');
  const appMap=world.map;
+ // Always-on global liquid ocean: keep the same animated water and underwater camera in the signed-in globe.
+ void import('./world-v2300-water.js?v=always-on-liquid-ocean')
+  .then(m=>{const api=m.initWaterEngine(world,{surface:'app',alwaysOn:true});if(api){api.active=true;api.setEnabled?.(true);window.__BP_WATER_ENGINE_APP_V6123__=api;window.__BP_WATER_ENGINE_APP_V6123_ENABLED__=true;try{appMap.setCenterClampedToGround?.(false);appMap.setMaxPitch?.(110)}catch(_){}}})
+  .catch(e=>console.warn('BridgePoint always-on app liquid ocean unavailable',e));
  // FAA-listed towers, antennas and cranes are loaded independently from the core globe.
  
  // Let the signed-in map and bottom feature card become interactive before loading
