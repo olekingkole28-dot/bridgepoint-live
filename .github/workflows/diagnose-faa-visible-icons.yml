@@ -26,6 +26,9 @@ jobs:
             echo "LIVE_ASSET $f $(wc -c < "/tmp/faa-smoke/$f") bytes"
             grep -Ei 'HTTP/|content-type:|content-encoding:' "/tmp/faa-$(basename "$f").headers" | tail -6 || true
           done
+          # Diagnose candidate FAA renderer against the already-live data and MapLibre assets.
+          cp rebuild-v5000/bridgepoint-faa-obstruction-towers-v1.js /tmp/faa-smoke/bridgepoint-faa-obstruction-towers-v1.js
+          node --check /tmp/faa-smoke/bridgepoint-faa-obstruction-towers-v1.js || true
           python3 - <<'PY'
           import gzip,json,pathlib
           path=pathlib.Path('/tmp/faa-smoke/data/bridgepoint-faa-obstructions-v1.json.gz')
@@ -65,10 +68,16 @@ jobs:
           page.on('console',msg=>{const str=msg.type()+': '+msg.text();if(msg.type()==='error'||str.includes('FAA_')){console.log('BROWSER',str.slice(0,1100));if(msg.type()==='error')errors.push(str)}});
           page.on('pageerror',e=>{console.log('PAGE_ERROR',e.message);errors.push(e.message)});
           await page.goto('http://127.0.0.1:8777/diagnostic.html',{waitUntil:'domcontentloaded',timeout:30000});
-          try {await page.waitForFunction(()=>window.__faaInitError||window.__faaApi?.stats?.total>1000||window.__faaApi?.stats?.lastError,{timeout:90000});}catch(e){console.log('TIMEOUT',e.message)}
+          try {await page.waitForFunction(()=>{
+            const m=window.__faaMap,a=window.__faaApi;
+            if(window.__faaInitError||a?.stats?.lastError)return true;
+            if(!a||a.stats.total<1000||!m?.getLayer('bp-faa-obstructions-markers-v1'))return false;
+            if(!m.isSourceLoaded('bp-faa-obstructions-source-v1'))return false;
+            return m.queryRenderedFeatures(undefined,{layers:['bp-faa-obstructions-markers-v1','bp-faa-obstructions-halo-v1']}).length>0;
+          },null,{timeout:90000});}catch(e){console.log('TIMEOUT',e.message)}
           const result=await page.evaluate(()=>{
             const m=window.__faaMap,api=window.__faaApi;
-            const layers=['bp-faa-obstructions-clusters-v1','bp-faa-obstructions-markers-v1','bp-faa-obstructions-cluster-icons-v1-lattice'];
+            const layers=['bp-faa-obstructions-halo-v1','bp-faa-obstructions-clusters-v1','bp-faa-obstructions-markers-v1','bp-faa-obstructions-cluster-icons-v1-lattice'];
             const src=m?.getSource('bp-faa-obstructions-source-v1');
             let hit=[];try{hit=m?.queryRenderedFeatures(undefined,{layers:layers.filter(id=>m.getLayer(id))})||[]}catch(e){}
             return {error:window.__faaInitError||null,apiEnabled:api?.enabled,status:api?.status,stats:api?.stats,sourceExists:!!src,sourceLoaded:m?.isSourceLoaded?.('bp-faa-obstructions-source-v1'),styleLoaded:m?.isStyleLoaded?.(),zoom:m?.getZoom?.(),mapLayers:layers.map(id=>({id,exists:!!m?.getLayer(id),visibility:m?.getLayoutProperty?.(id,'visibility')})),renderedFAA:hit.length,sample:hit.slice(0,3).map(x=>x.properties)};
@@ -76,7 +85,7 @@ jobs:
           console.log('BROWSER_RESULT',JSON.stringify(result).slice(0,8500));
           await page.screenshot({path:'/tmp/faa-smoke/result.png',timeout:15000}).catch(e=>console.warn('SCREENSHOT',e.message));
           await browser.close();
-          if(result.error||!result.apiEnabled||!result.sourceExists||result.stats?.total<1000||result.renderedFAA===0)process.exitCode=1;
+          if(result.error||!result.apiEnabled||!result.sourceExists||result.stats?.total<1000||result.renderedFAA===0||!result.sourceLoaded)process.exitCode=1;
           JS
           cd /tmp/faa-smoke
           python3 -m http.server 8777 --bind 127.0.0.1 > /tmp/faa-smoke/http.log 2>&1 &
