@@ -1797,7 +1797,7 @@ export function initSkyClouds(target) {
         const metresPerPixel=40075016.68557849/(512*Math.pow(2,zoomNow));
         const cameraAltitude=clamp(metresPerPixel*Math.max(1,container.clientHeight||gl.drawingBufferHeight||768)*0.58/Math.max(0.45,Math.cos(pitchRad)),900,50000000);
         const welcomeEntry=welcomeGateVisibleV6504();
-        const raySteps=welcomeEntry?(softwareRenderer?12:16):(softwareRenderer?12:(zoomNow>8.5?(MOBILE?20:28):(MOBILE?28:40)));
+        const raySteps=welcomeEntry?(softwareRenderer?6:14):(softwareRenderer?12:(zoomNow>8.5?(MOBILE?20:28):(MOBILE?28:40)));
         stormRaymarchStepBudget=raySteps;
         if(info.uniforms.cameraCenter)gl.uniform2f(info.uniforms.cameraCenter,cameraCenter.x,cameraCenter.y);
         if(info.uniforms.cameraAltitude)gl.uniform1f(info.uniforms.cameraAltitude,cameraAltitude);
@@ -2073,7 +2073,11 @@ export function initSkyClouds(target) {
     let sourceHeightMatchedCount = 0, sourceHeightModelledCount = 0;
     const maxGlobalCloudVertices = softwareRenderer ? (MOBILE ? 34000 : 44000) : (index32Supported ? CLOUD_VERTEX_LIMIT - CLOUD_STORM_VERTEX_RESERVE : 65400);
     const satelliteMaxClouds = index32Supported ? (MOBILE ? 2900 : 3500) : (MOBILE ? 500 : 720);
-    const activeSatelliteMaxClouds = softwareRenderer ? (MOBILE ? 400 : 580) : satelliteMaxClouds;
+    // BP_FAST_WELCOME_SOURCE_CLOUDS_V6508: keep first-frame WebGL responsive.
+    // Full source fidelity and the existing budgets return after sign-in.
+    const activeSatelliteMaxClouds = welcomeSourceOnly
+      ? (softwareRenderer ? (MOBILE ? 65 : 110) : (MOBILE ? 260 : 440))
+      : (softwareRenderer ? (MOBILE ? 400 : 580) : satelliteMaxClouds);
     // Modestly denser rounded meshes improve the silhouette without adding draw calls.
     // Keep part of the vertex budget for the persistent procedural field on lower-power GPUs.
     const satellitePuffSlices = MOBILE ? 8 : 9;
@@ -2270,7 +2274,8 @@ export function initSkyClouds(target) {
     if(satelliteMaskReady || sourceHeightSamples.length || sourceCloudMaskSamples.length){
       const coverage=satelliteMaskReady?satelliteMask.coverage:[],probability=satelliteMaskReady?satelliteMask.probability:[],width=satelliteMaskReady?Number(satelliteMask.width):0,height=satelliteMaskReady?Number(satelliteMask.height):0;
       const pAt=(x,y)=>!satelliteMaskReady||x<0||x>=width||y<0||y>=height?0:probability[y*width+x]/255,candidates=[];
-      if (satelliteMaskReady) for(let row=1;row<height-1;row++)for(let col=1;col<width-1;col++){
+      const welcomeMaskStride = welcomeSourceOnly ? (MOBILE ? 6 : 8) : 1;
+      if (satelliteMaskReady) for(let row=1;row<height-1;row+=welcomeMaskStride)for(let col=1;col<width-1;col+=welcomeMaskStride){
         const i=row*width+col;if(Number(coverage[i])<192)continue;
         const point=satelliteMaskCellCenterV6150(satelliteMask,col,row);
         if(!Number.isFinite(point.lng)||!Number.isFinite(point.lat)||Math.abs(point.lat)>84.5)continue;
@@ -2288,7 +2293,7 @@ export function initSkyClouds(target) {
       }
       // Direct NOAA mask observations capture clouds missed by the coarser imagery classifier.
       if (sourceCloudMaskSamples.length) {
-        const maxDirectMaskCandidates=MOBILE?5200:9000;
+        const maxDirectMaskCandidates=welcomeSourceOnly?(MOBILE?900:1400):(MOBILE?5200:9000);
         const stride=Math.max(1,Math.ceil(sourceCloudMaskSamples.length/maxDirectMaskCandidates));
         for(let sampleIndex=0;sampleIndex<sourceCloudMaskSamples.length;sampleIndex+=stride){
           const sample=sourceCloudMaskSamples[sampleIndex],p=number(sample?.probability,NaN);
@@ -2306,7 +2311,7 @@ export function initSkyClouds(target) {
       if (sourceHeightSamples.length) {
         // Keep all measurements in the spatial height index, but seed visible meshes from
         // a bounded, even subset so startup never allocates/sorts 28k puff objects.
-        const maxDirectHeightCandidates = MOBILE ? 5200 : 9000;
+        const maxDirectHeightCandidates = welcomeSourceOnly ? (MOBILE ? 900 : 1400) : (MOBILE ? 5200 : 9000);
         const heightCandidateStride = Math.max(1, Math.ceil(sourceHeightSamples.length / maxDirectHeightCandidates));
         for (let sampleIndex = 0; sampleIndex < sourceHeightSamples.length; sampleIndex += heightCandidateStride) {
           const sample = sourceHeightSamples[sampleIndex];
