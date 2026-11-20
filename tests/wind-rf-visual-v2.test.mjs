@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const src=readFileSync(new URL('../rebuild-v5000/bridgepoint-global-wind-rf-v1.js',import.meta.url),'utf8');
+const module=await import('data:text/javascript;charset=utf-8,'+encodeURIComponent(src));
+assert.equal(typeof module.initBridgePointGlobalWindRfV1,'function');
+assert.ok(src.includes('const boost=1;'),'RF planning radius is never visually inflated');
+assert.ok(!src.includes('Math.pow(2,5-zoom)*42'),'oversized world-scale sphere removed');
+assert.match(src,/new T.PointsMaterial/,'screen-sized tower pin for globe zoom');
+assert.ok(src.includes('queryTerrainElevation'),'surface wind and RF account for DEM where available');
+assert.ok(src.includes('isJet?jetHeight:elev+10'),'jet height stays pressure-level model height and surface wind near 10 m');
+assert.ok(src.includes('row[6]+Math.min(800,size*.12)'),'jet warning icon cannot float 80 km above the model jet');
+assert.ok(src.includes('attribute vec3 color;'),'GLSL explicitly declares vertex color attribute');
+assert.ok(src.includes('windColor(speed)'),'global wind uses speed-color gradient');
+assert.ok(src.includes('visibleSamples(map,rows,isJet,zoom)'),'near-field wind follows viewport using nearest forecast sample');
+assert.ok(src.includes('wind.visible=st.windOn&&zoom<=18;'),'global-to-street wind visibility retained');
+assert.ok(src.includes('jet.visible=st.windOn&&zoom<=18;'),'upper-air jets remain at source height at all zooms');
+assert.ok(!/Math.random\(/.test(src),'no fabricated source data or antenna locations');
+console.log('WIND_RF_V2_VISUAL_CONTRACT_PASS');
