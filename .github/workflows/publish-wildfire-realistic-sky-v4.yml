@@ -88,7 +88,7 @@ jobs:
           view='bridgepoint-view-v5917.js'
           required={
               'index.html','app/index.html','landing.js','app.js',view,
-              fire,'app/'+fire,sky,'app/'+sky,'vendor/three.module.js',
+              fire,'app/'+fire,sky,'vendor/three.module.js',
               'world-v2300-weather.js','world-v2300-clouds.js',
               'bridgepoint-spacecraft-v1.js','bridgepoint-spacecraft-discovery-v1.js',
               'bridgepoint-spacecraft-columbia-v1.js','bridgepoint-spacecraft-saturn-v1.js',
@@ -161,9 +161,9 @@ jobs:
           removed=set(before)-set(after)
           added=set(after)-set(before)
           changed={p for p in before if before[p]!=after.get(p)}
-          allowed_changed={fire,'app/'+fire,sky,'app/'+sky,view,
+          allowed_changed={fire,'app/'+fire,sky,view,
                            'landing.js','app.js','index.html','app/index.html'}
-          allowed_added={engine,'app/'+engine}
+          allowed_added={engine,'app/'+engine,'app/'+sky}
           if removed or changed!=allowed_changed or added!=allowed_added:
               raise SystemExit('WILDFIRE_V4_UNRELATED_FILE_REGRESSION_BLOCKED '+json.dumps({
                   'removed':sorted(removed),'added':sorted(added),'changed':sorted(changed)}))
@@ -180,7 +180,7 @@ jobs:
           assert "svg.style.visibility='hidden'" in (site/sky).read_text(encoding='utf-8')
           assert "Fire Radiative Power" in (site/fire).read_text(encoding='utf-8')
           print('WILDFIRE_V4_COMPLETE_SITE_PRESERVATION_PASS',len(before),
-                'existing files; only nine wildfire/sky entry files changed and two GPU modules added')
+                'existing files; only eight wildfire/sky entry files changed; GPU modules and missing app sky module added')
           PY
           node --check "$SITE/bridgepoint-view-v5917.js"
           for path in bridgepoint-wildfires-volumetric-v1.js app/bridgepoint-wildfires-volumetric-v1.js bridgepoint-wildfire-realistic-mesh-v4.js app/bridgepoint-wildfire-realistic-mesh-v4.js bridgepoint-celestial-sky-v6257.js app/bridgepoint-celestial-sky-v6257.js; do
