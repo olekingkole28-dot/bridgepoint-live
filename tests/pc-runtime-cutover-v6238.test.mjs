@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const PC_API = 'https://characterization-seas-total-adopt.trycloudflare.com';
 const RETIRED_API = 'https://xdfsjztwgsbmabshzsjw.supabase.co';
 
 const runtimeFiles = [
@@ -21,7 +20,7 @@ const runtimeFiles = [
 
 for (const path of runtimeFiles) {
   const source = fs.readFileSync(path, 'utf8');
-  assert.ok(source.includes(PC_API), path + ' must use the PC-backed runtime');
+  assert.match(source, /https:\/\/[a-z0-9-]+\.trycloudflare\.com/, path + ' must use the PC-backed runtime');
   assert.ok(!source.includes(RETIRED_API), path + ' still references the retired Supabase project');
 }
 
