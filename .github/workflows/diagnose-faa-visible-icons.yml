@@ -1,0 +1,91 @@
+name: Diagnose FAA Icon Rendering (read-only)
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/diagnose-faa-visible-icons.yml'
+permissions:
+  contents: read
+jobs:
+  smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Obtain actual live assets and verify the FAA data payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/faa-smoke/vendor /tmp/faa-smoke/data
+          for f in bridgepoint-faa-obstruction-towers-v1.js vendor/maplibre-gl.js vendor/three.module.js data/bridgepoint-faa-obstructions-v1.json.gz; do
+            curl --retry 3 --retry-all-errors -fsSL --max-time 150 -D "/tmp/faa-$(basename "$f").headers" "https://bridgepointintelligence.online/$f?faa-diagnostic=$GITHUB_SHA" -o "/tmp/faa-smoke/$f"
+            echo "LIVE_ASSET $f $(wc -c < "/tmp/faa-smoke/$f") bytes"
+            grep -Ei 'HTTP/|content-type:|content-encoding:' "/tmp/faa-$(basename "$f").headers" | tail -6 || true
+          done
+          python3 - <<'PY'
+          import gzip,json,pathlib
+          path=pathlib.Path('/tmp/faa-smoke/data/bridgepoint-faa-obstructions-v1.json.gz')
+          b=path.read_bytes()
+          try: data=json.loads(gzip.decompress(b))
+          except Exception: data=json.loads(b)
+          rows=data.get('rows',[])
+          print('LIVE_DATA_PAYLOAD',{'rows':len(rows),'metadata':data.get('metadata'),'first':rows[:2]})
+          assert len(rows)>1000,'FAA published data is empty or invalid'
+          PY
+      - name: Browser-render real MapLibre map with the live FAA module
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --prefix /tmp/faa-smoke --no-audit --no-fund playwright-core@1.56.1
+          cat > /tmp/faa-smoke/diagnostic.html <<'HTML'
+          <!doctype html><html><head><meta charset="UTF-8"><style>html,body,#map{height:100%;width:100%;margin:0}#bpv-dock-actions{position:absolute;bottom:0;left:0;z-index:99;background:#000;color:#fff}</style></head>
+          <body><div id="map"></div><div id="bpv-dock-actions"></div><script src="/vendor/maplibre-gl.js"></script>
+          <script type="module">
+          try {
+            const map=new maplibregl.Map({container:'map',style:{version:8,sources:{},layers:[]},center:[-96,38],zoom:2,attributionControl:false,renderWorldCopies:false});
+            window.__faaMap=map;
+            map.on('error',e=>console.error('MAP_ERROR',e.error?.message||String(e.error||e)));
+            const {initFAAObstructionTowerRenderer}=await import('/bridgepoint-faa-obstruction-towers-v1.js');
+            const api=initFAAObstructionTowerRenderer(map);
+            window.__faaApi=api;
+            await api.setEnabled(true);
+            console.log('FAA_DIAGNOSTIC_ENABLED',api.enabled,api.status);
+          } catch(e) {window.__faaInitError=String(e.stack||e); console.error('FAA_INIT_ERROR',e);}
+          </script></body></html>
+          HTML
+          cat > /tmp/faa-smoke/diagnostic.mjs <<'JS'
+          import { chromium } from 'playwright-core';
+          const browser=await chromium.launch({executablePath:'/usr/bin/google-chrome',headless:true,args:['--no-sandbox','--use-gl=angle','--use-angle=swiftshader','--enable-webgl','--disable-web-security']});
+          const page=await browser.newPage({viewport:{width:1200,height:800}});
+          const errors=[];
+          page.on('console',msg=>{const str=msg.type()+': '+msg.text();if(msg.type()==='error'||str.includes('FAA_')){console.log('BROWSER',str.slice(0,1100));if(msg.type()==='error')errors.push(str)}});
+          page.on('pageerror',e=>{console.log('PAGE_ERROR',e.message);errors.push(e.message)});
+          await page.goto('http://127.0.0.1:8777/diagnostic.html',{waitUntil:'domcontentloaded',timeout:30000});
+          try {await page.waitForFunction(()=>window.__faaInitError||window.__faaApi?.stats?.total>1000||window.__faaApi?.stats?.lastError,{timeout:90000});}catch(e){console.log('TIMEOUT',e.message)}
+          const result=await page.evaluate(()=>{
+            const m=window.__faaMap,api=window.__faaApi;
+            const layers=['bp-faa-obstructions-clusters-v1','bp-faa-obstructions-markers-v1','bp-faa-obstructions-cluster-icons-v1-lattice'];
+            const src=m?.getSource('bp-faa-obstructions-source-v1');
+            let hit=[];try{hit=m?.queryRenderedFeatures(undefined,{layers:layers.filter(id=>m.getLayer(id))})||[]}catch(e){}
+            return {error:window.__faaInitError||null,apiEnabled:api?.enabled,status:api?.status,stats:api?.stats,sourceExists:!!src,sourceLoaded:m?.isSourceLoaded?.('bp-faa-obstructions-source-v1'),styleLoaded:m?.isStyleLoaded?.(),zoom:m?.getZoom?.(),mapLayers:layers.map(id=>({id,exists:!!m?.getLayer(id),visibility:m?.getLayoutProperty?.(id,'visibility')})),renderedFAA:hit.length,sample:hit.slice(0,3).map(x=>x.properties)};
+          });
+          console.log('BROWSER_RESULT',JSON.stringify(result).slice(0,8500));
+          await page.screenshot({path:'/tmp/faa-smoke/result.png',timeout:15000}).catch(e=>console.warn('SCREENSHOT',e.message));
+          await browser.close();
+          if(result.error||!result.apiEnabled||!result.sourceExists||result.stats?.total<1000||result.renderedFAA===0)process.exitCode=1;
+          JS
+          cd /tmp/faa-smoke
+          python3 -m http.server 8777 --bind 127.0.0.1 > /tmp/faa-smoke/http.log 2>&1 &
+          PID=$!
+          trap 'kill "$PID" || true' EXIT
+          node /tmp/faa-smoke/diagnostic.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: faa-diagnostic-screenshot
+          path: /tmp/faa-smoke/result.png
+          if-no-files-found: ignore
