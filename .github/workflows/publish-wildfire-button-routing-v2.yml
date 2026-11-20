@@ -1,0 +1,186 @@
+name: Publish Wildfire Button Routing Repair v2 Only
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-wildfire-button-routing-v2.yml'
+
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Regression-test exact Wildfire click routing
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check rebuild-v5000/bridgepoint-view-v5917.js
+          node --input-type=module --check < rebuild-v5000/bridgepoint-wildfires-volumetric-v1.js
+          node tests/wildfire-button-routing-v2.test.mjs
+          node tests/wildfire-source-native-v1.test.mjs
+
+      - name: Locate last successfully published wildfire plus 24-spacecraft snapshot
+        id: baseline
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          RUN_ID="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/publish-wildfire-native-v1.yml/runs?branch=main&status=success&per_page=20" --jq '.workflow_runs | map(select(.conclusion == "success")) | first | .id')"
+          test -n "$RUN_ID" && test "$RUN_ID" != null
+          NAME="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/artifacts" --jq '.artifacts[] | select((.expired|not) and (.name == "bridgepoint-v5000-wildfire-native-v1")) | .name' | head -n 1)"
+          test "$NAME" = bridgepoint-v5000-wildfire-native-v1
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "BASELINE $RUN_ID $NAME"
+
+      - name: Download exact verified wildfire production website
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ steps.baseline.outputs.artifact_name }}
+          run-id: ${{ steps.baseline.outputs.run_id }}
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/wildfire-routing-baseline
+
+      - name: Correct only one button-selector and two cache keys
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCHIVE="$(find "$RUNNER_TEMP/wildfire-routing-baseline" -name artifact.tar -type f -print -quit)"
+          test -n "$ARCHIVE"
+          SITE="$RUNNER_TEMP/wildfire-routing-fixed"
+          mkdir -p "$SITE"
+          tar -xf "$ARCHIVE" -C "$SITE"
+          export SITE
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib,os,json,re
+          site=Path(os.environ['SITE'])
+          required={
+           'index.html','app/index.html','landing.js','app.js',
+           'bridgepoint-view-v5917.js','bridgepoint-wildfires-volumetric-v1.js',
+           'app/bridgepoint-wildfires-volumetric-v1.js','world-v2300-weather.js',
+           'world-v2300-clouds.js','vendor/three.module.js',
+           'bridgepoint-spacecraft-v1.js','bridgepoint-spacecraft-saturn-v1.js',
+           'bridgepoint-spacecraft-columbia-v1.js','bridgepoint-spacecraft-discovery-v1.js',
+           'bridgepoint-spacecraft-ten-pads-v2.js','app/bridgepoint-spacecraft-ten-pads-v2.js',
+           'bridgepoint-spacecraft-museums-v3.js','app/bridgepoint-spacecraft-museums-v3.js',
+           'bridgepoint-underground-scan-sites-v1.js','bridgepoint-plane-wrecks-v1.js',
+           'bridgepoint-shipwrecks-v1.js'
+          }
+          before={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                  for p in site.rglob('*') if p.is_file()}
+          if missing:=required-set(before):raise SystemExit('FAIL_MISSING_PRODUCTION_FILES '+str(sorted(missing)))
+          f=site/'bridgepoint-view-v5917.js'
+          old="dock.querySelectorAll('[data-bpv-action]').forEach(b=>{b.dataset.bpvBound='1';b.addEventListener('click',()=>{"
+          new="dock.querySelectorAll('[data-bpv-action]:not([data-bpv-action=\"wildfire\"])').forEach(b=>{b.dataset.bpvBound='1';b.addEventListener('click',()=>{"
+          code=f.read_text(encoding='utf-8')
+          repo_code=Path('rebuild-v5000/bridgepoint-view-v5917.js').read_text(encoding='utf-8')
+          if code.count(old)!=1 or code.count(new):raise SystemExit('WILDFIRE_BUTTON_GENERIC_HANDLER_BASELINE_UNEXPECTED')
+          patched=code.replace(old,new,1)
+          if repo_code.count(new)!=1:
+              raise SystemExit('WILDFIRE_REPOSITORY_DOES_NOT_EXPECT_EXACT_HANDLER_ROUTING')
+          # Previous publication overlays the wildfire handler onto a preserved
+          # production card script. The rest may intentionally differ from repo.
+          # Only compare the installed dedicated wildfire block, not other tools.
+          handler_start="if(a==='wildfire'){"
+          handler_end="if(a==='windfx')"
+          def dedicated_block(value):
+              a=value.index(handler_start)
+              b=value.index(handler_end,a)
+              return value[a:b]
+          if dedicated_block(patched)!=dedicated_block(repo_code):
+              raise SystemExit('WILDFIRE_PUBLISHED_HANDLER_NOT_CURRENT')
+          if 'bridgepoint-wildfires-volumetric-v1.js' not in patched or 'initLiveWildfireRenderer' not in patched:
+              raise SystemExit('WILDFIRE_DEDICATED_HANDLER_NOT_PRESENT')
+          f.write_text(patched,encoding='utf-8')
+          for path in ('index.html','app/index.html'):
+              p=site/path
+              text=p.read_text(encoding='utf-8')
+              pattern=r'(?<=data-bp-deferred-src=")/bridgepoint-view-v5917\.js(?:\?[^"]*)?(?=")'
+              matches=list(re.finditer(pattern,text))
+              if len(matches)!=1:raise SystemExit('WILDFIRE_VIEW_SCRIPT_NOT_EXACTLY_ONCE '+path)
+              previous=matches[0].group(0)
+              if previous.count('wildfire3d=v1')!=1 or 'wildfire3d=v2' in previous:
+                  raise SystemExit('WILDFIRE_CACHE_KEY_BASELINE_UNEXPECTED '+path)
+              fresh=previous.replace('wildfire3d=v1','wildfire3d=v2')
+              text=text[:matches[0].start()]+fresh+text[matches[0].end():]
+              p.write_text(text,encoding='utf-8')
+          after={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                 for p in site.rglob('*') if p.is_file()}
+          removed=set(before)-set(after)
+          added=set(after)-set(before)
+          changed={path for path in before if before[path]!=after.get(path)}
+          if removed or added or changed!={'bridgepoint-view-v5917.js','index.html','app/index.html'}:
+              raise SystemExit('WILDFIRE_REGRESSION_GUARD_FAILED '+json.dumps({
+                  'removed':sorted(removed),'added':sorted(added),'changed':sorted(changed)}))
+          assert (site/'bridgepoint-wildfires-volumetric-v1.js').read_bytes()==(site/'app/bridgepoint-wildfires-volumetric-v1.js').read_bytes()
+          print('WILDFIRE_ONLY_BUTTON_ROUTING_PRESERVED',len(before),'files, exactly 3 wildfire routing/cache changes, nothing removed or added')
+          PY
+          node --check "$SITE/bridgepoint-view-v5917.js"
+          node --input-type=module --check < "$SITE/bridgepoint-wildfires-volumetric-v1.js"
+
+      - uses: actions/configure-pages@v5
+
+      - name: Upload preserved site with only working Wildfire click routing
+        uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-wildfire-button-routing-v2
+          path: ${{ runner.temp }}/wildfire-routing-fixed
+          include-hidden-files: true
+
+      - name: Publish Wildfire button routing fix to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: bridgepoint-v5000-wildfire-button-routing-v2
+
+      - name: Verify live website and app no longer use generic Wildfire routing
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="https://bridgepointintelligence.online"
+          ok=0
+          for attempt in 1 2 3 4 5 6; do
+            VIEW="$(mktemp)"
+            ROOT="$(mktemp)"
+            APP="$(mktemp)"
+            if curl -fsSL --max-time 35 -H 'Cache-Control: no-cache' "$SITE/bridgepoint-view-v5917.js?check=$GITHUB_SHA-$attempt" -o "$VIEW" &&
+               curl -fsSL --max-time 35 -H 'Cache-Control: no-cache' "$SITE/index.html?check=$GITHUB_SHA-$attempt" -o "$ROOT" &&
+               curl -fsSL --max-time 35 -H 'Cache-Control: no-cache' "$SITE/app/index.html?check=$GITHUB_SHA-$attempt" -o "$APP" &&
+               grep -F 'data-bpv-action]:not([data-bpv-action="wildfire"])' "$VIEW" >/dev/null &&
+               grep -F 'initLiveWildfireRenderer(activeMap)' "$VIEW" >/dev/null &&
+               grep -F 'wildfire3d=v2' "$ROOT" >/dev/null &&
+               grep -F 'wildfire3d=v2' "$APP" >/dev/null &&
+               curl -fsSL --max-time 35 "$SITE/bridgepoint-wildfires-volumetric-v1.js?check=$GITHUB_SHA-$attempt" | grep -F 'initLiveWildfireRenderer' >/dev/null &&
+               curl -fsSL --max-time 35 "$SITE/bridgepoint-spacecraft-museums-v3.js?check=$GITHUB_SHA-$attempt" | grep -F 'SPACECRAFT_MUSEUM_EXHIBITS_V3' >/dev/null; then
+              ok=1
+            fi
+            rm -f "$VIEW" "$ROOT" "$APP"
+            if test "$ok" = 1; then break; fi
+            sleep 12
+          done
+          test "$ok" = 1
+          echo "LIVE_WILDFIRE_DEDICATED_CLICK_ROUTING_VERIFIED_PRODUCTION_ROOT_APP"
