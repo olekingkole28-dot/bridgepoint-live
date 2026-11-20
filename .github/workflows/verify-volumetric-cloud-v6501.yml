@@ -1,0 +1,65 @@
+name: Verify V6501 Cloud Density WebGL
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/verify-volumetric-cloud-v6501.yml'
+      - 'release-v2300/world-v2300-clouds.js'
+permissions:
+  contents: read
+jobs:
+  shader:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax and WebGL1+WebGL2 shader-compile smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module --check < release-v2300/world-v2300-clouds.js
+          test -n "$(command -v google-chrome || command -v chromium)"
+          cd /tmp
+          npm init -y >/dev/null 2>&1 || true
+          npm install --no-audit --no-fund puppeteer-core@24 >/dev/null
+          REPO_ROOT="$GITHUB_WORKSPACE" CHROME_PATH="$(command -v google-chrome || command -v chromium)" node <<'NODE'
+          const fs=require('fs'),vm=require('vm'),puppeteer=require('puppeteer-core');
+          const source=fs.readFileSync(process.env.REPO_ROOT+'/release-v2300/world-v2300-clouds.js','utf8');
+          const start=source.indexOf('const STORM_VOLUME_FRAGMENT = String.raw');
+          const end=source.indexOf('function compileShader(',start+1);
+          if(start<0||end<0)throw Error('Cannot extract full live cloud shader functions');
+          const context=vm.createContext({});
+          const shaderFactory=vm.runInContext(source.slice(start,end)+'\nmakeShaders',context);
+          if(typeof shaderFactory!=='function')throw Error('Invalid shader factory');
+          (async()=>{
+            const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,
+              args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader']});
+            try{
+              const p=await browser.newPage();
+              await p.goto('about:blank');
+              for(const version of [1,2]){
+                const shaders=shaderFactory(version===2);
+                const output=await p.evaluate(({vs,fs,version})=>{
+                  const c=document.createElement('canvas');c.width=512;c.height=320;
+                  document.body.appendChild(c);
+                  const gl=c.getContext(version===2?'webgl2':'webgl',{alpha:true,preserveDrawingBuffer:true,antialias:true});
+                  if(!gl)return{version,error:'WebGL context unavailable'};
+                  function compile(type,src){
+                    const shader=gl.createShader(type);gl.shaderSource(shader,src);gl.compileShader(shader);
+                    return{shader,ok:gl.getShaderParameter(shader,gl.COMPILE_STATUS),log:gl.getShaderInfoLog(shader)};
+                  }
+                  const a=compile(gl.VERTEX_SHADER,vs),b=compile(gl.FRAGMENT_SHADER,fs);
+                  let linked=false,log='';
+                  if(a.ok&&b.ok){const pr=gl.createProgram();gl.attachShader(pr,a.shader);gl.attachShader(pr,b.shader);gl.linkProgram(pr);
+                    linked=gl.getProgramParameter(pr,gl.LINK_STATUS);log=gl.getProgramInfoLog(pr);}
+                  return{version,vertex:a.ok,fragment:b.ok,linked,log:(a.log+' '+b.log+' '+log).slice(0,2000),
+                    volumePresent:fs.includes('bpRaymarchCumulusV6500')};
+                },{vs:shaders.vertex,fs:shaders.fragment,version});
+                console.log('BRIDGEPOINT_CLOUD_WEBGL_V6501',JSON.stringify(output));
+                if(!output.vertex||!output.fragment||!output.linked||!output.volumePresent)throw Error('V6501 shader compile failed '+JSON.stringify(output));
+              }
+              console.log('BRIDGEPOINT_CLOUD_VOLUME_WEBGL1_WEBGL2_PASS');
+            }finally{await browser.close()}
+          })().catch(e=>{console.error(e.stack||e);process.exit(1)});
+          NODE
