@@ -1,0 +1,188 @@
+name: Publish Ten Global Spacecraft Museum Exhibits v3
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-spacecraft-museums-v3.yml'
+
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate unique museum pieces and locally hosted 3D renderer
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module --check < rebuild-v5000/bridgepoint-spacecraft-museums-v3.js
+          node tests/spacecraft-museums-v3.test.mjs
+          node --check rebuild-v5000/landing.js
+          node --check rebuild-v5000/app.js
+
+      - name: Find last verified 14-spacecraft production Pages snapshot
+        id: baseline
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          RUN_ID="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/publish-spacecraft-ten-pads-v2.yml/runs?status=success&branch=main&per_page=20" --jq '.workflow_runs | map(select(.conclusion == "success")) | first | .id')"
+          test -n "$RUN_ID" && test "$RUN_ID" != null
+          NAME="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/artifacts" --jq '.artifacts[] | select((.expired|not) and (.name == "bridgepoint-v5000-spacecraft-ten")) | .name' | head -n 1)"
+          test "$NAME" = bridgepoint-v5000-spacecraft-ten
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "VERIFIED_FOURTEEN_SPACECRAFT_BASELINE $RUN_ID $NAME"
+
+      - name: Download full known-good production snapshot
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ steps.baseline.outputs.artifact_name }}
+          run-id: ${{ steps.baseline.outputs.run_id }}
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/museum-base
+
+      - name: Overlay only museum spacecraft scenes and existing entry imports
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCHIVE="$(find "$RUNNER_TEMP/museum-base" -name artifact.tar -type f -print -quit)"
+          test -n "$ARCHIVE"
+          SITE="$RUNNER_TEMP/museum-site"
+          mkdir -p "$SITE"
+          tar -xf "$ARCHIVE" -C "$SITE"
+          export SITE
+          python3 - <<'PY'
+          import hashlib,json,os,re
+          from pathlib import Path
+          site=Path(os.environ['SITE'])
+          name='bridgepoint-spacecraft-museums-v3.js'
+          old_required={
+           'landing.js','app.js','index.html','app/index.html',
+           'bridgepoint-spacecraft-v1.js','bridgepoint-spacecraft-saturn-v1.js',
+           'bridgepoint-spacecraft-columbia-v1.js','bridgepoint-spacecraft-discovery-v1.js',
+           'bridgepoint-spacecraft-ten-pads-v2.js','app/bridgepoint-spacecraft-ten-pads-v2.js',
+           'bridgepoint-underground-scan-sites-v1.js','app/bridgepoint-underground-scan-sites-v1.js',
+           'bridgepoint-plane-wrecks-v1.js','bridgepoint-shipwrecks-v1.js',
+           'assets/spacecraft/nasa-mobile-launcher.glb','vendor/three.module.js'
+          }
+          before={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                  for p in site.rglob('*') if p.is_file()}
+          if missing:=old_required-set(before):
+              raise SystemExit('MUSEUM_BASELINE_MISSING '+str(sorted(missing)))
+          # Existing globe layers, caves, wrecks, auth, models and 14 spacecraft remain untouched.
+          module=(Path('rebuild-v5000')/name).read_bytes()
+          for path in (name,'app/'+name):
+              if path in before: raise SystemExit('MUSEUM_MODULE_ALREADY_IN_BASELINE '+path)
+              (site/path).write_bytes(module)
+          landing=site/'landing.js'
+          src=landing.read_text(encoding='utf-8')
+          if 'initSpacecraftMuseumsRenderer' in src:raise SystemExit('MUSEUM_IMPORT_ALREADY_PRESENT_IN_BASELINE')
+          mobile_pattern=r"(?m)^([ \t]*\['\./bridgepoint-spacecraft-ten-pads-v2\.js[^\n]*\],)$"
+          matches=list(re.finditer(mobile_pattern,src))
+          if len(matches)!=1:raise SystemExit('MOBILE_TEN_PADS_ANCHOR_MISSING_OR_DUPLICATE')
+          new_mobile="          ['./"+name+"?v=3-ten-museum-mobile','__BP_SPACECRAFT_MUSEUMS_V3__','initSpacecraftMuseumsRenderer','10 spacecraft museum exhibits'],"
+          match=matches[0]
+          src=src[:match.end()]+'\n'+new_mobile+src[match.end():]
+          old=".catch(e=>console.warn('BridgePoint ten launch-pad layer unavailable',e));"
+          if src.count(old)!=1:raise SystemExit('DESKTOP_TEN_PADS_ANCHOR_MISSING_OR_DUPLICATE')
+          new="void import('./"+name+"?v=3-ten-museum-on-globe')\n .then(m=>{window.__BP_SPACECRAFT_MUSEUMS_V3__=m.initSpacecraftMuseumsRenderer(world)})\n .catch(e=>console.warn('BridgePoint museum spacecraft layer unavailable',e));"
+          src=src.replace(old,old+'\n'+new,1)
+          if src.count('initSpacecraftMuseumsRenderer')!=2:raise SystemExit('LANDING_MUSEUM_INITIALIZATION_COUNT_FAILURE')
+          landing.write_text(src,encoding='utf-8')
+          app=site/'app.js'
+          src=app.read_text(encoding='utf-8')
+          old=".catch(e=>console.warn('BridgePoint ten launch-pad layer unavailable',e)));"
+          if src.count(old)!=1:raise SystemExit('APP_TEN_PADS_ANCHOR_MISSING_OR_DUPLICATE')
+          new="scheduleOptionalRenderer(() => import('./"+name+"?v=3-ten-museum-on-globe')\n .then(m=>{window.__BP_SPACECRAFT_MUSEUMS_V3__=m.initSpacecraftMuseumsRenderer(world)})\n .catch(e=>console.warn('BridgePoint museum spacecraft layer unavailable',e)));"
+          src=src.replace(old,old+'\n'+new,1)
+          if src.count('initSpacecraftMuseumsRenderer')!=1:raise SystemExit('APP_MUSEUM_INITIALIZATION_COUNT_FAILURE')
+          app.write_text(src,encoding='utf-8')
+          for entry,script in (('index.html','landing.js'),('app/index.html','app.js')):
+              p=site/entry
+              text=p.read_text(encoding='utf-8')
+              matches=list(re.finditer(r'src="([^"]*'+re.escape(script)+r'(?:\?[^"]*)?)"',text))
+              if len(matches)!=1:raise SystemExit('MUSEUM_EXPECTED_ONE_ENTRY_SCRIPT '+entry)
+              url=matches[0].group(1)
+              if 'museumspacecraft=v3' in url:raise SystemExit('MUSEUM_CACHE_KEY_DUPLICATED '+entry)
+              text=text.replace('src="'+url+'"','src="'+url+('&' if '?' in url else '?')+'museumspacecraft=v3"',1)
+              p.write_text(text,encoding='utf-8')
+          after={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                 for p in site.rglob('*') if p.is_file()}
+          removed=set(before)-set(after)
+          changed={p for p in before if p in after and before[p]!=after[p]}
+          added=set(after)-set(before)
+          expected_changed={'landing.js','app.js','index.html','app/index.html'}
+          expected_added={name,'app/'+name}
+          if removed or changed!=expected_changed or added!=expected_added:
+              raise SystemExit('MUSEUM_ADDITIVE_ONLY_SCOPE_FAILURE '+json.dumps({
+                  'removed':sorted(removed),'changed':sorted(changed),'added':sorted(added)}))
+          assert (site/name).read_bytes()==(site/'app'/name).read_bytes()
+          for old in ('bridgepoint-spacecraft-v1.js','bridgepoint-spacecraft-saturn-v1.js',
+                      'bridgepoint-spacecraft-columbia-v1.js','bridgepoint-spacecraft-discovery-v1.js',
+                      'bridgepoint-spacecraft-ten-pads-v2.js','bridgepoint-underground-scan-sites-v1.js'):
+              assert old in (site/'landing.js').read_text()
+              assert old in (site/'app.js').read_text()
+          print('BRIDGEPOINT_MUSEUM_TEN_ADDITIVE_ONLY_PASS',len(before),'original files preserved; 2 new modules; only 4 existing entry files changed')
+          PY
+          node --check "$SITE/landing.js"
+          node --check "$SITE/app.js"
+          node --input-type=module --check < "$SITE/bridgepoint-spacecraft-museums-v3.js"
+          node --input-type=module --check < "$SITE/app/bridgepoint-spacecraft-museums-v3.js"
+          cmp -s "$SITE/bridgepoint-spacecraft-museums-v3.js" "$SITE/app/bridgepoint-spacecraft-museums-v3.js"
+
+      - uses: actions/configure-pages@v5
+
+      - name: Upload exact preserved production site with museum spacecraft overlay
+        uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-spacecraft-museums-v3
+          path: ${{ runner.temp }}/museum-site
+          include-hidden-files: true
+
+      - name: Publish ten additional museum spacecraft to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: bridgepoint-v5000-spacecraft-museums-v3
+
+      - name: Verify both live website and app plus original spacecraft
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="https://bridgepointintelligence.online"
+          success=0
+          for pass in 1 2 3 4 5 6; do
+            if curl -fsSL --max-time 30 -H 'Cache-Control: no-cache' "$SITE/bridgepoint-spacecraft-museums-v3.js?check=$GITHUB_SHA-$pass" | grep -F 'SPACECRAFT_MUSEUM_EXHIBITS_V3' >/dev/null &&
+               curl -fsSL --max-time 30 -H 'Cache-Control: no-cache' "$SITE/app/bridgepoint-spacecraft-museums-v3.js?check=$GITHUB_SHA-$pass" | grep -F 'initSpacecraftMuseumsRenderer' >/dev/null &&
+               curl -fsSL --max-time 30 -H 'Cache-Control: no-cache' "$SITE/landing.js?check=$GITHUB_SHA-$pass" | grep -F 'initSpacecraftMuseumsRenderer' >/dev/null &&
+               curl -fsSL --max-time 30 -H 'Cache-Control: no-cache' "$SITE/app.js?check=$GITHUB_SHA-$pass" | grep -F 'initSpacecraftMuseumsRenderer' >/dev/null &&
+               curl -fsSL --max-time 30 -H 'Cache-Control: no-cache' "$SITE/bridgepoint-spacecraft-ten-pads-v2.js?check=$GITHUB_SHA-$pass" | grep -F 'initSpacecraftTenPadsRenderer' >/dev/null; then
+              success=1
+              break
+            fi
+            sleep 12
+          done
+          test "$success" = 1
+          echo "LIVE_TWENTY_FOUR_SPACECRAFT_ROOT_AND_APP_PASS"
