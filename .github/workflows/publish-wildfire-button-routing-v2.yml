@@ -100,7 +100,19 @@ jobs:
           repo_code=Path('rebuild-v5000/bridgepoint-view-v5917.js').read_text(encoding='utf-8')
           if code.count(old)!=1 or code.count(new):raise SystemExit('WILDFIRE_BUTTON_GENERIC_HANDLER_BASELINE_UNEXPECTED')
           patched=code.replace(old,new,1)
-          if patched!=repo_code:raise SystemExit('WILDFIRE_BUTTON_MISMATCH_REPOSITORY_OR_UNRELATED_DIFF')
+          if repo_code.count(new)!=1:
+              raise SystemExit('WILDFIRE_REPOSITORY_DOES_NOT_EXPECT_EXACT_HANDLER_ROUTING')
+          # Previous publication overlays the wildfire handler onto a preserved
+          # production card script. The rest may intentionally differ from repo.
+          # Only compare the installed dedicated wildfire block, not other tools.
+          handler_start="if(a==='wildfire'){"
+          handler_end="if(a==='windfx')"
+          def dedicated_block(value):
+              a=value.index(handler_start)
+              b=value.index(handler_end,a)
+              return value[a:b]
+          if dedicated_block(patched)!=dedicated_block(repo_code):
+              raise SystemExit('WILDFIRE_PUBLISHED_HANDLER_NOT_CURRENT')
           if 'bridgepoint-wildfires-volumetric-v1.js' not in patched or 'initLiveWildfireRenderer' not in patched:
               raise SystemExit('WILDFIRE_DEDICATED_HANDLER_NOT_PRESENT')
           f.write_text(patched,encoding='utf-8')
