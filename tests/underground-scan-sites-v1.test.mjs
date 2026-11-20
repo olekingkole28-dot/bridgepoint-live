@@ -3,13 +3,13 @@ import { readFile } from 'node:fs/promises';
 import {UNDERGROUND_SCAN_SITES,UNDERGROUND_SCAN_RIGHTS_HOLDS,buildUndergroundSiteFeatures,undergroundSitePopupHtml} from '../rebuild-v5000/bridgepoint-underground-scan-sites-v1.js';
 
 const features=buildUndergroundSiteFeatures();
-assert.equal(features.length,53,'fifty-three reviewed cave site anchors are mapped');
-assert.equal(UNDERGROUND_SCAN_SITES.reduce((n,s)=>n+s.models.length,0),63,'sixty-three real creator-hosted 3D models and tours are cataloged');
+assert.equal(features.length,64,'sixty-four reviewed cave site anchors are mapped');
+assert.equal(UNDERGROUND_SCAN_SITES.reduce((n,s)=>n+s.models.length,0),78,'seventy-eight real creator-hosted 3D models and tours are cataloged');
 assert.equal(UNDERGROUND_SCAN_RIGHTS_HOLDS.length,3,'rights/source holds are exposed');
 assert.ok(features.every(f=>f.geometry.type==='Point'&&f.properties.iconImage));
 assert.ok(UNDERGROUND_SCAN_SITES.every(s=>s.models.every(m=>m.uid&&m.creator&&(
  m.matterportTourId ? (m.matterportTourId==='1BTGHi85s96'&&m.modelUrl==='https://my.matterport.com/show/?m=1BTGHi85s96'&&m.license.includes('original rights retained'))
- : m.embedOnly ? (['cbe5a1c208674091b48f65ac2d4cca94','be7675a23595489c86211608f0fb1886','ccfc7c2f43214b559e93c4857eb6ed4a','899e6c8016954dab825dffb07d583fb9','d0c88d0853844a8e9a1de22a342326cb','34861aec56564489bdb8ec1cd030ff00','239d912831f6471da95a2fd672b53398','74b4a560749743eaa53cd89793b4a629','cd6c5687814e484da0bf4d360a324c60','2989d29a52a0494aa0cd2e279b411247','df5dea76480f4ed3af018d885a13b704','5dc79d2891f24e9fa571b9e910556ec8','2f06ab8d1bd14ce5a85c417fefd91cda','85a2ff52fa7b4a44b87033145fd1b01f','7161373c7ccb48da9aa00e52214df1b8','11aedb4bc1064685a8cfe33f8956a108','14773139954740e48be1fa1861d01eb7','d1691e402d0840378804f2df5aaedb2b','a35b2ecd72094b2d8a2fef9a32b98186','b9aac38260054f5f8858be684279c37e','e2420bd47de1497993addd2b3f6e1e7e','a8890e16ca49498c892d82496cdbbae9','bf983bfabc194e94893d9955ed87f471','e36a8a863b8348159d237ea808d492d7','3be79c6a956c423d9b05fa67ce559ee9','a873f750875d4f37a3784ffddc9f5abc','d07aa3cf92a4478684130d9261e1d94c','d010364e4b684a488e934d6664a3c54e','17c248ec0c284b6ebbd201d35753c4b8','c92b96fed07743ce8277619d2a6fb347','5e49a7bc370147f7a57d70187257ffb7','e0e487e56083459d935bde3eb51f12ae','2eac394c5e4945deadadbc45c32a093e','58f3d97cd9b3410a8f34193979c4d13a','3ed9bf8dd9eb4821851b56974c4f1a6b','a96e1387d5af46189920d78b9297c898','c3e3ce73bff4404b8006014b240ac8c2','1663083e3d0f46bb99efccd8a4a8f941','nd70Yvu9EP5yEA4pb7iSCbMb25q','d7d0abceb316400b828d28cbf26ed6d2','12d1180e0d2f4c24b1f827d3322f4d54','78580c37f2a54a6791919d7a15b87719','9c4363f2250f4b04bdcd163d2843dd91','f6f8ce48fe0f49339ba2dfab69d49174','ca8ba859d0694aab8c0c046804c36b55','dadb5c06f534428a8d27fbff612afc6a','d3595bd7ab974e4e8eb2efa3ceeec04d','e23deee8940f4b048a2c8a99e98358f9','9ab1ea083f9e464fb2da2a166ea01111'].includes(m.uid)&&(['cd6c5687814e484da0bf4d360a324c60','e2420bd47de1497993addd2b3f6e1e7e','bf983bfabc194e94893d9955ed87f471','3be79c6a956c423d9b05fa67ce559ee9','a873f750875d4f37a3784ffddc9f5abc','58f3d97cd9b3410a8f34193979c4d13a'].includes(m.uid)?m.license==='CC Attribution':m.license.includes('no reuse license displayed'))&&m.modelUrl.startsWith('https://sketchfab.com/3d-models/'))
+ : m.embedOnly ? (['cbe5a1c208674091b48f65ac2d4cca94','be7675a23595489c86211608f0fb1886','ccfc7c2f43214b559e93c4857eb6ed4a','899e6c8016954dab825dffb07d583fb9','d0c88d0853844a8e9a1de22a342326cb','34861aec56564489bdb8ec1cd030ff00','239d912831f6471da95a2fd672b53398','74b4a560749743eaa53cd89793b4a629','cd6c5687814e484da0bf4d360a324c60','2989d29a52a0494aa0cd2e279b411247','df5dea76480f4ed3af018d885a13b704','5dc79d2891f24e9fa571b9e910556ec8','2f06ab8d1bd14ce5a85c417fefd91cda','85a2ff52fa7b4a44b87033145fd1b01f','7161373c7ccb48da9aa00e52214df1b8','11aedb4bc1064685a8cfe33f8956a108','14773139954740e48be1fa1861d01eb7','d1691e402d0840378804f2df5aaedb2b','a35b2ecd72094b2d8a2fef9a32b98186','b9aac38260054f5f8858be684279c37e','e2420bd47de1497993addd2b3f6e1e7e','a8890e16ca49498c892d82496cdbbae9','bf983bfabc194e94893d9955ed87f471','e36a8a863b8348159d237ea808d492d7','3be79c6a956c423d9b05fa67ce559ee9','a873f750875d4f37a3784ffddc9f5abc','d07aa3cf92a4478684130d9261e1d94c','d010364e4b684a488e934d6664a3c54e','17c248ec0c284b6ebbd201d35753c4b8','c92b96fed07743ce8277619d2a6fb347','5e49a7bc370147f7a57d70187257ffb7','e0e487e56083459d935bde3eb51f12ae','2eac394c5e4945deadadbc45c32a093e','58f3d97cd9b3410a8f34193979c4d13a','3ed9bf8dd9eb4821851b56974c4f1a6b','a96e1387d5af46189920d78b9297c898','c3e3ce73bff4404b8006014b240ac8c2','1663083e3d0f46bb99efccd8a4a8f941','nd70Yvu9EP5yEA4pb7iSCbMb25q','d7d0abceb316400b828d28cbf26ed6d2','12d1180e0d2f4c24b1f827d3322f4d54','78580c37f2a54a6791919d7a15b87719','9c4363f2250f4b04bdcd163d2843dd91','f6f8ce48fe0f49339ba2dfab69d49174','ca8ba859d0694aab8c0c046804c36b55','dadb5c06f534428a8d27fbff612afc6a','d3595bd7ab974e4e8eb2efa3ceeec04d','e23deee8940f4b048a2c8a99e98358f9','9ab1ea083f9e464fb2da2a166ea01111','c2dfbdb76eab4d89a8282117c996ccac','04f3f56a7c0f45cc9f8f17176155b4b1','2caa3caeb04d4170a02a42ae685d9d54','b6e0621ac72e4d3990bbefb430ace085','4fd7b521620a437bb410230a8c60b97e','463f6d459d964170a64eb3c48e214a73','dc192656b67c4a028931d9e34f94d8cc','ab543f777609488da82646ebe1253470','a21804bb454b46e5a8aad1590472e4ca','e01723d1e6f64dafb001c098c58d613b','4b4fa4ab61c84c8883b32a9cd4ee5ff8','1624b224a7514762baf9025e6fe7dc4f','be70b89f9c264fc19d63dca2ae78b224','eb2e2c36ba8a4d8197dc30dd947984d2','0da6c7789e6a4dffbabfcbd93bf6e868'].includes(m.uid)&&(['cd6c5687814e484da0bf4d360a324c60','e2420bd47de1497993addd2b3f6e1e7e','bf983bfabc194e94893d9955ed87f471','3be79c6a956c423d9b05fa67ce559ee9','a873f750875d4f37a3784ffddc9f5abc','58f3d97cd9b3410a8f34193979c4d13a','2caa3caeb04d4170a02a42ae685d9d54','be70b89f9c264fc19d63dca2ae78b224'].includes(m.uid)?m.license==='CC Attribution':m.license.includes('no reuse license displayed'))&&m.modelUrl.startsWith('https://sketchfab.com/3d-models/'))
  : (m.license==='CC Attribution'&&m.modelUrl.startsWith('https://sketchfab.com/3d-models/'))
 ))));
 assert.equal(UNDERGROUND_SCAN_SITES.find(s=>s.id==='paris-catacombs').models.length,3);
@@ -274,6 +274,53 @@ assert.match(UNDERGROUND_SCAN_SITES.find(s=>s.id==='big-bat-cave-kentucky-real-m
 assert.match(UNDERGROUND_SCAN_SITES.find(s=>s.id==='hidden-cave-fallon-nevada-photogrammetry').models[0].detail,/DEFAULT/);
 assert.match(UNDERGROUND_SCAN_SITES.find(s=>s.id==='petit-jean-rock-house-cave-arkansas').models[0].detail,/HALF/);
 
+
+const mexicoCanadaMonumentsV21={
+ mexico:[["sotano-del-barro-queretaro","c2dfbdb76eab4d89a8282117c996ccac"],["naica-crystal-cave-chihuahua","04f3f56a7c0f45cc9f8f17176155b4b1"],["chiquihuite-cave-zacatecas-mexico","2caa3caeb04d4170a02a42ae685d9d54"],["mayan-blue-cenote-tulum","b6e0621ac72e4d3990bbefb430ace085"],["acambalam-puuc-chultun-yucatan","4fd7b521620a437bb410230a8c60b97e"]],
+ canadaNomash:["463f6d459d964170a64eb3c48e214a73","dc192656b67c4a028931d9e34f94d8cc","ab543f777609488da82646ebe1253470","a21804bb454b46e5a8aad1590472e4ca"],
+ canadaWellsGray:'0da6c7789e6a4dffbabfcbd93bf6e868',
+ globalSites:[["petra-royal-tombs-jordan","e01723d1e6f64dafb001c098c58d613b"],["petra-great-temple-jordan","4b4fa4ab61c84c8883b32a9cd4ee5ff8"],["chichen-itza-el-castillo-mexico","1624b224a7514762baf9025e6fe7dc4f"],["angkor-wat-khmer-temple-cambodia","be70b89f9c264fc19d63dca2ae78b224"],["machu-picchu-inca-citadel-peru","eb2e2c36ba8a4d8197dc30dd947984d2"]]
+};
+assert.equal(mexicoCanadaMonumentsV21.mexico.length,5,'five Mexican cave/underground heritage sites');
+assert.equal(mexicoCanadaMonumentsV21.canadaNomash.length+1,5,'five original-source Canada cave scan choices');
+assert.equal(mexicoCanadaMonumentsV21.globalSites.length,5,'five huge archaeological sites');
+const v21AllIds=mexicoCanadaMonumentsV21.mexico.map(x=>x[1]).concat(mexicoCanadaMonumentsV21.canadaNomash,[mexicoCanadaMonumentsV21.canadaWellsGray],mexicoCanadaMonumentsV21.globalSites.map(x=>x[1]));
+assert.equal(v21AllIds.length,15);
+assert.equal(new Set(v21AllIds).size,15,'all models are different original-source assets');
+const v21NewSites=mexicoCanadaMonumentsV21.mexico.concat(mexicoCanadaMonumentsV21.globalSites);
+for(const [siteId,uid] of v21NewSites){
+ const site=UNDERGROUND_SCAN_SITES.find(s=>s.id===siteId);
+ assert.ok(site,'new site '+siteId);
+ assert.equal(site.models.length,1);
+ assert.equal(site.models[0].uid,uid);
+ assert.ok(site.models[0].embedOnly,'in BridgePoint creator-hosted viewer');
+ assert.ok(site.models[0].creator&&site.models[0].method&&site.models[0].detail&&site.models[0].license);
+ assert.ok(site.locationPrecision.length>55&&site.locationNote);
+ assert.ok(site.coordinates.every(n=>Number.isFinite(n)));
+ assert.equal(site.type,mexicoCanadaMonumentsV21.globalSites.some(x=>x[0]===siteId)?'tomb':'cave','large historical sites receive gold tomb-style icon');
+ const html=undergroundSitePopupHtml(site,uid);
+ assert.ok(html.includes('sketchfab.com/models/'+uid+'/embed'));
+ assert.ok(html.includes('sandbox="allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-presentation"'));
+ assert.ok(!html.includes('allow-top-navigation')&&!html.includes('allow-popups')&&!html.includes('target="_blank"'));
+}
+const nomashV21=UNDERGROUND_SCAN_SITES.find(s=>s.id==='nomash-river-wetdream-cave-bc');
+assert.ok(nomashV21&&nomashV21.type==='cave');
+assert.deepEqual(nomashV21.models.map(m=>m.uid),mexicoCanadaMonumentsV21.canadaNomash);
+assert.match(nomashV21.locationPrecision,/regional/);
+for(const m of nomashV21.models){
+ assert.ok(m.embedOnly);
+ assert.ok(undergroundSitePopupHtml(nomashV21,m.uid).includes('sketchfab.com/models/'+m.uid+'/embed'));
+}
+const wellsV21=UNDERGROUND_SCAN_SITES.find(s=>s.id==='wells-gray-sarlaccs-pit-canada');
+assert.equal(wellsV21.models.length,2);
+assert.equal(wellsV21.models[0].uid,'df5dea76480f4ed3af018d885a13b704','original Wells Gray kept');
+assert.equal(wellsV21.models[1].uid,mexicoCanadaMonumentsV21.canadaWellsGray);
+assert.ok(undergroundSitePopupHtml(wellsV21,wellsV21.models[1].uid).includes('sketchfab.com/models/'+wellsV21.models[1].uid+'/embed'));
+assert.match(UNDERGROUND_SCAN_SITES.find(s=>s.id==='acambalam-puuc-chultun-yucatan').models[0].detail,/MAN-MADE/i);
+assert.match(UNDERGROUND_SCAN_SITES.find(s=>s.id==='mayan-blue-cenote-tulum').models[0].detail,/CLUSTER/);
+assert.match(UNDERGROUND_SCAN_SITES.find(s=>s.id==='petra-great-temple-jordan').models[0].method,/7.8 million/i);
+assert.match(UNDERGROUND_SCAN_SITES.find(s=>s.id==='chiquihuite-cave-zacatecas-mexico').models[0].detail,/UNIT X-12/);
+
 const fiveRemoteDeepCaves=[
  {id:'wells-gray-sarlaccs-pit-canada',coordinates:[-120,52.33306],uid:'df5dea76480f4ed3af018d885a13b704',method:/photogrammetry/i,detail:/ONLY reconstructs the exposed entrance/,placement:/regional/i},
  {id:'gorner-glacier-g6-moulin-switzerland',coordinates:[7.81528,45.94750],uid:'5dc79d2891f24e9fa571b9e910556ec8',method:/Photogrammetry/i,detail:/not a LiDAR point-cloud/,placement:/NOT the surveyed/i},
@@ -287,7 +334,7 @@ for(const spec of fiveRemoteDeepCaves){
  const s=UNDERGROUND_SCAN_SITES.find(x=>x.id===spec.id);
  assert.ok(s && s.type==='cave',spec.id+' is added as real Cave type');
  assert.deepEqual(s.coordinates,spec.coordinates);
- assert.equal(s.models.length,spec.id==='bel-torrente-underwater-cave-sardinia'?2:1);
+ assert.equal(s.models.length,['bel-torrente-underwater-cave-sardinia','wells-gray-sarlaccs-pit-canada'].includes(spec.id)?2:1);
  assert.equal(s.models[0].uid,spec.uid);
  assert.equal(s.models[0].embedOnly,true);
  assert.match(s.models[0].method,spec.method);
