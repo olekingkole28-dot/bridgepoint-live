@@ -1,0 +1,113 @@
+name: Deploy verified one-touch Wind RF artifact without rebuilding
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-verified-wind-rf-artifact-v1.yml'
+
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 36
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download proven fully assembled Wind RF production artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: bridgepoint-v5000-wind-rf-jetstreams-v1
+          run-id: 44693836855
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/wind-rf-proven-archive
+      - name: Validate preserved complete site and source-backed overview
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCHIVE="$(find "$RUNNER_TEMP/wind-rf-proven-archive" -name artifact.tar -type f -print -quit)"
+          test -n "$ARCHIVE"
+          SITE="$RUNNER_TEMP/bridgepoint-wind-rf-proven"
+          mkdir -p "$SITE"
+          tar -xf "$ARCHIVE" -C "$SITE"
+          test -s "$SITE/landing.js"
+          test -s "$SITE/app.js"
+          test -s "$SITE/bridgepoint-volumetric-fields-v5978.js"
+          test -s "$SITE/bridgepoint-global-wind-rf-v1.js"
+          test -s "$SITE/bridgepoint-spacecraft-museums-v3.js"
+          test -s "$SITE/bridgepoint-celestial-sky-v6257.js"
+          test -s "$SITE/bridgepoint-emrf-starlink-global-v2.js"
+          grep -Fq 'windrfjets=v1' "$SITE/index.html"
+          grep -Fq 'windrfjets=v1' "$SITE/app/index.html"
+          grep -Fq "st.windOn=true;st.rfOn=true;st.rfMode='both';" "$SITE/bridgepoint-volumetric-fields-v5978.js"
+          python3 - "$SITE/wind-rf-global-v1.json" <<'PY'
+          import json,sys
+          d=json.load(open(sys.argv[1]))
+          assert len(d['winds'])>=100 and len(d['sites'])>=60
+          assert all(len(row)==7 and 4000<row[6]<17000 for row in d['winds'])
+          print('REDEPLOY_NO_NEW_SOURCE_OR_UNRELATED_CHANGES',len(d['winds']),len(d['sites']))
+          PY
+          echo "Wind RF complete artifact validation passed; no source compilation or extra site changes."
+      - uses: actions/configure-pages@v5
+      - name: Re-upload exact proven production site artifact to this workflow run
+        uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-wind-rf-jets-v1-verified
+          path: ${{ runner.temp }}/bridgepoint-wind-rf-proven
+          include-hidden-files: true
+      - name: Wait for Pages artifact metadata to become visible
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          FOUND=0
+          for n in $(seq 1 18); do
+            if gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[].name' | grep -Fxq 'bridgepoint-v5000-wind-rf-jets-v1-verified'; then
+              FOUND=1
+              break
+            fi
+            sleep 8
+          done
+          test "$FOUND" -eq 1
+          sleep 15
+      - name: Deploy verified unchanged Wind RF site to Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: bridgepoint-v5000-wind-rf-jets-v1-verified
+      - name: Verify published root, app and retained spacecraft + Starlink
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE=https://bridgepointintelligence.online
+          for n in 1 2 3 4 5 6; do
+            T="$(mktemp)"
+            if curl -fsSL --max-time 35 "$SITE/index.html?windrf=$GITHUB_SHA-$n" | grep -F 'windrfjets=v1' >/dev/null &&
+               curl -fsSL --max-time 35 "$SITE/app/index.html?windrf=$GITHUB_SHA-$n" | grep -F 'windrfjets=v1' >/dev/null &&
+               curl -fsSL --max-time 35 "$SITE/bridgepoint-global-wind-rf-v1.js?windrf=$GITHUB_SHA-$n" | grep -F 'clickJet' >/dev/null &&
+               curl -fsSL --max-time 35 "$SITE/wind-rf-global-v1.json?windrf=$GITHUB_SHA-$n" -o "$T" &&
+               python3 -c 'import json,sys;x=json.load(open(sys.argv[1]));assert len(x["winds"])>=100 and len(x["sites"])>=60' "$T" &&
+               curl -fsSL --max-time 35 "$SITE/bridgepoint-emrf-starlink-global-v2.js?windrf=$GITHUB_SHA-$n" | grep -F 'rebuildOrbitPaths' >/dev/null &&
+               curl -fsSL --max-time 35 "$SITE/bridgepoint-spacecraft-museums-v3.js?windrf=$GITHUB_SHA-$n" | grep -F 'SPACECRAFT_MUSEUM_EXHIBITS_V3' >/dev/null; then
+              rm -f "$T"
+              echo 'BRIDGEPOINT_WIND_RF_JETS_V1_LIVE_ROOT_APP_VERIFIED'
+              exit 0
+            fi
+            rm -f "$T"
+            sleep 10
+          done
+          exit 1
