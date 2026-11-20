@@ -281,6 +281,9 @@ scheduleOptionalRenderer(() => import('./bridgepoint-spacecraft-v1.js?v=1-sls-mo
 scheduleOptionalRenderer(() => import('./bridgepoint-spacecraft-saturn-v1.js?v=1-nasa-saturn-v-launch39a&ui=6314')
  .then(m=>{window.__BP_SPACECRAFT_SATURN_V1__=m.initSpacecraftSaturnRenderer(world)})
  .catch(e=>console.warn('BridgePoint Saturn V launch-site layer unavailable',e)));
+scheduleOptionalRenderer(() => import('./bridgepoint-spacecraft-ten-pads-v2.js?v=2-ten-pads-on-globe')
+ .then(m=>{window.__BP_SPACECRAFT_TEN_PADS_V2__=m.initSpacecraftTenPadsRenderer(world)})
+ .catch(e=>console.warn('BridgePoint ten launch-pad layer unavailable',e)));
 scheduleOptionalRenderer(() => import('./bridgepoint-spacecraft-discovery-v1.js?v=1-smithsonian-space-shuttle-discovery&ui=6314')
  .then(m=>{window.__BP_SPACECRAFT_DISCOVERY_V1__=m.initSpacecraftDiscoveryRenderer(world)})
  .catch(e=>console.warn('BridgePoint Smithsonian Space Shuttle Discovery layer unavailable',e)));
