@@ -9,6 +9,8 @@ const LAYER='bp-wind-rf-global-jetstream-v1',R=Math.PI/180;
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 let dataPromise=null,threePromise=null;
 export function prefetchWindRfGlobalV1(){
+ // Warm renderer code alongside the forecast snapshot before the user opens the layer.
+ void getThree().catch(()=>{});
  if(!dataPromise)dataPromise=fetch(DATA,{cache:'default',headers:{Accept:'application/json'}})
   .then(async r=>{if(!r.ok)throw Error('Wind/RF cache HTTP '+r.status);return r.json()})
   .then(d=>{if(d.version!==1||!Array.isArray(d.winds)||d.winds.length<100||!Array.isArray(d.sites)||d.sites.length<60)throw Error('Wind/RF first-party source snapshot incomplete');
@@ -75,7 +77,7 @@ function streamGeometry(T,map,rows,kind,zoom){
   const speed=isJet?jetKmh:surfaceKmh,heading=(isJet?jetFrom:surfaceFrom)+180;
   // Global winds: green / yellow / red by source speed. Elevated jets are
   // cyan / blue / violet, bright enough to see through translucent wisps.
-  const color=isJet?(speed>=170?[.92,.38,1]:speed>=115?[.24,.67,1]:[.3,1,.93]):windColor(speed);
+  const color=isJet?[1,.035,.025]:windColor(speed);
   const travel=clamp(1.9*Math.pow(2,7-zoom)*(.82+speed/(isJet?240:125)),.0014,isJet?34:28);
   for(let lane=0;lane<linesPerSample;lane++){
    const shift=(lane-(linesPerSample-1)/2)/Math.max(1,linesPerSample-1);
@@ -148,8 +150,38 @@ export function initBridgePointGlobalWindRfV1(target){
  if(previous?.map===map)return previous;
  const st={map,enabled:false,windOn:true,rfOn:true,rfMode:'both',disposed:false,data:null,THREE:null,scene:null,renderer:null,camera:null,
   layer:null,windMesh:null,jetMesh:null,rf4:null,rf5:null,rfDots4:null,rfDots5:null,towers:null,jetPins:null,orbitRAF:0,projection:null,
-  zoomAt:-1,dirty:true,jetMarkers:[],details:null,sourceError:null,modelAt:null};
- function cleanLayer(){try{if(map.getLayer?.(LAYER))map.removeLayer(LAYER);}catch(_){}}
+  zoomAt:-1,dirty:true,jetMarkers:[],jetMarkerNodes:[],iconRoot:null,details:null,sourceError:null,modelAt:null};
+ function cleanLayer(){try{if(map.getLayer?.(LAYER))map.removeLayer(LAYER);}catch(_){}st.iconRoot?.remove();st.iconRoot=null;st.jetMarkerNodes=[];}
+ function ensureJetIconRoot(){
+  if(st.iconRoot?.isConnected)return st.iconRoot;
+  const container=map.getContainer?.();if(!container)return null;
+  if(getComputedStyle(container).position==='static')container.style.position='relative';
+  const root=document.createElement('div');root.setAttribute('aria-label','Jet stream forecast markers');
+  root.style.cssText='position:absolute;inset:0;z-index:30;pointer-events:none;overflow:hidden';
+  container.appendChild(root);st.iconRoot=root;return root;
+ }
+ function jetIconButton(row){
+  const root=ensureJetIconRoot();if(!root)return null;
+  const b=document.createElement('button');b.type='button';
+  b.setAttribute('aria-label','Jet stream '+Math.round(row[4])+' km/h at '+row[0].toFixed(1)+' degrees latitude, '+row[1].toFixed(1)+' degrees longitude. Tap for details.');
+  b.title='Jet stream · '+Math.round(row[4])+' km/h · tap for details';
+  b.style.cssText='position:absolute;left:0;top:0;transform:translate(-50%,-50%);display:flex;align-items:center;justify-content:center;width:30px;height:24px;padding:2px;border:1px solid #ffb0a5;border-radius:8px;background:rgba(67,8,8,.94);box-shadow:0 0 10px #ff2d1d,0 0 22px #ff382966;color:#fff;pointer-events:auto;touch-action:manipulation;cursor:pointer';
+  b.innerHTML='<svg viewBox="0 0 32 20" width="24" height="16" aria-hidden="true"><path d="M2 5h18l-4-3m4 3-4 3M1 10h25l-4-3m4 3-4 3M4 15h17l-4-3m4 3-4 3" fill="none" stroke="#ff4a39" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="m26 7 4 3-4 3" fill="none" stroke="#fff4ef" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  b.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();showJet(row)});
+  root.appendChild(b);return b;
+ }
+ function drawJetIcons(){
+  const root=ensureJetIconRoot(),canvas=map.getCanvas?.();if(!root||!canvas||!st.projection)return;
+  const w=canvas.clientWidth,h=canvas.clientHeight,zoom=Number(map.getZoom?.()||0),visible=st.enabled&&st.windOn&&zoom<=18;
+  if(st.jetMarkerNodes.length!==st.jetMarkers.length){root.replaceChildren();st.jetMarkerNodes=st.jetMarkers.map(x=>jetIconButton(x.row));}
+  for(let i=0;i<st.jetMarkers.length;i++){
+   const button=st.jetMarkerNodes[i],obj=st.jetMarkers[i];if(!button)continue;
+   const p=obj.point.clone().applyMatrix4(st.projection);
+   const x=(p.x*.5+.5)*w,y=(.5-p.y*.5)*h;
+   const on=visible&&p.z>=-1&&p.z<=1&&p.w>0&&x>=-18&&x<=w+18&&y>=-18&&y<=h+18;
+   button.hidden=!on;if(on)button.style.transform='translate('+x+'px,'+y+'px) translate(-50%,-50%)';
+  }
+ }
  function status(msg){try{document.dispatchEvent(new CustomEvent('bp:wind-rf-global-status',{detail:{active:st.enabled,message:msg,winds:st.data?.winds?.length||0,sites:st.data?.sites?.length||0,sourceAt:st.data?.fetched_at||null,error:st.sourceError}}));}catch(_){}}
  function towerMatrix(T,site,offset,scale){
   const [lon,lat,height]=site;
@@ -211,7 +243,7 @@ export function initBridgePointGlobalWindRfV1(target){
     .multiply(new T.Matrix4().makeScale(size,size,size)));
   }
   st.jetPins.count=icons;st.jetPins.instanceMatrix.needsUpdate=true;
-  st.jetPins.visible=st.windOn&&zoom<12;
+  st.jetPins.visible=false; // UI jet markers are drawn at the projected 250 hPa coordinates.
   st.zoomAt=zoom;st.dirty=false;map.triggerRepaint?.();
  }
  function showJet(row){
@@ -269,6 +301,7 @@ export function initBridgePointGlobalWindRfV1(target){
     if(!raw||raw.length<16)return;
     st.projection=new T.Matrix4().fromArray(raw);
     if(st.dirty)rebuild();
+    drawJetIcons();
     camera.projectionMatrix.copy(st.projection);
     const secs=performance.now()*.001;
     if(st.windMesh)st.windMesh.material.uniforms.uTime.value=secs;
@@ -306,7 +339,9 @@ export function initBridgePointGlobalWindRfV1(target){
    st.enabled=true;
    if(st.data&&st.THREE){addLayer();st.dirty=true;animate();map.triggerRepaint?.();return true;}
    try{
-    const [T,data]=await Promise.all([getThree(),prefetchWindRfGlobalV1()]);
+    const T=await getThree();
+    if(st.enabled&&!st.disposed)addLayer();
+    const data=await prefetchWindRfGlobalV1();
     if(!st.enabled||st.disposed)return false;
     st.THREE=T;st.data=data;st.sourceError=null;
     addLayer();st.dirty=true;animate();
