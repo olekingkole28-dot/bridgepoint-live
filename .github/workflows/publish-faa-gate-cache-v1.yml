@@ -61,6 +61,9 @@ jobs:
             data=json.loads(subprocess.check_output(['gh','api',f'repos/{repo}/actions/artifacts?per_page=100&page={page}']))
             for a in data.get('artifacts',[]):
               name=a.get('name','')
+              # Earlier FAA cache trial uploaded an artifact but never deployed;
+              # only use complete production-shaped artifacts as the baseline.
+              if name.startswith('bridgepoint-v5000-faa-cache-'):continue
               if a.get('expired') or (a.get('size_in_bytes') or 0)<10000000:continue
               if not (name.startswith('bridgepoint-v5000-') or name.startswith('github-pages-') or name.startswith('bridgepoint-auth-tunnel-recovery-v1') or name.startswith('bridgepoint-faa-')):continue
               run=a.get('workflow_run') or {}
