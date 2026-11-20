@@ -2055,7 +2055,8 @@ jobs:
             bridgepoint-shipwrecks-v1.js \
             bridgepoint-plane-wrecks-v1.js bridgepoint-plane-wrecks-extra-v1.js \
             bridgepoint-spacecraft-v1.js bridgepoint-spacecraft-columbia-v1.js \
-            bridgepoint-spacecraft-discovery-v1.js bridgepoint-spacecraft-saturn-v1.js; do
+            bridgepoint-spacecraft-discovery-v1.js bridgepoint-spacecraft-saturn-v1.js \
+            bridgepoint-spacecraft-ten-pads-v2.js; do
             case "$module" in
               bridgepoint-spacecraft*) source="rebuild-v5000/$module" ;;
               *) source="$BASE/$module" ;;
@@ -2154,11 +2155,13 @@ jobs:
           node tests/spacecraft-columbia-v1.test.mjs
           node tests/spacecraft-discovery-v1.test.mjs
           node tests/spacecraft-saturn-v1.test.mjs
+          node tests/spacecraft-ten-pads-v2.test.mjs
 
           for module in \
             bridgepoint-shipwrecks-v1.js bridgepoint-plane-wrecks-v1.js bridgepoint-plane-wrecks-extra-v1.js \
             bridgepoint-spacecraft-v1.js bridgepoint-spacecraft-columbia-v1.js \
-            bridgepoint-spacecraft-discovery-v1.js bridgepoint-spacecraft-saturn-v1.js; do
+            bridgepoint-spacecraft-discovery-v1.js bridgepoint-spacecraft-saturn-v1.js \
+            bridgepoint-spacecraft-ten-pads-v2.js; do
             node --input-type=module --check < "site/$module"
             cmp -s "site/$module" "site/app/$module"
           done
