@@ -134,9 +134,16 @@ async function getThree(){
  return threePromise;
 }
 async function getJSON(url,signal){
- const response=await fetch(url,{signal,mode:'cors',cache:'no-cache',headers:{Accept:'application/json'}});
- if(!response.ok)throw Error('Wildfire source HTTP '+response.status);
- return response.json();
+ const controller=new AbortController();
+ const stop=()=>controller.abort();
+ signal?.addEventListener('abort',stop,{once:true});
+ if(signal?.aborted)stop();
+ const timeout=setTimeout(()=>controller.abort(),14000);
+ try{
+  const response=await fetch(url,{signal:controller.signal,mode:'cors',cache:'no-cache',headers:{Accept:'application/json'}});
+  if(!response.ok)throw Error('Wildfire source HTTP '+response.status);
+  return await response.json();
+ }finally{clearTimeout(timeout);signal?.removeEventListener('abort',stop);}
 }
 function publishFireStatus(state){
  if(typeof document==='undefined'||typeof CustomEvent==='undefined')return;
@@ -650,7 +657,7 @@ function maybeShowNative3D(state){
  }}).catch(e=>{state.error='3D flames: '+String(e?.message||e);});
 }
 function turnOff(state){
- state.abort?.abort();
+ state.abort?.abort();state.eventsAbort?.abort();state.eventsAbort=null;
  state.abort=null;
  for(const controller of state.perimeterAbort.values())controller.abort();
  state.perimeterAbort.clear();state.perimeterLoading.clear();
@@ -663,12 +670,16 @@ function turnOff(state){
   if(state.map.getSource?.(id))try{state.map.removeSource(id);}catch(_){}
  }
  state.effects=new Map();
+ for(const entry of state.markers.values())entry.marker.remove();
+ state.markers.clear();
+ publishFireStatus(state);
  state.map.triggerRepaint?.();
 }
 function handleMapMove(state){
  if(!state.enabled||state.destroyed)return;
  ensureMapSources(state);
  updateVisibleZones(state);
+ refreshPersistentMarkers(state);
  schedulePerimeterLoads(state);
  maybeShowNative3D(state);
  refreshFireActivity(state);
@@ -678,12 +689,13 @@ export function initLiveWildfireRenderer(target){
  if(!map||typeof map.getStyle!=='function'||typeof map.addLayer!=='function')return null;
  const existing=states.get(map);if(existing)return existing.api;
  installFireCardStyles();
- const state={map,enabled:false,destroyed:false,fires:[],error:'',lastUpdated:0,loading:false,
+ const state={map,enabled:false,destroyed:false,fires:[],error:'',lastUpdated:0,loading:false,markers:new Map(),eventsAbort:null,markerWarned:false,
   abort:null,perimeters:new Map(),fetchedSlugs:new Set(),perimeterLoading:new Set(),
   perimeterAbort:new Map(),THREE:null,renderer:null,camera:null,effects:new Map(),
   refreshTimer:null,lastFrame:0,popup:null,renderWarned:false};
  const handleStyle=()=>{if(state.enabled){
   if(ensureMapSources(state)){updateMap(state);schedulePerimeterLoads(state);}
+  refreshPersistentMarkers(state);
   maybeShowNative3D(state);
  }};
  const click=e=>onClickMarker(state,e);
@@ -698,6 +710,7 @@ export function initLiveWildfireRenderer(target){
   map,version:1,
   get enabled(){return state.enabled;},
   get state(){return {enabled:state.enabled,loading:state.loading,fireCount:state.fires.length,
+   markerCount:state.markers.size,mapLayerReady:!!map.getLayer?.(pointLayer),
    sourcePerimeters:state.perimeters.size,visibleFlameSites:visible3DFires(state).length,
    lastUpdated:state.lastUpdated,error:state.error};},
   setEnabled(value){
@@ -705,6 +718,7 @@ export function initLiveWildfireRenderer(target){
    if(state.enabled===next)return next;
    state.enabled=next;
    if(!next){turnOff(state);return false;}
+   publishFireStatus(state);
    ensureMapSources(state);updateMap(state);
    void loadCurrentFires(state);
    state.refreshTimer=setInterval(()=>{if(state.enabled)void loadCurrentFires(state);},15*60000);
