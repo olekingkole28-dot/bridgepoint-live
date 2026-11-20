@@ -1,0 +1,12 @@
+name: Verify Wind RF Visual v2
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/publish-wind-rf-visual-v2.yml'
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: node tests/wind-rf-visual-v2.test.mjs
