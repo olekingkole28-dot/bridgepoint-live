@@ -27,6 +27,15 @@ function firstFinite(...values) {
   return NaN;
 }
 
+// The anonymous welcome gate shares the MapLibre WebGL context with the
+// interactive Three.js celestial scene. Keep expensive measured-cloud work
+// deferred while that gate is visible; seeded global clouds stay visible and
+// full source-height geometry resumes after the account gate closes.
+const welcomeGateVisibleV6504 = () => {
+  const gate = typeof document !== 'undefined' ? document.getElementById('bpWelcomeGateV1') : null;
+  return !!gate && gate.hidden === false && getComputedStyle(gate).display !== 'none';
+};
+
 const CSS = [
   ':is(#liveMap,#previewMap) .' + ROOT_CLASS + '{position:absolute;inset:0;z-index:4;overflow:hidden;pointer-events:none;visibility:hidden;opacity:0;contain:paint;isolation:isolate;transition:opacity .32s ease,visibility .32s ease;}',
   ':is(#liveMap,#previewMap) .' + ROOT_CLASS + '[data-active="true"]{visibility:visible;opacity:1;}',
@@ -745,7 +754,14 @@ function ensureLiveSatelliteCloudContextV6134(map){
   document.addEventListener('visibilitychange',state.maskVisibilityHandler);
   if(!state.maskInitialFetchStarted){
    state.maskInitialFetchStarted=true;
-   void state.refreshMask(true);
+   if(welcomeGateVisibleV6504()){
+    state.maskStatus='deferred-welcome';
+    state.welcomeMaskResumeTimer=setInterval(()=>{
+     if(document.hidden||welcomeGateVisibleV6504())return;
+     clearInterval(state.welcomeMaskResumeTimer);state.welcomeMaskResumeTimer=0;
+     void state.refreshMask(true);
+    },2000);
+   }else void state.refreshMask(true);
   }
   return true;
  }catch(error){window.__BP_GOES_CLOUD_CONTEXT_V6134_ERROR__=String(error?.message||error).slice(0,200);return false}
@@ -1079,6 +1095,7 @@ export function initSkyClouds(target) {
 
   async function refreshCloudHeightFeedV6162(force = false) {
     if (document.hidden || disposed) return false;
+    if (welcomeGateVisibleV6504()) return false;
     if (cloudHeightFeedPromise) return cloudHeightFeedPromise;
     const now = Date.now();
     const existing = window.__BP_CLOUD_HEIGHT_FEED_V6162__;
@@ -1772,14 +1789,15 @@ export function initSkyClouds(target) {
         const zoomNow=number(map.getZoom?.(),0),pitchRad=number(map.getPitch?.(),0)*Math.PI/180;
         const metresPerPixel=40075016.68557849/(512*Math.pow(2,zoomNow));
         const cameraAltitude=clamp(metresPerPixel*Math.max(1,container.clientHeight||gl.drawingBufferHeight||768)*0.58/Math.max(0.45,Math.cos(pitchRad)),900,50000000);
-        const raySteps=softwareRenderer?12:(zoomNow>8.5?(MOBILE?20:28):(MOBILE?28:40));
+        const welcomeEntry=welcomeGateVisibleV6504();
+        const raySteps=welcomeEntry?(softwareRenderer?12:16):(softwareRenderer?12:(zoomNow>8.5?(MOBILE?20:28):(MOBILE?28:40)));
         stormRaymarchStepBudget=raySteps;
         if(info.uniforms.cameraCenter)gl.uniform2f(info.uniforms.cameraCenter,cameraCenter.x,cameraCenter.y);
         if(info.uniforms.cameraAltitude)gl.uniform1f(info.uniforms.cameraAltitude,cameraAltitude);
         if(info.uniforms.raySteps)gl.uniform1f(info.uniforms.raySteps,raySteps);
         if(info.uniforms.cloudPitch)gl.uniform1f(info.uniforms.cloudPitch,pitchRad);
         if(info.uniforms.cloudBearing)gl.uniform1f(info.uniforms.cloudBearing,number(map.getBearing?.(),0)*Math.PI/180);
-        if(info.uniforms.cloudSteps)gl.uniform1f(info.uniforms.cloudSteps,softwareRenderer?2:(MOBILE?4:6));
+        if(info.uniforms.cloudSteps)gl.uniform1f(info.uniforms.cloudSteps,welcomeEntry?(softwareRenderer?1:2):(softwareRenderer?2:(MOBILE?4:6)));
         gl.uniform1f(info.uniforms.time, cloudTime);
         if (info.uniforms.motionTime) gl.uniform1f(info.uniforms.motionTime, motionTime);
         if (info.uniforms.stormMotionTime) gl.uniform1f(info.uniforms.stormMotionTime, stormMotionTime);
@@ -2926,6 +2944,10 @@ function scheduleGeometry(delay = 180) {
     clearTimeout(rebuildTimer);
     rebuildTimer = setTimeout(() => {
       if (enabled && !disposed) {
+        // Keep the first anonymous welcome frame responsive. Seeded clouds are
+        // already present; measured satellite-height geometry is rebuilt after
+        // the account gate closes.
+        if(welcomeGateVisibleV6504()){scheduleGeometry(2000);return;}
         try { generateGeometry(); }
         catch (error) { rendererError = String(error?.message || error).slice(0, 180); publishState(); }
       }
@@ -3087,9 +3109,22 @@ function scheduleGeometry(delay = 180) {
   ensureLiveSatelliteCloudContextV6150(map);
   publishState();
   if (enabled) setEnabled(true);
-  // Start height observations in parallel with the existing image-mask warm-up; never block the first cloud frame.
-  void refreshCloudHeightFeedV6162(true);
+  // Start measured height observations after the anonymous welcome frame is
+  // responsive. The seeded global field stays visible while the gate is open.
   if (cloudHeightFeedTimer) clearInterval(cloudHeightFeedTimer);
-  cloudHeightFeedTimer = setInterval(() => { if (!document.hidden) void refreshCloudHeightFeedV6162(false); }, 300000);
+  const scheduleHeightFeed=()=>{
+    if(welcomeGateVisibleV6504()){
+      cloudHeightFeedTimer=setInterval(()=>{
+        if(document.hidden||welcomeGateVisibleV6504())return;
+        clearInterval(cloudHeightFeedTimer);cloudHeightFeedTimer=0;
+        void refreshCloudHeightFeedV6162(true);
+        cloudHeightFeedTimer=setInterval(()=>{if(!document.hidden)void refreshCloudHeightFeedV6162(false)},300000);
+      },2000);
+    }else{
+      void refreshCloudHeightFeedV6162(true);
+      cloudHeightFeedTimer=setInterval(()=>{if(!document.hidden)void refreshCloudHeightFeedV6162(false)},300000);
+    }
+  };
+  scheduleHeightFeed();
   return api;
 }
