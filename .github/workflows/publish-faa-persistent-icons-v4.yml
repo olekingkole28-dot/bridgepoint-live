@@ -63,7 +63,7 @@ jobs:
               for a in data.get('artifacts',[]):
                   name=a.get('name','')
                   if a.get('expired') or (a.get('size_in_bytes') or 0)<10000000:continue
-                  if not (name.startswith('bridgepoint-') or name.startswith('github-pages')):continue
+                  if not (name.startswith('bridgepoint-v5000-') or name.startswith('github-pages-') or name.startswith('bridgepoint-auth-tunnel-recovery-v1') or name.startswith('bridgepoint-faa-')):continue
                   run=a.get('workflow_run') or {}
                   if run.get('id'): candidates.append((a.get('created_at',''),run['id'],name))
               if len(candidates)>=50: break
