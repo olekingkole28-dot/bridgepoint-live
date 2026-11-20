@@ -157,14 +157,18 @@ jobs:
             executablePath:'/usr/bin/google-chrome',headless:true,
             args:['--no-sandbox','--use-gl=angle','--use-angle=swiftshader','--enable-webgl']
           });
-          const page=await browser.newPage({viewport:{width:832,height:650},deviceScaleFactor:1,
-            isMobile:true,hasTouch:true});
+          const context=await browser.newContext({viewport:{width:832,height:650},deviceScaleFactor:1,
+            isMobile:true,hasTouch:true,serviceWorkers:'block'});
+          const page=await context.newPage();
           const faa=readFileSync('/tmp/faa-smoke/bridgepoint-faa-obstruction-towers-v1.js','utf8');
           const gate=readFileSync('/tmp/faa-smoke/bridgepoint-drone-awareness-v1.js','utf8');
-          await page.route(/bridgepoint-faa-obstruction-towers-v1\.js(?:\?|$)/,route=>{
+          let faaIntercepts=0,gateIntercepts=0;
+          await context.route('**/bridgepoint-faa-obstruction-towers-v1.js*',route=>{
+            faaIntercepts++;
             console.log('ACTUAL_ROUTE_FAA',route.request().url());return route.fulfill({status:200,contentType:'text/javascript',body:faa});
           });
-          await page.route(/bridgepoint-drone-awareness-v1\.js(?:\?|$)/,route=>{
+          await context.route('**/bridgepoint-drone-awareness-v1.js*',route=>{
+            gateIntercepts++;
             console.log('ACTUAL_ROUTE_GATE',route.request().url());return route.fulfill({status:200,contentType:'text/javascript',body:gate});
           });
           const warns=[];page.on('pageerror',e=>{if(warns.length<12)warns.push('PAGE '+e.message)});
@@ -192,8 +196,8 @@ jobs:
             };
             // Simulate the post-sign-in feature restore on the existing real globe:
             // mobile welcome defers the drone-awareness visibility manager.
-            await import('/bridgepoint-drone-awareness-v1.js?real-integration-v6');
-            const {initFAAObstructionTowerRenderer}=await import('/bridgepoint-faa-obstruction-towers-v1.js?real-integration-v6');
+            await import('/bridgepoint-drone-awareness-v1.js?real-integration-v7');
+            const {initFAAObstructionTowerRenderer}=await import('/bridgepoint-faa-obstruction-towers-v1.js?real-integration-v7');
             window.__ACTUAL_FAA_API__=initFAAObstructionTowerRenderer(w);
             if(!window.__ACTUAL_FAA_API__)throw Error('actual globe did not accept FAA renderer');
             await window.__ACTUAL_FAA_API__.setEnabled(true);
@@ -219,6 +223,7 @@ jobs:
               rendered,zoom:m?.getZoom?.(),projection:m?.getProjection?.()?.type,
               errors:window.__BP_LANDING_MAP_BOOT__?.error||null};
           });
+          console.log('ACTUAL_PATCH_INTERCEPT_COUNTS',JSON.stringify({faaIntercepts,gateIntercepts,gateCandidateHasExemption:gate.includes("if(value.startsWith('bp-faa-obstructions-'))return false"),gateCandidateHasCategory:gate.includes("faa:/^bp-faa-obstructions-/i")}));
           console.log('ACTUAL_BRIDGEPOINT_FAA_RESULT',JSON.stringify(result));
           const diagnosis=await page.evaluate(()=>{
             const m=window.__BP_LANDING_WORLD__?.map;
@@ -248,7 +253,7 @@ jobs:
           console.log('ACTUAL_BRIDGEPOINT_WARNINGS',JSON.stringify(warns));
           await page.screenshot({path:'/tmp/faa-smoke/actual-globe.png',timeout:15000}).catch(e=>console.log('SCREENSHOT',e.message));
           await browser.close();
-          if(!result.enabled||!result.sharedGatePresent||!result.sourceLoaded||
+          if(faaIntercepts<1||gateIntercepts<1||!result.enabled||!result.sharedGatePresent||!result.sourceLoaded||
             result.markerVisible==='none'||result.haloVisible==='none'||result.rendered<1)
               process.exitCode=1;
           JS
