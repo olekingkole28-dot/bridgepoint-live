@@ -2311,8 +2311,9 @@ export function initSkyClouds(target) {
       if (sourceHeightSamples.length) {
         // Keep all measurements in the spatial height index, but seed visible meshes from
         // a bounded, even subset so startup never allocates/sorts 28k puff objects.
-        const maxDirectHeightCandidates = welcomeSourceOnly ? (MOBILE ? 900 : 1400) : (MOBILE ? 5200 : 9000);
-        const heightCandidateStride = Math.max(1, Math.ceil(sourceHeightSamples.length / maxDirectHeightCandidates));
+        const maxDirectHeightCandidates = MOBILE ? 5200 : 9000;
+        const activeDirectHeightCandidates = welcomeSourceOnly ? (MOBILE ? 900 : 1400) : maxDirectHeightCandidates;
+        const heightCandidateStride = Math.max(1, Math.ceil(sourceHeightSamples.length / activeDirectHeightCandidates));
         for (let sampleIndex = 0; sampleIndex < sourceHeightSamples.length; sampleIndex += heightCandidateStride) {
           const sample = sourceHeightSamples[sampleIndex];
           if (Math.abs(sample.lat) > 84.5) continue;
