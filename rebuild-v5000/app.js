@@ -198,7 +198,7 @@ async function bootMap(){
   if(world?.map?.loaded?.()||world?.map?.isStyleLoaded?.())begin();
   else{world?.map?.once?.('load',begin);world?.map?.once?.('idle',begin);setTimeout(begin,4200)}
  };
-scheduleOptionalRenderer(() => import('./bridgepoint-faa-obstruction-towers-v1.js?v=3-faa-category-icons-global-street')
+scheduleOptionalRenderer(() => import('./bridgepoint-faa-obstruction-towers-v1.js?v=2-aircraft-filters-faa-restored&icons=3-faa-category-icons-global-street')
   .then(m=>{window.__BP_FAA_OBSTRUCTIONS_V1__=m.initFAAObstructionTowerRenderer(world)})
   .catch(e=>console.warn('BridgePoint FAA obstruction/tower renderer unavailable',e)));
  const ensureAppStartupGlobe=()=>{
