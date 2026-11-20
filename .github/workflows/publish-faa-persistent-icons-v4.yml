@@ -1,4 +1,4 @@
-name: Publish FAA Persistent Category Icons Only v6 - Visibility Gate Repair
+name: Publish FAA Persistent Category Icons Only v7 - Verified Real Globe
 on:
   workflow_dispatch:
   push:
@@ -41,6 +41,7 @@ jobs:
           grep -Fq "allowLayerCategory?.('faa',state.enabled)" rebuild-v5000/bridgepoint-faa-obstruction-towers-v1.js
           grep -Fq "if(target.id==='bp-faa-obstructions-toggle-v1')return'faa'" rebuild-v5000/bridgepoint-drone-awareness-v1.js
           grep -Fq 'faa:/^bp-faa-obstructions-/i' rebuild-v5000/bridgepoint-drone-awareness-v1.js
+          grep -Fq "if(value.startsWith('bp-faa-obstructions-'))return false" rebuild-v5000/bridgepoint-drone-awareness-v1.js
       - name: Verify current PC-hosted Cloudflare auth is unchanged
         run: |
           set -euo pipefail
@@ -125,13 +126,13 @@ jobs:
               oldkey='&icons=5-faa-viewport-icons'
               expected=2 if rel=='landing.js' else 1
               if s.count(oldkey)!=expected:raise SystemExit(f'{rel}: unexpected FAA loader state')
-              p.write_text(s.replace(oldkey,'&icons=6-faa-layer-gate-permission'))
+              p.write_text(s.replace(oldkey,'&icons=7-faa-persistent-no-sweep'))
           for rel in ('index.html','app/index.html'):
               p=site/rel
               s=p.read_text()
               key='faa=5-faa-viewport-icons'
               if s.count(key)!=1:raise SystemExit(f'{rel}: unexpected FAA cache state')
-              p.write_text(s.replace(key,'faa=6-faa-layer-gate-permission'))
+              p.write_text(s.replace(key,'faa=7-faa-persistent-no-sweep'))
           new={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file()}
           expected=set(needed)
           changed={k for k in old if old[k]!=new.get(k)}
@@ -147,7 +148,7 @@ jobs:
           node --check "$SITE/bridgepoint-faa-obstruction-towers-v1.js"
           node --check "$SITE/bridgepoint-drone-awareness-v1.js"
       - uses: actions/configure-pages@v5
-      - name: Upload preserved site with eight FAA-only changes
+      - name: Upload preserved site with eight FAA-related changes
         uses: actions/upload-pages-artifact@v4
         with:
           name: bridgepoint-v5000-${{ github.run_attempt }}
@@ -172,6 +173,7 @@ jobs:
           curl --retry 8 --retry-all-errors -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/bridgepoint-drone-awareness-v1.js?verify=$GITHUB_SHA" > /tmp/faa-gate-live.js
           grep -Fq "if(target.id==='bp-faa-obstructions-toggle-v1')return'faa'" /tmp/faa-gate-live.js
           grep -Fq 'faa:/^bp-faa-obstructions-/i' /tmp/faa-gate-live.js
+          grep -Fq "if(value.startsWith('bp-faa-obstructions-'))return false" /tmp/faa-gate-live.js
           curl --retry 3 --retry-all-errors -fsSL https://characterization-seas-total-adopt.trycloudflare.com/auth/v1/health > /tmp/faa-auth.json
           grep -Fq '"local":true' /tmp/faa-auth.json
           echo 'FAA_ONLY_LIVE_PUBLISH_PASS'
