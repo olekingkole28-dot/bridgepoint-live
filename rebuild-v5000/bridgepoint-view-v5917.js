@@ -1058,7 +1058,7 @@ if(a==='clouds'){
  const surfaceWorld=home?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
  const activeMap=surfaceWorld?.map||surfaceWorld;
  b.disabled=true;
- void import('./world-v2300-clouds.js?v=6400-fortnite-atmosphere&vol=6503&weatherrev=20261120a').then(m=>{
+ void import('./world-v2300-clouds.js?v=6400-fortnite-atmosphere&vol=6505&weatherrev=20261120a').then(m=>{
   const api=window.__BP_SKY_CLOUDS_V5908__?.map===activeMap?window.__BP_SKY_CLOUDS_V5908__:m.initSkyClouds({map:activeMap});
   if(!api)throw new Error('3D cloud renderer is unavailable');
   const next=true;
