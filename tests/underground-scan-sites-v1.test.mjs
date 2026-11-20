@@ -274,6 +274,53 @@ assert.match(UNDERGROUND_SCAN_SITES.find(s=>s.id==='big-bat-cave-kentucky-real-m
 assert.match(UNDERGROUND_SCAN_SITES.find(s=>s.id==='hidden-cave-fallon-nevada-photogrammetry').models[0].detail,/DEFAULT/);
 assert.match(UNDERGROUND_SCAN_SITES.find(s=>s.id==='petit-jean-rock-house-cave-arkansas').models[0].detail,/HALF/);
 
+
+const mexicoCanadaMonumentsV21={
+ mexico:[["sotano-del-barro-queretaro","c2dfbdb76eab4d89a8282117c996ccac"],["naica-crystal-cave-chihuahua","04f3f56a7c0f45cc9f8f17176155b4b1"],["chiquihuite-cave-zacatecas-mexico","2caa3caeb04d4170a02a42ae685d9d54"],["mayan-blue-cenote-tulum","b6e0621ac72e4d3990bbefb430ace085"],["acambalam-puuc-chultun-yucatan","4fd7b521620a437bb410230a8c60b97e"]],
+ canadaNomash:["463f6d459d964170a64eb3c48e214a73","dc192656b67c4a028931d9e34f94d8cc","ab543f777609488da82646ebe1253470","a21804bb454b46e5a8aad1590472e4ca"],
+ canadaWellsGray:'0da6c7789e6a4dffbabfcbd93bf6e868',
+ globalSites:[["petra-royal-tombs-jordan","e01723d1e6f64dafb001c098c58d613b"],["petra-great-temple-jordan","4b4fa4ab61c84c8883b32a9cd4ee5ff8"],["chichen-itza-el-castillo-mexico","1624b224a7514762baf9025e6fe7dc4f"],["angkor-wat-khmer-temple-cambodia","be70b89f9c264fc19d63dca2ae78b224"],["machu-picchu-inca-citadel-peru","eb2e2c36ba8a4d8197dc30dd947984d2"]]
+};
+assert.equal(mexicoCanadaMonumentsV21.mexico.length,5,'five Mexican cave/underground heritage sites');
+assert.equal(mexicoCanadaMonumentsV21.canadaNomash.length+1,5,'five original-source Canada cave scan choices');
+assert.equal(mexicoCanadaMonumentsV21.globalSites.length,5,'five huge archaeological sites');
+const v21AllIds=mexicoCanadaMonumentsV21.mexico.map(x=>x[1]).concat(mexicoCanadaMonumentsV21.canadaNomash,[mexicoCanadaMonumentsV21.canadaWellsGray],mexicoCanadaMonumentsV21.globalSites.map(x=>x[1]));
+assert.equal(v21AllIds.length,15);
+assert.equal(new Set(v21AllIds).size,15,'all models are different original-source assets');
+const v21NewSites=mexicoCanadaMonumentsV21.mexico.concat(mexicoCanadaMonumentsV21.globalSites);
+for(const [siteId,uid] of v21NewSites){
+ const site=UNDERGROUND_SCAN_SITES.find(s=>s.id===siteId);
+ assert.ok(site,'new site '+siteId);
+ assert.equal(site.models.length,1);
+ assert.equal(site.models[0].uid,uid);
+ assert.ok(site.models[0].embedOnly,'in BridgePoint creator-hosted viewer');
+ assert.ok(site.models[0].creator&&site.models[0].method&&site.models[0].detail&&site.models[0].license);
+ assert.ok(site.locationPrecision.length>55&&site.locationNote);
+ assert.ok(site.coordinates.every(n=>Number.isFinite(n)));
+ assert.equal(site.type,mexicoCanadaMonumentsV21.globalSites.some(x=>x[0]===siteId)?'tomb':'cave','large historical sites receive gold tomb-style icon');
+ const html=undergroundSitePopupHtml(site,uid);
+ assert.ok(html.includes('sketchfab.com/models/'+uid+'/embed'));
+ assert.ok(html.includes('sandbox="allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-presentation"'));
+ assert.ok(!html.includes('allow-top-navigation')&&!html.includes('allow-popups')&&!html.includes('target="_blank"'));
+}
+const nomashV21=UNDERGROUND_SCAN_SITES.find(s=>s.id==='nomash-river-wetdream-cave-bc');
+assert.ok(nomashV21&&nomashV21.type==='cave');
+assert.deepEqual(nomashV21.models.map(m=>m.uid),mexicoCanadaMonumentsV21.canadaNomash);
+assert.match(nomashV21.locationPrecision,/regional/);
+for(const m of nomashV21.models){
+ assert.ok(m.embedOnly);
+ assert.ok(undergroundSitePopupHtml(nomashV21,m.uid).includes('sketchfab.com/models/'+m.uid+'/embed'));
+}
+const wellsV21=UNDERGROUND_SCAN_SITES.find(s=>s.id==='wells-gray-sarlaccs-pit-canada');
+assert.equal(wellsV21.models.length,2);
+assert.equal(wellsV21.models[0].uid,'df5dea76480f4ed3af018d885a13b704','original Wells Gray kept');
+assert.equal(wellsV21.models[1].uid,mexicoCanadaMonumentsV21.canadaWellsGray);
+assert.ok(undergroundSitePopupHtml(wellsV21,wellsV21.models[1].uid).includes('sketchfab.com/models/'+wellsV21.models[1].uid+'/embed'));
+assert.match(UNDERGROUND_SCAN_SITES.find(s=>s.id==='acambalam-puuc-chultun-yucatan').models[0].detail,/MAN-MADE/i);
+assert.match(UNDERGROUND_SCAN_SITES.find(s=>s.id==='mayan-blue-cenote-tulum').models[0].detail,/CLUSTER/);
+assert.match(UNDERGROUND_SCAN_SITES.find(s=>s.id==='petra-great-temple-jordan').models[0].method,/7.8 million/i);
+assert.match(UNDERGROUND_SCAN_SITES.find(s=>s.id==='chiquihuite-cave-zacatecas-mexico').models[0].detail,/UNIT X-12/);
+
 const fiveRemoteDeepCaves=[
  {id:'wells-gray-sarlaccs-pit-canada',coordinates:[-120,52.33306],uid:'df5dea76480f4ed3af018d885a13b704',method:/photogrammetry/i,detail:/ONLY reconstructs the exposed entrance/,placement:/regional/i},
  {id:'gorner-glacier-g6-moulin-switzerland',coordinates:[7.81528,45.94750],uid:'5dc79d2891f24e9fa571b9e910556ec8',method:/Photogrammetry/i,detail:/not a LiDAR point-cloud/,placement:/NOT the surveyed/i},
