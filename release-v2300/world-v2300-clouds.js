@@ -2073,10 +2073,10 @@ export function initSkyClouds(target) {
     let sourceHeightMatchedCount = 0, sourceHeightModelledCount = 0;
     const maxGlobalCloudVertices = softwareRenderer ? (MOBILE ? 34000 : 44000) : (index32Supported ? CLOUD_VERTEX_LIMIT - CLOUD_STORM_VERTEX_RESERVE : 65400);
     const satelliteMaxClouds = index32Supported ? (MOBILE ? 2900 : 3500) : (MOBILE ? 500 : 720);
-    // BP_FAST_WELCOME_SOURCE_CLOUDS_V6508: keep first-frame WebGL responsive.
-    // Full source fidelity and the existing budgets return after sign-in.
+    // BP_WELCOME_SOURCE_COVERAGE_V6510: retain a bounded first-frame budget while
+    // sampling more satellite-backed cloud volumes across the visible globe.
     const activeSatelliteMaxClouds = welcomeSourceOnly
-      ? (softwareRenderer ? (MOBILE ? 65 : 110) : (MOBILE ? 260 : 440))
+      ? (softwareRenderer ? (MOBILE ? 65 : 110) : (MOBILE ? 520 : 880))
       : (softwareRenderer ? (MOBILE ? 400 : 580) : satelliteMaxClouds);
     // Modestly denser rounded meshes improve the silhouette without adding draw calls.
     // Keep part of the vertex budget for the persistent procedural field on lower-power GPUs.
@@ -2274,7 +2274,7 @@ export function initSkyClouds(target) {
     if(satelliteMaskReady || sourceHeightSamples.length || sourceCloudMaskSamples.length){
       const coverage=satelliteMaskReady?satelliteMask.coverage:[],probability=satelliteMaskReady?satelliteMask.probability:[],width=satelliteMaskReady?Number(satelliteMask.width):0,height=satelliteMaskReady?Number(satelliteMask.height):0;
       const pAt=(x,y)=>!satelliteMaskReady||x<0||x>=width||y<0||y>=height?0:probability[y*width+x]/255,candidates=[];
-      const welcomeMaskStride = welcomeSourceOnly ? (MOBILE ? 6 : 8) : 1;
+      const welcomeMaskStride = welcomeSourceOnly ? (MOBILE ? 4 : 5) : 1;
       if (satelliteMaskReady) for(let row=1;row<height-1;row+=welcomeMaskStride)for(let col=1;col<width-1;col+=welcomeMaskStride){
         const i=row*width+col;if(Number(coverage[i])<192)continue;
         const point=satelliteMaskCellCenterV6150(satelliteMask,col,row);
@@ -2423,9 +2423,9 @@ export function initSkyClouds(target) {
         const neighborCloudiness=sourceCellNeighbors.length
           ? sourceCellNeighbors.reduce((n,p)=>n+(p>.42?1:0),0)/4 : 0;
         const bankBoost=cloudLodBand==='global'&&neighborCloudiness>=.5
-          ? 1.36+1.02*neighborCloudiness : 1;
+          ? 1.48+1.10*neighborCloudiness : 1;
         const overviewFootprint=thin?1:bankBoost;
-        const boundedRx=Math.min(245000,rx*overviewFootprint),boundedRy=Math.min(245000,ry*overviewFootprint);
+        const boundedRx=Math.min(280000,rx*overviewFootprint),boundedRy=Math.min(280000,ry*overviewFootprint);
         if(!addGlobalPuff(q.lng,q.lat,altitude,boundedRx,boundedRy,vertical,tint,satellitePuffSlices,satellitePuffStacks,hash(q.col,q.row,1301),true,angle))return false;
         // Street/ground camera LOD: replace the satellite-scale smooth
         // envelope with several smaller genuine 3D cauliflower volumes.
