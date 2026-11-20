@@ -958,7 +958,7 @@ export function initSkyClouds(target) {
   let sourceHurricaneEyeRadiusValueFound = false;
   let localWindSourcePuffs = 0, localWindModelledPuffs = 0;
   let vertexData = new Float32Array(0), indexData = new Uint16Array(0);
-  let index32Supported = false;
+  let index32Supported = false, softwareRenderer = false;
   const CLOUD_VERTEX_LIMIT = MOBILE ? 145000 : 220000;
   const CLOUD_STORM_VERTEX_RESERVE = MOBILE ? 24000 : 32000;
   let globalCloudGeometryCache = null, sourceHeightIndexCache = null;
@@ -1461,8 +1461,8 @@ export function initSkyClouds(target) {
       desktopGlobalCloudMotionPaused: false,
       desktopGlobalCloudMotionScale: !MOBILE && number(map.getZoom?.(),0) <= 3.5 ? 0.32 : 1,
       desktopGlobalCloudRepaintThrottled: !MOBILE && number(map.getZoom?.(),0) <= 3.5,
-      cloudIndexFormat: index32Supported ? 'uint32' : 'uint16',
-      cloudVertexBudget: index32Supported ? CLOUD_VERTEX_LIMIT - CLOUD_STORM_VERTEX_RESERVE : 65400,
+      cloudIndexFormat: index32Supported ? 'uint32' : 'uint16', softwareRenderer,
+      cloudVertexBudget: softwareRenderer ? (MOBILE ? 34000 : 44000) : (index32Supported ? CLOUD_VERTEX_LIMIT - CLOUD_STORM_VERTEX_RESERVE : 65400),
       satelliteCloudFormationBudget: globalCloudGeometryCache?.satelliteCloudAnchorCount || 0,
       satelliteCloudsWithDirectSourceHeight: globalCloudGeometryCache?.sourceHeightDirectAnchorCount || 0,
        satelliteCloudMaskScienceSamples: globalCloudGeometryCache?.sourceCloudMaskSampleCount || 0,
@@ -1613,9 +1613,15 @@ export function initSkyClouds(target) {
     id: LAYER_ID, type: 'custom', renderingMode: '3d',
     onAdd(_map, gl) {
       glRef = gl;
-      const priorIndex32Support=index32Supported;
+      const priorIndex32Support=index32Supported, previousSoftwareRenderer=softwareRenderer;
       index32Supported=typeof gl.createVertexArray==='function'||!!gl.getExtension?.('OES_element_index_uint');
-      if(index32Supported&&!priorIndex32Support)globalCloudGeometryCache=null;
+      // Preserve clouds on software WebGL without monopolizing the welcome UI thread.
+      try {
+        const ext=gl.getExtension?.('WEBGL_debug_renderer_info');
+        const device=String(gl.getParameter?.(ext?.UNMASKED_RENDERER_WEBGL||gl.RENDERER)||'');
+        softwareRenderer=/swiftshader|llvmpipe|softpipe|lavapipe|software rasterizer|microsoft basic render/i.test(device);
+      } catch (_) { softwareRenderer=false; }
+      if((index32Supported&&!priorIndex32Support)||softwareRenderer!==previousSoftwareRenderer)globalCloudGeometryCache=null;
       try {
         // The correct GPU program is compiled lazily for each MapLibre projection variant.
         vbo = gl.createBuffer(); ibo = gl.createBuffer();
@@ -1689,7 +1695,7 @@ export function initSkyClouds(target) {
         const zoomNow=number(map.getZoom?.(),0),pitchRad=number(map.getPitch?.(),0)*Math.PI/180;
         const metresPerPixel=40075016.68557849/(512*Math.pow(2,zoomNow));
         const cameraAltitude=clamp(metresPerPixel*Math.max(1,container.clientHeight||gl.drawingBufferHeight||768)*0.58/Math.max(0.45,Math.cos(pitchRad)),900,50000000);
-        const raySteps=zoomNow>8.5?(MOBILE?20:28):(MOBILE?28:40);
+        const raySteps=softwareRenderer?12:(zoomNow>8.5?(MOBILE?20:28):(MOBILE?28:40));
         stormRaymarchStepBudget=raySteps;
         if(info.uniforms.cameraCenter)gl.uniform2f(info.uniforms.cameraCenter,cameraCenter.x,cameraCenter.y);
         if(info.uniforms.cameraAltitude)gl.uniform1f(info.uniforms.cameraAltitude,cameraAltitude);
@@ -1934,14 +1940,15 @@ export function initSkyClouds(target) {
     const vertices = [], indices = [], macroCandidates = [], shadowAnchors = [];
     const satelliteCloudAnchors = [];
     let sourceHeightMatchedCount = 0, sourceHeightModelledCount = 0;
-    const maxGlobalCloudVertices = index32Supported ? CLOUD_VERTEX_LIMIT - CLOUD_STORM_VERTEX_RESERVE : 65400;
+    const maxGlobalCloudVertices = softwareRenderer ? (MOBILE ? 34000 : 44000) : (index32Supported ? CLOUD_VERTEX_LIMIT - CLOUD_STORM_VERTEX_RESERVE : 65400);
     const satelliteMaxClouds = index32Supported ? (MOBILE ? 2900 : 3500) : (MOBILE ? 500 : 720);
+    const activeSatelliteMaxClouds = softwareRenderer ? (MOBILE ? 400 : 580) : satelliteMaxClouds;
     // Modestly denser rounded meshes improve the silhouette without adding draw calls.
     // Keep part of the vertex budget for the persistent procedural field on lower-power GPUs.
     const satellitePuffSlices = MOBILE ? 8 : 9;
     const satellitePuffStacks = MOBILE ? 3 : 4;
     const satellitePuffVertexCount = (Math.max(satellitePuffSlices, MOBILE ? 8 : 10) + 1) * (Math.max(satellitePuffStacks, MOBILE ? 4 : 5) + 1);
-    const satelliteVertexReserve = satelliteMaskReady
+    const satelliteVertexReserve = softwareRenderer ? Math.floor(maxGlobalCloudVertices * 0.70) : satelliteMaskReady
       ? Math.floor(satelliteMaxClouds * satellitePuffVertexCount * 0.72)
       : ((sourceHeightSamples.length || sourceCloudMaskSamples.length)
         ? Math.floor(satelliteMaxClouds * 0.25 * satellitePuffVertexCount * 0.9) : 0);
@@ -2219,7 +2226,7 @@ export function initSkyClouds(target) {
       const crowded=q=>{const b=bucket(q.lng,q.lat);for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){const y=b.y+dy,mid=(y+.5)*latCell-90,cols=Math.max(1,Math.round(40075016.68557849*Math.max(.08,Math.cos(mid*Math.PI/180))/minGap));let x=(b.x+dx)%cols;if(x<0)x+=cols;for(const o of buckets.get(y+':'+x)||[])if(cloudDistanceMeters(o.lng,o.lat,q.lng,q.lat)<minGap)return true}return false};
       const reserve=q=>{const b=bucket(q.lng,q.lat),k=b.y+':'+b.x;if(!buckets.has(k))buckets.set(k,[]);buckets.get(k).push(q)};
       const addSatellite=q=>{
-        if(chosen.length>=satelliteMaxClouds||crowded(q))return false;
+        if(chosen.length>=activeSatelliteMaxClouds||crowded(q))return false;
         if(q.sourceCloudMaskSample&&!q.heightSample&&sourceCloudMaskDirectAnchorCount>=sourceCloudMaskDirectAnchorBudget)return false;
         let heightMatch = q.heightSample ? {sample:q.heightSample,distanceM:0,neighborCount:1,topSpreadM:0} : nearestSourceHeight(q.lng,q.lat);
         const ground=terrainElevationAt(q.lng,q.lat),h0=hash(q.col,q.row,1201),h1=hash(q.col,q.row,1202),h2=hash(q.col,q.row,1203);
@@ -2265,13 +2272,13 @@ export function initSkyClouds(target) {
       const sourceHeightAnchorBudget=Math.floor(satelliteMaxClouds*0.25);
       const sourceCloudMaskDirectAnchorBudget=Math.floor(satelliteMaxClouds*0.38);
       for(const q of heightCandidates){
-        if(chosen.length>=satelliteMaxClouds||sourceHeightDirectAnchorCount>=sourceHeightAnchorBudget)break;
+        if(chosen.length>=activeSatelliteMaxClouds||sourceHeightDirectAnchorCount>=sourceHeightAnchorBudget)break;
         if(addSatellite(q))sourceHeightDirectAnchorCount++;
       }
       const thickBudget=Math.floor(satelliteMaxClouds*.62);let thickCount=0;
-      for(const q of geographicallyBalancedCandidates){if(chosen.length>=satelliteMaxClouds||thickCount>=thickBudget)break;if(q.thin)continue;if(addSatellite(q))thickCount++}
-      for(const q of geographicallyBalancedCandidates){if(chosen.length>=satelliteMaxClouds)break;if(!q.thin)addSatellite(q)}
-      for(const q of geographicallyBalancedCandidates){if(chosen.length>=satelliteMaxClouds)break;if(q.thin)addSatellite(q)}
+      for(const q of geographicallyBalancedCandidates){if(chosen.length>=activeSatelliteMaxClouds||thickCount>=thickBudget)break;if(q.thin)continue;if(addSatellite(q))thickCount++}
+      for(const q of geographicallyBalancedCandidates){if(chosen.length>=activeSatelliteMaxClouds)break;if(!q.thin)addSatellite(q)}
+      for(const q of geographicallyBalancedCandidates){if(chosen.length>=activeSatelliteMaxClouds)break;if(q.thin)addSatellite(q)}
     }
     globalCloudGeometryCache = {
       vertices: new Float32Array(vertices),
@@ -2757,7 +2764,7 @@ function generateGeometry() {
     };
     const globalVertexCount = Math.floor(global.vertices.length / 13);
     const requestedStormVertexCount = Math.floor(stormVolumeVertices.length/13);
-    const combinedVertexLimit = index32Supported ? CLOUD_VERTEX_LIMIT : 65530;
+    const combinedVertexLimit = softwareRenderer ? (MOBILE ? 40000 : 52000) : (index32Supported ? CLOUD_VERTEX_LIMIT : 65530);
     const localVertexCount = Math.min(Math.floor(vertices.length / 13), Math.max(0,combinedVertexLimit-globalVertexCount-requestedStormVertexCount));
     tornadoSurfaceVerticesSubmitted = tornadoSurfaceVertexRanges.reduce((total,r)=>total + Math.max(0,Math.min(r.end,localVertexCount)-r.start),0);
     const stormVertexCount = Math.min(requestedStormVertexCount,Math.max(0,combinedVertexLimit-globalVertexCount-localVertexCount));
@@ -2809,7 +2816,7 @@ function scheduleGeometry(delay = 180) {
       }
       // Map gestures already drive frames. Once settled, keep a light repaint cadence
       // so wind-advection continues at globe LOD without creating a full-speed loop.
-      const repaintIntervalMs = desktopGlobalSlowMotion ? 125 : (MOBILE ? 100 : 70);
+      const repaintIntervalMs = softwareRenderer ? 420 : (desktopGlobalSlowMotion ? 125 : (MOBILE ? 100 : 70));
       if (layerInstalled && !map.isMoving?.() && now - lastCloudRepaintAt >= repaintIntervalMs) {
         lastCloudRepaintAt = now;
         map.triggerRepaint?.();
