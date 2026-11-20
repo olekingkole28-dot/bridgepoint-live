@@ -1747,9 +1747,8 @@ export function initSkyClouds(target) {
       if(index32Supported&&!priorIndex32Support&&enabled)scheduleGeometry(80);
     },
     render(gl, args) {
-      // The welcome globe has its own celestial scene. Suppress the retired,
-      // blocky preview cloud/hurricane mesh there; authenticated 3D clouds stay on.
-      if (welcomeGateVisibleV6504()) return;
+      // BP_SOURCE_WELCOME_CLOUDS_V6507: the welcome uses only source-backed
+      // puffs (no legacy synthetic cloud banks), with this same animated 3D shader.
       if (!enabled || document.hidden || disposed || !vbo || !ibo || indexData.length < 3) return;
       let saved = null;
       try {
@@ -2029,6 +2028,7 @@ export function initSkyClouds(target) {
     // BP_CLOUD_ZOOM_CONTINUITY_V6506: budget the GPU for the visible Earth and
     // the cloud horizon, then invalidate only when the camera enters a new view cell.
     // Reusing a local-zoom buffer after a long pan previously left the sky empty.
+    const welcomeSourceOnly=welcomeGateVisibleV6504();
     const localCloudPitch=number(map.getPitch?.(),0);
     const viewLng=wrapLongitude(number(localCloudCenter?.lng,0));
     const viewLat=clamp(number(localCloudCenter?.lat,0),-85,85);
@@ -2063,7 +2063,7 @@ export function initSkyClouds(target) {
     const maskViewCenter=map.getCenter?.();
     const isInFrontHemisphere=st=>{if(!maskViewCenter)return true;const r=Math.PI/180,a=number(maskViewCenter.lat,0)*r,b=number(st.lat,0)*r,d=(number(st.lng,0)-number(maskViewCenter.lng,0))*r;return Math.sin(a)*Math.sin(b)+Math.cos(a)*Math.cos(b)*Math.cos(d)>-0.08;};
     // Do not inject a model-only cyclone into the live global cloud mask when the source has no storm.
-    const stormSignature=cloudLodBand+'|view:'+viewKey+'|'+sourceCyclones.map(s=>s.key+':'+s.lng.toFixed(3)+','+s.lat.toFixed(3)+':'+Math.round(s.eyeRadiusM)).sort().join('|')+
+    const stormSignature=cloudLodBand+'|welcome:'+Number(welcomeSourceOnly)+'|view:'+viewKey+'|'+sourceCyclones.map(s=>s.key+':'+s.lng.toFixed(3)+','+s.lat.toFixed(3)+':'+Math.round(s.eyeRadiusM)).sort().join('|')+
       '|sat-mask:'+satelliteMaskGeneration+':'+(satelliteMaskReady?'active':'fallback')+'|source-height:'+sourceHeightSignature+
       '|official-cloud-mask:'+sourceCloudMaskSignature;
     if (globalCloudGeometryCache && globalCloudGeometryCache.stormSignature === stormSignature) return globalCloudGeometryCache;
@@ -2131,7 +2131,7 @@ export function initSkyClouds(target) {
       macroCandidates.push({ gx, gy, rank: field.score + hash(gx, gy, 903) * 0.035, seed: hash(gx, gy, 904), cloudness: 1 - field.broad });
     }
     macroCandidates.sort((a, b) => a.rank - b.rank);
-    const macro = macroCandidates.filter(q=>selectAtView(q,columns,rows,-76,76)).slice(0,maxMacro);
+    const macro = welcomeSourceOnly ? [] : macroCandidates.filter(q=>selectAtView(q,columns,rows,-76,76)).slice(0,maxMacro);
     for (let k = 0; k < macro.length; k++) {
       const q = macro[k];
       const lat = clamp(-76 + q.gy * (152 / (rows - 1)) + (hash(q.gx, q.gy, 905) - 0.5) * 4.2, -77, 77);
@@ -2175,7 +2175,7 @@ export function initSkyClouds(target) {
       fineCandidates.push({ gx, gy, rank: hash(gx, gy, 951), seed: hash(gx, gy, 952) });
     }
     fineCandidates.sort((a, b) => a.rank - b.rank);
-    const fine = fineCandidates.filter(q=>selectAtView(q,fineColumns,fineRows,-78,78)).slice(0,maxFine);
+    const fine = welcomeSourceOnly ? [] : fineCandidates.filter(q=>selectAtView(q,fineColumns,fineRows,-78,78)).slice(0,maxFine);
     for (let k = 0; k < fine.length; k++) {
       const q = fine[k];
       const lat = clamp(-78 + q.gy * (156 / (fineRows - 1)) + (hash(q.gx, q.gy, 953) - 0.5) * 1.8, -78, 78);
@@ -2203,7 +2203,7 @@ export function initSkyClouds(target) {
       smallCandidates.push({ gx, gy, rank: field.score + hash(gx, gy, 968) * 0.04, cloudness: 1 - field.broad });
     }
     smallCandidates.sort((a, b) => a.rank - b.rank);
-    const singles = smallCandidates.filter(q=>selectAtView(q,smallColumns,smallRows,-79,79)).slice(0,maxSingles);
+    const singles = welcomeSourceOnly ? [] : smallCandidates.filter(q=>selectAtView(q,smallColumns,smallRows,-79,79)).slice(0,maxSingles);
     for (let k = 0; k < singles.length; k++) {
       const q = singles[k];
       const lat = clamp(-79 + q.gy * (158 / (smallRows - 1)) + (hash(q.gx, q.gy, 969) - 0.5) * 0.9, -79, 79);
@@ -2245,7 +2245,7 @@ export function initSkyClouds(target) {
       thinCandidates.push({ gx, gy, rank: hash(gx, gy, 992) });
     }
     thinCandidates.sort((a, b) => a.rank - b.rank);
-    const thin = thinCandidates.filter(q=>selectAtView(q,thinColumns,thinRows,-78,78)).slice(0,maxThin);
+    const thin = welcomeSourceOnly ? [] : thinCandidates.filter(q=>selectAtView(q,thinColumns,thinRows,-78,78)).slice(0,maxThin);
     for (let k = 0; k < thin.length; k++) {
       const q = thin[k];
       const lat = clamp(-78 + q.gy * (156 / (thinRows - 1)) + (hash(q.gx, q.gy, 993) - 0.5) * 0.6, -78, 78);
@@ -2366,6 +2366,8 @@ export function initSkyClouds(target) {
       const crowded=q=>{const b=bucket(q.lng,q.lat);for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){const y=b.y+dy,mid=(y+.5)*latCell-90,cols=Math.max(1,Math.round(40075016.68557849*Math.max(.08,Math.cos(mid*Math.PI/180))/minGap));let x=(b.x+dx)%cols;if(x<0)x+=cols;for(const o of buckets.get(y+':'+x)||[])if(cloudDistanceMeters(o.lng,o.lat,q.lng,q.lat)<minGap)return true}return false};
       const reserve=q=>{const b=bucket(q.lng,q.lat),k=b.y+':'+b.x;if(!buckets.has(k))buckets.set(k,[]);buckets.get(k).push(q)};
       const addSatellite=q=>{
+        // Spend the source cloud budget on the visible part of Earth, not its far side.
+        if(!viewAcceptsCenter(q.lng,q.lat,0))return false;
         if(chosen.length>=activeSatelliteMaxClouds||crowded(q))return false;
         if(q.sourceCloudMaskSample&&!q.heightSample&&sourceCloudMaskDirectAnchorCount>=sourceCloudMaskDirectAnchorBudget)return false;
         let heightMatch = q.heightSample ? {sample:q.heightSample,distanceM:0,neighborCount:1,topSpreadM:0} : nearestSourceHeight(q.lng,q.lat);
@@ -2975,10 +2977,12 @@ function scheduleGeometry(delay = 180) {
     clearTimeout(rebuildTimer);
     rebuildTimer = setTimeout(() => {
       if (enabled && !disposed) {
-        // Keep the first anonymous welcome frame responsive. Seeded clouds are
-        // already present; measured satellite-height geometry is rebuilt after
-        // the account gate closes.
-        if(welcomeGateVisibleV6504()){scheduleGeometry(2000);return;}
+        // Let the welcome scene render satellite-derived 3D volumes after the
+        // cloud-location mask is ready. Do not revive the retired procedural puffs.
+        if(welcomeGateVisibleV6504()&&(!window.__BP_SATELLITE_CLOUD_MASK_V6150__||
+          Number(window.__BP_SATELLITE_CLOUD_MASK_V6150__.cloudCells||0)<20)){
+          scheduleGeometry(1800);return;
+        }
         try { generateGeometry(); }
         catch (error) { rendererError = String(error?.message || error).slice(0, 180); publishState(); }
       }
