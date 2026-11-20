@@ -36,9 +36,13 @@ def main(site:Path,source:Path):
         new=NEW.encode()
         if original.count(old)!=1:
             raise RuntimeError('NO_PUBLISH_ORIGINAL_AUTH_ORIGIN_UNEXPECTED '+entry)
-        if candidate.count(new)!=1 or candidate!=original.replace(old,new,1):
-            raise RuntimeError('NO_PUBLISH_AUTH_CHANGE_HAS_UNRELATED_CODE '+entry)
-        (site/entry).write_bytes(candidate)
+        # Repo source is a future-build authority and may differ from the exact
+        # deployed artifact; NEVER replace the published script wholesale.
+        if candidate.count(new)!=1:
+            raise RuntimeError('NO_PUBLISH_SOURCE_AUTH_ORIGIN_UNEXPECTED '+entry)
+        patched=original.replace(old,new,1)
+        assert patched.replace(new,old,1)==original, 'Unexpected script modification'
+        (site/entry).write_bytes(patched)
     for entry,script in (('index.html','landing.js'),('app/index.html','app.js')):
         p=site/entry
         raw=p.read_text(encoding='utf-8')
