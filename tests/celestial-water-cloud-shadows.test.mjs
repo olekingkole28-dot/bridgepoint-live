@@ -202,13 +202,13 @@ test('entrypoints use fresh cache keys and keep the celestial canvas off the sat
     assert.match(source, /world-v2300-map\.js\?v=6238-pc-runtime/);
     assert.match(source, /world-v2300-water\.js\?v=6256-gerstner-ocean/);
     assert.match(source, /world-v2300-clouds\.js\?v=6330-always-on-color-cyclones/);
-    assert.match(source, /world-v2300-weather\.js\?v=6318-storm-icons-clickable/);
+    assert.match(source, /world-v2300-weather\.js\?v=6330-storm-details-trajectories/);
     assert.match(source, /world-v2300-time-slider\.js\?v=6170-no-cloud-toggle-always-on/);
   }
   assert.match(appHtml, /app\.js\?v=6312-post-auth-unblock-map/, 'app shell loads the updated app entrypoint');
   assert.doesNotMatch(map, /world-v2300-space\.js\?v=6125-manual-globe-camera/, 'the retired celestial overlay must not be imported by the live globe');
   assert.doesNotMatch(timeSlider, /data-clouds|toggleSkyClouds|world-v2300-clouds/);
-  assert.match(bootstrap, /world-v2300-weather\.js\?v=6318-storm-icons-clickable/);
+  assert.match(bootstrap, /world-v2300-weather\.js\?v=6330-storm-details-trajectories/);
   assert.match(appHtml, /app\.js\?v=6312-post-auth-unblock-map/);
   assert.match(landingHtml, /landing\.js\?v=6312-post-signin-queue/);
   assert.match(appHtml, /intelligence-global-v5507\.js\?v=6238-pc-runtime/);
@@ -309,7 +309,7 @@ test('new rain/lightning and global source markers stay separate from legacy eff
   assert.match(weather, /const WILDFIRE_OVERLAY_LAYERS=\['wx-fire-fill','wx-fire-line'\]/);
   assert.match(weather, /function setWildfiresVisible\(value\)/);
   assert.match(weather, /if\(!active&&!wildfiresVisible\)return/);
-  assert.match(listingView, /data-bpv-action="clouds"/);
+  assert.doesNotMatch(listingView, /data-bpv-action="clouds"/);
   assert.match(listingView, /data-bpv-action="wildfire"/);
   assert.match(listingView, /if\(a==='wildfire'\)\{[\s\S]*?api\.setEnabled\(next\)/, 'current wildfire button must enable the dedicated live fire renderer');
   assert.match(listingView, /api\.setEnabled\(next\)/);

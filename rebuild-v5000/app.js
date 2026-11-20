@@ -134,7 +134,7 @@ async function initSharedVisualWeather(targetWorld,{activate=true,cloudsOnly=fal
  const styleReady=()=>{try{return map.isStyleLoaded?.()===true||!!map.getSource?.('ofm')}catch{return false}};
  if(!styleReady())await new Promise(resolve=>{let done=false;const finish=()=>{if(done)return;done=true;resolve()};map.once?.('load',finish);setTimeout(finish,5000)});
  try{
-  const wm=await import('./world-v2300-weather.js?v=6318-storm-icons-clickable');
+  const wm=await import('./world-v2300-weather.js?v=6330-storm-details-trajectories');
   const weather=wm.initWeather(map,{deferActivation:!activate,rainParticles:false,cloudsOnly:!!cloudsOnly});weather?.setCloudsOnly?.(!!cloudsOnly);
   let present=window.__bpPresentWeatherV2301||null;
   if(activate){
