@@ -18,6 +18,14 @@ const MARKER_ID = 'bp-faa-obstructions-markers-v1';
 const LABEL_ID = 'bp-faa-obstructions-labels-v1';
 const HIT_ID = 'bp-faa-obstructions-hit-v1';
 const MODEL_ID = 'bp-faa-obstructions-models-v1';
+const FAA_ICON_CATEGORIES = [
+  {key:'lattice', iconId:'bp-faa-icon-lattice-v1', clusterCountKey:'faaLatticeCount', clusterOffset:[-10,0], clusterColor:'#e5fbff'},
+  {key:'transmission', iconId:'bp-faa-icon-transmission-v1', clusterCountKey:'faaTransmissionCount', clusterOffset:[-5,-9], clusterColor:'#f4d36f'},
+  {key:'antenna', iconId:'bp-faa-icon-antenna-v1', clusterCountKey:'faaAntennaCount', clusterOffset:[5,-9], clusterColor:'#8fe6ff'},
+  {key:'crane', iconId:'bp-faa-icon-crane-v1', clusterCountKey:'faaCraneCount', clusterOffset:[10,0], clusterColor:'#ffae74'},
+  {key:'building-lattice', iconId:'bp-faa-icon-building-v1', clusterCountKey:'faaBuildingTowerCount', clusterOffset:[5,9], clusterColor:'#c8aaff'},
+  {key:'control-tower', iconId:'bp-faa-icon-control-tower-v1', clusterCountKey:'faaControlTowerCount', clusterOffset:[-5,9], clusterColor:'#9dffca'}
+];
 const MIN_MODEL_ZOOM = 11.4;
 const MAX_MODELS = typeof window !== 'undefined' &&
   ((Number(window.innerWidth) || 1024) <= 820 ||
@@ -143,7 +151,7 @@ export function faaObstructionPopupHtml(feature) {
     '<p class="bp-faa-source-v1"><a href="'+FAA_SOURCE_URL+'" target="_blank" rel="noopener noreferrer">FAA DOF source and coverage notes</a></p>'+
     '</div>';
 }
-function makeTowerIcon() {
+function makeTowerIcon(category) {
   const canvas = document.createElement('canvas');
   canvas.width = 64; canvas.height = 64;
   const ctx = canvas.getContext('2d');
@@ -152,21 +160,50 @@ function makeTowerIcon() {
   ctx.lineWidth = 4.6;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
-  ctx.beginPath();
-  ctx.moveTo(32,5); ctx.lineTo(10,58);
-  ctx.moveTo(32,5); ctx.lineTo(54,58);
-  ctx.moveTo(17,42); ctx.lineTo(47,42);
-  ctx.moveTo(22,29); ctx.lineTo(42,29);
-  ctx.moveTo(26,18); ctx.lineTo(38,18);
-  ctx.moveTo(13,52); ctx.lineTo(51,52);
-  ctx.moveTo(10,58); ctx.lineTo(54,58);
-  ctx.moveTo(17,42); ctx.lineTo(42,29);
-  ctx.moveTo(47,42); ctx.lineTo(22,29);
-  ctx.moveTo(22,29); ctx.lineTo(38,18);
-  ctx.moveTo(42,29); ctx.lineTo(26,18);
-  ctx.stroke();
-  ctx.beginPath(); ctx.arc(32,5,3.2,0,Math.PI*2); ctx.fillStyle='#fff'; ctx.fill();
+  const line=(...points)=>{
+    ctx.beginPath();
+    ctx.moveTo(points[0][0],points[0][1]);
+    for(let i=1;i<points.length;i++)ctx.lineTo(points[i][0],points[i][1]);
+    ctx.stroke();
+  };
+  if(category==='transmission') {
+    line([32,59],[32,20],[8,22],[56,22],[18,35],[46,35],[12,49],[52,49],[32,20],[12,49],[32,20],[52,49]);
+    line([8,22],[17,29],[47,29],[56,22],[32,20],[22,12],[42,12]);
+    line([21,59],[43,59]);
+  } else if(category==='antenna') {
+    line([32,60],[32,13],[23,60],[41,60],[26,46],[38,46],[28,34],[36,34],[29,23],[35,23]);
+    ctx.beginPath();ctx.arc(32,14,11,-2.55,-0.59);ctx.stroke();
+    ctx.beginPath();ctx.arc(32,14,19,-2.48,-0.66);ctx.stroke();
+    line([32,7],[32,3]);
+  } else if(category==='crane') {
+    line([36,59],[36,21],[5,21],[59,21]);
+    line([36,21],[21,21],[36,11],[57,21]);
+    line([21,21],[27,27],[33,21],[42,27],[48,21]);
+    line([11,21],[11,27],[16,27],[16,21]);
+    line([49,21],[49,26],[54,26],[54,21],[51,26],[51,34],[47,38]);
+    line([31,59],[41,59]);
+  } else if(category==='building-lattice') {
+    line([9,59],[9,39],[55,39],[55,59],[9,59],[16,39],[16,59],[25,39],[25,59],[34,39],[34,59],[43,39],[43,59],[52,39]);
+    line([27,39],[27,19],[37,19],[37,39],[27,30],[37,30],[27,19],[37,30],[37,19],[27,30]);
+    line([24,40],[40,40]);
+  } else if(category==='control-tower') {
+    line([28,59],[28,30],[36,30],[36,59],[21,59],[43,59]);
+    line([12,22],[18,12],[46,12],[52,22],[49,30],[15,30],[12,22]);
+    line([14,22],[50,22],[32,12],[32,4],[25,33],[39,33]);
+  } else {
+    line([32,5],[10,58],[54,58],[32,5],[17,42],[47,42],[22,29],[42,29],[26,18],[38,18],[13,52],[51,52],[17,42],[42,29],[47,42],[22,29],[22,29],[38,18],[42,29],[26,18]);
+    ctx.beginPath();ctx.arc(32,5,3.2,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();
+  }
   return ctx.getImageData(0,0,64,64);
+}
+function categoryIconExpression(property='category') {
+  const expression=['match',['get',property]];
+  for(const item of FAA_ICON_CATEGORIES)expression.push(item.key,item.iconId);
+  expression.push(FAA_ICON_CATEGORIES[0].iconId);
+  return expression;
+}
+function clusterIconLayerIds() {
+  return FAA_ICON_CATEGORIES.map(item=>CLUSTER_ICON_ID+'-'+item.key);
 }
 function modelMatrixFor(map,THREE,coordinate,altitude) {
   try {
@@ -443,17 +480,27 @@ function installLayers(state) {
   try {
     if(!map.getSource(SOURCE_ID))map.addSource(SOURCE_ID,{
       type:'geojson',data:state.collection,cluster:true,clusterRadius:28,clusterMaxZoom:6,maxzoom:12,
+      clusterProperties:Object.fromEntries(FAA_ICON_CATEGORIES.map(item=>[
+        item.clusterCountKey,['+',['case',['==',['get','category'],item.key],1,0]]
+      ])),
       attribution:'Federal Aviation Administration · Daily Digital Obstacle File'
     });
     const add=(id,layer)=>{if(!map.getLayer(id))map.addLayer(layer);};
-    if(!map.hasImage?.('bp-faa-tower-icon-v1'))map.addImage('bp-faa-tower-icon-v1',makeTowerIcon(),{pixelRatio:2,sdf:true});
+    for(const item of FAA_ICON_CATEGORIES) {
+      if(!map.hasImage?.(item.iconId))map.addImage(item.iconId,makeTowerIcon(item.key),{pixelRatio:2,sdf:true});
+    }
     add(CLUSTER_ID,{id:CLUSTER_ID,type:'circle',source:SOURCE_ID,filter:['has','point_count'],minzoom:0,maxzoom:6.5,
       paint:{'circle-color':'#1f6272','circle-radius':['step',['get','point_count'],12,25,16,120,22,500,28,2000,34],
         'circle-stroke-color':'#c4f5fa','circle-stroke-width':1.35,'circle-opacity':0.96}});
-    add(CLUSTER_ICON_ID,{id:CLUSTER_ICON_ID,type:'symbol',source:SOURCE_ID,filter:['has','point_count'],minzoom:0,maxzoom:6.1,
-      layout:{'icon-image':'bp-faa-tower-icon-v1','icon-size':['interpolate',['linear'],['zoom'],0,0.25,2.5,0.39,5.5,0.56],
-        'icon-anchor':'center','icon-allow-overlap':true,'icon-ignore-placement':true,'icon-padding':0},
-      paint:{'icon-color':'#e3fbff','icon-opacity':1}});
+    for(const item of FAA_ICON_CATEGORIES) {
+      const layerId=CLUSTER_ICON_ID+'-'+item.key;
+      add(layerId,{id:layerId,type:'symbol',source:SOURCE_ID,
+        filter:['all',['has','point_count'],['>',['get',item.clusterCountKey],0]],minzoom:0,maxzoom:6.1,
+        layout:{'icon-image':item.iconId,'icon-size':['interpolate',['linear'],['zoom'],0,0.25,2.5,0.36,5.5,0.48,6.1,0.52],
+          'icon-anchor':'center','icon-offset':item.clusterOffset,
+          'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-padding':0},
+        paint:{'icon-color':item.clusterColor,'icon-opacity':1}});
+    }
     add(CLUSTER_COUNT_ID,{id:CLUSTER_COUNT_ID,type:'symbol',source:SOURCE_ID,filter:['has','point_count'],minzoom:0,maxzoom:6.5,
       layout:{'text-field':['get','point_count_abbreviated'],'text-font':['Open Sans Bold','Arial Unicode MS Bold'],
         'text-size':['interpolate',['linear'],['zoom'],0,8,5.5,12],'text-allow-overlap':true,'text-ignore-placement':true},
@@ -461,10 +508,10 @@ function installLayers(state) {
     add(HALO_ID,{id:HALO_ID,type:'circle',source:SOURCE_ID,filter:['!',['has','point_count']],minzoom:5.4,maxzoom:13,
       paint:{'circle-radius':['interpolate',['linear'],['zoom'],5.4,4,9,7,12.8,11],
         'circle-color':['get','markerColor'],'circle-opacity':0.46,'circle-blur':0.35}});
-    add(MARKER_ID,{id:MARKER_ID,type:'symbol',source:SOURCE_ID,filter:['!',['has','point_count']],minzoom:5.2,maxzoom:12.4,
-      layout:{'icon-image':'bp-faa-tower-icon-v1',
-        'icon-size':['interpolate',['linear'],['zoom'],5.2,0.28,8,0.48,11.5,0.73,12.4,0.84],
-        'icon-anchor':'bottom','icon-pitch-alignment':'map','icon-rotation-alignment':'map',
+    add(MARKER_ID,{id:MARKER_ID,type:'symbol',source:SOURCE_ID,filter:['!',['has','point_count']],minzoom:0,maxzoom:24,
+      layout:{'icon-image':categoryIconExpression(),
+        'icon-size':['interpolate',['linear'],['zoom'],6,0.34,9,0.47,12,0.62,16,0.78,20,0.88,24,0.95],
+        'icon-anchor':'bottom','icon-pitch-alignment':'viewport','icon-rotation-alignment':'viewport',
         'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-padding':0},
       paint:{'icon-color':['get','markerColor'],'icon-opacity':1}});
     add(LABEL_ID,{id:LABEL_ID,type:'symbol',source:SOURCE_ID,filter:['!',['has','point_count']],minzoom:14,maxzoom:24,
@@ -486,7 +533,7 @@ function installLayers(state) {
   }
 }
 function setVisibility(state,on) {
-  for(const id of [CLUSTER_ID,CLUSTER_ICON_ID,CLUSTER_COUNT_ID,HALO_ID,MARKER_ID,LABEL_ID,HIT_ID,MODEL_ID]) {
+  for(const id of [CLUSTER_ID,...clusterIconLayerIds(),CLUSTER_COUNT_ID,HALO_ID,MARKER_ID,LABEL_ID,HIT_ID,MODEL_ID]) {
     try {if(state.map.getLayer(id))state.map.setLayoutProperty(id,'visibility',on?'visible':'none');} catch (_) {}
   }
 }

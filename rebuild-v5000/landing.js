@@ -824,7 +824,7 @@ async function initMap(){
       window.__BP_LANDING_FEATURE_RESTORE_BUSY__=true;window.__BP_LANDING_FEATURE_CONTROL_RESTORE_PROMISE__=(async()=>{
         if(!world?.map)throw new Error('BridgePoint globe is not ready');
         const jobs=[
-          ['./bridgepoint-faa-obstruction-towers-v1.js?v=2-mobile-aircraft-filters-faa-restored','__BP_FAA_OBSTRUCTIONS_V1__','initFAAObstructionTowerRenderer','FAA Towers'],
+          ['./bridgepoint-faa-obstruction-towers-v1.js?v=3-faa-category-icons-global-street','__BP_FAA_OBSTRUCTIONS_V1__','initFAAObstructionTowerRenderer','FAA Towers'],
           ['./bridgepoint-shipwrecks-v1.js?v=11-mobile-titanic-gaskin-grafton-cannon-kxi-cape-otway-timaru-hms-loo','__BP_SHIPWRECKS_V1__','initShipwrecksRenderer','10 Shipwrecks'],
           ['./bridgepoint-plane-wrecks-v1.js?v=1-mobile-f4u1-corsair-colmap','__BP_PLANE_WRECKS_V1__','initPlaneWrecksRenderer','Plane Wrecks'],
           ['./bridgepoint-plane-wrecks-extra-v1.js?v=8-mobile-b17f-black-jack','__BP_PLANE_WRECKS_EXTRA_V1__','initPlaneWrecksExtraRenderer','10 Plane Wrecks'],
@@ -903,7 +903,7 @@ async function initMap(){
     return;
   }
   // FAA-listed towers, antennas and cranes are loaded independently from the core globe.
-  void import('./bridgepoint-faa-obstruction-towers-v1.js?v=2-aircraft-filters-faa-restored')
+  void import('./bridgepoint-faa-obstruction-towers-v1.js?v=3-faa-category-icons-global-street')
    .then(m=>{window.__BP_FAA_OBSTRUCTIONS_V1__=m.initFAAObstructionTowerRenderer(world)})
    .catch(e=>console.warn('BridgePoint FAA obstruction/tower renderer unavailable',e));
   // The public globe starts clean. Data-heavy feeds and GPU engines are lazy-loaded by their dock commands.
