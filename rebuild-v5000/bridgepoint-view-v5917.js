@@ -300,7 +300,7 @@ function makeTopBarAndDock(){
  placeAuxiliaryControls();
  const auxiliaryObserver=new MutationObserver(placeAuxiliaryControls);
  auxiliaryObserver.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['hidden']});
- dock.querySelectorAll('[data-bpv-action]').forEach(b=>{b.dataset.bpvBound='1';b.addEventListener('click',()=>{
+ dock.querySelectorAll('[data-bpv-action]:not([data-bpv-action="wildfire"])').forEach(b=>{b.dataset.bpvBound='1';b.addEventListener('click',()=>{
   const a=b.dataset.bpvAction;
   if(a==='whole'){wholeEarth();return}
   if(a==='search'){toggleSearch();return}
