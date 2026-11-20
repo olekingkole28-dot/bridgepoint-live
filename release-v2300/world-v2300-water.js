@@ -371,10 +371,10 @@ function buildShaders(gl, shaderDescription) {
     '      stormSurge = max(stormSurge, influence * min(3.2, 0.55 + u_storms[i].w * 1.65));',
     '    }',
     '  }',
-    '  // Distinct physical profiles: open ocean has broad swell, inland bodies have
-  // calmer but visible undulation, flowing ribbons move faster, and shallow floodwater
-  // stays low. These values are independent of camera view.
-  float localScale = a_kind < 0.5 ? 1.35 : (a_kind > 3.5 ? 0.24 : (a_kind > 2.5 ? 1.55 : (a_kind > 1.5 ? 0.82 : 0.62)));',
+    '  // Distinct physical profiles: open ocean has broad swell, inland bodies have',
+    '  // calmer but visible undulation, flowing ribbons move faster, and shallow floodwater',
+    '  // stays low. These values are independent of camera view.',
+    '  float localScale = a_kind < 0.5 ? 1.35 : (a_kind > 3.5 ? 0.24 : (a_kind > 2.5 ? 1.55 : (a_kind > 1.5 ? 0.82 : 0.62)));',
     '  float localWindBoost = 0.72 + min(0.65, u_windSpeed / 80.0);',
     '  float amplitude = u_waveAmp * localScale * localWindBoost * (1.0 + stormInfluence * (0.9 + u_windSpeed * 0.011));',
     '  float marineSurgeMask = (a_kind < 0.5 || (a_kind > 2.5 && a_kind < 3.5)) ? 1.0 : 0.0;',
