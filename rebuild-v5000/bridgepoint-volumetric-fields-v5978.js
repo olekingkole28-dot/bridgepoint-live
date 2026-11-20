@@ -251,8 +251,43 @@ async function wind(){
 
  function solarEl(lat,lon){const d=new Date(),day=Math.floor((d-Date.UTC(d.getUTCFullYear(),0,0))/86400000),hr=d.getUTCHours()+d.getUTCMinutes()/60,g=2*Math.PI/365*(day-1+(hr-12)/24),decl=.006918-.399912*Math.cos(g)+.070257*Math.sin(g)-.006758*Math.cos(2*g)+.000907*Math.sin(2*g)-.002697*Math.cos(3*g)+.00148*Math.sin(3*g),eq=229.18*(.000075+.001868*Math.cos(g)-.032077*Math.sin(g)-.014615*Math.cos(2*g)-.040849*Math.sin(2*g)),ha=((((hr*60+eq+4*lon)%1440+1440)%1440)/4-180)*RAD,phi=lat*RAD;return Math.asin(Math.sin(phi)*Math.sin(decl)+Math.cos(phi)*Math.cos(decl)*Math.cos(ha))/RAD}
  async function fetchTowers(force=false){const b=bounds(),c=center(),z=+map.getZoom();if(z<7.5){st.towers=[];return[]}if(c.lng<-180||c.lng>-60||c.lat<15||c.lat>72||Math.abs(b[2]-b[0])>22||Math.abs(b[3]-b[1])>14){st.towers=[];say('FCC source coverage is U.S.-focused. No RF locations inferred outside source bounds.');return[]}if(!force&&st.towers.length&&Date.now()-st.lastRfAt<12000)return st.towers;const [w,s,e,n]=[Math.max(-180,b[0]),Math.max(15,b[1]),Math.min(-60,b[2]),Math.min(72,b[3])];if(w>=e||s>=n)return[];const u=new URL(FCC_URL);Object.entries({where:'1=1',geometry:[w,s,e,n].join(','),geometryType:'esriGeometryEnvelope',inSR:4326,spatialRel:'esriSpatialRelIntersects',outFields:'OBJECTID,RegNum,Entity,Strucht,LocAdd,LocCity,LocState,ContName,ContState,FAAstudy',returnGeometry:true,outSR:4326,resultRecordCount:200,returnExceededLimitFeatures:true,f:'geojson'}).forEach(([k,v])=>u.searchParams.set(k,String(v)));const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),12000),seq=++st.rfFetchSeq;try{const r=await fetch(u,{headers:{Accept:'application/geo+json,application/json'},cache:'no-store',signal:ctl.signal});if(!r.ok)throw new Error('FCC source HTTP '+r.status);const d=await r.json();if(d.error)throw new Error(d.error.message||'FCC source query failed');if(!Array.isArray(d.features))throw new Error('FCC response did not contain features');if(seq!==st.rfFetchSeq)return st.towers;st.towers=d.features.map(f=>{const c=centroid(f),p=f.properties||{};if(!c||c.lng<-180||c.lng>180||c.lat<-90||c.lat>90)return null;return{lng:c.lng,lat:c.lat,id:String(p.RegNum??p.OBJECTID??''),owner:String(p.Entity??p.ContName??''),city:String(p.LocCity??''),state:String(p.LocState??''),distance:distanceM(center(),c),heightM:Number.isFinite(Number(p.Strucht))?clamp(Number(p.Strucht),7,340):null}}).filter(Boolean).sort((a,b)=>a.distance-b.distance).slice(0,60);st.lastRfAt=Date.now();return st.towers}catch(e){if(e.name!=='AbortError'){st.lastError=String(e.message||e);console.warn('BridgePoint RF data',e)}return st.towers}finally{clearTimeout(timer)}}
- async function rf(force=true){if(!st.rfOn)return;const seq=++st.rfDrawSeq;st.origin=center();const rows=await fetchTowers(force);if(seq!==st.rfDrawSeq||!st.rfOn)return;const layer=await ensureLayer();if(seq!==st.rfDrawSeq||!st.rfOn)return;clearGroup(layer.rfGroup);const THREE=st.three,r=st.rfMode==='5G'?450:900,sphere=new THREE.SphereGeometry(1,18,12),pin=new THREE.OctahedronGeometry(13,0),hue=st.rfMode==='5G'?'#b28aff':'#56d9ff',materials=[mat(THREE,hue,.055),mat(THREE,hue,.07),mat(THREE,hue,.26,true),mat(THREE,'#ffe0a0',.9)];st.towers=rows;for(const t of rows){const p=local(t.lng,t.lat,st.origin);[[1,materials[0],.52],[.68,materials[1],.4],[1,materials[2],.52]].forEach(([sc,m,v])=>{const mesh=new THREE.Mesh(sphere,m);mesh.position.set(p.x,r*v,p.z);mesh.scale.set(r*sc,r*v,r*sc);layer.rfGroup.add(mesh)});const marker=new THREE.Mesh(pin,materials[3]);marker.position.set(p.x,16,p.z);layer.rfGroup.add(marker)}layer.rfGroup.visible=true;layer.windGroup.visible=st.windOn;st.fieldAt=Date.now();$('[data-towers]').textContent=fmt(rows.length);say(rows.length?`RF planning envelopes: ${rows.length} FCC antenna structures · ${st.rfMode} nominal radius ${fmt(r)} m. These records do not confirm active cell radios and the radius is an assumption, not measured coverage.`:(st.lastError?'RF source unavailable: '+st.lastError:'No FCC structures returned for this viewport; no synthetic tower anchors placed.'));map.triggerRepaint?.()}
-
+ async function rf(force=true){
+  if(!st.rfOn)return;
+  const seq=++st.rfDrawSeq;st.origin=center();
+  const rows=await fetchTowers(force);
+  if(seq!==st.rfDrawSeq||!st.rfOn)return;
+  const layer=await ensureLayer();
+  if(seq!==st.rfDrawSeq||!st.rfOn)return;
+  clearGroup(layer.rfGroup);
+  const T=st.three,N=rows.length,modes=st.rfMode==='both'?['4G','5G']:[st.rfMode];
+  for(const mode of modes){
+   const radius=mode==='5G'?450:900,color=mode==='5G'?'#cb8cff':'#4ee7ff';
+   const mesh=new T.InstancedMesh(new T.SphereGeometry(1,20,14),new T.MeshBasicMaterial({
+    color,transparent:true,opacity:mode==='5G'?.16:.13,wireframe:true,depthWrite:false,depthTest:true}),Math.max(1,N));
+   mesh.count=0;mesh.frustumCulled=false;mesh.name=mode+' FCC site nominal RF distance envelopes';
+   for(const t of rows){
+    const p=local(t.lng,t.lat,st.origin);
+    let terrain=0;try{const v=map.queryTerrainElevation?.([t.lng,t.lat]);if(Number.isFinite(v))terrain=v;}catch(_){}
+    mesh.setMatrixAt(mesh.count++,new T.Matrix4().makeTranslation(p.x,terrain+radius*.48,p.z)
+     .multiply(new T.Matrix4().makeScale(radius,radius*.48,radius)));
+   }
+   mesh.instanceMatrix.needsUpdate=true;layer.rfGroup.add(mesh);
+  }
+  const mast=new T.InstancedMesh(new T.CylinderGeometry(.23,.52,1,8),new T.MeshStandardMaterial({
+    color:0xb7c8d4,metalness:.55,roughness:.45}),Math.max(1,N));
+  mast.count=0;mast.frustumCulled=false;mast.name='Terrain anchored representative FCC antenna structure model';
+  for(const t of rows){
+   const p=local(t.lng,t.lat,st.origin),h=clamp(t.heightM||38,7,340);
+   let terrain=0;try{const v=map.queryTerrainElevation?.([t.lng,t.lat]);if(Number.isFinite(v))terrain=v;}catch(_){}
+   mast.setMatrixAt(mast.count++,new T.Matrix4().makeTranslation(p.x,terrain+h*.5,p.z)
+    .multiply(new T.Matrix4().makeScale(1,h,1)));
+  }
+  mast.instanceMatrix.needsUpdate=true;layer.rfGroup.add(mast);
+  layer.rfGroup.visible=true;layer.windGroup.visible=st.windOn;st.fieldAt=Date.now();
+  updateCounts();
+  say(N?'4G and 5G modeled envelopes active at '+N+' FCC registered antenna structures. Carrier service is unverified; circles are nominal only.':'Global FCC overview active; no antenna structures returned inside this closer viewport.');
+  map.triggerRepaint?.();
+ }
  function animate(){if(st.raf||document.hidden||(!st.windOn&&!st.droneOn))return;const frame=now=>{st.raf=0;if(document.hidden||(!st.windOn&&!st.droneOn))return;if(st.lastAnim&&now-st.lastAnim<32){st.raf=requestAnimationFrame(frame);return}const dt=st.lastAnim?clamp((now-st.lastAnim)/1000,0,.055):.016;st.lastAnim=now;if(st.windOn&&st.flowColorAttribute&&st.flowBaseColors&&st.flowProgress&&st.flowPhase){const arr=st.flowColorAttribute.array,base=st.flowBaseColors,progress=st.flowProgress,phase=st.flowPhase,t=now*.0016;for(let i=0;i<progress.length;i++){const pulse=.34+.66*Math.pow(.5+.5*Math.sin(progress[i]*Math.PI*2*7-t*2.6+phase[i]),2.2),j=i*3;arr[j]=base[j]*pulse;arr[j+1]=base[j+1]*pulse;arr[j+2]=base[j+2]*pulse}st.flowColorAttribute.needsUpdate=true}if(st.droneOn&&typeof updateDrone==='function')updateDrone(now,dt);map.triggerRepaint?.();st.raf=requestAnimationFrame(frame)};st.raf=requestAnimationFrame(frame)}
  function stop(){if(st.raf)cancelAnimationFrame(st.raf);st.raf=0;st.lastAnim=0}
  async function setWind(on){st.windOn=!!on;st.globalOverview?.setWind?.(st.windOn);window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('wind',st.windOn||st.rfOn||st.droneOn);updateButtons();const l=await ensureLayer();if(!st.windOn){clearGroup(l.windGroup);st.voxels=0;st.flowLineCount=0;st.flowParticles=[];st.flowLines=[];st.flowColorAttribute=null;st.flowBaseColors=null;st.flowProgress=null;st.flowPhase=null;st.flowLineObject=null;st.windMeshes=[];l.windGroup.visible=false;if(!st.droneOn)restoreWindTerrain();if(!st.droneOn)stop();updateCounts();say(st.rfOn?'RF planning envelope remains visible.':st.droneOn?'Drone simulator remains active; wind lines are off.':'3D wind flow off.');map.triggerRepaint?.();return}l.windGroup.visible=true;await wind();updateCounts()}
