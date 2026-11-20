@@ -250,6 +250,30 @@ for(const [site,m] of sevenVerifiedPolarModels){
 }
 assert.match(UNDERGROUND_SCAN_SITES.find(s=>s.id==='geus-ordovician-cave-greenland').locationPrecision,/region-only/);
 assert.ok(!UNDERGROUND_SCAN_SITES.some(s=>s.models.some(m=>m.uid==='8232d52d0ad949be9e4df415b5480704')),'noncommercial Greenland U-cave model not added to BridgePoint');
+const tenUsCaveSitesV20=[["alabama-300m-archived-cave",["1663083e3d0f46bb99efccd8a4a8f941"]],["mammoth-cave-kentucky-3d-survey",["nd70Yvu9EP5yEA4pb7iSCbMb25q"]],["carlsbad-painted-grotto-nm",["d7d0abceb316400b828d28cbf26ed6d2"]],["big-bat-cave-kentucky-real-mesh",["12d1180e0d2f4c24b1f827d3322f4d54","78580c37f2a54a6791919d7a15b87719"]],["hidden-cave-fallon-nevada-photogrammetry",["9c4363f2250f4b04bdcd163d2843dd91","f6f8ce48fe0f49339ba2dfab69d49174"]],["petit-jean-rock-house-cave-arkansas",["ca8ba859d0694aab8c0c046804c36b55"]],["paisley-cave-one-oregon",["dadb5c06f534428a8d27fbff612afc6a"]],["lava-beds-photo-cave-california",["d3595bd7ab974e4e8eb2efa3ceeec04d"]],["russell-cave-national-monument-alabama",["e23deee8940f4b048a2c8a99e98358f9"]],["chilly-bowl-boogie-tube-arkansas",["9ab1ea083f9e464fb2da2a166ea01111"]]];
+assert.equal(tenUsCaveSitesV20.length,10,'ten distinct US cave map markers');
+assert.equal(tenUsCaveSitesV20.reduce((n,[,models])=>n+models.length,0),12,'two extra choices at Big Bat and Hidden Cave');
+assert.equal(new Set(tenUsCaveSitesV20.map(([id])=>id)).size,10);
+for(const [siteId,modelIds] of tenUsCaveSitesV20){
+ const site=UNDERGROUND_SCAN_SITES.find(s=>s.id===siteId);
+ assert.ok(site&&site.type==='cave','genuine cave environment site '+siteId);
+ assert.deepEqual(site.models.map(m=>m.uid),modelIds,'creator-hosted 3D scans for '+siteId);
+ assert.equal(site.models.length,modelIds.length,'no duplicate or synthetic scans');
+ assert.ok(site.locationPrecision.length>50&&site.locationNote.length>30);
+ assert.ok(site.models.every(m=>m.embedOnly&&m.method&&m.detail&&m.creator));
+ for(const uid of modelIds){
+  const html=undergroundSitePopupHtml(site,uid);
+  assert.ok(html.includes('sketchfab.com/models/'+uid+'/embed'),'in-BridgePoint viewer '+uid);
+  assert.ok(html.includes('sandbox="allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-presentation"'));
+  assert.ok(!html.includes('allow-top-navigation')&&!html.includes('allow-popups')&&!html.includes('target="_blank"'));
+ }
+}
+assert.match(UNDERGROUND_SCAN_SITES.find(s=>s.id==='alabama-300m-archived-cave').locationPrecision,/REGION ONLY/);
+assert.match(UNDERGROUND_SCAN_SITES.find(s=>s.id==='mammoth-cave-kentucky-3d-survey').models[0].detail,/UNSPECIFIED scanned segment/);
+assert.match(UNDERGROUND_SCAN_SITES.find(s=>s.id==='big-bat-cave-kentucky-real-mesh').models[0].detail,/PART/);
+assert.match(UNDERGROUND_SCAN_SITES.find(s=>s.id==='hidden-cave-fallon-nevada-photogrammetry').models[0].detail,/DEFAULT/);
+assert.match(UNDERGROUND_SCAN_SITES.find(s=>s.id==='petit-jean-rock-house-cave-arkansas').models[0].detail,/HALF/);
+
 const fiveRemoteDeepCaves=[
  {id:'wells-gray-sarlaccs-pit-canada',coordinates:[-120,52.33306],uid:'df5dea76480f4ed3af018d885a13b704',method:/photogrammetry/i,detail:/ONLY reconstructs the exposed entrance/,placement:/regional/i},
  {id:'gorner-glacier-g6-moulin-switzerland',coordinates:[7.81528,45.94750],uid:'5dc79d2891f24e9fa571b9e910556ec8',method:/Photogrammetry/i,detail:/not a LiDAR point-cloud/,placement:/NOT the surveyed/i},
