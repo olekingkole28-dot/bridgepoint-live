@@ -47,11 +47,23 @@ jobs:
         run: |
           set -euo pipefail
           python scripts/build_wind_rf_global_v1.py "$RUNNER_TEMP/wind-rf-global-v1.json"
+      - name: Confirm current Cloudflare tunnel serves BridgePoint local auth
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --max-time 25 \
+            'https://characterization-seas-total-adopt.trycloudflare.com/auth/v1/health' > "$RUNNER_TEMP/auth-health.json"
+          python3 - "$RUNNER_TEMP/auth-health.json" <<'PY'
+          import json,sys
+          health=json.load(open(sys.argv[1]))
+          assert health.get('status')=='ok' and health.get('local') is True, 'Not the active BridgePoint local auth service'
+          print('ACTIVE_CLOUDFLARE_LOCAL_AUTH_HEALTH_PASS')
+          PY
       - name: Download complete last successful BridgePoint production site
         uses: actions/download-artifact@v4
         with:
-          name: bridgepoint-v5000-emrf-starlink-visual-v3
-          run-id: 44689392215
+          name: bridgepoint-auth-tunnel-recovery-v1
+          run-id: 44697001302
           repository: ${{ github.repository }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ${{ runner.temp }}/baseline-complete
@@ -90,6 +102,9 @@ jobs:
             if curl -fsSL --max-time 35 "$SITE/index.html?windrf=$GITHUB_SHA-$attempt" | grep -F 'windrfjets=v1' >/dev/null &&
                curl -fsSL --max-time 35 "$SITE/app/index.html?windrf=$GITHUB_SHA-$attempt" | grep -F 'windrfjets=v1' >/dev/null &&
                curl -fsSL --max-time 35 "$SITE/bridgepoint-volumetric-fields-v5978.js?windrf=$GITHUB_SHA-$attempt" | grep -F "st.windOn=true;st.rfOn=true;st.rfMode='both';" >/dev/null &&
+               curl -fsSL --max-time 35 "$SITE/landing.js?windrf=$GITHUB_SHA-$attempt" | grep -F 'https://characterization-seas-total-adopt.trycloudflare.com' >/dev/null &&
+               curl -fsSL --max-time 35 "$SITE/app.js?windrf=$GITHUB_SHA-$attempt" | grep -F 'https://characterization-seas-total-adopt.trycloudflare.com' >/dev/null &&
+               curl -fsSL --max-time 35 'https://characterization-seas-total-adopt.trycloudflare.com/auth/v1/health' | python3 -c 'import json,sys;d=json.load(sys.stdin);assert d.get("status")=="ok" and d.get("local") is True' &&
                curl -fsSL --max-time 35 "$SITE/bridgepoint-global-wind-rf-v1.js?windrf=$GITHUB_SHA-$attempt" | grep -F 'clickJet' >/dev/null &&
                curl -fsSL --max-time 35 "$SITE/wind-rf-global-v1.json?windrf=$GITHUB_SHA-$attempt" -o "$T" &&
                python -c 'import json,sys;a=json.load(open(sys.argv[1]));assert len(a["winds"])>=100 and len(a["sites"])>=60' "$T" &&
