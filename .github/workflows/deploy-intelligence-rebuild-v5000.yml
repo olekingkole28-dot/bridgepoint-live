@@ -39,6 +39,7 @@ on:
       - 'tests/underground-scan-sites-v1.test.mjs'
       - 'docs/bridgepoint-underground-scan-sites-v1.md'
       - 'recovery/apply_welcome_space_v6257.py'
+      - 'recovery/apply_entry_fast_start_v6300.py'
       - 'recovery/bridgepoint-welcome-space-v6260.js'
       - 'rebuild-v5000/bridgepoint-gaia-galaxy-v6270.js'
       - 'rebuild-v5000/bridgepoint-mars-system-v6291.js'
