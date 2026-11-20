@@ -77,6 +77,7 @@ const categoryPatterns={
  clouds:/cloud-volume|sky-cloud|satellite-cloud|eumetsat-cloud/i,
  earthquakes:/earthquake|seismic|comcat/i,
  subsurface:/subsurface|catacomb|cave|underground-scan|well|borehole|groundwater|aquifer|drillhole/i,
+ faa:/^bp-faa-obstructions-/i,
  infrastructure:/infrastructure|power[-_]?line|utility|pylon|telecom|communication|cell[-_]?tower|substation|transmission|faa-obstruction|distribution-pole/i,
  energy:/solar|wind[-_]?turbine|offshore[-_]?energy|renewable|energy-field/i,
  landmarks:/landmark|poi|monument|statue|fountain|lighthouse|heritage-site/i,
@@ -121,6 +122,9 @@ function categoryForTarget(target){
  if(target.dataset?.base==='satellite')return'imagery';
  if(target.id==='toggleLiveContext')return'weather';
  if(target.id==='toggleTransport')return'transport';
+ // FAA is a dedicated opt-in category; otherwise its tooltip's '3D' wording
+ // incorrectly routes it to buildings and the overlay sweep hides all FAA icons.
+ if(target.id==='bp-faa-obstructions-toggle-v1')return'faa';
  const label=[target.textContent,target.title,target.getAttribute?.('aria-label')].filter(Boolean).join(' ').toLowerCase();
  if(/parcel|boundary|cadastral|lot line/.test(label))return'parcels';
  if(/satellite|aerial|imagery|land color/.test(label))return'imagery';
