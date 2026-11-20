@@ -1,4 +1,4 @@
-import{attachStormViewer}from'./world-v2300-storm-viewer.js?v=6340-moving-volumes';
+import{attachStormViewer}from'./world-v2300-storm-viewer.js?v=6340-moving-volumes&weatherrev=20261120a';
 import{VERSION,EMPTY,MOBILE,LOW,TIER,token,bbox,fc,clamp}from'./world-v2300-config.js?v=6238-pc-runtime';
 /* Weather-only data transport. The PC-auth/bootstrap tunnel replaced the old
    database endpoint; do not change unrelated V2300 map and property clients. */
