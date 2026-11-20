@@ -3,13 +3,13 @@ import { readFile } from 'node:fs/promises';
 import {UNDERGROUND_SCAN_SITES,UNDERGROUND_SCAN_RIGHTS_HOLDS,buildUndergroundSiteFeatures,undergroundSitePopupHtml} from '../rebuild-v5000/bridgepoint-underground-scan-sites-v1.js';
 
 const features=buildUndergroundSiteFeatures();
-assert.equal(features.length,27,'twenty-seven reviewed site anchors are mapped');
-assert.equal(UNDERGROUND_SCAN_SITES.reduce((n,s)=>n+s.models.length,0),29,'twenty-nine real creator-hosted 3D models and tours are cataloged');
+assert.equal(features.length,35,'thirty-five reviewed cave site anchors are mapped');
+assert.equal(UNDERGROUND_SCAN_SITES.reduce((n,s)=>n+s.models.length,0),39,'thirty-nine real creator-hosted 3D models and tours are cataloged');
 assert.equal(UNDERGROUND_SCAN_RIGHTS_HOLDS.length,3,'rights/source holds are exposed');
 assert.ok(features.every(f=>f.geometry.type==='Point'&&f.properties.iconImage));
 assert.ok(UNDERGROUND_SCAN_SITES.every(s=>s.models.every(m=>m.uid&&m.creator&&(
  m.matterportTourId ? (m.matterportTourId==='1BTGHi85s96'&&m.modelUrl==='https://my.matterport.com/show/?m=1BTGHi85s96'&&m.license.includes('original rights retained'))
- : m.embedOnly ? (['cbe5a1c208674091b48f65ac2d4cca94','be7675a23595489c86211608f0fb1886','ccfc7c2f43214b559e93c4857eb6ed4a','899e6c8016954dab825dffb07d583fb9','d0c88d0853844a8e9a1de22a342326cb','34861aec56564489bdb8ec1cd030ff00','239d912831f6471da95a2fd672b53398','74b4a560749743eaa53cd89793b4a629','cd6c5687814e484da0bf4d360a324c60','2989d29a52a0494aa0cd2e279b411247','df5dea76480f4ed3af018d885a13b704','5dc79d2891f24e9fa571b9e910556ec8','2f06ab8d1bd14ce5a85c417fefd91cda','85a2ff52fa7b4a44b87033145fd1b01f','7161373c7ccb48da9aa00e52214df1b8'].includes(m.uid)&&(m.uid==='cd6c5687814e484da0bf4d360a324c60'?m.license==='CC Attribution':m.license.includes('no reuse license displayed'))&&m.modelUrl.startsWith('https://sketchfab.com/3d-models/'))
+ : m.embedOnly ? (['cbe5a1c208674091b48f65ac2d4cca94','be7675a23595489c86211608f0fb1886','ccfc7c2f43214b559e93c4857eb6ed4a','899e6c8016954dab825dffb07d583fb9','d0c88d0853844a8e9a1de22a342326cb','34861aec56564489bdb8ec1cd030ff00','239d912831f6471da95a2fd672b53398','74b4a560749743eaa53cd89793b4a629','cd6c5687814e484da0bf4d360a324c60','2989d29a52a0494aa0cd2e279b411247','df5dea76480f4ed3af018d885a13b704','5dc79d2891f24e9fa571b9e910556ec8','2f06ab8d1bd14ce5a85c417fefd91cda','85a2ff52fa7b4a44b87033145fd1b01f','7161373c7ccb48da9aa00e52214df1b8','11aedb4bc1064685a8cfe33f8956a108','14773139954740e48be1fa1861d01eb7','d1691e402d0840378804f2df5aaedb2b','a35b2ecd72094b2d8a2fef9a32b98186','b9aac38260054f5f8858be684279c37e','e2420bd47de1497993addd2b3f6e1e7e','a8890e16ca49498c892d82496cdbbae9','bf983bfabc194e94893d9955ed87f471','e36a8a863b8348159d237ea808d492d7','3be79c6a956c423d9b05fa67ce559ee9'].includes(m.uid)&&(['cd6c5687814e484da0bf4d360a324c60','e2420bd47de1497993addd2b3f6e1e7e','bf983bfabc194e94893d9955ed87f471','3be79c6a956c423d9b05fa67ce559ee9'].includes(m.uid)?m.license==='CC Attribution':m.license.includes('no reuse license displayed'))&&m.modelUrl.startsWith('https://sketchfab.com/3d-models/'))
  : (m.license==='CC Attribution'&&m.modelUrl.startsWith('https://sketchfab.com/3d-models/'))
 ))));
 assert.equal(UNDERGROUND_SCAN_SITES.find(s=>s.id==='paris-catacombs').models.length,3);
@@ -180,6 +180,32 @@ assert.ok(undergroundSitePopupHtml(africa).includes('not a raw point-cloud viewe
 assert.equal(UNDERGROUND_SCAN_SITES.filter(s=>s.id==='elands-bay-cave-south-africa').length,1);
 assert.equal(UNDERGROUND_SCAN_SITES.find(s=>s.id==='lima-lima-cave-antarctica').models[0].uid,'899e6c8016954dab825dffb07d583fb9','Antarctic model retained');
 
+
+const marineAddedIds=["muriwai-sea-cave-nz","rothesay-sea-cave-nz","john-millar-blue-hole-bahamas","villefranche-marine-cave-france","hilbre-shore-cave-uk","middle-eye-sandstone-cave-uk","algarve-coastal-cave-portugal","marseille-30m-cave-entrance-france"];
+const marineAddedSites=marineAddedIds.map(id=>UNDERGROUND_SCAN_SITES.find(s=>s.id===id));
+assert.ok(marineAddedSites.every(s=>s&&s.type==='cave'&&s.models.length===1));
+const previousBelTorrente=UNDERGROUND_SCAN_SITES.find(s=>s.id==='bel-torrente-underwater-cave-sardinia');
+assert.ok(previousBelTorrente);
+assert.deepEqual(previousBelTorrente.coordinates,[9.6348,40.1794]);
+assert.equal(previousBelTorrente.models.length,2);
+assert.equal(previousBelTorrente.models[0].uid,'2f06ab8d1bd14ce5a85c417fefd91cda');
+const newBethells=UNDERGROUND_SCAN_SITES.find(s=>s.id==='bethells-beach-sea-cave');
+assert.ok(newBethells);
+assert.equal(newBethells.models.length,2);
+assert.equal(newBethells.models[0].uid,'ce71dc2848984acfb11d8002a48a6043');
+assert.equal(newBethells.models[1].uid,'3be79c6a956c423d9b05fa67ce559ee9');
+const marineModels=marineAddedSites.flatMap(s=>s.models).concat(previousBelTorrente.models.slice(1),newBethells.models.slice(1));
+assert.equal(marineModels.length,10);
+assert.equal(new Set(marineModels.map(m=>m.uid)).size,10);
+for(const site of marineAddedSites.concat([previousBelTorrente,newBethells])){
+ for(const model of site===previousBelTorrente||site===newBethells?site.models.slice(1):site.models){
+  assert.equal(model.embedOnly,true);
+  const h=undergroundSitePopupHtml(site,model.uid);
+  assert.ok(h.includes('sketchfab.com/models/'+model.uid+'/embed'));
+  assert.ok(h.includes('sandbox="allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-presentation"'));
+  assert.ok(!h.includes('allow-top-navigation')&&!h.includes('allow-popups'));
+ }
+}
 const fiveRemoteDeepCaves=[
  {id:'wells-gray-sarlaccs-pit-canada',coordinates:[-120,52.33306],uid:'df5dea76480f4ed3af018d885a13b704',method:/photogrammetry/i,detail:/ONLY reconstructs the exposed entrance/,placement:/regional/i},
  {id:'gorner-glacier-g6-moulin-switzerland',coordinates:[7.81528,45.94750],uid:'5dc79d2891f24e9fa571b9e910556ec8',method:/Photogrammetry/i,detail:/not a LiDAR point-cloud/,placement:/NOT the surveyed/i},
