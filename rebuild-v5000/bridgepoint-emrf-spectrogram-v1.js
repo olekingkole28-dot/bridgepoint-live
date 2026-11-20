@@ -171,7 +171,8 @@ function dedupeSites(elements) {
       label:String(tags.name || tags.operator || tags['operator:wikidata'] || 'Mapped mobile-network site').slice(0,100),
       known4:radio.known4,known5:radio.known5,unknown:radio.unknown,
       heightM:safeHeight(tags.height??tags['tower:height']??tags['height:roof']),
-      towerKind:String(tags['tower:construction']||tags['tower:type']||tags.man_made||'unknown').slice(0,64)
+      towerKind:String(tags['tower:construction']||tags['tower:type']||tags.man_made||'unknown').slice(0,64),
+      towerColor:String(tags.colour||tags.color||'').trim().slice(0,32)
     });
   }
   return out;
@@ -642,6 +643,8 @@ export function initBridgePointEmrfSpectrogram(target) {
         let towerCount=0,latticeCount=0;
         if(zoom>=9)for(const site of sites){
           if(towerCount>=towerMax)break;
+          // A telecom cell-site tag on a roof is NOT evidence of a separate tower.
+          if(site.source==='OpenStreetMap'&&!/tower|mast|pole|lattice|communication/i.test(site.towerKind||''))continue;
           const world=terrestrialWorld(site);if(!world)continue;
           const h=clamp(Number(site.heightM)||38,9,340);
           const mast=/mast|monopole|pole/i.test(site.towerKind||'');
@@ -654,8 +657,16 @@ export function initBridgePointEmrfSpectrogram(target) {
             .multiply(translate.makeTranslation(0,h*.82,0)));
           towerAntenna.setMatrixAt(towerCount,new THREE.Matrix4().copy(world)
             .multiply(translate.makeTranslation(0,h+1.1,0)));
+          // Respect an explicitly mapped OSM tower paint tag; use neutral
+          // steel for all other structures, not an invented operator color.
+          const colorTag=String(site.towerColor||'').toLowerCase();
+          const tint=/^#[0-9a-f]{6}$/.test(colorTag)?colorTag:
+            ({red:'#ce353a',white:'#e6e9ec',grey:'#929da5',gray:'#929da5',silver:'#b0c1ca'})[colorTag]||'#9baeb6';
+          towerShaft.setColorAt(towerCount,new THREE.Color(tint));
+          towerBase.setColorAt(towerCount,new THREE.Color(tint));
           if(!mast){
             for(let j=0;j<4;j++){
+              towerLegs[j].setColorAt(latticeCount,new THREE.Color(tint));
               const x=(j%2?1:-1)*1.35,z=(j>=2?1:-1)*1.35;
               towerLegs[j].setMatrixAt(latticeCount,new THREE.Matrix4().copy(world)
                 .multiply(translate.makeTranslation(x,h*.5,z)).multiply(scale.makeScale(1,h,1)));
@@ -664,8 +675,8 @@ export function initBridgePointEmrfSpectrogram(target) {
           }
           towerCount++;
         }
-        for(const item of [towerShaft,towerBase,towerPlatform,towerAntenna]){item.count=towerCount;item.instanceMatrix.needsUpdate=true;}
-        for(const item of towerLegs){item.count=latticeCount;item.instanceMatrix.needsUpdate=true;}
+        for(const item of [towerShaft,towerBase,towerPlatform,towerAntenna]){item.count=towerCount;item.instanceMatrix.needsUpdate=true;if(item.instanceColor)item.instanceColor.needsUpdate=true;}
+        for(const item of towerLegs){item.count=latticeCount;item.instanceMatrix.needsUpdate=true;if(item.instanceColor)item.instanceColor.needsUpdate=true;}
         // Sparse globe-wide, satellite-derived 3D domes, overlaid with the
         // 2D ground-heat ramp. Coverage is model geometry, not measured signal.
         const footprints=st.groundFootprints;
