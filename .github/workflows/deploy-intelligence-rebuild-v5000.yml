@@ -2897,8 +2897,7 @@ jobs:
                     '[data-bpv-action="drones"]',
                     '[data-bp-vessel-awareness-button="1"]',
                     '[data-nightlights]',
-                    '[data-bpv-action="clouds"]',
-                    '[data-bpv-action="wildfire"]'
+                     '[data-bpv-action="wildfire"]'
                   ]) pressedFeatures.push(await pressAndRestore(selector));
 
                   await appPage.click('.bp-live-rail-toggle-v5969');
@@ -2983,7 +2982,7 @@ jobs:
           done
           gzip -t "$D/bridgepoint-faa-obstructions-v1.json.gz"
 
-          grep -Fq 'data-bpv-action="clouds"' "$D/view.js"
+          ! grep -Fq 'data-bpv-action="clouds"' "$D/view.js"
           grep -Fq 'data-bpv-action="wildfire"' "$D/view.js"
           grep -Fq 'setWildfiresVisible' "$D/world-v2300-weather.js"
           grep -Fq 'setEnabled' "$D/world-v2300-clouds.js"
