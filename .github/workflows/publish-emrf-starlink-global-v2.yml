@@ -165,8 +165,7 @@ jobs:
                  for p in site.rglob('*') if p.is_file()}
           changed={path for path in before if before[path]!=after.get(path)}
           removed=set(before)-set(after)
-          added=set(after)-set(before()
-          )
+          added=set(after)-set(before)
           allowed_changed={emrf,view,'index.html','app/index.html'}
           allowed_added={catalog,starlink,'app/'+starlink}
           if changed!=allowed_changed or removed or added!=allowed_added:
