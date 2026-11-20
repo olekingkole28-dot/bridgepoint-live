@@ -1,5 +1,5 @@
-# Add fifteen unique genuine 3D-scanned archaeological sites, underground cities and monumental temples to last successful Cave-only production snapshot. Preserve all unrelated production files.
-name: Publish 15 Archaeology & Underground City 3D Sites v22
+# Add exactly 15 new creator-hosted castle, temple, fortress, excavation and burial 3D scans on the last successful Cave-only production snapshot. Preserve unrelated files.
+name: Publish 15 Historic Fortresses & Archaeological 3D Sites v23
 on:
   workflow_dispatch:
   push:
@@ -14,7 +14,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: bridgepoint-cave-entry-publish-only-v22
+  group: bridgepoint-cave-entry-publish-only-v23
   cancel-in-progress: false
 
 jobs:
@@ -92,11 +92,11 @@ jobs:
               (site/rel).write_bytes(patched.read_bytes())
           edits={
             'landing.js':[
-              ('./'+cave+'?v=21-fifteen-mexico-canada-sites','./'+cave+'?v=22-fifteen-archaeological-sites'),
-              ('./'+cave+'?v=21-mobile-fifteen-mexico-canada-sites','./'+cave+'?v=22-mobile-fifteen-archaeological-sites')
+              ('./'+cave+'?v=22-fifteen-archaeological-sites','./'+cave+'?v=23-fifteen-historic-sites'),
+              ('./'+cave+'?v=22-mobile-fifteen-archaeological-sites','./'+cave+'?v=23-mobile-fifteen-historic-sites')
             ],
             'app.js':[
-              ('./'+cave+'?v=21-fifteen-mexico-canada-sites','./'+cave+'?v=22-fifteen-archaeological-sites')
+              ('./'+cave+'?v=22-fifteen-archaeological-sites','./'+cave+'?v=23-fifteen-historic-sites')
             ]
           }
           for rel,changes in edits.items():
@@ -115,9 +115,9 @@ jobs:
               if len(matches)!=1:
                   raise SystemExit(f'{rel}: expected exactly one active {entry} cache-keyed script; got {len(matches)}')
               old=matches[0].group(1)
-              if 'cave-entry=fifteen-mx-ca-v21' not in old or 'cave-entry=fifteen-archaeology-v22' in old:
-                  raise SystemExit(f'{rel}: missing previous fifteen-mx-ca-v21 key or new fifteen-archaeology-v22 key already appended')
-              source=source.replace('src="'+old+'"','src="'+old+'&cave-entry=fifteen-archaeology-v22"',1)
+              if 'cave-entry=fifteen-archaeology-v22' not in old or 'cave-entry=fifteen-heritage-v23' in old:
+                  raise SystemExit(f'{rel}: missing previous fifteen-archaeology-v22 key or new fifteen-heritage-v23 key already appended')
+              source=source.replace('src="'+old+'"','src="'+old+'&cave-entry=fifteen-heritage-v23"',1)
               f.write_text(source,encoding='utf-8')
           after={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
                  for p in site.rglob('*') if p.is_file()}
@@ -133,7 +133,7 @@ jobs:
               raise SystemExit('Website and app Cave module differ')
           for rel in ('landing.js','app.js'):
               text=(site/rel).read_text()
-              if './'+cave+'?v=22-fifteen-archaeological-sites' not in text:
+              if './'+cave+'?v=23-fifteen-historic-sites' not in text:
                   raise SystemExit(rel+' did not load the new Cave module')
           print('CAVE_ONLY_PUBLISH_SCOPE_PASS',len(changed),'files, no additions or deletions')
           PY
@@ -174,8 +174,8 @@ jobs:
               curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null 'weld-range-rock-shelter-australia'
               curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null 'd0c88d0853844a8e9a1de22a342326cb'
               curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null 'const containedViewer=isMatterport||isEmbedOnly'
-              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/landing.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '22-fifteen-archaeological-sites'
-              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '22-fifteen-archaeological-sites'
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/landing.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '23-fifteen-historic-sites'
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '23-fifteen-historic-sites'
               curl -fsSL -H 'Cache-Control: no-cache' "$SITE/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null 'df5dea76480f4ed3af018d885a13b704'
               curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '5dc79d2891f24e9fa571b9e910556ec8'
               curl -fsSL -H 'Cache-Control: no-cache' "$SITE/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '2f06ab8d1bd14ce5a85c417fefd91cda'
@@ -245,10 +245,25 @@ jobs:
               curl -fsSL -H 'Cache-Control: no-cache' "$SITE/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null 'a0fbb78a90704f77974ad03428a3d704'
               curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '60242ad002694827b6a95eeeecd22c84'
               curl -fsSL -H 'Cache-Control: no-cache' "$SITE/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '4a251113722f4d969b6cf2ca5f35c502'
-              echo CAVE_FIFTEEN_ARCHAEOLOGY_V22_LIVE_PASS
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '29ff71ac4b1340caa1fd539dd2f6abe0'
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null 'c739f35a5ac8499087ef25a3ea9f2fb6'
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '9591e10d536d4cf28879ab45418cfcaf'
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '7ba54dd84e324c83987612a4ed4523f3'
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '4f98063d11c14c84952fcfd4b798cfe4'
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '7fbfe67ec4864d439f25303b50697189'
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '5bc88658fc5e458f8f25af8a0ac9ee7b'
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '935f17a3824d49f7b2505a0686450d51'
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '4bab0afa71084cabb003ecda93cc8be2'
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null 'af0ee6605da74f7bac2ea7fb0160cef9'
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '4ef8168053794fc8817a0a90933830c6'
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '79f2af1fd7024a949d7eb11f77628d8b'
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '268d73136c4d4bc89eac4db3ad97a49f'
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null 'f195fd290abd413bac1287b9094138e5'
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null 'fee676a94d1a4ed7abdb0d777fbde084'
+              echo CAVE_FIFTEEN_HERITAGE_V23_LIVE_PASS
               exit 0
             fi
             sleep 4
           done
-          echo CAVE_FIFTEEN_ARCHAEOLOGY_V22_LIVE_VERIFY_FAILED
+          echo CAVE_FIFTEEN_HERITAGE_V23_LIVE_VERIFY_FAILED
           exit 1
