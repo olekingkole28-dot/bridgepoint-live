@@ -1072,14 +1072,17 @@ if(a==='wildfire'){
  const surfaceWorld=home?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
  const activeMap=surfaceWorld?.map||surfaceWorld;
  b.disabled=true;
- void import('./world-v2300-weather.js?v=6130-cloud-rain-lightning').then(m=>{
-  const api=window.__bpWeatherV2300?.map===activeMap?window.__bpWeatherV2300:m.initWeather(activeMap,{deferActivation:true});
-  if(!api?.setWildfiresVisible)throw new Error('Live wildfire renderer is unavailable');
-  const next=api.state?.wildfiresVisible!==true;
-  api.setWildfiresVisible(next);
+ void import('./bridgepoint-wildfires-volumetric-v1.js?v=1-live-nasa-viirs-mapped-bounds-native-3d').then(m=>{
+  const previous=window.__BP_LIVE_WILDFIRES_V1__;
+  const api=previous?.map===activeMap?previous:m.initLiveWildfireRenderer(activeMap);
+  if(!api?.setEnabled)throw new Error('Source-backed wildfire renderer is unavailable');
+  const next=!api.enabled;
+  api.setEnabled(next);
   b.setAttribute('aria-pressed',String(next));
   b.classList.toggle('active',next);
+  b.title=next?'Real satellite fire detections, source perimeters and terrain-anchored 3D flames are ON':'Toggle global, source-backed wildfire detections and 3D fire effects';
   const label=b.querySelector('.bpv-command-label');if(label)label.textContent='Wildfire · '+(next?'ON':'OFF');
+  window.__BP_LIVE_WILDFIRES_V1__=api;
  }).catch(e=>{b.title='Wildfire control unavailable: '+String(e?.message||e);console.warn('BridgePoint wildfire control unavailable',e)}).finally(()=>{b.disabled=false});
  return;
 }
