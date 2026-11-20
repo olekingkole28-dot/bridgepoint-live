@@ -178,7 +178,7 @@ export function initBridgePointGlobalWindRfV1(target){
    const button=st.jetMarkerNodes[i],obj=st.jetMarkers[i];if(!button)continue;
    const p=obj.point.clone().applyMatrix4(st.projection);
    const x=(p.x*.5+.5)*w,y=(.5-p.y*.5)*h;
-   const on=visible&&p.z>=-1&&p.z<=1&&p.w>0&&x>=-18&&x<=w+18&&y>=-18&&y<=h+18;
+   const on=visible&&p.z>=-1&&p.z<=1&&x>=-18&&x<=w+18&&y>=-18&&y<=h+18;
    button.hidden=!on;if(on)button.style.transform='translate('+x+'px,'+y+'px) translate(-50%,-50%)';
   }
  }
