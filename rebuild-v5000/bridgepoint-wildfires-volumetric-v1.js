@@ -272,7 +272,7 @@ function refreshPersistentMarkers(state){
 }
 function ensureMapSources(state){
  const map=state.map;
- if(!state.enabled||!map.getStyle?.()||!map.isStyleLoaded?.())return false;
+ if(!state.enabled||!map.getStyle?.())return false;
  if(!map.hasImage?.(iconId)){
   const icon=displayIcon();
   if(icon)try{map.addImage(iconId,icon,{pixelRatio:2});}catch(e){console.warn('Fire icon install failed',e);}
@@ -601,7 +601,7 @@ function visible3DFires(state){
   .slice(0,zoom<15?3:7);
 }
 function ensureNative3D(state){
- if(!state.enabled||!state.THREE||!state.map.getStyle?.()||!state.map.isStyleLoaded?.())return;
+ if(!state.enabled||!state.THREE||!state.map.getStyle?.())return;
  if(state.map.getLayer?.(layer3d))return;
  const map=state.map,T=state.THREE;
  const layer={id:layer3d,type:'custom',renderingMode:'3d',
