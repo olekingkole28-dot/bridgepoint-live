@@ -791,6 +791,10 @@ async function loadInitialData(state) {
 }
 async function setEnabled(state,on) {
   state.enabled=!!on;
+  // The shared overlay visibility manager normally sweeps optional layers off
+  // on map idle/zoom. Opt in only FAA-owned layers while this control is on.
+  // Without this, the manager hides every FAA symbol after MapLibre paints.
+  try {window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('faa',state.enabled);} catch (_) {}
   if(state.enabled) {
     installLayers(state);bindInteractions(state);
     if(!state.THREE&&!state.threeLoading) {
