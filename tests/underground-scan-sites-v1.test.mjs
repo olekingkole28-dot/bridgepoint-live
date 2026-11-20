@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import {UNDERGROUND_SCAN_SITES,UNDERGROUND_SCAN_RIGHTS_HOLDS,buildUndergroundSiteFeatures,undergroundSitePopupHtml} from '../rebuild-v5000/bridgepoint-underground-scan-sites-v1.js';
+import {UNDERGROUND_SCAN_SITES,UNDERGROUND_SCAN_RIGHTS_HOLDS,buildUndergroundSiteFeatures,undergroundSitePopupHtml,undergroundSiteIconKind} from '../rebuild-v5000/bridgepoint-underground-scan-sites-v1.js';
 
 const features=buildUndergroundSiteFeatures();
 assert.equal(features.length,109,'one hundred nine reviewed cave site anchors are mapped');
@@ -503,6 +503,10 @@ assert.match(undergroundSitePopupHtml(UNDERGROUND_SCAN_SITES[0]),/Approximate di
 assert.match(undergroundSitePopupHtml(UNDERGROUND_SCAN_SITES[1]),/Center for Geospatial Technologies/);
 assert.equal(buildUndergroundSiteFeatures([{id:'bad',coordinates:[999,0],models:[{}]}]).length,0);
 
+const iconSampleSitesV25=[["rock-house-ohio","shelter"],["stump-cross-caverns-yorkshire","cave"],["grotta-cassone-lava-tube-etna","lava"],["bethells-beach-sea-cave","marine"],["gorner-glacier-g6-moulin-switzerland","ice"],["paris-catacombs","catacomb"],["giza-khufu-great-pyramid-egypt","pyramid"],["petra-great-temple-jordan","temple"],["rakvere-castle-estonia","fortress"],["biokovo-tumulus-excavation-croatia","burial"],["khirbat-en-nahas-area-m-jordan","excavation"],["matera-sassi-cave-houses-italy","city"],["great-zimbabwe-great-enclosure-scan","ruins"],["wells-gray-sarlaccs-pit-canada","sinkhole"]];
+for(const [id,kind] of iconSampleSitesV25){const site=UNDERGROUND_SCAN_SITES.find(s=>s.id===id);assert.ok(site,id);assert.equal(undergroundSiteIconKind(site),kind);assert.equal(features.find(f=>f.properties.siteId===id).properties.iconKind,kind);}
+assert.ok(new Set(UNDERGROUND_SCAN_SITES.map(undergroundSiteIconKind)).size>=11,'at least 11 color-coded site icon kinds');
+
 const [moduleSource,landing,app,deploy]=await Promise.all([
  readFile(new URL('../rebuild-v5000/bridgepoint-underground-scan-sites-v1.js',import.meta.url),'utf8'),
  readFile(new URL('../rebuild-v5000/landing.js',import.meta.url),'utf8'),
@@ -510,8 +514,10 @@ const [moduleSource,landing,app,deploy]=await Promise.all([
  readFile(new URL('../.github/workflows/deploy-intelligence-rebuild-v5000.yml',import.meta.url),'utf8')
 ]);
 assert.ok(moduleSource.includes('minzoom:0,maxzoom:24'),'icons must persist at every zoom');
-assert.ok(moduleSource.includes("const CAVE_ICON_SIZE=['interpolate',['linear'],['zoom'],0,1.6,3,1.8,7,2.0,12,2.2,18,2.4,23,3.0]"),'Caves & Sites icons are large at all zoom levels');
+assert.ok(moduleSource.includes("const CAVE_ICON_SIZE=['interpolate',['linear'],['zoom'],0,1.2,3,1.34,7,1.48,12,1.62,18,1.8,23,1.95]"),'Cave icons 43-70px');
 assert.ok(moduleSource.includes("'icon-size':CAVE_ICON_SIZE"),'Cave symbol uses the persistent size');
+assert.ok(moduleSource.includes("'icon-allow-overlap':false,'icon-ignore-placement':false"),'Cave icons avoid collision');
+assert.ok(moduleSource.includes('for(const kind of CAVE_ICON_KINDS)'),'all icon sprites registered');
 assert.ok(moduleSource.includes("state.map.on(event,state.handlePersistence)"),'Cave markers reassert on style/zoom changes');
 assert.ok(moduleSource.includes("map.off(event,state.handlePersistence)"),'Cave listeners are cleaned up');
 assert.ok(moduleSource.includes("map.getLayoutProperty(MARKER_ID,'icon-size')"),'Cave marker size is repaired if another renderer overrides it');

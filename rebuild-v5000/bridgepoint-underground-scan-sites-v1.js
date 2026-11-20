@@ -11,8 +11,32 @@ const CONTROL_ID='bp-underground-scan-sites-control-v1';
 const TOGGLE_ID='bp-underground-scan-sites-toggle-v1';
 const COUNT_ID='bp-underground-scan-sites-count-v1';
 const STATUS_ID='bp-underground-scan-sites-status-v1';
-// Full-resolution Cave & Sites markers: 72px sprite at pixelRatio 2, scaled to ~58–108 CSS px.
-const CAVE_ICON_SIZE=['interpolate',['linear'],['zoom'],0,1.6,3,1.8,7,2.0,12,2.2,18,2.4,23,3.0];
+// More readable without crowding: ~43-70 CSS px across zoom levels.
+const CAVE_ICON_SIZE=['interpolate',['linear'],['zoom'],0,1.2,3,1.34,7,1.48,12,1.62,18,1.8,23,1.95];
+const CAVE_ICON_COLORS={
+ cave:['#9cecb4','#246943','⌒'],marine:['#72e8f7','#175d8f','≋'],lava:['#ffad6b','#a14435','♨'],
+ ice:['#b1edff','#3967a0','❄'],sinkhole:['#c8a8ff','#65459a','◎'],shelter:['#f4cb89','#836039','⌂'],
+ catacomb:['#85beff','#3555a3','☷'],burial:['#ffabc3','#8f4165','▣'],pyramid:['#ffe184','#81602c','▲'],
+ temple:['#c9aaff','#6440a0','♜'],fortress:['#ff8b83','#9a4347','♖'],excavation:['#ffc482','#976029','⚒'],
+ ruins:['#d8b293','#80513f','◫'],city:['#89eed4','#247460','▥']};
+const CAVE_ICON_KINDS=Object.keys(CAVE_ICON_COLORS);
+export function undergroundSiteIconKind(site){
+ const n=(String(site?.id||'')+' '+String(site?.name||'')).toLowerCase();
+ if(/underground.city|kaymakl|matera|sassi|cave.houses/.test(n))return 'city';
+ if(/castle|fortress|rocca|citadel|roman.fort|stronghold/.test(n))return 'fortress';
+ if(/pyramid|giza|khufu|meroe|meroë/.test(n))return 'pyramid';
+ if(/catacomb|ossuary|crypt|pechersk|near.caves|far.caves/.test(n))return 'catacomb';
+ if(/tomb|grave|burial|tumulus|necropolis|cemetery/.test(n))return 'burial';
+ if(/temple|sanctuary|shrine|monastery|karnak|angkor|chavin|chavín|rock.church/.test(n))return 'temple';
+ if(/excavat|archaeolog|dig.site|trench|smelting|slag/.test(n))return 'excavation';
+ if(/ruins|persepolis|machu.picchu|great.zimbabwe|bagan/.test(n))return 'ruins';
+ if(/lava|volcanic|mount.etna/.test(n))return 'lava';
+ if(/ice|glaci|greenland|antarct|moulin/.test(n))return 'ice';
+ if(/sea.cave|marine.cave|ocean.cave|underwater|submerged|cenote|blue.hole|blue.spring|coastal.cave/.test(n))return 'marine';
+ if(/sinkhole|sotano|sótano|avenc|sarlacc|chasm|swine.hole/.test(n))return 'sinkhole';
+ if(/rock.shelter|rock.house|rock.art|hocking.hills|sandstone.shelter/.test(n))return 'shelter';
+ return site?.type==='catacomb'?'catacomb':site?.type==='tomb'?'burial':'cave';
+}
 
 export const UNDERGROUND_SCAN_SITES=[
  {id:'paris-catacombs',name:'Paris Catacombs',type:'catacomb',coordinates:[2.3324,48.8336],
@@ -295,7 +319,7 @@ export const UNDERGROUND_SCAN_RIGHTS_HOLDS=[
 export function buildUndergroundSiteFeatures(sites=UNDERGROUND_SCAN_SITES){
  return (Array.isArray(sites)?sites:[]).filter(s=>s&&typeof s.id==='string'&&Array.isArray(s.coordinates)&&Number.isFinite(Number(s.coordinates[0]))&&Number.isFinite(Number(s.coordinates[1]))&&Math.abs(Number(s.coordinates[0]))<=180&&Math.abs(Number(s.coordinates[1]))<=85&&Array.isArray(s.models)&&s.models.length>0).map(s=>({
   type:'Feature',id:s.id,geometry:{type:'Point',coordinates:[Number(s.coordinates[0]),Number(s.coordinates[1])]},
-  properties:{siteId:s.id,name:s.name,type:s.type,iconImage:'bp-underground-site-icon-'+s.type+'-v1',modelCount:s.models.length,locationPrecision:s.locationPrecision}
+  properties:{siteId:s.id,name:s.name,type:s.type,iconKind:undergroundSiteIconKind(s),iconImage:'bp-underground-site-icon-'+undergroundSiteIconKind(s)+'-v1',modelCount:s.models.length,locationPrecision:s.locationPrecision}
  }));
 }
 function safe(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
@@ -330,24 +354,20 @@ export function undergroundSitePopupHtml(site,selectedUid=null){
   '<p class="bp-underground-site-attribution-v1">'+(isMatterport?'3D tour is hosted by Matterport and published by '+safe(selected.matterportTourId==='Q4AMM3jEVrn'?'Apollo 3D':'Elements of Media')+'; the original publisher retains rights. BridgePoint embeds the public interactive showcase, does not redistribute the model and does not claim it is a pure photogrammetry or survey-georeferenced mesh.':isEmbedOnly?'This real photogrammetry 3D model is hosted on its creator’s public Sketchfab viewer. No downloadable reuse license was displayed when reviewed. BridgePoint embeds that original viewer only; it does not copy the scan, claim ownership, or imply a georeferenced cave survey.':'3D content is hosted by Sketchfab and remains on its creator’s model page. Creator attribution and displayed license are shown above. BridgePoint does not claim this scan is a metrically georeferenced subsurface mesh.')+'</p></article>';
 }
 
-function makeIcon(type){
+function makeIcon(kind){
  const canvas=document.createElement('canvas');canvas.width=72;canvas.height=72;
- const ctx=canvas.getContext('2d');ctx.clearRect(0,0,72,72);
- const colors=type==='tomb'?['#e0b66a','#8e6335']:type==='catacomb'?['#8fe5ed','#236c80']:['#9ce3b5','#2c7b5a'];
- const g=ctx.createRadialGradient(25,20,3,36,36,34);g.addColorStop(0,'#f4ffff');g.addColorStop(.22,colors[0]);g.addColorStop(1,colors[1]);
- ctx.fillStyle='rgba(3,13,21,.82)';ctx.beginPath();ctx.arc(36,36,32,0,Math.PI*2);ctx.fill();ctx.strokeStyle=colors[0];ctx.lineWidth=3;ctx.stroke();
- ctx.fillStyle=g;ctx.strokeStyle='#eefcff';ctx.lineWidth=2.2;
- if(type==='tomb'){
-  ctx.beginPath();ctx.moveTo(15,30);ctx.lineTo(36,15);ctx.lineTo(57,30);ctx.lineTo(54,53);ctx.lineTo(18,53);ctx.closePath();ctx.fill();ctx.stroke();
-  ctx.beginPath();ctx.moveTo(29,53);ctx.lineTo(29,38);ctx.quadraticCurveTo(36,29,43,38);ctx.lineTo(43,53);ctx.stroke();
- }else if(type==='catacomb'){
-  ctx.beginPath();ctx.moveTo(14,54);ctx.lineTo(14,34);ctx.quadraticCurveTo(36,5,58,34);ctx.lineTo(58,54);ctx.closePath();ctx.fill();ctx.stroke();
-  ctx.fillStyle='#061a28';ctx.beginPath();ctx.moveTo(26,54);ctx.lineTo(26,36);ctx.quadraticCurveTo(36,20,46,36);ctx.lineTo(46,54);ctx.closePath();ctx.fill();
-  ctx.strokeStyle='#f0ffff';ctx.beginPath();ctx.moveTo(36,24);ctx.lineTo(36,46);ctx.moveTo(29,31);ctx.lineTo(43,31);ctx.stroke();
- }else{
-  ctx.beginPath();ctx.moveTo(11,55);ctx.lineTo(11,40);ctx.lineTo(21,25);ctx.lineTo(31,32);ctx.lineTo(44,13);ctx.lineTo(61,40);ctx.lineTo(61,55);ctx.closePath();ctx.fill();ctx.stroke();
-  ctx.fillStyle='#061a28';ctx.beginPath();ctx.moveTo(25,55);ctx.lineTo(25,42);ctx.quadraticCurveTo(36,29,47,42);ctx.lineTo(47,55);ctx.closePath();ctx.fill();
- }
+ const ctx=canvas.getContext('2d'),p=CAVE_ICON_COLORS[kind]||CAVE_ICON_COLORS.cave;
+ ctx.clearRect(0,0,72,72);
+ const gradient=ctx.createRadialGradient(29,23,3,36,36,34);
+ gradient.addColorStop(0,p[0]);gradient.addColorStop(1,p[1]);
+ ctx.beginPath();ctx.arc(36,36,31,0,Math.PI*2);ctx.fillStyle='rgba(3,14,24,.91)';ctx.fill();
+ ctx.strokeStyle=p[0];ctx.lineWidth=3;ctx.stroke();
+ ctx.beginPath();ctx.arc(36,36,25,0,Math.PI*2);ctx.fillStyle=gradient;ctx.fill();
+ ctx.strokeStyle='rgba(248,252,255,.65)';ctx.lineWidth=1.4;ctx.stroke();
+ ctx.fillStyle='#fbfeff';ctx.textAlign='center';ctx.textBaseline='middle';
+ ctx.font='bold 37px "Segoe UI Symbol","DejaVu Sans",sans-serif';
+ ctx.shadowColor='rgba(1,8,14,.9)';ctx.shadowBlur=3;ctx.shadowOffsetY=2;
+ ctx.fillText(p[2],36,35);
  return ctx.getImageData(0,0,72,72);
 }
 function setStatus(state,msg){state.status=msg;const el=document.getElementById(STATUS_ID);if(el)el.textContent=msg;}
@@ -384,20 +404,20 @@ function scheduleCaveMarkerPersistence(state){
 function installLayers(state){
  const map=state.map;if(!map?.getStyle?.())return false;
  try{
-  for(const type of ['cave','catacomb','tomb']){const id='bp-underground-site-icon-'+type+'-v1';if(!map.hasImage?.(id))map.addImage(id,makeIcon(type),{pixelRatio:2});}
+  for(const kind of CAVE_ICON_KINDS){const id='bp-underground-site-icon-'+kind+'-v1';if(!map.hasImage?.(id))map.addImage(id,makeIcon(kind),{pixelRatio:2});}
   if(!map.getSource(SOURCE_ID))map.addSource(SOURCE_ID,{type:'geojson',data:{type:'FeatureCollection',features:buildUndergroundSiteFeatures()},buffer:64,maxzoom:14,attribution:'3D scans via Sketchfab or creator-published Matterport; model rights and attribution are shown in each site viewer.'});
   const add=(id,layer)=>{if(!map.getLayer(id))map.addLayer(layer);};
   add(HALO_ID,{id:HALO_ID,type:'circle',source:SOURCE_ID,minzoom:0,maxzoom:24,layout:{visibility:state.enabled?'visible':'none'},paint:{
-   'circle-radius':['interpolate',['linear'],['zoom'],0,3.5,5,6,10,9,16,13,22,16],
-   'circle-color':['match',['get','type'],'tomb','#d9aa58','catacomb','#58d2e2','#7bd49a'],'circle-opacity':0.35,'circle-blur':0.55}});
+   'circle-radius':['interpolate',['linear'],['zoom'],0,2.5,5,4,10,6,16,8,22,9],
+   'circle-color':['match',['get','iconKind'],...CAVE_ICON_KINDS.flatMap(k=>[k,CAVE_ICON_COLORS[k][0]]),'#9cecb4'],'circle-opacity':0.28,'circle-blur':0.55}});
   add(MARKER_ID,{id:MARKER_ID,type:'symbol',source:SOURCE_ID,minzoom:0,maxzoom:24,layout:{
    visibility:state.enabled?'visible':'none','icon-image':['get','iconImage'],
    'icon-size':CAVE_ICON_SIZE,'icon-pitch-alignment':'viewport','icon-rotation-alignment':'viewport',
-   'icon-anchor':'bottom','icon-allow-overlap':true,'icon-ignore-placement':true,'symbol-sort-key':100}});
+   'icon-anchor':'bottom','icon-allow-overlap':false,'icon-ignore-placement':false,'symbol-sort-key':100}});
   add(LABEL_ID,{id:LABEL_ID,type:'symbol',source:SOURCE_ID,minzoom:4,maxzoom:24,layout:{
    visibility:state.enabled?'visible':'none','text-field':['get','name'],
    'text-size':['interpolate',['linear'],['zoom'],4,9,10,11,17,13],
-   'text-offset':[0,1.28],'text-anchor':'top','text-allow-overlap':false,'text-ignore-placement':false
+   'text-offset':[0,0.92],'text-anchor':'top','text-allow-overlap':false,'text-ignore-placement':false
   },paint:{'text-color':'#eafcff','text-halo-color':'rgba(3,12,20,.94)','text-halo-width':1.4,'text-opacity':0.96}});
   setVisibility(state,state.enabled);return true;
  }catch(e){state.stats.lastError=String(e?.message||e);console.warn('BridgePoint cave and underground site layer unavailable',e);return false;}
