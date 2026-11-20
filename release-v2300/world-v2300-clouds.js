@@ -1999,6 +1999,11 @@ export function initSkyClouds(target) {
     };
     const zoom = number(map.getZoom?.(), 10);
     const cloudLodBand = zoom <= 5.5 ? 'global' : zoom <= 8.5 ? 'regional' : 'local';
+    const localCloudCenter=map.getCenter?.();
+    // At street zoom allocate the cloud GPU budget to weather in the viewport
+    // and near horizon. Retaining the entire planet's geometry caused mobile
+    // freezes and made local cloud towers disappear when the budget was full.
+    const localCloudRadiusM=Math.max(140000,900000*Math.pow(.68,Math.max(0,zoom-8.5)));
     const sourceCyclones = [
       ...(Array.isArray(windScene?.storms) ? windScene.storms.filter(usesHurricaneGeometry) : []),
       ...(Array.isArray(windScene?.alerts) ? windScene.alerts.filter(usesHurricaneGeometry) : [])
@@ -2035,6 +2040,7 @@ export function initSkyClouds(target) {
     let heightResolvedWindPuffs = 0, modelledWindPuffs = 0, globalPuffCount = 0;
     const eyeMaskRadius=st=>cloudLodBand==='global'?Math.max(st.eyeRadiusM,90000):cloudLodBand==='regional'?Math.max(st.eyeRadiusM,45000):st.eyeRadiusM;
     const addGlobalPuff = (lng,lat,altitude,rx,ry,rz,tint,slices,stacks,seed,sourceDriven=false,shapeAngle=0) => {
+      if(cloudLodBand==='local'&&localCloudCenter&&cloudDistanceMeters(lng,lat,localCloudCenter.lng,localCloudCenter.lat)>localCloudRadiusM+Math.max(rx,ry))return false;
       if(!sourceDriven && satelliteCoverageAt(lng,lat))return false;
       // Mesh generation raises these to minimum tessellation levels. Reserve
       // the *actual* vertex count or the cloud buffer can eat the storm reserve
@@ -2364,6 +2370,27 @@ export function initSkyClouds(target) {
         const overviewFootprint=thin?1:bankBoost;
         const boundedRx=Math.min(245000,rx*overviewFootprint),boundedRy=Math.min(245000,ry*overviewFootprint);
         if(!addGlobalPuff(q.lng,q.lat,altitude,boundedRx,boundedRy,vertical,tint,satellitePuffSlices,satellitePuffStacks,hash(q.col,q.row,1301),true,angle))return false;
+        // Street/ground camera LOD: replace the satellite-scale smooth
+        // envelope with several smaller genuine 3D cauliflower volumes.
+        // Shapes are inferred within the source-observed cloudy footprint:
+        // individual turret coordinates are visual detail, not sensor fixes.
+        if(cloudLodBand==='local'&&!thin){
+          const localChildren=MOBILE?6:10;
+          for(let child=0;child<localChildren;child++){
+            const spin=child*2.399963+hash(q.col,q.row,1330)*TAU;
+            const reach=Math.sqrt((child+.25)/localChildren)*Math.min(boundedRx,boundedRy)*.48;
+            const geo=offsetLngLatMeters(q.lng,q.lat,Math.cos(spin)*reach,Math.sin(spin)*reach);
+            const childGround=terrainElevationAt(geo.lng,geo.lat);
+            const spread=hash(q.col,child,q.row+1321);
+            const childRadius=clamp(Math.min(boundedRx,boundedRy)*(.065+.065*spread),1350,13500);
+            const childDepth=clamp((top-base)*(.20+.24*hash(q.row,child,q.col+1322)),800,6300);
+            const childAltitude=childGround+base+childDepth*.56+
+              Math.max(0,top-base-childDepth)*(.13+.60*hash(q.col,child,q.row+1323));
+            addGlobalPuff(geo.lng,geo.lat,childAltitude,childRadius,
+              childRadius*(.85+.35*spread),childDepth*.55,tint,
+              MOBILE?8:10,MOBILE?4:5,hash(child,q.col,q.row+1324),true,spin);
+          }
+        }
         if(heightMatch)sourceHeightMatchedCount++;else sourceHeightModelledCount++;
         if(q.sourceCloudMaskSample&&!q.heightSample)sourceCloudMaskDirectAnchorCount++;
         const record={lng:q.lng,lat:q.lat,p:q.p,radius,base,top};chosen.push(record);reserve(record);
