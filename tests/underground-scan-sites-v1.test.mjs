@@ -206,6 +206,21 @@ for(const site of marineAddedSites.concat([previousBelTorrente,newBethells])){
   assert.ok(!h.includes('allow-top-navigation')&&!h.includes('allow-popups'));
  }
 }
+const largeCavesV18=[["arco-do-andre-brazil","a873f750875d4f37a3784ffddc9f5abc",250],["devilstep-hollow-full-tennessee","d07aa3cf92a4478684130d9261e1d94c",110],["peak-cavern-submerged-swine-hole","d010364e4b684a488e934d6664a3c54e",120],["barenfalle-high-alpine-cave-austria","17c248ec0c284b6ebbd201d35753c4b8",0],["hohle-fels-giant-chamber-germany","c92b96fed07743ce8277619d2a6fb347",30]];
+assert.equal(largeCavesV18.length,5);
+assert.equal(new Set(largeCavesV18.map(x=>x[1])).size,5);
+for(const [id,uid] of largeCavesV18){
+ const site=UNDERGROUND_SCAN_SITES.find(s=>s.id===id);
+ assert.ok(site&&site.type==='cave');
+ assert.equal(site.models.length,1);
+ assert.equal(site.models[0].uid,uid);
+ assert.equal(site.models[0].embedOnly,true);
+ assert.ok(site.models[0].method&&site.models[0].detail&&site.locationPrecision);
+ const html=undergroundSitePopupHtml(site);
+ assert.ok(html.includes('sketchfab.com/models/'+uid+'/embed'));
+ assert.ok(html.includes('sandbox="allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-presentation"'));
+ assert.ok(!html.includes('allow-top-navigation')&&!html.includes('allow-popups'));
+}
 const fiveRemoteDeepCaves=[
  {id:'wells-gray-sarlaccs-pit-canada',coordinates:[-120,52.33306],uid:'df5dea76480f4ed3af018d885a13b704',method:/photogrammetry/i,detail:/ONLY reconstructs the exposed entrance/,placement:/regional/i},
  {id:'gorner-glacier-g6-moulin-switzerland',coordinates:[7.81528,45.94750],uid:'5dc79d2891f24e9fa571b9e910556ec8',method:/Photogrammetry/i,detail:/not a LiDAR point-cloud/,placement:/NOT the surveyed/i},
