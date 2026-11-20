@@ -75,6 +75,10 @@ jobs:
             if(!m.isSourceLoaded('bp-faa-obstructions-source-v1'))return false;
             return m.queryRenderedFeatures(undefined,{layers:['bp-faa-obstructions-markers-v1','bp-faa-obstructions-halo-v1']}).length>0;
           },null,{timeout:90000});}catch(e){console.log('TIMEOUT',e.message)}
+          try {await page.waitForFunction(()=>{
+            const m=window.__faaMap;
+            return m?.isSourceLoaded('bp-faa-obstructions-source-v1')&&m.queryRenderedFeatures(undefined,{layers:['bp-faa-obstructions-markers-v1']}).length>0;
+          },null,{timeout:20000});}catch(e){console.log('GLOBAL_CATEGORY_SYMBOL_TIMEOUT',e.message)}
           const result=await page.evaluate(()=>{
             const m=window.__faaMap,api=window.__faaApi;
             const layers=['bp-faa-obstructions-halo-v1','bp-faa-obstructions-clusters-v1','bp-faa-obstructions-markers-v1','bp-faa-obstructions-cluster-icons-v1-lattice'];
