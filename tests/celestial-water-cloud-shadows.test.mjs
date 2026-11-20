@@ -142,7 +142,7 @@ test('clouds render as bright 3D volumes, not as a false-colour raster sheet', (
   assert.doesNotMatch(listingView, /data-bpv-action="clouds"/);
   assert.match(clouds, /vec3\(0\.96,0\.025,0\.035\)/);
   assert.match(clouds, /radarRadius/);
-  assert.match(clouds, /MOBILE \? 10 : 14/);
+  assert.match(clouds, /MOBILE \? 8 : 10/); // Mesh LOD is budgeted rather than silently inflated.
   assert.match(clouds, /undersideShade=1\.0-smoothstep\(0\.05,0\.55,heightShade\)/);
   assert.match(clouds, /time\*0\.34/);
   assert.match(clouds, /time\*2\.05/);
