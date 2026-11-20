@@ -1,0 +1,124 @@
+name: Publish BridgePoint Auth Tunnel Recovery v1 (four files only)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-auth-tunnel-recovery-v1.yml'
+
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Confirm current bootstrapped auth tunnel is serving the local backend
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --max-time 25 \
+            'https://characterization-seas-total-adopt.trycloudflare.com/auth/v1/health' > "$RUNNER_TEMP/auth-health.json"
+          python3 - "$RUNNER_TEMP/auth-health.json" <<'PY'
+          import json,sys
+          v=json.load(open(sys.argv[1]))
+          assert v.get('status')=='ok' and v.get('local') is True, 'Not the BridgePoint local auth server'
+          print('LIVE_LOCAL_AUTH_HEALTH_PASS')
+          PY
+          node --check rebuild-v5000/landing.js
+          node --check rebuild-v5000/app.js
+          python3 -m py_compile scripts/overlay_auth_tunnel_v1.py
+      - name: Download exact last successful full BridgePoint site including Wind RF and spacecraft
+        uses: actions/download-artifact@v4
+        with:
+          name: bridgepoint-v5000-wind-rf-jets-v1-verified
+          run-id: 44694577017
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/full-verified-baseline
+      - name: Overlay only auth hostname and two cache keys, preserving all other files
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAR="$(find "$RUNNER_TEMP/full-verified-baseline" -type f -name artifact.tar -print -quit)"
+          test -n "$TAR"
+          OUT="$RUNNER_TEMP/bridgepoint-auth-only"
+          mkdir -p "$OUT"
+          tar -xf "$TAR" -C "$OUT"
+          python3 scripts/overlay_auth_tunnel_v1.py "$OUT" rebuild-v5000
+          node --check "$OUT/landing.js"
+          node --check "$OUT/app.js"
+      - uses: actions/configure-pages@v5
+      - name: Upload verified complete site with only four auth-cache changes
+        uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-auth-tunnel-recovery-v1
+          path: ${{ runner.temp }}/bridgepoint-auth-only
+          include-hidden-files: true
+      - name: Wait for GitHub Pages artifact metadata readiness
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          FOUND=0
+          for n in $(seq 1 20); do
+            if gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[].name' | grep -Fxq 'bridgepoint-auth-tunnel-recovery-v1'; then
+              FOUND=1
+              break
+            fi
+            sleep 7
+          done
+          test "$FOUND" -eq 1
+          sleep 15
+      - name: Deploy preserved BridgePoint with restored bootstrapped sign-in connection
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: bridgepoint-auth-tunnel-recovery-v1
+      - name: Verify production root, app, auth endpoint, and preserved Wind RF / spacecraft files
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE=https://bridgepointintelligence.online
+          for n in 1 2 3 4 5 6; do
+            ROOT="$(mktemp)"
+            APP="$(mktemp)"
+            if curl -fsSL --max-time 35 "$SITE/index.html?authrestore=$GITHUB_SHA-$n" -o "$ROOT" &&
+               curl -fsSL --max-time 35 "$SITE/app/index.html?authrestore=$GITHUB_SHA-$n" -o "$APP" &&
+               grep -Fq 'authorigin=20261120r1' "$ROOT" &&
+               grep -Fq 'authorigin=20261120r1' "$APP" &&
+               curl -fsSL --max-time 35 "$SITE/landing.js?authrestore=$GITHUB_SHA-$n" | grep -F 'https://characterization-seas-total-adopt.trycloudflare.com' >/dev/null &&
+               curl -fsSL --max-time 35 "$SITE/app.js?authrestore=$GITHUB_SHA-$n" | grep -F 'https://characterization-seas-total-adopt.trycloudflare.com' >/dev/null &&
+               curl -fsSL --max-time 35 "$SITE/bridgepoint-global-wind-rf-v1.js?authrestore=$GITHUB_SHA-$n" | grep -F 'clickJet' >/dev/null &&
+               curl -fsSL --max-time 35 "$SITE/bridgepoint-emrf-starlink-global-v2.js?authrestore=$GITHUB_SHA-$n" | grep -F 'rebuildOrbitPaths' >/dev/null &&
+               curl -fsSL --max-time 35 "$SITE/bridgepoint-spacecraft-museums-v3.js?authrestore=$GITHUB_SHA-$n" | grep -F 'SPACECRAFT_MUSEUM_EXHIBITS_V3' >/dev/null &&
+               curl -fsSL --max-time 35 'https://characterization-seas-total-adopt.trycloudflare.com/auth/v1/health' | python3 -c 'import json,sys;d=json.load(sys.stdin);assert d.get("status")=="ok" and d.get("local")==True'; then
+              rm -f "$ROOT" "$APP"
+              echo 'AUTH_HOSTNAME_ROOT_APP_BACKEND_AND_PRESERVED_FEATURES_LIVE_VERIFIED'
+              exit 0
+            fi
+            rm -f "$ROOT" "$APP"
+            sleep 12
+          done
+          echo 'AUTH_RECOVERY_PRODUCTION_VERIFICATION_FAILED' >&2
+          exit 1
