@@ -33,7 +33,7 @@ assert.ok(moduleCode.includes("new T.BoxGeometry(busLength"));
 assert.ok(moduleCode.includes("new T.BoxGeometry(panelLength"));
 assert.ok(moduleCode.includes("const beam=state.beams"));
 assert.ok(moduleCode.includes("map.transform?.getMatrixForModel"));
-assert.ok(moduleCode.includes("public orbital elements"));
+assert.ok(moduleCode.includes("CelesTrak OMM"),"real public OMM source and approximate propagation must be disclosed");
 assert.ok(moduleCode.includes("NOT original SpaceX CAD")||moduleCode.includes("not SpaceX CAD")||moduleCode.includes("NOT operator telemetry"));
 assert.ok(!/Math.random\(/.test(moduleCode),'no synthetic satellite positions');
 assert.ok(moduleCode.includes("Date.now()-at>7*86400000"),'expired source must not be passed off as current');
