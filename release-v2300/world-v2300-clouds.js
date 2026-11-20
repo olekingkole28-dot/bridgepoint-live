@@ -1956,7 +1956,12 @@ export function initSkyClouds(target) {
     const eyeMaskRadius=st=>cloudLodBand==='global'?Math.max(st.eyeRadiusM,90000):cloudLodBand==='regional'?Math.max(st.eyeRadiusM,45000):st.eyeRadiusM;
     const addGlobalPuff = (lng,lat,altitude,rx,ry,rz,tint,slices,stacks,seed,sourceDriven=false,shapeAngle=0) => {
       if(!sourceDriven && satelliteCoverageAt(lng,lat))return false;
-      const requiredVertices=(slices+1)*(stacks+1);
+      // Mesh generation raises these to minimum tessellation levels. Reserve
+      // the *actual* vertex count or the cloud buffer can eat the storm reserve
+      // and silently discard nearby storm geometry on mobile WebGL.
+      const actualSlices=Math.max(slices,MOBILE?8:10);
+      const actualStacks=Math.max(stacks,MOBILE?4:5);
+      const requiredVertices=(actualSlices+1)*(actualStacks+1);
       const vertexLimit=sourceDriven?maxGlobalCloudVertices:Math.max(0,maxGlobalCloudVertices-satelliteVertexReserve);
       if(vertices.length/13+requiredVertices>vertexLimit)return false;
       let safeRx=rx,safeRy=ry;
@@ -2367,23 +2372,12 @@ function generateGeometry() {
       return Math.sin(lat1)*Math.sin(lat2)+Math.cos(lat1)*Math.cos(lat2)*Math.cos(dLng);
     };
     const visibleSourceCyclones = overviewClouds ? sourceCycloneRecords.filter(st=>hemisphereScore(st)>-0.08) : sourceCycloneRecords;
-    // Keep source-backed storm records authoritative. When the live feed has no
-    // point cyclone or tornado, keep the always-on visual language alive with a
-    // clearly disclosed modeled field; it is illustrative, never an alert.
-    const modeledCycloneRecords = visibleSourceCyclones.length ? [] : [{
-      lng: -58, lat: 19, wind_mph: 128, movement_speed_mph: 11, movement_heading_deg: 286,
-      __bpModeledVisual: true,
-      properties: {
-        id: 'bp-modeled-atlantic-cyclone', name: 'Modeled Atlantic cyclone field',
-        type: 'modeled tropical cyclone', classification: 'MODELED',
-        description: 'Illustrative animated weather field; not a live storm alert.',
-        lng: -58, lat: 19, wind_mph: 128, movement_speed_mph: 11, movement_heading_deg: 286
-      }
-    }];
-    const visualStormList = visibleSourceCyclones.length ? visibleSourceCyclones.slice() : modeledCycloneRecords;
-    modeledHurricaneVisualCount = modeledCycloneRecords.length;
+    // Real storm positions only. An empty or unavailable feed never creates a
+    // fictitious Atlantic hurricane or Oklahoma tornado on the live Earth.
+    const visualStormList = visibleSourceCyclones.slice();
+    modeledHurricaneVisualCount = 0;
     visualStormList.sort((a,b)=>hemisphereScore(b)-hemisphereScore(a));
-    const modeledTornadoNeeded = !hasSourceTornadoGeometry;
+    const modeledTornadoNeeded = false;
     maxForm += Math.min(MOBILE ? 2 : 4, tornadoAlertCount + sourceTornadoCount);
     const tornadoReserveCount = tornadoAlertCount + sourceTornadoCount;
     const stormFormLimit = Math.max(8, maxForm - Math.min(10, tornadoReserveCount));
@@ -2418,18 +2412,7 @@ function generateGeometry() {
     };
     tornadoAlerts.forEach((alert,i)=>{const center=exactTornadoPoint(alert);if(center)addSourceTornadoFunnel(center[0],center[1],6180+i,alert);});
     sourceTornadoRecords.forEach((st,i)=>{const center=exactTornadoPoint(st);if(center)addSourceTornadoFunnel(center[0],center[1],6280+i,st);});
-    if (modeledTornadoNeeded) {
-      const modeledLng = -97.4, modeledLat = 35.6, modeledGround = terrainElevationAt(modeledLng, modeledLat);
-      const before = formations.length;
-      addFormation(modeledLng, modeledLat, 11800, modeledGround + 900, modeledGround + 15800,
-        hash(modeledLng, modeledLat, 6400), 'funnel', null,
-        { x: 0.0000000042, y: -0.0000000018, sourceBacked: false });
-      if (formations.length > before) {
-        modeledTornadoVisualCount = 1;
-        funnelCount++;
-      }
-    }
-
+    // No synthetic funnel is rendered without an observed source point.
     // Rain-only cloud anchors: source-reported precipitation observations get a local 3D cloud base.
     // This supplements, rather than replaces, the persistent global cloud field and existing cloud shader.
     const sourceRainAnchors = [];
