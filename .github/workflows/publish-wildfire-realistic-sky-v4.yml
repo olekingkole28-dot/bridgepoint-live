@@ -1,4 +1,5 @@
 name: Publish Wildfire V4 Volumetric Firefront + Ground Sky Occlusion Only
+# Dedicated wildfire-only validation: flame vertices animate, terrain heat shader stays grounded.
 
 on:
   workflow_dispatch:
