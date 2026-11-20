@@ -1,5 +1,5 @@
 // Legacy full-site rollout guard; active imports use v6202: world-v2300-clouds.js?v=6202-global-satellite-cloud-banks
-const SUPA='https://louise-willing-cases-strategies.trycloudflare.com';
+const SUPA='https://characterization-seas-total-adopt.trycloudflare.com';
 window.__BP_APP_BUILD_VERSION__=5910;window.__BP_PUBLIC_MARKET_MAP_V5906__={publicMap:true,publicOpportunityLayers:true,updatedAt:Date.now()}
 const KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
 const RPC=SUPA+'/rest/v1/rpc/';
