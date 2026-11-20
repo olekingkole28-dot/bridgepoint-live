@@ -954,7 +954,7 @@ async function toggleWindAndDroneField(){
 async function toggleEmrfSpectrogram(button){
  const world=home?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
  if(!world?.map)throw new Error('BridgePoint globe not ready');
- const mod=await import('/bridgepoint-emrf-spectrogram-v1.js?v=3-emrf-model-orbit-ground');
+ const mod=await import('/bridgepoint-emrf-spectrogram-v1.js?v=3-emrf-model-orbit-ground&restore=20261120-emrf-fire');
  let api=window.__BP_EMRF_SPECTROGRAM_V1__;
  if(!api||api.map!==world.map)api=mod.initBridgePointEmrfSpectrogram(world);
  if(typeof api?.enable!=='function'||typeof api?.disable!=='function')throw new Error('Global EM/RF renderer did not initialize');
@@ -1073,7 +1073,7 @@ if(a==='wildfire'){
  const surfaceWorld=home?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
  const activeMap=surfaceWorld?.map||surfaceWorld;
  b.disabled=true;
- void import('./bridgepoint-wildfires-volumetric-v1.js?v=4-realistic-rolling-firefront').then(m=>{
+ void import('./bridgepoint-wildfires-volumetric-v1.js?v=4-realistic-rolling-firefront&restore=20261120-emrf-fire').then(m=>{
   const previous=window.__BP_LIVE_WILDFIRES_V1__;
   const api=previous?.map===activeMap?previous:m.initLiveWildfireRenderer(activeMap);
   if(!api?.setEnabled)throw new Error('Source-backed wildfire renderer is unavailable');
