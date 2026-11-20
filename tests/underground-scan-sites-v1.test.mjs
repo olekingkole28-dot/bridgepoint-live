@@ -287,7 +287,7 @@ for(const spec of fiveRemoteDeepCaves){
  const s=UNDERGROUND_SCAN_SITES.find(x=>x.id===spec.id);
  assert.ok(s && s.type==='cave',spec.id+' is added as real Cave type');
  assert.deepEqual(s.coordinates,spec.coordinates);
- assert.equal(s.models.length,spec.id==='bel-torrente-underwater-cave-sardinia'?2:1);
+ assert.equal(s.models.length,['bel-torrente-underwater-cave-sardinia','wells-gray-sarlaccs-pit-canada'].includes(spec.id)?2:1);
  assert.equal(s.models[0].uid,spec.uid);
  assert.equal(s.models[0].embedOnly,true);
  assert.match(s.models[0].method,spec.method);
