@@ -55,7 +55,7 @@ assert.ok(mapSource.includes("id:'gta-bp-sidewalk3d',type:'fill-extrusion',sourc
 assert.ok(waterSource.includes('microPhaseA') && waterSource.includes('microPhaseB') && waterSource.includes('microPhaseC'), 'GPU shader must include multiple fine-scale wave bands');
 assert.ok(waterSource.includes('fwidth(microPhaseC)'), 'finest wave band must fade at screen-sampling limit');
 assert.ok(waterSource.includes('surfaceMaskValidationAllZooms: true'), 'source-water masks must remain enabled at every zoom');
-assert.ok(waterSource.includes("if (z >= 12) {\n    return { scale: 0, maxOffsetM: 0, guarded: true };"), 'close-zoom vertex displacement guard must remain intact');
+assert.ok(waterSource.includes("return { scale: 1, maxOffsetM: 8.0, guarded: false };"), 'water vertex displacement must remain bounded while independent of camera zoom and pitch');
 assert.ok(spectralSource.includes("const BASEMAP_STORAGE_KEY='bp-global-map-mode-v6215';"), 'Natural Satellite must reset stale saved map preferences');
 assert.ok(spectralSource.includes("let currentBasemapMode='natural',defaultsCaptured=false,styleWaitPending=false;"), 'Natural Satellite must be the startup color mode');
 assert.ok(spectralSource.includes("basemapMode:'natural'"), 'the exposed basemap state must report the imagery default');
