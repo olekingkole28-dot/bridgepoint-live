@@ -109,7 +109,7 @@ jobs:
             for p in site.rglob('*') if p.is_file()}
           # Preserve the latest gate script version as-is (it can change when
           # another feature publishes); add only the FAA-specific cache marker.
-          pattern=re.compile(r'(data-bp-deferred-src=")(/bridgepoint-drone-awareness-v1\\.js\\?[^"]+)(")')
+          pattern=re.compile(r'(data-bp-deferred-src=")(/bridgepoint-drone-awareness-v1\.js\?[^"]+)(")')
           for rel in ('index.html','app/index.html'):
             p=site/rel
             s=p.read_text()
