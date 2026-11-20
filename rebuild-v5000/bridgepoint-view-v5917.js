@@ -1072,7 +1072,7 @@ if(a==='wildfire'){
  const surfaceWorld=home?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
  const activeMap=surfaceWorld?.map||surfaceWorld;
  b.disabled=true;
- void import('./bridgepoint-wildfires-volumetric-v1.js?v=1-live-nasa-viirs-mapped-bounds-native-3d').then(m=>{
+ void import('./bridgepoint-wildfires-volumetric-v1.js?v=3-immediate-live-fire-markers').then(m=>{
   const previous=window.__BP_LIVE_WILDFIRES_V1__;
   const api=previous?.map===activeMap?previous:m.initLiveWildfireRenderer(activeMap);
   if(!api?.setEnabled)throw new Error('Source-backed wildfire renderer is unavailable');
@@ -1083,7 +1083,7 @@ if(a==='wildfire'){
     document.querySelectorAll('[data-bpv-action="wildfire"]').forEach(btn=>{
      if(btn.getAttribute('aria-pressed')!=='true')return;
      const label=btn.querySelector('.bpv-command-label');
-     const stateLabel=status.loading?'LOADING…':status.error?'DATA ERROR':
+     const stateLabel=status.loading?'LOADING…':status.error&&!status.markerCount?'DATA ERROR':
        Number.isFinite(status.fireCount)?status.fireCount.toLocaleString()+' FIRES':'ON';
      if(label)label.textContent='Wildfire · '+stateLabel;
      const ready=status.mapLayerReady?'Map style overlay active':
