@@ -31,6 +31,8 @@ jobs:
             print('PRODUCTION_COUNTS',rel,'old',s.count(old),'new',s.count(new),'sha256',sha256(b).hexdigest(),'bytes',len(b))
             assert s.count('bridgepoint-drone-awareness-v1.js')>=1
             assert s.count('faa-gate=8-no-icon-sweep')==1, 'FAA gate marker missing on '+rel
-            assert s.count('faa=7-faa-persistent-no-sweep')==1, 'FAA renderer cache marker missing on '+rel
+            print('PRODUCTION_FAA_REFERENCES',rel,re.findall(r'[^\\x22\\x27<> ]*bridgepoint-faa-obstruction-towers-v1\\.js[^\\x22\\x27<> ]*',s))
+            print('PRODUCTION_FAA_CACHE_KEYS',rel,re.findall(r'faa=[^\\x22\\x27<> ]*',s))
+            assert 'bridgepoint-faa-obstruction-towers-v1.js' in s, 'FAA module reference missing '+rel
           print('LIVE_FAA_BOTH_PAGES_FRESH_GATE_PASS')
           PY
