@@ -388,8 +388,10 @@ function buildShaders(gl, shaderDescription) {
     '  float gerstnerSteepnessC = clamp(0.72 / max((u_waveK * 1.37) * gerstnerAmpC * 3.0, 0.0001), 0.08, 0.85);',
     '  vec2 rawGerstnerOffsetM = (windDir * (gerstnerSteepnessA * gerstnerAmpA * cos(phaseA)) + dirB * (gerstnerSteepnessB * gerstnerAmpB * cos(phaseB)) + dirC * (gerstnerSteepnessC * gerstnerAmpC * cos(gerstnerPhaseC))) * u_pitchWaveScale * marineSurgeMask;',
     '  float gerstnerOffsetLengthM = length(rawGerstnerOffsetM);',
-    '  vec2 gerstnerOffsetM = rawGerstnerOffsetM * min(1.0, max(0.0, u_waveOffsetLimit) / max(gerstnerOffsetLengthM, 0.0001));',
-    '  vec2 displacedPosition = a_pos + gerstnerOffsetM / (40075016.6856 * cLat);',
+    // Keep the geographic footprint fixed. Horizontal Gerstner displacement in a
+    // world-normalized custom layer can stretch triangles into rays when MapLibre pitches.
+    // The animated vertical wave and fragment normals provide the visible water motion.
+    '  vec2 displacedPosition = a_pos;',
     '  gl_Position = projectTileFor3D(displacedPosition, a_height + offsetM);',
     '  v_coord = a_pos - u_waveOrigin;',
     '  v_kind = a_kind;',
