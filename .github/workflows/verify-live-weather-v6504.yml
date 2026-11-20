@@ -45,10 +45,10 @@ jobs:
                 });
                 await page.goto(origin+'/?live-weather='+token+'-'+profile.name,
                   {waitUntil:'domcontentloaded',timeout:70000});
-                await new Promise(resolve=>setTimeout(resolve,profile.mobile?30000:25000));
+                await new Promise(resolve=>setTimeout(resolve,profile.mobile?40000:38000));
                 const status=await page.evaluate(async()=>{
                   const map=window.__BP_LANDING_WORLD__?.map;
-                  const cloud=window.__BP_SKY_CLOUDS_STATE_V5908__||null;
+                  const cloud=window.__BP_SKY_CLOUDS_V5908__?.state||window.__BP_SKY_CLOUDS_STATE_V6202__||window.__BP_SKY_CLOUDS_STATE_V5908__||null;
                   const weather=window.__BP_LANDING_STORM_CLOUD_WEATHER__;
                   const weatherState=window.__bpWeatherV2300?.state;
                   let feed=null;
@@ -65,10 +65,16 @@ jobs:
                     mapLayers:map?.getStyle?.()?.layers?.length,
                     volumeLayer:!!map?.getLayer?.('bp-sky-cloud-volume-v6029'),
                     cloud:cloud?{enabled:cloud.enabled,rendererError:cloud.rendererError,
+                      version:cloud.version,visible:cloud.visible,
                       puffCount:cloud.puffCount,formationCount:cloud.formationCount,
+                      vertexCount:cloud.vertexCount,cloudIndexFormat:cloud.cloudIndexFormat,
+                      stormCount:cloud.stormCount,projectionMode:cloud.projectionMode,
                       sourceCloudMaskCloudMatchedCount:cloud.sourceCloudMaskCloudMatchedCount,
                       satellitePuffCount:cloud.satellitePuffCount,
                       cloudLodBand:cloud.cloudLodBand}:null,
+                    cloudEngine:!!window.__BP_SKY_CLOUDS_V5908__,
+                    rawCloudV6202:(()=>{const c=window.__BP_SKY_CLOUDS_STATE_V6202__;return c?{keys:Object.keys(c),puffCount:c.puffCount,vertexCount:c.vertexCount,globalPuffCount:c.globalPuffCount,rendererError:c.rendererError,formationCount:c.formationCount,sourceHeightSampleCount:c.sourceHeightSampleCount,satellitePuffCount:c.satellitePuffCount}:null})(),
+                    cloudLayer:map?.getLayer?.('bp-sky-cloud-volume-v6029')?.id||null,
                     weather:weather||null,weatherState:weatherState?.counts||null,
                     liveFeed:feed
                   };
