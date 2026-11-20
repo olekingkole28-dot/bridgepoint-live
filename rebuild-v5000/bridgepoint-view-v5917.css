@@ -915,3 +915,6 @@ body.bpv-view-ready #bpv-dock .bpv-dock-actions.bpv-command-groups{
 .bpv-horizon-launch-btn .bpv-command-label{color:#e0d8ff!important;font-weight:950!important;letter-spacing:.12em}
 .bpv-horizon-launch-state{color:#c6b9ff!important;font-size:8px!important;font-weight:950!important;letter-spacing:.08em!important;white-space:normal!important;text-align:right!important}
 @media(max-width:520px){.bpv-horizon-launch-btn{grid-template-columns:25px minmax(0,1fr)!important}.bpv-horizon-launch-state{grid-column:2;text-align:left!important}}
+
+/* 3D clouds are an always-on world layer; the legacy visibility switch is retired. */
+.bpv-command-btn[data-bpv-action="clouds"]{display:none!important}

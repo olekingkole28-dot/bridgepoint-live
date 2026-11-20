@@ -1058,14 +1058,14 @@ if(a==='clouds'){
  const surfaceWorld=home?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
  const activeMap=surfaceWorld?.map||surfaceWorld;
  b.disabled=true;
- void import('./world-v2300-clouds.js?v=6202-global-satellite-cloud-banks').then(m=>{
+ void import('./world-v2300-clouds.js?v=6319-fluffy-volume-clouds').then(m=>{
   const api=window.__BP_SKY_CLOUDS_V5908__?.map===activeMap?window.__BP_SKY_CLOUDS_V5908__:m.initSkyClouds({map:activeMap});
   if(!api)throw new Error('3D cloud renderer is unavailable');
-  const next=!api.enabled;
-  api.setEnabled(next);
+  const next=true;
+  api.setEnabled(true);
   b.setAttribute('aria-pressed',String(next));
   b.classList.toggle('active',next);
-  const label=b.querySelector('.bpv-command-label');if(label)label.textContent='3D Clouds · '+(next?'ON':'OFF');
+  const label=b.querySelector('.bpv-command-label');if(label)label.textContent='3D Clouds · ON';
  }).catch(e=>{b.title='3D cloud control unavailable: '+String(e?.message||e);console.warn('BridgePoint 3D cloud control unavailable',e)}).finally(()=>{b.disabled=false});
  return;
 }

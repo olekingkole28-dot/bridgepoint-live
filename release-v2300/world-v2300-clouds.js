@@ -348,6 +348,9 @@ function collectHeightFeatures(scene, includeGlobalFeed = true) {
     Number.isFinite(Number(x?.cloud_top_height_m ?? x?.cloudTopHeightM)));
 }
 function makePuffGeometry(THREEless, MC, vertices, indices, lng, lat, altitude, rx, ry, rz, tint, slices = 8, stacks = 5, shapeSeed = 0, windX = 0, windY = 0, motionX = 0, motionY = 0, stormEpoch = 0, shapeAngle = 0) {
+  // Build visibly rounded, nested cloud lobes rather than the old low-resolution egg silhouette.
+  slices = Math.max(slices, MOBILE ? 10 : 14);
+  stacks = Math.max(stacks, MOBILE ? 7 : 9);
   const c = MC.fromLngLat({ lng, lat }, Math.max(0, altitude));
   const unit = c.meterInMercatorCoordinateUnits();
   const base = vertices.length / 13;
@@ -365,13 +368,16 @@ function makePuffGeometry(THREEless, MC, vertices, indices, lng, lat, altitude, 
       const lobeB = Math.cos(theta * 5.0 - phi * 3.0 + seed * 1.31);
       const lobeC = Math.sin(theta * 2.0 + phi * 4.0 + seed * 2.17);
       const lobeD = Math.cos(theta * 7.0 + phi * 4.0 + seed * 0.43) * Math.sin(phi * 3.0 + theta * 1.5);
-      const billow = 1.0 + (0.20 * lobeA + 0.125 * lobeB + 0.08 * lobeC + 0.035 * lobeD) * Math.pow(Math.max(0.001, ring), 0.32);
+      const nestedBillows = Math.sin(theta * 9.0 + seed * 2.9 + phi * 5.0) * Math.sin(phi * 4.0 - seed);
+      const cauliflower = 0.56 * lobeA + 0.30 * lobeB + 0.22 * lobeC + 0.12 * lobeD + 0.16 * nestedBillows;
+      const shoulder = Math.pow(Math.max(0.001, ring), 0.24);
+      const billow = 1.0 + cauliflower * shoulder * (convectiveAnvil ? 0.34 : 0.29);
       const anvilTopSpread = convectiveAnvil ? clamp((sz + 0.12) / 0.84, 0, 1) : 0;
       const anvilBaseTaper = convectiveAnvil ? clamp((-sz - 0.10) / 0.75, 0, 1) : 0;
       const anvilProfile = convectiveAnvil ? 1.0 + anvilTopSpread * 0.28 - anvilBaseTaper * 0.15 : 1.0;
       const lx = Math.cos(theta) * ring * billow * anvilProfile;
       const ly = Math.sin(theta) * ring * billow * anvilProfile;
-      const lz = sz * billow;
+      const lz = sz * (1.0 + cauliflower * shoulder * 0.19);
       const cs=Math.cos(shapeAngle),sn=Math.sin(shapeAngle),orientedX=lx*cs-ly*sn,orientedY=lx*sn+ly*cs;
       vertices.push(c.x + orientedX * rx * unit, c.y + orientedY * ry * unit, c.z + lz * rz * unit, altitude + lz * rz, lx, ly, lz, tint, windX, windY, motionX, motionY, stormEpoch);
     }

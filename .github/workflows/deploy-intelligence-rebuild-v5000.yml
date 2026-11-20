@@ -59,6 +59,7 @@ on:
       - 'acquisition_tracker.js'
       - 'language-selector-v5200.js'
       - 'release-v2300/world-v2300-config.js'
+      - 'release-v2300/world-v2300-clouds.js'
       - 'release-v2300/world-v2300-bootstrap.js'
       - 'release-v2300/world-v2300-flythrough.js'
       - 'release-v2300/world-v2300-details.js'
