@@ -170,7 +170,7 @@ export function initBridgePointStarlinkBeamV2(target){
  const prior=window.__BP_EMRF_STARLINK_BEAMS_V2__;
  if(prior?.map===map)return prior;
  const state={map,enabled:false,THREE:null,renderer:null,layer:null,positions:[],catalog:null,
-  scene:null,camera:null,lastPaint:0,sourceError:null,beams:null,variantParts:null,modelBoost:1,orbitPaths:null,lastOrbitAt:0,lastOrbitZoom:-1,lastProjection:null,detailsCard:null,
+  scene:null,camera:null,lastPaint:0,sourceError:null,beams:null,variantParts:null,modelBoost:1,orbitPaths:null,lastOrbitAt:0,lastOrbitZoom:-1,lastProjection:null,detailsCard:null,pickCenters:[],
   updateBusy:false,origin:[],styleReady:false,disposed:false,lastPositionAt:0};
  function setStatus(message,extra={}){
   state.sourceError=extra.error||null;
@@ -204,9 +204,10 @@ export function initBridgePointStarlinkBeamV2(target){
     const projection=args?.defaultProjectionData?.mainMatrix||args?.modelViewProjectionMatrix;
     if(!projection||projection.length<16)return;
     const now=performance.now();
+    state.lastProjection=new T.Matrix4().fromArray(projection);
     if(now-state.lastPaint>15000||state.recompute){state.recompute=false;updateMatrices();state.lastPaint=now;}
     if(!state.beams.count)return;
-    state.lastProjection=new T.Matrix4().fromArray(projection);state.camera.projectionMatrix.copy(state.lastProjection);
+    state.camera.projectionMatrix.copy(state.lastProjection);
     state.beams.material.uniforms.u_time.value=now*.001;
     try{state.renderer.resetState();state.renderer.render(state.scene,state.camera);}
     catch(e){if(!state.renderError){state.renderError=true;console.warn('BridgePoint Starlink instanced beam renderer',e);}}
@@ -219,7 +220,7 @@ export function initBridgePointStarlinkBeamV2(target){
      obj.geometry?.dispose?.();obj.material?.map?.dispose?.();obj.material?.dispose?.();
     }
     try{state.renderer?.dispose();}catch(_){}
-    state.renderer=null;state.layer=null;state.beams=null;state.variantParts=null;state.scene=null;state.camera=null;state.orbitPaths=null;state.lastProjection=null;
+    state.renderer=null;state.layer=null;state.beams=null;state.variantParts=null;state.scene=null;state.camera=null;state.orbitPaths=null;state.lastProjection=null;state.pickCenters=[];
    }
   };
   try{map.addLayer(layer);state.layer=layer;state.recompute=true;}
@@ -236,6 +237,8 @@ export function initBridgePointStarlinkBeamV2(target){
   state.modelBoost=boost;
   const translation=new T.Matrix4(),scale=new T.Matrix4();
   let beamCount=0,c1=0,c2=0;
+  state.pickCenters=[];
+  const canvas=map.getCanvas?.(),w=canvas?.clientWidth||0,h=canvas?.clientHeight||0;
   for(const position of state.positions){
    const world=modelMatrix(T,map,position);if(!world)continue;
    const alt=position.altitudeM;
@@ -244,6 +247,11 @@ export function initBridgePointStarlinkBeamV2(target){
     .multiply(translation.makeTranslation(0,alt*.5,0))
     .multiply(scale.makeScale(radius,alt,radius));
    beam.setMatrixAt(beamCount++,mid);
+   if(w&&h&&state.lastProjection){
+    const ndc=new T.Vector3(0,alt,0).applyMatrix4(world).applyMatrix4(state.lastProjection);
+    if(Number.isFinite(ndc.x)&&Number.isFinite(ndc.y)&&ndc.z>=-1.5&&ndc.z<=1.5)
+     state.pickCenters.push({x:(ndc.x*.5+.5)*w,y:(.5-ndc.y*.5)*h,position});
+   }
    const craft=new T.Matrix4().copy(world).multiply(translation.makeTranslation(0,alt,0))
     .multiply(scale.makeScale(boost,boost,boost));
    const variant=position.modelVariant==='v1.5'?variants.v1:variants.v2;
@@ -306,15 +314,10 @@ export function initBridgePointStarlinkBeamV2(target){
  // Pick custom WebGL satellite meshes using geocentric projected 3D coordinates.
  function onSatelliteClick(ev){
   if(!state.enabled||!state.THREE||!state.lastProjection||!state.positions.length||!ev?.point)return;
-  const T=state.THREE,canvas=map.getCanvas?.(),w=canvas?.clientWidth,h=canvas?.clientHeight;
-  if(!w||!h)return;
   let best=null,distance=34*34;
-  for(const p of state.positions){
-   const world=modelMatrix(T,map,p);if(!world)continue;
-   const ndc=new T.Vector3(0,p.altitudeM,0).applyMatrix4(world).applyMatrix4(state.lastProjection);
-   if(!Number.isFinite(ndc.x)||!Number.isFinite(ndc.y)||ndc.z< -1.5||ndc.z>1.5)continue;
-   const dx=(ndc.x*.5+.5)*w-ev.point.x,dy=(.5-ndc.y*.5)*h-ev.point.y,d=dx*dx+dy*dy;
-   if(d<distance){distance=d;best=p;}
+  for(const item of state.pickCenters){
+   const dx=item.x-ev.point.x,dy=item.y-ev.point.y,d=dx*dx+dy*dy;
+   if(d<distance){distance=d;best=item.position;}
   }
   if(!best)return;
   state.detailsCard?.remove();
