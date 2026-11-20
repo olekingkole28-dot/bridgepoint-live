@@ -64,14 +64,14 @@ for item in items:
     if hours>7*24 or hours< -6: continue
     recent+=hours<=72
     unique.add(catalog)
-    out.append([catalog,name,epoch,mean_motion,e,inc,raan,arg,anom])
+    out.append([catalog,name,epoch,mean_motion,e,inc,raan,arg,anom,str(item.get('OBJECT_ID') or '')])
 if len(out)<2500 or recent<2000:
     raise SystemExit(f"STARLINK_CATALOG_INSPECT_BEFORE_PUBLISH total={len(out)} recent_72h={recent}")
 payload={
     "version":2,"source":"CelesTrak Starlink OMM GP catalog",
     "source_url":SOURCE,"method":"public orbital elements; client-side approximate J2-adjusted Kepler propagation, not operator telemetry",
     "fetched_at":now.isoformat(timespec="seconds"),
-    "record_count":len(out),"recent_72h":recent,"fields":["norad","name","epoch_ms","mean_motion_rev_day","eccentricity","inclination_deg","raan_deg","arg_perigee_deg","mean_anomaly_deg"],
+    "record_count":len(out),"recent_72h":recent,"fields":["norad","name","epoch_ms","mean_motion_rev_day","eccentricity","inclination_deg","raan_deg","arg_perigee_deg","mean_anomaly_deg","international_designator"],
     "records":out
 }
 OUTPUT.parent.mkdir(parents=True,exist_ok=True)
