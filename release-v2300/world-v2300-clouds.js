@@ -205,17 +205,27 @@ const CLOUD_VOLUME_FRAGMENT_V6500 = String.raw`
 // translucent polygon shell, alpha depends on sampled density inside the volume.
 // Source positions/height inputs remain in the existing satellite/terrain pipeline.
 float bpCumulusDensityV6500(vec3 q,float t,float salt){
-  float radius=length(q);
-  if(radius>1.23)return 0.0;
-  vec3 drift=vec3(t*0.0017,-t*0.0011,t*0.0008);
+  // The body is a union of offset rounded cauliflower towers, not a sphere.
+  // Offsets are in the same [-1,1] volume coordinates as the geographic mesh.
+  // Different tint seeds produce different billow arrangements per cloud.
+  float s=salt*6.283185;
+  vec3 off=vec3(sin(s)*.10,cos(s)*.10,sin(s*1.7)*.07);
+  float a=1.0-length((q-(vec3(-.28,-.22,.02)+off)) / vec3(.76,.65,.67));
+  float b=1.0-length((q-(vec3(.30,-.16,.18)-off)) / vec3(.71,.72,.79));
+  float c=1.0-length((q-(vec3(-.06,.26,.38)+off*.5)) / vec3(.62,.68,.68));
+  float d=1.0-length((q-(vec3(.31,.30,-.16)-off*.7)) / vec3(.61,.64,.64));
+  float e=1.0-length((q-(vec3(-.29,.18,-.19)+off*.35)) / vec3(.61,.55,.70));
+  float f=1.0-length((q-(vec3(.01,-.04,.12)+off*.1)) / vec3(.75,.71,.76));
+  float field=max(max(max(a,b),max(c,d)),max(e,f));
+  if(field<-.24)return 0.0;
+  vec3 drift=vec3(t*.0017,-t*.0011,t*.0008);
   vec3 pos=q+drift+vec3(salt*.13,salt*.07,0.0);
-  float coarse=noise3(pos*3.15);
-  float medium=noise3(pos*7.5+vec3(2.3,4.7,1.2));
-  float detail=.5+.5*sin(dot(pos,vec3(22.9,31.4,27.6))+sin(pos.x*12.4+pos.y*8.2)*1.1);
-  float cauliflower=.52*coarse+.31*medium+.17*detail;
-  float rim=1.0-smoothstep(.75,1.19,radius+(medium-.5)*.17);
-  float cellular=smoothstep(.25,.63,cauliflower);
-  return clamp(rim*(.33+.67*cellular),0.0,1.0);
+  float coarse=noise3(pos*3.35);
+  float medium=noise3(pos*7.8+vec3(2.3,4.7,1.2));
+  float micro=.5+.5*sin(dot(pos,vec3(22.9,31.4,27.6))+sin(pos.x*12.4+pos.y*8.2)*1.1);
+  float breakup=.48*coarse+.32*medium+.20*micro;
+  float envelope=smoothstep(-.13,.19,field+(coarse-.5)*.11+(medium-.5)*.045);
+  return clamp(envelope*(.60+.40*smoothstep(.21,.72,breakup)),0.0,1.0);
 }
 vec4 bpRaymarchCumulusV6500(vec3 entry,float tint,float time,
   float pitch,float bearing,float steps){
@@ -242,7 +252,7 @@ vec4 bpRaymarchCumulusV6500(vec3 entry,float tint,float time,
       +.21*q.z,0.15,1.0);
     // A cloudy bright exterior and a self-shadowing deep interior.
     float depthShade=clamp(higher-accum*.26,0.18,1.06);
-    vec3 sunlit=mix(vec3(.55,.61,.69),vec3(1.0,.992,.976),
+    vec3 sunlit=mix(vec3(.68,.74,.81),vec3(1.0,.996,.988),
       smoothstep(.11,.86,depthShade));
     vec3 thunder=mix(vec3(.075,.085,.101),vec3(.45,.48,.50),
       smoothstep(.12,.90,depthShade));
@@ -250,8 +260,8 @@ vec4 bpRaymarchCumulusV6500(vec3 entry,float tint,float time,
     color=mix(color,vec3(.35,.40,.48),tall*(1.0-depthShade)*.43);
     color=mix(color,vec3(.82,.87,.92),thin*.27);
     // A genuine optical accumulation yields volume and silhouette softness.
-    float stepOpacity=matter*mix(.38,.54,storm)*(1.0-.35*thin);
-    stepOpacity*=1.0/steps*5.6;
+    float stepOpacity=matter*mix(.47,.60,storm)*(1.0-.35*thin);
+    stepOpacity*=1.0/steps*6.2;
     stepOpacity=clamp(stepOpacity,0.0,.45);
     premult+=(1.0-accum)*stepOpacity*color;
     accum+=(1.0-accum)*stepOpacity;
