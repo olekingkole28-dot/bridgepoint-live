@@ -1,4 +1,4 @@
-name: Cancel superseded FAA v6 deploy only
+name: Cancel superseded FAA cache candidate only
 on:
   push:
     branches: [main]
@@ -11,12 +11,12 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - name: Cancel specific superseded FAA publish (not other workflows)
+      - name: Cancel specific superseded FAA gate cache run (not other workflows)
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          echo "Cancelling only superseded FAA run 44834431078"
-          gh api -X POST "repos/${GITHUB_REPOSITORY}/actions/runs/44834431078/cancel" ||
-            gh api "repos/${GITHUB_REPOSITORY}/actions/runs/44834431078" --jq '{status,conclusion}'
+          echo "Cancelling only superseded FAA cache run 44837634946"
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/actions/runs/44837634946/cancel" ||
+            gh api "repos/${GITHUB_REPOSITORY}/actions/runs/44837634946" --jq '{status,conclusion}'
