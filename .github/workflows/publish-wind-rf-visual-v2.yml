@@ -1,12 +1,108 @@
-name: Verify Wind RF Visual v2
+name: Publish Wind RF Visual v2 from preserved BridgePoint site
+
 on:
   workflow_dispatch:
   push:
+    branches: [main]
     paths:
       - '.github/workflows/publish-wind-rf-visual-v2.yml'
+
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+
 jobs:
-  verify:
-    runs-on: ubuntu-latest
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 48
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - run: node tests/wind-rf-visual-v2.test.mjs
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify source syntax and scoped visual contracts
+        run: |
+          set -euo pipefail
+          node --input-type=module --check < rebuild-v5000/bridgepoint-global-wind-rf-v1.js
+          node tests/wind-rf-one-touch-v1.test.mjs
+          node tests/wind-rf-visual-v2.test.mjs
+          python3 -m py_compile scripts/overlay_wind_rf_visual_v2.py
+      - name: Download full last successful auth-preserved site
+        uses: actions/download-artifact@v4
+        with:
+          name: bridgepoint-auth-tunnel-recovery-v1
+          run-id: 44697001302
+          repository: ${{ github.repository }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/last-verified-site
+      - name: Apply ONLY requested Wind RF updates to preserved site
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAR="$(find "$RUNNER_TEMP/last-verified-site" -type f -name artifact.tar -print -quit)"
+          test -n "$TAR"
+          OUT="$RUNNER_TEMP/bridgepoint-wind-rf-v2"
+          mkdir -p "$OUT"
+          tar -xf "$TAR" -C "$OUT"
+          python3 scripts/overlay_wind_rf_visual_v2.py "$OUT" rebuild-v5000
+          node --input-type=module --check < "$OUT/bridgepoint-global-wind-rf-v1.js"
+          node --input-type=module --check < "$OUT/bridgepoint-volumetric-fields-v5978.js"
+          node --check "$OUT/bridgepoint-view-v5917.js"
+          node --check "$OUT/landing.js"
+          node --check "$OUT/app.js"
+          grep -Fq 'windrfvisual=v2' "$OUT/index.html"
+          grep -Fq 'windrfvisual=v2' "$OUT/app/index.html"
+      - uses: actions/configure-pages@v5
+      - name: Upload unchanged site plus Wind RF v2
+        uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-wind-rf-visual-v2
+          path: ${{ runner.temp }}/bridgepoint-wind-rf-v2
+          include-hidden-files: true
+      - name: Wait for Pages artifact readiness
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for n in $(seq 1 20); do
+            if gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[].name' | grep -Fxq 'bridgepoint-wind-rf-visual-v2'; then
+              sleep 15
+              exit 0
+            fi
+            sleep 7
+          done
+          exit 1
+      - name: Deploy validated full site to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: bridgepoint-wind-rf-visual-v2
+      - name: Verify live root, app and preserved original features
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE=https://bridgepointintelligence.online
+          for n in 1 2 3 4 5 6 7 8; do
+            if curl -fsSL "$SITE/index.html?windrf=$GITHUB_SHA-$n" | grep -Fq 'windrfvisual=v2' &&
+               curl -fsSL "$SITE/app/index.html?windrf=$GITHUB_SHA-$n" | grep -Fq 'windrfvisual=v2' &&
+               curl -fsSL "$SITE/bridgepoint-global-wind-rf-v1.js?windrf=$GITHUB_SHA-$n" | grep -Fq 'const boost=1;' &&
+               curl -fsSL "$SITE/bridgepoint-spacecraft-museums-v3.js?windrf=$GITHUB_SHA-$n" | grep -Fq 'SPACECRAFT_MUSEUM_EXHIBITS_V3'; then
+               echo 'WIND_RF_VISUAL_V2_LIVE_AND_PRESERVED'
+               exit 0
+            fi
+            sleep 12
+          done
+          exit 1
