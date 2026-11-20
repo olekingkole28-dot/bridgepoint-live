@@ -763,7 +763,7 @@ export function initBridgePointEmrfSpectrogram(target) {
     if(st.starlinkPromise)return st.starlinkPromise;
     st.starlinkPromise=(async()=>{
       try{
-        const mod=await import('./bridgepoint-emrf-starlink-global-v2.js?v=3-emrf-model-orbit-ground');
+        const mod=await import('./bridgepoint-emrf-starlink-global-v2.js?v=3-emrf-model-orbit-ground&restore=20261120-emrf-fire');
         if(!st.active)return;
         let api=window.__BP_EMRF_STARLINK_BEAMS_V2__;
         if(api?.map!==map)api=mod.initBridgePointStarlinkBeamV2(map);
