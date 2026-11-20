@@ -766,6 +766,10 @@ async function initMap(){
   if(!world?.map)throw new Error('Shared BridgePoint world renderer unavailable');
   map=world.map;
   window.__BP_LANDING_WORLD__=world;
+  // Always-on global liquid ocean: initialize before auth so the welcome globe has animated water.
+  void import('./world-v2300-water.js?v=always-on-liquid-ocean')
+   .then(m=>{const api=m.initWaterEngine(world,{surface:'landing',alwaysOn:true});if(api){api.active=true;api.setEnabled?.(true);window.__BP_WATER_ENGINE_LANDING_V6123__=api;window.__BP_WATER_ENGINE_LANDING_V6123_ENABLED__=true;try{world.map.setCenterClampedToGround?.(false);world.map.setMaxPitch?.(110)}catch(_){}}})
+   .catch(e=>console.warn('BridgePoint always-on welcome liquid ocean unavailable',e));
   const bpMobileWelcomeBootV6301=matchMedia('(max-width:900px)').matches||
     Number(navigator.deviceMemory||4)<=4||Number(navigator.hardwareConcurrency||4)<=4;
   if(bpMobileWelcomeBootV6301){
