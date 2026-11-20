@@ -1030,7 +1030,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   weatherGroup.name = 'Persistent animated weather atmosphere';
   weatherGroup.renderOrder = 1;
   scene.add(weatherGroup);
-  const weatherPuffGeometry = new THREE.SphereGeometry(1, mobile ? 7 : 8, mobile ? 5 : 6);
+  const weatherPuffGeometry = new THREE.SphereGeometry(1, mobile ? 5 : 6, mobile ? 4 : 5);
   const weatherCloudMaterial = new THREE.MeshStandardMaterial({
     color: 0xf4f8ff, roughness: 1, metalness: 0, transparent: true,
     opacity: .82, depthTest: true, depthWrite: false
@@ -1046,6 +1046,40 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     new THREE.MeshBasicMaterial({color:0xff751d,transparent:true,opacity:.92,depthTest:true,depthWrite:false}),
     new THREE.MeshBasicMaterial({color:0xf51e3d,transparent:true,opacity:.94,depthTest:true,depthWrite:false})
   ];
+  const weatherCloudPool = new THREE.InstancedMesh(weatherPuffGeometry,weatherCloudMaterial,mobile?40:80);
+  const weatherStormPool = new THREE.InstancedMesh(weatherPuffGeometry,weatherStormMaterial,mobile?20:30);
+  const weatherRadarPools = weatherRadarMaterials.map(material=>new THREE.InstancedMesh(weatherPuffGeometry,material,mobile?8:10));
+  const weatherPools = {cloud:weatherCloudPool,storm:weatherStormPool,r0:weatherRadarPools[0],r1:weatherRadarPools[1],r2:weatherRadarPools[2],r3:weatherRadarPools[3],r4:weatherRadarPools[4]};
+  weatherCloudPool.name='Instanced bright billowy cloud field';
+  weatherStormPool.name='Instanced dark storm cloud field';
+  weatherRadarPools.forEach((pool,i)=>{pool.name='Instanced colored cyclone band '+i;});
+  [weatherCloudPool,weatherStormPool,...weatherRadarPools].forEach(pool=>{
+    pool.userData.weatherCloud=true;
+    pool.frustumCulled=false;
+    weatherGroup.add(pool);
+  });
+  const weatherCursors = {cloud:0,storm:0,r0:0,r1:0,r2:0,r3:0,r4:0};
+  const weatherDummy = new THREE.Object3D();
+  const weatherZAxis = new THREE.Vector3(0,0,1);
+  const addWeatherInstance = (poolKey,frame,x,y,z,sx,sy,sz) => {
+    const pool=weatherPools[poolKey];
+    const index=weatherCursors[poolKey]++;
+    if(!pool||index>=pool.count)return;
+    weatherDummy.position.copy(frame.point)
+      .addScaledVector(frame.east,x)
+      .addScaledVector(frame.north,y)
+      .addScaledVector(frame.normal,z);
+    weatherDummy.quaternion.setFromUnitVectors(weatherZAxis,frame.normal);
+    weatherDummy.scale.set(sx,sy,sz);
+    weatherDummy.updateMatrix();
+    pool.setMatrixAt(index,weatherDummy.matrix);
+  };
+  const finishWeatherInstances = () => {
+    Object.entries(weatherPools).forEach(([key,pool])=>{
+      pool.count=Math.min(pool.count,weatherCursors[key]);
+      pool.instanceMatrix.needsUpdate=true;
+    });
+  };
   const weatherHash = (a,b=0,c=0) => {
     const value = Math.sin(a*127.1 + b*311.7 + c*74.7) * 43758.5453;
     return value - Math.floor(value);
@@ -1070,23 +1104,18 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     const root = new THREE.Group();
     root.name = storm ? 'Dark storm cloud cluster' : 'Bright billowy cloud cluster';
     root.position.copy(frame.point);
-    root.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),frame.normal);
+    root.quaternion.setFromUnitVectors(weatherZAxis,frame.normal);
     root.userData.weatherCloud = true;
     const count = storm ? (mobile ? 4 : 5) : (mobile ? 3 : 4);
     for(let i=0;i<count;i++){
       const angle = weatherHash(seed,i,1)*Math.PI*2;
       const ring = i===0 ? 0 : scale*(.16 + weatherHash(seed,i,2)*.58);
-      const puff = new THREE.Mesh(weatherPuffGeometry,storm ? weatherStormMaterial : weatherCloudMaterial);
-      puff.position.set(
-        Math.cos(angle)*ring,
-        Math.sin(angle)*ring*.68,
-        .012 + weatherHash(seed,i,3)*scale*.34
-      );
       const sx = scale*(.28 + weatherHash(seed,i,4)*.40);
       const sy = scale*(.22 + weatherHash(seed,i,5)*.34);
       const sz = scale*(.18 + weatherHash(seed,i,6)*.28);
-      puff.scale.set(sx,sy,sz);
-      root.add(puff);
+      addWeatherInstance(storm?'storm':'cloud',frame,
+        Math.cos(angle)*ring,Math.sin(angle)*ring*.68,
+        .012 + weatherHash(seed,i,3)*scale*.34,sx,sy,sz);
     }
     weatherGroup.add(root);
     return root;
@@ -1096,20 +1125,19 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     const root = new THREE.Group();
     root.name = 'Animated colored hurricane field';
     root.position.copy(frame.point);
-    root.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),frame.normal);
+    root.quaternion.setFromUnitVectors(weatherZAxis,frame.normal);
     root.userData.weatherCloud = true;
     const stepCount = mobile ? 16 : 22;
     for(let i=0;i<stepCount;i++){
       const t = i/Math.max(1,stepCount-1);
       const angle = t*Math.PI*4.5 + .18*Math.sin(t*18+seed);
       const radius = .014 + .17*t;
-      const cloud = new THREE.Mesh(weatherPuffGeometry,weatherRadarMaterials[Math.min(4,Math.floor(t*5))]);
-      cloud.position.set(Math.cos(angle)*radius,Math.sin(angle)*radius*.74,.036+.022*Math.sin(t*Math.PI));
       const size = .014 + .024*(1-t);
-      cloud.scale.set(size*(1.55+.45*Math.sin(t*9)),size,size*.58);
-      root.add(cloud);
+      addWeatherInstance('r'+Math.min(4,Math.floor(t*5)),frame,
+        Math.cos(angle)*radius,Math.sin(angle)*radius*.74,.036+.022*Math.sin(t*Math.PI),
+        size*(1.55+.45*Math.sin(t*9)),size,size*.58);
     }
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(.032,mobile?7:9,mobile?5:6),
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(.032,mobile?6:8,mobile?4:5),
       new THREE.MeshBasicMaterial({color:0x101629,transparent:true,opacity:.95,depthTest:true,depthWrite:false}));
     eye.position.z=.064;
     root.add(eye);
@@ -1127,18 +1155,17 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     const root = new THREE.Group();
     root.name = 'Animated modeled tornado';
     root.position.copy(frame.point);
-    root.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),frame.normal);
+    root.quaternion.setFromUnitVectors(weatherZAxis,frame.normal);
     root.userData.weatherCloud = true;
     const steps = mobile ? 7 : 9;
     for(let i=0;i<steps;i++){
       const t=i/Math.max(1,steps-1);
-      const puff = new THREE.Mesh(weatherPuffGeometry,weatherStormMaterial);
       const angle = seed + t*15.0;
       const radius = .060*(1-t*.72);
-      puff.position.set(Math.cos(angle)*radius,Math.sin(angle)*radius*.72,.035+t*.25);
       const width = .075*(1-t*.58);
-      puff.scale.set(width*(1.0+.18*Math.sin(i*2.1)),width*.72,width*.58);
-      root.add(puff);
+      addWeatherInstance('storm',frame,
+        Math.cos(angle)*radius,Math.sin(angle)*radius*.72,.035+t*.25,
+        width*(1.0+.18*Math.sin(i*2.1)),width*.72,width*.58);
     }
     const radarBase = new THREE.Mesh(new THREE.TorusGeometry(.082,.012,mobile?5:7,mobile?12:18),
       new THREE.MeshBasicMaterial({color:0xff3a28,transparent:true,opacity:.88,depthTest:true,depthWrite:false}));
@@ -1169,7 +1196,8 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   }
   const welcomeHurricane = makeRadarSpiral(19,-58,4.6);
   const welcomeTornado = makeTornado(35.6,-97.4,2.4);
-  const weatherCard = document.createElement('div');
+  finishWeatherInstances();
+const weatherCard = document.createElement('div');
   weatherCard.hidden = true;
   weatherCard.setAttribute('role','dialog');
   weatherCard.setAttribute('aria-label','Animated weather field details');
