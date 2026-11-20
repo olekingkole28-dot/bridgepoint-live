@@ -412,6 +412,7 @@ jobs:
           node --input-type=module --check < release-v2300/world-v2300-space.js
           node --input-type=module --check < release-v2300/world-v2300-clouds.js
           node --input-type=module --check < release-v2300/world-v2300-weather.js
+          node --input-type=module --check < release-v2300/world-v2300-storm-viewer.js
           node --input-type=module --check < release-v2300/world-v2300-lightning.js
           node --input-type=module --check < release-v2300/world-v2300-time-slider.js
           node --input-type=module --check < release-v2300/world-v2300-spectral-imagery.js
@@ -864,6 +865,8 @@ jobs:
           cp release-v2300/world-v2300-space.js site/world-v2300-space.js
           cp release-v2300/world-v2300-worker.js site/world-v2300-worker.js
           cp release-v2300/world-v2300-weather.js site/world-v2300-weather.js
+          cp release-v2300/world-v2300-storm-viewer.js site/world-v2300-storm-viewer.js
+          test -s site/world-v2300-storm-viewer.js
           cp release-v2300/world-v2300-rain.js site/world-v2300-rain.js
           cp release-v2300/world-v2300-lightning.js site/world-v2300-lightning.js
           cp release-v2300/world-v2300-present-weather.js site/world-v2300-present-weather.js
@@ -911,6 +914,8 @@ jobs:
           cp release-v2300/world-v2300-space.js site/app/world-v2300-space.js
           cp release-v2300/world-v2300-worker.js site/app/world-v2300-worker.js
           cp release-v2300/world-v2300-weather.js site/app/world-v2300-weather.js
+          cp release-v2300/world-v2300-storm-viewer.js site/app/world-v2300-storm-viewer.js
+          test -s site/app/world-v2300-storm-viewer.js
           cp release-v2300/world-v2300-rain.js site/app/world-v2300-rain.js
           cp release-v2300/world-v2300-lightning.js site/app/world-v2300-lightning.js
           cp release-v2300/world-v2300-present-weather.js site/app/world-v2300-present-weather.js
