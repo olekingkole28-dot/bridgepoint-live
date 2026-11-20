@@ -1,0 +1,92 @@
+name: Verify BridgePoint Live Weather V6504
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Deploy BridgePoint Intelligence V5000 Rebuild"]
+    types: [completed]
+permissions:
+  contents: read
+jobs:
+  visual:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Mobile and desktop public-world weather smoke with screenshots
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp
+          npm init -y >/dev/null 2>&1 || true
+          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null
+          CHROME="$(command -v google-chrome || command -v chromium)" node <<'NODE'
+          const puppeteer=require('puppeteer-core');
+          const fs=require('node:fs');
+          const origin='https://bridgepointintelligence.online';
+          const token='6504-'+Date.now();
+          (async()=>{
+            const browser=await puppeteer.launch({headless:true,
+              executablePath:process.env.CHROME,protocolTimeout:90000,
+              args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl',
+                '--ignore-gpu-blocklist','--enable-unsafe-swiftshader']});
+            try{
+              for(const profile of [
+                {name:'desktop',width:1440,height:900,mobile:false,dpr:1},
+                {name:'android',width:390,height:844,mobile:true,dpr:1.5}
+              ]){
+                const page=await browser.newPage(),errors=[],http=[];
+                await page.setViewport({width:profile.width,height:profile.height,
+                  isMobile:profile.mobile,hasTouch:profile.mobile,deviceScaleFactor:profile.dpr});
+                if(profile.mobile)await page.setUserAgent(
+                  'Mozilla/5.0 (Linux; Android 16; Pixel 9a) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');
+                page.on('pageerror',e=>errors.push(String(e?.message||e)));
+                page.on('response',r=>{
+                  if(r.status()>=400 && /world-v2300-(clouds|weather)/.test(r.url()))
+                    http.push({url:r.url(),status:r.status()});
+                });
+                await page.goto(origin+'/?live-weather='+token+'-'+profile.name,
+                  {waitUntil:'domcontentloaded',timeout:70000});
+                await new Promise(resolve=>setTimeout(resolve,profile.mobile?30000:25000));
+                const status=await page.evaluate(async()=>{
+                  const map=window.__BP_LANDING_WORLD__?.map;
+                  const cloud=window.__BP_SKY_CLOUDS_STATE_V5908__||null;
+                  const weather=window.__BP_LANDING_STORM_CLOUD_WEATHER__;
+                  const weatherState=window.__bpWeatherV2300?.state;
+                  let feed=null;
+                  try{
+                    const req=await fetch('https://raw.githubusercontent.com/olekingkole28-dot/bridgepoint-live/storm-live-data/data/storm-current.json?device='+Date.now(),{cache:'no-store'});
+                    const p=await req.json();
+                    feed={http:req.status,generated_at:p.generated_at,counts:p.counts};
+                  }catch(e){feed={error:String(e)}}
+                  return {
+                    welcomeVisible:!!document.getElementById('bpWelcomeGateV1'),
+                    loginVisible:!!document.querySelector('#bpWelcomeGateV1 .bpw-signin'),
+                    mapAvailable:!!map,styleLoaded:map?.isStyleLoaded?.(),
+                    mapProjection:map?.getProjection?.()?.name,
+                    mapLayers:map?.getStyle?.()?.layers?.length,
+                    volumeLayer:!!map?.getLayer?.('bp-sky-cloud-volume-v6029'),
+                    cloud:cloud?{enabled:cloud.enabled,rendererError:cloud.rendererError,
+                      puffCount:cloud.puffCount,formationCount:cloud.formationCount,
+                      sourceCloudMaskCloudMatchedCount:cloud.sourceCloudMaskCloudMatchedCount,
+                      satellitePuffCount:cloud.satellitePuffCount,
+                      cloudLodBand:cloud.cloudLodBand}:null,
+                    weather:weather||null,weatherState:weatherState?.counts||null,
+                    liveFeed:feed
+                  };
+                });
+                await page.screenshot({path:'/tmp/bridgepoint-weather-'+profile.name+'.png',
+                  fullPage:false,captureBeyondViewport:false});
+                console.log('BRIDGEPOINT_V6504_LIVE_VISUAL_DIAG',JSON.stringify({profile:profile.name,status,errors:errors.slice(0,8),http}));
+                if(http.length)throw Error('Required weather JavaScript not served: '+JSON.stringify(http));
+                if(status.liveFeed?.http!==200)throw Error('Public storm snapshot unavailable '+JSON.stringify(status.liveFeed));
+                await page.close();
+              }
+            }finally{await browser.close()}
+          })().catch(e=>{console.error(e.stack||e);process.exit(1)});
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bridgepoint-weather-live-v6504
+          path: /tmp/bridgepoint-weather-*.png
+          if-no-files-found: ignore
+          retention-days: 3
