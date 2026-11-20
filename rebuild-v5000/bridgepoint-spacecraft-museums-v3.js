@@ -206,3 +206,214 @@ export function buildMuseumExhibitScene(T,site){
  group.traverse(o=>{if(o.isMesh){o.frustumCulled=false;o.castShadow=false;o.receiveShadow=false;}});
  return group;
 }
+function worldMatrix(map,T,coords,elev){
+ try{
+  const raw=map.transform?.getMatrixForModel?.(coords,elev);
+  if(raw&&raw.length>=16)return new T.Matrix4().fromArray(raw);
+  const C=window.maplibregl?.MercatorCoordinate;
+  if(!C?.fromLngLat)return null;
+  const p=C.fromLngLat(coords,elev),u=p.meterInMercatorCoordinateUnits();
+  if(!Number.isFinite(u)||u<=0)return null;
+  return new T.Matrix4().set(u,0,0,p.x,0,0,u,p.y,0,u,0,p.z,0,0,0,1);
+ }catch(_){return null;}
+}
+function visibleSite(state,site){
+ if(Number(state.map.getZoom?.()||0)<11.5)return false;
+ try{return !!state.map.getBounds?.()?.contains(site.coordinates);}catch(_){return false;}
+}
+function selectedSite(state){
+ if(!state.enabled)return null;
+ if(state.selected&&visibleSite(state,state.selected))return state.selected;
+ return SPACECRAFT_MUSEUM_EXHIBITS_V3.find(s=>visibleSite(state,s))||null;
+}
+function ensureLayer(state){
+ if(!state.enabled||!state.THREE||!state.map?.getStyle?.())return false;
+ if(state.map.getLayer?.(LAYER_ID)&&state.renderer)return true;
+ const T=state.THREE,map=state.map;
+ const layer={id:LAYER_ID,type:'custom',renderingMode:'3d',
+  onAdd(m,gl){
+   state.renderer=new T.WebGLRenderer({canvas:m.getCanvas(),context:gl,antialias:false,alpha:true,powerPreference:'low-power'});
+   state.renderer.autoClear=false;state.renderer.outputColorSpace=T.SRGBColorSpace;
+   state.scene=new T.Scene();state.scene.add(new T.AmbientLight(0xffffff,2.1));
+   const key=new T.DirectionalLight(0xffe7d0,1.5);key.position.set(-35,90,75);state.scene.add(key);
+   state.camera=new T.Camera();state.model=null;state.activeId=null;
+  },
+  render(_gl,args){
+   if(!state.enabled||!state.renderer||!state.scene||!state.camera)return;
+   const site=selectedSite(state);if(!site)return;
+   if(state.activeId!==site.id){
+    if(state.model)state.scene.remove(state.model);
+    state.model=buildMuseumExhibitScene(T,site);
+    state.scene.add(state.model);state.activeId=site.id;
+   }
+   const projection=args&&(args.defaultProjectionData?.mainMatrix||args.modelViewProjectionMatrix);
+   if(!projection||projection.length<16)return;
+   let altitude=0;
+   try{const z=map.queryTerrainElevation?.(site.coordinates,{exaggerated:false});
+       if(z!==null&&z!==undefined&&Number.isFinite(+z))altitude=+z;}catch(_){}
+   const matrix=worldMatrix(map,T,site.coordinates,altitude);
+   if(!matrix)return;
+   state.camera.projectionMatrix.copy(new T.Matrix4().fromArray(projection)).multiply(matrix);
+   try{state.renderer.resetState();state.renderer.render(state.scene,state.camera);}
+   catch(e){if(!state.warned){state.warned=true;console.warn('BridgePoint museum spacecraft native renderer',e);}}
+  },
+  onRemove(){try{state.renderer?.dispose();}catch(_){}
+   state.renderer=null;state.scene=null;state.camera=null;state.model=null;state.activeId=null;}
+ };
+ try{map.addLayer(layer);return true;}catch(e){state.layerError=String(e?.message||e);return false;}
+}
+function maybeLoadGlobe(state){
+ if(!state.enabled||!selectedSite(state))return;
+ if(state.THREE){ensureLayer(state);return;}
+ void getThree().then(T=>{if(!state.destroyed&&state.enabled){state.THREE=T;ensureLayer(state);state.map.triggerRepaint?.();}})
+  .catch(e=>console.warn('BridgePoint museum spacecraft geometry unavailable',e));
+}
+function ensureMarkers(state){
+ const Marker=window.maplibregl?.Marker;if(typeof Marker!=='function')return;
+ for(const site of SPACECRAFT_MUSEUM_EXHIBITS_V3){
+  let entry=state.markers.get(site.id);
+  if(!entry){
+   const button=document.createElement('button');button.type='button';button.className=ICON_CLASS;
+   button.title=site.name+' · BridgePoint 3D model';
+   button.setAttribute('aria-label','Open BridgePoint 3D model of '+site.name);
+   button.style.setProperty('--bp-museum-accent','#'+site.accent.toString(16).padStart(6,'0'));
+   button.innerHTML=site.type==='capsule'?
+    '<svg viewBox="0 0 60 60" aria-hidden="true"><path d="M16 42 23 16l7-6 7 6 7 26-14 8Z" fill="currentColor" stroke="#ffeac8" stroke-width="2"/><rect x="25" y="25" width="10" height="7" rx="2" fill="#1c3849"/></svg>':
+    site.type==='orbiter'?
+    '<svg viewBox="0 0 60 60" aria-hidden="true"><path d="M30 5 35 29 53 42v6l-19-6-2 12h-4l-2-12-19 6v-6l18-13Z" fill="currentColor" stroke="#ffeac8" stroke-width="2"/></svg>':
+    '<svg viewBox="0 0 60 60" aria-hidden="true"><path d="M30 5 22 23v17L13 50l12-5h10l12 5-9-10V23Z" fill="currentColor" stroke="#ffeac8" stroke-width="2"/><circle cx="30" cy="24" r="4" fill="#143c52"/></svg>';
+   button.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();if(state.enabled)openCard(state,site);});
+   const marker=new Marker({element:button,anchor:'center'}).setLngLat(site.coordinates).addTo(state.map);
+   entry={marker,button};state.markers.set(site.id,entry);
+  }
+  entry.button.hidden=!state.enabled;entry.button.disabled=!state.enabled;
+  entry.button.setAttribute('aria-hidden',String(!state.enabled));
+ }
+}
+function showOnGlobe(state,site){
+ if(!state.enabled)return false;
+ state.selected=site;
+ const zoom=site.type==='capsule'?19:17.5;
+ try{state.map.flyTo?.({center:site.coordinates,zoom,pitch:68,bearing:24,duration:1100});}
+ catch(_){state.map.jumpTo?.({center:site.coordinates,zoom,pitch:68});}
+ void getThree().then(T=>{if(state.destroyed||!state.enabled)return;state.THREE=T;ensureLayer(state);state.map.triggerRepaint?.();});
+ return true;
+}
+function openCard(state,site){
+ if(!state.enabled||!window.maplibregl?.Popup)return;
+ state.popup?.remove();state.selected=site;
+ const d=site.dims;
+ const specs=site.type==='orbiter'?d.length+' m length · '+d.span+' m wingspan · '+d.height+' m type envelope':
+  site.type==='capsule'?d.height+' m height · '+d.diameter+' m diameter':
+  d.length+' m full length · '+d.diameter+' m core diameter';
+ const html='<article class="bp-museum-card">'+
+  '<div class="bp-museum-kicker">BRIDGEPOINT · SPACECRAFT / MUSEUM COLLECTION</div>'+
+  '<h3>'+safe(site.name)+'</h3><p>'+safe(site.loc)+'</p>'+
+  '<div class="bp-museum-viewer" data-bp-museum-viewer role="group" aria-label="BridgePoint-hosted interactive 3D model of '+safe(site.name)+'">Loading local 3D museum model…</div>'+
+  '<div class="bp-museum-buttons"><button type="button" data-bp-museum-reset>Reset 3D view</button><button type="button" data-bp-museum-globe>Show 3D model on Earth</button></div>'+
+  '<div class="bp-museum-facts"><span><b>Exhibit</b>'+safe(site.exhibit)+'</span><span><b>Vehicle dimensions</b>'+safe(specs)+'</span>'+
+  '<span><b>Display attitude</b>'+safe(site.display)+'</span>'+
+  '<span><b>Museum coordinates</b>'+Math.abs(site.coordinates[1]).toFixed(5)+'° '+(site.coordinates[1]>=0?'N':'S')+', '+Math.abs(site.coordinates[0]).toFixed(5)+'° '+(site.coordinates[0]>=0?'E':'W')+'</span></div>'+
+  '<p class="bp-museum-description">'+safe(site.description)+'</p>'+
+  '<p class="bp-museum-disclosure"><strong>Model provenance:</strong> This is an original BridgePoint-hosted dimensional 3D illustration, not a photogrammetry scan or original manufacturer CAD. Overall vehicle dimensions follow published specifications; surfaces, small parts, markings, support stands and details are illustrative.</p>'+
+  '<p class="bp-museum-disclosure"><strong>Globe placement:</strong> The persistent icon is at the approximate real museum location. The model is rendered locally in world metres at terrain elevation, but its relative heading, physical footprint within an indoor gallery, and display mount are not survey-aligned. An object in an indoor museum is shown beside the globe terrain for visibility, not claimed to be physically outside.</p>'+
+  '<div class="bp-museum-sources"><b>Exhibit and dimensions</b><a href="'+safe(site.source)+'" target="_blank" rel="noopener noreferrer">Museum exhibit source (external)</a><a href="'+safe(site.specs)+'" target="_blank" rel="noopener noreferrer">Published vehicle specifications (external)</a></div></article>';
+ const Popup=window.maplibregl.Popup;
+ const popup=new Popup({closeButton:true,closeOnClick:true,maxWidth:'520px',className:'bp-museum-popup'}).setLngLat(site.coordinates).setHTML(html).addTo(state.map);
+ state.popup=popup;
+ popup.getElement?.()?.querySelector('[data-bp-museum-globe]')?.addEventListener('click',()=>showOnGlobe(state,site));
+ void mountViewer(popup,site);
+}
+async function mountViewer(popup,site){
+ const root=popup.getElement?.(),host=root?.querySelector('[data-bp-museum-viewer]');if(!host)return;
+ let disposed=false,renderer=null,frame=0,observer=null;
+ popup.on?.('close',()=>{disposed=true;if(frame)cancelAnimationFrame(frame);observer?.disconnect();try{renderer?.dispose();}catch(_){}});
+ try{
+  const T=await getThree();if(disposed||!host.isConnected)return;
+  const canvas=document.createElement('canvas');canvas.style.touchAction='none';
+  canvas.setAttribute('aria-label','Drag to rotate spacecraft; scroll or pinch to zoom');
+  host.replaceChildren(canvas);
+  renderer=new T.WebGLRenderer({canvas,antialias:false,powerPreference:'low-power'});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.35));
+  renderer.outputColorSpace=T.SRGBColorSpace;
+  const scene=new T.Scene();scene.background=new T.Color(0x061421);
+  scene.add(new T.AmbientLight(0xffffff,2.05));
+  const key=new T.DirectionalLight(0xffefdb,1.55);key.position.set(-32,85,64);scene.add(key);
+  const fill=new T.DirectionalLight(0x8abbdb,.7);fill.position.set(55,20,-48);scene.add(fill);
+  const model=buildMuseumExhibitScene(T,site);scene.add(model);
+  const b=new T.Box3().setFromObject(model),size=b.getSize(new T.Vector3()),target=b.getCenter(new T.Vector3()),span=Math.max(size.x,size.y,size.z);
+  const camera=new T.PerspectiveCamera(38,1,.05,3000);
+  let distance=span*1.75,theta=.73,phi=1.12,drag=false,lastX=0,lastY=0,pinchDistance=null;
+  const update=()=>{phi=Math.max(.08,Math.min(Math.PI-.08,phi));camera.position.set(
+   target.x+distance*Math.sin(phi)*Math.sin(theta),target.y+distance*Math.cos(phi),
+   target.z+distance*Math.sin(phi)*Math.cos(theta));camera.lookAt(target);};
+  const resize=()=>{if(disposed)return;const w=Math.max(1,host.clientWidth||320),h=Math.max(1,host.clientHeight||250);
+   renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();};
+  const reset=()=>{distance=span*1.75;theta=.73;phi=1.12;update();};
+  resize();if(typeof ResizeObserver!=='undefined'){observer=new ResizeObserver(resize);observer.observe(host);}
+  canvas.addEventListener('pointerdown',e=>{drag=true;lastX=e.clientX;lastY=e.clientY;canvas.setPointerCapture?.(e.pointerId);});
+  canvas.addEventListener('pointermove',e=>{if(!drag)return;theta-=(e.clientX-lastX)*.009;phi+=(e.clientY-lastY)*.009;lastX=e.clientX;lastY=e.clientY;update();});
+  for(const event of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(event,()=>{drag=false;pinchDistance=null;});
+  canvas.addEventListener('wheel',e=>{e.preventDefault();distance=Math.max(span*.62,Math.min(span*8,distance*Math.exp(e.deltaY*.001)));update();},{passive:false});
+  root.querySelector('[data-bp-museum-reset]')?.addEventListener('click',reset);
+  reset();let previous=0;
+  const draw=t=>{if(disposed)return;if(t-previous>=32){renderer.render(scene,camera);previous=t;}frame=requestAnimationFrame(draw);};
+  frame=requestAnimationFrame(draw);
+ }catch(e){if(!disposed)host.textContent='BridgePoint local 3D viewer unavailable: '+String(e?.message||e);}
+}
+function addStyles(){
+ if(document.getElementById(STYLE_ID))return;
+ const s=document.createElement('style');s.id=STYLE_ID;
+ s.textContent='.'+ICON_CLASS+'{display:grid;place-items:center;width:39px;height:39px;border-radius:50%;padding:6px;border:1px solid #ffe3b4;background:radial-gradient(circle,#1b3446,#071523);color:var(--bp-museum-accent,#ecc681);box-shadow:0 0 0 2px #d2b47533,0 2px 10px #000a;cursor:pointer;touch-action:manipulation;z-index:44}'+
+  '.'+ICON_CLASS+'[hidden]{display:none!important}.'+ICON_CLASS+' svg{width:26px;height:26px;display:block}.'+ICON_CLASS+':focus-visible{outline:3px solid white;outline-offset:2px}'+
+  '.bp-museum-popup .maplibregl-popup-content{background:#06131f;color:#e4f0f9;border:1px solid #dab677;border-radius:12px;padding:12px;width:min(490px,calc(100vw - 38px));max-height:82vh;overflow:auto;font:12px/1.5 system-ui,sans-serif}.bp-museum-popup .maplibregl-popup-tip{border-top-color:#06131f;border-bottom-color:#06131f}'+
+  '.bp-museum-card h3{font-size:18px;color:#fff;margin:4px 0}.bp-museum-card p{margin:7px 0;color:#bfcdd6}.bp-museum-kicker{color:#f2d399;font-size:9px;font-weight:900;letter-spacing:.1em}'+
+  '.bp-museum-viewer{width:100%;height:255px;display:grid;place-items:center;overflow:hidden;background:#030b15;border:1px solid #746449;border-radius:8px}.bp-museum-viewer canvas{display:block;width:100%;height:100%}'+
+  '.bp-museum-buttons{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0}.bp-museum-buttons button{flex:1;min-width:120px;border:1px solid #b79a64;background:#362a22;color:#fff0d1;border-radius:7px;padding:8px;font-size:11px}'+
+  '.bp-museum-facts{display:grid;grid-template-columns:1fr 1fr;gap:6px}.bp-museum-facts span{display:grid;gap:3px;padding:7px;border:1px solid #42627870;border-radius:6px}.bp-museum-facts b{font-size:9px;text-transform:uppercase;color:#a8bac8}'+
+  '.bp-museum-card .bp-museum-disclosure{font-size:10px;line-height:1.5}.bp-museum-sources{display:grid;gap:5px;font-size:10px}.bp-museum-sources a{color:#f4d1a0;text-decoration:underline}'+
+  '@media(max-width:480px){.bp-museum-viewer{height:228px}.bp-museum-popup .maplibregl-popup-content{padding:9px}}';
+ document.head.appendChild(s);
+}
+function readToggle(state){
+ const next=state.toggle?.getAttribute('aria-pressed')==='true';
+ if(state.enabled===next&&state.markers.size===SPACECRAFT_MUSEUM_EXHIBITS_V3.length)return;
+ state.enabled=next;ensureMarkers(state);
+ if(next)maybeLoadGlobe(state);else{state.popup?.remove();state.selected=null;}
+ state.map.triggerRepaint?.();
+}
+function bindToggle(state){
+ const toggle=document.getElementById(TOGGLE_ID);
+ if(!toggle||state.toggle===toggle)return;
+ state.toggle=toggle;toggle.addEventListener('click',()=>queueMicrotask(()=>readToggle(state)));
+ state.toggleObserver?.disconnect();
+ state.toggleObserver=new MutationObserver(()=>readToggle(state));
+ state.toggleObserver.observe(toggle,{attributes:true,attributeFilter:['aria-pressed']});readToggle(state);
+}
+export function initSpacecraftMuseumsRenderer(target){
+ const map=target&&(target.map||target);
+ if(!map||typeof map.getBounds!=='function'||typeof map.addLayer!=='function')return null;
+ if(states.has(map))return states.get(map).api;
+ addStyles();
+ const state={map,enabled:false,destroyed:false,markers:new Map(),selected:null,model:null,activeId:null,THREE:null,popup:null,toggle:null,toggleObserver:null,bodyObserver:null,renderer:null,scene:null,camera:null};
+ const handle=()=>{if(state.enabled){ensureMarkers(state);maybeLoadGlobe(state);map.triggerRepaint?.();}};
+ for(const event of ['load','style.load','moveend','zoomend'])map.on?.(event,handle);
+ const api={version:3,sites:SPACECRAFT_MUSEUM_EXHIBITS_V3,
+  get enabled(){return state.enabled;},
+  get stats(){return {count:state.markers.size,enabled:state.enabled,active:state.activeId,layerReady:!!map.getLayer?.(LAYER_ID)};},
+  setEnabled(on){state.enabled=!!on;ensureMarkers(state);if(state.enabled)maybeLoadGlobe(state);else{state.selected=null;state.popup?.remove();}map.triggerRepaint?.();return state.enabled;},
+  openCard(id){const site=SPACECRAFT_MUSEUM_EXHIBITS_V3.find(s=>s.id===id);if(site&&state.enabled)openCard(state,site);},
+  showOnGlobe(id){const site=SPACECRAFT_MUSEUM_EXHIBITS_V3.find(s=>s.id===id);return !!site&&showOnGlobe(state,site);},
+  destroy(){state.destroyed=true;state.enabled=false;state.popup?.remove();state.toggleObserver?.disconnect();state.bodyObserver?.disconnect();
+   for(const entry of state.markers.values())entry.marker.remove();
+   for(const event of ['load','style.load','moveend','zoomend'])map.off?.(event,handle);
+   if(map.getLayer?.(LAYER_ID))try{map.removeLayer(LAYER_ID);}catch(_){}
+   states.delete(map);document.getElementById(STYLE_ID)?.remove();}
+ };
+ state.api=api;states.set(map,state);bindToggle(state);
+ if(typeof MutationObserver!=='undefined'&&document.body){
+  state.bodyObserver=new MutationObserver(()=>{if(!state.toggle?.isConnected)bindToggle(state);});
+  state.bodyObserver.observe(document.body,{childList:true,subtree:true});
+ }
+ return api;
+}
