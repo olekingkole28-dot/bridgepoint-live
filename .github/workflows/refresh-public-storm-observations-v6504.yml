@@ -1,0 +1,55 @@
+name: Refresh BridgePoint Source-Backed Storms V6504
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/5 * * * *'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/refresh-public-storm-observations-v6504.yml'
+      - 'tools/weather/refresh_live_storms.py'
+permissions:
+  contents: write
+concurrency:
+  group: bridgepoint-public-storm-observations-v6504
+  cancel-in-progress: true
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Fetch official cyclone centers, preliminary tornado reports and current warnings
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile tools/weather/refresh_live_storms.py
+          python tools/weather/refresh_live_storms.py "$RUNNER_TEMP/storm-current.json"
+          python - "$RUNNER_TEMP/storm-current.json" <<'PY'
+          import json,sys,datetime
+          x=json.load(open(sys.argv[1],encoding='utf-8'))
+          assert x.get('schema_version')==1
+          assert isinstance(x.get('storms'),list) and isinstance(x.get('tornadoes'),list)
+          assert isinstance(x.get('alerts'),list) and len(x.get('sources',[]))==4
+          assert all(s.get('source') in ('NOAA/NHC','NASA EONET') for s in x['storms'])
+          assert all(t.get('observed') is True and t.get('source')=='NOAA/SPC preliminary storm reports' for t in x['tornadoes'])
+          assert all(a.get('properties',{}).get('is_warning_not_tornado_location') is True for a in x['alerts'])
+          print('BRIDGEPOINT_WEATHER_REAL_DATA_VALIDATION_PASS',x['counts'])
+          PY
+      - name: Publish compact storm feed to a standalone data branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan storm-public-publish
+          git rm -rf . >/dev/null 2>&1 || true
+          mkdir -p data
+          cp "$RUNNER_TEMP/storm-current.json" data/storm-current.json
+          git add data/storm-current.json
+          git commit -m "Update observed storms and warnings $(date -u +'%Y-%m-%dT%H:%MZ')"
+          git push origin HEAD:storm-live-data --force
+          echo "BRIDGEPOINT_STORM_PUBLIC_DATA_PUBLISHED https://raw.githubusercontent.com/${{ github.repository }}/storm-live-data/data/storm-current.json"
