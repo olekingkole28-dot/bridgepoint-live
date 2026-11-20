@@ -321,6 +321,36 @@ assert.match(UNDERGROUND_SCAN_SITES.find(s=>s.id==='mayan-blue-cenote-tulum').mo
 assert.match(UNDERGROUND_SCAN_SITES.find(s=>s.id==='petra-great-temple-jordan').models[0].method,/7.8 million/i);
 assert.match(UNDERGROUND_SCAN_SITES.find(s=>s.id==='chiquihuite-cave-zacatecas-mexico').models[0].detail,/UNIT X-12/);
 
+
+const fifteenUniqueArchaeologicalV22=[["kaymakli-underground-city-turkey","ff65fb61e6af4774873cb2a7046c283d","catacomb"],["kyiv-pechersk-near-caves-ukraine","e0e43e0c995a4832be6b0689c4a4f32b","catacomb"],["kyiv-pechersk-far-caves-ukraine","31109af6c895415b987561a54d21f4ba","catacomb"],["matera-sassi-cave-houses-italy","c5ea8441fc2445a481bb4198f83273cc","tomb"],["basarabi-murfatlar-b4-rock-church-romania","3d46c0e9e8a74541af5df1b3341e4027","catacomb"],["brno-ossuary-underground-czechia","20b1fed375104cd7bebb2db7cdaf0f0c","catacomb"],["petra-ad-deir-monastery-jordan","b1bb4d6d9bfa4bd2a85621186016734e","tomb"],["great-zimbabwe-great-enclosure-scan","4368b31623f54917b462041beb6cbd3c","tomb"],["meroe-northern-pyramid-field-sudan","b395c56bdeec4047853670c7cd39ef72","tomb"],["persepolis-achaemenid-terrace-iran","e8f36eab22ae4e7fb94d3a7cc9939669","tomb"],["abu-simbel-twin-temples-egypt","810411acbae84502af5dca94fd3c596a","tomb"],["karnak-harpre-north-temple-egypt","9eba84c6a6c84d83b6235956e171b7c9","tomb"],["chavin-de-huantar-andes-peru","a0fbb78a90704f77974ad03428a3d704","tomb"],["bagan-khayiminga-temple-group-myanmar","60242ad002694827b6a95eeeecd22c84","tomb"],["giza-khufu-great-pyramid-egypt","4a251113722f4d969b6cf2ca5f35c502","tomb"]];
+assert.equal(fifteenUniqueArchaeologicalV22.length,15,'fifteen independent archaeological site markers');
+assert.equal(new Set(fifteenUniqueArchaeologicalV22.map(x=>x[0])).size,15,'no duplicate site markers');
+assert.equal(new Set(fifteenUniqueArchaeologicalV22.map(x=>x[1])).size,15,'fifteen real unique original 3D scans');
+assert.equal(fifteenUniqueArchaeologicalV22.filter(([, ,t])=>t==='catacomb').length,5,'five underground cave-city/ossuary heritage anchors');
+assert.equal(fifteenUniqueArchaeologicalV22.filter(([, ,t])=>t==='tomb').length,10,'ten large temple, pyramid and ancient city anchors');
+for(const [siteId,uid,icon] of fifteenUniqueArchaeologicalV22){
+ const site=UNDERGROUND_SCAN_SITES.find(s=>s.id===siteId);
+ assert.ok(site,'source-published archaeological site '+siteId);
+ assert.equal(site.type,icon,'persistent archaeology marker type '+siteId);
+ assert.equal(site.models.length,1,'no imaginary extra source scans');
+ const m=site.models[0];
+ assert.equal(m.uid,uid);
+ assert.equal(m.embedOnly,true,'safe original-creator hosted model');
+ assert.ok(m.creator&&m.license&&m.method&&m.detail&&m.modelUrl.endsWith(uid));
+ assert.ok(site.locationPrecision&&site.locationPrecision.length>75&&site.locationNote&&site.locationNote.length>30);
+ assert.ok(site.coordinates.every(n=>typeof n==='number'&&Number.isFinite(n)));
+ const html=undergroundSitePopupHtml(site,uid);
+ assert.ok(html.includes('sketchfab.com/models/'+uid+'/embed'),'in-BridgePoint viewer '+uid);
+ assert.ok(html.includes('sandbox="allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-presentation"'));
+ assert.ok(!html.includes('allow-top-navigation')&&!html.includes('allow-popups')&&!html.includes('target="_blank"'));
+}
+assert.match(UNDERGROUND_SCAN_SITES.find(s=>s.id==='kyiv-pechersk-near-caves-ukraine').models[0].detail,/383.metre/);
+assert.match(UNDERGROUND_SCAN_SITES.find(s=>s.id==='kyiv-pechersk-far-caves-ukraine').models[0].detail,/293.metre/);
+assert.match(UNDERGROUND_SCAN_SITES.find(s=>s.id==='kaymakli-underground-city-turkey').models[0].detail,/gallery/i);
+assert.match(UNDERGROUND_SCAN_SITES.find(s=>s.id==='petra-ad-deir-monastery-jordan').models[0].method,/9,250/);
+assert.match(UNDERGROUND_SCAN_SITES.find(s=>s.id==='meroe-northern-pyramid-field-sudan').models[0].method,/16.7 million/);
+assert.match(UNDERGROUND_SCAN_SITES.find(s=>s.id==='giza-khufu-great-pyramid-egypt').models[0].detail,/NOT show/);
+
 const fiveRemoteDeepCaves=[
  {id:'wells-gray-sarlaccs-pit-canada',coordinates:[-120,52.33306],uid:'df5dea76480f4ed3af018d885a13b704',method:/photogrammetry/i,detail:/ONLY reconstructs the exposed entrance/,placement:/regional/i},
  {id:'gorner-glacier-g6-moulin-switzerland',coordinates:[7.81528,45.94750],uid:'5dc79d2891f24e9fa571b9e910556ec8',method:/Photogrammetry/i,detail:/not a LiDAR point-cloud/,placement:/NOT the surveyed/i},
