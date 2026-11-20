@@ -35,39 +35,67 @@ function windColor(kmh){
 }
 // Ribbons are translucent 3D strips with volumetric-looking moving veils;
 // no fake world coordinates or particle points are generated.
+// Source samples remain attached to their model coordinates globally. At street
+// zoom, viewport anchors interpolate the NEAREST grid forecast for illustrative
+// flow only; the existing obstacle-aware local renderer supplies the fine detail.
+function visibleSamples(map,rows,jet,zoom){
+ const candidates=jet?rows.filter(r=>r[4]>=85):rows;
+ if(zoom<7||!candidates.length)return candidates;
+ const b=map.getBounds?.();
+ if(!b||!Number.isFinite(b.getWest?.())||!Number.isFinite(b.getSouth?.()))return candidates;
+ let west=b.getWest(),east=b.getEast(),south=b.getSouth(),north=b.getNorth();
+ if(east<west)east+=360;
+ const dx=clamp(east-west,.002,12),dy=clamp(north-south,.002,12);
+ const out=[],nx=jet?5:9,ny=jet?4:7;
+ for(let y=0;y<ny;y++)for(let x=0;x<nx;x++){
+  const lat=clamp(south+dy*(y+.5)/ny,-85,85);
+  const lon=((west+dx*(x+.5)/nx+540)%360)-180;
+  let chosen=null,best=Infinity;
+  for(const row of candidates){
+   const dlon=Math.abs(((lon-row[1]+540)%360)-180)*Math.max(.15,Math.cos(lat*R));
+   const distance=(lat-row[0])**2+dlon**2;
+   if(distance<best){best=distance;chosen=row;}
+  }
+  if(chosen)out.push([lat,lon,...chosen.slice(2)]);
+ }
+ return out;
+}
 function streamGeometry(T,map,rows,kind,zoom){
  const positions=[],colors=[],progress=[],phase=[],indices=[],strength=[];
  const isJet=kind==='jet',mobile=typeof window!=='undefined'&&window.innerWidth<700;
- const selected=isJet?rows.filter(r=>r[4]>=95):rows;
- const budget=mobile?(isJet?85:120):(isJet?140:120);
+ const selected=visibleSamples(map,rows,isJet,zoom);
+ const budget=mobile?(isJet?105:170):(isJet?170:280);
  const count=Math.min(selected.length,budget);
- const linesPerSample=isJet?2:mobile?4:7;
- const segments=isJet?12:13;
- const baseWidth=(isJet?21000:34000)*clamp(Math.pow(2,3-zoom),.5,3);
+ const linesPerSample=isJet?(mobile?4:5):mobile?7:10;
+ const segments=mobile?16:20;
+ const baseWidth=zoom<7?(isJet?17000:11000):clamp(2200*Math.pow(2,8-zoom),3,2200);
  for(let i=0;i<count;i++){
   const row=selected[Math.floor(i*selected.length/count)];
   const [lat,lon,surfaceKmh,surfaceFrom,jetKmh,jetFrom,jetHeight]=row;
   const speed=isJet?jetKmh:surfaceKmh,heading=(isJet?jetFrom:surfaceFrom)+180;
-  const color=isJet?[.12,.26,.35]:windColor(speed);
-  const travel=isJet?clamp(5.8+jetKmh/60,6,13):clamp(4.6+surfaceKmh/24,5,9.5);
+  // Global winds: green / yellow / red by source speed. Elevated jets are
+  // cyan / blue / violet, bright enough to see through translucent wisps.
+  const color=isJet?(speed>=170?[.92,.38,1]:speed>=115?[.24,.67,1]:[.3,1,.93]):windColor(speed);
+  const travel=clamp(1.9*Math.pow(2,7-zoom)*(.82+speed/(isJet?240:125)),.0014,isJet?34:28);
   for(let lane=0;lane<linesPerSample;lane++){
-   const shift=(lane-(linesPerSample-1)/2)/Math.max(1,linesPerSample);
-   const laneWidth=baseWidth*(isJet?.95:.62);
-   const offsetX=shift*(isJet?.8:1.4);
+   const shift=(lane-(linesPerSample-1)/2)/Math.max(1,linesPerSample-1);
+   const lateral=(zoom<7?(isJet?2.3:2.8):Math.min(.3,travel*.45))*shift;
    const idx=positions.length/3;
    let valid=true;
    const linePoints=[];
    for(let k=0;k<=segments;k++){
     const t=k/segments;
-    const swirl=Math.sin(t*8+i*1.1+lane*.7)*(.18+.14*t);
-    const traveled=(t-.5)*travel+offsetX*.3;
-    const [p,lambda]=advance(lat+offsetX*.55,lon,heading+swirl*22,traveled);
-    const a=isJet?jetHeight:Math.max(28,140+85*Math.sin(t*12+i+lane));
+    const curl=Math.sin(t*8.3+i*1.4+lane*.9)*(.18+.1*t);
+    const [p,lambda]=advance(lat+lateral,lon,heading+curl*12,(t-.5)*travel);
+    // 250 hPa stays at the model's geopotential height above MSL. 10 m
+    // wind follows the available ground elevation; waves are visual only.
+    const elev=(!isJet&&typeof map.queryTerrainElevation==='function')
+      ?Number(map.queryTerrainElevation([lambda,p],{exaggerated:false}))||0:0;
+    const a=isJet?jetHeight:elev+10+6*Math.max(0,Math.sin(t*11+i+lane*.6));
     const v=worldAt(T,map,lambda,p,a);
     if(!v){valid=false;break;}
-    // The ribbons have a lateral thickness and a gentle vertical turn.
-    const side=advance(p,lambda,heading+90,Math.max(.002,laneWidth/111200));
-    const edge=worldAt(T,map,side[1],side[0],a+(isJet?1300:520));
+    const side=advance(p,lambda,heading+90,baseWidth*(isJet?.7:.52)/111200);
+    const edge=worldAt(T,map,side[1],side[0],a+(isJet?350:zoom<7?45:12));
     if(!edge){valid=false;break;}
     linePoints.push([v,edge]);
    }
@@ -77,7 +105,7 @@ function streamGeometry(T,map,rows,kind,zoom){
     const [c,e]=linePoints[k],t=k/segments;
     for(const v of [c,e]){
      positions.push(v.x,v.y,v.z);colors.push(...color);
-     progress.push(t);phase.push(lane*.39+i*.11);strength.push(isJet?clamp(jetKmh/230,.4,1.4):clamp(surfaceKmh/70,.25,1.4));
+     progress.push(t);phase.push(lane*.43+i*.17);strength.push(isJet?clamp(jetKmh/220,.35,1.6):clamp(surfaceKmh/65,.25,1.6));
     }
    }
    for(let k=0;k<segments;k++){const b=start+k*2;indices.push(b,b+1,b+2,b+2,b+1,b+3);}
@@ -94,19 +122,20 @@ function streamGeometry(T,map,rows,kind,zoom){
 }
 function ribbonMaterial(T,jet){
  return new T.ShaderMaterial({
-  uniforms:{uTime:{value:0},uOpacity:{value:jet?.19:.24}},
-  vertexShader:`attribute float aProgress,aPhase,aStrength;
+  uniforms:{uTime:{value:0},uOpacity:{value:jet?.48:.58}},
+  vertexShader:`attribute vec3 color;
+  attribute float aProgress,aPhase,aStrength;
   varying vec3 vColor;varying float vProg,vPhase,vStrength;
   void main(){vColor=color;vProg=aProgress;vPhase=aPhase;vStrength=aStrength;
    gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
   fragmentShader:`uniform float uTime,uOpacity;
   varying vec3 vColor;varying float vProg,vPhase,vStrength;
   void main(){
-    float current=fract(vProg*3.5-uTime*(0.29+0.17*vStrength)+vPhase);
-    float wisp=pow(max(0.0,1.0-abs(current*2.0-1.0)),3.0);
-    float vein=.24+.76*wisp;
-    float edge=smoothstep(0.0,.13,vProg)*(1.0-smoothstep(.84,1.0,vProg));
-    float alpha=uOpacity*edge*vein;
+    float current=fract(vProg*5.8-uTime*(0.23+0.18*vStrength)+vPhase);
+    float wisp=pow(max(0.0,1.0-abs(current*2.0-1.0)),2.0);
+    float shimmer=.65+.35*sin(vProg*29.0+vPhase*17.0-uTime*(1.8+vStrength));
+    float edge=smoothstep(0.0,.09,vProg)*(1.0-smoothstep(.88,1.0,vProg));
+    float alpha=uOpacity*edge*(.18+.82*wisp)*shimmer;
     gl_FragColor=vec4(vColor,alpha);
   }`,
   vertexColors:true,transparent:true,depthTest:true,depthWrite:false,side:T.DoubleSide,blending:T.NormalBlending
@@ -118,7 +147,7 @@ export function initBridgePointGlobalWindRfV1(target){
  const previous=window.__BP_WIND_RF_GLOBAL_V1__;
  if(previous?.map===map)return previous;
  const st={map,enabled:false,windOn:true,rfOn:true,rfMode:'both',disposed:false,data:null,THREE:null,scene:null,renderer:null,camera:null,
-  layer:null,windMesh:null,jetMesh:null,rf4:null,rf5:null,towers:null,jetPins:null,orbitRAF:0,projection:null,
+  layer:null,windMesh:null,jetMesh:null,rf4:null,rf5:null,rfDots4:null,rfDots5:null,towers:null,jetPins:null,orbitRAF:0,projection:null,
   zoomAt:-1,dirty:true,jetMarkers:[],details:null,sourceError:null,modelAt:null};
  function cleanLayer(){try{if(map.getLayer?.(LAYER))map.removeLayer(LAYER);}catch(_){}}
  function status(msg){try{document.dispatchEvent(new CustomEvent('bp:wind-rf-global-status',{detail:{active:st.enabled,message:msg,winds:st.data?.winds?.length||0,sites:st.data?.sites?.length||0,sourceAt:st.data?.fetched_at||null,error:st.sourceError}}));}catch(_){}}
@@ -126,7 +155,8 @@ export function initBridgePointGlobalWindRfV1(target){
   const [lon,lat,height]=site;
   const m=map.transform?.getMatrixForModel?.([lon,lat],0);
   if(!m)return null;
-  return new T.Matrix4().fromArray(m).multiply(new T.Matrix4().makeTranslation(0,offset,0)).multiply(new T.Matrix4().makeScale(...scale));
+  const ground=Number(map.queryTerrainElevation?.([lon,lat],{exaggerated:false}))||0;
+  return new T.Matrix4().fromArray(m).multiply(new T.Matrix4().makeTranslation(0,ground+offset,0)).multiply(new T.Matrix4().makeScale(...scale));
  }
  function rebuild(){
   if(!st.enabled||!st.THREE||!st.data||!st.layer)return;
@@ -138,11 +168,14 @@ export function initBridgePointGlobalWindRfV1(target){
   const jet=new T.Mesh(streamGeometry(T,map,st.data.winds,'jet',zoom),ribbonMaterial(T,true));
   jet.frustumCulled=false;jet.name='Pressure-height matched moving jet-stream ribbons';
   st.windMesh=wind;st.jetMesh=jet;st.scene.add(wind,jet);
-  wind.visible=jet.visible=st.windOn&&zoom<8;
-  // Real FCC ASR positions. Nominal planning radii are visually inflated ONLY
-  // at world scale, so a 900 m radius can be seen on a phone-size globe.
-  const boost=zoom<4?Math.pow(2,5-zoom)*42:zoom<8?Math.pow(2,8-zoom)*2:1;
+  wind.visible=st.windOn&&zoom<=18;
+  jet.visible=st.windOn&&zoom<=18;
+  // ALWAYS use nominal physical planning radii: never inflate kilometre
+  // envelopes into continent-scale spheres. Tiny screen-space dots keep
+  // registered FCC structures discoverable at full-Earth zoom.
+  const boost=1;
   let n=0;
+  const dotPositions=[];
   const max=Math.min(st.data.sites.length,st.rf4.instanceMatrix.count);
   for(let i=0;i<max;i++){
    const item=st.data.sites[i];
@@ -152,25 +185,33 @@ export function initBridgePointGlobalWindRfV1(target){
    const mast=towerMatrix(T,item,h*.5,[1,h,1]);
    if(!mk4||!mk5||!mast)continue;
    st.rf4.setMatrixAt(n,mk4);st.rf5.setMatrixAt(n,mk5);st.towers.setMatrixAt(n,mast);
+   const pt=worldAt(T,map,item[0],item[1],(Number(map.queryTerrainElevation?.([item[0],item[1]],{exaggerated:false}))||0)+h);
+   if(pt)dotPositions.push(pt.x,pt.y,pt.z);
    n++;
   }
   for(const mesh of [st.rf4,st.rf5,st.towers]){mesh.count=n;mesh.instanceMatrix.needsUpdate=true;}
+  for(const dots of [st.rfDots4,st.rfDots5]){
+   dots.geometry.dispose();dots.geometry=new T.BufferGeometry();
+   dots.geometry.setAttribute('position',new T.Float32BufferAttribute(dotPositions,3));
+  }
   st.rf4.visible=st.rfOn&&(st.rfMode==='4G'||st.rfMode==='both')&&zoom<11;
   st.rf5.visible=st.rfOn&&(st.rfMode==='5G'||st.rfMode==='both')&&zoom<11;
   st.towers.visible=st.rfOn&&zoom>=7&&zoom<13;
+  st.rfDots4.visible=st.rfOn&&(st.rfMode==='4G'||st.rfMode==='both')&&zoom<7;
+  st.rfDots5.visible=st.rfOn&&(st.rfMode==='5G'||st.rfMode==='both')&&zoom<7;
   st.jetMarkers=st.data.winds.filter(row=>row[4]>=115&&row[6]>5000)
    .sort((a,b)=>b[4]-a[4]).slice(0,25).map(row=>({row,point:worldAt(T,map,row[1],row[0],row[6])})).filter(x=>x.point);
-  const size=zoom<3?165000:zoom<6?55000:zoom<9?7500:800;
+  const size=zoom<3?45000:zoom<6?15000:zoom<9?3400:850;
   let icons=0;
   for(const item of st.jetMarkers){
    const row=item.row,m=map.transform?.getMatrixForModel?.([row[1],row[0]],0);
    if(!m)continue;
    st.jetPins.setMatrixAt(icons++,new T.Matrix4().fromArray(m)
-    .multiply(new T.Matrix4().makeTranslation(0,row[6]+size*.45,0))
+    .multiply(new T.Matrix4().makeTranslation(0,row[6]+Math.min(800,size*.12),0))
     .multiply(new T.Matrix4().makeScale(size,size,size)));
   }
   st.jetPins.count=icons;st.jetPins.instanceMatrix.needsUpdate=true;
-  st.jetPins.visible=st.windOn&&zoom<9;
+  st.jetPins.visible=st.windOn&&zoom<12;
   st.zoomAt=zoom;st.dirty=false;map.triggerRepaint?.();
  }
  function showJet(row){
@@ -210,12 +251,15 @@ export function initBridgePointGlobalWindRfV1(target){
   const rf4=make(new T.SphereGeometry(1,10,7),new T.MeshBasicMaterial({color:0x3de3ed,transparent:true,opacity:.16,wireframe:true,depthTest:true,depthWrite:false}));
   const rf5=make(new T.SphereGeometry(1,10,7),new T.MeshBasicMaterial({color:0xd482ff,transparent:true,opacity:.21,wireframe:true,depthTest:true,depthWrite:false}));
   const towers=make(new T.CylinderGeometry(.18,.44,1,7),new T.MeshStandardMaterial({color:0xb3bfcb,metalness:.5,roughness:.5}));
+  const rfDots4=new T.Points(new T.BufferGeometry(),new T.PointsMaterial({color:0x3de3ed,size:5,sizeAttenuation:false,transparent:true,opacity:.78,depthTest:true,depthWrite:false}));
+  const rfDots5=new T.Points(new T.BufferGeometry(),new T.PointsMaterial({color:0xd482ff,size:3,sizeAttenuation:false,transparent:true,opacity:.95,depthTest:true,depthWrite:false}));
+  rfDots4.frustumCulled=rfDots5.frustumCulled=false;
   const jetPins=new T.InstancedMesh(new T.OctahedronGeometry(1,0),new T.MeshBasicMaterial({color:0xffba5a,transparent:true,opacity:.88,depthTest:true}),30);
   jetPins.count=0;jetPins.frustumCulled=false;jetPins.name='Click for jet-stream aviation hazard information';
-  scene.add(new T.AmbientLight(0xffffff,1.5),rf4,rf5,towers,jetPins);
+  scene.add(new T.AmbientLight(0xffffff,1.5),rf4,rf5,rfDots4,rfDots5,towers,jetPins);
   const layer={id:LAYER,type:'custom',renderingMode:'3d',
    onAdd(m,gl){
-    st.scene=scene;st.camera=camera;st.rf4=rf4;st.rf5=rf5;st.towers=towers;st.jetPins=jetPins;st.layer=layer;
+    st.scene=scene;st.camera=camera;st.rf4=rf4;st.rf5=rf5;st.rfDots4=rfDots4;st.rfDots5=rfDots5;st.towers=towers;st.jetPins=jetPins;st.layer=layer;
     st.renderer=new T.WebGLRenderer({canvas:m.getCanvas(),context:gl,alpha:true,antialias:false,powerPreference:'low-power'});
     st.renderer.autoClear=false;st.dirty=true;
    },
@@ -233,11 +277,11 @@ export function initBridgePointGlobalWindRfV1(target){
     catch(e){if(!st.warned){st.warned=true;console.warn('BridgePoint global wind renderer',e);}}
    },
    onRemove(){
-    for(const obj of [st.windMesh,st.jetMesh,rf4,rf5,towers,jetPins]){
+    for(const obj of [st.windMesh,st.jetMesh,rf4,rf5,rfDots4,rfDots5,towers,jetPins]){
      obj?.geometry?.dispose?.();obj?.material?.dispose?.();
     }
     try{st.renderer?.dispose();}catch(_){}
-    st.renderer=null;st.layer=null;st.scene=null;st.camera=null;st.windMesh=null;st.jetMesh=null;st.jetPins=null;
+    st.renderer=null;st.layer=null;st.scene=null;st.camera=null;st.windMesh=null;st.jetMesh=null;st.jetPins=null;st.rfDots4=null;st.rfDots5=null;
    }
   };
   try{map.addLayer(layer);}catch(e){st.sourceError=String(e.message||e);status('Global wind style not ready; retrying');}
