@@ -785,8 +785,12 @@ jobs:
           # The base pack is zoom 0–6 (~60 MB); Global Max is zoom 0–7 with extra global detail,
           # capped below 700 MB rather than downloading the ~120 GB full-zoom source archive.
           mkdir -p site/assets/offline/fonts/"Noto Sans Regular" site/assets/offline/fonts/"Noto Sans Medium" site/assets/offline/sprites/v4
-          bash scripts/build-global-offline-pack.sh site/assets/offline/protomaps-world-z6.pmtiles
-          MAX_ZOOM=7 PACK_ID=global-max-v1 MIN_BYTES=80000000 MAX_BYTES=700000000 bash scripts/build-global-offline-pack.sh site/assets/offline/protomaps-world-z7.pmtiles
+          if ! bash scripts/build-global-offline-pack.sh site/assets/offline/protomaps-world-z6.pmtiles; then
+            echo "Protomaps daily z6 source unavailable; keeping the last verified production pack from live-artifact."
+          fi
+          if ! MAX_ZOOM=7 PACK_ID=global-max-v1 MIN_BYTES=80000000 MAX_BYTES=700000000 bash scripts/build-global-offline-pack.sh site/assets/offline/protomaps-world-z7.pmtiles; then
+            echo "Protomaps daily z7 source unavailable; keeping the last verified production pack from live-artifact."
+          fi
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/@protomaps/basemaps@5/dist/basemaps.js -o site/assets/offline/basemaps.js
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL 'https://raw.githubusercontent.com/protomaps/basemaps-assets/main/fonts/Noto%20Sans%20Regular/0-255.pbf' -o 'site/assets/offline/fonts/Noto Sans Regular/0-255.pbf'
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL 'https://raw.githubusercontent.com/protomaps/basemaps-assets/main/fonts/Noto%20Sans%20Medium/0-255.pbf' -o 'site/assets/offline/fonts/Noto Sans Medium/0-255.pbf'
