@@ -95,6 +95,10 @@ const OPTIONAL_OVERLAY_PATTERNS=[
 ];
 function isManagedOptionalOverlay(id){
  const value=String(id||'');
+ // FAA Towers owns its icon/model visibility via its own toggle. Never sweep
+ // FAA layers out of the actual globe during idle, zoom, or style restoration.
+ // This exception does not alter the default visibility of any other overlay.
+ if(value.startsWith('bp-faa-obstructions-'))return false;
  return parcelLayers.has(value)||OPTIONAL_OVERLAY_PATTERNS.some(pattern=>pattern.test(value));
 }
 function layerAllowed(id){
