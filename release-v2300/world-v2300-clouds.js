@@ -211,7 +211,7 @@ float bpCumulusDensityV6500(vec3 q,float t,float salt){
   vec3 pos=q+drift+vec3(salt*.13,salt*.07,0.0);
   float coarse=noise3(pos*3.15);
   float medium=noise3(pos*7.5+vec3(2.3,4.7,1.2));
-  float detail=noise3(pos*14.5+vec3(6.1,0.9,2.4));
+  float detail=.5+.5*sin(dot(pos,vec3(22.9,31.4,27.6))+sin(pos.x*12.4+pos.y*8.2)*1.1);
   float cauliflower=.52*coarse+.31*medium+.17*detail;
   float rim=1.0-smoothstep(.75,1.19,radius+(medium-.5)*.17);
   float cellular=smoothstep(.25,.63,cauliflower);
@@ -224,7 +224,7 @@ vec4 bpRaymarchCumulusV6500(vec3 entry,float tint,float time,
     sin(bearing)*sin(pitch),cos(bearing)*sin(pitch),-cos(pitch)));
   vec3 surface=entry*1.02;
   vec3 normal=normalize(entry);
-  if(dot(normal,dir)>-.015)return vec4(0.0);
+  if(!gl_FrontFacing)return vec4(0.0);
   float storm=smoothstep(.86,.97,tint);
   float tall=smoothstep(.55,.68,tint)*(1.0-storm);
   float thin=1.0-smoothstep(.14,.23,tint);
@@ -1769,7 +1769,7 @@ export function initSkyClouds(target) {
         if(info.uniforms.raySteps)gl.uniform1f(info.uniforms.raySteps,raySteps);
         if(info.uniforms.cloudPitch)gl.uniform1f(info.uniforms.cloudPitch,pitchRad);
         if(info.uniforms.cloudBearing)gl.uniform1f(info.uniforms.cloudBearing,number(map.getBearing?.(),0)*Math.PI/180);
-        if(info.uniforms.cloudSteps)gl.uniform1f(info.uniforms.cloudSteps,softwareRenderer?3:(MOBILE?5:7));
+        if(info.uniforms.cloudSteps)gl.uniform1f(info.uniforms.cloudSteps,softwareRenderer?2:(MOBILE?4:6));
         gl.uniform1f(info.uniforms.time, cloudTime);
         if (info.uniforms.motionTime) gl.uniform1f(info.uniforms.motionTime, motionTime);
         if (info.uniforms.stormMotionTime) gl.uniform1f(info.uniforms.stormMotionTime, stormMotionTime);
@@ -2340,8 +2340,20 @@ export function initSkyClouds(target) {
         // footprint. This connects separate small dots into satellite-like
         // cloud banks without inventing cells in an observed clear region.
         // The expanded silhouette is illustrative, not an exact sensor boundary.
-        const overviewFootprint=cloudLodBand==='global'&&!thin?(1.22+0.16*clamp(q.p,0,1)):1;
-        if(!addGlobalPuff(q.lng,q.lat,altitude,rx*overviewFootprint,ry*overviewFootprint,vertical,tint,satellitePuffSlices,satellitePuffStacks,hash(q.col,q.row,1301),true,angle))return false;
+        // Nearby cloudy satellite cells indicate a connected bank rather than isolated
+        // ping-sized puffs. Keep the envelope close to source-derived cloudy
+        // areas; lower zooms retain original horizontal radius.
+        const sourceCellNeighbors=satelliteMaskReady ? [
+          pAt(q.col-1,q.row),pAt(q.col+1,q.row),
+          pAt(q.col,q.row-1),pAt(q.col,q.row+1)
+        ] : [];
+        const neighborCloudiness=sourceCellNeighbors.length
+          ? sourceCellNeighbors.reduce((n,p)=>n+(p>.42?1:0),0)/4 : 0;
+        const bankBoost=cloudLodBand==='global'&&neighborCloudiness>=.5
+          ? 1.36+1.02*neighborCloudiness : 1;
+        const overviewFootprint=thin?1:bankBoost;
+        const boundedRx=Math.min(245000,rx*overviewFootprint),boundedRy=Math.min(245000,ry*overviewFootprint);
+        if(!addGlobalPuff(q.lng,q.lat,altitude,boundedRx,boundedRy,vertical,tint,satellitePuffSlices,satellitePuffStacks,hash(q.col,q.row,1301),true,angle))return false;
         if(heightMatch)sourceHeightMatchedCount++;else sourceHeightModelledCount++;
         if(q.sourceCloudMaskSample&&!q.heightSample)sourceCloudMaskDirectAnchorCount++;
         const record={lng:q.lng,lat:q.lat,p:q.p,radius,base,top};chosen.push(record);reserve(record);
