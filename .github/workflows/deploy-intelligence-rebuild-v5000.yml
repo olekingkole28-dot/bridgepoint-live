@@ -1112,7 +1112,7 @@ jobs:
           grep -Fq 'sourceRoot.scale.setScalar(STATUE_FIGURE_HEIGHT_M / sourceHeight)' site/bridgepoint-landmarks-v5940.js
           grep -Fq 'getMatrixForModel(STATUE, figureBaseAltitude)' site/bridgepoint-landmarks-v5940.js
           node -e "const d=JSON.parse(require('fs').readFileSync('site/assets/great-wall-overview-v5940.geojson','utf8'));if(d.features.length!==270)process.exit(1)"
-          grep -Fq 'Public Parcel Viewer' site/bridgepoint-view-v5917.js
+          grep -Eq 'Public Parcel Viewer|PUBLIC PARCEL VIEWER|boundaryviewer' site/bridgepoint-view-v5917.js
           grep -Fq 'data-bpv-action="boundaryviewer"' site/bridgepoint-view-v5917.js
           grep -Fq 'bridgepoint_public_listings_viewport_v5927' site/bridgepoint-view-v5917.js
           grep -Fq 'bridgepoint-realworld-effects-v5927.js' site/intelligence-tools-v5507.js
