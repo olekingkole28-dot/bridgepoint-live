@@ -943,10 +943,11 @@ async function toggleWindAndDroneField(){
  if(!world?.map)throw new Error('BridgePoint globe not ready');
  const mod=await import('./bridgepoint-volumetric-fields-v5978.js?v=6000-auto-wind-4g-5g-jets');
  let api=window.__BP_VOLUMETRIC_FIELDS_V5992__;
- if(!api||api.map!==world.map)api=mod.initBridgePointVolumetricFields(world);
+ const first=!api||api.map!==world.map;
+ if(first)api=mod.initBridgePointVolumetricFields(world);
  if(typeof api?.setWind!=='function')throw new Error('Wind controls did not initialize');
  if(typeof api?.open==='function')api.open();
- const on=!Boolean(api.state?.windOn);
+ const on=first?true:!Boolean(api.state?.windOn);
  await api.setWind(on);
  return on;
 }
