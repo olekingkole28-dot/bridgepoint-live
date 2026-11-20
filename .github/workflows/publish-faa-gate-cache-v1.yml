@@ -35,9 +35,10 @@ jobs:
           node tests/faa-obstruction-towers-v1.test.mjs
           python3 - <<'PY'
           from pathlib import Path
-          token='bridgepoint-drone-awareness-v1.js?v=11-shipwrecks-v2-persistent-icons&aircraft=9-filters-ground-tethers&faa-gate=8-no-icon-sweep'
+          token='&faa-gate=8-no-icon-sweep'
           for p in (Path('rebuild-v5000/index.html'),Path('rebuild-v5000/app-index.html')):
-            assert p.read_text().count(token)==1,str(p)
+            s=p.read_text()
+            assert s.count(token)==1 and s.count('bridgepoint-drone-awareness-v1.js')>=1,str(p)
           print('FAA_GATE_CACHE_REPO_CHECK_PASS')
           PY
       - name: Ensure existing PC Cloudflare tunnel is healthy
@@ -90,7 +91,7 @@ jobs:
           tar -xf "$ARCHIVE" -C "$SITE"
           export SITE
           python3 - <<'PY'
-          import hashlib,json,os,urllib.request
+          import hashlib,json,os,urllib.request,re
           from pathlib import Path
           site=Path(os.environ['SITE'])
           protected=['index.html','app/index.html','landing.js','app.js',
@@ -106,15 +107,23 @@ jobs:
               raise SystemExit('Live production mismatch '+rel+'; will not overwrite newer assets')
           before={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
             for p in site.rglob('*') if p.is_file()}
-          old='bridgepoint-drone-awareness-v1.js?v=11-shipwrecks-v2-persistent-icons&aircraft=9-filters-ground-tethers'
-          new=old+'&faa-gate=8-no-icon-sweep'
+          # Preserve the latest gate script version as-is (it can change when
+          # another feature publishes); add only the FAA-specific cache marker.
+          pattern=re.compile(r'(data-bp-deferred-src=")(/bridgepoint-drone-awareness-v1\\.js\\?[^"]+)(")')
           for rel in ('index.html','app/index.html'):
             p=site/rel
             s=p.read_text()
-            if s.count(old)!=1 or new in s:raise SystemExit('Unexpected FAA gate script loader state '+rel)
+            matches=list(pattern.finditer(s))
+            if len(matches)!=1:raise SystemExit('Expected exactly one deferred shared gate URL in '+rel)
+            current=matches[0].group(2)
+            if 'faa-gate=' in current:raise SystemExit('FAA gate marker already present; refusing duplicate')
             if 'faa=7-faa-persistent-no-sweep' not in s:
               raise SystemExit('Expected verified FAA v7 runtime entry key missing '+rel)
-            p.write_text(s.replace(old,new))
+            replacement=current+'&faa-gate=8-no-icon-sweep'
+            updated=s[:matches[0].start(2)]+replacement+s[matches[0].end(2):]
+            if len(updated)<=len(s) or updated.count(replacement)!=1:raise SystemExit('FAA URL replacement invalid')
+            p.write_text(updated)
+            print('FAA_GATE_CACHE_PRESERVED_EXISTING_QUERY',rel,current)
           after={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
             for p in site.rglob('*') if p.is_file()}
           changed={k for k in before if before[k]!=after.get(k)}
