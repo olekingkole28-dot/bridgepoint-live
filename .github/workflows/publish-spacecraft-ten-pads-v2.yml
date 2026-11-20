@@ -179,10 +179,10 @@ jobs:
           SITE="https://bridgepointintelligence.online"
           ok=0
           for pass in 1 2 3 4 5 6; do
-            if curl --retry 2 --retry-all-errors -fsSL --max-time 30 -H 'Cache-Control: no-cache' "$SITE/bridgepoint-spacecraft-ten-pads-v2.js?check=$GITHUB_SHA-$pass" | grep -Fq 'initSpacecraftTenPadsRenderer' &&
-               curl --retry 2 --retry-all-errors -fsSL --max-time 30 -H 'Cache-Control: no-cache' "$SITE/app/bridgepoint-spacecraft-ten-pads-v2.js?check=$GITHUB_SHA-$pass" | grep -Fq 'SPACECRAFT_TEN_LAUNCH_PADS' &&
-               curl --retry 2 --retry-all-errors -fsSL --max-time 30 -H 'Cache-Control: no-cache' "$SITE/landing.js?check=$GITHUB_SHA-$pass" | grep -Fq 'initSpacecraftTenPadsRenderer' &&
-               curl --retry 2 --retry-all-errors -fsSL --max-time 30 -H 'Cache-Control: no-cache' "$SITE/app.js?check=$GITHUB_SHA-$pass" | grep -Fq 'initSpacecraftTenPadsRenderer'; then
+            if curl --retry 2 --retry-all-errors -fsSL --max-time 30 -H 'Cache-Control: no-cache' "$SITE/bridgepoint-spacecraft-ten-pads-v2.js?check=$GITHUB_SHA-$pass" | grep -F 'initSpacecraftTenPadsRenderer' >/dev/null &&
+               curl --retry 2 --retry-all-errors -fsSL --max-time 30 -H 'Cache-Control: no-cache' "$SITE/app/bridgepoint-spacecraft-ten-pads-v2.js?check=$GITHUB_SHA-$pass" | grep -F 'SPACECRAFT_TEN_LAUNCH_PADS' >/dev/null &&
+               curl --retry 2 --retry-all-errors -fsSL --max-time 30 -H 'Cache-Control: no-cache' "$SITE/landing.js?check=$GITHUB_SHA-$pass" | grep -F 'initSpacecraftTenPadsRenderer' >/dev/null &&
+               curl --retry 2 --retry-all-errors -fsSL --max-time 30 -H 'Cache-Control: no-cache' "$SITE/app.js?check=$GITHUB_SHA-$pass" | grep -F 'initSpacecraftTenPadsRenderer' >/dev/null; then
               ok=1
               break
             fi
