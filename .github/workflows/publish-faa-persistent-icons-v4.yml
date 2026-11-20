@@ -1,0 +1,162 @@
+name: Publish FAA Persistent Category Icons Only v4
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-faa-persistent-icons-v4.yml'
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    environment:
+      name: github-pages
+      url: ${{ steps.publish.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test FAA-only module and unchanged 3D model contracts
+        run: |
+          set -euo pipefail
+          node --check rebuild-v5000/bridgepoint-faa-obstruction-towers-v1.js
+          node --check rebuild-v5000/landing.js
+          node --check rebuild-v5000/app.js
+          node tests/faa-obstruction-towers-v1.test.mjs
+          grep -Fq 'function buildTowerModel(THREE,feature)' rebuild-v5000/bridgepoint-faa-obstruction-towers-v1.js
+          grep -Fq 'keepFAAIconsVisible(state)' rebuild-v5000/bridgepoint-faa-obstruction-towers-v1.js
+      - name: Verify current PC-hosted Cloudflare auth is unchanged
+        run: |
+          set -euo pipefail
+          curl --retry 3 --retry-all-errors -fsSL --max-time 20 https://characterization-seas-total-adopt.trycloudflare.com/auth/v1/health > /tmp/bp-faa-auth.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/bp-faa-auth.json'))
+          assert d.get('status')=='ok' and d.get('local') is True
+          print('FAA_PUBLISH_PC_AUTH_UNCHANGED_PASS')
+          PY
+      - name: Select newest large retained Pages artifact
+        id: baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json,os,subprocess
+          repo=os.environ['GITHUB_REPOSITORY']
+          candidates=[]
+          for page in (1,2,3):
+              raw=subprocess.check_output(['gh','api',f'repos/{repo}/actions/artifacts?per_page=100&page={page}'])
+              data=json.loads(raw)
+              for a in data.get('artifacts',[]):
+                  name=a.get('name','')
+                  if a.get('expired') or (a.get('size_in_bytes') or 0)<10000000:continue
+                  if not (name.startswith('bridgepoint-') or name.startswith('github-pages')):continue
+                  run=a.get('workflow_run') or {}
+                  if run.get('id'): candidates.append((a.get('created_at',''),run['id'],name))
+              if len(candidates)>=50: break
+          candidates.sort(reverse=True)
+          if not candidates:raise SystemExit('No retained full Pages artifacts. Refusing to reconstruct production.')
+          created,runid,name=candidates[0]
+          with open(os.environ['GITHUB_OUTPUT'],'a') as out:
+              out.write(f'run_id={runid}\nartifact_name={name}\n')
+          print('FAA_BASELINE_CANDIDATE',created,runid,name,'of',len(candidates))
+          PY
+      - name: Download retained current Pages site
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ steps.baseline.outputs.artifact_name }}
+          run-id: ${{ steps.baseline.outputs.run_id }}
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/bp-faa-baseline
+      - name: Match baseline against LIVE production; overlay only FAA assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/bp-faa-site"
+          ARCHIVE="$(find "$RUNNER_TEMP/bp-faa-baseline" -type f -name artifact.tar -print -quit)"
+          test -n "$ARCHIVE" || { echo 'Baseline was not a Pages artifact'; exit 1; }
+          mkdir -p "$SITE"
+          tar -xf "$ARCHIVE" -C "$SITE"
+          export SITE
+          python3 - <<'PY'
+          import hashlib,json,os,re,urllib.request
+          from pathlib import Path
+          site=Path(os.environ['SITE'])
+          needed=['index.html','app/index.html','landing.js','app.js',
+                  'bridgepoint-faa-obstruction-towers-v1.js','app/bridgepoint-faa-obstruction-towers-v1.js']
+          for rel in needed:
+              if not (site/rel).is_file():raise SystemExit('Missing baseline '+rel)
+              url='https://bridgepointintelligence.online/'+rel+'?faa-baseline='+os.environ['GITHUB_SHA']
+              request=urllib.request.Request(url,headers={'Cache-Control':'no-cache','User-Agent':'BridgePoint-FAA-only-baseline-check'})
+              try:
+                  with urllib.request.urlopen(request,timeout=40) as response: live=response.read()
+              except Exception as ex:raise SystemExit(f'Cannot verify live {rel}: {ex}')
+              if hashlib.sha256(live).digest()!=hashlib.sha256((site/rel).read_bytes()).digest():
+                  raise SystemExit('Baseline does not match live production: '+rel+'; refusing regression')
+          old={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file()}
+          module=Path('rebuild-v5000/bridgepoint-faa-obstruction-towers-v1.js').read_bytes()
+          for rel in ('bridgepoint-faa-obstruction-towers-v1.js','app/bridgepoint-faa-obstruction-towers-v1.js'):
+              (site/rel).write_bytes(module)
+          for rel in ('landing.js','app.js'):
+              p=site/rel
+              s=p.read_text()
+              oldkey='&icons=3-faa-category-icons-global-street'
+              expected=2 if rel=='landing.js' else 1
+              if s.count(oldkey)!=expected:raise SystemExit(f'{rel}: unexpected FAA loader state')
+              p.write_text(s.replace(oldkey,'&icons=4-faa-visible-persistent'))
+          for rel in ('index.html','app/index.html'):
+              p=site/rel
+              s=p.read_text()
+              key='faa=3-faa-category-icons-global-street'
+              if s.count(key)!=1:raise SystemExit(f'{rel}: unexpected FAA cache state')
+              p.write_text(s.replace(key,'faa=4-faa-visible-persistent'))
+          new={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file()}
+          expected=set(needed)
+          changed={k for k in old if old[k]!=new.get(k)}
+          if set(old)!=set(new) or changed!=expected:
+              raise SystemExit('FAA-only scope violation: '+json.dumps({'changed':sorted(changed),'added':sorted(set(new)-set(old)),'deleted':sorted(set(old)-set(new))}))
+          for rel in ('data/bridgepoint-faa-obstructions-v1.json.gz','app/data/bridgepoint-faa-obstructions-v1.json.gz'):
+              if not (site/rel).is_file() or (site/rel).stat().st_size<1000:
+                  raise SystemExit('Missing FAA DOF data; refusing blank-icons deployment: '+rel)
+          print('FAA_ONLY_SCOPE_PASS six files, no deletions or unrelated changes')
+          PY
+          node --check "$SITE/landing.js"
+          node --check "$SITE/app.js"
+          node --check "$SITE/bridgepoint-faa-obstruction-towers-v1.js"
+      - uses: actions/configure-pages@v5
+      - name: Upload preserved site with six FAA-only changes
+        uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/bp-faa-site
+          include-hidden-files: true
+      - name: Publish FAA-only change
+        id: publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-pages-extended.mjs
+      - name: Verify live FAA categories and unchanged Cloudflare auth
+        run: |
+          set -euo pipefail
+          curl --retry 8 --retry-all-errors -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/bridgepoint-faa-obstruction-towers-v1.js?verify=$GITHUB_SHA" > /tmp/faa-live.js
+          grep -Fq 'keepFAAIconsVisible(state)' /tmp/faa-live.js
+          grep -Fq 'new TextDecoder' /tmp/faa-live.js
+          curl --retry 8 --retry-all-errors -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/landing.js?verify=$GITHUB_SHA" > /tmp/faa-landing.js
+          grep -Fq 'icons=4-faa-visible-persistent' /tmp/faa-landing.js
+          curl --retry 3 --retry-all-errors -fsSL https://characterization-seas-total-adopt.trycloudflare.com/auth/v1/health > /tmp/faa-auth.json
+          grep -Fq '"local":true' /tmp/faa-auth.json
+          echo 'FAA_ONLY_LIVE_PUBLISH_PASS'
