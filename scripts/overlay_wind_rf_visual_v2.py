@@ -50,7 +50,7 @@ def overlay(site: Path, sources: Path):
             raise RuntimeError("REFUSE_PUBLISH_WIND_IMPORT_CACHE_MISMATCH " + rel)
         p.write_text(contents.replace(OLD_IMPORT, NEW_IMPORT), encoding="utf-8")
         changed.add(rel)
-    pattern = r'(data-bp-deferred-src="/bridgepoint-view-v5917\\.js[^"]*)(")'
+    pattern = r'(data-bp-deferred-src="/bridgepoint-view-v5917\.js[^"]*)(")'
     for rel in ("index.html", "app/index.html"):
         p = site / rel
         contents = p.read_text(encoding="utf-8")
