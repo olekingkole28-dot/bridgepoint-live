@@ -2605,12 +2605,15 @@ function createMoonTerrainController() {
   // Cap both renderers together: 30 fps on desktop, 30 fps on standard phones,
   // and 20 fps on very-low-memory phones to keep the main thread responsive.
   const welcomeFrameIntervalMs = mobile ? ((navigator.deviceMemory || 4) <= 3 ? 50 : 1000 / 30) : 1000 / 30;
+  const welcomeGateFrameIntervalMs = mobile ? 1000 / 12 : 1000 / 15;
   let lastWelcomeRenderAt = 0;
   const reference=new Date('2026-01-01T00:00:00Z').getTime();
   let disposed=false,renderActive=true;
   function render(frameTime=performance.now()){
     if(disposed||!renderActive||document.hidden)return;
-    if(lastWelcomeRenderAt&&frameTime-lastWelcomeRenderAt<welcomeFrameIntervalMs){requestAnimationFrame(render);return}
+    const gateVisible = document.getElementById('bpWelcomeGateV1')?.hidden===false;
+    const frameInterval = gateVisible ? welcomeGateFrameIntervalMs : welcomeFrameIntervalMs;
+    if(lastWelcomeRenderAt&&frameTime-lastWelcomeRenderAt<frameInterval){requestAnimationFrame(render);return}
     lastWelcomeRenderAt=frameTime;
     const elapsed=clock.getDelta(),t=nowSeconds();
     const elapsedFromStart=t;
