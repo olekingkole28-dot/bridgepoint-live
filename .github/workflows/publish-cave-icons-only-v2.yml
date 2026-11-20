@@ -1,5 +1,5 @@
-# Add five larger genuine cave photogrammetry meshes to the last successful Cave-only Pages snapshot; preserve every unrelated production file byte-for-byte.
-name: Publish Five Big Real 3D Cave Scans v18
+# Add only seven verified polar solid 3D cave scans to the previous known-good site. Four Greenland scans across three markers and three new Antarctic research scans at existing Lima-Lima marker. Do not invent other caves.
+name: Publish Seven Verified Polar Cave 3D Scans v19
 on:
   workflow_dispatch:
   push:
@@ -14,7 +14,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: bridgepoint-cave-entry-publish-only-v18
+  group: bridgepoint-cave-entry-publish-only-v19
   cancel-in-progress: false
 
 jobs:
@@ -92,11 +92,11 @@ jobs:
               (site/rel).write_bytes(patched.read_bytes())
           edits={
             'landing.js':[
-              ('./'+cave+'?v=17-ten-ocean-cave-scans','./'+cave+'?v=18-five-large-cave-scans'),
-              ('./'+cave+'?v=17-mobile-ten-ocean-cave-scans','./'+cave+'?v=18-mobile-five-large-cave-scans')
+              ('./'+cave+'?v=18-five-large-cave-scans','./'+cave+'?v=19-seven-verified-polar-caves'),
+              ('./'+cave+'?v=18-mobile-five-large-cave-scans','./'+cave+'?v=19-mobile-seven-verified-polar-caves')
             ],
             'app.js':[
-              ('./'+cave+'?v=17-ten-ocean-cave-scans','./'+cave+'?v=18-five-large-cave-scans')
+              ('./'+cave+'?v=18-five-large-cave-scans','./'+cave+'?v=19-seven-verified-polar-caves')
             ]
           }
           for rel,changes in edits.items():
@@ -115,9 +115,9 @@ jobs:
               if len(matches)!=1:
                   raise SystemExit(f'{rel}: expected exactly one active {entry} cache-keyed script; got {len(matches)}')
               old=matches[0].group(1)
-              if 'cave-entry=ten-ocean-v17' not in old or 'cave-entry=five-large-v18' in old:
-                  raise SystemExit(f'{rel}: missing previous ten-ocean-v17 key or new five-large-v18 key already appended')
-              source=source.replace('src="'+old+'"','src="'+old+'&cave-entry=five-large-v18"',1)
+              if 'cave-entry=five-large-v18' not in old or 'cave-entry=seven-polar-v19' in old:
+                  raise SystemExit(f'{rel}: missing previous five-large-v18 key or new seven-polar-v19 key already appended')
+              source=source.replace('src="'+old+'"','src="'+old+'&cave-entry=seven-polar-v19"',1)
               f.write_text(source,encoding='utf-8')
           after={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
                  for p in site.rglob('*') if p.is_file()}
@@ -133,7 +133,7 @@ jobs:
               raise SystemExit('Website and app Cave module differ')
           for rel in ('landing.js','app.js'):
               text=(site/rel).read_text()
-              if './'+cave+'?v=18-five-large-cave-scans' not in text:
+              if './'+cave+'?v=19-seven-verified-polar-caves' not in text:
                   raise SystemExit(rel+' did not load the new Cave module')
           print('CAVE_ONLY_PUBLISH_SCOPE_PASS',len(changed),'files, no additions or deletions')
           PY
@@ -174,8 +174,8 @@ jobs:
               curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null 'weld-range-rock-shelter-australia'
               curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null 'd0c88d0853844a8e9a1de22a342326cb'
               curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null 'const containedViewer=isMatterport||isEmbedOnly'
-              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/landing.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '18-five-large-cave-scans'
-              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '18-five-large-cave-scans'
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/landing.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '19-seven-verified-polar-caves'
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '19-seven-verified-polar-caves'
               curl -fsSL -H 'Cache-Control: no-cache' "$SITE/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null 'df5dea76480f4ed3af018d885a13b704'
               curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '5dc79d2891f24e9fa571b9e910556ec8'
               curl -fsSL -H 'Cache-Control: no-cache' "$SITE/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '2f06ab8d1bd14ce5a85c417fefd91cda'
@@ -196,10 +196,17 @@ jobs:
               curl -fsSL -H 'Cache-Control: no-cache' "$SITE/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null 'd010364e4b684a488e934d6664a3c54e'
               curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '17c248ec0c284b6ebbd201d35753c4b8'
               curl -fsSL -H 'Cache-Control: no-cache' "$SITE/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null 'c92b96fed07743ce8277619d2a6fb347'
-              echo CAVE_FIVE_LARGE_CAVES_LIVE_PUBLISH_PASS
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '5e49a7bc370147f7a57d70187257ffb7'
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null 'e0e487e56083459d935bde3eb51f12ae'
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '2eac394c5e4945deadadbc45c32a093e'
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '58f3d97cd9b3410a8f34193979c4d13a'
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '3ed9bf8dd9eb4821851b56974c4f1a6b'
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null 'a96e1387d5af46189920d78b9297c898'
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null 'c3e3ce73bff4404b8006014b240ac8c2'
+              echo CAVE_SEVEN_VERIFIED_POLAR_SCANS_LIVE_PASS
               exit 0
             fi
             sleep 4
           done
-          echo CAVE_FIVE_LARGE_CAVES_LIVE_VERIFY_FAILED
+          echo CAVE_SEVEN_VERIFIED_POLAR_SCANS_LIVE_VERIFY_FAILED
           exit 1
