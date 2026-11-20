@@ -8,7 +8,7 @@
 const API='https://worldfires.org/api/v1';
 const EONET='https://eonet.gsfc.nasa.gov/api/v3/events?category=wildfires&status=open&days=14&limit=300';
 const THREE_URL='/vendor/three.module.js?v=169-local';
-const FIRE_VOLUME_V4_URL='./bridgepoint-wildfire-realistic-mesh-v4.js?v=4-rolling-heat-turbulence';
+const FIRE_VOLUME_V4_URL='./bridgepoint-wildfire-realistic-mesh-v4.js?v=4-rolling-heat-turbulence&restore=20261120-emrf-fire';
 let volumeV4Promise=null;
 function getFireVolumeV4(){
  if(!volumeV4Promise)volumeV4Promise=import(FIRE_VOLUME_V4_URL).then(m=>{
