@@ -6,6 +6,9 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/publish-wind-rf-visual-v2.yml'
+      - 'rebuild-v5000/bridgepoint-global-wind-rf-v1.js'
+      - 'scripts/overlay_wind_rf_visual_v2.py'
+      - 'tests/wind-rf-visual-v2.test.mjs'
 
 permissions:
   contents: read
