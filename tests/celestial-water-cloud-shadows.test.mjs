@@ -128,8 +128,8 @@ test('clouds render as bright 3D volumes, not as a false-colour raster sheet', (
   assert.match(clouds, /desktopGlobalCloudMotionPaused: false/);
   assert.match(clouds, /lastCloudRepaintAt/);
   assert.ok(app.includes('world-v2300-lod-controls.js?v=6201-gold-always-on'), 'app must use Gold-always-on LOD controls');
-  assert.ok(app.includes('world-v2300-clouds.js?v=6202-global-satellite-cloud-banks'), 'app must use the cache-busted desktop-stability cloud module');
-  assert.ok(landing.includes('world-v2300-clouds.js?v=6202-global-satellite-cloud-banks'), 'landing must use the cache-busted desktop-stability cloud module');
+  assert.ok(app.includes('world-v2300-clouds.js?v=6318-storm-clouds-visible'), 'app must use the cache-busted desktop-stability cloud module');
+  assert.ok(landing.includes('world-v2300-clouds.js?v=6318-storm-clouds-visible'), 'landing must use the cache-busted desktop-stability cloud module');
   assert.doesNotMatch(timeSlider, /data-clouds|toggleSkyClouds|world-v2300-clouds/, 'timeline must not expose or load the cloud toggle');
   assert.match(clouds, /coverageVersion: 6180/);
   assert.match(clouds, /Number\(satelliteMask\.probability\[idx\]\)<=32/);
@@ -196,13 +196,13 @@ test('entrypoints use fresh cache keys and keep the celestial canvas off the sat
     assert.match(source, /world-v2300-map\.js\?v=6238-pc-runtime/);
     assert.match(source, /world-v2300-water\.js\?v=6256-gerstner-ocean/);
     assert.match(source, /world-v2300-clouds\.js\?v=6202-global-satellite-cloud-banks/);
-    assert.match(source, /world-v2300-weather\.js\?v=6238-pc-runtime/);
+    assert.match(source, /world-v2300-weather\.js\?v=6318-storm-icons-clickable/);
     assert.match(source, /world-v2300-time-slider\.js\?v=6170-no-cloud-toggle-always-on/);
   }
   assert.match(appHtml, /app\.js\?v=6312-post-auth-unblock-map/, 'app shell loads the updated app entrypoint');
   assert.doesNotMatch(map, /world-v2300-space\.js\?v=6125-manual-globe-camera/, 'the retired celestial overlay must not be imported by the live globe');
   assert.doesNotMatch(timeSlider, /data-clouds|toggleSkyClouds|world-v2300-clouds/);
-  assert.match(bootstrap, /world-v2300-weather\.js\?v=6238-pc-runtime/);
+  assert.match(bootstrap, /world-v2300-weather\.js\?v=6318-storm-icons-clickable/);
   assert.match(appHtml, /app\.js\?v=6312-post-auth-unblock-map/);
   assert.match(landingHtml, /landing\.js\?v=6312-post-signin-queue/);
   assert.match(appHtml, /intelligence-global-v5507\.js\?v=6238-pc-runtime/);
