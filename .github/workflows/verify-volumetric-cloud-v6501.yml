@@ -115,6 +115,38 @@ jobs:
             }finally{await browser.close()}
           })().catch(e=>{console.error(e.stack||e);process.exit(1)});
           NODE
+      - name: Probe current PC-hosted source weather endpoints
+        shell: bash
+        run: |
+          node <<'NODE'
+          const origin='https://characterization-seas-total-adopt.trycloudflare.com';
+          const checks=[
+            ['/auth/v1/health',false],
+            ['/rest/v1/rpc/bridgepoint_public_weather_bootstrap_v5823',true],
+            ['/functions/v1/bridgepoint-world-effects-v2190',true]
+          ];
+          (async()=>{
+            for(const [path,post] of checks){
+              try{
+                const ctrl=new AbortController(),tm=setTimeout(()=>ctrl.abort(),13000);
+                let response;
+                try{response=await fetch(origin+path,{
+                  method:post?'POST':'GET',
+                  headers:{'Content-Type':'application/json',
+                    'apikey':'sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25'},
+                  body:post?JSON.stringify(path.includes('world-effects')?{west:-100,south:15,east:-40,north:55,zoom:1,modes:['all']}:{ }):undefined,
+                  signal:ctrl.signal
+                });}finally{clearTimeout(tm)}
+                const txt=await response.text(),json=(()=>{try{return JSON.parse(txt)}catch{return null}})();
+                const fields=json&&typeof json==='object'?Object.keys(json).slice(0,18):[];
+                const size=(k)=>Array.isArray(json?.[k])?json[k].length:null;
+                console.log('BRIDGEPOINT_PC_SOURCE_PROBE',JSON.stringify({path,status:response.status,type:response.headers.get('content-type'),fields,
+                  storms:size('storms'),alerts:size('alerts'),observations:size('observations'),items:size('items'),
+                  generation:json?.generated_at||null,hasHtml:txt.slice(0,200).toLowerCase().includes('<html')}));
+              }catch(e){console.log('BRIDGEPOINT_PC_SOURCE_PROBE',JSON.stringify({path,error:String(e?.message||e)}))}
+            }
+          })();
+          NODE
       - uses: actions/upload-artifact@v4
         if: always()
         with:
