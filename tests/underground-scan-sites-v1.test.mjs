@@ -3,13 +3,13 @@ import { readFile } from 'node:fs/promises';
 import {UNDERGROUND_SCAN_SITES,UNDERGROUND_SCAN_RIGHTS_HOLDS,buildUndergroundSiteFeatures,undergroundSitePopupHtml} from '../rebuild-v5000/bridgepoint-underground-scan-sites-v1.js';
 
 const features=buildUndergroundSiteFeatures();
-assert.equal(features.length,35,'thirty-five reviewed cave site anchors are mapped');
-assert.equal(UNDERGROUND_SCAN_SITES.reduce((n,s)=>n+s.models.length,0),39,'thirty-nine real creator-hosted 3D models and tours are cataloged');
+assert.equal(features.length,40,'forty reviewed cave site anchors are mapped');
+assert.equal(UNDERGROUND_SCAN_SITES.reduce((n,s)=>n+s.models.length,0),44,'forty-four real creator-hosted 3D models and tours are cataloged');
 assert.equal(UNDERGROUND_SCAN_RIGHTS_HOLDS.length,3,'rights/source holds are exposed');
 assert.ok(features.every(f=>f.geometry.type==='Point'&&f.properties.iconImage));
 assert.ok(UNDERGROUND_SCAN_SITES.every(s=>s.models.every(m=>m.uid&&m.creator&&(
  m.matterportTourId ? (m.matterportTourId==='1BTGHi85s96'&&m.modelUrl==='https://my.matterport.com/show/?m=1BTGHi85s96'&&m.license.includes('original rights retained'))
- : m.embedOnly ? (['cbe5a1c208674091b48f65ac2d4cca94','be7675a23595489c86211608f0fb1886','ccfc7c2f43214b559e93c4857eb6ed4a','899e6c8016954dab825dffb07d583fb9','d0c88d0853844a8e9a1de22a342326cb','34861aec56564489bdb8ec1cd030ff00','239d912831f6471da95a2fd672b53398','74b4a560749743eaa53cd89793b4a629','cd6c5687814e484da0bf4d360a324c60','2989d29a52a0494aa0cd2e279b411247','df5dea76480f4ed3af018d885a13b704','5dc79d2891f24e9fa571b9e910556ec8','2f06ab8d1bd14ce5a85c417fefd91cda','85a2ff52fa7b4a44b87033145fd1b01f','7161373c7ccb48da9aa00e52214df1b8','11aedb4bc1064685a8cfe33f8956a108','14773139954740e48be1fa1861d01eb7','d1691e402d0840378804f2df5aaedb2b','a35b2ecd72094b2d8a2fef9a32b98186','b9aac38260054f5f8858be684279c37e','e2420bd47de1497993addd2b3f6e1e7e','a8890e16ca49498c892d82496cdbbae9','bf983bfabc194e94893d9955ed87f471','e36a8a863b8348159d237ea808d492d7','3be79c6a956c423d9b05fa67ce559ee9'].includes(m.uid)&&(['cd6c5687814e484da0bf4d360a324c60','e2420bd47de1497993addd2b3f6e1e7e','bf983bfabc194e94893d9955ed87f471','3be79c6a956c423d9b05fa67ce559ee9'].includes(m.uid)?m.license==='CC Attribution':m.license.includes('no reuse license displayed'))&&m.modelUrl.startsWith('https://sketchfab.com/3d-models/'))
+ : m.embedOnly ? (['cbe5a1c208674091b48f65ac2d4cca94','be7675a23595489c86211608f0fb1886','ccfc7c2f43214b559e93c4857eb6ed4a','899e6c8016954dab825dffb07d583fb9','d0c88d0853844a8e9a1de22a342326cb','34861aec56564489bdb8ec1cd030ff00','239d912831f6471da95a2fd672b53398','74b4a560749743eaa53cd89793b4a629','cd6c5687814e484da0bf4d360a324c60','2989d29a52a0494aa0cd2e279b411247','df5dea76480f4ed3af018d885a13b704','5dc79d2891f24e9fa571b9e910556ec8','2f06ab8d1bd14ce5a85c417fefd91cda','85a2ff52fa7b4a44b87033145fd1b01f','7161373c7ccb48da9aa00e52214df1b8','11aedb4bc1064685a8cfe33f8956a108','14773139954740e48be1fa1861d01eb7','d1691e402d0840378804f2df5aaedb2b','a35b2ecd72094b2d8a2fef9a32b98186','b9aac38260054f5f8858be684279c37e','e2420bd47de1497993addd2b3f6e1e7e','a8890e16ca49498c892d82496cdbbae9','bf983bfabc194e94893d9955ed87f471','e36a8a863b8348159d237ea808d492d7','3be79c6a956c423d9b05fa67ce559ee9','a873f750875d4f37a3784ffddc9f5abc','d07aa3cf92a4478684130d9261e1d94c','d010364e4b684a488e934d6664a3c54e','17c248ec0c284b6ebbd201d35753c4b8','c92b96fed07743ce8277619d2a6fb347'].includes(m.uid)&&(['cd6c5687814e484da0bf4d360a324c60','e2420bd47de1497993addd2b3f6e1e7e','bf983bfabc194e94893d9955ed87f471','3be79c6a956c423d9b05fa67ce559ee9','a873f750875d4f37a3784ffddc9f5abc'].includes(m.uid)?m.license==='CC Attribution':m.license.includes('no reuse license displayed'))&&m.modelUrl.startsWith('https://sketchfab.com/3d-models/'))
  : (m.license==='CC Attribution'&&m.modelUrl.startsWith('https://sketchfab.com/3d-models/'))
 ))));
 assert.equal(UNDERGROUND_SCAN_SITES.find(s=>s.id==='paris-catacombs').models.length,3);
@@ -205,6 +205,21 @@ for(const site of marineAddedSites.concat([previousBelTorrente,newBethells])){
   assert.ok(h.includes('sandbox="allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-presentation"'));
   assert.ok(!h.includes('allow-top-navigation')&&!h.includes('allow-popups'));
  }
+}
+const largeCavesV18=[["arco-do-andre-brazil","a873f750875d4f37a3784ffddc9f5abc",250],["devilstep-hollow-full-tennessee","d07aa3cf92a4478684130d9261e1d94c",110],["peak-cavern-submerged-swine-hole","d010364e4b684a488e934d6664a3c54e",120],["barenfalle-high-alpine-cave-austria","17c248ec0c284b6ebbd201d35753c4b8",0],["hohle-fels-giant-chamber-germany","c92b96fed07743ce8277619d2a6fb347",30]];
+assert.equal(largeCavesV18.length,5);
+assert.equal(new Set(largeCavesV18.map(x=>x[1])).size,5);
+for(const [id,uid] of largeCavesV18){
+ const site=UNDERGROUND_SCAN_SITES.find(s=>s.id===id);
+ assert.ok(site&&site.type==='cave');
+ assert.equal(site.models.length,1);
+ assert.equal(site.models[0].uid,uid);
+ assert.equal(site.models[0].embedOnly,true);
+ assert.ok(site.models[0].method&&site.models[0].detail&&site.locationPrecision);
+ const html=undergroundSitePopupHtml(site);
+ assert.ok(html.includes('sketchfab.com/models/'+uid+'/embed'));
+ assert.ok(html.includes('sandbox="allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-presentation"'));
+ assert.ok(!html.includes('allow-top-navigation')&&!html.includes('allow-popups'));
 }
 const fiveRemoteDeepCaves=[
  {id:'wells-gray-sarlaccs-pit-canada',coordinates:[-120,52.33306],uid:'df5dea76480f4ed3af018d885a13b704',method:/photogrammetry/i,detail:/ONLY reconstructs the exposed entrance/,placement:/regional/i},
