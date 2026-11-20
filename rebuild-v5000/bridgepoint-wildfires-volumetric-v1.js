@@ -8,6 +8,15 @@
 const API='https://worldfires.org/api/v1';
 const EONET='https://eonet.gsfc.nasa.gov/api/v3/events?category=wildfires&status=open&days=14&limit=300';
 const THREE_URL='/vendor/three.module.js?v=169-local';
+const FIRE_VOLUME_V4_URL='./bridgepoint-wildfire-realistic-mesh-v4.js?v=4-rolling-heat-turbulence';
+let volumeV4Promise=null;
+function getFireVolumeV4(){
+ if(!volumeV4Promise)volumeV4Promise=import(FIRE_VOLUME_V4_URL).then(m=>{
+  if(typeof m.createBridgePointWildfireVolumeV4!=='function')throw Error('BridgePoint V4 fire shader missing');
+  return m;
+ }).catch(e=>{volumeV4Promise=null;throw e;});
+ return volumeV4Promise;
+}
 const sourceId='bp-live-wildfires-v1',perimeterId='bp-live-fire-perimeters-v1';
 const iconId='bp-live-wildfire-icon-v1';
 const pointLayer='bp-live-fire-icon-symbols-v1';
@@ -37,7 +46,11 @@ export function normalizeActiveFireRecords(data,now=Date.now()){
   const perimeterSlug=/^[a-z0-9][a-z0-9-]{1,130}$/.test(String(row.evento||''))&&row.evento_fuente==='perimetro'?String(row.evento):null;
   out.push({id:identifier+'-'+out.length,coordinates:coordinate,name:String(row.nombre||row.local||'Satellite thermal anomaly').slice(0,150),
    country:String(row.pais||'').slice(0,4),detectedAt:new Date(when).toISOString(),
-   count,frp:Number(row.frp_max)||0,ha:Number(row.ha)||0,
+   count,frp:Number(row.frp_max)||0,frpSum:Number(row.frp)||0,ha:Number(row.ha)||0,
+   eventAreaHa:Number(row.evento_ha)||0,firstDetectedAt:row.primero||null,
+   locality:String(row.local||'').slice(0,120),countryName:String(row.pais||'').slice(0,4),
+   perimeterProvider:String(row.evento_fuente||'none').slice(0,50),
+   eventId:String(row.evento||'').slice(0,130),
    url:sanitizeURL(row.url),perimeterSlug,source:'WorldFires · NASA FIRMS VIIRS',
    sourceKind:'detection',radiusM:Math.min(700,Math.max(170,Math.sqrt(count)*32))});
   if(out.length>=MAX_MAP_FIRE_RECORDS)break;
@@ -553,42 +566,16 @@ function placeFlame(T,group,x,y,z,height,seed,output){
  flame.position.set(x,y,z);group.add(flame);
  output.push(flame);
 }
-function makeSceneForFire(T,state,fire){
- const scene=new T.Scene();
- scene.add(new T.AmbientLight(0xffffff,2));
- const fireGroup=new T.Group();scene.add(fireGroup);
- const flames=[],seed=(fire.coordinates[0]*617+fire.coordinates[1]*317);
- // All synthetic visual activity is confined within the detected thermal footprint.
- const intensity=Math.max(0,fire.frp);
- const baseHeight=2.2+Math.min(10,Math.log1p(intensity)*1.5);
- const count=Math.min(21,Math.max(7,Math.round(Math.sqrt(fire.count)*1.2)));
- let accepted=0;
- for(let i=0;i<count*4&&accepted<count;i++){
-  const angle=i*2.39996323+seed*.001,
-   radius=fire.radiusM*.72*Math.sqrt((i+.45)/(count*4));
-  const x=Math.sin(angle)*radius,z=Math.cos(angle)*radius;
-  const lat=fire.coordinates[1]+z/111320;
-  const lon=fire.coordinates[0]+x/(111320*Math.max(.05,Math.cos(fire.coordinates[1]*Math.PI/180)));
-  if(!detectedFireArea(state,fire,[lon,lat]))continue;
-  const phase=Math.sin(seed+i*78.23)*134.31;
-  placeFlame(T,fireGroup,x,0,z,baseHeight*(.5+Math.abs(Math.sin(phase))*.95),phase,flames);
-  accepted++;
- }
- if(!flames.length)placeFlame(T,fireGroup,0,0,0,baseHeight,seed,flames);
- // Fire overlays are attached to REAL mapped extrusion footprints when present.
- // They do not change BridgePoint building / tree geometry or claim observed ignition.
- const {buildings,trees}=objectsUnderFire(state,fire);
- for(const [i,b] of buildings.entries()){
-  const [x,z]=deltaMeters(fire,b.coord),phase=seed+i*3.14;
-  placeFlame(T,fireGroup,x,b.height,z,Math.max(2.3,Math.min(17,b.height*.35)),phase,flames);
-  placeFlame(T,fireGroup,x+1,b.height*.55,z+1,Math.max(2.5,b.height*.23),phase+.3,flames);
- }
- for(const [i,tr] of trees.entries()){
-  const [x,z]=deltaMeters(fire,tr.coord),phase=seed+i*4.11;
-  placeFlame(T,fireGroup,x,tr.height*.55,z,Math.min(12,tr.height*.78),phase,flames);
-  placeFlame(T,fireGroup,x+.8,tr.height*.15,z+.5,Math.min(8,tr.height*.45),phase+.24,flames);
- }
- return {scene,flames,fire,built:buildings.length,tree:trees.length};
+function makeSceneForFire(T,state,fire,quality){
+ const surfaces=objectsUnderFire(state,fire);
+ // The same genuine FIRMS detection and its verified official perimeter
+ // constrain the 3D geometry; heat and flames are visual reconstructions.
+ const effect=state.volumeV4.createBridgePointWildfireVolumeV4(T,{
+  map:state.map,fire,perimeters:state.perimeters.get(fire.id)||[],
+  buildings:surfaces.buildings,trees:surfaces.trees,quality
+ });
+ if(!effect)throw Error('Volumetric wildfire renderer not ready');
+ return effect;
 }
 function worldMatrix(map,T,coords,elev){
  try{
@@ -613,7 +600,7 @@ function visible3DFires(state){
   .slice(0,zoom<15?3:7);
 }
 function ensureNative3D(state){
- if(!state.enabled||!state.THREE||!state.map.getStyle?.())return;
+ if(!state.enabled||!state.THREE||!state.volumeV4||!state.map.getStyle?.())return;
  if(state.map.getLayer?.(layer3d))return;
  const map=state.map,T=state.THREE;
  const layer={id:layer3d,type:'custom',renderingMode:'3d',
@@ -631,22 +618,21 @@ function ensureNative3D(state){
    if(now-state.lastFrame<30){map.triggerRepaint?.();return;}state.lastFrame=now;
    const activeIds=new Set(sites.map(s=>s.id));
    for(const [id,effect] of state.effects){
-    if(!activeIds.has(id)){for(const f of effect.flames)for(const m of f.children){m.geometry?.dispose?.();m.material?.dispose?.();}
-     state.effects.delete(id);}
+    if(!activeIds.has(id)){effect.dispose?.();state.effects.delete(id);}
    }
+   const zoom=Number(map.getZoom?.()||0);
+   const quality=zoom>=17?2:zoom>=15?1:0;
    for(const site of sites){
     let effect=state.effects.get(site.id);
-    if(!effect){effect=makeSceneForFire(T,state,site);state.effects.set(site.id,effect);}
+    if(effect&&effect.quality!==quality){effect.dispose?.();state.effects.delete(site.id);effect=null;}
+    if(!effect){effect=makeSceneForFire(T,state,site,quality);state.effects.set(site.id,effect);}
     let height=0;
     try{const sample=map.queryTerrainElevation?.(site.coordinates,{exaggerated:false});if(Number.isFinite(sample))height=sample;}catch(_){}
     const model=worldMatrix(map,T,site.coordinates,height);
     if(!model)continue;
-    for(let k=0;k<effect.flames.length;k++){
-     const flame=effect.flames[k],phase=now*.0015+flame.userData.seed+k*2.33;
-     flame.rotation.y=Math.sin(phase*.73)*.25;
-     flame.scale.set(1+Math.sin(phase*1.2)*.07, .90+Math.abs(Math.sin(phase*1.8))*.24,
-      1+Math.cos(phase*1.1)*.09);
-    }
+    // Shader-sampled turbulence curls and flickers every frame without
+    // moving fire roots away from sampled 3D terrain or mapped structures.
+    for(const shader of effect.uniforms)shader.uTime.value=now*.001;
     state.camera.projectionMatrix.copy(new T.Matrix4().fromArray(projection)).multiply(model);
     try{state.renderer.resetState();state.renderer.render(effect.scene,state.camera);}
     catch(e){if(!state.renderWarned){state.renderWarned=true;console.warn('3D wildfire native renderer',e);}}
@@ -655,18 +641,27 @@ function ensureNative3D(state){
    if(state.enabled&&sites.length)map.triggerRepaint?.();
   },
   onRemove(){
+   for(const effect of state.effects.values())effect.dispose?.();
+   state.effects.clear();
    try{state.renderer?.dispose();}catch(_){}
-   state.camera=null;state.renderer=null;state.effects=new Map();
+   state.camera=null;state.renderer=null;
   }
  };
  try{map.addLayer(layer);}catch(e){state.error='3D wildfire init: '+String(e?.message||e);}
 }
 function maybeShowNative3D(state){
  if(!state.enabled||!visible3DFires(state).length)return;
- if(state.THREE){ensureNative3D(state);return;}
- void getThree().then(T=>{if(state.enabled&&!state.destroyed){
-   state.THREE=T;ensureNative3D(state);state.map.triggerRepaint?.();
- }}).catch(e=>{state.error='3D flames: '+String(e?.message||e);});
+ if(state.THREE&&state.volumeV4){ensureNative3D(state);return;}
+ if(state.loadingVolumeV4)return;
+ state.loadingVolumeV4=true;
+ void Promise.all([getThree(),getFireVolumeV4()]).then(([T,module])=>{
+  if(!state.enabled||state.destroyed)return;
+  state.THREE=T;state.volumeV4=module;
+  ensureNative3D(state);state.map.triggerRepaint?.();
+ }).catch(e=>{
+  state.error='Realistic wildfire volume: '+String(e?.message||e);
+  publishFireStatus(state);
+ }).finally(()=>{state.loadingVolumeV4=false;});
 }
 function turnOff(state){
  state.abort?.abort();state.eventsAbort?.abort();state.eventsAbort=null;
@@ -703,7 +698,7 @@ export function initLiveWildfireRenderer(target){
  installFireCardStyles();
  const state={map,enabled:false,destroyed:false,fires:[],error:'',lastUpdated:0,loading:false,markers:new Map(),eventsAbort:null,markerWarned:false,
   abort:null,perimeters:new Map(),fetchedSlugs:new Set(),perimeterLoading:new Set(),
-  perimeterAbort:new Map(),THREE:null,renderer:null,camera:null,effects:new Map(),
+  perimeterAbort:new Map(),THREE:null,volumeV4:null,loadingVolumeV4:false,renderer:null,camera:null,effects:new Map(),
   refreshTimer:null,lastFrame:0,popup:null,renderWarned:false};
  const handleStyle=()=>{if(state.enabled){
   if(ensureMapSources(state)){updateMap(state);schedulePerimeterLoads(state);}
