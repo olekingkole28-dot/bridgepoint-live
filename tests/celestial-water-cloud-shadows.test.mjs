@@ -128,8 +128,8 @@ test('clouds render as bright 3D volumes, not as a false-colour raster sheet', (
   assert.match(clouds, /desktopGlobalCloudMotionPaused: false/);
   assert.match(clouds, /lastCloudRepaintAt/);
   assert.ok(app.includes('world-v2300-lod-controls.js?v=6201-gold-always-on'), 'app must use Gold-always-on LOD controls');
-  assert.ok(app.includes('world-v2300-clouds.js?v=6319-fluffy-volume-clouds'), 'app must use the cache-busted desktop-stability cloud module');
-  assert.ok(landing.includes('world-v2300-clouds.js?v=6319-fluffy-volume-clouds'), 'landing must use the cache-busted desktop-stability cloud module');
+  assert.ok(app.includes('world-v2300-clouds.js?v=6320-colored-cyclone-cloudbands'), 'app must use the cache-busted desktop-stability cloud module');
+  assert.ok(landing.includes('world-v2300-clouds.js?v=6320-colored-cyclone-cloudbands'), 'landing must use the cache-busted desktop-stability cloud module');
   assert.doesNotMatch(timeSlider, /data-clouds|toggleSkyClouds|world-v2300-clouds/, 'timeline must not expose or load the cloud toggle');
   assert.match(clouds, /coverageVersion: 6180/);
   assert.match(clouds, /Number\(satelliteMask\.probability\[idx\]\)<=32/);
@@ -138,6 +138,8 @@ test('clouds render as bright 3D volumes, not as a false-colour raster sheet', (
   assert.match(clouds, /const satellitePuffStacks = MOBILE \? 3 : 4/);
   assert.match(clouds, /convectiveAnvil/);
   assert.match(clouds, /nestedBillows/);
+  assert.match(clouds, /vec3\(0\.96,0\.025,0\.035\)/);
+  assert.match(clouds, /radarRadius/);
   assert.match(clouds, /MOBILE \? 10 : 14/);
   assert.match(clouds, /undersideShade=1\.0-smoothstep\(0\.05,0\.55,heightShade\)/);
   assert.match(clouds, /time\*0\.34/);

@@ -177,7 +177,21 @@ vec4 bpRaymarchStorm(vec3 entry,vec2 cameraXY,float tint,float time,float camera
       float erosion=noise3(vec3(samplePos.xy/3100.0,samplePos.z/760.0)+vec3(time*0.09,-time*0.065,time*0.05));
       float heightShade=clamp(samplePos.z/height,0.0,1.0),radialShade=clamp(length(samplePos.xy)/radius,0.0,1.0);
       float silver=clamp(0.37+0.22*broad+0.17*fine+0.12*erosion+0.20*heightShade-0.16*radialShade,0.14,1.0);
-      float undersideShade=1.0-smoothstep(0.05,0.55,heightShade);vec3 cloudColor=mix(vec3(0.018,0.025,0.043),vec3(0.90,0.94,0.99),silver);cloudColor*=1.0-undersideShade*(0.38+0.16*radialShade);
+      float undersideShade=1.0-smoothstep(0.05,0.55,heightShade);vec3 cloudColor=mix(vec3(0.018,0.025,0.043),vec3(0.90,0.94,0.99),silver);
+      if(!funnel){
+        float rho=length(samplePos.xy)/max(radius,1.0),angle=atan(samplePos.y,samplePos.x);
+        float spiral=(broad-0.5)*0.055+(fine-0.5)*0.025+(erosion-0.5)*0.012;
+        float radarRadius=clamp((rho-eyeRatio*1.52)/(1.0-eyeRatio*1.52)+spiral+0.025*sin(angle*5.0-time*1.9+fine*2.0),0.0,1.0);
+        vec3 radar=vec3(0.05,0.20,0.88);
+        radar=mix(radar,vec3(0.00,0.78,0.96),smoothstep(0.76,0.88,radarRadius));
+        radar=mix(radar,vec3(0.16,0.88,0.28),smoothstep(0.63,0.75,radarRadius));
+        radar=mix(radar,vec3(0.98,0.88,0.06),smoothstep(0.48,0.61,radarRadius));
+        radar=mix(radar,vec3(1.00,0.39,0.015),smoothstep(0.32,0.46,radarRadius));
+        radar=mix(radar,vec3(0.96,0.025,0.035),smoothstep(0.14,0.30,radarRadius));
+        radar=mix(radar,vec3(0.29,0.008,0.065),1.0-smoothstep(0.035,0.12,radarRadius));
+        cloudColor=mix(cloudColor,radar,0.97);
+      }
+      cloudColor*=1.0-undersideShade*(0.38+0.16*radialShade);
       float microExtinction=0.72+0.42*fine+0.22*erosion;
       float extinction=funnel?mix(0.000105,0.000012,funnelLod):0.000060,sampleAlpha=clamp(1.0-exp(-density*stepLength*extinction*microExtinction),0.0,0.50);
       accumulatedColor+=cloudColor*((1.0-accumulatedAlpha)*sampleAlpha);accumulatedAlpha+=(1.0-accumulatedAlpha)*sampleAlpha;
