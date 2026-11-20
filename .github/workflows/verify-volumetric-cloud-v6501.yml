@@ -59,7 +59,66 @@ jobs:
                 console.log('BRIDGEPOINT_CLOUD_WEBGL_V6501',JSON.stringify(output));
                 if(!output.vertex||!output.fragment||!output.linked||!output.volumePresent)throw Error('V6501 shader compile failed '+JSON.stringify(output));
               }
+              // Draw actual regular and storm cloud mesh fragments with the
+              // production shader and inspect the pixel output. Compilation alone
+              // is not sufficient for image-quality regression detection.
+              const production=shaderFactory(false);
+              for(const [tint,label] of [[.41,'cumulus'],[.96,'supercell']]){
+                const diagnostic=await p.evaluate(({vs,fs,tint,label})=>{
+                  const c=document.createElement('canvas');
+                  c.width=340;c.height=340;c.style.cssText='display:inline-block;width:340px;height:340px';
+                  const gl=c.getContext('webgl',{antialias:true,preserveDrawingBuffer:true,alpha:false});
+                  if(!gl)throw Error('WebGL preview not available');
+                  const mk=(kind,source)=>{const a=gl.createShader(kind);gl.shaderSource(a,source);gl.compileShader(a);if(!gl.getShaderParameter(a,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(a));return a};
+                  const program=gl.createProgram();gl.attachShader(program,mk(gl.VERTEX_SHADER,vs));gl.attachShader(program,mk(gl.FRAGMENT_SHADER,fs));
+                  gl.linkProgram(program);if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(program));
+                  gl.useProgram(program);
+                  const vertices={a_pos:[],a_altitude:[],a_local:[],a_tint:[],a_wind:[],a_storm_motion:[],a_storm_epoch:[]};
+                  const n=26,m=16,idx=[];
+                  for(let j=0;j<=m;j++)for(let i=0;i<=n;i++){
+                    const phi=Math.PI*j/m,theta=Math.PI*2*i/n;
+                    const x=Math.cos(theta)*Math.sin(phi),y=Math.sin(theta)*Math.sin(phi),z=Math.cos(phi);
+                    vertices.a_pos.push(x*.65,y*.62,z*.62);
+                    vertices.a_altitude.push(0);vertices.a_local.push(x,y,z);vertices.a_tint.push(tint);
+                    vertices.a_wind.push(0,0);vertices.a_storm_motion.push(0,0);vertices.a_storm_epoch.push(0);
+                  }
+                  for(let j=0;j<m;j++)for(let i=0;i<n;i++){const a=j*(n+1)+i,b=a+n+1;idx.push(a,b,a+1,b,b+1,a+1)}
+                  const sizes={a_pos:3,a_altitude:1,a_local:3,a_tint:1,a_wind:2,a_storm_motion:2,a_storm_epoch:1};
+                  for(const [name,data] of Object.entries(vertices)){
+                    const loc=gl.getAttribLocation(program,name);if(loc<0)continue;
+                    const buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buffer);
+                    gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(data),gl.STATIC_DRAW);
+                    gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,sizes[name],gl.FLOAT,false,0,0);
+                  }
+                  const ib=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ib);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(idx),gl.STATIC_DRAW);
+                  const uniform=(name)=>gl.getUniformLocation(program,name);
+                  gl.uniformMatrix4fv(uniform('u_matrix'),false,new Float32Array([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]));
+                  gl.uniform1f(uniform('u_time'),3);
+                  gl.uniform1f(uniform('u_motion_time'),0);gl.uniform1f(uniform('u_storm_motion_time'),0);
+                  gl.uniform1f(uniform('u_camera_altitude_m'),5000);gl.uniform1f(uniform('u_ray_steps'),12);
+                  gl.uniform1f(uniform('u_cloud_view_pitch'),.22);
+                  gl.uniform1f(uniform('u_cloud_view_bearing'),0);
+                  gl.uniform1f(uniform('u_cloud_steps'),4);
+                  gl.uniform2f(uniform('u_camera_center_mercator'),.5,.5);
+                  gl.viewport(0,0,340,340);gl.clearColor(.035,.071,.12,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+                  gl.disable(gl.CULL_FACE);gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
+                  gl.drawElements(gl.TRIANGLES,idx.length,gl.UNSIGNED_SHORT,0);
+                  const pixels=new Uint8Array(4);gl.readPixels(170,170,1,1,gl.RGBA,gl.UNSIGNED_BYTE,pixels);
+                  c.setAttribute('data-cloud-preview',label);document.body.appendChild(c);
+                  return{label,tint,centerRGBA:Array.from(pixels),gpuError:gl.getError(),meshTriangles:idx.length/3};
+                },{vs:production.vertex,fs:production.fragment,tint,label});
+                console.log('BRIDGEPOINT_VOLUME_PREVIEW_V6501',JSON.stringify(diagnostic));
+                if(diagnostic.gpuError!==0)throw Error('3D cloud preview GPU draw error '+JSON.stringify(diagnostic));
+              }
+              await p.screenshot({path:'/tmp/bp-v6501-cloud-volume-preview.png',fullPage:true});
               console.log('BRIDGEPOINT_CLOUD_VOLUME_WEBGL1_WEBGL2_PASS');
             }finally{await browser.close()}
           })().catch(e=>{console.error(e.stack||e);process.exit(1)});
           NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bridgepoint-v6501-cloud-volume-preview
+          path: /tmp/bp-v6501-cloud-volume-preview.png
+          if-no-files-found: ignore
+          retention-days: 3
