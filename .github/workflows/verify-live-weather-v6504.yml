@@ -76,7 +76,7 @@ jobs:
                       satellitePuffCount:cloud.satellitePuffCount,
                       cloudLodBand:cloud.cloudLodBand}:null,
                     cloudEngine:!!window.__BP_SKY_CLOUDS_V5908__,
-                    rawCloudV6202:(()=>{const c=window.__BP_SKY_CLOUDS_STATE_V6202__;return c?{keys:Object.keys(c),puffCount:c.puffCount,vertexCount:c.vertexCount,globalPuffCount:c.globalPuffCount,rendererError:c.rendererError,formationCount:c.formationCount,sourceHeightSampleCount:c.sourceHeightSampleCount,satellitePuffCount:c.satellitePuffCount}:null})(),
+                    rawCloudV6202:(()=>{const c=window.__BP_SKY_CLOUDS_STATE_V6202__;return c?{cloudFormations:c.cloudFormations,globalCloudFormations:c.globalCloudFormations,globalCloudPuffs:c.globalCloudPuffs,sourceHurricaneVisualEyeRadiusKm:c.sourceHurricaneVisualEyeRadiusKm,satelliteCloudVolumesRendered:c.satelliteCloudVolumesRendered,satelliteCloudMaskCoverageCells:c.satelliteCloudMaskCoverageCells,satelliteCloudMaskCloudCells:c.satelliteCloudMaskCloudCells,layerInstalled:c.layerInstalled,layerPresent:c.layerPresent,mapStyleLoaded:c.mapStyleLoaded,cloudIndexFormat:c.cloudIndexFormat,globalMacroFormations:c.globalMacroFormations,globalFineFormations:c.globalFineFormations,satelliteCloudFormationBudget:c.satelliteCloudFormationBudget,rendererError:c.rendererError,softwareRenderer:c.softwareRenderer,zoom:c.zoom}:null})(),
                     cloudLayer:map?.getLayer?.('bp-sky-cloud-volume-v6029')?.id||null,
                     weather:weather||null,weatherState:weatherState?.counts||null,
                     liveFeed:feed
