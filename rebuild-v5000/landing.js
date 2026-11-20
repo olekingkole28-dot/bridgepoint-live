@@ -826,6 +826,7 @@ async function initMap(){
           ['./bridgepoint-spacecraft-columbia-v1.js?v=2-mobile-apollo11-columbia','__BP_SPACECRAFT_COLUMBIA_V1__','initSpacecraftColumbiaRenderer','Spacecraft 2 of 4'],
           ['./bridgepoint-spacecraft-discovery-v1.js?v=1-mobile-space-shuttle-discovery','__BP_SPACECRAFT_DISCOVERY_V1__','initSpacecraftDiscoveryRenderer','Spacecraft 3 of 4'],
           ['./bridgepoint-spacecraft-saturn-v1.js?v=1-mobile-saturn-v-launch39a','__BP_SPACECRAFT_SATURN_V1__','initSpacecraftSaturnRenderer','Spacecraft 4 of 4'],
+          ['./bridgepoint-spacecraft-ten-pads-v2.js?v=2-ten-pads-mobile','__BP_SPACECRAFT_TEN_PADS_V2__','initSpacecraftTenPadsRenderer','10 more launch pads'],
           ['./bridgepoint-underground-scan-sites-v1.js?v=2-mobile-big-persistent-cave-icons','__BP_UNDERGROUND_SCAN_SITES_V1__','initUndergroundScanSitesRenderer','Caves and underground sites'],
           ['./bridgepoint-jenolan-caves-v1.js?v=1-mobile-jenolan-large-system','__BP_JENOLAN_CAVES_V1__','initJenolanCavesRenderer','Jenolan Caves 3D scan'],
           ['./world-v2300-lod-controls.js?v=6311-mobile-gold-lod','__BP_LOD_CONTROL_LANDING_V6016__','initWorldLodControls','Gold LOD controls',[{surface:'landing'}]],
@@ -988,6 +989,9 @@ void import('./bridgepoint-spacecraft-v1.js?v=1-sls-mobile-launcher-lc39b&ui=631
 void import('./bridgepoint-spacecraft-saturn-v1.js?v=1-nasa-saturn-v-launch39a&ui=6314')
  .then(m=>{window.__BP_SPACECRAFT_SATURN_V1__=m.initSpacecraftSaturnRenderer(world)})
  .catch(e=>console.warn('BridgePoint Saturn V launch-site layer unavailable',e));
+void import('./bridgepoint-spacecraft-ten-pads-v2.js?v=2-ten-pads-on-globe')
+ .then(m=>{window.__BP_SPACECRAFT_TEN_PADS_V2__=m.initSpacecraftTenPadsRenderer(world)})
+ .catch(e=>console.warn('BridgePoint ten launch-pad layer unavailable',e));
 void import('./bridgepoint-spacecraft-discovery-v1.js?v=1-smithsonian-space-shuttle-discovery&ui=6314')
  .then(m=>{window.__BP_SPACECRAFT_DISCOVERY_V1__=m.initSpacecraftDiscoveryRenderer(world)})
  .catch(e=>console.warn('BridgePoint Smithsonian Space Shuttle Discovery layer unavailable',e));
