@@ -38,7 +38,7 @@ jobs:
           token='&faa-gate=8-no-icon-sweep'
           for p in (Path('rebuild-v5000/index.html'),Path('rebuild-v5000/app-index.html')):
             s=p.read_text()
-            assert s.count(token)==1 and s.count('bridgepoint-drone-awareness-v1.js')>=1,str(p)
+            assert s.count(token)==1 and s.count('faa=9-faa-gate-current-runtime')==1,str(p)
           print('FAA_GATE_CACHE_REPO_CHECK_PASS')
           PY
       - name: Ensure existing PC Cloudflare tunnel is healthy
@@ -112,21 +112,25 @@ jobs:
             for p in site.rglob('*') if p.is_file()}
           # Preserve the latest gate script version as-is (it can change when
           # another feature publishes); add only the FAA-specific cache marker.
-          pattern=re.compile(r'(data-bp-deferred-src=")(/bridgepoint-drone-awareness-v1\.js\?[^"]+)(")')
+          # Do not modify the newer shared gate loader or any unrelated script:
+          # both live pages already carry the FAA gate cache marker.
+          pattern=re.compile(r'faa=[a-zA-Z0-9._-]+')
           for rel in ('index.html','app/index.html'):
             p=site/rel
             s=p.read_text()
+            if s.count('faa-gate=8-no-icon-sweep')!=1:
+              raise SystemExit('Expected corrected FAA gate loader missing '+rel)
             matches=list(pattern.finditer(s))
-            if len(matches)!=1:raise SystemExit('Expected exactly one deferred shared gate URL in '+rel)
-            current=matches[0].group(2)
-            if 'faa-gate=' in current:raise SystemExit('FAA gate marker already present; refusing duplicate')
-            if 'faa=7-faa-persistent-no-sweep' not in s:
-              raise SystemExit('Expected verified FAA v7 runtime entry key missing '+rel)
-            replacement=current+'&faa-gate=8-no-icon-sweep'
-            updated=s[:matches[0].start(2)]+replacement+s[matches[0].end(2):]
-            if len(updated)<=len(s) or updated.count(replacement)!=1:raise SystemExit('FAA URL replacement invalid')
+            if len(matches)!=1:raise SystemExit('Expected exactly one FAA entry cache key '+rel)
+            current=matches[0].group()
+            replacement='faa=9-faa-gate-current-runtime'
+            try:current_version=int(current.split('=')[1].split('-')[0])
+            except ValueError:raise SystemExit('Unexpected current FAA version '+current)
+            if current_version>=9:raise SystemExit('Already newer FAA cache version '+current)
+            updated=s[:matches[0].start()]+replacement+s[matches[0].end():]
+            if updated.count(replacement)!=1:raise SystemExit('FAA version replacement invalid')
             p.write_text(updated)
-            print('FAA_GATE_CACHE_PRESERVED_EXISTING_QUERY',rel,current)
+            print('FAA_RENDERER_CACHE_ONLY',rel,current,'->',replacement)
           after={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
             for p in site.rglob('*') if p.is_file()}
           changed={k for k in before if before[k]!=after.get(k)}
@@ -155,7 +159,7 @@ jobs:
           for file in index.html app/index.html; do
             curl --retry 8 --retry-all-errors -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$file?verify=$GITHUB_SHA" > "/tmp/faa-${file//\//-}"
             grep -Fq 'faa-gate=8-no-icon-sweep' "/tmp/faa-${file//\//-}"
-            grep -Fq 'faa=7-faa-persistent-no-sweep' "/tmp/faa-${file//\//-}"
+            grep -Fq 'faa=9-faa-gate-current-runtime' "/tmp/faa-${file//\//-}"
           done
           curl --retry 5 --retry-all-errors -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/bridgepoint-drone-awareness-v1.js?verify=$GITHUB_SHA" > /tmp/faa-gate.js
           grep -Fq "if(value.startsWith('bp-faa-obstructions-'))return false" /tmp/faa-gate.js
