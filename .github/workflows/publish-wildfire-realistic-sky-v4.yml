@@ -1,0 +1,232 @@
+name: Publish Wildfire V4 Volumetric Firefront + Ground Sky Occlusion Only
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-wildfire-realistic-sky-v4.yml'
+
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify wildfire 3D shader geometry, detailed card and ground sky occlusion
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module --check < rebuild-v5000/bridgepoint-wildfire-realistic-mesh-v4.js
+          node --input-type=module --check < rebuild-v5000/bridgepoint-wildfires-volumetric-v1.js
+          node --input-type=module --check < rebuild-v5000/bridgepoint-celestial-sky-v6257.js
+          node --check rebuild-v5000/bridgepoint-view-v5917.js
+          node tests/wildfire-firefront-terrain-sky-v4.test.mjs
+          node tests/wildfire-source-native-v1.test.mjs
+          node tests/wildfire-immediate-markers-v3.test.mjs
+          node tests/wildfire-button-routing-v2.test.mjs
+
+      - name: Locate last successfully published 24-spacecraft and working Wildfire site
+        id: baseline
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          RUN_ID="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/publish-wildfire-live-markers-v3.yml/runs?branch=main&status=success&per_page=15" --jq '.workflow_runs | map(select(.conclusion == "success")) | first | .id')"
+          test -n "$RUN_ID" && test "$RUN_ID" != null
+          NAME="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/artifacts" --jq '.artifacts[] | select((.expired|not) and (.name == "bridgepoint-v5000-wildfire-live-markers-v3")) | .name' | head -n 1)"
+          test "$NAME" = bridgepoint-v5000-wildfire-live-markers-v3
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "PRESERVE_COMPLETE_BRIDGEPOINT_SITE_FROM_RUN $RUN_ID $NAME"
+
+      - name: Restore full, verified production website and app
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ steps.baseline.outputs.artifact_name }}
+          run-id: ${{ steps.baseline.outputs.run_id }}
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/wildfire-v4-baseline
+
+      - name: Overlay only realistic wildfire effects, its existing card, celestial occlusion and matching cache keys
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCHIVE="$(find "$RUNNER_TEMP/wildfire-v4-baseline" -name artifact.tar -type f -print -quit)"
+          test -n "$ARCHIVE"
+          SITE="$RUNNER_TEMP/wildfire-v4-production"
+          mkdir -p "$SITE"
+          tar -xf "$ARCHIVE" -C "$SITE"
+          export SITE
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib,json,os,re
+          site=Path(os.environ['SITE'])
+          fire='bridgepoint-wildfires-volumetric-v1.js'
+          engine='bridgepoint-wildfire-realistic-mesh-v4.js'
+          sky='bridgepoint-celestial-sky-v6257.js'
+          view='bridgepoint-view-v5917.js'
+          required={
+              'index.html','app/index.html','landing.js','app.js',view,
+              fire,'app/'+fire,sky,'app/'+sky,'vendor/three.module.js',
+              'world-v2300-weather.js','world-v2300-clouds.js',
+              'bridgepoint-spacecraft-v1.js','bridgepoint-spacecraft-discovery-v1.js',
+              'bridgepoint-spacecraft-columbia-v1.js','bridgepoint-spacecraft-saturn-v1.js',
+              'bridgepoint-spacecraft-ten-pads-v2.js','app/bridgepoint-spacecraft-ten-pads-v2.js',
+              'bridgepoint-spacecraft-museums-v3.js','app/bridgepoint-spacecraft-museums-v3.js',
+              'bridgepoint-underground-scan-sites-v1.js','bridgepoint-plane-wrecks-v1.js',
+              'bridgepoint-shipwrecks-v1.js'
+          }
+          before={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                  for p in site.rglob('*') if p.is_file()}
+          if missing:=required-set(before):
+              raise SystemExit('WILDFIRE_V4_PRODUCTION_BASELINE_MISSING '+str(sorted(missing)))
+          if engine in before or 'app/'+engine in before:
+              raise SystemExit('V4_ENGINE_ALREADY_IN_PRODUCTION_BASELINE')
+
+          # Replace only wildfire modules and the sky overlay, never the
+          # NASA/NOAA radar, global terrain, buildings, trees or prior spacecraft.
+          for path in (fire,engine,sky):
+              data=(Path('rebuild-v5000')/path).read_bytes()
+              (site/path).write_bytes(data)
+              (site/'app'/path).write_bytes(data)
+
+          # Existing wildfire button keeps every other action byte-for-byte;
+          # update ONLY its module import cache URL.
+          path=site/view
+          html=path.read_text(encoding='utf-8')
+          old="bridgepoint-wildfires-volumetric-v1.js?v=3-immediate-live-fire-markers"
+          new="bridgepoint-wildfires-volumetric-v1.js?v=4-realistic-rolling-firefront"
+          if html.count(old)!=1 or html.count(new):
+              raise SystemExit('WILDFIRE_V4_CACHE_IMPORT_UNEXPECTED')
+          html=html.replace(old,new,1)
+          path.write_text(html,encoding='utf-8')
+
+          # Preserve both globe boot scripts, changing ONLY the sky-module
+          # URL so normal tilted Earth views do not leak stars and Mars labels.
+          landing=site/'landing.js'
+          html=landing.read_text(encoding='utf-8')
+          sky_mobile="./bridgepoint-celestial-sky-v6257.js?v=6311-mobile-celestial-sky"
+          sky_old="./bridgepoint-celestial-sky-v6257.js?v=6257"
+          sky_new="./bridgepoint-celestial-sky-v6257.js?v=6257-occlusion-skyview-only-v4"
+          if html.count(sky_mobile)!=1 or html.count(sky_old)!=1:
+              raise SystemExit('WILDFIRE_V4_LANDING_SKY_IMPORTS_UNEXPECTED')
+          html=html.replace(sky_mobile,"./bridgepoint-celestial-sky-v6257.js?v=6311-skyview-occlusion-v4",1)
+          html=html.replace(sky_old,sky_new,1)
+          landing.write_text(html,encoding='utf-8')
+          app=site/'app.js'
+          html=app.read_text(encoding='utf-8')
+          if html.count(sky_old)!=1:raise SystemExit('WILDFIRE_V4_APP_SKY_IMPORT_NOT_FOUND')
+          app.write_text(html.replace(sky_old,sky_new,1),encoding='utf-8')
+
+          # Force old Android and phone webviews to fetch the updated boot
+          # scripts and the existing wildfire button handler.
+          for entry,script in [('index.html','landing.js'),('app/index.html','app.js')]:
+              f=site/entry
+              html=f.read_text(encoding='utf-8')
+              script_pattern=r'src="([^"]*(?:/|\./|\.\./)'+re.escape(script)+r'(?:\?[^"]*)?)"'
+              matches=list(re.finditer(script_pattern,html))
+              if len(matches)!=1:
+                  raise SystemExit('WILDFIRE_V4_BOOT_CACHE_ENTRY_AMBIGUOUS '+entry+' count='+str(len(matches)))
+              url=matches[0].group(1)
+              updated=url+('&' if '?' in url else '?')+'wildfirefront=v4'
+              html=html[:matches[0].start(1)]+updated+html[matches[0].end(1):]
+              old_cache='wildfire3d=v3'
+              if html.count(old_cache)!=1:raise SystemExit('WILDFIRE_V4_BUTTON_CACHE_ENTRY_AMBIGUOUS '+entry)
+              html=html.replace(old_cache,'wildfire3d=v4',1)
+              f.write_text(html,encoding='utf-8')
+
+          after={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                 for p in site.rglob('*') if p.is_file()}
+          removed=set(before)-set(after)
+          added=set(after)-set(before)
+          changed={p for p in before if before[p]!=after.get(p)}
+          allowed_changed={fire,'app/'+fire,sky,'app/'+sky,view,
+                           'landing.js','app.js','index.html','app/index.html'}
+          allowed_added={engine,'app/'+engine}
+          if removed or changed!=allowed_changed or added!=allowed_added:
+              raise SystemExit('WILDFIRE_V4_UNRELATED_FILE_REGRESSION_BLOCKED '+json.dumps({
+                  'removed':sorted(removed),'added':sorted(added),'changed':sorted(changed)}))
+          for module in (fire,engine,sky):
+              assert (site/module).read_bytes()==(site/'app'/module).read_bytes()
+          for path in ('landing.js','app.js'):
+              text=(site/path).read_text(encoding='utf-8')
+              for original in ('bridgepoint-spacecraft-ten-pads-v2.js',
+                  'bridgepoint-spacecraft-museums-v3.js',
+                  'bridgepoint-underground-scan-sites-v1.js'):
+                  assert original in text,(path,original)
+          # Confirm the precise new wildfire and sky source is what is published.
+          assert "getFireVolumeV4()" in (site/fire).read_text(encoding='utf-8')
+          assert "svg.style.visibility='hidden'" in (site/sky).read_text(encoding='utf-8')
+          assert "Fire Radiative Power" in (site/fire).read_text(encoding='utf-8')
+          print('WILDFIRE_V4_COMPLETE_SITE_PRESERVATION_PASS',len(before),
+                'existing files; only nine wildfire/sky entry files changed and two GPU modules added')
+          PY
+          node --check "$SITE/bridgepoint-view-v5917.js"
+          for path in bridgepoint-wildfires-volumetric-v1.js app/bridgepoint-wildfires-volumetric-v1.js bridgepoint-wildfire-realistic-mesh-v4.js app/bridgepoint-wildfire-realistic-mesh-v4.js bridgepoint-celestial-sky-v6257.js app/bridgepoint-celestial-sky-v6257.js; do
+            node --input-type=module --check < "$SITE/$path"
+          done
+          node --check "$SITE/landing.js"
+          node --check "$SITE/app.js"
+
+      - uses: actions/configure-pages@v5
+
+      - name: Upload preserved BridgePoint with isolated Wildfire realism and ground sky fixes
+        uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-wildfire-realistic-v4
+          path: ${{ runner.temp }}/wildfire-v4-production
+          include-hidden-files: true
+
+      - name: Publish wildfire realism and prevent planets through terrain
+        id: deploy
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: bridgepoint-v5000-wildfire-realistic-v4
+
+      - name: Verify both live surfaces have realistic 3D fire and explicit sky-view occlusion
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="https://bridgepointintelligence.online"
+          ok=0
+          for attempt in 1 2 3 4 5 6; do
+            if curl -fsSL --max-time 30 "$SITE/bridgepoint-wildfire-realistic-mesh-v4.js?check=$GITHUB_SHA-$attempt" | grep -F 'createBridgePointWildfireVolumeV4' >/dev/null &&
+               curl -fsSL --max-time 30 "$SITE/app/bridgepoint-wildfire-realistic-mesh-v4.js?check=$GITHUB_SHA-$attempt" | grep -F 'terrain-following rolling fire-front shader' >/dev/null &&
+               curl -fsSL --max-time 30 "$SITE/bridgepoint-wildfires-volumetric-v1.js?check=$GITHUB_SHA-$attempt" | grep -F 'Fire Radiative Power' >/dev/null &&
+               curl -fsSL --max-time 30 "$SITE/app/bridgepoint-wildfires-volumetric-v1.js?check=$GITHUB_SHA-$attempt" | grep -F 'getFireVolumeV4()' >/dev/null &&
+               curl -fsSL --max-time 30 "$SITE/bridgepoint-celestial-sky-v6257.js?check=$GITHUB_SHA-$attempt" | grep -F '__BP_SKY_VIEW_OVERRIDE_V6077__' >/dev/null &&
+               curl -fsSL --max-time 30 "$SITE/app/bridgepoint-celestial-sky-v6257.js?check=$GITHUB_SHA-$attempt" | grep -F 'lookingAtSky' >/dev/null &&
+               curl -fsSL --max-time 30 "$SITE/landing.js?check=$GITHUB_SHA-$attempt" | grep -F '6311-skyview-occlusion-v4' >/dev/null &&
+               curl -fsSL --max-time 30 "$SITE/app.js?check=$GITHUB_SHA-$attempt" | grep -F '6257-occlusion-skyview-only-v4' >/dev/null &&
+               curl -fsSL --max-time 30 "$SITE/bridgepoint-view-v5917.js?check=$GITHUB_SHA-$attempt" | grep -F 'v=4-realistic-rolling-firefront' >/dev/null &&
+               curl -fsSL --max-time 30 "$SITE/index.html?check=$GITHUB_SHA-$attempt" | grep -F 'wildfirefront=v4' >/dev/null &&
+               curl -fsSL --max-time 30 "$SITE/app/index.html?check=$GITHUB_SHA-$attempt" | grep -F 'wildfire3d=v4' >/dev/null &&
+               curl -fsSL --max-time 30 "$SITE/bridgepoint-spacecraft-museums-v3.js?check=$GITHUB_SHA-$attempt" | grep -F 'SPACECRAFT_MUSEUM_EXHIBITS_V3' >/dev/null &&
+               curl -fsSL --max-time 30 "$SITE/bridgepoint-spacecraft-ten-pads-v2.js?check=$GITHUB_SHA-$attempt" | grep -F 'SPACECRAFT_TEN_LAUNCH_PADS' >/dev/null; then
+              ok=1
+              break
+            fi
+            sleep 12
+          done
+          test "$ok" = 1
+          echo "WILDFIRE_REALISTIC_3D_SKYVIEW_TERRAIN_OCCLUSION_ROOT_AND_APP_PASS"

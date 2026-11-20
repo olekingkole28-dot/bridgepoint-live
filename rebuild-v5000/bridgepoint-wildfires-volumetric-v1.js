@@ -8,6 +8,15 @@
 const API='https://worldfires.org/api/v1';
 const EONET='https://eonet.gsfc.nasa.gov/api/v3/events?category=wildfires&status=open&days=14&limit=300';
 const THREE_URL='/vendor/three.module.js?v=169-local';
+const FIRE_VOLUME_V4_URL='./bridgepoint-wildfire-realistic-mesh-v4.js?v=4-rolling-heat-turbulence';
+let volumeV4Promise=null;
+function getFireVolumeV4(){
+ if(!volumeV4Promise)volumeV4Promise=import(FIRE_VOLUME_V4_URL).then(m=>{
+  if(typeof m.createBridgePointWildfireVolumeV4!=='function')throw Error('BridgePoint V4 fire shader missing');
+  return m;
+ }).catch(e=>{volumeV4Promise=null;throw e;});
+ return volumeV4Promise;
+}
 const sourceId='bp-live-wildfires-v1',perimeterId='bp-live-fire-perimeters-v1';
 const iconId='bp-live-wildfire-icon-v1';
 const pointLayer='bp-live-fire-icon-symbols-v1';
@@ -37,7 +46,11 @@ export function normalizeActiveFireRecords(data,now=Date.now()){
   const perimeterSlug=/^[a-z0-9][a-z0-9-]{1,130}$/.test(String(row.evento||''))&&row.evento_fuente==='perimetro'?String(row.evento):null;
   out.push({id:identifier+'-'+out.length,coordinates:coordinate,name:String(row.nombre||row.local||'Satellite thermal anomaly').slice(0,150),
    country:String(row.pais||'').slice(0,4),detectedAt:new Date(when).toISOString(),
-   count,frp:Number(row.frp_max)||0,ha:Number(row.ha)||0,
+   count,frp:Number(row.frp_max)||0,frpSum:Number(row.frp)||0,ha:Number(row.ha)||0,
+   eventAreaHa:Number(row.evento_ha)||0,firstDetectedAt:row.primero||null,
+   locality:String(row.local||'').slice(0,120),countryName:String(row.pais||'').slice(0,4),
+   perimeterProvider:String(row.evento_fuente||'none').slice(0,50),
+   eventId:String(row.evento||'').slice(0,130),
    url:sanitizeURL(row.url),perimeterSlug,source:'WorldFires · NASA FIRMS VIIRS',
    sourceKind:'detection',radiusM:Math.min(700,Math.max(170,Math.sqrt(count)*32))});
   if(out.length>=MAX_MAP_FIRE_RECORDS)break;
@@ -373,7 +386,19 @@ function schedulePerimeterLoads(state){
 function installFireCardStyles(){
  if(typeof document==='undefined'||document.getElementById(styleId))return;
  const s=document.createElement('style');s.id=styleId;
- s.textContent='.bp-fire-popup .maplibregl-popup-content{background:#101920;color:#f5ede6;border:1px solid #f0693a;border-radius:10px;padding:11px;max-width:min(370px,calc(100vw - 40px));font:12px/1.5 system-ui,sans-serif}.bp-fire-popup h3{margin:2px 0 5px;font-size:15px}.bp-fire-popup p{margin:5px 0}.bp-fire-popup strong{color:#ffba87}.bp-fire-popup a{color:#ffd89b}.bp-fire-popup .maplibregl-popup-tip{border-top-color:#101920;border-bottom-color:#101920}';
+ s.textContent='.bp-fire-popup .maplibregl-popup-content{background:linear-gradient(160deg,#17222a,#07131d);color:#edf3f6;border:1px solid #ef7949;border-radius:12px;padding:13px;max-width:min(470px,calc(100vw - 36px));max-height:min(76vh,670px);overflow:auto;font:12px/1.55 system-ui,sans-serif;box-shadow:0 16px 35px #0009}'+
+ '.bp-fire-popup h3{margin:3px 24px 8px 0;font-size:18px;line-height:1.2;color:#fff1dc}'+
+ '.bp-fire-popup h4{margin:13px 0 5px;padding-bottom:3px;border-bottom:1px solid #a1604255;text-transform:uppercase;letter-spacing:.09em;color:#ffbc89;font-size:10px}'+
+ '.bp-fire-popup p{margin:6px 0;color:#d5e1e9}'+
+ '.bp-fire-popup strong{color:#ffd1a2}'+
+ '.bp-fire-popup .bp-fire-subhead{color:#ffa86f;font-size:10px;font-weight:800;letter-spacing:.12em}'+
+ '.bp-fire-popup .bp-fire-meta{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:8px 0}'+
+ '.bp-fire-popup .bp-fire-meta span{display:grid;gap:2px;padding:7px;border:1px solid #485d6a;background:#14232d;border-radius:7px}'+
+ '.bp-fire-popup .bp-fire-meta b{font-size:9px;color:#90bbd1;text-transform:uppercase}'+
+ '.bp-fire-popup .bp-fire-notice{padding:9px;background:#31241e;border-left:2px solid #fc9c64;border-radius:4px;font-size:11px;line-height:1.55}'+
+ '.bp-fire-popup .bp-fire-source{display:block;padding:8px;border-radius:7px;color:#ffdcad;background:#1d2b36;border:1px solid #a77c56;text-decoration:underline;font-weight:700}'+
+ '.bp-fire-popup .maplibregl-popup-tip{border-top-color:#101920;border-bottom-color:#101920}'+
+ '@media(max-width:480px){.bp-fire-popup .maplibregl-popup-content{padding:10px}.bp-fire-popup .bp-fire-meta{gap:5px}}';
  document.head.appendChild(s);
 }
 function fireAtLngLat(state,coord){
@@ -388,19 +413,55 @@ function fireAtLngLat(state,coord){
 function addPopup(state,fire){
  if(!state.enabled||!window.maplibregl?.Popup)return;
  state.popup?.remove();
- const mapped=state.perimeters.has(fire.id);
- const kind=mapped?'Source-provided fire/burned-area perimeter available':'Satellite hotspot location only; dashed area is an illustrative detection footprint, NOT a measured fire perimeter';
- const html='<div class="bp-fire-card">'+
-  '<b style="color:#ff9e63;font-size:10px;letter-spacing:.08em">BRIDGEPOINT · WILDFIRE LIVE OBSERVATIONS</b>'+
-  '<h3>'+esc(fire.name)+'</h3><p><strong>Detected:</strong> '+esc(fire.detectedAt)+'</p>'+
-  '<p><strong>Source:</strong> '+esc(fire.source)+'</p>'+
-  '<p><strong>Thermal detections:</strong> '+fire.count+' · <strong>Maximum FRP:</strong> '+Math.max(0,fire.frp).toFixed(1)+' MW</p>'+
-  '<p><strong>Boundary:</strong> '+esc(kind)+'</p>'+
-  '<p><strong>3D fire:</strong> Dynamic, volumetric illustration at observed thermal detections when zoomed near a fire. Flames on mapped buildings or tree features are illustrative exposure, not confirmation of structural ignition.</p>'+
-  '<p style="font-size:10px;color:#adc3d2">Hotspots are satellite thermal anomalies, not on-the-ground confirmation; smoke/cloud and sensor resolution can affect detection. Fire locations and burned-area outlines may be delayed. Not for emergency navigation.</p>'+
-  (fire.url?'<a href="'+esc(fire.url)+'" rel="noopener noreferrer" target="_blank">Underlying source report (external)</a>':'')+
+ const mappedFeatures=state.perimeters.get(fire.id)||[];
+ const hasMapped=mappedFeatures.length>0;
+ const utc=new Date(fire.detectedAt);
+ const ago=Math.max(0,(Date.now()-utc.getTime())/3600000);
+ const age=ago<1?Math.round(ago*60)+' minutes':ago<48?ago.toFixed(1)+' hours':(ago/24).toFixed(1)+' days';
+ const quality=fire.sourceKind==='event'?'NASA EONET open event report':'NASA FIRMS / VIIRS orbital infrared thermal detections';
+ const [lon,lat]=fire.coordinates;
+ const sourcePerimeter=hasMapped?'Confirmed source-provided GeoJSON perimeter / reported burned-area geometry':
+  fire.geometry?.type==='Polygon'?'EONET supplied event polygon; not an independently verified ground survey':
+  'No measured perimeter loaded. Dashed detection zone is an illustrative spatial uncertainty/cluster footprint.';
+ const number=(n,decimals=0)=>Number.isFinite(+n)?Number(n).toLocaleString('en-US',{maximumFractionDigits:decimals}):'Not reported';
+ const field=(title,value)=>'<span><b>'+esc(title)+'</b>'+esc(value)+'</span>';
+ const meta='<div class="bp-fire-meta">'+
+  field('Observation class',fire.sourceKind==='event'?'Named wildfire event':'Satellite thermal anomaly cluster')+
+  field('Last observed',utc.toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short',timeZone:'UTC'})+' UTC')+
+  field('Detection age',age)+
+  field('Country / region',fire.countryName||fire.country||'Not reported')+
+  field('Latitude / longitude',Math.abs(lat).toFixed(5)+'° '+(lat>=0?'N':'S')+', '+Math.abs(lon).toFixed(5)+'° '+(lon>=0?'E':'W'))+
+  field('Associated detections',number(fire.count))+
   '</div>';
- const p=new window.maplibregl.Popup({className:'bp-fire-popup',maxWidth:'390px',closeButton:true})
+ const metrics=fire.sourceKind==='event'?
+  '<p>This is an event tracked by NASA EONET. EONET does not necessarily provide thermal radiative power, acreage or a surveyed fireline for each event.</p>':
+  '<div class="bp-fire-meta">'+
+   field('Peak radiative power',fire.frp>0?number(fire.frp,2)+' MW':'Not reported')+
+   field('Summed radiative power',fire.frpSum>0?number(fire.frpSum,1)+' MW':'Not reported')+
+   field('Source-estimated active area',fire.ha>0?number(fire.ha,1)+' hectares':'Not reported')+
+   field('Reported event area',fire.eventAreaHa>0?number(fire.eventAreaHa,1)+' hectares':'Not reported')+
+  '</div>'+
+  '<p><strong>FRP interpretation:</strong> Fire Radiative Power estimates infrared energy emitted by hot surfaces. It is not temperature, fire speed, flame height, damage, or a confirmed count of burning buildings.</p>';
+ const html='<article class="bp-fire-card">'+
+  '<div class="bp-fire-subhead">BRIDGEPOINT INTELLIGENCE · GLOBAL FIRE OBSERVATION</div>'+
+  '<h3>'+esc(fire.name)+'</h3>'+
+  '<p><strong>Live source status:</strong> '+esc(quality)+'. '+esc(fire.source)+'.</p>'+
+  '<h4>Location and detection history</h4>'+meta+
+  (fire.locality?'<p><strong>Reported locality:</strong> '+esc(fire.locality)+'</p>':'')+
+  (fire.firstDetectedAt?'<p><strong>First recorded by aggregation:</strong> '+esc(fire.firstDetectedAt)+' (source timestamp)</p>':'')+
+  '<h4>Thermal intensity and footprint</h4>'+metrics+
+  '<h4>Boundaries and location accuracy</h4>'+
+  '<p><strong>Boundary type:</strong> '+esc(sourcePerimeter)+'</p>'+
+  (fire.perimeterProvider&&fire.perimeterProvider!=='none'?'<p><strong>Fire event geometry classification:</strong> '+esc(fire.perimeterProvider)+'</p>':'')+
+  '<p><strong>Globe display:</strong> An observed hotspot or event coordinate is placed at the source-provided location. When a measured perimeter exists, BridgePoint displays its mapped geometry; otherwise the orange dashed outline is an approximate visual footprint, not a mapped fire edge.</p>'+
+  '<h4>On-Earth 3D visualization</h4>'+
+  '<p>The animated flames are BridgePoint-built true 3D mesh volumes with multiple fluctuating yellow, amber and red tongues, simulated wind-driven bending, flickering ember cores and a terrain-following moving fire front. They are anchored to sampled elevation inside the mapped or estimated detection area.</p>'+
+  '<p>Where usable 3D building and tree records intersect the display area, illustrative flame volumes are shown across those assets. <strong>This does not confirm that any individual home, tree, parcel or structure has burned.</strong></p>'+
+  '<h4>Source, interpretation and safety</h4>'+
+  '<p class="bp-fire-notice">Near-real-time satellite products can be delayed or obscured by cloud, canopy and smoke. Thermal anomalies can be industrial, agricultural, or other hot surfaces, and detection does not prove a spreading forest fire. Reported area and radiative power are source estimates, not damage assessments. Do not use this visualization to plan emergency routes or infer property loss; follow official local incident authorities.</p>'+
+  (fire.url?'<a class="bp-fire-source" href="'+esc(fire.url)+'" target="_blank" rel="noopener noreferrer">Open original incident/detection source (external)</a>':'')+
+  '</article>';
+ const p=new window.maplibregl.Popup({className:'bp-fire-popup',maxWidth:'500px',closeButton:true,closeOnClick:true})
   .setLngLat(fire.coordinates).setHTML(html).addTo(state.map);
  state.popup=p;
 }
@@ -553,42 +614,16 @@ function placeFlame(T,group,x,y,z,height,seed,output){
  flame.position.set(x,y,z);group.add(flame);
  output.push(flame);
 }
-function makeSceneForFire(T,state,fire){
- const scene=new T.Scene();
- scene.add(new T.AmbientLight(0xffffff,2));
- const fireGroup=new T.Group();scene.add(fireGroup);
- const flames=[],seed=(fire.coordinates[0]*617+fire.coordinates[1]*317);
- // All synthetic visual activity is confined within the detected thermal footprint.
- const intensity=Math.max(0,fire.frp);
- const baseHeight=2.2+Math.min(10,Math.log1p(intensity)*1.5);
- const count=Math.min(21,Math.max(7,Math.round(Math.sqrt(fire.count)*1.2)));
- let accepted=0;
- for(let i=0;i<count*4&&accepted<count;i++){
-  const angle=i*2.39996323+seed*.001,
-   radius=fire.radiusM*.72*Math.sqrt((i+.45)/(count*4));
-  const x=Math.sin(angle)*radius,z=Math.cos(angle)*radius;
-  const lat=fire.coordinates[1]+z/111320;
-  const lon=fire.coordinates[0]+x/(111320*Math.max(.05,Math.cos(fire.coordinates[1]*Math.PI/180)));
-  if(!detectedFireArea(state,fire,[lon,lat]))continue;
-  const phase=Math.sin(seed+i*78.23)*134.31;
-  placeFlame(T,fireGroup,x,0,z,baseHeight*(.5+Math.abs(Math.sin(phase))*.95),phase,flames);
-  accepted++;
- }
- if(!flames.length)placeFlame(T,fireGroup,0,0,0,baseHeight,seed,flames);
- // Fire overlays are attached to REAL mapped extrusion footprints when present.
- // They do not change BridgePoint building / tree geometry or claim observed ignition.
- const {buildings,trees}=objectsUnderFire(state,fire);
- for(const [i,b] of buildings.entries()){
-  const [x,z]=deltaMeters(fire,b.coord),phase=seed+i*3.14;
-  placeFlame(T,fireGroup,x,b.height,z,Math.max(2.3,Math.min(17,b.height*.35)),phase,flames);
-  placeFlame(T,fireGroup,x+1,b.height*.55,z+1,Math.max(2.5,b.height*.23),phase+.3,flames);
- }
- for(const [i,tr] of trees.entries()){
-  const [x,z]=deltaMeters(fire,tr.coord),phase=seed+i*4.11;
-  placeFlame(T,fireGroup,x,tr.height*.55,z,Math.min(12,tr.height*.78),phase,flames);
-  placeFlame(T,fireGroup,x+.8,tr.height*.15,z+.5,Math.min(8,tr.height*.45),phase+.24,flames);
- }
- return {scene,flames,fire,built:buildings.length,tree:trees.length};
+function makeSceneForFire(T,state,fire,quality){
+ const surfaces=objectsUnderFire(state,fire);
+ // The same genuine FIRMS detection and its verified official perimeter
+ // constrain the 3D geometry; heat and flames are visual reconstructions.
+ const effect=state.volumeV4.createBridgePointWildfireVolumeV4(T,{
+  map:state.map,fire,perimeters:state.perimeters.get(fire.id)||[],
+  buildings:surfaces.buildings,trees:surfaces.trees,quality
+ });
+ if(!effect)throw Error('Volumetric wildfire renderer not ready');
+ return effect;
 }
 function worldMatrix(map,T,coords,elev){
  try{
@@ -613,7 +648,7 @@ function visible3DFires(state){
   .slice(0,zoom<15?3:7);
 }
 function ensureNative3D(state){
- if(!state.enabled||!state.THREE||!state.map.getStyle?.())return;
+ if(!state.enabled||!state.THREE||!state.volumeV4||!state.map.getStyle?.())return;
  if(state.map.getLayer?.(layer3d))return;
  const map=state.map,T=state.THREE;
  const layer={id:layer3d,type:'custom',renderingMode:'3d',
@@ -631,22 +666,21 @@ function ensureNative3D(state){
    if(now-state.lastFrame<30){map.triggerRepaint?.();return;}state.lastFrame=now;
    const activeIds=new Set(sites.map(s=>s.id));
    for(const [id,effect] of state.effects){
-    if(!activeIds.has(id)){for(const f of effect.flames)for(const m of f.children){m.geometry?.dispose?.();m.material?.dispose?.();}
-     state.effects.delete(id);}
+    if(!activeIds.has(id)){effect.dispose?.();state.effects.delete(id);}
    }
+   const zoom=Number(map.getZoom?.()||0);
+   const quality=zoom>=17?2:zoom>=15?1:0;
    for(const site of sites){
     let effect=state.effects.get(site.id);
-    if(!effect){effect=makeSceneForFire(T,state,site);state.effects.set(site.id,effect);}
+    if(effect&&effect.quality!==quality){effect.dispose?.();state.effects.delete(site.id);effect=null;}
+    if(!effect){effect=makeSceneForFire(T,state,site,quality);state.effects.set(site.id,effect);}
     let height=0;
     try{const sample=map.queryTerrainElevation?.(site.coordinates,{exaggerated:false});if(Number.isFinite(sample))height=sample;}catch(_){}
     const model=worldMatrix(map,T,site.coordinates,height);
     if(!model)continue;
-    for(let k=0;k<effect.flames.length;k++){
-     const flame=effect.flames[k],phase=now*.0015+flame.userData.seed+k*2.33;
-     flame.rotation.y=Math.sin(phase*.73)*.25;
-     flame.scale.set(1+Math.sin(phase*1.2)*.07, .90+Math.abs(Math.sin(phase*1.8))*.24,
-      1+Math.cos(phase*1.1)*.09);
-    }
+    // Shader-sampled turbulence curls and flickers every frame without
+    // moving fire roots away from sampled 3D terrain or mapped structures.
+    for(const shader of effect.uniforms)shader.uTime.value=now*.001;
     state.camera.projectionMatrix.copy(new T.Matrix4().fromArray(projection)).multiply(model);
     try{state.renderer.resetState();state.renderer.render(effect.scene,state.camera);}
     catch(e){if(!state.renderWarned){state.renderWarned=true;console.warn('3D wildfire native renderer',e);}}
@@ -655,18 +689,27 @@ function ensureNative3D(state){
    if(state.enabled&&sites.length)map.triggerRepaint?.();
   },
   onRemove(){
+   for(const effect of state.effects.values())effect.dispose?.();
+   state.effects.clear();
    try{state.renderer?.dispose();}catch(_){}
-   state.camera=null;state.renderer=null;state.effects=new Map();
+   state.camera=null;state.renderer=null;
   }
  };
  try{map.addLayer(layer);}catch(e){state.error='3D wildfire init: '+String(e?.message||e);}
 }
 function maybeShowNative3D(state){
  if(!state.enabled||!visible3DFires(state).length)return;
- if(state.THREE){ensureNative3D(state);return;}
- void getThree().then(T=>{if(state.enabled&&!state.destroyed){
-   state.THREE=T;ensureNative3D(state);state.map.triggerRepaint?.();
- }}).catch(e=>{state.error='3D flames: '+String(e?.message||e);});
+ if(state.THREE&&state.volumeV4){ensureNative3D(state);return;}
+ if(state.loadingVolumeV4)return;
+ state.loadingVolumeV4=true;
+ void Promise.all([getThree(),getFireVolumeV4()]).then(([T,module])=>{
+  if(!state.enabled||state.destroyed)return;
+  state.THREE=T;state.volumeV4=module;
+  ensureNative3D(state);state.map.triggerRepaint?.();
+ }).catch(e=>{
+  state.error='Realistic wildfire volume: '+String(e?.message||e);
+  publishFireStatus(state);
+ }).finally(()=>{state.loadingVolumeV4=false;});
 }
 function turnOff(state){
  state.abort?.abort();state.eventsAbort?.abort();state.eventsAbort=null;
@@ -703,7 +746,7 @@ export function initLiveWildfireRenderer(target){
  installFireCardStyles();
  const state={map,enabled:false,destroyed:false,fires:[],error:'',lastUpdated:0,loading:false,markers:new Map(),eventsAbort:null,markerWarned:false,
   abort:null,perimeters:new Map(),fetchedSlugs:new Set(),perimeterLoading:new Set(),
-  perimeterAbort:new Map(),THREE:null,renderer:null,camera:null,effects:new Map(),
+  perimeterAbort:new Map(),THREE:null,volumeV4:null,loadingVolumeV4:false,renderer:null,camera:null,effects:new Map(),
   refreshTimer:null,lastFrame:0,popup:null,renderWarned:false};
  const handleStyle=()=>{if(state.enabled){
   if(ensureMapSources(state)){updateMap(state);schedulePerimeterLoads(state);}

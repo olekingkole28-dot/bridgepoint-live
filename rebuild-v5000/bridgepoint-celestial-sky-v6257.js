@@ -128,11 +128,19 @@ export function initBridgePointCelestialSky(target){
  function render(){
   if(disposed||!enabled||document.hidden)return;
   const {w,h}=resize(),center=map.getCenter(),date=new Date(),pitch=Number(map.getPitch?.()||0),zoom=Number(map.getZoom?.()||0);
-  if(pitch<24||zoom<11.5){
-   svg.innerHTML='';
-   lastState={enabled,visible:false,reason:pitch<24?'Tilt the BridgePoint globe upward using LOOK UP · SKY VIEW to reveal the celestial sky.':'Zoom in toward street level to reveal the celestial sky.',updatedAt:Date.now()};
+  // Normal tilted terrain view is NOT sky view. Never project stars/planet
+  // labels through opaque Earth imagery, even with high map pitch.
+  const skyController=window.__BP_SKY_VIEW_CONTROLLER_V6077__;
+  const explicitSky=window.__BP_SKY_VIEW_OVERRIDE_V6077__===true;
+  const lookingAtSky=explicitSky&&pitch>=100&&
+   (skyController?.phase==='sky-active'||skyController?.phase==='looking-above-horizon');
+  if(!lookingAtSky){
+   if(svg.innerHTML)svg.innerHTML='';
+   svg.style.visibility='hidden';
+   lastState={enabled,visible:false,reason:'Terrestrial viewing; celestial sky is reserved for explicit LOOK UP · SKY VIEW.',pitch,zoom,explicitSky,updatedAt:Date.now()};
    window.__BP_CELESTIAL_SKY_STATE_V6257__=lastState;return;
   }
+  svg.style.visibility='visible';
   const sun=sunPosition(date,center.lat,center.lng),nightFactor=clamp((-sun.altitude+8)/32,0,1);
   const r=apparentAngularRadiusPx(h);
   const parts=[`<defs>
