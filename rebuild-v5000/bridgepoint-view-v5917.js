@@ -953,7 +953,7 @@ async function toggleWindAndDroneField(){
 async function toggleEmrfSpectrogram(button){
  const world=home?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
  if(!world?.map)throw new Error('BridgePoint globe not ready');
- const mod=await import('/bridgepoint-emrf-spectrogram-v1.js?v=1-global-spectrum-beams-noaa-drap');
+ const mod=await import('/bridgepoint-emrf-spectrogram-v1.js?v=2-instant-thousands-starlink-globe');
  let api=window.__BP_EMRF_SPECTROGRAM_V1__;
  if(!api||api.map!==world.map)api=mod.initBridgePointEmrfSpectrogram(world);
  if(typeof api?.enable!=='function'||typeof api?.disable!=='function')throw new Error('Global EM/RF renderer did not initialize');
@@ -1128,6 +1128,17 @@ openPanel(a)});});
 function init(){
  if(!mapHost)return;
  buildUI();
+ // Warm only the Starlink OMM catalog after BridgePoint's core globe starts.
+ // Later opening Global EM/RF immediately uses the shared first-party snapshot
+ // instead of beginning a multi-megabyte orbit request after the user clicks.
+ if(!window.__BP_EMRF_CATALOG_WARMED_V2__){
+  window.__BP_EMRF_CATALOG_WARMED_V2__=true;
+  setTimeout(()=>{
+   void import('./bridgepoint-emrf-starlink-global-v2.js?v=2-global-4200-omm-satellites')
+    .then(m=>m.prefetchStarlinkOmmV2())
+    .catch(e=>console.info('BridgePoint optional Starlink OMM warm fetch not yet ready:',String(e?.message||e)));
+  },3300);
+ }
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
