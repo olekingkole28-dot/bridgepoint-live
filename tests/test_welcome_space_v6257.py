@@ -485,7 +485,7 @@ self.addEventListener('fetch',e=>{
     def test_sun_has_animated_molten_photosphere_fresnel_rim_and_observed_plasma_particles(self):
         module = (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text()
         for marker in (
-            "const VERSION = 'v6306-mobile-planet-picker'",
+            "const VERSION = 'v6400-fortnite-weather-welcome'",
             "float magmaFlow=",
             "float moltenCoverage=",
             "const solarFireRim=new THREE.Mesh",
@@ -670,7 +670,7 @@ self.addEventListener('fetch',e=>{
         scene = (ROOT / "recovery" / "bridgepoint-welcome-space-v6260.js").read_text()
         cosmos = (ROOT / "rebuild-v5000" / "bridgepoint-gaia-galaxy-v6270.js").read_text()
         self.assertIn("bodyRefs:{earth:earthDepthOccluder,moon:moonMesh,sun:sunMesh}", scene)
-        self.assertIn("clickables=[earthDepthOccluder,moonMesh,sunMesh]", scene)
+        self.assertIn("clickables=[earthDepthOccluder,moonMesh,sunMesh, welcomeHurricane.marker, welcomeTornado.marker]", scene)
         self.assertIn("overviewBaseDistance=Math.hypot(4.2,distance)", scene)
         self.assertIn("window.__BP_WELCOME_SYNC_SPACE_ZOOM_V1__?.(spaceZoomRatio)", scene)
         self.assertIn("followsEarthCamera=viewState==='overview'", scene)
