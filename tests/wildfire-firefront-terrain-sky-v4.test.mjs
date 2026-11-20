@@ -42,8 +42,10 @@ assert.ok(elevationCalls>100,'many 3D surface elevations sampled to hug real top
 assert.equal(effect.uniforms.length,2);
 for(const item of effect.scene.children[0].children){
  assert.ok(item.geometry.index?.length>0);
- assert.ok(item.material.vertexShader.includes('uTime'));
  assert.ok(item.material.fragmentShader.includes('uTime'));
+ if(item.name.includes('true 3D turbulent wildfire tongues'))
+  assert.ok(item.material.vertexShader.includes('uTime'),'flame tube vertices must whip and bend over time');
+ else assert.ok(item.name.includes('terrain-following'),'ground fire sheet is animated by its fragment shader');
  assert.equal(item.material.depthWrite,false);
  assert.equal(item.material.depthTest,true);
  assert.equal(item.material.transparent,true);
