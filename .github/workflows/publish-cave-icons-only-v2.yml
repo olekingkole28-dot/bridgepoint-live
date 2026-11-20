@@ -190,7 +190,7 @@ jobs:
               curl -fsSL -H 'Cache-Control: no-cache' "$SITE/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null 'a8890e16ca49498c892d82496cdbbae9'
               curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null 'bf983bfabc194e94893d9955ed87f471'
               curl -fsSL -H 'Cache-Control: no-cache' "$SITE/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null 'e36a8a863b8348159d237ea808d492d7'
-              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '5476d18375c24db99cce7bfb009979b4'
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -F >/dev/null '3be79c6a956c423d9b05fa67ce559ee9'
               echo CAVE_TEN_OCEAN_SCANS_LIVE_PUBLISH_PASS
               exit 0
             fi
