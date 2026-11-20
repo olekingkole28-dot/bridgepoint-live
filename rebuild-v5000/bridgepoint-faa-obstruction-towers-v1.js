@@ -413,13 +413,17 @@ function disposeObject(root) {
   });
 }
 async function loadSnapshot() {
-  if(typeof DecompressionStream!=='function')throw new Error('Browser gzip decompression is unavailable');
   const url=new URL(SNAPSHOT_URL,import.meta.url);
   const response=await fetch(url.href,{mode:'cors',credentials:'omit',cache:'no-cache'});
   if(!response.ok)throw new Error('FAA obstruction snapshot HTTP '+response.status);
-  if(!response.body)throw new Error('FAA obstruction snapshot returned an empty body');
-  const stream=response.body.pipeThrough(new DecompressionStream('gzip'));
-  return new Response(stream).json();
+  // A .gz asset may arrive decoded when its host sends Content-Encoding:gzip.
+  const bytes=new Uint8Array(await response.arrayBuffer());
+  if(!bytes.length)throw new Error('FAA obstruction snapshot returned an empty body');
+  if(bytes[0]===0x1f&&bytes[1]===0x8b) {
+    if(typeof DecompressionStream!=='function')throw new Error('Browser gzip decompression is unavailable');
+    return new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).json();
+  }
+  return JSON.parse(new TextDecoder('utf-8').decode(bytes));
 }
 function updateStatus(state,message) {
   state.status=message;
@@ -496,7 +500,7 @@ function installLayers(state) {
       const layerId=CLUSTER_ICON_ID+'-'+item.key;
       add(layerId,{id:layerId,type:'symbol',source:SOURCE_ID,
         filter:['all',['has','point_count'],['>',['get',item.clusterCountKey],0]],minzoom:0,maxzoom:6.1,
-        layout:{'icon-image':item.iconId,'icon-size':['interpolate',['linear'],['zoom'],0,0.25,2.5,0.36,5.5,0.48,6.1,0.52],
+        layout:{'icon-image':item.iconId,'icon-size':['interpolate',['linear'],['zoom'],0,0.54,2.5,0.59,5.5,0.64,6.1,0.67],
           'icon-anchor':'center','icon-offset':item.clusterOffset,
           'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-padding':0},
         paint:{'icon-color':item.clusterColor,'icon-opacity':1}});
@@ -510,7 +514,7 @@ function installLayers(state) {
         'circle-color':['get','markerColor'],'circle-opacity':0.46,'circle-blur':0.35}});
     add(MARKER_ID,{id:MARKER_ID,type:'symbol',source:SOURCE_ID,filter:['!',['has','point_count']],minzoom:0,maxzoom:24,
       layout:{'icon-image':categoryIconExpression(),
-        'icon-size':['interpolate',['linear'],['zoom'],6,0.34,9,0.47,12,0.62,16,0.78,20,0.88,24,0.95],
+        'icon-size':['interpolate',['linear'],['zoom'],6,0.54,9,0.62,12,0.75,16,0.86,20,0.96,24,1.02],
         'icon-anchor':'bottom','icon-pitch-alignment':'viewport','icon-rotation-alignment':'viewport',
         'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-padding':0},
       paint:{'icon-color':['get','markerColor'],'icon-opacity':1}});
@@ -525,6 +529,7 @@ function installLayers(state) {
       paint:{'circle-radius':19,'circle-color':'#ffffff','circle-opacity':0.001,'circle-stroke-width':0}});
     if(state.THREE)installModelLayer(state);
     setVisibility(state,state.enabled);
+    keepFAAIconsVisible(state);
     return true;
   } catch(error) {
     state.stats.lastError=String(error&&error.message||error);
@@ -535,6 +540,13 @@ function installLayers(state) {
 function setVisibility(state,on) {
   for(const id of [CLUSTER_ID,...clusterIconLayerIds(),CLUSTER_COUNT_ID,HALO_ID,MARKER_ID,LABEL_ID,HIT_ID,MODEL_ID]) {
     try {if(state.map.getLayer(id))state.map.setLayoutProperty(id,'visibility',on?'visible':'none');} catch (_) {}
+  }
+}
+function keepFAAIconsVisible(state) {
+  if(!state.enabled)return;
+  // Lift only the FAA symbol layers above overlays added later.
+  for(const id of [CLUSTER_ID,...clusterIconLayerIds(),CLUSTER_COUNT_ID,HALO_ID,MARKER_ID,LABEL_ID,HIT_ID]) {
+    try {if(state.map.getLayer(id))state.map.moveLayer(id);} catch (_) {}
   }
 }
 function modelCandidates(state) {
@@ -651,6 +663,7 @@ function bindInteractions(state) {
   });
   const changed=()=>{
     if(!state.enabled)return;
+    keepFAAIconsVisible(state);
     rebuildModels(state);
     if(state.renderer)map.triggerRepaint?.();
   };
@@ -678,7 +691,9 @@ async function loadInitialData(state) {
       ? ' · snapshot '+String(state.stats.sourceUpdated).slice(0,10) : '';
     state.loadedStatus=features.length.toLocaleString('en-US')+' FAA-listed obstructions loaded'+sourceDate+' · tap a tower for source heights and record details';
     updateStatus(state,state.loadedStatus);
+    if(!state.map.getSource(SOURCE_ID))installLayers(state);
     const source=state.map.getSource(SOURCE_ID);if(source)source.setData(state.collection);
+    keepFAAIconsVisible(state);
     rebuildModels(state);
     if(state.renderer)state.map.triggerRepaint?.();
   } catch(error) {
@@ -712,7 +727,9 @@ async function setEnabled(state,on) {
     updateStatus(state,'Layer off · all other BridgePoint layers remain unchanged');
     if(state.renderer)state.map.triggerRepaint?.();
   }
-  setVisibility(state,state.enabled);refreshCounts(state);
+  setVisibility(state,state.enabled);
+  keepFAAIconsVisible(state);
+  refreshCounts(state);
   return state.enabled;
 }
 function install(map,state) {
