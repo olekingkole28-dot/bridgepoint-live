@@ -243,7 +243,12 @@ vec4 bpRaymarchCumulusV6500(vec3 entry,float tint,float time,
     sin(bearing)*sin(pitch),cos(bearing)*sin(pitch),-cos(pitch)));
   vec3 surface=entry*1.02;
   vec3 normal=normalize(entry);
-  if(!gl_FrontFacing)return vec4(0.0);
+  // MapLibre's globe projection can reverse winding across hemispheres.
+  // Do not discard cloud pixels solely because gl_FrontFacing is false.
+  // Trace toward the cloud interior on back-facing/projected fragments.
+  if(dot(normal,dir)>-.015){
+    dir=normalize(-normal*.87+dir*.13);
+  }
   float storm=smoothstep(.86,.97,tint);
   float tall=smoothstep(.55,.68,tint)*(1.0-storm);
   float thin=1.0-smoothstep(.14,.23,tint);
