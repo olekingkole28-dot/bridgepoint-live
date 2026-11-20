@@ -172,3 +172,135 @@ async function loadCurrentFires(state){
   }
  }finally{if(state.abort===controller){state.loading=false;state.abort=null;}}
 }
+function ensureMapSources(state){
+ const map=state.map;
+ if(!state.enabled||!map.getStyle?.()||!map.isStyleLoaded?.())return false;
+ if(!map.hasImage?.(iconId)){
+  const icon=displayIcon();
+  if(icon)try{map.addImage(iconId,icon,{pixelRatio:2});}catch(e){console.warn('Fire icon install failed',e);}
+ }
+ const addSource=(id)=>{if(!map.getSource?.(id))map.addSource(id,{type:'geojson',data:empty(),attribution:'NASA FIRMS · WorldFires · EFFIS/GWIS Copernicus · NASA EONET'});};
+ const addLayer=(layer,before)=>{if(!map.getLayer?.(layer.id))map.addLayer(layer,before);};
+ try{
+  addSource(sourceId);addSource(perimeterId);
+  addLayer({id:fillLayer,type:'fill',source:perimeterId,
+   paint:{'fill-color':['case',['==',['get','kind'],'mapped-perimeter'],'#ff301c','#ff682f'],
+      'fill-opacity':['case',['==',['get','kind'],'mapped-perimeter'],.20,.095],
+      'fill-antialias':true}});
+  addLayer({id:lineLayer,type:'line',source:perimeterId,
+   filter:['==',['get','kind'],'mapped-perimeter'],
+   layout:{'line-join':'round','line-cap':'round'},
+   paint:{'line-color':'#ff3e21','line-width':['interpolate',['linear'],['zoom'],3,1.25,12,3.0,17,4.2],
+     'line-opacity':.95}});
+  addLayer({id:detectionLine,type:'line',source:perimeterId,
+   filter:['==',['get','kind'],'approximate-thermal-footprint'],
+   layout:{'line-join':'round','line-cap':'round'},
+   paint:{'line-color':'#ff9153','line-dasharray':[1.8,1.7],
+    'line-width':['interpolate',['linear'],['zoom'],8,1,17,2],
+    'line-opacity':.85}});
+  addLayer({id:pointLayer,type:'symbol',source:sourceId,
+   layout:{'icon-image':iconId,'icon-anchor':'center',
+    'icon-size':['interpolate',['linear'],['zoom'],1,.30,8,.39,16,.50],
+    'icon-allow-overlap':false,'icon-ignore-placement':false,'symbol-sort-key':['get','frp']},
+   paint:{'icon-opacity':.98}});
+  return true;
+ }catch(e){state.error='Map wildfire layer install: '+String(e?.message||e);return false;}
+}
+function updateMap(state){
+ if(!state.enabled||!ensureMapSources(state))return;
+ const points=state.fires.map(sourceFeature);
+ try{state.map.getSource(sourceId)?.setData({type:'FeatureCollection',features:points});}catch(e){console.warn('Fire markers refresh',e);}
+ updateVisibleZones(state);
+}
+function updateVisibleZones(state){
+ if(!state.enabled||!state.map.getSource?.(perimeterId))return;
+ const bounds=state.map.getBounds?.(),zoom=Number(state.map.getZoom?.()||0);
+ const polygons=[];
+ // Official or source-derived perimeters remain distinct from thermal point buffers.
+ for(const [id,geo] of state.perimeters){
+  if(!state.fires.some(f=>f.id===id))continue;
+  for(const f of geo)polygons.push(f);
+ }
+ if(zoom>=6.5){
+  const fires=state.fires.filter(f=>boundsContains(bounds,f.coordinates))
+   .sort((a,b)=>b.frp-a.frp).slice(0,240);
+  for(const fire of fires)polygons.push(detectionBoundary(fire));
+ }
+ try{state.map.getSource(perimeterId).setData({type:'FeatureCollection',features:polygons});}
+ catch(e){console.warn('Wildfire perimeter drape refresh',e);}
+}
+async function retrievePerimeter(state,fire){
+ const slug=fire.perimeterSlug;
+ if(!slug||state.fetchedSlugs.has(slug)||state.perimeterLoading.has(slug)||!state.enabled)return;
+ state.perimeterLoading.add(slug);
+ const ctl=new AbortController();state.perimeterAbort.set(slug,ctl);
+ try{
+  const raw=await getJSON(API+'/fires/'+encodeURIComponent(slug)+'/geometry',ctl.signal);
+  const features=parseFirePerimeter(raw);
+  if(!state.destroyed&&state.enabled&&features.length){
+   for(const f of features){
+    f.properties={...f.properties,fireId:fire.id,name:fire.name,source:fire.source};
+  }
+   state.perimeters.set(fire.id,features);
+   updateVisibleZones(state);
+  }
+  state.fetchedSlugs.add(slug);
+ }catch(e){
+  if(!ctl.signal.aborted)console.warn('No mapped source perimeter for '+slug,String(e?.message||e));
+  state.fetchedSlugs.add(slug);
+ }finally{state.perimeterLoading.delete(slug);state.perimeterAbort.delete(slug);}
+}
+function schedulePerimeterLoads(state){
+ if(!state.enabled||state.destroyed)return;
+ const bounds=state.map.getBounds?.();
+ const fires=state.fires.filter(f=>f.perimeterSlug&&boundsContains(bounds,f.coordinates));
+ fires.sort((a,b)=>b.count-a.count);
+ // Only a small number of detail requests in a given viewport, fetch at most 3 at once.
+ const options=fires.slice(0,32).filter(f=>!state.fetchedSlugs.has(f.perimeterSlug)&&!state.perimeterLoading.has(f.perimeterSlug));
+ const slots=Math.max(0,3-state.perimeterLoading.size);
+ for(const fire of options.slice(0,slots))void retrievePerimeter(state,fire);
+}
+function installFireCardStyles(){
+ if(typeof document==='undefined'||document.getElementById(styleId))return;
+ const s=document.createElement('style');s.id=styleId;
+ s.textContent='.bp-fire-popup .maplibregl-popup-content{background:#101920;color:#f5ede6;border:1px solid #f0693a;border-radius:10px;padding:11px;max-width:min(370px,calc(100vw - 40px));font:12px/1.5 system-ui,sans-serif}.bp-fire-popup h3{margin:2px 0 5px;font-size:15px}.bp-fire-popup p{margin:5px 0}.bp-fire-popup strong{color:#ffba87}.bp-fire-popup a{color:#ffd89b}.bp-fire-popup .maplibregl-popup-tip{border-top-color:#101920;border-bottom-color:#101920}';
+ document.head.appendChild(s);
+}
+function fireAtLngLat(state,coord){
+ let closest=null,d=Infinity;
+ const target=normCoord(coord);if(!target)return null;
+ for(const f of state.fires){
+  const k=Math.pow((f.coordinates[0]-target[0])*Math.cos(target[1]*Math.PI/180),2)+Math.pow(f.coordinates[1]-target[1],2);
+  if(k<d){d=k;closest=f;}
+ }
+ return closest;
+}
+function addPopup(state,fire){
+ if(!state.enabled||!window.maplibregl?.Popup)return;
+ state.popup?.remove();
+ const mapped=state.perimeters.has(fire.id);
+ const kind=mapped?'Source-provided fire/burned-area perimeter available':'Satellite hotspot location only; dashed area is an illustrative detection footprint, NOT a measured fire perimeter';
+ const html='<div class="bp-fire-card">'+
+  '<b style="color:#ff9e63;font-size:10px;letter-spacing:.08em">BRIDGEPOINT · WILDFIRE LIVE OBSERVATIONS</b>'+
+  '<h3>'+esc(fire.name)+'</h3><p><strong>Detected:</strong> '+esc(fire.detectedAt)+'</p>'+
+  '<p><strong>Source:</strong> '+esc(fire.source)+'</p>'+
+  '<p><strong>Thermal detections:</strong> '+fire.count+' · <strong>Maximum FRP:</strong> '+Math.max(0,fire.frp).toFixed(1)+' MW</p>'+
+  '<p><strong>Boundary:</strong> '+esc(kind)+'</p>'+
+  '<p><strong>3D fire:</strong> Dynamic, volumetric illustration at observed thermal detections when zoomed near a fire. Flames on mapped buildings or tree features are illustrative exposure, not confirmation of structural ignition.</p>'+
+  '<p style="font-size:10px;color:#adc3d2">Hotspots are satellite thermal anomalies, not on-the-ground confirmation; smoke/cloud and sensor resolution can affect detection. Fire locations and burned-area outlines may be delayed. Not for emergency navigation.</p>'+
+  (fire.url?'<a href="'+esc(fire.url)+'" rel="noopener noreferrer" target="_blank">Underlying source report (external)</a>':'')+
+  '</div>';
+ const p=new window.maplibregl.Popup({className:'bp-fire-popup',maxWidth:'390px',closeButton:true})
+  .setLngLat(fire.coordinates).setHTML(html).addTo(state.map);
+ state.popup=p;
+}
+function onClickMarker(state,e){
+ if(!state.enabled||!e.features?.length)return;
+ const item=e.features[0];const id=item.properties?.fireId;
+ const fire=state.fires.find(f=>f.id===id)||fireAtLngLat(state,item.geometry?.coordinates);
+ if(fire)addPopup(state,fire);
+}
+function refreshFireActivity(state){
+ if(!state.enabled||state.destroyed)return;
+ if(!state.lastUpdated||Date.now()-state.lastUpdated>15*60000)void loadCurrentFires(state);
+}
