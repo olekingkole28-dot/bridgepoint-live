@@ -1030,7 +1030,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   weatherGroup.name = 'Persistent animated weather atmosphere';
   weatherGroup.renderOrder = 1;
   scene.add(weatherGroup);
-  const weatherPuffGeometry = new THREE.SphereGeometry(1, mobile ? 10 : 14, mobile ? 7 : 10);
+  const weatherPuffGeometry = new THREE.SphereGeometry(1, mobile ? 7 : 8, mobile ? 5 : 6);
   const weatherCloudMaterial = new THREE.MeshStandardMaterial({
     color: 0xf4f8ff, roughness: 1, metalness: 0, transparent: true,
     opacity: .82, depthTest: true, depthWrite: false
@@ -1072,7 +1072,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     root.position.copy(frame.point);
     root.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),frame.normal);
     root.userData.weatherCloud = true;
-    const count = storm ? (mobile ? 7 : 10) : (mobile ? 5 : 8);
+    const count = storm ? (mobile ? 4 : 5) : (mobile ? 3 : 4);
     for(let i=0;i<count;i++){
       const angle = weatherHash(seed,i,1)*Math.PI*2;
       const ring = i===0 ? 0 : scale*(.16 + weatherHash(seed,i,2)*.58);
@@ -1098,7 +1098,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     root.position.copy(frame.point);
     root.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),frame.normal);
     root.userData.weatherCloud = true;
-    const stepCount = mobile ? 24 : 38;
+    const stepCount = mobile ? 16 : 22;
     for(let i=0;i<stepCount;i++){
       const t = i/Math.max(1,stepCount-1);
       const angle = t*Math.PI*4.5 + .18*Math.sin(t*18+seed);
@@ -1109,11 +1109,11 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       cloud.scale.set(size*(1.55+.45*Math.sin(t*9)),size,size*.58);
       root.add(cloud);
     }
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(.032,mobile?10:16,mobile?7:10),
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(.032,mobile?7:9,mobile?5:6),
       new THREE.MeshBasicMaterial({color:0x101629,transparent:true,opacity:.95,depthTest:true,depthWrite:false}));
     eye.position.z=.064;
     root.add(eye);
-    const marker = new THREE.Mesh(new THREE.TorusGeometry(.092,.008,mobile?6:10,mobile?18:28),
+    const marker = new THREE.Mesh(new THREE.TorusGeometry(.092,.008,mobile?5:7,mobile?12:18),
       new THREE.MeshBasicMaterial({color:0xff3358,transparent:true,opacity:.92,depthTest:true,depthWrite:false}));
     marker.position.z=.11;
     marker.userData.body='weather';
@@ -1129,7 +1129,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     root.position.copy(frame.point);
     root.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),frame.normal);
     root.userData.weatherCloud = true;
-    const steps = mobile ? 9 : 14;
+    const steps = mobile ? 7 : 9;
     for(let i=0;i<steps;i++){
       const t=i/Math.max(1,steps-1);
       const puff = new THREE.Mesh(weatherPuffGeometry,weatherStormMaterial);
@@ -1140,11 +1140,11 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       puff.scale.set(width*(1.0+.18*Math.sin(i*2.1)),width*.72,width*.58);
       root.add(puff);
     }
-    const radarBase = new THREE.Mesh(new THREE.TorusGeometry(.082,.012,mobile?6:10,mobile?18:28),
+    const radarBase = new THREE.Mesh(new THREE.TorusGeometry(.082,.012,mobile?5:7,mobile?12:18),
       new THREE.MeshBasicMaterial({color:0xff3a28,transparent:true,opacity:.88,depthTest:true,depthWrite:false}));
     radarBase.position.z=.075;
     root.add(radarBase);
-    const marker = new THREE.Mesh(new THREE.TorusGeometry(.066,.007,mobile?6:10,mobile?18:26),
+    const marker = new THREE.Mesh(new THREE.TorusGeometry(.066,.007,mobile?5:7,mobile?12:18),
       new THREE.MeshBasicMaterial({color:0x42d9ff,transparent:true,opacity:.94,depthTest:true,depthWrite:false}));
     marker.position.z=.14;
     marker.userData.body='weather';
@@ -1154,14 +1154,14 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     return {root,marker};
   };
   const weatherClusters = [];
-  const clusterCount = mobile ? 22 : 42;
+  const clusterCount = mobile ? 12 : 18;
   for(let i=0;i<clusterCount;i++){
     const lat = -66 + weatherHash(i,1)*132;
     const lon = -180 + weatherHash(i,2)*360;
     const size = .055 + weatherHash(i,3)*.075;
     weatherClusters.push(makeWeatherCluster(lat,lon,size,false,i));
   }
-  const stormClusterCount = mobile ? 5 : 10;
+  const stormClusterCount = mobile ? 3 : 5;
   for(let i=0;i<stormClusterCount;i++){
     const lat = -48 + weatherHash(i,21)*96;
     const lon = -180 + weatherHash(i,22)*360;
