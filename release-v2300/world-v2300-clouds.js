@@ -2266,7 +2266,12 @@ export function initSkyClouds(target) {
           if (heightMatch.neighborCount > 1) cloudTopHeightSampleSource += ' (' + heightMatch.neighborCount + ' nearby samples)';
         }
         const angle=Math.atan2(q.below-q.above,q.right-q.left)+Math.PI/2+(h2-.5)*.65,altitude=ground+(base+top)*.5;
-        if(!addGlobalPuff(q.lng,q.lat,altitude,rx,ry,vertical,tint,satellitePuffSlices,satellitePuffStacks,hash(q.col,q.row,1301),true,angle))return false;
+        // Source-observed cloudy cells receive a softly overlapping globe-LOD
+        // footprint. This connects separate small dots into satellite-like
+        // cloud banks without inventing cells in an observed clear region.
+        // The expanded silhouette is illustrative, not an exact sensor boundary.
+        const overviewFootprint=cloudLodBand==='global'&&!thin?(1.22+0.16*clamp(q.p,0,1)):1;
+        if(!addGlobalPuff(q.lng,q.lat,altitude,rx*overviewFootprint,ry*overviewFootprint,vertical,tint,satellitePuffSlices,satellitePuffStacks,hash(q.col,q.row,1301),true,angle))return false;
         if(heightMatch)sourceHeightMatchedCount++;else sourceHeightModelledCount++;
         if(q.sourceCloudMaskSample&&!q.heightSample)sourceCloudMaskDirectAnchorCount++;
         const record={lng:q.lng,lat:q.lat,p:q.p,radius,base,top};chosen.push(record);reserve(record);
