@@ -1,0 +1,231 @@
+name: Publish Instant Global EM RF and Thousands of Starlink 3D Beams v2
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-emrf-starlink-global-v2.yml'
+
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify real orbits, thousand-instance 3D geometry and instant RF behavior
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module --check < rebuild-v5000/bridgepoint-emrf-starlink-global-v2.js
+          node --input-type=module --check < rebuild-v5000/bridgepoint-emrf-spectrogram-v1.js
+          node --check rebuild-v5000/bridgepoint-view-v5917.js
+          node tests/emrf-starlink-thousands-v2.test.mjs
+
+      - name: Retrieve latest successful complete 24-spacecraft and wildfire V4 snapshot
+        id: baseline
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          RUN_ID="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/publish-wildfire-realistic-sky-v4.yml/runs?branch=main&status=success&per_page=15" --jq '.workflow_runs | map(select(.conclusion == "success")) | first | .id')"
+          test -n "$RUN_ID" && test "$RUN_ID" != null
+          NAME="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/artifacts" --jq '.artifacts[] | select((.expired|not) and (.name == "bridgepoint-v5000-wildfire-realistic-v4")) | .name' | head -n 1)"
+          test "$NAME" = bridgepoint-v5000-wildfire-realistic-v4
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "PRESERVED_FULL_PRODUCTION_BASELINE $RUN_ID $NAME"
+
+      - name: Restore previously verified complete production site
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ steps.baseline.outputs.artifact_name }}
+          run-id: ${{ steps.baseline.outputs.run_id }}
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/emrf-source-site
+
+      - name: Preserve all features and overlay only EM RF Starlink changes and real catalog
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCHIVE="$(find "$RUNNER_TEMP/emrf-source-site" -type f -name artifact.tar -print -quit)"
+          test -n "$ARCHIVE"
+          SITE="$RUNNER_TEMP/emrf-starlink-production"
+          mkdir -p "$SITE"
+          tar -xf "$ARCHIVE" -C "$SITE"
+          export SITE
+          # One source request per publication, not per site user, and no
+          # duplicate request when CelesTrak denies/rate-limits the source.
+          python3 scripts/build_starlink_catalog_v2.py "$SITE/starlink-orbits-v2.json"
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib,json,os,re
+          site=Path(os.environ['SITE'])
+          catalog='starlink-orbits-v2.json'
+          emrf='bridgepoint-emrf-spectrogram-v1.js'
+          starlink='bridgepoint-emrf-starlink-global-v2.js'
+          view='bridgepoint-view-v5917.js'
+          required={
+           'index.html','app/index.html','landing.js','app.js',
+           'vendor/three.module.js',view,emrf,
+           'bridgepoint-wildfires-volumetric-v1.js',
+           'bridgepoint-wildfire-realistic-mesh-v4.js',
+           'bridgepoint-celestial-sky-v6257.js',
+           'bridgepoint-spacecraft-v1.js','bridgepoint-spacecraft-saturn-v1.js',
+           'bridgepoint-spacecraft-columbia-v1.js','bridgepoint-spacecraft-discovery-v1.js',
+           'bridgepoint-spacecraft-ten-pads-v2.js','app/bridgepoint-spacecraft-ten-pads-v2.js',
+           'bridgepoint-spacecraft-museums-v3.js','app/bridgepoint-spacecraft-museums-v3.js',
+           'bridgepoint-underground-scan-sites-v1.js','bridgepoint-plane-wrecks-v1.js',
+           'bridgepoint-shipwrecks-v1.js'
+          }
+          before={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                  for p in site.rglob('*') if p.is_file()}
+          if missing:=required-set(before):
+              raise SystemExit('EMRF_V2_MISSING_PRESERVED_SITE_FILES '+str(sorted(missing)))
+          if catalog in before or starlink in before or 'app/'+starlink in before:
+              raise SystemExit('EMRF_V2_ALREADY_EXISTS_IN_BASELINE')
+
+          # Snapshot must contain fresh REAL orbital records; publication is
+          # refused rather than silently drawing fictional satellites.
+          doc=json.loads((site/catalog).read_text(encoding='utf-8'))
+          assert doc['record_count']>=2500 and doc['recent_72h']>=2000
+          assert len({row[0] for row in doc['records']})==doc['record_count']
+          assert all(len(row)>=9 for row in doc['records'])
+          assert all(str(row[1]).startswith('STARLINK') for row in doc['records'])
+
+          for file in (starlink,):
+              data=(Path('rebuild-v5000')/file).read_bytes()
+              (site/file).write_bytes(data)
+              (site/'app'/file).write_bytes(data)
+          # The existing EM/RF source has no unrelated modifications.
+          current=(site/emrf).read_text(encoding='utf-8')
+          updated=(Path('rebuild-v5000')/emrf).read_text(encoding='utf-8')
+          if 'MAX_BEAMS' in current or 'enableStarlinkThousandsV2' in current:
+              raise SystemExit('EMRF_V2_EXPECTED_V1_BASELINE')
+          if 'enableStarlinkThousandsV2' not in updated or "loadDrap(false)" not in updated:
+              raise SystemExit('EMRF_V2_EXPECTED_INSTANT_EMRF_SOURCE')
+          (site/emrf).write_text(updated,encoding='utf-8')
+
+          # The global card's only changes are a one-module cache import
+          # and a late non-blocking orbit-catalog warm-up; other button code
+          # remains the preserved working production source.
+          original=(site/view).read_text(encoding='utf-8')
+          new=(Path('rebuild-v5000')/view).read_text(encoding='utf-8')
+          old_import="/bridgepoint-emrf-spectrogram-v1.js?v=1-global-spectrum-beams-noaa-drap"
+          new_import="/bridgepoint-emrf-spectrogram-v1.js?v=2-instant-thousands-starlink-globe"
+          if original.count(old_import)!=1 or new.count(new_import)!=1:
+              raise SystemExit('EMRF_V2_CARD_IMPORT_SOURCE_NOT_MATCHED')
+          current=original.replace(old_import,new_import,1)
+          begin="function init(){"
+          old_init=original[original.index(begin):]
+          new_init=new[new.index(begin):]
+          if old_init.count(begin)!=1 or new_init.count(begin)!=1:
+              raise SystemExit('EMRF_V2_CARD_BOOT_AMBIGUOUS')
+          if "window.__BP_EMRF_CATALOG_WARMED_V2__" not in new_init:
+              raise SystemExit('EMRF_V2_CARD_CATALOG_WARMER_MISSING')
+          current=current[:current.index(begin)]+new_init
+          # Only exact EMRF changes should distinguish updated repository file.
+          if current!=new:
+              raise SystemExit('EMRF_V2_CARD_OTHER_FEATURE_MISMATCH')
+          (site/view).write_text(current,encoding='utf-8')
+
+          # Force existing Android cached generic-card script to refetch.
+          for entry in ('index.html','app/index.html'):
+              path=site/entry
+              html=path.read_text(encoding='utf-8')
+              pattern=r'(?<=data-bp-deferred-src=")/bridgepoint-view-v5917\.js(?:\?[^"]*)?(?=")'
+              matches=list(re.finditer(pattern,html))
+              if len(matches)!=1:
+                  raise SystemExit('EMRF_V2_HTML_VIEW_CACHE_NOT_EXACTLY_ONE '+entry)
+              old=matches[0].group(0)
+              if 'emrfstarlink=v2' in old:raise SystemExit('EMRF_V2_CACHE_DUPLICATED '+entry)
+              updated=old+('&' if '?' in old else '?')+'emrfstarlink=v2'
+              html=html[:matches[0].start()]+updated+html[matches[0].end():]
+              path.write_text(html,encoding='utf-8')
+
+          after={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                 for p in site.rglob('*') if p.is_file()}
+          changed={path for path in before if before[path]!=after.get(path)}
+          removed=set(before)-set(after)
+          added=set(after)-set(before)
+          allowed_changed={emrf,view,'index.html','app/index.html'}
+          allowed_added={catalog,starlink,'app/'+starlink}
+          if changed!=allowed_changed or removed or added!=allowed_added:
+              raise SystemExit('EMRF_V2_PRODUCTION_REGRESSION_BLOCKED '+json.dumps({
+               'changed':sorted(changed),'removed':sorted(removed),'added':sorted(added)}))
+          assert (site/starlink).read_bytes()==(site/'app'/starlink).read_bytes()
+          for path in ('landing.js','app.js'):
+              t=(site/path).read_text(encoding='utf-8')
+              for old in ('bridgepoint-spacecraft-ten-pads-v2.js','bridgepoint-spacecraft-museums-v3.js',
+                          'bridgepoint-underground-scan-sites-v1.js','bridgepoint-celestial-sky-v6257.js'):
+                  assert old in t,(path,old)
+          print('STARLINK_EMRF_V2_ONLY_PASS',len(before),'unchanged baseline files,',
+                doc['record_count'],'real satellite orbit records; only 4 EMRF/UI cache files changed, 3 files added')
+          PY
+          node --input-type=module --check < "$SITE/bridgepoint-emrf-starlink-global-v2.js"
+          node --input-type=module --check < "$SITE/app/bridgepoint-emrf-starlink-global-v2.js"
+          node --input-type=module --check < "$SITE/bridgepoint-emrf-spectrogram-v1.js"
+          node --check "$SITE/bridgepoint-view-v5917.js"
+          node --check "$SITE/landing.js"
+          node --check "$SITE/app.js"
+
+      - uses: actions/configure-pages@v5
+      - name: Upload preserved BridgePoint with instant EM RF and first-party orbit cache
+        uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-emrf-thousands-starlink-v2
+          path: ${{ runner.temp }}/emrf-starlink-production
+          include-hidden-files: true
+      - name: Deploy instant global EM RF and thousands of 3D modeled Starlink beams
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: bridgepoint-v5000-emrf-thousands-starlink-v2
+      - name: Verify live root/app, real catalog and preserved wildfire/spacecraft
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="https://bridgepointintelligence.online"
+          ok=0
+          for attempt in 1 2 3 4 5 6; do
+            ROOT="$(mktemp)"
+            APP="$(mktemp)"
+            CATALOG="$(mktemp)"
+            if curl -fsSL --max-time 35 -H 'Cache-Control: no-cache' "$SITE/index.html?check=$GITHUB_SHA-$attempt" -o "$ROOT" &&
+               curl -fsSL --max-time 35 -H 'Cache-Control: no-cache' "$SITE/app/index.html?check=$GITHUB_SHA-$attempt" -o "$APP" &&
+               curl -fsSL --max-time 35 -H 'Cache-Control: no-cache' "$SITE/starlink-orbits-v2.json?check=$GITHUB_SHA-$attempt" -o "$CATALOG" &&
+               python3 -c 'import json,sys; j=json.load(open(sys.argv[1]));assert j["record_count"]>=2500 and len(j["records"])>=2500' "$CATALOG" &&
+               grep -F 'emrfstarlink=v2' "$ROOT" >/dev/null &&
+               grep -F 'emrfstarlink=v2' "$APP" >/dev/null &&
+               curl -fsSL --max-time 35 "$SITE/bridgepoint-emrf-starlink-global-v2.js?check=$GITHUB_SHA-$attempt" | grep -F 'MAX_BEAMS=4200' >/dev/null &&
+               curl -fsSL --max-time 35 "$SITE/app/bridgepoint-emrf-starlink-global-v2.js?check=$GITHUB_SHA-$attempt" | grep -F 'propagateStarlinkOmmV2' >/dev/null &&
+               curl -fsSL --max-time 35 "$SITE/bridgepoint-emrf-spectrogram-v1.js?check=$GITHUB_SHA-$attempt" | grep -F 'enableStarlinkThousandsV2' >/dev/null &&
+               curl -fsSL --max-time 35 "$SITE/bridgepoint-view-v5917.js?check=$GITHUB_SHA-$attempt" | grep -F 'instant-thousands-starlink-globe' >/dev/null &&
+               curl -fsSL --max-time 35 "$SITE/bridgepoint-wildfire-realistic-mesh-v4.js?check=$GITHUB_SHA-$attempt" | grep -F 'createBridgePointWildfireVolumeV4' >/dev/null &&
+               curl -fsSL --max-time 35 "$SITE/bridgepoint-spacecraft-museums-v3.js?check=$GITHUB_SHA-$attempt" | grep -F 'SPACECRAFT_MUSEUM_EXHIBITS_V3' >/dev/null; then
+              ok=1
+            fi
+            rm -f "$ROOT" "$APP" "$CATALOG"
+            if test "$ok" = 1;then break;fi
+            sleep 12
+          done
+          test "$ok" = 1
+          echo "BRIDGEPOINT_STARLINK_THOUSANDS_FIRST_PARTY_OMM_AND_3D_ROOT_APP_PUBLISHED_VERIFIED"
