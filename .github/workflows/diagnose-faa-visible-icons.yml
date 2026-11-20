@@ -144,9 +144,75 @@ jobs:
           PID=$!
           trap 'kill "$PID" || true' EXIT
           node /tmp/faa-smoke/diagnostic.mjs
+      - name: Verify FAA symbols on the REAL BridgePoint public globe with patched FAA and gate files
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/faa-smoke/actual-integration.mjs <<'JS'
+          import {chromium} from 'playwright-core';
+          import {readFileSync} from 'node:fs';
+          const browser=await chromium.launch({
+            executablePath:'/usr/bin/google-chrome',headless:true,
+            args:['--no-sandbox','--use-gl=angle','--use-angle=swiftshader','--enable-webgl']
+          });
+          const page=await browser.newPage({viewport:{width:832,height:650},deviceScaleFactor:1,
+            isMobile:true,hasTouch:true});
+          const faa=readFileSync('/tmp/faa-smoke/bridgepoint-faa-obstruction-towers-v1.js','utf8');
+          const gate=readFileSync('/tmp/faa-smoke/bridgepoint-drone-awareness-v1.js','utf8');
+          await page.route(/bridgepoint-faa-obstruction-towers-v1\.js(?:\?|$)/,route=>route.fulfill({status:200,contentType:'text/javascript',body:faa}));
+          await page.route(/bridgepoint-drone-awareness-v1\.js(?:\?|$)/,route=>route.fulfill({status:200,contentType:'text/javascript',body:gate}));
+          const warns=[];page.on('pageerror',e=>{if(warns.length<12)warns.push('PAGE '+e.message)});
+          page.on('console',m=>{if(m.type()==='error'&&warns.length<12)warns.push('CONSOLE '+m.text())});
+          await page.goto('https://bridgepointintelligence.online/?faa-integrated-v6',{waitUntil:'domcontentloaded',timeout:45000});
+          await page.waitForFunction(()=>!!window.__BP_LANDING_WORLD__?.map,null,{timeout:90000});
+          const initial=await page.evaluate(()=>({
+            boot:window.__BP_LANDING_MAP_BOOT__,hasGate:!!window.__BP_DRONE_AWARENESS_V1__,
+            zoom:window.__BP_LANDING_WORLD__?.map?.getZoom?.(),projection:window.__BP_LANDING_WORLD__?.map?.getProjection?.()?.type
+          }));
+          console.log('ACTUAL_BRIDGEPOINT_GLOBE_BOOT',JSON.stringify(initial));
+          await page.evaluate(async()=>{
+            const w=window.__BP_LANDING_WORLD__,m=w.map;
+            const {initFAAObstructionTowerRenderer}=await import('/bridgepoint-faa-obstruction-towers-v1.js?real-integration-v6');
+            window.__ACTUAL_FAA_API__=initFAAObstructionTowerRenderer(w);
+            if(!window.__ACTUAL_FAA_API__)throw Error('actual globe did not accept FAA renderer');
+            await window.__ACTUAL_FAA_API__.setEnabled(true);
+            m.jumpTo({center:[-96,38],zoom:2.8});
+          });
+          try {
+            await page.waitForFunction(()=>{
+              const m=window.__BP_LANDING_WORLD__?.map,a=window.__ACTUAL_FAA_API__;
+              return a?.stats?.total>1000&&a?.stats?.visible>0&&m?.isSourceLoaded?.('bp-faa-obstructions-source-v1');
+            },null,{timeout:90000});
+          }catch(e){console.log('ACTUAL_LOAD_TIMEOUT',e.message)}
+          await page.waitForTimeout(1000);
+          const result=await page.evaluate(()=>{
+            const m=window.__BP_LANDING_WORLD__?.map,a=window.__ACTUAL_FAA_API__;
+            const marker='bp-faa-obstructions-markers-v1',halo='bp-faa-obstructions-halo-v1';
+            let rendered=-1;try{rendered=m?.queryRenderedFeatures(undefined,{layers:[marker]}).length??-1}catch(e){}
+            return {enabled:a?.enabled,status:a?.status,stats:a?.stats,
+              sharedGatePresent:!!window.__BP_DRONE_AWARENESS_V1__,
+              sharedGateActive:!!window.__BP_DRONE_AWARENESS_V1__?.state?.emptyModeActive,
+              sourceLoaded:m?.isSourceLoaded?.('bp-faa-obstructions-source-v1'),
+              markerVisible:m?.getLayoutProperty?.(marker,'visibility'),
+              haloVisible:m?.getLayoutProperty?.(halo,'visibility'),
+              rendered,zoom:m?.getZoom?.(),projection:m?.getProjection?.()?.type,
+              errors:window.__BP_LANDING_MAP_BOOT__?.error||null};
+          });
+          console.log('ACTUAL_BRIDGEPOINT_FAA_RESULT',JSON.stringify(result));
+          console.log('ACTUAL_BRIDGEPOINT_WARNINGS',JSON.stringify(warns));
+          await page.screenshot({path:'/tmp/faa-smoke/actual-globe.png',timeout:15000}).catch(e=>console.log('SCREENSHOT',e.message));
+          await browser.close();
+          if(!result.enabled||!result.sharedGatePresent||!result.sourceLoaded||
+            result.markerVisible==='none'||result.haloVisible==='none'||result.rendered<1)
+              process.exitCode=1;
+          JS
+          cd /tmp/faa-smoke
+          node actual-integration.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: faa-diagnostic-screenshot
-          path: /tmp/faa-smoke/result.png
+          path: |
+            /tmp/faa-smoke/result.png
+            /tmp/faa-smoke/actual-globe.png
           if-no-files-found: ignore
