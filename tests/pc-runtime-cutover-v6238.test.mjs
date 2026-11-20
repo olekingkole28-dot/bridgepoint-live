@@ -28,7 +28,7 @@ for (const path of runtimeFiles) {
 for (const path of ['rebuild-v5000/landing.js', 'rebuild-v5000/app.js']) {
   const source = fs.readFileSync(path, 'utf8');
   assert.ok(source.includes('world-v2300-map.js?v=6238-pc-runtime'), path + ' must import the refreshed globe map module');
-  assert.ok(source.includes('world-v2300-weather.js?v=6238-pc-runtime'), path + ' must import the refreshed weather module');
+  assert.ok(source.includes('world-v2300-weather.js?v=6318-storm-icons-clickable'), path + ' must import the refreshed weather module');
   assert.ok(!source.includes(RETIRED_API), path + ' must not reference the retired Supabase project');
 }
 
@@ -59,7 +59,7 @@ const requiredAssets = [
   'intelligence-tools-v5507.js?v=6238-pc-runtime',
   'intelligence-global-v5507.js?v=6238-pc-runtime',
   'world-v2300-map.js?v=6238-pc-runtime',
-  'world-v2300-weather.js?v=6238-pc-runtime',
+  'world-v2300-weather.js?v=6318-storm-icons-clickable',
 ];
 for (const path of htmlFiles) {
   const html = fs.readFileSync(path, 'utf8');
