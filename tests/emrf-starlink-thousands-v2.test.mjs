@@ -41,6 +41,6 @@ assert.ok(emrfCode.includes("enableStarlinkThousandsV2"));
 assert.ok(emrfCode.includes("void enableStarlinkThousandsV2();"));
 assert.ok(emrfCode.includes("Number(map.getZoom?.()||0)>=7"),'no global Overpass query at whole Earth zoom');
 assert.ok(!emrfCode.includes("setTimeout(end,8000)"),'no eight-second wait to show EM/RF');
-assert.ok(card.includes("v=2-instant-thousands-starlink-globe"));
+assert.ok(card.includes("v=3-emrf-model-orbit-ground"));
 assert.ok(card.includes("window.__BP_EMRF_CATALOG_WARMED_V2__"));
 console.log('BRIDGEPOINT_STARLINK_THOUSANDS_V2_PASS: fresh real orbital records -> thousands of 3D modeled beams, geometry source accuracy disclosures, no slow map-idle wait');
