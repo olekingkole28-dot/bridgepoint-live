@@ -93,19 +93,34 @@ jobs:
         uses: actions/deploy-pages@v4
         with:
           artifact_name: bridgepoint-wind-rf-visual-v2
-      - name: Verify live root, app and preserved original features
+      - name: Verify live root, app, Wind RF and preserved original assets
         shell: bash
         run: |
           set -euo pipefail
           SITE=https://bridgepointintelligence.online
+          TMP="$(mktemp -d)"
+          trap 'rm -rf "$TMP"' EXIT
           for n in 1 2 3 4 5 6 7 8; do
-            if curl -fsSL "$SITE/index.html?windrf=$GITHUB_SHA-$n" | grep -Fq 'windrfvisual=v2' &&
-               curl -fsSL "$SITE/app/index.html?windrf=$GITHUB_SHA-$n" | grep -Fq 'windrfvisual=v2' &&
-               curl -fsSL "$SITE/bridgepoint-global-wind-rf-v1.js?windrf=$GITHUB_SHA-$n" | grep -Fq 'const boost=1;' &&
-               curl -fsSL "$SITE/bridgepoint-spacecraft-museums-v3.js?windrf=$GITHUB_SHA-$n" | grep -Fq 'SPACECRAFT_MUSEUM_EXHIBITS_V3'; then
-               echo 'WIND_RF_VISUAL_V2_LIVE_AND_PRESERVED'
+            if curl -fsSL --max-time 35 "$SITE/index.html?windrf=$GITHUB_SHA-$n" -o "$TMP/root" &&
+               curl -fsSL --max-time 35 "$SITE/app/index.html?windrf=$GITHUB_SHA-$n" -o "$TMP/app" &&
+               curl -fsSL --max-time 35 "$SITE/bridgepoint-global-wind-rf-v1.js?windrf=$GITHUB_SHA-$n" -o "$TMP/global" &&
+               curl -fsSL --max-time 35 "$SITE/app/bridgepoint-global-wind-rf-v1.js?windrf=$GITHUB_SHA-$n" -o "$TMP/global-app" &&
+               curl -fsSL --max-time 35 "$SITE/bridgepoint-volumetric-fields-v5978.js?windrf=$GITHUB_SHA-$n" -o "$TMP/local" &&
+               curl -fsSL --max-time 35 "$SITE/bridgepoint-spacecraft-museums-v3.js?windrf=$GITHUB_SHA-$n" -o "$TMP/spacecraft" &&
+               curl -fsSL --max-time 35 "$SITE/landing.js?windrf=$GITHUB_SHA-$n" -o "$TMP/landing" &&
+               grep -Fq 'windrfvisual=v2' "$TMP/root" &&
+               grep -Fq 'windrfvisual=v2' "$TMP/app" &&
+               grep -Fq 'authorigin=20261120r1' "$TMP/root" &&
+               grep -Fq 'authorigin=20261120r1' "$TMP/app" &&
+               grep -Fq 'const boost=1;' "$TMP/global" &&
+               grep -Fq 'visibleSamples(map,rows,jet,zoom)' "$TMP/global-app" &&
+               grep -Fq 'v=2-height-true-rf-wind' "$TMP/local" &&
+               grep -Fq 'characterization-seas-total-adopt.trycloudflare.com' "$TMP/landing" &&
+               grep -Fq 'SPACECRAFT_MUSEUM_EXHIBITS_V3' "$TMP/spacecraft"; then
+               echo 'WIND_RF_V2_LIVE_ROOT_APP_AUTH_AND_SPACECRAFT_VERIFIED'
                exit 0
             fi
             sleep 12
           done
+          echo 'WIND_RF_V2_LIVE_VERIFICATION_FAILED' >&2
           exit 1
