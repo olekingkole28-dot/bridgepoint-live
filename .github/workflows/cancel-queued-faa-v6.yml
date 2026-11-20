@@ -1,0 +1,22 @@
+name: Cancel superseded FAA v6 deploy only
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/cancel-queued-faa-v6.yml']
+permissions:
+  actions: write
+  contents: read
+jobs:
+  cancel-obsolete-faa:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Cancel specific superseded FAA publish (not other workflows)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Cancelling only superseded FAA run 44834431078"
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/actions/runs/44834431078/cancel" ||
+            gh api "repos/${GITHUB_REPOSITORY}/actions/runs/44834431078" --jq '{status,conclusion}'
