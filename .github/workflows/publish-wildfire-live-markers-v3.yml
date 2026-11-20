@@ -1,0 +1,211 @@
+name: Publish Wildfire Live Markers and Immediate Source Rendering v3
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-wildfire-live-markers-v3.yml'
+
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate immediate fire observations and the existing functional Wildfire button
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module --check < rebuild-v5000/bridgepoint-wildfires-volumetric-v1.js
+          node --check rebuild-v5000/bridgepoint-view-v5917.js
+          node tests/wildfire-button-routing-v2.test.mjs
+          node tests/wildfire-source-native-v1.test.mjs
+          node tests/wildfire-immediate-markers-v3.test.mjs
+
+      - name: Find verified working 24-spacecraft + wildfire button baseline
+        id: baseline
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          RUN_ID="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/publish-wildfire-button-routing-v2.yml/runs?branch=main&status=success&per_page=20" --jq '.workflow_runs | map(select(.conclusion == "success")) | first | .id')"
+          test -n "$RUN_ID" && test "$RUN_ID" != null
+          NAME="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/artifacts" --jq '.artifacts[] | select((.expired|not) and (.name == "bridgepoint-v5000-wildfire-button-routing-v2")) | .name' | head -n 1)"
+          test "$NAME" = bridgepoint-v5000-wildfire-button-routing-v2
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "VERIFIED_WILDFIRE_V2_BASELINE $RUN_ID $NAME"
+
+      - name: Download last verified full BridgePoint production site
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ steps.baseline.outputs.artifact_name }}
+          run-id: ${{ steps.baseline.outputs.run_id }}
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/wildfire-live-base
+
+      - name: Overlay only wildfire module, existing Wildfire button, and cache revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCHIVE="$(find "$RUNNER_TEMP/wildfire-live-base" -name artifact.tar -type f -print -quit)"
+          test -n "$ARCHIVE"
+          SITE="$RUNNER_TEMP/wildfire-live-production"
+          mkdir -p "$SITE"
+          tar -xf "$ARCHIVE" -C "$SITE"
+          export SITE
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib,json,os,re
+          site=Path(os.environ['SITE'])
+          file='bridgepoint-wildfires-volumetric-v1.js'
+          view='bridgepoint-view-v5917.js'
+          required={
+              'index.html','app/index.html','landing.js','app.js',
+              file,'app/'+file,view,'vendor/three.module.js',
+              'world-v2300-weather.js','world-v2300-clouds.js',
+              'bridgepoint-spacecraft-v1.js','bridgepoint-spacecraft-discovery-v1.js',
+              'bridgepoint-spacecraft-columbia-v1.js','bridgepoint-spacecraft-saturn-v1.js',
+              'bridgepoint-spacecraft-ten-pads-v2.js','app/bridgepoint-spacecraft-ten-pads-v2.js',
+              'bridgepoint-spacecraft-museums-v3.js','app/bridgepoint-spacecraft-museums-v3.js',
+              'bridgepoint-underground-scan-sites-v1.js','bridgepoint-plane-wrecks-v1.js',
+              'bridgepoint-shipwrecks-v1.js'
+          }
+          before={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                  for p in site.rglob('*') if p.is_file()}
+          if missing:=required-set(before):
+              raise SystemExit('WILDFIRE_SOURCE_SITE_MISSING_FILES '+str(sorted(missing)))
+
+          # Replace just the wildfire source's two copies (root and /app),
+          # preserving weather/radar and all previous spacecraft/caves/wrecks.
+          data=(Path('rebuild-v5000')/file).read_bytes()
+          for dest in (file,'app/'+file):
+              (site/dest).write_bytes(data)
+
+          # The current user's screenshot is on the generic-card app. Only
+          # its dedicated wildfire action is updated, never other commands.
+          original=(site/view).read_text(encoding='utf-8')
+          updated=(Path('rebuild-v5000')/view).read_text(encoding='utf-8')
+          start="if(a==='wildfire'){"
+          end="if(a==='windfx')"
+          def block(value):
+              if value.count(start)!=1 or value.count(end)!=1:
+                  raise SystemExit('WILDFIRE_HANDLER_ANCHORS_NOT_UNIQUE')
+              a=value.index(start);b=value.index(end,a)
+              return a,b,value[a:b]
+          a,b,old_block=block(original)
+          _,_,new_block=block(updated)
+          if 'initLiveWildfireRenderer' not in new_block or 'bp:wildfire-state' not in new_block:
+              raise SystemExit('WILDFIRE_NEW_STATUS_HANDLER_MISSING')
+          if 'data-bpv-action]:not([data-bpv-action="wildfire"])' not in original:
+              raise SystemExit('WILDFIRE_EXISTING_CLICK_ROUTING_BROKEN')
+          if 'immediate-live-fire-markers' not in new_block:
+              raise SystemExit('WILDFIRE_MODULE_CACHE_REVISION_MISSING')
+          patched=original[:a]+new_block+original[b:]
+          if patched.count('initLiveWildfireRenderer')!=1 or patched.count('bp:wildfire-state')!=1:
+              raise SystemExit('WILDFIRE_BUTTON_MULTIPLE_HANDLERS')
+          (site/view).write_text(patched,encoding='utf-8')
+
+          # Cache revision only for this exact dock-card script, both surfaces.
+          for entry in ('index.html','app/index.html'):
+              f=site/entry
+              html=f.read_text(encoding='utf-8')
+              pattern=r'(?<=data-bp-deferred-src=")/bridgepoint-view-v5917\.js(?:\?[^"]*)?(?=")'
+              matches=list(re.finditer(pattern,html))
+              if len(matches)!=1:
+                  raise SystemExit('WILDFIRE_HTML_CACHE_CONTROL_ANCHOR_NOT_EXACTLY_ONE '+entry)
+              old=matches[0].group(0)
+              if old.count('wildfire3d=v2')!=1:
+                  raise SystemExit('WILDFIRE_HTML_EXPECTED_PREVIOUS_CACHE_KEY '+entry)
+              fresh=old.replace('wildfire3d=v2','wildfire3d=v3')
+              html=html[:matches[0].start()]+fresh+html[matches[0].end():]
+              f.write_text(html,encoding='utf-8')
+
+          after={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                 for p in site.rglob('*') if p.is_file()}
+          removed=set(before)-set(after)
+          added=set(after)-set(before)
+          changed={p for p in before if before[p]!=after.get(p)}
+          allowed={'index.html','app/index.html',view,file,'app/'+file}
+          if removed or added or changed!=allowed:
+              raise SystemExit('WILDFIRE_ONLY_NO_REGRESSION_GUARD_FAILED '+json.dumps({
+                  'removed':sorted(removed),'added':sorted(added),'changed':sorted(changed)}))
+          assert (site/file).read_bytes()==(site/'app'/file).read_bytes()
+          for p in ('landing.js','app.js'):
+              t=(site/p).read_text(encoding='utf-8')
+              for item in ('bridgepoint-spacecraft-ten-pads-v2.js','bridgepoint-spacecraft-museums-v3.js','bridgepoint-underground-scan-sites-v1.js'):
+                  assert item in t,(p,item)
+          print('WILDFIRE_V3_PRESERVATION_PASS',len(before),'files preserved; exactly five wildfire source/UI/cache changes, zero other modifications')
+          PY
+          node --check "$SITE/bridgepoint-view-v5917.js"
+          node --input-type=module --check < "$SITE/bridgepoint-wildfires-volumetric-v1.js"
+          node --input-type=module --check < "$SITE/app/bridgepoint-wildfires-volumetric-v1.js"
+
+      - uses: actions/configure-pages@v5
+
+      - name: Upload preserved globe with live fire marker fix only
+        uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-wildfire-live-markers-v3
+          path: ${{ runner.temp }}/wildfire-live-production
+          include-hidden-files: true
+
+      - name: Publish persistent active fire icons, status and live volumetric flames
+        id: deploy
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: bridgepoint-v5000-wildfire-live-markers-v3
+
+      - name: Verify website/app wildfire fixes and 24-spacecraft files are live
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="https://bridgepointintelligence.online"
+          ok=0
+          for attempt in 1 2 3 4 5 6; do
+            ROOT="$(mktemp)"
+            APP="$(mktemp)"
+            VIEW="$(mktemp)"
+            FIRE="$(mktemp)"
+            if curl -fsSL --max-time 30 -H 'Cache-Control: no-cache' "$SITE/index.html?check=$GITHUB_SHA-$attempt" -o "$ROOT" &&
+               curl -fsSL --max-time 30 -H 'Cache-Control: no-cache' "$SITE/app/index.html?check=$GITHUB_SHA-$attempt" -o "$APP" &&
+               curl -fsSL --max-time 30 -H 'Cache-Control: no-cache' "$SITE/bridgepoint-view-v5917.js?check=$GITHUB_SHA-$attempt" -o "$VIEW" &&
+               curl -fsSL --max-time 30 -H 'Cache-Control: no-cache' "$SITE/bridgepoint-wildfires-volumetric-v1.js?check=$GITHUB_SHA-$attempt" -o "$FIRE" &&
+               grep -F 'wildfire3d=v3' "$ROOT" >/dev/null &&
+               grep -F 'wildfire3d=v3' "$APP" >/dev/null &&
+               grep -F 'bp:wildfire-state' "$VIEW" >/dev/null &&
+               grep -F 'immediate-live-fire-markers' "$VIEW" >/dev/null &&
+               grep -F 'data-bpv-action]:not([data-bpv-action="wildfire"])' "$VIEW" >/dev/null &&
+               grep -F 'function refreshPersistentMarkers(state)' "$FIRE" >/dev/null &&
+               grep -F 'function publishFireStatus(state)' "$FIRE" >/dev/null &&
+               curl -fsSL --max-time 30 -H 'Cache-Control: no-cache' "$SITE/app/bridgepoint-wildfires-volumetric-v1.js?check=$GITHUB_SHA-$attempt" | grep -F 'function refreshPersistentMarkers(state)' >/dev/null &&
+               curl -fsSL --max-time 30 -H 'Cache-Control: no-cache' "$SITE/bridgepoint-spacecraft-museums-v3.js?check=$GITHUB_SHA-$attempt" | grep -F 'SPACECRAFT_MUSEUM_EXHIBITS_V3' >/dev/null &&
+               curl -fsSL --max-time 30 -H 'Cache-Control: no-cache' "$SITE/bridgepoint-spacecraft-ten-pads-v2.js?check=$GITHUB_SHA-$attempt" | grep -F 'SPACECRAFT_TEN_LAUNCH_PADS' >/dev/null; then
+              ok=1
+            fi
+            rm -f "$ROOT" "$APP" "$VIEW" "$FIRE"
+            if test "$ok" = 1; then break; fi
+            sleep 12
+          done
+          test "$ok" = 1
+          echo "WILDFIRE_IMMEDIATE_DATA_MARKERS_STATUS_LIVE_ROOT_APP_VERIFIED"

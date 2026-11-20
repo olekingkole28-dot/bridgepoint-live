@@ -1072,16 +1072,35 @@ if(a==='wildfire'){
  const surfaceWorld=home?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
  const activeMap=surfaceWorld?.map||surfaceWorld;
  b.disabled=true;
- void import('./bridgepoint-wildfires-volumetric-v1.js?v=1-live-nasa-viirs-mapped-bounds-native-3d').then(m=>{
+ void import('./bridgepoint-wildfires-volumetric-v1.js?v=3-immediate-live-fire-markers').then(m=>{
   const previous=window.__BP_LIVE_WILDFIRES_V1__;
   const api=previous?.map===activeMap?previous:m.initLiveWildfireRenderer(activeMap);
   if(!api?.setEnabled)throw new Error('Source-backed wildfire renderer is unavailable');
+  if(!window.__BP_WILDFIRE_STATUS_UI_BOUND_V3__){
+   window.__BP_WILDFIRE_STATUS_UI_BOUND_V3__=true;
+   document.addEventListener('bp:wildfire-state',ev=>{
+    const status=ev.detail||{};
+    document.querySelectorAll('[data-bpv-action="wildfire"]').forEach(btn=>{
+     if(btn.getAttribute('aria-pressed')!=='true')return;
+     const label=btn.querySelector('.bpv-command-label');
+     const stateLabel=status.loading?'LOADING…':status.error&&!status.markerCount?'DATA ERROR':
+       Number.isFinite(status.fireCount)?status.fireCount.toLocaleString()+' FIRES':'ON';
+     if(label)label.textContent='Wildfire · '+stateLabel;
+     const ready=status.mapLayerReady?'Map style overlay active':
+       status.markerCount?'Persistent map markers active':'Map markers pending';
+     btn.title=status.error?status.error:
+      'WorldFires / NASA fire observations: '+(status.fireCount||0)+' detections, '+
+      (status.markerCount||0)+' visible markers. '+ready+
+      '. Zoom close to detected fires for volumetric 3D flames.';
+    });
+   });
+  }
   const next=!api.enabled;
   api.setEnabled(next);
   b.setAttribute('aria-pressed',String(next));
   b.classList.toggle('active',next);
-  b.title=next?'Real satellite fire detections, source perimeters and terrain-anchored 3D flames are ON':'Toggle global, source-backed wildfire detections and 3D fire effects';
-  const label=b.querySelector('.bpv-command-label');if(label)label.textContent='Wildfire · '+(next?'ON':'OFF');
+  b.title=next?'Loading source-backed fire detections and persistent map markers':'Toggle global, source-backed wildfire detections and 3D fire effects';
+  const label=b.querySelector('.bpv-command-label');if(label)label.textContent='Wildfire · '+(next?'LOADING…':'OFF');
   window.__BP_LIVE_WILDFIRES_V1__=api;
  }).catch(e=>{b.title='Wildfire control unavailable: '+String(e?.message||e);console.warn('BridgePoint wildfire control unavailable',e)}).finally(()=>{b.disabled=false});
  return;

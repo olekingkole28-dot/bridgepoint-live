@@ -134,51 +134,157 @@ async function getThree(){
  return threePromise;
 }
 async function getJSON(url,signal){
- const response=await fetch(url,{signal,mode:'cors',cache:'no-cache',headers:{Accept:'application/json'}});
- if(!response.ok)throw Error('Wildfire source HTTP '+response.status);
- return response.json();
+ const controller=new AbortController();
+ const stop=()=>controller.abort();
+ signal?.addEventListener('abort',stop,{once:true});
+ if(signal?.aborted)stop();
+ const timeout=setTimeout(()=>controller.abort(),14000);
+ try{
+  const response=await fetch(url,{signal:controller.signal,mode:'cors',cache:'no-cache',headers:{Accept:'application/json'}});
+  if(!response.ok)throw Error('Wildfire source HTTP '+response.status);
+  return await response.json();
+ }finally{clearTimeout(timeout);signal?.removeEventListener('abort',stop);}
+}
+function publishFireStatus(state){
+ if(typeof document==='undefined'||typeof CustomEvent==='undefined')return;
+ const ready=!!state.map.getLayer?.(pointLayer);
+ const markers=state.markers?.size||0;
+ const status={enabled:state.enabled,loading:state.loading,fireCount:state.fires.length,
+  markerCount:markers,sourcePerimeters:state.perimeters.size,mapLayerReady:ready,
+  lastUpdated:state.lastUpdated,error:state.error||''};
+ try{document.dispatchEvent(new CustomEvent('bp:wildfire-state',{detail:status}));}catch(_){}
+}
+function renderFireData(state,all){
+ if(!state.enabled||state.destroyed)return;
+ state.fires=all.slice(0,MAX_MAP_FIRE_RECORDS);
+ state.lastUpdated=Date.now();
+ state.error='';
+ updateMap(state);
+ refreshPersistentMarkers(state);
+ schedulePerimeterLoads(state);
+ maybeShowNative3D(state);
+ publishFireStatus(state);
 }
 async function loadCurrentFires(state){
  if(state.loading||!state.enabled||state.destroyed)return;
- state.loading=true;state.error='';state.abort?.abort();
+ state.loading=true;state.error='';
+ state.abort?.abort();
  const controller=new AbortController();state.abort=controller;
+ publishFireStatus(state);
+ let primaryError=null,all=[];
  try{
-  let all=[],primaryError=null;
+  // Primary source must render as soon as it arrives: EONET is OPTIONAL and
+  // must never hold back 2,000+ current WorldFires/VIIRS observations.
   for(const hours of [24,72]){
    try{
-    const data=await getJSON(API+'/active?hours='+hours,controller.signal);
-    all=normalizeActiveFireRecords(data);
-    if(all.length>0)break;
+    all=normalizeActiveFireRecords(await getJSON(API+'/active?hours='+hours,controller.signal));
+    if(all.length)break;
    }catch(e){primaryError=e;break;}
   }
-  // When the global FIRMS aggregation is unavailable, still show current
-  // NASA EONET tracked events (not invented coordinates or modelled perimeters).
-  try{
-   const ev=normalizeEonetFires(await getJSON(EONET,controller.signal));
-   const seen=new Set(all.map(x=>x.coordinates.map(v=>v.toFixed(2)).join(',')));
-   for(const fire of ev){
-    const key=fire.coordinates.map(v=>v.toFixed(2)).join(',');
-    if(!seen.has(key)){all.push(fire);seen.add(key);}
-   }
-  }catch(e){if(!all.length)state.eonetError=String(e?.message||e);}
-  if(!all.length&&primaryError)state.error='WorldFires unavailable: '+String(primaryError.message||primaryError);
-  if(controller.signal.aborted||state.destroyed||!state.enabled)return;
-  if(!all.length)throw Error('No recent fire detections returned (or source unavailable)');
-  state.fires=all.slice(0,MAX_MAP_FIRE_RECORDS);
-  state.lastUpdated=Date.now();
-  updateMap(state);
-  schedulePerimeterLoads(state);
- }catch(e){
-  if(!controller.signal.aborted){
-   state.error=String(e?.message||e);
-   console.warn('BridgePoint wildfire live source unavailable',e);
-   updateMap(state);
+  if(controller.signal.aborted||!state.enabled||state.destroyed)return;
+  if(all.length){
+   state.loading=false;
+   renderFireData(state,all);
+   // Fetch named NASA events after the active markers have appeared.
+   // Use a separate abort timer so an unresponsive EONET cannot block the layer.
+   const eventController=new AbortController();
+   state.eventsAbort?.abort();state.eventsAbort=eventController;
+   const timer=setTimeout(()=>eventController.abort(),11000);
+   void getJSON(EONET,eventController.signal).then(data=>{
+    if(!state.enabled||state.destroyed||controller.signal.aborted)return;
+    const extras=normalizeEonetFires(data);
+    const existing=new Set(state.fires.map(f=>f.coordinates.map(v=>v.toFixed(2)).join(',')));
+    const additions=[];
+    for(const fire of extras){
+     const k=fire.coordinates.map(v=>v.toFixed(2)).join(',');
+     if(!existing.has(k)){additions.push(fire);existing.add(k);}
+    }
+    if(additions.length){
+     state.fires=state.fires.concat(additions).slice(0,MAX_MAP_FIRE_RECORDS);
+     updateMap(state);refreshPersistentMarkers(state);publishFireStatus(state);
+    }
+   }).catch(()=>{}).finally(()=>{
+    clearTimeout(timer);
+    if(state.eventsAbort===eventController)state.eventsAbort=null;
+   });
+   return;
   }
- }finally{if(state.abort===controller){state.loading=false;state.abort=null;}}
+  // WorldFires missing or empty: use only genuinely dated open NASA events.
+  const fallback=normalizeEonetFires(await getJSON(EONET,controller.signal));
+  if(!fallback.length)throw primaryError||Error('No fresh wildfire observations are currently available');
+  if(controller.signal.aborted||!state.enabled||state.destroyed)return;
+  state.loading=false;
+  renderFireData(state,fallback);
+ }catch(e){
+  if(!controller.signal.aborted&&state.enabled&&!state.destroyed){
+   state.error='Live wildfire source failed: '+String(e?.message||e);
+   state.loading=false;
+   console.warn('BridgePoint wildfire data unavailable',e);
+   publishFireStatus(state);
+  }
+ }finally{
+  if(state.abort===controller){state.loading=false;state.abort=null;publishFireStatus(state);}
+ }
+}
+function selectedMarkerFires(state){
+ if(!state.enabled||!state.fires.length)return [];
+ const bounds=state.map.getBounds?.();
+ const zoom=Number(state.map.getZoom?.()||0);
+ const step=zoom<2?6:zoom<4?3:zoom<7?1:zoom<11?.2:.02;
+ const picked=new Map();
+ for(const f of state.fires){
+  if(!boundsContains(bounds,f.coordinates))continue;
+  const [lon,lat]=f.coordinates;
+  const key=Math.floor((lon+180)/step)+':'+Math.floor((lat+90)/step);
+  const prev=picked.get(key);
+  if(!prev||f.frp+f.count*.8>prev.frp+prev.count*.8)picked.set(key,f);
+ }
+ // Reserve slots across the visible globe before filling by intensity,
+ // so high-FRP regional clusters never hide weaker fires on other continents.
+ const score=f=>f.frp+f.count*.8;
+ const bestRegional=new Map();
+ for(const fire of picked.values()){
+  const [lon,lat]=fire.coordinates;
+  const region=Math.floor((lon+180)/30)+':'+Math.floor((lat+90)/20);
+  const prev=bestRegional.get(region);
+  if(!prev||score(fire)>score(prev))bestRegional.set(region,fire);
+ }
+ const coverage=Array.from(bestRegional.values()).sort((a,b)=>score(b)-score(a));
+ const firstIds=new Set(coverage.map(f=>f.id));
+ const rest=Array.from(picked.values()).filter(f=>!firstIds.has(f.id)).sort((a,b)=>score(b)-score(a));
+ return coverage.concat(rest).slice(0,160);
+}
+function refreshPersistentMarkers(state){
+ if(!state.enabled){for(const entry of state.markers.values())entry.marker.remove();state.markers.clear();return;}
+ const Marker=window.maplibregl?.Marker;
+ if(typeof Marker!=='function')return;
+ const selected=selectedMarkerFires(state),ids=new Set(selected.map(f=>f.id));
+ for(const [id,entry] of state.markers){
+  if(!ids.has(id)){entry.marker.remove();state.markers.delete(id);}
+ }
+ for(const fire of selected){
+  if(state.markers.has(fire.id))continue;
+  const el=document.createElement('button');
+  el.type='button';
+  el.className='bp-fire-fixed-marker-v3';
+  el.title=fire.name+' · '+fire.detectedAt+' · wildfire observation';
+  el.setAttribute('aria-label','View wildfire observation '+fire.name);
+  el.style.cssText='width:29px;height:29px;display:grid;place-items:center;border:1px solid #ffd6a2;border-radius:50%;background:#13202c;box-shadow:0 0 0 1px #ff4b2b77,0 1px 8px #000a;color:#ff662e;padding:3px;cursor:pointer;touch-action:manipulation';
+  el.innerHTML='<svg aria-hidden="true" viewBox="0 0 32 32" width="21" height="21"><path d="M17 2C9 9 13 15 8 19 3 27 11 31 17 30c8 0 13-7 9-14-1-3-5-6-5-11-3 2-3 5-4 6-1-3-1-6 0-9Z" fill="#ff6124" stroke="#ffca68" stroke-width="1.1"/><path d="M18 15c-3 4-7 7-5 11 2 4 10 3 11-3 1-3-2-5-3-8-1 3-2 4-3 5-1-2-1-3 0-5Z" fill="#ffe061"/></svg>';
+  el.addEventListener('click',e=>{
+   e.preventDefault();e.stopPropagation();
+   if(state.enabled)addPopup(state,fire);
+  });
+  try{
+   const marker=new Marker({element:el,anchor:'center'}).setLngLat(fire.coordinates).addTo(state.map);
+   state.markers.set(fire.id,{marker,el});
+  }catch(e){if(!state.markerWarned){state.markerWarned=true;console.warn('BridgePoint wildfire pin renderer',e);}}
+ }
+ publishFireStatus(state);
 }
 function ensureMapSources(state){
  const map=state.map;
- if(!state.enabled||!map.getStyle?.()||!map.isStyleLoaded?.())return false;
+ if(!state.enabled||!map.getStyle?.())return false;
  if(!map.hasImage?.(iconId)){
   const icon=displayIcon();
   if(icon)try{map.addImage(iconId,icon,{pixelRatio:2});}catch(e){console.warn('Fire icon install failed',e);}
@@ -507,7 +613,7 @@ function visible3DFires(state){
   .slice(0,zoom<15?3:7);
 }
 function ensureNative3D(state){
- if(!state.enabled||!state.THREE||!state.map.getStyle?.()||!state.map.isStyleLoaded?.())return;
+ if(!state.enabled||!state.THREE||!state.map.getStyle?.())return;
  if(state.map.getLayer?.(layer3d))return;
  const map=state.map,T=state.THREE;
  const layer={id:layer3d,type:'custom',renderingMode:'3d',
@@ -563,7 +669,7 @@ function maybeShowNative3D(state){
  }}).catch(e=>{state.error='3D flames: '+String(e?.message||e);});
 }
 function turnOff(state){
- state.abort?.abort();
+ state.abort?.abort();state.eventsAbort?.abort();state.eventsAbort=null;
  state.abort=null;
  for(const controller of state.perimeterAbort.values())controller.abort();
  state.perimeterAbort.clear();state.perimeterLoading.clear();
@@ -576,12 +682,16 @@ function turnOff(state){
   if(state.map.getSource?.(id))try{state.map.removeSource(id);}catch(_){}
  }
  state.effects=new Map();
+ for(const entry of state.markers.values())entry.marker.remove();
+ state.markers.clear();
+ publishFireStatus(state);
  state.map.triggerRepaint?.();
 }
 function handleMapMove(state){
  if(!state.enabled||state.destroyed)return;
  ensureMapSources(state);
  updateVisibleZones(state);
+ refreshPersistentMarkers(state);
  schedulePerimeterLoads(state);
  maybeShowNative3D(state);
  refreshFireActivity(state);
@@ -591,12 +701,13 @@ export function initLiveWildfireRenderer(target){
  if(!map||typeof map.getStyle!=='function'||typeof map.addLayer!=='function')return null;
  const existing=states.get(map);if(existing)return existing.api;
  installFireCardStyles();
- const state={map,enabled:false,destroyed:false,fires:[],error:'',lastUpdated:0,loading:false,
+ const state={map,enabled:false,destroyed:false,fires:[],error:'',lastUpdated:0,loading:false,markers:new Map(),eventsAbort:null,markerWarned:false,
   abort:null,perimeters:new Map(),fetchedSlugs:new Set(),perimeterLoading:new Set(),
   perimeterAbort:new Map(),THREE:null,renderer:null,camera:null,effects:new Map(),
   refreshTimer:null,lastFrame:0,popup:null,renderWarned:false};
  const handleStyle=()=>{if(state.enabled){
   if(ensureMapSources(state)){updateMap(state);schedulePerimeterLoads(state);}
+  refreshPersistentMarkers(state);
   maybeShowNative3D(state);
  }};
  const click=e=>onClickMarker(state,e);
@@ -611,6 +722,7 @@ export function initLiveWildfireRenderer(target){
   map,version:1,
   get enabled(){return state.enabled;},
   get state(){return {enabled:state.enabled,loading:state.loading,fireCount:state.fires.length,
+   markerCount:state.markers.size,mapLayerReady:!!map.getLayer?.(pointLayer),
    sourcePerimeters:state.perimeters.size,visibleFlameSites:visible3DFires(state).length,
    lastUpdated:state.lastUpdated,error:state.error};},
   setEnabled(value){
@@ -618,6 +730,7 @@ export function initLiveWildfireRenderer(target){
    if(state.enabled===next)return next;
    state.enabled=next;
    if(!next){turnOff(state);return false;}
+   publishFireStatus(state);
    ensureMapSources(state);updateMap(state);
    void loadCurrentFires(state);
    state.refreshTimer=setInterval(()=>{if(state.enabled)void loadCurrentFires(state);},15*60000);

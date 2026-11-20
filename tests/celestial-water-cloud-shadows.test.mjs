@@ -305,7 +305,7 @@ test('new rain/lightning and global source markers stay separate from legacy eff
   assert.match(weather, /if\(!active&&!wildfiresVisible\)return/);
   assert.match(listingView, /data-bpv-action="clouds"/);
   assert.match(listingView, /data-bpv-action="wildfire"/);
-  assert.match(listingView, /api\.setWildfiresVisible\(next\)/);
+  assert.match(listingView, /if\(a==='wildfire'\)\{[\s\S]*?api\.setEnabled\(next\)/, 'current wildfire button must enable the dedicated live fire renderer');
   assert.match(listingView, /api\.setEnabled\(next\)/);
   assert.match(weather, /function applySourceWeatherVisibility\(\)/);
   assert.match(app, /id:'bp-v5004-weather-shape-fill'.{0,500}layout:\{visibility:'visible'\}/);
