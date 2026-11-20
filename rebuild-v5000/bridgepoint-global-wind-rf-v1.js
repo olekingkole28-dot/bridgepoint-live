@@ -117,8 +117,8 @@ export function initBridgePointGlobalWindRfV1(target){
  if(!map?.addLayer||!map.getStyle)return null;
  const previous=window.__BP_WIND_RF_GLOBAL_V1__;
  if(previous?.map===map)return previous;
- const st={map,enabled:false,disposed:false,data:null,THREE:null,scene:null,renderer:null,camera:null,
-  layer:null,windMesh:null,jetMesh:null,rf4:null,rf5:null,towers:null,orbitRAF:0,projection:null,
+ const st={map,enabled:false,windOn:true,rfOn:true,rfMode:'both',disposed:false,data:null,THREE:null,scene:null,renderer:null,camera:null,
+  layer:null,windMesh:null,jetMesh:null,rf4:null,rf5:null,towers:null,jetPins:null,orbitRAF:0,projection:null,
   zoomAt:-1,dirty:true,jetMarkers:[],details:null,sourceError:null,modelAt:null};
  function cleanLayer(){try{if(map.getLayer?.(LAYER))map.removeLayer(LAYER);}catch(_){}}
  function status(msg){try{document.dispatchEvent(new CustomEvent('bp:wind-rf-global-status',{detail:{active:st.enabled,message:msg,winds:st.data?.winds?.length||0,sites:st.data?.sites?.length||0,sourceAt:st.data?.fetched_at||null,error:st.sourceError}}));}catch(_){}}
@@ -138,7 +138,7 @@ export function initBridgePointGlobalWindRfV1(target){
   const jet=new T.Mesh(streamGeometry(T,map,st.data.winds,'jet',zoom),ribbonMaterial(T,true));
   jet.frustumCulled=false;jet.name='Pressure-height matched moving jet-stream ribbons';
   st.windMesh=wind;st.jetMesh=jet;st.scene.add(wind,jet);
-  wind.visible=zoom<8;jet.visible=zoom<8;
+  wind.visible=jet.visible=st.windOn&&zoom<8;
   // Real FCC ASR positions. Nominal planning radii are visually inflated ONLY
   // at world scale, so a 900 m radius can be seen on a phone-size globe.
   const boost=zoom<4?Math.pow(2,5-zoom)*42:zoom<8?Math.pow(2,8-zoom)*2:1;
@@ -155,10 +155,22 @@ export function initBridgePointGlobalWindRfV1(target){
    n++;
   }
   for(const mesh of [st.rf4,st.rf5,st.towers]){mesh.count=n;mesh.instanceMatrix.needsUpdate=true;}
-  st.rf4.visible=st.rf5.visible=zoom<11;
-  st.towers.visible=zoom>=7&&zoom<13;
+  st.rf4.visible=st.rfOn&&(st.rfMode==='4G'||st.rfMode==='both')&&zoom<11;
+  st.rf5.visible=st.rfOn&&(st.rfMode==='5G'||st.rfMode==='both')&&zoom<11;
+  st.towers.visible=st.rfOn&&zoom>=7&&zoom<13;
   st.jetMarkers=st.data.winds.filter(row=>row[4]>=115&&row[6]>5000)
    .sort((a,b)=>b[4]-a[4]).slice(0,25).map(row=>({row,point:worldAt(T,map,row[1],row[0],row[6])})).filter(x=>x.point);
+  const size=zoom<3?165000:zoom<6?55000:zoom<9?7500:800;
+  let icons=0;
+  for(const item of st.jetMarkers){
+   const row=item.row,m=map.transform?.getMatrixForModel?.([row[1],row[0]],0);
+   if(!m)continue;
+   st.jetPins.setMatrixAt(icons++,new T.Matrix4().fromArray(m)
+    .multiply(new T.Matrix4().makeTranslation(0,row[6]+size*.45,0))
+    .multiply(new T.Matrix4().makeScale(size,size,size)));
+  }
+  st.jetPins.count=icons;st.jetPins.instanceMatrix.needsUpdate=true;
+  st.jetPins.visible=st.windOn&&zoom<9;
   st.zoomAt=zoom;st.dirty=false;map.triggerRepaint?.();
  }
  function showJet(row){
@@ -198,10 +210,12 @@ export function initBridgePointGlobalWindRfV1(target){
   const rf4=make(new T.SphereGeometry(1,10,7),new T.MeshBasicMaterial({color:0x3de3ed,transparent:true,opacity:.16,wireframe:true,depthTest:true,depthWrite:false}));
   const rf5=make(new T.SphereGeometry(1,10,7),new T.MeshBasicMaterial({color:0xd482ff,transparent:true,opacity:.21,wireframe:true,depthTest:true,depthWrite:false}));
   const towers=make(new T.CylinderGeometry(.18,.44,1,7),new T.MeshStandardMaterial({color:0xb3bfcb,metalness:.5,roughness:.5}));
-  scene.add(new T.AmbientLight(0xffffff,1.5),rf4,rf5,towers);
+  const jetPins=new T.InstancedMesh(new T.OctahedronGeometry(1,0),new T.MeshBasicMaterial({color:0xffba5a,transparent:true,opacity:.88,depthTest:true}),30);
+  jetPins.count=0;jetPins.frustumCulled=false;jetPins.name='Click for jet-stream aviation hazard information';
+  scene.add(new T.AmbientLight(0xffffff,1.5),rf4,rf5,towers,jetPins);
   const layer={id:LAYER,type:'custom',renderingMode:'3d',
    onAdd(m,gl){
-    st.scene=scene;st.camera=camera;st.rf4=rf4;st.rf5=rf5;st.towers=towers;st.layer=layer;
+    st.scene=scene;st.camera=camera;st.rf4=rf4;st.rf5=rf5;st.towers=towers;st.jetPins=jetPins;st.layer=layer;
     st.renderer=new T.WebGLRenderer({canvas:m.getCanvas(),context:gl,alpha:true,antialias:false,powerPreference:'low-power'});
     st.renderer.autoClear=false;st.dirty=true;
    },
@@ -219,11 +233,11 @@ export function initBridgePointGlobalWindRfV1(target){
     catch(e){if(!st.warned){st.warned=true;console.warn('BridgePoint global wind renderer',e);}}
    },
    onRemove(){
-    for(const obj of [st.windMesh,st.jetMesh,rf4,rf5,towers]){
+    for(const obj of [st.windMesh,st.jetMesh,rf4,rf5,towers,jetPins]){
      obj?.geometry?.dispose?.();obj?.material?.dispose?.();
     }
     try{st.renderer?.dispose();}catch(_){}
-    st.renderer=null;st.layer=null;st.scene=null;st.camera=null;st.windMesh=null;st.jetMesh=null;
+    st.renderer=null;st.layer=null;st.scene=null;st.camera=null;st.windMesh=null;st.jetMesh=null;st.jetPins=null;
    }
   };
   try{map.addLayer(layer);}catch(e){st.sourceError=String(e.message||e);status('Global wind style not ready; retrying');}
@@ -242,10 +256,11 @@ export function initBridgePointGlobalWindRfV1(target){
  function onStyle(){if(st.enabled){st.dirty=true;addLayer();}}
  function onMove(){if(st.enabled){st.dirty=true;map.triggerRepaint?.();}}
  const api={version:1,map,
-  get state(){return{enabled:st.enabled,gridSamples:st.data?.winds?.length||0,registeredStructures:st.data?.sites?.length||0,sourceAt:st.data?.fetched_at||null,jetMarkers:st.jetMarkers.length,error:st.sourceError}},
+  get state(){return{enabled:st.enabled,windOn:st.windOn,rfOn:st.rfOn,rfMode:st.rfMode,gridSamples:st.data?.winds?.length||0,registeredStructures:st.data?.sites?.length||0,sourceAt:st.data?.fetched_at||null,jetMarkers:st.jetMarkers.length,error:st.sourceError}},
   async enable(){
    if(st.disposed)return false;
    st.enabled=true;
+   if(st.data&&st.THREE){addLayer();st.dirty=true;animate();map.triggerRepaint?.();return true;}
    try{
     const [T,data]=await Promise.all([getThree(),prefetchWindRfGlobalV1()]);
     if(!st.enabled||st.disposed)return false;
@@ -255,6 +270,8 @@ export function initBridgePointGlobalWindRfV1(target){
    }catch(e){st.sourceError=String(e.message||e);status('Wind/RF global forecast cache unavailable; local source-backed layers remain independent');}
    return st.enabled;
   },
+  setWind(enabled){st.windOn=!!enabled;st.dirty=true;map.triggerRepaint?.();},
+  setRf(enabled,mode='both'){st.rfOn=!!enabled;st.rfMode=mode;st.dirty=true;map.triggerRepaint?.();},
   disable(){
    st.enabled=false;st.details?.remove();st.details=null;
    if(st.orbitRAF)cancelAnimationFrame(st.orbitRAF);st.orbitRAF=0;
