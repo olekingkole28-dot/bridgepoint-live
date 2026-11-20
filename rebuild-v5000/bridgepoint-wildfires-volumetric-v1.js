@@ -558,3 +558,80 @@ function maybeShowNative3D(state){
    state.THREE=T;ensureNative3D(state);state.map.triggerRepaint?.();
  }}).catch(e=>{state.error='3D flames: '+String(e?.message||e);});
 }
+function turnOff(state){
+ state.abort?.abort();
+ state.abort=null;
+ for(const controller of state.perimeterAbort.values())controller.abort();
+ state.perimeterAbort.clear();state.perimeterLoading.clear();
+ state.popup?.remove();state.popup=null;
+ if(state.refreshTimer!==null){clearInterval(state.refreshTimer);state.refreshTimer=null;}
+ for(const layer of [layer3d,pointLayer,detectionLine,lineLayer,fillLayer]){
+  if(state.map.getLayer?.(layer))try{state.map.removeLayer(layer);}catch(_){}
+ }
+ for(const id of [sourceId,perimeterId]){
+  if(state.map.getSource?.(id))try{state.map.removeSource(id);}catch(_){}
+ }
+ state.effects=new Map();
+ state.map.triggerRepaint?.();
+}
+function handleMapMove(state){
+ if(!state.enabled||state.destroyed)return;
+ ensureMapSources(state);
+ updateVisibleZones(state);
+ schedulePerimeterLoads(state);
+ maybeShowNative3D(state);
+ refreshFireActivity(state);
+}
+export function initLiveWildfireRenderer(target){
+ const map=target&&(target.map||target);
+ if(!map||typeof map.getStyle!=='function'||typeof map.addLayer!=='function')return null;
+ const existing=states.get(map);if(existing)return existing.api;
+ installFireCardStyles();
+ const state={map,enabled:false,destroyed:false,fires:[],error:'',lastUpdated:0,loading:false,
+  abort:null,perimeters:new Map(),fetchedSlugs:new Set(),perimeterLoading:new Set(),
+  perimeterAbort:new Map(),THREE:null,renderer:null,camera:null,effects:new Map(),
+  refreshTimer:null,lastFrame:0,popup:null,renderWarned:false};
+ const handleStyle=()=>{if(state.enabled){
+  if(ensureMapSources(state)){updateMap(state);schedulePerimeterLoads(state);}
+  maybeShowNative3D(state);
+ }};
+ const click=e=>onClickMarker(state,e);
+ const mouseEnter=()=>{map.getCanvas().style.cursor='pointer';};
+ const mouseLeave=()=>{map.getCanvas().style.cursor='';};
+ for(const evt of ['load','style.load'])map.on(evt,handleStyle);
+ for(const evt of ['moveend','zoomend'])map.on(evt,()=>handleMapMove(state));
+ map.on('click',pointLayer,click);
+ map.on('mouseenter',pointLayer,mouseEnter);
+ map.on('mouseleave',pointLayer,mouseLeave);
+ const api={
+  map,version:1,
+  get enabled(){return state.enabled;},
+  get state(){return {enabled:state.enabled,loading:state.loading,fireCount:state.fires.length,
+   sourcePerimeters:state.perimeters.size,visibleFlameSites:visible3DFires(state).length,
+   lastUpdated:state.lastUpdated,error:state.error};},
+  setEnabled(value){
+   const next=!!value;if(state.destroyed)return false;
+   if(state.enabled===next)return next;
+   state.enabled=next;
+   if(!next){turnOff(state);return false;}
+   ensureMapSources(state);updateMap(state);
+   void loadCurrentFires(state);
+   state.refreshTimer=setInterval(()=>{if(state.enabled)void loadCurrentFires(state);},15*60000);
+   maybeShowNative3D(state);
+   return true;
+  },
+  refresh(){if(state.enabled&&!state.loading)void loadCurrentFires(state);},
+  openFire(id){const f=state.fires.find(x=>x.id===id);if(f&&state.enabled)addPopup(state,f);},
+  destroy(){
+   if(state.destroyed)return;
+   api.setEnabled(false);state.destroyed=true;
+   for(const evt of ['load','style.load'])map.off(evt,handleStyle);
+   map.off('click',pointLayer,click);
+   map.off('mouseenter',pointLayer,mouseEnter);
+   map.off('mouseleave',pointLayer,mouseLeave);
+   states.delete(map);
+  }
+ };
+ state.api=api;states.set(map,state);
+ return api;
+}
