@@ -80,7 +80,7 @@ jobs:
             const layers=['bp-faa-obstructions-halo-v1','bp-faa-obstructions-clusters-v1','bp-faa-obstructions-markers-v1','bp-faa-obstructions-cluster-icons-v1-lattice'];
             const src=m?.getSource('bp-faa-obstructions-source-v1');
             let hit=[];try{hit=m?.queryRenderedFeatures(undefined,{layers:layers.filter(id=>m.getLayer(id))})||[]}catch(e){}
-            return {error:window.__faaInitError||null,apiEnabled:api?.enabled,status:api?.status,stats:api?.stats,sourceExists:!!src,sourceLoaded:m?.isSourceLoaded?.('bp-faa-obstructions-source-v1'),styleLoaded:m?.isStyleLoaded?.(),zoom:m?.getZoom?.(),mapLayers:layers.map(id=>({id,exists:!!m?.getLayer(id),visibility:m?.getLayoutProperty?.(id,'visibility')})),renderedFAA:hit.length,sample:hit.slice(0,3).map(x=>x.properties)};
+            return {error:window.__faaInitError||null,apiEnabled:api?.enabled,status:api?.status,stats:api?.stats,sourceExists:!!src,sourceLoaded:m?.isSourceLoaded?.('bp-faa-obstructions-source-v1'),styleLoaded:m?.isStyleLoaded?.(),zoom:m?.getZoom?.(),mapLayers:layers.map(id=>({id,exists:!!m?.getLayer(id),visibility:m?.getLayoutProperty?.(id,'visibility')})),renderedFAA:hit.length,markerRendered:m?.queryRenderedFeatures(undefined,{layers:['bp-faa-obstructions-markers-v1']})?.length||0,sample:hit.slice(0,3).map(x=>x.properties)};
           });
           console.log('BROWSER_RESULT',JSON.stringify(result).slice(0,8500));
           await page.evaluate(()=>window.__faaMap.jumpTo({center:[-87.866869,30.237311],zoom:13}));
@@ -92,6 +92,7 @@ jobs:
           const street=await page.evaluate(()=>({
             zoom:window.__faaMap.getZoom(),visible:window.__faaApi.stats.visible,
             rendered:window.__faaMap.queryRenderedFeatures(undefined,{layers:['bp-faa-obstructions-markers-v1','bp-faa-obstructions-halo-v1']}).length,
+            markerRendered:window.__faaMap.queryRenderedFeatures(undefined,{layers:['bp-faa-obstructions-markers-v1']}).length,
             sourceLoaded:window.__faaMap.isSourceLoaded('bp-faa-obstructions-source-v1')
           }));
           console.log('STREET_RESULT',JSON.stringify(street));
@@ -113,7 +114,7 @@ jobs:
           await page.screenshot({path:'/tmp/faa-smoke/result.png',timeout:15000}).catch(e=>console.warn('SCREENSHOT',e.message));
           await browser.close();
           if(result.error||!result.apiEnabled||!result.sourceExists||result.stats?.total<1000||result.renderedFAA===0||!result.sourceLoaded||
-             street.rendered===0||!street.sourceLoaded||toggle.error||toggle.off?.enabled!==false||toggle.off?.rendered!==0||toggle.enabledAgain!==true||reenabled===0)process.exitCode=1;
+             street.rendered===0||street.markerRendered===0||result.markerRendered===0||!street.sourceLoaded||toggle.error||toggle.off?.enabled!==false||toggle.off?.rendered!==0||toggle.enabledAgain!==true||reenabled===0)process.exitCode=1;
           JS
           cd /tmp/faa-smoke
           python3 -m http.server 8777 --bind 127.0.0.1 > /tmp/faa-smoke/http.log 2>&1 &
