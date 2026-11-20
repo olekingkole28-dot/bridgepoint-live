@@ -134,7 +134,7 @@ async function initSharedVisualWeather(targetWorld,{activate=true,cloudsOnly=fal
  const styleReady=()=>{try{return map.isStyleLoaded?.()===true||!!map.getSource?.('ofm')}catch{return false}};
  if(!styleReady())await new Promise(resolve=>{let done=false;const finish=()=>{if(done)return;done=true;resolve()};map.once?.('load',finish);setTimeout(finish,5000)});
  try{
-  const wm=await import('./world-v2300-weather.js?v=6330-storm-details-trajectories&zoom=6331&models=6340&weatherrev=20261120a');
+  const wm=await import('./world-v2300-weather.js?v=6330-storm-details-trajectories&stormsrc=6504&zoom=6331&models=6340&weatherrev=20261120a');
   const weather=wm.initWeather(map,{deferActivation:!activate,rainParticles:false,cloudsOnly:!!cloudsOnly});weather?.setCloudsOnly?.(!!cloudsOnly);
   let present=window.__bpPresentWeatherV2301||null;
   if(activate){
