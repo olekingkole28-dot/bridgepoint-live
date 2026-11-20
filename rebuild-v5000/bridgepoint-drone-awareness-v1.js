@@ -99,6 +99,9 @@ function isManagedOptionalOverlay(id){
  // FAA layers out of the actual globe during idle, zoom, or style restoration.
  // This exception does not alter the default visibility of any other overlay.
  if(value.startsWith('bp-faa-obstructions-'))return false;
+ // The dedicated Global EM/RF and Wildfire buttons own these layers, like FAA.
+ // A clean-globe idle sweep must not hide them immediately after activation.
+ if(value.startsWith('bp-emrf-')||value.startsWith('bp-live-fire-')||value==='bp-live-native-volumetric-fire-v1')return false;
  return parcelLayers.has(value)||OPTIONAL_OVERLAY_PATTERNS.some(pattern=>pattern.test(value));
 }
 function layerAllowed(id){
