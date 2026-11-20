@@ -1,0 +1,117 @@
+name: Publish BridgePoint Always-On Liquid Water v1
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-always-on-water-v1.yml'
+      - 'release-v2300/world-v2300-water.js'
+      - 'release-v2300/world-v2300-sensor-layers.js'
+      - 'rebuild-v5000/app.js'
+      - 'rebuild-v5000/landing.js'
+      - 'scripts/overlay_always_on_water_v1.py'
+
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify water engine and underwater contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module --check < release-v2300/world-v2300-water.js
+          node --check release-v2300/world-v2300-sensor-layers.js
+          node --check rebuild-v5000/app.js
+          node --check rebuild-v5000/landing.js
+          python3 -m py_compile scripts/overlay_always_on_water_v1.py
+          grep -Fq "three-component-gerstner-vertex-displacement" release-v2300/world-v2300-water.js
+          grep -Fq "function setDive(on)" release-v2300/world-v2300-sensor-layers.js
+      - name: Confirm current Cloudflare auth tunnel
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --max-time 25 'https://characterization-seas-total-adopt.trycloudflare.com/auth/v1/health' > "$RUNNER_TEMP/auth.json"
+          python3 - "$RUNNER_TEMP/auth.json" <<'PY'
+          import json,sys
+          d=json.load(open(sys.argv[1]))
+          assert d.get('status')=='ok' and d.get('local') is True
+          print('ACTIVE_CLOUDFLARE_LOCAL_AUTH_HEALTH_PASS')
+          PY
+      - name: Download latest verified Wind RF plus auth site
+        uses: actions/download-artifact@v4
+        with:
+          name: bridgepoint-v5000-wind-rf-jetstreams-v1
+          run-id: 44705460228
+          repository: ${{ github.repository }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/baseline
+      - name: Overlay only always-on water and underwater camera
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCHIVE="$(find "$RUNNER_TEMP/baseline" -type f -name artifact.tar -print -quit)"
+          test -n "$ARCHIVE"
+          SITE="$RUNNER_TEMP/bridgepoint-always-on-water"
+          mkdir -p "$SITE"
+          tar -xf "$ARCHIVE" -C "$SITE"
+          python3 scripts/overlay_always_on_water_v1.py "$SITE" release-v2300
+          node --input-type=module --check < "$SITE/world-v2300-water.js"
+          node --check "$SITE/world-v2300-sensor-layers.js"
+          node --check "$SITE/landing.js"
+          node --check "$SITE/app.js"
+          grep -Fq 'always-on-liquid-ocean' "$SITE/landing.js"
+          grep -Fq 'always-on-liquid-ocean' "$SITE/app.js"
+          grep -Fq 'alwaysOn:true' "$SITE/world-v2300-sensor-layers.js"
+      - uses: actions/configure-pages@v5
+      - name: Upload preserved site with always-on water
+        uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-always-on-water-v1
+          path: ${{ runner.temp }}/bridgepoint-always-on-water
+          include-hidden-files: true
+      - name: Deploy always-on water
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: bridgepoint-always-on-water-v1
+      - name: Verify live welcome, app, water and auth
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE=https://bridgepointintelligence.online
+          for n in 1 2 3 4 5 6; do
+            if curl -fsSL --max-time 35 "$SITE/landing.js?water=$GITHUB_SHA-$n" | grep -F 'always-on-liquid-ocean' >/dev/null &&
+               curl -fsSL --max-time 35 "$SITE/app.js?water=$GITHUB_SHA-$n" | grep -F 'always-on-liquid-ocean' >/dev/null &&
+               curl -fsSL --max-time 35 "$SITE/world-v2300-water.js?water=$GITHUB_SHA-$n" | grep -F 'three-component-gerstner-vertex-displacement' >/dev/null &&
+               curl -fsSL --max-time 35 "$SITE/world-v2300-sensor-layers.js?water=$GITHUB_SHA-$n" | grep -F 'alwaysOn:true' >/dev/null &&
+               curl -fsSL --max-time 35 "$SITE/landing.js?water=$GITHUB_SHA-$n" | grep -F 'characterization-seas-total-adopt.trycloudflare.com' >/dev/null &&
+               curl -fsSL --max-time 35 "$SITE/app.js?water=$GITHUB_SHA-$n" | grep -F 'characterization-seas-total-adopt.trycloudflare.com' >/dev/null &&
+               curl -fsSL --max-time 35 'https://characterization-seas-total-adopt.trycloudflare.com/auth/v1/health' | python3 -c 'import json,sys;d=json.load(sys.stdin);assert d.get("status")=="ok" and d.get("local") is True'; then
+              echo 'ALWAYS_ON_LIQUID_WATER_AND_AUTH_LIVE_VERIFIED'
+              exit 0
+            fi
+            sleep 10
+          done
+          exit 1
