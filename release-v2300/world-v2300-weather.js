@@ -1,5 +1,26 @@
 import{attachStormViewer}from'./world-v2300-storm-viewer.js?v=6340-moving-volumes';
-import{VERSION,EMPTY,MOBILE,LOW,TIER,edge,publicRpc,bbox,fc,clamp}from'./world-v2300-config.js?v=6238-pc-runtime';
+import{VERSION,EMPTY,MOBILE,LOW,TIER,token,bbox,fc,clamp}from'./world-v2300-config.js?v=6238-pc-runtime';
+/* Weather-only data transport. The PC-auth/bootstrap tunnel replaced the old
+   database endpoint; do not change unrelated V2300 map and property clients. */
+const WEATHER_PC_ORIGIN=(location.hostname==='localhost'||location.hostname==='127.0.0.1')
+  ?location.origin:'https://characterization-seas-total-adopt.trycloudflare.com';
+const WEATHER_PC_KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
+async function weatherRequest(kind,name,args={},timeout=12000){
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),timeout);
+ try{
+  const auth=kind==='functions/v1'?token():'';
+  const headers={'Content-Type':'application/json','Accept':'application/json','apikey':WEATHER_PC_KEY};
+  if(auth)headers.Authorization='Bearer '+auth;
+  const response=await fetch(WEATHER_PC_ORIGIN+'/'+kind+'/'+encodeURIComponent(name),{
+    method:'POST',headers,body:JSON.stringify(args),signal:controller.signal
+  });
+  const body=await response.json().catch(()=>({}));
+  if(!response.ok)throw Error(body?.message||body?.error||'BridgePoint PC weather HTTP '+response.status);
+  return body;
+ }finally{clearTimeout(timer)}
+}
+const publicRpc=(name,args,timeout)=>weatherRequest('rest/v1/rpc',name,args,timeout);
+const edge=(name,args,timeout)=>weatherRequest('functions/v1',name,args,timeout);
 import{initRainLayer}from'./world-v2300-rain.js?v=6193-geographic-rain-lightning';
 import{initLightningLayer}from'./world-v2300-lightning.js?v=6195-desktop-globe-flash-stability';
 
