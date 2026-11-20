@@ -199,7 +199,7 @@ test('entrypoints use fresh cache keys and keep the celestial canvas off the sat
   for (const source of [app, landing]) {
     assert.match(source, /world-v2300-map\.js\?v=6238-pc-runtime/);
     assert.match(source, /world-v2300-water\.js\?v=6256-gerstner-ocean/);
-    assert.match(source, /world-v2300-clouds\.js\?v=6318-storm-clouds-visible/);
+    assert.match(source, /world-v2300-clouds\.js\?v=6320-colored-cyclone-cloudbands/);
     assert.match(source, /world-v2300-weather\.js\?v=6318-storm-icons-clickable/);
     assert.match(source, /world-v2300-time-slider\.js\?v=6170-no-cloud-toggle-always-on/);
   }
