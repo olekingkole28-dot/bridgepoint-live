@@ -172,6 +172,9 @@ jobs:
           console.log('ACTUAL_BRIDGEPOINT_GLOBE_BOOT',JSON.stringify(initial));
           await page.evaluate(async()=>{
             const w=window.__BP_LANDING_WORLD__,m=w.map;
+            // Simulate the post-sign-in feature restore on the existing real globe:
+            // mobile welcome defers the drone-awareness visibility manager.
+            await import('/bridgepoint-drone-awareness-v1.js?real-integration-v6');
             const {initFAAObstructionTowerRenderer}=await import('/bridgepoint-faa-obstruction-towers-v1.js?real-integration-v6');
             window.__ACTUAL_FAA_API__=initFAAObstructionTowerRenderer(w);
             if(!window.__ACTUAL_FAA_API__)throw Error('actual globe did not accept FAA renderer');
