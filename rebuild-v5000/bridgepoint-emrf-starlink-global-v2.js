@@ -176,7 +176,7 @@ export function initBridgePointStarlinkBeamV2(target){
     const projection=args?.defaultProjectionData?.mainMatrix||args?.modelViewProjectionMatrix;
     if(!projection||projection.length<16)return;
     const now=performance.now();
-    if(now-state.lastPaint>900||state.recompute){state.recompute=false;updateMatrices();state.lastPaint=now;}
+    if(now-state.lastPaint>15000||state.recompute){state.recompute=false;updateMatrices();state.lastPaint=now;}
     if(!state.beams.count)return;
     state.camera.projectionMatrix.copy(new T.Matrix4().fromArray(projection));
     state.beams.material.uniforms.u_time.value=now*.001;
