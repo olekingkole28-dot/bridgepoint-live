@@ -62,8 +62,8 @@ jobs:
       - name: Download complete last successful BridgePoint production site
         uses: actions/download-artifact@v4
         with:
-          name: bridgepoint-auth-tunnel-recovery-v1
-          run-id: 44704694337
+          name: bridgepoint-v5000-emrf-starlink-visual-v3
+          run-id: 44689392215
           repository: ${{ github.repository }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ${{ runner.temp }}/baseline-complete
@@ -80,6 +80,9 @@ jobs:
           node --input-type=module --check < "$SITE/bridgepoint-global-wind-rf-v1.js"
           node --input-type=module --check < "$SITE/bridgepoint-volumetric-fields-v5978.js"
           node --check "$SITE/bridgepoint-view-v5917.js"
+          python3 scripts/overlay_auth_tunnel_v1.py "$SITE" rebuild-v5000
+          node --check "$SITE/landing.js"
+          node --check "$SITE/app.js"
       - uses: actions/configure-pages@v5
       - name: Upload preserved BridgePoint with only Wind RF v1
         uses: actions/upload-pages-artifact@v4
