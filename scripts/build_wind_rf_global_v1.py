@@ -16,13 +16,13 @@ UA='BridgePointIntelligence/1.0 (public modeled-wind source cache)'
 API='https://api.open-meteo.com/v1/forecast'
 FCC='https://services.arcgis.com/XG15cJAlne2vxtgt/ArcGIS/rest/services/Antenna_Structure_Registrate1/FeatureServer/45/query'
 FIELDS='wind_speed_10m,wind_direction_10m,wind_speed_250hPa,wind_direction_250hPa,geopotential_height_250hPa'
-def request(url, params, attempts=3):
+def request(url, params, attempts=2):
     full=url+'?'+urllib.parse.urlencode(params)
     last=None
     for n in range(attempts):
         try:
             req=urllib.request.Request(full,headers={'Accept':'application/json','User-Agent':UA})
-            with urllib.request.urlopen(req,timeout=42) as response:
+            with urllib.request.urlopen(req,timeout=22) as response:
                 doc=json.load(response)
                 if not isinstance(doc,(list,dict)):raise ValueError('invalid JSON response shape')
                 if isinstance(doc,dict) and doc.get('error'):raise RuntimeError(str(doc.get('reason') or doc.get('message') or doc.get('error')))
@@ -35,8 +35,8 @@ def request(url, params, attempts=3):
 def wind_grid():
     points=[(lat,lon) for lat in (-65,-50,-35,-20,-5,10,25,40,55,70) for lon in range(-165,166,30)]
     rows=[]
-    for start in range(0,len(points),20):
-        batch=points[start:start+20]
+    for start in range(0,len(points),5):
+        batch=points[start:start+5]
         args={'latitude':','.join(str(a) for a,_ in batch),
               'longitude':','.join(str(b) for _,b in batch),
               'current':FIELDS,'timezone':'UTC','wind_speed_unit':'kmh'}
@@ -54,7 +54,7 @@ def wind_grid():
                 raise RuntimeError('invalid model speed/direction/pressure height')
             rows.append([lat,lon,round(speed10,2),round(dir10,2),round(speed250,2),round(dir250,2),round(height,1)])
         print('validated modeled global wind grid:',len(rows),flush=True)
-        time.sleep(.8)
+        time.sleep(.25)
     if len(rows)<100:raise RuntimeError('insufficient global wind observations')
     return rows
 
