@@ -60,20 +60,11 @@ export function resolvePitchDisplacementPolicy(zoom, pitchDegrees) {
   if (!Number.isFinite(z) || !Number.isFinite(pitch)) {
     return { scale: 0, maxOffsetM: 0, guarded: true };
   }
-  // At close zoom, disable dynamic vertex-height motion for every camera angle.
-  // The observed top-down failure bypasses the horizon-only guard; even sampled,
-  // metre-scale wave/surge offsets can turn into long blue facets near dense shorelines.
-  // Optical wave shading, glints, storm response, and source-backed flood depth remain
-  // active, while normal basemap water is the safe fallback for uncertain geometry.
-  if (z >= 12) {
-    return { scale: 0, maxOffsetM: 0, guarded: true };
-  }
-  if (z < 10 || pitch <= 32) {
-    return { scale: 1, maxOffsetM: 1000, guarded: false };
-  }
-  const t = clamp((68 - pitch) / 36, 0, 1);
-  const scale = t * t;
-  return { scale, maxOffsetM: 0.45 * scale, guarded: true };
+  // Keep water geometry view-independent. Camera pitch/zoom may change how the
+  // map is seen, but must never flatten, amplify, or remove the physical surface.
+  // A bounded constant displacement prevents perspective spikes while preserving
+  // visible wave height in top-down and pitched 3D views alike.
+  return { scale: 1, maxOffsetM: 8.0, guarded: false };
 }
 
 function mercX(lng) { return (Number(lng) + 180) / 360; }
@@ -380,7 +371,10 @@ function buildShaders(gl, shaderDescription) {
     '      stormSurge = max(stormSurge, influence * min(3.2, 0.55 + u_storms[i].w * 1.65));',
     '    }',
     '  }',
-    '  float localScale = a_kind < 0.5 ? 0.62 : (a_kind > 3.5 ? 0.20 : (a_kind > 2.5 ? 1.18 : (a_kind > 1.5 ? 0.42 : 0.28)));',
+    '  // Distinct physical profiles: open ocean has broad swell, inland bodies have
+  // calmer but visible undulation, flowing ribbons move faster, and shallow floodwater
+  // stays low. These values are independent of camera view.
+  float localScale = a_kind < 0.5 ? 1.35 : (a_kind > 3.5 ? 0.24 : (a_kind > 2.5 ? 1.55 : (a_kind > 1.5 ? 0.82 : 0.62)));',
     '  float localWindBoost = 0.72 + min(0.65, u_windSpeed / 80.0);',
     '  float amplitude = u_waveAmp * localScale * localWindBoost * (1.0 + stormInfluence * (0.9 + u_windSpeed * 0.011));',
     '  float marineSurgeMask = (a_kind < 0.5 || (a_kind > 2.5 && a_kind < 3.5)) ? 1.0 : 0.0;',
@@ -646,7 +640,8 @@ function createLayer(api, map) {
         api.pitchWaveDisplacementLimitM = pitchPolicy.maxOffsetM;
         const wavesPerWorld = safeWaveFrequency.cyclesPerWorld;
         const waveNumber = Math.PI * 2 * wavesPerWorld;
-        const amp = z < 2.5 ? 0.85 : z < 7 ? 0.75 : z < 12 ? 1.0 : z < 15 ? 1.35 : 1.8;
+        // Surface height is physical-style and stable across zoom/pitch.
+        const amp = 1.15;
         const originX = mercX(center.lng), originY = mercY(center.lat);
         const dir = api.wind.direction * RAD;
         const windX = Math.sin(dir), windY = -Math.cos(dir);
