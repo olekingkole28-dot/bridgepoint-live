@@ -17,6 +17,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          echo "Cancelling only superseded FAA cache run 44837634946"
-          gh api -X POST "repos/${GITHUB_REPOSITORY}/actions/runs/44837634946/cancel" ||
-            gh api "repos/${GITHUB_REPOSITORY}/actions/runs/44837634946" --jq '{status,conclusion}'
+          echo "Cancelling only superseded FAA cache run 44838019170"
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/actions/runs/44838019170/cancel" ||
+            gh api "repos/${GITHUB_REPOSITORY}/actions/runs/44838019170" --jq '{status,conclusion}'
