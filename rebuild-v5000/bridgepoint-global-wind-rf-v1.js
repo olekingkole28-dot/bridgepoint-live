@@ -339,9 +339,7 @@ export function initBridgePointGlobalWindRfV1(target){
    st.enabled=true;
    if(st.data&&st.THREE){addLayer();st.dirty=true;animate();map.triggerRepaint?.();return true;}
    try{
-    const T=await getThree();
-    if(st.enabled&&!st.disposed)addLayer();
-    const data=await prefetchWindRfGlobalV1();
+    const [T,data]=await Promise.all([getThree(),prefetchWindRfGlobalV1()]);
     if(!st.enabled||st.disposed)return false;
     st.THREE=T;st.data=data;st.sourceError=null;
     addLayer();st.dirty=true;animate();
