@@ -13,7 +13,7 @@ assert.ok(local.includes('startGlobalOverview();'),'one-touch button triggers gl
 assert.ok(local.includes('levels=[{agl:1.8,color:base}'),'close-up six-level wind lines retain dense obstacle flow');
 assert.ok(local.includes('const laneCount=(map.getContainer().clientWidth||innerWidth)<700?24:48'),'mobile and desktop double density');
 assert.ok(local.includes("windMph>=40?'#ff4936':windMph>=21?'#ffe04a':'#38ff7a'"),'speed legend green/yellow/red');
-assert.ok(local.includes('const modes=st.rfMode')&&local.includes("['4G','5G']"),'4G and 5G geometry both rendered');
+assert.ok(local.includes('modes=st.rfMode')&&local.includes("['4G','5G']"),'4G and 5G geometry both rendered');
 assert.ok(local.includes('new T.InstancedMesh'),'bounded RF draw calls');
 assert.ok(local.includes('collectObstacles(o,'),'retain original building, tree and 3D proxy flow');
 assert.ok(local.includes('ensureWindTerrain()'),'keep terrain-following close-up paths');
