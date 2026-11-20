@@ -109,9 +109,10 @@ jobs:
           start="if(a==='wildfire'){"
           end="if(a==='windfx')"
           def block(value):
-              if value.count(start)!=1 or value.count(end)!=1:
-                  raise SystemExit('WILDFIRE_HANDLER_ANCHORS_NOT_UNIQUE')
-              a=value.index(start);b=value.index(end,a)
+              if value.count(start)!=1:
+                  raise SystemExit('WILDFIRE_HANDLER_START_NOT_UNIQUE')
+              a=value.index(start);b=value.find(end,a)
+              if b<=a:raise SystemExit('WILDFIRE_HANDLER_END_NOT_FOUND_AFTER_START')
               return a,b,value[a:b]
           a,b,old_block=block(original)
           _,_,new_block=block(updated)
