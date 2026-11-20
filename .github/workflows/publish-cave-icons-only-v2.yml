@@ -1,5 +1,5 @@
 # Add ten genuine ocean-cave 3D scans to latest successful cave-only production snapshot; all unrelated files identical. Catalog parser fix validated by pre-deploy checks.
-name: Publish Ten Verified Ocean Cave and Blue Hole Models v17
+name: Publish Ten Ocean Cave Models - Verified Catalog v17
 on:
   workflow_dispatch:
   push:
