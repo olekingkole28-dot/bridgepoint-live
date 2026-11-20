@@ -1,0 +1,50 @@
+name: Verify source-backed one-touch Wind RF and Jet Streams v1
+
+on:
+  pull_request:
+    paths:
+      - 'rebuild-v5000/bridgepoint-volumetric-fields-v5978.js'
+      - 'rebuild-v5000/bridgepoint-global-wind-rf-v1.js'
+      - 'rebuild-v5000/bridgepoint-view-v5917.js'
+      - 'scripts/build_wind_rf_global_v1.py'
+      - 'tests/wind-rf-one-touch-v1.test.mjs'
+      - '.github/workflows/verify-wind-rf-one-touch-v1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Syntax, preserved drone route and one-touch regression tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module --check < rebuild-v5000/bridgepoint-global-wind-rf-v1.js
+          node --input-type=module --check < rebuild-v5000/bridgepoint-volumetric-fields-v5978.js
+          node --check rebuild-v5000/bridgepoint-view-v5917.js
+          node tests/wind-rf-one-touch-v1.test.mjs
+          python -m py_compile scripts/build_wind_rf_global_v1.py
+      - name: Verify Open Meteo global 10m and 250hPa height plus source-only FCC tower catalog
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/build_wind_rf_global_v1.py "$RUNNER_TEMP/wind-rf-global-v1.json"
+          python - "$RUNNER_TEMP/wind-rf-global-v1.json" <<'PY'
+          import json,sys
+          o=json.load(open(sys.argv[1]))
+          assert o['version']==1 and len(o['winds'])>=100 and len(o['sites'])>=60
+          assert all(len(x)==7 and 4000<x[6]<17000 for x in o['winds'])
+          assert all(len(x)==4 for x in o['sites'])
+          print('SOURCE_BACKED_JET_HEIGHT_AND_FCC_ASR_PASS')
+          PY
