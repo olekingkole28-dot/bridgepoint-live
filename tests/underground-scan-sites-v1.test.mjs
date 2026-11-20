@@ -180,6 +180,27 @@ assert.ok(undergroundSitePopupHtml(africa).includes('not a raw point-cloud viewe
 assert.equal(UNDERGROUND_SCAN_SITES.filter(s=>s.id==='elands-bay-cave-south-africa').length,1);
 assert.equal(UNDERGROUND_SCAN_SITES.find(s=>s.id==='lima-lima-cave-antarctica').models[0].uid,'899e6c8016954dab825dffb07d583fb9','Antarctic model retained');
 
+
+const marineAddedIds=["muriwai-sea-cave-nz","rothesay-sea-cave-nz","john-millar-blue-hole-bahamas","villefranche-marine-cave-france","hilbre-shore-cave-uk","middle-eye-sandstone-cave-uk","algarve-coastal-cave-portugal","marseille-30m-cave-entrance-france"];
+const marineAddedSites=marineAddedIds.map(id=>UNDERGROUND_SCAN_SITES.find(s=>s.id===id));
+assert.ok(marineAddedSites.every(s=>s&&s.type==='cave'&&s.models.length===1));
+const previousBelTorrente=UNDERGROUND_SCAN_SITES.find(s=>s.id==='bel-torrente-underwater-cave-sardinia');
+assert.ok(previousBelTorrente);
+assert.deepEqual(previousBelTorrente.coordinates,[9.6348,40.1794]);
+assert.equal(previousBelTorrente.models.length,3);
+assert.equal(previousBelTorrente.models[0].uid,'2f06ab8d1bd14ce5a85c417fefd91cda');
+const marineModels=marineAddedSites.flatMap(s=>s.models).concat(previousBelTorrente.models.slice(1));
+assert.equal(marineModels.length,10);
+assert.equal(new Set(marineModels.map(m=>m.uid)).size,10);
+for(const site of marineAddedSites.concat([previousBelTorrente])){
+ for(const model of site===previousBelTorrente?site.models.slice(1):site.models){
+  assert.equal(model.embedOnly,true);
+  const h=undergroundSitePopupHtml(site,model.uid);
+  assert.ok(h.includes('sketchfab.com/models/'+model.uid+'/embed'));
+  assert.ok(h.includes('sandbox="allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-presentation"'));
+  assert.ok(!h.includes('allow-top-navigation')&&!h.includes('allow-popups'));
+ }
+}
 const fiveRemoteDeepCaves=[
  {id:'wells-gray-sarlaccs-pit-canada',coordinates:[-120,52.33306],uid:'df5dea76480f4ed3af018d885a13b704',method:/photogrammetry/i,detail:/ONLY reconstructs the exposed entrance/,placement:/regional/i},
  {id:'gorner-glacier-g6-moulin-switzerland',coordinates:[7.81528,45.94750],uid:'5dc79d2891f24e9fa571b9e910556ec8',method:/Photogrammetry/i,detail:/not a LiDAR point-cloud/,placement:/NOT the surveyed/i},
