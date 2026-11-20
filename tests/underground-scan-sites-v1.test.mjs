@@ -64,7 +64,7 @@ assert.equal(UNDERGROUND_SCAN_SITES.filter(s=>s.id==='ellora-caves-india').lengt
 const bethells=UNDERGROUND_SCAN_SITES.find(s=>s.id==='bethells-beach-sea-cave');
 assert.ok(bethells&&bethells.type==='cave','Bethells Beach must be a real natural sea cave marker');
 assert.deepEqual(bethells.coordinates,[174.44382,-36.89555]);
-assert.equal(bethells.models.length,1);
+assert.equal(bethells.models.length,2);
 assert.equal(bethells.models[0].uid,'ce71dc2848984acfb11d8002a48a6043');
 assert.equal(bethells.models[0].license,'CC Attribution');
 assert.match(bethells.models[0].method,/photogrammetry/i);
