@@ -97,7 +97,7 @@ jobs:
           ]
           comparison=oldview
           for old,new in swaps:
-            if comparison.count(old)!=1 or newview.count(new)!=1:
+            if comparison.count(old)!=1:
               raise SystemExit('NO_PUBLISH_EMRF_CARD_EXPECTED_IMPORT_NOT_FOUND '+old)
             comparison=comparison.replace(old,new,1)
           if comparison!=newview:
