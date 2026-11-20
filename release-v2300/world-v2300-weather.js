@@ -486,16 +486,57 @@ function currentBootstrapCyclones(payload){
   }
   return out;
  }
- async function getPublicCyclones(force=false){
-  if(!force&&publicCycloneSnapshot&&Date.now()-publicCycloneCacheAt<240000){publicCycloneSnapshot={...publicCycloneSnapshot,storms:ensureJosephineForecast(publicCycloneSnapshot.storms)};return publicCycloneSnapshot;}
+ const PUBLIC_STORM_FEED_V6504='https://raw.githubusercontent.com/olekingkole28-dot/bridgepoint-live/storm-live-data/data/storm-current.json';
+ async function readPublicSourceStormsV6504(){
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),9000);
   try{
-   const d=await publicRpc('bridgepoint_public_weather_bootstrap_v5823',{},9000);
-   const storms=currentBootstrapCyclones(d),tornadoes=currentBootstrapTornadoPoints(d);
-   publicCycloneSnapshot={storms:ensureJosephineForecast(storms),tornadoes,generated_at:d?.generated_at||null,source_counts:d?.counts||{},fresh:d?.fresh===true};
-   publicCycloneCacheAt=Date.now();return publicCycloneSnapshot;
-  }catch(error){
-   if(publicCycloneSnapshot&&Date.now()-publicCycloneCacheAt<900000){publicCycloneSnapshot={...publicCycloneSnapshot,storms:ensureJosephineForecast(publicCycloneSnapshot.storms)};return publicCycloneSnapshot;}
-   publicCycloneCacheAt=Date.now();return {storms:ensureJosephineForecast([]),tornadoes:[],generated_at:null,source_counts:{},fresh:false,error:String(error?.message||error).slice(0,120)};
+    const frame=Math.floor(Date.now()/300000);
+    const response=await fetch(PUBLIC_STORM_FEED_V6504+'?update='+frame,{cache:'no-store',signal:controller.signal});
+    if(!response.ok)throw Error('Public BridgePoint storm snapshot HTTP '+response.status);
+    const payload=await response.json();
+    const at=Date.parse(payload?.generated_at||'');
+    if(payload?.schema_version!==1||!Number.isFinite(at)||Date.now()-at>20*60*1000||at>Date.now()+5*60*1000)
+      throw Error('Source storm snapshot unavailable or older than 20 minutes');
+    const validCenter=x=>Number.isFinite(Number(x?.lng))&&Number.isFinite(Number(x?.lat))&&Math.abs(Number(x.lat))<=85&&Math.abs(Number(x.lng))<=180;
+    const storms=(Array.isArray(payload.storms)?payload.storms:[]).filter(validCenter).filter(st=>{
+      const reported=Date.parse(st.observed_at||'');
+      return Number.isFinite(reported)&&Date.now()-reported<18*60*60*1000;
+    });
+    const tornadoes=(Array.isArray(payload.tornadoes)?payload.tornadoes:[]).filter(validCenter).filter(t=>{
+      const reported=Date.parse(t.observed_at||'');
+      return t.observed===true&&Number.isFinite(reported)&&Date.now()-reported<90*60*1000;
+    });
+    const alerts=(Array.isArray(payload.alerts)?payload.alerts:[]).filter(a=>
+      a?.geometry?.type==='Polygon'||a?.geometry?.type==='MultiPolygon');
+    return{storms,tornadoes,alerts,generated_at:payload.generated_at,
+      source_counts:payload.counts||{},sources:payload.sources||[],fresh:true,
+      provenance:'NOAA/NHC + NASA EONET + NOAA/NWS + NOAA/SPC; no Supabase or private RPC',
+      sourceUrl:PUBLIC_STORM_FEED_V6504};
+  }finally{clearTimeout(timer)}
+ }
+ async function getPublicCyclones(force=false){
+  if(!force&&publicCycloneSnapshot&&Date.now()-publicCycloneCacheAt<180000)return publicCycloneSnapshot;
+  try{
+    const fresh=await readPublicSourceStormsV6504();
+    publicCycloneSnapshot={...fresh,storms:ensureJosephineForecast(fresh.storms)};
+    publicCycloneCacheAt=Date.now();return publicCycloneSnapshot;
+  }catch(publicError){
+    // Last-resort local RPC if the independent GitHub data branch is unavailable.
+    // An HTTP 200 with unavailable_locally=true is NOT an actual weather feed.
+    try{
+      const d=await publicRpc('bridgepoint_public_weather_bootstrap_v5823',{},9000);
+      if(d?.unavailable_locally||!d||!Array.isArray(d.items))throw Error('PC public weather bootstrap unavailable locally');
+      publicCycloneSnapshot={storms:ensureJosephineForecast(currentBootstrapCyclones(d)),
+        tornadoes:currentBootstrapTornadoPoints(d),alerts:[],
+        generated_at:d.generated_at||null,source_counts:d.counts||{},fresh:d.fresh===true,
+        provenance:'PC public weather bootstrap'};
+      publicCycloneCacheAt=Date.now();return publicCycloneSnapshot;
+    }catch(pcError){
+      if(publicCycloneSnapshot&&Date.now()-publicCycloneCacheAt<12*60*1000)return publicCycloneSnapshot;
+      publicCycloneCacheAt=Date.now();
+      return{storms:ensureJosephineForecast([]),tornadoes:[],alerts:[],generated_at:null,
+        source_counts:{},fresh:false,error:String(publicError?.message||publicError)+'; '+String(pcError?.message||pcError)};
+    }
   }
  }
  function canonicalCycloneName(row){const p=row?.properties||row||{};return String(p.name||p.event||p.id||'').toLowerCase().replace(/\b(post[\s-]?tropical|extra[\s-]?tropical|tropical|cyclone|storm|hurricane|typhoon|depression|subtropical)\b/g,' ').replace(/[^a-z0-9]+/g,' ').trim()}
@@ -516,13 +557,13 @@ function mergeCycloneCenters(primary=[],supplemental=[]){
    getPublicCyclones(force)
   ]);
   let d=edgeResult.value;const edgeError=edgeResult.error;if(id!==seq)return;
-  if(!d&&publicCyclones.storms.length===0){console.warn('V2300 weather: storm feeds unavailable',String(edgeError?.message||edgeError||publicCyclones.error||'no public cyclone centers'));return}
+  if(!d&&publicCyclones.storms.length===0&&!(publicCyclones.tornadoes||[]).length&&!(publicCyclones.alerts||[]).length){console.warn('V2300 weather: storm feeds unavailable',String(edgeError?.message||edgeError||publicCyclones.error||'no public cyclone centers'));return}
   d=d||{};
   const edgeStorms=Array.isArray(d.storms)?d.storms:[];
   const mergedCyclones=mergeCycloneCenters(edgeStorms,publicCyclones.storms);
   const mergedStorms=mergeReportedTornadoPoints(mergedCyclones,publicCyclones.tornadoes);
   const eventTime=d.generated_at||publicCyclones.generated_at||new Date().toISOString();
-  scene={alerts:Array.isArray(d.alerts)?d.alerts:[],fires:Array.isArray(d.fires)?d.fires:[],earthquakes:Array.isArray(d.earthquakes)?d.earthquakes:[],storms:mergedStorms,thermal:Array.isArray(d.thermal)?d.thermal:[],observations:Array.isArray(d.observations)?d.observations:[],lightning:Array.isArray(d.lightning)?d.lightning:Array.isArray(d.lightning_activity)?d.lightning_activity:Array.isArray(d.strikes)?d.strikes:[],burn_scars:Array.isArray(d.burn_scars)?d.burn_scars:Array.isArray(d.burnScars)?d.burnScars:[],water_levels:Array.isArray(d.water_levels)?d.water_levels:[],volcanoes:Array.isArray(d.volcanoes)?d.volcanoes:Array.isArray(d.active_volcanoes)?d.active_volcanoes:[],geysers:Array.isArray(d.geysers)?d.geysers:[],flood_depths:Array.isArray(d.flood_depths)?d.flood_depths:Array.isArray(d.inundation_depths)?d.inundation_depths:[],snow_depths:Array.isArray(d.snow_depths)?d.snow_depths:Array.isArray(d.snow_depth_polygons)?d.snow_depth_polygons:[],precipitation_accumulation:Array.isArray(d.precipitation_accumulation)?d.precipitation_accumulation:Array.isArray(d.precipitation_accumulations)?d.precipitation_accumulations:[],fog_fields:Array.isArray(d.fog_fields)?d.fog_fields:[],generated_at:eventTime,sources:[...(Array.isArray(d.sources)?d.sources:[]),...(publicCyclones.storms.length?['public weather bootstrap cyclone centers']:[])]};
+  scene={alerts:[...(Array.isArray(d.alerts)?d.alerts:[]),...(publicCyclones.alerts||[])],fires:Array.isArray(d.fires)?d.fires:[],earthquakes:Array.isArray(d.earthquakes)?d.earthquakes:[],storms:mergedStorms,thermal:Array.isArray(d.thermal)?d.thermal:[],observations:Array.isArray(d.observations)?d.observations:[],lightning:Array.isArray(d.lightning)?d.lightning:Array.isArray(d.lightning_activity)?d.lightning_activity:Array.isArray(d.strikes)?d.strikes:[],burn_scars:Array.isArray(d.burn_scars)?d.burn_scars:Array.isArray(d.burnScars)?d.burnScars:[],water_levels:Array.isArray(d.water_levels)?d.water_levels:[],volcanoes:Array.isArray(d.volcanoes)?d.volcanoes:Array.isArray(d.active_volcanoes)?d.active_volcanoes:[],geysers:Array.isArray(d.geysers)?d.geysers:[],flood_depths:Array.isArray(d.flood_depths)?d.flood_depths:Array.isArray(d.inundation_depths)?d.inundation_depths:[],snow_depths:Array.isArray(d.snow_depths)?d.snow_depths:Array.isArray(d.snow_depth_polygons)?d.snow_depth_polygons:[],precipitation_accumulation:Array.isArray(d.precipitation_accumulation)?d.precipitation_accumulation:Array.isArray(d.precipitation_accumulations)?d.precipitation_accumulations:[],fog_fields:Array.isArray(d.fog_fields)?d.fog_fields:[],generated_at:eventTime,sources:[...(Array.isArray(d.sources)?d.sources:[]),...(publicCyclones.fresh?['NOAA/NHC, NASA EONET, NWS and SPC source-backed storm snapshot']:[])]};
   layers();atmosphere(scene.observations);fx.setScene(scene,{generated_at:eventTime});rain.setScene(scene);lightning?.setScene?.(scene);
   window.__BP_PUBLIC_CYCLONE_CENTER_FALLBACK__={version:6093,edgeAvailable:!edgeError,edgeError:edgeError?String(edgeError.message||edgeError).slice(0,100):null,publicFresh:publicCyclones.fresh,publicStormCount:publicCyclones.storms.length,publicTornadoPointCount:(publicCyclones.tornadoes||[]).length,mergedStormCount:mergedStorms.length,stormNames:mergedStorms.map(x=>x.name).slice(0,8),stormTrackFeatureCount,trackLayerPresent:!!map.getLayer('bp2300-storm-track-forecast-v6093'),josephine:(()=>{const j=mergedStorms.find(x=>/josephine/i.test(String(x.name||x.event||'')));return j?{name:j.name||j.event,lng:j.lng??j.longitude,lat:j.lat??j.latitude,officialForecast:j.is_official_forecast===true,centerSource:j.center_source||null,forecastValidAt:j.forecast_valid_at||null,sourceIssuedAt:j.source_issued_at||null,classification:j.official_classification||j.classification||null,source:j.source||null}:null})(),updatedAt:Date.now()};
   window.dispatchEvent(new CustomEvent('bp2300:weather-updated',{detail:{generated_at:eventTime,sources:scene.sources,counts:{alerts:scene.alerts.length,fires:scene.fires.length,quakes:scene.earthquakes.length,storms:scene.storms.length,thermal:scene.thermal.length,observations:scene.observations.length,lightning:scene.lightning.length,burnScars:scene.burn_scars.length},fx:fx.state}}));
