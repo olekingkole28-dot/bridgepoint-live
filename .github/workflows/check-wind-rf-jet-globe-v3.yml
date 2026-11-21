@@ -1,4 +1,5 @@
 name: Wind RF Jets Real Globe Visibility and Toggle Regression v3
+# Validate source-driven jet thickness at height; retained original screen and flow requirements.
 on:
   push:
     branches: [main]
