@@ -23,6 +23,7 @@ const MAX_TRACKED_DRONES=1200;
 const MAX_CLOSE_ZOOM_MODELS=120;
 const MAX_TRAIL_POINTS=24;
 const TRACK_RETENTION_MS=45*60*1000;
+// The aircraft renderer uses only real public positions; richer type models are visual geometry only.
 const REFRESH_MS=180000;
 const REQUEST_TIMEOUT_MS=12000;
 const SUPPORTED_SOURCE='https://api.adsb.lol/v2/';
@@ -665,7 +666,8 @@ function setDroneModels(records){
   if(altitude.datum==='barometric'&&altitude.projectable){point.altitudeDatum='barometric';point.altitudeMeters=altitude.meters;point.altitudeProjectable=true;}
   const groundElevation=queryGroundElevation(lon,lat,point.altitudeDatum),position=projectAircraft3DPoint(point,MC,groundElevation),meterUnit=MC.fromLngLat({lng:lon,lat},0).meterInMercatorCoordinateUnits?.()||0;
   if(!position||!Number.isFinite(meterUnit)||meterUnit<=0)continue;
-  const base=groundElevation===null?null:MC.fromLngLat({lng:lon,lat},groundElevation);addTether(tethers,'drone',base,position);
+  const base=MC.fromLngLat({lng:lon,lat},groundElevation===null?0:groundElevation);
+  addTether(tethers,'drone',base,position);
   let model=droneModels.get(key);if(!model){model=droneTemplate.clone(true);model.name='Source-sized public UAV / drone model';model.traverse(o=>{o.frustumCulled=false});droneScene.add(model);droneModels.set(key,model)}
   const span=modelSpanMeters(lat,zoom);model.position.set(position.x,position.y,position.z);model.scale.setScalar((span/1.36)*meterUnit);
   model.rotation.set(0,0,(Number.isFinite(point.heading)?point.heading:0)*Math.PI/180-Math.PI/2);
@@ -774,6 +776,9 @@ function updateTrackedAircraft(records){
  return{positions:accepted.length,models,trails:trailState.trails,identified,rejected,trailPoints:historical.length};
 }
 function clearTrackedAircraft(){
+ aircraftCardPreviewCleanup?.();aircraftCardPreviewCleanup=null;
+ aircraftCardRoot?.remove();aircraftCardRoot=null;
+ clearAircraftVisualLabels();
  trackedAircraft.clear();lastCurrentAircraftRecords=[];
  for(const id of [AIRCRAFT_SOURCE,AIRCRAFT_TRAIL_SOURCE,AIRCRAFT_TRAIL_DOT_SOURCE])try{map?.getSource(id)?.setData(emptyFeatureCollection())}catch(_){}
  for(const entry of aircraftTemplates.values()){try{entry.mesh.count=0;entry.mesh.instanceMatrix.needsUpdate=true}catch(_){}}
