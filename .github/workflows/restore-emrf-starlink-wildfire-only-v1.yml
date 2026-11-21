@@ -1,5 +1,5 @@
 name: Restore Missing Global EMRF Starlink and Wildfire Layers Only v2
-# Verified 11,022 recent CelesTrak OMM records via ReTLEctor after original HTTP 500.
+# Verified 11,022 recent CelesTrak OMM records; bounded mirror retries after a transient read timeout.
 on:
   push:
     branches: [main]
