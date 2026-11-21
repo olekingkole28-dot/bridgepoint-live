@@ -9,7 +9,7 @@ const features=buildTitanicShipwreckFeatures();
 assert.equal(TITANIC_SHIPWRECK_PARTS.length,3,'only Titanic bow, stern and debris-field waypoints are mapped');
 assert.equal(features.length,3);
 const allFeatures=buildAllShipwreckFeatures();
-assert.equal(allFeatures.length,95,'all existing wreck markers plus twenty-five more U.S. photogrammetry shipwrecks share the Shipwrecks source');
+assert.equal(allFeatures.length,120,'all existing wreck markers plus twenty-five additional U.S. photogrammetry shipwrecks outside the Great Lakes share the Shipwrecks source');
 assert.equal(allFeatures.filter(f=>f.properties.wreckId==='robert-gaskin').length,1);
 assert.deepEqual(allFeatures[3].geometry.coordinates,[-75.677083,44.589317]);
 assert.equal(allFeatures.filter(f=>f.properties.wreckId==='hms-grafton').length,1);
@@ -213,8 +213,8 @@ assert.ok(moduleSource.includes('maybeAutoMaterializeTimaru(state)'),'Timaru nat
 assert.ok(moduleSource.includes('maybeAutoMaterializeHmsLoo(state)'),'HMS Loo native mesh loads when zoomed to its wreck-site icon');
 assert.ok(moduleSource.includes('CANNON_WRECK.displayDepthM'),'Kanonvraget native mesh is placed at the site-record depth midpoint');
 assert.ok(moduleSource.includes("hit.properties?.wreckId==='kanonvraget'"),'Kanonvraget click opens its dedicated popup');
-assert.ok(moduleSource.includes('all ninety-five persistent icons remain visible'),'the shared marker layer reports all ninety-five persistent wreck icons');
-assert.ok(moduleSource.includes("count.textContent='95 persistent wreck icons · 7 native CC BY 4.0 seabed scans"),'dynamic count reflects all ninety-five markers and eighty-five additional scan viewers');
+assert.ok(moduleSource.includes('all one hundred twenty persistent icons remain visible'),'the shared marker layer reports all one hundred twenty persistent wreck icons');
+assert.ok(moduleSource.includes("count.textContent='120 persistent wreck icons · 7 native CC BY 4.0 seabed scans"),'dynamic count reflects all one hundred twenty markers and one hundred ten additional scan viewers');
 assert.ok(moduleSource.includes('Verified WGS84 wreck-site position'),'Kanonvraget card explains its location precision');
 assert.ok(moduleSource.includes('DTU Aqua describes its Cannon Shipwreck reconstruction'),'Kanonvraget card keeps scan depth distinct from wreck depth');
 assert.ok(moduleSource.includes('loadHmsGraftonMesh(state,renderer)'),'HMS Grafton is loaded as a native GLB');
@@ -222,8 +222,8 @@ assert.ok(moduleSource.includes('showHmsGraftonOnSeabed(state)'),'the Grafton ca
 assert.ok(moduleSource.includes('maybeAutoMaterializeHmsGrafton(state)'),'Grafton native mesh loads when zoomed to its wreck-site icon');
 assert.ok(moduleSource.includes('HMS_GRAFTON_WRECK.waterSurfaceElevationM-HMS_GRAFTON_WRECK.scanDepthM'),'Grafton native mesh uses the approximate capture depth');
 assert.ok(moduleSource.includes("hit.properties?.wreckId==='hms-grafton'"),'Grafton click opens its dedicated popup');
-assert.ok(moduleSource.includes('all ninety-five persistent icons remain visible'),'the shared icon layer reports all ninety-five persistent wreck markers');
-assert.ok(moduleSource.includes("count.textContent='95 persistent wreck icons · 7 native CC BY 4.0 seabed scans"),'dynamic count reflects all ninety-five markers and eighty-five additional scan viewers');
+assert.ok(moduleSource.includes('all one hundred twenty persistent icons remain visible'),'the shared icon layer reports all one hundred twenty persistent wreck markers');
+assert.ok(moduleSource.includes("count.textContent='120 persistent wreck icons · 7 native CC BY 4.0 seabed scans"),'dynamic count reflects all one hundred twenty markers and one hundred ten additional scan viewers');
 assert.ok(moduleSource.includes('addRobertGaskinStyles();'),'the new Grafton card installs the shared native wreck popup styles');
 assert.ok(moduleSource.includes("NATIVE_MODEL_LAYER_ID='bp-shipwrecks-native-model-v2'"),'Robert Gaskin uses a native MapLibre 3D custom layer');
 assert.ok(moduleSource.includes("import(GLTF_URL)"),'native scan is parsed through the local GLTFLoader');
@@ -278,12 +278,12 @@ assert.ok(workflow.includes('BRIDGEPOINT_SS_CAPE_OTWAY_NATIVE_CC_BY_ASSET_PASS')
 assert.ok(workflow.includes('BRIDGEPOINT_SS_CAPE_OTWAY_LIVE_GLB_PASS'),'the publisher validates the live Cape Otway GLB after deployment');
 assert.ok(workflow.includes('eee4d55e7391e55ea0bd8bc0c8aaf82e04f800b1'),'the publisher pins the exact public Cape Otway source GLB');
 assert.ok(workflow.includes('GLTFLoader.bundle.js'),'the publisher serves a local GLTFLoader instead of a remote CDN dependency');
-assert.ok(workflow.includes('github-pages-shipwrecks-v15'),'the publisher deploys the additive Shipwrecks v15 artifact');
-assert.ok(workflow.includes('v=15-twenty-five-us-photogrammetry-wrecks'),'the publisher cache-busts the twenty-five new scan cards');
+assert.ok(workflow.includes('github-pages-shipwrecks-v16'),'the publisher deploys the additive Shipwrecks v16 artifact');
+assert.ok(workflow.includes('v=16-twenty-five-us-non-great-lakes-photogrammetry-wrecks'),'the publisher cache-busts the twenty-five additional scan cards outside the Great Lakes');
 assert.ok(workflow.includes('data-bp-local-wreck-viewer'),'the publisher verifies the local model viewer mount points');
 assert.ok(workflow.includes('12-shipwrecks-v3-kxi-icons'),'the publisher repairs the shared visibility-guard cache bust on both entry points');
-assert.ok(workflow.includes('BRIDGEPOINT_SHIPWRECKS_V15_LIVE_VERIFY_PASS'),'the publisher verifies the live shipwreck v15 asset and entry points');
+assert.ok(workflow.includes('BRIDGEPOINT_SHIPWRECKS_V16_LIVE_VERIFY_PASS'),'the publisher verifies the live shipwreck v16 asset and entry points');
 
 assert.ok(!/SUPA|supabase/i.test(moduleSource),'the native shipwreck renderer has no Supabase dependency');
 
-console.log('BRIDGEPOINT_SHIPWRECKS_ADDITIONAL_PHOTOGRAMMETRY_V15_PASS');
+console.log('BRIDGEPOINT_SHIPWRECKS_ADDITIONAL_PHOTOGRAMMETRY_V16_PASS');
