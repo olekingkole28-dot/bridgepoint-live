@@ -1,4 +1,4 @@
-name: Wind RF Jets Real Globe Visibility and Toggle Regression v3
+name: Wind RF Jets Real Globe Visibility and Toggle Regression v4
 # Validate source-driven jet thickness at height; retained original screen and flow requirements.
 on:
   push:
@@ -74,8 +74,15 @@ jobs:
           page.on('console',m=>{if(m.type()==='error'&&problems.length<25)problems.push('CONSOLE '+m.text())});
           await page.goto('https://bridgepointintelligence.online/?wind-rf-jet-globe-verify-v3',{waitUntil:'domcontentloaded',timeout:50000});
           await page.waitForFunction(()=>!!window.__BP_LANDING_WORLD__?.map,null,{timeout:85000});
-          await page.waitForFunction(()=>document.querySelector('[data-bpv-action="volumetric"]'),null,{timeout:40000});
-          await page.evaluate(()=>document.querySelector('[data-bpv-action="volumetric"]').click());
+          // Public welcome screen deliberately omits signed-in action buttons.
+          // Activate the exact existing feature directly on the REAL globe.
+          await page.evaluate(async()=>{
+            const m=window.__BP_LANDING_WORLD__.map;
+            m.jumpTo({center:[-75,42],zoom:2.3});
+            const mod=await import('/bridgepoint-volumetric-fields-v5978.js?real-wind-test-v3');
+            window.__TEST_WIND_API__=mod.initBridgePointVolumetricFields(window.__BP_LANDING_WORLD__);
+            if(!window.__TEST_WIND_API__?.state?.windOn)throw Error('Combined wind/RF mode not automatically ON');
+          });
           try{
             await page.waitForFunction(()=>window.__BP_WIND_RF_GLOBAL_V1__?.state?.gridSamples>=100 &&
               window.__BP_WIND_RF_GLOBAL_V1__?.state?.registeredStructures>=60 &&
@@ -84,9 +91,8 @@ jobs:
           }catch(e){console.log('WIND_RF_TIMEOUT',e.message)}
           await page.waitForTimeout(2000);
           const first=await page.evaluate(()=>{
-            const b=document.querySelector('[data-bpv-action="volumetric"]');
             const m=window.__BP_LANDING_WORLD__.map;
-            return {buttonPressed:b.getAttribute('aria-pressed'),global:window.__BP_WIND_RF_GLOBAL_V1__?.state,
+            return {global:window.__BP_WIND_RF_GLOBAL_V1__?.state,
               local:window.__BP_VOLUMETRIC_FIELDS_V5992__?.state,
               layer:!!m.getLayer('bp-wind-rf-global-jetstream-v1'),
               icons:document.querySelectorAll('[aria-label^="Jet stream "]').length,
@@ -114,18 +120,16 @@ jobs:
             details:document.querySelector('.bp-wind-jet-card-v1')?.textContent?.slice(0,300)
           }));
           console.log('WIND_RF_REAL_GLOBE_JET_3D_CARD',JSON.stringify(card));
-          await page.evaluate(()=>document.querySelector('[data-bpv-action="volumetric"]').click());
+          await page.evaluate(()=>window.__TEST_WIND_API__.disableAll());
           await page.waitForTimeout(550);
           const off=await page.evaluate(()=>({
-            pressed:document.querySelector('[data-bpv-action="volumetric"]').getAttribute('aria-pressed'),
             enabled:window.__BP_WIND_RF_GLOBAL_V1__?.state?.enabled,
             iconRoot:!!document.querySelector('[aria-label="Jet stream forecast markers"]'),
             local:window.__BP_VOLUMETRIC_FIELDS_V5992__?.state?.windOn
           }));
-          await page.evaluate(()=>document.querySelector('[data-bpv-action="volumetric"]').click());
+          await page.evaluate(()=>window.__TEST_WIND_API__.enableAll());
           await page.waitForTimeout(1500);
           const on=await page.evaluate(()=>({
-            pressed:document.querySelector('[data-bpv-action="volumetric"]').getAttribute('aria-pressed'),
             enabled:window.__BP_WIND_RF_GLOBAL_V1__?.state?.enabled,
             iconCount:document.querySelectorAll('[aria-label^="Jet stream "]').length,
             localWind:window.__BP_VOLUMETRIC_FIELDS_V5992__?.state?.windOn,
@@ -136,10 +140,10 @@ jobs:
           console.log('WIND_RF_BROWSER_ERRORS',JSON.stringify(problems.slice(0,12)));
           await page.screenshot({path:'/tmp/bp-windrf-smoke/rendered-globe.png'}).catch(()=>{});
           await browser.close();
-          if(first.buttonPressed!=='true'||first.global?.gridSamples<100||!first.layer||
+          if(!first.local?.windOn||!first.local?.rfOn||first.global?.gridSamples<100||!first.layer||
             first.global?.registeredStructures<60||first.icons<1||
-            !card.present||!card.hasWebGLCanvas||off.pressed!=='false'||off.enabled!==false||
-            off.iconRoot||on.pressed!=='true'||on.enabled!==true||on.iconCount<1||
+            !card.present||!card.hasWebGLCanvas||off.enabled!==false||
+            off.iconRoot||on.enabled!==true||on.iconCount<1||
             !on.localWind||!on.localRf||!counts.global||!counts.data)
              process.exitCode=1;
           JS
