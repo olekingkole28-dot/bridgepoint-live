@@ -98,28 +98,39 @@ jobs:
           if not (legacy_synthetic or legacy_scan):
               raise SystemExit('Baseline lighthouse renderer was not a recognized published version')
 
-          mobile_pattern=r"\['\./bridgepoint-lighthouses-v1\.js\?v=[^']+','__BP_LIGHTHOUSES_V1__','initLighthouseRenderer','[^']+'\],"
+          mobile_marker="['./bridgepoint-lighthouses-v1.js?v="
           mobile_new="['./bridgepoint-lighthouses-v1.js?v=4-global-pin-visibility','__BP_LIGHTHOUSES_V1__','initLighthouseRenderer','Lighthouses'],"
           landing=site/'landing.js'
           text=landing.read_text(encoding='utf-8')
-          mobile_matches=list(re.finditer(mobile_pattern,text))
-          if len(mobile_matches)!=1:
+          mobile_start=text.find(mobile_marker)
+          if mobile_start<0 or text.find(mobile_marker,mobile_start+1)>=0:
               raise SystemExit('landing.js: expected exactly one lighthouse mobile entry')
-          text=text[:mobile_matches[0].start()]+mobile_new+text[mobile_matches[0].end():]
-          import_pattern=r"import\((')(\./bridgepoint-lighthouses-v1\.js\?v=[^']+)('\)\)"
+          mobile_end=text.find('],',mobile_start)
+          if mobile_end<0:
+              raise SystemExit('landing.js: lighthouse mobile entry is malformed')
+          text=text[:mobile_start]+mobile_new+text[mobile_end+2:]
+          import_marker="import('./bridgepoint-lighthouses-v1.js?v="
           new_import="./bridgepoint-lighthouses-v1.js?v=4-global-pin-visibility"
-          active_imports=list(re.finditer(import_pattern,text))
-          if len(active_imports)!=1:
+          import_start=text.find(import_marker)
+          if import_start<0 or text.find(import_marker,import_start+1)>=0:
               raise SystemExit('landing.js: expected exactly one active lighthouse import')
-          text=text[:active_imports[0].start(2)]+new_import+text[active_imports[0].end(2):]
+          import_path_start=import_start+len("import('")
+          import_path_end=text.find("')",import_path_start)
+          if import_path_end<0:
+              raise SystemExit('landing.js: lighthouse import is malformed')
+          text=text[:import_path_start]+new_import+text[import_path_end:]
           landing.write_text(text,encoding='utf-8')
 
           app=site/'app.js'
           text=app.read_text(encoding='utf-8')
-          active_imports=list(re.finditer(import_pattern,text))
-          if len(active_imports)!=1:
+          import_start=text.find(import_marker)
+          if import_start<0 or text.find(import_marker,import_start+1)>=0:
               raise SystemExit('app.js: expected exactly one active lighthouse import')
-          text=text[:active_imports[0].start(2)]+new_import+text[active_imports[0].end(2):]
+          import_path_start=import_start+len("import('")
+          import_path_end=text.find("')",import_path_start)
+          if import_path_end<0:
+              raise SystemExit('app.js: lighthouse import is malformed')
+          text=text[:import_path_start]+new_import+text[import_path_end:]
           app.write_text(text,encoding='utf-8')
 
           replacement=Path('rebuild-v5000')/module
