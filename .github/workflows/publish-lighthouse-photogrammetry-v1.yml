@@ -2,6 +2,13 @@ name: Publish BridgePoint Lighthouse Global Pin Visibility v1
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-lighthouse-photogrammetry-v1.yml'
+      - 'rebuild-v5000/bridgepoint-lighthouses-v1.js'
+      - 'rebuild-v5000/landing.js'
+      - 'rebuild-v5000/app.js'
 
 permissions:
   actions: read
@@ -87,13 +94,14 @@ jobs:
               raise SystemExit('Known-good Pages baseline is missing required files: '+', '.join(sorted(missing)))
           legacy=(site/module).read_text(encoding='utf-8')
           legacy_synthetic='OSM-backed global lighthouse locations' in legacy and 'globalOverpassQuery' in legacy
-          legacy_scan='photogrammetry-v3' in legacy and 'bp-lighthouse-scan-markers-v3' in legacy
+          legacy_scan=('photogrammetry-v3' in legacy and 'bp-lighthouse-scan-markers-v3' in legacy) or ('global-pins-v4' in legacy and 'bp-lighthouse-scan-markers-v4' in legacy)
           if not (legacy_synthetic or legacy_scan):
               raise SystemExit('Baseline lighthouse renderer was not a recognized published version')
 
           mobile_old_candidates=[
               "['./bridgepoint-lighthouses-v1.js?v=6311-mobile-lighthouses','__BP_LIGHTHOUSES_V1__','initLighthouseRenderer','3D lighthouses'],",
-              "['./bridgepoint-lighthouses-v1.js?v=3-photogrammetry-scan-catalog','__BP_LIGHTHOUSES_V1__','initLighthouseRenderer','Lighthouses'],"
+              "['./bridgepoint-lighthouses-v1.js?v=3-photogrammetry-scan-catalog','__BP_LIGHTHOUSES_V1__','initLighthouseRenderer','Lighthouses'],",
+              "['./bridgepoint-lighthouses-v1.js?v=4-global-pin-visibility','__BP_LIGHTHOUSES_V1__','initLighthouseRenderer','Lighthouses'],"
           ]
           mobile_new="['./bridgepoint-lighthouses-v1.js?v=4-global-pin-visibility','__BP_LIGHTHOUSES_V1__','initLighthouseRenderer','Lighthouses'],"
           landing=site/'landing.js'
@@ -104,7 +112,8 @@ jobs:
           text=text.replace(mobile_old[0],mobile_new,1)
           old_import_candidates=[
               "./bridgepoint-lighthouses-v1.js?v=2-visible-rotating-beacons",
-              "./bridgepoint-lighthouses-v1.js?v=3-photogrammetry-scan-catalog"
+              "./bridgepoint-lighthouses-v1.js?v=3-photogrammetry-scan-catalog",
+              "./bridgepoint-lighthouses-v1.js?v=4-global-pin-visibility"
           ]
           new_import="./bridgepoint-lighthouses-v1.js?v=4-global-pin-visibility"
           old_import=[candidate for candidate in old_import_candidates if text.count(candidate)==1]
@@ -168,7 +177,7 @@ jobs:
           for marker in ('futatsugoya-tunnel-japan','palatine-neronian-cryptoporticus-rome','usti-pipeline-repair-czechia'):
               if marker not in infra: raise SystemExit('Existing underground infrastructure marker missing: '+marker)
           for rel in ('index.html','app/index.html'):
-              if 'lighthouse-scans=v3' not in (site/rel).read_text(encoding='utf-8'):
+              if 'lighthouse-scans=v4' not in (site/rel).read_text(encoding='utf-8'):
                   raise SystemExit(rel+' lighthouse cache key was not updated')
           print('LIGHTHOUSE_ONLY_SCOPE_PASS changed=6 records=26 added=0 deleted=0')
           PY
@@ -222,8 +231,8 @@ jobs:
               grep -Fq "Interior 3D walkthrough" "$RUNNER_TEMP/lighthouses-root.js"
               grep -Fq "initLighthouseRenderer','Lighthouses" "$RUNNER_TEMP/landing-live.js"
               grep -Fq "bridgepoint-lighthouses-v1.js?v=3-photogrammetry-scan-catalog" "$RUNNER_TEMP/app-live.js"
-              grep -Fq "lighthouse-scans=v3" "$RUNNER_TEMP/home-live.html"
-              grep -Fq "lighthouse-scans=v3" "$RUNNER_TEMP/app-home-live.html"
+              grep -Fq "lighthouse-scans=v4" "$RUNNER_TEMP/home-live.html"
+              grep -Fq "lighthouse-scans=v4" "$RUNNER_TEMP/app-home-live.html"
               grep -Fq "muttental-witten" "$RUNNER_TEMP/mines-live.js"
               grep -Fq "futatsugoya-tunnel-japan" "$RUNNER_TEMP/infra-live.js"
               grep -Fq "palatine-neronian-cryptoporticus-rome" "$RUNNER_TEMP/infra-live.js"
