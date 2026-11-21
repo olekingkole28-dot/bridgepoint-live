@@ -1,920 +1,714 @@
-/* BridgePoint materialized 3D lighthouses v1.
- * OSM-backed global lighthouse locations; meter-scale polygon towers at close zoom;
- * locally calculated twilight controls the rotating lantern beam.
+/* BridgePoint lighthouse scan catalogue v3.
+ * Map pins point to real, publicly hosted 3D scan/tour assets.
+ * No procedural lighthouse geometry or remote location scraping.
  */
-const VERSION = 2;
+const VERSION = 'photogrammetry-v3';
+const STATES = new WeakMap();
+const SOURCE = 'bp-lighthouse-scan-source-v3';
+const ICON = 'bp-lighthouse-scan-icon-v3';
+const MARKER = 'bp-lighthouse-scan-markers-v3';
+const LABEL = 'bp-lighthouse-scan-labels-v3';
+const CONTROL = 'bpv-lighthouses-scan-control-v3';
+const BUTTON = 'bpv-lighthouses-scan-button-v3';
+const STYLE = 'bp-lighthouses-scan-style-v3';
+
+function sf(id, label, kind, sourceUrl) {
+  return {
+    label, kind,
+    url: 'https://sketchfab.com/models/' + id + '/embed?autostart=1&preload=1&ui_infos=0',
+    sourceUrl
+  };
+}
+function mp(id, label) {
+  return {
+    label: label || 'Interior 3D walkthrough',
+    kind: 'Matterport 360° interior walkthrough',
+    url: 'https://my.matterport.com/show/?m=' + id + '&play=1',
+    sourceUrl: 'https://my.matterport.com/show/?m=' + id
+  };
+}
+function kiri(id, label) {
+  return {
+    label: label || 'Official site 3D Gaussian splat',
+    kind: 'Image-based 3D Gaussian splat (not a photogrammetry mesh)',
+    url: 'https://www.kiriengine.app/share/3dgsEmbed/' + id,
+    sourceUrl: 'https://www.kiriengine.app/share/3dgsEmbed/' + id
+  };
+}
+function luma(id, label) {
+  const url = 'https://lumalabs.ai/embed/' + id + '?background=%23666e76&cinematicVideo=undefined&color=%23FFFFFF&infoPosition=bottom-right&loadBg=true&logoPosition=bottom-left&mode=sparkles&showMenu=false&showTitle=true';
+  return { label, kind: 'Image-based 3D scene capture', url, sourceUrl: url };
+}
+
+export const DATA = Object.freeze([
+  {
+    id: 'alnes-norway', name: 'Alnes Lighthouse', country: 'Norway',
+    coordinates: [5.96733, 62.48996],
+    description: 'Historic lighthouse station on Godøy, west of Ålesund. The public catalogue includes an official lighthouse model and an interior walk-through.',
+    capture: 'Official Kystverkmusea 3D model; the model page does not identify its exact capture method. The station digitization project combines photogrammetry, 3D scanning, 360° cameras and drone imagery.',
+    coverage: 'The model view shows the lighthouse structure. The separate Matterport view covers interior spaces. Exterior route coverage is not confirmed.',
+    approach: 'The viewer does not establish the full walking approach to the station.',
+    sourceUrl: 'https://fyr.kystverket.no/en/alnes/fyr/',
+    models: [
+      sf('8d9464d5288a4173beaaaf94cecc498b', 'Lighthouse 3D model', 'Official Kystverkmusea 3D model; per-model capture method not stated', 'https://fyr.kystverket.no/en/alnes/fyr/'),
+      mp('oNZ5k8J1mMU')
+    ]
+  },
+  {
+    id: 'aniva-russia', name: 'Aniva Lighthouse', country: 'Russia · Sakhalin',
+    coordinates: [143.414077, 46.018885],
+    description: 'Remote offshore lighthouse on a rock at the southeast tip of Sakhalin. The public model was reconstructed from crowdsourced photographs and video.',
+    capture: 'Photogrammetry processed in Metashape from mixed photo and video sources; some fine details were modeled or reprojected during cleanup.',
+    coverage: 'Exterior tower and rock setting. No interior scan or landing path is included in the published model.',
+    approach: 'Offshore sea approach to Sivuchya Rock; no overland path.',
+    sourceUrl: 'https://sketchfab.com/3d-models/aniva-light-house-092213041f504051a2464c425ce8ad58',
+    models: [
+      sf('092213041f504051a2464c425ce8ad58', 'Aniva photogrammetry model', 'Crowdsourced photo/video photogrammetry', 'https://sketchfab.com/3d-models/aniva-light-house-092213041f504051a2464c425ce8ad58')
+    ]
+  },
+  {
+    id: 'erie-land-usa', name: 'Erie Land Lighthouse', country: 'United States · Pennsylvania',
+    coordinates: [-80.06225, 42.143917],
+    description: 'The original Presque Isle light overlooking Lake Erie and the entrance to Presque Isle Bay.',
+    capture: 'Hybrid 3D capture: elevated drone imagery plus terrestrial laser scanning. This is a real scan, but not a photogrammetry-only model.',
+    coverage: 'Elevated exterior context and detailed ground-level spatial capture. The project source does not confirm full interior coverage or the full approach path.',
+    approach: 'On the Lake Erie shore at the historic harbor entrance.',
+    sourceUrl: 'https://var.psu.edu/portfolio-items/lake-erie-lighthouse-scan/',
+    models: [
+      sf('a61c0c8c840d4fe4be794b275c1a4f9d', 'Erie Land Lighthouse hybrid scan', 'Drone imaging + terrestrial laser scan', 'https://var.psu.edu/portfolio-items/lake-erie-lighthouse-scan/')
+    ]
+  },
+  {
+    id: 'fugloykalven-norway', name: 'Fugløykalven Lighthouse', country: 'Norway',
+    coordinates: [20.15351, 70.31675],
+    description: 'Remote lighthouse in the outer waters north of Tromsø, digitally documented as an inaccessible station.',
+    capture: 'Interior Matterport 3D walkthrough. The broader Kystverkmusea station documentation uses 3D scanners, photogrammetry, 360° cameras and drone imagery; this tour is not itself a photogrammetry mesh.',
+    coverage: 'Interior walkthrough. Exterior island and approach-route coverage are not confirmed by this tour.',
+    approach: 'Remote island approach by sea.',
+    sourceUrl: 'https://fyr.kystverket.no/en/fugloeykalven/',
+    models: [mp('Usf5vCMBmSR')]
+  },
+  {
+    id: 'geitungen-norway', name: 'Geitungen Lighthouse', country: 'Norway',
+    coordinates: [5.24268, 59.13148],
+    description: 'Historic lighthouse station on a small island northwest of Stavanger, with official exterior 3D views and an interior walkthrough.',
+    capture: 'Official Kystverkmusea 3D model and site-level 3D Gaussian splat; the station documentation project combines photogrammetry, 3D scanning, 360° cameras and drone imagery.',
+    coverage: 'Exterior tower/site splat and interior walkthrough are available as separate views. The published mesh listing does not specify whether the landing path is captured.',
+    approach: 'Island approach; path coverage is not verified in the hosted models.',
+    sourceUrl: 'https://fyr.kystverket.no/en/geitungen/',
+    models: [
+      sf('387fbfbf93de4a738cab75fc5059af7c', 'Official lighthouse 3D model', 'Official Kystverkmusea model; exact mesh capture mix not stated', 'https://fyr.kystverket.no/en/geitungen/'),
+      kiri('1820021419568791552', 'Exterior/site 3D Gaussian splat'),
+      mp('KUrzaaqWnEB')
+    ]
+  },
+  {
+    id: 'golleneset-norway', name: 'Golleneset Lighthouse', country: 'Norway',
+    coordinates: [5.5575, 62.373889],
+    description: 'Lighthouse at the north point of Nerlandsøya. A marked walking route passes coastal pasture and a protected Bronze Age burial mound before reaching the ocean-facing site.',
+    capture: 'Official lighthouse 3D model and an image-based site capture. Kystverkmusea’s broader station digitization uses photogrammetry, 3D scanning, 360° cameras and drone imagery; the individual model page does not publish a method breakdown.',
+    coverage: 'Old tower model plus a 3D scene view. A separate public trail description documents the walking approach, but the path is not confirmed as part of the 3D capture.',
+    approach: 'Marked walk from the end of Hamnevegen in Kvalsvika, over pasture and past Kjemperøysa.',
+    sourceUrl: 'https://morotur.no/en/tur/golleneset-paa-nerlandsoey',
+    models: [
+      sf('af59850a12584c62a7db5dc07bdb0d72', 'Golleneset lighthouse scan model', 'Official Kystverkmusea 3D model; per-model capture method not stated', 'https://fyr.kystverket.no/en/gollenes/'),
+      kiri('1785283138042200064', 'Old tower 3D Gaussian splat')
+    ]
+  },
+  {
+    id: 'grip-norway', name: 'Grip Lighthouse', country: 'Norway',
+    coordinates: [7.60917, 63.23361],
+    description: 'Red iron lighthouse on a stone base in the exposed Grip archipelago outside Kristiansund.',
+    capture: 'Image-based Luma 3D scene capture published by Kystverkmusea; the capture page does not specify whether the source imagery was processed as a photogrammetry mesh.',
+    coverage: 'Hosted 3D scene view of the lighthouse and its immediate setting. Interior and full approach coverage are not stated.',
+    approach: 'Island approach by sea; the hosted capture does not document a landing route.',
+    sourceUrl: 'https://kystverkmusea.no/digitale-utstillinger/digital-dokumentasjon',
+    models: [luma('d336a0ae-92e5-40dc-a486-6f7f36907162', 'Grip lighthouse 3D scene')]
+  },
+  {
+    id: 'hellisoy-norway', name: 'Hellisøy Lighthouse', country: 'Norway',
+    coordinates: [4.7104, 60.75217],
+    description: 'Historic lighthouse station at Fedje, northwest of Bergen, with official exterior and interior digital views.',
+    capture: 'Official Kystverkmusea 3D model and site-level 3D Gaussian splat; the station digitization project combines photogrammetry, 3D scanning, 360° cameras and drone imagery.',
+    coverage: 'Exterior/site splat and interior walk-through are separate views. The exact extent of the approach route is not stated.',
+    approach: 'Island approach; complete landing and path capture is not confirmed.',
+    sourceUrl: 'https://fyr.kystverket.no/en/hellisoey/',
+    models: [
+      sf('f1a3066053e14ec9a04304d369afe2d9', 'Official lighthouse 3D model', 'Official Kystverkmusea model; exact mesh capture mix not stated', 'https://fyr.kystverket.no/en/hellisoey/'),
+      kiri('1869656356655464448', 'Exterior/site 3D Gaussian splat'),
+      mp('mhWdfYQyrTP')
+    ]
+  },
+  {
+    id: 'jomfruland-norway', name: 'Jomfruland Old Lighthouse', country: 'Norway',
+    coordinates: [9.59637, 58.86511],
+    description: 'The 1839 tower at Jomfruland. The published mesh was made from 125 images; an interior walk-through is also available.',
+    capture: 'Photogrammetry processed in RealityScan from 125 images for the old tower model.',
+    coverage: 'Photogrammetry tower mesh plus a separate interior 3D walkthrough. The mesh listing does not establish whether the full island approach is included.',
+    approach: 'Island approach; the hosted scan does not confirm the full route to the tower.',
+    sourceUrl: 'https://sketchfab.com/3d-models/jomfruland-fyr-gamle-fyrtarnet-fra-1839-f0b53e0da816498f8bb835bf253911aa',
+    models: [
+      sf('f0b53e0da816498f8bb835bf253911aa', 'Jomfruland photogrammetry mesh', 'Photogrammetry · 125 images · RealityScan', 'https://sketchfab.com/3d-models/jomfruland-fyr-gamle-fyrtarnet-fra-1839-f0b53e0da816498f8bb835bf253911aa'),
+      mp('5XS9iCSC4Uz')
+    ]
+  },
+  {
+    id: 'kaura-norway', name: 'Kaura Lighthouse', country: 'Norway',
+    coordinates: [10.13327, 64.23012],
+    description: 'Lighthouse on a small offshore islet in the mouth of Brandsfjorden, in Trøndelag.',
+    capture: 'Official Kystverkmusea interior walk-through plus a KIRI image-based 3D Gaussian splat; the splat is a real 3D scene capture, not a textured photogrammetry mesh.',
+    coverage: 'Interior and exterior/site views are available separately. The published model does not confirm the full sea-landing route.',
+    approach: 'Offshore islet approach by sea; route coverage is not stated.',
+    sourceUrl: 'https://fyr.kystverket.no/en/kaura/',
+    models: [
+      kiri('1822935793274978304', 'Kaura exterior/site 3D Gaussian splat'),
+      mp('JrTX8WJDCK8')
+    ]
+  },
+  {
+    id: 'lepsoyrevet-norway', name: 'Lepsøyrevet Lighthouse', country: 'Norway',
+    coordinates: [6.264282, 62.58949],
+    description: 'Former coastal light built in 1879 to guide ships through the shallow Lepsøyrevet channel north of Ålesund.',
+    capture: 'Two public Kystverkmusea Sketchfab 3D models of the lighthouse. Their listing identifies them as 3D models but does not publish the capture method.',
+    coverage: 'Tower/site models; interior and approach-path coverage are not confirmed.',
+    approach: 'The lighthouse marks a shallow sea channel; no scanned land or sea approach is confirmed in the model listings.',
+    sourceUrl: 'https://kystverkmusea.no/digitale-utstillinger/digital-dokumentasjon',
+    models: [
+      sf('f6cd36b671f44931823fcf764b83a8d4', 'Lepsøyrevet lighthouse 2022', 'Kystverkmusea 3D model; exact capture method not stated', 'https://kystverkmusea.no/digitale-utstillinger/digital-dokumentasjon'),
+      sf('1aa7859e0e114c62b5a2a1a841e747a1', 'Lepsøyrevet lighthouse 2022 · alternate view', 'Kystverkmusea 3D model; exact capture method not stated', 'https://kystverkmusea.no/digitale-utstillinger/digital-dokumentasjon')
+    ]
+  },
+  {
+    id: 'mabana-shima-japan', name: 'Mabana Shima Lighthouse', country: 'Japan · Mie',
+    coordinates: [136.683333, 34.316667],
+    description: 'Small white lighthouse on an uninhabited rocky islet off Nakatsuhamaura in Minami-Ise.',
+    capture: 'Photogrammetry model created for the Tokiwatari cultural-preservation project using drone photography.',
+    coverage: 'Photogrammetry captures the tower and its surface; the published model does not include an interior or full island approach.',
+    approach: 'Rocky-islet approach; local descriptions mention viewing from shore and approaching by kayak/SUP. The model does not scan the route.',
+    sourceUrl: 'https://tokiwatari.jp/site/mabanajima/',
+    models: [
+      sf('bfdc407529c84c2080c5dad5b88ec40d', 'Mabana Shima photogrammetry model', 'Photogrammetry + drone photography', 'https://tokiwatari.jp/site/mabanajima/')
+    ]
+  },
+  {
+    id: 'myken-norway', name: 'Myken Lighthouse', country: 'Norway',
+    coordinates: [12.47697, 66.76453],
+    description: 'Historic lighthouse on Jutøya, with official tower/site models and an interior walkthrough.',
+    capture: 'Official Kystverkmusea lighthouse model and KIRI 3D Gaussian splat. The national station digitization project combines photogrammetry, 3D scanning, 360° cameras and drone imagery.',
+    coverage: 'Exterior tower/site and interior walk-through are available in separate views; the path from the landing point is not confirmed.',
+    approach: 'Island approach by sea; full route to the station is not verified in the hosted captures.',
+    sourceUrl: 'https://fyr.kystverket.no/en/myken/',
+    models: [
+      sf('a8e8d0cfec854c4e90cdce6080fdc86d', 'Official lighthouse 3D model', 'Official Kystverkmusea model; exact mesh capture mix not stated', 'https://fyr.kystverket.no/en/myken/'),
+      kiri('1853411349745369088', 'Exterior/site 3D Gaussian splat'),
+      mp('zbWTRnFBYVc')
+    ]
+  },
+  {
+    id: 'nordoyan-norway', name: 'Nordøyan Lighthouse', country: 'Norway',
+    coordinates: [10.54759, 64.79845],
+    description: 'Remote lighthouse station west of Rørvik, with an interior 3D walkthrough and an official station model.',
+    capture: 'Matterport 360° interior walkthrough; Kystverkmusea lighthouse digitization uses photogrammetry, 3D scanning, 360° cameras and drone imagery. This tour is not a photogrammetry mesh.',
+    coverage: 'Interior walk-through. Exterior route and island approach coverage are not confirmed.',
+    approach: 'Remote island approach by sea.',
+    sourceUrl: 'https://fyr.kystverket.no/en/nordoeyan/',
+    models: [mp('E6s2afEHnBy')]
+  },
+  {
+    id: 'oksoy-norway', name: 'Oksøy Lighthouse', country: 'Norway',
+    coordinates: [8.05282, 58.07229],
+    description: 'Offshore lighthouse south of Kristiansand, with an interior 3D station walk-through.',
+    capture: 'Matterport 360° interior walkthrough. The tour is an indoor scene capture, not an exterior photogrammetry mesh.',
+    coverage: 'Interior walk-through; surrounding island and landing route are not confirmed by the tour.',
+    approach: 'Offshore island approach by sea.',
+    sourceUrl: 'https://fyr.kystverket.no/en/oksoey/',
+    models: [mp('WmUqaByPGQA')]
+  },
+  {
+    id: 'ryvarden-norway', name: 'Ryvarden Lighthouse', country: 'Norway',
+    coordinates: [5.22516, 59.52693],
+    description: 'Lighthouse and coastal cultural site on the western shore of Sveio, reached by a marked coastal walk.',
+    capture: 'Matterport 360° interior walkthrough; not a photogrammetry mesh.',
+    coverage: 'Interior walkthrough. A separate public visitor description documents the coastal approach, but the route is not confirmed in the 3D tour.',
+    approach: 'Coastal walking approach from the parking area; the hosted tour does not confirm the entire trail is captured.',
+    sourceUrl: 'https://www.visitnorway.com/listings/ryvarden-lighthouse/501858/',
+    models: [mp('obFvjxN93A3')]
+  },
+  {
+    id: 'skalmen-norway', name: 'Skalmen Lighthouse', country: 'Norway',
+    coordinates: [7.75694, 63.47194],
+    description: 'Exposed lighthouse station in Smøla Municipality, Møre og Romsdal.',
+    capture: 'Matterport 360° interior walkthrough; not a photogrammetry mesh.',
+    coverage: 'Interior walkthrough. Exterior islet and access route are not confirmed in the hosted tour.',
+    approach: 'Offshore islet approach by sea.',
+    sourceUrl: 'https://fyr.kystverket.no/en/skalmen/',
+    models: [mp('TLLPhq79ZEP')]
+  },
+  {
+    id: 'stavernsodden-norway', name: 'Stavernsodden Lighthouse', country: 'Norway',
+    coordinates: [10.05228, 58.98739],
+    description: 'Historic station near Stavern, with an official exterior model, site-level scene and interior walkthrough.',
+    capture: 'Official Kystverkmusea 3D model and KIRI 3D Gaussian splat; the station digitization project combines photogrammetry, scanners, 360° cameras and drone imagery.',
+    coverage: 'Exterior/site and interior views are separate; the access path is not confirmed in the hosted models.',
+    approach: 'Coastal-island station; full approach coverage is not established.',
+    sourceUrl: 'https://fyr.kystverket.no/en/stavernsodden/',
+    models: [
+      sf('b8750d88a9184a95ab53573586bf78a0', 'Official lighthouse 3D model', 'Official Kystverkmusea model; exact mesh capture mix not stated', 'https://fyr.kystverket.no/en/stavernsodden/'),
+      kiri('1937819091372867584', 'Exterior/site 3D Gaussian splat'),
+      mp('YK7NFmtY9f9')
+    ]
+  },
+  {
+    id: 'store-torungen-norway', name: 'Store Torungen Lighthouse', country: 'Norway',
+    coordinates: [8.79025, 58.39885],
+    description: 'Historic lighthouse on Store Torungen island at the entrance to Arendal.',
+    capture: 'Matterport 360° interior walkthrough; not a photogrammetry mesh.',
+    coverage: 'Interior walkthrough; island exterior and approach route are not confirmed.',
+    approach: 'Island approach by sea.',
+    sourceUrl: 'https://fyr.kystverket.no/en/store-torungen/',
+    models: [mp('492vHsqmVSi')]
+  },
+  {
+    id: 'stromtangen-fredrikstad-norway', name: 'Strømtangen Lighthouse · Fredrikstad', country: 'Norway',
+    coordinates: [10.82939, 59.15105],
+    description: 'Lighthouse station outside Fredrikstad with an interior 3D walkthrough.',
+    capture: 'Matterport 360° interior walkthrough; not a photogrammetry mesh.',
+    coverage: 'Interior walkthrough; shoreline approach and surrounding site coverage are not confirmed.',
+    approach: 'Coastal station approached over water; full path/landing capture is not confirmed.',
+    sourceUrl: 'https://fyr.kystverket.no/en/stroemtangen/',
+    models: [mp('jegug5XP4TM')]
+  },
+  {
+    id: 'svinoy-norway', name: 'Svinøy Lighthouse', country: 'Norway',
+    coordinates: [5.26746, 62.3276],
+    description: 'Offshore lighthouse on Svinøy, with an interior station walkthrough.',
+    capture: 'Matterport 360° interior walkthrough; not a photogrammetry mesh.',
+    coverage: 'Interior walkthrough; exterior island and approach route are not confirmed.',
+    approach: 'Remote island approach by sea.',
+    sourceUrl: 'https://fyr.kystverket.no/en/svinoy/',
+    models: [mp('K5Cbov17i9F')]
+  },
+  {
+    id: 'villa-norway', name: 'Villa Lighthouse', country: 'Norway · Trøndelag',
+    coordinates: [10.6813417, 64.545528],
+    description: 'Historic lighthouse on Villa island, with an official station model and image-based 3D site capture.',
+    capture: 'Official Kystverkmusea model plus KIRI 3D Gaussian splat. Kystverkmusea’s station documentation combines photogrammetry, 3D scanning, 360° cameras and drone imagery.',
+    coverage: 'Exterior/site capture; interior and island approach coverage are not confirmed.',
+    approach: 'Island approach by sea; full route coverage is not stated.',
+    sourceUrl: 'https://fyr.kystverket.no/en/villa/',
+    models: [
+      sf('20ac28e2a89e4bdfa30c1d99cf415c93', 'Official lighthouse 3D model', 'Official Kystverkmusea model; exact mesh capture mix not stated', 'https://fyr.kystverket.no/en/villa/'),
+      kiri('1887062231158358016', 'Exterior/site 3D Gaussian splat')
+    ]
+  },
+  {
+    id: 'westkapelle-netherlands', name: 'Westkapelle High Lighthouse', country: 'Netherlands · Zeeland',
+    coordinates: [3.441, 51.529],
+    description: 'The tall masonry lighthouse at Westkapelle, Zeeland.',
+    capture: 'Photogrammetry model of the real lighthouse by netgis.',
+    coverage: 'Exterior tower model; interior and route along the sea wall are not included in the published model.',
+    approach: 'The model does not include a verified path/sea-wall approach.',
+    sourceUrl: 'https://sketchfab.com/3d-models/lighthouse-t-hoge-licht-westkapelle-5e010b5eb6e2489e8f73c6353e078584',
+    models: [
+      sf('5e010b5eb6e2489e8f73c6353e078584', 'Westkapelle photogrammetry model', 'Photogrammetry scan', 'https://sketchfab.com/3d-models/lighthouse-t-hoge-licht-westkapelle-5e010b5eb6e2489e8f73c6353e078584')
+    ]
+  },
+  {
+    id: 'whitford-point-wales', name: 'Whitford Point Lighthouse', country: 'Wales · United Kingdom',
+    coordinates: [-4.2509, 51.6526],
+    description: 'Cast-iron lighthouse at the northwest tip of the Gower, exposed to the Burry Estuary.',
+    capture: 'Photogrammetry survey published with RealityScan by the Royal Commission on the Ancient and Historical Monuments of Wales.',
+    coverage: 'The model covers the full structure and surrounding apron. Interior and the full tidal approach are not confirmed.',
+    approach: 'Tidal intertidal approach; the scan record focuses on the lighthouse/apron.',
+    sourceUrl: 'https://coflein.gov.uk/en/site/34289/',
+    models: [
+      sf('86b514ace0664b1a97982f239c9c90bd', 'Whitford Point photogrammetry scan', 'RealityScan photogrammetry · structure and apron', 'https://coflein.gov.uk/en/site/34289/')
+    ]
+  },
+  {
+    id: 'wicklow-head-ireland', name: 'Wicklow Head Old Lighthouse', country: 'Ireland',
+    coordinates: [-6.0006277, 52.965403],
+    description: 'The historic 1781 lighthouse tower at Wicklow Head.',
+    capture: 'RealityScan 3D model of the real historic tower; the creator does not publish a detailed capture protocol.',
+    coverage: 'Exterior tower scan only; interior and full cliff approach are not confirmed in the published model.',
+    approach: 'Cliff-top headland; route coverage is not confirmed by the scan.',
+    sourceUrl: 'https://sketchfab.com/3d-models/wicklow-head-old-lighthouse-c5fa47953871459d80a0730ada48274f',
+    models: [
+      sf('c5fa47953871459d80a0730ada48274f', 'Wicklow Head old tower scan', 'RealityScan model · capture protocol not stated', 'https://sketchfab.com/3d-models/wicklow-head-old-lighthouse-c5fa47953871459d80a0730ada48274f')
+    ]
+  },
+  {
+    id: 'ytteroyane-norway', name: 'Ytterøyane Lighthouse', country: 'Norway',
+    coordinates: [4.682366, 61.571272],
+    description: 'Offshore lighthouse station in Kinn, Vestland, with official exterior/site models.',
+    capture: 'Official Kystverkmusea lighthouse model and KIRI image-based 3D Gaussian splat; broader station documentation uses photogrammetry, scanners, 360° cameras and drone imagery.',
+    coverage: 'Exterior/site views; interior and the landing path are not confirmed in the published models.',
+    approach: 'Remote island approach by sea.',
+    sourceUrl: 'https://fyr.kystverket.no/en/ytteroeyane/fyr/',
+    models: [
+      sf('e4a4a5f8d66a47479175e31b71ec4421', 'Official lighthouse 3D model', 'Official Kystverkmusea model; exact mesh capture mix not stated', 'https://fyr.kystverket.no/en/ytteroeyane/fyr/'),
+      kiri('1785228350139138048', 'Exterior/site 3D Gaussian splat')
+    ]
+  }
+]);
+
+export const RECORD_COUNT = DATA.length;
 const MAP_STATES = new WeakMap();
-let threePromise = null;
-const THREE_URL = '/vendor/three.module.js?v=169-local';
-const SOURCE_ID = 'bp-lighthouses-source-v1';
-const MARKER_LAYER_ID = 'bp-lighthouses-markers-v1';
-const BEACON_HALO_LAYER_ID = 'bp-lighthouses-beacon-halo-v2';
-const BEACON_LAYER_ID = 'bp-lighthouses-beacon-v2';
-const BEACON_IMAGE_ID = 'bp-lighthouse-rotating-beacon-v2';
-const MODEL_LAYER_ID = 'bp-lighthouses-3d-v1';
-const MIN_BEACON_ZOOM = 3.8;
-const MAX_BEACON_ZOOM = 14.2;
-const MIN_MODEL_ZOOM = 14.0;
-const NIGHT_THRESHOLD_DEG = -6;
-const WORLD_BOUNDS = [-85, -180, 85, 180];
-const EMPTY = { type: 'FeatureCollection', features: [] };
-const MOBILE = typeof window !== 'undefined' &&
-  ((Number(window.innerWidth) || 1024) <= 820 ||
-   (typeof navigator !== 'undefined' && Number(navigator.maxTouchPoints) > 0));
-const MAX_GLOBAL_FEATURES = 10000;
-const MAX_RENDERED_MODELS = MOBILE ? 6 : 18;
-const RAD = Math.PI / 180;
-const TAU = Math.PI * 2;
 
-const COLOR_NAMES = {
-  white:'#f1ead9', offwhite:'#eee5d1', ivory:'#eee5d1', cream:'#e8ddc4',
-  red:'#b64436', darkred:'#762b27', orange:'#c46d32', yellow:'#e7c56d',
-  black:'#242b30', grey:'#858b8d', gray:'#858b8d', silver:'#aeb7bb',
-  blue:'#4f7d98', green:'#657b61', brown:'#79583f', stone:'#aaa18e'
-};
-
-export function parseLengthMetres(value) {
-  if (value === null || value === undefined || value === '') return null;
-  if (typeof value === 'number') return Number.isFinite(value) && value > 0 ? value : null;
-  const match = String(value).trim().replace(',', '.')
-    .match(/^([0-9]+(?:\.[0-9]+)?)\s*(m|metres?|meters?|ft|feet|foot|')?$/i);
-  if (!match) return null;
-  const amount = Number(match[1]);
-  if (!Number.isFinite(amount) || amount <= 0) return null;
-  const unit = String(match[2] || 'm').toLowerCase();
-  const metres = ['ft','feet','foot',"'"].includes(unit) ? amount * 0.3048 : amount;
-  return metres > 0 && metres <= 500 ? metres : null;
+function escapeHtml(value) {
+  return String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[ch]));
 }
-
-function parseElevationMetres(value) {
-  if (value === null || value === undefined || value === '') return null;
-  const match = String(value).trim().replace(',', '.')
-    .match(/^(-?[0-9]+(?:\.[0-9]+)?)\s*(m|metres?|meters?|ft|feet|foot)?$/i);
-  if (!match) return null;
-  const amount = Number(match[1]);
-  if (!Number.isFinite(amount)) return null;
-  const unit = String(match[2] || 'm').toLowerCase();
-  const metres = unit === 'ft' || unit === 'feet' || unit === 'foot'
-    ? amount * 0.3048 : amount;
-  return metres >= -500 && metres <= 9000 ? metres : null;
-}
-
-function firstLength(tags, keys) {
-  for (const key of keys) {
-    const value = parseLengthMetres(tags && tags[key]);
-    if (value !== null) return value;
-  }
-  return null;
-}
-
-function normalizeColor(value) {
-  const raw = String(value || '').trim().toLowerCase().replace(/\s+/g, '');
-  if (!raw) return null;
-  if (/^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test(raw)) return raw;
-  if (/^[0-9a-f]{6}$/i.test(raw)) return '#' + raw;
-  return COLOR_NAMES[raw] || null;
-}
-
-function colorPalette(tags) {
-  const raw = tags && (
-    tags.colour || tags.color || tags['building:colour'] ||
-    tags['building:color'] || tags['seamark:colour']
-  );
-  const parsed = String(raw || '').split(/[;,/]/)
-    .map(normalizeColor).filter(Boolean).slice(0, 3);
-  return parsed.length ? parsed : ['#f1ead9', '#b64436'];
-}
-
-function isLighthouseElement(element) {
-  const tags = element && element.tags || {};
-  return tags.man_made === 'lighthouse' ||
-    tags.building === 'lighthouse' ||
-    tags['seamark:type'] === 'light_major';
-}
-
-function elementCoordinate(element) {
-  if (Number.isFinite(Number(element && element.lat)) &&
-      Number.isFinite(Number(element && element.lon))) {
-    return [Number(element.lon), Number(element.lat)];
-  }
-  const center = element && element.center;
-  if (center && Number.isFinite(Number(center.lon)) && Number.isFinite(Number(center.lat))) {
-    return [Number(center.lon), Number(center.lat)];
-  }
-  return null;
-}
-
-export function normalizeLighthouseElement(element) {
-  if (!isLighthouseElement(element)) return null;
-  const coordinate = elementCoordinate(element);
-  if (!coordinate || coordinate[0] < -180 || coordinate[0] > 180 ||
-      coordinate[1] < -85 || coordinate[1] > 85) return null;
-  const tags = element.tags || {};
-  const measuredHeight = firstLength(tags, [
-    'height', 'height:structure', 'tower:height', 'building:height', 'seamark:height'
-  ]);
-  const heightM = measuredHeight || 22;
-  const measuredDiameter = firstLength(tags, [
-    'diameter', 'tower:diameter', 'building:width', 'width'
-  ]);
-  const diameterM = measuredDiameter || Math.max(4.6, Math.min(8.5, heightM * 0.24));
-  const period = Number(String(tags['seamark:light:period'] ||
-    tags['light:period'] || tags.period || '').replace(/[^0-9.]/g, ''));
-  const lightColor = normalizeColor(
-    tags['seamark:light:colour'] || tags['light:colour'] || tags['seamark:light:color']
-  ) || '#ffe6a4';
-  const elevation = parseElevationMetres(tags.ele);
-  const id = String(element.type || 'osm') + '/' +
-    String(element.id ?? coordinate[0].toFixed(6) + '/' + coordinate[1].toFixed(6));
-  const palette = colorPalette(tags);
-  const name = String(tags.name || tags['seamark:name'] || tags['name:en'] || 'Lighthouse');
-  return {
-    type: 'Feature',
-    id,
-    geometry: { type: 'Point', coordinates: coordinate },
-    properties: {
-      key: id, name, heightM, measuredHeight: measuredHeight !== null,
-      diameterM, measuredDiameter: measuredDiameter !== null, palette,
-      markerColor: palette[1] || palette[0], lightColor,
-      periodSec: Number.isFinite(period) && period >= 1 && period <= 60 ? period : 5,
-      groundElevationM: elevation, source: 'OpenStreetMap contributors',
-      sourceType: String(element.type || 'osm'), sourceId: String(element.id ?? '')
-    }
-  };
-}
-
-export function lighthouseProfile(properties = {}) {
-  const h = Number(properties.heightM);
-  const d = Number(properties.diameterM);
-  return {
-    heightM: Number.isFinite(h) && h >= 3 && h <= 180 ? h : 22,
-    diameterM: Number.isFinite(d) && d >= 2 && d <= 50 ? d : 5.28,
-    measuredHeight: properties.measuredHeight === true,
-    measuredDiameter: properties.measuredDiameter === true,
-    palette: Array.isArray(properties.palette) && properties.palette.length
-      ? properties.palette.map(normalizeColor).filter(Boolean).slice(0, 3)
-      : ['#f1ead9', '#b64436'],
-    lightColor: normalizeColor(properties.lightColor) || '#ffe6a4',
-    periodSec: Math.max(1, Math.min(60, Number(properties.periodSec) || 5))
-  };
-}
-
-export function solarElevationDegrees(latitude, longitude, date = new Date()) {
-  const year = date.getUTCFullYear();
-  const start = Date.UTC(year, 0, 1);
-  const day = Math.floor((Date.UTC(year, date.getUTCMonth(), date.getUTCDate()) - start) / 86400000) + 1;
-  const hour = date.getUTCHours() + date.getUTCMinutes() / 60 +
-    date.getUTCSeconds() / 3600 + date.getUTCMilliseconds() / 3600000;
-  const days = ((year % 4 === 0 && year % 100 !== 0) || year % 400 === 0) ? 366 : 365;
-  const gamma = TAU / days * (day - 1 + (hour - 12) / 24);
-  const equationMinutes = 229.18 * (
-    0.000075 + 0.001868 * Math.cos(gamma) - 0.032077 * Math.sin(gamma) -
-    0.014615 * Math.cos(2 * gamma) - 0.040849 * Math.sin(2 * gamma)
-  );
-  const declination =
-    0.006918 - 0.399912 * Math.cos(gamma) + 0.070257 * Math.sin(gamma) -
-    0.006758 * Math.cos(2 * gamma) + 0.000907 * Math.sin(2 * gamma) -
-    0.002697 * Math.cos(3 * gamma) + 0.00148 * Math.sin(3 * gamma);
-  const solarMinutes = hour * 60 + equationMinutes + 4 * Number(longitude);
-  const hourAngle = (solarMinutes / 4 - 180) * RAD;
-  const lat = Number(latitude) * RAD;
-  const cosineZenith = Math.max(-1, Math.min(1,
-    Math.sin(lat) * Math.sin(declination) +
-    Math.cos(lat) * Math.cos(declination) * Math.cos(hourAngle)
-  ));
-  return 90 - Math.acos(cosineZenith) / RAD;
-}
-
-export function isDarkAt(latitude, longitude, date = new Date()) {
-  return solarElevationDegrees(latitude, longitude, date) <= NIGHT_THRESHOLD_DEG;
-}
-
-export function lighthouseRenderModeForZoom(value) {
-  const zoom = Number(value) || 0;
-  if (zoom < MIN_BEACON_ZOOM) return 'hidden';
-  if (zoom < MIN_MODEL_ZOOM) return 'rotating-beacon';
-  return '3d-tower';
-}
-
-function modelMatrixFor(map, THREE, coordinate, altitude) {
+function allowedEmbed(value) {
   try {
-    const raw = map.transform && typeof map.transform.getMatrixForModel === 'function'
-      ? map.transform.getMatrixForModel(
-          [Number(coordinate[0]), Number(coordinate[1])], Number(altitude) || 0
-        ) : null;
-    if (raw && raw.length >= 16) return new THREE.Matrix4().fromArray(raw);
-    const Mercator = window.maplibregl && window.maplibregl.MercatorCoordinate;
-    if (!Mercator || typeof Mercator.fromLngLat !== 'function') return null;
-    const mc = Mercator.fromLngLat(
-      [Number(coordinate[0]), Number(coordinate[1])], Number(altitude) || 0
-    );
-    const metres = mc.meterInMercatorCoordinateUnits();
-    if (![mc.x, mc.y, mc.z, metres].every(Number.isFinite) || metres <= 0) return null;
-    return new THREE.Matrix4().set(
-      metres, 0, 0, mc.x,
-      0, 0, metres, mc.y,
-      0, metres, 0, mc.z,
-      0, 0, 0, 1
-    );
+    const url = new URL(String(value || ''));
+    const hosts = ['sketchfab.com', 'my.matterport.com', 'www.kiriengine.app', 'lumalabs.ai'];
+    if (url.protocol !== 'https:' || !hosts.includes(url.hostname)) return '';
+    return url.href;
   } catch (_) {
-    return null;
+    return '';
   }
 }
-
-function addMesh(THREE, parent, geometry, material, x, y, z) {
-  const mesh = new THREE.Mesh(geometry, material);
-  mesh.position.set(x || 0, y || 0, z || 0);
-  mesh.frustumCulled = false;
-  parent.add(mesh);
-  return mesh;
-}
-
-function disposeObject(root) {
-  if (!root) return;
-  root.traverse(object => {
-    if (object.geometry && typeof object.geometry.dispose === 'function') object.geometry.dispose();
-    if (object.material) {
-      const materials = Array.isArray(object.material) ? object.material : [object.material];
-      for (const material of materials) {
-        if (!material) continue;
-        for (const value of Object.values(material)) {
-          if (value && value.isTexture && typeof value.dispose === 'function') value.dispose();
-        }
-        if (typeof material.dispose === 'function') material.dispose();
-      }
-    }
-  });
-}
-
-function triangle(vertices, a, b, c) {
-  vertices.push(a[0], a[1], a[2], b[0], b[1], b[2], c[0], c[1], c[2]);
-}
-
-function createBeamGeometry(THREE, rangeM) {
-  const angle = 0.11;
-  const halfHeight = 1.15;
-  const left = [Math.sin(-angle) * rangeM, 0, Math.cos(-angle) * rangeM];
-  const right = [Math.sin(angle) * rangeM, 0, Math.cos(angle) * rangeM];
-  const ot = [0, halfHeight, 0], lt = [left[0], halfHeight, left[2]];
-  const rt = [right[0], halfHeight, right[2]];
-  const ob = [0, -halfHeight, 0], lb = [left[0], -halfHeight, left[2]];
-  const rb = [right[0], -halfHeight, right[2]];
-  const v = [];
-  triangle(v, ot, lt, rt); triangle(v, ob, rb, lb);
-  triangle(v, ot, ob, lb); triangle(v, ot, lb, lt);
-  triangle(v, ot, rt, rb); triangle(v, ot, rb, ob);
-  triangle(v, lt, lb, rb); triangle(v, lt, rb, rt);
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(v, 3));
-  geometry.computeVertexNormals();
-  return geometry;
-}
-
-function createLighthouseModel(THREE, feature) {
-  const p = feature.properties || {};
-  const profile = lighthouseProfile(p);
-  const h = profile.heightM, diameter = profile.diameterM;
-  const root = new THREE.Group();
-  root.name = 'OSM lighthouse ' + String(p.name || p.key || '');
-  root.matrixAutoUpdate = false;
-  const side = THREE.DoubleSide;
-  const mat = (color, roughness = 0.72, metalness = 0.02) =>
-    new THREE.MeshStandardMaterial({ color, roughness, metalness, side });
-  const stone = mat(profile.palette[0]);
-  const accent = mat(profile.palette[1] || profile.palette[0]);
-  const metal = mat('#343b40', 0.48, 0.62);
-  const roof = mat('#293239', 0.62, 0.42);
-  const glass = new THREE.MeshStandardMaterial({
-    color: '#9eb9c0', roughness: 0.13, metalness: 0.14, transparent: true,
-    opacity: 0.34, depthWrite: false, side
-  });
-  const baseY = 0.22, bodyHeight = h * 0.755;
-  const bodyBottom = diameter * 0.50, bodyTop = diameter * 0.285;
-  const steps = 8;
-  addMesh(THREE, root,
-    new THREE.CylinderGeometry(diameter * 0.55, diameter * 0.58, 0.44, 20),
-    stone, 0, 0.22, 0);
-
-  // One tapered, closed polygon shell with vertex-colour bands keeps the tower
-  // solid while avoiding a separate draw call for every painted section.
-  const bodyGeometry = new THREE.CylinderGeometry(bodyTop, bodyBottom, bodyHeight, 24, steps, false);
-  const bodyPositions = bodyGeometry.getAttribute('position');
-  const bodyColors = [];
-  const bodyStone = new THREE.Color(profile.palette[0]);
-  const bodyAccent = new THREE.Color(profile.palette[1] || profile.palette[0]);
-  for (let i = 0; i < bodyPositions.count; i++) {
-    const t = Math.max(0, Math.min(0.9999, (bodyPositions.getY(i) + bodyHeight * 0.5) / bodyHeight));
-    const band = profile.palette.length > 1 && Math.floor(t * steps) % 3 === 2;
-    const color = band ? bodyAccent : bodyStone;
-    bodyColors.push(color.r, color.g, color.b);
-  }
-  bodyGeometry.setAttribute('color', new THREE.Float32BufferAttribute(bodyColors, 3));
-  const bodyMaterial = new THREE.MeshStandardMaterial({
-    vertexColors: true, roughness: 0.78, metalness: 0.015, side
-  });
-  addMesh(THREE, root, bodyGeometry, bodyMaterial, 0, baseY + bodyHeight * 0.5, 0);
-
-  const galleryY = baseY + bodyHeight;
-  const galleryRadius = diameter * 0.405;
-  addMesh(THREE, root,
-    new THREE.CylinderGeometry(galleryRadius, galleryRadius * 1.04, 0.22, 24),
-    metal, 0, galleryY, 0);
-  addMesh(THREE, root,
-    new THREE.TorusGeometry(galleryRadius * 0.93, 0.035, 7, 32),
-    metal, 0, galleryY + 0.55, 0).rotation.x = Math.PI / 2;
-
-  // Repeated gallery rail posts and lantern mullions are instanced geometry.
-  const railRadius = galleryRadius * 0.93;
-  const railPosts = new THREE.InstancedMesh(
-    new THREE.CylinderGeometry(0.022, 0.022, 0.56, 6), metal, 16
-  );
-  const instanceMatrix = new THREE.Matrix4();
-  for (let i = 0; i < 16; i++) {
-    const a = i / 16 * TAU;
-    instanceMatrix.makeTranslation(
-      Math.cos(a) * railRadius, galleryY + 0.28, Math.sin(a) * railRadius
-    );
-    railPosts.setMatrixAt(i, instanceMatrix);
-  }
-  railPosts.instanceMatrix.needsUpdate = true;
-  railPosts.frustumCulled = false;
-  root.add(railPosts);
-
-  const chamberHeight = Math.max(1.5, h * 0.105);
-  const chamberRadius = diameter * 0.305;
-  const chamberY = galleryY + 0.22 + chamberHeight * 0.5;
-  addMesh(THREE, root,
-    new THREE.CylinderGeometry(chamberRadius, chamberRadius, chamberHeight, 16, 1, true),
-    glass, 0, chamberY, 0);
-
-  const rimGeometry = new THREE.CylinderGeometry(1, 1, 0.10, 20);
-  const rims = new THREE.InstancedMesh(rimGeometry, metal, 2);
-  const identity = new THREE.Quaternion();
-  const rimMatrix = new THREE.Matrix4();
-  const rimPosition = new THREE.Vector3();
-  const rimScale = new THREE.Vector3();
-  [
-    { y: chamberY - chamberHeight * 0.5, radius: chamberRadius * 1.05 },
-    { y: chamberY + chamberHeight * 0.5, radius: chamberRadius * 1.09 }
-  ].forEach((rim, index) => {
-    rimPosition.set(0, rim.y, 0);
-    rimScale.set(rim.radius, 1, rim.radius);
-    rimMatrix.compose(rimPosition, identity, rimScale);
-    rims.setMatrixAt(index, rimMatrix);
-  });
-  rims.instanceMatrix.needsUpdate = true;
-  rims.frustumCulled = false;
-  root.add(rims);
-
-  const mullionGeometry = new THREE.BoxGeometry(0.045, chamberHeight * 0.94, 0.045);
-  const mullions = new THREE.InstancedMesh(mullionGeometry, metal, 16);
-  for (let i = 0; i < 16; i++) {
-    const a = i / 16 * TAU;
-    instanceMatrix.makeTranslation(
-      Math.cos(a) * chamberRadius, chamberY, Math.sin(a) * chamberRadius
-    );
-    mullions.setMatrixAt(i, instanceMatrix);
-  }
-  mullions.instanceMatrix.needsUpdate = true;
-  mullions.frustumCulled = false;
-  root.add(mullions);
-
-  const lampMaterial = new THREE.MeshStandardMaterial({
-    color: profile.lightColor, emissive: profile.lightColor, emissiveIntensity: 1.35,
-    roughness: 0.18, metalness: 0, side
-  });
-  const lampY = chamberY;
-  addMesh(THREE, root,
-    new THREE.SphereGeometry(chamberRadius * 0.26, 16, 12),
-    lampMaterial, 0, lampY, 0);
-
-  const roofHeight = Math.max(0.9, h * 0.075);
-  addMesh(THREE, root,
-    new THREE.ConeGeometry(chamberRadius * 1.28, roofHeight, 16),
-    roof, 0, chamberY + chamberHeight * 0.5 + roofHeight * 0.5, 0);
-  addMesh(THREE, root,
-    new THREE.CylinderGeometry(0.07, 0.11, roofHeight * 0.24, 8),
-    metal, 0, chamberY + chamberHeight * 0.5 + roofHeight * 0.93, 0);
-
-  const beamGroup = new THREE.Group();
-  beamGroup.position.y = lampY;
-  beamGroup.visible = false;
-  const beamMaterial = new THREE.MeshBasicMaterial({
-    color: profile.lightColor, transparent: true, opacity: 0.19,
-    blending: THREE.AdditiveBlending, depthWrite: false, side
-  });
-  const beamRange = Math.max(260, Math.min(1100, h * 24));
-  addMesh(THREE, beamGroup, createBeamGeometry(THREE, beamRange), beamMaterial, 0, 0, 0);
-  root.add(beamGroup);
+function asFeatureCollection() {
   return {
-    root, beamGroup, lampMaterial, coordinate: feature.geometry.coordinates,
-    groundElevationM: p.groundElevationM !== null && p.groundElevationM !== undefined && Number.isFinite(Number(p.groundElevationM)) ? Number(p.groundElevationM) : null,
-    periodSec: profile.periodSec, night: false, nightCheckedAt: 0
+    type: 'FeatureCollection',
+    features: DATA.map(record => ({
+      type: 'Feature',
+      id: record.id,
+      geometry: { type: 'Point', coordinates: record.coordinates },
+      properties: { recordId: record.id, name: record.name }
+    }))
   };
 }
+const COLLECTION = asFeatureCollection();
 
-async function loadThree() {
-  if (!threePromise) threePromise = import(THREE_URL).catch(error => {
-    threePromise = null;
-    throw error;
-  });
-  return threePromise;
-}
-
-function globalOverpassQuery() {
-  const box = WORLD_BOUNDS.join(',');
-  return '[out:json][timeout:28];(' +
-    'nwr["man_made"="lighthouse"](' + box + ');' +
-    'nwr["building"="lighthouse"](' + box + ');' +
-    'nwr["seamark:type"="light_major"](' + box + ');' +
-    ');out center tags ' + MAX_GLOBAL_FEATURES + ';';
-}
-
-function viewportOverpassQuery(bounds) {
-  const box = [
-    Math.max(-85, bounds.getSouth() - 0.06),
-    Math.max(-180, bounds.getWest() - 0.06),
-    Math.min(85, bounds.getNorth() + 0.06),
-    Math.min(180, bounds.getEast() + 0.06)
-  ].join(',');
-  return '[out:json][timeout:18];(' +
-    'nwr["man_made"="lighthouse"](' + box + ');' +
-    'nwr["building"="lighthouse"](' + box + ');' +
-    'nwr["seamark:type"="light_major"](' + box + ');' +
-    ');out center tags 1800;';
-}
-
-async function fetchOverpass(query) {
-  const endpoints = [
-    'https://overpass-api.de/api/interpreter',
-    'https://overpass.kumi.systems/api/interpreter'
-  ];
-  let lastError = null;
-  for (const endpoint of endpoints) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 32000);
-    try {
-      const response = await fetch(endpoint, {
-        method: 'POST', mode: 'cors', credentials: 'omit', cache: 'no-store',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
-        body: 'data=' + encodeURIComponent(query), signal: controller.signal
-      });
-      if (!response.ok) throw new Error('Overpass HTTP ' + response.status);
-      const data = await response.json();
-      if (!data || !Array.isArray(data.elements)) throw new Error('Invalid Overpass response');
-      return data.elements;
-    } catch (error) {
-      lastError = error;
-    } finally {
-      clearTimeout(timer);
-    }
-  }
-  throw lastError || new Error('Overpass lighthouse source unavailable');
-}
-
-function mergeElements(state, elements) {
-  for (const element of elements || []) {
-    const feature = normalizeLighthouseElement(element);
-    if (feature) state.featureCache.set(feature.id, feature);
-  }
-  const features = [...state.featureCache.values()].slice(0, MAX_GLOBAL_FEATURES);
-  state.collection = { type: 'FeatureCollection', features };
-  state.stats.sourceFeatures = features.length;
-  state.stats.measuredHeights = features.filter(f => f.properties.measuredHeight).length;
-  const source = state.map.getSource(SOURCE_ID);
-  if (source) source.setData(state.collection);
-  if (features.length) scheduleBeaconRotation(state);
-}
-
-function createBeaconCanvas() {
+function lighthouseIcon() {
   const canvas = document.createElement('canvas');
-  canvas.width = 96;
-  canvas.height = 96;
+  canvas.width = canvas.height = 72;
   const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('Lighthouse beacon canvas unavailable');
-  ctx.clearRect(0, 0, 96, 96);
+  if (!ctx) throw new Error('Lighthouse scan icon canvas unavailable');
+  ctx.clearRect(0, 0, 72, 72);
   ctx.save();
-  ctx.translate(48, 48);
-  for (const direction of [0, Math.PI]) {
-    ctx.save();
-    ctx.rotate(direction);
-    const beam = ctx.createLinearGradient(2, 0, 46, 0);
-    beam.addColorStop(0, 'rgba(255,255,226,0.98)');
-    beam.addColorStop(0.25, 'rgba(255,232,170,0.84)');
-    beam.addColorStop(0.72, 'rgba(255,213,126,0.26)');
-    beam.addColorStop(1, 'rgba(255,213,126,0)');
-    ctx.shadowColor = 'rgba(255,225,150,0.95)';
-    ctx.shadowBlur = 13;
-    ctx.fillStyle = beam;
-    ctx.beginPath();
-    ctx.moveTo(2, -5.5);
-    ctx.lineTo(47, -1.6);
-    ctx.lineTo(47, 1.6);
-    ctx.lineTo(2, 5.5);
-    ctx.closePath();
-    ctx.fill();
-    ctx.restore();
-  }
-  const glow = ctx.createRadialGradient(0, 0, 1, 0, 0, 18);
-  glow.addColorStop(0, 'rgba(255,255,245,1)');
-  glow.addColorStop(0.22, 'rgba(255,238,183,0.98)');
-  glow.addColorStop(0.5, 'rgba(255,195,91,0.48)');
-  glow.addColorStop(1, 'rgba(255,195,91,0)');
-  ctx.fillStyle = glow;
+  ctx.shadowColor = 'rgba(0,0,0,.65)';
+  ctx.shadowBlur = 7;
+  ctx.fillStyle = '#10242d';
   ctx.beginPath();
-  ctx.arc(0, 0, 18, 0, TAU);
+  ctx.arc(36, 36, 30, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = '#fff9d9';
-  ctx.strokeStyle = '#b46d28';
-  ctx.lineWidth = 2.2;
-  ctx.beginPath();
-  ctx.arc(0, 0, 5.2, 0, TAU);
-  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = '#f1c96b';
   ctx.stroke();
+  ctx.fillStyle = 'rgba(250,218,135,.85)';
+  ctx.beginPath();
+  ctx.moveTo(9, 20);
+  ctx.lineTo(29, 27);
+  ctx.lineTo(29, 32);
+  ctx.lineTo(9, 31);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(63, 20);
+  ctx.lineTo(43, 27);
+  ctx.lineTo(43, 32);
+  ctx.lineTo(63, 31);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#fff8df';
+  ctx.beginPath();
+  ctx.moveTo(27, 57);
+  ctx.lineTo(31, 30);
+  ctx.lineTo(41, 30);
+  ctx.lineTo(45, 57);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#cf554b';
+  ctx.fillRect(29, 42, 14, 5);
+  ctx.fillStyle = '#f1c96b';
+  ctx.fillRect(28, 25, 16, 8);
+  ctx.fillStyle = '#fff7de';
+  ctx.fillRect(30, 17, 12, 8);
+  ctx.fillStyle = '#f1c96b';
+  ctx.fillRect(28, 14, 16, 3);
+  ctx.fillRect(34, 10, 4, 4);
   ctx.restore();
   return canvas;
 }
 
-function addMarkerLayer(map) {
-  if (!map.getSource(SOURCE_ID)) {
-    map.addSource(SOURCE_ID, {
-      type: 'geojson', data: EMPTY, tolerance: 0.2,
-      attribution: '© OpenStreetMap contributors · Lighthouse locations (ODbL)'
-    });
-  }
-  if (!map.getLayer(BEACON_HALO_LAYER_ID)) {
-    map.addLayer({
-      id: BEACON_HALO_LAYER_ID, type: 'circle', source: SOURCE_ID,
-      minzoom: MIN_BEACON_ZOOM, maxzoom: MAX_BEACON_ZOOM,
-      paint: {
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 3.8, 5.5, 6, 7.5, 10, 8.5, 13.5, 7.5],
-        'circle-color': '#ffd37a', 'circle-blur': 0.9, 'circle-opacity': 0.62
-      }
-    });
-  }
-  if (!map.getLayer(MARKER_LAYER_ID)) {
-    map.addLayer({
-      id: MARKER_LAYER_ID, type: 'circle', source: SOURCE_ID,
-      minzoom: MIN_BEACON_ZOOM, maxzoom: MAX_BEACON_ZOOM,
-      paint: {
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 3.8, 2.6, 7, 3.5, 13.5, 3.2],
-        'circle-color': ['coalesce', ['get', 'markerColor'], '#b64436'],
-        'circle-stroke-color': '#fff4ce', 'circle-stroke-width': 1.1, 'circle-opacity': 1
-      }
-    });
-  }
-  if (typeof map.hasImage === 'function' && !map.hasImage(BEACON_IMAGE_ID)) {
-    const canvas = createBeaconCanvas();
-    map.addImage(BEACON_IMAGE_ID, canvas, { pixelRatio: 2 });
-  }
-  if (!map.getLayer(BEACON_LAYER_ID)) {
-    map.addLayer({
-      id: BEACON_LAYER_ID, type: 'symbol', source: SOURCE_ID,
-      minzoom: MIN_BEACON_ZOOM, maxzoom: MAX_BEACON_ZOOM,
-      layout: {
-        'icon-image': BEACON_IMAGE_ID,
-        'icon-size': ['interpolate', ['linear'], ['zoom'], 3.8, 0.36, 5, 0.52, 7.5, 0.7, 10, 0.78, 13.5, 0.65],
-        'icon-rotate': 0,
-        'icon-rotation-alignment': 'viewport',
-        'icon-pitch-alignment': 'viewport',
-        'icon-anchor': 'center',
-        'icon-allow-overlap': true,
-        'icon-ignore-placement': true,
-        'icon-padding': 0
-      },
-      paint: { 'icon-opacity': 0.98 }
-    });
-  }
+function ensureStyle() {
+  if (document.getElementById(STYLE)) return;
+  const style = document.createElement('style');
+  style.id = STYLE;
+  style.textContent =
+    '.bp-lighthouse-scan-popup-v3 .maplibregl-popup-content{background:#11191d;color:#f3f4ef;border:1px solid rgba(241,201,107,.68);border-radius:14px;padding:12px;font:12px/1.45 system-ui,sans-serif;max-height:min(84vh,820px);overflow:auto;width:min(470px,calc(100vw - 44px));box-shadow:0 12px 45px rgba(0,0,0,.5)}' +
+    '.bp-lighthouse-scan-popup-v3 .maplibregl-popup-tip{border-top-color:#11191d;border-bottom-color:#11191d}' +
+    '.bp-lighthouse-scan-card-v3 h3{font-size:18px;line-height:1.2;color:#fff;margin:4px 0}' +
+    '.bp-lighthouse-scan-card-v3 p{margin:7px 0;color:#d0d9d9}' +
+    '.bp-lighthouse-scan-kicker-v3{font-size:9px;letter-spacing:.11em;text-transform:uppercase;font-weight:900;color:#f1c96b;margin:0}' +
+    '.bp-lighthouse-scan-place-v3{color:#b6c3c4!important;margin:0 0 8px!important}' +
+    '.bp-lighthouse-scan-view-v3{height:min(53vh,390px);min-height:230px;overflow:hidden;border-radius:9px;background:#080d10;margin:9px 0}' +
+    '.bp-lighthouse-scan-view-v3 iframe{width:100%;height:100%;border:0}' +
+    '.bp-lighthouse-scan-tabs-v3{display:flex;gap:5px;overflow:auto;padding:2px 0 4px}' +
+    '.bp-lighthouse-scan-tabs-v3 button{flex:none;background:#202d32;border:1px solid #43545a;border-radius:7px;color:#eaf0ee;padding:6px 8px;font:700 10px/1.2 system-ui;cursor:pointer}' +
+    '.bp-lighthouse-scan-tabs-v3 button[aria-selected=true]{background:#574824;border-color:#e4bc5a;color:#fff6d8}' +
+    '.bp-lighthouse-scan-details-v3{display:grid;gap:6px;margin:10px 0}' +
+    '.bp-lighthouse-scan-details-v3 div{display:grid;grid-template-columns:92px 1fr;gap:8px;align-items:start}' +
+    '.bp-lighthouse-scan-details-v3 b{color:#f1c96b}' +
+    '.bp-lighthouse-scan-note-v3{font-size:10px;color:#aebbbc!important}' +
+    '.bp-lighthouse-scan-link-v3{color:#f6d987;font-weight:800}' +
+    '#'+BUTTON+'.is-active{border-color:rgba(241,201,107,.9);background:rgba(89,71,30,.62);box-shadow:inset 0 0 0 1px rgba(241,201,107,.28)}';
+  document.head.appendChild(style);
 }
 
-function scheduleBeaconRotation(state) {
-  if (state.dead || state.beaconTimer) return;
-  const tick = () => {
-    state.beaconTimer = 0;
-    if (state.dead) return;
-    const map = state.map;
-    const zoom = Number(map.getZoom && map.getZoom() || 0);
-    const visible = !document.hidden && zoom >= MIN_BEACON_ZOOM &&
-      zoom < MAX_BEACON_ZOOM && !!map.getLayer(BEACON_LAYER_ID);
-    if (visible) {
-      try {
-        const degrees = ((Date.now() / 34) % 360 + 360) % 360;
-        map.setLayoutProperty(BEACON_LAYER_ID, 'icon-rotate', degrees);
-      } catch (_) {}
-      state.beaconTimer = setTimeout(tick, 90);
-    } else {
-      state.beaconTimer = setTimeout(tick, 500);
-    }
-  };
-  state.beaconTimer = setTimeout(tick, 20);
+function cardHtml(record) {
+  const first = record.models[0];
+  const initialUrl = allowedEmbed(first && first.url);
+  const tabs = record.models.map((model, index) => {
+    return '<button type="button" data-lighthouse-scan-index="' + index + '" data-lighthouse-scan-url="' +
+      escapeHtml(allowedEmbed(model.url)) + '" aria-selected="' + String(index === 0) + '">' +
+      escapeHtml(model.label) + '</button>';
+  }).join('');
+  const source = record.sourceUrl && /^https:\/\//.test(record.sourceUrl)
+    ? '<p><a class="bp-lighthouse-scan-link-v3" href="' + escapeHtml(record.sourceUrl) + '" target="_blank" rel="noopener noreferrer">Capture and location source ↗</a></p>' : '';
+  const models = record.models.map((model, index) => {
+    const link = model.sourceUrl && /^https:\/\//.test(model.sourceUrl)
+      ? '<a class="bp-lighthouse-scan-link-v3" href="' + escapeHtml(model.sourceUrl) + '" target="_blank" rel="noopener noreferrer">Source ↗</a>' : '';
+    return '<div data-lighthouse-model-details="' + index + '" ' + (index ? 'hidden' : '') +
+      '><b>Viewer:</b> ' + escapeHtml(model.kind) + ' ' + link + '</div>';
+  }).join('');
+  return '<article class="bp-lighthouse-scan-card-v3">' +
+    '<p class="bp-lighthouse-scan-kicker-v3">BridgePoint · Lighthouse scan record ' + escapeHtml(record.id) + '</p>' +
+    '<h3>' + escapeHtml(record.name) + '</h3>' +
+    '<p class="bp-lighthouse-scan-place-v3">' + escapeHtml(record.country) + ' · ' +
+      Number(record.coordinates[1]).toFixed(5) + ', ' + Number(record.coordinates[0]).toFixed(5) + '</p>' +
+    '<p>' + escapeHtml(record.description) + '</p>' +
+    '<div class="bp-lighthouse-scan-tabs-v3" role="tablist" aria-label="Lighthouse 3D capture views">' + tabs + '</div>' +
+    '<div class="bp-lighthouse-scan-view-v3"><iframe title="' + escapeHtml(record.name + ' 3D viewer') +
+      '" src="' + escapeHtml(initialUrl) + '" loading="eager" allow="autoplay; fullscreen; xr-spatial-tracking; accelerometer; gyroscope" allowfullscreen></iframe></div>' +
+    '<div class="bp-lighthouse-scan-details-v3">' +
+      '<div><b>Capture</b><span>' + escapeHtml(record.capture) + '</span></div>' +
+      '<div><b>Coverage</b><span>' + escapeHtml(record.coverage) + '</span></div>' +
+      '<div><b>Approach</b><span>' + escapeHtml(record.approach) + '</span></div>' +
+      '<div><b>View type</b><span data-lighthouse-model-details="active">' + escapeHtml(first.kind) + '</span></div>' +
+      '<div><b>Location</b><span>Pin from published lighthouse coordinates; map marker stays fixed to the station at every zoom.</span></div>' +
+    '</div>' + models + source +
+    '<p class="bp-lighthouse-scan-note-v3">Embedded public capture by its credited publisher. A viewer is shown only where a public model or walkthrough is linked; unsurveyed geometry is not filled in.</p>' +
+    '</article>';
 }
 
-function mapMatrix(map, THREE, coordinate, ground) {
-  let elevation = ground;
-  try {
-    if (typeof map.queryTerrainElevation === 'function') {
-      const sampled = map.queryTerrainElevation(coordinate, { exaggerated: false });
-      if (sampled !== null && sampled !== undefined && Number.isFinite(Number(sampled))) {
-        elevation = Number(sampled);
-      }
-    }
-  } catch (_) {}
-  return modelMatrixFor(map, THREE, coordinate, Number.isFinite(elevation) ? elevation : 0);
-}
-
-function withinBounds(bounds, coordinate) {
-  try { return bounds && bounds.contains(coordinate); } catch (_) { return false; }
-}
-
-function modelCandidates(state) {
-  const map = state.map;
-  if (Number(map.getZoom && map.getZoom() || 0) < MIN_MODEL_ZOOM) return [];
-  const bounds = map.getBounds && map.getBounds();
-  if (!bounds) return [];
-  const center = map.getCenter && map.getCenter();
-  const list = [];
-  for (const feature of state.collection.features) {
-    const coordinate = feature.geometry.coordinates;
-    if (!withinBounds(bounds, coordinate)) continue;
-    const latScale = Math.max(0.12, Math.cos(Number(coordinate[1]) * RAD));
-    const dx = (Number(coordinate[0]) - Number(center && center.lng || 0)) * 111320 * latScale;
-    const dy = (Number(coordinate[1]) - Number(center && center.lat || 0)) * 110540;
-    list.push({ feature, distance: dx * dx + dy * dy });
+function addLayers(map) {
+  if (!map.getSource(SOURCE)) map.addSource(SOURCE, {
+    type: 'geojson', data: COLLECTION, tolerance: 0.1,
+    attribution: 'Lighthouse scan sources: Kystverkmusea, Sketchfab model creators, Matterport, and named public project sources'
+  });
+  if (typeof map.hasImage === 'function' && !map.hasImage(ICON)) {
+    map.addImage(ICON, lighthouseIcon(), { pixelRatio: 2 });
   }
-  list.sort((a, b) => a.distance - b.distance);
-  return list.slice(0, MAX_RENDERED_MODELS).map(item => item.feature);
-}
-
-function rebuildModels(state) {
-  if (!state.THREE || !state.scene || state.dead) return;
-  const selected = modelCandidates(state);
-  const signature = selected.map(f => f.id).join('|');
-  if (signature === state.modelSignature) return;
-  for (const item of state.models) {
-    state.scene.remove(item.root);
-    disposeObject(item.root);
-  }
-  state.models = [];
-  state.modelSignature = signature;
-  for (const feature of selected) {
-    try {
-      const item = createLighthouseModel(state.THREE, feature);
-      state.scene.add(item.root);
-      state.models.push(item);
-    } catch (error) {
-      console.warn('BridgePoint lighthouse model skipped', feature.id, error);
-    }
-  }
-  state.stats.renderedModels = state.models.length;
-}
-
-function installModelLayer(state) {
-  const map = state.map;
-  if (map.getLayer(MODEL_LAYER_ID)) return true;
-  if (state.layerInstalling) return false;
-  state.layerInstalling = true;
-  const THREE = state.THREE;
-  const layer = {
-    id: MODEL_LAYER_ID, type: 'custom', renderingMode: '3d',
-    onAdd(mapRef, gl) {
-      if (state.renderer) return;
-      const renderer = new THREE.WebGLRenderer({
-        canvas: mapRef.getCanvas(), context: gl, antialias: false,
-        alpha: true, powerPreference: 'low-power'
-      });
-      renderer.autoClear = false;
-      renderer.outputColorSpace = THREE.SRGBColorSpace;
-      state.renderer = renderer;
-      state.camera = new THREE.Camera();
-      state.scene = new THREE.Scene();
-      state.scene.add(new THREE.AmbientLight(0xffffff, 1.25));
-      const key = new THREE.DirectionalLight(0xfff3dc, 1.25);
-      key.position.set(-0.6, 1.4, 0.8);
-      state.scene.add(key);
-      state.stats.layerReady = true;
-      rebuildModels(state);
+  if (!map.getLayer(MARKER)) map.addLayer({
+    id: MARKER, type: 'symbol', source: SOURCE,
+    minzoom: 0, maxzoom: 24,
+    layout: {
+      'icon-image': ICON,
+      'icon-size': ['interpolate', ['linear'], ['zoom'], 0, 0.35, 3, 0.43, 7, 0.60, 12, 0.74, 18, 0.9],
+      'icon-anchor': 'center', 'icon-allow-overlap': true, 'icon-ignore-placement': true,
+      'icon-padding': 0
     },
-    render(gl, args) {
-      if (!state.renderer || !state.scene || !state.camera) return;
-      const raw = args && (
-        (args.defaultProjectionData && args.defaultProjectionData.mainMatrix) ||
-        args.modelViewProjectionMatrix
-      );
-      if (!raw || raw.length < 16) return;
-      const projection = new THREE.Matrix4().fromArray(raw);
-      const now = Date.now();
-      let anyNight = false;
-      const zoom = Number(map.getZoom && map.getZoom() || 0);
-      for (const item of state.models) item.root.visible = false;
-      if (zoom >= MIN_MODEL_ZOOM) {
-        for (const item of state.models) {
-          if (now - item.nightCheckedAt > 30000) {
-            item.night = isDarkAt(item.coordinate[1], item.coordinate[0], new Date(now));
-            item.nightCheckedAt = now;
-            item.lampMaterial.emissiveIntensity = item.night ? 2.7 : 0.72;
-          }
-          item.beamGroup.visible = item.night;
-          if (item.night) {
-            item.beamGroup.rotation.y = ((now / 1000) % item.periodSec) / item.periodSec * TAU;
-            anyNight = true;
-          }
-          const matrix = mapMatrix(map, THREE, item.coordinate, item.groundElevationM);
-          if (!matrix) continue;
-          item.root.visible = true;
-          state.camera.projectionMatrix.copy(projection).multiply(matrix);
-          try {
-            state.renderer.resetState();
-            state.renderer.render(state.scene, state.camera);
-          } catch (error) {
-            if (!state.renderWarned) {
-              state.renderWarned = true;
-              console.warn('BridgePoint lighthouse draw', error);
-            }
-          } finally {
-            item.root.visible = false;
-          }
-        }
-      }
-      if (anyNight && map.triggerRepaint && !state.animationTimer && !document.hidden) {
-        state.animationTimer = setTimeout(() => {
-          state.animationTimer = 0;
-          if (!state.dead && !document.hidden) map.triggerRepaint();
-        }, 50);
-      }
+    paint: { 'icon-opacity': 1 }
+  });
+  if (!map.getLayer(LABEL)) map.addLayer({
+    id: LABEL, type: 'symbol', source: SOURCE, minzoom: 4.5, maxzoom: 24,
+    layout: {
+      'text-field': ['get', 'name'],
+      'text-font': ['Open Sans Semibold', 'Arial Unicode MS Regular'],
+      'text-size': ['interpolate', ['linear'], ['zoom'], 4.5, 10, 9, 12, 15, 13],
+      'text-offset': [0, 1.35], 'text-anchor': 'top',
+      'text-max-width': 12, 'text-optional': true,
+      'text-allow-overlap': false, 'text-ignore-placement': false
     },
-    onRemove() {
-      try { state.renderer && state.renderer.dispose(); } catch (_) {}
-      state.renderer = null; state.camera = null; state.scene = null;
-      state.stats.layerReady = false; state.layerInstalling = false;
+    paint: {
+      'text-color': '#fff4d1', 'text-halo-color': '#182126',
+      'text-halo-width': 1.5, 'text-halo-blur': 0.4
     }
-  };
+  });
+}
+
+function setVisible(map, visible) {
+  for (const layer of [MARKER, LABEL]) {
+    if (map.getLayer(layer)) map.setLayoutProperty(layer, 'visibility', visible ? 'visible' : 'none');
+  }
+}
+
+function ensureButton(state) {
+  const dock = document.getElementById('bpv-dock-actions');
+  if (!dock) return false;
+  ensureStyle();
+  if (document.getElementById(CONTROL)) return true;
+  const section = document.createElement('section');
+  section.id = CONTROL;
+  section.className = 'bpv-command-group';
+  section.setAttribute('data-bpv-command-section', 'lighthouses');
+  section.setAttribute('aria-label', 'Lighthouses');
+  section.innerHTML = '<div class="bpv-command-grid"><button id="' + BUTTON +
+    '" type="button" class="bpv-command-btn" aria-pressed="false" title="Show lighthouse scan pins">' +
+    '<span class="bpv-command-icon" aria-hidden="true">⚓</span>' +
+    '<span class="bpv-command-label">Lighthouses</span></button></div>';
+  dock.appendChild(section);
+  const button = section.querySelector('#' + BUTTON);
+  button.addEventListener('click', () => setEnabled(state, !state.enabled));
+  return true;
+}
+
+function popup(state, record, lngLat) {
+  const Popup = window.maplibregl && window.maplibregl.Popup;
+  if (!Popup) return;
+  state.popup && state.popup.remove();
+  state.popup = new Popup({
+    closeButton: true, closeOnClick: true, maxWidth: '500px',
+    className: 'bp-lighthouse-scan-popup-v3'
+  }).setLngLat(lngLat || record.coordinates).setHTML(cardHtml(record)).addTo(state.map);
+  const root = state.popup.getElement && state.popup.getElement().querySelector('.bp-lighthouse-scan-card-v3');
+  if (!root) return;
+  root.addEventListener('click', event => {
+    const tab = event.target.closest && event.target.closest('[data-lighthouse-scan-index]');
+    if (!tab) return;
+    const index = Number(tab.getAttribute('data-lighthouse-scan-index'));
+    const model = record.models[index];
+    const url = allowedEmbed(tab.getAttribute('data-lighthouse-scan-url'));
+    if (!model || !url) return;
+    const frame = root.querySelector('.bp-lighthouse-scan-view-v3 iframe');
+    if (frame) frame.src = url;
+    root.querySelectorAll('[data-lighthouse-scan-index]').forEach(node => {
+      node.setAttribute('aria-selected', String(node === tab));
+    });
+    const kind = root.querySelector('[data-lighthouse-model-details="active"]');
+    if (kind) kind.textContent = model.kind;
+  });
+}
+
+function install(state) {
+  const map = state.map;
+  if (state.dead || !map.getStyle || !map.getStyle()) return false;
   try {
-    map.addLayer(layer);
-    state.layerInstalling = false;
+    addLayers(map);
+    setVisible(map, state.enabled);
+    state.status = 'ready';
     return true;
   } catch (error) {
-    state.layerInstalling = false;
-    console.warn('BridgePoint lighthouse 3D layer could not attach', error);
+    state.status = 'map-layer-unavailable';
+    state.lastError = String(error && error.message || error);
+    console.warn('BridgePoint lighthouse scan pins could not attach', error);
     return false;
   }
 }
 
-function scheduleRefresh(state) {
-  if (state.dead || state.refreshTimer) return;
-  state.refreshTimer = setTimeout(() => {
-    state.refreshTimer = 0;
-    try {
-      if (state.map.getSource(SOURCE_ID) && state.collection.features.length) rebuildModels(state);
-      if (state.map.getZoom() >= MIN_MODEL_ZOOM && state.models.length &&
-          state.map.triggerRepaint) state.map.triggerRepaint();
-    } catch (error) {
-      console.warn('BridgePoint lighthouse refresh', error);
-    }
-  }, 140);
-}
-
-async function loadGlobalData(state) {
-  if (state.globalLoading || state.globalLoaded || state.dead) return;
-  state.globalLoading = true;
-  state.status = 'loading-global-openstreetmap';
-  try {
-    const elements = await fetchOverpass(globalOverpassQuery());
-    if (state.dead) return;
-    mergeElements(state, elements);
-    state.globalLoaded = true;
-    state.status = 'global-openstreetmap-ready';
-    rebuildModels(state);
-  } catch (error) {
-    if (!state.dead) {
-      state.status = 'global-source-unavailable';
-      state.stats.lastError = String(error && error.message || error);
-      console.warn('BridgePoint global lighthouse source unavailable', error);
-    }
-  } finally {
-    state.globalLoading = false;
+function setEnabled(state, value) {
+  state.enabled = Boolean(value);
+  if (state.enabled) install(state);
+  setVisible(state.map, state.enabled);
+  const button = document.getElementById(BUTTON);
+  if (button) {
+    button.setAttribute('aria-pressed', String(state.enabled));
+    button.classList.toggle('is-active', state.enabled);
   }
-}
-
-async function loadViewportData(state) {
-  if (state.dead || state.globalLoaded) return;
-  if (Number(state.map.getZoom()) < MIN_BEACON_ZOOM) return;
-  if (state.viewportLoading) { state.viewportPending = true; return; }
-  state.viewportLoading = true;
-  try {
-    const elements = await fetchOverpass(viewportOverpassQuery(state.map.getBounds()));
-    if (state.dead) return;
-    mergeElements(state, elements);
-    state.status = 'viewport-openstreetmap-ready';
-    rebuildModels(state);
-  } catch (error) {
-    if (!state.dead) {
-      state.stats.lastError = String(error && error.message || error);
-      state.status = 'viewport-source-unavailable';
-    }
-  } finally {
-    state.viewportLoading = false;
-    if (state.viewportPending && !state.dead && !state.globalLoaded) {
-      state.viewportPending = false;
-      setTimeout(() => void loadViewportData(state), 240);
-    }
+  if (!state.enabled && state.popup) {
+    state.popup.remove();
+    state.popup = null;
   }
-}
-
-function install(map, state) {
-  if (!map || !map.getStyle || !map.getStyle()) return;
-  try {
-    addMarkerLayer(map);
-    state.stats.markerLayerReady = !!map.getLayer(MARKER_LAYER_ID);
-    state.stats.beaconLayerReady = !!map.getLayer(BEACON_LAYER_ID);
-  } catch (error) {
-    state.stats.lastError = String(error && error.message || error);
-    console.warn('BridgePoint lighthouse locator could not attach', error);
-    return;
-  }
-  if (state.installed) {
-    if (state.THREE) {
-      installModelLayer(state);
-      rebuildModels(state);
-    }
-    scheduleBeaconRotation(state);
-    return;
-  }
-  state.installed = true;
-  loadThree().then(THREE => {
-    if (state.dead) return;
-    state.THREE = THREE;
-    installModelLayer(state);
-    rebuildModels(state);
-    state.status = state.globalLoaded ? 'ready' : '3d-renderer-ready-loading-data';
-  }).catch(error => {
-    state.status = 'three-unavailable';
-    state.stats.lastError = String(error && error.message || error);
-    console.warn('BridgePoint lighthouse Three.js module unavailable', error);
-  });
-  void loadGlobalData(state);
-  if (Number(map.getZoom && map.getZoom() || 0) >= MIN_BEACON_ZOOM) {
-    void loadViewportData(state);
-  }
-  map.on('moveend', () => {
-    scheduleRefresh(state);
-    if (!state.globalLoaded) void loadViewportData(state);
-    scheduleBeaconRotation(state);
-  });
-  map.on('zoomend', () => {
-    scheduleRefresh(state);
-    if (!state.globalLoaded) void loadViewportData(state);
-    scheduleBeaconRotation(state);
-  });
-  scheduleBeaconRotation(state);
+  state.status = state.enabled ? 'ready' : 'off';
+  return state.enabled;
 }
 
 export function initLighthouseRenderer(target) {
   const map = target && (target.map || target);
-  if (!map || typeof map.getBounds !== 'function' || typeof map.addSource !== 'function') return null;
-  const existing = MAP_STATES.get(map);
-  if (existing) return existing.api;
-  const state = {
-    map, installed: false, dead: false, layerInstalling: false,
-    globalLoading: false, globalLoaded: false, viewportLoading: false,
-    refreshTimer: 0, animationTimer: 0, beaconTimer: 0, viewportPending: false,
-    THREE: null, scene: null, camera: null, renderer: null,
-    featureCache: new Map(), collection: EMPTY, models: [], modelSignature: '',
-    status: 'initializing',
-    stats: { version: VERSION, sourceFeatures: 0, renderedModels: 0,
-      measuredHeights: 0, markerLayerReady: false, layerReady: false, lastError: null },
-    renderWarned: false
+  if (!map || typeof map.addSource !== 'function' || typeof map.getBounds !== 'function') return null;
+  const previous = MAP_STATES.get(map);
+  if (previous) return previous.api;
+  ensureStyle();
+  const state = { map, enabled: false, dead: false, status: 'off', lastError: null, popup: null, observer: null, retry: 0 };
+  state.click = event => {
+    if (!state.enabled || !map.queryRenderedFeatures) return;
+    const hits = map.queryRenderedFeatures(event.point, { layers: [MARKER] }) || [];
+    const id = hits.length && hits[0].properties && String(hits[0].properties.recordId);
+    const record = DATA.find(item => item.id === id);
+    if (record) popup(state, record, event.lngLat || record.coordinates);
   };
+  state.hover = event => {
+    if (!state.enabled || !map.getLayer(MARKER) || !map.queryRenderedFeatures) return;
+    const hit = (map.queryRenderedFeatures(event.point, { layers: [MARKER] }) || []).length > 0;
+    map.getCanvas().style.cursor = hit ? 'pointer' : '';
+  };
+  state.style = () => { if (state.enabled) install(state); };
+  state.persist = () => {
+    if (state.dead || !state.enabled || state.frame) return;
+    const raf = window.requestAnimationFrame || (callback => setTimeout(callback, 16));
+    state.frame = raf(() => {
+      state.frame = 0;
+      if (!state.dead && state.enabled && (!map.isStyleLoaded || map.isStyleLoaded())) install(state);
+    });
+  };
+  map.on('click', state.click);
+  map.on('mousemove', state.hover);
+  map.on('style.load', state.style);
+  map.on('load', state.style);
+  for (const eventName of ['styledata', 'idle', 'moveend', 'zoomend', 'rotateend', 'pitchend']) {
+    map.on(eventName, state.persist);
+  }
+  const retryButton = () => {
+    if (state.dead || ensureButton(state)) return;
+    state.retry = setTimeout(retryButton, 500);
+  };
+  retryButton();
+  if (typeof MutationObserver !== 'undefined' && document.body) {
+    state.observer = new MutationObserver(() => {
+      if (!state.dead && !document.getElementById(CONTROL)) ensureButton(state);
+    });
+    state.observer.observe(document.body, { childList: true, subtree: true });
+  }
   const api = {
     version: VERSION,
+    get enabled() { return state.enabled; },
     get status() { return state.status; },
-    get stats() { return Object.assign({}, state.stats); },
-    get features() { return state.collection.features.length; },
-    get displayMode() { return lighthouseRenderModeForZoom(state.map.getZoom()); },
+    get stats() {
+      return {
+        version: VERSION, records: DATA.length,
+        photogrammetryRecords: DATA.filter(item => item.models.some(model => /photogrammetry/i.test(model.kind))).length,
+        walkthroughs: DATA.filter(item => item.models.some(model => /Matterport/i.test(model.kind))).length,
+        markerLayerReady: Boolean(map.getLayer(MARKER)),
+        lastError: state.lastError
+      };
+    },
+    toggle() { return setEnabled(state, !state.enabled); },
+    setEnabled(value) { return setEnabled(state, value); },
     refresh() {
-      state.globalLoaded = false;
-      state.globalLoading = false;
-      void loadGlobalData(state);
+      const source = map.getSource(SOURCE);
+      if (source && source.setData) source.setData(COLLECTION);
+      return api.stats;
     },
     destroy() {
       state.dead = true;
-      if (state.refreshTimer) clearTimeout(state.refreshTimer);
-      if (state.animationTimer) clearTimeout(state.animationTimer);
-      if (state.beaconTimer) clearTimeout(state.beaconTimer);
-      for (const item of state.models) {
-        if (state.scene) state.scene.remove(item.root);
-        disposeObject(item.root);
+      if (state.retry) clearTimeout(state.retry);
+      if (state.frame) (window.cancelAnimationFrame || clearTimeout)(state.frame);
+      state.popup && state.popup.remove();
+      map.off('click', state.click);
+      map.off('mousemove', state.hover);
+      map.off('style.load', state.style);
+      map.off('load', state.style);
+      for (const eventName of ['styledata', 'idle', 'moveend', 'zoomend', 'rotateend', 'pitchend']) {
+        map.off(eventName, state.persist);
       }
-      state.models = [];
+      state.observer && state.observer.disconnect();
+      for (const layer of [LABEL, MARKER]) if (map.getLayer(layer)) map.removeLayer(layer);
+      if (map.getSource(SOURCE)) map.removeSource(SOURCE);
+      if (map.hasImage && map.hasImage(ICON)) map.removeImage(ICON);
+      document.getElementById(CONTROL) && document.getElementById(CONTROL).remove();
+      document.getElementById(STYLE) && document.getElementById(STYLE).remove();
+      MAP_STATES.delete(map);
     }
   };
   state.api = api;
   MAP_STATES.set(map, state);
   window.__BP_LIGHTHOUSES_V1__ = api;
-  window.__BP_LIGHTHOUSES_V2__ = api;
-  const ready = () => install(map, state);
-  map.on('style.load', ready);
-  map.on('load', ready);
-  if (map.isStyleLoaded && map.isStyleLoaded()) ready();
-  state.status = 'waiting-for-map-style';
+  if (map.isStyleLoaded && map.isStyleLoaded()) state.status = 'off';
   return api;
 }
