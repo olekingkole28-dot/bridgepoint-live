@@ -1,4 +1,4 @@
-name: Stop unintended shipwreck job blocking EMRF Wildfire restore
+name: Cancel Superseded Wind RF v2 Publish Only
 on:
   push:
     branches: [main]
@@ -17,6 +17,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          echo "Cancelling only incidental shipwreck run 44840704161"
-          gh api -X POST "repos/${GITHUB_REPOSITORY}/actions/runs/44840704161/cancel" ||
-            gh api "repos/${GITHUB_REPOSITORY}/actions/runs/44840704161" --jq '{status,conclusion}'
+          echo "Cancelling only incidental shipwreck run 44846223494"
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/actions/runs/44846223494/cancel" ||
+            gh api "repos/${GITHUB_REPOSITORY}/actions/runs/44846223494" --jq '{status,conclusion}'
