@@ -190,9 +190,10 @@ jobs:
         run: |
           set -euo pipefail
           TILE="$RUNNER_TEMP/nasa-nightlights-global-latest.png"
-          URL='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-nasa-nightlights-v5937'
-          curl --retry 2 --retry-all-errors --retry-delay 2 --connect-timeout 10 --max-time 60 -fsSL \
-            -H 'Cache-Control: no-cache' "$URL?z=0&x=0&y=0&v=6512&request=$GITHUB_SHA" -o "$TILE"
+          URL='https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=VIIRS_SNPP_GapFilled_BRDF_Corrected_DayNightBand_Radiance&STYLES=&FORMAT=image%2Fpng&TRANSPARENT=TRUE&WIDTH=256&HEIGHT=256&SRS=EPSG%3A3857&BBOX=-20037508.342789244%2C-20037508.342789244%2C20037508.342789244%2C20037508.342789244'
+          curl --retry 2 --retry-all-errors --retry-delay 2 --connect-timeout 10 --max-time 60 -fsSL -D "$RUNNER_TEMP/nasa-gibs-headers.txt" \
+            -H 'Cache-Control: no-cache' "$URL" -o "$TILE"
+          grep -Eiq '^access-control-allow-origin: (\\*|https://[^[:space:]]+)' "$RUNNER_TEMP/nasa-gibs-headers.txt" || { echo 'NASA GIBS did not allow browser CORS access'; exit 1; }
           python3 - "$TILE" <<'PY'
           import struct,sys
           from pathlib import Path

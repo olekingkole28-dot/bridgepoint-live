@@ -1,6 +1,6 @@
 const ROOT='bp-sensor-layers-v5945',CSS_ID=ROOT+'-css';
 const NS='bp-nightlights-src-v5945',NL='bp-nightlights-v5945',LS='bp-streetlights-src-v5945',P='bp-streetlight-poles-v5945',G='bp-streetlight-glow-v5945',L='bp-streetlight-lamps-v5945',TS='bp-transit-src-v5945',T='bp-transit-points-v5945',D='bp-gebco-depth-dem-v5945',BS='bp-gebco-depth-image-src-v5945',B='bp-gebco-depth-image-v5945';
-const NIGHT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-nasa-nightlights-v5937',STREET='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-streetlight-tile-v5937',XRAY='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-underground-xray-v5935',DEM='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-gebco-terrain-v5936',BATHY='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-gebco-depth-image-v5937';
+const NIGHT='bp-nasa-night-v6512',STREET='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-streetlight-tile-v5937',XRAY='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-underground-xray-v5935',DEM='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-gebco-terrain-v5936',BATHY='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-gebco-depth-image-v5937';
 const CSS=[
 '#'+ROOT+'{display:grid;gap:7px;margin:7px 0 2px;padding:10px;border:1px solid rgba(111,226,255,.25);border-radius:13px;background:linear-gradient(135deg,rgba(5,22,34,.97),rgba(14,14,36,.95));box-shadow:0 8px 22px rgba(0,0,0,.25),inset 0 1px 0 rgba(211,250,255,.06);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);color:#eaffff;font:10px/1.35 system-ui,sans-serif}',
 '#'+ROOT+' *{box-sizing:border-box}',
@@ -60,8 +60,66 @@ export function initSensorLayers(target){
  async function waitForDepthSource(timeout=10000){const until=Date.now()+timeout;while(Date.now()<until&&!dead){if(map.getSource(D)&&map.getSource(BS)&&map.getLayer(B))return true;if(map.isStyleLoaded?.()){try{addDepth()}catch(e){console.warn('BridgePoint GEBCO source retry',e)}}await pause(110)}return !!(map.getSource(D)&&map.getSource(BS)&&map.getLayer(B))}
  function waitForMapMove(timeout=2100){return new Promise(resolve=>{let done=false;const finish=()=>{if(done)return;done=true;clearTimeout(timer);map.off?.('moveend',finish);resolve()};const timer=setTimeout(finish,timeout);map.once?.('moveend',finish);if(!map.isMoving?.())setTimeout(finish,150)})}
 
- function nightUrl(){return NIGHT+'?z={z}&x={x}&y={y}&v=6512&request='+encodeURIComponent(nightRequestKey||'pending')}
- function addNight(){if(!state.lights||dead||!map.isStyleLoaded?.())return false;addSrc(NS,{type:'raster',tiles:[nightUrl()],tileSize:256,minzoom:0,maxzoom:18,attribution:'NASA GIBS VIIRS Suomi-NPP gap-filled BRDF-corrected nighttime radiance; BridgePoint masks to the solar night side'});if(!map.getLayer(NL)){const b=before(['gta-context-buildings','gta-city-buildings','gta-bp-buildings','gta-water-label','gta-place-label']),l={id:NL,type:'raster',source:NS,minzoom:0,maxzoom:24,paint:{'raster-opacity':1,'raster-saturation':.18,'raster-contrast':.24,'raster-resampling':'linear','raster-fade-duration':0}};if(b)map.addLayer(l,b);else map.addLayer(l)}return true}
+ const BP_NASA_NIGHT_WMS="https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi";
+const BP_NASA_NIGHT_WORLD=20037508.342789244,BP_NASA_NIGHT_RADIUS=6378137,BP_NASA_NIGHT_SIZE=256;
+function bpNasaNightSolarAltitude(lon,lat,at){
+ const start=Date.UTC(at.getUTCFullYear(),0,0),day=Math.floor((Date.UTC(at.getUTCFullYear(),at.getUTCMonth(),at.getUTCDate())-start)/86400000);
+ const hour=at.getUTCHours()+at.getUTCMinutes()/60+at.getUTCSeconds()/3600;
+ const gamma=2*Math.PI/365*(day-1+(hour-12)/24);
+ const eq=229.18*(0.000075+0.001868*Math.cos(gamma)-0.032077*Math.sin(gamma)-0.014615*Math.cos(2*gamma)-0.040849*Math.sin(2*gamma));
+ const dec=0.006918-0.399912*Math.cos(gamma)+0.070257*Math.sin(gamma)-0.006758*Math.cos(2*gamma)+0.000907*Math.sin(2*gamma)-0.002697*Math.cos(3*gamma)+0.00148*Math.sin(3*gamma);
+ let minutes=(hour*60+eq+4*lon)%1440;if(minutes<0)minutes+=1440;
+ const ha=(minutes/4-180)*Math.PI/180,p=lat*Math.PI/180;
+ const cosz=Math.max(-1,Math.min(1,Math.sin(p)*Math.sin(dec)+Math.cos(p)*Math.cos(dec)*Math.cos(ha)));
+ return 90-Math.acos(cosz)*180/Math.PI;
+}
+function installNasaNightProtocol(){
+ const renderer=window.maplibregl;
+ if(!renderer||typeof renderer.addProtocol!=="function")return false;
+ if(window.__BP_NASA_NIGHT_PROTOCOL_V6512__)return true;
+ renderer.addProtocol("bp-nasa-night-v6512",async(params,abortController)=>{
+  const match=String(params.url||"").match(/\/tiles\/(\d+)\/(\d+)\/(\d+)(?:[?#]|$)/);
+  if(!match)throw new Error("Invalid NASA night tile address.");
+  const z=Number(match[1]),x=Number(match[2]),y=Number(match[3]),n=2**z;
+  if(![z,x,y].every(Number.isInteger)||z<0||z>18||x<0||y<0||x>=n||y>=n)throw new Error("Invalid NASA night tile coordinates.");
+  const bounds={west:-BP_NASA_NIGHT_WORLD+2*BP_NASA_NIGHT_WORLD*x/n,east:-BP_NASA_NIGHT_WORLD+2*BP_NASA_NIGHT_WORLD*(x+1)/n,north:BP_NASA_NIGHT_WORLD-2*BP_NASA_NIGHT_WORLD*y/n,south:BP_NASA_NIGHT_WORLD-2*BP_NASA_NIGHT_WORLD*(y+1)/n};
+  const query=new URLSearchParams({SERVICE:"WMS",VERSION:"1.1.1",REQUEST:"GetMap",LAYERS:"VIIRS_SNPP_GapFilled_BRDF_Corrected_DayNightBand_Radiance",STYLES:"",FORMAT:"image/png",TRANSPARENT:"TRUE",WIDTH:String(BP_NASA_NIGHT_SIZE),HEIGHT:String(BP_NASA_NIGHT_SIZE),SRS:"EPSG:3857",BBOX:[bounds.west,bounds.south,bounds.east,bounds.north].join(",")});
+  const response=await fetch(BP_NASA_NIGHT_WMS+"?"+query.toString(),{mode:"cors",cache:"no-store",headers:{Accept:"image/png"},signal:abortController.signal});
+  if(!response.ok)throw new Error("NASA GIBS HTTP "+response.status);
+  if(!(response.headers.get("content-type")||"").includes("image/png"))throw new Error("NASA GIBS returned a non-image tile.");
+  const input=await createImageBitmap(await response.blob());
+  if(input.width!==BP_NASA_NIGHT_SIZE||input.height!==BP_NASA_NIGHT_SIZE){input.close?.();throw new Error("NASA GIBS tile size was not 256x256.");}
+  const canvas=typeof OffscreenCanvas==="function"?new OffscreenCanvas(BP_NASA_NIGHT_SIZE,BP_NASA_NIGHT_SIZE):document.createElement("canvas");
+  canvas.width=BP_NASA_NIGHT_SIZE;canvas.height=BP_NASA_NIGHT_SIZE;
+  const context=canvas.getContext("2d",{willReadFrequently:true});
+  if(!context){input.close?.();throw new Error("NASA night tile canvas is unavailable.");}
+  context.drawImage(input,0,0);input.close?.();
+  const frame=context.getImageData(0,0,BP_NASA_NIGHT_SIZE,BP_NASA_NIGHT_SIZE),pixels=frame.data;
+  const count=BP_NASA_NIGHT_SIZE*BP_NASA_NIGHT_SIZE,stride=BP_NASA_NIGHT_SIZE+1;
+  const gray=new Uint8Array(count),originalAlpha=new Uint8Array(count),integral=new Uint32Array(stride*stride);
+  for(let i=0;i<count;i++){const j=i*4;gray[i]=Math.round(pixels[j]*0.2126+pixels[j+1]*0.7152+pixels[j+2]*0.0722);originalAlpha[i]=pixels[j+3]}
+  for(let py=0;py<BP_NASA_NIGHT_SIZE;py++){let rowSum=0;for(let px=0;px<BP_NASA_NIGHT_SIZE;px++){rowSum+=gray[py*BP_NASA_NIGHT_SIZE+px];integral[(py+1)*stride+px+1]=integral[py*stride+px+1]+rowSum}}
+  const rectSum=(x0,y0,x1,y1)=>integral[y1*stride+x1]-integral[y0*stride+x1]-integral[y1*stride+x0]+integral[y0*stride+x0];
+  const clamp01=value=>Math.max(0,Math.min(1,value)),dx=(bounds.east-bounds.west)/BP_NASA_NIGHT_SIZE,dy=(bounds.north-bounds.south)/BP_NASA_NIGHT_SIZE,at=new Date();
+  for(let py=0;py<BP_NASA_NIGHT_SIZE;py++){
+   const mercatorY=bounds.north-(py+0.5)*dy,lat=Math.max(-85.05112878,Math.min(85.05112878,Math.atan(Math.sinh(mercatorY/BP_NASA_NIGHT_RADIUS))*180/Math.PI));
+   const y0=Math.max(0,py-4),y1=Math.min(BP_NASA_NIGHT_SIZE,py+5);
+   for(let px=0;px<BP_NASA_NIGHT_SIZE;px++){
+    const index=py*BP_NASA_NIGHT_SIZE+px,j=index*4,mercatorX=bounds.west+(px+0.5)*dx,lon=mercatorX/BP_NASA_NIGHT_WORLD*180;
+    const lum=gray[index],alpha=originalAlpha[index],x0=Math.max(0,px-4),x1=Math.min(BP_NASA_NIGHT_SIZE,px+5),area=(x1-x0)*(y1-y0),localMean=(rectSum(x0,y0,x1,y1)-lum)/Math.max(1,area-1),contrast=lum-localMean;
+    if(bpNasaNightSolarAltitude(lon,lat,at)>-6||alpha===0||lum<12||(lum<64&&contrast<8)||(lum<90&&contrast<4)){pixels[j+3]=0;continue}
+    const power=clamp01((lum-8)/118),edge=clamp01((contrast+2)/20),strength=clamp01(0.76*Math.pow(power,0.62)+0.24*Math.pow(edge,0.6));
+    pixels[j]=255;pixels[j+1]=Math.round(132+123*power);pixels[j+2]=Math.round(12+218*Math.pow(power,1.3));pixels[j+3]=Math.round(Math.max(32,Math.min(250,32+218*Math.pow(strength,0.72)));
+   }
+  }
+  context.putImageData(frame,0,0);
+  return {data:await createImageBitmap(canvas)};
+ });
+ window.__BP_NASA_NIGHT_PROTOCOL_V6512__=true;
+ return true;
+}
+function nightUrl(){return NIGHT+'://tiles/{z}/{x}/{y}?request='+encodeURIComponent(nightRequestKey||'pending')}
+ function addNight(){if(!state.lights||dead||!map.isStyleLoaded?.())return false;if(!installNasaNightProtocol())return false;addSrc(NS,{type:'raster',tiles:[nightUrl()],tileSize:256,minzoom:0,maxzoom:18,attribution:'NASA GIBS VIIRS Suomi-NPP gap-filled BRDF-corrected nighttime radiance; BridgePoint masks to the solar night side'});if(!map.getLayer(NL)){const b=before(['gta-context-buildings','gta-city-buildings','gta-bp-buildings','gta-water-label','gta-place-label']),l={id:NL,type:'raster',source:NS,minzoom:0,maxzoom:24,paint:{'raster-opacity':1,'raster-saturation':.18,'raster-contrast':.24,'raster-resampling':'linear','raster-fade-duration':0}};if(b)map.addLayer(l,b);else map.addLayer(l)}return true}
  function removeNight(){try{if(map.getLayer(NL))map.removeLayer(NL);if(map.getSource(NS))map.removeSource(NS)}catch(_){}}
  function addDepth(){if(!state.surface||dead||!map.isStyleLoaded?.())return false;addSrc(D,{type:'raster-dem',tiles:[DEM+'?z={z}&x={x}&y={y}&v=5936'],tileSize:256,minzoom:0,maxzoom:13,encoding:'terrarium',attribution:'GEBCO global elevation and bathymetry'});addSrc(BS,{type:'raster',tiles:[BATHY+'?z={z}&x={x}&y={y}&v=5937'],tileSize:256,minzoom:0,maxzoom:13,attribution:'GEBCO latest global elevation and ocean-depth colors'});if(!map.getLayer(B)){const b=before(['gta-coast-shadow','gta-context-buildings','gta-city-buildings','gta-water-label','gta-place-label']),l={id:B,type:'raster',source:BS,minzoom:0,maxzoom:20,paint:{'raster-opacity':.22,'raster-saturation':.14,'raster-contrast':.12,'raster-resampling':'linear','raster-fade-duration':0}};if(b)map.addLayer(l,b);else map.addLayer(l)}surfaceOpacity(true);try{window.__BP_TERRAIN_SOURCE_OVERRIDE__=D;map.setTerrain({source:D,exaggeration:1})}catch(e){console.warn('BridgePoint GEBCO depth activation',e)}return true}
  function removeDepth(){surfaceOpacity(false);try{if(window.__BP_TERRAIN_SOURCE_OVERRIDE__===D)delete window.__BP_TERRAIN_SOURCE_OVERRIDE__;if(map.getSource('dem'))map.setTerrain({source:'dem',exaggeration:1});else map.setTerrain(null);if(map.getLayer(B))map.removeLayer(B);if(map.getSource(BS))map.removeSource(BS);if(map.getSource(D))map.removeSource(D)}catch(e){console.warn('BridgePoint GEBCO depth deactivation',e)}}
