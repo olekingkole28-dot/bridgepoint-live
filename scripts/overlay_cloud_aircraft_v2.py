@@ -44,7 +44,7 @@ s=p.read_text()
 # FAA/cloud layer gate, filters, ADS-B fetching, trails, and other user features.
 variable="let aircraftModels=new Map(),trackedAircraft=new Map(),lastCurrentAircraftRecords=[],aircraftTrailGroup=null,aircraftTetherGroup=null,aircraftTemplates=new Map(),aircraftPopup=null,aircraftInteractionsMap=null;"
 src_var=between(new_drone,variable,'let droneTrailGroup=', 'visual-state')
-s=one(s,variable+'\\n',src_var,'aircraft-renderer-variables')
+s=one(s,variable+'\n',src_var,'aircraft-renderer-variables')
 for start,end,label in (
   ('function loadDroneThree(){','function makeDroneModel(THREE){','aircraft-visual-module-loader'),
   ('function ensureAircraftInstancedMesh(','function disposeAircraftTemplates(){','aircraft-instanced-gpu-templates'),
