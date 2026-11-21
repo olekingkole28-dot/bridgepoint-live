@@ -163,8 +163,9 @@ jobs:
               raise SystemExit('Root and app lighthouse renderer copies differ')
           for rel in ('landing.js','app.js'):
               text=(site/rel).read_text(encoding='utf-8')
-              if old_import in text or new_import not in text:
-                  raise SystemExit(rel+' does not load only the replacement renderer')
+              active_import="import('"+new_import+"')"
+              if text.count(active_import)!=1 or text.count(import_marker)!=1:
+                  raise SystemExit(rel+' does not load exactly one replacement lighthouse renderer')
           renderer=(site/module).read_text(encoding='utf-8')
           if 'globalOverpassQuery' in renderer or 'OSM-backed global lighthouse locations' in renderer:
               raise SystemExit('Synthetic/OSM lighthouse renderer logic remains')
