@@ -14,9 +14,9 @@ import urllib.request
 from pathlib import Path
 
 SOURCE = "https://celestrak.org/NORAD/elements/gp.php?GROUP=STARLINK&FORMAT=JSON"
-# Source-backed public CelesTrak OMM mirror: when the upstream group endpoint
-# returns HTTP 500, continue from its published static snapshot, not invented TLEs.
-MIRROR = "https://raw.githubusercontent.com/satvisorcom/satvisor-data/master/celestrak/json/starlink.json"
+# Source-backed CelesTrak OMM cache: verifies actual per-object EPOCH recency.
+# The other mirror had stale August elements despite a recent file timestamp.
+CACHE_SOURCE = "https://retlector.eu/starlink/json"
 HEADERS = {"Accept": "application/json", "User-Agent": "BridgePointIntelligence/2.0 (orbital-source-cache; github.com/olekingkole28-dot/bridgepoint-live)"}
 OUTPUT = Path(sys.argv[1] if len(sys.argv) > 1 else "starlink-orbits-v2.json")
 def number(value):
@@ -39,7 +39,7 @@ now=dt.datetime.now(dt.timezone.utc)
 items=None
 used_source=None
 failures=[]
-for url in (MIRROR,SOURCE):
+for url in (CACHE_SOURCE,SOURCE):
     try:
         with urllib.request.urlopen(urllib.request.Request(url,headers=HEADERS),timeout=75) as response:
             if response.status != 200: raise RuntimeError("Starlink OMM source non-200: "+str(response.status))
@@ -82,7 +82,7 @@ for item in items:
 if len(out)<2500 or recent<2000:
     raise SystemExit(f"STARLINK_CATALOG_INSPECT_BEFORE_PUBLISH total={len(out)} recent_72h={recent}")
 payload={
-    "version":2,"source":"CelesTrak Starlink OMM GP catalog"+(" (source-backed mirror)" if used_source==MIRROR else ""),
+    "version":2,"source":"CelesTrak Starlink OMM GP catalog"+(" (source-backed mirror)" if used_source==CACHE_SOURCE else ""),
     "source_url":used_source,"method":"public orbital elements; client-side approximate J2-adjusted Kepler propagation, not operator telemetry",
     "fetched_at":now.isoformat(timespec="seconds"),
     "record_count":len(out),"recent_72h":recent,"fields":["norad","name","epoch_ms","mean_motion_rev_day","eccentricity","inclination_deg","raan_deg","arg_perigee_deg","mean_anomaly_deg","international_designator"],
