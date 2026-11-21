@@ -321,8 +321,7 @@ jobs:
           mkdir -p "$SITE"
           tar -xf "$ARCHIVE" -C "$SITE"
           for file in index.html app/index.html landing.js app.js vendor/three.module.js bridgepoint-drone-awareness-v1.js \
-            bridgepoint-palatine-cryptoporticus-v1.js bridgepoint-jenolan-caves-v1.js \
-            bridgepoint-underground-scan-scenes-v2.js; do
+            bridgepoint-jenolan-caves-v1.js; do
             test -s "$SITE/$file" || { echo "Selected production baseline is missing $file; refusing to publish."; exit 1; }
           done
           python3 - <<'PY'
