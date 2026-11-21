@@ -1,8 +1,9 @@
 (()=>{
 'use strict';
 if(window.__BP_WATER_FLOW_BUOYS_V1__)return;
-const VERSION=1, SOURCE='bp-water-flow-buoys-v1', ICON_LAYER=SOURCE+'-icons', LABEL_LAYER=SOURCE+'-labels';
+const VERSION=2, SOURCE='bp-water-flow-buoys-v1', ICON_LAYER=SOURCE+'-icons', LABEL_LAYER=SOURCE+'-labels';
 const NDBC_URL='https://www.ndbc.noaa.gov/data/latest_obs/latest_obs.txt';
+const NDBC_ENDPOINTS=[NDBC_URL,'https://r.jina.ai/http://www.ndbc.noaa.gov/data/latest_obs/latest_obs.txt'];
 const CURRENT_ENDPOINTS=[
  'https://cwcgom.aoml.noaa.gov/erddap/griddap/miamicurrents.json',
  'https://erddap.ipma.pt/erddap/griddap/miamicurrents.json',
@@ -11,7 +12,7 @@ const CURRENT_ENDPOINTS=[
 const CURRENT_SLICE='[(last)][(-64.7):1.6:(64.7)][(-179.9):1.6:(179.9)]';
 const COLORS={green:'#35e89a',yellow:'#ffd166',red:'#ff5266'};
 const $=s=>document.querySelector(s);
-const state={version:VERSION,active:false,status:'waiting-for-map',buoys:0,flowStrokes:0,currentDate:null,currentSource:null,lastBuoyUpdate:null,error:null};
+const state={version:VERSION,active:false,status:'waiting-for-map',buoys:0,flowStrokes:0,currentDate:null,currentSource:null,lastBuoyUpdate:null,error:null,buoyError:null,currentError:null};
 window.__BP_WATER_FLOW_BUOYS_V1__=state;
 let map=null,button=null,sourceReady=false,layerReady=false,buoyData=new Map(),field=[],fieldLookup=new Map(),currentFetchAt=0;
 let flowCanvas=null,flowCtx=null,flowSamples=[],flowFrame=0,flowBuildRaf=0,flowBuildGeneration=0,lastFrame=0,rebuildTimer=0,bouyTimer=0,currentTimer=0;
@@ -53,6 +54,7 @@ function makeStatus(){
  map.getContainer().appendChild(box);statusBox=box;
 }
 function setStatus(){
+ state.error=state.buoyError||state.currentError||null;
  if(!statusBox)return;
  const label=statusBox.querySelector('[data-bpw-status]');
  const date=state.currentDate?new Date(state.currentDate).toLocaleDateString():'loading current grid';
@@ -121,13 +123,19 @@ function featuresForBuoys(){
  return {type:'FeatureCollection',features:[...buoyData.values()].map(r=>({type:'Feature',geometry:{type:'Point',coordinates:[r.lon,r.lat]},properties:{station:r.station,severity:r.severity,wave:r.wave,tideFt:r.tideFt,wind:r.wind,updated:r.time}}))};
 }
 async function loadBuoys(){
- try{
-  const response=await timeoutFetch(NDBC_URL,12000),text=await response.text();
-  const latest=parseLatest(text);
-  if(latest.size){buoyData=latest;state.buoys=latest.size;state.lastBuoyUpdate=new Date().toISOString();state.error=null}
-  if(sourceReady)map.getSource(SOURCE)?.setData(featuresForBuoys());
-  refreshSeverity();buildCloseMarkers();setStatus();
- }catch(err){state.error='NDBC: '+String(err?.message||err);setStatus()}
+ let lastError=null;
+ for(let i=0;i<NDBC_ENDPOINTS.length;i++){
+  const url=NDBC_ENDPOINTS[i];
+  try{
+   const response=await timeoutFetch(url,i===0?8000:15000),text=await response.text();
+   const latest=parseLatest(text);
+   if(!latest.size)throw new Error('NDBC returned no recent station rows');
+   buoyData=latest;state.buoys=latest.size;state.lastBuoyUpdate=new Date().toISOString();state.buoyError=null;
+   if(sourceReady)map.getSource(SOURCE)?.setData(featuresForBuoys());
+   refreshSeverity();buildCloseMarkers();setStatus();return;
+  }catch(err){lastError=err}
+ }
+ state.buoyError='Buoy feed unavailable: '+String(lastError?.message||lastError||'retrying');setStatus();
 }
 async function loadCurrentGrid(force=false){
  if(!force&&field.length&&Date.now()-currentFetchAt<60*60*1000)return;
@@ -154,11 +162,11 @@ async function loadCurrentGrid(force=false){
    field=next;fieldLookup.clear();for(const p of field)fieldLookup.set(p.li+':'+p.oi,p);
    const dateVal=rows.find(r=>r[timeI]!=null)?.[timeI];
    state.currentDate=typeof dateVal==='number'?new Date(dateVal*1000).toISOString():String(dateVal||'').replace(' ','T');
-   state.currentSource=root;state.status='ready';currentFetchAt=Date.now();state.error=null;
+   state.currentSource=root;state.status='ready';currentFetchAt=Date.now();state.currentError=null;
    refreshSeverity();setStatus();scheduleFlowBuild(20);return;
   }catch(err){lastError=err}
  }
- state.status='estimated-fallback';state.error='Current grid: '+String(lastError?.message||lastError||'unavailable');
+ state.status='estimated-fallback';state.currentError='Current grid unavailable: '+String(lastError?.message||lastError||'retrying');
  setStatus();scheduleFlowBuild(20);
 }
 function flowAt(lat,lon){
@@ -191,6 +199,16 @@ function attachMapHandlers(){
 function waterLayers(){
  try{return (map.getStyle()?.layers||[]).filter(l=>l.type==='fill'&&WATER_FILL_RE.test(l.id)&&!/(flow|label|symbol|shadow|outline)/i.test(l.id)&&map.getLayoutProperty(l.id,'visibility')!=='none').map(l=>l.id)}catch(_){return[]}
 }
+function isVisibleGlobeWater(lat,lon){
+ try{
+  const projection=map?.getProjection?.(),type=String(projection?.type||projection?.name||projection||'').toLowerCase();
+  if(type!=='globe')return true;
+  const center=map.getCenter?.();if(!center||!Number.isFinite(center.lat)||!Number.isFinite(center.lng))return true;
+  const rad=Math.PI/180,a=center.lat*rad,b=lat*rad,dl=(lon-center.lng)*rad;
+  const facing=Math.sin(a)*Math.sin(b)+Math.cos(a)*Math.cos(b)*Math.cos(dl);
+  return facing>.025;
+ }catch(_){return true}
+}
 function seeded(x,y){const a=Math.sin(x*127.1+y*311.7)*43758.5453;return a-Math.floor(a)}
 function scheduleFlowBuild(delay=160){
  if(!enabled||!map)return;clearTimeout(rebuildTimer);const generation=++flowBuildGeneration;rebuildTimer=setTimeout(()=>buildFlowSamples(generation),delay);
@@ -212,7 +230,7 @@ function buildFlowSamples(generation=flowBuildGeneration){
     x+=step;if(x>=w){x=step/2;y+=step}checked++;
     let hits=[];try{hits=map.queryRenderedFeatures([sx,sy],{layers:water})}catch(_){}
     if(!hits.length)continue;
-    const ll=map.unproject([sx,sy]);if(!Number.isFinite(ll.lat)||!Number.isFinite(ll.lng))continue;
+    const ll=map.unproject([sx,sy]);if(!Number.isFinite(ll.lat)||!Number.isFinite(ll.lng)||!isVisibleGlobeWater(ll.lat,ll.lng))continue;
     const vector=flowAt(ll.lat,ll.lng),mag=Math.max(.01,vector.speed||.01);
     const latStep=(vector.v/mag)*.018,lonStep=(vector.u/mag)*.018/Math.max(.12,Math.cos(ll.lat*Math.PI/180));
     let p2;try{p2=map.project([ll.lng+lonStep,ll.lat+latStep])}catch(_){continue}
@@ -226,6 +244,7 @@ function buildFlowSamples(generation=flowBuildGeneration){
  }else{
   const stride=Math.max(1,Math.ceil(field.length/max));
   for(let i=0;i<field.length&&samples.length<max;i+=stride){const p=field[i];
+   if(!isVisibleGlobeWater(p.lat,p.lon))continue;
    let pos;try{pos=map.project([p.lon,p.lat])}catch(_){continue}
    if(pos.x<-30||pos.x>w+30||pos.y<-30||pos.y>h+30)continue;
    const latStep=(p.v/Math.max(.02,p.speed))*.018,lonStep=(p.u/Math.max(.02,p.speed))*.018/Math.max(.12,Math.cos(p.lat*Math.PI/180));
@@ -403,7 +422,7 @@ function activate(on){
  const next=!!on;
  if(next&&!findMap()){state.status='waiting-for-map';return}
  if(state.active===next){if(next&&!styleInstalled)void ensureLayers();return}
- state.active=next;state.status=next?'loading':'off';state.error=null;
+ state.active=next;state.status=next?'loading':'off';state.error=null;if(next){state.buoyError=null;state.currentError=null}
  if(next){
   void ensureLayers();setVisible(true);void Promise.all([loadBuoys(),loadCurrentGrid()]);
   clearInterval(bouyTimer);bouyTimer=setInterval(()=>{if(enabled)void loadBuoys()},5*60*1000);
