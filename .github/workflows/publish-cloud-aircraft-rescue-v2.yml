@@ -44,6 +44,35 @@ jobs:
         run: |
           set -euo pipefail
           curl --retry 4 --retry-all-errors -fsSL --max-time 30 https://characterization-seas-total-adopt.trycloudflare.com/auth/v1/health | grep -Fq '"local":true'
+      - name: Preflight against LIVE cloud + aircraft source without downloading 1 GB
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/cloud-air-preflight/app" "$RUNNER_TEMP/cloud-air-preflight/vendor"
+          export PREFLIGHT="$RUNNER_TEMP/cloud-air-preflight"
+          python3 - <<'PY'
+          import os,urllib.request
+          from pathlib import Path
+          site=Path(os.environ['PREFLIGHT'])
+          for name in ['index.html','app/index.html','landing.js','app.js',
+             'bridgepoint-view-v5917.js','bridgepoint-drone-awareness-v1.js',
+             'world-v2300-clouds.js','app/world-v2300-clouds.js']:
+            req=urllib.request.Request('https://bridgepointintelligence.online/'+name+'?preflight=20261121',
+               headers={'Cache-Control':'no-cache'})
+            with urllib.request.urlopen(req,timeout=35) as response:content=response.read()
+            p=site/name;p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(content)
+            print('LIVE_CLOUD_AIR_PREFLIGHT_INPUT',name,len(content))
+          for name in ['bridgepoint-faa-obstruction-towers-v1.js',
+            'bridgepoint-wildfires-volumetric-v1.js','bridgepoint-emrf-starlink-global-v2.js',
+            'bridgepoint-global-wind-rf-v1.js','wind-rf-global-v1.json','vendor/three.module.js']:
+            p=site/name;p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(b'preserved elsewhere')
+          PY
+          python3 scripts/overlay_cloud_aircraft_v2.py "$PREFLIGHT" .
+          node --check "$PREFLIGHT/bridgepoint-drone-awareness-v1.js"
+          node --check "$PREFLIGHT/bridgepoint-view-v5917.js"
+          node --input-type=module --check < "$PREFLIGHT/world-v2300-clouds.js"
+          node --input-type=module --check < "$PREFLIGHT/bridgepoint-aircraft-visuals-v2.js"
+          echo CLOUD_AIRCRAFT_CANDIDATE_BROWSER_SOURCE_PREFLIGHT_PASS
       - name: Download exact successful CURRENT full production artifact (NOT old source checkout)
         uses: actions/download-artifact@v4
         with:
