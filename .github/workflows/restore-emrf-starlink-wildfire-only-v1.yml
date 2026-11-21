@@ -1,0 +1,275 @@
+name: Restore Missing Global EMRF Starlink and Wildfire Layers Only
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/restore-emrf-starlink-wildfire-only-v1.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    environment:
+      name: github-pages
+      url: ${{ steps.publish.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate ONLY the previously working two feature renderers and control routes
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check rebuild-v5000/bridgepoint-view-v5917.js
+          node --check rebuild-v5000/bridgepoint-drone-awareness-v1.js
+          node --input-type=module --check < rebuild-v5000/bridgepoint-emrf-starlink-global-v2.js
+          node --input-type=module --check < rebuild-v5000/bridgepoint-emrf-spectrogram-v1.js
+          node --input-type=module --check < rebuild-v5000/bridgepoint-wildfires-volumetric-v1.js
+          node --input-type=module --check < rebuild-v5000/bridgepoint-wildfire-realistic-mesh-v4.js
+          node tests/emrf-starlink-thousands-v2.test.mjs
+          node tests/wildfire-source-native-v1.test.mjs
+          node tests/wildfire-button-routing-v2.test.mjs
+          node tests/wildfire-immediate-markers-v3.test.mjs
+          node tests/wildfire-firefront-terrain-sky-v4.test.mjs
+          grep -Fq "if(value.startsWith('bp-emrf-')||value.startsWith('bp-live-fire-')" rebuild-v5000/bridgepoint-drone-awareness-v1.js
+      - name: Verify current PC/Cloudflare backend stays unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --retry 3 --retry-all-errors -fsSL --max-time 25 https://characterization-seas-total-adopt.trycloudflare.com/auth/v1/health | grep -Fq '"local":true'
+      - name: Select newest retained full Pages artifact
+        id: baseline
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json,os,subprocess
+          repo=os.environ['GITHUB_REPOSITORY']
+          candidates=[]
+          for page in (1,2,3):
+            data=json.loads(subprocess.check_output(['gh','api',f'repos/{repo}/actions/artifacts?per_page=100&page={page}']))
+            for a in data.get('artifacts',[]):
+              name=a.get('name','')
+              if a.get('expired') or (a.get('size_in_bytes') or 0)<10_000_000:continue
+              if name.startswith('bridgepoint-v5000-faa-cache-'):continue
+              if not (name.startswith('bridgepoint-v5000-') or name.startswith('github-pages-') or name.startswith('bridgepoint-auth-tunnel-recovery-v1') or name.startswith('bridgepoint-faa-')):continue
+              run=a.get('workflow_run') or {}
+              if run.get('id'):candidates.append((a.get('created_at',''),run['id'],name))
+            if len(candidates)>=45:break
+          candidates.sort(reverse=True)
+          if not candidates:raise SystemExit('NO_PRESERVED_SITE; refusing to rebuild from scratch')
+          created,runid,name=candidates[0]
+          with open(os.environ['GITHUB_OUTPUT'],'a') as out:
+            out.write(f'run_id={runid}\nartifact_name={name}\n')
+          print('EMRF_WILDFIRE_BASELINE',created,runid,name,'candidates',len(candidates))
+          PY
+      - name: Download current full production artifact, NOT an old source checkout
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ steps.baseline.outputs.artifact_name }}
+          run-id: ${{ steps.baseline.outputs.run_id }}
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/bp-emrf-wildfire-baseline
+      - name: Prove exact live site preservation and missing two renderers
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/bp-emrf-wildfire-site"
+          ARCHIVE="$(find "$RUNNER_TEMP/bp-emrf-wildfire-baseline" -type f -name artifact.tar -print -quit)"
+          test -n "$ARCHIVE" || { echo 'NOT_FULL_PAGES_ARCHIVE'; exit 1; }
+          mkdir -p "$SITE"
+          tar -xf "$ARCHIVE" -C "$SITE"
+          export SITE
+          python3 - <<'PY'
+          import hashlib,json,os,urllib.request,urllib.error
+          from pathlib import Path
+          site=Path(os.environ['SITE'])
+          root='https://bridgepointintelligence.online/'
+          protect=[
+            'index.html','app/index.html','landing.js','app.js',
+            'bridgepoint-view-v5917.js','bridgepoint-emrf-spectrogram-v1.js',
+            'bridgepoint-drone-awareness-v1.js',
+            'bridgepoint-faa-obstruction-towers-v1.js',
+            'vendor/three.module.js'
+          ]
+          for rel in protect:
+            p=site/rel
+            if not p.is_file():raise SystemExit('PROTECTED_BASELINE_FILE_MISSING '+rel)
+            req=urllib.request.Request(root+rel+'?restore-check='+os.environ['GITHUB_SHA'],headers={'Cache-Control':'no-cache','User-Agent':'BridgePoint-Two-Feature-Restore'})
+            with urllib.request.urlopen(req,timeout=45) as response:live=response.read()
+            if hashlib.sha256(live).digest()!=hashlib.sha256(p.read_bytes()).digest():
+              raise SystemExit('BASELINE_NOT_EXACT_LIVE_PRODUCTION '+rel+' -- refusing regression')
+            print('EXISTING_LIVE_FILE_IDENTICAL',rel,len(live))
+          missing=[
+            'bridgepoint-emrf-starlink-global-v2.js',
+            'app/bridgepoint-emrf-starlink-global-v2.js',
+            'starlink-orbits-v2.json',
+            'bridgepoint-wildfires-volumetric-v1.js',
+            'app/bridgepoint-wildfires-volumetric-v1.js',
+            'bridgepoint-wildfire-realistic-mesh-v4.js'
+          ]
+          for rel in missing:
+            if (site/rel).exists():raise SystemExit('UNEXPECTED_BASELINE_ASSET_PRESENT '+rel)
+            req=urllib.request.Request(root+rel+'?restore-check='+os.environ['GITHUB_SHA'],headers={'Cache-Control':'no-cache'})
+            try:
+              with urllib.request.urlopen(req,timeout=25) as response:status=response.status
+            except urllib.error.HTTPError as e:status=e.code
+            if status!=404:raise SystemExit('LIVE_ASSET_CHANGED_CONCURRENTLY '+rel+' '+str(status))
+            print('CONFIRMED_LIVE_MISSING_ASSET',rel,status)
+          before={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file()}
+          Path('/tmp/bp-emrf-fire-before.json').write_text(json.dumps(before))
+          PY
+      - name: Fetch FRESH verified CelesTrak orbital records once (no fabricated satellites)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/build_starlink_catalog_v2.py "$RUNNER_TEMP/bp-emrf-wildfire-site/starlink-orbits-v2.json"
+      - name: Restore only seven existing feature assets and opt-in visibility with cache updates
+        shell: bash
+        run: |
+          set -euo pipefail
+          export SITE="$RUNNER_TEMP/bp-emrf-wildfire-site"
+          python3 - <<'PY'
+          import json,os,hashlib,re
+          from pathlib import Path
+          site=Path(os.environ['SITE'])
+          source=Path('rebuild-v5000')
+          before=json.loads(Path('/tmp/bp-emrf-fire-before.json').read_text())
+          def use_source(name,targets):
+            content=(source/name).read_bytes()
+            for dest in targets:
+              if (site/dest).exists():raise SystemExit('REFUSE_TO_OVERWRITE_EXISTING_FEATURE_ASSET '+dest)
+              (site/dest).parent.mkdir(parents=True,exist_ok=True)
+              (site/dest).write_bytes(content)
+          use_source('bridgepoint-emrf-starlink-global-v2.js',['bridgepoint-emrf-starlink-global-v2.js','app/bridgepoint-emrf-starlink-global-v2.js'])
+          use_source('bridgepoint-wildfires-volumetric-v1.js',['bridgepoint-wildfires-volumetric-v1.js','app/bridgepoint-wildfires-volumetric-v1.js'])
+          use_source('bridgepoint-wildfire-realistic-mesh-v4.js',['bridgepoint-wildfire-realistic-mesh-v4.js'])
+          # If the app/ fire shader was previously present, preserve it byte-for-byte;
+          # if it was absent, restore the same working shader for nested app imports.
+          if not (site/'app/bridgepoint-wildfire-realistic-mesh-v4.js').exists():
+            use_source('bridgepoint-wildfire-realistic-mesh-v4.js',['app/bridgepoint-wildfire-realistic-mesh-v4.js'])
+          def replace_only(path,old,new):
+            p=site/path
+            s=p.read_text()
+            if s.count(old)!=1:raise SystemExit('EXACT_TWO_FEATURE_ANCHOR_MISSING '+path+' '+old)
+            p.write_text(s.replace(old,new))
+          marker='&restore=20261120-emrf-fire'
+          # Keep existing dock/card/UI behavior, touching only the two module import URLs.
+          replace_only('bridgepoint-view-v5917.js',
+            '/bridgepoint-emrf-spectrogram-v1.js?v=3-emrf-model-orbit-ground',
+            '/bridgepoint-emrf-spectrogram-v1.js?v=3-emrf-model-orbit-ground'+marker)
+          replace_only('bridgepoint-view-v5917.js',
+            './bridgepoint-wildfires-volumetric-v1.js?v=4-realistic-rolling-firefront',
+            './bridgepoint-wildfires-volumetric-v1.js?v=4-realistic-rolling-firefront'+marker)
+          # The EMRF wrapper remains unchanged except its nested Starlink import cache.
+          replace_only('bridgepoint-emrf-spectrogram-v1.js',
+            './bridgepoint-emrf-starlink-global-v2.js?v=3-emrf-model-orbit-ground',
+            './bridgepoint-emrf-starlink-global-v2.js?v=3-emrf-model-orbit-ground'+marker)
+          # Preserve FAA icon behavior; exempt only these two other opt-in features
+          # from the same generic manager that hid FAA icon layers.
+          replace_only('bridgepoint-drone-awareness-v1.js',
+            " if(value.startsWith('bp-faa-obstructions-'))return false;",
+            " if(value.startsWith('bp-faa-obstructions-'))return false;\n // Global EM/RF and Wildfire own their visibility through their dedicated buttons.\n if(value.startsWith('bp-emrf-')||value.startsWith('bp-live-fire-')||value==='bp-live-native-volumetric-fire-v1')return false;")
+          for rel in ('index.html','app/index.html'):
+            p=site/rel
+            s=p.read_text()
+            for filename,tag in (
+              ('bridgepoint-view-v5917.js','emrf-fire-restore=20261120'),
+              ('bridgepoint-drone-awareness-v1.js','emrf-fire-layer-gate=20261120')):
+              pat=re.compile(r'(data-bp-deferred-src=")(/'+re.escape(filename)+r'\?[^"]+)(")')
+              matches=list(pat.finditer(s))
+              if len(matches)!=1:raise SystemExit('EXPECTED_ONE_EXISTING_FEATURE_LOADER '+rel+' '+filename)
+              m=matches[0]
+              existing=m.group(2)
+              if tag in existing:raise SystemExit('DUPLICATE_RESTORE_TAG '+rel+' '+tag)
+              updated=existing+'&'+tag
+              s=s[:m.start(2)]+updated+s[m.end(2):]
+              print('PRESERVED_EXISTING_LOADER',rel,filename,'added',tag)
+            p.write_text(s)
+          after={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file()}
+          if set(before)-set(after):raise SystemExit('NO_FILES_MAY_BE_REMOVED')
+          changed={p for p in before if before[p]!=after[p]}
+          added=set(after)-set(before)
+          expected_changed={'index.html','app/index.html','bridgepoint-view-v5917.js',
+            'bridgepoint-emrf-spectrogram-v1.js','bridgepoint-drone-awareness-v1.js'}
+          required_added={
+            'bridgepoint-emrf-starlink-global-v2.js','app/bridgepoint-emrf-starlink-global-v2.js',
+            'starlink-orbits-v2.json','bridgepoint-wildfires-volumetric-v1.js',
+            'app/bridgepoint-wildfires-volumetric-v1.js','bridgepoint-wildfire-realistic-mesh-v4.js'}
+          optional_added={'app/bridgepoint-wildfire-realistic-mesh-v4.js'}
+          if changed!=expected_changed or not required_added.issubset(added) or added-required_added-optional_added:
+            raise SystemExit('TWO_FEATURE_ONLY_SCOPE_VIOLATION '+json.dumps({'changed':sorted(changed),'added':sorted(added)}))
+          catalog=json.loads((site/'starlink-orbits-v2.json').read_text())
+          assert catalog['version']==2 and catalog['record_count']>=2500 and catalog['recent_72h']>=2000
+          assert (site/'bridgepoint-emrf-starlink-global-v2.js').read_bytes()==(site/'app/bridgepoint-emrf-starlink-global-v2.js').read_bytes()
+          assert (site/'bridgepoint-wildfires-volumetric-v1.js').read_bytes()==(site/'app/bridgepoint-wildfires-volumetric-v1.js').read_bytes()
+          assert "if(value.startsWith('bp-faa-obstructions-'))return false;" in (site/'bridgepoint-drone-awareness-v1.js').read_text()
+          print('EMRF_WILDFIRE_ONLY_PRESERVATION_PASS existing_files',len(before),'changed',sorted(changed),'added',sorted(added),'orbital_records',catalog['record_count'])
+          PY
+          node --check "$SITE/bridgepoint-view-v5917.js"
+          node --check "$SITE/bridgepoint-drone-awareness-v1.js"
+          node --input-type=module --check < "$SITE/bridgepoint-emrf-spectrogram-v1.js"
+          node --input-type=module --check < "$SITE/bridgepoint-emrf-starlink-global-v2.js"
+          node --input-type=module --check < "$SITE/bridgepoint-wildfires-volumetric-v1.js"
+          node --input-type=module --check < "$SITE/bridgepoint-wildfire-realistic-mesh-v4.js"
+      - uses: actions/configure-pages@v5
+      - name: Upload preserved full production + only the two restored features
+        uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/bp-emrf-wildfire-site
+          include-hidden-files: true
+      - name: Publish ONLY Starlink EMRF and Wildfire restoration
+        id: publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-pages-extended.mjs
+      - name: Check live orbital catalog, both wildfire modules, shared visibility and Cloudflare PC auth
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE=https://bridgepointintelligence.online
+          for file in \
+            bridgepoint-emrf-starlink-global-v2.js \
+            app/bridgepoint-emrf-starlink-global-v2.js \
+            bridgepoint-wildfires-volumetric-v1.js \
+            app/bridgepoint-wildfires-volumetric-v1.js \
+            bridgepoint-wildfire-realistic-mesh-v4.js \
+            app/bridgepoint-wildfire-realistic-mesh-v4.js; do
+              ok=0
+              for attempt in $(seq 1 14); do
+                if curl -fsSL --max-time 35 -H 'Cache-Control: no-cache' "$BASE/$file?restore=$GITHUB_SHA-$attempt" -o /tmp/bp-restore-asset; then
+                  if test "$(wc -c < /tmp/bp-restore-asset)" -gt 500; then ok=1; break; fi
+                fi
+                sleep 5
+              done
+              test "$ok" = 1 || { echo "MISSING_RESTORED_FEATURE_ASSET $file"; exit 1; }
+              echo "RESTORED_LIVE_FEATURE_ASSET $file $(wc -c < /tmp/bp-restore-asset)"
+          done
+          curl --retry 6 --retry-all-errors -fsSL "$BASE/starlink-orbits-v2.json?restore=$GITHUB_SHA" -o /tmp/bp-restored-orbit.json
+          python3 - <<'PY'
+          import json,datetime
+          data=json.load(open('/tmp/bp-restored-orbit.json'))
+          age=(datetime.datetime.now(datetime.timezone.utc)-datetime.datetime.fromisoformat(data['fetched_at'].replace('Z','+00:00'))).total_seconds()
+          assert data['version']==2 and data['record_count']>=2500 and 0<=age<7*86400
+          print('LIVE_STARLINK_CURRENT_ORBIT_CATALOG',data['record_count'],data['fetched_at'])
+          PY
+          for file in bridgepoint-view-v5917.js bridgepoint-drone-awareness-v1.js index.html app/index.html; do
+            curl --retry 5 --retry-all-errors -fsSL -H 'Cache-Control: no-cache' "$BASE/$file?restore=$GITHUB_SHA" -o "/tmp/$(basename "$file").restored"
+          done
+          grep -Fq 'emrf-fire-restore=20261120' /tmp/index.html.restored
+          grep -Fq 'emrf-fire-restore=20261120' /tmp/bridgepoint-view-v5917.js.restored
+          grep -Fq "if(value.startsWith('bp-emrf-')||value.startsWith('bp-live-fire-')" /tmp/bridgepoint-drone-awareness-v1.js.restored
+          curl --retry 3 --retry-all-errors -fsSL https://characterization-seas-total-adopt.trycloudflare.com/auth/v1/health | grep -Fq '"local":true'
+          echo 'EMRF_STARLINK_AND_WILDFIRE_RESTORED_LIVE_PASS'
