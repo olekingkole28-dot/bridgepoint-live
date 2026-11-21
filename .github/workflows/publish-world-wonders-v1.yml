@@ -138,13 +138,8 @@ jobs:
           for rel,tag in [('index.html',root_tag),('app/index.html',app_tag)]:
               path=site/rel
               html=path.read_text(encoding='utf-8')
-              if 'bridgepoint-iconic-wonders-v1.js' not in html:
-                  if '</body>' not in html.lower():
-                      raise SystemExit(rel+' has no closing body tag')
-                  html=re.sub(r'</body>',tag+'\n</body>',html,flags=re.I,count=1)
-              if html.count('bridgepoint-iconic-wonders-v1.js') != 1:
-                  raise SystemExit(rel+' must load exactly one World Wonders module')
               if rel=='index.html':
+                  html=re.sub(r'<script type="application/x-bridgepoint-deferred" data-bp-deferred-src="/bridgepoint-iconic-wonders-v1\.js[^"]*" data-bp-deferred-kind="classic"></script>','',html,flags=re.I)
                   marker="  'bridgepoint-map-key-v5920.js',\n"
                   priority="  'bridgepoint-iconic-wonders-v1.js',\n"
                   if priority not in html:
@@ -153,12 +148,28 @@ jobs:
                       html=html.replace(marker,marker+priority,1)
                   if priority not in html:
                       raise SystemExit('Root deferred loader does not prioritize World Wonders')
+                  queue=html.find('const priority=[')
+                  script_start=html.rfind('<script',0,queue) if queue>=0 else -1
+                  if queue<0 or script_start<0:
+                      raise SystemExit('Root deferred feature queue script was not found')
+                  html=html[:script_start]+tag+'\n'+html[script_start:]
+                  if html.count('data-bp-deferred-src="/bridgepoint-iconic-wonders-v1.js') != 1:
+                      raise SystemExit('Root entrypoint must queue exactly one World Wonders module')
+              else:
+                  pattern=r'<script defer src="/bridgepoint-iconic-wonders-v1\.js\?v=[^"]+"></script>'
+                  html,count=re.subn(pattern,tag,html,flags=re.I,count=1)
+                  if count==0 and 'bridgepoint-iconic-wonders-v1.js' not in html:
+                      if '</body>' not in html.lower():
+                          raise SystemExit(rel+' has no closing body tag')
+                      html=re.sub(r'</body>',tag+'\n</body>',html,flags=re.I,count=1)
+                  if html.count('bridgepoint-iconic-wonders-v1.js') != 1:
+                      raise SystemExit(rel+' must load exactly one World Wonders module')
               path.write_text(html,encoding='utf-8')
           source=Path('rebuild-v5000/app-index.html').read_text(encoding='utf-8')
           if app_tag not in source:
               raise SystemExit('Source app-index.html is missing the World Wonders loader')
           root_source=Path('rebuild-v5000/index.html').read_text(encoding='utf-8')
-          if root_tag not in root_source or "'bridgepoint-iconic-wonders-v1.js'," not in root_source:
+          if root_tag not in root_source or "'bridgepoint-iconic-wonders-v1.js'," not in root_source or root_source.index(root_tag)>root_source.index('const priority=['):
               raise SystemExit('Source root entrypoint is missing the deferred World Wonders loader')
           module=Path('rebuild-v5000/bridgepoint-iconic-wonders-v1.js').read_text(encoding='utf-8')
           if module.count('modelId:') != 27 or 'total: 27' not in module or 'additional: 20' not in module:
@@ -233,6 +244,15 @@ jobs:
           cmp -s "$DIR/module.js" rebuild-v5000/bridgepoint-iconic-wonders-v1.js
           grep -Fq 'bridgepoint-iconic-wonders-v1.js?v=6514-global-world-wonders' "$DIR/root.html"
           grep -Fq 'bridgepoint-iconic-wonders-v1.js?v=6514-global-world-wonders' "$DIR/app.html"
+          python3 - "$DIR/root.html" <<'PY'
+          import sys
+          from pathlib import Path
+          html=Path(sys.argv[1]).read_text(encoding='utf-8')
+          tag='data-bp-deferred-src="/bridgepoint-iconic-wonders-v1.js?v=6514-global-world-wonders"'
+          if tag not in html or 'const priority=[' not in html or html.index(tag)>html.index('const priority=['):
+              raise SystemExit('LIVE_ROOT_DEFERRED_QUEUE_DOES_NOT_INCLUDE_WORLD_WONDERS_BEFORE_QUEUE_START')
+          print('LIVE_ROOT_WORLD_WONDERS_LOADER_IS_QUEUED_BEFORE_FEATURE_SNAPSHOT')
+          PY
           grep -Fq 'WORLD WONDERS · 3D SCAN' "$DIR/module.js"
           grep -Fq 'bpv-world-wonders-button-v1' "$DIR/module.js"
           grep -Fq "modelId:'4577eb4b21ac48ecba43e7944b4e1baf'" "$DIR/module.js"
