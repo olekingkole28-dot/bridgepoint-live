@@ -9,7 +9,7 @@ assert.match(src,/new T.PointsMaterial/,'screen-sized tower pin for globe zoom')
 assert.ok(src.includes('queryTerrainElevation'),'surface wind and RF account for DEM where available');
 assert.ok(src.includes('isJet?jetHeight+Math.sin')&&src.includes(':elev+10'),'jets stay centered on source 250 hPa height with volumetric depth, surface wind near terrain at 10m');
 assert.ok(src.includes('row[6]+Math.min(800,size*.12)'),'jet warning icon cannot float 80 km above the model jet');
-assert.ok(src.includes('attribute vec3 color;'),'GLSL explicitly declares vertex color attribute');
+assert.ok(src.includes('attribute vec3 color;')&&src.includes('vertexColors:false'),'GLSL uses explicit color attribute without duplicate Three.js shader injection');
 assert.ok(src.includes('windColor(speed)'),'global wind uses speed-color gradient');
 assert.ok(src.includes('visibleSamples(map,rows,isJet,zoom)'),'near-field wind follows viewport using nearest forecast sample');
 assert.ok(src.includes('wind.visible=st.windOn&&zoom<=18;'),'global-to-street wind visibility retained');
