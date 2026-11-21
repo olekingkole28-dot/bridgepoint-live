@@ -120,11 +120,11 @@ jobs:
           import os,re
           from pathlib import Path
           site=Path(os.environ["RUNNER_TEMP"])/"bp-site"
-          build="global-resource-icons-v1"
+          build="global-resource-icons-v2"
           versions={
-              "bridgepoint-offshore-energy-v1.js":"3-global-icons",
-              "bridgepoint-subsurface-wells-v1.js":"3-global-icons",
-              "bridgepoint-wind-turbines-v1.js":"2-global-individual-icons",
+              "bridgepoint-offshore-energy-v1.js":"4-immediate-global-data",
+              "bridgepoint-subsurface-wells-v1.js":"4-streamed-global-icons",
+              "bridgepoint-wind-turbines-v1.js":"3-global-native-marker-dots",
           }
           expected={"landing.js":2,"app.js":1}
           for rel,count_expected in expected.items():
@@ -227,7 +227,7 @@ jobs:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
         run: node scripts/deploy-pages-extended.mjs
 
-      - name: Verify the live global icons and preserved modules
+      - name: Verify the live streamed global markers and preserved modules
         shell: bash
         run: |
           set -euo pipefail
@@ -248,16 +248,19 @@ jobs:
             fetch "app/$feature" "app-$feature"
             cmp -s "$D/$feature" "$D/app-$feature"
           done
-          grep -Fq 'landing.js?v=global-resource-icons-v1' "$D/root.html"
-          grep -Fq 'app.js?v=global-resource-icons-v1' "$D/app.html"
+          grep -Fq 'landing.js?v=global-resource-icons-v2' "$D/root.html"
+          grep -Fq 'app.js?v=global-resource-icons-v2' "$D/app.html"
           for file in landing.js app.js; do
-            grep -Fq 'bridgepoint-offshore-energy-v1.js?v=3-global-icons' "$D/$file"
-            grep -Fq 'bridgepoint-subsurface-wells-v1.js?v=3-global-icons' "$D/$file"
-            grep -Fq 'bridgepoint-wind-turbines-v1.js?v=2-global-individual-icons' "$D/$file"
+            grep -Fq 'bridgepoint-offshore-energy-v1.js?v=4-immediate-global-data' "$D/$file"
+            grep -Fq 'bridgepoint-subsurface-wells-v1.js?v=4-streamed-global-icons' "$D/$file"
+            grep -Fq 'bridgepoint-wind-turbines-v1.js?v=3-global-native-marker-dots' "$D/$file"
           done
           grep -Fq 'const MIN_ICON_ZOOM = 0;' "$D/bridgepoint-offshore-energy-v1.js"
           grep -Fq "const ICON_ID = 'bp-subsurface-wells-icons-v1'" "$D/bridgepoint-subsurface-wells-v1.js"
           grep -Fq "const GLOBAL_ICON_ID = 'bp-wind-turbines-global-icons-v1'" "$D/bridgepoint-wind-turbines-v1.js"
+          grep -Fq "const GLOBAL_DOT_ID = 'bp-wind-turbines-global-dots-v2'" "$D/bridgepoint-wind-turbines-v1.js"
+          grep -Fq 'markers will appear as each source responds' "$D/bridgepoint-offshore-energy-v1.js"
+          grep -Fq 'markers will appear as each source responds' "$D/bridgepoint-subsurface-wells-v1.js"
           for feature in bridgepoint-offshore-energy-v1.js bridgepoint-subsurface-wells-v1.js bridgepoint-wind-turbines-v1.js; do
             cmp -s "$D/$feature" "$D/app-$feature"
           done

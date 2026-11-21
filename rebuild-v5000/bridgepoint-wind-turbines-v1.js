@@ -18,6 +18,7 @@ const CLUSTER_MARKER_ID = 'bp-wind-turbines-cluster-icons-v1';
 const CLUSTER_COUNT_ID = 'bp-wind-turbines-cluster-count-v1';
 const GLOBAL_ICON_SOURCE_ID = 'bp-wind-turbines-global-icon-source-v1';
 const GLOBAL_ICON_ID = 'bp-wind-turbines-global-icons-v1';
+const GLOBAL_DOT_ID = 'bp-wind-turbines-global-dots-v2';
 const HALO_ID = 'bp-wind-turbines-halo-v1';
 const MARKER_ID = 'bp-wind-turbines-markers-v1';
 const LABEL_ID = 'bp-wind-turbines-labels-v1';
@@ -375,12 +376,20 @@ function installLayers(state) {
         'text-allow-overlap':true,'text-ignore-placement':true},
       paint:{'text-color':'#101720','text-halo-color':'#fff2c8','text-halo-width':0.45}
     });
+    // Native circles remain visible and clickable when the glyph atlas is delayed or
+    // a globe-projection renderer declines symbol icons at full-world zoom.
+    add(GLOBAL_DOT_ID,{
+      id:GLOBAL_DOT_ID,type:'circle',source:GLOBAL_ICON_SOURCE_ID,minzoom:0,maxzoom:5,
+      paint:{'circle-radius':['interpolate',['linear'],['zoom'],0,3.2,2,4,4.8,4.6],
+        'circle-color':'#f4cf72','circle-opacity':1,
+        'circle-stroke-color':'#172331','circle-stroke-width':1.25}
+    });
     add(GLOBAL_ICON_ID,{
       id:GLOBAL_ICON_ID,type:'symbol',source:GLOBAL_ICON_SOURCE_ID,
       minzoom:0,maxzoom:4.05,
       layout:{
         'icon-image':'bp-wind-turbine-icon-v1',
-        'icon-size':['interpolate',['linear'],['zoom'],0,0.12,2,0.14,4,0.17],
+        'icon-size':['interpolate',['linear'],['zoom'],0,0.22,2,0.25,4,0.28],
         'icon-anchor':'bottom','icon-pitch-alignment':'map','icon-rotation-alignment':'map',
         'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-padding':0
       },
@@ -430,7 +439,7 @@ function installLayers(state) {
   }
 }
 function setVisibility(state,on) {
-  for (const id of [CLUSTER_ID,CLUSTER_MARKER_ID,CLUSTER_COUNT_ID,HALO_ID,MARKER_ID,LABEL_ID,HIT_ID,MODEL_ID]) {
+  for (const id of [CLUSTER_ID,CLUSTER_MARKER_ID,CLUSTER_COUNT_ID,GLOBAL_DOT_ID,HALO_ID,MARKER_ID,LABEL_ID,HIT_ID,MODEL_ID]) {
     try {if (state.map.getLayer(id)) state.map.setLayoutProperty(id,'visibility',on?'visible':'none');} catch (_) {}
   }
   try {if (state.map.getLayer(GLOBAL_ICON_ID)) state.map.setLayoutProperty(GLOBAL_ICON_ID,'visibility',on?'visible':'none');} catch (_) {}
@@ -673,7 +682,7 @@ function bindInteractions(state) {
   const map = state.map;
   map.on('click',e=>{
     if (!state.enabled) return;
-    const layers = [CLUSTER_ID,CLUSTER_MARKER_ID,MARKER_ID,HALO_ID,LABEL_ID,HIT_ID].filter(id=>map.getLayer(id));
+    const layers = [CLUSTER_ID,CLUSTER_MARKER_ID,GLOBAL_DOT_ID,MARKER_ID,HALO_ID,LABEL_ID,HIT_ID].filter(id=>map.getLayer(id));
     if (map.getLayer(GLOBAL_ICON_ID)) layers.unshift(GLOBAL_ICON_ID);
     const hits = map.queryRenderedFeatures ? map.queryRenderedFeatures(e.point,{layers:layers}) : [];
     const hit = hits && hits[0];
@@ -724,7 +733,7 @@ export function initWindTurbinesRenderer(target) {
     map:map,enabled:false,dead:false,loading:false,globalLoaded:false,
     THREE:null,threeLoading:false,layerInstalling:false,scene:null,camera:null,renderer:null,
     models:[],modelSignature:'',featureCache:new Map(),collection:EMPTY,popup:null,
-    interactionsBound:false,animationTimer:0,lastUpdated:null,status:'off',
+    interactionsBound:false,animationTimer:0,repairFrame:0,lastUpdated:null,status:'off',
     stats:{version:VERSION,sourceVersion:SOURCE_VERSION,total:0,models:0,
       measuredHubHeights:0,measuredRotorDiameters:0,layerReady:false,lastError:null},
     renderWarned:false
@@ -742,6 +751,8 @@ export function initWindTurbinesRenderer(target) {
     destroy(){
       state.dead=true;
       if (state.animationTimer) clearTimeout(state.animationTimer);
+      if (state.repairFrame) (window.cancelAnimationFrame||clearTimeout)(state.repairFrame);
+      for(const eventName of ['styledata','idle','moveend','zoomend','rotateend','pitchend'])map.off(eventName,state.persist);
       if (state.popup) state.popup.remove();
       for (const item of state.models) {
         if (state.scene) state.scene.remove(item.root);
@@ -754,6 +765,15 @@ export function initWindTurbinesRenderer(target) {
   window.__BP_WIND_TURBINES_V1__=api;
   const ready=()=>install(map,state);
   map.on('style.load',ready); map.on('load',ready);
+  state.persist=()=>{
+    if(state.dead||!state.enabled||state.repairFrame)return;
+    const raf=window.requestAnimationFrame||((callback)=>setTimeout(callback,16));
+    state.repairFrame=raf(()=>{
+      state.repairFrame=0;
+      if(!state.dead&&state.enabled&&(!map.isStyleLoaded||map.isStyleLoaded()))install(map,state);
+    });
+  };
+  for(const eventName of ['styledata','idle','moveend','zoomend','rotateend','pitchend'])map.on(eventName,state.persist);
   if (map.isStyleLoaded && map.isStyleLoaded()) ready();
   const observeDock=()=>{
     if (state.dead) return;

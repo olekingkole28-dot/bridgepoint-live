@@ -219,13 +219,14 @@ async function requestJson(url, timeout = 28000) {
     return await response.json();
   } finally { clearTimeout(timer); }
 }
-async function fetchNoaaPlatforms() {
+async function fetchNoaaPlatforms(onPage) {
   const rows = [];
   for (let offset=0; offset<10000; offset+=2000) {
     const url = NOAA_PLATFORM_QUERY + '?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&resultRecordCount=2000&resultOffset=' + offset + '&f=geojson';
     const data = await requestJson(url, 32000);
     if (!Array.isArray(data.features)) throw new Error('NOAA platform GeoJSON has no feature list');
     rows.push(...data.features);
+    if (data.features.length && typeof onPage === 'function') onPage(data.features, rows.length, offset);
     if (data.exceededTransferLimit !== true || data.features.length === 0) break;
   }
   return rows;
@@ -364,7 +365,7 @@ function installLayers(state) {
       paint:{'circle-radius':['interpolate',['linear'],['zoom'],2.2,3.5,5,5.5,9,7,13.5,8],
         'circle-color':['get','markerColor'],'circle-opacity':0.42,'circle-blur':0.75}});
     add(MARKER_ID,{id:MARKER_ID,type:'circle',source:SOURCE_ID,minzoom:MIN_MARKER_ZOOM,maxzoom:MAX_MARKER_ZOOM,
-      paint:{'circle-radius':['interpolate',['linear'],['zoom'],2.2,2.1,6,3.1,12,4.4],
+      paint:{'circle-radius':['interpolate',['linear'],['zoom'],0,4,2.2,5,6,6,12,7.5],
         'circle-color':['get','markerColor'],'circle-stroke-color':'#081722','circle-stroke-width':1.2,'circle-opacity':0.98}});
     add(FOOTPRINT_ID,{id:FOOTPRINT_ID,type:'fill',source:SOURCE_ID+'-footprints',
       minzoom:MIN_FOOTPRINT_ZOOM,maxzoom:15,paint:{'fill-color':['get','markerColor'],'fill-opacity':0.2}});
@@ -728,40 +729,55 @@ function addControlGroup(state) {
   return true;
 }
 async function loadAllData(state,force=false) {
-  if(state.loading||state.dead||(!state.enabled&&!force)|| (state.globalLoaded&&!force))return;
-  state.loading=true;setStatus(state,'Loading NOAA and global offshore platform/well records…');
-  const tasks=await Promise.allSettled([fetchNoaaPlatforms(),fetchOverpass(globalOverpassQuery())]);
+  if(state.loading||state.dead||(!state.enabled&&!force)||(state.globalLoaded&&!force))return;
+  state.loading=true;
+  setStatus(state,'Loading offshore locations… markers will appear as each source responds.');
+  const publish=(features,sourceLabel)=>{
+    if(state.dead||!features.length)return;
+    mergeCollection(state,features);
+    state.globalLoaded=true;
+    state.lastUpdated=Date.now();
+    setStatus(state,state.stats.sourceFeatures.toLocaleString()+' offshore assets visible · '+sourceLabel+' received · other source loading…');
+    if(state.renderer)state.map.triggerRepaint?.();
+    refreshStatusUi(state);
+  };
+  const noaaTask=fetchNoaaPlatforms(rows=>{
+    const features=rows.map(normalizeNoaaPlatform).filter(Boolean);
+    publish(features,'NOAA');
+  });
+  const osmTask=fetchOverpass(globalOverpassQuery()).then(rows=>{
+    const features=rows.map(normalizeOffshoreOsmElement).filter(Boolean);
+    publish(features,'global OpenStreetMap');
+    return rows.length;
+  });
+  const tasks=await Promise.allSettled([noaaTask,osmTask]);
   if(state.dead){state.loading=false;return}
-  const features=[];
-  if(tasks[0].status==='fulfilled')for(const row of tasks[0].value) {
-    const f=normalizeNoaaPlatform(row);if(f)features.push(f);
-  }
-  if(tasks[1].status==='fulfilled')for(const row of tasks[1].value) {
-    const f=normalizeOffshoreOsmElement(row);
-    if(f)features.push(f);
-  }
-  const noaaCount=features.filter(f=>f.properties.sourceName.indexOf('NOAA')===0).length;
-  const osmCount=features.filter(f=>f.properties.sourceName.indexOf('OpenStreetMap')===0).length;
-  if(noaaCount) {
-    try {
-      const statuses=await fetchNoaaStatuses();
-      applyNoaaStatuses(features.filter(f=>f.properties.sourceName.indexOf('NOAA')===0),statuses);
-      state.stats.statusRecords=statuses.length;
-    } catch(e) {console.warn('BridgePoint offshore NOAA operational-status join unavailable',e)}
-  }
-  if(features.length) {
-    mergeCollection(state,features);state.globalLoaded=true;state.lastUpdated=Date.now();
-    const errors=[];
-    if(tasks[0].status!=='fulfilled')errors.push('NOAA location service unavailable');
-    if(tasks[1].status!=='fulfilled')errors.push('global OSM offshore features unavailable');
-    setStatus(state,features.length.toLocaleString()+' offshore assets loaded · NOAA '+noaaCount.toLocaleString()+
+  const noaaCount=state.stats.noaaFeatures;
+  const osmCount=state.stats.osmFeatures;
+  const errors=[];
+  if(tasks[0].status!=='fulfilled')errors.push('NOAA locations: '+String(tasks[0].reason?.message||tasks[0].reason||'unavailable'));
+  if(tasks[1].status!=='fulfilled')errors.push('global OSM: '+String(tasks[1].reason?.message||tasks[1].reason||'unavailable'));
+  if(state.stats.sourceFeatures){
+    state.globalLoaded=true;
+    setStatus(state,state.stats.sourceFeatures.toLocaleString()+' offshore assets visible · NOAA '+noaaCount.toLocaleString()+
       ' · global OSM '+osmCount.toLocaleString()+(errors.length?' · partial coverage: '+errors.join('; '):''));
-    rebuildModels(state);if(state.renderer)state.map.triggerRepaint?.();
-  } else {
-    const reasons=tasks.map(x=>x.status==='rejected'?String(x.reason?.message||x.reason):'');
-    setStatus(state,'Offshore sources unavailable. Toggle off/on to retry. '+reasons.filter(Boolean).join(' · '));
+    if(noaaCount){
+      void fetchNoaaStatuses().then(statuses=>{
+        if(state.dead)return;
+        const current=[...state.featureCache.values()].filter(f=>String(f.properties?.sourceName||'').indexOf('NOAA')===0);
+        applyNoaaStatuses(current,statuses);
+        state.stats.statusRecords=statuses.length;
+        mergeCollection(state,current);
+        state.lastUpdated=Date.now();
+        refreshStatusUi(state);
+      }).catch(e=>console.warn('BridgePoint offshore NOAA operational-status join unavailable',e));
+    }
+  }else{
+    state.globalLoaded=false;
+    setStatus(state,'Offshore sources returned no usable locations. Toggle off/on to retry.'+(errors.length?' '+errors.join(' · '):''));
   }
-  state.loading=false;refreshStatusUi(state);
+  state.loading=false;
+  refreshStatusUi(state);
 }
 async function setEnabled(state,on) {
   state.enabled=!!on;setVisibility(state,state.enabled);
@@ -797,7 +813,7 @@ export function initOffshoreEnergyRenderer(target) {
   if(!map||typeof map.getBounds!=='function'||typeof map.addSource!=='function')return null;
   const existing=MAP_STATES.get(map);if(existing)return existing.api;
   const state={
-    map,enabled:false,dead:false,loading:false,globalLoaded:false,installed:false,layerInstalling:false,
+    map,enabled:false,dead:false,loading:false,globalLoaded:false,installed:false,layerInstalling:false,repairFrame:0,
     THREE:null,threeLoading:false,scene:null,camera:null,renderer:null,models:[],modelSignature:'',
     featureCache:new Map(),collection:EMPTY,footprints:EMPTY,popup:null,interactionsBound:false,
     status:'off',lastUpdated:null,refreshTimer:0,
@@ -813,12 +829,24 @@ export function initOffshoreEnergyRenderer(target) {
     toggle(){return setEnabled(state,!state.enabled)},
     setEnabled(on){return setEnabled(state,on)},
     refresh(){state.globalLoaded=false;return loadAllData(state,true)},
-    destroy(){state.dead=true;if(state.refreshTimer)clearTimeout(state.refreshTimer);if(state.popup)state.popup.remove();
+    destroy(){state.dead=true;if(state.refreshTimer)clearTimeout(state.refreshTimer);
+      if(state.repairFrame)(window.cancelAnimationFrame||clearTimeout)(state.repairFrame);
+      for(const eventName of ['styledata','idle','moveend','zoomend','rotateend','pitchend'])map.off(eventName,state.persist);
+      if(state.popup)state.popup.remove();
       for(const item of state.models){state.scene?.remove(item.root);disposeObject(item.root)}state.models=[]}
   };
   state.api=api;MAP_STATES.set(map,state);window.__BP_OFFSHORE_ENERGY_V1__=api;
   const ready=()=>install(map,state);
   map.on('style.load',ready);map.on('load',ready);
+  state.persist=()=>{
+    if(state.dead||!state.enabled||state.repairFrame)return;
+    const raf=window.requestAnimationFrame||((callback)=>setTimeout(callback,16));
+    state.repairFrame=raf(()=>{
+      state.repairFrame=0;
+      if(!state.dead&&state.enabled&&(!map.isStyleLoaded||map.isStyleLoaded()))install(map,state);
+    });
+  };
+  for(const eventName of ['styledata','idle','moveend','zoomend','rotateend','pitchend'])map.on(eventName,state.persist);
   if(map.isStyleLoaded?.())ready();
   if(!state.refreshTimer)state.refreshTimer=setInterval(()=>{
     if(state.enabled&&!document.hidden&&Date.now()-(state.lastUpdated||0)>30*60*1000) {

@@ -369,7 +369,7 @@ function installLayers(state) {
       paint:{'circle-radius':['interpolate',['linear'],['zoom'],0,2.3,3,4,7,6.5,12,8],
         'circle-color':['get','markerColor'],'circle-opacity':0.34,'circle-blur':0.65}});
     add(MARKER_ID,{id:MARKER_ID,type:'circle',source:SOURCE_ID,minzoom:0,maxzoom:24,
-      paint:{'circle-radius':['interpolate',['linear'],['zoom'],0,1.3,3,2.5,7,3.8,12,5],
+      paint:{'circle-radius':['interpolate',['linear'],['zoom'],0,3.2,3,4.2,7,5.5,12,7],
         'circle-color':['get','markerColor'],'circle-stroke-color':['case',['get','sealed'],'#f5f7fa','#08202a'],
         'circle-stroke-width':['case',['get','sealed'],2,1.15],'circle-opacity':0.98}});
     for(const kind of ['water','oil','gas','geothermal','drillhole']){
@@ -619,24 +619,34 @@ function addControlGroup(state) {
 }
 async function loadInitialData(state) {
   if(state.loading||state.dead||state.globalLoaded||!state.enabled)return;
-  state.loading=true;setStatus(state,'Loading USGS, BGS, NOAA, WPdx and global mapped borehole records…');
-  const tasks=await Promise.allSettled([
-    fetchUsGsWells(),fetchBgsOffshoreWells(),fetchNoaaWells(),fetchWpdxWells(10000),fetchOsmWells()
-  ]);
-  if(state.dead){state.loading=false;return}
+  state.loading=true;
+  setStatus(state,'Loading global well sources… markers will appear as each source responds.');
   const labels=['USGS groundwater','BGS offshore wells','NOAA oil/gas wells','WPdx global water wells','OpenStreetMap global wells'];
-  const counts={};
-  const features=[];
-  for(let i=0;i<tasks.length;i++){
-    const t=tasks[i];
-    if(t.status==='fulfilled'){features.push(...t.value);counts[labels[i]]=t.value.length}
-    else {counts[labels[i]]=0;console.warn('BridgePoint subsurface source unavailable: '+labels[i],t.reason)}
-  }
-  addFeatures(state,features);
-  state.globalLoaded=true;state.lastUpdated=Date.now();state.loading=false;
+  const loaders=[fetchUsGsWells,fetchBgsOffshoreWells,fetchNoaaWells,()=>fetchWpdxWells(10000),fetchOsmWells];
+  const counts=Object.fromEntries(labels.map(label=>[label,0]));
+  const tasks=await Promise.allSettled(loaders.map(async(loader,index)=>{
+    const rows=await loader();
+    counts[labels[index]]=rows.length;
+    if(!state.dead&&rows.length){
+      addFeatures(state,rows);
+      state.globalLoaded=true;
+      state.lastUpdated=Date.now();
+      setStatus(state,state.stats.total.toLocaleString()+' well records visible · '+labels[index]+' received · other sources loading…');
+      if(state.renderer)state.map.triggerRepaint?.();
+      refreshStatusUi(state);
+    }
+    return rows.length;
+  }));
+  if(state.dead){state.loading=false;return}
+  for(let i=0;i<tasks.length;i++)if(tasks[i].status==='rejected')
+    console.warn('BridgePoint subsurface source unavailable: '+labels[i],tasks[i].reason);
+  state.globalLoaded=true;
+  state.lastUpdated=Date.now();
+  state.loading=false;
   const active=Object.entries(counts).filter(x=>x[1]>0).map(x=>x[0]+' '+x[1].toLocaleString());
   const failed=Object.entries(counts).filter(x=>x[1]===0).map(x=>x[0]);
-  setStatus(state,state.stats.total.toLocaleString()+' global well records loaded · '+active.join(' · ')+(failed.length?' · unavailable: '+failed.join(', '):''));
+  setStatus(state,state.stats.total.toLocaleString()+' global well records visible · '+active.join(' · ')+
+    (failed.length?' · unavailable: '+failed.join(', '):''));
   refreshStatusUi(state);
   void loadRegionalData(state);
 }
@@ -688,7 +698,7 @@ export function initSubsurfaceWellsRenderer(target) {
   if(!map||typeof map.getBounds!=='function'||typeof map.addSource!=='function')return null;
   const existing=MAP_STATES.get(map);if(existing)return existing.api;
   const state={
-    map,enabled:false,dead:false,loading:false,globalLoaded:false,regionalLoading:false,
+    map,enabled:false,dead:false,loading:false,globalLoaded:false,regionalLoading:false,repairFrame:0,
     THREE:null,threeLoading:false,layerInstalling:false,scene:null,camera:null,renderer:null,models:[],modelSignature:'',
     featureCache:new Map(),collection:EMPTY,popup:null,interactionsBound:false,loadedRegions:new Set(),
     status:'off',lastUpdated:null,stats:{version:VERSION,total:0,water:0,oil:0,gas:0,drillholes:0,models:0,layerReady:false,lastError:null}
@@ -699,10 +709,22 @@ export function initSubsurfaceWellsRenderer(target) {
     get displayMode(){return Number(map.getZoom()||0)>=MIN_MODEL_ZOOM?'3d-boreholes':'global-source-icons'},
     toggle(){return setEnabled(state,!state.enabled)},setEnabled(on){return setEnabled(state,on)},
     refresh(){state.globalLoaded=false;state.loadedRegions.clear();return loadInitialData(state)},
-    destroy(){state.dead=true;if(state.popup)state.popup.remove();for(const item of state.models){state.scene?.remove(item.root);disposeObject(item.root)}state.models=[]}
+    destroy(){state.dead=true;
+      if(state.repairFrame)(window.cancelAnimationFrame||clearTimeout)(state.repairFrame);
+      for(const eventName of ['styledata','idle','moveend','zoomend','rotateend','pitchend'])map.off(eventName,state.persist);
+      if(state.popup)state.popup.remove();for(const item of state.models){state.scene?.remove(item.root);disposeObject(item.root)}state.models=[]}
   };
   state.api=api;MAP_STATES.set(map,state);window.__BP_SUBSURFACE_WELLS_V1__=api;
   const ready=()=>install(map,state);map.on('style.load',ready);map.on('load',ready);if(map.isStyleLoaded?.())ready();
+  state.persist=()=>{
+    if(state.dead||!state.enabled||state.repairFrame)return;
+    const raf=window.requestAnimationFrame||((callback)=>setTimeout(callback,16));
+    state.repairFrame=raf(()=>{
+      state.repairFrame=0;
+      if(!state.dead&&state.enabled&&(!map.isStyleLoaded||map.isStyleLoaded()))install(map,state);
+    });
+  };
+  for(const eventName of ['styledata','idle','moveend','zoomend','rotateend','pitchend'])map.on(eventName,state.persist);
   const observeDock=()=>{if(addControlGroup(state))return;setTimeout(observeDock,500)};
   observeDock();
   const observer=new MutationObserver(()=>{if(!document.getElementById('bp-subsurface-wells-control-v1'))addControlGroup(state)});
