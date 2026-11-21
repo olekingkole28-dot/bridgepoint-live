@@ -1,4 +1,4 @@
-name: Cancel superseded FAA cache candidate only
+name: Stop unintended shipwreck job blocking EMRF Wildfire restore
 on:
   push:
     branches: [main]
@@ -7,16 +7,16 @@ permissions:
   actions: write
   contents: read
 jobs:
-  cancel-obsolete-faa:
+  cancel-unintended-lock:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - name: Cancel specific superseded FAA gate cache run (not other workflows)
+      - name: Cancel only shipwreck job accidentally triggered by EMRF visibility edit
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          echo "Cancelling only superseded FAA cache run 44838019170"
-          gh api -X POST "repos/${GITHUB_REPOSITORY}/actions/runs/44838019170/cancel" ||
-            gh api "repos/${GITHUB_REPOSITORY}/actions/runs/44838019170" --jq '{status,conclusion}'
+          echo "Cancelling only incidental shipwreck run 44840704161"
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/actions/runs/44840704161/cancel" ||
+            gh api "repos/${GITHUB_REPOSITORY}/actions/runs/44840704161" --jq '{status,conclusion}'
