@@ -2,6 +2,15 @@ name: Publish BridgePoint Named Earthquake Impact Ripples V2
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-usgs-seismic-layer-v1.yml'
+      - 'release-v2300/world-v2300-seismic-layer-v1.js'
+      - 'rebuild-v5000/app.js'
+      - 'rebuild-v5000/landing.js'
+      - 'tests/seismic-layer-v1.test.mjs'
+
 permissions:
   actions: read
   contents: read
