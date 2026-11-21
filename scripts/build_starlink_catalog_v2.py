@@ -14,6 +14,9 @@ import urllib.request
 from pathlib import Path
 
 SOURCE = "https://celestrak.org/NORAD/elements/gp.php?GROUP=STARLINK&FORMAT=JSON"
+# Source-backed public CelesTrak OMM mirror: when the upstream group endpoint
+# returns HTTP 500, continue from its published static snapshot, not invented TLEs.
+MIRROR = "https://raw.githubusercontent.com/satvisorcom/satvisor-data/master/celestrak/json/starlink.json"
 HEADERS = {"Accept": "application/json", "User-Agent": "BridgePointIntelligence/2.0 (orbital-source-cache; github.com/olekingkole28-dot/bridgepoint-live)"}
 OUTPUT = Path(sys.argv[1] if len(sys.argv) > 1 else "starlink-orbits-v2.json")
 def number(value):
@@ -33,15 +36,26 @@ def parse_epoch(value):
         return None
 
 now=dt.datetime.now(dt.timezone.utc)
-try:
-    with urllib.request.urlopen(urllib.request.Request(SOURCE,headers=HEADERS),timeout=75) as response:
-        if response.status != 200: raise RuntimeError("CelesTrak non-200 status: "+str(response.status))
-        raw=response.read(9000000)
-        if len(raw)>8500000: raise RuntimeError("Unexpectedly large orbital source payload")
-    items=json.loads(raw)
-except (urllib.error.URLError,ValueError,RuntimeError) as exc:
-    raise SystemExit("STARLINK_SOURCE_UNAVAILABLE_STOP_WITHOUT_RETRY "+str(exc))
-if not isinstance(items,list): raise SystemExit("STARLINK_SOURCE_WRONG_TYPE")
+items=None
+used_source=None
+failures=[]
+for url in (SOURCE,MIRROR):
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url,headers=HEADERS),timeout=75) as response:
+            if response.status != 200: raise RuntimeError("Starlink OMM source non-200: "+str(response.status))
+            raw=response.read(9000000)
+            if len(raw)>8500000: raise RuntimeError("Unexpectedly large orbital source payload")
+        candidate=json.loads(raw)
+        if not isinstance(candidate,list): raise RuntimeError("Starlink OMM payload was not a list")
+        if len(candidate)<2500: raise RuntimeError("Starlink orbital source too small")
+        items=candidate
+        used_source=url
+        break
+    except (urllib.error.URLError,ValueError,RuntimeError) as exc:
+        failures.append(url.split("/")[2]+": "+str(exc))
+if items is None:
+    raise SystemExit("STARLINK_SOURCES_UNAVAILABLE_NO_FABRICATED_ORBITS "+str(failures))
+print("STARLINK_REAL_ORBITAL_SOURCE",used_source,"input_records",len(items))
 out=[];unique=set();recent=0
 for item in items:
     if not isinstance(item,dict): continue
@@ -68,8 +82,8 @@ for item in items:
 if len(out)<2500 or recent<2000:
     raise SystemExit(f"STARLINK_CATALOG_INSPECT_BEFORE_PUBLISH total={len(out)} recent_72h={recent}")
 payload={
-    "version":2,"source":"CelesTrak Starlink OMM GP catalog",
-    "source_url":SOURCE,"method":"public orbital elements; client-side approximate J2-adjusted Kepler propagation, not operator telemetry",
+    "version":2,"source":"CelesTrak Starlink OMM GP catalog"+(" (source-backed mirror)" if used_source==MIRROR else ""),
+    "source_url":used_source,"method":"public orbital elements; client-side approximate J2-adjusted Kepler propagation, not operator telemetry",
     "fetched_at":now.isoformat(timespec="seconds"),
     "record_count":len(out),"recent_72h":recent,"fields":["norad","name","epoch_ms","mean_motion_rev_day","eccentricity","inclination_deg","raan_deg","arg_perigee_deg","mean_anomaly_deg","international_designator"],
     "records":out
