@@ -140,7 +140,7 @@ function ribbonMaterial(T,jet){
     float alpha=uOpacity*edge*(.30+.70*wisp)*shimmer;
     gl_FragColor=vec4(vColor,alpha);
   }`,
-  vertexColors:true,transparent:true,depthTest:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1,side:T.DoubleSide,blending:T.NormalBlending
+  vertexColors:false,transparent:true,depthTest:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1,side:T.DoubleSide,blending:T.NormalBlending
  });
 }
 export function initBridgePointGlobalWindRfV1(target){
