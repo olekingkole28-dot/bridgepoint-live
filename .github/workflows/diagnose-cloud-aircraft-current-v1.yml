@@ -1,0 +1,77 @@
+name: Diagnose current production Clouds and Aircraft regression (read-only)
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/diagnose-cloud-aircraft-current-v1.yml']
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 13
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compare all current LIVE cloud and aircraft assets with known working sources
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os,json,re,hashlib,urllib.request,urllib.error
+          from pathlib import Path
+          root='https://bridgepointintelligence.online/'
+          paths=['index.html','app/index.html','landing.js','app.js','bridgepoint-view-v5917.js',
+            'bridgepoint-drone-awareness-v1.js','world-v2300-clouds.js','app/world-v2300-clouds.js',
+            'cloud-height-observations.json']
+          for p in paths:
+            try:
+              req=urllib.request.Request(root+p+'?diagnose-cloud-aircraft=20261121',headers={'Cache-Control':'no-cache'})
+              with urllib.request.urlopen(req,timeout=40) as r:raw=r.read()
+              s=raw.decode('utf-8','replace')
+              source=Path('release-v2300' if 'world-v2300-clouds.js' in p else 'rebuild-v5000')/p.replace('app/index.html','app-index.html').replace('app/world-v2300-clouds.js','world-v2300-clouds.js')
+              print('LIVE_CLOUD_AIR_ASSET',p,'size',len(raw),'sha',hashlib.sha256(raw).hexdigest(),
+                'source_match',source.is_file() and source.read_bytes()==raw)
+              if p.endswith('.html'):
+                print('LIVE_CLOUD_HIDDEN_STYLE',p,'hide_css',bool(re.search(r'clouds.*display:none!important',s[:1000])),
+                  'cloudstyle_element',('bp-clouds-always-on-v6330' in s),
+                  'view_url',re.findall(r'data-bp-deferred-src="(/bridgepoint-view-v5917.js[^"]+)',s)[:1],
+                  'air_url',re.findall(r'data-bp-deferred-src="(/bridgepoint-drone-awareness-v1.js[^"]+)',s)[:1])
+              if p in ('landing.js','app.js','bridgepoint-view-v5917.js'):
+                print('LIVE_CLOUD_LOAD_MARKERS',p,'always_on',s.count('__BP_ACTIVATE_CLOUDS__'),
+                  'import',re.findall(r'.{0,50}world-v2300-clouds.js.{0,120}',s)[:3],
+                  'old_cloud_button',s.count("if(a==='clouds')"))
+              if p.endswith('world-v2300-clouds.js'):
+                print('LIVE_CLOUD_MODEL_MARKERS',p,'raymarch',s.count('bpRaymarchCumulusV6500'),
+                  'globalseed',s.count('globalCloudGeometryCache'),'auto_refresh',s.count('300000'))
+            except urllib.error.HTTPError as e:print('LIVE_CLOUD_AIR_ERROR',p,'HTTP',e.code)
+            except Exception as e:print('LIVE_CLOUD_AIR_ERROR',p,str(e)[:200])
+          PY
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test real production welcome globe cloud state and obsolete button visibility
+        shell: bash
+        run: |
+          npm install --prefix /tmp/bp-cloud-air-inspect --no-audit --no-fund playwright-core@1.56.1
+          cat > /tmp/bp-cloud-air-inspect/check.mjs <<'JS'
+          import {chromium} from 'playwright-core';
+          const b=await chromium.launch({executablePath:'/usr/bin/google-chrome',headless:true,
+           args:['--no-sandbox','--use-gl=angle','--use-angle=swiftshader','--enable-webgl']});
+          const c=await b.newContext({viewport:{width:850,height:600},isMobile:true,hasTouch:true,serviceWorkers:'block'});
+          const p=await c.newPage();const errs=[];
+          p.on('pageerror',e=>errs.push(e.message));
+          await p.goto('https://bridgepointintelligence.online/?diag-cloud-aircraft=20261121',{waitUntil:'domcontentloaded',timeout:45000});
+          try{await p.waitForFunction(()=>!!window.__BP_LANDING_WORLD__?.map,null,{timeout:65000})}catch(e){}
+          await p.waitForTimeout(9000);
+          const result=await p.evaluate(()=>{
+            const cloud=window.__BP_SKY_CLOUDS_V5908__,map=window.__BP_LANDING_WORLD__?.map;
+            const b=document.querySelector('[data-bpv-action="clouds"]');
+            return {cloudInitialized:!!cloud,cloudEnabled:cloud?.enabled,cloudState:cloud?.state,
+             cloudError:cloud?.state?.rendererError,cloudMapLayer:!!map?.getLayer('bp-sky-cloud-volume-v6029'),
+             cloudButtonInDOM:!!b,buttonDisplayed:b?getComputedStyle(b).display:null,
+             cloudVolumesByDOM:document.querySelectorAll('.bp-sky-cloudfield-v5908').length,
+             welcomeVisible:!!document.getElementById('bpWelcomeGateV1')&&!document.getElementById('bpWelcomeGateV1').hidden};
+          });
+          console.log('ACTUAL_PRODUCTION_CLOUD_STATE',JSON.stringify(result,(k,v)=>k==='map'?undefined:v).slice(0,6900));
+          console.log('ACTUAL_PRODUCTION_SCRIPT_ERRORS',JSON.stringify(errs.slice(0,12)));
+          await b.close();
+          JS
+          node /tmp/bp-cloud-air-inspect/check.mjs
