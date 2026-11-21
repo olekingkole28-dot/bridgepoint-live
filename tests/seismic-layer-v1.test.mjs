@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 const modulePath = new URL('../release-v2300/world-v2300-seismic-layer-v1.js', import.meta.url);
 const source = await readFile(modulePath, 'utf8');
 const encoded = Buffer.from(source, 'utf8').toString('base64');
-const { normalizeUSGSEarthquakeFeed, SEISMIC_FEED_URL, SEISMIC_REFRESH_MS, SEISMIC_MAX_FEATURES } =
+const { normalizeUSGSEarthquakeFeed, estimateEarthquakeImpactRadiusKm, extractShakeMapImpactBoundary, SEISMIC_FEED_URL, SEISMIC_REFRESH_MS, SEISMIC_MAX_FEATURES } =
   await import('data:text/javascript;base64,' + encoded);
 
 const valid = {
@@ -51,6 +51,17 @@ assert.equal(first.properties.time, valid.properties.time);
 assert.equal(first.properties.place, valid.properties.place);
 assert.equal(first.properties.bp_depth_km, 8.4);
 assert.equal(first.properties.url, valid.properties.url);
+assert.ok(first.properties.bp_impact_radius_km > 0, 'every event gets an impact radius');
+assert.equal(first.properties.bp_impact_estimated, true);
+assert.equal(first.properties.bp_impact_method, 'Magnitude/depth estimate');
+assert.ok(estimateEarthquakeImpactRadiusKm(6, 10) > estimateEarthquakeImpactRadiusKm(3, 10));
+assert.ok(estimateEarthquakeImpactRadiusKm(4, 100) > estimateEarthquakeImpactRadiusKm(4, 0));
+const contour = extractShakeMapImpactBoundary({features:[
+  {type:'Feature',properties:{value:'2'},geometry:{type:'LineString',coordinates:[[-73,41],[-72.8,41.2],[-72.6,41],[-73,41]]}},
+  {type:'Feature',properties:{value:'4'},geometry:{type:'LineString',coordinates:[[-72.95,41],[-72.8,41.1],[-72.7,41]]}}
+]},[-73,41]);
+assert.ok(contour && contour.radiusKm > 0, 'ShakeMap boundary extraction returns a measured radius');
+assert.equal(contour.contourLevel, 2);
 
 const noDepth = normalizeUSGSEarthquakeFeed({
   features: [{
@@ -79,9 +90,15 @@ assert.equal(SEISMIC_REFRESH_MS, 60_000, 'feed refresh cadence is one minute');
 
 for (const token of [
   'bp-usgs-seismic-source-v1',
+  'bp-usgs-seismic-impact-v1',
+  'bp-usgs-seismic-boundary-source-v1',
+  'bp-usgs-seismic-ripples-v1',
+  'bp-usgs-seismic-impact-boundary-v1',
+  'bp-usgs-seismic-ripple-lines-v1',
+  'bp-usgs-seismic-global-pulse-v1',
   'bp-usgs-seismic-glow-v1',
   'bp-usgs-seismic-points-v1',
-  'USGS Seismic · OFF',
+  'Named earthquakes · OFF',
   'data-bp-seismic-toggle',
   'state.enabled = next',
   'AbortController',
@@ -105,7 +122,7 @@ const landing = await readFile(new URL('../rebuild-v5000/landing.js', import.met
 assert.equal(app.split("world-v2300-seismic-layer-v1.js?v=1-usgs-comcat-m25-week").length - 1, 1,
   'app must load the new layer exactly once');
 assert.equal(landing.split("world-v2300-seismic-layer-v1.js?v=1-usgs-comcat-m25-week").length - 1, 1,
-  'homepage globe must load the new layer exactly once');
+  'homepage module bootstrap and desktop loader use the new cache key');
 
 console.log('BRIDGEPOINT_USGS_SEISMIC_LAYER_V1_PASS', JSON.stringify({
   normalizedEvents: normalized.features.length,
