@@ -1,14 +1,7 @@
-name: Publish BridgePoint Lighthouse Photogrammetry v1
+name: Publish BridgePoint Lighthouse Global Pin Visibility v1
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/publish-lighthouse-photogrammetry-v1.yml'
-      - 'rebuild-v5000/bridgepoint-lighthouses-v1.js'
-      - 'rebuild-v5000/landing.js'
-      - 'rebuild-v5000/app.js'
 
 permissions:
   actions: read
@@ -93,28 +86,39 @@ jobs:
           if missing:
               raise SystemExit('Known-good Pages baseline is missing required files: '+', '.join(sorted(missing)))
           legacy=(site/module).read_text(encoding='utf-8')
-          if 'OSM-backed global lighthouse locations' not in legacy or 'globalOverpassQuery' not in legacy:
-              raise SystemExit('Baseline lighthouse renderer was not the expected legacy module')
+          legacy_synthetic='OSM-backed global lighthouse locations' in legacy and 'globalOverpassQuery' in legacy
+          legacy_scan='photogrammetry-v3' in legacy and 'bp-lighthouse-scan-markers-v3' in legacy
+          if not (legacy_synthetic or legacy_scan):
+              raise SystemExit('Baseline lighthouse renderer was not a recognized published version')
 
-          mobile_old="['./bridgepoint-lighthouses-v1.js?v=6311-mobile-lighthouses','__BP_LIGHTHOUSES_V1__','initLighthouseRenderer','3D lighthouses'],"
-          mobile_new="['./bridgepoint-lighthouses-v1.js?v=3-photogrammetry-scan-catalog','__BP_LIGHTHOUSES_V1__','initLighthouseRenderer','Lighthouses'],"
+          mobile_old_candidates=[
+              "['./bridgepoint-lighthouses-v1.js?v=6311-mobile-lighthouses','__BP_LIGHTHOUSES_V1__','initLighthouseRenderer','3D lighthouses'],",
+              "['./bridgepoint-lighthouses-v1.js?v=3-photogrammetry-scan-catalog','__BP_LIGHTHOUSES_V1__','initLighthouseRenderer','Lighthouses'],"
+          ]
+          mobile_new="['./bridgepoint-lighthouses-v1.js?v=4-global-pin-visibility','__BP_LIGHTHOUSES_V1__','initLighthouseRenderer','Lighthouses'],"
           landing=site/'landing.js'
           text=landing.read_text(encoding='utf-8')
-          if text.count(mobile_old)!=1:
-              raise SystemExit('landing.js: expected exactly one lighthouse mobile restore entry')
-          text=text.replace(mobile_old,mobile_new,1)
-          old_import="./bridgepoint-lighthouses-v1.js?v=2-visible-rotating-beacons"
-          new_import="./bridgepoint-lighthouses-v1.js?v=3-photogrammetry-scan-catalog"
-          if text.count(old_import)!=1:
-              raise SystemExit('landing.js: expected exactly one active lighthouse renderer import')
-          text=text.replace(old_import,new_import,1)
+          mobile_old=[candidate for candidate in mobile_old_candidates if text.count(candidate)==1]
+          if len(mobile_old)!=1:
+              raise SystemExit('landing.js: expected exactly one known lighthouse mobile entry')
+          text=text.replace(mobile_old[0],mobile_new,1)
+          old_import_candidates=[
+              "./bridgepoint-lighthouses-v1.js?v=2-visible-rotating-beacons",
+              "./bridgepoint-lighthouses-v1.js?v=3-photogrammetry-scan-catalog"
+          ]
+          new_import="./bridgepoint-lighthouses-v1.js?v=4-global-pin-visibility"
+          old_import=[candidate for candidate in old_import_candidates if text.count(candidate)==1]
+          if len(old_import)!=1:
+              raise SystemExit('landing.js: expected exactly one known active lighthouse import')
+          text=text.replace(old_import[0],new_import,1)
           landing.write_text(text,encoding='utf-8')
 
           app=site/'app.js'
           text=app.read_text(encoding='utf-8')
-          if text.count(old_import)!=1:
-              raise SystemExit('app.js: expected exactly one active lighthouse renderer import')
-          app.write_text(text.replace(old_import,new_import,1),encoding='utf-8')
+          old_import=[candidate for candidate in old_import_candidates if text.count(candidate)==1]
+          if len(old_import)!=1:
+              raise SystemExit('app.js: expected exactly one known active lighthouse import')
+          app.write_text(text.replace(old_import[0],new_import,1),encoding='utf-8')
 
           replacement=Path('rebuild-v5000')/module
           payload=replacement.read_bytes()
@@ -129,9 +133,8 @@ jobs:
               if len(matches)!=1:
                   raise SystemExit(f'{rel}: expected one active {entry} script; found {len(matches)}')
               src=matches[0].group(1)
-              if 'lighthouse-scans=v3' in src:
-                  raise SystemExit(f'{rel}: lighthouse cache key already exists')
-              file.write_text(text.replace('src="'+src+'"','src="'+src+'&lighthouse-scans=v3"',1),encoding='utf-8')
+              src_clean=re.sub(r'&lighthouse-scans=v[0-9]+','',src)
+              file.write_text(text.replace('src="'+src+'"','src="'+src_clean+'&lighthouse-scans=v4"',1),encoding='utf-8')
 
           after={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
                  for p in site.rglob('*') if p.is_file()}
@@ -211,7 +214,9 @@ jobs:
               fetch_live_file 'bridgepoint-underground-transit-v1.js' 'transit-live.js'
               fetch_live_file 'bridgepoint-underground-infrastructure-v1.js' 'infra-live.js'
               cmp -s "$RUNNER_TEMP/lighthouses-root.js" "$RUNNER_TEMP/lighthouses-app.js"
-              grep -Fq "photogrammetry-v3" "$RUNNER_TEMP/lighthouses-root.js"
+              grep -Fq "global-pins-v4" "$RUNNER_TEMP/lighthouses-root.js"
+              grep -Fq "id: GLOBAL_DOT, type: 'circle', source: SOURCE" "$RUNNER_TEMP/lighthouses-root.js"
+              grep -Fq "'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 10" "$RUNNER_TEMP/lighthouses-root.js"
               grep -Fq "Aniva photogrammetry model" "$RUNNER_TEMP/lighthouses-root.js"
               grep -Fq "Jomfruland photogrammetry mesh" "$RUNNER_TEMP/lighthouses-root.js"
               grep -Fq "Interior 3D walkthrough" "$RUNNER_TEMP/lighthouses-root.js"
