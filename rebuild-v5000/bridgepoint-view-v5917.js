@@ -203,7 +203,7 @@ function makeTopBarAndDock(){
 
     '<button type="button" class="bpv-command-btn" data-bpv-action="wildfire" aria-pressed="false" title="Toggle live wildfire and burn-perimeter geometry"><span class="bpv-command-icon" aria-hidden="true">🔥</span><span class="bpv-command-label">Wildfire</span></button>'+
     '<button type="button" class="bpv-command-btn bpv-wind-voxels-btn" data-bpv-action="windfx" title="Explore wind flow and drone routes"><span class="bpv-command-icon" aria-hidden="true">≋</span><span class="bpv-command-label">Wind + Drone</span></button>'+
-    '<button type="button" class="bpv-command-btn" data-bpv-action="volumetric" title="Instant animated 3D wind, jet-stream danger markers and 4G/5G radio coverage"><span class="bpv-command-icon" aria-hidden="true">⌁</span><span class="bpv-command-label">Wind + RF / Jets</span></button>'+
+    '<button type="button" class="bpv-command-btn" data-bpv-action="volumetric" aria-pressed="false" title="Toggle persistent global animated 3D wind, jet stream icons and model cards, and source-anchored 4G/5G RF coverage"><span class="bpv-command-icon" aria-hidden="true">⌁</span><span class="bpv-command-label">Wind + RF / Jets</span></button>'+
     '<button type="button" class="bpv-command-btn bpv-emrf-spectrogram-btn" data-bpv-action="emrf" aria-pressed="false" title="Toggle global electromagnetic spectrum, Starlink beam models, cellular RF and ionospheric propagation"><span class="bpv-command-icon" aria-hidden="true">◉</span><span class="bpv-command-label">Global EM / RF</span></button>'+
    '</div><div class="bpv-command-inline-slot" id="bpv-world-activity-slot" aria-label="Weather timeline and world activity"></div>'+
   '</section>'+
@@ -341,7 +341,10 @@ function makeTopBarAndDock(){
     showActionNotice(on?'Wind flow is on. Drone controls remain in the Wind + Drone panel.':'Wind flow is off.');
    }).catch(e=>{console.warn('BridgePoint 3D wind unavailable',e);showActionNotice('Wind + Drone fields could not open: '+String(e?.message||e))});return;
   }
-  if(a==='volumetric'){setDockMaximized(true);void openVolumetricFields().catch(e=>{console.warn('BridgePoint volumetric fields unavailable',e);showActionNotice('Wind / RF Fields could not open: '+String(e?.message||e))});return}
+  if(a==='volumetric'){
+   void toggleUnifiedWindRfJets(b).catch(e=>{console.warn('BridgePoint Wind/RF/Jets unavailable',e);showActionNotice('Wind / RF / Jets could not activate: '+String(e?.message||e))});
+   return;
+  }
   if(a==='emrf'){setDockMaximized(true);void toggleEmrfSpectrogram(b).catch(e=>{console.warn('BridgePoint global EM/RF spectrogram unavailable',e);showActionNotice('Global EM / RF could not open: '+String(e?.message||e))});return}
   if(a==='motion'){openPanel('controls');try{const motion=window.__BP_GLOBAL_MOTION_V5926__;if(typeof motion?.open==='function')motion.open();else showActionNotice('Orbit & Motion controls are not ready. Reload the world after the map has finished loading.')}catch(e){showActionNotice('Orbit & Motion failed: '+String(e?.message||e))}return}
   if(a==='satellite'){
@@ -937,6 +940,26 @@ async function openVolumetricFields(initialWind=false){
  const mod=await import('./bridgepoint-volumetric-fields-v5978.js?v=6000-auto-wind-4g-5g-jets');
  const api=mod.initBridgePointVolumetricFields(world);if(typeof api?.open!=='function')throw new Error('Volumetric field panel did not initialize');api.open();
  if(initialWind){if(typeof api?.setWind!=='function')throw new Error('Wind controls did not initialize');await api.setWind(true)}
+}
+async function toggleUnifiedWindRfJets(button){
+ const world=home?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
+ if(!world?.map)throw new Error('BridgePoint globe not ready');
+ const previous=window.__BP_VOLUMETRIC_FIELDS_V5992__;
+ const alreadyOn=button.getAttribute('aria-pressed')==='true'&&previous?.map===world.map;
+ if(alreadyOn){
+  previous.disableAll?.();
+  button.setAttribute('aria-pressed','false');button.classList.remove('active');
+  const label=button.querySelector('.bpv-command-label');if(label)label.textContent='Wind + RF / Jets';
+  return false;
+ }
+ const mod=await import('./bridgepoint-volumetric-fields-v5978.js?v=6001-persistent-global-wind-jet-rf');
+ const api=previous?.map===world.map?previous:mod.initBridgePointVolumetricFields(world);
+ if(!api?.open||!api?.enableAll)throw new Error('Combined Wind/RF/Jet model control unavailable');
+ if(api===previous)api.enableAll();
+ if(!api.state?.windOn||!api.state?.rfOn)throw new Error('Wind and both RF models did not switch on');
+ button.setAttribute('aria-pressed','true');button.classList.add('active');
+ const label=button.querySelector('.bpv-command-label');if(label)label.textContent='Wind + RF / Jets · ON';
+ return true;
 }
 async function toggleWindAndDroneField(){
  const world=home?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
