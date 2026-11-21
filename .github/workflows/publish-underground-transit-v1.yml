@@ -182,15 +182,24 @@ jobs:
           set -euo pipefail
           SITE="https://bridgepointintelligence.online"
           VERIFIED=0
+          fetch_live_file() {
+            curl -fsSL -H 'Cache-Control: no-cache' "$SITE/$1?check=$GITHUB_SHA-$pass" -o "$RUNNER_TEMP/$2"
+          }
           for pass in $(seq 1 15); do
-            if curl -fsSL -H 'Cache-Control: no-cache' "$SITE/bridgepoint-underground-transit-v1.js?check=$GITHUB_SHA-$pass" | grep -Fq 'london-bank-monument'; then
-              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/bridgepoint-underground-transit-v1.js?check=$GITHUB_SHA-$pass" | grep -Fq 'tokyo-shinjuku'
-              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app/bridgepoint-underground-transit-v1.js?check=$GITHUB_SHA-$pass" | grep -Fq 'tokyo-station'
-              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -Fq 'bridgepoint-underground-transit-v1.js?v=1-public-passenger-schematic'
-              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/landing.js?check=$GITHUB_SHA-$pass" | grep -Fq 'v=26-underground-transit-public-schematics'
-              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app.js?check=$GITHUB_SHA-$pass" | grep -Fq 'v=26-underground-transit-public-schematics'
-              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/?check=$GITHUB_SHA-$pass" | grep -Fq 'underground-transit=v1'
-              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app/index.html?check=$GITHUB_SHA-$pass" | grep -Fq 'underground-transit=v1'
+            if fetch_live_file 'bridgepoint-underground-transit-v1.js' 'transit-root.js' && grep -Fq 'london-bank-monument' "$RUNNER_TEMP/transit-root.js"; then
+              fetch_live_file 'app/bridgepoint-underground-transit-v1.js' 'transit-app.js'
+              fetch_live_file 'bridgepoint-underground-scan-sites-v1.js' 'underground-loader.js'
+              fetch_live_file 'landing.js' 'landing-entry.js'
+              fetch_live_file 'app.js' 'app-entry.js'
+              fetch_live_file '' 'home.html'
+              fetch_live_file 'app/index.html' 'app-home.html'
+              grep -Fq 'tokyo-shinjuku' "$RUNNER_TEMP/transit-root.js"
+              grep -Fq 'tokyo-station' "$RUNNER_TEMP/transit-app.js"
+              grep -Fq 'bridgepoint-underground-transit-v1.js?v=1-public-passenger-schematic' "$RUNNER_TEMP/underground-loader.js"
+              grep -Fq 'v=26-underground-transit-public-schematics' "$RUNNER_TEMP/landing-entry.js"
+              grep -Fq 'v=26-underground-transit-public-schematics' "$RUNNER_TEMP/app-entry.js"
+              grep -Fq 'underground-transit=v1' "$RUNNER_TEMP/home.html"
+              grep -Fq 'underground-transit=v1' "$RUNNER_TEMP/app-home.html"
               VERIFIED=1
               echo "TRANSIT_LIVE_VERIFICATION_PASS attempt=$pass"
               break
