@@ -235,7 +235,7 @@ jobs:
               grep -Fq "Jomfruland photogrammetry mesh" "$RUNNER_TEMP/lighthouses-root.js"
               grep -Fq "Interior 3D walkthrough" "$RUNNER_TEMP/lighthouses-root.js"
               grep -Fq "initLighthouseRenderer','Lighthouses" "$RUNNER_TEMP/landing-live.js"
-              grep -Fq "bridgepoint-lighthouses-v1.js?v=3-photogrammetry-scan-catalog" "$RUNNER_TEMP/app-live.js"
+              grep -Fq "bridgepoint-lighthouses-v1.js?v=4-global-pin-visibility" "$RUNNER_TEMP/app-live.js"
               grep -Fq "lighthouse-scans=v4" "$RUNNER_TEMP/home-live.html"
               grep -Fq "lighthouse-scans=v4" "$RUNNER_TEMP/app-home-live.html"
               grep -Fq "muttental-witten" "$RUNNER_TEMP/mines-live.js"
