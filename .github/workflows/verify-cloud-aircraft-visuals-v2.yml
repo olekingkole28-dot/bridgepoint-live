@@ -1,0 +1,139 @@
+name: Verify Cloud Recovery and Detailed 3D Aircraft (read-only)
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/verify-cloud-aircraft-visuals-v2.yml']
+permissions:
+  contents: read
+jobs:
+  visual:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate original tracking, cloud shader, detailed airframe syntax without production changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check rebuild-v5000/bridgepoint-drone-awareness-v1.js
+          node --input-type=module --check < rebuild-v5000/bridgepoint-aircraft-visuals-v2.js
+          node --input-type=module --check < release-v2300/world-v2300-clouds.js
+          node tests/drone-awareness.test.mjs
+          node --input-type=module <<'JS'
+          import {readFileSync} from 'node:fs';
+          const s=readFileSync('rebuild-v5000/bridgepoint-aircraft-visuals-v2.js','utf8');
+          const m=await import('data:text/javascript;charset=utf-8,'+encodeURIComponent(s));
+          for(const [kind,rec,variant] of [
+           ['jet',{t:'B77W',flight:'UAL123'},'widebody'],
+           ['jet',{t:'B738',flight:'SWA456'},'narrowbody'],
+           ['helicopter',{t:'R44'},'light'],
+           ['propeller',{t:'C172'},'singleprop'],
+           ['balloon',{desc:'Hot air balloon'},'balloon'],
+           ['glider',{desc:'Glider'},'sailplane'],
+           ['drone',{t:'UAV'},'general']
+          ]){
+           const d=m.airframeForRecord(kind,rec);
+           if(d.variant!==variant||d.spanM<=0)throw Error('Wrong mapped airframe: '+kind+' '+JSON.stringify(d));
+           console.log('AIRCRAFT_SOURCE_MAPPED_TYPE',kind,d.variant,d.type,d.spanM,d.operator?.name||'unverified');
+          }
+          if(!m.sunBelowHorizon(40,-73,new Date('2026-11-20T00:00:00-05:00')))throw Error('night light test failed');
+          if(m.sunBelowHorizon(40,-73,new Date('2026-11-20T12:00:00-05:00')))throw Error('day light test failed');
+          console.log('AIRCRAFT_TYPE_SIZES_AND_NIGHT_BEACONS_PASS');
+          JS
+      - name: Verify actual BridgePoint globe and browser WebGL models with candidate assets only
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --prefix /tmp/bp-cloud-air-v2 --no-fund --no-audit playwright-core@1.56.1
+          cat > /tmp/bp-cloud-air-v2/visual.mjs <<'JS'
+          import {chromium} from 'playwright-core';
+          import {readFileSync} from 'node:fs';
+          const browser=await chromium.launch({executablePath:'/usr/bin/google-chrome',headless:true,
+            args:['--no-sandbox','--use-gl=angle','--use-angle=swiftshader','--enable-webgl']});
+          const context=await browser.newContext({viewport:{width:900,height:650},
+            deviceScaleFactor:1,isMobile:true,hasTouch:true,serviceWorkers:'block'});
+          const routeCounts={},messages=[],page=await context.newPage();
+          page.on('pageerror',e=>{messages.push('PAGE '+e.message);console.log('PAGE_ERROR',e.message)});
+          page.on('console',m=>{if(m.type()==='error'&&messages.length<25)messages.push('CONSOLE '+m.text())});
+          const assetMap={
+           'world-v2300-clouds.js':'release-v2300/world-v2300-clouds.js',
+           'bridgepoint-aircraft-visuals-v2.js':'rebuild-v5000/bridgepoint-aircraft-visuals-v2.js'
+          };
+          for(const [name,file] of Object.entries(assetMap)){
+           await context.route('**/'+name+'*',route=>{
+            routeCounts[name]=(routeCounts[name]||0)+1;
+            return route.fulfill({status:200,contentType:'text/javascript',body:readFileSync(file)});
+           });
+          }
+          await page.goto('https://bridgepointintelligence.online/?cloud-aircraft-visual-v2',{waitUntil:'domcontentloaded',timeout:55000});
+          await page.waitForFunction(()=>!!window.__BP_LANDING_WORLD__?.map,null,{timeout:85000});
+          console.log('ACTUAL_GLOBE_READY',JSON.stringify(await page.evaluate(()=>({
+           zoom:window.__BP_LANDING_WORLD__.map.getZoom(),projection:window.__BP_LANDING_WORLD__.map.getProjection()?.type
+          }))));
+          const models=await page.evaluate(async()=>{
+           const m=await import('/bridgepoint-aircraft-visuals-v2.js?browser-verify');
+           const T=await import('/vendor/three.module.js?v=169-local');
+           const c=document.createElement('canvas');c.width=600;c.height=380;
+           c.style.cssText='width:600px;height:380px;position:fixed;top:0;left:0;z-index:9999';
+           document.body.appendChild(c);
+           const renderer=new T.WebGLRenderer({canvas:c,powerPreference:'low-power',antialias:false});
+           renderer.setSize(600,380,false);
+           const scene=new T.Scene();scene.add(new T.AmbientLight(0xffffff,2.0));
+           const light=new T.DirectionalLight(0xffffff,2.1);light.position.set(3,4,6);scene.add(light);
+           const camera=new T.PerspectiveCamera(50,600/380,.1,80);camera.position.set(0,-6,4);camera.lookAt(0,0,0);
+           const variants=[['jet','widebody'],['jet','narrowbody'],['helicopter','utility'],
+            ['propeller','singleprop'],['glider','sailplane'],['balloon','balloon'],['drone','general']];
+           const out=[];
+           for(const [kind,variant] of variants){
+            const geom=m.buildDetailedAirframe(T,kind,variant);
+            if(geom.userData.bpParts<5||!geom.getAttribute('aBpBeacon')||!geom.getAttribute('aBpRotor'))throw Error('incomplete '+kind);
+            const material=m.buildAircraftMaterial(T);
+            m.attachInstancedNight(T,geom,1);geom.getAttribute('aBpNight').setX(0,1);
+            const mesh=new T.InstancedMesh(geom,material,1);scene.add(mesh);
+            mesh.setMatrixAt(0,new T.Matrix4());mesh.instanceMatrix.needsUpdate=true;
+            m.updateAircraftShader(material,23.7);renderer.render(scene,camera);
+            out.push({kind,variant,vertices:geom.getAttribute('position').count,
+              parts:geom.userData.bpParts,drawCount:mesh.count,rotors:[...geom.getAttribute('aBpRotor').array].filter(x=>x>0.5).length});
+            scene.remove(mesh);material.dispose();geom.dispose();
+           }
+           renderer.dispose();c.remove();
+           const card=document.createElement('div');document.body.appendChild(card);
+           const cleanup=m.mountAircraftCardPreview(card,T,{kind:'helicopter',variant:'utility',type:'B407'});
+           const hasPreview=!!card.querySelector('canvas');
+           cleanup();card.remove();
+           return{models:out,previewCanvas:hasPreview};
+          });
+          console.log('ACTUAL_BROWSER_COLORED_3D_AIRCRAFT',JSON.stringify(models));
+          const cloud=await page.evaluate(async()=>{
+           const module=await import('/world-v2300-clouds.js?browser-verify');
+           const api=module.initSkyClouds(window.__BP_LANDING_WORLD__);
+           api?.setEnabled?.(true);window.__BP_SKY_CLOUDS_V5908__=api;
+           return{initialized:!!api,enabled:api?.enabled,state:api?.state,
+             cloudLayer:!!window.__BP_LANDING_WORLD__.map.getLayer('bp-sky-cloud-volume-v6029')};
+          });
+          await page.waitForTimeout(9000);
+          const cloudLater=await page.evaluate(()=>{
+           const api=window.__BP_SKY_CLOUDS_V5908__,m=window.__BP_LANDING_WORLD__?.map;
+           return{enabled:api?.enabled,layer:!!m?.getLayer('bp-sky-cloud-volume-v6029'),
+             state:api?.state};
+          });
+          console.log('ACTUAL_GLOBE_RESTORED_CLOUDS',JSON.stringify({early:cloud,after:cloudLater},(k,v)=>k==='map'?undefined:v).slice(0,6000));
+          console.log('VISUAL_BROWSER_ERROR_SUMMARY',JSON.stringify(messages.slice(0,12)));
+          console.log('CANDIDATE_MODULE_INTERCEPTS',JSON.stringify(routeCounts));
+          await page.screenshot({path:'/tmp/bp-cloud-air-v2/clouds-test.png'}).catch(()=>{});
+          await browser.close();
+          if(models.models.some(x=>x.vertices<100||x.parts<5)||!models.previewCanvas||!cloudLater.enabled||
+            !routeCounts['world-v2300-clouds.js']||!routeCounts['bridgepoint-aircraft-visuals-v2.js']||
+            messages.some(x=>/Shader Error|Vertex shader is not compiled|PAGE .*SyntaxError/.test(x)))
+            process.exitCode=1;
+          JS
+          node /tmp/bp-cloud-air-v2/visual.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cloud-aircraft-v2-browser-screenshots
+          path: /tmp/bp-cloud-air-v2/clouds-test.png
+          if-no-files-found: ignore
