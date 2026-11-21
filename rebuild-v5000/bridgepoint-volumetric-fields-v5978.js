@@ -328,6 +328,7 @@ transformed.z+=sin(aWindProgress*29.0-uWindTime*2.4+aWindPhase)*.48;`);
     if(!st.allDefaultOn){
       st.allDefaultOn=true;
       st.windOn=true;st.rfOn=true;st.rfMode='both';
+      st.globalOverview?.setWind?.(true);st.globalOverview?.setRf?.(true,'both');
       window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('wind',true);
       startGlobalOverview();
       void wind().catch(e=>console.warn('BridgePoint initial dense wind',e));
@@ -336,8 +337,26 @@ transformed.z+=sin(aWindProgress*29.0-uWindTime*2.4+aWindPhase)*.48;`);
       say('All on · global 3D wind, jet streams, and both 4G/5G planning spheres. Local building-aware flow resolves as sources load; no extra switches.');
     }else startGlobalOverview();
     updateCounts();updateButtons();
-  }function close(){root.hidden=true;const d=document.getElementById('bpv-dock');if(d)delete d.dataset.windDroneOpen}
+  }
+  function enableAll(){st.allDefaultOn=false;open();return true}
+  function disableAll(){
+    // This button's off state explicitly disables global ribbons, persistent
+    // jet icon cards and nominal RF envelopes; existing drone mode is preserved.
+    st.windOn=false;st.rfOn=false;st.allDefaultOn=false;
+    st.weatherSeq++;st.rfSeq++;st.rfFetchSeq++;
+    st.globalOverview?.disable?.();
+    if(st.layer?.windGroup){clearGroup(st.layer.windGroup);st.layer.windGroup.visible=false}
+    if(st.layer?.rfGroup){clearGroup(st.layer.rfGroup);st.layer.rfGroup.visible=false}
+    st.voxels=0;st.flowLineCount=0;st.flowParticles=[];st.flowLines=[];st.towers=[];
+    st.flowColorAttribute=null;st.flowBaseColors=null;st.flowProgress=null;st.flowPhase=null;st.flowLineObject=null;
+    if(!st.droneOn){stop();restoreWindTerrain()}
+    window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('wind',st.droneOn);
+    root.hidden=true;const d=document.getElementById('bpv-dock');
+    if(d)delete d.dataset.windDroneOpen;
+    updateCounts();updateButtons();map.triggerRepaint?.();return false;
+  }
+  function close(){root.hidden=true;const d=document.getElementById('bpv-dock');if(d)delete d.dataset.windDroneOpen}
  function mapMoved(){if(st.droneOn)return;clearTimeout(st.refreshTimer);st.refreshTimer=setTimeout(()=>void refresh(false),900)}
  $('[data-close]').addEventListener('click',close);$('[data-action="wind"]').addEventListener('click',()=>void setWind(!st.windOn).catch(e=>say('Wind field error: '+String(e.message||e))));$('[data-action="rf4"]').addEventListener('click',()=>void setRf('4G').catch(e=>say('RF field error: '+String(e.message||e))));$('[data-action="rf5"]').addEventListener('click',()=>void setRf('5G').catch(e=>say('RF field error: '+String(e.message||e))));$('[data-action="refresh"]').addEventListener('click',()=>void refresh(true));wireDroneControls();map.on?.('moveend',mapMoved);map.on?.('zoomend',mapMoved);document.addEventListener('visibilitychange',()=>{if(document.hidden)stop();else if(st.windOn||st.droneOn)animate()});
- const api={version:VERSION,map,open,close,refresh,setWind,setRf,get state(){return{version:VERSION,windOn:st.windOn,rfOn:st.rfOn,rfMode:st.rfMode,windVoxels:st.voxels,windFlowLines:st.flowLineCount,windFlowSamples:st.voxels,terrainElevationActive:st.terrainAvailable,buildingObstacles:st.buildingObstacleCount,meshObstacleProxies:st.meshObstacleCount,towerAnchors:st.towers.length,globalForecastSamples:st.globalOverview?.state?.gridSamples||0,jetStreamIndicators:st.globalOverview?.state?.jetMarkers||0,globalSourcesAt:st.globalOverview?.state?.sourceAt||null,windObservation:st.obs,droneOn:st.droneOn,droneAutopilot:st.droneAutopilot,dronePosition:st.dronePos,droneTarget:st.droneTarget,droneRouteWaypoints:st.droneRoute.length,droneVision:st.droneVision,updatedAt:st.fieldAt,lastError:st.lastError,modelledLocalEffects:true}},estimateWindAt(lng,lat){if(!st.obs)return null;return{baseSpeedMph:st.obs.speed,windFromDeg:st.obs.dir,sourceDistanceM:st.obs.distance,model:'nearest source observation plus heuristic local flow',confidence:'low for local turbulence'}},estimateRfAt(lng,lat){if(!st.towers.length)return null;let best=null,d=Infinity;for(const t of st.towers){const n=distanceM({lng:+lng,lat:+lat},{lng:t.lng,lat:t.lat});if(n<d){d=n;best=t}}const radius=st.rfMode==='5G'?450:900;return{nearestStructureId:best?.id||null,distanceM:d,nominalRadiusM:radius,insideNominalEnvelope:d<=radius,method:'distance-only planning envelope; not measured radio coverage'}},destroy(){st.globalOverview?.destroy?.();stop();restoreWindTerrain();clearTimeout(st.refreshTimer);map.off?.('moveend',mapMoved);map.off?.('zoomend',mapMoved);root.remove();try{if(map.getLayer(LAYER))map.removeLayer(LAYER)}catch(_){}window.__BP_VOLUMETRIC_FIELDS_V5992__=null}};window.__BP_VOLUMETRIC_FIELDS_V5992__=api;open();return api;
+ const api={version:VERSION,map,open,close,enableAll,disableAll,refresh,setWind,setRf,get state(){return{version:VERSION,windOn:st.windOn,rfOn:st.rfOn,rfMode:st.rfMode,windVoxels:st.voxels,windFlowLines:st.flowLineCount,windFlowSamples:st.voxels,terrainElevationActive:st.terrainAvailable,buildingObstacles:st.buildingObstacleCount,meshObstacleProxies:st.meshObstacleCount,towerAnchors:st.towers.length,globalForecastSamples:st.globalOverview?.state?.gridSamples||0,jetStreamIndicators:st.globalOverview?.state?.jetMarkers||0,globalSourcesAt:st.globalOverview?.state?.sourceAt||null,windObservation:st.obs,droneOn:st.droneOn,droneAutopilot:st.droneAutopilot,dronePosition:st.dronePos,droneTarget:st.droneTarget,droneRouteWaypoints:st.droneRoute.length,droneVision:st.droneVision,updatedAt:st.fieldAt,lastError:st.lastError,modelledLocalEffects:true}},estimateWindAt(lng,lat){if(!st.obs)return null;return{baseSpeedMph:st.obs.speed,windFromDeg:st.obs.dir,sourceDistanceM:st.obs.distance,model:'nearest source observation plus heuristic local flow',confidence:'low for local turbulence'}},estimateRfAt(lng,lat){if(!st.towers.length)return null;let best=null,d=Infinity;for(const t of st.towers){const n=distanceM({lng:+lng,lat:+lat},{lng:t.lng,lat:t.lat});if(n<d){d=n;best=t}}const radius=st.rfMode==='5G'?450:900;return{nearestStructureId:best?.id||null,distanceM:d,nominalRadiusM:radius,insideNominalEnvelope:d<=radius,method:'distance-only planning envelope; not measured radio coverage'}},destroy(){st.globalOverview?.destroy?.();stop();restoreWindTerrain();clearTimeout(st.refreshTimer);map.off?.('moveend',mapMoved);map.off?.('zoomend',mapMoved);root.remove();try{if(map.getLayer(LAYER))map.removeLayer(LAYER)}catch(_){}window.__BP_VOLUMETRIC_FIELDS_V5992__=null}};window.__BP_VOLUMETRIC_FIELDS_V5992__=api;open();return api;
 }
