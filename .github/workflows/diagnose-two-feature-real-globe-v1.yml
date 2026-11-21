@@ -1,5 +1,5 @@
 name: Verify Restored EMRF and Wildfire Against Real Mobile Globe (read-only)
-# Validate mirror-first 2026-11-20 CelesTrak OMM source and the original visual modules.
+# Verify 11k genuinely recent OMM records via ReTLEctor, and real original wildfire renderer.
 on:
   push:
     branches: [main]
