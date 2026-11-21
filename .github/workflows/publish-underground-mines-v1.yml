@@ -85,13 +85,11 @@ jobs:
           site=Path(os.environ['SITE'])
           cave='bridgepoint-underground-scan-sites-v1.js'
           mines='bridgepoint-underground-mines-v1.js'
-          changed_expected={
-            'index.html','app/index.html','landing.js','app.js',cave,'app/'+cave
-          }
+          changed_expected={'index.html','app/index.html','landing.js','app.js'}
           added_expected={mines,'app/'+mines}
           before={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
                   for p in site.rglob('*') if p.is_file()}
-          for rel in changed_expected:
+          for rel in changed_expected | {cave,'app/'+cave}:
               if rel not in before:
                   raise SystemExit('Known-good Pages artifact is missing required file: '+rel)
           if set(before).intersection(added_expected):
@@ -99,8 +97,22 @@ jobs:
 
           cave_source=Path('rebuild-v5000')/cave
           mines_source=Path('rebuild-v5000')/mines
-          for rel,source in ((cave,cave_source),('app/'+cave,cave_source),
-                             (mines,mines_source),('app/'+mines,mines_source)):
+          mine_import="bridgepoint-underground-mines-v1.js?v=1-initial-photogrammetry-40"
+          root_cave=site/cave
+          app_cave=site/'app'/cave
+          root_text=root_cave.read_text(encoding='utf-8')
+          app_text=app_cave.read_text(encoding='utf-8')
+          root_has_mines=mine_import in root_text
+          app_has_mines=mine_import in app_text
+          if root_has_mines != app_has_mines:
+              raise SystemExit('Root and app cave loaders disagree about the mine renderer import')
+          if not root_has_mines:
+              for rel,source in ((cave,cave_source),('app/'+cave,cave_source)):
+                  (site/rel).write_bytes(source.read_bytes())
+              changed_expected.update({cave,'app/'+cave})
+          elif root_cave.read_bytes()!=app_cave.read_bytes():
+              raise SystemExit('Root and app cave loader copies differ in the production baseline')
+          for rel,source in ((mines,mines_source),('app/'+mines,mines_source)):
               (site/rel).write_bytes(source.read_bytes())
 
           imports={
