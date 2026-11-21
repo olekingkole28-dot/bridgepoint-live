@@ -1,7 +1,7 @@
 /* BridgePoint Shipwrecks v5 — Titanic + Robert Gaskin + HMS Grafton + Kanonvraget + Timaru + HMS Loo.
  * Each wreck has a persistent marker, dedicated source-backed card and native underwater model.
  */
-const VERSION=12, MAP_STATES=new WeakMap();
+const VERSION=13, MAP_STATES=new WeakMap();
 const THREE_URL='/vendor/three.module.js?v=169-local';
 const GLTF_URL='/vendor/GLTFLoader.bundle.js?v=169-local';
 const DRACO_URL='/vendor/DRACOLoader.bundle.js?v=169-draco-v1';
@@ -163,7 +163,7 @@ export const HMS_LOO_WRECK={
  detail:'A 2023 NOAA / East Carolina University underwater photogrammetry survey of the HMS Loo wrecksite: coral-encrusted ballast blocks, scattered ship structure and artifacts on the seabed. This is a scan of the remains and surrounding seabed, not an intact or reconstructed ship hull.'
 };
 
-// Ten additional scan records. Each map marker opens its scan inside BridgePoint's
+// Twenty additional scan records. Each map marker opens its scan inside BridgePoint's
 // existing wreck card; the Sketchfab embed remains the scan's attributed source.
 export const ADDITIONAL_SHIPWRECKS=[
  {id:'ex-hmas-junee',name:'Ex HMAS Junee — Bathurst-class minesweeper',label:'EX HMAS JUNEE',coordinates:[115.379817,-32.056583],coordinateText:'32.056583° S, 115.379817° E',displayDepthM:83,lengthM:56.7,beamM:9.5,builtYear:1943,scuttledYear:1968,modelId:'b614ee45b449455a9a6b2e6667395c0c',creator:'WreckSploration',sourceUrl:'https://sketchfab.com/3d-models/ex-hmas-junee-b614ee45b449455a9a6b2e6667395c0c',projectUrl:'https://wrecksploration.au/projects/junee/',locationSourceUrl:'https://museum.wa.gov.au/maritime-archaeology-db/wrecks/id-914',locationPrecision:'Western Australian Museum wreck-site coordinate. The Sketchfab scan does not publish a GPS georeference or survey-control transform.',detail:'A converted Bathurst-class minesweeper used for naval training before being scuttled off Rottnest Island in 1968. WreckSploration records the site at about 83 m depth; the published vessel measures 56.70 m long with a 9.50 m beam.'},
@@ -176,6 +176,17 @@ export const ADDITIONAL_SHIPWRECKS=[
  {id:'eucla',name:'Eucla (ex-Wexford) — steel screw steamer',label:'EUCLA · SITE 09',coordinates:[115.345483,-32.076933],coordinateText:'32.076933° S, 115.345483° E',displayDepthM:103,lengthM:57.3,builtYear:1901,modelId:'24a9661c44ca44f19e07223fa708a8c9',creator:'WreckSploration',sourceUrl:'https://sketchfab.com/3d-models/eucla-24a9661c44ca44f19e07223fa708a8c9',projectUrl:'https://wrecksploration.au/projects/eucla/',locationSourceUrl:'https://museum.wa.gov.au/maritime-archaeology-db/wrecks/id-921',detail:'The 57.3 m steel screw steamer Eucla, formerly Wexford, was launched in 1901. WreckSploration surveyed the broken-up wreck at about 103 m depth; a large boiler remains visible in the scan.'},
  {id:'knowsley-site-04',name:'Knowsley — Site 04 coal hulk',label:'KNOWSLEY · SITE 04',coordinates:[115.36891,-32.070665],coordinateText:'32.070665° S, 115.368910° E',displayDepthM:88,lengthM:50.85,builtYear:1864,scuttledYear:1923,modelId:'98419da25c2545e7a77ad12402cbe36d',creator:'WreckSploration',sourceUrl:'https://sketchfab.com/3d-models/knowsley-site-04-98419da25c2545e7a77ad12402cbe36d',projectUrl:'https://wrecksploration.au/projects/knowsley/',locationSourceUrl:'https://museum.wa.gov.au/maritime-archaeology-db/wrecks/id-985',detail:'An 1864-built hulk identified by Western Australian Museum archaeologists as Knowsley from the Site 04 scan’s length, deck and mast configuration. The model measures the visible wreck at about 50.85 m; the site lies at approximately 88 m.'},
  {id:'thornliebank',name:'Thornliebank — three-masted barque',label:'THORNLIEBANK · SITE 44',coordinates:[115.4604167,-32.1146],coordinateText:'32.114600° S, 115.460417° E',displayDepthM:46,lengthM:68,builtYear:1886,modelId:'de9f7c06cf304f818ba67040e87dbd77',creator:'WreckSploration',sourceUrl:'https://sketchfab.com/3d-models/thornliebank-1886-1928-de9f7c06cf304f818ba67040e87dbd77',projectUrl:'https://wrecksploration.au/projects/thornliebank/',locationPrecision:'WreckSploration project-site location. The Sketchfab scan itself does not publish a georeferenced mesh origin.',detail:'A 68 m three-masted barque wreck lying at about 46 m depth in the Rottnest Ships Graveyard. WreckSploration documented the site in 2024 using underwater photogrammetry.'}
+ {id:'uss-yorktown',name:'USS Yorktown (CV-5) — WWII aircraft carrier',label:'USS YORKTOWN · CV-5',coordinates:[-176.566667,30.6],coordinateText:'30° 36′ N, 176° 34′ W · approximate sinking position',displayDepthM:5000,lengthM:246.7,beamM:26.2,builtYear:1936,lostYear:1942,modelId:null,embedUrl:'https://construkted.com/embed/aom5meytdnz',viewerProvider:'NOAA Ocean Exploration · Construkted Reality',creator:'Raymond Phipps · NOAA Ocean Exploration / Ocean Exploration Trust',sourceUrl:'https://oceanexplorer.noaa.gov/photogrammetry/yorktown/',sourceLinkLabel:'NOAA Ocean Exploration · photogrammetry source ↗',projectUrl:'https://construkted.com/asset/aom5meytdnz/',projectLinkLabel:'Interactive NOAA scan on Construkted Reality ↗',locationSourceUrl:'https://www.history.navy.mil/research/archives/digital-exhibits-highlights/action-reports/wwii-battle-of-midway/commander-in-chief-pacific-fleet.html',locationLinkLabel:'U.S. Navy report · sinking position ↗',scanLabel:'NOAA 2023 survey · 9,819 source images',locationPrecision:'Approximate wreck-site position from the reported 30°36′ N, 176°34′ W sinking coordinate. NOAA’s viewer stitches seven photogrammetry sections; it does not publish a single georeferenced hull origin.',detail:'The 246.7 m aircraft carrier rests upright at about 5,000 m depth. NOAA Ocean Exploration and Ocean Exploration Trust built seven photogrammetry sections from 9,819 images gathered during the 2023 survey. The in-card scan shows those recorded sections rather than a complete watertight hull mesh.'},
+ {id:'burdigala',name:'SS Burdigala — ex-Kaiser Friedrich ocean liner',label:'SS BURDIGALA',coordinates:[24.3051,37.6607],coordinateText:'Approx. 37.6607° N, 24.3051° E · Kea Channel',displayDepthM:74,lengthM:180,builtYear:1898,lostYear:1916,modelId:'59df801a824b493da036f376af005a3b',viewerProvider:'Sketchfab',creator:'Holger Buss · Dive3D',sourceUrl:'https://sketchfab.com/3d-models/wreck-of-burdigala-ex-ss-kaiser-friedrich-59df801a824b493da036f376af005a3b',sourceLinkLabel:'Sketchfab · full wreck photogrammetry viewer ↗',projectUrl:'https://dive3d.eu/models/greece/burdigala/',projectLinkLabel:'Dive3D · scan and dive notes ↗',locationSourceUrl:'https://burdigalaproject.wordpress.com/the-wreck/',locationLinkLabel:'S/S Burdigala Project · wreck history ↗',scanLabel:'Dive3D 2023 full-wreck survey',locationPrecision:'Approximate publicly charted site position near Kea Island. The marker identifies the wreck area; the Sketchfab scan does not publish a GPS mesh origin.',detail:'The French liner had a 180 m hull; the broken wreck spans roughly 200 m when the gap between sections is included. Dive3D reports the wreck at 50–74 m and says its 2023 photogrammetry scan covers the entire wreck.'},
+ {id:'ss-polynesien',name:'SS Polynesien — French ocean liner and troop transport',label:'SS POLYNESIEN',coordinates:[14.60495,35.8578167],coordinateText:'35° 51.469′ N, 14° 36.297′ E · bow position',displayDepthM:65,lengthM:152.5,beamM:15,builtYear:1890,lostYear:1918,modelId:'1db4337c3c5e483bac928143d475037d',viewerProvider:'Sketchfab',creator:'3dmb · Malta underwater heritage scan',sourceUrl:'https://sketchfab.com/3d-models/ss-polynesien-1db4337c3c5e483bac928143d475037d',sourceLinkLabel:'Sketchfab · underwater 3D scan ↗',projectUrl:'https://underwatermalta.org/discover/ss-polynesien/',projectLinkLabel:'Underwater Malta · virtual wreck museum ↗',locationSourceUrl:'https://www.transport.gov.mt/include/filestreaming.asp?fileid=9421',locationLinkLabel:'Transport Malta · charted wreck coordinates ↗',scanLabel:'Underwater Malta / 3dmb photogrammetry',locationPrecision:'WGS84 bow position listed by Transport Malta. This marker is the bow coordinate, not the wreck center; the in-card mesh is not positioned as a seabed model.',detail:'Heritage Malta lists the French liner at 152.5 m long with a 15 m beam. Torpedoed in 1918, the protected wreck rests on its port side off southeastern Malta at a maximum depth of about 65 m; its scan is also featured in Underwater Malta’s virtual museum.'},
+ {id:'ss-thistlegorm',name:'SS Thistlegorm — WWII cargo ship',label:'SS THISTLEGORM',coordinates:[33.9186639,27.8084972],coordinateText:'27° 48′ 30.59″ N, 33° 55′ 7.19″ E',displayDepthM:30,lengthM:126.5,beamM:17.7,builtYear:1940,lostYear:1941,modelId:'d4e49cce7d53470b8afead0b94313817',viewerProvider:'Sketchfab',creator:'Simon Brown · Deep3D',sourceUrl:'https://sketchfab.com/models/d4e49cce7d53470b8afead0b94313817',sourceLinkLabel:'Sketchfab · full wreck photogrammetry viewer ↗',projectUrl:'https://thethistlegormproject.com/3d-photogrammetry-survey/',projectLinkLabel:'The Thistlegorm Project · survey notes ↗',locationSourceUrl:'https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0282239',locationLinkLabel:'Research paper · wreck position and depth ↗',scanLabel:'Deep3D 2017 survey · 24,307 images',locationPrecision:'Published WGS84 wreck-site position from the SS Thistlegorm survey literature; the map marker identifies the site center, while the card viewer preserves the original scan.',detail:'The 126.5 m cargo ship lies in about 30 m of water in the Red Sea. Simon Brown’s full-site 2017 photogrammetry survey used 24,307 high-resolution images to record the wreck and its cargo.'},
+ {id:'anna-c-minch',name:'Anna C. Minch — Lake Michigan bulk freighter',label:'ANNA C. MINCH',coordinates:[-86.462933,43.763067],coordinateText:'43° 45.784′ N, 86° 27.776′ W · bow waypoint',displayDepthM:12.2,lengthM:115.82,beamM:15.24,builtYear:1903,lostYear:1940,modelId:'4168e5aa1af140b3a560a3d784357259',viewerProvider:'Sketchfab',creator:'Andrew Goodman · Ken Merryman / 3DShipwrecks.org',sourceUrl:'https://sketchfab.com/models/4168e5aa1af140b3a560a3d784357259',sourceLinkLabel:'3DShipwrecks.org · bow photogrammetry scan ↗',projectUrl:'https://3dshipwrecks.org/shipwreck-anna-c-minch/',projectLinkLabel:'3DShipwrecks.org · wreck record and stern scan ↗',locationSourceUrl:'https://3dshipwrecks.org/shipwreck-anna-c-minch/',locationLinkLabel:'Published Lake Michigan site coordinates ↗',scanLabel:'3DShipwrecks 2025 bow scan · 4,258 images',locationPrecision:'Wreck-site bow waypoint published by 3DShipwrecks.org. The freighter broke into bow and stern sections about 600 ft apart; this marker and viewer identify the bow section.',detail:'The steel bulk freighter was 380 ft (115.8 m) long. Its bow and stern lie about 600 ft apart in 35–45 ft of Lake Michigan; the BridgePoint card opens the complete bow photogrammetry scan, recorded from 4,258 images in 2025.'},
+ {id:'uss-monitor',name:'USS Monitor — Civil War ironclad',label:'USS MONITOR',coordinates:[-75.40633,35.00195],coordinateText:'35° 00′ 7.02″ N, 75° 24′ 22.79″ W',displayDepthM:73.2,lengthM:52.7,beamM:12.65,builtYear:1862,lostYear:1862,modelId:'31147e90a3c14d9cb1cb35c65ad16eae',viewerProvider:'Sketchfab · NOAA Monitor National Marine Sanctuary',creator:'NOAA Monitor National Marine Sanctuary',sourceUrl:'https://sketchfab.com/models/31147e90a3c14d9cb1cb35c65ad16eae',sourceLinkLabel:'NOAA · 2015 photogrammetry viewer ↗',projectUrl:'https://monitor.noaa.gov/about/expeditions.html',projectLinkLabel:'NOAA Monitor NMS · expedition record ↗',locationSourceUrl:'https://monitor.noaa.gov/shipwrecks/uss_monitor.html',locationLinkLabel:'NOAA Monitor NMS · official position and dimensions ↗',scanLabel:'NOAA 2015 photogrammetry model',locationPrecision:'Official NOAA wreck coordinates for Monitor National Marine Sanctuary. The marker uses the sanctuary’s wreck point; the viewer scan is not rendered as a georeferenced seabed mesh.',detail:'NOAA’s 2015 photogrammetry model documents the 52.7 m Civil War ironclad. USS Monitor rests about 73 m below the Atlantic, 16 miles off Cape Hatteras, North Carolina.'},
+ {id:'american-heritage',name:'American Heritage — Santa Monica Bay supply ship',label:'AMERICAN HERITAGE',coordinates:[-118.7,33.88],coordinateText:'Approx. 8 mi south of Malibu, California · display coordinate approximate',displayDepthM:700,lengthM:60,lostYear:1995,modelId:'c0d0238511f8405a9a1e399c719cb81c',viewerProvider:'Sketchfab · MBARI',creator:'Ben Erwin · MBARI',sourceUrl:'https://sketchfab.com/3d-models/american-heritage-shipwreck-c0d0238511f8405a9a1e399c719cb81c',sourceLinkLabel:'Sketchfab · MBARI photogrammetry reconstruction ↗',projectUrl:'https://www.mbari.org/news/rov-pilot-helps-discover-sunken-ship-that-he-sailed-on-in-the-1990s/',projectLinkLabel:'MBARI · discovery and 3D reconstruction ↗',locationSourceUrl:'https://www.mbari.org/news/rov-pilot-helps-discover-sunken-ship-that-he-sailed-on-in-the-1990s/',locationLinkLabel:'MBARI · published location and depth ↗',scanLabel:'MBARI ROV survey · thousands of stills',locationPrecision:'Approximate display point based on MBARI’s published location about 13 km (8 mi) south of Malibu. Exact public wreck coordinates are not given in the article; the scan is incomplete and is not GPS-georeferenced in BridgePoint.',detail:'The 60 m supply ship rests nearly 700 m below Santa Monica Bay. MBARI reconstructed visible portions from thousands of still images extracted from ROV video; some parts were missing because they could not be seen clearly.'},
+ {id:'ss-wollongbar-ii',name:'SS Wollongbar II — Australian coastal steamer',label:'SS WOLLONGBAR II',coordinates:[153.1036667,-31.2094417],coordinateText:'31° 12.5665′ S, 153° 06.220′ E · north wreck section',displayDepthM:92,lengthM:86.89,beamM:12.83,builtYear:1922,lostYear:1943,modelId:'dd93fb4c1352465a85a4c31c71fdc7b3',viewerProvider:'Sketchfab · Curtin HIVE',creator:'Daniel Adams · Curtin University HIVE; ROV video by Heritage NSW',sourceUrl:'https://sketchfab.com/3d-models/ss-wollongbar-ii-1943-shipwreck-3d-model-dd93fb4c1352465a85a4c31c71fdc7b3',sourceLinkLabel:'Curtin HIVE · underwater 3D model viewer ↗',projectUrl:'https://hive.curtin.edu.au/3D-shipwrecks/',projectLinkLabel:'Curtin HIVE · shipwreck digitisation project ↗',locationSourceUrl:'https://www.environment.nsw.gov.au/maritimeheritageapp/resources/Maritime/documents/890523ed60adbaf4dfa86e0f50299504835.pdf',locationLinkLabel:'Heritage NSW · inspection report and wreck position ↗',scanLabel:'Curtin HIVE reconstruction from Heritage NSW ROV video',locationPrecision:'WGS84 north wreck-section coordinate from the published Heritage NSW inspection report. The BridgePoint marker is a site waypoint, not a georeferenced model origin.',detail:'The 86.89 m Australian coastal steamer was torpedoed in 1943 and rests about 92–100 m deep off Crescent Head, New South Wales. Curtin HIVE built this 3D photogrammetric reconstruction from Heritage NSW ROV video.'},
+ {id:'amagisan-maru',name:'Amagisan Maru — Chuuk Lagoon cargo and passenger ship',label:'AMAGISAN MARU',coordinates:[151.8622,7.2927],coordinateText:'Approx. 7.2927° N, 151.8622° E · Chuuk Lagoon',displayDepthM:60,lengthM:138,beamM:18,builtYear:1933,lostYear:1944,modelId:'b04ea047454042e0b237cd3e41e00ce9',viewerProvider:'Sketchfab · Dive3D',creator:'Holger Buss · Dive3D',sourceUrl:'https://sketchfab.com/3d-models/amagisan-maru-at-truk-lagoon-chuuk-b04ea047454042e0b237cd3e41e00ce9',sourceLinkLabel:'Sketchfab · 2025 wreck photogrammetry scan ↗',projectUrl:'https://dive3d.eu/models/chuuk-lagoon-truk/amagisan-maru/',projectLinkLabel:'Dive3D · wreck details and scan notes ↗',locationSourceUrl:'https://www.divers.world/divesite/chuuk-lagoon/amagisan-maru/',locationLinkLabel:'Published Chuuk Lagoon dive-site coordinate ↗',scanLabel:'Dive3D 2025 photogrammetry scan',locationPrecision:'Approximate publicly published dive-site coordinate. The scan origin is not georeferenced to the map, and 60 m is the deepest seabed level (the ship’s deck starts much shallower).',detail:'The 138 m cargo/passenger ship was sunk during the 1944 attack on Truk Lagoon. Dive3D scanned the wreck in 2025; the hull lies on a slope from about 36 m at the deck to 60 m at the seabed.'},
+ {id:'ss-benwood',name:'SS Benwood — Florida Keys steam freighter',label:'SS BENWOOD',coordinates:[-80.332,25.052133],coordinateText:'25° 03.128′ N, 80° 19.920′ W · Wreck Trail buoy 1',displayDepthM:11,lengthM:109.73,beamM:9.45,builtYear:1910,lostYear:1942,modelId:'3ac9327e60e249e2ada29c4e595be571',viewerProvider:'Sketchfab · Indiana University Underwater Science',creator:'Matthew Maus · Indiana University Underwater Science',sourceUrl:'https://sketchfab.com/models/3ac9327e60e249e2ada29c4e595be571',sourceLinkLabel:'Indiana University · original Benwood photogrammetry ↗',projectUrl:'https://underwaterscience.indiana.edu/research/florida-keys/benwood-3d-modeling.html',projectLinkLabel:'IU Center for Underwater Science · model data ↗',locationSourceUrl:'https://floridakeys.noaa.gov/ShipwreckTrail/benwood.html',locationLinkLabel:'NOAA Florida Keys · Benwood Wreck Trail ↗',scanLabel:'Indiana University / NOAA survey · 6,460 images',locationPrecision:'NOAA buoy coordinates identify Benwood Wreck Trail marker 1. The photogrammetry viewer presents the wreck scan independently; its mesh origin is not used as a map transform.',detail:'The 109.7 m freighter sank after a 1942 collision and now lies in 25–45 ft of water in the Florida Keys. Indiana University, NOAA and scientific divers built the in-card photogrammetric site model from 6,460 aligned images covering about 3,070 m².'},
+
 ];
 
 const ADDITIONAL_SHIPWRECK_BY_ID=new Map(ADDITIONAL_SHIPWRECKS.map(w=>[w.id,w]));
@@ -254,23 +265,23 @@ function modelById(id){return TITANIC_3D_MODELS.find(m=>m.id===id)||null;}
 function partById(id){return TITANIC_SHIPWRECK_PARTS.find(p=>p.id===id)||null;}
 export function additionalShipwreckPopupHtml(wreck){
  if(!wreck)return '';
- const embed='https://sketchfab.com/models/'+encodeURIComponent(wreck.modelId)+'/embed?autostart=0&ui_infos=1&ui_controls=1&ui_watermark=1&ui_theme=dark';
+ const embed=wreck.embedUrl||'https://sketchfab.com/models/'+encodeURIComponent(wreck.modelId)+'/embed?autostart=0&ui_infos=1&ui_controls=1&ui_watermark=1&ui_theme=dark';
  const facts=[
   ['Wreck-site position',wreck.coordinateText],
   ['Seafloor depth','About '+wreck.displayDepthM+' m'],
   ['Vessel length',wreck.lengthM+' m'+(wreck.beamM?' · '+wreck.beamM+' m beam':'')],
-  ['Scan / identification',wreck.builtYear?'Built '+wreck.builtYear+(wreck.scuttledYear?' · scuttled '+wreck.scuttledYear:''):'WreckSploration photogrammetry']
+  ['Scan / identification',wreck.scanLabel||(wreck.builtYear?'Built '+wreck.builtYear+(wreck.scuttledYear?' · scuttled '+wreck.scuttledYear:''):'WreckSploration photogrammetry')]
  ].map(([label,value])=>'<span><b>'+safe(label)+'</b>'+safe(value)+'</span>').join('');
- const links='<a href="'+safe(wreck.sourceUrl)+'" target="_blank" rel="noopener noreferrer">Sketchfab · original interactive photogrammetry scan ↗</a>'+ 
-  '<a href="'+safe(wreck.projectUrl)+'" target="_blank" rel="noopener noreferrer">WreckSploration · project notes and scan details ↗</a>'+ 
-  (wreck.locationSourceUrl?'<a href="'+safe(wreck.locationSourceUrl)+'" target="_blank" rel="noopener noreferrer">Western Australian Museum · wreck record and position ↗</a>':'');
+ const links='<a href="'+safe(wreck.sourceUrl)+'" target="_blank" rel="noopener noreferrer">'+safe(wreck.sourceLinkLabel||'Sketchfab · original interactive photogrammetry scan ↗')+'</a>'+ 
+  '<a href="'+safe(wreck.projectUrl)+'" target="_blank" rel="noopener noreferrer">'+safe(wreck.projectLinkLabel||'WreckSploration · project notes and scan details ↗')+'</a>'+ 
+  (wreck.locationSourceUrl?'<a href="'+safe(wreck.locationSourceUrl)+'" target="_blank" rel="noopener noreferrer">'+safe(wreck.locationLinkLabel||'Western Australian Museum · wreck record and position ↗')+'</a>':'');
  return '<article class="bp-shipwreck-titanic-popup-v1 bp-shipwreck-additional-popup-v1">'+
   '<div class="bp-shipwreck-kicker-v1">BRIDGEPOINT · SHIPWRECKS</div><h3>'+safe(wreck.name)+'</h3>'+ 
   '<div class="bp-shipwreck-part-v1">Wreck site · 3D photogrammetry</div>'+ 
   '<div class="bp-shipwreck-facts-v1">'+facts+'</div>'+ 
   '<div class="bp-shipwreck-viewer-v1"><iframe title="'+safe(wreck.name)+' interactive 3D photogrammetry scan" src="'+safe(embed)+'" allow="autoplay; fullscreen; xr-spatial-tracking; gyroscope; accelerometer" allowfullscreen loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>'+ 
   '<div class="bp-shipwreck-official-v1"><b>Scan, history and site references</b>'+links+'</div>'+ 
-  '<p class="bp-shipwreck-accuracy-v1"><strong>Scan and placement:</strong> '+safe(wreck.detail)+' The interactive model is embedded from its attributed Sketchfab source inside this BridgePoint card. The map marker uses the cited wreck-site position; the scan itself is not georeferenced or scaled as a seabed mesh.</p>'+ 
+  '<p class="bp-shipwreck-accuracy-v1"><strong>Scan and placement:</strong> '+safe(wreck.detail)+' The interactive model is embedded from its attributed '+safe(wreck.viewerProvider||'Sketchfab')+' source inside this BridgePoint card. The map marker uses the cited wreck-site position; the scan itself is not georeferenced or scaled as a seabed mesh.</p>'+ 
   (wreck.locationPrecision?'<p class="bp-shipwreck-source-v1">'+safe(wreck.locationPrecision)+'</p>':'')+ 
   '<p class="bp-shipwreck-source-v1">Photogrammetry creator: '+safe(wreck.creator)+'. The model remains hosted by its published source and opens here without leaving BridgePoint.</p></article>';
 }
@@ -333,7 +344,7 @@ function makeTitanicIcon(){
 function setStatus(state,msg){state.status=msg;const el=document.getElementById(STATUS_ID);if(el)el.textContent=msg;}
 function refreshStatusUi(state){
  const count=document.getElementById(COUNT_ID);
- if(count)count.textContent='20 persistent wreck icons · 7 native CC BY 4.0 seabed scans · 10 additional in-card photogrammetry scans · '+state.stats.models.toLocaleString()+' Titanic viewer references';
+ if(count)count.textContent='30 persistent wreck icons · 7 native CC BY 4.0 seabed scans · 20 additional in-card photogrammetry scans · '+state.stats.models.toLocaleString()+' Titanic viewer references';
  const status=document.getElementById(STATUS_ID);if(status)status.textContent=state.status;
  const button=document.getElementById(TOGGLE_ID);
  if(button){button.setAttribute('aria-pressed',String(state.enabled));button.classList.toggle('is-active',state.enabled);}
@@ -1049,7 +1060,7 @@ async function showRobertGaskinOnRiverbed(state){
  if(!state.enabled)return false;
  state.nativeModelAutoAttempted=true;state.nativeModelVisible=true;
  updateRobertGaskinModelStatus(state,'Loading the CC BY 4.0 photogrammetry scan…');
- setStatus(state,'Robert Gaskin native underwater mesh loading; all twenty wreck icons remain on.');
+ setStatus(state,'Robert Gaskin native underwater mesh loading; all thirty wreck icons remain on.');
  try{
   const renderer=await prepareShipwreckMapRenderer(state);
   await loadRobertGaskinMesh(state,renderer);
@@ -1070,7 +1081,7 @@ async function showHmsGraftonOnSeabed(state){
  if(!state.enabled)return false;
  state.graftonModelAutoAttempted=true;state.graftonModelVisible=true;
  updateHmsGraftonModelStatus(state,'Loading the CC BY 4.0 HMS Grafton scan…');
- setStatus(state,'HMS Grafton native underwater mesh loading; all twenty wreck icons remain on.');
+ setStatus(state,'HMS Grafton native underwater mesh loading; all thirty wreck icons remain on.');
  try{
   const renderer=await prepareShipwreckMapRenderer(state);
   await loadHmsGraftonMesh(state,renderer);
@@ -1092,7 +1103,7 @@ async function showCannonOnSeabed(state){
  if(!state.enabled)return false;
  state.cannonModelAutoAttempted=true;state.cannonModelVisible=true;
  updateCannonModelStatus(state,'Loading the CC BY 4.0 DTU Aqua Cannon Shipwreck scan…');
- setStatus(state,'Kanonvraget native underwater mesh loading; all twenty wreck icons remain on.');
+ setStatus(state,'Kanonvraget native underwater mesh loading; all thirty wreck icons remain on.');
  try{
   const renderer=await prepareShipwreckMapRenderer(state);
   await loadCannonMesh(state,renderer);
@@ -1114,7 +1125,7 @@ async function showKxiOnSeabed(state){
  if(!state.enabled)return false;
  state.kxiModelAutoAttempted=true;state.kxiModelVisible=true;
  updateKxiModelStatus(state,'Loading the CC BY 4.0 HNLMS K XI photogrammetry scan…');
- setStatus(state,'HNLMS K XI native underwater mesh loading; all twenty wreck icons remain on.');
+ setStatus(state,'HNLMS K XI native underwater mesh loading; all thirty wreck icons remain on.');
  try{
   const renderer=await prepareShipwreckMapRenderer(state);
   await loadKxiMesh(state,renderer);
@@ -1136,7 +1147,7 @@ async function showCapeOtwayOnSeabed(state){
  if(!state.enabled)return false;
  state.capeOtwayModelAutoAttempted=true;state.capeOtwayModelVisible=true;
  updateCapeOtwayModelStatus(state,'Loading the CC BY 4.0 SS Cape Otway photogrammetry scan…');
- setStatus(state,'SS Cape Otway native underwater mesh loading; all twenty wreck icons remain on.');
+ setStatus(state,'SS Cape Otway native underwater mesh loading; all thirty wreck icons remain on.');
  try{
   const renderer=await prepareShipwreckMapRenderer(state);
   await loadCapeOtwayMesh(state,renderer);
@@ -1158,7 +1169,7 @@ async function showTimaruOnSeabed(state){
  if(!state.enabled)return false;
  state.timaruModelAutoAttempted=true;state.timaruModelVisible=true;
  updateTimaruModelStatus(state,'Loading the CC BY 4.0 Timaru photogrammetry scan…');
- setStatus(state,'Timaru native underwater mesh loading; all twenty wreck icons remain on.');
+ setStatus(state,'Timaru native underwater mesh loading; all thirty wreck icons remain on.');
  try{
   const renderer=await prepareShipwreckMapRenderer(state);
   await loadTimaruMesh(state,renderer);
@@ -1180,7 +1191,7 @@ async function showHmsLooOnSeabed(state){
  if(!state.enabled)return false;
  state.hmsLooModelAutoAttempted=true;state.hmsLooModelVisible=true;
  updateHmsLooModelStatus(state,'Loading the CC BY 4.0 NOAA / East Carolina University photogrammetry scan…');
- setStatus(state,'HMS Loo native underwater mesh loading; all twenty wreck icons remain on.');
+ setStatus(state,'HMS Loo native underwater mesh loading; all thirty wreck icons remain on.');
  try{
   const renderer=await prepareShipwreckMapRenderer(state);
   await loadHmsLooMesh(state,renderer);
@@ -1485,7 +1496,7 @@ function bindInteractions(state){
   // settles. Re-allow this dedicated category and restore only Titanic layers.
   syncSharedOverlayCategory(state);
   if(!installLayers(state)){
-   setStatus(state,'Shipwrecks ON · waiting for the globe style before restoring all twenty shipwreck icons.');
+   setStatus(state,'Shipwrecks ON · waiting for the globe style before restoring all thirty shipwreck icons.');
    refreshStatusUi(state);return;
   }
   setVisibility(state,true);
@@ -1498,7 +1509,7 @@ function bindInteractions(state){
   maybeAutoMaterializeCapeOtway(state);
   maybeAutoMaterializeTimaru(state);
   maybeAutoMaterializeHmsLoo(state);
-  setStatus(state,'Shipwrecks ON · all twenty persistent icons remain visible through zoom, angle and style changes. Select a wreck for its BridgePoint card and 3D scan.');
+  setStatus(state,'Shipwrecks ON · all thirty persistent icons remain visible through zoom, angle and style changes. Select a wreck for its BridgePoint card and 3D scan.');
   refreshStatusUi(state);
  };
  state.handleStyleLoad=state.handlePersistentVisibility;
@@ -1513,9 +1524,9 @@ function addControlGroup(state){
  group.setAttribute('data-bpv-command-section','shipwrecks');
  group.setAttribute('aria-label','Shipwrecks');
  group.innerHTML=
-  '<div class="bpv-command-heading"><span class="bpv-command-heading-icon" aria-hidden="true">🚢</span><span><b>SHIPWRECKS</b><small>20 persistent markers · 10 additional photogrammetry scans</small></span></div>'+
+  '<div class="bpv-command-heading"><span class="bpv-command-heading-icon" aria-hidden="true">🚢</span><span><b>SHIPWRECKS</b><small>30 persistent markers · 20 additional photogrammetry scans</small></span></div>'+
   '<div class="bpv-command-grid"><button id="'+TOGGLE_ID+'" data-bpv-action="shipwrecks" type="button" class="bpv-command-btn" aria-pressed="false" title="Show or hide mapped shipwreck markers"><span class="bpv-command-icon" aria-hidden="true">🚢</span><span class="bpv-command-label">Shipwrecks</span></button></div>'+
-  '<div id="'+COUNT_ID+'" class="bpv-data-note">20 persistent wreck icons · '+state.stats.models+' Titanic viewer references · 7 native seabed GLBs · 10 additional in-card scan viewers</div>'+
+  '<div id="'+COUNT_ID+'" class="bpv-data-note">30 persistent wreck icons · '+state.stats.models+' Titanic viewer references · 7 native seabed GLBs · 20 additional in-card scan viewers</div>'+
   '<div id="'+STATUS_ID+'" class="bpv-data-note">Layer off · the rest of the BridgePoint globe remains unchanged.</div>'+
   '<style id="bp-shipwrecks-titanic-style-v2">'+
   '#'+CONTROL_ID+' .bpv-data-note{font:600 10px/1.45 system-ui,sans-serif;color:#9bb7c6;margin:5px 2px;overflow-wrap:anywhere}'+
@@ -1538,8 +1549,8 @@ function addControlGroup(state){
 async function setEnabled(state,on){
  state.enabled=!!on;
  if(state.enabled){
-  if(!installLayers(state))setStatus(state,'Shipwrecks ON · waiting for the map style before showing all twenty wreck icons.');
-  else setStatus(state,'Shipwrecks ON · all twenty wreck icons remain visible from global zoom through close zoom. Select a marker for its card and 3D scan.');
+  if(!installLayers(state))setStatus(state,'Shipwrecks ON · waiting for the map style before showing all thirty wreck icons.');
+  else setStatus(state,'Shipwrecks ON · all thirty wreck icons remain visible from global zoom through close zoom. Select a marker for its card and 3D scan.');
   if(state.nativeModelRoot){
    state.nativeModelVisible=true;
    if(!state.map.getLayer(NATIVE_MODEL_LAYER_ID))ensureRobertGaskinMapLayer(state);
@@ -1591,7 +1602,7 @@ async function setEnabled(state,on){
   state.capeOtwayModelVisible=false;state.capeOtwayModelAutoAttempted=false;if(state.capeOtwayModelRoot)state.capeOtwayModelRoot.visible=false;
   state.timaruModelVisible=false;state.timaruModelAutoAttempted=false;if(state.timaruModelRoot)state.timaruModelRoot.visible=false;
   state.hmsLooModelVisible=false;state.hmsLooModelAutoAttempted=false;if(state.hmsLooModelRoot)state.hmsLooModelRoot.visible=false;
-  setVisibility(state,false);setStatus(state,'Shipwrecks off · all twenty wreck icons and all seven native meshes are hidden; other BridgePoint layers are unchanged.');
+  setVisibility(state,false);setStatus(state,'Shipwrecks off · all thirty wreck icons and all seven native meshes are hidden; other BridgePoint layers are unchanged.');
  }
  refreshStatusUi(state);state.map.triggerRepaint?.();return state.enabled;
 }
@@ -1609,7 +1620,7 @@ export function initShipwrecksRenderer(target){
   hmsLooModelVisible:false,hmsLooModelAutoAttempted:false,hmsLooModelStatus:'Native scan not loaded.',hmsLooModelRoot:null,hmsLooModelPromise:null,hmsLooModelBounds:null,
   DRACOLoader:null,dracoLoader:null,KTX2Loader:null,ktx2Loader:null,
   nativeModelRenderer:null,nativeModelCamera:null,nativeModelScene:null,nativeModelLayerReady:false,nativeModelBounds:null,
-  stats:{version:VERSION,parts:3,sites:17,additionalSites:10,models:TITANIC_3D_MODELS.length,nativeModels:7,lastError:null}};
+  stats:{version:VERSION,parts:3,sites:27,additionalSites:20,models:TITANIC_3D_MODELS.length,nativeModels:7,lastError:null}};
  const api={
   version:VERSION,get enabled(){return state.enabled;},get status(){return state.status;},
   get stats(){return Object.assign({},state.stats);},get partCount(){return state.stats.parts;},get modelCount(){return state.stats.models;},

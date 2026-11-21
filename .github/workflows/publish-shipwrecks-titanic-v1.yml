@@ -1,4 +1,4 @@
-name: Publish BridgePoint Shipwrecks v12 — ten additional photogrammetry shipwrecks
+name: Publish BridgePoint Shipwrecks v13 — twenty additional global photogrammetry shipwrecks
 # Additive shipwreck overlay: persistent icons + locally hosted GLBs + BridgePoint-native interactive viewers.
 
 on:
@@ -68,7 +68,7 @@ jobs:
           from pathlib import Path
           import textwrap
           workflow=Path('.github/workflows/publish-shipwrecks-titanic-v1.yml').read_text()
-          overlay=workflow.index('      - name: Overlay only the Shipwrecks v12 module')
+          overlay=workflow.index('      - name: Overlay only the Shipwrecks v13 module')
           marker="          python3 - <<'PY'\\n"
           start=workflow.index(marker,overlay)+len(marker)
           end=workflow.index('\\n          PY',start)
@@ -147,7 +147,7 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Validate Shipwrecks v12 renderer, BridgePoint-hosted local viewers and existing overlays
+      - name: Validate Shipwrecks v13 renderer, BridgePoint-hosted local viewers and existing overlays
         shell: bash
         run: |
           set -euo pipefail
@@ -380,7 +380,7 @@ jobs:
           test -s "$SITE/vendor/draco/draco_wasm_wrapper.js"
           echo "BRIDGEPOINT_LOCAL_DRACO_AND_KTX2_BASIS_DECODER_ASSETS_PASS"
 
-      - name: Overlay only the Shipwrecks v12 module, existing meshes and cache keys
+      - name: Overlay only the Shipwrecks v13 module, existing meshes and cache keys
         shell: bash
         run: |
           set -euo pipefail
@@ -397,7 +397,7 @@ jobs:
           from pathlib import Path
           import hashlib,json,os,re
           site=Path(os.environ["RUNNER_TEMP"])/"shipwrecks-site"
-          attach="""void import('./bridgepoint-shipwrecks-v1.js?v=12-ten-additional-photogrammetry-wrecks')
+          attach="""void import('./bridgepoint-shipwrecks-v1.js?v=13-twenty-additional-photogrammetry-wrecks')
            .then(m=>{window.__BP_SHIPWRECKS_V1__=m.initShipwrecksRenderer(world)})
            .catch(e=>console.warn('BridgePoint shipwreck renderer unavailable',e));"""
           spacecraft_attach="""void import('./bridgepoint-spacecraft-v1.js?v=1-sls-mobile-launcher-lc39b')
@@ -411,12 +411,12 @@ jobs:
                        "bridgepoint-shipwrecks-v1.js?v=6-titanic-gaskin-grafton-cannon-kxi-local-hosted-viewers",
                        "bridgepoint-shipwrecks-v1.js?v=7-titanic-gaskin-grafton-cannon-kxi-draco-local-viewer","bridgepoint-shipwrecks-v1.js?v=8-titanic-gaskin-grafton-cannon-kxi-draco-ktx2-local-viewer",
                        "bridgepoint-shipwrecks-v1.js?v=9-titanic-gaskin-grafton-cannon-kxi-cape-otway-draco-ktx2-local-viewer","bridgepoint-shipwrecks-v1.js?v=11-titanic-gaskin-grafton-cannon-kxi-cape-otway-timaru-hms-loo-draco-ktx2-local-viewer","bridgepoint-shipwrecks-v1.js?v=12-ten-additional-photogrammetry-wrecks")
-          new_marker=old_markers[-1]
+          new_marker="bridgepoint-shipwrecks-v1.js?v=13-twenty-additional-photogrammetry-wrecks"
           wells_anchor=".catch(e=>console.warn('BridgePoint global subsurface wells renderer unavailable',e));"
           for rel in ("landing.js","app.js"):
               p=site/rel;data=p.read_text(encoding="utf-8")
               if new_marker not in data:
-                  old=[m for m in old_markers[:-1] if data.count(m)==1]
+                  old=[m for m in old_markers if data.count(m)==1]
                   if len(old)==1:
                       data=data.replace(old[0],new_marker,1)
                   else:
@@ -424,7 +424,7 @@ jobs:
                           raise SystemExit(f"{rel}: no unique existing Shipwrecks import/cache key or wells insertion anchor")
                       data=data.replace(wells_anchor,wells_anchor+"\n"+attach,1)
               if new_marker not in data:
-                  raise SystemExit(f"{rel}: Shipwrecks v8 module import is missing")
+                  raise SystemExit(f"{rel}: Shipwrecks v13 module import is missing")
               if "initSpacecraftRenderer(world)" not in data:
                   plane_import=data.find("initPlaneWrecksRenderer(world)")
                   plane_catch=".catch(e=>console.warn('BridgePoint Plane Wrecks layer unavailable',e));"
@@ -441,8 +441,10 @@ jobs:
                   raise SystemExit(f"{rel}: expected exactly one {needle} script URL, found {len(matches)}")
               url=matches[0].group(1)
               current_url=url
-              if "shipwrecks=ten-additional-photogrammetry-wrecks-v12" not in current_url:
-                  current_url=current_url+("&" if "?" in current_url else "?")+"shipwrecks=ten-additional-photogrammetry-wrecks-v12"
+              if re.search(r'([?&])shipwrecks=',current_url):
+                  current_url=re.sub(r'([?&]shipwrecks=)[^&"]+',r'\g<1>twenty-additional-photogrammetry-wrecks-v13',current_url,count=1)
+              else:
+                  current_url=current_url+("&" if "?" in current_url else "?")+"shipwrecks=twenty-additional-photogrammetry-wrecks-v13"
               if "spacecraft=sls-mobile-launcher-pad39b-v1" not in current_url:
                   updated=current_url+("&" if "?" in current_url else "?")+"spacecraft=sls-mobile-launcher-pad39b-v1"
                   data=data.replace(url,updated,1)
@@ -505,7 +507,7 @@ jobs:
           if missing:
               raise SystemExit("SHIPWRECKS_V2_REQUIRED_RUNTIME_FILE_MISSING "+json.dumps(sorted(missing)))
           assert (site/"bridgepoint-shipwrecks-v1.js").read_bytes()==(site/"app/bridgepoint-shipwrecks-v1.js").read_bytes()
-          print("SHIPWRECKS_V12_AND_SPACECRAFT_V1_ADDITIVE_OVERLAY_SCOPE_PASS",len(changed),"existing files changed",len(added),"files added; no removals")
+          print("SHIPWRECKS_V13_AND_SPACECRAFT_V1_ADDITIVE_OVERLAY_SCOPE_PASS",len(changed),"existing files changed",len(added),"files added; no removals")
           PY
           node --check "$SITE/landing.js"
           node --check "$SITE/app.js"
@@ -536,22 +538,22 @@ jobs:
           test -s "$SITE/vendor/draco/draco_decoder.js"
           test -s "$SITE/vendor/draco/draco_decoder.wasm"
           test -s "$SITE/vendor/draco/draco_wasm_wrapper.js"
-          echo "BRIDGEPOINT_SHIPWRECKS_V12_AND_SPACECRAFT_V1_OVERLAY_PASS"
+          echo "BRIDGEPOINT_SHIPWRECKS_V13_AND_SPACECRAFT_V1_OVERLAY_PASS"
 
       - uses: actions/configure-pages@v5
 
-      - name: Upload the preserved production site with the additive Shipwrecks v12 overlay
+      - name: Upload the preserved production site with the additive Shipwrecks v13 overlay
         uses: actions/upload-pages-artifact@v4
         with:
-          name: github-pages-shipwrecks-v12
+          name: github-pages-shipwrecks-v13
           path: ${{ runner.temp }}/shipwrecks-site
           include-hidden-files: true
 
-      - name: Publish BridgePoint Shipwrecks v12 + Spacecraft v1 additive overlay
+      - name: Publish BridgePoint Shipwrecks v13 + Spacecraft v1 additive overlay
         id: deployment
         uses: actions/deploy-pages@v4
         with:
-          artifact_name: github-pages-shipwrecks-v12
+          artifact_name: github-pages-shipwrecks-v13
 
       - name: Verify live root/app entry points, wrecks and BridgePoint-hosted Spacecraft launch-site scene
         shell: bash
@@ -596,8 +598,8 @@ jobs:
           grep -Fq 'BP_FRONTEND_V5000' "$D/root.html" || { echo "LIVE_VERIFY_FAIL: root entry build marker missing"; exit 1; }
           grep -Fq 'bridgepoint-drone-awareness-v1.js' "$D/root.html" || { echo "LIVE_VERIFY_FAIL: root visibility guard script missing"; exit 1; }
           grep -Fq 'bridgepoint-drone-awareness-v1.js' "$D/app.html" || { echo "LIVE_VERIFY_FAIL: app visibility guard script missing"; exit 1; }
-          grep -Fq 'bridgepoint-shipwrecks-v1.js?v=12-ten-additional-photogrammetry-wrecks' "$D/landing.js" || { echo "LIVE_VERIFY_FAIL: root Shipwrecks import missing"; exit 1; }
-          grep -Fq 'bridgepoint-shipwrecks-v1.js?v=12-ten-additional-photogrammetry-wrecks' "$D/app.js" || { echo "LIVE_VERIFY_FAIL: app Shipwrecks import missing"; exit 1; }
+          grep -Fq 'bridgepoint-shipwrecks-v1.js?v=13-twenty-additional-photogrammetry-wrecks' "$D/landing.js" || { echo "LIVE_VERIFY_FAIL: root Shipwrecks import missing"; exit 1; }
+          grep -Fq 'bridgepoint-shipwrecks-v1.js?v=13-twenty-additional-photogrammetry-wrecks' "$D/app.js" || { echo "LIVE_VERIFY_FAIL: app Shipwrecks import missing"; exit 1; }
           echo "LIVE_VERIFY_PASS: root and app entrypoints + Shipwrecks imports"
           grep -Fq 'bridgepoint-spacecraft-v1.js?v=1-sls-mobile-launcher-lc39b' "$D/landing.js" || { echo "LIVE_VERIFY_FAIL: root Spacecraft import missing"; exit 1; }
           grep -Fq 'bridgepoint-spacecraft-v1.js?v=1-sls-mobile-launcher-lc39b' "$D/app.js" || { echo "LIVE_VERIFY_FAIL: app Spacecraft import missing"; exit 1; }
@@ -738,4 +740,4 @@ jobs:
           grep -Fq '55.6448° N, 12.8688° E' "$D/module.js" || { echo "LIVE_VERIFY_FAIL: Kanonvraget WGS84 coordinates missing"; exit 1; }
           grep -Fq '32° 09.0234′ S, 115° 29.9682′ E' "$D/module.js" || { echo "LIVE_VERIFY_FAIL: HNLMS K XI WGS84 coordinates missing"; exit 1; }
           grep -Fq '32.059833° S, 115.372533° E' "$D/module.js" || { echo "LIVE_VERIFY_FAIL: SS Cape Otway WGS84 coordinates missing"; exit 1; }
-          echo "BRIDGEPOINT_SHIPWRECKS_V12_LIVE_VERIFY_PASS"
+          echo "BRIDGEPOINT_SHIPWRECKS_V13_LIVE_VERIFY_PASS"
