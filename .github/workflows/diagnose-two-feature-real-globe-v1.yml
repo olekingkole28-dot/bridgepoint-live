@@ -1,0 +1,114 @@
+name: Verify Restored EMRF and Wildfire Against Real Mobile Globe (read-only)
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/diagnose-two-feature-real-globe-v1.yml']
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Obtain one fresh official Starlink snapshot for ONLY local browser simulation
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/bp-restored-smoke
+          python3 scripts/build_starlink_catalog_v2.py /tmp/bp-restored-smoke/starlink-orbits-v2.json
+      - name: Launch REAL BridgePoint mobile globe, injecting only the missing assets temporarily
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --prefix /tmp/bp-restored-smoke --no-audit --no-fund playwright-core@1.56.1
+          cp rebuild-v5000/bridgepoint-emrf-starlink-global-v2.js /tmp/bp-restored-smoke/starlink.js
+          cp rebuild-v5000/bridgepoint-emrf-spectrogram-v1.js /tmp/bp-restored-smoke/emrf.js
+          cp rebuild-v5000/bridgepoint-wildfires-volumetric-v1.js /tmp/bp-restored-smoke/fire.js
+          cp rebuild-v5000/bridgepoint-wildfire-realistic-mesh-v4.js /tmp/bp-restored-smoke/firev4.js
+          cp rebuild-v5000/bridgepoint-drone-awareness-v1.js /tmp/bp-restored-smoke/gate.js
+          cat > /tmp/bp-restored-smoke/test.mjs <<'JS'
+          import {chromium} from 'playwright-core';
+          import {readFileSync} from 'node:fs';
+          const b=await chromium.launch({executablePath:'/usr/bin/google-chrome',headless:true,args:[
+            '--no-sandbox','--use-gl=angle','--use-angle=swiftshader','--enable-webgl']});
+          const c=await b.newContext({viewport:{width:850,height:600},deviceScaleFactor:1,
+            isMobile:true,hasTouch:true,serviceWorkers:'block'});
+          const page=await c.newPage();
+          let routeCounts={};
+          for(const [pattern,asset,type,key] of [
+            ['**/bridgepoint-emrf-starlink-global-v2.js*','starlink.js','text/javascript','starlink'],
+            ['**/bridgepoint-emrf-spectrogram-v1.js*','emrf.js','text/javascript','emrf'],
+            ['**/bridgepoint-wildfires-volumetric-v1.js*','fire.js','text/javascript','fire'],
+            ['**/bridgepoint-wildfire-realistic-mesh-v4.js*','firev4.js','text/javascript','firev4'],
+            ['**/bridgepoint-drone-awareness-v1.js*','gate.js','text/javascript','gate'],
+            ['**/starlink-orbits-v2.json*','starlink-orbits-v2.json','application/json','catalog']]){
+            await c.route(pattern,route=>{
+              routeCounts[key]=(routeCounts[key]||0)+1;
+              return route.fulfill({status:200,contentType:type,body:readFileSync('/tmp/bp-restored-smoke/'+asset)});
+            });
+          }
+          const errors=[];
+          page.on('pageerror',err=>{errors.push('page '+err.message);console.log('BROWSER_PAGEERROR',err.message)});
+          page.on('console',msg=>{if(msg.type()==='error')console.log('BROWSER_CONSOLE_ERROR',msg.text().slice(0,800))});
+          await page.goto('https://bridgepointintelligence.online/?real-emrf-fire-simulation',{waitUntil:'domcontentloaded',timeout:45000});
+          await page.waitForFunction(()=>!!window.__BP_LANDING_WORLD__?.map,null,{timeout:75000});
+          console.log('REAL_GLOBE_READY',JSON.stringify(await page.evaluate(()=>{
+            const m=window.__BP_LANDING_WORLD__.map;
+            return {projection:m.getProjection()?.type,zoom:m.getZoom(),styleLoaded:m.isStyleLoaded()};
+          })));
+          await page.evaluate(async()=>{
+            const world=window.__BP_LANDING_WORLD__;
+            await import('/bridgepoint-drone-awareness-v1.js?restored-test');
+            const emrf=await import('/bridgepoint-emrf-spectrogram-v1.js?restored-test');
+            window.__TEST_EMRF__=emrf.initBridgePointEmrfSpectrogram(world);
+            await window.__TEST_EMRF__.enable();
+          });
+          try {await page.waitForFunction(()=>{
+            const a=window.__BP_EMRF_STARLINK_BEAMS_V2__;
+            return a?.state?.beamCount>=2000;
+          },null,{timeout:70000});}catch(e){console.log('EMRF_TIMEOUT',e.message)}
+          const signal=await page.evaluate(()=>{
+            const a=window.__BP_EMRF_STARLINK_BEAMS_V2__,m=window.__BP_LANDING_WORLD__?.map;
+            return {active:window.__TEST_EMRF__?.active,starlink:a?.state,
+              layer:!!m.getLayer('bp-emrf-thousands-starlink-beams-v2'),
+              projection:m.getProjection()?.type};
+          });
+          console.log('REAL_GLOBE_EMRF_RESULT',JSON.stringify(signal).slice(0,3700));
+          await page.evaluate(async()=>{
+            window.__TEST_EMRF__?.disable?.();
+            const m=window.__BP_LANDING_WORLD__.map;
+            const wild=await import('/bridgepoint-wildfires-volumetric-v1.js?restored-test');
+            window.__TEST_FIRE__=wild.initLiveWildfireRenderer(m);
+            window.__TEST_FIRE__.setEnabled(true);
+          });
+          try {await page.waitForFunction(()=>{
+            const a=window.__TEST_FIRE__;
+            return a?.state?.fireCount>20&&a?.state?.mapLayerReady&&a?.state?.markerCount>0;
+          },null,{timeout:65000});}catch(e){console.log('WILDFIRE_TIMEOUT',e.message)}
+          const fire=await page.evaluate(()=>{
+            const m=window.__BP_LANDING_WORLD__?.map;
+            const a=window.__TEST_FIRE__;
+            const id='bp-live-fire-icon-symbols-v1';
+            return {state:a?.state,layer:!!m?.getLayer(id),visibility:m?.getLayoutProperty?.(id,'visibility'),
+              native3DLayer:!!m?.getLayer('bp-live-native-volumetric-fire-v1')};
+          });
+          console.log('REAL_GLOBE_WILDFIRE_RESULT',JSON.stringify(fire).slice(0,3900));
+          console.log('REAL_GLOBE_ASSET_INTERCEPTS',JSON.stringify(routeCounts));
+          console.log('REAL_GLOBE_SCRIPT_ERRORS',JSON.stringify(errors.slice(0,12)));
+          await page.screenshot({path:'/tmp/bp-restored-smoke/real-globe.png',timeout:15000}).catch(()=>{});
+          await b.close();
+          if(!signal.active||!signal.layer||signal.starlink?.beamCount<2000||
+            !fire.layer||fire.visibility==='none'||fire.state?.markerCount<1||
+            fire.state?.fireCount<20||routeCounts.catalog!==1||!routeCounts.starlink||!routeCounts.fire)
+            process.exitCode=1;
+          JS
+          node /tmp/bp-restored-smoke/test.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: emrf-fire-restored-real-globe-screenshot
+          path: /tmp/bp-restored-smoke/real-globe.png
+          if-no-files-found: ignore
