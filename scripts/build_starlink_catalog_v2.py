@@ -39,7 +39,7 @@ now=dt.datetime.now(dt.timezone.utc)
 items=None
 used_source=None
 failures=[]
-for url in (SOURCE,MIRROR):
+for url in (MIRROR,SOURCE):
     try:
         with urllib.request.urlopen(urllib.request.Request(url,headers=HEADERS),timeout=75) as response:
             if response.status != 200: raise RuntimeError("Starlink OMM source non-200: "+str(response.status))
