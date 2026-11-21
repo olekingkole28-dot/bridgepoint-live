@@ -1,0 +1,53 @@
+/* Presentation only: keep all existing buttons, controls, and event handlers intact. */
+html body.bpv-view-ready #bpv-dock .bpv-dock-actions.bpv-command-groups{
+ display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:6px!important;
+ justify-content:stretch!important;align-items:stretch!important;min-width:0;max-width:100%;
+}
+#bpv-dock .bpv-command-group,
+#bpv-dock .bpv-command-grid,
+#bpv-dock .bpv-command-inline-slot{
+ display:contents!important;
+}
+#bpv-dock .bpv-command-group{
+ min-width:0!important;padding:0!important;border:0!important;border-radius:0!important;
+ background:transparent!important;box-shadow:none!important;
+}
+#bpv-dock .bpv-command-heading,
+#bpv-dock .bpv-command-group small,
+#bpv-dock .bpv-command-group p,
+#bpv-dock .bpv-command-group [role="status"],
+#bpv-dock .bpv-command-group [aria-live],
+#bpv-dock #bpv-dock-actions h1,
+#bpv-dock #bpv-dock-actions h2,
+#bpv-dock #bpv-dock-actions h3,
+#bpv-dock #bpv-dock-actions h4,
+#bpv-dock #bpv-dock-actions p,
+#bpv-dock #bpv-dock-actions small,
+#bpv-dock #bpv-dock-actions [role="status"],
+#bpv-dock #bpv-dock-actions [aria-live],
+#bpv-dock #bpv-dock-actions button small{
+ display:none!important;
+}
+#bpv-dock .bpv-dock-label>div:first-child{display:none!important}
+#bpv-dock .bpv-dock-window-actions{margin-left:auto!important}
+#bpv-dock #bpv-more-info:not([open]){display:none!important}
+#bpv-dock #bpv-more-info>summary,
+#bpv-dock .bpv-more-info-intro,
+#bpv-dock .bpv-more-info-note{display:none!important}
+#bpv-dock .bpv-more-info-content{padding:0!important;border:0!important}
+#bpv-dock #bp-world-time-slider-v5908{grid-column:1/-1!important}
+#bp-world-time-slider-v5908 .bpwt-eyebrow,
+#bp-world-time-slider-v5908 .bpwt-status,
+#bp-world-time-slider-v5908 .bpwt-date,
+#bp-world-time-slider-v5908 .bpwt-scale,
+#bp-world-time-slider-v5908 .bpwt-stats,
+#bp-world-time-slider-v5908 .bpwt-filters,
+#bp-world-time-slider-v5908 .bpwt-list,
+#bp-world-time-slider-v5908 .bpwt-note{display:none!important}
+#bp-world-time-slider-v5908 .bpwt-head{justify-content:flex-end!important;margin-bottom:0!important}
+#bp-world-time-slider-v5908 .bpwt-controls{justify-content:flex-start!important}
+@media(max-width:700px){
+ html body.bpv-view-ready #bpv-dock .bpv-dock-actions.bpv-command-groups{
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:5px!important;
+ }
+}
