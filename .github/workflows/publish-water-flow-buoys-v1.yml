@@ -230,3 +230,5 @@ jobs:
           cmp -s "$DIR/layout.css" rebuild-v5000/bridgepoint-bottom-card-compact-v1.css
           grep -Fq '__BP_WATER_FLOW_BUOYS_V1__' "$DIR/water.js"
           echo 'WATER_FLOW_BUOYS_AND_COMPACT_CARD_LAYOUT_LIVE_ON_ROOT_AND_APP'
+
+# Keep the water-only publisher available for post-overlay production refreshes.
