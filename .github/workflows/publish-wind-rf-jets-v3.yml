@@ -86,7 +86,7 @@ jobs:
           repository: ${{ github.repository }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ${{ runner.temp }}/bp-windrf-baseline
-      - name: Check every changed file against the current LIVE website
+      - name: Verify every existing live wind/FAA/weather file before changing only local UI and wind forecast
         shell: bash
         run: |
           set -euo pipefail
@@ -103,7 +103,8 @@ jobs:
           root='https://bridgepointintelligence.online/'
           protected=['index.html','app/index.html','landing.js','app.js',
            'bridgepoint-view-v5917.js','bridgepoint-volumetric-fields-v5978.js',
-           'app/bridgepoint-volumetric-fields-v5978.js','app/bridgepoint-global-wind-rf-v1.js',
+           'app/bridgepoint-volumetric-fields-v5978.js','bridgepoint-global-wind-rf-v1.js',
+           'app/bridgepoint-global-wind-rf-v1.js','wind-rf-global-v1.json',
            'bridgepoint-faa-obstruction-towers-v1.js','bridgepoint-drone-awareness-v1.js',
            'bridgepoint-emrf-starlink-global-v2.js','bridgepoint-wildfires-volumetric-v1.js',
            'vendor/three.module.js']
@@ -115,14 +116,9 @@ jobs:
             with urllib.request.urlopen(req,timeout=45) as r:live=r.read()
             if hashlib.sha256(live).digest()!=hashlib.sha256(p.read_bytes()).digest():
               raise SystemExit('WIND_RF_LIVE_CHANGED_PRESERVE_MORE_RECENT '+name)
-          for name in ('bridgepoint-global-wind-rf-v1.js','wind-rf-global-v1.json'):
-            if (site/name).exists():raise SystemExit('WIND_RF_RECOVERED_BY_OTHER_PUBLISH '+name)
-            req=urllib.request.Request(root+name+'?windrf-check='+os.environ['GITHUB_SHA'],
-              headers={'Cache-Control':'no-cache'})
-            try:
-              with urllib.request.urlopen(req,timeout=25) as r:status=r.status
-            except urllib.error.HTTPError as e:status=e.code
-            if status!=404:raise SystemExit('WIND_RF_FILE_CHANGED_CONCURRENTLY '+name+' '+str(status))
+          # The older v2 workflow already deployed these wind files.
+          # Their exact bytes were compared above; do not overwrite global shader
+          # or invent an alternate baseline when live source has changed.
           print('WIND_RF_LIVE_BASELINE_PROTECTION_PASS',len(protected))
           PY
       - name: Overlay ONLY Wind RF Jets modules, button and fresh genuine forecast
