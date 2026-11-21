@@ -1,0 +1,224 @@
+name: Publish BridgePoint World Wonders v1
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-world-wonders-v1.yml'
+      - 'rebuild-v5000/bridgepoint-iconic-wonders-v1.js'
+      - 'rebuild-v5000/app-index.html'
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-v5000-world-wonders-v1
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Wait for a same-commit full-site build
+        shell: bash
+        env:
+          GH_TOKEN: "${{ github.token }}"
+        run: |
+          set -euo pipefail
+          sleep 8
+          RUN_ID="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$GITHUB_SHA&per_page=100" --jq '.workflow_runs[] | select(.path == ".github/workflows/deploy-intelligence-rebuild-v5000.yml") | .id' | head -n 1 || true)"
+          if [ -z "$RUN_ID" ]; then
+            echo "No same-commit full-site build is registered; continuing with the current production snapshot."
+            exit 0
+          fi
+          echo "Waiting for full-site build run $RUN_ID without cancelling either workflow."
+          while true; do
+            STATUS="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" --jq '.status')"
+            CONCLUSION="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" --jq '.conclusion // ""')"
+            if [ "$STATUS" = "completed" ]; then
+              echo "FULL_SITE_BUILD_FINISHED run=$RUN_ID conclusion=$CONCLUSION"
+              exit 0
+            fi
+            sleep 15
+          done
+
+      - name: Resolve the latest successful production Pages snapshot
+        id: baseline
+        shell: bash
+        env:
+          GH_TOKEN: "${{ github.token }}"
+        run: |
+          set -euo pipefail
+          RUNS="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?status=success&branch=main&per_page=100" --jq '.workflow_runs | map(select(.conclusion == "success")) | .[].id')"
+          BASELINE_ID=""
+          ARTIFACT=""
+          for run_id in $RUNS; do
+            candidate="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/artifacts" --jq '.artifacts[]? | select((.expired|not) and (.name | startswith("bridgepoint-v5000-"))) | .name' | head -n 1 || true)"
+            if [ -n "$candidate" ]; then
+              BASELINE_ID="$run_id"
+              ARTIFACT="$candidate"
+              break
+            fi
+          done
+          test -n "$BASELINE_ID"
+          test -n "$ARTIFACT"
+          echo "run_id=$BASELINE_ID" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=$ARTIFACT" >> "$GITHUB_OUTPUT"
+          echo "PRODUCTION_BASELINE run=$BASELINE_ID artifact=$ARTIFACT"
+
+      - name: Download the production snapshot
+        uses: actions/download-artifact@v4
+        with:
+          name: "${{ steps.baseline.outputs.artifact_name }}"
+          run-id: "${{ steps.baseline.outputs.run_id }}"
+          repository: "${{ github.repository }}"
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+          path: "${{ runner.temp }}/bp-pages-baseline"
+
+      - name: Restore production and fingerprint every non-target file
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCHIVE="$(find "$RUNNER_TEMP/bp-pages-baseline" -type f -name artifact.tar -print -quit)"
+          test -n "$ARCHIVE"
+          SITE="$RUNNER_TEMP/bp-site"
+          mkdir -p "$SITE"
+          tar -xf "$ARCHIVE" -C "$SITE"
+          test -s "$SITE/index.html"
+          test -s "$SITE/app/index.html"
+          python3 - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          site=Path(os.environ['RUNNER_TEMP'])/'bp-site'
+          targets={'app/index.html','bridgepoint-iconic-wonders-v1.js'}
+          def digest(path):
+              h=hashlib.sha256()
+              with path.open('rb') as f:
+                  for chunk in iter(lambda:f.read(1024*1024),b''): h.update(chunk)
+              return h.hexdigest()
+          before={}
+          target_before={}
+          for path in sorted(site.rglob('*')):
+              if not path.is_file(): continue
+              rel=path.relative_to(site).as_posix()
+              if rel in targets: target_before[rel]=digest(path)
+              else: before[rel]=digest(path)
+          if 'app/index.html' not in target_before:
+              raise SystemExit('Production snapshot does not contain app/index.html')
+          tmp=Path(os.environ['RUNNER_TEMP'])
+          (tmp/'bp-wonders-preservation-before.json').write_text(json.dumps(before,sort_keys=True))
+          (tmp/'bp-wonders-target-before.json').write_text(json.dumps(target_before,sort_keys=True))
+          print('NON_TARGET_PRODUCTION_FILES_FINGERPRINTED',len(before))
+          PY
+
+      - name: Overlay only the World Wonders module and app entrypoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/bp-site"
+          cp rebuild-v5000/bridgepoint-iconic-wonders-v1.js "$SITE/bridgepoint-iconic-wonders-v1.js"
+          python3 - <<'PY'
+          import re,os
+          from pathlib import Path
+          site=Path(os.environ['RUNNER_TEMP'])/'bp-site'
+          tag='<script defer src="/bridgepoint-iconic-wonders-v1.js?v=6513-world-wonders-pins"></script>'
+          path=site/'app/index.html'
+          html=path.read_text(encoding='utf-8')
+          if 'bridgepoint-iconic-wonders-v1.js' not in html:
+              if '</body>' not in html.lower():
+                  raise SystemExit('App entrypoint has no closing body tag')
+              html=re.sub(r'</body>',tag+'\n</body>',html,flags=re.I,count=1)
+          if html.count('bridgepoint-iconic-wonders-v1.js') != 1:
+              raise SystemExit('App entrypoint must load exactly one World Wonders module')
+          path.write_text(html,encoding='utf-8')
+          source=Path('rebuild-v5000/app-index.html').read_text(encoding='utf-8')
+          if tag not in source:
+              raise SystemExit('Source app-index.html is missing the World Wonders loader')
+          module=Path('rebuild-v5000/bridgepoint-iconic-wonders-v1.js').read_text(encoding='utf-8')
+          if module.count('modelId:') != 27 or 'total: 27' not in module or 'additional: 20' not in module:
+              raise SystemExit('Expected seven requested + twenty additional source records')
+          if 'bpv-world-wonders-button-v1' not in module or 'Sketchfab' not in module:
+              raise SystemExit('World Wonders button or embedded viewer contract missing')
+          print('WORLD_WONDERS_27_SOURCE_RECORDS_AND_APP_LOADER_PASS')
+          PY
+          node --check rebuild-v5000/bridgepoint-iconic-wonders-v1.js
+
+      - name: Prove no non-target production files changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          site=Path(os.environ['RUNNER_TEMP'])/'bp-site'
+          tmp=Path(os.environ['RUNNER_TEMP'])
+          before=json.loads((tmp/'bp-wonders-preservation-before.json').read_text())
+          target_before=json.loads((tmp/'bp-wonders-target-before.json').read_text())
+          targets={'app/index.html','bridgepoint-iconic-wonders-v1.js'}
+          def digest(path):
+              h=hashlib.sha256()
+              with path.open('rb') as f:
+                  for chunk in iter(lambda:f.read(1024*1024),b''): h.update(chunk)
+              return h.hexdigest()
+          after={}
+          target_after={}
+          for path in sorted(site.rglob('*')):
+              if not path.is_file(): continue
+              rel=path.relative_to(site).as_posix()
+              if rel in targets: target_after[rel]=digest(path)
+              else: after[rel]=digest(path)
+          if before != after:
+              raise SystemExit('UNRELATED_PRODUCTION_FILE_CHANGE '+json.dumps({
+                  'missing':sorted(set(before)-set(after))[:20],
+                  'added':sorted(set(after)-set(before))[:20],
+                  'changed':sorted(k for k in before.keys() & after.keys() if before[k]!=after[k])[:20]
+              }))
+          if set(target_after) != targets:
+              raise SystemExit('WORLD_WONDERS_TARGET_PATHS_MISSING '+repr(sorted(targets-set(target_after))))
+          print('NON_TARGET_PRODUCTION_FILES_BYTE_FOR_BYTE_PRESERVED',len(before))
+          print('WORLD_WONDERS_TARGET_FILES_PRESENT',len(target_after),'previous_target_files',len(target_before))
+          PY
+
+      - uses: actions/configure-pages@v5
+
+      - name: Upload the preserved production site with World Wonders
+        uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: "${{ runner.temp }}/bp-site"
+          include-hidden-files: true
+
+      - name: Publish the preserved production snapshot
+        id: deployment
+        env:
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+        run: node scripts/deploy-pages-extended.mjs
+
+      - name: Verify World Wonders is live
+        shell: bash
+        run: |
+          set -euo pipefail
+          ORIGIN='https://bridgepointintelligence.online'
+          DIR="$RUNNER_TEMP/bp-wonders-live"
+          mkdir -p "$DIR"
+          curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/app/?verify=$GITHUB_SHA-wonders" -o "$DIR/app.html"
+          curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/bridgepoint-iconic-wonders-v1.js?verify=$GITHUB_SHA-wonders" -o "$DIR/module.js"
+          cmp -s "$DIR/module.js" rebuild-v5000/bridgepoint-iconic-wonders-v1.js
+          grep -Fq 'bridgepoint-iconic-wonders-v1.js?v=6513-world-wonders-pins' "$DIR/app.html"
+          grep -Fq 'WORLD WONDERS · 3D SCAN' "$DIR/module.js"
+          grep -Fq 'bpv-world-wonders-button-v1' "$DIR/module.js"
+          grep -Fq "modelId:'4577eb4b21ac48ecba43e7944b4e1baf'" "$DIR/module.js"
+          grep -Fq "modelId:'734dd252ca9e42249d9a7de338031a8f'" "$DIR/module.js"
+          grep -Fq "modelId:'3ce0cc3108e54097862ea735309d9292'" "$DIR/module.js"
+          test "$(grep -c 'modelId:' "$DIR/module.js")" -eq 27
+          echo 'BRIDGEPOINT_WORLD_WONDERS_27_PINS_AND_3D_CARDS_LIVE_PASS'
