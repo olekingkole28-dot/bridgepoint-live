@@ -1,0 +1,61 @@
+name: Verify Published Starlink and Wildfire Restore (read only)
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/verify-live-emrf-wildfire-restoration-v1.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - name: Check BOTH live HTML entrypoints, restored source-backed assets, and original Cloudflare tunnel
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json,datetime,urllib.request
+          base='https://bridgepointintelligence.online/'
+          def fetch(path):
+            req=urllib.request.Request(base+path+'?live-emrf-fire-final=20261121',headers={'Cache-Control':'no-cache'})
+            with urllib.request.urlopen(req,timeout=35) as r:
+              assert r.status==200,path
+              content=r.read()
+              print('LIVE_FILE_OK',path,len(content))
+              return content
+          root=fetch('index.html').decode('utf-8')
+          app=fetch('app/index.html').decode('utf-8')
+          for path,body in (('index.html',root),('app/index.html',app)):
+            assert 'emrf-fire-restore=20261120' in body,(path,'missing dock refresh')
+            assert 'emrf-fire-layer-gate=20261120' in body,(path,'missing gate cache')
+            assert 'faa-gate=8-no-icon-sweep' in body,(path,'FAA version regressed')
+            print('LIVE_ENTRY_LOADER_OK',path)
+          view=fetch('bridgepoint-view-v5917.js').decode('utf-8')
+          assert view.count('restore=20261120-emrf-fire')==2
+          assert 'toggleEmrfSpectrogram(button)' in view
+          assert 'initLiveWildfireRenderer(activeMap)' in view
+          gate=fetch('bridgepoint-drone-awareness-v1.js').decode('utf-8')
+          assert "if(value.startsWith('bp-emrf-')||value.startsWith('bp-live-fire-')" in gate
+          assert "if(value.startsWith('bp-faa-obstructions-'))return false;" in gate
+          emrf=fetch('bridgepoint-emrf-spectrogram-v1.js').decode('utf-8')
+          assert 'initBridgePointEmrfSpectrogram' in emrf
+          assert 'restore=20261120-emrf-fire' in emrf
+          for p in ('bridgepoint-emrf-starlink-global-v2.js','app/bridgepoint-emrf-starlink-global-v2.js'):
+            assert 'initBridgePointStarlinkBeamV2' in fetch(p).decode('utf-8')
+          for p in ('bridgepoint-wildfires-volumetric-v1.js','app/bridgepoint-wildfires-volumetric-v1.js'):
+            assert 'initLiveWildfireRenderer' in fetch(p).decode('utf-8')
+          for p in ('bridgepoint-wildfire-realistic-mesh-v4.js','app/bridgepoint-wildfire-realistic-mesh-v4.js'):
+            assert 'createBridgePointWildfireVolumeV4' in fetch(p).decode('utf-8')
+          catalog=json.loads(fetch('starlink-orbits-v2.json'))
+          age=(datetime.datetime.now(datetime.timezone.utc)-datetime.datetime.fromisoformat(catalog['fetched_at'].replace('Z','+00:00'))).total_seconds()
+          assert catalog['record_count']>=2500 and len(catalog['records'])==catalog['record_count'] and 0<=age<7*86400
+          recent=sum(0<=(datetime.datetime.now(datetime.timezone.utc).timestamp()*1000-row[2])<72*3600*1000 for row in catalog['records'])
+          assert recent>=2000,recent
+          print('LIVE_REAL_ORBIT_CATALOG_VERIFIED',catalog['record_count'],'recent_72h',recent)
+          with urllib.request.urlopen('https://characterization-seas-total-adopt.trycloudflare.com/auth/v1/health',timeout=25) as r:health=json.load(r)
+          assert health.get('status')=='ok' and health.get('local') is True
+          print('LIVE_CLOUDFLARE_PC_AUTH_UNCHANGED_PASS')
+          print('LIVE_GLOBAL_EMRF_STARLINK_WILDFIRE_VERIFIED_SUCCESS')
+          PY
