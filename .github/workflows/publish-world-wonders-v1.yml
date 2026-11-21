@@ -1,4 +1,4 @@
-# Changes to this workflow intentionally retrigger the snapshot overlay publisher.
+# A workflow-only change retriggers the final snapshot merge without firing layer publishers.
 name: Publish BridgePoint World Wonders v1
 
 on:
