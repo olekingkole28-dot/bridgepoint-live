@@ -246,7 +246,7 @@ assert.ok(moduleSource.includes('setVisibility(state,state.enabled)'));
 assert.ok(landing.includes("import('./bridgepoint-shipwrecks-v1.js?v=11-titanic-gaskin-grafton-cannon-kxi-cape-otway-timaru-hms-loo-draco-ktx2-local-viewer')"));
 assert.ok(app.includes("import('./bridgepoint-shipwrecks-v1.js?v=11-titanic-gaskin-grafton-cannon-kxi-cape-otway-timaru-hms-loo-draco-ktx2-local-viewer')"));
 assert.ok(workflow.includes('actions/runs?branch=main&per_page=100'),'publisher discovers the latest successful Pages baseline dynamically');
-assert.ok(workflow.includes('bridgepoint-palatine-cryptoporticus-v1.js'),'publisher refuses an older incomplete baseline');
+assert.ok(workflow.includes('bridgepoint-jenolan-caves-v1.js'),'publisher requires the confirmed live Jenolan cave baseline');
 assert.ok(workflow.includes('bridgepoint-shipwrecks-v1.js'));
 assert.ok(workflow.includes('expected_changed={"landing.js","app.js","index.html","app/index.html","bridgepoint-drone-awareness-v1.js"}'));
 assert.ok(workflow.includes('overlay_files={'));
