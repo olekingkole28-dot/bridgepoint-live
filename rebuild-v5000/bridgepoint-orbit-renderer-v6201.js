@@ -1,4 +1,4 @@
-// BridgePoint Orbit & Motion 3D renderer v6203.
+// BridgePoint Orbit & Motion 3D renderer v6240.
 // Satellite locations and orbital paths are propagated from stored public TLE/OMM records.
 // Every model and sampled orbit vertex is transformed with MapLibre's globe-aware model
 // matrix so objects remain above the spherical Earth through globe/mercator transitions.
@@ -20,7 +20,8 @@ function classify(item){
  if(/\b(VOYAGER|PIONEER|NEW HORIZONS|CASSINI|JUNO|OSIRIS|INTERPLANETARY|DEEP SPACE|LUNAR RECONNAISSANCE|LRO\b|PROBE)\b/.test(n))return'probe';
  if(/\b(NAVSTAR|GPS\b|GLONASS|GALILEO|BEIDOU|COMPASS NAV)\b/.test(n))return'navigation';
  if(/\b(GOES|NOAA|METOP|LANDSAT|SENTINEL|TERRA|AQUA|SUOMI|JPSS|RADARSAT|COSMO|WORLDVIEW|SPOT\b|EARTH OBSERVATION)\b/.test(n))return'earth';
- if(/\b(STARLINK|ONEWEB|IRIDIUM|GLOBALSTAR|O3B|INTELSAT|EUTELSAT|INMARSAT|SES\b|GALAXY)\b/.test(n))return'communications';
+ if(/\bSTARLINK\b/.test(n))return'starlink';
+ if(/\b(ONEWEB|IRIDIUM|GLOBALSTAR|O3B|INTELSAT|EUTELSAT|INMARSAT|SES\b|GALAXY)\b/.test(n))return'communications';
  return'satellite';
 }
 function metadata(kind){
@@ -34,6 +35,7 @@ function metadata(kind){
   navigation:{span:18,minPixels:6.5,color:0x9effcb},
   earth:{span:25,minPixels:7,color:0x80d7ff},
   communications:{span:26,minPixels:7,color:0xffda85},
+  starlink:{span:28,minPixels:8.5,color:0x75caff},
   satellite:{span:18,minPixels:6.5,color:0x93f4ff}
  })[kind]||{span:18,minPixels:6.5,color:0x93f4ff};
 }
@@ -130,6 +132,23 @@ function makeGeometry(T,kind){
   box(6.2,3.2,.12,[5.7,0,0],0x1c6198);
   for(const side of [-1,1])for(let i=0;i<6;i++)box(.06,3.05,.14,[side*(3.1+i*1.02),0,.1],0x80c9ee);
   box(4.4,.28,.35,[0,1.65,0],0xc9d3d8);
+ }else if(kind==='starlink'){
+  // Dimension-informed Starlink silhouette: thermal bus, broad cell array,
+  // stiffening rails, underside antenna hardware and an attitude mast.
+  box(2.8,.42,1.35,[0,0,0],0xbac5ca);
+  box(2.62,.08,1.18,[0,.25,0],0x5c6b72);
+  box(2.25,.06,1.02,[0,.31,0],0x88795f);
+  box(8.1,.085,2.8,[5.45,.22,0],0x173f77);
+  box(8.25,.12,.09,[5.45,.30,1.43],0xb8c6d1);
+  box(8.25,.12,.09,[5.45,.30,-1.43],0xb8c6d1);
+  for(let x=1.55;x<=9.25;x+=.64)box(.045,.018,2.68,[x,.274,0],0x75b8e8);
+  for(let z=-1.22;z<=1.22;z+=.48)box(8.02,.018,.035,[5.45,.276,z],0x78bdec);
+  box(.34,.5,.34,[-.75,-.36,.34],0xe1e8e7);
+  box(.30,.42,.3,[-.82,-.36,-.34],0xd5dfe3);
+  cylinder(.22,.18,[-.55,-.41,.48],0xf0f2ea,[Math.PI/2,0,0]);
+  cylinder(.10,.82,[-1.1,.12,-.56],0xdce3df,[0,Math.PI/2,0]);
+  cylinder(.055,.72,[-1.18,.54,-.56],0xe3d5ac,[0,0,0]);
+  box(.48,.04,.06,[1.5,0,0],0x8899a3);
  }else if(kind==='communications'){
   // Communications spacecraft with large solar wings, bus, feed horn and high-gain dish.
   box(3.1,2.8,2.6,[0,0,0],0xb8c5cc);
@@ -156,7 +175,7 @@ export async function createOrbitRenderer(map){
  if(!map||!map.getStyle?.())throw new Error('The BridgePoint globe map is not style-ready.');
  const imported=await import(THREE_URL),T=imported.default||imported;
  let renderer=null,scene=null,camera=null,customLayer=null,pathLine=null;
- let dotGeometry=null,dotHaloMaterial=null,dotCoreMaterial=null,dotHaloMesh=null,dotCoreMesh=null,dotCapacity=0;
+ let dotGeometry=null,dotCoreGeometry=null,dotHaloMaterial=null,dotCoreMaterial=null,dotHaloMesh=null,dotCoreMesh=null,dotCapacity=0;
  let templates=new Map(),lastPositions=[],lastCatalog=[],lastSatApi=null;
  let enabled=true,pathGeneration=0,modelsRendered=0,pathsBuilt=0,disposed=false;
  function modelMatrixFor(lon,lat,altMeters){
@@ -173,8 +192,8 @@ export async function createOrbitRenderer(map){
  function disposeScene(){
   if(pathLine){try{scene?.remove(pathLine);pathLine.geometry?.dispose?.();pathLine.material?.dispose?.()}catch(_){}pathLine=null}
   for(const mesh of [dotHaloMesh,dotCoreMesh]){try{if(mesh)scene?.remove(mesh)}catch(_){}}
-  try{dotGeometry?.dispose();dotHaloMaterial?.dispose();dotCoreMaterial?.dispose()}catch(_){}
-  dotGeometry=null;dotHaloMaterial=null;dotCoreMaterial=null;dotHaloMesh=null;dotCoreMesh=null;dotCapacity=0;
+  try{dotGeometry?.dispose();dotCoreGeometry?.dispose();dotHaloMaterial?.dispose();dotCoreMaterial?.dispose()}catch(_){}
+  dotGeometry=null;dotCoreGeometry=null;dotHaloMaterial=null;dotCoreMaterial=null;dotHaloMesh=null;dotCoreMesh=null;dotCapacity=0;
   for(const entry of templates.values()){try{scene?.remove(entry.mesh);entry.geometry.dispose();entry.material.dispose()}catch(_){}}
   templates.clear();
   if(renderer){try{renderer.dispose()}catch(_){}}
@@ -221,13 +240,14 @@ export async function createOrbitRenderer(map){
  function ensureDotMeshes(capacity){
   if(dotHaloMesh&&dotCoreMesh&&dotCapacity>=capacity)return;
   for(const mesh of [dotHaloMesh,dotCoreMesh]){try{if(mesh)scene?.remove(mesh)}catch(_){}}
-  try{dotGeometry?.dispose();dotHaloMaterial?.dispose();dotCoreMaterial?.dispose()}catch(_){}
-  dotGeometry=new T.SphereGeometry(1,12,8);
-  dotHaloMaterial=new T.MeshBasicMaterial({color:0x14dfff,transparent:true,opacity:.38,depthTest:true,depthWrite:false,toneMapped:false});
-  dotCoreMaterial=new T.MeshBasicMaterial({color:0xffed79,transparent:false,depthTest:true,depthWrite:false,toneMapped:false});
+  try{dotGeometry?.dispose();dotCoreGeometry?.dispose();dotHaloMaterial?.dispose();dotCoreMaterial?.dispose()}catch(_){}
+  dotGeometry=new T.SphereGeometry(1,14,10);
+  dotCoreGeometry=new T.OctahedronGeometry(1.05,0);
+  dotHaloMaterial=new T.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.24,depthTest:true,depthWrite:false,toneMapped:false});
+  dotCoreMaterial=new T.MeshBasicMaterial({color:0xffffff,depthTest:true,depthWrite:false,toneMapped:false});
   const size=Math.max(1,capacity);
   dotHaloMesh=new T.InstancedMesh(dotGeometry,dotHaloMaterial,size);
-  dotCoreMesh=new T.InstancedMesh(dotGeometry,dotCoreMaterial,size);
+  dotCoreMesh=new T.InstancedMesh(dotCoreGeometry,dotCoreMaterial,size);
   for(const mesh of [dotHaloMesh,dotCoreMesh]){
    mesh.count=0;mesh.frustumCulled=false;mesh.instanceMatrix.setUsage(T.DynamicDrawUsage);mesh.renderOrder=6;scene.add(mesh);
   }
@@ -237,24 +257,21 @@ export async function createOrbitRenderer(map){
   lastPositions=Array.isArray(records)?records:[];
   if(!scene||!map)return 0;
   if(typeof map.transform?.getMatrixForModel!=='function')return 0;
-  const zoom=Number(map.getZoom?.()||0),groups=new Map(),dotHaloMatrices=[],dotCoreMatrices=[];let placed=0;
+  const zoom=Number(map.getZoom?.()||0),groups=new Map(),dotHaloMatrices=[],dotCoreMatrices=[],markerColors=[];let placed=0;
   for(const item of lastPositions){
    const kind=classify(item.item),meta=metadata(kind),lat=Number(item.lat),lon=Number(item.lon),alt=Number(item.alt);
    if(!Number.isFinite(lat)||!Number.isFinite(lon)||!Number.isFinite(alt))continue;
    const anchor=modelMatrixFor(lon,lat,alt*1000);if(!anchor)continue;
    const metersPerPixel=WORLD_CIRCUMFERENCE_M*Math.max(.12,Math.cos(lat*Math.PI/180))/(512*Math.pow(2,Math.max(0,zoom)));
-   const displaySpan=Math.max(meta.span,metersPerPixel*meta.minPixels);
-   const scale=displaySpan/meta.span;
+   const displaySpan=Math.max(meta.span,metersPerPixel*meta.minPixels),scale=displaySpan/meta.span;
    const heading=Number.isFinite(item.heading)?item.heading:0;
-   // Align the spacecraft long axis to propagated velocity in the local tangent frame.
    const orientation=new T.Matrix4().makeRotationY(-heading);
    const matrix=anchor.clone().multiply(orientation).multiply(new T.Matrix4().makeScale(scale,scale,scale));
    const bucket=groups.get(kind)||[];bucket.push(matrix);groups.set(kind,bucket);
-   // A bright two-part 3D marker is anchored to the same spacecraft transform.
-   const dotBase=anchor.clone().multiply(orientation).multiply(new T.Matrix4().makeTranslation(0,0,displaySpan*.08));
-   dotHaloMatrices.push(dotBase.clone().multiply(new T.Matrix4().makeScale(metersPerPixel*2.05,metersPerPixel*2.05,metersPerPixel*2.05)));
-   dotCoreMatrices.push(dotBase.clone().multiply(new T.Matrix4().makeScale(metersPerPixel*1.05,metersPerPixel*1.05,metersPerPixel*1.05)));
-   placed++;
+   const dotBase=anchor.clone().multiply(orientation).multiply(new T.Matrix4().makeTranslation(0,0,displaySpan*.11));
+   dotHaloMatrices.push(dotBase.clone().multiply(new T.Matrix4().makeScale(metersPerPixel*7,metersPerPixel*7,metersPerPixel*7)));
+   dotCoreMatrices.push(dotBase.clone().multiply(new T.Matrix4().makeScale(metersPerPixel*4.4,metersPerPixel*4.4,metersPerPixel*4.4)));
+   markerColors.push(new T.Color(item.selected?0xffffff:meta.color));placed++;
   }
   for(const [kind,matrices] of groups){
    const entry=ensureMesh(kind,matrices.length);
@@ -265,15 +282,20 @@ export async function createOrbitRenderer(map){
   for(const [kind,entry] of templates)if(!groups.has(kind)){entry.mesh.count=0;entry.mesh.instanceMatrix.needsUpdate=true;entry.mesh.visible=enabled}
   if(placed){
    ensureDotMeshes(placed);
-   for(let i=0;i<placed;i++){dotHaloMesh.setMatrixAt(i,dotHaloMatrices[i]);dotCoreMesh.setMatrixAt(i,dotCoreMatrices[i])}
-   dotHaloMesh.count=placed;dotCoreMesh.count=placed;
-   dotHaloMesh.visible=enabled;dotCoreMesh.visible=enabled;
+   for(let i=0;i<placed;i++){
+    dotHaloMesh.setMatrixAt(i,dotHaloMatrices[i]);dotCoreMesh.setMatrixAt(i,dotCoreMatrices[i]);
+    dotHaloMesh.setColorAt(i,markerColors[i]);dotCoreMesh.setColorAt(i,markerColors[i]);
+   }
+   dotHaloMesh.count=placed;dotCoreMesh.count=placed;dotHaloMesh.visible=enabled;dotCoreMesh.visible=enabled;
    dotHaloMesh.instanceMatrix.needsUpdate=true;dotCoreMesh.instanceMatrix.needsUpdate=true;
+   if(dotHaloMesh.instanceColor)dotHaloMesh.instanceColor.needsUpdate=true;
+   if(dotCoreMesh.instanceColor)dotCoreMesh.instanceColor.needsUpdate=true;
    try{dotHaloMesh.computeBoundingSphere();dotCoreMesh.computeBoundingSphere()}catch(_){}
   }else if(dotHaloMesh&&dotCoreMesh){dotHaloMesh.count=0;dotCoreMesh.count=0}
   modelsRendered=placed;map.triggerRepaint?.();return placed;
  }
- function pickAtPoint(point,maxPixels=16){
+
+ function pickAtPoint(point,maxPixels=24){
   if(!camera||!map||!point||!Number.isFinite(Number(point.x))||!Number.isFinite(Number(point.y)))return null;
   const canvas=map.getCanvas?.();if(!canvas)return null;
   const width=Number(canvas.clientWidth||canvas.width),height=Number(canvas.clientHeight||canvas.height);
@@ -359,10 +381,58 @@ export async function createOrbitRenderer(map){
    const geometry=new T.BufferGeometry();
    geometry.setAttribute('position',new T.Float32BufferAttribute(positions,3));
    geometry.setAttribute('color',new T.Float32BufferAttribute(colors,3));
-   const material=new T.LineBasicMaterial({vertexColors:true,transparent:true,opacity:.64,depthWrite:false});
+   const material=new T.LineBasicMaterial({vertexColors:true,transparent:true,opacity:.08,depthWrite:false});
    pathLine=new T.LineSegments(geometry,material);pathLine.name='BridgePoint propagated full orbital trajectories';pathLine.frustumCulled=false;pathLine.visible=enabled;scene.add(pathLine);
   }
   pathsBuilt=count;map.triggerRepaint?.();return{paths:count,vertices:positions.length/3};
+ }
+ function mountSatellitePreview(canvas,item){
+  if(!canvas||typeof canvas.getContext!=='function')return()=>{};
+  let previewRenderer=null,resizeObserver=null,frame=0,disposed=false;
+  const kind=classify(item),geometry=makeGeometry(T,kind);
+  const material=new T.MeshStandardMaterial({color:0xffffff,vertexColors:true,roughness:.46,metalness:.42,side:T.DoubleSide});
+  const bounds=geometry.boundingSphere||new T.Sphere(new T.Vector3(),1);
+  const center=bounds.center.clone(),radius=Math.max(.01,bounds.radius||1);
+  geometry.translate(-center.x,-center.y,-center.z);
+  const scenePreview=new T.Scene();scenePreview.background=new T.Color(0x061522);
+  const group=new T.Group(),model=new T.Mesh(geometry,material);
+  model.scale.setScalar(2.5/radius);group.add(model);scenePreview.add(group);
+  const orbitalRing=new T.Mesh(new T.TorusGeometry(3.35,.025,7,96),
+   new T.MeshBasicMaterial({color:metadata(kind).color,transparent:true,opacity:.62,depthWrite:false}));
+  orbitalRing.rotation.set(.7,.25,.15);scenePreview.add(orbitalRing);
+  scenePreview.add(new T.AmbientLight(0xffffff,1.5));
+  const key=new T.DirectionalLight(0xffffff,2.6);key.position.set(-4,5,6);scenePreview.add(key);
+  const fill=new T.DirectionalLight(0x71cfff,1.2);fill.position.set(5,-2,4);scenePreview.add(fill);
+  const rim=new T.DirectionalLight(0xffd59d,.75);rim.position.set(-4,1,-5);scenePreview.add(rim);
+  const width=Math.max(200,canvas.clientWidth||canvas.width||300),height=Math.max(110,canvas.clientHeight||canvas.height||150);
+  const cameraPreview=new T.PerspectiveCamera(34,width/height,.1,60);
+  cameraPreview.position.set(5.2,3.3,7.1);cameraPreview.lookAt(0,0,0);
+  try{
+   previewRenderer=new T.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:'low-power'});
+   previewRenderer.outputColorSpace=T.SRGBColorSpace;
+   previewRenderer.setPixelRatio(Math.min(1.5,window.devicePixelRatio||1));
+   const resize=()=>{
+    if(disposed||!previewRenderer)return;
+    const w=Math.max(200,canvas.clientWidth||300),h=Math.max(110,canvas.clientHeight||150);
+    cameraPreview.aspect=w/h;cameraPreview.updateProjectionMatrix();previewRenderer.setSize(w,h,false);
+   };
+   resize();
+   if(typeof ResizeObserver==='function'){resizeObserver=new ResizeObserver(resize);resizeObserver.observe(canvas)}
+   const animate=()=>{
+    if(disposed||!previewRenderer)return;
+    group.rotation.y+=.0065;group.rotation.x=Math.sin(Date.now()*.00035)*.12;
+    previewRenderer.render(scenePreview,cameraPreview);frame=requestAnimationFrame(animate);
+   };
+   animate();
+  }catch(error){
+   disposed=true;geometry.dispose();material.dispose();orbitalRing.geometry.dispose();orbitalRing.material.dispose();
+   try{previewRenderer?.dispose()}catch(_){}throw error;
+  }
+  return()=>{
+   if(disposed)return;disposed=true;cancelAnimationFrame(frame);resizeObserver?.disconnect();
+   try{previewRenderer?.dispose()}catch(_){}
+   geometry.dispose();material.dispose();orbitalRing.geometry.dispose();orbitalRing.material.dispose();
+  };
  }
  function updatePositions(records){lastPositions=Array.isArray(records)?records:[];return renderModels(lastPositions)}
  function setVisible(value){
@@ -383,6 +453,7 @@ export async function createOrbitRenderer(map){
  if(!addLayer())throw new Error('MapLibre did not accept the orbital 3D custom layer.');
  return{
   updatePositions,
+  mountSatellitePreview,
   pickAtPoint,
   buildPaths:rebuildPaths,
   setVisible,

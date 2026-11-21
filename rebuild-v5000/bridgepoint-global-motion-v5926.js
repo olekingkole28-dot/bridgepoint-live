@@ -7,11 +7,11 @@ const SOURCE='https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=JS
 const FLIGHT_ROOT='https://api.adsb.lol/v2/point/';
 const EMPTY={type:'FeatureCollection',features:[]};
 const state={map:null,satApi:null,satelliteEnabled:false,aircraftEnabled:false,followSatellite:false,followAircraft:false,
- catalog:[],catalogAfter:null,catalogHasMore:false,catalogKnown:0,plottedSatellites:0,aircraft:[],selectedSatellite:null,selectedAircraft:null,
+ catalog:[],catalogAfter:null,catalogHasMore:false,catalogKnown:0,plottedSatellites:0,catalogSource:'BridgePoint orbital catalogue',catalogFallbackLoaded:false,catalogCacheFetchedAt:null,aircraft:[],selectedSatellite:null,selectedAircraft:null,satellitePopup:null,orbitPreviewCleanup:null,
  lastSatelliteAt:null,lastFlightAt:null,lastError:null,satellitePageLoading:false,flightLoading:false,styleTimer:null,flightTimer:null,summaryTimer:null,
  summaries:{physical:null,motion:null,satellite:null},refreshing:false,bootAttempts:0,
  orbitPositions:[],orbitModelsRendered:0,orbitPathsBuilt:0,orbitPathBuilding:false,orbitAutoEnabledOnce:false,orbitOriginalMinZoom:null};
-let orbitRendererApi=null,orbitRendererPromise=null,orbitAnimationTimer=null;
+let orbitRendererApi=null,orbitRendererPromise=null,orbitAnimationTimer=null,publishedSatelliteCachePromise=null;
 const $=id=>document.getElementById(id);
 const fmt=n=>Number(n||0).toLocaleString();
 const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=String(text);return n};
@@ -76,16 +76,45 @@ function addPanel(){
   const selected=el('div','bpm-selected','Click a satellite or aircraft point on the map to inspect it.');selected.id='bpm-selected-v5926';
   const satStatus=el('div','bpm-status','Loading BridgePoint source status…');satStatus.id='bpm-sat-status-v5926';
   const flightStatus=el('div','bpm-status','Live aircraft feed is off.');flightStatus.id='bpm-flight-status-v5926';
-  const foot=el('p','bpm-note','ORBITAL DATA: real public TLE records are propagated into moving 3D spacecraft models and 3D orbital paths. Positions and paths are calculated estimates, not onboard telemetry. Model visibility is boosted at whole-Earth zoom while orbital position and altitude remain source-derived. Aircraft remain a nearby ADSB.lol feed; static transport layers are unchanged.');
+  const foot=el('p','bpm-note','ORBITAL DATA: public OMM/TLE orbital elements are propagated into moving, type-specific 3D spacecraft models and 3D orbital paths. Positions and paths are estimates, not onboard telemetry. Model visibility is boosted at whole-Earth zoom while orbital position and altitude remain source-derived. Aircraft remain a nearby ADSB.lol feed; static transport layers are unchanged.');
   const feed=el('div','bpm-feed');feed.append(el('b','', 'FEED COVERAGE'),foot,selected,satStatus,flightStatus);
   box.append(head,grid,controls,actions,feed);
  }
  if(box.parentElement!==pane)pane.appendChild(box);renderSummaries();return true;
 }
+async function loadPublishedSatelliteFallback(){
+ if(!publishedSatelliteCachePromise){
+  publishedSatelliteCachePromise=fetch('/starlink-orbits-v2.json',{cache:'default',headers:{Accept:'application/json'}})
+   .then(async response=>{if(!response.ok)throw new Error('Published satellite cache HTTP '+response.status);return response.json()})
+   .catch(error=>{publishedSatelliteCachePromise=null;throw error});
+ }
+ const doc=await publishedSatelliteCachePromise,now=Date.now(),fetchedAt=Date.parse(doc?.fetched_at);
+ if(doc?.version!==2||!Array.isArray(doc.records)||doc.records.length<2500)throw new Error('Published satellite cache does not contain a complete OMM snapshot.');
+ if(!Number.isFinite(fetchedAt)||now-fetchedAt>7*86400000||fetchedAt-now>6*3600000)throw new Error('Published satellite OMM snapshot is older than seven days.');
+ const merged=new Map(state.catalog.map(item=>[String(item.norad_cat_id),item]));
+ let added=0;
+ for(const row of doc.records){
+  if(!Array.isArray(row)||row.length<9)continue;
+  const id=String(row[0]??''),name=String(row[1]||('NORAD '+id));
+  const epochMs=Number(row[2]),meanMotion=Number(row[3]),eccentricity=Number(row[4]);
+  const inclination=Number(row[5]),raan=Number(row[6]),argPerigee=Number(row[7]),meanAnomaly=Number(row[8]);
+  if(!/^\d{1,9}$/.test(id)||![epochMs,meanMotion,eccentricity,inclination,raan,argPerigee,meanAnomaly].every(Number.isFinite))continue;
+  const epoch=new Date(epochMs).toISOString();
+  merged.set(id,{norad_cat_id:id,object_name:name,object_type:'PAYLOAD',epoch,source_key:'BRIDGEPOINT_PUBLISHED_STARLINK_OMM_SNAPSHOT',source_url:doc.source_url||SOURCE,
+   omm:{NORAD_CAT_ID:Number(id),OBJECT_NAME:name,OBJECT_ID:String(row[9]||''),OBJECT_TYPE:'PAYLOAD',CLASSIFICATION_TYPE:'U',EPOCH:epoch,
+    MEAN_MOTION:meanMotion,ECCENTRICITY:eccentricity,INCLINATION:inclination,RA_OF_ASC_NODE:raan,ARG_OF_PERICENTER:argPerigee,
+    MEAN_ANOMALY:meanAnomaly,MEAN_MOTION_DOT:0,MEAN_MOTION_DDOT:0,BSTAR:0,EPHEMERIS_TYPE:0,ELEMENT_SET_NO:0,REV_AT_EPOCH:0}});
+  added++;
+ }
+ if(added<2500)throw new Error('Published OMM snapshot contained fewer than 2,500 valid orbital records.');
+ state.catalog=Array.from(merged.values());state.catalogFallbackLoaded=true;
+ state.catalogSource='BridgePoint cache + published Starlink OMM snapshot';state.catalogCacheFetchedAt=doc.fetched_at;
+ state.catalogKnown=Math.max(Number(state.catalogKnown)||0,state.catalog.length);return added;
+}
 function renderSummaries(){
  const grid=$('bpm-grid-v5926');if(!grid)return;const p=state.summaries.physical||{},m=state.summaries.motion||{},s=state.summaries.satellite||{};
  const tiles=[
-  [s.total_known_objects,'Satellite OMM records'],
+  [Math.max(Number(s.total_known_objects)||0,Number(state.catalogKnown)||0,state.catalog.length),'Satellite OMM records'],
   [state.plottedSatellites,'Satellite positions plotted'],
   [m.rooftop_solar_records,'Rooftop solar features'],
   [m.solar_site_boundary_records,'Utility-scale solar sites'],
@@ -108,9 +137,13 @@ function renderSummaries(){
  const badge=$('bpm-badge-v5926');if(badge)badge.textContent='COUNTERS '+(m.refreshed_at?new Date(m.refreshed_at).toLocaleTimeString():'WAITING');
  const sat=$('bpm-sat-status-v5926');
  if(sat){
-  if(s.operator_review_required)sat.textContent='SATELLITE SOURCE PAUSED · HTTP 403 from CelesTrak. Automated fetch stopped for human review; no satellite records are materialized yet.';
-  else if(s.total_known_objects>0)sat.textContent='Orbital catalogue: '+fmt(s.total_known_objects)+' cached records · '+fmt(state.plottedSatellites)+' current positions · '+fmt(state.orbitModelsRendered)+' 3D models · '+fmt(state.orbitPathsBuilt)+' orbital paths'+(state.orbitPathBuilding?' · building paths':'')+' · source refreshed '+(s.source_fetched_at?new Date(s.source_fetched_at).toLocaleString():'time unavailable')+'. Positions and paths are propagated TLE estimates, not telemetry.';
-  else sat.textContent='Satellite catalogue has 0 materialized records. Source refresh status: '+(s.last_refresh_status||'WAITING')+'. The catalog will stay honest until a permitted TLE source returns records.';
+  if(s.operator_review_required){
+   sat.textContent=state.plottedSatellites
+    ?'LIVE REFRESH PAUSED · prior CelesTrak HTTP 403. Showing '+fmt(state.plottedSatellites)+' current positions from '+(state.catalogFallbackLoaded?'the shared published Starlink OMM cache':'BridgePoint cached orbital records')+(state.catalogCacheFetchedAt?' · snapshot '+new Date(state.catalogCacheFetchedAt).toLocaleString():'')+'. Models and paths use propagated public orbital elements.'
+    :'LIVE REFRESH PAUSED · prior CelesTrak HTTP 403. Loading only the recent, shared published orbital cache; no browser-side source scraping is used.';
+  }else if(s.total_known_objects>0||state.catalog.length){
+   sat.textContent='Orbital catalogue: '+fmt(Math.max(Number(s.total_known_objects)||0,Number(state.catalogKnown)||0,state.catalog.length))+' cached records · '+fmt(state.plottedSatellites)+' current positions · '+fmt(state.orbitModelsRendered)+' 3D models · '+fmt(state.orbitPathsBuilt)+' orbital paths'+(state.orbitPathBuilding?' · building paths':'')+' · '+state.catalogSource+(s.source_fetched_at?' · source refreshed '+new Date(s.source_fetched_at).toLocaleString():'')+'. Positions and paths are propagated estimates, not telemetry.';
+  }else sat.textContent='No current satellite records are available from the BridgePoint catalogue or its recent published snapshot. Source status: '+(s.last_refresh_status||'WAITING')+'.';
  }
  const flight=$('bpm-flight-status-v5926');
  if(flight){
@@ -123,7 +156,7 @@ function renderSummaries(){
   else if(state.selectedAircraft)selected.textContent='Selected aircraft: '+safeText(state.selectedAircraft.callsign||state.selectedAircraft.hex)+' · '+safeText(state.selectedAircraft.hex)+' · '+safeText(state.selectedAircraft.altitude)+' · '+(state.followAircraft?'FOLLOWING':'selected only')+'.';
   else selected.textContent='Click a satellite or aircraft point on the map to inspect it, then choose Follow.';
  }
- const next=$('bpm-load-sat-page');if(next)next.disabled=!state.catalogHasMore||state.satellitePageLoading||!!s.operator_review_required;
+ const next=$('bpm-load-sat-page');if(next)next.disabled=!state.catalogHasMore||state.satellitePageLoading;
 }
 async function refreshSummaries(force=false){
  if(state.refreshing)return;state.refreshing=true;
@@ -137,7 +170,7 @@ async function refreshSummaries(force=false){
   if(m?.version===5926)state.summaries.motion=m;
   if(s?.version===5926)state.summaries.satellite=s;
   renderSummaries();
-  if(state.satelliteEnabled&&state.summaries.satellite?.total_known_objects>0&&state.catalog.length===0&&!state.summaries.satellite.operator_review_required)await loadSatellitePage(true);
+  if(state.satelliteEnabled&&state.catalog.length===0)await loadSatellitePage(true);
  }finally{state.refreshing=false}
 }
 function setData(sourceId,fc){try{state.map?.getSource(sourceId)?.setData(fc||EMPTY)}catch(_){}}
@@ -195,13 +228,22 @@ function showSatelliteInfoCard(hit,event){
  const id=String(item.norad_cat_id||'UNKNOWN'),name=String(item.object_name||('NORAD '+id));
  state.selectedSatellite={id,name,latitude:Number(hit.lat),longitude:Number(hit.lon),altitudeKm:Number(hit.alt),satrec:item._bpSatrec||null};
  state.followSatellite=false;state.followAircraft=false;
- renderSummaries();void drawSelectedSatelliteTrail();
+ updateOrbitRenderPositions();renderSummaries();void drawSelectedSatelliteTrail();
  const root=el('div','bpm-orbit-satellite-card');
- root.style.cssText='min-width:220px;max-width:290px;color:#091824;font:12px/1.45 system-ui,sans-serif';
+ root.style.cssText='min-width:250px;max-width:310px;color:#091824;font:12px/1.45 system-ui,sans-serif';
  const title=el('strong','',safeText(name,120));
- title.style.cssText='display:block;font-size:14px;line-height:1.25;color:#071b28';
- const subtitle=el('div','',safeText(String(item.object_type||item.omm?.OBJECT_TYPE||'UNKNOWN').toUpperCase(),60)+' · PROPAGATED ORBIT');
+ title.style.cssText='display:block;font-size:15px;line-height:1.25;color:#071b28';
+ const type=String(item.object_type||item.omm?.OBJECT_TYPE||'PAYLOAD').toUpperCase();
+ const subtitle=el('div','',type+' · PUBLIC ORBITAL ELEMENTS');
  subtitle.style.cssText='margin:4px 0 8px;color:#42606e;font-size:10px;font-weight:800;letter-spacing:.04em';
+ const viewer=el('div','bpm-orbit-3d-viewer');
+ viewer.style.cssText='overflow:hidden;border:1px solid rgba(42,116,149,.36);border-radius:10px;background:#061522;margin:0 0 10px';
+ const viewerLabel=el('div','', 'BRIDGEPOINT 3D MODEL · AUTO-ROTATING PREVIEW');
+ viewerLabel.style.cssText='padding:5px 8px;color:#8adfff;background:rgba(7,31,46,.85);font-size:9px;font-weight:900;letter-spacing:.07em';
+ const canvas=el('canvas');canvas.width=720;canvas.height=360;
+ canvas.setAttribute('aria-label',name+' BridgePoint 3D satellite model');
+ canvas.style.cssText='display:block;width:100%;height:150px;background:#061522';
+ viewer.append(viewerLabel,canvas);
  const rows=el('div');
  const addRow=(label,value)=>{
   const row=el('div');row.style.cssText='display:flex;justify-content:space-between;gap:14px;padding:4px 0;border-top:1px solid rgba(30,75,95,.13)';
@@ -209,18 +251,48 @@ function showSatelliteInfoCard(hit,event){
   const val=el('b','',safeText(value,110));val.style.cssText='max-width:62%;text-align:right;overflow-wrap:anywhere;color:#102d3c';
   row.append(key,val);rows.append(row);
  };
- addRow('NORAD catalog ID',id);
- addRow('Altitude',Number.isFinite(Number(hit.alt))?Math.round(Number(hit.alt))+' km':'Not available');
- addRow('Latitude',Number(hit.lat).toFixed(4)+'°');
- addRow('Longitude',Number(hit.lon).toFixed(4)+'°');
- addRow('Orbital epoch',String(item.epoch||item.omm?.EPOCH||'Not reported'));
+ const fixed=(value,digits=2,unit='°')=>Number.isFinite(Number(value))?Number(value).toFixed(digits)+unit:'Not reported';
  const motion=Number(item.omm?.MEAN_MOTION||item.omm?.mean_motion);
- addRow('Mean motion',Number.isFinite(motion)?motion.toFixed(5)+' rev/day':'Not reported');
- const note=el('small','', 'Public orbital elements · propagated position estimate, not live onboard telemetry.');
+ const eccentricity=Number(item.omm?.ECCENTRICITY||item.omm?.eccentricity);
+ addRow('NORAD catalog ID',id);
+ addRow('Object class',type);
+ addRow('Altitude',Number.isFinite(Number(hit.alt))?Math.round(Number(hit.alt))+' km':'Not available');
+ addRow('Latitude',fixed(hit.lat,4));
+ addRow('Longitude',fixed(hit.lon,4));
+ if(Number.isFinite(motion)&&motion>0){
+  addRow('Mean motion',motion.toFixed(5)+' rev/day');
+  addRow('Orbital period',(1440/motion).toFixed(2)+' min');
+ }
+ addRow('Inclination',fixed(item.omm?.INCLINATION||item.omm?.inclination,3));
+ if(Number.isFinite(eccentricity))addRow('Eccentricity',eccentricity.toFixed(7));
+ if(Number.isFinite(motion)&&motion>0&&Number.isFinite(eccentricity)){
+  const semiMajor=Math.cbrt(398600.4418/Math.pow(motion*2*Math.PI/86400,2));
+  addRow('Perigee altitude',Math.round(semiMajor*(1-eccentricity)-6378.137)+' km');
+  addRow('Apogee altitude',Math.round(semiMajor*(1+eccentricity)-6378.137)+' km');
+ }
+ addRow('International designator',String(item.omm?.OBJECT_ID||'Not reported'));
+ addRow('Elements source',String(item.source_url||'BridgePoint shared orbital cache'));
+ addRow('Orbital epoch',String(item.epoch||item.omm?.EPOCH||'Not reported'));
+ const note=el('small','', 'BridgePoint 3D spacecraft model · propagated public orbital-element estimate, not onboard telemetry.');
  note.style.cssText='display:block;margin-top:8px;color:#5b7480;font-size:10px;line-height:1.4';
- root.append(title,subtitle,rows,note);
+ root.append(title,subtitle,viewer,rows,note);
+ if(state.satellitePopup){try{state.satellitePopup.remove()}catch(_){}state.satellitePopup=null}
+ if(state.orbitPreviewCleanup){try{state.orbitPreviewCleanup()}catch(_){}state.orbitPreviewCleanup=null}
  if(window.maplibregl?.Popup){
-  try{new window.maplibregl.Popup({closeButton:true,closeOnClick:true,maxWidth:'320px',className:'bp-orbit-satellite-popup-v6203'}).setLngLat(event?.lngLat||[hit.lon,hit.lat]).setDOMContent(root).addTo(state.map)}catch(e){console.warn('BridgePoint satellite info card',e)}
+  try{
+   const popup=new window.maplibregl.Popup({closeButton:true,closeOnClick:true,maxWidth:'344px',className:'bp-orbit-satellite-popup-v6240'})
+    .setLngLat([Number(hit.lon),Number(hit.lat)]).setDOMContent(root).addTo(state.map);
+   state.satellitePopup=popup;let cleanup=null;
+   popup.on('close',()=>{
+    if(state.satellitePopup===popup)state.satellitePopup=null;
+    if(cleanup){try{cleanup()}catch(_){}}
+    if(state.orbitPreviewCleanup===cleanup)state.orbitPreviewCleanup=null;
+   });
+   void ensureOrbitRenderer().then(api=>{
+    if(state.satellitePopup!==popup||!canvas.isConnected)return;
+    cleanup=api.mountSatellitePreview?.(canvas,item)||null;state.orbitPreviewCleanup=cleanup;
+   }).catch(error=>console.warn('BridgePoint satellite 3D card preview',error));
+  }catch(error){console.warn('BridgePoint satellite info card',error)}
  }
 }
 function bindOrbitPicking(map){
@@ -228,7 +300,7 @@ function bindOrbitPicking(map){
  map.__bpOrbitDotPicking6203=true;
  map.on('click',event=>{
   if(!state.satelliteEnabled||!orbitRendererApi?.pickAtPoint)return;
-  const hit=orbitRendererApi.pickAtPoint(event.point,18);
+  const hit=orbitRendererApi.pickAtPoint(event.point,24);
   if(hit)showSatelliteInfoCard(hit,event);
  });
 }
@@ -253,7 +325,7 @@ async function loadSatLib(){
 async function ensureOrbitRenderer(){
  if(orbitRendererApi&&orbitRendererApi.stats?.layerReady)return orbitRendererApi;
  if(!orbitRendererPromise){
-  orbitRendererPromise=import('./bridgepoint-orbit-renderer-v6201.js?v=6203-3d-orbit-markers-popup-global-zoom')
+  orbitRendererPromise=import('./bridgepoint-orbit-renderer-v6201.js?v=6240-orbit-motion-3d-preview-polygons-light-paths')
    .then(mod=>mod.createOrbitRenderer(state.map))
    .then(api=>{orbitRendererApi=api;return api})
    .catch(error=>{orbitRendererPromise=null;orbitRendererApi=null;throw error});
@@ -262,7 +334,9 @@ async function ensureOrbitRenderer(){
 }
 function updateOrbitRenderPositions(){
  if(!state.satelliteEnabled||!orbitRendererApi)return;
- const models=orbitRendererApi.updatePositions(state.orbitPositions);
+ const selected=String(state.selectedSatellite?.id||'');
+ const positions=state.orbitPositions.map(record=>({...record,selected:String(record.item?.norad_cat_id||'')===selected}));
+ const models=orbitRendererApi.updatePositions(positions);
  state.orbitModelsRendered=Number(models)||0;renderSummaries();
 }
 async function buildOrbitPaths(){
@@ -282,32 +356,52 @@ async function loadAllSatellitePages(reset=true){
  return state.catalog.length;
 }
 async function loadSatellitePage(reset){
- const status=$('bpm-sat-status-v5926');const summary=state.summaries.satellite||{};
- if(summary.operator_review_required){if(status)status.textContent='Satellite refresh is paused after upstream HTTP 403. No repeated source request will be made until provider access is reviewed.';return}
+ const status=$('bpm-sat-status-v5926');
  if(state.satellitePageLoading)return;
- if(reset){state.catalog=[];state.catalogAfter=null;state.catalogHasMore=false;state.plottedSatellites=0}
+ if(reset){
+  state.catalog=[];state.catalogAfter=null;state.catalogHasMore=false;state.plottedSatellites=0;
+  state.catalogKnown=0;state.catalogFallbackLoaded=false;state.catalogCacheFetchedAt=null;
+  state.catalogSource='BridgePoint orbital catalogue';
+ }
  state.satellitePageLoading=true;renderSummaries();
+ let rpcError=null,fallbackError=null;
  try{
   if(!state.map)attachMap();
-  const d=await rpc('bridgepoint_public_satellite_orbits_v5926',{p_after_id:state.catalogAfter,p_limit:2500},16000);
-  if(!Array.isArray(d?.items))throw new Error('SATELLITE_CATALOG_RESPONSE_INVALID');
-  let imported=0;
-  for(const item of d.items){
-   if(!item?.omm||!/^\d{1,9}$/.test(String(item.norad_cat_id||'')))continue;
-   if(!state.catalog.some(x=>String(x.norad_cat_id)===String(item.norad_cat_id))){
-    state.catalog.push({norad_cat_id:String(item.norad_cat_id),object_name:item.object_name||('NORAD '+item.norad_cat_id),object_type:item.object_type||item.omm.OBJECT_TYPE||'UNKNOWN',epoch:item.epoch,omm:item.omm,source_url:item.source_url||SOURCE});
-    imported++;
+  try{
+   const d=await rpc('bridgepoint_public_satellite_orbits_v5926',{p_after_id:state.catalogAfter,p_limit:2500},16000);
+   if(!Array.isArray(d?.items))throw new Error('SATELLITE_CATALOG_RESPONSE_INVALID');
+   for(const item of d.items){
+    if(!item?.omm||!/^\d{1,9}$/.test(String(item.norad_cat_id||'')))continue;
+    const normalized={norad_cat_id:String(item.norad_cat_id),object_name:item.object_name||('NORAD '+item.norad_cat_id),
+     object_type:item.object_type||item.omm.OBJECT_TYPE||'UNKNOWN',epoch:item.epoch,omm:item.omm,
+     source_url:item.source_url||SOURCE,source_key:item.source_key||'BRIDGEPOINT_CACHED_ORBITAL_RECORD'};
+    const index=state.catalog.findIndex(x=>String(x.norad_cat_id)===normalized.norad_cat_id);
+    if(index<0)state.catalog.push(normalized);else state.catalog[index]=normalized;
    }
-  }
-  state.catalogAfter=d.next_after_id||state.catalogAfter;state.catalogHasMore=!!d.has_more;
-  state.catalogKnown=Number(d.total_known_objects||state.catalogKnown||0);
+   state.catalogAfter=d.next_after_id||state.catalogAfter;state.catalogHasMore=!!d.has_more;
+   state.catalogKnown=Math.max(Number(d.total_known_objects)||0,state.catalog.length);
+   if(state.catalog.length)state.catalogSource=state.catalogFallbackLoaded
+    ?'BridgePoint catalogue + shared Starlink OMM snapshot':'BridgePoint cached orbital catalogue';
+  }catch(error){rpcError=error;console.warn('BridgePoint cached satellite catalogue',error)}
   await loadSatLib();
-  propagateCatalog();state.lastSatelliteAt=Date.now();
-  if(status)status.textContent='Loaded '+fmt(imported)+' new OMM records in this page · '+fmt(state.catalog.length)+' in memory of '+fmt(state.catalogKnown)+' cached source records. Satellite positions are propagated estimates, not telemetry.';
+  if(state.catalog.length)propagateCatalog();
+  if(!state.plottedSatellites){
+   try{
+    const added=await loadPublishedSatelliteFallback();
+    if(added){await loadSatLib();propagateCatalog()}
+   }catch(error){fallbackError=error;console.warn('BridgePoint published satellite cache',error)}
+  }
+  if(!state.plottedSatellites){
+   const detail=rpcError?' catalogue: '+safeText(rpcError.message||rpcError,100):'';
+   const cache=fallbackError?' published snapshot: '+safeText(fallbackError.message||fallbackError,100):'';
+   throw new Error('No current public satellite positions could be propagated.'+detail+cache);
+  }
+  if(status)status.textContent=(state.catalogFallbackLoaded?'Loaded shared recent Starlink snapshot · ':'Loaded BridgePoint cached orbital catalogue · ')+
+   fmt(state.plottedSatellites)+' current propagated spacecraft · '+fmt(state.orbitPathsBuilt)+' orbit paths when built. Orbit calculations are estimates, not telemetry.';
   renderSummaries();
- }catch(e){
-  console.warn('BridgePoint satellite propagation',e);
-  if(status&&!summary.operator_review_required)status.textContent='Satellite layer unavailable: '+safeText(e.message||e,160)+'. Catalog/source counters remain visible; no placeholder points were drawn.';
+ }catch(error){
+  console.warn('BridgePoint satellite propagation',error);
+  if(status)status.textContent='Satellite layer unavailable: '+safeText(error.message||error,190)+'. No placeholder positions were drawn.';
  }finally{state.satellitePageLoading=false;renderSummaries()}
 }
 function propagateOne(item,lib,date){
@@ -422,11 +516,11 @@ async function setSatellitesEnabled(on){
    const api=await ensureOrbitRenderer();api.setVisible(true);
    propagateCatalog();updateOrbitRenderPositions();
    await buildOrbitPaths();startOrbitAnimation();
-   setStatus('Orbit & Motion active · '+fmt(state.orbitModelsRendered)+' 3D satellite/station models · '+fmt(state.orbitPathsBuilt)+' calculated orbital paths. All available catalogue pages were loaded.');
+   setStatus('Orbit & Motion active · '+fmt(state.orbitModelsRendered)+' 3D satellite/station models · '+fmt(state.orbitPathsBuilt)+' calculated orbital paths · '+state.catalogSource+'. Positions remain propagated public orbital estimates.');
   }catch(e){setStatus('Satellite 3D layer could not start: '+safeText(e.message||e,180));console.warn('BridgePoint orbital renderer failed',e)}
  }else{
   clearInterval(orbitAnimationTimer);orbitAnimationTimer=null;state.orbitPathBuilding=false;
-  state.selectedSatellite=null;state.followSatellite=false;orbitRendererApi?.setVisible(false);
+  state.selectedSatellite=null;state.followSatellite=false;orbitRendererApi?.setVisible(false);if(state.satellitePopup){try{state.satellitePopup.remove()}catch(_){}state.satellitePopup=null}if(state.orbitPreviewCleanup){try{state.orbitPreviewCleanup()}catch(_){}state.orbitPreviewCleanup=null}
   setData('bpV5926SatelliteTrail',EMPTY);
  }
  syncLayerVisibility();renderSummaries();return state.satelliteEnabled;
