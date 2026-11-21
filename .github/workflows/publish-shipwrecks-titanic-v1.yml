@@ -412,7 +412,8 @@ jobs:
                        "bridgepoint-shipwrecks-v1.js?v=7-titanic-gaskin-grafton-cannon-kxi-draco-local-viewer","bridgepoint-shipwrecks-v1.js?v=8-titanic-gaskin-grafton-cannon-kxi-draco-ktx2-local-viewer",
                        "bridgepoint-shipwrecks-v1.js?v=9-titanic-gaskin-grafton-cannon-kxi-cape-otway-draco-ktx2-local-viewer","bridgepoint-shipwrecks-v1.js?v=11-titanic-gaskin-grafton-cannon-kxi-cape-otway-timaru-hms-loo-draco-ktx2-local-viewer","bridgepoint-shipwrecks-v1.js?v=12-ten-additional-photogrammetry-wrecks",
                        "bridgepoint-shipwrecks-v1.js?v=13-twenty-additional-photogrammetry-wrecks",
-                         "bridgepoint-shipwrecks-v1.js?v=14-forty-more-global-photogrammetry-wrecks")
+                         "bridgepoint-shipwrecks-v1.js?v=14-forty-more-global-photogrammetry-wrecks",
+                         "bridgepoint-shipwrecks-v1.js?v=15-twenty-five-us-photogrammetry-wrecks")
           new_marker="bridgepoint-shipwrecks-v1.js?v=16-twenty-five-us-non-great-lakes-photogrammetry-wrecks"
           wells_anchor=".catch(e=>console.warn('BridgePoint global subsurface wells renderer unavailable',e));"
           for rel in ("landing.js","app.js"):
