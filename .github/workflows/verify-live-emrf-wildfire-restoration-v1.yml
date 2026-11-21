@@ -33,7 +33,11 @@ jobs:
             assert 'faa-gate=8-no-icon-sweep' in body,(path,'FAA version regressed')
             print('LIVE_ENTRY_LOADER_OK',path)
           view=fetch('bridgepoint-view-v5917.js').decode('utf-8')
-          assert view.count('restore=20261120-emrf-fire')==2
+          count=view.count('restore=20261120-emrf-fire')
+          print('LIVE_RESTORED_IMPORT_CACHE_MARKERS',count)
+          assert count>=2
+          assert '/bridgepoint-emrf-spectrogram-v1.js?v=3-emrf-model-orbit-ground&restore=20261120-emrf-fire' in view
+          assert './bridgepoint-wildfires-volumetric-v1.js?v=4-realistic-rolling-firefront&restore=20261120-emrf-fire' in view
           assert 'toggleEmrfSpectrogram(button)' in view
           assert 'initLiveWildfireRenderer(activeMap)' in view
           gate=fetch('bridgepoint-drone-awareness-v1.js').decode('utf-8')
