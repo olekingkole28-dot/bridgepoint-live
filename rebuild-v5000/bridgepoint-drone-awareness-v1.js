@@ -552,7 +552,7 @@ function setAircraftModels(records){
    texture.colorSpace=droneThree.SRGBColorSpace;
    const decalGroup=new droneThree.Group();decalGroup.matrixAutoUpdate=false;
    decalGroup.matrix.copy(item.matrix);
-   const lateral=item.design.variant==='widebody'||item.design.variant==='jumbo'?.25:.18;
+   const lateral=(item.design.variant==='widebody'||item.design.variant==='jumbo')?.25:.18;
    for(const side of [-1,1]){
     const g=new droneThree.PlaneGeometry(.66,.13);
     const m=new droneThree.MeshBasicMaterial({map:texture,transparent:true,side:droneThree.DoubleSide,
