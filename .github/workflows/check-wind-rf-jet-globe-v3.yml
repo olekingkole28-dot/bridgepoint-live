@@ -1,4 +1,4 @@
-name: Wind RF Jets Real Globe Visibility and Toggle Regression v4
+name: Wind RF Jets Real Globe Visibility and Toggle Regression v5
 # Validate source-driven jet thickness at height; retained original screen and flow requirements.
 on:
   push:
@@ -95,8 +95,8 @@ jobs:
             return {global:window.__BP_WIND_RF_GLOBAL_V1__?.state,
               local:window.__BP_VOLUMETRIC_FIELDS_V5992__?.state,
               layer:!!m.getLayer('bp-wind-rf-global-jetstream-v1'),
-              icons:document.querySelectorAll('[aria-label^="Jet stream "]').length,
-              visibleIcons:[...document.querySelectorAll('[aria-label^="Jet stream "]')].filter(x=>!x.hidden).length,
+              icons:document.querySelectorAll('button[aria-label^="Jet stream "]').length,
+              visibleIcons:[...document.querySelectorAll('button[aria-label^="Jet stream "]')].filter(x=>!x.hidden).length,
               projection:m.getProjection()?.type};
           });
           console.log('WIND_RF_REAL_GLOBE_GLOBAL',JSON.stringify(first).slice(0,5000));
@@ -105,14 +105,15 @@ jobs:
           });
           await page.waitForTimeout(1900);
           const icons=await page.evaluate(()=>({
-            visible:[...document.querySelectorAll('[aria-label^="Jet stream "]')].filter(x=>!x.hidden).length,
-            total:document.querySelectorAll('[aria-label^="Jet stream "]').length
+            visible:[...document.querySelectorAll('button[aria-label^="Jet stream "]')].filter(x=>!x.hidden).length,
+            total:document.querySelectorAll('button[aria-label^="Jet stream "]').length
           }));
           console.log('WIND_RF_REAL_GLOBE_AFTER_MOVEMENT',JSON.stringify(icons));
           const found=await page.evaluate(()=>{
-            const icon=[...document.querySelectorAll('[aria-label^="Jet stream "]')].find(x=>!x.hidden);
+            const icon=[...document.querySelectorAll('button[aria-label^="Jet stream "]')].find(x=>!x.hidden);
             if(icon){icon.click();return true}return false;
           });
+          console.log('WIND_RF_JET_ICON_TAPPED',found);
           await page.waitForTimeout(600);
           const card=await page.evaluate(()=>({
             present:!!document.querySelector('.bp-wind-jet-card-v1'),
@@ -131,7 +132,7 @@ jobs:
           await page.waitForTimeout(1500);
           const on=await page.evaluate(()=>({
             enabled:window.__BP_WIND_RF_GLOBAL_V1__?.state?.enabled,
-            iconCount:document.querySelectorAll('[aria-label^="Jet stream "]').length,
+            iconCount:document.querySelectorAll('button[aria-label^="Jet stream "]').length,
             localWind:window.__BP_VOLUMETRIC_FIELDS_V5992__?.state?.windOn,
             localRf:window.__BP_VOLUMETRIC_FIELDS_V5992__?.state?.rfOn
           }));
@@ -144,7 +145,8 @@ jobs:
             first.global?.registeredStructures<60||first.icons<1||
             !card.present||!card.hasWebGLCanvas||off.enabled!==false||
             off.iconRoot||on.enabled!==true||on.iconCount<1||
-            !on.localWind||!on.localRf||!counts.global||!counts.data)
+            !on.localWind||!on.localRf||!counts.global||!counts.data||
+            problems.some(x=>x.includes('Shader Error')||x.includes('Vertex shader is not compiled')))
              process.exitCode=1;
           JS
           node /tmp/bp-windrf-smoke/real-globe.mjs
