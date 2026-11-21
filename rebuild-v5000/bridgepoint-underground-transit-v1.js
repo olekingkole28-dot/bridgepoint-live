@@ -226,7 +226,7 @@ function addStationSchematic(THREE, group, station) {
   makeTextSprite(THREE,group,station.city+' · '+station.name,'#62ddf0',[0,top+1.35,0]);
 }
 async function mountViewer(state, root, station) {
-  const canvas = root.querySelector('#'+VIEWER_ID); if (!canvas) return;
+    const canvas = root.querySelector('#'+VIEWER_ID); if (!canvas) return;
   try {
     const THREE = await import(THREE_URL); if (state.dead || !canvas.isConnected) return;
     const renderer = new THREE.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:'low-power'});
@@ -240,10 +240,11 @@ async function mountViewer(state, root, station) {
     const resize = () => { if (!canvas.isConnected) return; const r=canvas.getBoundingClientRect(); const w=Math.max(220,r.width),h=Math.max(170,r.height); renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix(); };
     const observer = typeof ResizeObserver==='function' ? new ResizeObserver(resize) : null; observer?.observe(canvas); resize();
     let dragging=false,lastX=0,lastY=0,distance=18,frame=0,disposed=false;
+    const cameraTarget=new THREE.Vector3(0,-1.2,0);
     const down=e=>{dragging=true;lastX=e.clientX;lastY=e.clientY;canvas.setPointerCapture?.(e.pointerId);};
     const move=e=>{if(!dragging)return;const dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;group.rotation.y+=dx*.009;group.rotation.x=Math.max(-.55,Math.min(.55,group.rotation.x+dy*.006));};
     const up=()=>{dragging=false;};
-    const wheel=e=>{e.preventDefault();distance=Math.max(10,Math.min(30,distance+Math.sign(e.deltaY)*1.3));const direction=camera.position.clone().normalize();camera.position.copy(direction.multiplyScalar(distance));camera.lookAt(0,-1.2,0);};
+    const wheel=e=>{e.preventDefault();distance=Math.max(10,Math.min(30,distance+Math.sign(e.deltaY)*1.3));const direction=camera.position.clone().sub(cameraTarget).normalize();camera.position.copy(cameraTarget.clone().add(direction.multiplyScalar(distance)));camera.lookAt(cameraTarget);};
     canvas.addEventListener('pointerdown',down);canvas.addEventListener('pointermove',move);canvas.addEventListener('pointerup',up);canvas.addEventListener('pointercancel',up);canvas.addEventListener('wheel',wheel,{passive:false});
     const render=()=>{if(disposed)return;frame=requestAnimationFrame(render);renderer.render(scene,camera);};render();
     state.viewerDispose=()=>{disposed=true;cancelAnimationFrame(frame);observer?.disconnect();canvas.removeEventListener('pointerdown',down);canvas.removeEventListener('pointermove',move);canvas.removeEventListener('pointerup',up);canvas.removeEventListener('pointercancel',up);canvas.removeEventListener('wheel',wheel);group.traverse(o=>{o.geometry?.dispose?.();if(Array.isArray(o.material))o.material.forEach(m=>{m.map?.dispose?.();m.dispose?.();});else{o.material?.map?.dispose?.();o.material?.dispose?.();}});renderer.dispose();};
