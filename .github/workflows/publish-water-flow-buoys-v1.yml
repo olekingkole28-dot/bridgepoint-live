@@ -63,7 +63,7 @@ jobs:
           GH_TOKEN: "${{ github.token }}"
         run: |
           set -euo pipefail
-          RUNS="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?branch=main&per_page=100" --jq '.workflow_runs[] | select(.status == "completed" and .conclusion == "success") | [.id,.head_sha] | @tsv')"
+          RUNS="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?status=success&branch=main&per_page=100" --jq '.workflow_runs[] | select(.status == "completed" and .conclusion == "success") | [.id,.head_sha] | @tsv')"
           BASELINE_ID=""
           ARTIFACT=""
           while IFS=$'\t' read -r run_id head_sha; do
