@@ -16,6 +16,8 @@ const SOURCE_ID = 'bp-wind-turbines-source-v1';
 const CLUSTER_ID = 'bp-wind-turbines-clusters-v1';
 const CLUSTER_MARKER_ID = 'bp-wind-turbines-cluster-icons-v1';
 const CLUSTER_COUNT_ID = 'bp-wind-turbines-cluster-count-v1';
+const GLOBAL_ICON_SOURCE_ID = 'bp-wind-turbines-global-icon-source-v1';
+const GLOBAL_ICON_ID = 'bp-wind-turbines-global-icons-v1';
 const HALO_ID = 'bp-wind-turbines-halo-v1';
 const MARKER_ID = 'bp-wind-turbines-markers-v1';
 const LABEL_ID = 'bp-wind-turbines-labels-v1';
@@ -318,6 +320,8 @@ function addFeatures(state,rows) {
     state.collection = {type:'FeatureCollection',features:[...state.featureCache.values()]};
     const source = state.map.getSource(SOURCE_ID);
     if (source && source.setData) source.setData(state.collection);
+    const globalIconSource = state.map.getSource(GLOBAL_ICON_SOURCE_ID);
+    if (globalIconSource && globalIconSource.setData) globalIconSource.setData(state.collection);
     state.stats.total = state.collection.features.length;
     state.stats.measuredHubHeights = state.collection.features.filter(f=>f.properties.hubHeightM!==null).length;
     state.stats.measuredRotorDiameters = state.collection.features.filter(f=>f.properties.rotorDiameterM!==null).length;
@@ -332,6 +336,11 @@ function installLayers(state) {
   try {
     if (!map.getSource(SOURCE_ID)) map.addSource(SOURCE_ID,{
       type:'geojson',data:state.collection,cluster:true,clusterRadius:24,clusterMaxZoom:4,
+      attribution:'U.S. Wind Turbine Database · USGS, Lawrence Berkeley National Laboratory and ACP'
+    });
+    // Separate unclustered points add one small, clickable turbine icon per record at globe scale.
+    if (!map.getSource(GLOBAL_ICON_SOURCE_ID)) map.addSource(GLOBAL_ICON_SOURCE_ID,{
+      type:'geojson',data:state.collection,cluster:false,maxzoom:4,buffer:32,
       attribution:'U.S. Wind Turbine Database · USGS, Lawrence Berkeley National Laboratory and ACP'
     });
     if (!map.hasImage || !map.hasImage('bp-wind-turbine-icon-v1')) {
@@ -365,6 +374,17 @@ function installLayers(state) {
         'text-size':['interpolate',['linear'],['zoom'],0,8,4,12],
         'text-allow-overlap':true,'text-ignore-placement':true},
       paint:{'text-color':'#101720','text-halo-color':'#fff2c8','text-halo-width':0.45}
+    });
+    add(GLOBAL_ICON_ID,{
+      id:GLOBAL_ICON_ID,type:'symbol',source:GLOBAL_ICON_SOURCE_ID,
+      minzoom:0,maxzoom:4.05,
+      layout:{
+        'icon-image':'bp-wind-turbine-icon-v1',
+        'icon-size':['interpolate',['linear'],['zoom'],0,0.12,2,0.14,4,0.17],
+        'icon-anchor':'bottom','icon-pitch-alignment':'map','icon-rotation-alignment':'map',
+        'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-padding':0
+      },
+      paint:{'icon-opacity':0.98}
     });
     add(HALO_ID,{
       id:HALO_ID,type:'circle',source:SOURCE_ID,filter:['!',['has','point_count']],
@@ -413,6 +433,7 @@ function setVisibility(state,on) {
   for (const id of [CLUSTER_ID,CLUSTER_MARKER_ID,CLUSTER_COUNT_ID,HALO_ID,MARKER_ID,LABEL_ID,HIT_ID,MODEL_ID]) {
     try {if (state.map.getLayer(id)) state.map.setLayoutProperty(id,'visibility',on?'visible':'none');} catch (_) {}
   }
+  try {if (state.map.getLayer(GLOBAL_ICON_ID)) state.map.setLayoutProperty(GLOBAL_ICON_ID,'visibility',on?'visible':'none');} catch (_) {}
 }
 
 function modelCandidates(state) {
@@ -653,6 +674,7 @@ function bindInteractions(state) {
   map.on('click',e=>{
     if (!state.enabled) return;
     const layers = [CLUSTER_ID,CLUSTER_MARKER_ID,MARKER_ID,HALO_ID,LABEL_ID,HIT_ID].filter(id=>map.getLayer(id));
+    if (map.getLayer(GLOBAL_ICON_ID)) layers.unshift(GLOBAL_ICON_ID);
     const hits = map.queryRenderedFeatures ? map.queryRenderedFeatures(e.point,{layers:layers}) : [];
     const hit = hits && hits[0];
     if (!hit) return;

@@ -1,0 +1,264 @@
+name: Publish BridgePoint Global Oil, Well and Turbine Icons
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-global-resource-icons-v1.yml'
+      - 'rebuild-v5000/bridgepoint-offshore-energy-v1.js'
+      - 'rebuild-v5000/bridgepoint-subsurface-wells-v1.js'
+      - 'rebuild-v5000/bridgepoint-wind-turbines-v1.js'
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve the latest successful production Pages artifact
+        id: baseline
+        shell: bash
+        env:
+          GH_TOKEN: "${{ github.token }}"
+        run: |
+          set -euo pipefail
+          RUNS="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?status=success&branch=main&per_page=100" --jq '.workflow_runs | map(select(.conclusion == "success")) | .[].id')"
+          BASELINE_ID=""
+          ARTIFACT=""
+          for run_id in $RUNS; do
+            candidate="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/artifacts" --jq '.artifacts[]? | select((.expired|not) and (.name | startswith("bridgepoint-v5000-"))) | .name' | head -n 1 || true)"
+            if [ -n "$candidate" ]; then
+              BASELINE_ID="$run_id"
+              ARTIFACT="$candidate"
+              break
+            fi
+          done
+          test -n "$BASELINE_ID"
+          test -n "$ARTIFACT"
+          echo "run_id=$BASELINE_ID" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=$ARTIFACT" >> "$GITHUB_OUTPUT"
+          echo "CURRENT_PRODUCTION_BASELINE run=$BASELINE_ID artifact=$ARTIFACT"
+
+      - name: Download the current production snapshot
+        uses: actions/download-artifact@v4
+        with:
+          name: "${{ steps.baseline.outputs.artifact_name }}"
+          run-id: "${{ steps.baseline.outputs.run_id }}"
+          repository: "${{ github.repository }}"
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+          path: "${{ runner.temp }}/bp-pages-baseline"
+
+      - name: Restore production and fingerprint all non-target files
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCHIVE="$(find "$RUNNER_TEMP/bp-pages-baseline" -type f -name artifact.tar -print -quit)"
+          test -n "$ARCHIVE"
+          SITE="$RUNNER_TEMP/bp-site"
+          mkdir -p "$SITE"
+          tar -xf "$ARCHIVE" -C "$SITE"
+          for f in index.html app/index.html landing.js app.js \
+                   bridgepoint-offshore-energy-v1.js app/bridgepoint-offshore-energy-v1.js \
+                   bridgepoint-subsurface-wells-v1.js app/bridgepoint-subsurface-wells-v1.js \
+                   bridgepoint-wind-turbines-v1.js app/bridgepoint-wind-turbines-v1.js; do
+            test -s "$SITE/$f" || { echo "Latest production artifact missing required file: $f"; exit 1; }
+          done
+          python3 - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          site=Path(os.environ["RUNNER_TEMP"])/"bp-site"
+          excluded={"index.html","app/index.html","landing.js","app.js",
+                    "bridgepoint-offshore-energy-v1.js","app/bridgepoint-offshore-energy-v1.js",
+                    "bridgepoint-subsurface-wells-v1.js","app/bridgepoint-subsurface-wells-v1.js",
+                    "bridgepoint-wind-turbines-v1.js","app/bridgepoint-wind-turbines-v1.js"}
+          def digest(path):
+              h=hashlib.sha256()
+              with path.open("rb") as f:
+                  for chunk in iter(lambda:f.read(1024*1024),b""): h.update(chunk)
+              return h.hexdigest()
+          before={}
+          targets={}
+          for p in sorted(site.rglob("*")):
+              if not p.is_file(): continue
+              rel=p.relative_to(site).as_posix()
+              if rel in excluded: targets[rel]=digest(p)
+              else: before[rel]=digest(p)
+          if set(targets)!=excluded:
+              raise SystemExit("Production target files incomplete: "+repr(sorted(excluded-set(targets))))
+          tmp=Path(os.environ["RUNNER_TEMP"])
+          (tmp/"bp-icons-preservation-before.json").write_text(json.dumps(before,sort_keys=True))
+          (tmp/"bp-icons-target-before.json").write_text(json.dumps(targets,sort_keys=True))
+          print("LATEST_PRODUCTION_BASELINE_FILES_FINGERPRINTED",len(before))
+          print("ONLY_REQUESTED_ICON_TARGETS",len(targets))
+          PY
+
+      - name: Overlay the three global icon layers
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/bp-site"
+          for feature in bridgepoint-offshore-energy-v1.js bridgepoint-subsurface-wells-v1.js bridgepoint-wind-turbines-v1.js; do
+            cp "rebuild-v5000/$feature" "$SITE/$feature"
+            cp "rebuild-v5000/$feature" "$SITE/app/$feature"
+          done
+          python3 - <<'PY'
+          import os,re
+          from pathlib import Path
+          site=Path(os.environ["RUNNER_TEMP"])/"bp-site"
+          build="global-resource-icons-v1"
+          versions={
+              "bridgepoint-offshore-energy-v1.js":"3-global-icons",
+              "bridgepoint-subsurface-wells-v1.js":"3-global-icons",
+              "bridgepoint-wind-turbines-v1.js":"2-global-individual-icons",
+          }
+          expected={"landing.js":2,"app.js":1}
+          for rel,count_expected in expected.items():
+              p=site/rel
+              data=p.read_text(encoding="utf-8")
+              for filename,version in versions.items():
+                  pattern=r"("+re.escape(filename)+r"\?v=)[^&'\"\s]+"
+                  data,count=re.subn(pattern,lambda m:m.group(1)+version,data)
+                  if count!=count_expected:
+                      raise SystemExit(f"{rel}: expected {count_expected} imports of {filename}, found {count}")
+              p.write_text(data,encoding="utf-8")
+          def replace_once(rel,pattern,replacement,label):
+              p=site/rel
+              data=p.read_text(encoding="utf-8")
+              updated,count=re.subn(pattern,replacement,data,count=1)
+              if count!=1: raise SystemExit(f"{rel}: {label} expected once, found {count}")
+              p.write_text(updated,encoding="utf-8")
+          replace_once("index.html",r"((?:\./|/)?landing\.js\?v=)[^&\"'\s]+",
+                       r"\g<1>"+build,"homepage script cache key")
+          replace_once("app/index.html",r"((?:\.\./|/)?app\.js\?v=)[^&\"'\s]+",
+                       r"\g<1>"+build,"app script cache key")
+          for rel,count_expected in expected.items():
+              data=(site/rel).read_text(encoding="utf-8")
+              for filename,version in versions.items():
+                  token=filename+"?v="+version
+                  if data.count(token)!=count_expected:
+                      raise SystemExit(f"{rel}: expected {count_expected} cache-busted imports for {filename}")
+          for rel,entry in (("index.html","landing.js"),("app/index.html","app.js")):
+              data=(site/rel).read_text(encoding="utf-8")
+              if build not in data or entry not in data:
+                  raise SystemExit(f"{rel}: entry cache key missing")
+          print("GLOBAL_RESOURCE_ICON_ENTRYPOINT_OVERLAY_PASS")
+          PY
+
+      - name: Check module syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          for feature in bridgepoint-offshore-energy-v1.js bridgepoint-subsurface-wells-v1.js bridgepoint-wind-turbines-v1.js; do
+            node --input-type=module --check < "rebuild-v5000/$feature"
+            node --input-type=module --check < "$RUNNER_TEMP/bp-site/$feature"
+          done
+          node --check "$RUNNER_TEMP/bp-site/landing.js"
+          node --check "$RUNNER_TEMP/bp-site/app.js"
+          for feature in bridgepoint-offshore-energy-v1.js bridgepoint-subsurface-wells-v1.js bridgepoint-wind-turbines-v1.js; do
+            cmp -s "$RUNNER_TEMP/bp-site/$feature" "$RUNNER_TEMP/bp-site/app/$feature"
+          done
+
+      - name: Prove only the requested feature files changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          site=Path(os.environ["RUNNER_TEMP"])/"bp-site"
+          tmp=Path(os.environ["RUNNER_TEMP"])
+          before=json.loads((tmp/"bp-icons-preservation-before.json").read_text())
+          target_before=json.loads((tmp/"bp-icons-target-before.json").read_text())
+          excluded=set(target_before)
+          def digest(path):
+              h=hashlib.sha256()
+              with path.open("rb") as f:
+                  for chunk in iter(lambda:f.read(1024*1024),b""): h.update(chunk)
+              return h.hexdigest()
+          after={}
+          targets={}
+          for p in sorted(site.rglob("*")):
+              if not p.is_file(): continue
+              rel=p.relative_to(site).as_posix()
+              if rel in excluded: targets[rel]=digest(p)
+              else: after[rel]=digest(p)
+          if before!=after:
+              raise SystemExit("UNRELATED_PRODUCTION_FILE_CHANGE "+json.dumps({
+                  "missing":sorted(set(before)-set(after))[:25],
+                  "added":sorted(set(after)-set(before))[:25],
+                  "changed":sorted(k for k in before.keys() & after.keys() if before[k]!=after[k])[:25]
+              }))
+          if set(targets)!=set(target_before) or not all(targets[k]!=target_before[k] for k in target_before):
+              raise SystemExit("EXPECTED_ICON_TARGET_CHANGE_MISSING")
+          for feature in ("bridgepoint-offshore-energy-v1.js","bridgepoint-subsurface-wells-v1.js","bridgepoint-wind-turbines-v1.js"):
+              if digest(site/feature)!=digest(site/"app"/feature):
+                  raise SystemExit("ROOT_APP_MODULE_MISMATCH "+feature)
+          print("NON_TARGET_PRODUCTION_FILES_BYTE_FOR_BYTE_PRESERVED",len(before))
+          print("ONLY_TEN_EXISTING_ICON_TARGET_FILES_CHANGED added=0 deleted=0")
+          PY
+
+      - uses: actions/configure-pages@v5
+
+      - name: Upload the preserved production site with the global icons
+        uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: "${{ runner.temp }}/bp-site"
+          include-hidden-files: true
+
+      - name: Publish the preserved production snapshot
+        id: deployment
+        env:
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+        run: node scripts/deploy-pages-extended.mjs
+
+      - name: Verify the live global icons and preserved modules
+        shell: bash
+        run: |
+          set -euo pipefail
+          O='https://bridgepointintelligence.online'
+          q="$GITHUB_SHA-global-resource-icons-v1"
+          D="$RUNNER_TEMP/bp-icons-live"
+          mkdir -p "$D"
+          fetch() {
+            curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL \
+              -H 'Cache-Control: no-cache' "$O/$1?verify=$q" -o "$D/$2"
+          }
+          fetch '' root.html
+          fetch 'app/' app.html
+          fetch 'landing.js' landing.js
+          fetch 'app.js' app.js
+          for feature in bridgepoint-offshore-energy-v1.js bridgepoint-subsurface-wells-v1.js bridgepoint-wind-turbines-v1.js; do
+            fetch "$feature" "$feature"
+            fetch "app/$feature" "app-$feature"
+            cmp -s "$D/$feature" "$D/app-$feature"
+          done
+          grep -Fq 'landing.js?v=global-resource-icons-v1' "$D/root.html"
+          grep -Fq 'app.js?v=global-resource-icons-v1' "$D/app.html"
+          for file in landing.js app.js; do
+            grep -Fq 'bridgepoint-offshore-energy-v1.js?v=3-global-icons' "$D/$file"
+            grep -Fq 'bridgepoint-subsurface-wells-v1.js?v=3-global-icons' "$D/$file"
+            grep -Fq 'bridgepoint-wind-turbines-v1.js?v=2-global-individual-icons' "$D/$file"
+          done
+          grep -Fq 'const MIN_ICON_ZOOM = 0;' "$D/bridgepoint-offshore-energy-v1.js"
+          grep -Fq "const ICON_ID = 'bp-subsurface-wells-icons-v1'" "$D/bridgepoint-subsurface-wells-v1.js"
+          grep -Fq "const GLOBAL_ICON_ID = 'bp-wind-turbines-global-icons-v1'" "$D/bridgepoint-wind-turbines-v1.js"
+          for feature in bridgepoint-offshore-energy-v1.js bridgepoint-subsurface-wells-v1.js bridgepoint-wind-turbines-v1.js; do
+            cmp -s "$D/$feature" "$D/app-$feature"
+          done
+          echo "BRIDGEPOINT_GLOBAL_RESOURCE_ICONS_LIVE_PASS"

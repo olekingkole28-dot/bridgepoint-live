@@ -380,7 +380,7 @@ function installLayers(state) {
       layout:{'icon-image':['match',['get','assetIcon'],'water','bp-subsurface-icon-water-v1',
         'oil','bp-subsurface-icon-oil-v1','gas','bp-subsurface-icon-gas-v1',
         'geothermal','bp-subsurface-icon-geothermal-v1','bp-subsurface-icon-drillhole-v1'],
-        'icon-size':['interpolate',['linear'],['zoom'],0,0.14,2,0.24,5,0.42,9,0.57,13,0.66],
+        'icon-size':['interpolate',['linear'],['zoom'],0,0.2,2,0.29,5,0.42,9,0.57,13,0.66],
         'icon-anchor':'center','icon-pitch-alignment':'viewport','icon-rotation-alignment':'viewport',
         'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-padding':0},
       paint:{'icon-opacity':1}});

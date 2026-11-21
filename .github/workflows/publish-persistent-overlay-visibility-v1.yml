@@ -400,7 +400,7 @@ jobs:
                   pos=data.index(anchor)+len(anchor)
                   data=data[:pos]+"\n"+attach+data[pos:]
               old_wells="./bridgepoint-subsurface-wells-v1.js?v=1-global-wells-depth-casing"
-              new_wells="./bridgepoint-subsurface-wells-v1.js?v=2-persistent-substructure-visibility"
+              new_wells="./bridgepoint-subsurface-wells-v1.js?v=3-global-icons"
               if old_wells in data:
                   if data.count(old_wells)!=1:
                       raise SystemExit(f"{rel}: duplicate wells import")
@@ -665,8 +665,8 @@ jobs:
           cmp -s "$D/faa-module.js" "$D/faa-app-module.js"
           cmp -s "$D/faa-data.gz" "$D/faa-app-data.gz"
           gzip -t "$D/faa-data.gz"
-          grep -Fq 'bridgepoint-subsurface-wells-v1.js?v=2-persistent-substructure-visibility' "$D/landing.js"
-          grep -Fq 'bridgepoint-subsurface-wells-v1.js?v=2-persistent-substructure-visibility' "$D/app.js"
+          grep -Eq 'bridgepoint-subsurface-wells-v1.js\?v=(2-persistent-substructure-visibility|3-global-icons)' "$D/landing.js"
+          grep -Eq 'bridgepoint-subsurface-wells-v1.js\?v=(2-persistent-substructure-visibility|3-global-icons)' "$D/app.js"
           grep -Fq 'bridgepoint-underground-scan-scenes-v2.js?v=4-persistent-overlay-category-gate' "$D/landing.js"
           grep -Fq 'bridgepoint-underground-scan-scenes-v2.js?v=4-persistent-overlay-category-gate' "$D/app.js"
           cmp -s "$D/catacomb.js" "$D/app-catacomb.js"

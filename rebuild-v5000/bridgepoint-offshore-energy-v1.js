@@ -16,7 +16,7 @@ const FOOTPRINT_LINE_ID = 'bp-offshore-energy-footprint-line-v1';
 const ICON_ID = 'bp-offshore-energy-icons-v1';
 const MODEL_ID = 'bp-offshore-energy-models-v1';
 const MIN_MARKER_ZOOM = 0;
-const MIN_ICON_ZOOM = 2.2;
+const MIN_ICON_ZOOM = 0;
 const MAX_MARKER_ZOOM = 14.2;
 const MIN_FOOTPRINT_ZOOM = 8.2;
 const MIN_MODEL_ZOOM = 12.2;
@@ -377,7 +377,7 @@ function installLayers(state) {
     add(ICON_ID,{id:ICON_ID,type:'symbol',source:SOURCE_ID,minzoom:MIN_ICON_ZOOM,maxzoom:MAX_MARKER_ZOOM,
       layout:{'icon-image':['match',['get','assetIcon'],'oil','bp-offshore-icon-oil-v1',
         'gas','bp-offshore-icon-gas-v1','water','bp-offshore-icon-water-v1','bp-offshore-icon-platform-v1'],
-        'icon-size':['interpolate',['linear'],['zoom'],2.2,0.28,5,0.4,9,0.58,13.5,0.66],
+        'icon-size':['interpolate',['linear'],['zoom'],0,0.16,2.2,0.28,5,0.4,9,0.58,13.5,0.66],
         'icon-pitch-alignment':'viewport','icon-rotation-alignment':'viewport',
         'icon-anchor':'center','icon-allow-overlap':true,'icon-ignore-placement':true,'icon-padding':0},
       paint:{'icon-opacity':1}});
