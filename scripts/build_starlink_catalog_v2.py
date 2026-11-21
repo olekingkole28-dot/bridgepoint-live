@@ -39,9 +39,11 @@ now=dt.datetime.now(dt.timezone.utc)
 items=None
 used_source=None
 failures=[]
-for url in (CACHE_SOURCE,SOURCE):
+# The public cached source can intermittently stall mid-response. Retry with
+# bounded reads before trying the upstream origin; never substitute stale records.
+for url,deadline in ((CACHE_SOURCE,25),(CACHE_SOURCE,35),(SOURCE,25)):
     try:
-        with urllib.request.urlopen(urllib.request.Request(url,headers=HEADERS),timeout=75) as response:
+        with urllib.request.urlopen(urllib.request.Request(url,headers=HEADERS),timeout=deadline) as response:
             if response.status != 200: raise RuntimeError("Starlink OMM source non-200: "+str(response.status))
             raw=response.read(9000000)
             if len(raw)>8500000: raise RuntimeError("Unexpectedly large orbital source payload")
@@ -51,8 +53,9 @@ for url in (CACHE_SOURCE,SOURCE):
         items=candidate
         used_source=url
         break
-    except (urllib.error.URLError,ValueError,RuntimeError) as exc:
-        failures.append(url.split("/")[2]+": "+str(exc))
+    except (OSError,ValueError,RuntimeError,TimeoutError) as exc:
+        failures.append(url.split("/")[2]+": "+type(exc).__name__+": "+str(exc))
+        print("STARLINK_SOURCE_ATTEMPT_FAILED",failures[-1],flush=True)
 if items is None:
     raise SystemExit("STARLINK_SOURCES_UNAVAILABLE_NO_FABRICATED_ORBITS "+str(failures))
 print("STARLINK_REAL_ORBITAL_SOURCE",used_source,"input_records",len(items))
