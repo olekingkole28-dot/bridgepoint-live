@@ -259,12 +259,55 @@ export function initBridgePointGlobalWindRfV1(target){
   st.jetPins.visible=false; // Tappable persistent icons are managed separately from 3D stream altitude.
   st.zoomAt=zoom;st.dirty=false;map.triggerRepaint?.();
  }
+ function mountJetPreview(el,row){
+  // Source-driven interactive 3D animation of the forecast pressure-level jet.
+  // The ribbon shape is illustrative, not an observed CFD reconstruction.
+  const T=st.THREE;if(!T?.WebGLRenderer)return;
+  const viewport=document.createElement('div');
+  viewport.style.cssText='position:relative;height:155px;margin:10px 0 8px;border:1px solid #6ecaff55;border-radius:10px;background:radial-gradient(ellipse at center,#173748 0%,#061724 74%);overflow:hidden';
+  const canvas=document.createElement('canvas');canvas.width=560;canvas.height=270;
+  canvas.style.cssText='width:100%;height:100%;display:block;touch-action:none';
+  const label=document.createElement('small');label.textContent='3D MODEL VIEWER · DRAG TO ROTATE · FORECAST ILLUSTRATION';
+  label.style.cssText='position:absolute;left:7px;bottom:5px;font:8px/1.35 system-ui;color:#bedae7;pointer-events:none';
+  viewport.append(canvas,label);el.appendChild(viewport);
+  let renderer=null,frame=0,disposed=false,last=0;const resources=[];
+  try{
+   renderer=new T.WebGLRenderer({canvas,alpha:true,antialias:false,powerPreference:'low-power'});
+   renderer.setSize(280,135,false);renderer.setClearColor(0x041220,0);
+   const scene=new T.Scene(),camera=new T.PerspectiveCamera(43,280/135,.1,100);
+   camera.position.set(0,1.5,10.5);camera.lookAt(0,0,0);
+   const group=new T.Group();scene.add(group);
+   const strength=clamp(Number(row[4])/230,.25,1.6),materials=[];
+   for(let i=0;i<7;i++){
+    const points=[];
+    for(let j=0;j<=34;j++){const t=j/34;points.push(new T.Vector3((t-.5)*7.6,
+     Math.sin(t*10+i*.5)*(.14+.11*strength)+(i-3)*.16,Math.sin(t*7+i*1.4)*.34+(i-3)*.23));}
+    const g=new T.TubeGeometry(new T.CatmullRomCurve3(points),72,.09+i%3*.035,6,false);
+    const m=new T.MeshBasicMaterial({color:i%3===0?0xffb26d:i%3===1?0xff3929:0xff7058,transparent:true,opacity:.37,depthWrite:false});
+    group.add(new T.Mesh(g,m));resources.push(g,m);materials.push(m);
+   }
+   const arrow=new T.Mesh(new T.ConeGeometry(.24,.7,9),new T.MeshBasicMaterial({color:0xffdd9f}));
+   arrow.rotation.z=-Math.PI/2;group.add(arrow);resources.push(arrow.geometry,arrow.material);
+   let yaw=0,dragging=false,lastX=0;
+   canvas.addEventListener('pointerdown',e=>{dragging=true;lastX=e.clientX;canvas.setPointerCapture?.(e.pointerId)});
+   canvas.addEventListener('pointermove',e=>{if(dragging){yaw+=(e.clientX-lastX)*.013;lastX=e.clientX}});
+   canvas.addEventListener('pointerup',()=>{dragging=false});canvas.addEventListener('pointercancel',()=>{dragging=false});
+   const tick=now=>{
+    if(disposed||!st.enabled||!el.isConnected)return;
+    if(now-last>40){last=now;const t=now*.001*strength;group.rotation.y=yaw+Math.sin(t*.2)*.08;
+     materials.forEach((m,i)=>m.opacity=.23+.20*(.5+.5*Math.sin(t*2.5+i*.95)));
+     arrow.position.set(((t*1.4)%7)-3.5,Math.sin(t*.8)*.15,0);renderer.render(scene,camera);}
+    frame=requestAnimationFrame(tick);
+   };frame=requestAnimationFrame(tick);
+   st.previewCleanup=()=>{if(disposed)return;disposed=true;cancelAnimationFrame(frame);resources.forEach(r=>r.dispose?.());try{renderer.dispose()}catch(_){}};
+  }catch(e){try{renderer?.dispose()}catch(_){}viewport.remove();}
+ }
  function showJet(row){
-  st.details?.remove();
+  st.previewCleanup?.();st.previewCleanup=null;st.details?.remove();
   const el=document.createElement('aside');st.details=el;el.className='bp-wind-jet-card-v1';
   el.style.cssText='position:absolute;z-index:880;right:12px;top:72px;width:min(335px,85vw);max-height:75vh;overflow:auto;padding:12px;border:1px solid #6ebad1;border-radius:12px;background:rgba(4,19,32,.97);color:#eaf8ff;font:12px/1.5 system-ui,sans-serif;box-shadow:0 15px 30px #0009;pointer-events:auto';
   const title=document.createElement('b');title.textContent='JET STREAM · 250 hPa MODEL';title.style.cssText='font-size:14px;letter-spacing:.03em';
-  const close=document.createElement('button');close.type='button';close.textContent='×';close.setAttribute('aria-label','Close jet stream information');close.style.cssText='float:right;font-size:22px;color:white;background:none;border:0';close.onclick=()=>el.remove();
+  const close=document.createElement('button');close.type='button';close.textContent='×';close.setAttribute('aria-label','Close jet stream information');close.style.cssText='float:right;font-size:22px;color:white;background:none;border:0';close.onclick=()=>{st.previewCleanup?.();st.previewCleanup=null;el.remove()};
   const body=document.createElement('div');body.style.marginTop='8px';
   const values=[['Forecast location',row[0].toFixed(1)+'°, '+row[1].toFixed(1)+'°'],
    ['250 hPa wind',Math.round(row[4])+' km/h ('+Math.round(row[4]*.621371)+' mph)'],
@@ -274,7 +317,7 @@ export function initBridgePointGlobalWindRfV1(target){
    ['Location method',row[7]?'Illustrative nearest-grid interpolation for the current map viewport':'Original global forecast-grid position'],
    ['Possible hazards','Strong upper-level winds, aviation turbulence near jet boundaries, rapid weather-system movement, and wind shear. This visualization is not an aviation warning, forecast of turbulence at this exact point, or flight-planning information.']];
   values.forEach(([label,value])=>{const p=document.createElement('p');p.style.cssText='margin:6px 0;border-top:1px solid #ffffff22;padding-top:4px';const strong=document.createElement('strong');strong.textContent=label+': ';p.append(strong,document.createTextNode(value));body.append(p);});
-  el.append(title,close,body);map.getContainer().appendChild(el);
+  el.append(title,close);mountJetPreview(el,row);el.append(body);map.getContainer().appendChild(el);
  }
  function clickJet(e){
   if(!st.enabled||!st.projection||!e?.point)return;
