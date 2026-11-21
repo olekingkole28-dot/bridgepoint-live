@@ -79,7 +79,7 @@ function openPanel(name){
  p.querySelectorAll('[data-bpv-pane]').forEach(s=>{s.hidden=s.dataset.bpvPane!==name});
  if(name==='metrics')void loadMetrics();
  if(name==='account')void loadAccountBilling();
- if(name==='listings')void loadListings(true);
+ if(name==='listings'){listingOverlayOn=true;window.__BP_DRONE_AWARENESS_V1__?.allowLayerCategory?.('listings',true);setListingOverlay(true);const overlay=$('#bpv-listings-overlay-toggle');if(overlay){overlay.textContent='LISTING MAP OVERLAY · ON';overlay.setAttribute('aria-pressed','true')}void loadListings(true)}
  if(name==='opportunities'){void window.__BP_MAP_KEY_REFRESH_V5920__?.(true);void loadOpportunityBreakdown()}
  if(name==='mapkey')void window.__BP_MAP_KEY_REFRESH_V5920__?.(true);
  if(name==='property')refreshSlotLabels();
@@ -148,12 +148,12 @@ function makePanel(){
   '<p class="bpv-data-note">Buildings and 3D models are geometry inventory, not opportunity records. Main map records, customer-ready records, global risk reviews and public listings are separate inventories and are not added together.</p></section>'+
   '<section data-bpv-pane="property" hidden><div class="bpv-pane-title"><b id="bpv-property-title">Selected property</b><small id="bpv-property-key">Choose a building on the globe to bind these intelligence slots to it.</small></div>'+
   '<div id="bpv-side-property-slots" class="bpv-slot-grid"></div><p class="bpv-data-note">Each slot stays attached to the selected BridgePoint building. An unavailable source is shown as unavailable rather than filled with a placeholder result.</p></section>'+
-  '<section data-bpv-pane="listings" hidden><div class="bpv-pane-title"><b>BRIDGEPOINT · PROPERTY LISTINGS</b><small>View listing records and available BridgePoint-hosted images here. No outbound listing links.</small></div>'+
-  '<form id="bpv-listings-search" class="bpv-listings-search"><input type="search" aria-label="Search BridgePoint listings" placeholder="Search address, city, rentals…"><button type="submit">SEARCH</button></form>'+
-  '<div id="bpv-listings-summary" class="bpv-listings-summary">Loading materialized listing records…</div>'+
+  '<section data-bpv-pane="listings" hidden><div class="bpv-pane-title"><b>BRIDGEPOINT · PUBLIC PROPERTY LISTINGS</b><small>Official HUD/FHA U.S. sale records only. No rental feed is available.</small></div>'+
+  '<form id="bpv-listings-search" class="bpv-listings-search"><input type="search" aria-label="Search BridgePoint listings" placeholder="Search U.S. address, city, or HUD case…"><button type="submit">SEARCH</button></form>'+
+  '<div id="bpv-listings-summary" class="bpv-listings-summary">Loading the official HUD/FHA public sale feed…</div>'+
   '<button type="button" id="bpv-listings-overlay-toggle" class="bpv-wide-action" aria-pressed="true">LISTING MAP OVERLAY · ON</button>'+
   '<div id="bpv-listings-items" class="bpv-listings-items"></div>'+
-  '<p id="bpv-listings-note" class="bpv-data-note">Only records currently materialized into BridgePoint are shown. Source freshness, photo provenance, and address accuracy stay visible.</p></section>'+
+  '<p id="bpv-listings-note" class="bpv-data-note">Source snapshot and geocoding limits are shown with the records. This HUD feed does not include rental inventory or listing media.</p></section>'+
   '<section data-bpv-pane="controls" hidden><div class="bpv-pane-title"><b>BridgePoint Controls</b><small>Layers and map actions live here so the globe remains unobstructed.</small></div><div id="bpv-controls-mount"></div>'+
   '<button type="button" class="bpv-wide-action" id="bpv-whole-earth">RETURN TO WHOLE EARTH</button></section>'+
   '<section data-bpv-pane="account" hidden><div class="bpv-pane-title"><b>Account, payments & subscriptions</b><small>Your current plan, subscription dates, package choices, invoices and cancellation controls.</small></div>'+
@@ -211,7 +211,7 @@ function makeTopBarAndDock(){
    '<div class="bpv-command-heading"><span class="bpv-command-heading-icon" aria-hidden="true">◈</span><span><b>PROPERTY INTELLIGENCE</b><small>Search properties, inspect records and explore opportunities</small></span></div>'+
    '<div class="bpv-command-grid" data-bpv-command-grid="property">'+
     '<button type="button" class="bpv-command-btn" data-bpv-action="ai" title="Ask BridgePoint AI"><span class="bpv-command-icon" aria-hidden="true">✧</span><span class="bpv-command-label">BridgePoint AI</span></button>'+
-    '<button type="button" class="bpv-command-btn" data-bpv-action="listings" title="Browse materialized property listings"><span class="bpv-command-icon" aria-hidden="true">▤</span><span class="bpv-command-label">Listings</span></button>'+
+    '<button type="button" class="bpv-command-btn" data-bpv-action="listings" title="Browse official HUD/FHA U.S. sale records"><span class="bpv-command-icon" aria-hidden="true">▤</span><span class="bpv-command-label">Listings</span></button>'+
     '<button type="button" class="bpv-command-btn" data-bpv-action="opportunities" title="Open qualified property opportunities"><span class="bpv-command-icon" aria-hidden="true">◉</span><span class="bpv-command-label">Opportunities</span></button>'+
     '<button type="button" class="bpv-command-btn" data-bpv-action="metrics" title="View live platform counters"><span class="bpv-command-icon" aria-hidden="true">▦</span><span class="bpv-command-label">Live Counters</span></button>'+
     '<button type="button" class="bpv-command-btn" data-bpv-action="property" title="Open intelligence slots for the selected property"><span class="bpv-command-icon" aria-hidden="true">⌂</span><span class="bpv-command-label">Property Slots</span></button>'+
@@ -791,15 +791,22 @@ const BP_LISTINGS_SOURCE_V5927='bp-v5927-listings-source';
 const BP_LISTINGS_POINTS_V5927='bp-v5927-listings-points';
 const BP_LISTINGS_LABELS_V5927='bp-v5927-listings-labels';
 const BP_LISTINGS_MONEY_V6130='bp-v6130-listings-money-glyph';
-const BP_EMPTY_FEATURES_V5927={type:'FeatureCollection',features:[]};
+const HUD_REO_QUERY='https://services.arcgis.com/VTyQ9soqVukalItT/arcgis/rest/services/SF_REO/FeatureServer/0/query';
+const HUD_REO_CATALOG='https://catalog.data.gov/dataset/fha-single-family-reo-properties-for-sale';
+const HUD_REO_UPDATED='2026-07-21T18:25:53Z';
+const HUD_REO_SNAPSHOT='June 2026';
+let hudReoCache=null,hudReoFetchedAt=0;
 function ensureListingLayers(m=map){
  if(!m)return false;try{if(m.isStyleLoaded?.()!==true)return false;
   if(!m.getSource(BP_LISTINGS_SOURCE_V5927))m.addSource(BP_LISTINGS_SOURCE_V5927,{type:'geojson',data:{type:'FeatureCollection',features:listingFeaturesCache}});
   if(!m.getLayer(BP_LISTINGS_POINTS_V5927))m.addLayer({id:BP_LISTINGS_POINTS_V5927,type:'circle',source:BP_LISTINGS_SOURCE_V5927,minzoom:0,paint:{
    'circle-radius':['interpolate',['linear'],['zoom'],0,7,1.5,7.5,3,8,7,9,11,10,15,11],
-   'circle-color':'#063d30','circle-opacity':.98,'circle-stroke-color':'#8cff66','circle-stroke-width':['interpolate',['linear'],['zoom'],0,1,5,1.4,12,1.8]
+   'circle-color':['match',['get','listing_type'],'FOR_RENT','#a87516','#07523d'],
+   'circle-opacity':.98,
+   'circle-stroke-color':['match',['get','listing_type'],'FOR_RENT','#ffe08a','#91ffd2'],
+   'circle-stroke-width':['interpolate',['linear'],['zoom'],0,1,5,1.4,12,1.8]
   }});
-  if(!m.getLayer(BP_LISTINGS_MONEY_V6130))m.addLayer({id:BP_LISTINGS_MONEY_V6130,type:'symbol',source:BP_LISTINGS_SOURCE_V5927,minzoom:0,layout:{'text-field':'\u0024','text-font':['Noto Sans Regular'],'text-size':['interpolate',['linear'],['zoom'],0,8.5,3,9.5,7,11,12,13],'text-anchor':'center','text-allow-overlap':true,'text-ignore-placement':true,'text-padding':0},paint:{'text-color':'#baff78','text-halo-color':'#02120b','text-halo-width':1.55,'text-opacity':.99}});
+  if(!m.getLayer(BP_LISTINGS_MONEY_V6130))m.addLayer({id:BP_LISTINGS_MONEY_V6130,type:'symbol',source:BP_LISTINGS_SOURCE_V5927,minzoom:0,layout:{'text-field':['coalesce',['get','map_icon'],'S'],'text-font':['Noto Sans Regular'],'text-size':['interpolate',['linear'],['zoom'],0,8.5,3,9.5,7,11,12,13],'text-anchor':'center','text-allow-overlap':true,'text-ignore-placement':true,'text-padding':0},paint:{'text-color':['match',['get','listing_type'],'FOR_RENT','#241900','#eafff5'],'text-halo-color':'#02120b','text-halo-width':1.55,'text-opacity':.99}});
   if(!m.getLayer(BP_LISTINGS_LABELS_V5927))m.addLayer({id:BP_LISTINGS_LABELS_V5927,type:'symbol',source:BP_LISTINGS_SOURCE_V5927,minzoom:13,layout:{
    'text-field':['coalesce',['get','address'],['get','title'],'Listing'],
    'text-font':['Noto Sans Regular'],'text-size':['interpolate',['linear'],['zoom'],13,9,17,12],
@@ -824,36 +831,97 @@ function setListingOverlay(on){
 function listingPhotoPath(raw){
  const v=typeof raw==='string'?raw:(raw?.storage_path||raw?.path||raw?.url||raw?.public_path||'');
  if(!v||typeof v!=='string')return null;
- if(v.startsWith('/storage/v1/object/public/bridgepoint-listing-media/'))return v;
  if(v.startsWith('/assets/bridgepoint-listings/'))return v;
  return null;
+}
+function listingTextNode(tag,cls,text){
+ const el=document.createElement(tag);if(cls)el.className=cls;el.textContent=String(text??'');return el;
+}
+function hudClean(value){return String(value??'').replace(/\s+/g,' ').trim()}
+function hudDate(value){
+ const ms=Number(value||0);return ms>0&&Number.isFinite(ms)?new Date(ms).toISOString().slice(0,10):'';
+}
+function normalizeHudReo(row){
+ const a=row?.attributes||{},g=row?.geometry||{};
+ const longitude=Number(g.x??a.MAP_LONGITUDE),latitude=Number(g.y??a.MAP_LATITUDE);
+ if(!Number.isFinite(longitude)||!Number.isFinite(latitude))return null;
+ const address=hudClean([a.STREET_NUM,a.DIRECTION_PREFIX,a.STREET_NAME].filter(Boolean).join(' '));
+ let postal=hudClean(a.DISPLAY_ZIP_CODE);if(/^\d{1,5}$/.test(postal))postal=postal.padStart(5,'0');
+ const caseNumber=hudClean(a.CASE_NUM),objectId=hudClean(a.OBJECTID);
+ const id='HUD-FHA-'+(caseNumber||objectId||longitude+','+latitude);
+ return {type:'Feature',id,geometry:{type:'Point',coordinates:[longitude,latitude]},properties:{
+  listing_id:id,title:'HUD/FHA home'+(caseNumber?' · Case '+caseNumber:''),
+  address,city:hudClean(a.CITY),state_code:hudClean(a.STATE_CODE),postal_code:postal,
+  listing_type:'FOR_SALE',listing_status:'HUD SOURCE SNAPSHOT',map_icon:'S',
+  price_amount:null,price_note:'Asking price is not included in the HUD feed',
+  photo_note:'Photos, floor plans, and 3D models are not included in the HUD feed',
+  source_key:'HUD FHA Single Family REO',source_updated_at:HUD_REO_UPDATED,
+  source_url:HUD_REO_CATALOG,dataset_snapshot:HUD_REO_SNAPSHOT,
+  case_number:caseNumber,case_step_number:a.CASE_STEP_NUMBER??null,
+  date_acquired:hudDate(a.DATE_ACQUIRED),
+  accuracy_notice:'HUD describes this as an FHA-owned REO property up for sale in its June 2026 snapshot. Verify current availability with HUD. HUD notes that mapped addresses may be street-interpolated or placed at a ZIP+4 centroid. The source does not include asking price, days on market, photos, floor plans, or photogrammetry.'
+ }};
+}
+async function fetchHudReoListings(){
+ if(hudReoCache&&Date.now()-hudReoFetchedAt<15*60*1000)return {features:hudReoCache,cached:false};
+ const params=new URLSearchParams({where:'1=1',outFields:'*',outSR:'4326',f:'json',returnGeometry:'true',resultRecordCount:'2000'});
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
+ try{
+  const response=await fetch(HUD_REO_QUERY+'?'+params.toString(),{signal:controller.signal,cache:'no-store',credentials:'omit'});
+  if(!response.ok)throw new Error('HUD feed returned HTTP '+response.status);
+  const payload=await response.json();
+  if(payload?.error)throw new Error(payload.error.message||'HUD feed reported an error');
+  if(!Array.isArray(payload?.features))throw new Error('HUD feed response did not contain listing records');
+  if(payload.exceededTransferLimit)throw new Error('HUD feed response was truncated');
+  const features=payload.features.map(normalizeHudReo).filter(Boolean);
+  hudReoCache=features;hudReoFetchedAt=Date.now();
+  return {features,cached:false};
+ }catch(error){
+  if(hudReoCache)return {features:hudReoCache,cached:true,error:String(error?.message||error)};
+  throw error;
+ }finally{clearTimeout(timer)}
+}
+function listingInBounds(f,bounds){
+ if(!bounds)return true;
+ const p=f?.geometry?.coordinates;if(!Array.isArray(p)||p.length<2)return false;
+ const [lng,lat]=p,west=bounds.getWest?.()??-180,east=bounds.getEast?.()??180,south=bounds.getSouth?.()??-90,north=bounds.getNorth?.()??90;
+ const longitudeVisible=west<=east?(lng>=west&&lng<=east):(lng>=west||lng<=east);
+ return longitudeVisible&&lat>=south&&lat<=north;
 }
 function renderListingCards(features,selectedId=null){
  const root=$('#bpv-listings-items');if(!root)return;
  const frag=document.createDocumentFragment();let count=0;
- for(const f of (features||[]).slice(0,35)){
+ const rows=Array.from(features||[]);
+ const selectedIndex=rows.findIndex(f=>String(f.properties?.listing_id||f.id||'')===String(selectedId||listingSelectedId||''));
+ if(selectedIndex>0)rows.unshift(rows.splice(selectedIndex,1)[0]);
+ for(const f of rows.slice(0,35)){
   const p=f.properties||{},card=node('article','bpv-listing-card');
   card.dataset.listingId=String(p.listing_id||f.id||'');
-  const title=node('b','bpv-listing-title',p.title||p.address||'BridgePoint listing');
-  const address=node('div','bpv-listing-address',[p.address,p.city,p.state_code,p.postal_code].filter(Boolean).join(', ')||'Address not supplied by source');
-  const meta=node('div','bpv-listing-meta',[(p.listing_type||'LISTING').replaceAll('_',' '),(p.listing_status||'STATUS UNKNOWN').replaceAll('_',' '),p.price_amount!=null?new Intl.NumberFormat(undefined,{style:'currency',currency:p.price_currency||'USD',maximumFractionDigits:0}).format(Number(p.price_amount)):'Price not source-confirmed'].join(' · '));
+  const title=listingTextNode('b','bpv-listing-title',p.title||p.address||'BridgePoint listing');
+  const address=listingTextNode('div','bpv-listing-address',[p.address,p.city,p.state_code,p.postal_code].filter(Boolean).join(', ')||'Address not supplied by source');
+  const price=p.price_amount!=null?new Intl.NumberFormat(undefined,{style:'currency',currency:p.price_currency||'USD',maximumFractionDigits:0}).format(Number(p.price_amount)):(p.price_note||'Price not source-confirmed');
+  const meta=listingTextNode('div','bpv-listing-meta',[(p.listing_type||'LISTING').replaceAll('_',' '),(p.listing_status||'STATUS UNKNOWN').replaceAll('_',' '),price].join(' · '));
   const date=p.source_updated_at||p.source_checked_at;
-  const source=node('small','bpv-listing-source','BridgePoint source record · '+String(p.source_key||'source key unavailable').replaceAll('_',' ')+(date?' · source updated '+new Date(date).toLocaleDateString():' · source timestamp unavailable'));
+  const source=listingTextNode('small','bpv-listing-source','Source · '+String(p.source_key||'source key unavailable').replaceAll('_',' ')+(date?' · catalog updated '+new Date(date).toLocaleDateString():' · source timestamp unavailable'));
   const photoList=Array.isArray(p.bridgepoint_photo_assets)?p.bridgepoint_photo_assets:[];
   let imagePath=null;for(const item of photoList){imagePath=listingPhotoPath(item);if(imagePath)break}
   if(imagePath){const img=document.createElement('img');img.className='bpv-listing-photo';img.loading='lazy';img.src=imagePath;img.alt='BridgePoint-hosted listing photo';img.onerror=()=>{img.remove();card.classList.add('bpv-no-photo')};card.appendChild(img)}
-  else{const badge=node('div','bpv-listing-photo-empty','IMAGE NOT MATERIALIZED IN BRIDGEPOINT');card.appendChild(badge)}
+  else{card.appendChild(listingTextNode('div','bpv-listing-photo-empty',p.photo_note||'No listing photo is available from this source'))}
   card.append(title,address,meta,source);
-  const note=node('p','bpv-listing-accuracy',p.accuracy_notice||'Listing status and address precision follow the source record; refresh source evidence before acting.');
-  card.appendChild(note);
-  const act=node('button','bpv-listing-focus','FOCUS ON GLOBE');act.type='button';act.addEventListener('click',()=>{
+  const detail=[];
+  if(p.case_number)detail.push('HUD case '+p.case_number);
+  if(p.case_step_number!==null&&p.case_step_number!==undefined)detail.push('Case step '+p.case_step_number);
+  if(p.date_acquired)detail.push('HUD acquired '+p.date_acquired);
+  if(detail.length)card.appendChild(listingTextNode('div','bpv-listing-meta',detail.join(' · ')));
+  card.appendChild(listingTextNode('p','bpv-listing-accuracy',p.accuracy_notice||'Listing status and address precision follow the source record; refresh source evidence before acting.'));
+  const act=listingTextNode('button','bpv-listing-focus','FOCUS ON GLOBE');act.type='button';act.addEventListener('click',()=>{
    const center=featureCenter(f);if(center&&map)try{map.flyTo({center,zoom:Math.max(map.getZoom()||0,15),pitch:Math.max(map.getPitch()||0,45),duration:700})}catch(_){}
    listingSelectedId=card.dataset.listingId;document.querySelectorAll('.bpv-listing-card').forEach(x=>x.classList.toggle('selected',x.dataset.listingId===listingSelectedId));
   });
   card.appendChild(act);if(String(p.listing_id||f.id||'')===String(selectedId||listingSelectedId||''))card.classList.add('selected');
   frag.appendChild(card);count++;
  }
- if(!count){const empty=node('div','bpv-listing-empty','No materialized listings match this map view and search. Clear the search or move the globe to another area.');frag.appendChild(empty)}
+ if(!count)frag.appendChild(listingTextNode('div','bpv-listing-empty','No HUD/FHA REO records match the current map view and search. The connected public feed covers U.S. for-sale records only.'));
  root.replaceChildren(frag);
 }
 function featureCenter(f){
@@ -867,30 +935,30 @@ async function loadListings(force=false,queryOverride,selectedId=null){
  if(listingLoading)return listingLoading;
  const current=map||findMap();if(!current){if(summary)summary.textContent='Waiting for the BridgePoint globe…';return null}
  listingLoading=(async()=>{
+  if(summary)summary.textContent='Loading the official HUD/FHA public sale feed…';
   try{
-   if(!listingSummaryCache||Date.now()-listingSummaryAt>300000){listingSummaryCache=await rpc('bridgepoint_public_listing_summary_v5927',{},6500);listingSummaryAt=Date.now()}
-   const b=current.getBounds?.();
-   const args={p_west:b?.getWest?.()??-180,p_south:b?.getSouth?.()??-80,p_east:b?.getEast?.()??180,p_north:b?.getNorth?.()??80,p_limit:250,p_query:q};
-   const data=await rpc('bridgepoint_public_listings_viewport_v5927',args,9000);
-   const features=Array.isArray(data?.features)?data.features:(data?.geojson?.features||[]);
+   const feed=await fetchHudReoListings();
+   const features=feed.features;
    listingFeaturesCache=features;
-   const s=listingSummaryCache||{};
-   document.querySelectorAll('[data-bpv-listings-total]').forEach(n=>n.textContent=Number(s.total_records||0).toLocaleString());
-   document.querySelectorAll('[data-bpv-listings-rentals]').forEach(n=>n.textContent=Number(s.rent_records||0).toLocaleString());
-   if(summary){
-    summary.textContent=Number(s.total_records||0).toLocaleString()+' materialized listings · '+Number(s.rent_records||0).toLocaleString()+' rental/lease records · '+Number(s.sale_records||0).toLocaleString()+' for-sale records · '+Number(s.bridgepoint_photo_assets||0).toLocaleString()+' records with BridgePoint-hosted photo assets. '+Number(data?.matching_in_view||0).toLocaleString()+' match the current view/search.';
-   }
+   const bounds=current.getBounds?.(),needle=q.toLocaleLowerCase();
+   let visible=features.filter(f=>listingInBounds(f,bounds));
+   if(needle)visible=visible.filter(f=>{const p=f.properties||{};return [p.title,p.address,p.city,p.state_code,p.postal_code,p.case_number].some(v=>String(v||'').toLocaleLowerCase().includes(needle))});
+   const wanted=String(selectedId||listingSelectedId||'');
+   if(wanted&&!visible.some(f=>String(f.properties?.listing_id||f.id||'')===wanted)){const chosen=features.find(f=>String(f.properties?.listing_id||f.id||'')===wanted);if(chosen)visible.unshift(chosen)}
+   document.querySelectorAll('[data-bpv-listings-total]').forEach(n=>n.textContent=Number(features.length).toLocaleString());
+   document.querySelectorAll('[data-bpv-listings-rentals]').forEach(n=>n.textContent='0');
+   if(summary)summary.textContent=features.length.toLocaleString()+' U.S. HUD/FHA sale records · '+visible.length.toLocaleString()+' in this view/search · 0 rentals (no public rental feed) · June 2026 source snapshot. Price and listing media are not provided.';
    const src=ensureListingLayers(current)?current.getSource(BP_LISTINGS_SOURCE_V5927):null;
-   if(src)src.setData(data?.geojson||{type:'FeatureCollection',features});
+   if(src)src.setData({type:'FeatureCollection',features});
    setListingOverlay(listingOverlayOn);
-   renderListingCards(features,selectedId);
-   if(note)note.textContent=(data?.truth_note||'Listings are returned from BridgePoint-materialized source records.')+' Listing cards do not open external websites.';
-   if(!data?.complete)throw new Error(data?.error||'Listing viewport is incomplete');
-   return data;
+   renderListingCards(visible,selectedId);
+   if(note)note.textContent=(feed.cached?'Using the last successful in-session HUD feed because the source did not refresh. ':'')+'Source: HUD/FHA REO public dataset, June 2026 snapshot; catalog last updated July 21, 2026. Coverage is U.S. sale records only. HUD does not supply rental listings, asking price, photos, days on market, floor plans, or 3D photogrammetry in this feed. Map points may be street-interpolated or ZIP+4 centroids.';
+   if(!features.length)throw new Error('HUD feed returned no source records');
+   return {complete:true,features,source_url:HUD_REO_CATALOG};
   }catch(e){
-   if(summary)summary.textContent='Listings could not refresh: '+String(e?.message||e);
-   if(note)note.textContent='Existing BridgePoint data remains visible; refresh to retry.';
-   console.warn('BridgePoint listing inventory',e);return null;
+   if(summary)summary.textContent='HUD/FHA listings could not load: '+String(e?.message||e);
+   if(note)note.textContent='This Listings layer reads the public HUD/FHA ArcGIS feed directly. No Supabase request is used for this layer.';
+   console.warn('BridgePoint HUD/FHA listings',e);return null;
   }finally{listingLoading=null;if(listingQueryValue!==q)setTimeout(()=>void loadListings(true,listingQueryValue),120)}
  })();
  return listingLoading;
