@@ -20,9 +20,14 @@ required={'index.html','app/index.html','landing.js','app.js',
   'bridgepoint-emrf-starlink-global-v2.js','bridgepoint-wildfires-volumetric-v1.js',
   'vendor/three.module.js'}
 if missing:=required-before.keys():raise SystemExit('PRESERVED_WIND_SITE_INCOMPLETE '+repr(sorted(missing)))
-added_expected={'bridgepoint-global-wind-rf-v1.js','wind-rf-global-v1.json'}
-if any((site/p).exists() for p in added_expected):
-    raise SystemExit('WIND_RF_SOURCE_ALREADY_EXISTS: do not overwrite a concurrent restoration')
+# Legacy v2 already published the fully corrected WebGL shader. Preserve it.
+added_expected=set()
+global_source=(source/'bridgepoint-global-wind-rf-v1.js').read_bytes()
+for rel in ('bridgepoint-global-wind-rf-v1.js','app/bridgepoint-global-wind-rf-v1.js'):
+    if not (site/rel).is_file() or (site/rel).read_bytes()!=global_source:
+        raise SystemExit('WIND_RF_GLOBAL_MODULE_CHANGED_UNEXPECTEDLY '+rel)
+if not (site/'wind-rf-global-v1.json').is_file():
+    raise SystemExit('PRESERVED_GLOBAL_WIND_DATA_MISSING')
 
 def one(s,old,new,what):
     n=s.count(old)
@@ -40,7 +45,7 @@ def local(s):
     s=one(s,'  }function close(){','  }\n'+block+'  function close(){','local-off-method')
     s=one(s,' const api={version:VERSION,map,open,close,refresh,setWind,setRf,get state(){',
       ' const api={version:VERSION,map,open,close,enableAll,disableAll,refresh,setWind,setRf,get state(){','local-public-api')
-    s=one(s,"'./bridgepoint-global-wind-rf-v1.js?v=1-wind-jet-streams-all-on'",
+    s=one(s,"'./bridgepoint-global-wind-rf-v1.js?v=2-height-true-rf-wind'",
       "'./bridgepoint-global-wind-rf-v1.js?v=3-persistent-3d-jets-rf-wind'",'local-global-import')
     return s
 
@@ -77,14 +82,11 @@ for rel in ('index.html','app/index.html'):
     if len(found)!=1:raise SystemExit('WIND_BUTTON_VIEW_ENTRYPOINT_AMBIGUOUS '+rel)
     hit=found[0]
     url=hit.group(2)
-    if 'windrfjets=' in url:raise SystemExit('WIND_CACHE_ALREADY_PRESENT '+rel)
-    s=s[:hit.start(2)]+url+'&windrfjets=v3-current-3d-source'+s[hit.end(2):]
+    if url.count('windrfjets=v1')!=1:raise SystemExit('WIND_OLD_ENTRYPOINT_CACHE_MISSING '+rel)
+    upgraded=url.replace('windrfjets=v1','windrfjets=v3-current-3d-source',1)
+    s=s[:hit.start(2)]+upgraded+s[hit.end(2):]
     p.write_text(s)
     print('WIND_VIEW_CACHE_REFRESH_ONLY',rel)
-
-global_source=(source/'bridgepoint-global-wind-rf-v1.js').read_bytes()
-for rel in ('bridgepoint-global-wind-rf-v1.js','app/bridgepoint-global-wind-rf-v1.js'):
-    (site/rel).write_bytes(global_source)
 
 data=json.loads(snapshot.read_text())
 assert data['version']==1 and len(data['winds'])>=100 and len(data['sites'])>=60
@@ -102,7 +104,7 @@ changed={p for p in before if before[p]!=after.get(p)}
 added=set(after)-set(before)
 removed=set(before)-set(after)
 expected_changed={'bridgepoint-volumetric-fields-v5978.js','app/bridgepoint-volumetric-fields-v5978.js',
-  'bridgepoint-view-v5917.js','app/bridgepoint-global-wind-rf-v1.js','index.html','app/index.html'}
+  'bridgepoint-view-v5917.js','wind-rf-global-v1.json','index.html','app/index.html'}
 if changed!=expected_changed or added!=added_expected or removed:
     raise SystemExit('WIND_RF_JETS_NO_REGRESSION_FAILED '+json.dumps({
       'changed':sorted(changed),'expected':sorted(expected_changed),
