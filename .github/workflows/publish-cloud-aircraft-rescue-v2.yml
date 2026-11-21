@@ -1,0 +1,165 @@
+name: Restore Always-On Volumetric Clouds and Detailed Real Aircraft v2 ONLY
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-cloud-aircraft-rescue-v2.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 52
+    environment:
+      name: github-pages
+      url: ${{ steps.publish.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify original ADS-B tracking and candidate 3D/cloud code
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check rebuild-v5000/bridgepoint-drone-awareness-v1.js
+          node --input-type=module --check < rebuild-v5000/bridgepoint-aircraft-visuals-v2.js
+          node --input-type=module --check < release-v2300/world-v2300-clouds.js
+          node tests/drone-awareness.test.mjs
+          grep -Fq 'bpRaymarchCumulusV6500' release-v2300/world-v2300-clouds.js
+          grep -Fq 'cloudHeightFeedTimer=setInterval' release-v2300/world-v2300-clouds.js
+          grep -Fq 'sunBelowHorizon' rebuild-v5000/bridgepoint-aircraft-visuals-v2.js
+          grep -Fq 'showAircraftModelInBridgePointCard' rebuild-v5000/bridgepoint-drone-awareness-v1.js
+          grep -Fq 'setAircraftModels(records)' rebuild-v5000/bridgepoint-drone-awareness-v1.js
+          python3 -m py_compile scripts/overlay_cloud_aircraft_v2.py
+      - name: Verify same existing PC Cloudflare auth service, do not modify it
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --retry 4 --retry-all-errors -fsSL --max-time 30 https://characterization-seas-total-adopt.trycloudflare.com/auth/v1/health | grep -Fq '"local":true'
+      - name: Download exact successful CURRENT full production artifact (NOT old source checkout)
+        uses: actions/download-artifact@v4
+        with:
+          name: bridgepoint-v5000-1
+          run-id: 44847073969
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/bp-cloud-aircraft-baseline
+      - name: Verify retained production baseline byte-for-byte matches live home and app
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/bp-cloud-aircraft-site"
+          ARCHIVE="$(find "$RUNNER_TEMP/bp-cloud-aircraft-baseline" -type f -name artifact.tar -print -quit)"
+          test -n "$ARCHIVE" || { echo 'SOURCE_SITE_MISSING; NO DEPLOY';exit 1; }
+          mkdir -p "$SITE"
+          tar -xf "$ARCHIVE" -C "$SITE"
+          export SITE
+          python3 - <<'PY'
+          import hashlib,os,urllib.request,urllib.error
+          from pathlib import Path
+          root='https://bridgepointintelligence.online/'
+          site=Path(os.environ['SITE'])
+          protected=[
+            'index.html','app/index.html','landing.js','app.js',
+            'bridgepoint-view-v5917.js','bridgepoint-drone-awareness-v1.js',
+            'world-v2300-clouds.js','app/world-v2300-clouds.js',
+            'bridgepoint-faa-obstruction-towers-v1.js',
+            'bridgepoint-wildfires-volumetric-v1.js',
+            'bridgepoint-emrf-starlink-global-v2.js',
+            'bridgepoint-global-wind-rf-v1.js','wind-rf-global-v1.json',
+            'bridgepoint-volumetric-fields-v5978.js',
+            'bridgepoint-shipwrecks-v1.js','bridgepoint-plane-wrecks-v1.js',
+            'vendor/three.module.js'
+          ]
+          for rel in protected:
+            p=site/rel
+            if not p.is_file():raise SystemExit('REFUSE_INCOMPLETE_CURRENT_SITE '+rel)
+            req=urllib.request.Request(root+rel+'?cloud-air-strict='+os.environ['GITHUB_SHA'],
+                 headers={'Cache-Control':'no-cache','User-Agent':'BridgePoint-Cloud-Aircraft-Only-Guard'})
+            with urllib.request.urlopen(req,timeout=55) as r:live=r.read()
+            if hashlib.sha256(live).digest()!=hashlib.sha256(p.read_bytes()).digest():
+              raise SystemExit('REFUSE_PUBLISH_LIVE_CHANGED '+rel)
+            print('PROTECTED_EXISTING_SITE_UNCHANGED',rel,len(live))
+          for name in ('bridgepoint-aircraft-visuals-v2.js','app/bridgepoint-aircraft-visuals-v2.js'):
+            if (site/name).exists():raise SystemExit('AIRCRAFT_VISUAL_ALREADY_DEPLOYED '+name)
+            req=urllib.request.Request(root+name+'?cloud-air-strict='+os.environ['GITHUB_SHA'],
+                headers={'Cache-Control':'no-cache'})
+            try:
+              with urllib.request.urlopen(req,timeout=25) as r:code=r.status
+            except urllib.error.HTTPError as e:code=e.code
+            if code!=404:raise SystemExit('REFUSE_CONCURRENT_VISUAL_VERSION '+name+' '+str(code))
+          print('CLOUD_AIRCRAFT_LIVE_FULL_BASELINE_GUARD_PASS',len(protected))
+          PY
+      - name: Surgically restore ONLY volumetric clouds and colored aircraft models
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/bp-cloud-aircraft-site"
+          python3 scripts/overlay_cloud_aircraft_v2.py "$SITE" .
+          node --check "$SITE/bridgepoint-drone-awareness-v1.js"
+          node --check "$SITE/bridgepoint-view-v5917.js"
+          node --input-type=module --check < "$SITE/world-v2300-clouds.js"
+          node --input-type=module --check < "$SITE/bridgepoint-aircraft-visuals-v2.js"
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          site=Path(os.environ['RUNNER_TEMP'])/'bp-cloud-aircraft-site'
+          for p in ('index.html','app/index.html'):
+            t=(site/p).read_text()
+            assert 'bp-clouds-always-on-v6330' in t
+            assert 'airmodels=v2-colored-spinning-night' in t
+            assert 'cloudair=v2-raymarch-and-models' in t
+          for p in ('landing.js','app.js','bridgepoint-view-v5917.js'):
+            t=(site/p).read_text()
+            assert 'world-v2300-clouds.js?v=6400-fortnite-atmosphere' in t
+            assert 'world-v2300-clouds.js?v=6202-global-satellite-cloud-banks' not in t
+          print('CLOUDS_ALWAYS_ON_BOTH_ENTRYPOINTS_AND_AIRCRAFT_MODELS_GUARD_PASS')
+          PY
+      - uses: actions/configure-pages@v5
+      - name: Upload preserved full site, with only clouds and aircraft visuals changed
+        uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/bp-cloud-aircraft-site
+          include-hidden-files: true
+      - name: Publish ONLY requested cloud and aircraft 3D restorations
+        id: publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-pages-extended.mjs
+      - name: Verify LIVE clouds, cache reload, animated 3D aircraft and unchanged PC auth
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE=https://bridgepointintelligence.online
+          for file in world-v2300-clouds.js app/world-v2300-clouds.js bridgepoint-aircraft-visuals-v2.js app/bridgepoint-aircraft-visuals-v2.js; do
+            good=0
+            for i in $(seq 1 15); do
+              if curl -fsSL --max-time 35 -H 'Cache-Control: no-cache' "$BASE/$file?cloudair=$GITHUB_SHA-$i" -o /tmp/bp-cloud-air-verify; then good=1;break;fi
+              sleep 4
+            done
+            test "$good" = 1 || { echo "MISSING_NEW_CLOUD_OR_AIRCRAFT_ASSET $file";exit 1; }
+            echo "LIVE_CLOUD_AIRCRAFT_ASSET_OK $file $(wc -c < /tmp/bp-cloud-air-verify)"
+          done
+          curl --retry 5 --retry-all-errors -fsSL "$BASE/world-v2300-clouds.js?cloudair=$GITHUB_SHA" -o /tmp/bp-cloud-modern.js
+          grep -Fq 'bpRaymarchCumulusV6500' /tmp/bp-cloud-modern.js
+          grep -Fq 'cloudHeightFeedTimer=setInterval' /tmp/bp-cloud-modern.js
+          curl --retry 5 --retry-all-errors -fsSL "$BASE/bridgepoint-drone-awareness-v1.js?cloudair=$GITHUB_SHA" -o /tmp/bp-aircraft-rich.js
+          grep -Fq 'showAircraftModelInBridgePointCard' /tmp/bp-aircraft-rich.js
+          grep -Fq 'buildDetailedAirframe' /tmp/bp-aircraft-rich.js
+          for file in index.html app/index.html; do
+            curl --retry 5 --retry-all-errors -fsSL "$BASE/$file?cloudair=$GITHUB_SHA" -o /tmp/bp-cloud-air-html
+            grep -Fq 'bp-clouds-always-on-v6330' /tmp/bp-cloud-air-html
+            grep -Fq 'cloudair=v2-raymarch-and-models' /tmp/bp-cloud-air-html
+            grep -Fq 'airmodels=v2-colored-spinning-night' /tmp/bp-cloud-air-html
+            echo "LIVE_CLOUD_AIRCRAFT_PAGE_OK $file"
+          done
+          curl --retry 3 --retry-all-errors -fsSL https://characterization-seas-total-adopt.trycloudflare.com/auth/v1/health | grep -Fq '"local":true'
+          echo BRIDGEPOINT_CLOUDS_AIRCRAFT_ONLY_PUBLISHED_VERIFIED_SUCCESS
