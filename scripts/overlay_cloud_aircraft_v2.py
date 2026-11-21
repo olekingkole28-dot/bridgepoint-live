@@ -54,6 +54,9 @@ for start,end,label in (
   ('function animateDroneModels(now){','function distanceMeters(a,b){','aircraft-rotor-animations'),
 ):
     s=replace_section(s,new_drone,start,end,label)
+# The original production loadDroneThree is synchronous. The new importer
+# awaits the optional 3D model module; update its declaration, not just its body.
+s=one(s,'function loadDroneThree(){','async function loadDroneThree(){','async-rich-airframe-loader')
 card=between(new_drone,'function showAircraftModelInBridgePointCard(kind,properties){','function showAircraftDetails(event){','dock-3d-card')
 s=one(s,'function showAircraftDetails(event){',card+'function showAircraftDetails(event){','dock-3d-card-insert')
 labels=between(new_drone,'function clearAircraftVisualLabels(){','function setAircraftModels(records){','operator-label-renderer')
