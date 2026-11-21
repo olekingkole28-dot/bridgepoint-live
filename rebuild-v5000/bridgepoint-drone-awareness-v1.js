@@ -463,28 +463,113 @@ function bindAircraftInteractions(){
   aircraftInteractionsMap=map;
  }catch(error){console.warn('BridgePoint aircraft click interaction could not attach',error)}
 }
+function clearAircraftVisualLabels(){
+ if(!aircraftLabelGroup||!droneScene)return;
+ droneScene.remove(aircraftLabelGroup);
+ aircraftLabelGroup.traverse(o=>{try{o.geometry?.dispose?.();o.material?.map?.dispose?.();o.material?.dispose?.()}catch(_){}});
+ aircraftLabelGroup=null;
+}
 function setAircraftModels(records){
  if(!droneScene||!droneThree||!map){diagnosticState.aircraftModelsRendered=0;writeSummary();return 0}
  const MC=window.maplibregl?.MercatorCoordinate||window.MapLibreGL?.MercatorCoordinate;if(!MC?.fromLngLat)return 0;
  const grouped=new Map(),nextModels=new Map(),tethers=new Map(),zoom=Number(map.getZoom?.()||0),now=Date.now();
+ const branded=[];
+ const bounds=map.getBounds?.();
  for(const aircraft of Array.isArray(records)?records:[]){
   const key=aircraft._trackKey,lat=Number(aircraft.lat),lon=Number(aircraft.lon),altitude=aircraftAltitudeForRecord(aircraft);
   if(!key||!Number.isFinite(lat)||!Number.isFinite(lon)||!altitude.projectable)continue;
-  const storedTrack=trackedAircraft.get(key),storedPoint=storedTrack?.points?.[storedTrack.points.length-1],point=storedPoint&&storedPoint.longitude===lon&&storedPoint.latitude===lat?storedPoint:DroneCore.createTrailPoint(aircraft,now,aircraft._bpSourceName||'ADSB.lol');
-  if(altitude.datum==='barometric'&&altitude.projectable){point.altitudeDatum='barometric';point.altitudeMeters=altitude.meters;point.altitudeProjectable=true;}
-  let groundElevation=point.terrainElevationMeters??null;if(groundElevation===null)groundElevation=queryGroundElevation(lon,lat,point.altitudeDatum);
+  const storedTrack=trackedAircraft.get(key),storedPoint=storedTrack?.points?.[storedTrack.points.length-1];
+  const point=storedPoint&&storedPoint.longitude===lon&&storedPoint.latitude===lat?storedPoint:
+    DroneCore.createTrailPoint(aircraft,now,aircraft._bpSourceName||'ADSB.lol');
+  if(altitude.datum==='barometric'&&altitude.projectable){
+   point.altitudeDatum='barometric';point.altitudeMeters=altitude.meters;point.altitudeProjectable=true;
+  }
+  let groundElevation=point.terrainElevationMeters??null;
+  if(groundElevation===null)groundElevation=queryGroundElevation(lon,lat,point.altitudeDatum);
   if(point.altitudeDatum==='agl'&&groundElevation===null)continue;
-  const position=projectAircraft3DPoint(point,MC,groundElevation),meterUnit=MC.fromLngLat({lng:lon,lat},0).meterInMercatorCoordinateUnits?.()||0;
+  const position=projectAircraft3DPoint(point,MC,groundElevation);
+  const meterUnit=MC.fromLngLat({lng:lon,lat},0).meterInMercatorCoordinateUnits?.()||0;
   if(!position||!Number.isFinite(meterUnit)||meterUnit<=0)continue;
-  const kind=DroneCore.aircraftKindForRecord(aircraft),bucket=grouped.get(kind)||[],span=aircraftModelSpanMetersByKind(lat,zoom,kind),scale=(span/aircraftModelReferenceSpan(kind))*meterUnit,angle=(Number.isFinite(point.heading)?point.heading:0)*Math.PI/180-Math.PI/2;
-  const matrix=new droneThree.Matrix4().compose(new droneThree.Vector3(position.x,position.y,position.z),new droneThree.Quaternion().setFromEuler(new droneThree.Euler(0,0,angle)),new droneThree.Vector3(scale,scale,scale));
-  bucket.push(matrix);grouped.set(kind,bucket);nextModels.set(key,{kind,altitudeDatum:altitude.datum,altitudeMeters:altitude.meters,longitude:lon,latitude:lat});
-  const base=groundElevation===null?null:MC.fromLngLat({lng:lon,lat},groundElevation);addTether(tethers,kind,base,position);
+  const kind=DroneCore.aircraftKindForRecord(aircraft);
+  const design=aircraftVisualModule?.airframeForRecord?.(kind,aircraft)||{
+   kind,variant:'general',spanM:aircraftModelSpanMetersByKind(lat,zoom,kind),operator:null
+  };
+  const modelKey=kind+'|'+design.variant;
+  const widthReference=aircraftVisualModule?(
+   kind==='helicopter'?1.82:kind==='glider'?3.72:kind==='balloon'?(design.variant==='airship'?2.4:1.3):
+   kind==='propeller'?1.74:kind==='jet'?(design.variant==='widebody'||design.variant==='jumbo'?2.86:2.38):2.38
+  ):aircraftModelReferenceSpan(kind);
+  const span=Number(design.spanM)||aircraftModelSpanMetersByKind(lat,zoom,kind);
+  const scale=(span/widthReference)*meterUnit;
+  const angle=(Number.isFinite(point.heading)?point.heading:0)*Math.PI/180-Math.PI/2;
+  const matrix=new droneThree.Matrix4().compose(
+   new droneThree.Vector3(position.x,position.y,position.z),
+   new droneThree.Quaternion().setFromEuler(new droneThree.Euler(0,0,angle)),
+   new droneThree.Vector3(scale,scale,scale));
+  const bucket=grouped.get(modelKey)||{kind,variant:design.variant,items:[]};
+  const night=aircraftVisualModule?.sunBelowHorizon?.(lat,lon)?1:0;
+  bucket.items.push({matrix,night});grouped.set(modelKey,bucket);
+  nextModels.set(key,{kind,variant:design.variant,type:design.type,operator:design.operator?.name||null,
+   sourceConfirmedType:design.typeConfirmed,altitudeDatum:altitude.datum,altitudeMeters:altitude.meters,
+   longitude:lon,latitude:lat,physicalWingspanMeters:span,nightLightsOn:!!night});
+  // If the DEM is unavailable, a sea-level projection still keeps the requested
+  // solid ground-location line visible; do not imply it is surveyed terrain.
+  const base=MC.fromLngLat({lng:lon,lat},groundElevation===null?0:groundElevation);
+  addTether(tethers,kind,base,position);
+  if(design.operator&&zoom>=10&&branded.length<28){
+   let visible=true;try{visible=!bounds||bounds.contains([lon,lat])}catch(_){}
+   if(visible)branded.push({matrix,design,aircraft});
+  }
  }
- for(const [kind,matrices] of grouped){const entry=ensureAircraftInstancedMesh(kind,matrices.length);for(let i=0;i<matrices.length;i++)entry.mesh.setMatrixAt(i,matrices[i]);entry.mesh.count=matrices.length;entry.mesh.instanceMatrix.needsUpdate=true;entry.mesh.visible=enabled&&isAircraftKindVisible(kind);try{entry.mesh.computeBoundingSphere()}catch(_){}}
- for(const [kind,entry] of aircraftTemplates)if(!grouped.has(kind)){entry.mesh.count=0;entry.mesh.instanceMatrix.needsUpdate=true;entry.mesh.visible=false}
- aircraftModels=nextModels;aircraftTetherGroup=replaceTetherGroup(aircraftTetherGroup,tethers,'Aircraft vertical ground-location tethers');
- diagnosticState.aircraftModelsRendered=aircraftModels.size;writeSummary();syncAircraftFilterVisibility();map.triggerRepaint?.();return aircraftModels.size;
+ for(const [modelKey,bucket] of grouped){
+  const entry=ensureAircraftInstancedMesh(modelKey,bucket.items.length,bucket.kind,bucket.variant);
+  const nightAttr=entry.rich?entry.geometry.getAttribute('aBpNight'):null;
+  for(let i=0;i<bucket.items.length;i++){
+   const item=bucket.items[i];
+   entry.mesh.setMatrixAt(i,item.matrix);
+   if(nightAttr)nightAttr.setX(i,item.night);
+  }
+  entry.mesh.count=bucket.items.length;entry.mesh.instanceMatrix.needsUpdate=true;
+  if(nightAttr)nightAttr.needsUpdate=true;
+  entry.mesh.visible=enabled&&isAircraftKindVisible(bucket.kind);
+  try{entry.mesh.computeBoundingSphere()}catch(_){}
+ }
+ for(const [modelKey,entry] of aircraftTemplates)if(!grouped.has(modelKey)){
+  entry.mesh.count=0;entry.mesh.instanceMatrix.needsUpdate=true;entry.mesh.visible=false;
+ }
+ clearAircraftVisualLabels();
+ if(branded.length){
+  const group=new droneThree.Group();group.name='Operator-name decals from reported flight callsign prefixes';
+  for(const item of branded){
+   const op=item.design.operator;
+   const canvas=document.createElement('canvas');canvas.width=512;canvas.height=100;
+   const ctx=canvas.getContext('2d');if(!ctx)continue;
+   ctx.clearRect(0,0,512,100);ctx.fillStyle='#eff8fc';
+   ctx.fillRect(0,10,512,78);ctx.fillStyle='#17345e';
+   ctx.font='800 40px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+   ctx.fillText(op.name,256,51,475);
+   const texture=new droneThree.CanvasTexture(canvas);
+   texture.colorSpace=droneThree.SRGBColorSpace;
+   const decalGroup=new droneThree.Group();decalGroup.matrixAutoUpdate=false;
+   decalGroup.matrix.copy(item.matrix);
+   const lateral=item.design.variant==='widebody'||item.design.variant==='jumbo'?.25:.18;
+   for(const side of [-1,1]){
+    const g=new droneThree.PlaneGeometry(.66,.13);
+    const m=new droneThree.MeshBasicMaterial({map:texture,transparent:true,side:droneThree.DoubleSide,
+     depthTest:true,depthWrite:false});
+    const name=new droneThree.Mesh(g,m);name.position.set(-.15,side*lateral,.08);
+    name.rotation.x=side*Math.PI/2;name.frustumCulled=false;decalGroup.add(name);
+   }
+   group.add(decalGroup);
+  }
+  droneScene.add(group);aircraftLabelGroup=group;
+ }
+ aircraftModels=nextModels;
+ aircraftTetherGroup=replaceTetherGroup(aircraftTetherGroup,tethers,'Aircraft solid vertical ground-location tethers');
+ diagnosticState.aircraftModelsRendered=aircraftModels.size;writeSummary();syncAircraftFilterVisibility();
+ if((droneModels.size||aircraftModels.size)&&!droneAnimationFrame)
+  droneAnimationFrame=requestAnimationFrame(animateDroneModels);
+ map.triggerRepaint?.();return aircraftModels.size;
 }
 function rebuildAircraftTrails(){
  if(!droneScene||!droneThree||!map)return{trails:0,knownPoints:0};
