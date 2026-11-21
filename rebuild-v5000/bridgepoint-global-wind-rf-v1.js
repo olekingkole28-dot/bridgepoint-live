@@ -68,16 +68,16 @@ function streamGeometry(T,map,rows,kind,zoom){
  const selected=visibleSamples(map,rows,isJet,zoom);
  const budget=mobile?(isJet?105:170):(isJet?170:280);
  const count=Math.min(selected.length,budget);
- const linesPerSample=isJet?(mobile?4:5):mobile?7:10;
+ const linesPerSample=isJet?(mobile?7:9):mobile?9:12;
  const segments=mobile?16:20;
- const baseWidth=zoom<7?(isJet?85000:110000)*clamp(Math.pow(2,3-zoom),.125,1):clamp(2200*Math.pow(2,8-zoom),3,2200);
+ const baseWidth=zoom<7?(isJet?175000:140000)*clamp(Math.pow(2,3-zoom),.20,1):clamp((isJet?4200:2400)*Math.pow(2,8-zoom),5,isJet?4200:2400);
  for(let i=0;i<count;i++){
   const row=selected[Math.floor(i*selected.length/count)];
   const [lat,lon,surfaceKmh,surfaceFrom,jetKmh,jetFrom,jetHeight]=row;
   const speed=isJet?jetKmh:surfaceKmh,heading=(isJet?jetFrom:surfaceFrom)+180;
   // Global winds: green / yellow / red by source speed. Elevated jets are
   // cyan / blue / violet, bright enough to see through translucent wisps.
-  const color=isJet?[1,.035,.025]:windColor(speed);
+  const color=isJet?[1,.20,.12]:windColor(speed);
   const travel=clamp(1.9*Math.pow(2,7-zoom)*(.82+speed/(isJet?240:125)),.0014,isJet?34:28);
   for(let lane=0;lane<linesPerSample;lane++){
    const shift=(lane-(linesPerSample-1)/2)/Math.max(1,linesPerSample-1);
@@ -93,11 +93,11 @@ function streamGeometry(T,map,rows,kind,zoom){
     // wind follows the available ground elevation; waves are visual only.
     const elev=(!isJet&&typeof map.queryTerrainElevation==='function')
       ?Number(map.queryTerrainElevation([lambda,p],{exaggerated:false}))||0:0;
-    const a=isJet?jetHeight:elev+10+6*Math.max(0,Math.sin(t*11+i+lane*.6));
+    const a=isJet?jetHeight+Math.sin(lane*.72+i*.2)*820+(t-.5)*140:elev+10+6*Math.max(0,Math.sin(t*11+i+lane*.6));
     const v=worldAt(T,map,lambda,p,a);
     if(!v){valid=false;break;}
     const side=advance(p,lambda,heading+90,baseWidth*(isJet?.7:.52)/111200);
-    const edge=worldAt(T,map,side[1],side[0],a+(isJet?350:zoom<7?45:12));
+    const edge=worldAt(T,map,side[1],side[0],a+(isJet?1200:zoom<7?45:12));
     if(!edge){valid=false;break;}
     linePoints.push([v,edge]);
    }
@@ -124,7 +124,7 @@ function streamGeometry(T,map,rows,kind,zoom){
 }
 function ribbonMaterial(T,jet){
  return new T.ShaderMaterial({
-  uniforms:{uTime:{value:0},uOpacity:{value:jet?.48:.58}},
+  uniforms:{uTime:{value:0},uOpacity:{value:jet?.68:.73}},
   vertexShader:`attribute vec3 color;
   attribute float aProgress,aPhase,aStrength;
   varying vec3 vColor;varying float vProg,vPhase,vStrength;
@@ -137,7 +137,7 @@ function ribbonMaterial(T,jet){
     float wisp=pow(max(0.0,1.0-abs(current*2.0-1.0)),2.0);
     float shimmer=.65+.35*sin(vProg*29.0+vPhase*17.0-uTime*(1.8+vStrength));
     float edge=smoothstep(0.0,.09,vProg)*(1.0-smoothstep(.88,1.0,vProg));
-    float alpha=uOpacity*edge*(.18+.82*wisp)*shimmer;
+    float alpha=uOpacity*edge*(.30+.70*wisp)*shimmer;
     gl_FragColor=vec4(vColor,alpha);
   }`,
   vertexColors:true,transparent:true,depthTest:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1,side:T.DoubleSide,blending:T.NormalBlending
@@ -149,7 +149,7 @@ export function initBridgePointGlobalWindRfV1(target){
  const previous=window.__BP_WIND_RF_GLOBAL_V1__;
  if(previous?.map===map)return previous;
  const st={map,enabled:false,windOn:true,rfOn:true,rfMode:'both',disposed:false,data:null,THREE:null,scene:null,renderer:null,camera:null,
-  layer:null,windMesh:null,jetMesh:null,rf4:null,rf5:null,rfDots4:null,rfDots5:null,towers:null,jetPins:null,orbitRAF:0,projection:null,
+  layer:null,windMesh:null,jetMesh:null,rf4:null,rf5:null,rfDots4:null,rfDots5:null,towers:null,jetPins:null,orbitRAF:0,detailsRAF:0,previewCleanup:null,projection:null,
   zoomAt:-1,dirty:true,jetMarkers:[],jetMarkerNodes:[],iconRoot:null,details:null,sourceError:null,modelAt:null};
  function cleanLayer(){try{if(map.getLayer?.(LAYER))map.removeLayer(LAYER);}catch(_){}st.iconRoot?.remove();st.iconRoot=null;st.jetMarkerNodes=[];}
  function ensureJetIconRoot(){
@@ -157,7 +157,7 @@ export function initBridgePointGlobalWindRfV1(target){
   const container=map.getContainer?.();if(!container)return null;
   if(getComputedStyle(container).position==='static')container.style.position='relative';
   const root=document.createElement('div');root.setAttribute('aria-label','Jet stream forecast markers');
-  root.style.cssText='position:absolute;inset:0;z-index:30;pointer-events:none;overflow:hidden';
+  root.style.cssText='position:absolute;inset:0;z-index:650;pointer-events:none;overflow:hidden';
   container.appendChild(root);st.iconRoot=root;return root;
  }
  function jetIconButton(row){
@@ -172,13 +172,16 @@ export function initBridgePointGlobalWindRfV1(target){
  }
  function drawJetIcons(){
   const root=ensureJetIconRoot(),canvas=map.getCanvas?.();if(!root||!canvas||!st.projection)return;
-  const w=canvas.clientWidth,h=canvas.clientHeight,zoom=Number(map.getZoom?.()||0),visible=st.enabled&&st.windOn&&zoom<=18;
+  const w=canvas.clientWidth,h=canvas.clientHeight,zoom=Number(map.getZoom?.()||0),visible=st.enabled&&st.windOn&&zoom<=22;
   if(st.jetMarkerNodes.length!==st.jetMarkers.length){root.replaceChildren();st.jetMarkerNodes=st.jetMarkers.map(x=>jetIconButton(x.row));}
   for(let i=0;i<st.jetMarkers.length;i++){
    const button=st.jetMarkerNodes[i],obj=st.jetMarkers[i];if(!button)continue;
-   const p=obj.point.clone().applyMatrix4(st.projection);
-   const x=(p.x*.5+.5)*w,y=(.5-p.y*.5)*h;
-   const on=visible&&p.z>=-1&&p.z<=1&&x>=-18&&x<=w+18&&y>=-18&&y<=h+18;
+   // Selectable ground-projected locator for the *overhead* 250 hPa model;
+   // the actual 3D stream geometry remains at its geopotential altitude.
+   // Screen projection stays tappable in close tilted 3D views.
+   const point=map.project?.([obj.row[1],obj.row[0]]);
+   const x=Number(point?.x),y=Number(point?.y);
+   const on=visible&&Number.isFinite(x)&&Number.isFinite(y)&&x>=-18&&x<=w+18&&y>=-18&&y<=h+18;
    button.hidden=!on;if(on)button.style.transform='translate('+x+'px,'+y+'px) translate(-50%,-50%)';
   }
  }
@@ -231,8 +234,18 @@ export function initBridgePointGlobalWindRfV1(target){
   st.towers.visible=st.rfOn&&zoom>=7&&zoom<13;
   st.rfDots4.visible=st.rfOn&&(st.rfMode==='4G'||st.rfMode==='both')&&zoom<7;
   st.rfDots5.visible=st.rfOn&&(st.rfMode==='5G'||st.rfMode==='both')&&zoom<7;
-  st.jetMarkers=st.data.winds.filter(row=>row[4]>=115&&row[6]>5000)
-   .sort((a,b)=>b[4]-a[4]).slice(0,25).map(row=>({row,point:worldAt(T,map,row[1],row[0],row[6])})).filter(x=>x.point);
+  // Global icons choose spatially diverse actual pressure-level grid points.
+  // Local labels distinguish nearest-grid interpolated viewport anchors.
+  const fast=st.data.winds.filter(row=>row[4]>=85&&row[6]>5000);
+  const iconRows=zoom>=7
+   ?visibleSamples(map,fast,true,zoom).filter((_,i)=>i%6===0).slice(0,12)
+      .map(row=>[...row,'viewport nearest-grid interpolation'])
+   :Array.from(fast.sort((a,b)=>b[4]-a[4]).reduce((buckets,row)=>{
+      const key=Math.floor((row[0]+90)/14)+':'+Math.floor((row[1]+180)/24);
+      if(!buckets.has(key))buckets.set(key,row);
+      return buckets;
+     },new Map()).values()).slice(0,80);
+  st.jetMarkers=iconRows.map(row=>({row,point:worldAt(T,map,row[1],row[0],row[6])})).filter(x=>x.point);
   const size=zoom<3?45000:zoom<6?15000:zoom<9?3400:850;
   let icons=0;
   for(const item of st.jetMarkers){
@@ -243,13 +256,13 @@ export function initBridgePointGlobalWindRfV1(target){
     .multiply(new T.Matrix4().makeScale(size,size,size)));
   }
   st.jetPins.count=icons;st.jetPins.instanceMatrix.needsUpdate=true;
-  st.jetPins.visible=false; // UI jet markers are drawn at the projected 250 hPa coordinates.
+  st.jetPins.visible=false; // Tappable persistent icons are managed separately from 3D stream altitude.
   st.zoomAt=zoom;st.dirty=false;map.triggerRepaint?.();
  }
  function showJet(row){
   st.details?.remove();
   const el=document.createElement('aside');st.details=el;el.className='bp-wind-jet-card-v1';
-  el.style.cssText='position:absolute;z-index:45;right:70px;top:70px;width:min(315px,70vw);padding:12px;border:1px solid #6ebad1;border-radius:12px;background:rgba(4,19,32,.97);color:#eaf8ff;font:12px/1.5 system-ui,sans-serif;box-shadow:0 15px 30px #0009;pointer-events:auto';
+  el.style.cssText='position:absolute;z-index:880;right:12px;top:72px;width:min(335px,85vw);max-height:75vh;overflow:auto;padding:12px;border:1px solid #6ebad1;border-radius:12px;background:rgba(4,19,32,.97);color:#eaf8ff;font:12px/1.5 system-ui,sans-serif;box-shadow:0 15px 30px #0009;pointer-events:auto';
   const title=document.createElement('b');title.textContent='JET STREAM · 250 hPa MODEL';title.style.cssText='font-size:14px;letter-spacing:.03em';
   const close=document.createElement('button');close.type='button';close.textContent='×';close.setAttribute('aria-label','Close jet stream information');close.style.cssText='float:right;font-size:22px;color:white;background:none;border:0';close.onclick=()=>el.remove();
   const body=document.createElement('div');body.style.marginTop='8px';
@@ -258,6 +271,7 @@ export function initBridgePointGlobalWindRfV1(target){
    ['Direction from',Math.round(row[5])+'°'],
    ['Model geopotential height',Math.round(row[6]).toLocaleString()+' m above mean sea level'],
    ['Forecast source','Open-Meteo global weather forecast · cached '+new Date(st.data.fetched_at).toUTCString()],
+   ['Location method',row[7]?'Illustrative nearest-grid interpolation for the current map viewport':'Original global forecast-grid position'],
    ['Possible hazards','Strong upper-level winds, aviation turbulence near jet boundaries, rapid weather-system movement, and wind shear. This visualization is not an aviation warning, forecast of turbulence at this exact point, or flight-planning information.']];
   values.forEach(([label,value])=>{const p=document.createElement('p');p.style.cssText='margin:6px 0;border-top:1px solid #ffffff22;padding-top:4px';const strong=document.createElement('strong');strong.textContent=label+': ';p.append(strong,document.createTextNode(value));body.append(p);});
   el.append(title,close,body);map.getContainer().appendChild(el);
@@ -350,7 +364,7 @@ export function initBridgePointGlobalWindRfV1(target){
   setWind(enabled){st.windOn=!!enabled;st.dirty=true;map.triggerRepaint?.();},
   setRf(enabled,mode='both'){st.rfOn=!!enabled;st.rfMode=mode;st.dirty=true;map.triggerRepaint?.();},
   disable(){
-   st.enabled=false;st.details?.remove();st.details=null;
+   st.enabled=false;st.previewCleanup?.();st.previewCleanup=null;st.details?.remove();st.details=null;
    if(st.orbitRAF)cancelAnimationFrame(st.orbitRAF);st.orbitRAF=0;
    cleanLayer();status('Global wind, jet and RF source-backed overview OFF');return false;
   },
