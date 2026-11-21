@@ -437,6 +437,46 @@ function aircraftFeatureProperties(a,kind){
  const altitude=aircraftAltitudeForRecord(a),headingRaw=a?.track??a?.true_heading??a?.mag_heading,heading=headingRaw===null||headingRaw===undefined||headingRaw===''?null:Number(headingRaw),speedRaw=a?.gs,speed=speedRaw===null||speedRaw===undefined||speedRaw===''?null:Number(speedRaw),rateRaw=a?.geom_rate??a?.baro_rate,rate=rateRaw===null||rateRaw===undefined||rateRaw===''?null:Number(rateRaw),ageRaw=a?.seen_pos??a?.seen,age=ageRaw===null||ageRaw===undefined||ageRaw===''?null:Number(ageRaw);
  return{track_key:String(a?.hex||a?.icao24||'').trim().toLowerCase(),icao:String(a?.hex||a?.icao24||''),is_drone:kind==='drone',aircraft_kind:String(kind||'airplane'),callsign:String(a?.flight||'').trim(),registration:String(a?.r||a?.registration||''),type_code:String(a?.t||a?.type||''),type_description:String(a?.desc||a?.description||a?.typeDescription||''),emitter_category:String(a?.category||a?.emitter_category||''),altitude_value:altitude.sourceValue===null?'':String(altitude.sourceValue),altitude_field:String(altitude.sourceField||''),altitude_units:String(altitude.sourceUnits||''),altitude_datum:String(altitude.datum||'unknown'),altitude_meters:altitude.known?altitude.meters:null,altitude_known:!!altitude.known,altitude_projectable:!!altitude.projectable,altitude_placement_reference:altitude.datum==='barometric'?'pressure altitude (not geometric)':altitude.projectable?altitude.datum:'not projectable',heading_degrees:Number.isFinite(heading)?heading:null,ground_speed_knots:Number.isFinite(speed)?speed:null,vertical_rate_fpm:Number.isFinite(rate)?rate:null,squawk:String(a?.squawk||''),emergency:String(a?.emergency||''),last_report_age_seconds:Number.isFinite(age)?age:null,source:String(a?._bpSourceName||'ADSB.lol')};
 }
+function showAircraftModelInBridgePointCard(kind,properties){
+ if(!aircraftVisualModule?.mountAircraftCardPreview||!droneThree)return;
+ aircraftCardPreviewCleanup?.();aircraftCardPreviewCleanup=null;
+ aircraftCardRoot?.remove();aircraftCardRoot=null;
+ const trackKey=String(properties.track_key||'').toLowerCase();
+ const record=lastCurrentAircraftRecords.find(a=>a._trackKey===trackKey)||
+  lastCurrentRecords.find(a=>a._trackKey===trackKey)||properties;
+ const visual=aircraftVisualModule.airframeForRecord(kind,record);
+ const container=document.getElementById('bpv-dock')||
+  document.querySelector('[data-bpv-pane="drones"]')||map?.getContainer?.();
+ if(!container)return;
+ const wrap=document.createElement('section');wrap.id='bp-aircraft-3d-detail-card-v2';
+ wrap.setAttribute('aria-label','BridgePoint live aircraft animated 3D model viewer');
+ wrap.style.cssText='display:block;margin:8px 6px;padding:8px;border:1px solid #5aadd088;border-radius:12px;background:linear-gradient(130deg,#061926,#082739);color:#e8f8ff;font:11px/1.45 system-ui;max-width:350px;position:relative;z-index:100;pointer-events:auto';
+ const close=document.createElement('button');close.type='button';close.textContent='×';
+ close.setAttribute('aria-label','Close aircraft 3D card');
+ close.style.cssText='float:right;border:0;background:transparent;color:#fff;font-size:22px;cursor:pointer';
+ close.onclick=()=>{aircraftCardPreviewCleanup?.();aircraftCardPreviewCleanup=null;wrap.remove();aircraftCardRoot=null};
+ const heading=document.createElement('strong');
+ heading.textContent='BRIDGEPOINT 3D AIRCRAFT · '+String(properties.callsign||properties.registration||properties.icao||kind).trim();
+ heading.style.cssText='display:block;font-size:12px;margin:3px 0 6px';
+ wrap.append(close,heading);
+ const msg=document.createElement('div');
+ msg.textContent=(visual.operator?.name||'Broadcast operator unavailable')+
+  ' · '+(visual.type||properties.type_code||'unknown type')+
+  ' · modeled span '+Math.round(visual.spanM*10)/10+' m'+
+  (visual.typeConfirmed?' (published type-family dimension)':' (representative size; exact type unverified)')+
+  ' · lights follow approximate local day/night';
+ msg.style.cssText='font-size:10px;color:#a9d8e9;margin:4px 0 6px';
+ wrap.append(msg);
+ const marker=container.querySelector?.('#bpv-property-card-slot')||
+  container.querySelector?.('#bpv-dock-actions')||null;
+ if(marker&&marker.parentNode===container)container.insertBefore(wrap,marker);
+ else container.appendChild(wrap);
+ aircraftCardRoot=wrap;
+ aircraftCardPreviewCleanup=aircraftVisualModule.mountAircraftCardPreview(wrap,droneThree,{
+  kind,variant:visual.variant,type:visual.type||properties.type_code||'',
+  flight:properties.callsign||'',registration:properties.registration||'',operator:visual.operator
+ });
+}
 function showAircraftDetails(event){
  const properties=event?.features?.[0]?.properties;if(!properties)return;
  const kind=properties.is_drone===true||properties.is_drone==='true'?'drone':String(properties.aircraft_kind||'airplane');
@@ -447,10 +487,19 @@ function showAircraftDetails(event){
  const speed=properties.ground_speed_knots===null||properties.ground_speed_knots===undefined?'Not reported':String(properties.ground_speed_knots)+' kt';
  const heading=properties.heading_degrees===null||properties.heading_degrees===undefined?'Not reported':String(properties.heading_degrees)+'°';
  const age=properties.last_report_age_seconds===null||properties.last_report_age_seconds===undefined?'Not reported':String(Math.round(Number(properties.last_report_age_seconds)))+' s ago';
- const rows=[['Model / type',properties.type_description||properties.type_code||'Not broadcast'],['ICAO track ID',properties.icao||properties.track_key||'Not broadcast'],['Registration',properties.registration||'Not broadcast'],['Emitter category',properties.emitter_category||'Not broadcast'],['Altitude report',altitude],['Ground speed',speed],['Heading',heading],['Vertical rate',rate],['Squawk',properties.squawk||'Not broadcast'],['Emergency',properties.emergency||'None reported'],['Last report',age],['Feed source',properties.source||'Public ADS-B']];
+ const visual=aircraftVisualModule?.airframeForRecord?.(kind,properties);
+ const rows=[['Model / type',properties.type_description||properties.type_code||'Not broadcast'],
+  ['3D model',visual?.typeConfirmed?'Type-family geometry · published dimensions':'Detailed representative class model · exact type unverified'],
+  ['Modeled span',visual?.spanM?Number(visual.spanM).toFixed(1)+' m':'Not established'],
+  ['Operator (callsign inference)',visual?.operator?.name||'Not available'],['ICAO track ID',properties.icao||properties.track_key||'Not broadcast'],['Registration',properties.registration||'Not broadcast'],['Emitter category',properties.emitter_category||'Not broadcast'],['Altitude report',altitude],['Ground speed',speed],['Heading',heading],['Vertical rate',rate],['Squawk',properties.squawk||'Not broadcast'],['Emergency',properties.emergency||'None reported'],['Last report',age],['Feed source',properties.source||'Public ADS-B']];
  for(const [label,value] of rows){const row=element('div','bp-aircraft-popup-row');row.append(element('span','',label),element('span','',value));root.append(row)}
  const Popup=window.maplibregl?.Popup||window.MapLibreGL?.Popup;if(typeof Popup!=='function'||!map)return;
- try{aircraftPopup?.remove?.();aircraftPopup=new Popup({closeButton:true,closeOnClick:true,maxWidth:'320px',className:'bp-aircraft-popup-shell'}).setLngLat(event.lngLat).setDOMContent(root).addTo(map)}catch(error){console.warn('BridgePoint aircraft detail popup failed',error)}
+ try{
+  aircraftPopup?.remove?.();
+  aircraftPopup=new Popup({closeButton:true,closeOnClick:true,maxWidth:'320px',className:'bp-aircraft-popup-shell'})
+   .setLngLat(event.lngLat).setDOMContent(root).addTo(map);
+  showAircraftModelInBridgePointCard(kind,properties);
+ }catch(error){console.warn('BridgePoint aircraft detail popup failed',error)}
 }
 function bindAircraftInteractions(){
  if(!map||aircraftInteractionsMap===map)return;
