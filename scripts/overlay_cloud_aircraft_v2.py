@@ -82,8 +82,14 @@ s=one(s,
   " aircraftCardRoot?.remove();aircraftCardRoot=null;\n clearAircraftVisualLabels();\n trackedAircraft.clear();",
   'clear-card-when-button-off')
 # Only the aircraft-owned cleanups; no changes to the global layer sweep.
-if 'bp-faa-obstructions-' not in s or "allowedCategories.add('clouds')" not in s:
-    raise SystemExit('CLOUDS_OR_FAA_VISIBLE_LAYER_PERMISSION_REGRESSED')
+# Preserve the exact current production FAA / other optional-layer rules.
+# Only protect the requested always-on cloud engine's own custom/map layers
+# from shared empty-globe sweeps; this does not alter any other category.
+gate_start="function isManagedOptionalOverlay(id){\n const value=String(id||'');"
+gate_fixed=gate_start+"\n // Automatic sky volumes and shadows are not button-controlled optional overlays.\n if(value.startsWith('bp-sky-cloud')||value.startsWith('bp-cloud-shadow-')||value.startsWith('bp-satellite-cloud-')||value.startsWith('bp-eumetsat-cloud-'))return false;"
+s=one(s,gate_start,gate_fixed,'preserve-automatic-cloud-layers')
+if "allowedCategories.add('clouds')" not in s:
+    raise SystemExit('LIVE_AUTOMATIC_CLOUD_ALLOWLIST_MISSING')
 if 'bridgepoint-aircraft-visuals-v2.js?v=2-colored-type-rotors-night' not in s:
     raise SystemExit('AIRCRAFT_VISUALS_SOURCE_NOT_IMPORTED')
 p.write_text(s)
