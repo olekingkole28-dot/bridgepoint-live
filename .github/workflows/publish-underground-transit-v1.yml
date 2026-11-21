@@ -83,15 +83,17 @@ jobs:
           site=Path(os.environ['SITE'])
           cave='bridgepoint-underground-scan-sites-v1.js'
           transit='bridgepoint-underground-transit-v1.js'
-          expected={
-            'index.html','app/index.html','landing.js','app.js',
-            cave,'app/'+cave,transit,'app/'+transit
+          changed_expected={
+            'index.html','app/index.html','landing.js','app.js',cave,'app/'+cave
           }
+          added_expected={transit,'app/'+transit}
           before={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
                   for p in site.rglob('*') if p.is_file()}
-          for rel in expected:
+          for rel in changed_expected:
               if rel not in before:
                   raise SystemExit('Known-good Pages artifact is missing required file: '+rel)
+          if set(before).intersection(added_expected):
+              raise SystemExit('Transit renderer path already exists in the production baseline')
 
           cave_source=Path('rebuild-v5000')/cave
           transit_source=Path('rebuild-v5000')/transit
@@ -134,10 +136,11 @@ jobs:
           added=set(after)-set(before)
           deleted=set(before)-set(after)
           changed={p for p in before if p in after and before[p]!=after[p]}
-          if added or deleted or changed!=expected:
+          if added!=added_expected or deleted or changed!=changed_expected:
               raise SystemExit('TRANSIT_ONLY_PUBLISH_SCOPE_FAILED '+json.dumps({
-                'added':sorted(added),'deleted':sorted(deleted),
-                'changed':sorted(changed),'expected':sorted(expected)
+                'added':sorted(added),'expected_added':sorted(added_expected),
+                'deleted':sorted(deleted),'changed':sorted(changed),
+                'expected_changed':sorted(changed_expected)
               }))
           if (site/cave).read_bytes()!=(site/'app'/cave).read_bytes():
               raise SystemExit('Root and app cave renderer copies differ')
@@ -149,7 +152,7 @@ jobs:
                   raise SystemExit(rel+' did not load the cache-busted underground renderer')
           if "bridgepoint-underground-transit-v1.js?v=1-public-passenger-schematic" not in (site/cave).read_text(encoding='utf-8'):
               raise SystemExit('Cave module does not initialize the transit renderer')
-          print('TRANSIT_ONLY_PUBLISH_SCOPE_PASS',len(changed),'files; no unrelated paths changed')
+          print('TRANSIT_ONLY_PUBLISH_SCOPE_PASS',len(changed),'modified files,',len(added),'new renderer files; no unrelated paths changed')
           PY
           node --check "$SITE/landing.js"
           node --check "$SITE/app.js"
