@@ -1,0 +1,46 @@
+name: Check Alternative Real Starlink OMM Source Dates Only
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/diagnose-starlink-alternative-current-v1.yml']
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - name: Validate actual orbital epochs from cached GP OMM sources
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import urllib.request,urllib.error,json,datetime,time
+          now=datetime.datetime.now(datetime.timezone.utc)
+          urls=[
+            'https://retlector.eu/starlink/json',
+            'https://celestrak.org/NORAD/elements/supplemental/gp.php?FILE=starlink&FORMAT=JSON'
+          ]
+          for url in urls:
+            try:
+              req=urllib.request.Request(url,headers={'User-Agent':'BridgePointReadOnly/1.0','Accept':'application/json'})
+              with urllib.request.urlopen(req,timeout=30) as r:
+                data=json.loads(r.read(8500000))
+              if isinstance(data,dict):
+                print('SOURCE_TOP_KEYS',url,list(data)[:10])
+                data=data.get('data',data.get('records',[]))
+              print('SOURCE_RECORDS',url,len(data) if isinstance(data,list) else type(data).__name__)
+              if not isinstance(data,list) or not data:continue
+              dates=[]
+              for row in data:
+                if not isinstance(row,dict):continue
+                dt=row.get('EPOCH') or row.get('epoch')
+                try:
+                  parsed=datetime.datetime.fromisoformat(str(dt).replace('Z','+00:00'))
+                  if parsed.tzinfo is None:parsed=parsed.replace(tzinfo=datetime.timezone.utc)
+                  dates.append(parsed)
+                except Exception:continue
+              recent=sum(0<=(now-d).total_seconds()<72*3600 for d in dates)
+              freshweek=sum(0<=(now-d).total_seconds()<7*86400 for d in dates)
+              print('SOURCE_FRESH_EPOCHS',url,'recent72h',recent,'freshweek',freshweek,'oldest',min(dates).isoformat() if dates else None,'newest',max(dates).isoformat() if dates else None,'sample',json.dumps(data[0])[:500])
+            except Exception as e:print('SOURCE_UNAVAILABLE',url,str(e)[:240])
+          PY
