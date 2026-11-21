@@ -1,0 +1,53 @@
+name: Inspect Current Live Wind RF Jets Before Minimal Fix
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/inspect-wind-rf-current-live-v3.yml']
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify live root/app Wind RF files against repository and data freshness
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import hashlib,urllib.request,urllib.error,json,datetime,re,subprocess
+          from pathlib import Path
+          root='https://bridgepointintelligence.online/'
+          paths=[
+           'bridgepoint-global-wind-rf-v1.js','app/bridgepoint-global-wind-rf-v1.js',
+           'wind-rf-global-v1.json','bridgepoint-volumetric-fields-v5978.js',
+           'app/bridgepoint-volumetric-fields-v5978.js','bridgepoint-view-v5917.js',
+           'index.html','app/index.html','bridgepoint-drone-awareness-v1.js']
+          for path in paths:
+            try:
+              req=urllib.request.Request(root+path+'?inspect-current-wind-v3='+str(__import__('time').time_ns()),
+                headers={'Cache-Control':'no-cache'})
+              with urllib.request.urlopen(req,timeout=40) as r:body=r.read()
+              sha=hashlib.sha256(body).hexdigest()
+              print('LIVE_WIND_ASSET',path,'sha',sha,'size',len(body))
+              if path.endswith('.json'):
+                x=json.loads(body)
+                print('LIVE_WIND_DATA',x.get('version'),x.get('fetched_at'),
+                  'winds',len(x.get('winds',[])),'sites',len(x.get('sites',[])))
+              else:
+                s=body.decode('utf8','replace')
+                keys=[
+                 'vertexColors:false','vertexColors:true','mountJetPreview(el,row)',
+                 'function enableAll()','function disableAll()',
+                 'toggleUnifiedWindRfJets','windrfjets=v3-current-3d-source',
+                 "v=3-persistent-3d-jets-rf-wind",'wind-rf-global-v1.json']
+                print('LIVE_WIND_FEATURE_MARKERS',path,[(k,s.count(k)) for k in keys])
+                if path=='bridgepoint-view-v5917.js':
+                  print('LIVE_WIND_VOL_HANDLER',re.findall(r"if\(a==='volumetric'\)[\s\S]{0,310}",s)[:2])
+                if path.endswith('index.html'):
+                  print('LIVE_WIND_DEFERRED_KEYS',re.findall(r'bridgepoint-view-v5917\.js[^" ]+',s)[:2])
+                local=Path('rebuild-v5000')/Path(path).name
+                if local.exists():
+                  print('LIVE_MATCHES_REPO',path,hashlib.sha256(local.read_bytes()).digest()==hashlib.sha256(body).digest())
+            except Exception as e:print('LIVE_WIND_PROBE_ERROR',path,str(e)[:250])
+          PY
