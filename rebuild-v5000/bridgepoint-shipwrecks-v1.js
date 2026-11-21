@@ -1,7 +1,7 @@
 /* BridgePoint Shipwrecks v5 — Titanic + Robert Gaskin + HMS Grafton + Kanonvraget + Timaru + HMS Loo.
  * Each wreck has a persistent marker, dedicated source-backed card and native underwater model.
  */
-const VERSION=11, MAP_STATES=new WeakMap();
+const VERSION=12, MAP_STATES=new WeakMap();
 const THREE_URL='/vendor/three.module.js?v=169-local';
 const GLTF_URL='/vendor/GLTFLoader.bundle.js?v=169-local';
 const DRACO_URL='/vendor/DRACOLoader.bundle.js?v=169-draco-v1';
@@ -163,6 +163,31 @@ export const HMS_LOO_WRECK={
  detail:'A 2023 NOAA / East Carolina University underwater photogrammetry survey of the HMS Loo wrecksite: coral-encrusted ballast blocks, scattered ship structure and artifacts on the seabed. This is a scan of the remains and surrounding seabed, not an intact or reconstructed ship hull.'
 };
 
+// Ten additional scan records. Each map marker opens its scan inside BridgePoint's
+// existing wreck card; the Sketchfab embed remains the scan's attributed source.
+export const ADDITIONAL_SHIPWRECKS=[
+ {id:'ex-hmas-junee',name:'Ex HMAS Junee — Bathurst-class minesweeper',label:'EX HMAS JUNEE',coordinates:[115.379817,-32.056583],coordinateText:'32.056583° S, 115.379817° E',displayDepthM:83,lengthM:56.7,beamM:9.5,builtYear:1943,scuttledYear:1968,modelId:'b614ee45b449455a9a6b2e6667395c0c',creator:'WreckSploration',sourceUrl:'https://sketchfab.com/3d-models/ex-hmas-junee-b614ee45b449455a9a6b2e6667395c0c',projectUrl:'https://wrecksploration.au/projects/junee/',locationSourceUrl:'https://museum.wa.gov.au/maritime-archaeology-db/wrecks/id-914',locationPrecision:'Western Australian Museum wreck-site coordinate. The Sketchfab scan does not publish a GPS georeference or survey-control transform.',detail:'A converted Bathurst-class minesweeper used for naval training before being scuttled off Rottnest Island in 1968. WreckSploration records the site at about 83 m depth; the published vessel measures 56.70 m long with a 9.50 m beam.'},
+ {id:'ss-pericles',name:'SS Pericles — 1908 ocean liner',label:'SS PERICLES',coordinates:[115.1373333333,-34.4221666667],coordinateText:'34.422167° S, 115.137333° E',displayDepthM:36,lengthM:152.6,beamM:19,builtYear:1908,lostYear:1910,modelId:'4e5f8e9418bd40ee8cbcb2a78cb54fcf',creator:'WreckSploration',sourceUrl:'https://sketchfab.com/3d-models/ss-pericles-4e5f8e9418bd40ee8cbcb2a78cb54fcf',projectUrl:'https://wrecksploration.au/projects/pericles/',locationSourceUrl:'https://museum.wa.gov.au/maritime-archaeology-db/wrecks/pericles-1',detail:'The largest wreck in this set: the 152.6 m Aberdeen Line steam liner struck an uncharted rock off Cape Leeuwin in 1910. The public photogrammetry model is partial; WreckSploration describes the full site as over 150 m long and the wreck at about 35 m depth.'},
+ {id:'county-of-caithness',name:'County of Caithness — four-masted iron ship',label:'COUNTY OF CAITHNESS · SITE 41',coordinates:[115.3333333333,-32.0666666667],coordinateText:'Approx. 32°04′ S, 115°20′ E · Rottnest graveyard area',displayDepthM:80,lengthM:81.19,beamM:11.82,builtYear:1876,modelId:'6d798673278f477bbd0238af96f96389',creator:'WreckSploration',sourceUrl:'https://sketchfab.com/3d-models/county-of-caithness-6d798673278f477bbd0238af96f96389',projectUrl:'https://wrecksploration.au/projects/caithness/',locationPrecision:'Approximate regional reference only: the source identifies Site 41 off southwest Rottnest at 80 m but does not publish numeric coordinates on its project page. The marker is placed near the published graveyard-area center, not presented as a survey waypoint.',detail:'A four-masted iron ship built in 1876, measuring 81.19 m long. WreckSploration and the Western Australian Museum identify Graveyard Site 41 as County of Caithness by matching the wreck’s mast layout and measured length; the scan was made in 2025.'},
+ {id:'gunga',name:'Gunga — 1864 iron sailing ship',label:'GUNGA · SITE 36',coordinates:[115.269817,-31.832117],coordinateText:'31.832117° S, 115.269817° E',displayDepthM:117,lengthM:78.1,builtYear:1864,modelId:'85767d8cf51c4523862d18d92549aa09',creator:'WreckSploration',sourceUrl:'https://sketchfab.com/3d-models/gunga-85767d8cf51c4523862d18d92549aa09',projectUrl:'https://wrecksploration.au/projects/gunga/',locationPrecision:'Published Site 36 wreck position. The photogrammetry mesh itself has no published GPS origin.',detail:'An iron sailing ship built in Hull in 1864 and later used as a coal hulk. Its wreck lies at about 117 m depth north of Rottnest; the photogrammetry measures the visible wreck at roughly 78 m long.'},
+ {id:'sesa-site-03',name:'Sesa (ex-Mallowdale) — Site 03',label:'SESA · SITE 03',coordinates:[115.3699,-32.0526333333],coordinateText:'32.052633° S, 115.369900° E',displayDepthM:92,lengthM:64.7,builtYear:1869,scuttledYear:1928,modelId:'d4134d96b8134737bc33971aab9dc8be',creator:'WreckSploration',sourceUrl:'https://sketchfab.com/3d-models/the-sesa-site-03-d4134d96b8134737bc33971aab9dc8be',projectUrl:'https://wrecksploration.au/projects/site03/',locationSourceUrl:'https://museum.wa.gov.au/maritime-archaeology-db/wrecks/id-1017',detail:'The 64.7 m Site 03 wreck is identified by WreckSploration and WA Museum researchers as the Sesa, formerly Mallowdale. Its measured length, two-deck arrangement and mast layout match the historical vessel; the site lies at about 92 m.'},
+ {id:'clipper-site-06',name:'The 60 m Clipper — Site 06 wreck',label:'THE CLIPPER · SITE 06',coordinates:[115.3841833333,-32.0858833333],coordinateText:'32.085883° S, 115.384183° E',displayDepthM:65,lengthM:62,modelId:'cd8e10a2ce2c42298ec9d66350313161',creator:'WreckSploration',sourceUrl:'https://sketchfab.com/3d-models/the-clipper-shipwreck-rottnest-graveyard-cd8e10a2ce2c42298ec9d66350313161',projectUrl:'https://wrecksploration.au/projects/clipper/',locationSourceUrl:'https://museum.wa.gov.au/maritime-archaeology-db/wrecks/id-1018',detail:'A large wreck known to divers as “The Clipper,” in about 65 m of water. The Western Australian Museum database keeps the vessel identity unresolved as Graveyard Site 06; the card preserves that uncertainty.'},
+ {id:'tamerlane-site-07',name:'Tamerlane — Site 07 wreck',label:'TAMERLANE · SITE 07',coordinates:[115.3498288333,-32.0596805],coordinateText:'32.059681° S, 115.349829° E',displayDepthM:100,lengthM:58,modelId:'3cfdbee7bdef4a8880c2cbce9c811961',creator:'WreckSploration',sourceUrl:'https://sketchfab.com/3d-models/site07-tamerlane-3cfdbee7bdef4a8880c2cbce9c811961',projectUrl:'https://wrecksploration.au/projects/tamerlane/',locationSourceUrl:'https://museum.wa.gov.au/maritime-archaeology-db/wrecks/id-984',detail:'A wrecksite surveyed in 2024 at approximately 100 m depth. WreckSploration presents the scan as Tamerlane; the Western Australian Museum’s public record still labels the site unidentified, so the identity is shown with its Site 07 qualifier.'},
+ {id:'eucla',name:'Eucla (ex-Wexford) — steel screw steamer',label:'EUCLA · SITE 09',coordinates:[115.345483,-32.076933],coordinateText:'32.076933° S, 115.345483° E',displayDepthM:103,lengthM:57.3,builtYear:1901,modelId:'24a9661c44ca44f19e07223fa708a8c9',creator:'WreckSploration',sourceUrl:'https://sketchfab.com/3d-models/eucla-24a9661c44ca44f19e07223fa708a8c9',projectUrl:'https://wrecksploration.au/projects/eucla/',locationSourceUrl:'https://museum.wa.gov.au/maritime-archaeology-db/wrecks/id-921',detail:'The 57.3 m steel screw steamer Eucla, formerly Wexford, was launched in 1901. WreckSploration surveyed the broken-up wreck at about 103 m depth; a large boiler remains visible in the scan.'},
+ {id:'knowsley-site-04',name:'Knowsley — Site 04 coal hulk',label:'KNOWSLEY · SITE 04',coordinates:[115.36891,-32.070665],coordinateText:'32.070665° S, 115.368910° E',displayDepthM:88,lengthM:50.85,builtYear:1864,scuttledYear:1923,modelId:'98419da25c2545e7a77ad12402cbe36d',creator:'WreckSploration',sourceUrl:'https://sketchfab.com/3d-models/knowsley-site-04-98419da25c2545e7a77ad12402cbe36d',projectUrl:'https://wrecksploration.au/projects/knowsley/',locationSourceUrl:'https://museum.wa.gov.au/maritime-archaeology-db/wrecks/id-985',detail:'An 1864-built hulk identified by Western Australian Museum archaeologists as Knowsley from the Site 04 scan’s length, deck and mast configuration. The model measures the visible wreck at about 50.85 m; the site lies at approximately 88 m.'},
+ {id:'thornliebank',name:'Thornliebank — three-masted barque',label:'THORNLIEBANK · SITE 44',coordinates:[115.4604167,-32.1146],coordinateText:'32.114600° S, 115.460417° E',displayDepthM:46,lengthM:68,builtYear:1886,modelId:'de9f7c06cf304f818ba67040e87dbd77',creator:'WreckSploration',sourceUrl:'https://sketchfab.com/3d-models/thornliebank-1886-1928-de9f7c06cf304f818ba67040e87dbd77',projectUrl:'https://wrecksploration.au/projects/thornliebank/',locationPrecision:'WreckSploration project-site location. The Sketchfab scan itself does not publish a georeferenced mesh origin.',detail:'A 68 m three-masted barque wreck lying at about 46 m depth in the Rottnest Ships Graveyard. WreckSploration documented the site in 2024 using underwater photogrammetry.'}
+];
+
+const ADDITIONAL_SHIPWRECK_BY_ID=new Map(ADDITIONAL_SHIPWRECKS.map(w=>[w.id,w]));
+export function buildAdditionalShipwreckFeatures(records=ADDITIONAL_SHIPWRECKS){
+ return (Array.isArray(records)?records:[]).filter(w=>
+  w&&typeof w.id==='string'&&Array.isArray(w.coordinates)&&
+  Number.isFinite(Number(w.coordinates[0]))&&Number.isFinite(Number(w.coordinates[1]))&&
+  Math.abs(Number(w.coordinates[0]))<=180&&Math.abs(Number(w.coordinates[1]))<=85
+ ).map(w=>({type:'Feature',id:w.id,geometry:{type:'Point',coordinates:[Number(w.coordinates[0]),Number(w.coordinates[1])]},
+  properties:{wreckId:w.id,name:w.name,label:w.label,part:'photogrammetry-scan',iconImage:ICON_ID,depthM:w.displayDepthM,coordinateText:w.coordinateText}}));
+}
+
 export function buildAllShipwreckFeatures(){
  const p=ROBERT_GASKIN_WRECK;
  const gaskin={type:'Feature',id:p.id,geometry:{type:'Point',coordinates:[Number(p.coordinates[0]),Number(p.coordinates[1])]},
@@ -185,7 +210,7 @@ export function buildAllShipwreckFeatures(){
  const l=HMS_LOO_WRECK;
  const hmsLoo={type:'Feature',id:l.id,geometry:{type:'Point',coordinates:[Number(l.coordinates[0]),Number(l.coordinates[1])]},
   properties:{wreckId:l.id,name:l.name,label:l.label,part:l.part,iconImage:ICON_ID,depthM:l.displayDepthM,coordinateText:l.coordinateText}};
- return [...buildTitanicShipwreckFeatures(),gaskin,grafton,cannon,kxi,capeOtway,timaru,hmsLoo];
+ return [...buildTitanicShipwreckFeatures(),gaskin,grafton,cannon,kxi,capeOtway,timaru,hmsLoo,...buildAdditionalShipwreckFeatures()];
 }
 
 export const TITANIC_3D_MODELS=[
@@ -227,6 +252,33 @@ export function buildTitanicShipwreckFeatures(parts=TITANIC_SHIPWRECK_PARTS){
 function safe(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function modelById(id){return TITANIC_3D_MODELS.find(m=>m.id===id)||null;}
 function partById(id){return TITANIC_SHIPWRECK_PARTS.find(p=>p.id===id)||null;}
+export function additionalShipwreckPopupHtml(wreck){
+ if(!wreck)return '';
+ const embed='https://sketchfab.com/models/'+encodeURIComponent(wreck.modelId)+'/embed?autostart=0&ui_infos=1&ui_controls=1&ui_watermark=1&ui_theme=dark';
+ const facts=[
+  ['Wreck-site position',wreck.coordinateText],
+  ['Seafloor depth','About '+wreck.displayDepthM+' m'],
+  ['Vessel length',wreck.lengthM+' m'+(wreck.beamM?' · '+wreck.beamM+' m beam':'')],
+  ['Scan / identification',wreck.builtYear?'Built '+wreck.builtYear+(wreck.scuttledYear?' · scuttled '+wreck.scuttledYear:''):'WreckSploration photogrammetry']
+ ].map(([label,value])=>'<span><b>'+safe(label)+'</b>'+safe(value)+'</span>').join('');
+ const links='<a href="'+safe(wreck.sourceUrl)+'" target="_blank" rel="noopener noreferrer">Sketchfab · original interactive photogrammetry scan ↗</a>'+ 
+  '<a href="'+safe(wreck.projectUrl)+'" target="_blank" rel="noopener noreferrer">WreckSploration · project notes and scan details ↗</a>'+ 
+  (wreck.locationSourceUrl?'<a href="'+safe(wreck.locationSourceUrl)+'" target="_blank" rel="noopener noreferrer">Western Australian Museum · wreck record and position ↗</a>':'');
+ return '<article class="bp-shipwreck-titanic-popup-v1 bp-shipwreck-additional-popup-v1">'+
+  '<div class="bp-shipwreck-kicker-v1">BRIDGEPOINT · SHIPWRECKS</div><h3>'+safe(wreck.name)+'</h3>'+ 
+  '<div class="bp-shipwreck-part-v1">Wreck site · 3D photogrammetry</div>'+ 
+  '<div class="bp-shipwreck-facts-v1">'+facts+'</div>'+ 
+  '<div class="bp-shipwreck-viewer-v1"><iframe title="'+safe(wreck.name)+' interactive 3D photogrammetry scan" src="'+safe(embed)+'" allow="autoplay; fullscreen; xr-spatial-tracking; gyroscope; accelerometer" allowfullscreen loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>'+ 
+  '<div class="bp-shipwreck-official-v1"><b>Scan, history and site references</b>'+links+'</div>'+ 
+  '<p class="bp-shipwreck-accuracy-v1"><strong>Scan and placement:</strong> '+safe(wreck.detail)+' The interactive model is embedded from its attributed Sketchfab source inside this BridgePoint card. The map marker uses the cited wreck-site position; the scan itself is not georeferenced or scaled as a seabed mesh.</p>'+ 
+  (wreck.locationPrecision?'<p class="bp-shipwreck-source-v1">'+safe(wreck.locationPrecision)+'</p>':'')+ 
+  '<p class="bp-shipwreck-source-v1">Photogrammetry creator: '+safe(wreck.creator)+'. The model remains hosted by its published source and opens here without leaving BridgePoint.</p></article>';
+}
+function openAdditionalShipwreckPopup(state,wreck,lngLat){
+ const Popup=window.maplibregl?.Popup;if(!Popup||!wreck)return;
+ if(state.popup)state.popup.remove();
+ state.popup=new Popup({closeButton:true,closeOnClick:true,maxWidth:'450px',className:'bp-shipwreck-titanic-popup-wrap-v1'}).setLngLat(lngLat||wreck.coordinates).setHTML(additionalShipwreckPopupHtml(wreck)).addTo(state.map);
+}
 function officialLinksHtml(){
  return TITANIC_OFFICIAL_SCAN_SOURCES.map(s=>'<a href="'+safe(s.url)+'" target="_blank" rel="noopener noreferrer">'+safe(s.title)+' ↗</a>').join('');
 }
@@ -281,7 +333,7 @@ function makeTitanicIcon(){
 function setStatus(state,msg){state.status=msg;const el=document.getElementById(STATUS_ID);if(el)el.textContent=msg;}
 function refreshStatusUi(state){
  const count=document.getElementById(COUNT_ID);
- if(count)count.textContent='10 persistent wreck icons · 7 native CC BY 4.0 seabed scans · '+state.stats.models.toLocaleString()+' Titanic viewer references';
+ if(count)count.textContent='20 persistent wreck icons · 7 native CC BY 4.0 seabed scans · 10 additional in-card photogrammetry scans · '+state.stats.models.toLocaleString()+' Titanic viewer references';
  const status=document.getElementById(STATUS_ID);if(status)status.textContent=state.status;
  const button=document.getElementById(TOGGLE_ID);
  if(button){button.setAttribute('aria-pressed',String(state.enabled));button.classList.toggle('is-active',state.enabled);}
@@ -997,7 +1049,7 @@ async function showRobertGaskinOnRiverbed(state){
  if(!state.enabled)return false;
  state.nativeModelAutoAttempted=true;state.nativeModelVisible=true;
  updateRobertGaskinModelStatus(state,'Loading the CC BY 4.0 photogrammetry scan…');
- setStatus(state,'Robert Gaskin native underwater mesh loading; all ten wreck icons remain on.');
+ setStatus(state,'Robert Gaskin native underwater mesh loading; all twenty wreck icons remain on.');
  try{
   const renderer=await prepareShipwreckMapRenderer(state);
   await loadRobertGaskinMesh(state,renderer);
@@ -1018,7 +1070,7 @@ async function showHmsGraftonOnSeabed(state){
  if(!state.enabled)return false;
  state.graftonModelAutoAttempted=true;state.graftonModelVisible=true;
  updateHmsGraftonModelStatus(state,'Loading the CC BY 4.0 HMS Grafton scan…');
- setStatus(state,'HMS Grafton native underwater mesh loading; all ten wreck icons remain on.');
+ setStatus(state,'HMS Grafton native underwater mesh loading; all twenty wreck icons remain on.');
  try{
   const renderer=await prepareShipwreckMapRenderer(state);
   await loadHmsGraftonMesh(state,renderer);
@@ -1040,7 +1092,7 @@ async function showCannonOnSeabed(state){
  if(!state.enabled)return false;
  state.cannonModelAutoAttempted=true;state.cannonModelVisible=true;
  updateCannonModelStatus(state,'Loading the CC BY 4.0 DTU Aqua Cannon Shipwreck scan…');
- setStatus(state,'Kanonvraget native underwater mesh loading; all ten wreck icons remain on.');
+ setStatus(state,'Kanonvraget native underwater mesh loading; all twenty wreck icons remain on.');
  try{
   const renderer=await prepareShipwreckMapRenderer(state);
   await loadCannonMesh(state,renderer);
@@ -1062,7 +1114,7 @@ async function showKxiOnSeabed(state){
  if(!state.enabled)return false;
  state.kxiModelAutoAttempted=true;state.kxiModelVisible=true;
  updateKxiModelStatus(state,'Loading the CC BY 4.0 HNLMS K XI photogrammetry scan…');
- setStatus(state,'HNLMS K XI native underwater mesh loading; all ten wreck icons remain on.');
+ setStatus(state,'HNLMS K XI native underwater mesh loading; all twenty wreck icons remain on.');
  try{
   const renderer=await prepareShipwreckMapRenderer(state);
   await loadKxiMesh(state,renderer);
@@ -1084,7 +1136,7 @@ async function showCapeOtwayOnSeabed(state){
  if(!state.enabled)return false;
  state.capeOtwayModelAutoAttempted=true;state.capeOtwayModelVisible=true;
  updateCapeOtwayModelStatus(state,'Loading the CC BY 4.0 SS Cape Otway photogrammetry scan…');
- setStatus(state,'SS Cape Otway native underwater mesh loading; all ten wreck icons remain on.');
+ setStatus(state,'SS Cape Otway native underwater mesh loading; all twenty wreck icons remain on.');
  try{
   const renderer=await prepareShipwreckMapRenderer(state);
   await loadCapeOtwayMesh(state,renderer);
@@ -1106,7 +1158,7 @@ async function showTimaruOnSeabed(state){
  if(!state.enabled)return false;
  state.timaruModelAutoAttempted=true;state.timaruModelVisible=true;
  updateTimaruModelStatus(state,'Loading the CC BY 4.0 Timaru photogrammetry scan…');
- setStatus(state,'Timaru native underwater mesh loading; all ten wreck icons remain on.');
+ setStatus(state,'Timaru native underwater mesh loading; all twenty wreck icons remain on.');
  try{
   const renderer=await prepareShipwreckMapRenderer(state);
   await loadTimaruMesh(state,renderer);
@@ -1128,7 +1180,7 @@ async function showHmsLooOnSeabed(state){
  if(!state.enabled)return false;
  state.hmsLooModelAutoAttempted=true;state.hmsLooModelVisible=true;
  updateHmsLooModelStatus(state,'Loading the CC BY 4.0 NOAA / East Carolina University photogrammetry scan…');
- setStatus(state,'HMS Loo native underwater mesh loading; all ten wreck icons remain on.');
+ setStatus(state,'HMS Loo native underwater mesh loading; all twenty wreck icons remain on.');
  try{
   const renderer=await prepareShipwreckMapRenderer(state);
   await loadHmsLooMesh(state,renderer);
@@ -1422,6 +1474,8 @@ function bindInteractions(state){
   if(hit.properties?.wreckId==='cape-otway'){openCapeOtwayPopup(state,event.lngLat||CAPE_OTWAY_WRECK.coordinates);return;}
   if(hit.properties?.wreckId==='timaru'){openTimaruPopup(state,event.lngLat||TIMARU_WRECK.coordinates);return;}
   if(hit.properties?.wreckId==='hms-loo'){openHmsLooPopup(state,event.lngLat||HMS_LOO_WRECK.coordinates);return;}
+  const additional=ADDITIONAL_SHIPWRECK_BY_ID.get(String(hit.properties?.wreckId||''));
+  if(additional){openAdditionalShipwreckPopup(state,additional,event.lngLat||additional.coordinates);return;}
   const part=partById(String(hit.properties.partId));
   if(part)openTitanicPopup(state,part,event.lngLat||part.coordinates);
  };
@@ -1431,7 +1485,7 @@ function bindInteractions(state){
   // settles. Re-allow this dedicated category and restore only Titanic layers.
   syncSharedOverlayCategory(state);
   if(!installLayers(state)){
-   setStatus(state,'Shipwrecks ON · waiting for the globe style before restoring all ten shipwreck icons.');
+   setStatus(state,'Shipwrecks ON · waiting for the globe style before restoring all twenty shipwreck icons.');
    refreshStatusUi(state);return;
   }
   setVisibility(state,true);
@@ -1444,7 +1498,7 @@ function bindInteractions(state){
   maybeAutoMaterializeCapeOtway(state);
   maybeAutoMaterializeTimaru(state);
   maybeAutoMaterializeHmsLoo(state);
-  setStatus(state,'Shipwrecks ON · all ten persistent icons remain visible through zoom, angle and style changes. Select a wreck for its card and native 3D scan.');
+  setStatus(state,'Shipwrecks ON · all twenty persistent icons remain visible through zoom, angle and style changes. Select a wreck for its BridgePoint card and 3D scan.');
   refreshStatusUi(state);
  };
  state.handleStyleLoad=state.handlePersistentVisibility;
@@ -1459,9 +1513,9 @@ function addControlGroup(state){
  group.setAttribute('data-bpv-command-section','shipwrecks');
  group.setAttribute('aria-label','Shipwrecks');
  group.innerHTML=
-  '<div class="bpv-command-heading"><span class="bpv-command-heading-icon" aria-hidden="true">🚢</span><span><b>SHIPWRECKS</b><small>Titanic + seven native underwater photogrammetry scans</small></span></div>'+
+  '<div class="bpv-command-heading"><span class="bpv-command-heading-icon" aria-hidden="true">🚢</span><span><b>SHIPWRECKS</b><small>20 persistent markers · 10 additional photogrammetry scans</small></span></div>'+
   '<div class="bpv-command-grid"><button id="'+TOGGLE_ID+'" data-bpv-action="shipwrecks" type="button" class="bpv-command-btn" aria-pressed="false" title="Show or hide mapped shipwreck markers"><span class="bpv-command-icon" aria-hidden="true">🚢</span><span class="bpv-command-label">Shipwrecks</span></button></div>'+
-  '<div id="'+COUNT_ID+'" class="bpv-data-note">10 persistent wreck icons · '+state.stats.models+' Titanic viewer references · 7 native seabed GLBs</div>'+
+  '<div id="'+COUNT_ID+'" class="bpv-data-note">20 persistent wreck icons · '+state.stats.models+' Titanic viewer references · 7 native seabed GLBs · 10 additional in-card scan viewers</div>'+
   '<div id="'+STATUS_ID+'" class="bpv-data-note">Layer off · the rest of the BridgePoint globe remains unchanged.</div>'+
   '<style id="bp-shipwrecks-titanic-style-v2">'+
   '#'+CONTROL_ID+' .bpv-data-note{font:600 10px/1.45 system-ui,sans-serif;color:#9bb7c6;margin:5px 2px;overflow-wrap:anywhere}'+
@@ -1484,8 +1538,8 @@ function addControlGroup(state){
 async function setEnabled(state,on){
  state.enabled=!!on;
  if(state.enabled){
-  if(!installLayers(state))setStatus(state,'Shipwrecks ON · waiting for the map style before showing all ten wreck icons.');
-  else setStatus(state,'Shipwrecks ON · all ten wreck icons remain visible from global zoom through close zoom. Select a marker for its card and any native underwater scan.');
+  if(!installLayers(state))setStatus(state,'Shipwrecks ON · waiting for the map style before showing all twenty wreck icons.');
+  else setStatus(state,'Shipwrecks ON · all twenty wreck icons remain visible from global zoom through close zoom. Select a marker for its card and 3D scan.');
   if(state.nativeModelRoot){
    state.nativeModelVisible=true;
    if(!state.map.getLayer(NATIVE_MODEL_LAYER_ID))ensureRobertGaskinMapLayer(state);
@@ -1537,7 +1591,7 @@ async function setEnabled(state,on){
   state.capeOtwayModelVisible=false;state.capeOtwayModelAutoAttempted=false;if(state.capeOtwayModelRoot)state.capeOtwayModelRoot.visible=false;
   state.timaruModelVisible=false;state.timaruModelAutoAttempted=false;if(state.timaruModelRoot)state.timaruModelRoot.visible=false;
   state.hmsLooModelVisible=false;state.hmsLooModelAutoAttempted=false;if(state.hmsLooModelRoot)state.hmsLooModelRoot.visible=false;
-  setVisibility(state,false);setStatus(state,'Shipwrecks off · all ten wreck icons and all seven native meshes are hidden; other BridgePoint layers are unchanged.');
+  setVisibility(state,false);setStatus(state,'Shipwrecks off · all twenty wreck icons and all seven native meshes are hidden; other BridgePoint layers are unchanged.');
  }
  refreshStatusUi(state);state.map.triggerRepaint?.();return state.enabled;
 }
@@ -1555,7 +1609,7 @@ export function initShipwrecksRenderer(target){
   hmsLooModelVisible:false,hmsLooModelAutoAttempted:false,hmsLooModelStatus:'Native scan not loaded.',hmsLooModelRoot:null,hmsLooModelPromise:null,hmsLooModelBounds:null,
   DRACOLoader:null,dracoLoader:null,KTX2Loader:null,ktx2Loader:null,
   nativeModelRenderer:null,nativeModelCamera:null,nativeModelScene:null,nativeModelLayerReady:false,nativeModelBounds:null,
-  stats:{version:VERSION,parts:10,sites:8,models:TITANIC_3D_MODELS.length,nativeModels:7,lastError:null}};
+  stats:{version:VERSION,parts:3,sites:17,additionalSites:10,models:TITANIC_3D_MODELS.length,nativeModels:7,lastError:null}};
  const api={
   version:VERSION,get enabled(){return state.enabled;},get status(){return state.status;},
   get stats(){return Object.assign({},state.stats);},get partCount(){return state.stats.parts;},get modelCount(){return state.stats.models;},
