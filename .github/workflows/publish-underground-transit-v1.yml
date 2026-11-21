@@ -1,0 +1,197 @@
+name: Publish BridgePoint Underground Transit v1
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-underground-transit-v1.yml'
+      - 'rebuild-v5000/bridgepoint-underground-transit-v1.js'
+      - 'rebuild-v5000/bridgepoint-underground-scan-sites-v1.js'
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Check only the transit and underground renderer syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check rebuild-v5000/bridgepoint-underground-transit-v1.js
+          node --check rebuild-v5000/bridgepoint-underground-scan-sites-v1.js
+          grep -Fq "bridgepoint-underground-transit-v1.js?v=1-public-passenger-schematic" rebuild-v5000/bridgepoint-underground-scan-sites-v1.js
+
+      - name: Resolve the latest successful production Pages snapshot
+        id: baseline
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          BASELINE_ID="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/publish-shipwrecks-titanic-v1.yml/runs?status=success&branch=main&per_page=100" --jq '.workflow_runs | map(select(.conclusion == "success")) | first | .id')"
+          test -n "$BASELINE_ID"
+          test "$BASELINE_ID" != null
+          ARTIFACT="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${BASELINE_ID}/artifacts" --jq '.artifacts[] | select((.expired|not) and (.name | startswith("github-pages-shipwrecks-v"))) | .name' | head -n 1)"
+          test -n "$ARTIFACT"
+          echo "run_id=$BASELINE_ID" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=$ARTIFACT" >> "$GITHUB_OUTPUT"
+          echo "TRANSIT_BASELINE run=$BASELINE_ID artifact=$ARTIFACT"
+
+      - name: Download the last successful production snapshot
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ steps.baseline.outputs.artifact_name }}
+          run-id: ${{ steps.baseline.outputs.run_id }}
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/bp-transit-base
+
+      - name: Overlay only the underground transit feature
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/bp-transit-site"
+          ARCHIVE="$(find "$RUNNER_TEMP/bp-transit-base" -name artifact.tar -type f -print -quit)"
+          test -n "$ARCHIVE"
+          mkdir -p "$SITE"
+          tar -xf "$ARCHIVE" -C "$SITE"
+          export SITE
+          python3 - <<'PY'
+          import hashlib, json, os, re
+          from pathlib import Path
+
+          site=Path(os.environ['SITE'])
+          cave='bridgepoint-underground-scan-sites-v1.js'
+          transit='bridgepoint-underground-transit-v1.js'
+          expected={
+            'index.html','app/index.html','landing.js','app.js',
+            cave,'app/'+cave,transit,'app/'+transit
+          }
+          before={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                  for p in site.rglob('*') if p.is_file()}
+          for rel in expected:
+              if rel not in before:
+                  raise SystemExit('Known-good Pages artifact is missing required file: '+rel)
+
+          cave_source=Path('rebuild-v5000')/cave
+          transit_source=Path('rebuild-v5000')/transit
+          for rel,source in ((cave,cave_source),('app/'+cave,cave_source),
+                             (transit,transit_source),('app/'+transit,transit_source)):
+              (site/rel).write_bytes(source.read_bytes())
+
+          imports={
+            'landing.js':(
+              "./"+cave+"?v=25-colorful-compact-icons",
+              "./"+cave+"?v=26-underground-transit-public-schematics"
+            ),
+            'app.js':(
+              "./"+cave+"?v=25-colorful-compact-icons",
+              "./"+cave+"?v=26-underground-transit-public-schematics"
+            )
+          }
+          for rel,(old,new) in imports.items():
+              file=site/rel
+              source=file.read_text(encoding='utf-8')
+              if source.count(old)!=1:
+                  raise SystemExit(f'{rel}: expected one exact existing cave module import; found {source.count(old)}')
+              file.write_text(source.replace(old,new,1),encoding='utf-8')
+
+          for rel,entry in (('index.html','landing.js'),('app/index.html','app.js')):
+              file=site/rel
+              source=file.read_text(encoding='utf-8')
+              pattern=r'src="([^"]*'+re.escape(entry)+r'\?v=[^"]*)"'
+              matches=list(re.finditer(pattern,source))
+              if len(matches)!=1:
+                  raise SystemExit(f'{rel}: expected exactly one active {entry} script; found {len(matches)}')
+              old=matches[0].group(1)
+              if 'underground-transit=v1' in old:
+                  raise SystemExit(f'{rel}: transit cache key is already present in the production baseline')
+              source=source.replace('src="'+old+'"','src="'+old+'&underground-transit=v1"',1)
+              file.write_text(source,encoding='utf-8')
+
+          after={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                 for p in site.rglob('*') if p.is_file()}
+          added=set(after)-set(before)
+          deleted=set(before)-set(after)
+          changed={p for p in before if p in after and before[p]!=after[p]}
+          if added or deleted or changed!=expected:
+              raise SystemExit('TRANSIT_ONLY_PUBLISH_SCOPE_FAILED '+json.dumps({
+                'added':sorted(added),'deleted':sorted(deleted),
+                'changed':sorted(changed),'expected':sorted(expected)
+              }))
+          if (site/cave).read_bytes()!=(site/'app'/cave).read_bytes():
+              raise SystemExit('Root and app cave renderer copies differ')
+          if (site/transit).read_bytes()!=(site/'app'/transit).read_bytes():
+              raise SystemExit('Root and app transit renderer copies differ')
+          for rel in ('landing.js','app.js'):
+              text=(site/rel).read_text(encoding='utf-8')
+              if 'v=26-underground-transit-public-schematics' not in text or cave not in text:
+                  raise SystemExit(rel+' did not load the cache-busted underground renderer')
+          if "bridgepoint-underground-transit-v1.js?v=1-public-passenger-schematic" not in (site/cave).read_text(encoding='utf-8'):
+              raise SystemExit('Cave module does not initialize the transit renderer')
+          print('TRANSIT_ONLY_PUBLISH_SCOPE_PASS',len(changed),'files; no unrelated paths changed')
+          PY
+          node --check "$SITE/landing.js"
+          node --check "$SITE/app.js"
+          node --check "$SITE/bridgepoint-underground-scan-sites-v1.js"
+          node --check "$SITE/bridgepoint-underground-transit-v1.js"
+          node --check "$SITE/app/bridgepoint-underground-scan-sites-v1.js"
+          node --check "$SITE/app/bridgepoint-underground-transit-v1.js"
+
+      - uses: actions/configure-pages@v5
+
+      - name: Upload the preserved site with the transit feature only
+        uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-underground-transit-v1-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/bp-transit-site
+          include-hidden-files: true
+
+      - name: Publish the preserved site with Underground Transit
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-pages-extended.mjs
+
+      - name: Verify transit stations on the live website and app
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="https://bridgepointintelligence.online"
+          VERIFIED=0
+          for pass in $(seq 1 15); do
+            if curl -fsSL -H 'Cache-Control: no-cache' "$SITE/bridgepoint-underground-transit-v1.js?check=$GITHUB_SHA-$pass" | grep -Fq 'london-bank-monument'; then
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/bridgepoint-underground-transit-v1.js?check=$GITHUB_SHA-$pass" | grep -Fq 'tokyo-shinjuku'
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app/bridgepoint-underground-transit-v1.js?check=$GITHUB_SHA-$pass" | grep -Fq 'tokyo-station'
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/bridgepoint-underground-scan-sites-v1.js?check=$GITHUB_SHA-$pass" | grep -Fq 'bridgepoint-underground-transit-v1.js?v=1-public-passenger-schematic'
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/landing.js?check=$GITHUB_SHA-$pass" | grep -Fq 'v=26-underground-transit-public-schematics'
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app.js?check=$GITHUB_SHA-$pass" | grep -Fq 'v=26-underground-transit-public-schematics'
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/?check=$GITHUB_SHA-$pass" | grep -Fq 'underground-transit=v1'
+              curl -fsSL -H 'Cache-Control: no-cache' "$SITE/app/index.html?check=$GITHUB_SHA-$pass" | grep -Fq 'underground-transit=v1'
+              VERIFIED=1
+              echo "TRANSIT_LIVE_VERIFICATION_PASS attempt=$pass"
+              break
+            fi
+            sleep 8
+          done
+          test "$VERIFIED" = 1
