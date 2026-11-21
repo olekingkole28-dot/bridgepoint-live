@@ -109,7 +109,7 @@ function installNasaNightProtocol(){
     const lum=gray[index],alpha=originalAlpha[index],x0=Math.max(0,px-4),x1=Math.min(BP_NASA_NIGHT_SIZE,px+5),area=(x1-x0)*(y1-y0),localMean=(rectSum(x0,y0,x1,y1)-lum)/Math.max(1,area-1),contrast=lum-localMean;
     if(bpNasaNightSolarAltitude(lon,lat,at)>-6||alpha===0||lum<12||(lum<64&&contrast<8)||(lum<90&&contrast<4)){pixels[j+3]=0;continue}
     const power=clamp01((lum-8)/118),edge=clamp01((contrast+2)/20),strength=clamp01(0.76*Math.pow(power,0.62)+0.24*Math.pow(edge,0.6));
-    pixels[j]=255;pixels[j+1]=Math.round(132+123*power);pixels[j+2]=Math.round(12+218*Math.pow(power,1.3));pixels[j+3]=Math.round(Math.max(32,Math.min(250,32+218*Math.pow(strength,0.72)));
+    pixels[j]=255;pixels[j+1]=Math.round(132+123*power);pixels[j+2]=Math.round(12+218*Math.pow(power,1.3));pixels[j+3]=Math.round(Math.max(32,Math.min(250,32+218*Math.pow(strength,0.72))));
    }
   }
   context.putImageData(frame,0,0);
