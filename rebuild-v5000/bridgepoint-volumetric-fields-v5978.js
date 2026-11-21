@@ -316,7 +316,7 @@ transformed.z+=sin(aWindProgress*29.0-uWindTime*2.4+aWindPhase)*.48;`);
  function startGlobalOverview(){
     if(st.globalOverview)return void st.globalOverview.enable();
     if(st.overviewPromise)return;
-    st.overviewPromise=import('./bridgepoint-global-wind-rf-v1.js?v=1-wind-jet-streams-all-on')
+    st.overviewPromise=import('./bridgepoint-global-wind-rf-v1.js?v=3-persistent-3d-jets-rf-wind')
       .then(mod=>{st.globalOverview=mod.initBridgePointGlobalWindRfV1(map);return st.globalOverview?.enable?.();})
       .catch(e=>{console.warn('BridgePoint global wind overview optional cache',e);say('Local wind and RF loading; global wind cache unavailable: '+String(e?.message||e));})
       .finally(()=>{st.overviewPromise=null;});
