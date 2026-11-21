@@ -841,14 +841,14 @@ async function initMap(){
           ['./bridgepoint-subsurface-wells-v1.js?v=6311-mobile-subsurface-wells','__BP_SUBSURFACE_WELLS_V1__','initSubsurfaceWellsRenderer','Subsurface wells'],
           ['./bridgepoint-wind-turbines-v1.js?v=6311-mobile-wind-turbines','__BP_WIND_TURBINES_V1__','initWindTurbinesRenderer','Wind turbines'],
           ['./bridgepoint-solar-fields-v1.js?v=6311-mobile-solar-fields','__BP_SOLAR_FIELDS_V1__','initSolarFieldsRenderer','Solar fields'],
-          ['./world-v2300-time-slider.js?v=6311-mobile-world-time','__BP_WORLD_TIME_SLIDER_V5908__','initWorldTimeSlider','30-day world timeline',[rpc]],
+          ['./world-v2300-time-slider.js?v=6512-nasa-nightlights-section','__BP_WORLD_TIME_SLIDER_V5908__','initWorldTimeSlider','30-day world timeline',[rpc]],
           ['./bridgepoint-celestial-sky-v6257.js?v=6311-mobile-celestial-sky','__BP_CELESTIAL_SKY_V6257__','initBridgePointCelestialSky','Celestial sky'],
           ['./world-v2300-spectral-imagery.js?v=6311-mobile-spectral-imagery','__BP_SPECTRAL_IMAGERY_V5931__','initSpectralImagery','Satellite spectral filters'],
           ['./world-v2300-underground-xray.js?v=6311-mobile-underground-xray','__BP_UNDERGROUND_XRAY_V5935__','initUndergroundXray','Underground X-ray'],
           ['./world-v2300-seismic-layer-v1.js?v=6311-mobile-usgs-seismic','__BP_USGS_SEISMIC_LAYER_V1__','initUSGSSeismicLayer','Earthquakes and seismic activity'],
           ['./world-v2300-infrastructure-volume-v5962.js?v=6311-mobile-infrastructure-volume','__BP_INFRASTRUCTURE_VOLUME_V5962__','initInfrastructureVolume','Power grid and FCC infrastructure'],
           ['./world-v2300-utility-infrastructure-v1.js?v=6311-mobile-utility-wires','__BP_UTILITY_INFRASTRUCTURE_V1__','initUtilityInfrastructure','3D utility and communications infrastructure'],
-          ['./world-v2300-sensor-layers.js?v=6311-mobile-sensor-layers','__BP_SENSOR_LAYERS_V5945__','initSensorLayers','NASA night lights and mapped sensors'],
+          ['./world-v2300-sensor-layers.js?v=6512-nasa-nightlights-latest','__BP_SENSOR_LAYERS_V5945__','initSensorLayers','NASA night lights and mapped sensors'],
           ['./world-v2300-realism.js?v=6311-mobile-world-realism','__BP_WORLD_REALISM_V5910__','initRealismMode','Real-world rendering controls']
         ];
         const results=[];
@@ -1025,7 +1025,7 @@ void import('./bridgepoint-jenolan-caves-v1.js?v=1-jenolan-large-system')
    .catch(e=>console.warn('BridgePoint global solar fields renderer unavailable',e));
 
    // BridgePoint exposes the same 30-day source-event timeline on the website globe.
-   void import('./world-v2300-time-slider.js?v=6170-no-cloud-toggle-always-on')
+   void import('./world-v2300-time-slider.js?v=6512-nasa-nightlights-section')
     .then(m=>{window.__BP_WORLD_TIME_SLIDER_V5908__=window.__BP_WORLD_TIME_SLIDER_V5908__?.map===map?window.__BP_WORLD_TIME_SLIDER_V5908__:m.initWorldTimeSlider(world,rpc)})
     .catch(e=>console.warn('BridgePoint 30-day world change scrub unavailable',e));
    // Celestial objects are shown only in the app's existing LOOK UP · SKY VIEW.
@@ -1048,7 +1048,7 @@ void import('./bridgepoint-jenolan-caves-v1.js?v=1-jenolan-large-system')
   void import('./world-v2300-utility-infrastructure-v1.js?v=11-solid-utility-wires-v10')
    .then(m=>{window.__BP_UTILITY_INFRASTRUCTURE_V1__=m.initUtilityInfrastructure(world)})
    .catch(e=>console.warn('BridgePoint global mapped 3D utility infrastructure unavailable',e));
-  void import('./world-v2300-sensor-layers.js?v=6256-gerstner-liquid-ocean')
+  void import('./world-v2300-sensor-layers.js?v=6512-nasa-nightlights-latest')
    .then(m=>{window.__BP_SENSOR_LAYERS_V5945__=m.initSensorLayers(world)})
    .catch(e=>console.warn('BridgePoint NASA night lights, GEBCO depth and mapped streetlights unavailable',e));
    void import('./world-v2300-realism.js?v=5926-world-sun-materials')

@@ -1,0 +1,291 @@
+name: Publish BridgePoint NASA Night Lights v6512
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-nasa-nightlights-v1.yml'
+      - 'release-v2300/world-v2300-time-slider.js'
+      - 'release-v2300/world-v2300-sensor-layers.js'
+      - 'rebuild-v5000/landing.js'
+      - 'rebuild-v5000/app.js'
+      - 'rebuild-v5000/index.html'
+      - 'rebuild-v5000/app-index.html'
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-v5000-nasa-nightlights-v1
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Wait for same-commit full-site rebuild to finish
+        shell: bash
+        env:
+          GH_TOKEN: "${{ github.token }}"
+        run: |
+          set -euo pipefail
+          sleep 8
+          RUN_ID="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$GITHUB_SHA&per_page=100" --jq '.workflow_runs[] | select(.path == ".github/workflows/deploy-intelligence-rebuild-v5000.yml") | .id' | head -n 1 || true)"
+          if [ -z "$RUN_ID" ]; then
+            echo "No full-site rebuild is running for this commit."
+            exit 0
+          fi
+          echo "Waiting for full-site rebuild run $RUN_ID; no workflows are cancelled."
+          while true; do
+            STATUS="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" --jq '.status')"
+            CONCLUSION="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" --jq '.conclusion // ""')"
+            if [ "$STATUS" = "completed" ]; then
+              echo "FULL_SITE_REBUILD_FINISHED run=$RUN_ID conclusion=$CONCLUSION"
+              exit 0
+            fi
+            sleep 15
+          done
+
+      - name: Resolve the latest successful production Pages artifact
+        id: baseline
+        shell: bash
+        env:
+          GH_TOKEN: "${{ github.token }}"
+        run: |
+          set -euo pipefail
+          RUNS="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?status=success&branch=main&per_page=100" --jq '.workflow_runs | map(select(.conclusion == "success")) | .[].id')"
+          BASELINE_ID=""
+          ARTIFACT=""
+          for run_id in $RUNS; do
+            candidate="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/artifacts" --jq '.artifacts[]? | select((.expired|not) and (.name | startswith("bridgepoint-v5000-"))) | .name' | head -n 1 || true)"
+            if [ -n "$candidate" ]; then
+              BASELINE_ID="$run_id"
+              ARTIFACT="$candidate"
+              break
+            fi
+          done
+          test -n "$BASELINE_ID"
+          test -n "$ARTIFACT"
+          echo "run_id=$BASELINE_ID" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=$ARTIFACT" >> "$GITHUB_OUTPUT"
+          echo "CURRENT_PRODUCTION_BASELINE run=$BASELINE_ID artifact=$ARTIFACT"
+
+      - name: Download the current production snapshot
+        uses: actions/download-artifact@v4
+        with:
+          name: "${{ steps.baseline.outputs.artifact_name }}"
+          run-id: "${{ steps.baseline.outputs.run_id }}"
+          repository: "${{ github.repository }}"
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+          path: "$RUNNER_TEMP/bp-pages-baseline"
+
+      - name: Restore current production and fingerprint non-target files
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCHIVE="$(find "$RUNNER_TEMP/bp-pages-baseline" -type f -name artifact.tar -print -quit)"
+          test -n "$ARCHIVE"
+          SITE="$RUNNER_TEMP/bp-site"
+          mkdir -p "$SITE"
+          tar -xf "$ARCHIVE" -C "$SITE"
+          for f in index.html app/index.html landing.js app.js world-v2300-time-slider.js world-v2300-sensor-layers.js; do
+            test -s "$SITE/$f" || { echo "Production baseline missing required NASA control file: $f"; exit 1; }
+          done
+          python3 - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          site=Path(os.environ["RUNNER_TEMP"])/"bp-site"
+          targets={"index.html","app/index.html","landing.js","app.js",
+                   "world-v2300-time-slider.js","app/world-v2300-time-slider.js",
+                   "world-v2300-sensor-layers.js","app/world-v2300-sensor-layers.js"}
+          required={"index.html","app/index.html","landing.js","app.js",
+                    "world-v2300-time-slider.js","world-v2300-sensor-layers.js"}
+          def digest(path):
+              h=hashlib.sha256()
+              with path.open("rb") as f:
+                  for chunk in iter(lambda:f.read(1024*1024),b""): h.update(chunk)
+              return h.hexdigest()
+          before={}
+          prior_targets={}
+          for p in sorted(site.rglob("*")):
+              if not p.is_file(): continue
+              rel=p.relative_to(site).as_posix()
+              if rel in targets: prior_targets[rel]=digest(p)
+              else: before[rel]=digest(p)
+          if not required.issubset(prior_targets):
+              raise SystemExit("Production baseline missing required root targets: "+repr(sorted(required-set(prior_targets))))
+          tmp=Path(os.environ["RUNNER_TEMP"])
+          (tmp/"bp-nasa-preservation-before.json").write_text(json.dumps(before,sort_keys=True))
+          (tmp/"bp-nasa-target-before.json").write_text(json.dumps(prior_targets,sort_keys=True))
+          print("NON_TARGET_PRODUCTION_FILES_FINGERPRINTED",len(before))
+          print("EXISTING_NASA_TARGET_FILES",len(prior_targets))
+          PY
+
+      - name: Overlay the independent NASA night-lights control
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/bp-site"
+          mkdir -p "$SITE/app"
+          for feature in world-v2300-time-slider.js world-v2300-sensor-layers.js; do
+            cp "release-v2300/$feature" "$SITE/$feature"
+            cp "release-v2300/$feature" "$SITE/app/$feature"
+          done
+          python3 - <<'PY'
+          import os,re
+          from pathlib import Path
+          site=Path(os.environ["RUNNER_TEMP"])/"bp-site"
+          versions={
+              "world-v2300-time-slider.js":"6512-nasa-nightlights-section",
+              "world-v2300-sensor-layers.js":"6512-nasa-nightlights-latest"
+          }
+          for rel in ("landing.js","app.js"):
+              p=site/rel
+              data=p.read_text(encoding="utf-8")
+              for asset,version in versions.items():
+                  pattern=r"("+re.escape(asset)+r"\?v=)[^'\s]+"
+                  data,count=re.subn(pattern,lambda m:m.group(1)+version,data)
+                  if count<1:
+                      raise SystemExit(f"{rel}: expected an import for {asset}")
+              p.write_text(data,encoding="utf-8")
+          def bump_html(rel,asset):
+              p=site/rel
+              data=p.read_text(encoding="utf-8")
+              pattern=re.compile(r"("+re.escape(asset)+r"\?v=[^'\"<>\s]+)")
+              data=re.sub(r"&nasaNightlights=[^&'\"<>\s]*","",data)
+              data,count=pattern.subn(lambda m:m.group(1)+"&nasaNightlights=6512",data)
+              if count!=1:
+                  raise SystemExit(f"{rel}: expected exactly one {asset} cache entry, found {count}")
+              p.write_text(data,encoding="utf-8")
+          bump_html("index.html","landing.js")
+          bump_html("app/index.html","app.js")
+          print("ROOT_AND_APP_ENTRYPOINT_CACHE_KEYS_UPDATED")
+          PY
+          node --input-type=module --check < "$SITE/world-v2300-time-slider.js"
+          node --input-type=module --check < "$SITE/world-v2300-sensor-layers.js"
+          node --check "$SITE/landing.js"
+          node --input-type=module --check < "$SITE/app.js"
+          cmp -s "$SITE/world-v2300-time-slider.js" "$SITE/app/world-v2300-time-slider.js"
+          cmp -s "$SITE/world-v2300-sensor-layers.js" "$SITE/app/world-v2300-sensor-layers.js"
+          grep -Fq 'bpv-nasa-nightlights-section-v6512' "$SITE/world-v2300-time-slider.js"
+          grep -Fq "request='+encodeURIComponent(nightRequestKey" "$SITE/world-v2300-sensor-layers.js"
+          if grep -Fq 'NASA VIIRS daily night imagery follows the selected time' "$SITE/world-v2300-time-slider.js"; then
+            echo "Old NASA control wording remained in timeline"
+            exit 1
+          fi
+          echo "NASA_NIGHTLIGHT_CONTROL_SOURCE_AND_CACHE_CHECKS_PASS"
+
+      - name: Verify latest global NASA tile route before publishing
+        shell: bash
+        run: |
+          set -euo pipefail
+          TILE="$RUNNER_TEMP/nasa-nightlights-global-latest.png"
+          URL='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-nasa-nightlights-v5937'
+          curl --retry 2 --retry-all-errors --retry-delay 2 --connect-timeout 10 --max-time 60 -fsSL \
+            -H 'Cache-Control: no-cache' "$URL?z=0&x=0&y=0&v=6512&request=$GITHUB_SHA" -o "$TILE"
+          python3 - "$TILE" <<'PY'
+          import struct,sys
+          from pathlib import Path
+          data=Path(sys.argv[1]).read_bytes()
+          if data[:8].hex()!="89504e470d0a1a0a":
+              raise SystemExit("NASA latest global night-lights response was not a PNG")
+          if struct.unpack(">II",data[16:24])!=(256,256):
+              raise SystemExit("NASA global tile did not return a 256x256 image")
+          print("NASA_LATEST_GLOBAL_Z0_TILE_PASS",len(data),"bytes")
+          PY
+
+      - name: Prove only NASA night-lights paths changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          site=Path(os.environ["RUNNER_TEMP"])/"bp-site"
+          tmp=Path(os.environ["RUNNER_TEMP"])
+          before=json.loads((tmp/"bp-nasa-preservation-before.json").read_text())
+          target_before=json.loads((tmp/"bp-nasa-target-before.json").read_text())
+          excluded={"index.html","app/index.html","landing.js","app.js",
+                    "world-v2300-time-slider.js","app/world-v2300-time-slider.js",
+                    "world-v2300-sensor-layers.js","app/world-v2300-sensor-layers.js"}
+          def digest(path):
+              h=hashlib.sha256()
+              with path.open("rb") as f:
+                  for chunk in iter(lambda:f.read(1024*1024),b""): h.update(chunk)
+              return h.hexdigest()
+          after={}
+          targets={}
+          for p in sorted(site.rglob("*")):
+              if not p.is_file(): continue
+              rel=p.relative_to(site).as_posix()
+              if rel in excluded: targets[rel]=digest(p)
+              else: after[rel]=digest(p)
+          if before!=after:
+              raise SystemExit("UNRELATED_PRODUCTION_FILE_CHANGE "+json.dumps({
+                  "missing":sorted(set(before)-set(after))[:25],
+                  "added":sorted(set(after)-set(before))[:25],
+                  "changed":sorted(k for k in before.keys() & after.keys() if before[k]!=after[k])[:25]
+              }))
+          if set(targets)!=excluded:
+              raise SystemExit("EXPECTED_NASA_TARGET_PATHS_MISSING "+repr(sorted(excluded-set(targets))))
+          unchanged=[k for k,v in target_before.items() if targets.get(k)==v]
+          print("NON_TARGET_PRODUCTION_FILES_BYTE_FOR_BYTE_PRESERVED",len(before))
+          print("NASA_TARGET_PATHS_PRESENT",len(targets),"unchanged_existing_targets",len(unchanged))
+          PY
+
+      - uses: actions/configure-pages@v5
+
+      - name: Upload the preserved production site with NASA night lights
+        uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: "$RUNNER_TEMP/bp-site"
+          include-hidden-files: true
+
+      - name: Publish the preserved production snapshot
+        id: deployment
+        env:
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+        run: node scripts/deploy-pages-extended.mjs
+
+      - name: Verify NASA night lights are live
+        shell: bash
+        run: |
+          set -euo pipefail
+          O='https://bridgepointintelligence.online'
+          Q="$GITHUB_SHA-nasa-nightlights-v6512"
+          D="$RUNNER_TEMP/bp-nasa-live"
+          mkdir -p "$D"
+          fetch() {
+            curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL \
+              -H 'Cache-Control: no-cache' "$O/$1?verify=$Q" -o "$D/$2"
+          }
+          fetch '' root.html
+          fetch 'app/' app.html
+          fetch 'landing.js' landing.js
+          fetch 'app.js' app.js
+          fetch 'world-v2300-time-slider.js' time-slider.js
+          fetch 'app/world-v2300-time-slider.js' app-time-slider.js
+          fetch 'world-v2300-sensor-layers.js' sensor.js
+          fetch 'app/world-v2300-sensor-layers.js' app-sensor.js
+          cmp -s "$D/time-slider.js" "$D/app-time-slider.js"
+          cmp -s "$D/sensor.js" "$D/app-sensor.js"
+          grep -Fq 'nasaNightlights=6512' "$D/root.html"
+          grep -Fq 'nasaNightlights=6512' "$D/app.html"
+          grep -Fq 'world-v2300-time-slider.js?v=6512-nasa-nightlights-section' "$D/landing.js"
+          grep -Fq 'world-v2300-time-slider.js?v=6512-nasa-nightlights-section' "$D/app.js"
+          grep -Fq 'world-v2300-sensor-layers.js?v=6512-nasa-nightlights-latest' "$D/landing.js"
+          grep -Fq 'world-v2300-sensor-layers.js?v=6512-nasa-nightlights-latest' "$D/app.js"
+          grep -Fq 'bpv-nasa-nightlights-section-v6512' "$D/time-slider.js"
+          grep -Fq "request='+encodeURIComponent(nightRequestKey" "$D/sensor.js"
+          echo "BRIDGEPOINT_NASA_NIGHTLIGHTS_LATEST_GLOBAL_OVERLAY_LIVE_PASS"

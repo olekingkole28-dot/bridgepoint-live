@@ -138,7 +138,6 @@ export function initWorldTimeSlider(target,rpc){
    <button type="button" data-live aria-pressed="true">● LIVE</button>
    <button type="button" data-play aria-pressed="false">▶ PLAY</button>
    <button type="button" data-skyview aria-pressed="false" title="Look above the street-level horizon into the height-aware sky and cloud volumes">⬆ LOOK UP · SKY VIEW</button>
-   <button type="button" data-nightlights aria-pressed="false">✦ NASA LIGHTS · OFF</button>
    <button type="button" data-refresh>↻ REFRESH</button>
    <span class="bpwt-stats" data-stats>Waiting for map bounds…</span>
   </div>
@@ -148,7 +147,7 @@ export function initWorldTimeSlider(target,rpc){
    <label>TIME WINDOW<select data-window-hours><option value="6">Previous 6 hours</option><option value="24" selected>Previous 24 hours</option><option value="72">Previous 3 days</option><option value="168">Previous 7 days</option></select></label>
   </div>
   <div class="bpwt-list" data-list aria-label="Recent source-reported changes"></div>
-  <div class="bpwt-note">Source-reported hazards/events, first-indexed assets, opportunity records and terrain refreshes are date-filtered; NASA VIIRS daily night imagery follows the selected time. Newly indexed buildings/solar do not prove construction date, dimming is not proof of outage, and boundary movement needs versioned geometry. Burn acreage is shown only when a source perimeter exists. Current imagery/geometry are not fully rewound.</div>`;
+  <div class="bpwt-note">Source-reported hazards/events, first-indexed assets, opportunity records and terrain refreshes are date-filtered. Newly indexed buildings/solar do not prove construction date, dimming is not proof of outage, and boundary movement needs versioned geometry. Burn acreage is shown only when a source perimeter exists. Current imagery/geometry are not fully rewound.</div>`;
  function mountInCard(){
   const target=document.querySelector('#bpv-world-activity-slot')||document.querySelector('#bpv-dock');
   if(!target)return false;
@@ -164,7 +163,7 @@ export function initWorldTimeSlider(target,rpc){
   mountHandle=setTimeout(retryMount,100);
  }
  const $=s=>dock.querySelector(s),slider=$('[data-slider]'),status=$('[data-status]'),date=$('[data-date]'),windowLabel=$('[data-window]'),stats=$('[data-stats]'),list=$('[data-list]'),liveBtn=$('[data-live]'),playBtn=$('[data-play]'),skyViewBtn=$('[data-skyview]');
- const collapseBtn=$('[data-collapse]'),standaloneBtn=$('[data-standalone]'),categoryFilter=$('[data-filter-category]'),domainFilter=$('[data-filter-domain]'),hoursSelect=$('[data-window-hours]'),nightlightsBtn=$('[data-nightlights]');
+ const collapseBtn=$('[data-collapse]'),standaloneBtn=$('[data-standalone]'),categoryFilter=$('[data-filter-category]'),domainFilter=$('[data-filter-domain]'),hoursSelect=$('[data-window-hours]');
  function setStandalone(on){
   const expanded=!!on;
   dock.classList.toggle('bpwt-standalone-open',expanded);
@@ -264,7 +263,102 @@ export function initWorldTimeSlider(target,rpc){
   },1650);
   schedule(true,0);
  });
- categoryFilter.addEventListener('change',renderFiltered);domainFilter.addEventListener('change',renderFiltered);hoursSelect.addEventListener('change',()=>schedule(true,0));const syncNightlightsButton=enabled=>{nightlightsBtn.setAttribute('aria-pressed',String(!!enabled));nightlightsBtn.textContent=enabled?'✦ NASA LIGHTS · ON':'✦ NASA LIGHTS · OFF'};const onNightlightsState=e=>{if(e?.detail?.map&&e.detail.map!==map)return;syncNightlightsButton(!!e?.detail?.enabled)};window.addEventListener('bp:nightlights-state',onNightlightsState);let nightlightsToggleBusy=false;async function toggleNasaNightlights(){if(nightlightsToggleBusy)return;nightlightsToggleBusy=true;nightlightsBtn.disabled=true;try{let sensor=window.__BP_SENSOR_LAYERS_V5945__;if(!sensor||sensor.map!==map||typeof sensor.toggleLights!=='function'){const mod=await import('./world-v2300-sensor-layers.js?v=6027-nasa-nightlight-corrected-radiance');sensor=window.__BP_SENSOR_LAYERS_V5945__;if(!sensor||sensor.map!==map)sensor=mod.initSensorLayers(map)}if(!sensor||sensor.map!==map||typeof sensor.toggleLights!=='function')throw new Error('night-light controller did not attach to this map');const enabled=!!sensor.toggleLights();syncNightlightsButton(enabled);setStatus(enabled?'NASA NIGHT LIGHTS ON · requesting VIIRS tiles':'NASA NIGHT LIGHTS OFF · optional imagery removed')}catch(error){setStatus('NASA NIGHT LIGHTS UNAVAILABLE · '+String(error?.message||error).slice(0,90),true);console.warn('BridgePoint NASA night-lights toggle failed',error)}finally{nightlightsToggleBusy=false;nightlightsBtn.disabled=false}}nightlightsBtn.addEventListener('click',()=>{void toggleNasaNightlights()});$('[data-refresh]').addEventListener('click',()=>schedule(true,0));
+ categoryFilter.addEventListener('change',renderFiltered);domainFilter.addEventListener('change',renderFiltered);hoursSelect.addEventListener('change',()=>schedule(true,0));
+ const nightlightsSectionId='bpv-nasa-nightlights-section-v6512';
+ let nightlightsSection=null,nightlightsMountTimer=null,nightlightsMountTurns=0,nightlightsToggleBusy=false;
+ function setNightlightsStatus(message,isError=false){
+  const node=nightlightsSection?.querySelector('[data-nightlights-status]');
+  if(!node)return;
+  node.textContent=String(message||'');
+  node.classList.toggle('is-error',!!isError);
+ }
+ function updateNightlightsButton(enabled){
+  const button=nightlightsSection?.querySelector('[data-nasa-nightlights]');
+  if(!button)return;
+  button.setAttribute('aria-pressed',String(!!enabled));
+  button.disabled=nightlightsToggleBusy;
+  const label=button.querySelector('.bpv-command-label');
+  if(label)label.textContent=enabled?'NASA NIGHT LIGHTS · ON':'NASA NIGHT LIGHTS · OFF';
+ }
+ const onNightlightsState=e=>{
+  if(e?.detail?.map&&e.detail.map!==map)return;
+  const enabled=!!e?.detail?.enabled;
+  updateNightlightsButton(enabled);
+  setNightlightsStatus(enabled?'Requesting the latest available global NASA VIIRS tiles · solar night side only.':'NASA night-light overlay is off.');
+ };
+ function mountNightlightsSection(){
+  if(disposed)return false;
+  if(!nightlightsSection){
+   nightlightsSection=document.createElement('section');
+   nightlightsSection.id=nightlightsSectionId;
+   nightlightsSection.className='bpv-command-group';
+   nightlightsSection.style.cssText='grid-column:1/-1;display:grid;gap:7px;width:100%;margin:7px 0 2px;padding:10px;border:1px solid rgba(255,206,125,.34);border-radius:12px;background:linear-gradient(145deg,rgba(23,25,34,.97),rgba(12,26,39,.96));box-shadow:0 8px 22px rgba(0,0,0,.25),inset 0 1px rgba(255,255,255,.04)';
+   nightlightsSection.setAttribute('aria-label','NASA night lights');
+   nightlightsSection.innerHTML='<div class="bpv-command-heading"><span class="bpv-command-heading-icon" aria-hidden="true">✦</span><span><b>NASA NIGHT LIGHTS</b><small>Latest global VIIRS · solar night-side overlay</small></span></div><div class="bpv-command-grid"><button type="button" class="bpv-command-btn" data-nasa-nightlights aria-pressed="false"><span class="bpv-command-icon" aria-hidden="true">✦</span><span class="bpv-command-label">NASA NIGHT LIGHTS · OFF</span></button></div><div data-nightlights-status role="status" aria-live="polite">Off · global imagery loads when requested.</div>';
+   const button=nightlightsSection.querySelector('[data-nasa-nightlights]');
+   button.style.cssText='grid-column:1/-1;width:100%;text-align:left';
+   const status=nightlightsSection.querySelector('[data-nightlights-status]');
+   status.style.cssText='margin:0;color:#b7c9d2;font:600 10px/1.4 system-ui,sans-serif';
+  }
+  const actions=document.getElementById('bpv-dock-actions');
+  const mapGroup=actions?.querySelector('[data-bpv-command-section="map"]');
+  if(!actions||!mapGroup){
+   if(!nightlightsMountTimer){
+    nightlightsMountTurns++;
+    nightlightsMountTimer=setTimeout(()=>{nightlightsMountTimer=null;mountNightlightsSection()},nightlightsMountTurns<100?150:800);
+   }
+   return false;
+  }
+  if(nightlightsSection.parentElement!==actions||nightlightsSection.previousElementSibling!==mapGroup)mapGroup.after(nightlightsSection);
+  const button=nightlightsSection.querySelector('[data-nasa-nightlights]');
+  if(button&&!button.dataset.bpBound){
+   button.dataset.bpBound='1';
+   button.addEventListener('click',()=>{void toggleNasaNightlights()});
+  }
+  const sensor=window.__BP_SENSOR_LAYERS_V5945__;
+  const enabled=sensor?.map===map?!!sensor.snapshot?.().lights:false;
+  updateNightlightsButton(enabled);
+  if(enabled)setNightlightsStatus('NASA night-light overlay active · requesting the latest available global imagery.');
+  return true;
+ }
+ async function toggleNasaNightlights(){
+  if(nightlightsToggleBusy)return;
+  nightlightsToggleBusy=true;updateNightlightsButton(false);
+  try{
+   let sensor=window.__BP_SENSOR_LAYERS_V5945__;
+   if(!sensor||sensor.map!==map||typeof sensor.toggleLights!=='function'){
+    const mod=await import('./world-v2300-sensor-layers.js?v=6512-nasa-nightlights-latest');
+    sensor=window.__BP_SENSOR_LAYERS_V5945__;
+    if(!sensor||sensor.map!==map)sensor=mod.initSensorLayers(map);
+   }
+   if(!sensor||sensor.map!==map||typeof sensor.toggleLights!=='function')throw new Error('NASA night-light controller did not attach to this globe');
+   const enabled=!!sensor.toggleLights();
+   updateNightlightsButton(enabled);
+   setNightlightsStatus(enabled?'Requesting the latest available global NASA VIIRS tiles · solar night side only.':'NASA night-light overlay is off.');
+  }catch(error){
+   setNightlightsStatus('NASA night lights could not load · '+String(error?.message||error).slice(0,100),true);
+   console.warn('BridgePoint NASA night-light control failed',error);
+  }finally{
+   nightlightsToggleBusy=false;
+   const sensor=window.__BP_SENSOR_LAYERS_V5945__;
+   updateNightlightsButton(sensor?.map===map?!!sensor.snapshot?.().lights:false);
+  }
+ }
+ const onNightlightsSourceData=e=>{
+  if(e?.sourceId!=='bp-nightlights-src-v5945'||!e.isSourceLoaded)return;
+  const sensor=window.__BP_SENSOR_LAYERS_V5945__;
+  if(sensor?.map===map&&sensor.snapshot?.().lights)setNightlightsStatus('Latest available NASA VIIRS tiles loaded · global night-side drape active.');
+ };
+ const onNightlightsMapError=e=>{
+  if(e?.sourceId!=='bp-nightlights-src-v5945')return;
+  const detail=String(e?.error?.message||e?.message||'NASA raster request failed');
+  setNightlightsStatus('NASA night-light tile error · '+detail.slice(0,110),true);
+ };
+ window.addEventListener('bp:nightlights-state',onNightlightsState);
+ map.on('sourcedata',onNightlightsSourceData);
+ map.on('error',onNightlightsMapError);
+ mountNightlightsSection();
+$('[data-refresh]').addEventListener('click',()=>schedule(true,0));
  let skyViewBusy=false,skyViewRestore=null;const skyViewDiag=window.__BP_SKY_VIEW_CONTROLLER_V6077__={version:6077,map,listenerBound:false,clickCount:0,busy:false,phase:'initialized',lastError:null,initial:null,updatedAt:Date.now()};
  function skyProjectionType(){return String(map.getProjection?.()?.type||'mercator')}
  function syncSkyViewButton(active){skyViewBtn?.setAttribute('aria-pressed',String(!!active));if(skyViewBtn)skyViewBtn.textContent=active?'⬇ RETURN TO STREET':'⬆ LOOK UP · SKY VIEW'}
@@ -363,7 +457,7 @@ export function initWorldTimeSlider(target,rpc){
  document.addEventListener('visibilitychange',onVisibility);
  ensureLayers();[80,350,1000,2200].forEach(ms=>setTimeout(()=>{if(!disposed)ensureLayers()},ms));schedule(true,300);
  const poll=setInterval(()=>{if(disposed)return clearInterval(poll);if(!document.hidden&&Number(slider.value)>=30&&Date.now()-lastRequestAt>110000)schedule(false,0)},15000);
- const api={version:5937,map,dock,refresh:()=>refresh(true),open(){setStandalone(true);return dock},close(){setStandalone(false);return dock},toggle(){setStandalone(dock.classList.contains('bpwt-collapsed'));return dock},setTimeOffsetDays(days){slider.value=String(Math.max(0,Math.min(30,30-Number(days||0))));live=Number(slider.value)>=30;updateDate();schedule(true,0)},get state(){return window.__BP_WORLD_ACTIVITY_SLIDER_STATE_V5908__||null},destroy(){disposed=true;stopPlay();clearTimeout(timer);clearTimeout(mountHandle);clearInterval(poll);map.off('moveend',onBounds);map.off('zoomend',onBounds);map.off('styledata',onStyle);document.removeEventListener('visibilitychange',onVisibility);window.removeEventListener('bp:nightlights-state',onNightlightsState);categoryFilter.removeEventListener('change',renderFiltered);domainFilter.removeEventListener('change',renderFiltered);dock.remove();try{map.getSource(SOURCE_ID)?.setData(EMPTY);if(map.getLayer(LAYER_LABEL))map.removeLayer(LAYER_LABEL);if(map.getLayer(LAYER_POINT))map.removeLayer(LAYER_POINT);if(map.getLayer(LAYER_LINE))map.removeLayer(LAYER_LINE);if(map.getLayer(LAYER_FILL))map.removeLayer(LAYER_FILL);if(map.getSource(SOURCE_ID))map.removeSource(SOURCE_ID)}catch(_){} }};
+ const api={version:6512,map,dock,refresh:()=>refresh(true),open(){setStandalone(true);return dock},close(){setStandalone(false);return dock},toggle(){setStandalone(dock.classList.contains('bpwt-collapsed'));return dock},setTimeOffsetDays(days){slider.value=String(Math.max(0,Math.min(30,30-Number(days||0))));live=Number(slider.value)>=30;updateDate();schedule(true,0)},get state(){return window.__BP_WORLD_ACTIVITY_SLIDER_STATE_V5908__||null},destroy(){disposed=true;stopPlay();clearTimeout(timer);clearTimeout(mountHandle);clearInterval(poll);map.off('moveend',onBounds);map.off('zoomend',onBounds);map.off('styledata',onStyle);document.removeEventListener('visibilitychange',onVisibility);window.removeEventListener('bp:nightlights-state',onNightlightsState);map.off('sourcedata',onNightlightsSourceData);map.off('error',onNightlightsMapError);clearTimeout(nightlightsMountTimer);nightlightsSection?.remove();categoryFilter.removeEventListener('change',renderFiltered);domainFilter.removeEventListener('change',renderFiltered);dock.remove();try{map.getSource(SOURCE_ID)?.setData(EMPTY);if(map.getLayer(LAYER_LABEL))map.removeLayer(LAYER_LABEL);if(map.getLayer(LAYER_POINT))map.removeLayer(LAYER_POINT);if(map.getLayer(LAYER_LINE))map.removeLayer(LAYER_LINE);if(map.getLayer(LAYER_FILL))map.removeLayer(LAYER_FILL);if(map.getSource(SOURCE_ID))map.removeSource(SOURCE_ID)}catch(_){} }};
  window.__BP_WORLD_TIME_SLIDER_V5908__=api;
  return api;
 }
