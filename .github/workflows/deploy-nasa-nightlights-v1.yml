@@ -250,7 +250,7 @@ jobs:
         uses: actions/upload-pages-artifact@v4
         with:
           name: bridgepoint-v5000-${{ github.run_attempt }}
-          path: "$RUNNER_TEMP/bp-site"
+          path: "${{ runner.temp }}/bp-site"
           include-hidden-files: true
 
       - name: Publish the preserved production snapshot
