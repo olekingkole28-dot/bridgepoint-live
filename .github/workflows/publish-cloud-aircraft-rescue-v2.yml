@@ -1,4 +1,5 @@
 name: Restore Always-On Volumetric Clouds and Detailed Real Aircraft v2 ONLY
+# Rerun with live-preserving older FAA gate and only cloud-layer sweep exemption.
 on:
   push:
     branches: [main]
