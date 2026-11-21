@@ -1,16 +1,17 @@
-/* BridgePoint lighthouse scan catalogue v3.
+/* BridgePoint lighthouse scan catalogue v4.
  * Map pins point to real, publicly hosted 3D scan/tour assets.
  * No procedural lighthouse geometry or remote location scraping.
  */
-const VERSION = 'photogrammetry-v3';
+const VERSION = 'global-pins-v4';
 const STATES = new WeakMap();
-const SOURCE = 'bp-lighthouse-scan-source-v3';
-const ICON = 'bp-lighthouse-scan-icon-v3';
-const MARKER = 'bp-lighthouse-scan-markers-v3';
-const LABEL = 'bp-lighthouse-scan-labels-v3';
-const CONTROL = 'bpv-lighthouses-scan-control-v3';
-const BUTTON = 'bpv-lighthouses-scan-button-v3';
-const STYLE = 'bp-lighthouses-scan-style-v3';
+const SOURCE = 'bp-lighthouse-scan-source-v4';
+const ICON = 'bp-lighthouse-scan-icon-v4';
+const MARKER = 'bp-lighthouse-scan-markers-v4';
+const LABEL = 'bp-lighthouse-scan-labels-v4';
+const GLOBAL_DOT = 'bp-lighthouse-scan-global-dots-v4';
+const CONTROL = 'bpv-lighthouses-scan-control-v4';
+const BUTTON = 'bpv-lighthouses-scan-button-v4';
+const STYLE = 'bp-lighthouses-scan-style-v4';
 
 function sf(id, label, kind, sourceUrl) {
   return {
@@ -502,15 +503,28 @@ function addLayers(map) {
     type: 'geojson', data: COLLECTION, tolerance: 0.1,
     attribution: 'Lighthouse scan sources: Kystverkmusea, Sketchfab model creators, Matterport, and named public project sources'
   });
+  // Keep a native point layer underneath the pictogram so every location is
+  // still visible and clickable at the whole-globe zoom, even if custom images
+  // are delayed or unavailable on a device.
+  if (!map.getLayer(GLOBAL_DOT)) map.addLayer({
+    id: GLOBAL_DOT, type: 'circle', source: SOURCE, minzoom: 0, maxzoom: 24,
+    paint: {
+      'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 10, 3, 11, 7, 12, 12, 14, 18, 16],
+      'circle-color': '#f1c96b',
+      'circle-opacity': 1,
+      'circle-stroke-color': '#142128',
+      'circle-stroke-width': 2.5,
+      'circle-blur': 0
+    }
+  });
   if (typeof map.hasImage === 'function' && !map.hasImage(ICON)) {
     map.addImage(ICON, lighthouseIcon(), { pixelRatio: 2 });
   }
   if (!map.getLayer(MARKER)) map.addLayer({
-    id: MARKER, type: 'symbol', source: SOURCE,
-    minzoom: 0, maxzoom: 24,
+    id: MARKER, type: 'symbol', source: SOURCE, minzoom: 0, maxzoom: 24,
     layout: {
       'icon-image': ICON,
-      'icon-size': ['interpolate', ['linear'], ['zoom'], 0, 0.35, 3, 0.43, 7, 0.60, 12, 0.74, 18, 0.9],
+      'icon-size': ['interpolate', ['linear'], ['zoom'], 0, 0.8, 3, 0.86, 7, 0.92, 12, 0.98, 18, 1.04],
       'icon-anchor': 'center', 'icon-allow-overlap': true, 'icon-ignore-placement': true,
       'icon-padding': 0
     },
@@ -534,7 +548,7 @@ function addLayers(map) {
 }
 
 function setVisible(map, visible) {
-  for (const layer of [MARKER, LABEL]) {
+  for (const layer of [GLOBAL_DOT, MARKER, LABEL]) {
     if (map.getLayer(layer)) map.setLayoutProperty(layer, 'visibility', visible ? 'visible' : 'none');
   }
 }
@@ -588,7 +602,8 @@ function popup(state, record, lngLat) {
 
 function install(state) {
   const map = state.map;
-  if (state.dead || !map.getStyle || !map.getStyle()) return false;
+  if (state.dead) return false;
+  if (!map.getStyle || !map.getStyle()) { state.status = 'waiting-for-map-style'; return false; }
   try {
     addLayers(map);
     setVisible(map, state.enabled);
@@ -604,8 +619,9 @@ function install(state) {
 
 function setEnabled(state, value) {
   state.enabled = Boolean(value);
-  if (state.enabled) install(state);
+  const installed = state.enabled ? install(state) : true;
   setVisible(state.map, state.enabled);
+  if (state.enabled && typeof state.map.triggerRepaint === 'function') state.map.triggerRepaint();
   const button = document.getElementById(BUTTON);
   if (button) {
     button.setAttribute('aria-pressed', String(state.enabled));
@@ -615,7 +631,9 @@ function setEnabled(state, value) {
     state.popup.remove();
     state.popup = null;
   }
-  state.status = state.enabled ? 'ready' : 'off';
+  if (!state.enabled) state.status = 'off';
+  else if (installed) state.status = 'ready';
+  else if (state.status !== 'map-layer-unavailable') state.status = 'waiting-for-map-style';
   return state.enabled;
 }
 
@@ -628,17 +646,24 @@ export function initLighthouseRenderer(target) {
   const state = { map, enabled: false, dead: false, status: 'off', lastError: null, popup: null, observer: null, retry: 0 };
   state.click = event => {
     if (!state.enabled || !map.queryRenderedFeatures) return;
-    const hits = map.queryRenderedFeatures(event.point, { layers: [MARKER] }) || [];
+    const layers = [MARKER, GLOBAL_DOT].filter(layer => map.getLayer(layer));
+    if (!layers.length) return;
+    const hits = map.queryRenderedFeatures(event.point, { layers }) || [];
     const id = hits.length && hits[0].properties && String(hits[0].properties.recordId);
     const record = DATA.find(item => item.id === id);
     if (record) popup(state, record, event.lngLat || record.coordinates);
   };
   state.hover = event => {
-    if (!state.enabled || !map.getLayer(MARKER) || !map.queryRenderedFeatures) return;
-    const hit = (map.queryRenderedFeatures(event.point, { layers: [MARKER] }) || []).length > 0;
+    if (!state.enabled || !map.queryRenderedFeatures) return;
+    const layers = [MARKER, GLOBAL_DOT].filter(layer => map.getLayer(layer));
+    const hit = layers.length > 0 && (map.queryRenderedFeatures(event.point, { layers }) || []).length > 0;
     map.getCanvas().style.cursor = hit ? 'pointer' : '';
   };
-  state.style = () => { if (state.enabled) install(state); };
+  state.style = () => {
+    if (!state.enabled) return;
+    install(state);
+    if (typeof map.triggerRepaint === 'function') map.triggerRepaint();
+  };
   state.persist = () => {
     if (state.dead || !state.enabled || state.frame) return;
     const raf = window.requestAnimationFrame || (callback => setTimeout(callback, 16));
@@ -675,6 +700,7 @@ export function initLighthouseRenderer(target) {
         photogrammetryRecords: DATA.filter(item => item.models.some(model => /photogrammetry/i.test(model.kind))).length,
         walkthroughs: DATA.filter(item => item.models.some(model => /Matterport/i.test(model.kind))).length,
         markerLayerReady: Boolean(map.getLayer(MARKER)),
+        globalPinLayerReady: Boolean(map.getLayer(GLOBAL_DOT)),
         lastError: state.lastError
       };
     },
@@ -698,7 +724,7 @@ export function initLighthouseRenderer(target) {
         map.off(eventName, state.persist);
       }
       state.observer && state.observer.disconnect();
-      for (const layer of [LABEL, MARKER]) if (map.getLayer(layer)) map.removeLayer(layer);
+      for (const layer of [LABEL, MARKER, GLOBAL_DOT]) if (map.getLayer(layer)) map.removeLayer(layer);
       if (map.getSource(SOURCE)) map.removeSource(SOURCE);
       if (map.hasImage && map.hasImage(ICON)) map.removeImage(ICON);
       document.getElementById(CONTROL) && document.getElementById(CONTROL).remove();
