@@ -87,7 +87,7 @@ jobs:
           run-id: "${{ steps.baseline.outputs.run_id }}"
           repository: "${{ github.repository }}"
           github-token: "${{ secrets.GITHUB_TOKEN }}"
-          path: "$RUNNER_TEMP/bp-pages-baseline"
+          path: "${{ runner.temp }}/bp-pages-baseline"
 
       - name: Restore current production and fingerprint non-target files
         shell: bash
