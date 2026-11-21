@@ -1,7 +1,7 @@
 (()=>{
 'use strict';
 if(window.__BP_WATER_FLOW_BUOYS_V1__)return;
-const VERSION=2, SOURCE='bp-water-flow-buoys-v1', ICON_LAYER=SOURCE+'-icons', LABEL_LAYER=SOURCE+'-labels';
+const VERSION=3, SOURCE='bp-water-flow-buoys-v1', ICON_LAYER=SOURCE+'-icons', LABEL_LAYER=SOURCE+'-labels';
 const NDBC_URL='https://www.ndbc.noaa.gov/data/latest_obs/latest_obs.txt';
 const NDBC_ENDPOINTS=[NDBC_URL,'https://r.jina.ai/http://www.ndbc.noaa.gov/data/latest_obs/latest_obs.txt'];
 const CURRENT_ENDPOINTS=[
@@ -15,7 +15,7 @@ const $=s=>document.querySelector(s);
 const state={version:VERSION,active:false,status:'waiting-for-map',buoys:0,flowStrokes:0,currentDate:null,currentSource:null,lastBuoyUpdate:null,error:null,buoyError:null,currentError:null};
 window.__BP_WATER_FLOW_BUOYS_V1__=state;
 let map=null,button=null,sourceReady=false,layerReady=false,buoyData=new Map(),field=[],fieldLookup=new Map(),currentFetchAt=0;
-let flowCanvas=null,flowCtx=null,flowSamples=[],flowFrame=0,flowBuildRaf=0,flowBuildGeneration=0,lastFrame=0,rebuildTimer=0,bouyTimer=0,currentTimer=0;
+let flowCanvas=null,flowCtx=null,flowSamples=[],flowClipPath=null,flowFrame=0,flowBuildRaf=0,flowBuildGeneration=0,lastFrame=0,rebuildTimer=0,bouyTimer=0,currentTimer=0;
 let statusBox=null,card=null,viewer=null,markerById=new Map(),markerMap=null,styleObserver=null,buttonObserver=null,styleInstalled=false,layersInstalling=false,markerZoomTimer=0;
 const WATER_FILL_RE=/water|ocean|sea|lake|pond|reservoir|hydro/i;
 const FLOW_LAYER_IDS=[];
@@ -191,6 +191,7 @@ function attachMapHandlers(){
  if(!map||map.__bpWaterFlowEventsV1)return;
  map.__bpWaterFlowEventsV1=true;
  const schedule=()=>{scheduleFlowBuild(260);clearTimeout(markerZoomTimer);markerZoomTimer=setTimeout(buildCloseMarkers,230)};
+ map.on('movestart',()=>{cancelAnimationFrame(flowFrame);flowFrame=0;if(flowCtx&&flowCanvas){flowCtx.setTransform(1,0,0,1,0,0);flowCtx.clearRect(0,0,flowCanvas.width,flowCanvas.height)}});
  ['moveend','zoomend','resize'].forEach(name=>map.on(name,schedule));
  map.on('click',ICON_LAYER,e=>{const f=e.features?.[0];const id=f?.properties?.station;if(id)openBuoy(String(id))});
  map.on('mouseenter',ICON_LAYER,()=>{try{map.getCanvas().style.cursor='pointer'}catch(_){}});
@@ -199,15 +200,34 @@ function attachMapHandlers(){
 function waterLayers(){
  try{return (map.getStyle()?.layers||[]).filter(l=>l.type==='fill'&&WATER_FILL_RE.test(l.id)&&!/(flow|label|symbol|shadow|outline)/i.test(l.id)&&map.getLayoutProperty(l.id,'visibility')!=='none').map(l=>l.id)}catch(_){return[]}
 }
-function isVisibleGlobeWater(lat,lon){
+function globeScreenPath(){
  try{
   const projection=map?.getProjection?.(),type=String(projection?.type||projection?.name||projection||'').toLowerCase();
-  if(type!=='globe')return true;
-  const center=map.getCenter?.();if(!center||!Number.isFinite(center.lat)||!Number.isFinite(center.lng))return true;
-  const rad=Math.PI/180,a=center.lat*rad,b=lat*rad,dl=(lon-center.lng)*rad;
-  const facing=Math.sin(a)*Math.sin(b)+Math.cos(a)*Math.cos(b)*Math.cos(dl);
-  return facing>.025;
- }catch(_){return true}
+  if(type!=='globe')return null;
+  const center=map.getCenter?.();if(!center||!Number.isFinite(center.lat)||!Number.isFinite(center.lng))return null;
+  const rad=Math.PI/180,lat1=center.lat*rad,lon1=center.lng*rad,points=[],count=64;let previousLng=center.lng;
+  for(let i=0;i<count;i++){
+   const bearing=2*Math.PI*i/count,lat2=Math.asin(Math.sin(lat1)*Math.cos(Math.PI/2)+Math.cos(lat1)*Math.sin(Math.PI/2)*Math.cos(bearing));
+   let lon2=(lon1+Math.atan2(Math.sin(bearing)*Math.sin(Math.PI/2)*Math.cos(lat1),Math.cos(Math.PI/2)-Math.sin(lat1)*Math.sin(lat2)))/rad;
+   while(lon2-previousLng>180)lon2-=360;while(lon2-previousLng< -180)lon2+=360;previousLng=lon2;
+   const p=map.project([lon2,lat2/rad]);if(!Number.isFinite(p?.x)||!Number.isFinite(p?.y))continue;
+   points.push({x:p.x,y:p.y});
+  }
+  const centerPoint=map.project([center.lng,center.lat]);
+  if(points.length>=32&&pointInScreenPath(centerPoint.x,centerPoint.y,points))return points;
+  const zoom=Number(map.getZoom?.()),radius=256*Math.pow(2,Number.isFinite(zoom)?zoom:0);
+  if(!Number.isFinite(centerPoint?.x)||!Number.isFinite(centerPoint?.y)||!Number.isFinite(radius)||radius<=0)return null;
+  return Array.from({length:64},(_,i)=>{const a=2*Math.PI*i/64;return{x:centerPoint.x+Math.cos(a)*radius,y:centerPoint.y+Math.sin(a)*radius}});
+ }catch(_){return null}
+}
+function pointInScreenPath(x,y,points){
+ if(!points||points.length<3||!Number.isFinite(x)||!Number.isFinite(y))return false;
+ let inside=false;
+ for(let i=0,j=points.length-1;i<points.length;j=i++){
+  const a=points[i],b=points[j];
+  if(((a.y>y)!==(b.y>y))&&(x<(b.x-a.x)*(y-a.y)/((b.y-a.y)||1e-9)+a.x))inside=!inside;
+ }
+ return inside;
 }
 function seeded(x,y){const a=Math.sin(x*127.1+y*311.7)*43758.5453;return a-Math.floor(a)}
 function scheduleFlowBuild(delay=160){
@@ -218,7 +238,8 @@ function buildFlowSamples(generation=flowBuildGeneration){
  const rect=map.getContainer().getBoundingClientRect(),dpr=Math.min(2,window.devicePixelRatio||1);
  const w=Math.max(1,Math.round(rect.width)),h=Math.max(1,Math.round(rect.height));
  if(flowCanvas.width!==Math.round(w*dpr)||flowCanvas.height!==Math.round(h*dpr)){flowCanvas.width=Math.round(w*dpr);flowCanvas.height=Math.round(h*dpr);flowCanvas.style.width=w+'px';flowCanvas.style.height=h+'px'}
- const water=waterLayers(),waterReady=water.length>0,step=(w<700?14:16),samples=[],max=5200;
+ const water=waterLayers(),waterReady=water.length>0,step=(w<700?14:16),samples=[],max=5200,globePath=globeScreenPath();
+ flowClipPath=globePath;
  const finish=()=>{if(generation!==flowBuildGeneration||!enabled)return;flowSamples=samples;state.flowStrokes=samples.length;setStatus();startFlowAnimation()};
  if(waterReady){
   let x=step/2,y=step/2;
@@ -229,8 +250,8 @@ function buildFlowSamples(generation=flowBuildGeneration){
     const sx=x+(seeded(x,y)-.5)*3,sy=y+(seeded(y,x)-.5)*3;
     x+=step;if(x>=w){x=step/2;y+=step}checked++;
     let hits=[];try{hits=map.queryRenderedFeatures([sx,sy],{layers:water})}catch(_){}
-    if(!hits.length)continue;
-    const ll=map.unproject([sx,sy]);if(!Number.isFinite(ll.lat)||!Number.isFinite(ll.lng)||!isVisibleGlobeWater(ll.lat,ll.lng))continue;
+    if(!hits.length||globePath&&!pointInScreenPath(sx,sy,globePath))continue;
+    const ll=map.unproject([sx,sy]);if(!Number.isFinite(ll.lat)||!Number.isFinite(ll.lng))continue;
     const vector=flowAt(ll.lat,ll.lng),mag=Math.max(.01,vector.speed||.01);
     const latStep=(vector.v/mag)*.018,lonStep=(vector.u/mag)*.018/Math.max(.12,Math.cos(ll.lat*Math.PI/180));
     let p2;try{p2=map.project([ll.lng+lonStep,ll.lat+latStep])}catch(_){continue}
@@ -244,8 +265,8 @@ function buildFlowSamples(generation=flowBuildGeneration){
  }else{
   const stride=Math.max(1,Math.ceil(field.length/max));
   for(let i=0;i<field.length&&samples.length<max;i+=stride){const p=field[i];
-   if(!isVisibleGlobeWater(p.lat,p.lon))continue;
    let pos;try{pos=map.project([p.lon,p.lat])}catch(_){continue}
+   if(globePath&&!pointInScreenPath(pos.x,pos.y,globePath))continue;
    if(pos.x<-30||pos.x>w+30||pos.y<-30||pos.y>h+30)continue;
    const latStep=(p.v/Math.max(.02,p.speed))*.018,lonStep=(p.u/Math.max(.02,p.speed))*.018/Math.max(.12,Math.cos(p.lat*Math.PI/180));
    let p2;try{p2=map.project([p.lon+lonStep,p.lat+latStep])}catch(_){continue}
@@ -267,6 +288,7 @@ function drawFlow(now){
  lastFrame=now;
  const dpr=Math.min(2,window.devicePixelRatio||1),w=flowCanvas.width/dpr,h=flowCanvas.height/dpr;
  flowCtx.setTransform(dpr,0,0,dpr,0,0);flowCtx.clearRect(0,0,w,h);flowCtx.lineWidth=1.15;flowCtx.lineCap='round';
+ if(flowClipPath?.length){flowCtx.save();flowCtx.beginPath();flowCtx.moveTo(flowClipPath[0].x,flowClipPath[0].y);for(let i=1;i<flowClipPath.length;i++)flowCtx.lineTo(flowClipPath[i].x,flowClipPath[i].y);flowCtx.closePath();flowCtx.clip()}
  const t=now/1000;
  for(const p of flowSamples){
   const intensity=Math.min(1,Math.max(.1,(p.speed||.02)*1.8));
@@ -277,6 +299,7 @@ function drawFlow(now){
   flowCtx.beginPath();flowCtx.moveTo(x1,y1);flowCtx.lineTo(x2,y2);flowCtx.stroke();
  }
  flowCtx.globalAlpha=1;
+ if(flowClipPath?.length)flowCtx.restore();
  flowFrame=requestAnimationFrame(drawFlow);
 }
 function startFlowAnimation(){if(enabled&&!flowFrame)flowFrame=requestAnimationFrame(drawFlow)}
@@ -430,7 +453,7 @@ function activate(on){
   scheduleFlowBuild(250);buildCloseMarkers();
  }else{
   clearInterval(bouyTimer);clearInterval(currentTimer);clearTimeout(rebuildTimer);flowBuildGeneration++;cancelAnimationFrame(flowBuildRaf);flowBuildRaf=0;
-  setVisible(false);cancelAnimationFrame(flowFrame);flowFrame=0;flowSamples=[];state.flowStrokes=0;
+  setVisible(false);cancelAnimationFrame(flowFrame);flowFrame=0;flowSamples=[];flowClipPath=null;state.flowStrokes=0;
   clearMarkers();closeCard();setStatus();
  }
 }
