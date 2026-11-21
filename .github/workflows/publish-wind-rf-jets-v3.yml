@@ -49,35 +49,14 @@ jobs:
           repository: ${{ github.repository }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ${{ runner.temp }}/bp-windrf-data
-      - name: Find newest intact current production artifact
+      - name: Use exact successful LIVE Wind RF v2 artifact (never stale general site)
         id: baseline
-        env:
-          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          python3 - <<'PY'
-          import os,json,subprocess
-          repo=os.environ['GITHUB_REPOSITORY']
-          choices=[]
-          for page in (1,2,3):
-            data=json.loads(subprocess.check_output(['gh','api',f'repos/{repo}/actions/artifacts?per_page=100&page={page}']))
-            for a in data.get('artifacts',[]):
-              name=a.get('name','')
-              if a.get('expired') or (a.get('size_in_bytes') or 0)<10_000_000:continue
-              if name.startswith('bridgepoint-v5000-faa-cache-'):continue
-              if not (name.startswith('bridgepoint-v5000-') or name.startswith('github-pages-')
-                or name.startswith('bridgepoint-auth-tunnel-recovery-v1') or name.startswith('bridgepoint-faa-')):continue
-              run=a.get('workflow_run') or {}
-              if run.get('id'):choices.append((a.get('created_at',''),run['id'],name))
-            if len(choices)>35:break
-          choices.sort(reverse=True)
-          if not choices:raise SystemExit('NO_COMPLETE_SITE_BASELINE')
-          date,runid,name=choices[0]
-          with open(os.environ['GITHUB_OUTPUT'],'a') as o:
-            o.write(f'run_id={runid}\nartifact_name={name}\n')
-          print('WIND_RF_JETS_PROTECTED_BASELINE',date,runid,name)
-          PY
+          echo 'run_id=44846211837' >> "$GITHUB_OUTPUT"
+          echo 'artifact_name=bridgepoint-wind-rf-visual-v2' >> "$GITHUB_OUTPUT"
+          echo 'WIND_RF_CURRENT_LIVE_ARTIFACT_LOCKED 44846211837 bridgepoint-wind-rf-visual-v2'
       - name: Download preserved complete site, never reconstruct
         uses: actions/download-artifact@v4
         with:
