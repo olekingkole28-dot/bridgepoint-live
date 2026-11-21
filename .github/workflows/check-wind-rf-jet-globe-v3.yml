@@ -1,0 +1,153 @@
+name: Wind RF Jets Real Globe Visibility and Toggle Regression v3
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/check-wind-rf-jet-globe-v3.yml']
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run all existing Wind/RF/Jets source and regression checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module --check < rebuild-v5000/bridgepoint-global-wind-rf-v1.js
+          node --input-type=module --check < rebuild-v5000/bridgepoint-volumetric-fields-v5978.js
+          node --check rebuild-v5000/bridgepoint-view-v5917.js
+          node tests/wind-rf-one-touch-v1.test.mjs
+          node tests/wind-rf-visual-v2.test.mjs
+          grep -Fq 'mountJetPreview(el,row)' rebuild-v5000/bridgepoint-global-wind-rf-v1.js
+          grep -Fq 'enableAll,disableAll' rebuild-v5000/bridgepoint-volumetric-fields-v5978.js
+          grep -Fq 'toggleUnifiedWindRfJets(b)' rebuild-v5000/bridgepoint-view-v5917.js
+      - name: Build real current Open-Meteo 10m and 250hPa global winds and FCC tower source
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/bp-windrf-smoke
+          python3 -u scripts/build_wind_rf_global_v1.py /tmp/bp-windrf-smoke/wind-rf-global-v1.json
+          python3 - <<'PY'
+          import json,datetime
+          a=json.load(open('/tmp/bp-windrf-smoke/wind-rf-global-v1.json'))
+          assert a['version']==1 and len(a['winds'])>=100 and len(a['sites'])>=60
+          assert sum(row[4]>=85 for row in a['winds'])>=15
+          print('WIND_RF_REAL_DATA_PASS',len(a['winds']),len(a['sites']),sum(row[4]>=85 for row in a['winds']),flush=True)
+          PY
+      - name: Verify REAL BridgePoint mobile globe rendering, click 3D card and toggle off/on
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --prefix /tmp/bp-windrf-smoke --no-audit --no-fund playwright-core@1.56.1
+          cat > /tmp/bp-windrf-smoke/real-globe.mjs <<'JS'
+          import {chromium} from 'playwright-core';
+          import {readFileSync} from 'node:fs';
+          const browser=await chromium.launch({executablePath:'/usr/bin/google-chrome',headless:true,
+            args:['--no-sandbox','--use-gl=angle','--use-angle=swiftshader','--enable-webgl']});
+          const context=await browser.newContext({viewport:{width:850,height:600},deviceScaleFactor:1,isMobile:true,
+            hasTouch:true,serviceWorkers:'block'});
+          const page=await context.newPage(),counts={},problems=[];
+          const routes=[
+            ['**/bridgepoint-view-v5917.js*','rebuild-v5000/bridgepoint-view-v5917.js','view'],
+            ['**/bridgepoint-volumetric-fields-v5978.js*','rebuild-v5000/bridgepoint-volumetric-fields-v5978.js','local'],
+            ['**/bridgepoint-global-wind-rf-v1.js*','rebuild-v5000/bridgepoint-global-wind-rf-v1.js','global'],
+            ['**/bridgepoint-drone-awareness-v1.js*','rebuild-v5000/bridgepoint-drone-awareness-v1.js','gate'],
+          ];
+          for(const [pattern,file,key] of routes){
+            await context.route(pattern,route=>{
+              counts[key]=(counts[key]||0)+1;
+              return route.fulfill({status:200,contentType:'text/javascript',body:readFileSync(file)});
+            });
+          }
+          await context.route('**/wind-rf-global-v1.json*',route=>{
+            counts.data=(counts.data||0)+1;
+            return route.fulfill({status:200,contentType:'application/json',
+              body:readFileSync('/tmp/bp-windrf-smoke/wind-rf-global-v1.json')});
+          });
+          page.on('pageerror',e=>{problems.push('PAGE '+e.message);console.log('BROWSER_PAGE_ERROR',e.message)});
+          page.on('console',m=>{if(m.type()==='error'&&problems.length<25)problems.push('CONSOLE '+m.text())});
+          await page.goto('https://bridgepointintelligence.online/?wind-rf-jet-globe-verify-v3',{waitUntil:'domcontentloaded',timeout:50000});
+          await page.waitForFunction(()=>!!window.__BP_LANDING_WORLD__?.map,null,{timeout:85000});
+          await page.waitForFunction(()=>document.querySelector('[data-bpv-action="volumetric"]'),null,{timeout:40000});
+          await page.evaluate(()=>document.querySelector('[data-bpv-action="volumetric"]').click());
+          try{
+            await page.waitForFunction(()=>window.__BP_WIND_RF_GLOBAL_V1__?.state?.gridSamples>=100 &&
+              window.__BP_WIND_RF_GLOBAL_V1__?.state?.registeredStructures>=60 &&
+              window.__BP_LANDING_WORLD__?.map?.getLayer('bp-wind-rf-global-jetstream-v1'),
+              null,{timeout:100000});
+          }catch(e){console.log('WIND_RF_TIMEOUT',e.message)}
+          await page.waitForTimeout(2000);
+          const first=await page.evaluate(()=>{
+            const b=document.querySelector('[data-bpv-action="volumetric"]');
+            const m=window.__BP_LANDING_WORLD__.map;
+            return {buttonPressed:b.getAttribute('aria-pressed'),global:window.__BP_WIND_RF_GLOBAL_V1__?.state,
+              local:window.__BP_VOLUMETRIC_FIELDS_V5992__?.state,
+              layer:!!m.getLayer('bp-wind-rf-global-jetstream-v1'),
+              icons:document.querySelectorAll('[aria-label^="Jet stream "]').length,
+              visibleIcons:[...document.querySelectorAll('[aria-label^="Jet stream "]')].filter(x=>!x.hidden).length,
+              projection:m.getProjection()?.type};
+          });
+          console.log('WIND_RF_REAL_GLOBE_GLOBAL',JSON.stringify(first).slice(0,5000));
+          await page.evaluate(()=>{
+            const m=window.__BP_LANDING_WORLD__.map;m.jumpTo({center:[-75,42],zoom:2.3});
+          });
+          await page.waitForTimeout(1900);
+          const icons=await page.evaluate(()=>({
+            visible:[...document.querySelectorAll('[aria-label^="Jet stream "]')].filter(x=>!x.hidden).length,
+            total:document.querySelectorAll('[aria-label^="Jet stream "]').length
+          }));
+          console.log('WIND_RF_REAL_GLOBE_AFTER_MOVEMENT',JSON.stringify(icons));
+          const found=await page.evaluate(()=>{
+            const icon=[...document.querySelectorAll('[aria-label^="Jet stream "]')].find(x=>!x.hidden);
+            if(icon){icon.click();return true}return false;
+          });
+          await page.waitForTimeout(600);
+          const card=await page.evaluate(()=>({
+            present:!!document.querySelector('.bp-wind-jet-card-v1'),
+            hasWebGLCanvas:!!document.querySelector('.bp-wind-jet-card-v1 canvas'),
+            details:document.querySelector('.bp-wind-jet-card-v1')?.textContent?.slice(0,300)
+          }));
+          console.log('WIND_RF_REAL_GLOBE_JET_3D_CARD',JSON.stringify(card));
+          await page.evaluate(()=>document.querySelector('[data-bpv-action="volumetric"]').click());
+          await page.waitForTimeout(550);
+          const off=await page.evaluate(()=>({
+            pressed:document.querySelector('[data-bpv-action="volumetric"]').getAttribute('aria-pressed'),
+            enabled:window.__BP_WIND_RF_GLOBAL_V1__?.state?.enabled,
+            iconRoot:!!document.querySelector('[aria-label="Jet stream forecast markers"]'),
+            local:window.__BP_VOLUMETRIC_FIELDS_V5992__?.state?.windOn
+          }));
+          await page.evaluate(()=>document.querySelector('[data-bpv-action="volumetric"]').click());
+          await page.waitForTimeout(1500);
+          const on=await page.evaluate(()=>({
+            pressed:document.querySelector('[data-bpv-action="volumetric"]').getAttribute('aria-pressed'),
+            enabled:window.__BP_WIND_RF_GLOBAL_V1__?.state?.enabled,
+            iconCount:document.querySelectorAll('[aria-label^="Jet stream "]').length,
+            localWind:window.__BP_VOLUMETRIC_FIELDS_V5992__?.state?.windOn,
+            localRf:window.__BP_VOLUMETRIC_FIELDS_V5992__?.state?.rfOn
+          }));
+          console.log('WIND_RF_REAL_GLOBE_TOGGLE',JSON.stringify({off,on}));
+          console.log('WIND_RF_INTERCEPTED_FILES',JSON.stringify(counts));
+          console.log('WIND_RF_BROWSER_ERRORS',JSON.stringify(problems.slice(0,12)));
+          await page.screenshot({path:'/tmp/bp-windrf-smoke/rendered-globe.png'}).catch(()=>{});
+          await browser.close();
+          if(first.buttonPressed!=='true'||first.global?.gridSamples<100||!first.layer||
+            first.global?.registeredStructures<60||first.icons<1||
+            !card.present||!card.hasWebGLCanvas||off.pressed!=='false'||off.enabled!==false||
+            off.iconRoot||on.pressed!=='true'||on.enabled!==true||on.iconCount<1||
+            !on.localWind||!on.localRf||!counts.global||!counts.data)
+             process.exitCode=1;
+          JS
+          node /tmp/bp-windrf-smoke/real-globe.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: verified-wind-rf-jet-forecast-and-mobile-test
+          path: |
+            /tmp/bp-windrf-smoke/wind-rf-global-v1.json
+            /tmp/bp-windrf-smoke/rendered-globe.png
+          if-no-files-found: ignore
