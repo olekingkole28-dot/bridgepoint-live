@@ -1,0 +1,227 @@
+name: Publish BridgePoint Underground Infrastructure v1
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-underground-infrastructure-v1.yml'
+      - 'rebuild-v5000/bridgepoint-underground-infrastructure-v1.js'
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Check the underground scan renderer
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check rebuild-v5000/bridgepoint-underground-infrastructure-v1.js
+          test "$(grep -c "id:'" rebuild-v5000/bridgepoint-underground-infrastructure-v1.js)" -eq 17
+
+      - name: Resolve the latest successful production Pages snapshot
+        id: baseline
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          BASELINE_ID="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/publish-underground-mines-v1.yml/runs?status=success&branch=main&per_page=100" --jq '.workflow_runs | map(select(.conclusion == "success")) | first | .id')"
+          test -n "$BASELINE_ID"
+          test "$BASELINE_ID" != null
+          ARTIFACT="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${BASELINE_ID}/artifacts" --jq '.artifacts[] | select((.expired|not) and (.name | startswith("bridgepoint-v5000-"))) | .name' | head -n 1)"
+          test -n "$ARTIFACT"
+          echo "run_id=$BASELINE_ID" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=$ARTIFACT" >> "$GITHUB_OUTPUT"
+          echo "UNDERGROUND_INFRA_BASELINE run=$BASELINE_ID artifact=$ARTIFACT"
+
+      - name: Download the last successful production snapshot
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ steps.baseline.outputs.artifact_name }}
+          run-id: ${{ steps.baseline.outputs.run_id }}
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/bp-underground-infrastructure-base
+
+      - name: Remove only the legacy X-ray module and overlay its replacement
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/bp-underground-infrastructure-site"
+          ARCHIVE="$(find "$RUNNER_TEMP/bp-underground-infrastructure-base" -name artifact.tar -type f -print -quit)"
+          test -n "$ARCHIVE"
+          mkdir -p "$SITE"
+          tar -xf "$ARCHIVE" -C "$SITE"
+          export SITE
+          python3 - <<'PY'
+          import hashlib, json, os, re
+          from pathlib import Path
+
+          site=Path(os.environ['SITE'])
+          old='world-v2300-underground-xray.js'
+          new='bridgepoint-underground-infrastructure-v1.js'
+          changed_expected={'index.html','app/index.html','landing.js','app.js'}
+          added_expected={new,'app/'+new}
+          deleted_expected={old,'app/'+old}
+          before={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                  for p in site.rglob('*') if p.is_file()}
+          required={'index.html','app/index.html','landing.js','app.js',old,'app/'+old}
+          missing=required-before.keys()
+          if missing:
+              raise SystemExit('Known-good Pages baseline is missing required files: '+', '.join(sorted(missing)))
+          if set(before).intersection(added_expected):
+              raise SystemExit('Replacement renderer path already exists in production baseline')
+
+          mobile_old="['./world-v2300-underground-xray.js?v=6311-mobile-underground-xray','__BP_UNDERGROUND_XRAY_V5935__','initUndergroundXray','Underground X-ray'],"
+          mobile_new="['./bridgepoint-underground-infrastructure-v1.js?v=1-public-underground-scan-catalog','__BP_UNDERGROUND_INFRASTRUCTURE_V1__','initUndergroundInfrastructure','Underground Tunnels / Sewers / Piping'],"
+          landing=site/'landing.js'
+          text=landing.read_text(encoding='utf-8')
+          if text.count(mobile_old)!=1:
+              raise SystemExit('landing.js: expected exactly one legacy mobile restore entry')
+          text=text.replace(mobile_old,mobile_new,1)
+          old_import="./world-v2300-underground-xray.js?v=5965-landmarks-and-effects"
+          new_import="./bridgepoint-underground-infrastructure-v1.js?v=1-public-underground-scan-catalog"
+          if text.count(old_import)!=1:
+              raise SystemExit('landing.js: expected exactly one legacy desktop renderer import')
+          text=text.replace(old_import,new_import,1)
+          old_init="window.__BP_UNDERGROUND_XRAY_V5935__=m.initUndergroundXray(world)"
+          new_init="window.__BP_UNDERGROUND_INFRASTRUCTURE_V1__=m.initUndergroundInfrastructure(world)"
+          if text.count(old_init)!=1:
+              raise SystemExit('landing.js: expected exactly one legacy renderer initialization')
+          text=text.replace(old_init,new_init,1)
+          text=text.replace('BridgePoint Underground X-ray unavailable','BridgePoint underground infrastructure unavailable',1)
+          landing.write_text(text,encoding='utf-8')
+
+          app=site/'app.js'
+          text=app.read_text(encoding='utf-8')
+          old_job="['underground',async()=>{const m=await import('./world-v2300-underground-xray.js?v=5965-landmarks-and-effects');window.__BP_UNDERGROUND_XRAY_V5935__=m.initUndergroundXray(world)}],"
+          new_job="['underground',async()=>{const m=await import('./bridgepoint-underground-infrastructure-v1.js?v=1-public-underground-scan-catalog');window.__BP_UNDERGROUND_INFRASTRUCTURE_V1__=m.initUndergroundInfrastructure(world)}],"
+          if text.count(old_job)!=1:
+              raise SystemExit('app.js: expected exactly one legacy underground renderer job')
+          app.write_text(text.replace(old_job,new_job,1),encoding='utf-8')
+
+          renderer=Path('rebuild-v5000')/new
+          (site/new).write_bytes(renderer.read_bytes())
+          (site/'app'/new).write_bytes(renderer.read_bytes())
+          (site/old).unlink()
+          (site/'app'/old).unlink()
+
+          for rel,entry in (('index.html','landing.js'),('app/index.html','app.js')):
+              file=site/rel
+              text=file.read_text(encoding='utf-8')
+              pattern=r'src="([^"]*'+re.escape(entry)+r'\?v=[^"]*)"'
+              matches=list(re.finditer(pattern,text))
+              if len(matches)!=1:
+                  raise SystemExit(f'{rel}: expected one active {entry} script; found {len(matches)}')
+              src=matches[0].group(1)
+              if 'underground-infrastructure=v1' in src:
+                  raise SystemExit(f'{rel}: infrastructure cache key already exists')
+              file.write_text(text.replace('src="'+src+'"','src="'+src+'&underground-infrastructure=v1"',1),encoding='utf-8')
+
+          after={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                 for p in site.rglob('*') if p.is_file()}
+          added=set(after)-set(before)
+          deleted=set(before)-set(after)
+          changed={p for p in before if p in after and before[p]!=after[p]}
+          if added!=added_expected or deleted!=deleted_expected or changed!=changed_expected:
+              raise SystemExit('UNDERGROUND_INFRA_ONLY_PUBLISH_SCOPE_FAILED '+json.dumps({
+                'added':sorted(added),'expected_added':sorted(added_expected),
+                'deleted':sorted(deleted),'expected_deleted':sorted(deleted_expected),
+                'changed':sorted(changed),'expected_changed':sorted(changed_expected)
+              }))
+          if (site/new).read_bytes()!=(site/'app'/new).read_bytes():
+              raise SystemExit('Root and app infrastructure renderer copies differ')
+          for rel in ('landing.js','app.js'):
+              text=(site/rel).read_text(encoding='utf-8')
+              if old in text or '__BP_UNDERGROUND_XRAY_V5935__' in text or 'Underground X-ray' in text:
+                  raise SystemExit(rel+' still refers to the removed legacy feature')
+              if new+'?v=1-public-underground-scan-catalog' not in text:
+                  raise SystemExit(rel+' does not load the replacement renderer')
+          if not (site/'bridgepoint-underground-mines-v1.js').exists() or not (site/'bridgepoint-underground-transit-v1.js').exists():
+              raise SystemExit('The existing mine or transit feature was lost from the baseline')
+          if 'muttental-witten' not in (site/'bridgepoint-underground-mines-v1.js').read_text(encoding='utf-8'):
+              raise SystemExit('Existing mine scan records were not preserved')
+          if 'underground-infrastructure=v1' not in (site/'index.html').read_text(encoding='utf-8') or 'underground-infrastructure=v1' not in (site/'app/index.html').read_text(encoding='utf-8'):
+              raise SystemExit('Production entry cache keys were not updated')
+          print('UNDERGROUND_INFRA_ONLY_SCOPE_PASS: four entry files changed, two legacy module copies removed, two new renderer copies added')
+          PY
+          node --check "$SITE/landing.js"
+          node --check "$SITE/app.js"
+          node --check "$SITE/bridgepoint-underground-infrastructure-v1.js"
+          node --check "$SITE/app/bridgepoint-underground-infrastructure-v1.js"
+          test "$(grep -c "id:'" "$SITE/bridgepoint-underground-infrastructure-v1.js")" -eq 17
+          cmp -s "$SITE/bridgepoint-underground-infrastructure-v1.js" "$SITE/app/bridgepoint-underground-infrastructure-v1.js"
+
+      - uses: actions/configure-pages@v5
+
+      - name: Upload the preserved site with the underground scan button only
+        uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/bp-underground-infrastructure-site
+          include-hidden-files: true
+
+      - name: Publish the preserved site with underground scans
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-pages-extended.mjs
+
+      - name: Verify the underground scan publication and retained features
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="https://bridgepointintelligence.online"
+          VERIFIED=0
+          fetch_live_file() {
+            curl -fsSL -H 'Cache-Control: no-cache' "$SITE/$1?check=$GITHUB_SHA-$pass" -o "$RUNNER_TEMP/$2"
+          }
+          for pass in $(seq 1 15); do
+            if fetch_live_file 'bridgepoint-underground-infrastructure-v1.js' 'infra-root.js' && grep -Fq 'futatsugoya-tunnel-japan' "$RUNNER_TEMP/infra-root.js"; then
+              fetch_live_file 'app/bridgepoint-underground-infrastructure-v1.js' 'infra-app.js'
+              fetch_live_file 'landing.js' 'landing-live.js'
+              fetch_live_file 'app.js' 'app-live.js'
+              fetch_live_file '' 'home-live.html'
+              fetch_live_file 'app/index.html' 'app-home-live.html'
+              fetch_live_file 'bridgepoint-underground-mines-v1.js' 'mines-live.js'
+              fetch_live_file 'bridgepoint-underground-transit-v1.js' 'transit-live.js'
+              cmp -s "$RUNNER_TEMP/infra-root.js" "$RUNNER_TEMP/infra-app.js"
+              grep -Fq 'palatine-neronian-cryptoporticus-rome' "$RUNNER_TEMP/infra-root.js"
+              grep -Fq 'usti-pipeline-repair-czechia' "$RUNNER_TEMP/infra-root.js"
+              grep -Fq 'muttental-witten' "$RUNNER_TEMP/mines-live.js"
+              grep -Fq 'bridgepoint-underground-infrastructure-v1.js?v=1-public-underground-scan-catalog' "$RUNNER_TEMP/landing-live.js"
+              grep -Fq 'bridgepoint-underground-infrastructure-v1.js?v=1-public-underground-scan-catalog' "$RUNNER_TEMP/app-live.js"
+              grep -Fq 'underground-infrastructure=v1' "$RUNNER_TEMP/home-live.html"
+              grep -Fq 'underground-infrastructure=v1' "$RUNNER_TEMP/app-home-live.html"
+              if grep -Eqi 'world-v2300-underground-xray|UNDERGROUND_XRAY_V5935|Underground X-ray|bridgepoint-public-underground-xray-v5935' "$RUNNER_TEMP/landing-live.js" "$RUNNER_TEMP/app-live.js"; then
+                echo "Legacy X-ray references remain in a live entry file" >&2
+                exit 1
+              fi
+              VERIFIED=1
+              echo "UNDERGROUND_INFRA_LIVE_VERIFICATION_PASS attempt=$pass records=17"
+              break
+            fi
+            sleep 8
+          done
+          test "$VERIFIED" = 1
