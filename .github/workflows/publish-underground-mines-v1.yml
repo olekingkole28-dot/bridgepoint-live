@@ -1,0 +1,215 @@
+name: Publish BridgePoint Underground Mines & Quarries v1
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-underground-mines-v1.yml'
+      - 'rebuild-v5000/bridgepoint-underground-mines-v1.js'
+      - 'rebuild-v5000/bridgepoint-underground-scan-sites-v1.js'
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Check only the mine and quarry renderer syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check rebuild-v5000/bridgepoint-underground-mines-v1.js
+          node --check rebuild-v5000/bridgepoint-underground-scan-sites-v1.js
+          grep -Fq "bridgepoint-underground-transit-v1.js?v=1-public-passenger-schematic" rebuild-v5000/bridgepoint-underground-scan-sites-v1.js
+          grep -Fq "bridgepoint-underground-mines-v1.js?v=1-initial-photogrammetry-40" rebuild-v5000/bridgepoint-underground-scan-sites-v1.js
+          test "$(grep -c '"id":' rebuild-v5000/bridgepoint-underground-mines-v1.js)" -eq 40
+
+      - name: Resolve the latest successful production Pages snapshot
+        id: baseline
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          BASELINE_ID="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/publish-underground-transit-v1.yml/runs?status=success&branch=main&per_page=100" --jq '.workflow_runs | map(select(.conclusion == "success")) | first | .id')"
+          test -n "$BASELINE_ID"
+          test "$BASELINE_ID" != null
+          ARTIFACT="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${BASELINE_ID}/artifacts" --jq '.artifacts[] | select((.expired|not) and (.name | startswith("bridgepoint-v5000-"))) | .name' | head -n 1)"
+          test -n "$ARTIFACT"
+          echo "run_id=$BASELINE_ID" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=$ARTIFACT" >> "$GITHUB_OUTPUT"
+          echo "MINES_BASELINE run=$BASELINE_ID artifact=$ARTIFACT"
+
+      - name: Download the last successful production snapshot
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ steps.baseline.outputs.artifact_name }}
+          run-id: ${{ steps.baseline.outputs.run_id }}
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/bp-mines-base
+
+      - name: Overlay only the underground mine and quarry feature
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/bp-mines-site"
+          ARCHIVE="$(find "$RUNNER_TEMP/bp-mines-base" -name artifact.tar -type f -print -quit)"
+          test -n "$ARCHIVE"
+          mkdir -p "$SITE"
+          tar -xf "$ARCHIVE" -C "$SITE"
+          export SITE
+          python3 - <<'PY'
+          import hashlib, json, os, re
+          from pathlib import Path
+
+          site=Path(os.environ['SITE'])
+          cave='bridgepoint-underground-scan-sites-v1.js'
+          mines='bridgepoint-underground-mines-v1.js'
+          changed_expected={
+            'index.html','app/index.html','landing.js','app.js',cave,'app/'+cave
+          }
+          added_expected={mines,'app/'+mines}
+          before={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                  for p in site.rglob('*') if p.is_file()}
+          for rel in changed_expected:
+              if rel not in before:
+                  raise SystemExit('Known-good Pages artifact is missing required file: '+rel)
+          if set(before).intersection(added_expected):
+              raise SystemExit('Mines renderer path already exists in the production baseline')
+
+          cave_source=Path('rebuild-v5000')/cave
+          mines_source=Path('rebuild-v5000')/mines
+          for rel,source in ((cave,cave_source),('app/'+cave,cave_source),
+                             (mines,mines_source),('app/'+mines,mines_source)):
+              (site/rel).write_bytes(source.read_bytes())
+
+          imports={
+            'landing.js':(
+              "./"+cave+"?v=26-underground-transit-public-schematics",
+              "./"+cave+"?v=27-underground-mines-photogrammetry-40"
+            ),
+            'app.js':(
+              "./"+cave+"?v=26-underground-transit-public-schematics",
+              "./"+cave+"?v=27-underground-mines-photogrammetry-40"
+            )
+          }
+          for rel,(old,new) in imports.items():
+              file=site/rel
+              source=file.read_text(encoding='utf-8')
+              if source.count(old)!=1:
+                  raise SystemExit(f'{rel}: expected one exact existing cave module import; found {source.count(old)}')
+              file.write_text(source.replace(old,new,1),encoding='utf-8')
+
+          for rel,entry in (('index.html','landing.js'),('app/index.html','app.js')):
+              file=site/rel
+              source=file.read_text(encoding='utf-8')
+              pattern=r'src="([^"]*'+re.escape(entry)+r'\?v=[^"]*)"'
+              matches=list(re.finditer(pattern,source))
+              if len(matches)!=1:
+                  raise SystemExit(f'{rel}: expected exactly one active {entry} script; found {len(matches)}')
+              old=matches[0].group(1)
+              if 'underground-mines=v1' in old:
+                  raise SystemExit(f'{rel}: mines cache key is already present in the production baseline')
+              source=source.replace('src="'+old+'"','src="'+old+'&underground-mines=v1"',1)
+              file.write_text(source,encoding='utf-8')
+
+          after={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                 for p in site.rglob('*') if p.is_file()}
+          added=set(after)-set(before)
+          deleted=set(before)-set(after)
+          changed={p for p in before if p in after and before[p]!=after[p]}
+          if added!=added_expected or deleted or changed!=changed_expected:
+              raise SystemExit('MINES_ONLY_PUBLISH_SCOPE_FAILED '+json.dumps({
+                'added':sorted(added),'expected_added':sorted(added_expected),
+                'deleted':sorted(deleted),'changed':sorted(changed),
+                'expected_changed':sorted(changed_expected)
+              }))
+          if (site/cave).read_bytes()!=(site/'app'/cave).read_bytes():
+              raise SystemExit('Root and app cave renderer copies differ')
+          if (site/mines).read_bytes()!=(site/'app'/mines).read_bytes():
+              raise SystemExit('Root and app mine and quarry renderer copies differ')
+          for rel in ('landing.js','app.js'):
+              text=(site/rel).read_text(encoding='utf-8')
+              if 'v=27-underground-mines-photogrammetry-40' not in text or cave not in text:
+                  raise SystemExit(rel+' did not load the cache-busted underground renderer')
+          cave_text=(site/cave).read_text(encoding='utf-8')
+          if "bridgepoint-underground-transit-v1.js?v=1-public-passenger-schematic" not in cave_text or "bridgepoint-underground-mines-v1.js?v=1-initial-photogrammetry-40" not in cave_text:
+              raise SystemExit('Cave module does not initialize the mine and quarry renderer')
+          print('MINES_ONLY_PUBLISH_SCOPE_PASS',len(changed),'modified files,',len(added),'new renderer files; no unrelated paths changed')
+          PY
+          node --check "$SITE/landing.js"
+          node --check "$SITE/app.js"
+          node --check "$SITE/bridgepoint-underground-scan-sites-v1.js"
+          node --check "$SITE/bridgepoint-underground-mines-v1.js"
+          node --check "$SITE/app/bridgepoint-underground-scan-sites-v1.js"
+          node --check "$SITE/app/bridgepoint-underground-mines-v1.js"
+          test "$(grep -c '"id":' "$SITE/bridgepoint-underground-mines-v1.js")" -eq 40
+          cmp -s "$SITE/bridgepoint-underground-mines-v1.js" "$SITE/app/bridgepoint-underground-mines-v1.js"
+
+      - uses: actions/configure-pages@v5
+
+      - name: Upload the preserved site with the mine and quarry feature only
+        uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/bp-mines-site
+          include-hidden-files: true
+
+      - name: Publish the preserved site with Underground Mines
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-pages-extended.mjs
+
+      - name: Verify mines scans on the live website and app
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="https://bridgepointintelligence.online"
+          VERIFIED=0
+          fetch_live_file() {
+            curl -fsSL -H 'Cache-Control: no-cache' "$SITE/$1?check=$GITHUB_SHA-$pass" -o "$RUNNER_TEMP/$2"
+          }
+          for pass in $(seq 1 15); do
+            if fetch_live_file 'bridgepoint-underground-mines-v1.js' 'mines-root.js' && grep -Fq 'muttental-witten' "$RUNNER_TEMP/mines-root.js"; then
+              fetch_live_file 'app/bridgepoint-underground-mines-v1.js' 'mines-app.js'
+              fetch_live_file 'bridgepoint-underground-scan-sites-v1.js' 'underground-loader.js'
+              fetch_live_file 'landing.js' 'landing-entry.js'
+              fetch_live_file 'app.js' 'app-entry.js'
+              fetch_live_file '' 'home.html'
+              fetch_live_file 'app/index.html' 'app-home.html'
+              grep -Fq 'hashima-gunkanjima' "$RUNNER_TEMP/mines-root.js"
+              grep -Fq 'quarry-zelesice' "$RUNNER_TEMP/mines-app.js"
+              grep -Fq 'bridgepoint-underground-transit-v1.js?v=1-public-passenger-schematic' "$RUNNER_TEMP/underground-loader.js"
+              grep -Fq 'bridgepoint-underground-mines-v1.js?v=1-initial-photogrammetry-40' "$RUNNER_TEMP/underground-loader.js"
+              grep -Fq 'v=27-underground-mines-photogrammetry-40' "$RUNNER_TEMP/landing-entry.js"
+              grep -Fq 'v=27-underground-mines-photogrammetry-40' "$RUNNER_TEMP/app-entry.js"
+              grep -Fq 'underground-mines=v1' "$RUNNER_TEMP/home.html"
+              grep -Fq 'underground-mines=v1' "$RUNNER_TEMP/app-home.html"
+              VERIFIED=1
+              echo "MINES_LIVE_VERIFICATION_PASS attempt=$pass"
+              break
+            fi
+            sleep 8
+          done
+          test "$VERIFIED" = 1

@@ -524,6 +524,9 @@ export function initUndergroundScanSitesRenderer(target){
  void import('./bridgepoint-underground-transit-v1.js?v=1-public-passenger-schematic')
   .then(m=>{window.__BP_UNDERGROUND_TRANSIT_V1__=m.initUndergroundTransitRenderer(map)})
   .catch(error=>console.warn('BridgePoint underground transit renderer unavailable',error));
+ void import('./bridgepoint-underground-mines-v1.js?v=1-initial-photogrammetry-40')
+  .then(m=>{window.__BP_UNDERGROUND_MINES_V1__=m.initUndergroundMinesRenderer(map)})
+  .catch(error=>console.warn('BridgePoint underground mines renderer unavailable',error));
  const observeDock=()=>{if(state.dead)return;if(addControlGroup(state))return;state.dockTimer=setTimeout(observeDock,500);};
  observeDock();
  if(typeof MutationObserver!=='undefined'&&document.body){state.observer=new MutationObserver(()=>{if(!document.getElementById(CONTROL_ID))addControlGroup(state);});state.observer.observe(document.body,{childList:true,subtree:true});}
