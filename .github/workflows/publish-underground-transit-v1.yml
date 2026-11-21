@@ -166,7 +166,7 @@ jobs:
       - name: Upload the preserved site with the transit feature only
         uses: actions/upload-pages-artifact@v4
         with:
-          name: bridgepoint-v5000-underground-transit-v1-${{ github.run_attempt }}
+          name: bridgepoint-v5000-${{ github.run_attempt }}
           path: ${{ runner.temp }}/bp-transit-site
           include-hidden-files: true
 
