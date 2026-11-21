@@ -1,16 +1,7 @@
-name: Publish BridgePoint USGS Seismic Activity Layer V1
+name: Publish BridgePoint Named Earthquake Impact Ripples V2
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/publish-usgs-seismic-layer-v1.yml'
-      - 'release-v2300/world-v2300-seismic-layer-v1.js'
-      - 'rebuild-v5000/app.js'
-      - 'rebuild-v5000/landing.js'
-      - 'tests/seismic-layer-v1.test.mjs'
-
 permissions:
   actions: read
   contents: read
@@ -31,16 +22,41 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download the exact latest full-site production artifact (v6302)
+      - name: Resolve the latest successful production Pages artifact
+        id: baseline
+        shell: bash
+        env:
+          GH_TOKEN: "${{ github.token }"
+        run: |
+          set -euo pipefail
+          RUNS="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?status=success&branch=main&per_page=100" --jq '.workflow_runs | map(select(.conclusion == "success")) | .[].id')"
+          BASELINE_ID=""
+          ARTIFACT=""
+          for run_id in $RUNS; do
+            candidate="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/artifacts" \
+              --jq '.artifacts[]? | select((.expired|not) and (.name | startswith("bridgepoint-v5000-"))) | .name' | head -n 1 || true)"
+            if [ -n "$candidate" ]; then
+              BASELINE_ID="$run_id"
+              ARTIFACT="$candidate"
+              break
+            fi
+          done
+          test -n "$BASELINE_ID"
+          test -n "$ARTIFACT"
+          echo "run_id=$BASELINE_ID" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=$ARTIFACT" >> "$GITHUB_OUTPUT"
+          echo "CURRENT_PRODUCTION_BASELINE run=$BASELINE_ID artifact=$ARTIFACT"
+
+      - name: Download the current production snapshot
         uses: actions/download-artifact@v4
         with:
-          name: github-pages-v6302-earth-ray-opaque
-          run-id: 43889146126
-          repository: ${{ github.repository }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          path: ${{ runner.temp }}/bp-pages-baseline
+          name: "${{ steps.baseline.outputs.artifact_name }"
+          run-id: "${{ steps.baseline.outputs.run_id }"
+          repository: "${{ github.repository }"
+          github-token: "${{ secrets.GITHUB_TOKEN }"
+          path: "${{ runner.temp }/bp-pages-baseline"
 
-      - name: Restore latest production and fingerprint every non-target file
+      - name: Restore current production and fingerprint every non-target file
         shell: bash
         run: |
           set -euo pipefail
@@ -53,11 +69,14 @@ jobs:
                    bridgepoint-app-space-explorer-v1.js bridgepoint-welcome-space-v6260.js \
                    bridgepoint-gaia-galaxy-v6270.js bridgepoint-saturn-system-v6282.js \
                    bridgepoint-mars-system-v6291.js world-v2300-clouds.js app/world-v2300-clouds.js \
-                   assets/moon/v1/manifest.json assets/moon/v1/moon-global-height-4ppd-u16.png; do
+                   assets/moon/v1/manifest.json assets/moon/v1/moon-global-height-4ppd-u16.png \
+                   world-v2300-seismic-layer-v1.js app/world-v2300-seismic-layer-v1.js \
+                   bridgepoint-lighthouses-v1.js bridgepoint-underground-mines-v1.js \
+                   bridgepoint-underground-transit-v1.js bridgepoint-underground-infrastructure-v1.js; do
             test -s "$SITE/$f" || { echo "Latest production artifact missing required preserved file: $f"; exit 1; }
           done
-          test ! -e "$SITE/world-v2300-seismic-layer-v1.js"
-          test ! -e "$SITE/app/world-v2300-seismic-layer-v1.js"
+          test -s "$SITE/world-v2300-seismic-layer-v1.js"
+          test -s "$SITE/app/world-v2300-seismic-layer-v1.js"
           python3 - <<'PY'
           import hashlib, json, os
           from pathlib import Path
@@ -75,11 +94,11 @@ jobs:
               if not p.is_file(): continue
               rel=p.relative_to(site).as_posix()
               if rel in excluded:
-                  if rel in {"index.html","app/index.html","landing.js","app.js"}:
+                  if rel in {"index.html","app/index.html","landing.js","app.js","world-v2300-seismic-layer-v1.js","app/world-v2300-seismic-layer-v1.js"}:
                       targets[rel]=digest(p)
                   continue
               before[rel]=digest(p)
-          if set(targets)!={"index.html","app/index.html","landing.js","app.js"}:
+          if set(targets)!={"index.html","app/index.html","landing.js","app.js","world-v2300-seismic-layer-v1.js","app/world-v2300-seismic-layer-v1.js"}:
               raise SystemExit("Production target entry files incomplete: "+repr(sorted(targets)))
           tmp=Path(os.environ["RUNNER_TEMP"])
           (tmp/"bp-seismic-preservation-before.json").write_text(json.dumps(before,sort_keys=True))
@@ -88,43 +107,47 @@ jobs:
           print("LATEST_PRODUCTION_TARGET_ENTRIES",len(targets))
           PY
 
-      - name: Overlay only the new seismic module and its two entry-point integrations
+      - name: Overlay only the seismic impact renderer
         shell: bash
         run: |
           set -euo pipefail
           SITE="$RUNNER_TEMP/bp-site"
-          mkdir -p "$SITE/app"
           cp release-v2300/world-v2300-seismic-layer-v1.js "$SITE/world-v2300-seismic-layer-v1.js"
           cp release-v2300/world-v2300-seismic-layer-v1.js "$SITE/app/world-v2300-seismic-layer-v1.js"
-          cp rebuild-v5000/landing.js "$SITE/landing.js"
-          cp rebuild-v5000/app.js "$SITE/app.js"
           python3 - <<'PY'
           from pathlib import Path
           import os,re
           site=Path(os.environ["RUNNER_TEMP"])/"bp-site"
-          build="usgs-seismic-layer-v1"
-          def replace_once(rel,pattern,repl,label):
-              p=site/rel
-              s=p.read_text(encoding="utf-8")
-              out,n=re.subn(pattern,repl,s,count=1)
-              if n!=1: raise SystemExit(f"{rel}: {label} expected once, found {n}")
-              p.write_text(out,encoding="utf-8")
+          build="named-earthquake-ripples-v2"
+          module="world-v2300-seismic-layer-v1.js?v=2-terrain-impact-ripples"
+          for rel,expected in (("landing.js",2),("app.js",1)):
+              path=site/rel
+              text=path.read_text(encoding="utf-8")
+              updated,count=re.subn(r'(world-v2300-seismic-layer-v1\.js\?v=)[^\'"\s]+',
+                                    r'\g<1>2-terrain-impact-ripples',text)
+              if count!=expected:
+                  raise SystemExit(f"{rel}: expected {expected} seismic imports, found {count}")
+              path.write_text(updated,encoding="utf-8")
+          def replace_once(rel,pattern,replacement,label):
+              path=site/rel
+              text=path.read_text(encoding="utf-8")
+              updated,count=re.subn(pattern,replacement,text,count=1)
+              if count!=1: raise SystemExit(f"{rel}: {label} expected once, found {count}")
+              path.write_text(updated,encoding="utf-8")
           replace_once("index.html",
               r'((?:\./|/)?landing\.js\?v=)[^&"\'\s]+',
               r'\g<1>'+build,"homepage script cache key")
           replace_once("app/index.html",
               r'((?:\.\./|/)?app\.js\?v=)[^&"\'\s]+',
               r'\g<1>'+build,"app script cache key")
-          for rel in ("landing.js","app.js"):
-              s=(site/rel).read_text(encoding="utf-8")
-              token="./world-v2300-seismic-layer-v1.js?v=1-usgs-comcat-m25-week"
-              if s.count(token)!=1: raise SystemExit(f"{rel}: expected one seismic module import")
-              if "window.__BP_USGS_SEISMIC_LAYER_V1__=m.initUSGSSeismicLayer(world)" not in s:
-                  raise SystemExit(f"{rel}: missing seismic runtime attach")
-          for rel in ("index.html","app/index.html"):
-              s=(site/rel).read_text(encoding="utf-8")
-              entry="landing.js" if rel=="index.html" else "app.js"
-              if build not in s or entry not in s: raise SystemExit(f"{rel}: entry cache key missing")
+          for rel,count in (("landing.js",2),("app.js",1)):
+              text=(site/rel).read_text(encoding="utf-8")
+              if text.count(module)!=count or "window.__BP_USGS_SEISMIC_LAYER_V1__=m.initUSGSSeismicLayer(world)" not in text:
+                  raise SystemExit(f"{rel}: seismic imports or runtime attach missing")
+          for rel,entry in (("index.html","landing.js"),("app/index.html","app.js")):
+              text=(site/rel).read_text(encoding="utf-8")
+              if build not in text or entry not in text:
+                  raise SystemExit(f"{rel}: entry cache key missing")
           print("SEISMIC_ENTRYPOINT_OVERLAY_PASS")
           PY
 
@@ -188,7 +211,7 @@ jobs:
               if not p.is_file(): continue
               rel=p.relative_to(site).as_posix()
               if rel in excluded:
-                  if rel in {"index.html","app/index.html","landing.js","app.js"}: targets[rel]=digest(p)
+                  if rel in excluded: targets[rel]=digest(p)
                   continue
               after[rel]=digest(p)
           if before!=after:
@@ -199,64 +222,64 @@ jobs:
               }))
           expected_targets=set(target_before)
           if set(targets)!=expected_targets or not all(targets[k]!=target_before[k] for k in expected_targets):
-              raise SystemExit("EXPECTED_ENTRYPOINT_CHANGE_MISSING")
+              raise SystemExit("EXPECTED_SEISMIC_TARGET_CHANGE_MISSING")
           for rel in ("world-v2300-seismic-layer-v1.js","app/world-v2300-seismic-layer-v1.js"):
-              if not (site/rel).is_file(): raise SystemExit("NEW_SEISMIC_MODULE_MISSING "+rel)
+              if not (site/rel).is_file(): raise SystemExit("PUBLISHED_SEISMIC_MODULE_MISSING "+rel)
           if digest(site/"world-v2300-seismic-layer-v1.js")!=digest(site/"app/world-v2300-seismic-layer-v1.js"):
               raise SystemExit("ROOT_APP_SEISMIC_MODULE_MISMATCH")
           print("NON_TARGET_PRODUCTION_FILES_BYTE_FOR_BYTE_PRESERVED",len(before))
-          print("ONLY_FOUR_EXISTING_ENTRY_FILES_CHANGED_AND_TWO_NEW_MODULE_COPIES_ADDED")
+          print("ONLY_SIX_EXISTING_SEISMIC_FILES_CHANGED added=0 deleted=0")
           PY
 
       - uses: actions/configure-pages@v5
 
-      - name: Upload preserved production site with additive seismic layer
-        uses: actions/upload-pages-artifact@v5
+      - name: Upload the preserved production site with earthquake ripples
+        uses: actions/upload-pages-artifact@v4
         with:
-          name: github-pages-usgs-seismic-layer-v1
-          path: ${{ runner.temp }}/bp-site
+          name: bridgepoint-v5000-${{ github.run_attempt }
+          path: "${{ runner.temp }/bp-site"
           include-hidden-files: true
 
-      - name: Publish USGS seismic layer
+      - name: Publish the preserved production snapshot
         id: deployment
-        uses: actions/deploy-pages@v4
-        with:
-          artifact_name: github-pages-usgs-seismic-layer-v1
+        env:
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }"
+        run: node scripts/deploy-pages-extended.mjs
 
-      - name: Verify live homepage, app, module copies and preserved v6302 celestial world
+      - name: Verify the live earthquake renderer and retained feature set
         shell: bash
         run: |
           set -euo pipefail
           O='https://bridgepointintelligence.online'
-          q="${GITHUB_SHA}-usgs-seismic-v1"
+          q="$GITHUB_SHA-named-earthquake-ripples-v2"
           D="$RUNNER_TEMP/bp-seismic-live"
           mkdir -p "$D"
-          for item in \
-            "root.html:$O/?seismic=$q" \
-            "app.html:$O/app/?seismic=$q" \
-            "landing.js:$O/landing.js?v=usgs-seismic-layer-v1&$q" \
-            "app.js:$O/app.js?v=usgs-seismic-layer-v1&$q" \
-            "seismic.js:$O/world-v2300-seismic-layer-v1.js?v=1-usgs-comcat-m25-week&$q" \
-            "app-seismic.js:$O/app/world-v2300-seismic-layer-v1.js?v=1-usgs-comcat-m25-week&$q" \
-            "gaia.js:$O/bridgepoint-gaia-galaxy-v6270.js?$q" \
-            "clouds.js:$O/world-v2300-clouds.js?v=6202-global-satellite-cloud-banks&$q" \
-            "app-clouds.js:$O/app/world-v2300-clouds.js?v=6202-global-satellite-cloud-banks&$q" \
-            "saturn.js:$O/bridgepoint-saturn-system-v6282.js?$q" \
-            "mars.js:$O/bridgepoint-mars-system-v6291.js?$q"; do
-            name="\${item%%:*}"; url="\${item#*:}"
+          fetch() {
             curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL \
-              -H 'Cache-Control: no-cache' "$url" -o "$D/$name"
-          done
-          grep -Fq 'landing.js?v=usgs-seismic-layer-v1' "$D/root.html"
-          grep -Fq 'app.js?v=usgs-seismic-layer-v1' "$D/app.html"
-          grep -Fq 'world-v2300-seismic-layer-v1.js?v=1-usgs-comcat-m25-week' "$D/landing.js"
-          grep -Fq 'world-v2300-seismic-layer-v1.js?v=1-usgs-comcat-m25-week' "$D/app.js"
-          grep -Fq 'bp-usgs-seismic-points-v1' "$D/seismic.js"
-          grep -Fq 'USGS Seismic · OFF' "$D/seismic.js"
+              -H 'Cache-Control: no-cache' "$O/$1?verify=$q" -o "$D/$2"
+          }
+          fetch '' root.html
+          fetch 'app/' app.html
+          fetch 'landing.js' landing.js
+          fetch 'app.js' app.js
+          fetch 'world-v2300-seismic-layer-v1.js' seismic.js
+          fetch 'app/world-v2300-seismic-layer-v1.js' app-seismic.js
+          fetch 'bridgepoint-lighthouses-v1.js' lighthouses.js
+          fetch 'bridgepoint-underground-mines-v1.js' mines.js
+          fetch 'bridgepoint-underground-transit-v1.js' transit.js
+          fetch 'bridgepoint-underground-infrastructure-v1.js' infrastructure.js
+          grep -Fq 'landing.js?v=named-earthquake-ripples-v2' "$D/root.html"
+          grep -Fq 'app.js?v=named-earthquake-ripples-v2' "$D/app.html"
+          grep -Fq 'world-v2300-seismic-layer-v1.js?v=2-terrain-impact-ripples' "$D/landing.js"
+          grep -Fq 'world-v2300-seismic-layer-v1.js?v=2-terrain-impact-ripples' "$D/app.js"
+          grep -Fq 'bp-usgs-seismic-impact-boundary-v1' "$D/seismic.js"
+          grep -Fq 'bp-usgs-seismic-ripple-lines-v1' "$D/seismic.js"
+          grep -Fq 'Named earthquakes · OFF' "$D/seismic.js"
           cmp -s "$D/seismic.js" "$D/app-seismic.js"
-          grep -Fq '__BP_EARTH_OCCLUSION_DIAGNOSTIC_V6302__' "$D/gaia.js"
-          grep -Fq 'refreshIntervalMs:900000' "$D/clouds.js"
-          cmp -s "$D/clouds.js" "$D/app-clouds.js"
-          grep -Fq "name:'Titan'" "$D/saturn.js"
-          grep -Fq 'Phobos' "$D/mars.js"
-          echo "BRIDGEPOINT_USGS_SEISMIC_LAYER_V1_LIVE_PUBLISH_PASS"
+          grep -Fq 'global-pins-v4' "$D/lighthouses.js"
+          grep -Fq 'muttental-witten' "$D/mines.js"
+          grep -Fq 'futatsugoya-tunnel-japan' "$D/infrastructure.js"
+          grep -Fq 'palatine-neronian-cryptoporticus-rome' "$D/infrastructure.js"
+          grep -Fq 'usti-pipeline-repair-czechia' "$D/infrastructure.js"
+          test -s "$D/transit.js"
+          echo "BRIDGEPOINT_NAMED_EARTHQUAKE_IMPACT_RIPPLES_LIVE_PASS"
