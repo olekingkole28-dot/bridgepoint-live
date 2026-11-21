@@ -27,7 +27,7 @@ jobs:
     timeout-minutes: 45
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url }}}
     steps:
       - uses: actions/checkout@v4
 
@@ -35,7 +35,7 @@ jobs:
         id: baseline
         shell: bash
         env:
-          GH_TOKEN: "${{ github.token }"
+          GH_TOKEN: "${{ github.token }}"
         run: |
           set -euo pipefail
           RUNS="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?status=success&branch=main&per_page=100" --jq '.workflow_runs | map(select(.conclusion == "success")) | .[].id')"
@@ -59,11 +59,11 @@ jobs:
       - name: Download the current production snapshot
         uses: actions/download-artifact@v4
         with:
-          name: "${{ steps.baseline.outputs.artifact_name }"
-          run-id: "${{ steps.baseline.outputs.run_id }"
-          repository: "${{ github.repository }"
-          github-token: "${{ secrets.GITHUB_TOKEN }"
-          path: "${{ runner.temp }/bp-pages-baseline"
+          name: "${{ steps.baseline.outputs.artifact_name }}"
+          run-id: "${{ steps.baseline.outputs.run_id }}"
+          repository: "${{ github.repository }}"
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+          path: "${{ runner.temp }}/bp-pages-baseline"
 
       - name: Restore current production and fingerprint every non-target file
         shell: bash
@@ -245,14 +245,14 @@ jobs:
       - name: Upload the preserved production site with earthquake ripples
         uses: actions/upload-pages-artifact@v4
         with:
-          name: bridgepoint-v5000-${{ github.run_attempt }
-          path: "${{ runner.temp }/bp-site"
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: "${{ runner.temp }}/bp-site"
           include-hidden-files: true
 
       - name: Publish the preserved production snapshot
         id: deployment
         env:
-          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }"
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
         run: node scripts/deploy-pages-extended.mjs
 
       - name: Verify the live earthquake renderer and retained feature set
