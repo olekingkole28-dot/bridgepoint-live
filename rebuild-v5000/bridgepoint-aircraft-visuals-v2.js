@@ -153,6 +153,18 @@ export function buildDetailedAirframe(T,kind,variant='general'){
    box(.34,0,.10,.70,.11,.085,palette.glass);
    sphere(.26,0,.12,.24,.10,.075,palette.glass,12);
   }
+ }else if(kind==='drone'){
+  sphere(0,0,.06,.24,.20,.12,palette.shadow,14);
+  box(0,0,.12,.31,.24,.10,palette.silver);
+  for(const sx of [-1,1])for(const sy of [-1,1]){
+   const x=sx*.47,y=sy*.47,p=[x,y,.10];
+   rod([0,0,.10],[x,y,.10],.032,palette.black);
+   part(new T.CylinderGeometry(.070,.070,.10,12),[x,y,.11],[Math.PI/2,0,0],[1,1,1],palette.blue);
+   box(x,y,.19,.42,.025,.018,palette.black,1,p);
+   box(x,y,.19,.025,.42,.018,palette.black,1,p);
+   lamp(x,y,.18,sy>0?palette.green:palette.red,sy>0?2:1);
+  }
+  sphere(.23,0,.03,.09,.10,.08,palette.glass,10);
  }else if(kind==='helicopter'){
   sphere(.25,0,0,.60,.32,.38,palette.white,18);
   sphere(.53,0,-.035,.38,.29,.28,palette.glass,14);
@@ -257,7 +269,7 @@ export function buildAircraftMaterial(T){
    'if(vBpBeacon>0.5){vec3 lamp=vBpBeacon<1.5?vec3(1.,.035,.018):'+
    'vBpBeacon<2.5?vec3(.08,1.,.31):vBpBeacon<3.5?vec3(1.,1.,.90):vec3(1.,.55,.12);'+
    'float flash=.75+.25*sin(bpFlightTime*7.0);'+
-   'totalEmissiveRadiance+=lamp*vBpDark*(1.7+flash*.9);}');
+   'totalEmissiveRadiance+=lamp*(vBpBeacon>3.5?1.0:vBpDark)*(1.7+flash*.9);}');
  };
  mat.customProgramCacheKey=()=> 'bp-airframe-colored-rotors-lights-v2';
  mat.userData.bpFlightShader=null;
