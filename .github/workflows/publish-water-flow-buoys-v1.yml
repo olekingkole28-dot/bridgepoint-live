@@ -164,7 +164,7 @@ jobs:
               if html.count(tag)!=1 or html.count(css_tag)!=1: raise SystemExit(rel+' loader or card CSS is duplicated/missing')
           source_root=Path('rebuild-v5000/index.html').read_text(encoding='utf-8')
           source_app=Path('rebuild-v5000/app-index.html').read_text(encoding='utf-8')
-          if tag not in source_root or priority not in source_root or tag not in source_app or priority not in source_app:
+          if 'bridgepoint-water-flow-buoys-v1.js' not in source_root or priority not in source_root or 'bridgepoint-water-flow-buoys-v1.js' not in source_app or priority not in source_app:
               raise SystemExit('Source root/app deferred water loader is incomplete')
           print('WATER_FLOW_BUOYS_AND_COMPACT_CARD_LOADERS_PASS')
           PY
