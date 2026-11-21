@@ -836,7 +836,7 @@ async function initMap(){
           ['./bridgepoint-underground-scan-sites-v1.js?v=2-mobile-big-persistent-cave-icons','__BP_UNDERGROUND_SCAN_SITES_V1__','initUndergroundScanSitesRenderer','Caves and underground sites'],
           ['./bridgepoint-jenolan-caves-v1.js?v=1-mobile-jenolan-large-system','__BP_JENOLAN_CAVES_V1__','initJenolanCavesRenderer','Jenolan Caves 3D scan'],
           ['./world-v2300-lod-controls.js?v=6311-mobile-gold-lod','__BP_LOD_CONTROL_LANDING_V6016__','initWorldLodControls','Gold LOD controls',[{surface:'landing'}]],
-          ['./bridgepoint-lighthouses-v1.js?v=6311-mobile-lighthouses','__BP_LIGHTHOUSES_V1__','initLighthouseRenderer','3D lighthouses'],
+          ['./bridgepoint-lighthouses-v1.js?v=3-photogrammetry-scan-catalog','__BP_LIGHTHOUSES_V1__','initLighthouseRenderer','Lighthouses'],
           ['./bridgepoint-offshore-energy-v1.js?v=6311-mobile-offshore-energy','__BP_OFFSHORE_ENERGY_V1__','initOffshoreEnergyRenderer','Offshore energy'],
           ['./bridgepoint-subsurface-wells-v1.js?v=6311-mobile-subsurface-wells','__BP_SUBSURFACE_WELLS_V1__','initSubsurfaceWellsRenderer','Subsurface wells'],
           ['./bridgepoint-wind-turbines-v1.js?v=6311-mobile-wind-turbines','__BP_WIND_TURBINES_V1__','initWindTurbinesRenderer','Wind turbines'],
@@ -972,7 +972,7 @@ async function initMap(){
   void import('./bridgepoint-landmarks-v5940.js?v=5966-statue-pedestal-aligned')
    .then(()=>{try{window.dispatchEvent(new CustomEvent('bp:world-map-ready-v5940',{detail:{map:world.map,source:'landing-module-ready'}}))}catch(_){};if(window.__BP_LANDMARKS_V5940__)window.__BP_LANDMARKS_V5940__.attachedMaps=Math.max(1,Number(window.__BP_LANDMARKS_V5940__.attachedMaps||0))})
    .catch(e=>console.warn('BridgePoint homepage landmarks loader unavailable',e));
-  void import('./bridgepoint-lighthouses-v1.js?v=2-visible-rotating-beacons')
+  void import('./bridgepoint-lighthouses-v1.js?v=3-photogrammetry-scan-catalog')
    .then(m=>{window.__BP_LIGHTHOUSES_V1__=m.initLighthouseRenderer(world)})
    .catch(e=>console.warn('BridgePoint global 3D lighthouse renderer unavailable',e));
   // Offshore energy is a separate, opt-in layer. Its renderer and data stay isolated
