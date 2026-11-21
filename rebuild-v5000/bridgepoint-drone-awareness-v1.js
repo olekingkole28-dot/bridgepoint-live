@@ -38,6 +38,7 @@ let trailNoteNode=null,drone3DError=null;
 let droneThreePromise=null,droneThree=null,droneScene=null,droneRenderer=null,droneLayer=null,droneTemplate=null;
 let droneModels=new Map(),trackedUavs=new Map(),lastCurrentRecords=[];
 let aircraftModels=new Map(),trackedAircraft=new Map(),lastCurrentAircraftRecords=[],aircraftTrailGroup=null,aircraftTetherGroup=null,aircraftTemplates=new Map(),aircraftPopup=null,aircraftInteractionsMap=null;
+let aircraftVisualModule=null,aircraftVisualPromise=null,aircraftCardPreviewCleanup=null,aircraftCardRoot=null,aircraftLabelGroup=null;
 let droneTrailGroup=null,droneTetherGroup=null;
 const AIRCRAFT_FILTER_GROUPS=[
  {key:'drones',label:'Drones',kinds:['drone']},
@@ -220,7 +221,7 @@ function syncAircraftFilterVisibility(active=enabled){
   for(const id of [AIRCRAFT_LAYER,AIRCRAFT_TRAIL_LAYER,AIRCRAFT_TRAIL_DOT_LAYER])try{if(map.getLayer(id))map.setFilter(id,filter)}catch(_){}
  }
  for(const model of droneModels.values())model.visible=dronesOn;
- for(const [kind,entry] of aircraftTemplates)entry.mesh.visible=active&&isAircraftKindVisible(kind);
+ for(const entry of aircraftTemplates.values())entry.mesh.visible=active&&isAircraftKindVisible(entry.kind);
  if(droneTrailGroup)droneTrailGroup.visible=dronesOn;if(droneTetherGroup)droneTetherGroup.visible=dronesOn;
  if(aircraftTrailGroup){aircraftTrailGroup.visible=active;for(const child of aircraftTrailGroup.children)child.visible=active&&otherOn&&isAircraftKindVisible(child.userData?.aircraftKind)}
  if(aircraftTetherGroup){aircraftTetherGroup.visible=active;for(const child of aircraftTetherGroup.children)child.visible=otherOn&&isAircraftKindVisible(child.userData?.aircraftKind)}
@@ -256,9 +257,14 @@ function installLayer(){
   return true;
  }catch(error){showStatus('Aircraft MapLibre layer initialization failed: '+String(error?.message||error),'error');console.error('Drone position layers failed',error);return false}
 }
-function loadDroneThree(){
+async function loadDroneThree(){
  if(!droneThreePromise)droneThreePromise=import(THREE_URL).then(m=>m.default||m).catch(e=>{droneThreePromise=null;throw e});
- return droneThreePromise;
+ const T=await droneThreePromise;
+ if(!aircraftVisualPromise)aircraftVisualPromise=import('/bridgepoint-aircraft-visuals-v2.js?v=2-colored-type-rotors-night')
+   .then(m=>{aircraftVisualModule=m;return m})
+   .catch(e=>{aircraftVisualPromise=null;console.warn('BridgePoint rich aircraft appearance optional',e);return null});
+ await aircraftVisualPromise;
+ return T;
 }
 function makeDroneModel(THREE){
  const group=new THREE.Group();group.name='BridgePoint schematic quadcopter';
@@ -277,7 +283,7 @@ function makeDroneModel(THREE){
   const hub=new THREE.Mesh(new THREE.SphereGeometry(.058,10,8),edge);hub.position.z=.06;rotor.add(hub);
   const bladeA=new THREE.Mesh(new THREE.BoxGeometry(.58,.035,.012),bladeMat);bladeA.position.z=.055;rotor.add(bladeA);
   const bladeB=new THREE.Mesh(new THREE.BoxGeometry(.035,.58,.012),bladeMat);bladeB.position.z=.057;rotor.add(bladeB);
-  const light=new THREE.Mesh(new THREE.SphereGeometry(.035,8,6),lampMat);light.position.set(0,0,.125);rotor.add(light);
+  const light=new THREE.Mesh(new THREE.SphereGeometry(.045,8,6),lampMat);light.name='bp-drone-night-led';light.position.set(0,0,.125);rotor.add(light);
   group.add(rotor);
  }
  group.traverse(o=>{o.frustumCulled=false});return group;
@@ -316,8 +322,10 @@ function ensureDrone3DLayer(THREE){
    droneModels.clear();
    if(droneTrailGroup&&layer.scene){try{layer.scene.remove(droneTrailGroup);droneTrailGroup.traverse(o=>{o.geometry?.dispose?.();if(Array.isArray(o.material))o.material.forEach(m=>m?.dispose?.());else o.material?.dispose?.()})}catch(_){}droneTrailGroup=null}
    if(aircraftTrailGroup&&layer.scene){try{layer.scene.remove(aircraftTrailGroup);aircraftTrailGroup.traverse(o=>{o.geometry?.dispose?.();o.material?.dispose?.()})}catch(_){}aircraftTrailGroup=null}
-   for(const group of [droneTetherGroup,aircraftTetherGroup])if(group&&layer.scene){try{layer.scene.remove(group);group.traverse(o=>{o.geometry?.dispose?.();o.material?.dispose?.()})}catch(_){}}
-   droneTetherGroup=null;aircraftTetherGroup=null;
+   for(const group of [droneTetherGroup,aircraftTetherGroup,aircraftLabelGroup])if(group&&layer.scene){try{layer.scene.remove(group);group.traverse(o=>{o.geometry?.dispose?.();o.material?.map?.dispose?.();o.material?.dispose?.()})}catch(_){}}
+   droneTetherGroup=null;aircraftTetherGroup=null;aircraftLabelGroup=null;
+   aircraftCardPreviewCleanup?.();aircraftCardPreviewCleanup=null;
+   aircraftCardRoot?.remove();aircraftCardRoot=null;
    disposeAircraftTemplates();try{aircraftPopup?.remove?.()}catch(_){}aircraftPopup=null;
    disposeDroneTemplate();droneScene=null;droneRenderer=null;droneLayer=null;
   }
@@ -407,12 +415,18 @@ function makeAircraftGeometry(THREE,kind){
  const merged=new THREE.BufferGeometry();merged.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));merged.setAttribute('normal',new THREE.Float32BufferAttribute(normals,3));merged.setIndex(indices);merged.computeBoundingSphere();return merged;
 }
 function aircraftColor(kind){return({helicopter:0xffb477,glider:0xc8a9ff,balloon:0xffd071,propeller:0x8be6b5,jet:0xeaf6ff,airplane:0x63dcff})[kind]||0x63dcff}
-function ensureAircraftInstancedMesh(kind,capacity){
- let entry=aircraftTemplates.get(kind);if(entry&&entry.capacity>=capacity)return entry;
- if(entry){try{droneScene?.remove(entry.mesh);entry.geometry.dispose();entry.material.dispose()}catch(_){}aircraftTemplates.delete(kind)}
- const geometry=makeAircraftGeometry(droneThree,kind),material=new droneThree.MeshStandardMaterial({color:aircraftColor(kind),metalness:.42,roughness:.38,emissive:aircraftColor(kind),emissiveIntensity:.10});
- const mesh=new droneThree.InstancedMesh(geometry,material,Math.max(1,capacity));mesh.name='BridgePoint source-classified 3D '+kind+' aircraft';mesh.count=0;mesh.frustumCulled=false;mesh.instanceMatrix.setUsage(droneThree.DynamicDrawUsage);droneScene.add(mesh);
- entry={kind,geometry,material,mesh,capacity:Math.max(1,capacity)};aircraftTemplates.set(kind,entry);return entry;
+function ensureAircraftInstancedMesh(classKey,capacity,kind,variant='general'){
+ let entry=aircraftTemplates.get(classKey);if(entry&&entry.capacity>=capacity)return entry;
+ if(entry){try{droneScene?.remove(entry.mesh);entry.geometry.dispose();entry.material.dispose()}catch(_){}aircraftTemplates.delete(classKey)}
+ const rich=!!aircraftVisualModule?.buildDetailedAirframe;
+ const geometry=rich?aircraftVisualModule.buildDetailedAirframe(droneThree,kind,variant):makeAircraftGeometry(droneThree,kind);
+ const material=rich?aircraftVisualModule.buildAircraftMaterial(droneThree):
+   new droneThree.MeshStandardMaterial({color:aircraftColor(kind),metalness:.42,roughness:.38,emissive:aircraftColor(kind),emissiveIntensity:.10});
+ if(rich)aircraftVisualModule.attachInstancedNight(droneThree,geometry,Math.max(1,capacity));
+ const mesh=new droneThree.InstancedMesh(geometry,material,Math.max(1,capacity));
+ mesh.name='BridgePoint source-classified colored 3D '+kind+' '+variant+' aircraft';
+ mesh.count=0;mesh.frustumCulled=false;mesh.instanceMatrix.setUsage(droneThree.DynamicDrawUsage);droneScene.add(mesh);
+ entry={kind,variant,geometry,material,mesh,capacity:Math.max(1,capacity),rich};aircraftTemplates.set(classKey,entry);return entry;
 }
 function disposeAircraftTemplates(){
  for(const entry of aircraftTemplates.values()){try{droneScene?.remove(entry.mesh);entry.geometry.dispose();entry.material.dispose()}catch(_){}}
