@@ -1,5 +1,5 @@
 name: Verify Restored EMRF and Wildfire Against Real Mobile Globe (read-only)
-# Validate real mirrored CelesTrak OMM fallback and the same two original modules.
+# Validate mirror-first 2026-11-20 CelesTrak OMM source and the original visual modules.
 on:
   push:
     branches: [main]
