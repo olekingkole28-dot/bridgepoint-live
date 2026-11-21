@@ -619,13 +619,19 @@ function setDroneModels(records){
   const base=groundElevation===null?null:MC.fromLngLat({lng:lon,lat},groundElevation);addTether(tethers,'drone',base,position);
   let model=droneModels.get(key);if(!model){model=droneTemplate.clone(true);model.name='Source-sized public UAV / drone model';model.traverse(o=>{o.frustumCulled=false});droneScene.add(model);droneModels.set(key,model)}
   const span=modelSpanMeters(lat,zoom);model.position.set(position.x,position.y,position.z);model.scale.setScalar((span/1.36)*meterUnit);
-  model.rotation.set(0,0,(Number.isFinite(point.heading)?point.heading:0)*Math.PI/180-Math.PI/2);model.userData.altitude={value:altitude.sourceValue,field:altitude.sourceField,units:altitude.sourceUnits,datum:altitude.datum,meters:altitude.meters};model.visible=enabled&&selectedAircraftGroups.has('drones');active.add(key);
+  model.rotation.set(0,0,(Number.isFinite(point.heading)?point.heading:0)*Math.PI/180-Math.PI/2);
+  model.userData.altitude={value:altitude.sourceValue,field:altitude.sourceField,units:altitude.sourceUnits,datum:altitude.datum,meters:altitude.meters};
+  model.userData.bpBaseZ=position.z;model.userData.bpMeterUnit=meterUnit;
+  model.userData.bpDronePhase=key.charCodeAt(0)||0;
+  const afterDark=aircraftVisualModule?.sunBelowHorizon?.(lat,lon)??false;
+  model.traverse(o=>{if(o.name==='bp-drone-night-led')o.visible=afterDark});
+  model.visible=enabled&&selectedAircraftGroups.has('drones');active.add(key);
  }
  for(const [key,model] of droneModels)if(!active.has(key)){droneScene.remove(model);droneModels.delete(key)}
  droneTetherGroup=replaceTetherGroup(droneTetherGroup,tethers,'Drone / UAV vertical ground-location tethers');
  diagnosticState.modelsRendered=droneModels.size;writeSummary();map.triggerRepaint?.();
  if(droneModels.size&&!droneAnimationFrame)droneAnimationFrame=requestAnimationFrame(animateDroneModels);
- if(!droneModels.size&&droneAnimationFrame){cancelAnimationFrame(droneAnimationFrame);droneAnimationFrame=0}
+ if(!droneModels.size&&!aircraftModels.size&&droneAnimationFrame){cancelAnimationFrame(droneAnimationFrame);droneAnimationFrame=0}
  syncAircraftFilterVisibility();return droneModels.size;
 }
 function rebuildDroneTrails(){
@@ -643,11 +649,20 @@ function rebuildDroneTrails(){
  droneScene.add(group);droneTrailGroup=group;diagnosticState.trailsRendered=segments;writeSummary();map.triggerRepaint?.();return{trails:segments,knownPoints:allDots.length};
 }
 function animateDroneModels(now){
- droneAnimationFrame=0;if(!enabled||!droneScene||!droneModels.size)return;
+ droneAnimationFrame=0;if(!enabled||!droneScene||(!droneModels.size&&!aircraftModels.size))return;
  if(document.hidden){droneAnimationFrame=requestAnimationFrame(animateDroneModels);return}
  if(now-lastDroneAnimationAt>=65){
   lastDroneAnimationAt=now;
-  for(const model of droneModels.values())model.traverse(o=>{if(o.name==='bp-drone-rotor')o.rotation.z+=.38});
+  for(const model of droneModels.values()){
+   model.traverse(o=>{if(o.name==='bp-drone-rotor')o.rotation.z+=.38});
+   if(Number.isFinite(model.userData.bpBaseZ)&&Number.isFinite(model.userData.bpMeterUnit)){
+    model.position.z=model.userData.bpBaseZ+
+     Math.sin(now*.0025+(model.userData.bpDronePhase||0))*.24*model.userData.bpMeterUnit;
+   }
+  }
+  for(const entry of aircraftTemplates.values()){
+   aircraftVisualModule?.updateAircraftShader?.(entry.material,now*.001);
+  }
   map?.triggerRepaint?.();
  }
  droneAnimationFrame=requestAnimationFrame(animateDroneModels);
