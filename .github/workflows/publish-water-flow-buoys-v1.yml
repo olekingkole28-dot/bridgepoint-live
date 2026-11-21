@@ -133,7 +133,7 @@ jobs:
           import re,os
           from pathlib import Path
           site=Path(os.environ['RUNNER_TEMP'])/'bp-site'
-          tag='<script type="application/x-bridgepoint-deferred" data-bp-deferred-src="/bridgepoint-water-flow-buoys-v1.js?v=6523-surface-clipped-water-flow" data-bp-deferred-kind="classic"></script>'
+          tag='<script type="application/x-bridgepoint-deferred" data-bp-deferred-src="/bridgepoint-water-flow-buoys-v1.js?v=6524-globe-boundary-clip" data-bp-deferred-kind="classic"></script>'
           priority="  'bridgepoint-water-flow-buoys-v1.js',\n"
           drone="  'bridgepoint-drone-awareness-v1.js',\n"
           css_tag='<link rel="stylesheet" href="/bridgepoint-bottom-card-compact-v1.css?v=6515-compact-button-card">'
@@ -225,8 +225,8 @@ jobs:
           curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/app/?verify=$GITHUB_SHA-water-flow" -o "$DIR/app.html"
           curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/bridgepoint-water-flow-buoys-v1.js?verify=$GITHUB_SHA-water-flow" -o "$DIR/water.js"
           curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/bridgepoint-bottom-card-compact-v1.css?verify=$GITHUB_SHA-water-flow" -o "$DIR/layout.css"
-          grep -Fq 'bridgepoint-water-flow-buoys-v1.js?v=6523-surface-clipped-water-flow' "$DIR/root.html"
-          grep -Fq 'bridgepoint-water-flow-buoys-v1.js?v=6523-surface-clipped-water-flow' "$DIR/app.html"
+          grep -Fq 'bridgepoint-water-flow-buoys-v1.js?v=6524-globe-boundary-clip' "$DIR/root.html"
+          grep -Fq 'bridgepoint-water-flow-buoys-v1.js?v=6524-globe-boundary-clip' "$DIR/app.html"
           cmp -s "$DIR/layout.css" rebuild-v5000/bridgepoint-bottom-card-compact-v1.css
           grep -Fq '__BP_WATER_FLOW_BUOYS_V1__' "$DIR/water.js"
           echo 'WATER_FLOW_BUOYS_AND_COMPACT_CARD_LAYOUT_LIVE_ON_ROOT_AND_APP'

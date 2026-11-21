@@ -205,19 +205,19 @@ function globeScreenPath(){
   const projection=map?.getProjection?.(),type=String(projection?.type||projection?.name||projection||'').toLowerCase();
   if(type!=='globe')return null;
   const center=map.getCenter?.();if(!center||!Number.isFinite(center.lat)||!Number.isFinite(center.lng))return null;
-  const rad=Math.PI/180,lat1=center.lat*rad,lon1=center.lng*rad,points=[],count=64;let previousLng=center.lng;
-  for(let i=0;i<count;i++){
-   const bearing=2*Math.PI*i/count,lat2=Math.asin(Math.sin(lat1)*Math.cos(Math.PI/2)+Math.cos(lat1)*Math.sin(Math.PI/2)*Math.cos(bearing));
-   let lon2=(lon1+Math.atan2(Math.sin(bearing)*Math.sin(Math.PI/2)*Math.cos(lat1),Math.cos(Math.PI/2)-Math.sin(lat1)*Math.sin(lat2)))/rad;
-   while(lon2-previousLng>180)lon2-=360;while(lon2-previousLng< -180)lon2+=360;previousLng=lon2;
-   const p=map.project([lon2,lat2/rad]);if(!Number.isFinite(p?.x)||!Number.isFinite(p?.y))continue;
-   points.push({x:p.x,y:p.y});
-  }
-  const centerPoint=map.project([center.lng,center.lat]);
-  if(points.length>=32&&pointInScreenPath(centerPoint.x,centerPoint.y,points))return points;
-  const zoom=Number(map.getZoom?.()),radius=256*Math.pow(2,Number.isFinite(zoom)?zoom:0);
-  if(!Number.isFinite(centerPoint?.x)||!Number.isFinite(centerPoint?.y)||!Number.isFinite(radius)||radius<=0)return null;
-  return Array.from({length:64},(_,i)=>{const a=2*Math.PI*i/64;return{x:centerPoint.x+Math.cos(a)*radius,y:centerPoint.y+Math.sin(a)*radius}});
+  const rad=Math.PI/180,lat1=center.lat*rad,lon1=center.lng*rad,centerPoint=map.project([center.lng,center.lat]);
+  if(!Number.isFinite(centerPoint?.x)||!Number.isFinite(centerPoint?.y))return null;
+  const horizonPoint=bearing=>{
+   const lat2=Math.asin(Math.cos(lat1)*Math.cos(bearing));
+   let lon2=(lon1+Math.atan2(Math.sin(bearing)*Math.cos(lat1),-Math.sin(lat1)*Math.sin(lat2)))/rad;
+   while(lon2-center.lng>180)lon2-=360;while(lon2-center.lng< -180)lon2+=360;
+   return map.project([lon2,lat2/rad]);
+  };
+  const east=horizonPoint(Math.PI/2),west=horizonPoint(3*Math.PI/2),north=horizonPoint(0),south=horizonPoint(Math.PI);
+  const rx=(Math.hypot(east.x-centerPoint.x,east.y-centerPoint.y)+Math.hypot(west.x-centerPoint.x,west.y-centerPoint.y))/2;
+  const ry=(Math.hypot(north.x-centerPoint.x,north.y-centerPoint.y)+Math.hypot(south.x-centerPoint.x,south.y-centerPoint.y))/2;
+  if(![rx,ry].every(Number.isFinite)||rx<2||ry<2)return null;
+  return Array.from({length:96},(_,i)=>{const a=2*Math.PI*i/96;return{x:centerPoint.x+Math.cos(a)*rx,y:centerPoint.y+Math.sin(a)*ry}});
  }catch(_){return null}
 }
 function pointInScreenPath(x,y,points){
