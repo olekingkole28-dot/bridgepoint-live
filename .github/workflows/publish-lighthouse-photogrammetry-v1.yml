@@ -98,36 +98,29 @@ jobs:
           if not (legacy_synthetic or legacy_scan):
               raise SystemExit('Baseline lighthouse renderer was not a recognized published version')
 
-          mobile_old_candidates=[
-              "['./bridgepoint-lighthouses-v1.js?v=6311-mobile-lighthouses','__BP_LIGHTHOUSES_V1__','initLighthouseRenderer','3D lighthouses'],",
-              "['./bridgepoint-lighthouses-v1.js?v=3-photogrammetry-scan-catalog','__BP_LIGHTHOUSES_V1__','initLighthouseRenderer','Lighthouses'],",
-              "['./bridgepoint-lighthouses-v1.js?v=4-global-pin-visibility','__BP_LIGHTHOUSES_V1__','initLighthouseRenderer','Lighthouses'],"
-          ]
+          mobile_pattern=r"\['\./bridgepoint-lighthouses-v1\.js\?v=[^']+','__BP_LIGHTHOUSES_V1__','initLighthouseRenderer','[^']+'\],"
           mobile_new="['./bridgepoint-lighthouses-v1.js?v=4-global-pin-visibility','__BP_LIGHTHOUSES_V1__','initLighthouseRenderer','Lighthouses'],"
           landing=site/'landing.js'
           text=landing.read_text(encoding='utf-8')
-          mobile_old=[candidate for candidate in mobile_old_candidates if text.count(candidate)==1]
-          if len(mobile_old)!=1:
-              raise SystemExit('landing.js: expected exactly one known lighthouse mobile entry')
-          text=text.replace(mobile_old[0],mobile_new,1)
-          old_import_candidates=[
-              "./bridgepoint-lighthouses-v1.js?v=2-visible-rotating-beacons",
-              "./bridgepoint-lighthouses-v1.js?v=3-photogrammetry-scan-catalog",
-              "./bridgepoint-lighthouses-v1.js?v=4-global-pin-visibility"
-          ]
+          mobile_matches=list(re.finditer(mobile_pattern,text))
+          if len(mobile_matches)!=1:
+              raise SystemExit('landing.js: expected exactly one lighthouse mobile entry')
+          text=text[:mobile_matches[0].start()]+mobile_new+text[mobile_matches[0].end():]
+          import_pattern=r"import\((')(\./bridgepoint-lighthouses-v1\.js\?v=[^']+)('\)\)"
           new_import="./bridgepoint-lighthouses-v1.js?v=4-global-pin-visibility"
-          old_import=[candidate for candidate in old_import_candidates if text.count(candidate)==1]
-          if len(old_import)!=1:
-              raise SystemExit('landing.js: expected exactly one known active lighthouse import')
-          text=text.replace(old_import[0],new_import,1)
+          active_imports=list(re.finditer(import_pattern,text))
+          if len(active_imports)!=1:
+              raise SystemExit('landing.js: expected exactly one active lighthouse import')
+          text=text[:active_imports[0].start(2)]+new_import+text[active_imports[0].end(2):]
           landing.write_text(text,encoding='utf-8')
 
           app=site/'app.js'
           text=app.read_text(encoding='utf-8')
-          old_import=[candidate for candidate in old_import_candidates if text.count(candidate)==1]
-          if len(old_import)!=1:
-              raise SystemExit('app.js: expected exactly one known active lighthouse import')
-          app.write_text(text.replace(old_import[0],new_import,1),encoding='utf-8')
+          active_imports=list(re.finditer(import_pattern,text))
+          if len(active_imports)!=1:
+              raise SystemExit('app.js: expected exactly one active lighthouse import')
+          text=text[:active_imports[0].start(2)]+new_import+text[active_imports[0].end(2):]
+          app.write_text(text,encoding='utf-8')
 
           replacement=Path('rebuild-v5000')/module
           payload=replacement.read_bytes()
