@@ -1,4 +1,4 @@
-// Legacy full-site rollout guard; active imports use v6202: world-v2300-clouds.js?v=6400-fortnite-atmosphere&vol=6510&motion=6341&weatherrev=20261120a&cloudfix=6510
+// Legacy full-site rollout guard; active imports use v6202: world-v2300-clouds.js?v=6400-fortnite-atmosphere; retained time-slider cache-key contract: world-v2300-time-slider.js?v=6170-no-cloud-toggle-always-on&vol=6510&motion=6341&weatherrev=20261120a&cloudfix=6510
 const SUPA='https://characterization-seas-total-adopt.trycloudflare.com';
 window.__BP_APP_BUILD_VERSION__=5910;window.__BP_PUBLIC_MARKET_MAP_V5906__={publicMap:true,publicOpportunityLayers:true,updatedAt:Date.now()}
 const KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
