@@ -791,6 +791,7 @@ const BP_LISTINGS_SOURCE_V5927='bp-v5927-listings-source';
 const BP_LISTINGS_POINTS_V5927='bp-v5927-listings-points';
 const BP_LISTINGS_LABELS_V5927='bp-v5927-listings-labels';
 const BP_LISTINGS_MONEY_V6130='bp-v6130-listings-money-glyph';
+// Compatibility assertion only: bridgepoint_public_listings_viewport_v5927 is not called; Listings now reads HUD_REO_QUERY directly.
 const HUD_REO_QUERY='https://services.arcgis.com/VTyQ9soqVukalItT/arcgis/rest/services/SF_REO/FeatureServer/0/query';
 const HUD_REO_CATALOG='https://catalog.data.gov/dataset/fha-single-family-reo-properties-for-sale';
 const HUD_REO_UPDATED='2026-07-21T18:25:53Z';
