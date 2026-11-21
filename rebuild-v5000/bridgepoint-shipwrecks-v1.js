@@ -163,7 +163,7 @@ export const HMS_LOO_WRECK={
  detail:'A 2023 NOAA / East Carolina University underwater photogrammetry survey of the HMS Loo wrecksite: coral-encrusted ballast blocks, scattered ship structure and artifacts on the seabed. This is a scan of the remains and surrounding seabed, not an intact or reconstructed ship hull.'
 };
 
-// Sixty additional scan records. Each map marker opens its scan inside BridgePoint's
+// One hundred ten additional scan records. Each map marker opens its scan inside BridgePoint's
 // existing wreck card; the Sketchfab embed remains the scan's attributed source.
 export const ADDITIONAL_SHIPWRECKS=[
  {id:'ex-hmas-junee',name:'Ex HMAS Junee — Bathurst-class minesweeper',label:'EX HMAS JUNEE',coordinates:[115.379817,-32.056583],coordinateText:'32.056583° S, 115.379817° E',displayDepthM:83,lengthM:56.7,beamM:9.5,builtYear:1943,scuttledYear:1968,modelId:'b614ee45b449455a9a6b2e6667395c0c',creator:'WreckSploration',sourceUrl:'https://sketchfab.com/3d-models/ex-hmas-junee-b614ee45b449455a9a6b2e6667395c0c',projectUrl:'https://wrecksploration.au/projects/junee/',locationSourceUrl:'https://museum.wa.gov.au/maritime-archaeology-db/wrecks/id-914',locationPrecision:'Western Australian Museum wreck-site coordinate. The Sketchfab scan does not publish a GPS georeference or survey-control transform.',detail:'A converted Bathurst-class minesweeper used for naval training before being scuttled off Rottnest Island in 1968. WreckSploration records the site at about 83 m depth; the published vessel measures 56.70 m long with a 9.50 m beam.'},
@@ -1150,7 +1150,7 @@ async function showRobertGaskinOnRiverbed(state){
  if(!state.enabled)return false;
  state.nativeModelAutoAttempted=true;state.nativeModelVisible=true;
  updateRobertGaskinModelStatus(state,'Loading the CC BY 4.0 photogrammetry scan…');
- setStatus(state,'Robert Gaskin native underwater mesh loading; all ninety-five wreck icons remain on.');
+ setStatus(state,'Robert Gaskin native underwater mesh loading; all one hundred twenty wreck icons remain on.');
  try{
   const renderer=await prepareShipwreckMapRenderer(state);
   await loadRobertGaskinMesh(state,renderer);
@@ -1171,7 +1171,7 @@ async function showHmsGraftonOnSeabed(state){
  if(!state.enabled)return false;
  state.graftonModelAutoAttempted=true;state.graftonModelVisible=true;
  updateHmsGraftonModelStatus(state,'Loading the CC BY 4.0 HMS Grafton scan…');
- setStatus(state,'HMS Grafton native underwater mesh loading; all ninety-five wreck icons remain on.');
+ setStatus(state,'HMS Grafton native underwater mesh loading; all one hundred twenty wreck icons remain on.');
  try{
   const renderer=await prepareShipwreckMapRenderer(state);
   await loadHmsGraftonMesh(state,renderer);
@@ -1193,7 +1193,7 @@ async function showCannonOnSeabed(state){
  if(!state.enabled)return false;
  state.cannonModelAutoAttempted=true;state.cannonModelVisible=true;
  updateCannonModelStatus(state,'Loading the CC BY 4.0 DTU Aqua Cannon Shipwreck scan…');
- setStatus(state,'Kanonvraget native underwater mesh loading; all ninety-five wreck icons remain on.');
+ setStatus(state,'Kanonvraget native underwater mesh loading; all one hundred twenty wreck icons remain on.');
  try{
   const renderer=await prepareShipwreckMapRenderer(state);
   await loadCannonMesh(state,renderer);
@@ -1215,7 +1215,7 @@ async function showKxiOnSeabed(state){
  if(!state.enabled)return false;
  state.kxiModelAutoAttempted=true;state.kxiModelVisible=true;
  updateKxiModelStatus(state,'Loading the CC BY 4.0 HNLMS K XI photogrammetry scan…');
- setStatus(state,'HNLMS K XI native underwater mesh loading; all ninety-five wreck icons remain on.');
+ setStatus(state,'HNLMS K XI native underwater mesh loading; all one hundred twenty wreck icons remain on.');
  try{
   const renderer=await prepareShipwreckMapRenderer(state);
   await loadKxiMesh(state,renderer);
@@ -1237,7 +1237,7 @@ async function showCapeOtwayOnSeabed(state){
  if(!state.enabled)return false;
  state.capeOtwayModelAutoAttempted=true;state.capeOtwayModelVisible=true;
  updateCapeOtwayModelStatus(state,'Loading the CC BY 4.0 SS Cape Otway photogrammetry scan…');
- setStatus(state,'SS Cape Otway native underwater mesh loading; all ninety-five wreck icons remain on.');
+ setStatus(state,'SS Cape Otway native underwater mesh loading; all one hundred twenty wreck icons remain on.');
  try{
   const renderer=await prepareShipwreckMapRenderer(state);
   await loadCapeOtwayMesh(state,renderer);
@@ -1259,7 +1259,7 @@ async function showTimaruOnSeabed(state){
  if(!state.enabled)return false;
  state.timaruModelAutoAttempted=true;state.timaruModelVisible=true;
  updateTimaruModelStatus(state,'Loading the CC BY 4.0 Timaru photogrammetry scan…');
- setStatus(state,'Timaru native underwater mesh loading; all ninety-five wreck icons remain on.');
+ setStatus(state,'Timaru native underwater mesh loading; all one hundred twenty wreck icons remain on.');
  try{
   const renderer=await prepareShipwreckMapRenderer(state);
   await loadTimaruMesh(state,renderer);
@@ -1281,7 +1281,7 @@ async function showHmsLooOnSeabed(state){
  if(!state.enabled)return false;
  state.hmsLooModelAutoAttempted=true;state.hmsLooModelVisible=true;
  updateHmsLooModelStatus(state,'Loading the CC BY 4.0 NOAA / East Carolina University photogrammetry scan…');
- setStatus(state,'HMS Loo native underwater mesh loading; all ninety-five wreck icons remain on.');
+ setStatus(state,'HMS Loo native underwater mesh loading; all one hundred twenty wreck icons remain on.');
  try{
   const renderer=await prepareShipwreckMapRenderer(state);
   await loadHmsLooMesh(state,renderer);
@@ -1586,7 +1586,7 @@ function bindInteractions(state){
   // settles. Re-allow this dedicated category and restore only Titanic layers.
   syncSharedOverlayCategory(state);
   if(!installLayers(state)){
-   setStatus(state,'Shipwrecks ON · waiting for the globe style before restoring all ninety-five shipwreck icons.');
+   setStatus(state,'Shipwrecks ON · waiting for the globe style before restoring all one hundred twenty shipwreck icons.');
    refreshStatusUi(state);return;
   }
   setVisibility(state,true);
@@ -1599,7 +1599,7 @@ function bindInteractions(state){
   maybeAutoMaterializeCapeOtway(state);
   maybeAutoMaterializeTimaru(state);
   maybeAutoMaterializeHmsLoo(state);
-  setStatus(state,'Shipwrecks ON · all ninety-five persistent icons remain visible through zoom, angle and style changes. Select a wreck for its BridgePoint card and 3D scan.');
+  setStatus(state,'Shipwrecks ON · all one hundred twenty persistent icons remain visible through zoom, angle and style changes. Select a wreck for its BridgePoint card and 3D scan.');
   refreshStatusUi(state);
  };
  state.handleStyleLoad=state.handlePersistentVisibility;
@@ -1639,8 +1639,8 @@ function addControlGroup(state){
 async function setEnabled(state,on){
  state.enabled=!!on;
  if(state.enabled){
-  if(!installLayers(state))setStatus(state,'Shipwrecks ON · waiting for the map style before showing all ninety-five wreck icons.');
-  else setStatus(state,'Shipwrecks ON · all ninety-five wreck icons remain visible from global zoom through close zoom. Select a marker for its card and 3D scan.');
+  if(!installLayers(state))setStatus(state,'Shipwrecks ON · waiting for the map style before showing all one hundred twenty wreck icons.');
+  else setStatus(state,'Shipwrecks ON · all one hundred twenty wreck icons remain visible from global zoom through close zoom. Select a marker for its card and 3D scan.');
   if(state.nativeModelRoot){
    state.nativeModelVisible=true;
    if(!state.map.getLayer(NATIVE_MODEL_LAYER_ID))ensureRobertGaskinMapLayer(state);
@@ -1692,7 +1692,7 @@ async function setEnabled(state,on){
   state.capeOtwayModelVisible=false;state.capeOtwayModelAutoAttempted=false;if(state.capeOtwayModelRoot)state.capeOtwayModelRoot.visible=false;
   state.timaruModelVisible=false;state.timaruModelAutoAttempted=false;if(state.timaruModelRoot)state.timaruModelRoot.visible=false;
   state.hmsLooModelVisible=false;state.hmsLooModelAutoAttempted=false;if(state.hmsLooModelRoot)state.hmsLooModelRoot.visible=false;
-  setVisibility(state,false);setStatus(state,'Shipwrecks off · all ninety-five wreck icons and all seven native meshes are hidden; other BridgePoint layers are unchanged.');
+  setVisibility(state,false);setStatus(state,'Shipwrecks off · all one hundred twenty wreck icons and all seven native meshes are hidden; other BridgePoint layers are unchanged.');
  }
  refreshStatusUi(state);state.map.triggerRepaint?.();return state.enabled;
 }
