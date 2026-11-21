@@ -14,8 +14,8 @@ const $=s=>document.querySelector(s);
 const state={version:VERSION,active:false,status:'waiting-for-map',buoys:0,flowStrokes:0,currentDate:null,currentSource:null,lastBuoyUpdate:null,error:null};
 window.__BP_WATER_FLOW_BUOYS_V1__=state;
 let map=null,button=null,sourceReady=false,layerReady=false,buoyData=new Map(),field=[],fieldLookup=new Map(),currentFetchAt=0;
-let flowCanvas=null,flowCtx=null,flowSamples=[],flowFrame=0,lastFrame=0,rebuildTimer=0,bouyTimer=0,currentTimer=0;
-let statusBox=null,card=null,viewer=null,markerById=new Map(),markerMap=null,styleObserver=null,buttonObserver=null,styleInstalled=false,markerZoomTimer=0;
+let flowCanvas=null,flowCtx=null,flowSamples=[],flowFrame=0,flowBuildRaf=0,flowBuildGeneration=0,lastFrame=0,rebuildTimer=0,bouyTimer=0,currentTimer=0;
+let statusBox=null,card=null,viewer=null,markerById=new Map(),markerMap=null,styleObserver=null,buttonObserver=null,styleInstalled=false,layersInstalling=false,markerZoomTimer=0;
 const WATER_FILL_RE=/water|ocean|sea|lake|pond|reservoir|hydro/i;
 const FLOW_LAYER_IDS=[];
 function worldMap(){return window.__BP_LANDING_WORLD__?.map||window.__bpLandingWorldV5420?.map||window.__BP_V5000_WORLD__?.map||window.__BP_V5000_WORLD?.map||window.__bpWorldV2300?.map||window.__BP_WORLD_V2300__?.map||null}
@@ -65,12 +65,14 @@ function addSvgIcon(id,color){
  return new Promise(resolve=>{const img=new Image();img.onload=()=>{try{if(!map.hasImage?.(id))map.addImage(id,img,{pixelRatio:2})}catch(_){}resolve()};img.onerror=()=>resolve();img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg)});
 }
 async function ensureLayers(){
- if(!map||!map.isStyleLoaded?.())return;
- const container=map.getContainer();
- if(!flowCanvas){flowCanvas=document.createElement('canvas');flowCanvas.className='bp-water-flow-canvas';flowCanvas.setAttribute('aria-hidden','true');container.appendChild(flowCanvas);flowCtx=flowCanvas.getContext('2d',{alpha:true})}
- makeStatus();
- await Promise.all([addSvgIcon(SOURCE+'-green',COLORS.green),addSvgIcon(SOURCE+'-yellow',COLORS.yellow),addSvgIcon(SOURCE+'-red',COLORS.red)]);
+ if(!map||!map.isStyleLoaded?.()||layersInstalling)return;
+ layersInstalling=true;
  try{
+  const container=map.getContainer();
+  if(!flowCanvas){flowCanvas=document.createElement('canvas');flowCanvas.className='bp-water-flow-canvas';flowCanvas.setAttribute('aria-hidden','true');container.appendChild(flowCanvas);flowCtx=flowCanvas.getContext('2d',{alpha:true})}
+  makeStatus();
+  await Promise.all([addSvgIcon(SOURCE+'-green',COLORS.green),addSvgIcon(SOURCE+'-yellow',COLORS.yellow),addSvgIcon(SOURCE+'-red',COLORS.red)]);
+  if(!map||!map.isStyleLoaded?.())return;
   if(!map.getSource(SOURCE)){map.addSource(SOURCE,{type:'geojson',data:{type:'FeatureCollection',features:[]}})}
   if(!map.getLayer(ICON_LAYER)){
    map.addLayer({id:ICON_LAYER,type:'symbol',source:SOURCE,layout:{
@@ -85,6 +87,7 @@ async function ensureLayers(){
   sourceReady=true;layerReady=true;styleInstalled=true;
   setVisible(enabled);attachMapHandlers();setStatus();scheduleFlowBuild(100);
  }catch(err){state.error=String(err?.message||err);setStatus()}
+ finally{layersInstalling=false}
 }
 function setVisible(on){
  if(flowCanvas)flowCanvas.style.display=on?'block':'none';
@@ -190,18 +193,23 @@ function waterLayers(){
 }
 function seeded(x,y){const a=Math.sin(x*127.1+y*311.7)*43758.5453;return a-Math.floor(a)}
 function scheduleFlowBuild(delay=160){
- if(!enabled||!map)return;clearTimeout(rebuildTimer);rebuildTimer=setTimeout(buildFlowSamples,delay);
+ if(!enabled||!map)return;clearTimeout(rebuildTimer);const generation=++flowBuildGeneration;rebuildTimer=setTimeout(()=>buildFlowSamples(generation),delay);
 }
-function buildFlowSamples(){
+function buildFlowSamples(generation=flowBuildGeneration){
  if(!enabled||!map||!flowCanvas||!map.isStyleLoaded?.())return;
  const rect=map.getContainer().getBoundingClientRect(),dpr=Math.min(2,window.devicePixelRatio||1);
  const w=Math.max(1,Math.round(rect.width)),h=Math.max(1,Math.round(rect.height));
  if(flowCanvas.width!==Math.round(w*dpr)||flowCanvas.height!==Math.round(h*dpr)){flowCanvas.width=Math.round(w*dpr);flowCanvas.height=Math.round(h*dpr);flowCanvas.style.width=w+'px';flowCanvas.style.height=h+'px'}
- const water=waterLayers(),waterReady=water.length>0,step=(w<700?14:12),samples=[],max=14000;
+ const water=waterLayers(),waterReady=water.length>0,step=(w<700?14:16),samples=[],max=5200;
+ const finish=()=>{if(generation!==flowBuildGeneration||!enabled)return;flowSamples=samples;state.flowStrokes=samples.length;setStatus();startFlowAnimation()};
  if(waterReady){
-  for(let y=step/2;y<h&&samples.length<max;y+=step){
-   for(let x=step/2;x<w&&samples.length<max;x+=step){
+  let x=step/2,y=step/2;
+  const processChunk=()=>{
+   if(!enabled||generation!==flowBuildGeneration||!map)return;
+   const deadline=performance.now()+7;let checked=0;
+   while(y<h&&samples.length<max&&checked<80&&performance.now()<deadline){
     const sx=x+(seeded(x,y)-.5)*3,sy=y+(seeded(y,x)-.5)*3;
+    x+=step;if(x>=w){x=step/2;y+=step}checked++;
     let hits=[];try{hits=map.queryRenderedFeatures([sx,sy],{layers:water})}catch(_){}
     if(!hits.length)continue;
     const ll=map.unproject([sx,sy]);if(!Number.isFinite(ll.lat)||!Number.isFinite(ll.lng))continue;
@@ -211,19 +219,22 @@ function buildFlowSamples(){
     let dx=p2.x-sx,dy=p2.y-sy,d=Math.hypot(dx,dy);if(!Number.isFinite(d)||d<.0001){dx=1;dy=0;d=1}
     samples.push({x:sx,y:sy,dx:dx/d,dy:dy/d,speed:vector.speed||.02,phase:seeded(x+101,y+7),length:7+Math.min(12,(vector.speed||.02)*11),estimated:vector.estimated===true});
    }
-  }
+   if(y<h&&samples.length<max){flowBuildRaf=requestAnimationFrame(processChunk);return}
+   flowBuildRaf=0;finish();
+  };
+  processChunk();
  }else{
-  for(const p of field){
+  const stride=Math.max(1,Math.ceil(field.length/max));
+  for(let i=0;i<field.length&&samples.length<max;i+=stride){const p=field[i];
    let pos;try{pos=map.project([p.lon,p.lat])}catch(_){continue}
    if(pos.x<-30||pos.x>w+30||pos.y<-30||pos.y>h+30)continue;
    const latStep=(p.v/Math.max(.02,p.speed))*.018,lonStep=(p.u/Math.max(.02,p.speed))*.018/Math.max(.12,Math.cos(p.lat*Math.PI/180));
    let p2;try{p2=map.project([p.lon+lonStep,p.lat+latStep])}catch(_){continue}
    let dx=p2.x-pos.x,dy=p2.y-pos.y,d=Math.hypot(dx,dy)||1;
    samples.push({x:pos.x,y:pos.y,dx:dx/d,dy:dy/d,speed:p.speed,phase:seeded(p.lon,p.lat),length:8+Math.min(12,p.speed*11)});
-   if(samples.length>=max)break;
   }
+  finish();
  }
- flowSamples=samples;state.flowStrokes=samples.length;setStatus();drawFlow(performance.now());
 }
 function flowColor(speed){
  if(speed>=.55)return COLORS.red;
@@ -231,7 +242,10 @@ function flowColor(speed){
  return COLORS.green;
 }
 function drawFlow(now){
+ flowFrame=0;
  if(!enabled||!flowCtx||!flowCanvas)return;
+ if(now-lastFrame<40){flowFrame=requestAnimationFrame(drawFlow);return}
+ lastFrame=now;
  const dpr=Math.min(2,window.devicePixelRatio||1),w=flowCanvas.width/dpr,h=flowCanvas.height/dpr;
  flowCtx.setTransform(dpr,0,0,dpr,0,0);flowCtx.clearRect(0,0,w,h);flowCtx.lineWidth=1.15;flowCtx.lineCap='round';
  const t=now/1000;
@@ -246,6 +260,7 @@ function drawFlow(now){
  flowCtx.globalAlpha=1;
  flowFrame=requestAnimationFrame(drawFlow);
 }
+function startFlowAnimation(){if(enabled&&!flowFrame)flowFrame=requestAnimationFrame(drawFlow)}
 function findMap(){
  if(map)return true;
  const candidate=worldMap();
@@ -387,7 +402,7 @@ function clearMarkers(){for(const m of markerById.values())try{m.remove()}catch(
 function activate(on){
  const next=!!on;
  if(next&&!findMap()){state.status='waiting-for-map';return}
- if(state.active===next){if(next){void ensureLayers();scheduleFlowBuild(160)}return}
+ if(state.active===next){if(next&&!styleInstalled)void ensureLayers();return}
  state.active=next;state.status=next?'loading':'off';state.error=null;
  if(next){
   void ensureLayers();setVisible(true);void Promise.all([loadBuoys(),loadCurrentGrid()]);
@@ -395,7 +410,7 @@ function activate(on){
   clearInterval(currentTimer);currentTimer=setInterval(()=>{if(enabled)void loadCurrentGrid(true)},60*60*1000);
   scheduleFlowBuild(250);buildCloseMarkers();
  }else{
-  clearInterval(bouyTimer);clearInterval(currentTimer);clearTimeout(rebuildTimer);
+  clearInterval(bouyTimer);clearInterval(currentTimer);clearTimeout(rebuildTimer);flowBuildGeneration++;cancelAnimationFrame(flowBuildRaf);flowBuildRaf=0;
   setVisible(false);cancelAnimationFrame(flowFrame);flowFrame=0;flowSamples=[];state.flowStrokes=0;
   clearMarkers();closeCard();setStatus();
  }
@@ -415,7 +430,7 @@ function boot(){
  addStyles();findMap();syncButton();
  if(!buttonObserver){buttonObserver=new MutationObserver(()=>{if(findMap())syncButton()});buttonObserver.observe(document.documentElement,{childList:true,subtree:true})}
  if(!window.__BP_WATER_FLOW_BUOYS_RETRY_V1__)window.__BP_WATER_FLOW_BUOYS_RETRY_V1__=setInterval(()=>{if(!map)findMap();syncButton();if(map&&enabled&&!styleInstalled)void ensureLayers()},500);
- document.addEventListener('visibilitychange',()=>{if(document.hidden)cancelAnimationFrame(flowFrame);else if(enabled){scheduleFlowBuild(80);drawFlow(performance.now())}});
+ document.addEventListener('visibilitychange',()=>{if(document.hidden){cancelAnimationFrame(flowFrame);flowFrame=0}else if(enabled){scheduleFlowBuild(80);startFlowAnimation()}});
 }
 const api={version:VERSION,get state(){return state},refresh:()=>Promise.all([loadBuoys(),loadCurrentGrid(true)]),close:closeCard};
 window.__BP_WATER_FLOW_BUOYS_API_V1__=api;
