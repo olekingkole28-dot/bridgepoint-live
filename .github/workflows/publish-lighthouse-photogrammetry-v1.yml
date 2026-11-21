@@ -1,0 +1,236 @@
+name: Publish BridgePoint Lighthouse Photogrammetry v1
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-lighthouse-photogrammetry-v1.yml'
+      - 'rebuild-v5000/bridgepoint-lighthouses-v1.js'
+      - 'rebuild-v5000/landing.js'
+      - 'rebuild-v5000/app.js'
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Check the lighthouse scan renderer
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check rebuild-v5000/bridgepoint-lighthouses-v1.js
+          test "$(grep -Ec "^[[:space:]]+id: '" rebuild-v5000/bridgepoint-lighthouses-v1.js)" -eq 26
+          grep -Fq "export const RECORD_COUNT = DATA.length;" rebuild-v5000/bridgepoint-lighthouses-v1.js
+
+      - name: Resolve the latest successful production Pages snapshot
+        id: baseline
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          BASELINE_ID="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/publish-underground-infrastructure-v1.yml/runs?status=success&branch=main&per_page=100" --jq '.workflow_runs | map(select(.conclusion == "success")) | first | .id')"
+          test -n "$BASELINE_ID"
+          test "$BASELINE_ID" != null
+          ARTIFACT="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${BASELINE_ID}/artifacts" --jq '.artifacts[] | select((.expired|not) and (.name | startswith("bridgepoint-v5000-"))) | .name' | head -n 1)"
+          test -n "$ARTIFACT"
+          echo "run_id=$BASELINE_ID" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=$ARTIFACT" >> "$GITHUB_OUTPUT"
+          echo "LIGHTHOUSE_BASELINE run=$BASELINE_ID artifact=$ARTIFACT"
+
+      - name: Download the last successful production snapshot
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ steps.baseline.outputs.artifact_name }}
+          run-id: ${{ steps.baseline.outputs.run_id }}
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/bp-lighthouse-base
+
+      - name: Overlay only the lighthouse scan renderer
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/bp-lighthouse-site"
+          ARCHIVE="$(find "$RUNNER_TEMP/bp-lighthouse-base" -name artifact.tar -type f -print -quit)"
+          test -n "$ARCHIVE"
+          mkdir -p "$SITE"
+          tar -xf "$ARCHIVE" -C "$SITE"
+          export SITE
+          python3 - <<'PY'
+          import hashlib, json, os, re
+          from pathlib import Path
+
+          site=Path(os.environ['SITE'])
+          module='bridgepoint-lighthouses-v1.js'
+          expected_changed={'index.html','app/index.html','landing.js','app.js',module,'app/'+module}
+          before={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                  for p in site.rglob('*') if p.is_file()}
+          required={'index.html','app/index.html','landing.js','app.js',module,'app/'+module,
+                    'bridgepoint-underground-mines-v1.js','bridgepoint-underground-transit-v1.js',
+                    'bridgepoint-underground-infrastructure-v1.js'}
+          missing=required-before.keys()
+          if missing:
+              raise SystemExit('Known-good Pages baseline is missing required files: '+', '.join(sorted(missing)))
+          legacy=(site/module).read_text(encoding='utf-8')
+          if 'OSM-backed global lighthouse locations' not in legacy or 'globalOverpassQuery' not in legacy:
+              raise SystemExit('Baseline lighthouse renderer was not the expected legacy module')
+
+          mobile_old="['./bridgepoint-lighthouses-v1.js?v=6311-mobile-lighthouses','__BP_LIGHTHOUSES_V1__','initLighthouseRenderer','3D lighthouses'],"
+          mobile_new="['./bridgepoint-lighthouses-v1.js?v=3-photogrammetry-scan-catalog','__BP_LIGHTHOUSES_V1__','initLighthouseRenderer','Lighthouses'],"
+          landing=site/'landing.js'
+          text=landing.read_text(encoding='utf-8')
+          if text.count(mobile_old)!=1:
+              raise SystemExit('landing.js: expected exactly one lighthouse mobile restore entry')
+          text=text.replace(mobile_old,mobile_new,1)
+          old_import="./bridgepoint-lighthouses-v1.js?v=2-visible-rotating-beacons"
+          new_import="./bridgepoint-lighthouses-v1.js?v=3-photogrammetry-scan-catalog"
+          if text.count(old_import)!=1:
+              raise SystemExit('landing.js: expected exactly one active lighthouse renderer import')
+          text=text.replace(old_import,new_import,1)
+          landing.write_text(text,encoding='utf-8')
+
+          app=site/'app.js'
+          text=app.read_text(encoding='utf-8')
+          if text.count(old_import)!=1:
+              raise SystemExit('app.js: expected exactly one active lighthouse renderer import')
+          app.write_text(text.replace(old_import,new_import,1),encoding='utf-8')
+
+          replacement=Path('rebuild-v5000')/module
+          payload=replacement.read_bytes()
+          (site/module).write_bytes(payload)
+          (site/'app'/module).write_bytes(payload)
+
+          for rel,entry in (('index.html','landing.js'),('app/index.html','app.js')):
+              file=site/rel
+              text=file.read_text(encoding='utf-8')
+              pattern=r'src="([^"]*'+re.escape(entry)+r'\?v=[^"]*)"'
+              matches=list(re.finditer(pattern,text))
+              if len(matches)!=1:
+                  raise SystemExit(f'{rel}: expected one active {entry} script; found {len(matches)}')
+              src=matches[0].group(1)
+              if 'lighthouse-scans=v3' in src:
+                  raise SystemExit(f'{rel}: lighthouse cache key already exists')
+              file.write_text(text.replace('src="'+src+'"','src="'+src+'&lighthouse-scans=v3"',1),encoding='utf-8')
+
+          after={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                 for p in site.rglob('*') if p.is_file()}
+          added=set(after)-set(before)
+          deleted=set(before)-set(after)
+          changed={p for p in before if p in after and before[p]!=after[p]}
+          if added or deleted or changed!=expected_changed:
+              raise SystemExit('LIGHTHOUSE_ONLY_PUBLISH_SCOPE_FAILED '+json.dumps({
+                'added':sorted(added),'deleted':sorted(deleted),
+                'changed':sorted(changed),'expected_changed':sorted(expected_changed)
+              }))
+          if (site/module).read_bytes()!=(site/'app'/module).read_bytes():
+              raise SystemExit('Root and app lighthouse renderer copies differ')
+          for rel in ('landing.js','app.js'):
+              text=(site/rel).read_text(encoding='utf-8')
+              if old_import in text or new_import not in text:
+                  raise SystemExit(rel+' does not load only the replacement renderer')
+          renderer=(site/module).read_text(encoding='utf-8')
+          if 'globalOverpassQuery' in renderer or 'OSM-backed global lighthouse locations' in renderer:
+              raise SystemExit('Synthetic/OSM lighthouse renderer logic remains')
+          if len(re.findall(r"^[ \t]+id: '",renderer,re.M))!=26:
+              raise SystemExit('Expected 26 verified lighthouse scan records')
+          protected=['bridgepoint-underground-mines-v1.js','bridgepoint-underground-transit-v1.js',
+                     'bridgepoint-underground-infrastructure-v1.js']
+          for rel in protected:
+              if hashlib.sha256((site/rel).read_bytes()).hexdigest()!=before[rel]:
+                  raise SystemExit('Existing underground feature changed: '+rel)
+          if 'muttental-witten' not in (site/'bridgepoint-underground-mines-v1.js').read_text(encoding='utf-8'):
+              raise SystemExit('Existing mine records were not preserved')
+          infra=(site/'bridgepoint-underground-infrastructure-v1.js').read_text(encoding='utf-8')
+          for marker in ('futatsugoya-tunnel-japan','palatine-neronian-cryptoporticus-rome','usti-pipeline-repair-czechia'):
+              if marker not in infra: raise SystemExit('Existing underground infrastructure marker missing: '+marker)
+          for rel in ('index.html','app/index.html'):
+              if 'lighthouse-scans=v3' not in (site/rel).read_text(encoding='utf-8'):
+                  raise SystemExit(rel+' lighthouse cache key was not updated')
+          print('LIGHTHOUSE_ONLY_SCOPE_PASS changed=6 records=26 added=0 deleted=0')
+          PY
+          node --check "$SITE/landing.js"
+          node --check "$SITE/app.js"
+          node --check "$SITE/bridgepoint-lighthouses-v1.js"
+          node --check "$SITE/app/bridgepoint-lighthouses-v1.js"
+          test "$(grep -Ec "^[[:space:]]+id: '" "$SITE/bridgepoint-lighthouses-v1.js")" -eq 26
+          cmp -s "$SITE/bridgepoint-lighthouses-v1.js" "$SITE/app/bridgepoint-lighthouses-v1.js"
+
+      - uses: actions/configure-pages@v5
+
+      - name: Upload the preserved site with lighthouse scans
+        uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/bp-lighthouse-site
+          include-hidden-files: true
+
+      - name: Publish the preserved site with lighthouse scans
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-pages-extended.mjs
+
+      - name: Verify lighthouse publication and retained features
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="https://bridgepointintelligence.online"
+          VERIFIED=0
+          fetch_live_file() {
+            curl -fsSL -H 'Cache-Control: no-cache' "$SITE/$1?check=$GITHUB_SHA-$pass" -o "$RUNNER_TEMP/$2"
+          }
+          for pass in $(seq 1 15); do
+            if fetch_live_file 'bridgepoint-lighthouses-v1.js' 'lighthouses-root.js' && grep -Fq "export const RECORD_COUNT = DATA.length;" "$RUNNER_TEMP/lighthouses-root.js"; then
+              fetch_live_file 'app/bridgepoint-lighthouses-v1.js' 'lighthouses-app.js'
+              fetch_live_file 'landing.js' 'landing-live.js'
+              fetch_live_file 'app.js' 'app-live.js'
+              fetch_live_file '' 'home-live.html'
+              fetch_live_file 'app/index.html' 'app-home-live.html'
+              fetch_live_file 'bridgepoint-underground-mines-v1.js' 'mines-live.js'
+              fetch_live_file 'bridgepoint-underground-transit-v1.js' 'transit-live.js'
+              fetch_live_file 'bridgepoint-underground-infrastructure-v1.js' 'infra-live.js'
+              cmp -s "$RUNNER_TEMP/lighthouses-root.js" "$RUNNER_TEMP/lighthouses-app.js"
+              grep -Fq "photogrammetry-v3" "$RUNNER_TEMP/lighthouses-root.js"
+              grep -Fq "Aniva photogrammetry model" "$RUNNER_TEMP/lighthouses-root.js"
+              grep -Fq "Jomfruland photogrammetry mesh" "$RUNNER_TEMP/lighthouses-root.js"
+              grep -Fq "Interior 3D walkthrough" "$RUNNER_TEMP/lighthouses-root.js"
+              grep -Fq "initLighthouseRenderer','Lighthouses" "$RUNNER_TEMP/landing-live.js"
+              grep -Fq "bridgepoint-lighthouses-v1.js?v=3-photogrammetry-scan-catalog" "$RUNNER_TEMP/app-live.js"
+              grep -Fq "lighthouse-scans=v3" "$RUNNER_TEMP/home-live.html"
+              grep -Fq "lighthouse-scans=v3" "$RUNNER_TEMP/app-home-live.html"
+              grep -Fq "muttental-witten" "$RUNNER_TEMP/mines-live.js"
+              grep -Fq "futatsugoya-tunnel-japan" "$RUNNER_TEMP/infra-live.js"
+              grep -Fq "palatine-neronian-cryptoporticus-rome" "$RUNNER_TEMP/infra-live.js"
+              grep -Fq "usti-pipeline-repair-czechia" "$RUNNER_TEMP/infra-live.js"
+              if grep -Eqi 'globalOverpassQuery|OSM-backed global lighthouse locations|world-v2300-lighthouses' "$RUNNER_TEMP/lighthouses-root.js"; then
+                echo "Legacy procedural lighthouse renderer remains in the live scan module" >&2
+                exit 1
+              fi
+              VERIFIED=1
+              echo "LIGHTHOUSE_LIVE_VERIFICATION_PASS attempt=$pass records=26"
+              break
+            fi
+            sleep 8
+          done
+          test "$VERIFIED" = 1
