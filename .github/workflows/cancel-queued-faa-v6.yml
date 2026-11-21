@@ -1,4 +1,4 @@
-name: Cancel Superseded Wind RF v2 Publish Only
+name: Cancel Superseded Shipwreck Asset Job Blocking Cloud Aircraft Restore
 on:
   push:
     branches: [main]
@@ -11,12 +11,12 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - name: Cancel only shipwreck job accidentally triggered by EMRF visibility edit
+      - name: Cancel only stale shipwreck asset build accidentally triggered by aircraft visual file updates
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          echo "Cancelling only incidental shipwreck run 44846223494"
-          gh api -X POST "repos/${GITHUB_REPOSITORY}/actions/runs/44846223494/cancel" ||
-            gh api "repos/${GITHUB_REPOSITORY}/actions/runs/44846223494" --jq '{status,conclusion}'
+          echo "Cancelling only unrelated shipwreck build 44849616527"
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/actions/runs/44849616527/cancel" ||
+            gh api "repos/${GITHUB_REPOSITORY}/actions/runs/44849616527" --jq '{status,conclusion}'
