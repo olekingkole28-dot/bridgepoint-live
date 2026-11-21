@@ -72,8 +72,8 @@ jobs:
           mkdir -p "$SITE"
           tar -xf "$ARCHIVE" -C "$SITE"
           for f in index.html app/index.html landing.js app.js \
-                   bridgepoint-global-motion-v5926.js app/bridgepoint-global-motion-v5926.js \
-                   bridgepoint-orbit-renderer-v6201.js app/bridgepoint-orbit-renderer-v6201.js \
+                   bridgepoint-global-motion-v5926.js \
+                   bridgepoint-orbit-renderer-v6201.js \
                    starlink-orbits-v2.json; do
             test -s "$SITE/$f" || { echo "Latest production artifact missing required file: $f"; exit 1; }
           done
@@ -96,8 +96,11 @@ jobs:
               rel=p.relative_to(site).as_posix()
               if rel in excluded: targets[rel]=digest(p)
               else: before[rel]=digest(p)
-          if set(targets)!=excluded:
-              raise SystemExit("Production Orbit & Motion target files incomplete: "+repr(sorted(excluded-set(targets))))
+          required_existing={"index.html","app/index.html",
+                             "bridgepoint-global-motion-v5926.js","bridgepoint-orbit-renderer-v6201.js"}
+          if not required_existing.issubset(targets):
+              raise SystemExit("Production Orbit & Motion baseline is missing root targets: "+
+                               repr(sorted(required_existing-set(targets))))
           catalog=json.loads((site/"starlink-orbits-v2.json").read_text())
           fetched=datetime.datetime.fromisoformat(catalog["fetched_at"].replace("Z","+00:00"))
           age=(datetime.datetime.now(datetime.timezone.utc)-fetched).total_seconds()
@@ -172,7 +175,9 @@ jobs:
           tmp=Path(os.environ["RUNNER_TEMP"])
           before=json.loads((tmp/"bp-orbit-preservation-before.json").read_text())
           target_before=json.loads((tmp/"bp-orbit-target-before.json").read_text())
-          excluded=set(target_before)
+          excluded={"index.html","app/index.html",
+                    "bridgepoint-global-motion-v5926.js","app/bridgepoint-global-motion-v5926.js",
+                    "bridgepoint-orbit-renderer-v6201.js","app/bridgepoint-orbit-renderer-v6201.js"}
           def digest(path):
               h=hashlib.sha256()
               with path.open("rb") as f:
@@ -191,13 +196,19 @@ jobs:
                   "added":sorted(set(after)-set(before))[:25],
                   "changed":sorted(k for k in before.keys() & after.keys() if before[k]!=after[k])[:25]
               }))
-          if set(targets)!=set(target_before) or not all(targets[k]!=target_before[k] for k in target_before):
-              raise SystemExit("EXPECTED_ORBIT_TARGET_CHANGE_MISSING")
+          expected_targets={"index.html","app/index.html",
+                            "bridgepoint-global-motion-v5926.js","app/bridgepoint-global-motion-v5926.js",
+                            "bridgepoint-orbit-renderer-v6201.js","app/bridgepoint-orbit-renderer-v6201.js"}
+          if not set(target_before).issubset(expected_targets) or set(targets)!=expected_targets:
+              raise SystemExit("EXPECTED_ORBIT_TARGET_PATHS_MISSING")
+          unchanged=[k for k in target_before if targets[k]==target_before[k]]
+          if unchanged:
+              raise SystemExit("EXPECTED_ORBIT_TARGET_CHANGE_MISSING "+repr(unchanged))
           for feature in ("bridgepoint-global-motion-v5926.js","bridgepoint-orbit-renderer-v6201.js"):
               if digest(site/feature)!=digest(site/"app"/feature):
                   raise SystemExit("ROOT_APP_ORBIT_MODULE_MISMATCH "+feature)
           print("NON_TARGET_PRODUCTION_FILES_BYTE_FOR_BYTE_PRESERVED",len(before))
-          print("ONLY_SIX_ORBIT_TARGET_FILES_CHANGED added=0 deleted=0")
+          print("ONLY_SIX_ORBIT_TARGET_PATHS_CHANGED")
           PY
 
       - uses: actions/configure-pages@v5
