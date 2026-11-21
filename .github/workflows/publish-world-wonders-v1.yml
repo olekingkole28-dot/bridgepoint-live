@@ -8,6 +8,7 @@ on:
     paths:
       - '.github/workflows/publish-world-wonders-v1.yml'
       - 'rebuild-v5000/bridgepoint-iconic-wonders-v1.js'
+      - 'rebuild-v5000/index.html'
       - 'rebuild-v5000/app-index.html'
 
 permissions:
@@ -101,7 +102,7 @@ jobs:
           import hashlib,json,os
           from pathlib import Path
           site=Path(os.environ['RUNNER_TEMP'])/'bp-site'
-          targets={'app/index.html','bridgepoint-iconic-wonders-v1.js'}
+          targets={'index.html','app/index.html','bridgepoint-iconic-wonders-v1.js'}
           def digest(path):
               h=hashlib.sha256()
               with path.open('rb') as f:
@@ -114,15 +115,15 @@ jobs:
               rel=path.relative_to(site).as_posix()
               if rel in targets: target_before[rel]=digest(path)
               else: before[rel]=digest(path)
-          if 'app/index.html' not in target_before:
-              raise SystemExit('Production snapshot does not contain app/index.html')
+          if not {'index.html','app/index.html'} <= set(target_before):
+              raise SystemExit('Production snapshot is missing a root or app entrypoint')
           tmp=Path(os.environ['RUNNER_TEMP'])
           (tmp/'bp-wonders-preservation-before.json').write_text(json.dumps(before,sort_keys=True))
           (tmp/'bp-wonders-target-before.json').write_text(json.dumps(target_before,sort_keys=True))
           print('NON_TARGET_PRODUCTION_FILES_FINGERPRINTED',len(before))
           PY
 
-      - name: Overlay only the World Wonders module and app entrypoint
+      - name: Overlay the World Wonders module on both live entrypoints
         shell: bash
         run: |
           set -euo pipefail
@@ -132,25 +133,39 @@ jobs:
           import re,os
           from pathlib import Path
           site=Path(os.environ['RUNNER_TEMP'])/'bp-site'
-          tag='<script defer src="/bridgepoint-iconic-wonders-v1.js?v=6513-world-wonders-pins"></script>'
-          path=site/'app/index.html'
-          html=path.read_text(encoding='utf-8')
-          if 'bridgepoint-iconic-wonders-v1.js' not in html:
-              if '</body>' not in html.lower():
-                  raise SystemExit('App entrypoint has no closing body tag')
-              html=re.sub(r'</body>',tag+'\n</body>',html,flags=re.I,count=1)
-          if html.count('bridgepoint-iconic-wonders-v1.js') != 1:
-              raise SystemExit('App entrypoint must load exactly one World Wonders module')
-          path.write_text(html,encoding='utf-8')
+          app_tag='<script defer src="/bridgepoint-iconic-wonders-v1.js?v=6514-global-world-wonders"></script>'
+          root_tag='<script type="application/x-bridgepoint-deferred" data-bp-deferred-src="/bridgepoint-iconic-wonders-v1.js?v=6514-global-world-wonders" data-bp-deferred-kind="classic"></script>'
+          for rel,tag in [('index.html',root_tag),('app/index.html',app_tag)]:
+              path=site/rel
+              html=path.read_text(encoding='utf-8')
+              if 'bridgepoint-iconic-wonders-v1.js' not in html:
+                  if '</body>' not in html.lower():
+                      raise SystemExit(rel+' has no closing body tag')
+                  html=re.sub(r'</body>',tag+'\n</body>',html,flags=re.I,count=1)
+              if html.count('bridgepoint-iconic-wonders-v1.js') != 1:
+                  raise SystemExit(rel+' must load exactly one World Wonders module')
+              if rel=='index.html':
+                  marker="  'bridgepoint-map-key-v5920.js',\n"
+                  priority="  'bridgepoint-iconic-wonders-v1.js',\n"
+                  if priority not in html:
+                      if marker not in html:
+                          raise SystemExit('Root deferred loader priority list was not found')
+                      html=html.replace(marker,marker+priority,1)
+                  if priority not in html:
+                      raise SystemExit('Root deferred loader does not prioritize World Wonders')
+              path.write_text(html,encoding='utf-8')
           source=Path('rebuild-v5000/app-index.html').read_text(encoding='utf-8')
-          if tag not in source:
+          if app_tag not in source:
               raise SystemExit('Source app-index.html is missing the World Wonders loader')
+          root_source=Path('rebuild-v5000/index.html').read_text(encoding='utf-8')
+          if root_tag not in root_source or "'bridgepoint-iconic-wonders-v1.js'," not in root_source:
+              raise SystemExit('Source root entrypoint is missing the deferred World Wonders loader')
           module=Path('rebuild-v5000/bridgepoint-iconic-wonders-v1.js').read_text(encoding='utf-8')
           if module.count('modelId:') != 27 or 'total: 27' not in module or 'additional: 20' not in module:
               raise SystemExit('Expected seven requested + twenty additional source records')
           if 'bpv-world-wonders-button-v1' not in module or 'Sketchfab' not in module:
               raise SystemExit('World Wonders button or embedded viewer contract missing')
-          print('WORLD_WONDERS_27_SOURCE_RECORDS_AND_APP_LOADER_PASS')
+          print('WORLD_WONDERS_27_SOURCE_RECORDS_AND_BOTH_ENTRYPOINT_LOADERS_PASS')
           PY
           node --check rebuild-v5000/bridgepoint-iconic-wonders-v1.js
 
@@ -165,7 +180,7 @@ jobs:
           tmp=Path(os.environ['RUNNER_TEMP'])
           before=json.loads((tmp/'bp-wonders-preservation-before.json').read_text())
           target_before=json.loads((tmp/'bp-wonders-target-before.json').read_text())
-          targets={'app/index.html','bridgepoint-iconic-wonders-v1.js'}
+          targets={'index.html','app/index.html','bridgepoint-iconic-wonders-v1.js'}
           def digest(path):
               h=hashlib.sha256()
               with path.open('rb') as f:
@@ -205,21 +220,23 @@ jobs:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
         run: node scripts/deploy-pages-extended.mjs
 
-      - name: Verify World Wonders is live
+      - name: Verify World Wonders is live on root and app routes
         shell: bash
         run: |
           set -euo pipefail
           ORIGIN='https://bridgepointintelligence.online'
           DIR="$RUNNER_TEMP/bp-wonders-live"
           mkdir -p "$DIR"
+          curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/?verify=$GITHUB_SHA-wonders" -o "$DIR/root.html"
           curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/app/?verify=$GITHUB_SHA-wonders" -o "$DIR/app.html"
           curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/bridgepoint-iconic-wonders-v1.js?verify=$GITHUB_SHA-wonders" -o "$DIR/module.js"
           cmp -s "$DIR/module.js" rebuild-v5000/bridgepoint-iconic-wonders-v1.js
-          grep -Fq 'bridgepoint-iconic-wonders-v1.js?v=6513-world-wonders-pins' "$DIR/app.html"
+          grep -Fq 'bridgepoint-iconic-wonders-v1.js?v=6514-global-world-wonders' "$DIR/root.html"
+          grep -Fq 'bridgepoint-iconic-wonders-v1.js?v=6514-global-world-wonders' "$DIR/app.html"
           grep -Fq 'WORLD WONDERS · 3D SCAN' "$DIR/module.js"
           grep -Fq 'bpv-world-wonders-button-v1' "$DIR/module.js"
           grep -Fq "modelId:'4577eb4b21ac48ecba43e7944b4e1baf'" "$DIR/module.js"
           grep -Fq "modelId:'734dd252ca9e42249d9a7de338031a8f'" "$DIR/module.js"
           grep -Fq "modelId:'3ce0cc3108e54097862ea735309d9292'" "$DIR/module.js"
           test "$(grep -c 'modelId:' "$DIR/module.js")" -eq 27
-          echo 'BRIDGEPOINT_WORLD_WONDERS_27_PINS_AND_3D_CARDS_LIVE_PASS'
+          echo 'BRIDGEPOINT_WORLD_WONDERS_27_PINS_AND_3D_CARDS_LIVE_ON_ROOT_AND_APP_PASS'
