@@ -1,6 +1,9 @@
 name: Publish Wind RF Jets 3D Moving Fields and Persistent Icon Cards Only
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-wind-rf-jets-v3.yml']
 permissions:
   contents: read
   actions: read
