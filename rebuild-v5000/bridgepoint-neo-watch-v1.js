@@ -277,7 +277,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       '<div class="bpNeoHudCardV2">',
       '<div class="bpNeoHudTitleV2"><span class="bpNeoLiveDotV2"></span>SPACE OBJECT TRACKING</div>',
       '<div class="bpNeoHudMetaV2"><strong data-neo-stat="total">—</strong><span>objects in the next 7 days</span></div>',
-      '<div class="bpNeoHudHintV2">Tap an icon · Sun-centered view · Earth spins on its orbit · full 3D nominal paths</div>',
+      '<div class="bpNeoHudHintV2">Earth centered · true orbital positions · planet models enlarged for visibility</div>',
       '</div>',
       '<div class="bpNeoHudControlsV2">',
       '<button type="button" data-neo-action="playpause" aria-pressed="false">PAUSE</button>',
