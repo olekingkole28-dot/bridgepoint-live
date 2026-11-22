@@ -141,7 +141,7 @@ jobs:
           import hashlib,json,os,re
           from pathlib import Path
           tmp=Path(os.environ['RUNNER_TEMP']); site=tmp/'bp-site'
-          before=json.loads((tmp/'bridgepoint-public-scans-preservation-before.json').read_text())
+          before=json.loads((tmp/'bp-public-scans-preservation-before.json').read_text())
           targets={'index.html','app/index.html','bridgepoint-public-scans-v1.js'}
           def digest(path):
               h=hashlib.sha256()
