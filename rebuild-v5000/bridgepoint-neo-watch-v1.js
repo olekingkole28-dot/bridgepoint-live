@@ -427,11 +427,15 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     const values = [];
     const num = record.Number ?? record.number ?? '';
     const name = record.Name ?? record.name ?? '';
-    const designation = record.Designation ?? record.designation ?? '';
+    const designation = record.Principal_desig ?? record.Principal_Desig ??
+      record.Designation ?? record.designation ?? record.principal_desig ?? '';
+    const alternates = record.Other_desigs ?? record.other_desigs ?? [];
     if (num !== '') values.push(String(num));
     if (name) values.push(String(name));
     if (designation) values.push(String(designation));
     if (num !== '' && name) values.push(String(num) + ' ' + String(name));
+    if (Array.isArray(alternates)) values.push(...alternates.map(String));
+    else if (alternates) values.push(String(alternates));
     return values;
   }
 
