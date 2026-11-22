@@ -16,7 +16,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
 
 (() => {
   'use strict';
-  const VERSION = 'v6410-physical-heliocentric-scale-cloud-off';
+  const VERSION = 'v6411-earth-centered-visible-planets';
   if (window.__BP_WELCOME_SPACE_V6257__?.version) return;
   const host = document.querySelector('#bpWelcomeGateV1 .bpw-celestial-system');
   if (!host) return;
@@ -1950,6 +1950,7 @@ function createMoonTerrainController() {
 
 
   const target=new THREE.Vector3(0,0,0);
+  const heliocentricCameraEarth=new THREE.Vector3();
   let cameraFrom=camera.position.clone(),cameraTo=camera.position.clone();
   let targetFrom=target.clone(),targetTo=target.clone(),transitionStart=0,transitionDuration=1.35;
   let overviewBaseDistance=Math.hypot(4.2,16.5),lastSpaceZoomDistance=NaN,lastSpaceZoomSyncAt=0;
@@ -2096,18 +2097,23 @@ function createMoonTerrainController() {
     syncHeliocentricSunScale();
     return nearEarthOrbitMode;
   }
-  function focusHeliocentricOverview(distance=32){
+  function focusHeliocentricOverview(distance=24){
     setNearEarthOrbitMode(true);
+    solarCosmos?.update?.();
     focusedObject=null;focusLocalTarget=null;sunFocusLocalTarget=null;saturnFocusMesh=null;saturnFocusLocalTarget=null;focusedPlanetRadius=0;
     solarCosmos?.clearSelection?.();if(bodyPicker)bodyPicker.value='';
     viewState='overview';scene.background=null;moonTerrainController?.setActive(false);
     camera.near=.001;camera.up.set(0,1,0);camera.fov=48;camera.updateProjectionMatrix();
     earth.visible=true;moonPivot.visible=true;sunGroup.visible=true;stars.visible=true;haze.visible=true;
     const aspect=canvas.clientWidth/Math.max(1,canvas.clientHeight);
-    const baseline=aspect<.72?20.5:aspect<1?18.5:16.5;
-    overviewBaseDistance=Math.hypot(4.2,baseline);lastSpaceZoomDistance=NaN;lastSpaceZoomSyncAt=0;
-    const direction=new THREE.Vector3(0,4.2,baseline).normalize();
-    animateCamera(direction.multiplyScalar(THREE.MathUtils.clamp(Number(distance)||32,22,240)),new THREE.Vector3(0,0,0),1.2);
+    const defaultDistance=aspect<.72?16.5:aspect<1?15:14;
+    const requested=Number(distance)||defaultDistance;
+    const startDistance=THREE.MathUtils.clamp(Math.min(requested,defaultDistance),3,240);
+    overviewBaseDistance=startDistance;lastSpaceZoomDistance=NaN;lastSpaceZoomSyncAt=0;
+    const direction=new THREE.Vector3(0,.18,1).normalize();
+    const earthCenter=solarCosmos?.getEarthPosition?.()||new THREE.Vector3();
+    heliocentricCameraEarth.copy(earthCenter);
+    animateCamera(earthCenter.clone().addScaledVector(direction,startDistance),earthCenter,1.2);
     return true;
   }
   function focusSpaceOverview(distance=32){
@@ -2137,7 +2143,7 @@ function createMoonTerrainController() {
   function ensureSolarCosmos(){
     if(solarCosmos)return Promise.resolve(solarCosmos);
     if(!solarCosmosPromise){
-      solarCosmosPromise=import('./bridgepoint-gaia-galaxy-v6270.js?v=6311-physical-heliocentric-scale').then(module=>{
+      solarCosmosPromise=import('./bridgepoint-gaia-galaxy-v6270.js?v=6312-earth-centered-visible-planets').then(module=>{
         if(!solarCosmos)solarCosmos=module.initBridgePointSolarCosmos({
           THREE,scene,camera,canvas,host,controls,starsGroup:stars,
           getSunPosition:()=>sunPosition.clone(),
@@ -2400,7 +2406,8 @@ function createMoonTerrainController() {
     enforceSunCameraClearance();camera.lookAt(target);
   }
   function moonZoomDistance(distance){
-    const minimum=saturnFocusMesh?Math.max(0.00000045,Math.max(.001,focusedPlanetRadius*(saturnFocusMesh.scale?.x||1)*.0005)):viewState==='moon'?0.00000045:viewState==='sun'?.0015:viewState==='planet'?Math.max(1e-9,focusedPlanetRadius*1.015):1.8;
+    const earthRadiusWorld=nearEarthOrbitMode?(Number(earthDepthOccluder.userData.bpPhysicalRadiusWorld)||earthDepthOccluder.parent.getWorldScale(new THREE.Vector3()).x*1.006):0;
+    const minimum=nearEarthOrbitMode?Math.max(1e-12,earthRadiusWorld*1.012):saturnFocusMesh?Math.max(0.00000045,Math.max(.001,focusedPlanetRadius*(saturnFocusMesh.scale?.x||1)*.0005)):viewState==='moon'?0.00000045:viewState==='sun'?.0015:viewState==='planet'?Math.max(1e-9,focusedPlanetRadius*1.015):1.8;
     const maximum=solarCosmos?.maxCameraDistance?.()||5000;
     return THREE.MathUtils.clamp(distance,minimum,maximum);
   }
@@ -2737,7 +2744,7 @@ function createMoonTerrainController() {
             visible:true,
             x:(ndc.x+1)*.5*hostRect.width,
             y:(1-ndc.y)*.5*hostRect.height,
-            radiusPx:Math.max(0.5,Math.abs(edge.x-ndc.x)*.5*hostRect.width)
+            radiusPx:Math.max(mobile?18:14,Math.abs(edge.x-ndc.x)*.5*hostRect.width)
           };
         })():null;
         window.__BP_WELCOME_SYNC_SPACE_ZOOM_V1__?.(spaceZoomRatio,earthProjection);
@@ -2787,6 +2794,24 @@ function createMoonTerrainController() {
     }
     solarCosmos?.update?.();
     syncHeliocentricSunScale();
+    const earthCameraTargetActive=nearEarthOrbitMode&&(viewState==='overview'||(viewState==='planet'&&focusedObject===earthDepthOccluder));
+    if(earthCameraTargetActive){
+      const currentEarth=solarCosmos?.getEarthPosition?.();
+      if(currentEarth?.isVector3){
+        const delta=currentEarth.clone().sub(heliocentricCameraEarth);
+        if(delta.lengthSq()>1e-24){
+          target.add(delta);camera.position.add(delta);
+          cameraFrom.add(delta);cameraTo.add(delta);targetFrom.add(delta);targetTo.add(delta);
+          camera.lookAt(target);
+        }
+        heliocentricCameraEarth.copy(currentEarth);
+      }
+    }
+    const closeEarthRange=nearEarthOrbitMode?camera.position.distanceTo(target):Infinity;
+    const desiredNear=nearEarthOrbitMode?Math.max(1e-12,Math.min(.001,closeEarthRange*.001)):.001;
+    if(Math.abs(camera.near-desiredNear)>Math.max(1e-12,camera.near*.04)){
+      camera.near=desiredNear;camera.updateProjectionMatrix();
+    }
     renderer.render(scene,camera);
     if(renderActive&&!document.hidden)requestAnimationFrame(render);
   }

@@ -10,7 +10,7 @@ import { initBridgePointMarsSystem } from './bridgepoint-mars-system-v6291.js?v=
  * ephemerides use the same Galactic frame; the shared frame is rotated once so
  * its computed Earth-Sun vector meets the existing welcome Sun position.
  */
-const BUILD='v6311-physical-heliocentric-scale';
+const BUILD='v6312-earth-centered-visible-planets';
 const ROOT='/assets/stellar/gaia-dr3-v6270/';
 const DEG=Math.PI/180;
 const AU_PC=1/206264.80624709636;
@@ -327,36 +327,158 @@ for(const p of PLANETS){
   state.distanceRangePc=[Math.min(...ds),Math.max(...ds)];
   state.status='ready';state.loadedChunks=6;state.hipparcosSupplement=24;state.galaxyModel='schematic Milky Way structure; individual points are Gaia/Hipparcos catalogue records';
  }
+ const heliocentricLabelNames=['mercury','venus','earth','mars','jupiter','saturn','uranus','neptune'];
+ const heliocentricLeaderGeometry=new THREE.BufferGeometry();
+ const heliocentricLeaderPositions=new Float32Array(heliocentricLabelNames.length*6);
+ const heliocentricLeaderAttribute=new THREE.BufferAttribute(heliocentricLeaderPositions,3);
+ heliocentricLeaderAttribute.setUsage(THREE.DynamicDrawUsage);
+ heliocentricLeaderGeometry.setAttribute('position',heliocentricLeaderAttribute);
+ const heliocentricLeaderMaterial=new THREE.LineBasicMaterial({color:0x68dceb,transparent:true,opacity:.68,depthTest:false,depthWrite:false,toneMapped:false});
+ const heliocentricLeaders=new THREE.LineSegments(heliocentricLeaderGeometry,heliocentricLeaderMaterial);
+ heliocentricLeaders.name='Planet name callout rods · anchored to each rendered world';
+ heliocentricLeaders.frustumCulled=false;heliocentricLeaders.renderOrder=12;labelsGroup.add(heliocentricLeaders);
+ function planetMinimumRadiusPx(radiusKm){
+  return clamp(3.1*Math.sqrt(Math.max(.02,radiusKm/EARTH_RADIUS_KM)),2.8,8.5);
+ }
+ function setHeliocentricDisplayScale(mesh,geometryRadius,radiusKm,physicalScale){
+  if(!mesh||!Number.isFinite(geometryRadius)||geometryRadius<=0)return 0;
+  mesh.updateWorldMatrix(true,false);
+  const world=mesh.getWorldPosition(new THREE.Vector3());
+  const distance=Math.max(1e-10,camera.position.distanceTo(world));
+  const pixels=planetMinimumRadiusPx(radiusKm);
+  const worldPerPixel=2*distance*Math.tan(camera.fov*DEG*.5)/Math.max(1,host.clientHeight||innerHeight);
+  const physicalRadius=geometryRadius*physicalScale;
+  const displayRadius=Math.max(physicalRadius,worldPerPixel*pixels);
+  const scale=displayRadius/geometryRadius;
+  mesh.userData.bpPhysicalRadiusWorld=physicalRadius;
+  mesh.userData.bpDisplayRadiusWorld=displayRadius;
+  mesh.scale.setScalar(scale);
+  return displayRadius;
+ }
  function updateLabels(sun,pcScale,orientation,distance){
   const heliocentric=state.nearEarthTrackingMode;
-  const auScale=state.auToScene||1;
   const moon=getMoonPosition?getMoonPosition():new THREE.Vector3(8,.7,-1.4);
-  const earthWorld=bodyMap.get('earth')?.mesh.getWorldPosition(new THREE.Vector3())||new THREE.Vector3(0,0,0);
-  const earthLift=heliocentric ? 0.10 : 1.34,moonLift=heliocentric ? 0.10 : 0.45,sunLift=heliocentric ? 0.12 : 1.46;
+  const earthMesh=bodyMap.get('earth')?.mesh;
+  const earthWorld=earthMesh?.getWorldPosition(new THREE.Vector3())||new THREE.Vector3();
+  const width=Math.max(1,host.clientWidth||innerWidth),height=Math.max(1,host.clientHeight||innerHeight);
+  const viewRight=new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion).normalize();
+  const viewUp=new THREE.Vector3(0,1,0).applyQuaternion(camera.quaternion).normalize();
+  const worldPerPixelAt=position=>2*Math.max(1e-10,camera.position.distanceTo(position))*Math.tan(camera.fov*DEG*.5)/height;
+  const earthWorldRadius=earthMesh?(Number(earthMesh.userData.bpDisplayRadiusWorld)||earthMesh.getWorldScale(new THREE.Vector3()).x*1.006):0;
+  const earthWorldPerPixel=worldPerPixelAt(earthWorld);
+  const earthDisplayRadius=Math.max(earthWorldRadius,earthWorldPerPixel*18);
   const specs=[
-   ['earth',earthWorld.clone().add(new THREE.Vector3(0,earthLift,0)),earthLift],
-   ['moon',moon.clone().add(new THREE.Vector3(0,moonLift,0)),moonLift],
-   ['sun',sun.clone().add(new THREE.Vector3(0,sunLift,0)),sunLift]
+   ['earth',earthWorld.clone().addScaledVector(viewUp,earthDisplayRadius+earthWorldPerPixel*4),earthDisplayRadius],
+   ['moon',moon.clone().add(new THREE.Vector3(0,.45,0)),.45],
+   ['sun',sun.clone().addScaledVector(viewUp,worldPerPixelAt(sun)*8),worldPerPixelAt(sun)*4]
   ];
+  const allPlanets=[];
   for(const p of planetRefs){
-   const mesh=planetMeshes.get(p.name.toLowerCase()),world=mesh.getWorldPosition(new THREE.Vector3());
-   const physicalRadius=p.r/EARTH_RADIUS_KM*(heliocentric?auScale*EARTH_RADIUS_KM/KM_AU:1);
-   const off=heliocentric?Math.max(.10,physicalRadius*2):p.r/EARTH_RADIUS_KM+.36;
-   specs.push([p.name.toLowerCase(),world.clone().add(new THREE.Vector3(0,off,0)),off]);
+   const key=p.name.toLowerCase(),mesh=planetMeshes.get(key),world=mesh?.getWorldPosition(new THREE.Vector3());
+   if(mesh&&world)allPlanets.push({key,mesh,world,radius:p.r/EARTH_RADIUS_KM,km:p.r});
   }
-  const localSolarScale=clamp((distance-solarRevealLimit)/10,0,1);
+  for(const key of ['mars','saturn']){
+   const body=bodyMap.get(key),mesh=body?.mesh;
+   if(mesh){
+    const localRadius=Number(body.radius)||1,world=mesh.getWorldPosition(new THREE.Vector3());
+    const displayRadius=Number(mesh.userData.bpDisplayRadiusWorld)||localRadius*mesh.getWorldScale(new THREE.Vector3()).x;
+    allPlanets.push({key,mesh,world,radius:localRadius,km:key==='mars'?3389.5:58232,displayRadius});
+   }
+  }
+  allPlanets.sort((a,b)=>heliocentricLabelNames.indexOf(a.key)-heliocentricLabelNames.indexOf(b.key));
   const saturnModuleActive=['saturn','titan','enceladus','mimas','mars','phobos','deimos'].includes(selectedBody);
-  const showLocalLabels=(distance>solarRevealLimit+2&&distance<pcScale*1500)||!!selectedBody;
-  for(const [name,position] of specs){
-   const sprite=labelMap.get(name);if(!sprite)continue;
-   const focused=selectedBody===name;
-   sprite.visible=!saturnModuleActive&&(focused||showLocalLabels&&(name==='earth'||name==='moon'||name==='sun'?true:localSolarScale>.42));
-   sprite.position.copy(position);
-   const d=Math.max(1e-6,camera.position.distanceTo(position));
-   const worldPerPixel=2*d*Math.tan(camera.fov*DEG*.5)/Math.max(1,host.clientHeight||innerHeight);
-   const w=(sprite.userData.baseWidthPx||76)*worldPerPixel;
-   sprite.scale.set(w,w*.25,1);
+  const sunLabel=labelMap.get('sun');
+  if(sunLabel){
+   sunLabel.visible=!saturnModuleActive&&(heliocentric||selectedBody==='sun'||distance>solarRevealLimit+2);
+   if(sunLabel.visible){
+    const offset=heliocentric?worldPerPixelAt(sun)*12:1.46;
+    sunLabel.position.copy(sun).addScaledVector(viewUp,offset);
+    const wpp=worldPerPixelAt(sun),w=(sunLabel.userData.baseWidthPx||76)*wpp;
+    sunLabel.scale.set(w,w*.25,1);
+   }
   }
+  const earthLabel=labelMap.get('earth');
+  if(earthLabel){
+   earthLabel.visible=!saturnModuleActive&&(heliocentric||selectedBody==='earth'||(distance>solarRevealLimit+2));
+   if(earthLabel.visible){
+    earthLabel.position.copy(specs[0][1]);
+    const wpp=earthWorldPerPixel,w=(heliocentric?58:(earthLabel.userData.baseWidthPx||76))*wpp;
+    earthLabel.scale.set(w,w*.25,1);
+   }
+  }
+  const moonLabel=labelMap.get('moon');
+  if(moonLabel){
+   moonLabel.visible=!heliocentric&&!saturnModuleActive&&(selectedBody==='moon'||distance>solarRevealLimit+2);
+   if(moonLabel.visible){
+    moonLabel.position.copy(specs[1][1]);
+    const wpp=worldPerPixelAt(specs[1][1]),w=(moonLabel.userData.baseWidthPx||76)*wpp;
+    moonLabel.scale.set(w,w*.25,1);
+   }
+  }
+  const solarLabelVisible=heliocentric||distance>solarRevealLimit+2||!!selectedBody;
+  const ringX=clamp(width*.24,72,158),ringY=clamp(height*.12,74,112);
+  const cameraNdcVisible=ndc=>ndc.z>-1&&ndc.z<1&&Math.abs(ndc.x)<1.12&&Math.abs(ndc.y)<1.12;
+  const earthNdc=earthWorld.clone().project(camera);
+  heliocentricLeaderPositions.fill(0);
+  heliocentricLeaders.visible=heliocentric&&!saturnModuleActive;
+  for(const [index,key] of heliocentricLabelNames.entries()){
+   const sprite=labelMap.get(key),body=allPlanets.find(item=>item.key===key);
+   if(!sprite)continue;
+   const mesh=key==='earth'?earthMesh:body?.mesh;
+   const world=key==='earth'?earthWorld:body?.world;
+   const worldRadius=key==='earth'?earthDisplayRadius:(body?.displayRadius||body?.radius*mesh?.getWorldScale(new THREE.Vector3()).x||0);
+   const visibleBody=key==='earth'?!!earthMesh:!!mesh?.visible;
+   const ndc=world?world.clone().project(camera):new THREE.Vector3(0,0,2);
+   const focused=selectedBody===key;
+   const localSolarScale=clamp((distance-solarRevealLimit)/10,0,1);
+   const showLocalLabels=(distance>solarRevealLimit+2&&distance<pcScale*1500)||!!selectedBody;
+   const visible=heliocentric
+    ?!saturnModuleActive&&solarLabelVisible&&visibleBody&&cameraNdcVisible(ndc)
+    :visibleBody&&(saturnModuleActive?focused:(focused||showLocalLabels&&(key==='earth'||localSolarScale>.42)));
+   sprite.visible=visible;
+   if(!visible)continue;
+   const wpp=worldPerPixelAt(world);
+   if(!heliocentric){
+    const labelOffset=worldRadius+wpp*5;
+    sprite.position.copy(world).add(new THREE.Vector3(0,labelOffset,0));
+    const labelWidth=sprite.userData.baseWidthPx||76,w=labelWidth*wpp;
+    sprite.scale.set(w,w*.25,1);
+    continue;
+   }
+   const px=(ndc.x+1)*.5*width,py=(1-ndc.y)*.5*height;
+   const earthPx=(earthNdc.x+1)*.5*width,earthPy=(1-earthNdc.y)*.5*height;
+   let labelX,labelY;
+   if(key==='earth'){
+    const earthPixels=earthDisplayRadius/earthWorldPerPixel;
+    labelX=px;labelY=py-earthPixels-13;
+   }else{
+    const nearby=Math.hypot(px-earthPx,py-earthPy)<220;
+    if(nearby){
+     const ringIndex=heliocentricLabelNames.filter(name=>name!=='earth').indexOf(key);
+     const angle=-Math.PI*.5+ringIndex*Math.PI*2/7;
+     labelX=earthPx+Math.cos(angle)*ringX;
+     labelY=earthPy+Math.sin(angle)*ringY;
+    }else{
+     labelX=px+(px<width*.5?20:-20);
+     labelY=py-12;
+    }
+   }
+   const screenDx=labelX-px,screenDy=labelY-py;
+   const labelPosition=world.clone().addScaledVector(viewRight,screenDx*wpp).addScaledVector(viewUp,-screenDy*wpp);
+   const textWidth=key==='earth'?58:54;
+   const leaderDirection=labelPosition.clone().sub(world);
+   if(leaderDirection.lengthSq()>1e-20)leaderDirection.normalize();
+   const start=world.clone().addScaledVector(leaderDirection,worldRadius);
+   const end=labelPosition.clone();
+   const at=index*6;
+   heliocentricLeaderPositions[at]=start.x;heliocentricLeaderPositions[at+1]=start.y;heliocentricLeaderPositions[at+2]=start.z;
+   heliocentricLeaderPositions[at+3]=end.x;heliocentricLeaderPositions[at+4]=end.y;heliocentricLeaderPositions[at+5]=end.z;
+   sprite.position.copy(labelPosition);
+   const w=textWidth*wpp;sprite.scale.set(w,w*.25,1);
+  }
+  heliocentricLeaderGeometry.attributes.position.needsUpdate=true;
+  const localSolarScale=clamp((distance-solarRevealLimit)/10,0,1);
+  const showLocalLabels=(distance>solarRevealLimit+2&&distance<pcScale*1500)||!!selectedBody;
   stellarContext.visible=!saturnModuleActive&&distance>pcScale*2500;
   galaxyLabel.visible=!saturnModuleActive&&distance>pcScale*4500;
   if(galaxyLabel.visible){
@@ -371,7 +493,7 @@ for(const p of PLANETS){
   if(state.status==='disposed')return;
   const frame=applyFrame();
   if(!frame)return;
-   const {sun,auScale,pcScale,orientation,days,ob}=frame;
+  const {sun,auScale,pcScale,orientation,days,ob}=frame;
   const distance=camera.position.distanceTo(new THREE.Vector3(0,0,0));
   const heliocentricBodyScale=state.nearEarthTrackingMode?auScale*EARTH_RADIUS_KM/KM_AU:1;
   saturnController?.systemRoot?.scale.setScalar(heliocentricBodyScale);
@@ -388,9 +510,48 @@ for(const p of PLANETS){
   }
   const venusAtmosphere=planetAtmospheres.get('venus');
   if(venusAtmosphere)venusAtmosphere.rotation.y=planetMeshes.get('venus')?.rotation.y*.985||0;
-  updateLabels(sun,pcScale,orientation,distance);
   saturnController?.update?.();
   marsController?.update?.();
+  const earthDepthMesh=bodyMap.get('earth')?.mesh;
+  if(state.nearEarthTrackingMode&&earthDepthMesh){
+   const parentScale=earthDepthMesh.parent?.getWorldScale(new THREE.Vector3()).x||1;
+   const physicalEarthRadius=parentScale*1.006;
+   earthDepthMesh.updateWorldMatrix(true,false);
+   const earthWorld=earthDepthMesh.getWorldPosition(new THREE.Vector3());
+   const earthDistance=Math.max(1e-10,camera.position.distanceTo(earthWorld));
+   const earthWorldPerPixel=2*earthDistance*Math.tan(camera.fov*DEG*.5)/Math.max(1,host.clientHeight||innerHeight);
+   const displayEarthRadius=Math.max(physicalEarthRadius,earthWorldPerPixel*18);
+   earthDepthMesh.scale.setScalar(displayEarthRadius/physicalEarthRadius);
+   earthDepthMesh.userData.bpPhysicalRadiusWorld=physicalEarthRadius;
+   earthDepthMesh.userData.bpDisplayRadiusWorld=displayEarthRadius;
+  }else if(earthDepthMesh){
+   earthDepthMesh.scale.setScalar(1);
+   earthDepthMesh.userData.bpPhysicalRadiusWorld=0;
+   earthDepthMesh.userData.bpDisplayRadiusWorld=0;
+  }
+  if(state.nearEarthTrackingMode){
+   for(const p of planetRefs){
+    const mesh=planetMeshes.get(p.name.toLowerCase());
+    setHeliocentricDisplayScale(mesh,p.r/EARTH_RADIUS_KM,p.r,heliocentricBodyScale);
+   }
+   for(const key of ['mars','saturn']){
+    const controller=key==='mars'?marsController:saturnController,body=bodyMap.get(key);
+    const radius=Number(body?.radius)||1,km=key==='mars'?3389.5:58232;
+    const mesh=body?.mesh;
+    const world=mesh?.getWorldPosition(new THREE.Vector3());
+    if(controller?.systemRoot&&world){
+     const distanceToCamera=Math.max(1e-10,camera.position.distanceTo(world));
+     const wpp=2*distanceToCamera*Math.tan(camera.fov*DEG*.5)/Math.max(1,host.clientHeight||innerHeight);
+     const displayRadius=Math.max(radius*heliocentricBodyScale,wpp*planetMinimumRadiusPx(km));
+     controller.systemRoot.scale.setScalar(displayRadius/radius);
+     mesh.userData.bpPhysicalRadiusWorld=radius*heliocentricBodyScale;
+     mesh.userData.bpDisplayRadiusWorld=displayRadius;
+    }
+   }
+  }else{
+   for(const mesh of planetMeshes.values()){mesh.userData.bpDisplayRadiusWorld=0;mesh.userData.bpPhysicalRadiusWorld=0;}
+  }
+  updateLabels(sun,pcScale,orientation,distance);
  }
  function clearSelection(){selectedBody='';bodySelect.value='';}
  function setSelection(name){
