@@ -121,7 +121,7 @@ jobs:
               path=site/rel
               html=path.read_text(encoding='utf-8')
               html=re.sub(r'<button id="bpMapsLaunchV1"[^>]*>.*?</button>\s*','',html,flags=re.I|re.S)
-              html=re.sub(r'<script defer src="/bridgepoint-maps-v1\.js[^\"]*"></script>','',html,flags=re.I)
+              html=re.sub(r'<script defer src="/bridgepoint-maps-v1\.js[^\"]*"></script>\s*','',html,flags=re.I)
               body=re.search(r'<body\b[^>]*>',html,flags=re.I)
               if not body: raise SystemExit(rel+' has no body opening tag for the fixed Maps button')
               button=button_app if rel=='app/index.html' else button_root
