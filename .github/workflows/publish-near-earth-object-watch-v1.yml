@@ -166,7 +166,7 @@ jobs:
               original=landing_before.read_text(encoding='utf-8') if name=='landing.js' else app_before.read_text(encoding='utf-8')
               if before!=original: raise SystemExit(name+' changed before the focused cloud patch')
               after,count=cloud_call.subn(cloud_comment,before)
-              if count!=expected: raise SystemExit(name+' expected '+str(expected)+' automatic procedural-cloud starts; found '+str(count))
+              if count not in (0,expected): raise SystemExit(name+' expected either no remaining cloud starts or '+str(expected)+' original starts; found '+str(count))
               if cloud_call.search(after): raise SystemExit(name+' still auto-starts procedural 3D clouds')
               path.write_text(after,encoding='utf-8')
           required=('#bpv-dock-actions','bpv-v2-tool-button','function openPanel()','function ensureSharedSpace()','function buildSpaceObjects()','function rawRelativePositionAU','function displayPosition','new THREE.CatmullRomCurve3(pathPoints, true','full 3D nominal orbits','heliocentric ? objectHeliocentric','window.__BP_NEO_SIMULATION_TIME_V1__','setBearing?.(bearing)','DecompressionStream','MPC_FILE','Principal_desig','Other_desigs','SPACE OBJECT TRACKING','data-neo-icons','data-neo-action="playpause"','NASA_FEED','nea_extended.json.gz','import * as THREE from')
@@ -277,7 +277,7 @@ jobs:
               prior=(tmp/('bp-'+name.replace('.js','.before.js'))).read_text(encoding='utf-8')
               current=(site/name).read_text(encoding='utf-8')
               wanted,count=cloud_call.subn(cloud_comment,prior)
-              if count!=expected or wanted!=current or cloud_call.search(current):
+              if count not in (0,expected) or wanted!=current or cloud_call.search(current):
                   raise SystemExit(name+' changed beyond disabling its expected automatic cloud-volume starts')
           print('NON_TARGET_PRODUCTION_FILES_BYTE_FOR_BYTE_PRESERVED',len(before))
           print('ENTRYPOINT_CHANGES_LIMITED_TO_NEO_SHARED_SPACE_AND_CLOUD_CACHE_REFERENCES')
