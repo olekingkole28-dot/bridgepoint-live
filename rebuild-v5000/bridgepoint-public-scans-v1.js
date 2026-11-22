@@ -4,15 +4,16 @@
   if (window.__BP_PUBLIC_SCANS_V1__) return;
   window.__BP_PUBLIC_SCANS_V1__ = true;
 
-  const VERSION = '1.0.0';
+  const VERSION = '1.1.0';
   const API = 'https://bridgepoint-scan-library-api.olekingkole28.chatgpt.site/api/v1/scans';
+  const CATALOG_URL = '/bridgepoint-public-scan-catalog-v1.json';
   const BUTTON_ID = 'bpPublicScansLaunchV1';
   const ROOT_ID = 'bpPublicScansRootV1';
   const STYLE_ID = 'bpPublicScansStyleV1';
   const IMPORT_MAP_ID = 'bpPublicScansImportMapV1';
   const DELETE_PREFIX = 'bp_public_scan_delete_v1_';
   const UPLOAD_URL = 'https://openscan.eu/pages/openscancloud-uploader';
-  const state = { screen: 'browse', items: [], total: 0, offset: 0, query: '', loading: false, active: null, renderer: null, scene: null, controls: null, frame: 0, objectUrls: [] };
+  const state = { screen: 'browse', items: [], total: 0, communityTotal: 0, offset: 0, query: '', loading: false, catalog: [], catalogReady: false, catalogLoading: false, catalogError: '', visibleItems: [], active: null, renderer: null, scene: null, controls: null, frame: 0, objectUrls: [] };
   const $ = (selector, root = document) => root.querySelector(selector);
   const escText = value => String(value ?? '');
   const formatBytes = bytes => bytes >= 1024 * 1024 ? `${(bytes / (1024 * 1024)).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
@@ -38,6 +39,7 @@
       .bpScanCardInfoV1{padding:12px}.bpScanCardInfoV1 h3{margin:0;color:#f2fdff;font-size:15px;line-height:1.3;overflow-wrap:anywhere}.bpScanMetaV1{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px;color:#a5c0cb;font-size:10px}.bpScanPillV1{padding:3px 7px;border:1px solid #406778;border-radius:99px;background:#0a1b27;color:#abced8}.bpScanDescV1{margin:8px 0;color:#bdd0d8;font-size:12px;line-height:1.45;overflow-wrap:anywhere}.bpScanCardActionsV1{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.bpScanEmptyV1,.bpScanStatusV1,.bpScanNoticeV1{padding:13px;border:1px solid #3b6270;border-radius:13px;background:#0b1b27;color:#bfd8e0;font-size:12px;line-height:1.5}.bpScanNoticeV1{margin:0 0 13px;border-color:#33849a;background:#0c2633;color:#c9e9ed}.bpScanNoticeV1 strong{color:#8bf7e6}.bpScanStatusV1{margin-top:12px;color:#8ff1de}.bpScanStatusV1[data-kind="error"]{border-color:#9c4f5d;color:#ffc0c0}.bpScanFormV1{display:grid;gap:11px;max-width:720px}.bpScanFieldV1{display:grid;gap:5px;color:#b9d2dc;font-size:12px;font-weight:750}.bpScanFieldV1 input,.bpScanFieldV1 textarea{width:100%;min-height:42px;padding:10px 12px;border:1px solid #335869;border-radius:11px;background:#06121d;color:#effbff;font:550 14px system-ui}.bpScanFieldV1 textarea{min-height:84px;resize:vertical}.bpScanFieldV1 input[type="file"]{padding:8px}.bpScanConsentV1{display:flex;align-items:flex-start;gap:9px;padding:11px;border:1px solid #3e6b7c;border-radius:12px;background:#0b1b27;color:#c4d8df;font-size:12px;line-height:1.45}.bpScanConsentV1 input{width:18px;height:18px;flex:0 0 auto;margin:0;accent-color:#28d7d1}.bpScanViewerV1{width:100%;height:min(55vh,480px);min-height:260px;border:1px solid #4a8192;border-radius:16px;background:#07131d;overflow:hidden}.bpScanViewerV1 canvas{display:block;width:100%;height:100%}.bpScanViewerToolsV1{display:flex;gap:8px;margin:10px 0}.bpScanAttributionV1{margin:11px 0 0;color:#86a4b0;font-size:10px;line-height:1.5}.bpScanLinkV1{color:#75e9e6;font-weight:800}.bpScanFootV1{padding:10px 16px;border-top:1px solid #80dce122;color:#7897a4;font-size:10px;line-height:1.45}
       @media(max-width:600px){#${BUTTON_ID}{right:9px;min-height:37px;padding:0 10px;font-size:9px}.bpScanHeadV1{padding:12px}.bpScanTabsV1{padding:8px 10px 0}.bpScanBodyV1{padding:11px}.bpScanFootV1{padding:9px 11px}.bpScanPanelV1{border-radius:17px}.bpScanGridV1{grid-template-columns:1fr}.bpScanThumbV1{height:126px}.bpScanToolbarV1{flex-wrap:wrap}.bpScanSearchV1{flex-basis:100%}}
     `;
+    style.textContent += ".bpScanSummaryV1{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 14px;padding:14px 15px;border:1px solid #4fdedb8c;border-radius:15px;background:linear-gradient(120deg,#103846,#09202b 72%);box-shadow:inset 0 0 28px #39d7d019,0 8px 24px #0004}.bpScanSummaryV1 strong{display:block;color:#b7fff5;font-size:clamp(19px,4vw,26px);line-height:1.05;font-weight:950}.bpScanSummaryV1 span{display:block;margin-top:5px;color:#a4c6d1;font-size:10px;line-height:1.4}.bpScanLocationListV1{display:grid;gap:8px}.bpScanLocationV1{overflow:hidden;border:1px solid #315867;border-radius:14px;background:linear-gradient(140deg,#0d2533,#091722)}.bpScanLocationV1[open]{border-color:#40c9d18a;box-shadow:0 7px 20px #0003}.bpScanLocationSummaryV1{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:48px;padding:10px 13px;color:#e9fbff;cursor:pointer;list-style:none;font-size:13px;font-weight:850}.bpScanLocationSummaryV1::-webkit-details-marker{display:none}.bpScanLocationSummaryV1:after{content:'＋';color:#77eee3;font-size:16px}.bpScanLocationV1[open]>.bpScanLocationSummaryV1:after{content:'−'}.bpScanLocationNameV1{min-width:0;overflow-wrap:anywhere}.bpScanLocationCountV1{flex:0 0 auto;padding:4px 8px;border:1px solid #47b6bd66;border-radius:99px;background:#0b3440;color:#a8fff2;font-size:10px;font-weight:950}.bpScanLocationModelsV1{padding:0 10px 10px}.bpScanLocationModelsV1 .bpScanGridV1{grid-template-columns:repeat(auto-fill,minmax(min(100%,220px),1fr))}.bpScanViewerV1 iframe{display:block;width:100%;height:100%;border:0}.bpScanOriginV1{color:#7af0df!important}@media(max-width:600px){.bpScanSummaryV1{align-items:flex-start;flex-direction:column}.bpScanLocationModelsV1 .bpScanGridV1{grid-template-columns:1fr}}";
     document.head.appendChild(style);
   }
 
@@ -87,7 +89,7 @@
     root.hidden = false;
     $('#' + BUTTON_ID)?.setAttribute('aria-expanded', 'true');
     render();
-    if (state.screen === 'browse') loadScans(true);
+    if (state.screen === 'browse') { loadCatalog(); loadScans(true); }
     $('#' + ROOT_ID + ' .bpScanCloseV1')?.focus();
   }
 
@@ -126,27 +128,85 @@
 
   function renderBrowse(body) {
     body.replaceChildren();
+    const catalogItems = state.catalog.filter(item => matchesQuery(item, state.query));
+    const communityItems = state.items.filter(item => matchesQuery(item, state.query));
+    const grouped = new Map();
+    for (const item of [...catalogItems, ...communityItems]) {
+      const location = String(item.location || 'Community uploads · location not listed').trim();
+      if (!grouped.has(location)) grouped.set(location, []);
+      grouped.get(location).push(item);
+    }
+    const total = (Number(state.catalog.length) || 0) + (Number(state.communityTotal) || 0);
+    const catalogLocations = new Set(state.catalog.map(item => String(item.location || '').trim()).filter(Boolean)).size;
+    const locationTotal = catalogLocations + (state.communityTotal ? 1 : 0);
+    const bridgepointHostedCount = state.catalog.filter(item => item.asset_url).length + state.communityTotal;
+    const creatorHostedCount = Math.max(0, state.catalog.length - state.catalog.filter(item => item.asset_url).length);
+    const overview = document.createElement('div'); overview.className = 'bpScanSummaryV1';
+    const overviewCount = document.createElement('strong'); overviewCount.textContent = total.toLocaleString() + ' INDEXED 3D MODELS';
+    const overviewDetail = document.createElement('span'); overviewDetail.textContent = locationTotal.toLocaleString() + ' locations · ' + bridgepointHostedCount.toLocaleString() + ' BridgePoint-hosted · ' + creatorHostedCount.toLocaleString() + ' creator-hosted viewers';
+    overview.append(overviewCount, overviewDetail); body.append(overview);
     const toolbar = document.createElement('div');
     toolbar.className = 'bpScanToolbarV1';
     const search = document.createElement('input');
     search.type = 'search'; search.id = 'bpScanSearchV1'; search.className = 'bpScanSearchV1';
-    search.placeholder = 'Search public 3D scans'; search.setAttribute('aria-label', 'Search public scans');
+    search.placeholder = 'Search models or locations'; search.setAttribute('aria-label', 'Search models or locations');
     search.value = state.query;
     const refresh = document.createElement('button');
     refresh.type = 'button'; refresh.className = 'bpScanSecondaryV1'; refresh.dataset.bpScanAction = 'refresh'; refresh.textContent = 'REFRESH';
     toolbar.append(search, refresh);
     body.append(toolbar);
-    const grid = document.createElement('div'); grid.className = 'bpScanGridV1'; grid.id = 'bpScanGridV1'; body.append(grid);
-    if (state.loading && !state.items.length) grid.append(makeMessage('Loading the public scan library…'));
-    else if (!state.items.length) grid.append(makeMessage('No public scans yet. When someone chooses to publish a finished 3D model, it will appear here.'));
-    else state.items.forEach(item => grid.append(makeCard(item)));
+    const list = document.createElement('div'); list.className = 'bpScanLocationListV1'; list.id = 'bpScanGridV1'; body.append(list);
+    const sortedGroups = [...grouped.entries()].sort((a, b) => a[0].localeCompare(b[0], undefined, { sensitivity: 'base' }));
+    state.visibleItems = sortedGroups.flatMap(([, items]) => items);
+    if (!state.catalogReady && !state.catalogError && !state.items.length) list.append(makeMessage('Loading the existing 3D scan catalog…'));
+    else if (state.catalogError && !state.catalog.length && !state.items.length) list.append(makeMessage('The indexed scan catalog is temporarily unavailable. Check the connection and refresh.'));
+    else if (!sortedGroups.length && state.loading) list.append(makeMessage('Loading the public scan library…'));
+    else if (!sortedGroups.length) list.append(makeMessage(state.query ? 'No 3D models match that search.' : 'No 3D models are currently indexed.'));
+    else sortedGroups.forEach(([location, items]) => {
+      items.sort((a, b) => String(a.title || '').localeCompare(String(b.title || ''), undefined, { sensitivity: 'base' }));
+      const group = document.createElement('details'); group.className = 'bpScanLocationV1';
+      const groupSummary = document.createElement('summary'); groupSummary.className = 'bpScanLocationSummaryV1';
+      const name = document.createElement('span'); name.className = 'bpScanLocationNameV1'; name.textContent = location;
+      const count = document.createElement('span'); count.className = 'bpScanLocationCountV1'; count.textContent = items.length + (items.length === 1 ? ' MODEL' : ' MODELS');
+      groupSummary.append(name, count);
+      const models = document.createElement('div'); models.className = 'bpScanLocationModelsV1';
+      const grid = document.createElement('div'); grid.className = 'bpScanGridV1';
+      items.forEach(item => grid.append(makeCard(item)));
+      models.append(grid); group.append(groupSummary, models); list.append(group);
+    });
     if (state.total > state.items.length) {
       const more = document.createElement('button'); more.type = 'button'; more.className = 'bpScanSecondaryV1'; more.dataset.bpScanAction = 'more'; more.textContent = 'LOAD MORE SCANS'; more.style.marginTop = '12px'; body.append(more);
     }
     if (state.loading && state.items.length) body.append(makeMessage('Refreshing scans…'));
     const attribution = document.createElement('p'); attribution.className = 'bpScanAttributionV1';
-    attribution.textContent = 'Only models posted with explicit public-sharing consent appear in this library.';
+    attribution.textContent = 'The indexed catalog brings together 3D viewers already used by BridgePoint map layers. Each card identifies whether the model file is BridgePoint-hosted or remains in its creator’s viewer. New community uploads appear here only after explicit public-sharing consent.';
     body.append(attribution);
+  }
+
+  function matchesQuery(item, query) {
+    const needle = String(query || '').trim().toLocaleLowerCase();
+    if (!needle) return true;
+    return [item.title, item.location, item.category, item.description, item.method, item.creator, item.creator_name]
+      .some(value => String(value || '').toLocaleLowerCase().includes(needle));
+  }
+
+  async function loadCatalog() {
+    if (state.catalogReady || state.catalogLoading) return;
+    state.catalogLoading = true;
+    try {
+      const response = await fetch(CATALOG_URL + '?v=' + VERSION, { headers: { Accept: 'application/json' }, credentials: 'omit', cache: 'force-cache' });
+      if (!response.ok) throw new Error('Catalog request returned ' + response.status + '.');
+      const data = await response.json();
+      if (!Array.isArray(data.items) || !Number.isFinite(Number(data.total)) || Number(data.total) !== data.items.length) throw new Error('The indexed scan catalog is incomplete.');
+      state.catalog = data.items;
+      state.catalogReady = true;
+      state.catalogError = '';
+    } catch (error) {
+      state.catalogError = error?.message || 'The indexed scan catalog could not be loaded.';
+    } finally {
+      state.catalogLoading = false;
+    }
+    if (!$('#' + ROOT_ID)?.hidden && state.screen === 'browse') renderBrowse($('#bpScanBodyV1'));
   }
 
   function makeMessage(text) { const box = document.createElement('div'); box.className = 'bpScanEmptyV1'; box.textContent = text; return box; }
@@ -156,13 +216,18 @@
     const thumb = document.createElement('div'); thumb.className = 'bpScanThumbV1';
     const mesh = document.createElement('div'); mesh.className = 'bpScanMeshV1'; mesh.textContent = '◇'; mesh.setAttribute('aria-hidden', 'true'); thumb.append(mesh);
     const info = document.createElement('div'); info.className = 'bpScanCardInfoV1';
+    const isCatalog = Boolean(item.viewer_url || item.asset_url);
     const title = document.createElement('h3'); title.textContent = escText(item.title); info.append(title);
     const meta = document.createElement('div'); meta.className = 'bpScanMetaV1';
-    for (const text of [item.creator_name || 'BridgePoint community', formatDate(item.created_at), String(item.file_name || '').split('.').pop()?.toUpperCase() || '3D MODEL', formatBytes(Number(item.file_bytes) || 0)]) {
+    const labels = isCatalog
+      ? [item.category || '3D scan', item.asset_url ? 'BridgePoint-hosted' : 'Creator-hosted viewer']
+      : [item.creator_name || 'BridgePoint community', formatDate(item.created_at), String(item.file_name || '').split('.').pop()?.toUpperCase() || '3D MODEL', formatBytes(Number(item.file_bytes) || 0)];
+    for (const text of labels.filter(Boolean)) {
       const pill = document.createElement('span'); pill.className = 'bpScanPillV1'; pill.textContent = text; meta.append(pill);
     }
     info.append(meta);
-    if (item.description) { const description = document.createElement('p'); description.className = 'bpScanDescV1'; description.textContent = item.description; info.append(description); }
+    const descriptionText = item.description || item.method || '';
+    if (descriptionText) { const description = document.createElement('p'); description.className = 'bpScanDescV1'; description.textContent = descriptionText; info.append(description); }
     const actions = document.createElement('div'); actions.className = 'bpScanCardActionsV1';
     const view = document.createElement('button'); view.type = 'button'; view.className = 'bpScanActionV1'; view.textContent = 'OPEN 3D VIEWER'; view.dataset.bpScanAction = 'view'; view.dataset.scanId = item.id; actions.append(view);
     let token = '';
@@ -201,14 +266,27 @@
 
   function renderViewer(body, item) {
     body.replaceChildren();
+    const isCatalog = Boolean(item.viewer_url || item.asset_url);
     const back = document.createElement('button'); back.type = 'button'; back.className = 'bpScanSecondaryV1'; back.dataset.bpScanAction = 'back'; back.textContent = 'BACK TO PUBLIC SCANS'; body.append(back);
     const title = document.createElement('h3'); title.textContent = item.title; title.style.cssText = 'margin:13px 0 4px;color:#f2fdff;font-size:19px'; body.append(title);
-    const meta = document.createElement('div'); meta.className = 'bpScanMetaV1'; meta.textContent = `${item.creator_name || 'BridgePoint community'} · ${formatDate(item.created_at)} · ${formatBytes(Number(item.file_bytes) || 0)}`; body.append(meta);
-    if (item.description) { const copy = document.createElement('p'); copy.className = 'bpScanDescV1'; copy.textContent = item.description; body.append(copy); }
+    const meta = document.createElement('div'); meta.className = 'bpScanMetaV1';
+    meta.textContent = isCatalog
+      ? (item.category || '3D scan') + ' · ' + (item.creator || 'Creator not listed') + ' · ' + (item.asset_url ? 'BridgePoint-hosted model' : 'Creator-hosted viewer')
+      : (item.creator_name || 'BridgePoint community') + ' · ' + formatDate(item.created_at) + ' · ' + formatBytes(Number(item.file_bytes) || 0);
+    body.append(meta);
+    for (const [label, value] of [['Location', item.location], ['Capture', item.method], ['Description', item.description], ['Precision', item.precision], ['License', item.license]]) {
+      if (!value) continue;
+      const copy = document.createElement('p'); copy.className = 'bpScanDescV1'; copy.textContent = label + ': ' + value; body.append(copy);
+    }
     const tools = document.createElement('div'); tools.className = 'bpScanViewerToolsV1';
-    const download = document.createElement('a'); download.className = 'bpScanSecondaryV1'; download.href = API + '/' + encodeURIComponent(item.id) + '/file'; download.target = '_blank'; download.rel = 'noopener'; download.textContent = 'DOWNLOAD MODEL'; download.style.cssText = 'display:inline-flex;align-items:center;text-decoration:none'; tools.append(download); body.append(tools);
+    const link = document.createElement('a'); link.className = 'bpScanSecondaryV1';
+    link.href = isCatalog ? (item.source_url || item.asset_url || item.viewer_url) : API + '/' + encodeURIComponent(item.id) + '/file';
+    link.target = '_blank'; link.rel = 'noopener'; link.textContent = isCatalog && !item.asset_url ? 'OPEN CREATOR SOURCE' : 'DOWNLOAD MODEL'; link.style.cssText = 'display:inline-flex;align-items:center;text-decoration:none'; tools.append(link); body.append(tools);
     const stage = document.createElement('div'); stage.className = 'bpScanViewerV1'; stage.id = 'bpScanViewerCanvasV1'; stage.setAttribute('role', 'img'); stage.setAttribute('aria-label', 'Interactive 3D view of ' + item.title); body.append(stage);
-    const note = document.createElement('p'); note.className = 'bpScanAttributionV1'; note.textContent = 'Drag to rotate · pinch or scroll to zoom. The model is hosted by BridgePoint and was shared publicly by its uploader.'; body.append(note);
+    const note = document.createElement('p'); note.className = 'bpScanAttributionV1'; note.textContent = isCatalog
+      ? (item.asset_url ? 'Drag to rotate · pinch or scroll to zoom. This 3D model file is hosted by BridgePoint.' : 'The original creator-hosted interactive 3D viewer is shown here. The model remains hosted by its listed source.')
+      : 'Drag to rotate · pinch or scroll to zoom. This model was shared publicly by its uploader and is hosted by BridgePoint.';
+    body.append(note);
     loadViewer(item, stage);
   }
 
@@ -226,6 +304,7 @@
       if (reset) state.items = Array.isArray(data.items) ? data.items : [];
       else state.items = state.items.concat(Array.isArray(data.items) ? data.items : []);
       state.total = Number(data.total) || 0;
+      if (!state.query.trim()) state.communityTotal = state.total;
       state.offset = state.items.length;
     } catch (error) {
       state.items = reset ? [] : state.items;
@@ -265,7 +344,7 @@
       if (!response.ok) throw new Error(data.error || `Upload returned ${response.status}.`);
       try { localStorage.setItem(DELETE_PREFIX + data.item.id, data.delete_token); } catch (_) { /* The published scan remains public even if this device cannot save its removal key. */ }
       state.screen = 'browse'; state.active = null; state.query = ''; state.loadError = '';
-      state.items = [data.item]; state.total = Math.max(1, state.total + 1); state.offset = 1;
+      state.items = [data.item]; state.total = Math.max(1, state.total + 1); state.communityTotal += 1; state.offset = 1;
       renderTabs(); renderBrowse($('#bpScanBodyV1'));
       const notice = document.createElement('div'); notice.className = 'bpScanStatusV1'; notice.setAttribute('role', 'status');
       notice.textContent = 'Your scan is now publicly hosted by BridgePoint and appears first in the library. Its removal key is saved on this device.';
@@ -291,10 +370,10 @@
     else if (action === 'tab') {
       stopViewer(); state.screen = button.dataset.screen === 'publish' ? 'publish' : 'browse'; state.active = null; render();
       if (state.screen === 'browse') loadScans(true);
-    } else if (action === 'refresh') loadScans(true);
+    } else if (action === 'refresh') { if (!state.catalogReady) { state.catalogError = ''; loadCatalog(); } loadScans(true); }
     else if (action === 'more') loadScans(false);
     else if (action === 'view') {
-      state.active = state.items.find(item => item.id === button.dataset.scanId) || null;
+      state.active = state.visibleItems.find(item => item.id === button.dataset.scanId) || null;
       if (state.active) { state.screen = 'viewer'; render(); }
     } else if (action === 'back') { stopViewer(); state.screen = 'browse'; render(); }
     else if (action === 'delete') await deleteScan(button.dataset.scanId, button);
@@ -310,7 +389,7 @@
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || 'The scan could not be removed.');
       localStorage.removeItem(DELETE_PREFIX + id);
-      state.items = state.items.filter(item => item.id !== id); state.total = Math.max(0, state.total - 1); state.screen = 'browse'; state.active = null; renderBrowse($('#bpScanBodyV1'));
+      state.items = state.items.filter(item => item.id !== id); state.total = Math.max(0, state.total - 1); state.communityTotal = Math.max(0, state.communityTotal - 1); state.screen = 'browse'; state.active = null; renderBrowse($('#bpScanBodyV1'));
     } catch (error) { window.alert(error?.message || 'The scan could not be removed.'); button.disabled = false; }
   }
 
@@ -328,23 +407,46 @@
       import('three/addons/loaders/OBJLoader.js'), import('three/addons/loaders/MTLLoader.js'), import('three/addons/loaders/PLYLoader.js'),
       import('https://cdn.jsdelivr.net/npm/fflate@0.8.2/esm/browser.js'),
     ]);
-    return { THREE, OrbitControls, GLTFLoader, OBJLoader, MTLLoader, PLYLoader, unzipSync: fflate.unzipSync };
+    return { THREE, OrbitControls, GLTFLoader, OBJLoader, MTLLoader, PLYLoader, unzipSync: fflate.unzipSync, gunzipSync: fflate.gunzipSync };
   }
 
   function bufferFor(value) { return value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength); }
 
   async function loadViewer(item, stage) {
+    if (item.viewer_url && !item.asset_url) {
+      let viewer;
+      try { viewer = new URL(item.viewer_url); } catch (_) { stage.textContent = 'The creator viewer link is invalid.'; return; }
+      if (viewer.protocol !== 'https:') { stage.textContent = 'The creator viewer link is not secure.'; return; }
+      const frame = document.createElement('iframe');
+      frame.src = viewer.href; frame.title = 'Creator-hosted 3D model: ' + item.title;
+      frame.loading = 'eager'; frame.referrerPolicy = 'strict-origin-when-cross-origin';
+      frame.allow = 'fullscreen; autoplay; xr-spatial-tracking'; frame.allowFullscreen = true;
+      stage.replaceChildren(frame);
+      return;
+    }
     stage.textContent = 'Loading interactive 3D model…';
     try {
+      let fileUrl;
+      if (item.asset_url) {
+        fileUrl = new URL(item.asset_url, window.location.origin);
+        if (fileUrl.origin !== window.location.origin || !fileUrl.pathname.startsWith('/assets/')) throw new Error('The BridgePoint model path is invalid.');
+      } else fileUrl = new URL(API + '/' + encodeURIComponent(item.id) + '/file');
       const [libraries, response] = await Promise.all([
-        importLibraries(), fetch(API + '/' + encodeURIComponent(item.id) + '/file', { credentials: 'omit', cache: 'force-cache' }),
+        importLibraries(), fetch(fileUrl.href, { credentials: 'omit', cache: 'force-cache' }),
       ]);
       if (!stage.isConnected || $('#' + ROOT_ID)?.hidden) return;
       if (!response.ok) throw new Error('The hosted model could not be downloaded.');
-      const buffer = await response.arrayBuffer();
+      let buffer = await response.arrayBuffer();
       if (!stage.isConnected || $('#' + ROOT_ID)?.hidden) return;
       if (buffer.byteLength > 100 * 1024 * 1024) throw new Error('This model exceeds the viewer’s 100 MB limit.');
-      await renderModel(libraries, buffer, item.file_name, stage);
+      let fileName = item.file_name || String(item.asset_url || '').split('/').pop() || 'model.glb';
+      if (/\.gz$/i.test(fileName)) {
+        const bytes = libraries.gunzipSync(new Uint8Array(buffer));
+        buffer = bufferFor(bytes);
+        fileName = fileName.replace(/\.gz$/i, '');
+        if (buffer.byteLength > 180 * 1024 * 1024) throw new Error('The unpacked model exceeds the viewer’s 180 MB limit.');
+      }
+      await renderModel(libraries, buffer, fileName, stage);
     } catch (error) {
       if (!stage.isConnected || $('#' + ROOT_ID)?.hidden) return;
       stage.textContent = error?.message || 'This model could not be rendered in this browser.';
