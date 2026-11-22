@@ -1,5 +1,5 @@
-# A workflow-only change retriggers the final snapshot merge without firing layer publishers.
-name: Publish BridgePoint Compact Bottom Card Layout v1
+# Publish the five-section futuristic card over the preserved BridgePoint production snapshot.
+name: Publish BridgePoint Futuristic Bottom Card Sections
 
 on:
   workflow_dispatch:
@@ -8,6 +8,7 @@ on:
     paths:
       - '.github/workflows/publish-bottom-card-layout-v1.yml'
       - 'rebuild-v5000/bridgepoint-bottom-card-compact-v1.css'
+      - 'rebuild-v5000/bridgepoint-bottom-card-categories-v1.js'
       - 'rebuild-v5000/index.html'
       - 'rebuild-v5000/app-index.html'
 
@@ -102,7 +103,7 @@ jobs:
           import hashlib,json,os
           from pathlib import Path
           site=Path(os.environ['RUNNER_TEMP'])/'bp-site'
-          targets={'index.html','app/index.html','bridgepoint-bottom-card-compact-v1.css'}
+          targets={'index.html','app/index.html','bridgepoint-bottom-card-categories-v1.js'}
           def digest(path):
               h=hashlib.sha256()
               with path.open('rb') as f:
@@ -123,7 +124,7 @@ jobs:
           print('NON_TARGET_PRODUCTION_FILES_FINGERPRINTED',len(before))
           PY
 
-      - name: Overlay compact card stylesheet and root/app links
+      - name: Add futuristic card sections without changing button handlers
         shell: bash
         run: |
           set -euo pipefail
@@ -133,30 +134,29 @@ jobs:
           import re,os
           from pathlib import Path
           site=Path(os.environ['RUNNER_TEMP'])/'bp-site'
-          tag='<link rel="stylesheet" href="/bridgepoint-bottom-card-compact-v1.css?v=6515-compact-button-card">'
+          script_tag='<script defer src="/bridgepoint-bottom-card-categories-v1.js?v=6532-five-section-futuristic-card"></script>'
           for rel in ('index.html','app/index.html'):
               path=site/rel
               html=path.read_text(encoding='utf-8')
-              html=re.sub(r'<link rel="stylesheet" href="/bridgepoint-bottom-card-compact-v1\.css[^"]*">','',html,flags=re.I)
-              if not re.search(r'</head>',html,re.I):
-                  raise SystemExit(rel+' has no closing head tag')
-              html=re.sub(r'</head>',tag+'\n</head>',html,flags=re.I,count=1)
+              html=re.sub(r'<script defer src="/bridgepoint-bottom-card-categories-v1\.js[^"]*"></script>','',html,flags=re.I)
+              if len(re.findall(r'<link rel="stylesheet" href="/bridgepoint-bottom-card-compact-v1\.css[^"]*">',html,flags=re.I))!=1:
+                  raise SystemExit(rel+' lost its existing compact-card stylesheet link')
+              if not re.search(r'</body>',html,re.I):
+                  raise SystemExit(rel+' has no closing body tag')
+              html=re.sub(r'</body>',script_tag+'\n</body>',html,flags=re.I,count=1)
+              if html.count(script_tag)!=1:
+                  raise SystemExit(rel+' must load exactly one futuristic card module')
+              for marker in ('bridgepoint-iconic-wonders-v1.js','bridgepoint-water-flow-buoys-v1.js','bridgepoint-power-outages-v1.js','bridgepoint-view-v5917.js'):
+                  if marker not in html:
+                      raise SystemExit(rel+' is missing a preserved feature loader: '+marker)
               path.write_text(html,encoding='utf-8')
-          for rel in ('index.html','app/index.html'):
-              html=(site/rel).read_text(encoding='utf-8')
-              if html.count(tag)!=1:
-                  raise SystemExit(rel+' must load the compact card stylesheet exactly once')
-          source_tag=tag
-          root_source=Path('rebuild-v5000/index.html').read_text(encoding='utf-8')
-          app_source=Path('rebuild-v5000/app-index.html').read_text(encoding='utf-8')
-          css=Path('rebuild-v5000/bridgepoint-bottom-card-compact-v1.css').read_text(encoding='utf-8')
-          if source_tag not in root_source or source_tag not in app_source:
-              raise SystemExit('Source root/app entrypoints are missing the compact card stylesheet')
-          required=('#bpv-dock .bpv-command-heading','#bp-world-time-slider-v5908 .bpwt-filters','grid-template-columns:repeat(4')
-          if not all(rule in css for rule in required):
-              raise SystemExit('Compact card CSS is missing a required layout or wording rule')
-          print('COMPACT_CARD_SOURCE_LINKS_AND_BUTTON_ONLY_LAYOUT_PASS')
+          module=Path('rebuild-v5000/bridgepoint-bottom-card-categories-v1.js').read_text(encoding='utf-8')
+          required=('bpv-card-category-nav-v1','Explore','Weather','Property','Map','System','bpv-card-category-hidden','bp-world-time-slider-v5908')
+          if not all(item in module for item in required):
+              raise SystemExit('Futuristic card module is missing a section or text-hiding rule')
+          print('FIVE_CARD_SECTIONS_BUTTON_HANDLERS_PRESERVED_AND_CORE_LAYERS_RETAINED')
           PY
+          node --check rebuild-v5000/bridgepoint-bottom-card-categories-v1.js
       - name: Prove no non-target production files changed
         shell: bash
         run: |
@@ -168,7 +168,7 @@ jobs:
           tmp=Path(os.environ['RUNNER_TEMP'])
           before=json.loads((tmp/'bp-compact-card-preservation-before.json').read_text())
           target_before=json.loads((tmp/'bp-compact-card-target-before.json').read_text())
-          targets={'index.html','app/index.html','bridgepoint-bottom-card-compact-v1.css'}
+          targets={'index.html','app/index.html','bridgepoint-bottom-card-categories-v1.js'}
           def digest(path):
               h=hashlib.sha256()
               with path.open('rb') as f:
@@ -208,19 +208,25 @@ jobs:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
         run: node scripts/deploy-pages-extended.mjs
 
-      - name: Verify compact bottom card layout is live on root and app routes
+      - name: Verify the futuristic card and existing features are live on root and app
         shell: bash
         run: |
           set -euo pipefail
           ORIGIN='https://bridgepointintelligence.online'
-          DIR="$RUNNER_TEMP/bp-compact-card-live"
+          DIR="$RUNNER_TEMP/bp-futuristic-card-live"
           mkdir -p "$DIR"
-          curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/?verify=$GITHUB_SHA-compact-card" -o "$DIR/root.html"
-          curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/app/?verify=$GITHUB_SHA-compact-card" -o "$DIR/app.html"
-          curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/bridgepoint-bottom-card-compact-v1.css?verify=$GITHUB_SHA-compact-card" -o "$DIR/layout.css"
-          cmp -s "$DIR/layout.css" rebuild-v5000/bridgepoint-bottom-card-compact-v1.css
-          grep -Fq 'bridgepoint-bottom-card-compact-v1.css?v=6515-compact-button-card' "$DIR/root.html"
-          grep -Fq 'bridgepoint-bottom-card-compact-v1.css?v=6515-compact-button-card' "$DIR/app.html"
-          grep -Fq '#bpv-dock .bpv-command-heading' "$DIR/layout.css"
-          grep -Fq '#bp-world-time-slider-v5908 .bpwt-filters' "$DIR/layout.css"
-          echo 'BRIDGEPOINT_COMPACT_BOTTOM_CARD_LAYOUT_LIVE_ON_ROOT_AND_APP'
+          curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/?verify=$GITHUB_SHA-card" -o "$DIR/root.html"
+          curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/app/?verify=$GITHUB_SHA-card" -o "$DIR/app.html"
+          curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/bridgepoint-bottom-card-categories-v1.js?verify=$GITHUB_SHA-card" -o "$DIR/card.js"
+          cmp -s "$DIR/card.js" rebuild-v5000/bridgepoint-bottom-card-categories-v1.js
+          for route in root app; do
+            grep -Fq 'bridgepoint-bottom-card-categories-v1.js?v=6532-five-section-futuristic-card' "$DIR/$route.html"
+            grep -Fq 'bridgepoint-bottom-card-compact-v1.css' "$DIR/$route.html"
+            grep -Fq 'bridgepoint-iconic-wonders-v1.js' "$DIR/$route.html"
+            grep -Fq 'bridgepoint-water-flow-buoys-v1.js' "$DIR/$route.html"
+            grep -Fq 'bridgepoint-power-outages-v1.js' "$DIR/$route.html"
+          done
+          grep -Fq 'bpv-card-category-tab-v1' "$DIR/card.js"
+          grep -Fq 'bpv-card-category-hidden' "$DIR/card.js"
+          grep -Fq 'bpv-futuristic-card-v1' "$DIR/card.js"
+          echo 'FIVE_SECTION_BOTTOM_CARD_AND_EXISTING_LAYERS_LIVE_ON_ROOT_AND_APP'
