@@ -239,6 +239,10 @@ for(const p of PLANETS.filter(p=>p.name!=='Earth')){
  const starState={rows:[],points:null,parsecScale:0,orientation:new THREE.Quaternion(),planetDays:NaN,frame:null};
  const nowSun=()=>getSunPosition?getSunPosition():new THREE.Vector3(0,0,8);
  function astronomicalScale(){return Math.max(1,nowSun().length())}
+ function eclipticJ2000ToGalactic(position){
+ const values=eclToGal(position.x,position.y,position.z,23.439291*DEG);
+ return new THREE.Vector3(values[0],values[1],values[2]);
+}
  function applyFrame(){
   const sun=nowSun();
   if(starState.frame&&starState.frame.sun.distanceToSquared(sun)<1e-12)return starState.frame;
@@ -264,7 +268,7 @@ for(const p of PLANETS.filter(p=>p.name!=='Earth')){
   if(camera.far<maxFar){camera.far=maxFar;camera.updateProjectionMatrix();}
   if(starState.points?.material?.uniforms?.uAUScale)starState.points.material.uniforms.uAUScale.value=auScale;
   if(starState.points?.material?.uniforms?.uViewportHeight)starState.points.material.uniforms.uViewportHeight.value=Math.max(1,host.clientHeight||innerHeight);
-  starState.frame={sun,auScale,pcScale,orientation,days,ob};
+  starState.frame={sun,auScale,pcScale,orientation,days,ob,eclipticJ2000ToGalactic};
   return starState.frame;
  }
  function addGaiaPoints(rows){

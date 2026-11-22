@@ -16,7 +16,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
 
 (() => {
   'use strict';
-  const VERSION = 'v6401-neo-space-frame';
+  const VERSION = 'v6402-neo-galactic-frame';
   if (window.__BP_WELCOME_SPACE_V6257__?.version) return;
   const host = document.querySelector('#bpWelcomeGateV1 .bpw-celestial-system');
   if (!host) return;
@@ -2084,7 +2084,7 @@ function createMoonTerrainController() {
   function ensureSolarCosmos(){
     if(solarCosmos)return Promise.resolve(solarCosmos);
     if(!solarCosmosPromise){
-      solarCosmosPromise=import('./bridgepoint-gaia-galaxy-v6270.js?v=6401-neo-space-frame').then(module=>{
+      solarCosmosPromise=import('./bridgepoint-gaia-galaxy-v6270.js?v=6402-neo-galactic-frame').then(module=>{
         if(!solarCosmos)solarCosmos=module.initBridgePointSolarCosmos({
           THREE,scene,camera,canvas,host,controls,starsGroup:stars,
           getSunPosition:()=>sunPosition.clone(),

@@ -618,8 +618,14 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
 
   function rawRelativePositionAU(item, timeMs) {
     const jd = timeMs / DAY_MS + 2440587.5;
-    const earthReference = scene3d.earthReferenceAU || earthPositionAU(jd);
-    return keplerPosition(item.orbit, jd).sub(earthReference);
+    const frame = scene3d.solarFrame;
+    const toGalactic = frame?.eclipticJ2000ToGalactic;
+    const orbitPosition = keplerPosition(item.orbit, jd);
+    const objectHeliocentric = typeof toGalactic === 'function' ? toGalactic(orbitPosition) : orbitPosition;
+    const earthFallback = earthPositionAU(jd);
+    const earthReference = scene3d.earthReferenceAU
+      || (typeof toGalactic === 'function' ? toGalactic(earthFallback) : earthFallback);
+    return objectHeliocentric.sub(earthReference);
   }
 
   function displayPosition(relativeAU) {

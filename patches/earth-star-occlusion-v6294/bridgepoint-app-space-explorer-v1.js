@@ -4,7 +4,7 @@
  */
 (() => {
   'use strict';
-  const BUILD = 'v6307-neo-space-persistent';
+  const BUILD = 'v6308-neo-galactic-space';
   if (window.__BP_APP_SPACE_EXPLORER_V1__?.build === BUILD) return;
 
   const STYLE_ID = 'bpAppSpaceExplorerStylesV1';
@@ -173,7 +173,7 @@
       const current = getRenderer();
       if (current) return current;
       if (!loading) {
-        loading = import('/bridgepoint-welcome-space-v6260.js?v=v6401-neo-space-frame&space=app-explorer-v1')
+        loading = import('/bridgepoint-welcome-space-v6260.js?v=v6402-neo-galactic-frame&space=app-explorer-v1')
           .then(() => {
             const api = getRenderer();
             if (!api) throw new Error('The 3D celestial scene did not register its renderer');
@@ -238,10 +238,18 @@
     return true;
   }
 
-  if (!init()) {
-    const retry = () => {
-      if (init()) document.removeEventListener('DOMContentLoaded', retry);
-    };
-    document.addEventListener('DOMContentLoaded', retry, { once: true });
+  function bootWhenMapIsReady() {
+    if (init()) return;
+    const observer = new MutationObserver(() => {
+      if (init()) observer.disconnect();
+    });
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+    window.setTimeout(() => observer.disconnect(), 120000);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootWhenMapIsReady, { once: true });
+  } else {
+    bootWhenMapIsReady();
   }
 })();

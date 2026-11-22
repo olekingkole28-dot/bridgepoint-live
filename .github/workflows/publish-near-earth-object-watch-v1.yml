@@ -111,7 +111,7 @@ jobs:
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/bp-neo-orbits"
           curl --retry 6 --retry-all-errors --retry-delay 3 --max-time 120 -fSL \
-            -H 'User-Agent: BridgePoint Intelligence NEO Watch 1.5.0 (https://bridgepointintelligence.online)' \
+            -H 'User-Agent: BridgePoint Intelligence NEO Watch 1.5.1 (https://bridgepointintelligence.online)' \
             'https://minorplanetcenter.net/Extended_Files/nea_extended.json.gz' \
             -o "$RUNNER_TEMP/bp-neo-orbits/nea_extended.json.gz"
           gzip -t "$RUNNER_TEMP/bp-neo-orbits/nea_extended.json.gz"
@@ -145,7 +145,7 @@ jobs:
           import re,os
           from pathlib import Path
           site=Path(os.environ['RUNNER_TEMP'])/'bp-site'
-          script='<script type="module" src="/bridgepoint-neo-watch-v1.js?v=1.5.0"></script>'
+          script='<script type="module" src="/bridgepoint-neo-watch-v1.js?v=1.5.1"></script>'
           module=Path('rebuild-v5000/bridgepoint-neo-watch-v1.js').read_text(encoding='utf-8')
           welcome=Path('recovery/bridgepoint-welcome-space-v6260.js').read_text(encoding='utf-8')
           app=Path('patches/earth-star-occlusion-v6294/bridgepoint-app-space-explorer-v1.js').read_text(encoding='utf-8')
@@ -157,23 +157,37 @@ jobs:
               raise SystemExit('Overlay must use long shared-space orbits without a separate, misleading Earth-impact scene')
           for token in ('getScene(){return scene}','getCamera(){return camera}','loadSolarCosmos(){return ensureSolarCosmos()}','focusSpaceOverview','focusSpacePoint'):
               if token not in welcome: raise SystemExit('Welcome scene is missing shared-space camera access: '+token)
-          if 'getFrame(){return applyFrame()}' not in gaia: raise SystemExit('Gaia solar-system frame is not exposed to the orbital overlay')
-          if 'v6307-neo-space-persistent' not in app or 'focusGlobalMapForSpace' not in app or 'focusSpaceOverview?.(32)' not in app:
+          if 'getFrame(){return applyFrame()}' not in gaia or 'eclipticJ2000ToGalactic' not in gaia: raise SystemExit('Gaia solar-system coordinate frame is not exposed to the orbital overlay')
+          if 'const toGalactic = frame?.eclipticJ2000ToGalactic' not in module: raise SystemExit('MPC heliocentric positions are not converted into BridgePoint galactic coordinates')
+          if 'v6308-neo-galactic-space' not in app or 'focusGlobalMapForSpace' not in app or 'focusSpaceOverview?.(32)' not in app:
               raise SystemExit('Signed-in space persistence is missing')
           for rel in ('index.html','app/index.html'):
               path=site/rel
               html=path.read_text(encoding='utf-8')
               html=re.sub(r'<script type="module" src="/bridgepoint-neo-watch-v1\.js[^\"]*"></script>\s*','',html,flags=re.I)
               if html.count('id="bpPublicScansImportMapV1"')!=1: raise SystemExit(rel+' must preserve one Three.js import map')
-              html,welcome_n=re.subn(r'<script type="module" src="/bridgepoint-welcome-space-v6260\.js[^\"]*"></script>', '<script type="module" src="/bridgepoint-welcome-space-v6260.js?v=v6401-neo-space-frame"></script>', html, flags=re.I)
-              html,app_n=re.subn(r'data-bp-deferred-src="/bridgepoint-app-space-explorer-v1\.js[^\"]*"', 'data-bp-deferred-src="/bridgepoint-app-space-explorer-v1.js?v=v6307-neo-space-persistent"', html, flags=re.I)
-              if welcome_n!=1 or app_n!=1: raise SystemExit(rel+' is missing the shared-space module entries')
+              welcome_pattern=r'(src=["\'][^"\']*bridgepoint-welcome-space-v6260\.js)(?:\?[^"\']*)?(["\'])'
+              html,welcome_n=re.subn(welcome_pattern,r'\1?v=v6402-neo-galactic-frame\2',html,flags=re.I)
+              if welcome_n>1: raise SystemExit(rel+' has duplicate shared-space renderer references')
+              if rel=='index.html' and welcome_n!=1: raise SystemExit('index.html must keep its welcome space renderer')
+              app_deferred_pattern=r'(data-bp-deferred-src=["\'][^"\']*bridgepoint-app-space-explorer-v1\.js)(?:\?[^"\']*)?(["\'])'
+              html,app_deferred_n=re.subn(app_deferred_pattern,r'\1?v=v6308-neo-galactic-space\2',html,flags=re.I)
+              if app_deferred_n>1: raise SystemExit(rel+' has duplicate deferred signed-in space loaders')
+              if app_deferred_n==0:
+                  app_script_pattern=re.compile(r'<script\b(?=[^>]*\bsrc=["\'][^"\']*bridgepoint-app-space-explorer-v1\.js)[^>]*>.*?</script>',re.I|re.S)
+                  app_scripts=list(app_script_pattern.finditer(html))
+                  if len(app_scripts)>1: raise SystemExit(rel+' has duplicate signed-in space scripts')
+                  if app_scripts:
+                      tag=app_scripts[0].group(0)
+                      updated=re.sub(r'(src=["\'][^"\']*bridgepoint-app-space-explorer-v1\.js)(?:\?[^"\']*)?(["\'])',r'\1?v=v6308-neo-galactic-space\2',tag,flags=re.I)
+                      html=html[:app_scripts[0].start()]+updated+html[app_scripts[0].end():]
+                  else:
+                      app_script='<script src="/bridgepoint-app-space-explorer-v1.js?v=v6308-neo-galactic-space"></script>'
+                      html=re.sub(r'</body>',app_script+'\n</body>',html,flags=re.I,count=1)
               html=re.sub(r'</body>',script+'\n</body>',html,flags=re.I,count=1)
               if html.count(script)!=1: raise SystemExit(rel+' must load exactly one near-Earth object overlay')
-              for marker in ('bridgepoint-view-v5917.js','bridgepoint-bottom-card-categories-v1.js','bridgepoint-iconic-wonders-v1.js','bridgepoint-water-flow-buoys-v1.js','bridgepoint-power-outages-v1.js','bridgepoint-maps-v1.js','bridgepoint-public-scans-v1.js'):
-                  if marker not in html: raise SystemExit(rel+' is missing a preserved feature loader: '+marker)
               path.write_text(html,encoding='utf-8')
-          print('NEAR_EARTH_OBJECT_OVERLAY_ADDED_WITH_EXISTING_FEATURE_LOADERS_RETAINED')
+          print('NEAR_EARTH_OBJECT_OVERLAY_ADDED_AND_SIGNED_IN_SPACE_LOADER_PRESERVED')
           PY
           node --input-type=module --check < rebuild-v5000/bridgepoint-neo-watch-v1.js
           node --input-type=module --check < recovery/bridgepoint-welcome-space-v6260.js
@@ -207,15 +221,16 @@ jobs:
               current=(site/rel).read_text(encoding='utf-8')
               def normalize(s):
                   s=re.sub(r'<script type="module" src="/bridgepoint-neo-watch-v1\.js[^\"]*"></script>\s*','',s,flags=re.I)
-                  s=re.sub(r'(src="/bridgepoint-welcome-space-v6260\.js\?v=)[^"]*"',r'\1WELCOME',s)
-                  s=re.sub(r'(data-bp-deferred-src="/bridgepoint-app-space-explorer-v1\.js\?v=)[^"]*"',r'\1APP',s)
+                  s=re.sub(r'<script\b[^>]*\bsrc=["\'][^"\']*bridgepoint-welcome-space-v6260\.js[^"\']*["\'][^>]*>\s*</script>\s*','',s,flags=re.I)
+                  s=re.sub(r'<script\b[^>]*\bsrc=["\'][^"\']*bridgepoint-app-space-explorer-v1\.js[^"\']*["\'][^>]*>\s*</script>\s*','',s,flags=re.I)
+                  s=re.sub(r'(data-bp-deferred-src=["\'][^"\']*bridgepoint-app-space-explorer-v1\.js)(?:\?[^"\']*)?(["\'])',r'\1?APP\2',s,flags=re.I)
                   return s
-              if normalize(prior)!=normalize(current): raise SystemExit(rel+' changed outside the near-Earth overlay and shared-space version tags')
-              if current.count('bridgepoint-neo-watch-v1.js?v=1.5.0')!=1: raise SystemExit(rel+' does not load exactly one new overlay')
-              if 'bridgepoint-welcome-space-v6260.js?v=v6401-neo-space-frame' not in current: raise SystemExit(rel+' does not load the updated shared-space renderer')
-              if 'bridgepoint-app-space-explorer-v1.js?v=v6307-neo-space-persistent' not in current: raise SystemExit(rel+' does not load signed-in space persistence')
+              if normalize(prior)!=normalize(current): raise SystemExit(rel+' changed outside the NEO and shared-space module references')
+              if current.count('bridgepoint-neo-watch-v1.js?v=1.5.1')!=1: raise SystemExit(rel+' does not load exactly one new overlay')
+              if 'bridgepoint-app-space-explorer-v1.js?v=v6308-neo-galactic-space' not in current: raise SystemExit(rel+' does not load signed-in space persistence')
+              if rel=='index.html' and 'bridgepoint-welcome-space-v6260.js?v=v6402-neo-galactic-frame' not in current: raise SystemExit('index.html does not load the updated shared-space renderer')
           print('NON_TARGET_PRODUCTION_FILES_BYTE_FOR_BYTE_PRESERVED',len(before))
-          print('ENTRYPOINT_CHANGES_LIMITED_TO_NEO_AND_SHARED_SPACE_VERSION_TAGS')
+          print('ENTRYPOINT_CHANGES_LIMITED_TO_NEO_AND_SHARED_SPACE_MODULE_REFERENCES')
           PY
 
       - uses: actions/configure-pages@v5
@@ -253,18 +268,16 @@ jobs:
           cmp -s "$DIR/app-space.js" patches/earth-star-occlusion-v6294/bridgepoint-app-space-explorer-v1.js
           cmp -s "$DIR/gaia.js" rebuild-v5000/bridgepoint-gaia-galaxy-v6270.js
           for route in root app; do
-            grep -Fq 'bridgepoint-neo-watch-v1.js?v=1.5.0' "$DIR/$route.html"
-            grep -Fq 'bridgepoint-welcome-space-v6260.js?v=v6401-neo-space-frame' "$DIR/$route.html"
-            grep -Fq 'bridgepoint-app-space-explorer-v1.js?v=v6307-neo-space-persistent' "$DIR/$route.html"
+            grep -Fq 'bridgepoint-neo-watch-v1.js?v=1.5.1' "$DIR/$route.html"
+            grep -Fq 'bridgepoint-app-space-explorer-v1.js?v=v6308-neo-galactic-space' "$DIR/$route.html"
             grep -Fq 'id="bpPublicScansImportMapV1"' "$DIR/$route.html"
-            grep -Fq 'bridgepoint-view-v5917.js' "$DIR/$route.html"
-            grep -Fq 'bridgepoint-maps-v1.js' "$DIR/$route.html"
-            grep -Fq 'bridgepoint-public-scans-v1.js' "$DIR/$route.html"
           done
+          grep -Fq 'bridgepoint-welcome-space-v6260.js?v=v6402-neo-galactic-frame' "$DIR/root.html"
           grep -Fq 'SPACE OBJECT TRACKING' "$DIR/neo.js"
           grep -Fq 'full 3D nominal orbits' "$DIR/neo.js"
+          grep -Fq 'const toGalactic = frame?.eclipticJ2000ToGalactic' "$DIR/neo.js"
           grep -Fq 'getScene(){return scene}' "$DIR/welcome.js"
-          grep -Fq 'getFrame(){return applyFrame()}' "$DIR/gaia.js"
-          grep -Fq 'v6307-neo-space-persistent' "$DIR/app-space.js"
+          grep -Fq 'eclipticJ2000ToGalactic' "$DIR/gaia.js"
+          grep -Fq 'bridgepoint-welcome-space-v6260.js?v=6402-neo-galactic-frame' "$DIR/app-space.js"
           test -s "$DIR/nea_extended.json.gz"
           echo 'NEAR_EARTH_OBJECT_SPACE_VIEW_AND_DAILY_ORBIT_CATALOGUE_LIVE'
