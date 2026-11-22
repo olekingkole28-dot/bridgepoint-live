@@ -11,6 +11,13 @@ const CATEGORIES=[
 ];
 const ICONS={explore:'◈',weather:'☁',property:'⌂',map:'⌖',system:'⚙'};
 const CSS=[
+ '#bpv-dock #bpv-dock-actions.bpv-command-groups{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:7px!important;justify-content:stretch!important;align-items:stretch!important;min-width:0;max-width:100%}',
+ '#bpv-dock .bpv-command-group,#bpv-dock .bpv-command-grid,#bpv-dock .bpv-command-inline-slot{display:contents!important}',
+ '#bpv-dock .bpv-command-group{min-width:0!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important}',
+ '#bpv-dock .bpv-command-heading,#bpv-dock .bpv-command-group small,#bpv-dock .bpv-command-group p,#bpv-dock .bpv-command-group [role="status"],#bpv-dock .bpv-command-group [aria-live],#bpv-dock #bpv-dock-actions h1,#bpv-dock #bpv-dock-actions h2,#bpv-dock #bpv-dock-actions h3,#bpv-dock #bpv-dock-actions h4,#bpv-dock #bpv-dock-actions p,#bpv-dock #bpv-dock-actions small,#bpv-dock #bpv-dock-actions [role="status"],#bpv-dock #bpv-dock-actions [aria-live],#bpv-dock #bpv-dock-actions button small{display:none!important}',
+ '#bpv-dock .bpv-dock-label>div:first-child{display:none!important}',
+ '#bpv-dock #bpv-more-info:not([open]){display:none!important}#bpv-dock #bpv-more-info>summary,#bpv-dock .bpv-more-info-intro,#bpv-dock .bpv-more-info-note{display:none!important}#bpv-dock .bpv-more-info-content{padding:0!important;border:0!important}',
+ '#bpv-dock #bp-world-time-slider-v5908 .bpwt-head{justify-content:flex-end!important;margin-bottom:0!important}#bpv-dock #bp-world-time-slider-v5908 .bpwt-controls{justify-content:flex-start!important}';
  '#bpv-dock.bpv-futuristic-card-v1{border:1px solid rgba(83,222,255,.5)!important;border-radius:20px!important;background:linear-gradient(158deg,rgba(7,23,37,.97),rgba(3,9,18,.98) 72%)!important;box-shadow:0 20px 58px rgba(0,0,0,.52),inset 0 1px rgba(210,248,255,.1),0 0 28px rgba(41,177,224,.12)!important;backdrop-filter:blur(20px) saturate(1.3)!important}',
  '#bpv-dock.bpv-futuristic-card-v1 .bpv-dock-label{border-bottom:1px solid rgba(111,211,245,.18)!important}',
  '#bpv-dock .bpv-card-category-nav-v1{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin:7px 0 9px;padding:0 1px}',

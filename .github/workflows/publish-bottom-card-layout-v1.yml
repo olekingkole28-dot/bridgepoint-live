@@ -129,7 +129,6 @@ jobs:
         run: |
           set -euo pipefail
           SITE="$RUNNER_TEMP/bp-site"
-          cp rebuild-v5000/bridgepoint-bottom-card-compact-v1.css "$SITE/bridgepoint-bottom-card-compact-v1.css"
           python3 - <<'PY'
           import re,os
           from pathlib import Path
@@ -139,8 +138,6 @@ jobs:
               path=site/rel
               html=path.read_text(encoding='utf-8')
               html=re.sub(r'<script defer src="/bridgepoint-bottom-card-categories-v1\.js[^"]*"></script>','',html,flags=re.I)
-              if len(re.findall(r'<link rel="stylesheet" href="/bridgepoint-bottom-card-compact-v1\.css[^"]*">',html,flags=re.I))!=1:
-                  raise SystemExit(rel+' lost its existing compact-card stylesheet link')
               if not re.search(r'</body>',html,re.I):
                   raise SystemExit(rel+' has no closing body tag')
               html=re.sub(r'</body>',script_tag+'\n</body>',html,flags=re.I,count=1)
@@ -221,7 +218,6 @@ jobs:
           cmp -s "$DIR/card.js" rebuild-v5000/bridgepoint-bottom-card-categories-v1.js
           for route in root app; do
             grep -Fq 'bridgepoint-bottom-card-categories-v1.js?v=6532-five-section-futuristic-card' "$DIR/$route.html"
-            grep -Fq 'bridgepoint-bottom-card-compact-v1.css' "$DIR/$route.html"
             grep -Fq 'bridgepoint-iconic-wonders-v1.js' "$DIR/$route.html"
             grep -Fq 'bridgepoint-water-flow-buoys-v1.js' "$DIR/$route.html"
             grep -Fq 'bridgepoint-power-outages-v1.js' "$DIR/$route.html"
