@@ -1,5 +1,5 @@
-# Publish only the globe flash fix over the last successful production snapshot.
-name: Publish BridgePoint Radar Static Globe v1
+# Publish only the radar restore and satellite guard over the last successful production snapshot.
+name: Publish BridgePoint Radar Restore and Satellite Flicker Guard v2
 
 on:
   workflow_dispatch:
@@ -20,7 +20,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: bridgepoint-v5000-radar-static-v1
+  group: bridgepoint-v5000-radar-restore-satellite-guard-v2
   cancel-in-progress: false
 
 jobs:
@@ -137,20 +137,26 @@ jobs:
           import re,os
           from pathlib import Path
           site=Path(os.environ['RUNNER_TEMP'])/'bp-site'
-          cache='6239-globe-flash-fix-v1'
+          cache='6240-satellite-render-stability-v1'
           for rel in ('index.html','app/index.html'):
               p=site/rel
               html=p.read_text(encoding='utf-8')
               html,n=re.subn(r'(<link\s+rel="modulepreload"\s+href="/world-v2300-map\.js\?v=)[^&"]+',r'\g<1>'+cache,html,count=1)
               if n!=1: raise SystemExit(rel+' must have exactly one globe map preload; found '+str(n))
               stem='landing.js' if rel=='index.html' else 'app.js'
-              html,n=re.subn(r'((?:\./|\.\./)?'+re.escape(stem)+r'\?v=)[^&"\'<>\s]+',r'\g<1>6314-radar-static-v1',html,count=1)
+              html,n=re.subn(r'((?:\./|\.\./)?'+re.escape(stem)+r'\?v=)[^&"\'<>\s]+',r'\g<1>6315-radar-restore-v2',html,count=1)
               if n!=1: raise SystemExit(rel+' must have exactly one '+stem+' entry; found '+str(n))
               p.write_text(html,encoding='utf-8')
           for rel in ('landing.js','app.js'):
               source=(site/rel).read_text(encoding='utf-8')
               if 'world-v2300-map.js?v='+cache not in source:
                   raise SystemExit(rel+' does not import the cache-busted globe renderer')
+              if 'cadenceMs:5200' not in source or 'animationAllZoom:true' not in source:
+                  raise SystemExit(rel+' lost the animated latest radar timeline')
+          for rel in ('world-v2300-map.js','app/world-v2300-map.js'):
+              source=(site/rel).read_text(encoding='utf-8')
+              if "map.on('render',()=>keepSatelliteRasterLayersVisible('render'))" in source:
+                  raise SystemExit(rel+' still forces satellite visibility on every render')
           for rel in ('world-v2300-map.js','app/world-v2300-map.js'):
               source=(site/rel).read_text(encoding='utf-8')
               if 'window.__BP_COAST_FOAM_TIMER__=0' not in source or 'window.__BP_COAST_FOAM_TIMER__=setInterval' in source:
@@ -197,7 +203,7 @@ jobs:
 
       - uses: actions/configure-pages@v5
 
-      - name: Upload preserved production snapshot with globe flash fix
+      - name: Upload preserved production snapshot with radar restore and satellite guard
         uses: actions/upload-pages-artifact@v4
         with:
           name: bridgepoint-v5000-${{ github.run_attempt }}
@@ -219,30 +225,28 @@ jobs:
           mkdir -p "$DIR"
           curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/?verify=$GITHUB_SHA-globe-flash-fix" -o "$DIR/root.html"
           curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/app/?verify=$GITHUB_SHA-globe-flash-fix" -o "$DIR/app.html"
-          grep -Fq 'world-v2300-map.js?v=6239-globe-flash-fix-v1' "$DIR/root.html"
-          grep -Fq 'world-v2300-map.js?v=6239-globe-flash-fix-v1' "$DIR/app.html"
-          grep -Fq 'landing.js?v=6314-radar-static-v1' "$DIR/root.html"
-          grep -Fq 'app.js?v=6314-radar-static-v1' "$DIR/app.html"
-          for spec in 'landing.js?v=6314-radar-static-v1' 'app.js?v=6314-radar-static-v1' 'world-v2300-map.js?v=6239-globe-flash-fix-v1' 'app/world-v2300-map.js'; do
+          grep -Fq 'world-v2300-map.js?v=6240-satellite-render-stability-v1' "$DIR/root.html"
+          grep -Fq 'world-v2300-map.js?v=6240-satellite-render-stability-v1' "$DIR/app.html"
+          grep -Fq 'landing.js?v=6315-radar-restore-v2' "$DIR/root.html"
+          grep -Fq 'app.js?v=6315-radar-restore-v2' "$DIR/app.html"
+          for spec in 'landing.js?v=6315-radar-restore-v2' 'app.js?v=6315-radar-restore-v2' 'world-v2300-map.js?v=6240-satellite-render-stability-v1' 'app/world-v2300-map.js'; do
             name="$(printf '%s' "$spec" | tr '/?.=' '_____')"
             curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/$spec?verify=$GITHUB_SHA" -o "$DIR/$name"
           done
-          grep -Fq 'world-v2300-map.js?v=6239-globe-flash-fix-v1' "$DIR/landing_js_v_6314-radar-static-v1"
-          grep -Fq 'world-v2300-map.js?v=6239-globe-flash-fix-v1' "$DIR/app_js_v_6314-radar-static-v1"
-          grep -Fq 'window.__BP_COAST_FOAM_TIMER__=0' "$DIR/world-v2300-map_js_v_6239-globe-flash-fix-v1"
-          if grep -Fq 'waterTimer=setInterval' "$DIR/world-v2300-map_js_v_6239-globe-flash-fix-v1"; then
+          grep -Fq 'world-v2300-map.js?v=6240-satellite-render-stability-v1' "$DIR/landing_js_v_6315-radar-restore-v2"
+          grep -Fq 'world-v2300-map.js?v=6240-satellite-render-stability-v1' "$DIR/app_js_v_6315-radar-restore-v2"
+          grep -Fq 'window.__BP_COAST_FOAM_TIMER__=0' "$DIR/world-v2300-map_js_v_6240-satellite-render-stability-v1"
+          if grep -Fq 'waterTimer=setInterval' "$DIR/world-v2300-map_js_v_6240-satellite-render-stability-v1"; then
             echo 'Periodic water paint loop is still live' >&2
             exit 1
           fi
-          cmp -s "$DIR/world-v2300-map_js_v_6239-globe-flash-fix-v1" "$DIR/app_world-v2300-map_js"
-          grep -Fq 'cadenceMs:0' "$DIR/landing_js_v_6314-radar-static-v1"
-          grep -Fq 'cadenceMs:0' "$DIR/app_js_v_6314-radar-static-v1"
-          if grep -Fq 'setInterval(state.nextFrame,5200)' "$DIR/landing_js_v_6314-radar-static-v1"; then
-            echo 'Welcome globe radar animation timer is still live' >&2
+          cmp -s "$DIR/world-v2300-map_js_v_6240-satellite-render-stability-v1" "$DIR/app_world-v2300-map_js"
+          grep -Fq 'cadenceMs:5200' "$DIR/landing_js_v_6315-radar-restore-v2"
+          grep -Fq 'cadenceMs:5200' "$DIR/app_js_v_6315-radar-restore-v2"
+          grep -Fq 'setInterval(state.nextFrame,5200)' "$DIR/landing_js_v_6315-radar-restore-v2"
+          grep -Fq 'radarAnimTimer=setInterval' "$DIR/app_js_v_6315-radar-restore-v2"
+          if grep -Fq "map.on('render',()=>keepSatelliteRasterLayersVisible('render'))" "$DIR/world-v2300-map_js_v_6240-satellite-render-stability-v1"; then
+            echo 'Satellite visibility guard still runs on every render' >&2
             exit 1
           fi
-          if grep -Fq '},5200);' "$DIR/app_js_v_6314-radar-static-v1"; then
-            echo 'Signed-in radar animation timer is still live' >&2
-            exit 1
-          fi
-          echo 'RADAR_STATIC_FIX_LIVE_ROOT_AND_APP'
+          echo 'RADAR_RESTORED_SATELLITE_GUARD_LIVE_ROOT_AND_APP'
