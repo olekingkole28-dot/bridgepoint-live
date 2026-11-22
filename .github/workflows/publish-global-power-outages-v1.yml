@@ -1,0 +1,237 @@
+# Publish only the global power-outage layer over the latest successful BridgePoint production snapshot.
+name: Publish BridgePoint Global Power Outages v1
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-global-power-outages-v1.yml'
+      - 'rebuild-v5000/bridgepoint-power-outages-v1.js'
+      - 'rebuild-v5000/index.html'
+      - 'rebuild-v5000/app-index.html'
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-v5000-global-power-outages-v1
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Wait for a same-commit full-site build
+        shell: bash
+        env:
+          GH_TOKEN: "${{ github.token }}"
+        run: |
+          set -euo pipefail
+          sleep 8
+          RUN_ID="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$GITHUB_SHA&per_page=100" --jq '.workflow_runs[] | select(.path == ".github/workflows/deploy-intelligence-rebuild-v5000.yml") | .id' | head -n 1 || true)"
+          if [ -z "$RUN_ID" ]; then
+            echo "No same-commit full-site build is registered; using the latest successful production snapshot."
+            exit 0
+          fi
+          echo "Waiting for full-site build run $RUN_ID."
+          while true; do
+            STATUS="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" --jq '.status')"
+            CONCLUSION="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" --jq '.conclusion // ""')"
+            if [ "$STATUS" = "completed" ]; then
+              echo "FULL_SITE_BUILD_FINISHED run=$RUN_ID conclusion=$CONCLUSION"
+              exit 0
+            fi
+            sleep 15
+          done
+
+      - name: Resolve the latest successful prior production snapshot
+        id: baseline
+        shell: bash
+        env:
+          GH_TOKEN: "${{ github.token }}"
+        run: |
+          set -euo pipefail
+          RUNS="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?branch=main&per_page=100" --jq '.workflow_runs[] | [.id,.head_sha,(.conclusion // "")] | @tsv')"
+          BASELINE_ID=""
+          ARTIFACT=""
+          while IFS=$'\t' read -r run_id head_sha conclusion; do
+            [ -n "$run_id" ] || continue
+            [ "$head_sha" = "$GITHUB_SHA" ] && continue
+            if [ "$conclusion" != "success" ]; then
+              deployed="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/jobs?per_page=100" --jq '[.jobs[] | select(.name == "publish") | .steps[]? | select(.name == "Publish the preserved production snapshot" and .conclusion == "success")] | length' 2>/dev/null || echo 0)"
+              [ "${deployed:-0}" -gt 0 ] || continue
+            fi
+            candidate="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/artifacts" --jq '.artifacts[]? | select((.expired|not) and (.name | startswith("bridgepoint-v5000-"))) | .name' | head -n 1 || true)"
+            if [ -n "$candidate" ]; then
+              BASELINE_ID="$run_id"
+              ARTIFACT="$candidate"
+              break
+            fi
+          done <<< "$RUNS"
+          test -n "$BASELINE_ID"
+          test -n "$ARTIFACT"
+          echo "run_id=$BASELINE_ID" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=$ARTIFACT" >> "$GITHUB_OUTPUT"
+          echo "PRESERVED_DEPLOYED_BASELINE run=$BASELINE_ID artifact=$ARTIFACT"
+
+      - name: Download the production snapshot
+        uses: actions/download-artifact@v4
+        with:
+          name: "${{ steps.baseline.outputs.artifact_name }}"
+          run-id: "${{ steps.baseline.outputs.run_id }}"
+          repository: "${{ github.repository }}"
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+          path: "${{ runner.temp }}/bp-pages-baseline"
+
+      - name: Restore production and fingerprint non-target files
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCHIVE="$(find "$RUNNER_TEMP/bp-pages-baseline" -type f -name artifact.tar -print -quit)"
+          test -n "$ARCHIVE"
+          SITE="$RUNNER_TEMP/bp-site"
+          mkdir -p "$SITE"
+          tar -xf "$ARCHIVE" -C "$SITE"
+          test -s "$SITE/index.html"
+          test -s "$SITE/app/index.html"
+          python3 - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          site=Path(os.environ['RUNNER_TEMP'])/'bp-site'
+          targets={'index.html','app/index.html','bridgepoint-power-outages-v1.js'}
+          def digest(path):
+              h=hashlib.sha256()
+              with path.open('rb') as f:
+                  for chunk in iter(lambda:f.read(1024*1024),b''): h.update(chunk)
+              return h.hexdigest()
+          before={}
+          for path in sorted(site.rglob('*')):
+              if not path.is_file(): continue
+              rel=path.relative_to(site).as_posix()
+              if rel not in targets: before[rel]=digest(path)
+          tmp=Path(os.environ['RUNNER_TEMP'])
+          (tmp/'bp-power-outages-preservation-before.json').write_text(json.dumps(before,sort_keys=True))
+          print('NON_TARGET_PRODUCTION_FILES_FINGERPRINTED',len(before))
+          PY
+
+      - name: Overlay the live power-outage layer and its loaders
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/bp-site"
+          mkdir -p "$SITE/app"
+          cp rebuild-v5000/bridgepoint-power-outages-v1.js "$SITE/bridgepoint-power-outages-v1.js"
+          python3 - <<'PY'
+          import re,os
+          from pathlib import Path
+          site=Path(os.environ['RUNNER_TEMP'])/'bp-site'
+          tag='<script type="application/x-bridgepoint-deferred" data-bp-deferred-src="/bridgepoint-power-outages-v1.js?v=6525-global-power-outages-v1" data-bp-deferred-kind="classic"></script>'
+          priority="  'bridgepoint-power-outages-v1.js',\n"
+          view_priority="  'bridgepoint-view-v5917.js',\n"
+          pattern=re.compile(r'<script type="application/x-bridgepoint-deferred" data-bp-deferred-src="/bridgepoint-power-outages-v1\\.js[^"]*" data-bp-deferred-kind="classic"></script>',re.I)
+          view_pattern=re.compile(r'<script type="application/x-bridgepoint-deferred" data-bp-deferred-src="/bridgepoint-view-v5917\\.js[^"]*" data-bp-deferred-kind="classic"></script>',re.I)
+          for rel in ('index.html','app/index.html'):
+              path=site/rel
+              html=path.read_text(encoding='utf-8')
+              html=pattern.sub('',html)
+              match=view_pattern.search(html)
+              if not match: raise SystemExit(rel+' is missing the BridgePoint command dock loader')
+              html=html[:match.end()]+'\n'+tag+html[match.end():]
+              if priority not in html:
+                  if html.count(view_priority)!=1: raise SystemExit(rel+' is missing exactly one command dock priority entry')
+                  html=html.replace(view_priority,view_priority+priority,1)
+              if html.count(tag)!=1 or html.count(priority)!=1:
+                  raise SystemExit(rel+' outage module loader is missing or duplicated')
+              path.write_text(html,encoding='utf-8')
+          for rel in ('rebuild-v5000/index.html','rebuild-v5000/app-index.html'):
+              html=Path(rel).read_text(encoding='utf-8')
+              if tag not in html or priority not in html:
+                  raise SystemExit(rel+' source loader or priority entry is missing')
+          print('POWER_OUTAGES_ROOT_AND_APP_LOADERS_PASS')
+          PY
+          node --check rebuild-v5000/bridgepoint-power-outages-v1.js
+
+      - name: Verify no non-target production files changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          site=Path(os.environ['RUNNER_TEMP'])/'bp-site'
+          tmp=Path(os.environ['RUNNER_TEMP'])
+          before=json.loads((tmp/'bp-power-outages-preservation-before.json').read_text())
+          targets={'index.html','app/index.html','bridgepoint-power-outages-v1.js'}
+          def digest(path):
+              h=hashlib.sha256()
+              with path.open('rb') as f:
+                  for chunk in iter(lambda:f.read(1024*1024),b''): h.update(chunk)
+              return h.hexdigest()
+          after={}
+          for path in sorted(site.rglob('*')):
+              if not path.is_file(): continue
+              rel=path.relative_to(site).as_posix()
+              if rel not in targets: after[rel]=digest(path)
+          if before != after:
+              raise SystemExit('UNRELATED_PRODUCTION_FILE_CHANGE '+json.dumps({
+                'missing':sorted(set(before)-set(after))[:20],
+                'added':sorted(set(after)-set(before))[:20],
+                'changed':sorted(k for k in before.keys() & after.keys() if before[k]!=after[k])[:20]}))
+          print('NON_TARGET_PRODUCTION_FILES_BYTE_FOR_BYTE_PRESERVED',len(before))
+          PY
+
+      - uses: actions/configure-pages@v5
+
+      - name: Upload the preserved production snapshot with power outages
+        uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: "${{ runner.temp }}/bp-site"
+          include-hidden-files: true
+
+      - name: Publish the preserved production snapshot
+        id: deployment
+        env:
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+        run: node scripts/deploy-pages-extended.mjs
+
+      - name: Verify the outage layer is live on root and app
+        shell: bash
+        run: |
+          set -euo pipefail
+          ORIGIN='https://bridgepointintelligence.online'
+          DIR="$RUNNER_TEMP/bp-power-outages-live"
+          mkdir -p "$DIR"
+          TAG='bridgepoint-power-outages-v1.js?v=6525-global-power-outages-v1'
+          for attempt in $(seq 1 18); do
+            nonce="$GITHUB_SHA-power-outages-$attempt"
+            curl --max-time 30 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/?verify=$nonce" -o "$DIR/root.html" || true
+            curl --max-time 30 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/app/?verify=$nonce" -o "$DIR/app.html" || true
+            if grep -Fq "$TAG" "$DIR/root.html" && grep -Fq "$TAG" "$DIR/app.html"; then
+              echo "LIVE_ROOT_AND_APP_LOADERS_READY attempt=$attempt"
+              break
+            fi
+            if [ "$attempt" -eq 18 ]; then
+              echo 'Power outage loader did not become live on both routes' >&2
+              exit 1
+            fi
+            sleep 5
+          done
+          curl --retry 5 --retry-all-errors --retry-delay 2 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/bridgepoint-power-outages-v1.js?v=6525-global-power-outages-v1&verify=$GITHUB_SHA" -o "$DIR/power.js"
+          grep -Fq 'bp-global-outage-counties-v1' "$DIR/power.js"
+          grep -Fq 'https://ornl.opendatasoft.com/api/explore/v2.1/catalog/datasets/odin-real-time-outages-county/records' "$DIR/power.js"
+          grep -Fq 'https://powercut.io/api/now.json' "$DIR/power.js"
+          grep -Fq 'Coverage follows participating public reporting feeds' "$DIR/power.js"
+          echo 'GLOBAL_POWER_OUTAGE_LAYER_LIVE_ROOT_AND_APP'
+
