@@ -154,7 +154,7 @@ jobs:
           import hashlib,json,os
           from pathlib import Path
           site=Path(os.environ['RUNNER_TEMP'])/'bp-site'
-          targets={'index.html','app/index.html','bridgepoint-power-outages-v1.js'}
+          targets={'index.html','app/index.html','bridgepoint-power-outages-v1.js','bp-power-outages-seed-v1.json'}
           def digest(path):
               h=hashlib.sha256()
               with path.open('rb') as f:
@@ -170,6 +170,169 @@ jobs:
           print('NON_TARGET_PRODUCTION_FILES_FINGERPRINTED',len(before))
           PY
 
+      - name: Build instant outage markers from live feeds
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import concurrent.futures, datetime, json, os, time
+          from pathlib import Path
+          from urllib.parse import urlencode
+          from urllib.request import Request, urlopen
+
+          root='https://ornl.opendatasoft.com/api/explore/v2.1/catalog/datasets/odin-real-time-outages-county/records'
+          powercut='https://powercut.io/api/now.json'
+          select='cause,communitydescriptor,metersaffected,reportedstarttime,statuskind,estimatedrestorationtime,causekind,incident_cause,name,utility_id,county,state,geom,geo_point_2d,centroid'
+          headers={'Accept':'application/json','User-Agent':'BridgePoint-PowerOutages/1.0'}
+          def fetch_json(url):
+              error=None
+              for attempt in range(3):
+                  try:
+                      with urlopen(Request(url,headers=headers),timeout=30) as response:
+                          return json.loads(response.read().decode('utf-8'))
+                  except Exception as exc:
+                      error=exc
+                      if attempt<2: time.sleep(attempt+1)
+              raise error
+
+          def geometry_of(row):
+              value=row.get('geom')
+              if isinstance(value,str):
+                  try: value=json.loads(value)
+                  except Exception: return None
+              if isinstance(value,dict) and value.get('type')=='Feature': return value.get('geometry')
+              if isinstance(value,dict) and isinstance(value.get('geometry'),dict): return value['geometry']
+              return value if isinstance(value,dict) else None
+
+          def point_of(row,geometry):
+              for value in (row.get('geo_point_2d'),row.get('centroid')):
+                  if isinstance(value,dict):
+                      lon=value.get('lon',value.get('longitude'))
+                      lat=value.get('lat',value.get('latitude'))
+                      if lon is not None and lat is not None: return [float(lon),float(lat)]
+                      value=value.get('coordinates')
+                  if isinstance(value,list) and len(value)>=2:
+                      try: return [float(value[0]),float(value[1])]
+                      except (TypeError,ValueError): pass
+              pairs=[]
+              def visit(value):
+                  if not isinstance(value,list): return
+                  if len(value)>=2 and not isinstance(value[0],(list,dict)):
+                      try: pairs.append((float(value[0]),float(value[1])));return
+                      except (TypeError,ValueError): pass
+                  for child in value: visit(child)
+              if geometry: visit(geometry.get('coordinates'))
+              if not pairs: return None
+              return [(min(p[0] for p in pairs)+max(p[0] for p in pairs))/2,
+                      (min(p[1] for p in pairs)+max(p[1] for p in pairs))/2]
+
+          params={'limit':'100','offset':'0','select':select}
+          first=fetch_json(root+'?'+urlencode(params))
+          total=min(int(first.get('total_count') or len(first.get('results') or [])),1500)
+          offsets=list(range(100,total,100))
+          rows=list(first.get('results') or [])
+          failures=[]
+          def fetch_page(offset):
+              query=urlencode({'limit':'100','offset':str(offset),'select':select})
+              return offset,fetch_json(root+'?'+query)
+          with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
+              futures=[pool.submit(fetch_page,offset) for offset in offsets]
+              for future in concurrent.futures.as_completed(futures):
+                  try:
+                      _,page=future.result()
+                      rows.extend(page.get('results') or [])
+                  except Exception as exc:
+                      failures.append(str(exc))
+          if not rows: raise SystemExit('ODIN returned no outage rows; preserving current deployment.')
+          now=datetime.datetime.now(datetime.timezone.utc).isoformat()
+          grouped={}
+          for row in rows:
+              try: affected=max(0,int(float(row.get('metersaffected') or 0)))
+              except (TypeError,ValueError): affected=0
+              geometry=geometry_of(row)
+              point=point_of(row,geometry)
+              if affected<=0 or not point: continue
+              fips=str(row.get('communitydescriptor') or '').strip()
+              key=fips or str(row.get('state') or '')+':'+str(row.get('county') or '')
+              group=grouped.get(key)
+              cause=str(row.get('incident_cause') or row.get('cause') or row.get('causekind') or '').strip()
+              utility=str(row.get('name') or row.get('utility_id') or '').strip()
+              start=str(row.get('reportedstarttime') or '').strip()
+              etr=''
+              raw_etr=row.get('estimatedrestorationtime')
+              try:
+                  parsed=json.loads(raw_etr) if isinstance(raw_etr,str) else raw_etr
+                  if isinstance(parsed,dict): etr=str(parsed.get('ert') or parsed.get('estimatedRestorationTime') or parsed.get('time') or '')
+              except Exception: pass
+              if group:
+                  group['customers']+=affected
+                  group['events']+=1
+                  if cause and cause not in group['causes']: group['causes'].append(cause)
+                  if utility and utility not in group['utilities']: group['utilities'].append(utility)
+                  if start and (not group['start'] or start<group['start']): group['start']=start
+                  if etr and not group['etr']: group['etr']=etr
+              else:
+                  grouped[key]={'key':key,'fips':fips,'county':str(row.get('county') or 'Unknown county'),
+                      'state':str(row.get('state') or 'United States'),'customers':affected,'events':1,
+                      'causes':[cause] if cause else [],'utilities':[utility] if utility else [],
+                      'start':start,'etr':etr,'point':point,'status':str(row.get('statuskind') or 'Reported')}
+
+          features=[]
+          for group in grouped.values():
+              amount=group['customers']
+              level='major' if amount>=10000 else ('moderate' if amount>=1000 else 'minor')
+              props={'eventId':'us:'+group['key'],'title':group['county']+', '+group['state'],'kind':'county',
+                  'severity':level,'customers':amount,'events':group['events'],'county':group['county'],
+                  'state':group['state'],'fips':group['fips'],'causes':'; '.join(group['causes']),
+                  'utilities':'; '.join(group['utilities']),'start':group['start'],'etr':group['etr'],
+                  'status':group['status'],'source':'Oak Ridge National Laboratory · U.S. DOE ODIN',
+                  'sourceUrl':'https://ornl.opendatasoft.com/explore/assets/odin-real-time-outages-county/',
+                  'license':'OpenEnergyDataPortal public dataset; credit Oak Ridge National Laboratory and U.S. Census Bureau',
+                  'checked':now}
+              features.append({'type':'Feature','id':props['eventId'],'geometry':{'type':'Point','coordinates':group['point']},'properties':props})
+
+          def allowed_license(value):
+              text=str(value or '').strip().lower()
+              return ('cc by 4.0' in text or text=='nged open data licence' or
+                  text=='northern powergrid open data licence v1.0' or
+                  'open government data license, version 1.0' in text)
+          international=[]
+          try:
+              body=fetch_json(powercut)
+              sources={source.get('id'):source for source in body.get('sources',[])}
+              for report in body.get('outages',[]):
+                  if report.get('kind')!='unplanned': continue
+                  source=sources.get(report.get('source'))
+                  if not source or not source.get('enabled') or not source.get('ok') or source.get('stale') or not allowed_license(source.get('licence')): continue
+                  try: lon,lat=float(report.get('lon')),float(report.get('lat'))
+                  except (TypeError,ValueError): continue
+                  if abs(lon)>180 or abs(lat)>90: continue
+                  customers=int(float(report.get('customers') or 0))
+                  level='major' if customers>=10000 else ('moderate' if customers>=1000 else 'minor')
+                  event_id='world:'+str(report.get('id') or str(report.get('source'))+':'+str(lat)+':'+str(lon))
+                  props={'eventId':event_id,'title':str(report.get('place') or report.get('area') or source.get('name') or 'Reported outage'),
+                      'kind':'point','severity':level,'customers':customers,'events':1,
+                      'country':str(report.get('country') or source.get('country') or ''),
+                      'area':str(report.get('area') or ''),'cause':str(report.get('cause') or ''),
+                      'start':str(report.get('start') or ''),'etr':str(report.get('etr') or ''),
+                      'status':'Unplanned · operator reported','utility':str(report.get('operator') or source.get('operators') or source.get('name') or ''),
+                      'source':str(source.get('name') or source.get('operators') or 'Grid operator'),
+                      'sourceUrl':str(source.get('homepage') or ''),'sourceLicense':str(source.get('licence') or ''),
+                      'checked':str(source.get('fetchedAt') or body.get('generatedAt') or now)}
+                  international.append({'type':'Feature','id':event_id,'geometry':{'type':'Point','coordinates':[lon,lat]},'properties':props})
+          except Exception as exc:
+              print('INTERNATIONAL_SEED_UNAVAILABLE',str(exc)[:300])
+
+          output={'countyMarkers':{'type':'FeatureCollection','features':features},
+              'globalPoints':{'type':'FeatureCollection','features':international},
+              'generatedAt':now,'counts':{'counties':len(features),'reports':len(international)}}
+          if not features: raise SystemExit('ODIN data had no mappable outage markers; preserving current deployment.')
+          site=Path(os.environ['RUNNER_TEMP'])/'bp-site'
+          (site/'bp-power-outages-seed-v1.json').write_text(json.dumps(output,separators=(',',':')),encoding='utf-8')
+          print('INSTANT_OUTAGE_MARKER_SEED_READY',len(features),'U.S. markers',len(international),'international markers')
+          if failures: print('ODIN_PARTIAL_PAGE_WARNINGS',len(failures),str(failures[:3]))
+          PY
+
       - name: Overlay the live power-outage layer and its loaders
         shell: bash
         run: |
@@ -181,7 +344,7 @@ jobs:
           import re,os
           from pathlib import Path
           site=Path(os.environ['RUNNER_TEMP'])/'bp-site'
-          tag='<script type="application/x-bridgepoint-deferred" data-bp-deferred-src="/bridgepoint-power-outages-v1.js?v=6525-global-power-outages-v1" data-bp-deferred-kind="classic"></script>'
+          tag='<script type="application/x-bridgepoint-deferred" data-bp-deferred-src="/bridgepoint-power-outages-v1.js?v=6526-global-power-outages-v2" data-bp-deferred-kind="classic"></script>'
           priority="  'bridgepoint-power-outages-v1.js',\n"
           view_priority="  'bridgepoint-view-v5917.js',\n"
           pattern=re.compile(r'<script type="application/x-bridgepoint-deferred" data-bp-deferred-src="/bridgepoint-power-outages-v1\.js[^"]*" data-bp-deferred-kind="classic"></script>',re.I)
@@ -201,7 +364,7 @@ jobs:
               path.write_text(html,encoding='utf-8')
           for rel in ('rebuild-v5000/index.html','rebuild-v5000/app-index.html'):
               html=Path(rel).read_text(encoding='utf-8')
-              if tag not in html or priority not in html:
+              if not re.search(r'data-bp-deferred-src="/bridgepoint-power-outages-v1\\.js[^"]*"',html) or priority not in html:
                   raise SystemExit(rel+' source loader or priority entry is missing')
           print('POWER_OUTAGES_ROOT_AND_APP_LOADERS_PASS')
           PY
@@ -217,7 +380,7 @@ jobs:
           site=Path(os.environ['RUNNER_TEMP'])/'bp-site'
           tmp=Path(os.environ['RUNNER_TEMP'])
           before=json.loads((tmp/'bp-power-outages-preservation-before.json').read_text())
-          targets={'index.html','app/index.html','bridgepoint-power-outages-v1.js'}
+          targets={'index.html','app/index.html','bridgepoint-power-outages-v1.js','bp-power-outages-seed-v1.json'}
           def digest(path):
               h=hashlib.sha256()
               with path.open('rb') as f:
@@ -258,7 +421,7 @@ jobs:
           ORIGIN='https://bridgepointintelligence.online'
           DIR="$RUNNER_TEMP/bp-power-outages-live"
           mkdir -p "$DIR"
-          TAG='bridgepoint-power-outages-v1.js?v=6525-global-power-outages-v1'
+          TAG='bridgepoint-power-outages-v1.js?v=6526-global-power-outages-v2'
           for attempt in $(seq 1 18); do
             nonce="$GITHUB_SHA-power-outages-$attempt"
             curl --max-time 30 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/?verify=$nonce" -o "$DIR/root.html" || true
@@ -273,7 +436,9 @@ jobs:
             fi
             sleep 5
           done
-          curl --retry 5 --retry-all-errors --retry-delay 2 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/bridgepoint-power-outages-v1.js?v=6525-global-power-outages-v1&verify=$GITHUB_SHA" -o "$DIR/power.js"
+          curl --retry 5 --retry-all-errors --retry-delay 2 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/bridgepoint-power-outages-v1.js?v=6526-global-power-outages-v2&verify=$GITHUB_SHA" -o "$DIR/power.js"
+          curl --retry 5 --retry-all-errors --retry-delay 2 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/bp-power-outages-seed-v1.json?v=6526-global-power-outages-v2&verify=$GITHUB_SHA" -o "$DIR/seed.json"
+          python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d["countyMarkers"]["features"]; print("LIVE_INSTANT_OUTAGE_MARKERS",len(d["countyMarkers"]["features"]))' "$DIR/seed.json"
           grep -Fq 'bp-global-outage-counties-v1' "$DIR/power.js"
           grep -Fq 'https://ornl.opendatasoft.com/api/explore/v2.1/catalog/datasets/odin-real-time-outages-county/records' "$DIR/power.js"
           grep -Fq 'https://powercut.io/api/now.json' "$DIR/power.js"
