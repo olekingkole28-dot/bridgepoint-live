@@ -1,7 +1,7 @@
 (function(){
  'use strict';
 
- const VERSION='6525-global-power-outages-v1';
+ const VERSION='6526-global-power-outages-v2';
  const BUTTON_ACTION='poweroutages';
  const BUTTON_ID='bp-power-outages-v1-button';
  const STATUS_ID='bp-power-outages-v1-status';
@@ -12,9 +12,12 @@
  const ORNL_URL='https://ornl.opendatasoft.com/explore/assets/odin-real-time-outages-county/';
  const POWERCUT_API='https://powercut.io/api/now.json';
  const POWERCUT_URL='https://powercut.io/';
+ const SEED_URL='/bp-power-outages-seed-v1.json?v=6526-global-power-outages-v2';
+ const SEED_CACHE_KEY='bp-power-outages-seed-v2';
  const ORNL_SELECT='cause,communitydescriptor,metersaffected,reportedstarttime,statuskind,estimatedrestorationtime,causekind,incident_cause,name,utility_id,county,state,geom,geo_point_2d,centroid';
  const IDS={
   countiesSource:'bp-global-outage-counties-v1',
+  countyMarkersSource:'bp-global-outage-county-markers-v2',
   pointsSource:'bp-global-outage-points-v1',
   areaFill:'bp-global-outage-area-fill-v1',
   areaLine:'bp-global-outage-area-line-v1',
@@ -23,9 +26,59 @@
  };
  let map=null,enabled=false,busy=false,lastData=null,lastRefresh=0,refreshTimer=0,mapWaitTimer=0,refreshTimeout=0,observer=null,scanQueued=false,mapWaitStartedAt=0;
  let metaLastModified='',activeController=null;
+ let seedData=readSeedCache(),seedPromise=null;
  const numFmt=new Intl.NumberFormat();
  const dateFmt=new Intl.DateTimeFormat(undefined,{dateStyle:'medium',timeStyle:'short'});
  const empty=()=>({type:'FeatureCollection',features:[]});
+
+ function normalizeSeed(value){
+  if(!value||typeof value!=='object')return null;
+  const countyMarkers=value.countyMarkers,globalPoints=value.globalPoints;
+  if(!Array.isArray(countyMarkers?.features)||!Array.isArray(globalPoints?.features))return null;
+  return {countyMarkers,globalPoints,generatedAt:String(value.generatedAt||''),counts:{
+   counties:Number(value.counts?.counties)||countyMarkers.features.length,
+   reports:Number(value.counts?.reports)||globalPoints.features.length
+  }};
+ }
+ function readSeedCache(){
+  try{
+   const cached=JSON.parse(localStorage.getItem(SEED_CACHE_KEY)||'null');
+   if(!cached||Date.now()-Number(cached.cachedAt)>14*24*60*60*1000)return null;
+   return normalizeSeed(cached.seed);
+  }catch(_){return null}
+ }
+ function storeSeedCache(value){
+  const normalized=normalizeSeed(value);if(!normalized)return;
+  seedData=normalized;
+  try{localStorage.setItem(SEED_CACHE_KEY,JSON.stringify({cachedAt:Date.now(),seed:normalized}))}catch(_){}
+ }
+ function primeSeed(){
+  if(seedPromise)return seedPromise;
+  seedPromise=fetch(SEED_URL,{mode:'cors',credentials:'omit',cache:'no-store',headers:{Accept:'application/json'}})
+   .then(response=>{if(!response.ok)throw new Error('HTTP '+response.status);return response.json()})
+   .then(value=>{
+    const normalized=normalizeSeed(value);if(!normalized)throw new Error('Invalid outage marker snapshot');
+    storeSeedCache(normalized);
+    if(enabled&&map?.isStyleLoaded?.()){ensureMapLayers();applySeedSnapshot()}
+    return normalized;
+   })
+   .catch(error=>{console.warn('Power outage instant marker snapshot unavailable',error);return seedData})
+   .finally(()=>{seedPromise=null});
+  return seedPromise;
+ }
+ function applySeedSnapshot(){
+  if(!map||!seedData)return false;
+  const countySource=map.getSource(IDS.countyMarkersSource),reportSource=map.getSource(IDS.pointsSource);
+  if(!countySource||!reportSource)return false;
+  try{countySource.setData(seedData.countyMarkers);reportSource.setData(seedData.globalPoints)}catch(_){return false}
+  if(!lastRefresh){
+   const counties=empty();
+   lastData={counties,points:seedData.globalPoints,countyPoints:seedData.countyMarkers,globalPoints:seedData.globalPoints,
+    reports:seedData.globalPoints,counts:seedData.counts,generatedAt:seedData.generatedAt,errors:[]};
+  }
+  statusText('showing instant outage markers · checking live feeds');
+  return true;
+ }
 
  function safeDate(value){
   if(!value)return '';
@@ -148,16 +201,19 @@
     'line-width':['interpolate',['linear'],['zoom'],0,0.55,3,1.1,8,1.7,13,2.25],
     'line-opacity':['interpolate',['linear'],['zoom'],0,0.74,5,0.9,13,0.98]}
   });
+  if(!map.getSource(IDS.countyMarkersSource)){
+   map.addSource(IDS.countyMarkersSource,{type:'geojson',data:empty(),maxzoom:10,tolerance:0.3,buffer:32});
+  }
   addLayer({
-   id:IDS.areaPoints,type:'symbol',source:IDS.countiesSource,
+   id:IDS.areaPoints,type:'symbol',source:IDS.countyMarkersSource,filter:['==',['get','kind'],'county'],
    layout:{'icon-image':['concat','bp-outage-icon-',['get','severity'],'-v1'],
-    'icon-size':['interpolate',['linear'],['zoom'],0,0.22,3,0.34,7,0.55,12,0.76],
+    'icon-size':['interpolate',['linear'],['zoom'],0,0.42,2,0.58,5,0.76,9,0.92,13,1.08],
     'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-anchor':'center'}
   });
   addLayer({
-   id:IDS.reportPoints,type:'symbol',source:IDS.pointsSource,
+   id:IDS.reportPoints,type:'symbol',source:IDS.pointsSource,filter:['==',['get','kind'],'point'],
    layout:{'icon-image':['concat','bp-outage-icon-',['get','severity'],'-v1'],
-    'icon-size':['interpolate',['linear'],['zoom'],0,0.32,3,0.48,7,0.7,12,0.9],
+    'icon-size':['interpolate',['linear'],['zoom'],0,0.48,2,0.62,5,0.82,9,1,13,1.14],
     'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-anchor':'center'}
   });
   for(const id of [IDS.areaFill,IDS.areaLine,IDS.areaPoints,IDS.reportPoints]){
@@ -190,12 +246,12 @@
   if(!el)return;
   el.hidden=!enabled;
   if(!enabled)return;
-  const counties=lastData?.counties?.features?.length||0;
-  const reports=lastData?.reports?.features?.length||0;
-  const checked=lastRefresh?safeDate(lastRefresh):'waiting for first feed';
+  const counties=lastData?.counts?.counties||lastData?.counties?.features?.length||0;
+  const reports=lastData?.counts?.reports||lastData?.reports?.features?.length||0;
+  const checked=safeDate(lastData?.generatedAt||lastRefresh)||'waiting for first feed';
   let label=state||'live report layer';
-  if(busy&&!lastData)label='loading public feeds';
-  else if(busy&&lastData)label='checking for updates';
+  if(busy&&!lastData)label='loading public feeds · markers will appear from the instant snapshot';
+  else if(busy&&lastData)label='checking live feeds · instant markers are visible';
   else if(lastData?.errors?.length)label='partial feed · retrying';
   else if(lastData)label='live reports';
   el.replaceChildren(makeElement('span','', 'POWER OUTAGES · '+label+' · '+numFmt.format(counties)+' U.S. county areas · '+numFmt.format(reports)+' international point reports · checked '+checked));
@@ -219,6 +275,16 @@
    if(p&&Number.isFinite(Number(p.lon))&&Number.isFinite(Number(p.lat)))return [Number(p.lon),Number(p.lat)];
    if(p?.coordinates&&Array.isArray(p.coordinates))return p.coordinates.slice(0,2).map(Number);
   }
+  const geometry=getGeometry(row),bounds=[Infinity,Infinity,-Infinity,-Infinity];
+  const visit=value=>{
+   if(!Array.isArray(value))return;
+   if(value.length>=2&&!Array.isArray(value[0])&&Number.isFinite(Number(value[0]))&&Number.isFinite(Number(value[1]))){
+    const lon=Number(value[0]),lat=Number(value[1]);bounds[0]=Math.min(bounds[0],lon);bounds[1]=Math.min(bounds[1],lat);bounds[2]=Math.max(bounds[2],lon);bounds[3]=Math.max(bounds[3],lat);return;
+   }
+   for(const child of value)visit(child);
+  };
+  if(geometry?.coordinates)visit(geometry.coordinates);
+  if(Number.isFinite(bounds[0]))return [(bounds[0]+bounds[2])/2,(bounds[1]+bounds[3])/2];
   return null;
  }
  async function fetchOdin(signal){
@@ -315,7 +381,7 @@
   }catch(_){}
  }
  function makeFeatures(countyRows,pointRows){
-  return {counties:{type:'FeatureCollection',features:countyRows.features},points:{type:'FeatureCollection',features:[...countyRows.pointFeatures,...pointRows.features]}};
+  return {counties:{type:'FeatureCollection',features:countyRows.features},countyMarkers:{type:'FeatureCollection',features:countyRows.pointFeatures},points:{type:'FeatureCollection',features:pointRows.features}};
  }
  async function refresh(){
   if(!enabled||busy||document.hidden)return;
@@ -335,23 +401,25 @@
   if(!globalRows)errors.push('international feed');
   if(countyRows||globalRows){
    const counties=countyRows?.features||lastData?.counties?.features||[];
-   const points=[...(countyRows?.pointFeatures||lastData?.countyPoints?.features||[]),...(globalRows?.features||lastData?.globalPoints?.features||[])];
    const globalPoints=globalRows?.features||lastData?.globalPoints?.features||[];
    const countyPoints=countyRows?.pointFeatures||lastData?.countyPoints?.features||[];
    const merged={counties:{type:'FeatureCollection',features:counties},
-    points:{type:'FeatureCollection',features:points},
+    points:{type:'FeatureCollection',features:globalPoints},
     countyPoints:{type:'FeatureCollection',features:countyPoints},
     globalPoints:{type:'FeatureCollection',features:globalPoints},
+    reports:{type:'FeatureCollection',features:globalPoints},
     counts:{counties:counties.length,reports:globalPoints.length},
     generatedAt:globalRows?.generatedAt||lastData?.generatedAt||'',
     errors};
    lastData=merged;
    try{
-    const countySource=map?.getSource(IDS.countiesSource),pointSource=map?.getSource(IDS.pointsSource);
+    const countySource=map?.getSource(IDS.countiesSource),markerSource=map?.getSource(IDS.countyMarkersSource),pointSource=map?.getSource(IDS.pointsSource);
     if(countySource)countySource.setData(merged.counties);
-    if(pointSource)pointSource.setData(merged.points);
+    if(markerSource)markerSource.setData(merged.countyPoints);
+    if(pointSource)pointSource.setData(merged.globalPoints);
    }catch(e){console.warn('Power outage map update failed',e)}
    lastRefresh=Date.now();
+   storeSeedCache({countyMarkers:merged.countyPoints,globalPoints:merged.globalPoints,generatedAt:new Date(lastRefresh).toISOString(),counts:merged.counts});
    window.__BP_POWER_OUTAGES_V1_STATE__={version:VERSION,enabled,updatedAt:lastRefresh,countyAreas:counties.length,internationalReports:globalPoints.length,errors};
   }else errors.push('all feeds');
   busy=false;
@@ -382,10 +450,11 @@
    return false;
   }
   mapWaitStartedAt=0;
+  if(seedData)applySeedSnapshot();
   if(lastData){
-   try{map.getSource(IDS.countiesSource)?.setData(lastData.counties);map.getSource(IDS.pointsSource)?.setData(lastData.points)}catch(_){}
+   try{map.getSource(IDS.countiesSource)?.setData(lastData.counties);map.getSource(IDS.countyMarkersSource)?.setData(lastData.countyPoints);map.getSource(IDS.pointsSource)?.setData(lastData.globalPoints)}catch(_){}
   }
-  await refresh();
+  void refresh();
   if(!refreshTimer)refreshTimer=setInterval(()=>refresh(),POLL_MS);
   statusText();
   return true;
@@ -481,4 +550,5 @@
  observeButtonGrid();
  window.__BP_POWER_OUTAGES_V1__={version:VERSION,toggle,refresh:()=>refresh(),getState:()=>({version:VERSION,enabled,lastRefresh,counts:lastData?.counts||null})};
  window.__BP_POWER_OUTAGES_V1_STATE__={version:VERSION,enabled:false,updatedAt:Date.now(),coverage:'US county polygons plus explicitly reusable international operator feeds'};
+ void primeSeed();
 })();
