@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import * as THREE from '/vendor/three.module.js?v=169-local';
 
 /* BridgePoint Near-Earth Object Watch v1. */
 (() => {
@@ -149,7 +149,6 @@ import * as THREE from 'three';
       if (event.key === 'Escape') closePanel();
     });
     document.body.appendChild(root);
-    init3DScene();
   }
 
   function openPanel() {

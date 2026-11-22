@@ -72,6 +72,7 @@ jobs:
           tar -xf "$ARCHIVE" -C "$SITE"
           test -s "$SITE/index.html"
           test -s "$SITE/app/index.html"
+          test -s "$SITE/vendor/three.module.js"
           python3 - <<'PY'
           import hashlib,json,os
           from pathlib import Path
@@ -93,8 +94,8 @@ jobs:
               path=site/rel
               html=path.read_text(encoding='utf-8')
               if '</body>' not in html.lower(): raise SystemExit(rel+' has no closing body tag')
-              if 'id="bpPublicScansImportMapV1"' not in html or 'three@0.180.0/build/three.module.js' not in html:
-                  raise SystemExit(rel+' lacks the preserved Three.js import map required by the 3D overlay')
+              if 'id="bpPublicScansImportMapV1"' not in html:
+                  raise SystemExit(rel+' is missing the preserved Three.js import map for the existing 3D scan viewer')
               (tmp/(rel.replace('/','-')+'.before.html')).write_text(html,encoding='utf-8')
           print('UNRELATED_PRODUCTION_FILES_FINGERPRINTED',len(before))
           PY
