@@ -151,7 +151,7 @@ jobs:
           import re,os
           from pathlib import Path
           site=Path(os.environ['RUNNER_TEMP'])/'bp-site'
-          script='<script type="module" src="/bridgepoint-neo-watch-v1.js?v=1.5.3"></script>'
+          script='<script type="module" src="/bridgepoint-neo-watch-v1.js?v=1.5.4"></script>'
           module=Path('rebuild-v5000/bridgepoint-neo-watch-v1.js').read_text(encoding='utf-8')
           welcome=Path('patches/near-earth-object-physical-v1/bridgepoint-welcome-space-v6260.js').read_text(encoding='utf-8')
           app=Path('patches/earth-star-occlusion-v6294/bridgepoint-app-space-explorer-v1.js').read_text(encoding='utf-8')
@@ -169,10 +169,10 @@ jobs:
               if count not in (0,expected): raise SystemExit(name+' expected either no remaining cloud starts or '+str(expected)+' original starts; found '+str(count))
               if cloud_call.search(after): raise SystemExit(name+' still auto-starts procedural 3D clouds')
               path.write_text(after,encoding='utf-8')
-          required=('#bpv-dock-actions','bpv-v2-tool-button','function openPanel()','function ensureSharedSpace()','function buildSpaceObjects()','function rawRelativePositionAU','function displayPosition','new THREE.CatmullRomCurve3(pathPoints, true','full 3D nominal orbits','heliocentric ? objectHeliocentric','window.__BP_NEO_SIMULATION_TIME_V1__','setBearing?.(bearing)','DecompressionStream','MPC_FILE','Principal_desig','Other_desigs','SPACE OBJECT TRACKING','Earth centered · true orbital positions · planet models enlarged for visibility','data-neo-icons','data-neo-action="playpause"','NASA_FEED','nea_extended.json.gz','import * as THREE from')
+          required=('#bpv-dock-actions','bpv-v2-tool-button','function openPanel()','function ensureSharedSpace()','function buildSpaceObjects()','function rawRelativePositionAU','function displayPosition','new THREE.CatmullRomCurve3(pathPoints, true','full 3D nominal orbits','heliocentric ? objectHeliocentric','window.__BP_NEO_SIMULATION_TIME_V1__','setBearing?.(bearing)','DecompressionStream','MPC_FILE','Principal_desig','Other_desigs','SPACE OBJECT TRACKING','Earth centered · true orbital positions · planet models enlarged for visibility','const orbitPathGeometry = new THREE.BufferGeometry().setFromPoints(orbitCurve.getPoints(640))','const orbitGlow = new THREE.LineLoop(','selectedOrbitCoreColor','obj.orbitLine.material.color.copy','data-neo-icons','data-neo-action="playpause"','NASA_FEED','nea_extended.json.gz','import * as THREE from')
           if not all(token in module for token in required):
               raise SystemExit('Overlay is missing its NASA feed, shared-space orbit paths, or object controls')
-          if 'gold rods' in module.lower() or 'missRod' in module or 'approachCurve' in module or 'new THREE.WebGLRenderer' in module:
+          if 'gold rods' in module.lower() or 'missRod' in module or 'approachCurve' in module or 'new THREE.WebGLRenderer' in module or 'new THREE.TubeGeometry(orbitCurve' in module:
               raise SystemExit('Overlay must use long shared-space orbits without a separate, misleading Earth-impact scene')
           for token in ('getScene(){return scene}','getCamera(){return camera}','loadSolarCosmos(){return ensureSolarCosmos()}','focusSpaceOverview','focusHeliocentricOverview','setNearEarthOrbitMode','focusSpacePoint'):
               if token not in welcome: raise SystemExit('Welcome scene is missing shared-space camera access: '+token)
@@ -269,7 +269,7 @@ jobs:
                   s=re.sub(r'\?([\'"])',r'\1',s)
                   return s
               if normalize(prior)!=normalize(current): raise SystemExit(rel+' changed outside the NEO, shared-space and cloud-cache references')
-              if current.count('bridgepoint-neo-watch-v1.js?v=1.5.3')!=1: raise SystemExit(rel+' does not load exactly one new overlay')
+              if current.count('bridgepoint-neo-watch-v1.js?v=1.5.4')!=1: raise SystemExit(rel+' does not load exactly one new overlay')
               if 'bridgepoint-app-space-explorer-v1.js?v=v6311-earth-centered-visible-planets' not in current: raise SystemExit(rel+' does not load signed-in space persistence')
               if rel=='index.html' and 'bridgepoint-welcome-space-v6260.js?v=v6411-earth-centered-visible-planets' not in current: raise SystemExit('index.html does not load the updated shared-space renderer')
               if 'cloudsv=6511-no-procedural-3d-clouds' not in current: raise SystemExit(rel+' did not update the entrypoint cache key')
@@ -331,7 +331,7 @@ jobs:
           print('AUTOMATIC_PROCEDURAL_3D_CLOUD_STARTS_DISABLED')
           PY
           for route in root app; do
-            grep -Fq 'bridgepoint-neo-watch-v1.js?v=1.5.3' "$DIR/$route.html"
+            grep -Fq 'bridgepoint-neo-watch-v1.js?v=1.5.4' "$DIR/$route.html"
             grep -Fq 'bridgepoint-app-space-explorer-v1.js?v=v6311-earth-centered-visible-planets' "$DIR/$route.html"
             grep -Fq 'cloudsv=6511-no-procedural-3d-clouds' "$DIR/$route.html"
             grep -Fq 'id="bpPublicScansImportMapV1"' "$DIR/$route.html"
@@ -346,6 +346,9 @@ jobs:
           grep -Fq 'Disabled synthetic welcome weather atmosphere' "$DIR/welcome.js"
           grep -Fq 'SPACE OBJECT TRACKING' "$DIR/neo.js"
           grep -Fq 'full 3D nominal orbits' "$DIR/neo.js"
+          grep -Fq 'const orbitPathGeometry = new THREE.BufferGeometry().setFromPoints(orbitCurve.getPoints(640))' "$DIR/neo.js"
+          grep -Fq 'selectedOrbitCoreColor' "$DIR/neo.js"
+          grep -Fq 'obj.orbitLine.material.color.copy(obj.orbitBaseColor)' "$DIR/neo.js"
           grep -Fq 'const toGalactic = frame?.eclipticJ2000ToGalactic' "$DIR/neo.js"
           grep -Fq 'getScene(){return scene}' "$DIR/welcome.js"
           grep -Fq 'eclipticJ2000ToGalactic' "$DIR/gaia.js"

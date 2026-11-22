@@ -21,6 +21,8 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   const AU_TO_EARTH_RADII = AU_KM / EARTH_RADIUS_KM;
   const SIDEREAL_DAY_MS = 86164090.5;
   const SIM_MS_PER_REAL_MS = 3600;
+  const selectedOrbitCoreColor = new THREE.Color(0xf5ffff);
+  const selectedOrbitGlowColor = new THREE.Color(0x70efff);
   const state = {
     items: [], selectedId: '', checkedAt: 0, loading: false, open: false,
     simulationPaused: false, simulationTime: Date.now(), simulationLastAt: 0,
@@ -802,14 +804,16 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       }
       const orbitCurve = new THREE.CatmullRomCurve3(pathPoints, true, 'centripetal', 0.22);
       const color = orbitColor(item);
-      const orbitGlow = new THREE.Mesh(
-        new THREE.TubeGeometry(orbitCurve, 320, 0.050, 6, true),
-        new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.14, depthWrite: false, toneMapped: false })
+      const orbitBaseColor = new THREE.Color(color);
+      const orbitPathGeometry = new THREE.BufferGeometry().setFromPoints(orbitCurve.getPoints(640));
+      const orbitGlow = new THREE.LineLoop(
+        orbitPathGeometry,
+        new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.08, depthTest: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false })
       );
       orbitGlow.renderOrder = 1;
-      const orbitLine = new THREE.Mesh(
-        new THREE.TubeGeometry(orbitCurve, 320, 0.013, 5, true),
-        new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.82, depthWrite: false, toneMapped: false })
+      const orbitLine = new THREE.LineLoop(
+        orbitPathGeometry,
+        new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.36, depthTest: true, depthWrite: false, toneMapped: false })
       );
       orbitLine.renderOrder = 2;
       const tracer = new THREE.Mesh(
@@ -853,7 +857,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       icons?.appendChild(marker);
       scene3d.objects.set(item.id, {
         item, group, body, marker, physicalRadius, pos: new THREE.Vector3(),
-        orbitCurve, orbitGlow, orbitLine, tracer, arrow, periodDays,
+        orbitCurve, orbitGlow, orbitLine, orbitBaseColor, tracer, arrow, periodDays,
       });
     }
     state.unmatched = Math.max(0, state.items.length - plotted);
@@ -1049,8 +1053,11 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
         obj.arrow.position.copy(obj.pos);
         obj.arrow.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tangent);
       }
-      obj.orbitGlow.material.opacity = selected ? 0.30 : 0.14;
-      obj.orbitLine.material.opacity = selected ? 1.0 : 0.82;
+      obj.orbitGlow.material.color.copy(obj.orbitBaseColor).lerp(selectedOrbitGlowColor, selected ? 0.72 : 0);
+      obj.orbitLine.material.color.copy(obj.orbitBaseColor).lerp(selectedOrbitCoreColor, selected ? 0.84 : 0);
+      obj.orbitGlow.material.opacity = selected ? 0.92 : 0.045;
+      obj.orbitLine.material.opacity = selected ? 1.0 : 0.30;
+      obj.arrow.material.color.copy(selected ? selectedOrbitCoreColor : obj.orbitBaseColor);
     }
     if (scene3d.lastFocusedId !== state.selectedId) {
       scene3d.lastFocusedId = state.selectedId;
