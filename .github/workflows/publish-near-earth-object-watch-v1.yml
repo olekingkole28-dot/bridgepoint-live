@@ -228,6 +228,6 @@ jobs:
             grep -Fq 'bridgepoint-public-scans-v1.js' "$DIR/$route.html"
           done
           grep -Fq 'SPACE OBJECT TRACKING' "$DIR/neo.js"
-          grep -Fq 'nominal orbit track' "$DIR/neo.js"
+          grep -Fq 'nominal orbital elements' "$DIR/neo.js"
           test -s "$DIR/nea_extended.json.gz"
           echo 'NEAR_EARTH_OBJECT_SPACE_VIEW_AND_DAILY_ORBIT_CATALOGUE_LIVE'
